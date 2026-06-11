@@ -182,6 +182,29 @@ public sealed class InventoryStockItemEfListQuery : IInventoryStockItemListQuery
 
         if (pageRows.Count > 0)
         {
+            var vendorIds = pageRows
+                .Select(r => r.VendorId)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Select(id => id!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (vendorIds.Count > 0)
+            {
+                var venDict = await _db.Vendors.AsNoTracking()
+                    .Where(v => vendorIds.Contains(v.Id))
+                    .ToDictionaryAsync(v => v.Id, v => v, cancellationToken);
+                foreach (var row in pageRows)
+                {
+                    if (string.IsNullOrWhiteSpace(row.VendorId) ||
+                        !venDict.TryGetValue(row.VendorId.Trim(), out var ven))
+                        continue;
+                    if (!string.IsNullOrWhiteSpace(ven.EnglishOfficialName))
+                        row.VendorEnglishName = ven.EnglishOfficialName.Trim();
+                    if (!string.IsNullOrWhiteSpace(ven.Code))
+                        row.VendorCode = ven.Code.Trim();
+                }
+            }
+
             var stockItemIds = pageRows.Select(r => r.StockItemId).ToList();
             var ffByStockItemId = await (
                 from si in _db.StockItems.AsNoTracking()
@@ -213,6 +236,8 @@ public sealed class InventoryStockItemEfListQuery : IInventoryStockItemListQuery
             row.SellOrderItemCode = string.IsNullOrWhiteSpace(row.SellOrderItemCode) ? null : row.SellOrderItemCode.Trim();
             row.VendorId = string.IsNullOrWhiteSpace(row.VendorId) ? null : row.VendorId.Trim();
             row.VendorName = string.IsNullOrWhiteSpace(row.VendorName) ? null : row.VendorName.Trim();
+            row.VendorEnglishName = string.IsNullOrWhiteSpace(row.VendorEnglishName) ? null : row.VendorEnglishName.Trim();
+            row.VendorCode = string.IsNullOrWhiteSpace(row.VendorCode) ? null : row.VendorCode.Trim();
             row.CustomerId = string.IsNullOrWhiteSpace(row.CustomerId) ? null : row.CustomerId.Trim();
             row.CustomerName = string.IsNullOrWhiteSpace(row.CustomerName) ? null : row.CustomerName.Trim();
             row.CustomerPn = string.IsNullOrWhiteSpace(row.CustomerPn) ? null : row.CustomerPn.Trim();

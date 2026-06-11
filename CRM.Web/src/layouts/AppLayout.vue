@@ -461,8 +461,8 @@
               active-class="active"
             >{{ t('layout.menu.qualityCheck') }}</router-link>
             <router-link to="/inventory/stock-in" class="submenu-item" active-class="active">{{ t('layout.menu.stockIn') }}</router-link>
-            <router-link to="/inventory/stock-in/batch-records" class="submenu-item" active-class="active">{{
-              t('layout.menu.stockInBatchRecords')
+            <router-link to="/inventory/batch-reconciliation" class="submenu-item" active-class="active">{{
+              t('layout.menu.batchReconciliation')
             }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
@@ -494,8 +494,6 @@
             <router-link to="/inventory/list" class="submenu-item" active-class="active">{{ t('layout.menu.inventoryCenter') }}</router-link>
             <router-link to="/inventory/stock-items" class="submenu-item" active-class="active">{{ t('layout.menu.inventoryStockItems') }}</router-link>
             <router-link to="/inventory/check" class="submenu-item" active-class="active">{{ t('layout.menu.inventoryCheck') }}</router-link>
-            <router-link to="/inventory/transfers-customers" class="submenu-item" active-class="active">{{ t('layout.menu.stockTransfers') }}</router-link>
-            <router-link to="/inventory/transfers-manual" class="submenu-item" active-class="active">{{ t('layout.menu.manualStockTransfer') }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
 
@@ -1496,7 +1494,7 @@ const pageTitleMap: Record<string, string> = {
   '/inventory/warehouses': 'warehouseManage.title',
   '/inventory/stock-items': 'layout.menu.inventoryStockItems',
   '/inventory/stock-in': 'layout.menu.stockInManagement',
-  '/inventory/stock-in/batch-records': 'stockInBatchList.title',
+  '/inventory/batch-reconciliation': 'batchReconciliation.title',
   '/inventory/stock-out': 'layout.menu.stockOutManagement',
   '/inventory/stock-out/items': 'layout.menu.stockOutItems',
   '/inventory/stock-out-notifies': 'layout.menu.stockOutNotifies',

@@ -1253,6 +1253,7 @@ namespace CRM.API.Controllers
                         i.StockOutStatus,
                         i.ErrStatus,
                         i.DeliveryDate,
+                        i.DateCode,
                         i.Comment,
                         i.InnerComment,
                         i.CreateTime,

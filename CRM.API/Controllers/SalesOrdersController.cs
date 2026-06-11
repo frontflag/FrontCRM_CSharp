@@ -361,31 +361,82 @@ namespace CRM.API.Controllers
             }
             else
             {
-                var rawStockItems = await _db.StockItems.AsNoTracking()
+                var rawBound = await _db.StockItems.AsNoTracking()
                     .Where(s => s.SellOrderItemId != null && itemIds.Contains(s.SellOrderItemId!))
                     .OrderByDescending(s => s.CreateTime)
-                    .Select(s => new
+                    .Select(s => new SellOrderTabStockItemRow
                     {
-                        s.Id,
-                        s.StockItemCode,
-                        s.StockAggregateId,
-                        s.RegionType,
-                        s.PurchasePn,
-                        s.PurchaseBrand,
-                        s.StockOutStatus,
-                        s.QtyInbound,
-                        s.QtyStockOut,
-                        s.QtyRepertory,
-                        s.QtyRepertoryAvailable,
-                        s.SellOrderItemId,
-                        s.SellOrderItemCode,
-                        s.WarehouseId,
-                        s.StockInId,
-                        s.PurchaseOrderItemCode,
-                        s.BatchNo,
-                        s.LocationId
+                        Id = s.Id,
+                        StockItemCode = s.StockItemCode,
+                        StockAggregateId = s.StockAggregateId,
+                        RegionType = s.RegionType,
+                        StockType = s.StockType,
+                        PurchasePn = s.PurchasePn,
+                        PurchaseBrand = s.PurchaseBrand,
+                        StockOutStatus = s.StockOutStatus,
+                        QtyInbound = s.QtyInbound,
+                        QtyStockOut = s.QtyStockOut,
+                        QtyRepertory = s.QtyRepertory,
+                        QtyRepertoryAvailable = s.QtyRepertoryAvailable,
+                        SellOrderItemId = s.SellOrderItemId,
+                        SellOrderItemCode = s.SellOrderItemCode,
+                        WarehouseId = s.WarehouseId,
+                        StockInId = s.StockInId,
+                        PurchaseOrderItemCode = s.PurchaseOrderItemCode,
+                        BatchNo = s.BatchNo,
+                        LocationId = s.LocationId,
+                        CreateTime = s.CreateTime,
+                        IsStockingPoolMatch = false
                     })
                     .ToListAsync();
+
+                var pnBrandKeys = await BuildSellLinePnBrandKeysAsync(itemIds);
+                var boundIds = new HashSet<string>(
+                    rawBound.Select(x => x.Id.Trim()),
+                    StringComparer.OrdinalIgnoreCase);
+                var rawStocking = new List<SellOrderTabStockItemRow>();
+                if (pnBrandKeys.Count > 0)
+                {
+                    var stockingCandidates = await _db.StockItems.AsNoTracking()
+                        .Where(s => s.StockType == StockInventoryTypeCodes.Stocking)
+                        .OrderByDescending(s => s.CreateTime)
+                        .Select(s => new SellOrderTabStockItemRow
+                        {
+                            Id = s.Id,
+                            StockItemCode = s.StockItemCode,
+                            StockAggregateId = s.StockAggregateId,
+                            RegionType = s.RegionType,
+                            StockType = s.StockType,
+                            PurchasePn = s.PurchasePn,
+                            PurchaseBrand = s.PurchaseBrand,
+                            StockOutStatus = s.StockOutStatus,
+                            QtyInbound = s.QtyInbound,
+                            QtyStockOut = s.QtyStockOut,
+                            QtyRepertory = s.QtyRepertory,
+                            QtyRepertoryAvailable = s.QtyRepertoryAvailable,
+                            SellOrderItemId = s.SellOrderItemId,
+                            SellOrderItemCode = s.SellOrderItemCode,
+                            WarehouseId = s.WarehouseId,
+                            StockInId = s.StockInId,
+                            PurchaseOrderItemCode = s.PurchaseOrderItemCode,
+                            BatchNo = s.BatchNo,
+                            LocationId = s.LocationId,
+                            CreateTime = s.CreateTime,
+                            IsStockingPoolMatch = true
+                        })
+                        .ToListAsync();
+                    foreach (var s in stockingCandidates)
+                    {
+                        if (boundIds.Contains(s.Id.Trim()))
+                            continue;
+                        var key = NormPnBrandKey(s.PurchasePn, s.PurchaseBrand);
+                        if (string.IsNullOrEmpty(key) || !pnBrandKeys.Contains(key))
+                            continue;
+                        rawStocking.Add(s);
+                    }
+                }
+
+                var rawStockItems = rawBound.Concat(rawStocking).OrderByDescending(s => s.CreateTime).ToList();
 
                 var stockInIds = rawStockItems
                     .Select(x => x.StockInId)
@@ -393,10 +444,24 @@ namespace CRM.API.Controllers
                     .Select(x => x!.Trim())
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
-                var stockInMap = await _db.StockIns.AsNoTracking()
-                    .Where(x => stockInIds.Contains(x.Id))
-                    .Select(x => new { x.Id, x.StockInCode, x.StockInDate })
-                    .ToDictionaryAsync(x => x.Id, StringComparer.OrdinalIgnoreCase);
+                Dictionary<string, (string? StockInCode, DateTime? StockInDate)> stockInMap;
+                if (stockInIds.Count == 0)
+                {
+                    stockInMap = new Dictionary<string, (string? StockInCode, DateTime? StockInDate)>(StringComparer.OrdinalIgnoreCase);
+                }
+                else
+                {
+                    var stockInRowsForMap = await _db.StockIns.AsNoTracking()
+                        .Where(x => stockInIds.Contains(x.Id))
+                        .Select(x => new { x.Id, x.StockInCode, x.StockInDate })
+                        .ToListAsync();
+                    stockInMap = stockInRowsForMap.ToDictionary(
+                        x => x.Id,
+                        x => (
+                            string.IsNullOrWhiteSpace(x.StockInCode) ? null : x.StockInCode.Trim(),
+                            (DateTime?)x.StockInDate),
+                        StringComparer.OrdinalIgnoreCase);
+                }
 
                 var warehouseIds = rawStockItems
                     .Select(x => x.WarehouseId)
@@ -410,46 +475,7 @@ namespace CRM.API.Controllers
                     .ToDictionaryAsync(x => x.Id, x => x.WarehouseName, StringComparer.OrdinalIgnoreCase);
 
                 stockItemRows = rawStockItems
-                    .Select(s =>
-                    {
-                        var stockInId = s.StockInId?.Trim();
-                        var stockInCode = default(string);
-                        DateTime? stockInDate = null;
-                        if (!string.IsNullOrWhiteSpace(stockInId) && stockInMap.TryGetValue(stockInId, out var sin))
-                        {
-                            stockInCode = string.IsNullOrWhiteSpace(sin.StockInCode) ? null : sin.StockInCode.Trim();
-                            stockInDate = sin.StockInDate;
-                        }
-
-                        var warehouseId = s.WarehouseId?.Trim();
-                        var warehouseName = default(string);
-                        if (!string.IsNullOrWhiteSpace(warehouseId) && warehouseNameMap.TryGetValue(warehouseId, out var wn))
-                            warehouseName = string.IsNullOrWhiteSpace(wn) ? null : wn.Trim();
-
-                        return (object)new
-                        {
-                            s.Id,
-                            s.StockItemCode,
-                            s.StockAggregateId,
-                            stockInCode,
-                            stockInDate,
-                            warehouseName,
-                            s.RegionType,
-                            s.PurchasePn,
-                            s.PurchaseBrand,
-                            stockOutStatus = s.StockOutStatus,
-                            qtyInbound = s.QtyInbound,
-                            qtyStockOut = s.QtyStockOut,
-                            s.QtyRepertory,
-                            s.QtyRepertoryAvailable,
-                            s.SellOrderItemId,
-                            s.SellOrderItemCode,
-                            s.WarehouseId,
-                            s.PurchaseOrderItemCode,
-                            s.BatchNo,
-                            s.LocationId
-                        };
-                    })
+                    .Select(s => (object)MapSellOrderTabStockItemRow(s, stockInMap, warehouseNameMap))
                     .ToList();
             }
 
@@ -1274,6 +1300,106 @@ namespace CRM.API.Controllers
                     };
                 }).ToList()
             };
+        }
+
+        private async Task<HashSet<string>> BuildSellLinePnBrandKeysAsync(IReadOnlyList<string> sellOrderItemIds)
+        {
+            var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (sellOrderItemIds.Count == 0)
+                return keys;
+
+            var lines = await _db.SellOrderItems.AsNoTracking()
+                .Where(i => sellOrderItemIds.Contains(i.Id))
+                .Select(i => new { i.PN, i.Brand })
+                .ToListAsync();
+            foreach (var line in lines)
+            {
+                var key = NormPnBrandKey(line.PN, line.Brand);
+                if (!string.IsNullOrEmpty(key))
+                    keys.Add(key);
+            }
+
+            return keys;
+        }
+
+        private static string NormPnBrandKey(string? pn, string? brand)
+        {
+            var p = string.IsNullOrWhiteSpace(pn) ? string.Empty : pn.Trim();
+            var b = string.IsNullOrWhiteSpace(brand) ? string.Empty : brand.Trim();
+            if (string.IsNullOrEmpty(p) || string.IsNullOrEmpty(b))
+                return string.Empty;
+            return $"{p.ToUpperInvariant()}\0{b.ToUpperInvariant()}";
+        }
+
+        private static object MapSellOrderTabStockItemRow(
+            SellOrderTabStockItemRow s,
+            IReadOnlyDictionary<string, (string? StockInCode, DateTime? StockInDate)> stockInMap,
+            IReadOnlyDictionary<string, string?> warehouseNameMap)
+        {
+            var stockInId = s.StockInId?.Trim();
+            string? stockInCode = null;
+            DateTime? stockInDate = null;
+            if (!string.IsNullOrWhiteSpace(stockInId) && stockInMap.TryGetValue(stockInId, out var sin))
+            {
+                stockInCode = sin.StockInCode;
+                stockInDate = sin.StockInDate;
+            }
+
+            var warehouseId = s.WarehouseId?.Trim();
+            string? warehouseName = null;
+            if (!string.IsNullOrWhiteSpace(warehouseId) && warehouseNameMap.TryGetValue(warehouseId, out var wn))
+                warehouseName = string.IsNullOrWhiteSpace(wn) ? null : wn.Trim();
+
+            return new
+            {
+                s.Id,
+                s.StockItemCode,
+                s.StockAggregateId,
+                stockInCode,
+                stockInDate,
+                warehouseName,
+                s.RegionType,
+                stockType = s.StockType,
+                isStockingPoolMatch = s.IsStockingPoolMatch,
+                s.PurchasePn,
+                s.PurchaseBrand,
+                stockOutStatus = s.StockOutStatus,
+                qtyInbound = s.QtyInbound,
+                qtyStockOut = s.QtyStockOut,
+                s.QtyRepertory,
+                s.QtyRepertoryAvailable,
+                s.SellOrderItemId,
+                s.SellOrderItemCode,
+                s.WarehouseId,
+                s.PurchaseOrderItemCode,
+                s.BatchNo,
+                s.LocationId
+            };
+        }
+
+        private sealed class SellOrderTabStockItemRow
+        {
+            public string Id { get; set; } = string.Empty;
+            public string? StockItemCode { get; set; }
+            public string StockAggregateId { get; set; } = string.Empty;
+            public short RegionType { get; set; }
+            public short StockType { get; set; }
+            public string? PurchasePn { get; set; }
+            public string? PurchaseBrand { get; set; }
+            public short StockOutStatus { get; set; }
+            public int QtyInbound { get; set; }
+            public int QtyStockOut { get; set; }
+            public int QtyRepertory { get; set; }
+            public int QtyRepertoryAvailable { get; set; }
+            public string? SellOrderItemId { get; set; }
+            public string? SellOrderItemCode { get; set; }
+            public string WarehouseId { get; set; } = string.Empty;
+            public string? StockInId { get; set; }
+            public string? PurchaseOrderItemCode { get; set; }
+            public string? BatchNo { get; set; }
+            public string? LocationId { get; set; }
+            public DateTime CreateTime { get; set; }
+            public bool IsStockingPoolMatch { get; set; }
         }
     }
 

@@ -6,7 +6,7 @@ using CRM.Core.Models;
 namespace CRM.Core.Models.Inventory
 {
     /// <summary>
-    /// 入库批次记录：关联入库单/明细，记录 LOT、SN、产地与数量等批次维度信息。
+    /// 入库批次：关联入库明细，系统生成全局唯一编号 <c>PC-xxxxxxxx</c>，供出库批次核销关联。
     /// </summary>
     [Table("stock_in_batch")]
     public class StockInBatch : BaseGuidEntity, ISoftDeletable
@@ -18,34 +18,41 @@ namespace CRM.Core.Models.Inventory
 
         [Required]
         [StringLength(36)]
-        [Column("stock_in_id")]
-        public string StockInId { get; set; } = string.Empty;
-
-        [Required]
-        [StringLength(36)]
         [Column("stock_in_item_id")]
         public string StockInItemId { get; set; } = string.Empty;
 
-        [StringLength(64)]
-        [Column("stock_in_item_code")]
-        public string? StockInItemCode { get; set; }
+        /// <summary>批次全局唯一编号，格式 PC- + 8 位十进制流水。</summary>
+        [Required]
+        [StringLength(20)]
+        [Column("global_batch_no")]
+        public string GlobalBatchNo { get; set; } = string.Empty;
 
-        /// <summary>型号</summary>
-        [StringLength(200)]
-        [Column("material_model")]
-        public string? MaterialModel { get; set; }
+        /// <summary>批次维度，见字典 <c>InventoryBatchDimension</c>。</summary>
+        [StringLength(32)]
+        [Column("batch_dimension")]
+        public string? BatchDimension { get; set; }
 
-        /// <summary>DC</summary>
+        /// <summary>批次记录单位，见字典 <c>InventoryBatchRecordUnit</c>。</summary>
+        [StringLength(32)]
+        [Column("batch_unit")]
+        public string? BatchUnit { get; set; }
+
+        /// <summary>单位编号（如 SN 号、盘号等）。</summary>
+        [StringLength(128)]
+        [Column("unit_no")]
+        public string? UnitNo { get; set; }
+
+        [Column("batch_qty")]
+        public int BatchQty { get; set; }
+
         [StringLength(64)]
         [Column("dc")]
         public string? Dc { get; set; }
 
-        /// <summary>封装产地</summary>
         [StringLength(200)]
         [Column("package_origin")]
         public string? PackageOrigin { get; set; }
 
-        /// <summary>晶圆产地</summary>
         [StringLength(200)]
         [Column("wafer_origin")]
         public string? WaferOrigin { get; set; }
@@ -54,32 +61,17 @@ namespace CRM.Core.Models.Inventory
         [Column("lot")]
         public string? Lot { get; set; }
 
-        [Column("lot_qty_in")]
-        public int LotQtyIn { get; set; }
-
-        [Column("lot_qty_out")]
-        public int LotQtyOut { get; set; }
-
-        /// <summary>产地</summary>
-        [StringLength(200)]
-        [Column("origin")]
-        public string? Origin { get; set; }
-
-        /// <summary>SN 号</summary>
         [StringLength(200)]
         [Column("serial_number")]
         public string? SerialNumber { get; set; }
 
-        [Column("sn_qty_in")]
-        public int SnQtyIn { get; set; }
-
-        [Column("sn_qty_out")]
-        public int SnQtyOut { get; set; }
-
-        /// <summary>固件版本号</summary>
         [StringLength(128)]
         [Column("firmware_version")]
         public string? FirmwareVersion { get; set; }
+
+        [StringLength(128)]
+        [Column("part_code")]
+        public string? PartCode { get; set; }
 
         [StringLength(1000)]
         [Column("remark")]

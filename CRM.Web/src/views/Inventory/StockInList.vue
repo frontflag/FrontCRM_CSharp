@@ -114,13 +114,14 @@
 
     <CrmDataTable
       ref="dataTableRef"
-      column-layout-key="stock-in-list-main-v2"
+      column-layout-key="stock-in-list-main-v3"
       :columns="stockInTableColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
       :data="list"
       v-loading="loading"
       @row-dblclick="handleView"
+      @header-dragend="onStockInTableHeaderDragEnd"
     >
       <template #col-stockInCode="{ row }">
         <span class="stock-in-code-cell">
@@ -148,8 +149,24 @@
         <span class="text-secondary">{{ formatDate(row.stockInDate) }}</span>
       </template>
       <template #col-totalQuantity="{ row }">{{ formatNum(row.totalQuantity) }}</template>
-      <template #col-vendorName="{ row }">
-        <span>{{ maskPurchaseSensitiveFields ? '—' : (row.vendorName?.trim() ? row.vendorName : '—') }}</span>
+      <template #col-hasBatchEntered="{ row }">
+        <span :class="row.hasBatchEntered ? 'batch-flag batch-flag--yes' : 'batch-flag batch-flag--no'">
+          {{ row.hasBatchEntered ? t('stockInList.hasBatchEntered.yes') : t('stockInList.hasBatchEntered.no') }}
+        </span>
+      </template>
+      <template #col-vendor-header>
+        <VendorExtendColumnHeader
+          :active-field="vendorExtendActiveField"
+          @set-active-field="setVendorExtendActiveField"
+        />
+      </template>
+      <template #col-vendor="{ row }">
+        <VendorExtendCell
+          :row="row"
+          :active-field="vendorExtendActiveField"
+          :masked="maskPurchaseSensitiveFields"
+          :empty-text="t('quoteList.na')"
+        />
       </template>
       <template #col-totalAmount="{ row }">
         <span v-if="maskPurchaseSensitiveFields">—</span>
@@ -260,9 +277,29 @@ import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiv
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { useAuthStore } from '@/stores/auth'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
+import VendorExtendColumnHeader from '@/components/list/VendorExtendColumnHeader.vue'
+import VendorExtendCell from '@/components/list/VendorExtendCell.vue'
+import { useVendorExtendColumn, isVendorExtendTableColumn } from '@/composables/useVendorExtendColumn'
 import { StockInTypeCode, STOCK_IN_TYPE_FILTER_VALUES } from '@/constants/stockInType'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
+const {
+  expanded: vendorExtendExpanded,
+  activeField: vendorExtendActiveField,
+  colWidth: vendorExtendColWidth,
+  colMinWidth: vendorExtendColMinWidth,
+  setActiveField: setVendorExtendActiveField,
+  applyOuterWidthFromTable: applyVendorExtendOuterWidth
+} = useVendorExtendColumn()
+
+function onStockInTableHeaderDragEnd(
+  newWidth: number,
+  _oldWidth: number,
+  column: { property?: string; label?: string }
+) {
+  if (!isVendorExtendTableColumn(column)) return
+  applyVendorExtendOuterWidth(newWidth)
+}
 const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 
 const router = useRouter()
@@ -290,7 +327,10 @@ function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
 
-const stockInTableColumns = computed<CrmTableColumnDef[]>(() => [
+const stockInTableColumns = computed<CrmTableColumnDef[]>(() => {
+  void vendorExtendExpanded.value
+  void vendorExtendColWidth.value
+  return [
   { key: 'status', label: t('stockInList.columns.status'), prop: 'status', width: 110, align: 'center' },
   {
     key: 'stockInType',
@@ -302,9 +342,19 @@ const stockInTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'materialModel', label: t('stockInList.columns.materialModel'), minWidth: 140, showOverflowTooltip: true },
   { key: 'materialBrand', label: t('stockInList.columns.brand'), minWidth: 120, showOverflowTooltip: true },
   { key: 'warehouseName', label: t('stockInList.columns.warehouse'), minWidth: 160, showOverflowTooltip: true },
-  { key: 'vendorName', label: t('stockInList.columns.vendor'), prop: 'vendorName', minWidth: 160, showOverflowTooltip: true },
+  {
+    key: 'vendor',
+    label: t('common.vendorExtendCol.columnTitle'),
+    prop: 'vendor',
+    minWidth: vendorExtendColMinWidth.value,
+    width: vendorExtendColWidth.value,
+    showOverflowTooltip: true,
+    className: 'vendor-extend-col',
+    labelClassName: 'vendor-extend-col'
+  },
   { key: 'stockInDate', label: t('stockInList.columns.stockInDate'), prop: 'stockInDate', width: 160 },
   { key: 'totalQuantity', label: t('stockInList.columns.totalQuantity'), prop: 'totalQuantity', width: 110, align: 'right' },
+  { key: 'hasBatchEntered', label: t('stockInList.columns.hasBatchEntered'), prop: 'hasBatchEntered', width: 120, align: 'center' },
   { key: 'totalAmount', label: t('stockInList.columns.totalAmount'), prop: 'totalAmount', width: 130, align: 'right' },
   { key: 'remark', label: t('stockInList.columns.remark'), prop: 'remark', minWidth: 160, showOverflowTooltip: true },
   { key: 'stockInCode', label: t('stockInList.columns.stockInCode'), prop: 'stockInCode', width: 160, minWidth: 160, showOverflowTooltip: true },
@@ -333,7 +383,7 @@ const stockInTableColumns = computed<CrmTableColumnDef[]>(() => [
     labelClassName: 'op-col',
   resizable: false
   }
-])
+]})
 
 const warehouseNameOf = (warehouseId?: string) => {
   if (!warehouseId) return t('quoteList.na')
@@ -802,6 +852,12 @@ const handleForceDeleteRow = async (row: StockInListItemDto) => {
   &.status-1 { background: rgba(255,193,7,0.15); color: #ffc107; }
   &.status-2 { background: rgba(70,191,145,0.18); color: #46BF91; }
   &.status-3 { background: rgba(201,87,69,0.18); color: #C95745; }
+}
+
+.batch-flag {
+  font-size: 12px;
+  &--yes { color: #46BF91; }
+  &--no { color: $text-muted; }
 }
 .action-btn {
   background: transparent;

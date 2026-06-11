@@ -4242,6 +4242,11 @@ namespace CRM.Infrastructure.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("delivery_date");
 
+                    b.Property<string>("DateCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("date_code");
+
                     b.Property<short>("ErrStatus")
                         .HasColumnType("smallint")
                         .HasColumnName("err_status");

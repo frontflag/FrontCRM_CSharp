@@ -2,7 +2,6 @@ using CRM.API.Models.DTOs;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
 using Microsoft.AspNetCore.Mvc;
-using System.Threading;
 
 namespace CRM.API.Controllers
 {
@@ -24,60 +23,35 @@ namespace CRM.API.Controllers
             _logger = logger;
         }
 
-        /// <summary>按 LOT / SN 累加核销出库数量；校验失败不写库。</summary>
-        [HttpPost("write-off")]
-        public async Task<ActionResult<ApiResponse<StockInBatchWriteOffResultDto>>> WriteOff(
-            [FromBody] StockInBatchWriteOffRequest request,
-            CancellationToken cancellationToken)
-        {
-            try
-            {
-                if (request == null)
-                    return BadRequest(ApiResponse<StockInBatchWriteOffResultDto>.Fail("请求体不能为空", 400));
-                var result = await _service.ApplyWriteOffAsync(request, cancellationToken);
-                var msg = result.ValidationPassed
-                    ? (result.UpdatedRowCount > 0 ? $"核销成功，已更新 {result.UpdatedRowCount} 条记录" : "无有效核销数据")
-                    : "校验未通过，未更新任何记录";
-                return Ok(ApiResponse<StockInBatchWriteOffResultDto>.Ok(result, msg));
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(ApiResponse<StockInBatchWriteOffResultDto>.Fail(ex.Message, 400));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "入库批次核销失败");
-                return StatusCode(500, ApiResponse<StockInBatchWriteOffResultDto>.Fail($"入库批次核销失败: {ex.Message}", 500));
-            }
-        }
-
-        /// <summary>Excel 解析后的批次行批量写入 <c>stock_in_batch</c>。</summary>
+        /// <summary>Excel 解析后的批次行批量写入 <c>stock_in_batch</c>，每行自动生成全局编号。</summary>
         [HttpPost("import")]
-        public async Task<ActionResult<ApiResponse<int>>> Import(
+        public async Task<ActionResult<ApiResponse<StockInBatchImportResultDto>>> Import(
             [FromBody] StockInBatchImportRequest request,
             CancellationToken cancellationToken)
         {
             try
             {
                 if (request == null)
-                    return BadRequest(ApiResponse<int>.Fail("请求体不能为空", 400));
-                var count = await _service.ImportAsync(request, cancellationToken);
-                return Ok(ApiResponse<int>.Ok(count, $"成功导入 {count} 条批次记录"));
+                    return BadRequest(ApiResponse<StockInBatchImportResultDto>.Fail("请求体不能为空", 400));
+                var result = await _service.ImportAsync(request, cancellationToken);
+                return Ok(ApiResponse<StockInBatchImportResultDto>.Ok(
+                    result,
+                    $"成功导入 {result.ImportedCount} 条批次记录"));
             }
             catch (InvalidOperationException ex)
             {
-                return BadRequest(ApiResponse<int>.Fail(ex.Message, 400));
+                return BadRequest(ApiResponse<StockInBatchImportResultDto>.Fail(ex.Message, 400));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "导入入库批次失败");
-                return StatusCode(500, ApiResponse<int>.Fail($"导入入库批次失败: {ex.Message}", 500));
+                return StatusCode(500, ApiResponse<StockInBatchImportResultDto>.Fail($"导入入库批次失败: {ex.Message}", 500));
             }
         }
 
         [HttpGet]
         public async Task<IActionResult> List(
-            [FromQuery] string? stockInItemCode,
+            [FromQuery] string? globalBatchNo,
             [FromQuery] string? lot,
             [FromQuery] string? serialNumber,
             [FromQuery] int page = 1,
@@ -87,7 +61,7 @@ namespace CRM.API.Controllers
             try
             {
                 var result = await _batchListQuery.GetPagedAsync(
-                    stockInItemCode,
+                    globalBatchNo,
                     lot,
                     serialNumber,
                     page,
@@ -145,12 +119,31 @@ namespace CRM.API.Controllers
             }
             catch (InvalidOperationException ex)
             {
-                return NotFound(ApiResponse<StockInBatch>.Fail(ex.Message, 404));
+                return BadRequest(ApiResponse<StockInBatch>.Fail(ex.Message, 400));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "更新批次记录失败");
                 return StatusCode(500, ApiResponse<StockInBatch>.Fail($"更新批次记录失败: {ex.Message}", 500));
+            }
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<ActionResult<ApiResponse<object>>> SoftDelete(string id, CancellationToken cancellationToken)
+        {
+            try
+            {
+                await _service.SoftDeleteAsync(id, cancellationToken);
+                return Ok(ApiResponse<object>.Ok(null!, "已删除批次记录"));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "删除批次记录失败");
+                return StatusCode(500, ApiResponse<object>.Fail($"删除批次记录失败: {ex.Message}", 500));
             }
         }
     }

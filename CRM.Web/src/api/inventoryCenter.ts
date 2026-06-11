@@ -87,6 +87,8 @@ export interface StockItemRow {
   salesPriceUsd?: number | null
   vendorId?: string | null
   vendorName?: string | null
+  vendorEnglishName?: string | null
+  vendorCode?: string | null
   customerId?: string | null
   customerName?: string | null
   /** 地域 10=境内 20=境外（stock_item.RegionType） */

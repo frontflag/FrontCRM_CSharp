@@ -258,7 +258,7 @@
               </template>
             </el-table-column>
             <el-table-column
-              v-if="!isCreateMode"
+              v-if="!isCreateMode && detailStatus === 2"
               label="操作"
               :width="stockInReportOpColWidth"
               :min-width="stockInReportOpColMinWidth"
@@ -283,7 +283,7 @@
               <template #default="{ row }">
                 <div @click.stop @dblclick.stop>
                   <div v-if="stockInReportOpColExpanded" class="action-btns">
-                    <button type="button" class="action-btn action-btn--primary" @click.stop="openBatchImport(row)">录入批次</button>
+                    <button type="button" class="action-btn action-btn--primary" @click.stop="openBatchImport(row)">入库批次</button>
                   </div>
                   <el-dropdown v-else trigger="click" placement="bottom-end">
                     <div class="op-more-dropdown-trigger">
@@ -292,7 +292,7 @@
                     <template #dropdown>
                       <el-dropdown-menu>
                         <el-dropdown-item @click.stop="openBatchImport(row)">
-                          <span class="op-more-item op-more-item--primary">录入批次</span>
+                          <span class="op-more-item op-more-item--primary">入库批次</span>
                         </el-dropdown-item>
                       </el-dropdown-menu>
                     </template>
@@ -925,6 +925,10 @@ const goBack = () => {
 }
 
 function openBatchImport(row: StockInItemDto) {
+  if (detailStatus.value !== 2) {
+    ElMessage.error('仅已过账的入库单可录入批次')
+    return
+  }
   const id = (row.itemId ?? '').trim()
   if (!id) {
     ElMessage.error('该明细缺少主键，无法录入批次')

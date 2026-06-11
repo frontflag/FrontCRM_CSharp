@@ -349,6 +349,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { quoteApi } from '@/api/quote'
 import { useQuoteListBasketStore } from '@/stores/quoteListBasket'
 import { listAmountCurrencyDockClass, listAmountCurrencyIso } from '@/utils/moneyFormat'
+import { copyTextToClipboard } from '@/utils/clipboard'
 import { assertQuotesSameCustomer } from '@/utils/quoteSalesOrderPrefill'
 import { formatDisplayDate, formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
@@ -653,12 +654,21 @@ function buildQuoteSummaryCopyText(row: Record<string, unknown>): string {
 
 async function handleCopyQuoteSummary(row: Record<string, unknown>) {
   const text = buildQuoteSummaryCopyText(row)
-  try {
-    await navigator.clipboard.writeText(text)
+  const ok = copyTextToClipboard(text)
+  if (ok) {
     ElMessage.success(t('quoteList.actions.copySuccess'))
-  } catch {
-    ElMessage.error(t('quoteList.actions.copyFailed'))
+    return
   }
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text)
+      ElMessage.success(t('quoteList.actions.copySuccess'))
+      return
+    } catch {
+      /* fall through */
+    }
+  }
+  ElMessage.error(t('quoteList.actions.copyFailed'))
 }
 
 // 状态处理

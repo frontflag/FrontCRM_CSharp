@@ -117,7 +117,7 @@
     <!-- 结构与 StockOutNotifyList / StockInList 一致：无 row-key、无额外包裹 -->
     <CrmDataTable
       ref="dataTableRef"
-      column-layout-key="stock-out-list-main-v3"
+      column-layout-key="stock-out-list-main-v4"
       :columns="stockOutTableColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -125,6 +125,7 @@
       row-key="id"
       v-loading="loading"
       @row-dblclick="onRowDblclick"
+      @header-dragend="onStockOutTableHeaderDragEnd"
     >
       <template #col-status="{ row }">
         <span :class="['status-badge', `status-${row.status}`]">{{ statusLabel(row.status) }}</span>
@@ -157,7 +158,20 @@
       </template>
       <template #col-createTime="{ row }">{{ formatDate((row as any).createTime || (row as any).createdAt) }}</template>
       <template #col-createUser="{ row }">{{ row.createUserName || (row as any).createdBy || t('quoteList.na') }}</template>
-      <template #col-customerName="{ row }">{{ maskSaleSensitiveFields ? '—' : (row.customerName || t('quoteList.na')) }}</template>
+      <template #col-customer-header>
+        <CustomerExtendColumnHeader
+          :active-field="customerExtendActiveField"
+          @set-active-field="setCustomerExtendActiveField"
+        />
+      </template>
+      <template #col-customer="{ row }">
+        <CustomerExtendCell
+          :row="row"
+          :active-field="customerExtendActiveField"
+          :masked="maskSaleSensitiveFields"
+          :empty-text="t('quoteList.na')"
+        />
+      </template>
       <template #col-salesUserName="{ row }">{{ maskSaleSensitiveFields ? '—' : (row.salesUserName || t('quoteList.na')) }}</template>
       <template #col-shipmentMethod="{ row }">{{ shipmentMethodDisplay(row.shipmentMethod) }}</template>
       <template #col-expressCompany="{ row }">{{ expressCompanyDisplay(row.expressCompany) }}</template>
@@ -388,9 +402,29 @@ import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOn
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { useAuthStore } from '@/stores/auth'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
+import CustomerExtendColumnHeader from '@/components/list/CustomerExtendColumnHeader.vue'
+import CustomerExtendCell from '@/components/list/CustomerExtendCell.vue'
+import { useCustomerExtendColumn, isCustomerExtendTableColumn } from '@/composables/useCustomerExtendColumn'
 import { StockOutTypeCode, STOCK_OUT_TYPE_FILTER_VALUES } from '@/constants/stockOutType'
 
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
+const {
+  expanded: customerExtendExpanded,
+  activeField: customerExtendActiveField,
+  colWidth: customerExtendColWidth,
+  colMinWidth: customerExtendColMinWidth,
+  setActiveField: setCustomerExtendActiveField,
+  applyOuterWidthFromTable: applyCustomerExtendOuterWidth
+} = useCustomerExtendColumn()
+
+function onStockOutTableHeaderDragEnd(
+  newWidth: number,
+  _oldWidth: number,
+  column: { property?: string; label?: string }
+) {
+  if (!isCustomerExtendTableColumn(column)) return
+  applyCustomerExtendOuterWidth(newWidth)
+}
 
 const route = useRoute()
 const router = useRouter()
@@ -488,7 +522,10 @@ function resetEditDialog() {
   editSubmitting.value = false
 }
 
-const stockOutTableColumns = computed<CrmTableColumnDef[]>(() => [
+const stockOutTableColumns = computed<CrmTableColumnDef[]>(() => {
+  void customerExtendExpanded.value
+  void customerExtendColWidth.value
+  return [
   { key: 'stockOutCode', label: t('stockOutList.columns.stockOutCode'), prop: 'stockOutCode', width: 190, minWidth: 170, showOverflowTooltip: true },
   { key: 'status', label: t('stockOutList.columns.status'), prop: 'status', width: 110, align: 'center' },
   {
@@ -503,7 +540,16 @@ const stockOutTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'shipmentMethod', label: t('stockOutList.columns.shipmentMethod'), prop: 'shipmentMethod', width: 120, minWidth: 100, showOverflowTooltip: true },
   { key: 'expressCompany', label: t('stockOutList.columns.expressCompany'), prop: 'expressCompany', width: 120, minWidth: 100, showOverflowTooltip: true },
   { key: 'courierTrackingNo', label: t('stockOutList.columns.courierTrackingNo'), prop: 'courierTrackingNo', width: 140, minWidth: 120, showOverflowTooltip: true },
-  { key: 'customerName', label: t('stockOutList.columns.customerName'), prop: 'customerName', width: 140, minWidth: 120, showOverflowTooltip: true },
+  {
+    key: 'customer',
+    label: t('common.customerExtendCol.columnTitle'),
+    prop: 'customer',
+    minWidth: customerExtendColMinWidth.value,
+    width: customerExtendColWidth.value,
+    showOverflowTooltip: true,
+    className: 'customer-extend-col',
+    labelClassName: 'customer-extend-col'
+  },
   { key: 'salesUserName', label: t('stockOutList.columns.salesUserName'), prop: 'salesUserName', width: 110, minWidth: 100, showOverflowTooltip: true },
   { key: 'packingCodes', label: t('stockOutList.columns.packingCodes'), prop: 'packingCodes', width: 160, minWidth: 140, showOverflowTooltip: true },
   {
@@ -529,9 +575,10 @@ const stockOutTableColumns = computed<CrmTableColumnDef[]>(() => [
     reorderable: false,
     className: 'op-col',
     labelClassName: 'op-col',
-  resizable: false
+    resizable: false
   }
-])
+  ]
+})
 
 function syncFiltersFromRoute() {
   if (route.name !== 'StockOutList') return

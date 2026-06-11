@@ -177,6 +177,10 @@ namespace CRM.Core.Interfaces
         public decimal? SalesPriceUsd { get; set; }
         public string? VendorId { get; set; }
         public string? VendorName { get; set; }
+        /// <summary>供应商英文全称（列表由供应商主档解析）</summary>
+        public string? VendorEnglishName { get; set; }
+        /// <summary>供应商编号（列表由供应商主档解析）</summary>
+        public string? VendorCode { get; set; }
         public string? CustomerId { get; set; }
         public string? CustomerName { get; set; }
 

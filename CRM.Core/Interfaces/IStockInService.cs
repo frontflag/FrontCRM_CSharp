@@ -15,6 +15,10 @@ namespace CRM.Core.Interfaces
         public string WarehouseId { get; set; } = string.Empty;
         public string? VendorId { get; set; }
         public string? VendorName { get; set; }
+        /// <summary>供应商英文全称（列表由供应商主档解析）</summary>
+        public string? VendorEnglishName { get; set; }
+        /// <summary>供应商编号（列表由供应商主档解析）</summary>
+        public string? VendorCode { get; set; }
         /// <summary>采购订单号（由头表采购明细关联的采购单）</summary>
         public string? PurchaseOrderCode { get; set; }
         public string? FreightForwarderOrderNo { get; set; }
@@ -35,6 +39,8 @@ namespace CRM.Core.Interfaces
         public DateTime CreateTime { get; set; }
         /// <summary>创建人展示名（由 CreatedBy 用户 Id 解析）</summary>
         public string? CreateUserName { get; set; }
+        /// <summary>是否存在已录入的入库批次（任一明细有关联批次记录）。</summary>
+        public bool HasBatchEntered { get; set; }
     }
 
     /// <summary>

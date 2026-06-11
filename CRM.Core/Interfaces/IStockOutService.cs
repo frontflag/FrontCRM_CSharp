@@ -130,6 +130,10 @@ namespace CRM.Core.Interfaces
         public string? CreateByUserId { get; set; }
         public string? CreateUserName { get; set; }
         public string? CustomerName { get; set; }
+        /// <summary>客户英文全称（来自 customerinfo.EnglishOfficialName）</summary>
+        public string? CustomerEnglishName { get; set; }
+        /// <summary>客户编号（来自 customerinfo.CustomerCode）</summary>
+        public string? CustomerCode { get; set; }
         public string? SalesUserName { get; set; }
         public string? SellOrderItemCode { get; set; }
         /// <summary>出货方式（字典 ItemCode）</summary>

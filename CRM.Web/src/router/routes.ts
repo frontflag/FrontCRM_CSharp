@@ -275,10 +275,14 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '入库单列表' }
       },
       {
+        path: 'inventory/batch-reconciliation',
+        name: 'BatchReconciliation',
+        component: () => import('@/views/Inventory/BatchReconciliationList.vue'),
+        meta: { requiresAuth: true, title: '批次核销' }
+      },
+      {
         path: 'inventory/stock-in/batch-records',
-        name: 'StockInBatchRecords',
-        component: () => import('@/views/Inventory/StockInBatchList.vue'),
-        meta: { requiresAuth: true, title: '入库批次记录' }
+        redirect: '/inventory/batch-reconciliation'
       },
       {
         path: 'inventory/stock-in/create',

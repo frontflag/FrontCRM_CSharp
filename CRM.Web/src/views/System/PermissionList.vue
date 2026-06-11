@@ -1,9 +1,28 @@
 <template>
-  <div class="crm-system-list-page">
+  <div class="crm-system-list-page permission-list-page">
     <el-card class="crm-system-list-card" shadow="never">
       <div class="crm-system-list-toolbar">
-        <h1 class="crm-system-list-title">{{ t('systemPermission.title') }}</h1>
+        <div class="permission-list-toolbar-left">
+          <h1 class="crm-system-list-title permission-list-title">{{ t('systemPermission.title') }}</h1>
+          <span class="permission-list-count">{{ t('systemPermission.listCount', { count: displayedPermissions.length }) }}</span>
+        </div>
         <el-button type="primary" @click="router.push({ name: 'PermissionCreate' })">{{ t('systemPermission.create') }}</el-button>
+      </div>
+
+      <div class="permission-list-filters">
+        <el-input
+          v-model="filters.permissionName"
+          clearable
+          :placeholder="t('systemPermission.filters.permissionName')"
+          class="permission-list-filter-input"
+        />
+        <el-input
+          v-model="filters.permissionCode"
+          clearable
+          :placeholder="t('systemPermission.filters.permissionCode')"
+          class="permission-list-filter-input"
+        />
+        <el-button @click="resetFilters">{{ t('systemPermission.filters.reset') }}</el-button>
       </div>
 
       <CrmDataTable
@@ -13,7 +32,7 @@
         :columns="permissionTableColumns"
         :show-column-settings="false"
         :density-toggle-anchor-el="rowDensityToggleAnchorEl"
-        :data="permissions"
+        :data="displayedPermissions"
         @row-dblclick="onRowDblclick"
       >
         <template #col-status="{ row }">
@@ -80,7 +99,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -94,9 +113,28 @@ const { t } = useI18n()
 
 const loading = ref(false)
 const permissions = ref<RbacPermission[]>([])
+const filters = reactive({
+  permissionName: '',
+  permissionCode: ''
+})
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const formatCreateTime = (v?: string) => formatDisplayDateTime(v)
+
+const displayedPermissions = computed(() => {
+  const nameQ = filters.permissionName.trim().toLowerCase()
+  const codeQ = filters.permissionCode.trim().toLowerCase()
+  return permissions.value.filter((p) => {
+    if (nameQ && !(p.permissionName ?? '').toLowerCase().includes(nameQ)) return false
+    if (codeQ && !(p.permissionCode ?? '').toLowerCase().includes(codeQ)) return false
+    return true
+  })
+})
+
+function resetFilters() {
+  filters.permissionName = ''
+  filters.permissionCode = ''
+}
 
 // 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
@@ -111,11 +149,25 @@ function toggleOpCol() {
 
 const permissionTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'status', label: t('systemUser.colStatus'), prop: 'status', width: 90, align: 'center' },
-  { key: 'permissionName', label: t('systemPermission.columns.permissionName'), prop: 'permissionName', minWidth: 200, showOverflowTooltip: true },
+  {
+    key: 'permissionName',
+    label: t('systemPermission.columns.permissionName'),
+    prop: 'permissionName',
+    minWidth: 200,
+    showOverflowTooltip: true,
+    sortable: true
+  },
   { key: 'permissionType', label: t('systemPermission.columns.permissionType'), prop: 'permissionType', width: 110 },
   { key: 'resource', label: t('systemPermission.columns.resource'), prop: 'resource', minWidth: 200, showOverflowTooltip: true },
   { key: 'action', label: t('systemPermission.columns.action'), prop: 'action', minWidth: 140, showOverflowTooltip: true },
-  { key: 'permissionCode', label: t('systemPermission.columns.permissionCode'), prop: 'permissionCode', minWidth: 180, showOverflowTooltip: true },
+  {
+    key: 'permissionCode',
+    label: t('systemPermission.columns.permissionCode'),
+    prop: 'permissionCode',
+    minWidth: 180,
+    showOverflowTooltip: true,
+    sortable: true
+  },
   { key: 'createTime', label: t('systemUser.colCreateTime'), width: 160 },
   { key: 'createUser', label: t('systemUser.colCreateUser'), width: 120, showOverflowTooltip: true },
   {
@@ -129,7 +181,7 @@ const permissionTableColumns = computed<CrmTableColumnDef[]>(() => [
     reorderable: false,
     className: 'op-col',
     labelClassName: 'op-col',
-  resizable: false
+    resizable: false
   }
 ])
 
@@ -171,6 +223,38 @@ onMounted(load)
 <style scoped lang="scss">
 @import '@/assets/styles/system-list-page.scss';
 
+.permission-list-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.permission-list-title {
+  color: var(--el-text-color-primary, #303133);
+}
+
+.permission-list-count {
+  flex: 0 0 auto;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--el-text-color-secondary, #909399);
+  white-space: nowrap;
+}
+
+.permission-list-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.permission-list-filter-input {
+  width: 220px;
+  max-width: 100%;
+}
+
 .pagination-wrapper {
   margin-top: 12px;
   display: flex;
@@ -201,4 +285,3 @@ onMounted(load)
   flex: 0 0 26px;
 }
 </style>
-

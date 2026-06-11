@@ -125,6 +125,8 @@ namespace CRM.Core.Interfaces
         public short Currency { get; set; } = 1;
         /// <summary>交货日期</summary>
         public DateTime? DeliveryDate { get; set; }
+        /// <summary>生产日期/DC 要求（字典 ItemCode）</summary>
+        public string? DateCode { get; set; }
         /// <summary>备注</summary>
         public string? Comment { get; set; }
 

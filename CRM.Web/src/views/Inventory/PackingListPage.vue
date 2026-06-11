@@ -205,6 +205,15 @@
             >
               {{ t('packingList.actions.ready') }}
             </button>
+            <button
+              v-if="canWriteLogisticsData"
+              type="button"
+              class="action-btn action-btn--primary"
+              :disabled="!canImportOutBatch(row)"
+              @click.stop="openOutBatchImport(row)"
+            >
+              {{ t('packingList.actions.outBatch') }}
+            </button>
             <button type="button" class="action-btn" @click.stop="() => void goInvoiceReport(row)">
               {{ t('stockOutList.actions.printInvoice') }}
             </button>
@@ -247,6 +256,9 @@
                 </el-dropdown-item>
                 <el-dropdown-item v-if="canWriteLogisticsData" :disabled="!canMarkPackingReady(row)" @click.stop="() => void markPackingReady(row)">
                   <span class="op-more-item">{{ t('packingList.actions.ready') }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="canWriteLogisticsData" :disabled="!canImportOutBatch(row)" @click.stop="openOutBatchImport(row)">
+                  <span class="op-more-item op-more-item--primary">{{ t('packingList.actions.outBatch') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item @click.stop="() => void goInvoiceReport(row)">
                   <span class="op-more-item">{{ t('stockOutList.actions.printInvoice') }}</span>
@@ -414,6 +426,13 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <StockOutBatchImportDialog
+      v-model="outBatchImportVisible"
+      :packing-id="outBatchImportPackingId"
+      :packing-code="outBatchImportPackingCode"
+      @success="() => void fetchList(false)"
+    />
   </div>
 </template>
 
@@ -444,6 +463,7 @@ import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMa
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { isPackingEligibleForStockOut, usePackingListBasketStore } from '@/stores/packingListBasket'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
+import StockOutBatchImportDialog from '@/components/Inventory/StockOutBatchImportDialog.vue'
 
 const router = useRouter()
 const { t, locale } = useI18n()
@@ -647,6 +667,22 @@ function canConfirmPacking(row: PackingListItem): boolean {
   return Number(row?.status) === PackingStatusCode.New
 }
 
+function canImportOutBatch(row: PackingListItem): boolean {
+  return Number(row?.status) >= PackingStatusCode.Confirmed
+}
+
+function openOutBatchImport(row: PackingListItem) {
+  if (!canImportOutBatch(row)) {
+    ElMessage.error(t('packingList.outBatch.notConfirmedStatus'))
+    return
+  }
+  const id = resolvePackingId(row)
+  if (!id) return
+  outBatchImportPackingId.value = id
+  outBatchImportPackingCode.value = String(row.code ?? '').trim()
+  outBatchImportVisible.value = true
+}
+
 function canDeletePacking(row: PackingListItem): boolean {
   return Number(row?.status) === PackingStatusCode.New
 }
@@ -725,6 +761,9 @@ const markReadyCheckedKeys = ref<string[]>([])
 const markReadySubmitting = ref(false)
 
 const batchStockOutDialogVisible = ref(false)
+const outBatchImportVisible = ref(false)
+const outBatchImportPackingId = ref('')
+const outBatchImportPackingCode = ref('')
 const batchStockOutRows = ref<PackingListItem[]>([])
 const batchStockOutExpectedDate = ref('')
 const batchStockOutSubmitting = ref(false)

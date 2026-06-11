@@ -1433,11 +1433,28 @@ namespace CRM.Core.Services
                     if (line != null && !string.IsNullOrWhiteSpace(line.SellOrderId))
                         orderById.TryGetValue(line.SellOrderId.Trim(), out so);
 
-                    string? customerName = null;
+                    CustomerInfo? cust = null;
                     if (!string.IsNullOrWhiteSpace(x.CustomerId)
-                        && customerById.TryGetValue(x.CustomerId.Trim(), out var cust))
+                        && customerById.TryGetValue(x.CustomerId.Trim(), out var custDirect))
+                    {
+                        cust = custDirect;
+                    }
+                    else if (so != null && !string.IsNullOrWhiteSpace(so.CustomerId)
+                             && customerById.TryGetValue(so.CustomerId.Trim(), out var custFromOrder))
+                    {
+                        cust = custFromOrder;
+                    }
+
+                    string? customerName = null;
+                    string? customerEnglishName = null;
+                    string? customerCode = null;
+                    if (cust != null)
                     {
                         customerName = string.IsNullOrWhiteSpace(cust.OfficialName) ? cust.CustomerName : cust.OfficialName;
+                        customerEnglishName = string.IsNullOrWhiteSpace(cust.EnglishOfficialName)
+                            ? null
+                            : cust.EnglishOfficialName.Trim();
+                        customerCode = string.IsNullOrWhiteSpace(cust.CustomerCode) ? null : cust.CustomerCode.Trim();
                     }
                     else if (so != null)
                     {
@@ -1505,6 +1522,8 @@ namespace CRM.Core.Services
                         CreateByUserId = x.CreateByUserId,
                         CreateUserName = createUserName,
                         CustomerName = customerName,
+                        CustomerEnglishName = customerEnglishName,
+                        CustomerCode = customerCode,
                         SalesUserName = salesUserName,
                         SellOrderItemCode = sellOrderItemCode,
                         ShipmentMethod = shipmentMethod,

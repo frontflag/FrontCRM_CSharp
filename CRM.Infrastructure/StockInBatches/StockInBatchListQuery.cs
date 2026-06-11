@@ -18,7 +18,7 @@ public sealed class StockInBatchListQuery : IStockInBatchListQuery
 
     /// <inheritdoc />
     public async Task<PagedResult<StockInBatch>> GetPagedAsync(
-        string? stockInItemCode,
+        string? globalBatchNo,
         string? lot,
         string? serialNumber,
         int page,
@@ -30,10 +30,10 @@ public sealed class StockInBatchListQuery : IStockInBatchListQuery
 
         var q = _db.StockInBatches.AsNoTracking();
 
-        if (!string.IsNullOrWhiteSpace(stockInItemCode))
+        if (!string.IsNullOrWhiteSpace(globalBatchNo))
         {
-            var needle = stockInItemCode.Trim();
-            q = q.Where(x => x.StockInItemCode != null && x.StockInItemCode.Contains(needle));
+            var needle = globalBatchNo.Trim();
+            q = q.Where(x => x.GlobalBatchNo.Contains(needle));
         }
 
         if (!string.IsNullOrWhiteSpace(lot))
@@ -51,7 +51,7 @@ public sealed class StockInBatchListQuery : IStockInBatchListQuery
         var total = await q.CountAsync(cancellationToken);
         var items = await q
             .OrderByDescending(x => x.CreateTime)
-            .ThenBy(x => x.StockInItemCode)
+            .ThenBy(x => x.GlobalBatchNo)
             .ThenBy(x => x.Id)
             .Skip((p - 1) * ps)
             .Take(ps)

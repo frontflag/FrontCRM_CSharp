@@ -6,7 +6,7 @@ namespace CRM.Core.Interfaces;
 public interface IStockInBatchListQuery
 {
     Task<PagedResult<StockInBatch>> GetPagedAsync(
-        string? stockInItemCode,
+        string? globalBatchNo,
         string? lot,
         string? serialNumber,
         int page,

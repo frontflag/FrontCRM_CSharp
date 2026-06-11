@@ -23,20 +23,38 @@
         </el-form-item>
 
         <el-form-item :label="t('layout.menu.permissionManagement')">
-          <el-select
-            v-model="formData.permissionIds"
-            multiple
-            filterable
-            collapse-tags
-            style="width: 100%"
-          >
-            <el-option
-              v-for="p in permissions"
-              :key="p.id"
-              :label="`${p.permissionCode} - ${p.permissionName}`"
-              :value="p.id"
-            />
-          </el-select>
+          <div class="role-perm-picker">
+            <div class="role-perm-picker__toolbar">
+              <el-input
+                v-model="permFilter"
+                clearable
+                :placeholder="t('systemRole.permissionFilterPlaceholder')"
+                class="role-perm-picker__filter"
+              />
+              <span class="role-perm-picker__count">
+                {{ t('systemRole.permissionSelectedCount', { count: formData.permissionIds.length }) }}
+              </span>
+            </div>
+            <div v-if="permissionGroups.length === 0" class="role-perm-picker__empty">
+              {{ t('systemRole.permissionFilterEmpty') }}
+            </div>
+            <div v-else class="role-perm-picker__list">
+              <section v-for="group in permissionGroups" :key="group.key" class="role-perm-picker__section">
+                <div class="role-perm-picker__group-title">{{ group.label }}</div>
+                <el-checkbox-group v-model="formData.permissionIds" class="role-perm-picker__group">
+                  <el-checkbox
+                    v-for="p in group.items"
+                    :key="p.id"
+                    :value="p.id"
+                    class="role-perm-picker__item"
+                  >
+                    <span class="role-perm-picker__code">{{ p.permissionCode }}</span>
+                    <span class="role-perm-picker__name">{{ p.permissionName }}</span>
+                  </el-checkbox>
+                </el-checkbox-group>
+              </section>
+            </div>
+          </div>
         </el-form-item>
 
         <div class="footer-bar">
@@ -51,7 +69,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
@@ -68,6 +86,7 @@ const loading = ref(false)
 const saving = ref(false)
 
 const permissions = ref<RbacPermission[]>([])
+const permFilter = ref('')
 
 const formData = ref({
   roleCode: '',
@@ -75,6 +94,41 @@ const formData = ref({
   description: '',
   status: 1,
   permissionIds: [] as string[]
+})
+
+function permissionGroupKey(p: RbacPermission): string {
+  const resource = (p.resource ?? '').trim()
+  if (resource) return resource
+  const code = p.permissionCode ?? ''
+  const dot = code.indexOf('.')
+  return dot > 0 ? code.slice(0, dot) : code || 'other'
+}
+
+const permissionGroups = computed(() => {
+  const q = permFilter.value.trim().toLowerCase()
+  const filtered = permissions.value.filter((p) => {
+    if (p.status !== 1) return false
+    if (!q) return true
+    return (
+      p.permissionCode.toLowerCase().includes(q) ||
+      p.permissionName.toLowerCase().includes(q) ||
+      (p.resource ?? '').toLowerCase().includes(q)
+    )
+  })
+  const map = new Map<string, RbacPermission[]>()
+  for (const p of filtered) {
+    const key = permissionGroupKey(p)
+    const bucket = map.get(key)
+    if (bucket) bucket.push(p)
+    else map.set(key, [p])
+  }
+  return [...map.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0], 'zh-CN'))
+    .map(([key, items]) => ({
+      key,
+      label: key,
+      items: [...items].sort((a, b) => a.permissionCode.localeCompare(b.permissionCode, 'zh-CN'))
+    }))
 })
 
 const load = async () => {
@@ -168,6 +222,94 @@ onMounted(load)
   gap: 12px;
   justify-content: flex-end;
   margin-top: 18px;
+}
+
+.role-perm-picker {
+  width: 100%;
+  border: 1px solid var(--el-border-color, #dcdfe6);
+  border-radius: 8px;
+  background: var(--el-fill-color-blank, #fff);
+}
+
+.role-perm-picker__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--el-border-color-lighter, #ebeef5);
+}
+
+.role-perm-picker__filter {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.role-perm-picker__count {
+  flex: 0 0 auto;
+  font-size: 13px;
+  color: var(--el-text-color-secondary, #909399);
+  white-space: nowrap;
+}
+
+.role-perm-picker__list {
+  max-height: 420px;
+  overflow: auto;
+  padding: 8px 12px 12px;
+}
+
+.role-perm-picker__empty {
+  padding: 24px 12px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--el-text-color-secondary, #909399);
+}
+
+.role-perm-picker__section + .role-perm-picker__section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--el-border-color-lighter, #ebeef5);
+}
+
+.role-perm-picker__group-title {
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--el-text-color-secondary, #909399);
+  letter-spacing: 0.02em;
+}
+
+.role-perm-picker__group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.role-perm-picker__item {
+  display: flex;
+  align-items: flex-start;
+  margin-right: 0;
+  height: auto;
+  padding: 4px 0;
+}
+
+.role-perm-picker__item :deep(.el-checkbox__label) {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  line-height: 1.45;
+  white-space: normal;
+}
+
+.role-perm-picker__code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  color: var(--el-text-color-primary, #303133);
+}
+
+.role-perm-picker__name {
+  font-size: 13px;
+  color: var(--el-text-color-regular, #606266);
 }
 </style>
 

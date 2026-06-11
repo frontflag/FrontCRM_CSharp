@@ -170,13 +170,14 @@
     <CrmDataTable
       ref="dataTableRef"
       class="inventory-stock-item-list-crm-table"
-      column-layout-key="inventory-stock-item-list-main"
+      column-layout-key="inventory-stock-item-list-main-v2"
       :columns="stockItemTableColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
       :data="list"
       v-loading="loading"
       @row-dblclick="onRowDblclick"
+      @header-dragend="onStockItemTableHeaderDragEnd"
     >
       <template #col-outboundStatus="{ row }">
         <span class="outbound-status-chip" :class="`outbound-status-chip--${outboundStatusKind(row.outboundStatus)}`">
@@ -233,8 +234,19 @@
       <template #col-salespersonName="{ row }">
         <span>{{ maskSaleSensitiveFields ? '—' : (row.salespersonName?.trim() ? row.salespersonName : '—') }}</span>
       </template>
-      <template #col-vendorName="{ row }">
-        <span>{{ maskPurchaseSensitiveFields ? '—' : (row.vendorName?.trim() ? row.vendorName : '—') }}</span>
+      <template #col-vendor-header>
+        <VendorExtendColumnHeader
+          :active-field="vendorExtendActiveField"
+          @set-active-field="setVendorExtendActiveField"
+        />
+      </template>
+      <template #col-vendor="{ row }">
+        <VendorExtendCell
+          :row="row"
+          :active-field="vendorExtendActiveField"
+          :masked="maskPurchaseSensitiveFields"
+          :empty-text="t('quoteList.na')"
+        />
       </template>
       <template #col-profitOutBizUsd="{ row }">
         <span v-if="maskPurchaseSensitiveFields || maskSaleSensitiveFields" class="inv-list-dash">—</span>
@@ -333,9 +345,29 @@ import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiv
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useAuthStore } from '@/stores/auth'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
+import VendorExtendColumnHeader from '@/components/list/VendorExtendColumnHeader.vue'
+import VendorExtendCell from '@/components/list/VendorExtendCell.vue'
+import { useVendorExtendColumn, isVendorExtendTableColumn } from '@/composables/useVendorExtendColumn'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
+const {
+  expanded: vendorExtendExpanded,
+  activeField: vendorExtendActiveField,
+  colWidth: vendorExtendColWidth,
+  colMinWidth: vendorExtendColMinWidth,
+  setActiveField: setVendorExtendActiveField,
+  applyOuterWidthFromTable: applyVendorExtendOuterWidth
+} = useVendorExtendColumn()
+
+function onStockItemTableHeaderDragEnd(
+  newWidth: number,
+  _oldWidth: number,
+  column: { property?: string; label?: string }
+) {
+  if (!isVendorExtendTableColumn(column)) return
+  applyVendorExtendOuterWidth(newWidth)
+}
 const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
@@ -371,7 +403,10 @@ function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
 
-const stockItemTableColumns = computed<CrmTableColumnDef[]>(() => [
+const stockItemTableColumns = computed<CrmTableColumnDef[]>(() => {
+  void vendorExtendExpanded.value
+  void vendorExtendColWidth.value
+  return [
   { key: 'outboundStatus', label: t('inventoryStockItemList.columns.outboundStatus'), width: 110, align: 'center' },
   { key: 'stockItemCode', label: t('inventoryStockItemList.columns.stockItemCode'), prop: 'stockItemCode', width: 168, showOverflowTooltip: true },
   { key: 'stockInCode', label: t('inventoryStockItemList.columns.stockInCode'), prop: 'stockInCode', width: 150, showOverflowTooltip: true },
@@ -410,7 +445,16 @@ const stockItemTableColumns = computed<CrmTableColumnDef[]>(() => [
     className: 'inv-stock-item-qty-col',
     labelClassName: 'inv-stock-item-qty-col'
   },
-  { key: 'vendorName', label: t('inventoryStockItemList.columns.vendorName'), prop: 'vendorName', minWidth: 120, showOverflowTooltip: true },
+  {
+    key: 'vendor',
+    label: t('common.vendorExtendCol.columnTitle'),
+    prop: 'vendor',
+    minWidth: vendorExtendColMinWidth.value,
+    width: vendorExtendColWidth.value,
+    showOverflowTooltip: true,
+    className: 'vendor-extend-col',
+    labelClassName: 'vendor-extend-col'
+  },
   { key: 'purchaserName', label: t('inventoryStockItemList.columns.purchaserName'), prop: 'purchaserName', width: 112, minWidth: 112, showOverflowTooltip: true },
   {
     key: 'purchaseOrderItemCode',
@@ -460,7 +504,7 @@ const stockItemTableColumns = computed<CrmTableColumnDef[]>(() => [
     pinned: 'end',
     reorderable: false
   }
-])
+]})
 const dateFrom = ref<string | null>(null)
 const dateTo = ref<string | null>(null)
 const salesUsers = ref<SalesUserSelectOption[]>([])

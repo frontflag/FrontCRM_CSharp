@@ -618,6 +618,27 @@ namespace CRM.Core.Services
                 .GroupBy(x => x.StockInId)
                 .ToDictionary(g => g.Key, g => g.ToList());
 
+            var allItemIds = stockInItems
+                .Select(i => i.Id?.Trim())
+                .Where(id => !string.IsNullOrEmpty(id))
+                .Cast<string>()
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var stockInIdByItemId = stockInItems
+                .Where(i => !string.IsNullOrWhiteSpace(i.Id) && !string.IsNullOrWhiteSpace(i.StockInId))
+                .ToDictionary(i => i.Id.Trim(), i => i.StockInId.Trim(), StringComparer.OrdinalIgnoreCase);
+            var stockInIdsWithBatch = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (allItemIds.Count > 0)
+            {
+                var batchRows = (await _stockInBatchRepository.FindAsync(b => allItemIds.Contains(b.StockInItemId))).ToList();
+                foreach (var b in batchRows)
+                {
+                    var itemKey = (b.StockInItemId ?? string.Empty).Trim();
+                    if (stockInIdByItemId.TryGetValue(itemKey, out var sid))
+                        stockInIdsWithBatch.Add(sid);
+                }
+            }
+
             var allExtends = (await _stockInItemExtendRepository.FindAsync(e => stockInIds.Contains(e.StockInId))).ToList();
             var primaryByStockIn = StockInItemExtendPrimaryPicker.PrimaryByStockInId(allExtends);
 
@@ -761,11 +782,17 @@ namespace CRM.Core.Services
                     sourceDisplay = prim.PurchaseOrderItemCode.Trim();
 
                 string? vendorName = null;
+                string? vendorEnglishName = null;
+                string? vendorCode = null;
                 if (!string.IsNullOrWhiteSpace(s.VendorId) && venDict.TryGetValue(s.VendorId!, out var v))
                 {
                     vendorName = !string.IsNullOrWhiteSpace(v.OfficialName) ? v.OfficialName
                         : !string.IsNullOrWhiteSpace(v.NickName) ? v.NickName
                         : v.Code;
+                    if (!string.IsNullOrWhiteSpace(v.EnglishOfficialName))
+                        vendorEnglishName = v.EnglishOfficialName.Trim();
+                    if (!string.IsNullOrWhiteSpace(v.Code))
+                        vendorCode = v.Code.Trim();
                 }
 
                 var salesOrderCodes = new List<string>();
@@ -883,6 +910,8 @@ namespace CRM.Core.Services
                     WarehouseId = s.WarehouseId,
                     VendorId = s.VendorId,
                     VendorName = vendorName,
+                    VendorEnglishName = vendorEnglishName,
+                    VendorCode = vendorCode,
                     PurchaseOrderCode = purchaseOrderCode,
                     FreightForwarderOrderNo = freightForwarderOrderNo,
                     SalesOrderCode = string.IsNullOrWhiteSpace(salesOrderCode) ? null : salesOrderCode,
@@ -895,7 +924,8 @@ namespace CRM.Core.Services
                     Status = s.Status,
                     Remark = s.Remark,
                     CreateTime = s.CreateTime,
-                    CreateUserName = createUserName
+                    CreateUserName = createUserName,
+                    HasBatchEntered = stockInIdsWithBatch.Contains(s.Id.Trim())
                 });
             }
 

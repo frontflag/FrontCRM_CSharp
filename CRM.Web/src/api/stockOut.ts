@@ -22,6 +22,8 @@ export interface StockOutDto {
   createTime?: string
   createUserName?: string
   customerName?: string
+  customerEnglishName?: string
+  customerCode?: string
   salesUserName?: string
   sellOrderItemCode?: string
   /** 出货方式（字典 LogisticsArrivalMethod ItemCode） */
@@ -436,6 +438,8 @@ function normalizeStockOutListRow(row: unknown): StockOutDto {
     createTime: (r.createTime ?? r.CreateTime) as string | undefined,
     createUserName: (r.createUserName ?? r.CreateUserName) as string | undefined,
     customerName: (r.customerName ?? r.CustomerName) as string | undefined,
+    customerEnglishName: (r.customerEnglishName ?? r.CustomerEnglishName) as string | undefined,
+    customerCode: (r.customerCode ?? r.CustomerCode) as string | undefined,
     salesUserName: (r.salesUserName ?? r.SalesUserName) as string | undefined,
     sellOrderItemCode: (r.sellOrderItemCode ?? r.SellOrderItemCode) as string | undefined,
     shipmentMethod: (r.shipmentMethod ?? r.ShipmentMethod) as string | null | undefined,

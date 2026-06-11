@@ -279,6 +279,7 @@ namespace CRM.Core.Services
                     Currency = item.Currency,
                     // PostgreSQL timestamptz 不接受 DateTimeKind=Unspecified，统一转 UTC
                     DeliveryDate = PostgreSqlDateTime.ToUtc(item.DeliveryDate),
+                    DateCode = NormalizeDateCode(item.DateCode),
                     Comment = item.Comment,
                     InnerComment = item.InnerComment,
                     Status = StatusNew,
@@ -1282,10 +1283,17 @@ VALUES (gen_random_uuid()::text, '{BusinessLogTypes.PurchaseOrder}', '{safeRecor
             target.Cost = item.Cost;
             target.Currency = item.Currency;
             target.DeliveryDate = PostgreSqlDateTime.ToUtc(item.DeliveryDate);
+            target.DateCode = NormalizeDateCode(item.DateCode);
             target.Comment = item.Comment;
             target.InnerComment = item.InnerComment;
             target.ConvertPrice = ExchangeRateToUsdConverter.UnitLocalToUsd(
                 target.Cost, target.Currency, fx.UsdToCny, fx.UsdToHkd, fx.UsdToEur);
+        }
+
+        private static string? NormalizeDateCode(string? value)
+        {
+            var s = (value ?? string.Empty).Trim();
+            return string.IsNullOrEmpty(s) ? null : s;
         }
 
         private async Task LogPurchaseOrderItemsDeletedAsync(

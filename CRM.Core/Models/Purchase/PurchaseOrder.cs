@@ -248,6 +248,11 @@ namespace CRM.Core.Models.Purchase
         [Column("delivery_date")]
         public DateTime? DeliveryDate { get; set; }
 
+        /// <summary>生产日期/DC 要求（字典 ItemCode，如 26+）。</summary>
+        [StringLength(100)]
+        [Column("date_code")]
+        public string? DateCode { get; set; }
+
         /// <summary>备注</summary>
         [StringLength(500)]
         [Column("comment")]

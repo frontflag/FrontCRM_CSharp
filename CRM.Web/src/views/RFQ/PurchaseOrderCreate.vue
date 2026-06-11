@@ -661,6 +661,7 @@ function buildItemsPayload() {
     cost: it.targetPrice,
     currency: it.currency ?? formData.value.currency,
     deliveryDate: it.deliveryDate || null,
+    dateCode: it.dateCode?.trim() || undefined,
     comment: it.comment || undefined,
     innerComment: it.innerComment || undefined
   }))
@@ -705,7 +706,7 @@ async function loadOrderForEdit(id: string) {
       qty: Number(it.qty) || 1,
       cost,
       currency: Number(it.currency ?? formData.value.currency),
-      dateCode: '',
+      dateCode: coercePd(String(it.dateCode ?? it.DateCode ?? '').trim()),
       deliveryDate: deliveryDateStr,
       comment: String(it.comment ?? ''),
       innerComment: String(it.innerComment ?? '')

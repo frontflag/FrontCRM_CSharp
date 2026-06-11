@@ -234,4 +234,18 @@ public static class PurchaseSensitiveFieldMask511
         foreach (var inv in items)
             ApplyFinancePurchaseInvoice(inv, mask);
     }
+
+    public static void ApplyBatchReconciliationRow(BatchReconciliationRowDto? row, bool mask)
+    {
+        if (!mask || row == null) return;
+        row.VendorId = null;
+        row.VendorName = null;
+    }
+
+    public static void ApplyBatchReconciliationRows(IEnumerable<BatchReconciliationRowDto>? rows, bool mask)
+    {
+        if (!mask || rows == null) return;
+        foreach (var row in rows)
+            ApplyBatchReconciliationRow(row, true);
+    }
 }

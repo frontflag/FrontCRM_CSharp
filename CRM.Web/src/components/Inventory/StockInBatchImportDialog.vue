@@ -9,7 +9,7 @@
   >
     <div class="import-body">
       <p class="hint">
-        当前入库明细编号：<strong>{{ stockInItemCode || '—' }}</strong>。请先下载模板，按列填写后选择 Excel 导入；第 1 行为表头，从第 2 行起为数据。正式环境请删除或覆盖模板中的示例行后再导入。
+        当前入库明细编号：<strong>{{ stockInItemCode || '—' }}</strong>。请先下载模板，按列填写后选择 Excel 导入；第 1 行为表头，从第 2 行起为数据。系统将自动生成批次全局编号（PC-xxxxxxxx）。正式环境请删除或覆盖模板中的示例行后再导入。
       </p>
       <div class="actions-row">
         <button type="button" class="btn-template" @click="downloadTemplate">下载 Excel 模板</button>
@@ -119,7 +119,6 @@ function normalizeHeaderKey(k: string): string {
   return k.replace(/（必填）/g, '').replace(/\([^)]*\)/g, '').trim()
 }
 
-/** 仅精确匹配表头（避免「LOT」命中「LOT_入库数量」等列）。支持多别名精确匹配。 */
 function getCell(row: Record<string, unknown>, ...candidates: string[]): string {
   const keys = Object.keys(row)
   for (const cand of candidates) {
@@ -133,63 +132,71 @@ function getCell(row: Record<string, unknown>, ...candidates: string[]): string 
   return ''
 }
 
-function parseNonNegInt(raw: string, excelRow: number, colLabel: string): { ok: true; v: number } | { ok: false; msg: string } {
+function parsePositiveInt(raw: string, excelRow: number, colLabel: string): { ok: true; v: number } | { ok: false; msg: string } {
   const s = String(raw ?? '').replace(/\s/g, '')
-  if (!s) return { ok: true, v: 0 }
+  if (!s) {
+    return { ok: false, msg: `第 ${excelRow} 行：「${colLabel}」须为正整数` }
+  }
   if (!/^\d+$/.test(s)) {
     return {
       ok: false,
-      msg: `第 ${excelRow} 行：「${colLabel}」须为非负整数，当前为「${String(raw).trim()}」`
+      msg: `第 ${excelRow} 行：「${colLabel}」须为正整数，当前为「${String(raw).trim()}」`
     }
   }
   const n = parseInt(s, 10)
+  if (n <= 0) {
+    return { ok: false, msg: `第 ${excelRow} 行：「${colLabel}」须大于 0` }
+  }
   return { ok: true, v: n }
 }
 
 function isRowEmpty(row: StockInBatchImportRow): boolean {
   const s = (v: string | undefined | null) => !(v && String(v).trim())
   return (
-    s(row.materialModel) &&
+    s(row.batchDimension) &&
+    s(row.batchUnit) &&
+    s(row.unitNo) &&
+    row.batchQty <= 0 &&
     s(row.dc) &&
     s(row.packageOrigin) &&
     s(row.waferOrigin) &&
     s(row.lot) &&
-    s(row.origin) &&
     s(row.serialNumber) &&
     s(row.firmwareVersion) &&
-    s(row.remark) &&
-    row.lotQtyIn === 0 &&
-    row.snQtyIn === 0
+    s(row.partCode) &&
+    s(row.remark)
   )
 }
 
 function downloadTemplate() {
   const headers = [
-    '型号',
-    'DC',
+    '批次维度',
+    '批次记录单位',
+    '单位编号',
+    '批次数量',
+    '批次DC',
     '封装产地',
     '晶圆产地',
     'LOT',
-    'LOT_入库数量',
-    '产地',
-    'SN号',
-    'SN号_入库数量',
+    'SN',
     '固件版本号',
+    'PARTCODE',
     '备注'
   ]
   const ws = XLSX.utils.aoa_to_sheet([
     headers,
     [
-      '示例型号',
+      'LOT',
+      'PCS',
+      '001',
+      '100',
       '2540',
       '马来西亚',
       '台湾',
       'LOT20260101',
-      '100',
-      '中国',
-      'SN001',
-      '50',
+      '',
       'v1.0.0',
+      'PC-ABC',
       '可删除本行后填写真实数据'
     ]
   ])
@@ -231,40 +238,37 @@ function onFileChange(ev: Event) {
         const row = rows[i]
         const excelRow = i + 2
 
-        const materialModel = getCell(row, '型号')
-        const dc = getCell(row, 'DC')
+        const batchDimension = getCell(row, '批次维度')
+        const batchUnit = getCell(row, '批次记录单位')
+        const unitNo = getCell(row, '单位编号')
+        const batchQtyRaw = getCell(row, '批次数量')
+        const dc = getCell(row, '批次DC', 'DC')
         const packageOrigin = getCell(row, '封装产地')
         const waferOrigin = getCell(row, '晶圆产地')
         const lot = getCell(row, 'LOT')
-        const lotQtyRaw = getCell(row, 'LOT_入库数量')
-        const origin = getCell(row, '产地')
-        const serialNumber = getCell(row, 'SN号')
-        const snQtyRaw = getCell(row, 'SN号_入库数量')
+        const serialNumber = getCell(row, 'SN', 'SN号')
         const firmwareVersion = getCell(row, '固件版本号')
+        const partCode = getCell(row, 'PARTCODE')
         const remark = getCell(row, '备注')
 
-        const lotParsed = parseNonNegInt(lotQtyRaw, excelRow, 'LOT_入库数量')
-        if (!lotParsed.ok) {
-          errors.push(lotParsed.msg)
-          continue
-        }
-        const snParsed = parseNonNegInt(snQtyRaw, excelRow, 'SN号_入库数量')
-        if (!snParsed.ok) {
-          errors.push(snParsed.msg)
+        const qtyParsed = parsePositiveInt(batchQtyRaw, excelRow, '批次数量')
+        if (!qtyParsed.ok) {
+          errors.push(qtyParsed.msg)
           continue
         }
 
         const rec: StockInBatchImportRow = {
-          materialModel: materialModel || null,
+          batchDimension: batchDimension || null,
+          batchUnit: batchUnit || null,
+          unitNo: unitNo || null,
+          batchQty: qtyParsed.v,
           dc: dc || null,
           packageOrigin: packageOrigin || null,
           waferOrigin: waferOrigin || null,
           lot: lot || null,
-          lotQtyIn: lotParsed.v,
-          origin: origin || null,
           serialNumber: serialNumber || null,
-          snQtyIn: snParsed.v,
           firmwareVersion: firmwareVersion || null,
+          partCode: partCode || null,
           remark: remark || null
         }
 
@@ -279,7 +283,7 @@ function onFileChange(ev: Event) {
       }
       if (out.length === 0) {
         parseErrors.value = [
-          '未解析到有效数据行：请确认第 1 行为表头、从第 2 行起填写，且至少有一列有内容或数量非零。'
+          '未解析到有效数据行：请确认第 1 行为表头、从第 2 行起填写，且批次数量大于 0。'
         ]
         parsedRows.value = []
         return
@@ -316,15 +320,17 @@ async function confirmAndSubmit() {
 
   submitting.value = true
   try {
-    const count = await stockInBatchApi.importRows({
+    const result = await stockInBatchApi.importRows({
       stockInId: sid,
       stockInItemId: iid,
-      stockInItemCode: stockInItemCode.value || undefined,
       rows: parsedRows.value
     })
+    const nos = (result.globalBatchNos ?? []).join('、')
     ElNotification.success({
       title: '导入完成',
-      message: `成功写入 ${count} 条`
+      message: nos
+        ? `成功写入 ${result.importedCount} 条。编号：${nos}`
+        : `成功写入 ${result.importedCount} 条`
     })
     visibleInner.value = false
     emit('success')

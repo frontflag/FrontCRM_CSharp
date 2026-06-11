@@ -140,6 +140,8 @@ export interface StockInListItemDto {
   warehouseId: string
   vendorId?: string
   vendorName?: string
+  vendorEnglishName?: string | null
+  vendorCode?: string | null
   /** 采购订单号（列表接口由采购头解析） */
   purchaseOrderCode?: string | null
   freightForwarderOrderNo?: string | null
@@ -158,6 +160,8 @@ export interface StockInListItemDto {
   createTime?: string
   /** 创建人展示名（后端由 CreatedBy 解析） */
   createUserName?: string | null
+  /** 是否已录入入库批次 */
+  hasBatchEntered?: boolean
 }
 
 /** GET 入库单列表：与《翻页查询规范》<code>data</code> 结构一致 */

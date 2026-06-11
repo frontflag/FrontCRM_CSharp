@@ -106,6 +106,7 @@ namespace CRM.Infrastructure.Data
         public DbSet<StockInItem> StockInItems { get; set; } = null!;
         public DbSet<StockInItemExtend> StockInItemExtends { get; set; } = null!;
         public DbSet<StockInBatch> StockInBatches { get; set; } = null!;
+        public DbSet<StockOutBatch> StockOutBatches { get; set; } = null!;
         public DbSet<StockOut> StockOuts { get; set; } = null!;
         public DbSet<StockOutItem> StockOutItems { get; set; } = null!;
         public DbSet<StockOutItemExtend> StockOutItemExtends { get; set; } = null!;
@@ -819,25 +820,47 @@ namespace CRM.Infrastructure.Data
                 entity.HasQueryFilter(e => !e.IsDeleted);
                 entity.ToTable("stock_in_batch");
                 entity.Property(e => e.Id).HasMaxLength(36);
-                entity.Property(e => e.StockInId).IsRequired().HasMaxLength(36).HasColumnName("stock_in_id");
                 entity.Property(e => e.StockInItemId).IsRequired().HasMaxLength(36).HasColumnName("stock_in_item_id");
-                entity.Property(e => e.StockInItemCode).HasColumnName("stock_in_item_code").HasMaxLength(64);
-                entity.Property(e => e.MaterialModel).HasColumnName("material_model").HasMaxLength(200);
+                entity.Property(e => e.GlobalBatchNo).IsRequired().HasMaxLength(20).HasColumnName("global_batch_no");
+                entity.Property(e => e.BatchDimension).HasColumnName("batch_dimension").HasMaxLength(32);
+                entity.Property(e => e.BatchUnit).HasColumnName("batch_unit").HasMaxLength(32);
+                entity.Property(e => e.UnitNo).HasColumnName("unit_no").HasMaxLength(128);
+                entity.Property(e => e.BatchQty).HasColumnName("batch_qty");
                 entity.Property(e => e.Dc).HasColumnName("dc").HasMaxLength(64);
                 entity.Property(e => e.PackageOrigin).HasColumnName("package_origin").HasMaxLength(200);
                 entity.Property(e => e.WaferOrigin).HasColumnName("wafer_origin").HasMaxLength(200);
                 entity.Property(e => e.Lot).HasColumnName("lot").HasMaxLength(128);
-                entity.Property(e => e.LotQtyIn).HasColumnName("lot_qty_in");
-                entity.Property(e => e.LotQtyOut).HasColumnName("lot_qty_out");
-                entity.Property(e => e.Origin).HasColumnName("origin").HasMaxLength(200);
                 entity.Property(e => e.SerialNumber).HasColumnName("serial_number").HasMaxLength(200);
-                entity.Property(e => e.SnQtyIn).HasColumnName("sn_qty_in");
-                entity.Property(e => e.SnQtyOut).HasColumnName("sn_qty_out");
                 entity.Property(e => e.FirmwareVersion).HasColumnName("firmware_version").HasMaxLength(128);
+                entity.Property(e => e.PartCode).HasColumnName("part_code").HasMaxLength(128);
                 entity.Property(e => e.Remark).HasColumnName("remark").HasMaxLength(1000);
+                entity.HasIndex(e => e.GlobalBatchNo).IsUnique().HasDatabaseName("UX_stock_in_batch_global_batch_no");
+                entity.HasIndex(e => e.StockInItemId).HasDatabaseName("IX_stock_in_batch_stock_in_item_id");
                 entity.HasOne<StockInItem>()
                     .WithMany()
                     .HasForeignKey(e => e.StockInItemId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<StockOutBatch>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.HasQueryFilter(e => !e.IsDeleted);
+                entity.ToTable("stock_out_batch");
+                entity.Property(e => e.Id).HasMaxLength(36);
+                entity.Property(e => e.PackingId).IsRequired().HasMaxLength(36).HasColumnName("packing_id");
+                entity.Property(e => e.GlobalBatchNo).IsRequired().HasMaxLength(20).HasColumnName("global_batch_no");
+                entity.Property(e => e.OutQty).HasColumnName("out_qty");
+                entity.HasIndex(e => new { e.PackingId, e.GlobalBatchNo })
+                    .IsUnique()
+                    .HasFilter("is_deleted = false")
+                    .HasDatabaseName("UX_stock_out_batch_packing_global");
+                entity.HasIndex(e => e.GlobalBatchNo).HasDatabaseName("IX_stock_out_batch_global_batch_no");
+                entity.HasIndex(e => e.PackingId).HasDatabaseName("IX_stock_out_batch_packing_id");
+                entity.HasOne<Packing>()
+                    .WithMany()
+                    .HasForeignKey(e => e.PackingId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
 

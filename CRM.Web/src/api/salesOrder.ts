@@ -104,6 +104,10 @@ export interface SalesOrderDetailTabAggregates {
     stockInDate?: string | null
     warehouseName?: string | null
     regionType?: number
+    /** 1=客单 2=备货 3=样品 */
+    stockType?: number
+    /** 同 PN+品牌备货池匹配（非本销售行强绑定） */
+    isStockingPoolMatch?: boolean
     purchasePn?: string | null
     purchaseBrand?: string | null
     stockOutStatus?: number

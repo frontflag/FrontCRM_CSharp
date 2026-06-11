@@ -47,6 +47,7 @@ namespace CRM.Infrastructure.Extensions
             services.AddScoped<IVendorListQuery, VendorListQuery>();
             services.AddScoped<IPurchaseRequisitionListQuery, PurchaseRequisitionListQuery>();
             services.AddScoped<IStockInBatchListQuery, global::CRM.Infrastructure.StockInBatches.StockInBatchListQuery>();
+            services.AddScoped<IBatchReconciliationListQuery, global::CRM.Infrastructure.BatchReconciliation.BatchReconciliationListQuery>();
             services.AddScoped<IArrivalNoticeListQuery, ArrivalNoticeListQuery>();
             services.AddScoped<IQcListQuery, QcListQuery>();
             services.AddScoped<IStockInListQuery, StockInListQuery>();
@@ -71,6 +72,7 @@ namespace CRM.Infrastructure.Extensions
 
             // 注册流水号服务和错误日志服务
             services.AddScoped<ISerialNumberService, SerialNumberService>();
+            services.AddScoped<IBatchGlobalNumberService, BatchGlobalNumberService>();
             services.AddScoped<ISellOrderExtendLineSeqService, SellOrderExtendLineSeqService>();
             services.AddScoped<IPurchaseOrderExtendLineSeqService, PurchaseOrderExtendLineSeqService>();
             services.AddScoped<IStockInExtendLineSeqService, StockInExtendLineSeqService>();

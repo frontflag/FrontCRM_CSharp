@@ -67,6 +67,8 @@ namespace CRM.Core.Interfaces
         public const string Packing = "Packing";
         /// <summary>应收款 ARV。</summary>
         public const string FinanceReceivable = "FinanceReceivable";
-        // 以上前缀 + 5 位 32 进制数值位，由 SerialNumberService 拼接
+        /// <summary>入库/出库批次全局编号（PC- + 8 位十进制，由 <see cref="IBatchGlobalNumberService"/> 生成）。</summary>
+        public const string InventoryBatch = "InventoryBatch";
+        // 以上前缀 + 5 位 32 进制数值位，由 SerialNumberService 拼接（InventoryBatch 除外）
     }
 }

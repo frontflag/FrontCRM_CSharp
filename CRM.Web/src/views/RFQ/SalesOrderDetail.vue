@@ -392,48 +392,69 @@
                 </template>
                 <template #default="{ row }">
                   <div @click.stop @dblclick.stop>
-                    <div
-                      v-if="soDetailItemsOpColExpanded && canApplyStockOutForItems && (canPurchaseReq || canWriteSo)"
-                      class="action-btns action-btns--detail-items"
-                    >
-                      <button
-                        v-if="canPurchaseReq"
-                        type="button"
-                        class="action-btn action-btn--warning"
-                        @click.stop="handleOpenApplyPurchase(row)"
+                    <div v-if="soDetailItemsOpColExpanded" class="action-btns">
+                      <el-button link type="primary" size="small" @click.stop="goSoItemDetail(row)">
+                        {{ t('salesOrderItemList.actions.detail') }}
+                      </el-button>
+                      <el-button v-if="canWriteSo" link type="primary" size="small" @click.stop="goSoItemEdit(row)">
+                        {{ t('salesOrderItemList.actions.edit') }}
+                      </el-button>
+                      <el-button
+                        v-if="canPurchaseReq && mainAllowsOps(row)"
+                        link
+                        type="warning"
+                        size="small"
+                        :disabled="applyPurchaseDisabled(row)"
+                        @click.stop="applyPurchaseOne(row)"
                       >
-                        申请采购
-                      </button>
-                      <button
-                        v-if="canWriteSo && (stockOutApplyPurchaseGateOk(row) || salesOrderLinePurchasedStockReliefOk(row))"
-                        type="button"
-                        class="action-btn action-btn--warning"
+                        {{ t('salesOrderItemList.actions.applyPurchase') }}
+                      </el-button>
+                      <el-button
+                        v-if="canWriteSo && mainAllowsOps(row)"
+                        link
+                        type="warning"
+                        size="small"
                         :disabled="salesOrderLineApplyStockOutButtonDisabled(row)"
-                        @click.stop="handleOpenApplyStockOut(row)"
+                        @click.stop="applyStockOutOne(row)"
                       >
-                        申请出库
-                      </button>
+                        {{ t('salesOrderItemList.actions.applyStockOut') }}
+                      </el-button>
                     </div>
-                    <el-dropdown
-                      v-else-if="!soDetailItemsOpColExpanded && canApplyStockOutForItems && (canPurchaseReq || canWriteSo)"
-                      trigger="click"
-                      placement="bottom-end"
-                    >
+                    <el-dropdown v-else trigger="click" placement="bottom-end">
                       <div class="op-more-dropdown-trigger">
                         <button type="button" class="op-more-trigger">...</button>
                       </div>
                       <template #dropdown>
                         <el-dropdown-menu>
-                          <el-dropdown-item v-if="canPurchaseReq" @click.stop="handleOpenApplyPurchase(row)">
-                            <span class="op-more-item op-more-item--warning">申请采购</span>
+                          <el-dropdown-item @click.stop="goSoItemDetail(row)">
+                            <span class="op-more-item op-more-item--primary">{{ t('salesOrderItemList.actions.detail') }}</span>
+                          </el-dropdown-item>
+                          <el-dropdown-item v-if="canWriteSo" @click.stop="goSoItemEdit(row)">
+                            <span class="op-more-item op-more-item--primary">{{ t('salesOrderItemList.actions.edit') }}</span>
                           </el-dropdown-item>
                           <el-dropdown-item
-                            v-if="canWriteSo && (stockOutApplyPurchaseGateOk(row) || salesOrderLinePurchasedStockReliefOk(row))"
-                            :divided="canPurchaseReq"
-                            :disabled="salesOrderLineApplyStockOutButtonDisabled(row)"
-                            @click.stop="handleOpenApplyStockOut(row)"
+                            v-if="canPurchaseReq && mainAllowsOps(row)"
+                            :disabled="applyPurchaseDisabled(row)"
+                            @click.stop="applyPurchaseOne(row)"
                           >
-                            <span class="op-more-item op-more-item--warning">申请出库</span>
+                            <span
+                              class="op-more-item"
+                              :class="applyPurchaseDisabled(row) ? 'op-more-item--disabled' : 'op-more-item--warning'"
+                            >{{ t('salesOrderItemList.actions.applyPurchase') }}</span>
+                          </el-dropdown-item>
+                          <el-dropdown-item
+                            v-if="canWriteSo && mainAllowsOps(row)"
+                            :disabled="salesOrderLineApplyStockOutButtonDisabled(row)"
+                            @click.stop="applyStockOutOne(row)"
+                          >
+                            <span
+                              class="op-more-item"
+                              :class="
+                                salesOrderLineApplyStockOutButtonDisabled(row)
+                                  ? 'op-more-item--disabled'
+                                  : 'op-more-item--warning'
+                              "
+                            >{{ t('salesOrderItemList.actions.applyStockOut') }}</span>
                           </el-dropdown-item>
                         </el-dropdown-menu>
                       </template>
@@ -656,6 +677,14 @@
                       <router-link class="so-tab-link" :to="`/inventory/stocks/${row.stockAggregateId}`">{{
                         row.stockItemCode || row.id
                       }}</router-link>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="库存类型" width="88" align="center">
+                    <template #default="{ row }">
+                      <span
+                        class="stock-type-chip"
+                        :class="`stock-type-chip--${stockItemTypeKind(row)}`"
+                      >{{ stockItemTypeLabel(row) }}</span>
                     </template>
                   </el-table-column>
                   <el-table-column prop="stockInCode" label="入库单号" min-width="150" show-overflow-tooltip />
@@ -1180,12 +1209,60 @@ const canCancelSalesOrderFromMenu = computed(() => {
   if (!Number.isFinite(s) || s === -2) return false
   return s < 10
 })
-const canPurchaseReq = computed(() => authStore.hasPermission('purchase-requisition.write'))
-
-/** 主表审核通过后，明细才允许申请出库 */
-const canApplyStockOutForItems = computed(() =>
-  order.value != null && salesOrderMainAllowsPurchaseAndStockOut(Number(order.value.status))
+const canPurchaseReq = computed(
+  () =>
+    authStore.hasPermission('purchase-requisition.write') ||
+    authStore.hasPermission('sales-order.write')
 )
+
+function mainAllowsOps(_row?: unknown) {
+  return order.value != null && salesOrderMainAllowsPurchaseAndStockOut(Number(order.value.status))
+}
+
+/** 剩余可采为 0 时禁用「申请采购」（与明细列表口径一致） */
+function applyPurchaseDisabled(row: Record<string, unknown>) {
+  const raw = (row as { purchaseRemainingQty?: unknown }).purchaseRemainingQty
+  if (raw === undefined || raw === null) return false
+  const n = Number(raw)
+  if (!Number.isFinite(n)) return false
+  return n <= 0
+}
+
+function goSoItemDetail(row: Record<string, unknown>) {
+  void onSalesOrderItemRowDblClick(row)
+}
+
+function goSoItemEdit(_row: Record<string, unknown>) {
+  handleEdit()
+}
+
+async function applyPurchaseOne(row: Record<string, unknown>) {
+  if (applyPurchaseDisabled(row)) {
+    ElMessage.warning(t('salesOrderItemList.messages.prLineNotAvailable'))
+    return
+  }
+  if (!mainAllowsOps(row)) {
+    ElMessage.warning(t('salesOrderItemList.messages.applyPurchaseNeedAudit'))
+    return
+  }
+  await handleOpenApplyPurchase(row)
+}
+
+async function applyStockOutOne(row: Record<string, unknown>) {
+  if (!mainAllowsOps(row)) {
+    ElMessage.warning(t('salesOrderItemList.messages.applyStockOutNeedAudit'))
+    return
+  }
+  if (!stockOutApplyPurchaseGateOk(row) && !salesOrderLinePurchasedStockReliefOk(row)) {
+    ElMessage.warning(t('salesOrderItemList.messages.applyStockOutNeedPurchaseGate'))
+    return
+  }
+  if (salesOrderLineApplyStockOutDisabled(row) && !salesOrderLinePurchasedStockReliefOk(row)) {
+    ElMessage.warning(t('salesOrderItemList.messages.applyStockOutDisabledByProgress'))
+    return
+  }
+  await handleOpenApplyStockOut(row)
+}
 
 function stockOutApplyPurchaseGateOk(row: any) {
   return row?.stockOutApplyPurchaseGateOk === true
@@ -1299,6 +1376,26 @@ function stockOutboundStatusKind(status: unknown): 'none' | 'partial' | 'done' |
   if (n === 2) return 'partial'
   if (n === 3) return 'done'
   return 'unknown'
+}
+
+function stockItemTypeNum(row: { stockType?: unknown; isStockingPoolMatch?: unknown }): number {
+  const n = Number(row.stockType ?? 1)
+  if (n >= 1 && n <= 3) return n
+  return row.isStockingPoolMatch ? 2 : 1
+}
+
+function stockItemTypeLabel(row: { stockType?: unknown; isStockingPoolMatch?: unknown }): string {
+  const n = stockItemTypeNum(row)
+  if (n === 2) return t('inventoryList.stockTypes.stocking')
+  if (n === 3) return t('inventoryList.stockTypes.sample')
+  return t('inventoryList.stockTypes.customer')
+}
+
+function stockItemTypeKind(row: { stockType?: unknown; isStockingPoolMatch?: unknown }): 'customer' | 'stocking' | 'sample' {
+  const n = stockItemTypeNum(row)
+  if (n === 2) return 'stocking'
+  if (n === 3) return 'sample'
+  return 'customer'
 }
 
 async function handleOpenApplyPurchase(row: any) {
@@ -2611,6 +2708,30 @@ const submitApplyStockOut = async () => {
 .region-type-chip--overseas {
   color: #409eff;
   background: rgba(64, 158, 255, 0.14);
+}
+
+.stock-type-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.stock-type-chip--customer {
+  color: #67c23a;
+  background: rgba(103, 194, 58, 0.14);
+}
+
+.stock-type-chip--stocking {
+  color: #e6a23c;
+  background: rgba(230, 162, 60, 0.14);
+}
+
+.stock-type-chip--sample {
+  color: #909399;
+  background: rgba(144, 147, 153, 0.14);
 }
 
 .detail-items-table-wrap {

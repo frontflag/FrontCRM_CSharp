@@ -13,20 +13,8 @@
         </div>
         <div class="count-badge">{{ t('stockInBatchList.count', { count: listTotalServer }) }}</div>
       </div>
-      <div class="header-right">
-        <button type="button" class="btn-header-blue" @click="writeOffVisible = true">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          {{ t('stockInBatchList.writeOff.button') }}
-        </button>
-      </div>
     </div>
 
-    <StockInBatchWriteOffDialog v-model="writeOffVisible" @success="() => void fetchList(true)" />
-
-    <!-- 搜索栏：与客户列表 /customerlist 同一套结构与样式 -->
     <div class="search-bar">
       <div class="search-left">
         <div class="search-input-wrap">
@@ -35,9 +23,9 @@
             <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
           <input
-            v-model="filters.stockInItemCode"
+            v-model="filters.globalBatchNo"
             class="search-input"
-            :placeholder="t('stockInBatchList.filters.stockInItemCodePlaceholder')"
+            :placeholder="t('stockInBatchList.filters.globalBatchNoPlaceholder')"
             @keyup.enter="() => void fetchList(true)"
           />
         </div>
@@ -72,7 +60,7 @@
 
     <CrmDataTable
       ref="dataTableRef"
-      column-layout-key="stock-in-batch-list"
+      column-layout-key="stock-in-batch-list-v2"
       :columns="tableColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -106,14 +94,23 @@
       @closed="onEditClosed"
     >
       <el-form label-width="120px" label-position="right" v-if="editForm">
-        <el-form-item :label="t('stockInBatchList.edit.stockInItemCode')">
-          <el-input :model-value="editForm.stockInItemCode || '—'" disabled />
+        <el-form-item :label="t('stockInBatchList.edit.globalBatchNo')">
+          <el-input :model-value="editForm.globalBatchNo || '—'" disabled />
         </el-form-item>
 
         <el-collapse v-model="collapseActive">
           <el-collapse-item :title="t('stockInBatchList.edit.panel1')" name="1">
-            <el-form-item :label="t('stockInBatchList.columns.materialModel')">
-              <el-input v-model="editForm.materialModel" maxlength="200" show-word-limit />
+            <el-form-item :label="t('stockInBatchList.columns.batchDimension')">
+              <el-input v-model="editForm.batchDimension" maxlength="32" show-word-limit />
+            </el-form-item>
+            <el-form-item :label="t('stockInBatchList.columns.batchUnit')">
+              <el-input v-model="editForm.batchUnit" maxlength="32" show-word-limit />
+            </el-form-item>
+            <el-form-item :label="t('stockInBatchList.columns.unitNo')">
+              <el-input v-model="editForm.unitNo" maxlength="128" show-word-limit />
+            </el-form-item>
+            <el-form-item :label="t('stockInBatchList.columns.batchQty')">
+              <el-input-number v-model="editForm.batchQty" :min="0" :controls="true" class="w-full-num" />
             </el-form-item>
             <el-form-item :label="t('stockInBatchList.columns.dc')">
               <el-input v-model="editForm.dc" maxlength="64" show-word-limit />
@@ -129,28 +126,16 @@
             <el-form-item :label="t('stockInBatchList.columns.lot')">
               <el-input v-model="editForm.lot" maxlength="128" show-word-limit />
             </el-form-item>
-            <el-form-item :label="t('stockInBatchList.columns.lotQtyIn')">
-              <el-input-number v-model="editForm.lotQtyIn" :min="0" :controls="true" class="w-full-num" />
-            </el-form-item>
-            <el-form-item :label="t('stockInBatchList.columns.lotQtyOut')">
-              <el-input-number v-model="editForm.lotQtyOut" :min="0" :controls="true" class="w-full-num" />
-            </el-form-item>
-            <el-form-item :label="t('stockInBatchList.columns.origin')">
-              <el-input v-model="editForm.origin" maxlength="200" show-word-limit />
-            </el-form-item>
-          </el-collapse-item>
-          <el-collapse-item :title="t('stockInBatchList.edit.panel3')" name="3">
             <el-form-item :label="t('stockInBatchList.columns.serialNumber')">
               <el-input v-model="editForm.serialNumber" maxlength="200" show-word-limit />
             </el-form-item>
-            <el-form-item :label="t('stockInBatchList.columns.snQtyIn')">
-              <el-input-number v-model="editForm.snQtyIn" :min="0" :controls="true" class="w-full-num" />
-            </el-form-item>
-            <el-form-item :label="t('stockInBatchList.columns.snQtyOut')">
-              <el-input-number v-model="editForm.snQtyOut" :min="0" :controls="true" class="w-full-num" />
-            </el-form-item>
+          </el-collapse-item>
+          <el-collapse-item :title="t('stockInBatchList.edit.panel3')" name="3">
             <el-form-item :label="t('stockInBatchList.columns.firmwareVersion')">
               <el-input v-model="editForm.firmwareVersion" maxlength="128" show-word-limit />
+            </el-form-item>
+            <el-form-item :label="t('stockInBatchList.columns.partCode')">
+              <el-input v-model="editForm.partCode" maxlength="128" show-word-limit />
             </el-form-item>
           </el-collapse-item>
           <el-collapse-item :title="t('stockInBatchList.edit.panel4')" name="4">
@@ -178,7 +163,6 @@ import { getApiErrorMessage } from '@/utils/apiError'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const { t } = useI18n()
-const writeOffVisible = ref(false)
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const loading = ref(false)
@@ -193,43 +177,41 @@ watch(listTotalServer, () => {
 })
 
 const filters = reactive({
-  stockInItemCode: '',
+  globalBatchNo: '',
   lot: '',
   serialNumber: ''
 })
 
 const tableColumns = computed<CrmTableColumnDef[]>(() => [
-  { key: 'stockInItemCode', label: t('stockInBatchList.columns.stockInItemCode'), prop: 'stockInItemCode', width: 160, showOverflowTooltip: true },
-  { key: 'materialModel', label: t('stockInBatchList.columns.materialModel'), prop: 'materialModel', minWidth: 120, showOverflowTooltip: true },
+  { key: 'globalBatchNo', label: t('stockInBatchList.columns.globalBatchNo'), prop: 'globalBatchNo', width: 140, showOverflowTooltip: true },
+  { key: 'batchDimension', label: t('stockInBatchList.columns.batchDimension'), prop: 'batchDimension', width: 100, showOverflowTooltip: true },
+  { key: 'batchUnit', label: t('stockInBatchList.columns.batchUnit'), prop: 'batchUnit', width: 110, showOverflowTooltip: true },
+  { key: 'unitNo', label: t('stockInBatchList.columns.unitNo'), prop: 'unitNo', minWidth: 100, showOverflowTooltip: true },
+  { key: 'batchQty', label: t('stockInBatchList.columns.batchQty'), prop: 'batchQty', width: 100, align: 'right' },
   { key: 'dc', label: t('stockInBatchList.columns.dc'), prop: 'dc', width: 88, showOverflowTooltip: true },
   { key: 'packageOrigin', label: t('stockInBatchList.columns.packageOrigin'), prop: 'packageOrigin', minWidth: 100, showOverflowTooltip: true },
   { key: 'waferOrigin', label: t('stockInBatchList.columns.waferOrigin'), prop: 'waferOrigin', minWidth: 100, showOverflowTooltip: true },
   { key: 'lot', label: t('stockInBatchList.columns.lot'), prop: 'lot', width: 100, showOverflowTooltip: true },
-  { key: 'lotQtyIn', label: t('stockInBatchList.columns.lotQtyIn'), prop: 'lotQtyIn', width: 148, minWidth: 148, align: 'right' },
-  { key: 'lotQtyOut', label: t('stockInBatchList.columns.lotQtyOut'), prop: 'lotQtyOut', width: 148, minWidth: 148, align: 'right' },
-  { key: 'origin', label: t('stockInBatchList.columns.origin'), prop: 'origin', minWidth: 90, showOverflowTooltip: true },
   { key: 'serialNumber', label: t('stockInBatchList.columns.serialNumber'), prop: 'serialNumber', minWidth: 110, showOverflowTooltip: true },
-  { key: 'snQtyIn', label: t('stockInBatchList.columns.snQtyIn'), prop: 'snQtyIn', width: 158, minWidth: 158, align: 'right' },
-  { key: 'snQtyOut', label: t('stockInBatchList.columns.snQtyOut'), prop: 'snQtyOut', width: 158, minWidth: 158, align: 'right' },
   { key: 'firmwareVersion', label: t('stockInBatchList.columns.firmwareVersion'), prop: 'firmwareVersion', minWidth: 110, showOverflowTooltip: true },
+  { key: 'partCode', label: t('stockInBatchList.columns.partCode'), prop: 'partCode', minWidth: 100, showOverflowTooltip: true },
   { key: 'remark', label: t('stockInBatchList.columns.remark'), prop: 'remark', minWidth: 120, showOverflowTooltip: true }
 ])
 
 type EditForm = {
   id: string
-  stockInItemCode: string
-  materialModel: string
+  globalBatchNo: string
+  batchDimension: string
+  batchUnit: string
+  unitNo: string
+  batchQty: number
   dc: string
   packageOrigin: string
   waferOrigin: string
   lot: string
-  lotQtyIn: number
-  lotQtyOut: number
-  origin: string
   serialNumber: string
-  snQtyIn: number
-  snQtyOut: number
   firmwareVersion: string
+  partCode: string
   remark: string
 }
 
@@ -246,19 +228,18 @@ function openEdit(row: StockInBatchRow) {
   editingId.value = row.id
   editForm.value = {
     id: row.id,
-    stockInItemCode: str(row.stockInItemCode),
-    materialModel: str(row.materialModel),
+    globalBatchNo: str(row.globalBatchNo),
+    batchDimension: str(row.batchDimension),
+    batchUnit: str(row.batchUnit),
+    unitNo: str(row.unitNo),
+    batchQty: Number(row.batchQty) || 0,
     dc: str(row.dc),
     packageOrigin: str(row.packageOrigin),
     waferOrigin: str(row.waferOrigin),
     lot: str(row.lot),
-    lotQtyIn: Number(row.lotQtyIn) || 0,
-    lotQtyOut: Number(row.lotQtyOut) || 0,
-    origin: str(row.origin),
     serialNumber: str(row.serialNumber),
-    snQtyIn: Number(row.snQtyIn) || 0,
-    snQtyOut: Number(row.snQtyOut) || 0,
     firmwareVersion: str(row.firmwareVersion),
+    partCode: str(row.partCode),
     remark: str(row.remark)
   }
   editVisible.value = true
@@ -276,18 +257,17 @@ async function saveEdit() {
   saving.value = true
   try {
     const body: StockInBatchUpdatePayload = {
-      materialModel: f.materialModel.trim() || null,
+      batchDimension: f.batchDimension.trim() || null,
+      batchUnit: f.batchUnit.trim() || null,
+      unitNo: f.unitNo.trim() || null,
+      batchQty: f.batchQty,
       dc: f.dc.trim() || null,
       packageOrigin: f.packageOrigin.trim() || null,
       waferOrigin: f.waferOrigin.trim() || null,
       lot: f.lot.trim() || null,
-      lotQtyIn: f.lotQtyIn,
-      lotQtyOut: f.lotQtyOut,
-      origin: f.origin.trim() || null,
       serialNumber: f.serialNumber.trim() || null,
-      snQtyIn: f.snQtyIn,
-      snQtyOut: f.snQtyOut,
       firmwareVersion: f.firmwareVersion.trim() || null,
+      partCode: f.partCode.trim() || null,
       remark: f.remark.trim() || null
     }
     const updated = await stockInBatchApi.update(id, body)
@@ -307,7 +287,7 @@ async function fetchList(resetPage = true) {
   loading.value = true
   try {
     const paged = await stockInBatchApi.listPaged({
-      stockInItemCode: filters.stockInItemCode.trim() || undefined,
+      globalBatchNo: filters.globalBatchNo.trim() || undefined,
       lot: filters.lot.trim() || undefined,
       serialNumber: filters.serialNumber.trim() || undefined,
       page: listPage.value,
@@ -330,7 +310,7 @@ function onBatchListPageSizeChange() {
 }
 
 function resetFilters() {
-  filters.stockInItemCode = ''
+  filters.globalBatchNo = ''
   filters.lot = ''
   filters.serialNumber = ''
   void fetchList(true)
@@ -364,36 +344,6 @@ onMounted(() => {
     align-items: center;
     gap: 12px;
     flex-wrap: wrap;
-  }
-
-  .header-right {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-shrink: 0;
-    flex-wrap: wrap;
-  }
-}
-
-/* 与采购订单列表「新建采购订单」同结构（PurchaseOrderList .btn-success），主色改为蓝（同页 .btn-primary 渐变） */
-.btn-header-blue {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  background: linear-gradient(135deg, rgba(0, 102, 255, 0.8), rgba(0, 212, 255, 0.7));
-  border: 1px solid rgba(0, 212, 255, 0.4);
-  border-radius: $border-radius-md;
-  color: #fff;
-  font-size: 13px;
-  font-family: 'Noto Sans SC', sans-serif;
-  cursor: pointer;
-  transition: all 0.2s;
-  letter-spacing: 0.5px;
-
-  &:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(0, 212, 255, 0.25);
   }
 }
 
@@ -429,7 +379,6 @@ onMounted(() => {
   padding: 3px 10px;
 }
 
-// ---- 搜索栏（与 CustomerList.vue 一致）----
 .search-bar {
   display: flex;
   align-items: center;
@@ -442,13 +391,6 @@ onMounted(() => {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-}
-
-.filter-field-label {
-  font-size: 12px;
-  font-weight: 500;
-  color: $text-muted;
-  white-space: nowrap;
 }
 
 .search-input-wrap {

@@ -3,6 +3,8 @@ using CRM.Core.Models.Customer;
 using CRM.Core.Models.Finance;
 using CRM.Core.Models.Quote;
 
+// BatchReconciliationRowDto / BatchReconciliationConsumptionRowDto 定义于 CRM.Core.Interfaces。
+
 namespace CRM.Core.Utilities;
 
 // DTO 类型定义于 CRM.Core.Interfaces（IStockOutService / IInventoryCenterService 等文件内）。
@@ -56,6 +58,8 @@ public static class SaleSensitiveFieldMask521
     {
         if (!mask || x == null) return;
         x.CustomerName = null;
+        x.CustomerEnglishName = null;
+        x.CustomerCode = null;
         x.SalesUserName = null;
         x.TotalAmount = 0m;
     }
@@ -244,5 +248,33 @@ public static class SaleSensitiveFieldMask521
         if (!mask || items == null) return;
         foreach (var inv in items)
             ApplyFinanceSellInvoice(inv, true);
+    }
+
+    public static void ApplyBatchReconciliationRow(BatchReconciliationRowDto? row, bool mask)
+    {
+        if (!mask || row == null) return;
+        row.CustomerId = null;
+        row.CustomerName = null;
+    }
+
+    public static void ApplyBatchReconciliationRows(IEnumerable<BatchReconciliationRowDto>? rows, bool mask)
+    {
+        if (!mask || rows == null) return;
+        foreach (var row in rows)
+            ApplyBatchReconciliationRow(row, true);
+    }
+
+    public static void ApplyBatchReconciliationConsumptionRow(BatchReconciliationConsumptionRowDto? row, bool mask)
+    {
+        if (!mask || row == null) return;
+        row.CustomerId = null;
+        row.CustomerName = null;
+    }
+
+    public static void ApplyBatchReconciliationConsumptionRows(IEnumerable<BatchReconciliationConsumptionRowDto>? rows, bool mask)
+    {
+        if (!mask || rows == null) return;
+        foreach (var row in rows)
+            ApplyBatchReconciliationConsumptionRow(row, true);
     }
 }
