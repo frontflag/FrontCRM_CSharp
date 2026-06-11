@@ -300,6 +300,10 @@ namespace CRM.Core.Models.Inventory
         [NotMapped]
         public string? DetailVendorName { get; set; }
 
+        /// <summary>报关入库详情：溯源上下文（仅 StockInType=20 时由服务层填充）。</summary>
+        [NotMapped]
+        public StockInCustomsContextDto? CustomsContext { get; set; }
+
         [Column("is_deleted")]
         public bool IsDeleted { get; set; }
 

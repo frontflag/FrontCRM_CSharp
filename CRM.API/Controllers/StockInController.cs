@@ -100,8 +100,12 @@ namespace CRM.API.Controllers
                     return NotFound(ApiResponse<StockIn>.Fail("入库单不存在", 404));
                 if (!await _service.CanUserAccessStockInAsync(userId, id, cancellationToken))
                     return NotFound(ApiResponse<StockIn>.Fail("入库单不存在", 404));
-                if (await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User))
+                var mask511 = await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User);
+                var mask521 = await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User);
+                if (mask511)
                     PurchaseSensitiveFieldMask511.ApplyStockIn(entity, true);
+                if (mask521)
+                    SaleSensitiveFieldMask521.ApplyStockInCustomsContext(entity.CustomsContext, true);
                 return Ok(ApiResponse<StockIn>.Ok(entity, "获取入库单成功"));
             }
             catch (Exception ex)

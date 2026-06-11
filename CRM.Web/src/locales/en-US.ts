@@ -164,6 +164,7 @@ const enUS = {
       colSales: 'Sales',
       colPn: 'PN',
       colBrand: 'Brand',
+      colHs: 'HS code',
       colQty: 'Qty',
       colUnitPrice: 'Unit price',
       colDuty: 'Duty',
@@ -3713,6 +3714,95 @@ const enUS = {
       remarkUpdateFailed: 'Failed to update remark',
       markDoneSuccess: 'Marked as stocked in',
       updateStatusFailed: 'Failed to update status'
+    }
+  },
+  stockInDetail: {
+    fields: {
+      originalVendor: 'Original vendor',
+      customsArrivalNotify: 'Customs arrival notice',
+      purchaseArrivalNotify: 'Arrival notice no.'
+    },
+    customsSection: 'Customs',
+    customsQc: 'QC no.',
+    customsDeclaration: 'Declaration no.',
+    customsLineNo: 'Declaration line',
+    customsBroker: 'Customs broker',
+    customsPacking: 'Customs packing',
+    warehouseRoute: 'From → To warehouse',
+    salesStockOutNotify: 'Sales stock-out notify',
+    customsStockOutNotify: 'Customs stock-out notify',
+    customer: 'Customer',
+    sellOrderItemCode: 'Sales line no.',
+    purchasePn: 'Material model',
+    purchaseBrand: 'Brand',
+    declareQty: 'Declare qty',
+    originalPrice: 'Original price P0',
+    taxIncludedPrice: 'Tax-included price P1',
+    clearanceStatus: 'Clearance status',
+    clearanceNone: 'None',
+    clearanceReleased: 'Released',
+    clearanceCleared: 'Cleared',
+    noCustomsItems: 'No linked customs declaration lines',
+    customsTraceSection: 'Traceability',
+    customsFeeSection: 'Declaration & fees',
+    declarationSummary: 'Linked declarations',
+    exchangeRate: 'Exchange rate',
+    declarationTotalTax: 'Total customs cost',
+    hsCode: 'HS code',
+    declareUnitPrice: 'Declare unit price',
+    vendor: 'Original vendor',
+    timelineSection: 'Customs flow timeline',
+    timelineStatePending: 'Pending',
+    timelineStateDone: 'Completed',
+    timelineSteps: {
+      salesStockOutNotify: 'Sales stock-out notify',
+      pendlist: 'Customs pending',
+      customsStockOutNotify: 'Customs stock-out notify',
+      packing: 'Customs packing',
+      declaration: 'Declaration',
+      stockTransfer: 'Customs transfer',
+      arrivalNotify: 'Arrival notice',
+      qc: 'QC',
+      stockIn: 'Customs stock-in'
+    },
+    timelinePendlistStatus: {
+      open: 'Open',
+      customsOutCreated: 'Customs out notify created',
+      inProcess: 'In customs process',
+      closed: 'Closed',
+      cancelled: 'Cancelled'
+    },
+    timelineSorStatus: {
+      pendingCustoms: 'Pending customs',
+      pendingPacking: 'Pending packing',
+      packed: 'Packed',
+      stockedOut: 'Stocked out',
+      cancelled: 'Cancelled'
+    },
+    timelinePackingStatus: {
+      new: 'New',
+      confirmed: 'Confirmed',
+      picked: 'Picked',
+      ready: 'Ready',
+      pendingStockOut: 'Pending stock-out',
+      stockOutFinished: 'Stock-out finished'
+    },
+    timelineDeclarationStatus: {
+      pending: 'Pending',
+      processing: 'Processing',
+      completed: 'Completed',
+      voided: 'Voided'
+    },
+    timelineArrivalStatus: {
+      notArrived: 'Not arrived',
+      pendingQc: 'Pending QC',
+      qcDone: 'QC done',
+      stockedIn: 'Stocked in'
+    },
+    timelineQcStatus: {
+      failed: 'Failed',
+      partial: 'Partial pass',
+      passed: 'Passed'
     }
   },
   stockOutList: {

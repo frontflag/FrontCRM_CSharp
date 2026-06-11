@@ -165,6 +165,7 @@ const zhCN = {
       colPn: '物料型号',
       colBrand: '品牌',
       colQty: '申报数量',
+      colHs: 'HS 编码',
       colUnitPrice: '申报单价',
       colDuty: '关税',
       colVat: '增值税',
@@ -3691,6 +3692,95 @@ const zhCN = {
       remarkUpdateFailed: '更新备注失败',
       markDoneSuccess: '已标记为已入库',
       updateStatusFailed: '更新状态失败'
+    }
+  },
+  stockInDetail: {
+    fields: {
+      originalVendor: '原始供应商',
+      customsArrivalNotify: '报关到货通知',
+      purchaseArrivalNotify: '到货通知号'
+    },
+    customsSection: '报关信息',
+    customsQc: '质检单号',
+    customsDeclaration: '报关单号',
+    customsLineNo: '报关明细行',
+    customsBroker: '报关公司',
+    customsPacking: '报关装箱单',
+    warehouseRoute: '源仓 → 目标仓',
+    salesStockOutNotify: '销售出库通知',
+    customsStockOutNotify: '报关出库通知',
+    customer: '客户',
+    sellOrderItemCode: '销售明细号',
+    purchasePn: '物料型号',
+    purchaseBrand: '品牌',
+    declareQty: '申报数量',
+    originalPrice: '原采购价 P0',
+    taxIncludedPrice: '含税采购价 P1',
+    clearanceStatus: '清关状态',
+    clearanceNone: '未清关',
+    clearanceReleased: '已放行',
+    clearanceCleared: '已结关',
+    noCustomsItems: '暂无关联报关明细',
+    customsTraceSection: '溯源信息',
+    customsFeeSection: '申报与费用',
+    declarationSummary: '关联报关单',
+    exchangeRate: '汇率',
+    declarationTotalTax: '报关总费用',
+    hsCode: 'HS 编码',
+    declareUnitPrice: '申报单价',
+    vendor: '原始供应商',
+    timelineSection: '报关链路时间线',
+    timelineStatePending: '待发生',
+    timelineStateDone: '已完成',
+    timelineSteps: {
+      salesStockOutNotify: '销售出库通知',
+      pendlist: '待报关记录',
+      customsStockOutNotify: '报关出库通知',
+      packing: '报关装箱单',
+      declaration: '报关单',
+      stockTransfer: '报关移库',
+      arrivalNotify: '报关到货通知',
+      qc: '质检',
+      stockIn: '报关入库'
+    },
+    timelinePendlistStatus: {
+      open: '待处理',
+      customsOutCreated: '已生成报关出库通知',
+      inProcess: '报关处理中',
+      closed: '已关闭',
+      cancelled: '已取消'
+    },
+    timelineSorStatus: {
+      pendingCustoms: '待报关',
+      pendingPacking: '待装箱',
+      packed: '已装箱',
+      stockedOut: '已出库',
+      cancelled: '已取消'
+    },
+    timelinePackingStatus: {
+      new: '新建',
+      confirmed: '已确认',
+      picked: '已拣货',
+      ready: '待出库',
+      pendingStockOut: '待出库',
+      stockOutFinished: '已出库'
+    },
+    timelineDeclarationStatus: {
+      pending: '待处理',
+      processing: '处理中',
+      completed: '已完成',
+      voided: '已作废'
+    },
+    timelineArrivalStatus: {
+      notArrived: '未到货',
+      pendingQc: '到货待检',
+      qcDone: '已质检',
+      stockedIn: '已入库'
+    },
+    timelineQcStatus: {
+      failed: '未通过',
+      partial: '部分通过',
+      passed: '已通过'
     }
   },
   stockOutList: {

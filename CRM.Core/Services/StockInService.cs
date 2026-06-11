@@ -43,6 +43,7 @@ namespace CRM.Core.Services
         private readonly ILogger<StockInService> _logger;
         private readonly IStockInListQuery _stockInListQuery;
         private readonly ICustomsV2FlowService _customsV2FlowService;
+        private readonly IStockInCustomsContextQuery _stockInCustomsContextQuery;
 
         public StockInService(
             IRepository<StockIn> stockInRepository,
@@ -70,7 +71,8 @@ namespace CRM.Core.Services
             ILogOperationAppendService logOperationAppend,
             ILogger<StockInService> logger,
             IStockInListQuery stockInListQuery,
-            ICustomsV2FlowService customsV2FlowService)
+            ICustomsV2FlowService customsV2FlowService,
+            IStockInCustomsContextQuery stockInCustomsContextQuery)
         {
             _stockInRepository = stockInRepository;
             _stockInItemRepository = stockInItemRepository;
@@ -98,6 +100,7 @@ namespace CRM.Core.Services
             _logger = logger;
             _stockInListQuery = stockInListQuery;
             _customsV2FlowService = customsV2FlowService;
+            _stockInCustomsContextQuery = stockInCustomsContextQuery;
         }
 
         public async Task<StockIn> CreateAsync(CreateStockInRequest request, string? actingUserId = null)
@@ -430,6 +433,9 @@ namespace CRM.Core.Services
                 line.DetailPurchaseOrderItemCode = poItemCode;
                 line.DetailCurrency = ResolveStockInLineCurrency(line, poiForCurrency);
             }
+
+            if (stockIn.StockInType == StockInTypeCode.Customs)
+                stockIn.CustomsContext = await _stockInCustomsContextQuery.LoadAsync(stockIn);
 
             return stockIn;
         }

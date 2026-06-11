@@ -2,6 +2,7 @@ using CRM.API.Models.DTOs;
 using CRM.API.Utilities;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Customs;
+using CRM.Core.Models.Inventory;
 using CRM.Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -141,15 +142,150 @@ public class CustomsDeclarationsController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<ApiResponse<CustomsDeclaration>>> GetById(string id)
+    public async Task<ActionResult<ApiResponse<CustomsDeclarationDetailViewDto>>> GetById(string id)
     {
-        var row = await _db.CustomsDeclarations
-            .AsNoTracking()
-            .Include(x => x.Items)
-            .FirstOrDefaultAsync(x => x.Id == id);
+        var key = id.Trim();
+        var row = await _db.CustomsDeclarations.AsNoTracking()
+            .Include(x => x.Items.Where(i => !i.IsDeleted))
+            .FirstOrDefaultAsync(x => x.Id == key);
         if (row == null)
-            return NotFound(ApiResponse<CustomsDeclaration>.Fail("报关单不存在", 404));
-        return Ok(ApiResponse<CustomsDeclaration>.Ok(row, "OK"));
+            return NotFound(ApiResponse<CustomsDeclarationDetailViewDto>.Fail("报关单不存在", 404));
+
+        var broker = await _db.CustomsBrokers.AsNoTracking()
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(b => b.Id == row.CustomsBrokerId);
+        Packing? packing = null;
+        if (!string.IsNullOrWhiteSpace(row.PackingId))
+            packing = await _db.Packings.AsNoTracking().FirstOrDefaultAsync(p => p.Id == row.PackingId!.Trim());
+
+        var whIds = new[] { row.FromWarehouseId, row.ToWarehouseId }
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Select(s => s.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var warehouses = whIds.Count == 0
+            ? new List<CRM.Core.Models.Inventory.WarehouseInfo>()
+            : await _db.Warehouses.AsNoTracking().Where(w => whIds.Contains(w.Id)).ToListAsync();
+        var whById = warehouses.ToDictionary(w => w.Id.Trim(), w => w, StringComparer.OrdinalIgnoreCase);
+        whById.TryGetValue(row.FromWarehouseId.Trim(), out var fromWh);
+        whById.TryGetValue(row.ToWarehouseId.Trim(), out var toWh);
+
+        var items = row.Items.Where(i => !i.IsDeleted).OrderBy(i => i.LineNo).ToList();
+        var vendorIds = items.Where(i => !string.IsNullOrWhiteSpace(i.VendorId)).Select(i => i.VendorId!.Trim()).Distinct().ToList();
+        var customerIds = items.Where(i => !string.IsNullOrWhiteSpace(i.CustomerId)).Select(i => i.CustomerId!.Trim()).Distinct().ToList();
+        var vendors = vendorIds.Count == 0
+            ? new List<CRM.Core.Models.Vendor.VendorInfo>()
+            : await _db.Vendors.AsNoTracking().Where(v => vendorIds.Contains(v.Id)).ToListAsync();
+        var customers = customerIds.Count == 0
+            ? new List<CRM.Core.Models.Customer.CustomerInfo>()
+            : await _db.Customers.AsNoTracking().Where(c => customerIds.Contains(c.Id)).ToListAsync();
+        var venById = vendors.ToDictionary(v => v.Id.Trim(), v => v, StringComparer.OrdinalIgnoreCase);
+        var custById = customers.ToDictionary(c => c.Id.Trim(), c => c, StringComparer.OrdinalIgnoreCase);
+
+        var firstSor = items.FirstOrDefault()?.StockOutRequestId;
+
+        var dto = new CustomsDeclarationDetailViewDto
+        {
+            Id = row.Id,
+            DeclarationCode = row.DeclarationCode,
+            PackingId = row.PackingId,
+            PackingCode = packing?.Code,
+            StockOutRequestId = string.IsNullOrWhiteSpace(firstSor) ? null : firstSor.Trim(),
+            CustomsBrokerId = row.CustomsBrokerId,
+            CustomsBrokerName = broker?.Cname,
+            CustomsBrokerCode = broker?.BrokerCode,
+            DeclarationType = row.DeclarationType,
+            InternalStatus = row.InternalStatus,
+            CustomsClearanceStatus = row.CustomsClearanceStatus,
+            DeclareDate = row.DeclareDate,
+            ExchangeRate = row.ExchangeRate,
+            TotalTaxAmount = row.TotalTaxAmount,
+            FromWarehouseId = row.FromWarehouseId,
+            ToWarehouseId = row.ToWarehouseId,
+            FromWarehouseCode = fromWh?.WarehouseCode,
+            ToWarehouseCode = toWh?.WarehouseCode,
+            Remark = row.Remark,
+            CreateTime = row.CreateTime,
+            Items = items.Select(i =>
+            {
+                string? vendorName = null;
+                if (!string.IsNullOrWhiteSpace(i.VendorId) && venById.TryGetValue(i.VendorId.Trim(), out var ven))
+                {
+                    vendorName = !string.IsNullOrWhiteSpace(ven.OfficialName) ? ven.OfficialName.Trim()
+                        : !string.IsNullOrWhiteSpace(ven.NickName) ? ven.NickName.Trim()
+                        : ven.Code?.Trim();
+                }
+
+                string? customerName = null;
+                if (!string.IsNullOrWhiteSpace(i.CustomerId) && custById.TryGetValue(i.CustomerId.Trim(), out var cust))
+                {
+                    customerName = !string.IsNullOrWhiteSpace(cust.OfficialName) ? cust.OfficialName.Trim()
+                        : !string.IsNullOrWhiteSpace(cust.NickName) ? cust.NickName.Trim()
+                        : cust.CustomerCode?.Trim();
+                }
+
+                return new CustomsDeclarationDetailItemViewDto
+                {
+                    Id = i.Id,
+                    LineNo = i.LineNo,
+                    HsCode = i.HsCode,
+                    PurchasePn = i.PurchasePn,
+                    PurchaseBrand = i.PurchaseBrand,
+                    DeclareQty = i.DeclareQty,
+                    DeclareUnitPrice = i.DeclareUnitPrice,
+                    OriginalPurchasePrice = i.OriginalPurchasePrice,
+                    DutyAmount = i.DutyAmount,
+                    VatAmount = i.VatAmount,
+                    CustomsPaymentGoods = i.CustomsPaymentGoods,
+                    CustomsAgencyFee = i.CustomsAgencyFee,
+                    OtherFee = i.OtherFee,
+                    InspectionFee = i.InspectionFee,
+                    TotalValueTax = i.TotalValueTax,
+                    TaxIncludedUnitPrice = i.TaxIncludedUnitPrice,
+                    SellOrderItemCode = i.SellOrderItemCode,
+                    CustomerId = i.CustomerId,
+                    CustomerName = customerName,
+                    VendorId = i.VendorId,
+                    VendorName = vendorName,
+                    StockOutRequestId = i.StockOutRequestId
+                };
+            }).ToList()
+        };
+
+        var mask511 = await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User);
+        var mask521 = await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User);
+        if (mask511)
+        {
+            dto.ExchangeRate = 0m;
+            dto.TotalTaxAmount = 0m;
+            foreach (var it in dto.Items)
+            {
+                it.VendorId = null;
+                it.VendorName = null;
+                it.DeclareUnitPrice = 0m;
+                it.OriginalPurchasePrice = 0m;
+                it.DutyAmount = 0m;
+                it.VatAmount = 0m;
+                it.CustomsPaymentGoods = 0m;
+                it.CustomsAgencyFee = 0m;
+                it.OtherFee = 0m;
+                it.InspectionFee = 0m;
+                it.TotalValueTax = 0m;
+                it.TaxIncludedUnitPrice = 0m;
+            }
+        }
+
+        if (mask521)
+        {
+            foreach (var it in dto.Items)
+            {
+                it.CustomerId = null;
+                it.CustomerName = null;
+                it.SellOrderItemCode = null;
+            }
+        }
+
+        return Ok(ApiResponse<CustomsDeclarationDetailViewDto>.Ok(dto, "OK"));
     }
 
     [HttpGet("by-stock-out-request/{stockOutRequestId}")]

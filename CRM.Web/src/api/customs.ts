@@ -117,11 +117,40 @@ export interface StockTransferListItemDto {
   isConfirmed: boolean
 }
 
+export interface CustomsDeclarationDetailItemViewDto {
+  id: string
+  lineNo: number
+  hsCode?: string | null
+  purchasePn?: string | null
+  purchaseBrand?: string | null
+  declareQty: number
+  declareUnitPrice: number
+  originalPurchasePrice: number
+  dutyAmount: number
+  vatAmount: number
+  customsPaymentGoods: number
+  customsAgencyFee: number
+  otherFee: number
+  inspectionFee: number
+  totalValueTax: number
+  taxIncludedUnitPrice: number
+  sellOrderItemCode?: string | null
+  customerId?: string | null
+  customerName?: string | null
+  vendorId?: string | null
+  vendorName?: string | null
+  stockOutRequestId: string
+}
+
 export interface CustomsDeclarationDetailDto {
   id: string
   declarationCode: string
-  stockOutRequestId: string
+  packingId?: string | null
+  packingCode?: string | null
+  stockOutRequestId?: string | null
   customsBrokerId: string
+  customsBrokerName?: string | null
+  customsBrokerCode?: string | null
   declarationType: number
   internalStatus: number
   customsClearanceStatus: number
@@ -130,9 +159,11 @@ export interface CustomsDeclarationDetailDto {
   totalTaxAmount: number
   fromWarehouseId: string
   toWarehouseId: string
+  fromWarehouseCode?: string | null
+  toWarehouseCode?: string | null
   remark?: string | null
   createTime: string
-  items?: Array<Record<string, unknown>>
+  items?: CustomsDeclarationDetailItemViewDto[]
 }
 
 export async function fetchCustomsBrokersAdmin(): Promise<CustomsBrokerDto[]> {

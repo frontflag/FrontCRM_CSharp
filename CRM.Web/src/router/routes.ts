@@ -315,6 +315,12 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '报关单' }
       },
       {
+        path: 'customs/declarations/:id',
+        name: 'CustomsDeclarationDetail',
+        component: () => import('@/views/Customs/CustomsDeclarationDetail.vue'),
+        meta: { requiresAuth: true, title: '报关单详情' }
+      },
+      {
         path: 'customs/declaration-items',
         name: 'CustomsDeclarationItemList',
         component: () => import('@/views/Customs/CustomsDeclarationItemList.vue'),

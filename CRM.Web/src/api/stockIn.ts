@@ -100,6 +100,69 @@ export interface StockInDetailItemDto {
   detailCurrency?: number | null
 }
 
+export interface StockInCustomsContextItemDto {
+  arrivalNotifyId?: string | null
+  arrivalNotifyCode?: string | null
+  declarationItemId: string
+  lineNo: number
+  declarationId: string
+  declarationCode: string
+  customsBrokerId: string
+  customsBrokerName?: string | null
+  customsBrokerCode?: string | null
+  packingId?: string | null
+  packingCode?: string | null
+  fromWarehouseId?: string | null
+  fromWarehouseCode?: string | null
+  toWarehouseId?: string | null
+  toWarehouseCode?: string | null
+  salesStockOutNotifyId?: string | null
+  salesStockOutNotifyCode?: string | null
+  customsStockOutNotifyId?: string | null
+  customsStockOutNotifyCode?: string | null
+  vendorId?: string | null
+  vendorName?: string | null
+  originalPurchasePrice?: number | null
+  taxIncludedUnitPrice?: number | null
+  sellOrderItemCode?: string | null
+  customerId?: string | null
+  customerName?: string | null
+  purchasePn?: string | null
+  purchaseBrand?: string | null
+  declareQty?: number | null
+  customsClearanceStatus?: number | null
+  hsCode?: string | null
+  declareUnitPrice?: number | null
+  dutyAmount?: number | null
+  vatAmount?: number | null
+  customsPaymentGoods?: number | null
+  customsAgencyFee?: number | null
+  otherFee?: number | null
+  inspectionFee?: number | null
+  totalValueTax?: number | null
+  declareDate?: string | null
+  declarationTotalTaxAmount?: number | null
+  exchangeRate?: number | null
+  timeline?: StockInCustomsTimelineStepDto[]
+}
+
+export interface StockInCustomsTimelineStepDto {
+  stepCode: string
+  sortOrder: number
+  docId?: string | null
+  docCode?: string | null
+  status?: number | null
+  occurredAt?: string | null
+  /** pending | done */
+  state: string
+}
+
+export interface StockInCustomsContextDto {
+  qcId?: string | null
+  qcCode?: string | null
+  items: StockInCustomsContextItemDto[]
+}
+
 export interface StockInDto {
   id: string
   stockInCode: string
@@ -129,6 +192,8 @@ export interface StockInDto {
   detailWarehouseCode?: string | null
   /** 详情填充：供应商展示名 */
   detailVendorName?: string | null
+  /** 报关入库溯源（StockInType=20） */
+  customsContext?: StockInCustomsContextDto | null
 }
 
 /** 列表接口返回：含到货通知号、供应商名称等展示字段 */

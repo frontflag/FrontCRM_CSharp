@@ -86,11 +86,15 @@
             <dd>{{ reportCellText(displayWarehouseCode) }}</dd>
           </div>
           <div class="stockin-report-row">
-            <dt>供应商名称</dt>
+            <dt>{{ isCustomsStockInDetail ? t('stockInDetail.fields.originalVendor') : '供应商名称' }}</dt>
             <dd>{{ reportCellText(maskPurchaseSensitiveFields ? '—' : displayVendorName) }}</dd>
           </div>
           <div class="stockin-report-row">
-            <dt>到货通知号</dt>
+            <dt>{{
+              isCustomsStockInDetail
+                ? t('stockInDetail.fields.customsArrivalNotify')
+                : t('stockInDetail.fields.purchaseArrivalNotify')
+            }}</dt>
             <dd>{{ reportCellText(form.purchaseOrderId) }}</dd>
           </div>
           <div class="stockin-report-row">
@@ -102,6 +106,239 @@
             <dd class="stockin-report-multiline">{{ reportCellText(form.remark) }}</dd>
           </div>
         </dl>
+      </div>
+
+      <div v-if="isCustomsStockInDetail" class="form-card">
+        <h3 class="section-title">{{ t('stockInDetail.customsSection') }}</h3>
+        <div v-if="customsContext?.qcCode" class="stockin-report-row stockin-report-row--inline">
+          <span class="customs-meta-label">{{ t('stockInDetail.customsQc') }}</span>
+          <router-link
+            v-if="customsContext.qcId"
+            :to="{ name: 'QcCreate', query: { qcId: customsContext.qcId } }"
+            class="cell-link"
+          >
+            {{ customsContext.qcCode }}
+          </router-link>
+          <span v-else>{{ customsContext.qcCode }}</span>
+        </div>
+        <div v-if="customsDeclarationSummaries.length" class="customs-summary-wrap">
+          <h4 class="sub-title">{{ t('stockInDetail.declarationSummary') }}</h4>
+          <el-table :data="customsDeclarationSummaries" size="small" border class="customs-summary-table">
+            <el-table-column :label="t('stockInDetail.customsDeclaration')" min-width="128">
+              <template #default="{ row }">
+                <router-link
+                  v-if="row.declarationId"
+                  :to="{ name: 'CustomsDeclarationDetail', params: { id: row.declarationId } }"
+                  class="cell-link"
+                >
+                  {{ row.declarationCode }}
+                </router-link>
+              </template>
+            </el-table-column>
+            <el-table-column :label="t('stockInDetail.customsBroker')" min-width="140">
+              <template #default="{ row }">{{ row.customsBrokerName || '—' }}</template>
+            </el-table-column>
+            <el-table-column :label="t('customsPages.declarations.colDeclareDate')" width="110">
+              <template #default="{ row }">{{ customsDateText(row.declareDate) }}</template>
+            </el-table-column>
+            <el-table-column :label="t('stockInDetail.exchangeRate')" width="88" align="right">
+              <template #default="{ row }">{{ customsFeeMoneyText(row.exchangeRate) }}</template>
+            </el-table-column>
+            <el-table-column :label="t('stockInDetail.declarationTotalTax')" width="110" align="right">
+              <template #default="{ row }">{{ customsFeeMoneyText(row.declarationTotalTaxAmount) }}</template>
+            </el-table-column>
+            <el-table-column :label="t('stockInDetail.warehouseRoute')" min-width="140">
+              <template #default="{ row }">{{ customsWarehouseRoute(row) }}</template>
+            </el-table-column>
+          </el-table>
+        </div>
+        <h4 v-if="customsContextItems.length" class="sub-title">{{ t('stockInDetail.customsTraceSection') }}</h4>
+        <el-table
+          v-if="customsContextItems.length"
+          :data="customsContextItems"
+          class="customs-context-table quantum-table"
+          size="small"
+          border
+          style="width: 100%; margin-top: 8px"
+        >
+          <el-table-column :label="t('stockInDetail.customsDeclaration')" min-width="128">
+            <template #default="{ row }">
+              <router-link
+                v-if="row.declarationId"
+                :to="{ name: 'CustomsDeclarationDetail', params: { id: row.declarationId } }"
+                class="cell-link"
+              >
+                {{ row.declarationCode }}
+              </router-link>
+              <span v-else>{{ row.declarationCode || '—' }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column :label="t('stockInDetail.customsLineNo')" width="88" align="center">
+            <template #default="{ row }">{{ row.lineNo ?? '—' }}</template>
+          </el-table-column>
+          <el-table-column :label="t('stockInDetail.fields.customsArrivalNotify')" min-width="120">
+            <template #default="{ row }">{{ row.arrivalNotifyCode || '—' }}</template>
+          </el-table-column>
+          <el-table-column :label="t('stockInDetail.customsBroker')" min-width="140" show-overflow-tooltip>
+            <template #default="{ row }">
+              {{ row.customsBrokerName || row.customsBrokerCode || '—' }}
+            </template>
+          </el-table-column>
+          <el-table-column :label="t('stockInDetail.customsPacking')" min-width="120">
+            <template #default="{ row }">
+              <router-link
+                v-if="row.packingId"
+                :to="{ name: 'PackingDetail', params: { id: row.packingId } }"
+                class="cell-link"
+              >
+                {{ row.packingCode || row.packingId }}
+              </router-link>
+              <span v-else>—</span>
+            </template>
+          </el-table-column>
+          <el-table-column :label="t('stockInDetail.warehouseRoute')" min-width="140">
+            <template #default="{ row }">{{ customsWarehouseRoute(row) }}</template>
+          </el-table-column>
+          <el-table-column :label="t('stockInDetail.salesStockOutNotify')" min-width="128">
+            <template #default="{ row }">
+              <router-link
+                v-if="row.salesStockOutNotifyId"
+                :to="{ name: 'StockOutNotifyDetail', params: { id: row.salesStockOutNotifyId } }"
+                class="cell-link"
+              >
+                {{ row.salesStockOutNotifyCode || row.salesStockOutNotifyId }}
+              </router-link>
+              <span v-else>—</span>
+            </template>
+          </el-table-column>
+          <el-table-column :label="t('stockInDetail.customsStockOutNotify')" min-width="128">
+            <template #default="{ row }">
+              <router-link
+                v-if="row.customsStockOutNotifyId"
+                :to="{ name: 'StockOutNotifyDetail', params: { id: row.customsStockOutNotifyId } }"
+                class="cell-link"
+              >
+                {{ row.customsStockOutNotifyCode || row.customsStockOutNotifyId }}
+              </router-link>
+              <span v-else>—</span>
+            </template>
+          </el-table-column>
+          <el-table-column :label="t('stockInDetail.customer')" min-width="120" show-overflow-tooltip>
+            <template #default="{ row }">{{
+              maskSaleSensitiveFields ? '—' : row.customerName || '—'
+            }}</template>
+          </el-table-column>
+          <el-table-column :label="t('stockInDetail.sellOrderItemCode')" min-width="120" show-overflow-tooltip>
+            <template #default="{ row }">{{
+              maskSaleSensitiveFields ? '—' : row.sellOrderItemCode || '—'
+            }}</template>
+          </el-table-column>
+          <el-table-column :label="t('stockInDetail.clearanceStatus')" width="96">
+            <template #default="{ row }">{{ customsClearanceLabel(row.customsClearanceStatus) }}</template>
+          </el-table-column>
+        </el-table>
+        <h4 v-if="customsContextItems.length" class="sub-title">{{ t('stockInDetail.customsFeeSection') }}</h4>
+        <el-table
+          v-if="customsContextItems.length"
+          :data="customsContextItems"
+          class="customs-fee-table quantum-table"
+          size="small"
+          border
+          style="width: 100%; margin-top: 8px"
+        >
+          <el-table-column :label="t('stockInDetail.customsDeclaration')" min-width="120">
+            <template #default="{ row }">{{ row.declarationCode }}-{{ row.lineNo }}</template>
+          </el-table-column>
+          <el-table-column :label="t('stockInDetail.purchasePn')" min-width="120" show-overflow-tooltip>
+            <template #default="{ row }">{{ row.purchasePn || '—' }}</template>
+          </el-table-column>
+          <el-table-column :label="t('customsPages.items.colBrand')" width="96" show-overflow-tooltip>
+            <template #default="{ row }">{{ row.purchaseBrand || '—' }}</template>
+          </el-table-column>
+          <el-table-column :label="t('stockInDetail.hsCode')" width="100" show-overflow-tooltip>
+            <template #default="{ row }">{{ row.hsCode || '—' }}</template>
+          </el-table-column>
+          <el-table-column :label="t('stockInDetail.declareQty')" width="88" align="right">
+            <template #default="{ row }">{{ reportQtyText(row.declareQty) }}</template>
+          </el-table-column>
+          <el-table-column :label="t('stockInDetail.vendor')" min-width="120" show-overflow-tooltip>
+            <template #default="{ row }">{{
+              maskPurchaseSensitiveFields ? '—' : row.vendorName || '—'
+            }}</template>
+          </el-table-column>
+          <el-table-column :label="t('stockInDetail.declareUnitPrice')" width="100" align="right">
+            <template #default="{ row }">{{ customsFeeMoneyText(row.declareUnitPrice) }}</template>
+          </el-table-column>
+          <el-table-column :label="t('stockInDetail.originalPrice')" width="100" align="right">
+            <template #default="{ row }">{{ customsPriceText(row.originalPurchasePrice) }}</template>
+          </el-table-column>
+          <el-table-column :label="t('stockInDetail.taxIncludedPrice')" width="100" align="right">
+            <template #default="{ row }">{{ customsPriceText(row.taxIncludedUnitPrice) }}</template>
+          </el-table-column>
+          <el-table-column :label="t('customsPages.items.colDuty')" width="88" align="right">
+            <template #default="{ row }">{{ customsFeeMoneyText(row.dutyAmount) }}</template>
+          </el-table-column>
+          <el-table-column :label="t('customsPages.items.colVat')" width="88" align="right">
+            <template #default="{ row }">{{ customsFeeMoneyText(row.vatAmount) }}</template>
+          </el-table-column>
+          <el-table-column :label="t('customsPages.items.colGoods')" width="96" align="right">
+            <template #default="{ row }">{{ customsFeeMoneyText(row.customsPaymentGoods) }}</template>
+          </el-table-column>
+          <el-table-column :label="t('customsPages.items.colAgency')" width="96" align="right">
+            <template #default="{ row }">{{ customsFeeMoneyText(row.customsAgencyFee) }}</template>
+          </el-table-column>
+          <el-table-column :label="t('customsPages.items.colOther')" width="80" align="right">
+            <template #default="{ row }">{{ customsFeeMoneyText(row.otherFee) }}</template>
+          </el-table-column>
+          <el-table-column :label="t('customsPages.items.colInspection')" width="88" align="right">
+            <template #default="{ row }">{{ customsFeeMoneyText(row.inspectionFee) }}</template>
+          </el-table-column>
+          <el-table-column :label="t('customsPages.items.colTotalTax')" width="100" align="right">
+            <template #default="{ row }">{{ customsFeeMoneyText(row.totalValueTax) }}</template>
+          </el-table-column>
+        </el-table>
+        <div v-if="customsTimelineGroups.length" class="customs-timeline-wrap">
+          <h4 class="sub-title">{{ t('stockInDetail.timelineSection') }}</h4>
+          <div
+            v-for="group in customsTimelineGroups"
+            :key="group.key"
+            class="customs-timeline-group"
+          >
+            <div class="customs-timeline-group-title">{{ group.title }}</div>
+            <el-timeline class="customs-timeline">
+              <el-timeline-item
+                v-for="step in group.steps"
+                :key="step.stepCode"
+                :type="step.state === 'done' ? 'success' : 'info'"
+                :hollow="step.state !== 'done'"
+                :timestamp="customsTimelineTimeText(step.occurredAt)"
+                placement="top"
+              >
+                <div class="customs-timeline-step">
+                  <span class="customs-timeline-step-label">{{ customsTimelineStepLabel(step.stepCode) }}</span>
+                  <router-link
+                    v-if="customsTimelineRoute(step)"
+                    :to="customsTimelineRoute(step)!"
+                    class="cell-link customs-timeline-doc"
+                  >
+                    {{ customsTimelineDocText(step) }}
+                  </router-link>
+                  <span v-else-if="customsTimelineDocText(step)" class="customs-timeline-doc">{{
+                    customsTimelineDocText(step)
+                  }}</span>
+                  <span v-if="customsTimelineStatusText(step)" class="customs-timeline-status">{{
+                    customsTimelineStatusText(step)
+                  }}</span>
+                  <span
+                    v-if="step.state === 'pending'"
+                    class="customs-timeline-state customs-timeline-state--pending"
+                  >{{ t('stockInDetail.timelineStatePending') }}</span>
+                </div>
+              </el-timeline-item>
+            </el-timeline>
+          </div>
+        </div>
+        <div v-if="!customsContextItems.length" class="stockin-report-empty">{{ t('stockInDetail.noCustomsItems') }}</div>
       </div>
 
       <div class="form-card">
@@ -554,9 +791,20 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
+import { CUSTOMS_PENDLIST_STATUS } from '@/api/customs'
+import { PackingStatusCode } from '@/api/packing'
+import { STOCK_OUT_REQUEST_STATUS } from '@/constants/stockOutRequestStatus'
 import { ElMessage } from 'element-plus'
-import { stockInApi, type CreateStockInRequest, type StockInDto, type StockInItemDto } from '@/api/stockIn'
+import {
+  stockInApi,
+  type CreateStockInRequest,
+  type StockInCustomsContextDto,
+  type StockInCustomsContextItemDto,
+  type StockInCustomsTimelineStepDto,
+  type StockInDto,
+  type StockInItemDto
+} from '@/api/stockIn'
 import { inventoryCenterApi, type StockItemListRow } from '@/api/inventoryCenter'
 import StockInBatchImportDialog from '@/components/Inventory/StockInBatchImportDialog.vue'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
@@ -594,6 +842,7 @@ const detailStockInType = ref(0)
 const detailSourceDisplayNo = ref('')
 const detailRegionType = ref(REGION_TYPE_DOMESTIC)
 const stockItemRows = ref<StockItemListRow[]>([])
+const customsContext = ref<StockInCustomsContextDto | null>(null)
 
 const batchImportVisible = ref(false)
 const batchImportItemId = ref('')
@@ -659,6 +908,7 @@ function resetCreateForm() {
   form.remark = ''
   form.items = []
   stockItemRows.value = []
+  customsContext.value = null
 }
 
 function normalizeDateForPicker(iso: string | undefined | null): string {
@@ -691,8 +941,13 @@ function applyDetailToForm(d: StockInDto) {
   displayWarehouseCode.value = wh || (form.warehouseId ? String(form.warehouseId) : '—')
   const vn = pickStr(r, 'detailVendorName', 'DetailVendorName')
   displayVendorName.value = vn || (form.vendorId ? String(form.vendorId) : '—')
-  const parts = [d.sourceCode, d.purchaseOrderItemCode].filter(x => x != null && String(x).trim() !== '')
-  form.purchaseOrderId = parts.length ? parts.map(x => String(x).trim()).join(' / ') : ''
+  const headerStockInTypeEarly = Number(d.stockInType) || 0
+  if (headerStockInTypeEarly === StockInTypeCode.Customs) {
+    form.purchaseOrderId = (d.sourceCode ?? '').trim()
+  } else {
+    const parts = [d.sourceCode, d.purchaseOrderItemCode].filter(x => x != null && String(x).trim() !== '')
+    form.purchaseOrderId = parts.length ? parts.map(x => String(x).trim()).join(' / ') : ''
+  }
   form.stockInDate = normalizeDateForPicker(d.stockInDate)
   form.remark = d.remark ?? ''
   form.totalQuantity = d.totalQuantity ?? 0
@@ -707,6 +962,14 @@ function applyDetailToForm(d: StockInDto) {
   detailStockInType.value = headerStockInType
   detailSourceDisplayNo.value = headerSourceCode
   detailRegionType.value = headerRegionType
+
+  const rawCustoms = (r.customsContext ?? r.CustomsContext) as StockInCustomsContextDto | undefined
+  customsContext.value =
+    rawCustoms && Array.isArray(rawCustoms.items) && rawCustoms.items.length > 0
+      ? rawCustoms
+      : rawCustoms?.qcId || rawCustoms?.qcCode
+        ? rawCustoms
+        : null
 
   const rawItems = extractDetailItemRows(d)
   form.items = rawItems.map((it, i): StockInItemDto => {
@@ -885,6 +1148,151 @@ function stockItemStockTypeLabel(row: StockItemListRow): string {
 }
 
 const isCustomsStockInDetail = computed(() => detailStockInType.value === StockInTypeCode.Customs)
+
+const customsContextItems = computed((): StockInCustomsContextItemDto[] => customsContext.value?.items ?? [])
+
+const customsDeclarationSummaries = computed(() => {
+  const map = new Map<string, StockInCustomsContextItemDto>()
+  for (const row of customsContextItems.value) {
+    const id = (row.declarationId ?? '').trim()
+    if (!id || map.has(id)) continue
+    map.set(id, row)
+  }
+  return [...map.values()]
+})
+
+function customsWarehouseRoute(row: StockInCustomsContextItemDto): string {
+  const from = (row.fromWarehouseCode ?? row.fromWarehouseId ?? '').trim()
+  const to = (row.toWarehouseCode ?? row.toWarehouseId ?? '').trim()
+  if (!from && !to) return '—'
+  if (from && to) return `${from} → ${to}`
+  return from || to
+}
+
+function customsPriceText(n: number | null | undefined): string {
+  if (maskPurchaseSensitiveFields.value) return '—'
+  const x = Number(n)
+  if (!Number.isFinite(x) || x <= 0) return '—'
+  return x.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 6 })
+}
+
+function customsFeeMoneyText(n: number | null | undefined): string {
+  if (maskPurchaseSensitiveFields.value) return '—'
+  const x = Number(n)
+  if (!Number.isFinite(x) || x <= 0) return '—'
+  return x.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function customsDateText(iso: string | null | undefined): string {
+  if (!iso || typeof iso !== 'string') return '—'
+  return iso.includes('T') ? iso.slice(0, 10) : iso.slice(0, 10)
+}
+
+function customsClearanceLabel(v: number | null | undefined): string {
+  const n = Number(v)
+  if (n === 10) return t('stockInDetail.clearanceReleased')
+  if (n === 100) return t('stockInDetail.clearanceCleared')
+  return t('stockInDetail.clearanceNone')
+}
+
+const customsTimelineGroups = computed(() =>
+  customsContextItems.value
+    .filter((row) => (row.timeline?.length ?? 0) > 0)
+    .map((row) => ({
+      key: `${row.declarationId}-${row.lineNo}`,
+      title: `${row.declarationCode || '—'}-${row.lineNo ?? '?'}`,
+      steps: [...(row.timeline ?? [])].sort((a, b) => a.sortOrder - b.sortOrder)
+    }))
+)
+
+function customsTimelineStepLabel(stepCode: string): string {
+  const label = t(`stockInDetail.timelineSteps.${stepCode}`)
+  return label === `stockInDetail.timelineSteps.${stepCode}` ? stepCode : label
+}
+
+function customsTimelineTimeText(iso: string | null | undefined): string {
+  if (!iso || typeof iso !== 'string') return ''
+  return iso.includes('T') ? iso.replace('T', ' ').slice(0, 19) : iso.slice(0, 19)
+}
+
+function customsTimelineDocText(step: StockInCustomsTimelineStepDto): string {
+  const code = (step.docCode ?? '').trim()
+  if (code) return code
+  if (step.stepCode === 'pendlist' && step.state === 'done') return t('stockInDetail.timelineSteps.pendlist')
+  return ''
+}
+
+function customsTimelineStatusText(step: StockInCustomsTimelineStepDto): string {
+  if (step.state !== 'done' || step.status == null) return ''
+  const n = Number(step.status)
+  if (step.stepCode === 'pendlist') {
+    if (n === CUSTOMS_PENDLIST_STATUS.Open) return t('stockInDetail.timelinePendlistStatus.open')
+    if (n === CUSTOMS_PENDLIST_STATUS.CustomsOutNotifyCreated)
+      return t('stockInDetail.timelinePendlistStatus.customsOutCreated')
+    if (n === CUSTOMS_PENDLIST_STATUS.InCustomsProcess) return t('stockInDetail.timelinePendlistStatus.inProcess')
+    if (n === CUSTOMS_PENDLIST_STATUS.Closed) return t('stockInDetail.timelinePendlistStatus.closed')
+    if (n === CUSTOMS_PENDLIST_STATUS.Cancelled) return t('stockInDetail.timelinePendlistStatus.cancelled')
+  }
+  if (step.stepCode === 'salesStockOutNotify' || step.stepCode === 'customsStockOutNotify') {
+    if (n === STOCK_OUT_REQUEST_STATUS.PendingCustoms) return t('stockInDetail.timelineSorStatus.pendingCustoms')
+    if (n === STOCK_OUT_REQUEST_STATUS.PendingPacking) return t('stockInDetail.timelineSorStatus.pendingPacking')
+    if (n === STOCK_OUT_REQUEST_STATUS.Packed) return t('stockInDetail.timelineSorStatus.packed')
+    if (n === STOCK_OUT_REQUEST_STATUS.StockedOut) return t('stockInDetail.timelineSorStatus.stockedOut')
+    if (n === STOCK_OUT_REQUEST_STATUS.Cancelled) return t('stockInDetail.timelineSorStatus.cancelled')
+  }
+  if (step.stepCode === 'packing') {
+    if (n === PackingStatusCode.New) return t('stockInDetail.timelinePackingStatus.new')
+    if (n === PackingStatusCode.Confirmed) return t('stockInDetail.timelinePackingStatus.confirmed')
+    if (n === PackingStatusCode.Picked) return t('stockInDetail.timelinePackingStatus.picked')
+    if (n === PackingStatusCode.Ready) return t('stockInDetail.timelinePackingStatus.ready')
+    if (n === PackingStatusCode.PendingStockOut) return t('stockInDetail.timelinePackingStatus.pendingStockOut')
+    if (n === PackingStatusCode.StockOutFinished) return t('stockInDetail.timelinePackingStatus.stockOutFinished')
+  }
+  if (step.stepCode === 'declaration') {
+    if (n === 1) return t('stockInDetail.timelineDeclarationStatus.pending')
+    if (n === 2) return t('stockInDetail.timelineDeclarationStatus.processing')
+    if (n === 3) return t('stockInDetail.timelineDeclarationStatus.completed')
+    if (n === -1) return t('stockInDetail.timelineDeclarationStatus.voided')
+  }
+  if (step.stepCode === 'arrivalNotify') {
+    if (n === 10) return t('stockInDetail.timelineArrivalStatus.notArrived')
+    if (n === 20) return t('stockInDetail.timelineArrivalStatus.pendingQc')
+    if (n === 30) return t('stockInDetail.timelineArrivalStatus.qcDone')
+    if (n === 100) return t('stockInDetail.timelineArrivalStatus.stockedIn')
+  }
+  if (step.stepCode === 'qc') {
+    if (n === -1) return t('stockInDetail.timelineQcStatus.failed')
+    if (n === 10) return t('stockInDetail.timelineQcStatus.partial')
+    if (n === 100) return t('stockInDetail.timelineQcStatus.passed')
+  }
+  return ''
+}
+
+function customsTimelineRoute(step: StockInCustomsTimelineStepDto): RouteLocationRaw | null {
+  const id = (step.docId ?? '').trim()
+  if (!id || step.state !== 'done') return null
+  switch (step.stepCode) {
+    case 'salesStockOutNotify':
+    case 'customsStockOutNotify':
+      return { name: 'StockOutNotifyDetail', params: { id } }
+    case 'pendlist':
+      return { name: 'CustomsPendlistList' }
+    case 'packing':
+      return { name: 'PackingDetail', params: { id } }
+    case 'declaration':
+      return { name: 'CustomsDeclarationDetail', params: { id } }
+    case 'stockTransfer':
+      return { name: 'StockTransferList' }
+    case 'arrivalNotify':
+      return { name: 'ArrivalNoticeList' }
+    case 'qc':
+      return { name: 'QcCreate', query: { qcId: id } }
+    case 'stockIn':
+      return { name: 'StockInDetail', params: { id } }
+    default:
+      return null
+  }
+}
 
 const detailArrivalNotifyTooltip = computed(() => {
   const code = detailSourceDisplayNo.value.trim()
@@ -1092,6 +1500,34 @@ function openBatchImport(row: StockInItemDto) {
   color: $text-muted;
 }
 
+.stockin-report-row--inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+.customs-meta-label {
+  color: $text-muted;
+  font-weight: 500;
+}
+.sub-title {
+  margin: 16px 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: $text-primary;
+}
+.customs-summary-wrap {
+  margin-top: 8px;
+}
+.cell-link {
+  color: $cyan-primary;
+  text-decoration: none;
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
 .table-footer {
   display: flex;
   justify-content: flex-end;
@@ -1212,6 +1648,58 @@ function openBatchImport(row: StockInItemDto) {
   border: 1px solid rgba(255, 184, 77, 0.45);
   cursor: default;
   user-select: none;
+}
+
+.customs-timeline-wrap {
+  margin-top: 16px;
+}
+
+.customs-timeline-group {
+  margin-bottom: 20px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.customs-timeline-group-title {
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: $text-secondary;
+}
+
+.customs-timeline {
+  padding-left: 4px;
+}
+
+.customs-timeline-step {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.customs-timeline-step-label {
+  font-weight: 500;
+  color: $text-primary;
+}
+
+.customs-timeline-doc {
+  font-size: 13px;
+}
+
+.customs-timeline-status {
+  font-size: 12px;
+  color: $text-muted;
+}
+
+.customs-timeline-state {
+  font-size: 12px;
+
+  &--pending {
+    color: $text-muted;
+  }
 }
 </style>
 

@@ -51,6 +51,7 @@ namespace CRM.Infrastructure.Extensions
             services.AddScoped<IArrivalNoticeListQuery, ArrivalNoticeListQuery>();
             services.AddScoped<IQcListQuery, QcListQuery>();
             services.AddScoped<IStockInListQuery, StockInListQuery>();
+            services.AddScoped<IStockInCustomsContextQuery, StockInCustomsContextQuery>();
             services.AddScoped<IStockOutListQuery, StockOutListQuery>();
             services.AddScoped<IStockOutRequestListQuery, StockOutRequestListQuery>();
             services.AddScoped<IStockOutItemListQuery, StockOutItemEfListQuery>();

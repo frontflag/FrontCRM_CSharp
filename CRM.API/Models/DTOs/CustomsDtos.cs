@@ -50,6 +50,57 @@ public sealed class CustomsDeclarationItemListItemDto
     public string? CreateUserDisplay { get; set; }
 }
 
+public sealed class CustomsDeclarationDetailViewDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string DeclarationCode { get; set; } = string.Empty;
+    public string? PackingId { get; set; }
+    public string? PackingCode { get; set; }
+    public string? StockOutRequestId { get; set; }
+    public string CustomsBrokerId { get; set; } = string.Empty;
+    public string? CustomsBrokerName { get; set; }
+    public string? CustomsBrokerCode { get; set; }
+    public short DeclarationType { get; set; }
+    public short InternalStatus { get; set; }
+    public short CustomsClearanceStatus { get; set; }
+    public DateTime DeclareDate { get; set; }
+    public decimal ExchangeRate { get; set; }
+    public decimal TotalTaxAmount { get; set; }
+    public string FromWarehouseId { get; set; } = string.Empty;
+    public string ToWarehouseId { get; set; } = string.Empty;
+    public string? FromWarehouseCode { get; set; }
+    public string? ToWarehouseCode { get; set; }
+    public string? Remark { get; set; }
+    public DateTime CreateTime { get; set; }
+    public List<CustomsDeclarationDetailItemViewDto> Items { get; set; } = new();
+}
+
+public sealed class CustomsDeclarationDetailItemViewDto
+{
+    public string Id { get; set; } = string.Empty;
+    public int LineNo { get; set; }
+    public string? HsCode { get; set; }
+    public string? PurchasePn { get; set; }
+    public string? PurchaseBrand { get; set; }
+    public int DeclareQty { get; set; }
+    public decimal DeclareUnitPrice { get; set; }
+    public decimal OriginalPurchasePrice { get; set; }
+    public decimal DutyAmount { get; set; }
+    public decimal VatAmount { get; set; }
+    public decimal CustomsPaymentGoods { get; set; }
+    public decimal CustomsAgencyFee { get; set; }
+    public decimal OtherFee { get; set; }
+    public decimal InspectionFee { get; set; }
+    public decimal TotalValueTax { get; set; }
+    public decimal TaxIncludedUnitPrice { get; set; }
+    public string? SellOrderItemCode { get; set; }
+    public string? CustomerId { get; set; }
+    public string? CustomerName { get; set; }
+    public string? VendorId { get; set; }
+    public string? VendorName { get; set; }
+    public string StockOutRequestId { get; set; } = string.Empty;
+}
+
 public sealed class StockTransferListItemDto
 {
     public string Id { get; set; } = string.Empty;

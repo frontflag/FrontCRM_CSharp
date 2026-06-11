@@ -59,12 +59,35 @@ public static class PurchaseSensitiveFieldMask511
         stockIn.VendorId = null;
         stockIn.DetailVendorName = null;
         stockIn.TotalAmount = 0m;
+        ApplyStockInCustomsContext(stockIn.CustomsContext, true);
         if (stockIn.Items == null) return;
         foreach (var it in stockIn.Items)
         {
             it.Price = 0m;
             it.Amount = 0m;
             it.Currency = null;
+        }
+    }
+
+    public static void ApplyStockInCustomsContext(StockInCustomsContextDto? ctx, bool mask)
+    {
+        if (!mask || ctx?.Items == null) return;
+        foreach (var row in ctx.Items)
+        {
+            row.VendorId = null;
+            row.VendorName = null;
+            row.OriginalPurchasePrice = null;
+            row.TaxIncludedUnitPrice = null;
+            row.DeclareUnitPrice = null;
+            row.DutyAmount = null;
+            row.VatAmount = null;
+            row.CustomsPaymentGoods = null;
+            row.CustomsAgencyFee = null;
+            row.OtherFee = null;
+            row.InspectionFee = null;
+            row.TotalValueTax = null;
+            row.DeclarationTotalTaxAmount = null;
+            row.ExchangeRate = null;
         }
     }
 

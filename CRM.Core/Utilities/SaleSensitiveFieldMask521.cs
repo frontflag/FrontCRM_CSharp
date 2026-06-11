@@ -54,6 +54,17 @@ public static class SaleSensitiveFieldMask521
             ApplyCustomerInfo(c, true);
     }
 
+    public static void ApplyStockInCustomsContext(StockInCustomsContextDto? ctx, bool mask)
+    {
+        if (!mask || ctx?.Items == null) return;
+        foreach (var row in ctx.Items)
+        {
+            row.CustomerId = null;
+            row.CustomerName = null;
+            row.SellOrderItemCode = null;
+        }
+    }
+
     public static void ApplyStockOutListItem(StockOutListItemDto? x, bool mask)
     {
         if (!mask || x == null) return;

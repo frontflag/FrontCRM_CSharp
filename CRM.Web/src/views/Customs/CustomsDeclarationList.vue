@@ -84,48 +84,26 @@
         <el-button type="primary" :loading="clearanceSaving" @click="saveClearance">{{ t('common.confirm') }}</el-button>
       </template>
     </el-dialog>
-
-    <el-dialog v-model="detailVisible" :title="t('customsPages.declarations.detailTitle')" width="900px" destroy-on-close>
-      <div v-loading="detailLoading">
-        <el-descriptions v-if="detail" :column="2" border>
-          <el-descriptions-item :label="t('customsPages.declarations.colDecCode')">{{ detail.declarationCode }}</el-descriptions-item>
-          <el-descriptions-item :label="t('customsPages.declarations.colSor')">{{ detail.stockOutRequestId }}</el-descriptions-item>
-          <el-descriptions-item :label="t('customsPages.declarations.colInternal')">{{ internalLabel(detail.internalStatus) }}</el-descriptions-item>
-          <el-descriptions-item :label="t('customsPages.declarations.colClearance')">{{ clearanceLabel(detail.customsClearanceStatus) }}</el-descriptions-item>
-          <el-descriptions-item :label="t('customsPages.declarations.colDeclareDate')">{{ formatDate(detail.declareDate) }}</el-descriptions-item>
-          <el-descriptions-item :label="t('customsPages.declarations.colTotal')">{{ detail.totalTaxAmount }}</el-descriptions-item>
-          <el-descriptions-item :label="t('customsPages.declarations.colRemark')" :span="2">{{ detail.remark || '—' }}</el-descriptions-item>
-        </el-descriptions>
-        <h4 class="sub-title">{{ t('customsPages.declarations.itemsTitle') }}</h4>
-        <el-table v-if="detail?.items" :data="(detail.items as any[])" size="small" border max-height="360">
-          <el-table-column prop="lineNo" label="#" width="56" />
-          <el-table-column prop="purchasePn" :label="t('customsPages.items.colPn')" min-width="120" />
-          <el-table-column prop="purchaseBrand" :label="t('customsPages.items.colBrand')" width="100" />
-          <el-table-column prop="declareQty" :label="t('customsPages.items.colQty')" width="90" />
-          <el-table-column prop="totalValueTax" :label="t('customsPages.items.colTotalTax')" width="110" />
-        </el-table>
-      </div>
-    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   deleteCustomsDeclaration,
-  fetchCustomsDeclarationById,
   fetchCustomsDeclarations,
   forceDeleteCustomsDeclaration,
   patchCustomsClearanceStatus,
-  type CustomsDeclarationDetailDto,
   type CustomsDeclarationListItemDto
 } from '@/api/customs'
 import { useAuthStore } from '@/stores/auth'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 
 const { t } = useI18n()
+const router = useRouter()
 const authStore = useAuthStore()
 const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 const isSysAdmin = authStore.user?.isSysAdmin === true
@@ -148,10 +126,6 @@ const clearanceVisible = ref(false)
 const clearanceSaving = ref(false)
 const clearanceRow = ref<CustomsDeclarationListItemDto | null>(null)
 const clearanceForm = reactive({ status: 0 })
-
-const detailVisible = ref(false)
-const detailLoading = ref(false)
-const detail = ref<CustomsDeclarationDetailDto | null>(null)
 
 function internalLabel(v: number) {
   if (v === -1) return t('customsPages.declarations.internalVoid')
@@ -262,18 +236,8 @@ async function handleForceDelete(row: CustomsDeclarationListItemDto) {
   }
 }
 
-async function onDblClick(row: CustomsDeclarationListItemDto) {
-  detailVisible.value = true
-  detail.value = null
-  detailLoading.value = true
-  try {
-    detail.value = await fetchCustomsDeclarationById(row.id)
-  } catch (e: unknown) {
-    ElMessage.error(e instanceof Error ? e.message : String(e))
-    detailVisible.value = false
-  } finally {
-    detailLoading.value = false
-  }
+function onDblClick(row: CustomsDeclarationListItemDto) {
+  router.push({ name: 'CustomsDeclarationDetail', params: { id: row.id } })
 }
 
 onMounted(() => {
