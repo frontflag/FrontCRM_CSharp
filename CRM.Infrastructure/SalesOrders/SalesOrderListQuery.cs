@@ -1,5 +1,6 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Sales;
+using CRM.Core.Utilities;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -102,10 +103,16 @@ public sealed class SalesOrderListQuery : ISalesOrderListQuery
             q = q.Where(o => (short)o.Status == request.Status.Value);
 
         if (request.StartDate.HasValue)
-            q = q.Where(o => o.CreateTime >= request.StartDate.Value);
+        {
+            var from = SalesAnalyticsDateFilter.ToUtcDateStart(request.StartDate.Value);
+            q = q.Where(o => o.CreateTime >= from);
+        }
 
         if (request.EndDate.HasValue)
-            q = q.Where(o => o.CreateTime <= request.EndDate.Value.AddDays(1));
+        {
+            var endExclusive = SalesAnalyticsDateFilter.ToUtcDateEndExclusive(request.EndDate.Value);
+            q = q.Where(o => o.CreateTime < endExclusive);
+        }
 
         if (!string.IsNullOrWhiteSpace(request.SalesUserNameFilter))
         {
@@ -124,5 +131,31 @@ public sealed class SalesOrderListQuery : ISalesOrderListQuery
         }
 
         return q;
+    }
+
+    /// <inheritdoc />
+    public async Task<SalesOrderListAnalyticsComparable> GetAnalyticsComparableAsync(
+        SalesOrderQueryRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var q = await BuildFilteredQueryAsync(request, cancellationToken);
+        q = SalesAnalyticsDateFilter.ApplyAnalyticsStatusFilter(q);
+
+        var itemCount = await (
+            from oi in _db.SellOrderItems.AsNoTracking()
+            join o in q on oi.SellOrderId equals o.Id
+            where oi.Status == 0
+            select oi.Id
+        ).CountAsync(cancellationToken);
+
+        return new SalesOrderListAnalyticsComparable
+        {
+            OrderCount = await q.CountAsync(cancellationToken),
+            CustomerCount = await q.Select(o => o.CustomerId).Distinct().CountAsync(cancellationToken),
+            ItemCount = itemCount,
+            ApprovedConvertTotal = await q
+                .Where(o => o.Status >= SellOrderMainStatus.Approved)
+                .SumAsync(o => (decimal?)o.ConvertTotal, cancellationToken) ?? 0m
+        };
     }
 }

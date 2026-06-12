@@ -95,6 +95,12 @@ namespace CRM.API.Extensions
             services.AddScoped<IRepository<CRM.Core.Models.System.OrderJourneyLog>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.System.OrderJourneyLog>>();
             services.AddDocumentModule(configuration);
 
+            // 销售看板
+            services.AddScoped<ISalesAnalyticsService, SalesAnalyticsService>();
+            services.AddScoped<ISalesAnalyticsReconciliationService, SalesAnalyticsReconciliationService>();
+            services.AddScoped<IRepository<CRM.Core.Models.Rbac.RbacDepartment>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Rbac.RbacDepartment>>();
+            services.AddScoped<IRepository<CRM.Core.Models.Rbac.RbacUserDepartment>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Rbac.RbacUserDepartment>>();
+
             // 销售订单模块
             services.AddScoped<ISalesOrderService, SalesOrderService>();
             services.AddScoped<ISalesOrderJourneyService, SalesOrderJourneyService>();

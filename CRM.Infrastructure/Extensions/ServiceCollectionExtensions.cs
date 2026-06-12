@@ -12,6 +12,7 @@ using CRM.Infrastructure.StockIns;
 using CRM.Infrastructure.StockOuts;
 using CRM.Infrastructure.InventoryCenter;
 using CRM.Infrastructure.Finance;
+using CRM.Infrastructure.Analytics;
 using CRM.Infrastructure.SystemLogs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -39,6 +40,8 @@ namespace CRM.Infrastructure.Extensions
             services.AddScoped<IPurchaseOrderListQuery, PurchaseOrderListQuery>();
             services.AddScoped<IPurchaseOrderItemListQuery, PurchaseOrderItemListQuery>();
             services.AddScoped<ISalesOrderListQuery, SalesOrderListQuery>();
+            services.AddScoped<ISalesAnalyticsQuery, SalesAnalyticsQuery>();
+            services.AddScoped<ISalesAnalyticsReconciliationBaseline, SalesAnalyticsListBaselineQuery>();
             services.AddScoped<ISalesOrderItemLineListQuery, SalesOrderItemLineListQuery>();
             services.AddScoped<IRfqMainListQuery, RfqMainListQuery>();
             services.AddScoped<IRfqItemListQuery, RfqItemListQuery>();

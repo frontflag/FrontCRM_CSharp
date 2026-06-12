@@ -557,6 +557,47 @@ const zhCN = {
     loginFailedDefault: '登录失败，请检查账号和密码',
     loginFailedRetry: '登录失败，请稍后重试'
   },
+  salesAnalytics: {
+    title: '销售分析',
+    subtitle: '按订单创建日、本位币下单额（convert_total）统计',
+    tabs: {
+      company: '公司',
+      visibleScope: '可见范围',
+      department: '部门',
+      personal: '个人'
+    },
+    dateFrom: '开始日期',
+    dateTo: '结束日期',
+    refresh: '查询',
+    loadFailed: '加载销售看板失败',
+    scopeBanner: '当前可见：{label}',
+    metricHint: '口径：排除取消/审核失败订单；成单金额为审核通过及以上',
+    groupBy: { day: '按日', week: '按周', month: '按月' },
+    sections: {
+      todo: '待办',
+      snapshot: '统计概览',
+      trendAmount: '成单金额趋势',
+      trendItems: '订单条目趋势'
+    },
+    kpi: {
+      receivableAmount: '应收款金额',
+      pendingStockOutItemCount: '待出库明细数',
+      rfqItemCount: '需求条目数',
+      rfqCustomerCount: '需求客户数',
+      rfqToSalesConversionRate: '需求→销售转化率',
+      salesOrderItemCount: '销售订单条目数',
+      salesOrderCustomerCount: '销售客户数',
+      salesAmountApproved: '成单金额（已审核）'
+    },
+    rankings: {
+      departmentTop: '部门销售额 Top10',
+      salesUserTop: '业务员 Top10',
+      customerTop: '客户贡献 Top10',
+      name: '名称',
+      orderCount: '订单数',
+      amount: '金额'
+    }
+  },
   dashboard: {
     stats: {
       totalCustomers: '总客户数',

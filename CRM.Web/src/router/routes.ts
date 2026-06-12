@@ -28,6 +28,20 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/Dashboard/DashboardView.vue'),
         meta: { requiresAuth: true, title: '控制台' }
       },
+      {
+        path: 'reports',
+        redirect: '/reports/sales'
+      },
+      {
+        path: 'reports/sales',
+        name: 'SalesAnalytics',
+        component: () => import('@/views/Reports/SalesAnalyticsPage.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '销售分析',
+          permissions: ['analytics-sales.read', 'sales-order.read']
+        }
+      },
       // 客户管理
       {
         path: 'custome',

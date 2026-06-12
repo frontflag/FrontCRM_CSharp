@@ -557,6 +557,47 @@ const enUS = {
     loginFailedDefault: 'Login failed. Check account and password.',
     loginFailedRetry: 'Login failed. Please try again later.'
   },
+  salesAnalytics: {
+    title: 'Sales Analytics',
+    subtitle: 'By order create date; order amount in base currency (convert_total)',
+    tabs: {
+      company: 'Company',
+      visibleScope: 'Visible scope',
+      department: 'Department',
+      personal: 'Personal'
+    },
+    dateFrom: 'From',
+    dateTo: 'To',
+    refresh: 'Query',
+    loadFailed: 'Failed to load sales analytics',
+    scopeBanner: 'Visible scope: {label}',
+    metricHint: 'Excludes cancelled/failed orders; approved+ order amount',
+    groupBy: { day: 'Daily', week: 'Weekly', month: 'Monthly' },
+    sections: {
+      todo: 'Backlog',
+      snapshot: 'Snapshot',
+      trendAmount: 'Approved amount trend',
+      trendItems: 'Order line trend'
+    },
+    kpi: {
+      receivableAmount: 'Receivable',
+      pendingStockOutItemCount: 'Pending stock-out lines',
+      rfqItemCount: 'RFQ lines',
+      rfqCustomerCount: 'RFQ customers',
+      rfqToSalesConversionRate: 'RFQ→SO conversion',
+      salesOrderItemCount: 'SO lines',
+      salesOrderCustomerCount: 'SO customers',
+      salesAmountApproved: 'Approved order amount'
+    },
+    rankings: {
+      departmentTop: 'Department Top 10',
+      salesUserTop: 'Salesperson Top 10',
+      customerTop: 'Customer Top 10',
+      name: 'Name',
+      orderCount: 'Orders',
+      amount: 'Amount'
+    }
+  },
   dashboard: {
     stats: {
       totalCustomers: 'Total customers',

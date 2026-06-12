@@ -7,6 +7,10 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AnalyticsBreakdownChart: typeof import('./src/components/Analytics/AnalyticsBreakdownChart.vue')['default']
+    AnalyticsKpiGrid: typeof import('./src/components/Analytics/AnalyticsKpiGrid.vue')['default']
+    AnalyticsScopeTabs: typeof import('./src/components/Analytics/AnalyticsScopeTabs.vue')['default']
+    AnalyticsTrendChart: typeof import('./src/components/Analytics/AnalyticsTrendChart.vue')['default']
     ApplyStockOutDisabledHint: typeof import('./src/components/RFQ/ApplyStockOutDisabledHint.vue')['default']
     ApplyTagsDialog: typeof import('./src/components/Tag/ApplyTagsDialog.vue')['default']
     AssistantRelationPanel: typeof import('./src/components/System/AssistantRelationPanel.vue')['default']

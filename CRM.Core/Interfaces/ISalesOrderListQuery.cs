@@ -9,6 +9,22 @@ public interface ISalesOrderListQuery
 
     /// <summary>与列表相同筛选条件下的汇总（列表页统计卡片；金额由调用方按权限决定是否返回）。</summary>
     Task<SalesOrderListAggregates> GetAggregatesAsync(SalesOrderQueryRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 列表数据范围 + 日期筛选后，再套用看板口径（排除取消/审核失败、成单金额为 convert_total）的汇总，供联调对账。
+    /// </summary>
+    Task<SalesOrderListAnalyticsComparable> GetAnalyticsComparableAsync(
+        SalesOrderQueryRequest request,
+        CancellationToken cancellationToken = default);
+}
+
+/// <summary>销售订单列表路径下的看板可比汇总。</summary>
+public sealed class SalesOrderListAnalyticsComparable
+{
+    public int OrderCount { get; set; }
+    public int CustomerCount { get; set; }
+    public int ItemCount { get; set; }
+    public decimal ApprovedConvertTotal { get; set; }
 }
 
 /// <summary>销售订单列表汇总（全量筛选结果，非仅当前页）。</summary>

@@ -696,8 +696,12 @@
         <!-- 数据分析 -->
         <div class="menu-section-label" v-if="!isCollapsed">{{ t('layout.sections.analytics') }}</div>
 
-        <SidebarMenuTooltipWrap :collapsed="isCollapsed" :tooltip="t('layout.menu.reportAnalytics')">
-          <button type="button" class="menu-item" @click="handleUnimplemented(t('layout.menu.reportAnalytics'))">
+        <SidebarMenuTooltipWrap
+          v-if="hasPermission('analytics-sales.read') || hasPermission('sales-order.read')"
+          :collapsed="isCollapsed"
+          :tooltip="t('layout.menu.reportAnalytics')"
+        >
+          <router-link to="/reports/sales" class="menu-item" active-class="active">
             <span class="menu-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                 <line x1="18" y1="20" x2="18" y2="10"/>
@@ -706,7 +710,7 @@
               </svg>
             </span>
             <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.reportAnalytics') }}</span>
-          </button>
+          </router-link>
         </SidebarMenuTooltipWrap>
 
         <!-- 组织管理（可展开菜单组） -->
@@ -1513,6 +1517,7 @@ const pageTitleMap: Record<string, string> = {
   '/inventory/transfers-manual': 'inventoryTransfer.title',
   '/inventory/check': 'layout.menu.inventoryCheck',
   '/reports': 'layout.menu.reportAnalytics',
+  '/reports/sales': 'salesAnalytics.title',
   '/dashboard/settings': 'layout.menu.systemSettings',
   '/rfq': 'layout.menu.rfqList',
   '/rfqlist': 'layout.menu.rfqList',

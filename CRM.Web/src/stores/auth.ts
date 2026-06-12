@@ -294,7 +294,11 @@ export const useAuthStore = defineStore('auth', () => {
       return t === 1 || t === 6
     }
     // 采购 / 采购助理主部门：销售订单 + 收款/销项发票（与 RbacService 汇总剥离一致）
-    if (permissionCode.startsWith('sales-order.') || permissionCode === 'sales.amount.read') {
+    if (
+      permissionCode.startsWith('sales-order.') ||
+      permissionCode === 'sales.amount.read' ||
+      permissionCode === 'analytics-sales.read'
+    ) {
       return t === 2 || t === 3
     }
     if (permissionCode.startsWith('finance-receipt.') || permissionCode.startsWith('finance-sell-invoice.')) {
