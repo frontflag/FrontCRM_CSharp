@@ -26,3 +26,27 @@ export function purchaseOrderReportAllowed(status: unknown): boolean {
   const s = Number(status)
   return Number.isFinite(s) && s >= PO_STATUS_VENDOR_CONFIRMED
 }
+
+const PO_MAIN_STATUS_I18N_KEY: Record<number, string> = {
+  0: 'purchaseOrderList.status.draft',
+  1: 'purchaseOrderList.status.new',
+  2: 'purchaseOrderList.status.pendingReview',
+  10: 'purchaseOrderList.status.approved',
+  20: 'purchaseOrderList.status.pendingConfirm',
+  30: 'purchaseOrderList.status.confirmed',
+  50: 'purchaseOrderList.status.inProgress',
+  100: 'purchaseOrderList.status.completed',
+  [-1]: 'purchaseOrderList.status.reviewFailed',
+  [-2]: 'purchaseOrderList.status.cancelled'
+}
+
+/** 采购单主状态文案（i18n）。 */
+export function purchaseOrderMainStatusLabel(
+  t: (key: string) => string,
+  status: unknown
+): string {
+  const s = Number(status)
+  if (!Number.isFinite(s)) return t('purchaseOrderList.status.unknown')
+  const key = PO_MAIN_STATUS_I18N_KEY[s]
+  return key ? t(key) : t('purchaseOrderList.status.unknown')
+}

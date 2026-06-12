@@ -2559,6 +2559,9 @@ const zhCN = {
       customerName: '客户名称',
       salesUserName: '业务员名称',
       pn: '物料型号',
+      transactionCurrency: '交易币别',
+      transactionCurrencyRmb: '人民币',
+      transactionCurrencyForeign: '外币',
       query: '查询',
       reset: '重置',
       refresh: '刷新'
@@ -2638,7 +2641,15 @@ const zhCN = {
       stockingPurchasingNone: '目前没有相同物料品牌的采购备货',
       zeroApplyBanner:
         '当前可申请的出库数量为 0（尚可申请与客单在库、备货在库综合后仍为 0）。您仍可查看明细，待有库存或释放额度后再提交。',
-      cannotApply: '无法申请'
+      cannotApply: '无法申请',
+      customerInventoryTitle: '客单库存状况',
+      customerInventoryHasQty: '有库存，可用数量 {qty}',
+      customerInventoryNone: '无库存',
+      stockingAvailabilityTitle: '备货库存可用性（{pn} / {brand}，申请数量 {qty}）',
+      stockingAvailableYes: '可用',
+      stockingAvailableNo: '不可用',
+      useOverseasWarehouseAndCustoms: '使用海外仓库并报关',
+      customsCostHint: '报关需要额外花费报关时间与费用，请确认后再勾选。'
     },
     validation: {
       requestQtyRequired: '请输入本次申请数量',
@@ -2659,6 +2670,20 @@ const zhCN = {
       applyStockOutNeedPurchaseGate:
         '须已生成采购订单明细，且关联采购单均为「供应商确认」及之后状态，方可申请出库',
       applyStockOutDisabledByProgress: '出库已完成或采购状态为待采购时，不可申请出库',
+      applyStockOutDisabledStockOutDone: '本明细出库进度已完成，不可再申请出库。',
+      applyStockOutDisabledPendingPurchase:
+        '采购进度为「待采购」，不可申请出库（同 PN+品牌备货可用量 > 0 时可例外）。',
+      applyStockOutHintAria: '查看申请出库不可用原因',
+      applyStockOutHintDetailTitle: '当前不满足的条件：',
+      applyStockOutHintDetailStockOutDone: '出库进度为「{status}」。',
+      applyStockOutHintDetailNoPoItems: '尚未生成关联的采购订单明细。',
+      applyStockOutHintDetailPoNotConfirmed:
+        '关联采购单 {code} 当前状态为「{status}」，未达到要求的「{requiredStatus}」及之后状态。',
+      applyStockOutHintDetailPoMissing: '关联采购单 {code} 主表记录不存在或已删除。',
+      applyStockOutHintDetailPendingPurchase: '采购进度为「{status}」。',
+      applyStockOutHintDetailNoStockingRelief:
+        '同 PN+品牌备货可用量为 {qty}，不满足「备货可用量 > 0」的例外条件。',
+      applyStockOutHintDetailPurchaseGateUnknown: '采购门闸未通过（关联采购单状态未达要求）。',
       applyStockOutZeroSuggested:
         '当前可申请的出库数量为 0（剩余可申请或在库可用为 0）。您仍可查看明细，待有库存或释放额度后再提交。',
       applyStockOutExceedsStock: '在库可用数量不足：在库可用为 {available}，本次数量不能大于在库可用。',
@@ -2729,7 +2754,8 @@ const zhCN = {
       inProgress: '进行中',
       completed: '采购完成',
       reviewFailed: '审核失败',
-      cancelled: '取消'
+      cancelled: '取消',
+      unknown: '未知'
     },
     stock: { none: '未入库', partial: '部分入库', all: '全部入库' },
     actions: { detail: '详情', edit: '编辑', submitAudit: '提交审核', confirmBySupplier: '供应商确认', report: '打印订单', cancelConfirm: '取消确认' },
@@ -2800,6 +2826,9 @@ const zhCN = {
       vendorPlaceholder: '供应商名称',
       purchaserPlaceholder: '采购员名称',
       pnPlaceholder: '物料型号',
+      transactionCurrency: '交易币别',
+      transactionCurrencyRmb: '人民币',
+      transactionCurrencyForeign: '外币',
       orderType: '订单类型',
       allOrderTypes: '全部类型',
       orderTypeCustomer: '客单采购',
@@ -4204,7 +4233,15 @@ const zhCN = {
       ready: '备货',
       stockOut: '出库',
       outBatch: '出库批次',
-      delete: '删除'
+      delete: '删除',
+      forceDelete: '强制删除'
+    },
+    forceDelete: {
+      title: '强制删除确认',
+      prompt: '请输入装箱单号以确认强制删除',
+      codeMismatch: '输入单号不匹配，已取消',
+      success: '强制删除成功',
+      failed: '强制删除失败'
     },
     outBatch: {
       notConfirmedStatus: '仅已确认及之后状态的装箱单可录入出库批次'

@@ -14,6 +14,7 @@ public sealed class SellOrderItemPurchasedStockAvailableSyncService : ISellOrder
     private const short StockOutProgressComplete = 2;
 
     private readonly IRepository<StockInfo> _stockRepo;
+    private readonly IRepository<StockItem> _stockItemRepo;
     private readonly IRepository<SellOrderItem> _soItemRepo;
     private readonly IRepository<SellOrderItemExtend> _extendRepo;
     private readonly IRepository<PurchaseOrderItem> _poItemRepo;
@@ -24,6 +25,7 @@ public sealed class SellOrderItemPurchasedStockAvailableSyncService : ISellOrder
 
     public SellOrderItemPurchasedStockAvailableSyncService(
         IRepository<StockInfo> stockRepo,
+        IRepository<StockItem> stockItemRepo,
         IRepository<SellOrderItem> soItemRepo,
         IRepository<SellOrderItemExtend> extendRepo,
         IRepository<PurchaseOrderItem> poItemRepo,
@@ -33,6 +35,7 @@ public sealed class SellOrderItemPurchasedStockAvailableSyncService : ISellOrder
         ILogger<SellOrderItemPurchasedStockAvailableSyncService> logger)
     {
         _stockRepo = stockRepo;
+        _stockItemRepo = stockItemRepo;
         _soItemRepo = soItemRepo;
         _extendRepo = extendRepo;
         _poItemRepo = poItemRepo;
@@ -54,9 +57,11 @@ public sealed class SellOrderItemPurchasedStockAvailableSyncService : ISellOrder
         if (string.IsNullOrEmpty(pnKey) || string.IsNullOrEmpty(brKey))
             return;
 
-        var stocks = (await _stockRepo.GetAllAsync()).ToList();
-        var sumAvail = stocks
+        var stockItems = (await _stockItemRepo.GetAllAsync()).ToList();
+        var sumAvail = stockItems
             .Where(s => s.StockType == StockInventoryTypeCodes.Stocking
+                        && (s.TransferType == null
+                            || s.TransferType != StockItemTransferTypeCodes.ManualTransferSource)
                         && string.Equals(NormKey(s.PurchasePn), pnKey, StringComparison.OrdinalIgnoreCase)
                         && string.Equals(NormKey(s.PurchaseBrand), brKey, StringComparison.OrdinalIgnoreCase))
             .Sum(s => s.QtyRepertoryAvailable);
@@ -128,6 +133,25 @@ public sealed class SellOrderItemPurchasedStockAvailableSyncService : ISellOrder
 
         foreach (var (pn, br) in keys)
             await RecalculateByPurchasePnAndBrandAsync(pn, br, cancellationToken);
+
+        // 以过账后的在库明细层为准：备货类型 layer 变更时也刷新（不限于采购单 Type=备货）
+        var stockInId = stockIn.Id?.Trim() ?? string.Empty;
+        if (!string.IsNullOrEmpty(stockInId))
+        {
+            var postedLayers = (await _stockItemRepo.GetAllAsync())
+                .Where(si => string.Equals(si.StockInId?.Trim(), stockInId, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            foreach (var layer in postedLayers)
+            {
+                if (layer.StockType != StockInventoryTypeCodes.Stocking)
+                    continue;
+                var pn = NormKey(layer.PurchasePn);
+                var br = NormKey(layer.PurchaseBrand);
+                if (string.IsNullOrEmpty(pn) || string.IsNullOrEmpty(br))
+                    continue;
+                await RecalculateByPurchasePnAndBrandAsync(pn, br, cancellationToken);
+            }
+        }
     }
 
     /// <inheritdoc />
@@ -137,6 +161,27 @@ public sealed class SellOrderItemPurchasedStockAvailableSyncService : ISellOrder
     {
         var keys = new HashSet<(string Pn, string Br)>();
         foreach (var s in changedStocks)
+        {
+            if (s.StockType != StockInventoryTypeCodes.Stocking)
+                continue;
+            var pn = NormKey(s.PurchasePn);
+            var br = NormKey(s.PurchaseBrand);
+            if (string.IsNullOrEmpty(pn) || string.IsNullOrEmpty(br))
+                continue;
+            keys.Add((pn, br));
+        }
+
+        foreach (var (pn, br) in keys)
+            await RecalculateByPurchasePnAndBrandAsync(pn, br, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task TryRecalculateFromChangedStockItemsAsync(
+        IEnumerable<StockItem> changedStockItems,
+        CancellationToken cancellationToken = default)
+    {
+        var keys = new HashSet<(string Pn, string Br)>();
+        foreach (var s in changedStockItems)
         {
             if (s.StockType != StockInventoryTypeCodes.Stocking)
                 continue;

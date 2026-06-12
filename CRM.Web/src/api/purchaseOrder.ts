@@ -138,6 +138,8 @@ export const purchaseOrderApi = {
     pn?: string
     freightForwarderOrderNo?: string
     orderType?: number
+    /** 交易币别：rmb=人民币，foreign=外币 */
+    transactionCurrency?: 'rmb' | 'foreign' | ''
   }) {
     return await apiClient.get('/api/v1/purchase-orders/items', { params })
   },

@@ -512,6 +512,7 @@ const fillNotice = async (noticeId: string, opts?: { skipDefaultStockInPlanDate?
   form.purchaseUserName = row.purchaseUserName || ''
   form.purchaseUserId = ''
   await applyPurchaseUserFromPurchaseOrder(row.purchaseOrderId)
+  form.noticeRemark = (row.remark ?? '').trim()
   form.stockInQty = arrivedTotalQty
   form.sampleQty = arrivedTotalQty
   form.arrivedTotalQty = arrivedTotalQty
@@ -548,6 +549,7 @@ const loadPageData = async () => {
       form.qcResult = qc.status === -1 ? 'reject' : qc.status === 10 ? 'partial' : 'pass'
       form.stockInQty = Math.round(Number(qc.passQty || 0))
       form.sampleQty = Math.round(Number(qc.passQty || 0))
+      form.remark = String(qc.remark ?? '').trim()
       const savedYmd =
         qcStockInPlanDateToYmd(qc.stockInPlanDate) || qcStockInPlanDateToYmd(qc.StockInPlanDate)
       form.stockInPlanDate = savedYmd || expectedYmd
@@ -585,6 +587,8 @@ const submitQc = async () => {
       rejectQty,
       hasStockInPlanDate: true,
       stockInPlanDate: plan ? `${plan}T12:00:00.000Z` : null,
+      hasRemark: true,
+      remark: (form.remark || '').trim() || null,
     })
     if (qcFileList.value.length > MAX_QC_IMAGES) {
       ElMessage.warning(`质检图片最多 ${MAX_QC_IMAGES} 张，当前已选 ${qcFileList.value.length} 张，请删除多余图片`)

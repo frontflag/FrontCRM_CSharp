@@ -1,4 +1,6 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Customs;
 using CRM.Core.Models.Finance;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Purchase;
@@ -20,6 +22,8 @@ public class ForceDeleteGuardService : IForceDeleteGuardService
     private readonly IRepository<PurchaseOrderItem> _purchaseOrderItemRepo;
     private readonly IRepository<FinanceReceipt> _financeReceiptRepo;
     private readonly IRepository<FinanceReceivable> _financeReceivableRepo;
+    private readonly IRepository<Packing> _packingRepo;
+    private readonly IRepository<CustomsDeclaration> _customsDeclarationRepo;
 
     public ForceDeleteGuardService(
         IRepository<FinancePaymentItem> financePaymentItemRepo,
@@ -34,7 +38,9 @@ public class ForceDeleteGuardService : IForceDeleteGuardService
         IRepository<StockOutItem> stockOutItemRepo,
         IRepository<PurchaseOrderItem> purchaseOrderItemRepo,
         IRepository<FinanceReceipt> financeReceiptRepo,
-        IRepository<FinanceReceivable> financeReceivableRepo)
+        IRepository<FinanceReceivable> financeReceivableRepo,
+        IRepository<Packing> packingRepo,
+        IRepository<CustomsDeclaration> customsDeclarationRepo)
     {
         _financePaymentItemRepo = financePaymentItemRepo;
         _financeReceiptItemRepo = financeReceiptItemRepo;
@@ -49,6 +55,8 @@ public class ForceDeleteGuardService : IForceDeleteGuardService
         _purchaseOrderItemRepo = purchaseOrderItemRepo;
         _financeReceiptRepo = financeReceiptRepo;
         _financeReceivableRepo = financeReceivableRepo;
+        _packingRepo = packingRepo;
+        _customsDeclarationRepo = customsDeclarationRepo;
     }
 
     public async Task<ForceDeleteGuardResult> CanForceDeleteFinancePaymentAsync(string financePaymentId)
@@ -208,6 +216,94 @@ public class ForceDeleteGuardService : IForceDeleteGuardService
         if (receivable != null && receivable.VerifiedDone > 0m)
             return ForceDeleteGuardResult.Deny(
                 $"该出库单已有收款核销（已核销 {receivable.VerifiedDone}），不可删除");
+        return ForceDeleteGuardResult.Allow();
+    }
+
+    public async Task<ForceDeleteGuardResult> CanForceDeletePackingAsync(string packingId)
+    {
+        if (string.IsNullOrWhiteSpace(packingId))
+            return ForceDeleteGuardResult.Deny("装箱单ID不能为空");
+
+        var packing = await _packingRepo.GetByIdAsync(packingId.Trim());
+        if (packing == null || packing.IsDeleted)
+            return ForceDeleteGuardResult.Deny("装箱单不存在或已删除");
+
+        var pid = packing.Id.Trim();
+
+        var linkedOutItems = (await _stockOutItemRepo.FindAsync(x =>
+                x.PackingId != null && x.PackingId == pid && !x.IsDeleted))
+            .ToList();
+        if (linkedOutItems.Count > 0)
+        {
+            var stockOutIds = linkedOutItems
+                .Select(x => x.StockOutId?.Trim())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList()!;
+            var stockOutCodes = stockOutIds.Count == 0
+                ? Array.Empty<string>()
+                : (await _stockOutRepo.FindAsync(x => stockOutIds.Contains(x.Id) && !x.IsDeleted))
+                    .Select(x => string.IsNullOrWhiteSpace(x.StockOutCode) ? x.Id : x.StockOutCode.Trim())
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Take(5)
+                    .ToArray();
+            return ForceDeleteGuardResult.Deny(stockOutCodes.Length == 0
+                ? "存在下游业务节点：出库单，不能强制删除装箱单"
+                : $"存在下游业务节点：出库单；下游数据单号：{string.Join("、", stockOutCodes)}");
+        }
+
+        var packingItems = (await _packingItemRepo.FindAsync(i => i.PackingId == pid && !i.IsDeleted)).ToList();
+        var notifyIds = packingItems
+            .Select(i => i.StockOutNotifyId?.Trim())
+            .Where(x => !string.IsNullOrEmpty(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList()!;
+        if (notifyIds.Count > 0)
+        {
+            var stockedOutCodes = (await _stockOutRequestRepo.FindAsync(r => notifyIds.Contains(r.Id) && !r.IsDeleted))
+                .Where(r => r.Status == StockOutRequestStatusCode.StockedOut)
+                .Select(r => string.IsNullOrWhiteSpace(r.RequestCode) ? r.Id : r.RequestCode.Trim())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(5)
+                .ToArray();
+            if (stockedOutCodes.Length > 0)
+                return ForceDeleteGuardResult.Deny(
+                    $"关联出库通知已出库，不能强制删除装箱单；通知单号：{string.Join("、", stockedOutCodes)}");
+        }
+
+        var declarationIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var headerDecId = packing.CustomsDeclarationId?.Trim();
+        if (!string.IsNullOrEmpty(headerDecId))
+            declarationIds.Add(headerDecId);
+
+        var linkedDeclarations = (await _customsDeclarationRepo.FindAsync(d =>
+                d.PackingId != null && d.PackingId == pid && !d.IsDeleted))
+            .ToList();
+        foreach (var dec in linkedDeclarations)
+            declarationIds.Add(dec.Id.Trim());
+
+        if (declarationIds.Count > 0)
+        {
+            var declarationCodes = new List<string>();
+            foreach (var decId in declarationIds)
+            {
+                var dec = await _customsDeclarationRepo.GetByIdAsync(decId);
+                if (dec == null || dec.IsDeleted)
+                    continue;
+                var code = string.IsNullOrWhiteSpace(dec.DeclarationCode) ? dec.Id : dec.DeclarationCode.Trim();
+                if (!string.IsNullOrWhiteSpace(code))
+                    declarationCodes.Add(code);
+            }
+
+            if (declarationCodes.Count > 0)
+            {
+                return ForceDeleteGuardResult.Deny(
+                    $"存在下游业务节点：报关单；下游数据单号：{string.Join("、", declarationCodes.Distinct(StringComparer.OrdinalIgnoreCase).Take(5))}");
+            }
+        }
+
         return ForceDeleteGuardResult.Allow();
     }
 }

@@ -329,6 +329,7 @@ namespace CRM.Core.Services
                 Cost = poItem.Cost,
                 ExpectTotal = expectTotal,
                 ReceiveTotal = 0,
+                Remark = string.IsNullOrWhiteSpace(request.Remark) ? null : request.Remark.Trim(),
                 CreateTime = DateTime.UtcNow
             };
             await _notifyRepo.AddAsync(notice);
@@ -650,6 +651,8 @@ namespace CRM.Core.Services
             qc.StockInStatus = request.Result == "reject" ? (short)-1 : (short)1;
             if (request.HasStockInPlanDate == true)
                 qc.StockInPlanDate = PostgreSqlDateTime.ToUtc(request.StockInPlanDate);
+            if (request.HasRemark == true)
+                qc.Remark = string.IsNullOrWhiteSpace(request.Remark) ? null : request.Remark.Trim();
             qc.ModifyTime = DateTime.UtcNow;
             qc.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
             await _qcRepo.UpdateAsync(qc);

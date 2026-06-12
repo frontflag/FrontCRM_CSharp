@@ -89,3 +89,26 @@ export function salesOrderLineApplyStockOutButtonDisabled(row: {
   if (salesOrderLinePurchasedStockReliefOk(row)) return false
   return salesOrderLineApplyStockOutDisabled(row) || row.stockOutApplyPurchaseGateOk !== true
 }
+
+/** 申请出库置灰时的原因键（供列表浮窗提示；与 {@link salesOrderLineApplyStockOutButtonDisabled} 口径一致）。 */
+export type SalesOrderLineApplyStockOutDisabledReasonKey =
+  | 'stockOutDone'
+  | 'needPurchaseGate'
+  | 'pendingPurchase'
+
+export function salesOrderLineApplyStockOutDisabledReasonKey(row: {
+  purchaseProgressStatus?: unknown
+  stockOutProgressStatus?: unknown
+  stockOutApplyPurchaseGateOk?: unknown
+  purchasedStockAvailableQty?: unknown
+}): SalesOrderLineApplyStockOutDisabledReasonKey | null {
+  if (!salesOrderLineApplyStockOutButtonDisabled(row)) return null
+  const so = row.stockOutProgressStatus
+  if (so !== undefined && so !== null && Number(so) === 2) return 'stockOutDone'
+  if (salesOrderLinePurchasedStockReliefOk(row)) return null
+  if (row.stockOutApplyPurchaseGateOk !== true) return 'needPurchaseGate'
+  const po = row.purchaseProgressStatus
+  if (po !== undefined && po !== null && Number(po) === 0) return 'pendingPurchase'
+  if (salesOrderLineApplyStockOutDisabled(row)) return 'pendingPurchase'
+  return 'needPurchaseGate'
+}

@@ -1,4 +1,5 @@
 using CRM.API.Models.DTOs;
+using CRM.API.Utilities;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Customs;
 using CRM.Infrastructure.Data;
@@ -13,15 +14,18 @@ public class CustomsBrokersController : ControllerBase
 {
     private readonly ICustomsBrokerService _service;
     private readonly ApplicationDbContext _db;
+    private readonly IRbacService _rbacService;
     private readonly ILogger<CustomsBrokersController> _logger;
 
     public CustomsBrokersController(
         ICustomsBrokerService service,
         ApplicationDbContext db,
+        IRbacService rbacService,
         ILogger<CustomsBrokersController> logger)
     {
         _service = service;
         _db = db;
+        _rbacService = rbacService;
         _logger = logger;
     }
 
@@ -31,6 +35,9 @@ public class CustomsBrokersController : ControllerBase
     {
         try
         {
+            if (!await CustomsModuleAccessHttp.CanAccessAsync(_rbacService, User))
+                return StatusCode(403, ApiResponse<IReadOnlyList<CustomsBroker>>.Fail("当前账号无权访问报关模块", 403));
+
             var list = all
                 ? await _service.GetAllOrderedForAdminAsync()
                 : await _service.GetActiveListAsync();
@@ -71,6 +78,9 @@ public class CustomsBrokersController : ControllerBase
     {
         try
         {
+            if (!await CustomsModuleAccessHttp.CanAccessAsync(_rbacService, User))
+                return StatusCode(403, ApiResponse<CustomsBroker>.Fail("当前账号无权访问报关模块", 403));
+
             var uid = User?.Claims?.FirstOrDefault(c => c.Type == "sub" || c.Type == "userId")?.Value;
             var row = await _service.CreateAsync(body.Cname, body.Ename, body.Type, body.Remark, uid);
             return Ok(ApiResponse<CustomsBroker>.Ok(row, "创建成功"));
@@ -95,6 +105,9 @@ public class CustomsBrokersController : ControllerBase
     {
         try
         {
+            if (!await CustomsModuleAccessHttp.CanAccessAsync(_rbacService, User))
+                return StatusCode(403, ApiResponse<CustomsBroker>.Fail("当前账号无权访问报关模块", 403));
+
             var uid = User?.Claims?.FirstOrDefault(c => c.Type == "sub" || c.Type == "userId")?.Value;
             var row = await _service.UpdateAsync(id, body.Cname, body.Ename, body.Type, body.Remark, uid);
             return Ok(ApiResponse<CustomsBroker>.Ok(row, "保存成功"));
@@ -119,6 +132,9 @@ public class CustomsBrokersController : ControllerBase
     {
         try
         {
+            if (!await CustomsModuleAccessHttp.CanAccessAsync(_rbacService, User))
+                return StatusCode(403, ApiResponse<CustomsBroker>.Fail("当前账号无权访问报关模块", 403));
+
             var uid = User?.Claims?.FirstOrDefault(c => c.Type == "sub" || c.Type == "userId")?.Value;
             var row = await _service.SetStatusAsync(id, body.Status, uid);
             return Ok(ApiResponse<CustomsBroker>.Ok(row, "状态已更新"));
@@ -143,6 +159,9 @@ public class CustomsBrokersController : ControllerBase
     {
         try
         {
+            if (!await CustomsModuleAccessHttp.CanAccessAsync(_rbacService, User))
+                return StatusCode(403, ApiResponse<object>.Fail("当前账号无权访问报关模块", 403));
+
             var key = id.Trim();
             var inUse = await _db.CustomsDeclarations.AsNoTracking().AnyAsync(d => d.CustomsBrokerId == key);
             if (inUse)

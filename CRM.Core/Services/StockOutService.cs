@@ -227,9 +227,23 @@ namespace CRM.Core.Services
 
             if (regionType == RegionTypeCode.Domestic && stockOutType == StockOutTypeCode.Sales)
             {
-                var pendlist = await TryBuildCustomsPendlistAsync(lineId, qtyInt, stockOutRequest.Id, actingUserId);
-                if (pendlist != null)
+                var applySnapshot = await BuildApplyInventorySnapshotAsync(
+                    lineId,
+                    soItem.PN,
+                    soItem.Brand,
+                    qtyInt,
+                    regionType);
+                var useCustoms = request.UseOverseasWarehouseAndCustoms == true;
+                ValidateCustomsChoiceForCreate(applySnapshot.CustomsOption, useCustoms);
+                if (useCustoms)
                 {
+                    var pendlist = await TryBuildCustomsPendlistAsync(
+                        lineId,
+                        soItem.PN,
+                        soItem.Brand,
+                        qtyInt,
+                        stockOutRequest.Id,
+                        actingUserId);
                     stockOutRequest.Status = StockOutRequestStatusCode.PendingCustoms;
                     stockOutRequest.CustomsStatus = StockOutNotifyCustomsStatusCode.PendingCustoms;
                     await _customsPendlistRepository.AddAsync(pendlist);
@@ -250,7 +264,10 @@ namespace CRM.Core.Services
         }
 
         /// <inheritdoc />
-        public async Task<StockOutApplyContextDto> GetApplyContextAsync(string salesOrderId, string salesOrderItemId)
+        public async Task<StockOutApplyContextDto> GetApplyContextAsync(
+            string salesOrderId,
+            string salesOrderItemId,
+            decimal? requestedQty = null)
         {
             if (string.IsNullOrWhiteSpace(salesOrderId))
                 throw new ArgumentException("销售订单ID不能为空", nameof(salesOrderId));
@@ -293,6 +310,22 @@ namespace CRM.Core.Services
             if (suggested < 0m)
                 suggested = 0m;
 
+            var evalQty = requestedQty.HasValue && requestedQty.Value > 0m
+                ? InventoryQuantity.RoundFromDecimal(requestedQty.Value)
+                : InventoryQuantity.RoundFromDecimal(suggested);
+            if (evalQty < 0)
+                evalQty = 0;
+
+            var regionType = soItem.Currency == (short)CurrencyCode.RMB
+                ? RegionTypeCode.Domestic
+                : RegionTypeCode.Overseas;
+            var snapshot = await BuildApplyInventorySnapshotAsync(
+                lineId,
+                soItem.PN,
+                soItem.Brand,
+                evalQty,
+                regionType);
+
             return new StockOutApplyContextDto
             {
                 salesOrderItemId = lineId,
@@ -301,7 +334,11 @@ namespace CRM.Core.Services
                 remainingNotifyQty = remainingNotify,
                 availableStockQty = lineAvail,
                 purchasedStockAvailableQty = purchasedStock,
-                suggestedMaxQty = suggested
+                suggestedMaxQty = suggested,
+                customerOrderInventoryByRegion = snapshot.CustomerOrderInventoryByRegion,
+                stockingAvailabilityByRegion = snapshot.StockingAvailabilityByRegion,
+                evaluatedRequestedQty = evalQty,
+                customsOption = snapshot.CustomsOption
             };
         }
 
@@ -337,30 +374,199 @@ namespace CRM.Core.Services
             }
         }
 
-        /// <summary>
-        /// 境内销售出库：若境外 <c>stock_item</c> 可用量 ≥ 申请量，则进入待报关并生成 pendlist。
-        /// </summary>
-        private async Task<CustomsPendlist?> TryBuildCustomsPendlistAsync(
+        private sealed class StockOutApplyInventorySnapshot
+        {
+            public List<StockOutApplyRegionInventoryDto> CustomerOrderInventoryByRegion { get; init; } = new();
+            public List<StockOutApplyStockingRegionAvailabilityDto> StockingAvailabilityByRegion { get; init; } = new();
+            public StockOutApplyCustomsOptionDto CustomsOption { get; init; } = new();
+        }
+
+        private async Task<StockOutApplyInventorySnapshot> BuildApplyInventorySnapshotAsync(
             string sellOrderItemId,
+            string? purchasePn,
+            string? purchaseBrand,
+            int requestedQty,
+            short deliveryRegionType)
+        {
+            var lineId = sellOrderItemId.Trim();
+            var customerLayers = (await _stockItemRepository.FindAsync(si =>
+                si.SellOrderItemId == lineId && si.QtyRepertoryAvailable > 0)).ToList();
+
+            var customerByRegion = new[]
+            {
+                RegionTypeCode.Domestic,
+                RegionTypeCode.Overseas
+            }.Select(region =>
+            {
+                var qty = customerLayers
+                    .Where(si => RegionTypeCode.Normalize(si.RegionType) == region)
+                    .Sum(si => si.QtyRepertoryAvailable);
+                return new StockOutApplyRegionInventoryDto
+                {
+                    regionType = region,
+                    hasInventory = qty > 0,
+                    availableQty = qty
+                };
+            }).ToList();
+
+            var stockingLayers = await LoadEligibleStockingLayersAsync(purchasePn, purchaseBrand);
+            var stockingByRegion = new[]
+            {
+                RegionTypeCode.Domestic,
+                RegionTypeCode.Overseas
+            }.Select(region =>
+            {
+                var sum = stockingLayers
+                    .Where(si => RegionTypeCode.Normalize(si.RegionType) == region)
+                    .Sum(si => si.QtyRepertoryAvailable);
+                return new StockOutApplyStockingRegionAvailabilityDto
+                {
+                    regionType = region,
+                    isAvailable = requestedQty > 0 && sum >= requestedQty
+                };
+            }).ToList();
+
+            var customsOption = ResolveCustomsOption(
+                deliveryRegionType,
+                customerByRegion,
+                stockingByRegion);
+
+            return new StockOutApplyInventorySnapshot
+            {
+                CustomerOrderInventoryByRegion = customerByRegion,
+                StockingAvailabilityByRegion = stockingByRegion,
+                CustomsOption = customsOption
+            };
+        }
+
+        private static StockOutApplyCustomsOptionDto ResolveCustomsOption(
+            short deliveryRegionType,
+            IReadOnlyList<StockOutApplyRegionInventoryDto> customerByRegion,
+            IReadOnlyList<StockOutApplyStockingRegionAvailabilityDto> stockingByRegion)
+        {
+            if (RegionTypeCode.Normalize(deliveryRegionType) != RegionTypeCode.Domestic)
+                return new StockOutApplyCustomsOptionDto();
+
+            var custDomestic = customerByRegion.FirstOrDefault(x => x.regionType == RegionTypeCode.Domestic);
+            var custOverseas = customerByRegion.FirstOrDefault(x => x.regionType == RegionTypeCode.Overseas);
+            var stockingOverseas = stockingByRegion.FirstOrDefault(x => x.regionType == RegionTypeCode.Overseas);
+
+            var hasCustDomestic = custDomestic?.hasInventory == true;
+            var hasCustOverseas = custOverseas?.hasInventory == true;
+            var stockingOverseasAvail = stockingOverseas?.isAvailable == true;
+
+            if (hasCustOverseas && !hasCustDomestic)
+            {
+                return new StockOutApplyCustomsOptionDto
+                {
+                    visible = true,
+                    defaultChecked = true,
+                    locked = true
+                };
+            }
+
+            if (!hasCustOverseas && !hasCustDomestic && stockingOverseasAvail)
+            {
+                return new StockOutApplyCustomsOptionDto
+                {
+                    visible = true,
+                    defaultChecked = false,
+                    locked = false
+                };
+            }
+
+            if (hasCustOverseas && hasCustDomestic)
+            {
+                return new StockOutApplyCustomsOptionDto
+                {
+                    visible = true,
+                    defaultChecked = false,
+                    locked = false
+                };
+            }
+
+            return new StockOutApplyCustomsOptionDto();
+        }
+
+        private static void ValidateCustomsChoiceForCreate(StockOutApplyCustomsOptionDto option, bool useCustoms)
+        {
+            if (!option.visible)
+            {
+                if (useCustoms)
+                    throw new InvalidOperationException("当前库存状况不支持使用海外仓库并报关。");
+                return;
+            }
+
+            if (option.locked && !useCustoms)
+                throw new InvalidOperationException("客单库存仅在海外仓，须使用海外仓库并报关。");
+        }
+
+        private async Task<List<StockItem>> LoadEligibleStockingLayersAsync(string? purchasePn, string? purchaseBrand)
+        {
+            var pnKey = NormInventoryKey(purchasePn);
+            var brKey = NormInventoryKey(purchaseBrand);
+            if (string.IsNullOrEmpty(pnKey) || string.IsNullOrEmpty(brKey))
+                return new List<StockItem>();
+
+            var layers = (await _stockItemRepository.FindAsync(si =>
+                si.StockType == StockInventoryTypeCodes.Stocking
+                && si.QtyRepertoryAvailable > 0
+                && (si.TransferType == null
+                    || si.TransferType != StockItemTransferTypeCodes.ManualTransferSource))).ToList();
+
+            return layers
+                .Where(si =>
+                    string.Equals(NormInventoryKey(si.PurchasePn), pnKey, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(NormInventoryKey(si.PurchaseBrand), brKey, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
+        private static string NormInventoryKey(string? v) => (v ?? string.Empty).Trim();
+
+        /// <summary>
+        /// 境内销售出库勾选报关：优先扣减客单境外 <c>stock_item</c>，不足时允许同 PN+品牌境外备货库存。
+        /// </summary>
+        private async Task<CustomsPendlist> TryBuildCustomsPendlistAsync(
+            string sellOrderItemId,
+            string? purchasePn,
+            string? purchaseBrand,
             int requestedQty,
             string salesStockOutNotifyId,
             string? actingUserId)
         {
             var lineId = sellOrderItemId.Trim();
-            var overseasLayers = (await _stockItemRepository.FindAsync(si =>
+            var customerOverseasLayers = (await _stockItemRepository.FindAsync(si =>
                 si.SellOrderItemId == lineId
                 && si.QtyRepertoryAvailable > 0
                 && si.RegionType == RegionTypeCode.Overseas)).ToList();
-            var overseasAvail = overseasLayers.Sum(si => si.QtyRepertoryAvailable);
-            if (overseasAvail < requestedQty)
-                return null;
+            var customerOverseasAvail = customerOverseasLayers.Sum(si => si.QtyRepertoryAvailable);
 
-            var topWarehouseId = overseasLayers
+            List<StockItem> sourceLayers;
+            if (customerOverseasAvail >= requestedQty)
+            {
+                sourceLayers = customerOverseasLayers;
+            }
+            else
+            {
+                var stockingLayers = (await LoadEligibleStockingLayersAsync(purchasePn, purchaseBrand))
+                    .Where(si => RegionTypeCode.Normalize(si.RegionType) == RegionTypeCode.Overseas)
+                    .ToList();
+                var stockingAvail = stockingLayers.Sum(si => si.QtyRepertoryAvailable);
+                if (customerOverseasAvail + stockingAvail < requestedQty)
+                {
+                    throw new InvalidOperationException(
+                        $"境外可用库存不足（客单 {customerOverseasAvail} + 备货 {stockingAvail}，需要 {requestedQty}），无法使用海外仓库并报关。");
+                }
+
+                sourceLayers = customerOverseasLayers.Concat(stockingLayers).ToList();
+            }
+
+            var topWarehouseId = sourceLayers
                 .GroupBy(si => si.WarehouseId?.Trim() ?? string.Empty)
                 .Where(g => !string.IsNullOrEmpty(g.Key))
                 .OrderByDescending(g => g.Sum(x => x.QtyRepertoryAvailable))
                 .Select(g => g.Key)
-                .FirstOrDefault();
+                .FirstOrDefault() ?? string.Empty;
 
             return new CustomsPendlist
             {
@@ -1128,6 +1334,8 @@ namespace CRM.Core.Services
             try
             {
                 await _purchasedStockAvailableSync.TryRecalculateFromChangedStockInfosAsync(changedStocks);
+                if (changedLayers.Count > 0)
+                    await _purchasedStockAvailableSync.TryRecalculateFromChangedStockItemsAsync(changedLayers);
             }
             catch (Exception ex)
             {
@@ -2449,6 +2657,10 @@ namespace CRM.Core.Services
             if (changedStocks.Count > 0)
             {
                 await _purchasedStockAvailableSync.TryRecalculateFromChangedStockInfosAsync(changedStocks);
+            }
+            if (changedLayers.Count > 0)
+            {
+                await _purchasedStockAvailableSync.TryRecalculateFromChangedStockItemsAsync(changedLayers);
             }
 
             await _unitOfWork.SaveChangesAsync();

@@ -20,7 +20,6 @@ public class CustomsPendlistService : ICustomsPendlistService
     private readonly IRepository<User> _userRepo;
     private readonly ISerialNumberService _serialNumberService;
     private readonly IUnitOfWork _unitOfWork;
-    private readonly IDataPermissionService _dataPermissionService;
 
     public CustomsPendlistService(
         IRepository<CustomsPendlist> pendlistRepo,
@@ -31,8 +30,7 @@ public class CustomsPendlistService : ICustomsPendlistService
         IRepository<WarehouseInfo> warehouseRepo,
         IRepository<User> userRepo,
         ISerialNumberService serialNumberService,
-        IUnitOfWork unitOfWork,
-        IDataPermissionService dataPermissionService)
+        IUnitOfWork unitOfWork)
     {
         _pendlistRepo = pendlistRepo;
         _stockOutRequestRepo = stockOutRequestRepo;
@@ -43,7 +41,6 @@ public class CustomsPendlistService : ICustomsPendlistService
         _userRepo = userRepo;
         _serialNumberService = serialNumberService;
         _unitOfWork = unitOfWork;
-        _dataPermissionService = dataPermissionService;
     }
 
     public async Task<IReadOnlyList<CustomsPendlistListItemDto>> GetListAsync(
@@ -53,6 +50,7 @@ public class CustomsPendlistService : ICustomsPendlistService
         string? currentUserId = null,
         CancellationToken cancellationToken = default)
     {
+        _ = currentUserId;
         _ = cancellationToken;
         var n = Math.Clamp(take, 1, 1000);
         var all = (await _pendlistRepo.GetAllAsync())
@@ -67,7 +65,6 @@ public class CustomsPendlistService : ICustomsPendlistService
         var kw = (keyword ?? string.Empty).Trim();
         if (!string.IsNullOrEmpty(kw))
         {
-            var kwLower = kw.ToLowerInvariant();
             var sorIds = all.Select(p => p.SalesStockOutNotifyId).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             var customsSorIds = all
                 .Select(p => p.CustomsStockOutNotifyId)
@@ -92,49 +89,6 @@ public class CustomsPendlistService : ICustomsPendlistService
                     return true;
                 return false;
             }).ToList();
-        }
-
-        if (!string.IsNullOrWhiteSpace(currentUserId))
-        {
-            var soItemIds = all
-                .Select(p => p.SellOrderItemId?.Trim())
-                .Where(x => !string.IsNullOrEmpty(x))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Cast<string>()
-                .ToList();
-            var soItems = soItemIds.Count == 0
-                ? new Dictionary<string, SellOrderItem>(StringComparer.OrdinalIgnoreCase)
-                : (await _sellOrderItemRepo.FindAsync(x => soItemIds.Contains(x.Id)))
-                    .GroupBy(x => x.Id.Trim(), StringComparer.OrdinalIgnoreCase)
-                    .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-            var soIds = soItems.Values
-                .Select(x => x.SellOrderId?.Trim())
-                .Where(x => !string.IsNullOrEmpty(x))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Cast<string>()
-                .ToList();
-            var orders = soIds.Count == 0
-                ? new Dictionary<string, SellOrder>(StringComparer.OrdinalIgnoreCase)
-                : (await _sellOrderRepo.FindAsync(x => soIds.Contains(x.Id)))
-                    .GroupBy(x => x.Id.Trim(), StringComparer.OrdinalIgnoreCase)
-                    .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-
-            var scoped = new List<CustomsPendlist>();
-            foreach (var p in all)
-            {
-                var itemId = p.SellOrderItemId?.Trim() ?? string.Empty;
-                if (string.IsNullOrEmpty(itemId)
-                    || !soItems.TryGetValue(itemId, out var soItem))
-                    continue;
-                var orderId = soItem.SellOrderId?.Trim() ?? string.Empty;
-                if (string.IsNullOrEmpty(orderId)
-                    || !orders.TryGetValue(orderId, out var order))
-                    continue;
-                if (await _dataPermissionService.CanAccessSalesOrderAsync(currentUserId, order))
-                    scoped.Add(p);
-            }
-
-            all = scoped;
         }
 
         all = all.Take(n).ToList();

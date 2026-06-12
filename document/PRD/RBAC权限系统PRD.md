@@ -177,10 +177,40 @@
 2. `FilterVendorsAsync(userId, vendors)` - **供应商主数据列表**：仅当部门 **`PurchaseDataScope == 4`** 时返回空；否则返回全部入参（不按 `VendorInfo.PurchaseUserId` 缩小，便于报价选商；专属供应商待模型字段）。采购订单、对供应商付款/进项仍按 `PurchaseUserId` + 采购范围，见同服务内 `FilterPurchaseOrdersAsync`、`FilterFinancePaymentsAsync` 等。
 3. `FilterSalesOrdersAsync(userId, orders)` - 过滤销售订单
 4. `FilterPurchaseOrdersAsync(userId, orders)` - 过滤采购订单
+5. **`ApplyPurchaseOrderDataScopeAsync(userId, query)`** - 将采购数据范围套用到可翻译的 `IQueryable<PurchaseOrder>`；采购执行链路列表经关联采购单复用同一口径（见 **§4.2.1**）。
 
 **业务员—客户与采购员—供应商对照（与实现同步）**：见 `document/System/权限/数据权限-业务员客户与采购员供应商.md`。
 
 **列级补充：** 销售方向且 **`PurchaseDataScope == 4`** 时，除上述服务方法外，须在 UI/API 上对采购敏感列脱敏，字段清单见 **§5.1.1**；采购方向且 **`SaleDataScope == 4`** 时，须在 UI/API 上对销售敏感列脱敏，字段清单见 **§5.2.1**。**附件补充：** 与 **§5.6** 一致，对跨业务线「上传单据」接口与界面做禁止访问/隐藏，与列级规则使用同一套用户摘要判定。
+
+#### 4.2.1 采购执行链路列表（`PurchaseDataScope` 经采购单关联）
+
+以下列表在服务端注入当前用户 Id 后，通过 **`PurchaseOrder.PurchaseUserId` / `Assistor`** 套用 **`ApplyPurchaseOrderDataScopeAsync`**（与采购订单列表规则一致；系统管理员或 **`PurchaseDataScope == 0`** 不缩小）：
+
+| 前端页面 | API | 实现类 | 关联路径 |
+|---------|-----|--------|---------|
+| 到货通知 | `GET /api/v1/logistics/arrival-notices` | `ArrivalNoticeListQuery` | `stockin_notify.PurchaseOrderId` → `purchaseorder` |
+| 质检 | `GET /api/v1/logistics/qcs` | `QcListQuery` | `qcinfo.StockInNotifyId` → `stockin_notify` → 采购单 |
+| 入库批次记录 | `GET /api/v1/stock-in/batches` | `StockInBatchListQuery` | `stock_in_batch` → 入库明细扩展 → 采购明细 → 采购单 |
+| 批次对账 | `GET /api/v1/batch-reconciliation`（含导出、消耗明细） | `BatchReconciliationListQuery` | 入库批次 join 采购单 |
+
+**说明：** 无法关联到可见采购单的行（如缺少采购明细扩展）在 **`PurchaseDataScope` 为 1/2/3/4** 时不展示；仅 **`0`（全部）** 或系统管理员可见全量。
+
+#### 4.2.2 库存与入库（销售 ∨ 采购 ∨ 物流 OR）
+
+以下列表采用 **多数据范围 OR**：满足 **销售**、**采购** 或 **物流** 任一可见条件即展示（系统管理员不缩小；对应范围 **`0`（全部）** 视为该维度开放）。
+
+| 前端页面 | API | 实现方法 | 销售路径 | 采购路径 | 物流路径 |
+|---------|-----|---------|---------|---------|---------|
+| 入库单列表 | `GET /api/v1/stock-in` | `ApplyStockInListDataScopeAsync` | 明细扩展 → 销售明细 → 销售单 | 明细扩展 → 采购明细 → 采购单 | `CreateByUserId` / `CreatedBy` |
+| 库存明细列表 | `GET /api/v1/inventory-center/stock-items` | `ApplyStockItemListDataScopeAsync` | `SalespersonId` / 销售明细 / 客户 | `PurchaserId` | — |
+| 库存总览（分页） | `GET /api/v1/inventory-center/overview/paged` | `ApplyStockAggregateListDataScopeAsync` | 至少一条明细命中销售范围 | 至少一条明细命中采购范围 | — |
+| 采购申请 | `GET /api/v1/purchase-requisitions` | `ApplyPurchaseRequisitionListDataScopeAsync` | 关联销售单在销售范围 | `PurchaseUserId` 在采购范围 | — |
+| 盘点计划 | `GET /api/v1/inventory-center/count-plans` | `ApplyLogisticsCreatorUserScopeAsync` | — | — | `CreatorId` |
+| 分桶下钻明细 | `GET /api/v1/inventory-center/stocks/{id}/stock-items` | `IStockInListQuery.IsVisibleToUserAsync` | 同入库单 | 同入库单 | 同入库单 |
+| 物料入库追溯 | `GET /api/v1/inventory-center/materials/{id}/traces` | `IStockInListQuery.IsVisibleToUserAsync` | 同入库单 | 同入库单 | 同入库单 |
+
+**说明：** 三维度均为 **`4`（禁止）** 时列表为空；仅某一维度禁止时，仍可通过其他维度 OR 命中。入库单不再对销售范围与物流创建人做 **AND** 叠加。
 
 **过滤逻辑：**
 ```sql
@@ -336,9 +366,9 @@ WHERE
 - ✅ 可查看系统所有数据
 - ✅ 可管理所有用户、角色、权限
 
-### 5.5 主菜单（侧栏）：采购侧员工不展示「出库管理」「报关」
+### 5.5 主菜单（侧栏）：采购侧员工不展示「出库管理」
 
-**业务目的：** 采购部门员工以采购、入库、库存内勤为主，**不提供**侧栏进入「出库管理」「报关」板块的入口，与职责划分一致。
+**业务目的：** 采购部门员工以采购、入库、库存内勤为主，**不提供**侧栏进入「出库管理」板块的入口，与职责划分一致。
 
 **判定条件（与 `RbacService` 采购侧部门一致）：**
 
@@ -349,14 +379,40 @@ WHERE
 
 | 菜单板块 | 采购侧员工（`BelongsToPurchaseDept` 且非管理员） | 其他部门用户 |
 |----------|--------------------------------------------------|----------------|
-| 出库管理（出库通知、拣货单、出库、出库明细） | **不展示** | 展示（与既有路由/权限一致） |
-| 报关（报关公司、报关单、报关明细） | **不展示** | 展示 |
+| 出库管理（出库通知、拣货单、出库、出库明细） | **不展示** | 展示（与既有路由/权限一致；仍受 `LogisticsDataScope=4` 等物流维度约束） |
 
 **实现说明：**
 
-- 属**前端侧栏裁剪**（`CRM.Web/src/layouts/AppLayout.vue` 中 `showStockOutAndCustomsMenus`），**不是**在 `RbacService` 内通过删除权限码实现；即使角色种子中将来挂了更细的资源权限，采购侧仍可在产品层保持「无入口」。
-- 摘要字段：`GET /api/v1/auth/permission-summary` 返回 `belongsToPurchaseDept`（JSON camelCase）；前端会话合并后用于菜单判断。
-- 后端赋值：`CRM.Core/Services/RbacService.cs`；DTO：`CRM.Core/Interfaces/IRbacService.cs` 中 `UserPermissionSummaryDto`。
+- 前端侧栏：`CRM.Web/src/layouts/AppLayout.vue` 中 `showStockOutMenus`（依赖 `showLogisticsMenus` 与 `belongsToPurchaseDept`）。
+- 摘要字段：`GET /api/v1/auth/permission-summary` 返回 `belongsToPurchaseDept`（JSON camelCase）。
+
+### 5.5.1 报关板块：仅物流部、财务部与系统管理员
+
+**业务目的：** 报关（待报关、报关公司、报关单、报关明细、报关客户移库）为关务与财务协同场景，**不对**销售、采购、商务等其他部门开放模块入口与 API。
+
+**模块准入（与 `SaleDataScope` / `PurchaseDataScope` 无关）：**
+
+| 身份 | `IdentityType` | 报关侧栏 | 报关 API |
+|------|----------------|----------|----------|
+| 系统管理员 | —（`IsSysAdmin`） | ✅ | ✅ |
+| 财务部 | **5** | ✅ | ✅（报关单/明细列表默认全量） |
+| 物流部 | **6** | ✅ | ✅（报关单列表可按 `LogisticsDataScope` 收窄创建人） |
+| 销售 / 采购 / 商务 / 客服等 | 其他 | ❌ | **403** |
+
+**覆盖范围：**
+
+| 前端 | API |
+|------|-----|
+| `/customs/*` | `GET/POST/PATCH/DELETE /api/v1/customs-*` |
+| 路由守卫拦截直链 | `GET/PATCH /api/v1/inventory/transfers-customers`（报关移库） |
+
+**待报关列表：** 历史曾按 **`SaleDataScope`** 经销售订单过滤；现改为模块准入后，有权限用户见**全量** pendlist（不再按业务员缩小）。
+
+**实现说明：**
+
+- 规则：`CRM.Core/Utilities/CustomsModuleAccessRules.cs`；API：`CRM.API/Utilities/CustomsModuleAccessHttp.cs`。
+- 控制器：`CustomsPendlistsController`、`CustomsBrokersController`、`CustomsDeclarationsController`、`CustomsDeclarationItemsController`、`StockTransfersController`。
+- 前端：`showCustomsMenus`（`AppLayout.vue`）；`canAccessCustomsModule` / `isCustomsModuleRoute`（`departmentModuleGate.ts`、`router/index.ts`）。
 
 **文档对照：** 详见 `document/实现方案/RBAC权限节点清单.md` 第四节「4.1 主菜单（侧栏）…」。
 
@@ -679,6 +735,7 @@ WHERE r.role_code = 'SYS_ADMIN';
 | v1.2 | 2026-04-22 | AI助手 | 增补 §5.1.1：销售方向 + `PurchaseDataScope=4` 时采购域**列级/字段级**不可见清单（供应商英/全称、采购价与折算美元等） |
 | v1.3 | 2026-04-22 | AI助手 | 增补 §5.2.1：采购方向 + `SaleDataScope=4` 时销售域**列级/字段级**不可见清单（客户英/中文/全称、销售价与折算美元等）；§4.2 列级补充与 §5.2.1 交叉引用 |
 | v1.4 | 2026-04-24 | AI助手 | 增补 §5.6：销售侧不可见采购订单/付款上传附件，采购侧不可见销售订单/收款上传附件；§4.2 与附件策略交叉引用；实现见 `CrossSideDocumentAttachmentPolicy` 与 `DocumentsController` |
+| v1.5 | 2026-06-11 | AI助手 | §5.5 拆分为出库/报关：§5.5.1 报关板块仅 **物流(6)/财务(5)/管理员** 可访问；待报关取消 `SaleDataScope` 过滤；API 403 + 前端 `showCustomsMenus` |
 
 ---
 

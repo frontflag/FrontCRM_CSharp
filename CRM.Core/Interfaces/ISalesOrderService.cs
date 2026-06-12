@@ -33,6 +33,12 @@ namespace CRM.Core.Interfaces
         /// </summary>
         Task<IReadOnlyDictionary<string, bool>> GetStockOutApplyPurchaseGateBySellLineIdsAsync(IEnumerable<string> sellOrderItemIds);
 
+        /// <summary>
+        /// 申请出库采购门闸明细（未满足时含阻塞采购单列表），Key 为销售明细 Id。
+        /// </summary>
+        Task<IReadOnlyDictionary<string, StockOutApplyPurchaseGateDetailDto>> GetStockOutApplyPurchaseGateDetailsBySellLineIdsAsync(
+            IEnumerable<string> sellOrderItemIds);
+
         /// <summary>按销售订单批量重算明细扩展并返回变更结果。</summary>
         Task<SalesOrderItemExtendRefreshResult> RefreshItemExtendsAsync(string salesOrderId, CancellationToken cancellationToken = default);
 
@@ -87,6 +93,8 @@ namespace CRM.Core.Interfaces
         /// <summary>销售订单号（模糊匹配）</summary>
         public string? SellOrderCode { get; set; }
         public string? Pn { get; set; }
+        /// <summary>交易币别筛选：rmb=人民币，foreign=外币（非人民币）。</summary>
+        public string? TransactionCurrency { get; set; }
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 20;
         public string? CurrentUserId { get; set; }
@@ -140,6 +148,9 @@ namespace CRM.Core.Interfaces
         /// </summary>
         public bool StockOutApplyPurchaseGateOk { get; set; }
 
+        /// <summary>申请出库采购门闸明细（列表/详情提示用）。</summary>
+        public StockOutApplyPurchaseGateDetailDto? StockOutApplyPurchaseGateDetail { get; set; }
+
         /// <summary>扩展表：同 PN+品牌备货库存可用量之和（<c>PurchasedStock_AvailableQty</c>）。</summary>
         public int PurchasedStockAvailableQty { get; set; }
 
@@ -157,6 +168,25 @@ namespace CRM.Core.Interfaces
 
         /// <summary>扩展表：出库利润率（出库销售收入 USD / 出库成本 USD）</summary>
         public decimal ProfitOutRateBiz { get; set; }
+    }
+
+    /// <summary>申请出库采购门闸：阻塞中的关联采购单。</summary>
+    public class StockOutApplyPurchaseGateBlockingPoDto
+    {
+        public string PurchaseOrderId { get; set; } = string.Empty;
+        public string? OrderCode { get; set; }
+        public short Status { get; set; }
+        /// <summary>关联采购单主表记录不存在时为 true。</summary>
+        public bool Missing { get; set; }
+    }
+
+    /// <summary>申请出库采购门闸明细。</summary>
+    public class StockOutApplyPurchaseGateDetailDto
+    {
+        public bool Ok { get; set; }
+        public bool HasPoItems { get; set; }
+        public IReadOnlyList<StockOutApplyPurchaseGateBlockingPoDto> BlockingPurchaseOrders { get; set; }
+            = Array.Empty<StockOutApplyPurchaseGateBlockingPoDto>();
     }
 
     public class CreateSalesOrderRequest

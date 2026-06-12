@@ -12,5 +12,6 @@ public interface IInventoryCountPlanListQuery
     Task<PagedResult<InventoryCountPlan>> GetPagedAsync(
         int page,
         int pageSize,
+        string? currentUserId = null,
         CancellationToken cancellationToken = default);
 }

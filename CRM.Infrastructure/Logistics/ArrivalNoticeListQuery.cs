@@ -1,7 +1,7 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
-using CRM.Core.Models.Purchase;
 using CRM.Infrastructure.Data;
+using CRM.Infrastructure.PurchaseOrders;
 using Microsoft.EntityFrameworkCore;
 
 namespace CRM.Infrastructure.Logistics;
@@ -11,10 +11,12 @@ public sealed class ArrivalNoticeListQuery : IArrivalNoticeListQuery
     public const int MaxPageSize = 2000;
 
     private readonly ApplicationDbContext _db;
+    private readonly IDataPermissionService _dataPermission;
 
-    public ArrivalNoticeListQuery(ApplicationDbContext db)
+    public ArrivalNoticeListQuery(ApplicationDbContext db, IDataPermissionService dataPermission)
     {
         _db = db;
+        _dataPermission = dataPermission;
     }
 
     /// <inheritdoc />
@@ -26,12 +28,15 @@ public sealed class ArrivalNoticeListQuery : IArrivalNoticeListQuery
         string? noticeId,
         int page,
         int pageSize,
+        string? currentUserId = null,
         CancellationToken cancellationToken = default)
     {
         var p = page < 1 ? 1 : page;
         var ps = pageSize < 1 ? 20 : Math.Min(pageSize, MaxPageSize);
 
         var q = _db.StockInNotifies.AsNoTracking();
+        q = await PurchaseOrderDataScopeQueryHelper.FilterArrivalNoticesAsync(
+            _dataPermission, _db, currentUserId, q, cancellationToken);
 
         if (!string.IsNullOrWhiteSpace(noticeId))
         {

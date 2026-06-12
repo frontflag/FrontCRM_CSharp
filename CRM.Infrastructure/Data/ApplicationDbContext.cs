@@ -1156,6 +1156,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.Cost).HasColumnType("numeric(18,6)").HasDefaultValue(0m);
                 entity.Property(e => e.ExpectTotal).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
                 entity.Property(e => e.ReceiveTotal).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.Remark).HasMaxLength(500);
                 entity.Property(e => e.CustomsDeclarationItemId).HasColumnName("customs_declaration_item_id").HasMaxLength(36);
                 entity.HasIndex(e => e.CustomsDeclarationItemId)
                     .IsUnique()
@@ -1177,6 +1178,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.StockInPlanDate).HasColumnName("StockInPlanDate");
                 entity.Property(e => e.Status).HasDefaultValue((short)10);
                 entity.Property(e => e.StockInStatus).HasDefaultValue((short)1);
+                entity.Property(e => e.Remark).HasMaxLength(500);
                 entity.Property(e => e.StockInType).HasColumnName("StockInType").HasDefaultValue(StockInTypeCode.Purchase);
                 entity.HasMany(e => e.Items)
                     .WithOne(x => x.QcInfo)

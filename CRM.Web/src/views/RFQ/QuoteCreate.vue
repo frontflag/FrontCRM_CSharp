@@ -244,11 +244,22 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="采购员">
-              <PurchaserCascader
+              <el-select
                 v-model="formData.purchaseUserId"
                 placeholder="请选择采购员"
-                @change="onPurchaseUserChange"
-              />
+                filterable
+                clearable
+                style="width: 100%"
+                :loading="purchaseUserOptionsLoading"
+                @change="onPurchaseUserSelectChange"
+              >
+                <el-option
+                  v-for="u in purchaseUserSelectOptions"
+                  :key="u.id"
+                  :label="u.userName"
+                  :value="u.id"
+                />
+              </el-select>
             </el-form-item>
           </el-col>
         </el-row>
@@ -338,8 +349,8 @@ import {
 import { useAuthStore } from '@/stores/auth'
 import SalesUserCascader from '@/components/SalesUserCascader.vue'
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
-import PurchaserCascader from '@/components/PurchaserCascader.vue'
 import MaterialProductionDateSelect from '@/components/MaterialProductionDateSelect.vue'
+import { authApi, type PurchaseDeptStaffUserOption } from '@/api/auth'
 import { useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
 import { financeExchangeRateApi } from '@/api/financeExchangeRate'
 import { CurrencyCode } from '@/constants/currency'
@@ -352,6 +363,10 @@ const authStore = useAuthStore()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const { ensureLoaded: ensureMaterialPdDict, coerceProductionDateToCode: coercePd } = useMaterialProductionDateDict()
+
+/** 与采购订单编辑一致：采购部职员 + SYS_ADMIN 启用账号（purchase-dept-staff-users） */
+const purchaseUserSelectOptions = ref<PurchaseDeptStaffUserOption[]>([])
+const purchaseUserOptionsLoading = ref(false)
 
 const isEditMode = computed(() => route.name === 'QuoteEdit')
 const upsertTitle = computed(() => (isEditMode.value ? '编辑报价' : '新建报价'))
@@ -602,6 +617,24 @@ async function loadLinkedRfqItem() {
 
     formData.value.quotePriceRows = [emptyPriceRow()]
 
+    const assignedPurchaserId = String(
+      item.assignedPurchaserUserId1 ??
+        item.AssignedPurchaserUserId1 ??
+        item.assignedPurchaserUserId2 ??
+        item.AssignedPurchaserUserId2 ??
+        ''
+    ).trim()
+    if (assignedPurchaserId) {
+      formData.value.purchaseUserId = assignedPurchaserId
+      const name =
+        (item.assignedPurchaserName1 as string) ||
+        (item.AssignedPurchaserName1 as string) ||
+        (item.assignedPurchaserName2 as string) ||
+        (item.AssignedPurchaserName2 as string) ||
+        ''
+      if (name) formData.value.purchaseUserName = name
+    }
+
     if (rfqId) {
       try {
         const rfq = rfqHeader ?? (await rfqApi.getRFQById(rfqId))
@@ -652,8 +685,63 @@ function onSalesUserChange(p: { id: string; label: string }) {
   formData.value.salesUserName = p.label || ''
 }
 
-function onPurchaseUserChange(p: { id: string; label: string }) {
-  formData.value.purchaseUserName = p.label || ''
+function normalizePurchaseDeptStaffUser(row: Record<string, unknown>): PurchaseDeptStaffUserOption | null {
+  const id = String(row.id ?? row.Id ?? '').trim()
+  if (!id) return null
+  const userName = String(row.userName ?? row.UserName ?? row.label ?? row.Label ?? '').trim()
+  return {
+    id,
+    userName: userName || id,
+    realName: row.realName != null ? String(row.realName) : row.RealName != null ? String(row.RealName) : undefined,
+    label: userName || id
+  }
+}
+
+function findPurchaseUserOption(userId: string): PurchaseDeptStaffUserOption | undefined {
+  const key = userId.trim().toLowerCase()
+  return purchaseUserSelectOptions.value.find((u) => u.id.trim().toLowerCase() === key)
+}
+
+function reconcileQuotePurchaseUserWithSelectOptions(allowExistingFromQuote = false) {
+  const id = formData.value.purchaseUserId?.trim()
+  if (!id) return
+
+  const hit = findPurchaseUserOption(id)
+  if (hit) {
+    formData.value.purchaseUserName = hit.userName
+    return
+  }
+
+  const name = formData.value.purchaseUserName?.trim()
+  if (allowExistingFromQuote && name) {
+    purchaseUserSelectOptions.value = [
+      ...purchaseUserSelectOptions.value,
+      { id, userName: name, realName: undefined, label: name }
+    ]
+  }
+}
+
+function onPurchaseUserSelectChange(userId: string | undefined) {
+  const id = userId ? String(userId) : ''
+  const row = findPurchaseUserOption(id)
+  formData.value.purchaseUserName = row?.userName ?? ''
+}
+
+async function loadPurchaseUserSelectOptions() {
+  purchaseUserOptionsLoading.value = true
+  try {
+    const rows = await authApi.getPurchaseDeptStaffUsers()
+    purchaseUserSelectOptions.value = rows
+      .map((u) => normalizePurchaseDeptStaffUser(u as unknown as Record<string, unknown>))
+      .filter((u): u is PurchaseDeptStaffUserOption => u != null)
+    reconcileQuotePurchaseUserWithSelectOptions(true)
+  } catch (e: unknown) {
+    purchaseUserSelectOptions.value = []
+    const msg = e instanceof Error ? e.message : String(e)
+    ElMessage.error(msg || '加载采购员列表失败')
+  } finally {
+    purchaseUserOptionsLoading.value = false
+  }
 }
 
 function onVendorFilterInput(query: string) {
@@ -870,8 +958,10 @@ function removePriceRow(index: number) {
 onMounted(async () => {
   await refreshExchangeRatesFromApi()
   await ensureMaterialPdDict()
+  await loadPurchaseUserSelectOptions()
   if (isEditMode.value) {
     await loadQuoteForEdit()
+    reconcileQuotePurchaseUserWithSelectOptions(true)
     recalcAllConvertedPrices()
     return
   }

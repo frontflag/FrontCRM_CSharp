@@ -11,5 +11,6 @@ public interface IStockInBatchListQuery
         string? serialNumber,
         int page,
         int pageSize,
+        string? currentUserId = null,
         CancellationToken cancellationToken = default);
 }

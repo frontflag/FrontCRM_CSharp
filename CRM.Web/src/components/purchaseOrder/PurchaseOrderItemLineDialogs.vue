@@ -499,7 +499,8 @@ async function submitArrivalNotice() {
       expectQty,
       purchaseOrderId: arrivalForm.purchaseOrderId,
       expectedArrivalDate: arrivalForm.expectedArrivalDate,
-      regionType: normalizeRegionType(arrivalForm.regionType)
+      regionType: normalizeRegionType(arrivalForm.regionType),
+      remark: arrivalForm.remark?.trim() || undefined
     })
     ElMessage.success('到货通知已创建')
     arrivalDialogVisible.value = false

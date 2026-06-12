@@ -48,6 +48,9 @@ namespace CRM.Core.Interfaces
         /// <summary>入库类型 <see cref="StockInTypeCode"/>；未传或非法时服务端默认为采购入库。</summary>
         [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
         public short StockInType { get; set; } = StockInTypeCode.Purchase;
+
+        /// <summary>到货通知备注（可选）。</summary>
+        public string? Remark { get; set; }
     }
 
     public class CreateQcRequest
@@ -69,6 +72,12 @@ namespace CRM.Core.Interfaces
 
         /// <summary>计划入库日期（UTC 或可解析为 UTC 的 ISO 8601）。</summary>
         public DateTime? StockInPlanDate { get; set; }
+
+        /// <summary>为 <c>true</c> 时同步写入 <see cref="Remark"/>（含置空）。</summary>
+        public bool? HasRemark { get; set; }
+
+        /// <summary>质检备注。</summary>
+        public string? Remark { get; set; }
     }
 
     public class QcQueryRequest
@@ -81,6 +90,9 @@ namespace CRM.Core.Interfaces
         public string? PurchaseOrderCode { get; set; }
         public string? FreightForwarderOrderNo { get; set; }
         public string? SalesOrderCode { get; set; }
+
+        /// <summary>当前用户 Id（服务端注入，用于采购数据范围过滤）。</summary>
+        public string? CurrentUserId { get; set; }
     }
 
     public class AutoGenerateArrivalNoticeResult

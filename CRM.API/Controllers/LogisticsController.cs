@@ -64,6 +64,7 @@ namespace CRM.API.Controllers
         {
             try
             {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 var paged = await _arrivalNoticeListQuery.GetPagedAsync(
                     status,
                     purchaseOrderCode,
@@ -72,6 +73,7 @@ namespace CRM.API.Controllers
                     string.IsNullOrWhiteSpace(id) ? null : id.Trim(),
                     page,
                     pageSize,
+                    userId,
                     cancellationToken);
                 var items = paged.Items.ToList();
                 if (await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User))
@@ -213,6 +215,8 @@ namespace CRM.API.Controllers
         {
             try
             {
+                request ??= new QcQueryRequest();
+                request.CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 var paged = await _service.GetQcsPagedAsync(page, pageSize, request, cancellationToken);
                 var items = paged.Items.ToList();
                 if (await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User))

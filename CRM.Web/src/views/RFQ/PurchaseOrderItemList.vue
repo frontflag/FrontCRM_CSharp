@@ -97,6 +97,17 @@
         </div>
 
         <el-select
+          v-model="filters.transactionCurrency"
+          clearable
+          :placeholder="t('purchaseOrderItemList.filters.transactionCurrency')"
+          class="filter-select"
+          :teleported="false"
+        >
+          <el-option :label="t('purchaseOrderItemList.filters.transactionCurrencyRmb')" value="rmb" />
+          <el-option :label="t('purchaseOrderItemList.filters.transactionCurrencyForeign')" value="foreign" />
+        </el-select>
+
+        <el-select
           v-model="filters.orderType"
           :placeholder="t('purchaseOrderItemList.filters.allOrderTypes')"
           clearable
@@ -1178,6 +1189,7 @@ const filters = reactive({
   vendorName: '',
   purchaseUserName: '',
   pn: '',
+  transactionCurrency: '' as '' | 'rmb' | 'foreign',
   orderType: undefined as number | undefined
 })
 
@@ -1518,6 +1530,7 @@ async function loadList() {
       purchaseUserName?: string
       pn?: string
       orderType?: number
+      transactionCurrency?: 'rmb' | 'foreign'
     } = {
       page: page.value,
       pageSize: pageSize.value
@@ -1530,6 +1543,7 @@ async function loadList() {
     if (canViewPurchaseUser.value && filters.purchaseUserName.trim()) params.purchaseUserName = filters.purchaseUserName.trim()
     if (filters.pn.trim()) params.pn = filters.pn.trim()
     if (filters.orderType !== undefined && filters.orderType !== null) params.orderType = filters.orderType
+    if (filters.transactionCurrency) params.transactionCurrency = filters.transactionCurrency
 
     const data = (await purchaseOrderApi.getItemLinesPage(params)) as {
       items?: any[]
@@ -1562,6 +1576,7 @@ function resetFilters() {
   filters.vendorName = ''
   filters.purchaseUserName = ''
   filters.pn = ''
+  filters.transactionCurrency = ''
   filters.orderType = undefined
   page.value = 1
   void loadList()
@@ -1755,6 +1770,19 @@ onMounted(() => {
   width: 260px;
 }
 
+.filter-select {
+  width: 130px;
+  :deep(.el-select__wrapper) {
+    background: $layer-2 !important;
+    box-shadow: none !important;
+    border: 1px solid $border-panel !important;
+    border-radius: $border-radius-md !important;
+  }
+  :deep(.el-select__placeholder),
+  :deep(.el-select__selected-item) {
+    font-size: 13px;
+  }
+}
 .po-order-type-select {
   width: 140px;
   :deep(.el-select__wrapper) {

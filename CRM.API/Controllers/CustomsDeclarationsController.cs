@@ -3,6 +3,7 @@ using CRM.API.Utilities;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Customs;
 using CRM.Core.Models.Inventory;
+using CRM.Core.Utilities;
 using CRM.Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -55,17 +56,27 @@ public class CustomsDeclarationsController : ControllerBase
     {
         try
         {
+            if (!await CustomsModuleAccessHttp.CanAccessAsync(_rbacService, User))
+                return StatusCode(403, ApiResponse<List<CustomsDeclarationListItemDto>>.Fail("当前账号无权访问报关模块", 403));
+
             var n = Math.Clamp(take, 1, 1000);
             var codeQ = (declarationCode ?? string.Empty).Trim();
             var sorQ = (stockOutRequestId ?? string.Empty).Trim();
 
             var dq = _db.CustomsDeclarations.AsNoTracking();
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            dq = await _dataPermissionService.ApplyLogisticsCreatorUserScopeAsync(
-                userId,
-                dq,
-                d => d.CreateByUserId,
-                CancellationToken.None);
+            if (!string.IsNullOrWhiteSpace(userId))
+            {
+                var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
+                if (!CustomsModuleAccessRules.BypassLogisticsDataScopeForCustomsList(summary))
+                {
+                    dq = await _dataPermissionService.ApplyLogisticsCreatorUserScopeAsync(
+                        userId,
+                        dq,
+                        d => d.CreateByUserId,
+                        CancellationToken.None);
+                }
+            }
 
             if (!string.IsNullOrEmpty(codeQ))
                 dq = dq.Where(d => EF.Functions.ILike(d.DeclarationCode, $"%{codeQ}%"));
@@ -144,6 +155,9 @@ public class CustomsDeclarationsController : ControllerBase
     [HttpGet("{id}")]
     public async Task<ActionResult<ApiResponse<CustomsDeclarationDetailViewDto>>> GetById(string id)
     {
+        if (!await CustomsModuleAccessHttp.CanAccessAsync(_rbacService, User))
+            return StatusCode(403, ApiResponse<CustomsDeclarationDetailViewDto>.Fail("当前账号无权访问报关模块", 403));
+
         var key = id.Trim();
         var row = await _db.CustomsDeclarations.AsNoTracking()
             .Include(x => x.Items.Where(i => !i.IsDeleted))
@@ -291,6 +305,9 @@ public class CustomsDeclarationsController : ControllerBase
     [HttpGet("by-stock-out-request/{stockOutRequestId}")]
     public async Task<ActionResult<ApiResponse<CustomsDeclaration>>> GetByStockOutRequest(string stockOutRequestId)
     {
+        if (!await CustomsModuleAccessHttp.CanAccessAsync(_rbacService, User))
+            return StatusCode(403, ApiResponse<CustomsDeclaration>.Fail("当前账号无权访问报关模块", 403));
+
         var key = stockOutRequestId.Trim();
         var item = await _db.CustomsDeclarationItems.AsNoTracking()
             .Where(i => i.StockOutRequestId == key)
@@ -324,6 +341,9 @@ public class CustomsDeclarationsController : ControllerBase
     {
         try
         {
+            if (!await CustomsModuleAccessHttp.CanAccessAsync(_rbacService, User))
+                return StatusCode(403, ApiResponse<object>.Fail("当前账号无权访问报关模块", 403));
+
             if (!await LogisticsDataAccessHttp.CanWriteAsync(_rbacService, User))
                 return StatusCode(403, ApiResponse<object>.Fail("当前账号物流数据为只读或禁止", 403));
             var uid = User?.Claims?.FirstOrDefault(c => c.Type == "sub" || c.Type == "userId")?.Value;
@@ -347,6 +367,9 @@ public class CustomsDeclarationsController : ControllerBase
     {
         try
         {
+            if (!await CustomsModuleAccessHttp.CanAccessAsync(_rbacService, User))
+                return StatusCode(403, ApiResponse<object>.Fail("当前账号无权访问报关模块", 403));
+
             if (!await LogisticsDataAccessHttp.CanWriteAsync(_rbacService, User))
                 return StatusCode(403, ApiResponse<object>.Fail("当前账号物流数据为只读或禁止", 403));
             var uid = User?.Claims?.FirstOrDefault(c => c.Type == "sub" || c.Type == "userId")?.Value;
@@ -379,6 +402,9 @@ public class CustomsDeclarationsController : ControllerBase
     {
         try
         {
+            if (!await CustomsModuleAccessHttp.CanAccessAsync(_rbacService, User))
+                return StatusCode(403, ApiResponse<object>.Fail("当前账号无权访问报关模块", 403));
+
             if (!await LogisticsDataAccessHttp.CanWriteAsync(_rbacService, User))
                 return StatusCode(403, ApiResponse<object>.Fail("当前账号物流数据为只读或禁止", 403));
             await _service.DeleteDeclarationAsync(id);

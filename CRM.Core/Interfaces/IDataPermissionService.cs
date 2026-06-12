@@ -40,6 +40,7 @@ namespace CRM.Core.Interfaces
 
         /// <summary>
         /// 将采购订单采购数据范围套用到可翻译的 <see cref="IQueryable{T}"/>（与 <see cref="FilterPurchaseOrdersAsync"/> 规则一致）。
+        /// 到货通知、质检、入库批次、批次对账等列表经关联采购单复用本方法。
         /// </summary>
         Task<IQueryable<PurchaseOrder>> ApplyPurchaseOrderDataScopeAsync(
             string? userId,
@@ -70,11 +71,18 @@ namespace CRM.Core.Interfaces
             IQueryable<RFQ> rfqs,
             CancellationToken cancellationToken = default);
 
-        /// <summary>采购申请列表：仅保留关联销售订单在销售数据范围内的行。</summary>
+        /// <summary>采购申请列表：关联销售订单在销售范围内，或 <c>PurchaseUserId</c> 在采购范围内。</summary>
         Task<IQueryable<PurchaseRequisition>> ApplyPurchaseRequisitionListDataScopeAsync(
             string? userId,
             IQueryable<PurchaseRequisition> query,
             IQueryable<SellOrder> sellOrders,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>装箱单列表：按 <c>SalesId</c> 或客户归属收窄销售数据范围。</summary>
+        Task<IQueryable<Packing>> ApplyPackingListDataScopeAsync(
+            string? userId,
+            IQueryable<Packing> query,
+            IQueryable<CustomerInfo> customers,
             CancellationToken cancellationToken = default);
 
         /// <summary>出库通知列表：按 <c>SalesOrderId</c> 销售数据范围过滤。</summary>
@@ -93,7 +101,7 @@ namespace CRM.Core.Interfaces
             IQueryable<CustomerInfo> customers,
             CancellationToken cancellationToken = default);
 
-        /// <summary>入库单列表：经明细扩展关联的销售订单明细收窄销售数据范围。</summary>
+        /// <summary>入库单列表：无采购明细关联时 销售∨采购∨物流；有关联采购明细时须满足采购数据范围（不可被销售/物流 OR 绕过）。</summary>
         Task<IQueryable<StockIn>> ApplyStockInListDataScopeAsync(
             string? userId,
             IQueryable<StockIn> query,
@@ -101,16 +109,10 @@ namespace CRM.Core.Interfaces
             IQueryable<SellOrderItem> sellOrderItems,
             IQueryable<StockInItemExtend> stockInItemExtends,
             IQueryable<PurchaseOrderItem> purchaseOrderItems,
+            IQueryable<PurchaseOrder> purchaseOrders,
             CancellationToken cancellationToken = default);
 
-        /// <summary>装箱单列表：按 <c>SalesId</c> 或客户归属收窄销售数据范围。</summary>
-        Task<IQueryable<Packing>> ApplyPackingListDataScopeAsync(
-            string? userId,
-            IQueryable<Packing> query,
-            IQueryable<CustomerInfo> customers,
-            CancellationToken cancellationToken = default);
-
-        /// <summary>在库明细列表：按冗余业务员、销售明细或客户归属收窄。</summary>
+        /// <summary>在库明细列表：销售数据范围 ∨ 采购数据范围（<c>PurchaserId</c>）。</summary>
         Task<IQueryable<StockItem>> ApplyStockItemListDataScopeAsync(
             string? userId,
             IQueryable<StockItem> query,
@@ -119,7 +121,7 @@ namespace CRM.Core.Interfaces
             IQueryable<CustomerInfo> customers,
             CancellationToken cancellationToken = default);
 
-        /// <summary>库存汇总（<c>stock</c>）列表：至少一条在库明细落在销售数据范围内。</summary>
+        /// <summary>库存汇总（<c>stock</c>）列表：至少一条在库明细落在销售或采购数据范围内。</summary>
         Task<IQueryable<StockInfo>> ApplyStockAggregateListDataScopeAsync(
             string? userId,
             IQueryable<StockInfo> query,

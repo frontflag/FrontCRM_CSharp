@@ -37,6 +37,9 @@
 - [金额与币别代码显示范式](./金额与币别代码显示范式.md)
   - 目标：统一「数值 + 空格 + 三位币别字母」展示；约定 RMB/USD/EUR/HKD 及扩展币别的颜色与枚举映射；全局样式 `CRM.Web/src/assets/styles/crm-quote-tier-dock.scss`，逻辑与模板参考 `RFQItemList.vue` 采购报价区。
 
+- [列表搜索栏规范](./列表搜索栏规范.md)
+  - 目标：列表页 `.search-bar` 布局、原生关键词框、`status-select` / `filter-select` 下拉、日期区间与搜索/重置按钮；**§9** 专述 **交易币别**（人民币/外币）二元筛选的 UI、`transactionCurrency` 请求参数与后端 `Currency` 过滤口径，参考 `/sales-order-items`（`SalesOrderItemList.vue`）。
+
 - [文档上传组件规范](./文档上传组件规范.md)
   - 目标：统一详情页「文档」Tab 中上传区与关联文档列表的布局、拖放范围、备注占位、待选文件横向换行、`DocumentListPanel` 的 list/grid 展示差异及整 Tab 拖放集成约定；参考 `DocumentUploadPanel.vue`、`DocumentListPanel.vue` 与采购订单详情文档区。
 

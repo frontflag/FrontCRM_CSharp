@@ -315,11 +315,15 @@ namespace CRM.API.Controllers
         [HttpGet("request/apply-context")]
         public async Task<ActionResult<ApiResponse<StockOutApplyContextDto>>> GetRequestApplyContext(
             [FromQuery] string salesOrderId,
-            [FromQuery] string salesOrderItemId)
+            [FromQuery] string salesOrderItemId,
+            [FromQuery] decimal? requestedQty = null)
         {
             try
             {
-                var dto = await _service.GetApplyContextAsync(salesOrderId ?? string.Empty, salesOrderItemId ?? string.Empty);
+                var dto = await _service.GetApplyContextAsync(
+                    salesOrderId ?? string.Empty,
+                    salesOrderItemId ?? string.Empty,
+                    requestedQty);
                 return Ok(ApiResponse<StockOutApplyContextDto>.Ok(dto, "ok"));
             }
             catch (ArgumentException ex)
@@ -359,6 +363,7 @@ namespace CRM.API.Controllers
                     ShipmentMethod = body.ShipmentMethod,
                     ExpressCompany = body.ExpressCompany,
                     RegionType = body.RegionType,
+                    UseOverseasWarehouseAndCustoms = body.UseOverseasWarehouseAndCustoms,
                 };
                 var entity = await _service.CreateStockOutRequestAsync(request);
                 return Ok(ApiResponse<StockOutRequest>.Ok(entity, "创建出库申请成功"));

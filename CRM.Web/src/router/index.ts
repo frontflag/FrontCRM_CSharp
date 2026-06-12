@@ -3,8 +3,10 @@ import type { RouteLocationNormalized } from 'vue-router'
 import { useAuthStore } from '@/stores'
 import { canAccessPurchaseOrderCreatePage } from '@/utils/purchaseOrderCreateGate'
 import {
+  canAccessCustomsModule,
   isCustomerEditOrDetailRoute,
   isCustomerManagementRoute,
+  isCustomsModuleRoute,
   isVendorEditOrDetailRoute,
   isVendorManagementRoute
 } from '@/utils/departmentModuleGate'
@@ -72,6 +74,15 @@ router.beforeEach((to, _from, next) => {
     to.meta.requiresAuth &&
     authStore.isVendorManagementHidden() &&
     (isVendorManagementRoute(to) || isVendorEditOrDetailRoute(to))
+  ) {
+    next('/dashboard')
+  } else if (
+    to.meta.requiresAuth &&
+    isCustomsModuleRoute(to) &&
+    !canAccessCustomsModule({
+      isSysAdmin: authStore.user?.isSysAdmin,
+      identityType: authStore.user?.identityType
+    })
   ) {
     next('/dashboard')
   } else if (

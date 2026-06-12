@@ -13,5 +13,6 @@ public interface IArrivalNoticeListQuery
         string? noticeId,
         int page,
         int pageSize,
+        string? currentUserId = null,
         CancellationToken cancellationToken = default);
 }

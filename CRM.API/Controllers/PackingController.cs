@@ -463,6 +463,56 @@ public class PackingController : ControllerBase
         }
     }
 
+    public class ForceDeletePackingRequest
+    {
+        public string? ConfirmBillCode { get; set; }
+    }
+
+    /// <summary>强制删除装箱单（仅 SYS_ADMIN）；释放关联拣货任务后软删并回滚出库通知。</summary>
+    [HttpPost("{id:guid}/force-delete")]
+    public async Task<ActionResult<ApiResponse<object>>> ForceDelete(
+        string id,
+        [FromBody] ForceDeletePackingRequest? body,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrWhiteSpace(userId))
+                return StatusCode(403, ApiResponse<object>.Fail("未登录或身份无效", 403));
+
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
+            if (summary?.IsSysAdmin != true)
+                return StatusCode(403, ApiResponse<object>.Fail("仅系统管理员可执行强制删除", 403));
+
+            if (body == null || string.IsNullOrWhiteSpace(body.ConfirmBillCode))
+                return BadRequest(ApiResponse<object>.Fail("请填写 confirmBillCode", 400));
+
+            var userName = User.FindFirst(ClaimTypes.Name)?.Value;
+            await _packingService.ForceDeletePackingAsync(
+                id,
+                body.ConfirmBillCode.Trim(),
+                userId.Trim(),
+                string.IsNullOrWhiteSpace(userName) ? null : userName.Trim(),
+                cancellationToken);
+
+            return Ok(ApiResponse<object>.Ok(null, "强制删除装箱单成功"));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "强制删除装箱单失败 id={Id}", id);
+            return StatusCode(500, ApiResponse<object>.Fail($"强制删除失败: {ex.Message}", 500));
+        }
+    }
+
     [HttpPost("from-stock-out-requests")]
     public async Task<ActionResult<ApiResponse<PackingCreateResultDto>>> CreateFromStockOutRequests(
         [FromBody] CreatePackingFromStockOutRequestsBody? body,

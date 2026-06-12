@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using CRM.API.Models.DTOs;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
@@ -60,12 +61,14 @@ namespace CRM.API.Controllers
         {
             try
             {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 var result = await _batchListQuery.GetPagedAsync(
                     globalBatchNo,
                     lot,
                     serialNumber,
                     page,
                     pageSize,
+                    userId,
                     cancellationToken);
                 return Ok(new
                 {

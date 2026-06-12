@@ -6,6 +6,7 @@ using CRM.Core.Models.Customer;
 using CRM.Core.Models.Customs;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Sales;
+using CRM.Core.Models.System;
 using CRM.Core.Services;
 using CRM.Core.Utilities;
 using CRM.Infrastructure.Data;
@@ -30,6 +31,9 @@ public class PackingService : IPackingService
     private readonly IPackingItemLineSeqService _packingItemLineSeq;
     private readonly IStockOutService _stockOutService;
     private readonly ICustomsV2FlowService _customsV2FlowService;
+    private readonly IForceDeleteGuardService _forceDeleteGuard;
+    private readonly IInventoryCenterService _inventoryCenterService;
+    private readonly ILogOperationAppendService _logOperationAppend;
 
     public PackingService(
         ApplicationDbContext db,
@@ -45,7 +49,10 @@ public class PackingService : IPackingService
         ISerialNumberService serialNumberService,
         IPackingItemLineSeqService packingItemLineSeq,
         IStockOutService stockOutService,
-        ICustomsV2FlowService customsV2FlowService)
+        ICustomsV2FlowService customsV2FlowService,
+        IForceDeleteGuardService forceDeleteGuard,
+        IInventoryCenterService inventoryCenterService,
+        ILogOperationAppendService logOperationAppend)
     {
         _db = db;
         _packingListQuery = packingListQuery;
@@ -61,6 +68,9 @@ public class PackingService : IPackingService
         _packingItemLineSeq = packingItemLineSeq;
         _stockOutService = stockOutService;
         _customsV2FlowService = customsV2FlowService;
+        _forceDeleteGuard = forceDeleteGuard;
+        _inventoryCenterService = inventoryCenterService;
+        _logOperationAppend = logOperationAppend;
     }
 
     public async Task<PagedResult<PackingListItemDto>> GetPackingListPagedAsync(
@@ -1258,6 +1268,22 @@ public class PackingService : IPackingService
         string? actingUserId = null,
         CancellationToken cancellationToken = default)
     {
+        await DeletePackingCoreAsync(packingId, actingUserId, requireNewStatus: true, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task ForceDeletePackingAsync(
+        string packingId,
+        string confirmBillCode,
+        string actingUserId,
+        string? actingUserName,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(confirmBillCode))
+            throw new ArgumentException("请填写 confirmBillCode", nameof(confirmBillCode));
+        if (string.IsNullOrWhiteSpace(actingUserId))
+            throw new ArgumentException("操作人不能为空", nameof(actingUserId));
+
         var id = packingId?.Trim();
         if (string.IsNullOrEmpty(id))
             throw new ArgumentException("装箱单 ID 无效", nameof(packingId));
@@ -1266,7 +1292,49 @@ public class PackingService : IPackingService
         if (packing == null || packing.IsDeleted)
             throw new InvalidOperationException("装箱单不存在或已删除");
 
-        if (packing.Status != PackingStatusCode.New)
+        if (!string.Equals(confirmBillCode.Trim(), packing.Code?.Trim(), StringComparison.Ordinal))
+            throw new ArgumentException("确认单号不匹配，已拒绝删除");
+
+        var guard = await _forceDeleteGuard.CanForceDeletePackingAsync(packing.Id);
+        if (!guard.CanDelete)
+            throw new ArgumentException(guard.Message);
+
+        await _inventoryCenterService.ReleasePickingTasksByPackingIdAsync(packing.Id);
+
+        var deletedStatus = packing.Status;
+        var recordCode = string.IsNullOrWhiteSpace(packing.Code) ? null : packing.Code.Trim();
+        await DeletePackingCoreAsync(id, actingUserId, requireNewStatus: false, cancellationToken);
+
+        await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
+        {
+            BizType = BusinessLogTypes.Packing,
+            RecordId = packing.Id,
+            RecordCode = recordCode,
+            EntityDisplayName = DeleteLogEntityNames.Packing,
+            IsForceDelete = true,
+            ForceConfirmBillCode = confirmBillCode.Trim(),
+            OperatorUserId = actingUserId.Trim(),
+            OperatorUserName = actingUserName?.Trim(),
+            OperationDescOverride =
+                $"强制删除装箱单 PackingId={packing.Id}，确认单号={recordCode}，删除时状态={deletedStatus}"
+        }, cancellationToken);
+    }
+
+    private async Task DeletePackingCoreAsync(
+        string packingId,
+        string? actingUserId,
+        bool requireNewStatus,
+        CancellationToken cancellationToken)
+    {
+        var id = packingId?.Trim();
+        if (string.IsNullOrEmpty(id))
+            throw new ArgumentException("装箱单 ID 无效", nameof(packingId));
+
+        var packing = await _packingRepository.GetByIdAsync(id);
+        if (packing == null || packing.IsDeleted)
+            throw new InvalidOperationException("装箱单不存在或已删除");
+
+        if (requireNewStatus && packing.Status != PackingStatusCode.New)
             throw new InvalidOperationException("仅「新建」状态的装箱单可以删除");
 
         var items = (await _packingItemRepository.FindAsync(i => i.PackingId == id && !i.IsDeleted)).ToList();

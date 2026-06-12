@@ -27,15 +27,17 @@ public sealed class PurchaseRequisitionListQuery : IPurchaseRequisitionListQuery
         var page = request.Page < 1 ? 1 : request.Page;
         var pageSize = request.PageSize < 1 ? 20 : Math.Min(request.PageSize, MaxPageSize);
 
-        var scopedSo = await _dataPermission.ApplySellOrderDataScopeAsync(
+        var scopedPr = await _dataPermission.ApplyPurchaseRequisitionListDataScopeAsync(
             request.CurrentUserId,
+            _db.PurchaseRequisitions.AsNoTracking(),
             _db.SellOrders.AsNoTracking(),
             cancellationToken);
 
         var q =
-            from pr in _db.PurchaseRequisitions.AsNoTracking()
-            join so in scopedSo on pr.SellOrderId equals so.Id
-            select new { pr, SellOrderCode = so.SellOrderCode };
+            from pr in scopedPr
+            join so in _db.SellOrders.AsNoTracking() on pr.SellOrderId equals so.Id into soJoin
+            from so in soJoin.DefaultIfEmpty()
+            select new { pr, SellOrderCode = so != null ? so.SellOrderCode : null };
 
         if (!string.IsNullOrWhiteSpace(request.SellOrderId))
         {

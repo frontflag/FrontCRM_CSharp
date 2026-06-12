@@ -1,6 +1,7 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
 using CRM.Infrastructure.Data;
+using CRM.Infrastructure.PurchaseOrders;
 using Microsoft.EntityFrameworkCore;
 
 namespace CRM.Infrastructure.Logistics;
@@ -10,10 +11,12 @@ public sealed class QcListQuery : IQcListQuery
     public const int MaxPageSize = 2000;
 
     private readonly ApplicationDbContext _db;
+    private readonly IDataPermissionService _dataPermission;
 
-    public QcListQuery(ApplicationDbContext db)
+    public QcListQuery(ApplicationDbContext db, IDataPermissionService dataPermission)
     {
         _db = db;
+        _dataPermission = dataPermission;
     }
 
     /// <inheritdoc />
@@ -29,6 +32,9 @@ public sealed class QcListQuery : IQcListQuery
         var qcQuery = _db.QCInfos.AsNoTracking()
             .Where(q => !q.IsDeleted)
             .Where(q => _db.StockInNotifies.Any(n => n.Id == q.StockInNotifyId && !n.IsDeleted));
+
+        qcQuery = await PurchaseOrderDataScopeQueryHelper.FilterQcInfosAsync(
+            _dataPermission, _db, request?.CurrentUserId, qcQuery, cancellationToken);
 
         if (request != null)
         {

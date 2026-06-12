@@ -82,6 +82,16 @@
             @keyup.enter="runSearch"
           />
         </div>
+        <el-select
+          v-model="filters.transactionCurrency"
+          clearable
+          :placeholder="t('salesOrderItemList.filters.transactionCurrency')"
+          class="filter-select"
+          :teleported="false"
+        >
+          <el-option :label="t('salesOrderItemList.filters.transactionCurrencyRmb')" value="rmb" />
+          <el-option :label="t('salesOrderItemList.filters.transactionCurrencyForeign')" value="foreign" />
+        </el-select>
         <button type="button" class="btn-primary btn-sm" :disabled="loading" @click="runSearch">{{ t('salesOrderItemList.filters.query') }}</button>
         <button type="button" class="btn-ghost btn-sm" @click="resetFilters">{{ t('salesOrderItemList.filters.reset') }}</button>
       </div>
@@ -218,16 +228,21 @@
             >
               {{ t('salesOrderItemList.actions.applyPurchase') }}
             </el-button>
-            <el-button
-              v-if="canWriteSo && mainAllowsOps(row)"
-              link
-              type="warning"
-              size="small"
-              :disabled="salesOrderLineApplyStockOutButtonDisabled(row)"
-              @click.stop="applyStockOutOne(row)"
-            >
-              {{ t('salesOrderItemList.actions.applyStockOut') }}
-            </el-button>
+            <span v-if="canWriteSo && mainAllowsOps(row)" class="action-with-hint">
+              <el-button
+                link
+                type="warning"
+                size="small"
+                :disabled="salesOrderLineApplyStockOutButtonDisabled(row)"
+                @click.stop="applyStockOutOne(row)"
+              >
+                {{ t('salesOrderItemList.actions.applyStockOut') }}
+              </el-button>
+              <ApplyStockOutDisabledHint
+                v-if="applyStockOutDisabledHint(row)"
+                :content="applyStockOutDisabledHint(row)!"
+              />
+            </span>
           </div>
 
           <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -254,17 +269,22 @@
                 </el-dropdown-item>
                 <el-dropdown-item
                   v-if="canWriteSo && mainAllowsOps(row)"
-                  :disabled="salesOrderLineApplyStockOutButtonDisabled(row)"
-                  @click.stop="applyStockOutOne(row)"
+                  @click.stop="onApplyStockOutDropdownClick(row)"
                 >
-                  <span
-                    class="op-more-item"
-                    :class="
-                      salesOrderLineApplyStockOutButtonDisabled(row)
-                        ? 'op-more-item--disabled'
-                        : 'op-more-item--warning'
-                    "
-                  >{{ t('salesOrderItemList.actions.applyStockOut') }}</span>
+                  <span class="op-more-item-row">
+                    <span
+                      class="op-more-item"
+                      :class="
+                        salesOrderLineApplyStockOutButtonDisabled(row)
+                          ? 'op-more-item--disabled'
+                          : 'op-more-item--warning'
+                      "
+                    >{{ t('salesOrderItemList.actions.applyStockOut') }}</span>
+                    <ApplyStockOutDisabledHint
+                      v-if="applyStockOutDisabledHint(row)"
+                      :content="applyStockOutDisabledHint(row)!"
+                    />
+                  </span>
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -511,6 +531,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
+import ApplyStockOutDisabledHint from '@/components/RFQ/ApplyStockOutDisabledHint.vue'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
 import { useSalesOrderItemListBasketStore } from '@/stores/salesOrderItemListBasket'
@@ -526,6 +547,8 @@ import {
   salesOrderLineApplyStockOutDisabled,
   salesOrderLinePurchasedStockReliefOk
 } from '@/constants/salesOrderStatus'
+import { buildApplyStockOutDisabledHintContent } from '@/utils/applyStockOutDisabledHint'
+import type { ApplyStockOutDisabledHintContent } from '@/utils/applyStockOutDisabledHint'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import { formatTotalAmountNumber, formatUnitPriceNumber, listAmountCurrencyDockClass, listAmountCurrencyIso } from '@/utils/moneyFormat'
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
@@ -636,7 +659,8 @@ const filters = reactive({
   sellOrderCode: '',
   customerName: '',
   salesUserName: '',
-  pn: ''
+  pn: '',
+  transactionCurrency: '' as '' | 'rmb' | 'foreign'
 })
 
 // ==============================
@@ -897,6 +921,7 @@ async function loadList() {
     }
     const pnk = String(filters.pn ?? '').trim()
     if (pnk) params.pn = pnk
+    if (filters.transactionCurrency) params.transactionCurrency = filters.transactionCurrency
 
     const data = (await salesOrderApi.getItemLines(params)) as {
       items?: any[]
@@ -930,6 +955,7 @@ function resetFilters() {
   filters.customerName = ''
   filters.salesUserName = ''
   filters.pn = ''
+  filters.transactionCurrency = ''
   page.value = 1
   basketStore.clear()
   suppressBasketMerge.value = true
@@ -996,7 +1022,17 @@ function batchApplyPurchase() {
   navigateNewPr(rows[0].sellOrderId, rows.map((r) => r.sellOrderItemId))
 }
 
+function applyStockOutDisabledHint(row: Record<string, unknown>): ApplyStockOutDisabledHintContent | null {
+  return buildApplyStockOutDisabledHintContent(row, t)
+}
+
+function onApplyStockOutDropdownClick(row: Record<string, unknown>) {
+  if (salesOrderLineApplyStockOutButtonDisabled(row)) return
+  applyStockOutOne(row)
+}
+
 function applyStockOutOne(row: any) {
+  if (salesOrderLineApplyStockOutButtonDisabled(row)) return
   if (!mainAllowsOps(row)) {
     ElMessage.warning(t('salesOrderItemList.messages.applyStockOutNeedAudit'))
     return
@@ -1174,6 +1210,19 @@ onMounted(() => loadList())
     border-color: rgba(0, 212, 255, 0.4);
   }
 }
+.filter-select {
+  width: 130px;
+  :deep(.el-select__wrapper) {
+    background: $layer-2 !important;
+    box-shadow: none !important;
+    border: 1px solid $border-panel !important;
+    border-radius: $border-radius-md !important;
+  }
+  :deep(.el-select__placeholder),
+  :deep(.el-select__selected-item) {
+    font-size: 13px;
+  }
+}
 .filter-date-range.so-date-range {
   width: 260px;
   :deep(.el-range-editor.el-input__wrapper) {
@@ -1342,6 +1391,20 @@ onMounted(() => loadList())
 
 .op-more-item--disabled {
   color: $text-muted !important;
+}
+
+.op-more-item-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+}
+
+.action-with-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  vertical-align: middle;
 }
 
 /* 展开操作列：禁用仍用 type=warning 时文字改为灰色 */

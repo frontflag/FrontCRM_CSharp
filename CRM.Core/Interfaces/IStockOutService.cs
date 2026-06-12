@@ -12,7 +12,10 @@ namespace CRM.Core.Interfaces
     {
         Task<StockOutRequest> CreateStockOutRequestAsync(CreateStockOutRequestRequest request, string? actingUserId = null);
         /// <summary>销售订单明细申请出库前的数量上下文（前端只读展示）</summary>
-        Task<StockOutApplyContextDto> GetApplyContextAsync(string salesOrderId, string salesOrderItemId);
+        Task<StockOutApplyContextDto> GetApplyContextAsync(
+            string salesOrderId,
+            string salesOrderItemId,
+            decimal? requestedQty = null);
         Task<IEnumerable<StockOutRequestListItemDto>> GetStockOutRequestListAsync();
 
         /// <summary>出库通知列表分页。</summary>
@@ -89,6 +92,39 @@ namespace CRM.Core.Interfaces
         /// <summary>出库类型 <see cref="StockOutTypeCode"/>；未传或非法时服务端默认为销售出库。</summary>
         [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
         public short StockOutType { get; set; } = StockOutTypeCode.Sales;
+
+        /// <summary>境内出货时：是否使用海外仓库并报关（由前端按库存上下文勾选；客单仅在海外仓时须为 true）。</summary>
+        public bool? UseOverseasWarehouseAndCustoms { get; set; }
+    }
+
+    /// <summary>客单库存按地域汇总（申请出库弹窗展示）。</summary>
+    public class StockOutApplyRegionInventoryDto
+    {
+        /// <summary>10=大陆仓 20=海外仓</summary>
+        [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+        public short regionType { get; set; }
+
+        public bool hasInventory { get; set; }
+        public int availableQty { get; set; }
+    }
+
+    /// <summary>备货库存按地域是否可满足申请量（仅展示是否可用，不返回数量）。</summary>
+    public class StockOutApplyStockingRegionAvailabilityDto
+    {
+        [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+        public short regionType { get; set; }
+
+        public bool isAvailable { get; set; }
+    }
+
+    /// <summary>境内出货：海外仓报关选项展示与默认勾选规则。</summary>
+    public class StockOutApplyCustomsOptionDto
+    {
+        public bool visible { get; set; }
+        public bool defaultChecked { get; set; }
+
+        /// <summary>true 时前端禁用勾选（客单库存仅在海外仓，系统自动勾选）。</summary>
+        public bool locked { get; set; }
     }
 
     /// <summary>销售明细「申请出库」弹窗用：数量口径由服务端计算，前端仅展示。</summary>
@@ -106,6 +142,18 @@ namespace CRM.Core.Interfaces
         public int purchasedStockAvailableQty { get; set; }
         /// <summary>建议本次填写上限 = min(remainingNotifyQty, availableStockQty + purchasedStockAvailableQty)</summary>
         public decimal suggestedMaxQty { get; set; }
+
+        /// <summary>客单库存按大陆仓/海外仓汇总（含数量）。</summary>
+        public List<StockOutApplyRegionInventoryDto> customerOrderInventoryByRegion { get; set; } = new();
+
+        /// <summary>备货库存按大陆仓/海外仓是否可满足 <c>evaluatedRequestedQty</c>。</summary>
+        public List<StockOutApplyStockingRegionAvailabilityDto> stockingAvailabilityByRegion { get; set; } = new();
+
+        /// <summary>本次评估备货可用性使用的申请数量。</summary>
+        public int evaluatedRequestedQty { get; set; }
+
+        /// <summary>境内出货时的报关选项（送货地域为海外时不展示）。</summary>
+        public StockOutApplyCustomsOptionDto customsOption { get; set; } = new();
     }
 
     public class StockOutListItemDto

@@ -82,6 +82,14 @@ public interface IPackingService
         string packingId,
         string? actingUserId = null,
         CancellationToken cancellationToken = default);
+
+    /// <summary>强制删除装箱单（SYS_ADMIN）：任意状态可删；释放关联拣货任务后软删并回滚出库通知。</summary>
+    Task ForceDeletePackingAsync(
+        string packingId,
+        string confirmBillCode,
+        string actingUserId,
+        string? actingUserName,
+        CancellationToken cancellationToken = default);
 }
 
 public class PackingStockOutRequestsResolveDto

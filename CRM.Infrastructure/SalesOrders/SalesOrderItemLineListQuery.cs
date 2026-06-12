@@ -83,6 +83,15 @@ public sealed class SalesOrderItemLineListQuery : ISalesOrderItemLineListQuery
                 x.item.PN.ToLower().Contains(pn.ToLower()));
         }
 
+        if (!string.IsNullOrWhiteSpace(request.TransactionCurrency))
+        {
+            var kind = request.TransactionCurrency.Trim().ToLowerInvariant();
+            if (kind is "rmb" or "cny" or "人民币")
+                q = q.Where(x => x.item.Currency == (short)CurrencyCode.RMB);
+            else if (kind is "foreign" or "外币")
+                q = q.Where(x => x.item.Currency != (short)CurrencyCode.RMB);
+        }
+
         var total = await q.CountAsync(cancellationToken);
 
         var ordered = q

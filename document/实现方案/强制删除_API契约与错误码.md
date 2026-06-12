@@ -67,6 +67,7 @@ HTTP 响应 JSON 形如：
 | 质检单 | POST | `api/v1/logistics/qcs/{id}/force-delete` | A | 是 | `QcCode` |
 | 库存明细 | POST | `api/v1/inventory-center/stock-items/{id}/force-delete` | A | 是 | `StockItemCode`，若空则等于明细主键 `id` |
 | 拣货单 | POST | `api/v1/inventory-center/picking-list/{id}/force-delete` | A | 是 | `TaskCode`；**任意** `Status`；若存在关联**出库单**则 400（见下表「拣货单」） |
+| 装箱单 | POST | `api/v1/packing/{id}/force-delete` | A | 是 | `packing.code`（装箱单号） |
 | 采购申请 | POST | `api/v1/purchase-requisitions/{id}/force-delete` | B | 是 | 采购申请单号（服务层校验，与列表展示单号一致） |
 | 付款单 | POST | `api/v1/finance/payments/{id}/force-delete` | B | 是 | `FinancePaymentCode` |
 | 收款单 | POST | `api/v1/finance/receipts/{id}/force-delete` | B | 是 | `FinanceReceiptCode` |
@@ -111,6 +112,7 @@ HTTP 响应 JSON 形如：
 | **质检单** | ① `StockInId` 已绑定 **或** `StockInStatus >= 100`（已进入入库链路）。② 或存在主键为 `StockInId` 的 **入库单** `StockIn` 记录。 | `LogisticsController.ForceDeleteQc` |
 | **库存明细** | ① 存在 **出库明细** `StockOutItem`，`StockItemId` = 本库存明细。② 或存在 **拣货明细** `PickingTaskItem`，`StockItemId` = 本库存明细。 | `InventoryCenterController.ForceDeleteStockItem` |
 | **拣货单** | 存在未软删 **出库单** `StockOut` 且 `PickingTaskId` = 本拣货任务；**或** 存在未软删 **出库明细** `StockOutItem` 且 `PickingTaskItemId` ∈ 本任务拣货明细 Id。满足则普通删除与强制删除均 **400**（强制删除另需 `SYS_ADMIN` + `TaskCode`）。 | `InventoryCenterController.HasStockOutLinkedToPickingTaskAsync` → `DeletePickingSlip` / `ForceDeletePickingSlip` |
+| **装箱单** | ① 存在未软删 **出库明细** `StockOutItem.packing_id` = 本装箱单。② 关联 **出库通知** `status = 100`（已出库）。③ 存在未软删 **报关单**（`packing.customs_declaration_id` 或 `customs_declaration.packing_id`）。通过守卫后 **级联释放** 关联拣货任务再软删装箱单。 | `IForceDeleteGuardService.CanForceDeletePackingAsync`；`PackingService.ForceDeletePackingAsync` |
 | **采购申请** | 存在 **采购订单明细** `PurchaseOrderItem`，其 `SellOrderItemId` = 本申请关联的销售订单明细（以销定采已落单）。 | `PurchaseRequisitionService.ForceDeleteAsync`（`HasPurchaseOrderDownstreamAsync`） |
 | **付款单** | 本单下任一 **付款明细** `FinancePaymentItem`：`VerificationStatus > 0` **或** `VerificationDone > 0`（已核销/部分核销）。 | `IForceDeleteGuardService.CanForceDeleteFinancePaymentAsync` |
 | **收款单** | 本单下任一 **收款明细** `FinanceReceiptItem`：`VerificationStatus > 0` **或** `VerifiedAmount > 0`。 | `IForceDeleteGuardService.CanForceDeleteFinanceReceiptAsync` |

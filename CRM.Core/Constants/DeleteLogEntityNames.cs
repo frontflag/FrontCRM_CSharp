@@ -28,6 +28,7 @@ public static class DeleteLogEntityNames
     public const string StockIn = "入库单";
     public const string StockOutRequest = "出库通知";
     public const string StockOut = "出库单";
+    public const string Packing = "装箱单";
     public const string ArrivalNotice = "到货通知";
     public const string QcInspection = "质检单";
     public const string InventoryStock = "库存明细";

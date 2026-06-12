@@ -63,6 +63,24 @@ export interface StockOutDetailDto extends StockOutDto {
   sellOrderItemId?: string
 }
 
+export interface StockOutApplyRegionInventoryDto {
+  /** 10=大陆仓 20=海外仓 */
+  regionType: number
+  hasInventory: boolean
+  availableQty: number
+}
+
+export interface StockOutApplyStockingRegionAvailabilityDto {
+  regionType: number
+  isAvailable: boolean
+}
+
+export interface StockOutApplyCustomsOptionDto {
+  visible: boolean
+  defaultChecked: boolean
+  locked: boolean
+}
+
 /** GET /api/v1/stock-out/request/apply-context */
 export interface StockOutApplyContextDto {
   salesOrderItemId: string
@@ -74,6 +92,10 @@ export interface StockOutApplyContextDto {
   /** 同 PN+品牌备货在库可用 */
   purchasedStockAvailableQty?: number
   suggestedMaxQty: number
+  customerOrderInventoryByRegion?: StockOutApplyRegionInventoryDto[]
+  stockingAvailabilityByRegion?: StockOutApplyStockingRegionAvailabilityDto[]
+  evaluatedRequestedQty?: number
+  customsOption?: StockOutApplyCustomsOptionDto
 }
 
 /** 解包 GET apply-context：兼容 PascalCase、双重 data 包层，避免备货字段解析为 0 */
@@ -97,6 +119,36 @@ function normalizeApplyContextPayload(res: unknown): StockOutApplyContextDto {
   }
   const num = (v: unknown) => Number(v ?? 0)
   const truncInt = (v: unknown) => Math.trunc(num(v))
+  const parseRegionInventory = (raw: unknown): StockOutApplyRegionInventoryDto[] => {
+    if (!Array.isArray(raw)) return []
+    return raw.map((row) => {
+      const r = row as Record<string, unknown>
+      return {
+        regionType: truncInt(r.regionType ?? r.RegionType),
+        hasInventory: Boolean(r.hasInventory ?? r.HasInventory),
+        availableQty: truncInt(r.availableQty ?? r.AvailableQty)
+      }
+    })
+  }
+  const parseStockingAvailability = (raw: unknown): StockOutApplyStockingRegionAvailabilityDto[] => {
+    if (!Array.isArray(raw)) return []
+    return raw.map((row) => {
+      const r = row as Record<string, unknown>
+      return {
+        regionType: truncInt(r.regionType ?? r.RegionType),
+        isAvailable: Boolean(r.isAvailable ?? r.IsAvailable)
+      }
+    })
+  }
+  const rawCustoms = (o.customsOption ?? o.CustomsOption) as Record<string, unknown> | undefined
+  const customsOption: StockOutApplyCustomsOptionDto = rawCustoms
+    ? {
+        visible: Boolean(rawCustoms.visible ?? rawCustoms.Visible),
+        defaultChecked: Boolean(rawCustoms.defaultChecked ?? rawCustoms.DefaultChecked),
+        locked: Boolean(rawCustoms.locked ?? rawCustoms.Locked)
+      }
+    : { visible: false, defaultChecked: false, locked: false }
+
   return {
     salesOrderItemId: String(o.salesOrderItemId ?? o.SalesOrderItemId ?? ''),
     salesOrderQty: num(o.salesOrderQty ?? o.SalesOrderQty),
@@ -104,7 +156,15 @@ function normalizeApplyContextPayload(res: unknown): StockOutApplyContextDto {
     remainingNotifyQty: num(o.remainingNotifyQty ?? o.RemainingNotifyQty),
     availableStockQty: num(o.availableStockQty ?? o.AvailableStockQty),
     purchasedStockAvailableQty: truncInt(o.purchasedStockAvailableQty ?? o.PurchasedStockAvailableQty),
-    suggestedMaxQty: num(o.suggestedMaxQty ?? o.SuggestedMaxQty)
+    suggestedMaxQty: num(o.suggestedMaxQty ?? o.SuggestedMaxQty),
+    customerOrderInventoryByRegion: parseRegionInventory(
+      o.customerOrderInventoryByRegion ?? o.CustomerOrderInventoryByRegion
+    ),
+    stockingAvailabilityByRegion: parseStockingAvailability(
+      o.stockingAvailabilityByRegion ?? o.StockingAvailabilityByRegion
+    ),
+    evaluatedRequestedQty: truncInt(o.evaluatedRequestedQty ?? o.EvaluatedRequestedQty),
+    customsOption
   }
 }
 
@@ -647,10 +707,16 @@ export const stockOutApi = {
     })
   },
 
-  async getApplyContext(salesOrderId: string, salesOrderItemId: string): Promise<StockOutApplyContextDto> {
-    const res = await apiClient.get<unknown>('/api/v1/stock-out/request/apply-context', {
-      params: { salesOrderId, salesOrderItemId }
-    })
+  async getApplyContext(
+    salesOrderId: string,
+    salesOrderItemId: string,
+    requestedQty?: number
+  ): Promise<StockOutApplyContextDto> {
+    const params: Record<string, string | number> = { salesOrderId, salesOrderItemId }
+    if (requestedQty != null && Number.isFinite(requestedQty) && requestedQty > 0) {
+      params.requestedQty = Math.trunc(requestedQty)
+    }
+    const res = await apiClient.get<unknown>('/api/v1/stock-out/request/apply-context', { params })
     return normalizeApplyContextPayload(res)
   },
 
@@ -668,6 +734,7 @@ export const stockOutApi = {
     shipmentMethod?: string | null
     expressCompany?: string | null
     regionType?: number
+    useOverseasWarehouseAndCustoms?: boolean
   }): Promise<StockOutRequestDto> {
     // 去掉 Vue Proxy / 非枚举属性，保证 quantity 与网络载荷一致
     const body = JSON.parse(JSON.stringify(data)) as typeof data

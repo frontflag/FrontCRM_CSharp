@@ -34,6 +34,7 @@ export interface StockInNotifyDto {
   expectQty?: number
   receiveQty?: number
   passedQty?: number
+  remark?: string | null
   createTime: string
   modifyTime?: string
   items: StockInNotifyItemDto[]
@@ -61,6 +62,7 @@ export interface QcInfoDto {
   stockInPlanDate?: string | null
   /** 部分接口仍返回 PascalCase */
   StockInPlanDate?: string | null
+  remark?: string | null
   createTime: string
   modifyTime?: string
   createByUserId?: string | null
@@ -108,6 +110,7 @@ export const logisticsApi = {
     purchaseOrderId?: string
     expectedArrivalDate?: string | null
     regionType?: number
+    remark?: string | null
   }): Promise<StockInNotifyDto> {
     return unwrap<StockInNotifyDto>(await apiClient.post('/api/v1/logistics/arrival-notices', payload))
   },
@@ -147,6 +150,9 @@ export const logisticsApi = {
       /** 为 true 时写入 stockInPlanDate（含 null 清空）；旧客户端不传则不修改 */
       hasStockInPlanDate?: boolean
       stockInPlanDate?: string | null
+      /** 为 true 时写入 remark（含 null 清空） */
+      hasRemark?: boolean
+      remark?: string | null
     }
   ): Promise<QcInfoDto> {
     return unwrap<QcInfoDto>(await apiClient.patch(`/api/v1/logistics/qcs/${id}/result`, payload))

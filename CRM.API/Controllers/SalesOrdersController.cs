@@ -123,6 +123,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? salesUserName,
             [FromQuery] string? sellOrderCode,
             [FromQuery] string? pn,
+            [FromQuery] string? transactionCurrency,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20,
             CancellationToken cancellationToken = default)
@@ -145,6 +146,7 @@ namespace CRM.API.Controllers
                     SalesUserName = canViewSalesUser && !string.IsNullOrWhiteSpace(salesUserName) ? salesUserName.Trim() : null,
                     SellOrderCode = sellOrderCode,
                     Pn = pn,
+                    TransactionCurrency = transactionCurrency,
                     Page = page,
                     PageSize = pageSize,
                     CurrentUserId = userId
@@ -195,11 +197,11 @@ namespace CRM.API.Controllers
                     itemExtends = await LoadSellOrderItemExtendsByItemIdsAsync(ids, order.Id);
                 }
 
-                IReadOnlyDictionary<string, bool> stockOutGate =
-                    new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+                IReadOnlyDictionary<string, StockOutApplyPurchaseGateDetailDto> stockOutGate =
+                    new Dictionary<string, StockOutApplyPurchaseGateDetailDto>(StringComparer.OrdinalIgnoreCase);
                 if (order.Items != null && order.Items.Count > 0)
                 {
-                    stockOutGate = await _service.GetStockOutApplyPurchaseGateBySellLineIdsAsync(
+                    stockOutGate = await _service.GetStockOutApplyPurchaseGateDetailsBySellLineIdsAsync(
                         order.Items.Select(i => i.Id));
                 }
 
@@ -823,11 +825,11 @@ namespace CRM.API.Controllers
                     itemExtends = await LoadSellOrderItemExtendsByItemIdsAsync(ids, order.Id);
                 }
 
-                IReadOnlyDictionary<string, bool> stockOutGate =
-                    new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+                IReadOnlyDictionary<string, StockOutApplyPurchaseGateDetailDto> stockOutGate =
+                    new Dictionary<string, StockOutApplyPurchaseGateDetailDto>(StringComparer.OrdinalIgnoreCase);
                 if (order.Items != null && order.Items.Count > 0)
                 {
-                    stockOutGate = await _service.GetStockOutApplyPurchaseGateBySellLineIdsAsync(
+                    stockOutGate = await _service.GetStockOutApplyPurchaseGateDetailsBySellLineIdsAsync(
                         order.Items.Select(i => i.Id));
                 }
 
@@ -954,11 +956,11 @@ namespace CRM.API.Controllers
                     itemExtends = await LoadSellOrderItemExtendsByItemIdsAsync(ids, loaded.Id);
                 }
 
-                IReadOnlyDictionary<string, bool> stockOutGate =
-                    new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+                IReadOnlyDictionary<string, StockOutApplyPurchaseGateDetailDto> stockOutGate =
+                    new Dictionary<string, StockOutApplyPurchaseGateDetailDto>(StringComparer.OrdinalIgnoreCase);
                 if (loaded.Items != null && loaded.Items.Count > 0)
                 {
-                    stockOutGate = await _service.GetStockOutApplyPurchaseGateBySellLineIdsAsync(
+                    stockOutGate = await _service.GetStockOutApplyPurchaseGateDetailsBySellLineIdsAsync(
                         loaded.Items.Select(i => i.Id));
                 }
 
@@ -1139,6 +1141,7 @@ namespace CRM.API.Controllers
                 r.ReceiptProgressStatus,
                 r.InvoiceProgressStatus,
                 r.StockOutApplyPurchaseGateOk,
+                stockOutApplyPurchaseGateDetail = MaskStockOutApplyPurchaseGateDetail(r.StockOutApplyPurchaseGateDetail),
                 r.PurchasedStockAvailableQty,
                 r.PurchaseRemainingQty
             };
@@ -1195,9 +1198,27 @@ namespace CRM.API.Controllers
             return nameMap.TryGetValue(id, out var name) ? name : null;
         }
 
+        private static object? MaskStockOutApplyPurchaseGateDetail(StockOutApplyPurchaseGateDetailDto? detail)
+        {
+            if (detail == null)
+                return null;
+            return new
+            {
+                ok = detail.Ok,
+                hasPoItems = detail.HasPoItems,
+                blockingPurchaseOrders = detail.BlockingPurchaseOrders.Select(po => new
+                {
+                    purchaseOrderId = po.PurchaseOrderId,
+                    orderCode = po.OrderCode,
+                    status = po.Status,
+                    missing = po.Missing
+                }).ToList()
+            };
+        }
+
         private object MaskSalesOrder(CRM.Core.Models.Sales.SellOrder order, UserPermissionSummaryDto? summary,
             IReadOnlyDictionary<string, SellOrderItemExtend>? itemExtends = null,
-            IReadOnlyDictionary<string, bool>? stockOutApplyPurchaseGate = null,
+            IReadOnlyDictionary<string, StockOutApplyPurchaseGateDetailDto>? stockOutApplyPurchaseGateDetails = null,
             string? assistorUserName = null)
         {
             var mask521 = SaleSensitiveFieldMask521.ShouldMask(summary);
@@ -1290,10 +1311,15 @@ namespace CRM.API.Controllers
                         stockOutProgressStatus = ext?.StockOutProgressStatus ?? (short)0,
                         receiptProgressStatus = ext?.ReceiptProgressStatus ?? (short)0,
                         invoiceProgressStatus = ext?.InvoiceProgressStatus ?? (short)0,
-                        stockOutApplyPurchaseGateOk = stockOutApplyPurchaseGate != null &&
+                        stockOutApplyPurchaseGateOk = stockOutApplyPurchaseGateDetails != null &&
                             !string.IsNullOrWhiteSpace(i.Id) &&
-                            stockOutApplyPurchaseGate.TryGetValue(i.Id.Trim(), out var gateOk) &&
-                            gateOk,
+                            stockOutApplyPurchaseGateDetails.TryGetValue(i.Id.Trim(), out var gateDetail) &&
+                            gateDetail.Ok,
+                        stockOutApplyPurchaseGateDetail = stockOutApplyPurchaseGateDetails != null &&
+                            !string.IsNullOrWhiteSpace(i.Id) &&
+                            stockOutApplyPurchaseGateDetails.TryGetValue(i.Id.Trim(), out gateDetail)
+                            ? MaskStockOutApplyPurchaseGateDetail(gateDetail)
+                            : null,
                         purchasedStockAvailableQty = ext?.PurchasedStock_AvailableQty ?? 0,
                         purchaseQuoteCost = canViewSalesAmount ? ext?.QuoteCost : null,
                         purchaseQuoteCurrency = ext != null ? ext.QuoteCurrency : (short?)null

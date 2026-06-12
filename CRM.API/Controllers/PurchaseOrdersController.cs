@@ -136,6 +136,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? purchaseUserName,
             [FromQuery] string? pn,
             [FromQuery] short? orderType,
+            [FromQuery] string? transactionCurrency,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20,
             CancellationToken cancellationToken = default)
@@ -165,6 +166,7 @@ namespace CRM.API.Controllers
                     PurchaseUserName = canViewPurchaseUser && !string.IsNullOrWhiteSpace(purchaseUserName) ? purchaseUserName.Trim() : null,
                     Pn = string.IsNullOrWhiteSpace(pn) ? null : pn.Trim(),
                     OrderType = orderType,
+                    TransactionCurrency = transactionCurrency,
                     Page = page,
                     PageSize = pageSize
                 };

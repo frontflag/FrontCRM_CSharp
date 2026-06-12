@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Purchase;
 using CRM.Infrastructure.Data;
@@ -88,6 +89,15 @@ public sealed class PurchaseOrderItemListQuery : IPurchaseOrderItemListQuery
 
         if (request.OrderType.HasValue)
             q = q.Where(x => x.po.Type == request.OrderType.Value);
+
+        if (!string.IsNullOrWhiteSpace(request.TransactionCurrency))
+        {
+            var kind = request.TransactionCurrency.Trim().ToLowerInvariant();
+            if (kind is "rmb" or "cny" or "人民币")
+                q = q.Where(x => x.item.Currency == (short)CurrencyCode.RMB);
+            else if (kind is "foreign" or "外币")
+                q = q.Where(x => x.item.Currency != (short)CurrencyCode.RMB);
+        }
 
         var total = await q.CountAsync(cancellationToken);
 

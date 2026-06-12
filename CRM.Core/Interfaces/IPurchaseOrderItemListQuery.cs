@@ -25,6 +25,8 @@ public sealed class PurchaseOrderItemListQueryRequest
     public string? PurchaseUserName { get; set; }
     public string? Pn { get; set; }
     public short? OrderType { get; set; }
+    /// <summary>交易币别筛选：rmb=人民币，foreign=外币（非人民币）。</summary>
+    public string? TransactionCurrency { get; set; }
 
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 20;

@@ -2578,6 +2578,9 @@ const enUS = {
       customerName: 'Customer name',
       salesUserName: 'Sales rep',
       pn: 'Material / MPN',
+      transactionCurrency: 'Transaction currency',
+      transactionCurrencyRmb: 'RMB',
+      transactionCurrencyForeign: 'Foreign currency',
       query: 'Search',
       reset: 'Reset',
       refresh: 'Refresh'
@@ -2658,7 +2661,15 @@ const enUS = {
       stockingPurchasingNone: 'There is currently no purchasing stocking for the same material model and brand.',
       zeroApplyBanner:
         'Appliable stock-out quantity is 0 after combining remaining notify quota, customer-bound on-hand, and stocking on-hand. You can still review; submit when stock or quota is available.',
-      cannotApply: 'Cannot apply'
+      cannotApply: 'Cannot apply',
+      customerInventoryTitle: 'Customer-order inventory',
+      customerInventoryHasQty: 'In stock, available qty {qty}',
+      customerInventoryNone: 'No inventory',
+      stockingAvailabilityTitle: 'Stocking availability ({pn} / {brand}, request qty {qty})',
+      stockingAvailableYes: 'Available',
+      stockingAvailableNo: 'Not available',
+      useOverseasWarehouseAndCustoms: 'Use overseas warehouse and declare customs',
+      customsCostHint: 'Customs clearance requires additional time and fees. Please confirm before enabling.'
     },
     validation: {
       requestQtyRequired: 'Enter quantity for this request',
@@ -2680,6 +2691,21 @@ const enUS = {
         'Stock-out requires purchase order lines linked to this sales line, and every linked purchase order must be vendor-confirmed or beyond.',
       applyStockOutDisabledByProgress:
         'Stock-out cannot be requested when outbound is completed or procurement is still pending.',
+      applyStockOutDisabledStockOutDone: 'Outbound progress is complete for this line; no further stock-out requests.',
+      applyStockOutDisabledPendingPurchase:
+        'Procurement is still pending for this line. Exception: stocking available qty (same PN+brand) > 0.',
+      applyStockOutHintAria: 'Why stock-out request is disabled',
+      applyStockOutHintDetailTitle: 'Conditions not met:',
+      applyStockOutHintDetailStockOutDone: 'Outbound progress is "{status}".',
+      applyStockOutHintDetailNoPoItems: 'No linked purchase order line has been created yet.',
+      applyStockOutHintDetailPoNotConfirmed:
+        'Linked PO {code} is "{status}"; required status is "{requiredStatus}" or later.',
+      applyStockOutHintDetailPoMissing: 'Linked PO {code} master record is missing or deleted.',
+      applyStockOutHintDetailPendingPurchase: 'Procurement progress is "{status}".',
+      applyStockOutHintDetailNoStockingRelief:
+        'Stocking available qty (same PN+brand) is {qty}; exception requires qty > 0.',
+      applyStockOutHintDetailPurchaseGateUnknown:
+        'Purchase gate not passed (linked purchase order status below requirement).',
       applyStockOutZeroSuggested:
         'Appliable stock-out qty is 0 (remaining notify quota or on-hand available is 0). You can still review the dialog and submit after stock is available.',
       applyStockOutExceedsStock:
@@ -2753,7 +2779,8 @@ const enUS = {
       inProgress: 'In Progress',
       completed: 'Completed',
       reviewFailed: 'Review Failed',
-      cancelled: 'Cancelled'
+      cancelled: 'Cancelled',
+      unknown: 'Unknown'
     },
     stock: { none: 'Not Stocked In', partial: 'Partially Stocked In', all: 'Fully Stocked In' },
     actions: { detail: 'Detail', edit: 'Edit', submitAudit: 'Submit for Review', confirmBySupplier: 'Supplier Confirm', report: 'Print Order', cancelConfirm: 'Cancel Confirmation' },
@@ -2824,6 +2851,9 @@ const enUS = {
       vendorPlaceholder: 'Vendor name',
       purchaserPlaceholder: 'Buyer name',
       pnPlaceholder: 'Material / MPN',
+      transactionCurrency: 'Transaction currency',
+      transactionCurrencyRmb: 'RMB',
+      transactionCurrencyForeign: 'Foreign currency',
       orderType: 'Order type',
       allOrderTypes: 'All types',
       orderTypeCustomer: 'Customer-order PO',
@@ -4226,7 +4256,15 @@ const enUS = {
       ready: 'Stock ready',
       stockOut: 'Stock out',
       outBatch: 'Outbound batch',
-      delete: 'Delete'
+      delete: 'Delete',
+      forceDelete: 'Force delete'
+    },
+    forceDelete: {
+      title: 'Confirm force delete',
+      prompt: 'Enter the packing number to confirm force delete',
+      codeMismatch: 'Packing number does not match. Cancelled.',
+      success: 'Force delete succeeded',
+      failed: 'Force delete failed'
     },
     outBatch: {
       notConfirmedStatus: 'Only confirmed or later packing slips can import outbound batches'

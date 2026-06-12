@@ -7,6 +7,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    ApplyStockOutDisabledHint: typeof import('./src/components/RFQ/ApplyStockOutDisabledHint.vue')['default']
     ApplyTagsDialog: typeof import('./src/components/Tag/ApplyTagsDialog.vue')['default']
     AssistantRelationPanel: typeof import('./src/components/System/AssistantRelationPanel.vue')['default']
     BusinessCardUploader: typeof import('./src/components/Contact/BusinessCardUploader.vue')['default']

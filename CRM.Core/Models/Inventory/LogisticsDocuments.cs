@@ -113,6 +113,10 @@ namespace CRM.Core.Models.Inventory
         /// <summary>软删除标记；为 true 时全局查询过滤器排除。</summary>
         [Column("is_deleted")]
         public bool IsDeleted { get; set; }
+
+        /// <summary>到货通知备注（采购创建到货通知时填写）。</summary>
+        [StringLength(500)]
+        public string? Remark { get; set; }
     }
 
     /// <summary>
@@ -191,6 +195,10 @@ namespace CRM.Core.Models.Inventory
         [StringLength(36)]
         [Column("modify_by_user_id")]
         public string? ModifyByUserId { get; set; }
+
+        /// <summary>质检备注（质检保存时填写）。</summary>
+        [StringLength(500)]
+        public string? Remark { get; set; }
 
         [Column("is_deleted")]
         public bool IsDeleted { get; set; }

@@ -409,16 +409,21 @@
                       >
                         {{ t('salesOrderItemList.actions.applyPurchase') }}
                       </el-button>
-                      <el-button
-                        v-if="canWriteSo && mainAllowsOps(row)"
-                        link
-                        type="warning"
-                        size="small"
-                        :disabled="salesOrderLineApplyStockOutButtonDisabled(row)"
-                        @click.stop="applyStockOutOne(row)"
-                      >
-                        {{ t('salesOrderItemList.actions.applyStockOut') }}
-                      </el-button>
+                      <span v-if="canWriteSo && mainAllowsOps(row)" class="action-with-hint">
+                        <el-button
+                          link
+                          type="warning"
+                          size="small"
+                          :disabled="salesOrderLineApplyStockOutButtonDisabled(row)"
+                          @click.stop="applyStockOutOne(row)"
+                        >
+                          {{ t('salesOrderItemList.actions.applyStockOut') }}
+                        </el-button>
+                        <ApplyStockOutDisabledHint
+                          v-if="applyStockOutDisabledHint(row)"
+                          :content="applyStockOutDisabledHint(row)!"
+                        />
+                      </span>
                     </div>
                     <el-dropdown v-else trigger="click" placement="bottom-end">
                       <div class="op-more-dropdown-trigger">
@@ -444,17 +449,22 @@
                           </el-dropdown-item>
                           <el-dropdown-item
                             v-if="canWriteSo && mainAllowsOps(row)"
-                            :disabled="salesOrderLineApplyStockOutButtonDisabled(row)"
-                            @click.stop="applyStockOutOne(row)"
+                            @click.stop="onApplyStockOutDropdownClick(row)"
                           >
-                            <span
-                              class="op-more-item"
-                              :class="
-                                salesOrderLineApplyStockOutButtonDisabled(row)
-                                  ? 'op-more-item--disabled'
-                                  : 'op-more-item--warning'
-                              "
-                            >{{ t('salesOrderItemList.actions.applyStockOut') }}</span>
+                            <span class="op-more-item-row">
+                              <span
+                                class="op-more-item"
+                                :class="
+                                  salesOrderLineApplyStockOutButtonDisabled(row)
+                                    ? 'op-more-item--disabled'
+                                    : 'op-more-item--warning'
+                                "
+                              >{{ t('salesOrderItemList.actions.applyStockOut') }}</span>
+                              <ApplyStockOutDisabledHint
+                                v-if="applyStockOutDisabledHint(row)"
+                                :content="applyStockOutDisabledHint(row)!"
+                              />
+                            </span>
                           </el-dropdown-item>
                         </el-dropdown-menu>
                       </template>
@@ -542,31 +552,31 @@
           <div class="tabs-section so-item-line-detail-tabs-section">
             <div class="tabs-nav">
               <button type="button" class="tab-btn" :class="{ 'tab-btn--active': soItemLinePanel.activeTab === 'pr' }" @click="soItemLinePanel.activeTab = 'pr'">
-                采购申请
+                {{ formatSoItemLineTabLabel('采购申请', 'pr') }}
               </button>
               <button type="button" class="tab-btn" :class="{ 'tab-btn--active': soItemLinePanel.activeTab === 'po' }" @click="soItemLinePanel.activeTab = 'po'">
-                采购订单明细
+                {{ formatSoItemLineTabLabel('采购订单明细', 'po') }}
               </button>
               <button type="button" class="tab-btn" :class="{ 'tab-btn--active': soItemLinePanel.activeTab === 'stockIn' }" @click="soItemLinePanel.activeTab = 'stockIn'">
-                入库
+                {{ formatSoItemLineTabLabel('入库', 'stockIn') }}
               </button>
               <button type="button" class="tab-btn" :class="{ 'tab-btn--active': soItemLinePanel.activeTab === 'stock' }" @click="soItemLinePanel.activeTab = 'stock'">
-                库存
+                {{ formatSoItemLineTabLabel('库存', 'stock') }}
               </button>
               <button type="button" class="tab-btn" :class="{ 'tab-btn--active': soItemLinePanel.activeTab === 'outNotify' }" @click="soItemLinePanel.activeTab = 'outNotify'">
-                出库通知
+                {{ formatSoItemLineTabLabel('出库通知', 'outNotify') }}
               </button>
               <button type="button" class="tab-btn" :class="{ 'tab-btn--active': soItemLinePanel.activeTab === 'stockOut' }" @click="soItemLinePanel.activeTab = 'stockOut'">
-                出库
+                {{ formatSoItemLineTabLabel('出库', 'stockOut') }}
               </button>
               <button type="button" class="tab-btn" :class="{ 'tab-btn--active': soItemLinePanel.activeTab === 'receipt' }" @click="soItemLinePanel.activeTab = 'receipt'">
-                收款
+                {{ formatSoItemLineTabLabel('收款', 'receipt') }}
               </button>
               <button type="button" class="tab-btn" :class="{ 'tab-btn--active': soItemLinePanel.activeTab === 'sellInvoice' }" @click="soItemLinePanel.activeTab = 'sellInvoice'">
-                销项发票
+                {{ formatSoItemLineTabLabel('销项发票', 'sellInvoice') }}
               </button>
               <button type="button" class="tab-btn" :class="{ 'tab-btn--active': soItemLinePanel.activeTab === 'qcImages' }" @click="soItemLinePanel.activeTab = 'qcImages'">
-                {{ t('salesOrderDetailView.tabs.qcImages') }}
+                {{ formatSoItemLineTabLabel(t('salesOrderDetailView.tabs.qcImages'), 'qcImages') }}
               </button>
             </div>
             <div class="tabs-body">
@@ -985,8 +995,9 @@
           </el-col>
         </el-row>
       </el-form>
+      <template v-if="applyForm.sellOrderItemId">
       <!-- 单条销售订单明细 → 一条出库通知（单表） -->
-      <div v-if="applyForm.sellOrderItemId" class="apply-stock-lines items-table">
+      <div class="apply-stock-lines items-table">
         <div class="apply-stock-lines__head">
           <span class="cell cell--idx">#</span>
           <span class="cell cell--pn">物料型号</span>
@@ -1028,6 +1039,63 @@
           </span>
         </div>
       </div>
+      <div
+        v-if="normalizeRegionType(applyForm.regionType) === REGION_TYPE_DOMESTIC"
+        class="apply-stock-inventory-panel"
+      >
+        <div class="apply-stock-inventory-panel__title">
+          {{ t('salesOrderItemList.applyStockOutDialog.customerInventoryTitle') }}
+        </div>
+        <div class="apply-stock-inventory-panel__rows">
+          <div
+            v-for="row in applyCustomerInventoryRows"
+            :key="`cust-${row.regionType}`"
+            class="apply-stock-inventory-panel__row"
+          >
+            <span class="apply-stock-inventory-panel__label">{{ row.label }}</span>
+            <span class="apply-stock-inventory-panel__value">{{ row.value }}</span>
+          </div>
+        </div>
+        <div class="apply-stock-inventory-panel__title apply-stock-inventory-panel__title--sub">
+          {{ t('salesOrderItemList.applyStockOutDialog.stockingAvailabilityTitle', {
+            pn: applyForm.materialCode,
+            brand: applyForm.materialName,
+            qty: applyForm.notifyQty
+          }) }}
+        </div>
+        <div class="apply-stock-inventory-panel__rows">
+          <div
+            v-for="row in applyStockingAvailabilityRows"
+            :key="`stocking-${row.regionType}`"
+            class="apply-stock-inventory-panel__row"
+          >
+            <span class="apply-stock-inventory-panel__label">{{ row.label }}</span>
+            <span
+              class="apply-stock-inventory-panel__value"
+              :class="row.isAvailable ? 'apply-stock-inventory-panel__value--yes' : 'apply-stock-inventory-panel__value--no'"
+            >
+              {{ row.value }}
+            </span>
+          </div>
+        </div>
+        <template v-if="applyCustomsOptionVisible">
+          <el-alert
+            type="warning"
+            :closable="false"
+            show-icon
+            class="apply-customs-hint-alert"
+            :title="t('salesOrderItemList.applyStockOutDialog.customsCostHint')"
+          />
+          <el-checkbox
+            v-model="applyForm.useOverseasWarehouseAndCustoms"
+            :disabled="applyCustomsOptionLocked"
+            class="apply-customs-checkbox"
+          >
+            {{ t('salesOrderItemList.applyStockOutDialog.useOverseasWarehouseAndCustoms') }}
+          </el-checkbox>
+        </template>
+      </div>
+      </template>
       <el-empty v-else description="请从上方明细行点击「申请出库」" :image-size="64" />
       </div>
       <template #footer>
@@ -1146,12 +1214,18 @@ import {
   salesOrderLinePurchasedStockReliefOk,
   salesOrderLineApplyStockOutDisabled
 } from '@/constants/salesOrderStatus'
+import { buildApplyStockOutDisabledHintContent } from '@/utils/applyStockOutDisabledHint'
+import type { ApplyStockOutDisabledHintContent } from '@/utils/applyStockOutDisabledHint'
 import {
   SALES_ORDER_FAVORITE_ENTITY_TYPE,
   SALES_ORDER_FAVORITES_CHANGED_EVENT
 } from '@/constants/salesOrderFavorites'
 import { recordSalesOrderRecentView } from '@/utils/salesOrderRecentHistory'
-import { stockOutApi } from '@/api/stockOut'
+import {
+  stockOutApi,
+  type StockOutApplyContextDto,
+  type StockOutApplyRegionInventoryDto
+} from '@/api/stockOut'
 import { tagApi, type TagDefinitionDto } from '@/api/tag'
 import { useAuthStore } from '@/stores/auth'
 import TagListDisplay from '@/components/Tag/TagListDisplay.vue'
@@ -1170,6 +1244,7 @@ import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleOrderWriteGate } from '@/composables/useDepartmentDataReadOnly'
+import ApplyStockOutDisabledHint from '@/components/RFQ/ApplyStockOutDisabledHint.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -1248,7 +1323,17 @@ async function applyPurchaseOne(row: Record<string, unknown>) {
   await handleOpenApplyPurchase(row)
 }
 
+function applyStockOutDisabledHint(row: Record<string, unknown>): ApplyStockOutDisabledHintContent | null {
+  return buildApplyStockOutDisabledHintContent(row, t)
+}
+
+function onApplyStockOutDropdownClick(row: Record<string, unknown>) {
+  if (salesOrderLineApplyStockOutButtonDisabled(row)) return
+  applyStockOutOne(row)
+}
+
 async function applyStockOutOne(row: Record<string, unknown>) {
+  if (salesOrderLineApplyStockOutButtonDisabled(row)) return
   if (!mainAllowsOps(row)) {
     ElMessage.warning(t('salesOrderItemList.messages.applyStockOutNeedAudit'))
     return
@@ -1539,6 +1624,51 @@ function goStockOutCreateFromNotify(row: Record<string, unknown>) {
 
 /** 双击订单明细行：底部「销售订单明细详情」面板数据（按销售明细主键） */
 const lineTabAggregates = ref<SalesOrderDetailTabAggregates | null>(null)
+
+type SoItemLineTabKey =
+  | 'pr'
+  | 'po'
+  | 'stockIn'
+  | 'stock'
+  | 'outNotify'
+  | 'stockOut'
+  | 'receipt'
+  | 'sellInvoice'
+  | 'qcImages'
+
+function soItemLineTabRecordCount(tab: SoItemLineTabKey): number {
+  const agg = lineTabAggregates.value
+  if (!agg) return 0
+  switch (tab) {
+    case 'pr':
+      return agg.purchaseRequisitions?.length ?? 0
+    case 'po':
+      return agg.purchaseOrderItems?.length ?? 0
+    case 'stockIn':
+      return agg.stockIns?.length ?? 0
+    case 'stock':
+      return agg.stockItems?.length ?? 0
+    case 'outNotify':
+      return agg.stockOutRequests?.length ?? 0
+    case 'stockOut':
+      return agg.stockOuts?.length ?? 0
+    case 'receipt':
+      return agg.receipts?.length ?? 0
+    case 'sellInvoice':
+      return agg.sellInvoices?.length ?? 0
+    case 'qcImages':
+      return agg.qcImages?.length ?? 0
+    default:
+      return 0
+  }
+}
+
+/** Tab 标题旁显示 (N)，便于未点开 Tab 时感知是否有数据 */
+function formatSoItemLineTabLabel(label: string, tab: SoItemLineTabKey): string {
+  const count = soItemLineTabRecordCount(tab)
+  return count > 0 ? `${label} (${count})` : label
+}
+
 const soItemLinePanel = reactive({
   visible: false,
   sellOrderItemId: '',
@@ -1619,7 +1749,12 @@ const applyForm = ref({
   stockAvailableQty: 0,
   /** 同 PN+品牌备货在库可用（服务端 apply-context） */
   purchasedStockAvailableQty: 0,
-  notifyQty: 0
+  notifyQty: 0,
+  customerOrderInventoryByRegion: [] as StockOutApplyRegionInventoryDto[],
+  stockingAvailabilityByRegion: [] as StockOutApplyContextDto['stockingAvailabilityByRegion'],
+  useOverseasWarehouseAndCustoms: false,
+  customsOptionVisible: false,
+  customsOptionLocked: false
 })
 
 const intQtyText = (v: unknown) => {
@@ -1665,6 +1800,93 @@ const applyPurchasedStockingPurchasingHasQty = computed(
 const applyFormSalesOrderQtyText = computed(() => intQtyText(applyForm.value.salesOrderQty))
 const applyFormAlreadyNotifiedText = computed(() => intQtyText(applyForm.value.alreadyNotifiedQty))
 const applyFormRemainingNotifyText = computed(() => intQtyText(applyForm.value.remainingNotifyQty))
+
+function applyRegionLabel(regionType: number): string {
+  return normalizeRegionType(regionType) === REGION_TYPE_OVERSEAS
+    ? t('inventoryList.warehouse.regionOverseas')
+    : t('inventoryList.warehouse.regionDomestic')
+}
+
+const applyCustomerInventoryRows = computed(() => {
+  const rows = applyForm.value.customerOrderInventoryByRegion ?? []
+  return rows.map((row) => ({
+    regionType: row.regionType,
+    label: applyRegionLabel(row.regionType),
+    value: row.hasInventory
+      ? t('salesOrderItemList.applyStockOutDialog.customerInventoryHasQty', {
+          qty: intQtyText(row.availableQty)
+        })
+      : t('salesOrderItemList.applyStockOutDialog.customerInventoryNone')
+  }))
+})
+
+const applyStockingAvailabilityRows = computed(() => {
+  const rows = applyForm.value.stockingAvailabilityByRegion ?? []
+  return rows.map((row) => ({
+    regionType: row.regionType,
+    isAvailable: row.isAvailable,
+    label: applyRegionLabel(row.regionType),
+    value: row.isAvailable
+      ? t('salesOrderItemList.applyStockOutDialog.stockingAvailableYes')
+      : t('salesOrderItemList.applyStockOutDialog.stockingAvailableNo')
+  }))
+})
+
+const applyCustomsOptionVisible = computed(() => applyForm.value.customsOptionVisible)
+const applyCustomsOptionLocked = computed(() => applyForm.value.customsOptionLocked)
+
+function applyApplyContextToForm(ctx: StockOutApplyContextDto, resetQty = false) {
+  const maxQ = Math.max(0, Math.trunc(Number(ctx.suggestedMaxQty) || 0))
+  const stocking = Math.max(0, Math.trunc(Number(ctx.purchasedStockAvailableQty ?? 0) || 0))
+  const customs = ctx.customsOption ?? { visible: false, defaultChecked: false, locked: false }
+  applyForm.value = {
+    ...applyForm.value,
+    salesOrderQty: Number(ctx.salesOrderQty ?? 0),
+    alreadyNotifiedQty: Number(ctx.alreadyNotifiedQty ?? 0),
+    remainingNotifyQty: Number(ctx.remainingNotifyQty ?? 0),
+    maxQty: maxQ,
+    stockAvailableQty: Number(ctx.availableStockQty ?? 0),
+    purchasedStockAvailableQty: stocking,
+    notifyQty: resetQty ? maxQ : applyForm.value.notifyQty,
+    customerOrderInventoryByRegion: ctx.customerOrderInventoryByRegion ?? [],
+    stockingAvailabilityByRegion: ctx.stockingAvailabilityByRegion ?? [],
+    customsOptionVisible: customs.visible,
+    customsOptionLocked: customs.locked,
+    useOverseasWarehouseAndCustoms: customs.visible
+      ? customs.locked
+        ? true
+        : resetQty
+          ? customs.defaultChecked
+          : applyForm.value.useOverseasWarehouseAndCustoms
+      : false
+  }
+}
+
+let applyContextRefreshTimer: ReturnType<typeof setTimeout> | null = null
+async function refreshApplyContextForQty(qty: number) {
+  if (!order.value?.id || !applyForm.value.sellOrderItemId) return
+  try {
+    const ctx = await stockOutApi.getApplyContext(
+      order.value.id,
+      applyForm.value.sellOrderItemId,
+      qty > 0 ? qty : undefined
+    )
+    applyApplyContextToForm(ctx, false)
+  } catch {
+    // 数量联动刷新失败时不打断用户填写
+  }
+}
+
+watch(
+  () => applyForm.value.notifyQty,
+  (qty) => {
+    if (!applyDialogVisible.value || !applyForm.value.sellOrderItemId) return
+    if (applyContextRefreshTimer) clearTimeout(applyContextRefreshTimer)
+    applyContextRefreshTimer = setTimeout(() => {
+      void refreshApplyContextForQty(Math.trunc(Number(qty) || 0))
+    }, 300)
+  }
+)
 const orderId = computed(() => {
   const raw = route.params.id
   if (Array.isArray(raw)) return String(raw[0] ?? '').trim()
@@ -2143,8 +2365,6 @@ const handleOpenApplyStockOut = async (item?: any) => {
   try {
     await ensureLogisticsDict()
     const ctx = await stockOutApi.getApplyContext(order.value.id, sellOrderItemId)
-    const maxQ = Math.max(0, Math.trunc(Number(ctx.suggestedMaxQty) || 0))
-    const stocking = Math.max(0, Math.trunc(Number(ctx.purchasedStockAvailableQty ?? 0) || 0))
     const lineCurrency = Number(line.currency ?? line.Currency ?? 0)
     const regionType = lineCurrency === CurrencyCode.RMB ? REGION_TYPE_DOMESTIC : REGION_TYPE_OVERSEAS
     applyForm.value = {
@@ -2157,14 +2377,20 @@ const handleOpenApplyStockOut = async (item?: any) => {
       sellOrderItemId,
       materialCode: String(line.pn ?? line.PN ?? '').trim(),
       materialName: String(line.brand ?? line.Brand ?? '').trim(),
-      salesOrderQty: Number(ctx.salesOrderQty ?? 0),
-      alreadyNotifiedQty: Number(ctx.alreadyNotifiedQty ?? 0),
-      remainingNotifyQty: Number(ctx.remainingNotifyQty ?? 0),
-      maxQty: maxQ,
-      stockAvailableQty: Number(ctx.availableStockQty ?? 0),
-      purchasedStockAvailableQty: stocking,
-      notifyQty: maxQ
+      salesOrderQty: 0,
+      alreadyNotifiedQty: 0,
+      remainingNotifyQty: 0,
+      maxQty: 0,
+      stockAvailableQty: 0,
+      purchasedStockAvailableQty: 0,
+      notifyQty: 0,
+      customerOrderInventoryByRegion: [],
+      stockingAvailabilityByRegion: [],
+      useOverseasWarehouseAndCustoms: false,
+      customsOptionVisible: false,
+      customsOptionLocked: false
     }
+    applyApplyContextToForm(ctx, true)
   } catch (e: any) {
     ElMessage.error(e?.message || '加载出库申请数据失败')
     applyDialogVisible.value = false
@@ -2214,7 +2440,10 @@ const submitApplyStockOut = async () => {
       remark: applyForm.value.remark || undefined,
       shipmentMethod: applyForm.value.shipmentMethod.trim(),
       expressCompany: applyForm.value.expressCompany?.trim() || undefined,
-      regionType: normalizeRegionType(applyForm.value.regionType)
+      regionType: normalizeRegionType(applyForm.value.regionType),
+      useOverseasWarehouseAndCustoms: applyForm.value.customsOptionVisible
+        ? applyForm.value.useOverseasWarehouseAndCustoms
+        : undefined
     })
     applyDialogVisible.value = false
     ElMessage.success('申请出库成功')
@@ -2814,6 +3043,42 @@ const submitApplyStockOut = async () => {
     padding-left: 2px;
     padding-right: 2px;
   }
+
+  .op-more-item {
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .op-more-item--primary {
+    color: $cyan-primary;
+  }
+
+  .op-more-item--warning {
+    color: $color-amber;
+  }
+
+  .op-more-item--disabled {
+    color: $text-muted !important;
+  }
+
+  .op-more-item-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    max-width: 100%;
+  }
+
+  .action-with-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    vertical-align: middle;
+  }
+
+  :deep(.action-btns .el-button.is-disabled.is-link.el-button--warning) {
+    color: $text-muted !important;
+    --el-button-hover-link-text-color: #{$text-muted};
+  }
 }
 
 .apply-so-stock-purchasing-info {
@@ -2831,6 +3096,65 @@ const submitApplyStockOut = async () => {
 
 .apply-so-stock-alert {
   margin-bottom: 12px;
+}
+
+.apply-stock-inventory-panel {
+  margin: 12px 0 4px;
+  padding: 12px 14px;
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  background: $layer-2;
+}
+
+.apply-stock-inventory-panel__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: $text-primary;
+  margin-bottom: 8px;
+
+  &--sub {
+    margin-top: 12px;
+  }
+}
+
+.apply-stock-inventory-panel__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.apply-stock-inventory-panel__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.apply-stock-inventory-panel__label {
+  color: $text-secondary;
+}
+
+.apply-stock-inventory-panel__value {
+  color: $text-primary;
+  font-variant-numeric: tabular-nums;
+
+  &--yes {
+    color: $success-color;
+    font-weight: 600;
+  }
+
+  &--no {
+    color: $text-muted;
+  }
+}
+
+.apply-customs-hint-alert {
+  margin-top: 12px;
+}
+
+.apply-customs-checkbox {
+  margin-top: 10px;
 }
 
 .apply-stock-lines {

@@ -183,6 +183,8 @@ export const salesOrderApi = {
     /** 销售订单号（模糊） */
     sellOrderCode?: string
     pn?: string
+    /** 交易币别：rmb=人民币，foreign=外币 */
+    transactionCurrency?: 'rmb' | 'foreign' | ''
     page?: number
     pageSize?: number
   }) {

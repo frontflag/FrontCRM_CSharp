@@ -232,11 +232,19 @@
             <button
               v-if="canWriteLogisticsData"
               type="button"
-              class="action-btn action-btn--danger"
+              class="action-btn action-btn--danger packing-delete-btn"
               :disabled="!canDeletePacking(row)"
               @click.stop="() => void deletePacking(row)"
             >
               {{ t('packingList.actions.delete') }}
+            </button>
+            <button
+              v-if="isSysAdmin"
+              type="button"
+              class="action-btn action-btn--danger"
+              @click.stop="() => void forceDeletePacking(row)"
+            >
+              {{ t('packingList.actions.forceDelete') }}
             </button>
           </div>
           <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -273,7 +281,13 @@
                   <span class="op-more-item op-more-item--sub">{{ t('stockOutList.actions.packingWithoutInspection') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="canWriteLogisticsData" divided :disabled="!canDeletePacking(row)" @click.stop="() => void deletePacking(row)">
-                  <span class="op-more-item op-more-item--danger">{{ t('packingList.actions.delete') }}</span>
+                  <span
+                    class="op-more-item"
+                    :class="canDeletePacking(row) ? 'op-more-item--danger' : 'op-more-item--muted'"
+                  >{{ t('packingList.actions.delete') }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="isSysAdmin" @click.stop="() => void forceDeletePacking(row)">
+                  <span class="op-more-item op-more-item--danger">{{ t('packingList.actions.forceDelete') }}</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -438,6 +452,8 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
+import { useAuthStore } from '@/stores/auth'
+import { getApiErrorMessage } from '@/utils/apiError'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -466,6 +482,8 @@ import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import StockOutBatchImportDialog from '@/components/Inventory/StockOutBatchImportDialog.vue'
 
 const router = useRouter()
+const authStore = useAuthStore()
+const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const { t, locale } = useI18n()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const { canWriteLogisticsData } = useDepartmentDataReadOnly()
@@ -490,7 +508,7 @@ const suppressBasketMerge = ref(false)
 
 const opColExpanded = ref(false)
 const OP_COL_COLLAPSED_WIDTH = 43
-const OP_COL_EXPANDED_WIDTH = 173
+const OP_COL_EXPANDED_WIDTH = 220
 const OP_COL_EXPANDED_MIN_WIDTH = 160
 const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
 const opColMinWidth = computed(() =>
@@ -712,6 +730,41 @@ async function deletePacking(row: PackingListItem) {
     await fetchList(false)
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : t('packingList.delete.failed'))
+  }
+}
+
+async function forceDeletePacking(row: PackingListItem) {
+  const id = resolvePackingId(row)
+  if (!id) return
+
+  const expectedCode = String(row.code ?? '').trim()
+  let entered = ''
+  try {
+    const ret = await ElMessageBox.prompt(
+      t('packingList.forceDelete.prompt'),
+      t('packingList.forceDelete.title'),
+      {
+        inputPlaceholder: expectedCode,
+        confirmButtonText: t('common.confirm'),
+        cancelButtonText: t('common.cancel')
+      }
+    )
+    entered = String(ret.value || '').trim()
+  } catch {
+    return
+  }
+
+  if (entered !== expectedCode) {
+    ElMessage.error(t('packingList.forceDelete.codeMismatch'))
+    return
+  }
+
+  try {
+    await packingApi.forceDelete(id, entered)
+    ElMessage.success(t('packingList.forceDelete.success'))
+    await fetchList(false)
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, t('packingList.forceDelete.failed')))
   }
 }
 
@@ -1385,6 +1438,25 @@ onMounted(() => {
 
 .packing-list-page :deep(.action-btns--packing-wrap .action-btn) {
   white-space: nowrap;
+}
+
+.packing-list-page :deep(.action-btns--packing-wrap .packing-delete-btn:disabled) {
+  color: $text-muted;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid $border-panel;
+  cursor: not-allowed;
+  opacity: 1;
+
+  &:hover {
+    color: $text-muted;
+    background: rgba(255, 255, 255, 0.03);
+    border-color: $border-panel;
+    text-decoration: none;
+  }
+}
+
+.op-more-item--muted {
+  color: $text-muted;
 }
 
 .packing-ready-dialog__intro {

@@ -9,7 +9,7 @@ public interface IStockInListQuery
         int pageSize,
         CancellationToken cancellationToken = default);
 
-    /// <summary>当前用户是否可见该入库单（销售数据范围 + 物流创建人范围，与列表一致）。</summary>
+    /// <summary>当前用户是否可见该入库单（与列表一致：关联采购单时仅采购数据范围）。</summary>
     Task<bool> IsVisibleToUserAsync(
         string? userId,
         string stockInId,

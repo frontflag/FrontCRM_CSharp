@@ -47,6 +47,7 @@ namespace CRM.Core.Services
         private readonly IInventoryStockItemListQuery _inventoryStockItemListQuery;
         private readonly IInventoryMaterialOverviewStockPageQuery _inventoryMaterialOverviewStockPageQuery;
         private readonly IInventoryCountPlanListQuery _inventoryCountPlanListQuery;
+        private readonly IStockInListQuery _stockInListQuery;
         private readonly ICustomsV2FlowService _customsV2FlowService;
         private readonly IDataPermissionService _dataPermissionService;
         private static bool IsTableMissingException(Exception ex)
@@ -162,6 +163,7 @@ namespace CRM.Core.Services
             IInventoryStockItemListQuery inventoryStockItemListQuery,
             IInventoryMaterialOverviewStockPageQuery inventoryMaterialOverviewStockPageQuery,
             IInventoryCountPlanListQuery inventoryCountPlanListQuery,
+            IStockInListQuery stockInListQuery,
             ICustomsV2FlowService customsV2FlowService,
             IDataPermissionService dataPermissionService,
             ILogger<InventoryCenterService> logger)
@@ -197,6 +199,7 @@ namespace CRM.Core.Services
             _inventoryStockItemListQuery = inventoryStockItemListQuery;
             _inventoryMaterialOverviewStockPageQuery = inventoryMaterialOverviewStockPageQuery;
             _inventoryCountPlanListQuery = inventoryCountPlanListQuery;
+            _stockInListQuery = stockInListQuery;
             _customsV2FlowService = customsV2FlowService;
             _dataPermissionService = dataPermissionService;
             _logger = logger;
@@ -651,7 +654,9 @@ namespace CRM.Core.Services
             return await BuildMaterialOverviewDtosAsync(stocks, ledgers, materialModel, stockCode, applyMaterialStockCodePostFilter: true);
         }
 
-        public async Task<IEnumerable<InventoryStockItemRowDto>> GetStockItemsForAggregateAsync(string stockAggregateId)
+        public async Task<IEnumerable<InventoryStockItemRowDto>> GetStockItemsForAggregateAsync(
+            string stockAggregateId,
+            string? currentUserId = null)
         {
             if (string.IsNullOrWhiteSpace(stockAggregateId))
                 return Array.Empty<InventoryStockItemRowDto>();
@@ -671,6 +676,20 @@ namespace CRM.Core.Services
 
             if (items.Count == 0)
                 return Array.Empty<InventoryStockItemRowDto>();
+
+            if (!string.IsNullOrWhiteSpace(currentUserId))
+            {
+                var visibleStockInIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var sid in items.Select(x => x.StockInId).Distinct())
+                {
+                    if (await _stockInListQuery.IsVisibleToUserAsync(currentUserId, sid))
+                        visibleStockInIds.Add(sid);
+                }
+
+                items = items.Where(x => visibleStockInIds.Contains(x.StockInId)).ToList();
+                if (items.Count == 0)
+                    return Array.Empty<InventoryStockItemRowDto>();
+            }
 
             Dictionary<string, string?> stockInCodeById = new(StringComparer.OrdinalIgnoreCase);
             try
@@ -760,7 +779,9 @@ namespace CRM.Core.Services
             CancellationToken cancellationToken = default) =>
             await _inventoryStockItemListQuery.GetPagedAsync(query, page, pageSize, cancellationToken);
 
-        public async Task<IEnumerable<InventoryMaterialTraceDto>> GetMaterialTraceAsync(string materialId)
+        public async Task<IEnumerable<InventoryMaterialTraceDto>> GetMaterialTraceAsync(
+            string materialId,
+            string? currentUserId = null)
         {
             List<StockInItem> stockInLines;
             Dictionary<string, StockIn> stockInMap;
@@ -784,6 +805,20 @@ namespace CRM.Core.Services
             catch (Exception ex) when (IsTableMissingException(ex))
             {
                 return Array.Empty<InventoryMaterialTraceDto>();
+            }
+
+            if (!string.IsNullOrWhiteSpace(currentUserId) && stockInLines.Count > 0)
+            {
+                var visibleStockInIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var sid in stockInLines.Select(x => x.StockInId).Distinct())
+                {
+                    if (await _stockInListQuery.IsVisibleToUserAsync(currentUserId, sid))
+                        visibleStockInIds.Add(sid);
+                }
+
+                stockInLines = stockInLines.Where(x => visibleStockInIds.Contains(x.StockInId)).ToList();
+                if (stockInLines.Count == 0)
+                    return Array.Empty<InventoryMaterialTraceDto>();
             }
 
             qcMap = new Dictionary<string, QCInfo>(StringComparer.OrdinalIgnoreCase);
@@ -2057,8 +2092,9 @@ namespace CRM.Core.Services
         public async Task<PagedResult<InventoryCountPlan>> GetCountPlansPagedAsync(
             int page,
             int pageSize,
+            string? currentUserId = null,
             CancellationToken cancellationToken = default) =>
-            await _inventoryCountPlanListQuery.GetPagedAsync(page, pageSize, cancellationToken);
+            await _inventoryCountPlanListQuery.GetPagedAsync(page, pageSize, currentUserId, cancellationToken);
 
         public async Task<InventoryCountPlan> CreateMonthlyCountPlanAsync(CreateCountPlanRequest request)
         {

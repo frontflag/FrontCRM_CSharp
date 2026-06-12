@@ -1,6 +1,7 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
 using CRM.Infrastructure.Data;
+using CRM.Infrastructure.PurchaseOrders;
 using Microsoft.EntityFrameworkCore;
 
 namespace CRM.Infrastructure.StockInBatches;
@@ -10,10 +11,12 @@ public sealed class StockInBatchListQuery : IStockInBatchListQuery
     public const int MaxPageSize = 2000;
 
     private readonly ApplicationDbContext _db;
+    private readonly IDataPermissionService _dataPermission;
 
-    public StockInBatchListQuery(ApplicationDbContext db)
+    public StockInBatchListQuery(ApplicationDbContext db, IDataPermissionService dataPermission)
     {
         _db = db;
+        _dataPermission = dataPermission;
     }
 
     /// <inheritdoc />
@@ -23,12 +26,15 @@ public sealed class StockInBatchListQuery : IStockInBatchListQuery
         string? serialNumber,
         int page,
         int pageSize,
+        string? currentUserId = null,
         CancellationToken cancellationToken = default)
     {
         var p = page < 1 ? 1 : page;
         var ps = pageSize < 1 ? 20 : Math.Min(pageSize, MaxPageSize);
 
         var q = _db.StockInBatches.AsNoTracking();
+        q = await PurchaseOrderDataScopeQueryHelper.FilterStockInBatchesAsync(
+            _dataPermission, _db, currentUserId, q, cancellationToken);
 
         if (!string.IsNullOrWhiteSpace(globalBatchNo))
         {

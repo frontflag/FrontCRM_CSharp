@@ -1,4 +1,6 @@
 using CRM.API.Models.DTOs;
+using CRM.API.Utilities;
+using CRM.Core.Interfaces;
 using CRM.Core.Models;
 using CRM.Core.Models.Customs;
 using CRM.Core.Models.Inventory;
@@ -14,11 +16,16 @@ namespace CRM.API.Controllers;
 public class StockTransfersController : ControllerBase
 {
     private readonly ApplicationDbContext _db;
+    private readonly IRbacService _rbacService;
     private readonly ILogger<StockTransfersController> _logger;
 
-    public StockTransfersController(ApplicationDbContext db, ILogger<StockTransfersController> logger)
+    public StockTransfersController(
+        ApplicationDbContext db,
+        IRbacService rbacService,
+        ILogger<StockTransfersController> logger)
     {
         _db = db;
+        _rbacService = rbacService;
         _logger = logger;
     }
 
@@ -40,6 +47,9 @@ public class StockTransfersController : ControllerBase
     {
         try
         {
+            if (!await CustomsModuleAccessHttp.CanAccessAsync(_rbacService, User))
+                return StatusCode(403, new { success = false, message = "当前账号无权访问报关模块" });
+
             var p = page < 1 ? 1 : page;
             var ps = pageSize < 1 ? 20 : Math.Min(pageSize, StockTransferListMaxPageSize);
             if (take > 0 && page == 1 && pageSize == 20)
@@ -133,6 +143,9 @@ public class StockTransfersController : ControllerBase
     {
         try
         {
+            if (!await CustomsModuleAccessHttp.CanAccessAsync(_rbacService, User))
+                return StatusCode(403, ApiResponse<object>.Fail("当前账号无权访问报关模块", 403));
+
             var tid = id.Trim();
             var row = await _db.StockTransfers.FirstOrDefaultAsync(x => x.Id == tid);
             if (row == null)

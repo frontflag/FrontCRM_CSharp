@@ -5,7 +5,6 @@ using CRM.Core.Models.Customs;
 using CRM.Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 
 namespace CRM.API.Controllers;
 
@@ -50,6 +49,9 @@ public class CustomsDeclarationItemsController : ControllerBase
     {
         try
         {
+            if (!await CustomsModuleAccessHttp.CanAccessAsync(_rbacService, User))
+                return StatusCode(403, ApiResponse<object>.Fail("当前账号无权访问报关模块", 403));
+
             if (!await LogisticsDataAccessHttp.CanWriteAsync(_rbacService, User))
                 return StatusCode(403, ApiResponse<object>.Fail("当前账号物流数据为只读或禁止", 403));
             var uid = User?.Claims?.FirstOrDefault(c => c.Type == "sub" || c.Type == "userId")?.Value;
@@ -92,6 +94,9 @@ public class CustomsDeclarationItemsController : ControllerBase
     {
         try
         {
+            if (!await CustomsModuleAccessHttp.CanAccessAsync(_rbacService, User))
+                return StatusCode(403, ApiResponse<List<CustomsDeclarationItemListItemDto>>.Fail("当前账号无权访问报关模块", 403));
+
             var n = Math.Clamp(take, 1, 1000);
             var decQ = (declarationCode ?? string.Empty).Trim();
             var pnQ = (purchasePn ?? string.Empty).Trim();

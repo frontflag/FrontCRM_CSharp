@@ -497,8 +497,8 @@
           </template>
         </SidebarMenuGroupFlyout>
 
-        <!-- 出库管理、报关：采购侧部门员工不显示（与 RBAC belongsToPurchaseDept 一致） -->
-        <template v-if="showStockOutAndCustomsMenus">
+        <!-- 出库管理：采购侧部门员工不显示（与 RBAC belongsToPurchaseDept 一致） -->
+        <template v-if="showStockOutMenus">
           <SidebarMenuGroupFlyout
             :collapsed="isCollapsed"
             :expanded="openGroups.stockOutManagement"
@@ -531,7 +531,11 @@
               <router-link to="/inventory/stock-out/items" class="submenu-item" active-class="active">{{ t('layout.menu.stockOutItems') }}</router-link>
             </template>
           </SidebarMenuGroupFlyout>
+        </template>
+        </template>
 
+        <!-- 报关：仅物流部、财务部、系统管理员（RBAC PRD §5.5.1） -->
+        <template v-if="showCustomsMenus">
           <div class="menu-section-label" v-if="!isCollapsed">{{ t('layout.sections.customs') }}</div>
           <SidebarMenuGroupFlyout
             :collapsed="isCollapsed"
@@ -561,7 +565,6 @@
               <router-link to="/customs/declaration-items" class="submenu-item" active-class="active">{{ t('layout.menu.customsDeclarationItems') }}</router-link>
             </template>
           </SidebarMenuGroupFlyout>
-        </template>
         </template>
 
         <!-- 财务：按部门隔离维度拆分“付款管理/收款管理”
@@ -1132,6 +1135,7 @@ import RFQFavoritePanel from '@/components/RFQ/RFQFavoritePanel.vue'
 import RFQRecentHistoryPanel from '@/components/RFQ/RFQRecentHistoryPanel.vue'
 import SalesOrderSearchPanel from '@/components/SalesOrder/SalesOrderSearchPanel.vue'
 import QcSearchPanel from '@/components/Logistics/QcSearchPanel.vue'
+import { canAccessCustomsModule } from '@/utils/departmentModuleGate'
 import StockInSearchPanel from '@/components/Inventory/StockInSearchPanel.vue'
 import StockOutSearchPanel from '@/components/Inventory/StockOutSearchPanel.vue'
 import SalesOrderFavoritePanel from '@/components/SalesOrder/SalesOrderFavoritePanel.vue'
@@ -1749,12 +1753,20 @@ const showFinanceMenus = computed(() => {
   return (authStore.user?.financeDataScope ?? 0) !== 4
 })
 
-/** 出库管理 + 报关板块：采购侧部门（belongsToPurchaseDept）隐藏 */
-const showStockOutAndCustomsMenus = computed(() => {
+/** 出库管理：采购侧部门（belongsToPurchaseDept）隐藏 */
+const showStockOutMenus = computed(() => {
   if (!showLogisticsMenus.value) return false
   if (isSysAdmin.value) return true
   return authStore.user?.belongsToPurchaseDept !== true
 })
+
+/** 报关板块：仅系统管理员、财务部(IdentityType=5)、物流部(IdentityType=6) */
+const showCustomsMenus = computed(() =>
+  canAccessCustomsModule({
+    isSysAdmin: isSysAdmin.value,
+    identityType: identityType.value
+  })
+)
 
 // 管理员登录时默认展开所有分组（不强制主菜单宽度，以便可缩为边条/隐藏）
 watch(

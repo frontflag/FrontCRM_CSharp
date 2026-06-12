@@ -652,6 +652,21 @@ export const packingApi = {
     }
   },
 
+  /** 强制删除装箱单（仅 SYS_ADMIN）；须传入装箱单号确认 */
+  async forceDelete(id: string, confirmBillCode: string): Promise<void> {
+    const rid = String(id || '').trim()
+    if (!rid) throw new Error('缺少装箱单 ID')
+    const code = String(confirmBillCode || '').trim()
+    if (!code) throw new Error('请填写装箱单号以确认')
+    try {
+      await apiClient.post<unknown>(`/api/v1/packing/${encodeURIComponent(rid)}/force-delete`, {
+        confirmBillCode: code
+      })
+    } catch (e) {
+      throw new Error(parseApiError(e, '强制删除装箱单失败'))
+    }
+  },
+
   async getById(id: string): Promise<PackingDetail> {
     const rid = String(id || '').trim()
     if (!rid) throw new Error('缺少装箱单 ID')

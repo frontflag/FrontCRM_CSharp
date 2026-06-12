@@ -2,6 +2,9 @@ namespace CRM.Core.Interfaces;
 
 public class BatchReconciliationQueryRequest
 {
+    /// <summary>当前用户 Id（服务端注入，用于采购数据范围过滤）。</summary>
+    public string? CurrentUserId { get; set; }
+
     public string? GlobalBatchNo { get; set; }
     public string? PurchaseOrderCode { get; set; }
     public string? StockInCode { get; set; }
@@ -76,6 +79,7 @@ public interface IBatchReconciliationListQuery
 
     Task<IReadOnlyList<BatchReconciliationConsumptionRowDto>> GetConsumptionByGlobalBatchNoAsync(
         string globalBatchNo,
+        string? currentUserId = null,
         CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<BatchReconciliationRowDto>> ListForInBatchExportAsync(

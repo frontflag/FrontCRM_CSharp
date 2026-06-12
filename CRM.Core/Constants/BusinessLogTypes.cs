@@ -35,6 +35,7 @@ public static class BusinessLogTypes
 
     public const string StockIn = "StockIn";
     public const string StockOut = "StockOut";
+    public const string Packing = "Packing";
     public const string QcInspection = "QcInspection";
     public const string CustomsDeclaration = "CustomsDeclaration";
     public const string CustomsBroker = "CustomsBroker";

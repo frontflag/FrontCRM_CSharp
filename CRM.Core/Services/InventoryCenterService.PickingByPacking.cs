@@ -786,6 +786,19 @@ public partial class InventoryCenterService
         await _packingRepository.UpdateAsync(packing);
     }
 
+    /// <inheritdoc />
+    public async Task ReleasePickingTasksByPackingIdAsync(string packingId)
+    {
+        if (string.IsNullOrWhiteSpace(packingId))
+            throw new ArgumentException("装箱单 ID 不能为空", nameof(packingId));
+
+        var tasks = (await GetActivePickingTasksByPackingIdAsync(packingId.Trim()))
+            .Where(t => !t.IsDeleted)
+            .ToList();
+        foreach (var task in tasks)
+            await ReleaseAndDeletePickingTaskAsync(task);
+    }
+
     public async Task DeletePickingSlipAsync(string id)
     {
         var task = await _pickingTaskRepository.GetByIdAsync(id.Trim())

@@ -33,6 +33,9 @@ public class CustomsPendlistsController : ControllerBase
     {
         try
         {
+            if (!await CustomsModuleAccessHttp.CanAccessAsync(_rbacService, User))
+                return StatusCode(403, ApiResponse<List<CustomsPendlistListItemDto>>.Fail("当前账号无权访问报关模块", 403));
+
             var list = await _service.GetListAsync(
                 status,
                 keyword,
@@ -55,6 +58,9 @@ public class CustomsPendlistsController : ControllerBase
     {
         try
         {
+            if (!await CustomsModuleAccessHttp.CanAccessAsync(_rbacService, User))
+                return StatusCode(403, ApiResponse<CreateCustomsOutNotifyResultDto>.Fail("当前账号无权访问报关模块", 403));
+
             if (!await LogisticsDataAccessHttp.CanWriteAsync(_rbacService, User))
                 return StatusCode(403, ApiResponse<CreateCustomsOutNotifyResultDto>.Fail("当前账号物流数据为只读或禁止", 403));
 

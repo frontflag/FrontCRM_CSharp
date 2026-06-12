@@ -4,6 +4,7 @@ using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Vendor;
 using CRM.Infrastructure.Data;
+using CRM.Infrastructure.PurchaseOrders;
 using Microsoft.EntityFrameworkCore;
 
 namespace CRM.Infrastructure.BatchReconciliation;
@@ -14,10 +15,12 @@ public sealed class BatchReconciliationListQuery : IBatchReconciliationListQuery
     public const int MaxExportRows = 50000;
 
     private readonly ApplicationDbContext _db;
+    private readonly IDataPermissionService _dataPermission;
 
-    public BatchReconciliationListQuery(ApplicationDbContext db)
+    public BatchReconciliationListQuery(ApplicationDbContext db, IDataPermissionService dataPermission)
     {
         _db = db;
+        _dataPermission = dataPermission;
     }
 
     public async Task<PagedResult<BatchReconciliationRowDto>> GetPagedAsync(
@@ -29,7 +32,7 @@ public sealed class BatchReconciliationListQuery : IBatchReconciliationListQuery
         var p = page < 1 ? 1 : page;
         var ps = pageSize < 1 ? 20 : Math.Min(pageSize, MaxPageSize);
 
-        var q = BuildReconciliationQuery(request);
+        var q = await BuildReconciliationQueryAsync(request, cancellationToken);
         var total = await q.CountAsync(cancellationToken);
 
         var raw = await q
@@ -63,10 +66,18 @@ public sealed class BatchReconciliationListQuery : IBatchReconciliationListQuery
 
     public async Task<IReadOnlyList<BatchReconciliationConsumptionRowDto>> GetConsumptionByGlobalBatchNoAsync(
         string globalBatchNo,
+        string? currentUserId = null,
         CancellationToken cancellationToken = default)
     {
         var key = (globalBatchNo ?? string.Empty).Trim();
         if (string.IsNullOrEmpty(key))
+            return Array.Empty<BatchReconciliationConsumptionRowDto>();
+
+        var visible = await (await BuildInBatchOnlyQueryAsync(
+                new BatchReconciliationQueryRequest { GlobalBatchNo = key, CurrentUserId = currentUserId },
+                cancellationToken))
+            .AnyAsync(cancellationToken);
+        if (!visible)
             return Array.Empty<BatchReconciliationConsumptionRowDto>();
 
         var outs = await (
@@ -99,7 +110,7 @@ public sealed class BatchReconciliationListQuery : IBatchReconciliationListQuery
         CancellationToken cancellationToken = default)
     {
         var limit = maxRows < 1 ? MaxExportRows : Math.Min(maxRows, MaxExportRows);
-        var q = BuildInBatchOnlyQuery(request);
+        var q = await BuildInBatchOnlyQueryAsync(request, cancellationToken);
         var raw = await q
             .OrderByDescending(x => x.ib.CreateTime)
             .ThenBy(x => x.ib.GlobalBatchNo)
@@ -116,7 +127,7 @@ public sealed class BatchReconciliationListQuery : IBatchReconciliationListQuery
         CancellationToken cancellationToken = default)
     {
         var limit = maxRows < 1 ? MaxExportRows : Math.Min(maxRows, MaxExportRows);
-        var q = BuildReconciliationQuery(request)
+        var q = (await BuildReconciliationQueryAsync(request, cancellationToken))
             .Where(x => x.ob != null);
 
         var raw = await q
@@ -143,7 +154,9 @@ public sealed class BatchReconciliationListQuery : IBatchReconciliationListQuery
             .ToList();
     }
 
-    private IQueryable<ReconciliationRow> BuildReconciliationQuery(BatchReconciliationQueryRequest? request)
+    private async Task<IQueryable<ReconciliationRow>> BuildReconciliationQueryAsync(
+        BatchReconciliationQueryRequest? request,
+        CancellationToken cancellationToken)
     {
         request ??= new BatchReconciliationQueryRequest();
 
@@ -253,10 +266,12 @@ public sealed class BatchReconciliationListQuery : IBatchReconciliationListQuery
                 (x.s.Remark != null && x.s.Remark.Contains(needle)));
         }
 
-        return q;
+        return await ApplyPurchaseScopeToReconciliationAsync(request.CurrentUserId, q, cancellationToken);
     }
 
-    private IQueryable<InBatchRow> BuildInBatchOnlyQuery(BatchReconciliationQueryRequest? request)
+    private async Task<IQueryable<InBatchRow>> BuildInBatchOnlyQueryAsync(
+        BatchReconciliationQueryRequest? request,
+        CancellationToken cancellationToken)
     {
         request ??= new BatchReconciliationQueryRequest();
 
@@ -365,7 +380,35 @@ public sealed class BatchReconciliationListQuery : IBatchReconciliationListQuery
                 (x.s.Remark != null && x.s.Remark.Contains(needle)));
         }
 
-        return q;
+        return await ApplyPurchaseScopeToInBatchAsync(request.CurrentUserId, q, cancellationToken);
+    }
+
+    private async Task<IQueryable<ReconciliationRow>> ApplyPurchaseScopeToReconciliationAsync(
+        string? currentUserId,
+        IQueryable<ReconciliationRow> query,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(currentUserId))
+            return query;
+
+        var scopedPo = await PurchaseOrderDataScopeQueryHelper.GetScopedPurchaseOrdersAsync(
+            _dataPermission, _db, currentUserId, cancellationToken);
+
+        return query.Where(x => x.po != null && scopedPo.Any(po => po.Id == x.po!.Id));
+    }
+
+    private async Task<IQueryable<InBatchRow>> ApplyPurchaseScopeToInBatchAsync(
+        string? currentUserId,
+        IQueryable<InBatchRow> query,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(currentUserId))
+            return query;
+
+        var scopedPo = await PurchaseOrderDataScopeQueryHelper.GetScopedPurchaseOrdersAsync(
+            _dataPermission, _db, currentUserId, cancellationToken);
+
+        return query.Where(x => x.po != null && scopedPo.Any(po => po.Id == x.po!.Id));
     }
 
     private async Task<List<BatchReconciliationRowDto>> MapRowsAsync(

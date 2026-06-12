@@ -28,9 +28,9 @@ namespace CRM.Core.Interfaces
             CancellationToken cancellationToken = default);
         /// <summary>按销售明细解析物料键（含关联采购行），汇总全仓库可用库存；用于出库申请展示。</summary>
         Task<SellOrderLineAvailableQtyDto> GetAvailableQtyForSellOrderItemAsync(string sellOrderItemId);
-        Task<IEnumerable<InventoryMaterialTraceDto>> GetMaterialTraceAsync(string materialId);
+        Task<IEnumerable<InventoryMaterialTraceDto>> GetMaterialTraceAsync(string materialId, string? currentUserId = null);
         /// <summary>某条汇总库存（<c>stock.StockId</c>）下的全部在库明细 <c>stockitem</c>。</summary>
-        Task<IEnumerable<InventoryStockItemRowDto>> GetStockItemsForAggregateAsync(string stockAggregateId);
+        Task<IEnumerable<InventoryStockItemRowDto>> GetStockItemsForAggregateAsync(string stockAggregateId, string? currentUserId = null);
 
         /// <summary>全库 <c>stockitem</c> 列表（数据库分页），筛选语义同原 <c>GetStockItemsListAsync</c>。</summary>
         Task<PagedResult<InventoryStockItemListRowDto>> GetStockItemsListPagedAsync(
@@ -85,6 +85,7 @@ namespace CRM.Core.Interfaces
         Task<PagedResult<InventoryCountPlan>> GetCountPlansPagedAsync(
             int page,
             int pageSize,
+            string? currentUserId = null,
             CancellationToken cancellationToken = default);
         Task<InventoryCountPlan> CreateMonthlyCountPlanAsync(CreateCountPlanRequest request);
         Task SubmitCountPlanAsync(SubmitCountPlanRequest request);
@@ -93,6 +94,9 @@ namespace CRM.Core.Interfaces
         Task DeletePickingSlipAsync(string id);
 
         Task ForceDeletePickingSlipAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName);
+
+        /// <summary>释放并软删指定装箱单关联的未取消拣货任务（强制删除装箱单前调用）。</summary>
+        Task ReleasePickingTasksByPackingIdAsync(string packingId);
 
         /// <summary>按当前在库明细行汇总回写 <c>stock</c> 占用/销售/在库数量（删除明细后调用）。</summary>
         Task RecalculateStockAggregateTotalsAsync(string? stockAggregateId);

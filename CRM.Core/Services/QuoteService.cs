@@ -132,16 +132,51 @@ namespace CRM.Core.Services
             }
         }
 
+        /// <summary>从需求明细已分配采购员解析采购员 ID（优先 AssignedPurchaserUserId1）。</summary>
+        private static string? ResolveAssignedPurchaserUserId(RFQItem? rfqItem)
+        {
+            if (rfqItem == null) return null;
+            if (!string.IsNullOrWhiteSpace(rfqItem.AssignedPurchaserUserId1))
+                return rfqItem.AssignedPurchaserUserId1.Trim();
+            if (!string.IsNullOrWhiteSpace(rfqItem.AssignedPurchaserUserId2))
+                return rfqItem.AssignedPurchaserUserId2.Trim();
+            return null;
+        }
+
         /// <summary>为列表/详情 JSON 填充采购员、业务员登录账号（业务列表与客户习惯一致）。</summary>
         private async Task HydrateQuoteUserDisplayAsync(IReadOnlyCollection<Quote> quotes)
         {
             if (quotes.Count == 0) return;
             var users = (await _userService.GetAllAsync())
                 .ToDictionary(u => u.Id, StringComparer.OrdinalIgnoreCase);
+
+            var needRfqFallbackItemIds = quotes
+                .Where(q => string.IsNullOrWhiteSpace(q.PurchaseUserId) && !string.IsNullOrWhiteSpace(q.RFQItemId))
+                .Select(q => q.RFQItemId!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var purchaserByRfqItemId = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (needRfqFallbackItemIds.Count > 0)
+            {
+                var rfqItems = (await _rfqItemRepository.FindAsync(i => needRfqFallbackItemIds.Contains(i.Id))).ToList();
+                foreach (var it in rfqItems)
+                {
+                    var pid = ResolveAssignedPurchaserUserId(it);
+                    if (!string.IsNullOrWhiteSpace(pid))
+                        purchaserByRfqItemId[it.Id.Trim()] = pid;
+                }
+            }
+
             foreach (var q in quotes)
             {
-                if (!string.IsNullOrWhiteSpace(q.PurchaseUserId) &&
-                    users.TryGetValue(q.PurchaseUserId.Trim(), out var pu))
+                var purchaseUserId = !string.IsNullOrWhiteSpace(q.PurchaseUserId)
+                    ? q.PurchaseUserId.Trim()
+                    : (!string.IsNullOrWhiteSpace(q.RFQItemId) &&
+                       purchaserByRfqItemId.TryGetValue(q.RFQItemId.Trim(), out var fallbackPid)
+                        ? fallbackPid
+                        : null);
+                if (!string.IsNullOrWhiteSpace(purchaseUserId) &&
+                    users.TryGetValue(purchaseUserId, out var pu))
                     q.PurchaseUserName = EntityLookupService.FormatUserLoginName(pu);
                 if (!string.IsNullOrWhiteSpace(q.SalesUserId) &&
                     users.TryGetValue(q.SalesUserId.Trim(), out var su))
@@ -157,6 +192,15 @@ namespace CRM.Core.Services
             // 仅使用 RFQItemId 绑定需求明细（同一需求下可有多条相同 MPN，禁止按 RFQId+Mpn 推断）
             var rfqItemIdTrim = string.IsNullOrWhiteSpace(request.RFQItemId) ? null : request.RFQItemId.Trim();
 
+            RFQItem? linkedRfqItem = null;
+            var purchaseUserId = string.IsNullOrWhiteSpace(request.PurchaseUserId) ? null : request.PurchaseUserId.Trim();
+            if (!string.IsNullOrWhiteSpace(rfqItemIdTrim))
+            {
+                linkedRfqItem = await _rfqItemRepository.GetByIdAsync(rfqItemIdTrim);
+                if (string.IsNullOrWhiteSpace(purchaseUserId))
+                    purchaseUserId = ResolveAssignedPurchaserUserId(linkedRfqItem);
+            }
+
             var quote = new Quote
             {
                 Id = Guid.NewGuid().ToString(),
@@ -166,7 +210,7 @@ namespace CRM.Core.Services
                 Mpn = request.Mpn,
                 CustomerId = request.CustomerId,
                 SalesUserId = request.SalesUserId,
-                PurchaseUserId = request.PurchaseUserId,
+                PurchaseUserId = purchaseUserId,
                 QuoteDate = request.QuoteDate == default ? DateTime.UtcNow : PostgreSqlDateTime.ToUtc(request.QuoteDate),
                 Status = request.Status,
                 Remark = request.Remark,
@@ -195,7 +239,7 @@ namespace CRM.Core.Services
                     "创建报价后尝试回写需求明细状态。QuoteId={QuoteId} QuoteCode={QuoteCode} RFQItemId={RfqItemId}",
                     quote.Id, quoteCode, rfqItemIdTrim);
 
-                var rfqItem = await _rfqItemRepository.GetByIdAsync(rfqItemIdTrim);
+                var rfqItem = linkedRfqItem ?? await _rfqItemRepository.GetByIdAsync(rfqItemIdTrim);
                 if (rfqItem == null)
                 {
                     _logger.LogWarning(
@@ -222,6 +266,7 @@ namespace CRM.Core.Services
             await _unitOfWork.SaveChangesAsync();
             await HydrateQuoteRfqCodeAsync(new[] { quote });
             await HydrateQuoteCustomerDisplayAsync(new[] { quote });
+            await HydrateQuoteUserDisplayAsync(new[] { quote });
             return quote;
         }
 

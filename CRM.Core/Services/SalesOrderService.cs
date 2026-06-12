@@ -723,12 +723,19 @@ namespace CRM.Core.Services
                     list.Count);
             }
 
-            var gate = await GetStockOutApplyPurchaseGateBySellLineIdsAsync(list.Select(x => x.SellOrderItemId));
+            var gate = await GetStockOutApplyPurchaseGateDetailsBySellLineIdsAsync(list.Select(x => x.SellOrderItemId));
             foreach (var row in list)
             {
                 var key = row.SellOrderItemId?.Trim() ?? string.Empty;
-                row.StockOutApplyPurchaseGateOk = !string.IsNullOrEmpty(key) &&
-                                                  gate.TryGetValue(key, out var g) && g;
+                if (!string.IsNullOrEmpty(key) && gate.TryGetValue(key, out var detail))
+                {
+                    row.StockOutApplyPurchaseGateDetail = detail;
+                    row.StockOutApplyPurchaseGateOk = detail.Ok;
+                }
+                else
+                {
+                    row.StockOutApplyPurchaseGateOk = false;
+                }
             }
 
             try
@@ -921,12 +928,23 @@ namespace CRM.Core.Services
         public async Task<IReadOnlyDictionary<string, bool>> GetStockOutApplyPurchaseGateBySellLineIdsAsync(
             IEnumerable<string> sellOrderItemIds)
         {
+            var details = await GetStockOutApplyPurchaseGateDetailsBySellLineIdsAsync(sellOrderItemIds);
+            return details.ToDictionary(
+                kv => kv.Key,
+                kv => kv.Value.Ok,
+                StringComparer.OrdinalIgnoreCase);
+        }
+
+        /// <inheritdoc />
+        public async Task<IReadOnlyDictionary<string, StockOutApplyPurchaseGateDetailDto>>
+            GetStockOutApplyPurchaseGateDetailsBySellLineIdsAsync(IEnumerable<string> sellOrderItemIds)
+        {
             var idSet = sellOrderItemIds
                 .Where(s => !string.IsNullOrWhiteSpace(s))
                 .Select(s => s.Trim())
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
             if (idSet.Count == 0)
-                return new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+                return new Dictionary<string, StockOutApplyPurchaseGateDetailDto>(StringComparer.OrdinalIgnoreCase);
 
             var allPoItems = (await _poItemRepo.GetAllAsync()).ToList()
                 .Where(i => !string.IsNullOrWhiteSpace(i.SellOrderItemId) &&
@@ -947,38 +965,53 @@ namespace CRM.Core.Services
                 .GroupBy(i => i.SellOrderItemId!.Trim(), StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
 
-            var result = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+            var result = new Dictionary<string, StockOutApplyPurchaseGateDetailDto>(StringComparer.OrdinalIgnoreCase);
             foreach (var id in idSet)
             {
+                var detail = new StockOutApplyPurchaseGateDetailDto();
                 if (!bySellLine.TryGetValue(id, out var lines) || lines.Count == 0)
                 {
-                    result[id] = false;
+                    detail.HasPoItems = false;
+                    detail.Ok = false;
+                    result[id] = detail;
                     continue;
                 }
 
+                detail.HasPoItems = true;
                 var distinctPoIds = lines
                     .Select(l => l.PurchaseOrderId)
                     .Where(x => !string.IsNullOrWhiteSpace(x))
                     .Select(x => x.Trim())
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
-                var ok = true;
+                var blocking = new List<StockOutApplyPurchaseGateBlockingPoDto>();
                 foreach (var pid in distinctPoIds)
                 {
                     if (!poById.TryGetValue(pid, out var po))
                     {
-                        ok = false;
-                        break;
+                        blocking.Add(new StockOutApplyPurchaseGateBlockingPoDto
+                        {
+                            PurchaseOrderId = pid,
+                            Missing = true
+                        });
+                        continue;
                     }
 
                     if (po.Status < min)
                     {
-                        ok = false;
-                        break;
+                        blocking.Add(new StockOutApplyPurchaseGateBlockingPoDto
+                        {
+                            PurchaseOrderId = pid,
+                            OrderCode = po.PurchaseOrderCode,
+                            Status = po.Status,
+                            Missing = false
+                        });
                     }
                 }
 
-                result[id] = ok;
+                detail.BlockingPurchaseOrders = blocking;
+                detail.Ok = blocking.Count == 0;
+                result[id] = detail;
             }
 
             return result;

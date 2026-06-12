@@ -209,21 +209,14 @@ public sealed class StockInListQuery : IStockInListQuery
     private async Task<IQueryable<StockIn>> ApplyDataScopesAsync(
         string? userId,
         IQueryable<StockIn> query,
-        CancellationToken cancellationToken)
-    {
-        query = await _dataPermission.ApplyStockInListDataScopeAsync(
+        CancellationToken cancellationToken) =>
+        await _dataPermission.ApplyStockInListDataScopeAsync(
             userId,
             query,
             _db.SellOrders.AsNoTracking(),
             _db.SellOrderItems.AsNoTracking(),
             _db.StockInItemExtends.AsNoTracking(),
             _db.PurchaseOrderItems.AsNoTracking(),
+            _db.PurchaseOrders.AsNoTracking(),
             cancellationToken);
-
-        return await _dataPermission.ApplyLogisticsCreatorUserScopeAsync(
-            userId,
-            query,
-            s => s.CreateByUserId ?? s.CreatedBy,
-            cancellationToken);
-    }
 }

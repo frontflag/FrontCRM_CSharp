@@ -142,7 +142,9 @@ namespace CRM.API.Controllers
         {
             try
             {
-                var list = await _service.GetStockItemsForAggregateAsync(stockId);
+                var list = await _service.GetStockItemsForAggregateAsync(
+                    stockId,
+                    User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
                 if (await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User))
                 {
                     var masked = list.ToList();
@@ -210,7 +212,9 @@ namespace CRM.API.Controllers
         {
             try
             {
-                var list = await _service.GetMaterialTraceAsync(materialId);
+                var list = await _service.GetMaterialTraceAsync(
+                    materialId,
+                    User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
                 if (await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User))
                 {
                     var masked = list.ToList();
@@ -741,7 +745,11 @@ namespace CRM.API.Controllers
         {
             try
             {
-                var result = await _service.GetCountPlansPagedAsync(page, pageSize, cancellationToken);
+                var result = await _service.GetCountPlansPagedAsync(
+                    page,
+                    pageSize,
+                    User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
+                    cancellationToken);
                 var items = result.Items.ToList();
                 return Ok(new
                 {

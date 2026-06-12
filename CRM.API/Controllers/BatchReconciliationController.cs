@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Security.Claims;
 using System.Text;
 using CRM.API.Utilities;
 using CRM.Core.Interfaces;
@@ -35,6 +36,8 @@ public class BatchReconciliationController : ControllerBase
     {
         try
         {
+            request ??= new BatchReconciliationQueryRequest();
+            request.CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var result = await _query.GetPagedAsync(request, page, pageSize, cancellationToken);
             var mask511 = await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User);
             var mask521 = await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User);
@@ -70,7 +73,8 @@ public class BatchReconciliationController : ControllerBase
     {
         try
         {
-            var rows = await _query.GetConsumptionByGlobalBatchNoAsync(globalBatchNo, cancellationToken);
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var rows = await _query.GetConsumptionByGlobalBatchNoAsync(globalBatchNo, userId, cancellationToken);
             if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
                 SaleSensitiveFieldMask521.ApplyBatchReconciliationConsumptionRows(rows, true);
 
@@ -95,6 +99,8 @@ public class BatchReconciliationController : ControllerBase
     {
         try
         {
+            request ??= new BatchReconciliationQueryRequest();
+            request.CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var rows = await _query.ListForInBatchExportAsync(
                 request,
                 BatchReconciliationListQuery.MaxExportRows,
@@ -147,6 +153,8 @@ public class BatchReconciliationController : ControllerBase
     {
         try
         {
+            request ??= new BatchReconciliationQueryRequest();
+            request.CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var rows = await _query.ListForOutBatchExportAsync(
                 request,
                 BatchReconciliationListQuery.MaxExportRows,

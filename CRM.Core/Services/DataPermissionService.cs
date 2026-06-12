@@ -609,8 +609,41 @@ namespace CRM.Core.Services
             IQueryable<SellOrder> sellOrders,
             CancellationToken cancellationToken = default)
         {
-            var scopedOrders = await ApplySellOrderDataScopeAsync(userId, sellOrders, cancellationToken);
-            return query.Where(pr => scopedOrders.Any(so => so.Id == pr.SellOrderId));
+            if (string.IsNullOrWhiteSpace(userId))
+                return query;
+
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+            if (summary.IsSysAdmin)
+                return query;
+
+            var saleOpen = summary.SaleDataScope == 0;
+            var purchaseOpen = summary.PurchaseDataScope == 0;
+            if (saleOpen && purchaseOpen)
+                return query;
+
+            if (summary.SaleDataScope == 4 && summary.PurchaseDataScope == 4)
+                return query.Where(_ => false);
+
+            IQueryable<SellOrder>? scopedOrders = null;
+            if (!saleOpen && summary.SaleDataScope != 4)
+                scopedOrders = await ApplySellOrderDataScopeAsync(userId, sellOrders, cancellationToken);
+
+            var uid = userId.Trim();
+            HashSet<string>? purchaseAllow = null;
+            if (!purchaseOpen && summary.PurchaseDataScope != 4 &&
+                (summary.PurchaseDataScope == 2 || summary.PurchaseDataScope == 3))
+                purchaseAllow = await GetAllowedUserIdsAsync(summary, includeChildren: summary.PurchaseDataScope == 3);
+
+            return query.Where(pr =>
+                (saleOpen
+                 || (summary.SaleDataScope != 4 && scopedOrders!.Any(so => so.Id == pr.SellOrderId)))
+                || (purchaseOpen
+                    || (summary.PurchaseDataScope != 4 && (
+                        (summary.PurchaseDataScope == 1 && pr.PurchaseUserId == uid)
+                        || ((summary.PurchaseDataScope == 2 || summary.PurchaseDataScope == 3)
+                            && purchaseAllow != null
+                            && pr.PurchaseUserId != null
+                            && purchaseAllow.Contains(pr.PurchaseUserId))))));
         }
 
         /// <inheritdoc />
@@ -663,35 +696,92 @@ namespace CRM.Core.Services
             IQueryable<SellOrderItem> sellOrderItems,
             IQueryable<StockInItemExtend> stockInItemExtends,
             IQueryable<PurchaseOrderItem> purchaseOrderItems,
+            IQueryable<PurchaseOrder> purchaseOrders,
             CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(userId))
                 return query;
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin || summary.SaleDataScope == 0)
+            if (summary.IsSysAdmin)
                 return query;
-            if (summary.SaleDataScope == 4)
+
+            var saleOpen = summary.SaleDataScope == 0;
+            var purchaseOpen = summary.PurchaseDataScope == 0;
+            var logisticsOpen = summary.LogisticsDataScope == 0;
+            if (saleOpen && purchaseOpen && logisticsOpen)
+                return query;
+
+            if (summary.SaleDataScope == 4 && summary.PurchaseDataScope == 4 && summary.LogisticsDataScope == 4)
                 return query.Where(_ => false);
 
-            var scopedOrders = await ApplySellOrderDataScopeAsync(userId, sellOrders, cancellationToken);
+            IQueryable<SellOrder>? scopedOrders = null;
+            if (!saleOpen && summary.SaleDataScope != 4)
+                scopedOrders = await ApplySellOrderDataScopeAsync(userId, sellOrders, cancellationToken);
+
+            IQueryable<PurchaseOrder>? scopedPo = null;
+            if (!purchaseOpen)
+                scopedPo = await ApplyPurchaseOrderDataScopeAsync(userId, purchaseOrders, cancellationToken);
+
+            IReadOnlyList<string> logisticsUserIds = Array.Empty<string>();
+            if (!logisticsOpen && summary.LogisticsDataScope != 4)
+            {
+                if (summary.LogisticsDataScope == 1)
+                    logisticsUserIds = new[] { userId.Trim() };
+                else
+                    logisticsUserIds = (await GetAllowedUserIdsAsync(summary, includeChildren: summary.LogisticsDataScope == 3))
+                        .ToList();
+            }
+
+            // EF 无法翻译表达式内对 IQueryable 的 null 判断；用空集回退代替。
+            var scopedOrdersQuery = scopedOrders ?? sellOrders.Where(_ => false);
+            var scopedPoQuery = scopedPo ?? purchaseOrders.Where(_ => false);
 
             return query.Where(si =>
-                stockInItemExtends.Any(ext =>
+                (stockInItemExtends.Any(ext =>
                     !ext.IsDeleted
                     && ext.StockInId == si.Id
-                    && (
-                        (ext.SellOrderItemId != null
-                         && sellOrderItems.Any(sol =>
-                             sol.Id == ext.SellOrderItemId
-                             && scopedOrders.Any(o => o.Id == sol.SellOrderId)))
-                        || (ext.PurchaseOrderItemId != null
-                            && purchaseOrderItems.Any(poi =>
-                                poi.Id == ext.PurchaseOrderItemId
-                                && poi.SellOrderItemId != null
-                                && sellOrderItems.Any(sol =>
-                                    sol.Id == poi.SellOrderItemId
-                                    && scopedOrders.Any(o => o.Id == sol.SellOrderId)))))));
+                    && ext.PurchaseOrderItemId != null)
+                 && (purchaseOpen
+                     || stockInItemExtends.Any(ext =>
+                         !ext.IsDeleted
+                         && ext.StockInId == si.Id
+                         && ext.PurchaseOrderItemId != null
+                         && purchaseOrderItems.Any(poi =>
+                             poi.Id == ext.PurchaseOrderItemId
+                             && scopedPoQuery.Any(po => po.Id == poi.PurchaseOrderId)))))
+                || (!stockInItemExtends.Any(ext =>
+                        !ext.IsDeleted
+                        && ext.StockInId == si.Id
+                        && ext.PurchaseOrderItemId != null)
+                    && ((saleOpen
+                         || stockInItemExtends.Any(ext =>
+                             !ext.IsDeleted
+                             && ext.StockInId == si.Id
+                             && (
+                                 (ext.SellOrderItemId != null
+                                  && sellOrderItems.Any(sol =>
+                                      sol.Id == ext.SellOrderItemId
+                                      && scopedOrdersQuery.Any(o => o.Id == sol.SellOrderId)))
+                                 || (ext.PurchaseOrderItemId != null
+                                     && purchaseOrderItems.Any(poi =>
+                                         poi.Id == ext.PurchaseOrderItemId
+                                         && poi.SellOrderItemId != null
+                                         && sellOrderItems.Any(sol =>
+                                             sol.Id == poi.SellOrderItemId
+                                             && scopedOrdersQuery.Any(o => o.Id == sol.SellOrderId)))))))
+                        || (purchaseOpen
+                            || stockInItemExtends.Any(ext =>
+                                !ext.IsDeleted
+                                && ext.StockInId == si.Id
+                                && ext.PurchaseOrderItemId != null
+                                && purchaseOrderItems.Any(poi =>
+                                    poi.Id == ext.PurchaseOrderItemId
+                                    && scopedPoQuery.Any(po => po.Id == poi.PurchaseOrderId))))
+                        || (logisticsOpen
+                            || (logisticsUserIds.Count > 0
+                                && ((si.CreateByUserId != null && logisticsUserIds.Contains(si.CreateByUserId))
+                                    || (si.CreatedBy != null && logisticsUserIds.Contains(si.CreatedBy))))))));
         }
 
         /// <inheritdoc />
@@ -739,34 +829,59 @@ namespace CRM.Core.Services
                 return query;
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin || summary.SaleDataScope == 0)
+            if (summary.IsSysAdmin)
                 return query;
-            if (summary.SaleDataScope == 4)
+
+            var saleOpen = summary.SaleDataScope == 0;
+            var purchaseOpen = summary.PurchaseDataScope == 0;
+            if (saleOpen && purchaseOpen)
+                return query;
+
+            if (summary.SaleDataScope == 4 && summary.PurchaseDataScope == 4)
                 return query.Where(_ => false);
 
-            var scopedOrders = await ApplySellOrderDataScopeAsync(userId, sellOrders, cancellationToken);
-            var scopedCustomers = await ApplyCustomerListDataScopeAsync(userId, customers, cancellationToken);
-            var uid = userId.Trim();
-
-            if (summary.SaleDataScope == 1)
+            IQueryable<SellOrder>? scopedOrders = null;
+            IQueryable<CustomerInfo>? scopedCustomers = null;
+            if (!saleOpen && summary.SaleDataScope != 4)
             {
-                return query.Where(si =>
-                    (si.SalespersonId != null && si.SalespersonId == uid) ||
-                    (si.SellOrderItemId != null &&
-                     sellOrderItems.Any(sol =>
-                         sol.Id == si.SellOrderItemId &&
-                         scopedOrders.Any(o => o.Id == sol.SellOrderId))) ||
-                    (si.CustomerId != null && scopedCustomers.Any(c => c.Id == si.CustomerId)));
+                scopedOrders = await ApplySellOrderDataScopeAsync(userId, sellOrders, cancellationToken);
+                scopedCustomers = await ApplyCustomerListDataScopeAsync(userId, customers, cancellationToken);
             }
 
-            var allowUserIds = await GetAllowedUserIdsAsync(summary, includeChildren: summary.SaleDataScope == 3);
+            var uid = userId.Trim();
+            HashSet<string>? saleAllow = null;
+            if (!saleOpen && summary.SaleDataScope != 4 &&
+                (summary.SaleDataScope == 2 || summary.SaleDataScope == 3))
+                saleAllow = await GetAllowedUserIdsAsync(summary, includeChildren: summary.SaleDataScope == 3);
+
+            HashSet<string>? purchaseAllow = null;
+            if (!purchaseOpen && summary.PurchaseDataScope != 4 &&
+                (summary.PurchaseDataScope == 2 || summary.PurchaseDataScope == 3))
+                purchaseAllow = await GetAllowedUserIdsAsync(summary, includeChildren: summary.PurchaseDataScope == 3);
+
             return query.Where(si =>
-                (si.SalespersonId != null && allowUserIds.Contains(si.SalespersonId)) ||
-                (si.SellOrderItemId != null &&
-                 sellOrderItems.Any(sol =>
-                     sol.Id == si.SellOrderItemId &&
-                     scopedOrders.Any(o => o.Id == sol.SellOrderId))) ||
-                (si.CustomerId != null && scopedCustomers.Any(c => c.Id == si.CustomerId)));
+                (saleOpen
+                 || (summary.SaleDataScope != 4 && (
+                     (summary.SaleDataScope == 1 && si.SalespersonId == uid)
+                     || ((summary.SaleDataScope == 2 || summary.SaleDataScope == 3)
+                         && saleAllow != null
+                         && si.SalespersonId != null
+                         && saleAllow.Contains(si.SalespersonId))
+                     || (si.SellOrderItemId != null
+                         && scopedOrders != null
+                         && sellOrderItems.Any(sol =>
+                             sol.Id == si.SellOrderItemId
+                             && scopedOrders.Any(o => o.Id == sol.SellOrderId)))
+                     || (si.CustomerId != null
+                         && scopedCustomers != null
+                         && scopedCustomers.Any(c => c.Id == si.CustomerId)))))
+                || (purchaseOpen
+                    || (summary.PurchaseDataScope != 4 && (
+                        (summary.PurchaseDataScope == 1 && si.PurchaserId == uid)
+                        || ((summary.PurchaseDataScope == 2 || summary.PurchaseDataScope == 3)
+                            && purchaseAllow != null
+                            && si.PurchaserId != null
+                            && purchaseAllow.Contains(si.PurchaserId))))));
         }
 
         /// <inheritdoc />
@@ -783,9 +898,15 @@ namespace CRM.Core.Services
                 return query;
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin || summary.SaleDataScope == 0)
+            if (summary.IsSysAdmin)
                 return query;
-            if (summary.SaleDataScope == 4)
+
+            var saleOpen = summary.SaleDataScope == 0;
+            var purchaseOpen = summary.PurchaseDataScope == 0;
+            if (saleOpen && purchaseOpen)
+                return query;
+
+            if (summary.SaleDataScope == 4 && summary.PurchaseDataScope == 4)
                 return query.Where(_ => false);
 
             var scopedItems = await ApplyStockItemListDataScopeAsync(

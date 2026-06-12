@@ -28,5 +28,8 @@ namespace CRM.API.Models.DTOs
         /// <summary>地域类型 RegionType：10=境内 20=境外</summary>
         [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
         public short RegionType { get; set; } = RegionTypeCode.Domestic;
+
+        /// <summary>境内出货：是否使用海外仓库并报关。</summary>
+        public bool? UseOverseasWarehouseAndCustoms { get; set; }
     }
 }
