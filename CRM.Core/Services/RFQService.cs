@@ -32,6 +32,7 @@ namespace CRM.Core.Services
         private readonly IRfqItemListQuery _rfqItemListQuery;
         private readonly ILogger<RFQService> _logger;
         private readonly ILogOperationAppendService _logOperationAppend;
+        private readonly IBizBrandService _bizBrandService;
 
         public RFQService(
             IRepository<RFQ> rfqRepo,
@@ -50,7 +51,8 @@ namespace CRM.Core.Services
             IRfqMainListQuery rfqMainListQuery,
             IRfqItemListQuery rfqItemListQuery,
             ILogger<RFQService> logger,
-            ILogOperationAppendService logOperationAppend)
+            ILogOperationAppendService logOperationAppend,
+            IBizBrandService bizBrandService)
         {
             _rfqRepo = rfqRepo;
             _itemRepo = itemRepo;
@@ -69,6 +71,7 @@ namespace CRM.Core.Services
             _rfqItemListQuery = rfqItemListQuery;
             _logger = logger;
             _logOperationAppend = logOperationAppend;
+            _bizBrandService = bizBrandService;
         }
 
         // ─── Create ──────────────────────────────────────────────────────────────
@@ -137,9 +140,6 @@ namespace CRM.Core.Services
                         RfqId = rfq.Id,
                         LineNo = itemReq.LineNo > 0 ? itemReq.LineNo : i + 1,
                         CustomerMpn = string.IsNullOrWhiteSpace(itemReq.CustomerMpn) ? null : itemReq.CustomerMpn.Trim(),
-                        Mpn = NormalizeLineString(itemReq.Mpn),
-                        CustomerBrand = NormalizeLineString(itemReq.CustomerBrand),
-                        Brand = NormalizeLineString(itemReq.Brand),
                         TargetPrice = itemReq.TargetPrice,
                         PriceCurrency = itemReq.PriceCurrency,
                         Quantity = itemReq.Quantity,
@@ -154,6 +154,7 @@ namespace CRM.Core.Services
                         AssignedPurchaserUserId2 = purchaser2,
                         CreateTime = DateTime.UtcNow
                     };
+                    await ApplyRfqItemFromRequestAsync(item, itemReq, i);
                     await _itemRepo.AddAsync(item);
                 }
             }
@@ -690,7 +691,7 @@ namespace CRM.Core.Services
                         throw new InvalidOperationException($"需求明细 {reqId} 不存在或已删除");
 
                     keptIds.Add(reqId);
-                    ApplyRfqItemFromRequest(existing, itemReq, i);
+                    await ApplyRfqItemFromRequestAsync(existing, itemReq, i);
                     existing.ModifyTime = DateTime.UtcNow;
                     await _itemRepo.UpdateAsync(existing);
                     updated.Add(existing);
@@ -725,7 +726,7 @@ namespace CRM.Core.Services
                     AssignedPurchaserUserId2 = purchaser2,
                     CreateTime = DateTime.UtcNow
                 };
-                ApplyRfqItemFromRequest(item, itemReq, index);
+                await ApplyRfqItemFromRequestAsync(item, itemReq, index);
                 await _itemRepo.AddAsync(item);
                 inserted.Add(item);
             }
@@ -754,13 +755,12 @@ namespace CRM.Core.Services
             return new RfqItemSyncResult(inserted, updated, deleted);
         }
 
-        private static void ApplyRfqItemFromRequest(RFQItem target, CreateRFQItemRequest itemReq, int index)
+        private async Task ApplyRfqItemFromRequestAsync(RFQItem target, CreateRFQItemRequest itemReq, int index)
         {
             target.LineNo = itemReq.LineNo > 0 ? itemReq.LineNo : index + 1;
             target.CustomerMpn = string.IsNullOrWhiteSpace(itemReq.CustomerMpn) ? null : itemReq.CustomerMpn.Trim();
             target.Mpn = NormalizeLineString(itemReq.Mpn);
             target.CustomerBrand = NormalizeLineString(itemReq.CustomerBrand);
-            target.Brand = NormalizeLineString(itemReq.Brand);
             target.TargetPrice = itemReq.TargetPrice;
             target.PriceCurrency = itemReq.PriceCurrency;
             target.Quantity = itemReq.Quantity;
@@ -770,6 +770,21 @@ namespace CRM.Core.Services
             target.Moq = itemReq.Moq;
             target.Alternatives = itemReq.Alternatives;
             target.Remark = itemReq.Remark;
+            await ApplyRfqItemBrandAsync(target, itemReq);
+        }
+
+        private async Task ApplyRfqItemBrandAsync(RFQItem target, CreateRFQItemRequest itemReq)
+        {
+            if (!itemReq.BrandId.HasValue || itemReq.BrandId.Value <= 0)
+                throw new ArgumentException("供应品牌未选择");
+
+            var brand = await _bizBrandService.GetByIdAsync(itemReq.BrandId.Value);
+            if (brand == null)
+                throw new ArgumentException($"品牌不存在（ID={itemReq.BrandId}）");
+
+            target.BrandId = brand.Id;
+            target.Brand = NormalizeLineString(
+                brand.StandardBrand ?? brand.BrandEName ?? brand.BrandCName);
         }
 
         private async Task AppendRfqItemDeleteOperationLogsAsync(

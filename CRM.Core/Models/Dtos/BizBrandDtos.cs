@@ -1,0 +1,67 @@
+namespace CRM.Core.Models.Dtos;
+
+public class BizBrandRowDto
+{
+    public long Id { get; set; }
+    public string? BrandEName { get; set; }
+    public string? BrandCName { get; set; }
+    public string? StandardBrand { get; set; }
+    public string? Alias { get; set; }
+    public string? CountryCode { get; set; }
+    public string? Country { get; set; }
+    public string? Remark { get; set; }
+    public string? CreateByUserId { get; set; }
+    public string? CreateUserName { get; set; }
+    public DateTime? CreateTime { get; set; }
+    public short? AuditStatus { get; set; }
+    public string? AuditByUserId { get; set; }
+    public string? AuditUserName { get; set; }
+    public DateTime? AuditTime { get; set; }
+}
+
+public class BizBrandQuery
+{
+    public string? BrandCName { get; set; }
+    public string? BrandEName { get; set; }
+    public string? Alias { get; set; }
+    public string? Country { get; set; }
+    public string? Remark { get; set; }
+    public short? AuditStatus { get; set; }
+    public DateTime? CreateTimeFrom { get; set; }
+    public DateTime? CreateTimeTo { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 20;
+}
+
+public class BizBrandPagedDto
+{
+    public List<BizBrandRowDto> Items { get; set; } = new();
+    public int Total { get; set; }
+}
+
+/// <summary>品牌下拉选项（RFQ 等场景）。</summary>
+public class BizBrandOptionDto
+{
+    public long Id { get; set; }
+    public string? StandardBrand { get; set; }
+    public short? AuditStatus { get; set; }
+    public string? BrandEName { get; set; }
+    public string? BrandCName { get; set; }
+}
+
+public class BizBrandOptionsQuery
+{
+    public string? Keyword { get; set; }
+    public int PageSize { get; set; } = 50;
+}
+
+public class UpsertBizBrandRequest
+{
+    public string? BrandEName { get; set; }
+    public string? BrandCName { get; set; }
+    public string? StandardBrand { get; set; }
+    public string? Alias { get; set; }
+    public string? CountryCode { get; set; }
+    public string? Country { get; set; }
+    public string? Remark { get; set; }
+}

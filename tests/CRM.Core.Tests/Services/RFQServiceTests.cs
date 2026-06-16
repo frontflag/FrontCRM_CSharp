@@ -8,6 +8,7 @@ using CRM.Core.Models.RFQ;
 using CRM.Core.Models.System;
 using CRM.Core.Services;
 using CRM.Core.Tests.Fakes;
+using CRM.TestCommon.Biz;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Xunit;
@@ -154,7 +155,8 @@ namespace CRM.Core.Tests.Services
                 _rfqMainListQuery,
                 _rfqItemListQuery,
                 NullLogger<RFQService>.Instance,
-                Substitute.For<ILogOperationAppendService>());
+                Substitute.For<ILogOperationAppendService>(),
+                BizBrandTestSubstitute.Create(new Dictionary<long, string> { [1] = "Brand-A", [2] = "B2" }));
         }
 
         private static CreateRFQRequest BuildValidCreateRequest(Action<CreateRFQRequest>? tweak = null)
@@ -168,6 +170,7 @@ namespace CRM.Core.Tests.Services
                     new CreateRFQItemRequest
                     {
                         Mpn = "MPN-001",
+                        BrandId = 1,
                         Brand = "Brand-A",
                         Quantity = 1
                     }
@@ -268,11 +271,12 @@ namespace CRM.Core.Tests.Services
                 rfqMain,
                 rfqItem,
                 NullLogger<RFQService>.Instance,
-                Substitute.For<ILogOperationAppendService>());
+                Substitute.For<ILogOperationAppendService>(),
+                BizBrandTestSubstitute.Create(new Dictionary<long, string> { [1] = "Brand-A", [2] = "B2" }));
 
             var req = BuildValidCreateRequest(r =>
             {
-                r.Items.Add(new CreateRFQItemRequest { Mpn = "MPN-002", Brand = "B2", Quantity = 1 });
+                r.Items.Add(new CreateRFQItemRequest { Mpn = "MPN-002", BrandId = 2, Brand = "B2", Quantity = 1 });
             });
 
             var first = await svc.CreateAsync(req);

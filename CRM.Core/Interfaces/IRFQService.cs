@@ -58,8 +58,9 @@ namespace CRM.Core.Interfaces
         public int LineNo { get; set; } = 1;
         public string? CustomerMpn { get; set; }
         public string Mpn { get; set; } = string.Empty;
-        public string CustomerBrand { get; set; } = string.Empty;
-        public string Brand { get; set; } = string.Empty;
+    public string CustomerBrand { get; set; } = string.Empty;
+    public string Brand { get; set; } = string.Empty;
+    public long? BrandId { get; set; }
         public decimal? TargetPrice { get; set; }
         public short PriceCurrency { get; set; } = 1;
         public decimal Quantity { get; set; } = 1;

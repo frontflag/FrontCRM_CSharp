@@ -147,6 +147,7 @@ export interface RFQItem {
   materialModel?: string             // 物料型号（主）
   customerBrand?: string             // 客户品牌
   brand?: string                     // 品牌（我方，如 VISHAY/威世）
+  brandId?: number                   // 品牌主数据 ID（biz_brand）
 
   // 价格与数量
   targetPrice?: number               // 目标价
@@ -322,6 +323,7 @@ export interface CreateRFQItemRequest {
   materialModel?: string          // 映射到 mpn
   customerBrand?: string
   brand?: string
+  brandId?: number
   targetPrice?: number
   priceCurrency?: number       // 货币枚举：1=RMB,2=USD,3=EUR,4=HKD
   currency?: string            // UI 展示用货币字符串（RMB/USD/EUR/HKD）

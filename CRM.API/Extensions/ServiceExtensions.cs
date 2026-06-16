@@ -51,6 +51,7 @@ namespace CRM.API.Extensions
             services.AddScoped<IDisplayTimeZoneService, DisplayTimeZoneService>();
             services.AddScoped<IDictionaryService, DictionaryService>();
             services.AddScoped<ISysDictItemAdminService, SysDictItemAdminService>();
+            services.AddScoped<IBizBrandService, CRM.Infrastructure.Biz.BizBrandService>();
             services.AddScoped<IStockOutService, StockOutService>();
             services.AddScoped<IPackingService, CRM.Infrastructure.Packings.PackingService>();
             services.AddScoped<IRepository<CRM.Core.Models.Inventory.Packing>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Inventory.Packing>>();

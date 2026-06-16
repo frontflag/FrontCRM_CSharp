@@ -1,5 +1,6 @@
 using CRM.Core.Constants;
 using CRM.Core.Models;
+using CRM.Core.Models.Biz;
 using CRM.Core.Models.Auth;
 using CRM.Core.Models.Company;
 using CRM.Core.Models.Component;
@@ -149,6 +150,7 @@ namespace CRM.Infrastructure.Data
         public DbSet<UserTagPreference> UserTagPreferences { get; set; } = null!;
         public DbSet<UserFavorite> UserFavorites { get; set; } = null!;
         public DbSet<BizDraft> BizDrafts { get; set; } = null!;
+        public DbSet<BizBrand> BizBrands { get; set; } = null!;
         public DbSet<RbacDepartment> RbacDepartments { get; set; } = null!;
         public DbSet<RbacRole> RbacRoles { get; set; } = null!;
         public DbSet<RbacPermission> RbacPermissions { get; set; } = null!;
@@ -198,6 +200,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.Mpn).IsRequired().HasMaxLength(200);
                 entity.Property(e => e.CustomerBrand).HasMaxLength(100);
                 entity.Property(e => e.Brand).HasMaxLength(100);
+                entity.Property(e => e.BrandId).HasColumnName("brand_id");
                 entity.Property(e => e.AssignedPurchaserUserId1).HasMaxLength(36);
                 entity.Property(e => e.AssignedPurchaserUserId2).HasMaxLength(36);
                 entity.Property(e => e.Quantity).HasColumnType("numeric(18,4)").HasDefaultValue(1m);
@@ -452,6 +455,7 @@ namespace CRM.Infrastructure.Data
 
             modelBuilder.Entity<TagDefinition>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<BizDraft>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<BizBrand>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<UploadDocument>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<SysRelationMap>().HasQueryFilter(e => !e.IsDeleted);
 
@@ -1157,6 +1161,8 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.ExpectTotal).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
                 entity.Property(e => e.ReceiveTotal).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
                 entity.Property(e => e.Remark).HasMaxLength(500);
+                entity.Property(e => e.ShipmentMethod).HasMaxLength(64);
+                entity.Property(e => e.CourierTrackingNo).HasMaxLength(128);
                 entity.Property(e => e.CustomsDeclarationItemId).HasColumnName("customs_declaration_item_id").HasMaxLength(36);
                 entity.HasIndex(e => e.CustomsDeclarationItemId)
                     .IsUnique()
@@ -1581,6 +1587,32 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.EntityId).IsRequired().HasMaxLength(36);
                 entity.HasIndex(e => new { e.UserId, e.EntityType, e.EntityId }).IsUnique();
                 entity.HasIndex(e => new { e.EntityType, e.EntityId });
+            });
+
+            // ===== 品牌主数据 =====
+            modelBuilder.Entity<BizBrand>(entity =>
+            {
+                entity.ToTable("biz_brand");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+                entity.Property(e => e.BrandEName).HasColumnName("brand_e_name").HasMaxLength(200);
+                entity.Property(e => e.BrandCName).HasColumnName("brand_c_name").HasMaxLength(200);
+                entity.Property(e => e.StandardBrand).HasColumnName("standard_brand").HasMaxLength(300);
+                entity.Property(e => e.Alias).HasColumnName("alias").HasMaxLength(500);
+                entity.Property(e => e.CountryCode).HasColumnName("country_code").HasMaxLength(10);
+                entity.Property(e => e.Country).HasColumnName("country").HasMaxLength(100);
+                entity.Property(e => e.Remark).HasColumnName("remark").HasMaxLength(500);
+                entity.Property(e => e.CreateByUserId).HasColumnName("create_by_user_id").HasMaxLength(36);
+                entity.Property(e => e.CreateTime).HasColumnName("create_time");
+                entity.Property(e => e.AuditStatus).HasColumnName("audit_status");
+                entity.Property(e => e.AuditByUserId).HasColumnName("audit_by_user_id").HasMaxLength(36);
+                entity.Property(e => e.AuditTime).HasColumnName("audit_time");
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+                entity.Property(e => e.DeletedByUserId).HasColumnName("deleted_by_user_id").HasMaxLength(36);
+                entity.HasIndex(e => e.BrandEName);
+                entity.HasIndex(e => e.StandardBrand);
+                entity.HasIndex(e => e.CountryCode);
             });
 
             // ===== 通用草稿表配置 =====

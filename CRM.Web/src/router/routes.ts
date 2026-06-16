@@ -688,6 +688,13 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/Approvals/PendingApprovals.vue'),
         meta: { requiresAuth: true, title: '待审批' }
       },
+      // 业务管理
+      {
+        path: 'biz/brands',
+        name: 'BrandList',
+        component: () => import('@/views/Biz/BrandList.vue'),
+        meta: { requiresAuth: true, title: '品牌管理' }
+      },
       // 系统管理
       {
         path: 'system/users',

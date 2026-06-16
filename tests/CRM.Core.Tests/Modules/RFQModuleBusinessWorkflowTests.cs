@@ -10,6 +10,7 @@ using CRM.Core.Models.System;
 using CRM.Core.Models.Vendor;
 using CRM.Core.Services;
 using CRM.Core.Tests.Fakes;
+using CRM.TestCommon.Biz;
 using CRM.TestCommon.Rfq;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -83,7 +84,7 @@ public sealed class RFQModuleBusinessWorkflowTests
                 });
             var rfqMain = new MemoryRfqMainListQuery(RfqRepo, CustomerRepo, UserService, DataPermission);
             var rfqItem = new MemoryRfqItemListQuery(RfqRepo, ItemRepo, CustomerRepo, QuoteRepo, UserService, DataPermission);
-            Service = new RFQService(RfqRepo, ItemRepo, CustomerRepo, Lookup, UnitOfWork, Serial, DataPermission, UserService, SysParamRepo, QuoteRepo, UserRepo, rbac, CreateEmptyPurchaseQuoterPoolService(), rfqMain, rfqItem, NullLogger<RFQService>.Instance, Substitute.For<ILogOperationAppendService>());
+            Service = new RFQService(RfqRepo, ItemRepo, CustomerRepo, Lookup, UnitOfWork, Serial, DataPermission, UserService, SysParamRepo, QuoteRepo, UserRepo, rbac, CreateEmptyPurchaseQuoterPoolService(), rfqMain, rfqItem, NullLogger<RFQService>.Instance, Substitute.For<ILogOperationAppendService>(), BizBrandTestSubstitute.Create(new Dictionary<long, string> { [1] = "ST", [2] = "B", [3] = "NX" }));
         }
 
         private static IPurchaseQuoterPoolService CreateEmptyPurchaseQuoterPoolService()
@@ -123,6 +124,7 @@ public sealed class RFQModuleBusinessWorkflowTests
             {
                 LineNo = 1,
                 Mpn = "STM32F103RCT6",
+                BrandId = 1,
                 Brand = "ST",
                 CustomerBrand = "ST",
                 Quantity = 100
@@ -131,6 +133,7 @@ public sealed class RFQModuleBusinessWorkflowTests
             {
                 LineNo = 2,
                 Mpn = "STM32F407VGT6",
+                BrandId = 1,
                 Brand = "ST",
                 CustomerBrand = "ST",
                 Quantity = 50,
@@ -187,6 +190,7 @@ public sealed class RFQModuleBusinessWorkflowTests
                 new()
                 {
                     Mpn = "NEW-ONLY-ONE",
+                    BrandId = 3,
                     Brand = "NX",
                     CustomerBrand = "NX",
                     Quantity = 1
@@ -250,10 +254,11 @@ public sealed class RFQModuleBusinessWorkflowTests
         var h = new RfqInMemoryHarness();
         await SeedCustomerAsync(h);
         var req = BuildCreateRequest();
+        req.Items[0].BrandId = null;
         req.Items[0].Brand = " ";
 
         var act = async () => await h.Service.CreateAsync(req);
-        await act.Should().ThrowAsync<ArgumentException>().WithMessage("*品牌*");
+        await act.Should().ThrowAsync<ArgumentException>().WithMessage("*供应品牌*");
     }
 
     [Fact]
@@ -318,7 +323,7 @@ public sealed class RFQModuleBusinessWorkflowTests
             SalesUserId = "USER-001",
             Items =
             {
-                new CreateRFQItemRequest { Mpn = "X1", Brand = "B", CustomerBrand = "B", Quantity = 1 }
+                new CreateRFQItemRequest { Mpn = "X1", BrandId = 2, Brand = "B", CustomerBrand = "B", Quantity = 1 }
             }
         });
 

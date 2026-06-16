@@ -713,6 +713,23 @@
           </router-link>
         </SidebarMenuTooltipWrap>
 
+        <!-- 业务管理 -->
+        <div class="menu-section-label" v-if="!isCollapsed">{{ t('layout.sections.businessManagement') }}</div>
+        <SidebarMenuTooltipWrap
+          :collapsed="isCollapsed"
+          :tooltip="t('layout.menu.brandManagement')"
+        >
+          <router-link to="/biz/brands" class="menu-item" active-class="active">
+            <span class="menu-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+                <line x1="7" y1="7" x2="7.01" y2="7"/>
+              </svg>
+            </span>
+            <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.brandManagement') }}</span>
+          </router-link>
+        </SidebarMenuTooltipWrap>
+
         <!-- 组织管理（可展开菜单组） -->
         <div class="menu-section-label" v-if="!isCollapsed">{{ t('layout.sections.systemManagement') }}</div>
         <SidebarMenuGroupFlyout

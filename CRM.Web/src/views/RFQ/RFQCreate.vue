@@ -283,7 +283,12 @@
               <el-col :span="6">
                 <div class="item-panel-field">
                   <div class="item-panel-field__label">品牌</div>
-                  <el-input v-model="row.brand" placeholder="品牌" class="q-input" />
+                  <BizBrandSelect
+                    v-model="row.brandId"
+                    placeholder="请选择品牌"
+                    size="default"
+                    @change="(p) => onItemBrandChange(row, p)"
+                  />
                 </div>
               </el-col>
             </el-row>
@@ -401,7 +406,12 @@
             </el-table-column>
             <el-table-column label="品牌" min-width="100">
               <template #default="{ $index }">
-                <el-input v-model="formData.items[$index].brand" placeholder="品牌" class="q-input" />
+                <BizBrandSelect
+                  v-model="formData.items[$index].brandId"
+                  placeholder="请选择品牌"
+                  size="small"
+                  @change="(p) => onItemBrandChange(formData.items[$index], p)"
+                />
               </template>
             </el-table-column>
             <el-table-column label="目标价 / 币别" min-width="200" class-name="rfq-table-target-ccy-col">
@@ -547,6 +557,8 @@ import {
 } from '@/constants/rfqFormEnums'
 import MaterialProductionDateSelect from '@/components/MaterialProductionDateSelect.vue'
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
+import BizBrandSelect from '@/components/Biz/BizBrandSelect.vue'
+import { bizBrandApi } from '@/api/bizBrand'
 import { useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
 import { useCustomerDictStore } from '@/stores/customerDict'
 import { useI18n } from 'vue-i18n'
@@ -691,6 +703,7 @@ function createEmptyRfqItem() {
     customerBrand: '',
     mpn: '',
     brand: '',
+    brandId: undefined as number | undefined,
     quantity: 1,
     targetPrice: undefined,
     productionDate: defaultProductionDateCode(),
@@ -806,6 +819,10 @@ function mapItemsFromApi(items: any[]) {
     customerBrand: raw.customerBrand || '',
     mpn: raw.mpn || raw.materialModel || '',
     brand: raw.brand || '',
+    brandId:
+      raw.brandId != null || raw.BrandId != null
+        ? Number(raw.brandId ?? raw.BrandId)
+        : undefined,
     quantity: raw.quantity ?? 1,
     targetPrice: raw.targetPrice,
     productionDate: coercePd(raw.productionDate || ''),
@@ -852,6 +869,7 @@ async function loadRfqForEdit() {
       remark: data.remark || '',
       items: data.items?.length ? mapItemsFromApi(data.items) : []
     }
+    await resolveBrandIdsForItems(formData.value.items)
     formData.value.industry = await customerDict.resolveIndustryStorageLabel(data.industry || '')
   } catch (e) {
     ElMessage.error(getApiErrorMessage(e, '加载需求失败'))
@@ -958,6 +976,59 @@ const removeItem = (index: number) => {
   formData.value.items.splice(index, 1)
 }
 
+function onItemBrandChange(
+  row: { brand?: string; brandId?: number },
+  payload: { id: number; standardBrand: string }
+) {
+  if (payload.id > 0) {
+    row.brand = (payload.standardBrand || '').trim()
+  } else {
+    row.brand = ''
+    row.brandId = undefined
+  }
+}
+
+async function resolveBrandIdsForItems(items: Array<{ brand?: string; brandId?: number }>) {
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i]
+    if (it.brandId && it.brandId > 0) continue
+    const text = (it.brand || '').trim()
+    if (!text) {
+      ElMessage.warning(`明细 ${i + 1}：请重新选择品牌`)
+      continue
+    }
+    try {
+      const opts = await bizBrandApi.fetchOptions({ keyword: text, pageSize: 50 })
+      const match = opts.find(
+        (o) => (o.standardBrand || '').trim().toLowerCase() === text.toLowerCase()
+      )
+      if (match) {
+        it.brandId = match.id
+        it.brand = (match.standardBrand || text).trim()
+      } else {
+        ElMessage.warning(`明细 ${i + 1}：历史品牌「${text}」无法匹配，请重新选择品牌`)
+      }
+    } catch {
+      ElMessage.warning(`明细 ${i + 1}：历史品牌「${text}」无法匹配，请重新选择品牌`)
+    }
+  }
+}
+
+function validateItemsBrand(): boolean {
+  if (!formData.value.items.length) {
+    ElMessage.warning('请至少添加一条物料明细')
+    return false
+  }
+  for (let i = 0; i < formData.value.items.length; i++) {
+    const it = formData.value.items[i]
+    if (!it.brandId || it.brandId <= 0) {
+      ElMessage.warning(`明细 ${i + 1}：请选择供应品牌`)
+      return false
+    }
+  }
+  return true
+}
+
 function buildItemPayload(): CreateRFQItemRequest[] {
   return formData.value.items.map((it: any, idx: number) => {
     const qty = Math.max(1, Number(it.quantity) || 1)
@@ -982,6 +1053,7 @@ function buildItemPayload(): CreateRFQItemRequest[] {
       mpn: (it.mpn || '').trim(),
       customerBrand: (it.customerBrand || '').trim(),
       brand: (it.brand || '').trim(),
+      brandId: it.brandId != null && it.brandId > 0 ? Number(it.brandId) : undefined,
       targetPrice: it.targetPrice != null ? Number(it.targetPrice) : undefined,
       priceCurrency: Number(it.priceCurrency) || 1,
       quantity: qty,
@@ -997,6 +1069,7 @@ function buildItemPayload(): CreateRFQItemRequest[] {
 
 // 提交
 const handleSubmit = async () => {
+  if (!validateItemsBrand()) return
   const editMode = isEditMode.value
   const id = rfqId.value
   await runValidatedFormSave(formRef, {

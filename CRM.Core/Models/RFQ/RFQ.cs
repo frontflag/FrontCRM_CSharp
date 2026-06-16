@@ -195,6 +195,10 @@ namespace CRM.Core.Models.RFQ
         [Column("brand")]
         public string Brand { get; set; } = string.Empty;
 
+        /// <summary>供应品牌 ID（关联 biz_brand.id）。</summary>
+        [Column("brand_id")]
+        public long? BrandId { get; set; }
+
         /// <summary>目标价格（单价精度，6 位小数）</summary>
         [Column("target_price", TypeName = "numeric(18,6)")]
         public decimal? TargetPrice { get; set; }

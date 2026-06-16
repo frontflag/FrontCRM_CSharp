@@ -16,6 +16,7 @@ using CRM.Core.Models.RFQ;
 using CRM.Core.Models.Sales;
 using CRM.Core.Models.System;
 using CRM.Core.Services;
+using CRM.TestCommon.Biz;
 using CRM.TestCommon.Rfq;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -119,7 +120,8 @@ namespace CRM.IntegrationTests
                 rfqMainMem,
                 rfqItemMem,
                 NullLogger<RFQService>.Instance,
-                Substitute.For<ILogOperationAppendService>());
+                Substitute.For<ILogOperationAppendService>(),
+                BizBrandTestSubstitute.Create(new Dictionary<long, string> { [1] = "TEST-BRAND", [2] = "TI" }));
             var quoteCustomerRepo = Substitute.For<IRepository<CustomerInfo>>();
             quoteCustomerRepo.FindAsync(Arg.Any<Expression<Func<CustomerInfo, bool>>>())
                 .Returns(Task.FromResult<IEnumerable<CustomerInfo>>(Array.Empty<CustomerInfo>()));
@@ -220,6 +222,7 @@ namespace CRM.IntegrationTests
                     new CreateRFQItemRequest
                     {
                         Mpn = "REF3430QDBVRQ1",
+                        BrandId = 2,
                         Brand = "TI",
                         CustomerBrand = "TI",
                         Quantity = 1
@@ -1350,7 +1353,7 @@ namespace CRM.IntegrationTests
                 rfqRepo, itemRepo, customerRepo, entityLookup, unitOfWork,
                 serialNumberService, dataPermissionService, userService,
                 sysParamRepo, quoteRepo,
-                userRepo, rbacSvc, CreateEmptyPurchaseQuoterPoolService(), rfqMainMem, rfqItemMem, logger, Substitute.For<ILogOperationAppendService>());
+                userRepo, rbacSvc, CreateEmptyPurchaseQuoterPoolService(), rfqMainMem, rfqItemMem, logger, Substitute.For<ILogOperationAppendService>(), BizBrandTestSubstitute.Create(new Dictionary<long, string> { [1] = "TEST-BRAND", [2] = "TI" }));
 
             // 模拟序列号生成
             serialNumberService.GenerateNextAsync(Arg.Any<string>()).Returns("RF20260001");
@@ -1365,6 +1368,7 @@ namespace CRM.IntegrationTests
                     new CreateRFQItemRequest
                     {
                         Mpn = "TEST-MPN-001",
+                        BrandId = 1,
                         Brand = "TEST-BRAND",
                         Quantity = 100,
                         TargetPrice = 50.5m,
@@ -1466,7 +1470,7 @@ namespace CRM.IntegrationTests
                 rfqRepo, itemRepo, customerRepo, entityLookup, unitOfWork,
                 serialNumberService, dataPermissionService, userService,
                 sysParamRepo, quoteRepo,
-                userRepo, rbacSvc, CreateEmptyPurchaseQuoterPoolService(), rfqMainMem, rfqItemMem, logger, Substitute.For<ILogOperationAppendService>());
+                userRepo, rbacSvc, CreateEmptyPurchaseQuoterPoolService(), rfqMainMem, rfqItemMem, logger, Substitute.For<ILogOperationAppendService>(), BizBrandTestSubstitute.Create(new Dictionary<long, string> { [1] = "TEST-BRAND", [2] = "TI" }));
 
             // 模拟序列号生成
             serialNumberService.GenerateNextAsync(Arg.Any<string>()).Returns("RF20260001");
@@ -1497,6 +1501,7 @@ namespace CRM.IntegrationTests
                     new CreateRFQItemRequest
                     {
                         Mpn = "TEST-MPN-001",
+                        BrandId = 1,
                         Brand = "TEST-BRAND",
                         Quantity = 100
                     }
@@ -1594,7 +1599,7 @@ namespace CRM.IntegrationTests
                 rfqRepo, itemRepo, customerRepo, entityLookup, unitOfWork,
                 serialNumberService, dataPermissionService, userService,
                 sysParamRepo, quoteRepo,
-                userRepo, rbacSvc, CreateEmptyPurchaseQuoterPoolService(), rfqMainMem, rfqItemMem, logger, Substitute.For<ILogOperationAppendService>());
+                userRepo, rbacSvc, CreateEmptyPurchaseQuoterPoolService(), rfqMainMem, rfqItemMem, logger, Substitute.For<ILogOperationAppendService>(), BizBrandTestSubstitute.Create(new Dictionary<long, string> { [1] = "TEST-BRAND", [2] = "TI" }));
 
             // 准备用户数据
             var salesUserId = "SALES-USER-001";
@@ -1665,6 +1670,7 @@ namespace CRM.IntegrationTests
                     new CreateRFQItemRequest
                     {
                         Mpn = "TEST-MPN-001",
+                        BrandId = 1,
                         Brand = "TEST-BRAND",
                         Quantity = 100
                     }
