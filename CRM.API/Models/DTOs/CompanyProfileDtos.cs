@@ -71,6 +71,7 @@ namespace CRM.API.Models.DTOs
         public string Id { get; set; } = string.Empty;
         public bool IsDefault { get; set; }
         public bool Enabled { get; set; } = true;
+        public bool AvailableForPayment { get; set; }
         public string BankName { get; set; } = string.Empty;
         public string AccountName { get; set; } = string.Empty;
         public string BankAddress { get; set; } = string.Empty;
@@ -83,6 +84,11 @@ namespace CRM.API.Models.DTOs
         public string BankType { get; set; } = "rmb";
         public string PurposeType { get; set; } = "payment";
         public string Remark { get; set; } = string.Empty;
+    }
+
+    public class CompanyBankDeleteCheckDto
+    {
+        public bool CanDelete { get; set; }
     }
 
     public class CompanyLogoRowDto : ICompanyProfileRow

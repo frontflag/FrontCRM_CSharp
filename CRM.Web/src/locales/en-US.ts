@@ -320,7 +320,7 @@ const enUS = {
     assigneeCountNav: 'Assignee count',
     quoterPoolNav: 'Quoter pool',
     assigneeCountTitle: 'Assignee count',
-    assigneeCountHint: 'When creating an RFQ, take N consecutive members from the quoter pool for all line items.',
+    assigneeCountHint: 'When creating an RFQ, each line item takes N consecutive members from the quoter pool in round-robin order.',
     assigneeCountLabel: 'Quoters assigned per RFQ:',
     assigneeCountOption1: '1 person',
     assigneeCountOption2: '2 people',
@@ -3089,6 +3089,7 @@ const enUS = {
     arrivalDialog: {
       title: 'New arrival notice',
       code: 'Document no.',
+      purchaseOrderCode: 'PO no.',
       expectedArrival: 'Expected arrival date',
       expectedArrivalPlaceholder: 'Select expected arrival date',
       companyName: 'Company name',
@@ -3097,6 +3098,7 @@ const enUS = {
       contact: 'Contact',
       arrivalMethod: 'Delivery method',
       expectedArrivalMethod: 'Expected arrival method',
+      expressCompany: 'Courier company',
       expressMethod: 'Courier',
       selectPlaceholder: 'Select',
       expressNo: 'Tracking no.',
@@ -4183,7 +4185,10 @@ const enUS = {
     executing: 'Executing...',
     count: '{count} records total',
     applyDialog: {
-      regionType: 'Delivery region'
+      createTitle: 'New stock-out notice',
+      editTitle: 'Edit stock-out notice',
+      regionType: 'Delivery region',
+      expectedShipDate: 'Expected ship date'
     },
     filters: {
       statusPlaceholder: 'Status',

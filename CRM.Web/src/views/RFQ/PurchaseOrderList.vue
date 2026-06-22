@@ -225,6 +225,7 @@
         row-key="id"
         highlight-current-row
         @row-dblclick="handleView"
+        @header-dragend="onPurchaseOrderTableHeaderDragEnd"
       >
         <template #col-purchaseOrderCode="{ row }">
           <span class="po-code-with-badge">
@@ -249,6 +250,20 @@
           <el-tag effect="dark" :type="purchaseOrderTypeTagType(row)" size="small">
             {{ purchaseOrderTypeLabel(row) }}
           </el-tag>
+        </template>
+        <template v-if="canViewVendorInfo" #col-vendor-header>
+          <VendorExtendColumnHeader
+            :active-field="vendorExtendActiveField"
+            @set-active-field="setVendorExtendActiveField"
+          />
+        </template>
+        <template v-if="canViewVendorInfo" #col-vendor="{ row }">
+          <VendorExtendCell
+            :row="row"
+            :active-field="vendorExtendActiveField"
+            :masked="maskPurchaseSensitiveFields"
+            :empty-text="t('quoteList.na')"
+          />
         </template>
         <template #col-total="{ row }">
           <template v-if="!listTotalAmountHasValue(row.total)">
@@ -411,12 +426,32 @@ import {
 } from '@/constants/purchaseOrderStatus'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import CrmDataTable from '@/components/CrmDataTable.vue'
+import VendorExtendColumnHeader from '@/components/list/VendorExtendColumnHeader.vue'
+import VendorExtendCell from '@/components/list/VendorExtendCell.vue'
+import { useVendorExtendColumn, isVendorExtendTableColumn } from '@/composables/useVendorExtendColumn'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 
 const router = useRouter()
 const { t } = useI18n()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
+const {
+  expanded: vendorExtendExpanded,
+  activeField: vendorExtendActiveField,
+  colWidth: vendorExtendColWidth,
+  colMinWidth: vendorExtendColMinWidth,
+  setActiveField: setVendorExtendActiveField,
+  applyOuterWidthFromTable: applyVendorExtendOuterWidth
+} = useVendorExtendColumn()
+
+function onPurchaseOrderTableHeaderDragEnd(
+  newWidth: number,
+  _oldWidth: number,
+  column: { property?: string; label?: string }
+) {
+  if (!isVendorExtendTableColumn(column)) return
+  applyVendorExtendOuterWidth(newWidth)
+}
 
 const loading = ref(false)
 const orderList = ref<any[]>([])
@@ -477,7 +512,10 @@ function purchaseOrderTypeTagType(row: Record<string, unknown>): '' | 'success' 
 }
 
 /** 采购订单列表主表可配置列（localStorage：crm-table-columns:v1:purchase-order-list-main） */
-const purchaseOrderTableColumns = computed((): CrmTableColumnDef[] => [
+const purchaseOrderTableColumns = computed((): CrmTableColumnDef[] => {
+  void vendorExtendExpanded.value
+  void vendorExtendColWidth.value
+  return [
   { key: 'status', label: t('purchaseOrderList.columns.status'), prop: 'status', width: 160, align: 'center' as const },
   {
     key: 'type',
@@ -489,7 +527,16 @@ const purchaseOrderTableColumns = computed((): CrmTableColumnDef[] => [
     showOverflowTooltip: true
   },
   ...(canViewVendorInfo.value
-    ? [{ key: 'vendorName', label: t('purchaseOrderList.columns.vendor'), prop: 'vendorName', minWidth: 200, showOverflowTooltip: true }]
+    ? [{
+        key: 'vendor',
+        label: t('common.vendorExtendCol.columnTitle'),
+        prop: 'vendor',
+        minWidth: vendorExtendColMinWidth.value,
+        width: vendorExtendColWidth.value,
+        showOverflowTooltip: true,
+        className: 'vendor-extend-col',
+        labelClassName: 'vendor-extend-col'
+      }]
     : []),
   { key: 'purchaseUserName', label: t('purchaseOrderList.columns.purchaser'), prop: 'purchaseUserName', width: 100 },
   ...(canViewPurchaseAmount.value
@@ -541,9 +588,10 @@ const purchaseOrderTableColumns = computed((): CrmTableColumnDef[] => [
     reorderable: false,
     className: 'op-col',
     labelClassName: 'op-col',
-  resizable: false
+    resizable: false
   }
-])
+  ]
+})
 
 // 筛选表单
 const filterForm = ref({

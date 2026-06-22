@@ -130,6 +130,9 @@ public sealed class PurchaseOrderItemListQuery : IPurchaseOrderItemListQuery
                 StockInProgressStatus = x.ext != null ? x.ext.StockInProgressStatus : (short)0,
                 PaymentProgressStatus = x.ext != null ? x.ext.PaymentProgressStatus : (short)0,
                 InvoiceProgressStatus = x.ext != null ? x.ext.InvoiceProgressStatus : (short)0,
+                PaymentAmount = x.ext != null
+                    ? x.ext.PaymentAmount
+                    : Math.Round(x.item.Qty * x.item.Cost, 2, MidpointRounding.AwayFromZero),
                 PaymentAmountRequested = x.ext != null ? x.ext.PaymentAmountRequested : 0m,
                 Qty = x.item.Qty,
                 Cost = x.item.Cost,

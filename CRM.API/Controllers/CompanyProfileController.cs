@@ -124,6 +124,33 @@ namespace CRM.API.Controllers
             return string.IsNullOrWhiteSpace(anyWithDoc?.DocumentId) ? null : anyWithDoc.DocumentId.Trim();
         }
 
+        /// <summary>删除公司银行账户前检查：是否已被付款单引用。</summary>
+        [HttpGet("bank/{bankId}/can-delete")]
+        [RequirePermission("rbac.manage")]
+        public async Task<ActionResult<ApiResponse<CompanyBankDeleteCheckDto>>> CanDeleteBank(string bankId, CancellationToken ct)
+        {
+            var id = (bankId ?? string.Empty).Trim();
+            if (id.Length == 0)
+                return BadRequest(ApiResponse<CompanyBankDeleteCheckDto>.Fail("银行ID无效", 400));
+
+            try
+            {
+                var existsInDb = await _db.CompanyBankInfos.AsNoTracking().AnyAsync(b => b.Id == id, ct);
+                if (!existsInDb)
+                    return Ok(ApiResponse<CompanyBankDeleteCheckDto>.Ok(new CompanyBankDeleteCheckDto { CanDelete = true }, "ok"));
+
+                var hasPayments = await CompanyBankInfoStore.HasPaymentRecordsAsync(_db, id, ct);
+                return Ok(ApiResponse<CompanyBankDeleteCheckDto>.Ok(
+                    new CompanyBankDeleteCheckDto { CanDelete = !hasPayments },
+                    "ok"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "检查公司银行账户是否可删除失败 BankId={BankId}", id);
+                return StatusCode(500, ApiResponse<CompanyBankDeleteCheckDto>.Fail("检查失败", 500));
+            }
+        }
+
         [HttpPut]
         [RequirePermission("rbac.manage")]
         public async Task<ActionResult<ApiResponse<object>>> Put([FromBody] CompanyProfileBundleDto body, CancellationToken ct)
@@ -143,6 +170,10 @@ namespace CRM.API.Controllers
                     ?? ValidateSmtp(body.SmtpEmail);
                 if (err != null)
                     return BadRequest(ApiResponse<object>.Fail(err, 400));
+
+                var bankDeleteErr = await CompanyBankInfoStore.ValidateBankDeletionsAsync(_db, body.BankInfos, ct);
+                if (bankDeleteErr != null)
+                    return BadRequest(ApiResponse<object>.Fail(bankDeleteErr, 400));
 
                 await UpsertJsonAsync(CompanyProfileParamCodes.BasicInfos, "公司基础信息（多组）", body.BasicInfos, ct);
                 await CompanyBankInfoStore.UpsertAllAsync(_db, body.BankInfos, ct);

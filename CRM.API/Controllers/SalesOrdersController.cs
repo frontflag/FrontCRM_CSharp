@@ -1,5 +1,6 @@
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Customer;
 using CRM.Core.Models.Sales;
 using CRM.Core.Utilities;
 using CRM.API.Authorization;
@@ -65,7 +66,7 @@ namespace CRM.API.Controllers
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 var summary = await GetPermissionSummaryAsync(userId);
                 var mask521 = SaleSensitiveFieldMask521.ShouldMask(summary);
-                var canViewCustomerInfo = !mask521 && (summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("customer.info.read") ?? false));
+                var canViewCustomerInfo = CanViewSalesOrderCustomerInfo(summary, mask521);
 
                 var request = new SalesOrderQueryRequest
                 {
@@ -83,8 +84,20 @@ namespace CRM.API.Controllers
                 };
                 var result = await _service.GetPagedAsync(request);
                 var assistorNameMap = await BuildUserDisplayNameMapAsync(result.Items.Select(x => x.Assistor));
+                var customerMap = await LoadCustomerMapForSellOrdersAsync(result.Items, cancellationToken);
                 var items = result.Items
-                    .Select(x => MaskSalesOrder(x, summary, assistorUserName: ResolveAssistorDisplayName(x.Assistor, assistorNameMap)))
+                    .Select(x =>
+                    {
+                        CustomerInfo? customer = null;
+                        var cid = x.CustomerId?.Trim();
+                        if (!string.IsNullOrEmpty(cid))
+                            customer = customerMap.GetValueOrDefault(cid);
+                        return MaskSalesOrder(
+                            x,
+                            summary,
+                            assistorUserName: ResolveAssistorDisplayName(x.Assistor, assistorNameMap),
+                            customer: customer);
+                    })
                     .ToList();
                 var aggregates = await _salesOrderListQuery.GetAggregatesAsync(request, cancellationToken);
                 var canViewSalesAmount = !mask521 && (summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("sales.amount.read") ?? false));
@@ -1188,6 +1201,66 @@ namespace CRM.API.Controllers
                 StringComparer.OrdinalIgnoreCase);
         }
 
+        private static bool SummaryHasPermission(UserPermissionSummaryDto? summary, string code)
+        {
+            if (summary?.PermissionCodes == null) return false;
+            return summary.PermissionCodes.Any(c => string.Equals(c, code, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>与前端销售订单列表 <c>canViewCustomerInfo</c> 及采购订单供应商列口径对齐。</summary>
+        private static bool CanViewSalesOrderCustomerInfo(UserPermissionSummaryDto? summary, bool mask521)
+        {
+            if (mask521) return false;
+            if (summary?.IsSysAdmin == true) return true;
+            return SummaryHasPermission(summary, "customer.info.read")
+                || SummaryHasPermission(summary, "sales-order.read")
+                || SummaryHasPermission(summary, "sales-order.write");
+        }
+
+        private async Task<Dictionary<string, CustomerInfo>> LoadCustomerMapForSellOrdersAsync(
+            IEnumerable<SellOrder> orders,
+            CancellationToken cancellationToken)
+        {
+            var ids = orders
+                .Select(o => o.CustomerId)
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(s => s!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (ids.Count == 0)
+                return new Dictionary<string, CustomerInfo>(StringComparer.OrdinalIgnoreCase);
+
+            var rows = await _db.Customers.AsNoTracking()
+                .Where(c => ids.Contains(c.Id))
+                .ToListAsync(cancellationToken);
+            return rows.ToDictionary(c => c.Id, c => c, StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static string? ResolveSellOrderCustomerNameZh(CustomerInfo? customer, SellOrder order)
+        {
+            if (customer != null)
+            {
+                var zh = string.IsNullOrWhiteSpace(customer.OfficialName) ? customer.CustomerName : customer.OfficialName;
+                if (!string.IsNullOrWhiteSpace(zh))
+                    return zh.Trim();
+            }
+            return string.IsNullOrWhiteSpace(order.CustomerName) ? null : order.CustomerName.Trim();
+        }
+
+        private static string? ResolveSellOrderCustomerEnglishName(CustomerInfo? customer, SellOrder order)
+        {
+            if (customer != null && !string.IsNullOrWhiteSpace(customer.EnglishOfficialName))
+                return customer.EnglishOfficialName.Trim();
+            return string.IsNullOrWhiteSpace(order.CustomerEnglishName) ? null : order.CustomerEnglishName!.Trim();
+        }
+
+        private static string? ResolveSellOrderCustomerCode(CustomerInfo? customer, SellOrder order)
+        {
+            if (customer != null && !string.IsNullOrWhiteSpace(customer.CustomerCode))
+                return customer.CustomerCode.Trim();
+            return string.IsNullOrWhiteSpace(order.CustomerCode) ? null : order.CustomerCode!.Trim();
+        }
+
         private static string? ResolveAssistorDisplayName(
             string? assistorUserId,
             IReadOnlyDictionary<string, string> nameMap)
@@ -1219,10 +1292,11 @@ namespace CRM.API.Controllers
         private object MaskSalesOrder(CRM.Core.Models.Sales.SellOrder order, UserPermissionSummaryDto? summary,
             IReadOnlyDictionary<string, SellOrderItemExtend>? itemExtends = null,
             IReadOnlyDictionary<string, StockOutApplyPurchaseGateDetailDto>? stockOutApplyPurchaseGateDetails = null,
-            string? assistorUserName = null)
+            string? assistorUserName = null,
+            CustomerInfo? customer = null)
         {
             var mask521 = SaleSensitiveFieldMask521.ShouldMask(summary);
-            var canViewCustomerInfo = !mask521 && (summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("customer.info.read") ?? false));
+            var canViewCustomerInfo = CanViewSalesOrderCustomerInfo(summary, mask521);
             var canViewSalesAmount = !mask521 && (summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("sales.amount.read") ?? false));
 
             return new
@@ -1230,7 +1304,9 @@ namespace CRM.API.Controllers
                 order.Id,
                 order.SellOrderCode,
                 CustomerId = canViewCustomerInfo ? order.CustomerId : null,
-                CustomerName = canViewCustomerInfo ? order.CustomerName : null,
+                CustomerName = canViewCustomerInfo ? ResolveSellOrderCustomerNameZh(customer, order) : null,
+                CustomerEnglishName = canViewCustomerInfo ? ResolveSellOrderCustomerEnglishName(customer, order) : null,
+                CustomerCode = canViewCustomerInfo ? ResolveSellOrderCustomerCode(customer, order) : null,
                 SalesUserId = mask521 ? null : order.SalesUserId,
                 SalesUserName = mask521 ? null : order.SalesUserName,
                 order.Assistor,

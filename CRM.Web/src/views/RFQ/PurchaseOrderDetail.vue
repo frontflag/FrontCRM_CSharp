@@ -264,6 +264,7 @@
                 :density-toggle-anchor-el="poDetailItemsDensityAnchorEl"
                 :data="order.items"
                 :row-key="poItemRowKey"
+                highlight-current-row
                 size="small"
                 @row-dblclick="onPurchaseOrderItemRowDblClick"
               >
@@ -954,6 +955,8 @@ async function onPurchaseOrderItemRowDblClick(row: Record<string, unknown>) {
   } finally {
     poItemLinePanel.loading = false
   }
+  await nextTick()
+  poDetailItemsTableRef.value?.setCurrentRow(row)
 }
 
 const docListRef = ref<InstanceType<typeof DocumentListPanel> | null>(null)
@@ -996,6 +999,27 @@ const orderId = computed(() => route.params.id as string)
 
 function poItemRowKey(row: any) {
   return String(row?.id ?? row?.Id ?? row?.purchaseOrderItemId ?? row?.PurchaseOrderItemId ?? '')
+}
+
+function findPurchaseOrderItemRow(itemId: string) {
+  const lines = order.value?.items
+  if (!Array.isArray(lines) || !itemId) return undefined
+  return lines.find((it) => poItemRowKey(it) === itemId) as Record<string, unknown> | undefined
+}
+
+async function focusPurchaseOrderItemRow(row: Record<string, unknown>) {
+  activeTab.value = 'items'
+  await onPurchaseOrderItemRowDblClick(row)
+}
+
+async function applyInitialPurchaseOrderItemSelection() {
+  if (maskPurchaseSensitiveFields.value) return
+  const lines = order.value?.items
+  if (!Array.isArray(lines) || lines.length === 0) return
+  const fromQuery = String(route.query.purchaseOrderItemId ?? '').trim()
+  const hit = fromQuery ? findPurchaseOrderItemRow(fromQuery) : undefined
+  const row = (hit ?? lines[0]) as Record<string, unknown>
+  await focusPurchaseOrderItemRow(row)
 }
 
 /** 扩展表进度：0=待 1=部分 2=完成 */
@@ -1322,12 +1346,9 @@ const fetchOrder = async () => {
       })
       await loadFavoriteState()
       await nextTick()
-      // 底部「采购订单明细详情」：默认按订单明细第一行加载（与双击同一接口）
+      // 底部「采购订单明细详情」：URL 带 purchaseOrderItemId 时选中对应行，否则默认第一行
       if (!maskPurchaseSensitiveFields.value) {
-        const lines = order.value.items
-        if (Array.isArray(lines) && lines.length > 0) {
-          await onPurchaseOrderItemRowDblClick(lines[0] as Record<string, unknown>)
-        }
+        await applyInitialPurchaseOrderItemSelection()
       }
     } else {
       closePoItemLinePanel()

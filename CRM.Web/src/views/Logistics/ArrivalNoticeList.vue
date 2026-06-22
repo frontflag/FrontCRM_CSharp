@@ -82,6 +82,8 @@
       <template #col-pn="{ row }">{{ displayPn(row) }}</template>
       <template #col-brand="{ row }">{{ displayBrand(row) }}</template>
       <template #col-expectedArrivalDate="{ row }">{{ formatExpected(row.expectedArrivalDate) }}</template>
+      <template #col-shipmentMethod="{ row }">{{ shipmentMethodDisplay(pickShipmentMethod(row)) }}</template>
+      <template #col-courierTrackingNo="{ row }">{{ displayCourierTrackingNo(row) }}</template>
       <template #col-regionType="{ row }">{{ regionTypeLabel(row) }}</template>
       <template #col-vendorName="{ row }">
         <span>{{ maskPurchaseSensitiveFields ? '—' : (row.vendorName?.trim() ? row.vendorName : '—') }}</span>
@@ -258,7 +260,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
@@ -269,12 +271,14 @@ import { formatDisplayDate, formatDisplayDateTime2DigitYearParts } from '@/utils
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useAuthStore } from '@/stores/auth'
+import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const authStore = useAuthStore()
 const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const router = useRouter()
 const { t, locale } = useI18n()
+const { ensureLoaded: ensureLogisticsDict, shipmentArrivalOptions } = useLogisticsFormDict()
 const loading = ref(false)
 const list = ref<StockInNotifyDto[]>([])
 const listPage = ref(1)
@@ -309,6 +313,21 @@ const arrivalNoticeColumns = computed<CrmTableColumnDef[]>(() => {
       label: t('arrivalNoticeList.columns.expectedArrivalDate'),
       width: 130,
       align: 'center'
+    },
+    {
+      key: 'shipmentMethod',
+      label: t('arrivalNoticeList.columns.expectedArrivalMethod'),
+      width: 136,
+      minWidth: 136,
+      align: 'center',
+      showOverflowTooltip: true
+    },
+    {
+      key: 'courierTrackingNo',
+      label: t('arrivalNoticeList.columns.expectedArrivalExpressNo'),
+      width: 184,
+      minWidth: 184,
+      showOverflowTooltip: true
     },
     { key: 'vendorName', label: t('arrivalNoticeList.columns.vendorName'), prop: 'vendorName', minWidth: 160 },
     { key: 'purchaseUserName', label: t('arrivalNoticeList.columns.purchaseUserName'), prop: 'purchaseUserName', width: 120 },
@@ -413,6 +432,38 @@ const statusText = (s: number) => {
 const statusType = (s: number) => ({ 1: 'info', 10: 'warning', 20: 'primary', 30: 'success', 100: 'success' }[s] || 'info')
 const formatExpected = (v?: string | null) => (v ? formatDisplayDate(v) : '—')
 
+const arrivalLabelByCode = computed(() => {
+  const m = new Map<string, string>()
+  for (const o of shipmentArrivalOptions.value) {
+    const k = String(o.value ?? '').trim()
+    if (k) m.set(k.toLowerCase(), o.label)
+  }
+  return m
+})
+
+function pickShipmentMethod(row: StockInNotifyDto): string | null | undefined {
+  const r = row as unknown as Record<string, unknown>
+  return (r.shipmentMethod ?? r.ShipmentMethod) as string | null | undefined
+}
+
+function pickCourierTrackingNo(row: StockInNotifyDto): string | null | undefined {
+  const r = row as unknown as Record<string, unknown>
+  return (r.courierTrackingNo ?? r.CourierTrackingNo) as string | null | undefined
+}
+
+function shipmentMethodDisplay(code?: string | number | null): string {
+  if (code === null || code === undefined || code === '') return '—'
+  const c = String(code).trim()
+  if (!c) return '—'
+  return arrivalLabelByCode.value.get(c.toLowerCase()) ?? c
+}
+
+function displayCourierTrackingNo(row: StockInNotifyDto): string {
+  const v = pickCourierTrackingNo(row)
+  const s = String(v ?? '').trim()
+  return s || '—'
+}
+
 const regionTypeLabel = (row: StockInNotifyDto) => {
   const r = row as unknown as Record<string, unknown>
   const n = normalizeRegionType(r.regionType ?? r.RegionType)
@@ -508,6 +559,14 @@ const onDetailClosed = () => {
 }
 
 loadData()
+
+onMounted(async () => {
+  try {
+    await ensureLogisticsDict()
+  } catch {
+    /* 字典失败时仍回退显示原始码 */
+  }
+})
 </script>
 
 <style scoped lang="scss">

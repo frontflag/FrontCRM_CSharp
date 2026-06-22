@@ -55,6 +55,7 @@ public sealed class PurchaseOrderItemListLineRaw
     public short StockInProgressStatus { get; set; }
     public short PaymentProgressStatus { get; set; }
     public short InvoiceProgressStatus { get; set; }
+    public decimal PaymentAmount { get; set; }
     public decimal PaymentAmountRequested { get; set; }
     public decimal Qty { get; set; }
     public decimal Cost { get; set; }

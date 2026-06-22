@@ -14,6 +14,7 @@ export interface FinancePayment {
   vendorId: string
   /** 供应商业务编码（列表/详情由后端填充，不落库） */
   vendorCode?: string
+  vendorEnglishName?: string
   vendorName?: string
   salesUserId?: string
   status: number       // 1新建 2待审核 10审核通过 100付款完成 -1审核失败 -2取消
@@ -52,6 +53,8 @@ export interface FinancePayment {
   createdAt?: string
   /** 列表/详情由后端按 CreateByUserId 填充 */
   createUserName?: string
+  /** 关联采购订单货代单号（列表/详情由后端填充） */
+  freightForwarderOrderNo?: string | null
   items?: FinancePaymentItem[]
 }
 
@@ -76,6 +79,8 @@ export interface FinanceReceipt {
   financeReceiptCode: string
   customerId: string
   customerName?: string
+  customerEnglishName?: string
+  customerCode?: string
   salesUserId?: string
   purchaseGroupId?: string
   status: number       // 0草稿 1待审核 2已审核 3已收款 4已取消
@@ -304,7 +309,14 @@ export interface SellInvoiceItem {
 export interface PageQuery {
   page?: number
   pageSize?: number
+  /** @deprecated 请使用 financePaymentCode / vendorName 等独立筛选字段 */
   keyword?: string
+  financePaymentCode?: string
+  freightForwarderOrderNo?: string
+  bankSlipNo?: string
+  paymentMode?: number
+  vendorName?: string
+  remark?: string
   status?: number
   startDate?: string
   endDate?: string

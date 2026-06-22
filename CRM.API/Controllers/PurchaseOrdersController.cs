@@ -93,8 +93,20 @@ namespace CRM.API.Controllers
                 var result = await _service.GetPagedAsync(request);
                 var summary = await GetPermissionSummaryAsync(request.CurrentUserId);
                 var assistorNameMap = await BuildUserDisplayNameMapAsync(result.Items.Select(x => x.Assistor));
+                var vendorMap = await LoadVendorMapForPurchaseOrdersAsync(result.Items, cancellationToken);
                 var items = result.Items
-                    .Select(x => MaskPurchaseOrder(x, summary, assistorUserName: ResolveAssistorDisplayName(x.Assistor, assistorNameMap)))
+                    .Select(x =>
+                    {
+                        VendorInfo? vendor = null;
+                        var vid = x.VendorId?.Trim();
+                        if (!string.IsNullOrEmpty(vid))
+                            vendor = vendorMap.GetValueOrDefault(vid);
+                        return MaskPurchaseOrder(
+                            x,
+                            summary,
+                            vendor: vendor,
+                            assistorUserName: ResolveAssistorDisplayName(x.Assistor, assistorNameMap));
+                    })
                     .ToList();
                 var aggregates = await _purchaseOrderListQuery.GetAggregatesAsync(request, cancellationToken);
                 var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
@@ -173,7 +185,8 @@ namespace CRM.API.Controllers
 
                 var result = await _purchaseOrderItemListQuery.GetPagedAsync(request, cancellationToken);
                 var loginMap = await LoadCreateUserLoginNamesForPoLinesAsync(result.Items, cancellationToken);
-                var items = MapPurchaseOrderItemListLines(result.Items, summary, loginMap);
+                var paymentRequestFlags = await LoadPoItemIdsWithActivePaymentRequestAsync(result.Items, cancellationToken);
+                var items = MapPurchaseOrderItemListLines(result.Items, summary, loginMap, paymentRequestFlags);
                 return Ok(new
                 {
                     success = true,
@@ -944,6 +957,45 @@ namespace CRM.API.Controllers
             }
         }
 
+        [HttpPost("{id:guid}/refresh-vendor-name")]
+        [RequirePermission("purchase-order.write")]
+        public async Task<IActionResult> RefreshVendorName(string id, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrWhiteSpace(userId))
+                    return StatusCode(403, new { success = false, message = "未登录或身份无效" });
+
+                var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
+                if (summary?.IsSysAdmin != true)
+                    return StatusCode(403, new { success = false, message = "仅系统管理员可刷新供应商名称" });
+
+                var order = await _service.GetByIdAsync(id);
+                if (order == null) return NotFound(new { success = false, message = "采购订单不存在" });
+
+                if (!await _dataPermissionService.CanAccessPurchaseOrderAsync(userId.Trim(), order))
+                    return StatusCode(403, new { success = false, message = "无权限访问该采购订单" });
+
+                cancellationToken.ThrowIfCancellationRequested();
+                var result = await _service.RefreshVendorNameAsync(id, userId.Trim());
+                return Ok(new { success = true, data = result });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "刷新采购订单供应商名称失败: {Id}", id);
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
         /// <summary>以销定采：根据销售订单自动生成采购订单</summary>
         [HttpPost("auto-generate/{sellOrderId}")]
         [RequirePermission("purchase-order.write")]
@@ -1030,10 +1082,46 @@ namespace CRM.API.Controllers
             return rows.ToDictionary(x => x.Id, x => (string?)x.UserName, StringComparer.OrdinalIgnoreCase);
         }
 
+        private async Task<HashSet<string>> LoadPoItemIdsWithActivePaymentRequestAsync(
+            IEnumerable<PurchaseOrderItemListLineRaw> lines,
+            CancellationToken cancellationToken)
+        {
+            var poItemIds = lines
+                .Select(x => x.PurchaseOrderItemId?.Trim())
+                .Where(s => !string.IsNullOrEmpty(s))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (poItemIds.Count == 0)
+                return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            const short paymentAuditFailed = -1;
+            const short paymentCancelled = -2;
+
+            var activeIds = await _db.FinancePaymentItems.AsNoTracking()
+                .Where(pi =>
+                    pi.PurchaseOrderItemId != null
+                    && poItemIds.Contains(pi.PurchaseOrderItemId))
+                .Join(
+                    _db.FinancePayments.AsNoTracking(),
+                    pi => pi.FinancePaymentId,
+                    p => p.Id,
+                    (pi, p) => new { pi.PurchaseOrderItemId, p.Status })
+                .Where(x => x.Status != paymentAuditFailed && x.Status != paymentCancelled)
+                .Select(x => x.PurchaseOrderItemId!)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+
+            return activeIds
+                .Select(s => s.Trim())
+                .Where(s => s.Length > 0)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+
         private static List<object> MapPurchaseOrderItemListLines(
             IEnumerable<PurchaseOrderItemListLineRaw> lines,
             UserPermissionSummaryDto? summary,
-            IReadOnlyDictionary<string, string?> createUserLoginByUserId)
+            IReadOnlyDictionary<string, string?> createUserLoginByUserId,
+            IReadOnlySet<string> poItemIdsWithActivePaymentRequest)
         {
             var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
             var canViewVendorInfo = !mask511 && (summary?.IsSysAdmin == true
@@ -1076,6 +1164,9 @@ namespace CRM.API.Controllers
                     itemStatus = r.ItemStatus,
                     purchaseProgressStatus = r.PurchaseProgressStatus,
                     stockInProgressStatus = r.StockInProgressStatus,
+                    paymentRequestProgressStatus = poItemIdsWithActivePaymentRequest.Contains(r.PurchaseOrderItemId)
+                        ? (short)1
+                        : (short)0,
                     paymentProgressStatus = r.PaymentProgressStatus,
                     invoiceProgressStatus = r.InvoiceProgressStatus,
                     canApplyPayment = canApply,
@@ -1119,6 +1210,25 @@ namespace CRM.API.Controllers
             return order.Currency;
         }
 
+        private async Task<Dictionary<string, VendorInfo>> LoadVendorMapForPurchaseOrdersAsync(
+            IEnumerable<PurchaseOrder> orders,
+            CancellationToken cancellationToken)
+        {
+            var ids = orders
+                .Select(o => o.VendorId)
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(s => s!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (ids.Count == 0)
+                return new Dictionary<string, VendorInfo>(StringComparer.OrdinalIgnoreCase);
+
+            var rows = await _db.Vendors.AsNoTracking()
+                .Where(v => ids.Contains(v.Id))
+                .ToListAsync(cancellationToken);
+            return rows.ToDictionary(v => v.Id, v => v, StringComparer.OrdinalIgnoreCase);
+        }
+
         private async Task<Dictionary<string, string>> BuildUserDisplayNameMapAsync(IEnumerable<string?> userIds)
         {
             var ids = userIds
@@ -1147,6 +1257,27 @@ namespace CRM.API.Controllers
             if (string.IsNullOrEmpty(id))
                 return null;
             return nameMap.TryGetValue(id, out var name) ? name : null;
+        }
+
+        private static string? ResolvePurchaseOrderVendorName(VendorInfo? vendor, CRM.Core.Models.Purchase.PurchaseOrder order)
+        {
+            if (vendor != null && !string.IsNullOrWhiteSpace(vendor.OfficialName))
+                return vendor.OfficialName.Trim();
+            return string.IsNullOrWhiteSpace(order.VendorName) ? null : order.VendorName.Trim();
+        }
+
+        private static string? ResolvePurchaseOrderVendorCode(VendorInfo? vendor, CRM.Core.Models.Purchase.PurchaseOrder order)
+        {
+            if (vendor != null && !string.IsNullOrWhiteSpace(vendor.Code))
+                return vendor.Code.Trim();
+            return string.IsNullOrWhiteSpace(order.VendorCode) ? null : order.VendorCode.Trim();
+        }
+
+        private static string? ResolvePurchaseOrderVendorEnglishName(VendorInfo? vendor)
+        {
+            if (vendor != null && !string.IsNullOrWhiteSpace(vendor.EnglishOfficialName))
+                return vendor.EnglishOfficialName.Trim();
+            return null;
         }
 
         private object MaskPurchaseOrder(
@@ -1193,8 +1324,9 @@ namespace CRM.API.Controllers
                 order.PurchaseOrderCode,
                 order.FreightForwarderOrderNo,
                 VendorId = canViewVendorInfo ? order.VendorId : null,
-                VendorName = canViewVendorInfo ? order.VendorName : null,
-                VendorCode = canViewVendorInfo ? order.VendorCode : null,
+                VendorName = canViewVendorInfo ? ResolvePurchaseOrderVendorName(vendor, order) : null,
+                VendorCode = canViewVendorInfo ? ResolvePurchaseOrderVendorCode(vendor, order) : null,
+                VendorEnglishName = canViewVendorInfo ? ResolvePurchaseOrderVendorEnglishName(vendor) : null,
                 VendorContactId = canViewVendorInfo ? order.VendorContactId : null,
                 VendorContactEmail = canViewVendorInfo ? vendorContact?.Email : null,
                 VendorContactName = canViewVendorInfo ? (vendorContact?.CName ?? vendorContact?.EName) : null,

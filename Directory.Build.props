@@ -1,0 +1,6 @@
+<Project>
+  <!-- 国内网络常无法访问 api.nuget.org 漏洞索引，会触发 NU1900；不影响编译与还原 -->
+  <PropertyGroup>
+    <NuGetAudit>false</NuGetAudit>
+  </PropertyGroup>
+</Project>

@@ -920,14 +920,7 @@ public class PackingService : IPackingService
             var lineId = pi.SellOrderItemId?.Trim();
             if (string.IsNullOrEmpty(lineId))
                 continue;
-            var fallbackId = await _db.StockOutRequests
-                .AsNoTracking()
-                .Where(r => !r.IsDeleted && r.SalesOrderItemId == lineId)
-                .OrderBy(r => r.Status == StockOutRequestStatusCode.Packed ? 0 : 1)
-                .ThenBy(r => r.Status == StockOutRequestStatusCode.PendingPacking ? 1 : 2)
-                .ThenBy(r => r.RequestCode)
-                .Select(r => r.Id)
-                .FirstOrDefaultAsync(cancellationToken);
+            var fallbackId = await TryResolveFallbackStockOutNotifyIdForSellLineAsync(lineId, cancellationToken);
             if (!string.IsNullOrWhiteSpace(fallbackId))
                 notifyIdSet.Add(fallbackId.Trim());
         }
@@ -1481,12 +1474,22 @@ public class PackingService : IPackingService
                 ? "所选装箱单无有效明细行，无法拣货"
                 : "所选装箱单无有效明细行，无法出库");
 
+        var resolvedNotifyIds = new List<string>(notifyIdsFromItems);
+        foreach (var lineId in sellLineIds)
+        {
+            var fallbackId = await TryResolveFallbackStockOutNotifyIdForSellLineAsync(lineId, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(fallbackId))
+                resolvedNotifyIds.Add(fallbackId.Trim());
+        }
+        resolvedNotifyIds = resolvedNotifyIds
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
         IQueryable<StockOutRequest> requestQuery = _db.StockOutRequests
             .AsNoTracking()
             .Where(r =>
                 !r.IsDeleted
-                && (notifyIdsFromItems.Contains(r.Id)
-                    || (sellLineIds.Count > 0 && sellLineIds.Contains(r.SalesOrderItemId))));
+                && resolvedNotifyIds.Contains(r.Id));
         if (forPicking)
         {
             const short cancelledStatus = StockOutRequestStatusCode.Cancelled;
@@ -1599,12 +1602,22 @@ public class PackingService : IPackingService
             .Cast<string>()
             .ToList();
 
+        var resolvedNotifyIds = new List<string>(notifyIdsFromItems);
+        foreach (var lineId in sellLineIds)
+        {
+            var fallbackId = await TryResolveFallbackStockOutNotifyIdForSellLineAsync(lineId, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(fallbackId))
+                resolvedNotifyIds.Add(fallbackId.Trim());
+        }
+        resolvedNotifyIds = resolvedNotifyIds
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
         var requests = await _db.StockOutRequests
             .AsNoTracking()
             .Where(r =>
                 !r.IsDeleted
-                && (notifyIdsFromItems.Contains(r.Id)
-                    || (sellLineIds.Count > 0 && sellLineIds.Contains(r.SalesOrderItemId))))
+                && resolvedNotifyIds.Contains(r.Id))
             .OrderBy(r => r.RequestCode)
             .ToListAsync(cancellationToken);
 
@@ -1667,7 +1680,8 @@ public class PackingService : IPackingService
                 pid,
                 StockOutRequestStatusCode.StockedOut,
                 actor,
-                cancellationToken: cancellationToken);
+                new[] { requestId },
+                cancellationToken);
 
             lines.Add(new PackingBatchStockOutLineDto
             {
@@ -1710,13 +1724,12 @@ public class PackingService : IPackingService
             .ToList();
         if (sellLineIds.Count > 0)
         {
-            var fallbackIds = await _db.StockOutRequests
-                .AsNoTracking()
-                .Where(r => !r.IsDeleted && sellLineIds.Contains(r.SalesOrderItemId))
-                .Select(r => r.Id)
-                .ToListAsync(cancellationToken);
-            foreach (var id in fallbackIds)
-                idSet.Add(id);
+            foreach (var lineId in sellLineIds)
+            {
+                var fallbackId = await TryResolveFallbackStockOutNotifyIdForSellLineAsync(lineId, cancellationToken);
+                if (!string.IsNullOrWhiteSpace(fallbackId))
+                    idSet.Add(fallbackId.Trim());
+            }
         }
 
         return idSet.ToList();
@@ -1919,8 +1932,7 @@ public class PackingService : IPackingService
                     var sellLineId = pi.SellOrderItemId?.Trim();
                     if (string.IsNullOrEmpty(sellLineId))
                         continue;
-                    var req = requests.FirstOrDefault(r =>
-                        string.Equals(r.SalesOrderItemId.Trim(), sellLineId, StringComparison.OrdinalIgnoreCase));
+                    var req = PickStockOutRequestForSellLine(requests, sellLineId);
                     if (req != null)
                     {
                         requestId = req.Id.Trim();
@@ -1988,6 +2000,45 @@ public class PackingService : IPackingService
         }
 
         return links;
+    }
+
+    /// <summary>
+    /// 装箱明细未绑 stockout_notify_id 时，按销售行回退匹配一条出库通知（分批出库时勿取同销售行全部通知）。
+    /// </summary>
+    private async Task<string?> TryResolveFallbackStockOutNotifyIdForSellLineAsync(
+        string sellOrderItemId,
+        CancellationToken cancellationToken)
+    {
+        var lineId = sellOrderItemId?.Trim();
+        if (string.IsNullOrEmpty(lineId))
+            return null;
+
+        return await _db.StockOutRequests
+            .AsNoTracking()
+            .Where(r => !r.IsDeleted && r.SalesOrderItemId == lineId)
+            .OrderBy(r => r.Status == StockOutRequestStatusCode.Packed ? 0 : 1)
+            .ThenBy(r => r.Status == StockOutRequestStatusCode.PendingPacking ? 1 : 2)
+            .ThenBy(r => r.RequestCode)
+            .Select(r => r.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    private static StockOutRequest? PickStockOutRequestForSellLine(
+        IReadOnlyList<StockOutRequest> requests,
+        string sellOrderItemId)
+    {
+        var lineId = sellOrderItemId.Trim();
+        var candidates = requests
+            .Where(r => string.Equals(r.SalesOrderItemId.Trim(), lineId, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        if (candidates.Count == 0)
+            return null;
+
+        return candidates
+            .OrderBy(r => r.Status == StockOutRequestStatusCode.Packed ? 0 : 1)
+            .ThenBy(r => r.Status == StockOutRequestStatusCode.PendingPacking ? 1 : 2)
+            .ThenBy(r => r.RequestCode)
+            .First();
     }
 
     /// <inheritdoc />

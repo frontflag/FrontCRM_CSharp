@@ -18,15 +18,18 @@ export const QUOTE_METHOD_OPTIONS: ReadonlyArray<{ label: string; value: number 
   { label: '短信', value: 4 }
 ]
 
-/** 产品仅支持「采购轮询」（与 DB assign_method = 2 一致） */
-export const ASSIGN_METHOD_OPTIONS: ReadonlyArray<{ label: string; value: number }> = [
-  { label: '采购轮询', value: 2 }
+/** 分配方式下拉（与 DB assign_method 一致） */
+export const ASSIGN_METHOD_OPTIONS: ReadonlyArray<{ label: string; value: number; tip: string }> = [
+  { label: '条目轮询', value: 2, tip: '按需求条目轮询分配报价员' },
+  { label: '品牌轮询', value: 3, tip: '按品牌轮询分配报价员' }
 ]
 
-/** 历史数据 1/3/4 仅用于详情只读展示 */
+/** @deprecated 请使用 ASSIGN_METHOD_OPTIONS[].tip */
+export const ASSIGN_METHOD_ITEM_ROUND_ROBIN_TIP = ASSIGN_METHOD_OPTIONS[0].tip
+
+/** 历史数据 1/4 仅用于详情只读展示 */
 const ASSIGN_METHOD_LEGACY_LABELS: Readonly<Record<number, string>> = {
   1: '系统分配同一采购',
-  3: '相同品牌分配同一采购',
   4: '指定采购员'
 }
 
@@ -42,6 +45,12 @@ export function formatRfqTypeLabel(v?: number | null) {
 
 export function formatQuoteMethodLabel(v?: number | null) {
   return labelFromOptions(QUOTE_METHOD_OPTIONS, v)
+}
+
+export function getAssignMethodTip(v?: number | null) {
+  if (v == null) return ''
+  const hit = ASSIGN_METHOD_OPTIONS.find((o) => o.value === v)
+  return hit?.tip ?? ''
 }
 
 export function formatAssignMethodLabel(v?: number | null) {

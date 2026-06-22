@@ -1,0 +1,57 @@
+/**
+ * 左侧工作区：收藏 / 历史面板文字对比度
+ * 各 *FavoritePanel / *RecentHistoryPanel 曾写死暗色主题浅色字，浅色主题下几乎不可读。
+ */
+.aux-panel-body {
+  [class*='-favorite-panel__head'],
+  [class*='-recent-panel__head'] {
+    color: var(--crm-text-primary) !important;
+  }
+
+  [class*='-favorite-panel__empty'],
+  [class*='-recent-panel__empty'] {
+    color: var(--crm-text-secondary) !important;
+  }
+
+  [class*='-favorite-panel__table'],
+  [class*='-recent-panel__table'] {
+    color: var(--crm-text-primary) !important;
+  }
+
+  [class*='-favorite-panel__table'] th,
+  [class*='-recent-panel__table'] th {
+    color: var(--crm-text-secondary) !important;
+    border-bottom-color: var(--crm-border-panel) !important;
+  }
+
+  [class*='-favorite-panel__table'] td,
+  [class*='-recent-panel__table'] td {
+    color: var(--crm-text-primary) !important;
+    border-bottom-color: var(--crm-border-panel) !important;
+  }
+
+  [class*='-favorite-panel__code'],
+  [class*='-recent-panel__code'] {
+    color: var(--crm-cyan-primary) !important;
+  }
+
+  [class*='-recent-panel__time'] {
+    color: var(--crm-text-muted) !important;
+  }
+
+  [class*='-recent-panel__clear'] {
+    color: var(--crm-text-secondary) !important;
+    background: transparent !important;
+    border-color: var(--crm-border-panel) !important;
+
+    &:hover {
+      color: var(--crm-text-primary) !important;
+      background: var(--crm-accent-012) !important;
+    }
+  }
+
+  [class*='-favorite-panel__row']:hover,
+  [class*='-recent-panel__row']:hover {
+    background: var(--crm-accent-012) !important;
+  }
+}

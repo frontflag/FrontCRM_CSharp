@@ -305,6 +305,13 @@ namespace CRM.Core.Services
             var expectedArrival = request.ExpectedArrivalDate ?? poItem.DeliveryDate ?? po.DeliveryDate;
             var expectTotal = Math.Round(expectQty * poItem.Cost, 2, MidpointRounding.AwayFromZero);
             var regionType = RegionTypeCode.Normalize(request.RegionType);
+            var shipmentMethod = LogisticsShipmentMethodCode.Normalize(request.ShipmentMethod);
+            if (!string.IsNullOrEmpty(shipmentMethod))
+                LogisticsShipmentMethodCode.EnsureRequired(shipmentMethod, nameof(request.ShipmentMethod));
+            var courierTrackingNo = string.IsNullOrWhiteSpace(request.CourierTrackingNo)
+                ? null
+                : request.CourierTrackingNo.Trim();
+            var expressCompany = LogisticsShipmentMethodCode.NormalizeExpressCompany(request.ExpressCompany);
 
             var notice = new StockInNotify
             {
@@ -330,6 +337,9 @@ namespace CRM.Core.Services
                 ExpectTotal = expectTotal,
                 ReceiveTotal = 0,
                 Remark = string.IsNullOrWhiteSpace(request.Remark) ? null : request.Remark.Trim(),
+                ShipmentMethod = shipmentMethod,
+                CourierTrackingNo = courierTrackingNo,
+                ExpressCompany = expressCompany,
                 CreateTime = DateTime.UtcNow
             };
             await _notifyRepo.AddAsync(notice);
@@ -698,14 +708,14 @@ namespace CRM.Core.Services
             await _qcRepo.UpdateAsync(qc);
 
             var notice = await _notifyRepo.GetByIdAsync(qc.StockInNotifyId);
-            if (notice != null)
+            var stockIn = await _stockInRepo.GetByIdAsync(stockInId);
+            if (notice != null && stockIn != null && stockIn.Status == StockInHeaderStatusCode.Posted)
             {
                 notice.Status = 100;
                 notice.ModifyTime = DateTime.UtcNow;
                 await _notifyRepo.UpdateAsync(notice);
             }
 
-            var stockIn = await _stockInRepo.GetByIdAsync(stockInId);
             if (stockIn != null)
             {
                 stockIn.SourceId = string.IsNullOrWhiteSpace(notice?.Id) ? null : notice!.Id.Trim();

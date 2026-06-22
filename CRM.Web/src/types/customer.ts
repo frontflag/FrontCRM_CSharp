@@ -148,10 +148,14 @@ export interface CustomerAddress {
   customerId: string
   addressType: string
   country?: string
+  /** 1=中国 2=海外 */
+  countryCode?: number
   province?: string
   city?: string
   district?: string
   streetAddress: string
+  /** 地址公司名称 */
+  companyName?: string
   zipCode?: string
   contactPerson?: string
   contactPhone?: string
@@ -177,6 +181,8 @@ export interface Customer {
   salesPersonName?: string
   region?: string
   country?: string
+  /** 1=中国 2=海外 */
+  countryCode?: number
   province?: string
   city?: string
   district?: string
@@ -275,6 +281,8 @@ export interface CreateCustomerRequest {
   salesPersonId?: string
   salesPersonName?: string
   country?: string
+  /** 1=中国 2=海外 */
+  countryCode?: number
   province?: string
   city?: string
   district?: string
@@ -316,6 +324,8 @@ export interface UpdateCustomerRequest {
   salesPersonId?: string
   salesPersonName?: string
   country?: string
+  /** 1=中国 2=海外 */
+  countryCode?: number
   province?: string
   city?: string
   district?: string
@@ -427,10 +437,14 @@ export interface CreateContactRequest {
 export interface CreateAddressRequest {
   addressType: string
   country?: string
+  /** 1=中国 2=海外 */
+  countryCode?: number
   province?: string
   city?: string
   district?: string
   streetAddress: string
+  /** 地址公司名称 */
+  companyName?: string
   zipCode?: string
   contactPerson?: string
   contactPhone?: string

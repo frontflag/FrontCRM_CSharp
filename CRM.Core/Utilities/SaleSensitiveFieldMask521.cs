@@ -215,6 +215,8 @@ public static class SaleSensitiveFieldMask521
         if (!mask || r == null) return;
         r.CustomerId = string.Empty;
         r.CustomerName = null;
+        r.CustomerEnglishName = null;
+        r.CustomerCode = null;
         r.SalesUserId = null;
         r.ReceiptAmount = 0m;
         if (r.Items == null) return;

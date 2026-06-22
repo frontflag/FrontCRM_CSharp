@@ -50,7 +50,9 @@ namespace CRM.Core.Services
         public async Task<IReadOnlyList<CustomerInfo>> FilterCustomersAsync(string userId, IEnumerable<CustomerInfo> source)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin || summary.SaleDataScope == 0) return source.ToList();
+            // 财务部录入收款/销项发票等需选用客户，不按销售数据范围屏蔽主数据（与 FilterFinanceReceiptsAsync 一致）
+            if (summary.IsSysAdmin || summary.SaleDataScope == 0 || IsFinanceDepartmentIdentity(summary.IdentityType))
+                return source.ToList();
             if (summary.SaleDataScope == 4) return Array.Empty<CustomerInfo>();
 
             var list = source.ToList();
@@ -71,7 +73,7 @@ namespace CRM.Core.Services
                 return query;
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin || summary.SaleDataScope == 0)
+            if (summary.IsSysAdmin || summary.SaleDataScope == 0 || IsFinanceDepartmentIdentity(summary.IdentityType))
                 return query;
             if (summary.SaleDataScope == 4)
                 return query.Where(_ => false);
@@ -88,7 +90,8 @@ namespace CRM.Core.Services
         public async Task<IReadOnlyList<VendorInfo>> FilterVendorsAsync(string userId, IEnumerable<VendorInfo> source)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin || summary.PurchaseDataScope == 0)
+            // 财务部录入付款/进项发票等需选用供应商，不按采购数据范围屏蔽主数据（与 FilterFinancePaymentsAsync 一致）
+            if (summary.IsSysAdmin || summary.PurchaseDataScope == 0 || IsFinanceDepartmentIdentity(summary.IdentityType))
                 return source.ToList();
             if (summary.PurchaseDataScope == 4)
                 return Array.Empty<VendorInfo>();
@@ -111,7 +114,7 @@ namespace CRM.Core.Services
                 return query;
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin || summary.PurchaseDataScope == 0)
+            if (summary.IsSysAdmin || summary.PurchaseDataScope == 0 || IsFinanceDepartmentIdentity(summary.IdentityType))
                 return query;
             if (summary.PurchaseDataScope == 4)
                 return query.Where(_ => false);
@@ -571,6 +574,7 @@ namespace CRM.Core.Services
             string? userId,
             IQueryable<Quote> quotes,
             IQueryable<RFQ> rfqs,
+            IQueryable<RFQItem> rfqItems,
             CancellationToken cancellationToken = default)
         {
             _ = cancellationToken;
@@ -578,28 +582,65 @@ namespace CRM.Core.Services
                 return quotes;
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin || summary.SaleDataScope == 0)
+            if (summary.IsSysAdmin)
                 return quotes;
-            if (summary.SaleDataScope == 4)
+
+            if (summary.SaleDataScope == 0 || summary.PurchaseDataScope == 0)
+                return quotes;
+
+            if (summary.SaleDataScope == 4 && summary.PurchaseDataScope == 4)
                 return quotes.Where(_ => false);
 
-            var uid = userId.Trim();
-            if (summary.SaleDataScope == 1)
-            {
-                return quotes.Where(q =>
-                    (q.SalesUserId != null && q.SalesUserId == uid) ||
-                    (q.RFQId != null &&
-                     rfqs.Any(r => r.Id == q.RFQId && r.SalesUserId != null && r.SalesUserId == uid)));
-            }
+            HashSet<string>? saleAllow = null;
+            if (summary.SaleDataScope == 2 || summary.SaleDataScope == 3)
+                saleAllow = await GetAllowedUserIdsAsync(summary, includeChildren: summary.SaleDataScope == 3);
 
-            var allowUserIds = await GetAllowedUserIdsAsync(summary, includeChildren: summary.SaleDataScope == 3);
+            HashSet<string>? purchaseAllow = null;
+            if (summary.PurchaseDataScope == 2 || summary.PurchaseDataScope == 3)
+                purchaseAllow = await GetAllowedUserIdsAsync(summary, includeChildren: summary.PurchaseDataScope == 3);
+
+            var uid = userId.Trim();
+
             return quotes.Where(q =>
-                (q.SalesUserId != null && allowUserIds.Contains(q.SalesUserId)) ||
-                (q.RFQId != null &&
-                 rfqs.Any(r =>
-                     r.Id == q.RFQId &&
-                     r.SalesUserId != null &&
-                     allowUserIds.Contains(r.SalesUserId))));
+                (
+                    summary.SaleDataScope != 4 &&
+                    (
+                        (summary.SaleDataScope == 1 &&
+                         ((q.SalesUserId != null && q.SalesUserId == uid) ||
+                          (q.RFQId != null &&
+                           rfqs.Any(r => r.Id == q.RFQId && r.SalesUserId != null && r.SalesUserId == uid)))) ||
+                        ((summary.SaleDataScope == 2 || summary.SaleDataScope == 3) &&
+                         saleAllow != null &&
+                         ((q.SalesUserId != null && saleAllow.Contains(q.SalesUserId)) ||
+                          (q.RFQId != null &&
+                           rfqs.Any(r =>
+                               r.Id == q.RFQId &&
+                               r.SalesUserId != null &&
+                               saleAllow.Contains(r.SalesUserId)))))
+                    )
+                )
+                ||
+                (
+                    summary.PurchaseDataScope != 4 &&
+                    (
+                        (summary.PurchaseDataScope == 1 &&
+                         ((q.PurchaseUserId != null && q.PurchaseUserId == uid) ||
+                          (q.RFQItemId != null &&
+                           rfqItems.Any(i =>
+                               i.Id == q.RFQItemId &&
+                               (i.AssignedPurchaserUserId1 == uid || i.AssignedPurchaserUserId2 == uid))))) ||
+                        ((summary.PurchaseDataScope == 2 || summary.PurchaseDataScope == 3) &&
+                         purchaseAllow != null &&
+                         ((q.PurchaseUserId != null && purchaseAllow.Contains(q.PurchaseUserId)) ||
+                          (q.RFQItemId != null &&
+                           rfqItems.Any(i =>
+                               i.Id == q.RFQItemId &&
+                               ((!string.IsNullOrWhiteSpace(i.AssignedPurchaserUserId1) &&
+                                 purchaseAllow.Contains(i.AssignedPurchaserUserId1!)) ||
+                                (!string.IsNullOrWhiteSpace(i.AssignedPurchaserUserId2) &&
+                                 purchaseAllow.Contains(i.AssignedPurchaserUserId2!)))))))
+                    )
+                ));
         }
 
         /// <inheritdoc />

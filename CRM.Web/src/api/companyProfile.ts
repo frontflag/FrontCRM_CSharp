@@ -19,6 +19,8 @@ export interface CompanyBankRow {
   id: string
   isDefault: boolean
   enabled: boolean
+  /** 可用付款：勾选后出现在付款单付款银行下拉 */
+  availableForPayment?: boolean
   bankName: string
   accountName: string
   bankAddress: string
@@ -183,4 +185,12 @@ export async function fetchCompanyProfileForReport(): Promise<CompanyProfileBund
 
 export async function saveCompanyProfile(body: CompanyProfileBundle): Promise<void> {
   await apiClient.put(BASE, body)
+}
+
+export async function checkCompanyBankCanDelete(bankId: string): Promise<{ canDelete: boolean }> {
+  const id = String(bankId || '').trim()
+  const res = await apiClient.get<{ canDelete: boolean }>(
+    `${BASE}/bank/${encodeURIComponent(id)}/can-delete`
+  )
+  return { canDelete: Boolean(res?.canDelete) }
 }

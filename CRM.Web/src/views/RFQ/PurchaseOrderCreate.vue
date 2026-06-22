@@ -54,11 +54,23 @@
               </el-select>
             </el-form-item>
             <el-form-item v-else label="供应商">
-              <el-input
-                :model-value="maskPurchaseSensitiveFields ? '—' : formData.vendorName"
-                disabled
-                placeholder="系统自动带出供应商"
-              />
+              <div class="po-vendor-name-row">
+                <el-input
+                  :model-value="maskPurchaseSensitiveFields ? '—' : formData.vendorName"
+                  disabled
+                  placeholder="系统自动带出供应商"
+                  class="po-vendor-name-input"
+                />
+                <el-button
+                  v-if="showRefreshVendorNameBtn"
+                  type="primary"
+                  link
+                  :loading="refreshVendorNameLoading"
+                  @click="handleRefreshVendorName"
+                >
+                  刷新
+                </el-button>
+              </div>
             </el-form-item>
           </el-col>
         </el-row>
@@ -184,7 +196,11 @@
               </el-col>
               <el-col :span="12">
                 <el-form-item label="品牌">
-                  <el-input v-model="item.brand" placeholder="品牌" />
+                  <BizBrandSelect
+                    v-model="item.brandId"
+                    placeholder="请选择品牌"
+                    @change="(p) => onItemBrandChange(item, p)"
+                  />
                 </el-form-item>
               </el-col>
             </el-row>
@@ -292,6 +308,8 @@ import {
 } from '@/utils/purchaseOrderStaffPickRules'
 import MaterialProductionDateSelect from '@/components/MaterialProductionDateSelect.vue'
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
+import BizBrandSelect from '@/components/Biz/BizBrandSelect.vue'
+import { bizBrandApi } from '@/api/bizBrand'
 import { formatCurrencyTotal, formatUnitPriceWithCurrencyCodeSuffix } from '@/utils/moneyFormat'
 import { useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
@@ -328,6 +346,11 @@ const genLoading = ref(false)
 
 const staffPickLocked = computed(() => isPurchaseOrderAssistorLockedMode(authStore.user))
 const staffPickFree = computed(() => canPickPurchaseOrderStaffFreely(authStore.user))
+const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
+const showRefreshVendorNameBtn = computed(
+  () => editId.value && isSysAdmin.value && !maskPurchaseSensitiveFields.value
+)
+const refreshVendorNameLoading = ref(false)
 const assistorReadonlyLabel = ref('')
 const purchaseUserSelectOptions = ref<PurchaseDeptStaffUserOption[]>([])
 const purchaseUserOptionsLoading = ref(false)
@@ -626,6 +649,24 @@ function onVendorContactChange(id: string | null | undefined) {
   formData.value.vendorContactName = row?.label?.split(' / ')[0]?.trim() || ''
 }
 
+async function handleRefreshVendorName() {
+  if (!editId.value) return
+  refreshVendorNameLoading.value = true
+  try {
+    const result = await purchaseOrderApi.refreshVendorName(editId.value)
+    if (result.newVendorName) formData.value.vendorName = result.newVendorName
+    if (result.changed) {
+      ElMessage.success('供应商名称已刷新')
+    } else {
+      ElMessage.info('供应商名称与主数据一致，无需更新')
+    }
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '刷新供应商名称失败'))
+  } finally {
+    refreshVendorNameLoading.value = false
+  }
+}
+
 const addItem = () => {
   generatedFromRequisition.value = false
   formData.value.items.push({
@@ -633,6 +674,7 @@ const addItem = () => {
     vendorId: formData.value.vendorId?.trim() || undefined,
     pn: '',
     brand: '',
+    brandId: undefined as number | undefined,
     customerMaterialModel: '',
     targetPrice: 0,
     qty: 1,
@@ -647,6 +689,54 @@ const addItem = () => {
 
 const removeItem = (index: number) => {
   formData.value.items.splice(index, 1)
+}
+
+function onItemBrandChange(
+  row: { brand?: string; brandId?: number },
+  payload: { id: number; standardBrand: string }
+) {
+  if (payload.id > 0) {
+    row.brand = (payload.standardBrand || '').trim()
+  } else {
+    row.brand = ''
+    row.brandId = undefined
+  }
+}
+
+async function resolveBrandIdsForItems(items: Array<{ brand?: string; brandId?: number }>) {
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i]
+    if (it.brandId && it.brandId > 0) continue
+    const text = (it.brand || '').trim()
+    if (!text) continue
+    try {
+      const opts = await bizBrandApi.fetchOptions({ keyword: text, pageSize: 50 })
+      const match = opts.find(
+        (o) => (o.standardBrand || '').trim().toLowerCase() === text.toLowerCase()
+      )
+      if (match) {
+        it.brandId = match.id
+        it.brand = (match.standardBrand || text).trim()
+      }
+    } catch {
+      /* 无法匹配时保留文本，提交前校验提示重选 */
+    }
+  }
+}
+
+function validateItemsBrand(): boolean {
+  if (!formData.value.items.length) {
+    ElMessage.warning('请至少添加一条订单明细')
+    return false
+  }
+  for (let i = 0; i < formData.value.items.length; i++) {
+    const it = formData.value.items[i]
+    if (!it.brandId || it.brandId <= 0) {
+      ElMessage.warning(`明细 ${i + 1}：请选择品牌`)
+      return false
+    }
+  }
+  return true
 }
 
 function buildItemsPayload() {
@@ -701,6 +791,7 @@ async function loadOrderForEdit(id: string) {
       vendorId: it.vendorId as string | undefined,
       pn: String(it.pn ?? ''),
       brand: String(it.brand ?? ''),
+      brandId: undefined as number | undefined,
       customerMaterialModel: '',
       targetPrice: cost,
       qty: Number(it.qty) || 1,
@@ -712,6 +803,7 @@ async function loadOrderForEdit(id: string) {
       innerComment: String(it.innerComment ?? '')
     }
   })
+  await resolveBrandIdsForItems(formData.value.items)
 }
 
 const handleSubmit = async () => {
@@ -727,6 +819,7 @@ const handleSubmit = async () => {
     const ok = await validateElFormOrWarn(formRef)
     if (!ok) return
   }
+  if (!validateItemsBrand()) return
   await runSaveTask({
     loading: submitLoading,
     successMessage: editId.value ? '采购订单已保存' : '采购订单创建成功',
@@ -832,6 +925,7 @@ async function handleGeneratePurchaseOrder() {
         vendorId: pr.quoteVendorId ?? MANUAL_VENDOR_ID,
         pn: pr.pn ?? '',
         brand: pr.brand ?? '',
+        brandId: undefined as number | undefined,
         customerMaterialModel: pr.customerMaterialModel ?? '',
         targetPrice: quoteCostNum,
         qty: pr.qty ?? 1,
@@ -845,6 +939,7 @@ async function handleGeneratePurchaseOrder() {
       }
     ]
 
+    await resolveBrandIdsForItems(formData.value.items)
     generatedFromRequisition.value = true
     await initStaffPickFields()
     if (staffPickLocked.value) {
@@ -931,6 +1026,16 @@ onMounted(async () => {
 
 .po-vendor-select {
   width: 100%;
+}
+.po-vendor-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+.po-vendor-name-input {
+  flex: 1;
+  min-width: 0;
 }
 .po-vendor-search-hint {
   padding: 8px 12px;

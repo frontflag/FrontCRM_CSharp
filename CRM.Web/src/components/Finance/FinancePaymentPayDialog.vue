@@ -36,6 +36,11 @@
                 <el-input v-else :model-value="form.vendorName" readonly />
               </el-form-item>
             </el-col>
+            <el-col :span="12">
+              <el-form-item :label="t('financePaymentList.formFreightForwarderOrderNo')">
+                <el-input :model-value="freightForwarderOrderNoDisplay" readonly />
+              </el-form-item>
+            </el-col>
             <el-col :span="24">
               <el-form-item :label="t('financePaymentList.formVendorReceivingBank')">
                 <el-input
@@ -266,6 +271,14 @@ const vendorReceivingBankDisplay = computed(() => {
 const editVendorCodeDisplay = computed(() => {
   const c = (form.vendorCode || '').trim()
   return c || '—'
+})
+
+const freightForwarderOrderNoDisplay = computed(() => {
+  if (maskPurchaseSensitiveFields.value) return '—'
+  const ext = form as unknown as Record<string, unknown>
+  const raw = form.freightForwarderOrderNo ?? ext.FreightForwarderOrderNo ?? ext.freightForwarderOrderNo
+  const s = raw != null ? String(raw).trim() : ''
+  return s || '—'
 })
 
 const canShowFinishButton = computed(() => Number(form.status) === 10)

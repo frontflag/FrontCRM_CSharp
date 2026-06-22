@@ -68,4 +68,49 @@ public sealed class DataPermissionServiceTests
 
         Assert.Empty(result);
     }
+
+    [Fact]
+    public async Task FilterCustomersAsync_finance_identity_not_blocked_when_sale_scope_is_none()
+    {
+        var rbac = Substitute.For<IRbacService>();
+        rbac.GetUserPermissionSummaryAsync("finance-1").Returns(new UserPermissionSummaryDto
+        {
+            UserId = "finance-1",
+            IsSysAdmin = false,
+            IdentityType = 5,
+            SaleDataScope = 4
+        });
+
+        var sut = CreateSut(rbac);
+        var source = new List<CustomerInfo>
+        {
+            new() { Id = "c1", CustomerCode = "C001" },
+            new() { Id = "c2", CustomerCode = "C002" }
+        };
+
+        var result = await sut.FilterCustomersAsync("finance-1", source);
+
+        Assert.Equal(2, result.Count);
+    }
+
+    [Fact]
+    public async Task FilterVendorsAsync_finance_identity_not_blocked_when_purchase_scope_is_none()
+    {
+        var rbac = Substitute.For<IRbacService>();
+        rbac.GetUserPermissionSummaryAsync("finance-1").Returns(new UserPermissionSummaryDto
+        {
+            UserId = "finance-1",
+            IsSysAdmin = false,
+            IdentityType = 5,
+            PurchaseDataScope = 4
+        });
+
+        var sut = CreateSut(rbac);
+        var source = new List<VendorInfo> { new() { Id = "v1", Code = "V001" } };
+
+        var result = await sut.FilterVendorsAsync("finance-1", source);
+
+        Assert.Single(result);
+        Assert.Equal("v1", result[0].Id);
+    }
 }

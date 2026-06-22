@@ -84,9 +84,18 @@ namespace CRM.Core.Interfaces
 
     public class FinancePaymentQueryRequest
     {
+        /// <summary>兼容旧版：付款单号或供应商模糊检索。</summary>
         public string? Keyword { get; set; }
+        public string? FinancePaymentCode { get; set; }
+        public string? FreightForwarderOrderNo { get; set; }
+        public string? BankSlipNo { get; set; }
+        public short? PaymentMode { get; set; }
+        public string? VendorName { get; set; }
+        public string? Remark { get; set; }
         public short? Status { get; set; }
+        /// <summary>付款日期起（含）。</summary>
         public DateTime? StartDate { get; set; }
+        /// <summary>付款日期止（含当日时按 +1 天边界处理）。</summary>
         public DateTime? EndDate { get; set; }
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 20;

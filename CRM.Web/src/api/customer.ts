@@ -92,12 +92,22 @@ export function mapAddressUiTypeToShort(type: string | number | undefined): numb
 
 /** 后端 AddAddressRequest（camelCase JSON） */
 export function mapCreateAddressRequestToAddBody(data: CreateAddressRequest) {
+  const countryName = String(data.country ?? '').trim() || undefined;
+  const countryCode =
+    data.countryCode ??
+    (countryName && countryName !== '中国'
+      ? 2
+      : 1);
   return {
     addressType: mapAddressUiTypeToShort(data.addressType),
+    country: countryCode,
+    countryName,
     province: data.province || undefined,
     city: data.city || undefined,
     area: data.district || undefined,
     address: data.streetAddress || undefined,
+    companyName: data.companyName?.trim() || undefined,
+    zipCode: data.zipCode?.trim() || undefined,
     contactName: data.contactPerson || undefined,
     contactPhone: data.contactPhone || undefined,
     isDefault: !!data.isDefault
@@ -111,10 +121,21 @@ export function mapCreateAddressRequestToAddBody(data: CreateAddressRequest) {
 export function mapPartialCreateAddressToUpdateBody(data: Partial<CreateAddressRequest>): Record<string, unknown> {
   const o: Record<string, unknown> = {};
   if (data.addressType !== undefined) o.addressType = mapAddressUiTypeToShort(data.addressType);
+  if (data.country !== undefined || data.countryCode !== undefined) {
+    const countryName = data.country !== undefined ? (data.country ?? '') : undefined;
+    if (countryName !== undefined) o.countryName = countryName;
+    if (data.countryCode !== undefined) {
+      o.country = data.countryCode;
+    } else if (countryName !== undefined) {
+      o.country = countryName && countryName !== '中国' ? 2 : 1;
+    }
+  }
   if (data.province !== undefined) o.province = data.province ?? '';
   if (data.city !== undefined) o.city = data.city ?? '';
   if (data.district !== undefined) o.area = data.district ?? '';
   if (data.streetAddress !== undefined) o.address = data.streetAddress ?? '';
+  if (data.companyName !== undefined) o.companyName = data.companyName ?? '';
+  if (data.zipCode !== undefined) o.zipCode = data.zipCode ?? '';
   if (data.contactPerson !== undefined) o.contactName = data.contactPerson ?? '';
   if (data.contactPhone !== undefined) o.contactPhone = data.contactPhone ?? '';
   if (data.isDefault !== undefined) o.isDefault = data.isDefault;
@@ -146,16 +167,32 @@ export function normalizeCustomerAddressFromApi(raw: unknown): CustomerAddress {
   const street = (r.streetAddress ?? r.address ?? '') as string;
   const district = (r.district ?? r.area ?? '') as string;
   const contact = (r.contactPerson ?? r.contactName ?? '') as string;
+  const countryNameRaw = r.countryName ?? r.CountryName;
+  const countryCodeRaw = r.country ?? r.Country;
+  const countryCode =
+    typeof countryCodeRaw === 'number'
+      ? countryCodeRaw
+      : countryCodeRaw != null && countryCodeRaw !== '' && !Number.isNaN(Number(countryCodeRaw))
+        ? Number(countryCodeRaw)
+        : undefined;
+  const countryDisplay =
+    countryNameRaw != null && String(countryNameRaw).trim() !== ''
+      ? String(countryNameRaw).trim()
+      : countryCode === 1
+        ? '中国'
+        : undefined;
   return {
     id,
     customerId: String(r.customerId ?? ''),
     addressType,
-    country: r.country != null && r.country !== '' ? String(r.country) : undefined,
+    country: countryDisplay,
+    countryCode,
     province: (r.province as string) || undefined,
     city: (r.city as string) || undefined,
     district,
     streetAddress: street,
-    zipCode: (r.zipCode as string) || undefined,
+    companyName: (r.companyName ?? r.CompanyName ?? '') as string || undefined,
+    zipCode: (r.zipCode ?? r.ZipCode ?? '') as string || undefined,
     contactPerson: contact,
     contactPhone: (r.contactPhone as string) || undefined,
     isDefault: Boolean(r.isDefault),

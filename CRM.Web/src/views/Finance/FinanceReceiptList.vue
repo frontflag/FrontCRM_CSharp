@@ -74,6 +74,7 @@
       :data="tableData"
       v-loading="loading"
       @row-dblclick="openDetail"
+      @header-dragend="onReceiptTableHeaderDragEnd"
       row-class-name="table-row-pointer"
     >
       <template #col-financeReceiptCode="{ row }">
@@ -93,8 +94,19 @@
           {{ receiptPurposeLabel(row.receiptPurpose) }}
         </el-tag>
       </template>
-      <template #col-customerName="{ row }">
-        <span>{{ maskSaleSensitiveFields ? '—' : (row.customerName || '—') }}</span>
+      <template #col-customer-header>
+        <CustomerExtendColumnHeader
+          :active-field="customerExtendActiveField"
+          @set-active-field="setCustomerExtendActiveField"
+        />
+      </template>
+      <template #col-customer="{ row }">
+        <CustomerExtendCell
+          :row="row"
+          :active-field="customerExtendActiveField"
+          :masked="maskSaleSensitiveFields"
+          :empty-text="t('quoteList.na')"
+        />
       </template>
       <template #col-receiptAmount="{ row }">
         <span class="amount-text">{{
@@ -394,12 +406,33 @@ import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTim
 import { customerApi } from '@/api/customer'
 import salesOrderApi from '@/api/salesOrder'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import CustomerExtendColumnHeader from '@/components/list/CustomerExtendColumnHeader.vue'
+import CustomerExtendCell from '@/components/list/CustomerExtendCell.vue'
+import { useCustomerExtendColumn, isCustomerExtendTableColumn } from '@/composables/useCustomerExtendColumn'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useAuthStore } from '@/stores/auth'
 import { useFinanceWriteGate } from '@/composables/useDepartmentDataReadOnly'
 
 const router = useRouter()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
+const {
+  expanded: customerExtendExpanded,
+  activeField: customerExtendActiveField,
+  colWidth: customerExtendColWidth,
+  colMinWidth: customerExtendColMinWidth,
+  setActiveField: setCustomerExtendActiveField,
+  applyOuterWidthFromTable: applyCustomerExtendOuterWidth
+} = useCustomerExtendColumn()
+
+function onReceiptTableHeaderDragEnd(
+  newWidth: number,
+  _oldWidth: number,
+  column: { property?: string; label?: string }
+) {
+  if (!isCustomerExtendTableColumn(column)) return
+  applyCustomerExtendOuterWidth(newWidth)
+}
+
 const { t } = useI18n()
 const authStore = useAuthStore()
 const { canWriteFinanceReceipt } = useFinanceWriteGate()
@@ -483,10 +516,22 @@ function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
 
-const receiptTableColumns = computed<CrmTableColumnDef[]>(() => [
+const receiptTableColumns = computed<CrmTableColumnDef[]>(() => {
+  void customerExtendExpanded.value
+  void customerExtendColWidth.value
+  return [
   { key: 'status', label: t('financeReceiptList.columns.status'), prop: 'status', width: 100, align: 'center' },
   { key: 'receiptPurpose', label: t('financeReceiptList.columns.purpose'), prop: 'receiptPurpose', width: 90, align: 'center' },
-  { key: 'customerName', label: t('financeReceiptList.columns.customer'), prop: 'customerName', minWidth: 160, showOverflowTooltip: true },
+  {
+    key: 'customer',
+    label: t('common.customerExtendCol.columnTitle'),
+    prop: 'customer',
+    minWidth: customerExtendColMinWidth.value,
+    width: customerExtendColWidth.value,
+    showOverflowTooltip: true,
+    className: 'customer-extend-col',
+    labelClassName: 'customer-extend-col'
+  },
   { key: 'receiptAmount', label: t('financeReceiptList.columns.amount'), prop: 'receiptAmount', width: 140, align: 'right' },
   { key: 'receiptMode', label: t('financeReceiptList.columns.mode'), prop: 'receiptMode', width: 110 },
   { key: 'receiptDate', label: t('financeReceiptList.columns.date'), prop: 'receiptDate', width: 120 },
@@ -506,9 +551,10 @@ const receiptTableColumns = computed<CrmTableColumnDef[]>(() => [
     reorderable: false,
     className: 'op-col',
     labelClassName: 'op-col',
-  resizable: false
+    resizable: false
   }
-])
+  ]
+})
 
 const stats = reactive({ monthTotal: 0, pendingCount: 0, receivedCount: 0, draftCount: 0 })
 

@@ -168,6 +168,16 @@ try
         Log.Information("Kestrel 已注册地址: {Urls}", string.Join(", ", app.Urls));
 
     Log.Information("即将调用 Kestrel 监听（若失败请查是否端口已被占用）");
+    app.Lifetime.ApplicationStarted.Register(() =>
+    {
+        var listenHint = app.Urls.Count > 0
+            ? string.Join(", ", app.Urls)
+            : (cfgUrls ?? aspnetUrls ?? "http://localhost:5000");
+        Log.Information(
+            "FrontCRM API 已启动。监听: {ListenUrls}；Swagger: {SwaggerUrl}",
+            listenHint,
+            listenHint.TrimEnd('/') + "/swagger");
+    });
     app.Run();
 }
 catch (Exception ex)
@@ -176,7 +186,7 @@ catch (Exception ex)
     {
         Log.Fatal(
             ex,
-            "Kestrel 绑定失败：端口已被占用。请在服务器执行: sudo ss -tlnp | grep :5000 或 sudo lsof -i :5000；停止旧 dotnet/Docker 后再启动。PID={ProcessId}",
+            "Kestrel 绑定失败：端口已被占用。Windows: netstat -ano | findstr :5000 查 PID，再 taskkill /PID <pid> /F；Linux: ss -tlnp | grep :5000。停止旧 CRM.API/dotnet 后再启动。当前 PID={ProcessId}",
             Environment.ProcessId);
     }
     else

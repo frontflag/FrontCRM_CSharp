@@ -408,10 +408,13 @@ namespace CRM.Core.Services
                 CustomerId = customerId,
                 AddressType = request.AddressType,
                 Country = request.Country,
+                CountryName = request.CountryName?.Trim(),
                 Province = request.Province?.Trim(),
                 City = request.City?.Trim(),
                 Area = request.Area?.Trim(),
                 Address = request.Address?.Trim(),
+                CompanyName = request.CompanyName?.Trim(),
+                ZipCode = request.ZipCode?.Trim(),
                 ContactName = request.ContactName?.Trim(),
                 ContactPhone = request.ContactPhone?.Trim(),
                 IsDefault = request.IsDefault,
@@ -446,6 +449,8 @@ namespace CRM.Core.Services
                 address.AddressType = request.AddressType.Value;
             if (request.Country.HasValue)
                 address.Country = request.Country.Value;
+            if (request.CountryName != null)
+                address.CountryName = request.CountryName.Trim();
             if (request.Province != null)
                 address.Province = request.Province.Trim();
             if (request.City != null)
@@ -454,6 +459,10 @@ namespace CRM.Core.Services
                 address.Area = request.Area.Trim();
             if (request.Address != null)
                 address.Address = request.Address.Trim();
+            if (request.CompanyName != null)
+                address.CompanyName = request.CompanyName.Trim();
+            if (request.ZipCode != null)
+                address.ZipCode = request.ZipCode.Trim();
             if (request.ContactName != null)
                 address.ContactName = request.ContactName.Trim();
             if (request.ContactPhone != null)

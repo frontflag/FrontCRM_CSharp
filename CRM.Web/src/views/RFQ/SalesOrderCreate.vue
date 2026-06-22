@@ -247,11 +247,15 @@
                   <el-col :span="8">
                     <el-form-item
                       :label="t('salesOrderCreate.fields.brand')"
-                      :prop="'items.' + index + '.brand'"
-                      :rules="itemRules.brand"
+                      :prop="'items.' + index + '.brandId'"
+                      :rules="itemRules.brandId"
                       label-width="72px"
                     >
-                      <el-input v-model="formData.items[index].brand" :placeholder="t('salesOrderCreate.placeholders.required')" />
+                      <BizBrandSelect
+                        v-model="formData.items[index].brandId"
+                        :placeholder="t('salesOrderCreate.placeholders.required')"
+                        @change="(p) => onItemBrandChange(formData.items[index], p)"
+                      />
                     </el-form-item>
                   </el-col>
                   <el-col :span="8">
@@ -376,6 +380,8 @@ import {
 } from '@/utils/salesOrderStaffPickRules'
 import MaterialProductionDateSelect from '@/components/MaterialProductionDateSelect.vue'
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
+import BizBrandSelect from '@/components/Biz/BizBrandSelect.vue'
+import { bizBrandApi } from '@/api/bizBrand'
 import { useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 import { formatTotalAmountNumber, formatUnitPriceNumber } from '@/utils/moneyFormat'
@@ -459,6 +465,7 @@ type OrderLineDraft = {
   customerMaterialModel: string
   customerBrand: string
   brand: string
+  brandId?: number
   customerPo: string
   price: number
   currency: number
@@ -479,6 +486,7 @@ function emptyLine(): OrderLineDraft {
     customerMaterialModel: '',
     customerBrand: '',
     brand: '',
+    brandId: undefined,
     customerPo: '',
     price: 0,
     currency: 1,
@@ -513,7 +521,7 @@ const formData = ref({
 
 const itemRules = computed(() => ({
   pn: [{ required: true, message: t('salesOrderCreate.validation.pn'), trigger: 'blur' }],
-  brand: [{ required: true, message: t('salesOrderCreate.validation.brand'), trigger: 'blur' }],
+  brandId: [{ required: true, message: t('salesOrderCreate.validation.brand'), trigger: 'change' }],
   qty: [{ required: true, message: t('salesOrderCreate.validation.qty'), trigger: 'change' }],
   dateCode: [{ required: true, message: t('salesOrderCreate.validation.dateCode'), trigger: 'change' }],
   deliveryDate: [{ required: true, message: t('salesOrderCreate.validation.deliveryDate'), trigger: 'change' }]
@@ -732,6 +740,39 @@ function onContactChange(id: string) {
   formData.value.customerContactName = c?.label || ''
 }
 
+function onItemBrandChange(
+  row: { brand?: string; brandId?: number },
+  payload: { id: number; standardBrand: string }
+) {
+  if (payload.id > 0) {
+    row.brand = (payload.standardBrand || '').trim()
+  } else {
+    row.brand = ''
+    row.brandId = undefined
+  }
+}
+
+async function resolveBrandIdsForItems(items: Array<{ brand?: string; brandId?: number }>) {
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i]
+    if (it.brandId && it.brandId > 0) continue
+    const text = (it.brand || '').trim()
+    if (!text) continue
+    try {
+      const opts = await bizBrandApi.fetchOptions({ keyword: text, pageSize: 50 })
+      const match = opts.find(
+        (o) => (o.standardBrand || '').trim().toLowerCase() === text.toLowerCase()
+      )
+      if (match) {
+        it.brandId = match.id
+        it.brand = (match.standardBrand || text).trim()
+      }
+    } catch {
+      /* 提交前由表单校验提示重选 */
+    }
+  }
+}
+
 const addItem = () => {
   const line = emptyLine()
   line.currency = formData.value.currency
@@ -947,6 +988,7 @@ async function loadOrderForEdit(id: string) {
       customerMaterialModel: apiCustomerPn || parsedLine.customerMaterialModel,
       customerBrand: apiCustomerBrand,
       brand: pickRowStr(row, 'brand', 'Brand'),
+      brandId: undefined,
       customerPo: pickRowStr(row, 'customerSo', 'CustomerSo', 'customerPnNo', 'CustomerPnNo'),
       price: Number(row.price ?? row.Price ?? 0) || 0,
       currency: lineCur,
@@ -965,6 +1007,7 @@ async function loadOrderForEdit(id: string) {
     }
     return line
   })
+  await resolveBrandIdsForItems(formData.value.items)
 }
 
 function parseReturnTo(): string | null {
@@ -1122,6 +1165,7 @@ onMounted(async () => {
         customerMaterialModel: custMpn,
         customerBrand: '',
         brand: String(first?.brand ?? brand),
+        brandId: undefined,
         customerPo: '',
         qty: Math.max(1, Number(first?.quantity) || reqQty),
         price: purchase,
@@ -1148,6 +1192,7 @@ onMounted(async () => {
     if (lines.length) {
       formData.value.items = lines
       formData.value.currency = lines[0].currency ?? formData.value.currency
+      await resolveBrandIdsForItems(formData.value.items)
     } else {
       addItem()
     }

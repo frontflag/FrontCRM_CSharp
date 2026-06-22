@@ -1,6 +1,6 @@
 # RBAC权限系统产品需求文档（PRD）
 
-**文档版本：** v1.4（§5.6 跨业务线「上传单据」附件隔离）
+**文档版本：** v1.6（管理角色分级、权限分层与系统管理双重门槛 — 详见专篇 PRD）
 **编写日期：** 2026-04-08
 **项目名称：** AI智销系统（FrontCRM_CSharp）
 **技术栈：** .NET 9.0 + Vue 3 + TypeScript + PostgreSQL
@@ -50,6 +50,8 @@
 - **权限验证**：API权限验证、数据权限过滤、组织权限控制
 - **权限查询**：用户权限汇总、数据范围查询
 
+**管理角色分级（Admin / Manager / DepartManager）、`system.*` 与 `biz.*` 权限分层、系统管理双重门槛、品牌 options 与主数据拆分、角色编辑 UI 按域批量配置（方式 C）** 见专篇：[管理角色分级与权限体系PRD](./管理角色分级与权限体系PRD.md)（v1.0，2026-06-03 定稿）。
+
 ---
 
 ## 二、核心概念与关系模型
@@ -87,6 +89,17 @@
 - 总监(3) > 经理(2) > 员工(1)
 - 上级可查看下级数据，同级和下级不能查看上级数据
 
+### 2.4 管理角色（与组织角色正交）
+
+与 §2.3 **组织角色**（`DEPT_*`）独立，用于 **系统管理菜单与平台能力**，**不**自动改变业务单据 `DataScope`。完整矩阵见 [管理角色分级与权限体系PRD §三](./管理角色分级与权限体系PRD.md#三管理角色分级)。
+
+| RoleCode | 中文名 | 摘要 |
+|----------|--------|------|
+| `SYS_ADMIN` | 系统管理员 | 最高权限；`IsSysAdmin=true` |
+| `SYS_MANAGER` | 平台管理员 | 含日志/公司信息/模拟登录/强删；**不含** 角色/权限/Debug/Admin 账号 |
+| `SYS_MGR_HR` | 人事系统管理员 | 员工+部门；可创建 Manager |
+| `SYS_MGR_SALES` / `PURCHASE` / `LOGISTICS` / `FINANCE` | 域系统管理员 | 本域 `system.params.*` + 可手工配本域主数据菜单；**不管** 业务单据数据范围 |
+
 ---
 
 ## 三、实体定义
@@ -113,8 +126,8 @@
 | 字段 | 类型 | 必填 | 说明 | 标准编码 |
 |------|------|------|------|----------|
 | `Id` | `Guid` | 是 | 角色ID | 主键 |
-| `RoleCode` | `string` | 是 | **角色编码** | **固化标准**：`DEPT_DIRECTOR`, `DEPT_MANAGER`, `DEPT_EMPLOYEE`, `SYS_ADMIN` |
-| `RoleName` | `string` | 是 | 角色名称 | 如 "部门总监", "部门经理", "部门员工", "系统管理员" |
+| `RoleCode` | `string` | 是 | **角色编码** | **组织角色**：`DEPT_DIRECTOR`, `DEPT_MANAGER`, `DEPT_EMPLOYEE`；**管理角色**：`SYS_ADMIN`, `SYS_MANAGER`, `SYS_MGR_*`（见 [管理角色分级 PRD §3.1](./管理角色分级与权限体系PRD.md#31-角色定义)） |
+| `RoleName` | `string` | 是 | 角色名称 | 如 "部门总监", "平台管理员", "采购系统管理员" |
 | `Description` | `string` | 否 | 角色描述 | |
 | `Status` | `short` | 是 | 状态 | `1=启用`, `0=禁用` |
 | `CreatedAt` | `DateTime` | 是 | 创建时间 | |
@@ -125,12 +138,12 @@
 | 字段 | 类型 | 必填 | 说明 | 示例 |
 |------|------|------|------|------|
 | `Id` | `Guid` | 是 | 权限ID | 主键 |
-| `PermissionCode` | `string` | 是 | 权限编码 | 如 `"rbac.manage"`, `"customer.view"`, `"customer.edit"` |
-| `PermissionName` | `string` | 是 | 权限名称 | 如 "RBAC管理", "客户查看", "客户编辑" |
+| `PermissionCode` | `string` | 是 | 权限编码 | 业务：`customer.read`；系统：`system.org.users.read`；主数据：`biz.brand.read`（见 §12.1 与 [管理角色分级 PRD §四–§六](./管理角色分级与权限体系PRD.md)） |
+| `PermissionName` | `string` | 是 | 权限名称 | 如 "员工-查看", "品牌-查看" |
 | `PermissionType` | `string` | 是 | 权限类型 | `"menu"`(菜单), `"api"`(接口), `"button"`(按钮), `"data"`(数据) |
-| `Resource` | `string` | 是 | 资源标识 | 如 `"customer"`, `"vendor"`, `"salesorder"` |
-| `Action` | `string` | 是 | 操作类型 | 如 `"view"`, `"edit"`, `"delete"`, `"create"` |
-| `Description` | `string` | 否 | 权限描述 | |
+| `Resource` | `string` | 是 | 资源标识 | 如 `"customer"`, `"system.org.users"`, `"biz.brand"` |
+| `Action` | `string` | 是 | 操作类型 | 如 `"read"`, `"write"`, `"impersonate"` |
+| `Description` | `string` | 否 | 权限描述 | 可承载扩展 JSON；**规划字段** `DomainTag` / `MenuGroup` / `PermissionKind` 见 [管理角色分级 PRD §8.2](./管理角色分级与权限体系PRD.md#82-权限元数据sys_permission-扩展) |
 | `Status` | `short` | 是 | 状态 | `1=启用`, `0=禁用` |
 
 ### 3.4 关联关系实体
@@ -168,7 +181,17 @@
 4. 确定主部门 → 从主部门获取IdentityType、SaleDataScope、PurchaseDataScope
 5. 判断是否为系统管理员 → 检查是否包含"SYS_ADMIN"角色
 6. 计算组织层级 → 通过最高角色编码确定层级值
+7. **（规划）** 计算 `hasManagementAccess` → `SYS_ADMIN` \| `SYS_MANAGER` \| 任一 `SYS_MGR_*`；非管理身份汇总时 **剥离** 全部 `system.*` 权限码（见 [管理角色分级 PRD §五](./管理角色分级与权限体系PRD.md#五系统管理双重门槛)）
 ```
+
+### 4.1.1 功能权限与系统管理门禁（规划）
+
+| 规则 | 说明 |
+|------|------|
+| 业务 `*.read` | 仅控制业务菜单/API；**不能** 打开系统管理 |
+| `system.*` | 须 **权限码 + `hasManagementAccess`**；普通员工误配仍 403 / 无菜单 |
+| `biz.*.options` | 表单下拉；**不** 等同主数据 `read`（品牌见专篇 §4.2） |
+| `rbac.manage` | 兼容超集别名；新功能改用 `system.*` |
 
 ### 4.2 数据权限过滤服务 (DataPermissionService)
 
@@ -736,6 +759,7 @@ WHERE r.role_code = 'SYS_ADMIN';
 | v1.3 | 2026-04-22 | AI助手 | 增补 §5.2.1：采购方向 + `SaleDataScope=4` 时销售域**列级/字段级**不可见清单（客户英/中文/全称、销售价与折算美元等）；§4.2 列级补充与 §5.2.1 交叉引用 |
 | v1.4 | 2026-04-24 | AI助手 | 增补 §5.6：销售侧不可见采购订单/付款上传附件，采购侧不可见销售订单/收款上传附件；§4.2 与附件策略交叉引用；实现见 `CrossSideDocumentAttachmentPolicy` 与 `DocumentsController` |
 | v1.5 | 2026-06-11 | AI助手 | §5.5 拆分为出库/报关：§5.5.1 报关板块仅 **物流(6)/财务(5)/管理员** 可访问；待报关取消 `SaleDataScope` 过滤；API 403 + 前端 `showCustomsMenus` |
+| v1.6 | 2026-06-03 | AI助手 | 新增 §2.4 管理角色、§4.1.1 系统管理门禁；权限实体扩展说明；附录 §12.1 对齐 `system.*` / `biz.*` 分层；专篇 [管理角色分级与权限体系PRD](./管理角色分级与权限体系PRD.md) |
 
 ---
 
@@ -743,17 +767,27 @@ WHERE r.role_code = 'SYS_ADMIN';
 
 ### 12.1 权限编码规范
 
-**命名规则：** `[资源].[操作]`
+**命名规则（现行 + 规划）：**
+
+| 前缀 | 模式 | 说明 |
+|------|------|------|
+| 业务功能 | `{resource}.read` / `.write` | 如 `customer.read`、`sales-order.write` |
+| 系统管理 | `system.{域}.{资源}.{动作}` | 如 `system.org.users.read`、`system.params.purchase.write` |
+| 业务主数据 | `biz.{resource}.read` / `.write` | 如 `biz.brand.read` — 主数据 **列表/详情/维护** |
+| 表单辅助 | `biz.{resource}.options` 或仅 `[Authorize]` | 如品牌下拉 — **不** 开放主数据页 |
+| 兼容 | `rbac.manage` | Admin 超集别名；见专篇 §6.6 |
+
+**完整清单、菜单映射、按域批量配置（方式 C）：** [管理角色分级与权限体系PRD §六–§八](./管理角色分级与权限体系PRD.md)。
 
 | 资源分类 | 示例 | 说明 |
 |----------|------|------|
-| **系统管理** | `rbac.manage`, `system.settings` | 系统级管理权限 |
-| **客户管理** | `customer.view`, `customer.edit`, `customer.delete` | 客户相关权限 |
-| **供应商管理** | `vendor.view`, `vendor.edit` | 供应商相关权限 |
-| **销售管理** | `salesorder.view`, `salesorder.create` | 销售订单权限 |
-| **采购管理** | `purchaseorder.view`, `purchaseorder.create` | 采购订单权限 |
-| **财务管理** | `payment.view`, `invoice.manage` | 财务相关权限 |
-| **库存管理** | `stock.view`, `stock.in`, `stock.out` | 库存相关权限 |
+| **系统管理** | `system.org.*`, `system.params.*`, `system.logs.*`, `system.platform.*` | 须管理身份 + 权限码 |
+| **业务主数据** | `biz.brand.read`, `biz.brand.write` | 主菜单（如品牌管理）；默认不授予 `DEPT_EMPLOYEE` |
+| **客户管理** | `customer.read`, `customer.write` | 客户相关权限 |
+| **供应商管理** | `vendor.read`, `vendor.write` | 供应商相关权限 |
+| **销售管理** | `sales-order.read`, `sales-order.write` | 销售订单权限 |
+| **采购管理** | `purchase-order.read`, `purchase-order.write` | 采购订单权限 |
+| **财务管理** | `finance-payment.read`, `finance-receipt.read` | 财务相关权限 |
 
 ### 12.2 常见配置示例
 

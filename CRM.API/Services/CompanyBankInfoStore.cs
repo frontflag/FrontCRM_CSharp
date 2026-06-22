@@ -37,6 +37,57 @@ public static class CompanyBankInfoStore
         return await ReadLegacySysParamAsync(db, logger, cancellationToken);
     }
 
+    /// <summary>公司银行账户是否已被付款单引用（company_bankinfo.Id → financepayment.CompanyBankId）。</summary>
+    public static async Task<bool> HasPaymentRecordsAsync(
+        ApplicationDbContext db,
+        string bankId,
+        CancellationToken cancellationToken = default)
+    {
+        var id = (bankId ?? string.Empty).Trim();
+        if (id.Length == 0)
+            return false;
+
+        return await db.FinancePayments.AsNoTracking()
+            .AnyAsync(p => p.CompanyBankId == id, cancellationToken);
+    }
+
+    /// <summary>保存前校验：拟删除的银行账户若已有付款记录则返回错误文案。</summary>
+    public static async Task<string?> ValidateBankDeletionsAsync(
+        ApplicationDbContext db,
+        List<CompanyBankInfoRowDto>? dtos,
+        CancellationToken cancellationToken = default)
+    {
+        dtos ??= new List<CompanyBankInfoRowDto>();
+        var existing = await db.CompanyBankInfos.AsNoTracking()
+            .Select(e => new { e.Id, e.BankName, e.AccountNumber })
+            .ToListAsync(cancellationToken);
+        var incomingIds = dtos
+            .Select(d => (d.Id ?? string.Empty).Trim())
+            .Where(id => id.Length > 0)
+            .ToHashSet(StringComparer.Ordinal);
+
+        var toRemove = existing.Where(e => !incomingIds.Contains(e.Id)).ToList();
+        if (toRemove.Count == 0)
+            return null;
+
+        var toRemoveIds = toRemove.Select(e => e.Id).ToList();
+        var usedIds = await db.FinancePayments.AsNoTracking()
+            .Where(p => p.CompanyBankId != null && toRemoveIds.Contains(p.CompanyBankId))
+            .Select(p => p.CompanyBankId!)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        if (usedIds.Count == 0)
+            return null;
+
+        var labels = toRemove
+            .Where(e => usedIds.Contains(e.Id))
+            .Select(e => FormatBankLabel(e.BankName, e.AccountNumber))
+            .ToList();
+
+        return $"以下银行账户已有关联付款记录，无法删除：{string.Join("、", labels)}";
+    }
+
     public static async Task UpsertAllAsync(
         ApplicationDbContext db,
         List<CompanyBankInfoRowDto>? dtos,
@@ -101,6 +152,7 @@ public static class CompanyBankInfoStore
         Id = row.Id,
         IsDefault = row.IsDefault,
         Enabled = row.Enabled,
+        AvailableForPayment = row.AvailableForPayment,
         BankName = row.BankName,
         AccountName = row.AccountName,
         BankAddress = row.BankAddress,
@@ -119,6 +171,7 @@ public static class CompanyBankInfoStore
     {
         entity.IsDefault = dto.IsDefault;
         entity.Enabled = dto.Enabled;
+        entity.AvailableForPayment = dto.AvailableForPayment;
         entity.BankName = dto.BankName?.Trim() ?? string.Empty;
         entity.AccountName = dto.AccountName?.Trim() ?? string.Empty;
         entity.BankAddress = dto.BankAddress?.Trim() ?? string.Empty;
@@ -132,5 +185,18 @@ public static class CompanyBankInfoStore
         entity.PurposeType = string.IsNullOrWhiteSpace(dto.PurposeType) ? "payment" : dto.PurposeType.Trim();
         entity.Remark = dto.Remark?.Trim() ?? string.Empty;
         entity.SortOrder = sortOrder;
+    }
+
+    private static string FormatBankLabel(string? bankName, string? accountNumber)
+    {
+        var name = (bankName ?? string.Empty).Trim();
+        var acc = (accountNumber ?? string.Empty).Trim();
+        if (name.Length > 0 && acc.Length > 0)
+            return $"{name}（{acc}）";
+        if (name.Length > 0)
+            return name;
+        if (acc.Length > 0)
+            return acc;
+        return "银行账户";
     }
 }

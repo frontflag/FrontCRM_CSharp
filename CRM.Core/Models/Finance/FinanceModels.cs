@@ -32,6 +32,10 @@ namespace CRM.Core.Models.Finance
         [NotMapped]
         public string? VendorCode { get; set; }
 
+        /// <summary>供应商英文名称（展示用，来自 vendorinfo，不落库）</summary>
+        [NotMapped]
+        public string? VendorEnglishName { get; set; }
+
         /// <summary>付款状态 1新建 2待审核 10审核通过 100付款完成 -1审核失败 -2取消</summary>
         public short Status { get; set; } = 1;
 
@@ -110,6 +114,10 @@ namespace CRM.Core.Models.Finance
         /// <summary>列表/详情由后端按 <see cref="VendorBankId"/> 填充收款银行名称。</summary>
         [NotMapped]
         public string? VendorBankName { get; set; }
+
+        /// <summary>关联采购订单货代单号（展示用，多明细去重拼接，不落库）。</summary>
+        [NotMapped]
+        public string? FreightForwarderOrderNo { get; set; }
 
         [StringLength(36)]
         [Column("create_by_user_id")]
@@ -214,6 +222,14 @@ namespace CRM.Core.Models.Finance
         /// <summary>客户名称（冗余）</summary>
         [StringLength(200)]
         public string? CustomerName { get; set; }
+
+        /// <summary>客户英文名（列表 API 填充，不落库）</summary>
+        [NotMapped]
+        public string? CustomerEnglishName { get; set; }
+
+        /// <summary>客户编号（列表 API 填充，不落库）</summary>
+        [NotMapped]
+        public string? CustomerCode { get; set; }
 
         /// <summary>业务员ID</summary>
         [StringLength(36)]

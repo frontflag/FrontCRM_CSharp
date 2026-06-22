@@ -1,10 +1,12 @@
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
+using CRM.Core.Interfaces.RfqAssignment;
 using CRM.Core.Models;
 using CRM.Core.Models.Customer;
 using CRM.Core.Models.Quote;
 using CRM.Core.Models.RFQ;
 using CRM.Core.Models.System;
+using CRM.Core.Services.RfqAssignment;
 using CRM.Core.Utilities;
 using Microsoft.Extensions.Logging;
 
@@ -23,11 +25,10 @@ namespace CRM.Core.Services
         private readonly ISerialNumberService _serialNumberService;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IUserService _userService;
-        private readonly IRepository<SysParam> _sysParamRepo;
         private readonly IRepository<Quote> _quoteRepo;
         private readonly IRepository<User> _userRepo;
         private readonly IRbacService _rbacService;
-        private readonly IPurchaseQuoterPoolService _purchaseQuoterPoolService;
+        private readonly IRfqPurchaserAssignmentOrchestrator _purchaserAssignmentOrchestrator;
         private readonly IRfqMainListQuery _rfqMainListQuery;
         private readonly IRfqItemListQuery _rfqItemListQuery;
         private readonly ILogger<RFQService> _logger;
@@ -43,11 +44,10 @@ namespace CRM.Core.Services
             ISerialNumberService serialNumberService,
             IDataPermissionService dataPermissionService,
             IUserService userService,
-            IRepository<SysParam> sysParamRepo,
             IRepository<Quote> quoteRepo,
             IRepository<User> userRepo,
             IRbacService rbacService,
-            IPurchaseQuoterPoolService purchaseQuoterPoolService,
+            IRfqPurchaserAssignmentOrchestrator purchaserAssignmentOrchestrator,
             IRfqMainListQuery rfqMainListQuery,
             IRfqItemListQuery rfqItemListQuery,
             ILogger<RFQService> logger,
@@ -62,11 +62,10 @@ namespace CRM.Core.Services
             _serialNumberService = serialNumberService;
             _dataPermissionService = dataPermissionService;
             _userService = userService;
-            _sysParamRepo = sysParamRepo;
             _quoteRepo = quoteRepo;
             _userRepo = userRepo;
             _rbacService = rbacService;
-            _purchaseQuoterPoolService = purchaseQuoterPoolService;
+            _purchaserAssignmentOrchestrator = purchaserAssignmentOrchestrator;
             _rfqMainListQuery = rfqMainListQuery;
             _rfqItemListQuery = rfqItemListQuery;
             _logger = logger;
@@ -99,8 +98,9 @@ namespace CRM.Core.Services
                 request.Items?.Count ?? 0,
                 request.SalesUserId ?? "(null)");
 
-            // 每个需求从报价员池取连续 N 名采购员，写入该需求下全部明细；游标全局 +N
-            var (purchaser1, purchaser2) = await TakeNextRoundRobinPurchasersAsync();
+            // 按策略分配询价采购员（默认：条目轮询）
+            var assignMethod = ResolveAssignMethod(request.AssignMethod);
+            var anyAssigned = false;
 
             var rfq = new RFQ
             {
@@ -112,7 +112,7 @@ namespace CRM.Core.Services
                 SalesUserId = request.SalesUserId,
                 RfqType = request.RfqType,
                 QuoteMethod = request.QuoteMethod,
-                AssignMethod = purchaser1 != null ? (short)2 : request.AssignMethod,
+                AssignMethod = request.AssignMethod,
                 Industry = request.Industry,
                 Product = request.Product,
                 TargetType = request.TargetType,
@@ -121,7 +121,7 @@ namespace CRM.Core.Services
                 ProjectBackground = request.ProjectBackground,
                 Competitor = request.Competitor,
                 Remark = request.Remark,
-                Status = purchaser1 != null ? (short)1 : (short)0,
+                Status = 0,
                 ItemCount = request.Items?.Count ?? 0,
                 CreateTime = DateTime.UtcNow,
                 CreateByUserId = ActingUserIdNormalizer.Normalize(actingUserId)
@@ -131,14 +131,32 @@ namespace CRM.Core.Services
 
             if (request.Items != null && request.Items.Count > 0)
             {
+                var assignmentContext = BuildAssignmentContext(
+                    rfq.Id,
+                    rfq.RfqCode,
+                    RfqAssignmentTrigger.Create,
+                    request.Items.Select((itemReq, i) => (
+                        LineNo: itemReq.LineNo > 0 ? itemReq.LineNo : i + 1,
+                        Brand: NormalizeLineString(itemReq.Brand),
+                        BrandId: itemReq.BrandId)));
+
+                var assignmentOutcome = await _purchaserAssignmentOrchestrator.AssignAsync(
+                    assignMethod,
+                    assignmentContext);
+
                 for (int i = 0; i < request.Items.Count; i++)
                 {
                     var itemReq = request.Items[i];
+                    var lineNo = itemReq.LineNo > 0 ? itemReq.LineNo : i + 1;
+                    var assigned = assignmentOutcome.Assignments[i];
+                    if (!string.IsNullOrWhiteSpace(assigned.PurchaserUserId1))
+                        anyAssigned = true;
+
                     var item = new RFQItem
                     {
                         Id = Guid.NewGuid().ToString(),
                         RfqId = rfq.Id,
-                        LineNo = itemReq.LineNo > 0 ? itemReq.LineNo : i + 1,
+                        LineNo = lineNo,
                         CustomerMpn = string.IsNullOrWhiteSpace(itemReq.CustomerMpn) ? null : itemReq.CustomerMpn.Trim(),
                         TargetPrice = itemReq.TargetPrice,
                         PriceCurrency = itemReq.PriceCurrency,
@@ -150,8 +168,8 @@ namespace CRM.Core.Services
                         Alternatives = itemReq.Alternatives,
                         Remark = itemReq.Remark,
                         Status = 0,
-                        AssignedPurchaserUserId1 = purchaser1,
-                        AssignedPurchaserUserId2 = purchaser2,
+                        AssignedPurchaserUserId1 = assigned.PurchaserUserId1,
+                        AssignedPurchaserUserId2 = assigned.PurchaserUserId2,
                         CreateTime = DateTime.UtcNow
                     };
                     await ApplyRfqItemFromRequestAsync(item, itemReq, i);
@@ -159,18 +177,22 @@ namespace CRM.Core.Services
                 }
             }
 
+            if (anyAssigned)
+            {
+                rfq.AssignMethod = assignMethod;
+                rfq.Status = 1;
+            }
+
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
 
             _logger.LogInformation(
-                "【需求-采购员轮询】新建需求已保存：RfqId={RfqId} RfqCode={RfqCode} Status={Status}(0待分配/1已分配) AssignMethod={AssignMethod} " +
-                "AssignedPurchaserUserId1={P1} AssignedPurchaserUserId2={P2} 明细行数={ItemCount}",
+                "【需求-采购员轮询】新建需求已保存：RfqId={RfqId} RfqCode={RfqCode} Status={Status}(0待分配/1已分配) AssignMethod={AssignMethod} 明细行数={ItemCount} AnyAssigned={AnyAssigned}",
                 rfq.Id,
                 rfq.RfqCode,
                 rfq.Status,
                 rfq.AssignMethod,
-                purchaser1 ?? "(null)",
-                purchaser2 ?? "(null)",
-                request.Items?.Count ?? 0);
+                request.Items?.Count ?? 0,
+                anyAssigned);
 
             return rfq;
         }
@@ -448,7 +470,7 @@ namespace CRM.Core.Services
 
                 if (sync.Inserted.Count > 0)
                 {
-                    rfq.AssignMethod = 2;
+                    rfq.AssignMethod = ResolveAssignMethod(rfq.AssignMethod);
                     if (rfq.Status == 0)
                         rfq.Status = 1;
                 }
@@ -542,7 +564,7 @@ namespace CRM.Core.Services
                 await _itemRepo.UpdateAsync(item);
             }
 
-            rfq.AssignMethod = 4;
+            rfq.AssignMethod = RfqAssignMethodCodes.DesignatedPurchaser;
             if (rfq.Status == 0)
                 rfq.Status = 1;
             rfq.ModifyTime = DateTime.UtcNow;
@@ -552,113 +574,6 @@ namespace CRM.Core.Services
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
 
             return await GetByIdAsync(rfqId) ?? rfq;
-        }
-
-        /// <summary>
-        /// 从报价员池取连续 N 名采购员（同一需求下所有明细相同）；游标 +N。
-        /// 池为空时返回 (null,null) 且不推进游标。
-        /// </summary>
-        private async Task<(string? UserId1, string? UserId2)> TakeNextRoundRobinPurchasersAsync()
-        {
-            var pool = await _purchaseQuoterPoolService.GetOrderedActivePoolUserIdsAsync();
-            var n = pool.Count;
-            if (n == 0)
-            {
-                _logger.LogWarning(
-                    "【需求-采购员轮询】报价员池为空，跳过分配。请在「采购参数 → 报价员池」中配置可参与轮询的采购员。");
-                return (null, null);
-            }
-
-            var assignCount = await _purchaseQuoterPoolService.GetAssigneeCountAsync();
-            if (assignCount is not (1 or 2))
-                assignCount = 2;
-
-            var cursor = await GetRoundRobinCursorAsync();
-            var ids = new List<string>(assignCount);
-            for (var i = 0; i < assignCount; i++)
-                ids.Add(pool[(cursor + i) % n]);
-
-            await SaveRoundRobinCursorAsync(cursor + assignCount);
-
-            var a1 = ids[0];
-            var a2 = assignCount >= 2 ? ids[1] : null;
-            _logger.LogInformation(
-                "【需求-采购员轮询】本笔取值：池人数={PoolCount} 分配人数={AssignCount} CursorBefore={CursorBefore} " +
-                "UserId1={UserId1} UserId2={UserId2} CursorAfter={CursorAfter}",
-                n,
-                assignCount,
-                cursor,
-                a1,
-                a2 ?? "(null)",
-                cursor + assignCount);
-
-            return (a1, a2);
-        }
-
-        /// <summary>
-        /// 获取采购员轮询游标
-        /// </summary>
-        /// <returns></returns>
-        private async Task<int> GetRoundRobinCursorAsync()
-        {
-            var rows = await _sysParamRepo.FindAsync(p => p.ParamCode == SysParamCodes.RfqPurchaserRoundRobinCursor);
-            var row = rows.FirstOrDefault();
-            if (row == null)
-            {
-                _logger.LogInformation(
-                    "【需求-采购员轮询】游标参数不存在 {ParamCode}，按 Cursor=0 处理。",
-                    SysParamCodes.RfqPurchaserRoundRobinCursor);
-                return 0;
-            }
-
-            var v = int.TryParse(row.ValueString?.Trim(), out var parsed) && parsed >= 0 ? parsed : 0;
-            if (row.ValueString?.Trim() is { } s && !int.TryParse(s, out _))
-                _logger.LogWarning(
-                    "【需求-采购员轮询】游标参数 ValueString 非有效非负整数，已按 0 处理：{ParamCode}=\"{Raw}\"",
-                    SysParamCodes.RfqPurchaserRoundRobinCursor,
-                    s);
-
-            return v;
-        }
-
-        private async Task SaveRoundRobinCursorAsync(int cursor)
-        {
-            var rows = await _sysParamRepo.FindAsync(p => p.ParamCode == SysParamCodes.RfqPurchaserRoundRobinCursor);
-            var row = rows.FirstOrDefault();
-            if (row == null)
-            {
-                var groupFrom = (await _sysParamRepo.FindAsync(p => p.ParamCode == SysParamCodes.RfqRoundRobinPurchaserRoleCodes))
-                    .FirstOrDefault();
-                row = new SysParam
-                {
-                    Id = "00000000-0000-4000-8000-000000000013",
-                    ParamCode = SysParamCodes.RfqPurchaserRoundRobinCursor,
-                    ParamName = "需求采购员轮询游标",
-                    GroupId = groupFrom?.GroupId,
-                    DataType = ParamDataType.String,
-                    ValueString = cursor.ToString(),
-                    Status = 1,
-                    IsSystem = true,
-                    IsEditable = true,
-                    IsVisible = false,
-                    SortOrder = 11,
-                    CreateTime = DateTime.UtcNow
-                };
-                await _sysParamRepo.AddAsync(row);
-                _logger.LogInformation(
-                    "【需求-采购员轮询】已新建游标参数 {ParamCode}={Cursor}",
-                    SysParamCodes.RfqPurchaserRoundRobinCursor,
-                    cursor);
-                return;
-            }
-
-            row.ValueString = cursor.ToString();
-            row.ModifyTime = DateTime.UtcNow;
-            await _sysParamRepo.UpdateAsync(row);
-            _logger.LogInformation(
-                "【需求-采购员轮询】已更新游标参数 {ParamCode}={Cursor}",
-                SysParamCodes.RfqPurchaserRoundRobinCursor,
-                cursor);
         }
 
         private sealed record RfqItemSyncResult(
@@ -706,38 +621,50 @@ namespace CRM.Core.Services
             string? purchaser2 = null;
             if (newItemRequests.Count > 0)
             {
+                var assignMethod = ResolveAssignMethod(rfq.AssignMethod);
+                var existingBrandAssignees = BuildExistingBrandAssignees(existingActive.Values);
+                var assignmentContext = BuildAssignmentContext(
+                    rfqId,
+                    rfq.RfqCode,
+                    RfqAssignmentTrigger.AddItems,
+                    newItemRequests.Select(x => (
+                        LineNo: x.Req.LineNo > 0 ? x.Req.LineNo : x.Index + 1,
+                        Brand: NormalizeLineString(x.Req.Brand),
+                        BrandId: x.Req.BrandId)),
+                    existingBrandAssignees);
+
+                var assignmentOutcome = await _purchaserAssignmentOrchestrator.AssignAsync(
+                    assignMethod,
+                    assignmentContext);
+
+                for (var j = 0; j < newItemRequests.Count; j++)
+                {
+                    var (itemReq, index) = newItemRequests[j];
+                    var assigned = assignmentOutcome.Assignments[j];
+                    purchaser1 = assigned.PurchaserUserId1;
+                    purchaser2 = assigned.PurchaserUserId2;
+
+                    var item = new RFQItem
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        RfqId = rfqId,
+                        LineNo = itemReq.LineNo > 0 ? itemReq.LineNo : index + 1,
+                        Status = 0,
+                        AssignedPurchaserUserId1 = purchaser1,
+                        AssignedPurchaserUserId2 = purchaser2,
+                        CreateTime = DateTime.UtcNow
+                    };
+                    await ApplyRfqItemFromRequestAsync(item, itemReq, index);
+                    await _itemRepo.AddAsync(item);
+                    inserted.Add(item);
+                }
+
                 _logger.LogInformation(
-                    "【需求-采购员轮询】编辑需求新增明细，取轮询对：RfqId={RfqId} RfqCode={RfqCode} 新增行数={ItemCount}",
+                    "【需求-采购员分配】编辑需求新增明细完成：RfqId={RfqId} RfqCode={RfqCode} 新增行数={ItemCount} AssignMethod={AssignMethod}",
                     rfq.Id,
                     rfq.RfqCode,
-                    newItemRequests.Count);
-                (purchaser1, purchaser2) = await TakeNextRoundRobinPurchasersAsync();
-            }
-
-            foreach (var (itemReq, index) in newItemRequests)
-            {
-                var item = new RFQItem
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    RfqId = rfqId,
-                    LineNo = itemReq.LineNo > 0 ? itemReq.LineNo : index + 1,
-                    Status = 0,
-                    AssignedPurchaserUserId1 = purchaser1,
-                    AssignedPurchaserUserId2 = purchaser2,
-                    CreateTime = DateTime.UtcNow
-                };
-                await ApplyRfqItemFromRequestAsync(item, itemReq, index);
-                await _itemRepo.AddAsync(item);
-                inserted.Add(item);
-            }
-
-            if (purchaser1 != null && inserted.Count > 0)
-            {
-                _logger.LogInformation(
-                    "【需求-采购员轮询】编辑需求新增明细已写入：RfqId={RfqId} AssignedPurchaserUserId1={P1} AssignedPurchaserUserId2={P2}",
-                    rfq.Id,
-                    purchaser1 ?? "(null)",
-                    purchaser2 ?? "(null)");
+                    newItemRequests.Count,
+                    assignMethod);
             }
 
             var deleted = new List<RFQItem>();
@@ -820,5 +747,38 @@ namespace CRM.Core.Services
             var user = await _userService.GetByIdAsync(id);
             return (id, string.IsNullOrWhiteSpace(user?.UserName) ? id : user!.UserName!.Trim());
         }
+
+        private static short ResolveAssignMethod(short assignMethod) =>
+            assignMethod > 0 ? assignMethod : RfqAssignMethodCodes.ItemRoundRobin;
+
+        private static Dictionary<string, (string? PurchaserUserId1, string? PurchaserUserId2)> BuildExistingBrandAssignees(
+            IEnumerable<RFQItem> existingItems) =>
+            existingItems
+                .Where(i => !string.IsNullOrWhiteSpace(i.AssignedPurchaserUserId1))
+                .GroupBy(i => RfqAssignmentBrandKey.Resolve(i.BrandId, i.Brand))
+                .ToDictionary(
+                    g => g.Key,
+                    g => (g.First().AssignedPurchaserUserId1, g.First().AssignedPurchaserUserId2));
+
+        private static RfqAssignmentContext BuildAssignmentContext(
+            string rfqId,
+            string? rfqCode,
+            RfqAssignmentTrigger trigger,
+            IEnumerable<(int LineNo, string Brand, long? BrandId)> lines,
+            IReadOnlyDictionary<string, (string? PurchaserUserId1, string? PurchaserUserId2)>? existingBrandAssignees = null) =>
+            new()
+            {
+                RfqId = rfqId,
+                RfqCode = rfqCode,
+                Trigger = trigger,
+                ExistingBrandAssignees = existingBrandAssignees,
+                Items = lines.Select(x => new RfqItemAssignmentInput
+                {
+                    ItemKey = x.LineNo.ToString(),
+                    LineNo = x.LineNo,
+                    Brand = x.Brand,
+                    BrandId = x.BrandId
+                }).ToList()
+            };
     }
 }

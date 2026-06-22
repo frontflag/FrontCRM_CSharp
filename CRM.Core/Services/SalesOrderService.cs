@@ -1,6 +1,7 @@
 using CRM.Core.Constants;
 using System.Collections.Generic;
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Customer;
 using CRM.Core.Models.Quote;
 using CRM.Core.Models.Sales;
 using CRM.Core.Models.Purchase;
@@ -19,6 +20,7 @@ namespace CRM.Core.Services
         private readonly IRepository<PurchaseOrder> _poRepo;
         private readonly IRepository<PurchaseOrderItem> _poItemRepo;
         private readonly IRepository<PurchaseRequisition> _prRepo;
+        private readonly IRepository<CustomerInfo> _customerRepo;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ISerialNumberService _serialNumberService;
@@ -41,6 +43,7 @@ namespace CRM.Core.Services
             IRepository<PurchaseOrder> poRepo,
             IRepository<PurchaseOrderItem> poItemRepo,
             IRepository<PurchaseRequisition> prRepo,
+            IRepository<CustomerInfo> customerRepo,
             IRepository<QuoteItem> quoteItemRepo,
             IDataPermissionService dataPermissionService,
             ISerialNumberService serialNumberService,
@@ -62,6 +65,7 @@ namespace CRM.Core.Services
             _poRepo = poRepo;
             _poItemRepo = poItemRepo;
             _prRepo = prRepo;
+            _customerRepo = customerRepo;
             _quoteItemRepo = quoteItemRepo;
             _dataPermissionService = dataPermissionService;
             _serialNumberService = serialNumberService;
@@ -383,7 +387,10 @@ namespace CRM.Core.Services
             var result = await _salesOrderListQuery.GetPagedAsync(request, CancellationToken.None);
             var list = result.Items.ToList();
             if (list.Count > 0)
+            {
                 await HydrateSellOrderListSalesLoginAsync(list);
+                await EnrichCustomerExtendFieldsAsync(list);
+            }
 
             return new PagedResult<SellOrder>
             {
@@ -407,6 +414,38 @@ namespace CRM.Core.Services
                 var login = EntityLookupService.FormatUserLoginName(u);
                 if (!string.IsNullOrWhiteSpace(login))
                     o.SalesUserName = login;
+            }
+        }
+
+        private async Task EnrichCustomerExtendFieldsAsync(List<SellOrder> orders)
+        {
+            if (orders.Count == 0) return;
+            var ids = orders
+                .Select(o => o.CustomerId)
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(s => s!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            if (ids.Length == 0) return;
+
+            var customers = (await _customerRepo.FindAsNoTrackingAsync(c => ids.Contains(c.Id))).ToList();
+            var byId = customers
+                .Where(c => !string.IsNullOrWhiteSpace(c.Id))
+                .GroupBy(c => c.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            foreach (var o in orders)
+            {
+                if (string.IsNullOrWhiteSpace(o.CustomerId)) continue;
+                if (!byId.TryGetValue(o.CustomerId.Trim(), out var cust)) continue;
+
+                var nameZh = string.IsNullOrWhiteSpace(cust.OfficialName) ? cust.CustomerName : cust.OfficialName;
+                if (!string.IsNullOrWhiteSpace(nameZh))
+                    o.CustomerName = nameZh.Trim();
+                if (!string.IsNullOrWhiteSpace(cust.EnglishOfficialName))
+                    o.CustomerEnglishName = cust.EnglishOfficialName.Trim();
+                if (!string.IsNullOrWhiteSpace(cust.CustomerCode))
+                    o.CustomerCode = cust.CustomerCode.Trim();
             }
         }
 

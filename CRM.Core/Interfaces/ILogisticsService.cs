@@ -51,6 +51,15 @@ namespace CRM.Core.Interfaces
 
         /// <summary>到货通知备注（可选）。</summary>
         public string? Remark { get; set; }
+
+        /// <summary>预计到货方式（字典 LogisticsArrivalMethod ItemCode，与出库通知出货方式同源）。</summary>
+        public string? ShipmentMethod { get; set; }
+
+        /// <summary>预计到货快递单号。</summary>
+        public string? CourierTrackingNo { get; set; }
+
+        /// <summary>快递公司（字典 LogisticsExpressMethod ItemCode）。</summary>
+        public string? ExpressCompany { get; set; }
     }
 
     public class CreateQcRequest

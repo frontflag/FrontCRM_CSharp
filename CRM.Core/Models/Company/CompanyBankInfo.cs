@@ -69,6 +69,10 @@ namespace CRM.Core.Models.Company
         [Column("enabled")]
         public bool Enabled { get; set; } = true;
 
+        /// <summary>可用付款：勾选后出现在付款单「付款银行」下拉。</summary>
+        [Column("available_for_payment")]
+        public bool AvailableForPayment { get; set; }
+
         [Column("sort_order")]
         public int SortOrder { get; set; }
     }

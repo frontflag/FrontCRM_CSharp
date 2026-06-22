@@ -769,10 +769,13 @@ namespace CRM.Core.Interfaces
     {
         public short AddressType { get; set; } = 1;
         public short? Country { get; set; }
+        public string? CountryName { get; set; }
         public string? Province { get; set; }
         public string? City { get; set; }
         public string? Area { get; set; }
         public string? Address { get; set; }
+        public string? CompanyName { get; set; }
+        public string? ZipCode { get; set; }
         public string? ContactName { get; set; }
         public string? ContactPhone { get; set; }
         public bool IsDefault { get; set; } = false;
@@ -785,10 +788,13 @@ namespace CRM.Core.Interfaces
     {
         public short? AddressType { get; set; }
         public short? Country { get; set; }
+        public string? CountryName { get; set; }
         public string? Province { get; set; }
         public string? City { get; set; }
         public string? Area { get; set; }
         public string? Address { get; set; }
+        public string? CompanyName { get; set; }
+        public string? ZipCode { get; set; }
         public string? ContactName { get; set; }
         public string? ContactPhone { get; set; }
         public bool? IsDefault { get; set; }

@@ -62,11 +62,11 @@ export enum QuoteMethod {
   Sms = 4 // 短信
 }
 
-// 分配方式（与 rfqFormEnums / DB assign_method 一致；表单仅保留 value=2「采购轮询」）
+// 分配方式（与 rfqFormEnums / DB assign_method 一致）
 export enum AssignMethod {
   SamePurchaser = 1, // 历史：系统分配同一采购
-  PurchaseRoundRobin = 2, // 采购轮询（当前唯一选项）
-  SameBrandSamePurchaser = 3, // 历史：相同品牌分配同一采购
+  PurchaseRoundRobin = 2, // 条目轮询
+  SameBrandSamePurchaser = 3, // 品牌轮询
   DesignatedPurchaser = 4 // 历史：指定采购员
 }
 

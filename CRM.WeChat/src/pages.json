@@ -1,0 +1,103 @@
+{
+  "easycom": {
+    "autoscan": true,
+    "custom": {
+      "^u-(.*)": "@/components/u-$1/u-$1.vue"
+    }
+  },
+  "pages": [
+    {
+      "path": "pages/login/login",
+      "style": {
+        "navigationBarTitleText": "登录",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "FrontCRM"
+      }
+    },
+    {
+      "path": "pages/customer/list",
+      "style": {
+        "navigationBarTitleText": "客户列表"
+      }
+    },
+    {
+      "path": "pages/customer/detail",
+      "style": {
+        "navigationBarTitleText": "客户详情"
+      }
+    },
+    {
+      "path": "pages/order/list",
+      "style": {
+        "navigationBarTitleText": "订单列表"
+      }
+    },
+    {
+      "path": "pages/order/detail",
+      "style": {
+        "navigationBarTitleText": "订单详情"
+      }
+    },
+    {
+      "path": "pages/inventory/list",
+      "style": {
+        "navigationBarTitleText": "库存概览"
+      }
+    },
+    {
+      "path": "pages/mine/mine",
+      "style": {
+        "navigationBarTitleText": "我的"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "FrontCRM",
+    "navigationBarBackgroundColor": "#1677FF",
+    "backgroundColor": "#F5F5F5"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#1677FF",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "static/tabbar/home.png",
+        "selectedIconPath": "static/tabbar/home-active.png"
+      },
+      {
+        "pagePath": "pages/customer/list",
+        "text": "客户",
+        "iconPath": "static/tabbar/customer.png",
+        "selectedIconPath": "static/tabbar/customer-active.png"
+      },
+      {
+        "pagePath": "pages/order/list",
+        "text": "订单",
+        "iconPath": "static/tabbar/order.png",
+        "selectedIconPath": "static/tabbar/order-active.png"
+      },
+      {
+        "pagePath": "pages/inventory/list",
+        "text": "库存",
+        "iconPath": "static/tabbar/inventory.png",
+        "selectedIconPath": "static/tabbar/inventory-active.png"
+      },
+      {
+        "pagePath": "pages/mine/mine",
+        "text": "我的",
+        "iconPath": "static/tabbar/mine.png",
+        "selectedIconPath": "static/tabbar/mine-active.png"
+      }
+    ]
+  }
+}

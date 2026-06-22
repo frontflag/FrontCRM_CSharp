@@ -94,6 +94,12 @@
               <CrmDataTable v-else :data="paymentLineRows" size="small">
                 <el-table-column type="index" width="50" label="#" />
                 <el-table-column prop="purchaseOrderCode" :label="t('financePaymentDetail.labels.poCode')" min-width="160" show-overflow-tooltip />
+                <el-table-column
+                  prop="freightForwarderOrderNo"
+                  :label="t('financePaymentDetail.labels.freightForwarderOrderNo')"
+                  min-width="150"
+                  show-overflow-tooltip
+                />
                 <el-table-column prop="pn" :label="t('financePaymentDetail.labels.pn')" min-width="150" />
                 <el-table-column prop="brand" :label="t('financePaymentDetail.labels.brand')" width="120" />
                 <el-table-column prop="qty" :label="t('financePaymentDetail.labels.qty')" width="100" align="right">
@@ -348,6 +354,8 @@ const buildPaymentLineRows = async () => {
       ...item,
       purchaseOrderId: String(item?.purchaseOrderId || po?.id || '').trim(),
       purchaseOrderCode: po?.purchaseOrderCode || po?.PurchaseOrderCode || item?.purchaseOrderCode || '-',
+      freightForwarderOrderNo:
+        po?.freightForwarderOrderNo || po?.FreightForwarderOrderNo || item?.freightForwarderOrderNo || '—',
       qty: matchedItem?.qty ?? matchedItem?.Qty ?? null,
       cost: matchedItem?.cost ?? matchedItem?.Cost ?? null,
       purchaseOrderCreateTime: po?.createTime || po?.CreateTime || null,

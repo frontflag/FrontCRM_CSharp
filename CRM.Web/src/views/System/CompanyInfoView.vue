@@ -140,6 +140,9 @@
             <div class="group-card__head">
               <span class="group-card__title">{{ t('companyInfo.bank.groupTitle', { n: idx + 1 }) }}</span>
               <div class="group-card__actions">
+                <el-checkbox v-model="item.row.availableForPayment">
+                  {{ t('companyInfo.bank.availableForPayment') }}
+                </el-checkbox>
                 <el-checkbox
                   :model-value="item.row.isDefault"
                   @update:model-value="(on: boolean) => toggleBankDefault(item.row, on)"
@@ -673,6 +676,7 @@ import { OfficeBuilding, Wallet, Picture, PictureFilled, Location, Promotion, Do
 import {
   fetchCompanyProfile,
   saveCompanyProfile,
+  checkCompanyBankCanDelete,
   emptyCompanyReportInfo,
   isRmbCurrency,
   type CompanyBasicRow,
@@ -688,6 +692,7 @@ import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from 
 import { documentApi } from '@/api/document'
 import apiClient from '@/api/client'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { normalizeCompanyBankRow } from '@/utils/companyBank'
 
 type AssetPreview = { url: string; kind: 'image' | 'pdf' | 'other' }
 type WarehouseRowVm = WarehouseInfo & { _key: string }
@@ -855,7 +860,7 @@ function normalizeBankInfos(rows: CompanyBankRow[] | undefined | null): CompanyB
     r.isDefault = true
     return [r]
   }
-  const list = rows.map((row) => ({ ...row }))
+  const list = rows.map((row) => normalizeCompanyBankRow(row))
   for (const inRmb of [true, false] as const) {
     const group = list.filter((r) => isRmbCurrency(r.currency) === inRmb)
     const defaults = group.filter((r) => r.isDefault)
@@ -896,6 +901,7 @@ function emptyBank(): CompanyBankRow {
     id: newId(),
     isDefault: false,
     enabled: true,
+    availableForPayment: true,
     bankName: '',
     accountName: '',
     bankAddress: '',
@@ -1063,10 +1069,29 @@ function insertBankAtEnd(tab: BankCurrencyTab) {
   bankInfos.value.push(emptyBankForTab(tab))
 }
 
-function removeBankAt(fullIndex: number) {
+async function removeBankAt(fullIndex: number) {
   const arr = bankInfos.value
   if (fullIndex < 0 || fullIndex >= arr.length) return
   const removed = arr[fullIndex]
+  const bankId = String(removed.id || '').trim()
+
+  if (bankId) {
+    try {
+      const { canDelete } = await checkCompanyBankCanDelete(bankId)
+      if (!canDelete) {
+        await ElMessageBox.alert(
+          t('companyInfo.bank.cannotDeleteHasPayments'),
+          t('companyInfo.bank.cannotDeleteHasPaymentsTitle'),
+          { type: 'warning' }
+        )
+        return
+      }
+    } catch (e) {
+      ElMessage.error(getApiErrorMessage(e, t('companyInfo.bank.cannotDeleteCheckFailed')))
+      return
+    }
+  }
+
   const inRmb = isRmbCurrency(removed.currency)
   arr.splice(fullIndex, 1)
   if (removed.isDefault) {

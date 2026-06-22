@@ -34,7 +34,12 @@ public sealed class FinancePaymentListQuery : IFinancePaymentListQuery
             _db.Vendors.AsNoTracking(),
             cancellationToken);
 
-        if (!string.IsNullOrWhiteSpace(request.Keyword))
+        if (!string.IsNullOrWhiteSpace(request.FinancePaymentCode))
+        {
+            var c = request.FinancePaymentCode.Trim().ToLowerInvariant();
+            q = q.Where(p => p.FinancePaymentCode.ToLower().Contains(c));
+        }
+        else if (!string.IsNullOrWhiteSpace(request.Keyword))
         {
             var k = request.Keyword.Trim().ToLowerInvariant();
             q = q.Where(p =>
@@ -42,14 +47,38 @@ public sealed class FinancePaymentListQuery : IFinancePaymentListQuery
                 (p.VendorName != null && p.VendorName.ToLower().Contains(k)));
         }
 
+        if (!string.IsNullOrWhiteSpace(request.FreightForwarderOrderNo))
+            q = await ApplyFreightForwarderOrderNoFilterAsync(q, request.FreightForwarderOrderNo.Trim(), cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(request.BankSlipNo))
+        {
+            var b = request.BankSlipNo.Trim().ToLowerInvariant();
+            q = q.Where(p => p.BankSlipNo != null && p.BankSlipNo.ToLower().Contains(b));
+        }
+
+        if (request.PaymentMode.HasValue)
+            q = q.Where(p => p.PaymentMode == request.PaymentMode.Value);
+
+        if (!string.IsNullOrWhiteSpace(request.VendorName))
+        {
+            var v = request.VendorName.Trim().ToLowerInvariant();
+            q = q.Where(p => p.VendorName != null && p.VendorName.ToLower().Contains(v));
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Remark))
+        {
+            var r = request.Remark.Trim().ToLowerInvariant();
+            q = q.Where(p => p.Remark != null && p.Remark.ToLower().Contains(r));
+        }
+
         if (request.Status.HasValue)
             q = q.Where(p => p.Status == request.Status.Value);
 
         if (request.StartDate.HasValue)
-            q = q.Where(p => p.CreateTime >= request.StartDate.Value);
+            q = q.Where(p => p.PaymentDate != null && p.PaymentDate >= request.StartDate.Value);
 
         if (request.EndDate.HasValue)
-            q = q.Where(p => p.CreateTime <= request.EndDate.Value.AddDays(1));
+            q = q.Where(p => p.PaymentDate != null && p.PaymentDate <= request.EndDate.Value.AddDays(1));
 
         var total = await q.CountAsync(cancellationToken);
         var items = await q
@@ -65,5 +94,32 @@ public sealed class FinancePaymentListQuery : IFinancePaymentListQuery
             PageIndex = page,
             PageSize = pageSize
         };
+    }
+
+    private async Task<IQueryable<FinancePayment>> ApplyFreightForwarderOrderNoFilterAsync(
+        IQueryable<FinancePayment> q,
+        string freightForwarderOrderNo,
+        CancellationToken cancellationToken)
+    {
+        var ff = freightForwarderOrderNo.ToLowerInvariant();
+        var matchingPoIds = await _db.PurchaseOrders.AsNoTracking()
+            .Where(po =>
+                po.FreightForwarderOrderNo != null &&
+                po.FreightForwarderOrderNo.ToLower().Contains(ff))
+            .Select(po => po.Id)
+            .ToListAsync(cancellationToken);
+
+        if (matchingPoIds.Count == 0)
+            return q.Where(_ => false);
+
+        var matchingPoiIds = await _db.PurchaseOrderItems.AsNoTracking()
+            .Where(poi => matchingPoIds.Contains(poi.PurchaseOrderId))
+            .Select(poi => poi.Id)
+            .ToListAsync(cancellationToken);
+
+        return q.Where(p => _db.FinancePaymentItems.Any(item =>
+            item.FinancePaymentId == p.Id &&
+            ((item.PurchaseOrderId != null && matchingPoIds.Contains(item.PurchaseOrderId))
+             || (item.PurchaseOrderItemId != null && matchingPoiIds.Contains(item.PurchaseOrderItemId)))));
     }
 }

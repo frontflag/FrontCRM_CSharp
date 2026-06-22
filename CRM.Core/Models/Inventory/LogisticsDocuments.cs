@@ -117,6 +117,20 @@ namespace CRM.Core.Models.Inventory
         /// <summary>到货通知备注（采购创建到货通知时填写）。</summary>
         [StringLength(500)]
         public string? Remark { get; set; }
+
+        /// <summary>
+        /// 预计到货方式：数据字典 <c>LogisticsArrivalMethod</c> 的 ItemCode（与出库通知「出货方式」同源，存编码）。
+        /// </summary>
+        [StringLength(64)]
+        public string? ShipmentMethod { get; set; }
+
+        /// <summary>预计到货快递单号。</summary>
+        [StringLength(128)]
+        public string? CourierTrackingNo { get; set; }
+
+        /// <summary>快递公司：数据字典 <c>LogisticsExpressMethod</c> 的 ItemCode；预计到货方式为快递时可填。</summary>
+        [StringLength(64)]
+        public string? ExpressCompany { get; set; }
     }
 
     /// <summary>

@@ -24,18 +24,6 @@
     <!-- 搜索栏 -->
     <div class="search-bar">
       <div class="search-left">
-        <el-input
-          v-model="query.keyword"
-          :placeholder="t('financePaymentList.filters.keyword')"
-          clearable
-          class="search-input"
-          @keyup.enter="loadData"
-          @clear="loadData"
-        >
-          <template #prefix>
-            <el-icon><Search /></el-icon>
-          </template>
-        </el-input>
         <el-select v-model="query.status" :placeholder="t('financePaymentList.filters.status')" clearable class="filter-select" @change="loadData">
           <el-option
             v-for="k in paymentStatusSelectKeys"
@@ -44,6 +32,60 @@
             :value="k"
           />
         </el-select>
+        <el-input
+          v-model="query.financePaymentCode"
+          :placeholder="t('financePaymentList.filters.financePaymentCode')"
+          clearable
+          class="search-input search-input--code"
+          @keyup.enter="loadData"
+          @clear="loadData"
+        />
+        <el-input
+          v-model="query.freightForwarderOrderNo"
+          :placeholder="t('financePaymentList.filters.freightForwarderOrderNo')"
+          clearable
+          class="search-input search-input--ff"
+          @keyup.enter="loadData"
+          @clear="loadData"
+        />
+        <el-input
+          v-model="query.bankSlipNo"
+          :placeholder="t('financePaymentList.filters.bankSlipNo')"
+          clearable
+          class="search-input search-input--slip"
+          @keyup.enter="loadData"
+          @clear="loadData"
+        />
+        <el-select
+          v-model="query.paymentMode"
+          :placeholder="t('financePaymentList.filters.paymentMode')"
+          clearable
+          class="filter-select filter-select--mode"
+          @change="loadData"
+        >
+          <el-option
+            v-for="k in paymentModeSelectKeys"
+            :key="k"
+            :label="paymentModeLabel(k)"
+            :value="k"
+          />
+        </el-select>
+        <el-input
+          v-model="query.vendorName"
+          :placeholder="t('financePaymentList.filters.vendorName')"
+          clearable
+          class="search-input search-input--vendor"
+          @keyup.enter="loadData"
+          @clear="loadData"
+        />
+        <el-input
+          v-model="query.remark"
+          :placeholder="t('financePaymentList.filters.remark')"
+          clearable
+          class="search-input search-input--remark"
+          @keyup.enter="loadData"
+          @clear="loadData"
+        />
         <el-date-picker
           v-model="dateRange"
           type="daterange"
@@ -64,15 +106,19 @@
     <!-- 数据表格 -->
     <CrmDataTable
       ref="dataTableRef"
-      column-layout-key="finance-payment-list-main"
+      column-layout-key="finance-payment-list-main-v2"
       :columns="paymentTableColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
       :data="tableData"
       v-loading="loading"
       @row-dblclick="openDetail"
+      @header-dragend="onPaymentTableHeaderDragEnd"
       row-class-name="table-row-pointer"
     >
+      <template #col-freightForwarderOrderNo="{ row }">
+        <span>{{ paymentRowFreightForwarderOrderNo(row) || '—' }}</span>
+      </template>
       <template #col-financePaymentCode="{ row }">
         <span class="code-text">{{ row.financePaymentCode }}</span>
       </template>
@@ -81,8 +127,19 @@
           {{ paymentStatusLabel(row.status) }}
         </el-tag>
       </template>
-      <template #col-vendorName="{ row }">
-        <span>{{ maskPurchaseSensitiveFields ? '—' : ((row as any).vendorName?.trim() || '—') }}</span>
+      <template #col-vendor-header>
+        <VendorExtendColumnHeader
+          :active-field="vendorExtendActiveField"
+          @set-active-field="setVendorExtendActiveField"
+        />
+      </template>
+      <template #col-vendor="{ row }">
+        <VendorExtendCell
+          :row="row"
+          :active-field="vendorExtendActiveField"
+          :masked="maskPurchaseSensitiveFields"
+          :empty-text="t('quoteList.na')"
+        />
       </template>
       <template #col-vendorBankName="{ row }">
         <span>{{ maskPurchaseSensitiveFields ? '—' : (paymentRowVendorBankName(row) || '—') }}</span>
@@ -90,8 +147,11 @@
       <template #col-paymentBankName="{ row }">
         <span>{{ maskPurchaseSensitiveFields ? '—' : (paymentRowBankName(row) || '—') }}</span>
       </template>
+      <template #col-paymentAmountToBe="{ row }">
+        <span class="amount-text amount-text--request">{{ CURRENCY_MAP[row.paymentCurrency] }} {{ formatAmount(row.paymentAmountToBe ?? 0) }}</span>
+      </template>
       <template #col-paymentAmount="{ row }">
-        <span class="amount-text">{{ CURRENCY_MAP[row.paymentCurrency] }} {{ formatAmount(row.paymentAmount) }}</span>
+        <span class="amount-text amount-text--paid">{{ CURRENCY_MAP[row.paymentCurrency] }} {{ formatAmount(row.paymentAmount) }}</span>
       </template>
       <template #col-paymentMode="{ row }">{{ paymentModeLabel(row.paymentMode) }}</template>
       <template #col-paymentDate="{ row }">{{ row.paymentDate ? formatDisplayDate(row.paymentDate) : '-' }}</template>
@@ -205,6 +265,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   financePaymentApi,
   PAYMENT_STATUS_MAP,
+  PAYMENT_MODE_MAP,
   CURRENCY_MAP,
   type FinancePayment,
   type PageQuery,
@@ -214,11 +275,31 @@ import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useAuthStore } from '@/stores/auth'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useFinanceWriteGate } from '@/composables/useDepartmentDataReadOnly'
+import VendorExtendColumnHeader from '@/components/list/VendorExtendColumnHeader.vue'
+import VendorExtendCell from '@/components/list/VendorExtendCell.vue'
+import { useVendorExtendColumn, isVendorExtendTableColumn } from '@/composables/useVendorExtendColumn'
 
 const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
+const {
+  expanded: vendorExtendExpanded,
+  activeField: vendorExtendActiveField,
+  colWidth: vendorExtendColWidth,
+  colMinWidth: vendorExtendColMinWidth,
+  setActiveField: setVendorExtendActiveField,
+  applyOuterWidthFromTable: applyVendorExtendOuterWidth
+} = useVendorExtendColumn()
+
+function onPaymentTableHeaderDragEnd(
+  newWidth: number,
+  _oldWidth: number,
+  column: { property?: string; label?: string }
+) {
+  if (!isVendorExtendTableColumn(column)) return
+  applyVendorExtendOuterWidth(newWidth)
+}
 
 /** 付款保存/完成/提交审核等：RBAC write + 主部门财务非只读 */
 const { canWriteFinancePayment: canFinancePaymentWrite } = useFinanceWriteGate()
@@ -226,11 +307,21 @@ const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const { paymentStatusLabel, paymentStatusTag, paymentModeLabel } = useFinanceEnumLabels()
 
 const paymentStatusSelectKeys = Object.keys(PAYMENT_STATUS_MAP).map(k => Number(k))
+const paymentModeSelectKeys = Object.keys(PAYMENT_MODE_MAP).map(k => Number(k))
 
 // 查询
 const query = reactive<PageQuery & { page: number; pageSize: number }>({
-  page: 1, pageSize: 20, keyword: '', status: undefined,
-  startDate: undefined, endDate: undefined,
+  page: 1,
+  pageSize: 20,
+  financePaymentCode: '',
+  freightForwarderOrderNo: '',
+  bankSlipNo: '',
+  paymentMode: undefined,
+  vendorName: '',
+  remark: '',
+  status: undefined,
+  startDate: undefined,
+  endDate: undefined,
 })
 const dateRange = ref<[string, string] | null>(null)
 const total = ref(0)
@@ -272,9 +363,28 @@ function paymentRowBankName(row: FinancePayment): string {
   return s
 }
 
-const paymentTableColumns = computed<CrmTableColumnDef[]>(() => [
+function paymentRowFreightForwarderOrderNo(row: FinancePayment): string {
+  const ext = row as unknown as Record<string, unknown>
+  const raw = row.freightForwarderOrderNo ?? ext.FreightForwarderOrderNo ?? ext.freightForwarderOrderNo
+  const s = raw != null ? String(raw).trim() : ''
+  return s
+}
+
+const paymentTableColumns = computed<CrmTableColumnDef[]>(() => {
+  void vendorExtendExpanded.value
+  void vendorExtendColWidth.value
+  return [
   { key: 'status', label: t('financePaymentList.columns.status'), prop: 'status', width: 100, align: 'center' },
-  { key: 'vendorName', label: t('financePaymentList.columns.vendor'), prop: 'vendorName', minWidth: 160, showOverflowTooltip: true },
+  {
+    key: 'vendor',
+    label: t('common.vendorExtendCol.columnTitle'),
+    prop: 'vendor',
+    minWidth: vendorExtendColMinWidth.value,
+    width: vendorExtendColWidth.value,
+    showOverflowTooltip: true,
+    className: 'vendor-extend-col',
+    labelClassName: 'vendor-extend-col'
+  },
   {
     key: 'vendorBankName',
     label: t('financePaymentList.columns.vendorReceivingBank'),
@@ -291,11 +401,27 @@ const paymentTableColumns = computed<CrmTableColumnDef[]>(() => [
     width: 160,
     showOverflowTooltip: true
   },
+  {
+    key: 'paymentAmountToBe',
+    label: t('financePaymentList.columns.requestAmount'),
+    prop: 'paymentAmountToBe',
+    width: 200,
+    minWidth: 180,
+    align: 'right'
+  },
   { key: 'paymentAmount', label: t('financePaymentList.columns.amount'), prop: 'paymentAmount', width: 200, minWidth: 180, align: 'right' },
   { key: 'paymentMode', label: t('financePaymentList.columns.mode'), prop: 'paymentMode', width: 110 },
   { key: 'paymentDate', label: t('financePaymentList.columns.date'), prop: 'paymentDate', width: 120 },
   { key: 'bankSlipNo', label: t('financePaymentList.columns.bankSlip'), prop: 'bankSlipNo', width: 150, showOverflowTooltip: true },
   { key: 'remark', label: t('financePaymentList.columns.remark'), prop: 'remark', minWidth: 140, showOverflowTooltip: true },
+  {
+    key: 'freightForwarderOrderNo',
+    label: t('financePaymentList.columns.freightForwarderOrderNo'),
+    prop: 'freightForwarderOrderNo',
+    width: 160,
+    minWidth: 140,
+    showOverflowTooltip: true
+  },
   { key: 'financePaymentCode', label: t('financePaymentList.columns.code'), prop: 'financePaymentCode', width: 160, minWidth: 160, showOverflowTooltip: true },
   { key: 'createdAt', label: t('financePaymentList.columns.createdAt'), prop: 'createdAt', width: 120 },
   { key: 'createUser', label: t('financePaymentList.columns.createUser'), width: 120, showOverflowTooltip: true },
@@ -310,9 +436,10 @@ const paymentTableColumns = computed<CrmTableColumnDef[]>(() => [
     reorderable: false,
     className: 'op-col',
     labelClassName: 'op-col',
-  resizable: false
+    resizable: false
   }
-])
+  ]
+})
 
 // 统计
 const stats = reactive({ monthTotal: 0, pendingCount: 0, paidCount: 0, draftCount: 0 })
@@ -459,6 +586,34 @@ onMounted(loadData)
 .list-footer-spacer {
   width: 26px;
   flex: 0 0 26px;
+}
+
+.search-input--code,
+.search-input--ff,
+.search-input--slip {
+  width: 160px;
+}
+
+.search-input--vendor {
+  width: 150px;
+}
+
+.search-input--remark {
+  width: 140px;
+}
+
+.filter-select--mode {
+  width: 130px;
+}
+
+.amount-text--request {
+  color: var(--el-color-warning, var(--crm-warning-color));
+  font-weight: 400;
+}
+
+.amount-text--paid {
+  color: vars.$success-color;
+  font-weight: 600;
 }
 
 </style>

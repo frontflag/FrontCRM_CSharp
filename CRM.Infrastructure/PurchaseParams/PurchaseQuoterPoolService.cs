@@ -52,7 +52,7 @@ public class PurchaseQuoterPoolService : IPurchaseQuoterPoolService
                 DataType = ParamDataType.Integer,
                 ValueString = count.ToString(),
                 DefaultValue = "2",
-                Description = "每条 RFQ 从报价员池连续取 N 人（1 或 2）。",
+                Description = "每条 RFQItem 从报价员池连续取 N 人（1 或 2），按明细轮询。",
                 IsSystem = true,
                 IsEditable = true,
                 IsVisible = true,

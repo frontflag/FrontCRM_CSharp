@@ -1450,6 +1450,9 @@ async function refreshDockLinkAlert(row: RFQItem) {
 }
 
 function onItemRowClick(row: RFQItem) {
+  if (purchaseQuoteDockLayout.value === 'headerOnly') {
+    purchaseQuoteDockLayout.value = 'stackCompact'
+  }
   selectedRfqItem.value = row
   void loadQuotesForRfqItem(row)
   void refreshDockLinkAlert(row)

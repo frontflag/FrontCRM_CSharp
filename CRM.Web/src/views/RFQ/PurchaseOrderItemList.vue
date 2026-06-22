@@ -159,6 +159,15 @@
       <template #col-itemStatus="{ row }">
         <el-tag effect="dark" :type="statusTagType(row.itemStatus)" size="small">{{ statusText(row.itemStatus) }}</el-tag>
       </template>
+      <template #col-paymentRequestProgressStatus="{ row }">
+        <el-tag
+          effect="dark"
+          size="small"
+          :type="Number(row.paymentRequestProgressStatus ?? 0) >= 1 ? 'success' : 'info'"
+        >
+          {{ poPaymentRequestProgressText(Number(row.paymentRequestProgressStatus ?? 0)) }}
+        </el-tag>
+      </template>
       <template #col-paymentProgressStatus="{ row }">
         <el-tag effect="dark" size="small" :type="poExtendTriTagType(Number(row.paymentProgressStatus ?? 0))">
           {{ poPaymentProgressText(Number(row.paymentProgressStatus ?? 0)) }}
@@ -694,28 +703,6 @@
           <el-form label-width="120px" class="arrival-notice-form">
             <el-row :gutter="12">
               <el-col :span="8">
-                <el-form-item :label="t('purchaseOrderItemList.arrivalDialog.code')"><el-input v-model="arrivalForm.purchaseOrderCode" /></el-form-item>
-              </el-col>
-              <el-col :span="8">
-                <el-form-item :label="t('purchaseOrderItemList.arrivalDialog.expectedArrival')" required>
-                  <el-date-picker
-                    v-model="arrivalForm.expectedArrivalDate"
-                    type="date"
-                    value-format="YYYY-MM-DD"
-                    :placeholder="t('purchaseOrderItemList.arrivalDialog.expectedArrivalPlaceholder')"
-                    style="width: 100%"
-                  />
-                </el-form-item>
-              </el-col>
-              <el-col :span="8">
-                <el-form-item :label="t('purchaseOrderItemList.arrivalDialog.companyName')">
-                  <el-input v-if="!maskPurchaseSensitiveFields" v-model="arrivalForm.companyName" />
-                  <el-input v-else model-value="—" disabled />
-                </el-form-item>
-              </el-col>
-            </el-row>
-            <el-row :gutter="12">
-              <el-col :span="6">
                 <el-form-item :label="t('purchaseOrderItemList.arrivalDialog.regionType')">
                   <el-select
                     :model-value="normalizeRegionType(arrivalForm.regionType)"
@@ -729,50 +716,59 @@
                   </el-select>
                 </el-form-item>
               </el-col>
-              <el-col :span="18"><el-form-item :label="t('purchaseOrderItemList.arrivalDialog.address')"><el-input v-model="arrivalForm.address" /></el-form-item></el-col>
+              <el-col :span="8">
+                <el-form-item :label="t('purchaseOrderItemList.arrivalDialog.expectedArrival')" required>
+                  <el-date-picker
+                    v-model="arrivalForm.expectedArrivalDate"
+                    type="date"
+                    value-format="YYYY-MM-DD"
+                    :placeholder="t('purchaseOrderItemList.arrivalDialog.expectedArrivalPlaceholder')"
+                    style="width: 100%"
+                  />
+                </el-form-item>
+              </el-col>
+              <el-col :span="8">
+                <el-form-item :label="t('purchaseOrderItemList.arrivalDialog.purchaseOrderCode')">
+                  <el-input
+                    :model-value="arrivalForm.purchaseOrderCode"
+                    class="arrival-po-code-input"
+                    readonly
+                  />
+                </el-form-item>
+              </el-col>
+            </el-row>
+            <el-row :gutter="12">
+              <ShipmentExpressFields
+                v-model:shipment-method="arrivalForm.shipmentMethod"
+                v-model:express-company="arrivalForm.expressCompany"
+                :shipment-label="t('purchaseOrderItemList.arrivalDialog.expectedArrivalMethod')"
+                :express-label="t('purchaseOrderItemList.arrivalDialog.expressCompany')"
+                :placeholder="t('purchaseOrderItemList.arrivalDialog.selectPlaceholder')"
+                :shipment-required="false"
+                :col-span="8"
+              />
+              <el-col :span="8">
+                <el-form-item :label="t('purchaseOrderItemList.arrivalDialog.expectedArrivalExpressNo')">
+                  <el-input v-model="arrivalForm.courierTrackingNo" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+            <el-row :gutter="12">
+              <el-col :span="12">
+                <el-form-item :label="t('purchaseOrderItemList.arrivalDialog.companyName')">
+                  <el-input v-if="!maskPurchaseSensitiveFields" v-model="arrivalForm.companyName" />
+                  <el-input v-else model-value="—" disabled />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item :label="t('purchaseOrderItemList.arrivalDialog.address')">
+                  <el-input v-model="arrivalForm.address" />
+                </el-form-item>
+              </el-col>
             </el-row>
             <el-row :gutter="12">
               <el-col :span="12"><el-form-item :label="t('purchaseOrderItemList.arrivalDialog.phone')"><el-input v-model="arrivalForm.phone" /></el-form-item></el-col>
               <el-col :span="12"><el-form-item :label="t('purchaseOrderItemList.arrivalDialog.contact')"><el-input v-model="arrivalForm.contact" /></el-form-item></el-col>
-            </el-row>
-            <el-row :gutter="12">
-              <el-col :span="8">
-                <el-form-item :label="t('purchaseOrderItemList.arrivalDialog.arrivalMethod')">
-                  <el-select
-                    v-model="arrivalForm.arrivalMethod"
-                    clearable
-                    filterable
-                    :placeholder="t('purchaseOrderItemList.arrivalDialog.selectPlaceholder')"
-                    style="width: 100%"
-                  >
-                    <el-option
-                      v-for="o in arrivalMethodDictOptions"
-                      :key="o.value"
-                      :label="o.label"
-                      :value="o.value"
-                    />
-                  </el-select>
-                </el-form-item>
-              </el-col>
-              <el-col :span="8">
-                <el-form-item :label="t('purchaseOrderItemList.arrivalDialog.expressMethod')">
-                  <el-select
-                    v-model="arrivalForm.expressMethod"
-                    clearable
-                    filterable
-                    :placeholder="t('purchaseOrderItemList.arrivalDialog.selectPlaceholder')"
-                    style="width: 100%"
-                  >
-                    <el-option
-                      v-for="o in expressMethodDictOptions"
-                      :key="o.value"
-                      :label="o.label"
-                      :value="o.value"
-                    />
-                  </el-select>
-                </el-form-item>
-              </el-col>
-              <el-col :span="8"><el-form-item :label="t('purchaseOrderItemList.arrivalDialog.expressNo')"><el-input v-model="arrivalForm.expressNo" /></el-form-item></el-col>
             </el-row>
           </el-form>
         </div>
@@ -863,14 +859,13 @@ import {
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
 import PaymentRequestVendorBankSection from '@/components/Vendor/PaymentRequestVendorBankSection.vue'
-import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
+import ShipmentExpressFields from '@/components/Logistics/ShipmentExpressFields.vue'
 import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
 import { CurrencyCode } from '@/constants/currency'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { vendorBankApi } from '@/api/vendor'
 import { filterEnabledVendorBanks, resolveVendorDefaultBankId } from '@/utils/vendorFinancePaymentBank'
-import { getApiErrorMessage } from '@/utils/apiError'
 import QcImagesReadonlyGallery from '@/components/Logistics/QcImagesReadonlyGallery.vue'
 
 const router = useRouter()
@@ -910,25 +905,12 @@ async function onPurchaseOrderItemRowDblClick(row: Record<string, unknown>) {
   if (maskPurchaseSensitiveFields.value) return
   const purchaseOrderId = String(row?.purchaseOrderId ?? '').trim()
   const purchaseOrderItemId = String(row?.purchaseOrderItemId ?? '').trim()
-  const purchaseOrderItemCode = String(row?.purchaseOrderItemCode ?? '').trim()
   if (!purchaseOrderId || !purchaseOrderItemId) return
-  poItemLinePanel.purchaseOrderItemId = purchaseOrderItemId
-  poItemLinePanel.purchaseOrderItemCode = purchaseOrderItemCode || purchaseOrderItemId
-  poItemLinePanel.visible = true
-  poItemLinePanel.activeTab = 'requisitions'
-  poItemLinePanel.loading = true
-  poItemLinePanel.loadError = ''
-  lineTabAggregates.value = null
-  try {
-    lineTabAggregates.value = await purchaseOrderApi.getPurchaseOrderItemDetailTabAggregates(
-      purchaseOrderId,
-      purchaseOrderItemId
-    )
-  } catch (e: unknown) {
-    poItemLinePanel.loadError = getApiErrorMessage(e, '加载明细关联数据失败')
-  } finally {
-    poItemLinePanel.loading = false
-  }
+  router.push({
+    name: 'PurchaseOrderDetail',
+    params: { id: purchaseOrderId },
+    query: { purchaseOrderItemId }
+  })
 }
 
 function poAggFormatDt(v?: string | null) {
@@ -963,9 +945,6 @@ function poDetailStockInStatusText(v?: number) {
   const map: Record<number, string> = { 0: '草稿', 1: '待入库', 2: '已入库', 3: '已取消' }
   return map[Number(v)] ?? '—'
 }
-
-const { ensureLoaded: ensureLogisticsDict, arrivalOptions: arrivalMethodDictOptions, expressOptions: expressMethodDictOptions } =
-  useLogisticsFormDict()
 
 /** 与采购订单列表/详情一致：脱敏时不得展示供应商检索与列 */
 const canViewVendor = computed(
@@ -1067,6 +1046,13 @@ const purchaseOrderItemColumns = computed<CrmTableColumnDef[]>(() => {
     { key: 'createTime', label: t('purchaseOrderItemList.columns.createTime'), width: 160 },
     { key: 'createUser', label: t('purchaseOrderItemList.columns.createUser'), width: 120, showOverflowTooltip: true },
     {
+      key: 'paymentRequestProgressStatus',
+      label: t('purchaseOrderItemList.columns.paymentRequestProgressStatus'),
+      prop: 'paymentRequestProgressStatus',
+      width: 130,
+      align: 'center'
+    },
+    {
       key: 'paymentProgressStatus',
       label: t('purchaseOrderItemList.columns.paymentProgressStatus'),
       prop: 'paymentProgressStatus',
@@ -1134,6 +1120,9 @@ const arrivalForm = reactive<any>({
   contact: '',
   arrivalMethod: '',
   expressMethod: '',
+  shipmentMethod: '',
+  expressCompany: '',
+  courierTrackingNo: '',
   expressNo: '',
   regionType: REGION_TYPE_DOMESTIC as number,
   inspectionRequirement: '',
@@ -1284,6 +1273,11 @@ function poStockInProgressText(v: number) {
   return k ? t(`purchaseOrderItemList.extendProgress.${k}`) : String(v)
 }
 
+function poPaymentRequestProgressText(v: number) {
+  if (Number(v) >= 1) return t('purchaseOrderItemList.extendProgress.paymentRequestApplied')
+  return t('purchaseOrderItemList.extendProgress.paymentRequestPending')
+}
+
 function poPaymentProgressText(v: number) {
   const map: Record<number, string> = {
     0: 'paymentPending',
@@ -1358,11 +1352,6 @@ async function openPaymentDialog(row: any) {
 }
 
 async function openArrivalDialog(row: any) {
-  try {
-    await ensureLogisticsDict()
-  } catch {
-    /* 字典加载失败仍允许打开 */
-  }
   arrivalNoticeShowProcessFields.value = false
   arrivalForm.purchaseOrderItemId = row.purchaseOrderItemId || row.id || ''
   arrivalForm.purchaseOrderId = row.purchaseOrderId || ''
@@ -1376,6 +1365,9 @@ async function openArrivalDialog(row: any) {
   arrivalForm.contact = ''
   arrivalForm.arrivalMethod = ''
   arrivalForm.expressMethod = ''
+  arrivalForm.shipmentMethod = ''
+  arrivalForm.expressCompany = ''
+  arrivalForm.courierTrackingNo = ''
   arrivalForm.expressNo = ''
   arrivalForm.regionType = inferArrivalRegionTypeByCurrency(row.currency)
   arrivalForm.inspectionRequirement = ''
@@ -1437,7 +1429,10 @@ async function submitArrivalNotice() {
       expectQty,
       purchaseOrderId: arrivalForm.purchaseOrderId,
       expectedArrivalDate: arrivalForm.expectedArrivalDate,
-      regionType: normalizeRegionType(arrivalForm.regionType)
+      regionType: normalizeRegionType(arrivalForm.regionType),
+      shipmentMethod: arrivalForm.shipmentMethod?.trim() || undefined,
+      expressCompany: arrivalForm.expressCompany?.trim() || undefined,
+      courierTrackingNo: arrivalForm.courierTrackingNo?.trim() || undefined
     })
     ElMessage.success(t('purchaseOrderItemList.messages.arrivalCreated'))
     arrivalDialogVisible.value = false
@@ -1839,6 +1834,12 @@ onMounted(() => {
 .list-footer-spacer {
   width: 26px;
   flex: 0 0 26px;
+}
+
+.arrival-form-layout :deep(.arrival-po-code-input .el-input__inner),
+.arrival-form-layout :deep(.arrival-po-code-input .el-input__wrapper) {
+  color: #e6a23c;
+  cursor: default;
 }
 
 .arrival-form-layout {

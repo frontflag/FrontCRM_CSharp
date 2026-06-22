@@ -216,6 +216,7 @@ public static class PurchaseSensitiveFieldMask511
         p.VendorId = string.Empty;
         p.VendorName = null;
         p.VendorCode = null;
+        p.VendorEnglishName = null;
         p.VendorBankId = null;
         p.VendorBankName = null;
         p.CompanyBankId = null;

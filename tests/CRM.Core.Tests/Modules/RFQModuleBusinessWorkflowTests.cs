@@ -84,15 +84,7 @@ public sealed class RFQModuleBusinessWorkflowTests
                 });
             var rfqMain = new MemoryRfqMainListQuery(RfqRepo, CustomerRepo, UserService, DataPermission);
             var rfqItem = new MemoryRfqItemListQuery(RfqRepo, ItemRepo, CustomerRepo, QuoteRepo, UserService, DataPermission);
-            Service = new RFQService(RfqRepo, ItemRepo, CustomerRepo, Lookup, UnitOfWork, Serial, DataPermission, UserService, SysParamRepo, QuoteRepo, UserRepo, rbac, CreateEmptyPurchaseQuoterPoolService(), rfqMain, rfqItem, NullLogger<RFQService>.Instance, Substitute.For<ILogOperationAppendService>(), BizBrandTestSubstitute.Create(new Dictionary<long, string> { [1] = "ST", [2] = "B", [3] = "NX" }));
-        }
-
-        private static IPurchaseQuoterPoolService CreateEmptyPurchaseQuoterPoolService()
-        {
-            var svc = Substitute.For<IPurchaseQuoterPoolService>();
-            svc.GetOrderedActivePoolUserIdsAsync(Arg.Any<CancellationToken>()).Returns(Array.Empty<string>());
-            svc.GetAssigneeCountAsync(Arg.Any<CancellationToken>()).Returns(2);
-            return svc;
+            Service = new RFQService(RfqRepo, ItemRepo, CustomerRepo, Lookup, UnitOfWork, Serial, DataPermission, UserService, QuoteRepo, UserRepo, rbac, RfqAssignmentTestFactory.CreateEmptyItemRoundRobinOrchestrator(SysParamRepo), rfqMain, rfqItem, NullLogger<RFQService>.Instance, Substitute.For<ILogOperationAppendService>(), BizBrandTestSubstitute.Create(new Dictionary<long, string> { [1] = "ST", [2] = "B", [3] = "NX" }));
         }
 
         private sealed class ConcurrentInt

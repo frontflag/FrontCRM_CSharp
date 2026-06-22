@@ -88,6 +88,7 @@ public sealed class QuoteListQuery : IQuoteListQuery
             request.CurrentUserId,
             q,
             _db.RFQs.AsNoTracking(),
+            _db.RFQItems.AsNoTracking(),
             cancellationToken);
 
         if (request.Status.HasValue)
@@ -165,6 +166,7 @@ public sealed class QuoteListQuery : IQuoteListQuery
             currentUserId,
             q,
             _db.RFQs.AsNoTracking(),
+            _db.RFQItems.AsNoTracking(),
             cancellationToken);
 
         var rows = await q

@@ -35,6 +35,12 @@ export interface StockInNotifyDto {
   receiveQty?: number
   passedQty?: number
   remark?: string | null
+  /** 预计到货方式（字典 LogisticsArrivalMethod ItemCode） */
+  shipmentMethod?: string | null
+  /** 预计到货快递单号 */
+  courierTrackingNo?: string | null
+  /** 快递公司（字典 LogisticsExpressMethod ItemCode） */
+  expressCompany?: string | null
   createTime: string
   modifyTime?: string
   items: StockInNotifyItemDto[]
@@ -111,6 +117,9 @@ export const logisticsApi = {
     expectedArrivalDate?: string | null
     regionType?: number
     remark?: string | null
+    shipmentMethod?: string | null
+    courierTrackingNo?: string | null
+    expressCompany?: string | null
   }): Promise<StockInNotifyDto> {
     return unwrap<StockInNotifyDto>(await apiClient.post('/api/v1/logistics/arrival-notices', payload))
   },

@@ -3,6 +3,7 @@ using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
 using CRM.Core.Models.Finance;
+using CRM.Core.Models.Customer;
 using CRM.Core.Models.Sales;
 using CRM.Core.Models.System;
 using CRM.Core.Utilities;
@@ -16,6 +17,7 @@ namespace CRM.Core.Services
         private readonly IRepository<FinanceSellInvoice> _sellInvoiceRepo;
         private readonly IRepository<SellInvoiceItem> _sellInvoiceItemRepo;
         private readonly IRepository<SellOrder> _sellOrderRepo;
+        private readonly IRepository<CustomerInfo> _customerRepo;
         private readonly IRepository<User> _userRepository;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IUnitOfWork? _unitOfWork;
@@ -32,6 +34,7 @@ namespace CRM.Core.Services
             IRepository<FinanceSellInvoice> sellInvoiceRepo,
             IRepository<SellInvoiceItem> sellInvoiceItemRepo,
             IRepository<SellOrder> sellOrderRepo,
+            IRepository<CustomerInfo> customerRepo,
             IRepository<User> userRepository,
             IDataPermissionService dataPermissionService,
             ISerialNumberService serialNumberService,
@@ -47,6 +50,7 @@ namespace CRM.Core.Services
             _sellInvoiceRepo = sellInvoiceRepo;
             _sellInvoiceItemRepo = sellInvoiceItemRepo;
             _sellOrderRepo = sellOrderRepo;
+            _customerRepo = customerRepo;
             _userRepository = userRepository;
             _dataPermissionService = dataPermissionService;
             _serialNumberService = serialNumberService;
@@ -81,6 +85,38 @@ namespace CRM.Core.Services
                 if (string.IsNullOrWhiteSpace(r.CreateByUserId)) continue;
                 if (map.TryGetValue(r.CreateByUserId.Trim(), out var name))
                     r.CreateUserName = name;
+            }
+        }
+
+        private async Task EnrichCustomerExtendFieldsAsync(IReadOnlyList<FinanceReceipt> items)
+        {
+            if (items.Count == 0) return;
+            var ids = items
+                .Select(r => r.CustomerId)
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(s => s!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            if (ids.Length == 0) return;
+
+            var customers = (await _customerRepo.FindAsync(c => ids.Contains(c.Id))).ToList();
+            var byId = customers
+                .Where(c => !string.IsNullOrWhiteSpace(c.Id))
+                .GroupBy(c => c.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            foreach (var r in items)
+            {
+                if (string.IsNullOrWhiteSpace(r.CustomerId)) continue;
+                if (!byId.TryGetValue(r.CustomerId.Trim(), out var cust)) continue;
+
+                var nameZh = string.IsNullOrWhiteSpace(cust.OfficialName) ? cust.CustomerName : cust.OfficialName;
+                if (!string.IsNullOrWhiteSpace(nameZh))
+                    r.CustomerName = nameZh.Trim();
+                if (!string.IsNullOrWhiteSpace(cust.EnglishOfficialName))
+                    r.CustomerEnglishName = cust.EnglishOfficialName.Trim();
+                if (!string.IsNullOrWhiteSpace(cust.CustomerCode))
+                    r.CustomerCode = cust.CustomerCode.Trim();
             }
         }
 
@@ -198,6 +234,7 @@ namespace CRM.Core.Services
             var result = await _receiptListQuery.GetPagedAsync(request);
             var items = result.Items.ToList();
             await EnrichCreateUserNamesAsync(items);
+            await EnrichCustomerExtendFieldsAsync(items);
             return new PagedResult<FinanceReceipt>
             {
                 Items = items,

@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
+using CRM.Core.Interfaces.RfqAssignment;
 using CRM.Core.Models;
 using CRM.Core.Models.Rbac;
 using CRM.Core.Models.Quote;
@@ -9,6 +10,7 @@ using CRM.Core.Models.System;
 using CRM.Core.Services;
 using CRM.Core.Tests.Fakes;
 using CRM.TestCommon.Biz;
+using CRM.TestCommon.Rfq;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Xunit;
@@ -38,17 +40,8 @@ namespace CRM.Core.Tests.Services
         private readonly IRbacService _rbacService;
         private readonly IRfqMainListQuery _rfqMainListQuery;
         private readonly IRfqItemListQuery _rfqItemListQuery;
-        private readonly IPurchaseQuoterPoolService _purchaseQuoterPoolService;
+        private readonly IRfqPurchaserAssignmentOrchestrator _purchaserAssignmentOrchestrator;
         private readonly RFQService _rfqService;
-
-        private static IPurchaseQuoterPoolService CreateEmptyPoolService()
-        {
-            var svc = Substitute.For<IPurchaseQuoterPoolService>();
-            svc.GetOrderedActivePoolUserIdsAsync(Arg.Any<CancellationToken>())
-                .Returns(Array.Empty<string>());
-            svc.GetAssigneeCountAsync(Arg.Any<CancellationToken>()).Returns(2);
-            return svc;
-        }
 
         private static IPurchaseQuoterPoolService CreatePoolServiceWithUsers(params string[] userIds)
         {
@@ -136,7 +129,7 @@ namespace CRM.Core.Tests.Services
                     PageSize = 20
                 }));
 
-            _purchaseQuoterPoolService = CreateEmptyPoolService();
+            _purchaserAssignmentOrchestrator = RfqAssignmentTestFactory.CreateEmptyItemRoundRobinOrchestrator(_sysParamRepo);
 
             _rfqService = new RFQService(
                 _rfqRepository,
@@ -147,11 +140,10 @@ namespace CRM.Core.Tests.Services
                 _serialNumberService,
                 _dataPermissionService,
                 _userService,
-                _sysParamRepo,
                 _quoteRepo,
                 _userRepo,
                 _rbacService,
-                _purchaseQuoterPoolService,
+                _purchaserAssignmentOrchestrator,
                 _rfqMainListQuery,
                 _rfqItemListQuery,
                 NullLogger<RFQService>.Instance,
@@ -199,9 +191,9 @@ namespace CRM.Core.Tests.Services
             await _unitOfWork.Received(1).SaveChangesAsync();
         }
 
-        /// <summary>有报价员池时：主单已分配、明细共用一对采购员、全局游标每单 +2。</summary>
+        /// <summary>有报价员池时：主单已分配、每条明细独立轮询一对采购员、全局游标每条明细 +N。</summary>
         [Fact]
-        public async Task CreateAsync_WithPurchaserPool_AssignsPairToAllLinesAndAdvancesCursor()
+        public async Task CreateAsync_WithPurchaserPool_AssignsPairPerLineAndAdvancesCursor()
         {
             var rfqRepo = Substitute.For<IRepository<RFQ>>();
             var itemRepo = Substitute.For<IRepository<RFQItem>>();
@@ -221,6 +213,9 @@ namespace CRM.Core.Tests.Services
             });
 
             var purchaseQuoterPool = CreatePoolServiceWithUsers("U-A", "U-M", "U-Z");
+            var orchestrator = RfqAssignmentTestFactory.CreateItemRoundRobinOrchestrator(
+                purchaseQuoterPool,
+                sysParamRepo);
 
             var rbacDeptRepo = Substitute.For<IRepository<RbacDepartment>>();
             var rbacUserDeptRepo = Substitute.For<IRepository<RbacUserDepartment>>();
@@ -263,11 +258,10 @@ namespace CRM.Core.Tests.Services
                 serial,
                 Substitute.For<IDataPermissionService>(),
                 Substitute.For<IUserService>(),
-                sysParamRepo,
                 Substitute.For<IRepository<Quote>>(),
                 Substitute.For<IRepository<User>>(),
                 rbacSvc,
-                purchaseQuoterPool,
+                orchestrator,
                 rfqMain,
                 rfqItem,
                 NullLogger<RFQService>.Instance,
@@ -282,17 +276,19 @@ namespace CRM.Core.Tests.Services
             var first = await svc.CreateAsync(req);
             Assert.Equal(1, first.Status);
             Assert.Equal(2, first.AssignMethod);
-            await itemRepo.Received(2).AddAsync(Arg.Is<RFQItem>(i =>
+            await itemRepo.Received(1).AddAsync(Arg.Is<RFQItem>(i =>
                 i.AssignedPurchaserUserId1 == "U-A" && i.AssignedPurchaserUserId2 == "U-M"));
+            await itemRepo.Received(1).AddAsync(Arg.Is<RFQItem>(i =>
+                i.AssignedPurchaserUserId1 == "U-Z" && i.AssignedPurchaserUserId2 == "U-A"));
 
             var cursorRow = (await sysParamRepo.FindAsync(p => p.ParamCode == SysParamCodes.RfqPurchaserRoundRobinCursor)).First();
-            Assert.Equal("2", cursorRow.ValueString);
+            Assert.Equal("4", cursorRow.ValueString);
 
             await svc.CreateAsync(BuildValidCreateRequest());
             cursorRow = (await sysParamRepo.FindAsync(p => p.ParamCode == SysParamCodes.RfqPurchaserRoundRobinCursor)).First();
-            Assert.Equal("4", cursorRow.ValueString);
-            await itemRepo.Received().AddAsync(Arg.Is<RFQItem>(i =>
-                i.AssignedPurchaserUserId1 == "U-Z" && i.AssignedPurchaserUserId2 == "U-A"));
+            Assert.Equal("6", cursorRow.ValueString);
+            await itemRepo.Received(1).AddAsync(Arg.Is<RFQItem>(i =>
+                i.AssignedPurchaserUserId1 == "U-M" && i.AssignedPurchaserUserId2 == "U-Z"));
         }
 
         [Fact]

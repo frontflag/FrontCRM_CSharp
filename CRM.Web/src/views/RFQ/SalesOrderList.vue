@@ -141,6 +141,7 @@
         highlight-current-row
         @row-dblclick="handleView"
         @current-change="onTableCurrentRowChange"
+        @header-dragend="onSalesOrderTableHeaderDragEnd"
       >
         <template #col-sellOrderCode="{ row }">
           <el-link type="primary" @click="handleView(row)">{{ row.sellOrderCode }}</el-link>
@@ -150,8 +151,19 @@
             {{ getStatusText(row.status) }}
           </el-tag>
         </template>
-        <template #col-customerName="{ row }">
-          <span>{{ maskSaleSensitiveFields ? '—' : (row.customerName || '—') }}</span>
+        <template v-if="canViewCustomerInfo" #col-customer-header>
+          <CustomerExtendColumnHeader
+            :active-field="customerExtendActiveField"
+            @set-active-field="setCustomerExtendActiveField"
+          />
+        </template>
+        <template v-if="canViewCustomerInfo" #col-customer="{ row }">
+          <CustomerExtendCell
+            :row="row"
+            :active-field="customerExtendActiveField"
+            :masked="maskSaleSensitiveFields"
+            :empty-text="t('quoteList.na')"
+          />
         </template>
         <template #col-total="{ row }">
           <template v-if="maskSaleSensitiveFields">
@@ -278,6 +290,9 @@ import {
 } from '@/utils/moneyFormat'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import CustomerExtendColumnHeader from '@/components/list/CustomerExtendColumnHeader.vue'
+import CustomerExtendCell from '@/components/list/CustomerExtendCell.vue'
+import { useCustomerExtendColumn, isCustomerExtendTableColumn } from '@/composables/useCustomerExtendColumn'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 
@@ -292,6 +307,24 @@ const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const authStore = useAuthStore()
 const { canWriteSaleData } = useDepartmentDataReadOnly()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
+const {
+  expanded: customerExtendExpanded,
+  activeField: customerExtendActiveField,
+  colWidth: customerExtendColWidth,
+  colMinWidth: customerExtendColMinWidth,
+  setActiveField: setCustomerExtendActiveField,
+  applyOuterWidthFromTable: applyCustomerExtendOuterWidth
+} = useCustomerExtendColumn()
+
+function onSalesOrderTableHeaderDragEnd(
+  newWidth: number,
+  _oldWidth: number,
+  column: { property?: string; label?: string }
+) {
+  if (!isCustomerExtendTableColumn(column)) return
+  applyCustomerExtendOuterWidth(newWidth)
+}
+
 /** 订单上的客户名属销售业务上下文：业务员有 sales-order.read 即可见列与筛选，不必具备客户主数据权限 customer.info.read */
 const canViewCustomerInfo = computed(
   () =>
@@ -335,10 +368,21 @@ function toggleOpCol() {
 /** 销售订单列表主表可配置列（localStorage：crm-table-columns:v1:sales-order-list-main） */
 const salesOrderTableColumns = computed((): CrmTableColumnDef[] => {
   void locale.value
+  void customerExtendExpanded.value
+  void customerExtendColWidth.value
   return [
   { key: 'status', label: t('salesOrderList.columns.status'), prop: 'status', width: 160, align: 'center' as const },
   ...(canViewCustomerInfo.value
-    ? [{ key: 'customerName', label: t('salesOrderList.columns.customer'), prop: 'customerName', minWidth: 200, showOverflowTooltip: true }]
+    ? [{
+        key: 'customer',
+        label: t('common.customerExtendCol.columnTitle'),
+        prop: 'customer',
+        minWidth: customerExtendColMinWidth.value,
+        width: customerExtendColWidth.value,
+        showOverflowTooltip: true,
+        className: 'customer-extend-col',
+        labelClassName: 'customer-extend-col'
+      }]
     : []),
   { key: 'salesUserName', label: t('salesOrderList.columns.salesUser'), prop: 'salesUserName', width: 120, minWidth: 120, showOverflowTooltip: true },
   { key: 'assistorUserName', label: t('salesOrderList.columns.assistor'), prop: 'assistorUserName', width: 120, minWidth: 120, showOverflowTooltip: true },

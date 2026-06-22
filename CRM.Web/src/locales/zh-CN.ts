@@ -319,7 +319,7 @@ const zhCN = {
     assigneeCountNav: '报价人数',
     quoterPoolNav: '报价员池',
     assigneeCountTitle: '报价人数',
-    assigneeCountHint: '新建需求时，从报价员池中按顺序连续取 N 名采购员，写入该需求全部明细。',
+    assigneeCountHint: '新建需求时，每条明细从报价员池中按顺序连续取 N 名采购员，逐行轮询分配。',
     assigneeCountLabel: '每条需求分配报价采购员人数：',
     assigneeCountOption1: '1 人',
     assigneeCountOption2: '2 人',
@@ -3063,6 +3063,7 @@ const zhCN = {
     arrivalDialog: {
       title: '新建到货通知',
       code: '单号',
+      purchaseOrderCode: '采购单号',
       expectedArrival: '预计到货日期',
       expectedArrivalPlaceholder: '选择预计到货日期',
       companyName: '公司名称',
@@ -3071,6 +3072,7 @@ const zhCN = {
       contact: '联系人',
       arrivalMethod: '来货方式',
       expectedArrivalMethod: '预计到货方式',
+      expressCompany: '快递公司',
       expressMethod: '快递方式',
       selectPlaceholder: '请选择',
       expressNo: '快递单号',
@@ -4159,7 +4161,10 @@ const zhCN = {
     executing: '执行中...',
     count: '共 {count} 条',
     applyDialog: {
-      regionType: '送达地域'
+      createTitle: '新建出货通知',
+      editTitle: '编辑出货通知',
+      regionType: '送达地域',
+      expectedShipDate: '预计出货日期'
     },
     filters: {
       statusPlaceholder: '状态',

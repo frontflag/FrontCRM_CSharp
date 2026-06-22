@@ -522,6 +522,8 @@
         </span>
       </template>
     </el-dialog>
+
+    <ApplyStockOutDialog ref="applyStockOutDialogRef" @success="onApplyStockOutSuccess" />
   </div>
 </template>
 
@@ -532,6 +534,7 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import ApplyStockOutDisabledHint from '@/components/RFQ/ApplyStockOutDisabledHint.vue'
+import ApplyStockOutDialog from '@/components/RFQ/ApplyStockOutDialog.vue'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
 import { useSalesOrderItemListBasketStore } from '@/stores/salesOrderItemListBasket'
@@ -1031,7 +1034,13 @@ function onApplyStockOutDropdownClick(row: Record<string, unknown>) {
   applyStockOutOne(row)
 }
 
-function applyStockOutOne(row: any) {
+const applyStockOutDialogRef = ref<InstanceType<typeof ApplyStockOutDialog> | null>(null)
+
+function onApplyStockOutSuccess() {
+  void loadList()
+}
+
+function applyStockOutOne(row: Record<string, unknown>) {
   if (salesOrderLineApplyStockOutButtonDisabled(row)) return
   if (!mainAllowsOps(row)) {
     ElMessage.warning(t('salesOrderItemList.messages.applyStockOutNeedAudit'))
@@ -1045,10 +1054,15 @@ function applyStockOutOne(row: any) {
     ElMessage.warning(t('salesOrderItemList.messages.applyStockOutDisabledByProgress'))
     return
   }
-  router.push({
-    path: `/sales-orders/${row.sellOrderId}`,
-    query: { applyStockOut: '1' }
-  })
+  void applyStockOutDialogRef.value?.open(
+    {
+      salesOrderId: String(row.sellOrderId ?? ''),
+      customerId: String(row.customerId ?? ''),
+      customerName: String(row.customerName ?? ''),
+      sellOrderCode: String(row.sellOrderCode ?? '')
+    },
+    row
+  )
 }
 
 onMounted(() => loadList())

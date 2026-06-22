@@ -36,6 +36,12 @@ namespace CRM.API.Controllers
         [RequireAnyPermission("finance-payment.read", "purchase-order.read")]
         public async Task<IActionResult> GetAll(
             [FromQuery] string? keyword,
+            [FromQuery] string? financePaymentCode,
+            [FromQuery] string? freightForwarderOrderNo,
+            [FromQuery] string? bankSlipNo,
+            [FromQuery] short? paymentMode,
+            [FromQuery] string? vendorName,
+            [FromQuery] string? remark,
             [FromQuery] short? status,
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
@@ -47,6 +53,12 @@ namespace CRM.API.Controllers
                 var request = new FinancePaymentQueryRequest
                 {
                     Keyword = keyword,
+                    FinancePaymentCode = financePaymentCode,
+                    FreightForwarderOrderNo = freightForwarderOrderNo,
+                    BankSlipNo = bankSlipNo,
+                    PaymentMode = paymentMode,
+                    VendorName = vendorName,
+                    Remark = remark,
                     Status = status,
                     StartDate = DateTime.TryParse(startDate, out var start) ? start : null,
                     EndDate = DateTime.TryParse(endDate, out var end) ? end : null,

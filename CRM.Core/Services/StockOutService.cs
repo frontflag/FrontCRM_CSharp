@@ -225,6 +225,7 @@ namespace CRM.Core.Services
                 CreateByUserId = ActingUserIdNormalizer.Normalize(actingUserId)
             };
 
+            CustomsPendlist? pendlistToAdd = null;
             if (regionType == RegionTypeCode.Domestic && stockOutType == StockOutTypeCode.Sales)
             {
                 var applySnapshot = await BuildApplyInventorySnapshotAsync(
@@ -237,7 +238,7 @@ namespace CRM.Core.Services
                 ValidateCustomsChoiceForCreate(applySnapshot.CustomsOption, useCustoms);
                 if (useCustoms)
                 {
-                    var pendlist = await TryBuildCustomsPendlistAsync(
+                    pendlistToAdd = await TryBuildCustomsPendlistAsync(
                         lineId,
                         soItem.PN,
                         soItem.Brand,
@@ -246,12 +247,16 @@ namespace CRM.Core.Services
                         actingUserId);
                     stockOutRequest.Status = StockOutRequestStatusCode.PendingCustoms;
                     stockOutRequest.CustomsStatus = StockOutNotifyCustomsStatusCode.PendingCustoms;
-                    await _customsPendlistRepository.AddAsync(pendlist);
                 }
             }
 
             await _stockOutRequestRepository.AddAsync(stockOutRequest);
             var saveAfterReq = await _unitOfWork.SaveChangesAsync();
+            if (pendlistToAdd != null)
+            {
+                await _customsPendlistRepository.AddAsync(pendlistToAdd);
+                await _unitOfWork.SaveChangesAsync();
+            }
             _logger.LogInformation(
                 "[SellLineStockOutSync] CreateStockOutRequest saved StockOutRequestId={RequestId} SellOrderItemId={SellOrderItemId} SaveChanges={Rows}",
                 stockOutRequest.Id, lineId, saveAfterReq);

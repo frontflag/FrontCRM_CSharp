@@ -1,0 +1,16 @@
+{
+  "miniprogramRoot": "dist/dev/mp-weixin/",
+  "projectname": "FrontCRM",
+  "description": "FrontCRM 客户关系管理系统 - 微信小程序",
+  "appid": "",
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "postcss": true,
+    "minified": true,
+    "newFeature": true,
+    "autoCompile": true
+  },
+  "compileType": "miniprogram",
+  "condition": {}
+}

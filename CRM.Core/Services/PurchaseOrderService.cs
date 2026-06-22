@@ -4,6 +4,7 @@ using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
 using CRM.Core.Models.System;
 using CRM.Core.Models.Inventory;
+using CRM.Core.Models.Vendor;
 using CRM.Core.Utilities;
 using Microsoft.Extensions.Logging;
 
@@ -45,6 +46,7 @@ namespace CRM.Core.Services
         private readonly ILogOperationAppendService? _logOperationAppend;
         private readonly ILogger<PurchaseOrderService> _logger;
         private readonly IPurchaseOrderListQuery _purchaseOrderListQuery;
+        private readonly IRepository<VendorInfo>? _vendorRepo;
 
         public PurchaseOrderService(
             IRepository<PurchaseOrder> poRepo,
@@ -66,7 +68,8 @@ namespace CRM.Core.Services
             ILogger<PurchaseOrderService> logger,
             IUserService? userService = null,
             ILogOperationAppendService? logOperationAppend = null,
-            IUnitOfWork? unitOfWork = null)
+            IUnitOfWork? unitOfWork = null,
+            IRepository<VendorInfo>? vendorRepo = null)
         {
             _poRepo = poRepo;
             _poItemRepo = poItemRepo;
@@ -88,6 +91,7 @@ namespace CRM.Core.Services
             _logOperationAppend = logOperationAppend;
             _logger = logger;
             _unitOfWork = unitOfWork;
+            _vendorRepo = vendorRepo;
         }
 
         // 兼容旧调用方（单测/临时构造）：不注入采购申请回写依赖时，状态回写能力自动降级为 no-op。
@@ -724,6 +728,68 @@ namespace CRM.Core.Services
 
             return result;
         }
+
+        public async Task<PurchaseOrderVendorNameRefreshResult> RefreshVendorNameAsync(string purchaseOrderId, string? actingUserId = null)
+        {
+            if (string.IsNullOrWhiteSpace(purchaseOrderId))
+                throw new ArgumentException("采购订单ID不能为空", nameof(purchaseOrderId));
+            if (_vendorRepo == null)
+                throw new InvalidOperationException("供应商仓储未配置，无法刷新供应商名称");
+
+            var orderId = purchaseOrderId.Trim();
+            var order = await _poRepo.GetByIdAsync(orderId)
+                ?? throw new InvalidOperationException($"采购订单 {orderId} 不存在");
+
+            var vendorId = order.VendorId?.Trim();
+            if (string.IsNullOrEmpty(vendorId)
+                || vendorId.Equals("PENDING", StringComparison.OrdinalIgnoreCase)
+                || vendorId.Equals(MANUAL_VENDOR_PLACEHOLDER_ID, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("采购订单供应商无效，无法刷新名称");
+
+            var vendor = await _vendorRepo.GetByIdAsync(vendorId);
+            if (vendor == null)
+                throw new InvalidOperationException($"供应商 {vendorId} 不存在");
+
+            var newName = FormatVendorDisplayName(vendor);
+            if (string.IsNullOrWhiteSpace(newName))
+                throw new InvalidOperationException("供应商主数据无可用名称");
+
+            var oldName = order.VendorName;
+            var headerBefore = CapturePurchaseOrderHeaderSnapshot(order);
+            order.VendorName = newName;
+            order.ModifyTime = DateTime.UtcNow;
+            order.ModifyByUserId = NormalizeActingUserId(actingUserId);
+            await _poRepo.UpdateAsync(order);
+            if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+            await LogPurchaseOrderHeaderChangesAsync(order, headerBefore, actingUserId);
+
+            var changed = !string.Equals(
+                string.IsNullOrWhiteSpace(oldName) ? null : oldName.Trim(),
+                newName,
+                StringComparison.Ordinal);
+
+            _logger.LogInformation(
+                "PO供应商名称刷新: PurchaseOrderId={PurchaseOrderId} Code={Code} VendorId={VendorId} Changed={Changed} Old={OldName} New={NewName}",
+                orderId, order.PurchaseOrderCode, vendorId, changed, oldName ?? "(null)", newName);
+
+            return new PurchaseOrderVendorNameRefreshResult
+            {
+                PurchaseOrderId = orderId,
+                VendorId = vendorId,
+                OldVendorName = oldName,
+                NewVendorName = newName,
+                Changed = changed
+            };
+        }
+
+        private static string? FormatVendorDisplayName(VendorInfo vendor)
+        {
+            if (!string.IsNullOrWhiteSpace(vendor.OfficialName)) return vendor.OfficialName.Trim();
+            if (!string.IsNullOrWhiteSpace(vendor.NickName)) return vendor.NickName.Trim();
+            return string.IsNullOrWhiteSpace(vendor.Code) ? null : vendor.Code.Trim();
+        }
+
+        private const string MANUAL_VENDOR_PLACEHOLDER_ID = "00000000-0000-0000-0000-000000000002";
 
         private static short ComputeItemStatusAfterRefresh(PurchaseOrderItem item, PoItemExtendRefreshSnapshot? after)
         {

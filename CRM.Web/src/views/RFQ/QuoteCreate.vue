@@ -1035,6 +1035,8 @@ const handleSubmit = async () => {
 </script>
 
 <style scoped lang="scss">
+@import '@/assets/styles/variables.scss';
+
 .quote-upsert-page {
   padding: 20px;
 }
@@ -1047,7 +1049,7 @@ const handleSubmit = async () => {
 
   .page-title {
     margin: 0;
-    color: #e8f4ff;
+    color: $text-primary;
     font-size: 20px;
     font-weight: 600;
   }
@@ -1134,7 +1136,7 @@ const handleSubmit = async () => {
 
   .price-tier-title {
     margin: 0;
-    color: #e8f4ff;
+    color: $text-primary;
     font-size: 14px;
     font-weight: 600;
   }
@@ -1143,15 +1145,16 @@ const handleSubmit = async () => {
     margin: 6px 0 0;
     font-size: 12px;
     line-height: 1.45;
-    color: rgba(200, 216, 232, 0.55);
+    color: $text-secondary;
   }
 
   .tier-converted-display {
     display: inline-block;
     width: 100%;
     font-variant-numeric: tabular-nums;
-    color: rgba(232, 244, 255, 0.92);
+    color: $text-primary;
     font-size: 13px;
+    font-weight: 600;
   }
 
   .tier-actions {

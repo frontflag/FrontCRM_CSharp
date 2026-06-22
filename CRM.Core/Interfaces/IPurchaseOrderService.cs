@@ -26,6 +26,9 @@ namespace CRM.Core.Interfaces
         /// <summary>按采购单批量重算明细扩展并返回变更结果。</summary>
         Task<PurchaseOrderItemExtendRefreshResult> RefreshItemExtendsAsync(string purchaseOrderId, CancellationToken cancellationToken = default);
 
+        /// <summary>按主表 <c>vendor_id</c> 从供应商主数据刷新冗余 <c>vendor_name</c>（仅系统管理员）。</summary>
+        Task<PurchaseOrderVendorNameRefreshResult> RefreshVendorNameAsync(string purchaseOrderId, string? actingUserId = null);
+
         /// <summary>采购订单主表字段变更日志（<c>log_change_fldval</c>，BizType=<see cref="Constants.BusinessLogTypes.PurchaseOrder"/>）。</summary>
         Task<IReadOnlyList<PurchaseOrderFieldChangeLogDto>> GetFieldChangeLogsAsync(string purchaseOrderId);
 
@@ -49,6 +52,16 @@ namespace CRM.Core.Interfaces
         public string? ChangedByUserId { get; set; }
         public string? ChangedByUserName { get; set; }
         public DateTime ChangedAt { get; set; }
+    }
+
+    /// <summary>刷新采购订单供应商名称结果。</summary>
+    public class PurchaseOrderVendorNameRefreshResult
+    {
+        public string PurchaseOrderId { get; set; } = string.Empty;
+        public string VendorId { get; set; } = string.Empty;
+        public string? OldVendorName { get; set; }
+        public string? NewVendorName { get; set; }
+        public bool Changed { get; set; }
     }
 
     /// <summary>已软删除的采购订单明细。</summary>

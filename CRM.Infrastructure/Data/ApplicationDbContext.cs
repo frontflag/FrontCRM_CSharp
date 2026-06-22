@@ -489,6 +489,9 @@ namespace CRM.Infrastructure.Data
             {
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Address).HasMaxLength(256);
+                entity.Property(e => e.CountryName).HasMaxLength(100);
+                entity.Property(e => e.CompanyName).HasMaxLength(200);
+                entity.Property(e => e.ZipCode).HasMaxLength(20);
                 entity.Property(e => e.ContactName).HasMaxLength(50);
                 entity.Property(e => e.ContactPhone).HasMaxLength(20);
             });
@@ -1163,6 +1166,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.Remark).HasMaxLength(500);
                 entity.Property(e => e.ShipmentMethod).HasMaxLength(64);
                 entity.Property(e => e.CourierTrackingNo).HasMaxLength(128);
+                entity.Property(e => e.ExpressCompany).HasMaxLength(64);
                 entity.Property(e => e.CustomsDeclarationItemId).HasColumnName("customs_declaration_item_id").HasMaxLength(36);
                 entity.HasIndex(e => e.CustomsDeclarationItemId)
                     .IsUnique()

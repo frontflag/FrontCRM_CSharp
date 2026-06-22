@@ -25,6 +25,14 @@ export interface PurchaseOrderItemExtendRefreshResult {
   changes: PurchaseOrderItemExtendChangeDto[]
 }
 
+export interface PurchaseOrderVendorNameRefreshResult {
+  purchaseOrderId: string
+  vendorId: string
+  oldVendorName?: string | null
+  newVendorName?: string | null
+  changed: boolean
+}
+
 export interface PurchaseOrderFieldChangeLogRow {
   id: string
   purchaseOrderId: string
@@ -237,6 +245,12 @@ export const purchaseOrderApi = {
   // 刷新采购明细扩展字段（读取下游数据重算）
   async refreshItemExtends(id: string) {
     return await apiClient.post<PurchaseOrderItemExtendRefreshResult>(`/api/v1/purchase-orders/${id}/refresh-item-extends`, {})
+  },
+
+  /** 按 vendor_id 从供应商主数据刷新 vendor_name（仅系统管理员） */
+  async refreshVendorName(id: string) {
+    const enc = encodeURIComponent(id)
+    return await apiClient.post<PurchaseOrderVendorNameRefreshResult>(`/api/v1/purchase-orders/${enc}/refresh-vendor-name`, {})
   },
 
   /** 录入/修改/清空货代单号（物流写权限） */

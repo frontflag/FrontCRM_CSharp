@@ -64,11 +64,12 @@ namespace CRM.Core.Interfaces
             IQueryable<RFQ> query,
             CancellationToken cancellationToken = default);
 
-        /// <summary>报价列表：按报价 <c>SalesUserId</c> 或关联 RFQ 业务员（与 <see cref="ApplySellOrderDataScopeAsync"/> 销售范围一致）。</summary>
+        /// <summary>报价列表：销售数据范围（报价/关联 RFQ 业务员）∨ 采购数据范围（报价采购员或关联 RFQ 明细分配采购员）。</summary>
         Task<IQueryable<Quote>> ApplyQuoteListDataScopeAsync(
             string? userId,
             IQueryable<Quote> quotes,
             IQueryable<RFQ> rfqs,
+            IQueryable<RFQItem> rfqItems,
             CancellationToken cancellationToken = default);
 
         /// <summary>采购申请列表：关联销售订单在销售范围内，或 <c>PurchaseUserId</c> 在采购范围内。</summary>

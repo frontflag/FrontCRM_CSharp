@@ -893,10 +893,11 @@ onMounted(() => {
 }
 
 .amount-text {
-  color: #f0f6ff;
+  color: $text-primary;
   font-size: 15px;
   font-weight: 600;
   font-family: 'Noto Sans SC', sans-serif;
+  font-variant-numeric: tabular-nums;
 }
 
 .text-muted {

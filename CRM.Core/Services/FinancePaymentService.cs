@@ -192,6 +192,7 @@ namespace CRM.Core.Services
             await EnrichVendorBankNamesAsync(new[] { payment });
             await EnrichPaymentBankNamesAsync(new[] { payment });
             await EnrichCreateUserNamesAsync(new[] { payment });
+            await EnrichFreightForwarderOrderNosAsync(new[] { payment });
             return payment;
         }
 
@@ -202,6 +203,7 @@ namespace CRM.Core.Services
             await EnrichVendorBankNamesAsync(all);
             await EnrichPaymentBankNamesAsync(all);
             await EnrichCreateUserNamesAsync(all);
+            await EnrichFreightForwarderOrderNosAsync(all);
             return all;
         }
 
@@ -213,6 +215,7 @@ namespace CRM.Core.Services
             await EnrichVendorBankNamesAsync(items);
             await EnrichPaymentBankNamesAsync(items);
             await EnrichCreateUserNamesAsync(items);
+            await EnrichFreightForwarderOrderNosAsync(items);
             return new PagedResult<FinancePayment>
             {
                 Items = items,
@@ -276,6 +279,7 @@ namespace CRM.Core.Services
             await EnrichVendorBankNamesAsync(new[] { payment });
             await EnrichPaymentBankNamesAsync(new[] { payment });
             await EnrichCreateUserNamesAsync(new[] { payment });
+            await EnrichFreightForwarderOrderNosAsync(new[] { payment });
             return payment;
         }
 
@@ -486,6 +490,7 @@ namespace CRM.Core.Services
             var bank = await _companyBankRepo.GetByIdAsync(id);
             if (bank == null) throw new ArgumentException("公司付款银行账户不存在");
             if (!bank.Enabled) throw new ArgumentException("所选公司银行账户已停用");
+            if (!bank.AvailableForPayment) throw new ArgumentException("所选公司银行账户未勾选可用付款");
         }
 
         private async Task<(string? VendorBankId, string? FinancePaymentBankId)> ResolvePaymentVendorBankAsync(
@@ -650,16 +655,89 @@ namespace CRM.Core.Services
             if (ids.Length == 0) return;
 
             var vendors = (await _vendorRepo.FindAsync(v => ids.Contains(v.Id))).ToList();
-            var map = vendors
+            var codeMap = vendors
                 .GroupBy(v => v.Id, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.First().Code, StringComparer.OrdinalIgnoreCase);
+            var englishMap = vendors
+                .GroupBy(v => v.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First().EnglishOfficialName, StringComparer.OrdinalIgnoreCase);
 
             foreach (var p in list)
             {
                 if (string.IsNullOrWhiteSpace(p.VendorId)) continue;
                 var vid = p.VendorId.Trim();
-                if (map.TryGetValue(vid, out var code) && !string.IsNullOrWhiteSpace(code))
+                if (codeMap.TryGetValue(vid, out var code) && !string.IsNullOrWhiteSpace(code))
                     p.VendorCode = code.Trim();
+                if (englishMap.TryGetValue(vid, out var english) && !string.IsNullOrWhiteSpace(english))
+                    p.VendorEnglishName = english.Trim();
+            }
+        }
+
+        private async Task EnrichFreightForwarderOrderNosAsync(IEnumerable<FinancePayment> payments)
+        {
+            var list = payments.Where(p => p != null).ToList();
+            if (list.Count == 0) return;
+
+            var paymentIds = list
+                .Select(p => p.Id)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Select(id => id.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (paymentIds.Count == 0) return;
+
+            var payItems = (await _itemRepo.FindAsync(i => paymentIds.Contains(i.FinancePaymentId))).ToList();
+            if (payItems.Count == 0) return;
+
+            var poiIds = payItems
+                .Select(i => i.PurchaseOrderItemId)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Select(id => id!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var poIds = payItems
+                .Select(i => i.PurchaseOrderId)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Select(id => id!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var pois = poiIds.Count == 0
+                ? new List<PurchaseOrderItem>()
+                : (await _poItemRepo.FindAsync(poi => poiIds.Contains(poi.Id))).ToList();
+
+            foreach (var poi in pois)
+            {
+                if (!string.IsNullOrWhiteSpace(poi.PurchaseOrderId))
+                    poIds.Add(poi.PurchaseOrderId.Trim());
+            }
+
+            poIds = poIds.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            var pos = poIds.Count == 0
+                ? new List<PurchaseOrder>()
+                : (await _poRepo.FindAsync(po => poIds.Contains(po.Id))).ToList();
+
+            var poById = pos
+                .GroupBy(po => po.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+            var poiById = pois
+                .GroupBy(poi => poi.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            var ffByPaymentId = payItems
+                .GroupBy(i => i.FinancePaymentId, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    g => g.Key,
+                    g => FreightForwarderOrderNoDisplay.JoinDistinct(g.Select(item =>
+                        FreightForwarderOrderNoLookup.FromPurchaseOrderId(item.PurchaseOrderId, poById)
+                        ?? FreightForwarderOrderNoLookup.FromPurchaseOrderItemId(item.PurchaseOrderItemId, poiById, poById))),
+                    StringComparer.OrdinalIgnoreCase);
+
+            foreach (var payment in list)
+            {
+                if (ffByPaymentId.TryGetValue(payment.Id, out var ff) && !string.IsNullOrWhiteSpace(ff))
+                    payment.FreightForwarderOrderNo = ff;
             }
         }
     }

@@ -152,27 +152,7 @@
         <div class="arrival-section">
           <el-form label-width="120px" class="arrival-notice-form">
             <el-row :gutter="12">
-              <el-col :span="8"><el-form-item label="单号"><el-input v-model="arrivalForm.purchaseOrderCode" /></el-form-item></el-col>
               <el-col :span="8">
-                <el-form-item label="预计到货日期" required>
-                  <el-date-picker
-                    v-model="arrivalForm.expectedArrivalDate"
-                    type="date"
-                    value-format="YYYY-MM-DD"
-                    placeholder="选择预计到货日期"
-                    style="width: 100%"
-                  />
-                </el-form-item>
-              </el-col>
-              <el-col :span="8">
-                <el-form-item label="公司名称">
-                  <el-input v-if="!maskPurchaseSensitiveFields" v-model="arrivalForm.companyName" />
-                  <el-input v-else :model-value="'—'" disabled />
-                </el-form-item>
-              </el-col>
-            </el-row>
-            <el-row :gutter="12">
-              <el-col :span="6">
                 <el-form-item label="到货地域">
                   <el-select
                     :model-value="normalizeRegionType(arrivalForm.regionType)"
@@ -185,50 +165,59 @@
                   </el-select>
                 </el-form-item>
               </el-col>
-              <el-col :span="18"><el-form-item label="地址"><el-input v-model="arrivalForm.address" /></el-form-item></el-col>
+              <el-col :span="8">
+                <el-form-item label="预计到货日期" required>
+                  <el-date-picker
+                    v-model="arrivalForm.expectedArrivalDate"
+                    type="date"
+                    value-format="YYYY-MM-DD"
+                    placeholder="选择预计到货日期"
+                    style="width: 100%"
+                  />
+                </el-form-item>
+              </el-col>
+              <el-col :span="8">
+                <el-form-item label="采购单号">
+                  <el-input
+                    :model-value="arrivalForm.purchaseOrderCode"
+                    class="arrival-po-code-input"
+                    readonly
+                  />
+                </el-form-item>
+              </el-col>
+            </el-row>
+            <el-row :gutter="12">
+              <ShipmentExpressFields
+                v-model:shipment-method="arrivalForm.shipmentMethod"
+                v-model:express-company="arrivalForm.expressCompany"
+                shipment-label="预计到货方式"
+                express-label="快递公司"
+                placeholder="请选择"
+                :shipment-required="false"
+                :col-span="8"
+              />
+              <el-col :span="8">
+                <el-form-item label="预计到货快递单号">
+                  <el-input v-model="arrivalForm.courierTrackingNo" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+            <el-row :gutter="12">
+              <el-col :span="12">
+                <el-form-item label="公司名称">
+                  <el-input v-if="!maskPurchaseSensitiveFields" v-model="arrivalForm.companyName" />
+                  <el-input v-else :model-value="'—'" disabled />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="地址">
+                  <el-input v-model="arrivalForm.address" />
+                </el-form-item>
+              </el-col>
             </el-row>
             <el-row :gutter="12">
               <el-col :span="12"><el-form-item label="电话"><el-input v-model="arrivalForm.phone" /></el-form-item></el-col>
               <el-col :span="12"><el-form-item label="联系人"><el-input v-model="arrivalForm.contact" /></el-form-item></el-col>
-            </el-row>
-            <el-row :gutter="12">
-              <el-col :span="8">
-                <el-form-item label="来货方式">
-                  <el-select
-                    v-model="arrivalForm.arrivalMethod"
-                    clearable
-                    filterable
-                    placeholder="请选择"
-                    style="width: 100%"
-                  >
-                    <el-option
-                      v-for="o in arrivalMethodDictOptions"
-                      :key="o.value"
-                      :label="o.label"
-                      :value="o.value"
-                    />
-                  </el-select>
-                </el-form-item>
-              </el-col>
-              <el-col :span="8">
-                <el-form-item label="快递方式">
-                  <el-select
-                    v-model="arrivalForm.expressMethod"
-                    clearable
-                    filterable
-                    placeholder="请选择"
-                    style="width: 100%"
-                  >
-                    <el-option
-                      v-for="o in expressMethodDictOptions"
-                      :key="o.value"
-                      :label="o.label"
-                      :value="o.value"
-                    />
-                  </el-select>
-                </el-form-item>
-              </el-col>
-              <el-col :span="8"><el-form-item label="快递单号"><el-input v-model="arrivalForm.expressNo" /></el-form-item></el-col>
             </el-row>
           </el-form>
         </div>
@@ -289,7 +278,7 @@ import { formatDisplayDate } from '@/utils/displayDateTime'
 import { formatCurrencyTotal, formatCurrencyUnitPrice } from '@/utils/moneyFormat'
 import { financePaymentApi } from '@/api/finance'
 import { logisticsApi } from '@/api/logistics'
-import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
+import ShipmentExpressFields from '@/components/Logistics/ShipmentExpressFields.vue'
 import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { filterEnabledVendorBanks, resolveVendorDefaultBankId } from '@/utils/vendorFinancePaymentBank'
@@ -299,9 +288,6 @@ import { vendorBankApi } from '@/api/vendor'
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 
 const emit = defineEmits<{ success: [] }>()
-
-const { ensureLoaded: ensureLogisticsDict, arrivalOptions: arrivalMethodDictOptions, expressOptions: expressMethodDictOptions } =
-  useLogisticsFormDict()
 
 const paymentDialogVisible = ref(false)
 const paymentSubmitting = ref(false)
@@ -341,6 +327,9 @@ const arrivalForm = reactive<any>({
   contact: '',
   arrivalMethod: '',
   expressMethod: '',
+  shipmentMethod: '',
+  expressCompany: '',
+  courierTrackingNo: '',
   expressNo: '',
   /** 与 stockinnotify.RegionType 一致：10=境内 20=境外 */
   regionType: REGION_TYPE_DOMESTIC as number,
@@ -440,11 +429,6 @@ async function openPayment(row: any) {
 }
 
 async function openArrival(row: any) {
-  try {
-    await ensureLogisticsDict()
-  } catch {
-    /* 字典失败时仍打开弹窗，下拉为空 */
-  }
   arrivalForm.purchaseOrderItemId = row.purchaseOrderItemId || row.id || ''
   arrivalForm.purchaseOrderId = row.purchaseOrderId || ''
   arrivalForm.purchaseOrderCode = row.purchaseOrderCode || ''
@@ -457,6 +441,9 @@ async function openArrival(row: any) {
   arrivalForm.contact = ''
   arrivalForm.arrivalMethod = ''
   arrivalForm.expressMethod = ''
+  arrivalForm.shipmentMethod = ''
+  arrivalForm.expressCompany = ''
+  arrivalForm.courierTrackingNo = ''
   arrivalForm.expressNo = ''
   arrivalForm.regionType = REGION_TYPE_DOMESTIC
   arrivalForm.inspectionRequirement = ''
@@ -500,7 +487,10 @@ async function submitArrivalNotice() {
       purchaseOrderId: arrivalForm.purchaseOrderId,
       expectedArrivalDate: arrivalForm.expectedArrivalDate,
       regionType: normalizeRegionType(arrivalForm.regionType),
-      remark: arrivalForm.remark?.trim() || undefined
+      remark: arrivalForm.remark?.trim() || undefined,
+      shipmentMethod: arrivalForm.shipmentMethod?.trim() || undefined,
+      expressCompany: arrivalForm.expressCompany?.trim() || undefined,
+      courierTrackingNo: arrivalForm.courierTrackingNo?.trim() || undefined
     })
     ElMessage.success('到货通知已创建')
     arrivalDialogVisible.value = false
@@ -580,6 +570,12 @@ defineExpose({ openPayment, openArrival })
   font-weight: 600;
   margin: 12px 0 8px;
   color: $text-primary;
+}
+
+.arrival-form-layout :deep(.arrival-po-code-input .el-input__inner),
+.arrival-form-layout :deep(.arrival-po-code-input .el-input__wrapper) {
+  color: #e6a23c;
+  cursor: default;
 }
 
 .arrival-form-layout {

@@ -179,17 +179,18 @@
             </el-col>
             <!-- 分配方式 -->
             <el-col :span="6">
-              <el-form-item prop="assignMethod">
-                <template #label>
-                  <span class="rfq-field-label">
-                    分配方式
-                    <el-tooltip content="询价明细按采购轮询分配给采购员" placement="top">
-                      <el-icon class="rfq-label-help" aria-hidden="true"><QuestionFilled /></el-icon>
-                    </el-tooltip>
-                  </span>
-                </template>
-                <el-select v-model="formData.assignMethod" placeholder="请选择分配方式" style="width: 100%" class="q-select">
-                  <el-option v-for="o in ASSIGN_METHOD_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+              <el-form-item label="分配方式" prop="assignMethod">
+                <el-select v-model="formData.assignMethod" placeholder="请选择分配方式" style="width: 100%" class="q-select" popper-class="rfq-assign-method-select-popper">
+                  <el-option v-for="o in ASSIGN_METHOD_OPTIONS" :key="o.value" :label="o.label" :value="o.value">
+                    <span class="assign-method-option">
+                      <span class="assign-method-option-label">{{ o.label }}</span>
+                      <el-tooltip :content="o.tip" placement="top" :hide-after="0">
+                        <el-icon class="assign-method-option-tip" aria-label="说明" @click.stop>
+                          <QuestionFilled />
+                        </el-icon>
+                      </el-tooltip>
+                    </span>
+                  </el-option>
                 </el-select>
               </el-form-item>
             </el-col>
@@ -1048,6 +1049,28 @@ onMounted(async () => {
   vertical-align: middle;
 }
 
+.assign-method-option {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  gap: 8px;
+}
+.assign-method-option-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.assign-method-option-tip {
+  margin-left: auto;
+  font-size: 14px;
+  color: rgba(0, 212, 255, 0.55);
+  cursor: help;
+  flex-shrink: 0;
+}
+
 // ---- 页面头部 ----
 .page-header {
   display: flex;
@@ -1564,6 +1587,34 @@ onMounted(async () => {
 
 <!-- 客户搜索提示内容全局样式 -->
 <style>
+.rfq-assign-method-select-popper .el-select-dropdown__item {
+  padding-right: 12px;
+}
+
+.rfq-assign-method-select-popper .assign-method-option {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  gap: 8px;
+}
+
+.rfq-assign-method-select-popper .assign-method-option-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rfq-assign-method-select-popper .assign-method-option-tip {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 14px;
+  color: rgba(0, 212, 255, 0.55);
+  cursor: help;
+}
+
 .customer-search-hint {
   padding: 8px 16px;
   text-align: center;

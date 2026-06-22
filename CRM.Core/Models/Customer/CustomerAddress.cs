@@ -30,9 +30,15 @@ namespace CRM.Core.Models.Customer
         public short AddressType { get; set; } = 1;
 
         /// <summary>
-        /// 国家
+        /// 国家/地区代码：1=中国（含大陆/港/台），2=海外
         /// </summary>
         public short? Country { get; set; }
+
+        /// <summary>
+        /// 国家/地区名称（如 中国、United States）
+        /// </summary>
+        [StringLength(100)]
+        public string? CountryName { get; set; }
 
         /// <summary>
         /// 省份
@@ -59,6 +65,12 @@ namespace CRM.Core.Models.Customer
         public string? Address { get; set; }
 
         /// <summary>
+        /// 地址公司名称
+        /// </summary>
+        [StringLength(200)]
+        public string? CompanyName { get; set; }
+
+        /// <summary>
         /// 联系人
         /// </summary>
         [StringLength(50)]
@@ -69,6 +81,12 @@ namespace CRM.Core.Models.Customer
         /// </summary>
         [StringLength(20)]
         public string? ContactPhone { get; set; }
+
+        /// <summary>
+        /// 邮政编码
+        /// </summary>
+        [StringLength(20)]
+        public string? ZipCode { get; set; }
 
         /// <summary>
         /// 是否默认地址

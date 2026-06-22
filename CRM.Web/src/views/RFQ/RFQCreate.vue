@@ -154,22 +154,24 @@
         </el-row>
         <el-row :gutter="24">
           <el-col :span="8">
-            <el-form-item prop="assignMethod">
-              <template #label>
-                <span class="rfq-field-label">
-                  分配方式
-                  <el-tooltip content="询价明细按采购轮询分配给采购员" placement="top">
-                    <el-icon class="rfq-label-help" aria-hidden="true"><QuestionFilled /></el-icon>
-                  </el-tooltip>
-                </span>
-              </template>
+            <el-form-item label="分配方式" prop="assignMethod">
               <el-select
                 v-model="formData.assignMethod"
                 placeholder="请选择分配方式"
                 style="width: 100%"
                 class="q-select"
+                popper-class="rfq-assign-method-select-popper"
               >
-                <el-option v-for="o in ASSIGN_METHOD_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+                <el-option v-for="o in ASSIGN_METHOD_OPTIONS" :key="o.value" :label="o.label" :value="o.value">
+                  <span class="assign-method-option">
+                    <span class="assign-method-option-label">{{ o.label }}</span>
+                    <el-tooltip :content="o.tip" placement="top" :hide-after="0">
+                      <el-icon class="assign-method-option-tip" aria-label="说明" @click.stop>
+                        <QuestionFilled />
+                      </el-icon>
+                    </el-tooltip>
+                  </span>
+                </el-option>
               </el-select>
             </el-form-item>
           </el-col>
@@ -1239,6 +1241,28 @@ const handleSubmit = async () => {
     vertical-align: middle;
   }
 
+  .assign-method-option {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+    gap: 8px;
+  }
+  .assign-method-option-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .assign-method-option-tip {
+    margin-left: auto;
+    font-size: 14px;
+    color: rgba(0, 212, 255, 0.55);
+    cursor: help;
+    flex-shrink: 0;
+  }
+
   /* 背景 / 竞争对手 / 重要程度 同行：星级与单行输入区垂直对齐 */
   .rfq-row-bg-comp-importance {
     align-items: flex-start;
@@ -1441,5 +1465,38 @@ const handleSubmit = async () => {
   padding: 20px 0;
   color: $text-muted;
   font-size: 13px;
+}
+</style>
+
+<style lang="scss">
+/* 下拉 teleport 到 body，需全局 popper 样式使选项行撑满、提示图标靠右 */
+.rfq-assign-method-select-popper {
+  .el-select-dropdown__item {
+    padding-right: 12px;
+  }
+
+  .assign-method-option {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+    gap: 8px;
+  }
+
+  .assign-method-option-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .assign-method-option-tip {
+    margin-left: auto;
+    flex-shrink: 0;
+    font-size: 14px;
+    color: rgba(0, 212, 255, 0.55);
+    cursor: help;
+  }
 }
 </style>

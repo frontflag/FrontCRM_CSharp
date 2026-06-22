@@ -200,7 +200,6 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
 
         var noticeIds = notices.Select(n => n.Id).ToList();
         var qcs = (await _qcRepo.FindAsync(x => noticeIds.Contains(x.StockInNotifyId))).ToList();
-        var qcIds = qcs.Select(x => x.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var qcByNotice = qcs
             .GroupBy(x => x.StockInNotifyId, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
@@ -211,17 +210,18 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
             cancellationToken.ThrowIfCancellationRequested();
             var noticeKey = notice.Id.Trim();
             var hasQc = qcByNotice.TryGetValue(noticeKey, out var qcRows) && qcRows.Count > 0;
+            // 仅匹配「本到货通知」关联的入库单；勿用同采购行其它通知的质检单 Id（分批到货会误标已入库）
             var hasPostedStockIn = stockIns.Any(si =>
                 si.Status == StockInCompleted &&
                 si.StockInType == StockInTypeCode.Purchase &&
                 (
                     (!string.IsNullOrWhiteSpace(si.SourceId) &&
                      string.Equals(si.SourceId.Trim(), noticeKey, StringComparison.OrdinalIgnoreCase))
-                    || (!string.IsNullOrWhiteSpace(si.QcId) &&
-                        qcIds.Contains(si.QcId.Trim()))
-                    || (qcRows != null &&
-                        !string.IsNullOrWhiteSpace(si.QcId) &&
-                        qcRows.Any(q => string.Equals(q.Id, si.QcId, StringComparison.OrdinalIgnoreCase)))
+                    || (qcRows != null && qcRows.Any(q =>
+                        (!string.IsNullOrWhiteSpace(si.QcId) &&
+                         string.Equals(si.QcId.Trim(), q.Id.Trim(), StringComparison.OrdinalIgnoreCase))
+                        || (!string.IsNullOrWhiteSpace(q.StockInId) &&
+                            string.Equals(q.StockInId.Trim(), si.Id.Trim(), StringComparison.OrdinalIgnoreCase))))
                 ));
 
             var targetStatus =

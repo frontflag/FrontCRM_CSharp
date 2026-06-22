@@ -331,6 +331,11 @@
                 <el-table-column prop="contactPhone" label="联系电话" width="140">
                   <template #default="{ row }"><span class="cell-code">{{ maskSaleSensitiveFields ? '—' : row.contactPhone || '--' }}</span></template>
                 </el-table-column>
+                <el-table-column prop="companyName" label="地址公司名称" min-width="160" show-overflow-tooltip>
+                  <template #default="{ row }">
+                    <span class="cell-primary">{{ row.companyName || '--' }}</span>
+                  </template>
+                </el-table-column>
                 <el-table-column label="详细地址" min-width="250" show-overflow-tooltip>
                   <template #default="{ row }"><span class="cell-secondary">{{ formatFullAddress(row) }}</span></template>
                 </el-table-column>
@@ -1126,11 +1131,12 @@ const customerDisplayCurrency = computed(() => resolveCustomerSettlementCurrency
 const formatDateTime = (date: string | undefined) => (date ? formatDisplayDateTime(date) : '--');
 const formatFullAddress = (address: CustomerAddress) =>
   [
-    address.country,
+    address.country && address.country !== '中国' ? address.country : '',
     address.province,
     address.city,
     isDistrictPlaceholder(address.district) ? '' : address.district,
-    address.streetAddress
+    address.streetAddress,
+    address.zipCode
   ]
     .filter(Boolean)
     .join(' ');
