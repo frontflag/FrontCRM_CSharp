@@ -21,5 +21,12 @@ namespace CRM.Core.Utilities
             if (!value.HasValue) return null;
             return ToUtc(value.Value);
         }
+
+        /// <summary>解析查询字符串中的日历日（YYYY-MM-DD），转为 UTC 日界。</summary>
+        public static DateTime? ParseDateOnly(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return null;
+            return DateTime.TryParse(text, out var d) ? ToUtc(d.Date) : null;
+        }
     }
 }

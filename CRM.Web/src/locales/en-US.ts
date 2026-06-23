@@ -109,7 +109,12 @@ const enUS = {
       createConfirm: 'Create a customs stock-out notice for this pending row?',
       createOk: 'Created customs out notice {code}',
       createFailed: 'Failed to create customs out notice',
-      onlyOpenCanCreate: 'Only open rows can create a customs out notice'
+      onlyOpenCanCreate: 'Only open rows can create a customs out notice',
+      refPanelTitle: 'Reference',
+      refPanelClose: 'Collapse',
+      refPanelTabStock: 'Inventory',
+      refPanelLoadFailed: 'Failed to load inventory reference',
+      refPanelMissingSo: 'Missing sales order; cannot load inventory'
     },
     declarations: {
       title: 'Customs declarations',
@@ -562,7 +567,7 @@ const enUS = {
   },
   salesAnalytics: {
     title: 'Sales Analytics',
-    subtitle: 'By order create date; order amount in base currency (convert_total)',
+    subtitle: 'By order create date; order amount in USD (convert_total)',
     tabs: {
       company: 'Company',
       visibleScope: 'Visible scope',
@@ -575,22 +580,46 @@ const enUS = {
     loadFailed: 'Failed to load sales analytics',
     scopeBanner: 'Visible scope: {label}',
     metricHint: 'Excludes cancelled/failed orders; approved+ order amount',
+    drill: {
+      hint: 'Click KPIs or rankings to open lists; double-click salesperson row at department level',
+      noPermission: 'No permission to open the target list'
+    },
+    breakdown: {
+      currencyByCount: 'Amounts hidden; share by order count'
+    },
     groupBy: { day: 'Daily', week: 'Weekly', month: 'Monthly' },
+    trendUnit: {
+      customer: 'customers',
+      customerCaption: 'Unit: customers (distinct per period)',
+      moneyCaption: 'Unit: USD',
+      percentCaption: 'Unit: % (RFQ→SO conversion)',
+      receivableCaption: 'Unit: CNY (base currency, outstanding receivable)'
+    },
     sections: {
       todo: 'Backlog',
       snapshot: 'Snapshot',
       trendAmount: 'Approved amount trend',
-      trendItems: 'Order line trend'
+      trendStockOut: 'Stock-out amount trend',
+      trendReceived: 'Received amount trend',
+      trendItems: 'Order line trend',
+      trendRfq: 'RFQ line trend',
+      trendRfqCustomers: 'RFQ customer trend',
+      trendSalesCustomers: 'SO customer trend',
+      trendConversion: 'Conversion rate trend',
+      trendReceivable: 'Receivable trend'
     },
     kpi: {
       receivableAmount: 'Receivable',
       pendingStockOutItemCount: 'Pending stock-out lines',
+      pendingInvoiceAmount: 'Pending invoice amount',
       rfqItemCount: 'RFQ lines',
       rfqCustomerCount: 'RFQ customers',
       rfqToSalesConversionRate: 'RFQ→SO conversion',
       salesOrderItemCount: 'SO lines',
       salesOrderCustomerCount: 'SO customers',
-      salesAmountApproved: 'Approved order amount'
+      salesAmountApproved: 'Approved order amount',
+      salesAmountStockOut: 'Stock-out amount',
+      salesAmountReceived: 'Received amount'
     },
     rankings: {
       departmentTop: 'Department Top 10',
@@ -601,14 +630,191 @@ const enUS = {
       amount: 'Amount'
     }
   },
+  purchaseAnalytics: {
+    title: 'Purchase Analytics',
+    subtitle: 'By order create date; purchase amount in USD (convert_total)',
+    tabs: {
+      company: 'Company',
+      visibleScope: 'Visible scope',
+      department: 'Department',
+      personal: 'Personal'
+    },
+    dateFrom: 'From',
+    dateTo: 'To',
+    selectPurchaseUser: 'Select buyer',
+    refresh: 'Query',
+    loadFailed: 'Failed to load purchase analytics',
+    scopeBanner: 'Visible scope: {label}',
+    metricHint: 'Excludes cancelled/failed orders; approved+ order amount',
+    drill: {
+      hint: 'Click KPIs or rankings to open lists; double-click buyer row at department level',
+      noPermission: 'No permission to open the target list'
+    },
+    breakdown: {
+      currencyByCount: 'Amounts hidden; share by order count'
+    },
+    groupBy: { day: 'Daily', week: 'Weekly', month: 'Monthly' },
+    trendUnit: {
+      vendor: 'vendors',
+      vendorCaption: 'Unit: vendors (distinct per period)',
+      moneyCaption: 'Unit: USD',
+      percentCaption: 'Unit: % (quote→PO conversion)',
+      payableCaption: 'Unit: USD (outstanding payable)'
+    },
+    sections: {
+      todo: 'Backlog',
+      snapshot: 'Snapshot',
+      trendAmount: 'Approved amount trend',
+      trendStockIn: 'Stock-in amount trend',
+      trendPaid: 'Paid amount trend',
+      trendItems: 'Order line trend',
+      trendQuote: 'Quote line trend',
+      trendQuoteVendors: 'Quote vendor trend',
+      trendPoVendors: 'PO vendor trend',
+      trendConversion: 'Conversion rate trend',
+      trendPayable: 'Payable trend'
+    },
+    kpi: {
+      payableAmount: 'Payable',
+      pendingStockInItemCount: 'Pending stock-in lines',
+      quoteItemCount: 'Quote lines',
+      quoteVendorCount: 'Quote vendors',
+      quoteToPurchaseConversionRate: 'Quote→PO conversion',
+      purchaseOrderItemCount: 'PO lines',
+      purchaseOrderVendorCount: 'PO vendors',
+      purchaseAmountApproved: 'Approved order amount',
+      purchaseAmountStockIn: 'Stock-in amount',
+      purchaseAmountPaid: 'Paid amount'
+    },
+    rankings: {
+      departmentTop: 'Department Top 10',
+      purchaseUserTop: 'Buyer Top 10',
+      vendorTop: 'Vendor Top 10',
+      name: 'Name',
+      orderCount: 'Orders',
+      amount: 'Amount'
+    }
+  },
+  logisticsAnalytics: {
+    title: 'Logistics Analytics',
+    subtitle: 'On-hand as of date; age from stock-in date; USD purchase cost',
+    tabs: {
+      company: 'Company',
+      visibleScope: 'Visible scope',
+      department: 'Department',
+      personal: 'Personal'
+    },
+    inventoryType: {
+      all: 'All stock',
+      customerOrder: 'Customer-order stock',
+      purchaseStock: 'Purchase / stocking'
+    },
+    matrixSubject: {
+      salesperson: 'By salesperson',
+      vendor: 'By vendor',
+      purchaser: 'By purchaser',
+      brand: 'By brand'
+    },
+    asOfDate: 'As of date',
+    dateFrom: 'Trend from',
+    dateTo: 'Trend to',
+    refresh: 'Query',
+    loadFailed: 'Failed to load logistics dashboard',
+    matrixLoadFailed: 'Failed to load customer matrix',
+    scopeBanner: 'Visible scope: {label}',
+    metricHint: 'On-hand KPIs are point-in-time as of date; trends use stock-in date',
+    salesPurchaseOnlyHint: 'Filtered by sales/purchase ownership (salesperson or purchaser)',
+    groupBy: { day: 'Daily', week: 'Weekly', month: 'Monthly' },
+    unit: { days: 'days' },
+    sections: {
+      todo: 'Backlog',
+      snapshot: 'On-hand overview',
+      trendStockIn: 'Inbound qty trend',
+      customerMatrix: 'Customer × subject'
+    },
+    kpi: {
+      onHandQty: 'On-hand qty',
+      onHandAmountUsd: 'On-hand amount',
+      weightedAvgAgeDays: 'Weighted avg age',
+      customerCount: 'Customers',
+      salespersonCount: 'Salespeople',
+      vendorCount: 'Vendors',
+      purchaserCount: 'Purchasers',
+      brandCount: 'Brands',
+      pendingStockInQty: 'Pending inbound (PCS)'
+    },
+    matrix: {
+      customer: 'Customer',
+      subjectLabel: {
+        salesperson: 'Salesperson',
+        vendor: 'Vendor name',
+        purchaser: 'Purchaser',
+        brand: 'Brand'
+      }
+    },
+    rankings: {
+      customerTop: 'Customer on-hand Top 10',
+      salespersonTop: 'Salesperson on-hand Top 10',
+      vendorTop: 'Vendor on-hand Top 10',
+      name: 'Name',
+      qty: 'Qty',
+      amount: 'Amount'
+    }
+  },
+  financeAnalytics: {
+    title: 'Finance Analytics',
+    subtitle: 'Receivables from finance_receivable; USD totals and per-currency breakdown',
+    asOfDate: 'As of',
+    dateFrom: 'From',
+    dateTo: 'To',
+    refresh: 'Refresh',
+    loadFailed: 'Failed to load finance dashboard',
+    scopeBanner: 'Scope: {label}',
+    receivableHint: 'Receivable todo = shipped ledger balance; differs from sales extend todo',
+    completedHint: 'Completed metrics sum activity in the selected date range',
+    noBreakdownData: 'No currency breakdown data',
+    tabs: {
+      company: 'Company',
+      visibleScope: 'Visible scope',
+      department: 'Department',
+      personal: 'Personal'
+    },
+    groupBy: {
+      day: 'Daily',
+      week: 'Weekly',
+      month: 'Monthly'
+    },
+    sections: {
+      todo: 'Open items (as of date)',
+      completed: 'Completed (in period)',
+      trendPaid: 'Paid trend',
+      trendReceived: 'Received trend',
+      currencyBreakdown: 'Open items by currency'
+    },
+    trendUnit: {
+      moneyCaption: 'USD equivalent'
+    },
+    kpi: {
+      usdEquivalent: 'USD equivalent',
+      localCurrency: 'Local currency',
+      payableAmount: 'Payable',
+      receivableAmount: 'Receivable',
+      pendingPurchaseInvoiceAmount: 'Pending purchase invoice',
+      pendingSellInvoiceAmount: 'Pending sales invoice',
+      paidAmount: 'Paid',
+      receivedAmount: 'Received',
+      issuedPurchaseInvoiceAmount: 'Purchase invoice issued',
+      issuedSellInvoiceAmount: 'Sales invoice issued'
+    }
+  },
   dashboard: {
     stats: {
       totalCustomers: 'Total customers',
       totalVendors: 'Total vendors',
       pendingTasks: 'Pending items',
       monthlyNew: 'New this month',
-      monthlySales: 'Outstanding sales (orders)',
-      vendorPayableAmount: 'Payable on purchase orders'
+      monthlySales: 'Outstanding sales (USD)',
+      vendorPayableAmount: 'Payable on purchase orders (USD)'
     },
     welcomeBack: 'Welcome back, {name}!',
     fallbackName: 'User',
@@ -1376,6 +1582,8 @@ const enUS = {
       endDate: 'End',
       customerPlaceholder: 'Fuzzy customer name',
       materialPlaceholder: 'MPN / customer part',
+      rfqCodePlaceholder: 'RFQ code',
+      allItemStatuses: 'All item statuses',
       allSalesUsers: 'All sales reps',
       allPurchasers: 'All purchasers',
       hasQuotes: 'Has quotes',
@@ -1433,7 +1641,9 @@ const enUS = {
       missingQuoteId: 'Cannot resolve quote id',
       missingIds: 'Missing RFQ or item identifier, cannot open quote creation',
       selectFromBasket: 'Please add RFQ items to basket first (cross-page selection supported)',
-      sameRfqOnly: 'Batch quote supports items from the same RFQ only'
+      sameRfqOnly: 'Batch quote supports items from the same RFQ only',
+      quoteNotAllowed: 'You are not allowed to create a quote for this RFQ item',
+      batchQuoteNotAllowed: 'Some selected items are not quotable by your account'
     }
   },
   rfqHome: {
@@ -2339,6 +2549,7 @@ const enUS = {
     create: 'New Customer',
     loading: 'Loading summary...',
     sections: { customer: 'Customers', receivable: 'Receivables', pendingOutbound: 'Pending Outbound' },
+    moneyUnit: 'Unit: USD',
     cards: {
       totalCustomers: 'Total Customers',
       activeCustomers: 'Active Customers',
@@ -2358,6 +2569,7 @@ const enUS = {
     create: 'New Vendor',
     loading: 'Loading summary...',
     sections: { vendor: 'Vendors', payable: 'Payables', pendingInbound: 'Pending Inbound' },
+    moneyUnit: 'Unit: USD',
     cards: {
       totalVendors: 'Total Vendors',
       activeVendors: 'Active Vendors',
@@ -2903,6 +3115,8 @@ const enUS = {
   },
   salesOrderDetailView: {
     tabs: {
+      rfqItems: 'RFQ Items',
+      quotes: 'Quotes',
       pr: 'Purchase requisitions',
       stockIn: 'Stock-in',
       stock: 'Inventory',
@@ -3318,7 +3532,9 @@ const enUS = {
       qty: 'Requested qty',
       expectedPurchaseTime: 'Expected purchase date',
       type: 'Type',
-      purchaseUserId: 'Salesperson',
+      salesUserAccount: 'Salesperson',
+      purchaseUserAccount: 'Buyer',
+      purchaseUserName: 'Buyer',
       remark: 'Remark',
       createTime: 'Created at',
       createUser: 'Created by',
@@ -3604,6 +3820,30 @@ const enUS = {
     loadFailed: 'Failed to load warehouses',
     saveSuccess: 'Saved',
     saveFailed: 'Save failed'
+  },
+  sellOrderItemStockTab: {
+    colStockItemCode: 'Stock item',
+    colStockType: 'Stock type',
+    colStockInCode: 'Stock-in no.',
+    colStockInDate: 'Stock-in date',
+    colWarehouse: 'Warehouse',
+    colRegion: 'Region',
+    colStockOutStatus: 'Outbound status',
+    colBrand: 'Brand',
+    colQtyInbound: 'Total inbound',
+    colQtyStockOut: 'Outbound qty',
+    colQtyRepertory: 'On hand',
+    colPoLine: 'PO line',
+    colSoLine: 'SO line',
+    colBatchNo: 'Batch no.',
+    colLocation: 'Location',
+    colAvailable: 'Available',
+    regionDomestic: 'Domestic',
+    regionOverseas: 'Overseas',
+    outboundNone: 'Not outbound',
+    outboundPartial: 'Partial',
+    outboundDone: 'Complete',
+    empty: 'No data'
   },
   inventoryList: {
     title: 'Inventory Center',

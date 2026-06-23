@@ -56,7 +56,7 @@ public sealed class PurchaseOrderListQuery : IPurchaseOrderListQuery
             TotalCount = await q.CountAsync(cancellationToken),
             PendingConfirmCount = await q.CountAsync(o => o.Status == 20, cancellationToken),
             InProgressCount = await q.CountAsync(o => o.Status == 50, cancellationToken),
-            TotalAmountSum = await q.SumAsync(o => (decimal?)o.Total, cancellationToken) ?? 0m
+            TotalAmountSum = await q.SumAsync(o => (decimal?)o.ConvertTotal, cancellationToken) ?? 0m
         };
     }
 

@@ -8,6 +8,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AnalyticsBreakdownChart: typeof import('./src/components/Analytics/AnalyticsBreakdownChart.vue')['default']
+    AnalyticsBreakdownPieChart: typeof import('./src/components/Analytics/AnalyticsBreakdownPieChart.vue')['default']
     AnalyticsKpiGrid: typeof import('./src/components/Analytics/AnalyticsKpiGrid.vue')['default']
     AnalyticsScopeTabs: typeof import('./src/components/Analytics/AnalyticsScopeTabs.vue')['default']
     AnalyticsTrendChart: typeof import('./src/components/Analytics/AnalyticsTrendChart.vue')['default']
@@ -110,6 +111,7 @@ declare module 'vue' {
     SalesOrderReportDocument: typeof import('./src/components/SalesOrder/SalesOrderReportDocument.vue')['default']
     SalesOrderSearchPanel: typeof import('./src/components/SalesOrder/SalesOrderSearchPanel.vue')['default']
     SalesUserCascader: typeof import('./src/components/SalesUserCascader.vue')['default']
+    SellOrderItemStockTabTable: typeof import('./src/components/RFQ/SellOrderItemStockTabTable.vue')['default']
     SettlementCurrencyAmountInput: typeof import('./src/components/SettlementCurrencyAmountInput.vue')['default']
     ShipmentExpressFields: typeof import('./src/components/Logistics/ShipmentExpressFields.vue')['default']
     StockBizTypeTag: typeof import('./src/components/Inventory/StockBizTypeTag.vue')['default']

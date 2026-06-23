@@ -52,6 +52,9 @@ namespace CRM.Core.Tests.Services
                 }));
             _quoteListQuery.GetQuoteCountsByRfqItemIdsAsync(Arg.Any<IReadOnlyCollection<string>>(), default)
                 .Returns(Task.FromResult((IReadOnlyDictionary<string, int>)new Dictionary<string, int>()));
+            var rbacService = Substitute.For<IRbacService>();
+            rbacService.GetUserPermissionSummaryAsync(Arg.Any<string>())
+                .Returns(Task.FromResult(new UserPermissionSummaryDto { IsSysAdmin = true }));
             _quoteService = new QuoteService(
                 _quoteRepository,
                 _quoteItemRepository,
@@ -62,6 +65,7 @@ namespace CRM.Core.Tests.Services
                 _serialNumberService,
                 _userService,
                 _quoteListQuery,
+                rbacService,
                 NullLogger<QuoteService>.Instance,
                 Substitute.For<ILogOperationAppendService>());
         }

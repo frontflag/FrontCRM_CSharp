@@ -135,6 +135,9 @@ namespace CRM.IntegrationTests
                 }));
             quoteListQuery.GetQuoteCountsByRfqItemIdsAsync(Arg.Any<IReadOnlyCollection<string>>(), default)
                 .Returns(Task.FromResult((IReadOnlyDictionary<string, int>)new Dictionary<string, int>()));
+            var quoteRbacService = Substitute.For<CRM.Core.Interfaces.IRbacService>();
+            quoteRbacService.GetUserPermissionSummaryAsync(Arg.Any<string>())
+                .Returns(Task.FromResult(new CRM.Core.Interfaces.UserPermissionSummaryDto { IsSysAdmin = true }));
             _quoteService = new QuoteService(
                 _quoteRepository,
                 _quoteItemRepository,
@@ -145,6 +148,7 @@ namespace CRM.IntegrationTests
                 _serialNumberService,
                 _userService,
                 quoteListQuery,
+                quoteRbacService,
                 NullLogger<QuoteService>.Instance,
                 Substitute.For<ILogOperationAppendService>());
             _financeExchangeRateService = Substitute.For<IFinanceExchangeRateService>();
@@ -301,12 +305,14 @@ namespace CRM.IntegrationTests
             var soItemRepo = Substitute.For<IRepository<SellOrderItem>>();
             var poItemRepo = Substitute.For<IRepository<PurchaseOrderItem>>();
             var quoteItemRepo = Substitute.For<IRepository<QuoteItem>>();
+            var quoteRepo = Substitute.For<IRepository<Quote>>();
+            var rfqItemRepo = Substitute.For<IRepository<RFQItem>>();
             var serialNumberService = Substitute.For<ISerialNumberService>();
             var unitOfWork = Substitute.For<IUnitOfWork>();
 
             // 创建采购申请服务
             var service = new PurchaseRequisitionService(
-                prRepo, soRepo, soItemRepo, poItemRepo, quoteItemRepo, serialNumberService, unitOfWork);
+                prRepo, soRepo, soItemRepo, poItemRepo, quoteItemRepo, quoteRepo, rfqItemRepo, serialNumberService, unitOfWork);
 
             // 准备销售订单明细
             var sellOrderItemId = Guid.NewGuid().ToString();
@@ -1757,10 +1763,12 @@ namespace CRM.IntegrationTests
             var prRepo = Substitute.For<IRepository<PurchaseRequisition>>();
             var poItemRepo = Substitute.For<IRepository<PurchaseOrderItem>>();
             var quoteItemRepo = Substitute.For<IRepository<QuoteItem>>();
+            var quoteRepo = Substitute.For<IRepository<Quote>>();
+            var rfqItemRepo = Substitute.For<IRepository<RFQItem>>();
             var serialNumberService = Substitute.For<ISerialNumberService>();
             var unitOfWork = Substitute.For<IUnitOfWork>();
             var prService = new PurchaseRequisitionService(
-                prRepo, _salesOrderRepository, _salesOrderItemRepository, poItemRepo, quoteItemRepo, serialNumberService, unitOfWork);
+                prRepo, _salesOrderRepository, _salesOrderItemRepository, poItemRepo, quoteItemRepo, quoteRepo, rfqItemRepo, serialNumberService, unitOfWork);
 
             // 模拟采购申请仓储
             var allPr = new List<PurchaseRequisition>();

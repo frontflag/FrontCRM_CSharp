@@ -1,6 +1,7 @@
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Sales;
+using CRM.Core.Utilities;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -41,13 +42,13 @@ public sealed class SalesOrderItemLineListQuery : ISalesOrderItemLineListQuery
 
         if (request.OrderCreateStart.HasValue)
         {
-            var s = request.OrderCreateStart.Value;
+            var s = SalesAnalyticsDateFilter.ToUtcDateStart(request.OrderCreateStart.Value);
             q = q.Where(x => x.so.CreateTime >= s);
         }
 
         if (request.OrderCreateEnd.HasValue)
         {
-            var e = request.OrderCreateEnd.Value.Date.AddDays(1);
+            var e = SalesAnalyticsDateFilter.ToUtcDateEndExclusive(request.OrderCreateEnd.Value);
             q = q.Where(x => x.so.CreateTime < e);
         }
 
@@ -90,6 +91,42 @@ public sealed class SalesOrderItemLineListQuery : ISalesOrderItemLineListQuery
                 q = q.Where(x => x.item.Currency == (short)CurrencyCode.RMB);
             else if (kind is "foreign" or "外币")
                 q = q.Where(x => x.item.Currency != (short)CurrencyCode.RMB);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.SalesUserId))
+        {
+            var uid = request.SalesUserId.Trim();
+            q = q.Where(x => x.so.SalesUserId == uid);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.CustomerId))
+        {
+            var cid = request.CustomerId.Trim();
+            q = q.Where(x => x.so.CustomerId == cid);
+        }
+
+        if (request.StockOutPending)
+        {
+            q = q.Where(x =>
+                x.item.Status == 0
+                && x.so.Status != SellOrderMainStatus.Cancelled
+                && x.so.Status != SellOrderMainStatus.AuditFailed
+                && _db.SellOrderItemExtends.Any(ext =>
+                    ext.Id == x.item.Id
+                    && !ext.IsDeleted
+                    && (ext.StockOutProgressStatus == 0 || ext.StockOutProgressStatus == 1)));
+        }
+
+        if (request.InvoicePending)
+        {
+            q = q.Where(x =>
+                x.item.Status == 0
+                && x.so.Status != SellOrderMainStatus.Cancelled
+                && x.so.Status != SellOrderMainStatus.AuditFailed
+                && _db.SellOrderItemExtends.Any(ext =>
+                    ext.Id == x.item.Id
+                    && !ext.IsDeleted
+                    && (ext.InvoiceProgressStatus < 2 || ext.InvoiceAmountNot > 0)));
         }
 
         var total = await q.CountAsync(cancellationToken);

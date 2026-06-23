@@ -42,6 +42,44 @@ const routes: RouteRecordRaw[] = [
           permissions: ['analytics-sales.read', 'sales-order.read']
         }
       },
+      {
+        path: 'reports/purchase',
+        name: 'PurchaseAnalytics',
+        component: () => import('@/views/Reports/PurchaseAnalyticsPage.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '采购分析',
+          permissions: ['analytics-purchase.read', 'purchase-order.read']
+        }
+      },
+      {
+        path: 'reports/logistics',
+        name: 'LogisticsAnalytics',
+        component: () => import('@/views/Reports/LogisticsAnalyticsPage.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '物流分析',
+          permissions: ['analytics-logistics.read', 'inventory.read']
+        }
+      },
+      {
+        path: 'reports/finance',
+        name: 'FinanceAnalytics',
+        component: () => import('@/views/Reports/FinanceAnalyticsPage.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '财务分析',
+          permissions: [
+            'analytics-finance.read',
+            'finance-payment.read',
+            'finance-receipt.read',
+            'finance-purchase-invoice.read',
+            'finance-sell-invoice.read',
+            'sales-order.read',
+            'purchase-order.read'
+          ]
+        }
+      },
       // 客户管理
       {
         path: 'custome',

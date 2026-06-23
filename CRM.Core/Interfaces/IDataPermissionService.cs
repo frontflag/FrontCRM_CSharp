@@ -218,6 +218,9 @@ namespace CRM.Core.Interfaces
         Task<Func<RFQ, RFQItem, bool>> GetRfqItemLineVisibilityPredicateAsync(string userId);
         Task<bool> CanAccessSalesOrderAsync(string userId, SellOrder salesOrder);
         Task<bool> CanAccessPurchaseOrderAsync(string userId, PurchaseOrder purchaseOrder);
+
+        /// <summary>物流数据范围「全部」：入库/出库/库存/到货/质检/装箱/拣货等物流板块不按销采范围收窄。</summary>
+        Task<bool> IsLogisticsModuleUnrestrictedAsync(string? userId, CancellationToken cancellationToken = default);
         Task<bool> CanAccessFinanceReceiptAsync(string userId, FinanceReceipt receipt);
         Task<bool> CanAccessFinancePaymentAsync(string userId, FinancePayment payment);
         Task<bool> CanAccessFinanceSellInvoiceAsync(string userId, FinanceSellInvoice sellInvoice);

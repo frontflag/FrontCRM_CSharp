@@ -104,7 +104,8 @@ public static class SalesAnalyticsScopeValidator
             else if (!string.IsNullOrWhiteSpace(salesUserId))
             {
                 var uid = salesUserId.Trim();
-                if (!allowedUserIds.Contains(uid))
+                // 全公司 / 超管：allowedUserIds 为空表示不限制业务员；仅在有明确白名单时校验
+                if (allowedUserIds.Count > 0 && !allowedUserIds.Contains(uid))
                     return new ValidationResult { Ok = false, Error = "无权查看该业务员数据" };
                 resolvedUser = uid;
             }

@@ -60,6 +60,48 @@ export interface SalesOrderDeletedItemRow {
 
 /** GET /api/v1/sales-orders/{id}/detail-tab-aggregates */
 export interface SalesOrderDetailTabAggregates {
+  rfqItems: Array<{
+    id: string
+    rfqId: string
+    rfqCode: string
+    lineNo: number
+    mpn: string
+    customerMpn?: string | null
+    customerBrand?: string | null
+    brand: string
+    quantity: number
+    status: number
+    productionDate?: string | null
+    customerName?: string | null
+    salesUserName?: string | null
+    sellOrderItemId?: string | null
+    sellOrderItemCode?: string | null
+    quoteCode?: string | null
+    assignedPurchaserName1?: string | null
+    assignedPurchaserName2?: string | null
+    rfqCreateTime: string
+    createTime: string
+  }>
+  quotes: Array<{
+    id: string
+    quoteCode: string
+    mpn?: string | null
+    brand?: string | null
+    status: number
+    rfqCode?: string | null
+    salesUserName?: string | null
+    purchaseUserName?: string | null
+    quoteDate: string
+    sellOrderItemId?: string | null
+    sellOrderItemCode?: string | null
+    items: Array<{
+      quantity: number
+      unitPrice: number
+      currency: number
+      vendorName?: string | null
+    }>
+    createTime: string
+  }>
   purchaseRequisitions: Array<{
     id: string
     billCode: string
@@ -167,6 +209,9 @@ export interface SalesOrderDetailTabAggregates {
   qcImages: QcImageReadonlyRow[]
 }
 
+/** 销售订单明细详情 / 参考面板「库存」Tab 行 */
+export type SellOrderItemStockTabRow = SalesOrderDetailTabAggregates['stockItems'][number]
+
 // 销售订单API
 export const salesOrderApi = {
   // 获取销售订单列表
@@ -180,6 +225,10 @@ export const salesOrderApi = {
     orderCreateEnd?: string
     customerName?: string
     salesUserName?: string
+    salesUserId?: string
+    customerId?: string
+    stockOutPending?: boolean | string
+    invoicePending?: boolean | string
     /** 销售订单号（模糊） */
     sellOrderCode?: string
     pn?: string

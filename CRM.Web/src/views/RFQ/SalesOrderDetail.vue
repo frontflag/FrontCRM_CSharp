@@ -551,6 +551,12 @@
         <div v-loading="soItemLinePanel.loading" class="so-item-line-detail-panel__body so-item-line-detail-panel__body--tabbed">
           <div class="tabs-section so-item-line-detail-tabs-section">
             <div class="tabs-nav">
+              <button type="button" class="tab-btn" :class="{ 'tab-btn--active': soItemLinePanel.activeTab === 'rfqItems' }" @click="soItemLinePanel.activeTab = 'rfqItems'">
+                {{ formatSoItemLineTabLabel(t('salesOrderDetailView.tabs.rfqItems'), 'rfqItems') }}
+              </button>
+              <button type="button" class="tab-btn" :class="{ 'tab-btn--active': soItemLinePanel.activeTab === 'quotes' }" @click="soItemLinePanel.activeTab = 'quotes'">
+                {{ formatSoItemLineTabLabel(t('salesOrderDetailView.tabs.quotes'), 'quotes') }}
+              </button>
               <button type="button" class="tab-btn" :class="{ 'tab-btn--active': soItemLinePanel.activeTab === 'pr' }" @click="soItemLinePanel.activeTab = 'pr'">
                 {{ formatSoItemLineTabLabel('采购申请', 'pr') }}
               </button>
@@ -580,6 +586,127 @@
               </button>
             </div>
             <div class="tabs-body">
+              <div v-show="soItemLinePanel.activeTab === 'rfqItems'" class="so-aggregate-table-wrap">
+                <el-table
+                  v-if="(lineTabAggregates?.rfqItems?.length ?? 0) > 0"
+                  :data="lineTabAggregates?.rfqItems ?? []"
+                  size="small"
+                  stripe
+                >
+                  <el-table-column type="index" width="50" label="#" />
+                  <el-table-column min-width="140" label="需求编号">
+                    <template #default="{ row }">
+                      <router-link class="so-tab-link" :to="`/rfqs/${row.rfqId}`">{{ row.rfqCode }}</router-link>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="lineNo" label="行号" width="72" align="center" />
+                  <el-table-column v-if="showCustomerIdentityFields" prop="customerName" label="客户" min-width="120" show-overflow-tooltip />
+                  <el-table-column label="销售员" width="110" show-overflow-tooltip>
+                    <template #default="{ row }">{{ row.salesUserName || '—' }}</template>
+                  </el-table-column>
+                  <el-table-column prop="mpn" label="物料型号" min-width="140" show-overflow-tooltip />
+                  <el-table-column prop="brand" label="品牌" width="120" show-overflow-tooltip />
+                  <el-table-column label="数量" width="100" align="right" prop="quantity" />
+                  <el-table-column label="状态" width="100">
+                    <template #default="{ row }">{{ rfqItemStatusLabel(row?.status) }}</template>
+                  </el-table-column>
+                  <el-table-column label="询价采购员" min-width="140" show-overflow-tooltip>
+                    <template #default="{ row }">{{ formatRfqItemAssignedPurchasers(row) }}</template>
+                  </el-table-column>
+                  <el-table-column min-width="130" label="报价单号">
+                    <template #default="{ row }">
+                      <span>{{ row.quoteCode || '—' }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="生产日期" width="120" prop="productionDate" show-overflow-tooltip />
+                  <el-table-column label="需求创建" width="160">
+                    <template #default="{ row }">{{ formatDateTime(row?.rfqCreateTime) }}</template>
+                  </el-table-column>
+                </el-table>
+                <el-empty v-else :description="t('salesOrderDetailView.empty')" :image-size="64" />
+              </div>
+              <div v-show="soItemLinePanel.activeTab === 'quotes'" class="so-aggregate-table-wrap">
+                <el-table
+                  v-if="(lineTabAggregates?.quotes?.length ?? 0) > 0"
+                  :data="lineTabAggregates?.quotes ?? []"
+                  class="dock-quote-table"
+                  size="small"
+                  stripe
+                >
+                  <el-table-column type="index" width="50" label="#" />
+                  <el-table-column min-width="140" label="报价单号">
+                    <template #default="{ row }">
+                      <router-link class="so-tab-link" :to="`/quotes/${row.id}`">{{ row.quoteCode }}</router-link>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="rfqCode" label="需求编号" min-width="130" show-overflow-tooltip />
+                  <el-table-column prop="mpn" label="物料型号" min-width="140" show-overflow-tooltip />
+                  <el-table-column prop="brand" label="品牌" width="120" show-overflow-tooltip />
+                  <el-table-column label="供应商" min-width="140" show-overflow-tooltip>
+                    <template #default="{ row }">{{ soQuoteVendorNamesDisplay(row) }}</template>
+                  </el-table-column>
+                  <el-table-column label="报价数量" width="100" align="right" class-name="dock-tier-col">
+                    <template #default="{ row }">
+                      <div class="dock-quote-tiers">
+                        <template v-if="soQuoteLineItems(row).length">
+                          <div
+                            v-for="(it, idx) in soQuoteLineItems(row)"
+                            :key="idx"
+                            class="dock-quote-tier-line"
+                          >
+                            {{ formatSoQuoteTierQuantity(it.quantity) }}
+                          </div>
+                        </template>
+                        <span v-else class="dock-tier-empty">—</span>
+                      </div>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="报价" min-width="128" align="right" class-name="dock-tier-col">
+                    <template #default="{ row }">
+                      <div class="dock-quote-tiers">
+                        <template v-if="soQuoteLineItems(row).length">
+                          <div
+                            v-for="(it, idx) in soQuoteLineItems(row)"
+                            :key="idx"
+                            class="dock-quote-tier-line dock-tier-price-line"
+                          >
+                            <template v-if="!soQuoteTierUnitPriceHasValue(it.unitPrice)">—</template>
+                            <template v-else>
+                              <template v-for="amt in [splitSoQuoteTierAmountParts(it.unitPrice)]" :key="idx + '-amt'">
+                                <span class="dock-tier-amt">
+                                  <span class="dock-tier-amt-int">{{ amt.intPart }}</span
+                                  ><span class="dock-tier-amt-frac">{{ amt.fracPart }}</span>
+                                </span>
+                              </template>
+                              <span class="dock-tier-ccy-gap">&nbsp;</span>
+                              <span :class="['dock-tier-ccy', soQuoteTierCurrencyCodeClass(it.currency)]">{{
+                                soQuoteTierCurrencyCode(it.currency)
+                              }}</span>
+                            </template>
+                          </div>
+                        </template>
+                        <span v-else class="dock-tier-empty">—</span>
+                      </div>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="状态" width="100">
+                    <template #default="{ row }">{{ quoteStatusLabel(row?.status) }}</template>
+                  </el-table-column>
+                  <el-table-column label="销售员" width="110" show-overflow-tooltip>
+                    <template #default="{ row }">{{ row.salesUserName || '—' }}</template>
+                  </el-table-column>
+                  <el-table-column label="采购员" width="110" show-overflow-tooltip>
+                    <template #default="{ row }">{{ row.purchaseUserName || '—' }}</template>
+                  </el-table-column>
+                  <el-table-column label="报价日期" width="160">
+                    <template #default="{ row }">{{ formatDateTime(row?.quoteDate) }}</template>
+                  </el-table-column>
+                  <el-table-column label="创建时间" width="160">
+                    <template #default="{ row }">{{ formatDateTime(row?.createTime) }}</template>
+                  </el-table-column>
+                </el-table>
+                <el-empty v-else :description="t('salesOrderDetailView.empty')" :image-size="64" />
+              </div>
               <div v-show="soItemLinePanel.activeTab === 'pr'" class="so-aggregate-table-wrap">
                 <el-table
                   v-if="(lineTabAggregates?.purchaseRequisitions?.length ?? 0) > 0"
@@ -1445,6 +1572,8 @@ function goStockOutCreateFromNotify(row: Record<string, unknown>) {
 const lineTabAggregates = ref<SalesOrderDetailTabAggregates | null>(null)
 
 type SoItemLineTabKey =
+  | 'rfqItems'
+  | 'quotes'
   | 'pr'
   | 'po'
   | 'stockIn'
@@ -1459,6 +1588,10 @@ function soItemLineTabRecordCount(tab: SoItemLineTabKey): number {
   const agg = lineTabAggregates.value
   if (!agg) return 0
   switch (tab) {
+    case 'rfqItems':
+      return agg.rfqItems?.length ?? 0
+    case 'quotes':
+      return agg.quotes?.length ?? 0
     case 'pr':
       return agg.purchaseRequisitions?.length ?? 0
     case 'po':
@@ -1492,7 +1625,7 @@ const soItemLinePanel = reactive({
   visible: false,
   sellOrderItemId: '',
   sellOrderItemCode: '',
-  activeTab: 'pr',
+  activeTab: 'rfqItems',
   loading: false,
   loadError: ''
 })
@@ -1512,7 +1645,7 @@ async function onSalesOrderItemRowDblClick(row: Record<string, unknown>) {
   soItemLinePanel.sellOrderItemId = sellOrderItemId
   soItemLinePanel.sellOrderItemCode = sellOrderItemCode || sellOrderItemId
   soItemLinePanel.visible = true
-  soItemLinePanel.activeTab = 'pr'
+  soItemLinePanel.activeTab = 'rfqItems'
   soItemLinePanel.loading = true
   soItemLinePanel.loadError = ''
   lineTabAggregates.value = null
@@ -1855,6 +1988,129 @@ function prStatusLabel(v: unknown) {
   if (s === 2) return t('salesOrderDetailView.prStatus2')
   if (s === 3) return t('salesOrderDetailView.prStatus3')
   return `(${String(v)})`
+}
+
+function rfqItemStatusLabel(status?: unknown) {
+  const map: Record<number, string> = {
+    0: t('rfqList.status.pending'),
+    1: t('rfqList.status.assigned'),
+    2: t('rfqList.status.processing'),
+    3: t('rfqList.status.quoted'),
+    4: t('rfqList.status.selected'),
+    5: t('rfqList.status.converted'),
+    6: t('rfqList.status.closed'),
+    7: t('rfqList.status.closed'),
+    8: t('rfqList.status.cancelled')
+  }
+  const s = Number(status)
+  return Number.isFinite(s) ? (map[s] ?? `(${String(status)})`) : '—'
+}
+
+function formatRfqItemAssignedPurchasers(row: {
+  assignedPurchaserName1?: string | null
+  assignedPurchaserName2?: string | null
+}) {
+  const names = [row.assignedPurchaserName1, row.assignedPurchaserName2]
+    .map((x) => String(x ?? '').trim())
+    .filter(Boolean)
+  return names.length ? names.join('、') : '—'
+}
+
+function quoteStatusLabel(status?: unknown) {
+  const map: Record<number, string> = {
+    0: t('quoteList.status.draft'),
+    1: t('quoteList.status.pending'),
+    2: t('quoteList.status.approved'),
+    3: t('quoteList.status.sent'),
+    4: t('quoteList.status.accepted'),
+    5: t('quoteList.status.rejected'),
+    6: t('quoteList.status.expired'),
+    7: t('quoteList.status.closed')
+  }
+  const s = Number(status)
+  return Number.isFinite(s) ? (map[s] ?? `(${String(status)})`) : '—'
+}
+
+interface SoQuoteTierLine {
+  quantity: number
+  unitPrice: number
+  currency: number
+  vendorName?: string | null
+}
+
+function soQuoteLineItems(quoteRow: {
+  items?: SoQuoteTierLine[] | null
+}): SoQuoteTierLine[] {
+  const raw = quoteRow.items
+  if (!raw?.length) return []
+  return raw.map((it) => ({
+    quantity: Number(it.quantity ?? 0),
+    unitPrice: Number(it.unitPrice ?? 0),
+    currency: Number(it.currency ?? 1) || 1,
+    vendorName: it.vendorName ?? null
+  }))
+}
+
+function soQuoteVendorNamesDisplay(quoteRow: { items?: SoQuoteTierLine[] | null }): string {
+  if (maskPurchaseSensitiveFields.value) return '—'
+  const set = new Set<string>()
+  for (const it of soQuoteLineItems(quoteRow)) {
+    const n = String(it.vendorName ?? '').trim()
+    if (n) set.add(n)
+  }
+  return set.size > 0 ? [...set].join('、') : '—'
+}
+
+function formatSoQuoteTierQuantity(q: number) {
+  if (!Number.isFinite(q)) return '—'
+  if (Math.abs(q - Math.round(q)) < 1e-9) return String(Math.round(q))
+  return q.toLocaleString('zh-CN', { maximumFractionDigits: 4 })
+}
+
+function soQuoteTierCurrencyCode(currency?: number): string {
+  const n = Number(currency)
+  if (n === 2) return 'USD'
+  if (n === 3) return 'EUR'
+  if (n === 4) return 'HKD'
+  if (n === 5) return 'JPY'
+  if (n === 6) return 'GBP'
+  return 'RMB'
+}
+
+function soQuoteTierCurrencyCodeClass(currency?: number): string {
+  const n = Number(currency)
+  if (n === 1 || !Number.isFinite(n) || n === 0) return 'dock-tier-ccy--rmb'
+  if (n === 2) return 'dock-tier-ccy--usd'
+  if (n === 3) return 'dock-tier-ccy--eur'
+  if (n === 4) return 'dock-tier-ccy--hkd'
+  return 'dock-tier-ccy--purple'
+}
+
+function soQuoteTierUnitPriceHasValue(unitPrice: number): boolean {
+  return Number.isFinite(unitPrice) && unitPrice !== 0
+}
+
+function splitSoQuoteTierAmountParts(unitPrice: number): { intPart: string; fracPart: string } {
+  if (!soQuoteTierUnitPriceHasValue(unitPrice)) return { intPart: '—', fracPart: '' }
+  const parts = new Intl.NumberFormat('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 6
+  }).formatToParts(Number(unitPrice))
+  let intPart = ''
+  let fracPart = ''
+  for (const p of parts) {
+    if (p.type === 'integer' || p.type === 'group') intPart += p.value
+    else if (p.type === 'decimal' || p.type === 'fraction') fracPart += p.value
+  }
+  if (!fracPart) {
+    return {
+      intPart:
+        intPart ||
+        Number(unitPrice).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 6 }),
+      fracPart: ''
+    }
+  }
+  return { intPart, fracPart }
 }
 
 const PO_HEADER_STATUS_TEXT: Record<number, string> = {

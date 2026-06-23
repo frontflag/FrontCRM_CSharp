@@ -266,7 +266,7 @@ const searchForm = ref({
 // 分页信息
 const pageInfo = ref({
   page: 1,
-  pageSize: 10,
+  pageSize: 20,
   total: 0
 })
 

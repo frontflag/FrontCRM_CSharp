@@ -608,7 +608,7 @@ const filterForm = ref({
 // 分页信息
 const pageInfo = ref({
   page: 1,
-  pageSize: 10,
+  pageSize: 20,
   total: 0
 })
 
@@ -629,7 +629,7 @@ const statAmountDisplay = computed(() => {
   if (listAggregates.value.totalAmountSum == null) return '--'
   const n = Number(listAggregates.value.totalAmountSum)
   if (!Number.isFinite(n)) return '--'
-  return `¥${n.toLocaleString()}`
+  return `$${n.toLocaleString()}`
 })
 
 // 状态处理

@@ -23,6 +23,7 @@ namespace CRM.Core.Services
         private readonly ISerialNumberService _serialNumberService;
         private readonly IUserService _userService;
         private readonly IQuoteListQuery _quoteListQuery;
+        private readonly IRbacService _rbacService;
         private readonly ILogger<QuoteService> _logger;
         private readonly ILogOperationAppendService _logOperationAppend;
 
@@ -36,6 +37,7 @@ namespace CRM.Core.Services
             ISerialNumberService serialNumberService,
             IUserService userService,
             IQuoteListQuery quoteListQuery,
+            IRbacService rbacService,
             ILogger<QuoteService> logger,
             ILogOperationAppendService logOperationAppend)
         {
@@ -48,6 +50,7 @@ namespace CRM.Core.Services
             _serialNumberService = serialNumberService;
             _userService = userService;
             _quoteListQuery = quoteListQuery;
+            _rbacService = rbacService;
             _logger = logger;
             _logOperationAppend = logOperationAppend;
         }
@@ -199,7 +202,11 @@ namespace CRM.Core.Services
                 linkedRfqItem = await _rfqItemRepository.GetByIdAsync(rfqItemIdTrim);
                 if (string.IsNullOrWhiteSpace(purchaseUserId))
                     purchaseUserId = ResolveAssignedPurchaserUserId(linkedRfqItem);
+                await EnsureCanQuoteRfqItemAsync(linkedRfqItem, actingUserId);
             }
+
+            if (string.IsNullOrWhiteSpace(purchaseUserId))
+                throw new ArgumentException("请选择采购员");
 
             var quote = new Quote
             {
@@ -340,10 +347,25 @@ namespace CRM.Core.Services
             if (quote == null)
                 throw new InvalidOperationException($"报价单 {id} 不存在");
 
+            if (!string.IsNullOrWhiteSpace(quote.RFQItemId))
+            {
+                var linkedRfqItem = await _rfqItemRepository.GetByIdAsync(quote.RFQItemId.Trim());
+                await EnsureCanQuoteRfqItemAsync(linkedRfqItem, actingUserId);
+            }
+
             if (request.Mpn != null) quote.Mpn = request.Mpn;
             if (request.CustomerId != null) quote.CustomerId = request.CustomerId;
             if (request.SalesUserId != null) quote.SalesUserId = request.SalesUserId;
-            if (request.PurchaseUserId != null) quote.PurchaseUserId = request.PurchaseUserId;
+            if (request.PurchaseUserId != null)
+            {
+                if (string.IsNullOrWhiteSpace(request.PurchaseUserId))
+                    throw new ArgumentException("请选择采购员");
+                quote.PurchaseUserId = request.PurchaseUserId.Trim();
+            }
+
+            if (string.IsNullOrWhiteSpace(quote.PurchaseUserId))
+                throw new ArgumentException("请选择采购员");
+
             if (request.QuoteDate.HasValue) quote.QuoteDate = PostgreSqlDateTime.ToUtc(request.QuoteDate.Value);
             if (request.Status.HasValue) quote.Status = request.Status.Value;
             if (request.Remark != null) quote.Remark = request.Remark;
@@ -608,6 +630,20 @@ namespace CRM.Core.Services
                 return (null, "系统");
             var user = await _userService.GetByIdAsync(id);
             return (id, string.IsNullOrWhiteSpace(user?.UserName) ? id : user!.UserName!.Trim());
+        }
+
+        private async Task EnsureCanQuoteRfqItemAsync(RFQItem? rfqItem, string? actingUserId)
+        {
+            var actorId = ActingUserIdNormalizer.Normalize(actingUserId);
+            if (string.IsNullOrEmpty(actorId))
+                throw new UnauthorizedAccessException("未登录或无法识别当前用户，无法创建/编辑报价");
+
+            if (rfqItem == null)
+                throw new InvalidOperationException("关联的需求明细不存在，无法报价");
+
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(actorId);
+            if (!RfqItemQuoteAccessRules.CanQuote(summary, rfqItem, actorId))
+                throw new UnauthorizedAccessException("无权为该需求明细创建或编辑报价");
         }
     }
 }

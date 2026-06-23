@@ -17,6 +17,6 @@ public sealed class PurchaseOrderListAggregates
     public int TotalCount { get; set; }
     public int PendingConfirmCount { get; set; }
     public int InProgressCount { get; set; }
-    /// <summary>筛选范围内主表 <see cref="PurchaseOrder.Total"/> 之和；无金额权限时调用方可忽略。</summary>
+    /// <summary>筛选范围内主表 <see cref="PurchaseOrder.ConvertTotal"/>（美元）之和；无金额权限时调用方可忽略。</summary>
     public decimal TotalAmountSum { get; set; }
 }

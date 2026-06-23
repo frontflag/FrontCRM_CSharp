@@ -407,10 +407,10 @@ export interface CustomerStatistics {
   /** 至少有一条有效销售订单的 distinct 客户数 */
   customersWithDeals: number
   totalBalance: number
-  /** 未全部收款的销售订单折算总额（本位币） */
+  /** 未全部收款的销售订单折算总额（美元 convert_total） */
   receivableGoodsAmount: number
   receivableCustomerCount: number
-  /** 未全部出库的销售订单折算总额（本位币） */
+  /** 未全部出库的销售订单折算总额（美元 convert_total） */
   pendingOutboundAmount: number
   pendingOutboundCustomerCount: number
   byLevel: Record<string, number>

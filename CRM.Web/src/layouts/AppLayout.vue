@@ -699,7 +699,7 @@
         <SidebarMenuTooltipWrap
           v-if="hasPermission('analytics-sales.read') || hasPermission('sales-order.read')"
           :collapsed="isCollapsed"
-          :tooltip="t('layout.menu.reportAnalytics')"
+          :tooltip="t('salesAnalytics.title')"
         >
           <router-link to="/reports/sales" class="menu-item" active-class="active">
             <span class="menu-icon">
@@ -709,7 +709,65 @@
                 <line x1="6" y1="20" x2="6" y2="14"/>
               </svg>
             </span>
-            <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.reportAnalytics') }}</span>
+            <span class="menu-label" v-if="!isCollapsed">{{ t('salesAnalytics.title') }}</span>
+          </router-link>
+        </SidebarMenuTooltipWrap>
+
+        <SidebarMenuTooltipWrap
+          v-if="hasPermission('analytics-purchase.read') || hasPermission('purchase-order.read')"
+          :collapsed="isCollapsed"
+          :tooltip="t('purchaseAnalytics.title')"
+        >
+          <router-link to="/reports/purchase" class="menu-item" active-class="active">
+            <span class="menu-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <line x1="18" y1="20" x2="18" y2="10"/>
+                <line x1="12" y1="20" x2="12" y2="4"/>
+                <line x1="6" y1="20" x2="6" y2="14"/>
+              </svg>
+            </span>
+            <span class="menu-label" v-if="!isCollapsed">{{ t('purchaseAnalytics.title') }}</span>
+          </router-link>
+        </SidebarMenuTooltipWrap>
+
+        <SidebarMenuTooltipWrap
+          v-if="hasPermission('analytics-logistics.read') || hasPermission('inventory.read')"
+          :collapsed="isCollapsed"
+          :tooltip="t('logisticsAnalytics.title')"
+        >
+          <router-link to="/reports/logistics" class="menu-item" active-class="active">
+            <span class="menu-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                <line x1="12" y1="22.08" x2="12" y2="12"/>
+              </svg>
+            </span>
+            <span class="menu-label" v-if="!isCollapsed">{{ t('logisticsAnalytics.title') }}</span>
+          </router-link>
+        </SidebarMenuTooltipWrap>
+
+        <SidebarMenuTooltipWrap
+          v-if="
+            hasPermission('analytics-finance.read') ||
+            hasPermission('finance-payment.read') ||
+            hasPermission('finance-receipt.read') ||
+            hasPermission('finance-purchase-invoice.read') ||
+            hasPermission('finance-sell-invoice.read') ||
+            hasPermission('sales-order.read') ||
+            hasPermission('purchase-order.read')
+          "
+          :collapsed="isCollapsed"
+          :tooltip="t('financeAnalytics.title')"
+        >
+          <router-link to="/reports/finance" class="menu-item" active-class="active">
+            <span class="menu-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <line x1="12" y1="1" x2="12" y2="23"/>
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+              </svg>
+            </span>
+            <span class="menu-label" v-if="!isCollapsed">{{ t('financeAnalytics.title') }}</span>
           </router-link>
         </SidebarMenuTooltipWrap>
 
@@ -1535,6 +1593,9 @@ const pageTitleMap: Record<string, string> = {
   '/inventory/check': 'layout.menu.inventoryCheck',
   '/reports': 'layout.menu.reportAnalytics',
   '/reports/sales': 'salesAnalytics.title',
+  '/reports/purchase': 'purchaseAnalytics.title',
+  '/reports/logistics': 'logisticsAnalytics.title',
+  '/reports/finance': 'financeAnalytics.title',
   '/dashboard/settings': 'layout.menu.systemSettings',
   '/rfq': 'layout.menu.rfqList',
   '/rfqlist': 'layout.menu.rfqList',

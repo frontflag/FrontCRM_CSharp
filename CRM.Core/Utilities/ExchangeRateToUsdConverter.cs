@@ -29,6 +29,10 @@ namespace CRM.Core.Utilities
         private static decimal Div(decimal price, decimal rate) =>
             rate > 0m ? Round6(price / rate) : 0m;
 
+        /// <summary>行金额折合美元（qty × 已折算美元单价），保留 2 位小数。</summary>
+        public static decimal LineAmountUsd(decimal qty, decimal convertPriceUsd) =>
+            Math.Round(qty * convertPriceUsd, 2, MidpointRounding.AwayFromZero);
+
         private static decimal Round6(decimal v) =>
             Math.Round(v, 6, MidpointRounding.AwayFromZero);
     }

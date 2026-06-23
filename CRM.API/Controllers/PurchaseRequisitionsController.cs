@@ -366,10 +366,7 @@ namespace CRM.API.Controllers
                     return BadRequest(new { success = false, message = "请求体不能为空" });
 
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (string.IsNullOrWhiteSpace(request.PurchaseUserId))
-                    request.PurchaseUserId = userId;
-
-                var created = await _service.CreateAsync(request);
+                var created = await _service.CreateAsync(request, userId);
                 return Ok(new { success = true, data = created });
             }
             catch (ArgumentException ex)

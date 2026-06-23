@@ -63,7 +63,7 @@ public sealed class SalesOrderListQuery : ISalesOrderListQuery
                     || o.Status == SellOrderMainStatus.InProgress
                     || o.Status == SellOrderMainStatus.Completed,
                 cancellationToken),
-            TotalAmountSum = await q.SumAsync(o => (decimal?)o.Total, cancellationToken) ?? 0m
+            TotalAmountSum = await q.SumAsync(o => (decimal?)o.ConvertTotal, cancellationToken) ?? 0m
         };
     }
 

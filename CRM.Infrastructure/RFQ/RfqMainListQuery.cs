@@ -1,5 +1,6 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models.RFQ;
+using CRM.Core.Utilities;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -83,10 +84,16 @@ public sealed class RfqMainListQuery : IRfqMainListQuery
             q = q.Where(r => r.CustomerId == request.CustomerId);
 
         if (request.StartDate.HasValue)
-            q = q.Where(r => r.CreateTime >= request.StartDate.Value);
+        {
+            var start = SalesAnalyticsDateFilter.ToUtcDateStart(request.StartDate.Value);
+            q = q.Where(r => r.CreateTime >= start);
+        }
 
         if (request.EndDate.HasValue)
-            q = q.Where(r => r.CreateTime <= request.EndDate.Value.AddDays(1));
+        {
+            var endExclusive = SalesAnalyticsDateFilter.ToUtcDateEndExclusive(request.EndDate.Value);
+            q = q.Where(r => r.CreateTime < endExclusive);
+        }
 
         return q;
     }

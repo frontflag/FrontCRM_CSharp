@@ -29,5 +29,14 @@ namespace CRM.Core.Tests.Utilities
             DateTime? n = null;
             Assert.Null(PostgreSqlDateTime.ToUtc(n));
         }
+
+        [Fact]
+        public void ParseDateOnly_ReturnsUtcMidnight()
+        {
+            var d = PostgreSqlDateTime.ParseDateOnly("2026-06-22");
+            Assert.NotNull(d);
+            Assert.Equal(DateTimeKind.Utc, d!.Value.Kind);
+            Assert.Equal(new DateTime(2026, 6, 22, 0, 0, 0, DateTimeKind.Utc), d.Value);
+        }
     }
 }

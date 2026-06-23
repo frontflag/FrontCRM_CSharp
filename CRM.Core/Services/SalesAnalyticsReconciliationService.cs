@@ -50,7 +50,10 @@ public sealed class SalesAnalyticsReconciliationService : ISalesAnalyticsReconci
             CompareInt("rfqCustomerCount", "需求客户数", dashboard.Snapshot.RfqCustomerCount, baselineSnapshot.RfqCustomerCount),
             CompareRate("rfqToSalesConversionRate", "需求→销售转化率", dashboard.Snapshot.RfqToSalesConversionRate, baselineSnapshot.RfqToSalesConversionRate),
             CompareDecimal("receivableAmount", "应收款金额", dashboard.Todo.ReceivableAmount, baselineTodo.ReceivableAmount),
-            CompareInt("pendingStockOutItemCount", "待出库明细数", dashboard.Todo.PendingStockOutItemCount, baselineTodo.PendingStockOutItemCount)
+            CompareInt("pendingStockOutItemCount", "待出库明细数", dashboard.Todo.PendingStockOutItemCount, baselineTodo.PendingStockOutItemCount),
+            CompareDecimal("pendingInvoiceAmount", "待开票金额", dashboard.Todo.PendingInvoiceAmount, baselineTodo.PendingInvoiceAmount),
+            CompareDecimal("salesAmountStockOut", "已出库金额", dashboard.Snapshot.SalesAmountStockOut, baselineSnapshot.SalesAmountStockOut),
+            CompareDecimal("salesAmountReceived", "已收款金额", dashboard.Snapshot.SalesAmountReceived, baselineSnapshot.SalesAmountReceived)
         };
 
         bool? listPathMatched = null;

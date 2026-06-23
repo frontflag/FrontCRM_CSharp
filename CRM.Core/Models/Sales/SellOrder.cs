@@ -82,7 +82,7 @@ namespace CRM.Core.Models.Sales
         [Column("total", TypeName = "numeric(18,2)")]
         public decimal Total { get; set; } = 0.00m;
 
-        /// <summary>折算总额(本位币)</summary>
+        /// <summary>折算总额（美元）：各行 qty × convert_price 之和。</summary>
         [Column("convert_total", TypeName = "numeric(18,2)")]
         public decimal ConvertTotal { get; set; } = 0.00m;
 

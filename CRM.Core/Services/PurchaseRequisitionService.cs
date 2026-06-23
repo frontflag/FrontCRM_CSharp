@@ -1,8 +1,9 @@
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Purchase;
-using CRM.Core.Models.Sales;
 using CRM.Core.Models.Quote;
+using CRM.Core.Models.RFQ;
+using CRM.Core.Models.Sales;
 using CRM.Core.Models.System;
 using CRM.Core.Utilities;
 
@@ -16,6 +17,8 @@ namespace CRM.Core.Services
         private readonly IRepository<SellOrderItem> _soItemRepo;
         private readonly IRepository<PurchaseOrderItem> _poItemRepo;
         private readonly IRepository<QuoteItem> _quoteItemRepo;
+        private readonly IRepository<Quote> _quoteRepo;
+        private readonly IRepository<RFQItem> _rfqItemRepo;
         private readonly IUnitOfWork? _unitOfWork;
         private readonly ISerialNumberService _serialNumberService;
         private readonly ILogOperationAppendService? _logOperationAppend;
@@ -27,6 +30,8 @@ namespace CRM.Core.Services
             IRepository<SellOrderItem> soItemRepo,
             IRepository<PurchaseOrderItem> poItemRepo,
             IRepository<QuoteItem> quoteItemRepo,
+            IRepository<Quote> quoteRepo,
+            IRepository<RFQItem> rfqItemRepo,
             ISerialNumberService serialNumberService,
             IUnitOfWork? unitOfWork = null,
             ILogOperationAppendService? logOperationAppend = null,
@@ -37,6 +42,8 @@ namespace CRM.Core.Services
             _soItemRepo = soItemRepo;
             _poItemRepo = poItemRepo;
             _quoteItemRepo = quoteItemRepo;
+            _quoteRepo = quoteRepo;
+            _rfqItemRepo = rfqItemRepo;
             _serialNumberService = serialNumberService;
             _unitOfWork = unitOfWork;
             _logOperationAppend = logOperationAppend;
@@ -93,6 +100,22 @@ namespace CRM.Core.Services
             return result;
         }
 
+        private async Task<string?> ResolveDefaultPurchaseUserIdAsync(SellOrderItem soItem)
+        {
+            if (string.IsNullOrWhiteSpace(soItem.QuoteId))
+                return null;
+
+            var quote = await _quoteRepo.GetByIdAsync(soItem.QuoteId.Trim());
+            if (quote == null)
+                return null;
+
+            RFQItem? rfqItem = null;
+            if (string.IsNullOrWhiteSpace(quote.PurchaseUserId) && !string.IsNullOrWhiteSpace(quote.RFQItemId))
+                rfqItem = await _rfqItemRepo.GetByIdAsync(quote.RFQItemId.Trim());
+
+            return PurchaseRequisitionPurchaserResolver.ResolveFromQuote(quote, rfqItem);
+        }
+
         public async Task<PurchaseRequisition> CreateAsync(CreatePurchaseRequisitionRequest request, string? actingUserId = null)
         {
             if (request == null) throw new ArgumentNullException(nameof(request));
@@ -123,6 +146,15 @@ namespace CRM.Core.Services
 
             var billCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.PurchaseRequisition);
 
+            var purchaseUserId = string.IsNullOrWhiteSpace(request.PurchaseUserId)
+                ? null
+                : request.PurchaseUserId.Trim();
+            if (string.IsNullOrWhiteSpace(purchaseUserId))
+                purchaseUserId = await ResolveDefaultPurchaseUserIdAsync(soItem);
+            if (string.IsNullOrWhiteSpace(purchaseUserId))
+                throw new InvalidOperationException(
+                    "无法确定采购员：未指定采购员，且无法从报价单或需求明细分配的询价采购员解析，请先完善报价/需求后再创建采购申请。");
+
             var pr = new PurchaseRequisition
             {
                 Id = Guid.NewGuid().ToString(),
@@ -133,7 +165,7 @@ namespace CRM.Core.Services
                 ExpectedPurchaseTime = PostgreSqlDateTime.ToUtc(request.ExpectedPurchaseTime),
                 Status = 0,
                 Type = request.Type,
-                PurchaseUserId = request.PurchaseUserId,
+                PurchaseUserId = purchaseUserId,
                 SalesUserId = so?.SalesUserId,
                 QuoteVendorId = matchedQuoteItem?.VendorId,
                 QuoteCost = matchedQuoteItem != null ? matchedQuoteItem.UnitPrice : 0m,

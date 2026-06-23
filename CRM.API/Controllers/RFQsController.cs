@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using CRM.API.Authorization;
 using CRM.API.Models.DTOs;
 using CRM.Core.Interfaces;
+using CRM.Core.Utilities;
 using System.Security.Claims;
 
 namespace CRM.API.Controllers
@@ -45,8 +46,8 @@ namespace CRM.API.Controllers
                     Keyword = keyword,
                     Status = status,
                     CustomerId = customerId,
-                    StartDate = string.IsNullOrEmpty(startDate) ? null : DateTime.Parse(startDate),
-                    EndDate = string.IsNullOrEmpty(endDate) ? null : DateTime.Parse(endDate),
+                    StartDate = PostgreSqlDateTime.ParseDateOnly(startDate),
+                    EndDate = PostgreSqlDateTime.ParseDateOnly(endDate),
                     CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
                 };
                 var result = await _rfqService.GetPagedAsync(request);
@@ -84,7 +85,9 @@ namespace CRM.API.Controllers
             [FromQuery] string? salesUserId = null,
             [FromQuery] string? salesUserKeyword = null,
             [FromQuery] string? purchaserUserId = null,
-            [FromQuery] string? hasQuotesOnly = null)
+            [FromQuery] string? hasQuotesOnly = null,
+            [FromQuery] short? status = null,
+            [FromQuery] string? rfqCode = null)
         {
             try
             {
@@ -93,14 +96,16 @@ namespace CRM.API.Controllers
                 {
                     PageIndex = pageNorm,
                     PageSize = pageSize,
-                    StartDate = string.IsNullOrEmpty(startDate) ? null : DateTime.Parse(startDate),
-                    EndDate = string.IsNullOrEmpty(endDate) ? null : DateTime.Parse(endDate),
+                    StartDate = PostgreSqlDateTime.ParseDateOnly(startDate),
+                    EndDate = PostgreSqlDateTime.ParseDateOnly(endDate),
                     CustomerKeyword = customerKeyword,
                     MaterialModel = materialModel,
                     SalesUserId = salesUserId,
                     SalesUserKeyword = salesUserKeyword,
                     PurchaserUserId = purchaserUserId,
                     HasQuotesOnly = ParseQueryBool(hasQuotesOnly),
+                    Status = status,
+                    RfqCode = rfqCode,
                     CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
                 };
                 var result = await _rfqService.GetPagedItemsAsync(request);

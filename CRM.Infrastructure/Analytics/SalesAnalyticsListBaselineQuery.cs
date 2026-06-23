@@ -92,10 +92,19 @@ public sealed class SalesAnalyticsListBaselineQuery : ISalesAnalyticsReconciliat
             select oi.Id
         ).CountAsync(cancellationToken);
 
+        var pendingInvoice = await (
+            from ext in _db.SellOrderItemExtends.AsNoTracking()
+            join oi in _db.SellOrderItems.AsNoTracking() on ext.Id equals oi.Id
+            join o in active on oi.SellOrderId equals o.Id
+            where oi.Status == 0
+            select ext.InvoiceAmountNot
+        ).SumAsync(cancellationToken);
+
         return new SalesAnalyticsTodoDto
         {
             ReceivableAmount = scope.MaskAmounts ? null : receivable,
-            PendingStockOutItemCount = pendingStockOut
+            PendingStockOutItemCount = pendingStockOut,
+            PendingInvoiceAmount = scope.MaskAmounts ? null : pendingInvoice
         };
     }
 
@@ -116,12 +125,43 @@ public sealed class SalesAnalyticsListBaselineQuery : ISalesAnalyticsReconciliat
             .Where(o => o.Status >= SellOrderMainStatus.Approved)
             .SumAsync(o => (decimal?)o.ConvertTotal, cancellationToken) ?? 0m;
 
+        var (salesAmountStockOut, salesAmountReceived) = await SumApprovedLineAmountsAsync(
+            ordersInPeriod,
+            cancellationToken);
+
         return new SalesAnalyticsSnapshotDto
         {
             SalesOrderItemCount = salesOrderItemCount,
             SalesOrderCustomerCount = salesOrderCustomerCount,
-            SalesAmountApproved = maskAmounts ? null : salesAmountApproved
+            SalesAmountApproved = maskAmounts ? null : salesAmountApproved,
+            SalesAmountStockOut = maskAmounts ? null : salesAmountStockOut,
+            SalesAmountReceived = maskAmounts ? null : salesAmountReceived
         };
+    }
+
+    private async Task<(decimal StockOutAmount, decimal ReceivedAmount)> SumApprovedLineAmountsAsync(
+        IQueryable<SellOrder> ordersInPeriod,
+        CancellationToken cancellationToken)
+    {
+        var approvedOrders = ordersInPeriod.Where(o => o.Status >= SellOrderMainStatus.Approved);
+
+        var stockOutAmount = await (
+            from ext in _db.SellOrderItemExtends.AsNoTracking()
+            join oi in _db.SellOrderItems.AsNoTracking() on ext.Id equals oi.Id
+            join o in approvedOrders on oi.SellOrderId equals o.Id
+            where oi.Status == 0
+            select ext.QtyStockOutActual * oi.ConvertPrice
+        ).SumAsync(cancellationToken);
+
+        var receivedAmount = await (
+            from ext in _db.SellOrderItemExtends.AsNoTracking()
+            join oi in _db.SellOrderItems.AsNoTracking() on ext.Id equals oi.Id
+            join o in approvedOrders on oi.SellOrderId equals o.Id
+            where oi.Status == 0
+            select ext.ReceiptAmountFinish
+        ).SumAsync(cancellationToken);
+
+        return (stockOutAmount, receivedAmount);
     }
 
     private async Task<IQueryable<SellOrder>> BuildScopedOrdersAsync(

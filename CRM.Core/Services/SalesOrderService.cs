@@ -124,6 +124,7 @@ namespace CRM.Core.Services
                 firstSeq = await _soLineSeq.ReserveNextSequenceBlockAsync(order.Id, request.Items.Count);
             var lineIndex = 0;
             decimal total = 0m;
+            decimal convertTotalUsd = 0m;
             var createdLines = new List<SellOrderItem>();
             foreach (var item in request.Items)
             {
@@ -154,9 +155,10 @@ namespace CRM.Core.Services
                 createdLines.Add(soItem);
                 await AddSellOrderItemExtendAsync(soItem, fx);
                 total += item.Qty * item.Price;
+                convertTotalUsd += ExchangeRateToUsdConverter.LineAmountUsd(soItem.Qty, soItem.ConvertPrice);
             }
             order.Total = total;
-            order.ConvertTotal = total;
+            order.ConvertTotal = convertTotalUsd;
             await _soRepo.UpdateAsync(order);
 
             await _unitOfWork.SaveChangesAsync();
@@ -504,7 +506,7 @@ namespace CRM.Core.Services
                 updatedLines = sync.Updated;
                 deletedLines = sync.Deleted;
                 order.Total = sync.Total;
-                order.ConvertTotal = sync.Total;
+                order.ConvertTotal = sync.ConvertTotal;
                 order.ItemRows = request.Items.Count;
                 replacedItemCount = request.Items.Count;
             }
@@ -1395,7 +1397,8 @@ VALUES (gen_random_uuid()::text, '{BusinessLogTypes.SalesOrder}', '{safeRecordId
             List<SellOrderItem> Inserted,
             List<SellOrderItem> Updated,
             List<SellOrderItem> Deleted,
-            decimal Total);
+            decimal Total,
+            decimal ConvertTotal);
 
         private async Task<SellOrderItemSyncResult> SyncSellOrderItemsOnUpdateAsync(
             SellOrder order,
@@ -1412,6 +1415,7 @@ VALUES (gen_random_uuid()::text, '{BusinessLogTypes.SalesOrder}', '{safeRecordId
             var updated = new List<SellOrderItem>();
             var keptIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             decimal total = 0m;
+            decimal convertTotalUsd = 0m;
 
             var newItemRequests = new List<CreateSalesOrderItemRequest>();
             foreach (var itemReq in requestItems)
@@ -1428,6 +1432,7 @@ VALUES (gen_random_uuid()::text, '{BusinessLogTypes.SalesOrder}', '{safeRecordId
                     await _soItemRepo.UpdateAsync(existing);
                     updated.Add(existing);
                     total += existing.Qty * existing.Price;
+                    convertTotalUsd += ExchangeRateToUsdConverter.LineAmountUsd(existing.Qty, existing.ConvertPrice);
                 }
                 else
                 {
@@ -1454,6 +1459,7 @@ VALUES (gen_random_uuid()::text, '{BusinessLogTypes.SalesOrder}', '{safeRecordId
                     inserted.Add(soItem);
                     await AddSellOrderItemExtendAsync(soItem, fx);
                     total += soItem.Qty * soItem.Price;
+                    convertTotalUsd += ExchangeRateToUsdConverter.LineAmountUsd(soItem.Qty, soItem.ConvertPrice);
                 }
             }
 
@@ -1473,7 +1479,7 @@ VALUES (gen_random_uuid()::text, '{BusinessLogTypes.SalesOrder}', '{safeRecordId
                 deleted.Add(existing);
             }
 
-            return new SellOrderItemSyncResult(inserted, updated, deleted, total);
+            return new SellOrderItemSyncResult(inserted, updated, deleted, total, convertTotalUsd);
         }
 
         private static void ApplySellOrderItemFromRequest(

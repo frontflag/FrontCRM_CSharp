@@ -528,8 +528,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, computed, nextTick, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
@@ -562,6 +562,7 @@ import { useSaleOrderWriteGate } from '@/composables/useDepartmentDataReadOnly'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 
 const router = useRouter()
+const route = useRoute()
 const { t, locale } = useI18n()
 const authStore = useAuthStore()
 
@@ -658,6 +659,10 @@ const salesOrderItemColumns = computed<CrmTableColumnDef[]>(() => {
 })
 
 const dateRange = ref<[string, string] | null>(null)
+const stockOutPending = ref(false)
+const invoicePending = ref(false)
+const salesUserIdFilter = ref('')
+const customerIdFilter = ref('')
 const filters = reactive({
   sellOrderCode: '',
   customerName: '',
@@ -925,6 +930,12 @@ async function loadList() {
     const pnk = String(filters.pn ?? '').trim()
     if (pnk) params.pn = pnk
     if (filters.transactionCurrency) params.transactionCurrency = filters.transactionCurrency
+    if (stockOutPending.value) params.stockOutPending = true
+    if (invoicePending.value) params.invoicePending = true
+    const suid = salesUserIdFilter.value.trim()
+    if (suid) params.salesUserId = suid
+    const cid = customerIdFilter.value.trim()
+    if (cid) params.customerId = cid
 
     const data = (await salesOrderApi.getItemLines(params)) as {
       items?: any[]
@@ -954,6 +965,10 @@ async function loadList() {
 
 function resetFilters() {
   dateRange.value = null
+  stockOutPending.value = false
+  invoicePending.value = false
+  salesUserIdFilter.value = ''
+  customerIdFilter.value = ''
   filters.sellOrderCode = ''
   filters.customerName = ''
   filters.salesUserName = ''
@@ -1065,7 +1080,26 @@ function applyStockOutOne(row: Record<string, unknown>) {
   )
 }
 
-onMounted(() => loadList())
+function syncFiltersFromRoute() {
+  if (route.name !== 'SalesOrderItemList') return
+  const q = route.query
+  const from = typeof q.orderCreateStart === 'string' ? q.orderCreateStart : typeof q.startDate === 'string' ? q.startDate : ''
+  const to = typeof q.orderCreateEnd === 'string' ? q.orderCreateEnd : typeof q.endDate === 'string' ? q.endDate : ''
+  dateRange.value = from && to ? [from, to] : null
+  stockOutPending.value = q.stockOutPending === '1' || q.stockOutPending === 'true'
+  invoicePending.value = q.invoicePending === '1' || q.invoicePending === 'true'
+  salesUserIdFilter.value = typeof q.salesUserId === 'string' ? q.salesUserId : ''
+  customerIdFilter.value = typeof q.customerId === 'string' ? q.customerId : ''
+}
+
+watch(
+  () => [route.name, route.query] as const,
+  async () => {
+    syncFiltersFromRoute()
+    if (route.name === 'SalesOrderItemList') await loadList()
+  },
+  { deep: true, immediate: true }
+)
 </script>
 
 <style scoped lang="scss">

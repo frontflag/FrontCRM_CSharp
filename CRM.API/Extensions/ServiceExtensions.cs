@@ -105,6 +105,9 @@ namespace CRM.API.Extensions
             // 销售看板
             services.AddScoped<ISalesAnalyticsService, SalesAnalyticsService>();
             services.AddScoped<ISalesAnalyticsReconciliationService, SalesAnalyticsReconciliationService>();
+            services.AddScoped<IPurchaseAnalyticsService, PurchaseAnalyticsService>();
+            services.AddScoped<ILogisticsAnalyticsService, LogisticsAnalyticsService>();
+            services.AddScoped<IFinanceAnalyticsService, FinanceAnalyticsService>();
             services.AddScoped<IRepository<CRM.Core.Models.Rbac.RbacDepartment>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Rbac.RbacDepartment>>();
             services.AddScoped<IRepository<CRM.Core.Models.Rbac.RbacUserDepartment>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Rbac.RbacUserDepartment>>();
 

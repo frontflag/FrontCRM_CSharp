@@ -2,9 +2,6 @@
   <div class="purchase-requisition-list-page">
     <div class="page-header">
       <h2>{{ t('purchaseRequisitionList.title') }}</h2>
-      <el-button type="primary" @click="handleCreate">
-        <el-icon><Plus /></el-icon>{{ t('purchaseRequisitionList.create') }}
-      </el-button>
     </div>
 
     <!-- 搜索栏：对齐客户列表 CustomerList -->
@@ -75,7 +72,8 @@
         </template>
         <template #col-expectedPurchaseTime="{ row }">{{ formatDisplayDateTime(row.expectedPurchaseTime) }}</template>
         <template #col-type="{ row }">{{ getPrTypeLabel(row.type) }}</template>
-        <template #col-purchaseUserId="{ row }">{{ row.purchaseUserAccount || row.purchaseUserId || '--' }}</template>
+        <template #col-salesUserAccount="{ row }">{{ row.salesUserAccount || '--' }}</template>
+        <template #col-purchaseUserAccount="{ row }">{{ row.purchaseUserAccount || '--' }}</template>
         <template #col-createTime="{ row }">{{ row.createTime ? formatDisplayDateTime(row.createTime) : '--' }}</template>
         <template #col-createUser="{ row }">{{ row.createUserAccount || row.createUserName || row.createdBy || '--' }}</template>
         <template #col-actions-header>
@@ -214,7 +212,7 @@
 import { computed, ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Plus, Setting } from '@element-plus/icons-vue'
+import { Setting } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { purchaseRequisitionApi } from '@/api/purchaseRequisition'
 import { useAuthStore } from '@/stores/auth'
@@ -278,10 +276,17 @@ const purchaseReqColumns = computed<CrmTableColumnDef[]>(() => {
     },
     { key: 'type', label: t('purchaseRequisitionList.columns.type'), prop: 'type', width: 110, align: 'center' },
     {
-      key: 'purchaseUserId',
-      label: t('purchaseRequisitionList.columns.purchaseUserId'),
-      prop: 'purchaseUserId',
-      width: 140,
+      key: 'salesUserAccount',
+      label: t('purchaseRequisitionList.columns.salesUserAccount'),
+      prop: 'salesUserAccount',
+      width: 120,
+      showOverflowTooltip: true
+    },
+    {
+      key: 'purchaseUserAccount',
+      label: t('purchaseRequisitionList.columns.purchaseUserAccount'),
+      prop: 'purchaseUserAccount',
+      width: 120,
       showOverflowTooltip: true
     },
     { key: 'remark', label: t('purchaseRequisitionList.columns.remark'), prop: 'remark', minWidth: 180, showOverflowTooltip: true },
@@ -381,10 +386,6 @@ function handleReset() {
   filterForm.status = undefined
   page.value = 1
   loadList()
-}
-
-function handleCreate() {
-  router.push('/purchase-requisitions/new')
 }
 
 function handleView(row: any) {

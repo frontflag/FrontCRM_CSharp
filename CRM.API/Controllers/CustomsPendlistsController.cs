@@ -2,6 +2,7 @@ using CRM.API.Models.DTOs;
 using CRM.API.Utilities;
 using CRM.Core.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace CRM.API.Controllers;
@@ -73,6 +74,12 @@ public class CustomsPendlistsController : ControllerBase
         catch (InvalidOperationException ex)
         {
             return BadRequest(ApiResponse<CreateCustomsOutNotifyResultDto>.Fail(ex.Message, 400));
+        }
+        catch (DbUpdateException ex)
+        {
+            var msg = ex.InnerException?.Message ?? ex.Message;
+            _logger.LogError(ex, "生成报关出库通知保存失败 PendlistId={Id}", id);
+            return StatusCode(500, ApiResponse<CreateCustomsOutNotifyResultDto>.Fail(msg, 500));
         }
         catch (Exception ex)
         {

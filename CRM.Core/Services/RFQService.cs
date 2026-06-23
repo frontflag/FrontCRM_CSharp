@@ -394,6 +394,8 @@ namespace CRM.Core.Services
                 SalesUserKeyword = request.SalesUserKeyword,
                 PurchaserUserId = request.PurchaserUserId,
                 HasQuotesOnly = request.HasQuotesOnly,
+                Status = request.Status,
+                RfqCode = request.RfqCode,
                 CurrentUserId = request.CurrentUserId,
                 CanViewCustomerInList = canViewCustomerInList
             };

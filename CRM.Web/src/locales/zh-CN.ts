@@ -109,7 +109,12 @@ const zhCN = {
       createConfirm: '确定为该条待报关记录生成报关出库通知？',
       createOk: '已生成报关出库通知 {code}',
       createFailed: '生成报关出库通知失败',
-      onlyOpenCanCreate: '仅「待处理」状态可生成报关出库通知'
+      onlyOpenCanCreate: '仅「待处理」状态可生成报关出库通知',
+      refPanelTitle: '参考信息',
+      refPanelClose: '收起',
+      refPanelTabStock: '库存',
+      refPanelLoadFailed: '加载库存参考信息失败',
+      refPanelMissingSo: '缺少销售订单信息，无法加载库存'
     },
     declarations: {
       title: '报关单',
@@ -562,7 +567,7 @@ const zhCN = {
   },
   salesAnalytics: {
     title: '销售分析',
-    subtitle: '按订单创建日、本位币下单额（convert_total）统计',
+    subtitle: '按订单创建日、美元下单额（convert_total）统计',
     tabs: {
       company: '公司',
       visibleScope: '可见范围',
@@ -575,22 +580,46 @@ const zhCN = {
     loadFailed: '加载销售看板失败',
     scopeBanner: '当前可见：{label}',
     metricHint: '口径：排除取消/审核失败订单；成单金额为审核通过及以上',
+    drill: {
+      hint: '可点击 KPI 或排行进入业务列表；部门层排行双击可查看业务员订单',
+      noPermission: '无权限访问目标列表'
+    },
+    breakdown: {
+      currencyByCount: '金额已隐藏，按订单数占比'
+    },
     groupBy: { day: '按日', week: '按周', month: '按月' },
+    trendUnit: {
+      customer: '家',
+      customerCaption: '单位：家（周期内去重客户数）',
+      moneyCaption: '单位：美元（USD）',
+      percentCaption: '单位：%（需求→销售转化率）',
+      receivableCaption: '单位：元（本位币，未收款金额）'
+    },
     sections: {
       todo: '待办',
       snapshot: '统计概览',
       trendAmount: '成单金额趋势',
-      trendItems: '订单条目趋势'
+      trendStockOut: '已出库金额趋势',
+      trendReceived: '已收款金额趋势',
+      trendItems: '订单条目趋势',
+      trendRfq: '需求条目趋势',
+      trendRfqCustomers: '需求客户数趋势',
+      trendSalesCustomers: '销售客户数趋势',
+      trendConversion: '转化率趋势',
+      trendReceivable: '应收趋势'
     },
     kpi: {
       receivableAmount: '应收款金额',
       pendingStockOutItemCount: '待出库明细数',
+      pendingInvoiceAmount: '待开票金额',
       rfqItemCount: '需求条目数',
       rfqCustomerCount: '需求客户数',
       rfqToSalesConversionRate: '需求→销售转化率',
       salesOrderItemCount: '销售订单条目数',
       salesOrderCustomerCount: '销售客户数',
-      salesAmountApproved: '成单金额（已审核）'
+      salesAmountApproved: '成单金额（已审核）',
+      salesAmountStockOut: '已出库金额',
+      salesAmountReceived: '已收款金额'
     },
     rankings: {
       departmentTop: '部门销售额 Top10',
@@ -601,14 +630,191 @@ const zhCN = {
       amount: '金额'
     }
   },
+  purchaseAnalytics: {
+    title: '采购分析',
+    subtitle: '按订单创建日、美元采购额（convert_total）统计',
+    tabs: {
+      company: '公司',
+      visibleScope: '可见范围',
+      department: '部门',
+      personal: '个人'
+    },
+    dateFrom: '开始日期',
+    dateTo: '结束日期',
+    selectPurchaseUser: '选择采购员',
+    refresh: '查询',
+    loadFailed: '加载采购看板失败',
+    scopeBanner: '当前可见：{label}',
+    metricHint: '口径：排除取消/审核失败订单；成单金额为审核通过及以上',
+    drill: {
+      hint: '可点击 KPI 或排行进入业务列表；部门层排行双击可查看采购员订单',
+      noPermission: '无权限访问目标列表'
+    },
+    breakdown: {
+      currencyByCount: '金额已隐藏，按订单数占比'
+    },
+    groupBy: { day: '按日', week: '按周', month: '按月' },
+    trendUnit: {
+      vendor: '家',
+      vendorCaption: '单位：家（周期内去重供应商数）',
+      moneyCaption: '单位：美元（USD）',
+      percentCaption: '单位：%（报价→采购转化率）',
+      payableCaption: '单位：美元（USD，未付款金额）'
+    },
+    sections: {
+      todo: '待办',
+      snapshot: '统计概览',
+      trendAmount: '成单金额趋势',
+      trendStockIn: '已入库金额趋势',
+      trendPaid: '已付款金额趋势',
+      trendItems: '订单条目趋势',
+      trendQuote: '报价条目趋势',
+      trendQuoteVendors: '报价供应商数趋势',
+      trendPoVendors: '采购供应商数趋势',
+      trendConversion: '转化率趋势',
+      trendPayable: '应付趋势'
+    },
+    kpi: {
+      payableAmount: '应付款金额',
+      pendingStockInItemCount: '待入库明细数',
+      quoteItemCount: '报价条目数',
+      quoteVendorCount: '报价供应商数',
+      quoteToPurchaseConversionRate: '报价→采购转化率',
+      purchaseOrderItemCount: '采购订单条目数',
+      purchaseOrderVendorCount: '采购供应商数',
+      purchaseAmountApproved: '成单金额（已审核）',
+      purchaseAmountStockIn: '已入库金额',
+      purchaseAmountPaid: '已付款金额'
+    },
+    rankings: {
+      departmentTop: '部门采购额 Top10',
+      purchaseUserTop: '采购员 Top10',
+      vendorTop: '供应商贡献 Top10',
+      name: '名称',
+      orderCount: '订单数',
+      amount: '金额'
+    }
+  },
+  logisticsAnalytics: {
+    title: '物流分析',
+    subtitle: '在库存量截至查询日；库龄按入库日；金额 USD 采购成本',
+    tabs: {
+      company: '公司',
+      visibleScope: '可见范围',
+      department: '部门',
+      personal: '个人'
+    },
+    inventoryType: {
+      all: '全部库存',
+      customerOrder: '客单库存',
+      purchaseStock: '采购库存'
+    },
+    matrixSubject: {
+      salesperson: '按销售员',
+      vendor: '按供应商',
+      purchaser: '按采购员',
+      brand: '按品牌'
+    },
+    asOfDate: '截至日期',
+    dateFrom: '趋势开始',
+    dateTo: '趋势结束',
+    refresh: '查询',
+    loadFailed: '加载物流看板失败',
+    matrixLoadFailed: '加载客户矩阵失败',
+    scopeBanner: '当前可见：{label}',
+    metricHint: '在库 KPI 为截至日的时点存量；趋势按入库日统计流入',
+    salesPurchaseOnlyHint: '当前按销/采归属（销售员或采购员）过滤，无公司汇总',
+    groupBy: { day: '按日', week: '按周', month: '按月' },
+    unit: { days: '天' },
+    sections: {
+      todo: '待办',
+      snapshot: '在库概览',
+      trendStockIn: '入库数量趋势',
+      customerMatrix: '客户 × 统计科目'
+    },
+    kpi: {
+      onHandQty: '在库商品数量',
+      onHandAmountUsd: '在库商品金额',
+      weightedAvgAgeDays: '加权平均库龄',
+      customerCount: '客户数',
+      salespersonCount: '销售员数',
+      vendorCount: '供应商数',
+      purchaserCount: '采购员数',
+      brandCount: '品牌数',
+      pendingStockInQty: '待入库数量(PCS)'
+    },
+    matrix: {
+      customer: '客户',
+      subjectLabel: {
+        salesperson: '销售员名称',
+        vendor: '供应商名称',
+        purchaser: '采购员名称',
+        brand: '品牌名称'
+      }
+    },
+    rankings: {
+      customerTop: '客户在库 Top10',
+      salespersonTop: '销售员在库 Top10',
+      vendorTop: '供应商在库 Top10',
+      name: '名称',
+      qty: '数量',
+      amount: '金额'
+    }
+  },
+  financeAnalytics: {
+    title: '财务分析',
+    subtitle: '应收取自 finance_receivable；金额含 USD 折算与原币分档',
+    asOfDate: '截至',
+    dateFrom: '区间起',
+    dateTo: '区间止',
+    refresh: '查询',
+    loadFailed: '加载财务看板失败',
+    scopeBanner: '可见范围：{label}',
+    receivableHint: '应收 todo 为已出库账上余额，与销售看板 extend 口径不同',
+    completedHint: '已完成指标按所选区间内发生额统计',
+    noBreakdownData: '暂无币别构成数据',
+    tabs: {
+      company: '公司',
+      visibleScope: '可见范围',
+      department: '部门',
+      personal: '个人'
+    },
+    groupBy: {
+      day: '按日',
+      week: '按周',
+      month: '按月'
+    },
+    sections: {
+      todo: '待办（截至所选日期）',
+      completed: '已完成（区间内）',
+      trendPaid: '已付款趋势',
+      trendReceived: '已收款趋势',
+      currencyBreakdown: '待办原币构成'
+    },
+    trendUnit: {
+      moneyCaption: 'USD 折算'
+    },
+    kpi: {
+      usdEquivalent: '折算 USD',
+      localCurrency: '原币',
+      payableAmount: '应付款',
+      receivableAmount: '应收款',
+      pendingPurchaseInvoiceAmount: '待开进项发票',
+      pendingSellInvoiceAmount: '待开销项发票',
+      paidAmount: '已付款',
+      receivedAmount: '已收款',
+      issuedPurchaseInvoiceAmount: '已开进项发票',
+      issuedSellInvoiceAmount: '已开销项发票'
+    }
+  },
   dashboard: {
     stats: {
       totalCustomers: '总客户数',
       totalVendors: '总供应商数',
       pendingTasks: '待处理事项',
       monthlyNew: '本月新增',
-      monthlySales: '未收款销售额',
-      vendorPayableAmount: '待付采购额'
+      monthlySales: '未收款销售额（USD）',
+      vendorPayableAmount: '待付采购额（USD）'
     },
     welcomeBack: '欢迎回来，{name}！',
     fallbackName: '用户',
@@ -1354,6 +1560,8 @@ const zhCN = {
       endDate: '创建止',
       customerPlaceholder: '客户名称模糊',
       materialPlaceholder: 'MPN / 客户料号',
+      rfqCodePlaceholder: '需求编号',
+      allItemStatuses: '全部明细状态',
       allSalesUsers: '全部业务员',
       allPurchasers: '全部采购员',
       hasQuotes: '有报价',
@@ -1411,7 +1619,9 @@ const zhCN = {
       missingQuoteId: '无法识别报价主键，无法编辑',
       missingIds: '缺少需求或明细标识，无法打开新建报价',
       selectFromBasket: '请先在复选篮子中加入需求明细（可跨页勾选）',
-      sameRfqOnly: '批量报价仅支持同一需求下的多条明细，请重新选择'
+      sameRfqOnly: '批量报价仅支持同一需求下的多条明细，请重新选择',
+      quoteNotAllowed: '您无权为该需求明细创建报价',
+      batchQuoteNotAllowed: '所选明细中存在您无权报价的记录，请重新选择'
     }
   },
   rfqHome: {
@@ -2317,6 +2527,7 @@ const zhCN = {
     create: '新建客户',
     loading: '加载概要数据…',
     sections: { customer: '客户', receivable: '应收款', pendingOutbound: '待出库' },
+    moneyUnit: '单位：美元（USD）',
     cards: {
       totalCustomers: '客户总数',
       activeCustomers: '活跃客户',
@@ -2336,6 +2547,7 @@ const zhCN = {
     create: '新建供应商',
     loading: '加载概要数据…',
     sections: { vendor: '供应商', payable: '应付款', pendingInbound: '待入库' },
+    moneyUnit: '单位：美元（USD）',
     cards: {
       totalVendors: '供应商总数',
       activeVendors: '活跃供应商',
@@ -2877,6 +3089,8 @@ const zhCN = {
   },
   salesOrderDetailView: {
     tabs: {
+      rfqItems: '需求明细',
+      quotes: '报价',
       pr: '采购申请',
       stockIn: '入库',
       stock: '库存',
@@ -3290,7 +3504,9 @@ const zhCN = {
       qty: '申请数量',
       expectedPurchaseTime: '预计采购日期',
       type: '类型',
-      purchaseUserId: '销售员',
+      salesUserAccount: '销售员',
+      purchaseUserAccount: '采购员',
+      purchaseUserName: '采购员',
       remark: '备注',
       createTime: '创建时间',
       createUser: '创建人',
@@ -3576,6 +3792,30 @@ const zhCN = {
     loadFailed: '加载仓库列表失败',
     saveSuccess: '保存成功',
     saveFailed: '保存失败'
+  },
+  sellOrderItemStockTab: {
+    colStockItemCode: '在库明细号',
+    colStockType: '库存类型',
+    colStockInCode: '入库单号',
+    colStockInDate: '入库日期',
+    colWarehouse: '仓库',
+    colRegion: '地域',
+    colStockOutStatus: '出库状态',
+    colBrand: '品牌',
+    colQtyInbound: '总入库数量',
+    colQtyStockOut: '已出库数量',
+    colQtyRepertory: '现存量',
+    colPoLine: '采购明细号',
+    colSoLine: '销售明细号',
+    colBatchNo: '批次号',
+    colLocation: '库位',
+    colAvailable: '可用',
+    regionDomestic: '大陆',
+    regionOverseas: '海外',
+    outboundNone: '未出库',
+    outboundPartial: '部分出库',
+    outboundDone: '出库完成',
+    empty: '暂无数据'
   },
   inventoryList: {
     title: '库存中心',

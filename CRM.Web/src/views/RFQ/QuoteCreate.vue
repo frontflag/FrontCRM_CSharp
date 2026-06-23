@@ -243,7 +243,7 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="采购员">
+            <el-form-item label="采购员" prop="purchaseUserId">
               <el-select
                 v-model="formData.purchaseUserId"
                 placeholder="请选择采购员"
@@ -355,6 +355,7 @@ import { useMaterialProductionDateDict } from '@/composables/useMaterialProducti
 import { financeExchangeRateApi } from '@/api/financeExchangeRate'
 import { CurrencyCode } from '@/constants/currency'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import { canQuoteRfqItem } from '@/utils/rfqItemQuoteAccessRules'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 
 const route = useRoute()
@@ -568,6 +569,40 @@ function formatNumber(n: number) {
   return Number(n).toLocaleString('zh-CN')
 }
 
+function rfqItemAssigneeFromRecord(item: Record<string, unknown>) {
+  return {
+    assignedPurchaserUserId1: String(item.assignedPurchaserUserId1 ?? item.AssignedPurchaserUserId1 ?? ''),
+    assignedPurchaserUserId2: String(item.assignedPurchaserUserId2 ?? item.AssignedPurchaserUserId2 ?? '')
+  }
+}
+
+function denyQuoteAccessAndReturn() {
+  ElMessage.warning('您无权为该需求明细创建报价')
+  const back = parseReturnTo()
+  router.push(back || { name: 'RFQItemList' })
+}
+
+async function ensureQuoteAccessForRfqItemId(rfqId: string, itemId: string): Promise<boolean> {
+  const loaded = await fetchLinkedRfqItemRecord(rfqId, itemId)
+  if (!loaded) return true
+  if (!canQuoteRfqItem(authStore.user, rfqItemAssigneeFromRecord(loaded.item as Record<string, unknown>))) {
+    denyQuoteAccessAndReturn()
+    return false
+  }
+  return true
+}
+
+async function ensureQuoteAccessForLinkedItems(): Promise<boolean> {
+  const { rfqId, rfqItemId, rfqItemIds } = rfqLink.value
+  const ids = rfqItemIds.length ? rfqItemIds : rfqItemId ? [rfqItemId] : []
+  if (!ids.length || !rfqId) return true
+  for (const id of ids) {
+    const ok = await ensureQuoteAccessForRfqItemId(rfqId, id)
+    if (!ok) return false
+  }
+  return true
+}
+
 async function loadLinkedRfqItem() {
   await ensureMaterialPdDict()
   const { rfqId, rfqItemId, rfqItemIds } = rfqLink.value
@@ -579,6 +614,8 @@ async function loadLinkedRfqItem() {
     }
     return
   }
+
+  if (!(await ensureQuoteAccessForLinkedItems())) return
 
   pageLoading.value = true
   try {
@@ -672,7 +709,8 @@ const formRules = computed(() => {
     packageOrigin: [{ required: true, message: '请选择封装产地', trigger: 'change' }],
     ...(maskSaleSensitiveFields.value
       ? {}
-      : { salesUserId: [{ required: true, message: '请选择业务员', trigger: 'change' }] })
+      : { salesUserId: [{ required: true, message: '请选择业务员', trigger: 'change' }] }),
+    purchaseUserId: [{ required: true, message: '请选择采购员', trigger: 'change' }]
   }
   if (!maskPurchaseSensitiveFields.value) {
     base.vendorId = [{ required: true, message: '请选择供应商', trigger: 'change' }]
@@ -913,6 +951,11 @@ async function loadQuoteForEdit() {
       return
     }
     applyQuoteToForm(q)
+    const itemId = formData.value.rfqItemId?.trim()
+    const rfqId = (formData.value.rfqId || rfqLink.value.rfqId || '').trim()
+    if (itemId && rfqId) {
+      await ensureQuoteAccessForRfqItemId(rfqId, itemId)
+    }
   } catch {
     ElMessage.error('加载报价失败')
     router.push({ name: 'QuoteList' })

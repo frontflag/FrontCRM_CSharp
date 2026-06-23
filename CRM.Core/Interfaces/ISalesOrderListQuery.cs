@@ -35,6 +35,6 @@ public sealed class SalesOrderListAggregates
     public int PendingCount { get; set; }
     /// <summary>主状态为审核通过、进行中或完成的订单数。</summary>
     public int ApprovedPlusCount { get; set; }
-    /// <summary>筛选范围内主表 <see cref="SellOrder.Total"/> 之和。</summary>
+    /// <summary>筛选范围内主表 <see cref="SellOrder.ConvertTotal"/>（美元）之和。</summary>
     public decimal TotalAmountSum { get; set; }
 }

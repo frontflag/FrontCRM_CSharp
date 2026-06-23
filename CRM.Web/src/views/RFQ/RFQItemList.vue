@@ -11,7 +11,11 @@
         <div class="count-badge">{{ t('rfqItemList.count', { count: totalCount }) }}</div>
       </div>
       <div class="header-right">
-        <el-button type="warning" :disabled="!basketCount" @click="handleBatchQuote">
+        <el-button
+          type="warning"
+          :disabled="!canUseBatchQuote"
+          @click="handleBatchQuote"
+        >
           {{ t('rfqItemList.batchQuote') }}
         </el-button>
       </div>
@@ -31,6 +35,31 @@
           class="filter-date-range"
           :teleported="false"
         />
+        <div class="search-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            v-model="searchForm.rfqCode"
+            class="search-input search-input--w140"
+            :placeholder="t('rfqItemList.filters.rfqCodePlaceholder')"
+            @keyup.enter="handleSearch"
+          />
+        </div>
+        <el-select
+          v-model="searchForm.itemStatus"
+          :placeholder="t('rfqItemList.filters.allItemStatuses')"
+          clearable
+          class="status-select status-select--item-status"
+          :teleported="false"
+        >
+          <el-option :label="t('rfqItemList.status.pending')" :value="0" />
+          <el-option :label="t('rfqItemList.status.quoted')" :value="1" />
+          <el-option :label="t('rfqItemList.status.accepted')" :value="2" />
+          <el-option :label="t('rfqItemList.status.rejected')" :value="3" />
+          <el-option :label="t('rfqItemList.status.closed')" :value="4" />
+        </el-select>
         <template v-if="canViewCustomerInRfq">
           <div class="search-input-wrap">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
@@ -171,7 +200,12 @@
           <div v-if="opColExpanded" @click.stop @dblclick.stop>
             <div class="action-btns">
               <button type="button" class="action-btn action-btn--primary" @click.stop="goDetail(row)">{{ t('rfqItemList.actions.detail') }}</button>
-              <button type="button" class="action-btn action-btn--warning" @click.stop="goQuote(row)">{{ t('rfqItemList.actions.quote') }}</button>
+              <button
+                v-if="canQuoteRfqItemRow(row)"
+                type="button"
+                class="action-btn action-btn--warning"
+                @click.stop="goQuote(row)"
+              >{{ t('rfqItemList.actions.quote') }}</button>
             </div>
           </div>
           <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -183,7 +217,7 @@
                 <el-dropdown-item @click.stop="goDetail(row)">
                   <span class="op-more-item op-more-item--primary">{{ t('rfqItemList.actions.detail') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item @click.stop="goQuote(row)">
+                <el-dropdown-item v-if="canQuoteRfqItemRow(row)" @click.stop="goQuote(row)">
                   <span class="op-more-item op-more-item--warning">{{ t('rfqItemList.actions.quote') }}</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
@@ -675,7 +709,7 @@ import { rfqApi } from '@/api/rfq'
 import { quoteApi } from '@/api/quote'
 import { buildLinkAlertFieldsFromItem, fetchLinkedRfqItemRecord } from '@/utils/rfqLinkedItemSummary'
 import { assertQuotesSameCustomer } from '@/utils/quoteSalesOrderPrefill'
-import type { RFQItem } from '@/types/rfq'
+import type { RFQItem, RFQItemStatus } from '@/types/rfq'
 import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import { authApi, type PurchaseUserSelectOption, type SalesUserSelectOption } from '@/api/auth'
 import { useAuthStore } from '@/stores/auth'
@@ -683,6 +717,7 @@ import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiv
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { productionDateDisplayLabel, useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
 import { useRfqItemListBasketStore } from '@/stores/rfqItemListBasket'
+import { canQuoteRfqItem } from '@/utils/rfqItemQuoteAccessRules'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { Setting } from '@element-plus/icons-vue'
@@ -699,6 +734,16 @@ const canViewCustomerInRfq = computed(
   () => authStore.hasPermission('customer.info.read') && !maskSaleSensitiveFields.value
 )
 const showRfqSalesUserColumn = computed(() => !maskSaleSensitiveFields.value)
+
+function canQuoteRfqItemRow(row: RFQItem): boolean {
+  return canQuoteRfqItem(authStore.user, row)
+}
+
+/** 批量报价：篮内每条明细均须当前用户有权报价 */
+const canUseBatchQuote = computed(() => {
+  if (!basketCount.value) return false
+  return basketItems.value.every((row) => canQuoteRfqItemRow(row))
+})
 
 /** 需求明细列表：按当前筛选与分页自动刷新间隔 */
 const RFQ_ITEM_LIST_AUTO_REFRESH_MS = 5 * 60 * 1000
@@ -903,6 +948,8 @@ function toggleOpDockCol() {
 const searchForm = reactive({
   customerKeyword: '',
   materialModel: '',
+  rfqCode: '',
+  itemStatus: undefined as number | undefined,
   salesUserId: undefined as string | undefined,
   purchaserUserId: undefined as string | undefined,
   hasQuotesOnly: false
@@ -1240,6 +1287,15 @@ function applyRouteQueryToFilters() {
   }
   searchForm.customerKeyword = typeof q.customerKeyword === 'string' ? q.customerKeyword : ''
   searchForm.materialModel = typeof q.materialModel === 'string' ? q.materialModel : ''
+  searchForm.rfqCode = typeof q.rfqCode === 'string' ? q.rfqCode : ''
+  const stRaw = q.itemStatus ?? q.status
+  const stStr = Array.isArray(stRaw) ? stRaw[0] : stRaw
+  if (stStr != null && String(stStr).trim() !== '') {
+    const n = Number(stStr)
+    searchForm.itemStatus = Number.isFinite(n) ? n : undefined
+  } else {
+    searchForm.itemStatus = undefined
+  }
   const sid = q.salesUserId
   const sidRaw = Array.isArray(sid) ? sid[0] : sid
   searchForm.salesUserId =
@@ -1264,6 +1320,10 @@ async function loadData() {
       endDate: dateRange.value?.[1],
       customerKeyword: searchForm.customerKeyword.trim() || undefined,
       materialModel: searchForm.materialModel.trim() || undefined,
+      rfqCode: searchForm.rfqCode.trim() || undefined,
+      ...(searchForm.itemStatus !== undefined && searchForm.itemStatus !== null
+        ? { status: searchForm.itemStatus as RFQItemStatus }
+        : {}),
       salesUserId: searchForm.salesUserId || undefined,
       purchaserUserId: searchForm.purchaserUserId || undefined,
       ...(searchForm.hasQuotesOnly ? { hasQuotesOnly: true } : {})
@@ -1325,6 +1385,11 @@ function handleSearch() {
   if (ck) query.customerKeyword = ck
   const mm = searchForm.materialModel.trim()
   if (mm) query.materialModel = mm
+  const rc = searchForm.rfqCode.trim()
+  if (rc) query.rfqCode = rc
+  if (searchForm.itemStatus !== undefined && searchForm.itemStatus !== null) {
+    query.itemStatus = String(searchForm.itemStatus)
+  }
   if (searchForm.salesUserId) query.salesUserId = searchForm.salesUserId
   if (searchForm.purchaserUserId) query.purchaserUserId = searchForm.purchaserUserId
   if (searchForm.hasQuotesOnly) query.hasQuotesOnly = '1'
@@ -1464,6 +1529,10 @@ function goDetail(row: RFQItem) {
 }
 
 function goQuote(row: RFQItem) {
+  if (!canQuoteRfqItemRow(row)) {
+    ElMessage.warning(t('rfqItemList.warnings.quoteNotAllowed'))
+    return
+  }
   if (!row.rfqId || !row.id) {
     ElMessage.warning(t('rfqItemList.warnings.missingIds'))
     return
@@ -1524,6 +1593,10 @@ function handleBatchQuote() {
   const rows = basketStore.items
   if (!rows.length) {
     ElMessage.warning(t('rfqItemList.warnings.selectFromBasket'))
+    return
+  }
+  if (!rows.every((row) => canQuoteRfqItemRow(row))) {
+    ElMessage.warning(t('rfqItemList.warnings.batchQuoteNotAllowed'))
     return
   }
   const rfqIds = new Set(rows.map((r) => r.rfqId).filter(Boolean))
@@ -1932,6 +2005,10 @@ onUnmounted(() => {
   &.search-input--w160 {
     width: 160px;
   }
+
+  &.search-input--w140 {
+    width: 140px;
+  }
 }
 
 .status-select {
@@ -1954,7 +2031,8 @@ onUnmounted(() => {
 }
 
 .status-select--sales,
-.status-select--purchase {
+.status-select--purchase,
+.status-select--item-status {
   width: 180px;
 }
 

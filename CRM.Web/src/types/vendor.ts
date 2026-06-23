@@ -153,10 +153,10 @@ export interface VendorStatistics {
   newLast30Days: number
   /** 至少有一条有效采购订单的去重供应商数 */
   vendorsWithDeals: number
-  /** 未全部付款的采购订单折算总额（本位币） */
+  /** 未全部付款的采购订单折算总额（美元 convert_total） */
   payableAmount: number
   payableVendorCount: number
-  /** 未全部入库的采购订单折算总额（本位币） */
+  /** 未全部入库的采购订单折算总额（美元 convert_total） */
   pendingInboundAmount: number
   pendingInboundVendorCount: number
   byLevel: Record<string, number>

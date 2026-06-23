@@ -1,5 +1,6 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Purchase;
+using CRM.Core.Services;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -37,7 +38,13 @@ public sealed class PurchaseRequisitionListQuery : IPurchaseRequisitionListQuery
             from pr in scopedPr
             join so in _db.SellOrders.AsNoTracking() on pr.SellOrderId equals so.Id into soJoin
             from so in soJoin.DefaultIfEmpty()
-            select new { pr, SellOrderCode = so != null ? so.SellOrderCode : null };
+            select new
+            {
+                pr,
+                SellOrderCode = so != null ? so.SellOrderCode : null,
+                SellOrderSalesUserId = so != null ? so.SalesUserId : null,
+                SellOrderSalesUserName = so != null ? so.SalesUserName : null
+            };
 
         if (!string.IsNullOrWhiteSpace(request.SellOrderId))
         {
@@ -65,33 +72,129 @@ public sealed class PurchaseRequisitionListQuery : IPurchaseRequisitionListQuery
             .OrderByDescending(x => x.pr.CreateTime)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(x => new { x.pr, x.SellOrderCode })
+            .Select(x => new
+            {
+                x.pr,
+                x.SellOrderCode,
+                x.SellOrderSalesUserId,
+                x.SellOrderSalesUserName
+            })
             .ToListAsync(cancellationToken);
 
-        var userIds = slice
-            .SelectMany(x => new[] { x.pr.PurchaseUserId, x.pr.CreateByUserId })
+        var lineIds = slice
+            .Select(x => x.pr.SellOrderItemId)
             .Where(id => !string.IsNullOrWhiteSpace(id))
-            .Select(id => id!.Trim())
-            .Distinct(StringComparer.Ordinal)
+            .Select(id => id.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        IReadOnlyDictionary<string, string> userNames = new Dictionary<string, string>(StringComparer.Ordinal);
-        if (userIds.Count > 0)
+        IReadOnlyDictionary<string, string> quoteSalesUserIdByLineId =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (lineIds.Count > 0)
         {
-            var idSet = userIds.ToHashSet(StringComparer.Ordinal);
-            userNames = await _db.Users.AsNoTracking()
-                .Where(u => idSet.Contains(u.Id))
-                .ToDictionaryAsync(u => u.Id, u => u.UserName.Trim(), StringComparer.Ordinal, cancellationToken);
+            var lineQuoteSalesUsers = await (
+                from item in _db.SellOrderItems.AsNoTracking()
+                where lineIds.Contains(item.Id) && item.QuoteId != null
+                join quote in _db.Quotes.AsNoTracking() on item.QuoteId equals quote.Id
+                select new { ItemId = item.Id, quote.SalesUserId }
+            ).ToListAsync(cancellationToken);
+            quoteSalesUserIdByLineId = lineQuoteSalesUsers
+                .Where(x => !string.IsNullOrWhiteSpace(x.SalesUserId))
+                .ToDictionary(x => x.ItemId.Trim(), x => x.SalesUserId!.Trim(), StringComparer.OrdinalIgnoreCase);
         }
 
-        string? AccountFor(string? userId)
+        var userIds = slice
+            .SelectMany(x => new[]
+            {
+                x.pr.PurchaseUserId,
+                x.pr.CreateByUserId,
+                x.pr.SalesUserId,
+                x.SellOrderSalesUserId,
+                quoteSalesUserIdByLineId.TryGetValue(x.pr.SellOrderItemId.Trim(), out var qsu) ? qsu : null
+            })
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        // 销售订单 sales_user_name 可能存登录账号，纳入按 UserName 反查
+        var salesUserNameHints = slice
+            .Select(x => x.SellOrderSalesUserName?.Trim())
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (salesUserNameHints.Count > 0)
+        {
+            var hintUsers = await _db.Users.AsNoTracking()
+                .Where(u => salesUserNameHints.Contains(u.UserName))
+                .ToListAsync(cancellationToken);
+            foreach (var u in hintUsers)
+            {
+                if (!string.IsNullOrWhiteSpace(u.Id) && !userIds.Contains(u.Id, StringComparer.OrdinalIgnoreCase))
+                    userIds.Add(u.Id.Trim());
+            }
+        }
+
+        IReadOnlyDictionary<string, string> userDisplayNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        IReadOnlyDictionary<string, string> userLoginNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        IReadOnlyDictionary<string, string> loginByUserName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (userIds.Count > 0)
+        {
+            var idSet = userIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var users = await _db.Users.AsNoTracking()
+                .Where(u => idSet.Contains(u.Id))
+                .ToListAsync(cancellationToken);
+            userDisplayNames = users.ToDictionary(
+                u => u.Id,
+                u => EntityLookupService.FormatUserDisplayName(u) ?? u.UserName.Trim(),
+                StringComparer.OrdinalIgnoreCase);
+            userLoginNames = users.ToDictionary(
+                u => u.Id,
+                u => EntityLookupService.FormatUserLoginName(u) ?? u.UserName.Trim(),
+                StringComparer.OrdinalIgnoreCase);
+            loginByUserName = users
+                .Where(u => !string.IsNullOrWhiteSpace(u.UserName))
+                .GroupBy(u => u.UserName.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    g => g.Key,
+                    g => EntityLookupService.FormatUserLoginName(g.First()) ?? g.Key,
+                    StringComparer.OrdinalIgnoreCase);
+        }
+
+        string? DisplayNameFor(string? userId)
         {
             if (string.IsNullOrWhiteSpace(userId)) return null;
             var key = userId.Trim();
-            return userNames.TryGetValue(key, out var name) ? name : null;
+            return userDisplayNames.TryGetValue(key, out var name) ? name : null;
         }
 
-        var items = slice.Select(x => new PurchaseRequisitionListPageRow
+        string? LoginAccountFor(string? userIdOrLogin)
+        {
+            if (string.IsNullOrWhiteSpace(userIdOrLogin)) return null;
+            var key = userIdOrLogin.Trim();
+            if (userLoginNames.TryGetValue(key, out var byId)) return byId;
+            if (loginByUserName.TryGetValue(key, out var byLogin)) return byLogin;
+            return null;
+        }
+
+        var items = slice.Select(x =>
+        {
+            // 销售订单主表为准；采购申请上 sales_user_id 仅作历史冗余兜底
+            var salesUserId = !string.IsNullOrWhiteSpace(x.SellOrderSalesUserId)
+                ? x.SellOrderSalesUserId.Trim()
+                : x.pr.SalesUserId?.Trim();
+            if (string.IsNullOrWhiteSpace(salesUserId)
+                && !string.IsNullOrWhiteSpace(x.pr.SellOrderItemId)
+                && quoteSalesUserIdByLineId.TryGetValue(x.pr.SellOrderItemId.Trim(), out var quoteSalesUserId))
+            {
+                salesUserId = quoteSalesUserId;
+            }
+
+            var salesUserAccount = LoginAccountFor(salesUserId)
+                ?? LoginAccountFor(x.SellOrderSalesUserName)
+                ?? x.SellOrderSalesUserName?.Trim();
+
+            return new PurchaseRequisitionListPageRow
         {
             Id = x.pr.Id,
             BillCode = x.pr.BillCode,
@@ -104,13 +207,17 @@ public sealed class PurchaseRequisitionListQuery : IPurchaseRequisitionListQuery
             ExpectedPurchaseTime = x.pr.ExpectedPurchaseTime,
             Status = x.pr.Status,
             Type = x.pr.Type,
+            SalesUserId = salesUserId,
+            SalesUserAccount = salesUserAccount,
             PurchaseUserId = x.pr.PurchaseUserId,
-            PurchaseUserAccount = AccountFor(x.pr.PurchaseUserId),
+            PurchaseUserName = DisplayNameFor(x.pr.PurchaseUserId),
+            PurchaseUserAccount = LoginAccountFor(x.pr.PurchaseUserId),
             QuoteVendorId = x.pr.QuoteVendorId,
             QuoteCost = x.pr.QuoteCost,
             Remark = x.pr.Remark,
             CreateTime = x.pr.CreateTime,
-            CreateUserAccount = AccountFor(x.pr.CreateByUserId)
+            CreateUserAccount = LoginAccountFor(x.pr.CreateByUserId)
+        };
         }).ToList();
 
         return new PagedResult<PurchaseRequisitionListPageRow>

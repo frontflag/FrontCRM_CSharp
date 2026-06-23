@@ -80,8 +80,8 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { reactive, ref, computed, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Search } from '@element-plus/icons-vue'
 import { financeReceivableApi, type FinanceReceivable } from '@/api/financeReceivable'
@@ -90,6 +90,7 @@ import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const { t } = useI18n()
 const router = useRouter()
+const route = useRoute()
 const { canWriteFinanceReceipt } = useFinanceWriteGate()
 
 const loading = ref(false)
@@ -157,11 +158,28 @@ async function loadData() {
   }
 }
 
+function syncQueryFromRoute() {
+  if (route.name !== 'FinanceReceivableList') return
+  const q = route.query
+  if (q.onlyOpen === '0' || q.onlyOpen === 'false') {
+    query.onlyOpen = false
+  } else if (q.onlyOpen === '1' || q.onlyOpen === 'true') {
+    query.onlyOpen = true
+  }
+}
+
+watch(
+  () => [route.name, route.query] as const,
+  async () => {
+    syncQueryFromRoute()
+    if (route.name === 'FinanceReceivableList') await loadData()
+  },
+  { deep: true, immediate: true }
+)
+
 function goWriteOff() {
   router.push({ name: 'FinanceReceiptWriteOff' })
 }
-
-onMounted(loadData)
 </script>
 
 <style scoped lang="scss">

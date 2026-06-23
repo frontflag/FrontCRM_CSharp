@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Analytics;
 using CRM.Core.Models.Rbac;
@@ -11,6 +12,7 @@ public sealed class SalesAnalyticsService : ISalesAnalyticsService
     private readonly IDataPermissionService _dataPermission;
     private readonly IRepository<RbacDepartment> _departmentRepo;
     private readonly IRepository<RbacUserDepartment> _userDepartmentRepo;
+    private readonly IRepository<Models.User> _userRepo;
     private readonly ISalesAnalyticsQuery _query;
 
     public SalesAnalyticsService(
@@ -18,12 +20,14 @@ public sealed class SalesAnalyticsService : ISalesAnalyticsService
         IDataPermissionService dataPermission,
         IRepository<RbacDepartment> departmentRepo,
         IRepository<RbacUserDepartment> userDepartmentRepo,
+        IRepository<Models.User> userRepo,
         ISalesAnalyticsQuery query)
     {
         _rbacService = rbacService;
         _dataPermission = dataPermission;
         _departmentRepo = departmentRepo;
         _userDepartmentRepo = userDepartmentRepo;
+        _userRepo = userRepo;
         _query = query;
     }
 
@@ -67,6 +71,8 @@ public sealed class SalesAnalyticsService : ISalesAnalyticsService
 
         var groupBy = NormalizeGroupBy(query.GroupBy);
 
+        var allowedSalesUsers = await BuildAllowedSalesUsersAsync(summary, allowedUserIds, cancellationToken);
+
         var scopeContext = new SalesAnalyticsScopeContextDto
         {
             SaleDataScope = summary.SaleDataScope,
@@ -76,6 +82,7 @@ public sealed class SalesAnalyticsService : ISalesAnalyticsService
             PrimaryDepartmentName = primaryDept?.DepartmentName,
             AllowedViewLevels = allowedLevels,
             AllowedDepartments = SalesAnalyticsScopeValidator.BuildAllowedDepartments(summary, departments),
+            AllowedSalesUsers = allowedSalesUsers,
             DataFiltered = !summary.IsSysAdmin && summary.SaleDataScope != 0,
             MaskAmounts = maskAmounts,
             ResolvedSalesUserId = validation.SalesUserId,
@@ -118,4 +125,42 @@ public sealed class SalesAnalyticsService : ISalesAnalyticsService
             "week" => "week",
             _ => "month"
         };
+
+    private async Task<IReadOnlyList<SalesAnalyticsSalesUserOptionDto>> BuildAllowedSalesUsersAsync(
+        UserPermissionSummaryDto summary,
+        HashSet<string> allowedUserIds,
+        CancellationToken cancellationToken)
+    {
+        if (summary.SaleDataScope == 1 || BusinessDepartmentRules.UseSellOrderAssistorOnlyScope(summary))
+            return Array.Empty<SalesAnalyticsSalesUserOptionDto>();
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        HashSet<string> ids;
+        if (allowedUserIds.Count > 0)
+        {
+            ids = allowedUserIds;
+        }
+        else if (summary.IsSysAdmin || summary.SaleDataScope == 0)
+        {
+            ids = (await _userRepo.GetAllAsync())
+                .Where(u => u.Status == 1)
+                .Select(u => u.Id)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+        else
+        {
+            ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { summary.UserId };
+        }
+
+        return (await _userRepo.GetAllAsync())
+            .Where(u => ids.Contains(u.Id))
+            .OrderBy(u => u.RealName ?? u.UserName)
+            .Select(u => new SalesAnalyticsSalesUserOptionDto
+            {
+                Id = u.Id,
+                Name = u.RealName ?? u.UserName ?? u.Id
+            })
+            .ToList();
+    }
 }

@@ -176,9 +176,14 @@ namespace CRM.API.Controllers
         {
             try
             {
-                var quote = await _quoteService.CreateAsync(request);
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var quote = await _quoteService.CreateAsync(request, actorId);
                 return CreatedAtAction(nameof(GetById), new { id = quote.Id },
                     new { success = true, message = "报价单创建成功", data = quote, errorCode = 0 });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(403, new { success = false, message = ex.Message, errorCode = 403 });
             }
             catch (ArgumentException ex)
             {
@@ -207,6 +212,10 @@ namespace CRM.API.Controllers
             catch (ArgumentException ex)
             {
                 return BadRequest(new { success = false, message = ex.Message, errorCode = 400 });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(403, new { success = false, message = ex.Message, errorCode = 403 });
             }
             catch (InvalidOperationException ex)
             {

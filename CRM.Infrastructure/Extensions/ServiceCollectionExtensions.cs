@@ -42,6 +42,9 @@ namespace CRM.Infrastructure.Extensions
             services.AddScoped<ISalesOrderListQuery, SalesOrderListQuery>();
             services.AddScoped<ISalesAnalyticsQuery, SalesAnalyticsQuery>();
             services.AddScoped<ISalesAnalyticsReconciliationBaseline, SalesAnalyticsListBaselineQuery>();
+            services.AddScoped<IPurchaseAnalyticsQuery, PurchaseAnalyticsQuery>();
+            services.AddScoped<ILogisticsAnalyticsQuery, LogisticsAnalyticsQuery>();
+            services.AddScoped<IFinanceAnalyticsQuery, FinanceAnalyticsQuery>();
             services.AddScoped<ISalesOrderItemLineListQuery, SalesOrderItemLineListQuery>();
             services.AddScoped<IRfqMainListQuery, RfqMainListQuery>();
             services.AddScoped<IRfqItemListQuery, RfqItemListQuery>();

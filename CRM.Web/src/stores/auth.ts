@@ -311,6 +311,9 @@ export const useAuthStore = defineStore('auth', () => {
     if (permissionCode.startsWith('purchase-order.') || permissionCode === 'purchase.amount.read') {
       return t === 1
     }
+    if (permissionCode === 'analytics-purchase.read') {
+      return t === 1
+    }
     // 商务部（4）：与 RbacService 汇总剥离一致
     if (t === 4) {
       if (permissionCode.startsWith('vendor.')) return true

@@ -215,6 +215,13 @@ namespace CRM.Core.Services
             var headerType = ResolvePurchaseOrderHeaderType(request.Type, request.Items);
             var distinctLineCurrencies = request.Items.Select(i => i.Currency).Distinct().ToList();
             var headerCurrency = distinctLineCurrencies.Count == 1 ? distinctLineCurrencies[0] : request.Currency;
+            var fx = await _financeExchangeRateService.GetCurrentAsync();
+            var convertTotalUsd = request.Items.Sum(item =>
+            {
+                var convertPrice = ExchangeRateToUsdConverter.UnitLocalToUsd(
+                    item.Cost, item.Currency, fx.UsdToCny, fx.UsdToHkd, fx.UsdToEur);
+                return ExchangeRateToUsdConverter.LineAmountUsd(item.Qty, convertPrice);
+            });
 
             _logger.LogInformation(
                 "PO CreateAsync 开始: RequestType={RequestType} HeaderType={HeaderType} ItemCount={ItemCount} VendorId={VendorId} PurchaseUserId={PurchaseUserId} ActingUserId={ActingUserId} GeneratedCode={Code}",
@@ -250,7 +257,7 @@ namespace CRM.Core.Services
                 Status = StatusNew,
                 ItemRows = request.Items.Count,
                 Total = total,
-                ConvertTotal = total,
+                ConvertTotal = convertTotalUsd,
                 CreateTime = DateTime.UtcNow,
                 CreateByUserId = NormalizeActingUserId(actingUserId)
             };
@@ -261,7 +268,6 @@ namespace CRM.Core.Services
                 await _unitOfWork.SaveChangesAsync();
             }
 
-            var fx = await _financeExchangeRateService.GetCurrentAsync();
             var firstSeq = await _poLineSeq.ReserveNextSequenceBlockAsync(order.Id, request.Items.Count);
             var lineIndex = 0;
             var createdLines = new List<PurchaseOrderItem>();
@@ -499,7 +505,7 @@ namespace CRM.Core.Services
                 if (distinctCurrencies.Count == 1)
                     order.Currency = distinctCurrencies[0];
                 order.Total = sync.Total;
-                order.ConvertTotal = sync.Total;
+                order.ConvertTotal = sync.ConvertTotal;
                 order.ItemRows = activeLines;
                 replacedItemCount = activeLines;
                 order.Type = ResolvePurchaseOrderHeaderType(request.Type ?? order.Type, request.Items);
@@ -1239,7 +1245,8 @@ VALUES (gen_random_uuid()::text, '{BusinessLogTypes.PurchaseOrder}', '{safeRecor
             List<PurchaseOrderItem> Inserted,
             List<PurchaseOrderItem> Updated,
             List<PurchaseOrderItem> Deleted,
-            decimal Total);
+            decimal Total,
+            decimal ConvertTotal);
 
         private async Task<PurchaseOrderItemSyncResult> SyncPurchaseOrderItemsOnUpdateAsync(
             PurchaseOrder order,
@@ -1257,6 +1264,7 @@ VALUES (gen_random_uuid()::text, '{BusinessLogTypes.PurchaseOrder}', '{safeRecor
             var updated = new List<PurchaseOrderItem>();
             var keptIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             decimal total = 0m;
+            decimal convertTotalUsd = 0m;
             var newItemRequests = new List<CreatePurchaseOrderItemRequest>();
 
             foreach (var itemReq in requestItems)
@@ -1274,6 +1282,7 @@ VALUES (gen_random_uuid()::text, '{BusinessLogTypes.PurchaseOrder}', '{safeRecor
                     await _poItemRepo.UpdateAsync(existing);
                     updated.Add(existing);
                     total += existing.Qty * existing.Cost;
+                    convertTotalUsd += ExchangeRateToUsdConverter.LineAmountUsd(existing.Qty, existing.ConvertPrice);
                     TrackSellLineForRecalc(recalcSellLineIds, existing.SellOrderItemId);
                     if (!string.Equals(prevSell, existing.SellOrderItemId, StringComparison.OrdinalIgnoreCase))
                         TrackSellLineForRecalc(recalcSellLineIds, prevSell);
@@ -1304,6 +1313,7 @@ VALUES (gen_random_uuid()::text, '{BusinessLogTypes.PurchaseOrder}', '{safeRecor
                     inserted.Add(poItem);
                     await AddPurchaseOrderItemExtendAsync(poItem);
                     total += poItem.Qty * poItem.Cost;
+                    convertTotalUsd += ExchangeRateToUsdConverter.LineAmountUsd(poItem.Qty, poItem.ConvertPrice);
                     TrackSellLineForRecalc(recalcSellLineIds, poItem.SellOrderItemId);
                 }
             }
@@ -1325,7 +1335,7 @@ VALUES (gen_random_uuid()::text, '{BusinessLogTypes.PurchaseOrder}', '{safeRecor
                 deleted.Add(existing);
             }
 
-            return new PurchaseOrderItemSyncResult(inserted, updated, deleted, total);
+            return new PurchaseOrderItemSyncResult(inserted, updated, deleted, total, convertTotalUsd);
         }
 
         private static void TrackSellLineForRecalc(HashSet<string> recalcSellLineIds, string? sellOrderItemId)

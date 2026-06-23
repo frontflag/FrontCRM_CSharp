@@ -3,11 +3,20 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { SalesAnalyticsViewLevel } from '@/api/analytics/sales'
 
-const props = defineProps<{
-  modelValue: SalesAnalyticsViewLevel
-  allowedLevels: SalesAnalyticsViewLevel[]
-  saleDataScope: number
-}>()
+const props = withDefaults(
+  defineProps<{
+    modelValue: SalesAnalyticsViewLevel
+    allowedLevels: SalesAnalyticsViewLevel[]
+    saleDataScope?: number
+    /** 与 saleDataScope 二选一；采购看板传 purchaseDataScope */
+    dataScope?: number
+    /** i18n 前缀，默认 salesAnalytics */
+    i18nPrefix?: string
+  }>(),
+  { i18nPrefix: 'salesAnalytics' }
+)
+
+const effectiveDataScope = computed(() => props.dataScope ?? props.saleDataScope ?? 0)
 
 const emit = defineEmits<{
   'update:modelValue': [SalesAnalyticsViewLevel]
@@ -20,19 +29,19 @@ const tabs = computed(() => {
     {
       key: 'company',
       label:
-        props.saleDataScope === 0
-          ? t('salesAnalytics.tabs.company')
-          : t('salesAnalytics.tabs.visibleScope'),
+        effectiveDataScope.value === 0
+          ? t(`${props.i18nPrefix}.tabs.company`)
+          : t(`${props.i18nPrefix}.tabs.visibleScope`),
       disabled: !props.allowedLevels.includes('company')
     },
     {
       key: 'department',
-      label: t('salesAnalytics.tabs.department'),
+      label: t(`${props.i18nPrefix}.tabs.department`),
       disabled: !props.allowedLevels.includes('department')
     },
     {
       key: 'personal',
-      label: t('salesAnalytics.tabs.personal'),
+      label: t(`${props.i18nPrefix}.tabs.personal`),
       disabled: !props.allowedLevels.includes('personal')
     }
   ]

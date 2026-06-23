@@ -176,6 +176,20 @@ public sealed class MemoryRfqItemListQuery : IRfqItemListQuery
             rows = rows.Where(r => rfqItemIdsWithQuote.Contains(r.Id.Trim())).ToList();
         }
 
+        if (!string.IsNullOrWhiteSpace(request.RfqCode))
+        {
+            var rfqKw = request.RfqCode.Trim().ToLowerInvariant();
+            rows = rows.Where(r =>
+                r.RfqCode != null &&
+                r.RfqCode.ToLowerInvariant().Contains(rfqKw)).ToList();
+        }
+
+        if (request.Status.HasValue)
+        {
+            var st = request.Status.Value;
+            rows = rows.Where(r => r.Status == st).ToList();
+        }
+
         rows = rows.OrderByDescending(r => r.RfqCreateTime).ThenBy(r => r.LineNo).ToList();
 
         var totalCount = rows.Count;

@@ -23,4 +23,10 @@ public static class BusinessDepartmentRules
     /// </summary>
     public static bool UseSellOrderAssistorOnlyScope(UserPermissionSummaryDto summary) =>
         summary.IdentityType == 4 && summary.SaleDataScope == 4;
+
+    /// <summary>
+    /// 采购助理跟单：<c>PurchaseDataScope = 4</c> 时，仅可见 <c>assistor</c> 为自己的采购订单（与 <see cref="DataPermissionService.ApplyPurchaseOrderDataScopeAsync"/> 一致）。
+    /// </summary>
+    public static bool UsePurchaseOrderAssistorOnlyScope(UserPermissionSummaryDto summary) =>
+        summary.PurchaseDataScope == 4;
 }

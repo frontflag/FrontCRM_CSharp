@@ -49,7 +49,7 @@
         </div>
         <div class="stat-info">
           <span class="stat-label">{{ t('dashboard.stats.vendorPayableAmount') }}</span>
-          <span class="stat-value">¥ {{ stats.vendorPayable }}</span>
+          <span class="stat-value">$ {{ stats.vendorPayable }}</span>
         </div>
       </div>
     </div>
@@ -102,7 +102,7 @@
         </div>
         <div class="stat-info">
           <span class="stat-label">{{ t('dashboard.stats.monthlySales') }}</span>
-          <span class="stat-value">¥ {{ stats.monthlySales }}</span>
+          <span class="stat-value">$ {{ stats.monthlySales }}</span>
         </div>
       </div>
     </div>

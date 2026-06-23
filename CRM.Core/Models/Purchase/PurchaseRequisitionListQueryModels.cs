@@ -27,7 +27,12 @@ public sealed class PurchaseRequisitionListPageRow
     public DateTime ExpectedPurchaseTime { get; set; }
     public short Status { get; set; }
     public short Type { get; set; }
+    public string? SalesUserId { get; set; }
+    /// <summary>销售员登录账号（RealName 不用于列表，与报价/销售订单列表一致）。</summary>
+    public string? SalesUserAccount { get; set; }
     public string? PurchaseUserId { get; set; }
+    /// <summary>采购员展示名（RealName 优先，与详情 API 一致）。</summary>
+    public string? PurchaseUserName { get; set; }
     public string? PurchaseUserAccount { get; set; }
     public string? QuoteVendorId { get; set; }
     public decimal QuoteCost { get; set; }

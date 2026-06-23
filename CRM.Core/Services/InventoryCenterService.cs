@@ -1569,7 +1569,8 @@ namespace CRM.Core.Services
 
                 if (!string.IsNullOrWhiteSpace(query?.CurrentUserId))
                 {
-                    if (so == null || !await _dataPermissionService.CanAccessSalesOrderAsync(query.CurrentUserId, so))
+                    if (!await _dataPermissionService.IsLogisticsModuleUnrestrictedAsync(query.CurrentUserId)
+                        && (so == null || !await _dataPermissionService.CanAccessSalesOrderAsync(query.CurrentUserId, so)))
                         continue;
                 }
 

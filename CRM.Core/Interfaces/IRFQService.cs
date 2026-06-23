@@ -154,6 +154,10 @@ namespace CRM.Core.Interfaces
         public string? PurchaserUserId { get; set; }
         /// <summary>为 true 时仅返回至少存在一条关联报价单（quote.rfq_item_id）的需求明细</summary>
         public bool? HasQuotesOnly { get; set; }
+        /// <summary>明细状态（与列表「明细状态」列一致：0 待报价、1 已报价等；1 含「待报价但有报价记录」）</summary>
+        public short? Status { get; set; }
+        /// <summary>需求编号（主表 rfq_code，模糊匹配）</summary>
+        public string? RfqCode { get; set; }
         public string? CurrentUserId { get; set; }
 
         /// <summary>具备 customer.info.read 等时由服务层置为 true；否则物料型号筛选不包含客户物料号。</summary>

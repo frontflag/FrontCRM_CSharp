@@ -1,7 +1,10 @@
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
+using CRM.Core.Models;
 using CRM.Core.Models.Customer;
+using CRM.Core.Models.Quote;
 using CRM.Core.Models.Sales;
+using CRM.Core.Services;
 using CRM.Core.Utilities;
 using CRM.API.Authorization;
 using CRM.API.Services;
@@ -134,9 +137,13 @@ namespace CRM.API.Controllers
             [FromQuery] string? orderCreateEnd,
             [FromQuery] string? customerName,
             [FromQuery] string? salesUserName,
+            [FromQuery] string? salesUserId,
+            [FromQuery] string? customerId,
             [FromQuery] string? sellOrderCode,
             [FromQuery] string? pn,
             [FromQuery] string? transactionCurrency,
+            [FromQuery] bool stockOutPending = false,
+            [FromQuery] bool invoicePending = false,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20,
             CancellationToken cancellationToken = default)
@@ -157,9 +164,13 @@ namespace CRM.API.Controllers
                     OrderCreateEnd = DateTime.TryParse(orderCreateEnd, out var de) ? de : null,
                     CustomerName = canViewCustomer && !string.IsNullOrWhiteSpace(customerName) ? customerName.Trim() : null,
                     SalesUserName = canViewSalesUser && !string.IsNullOrWhiteSpace(salesUserName) ? salesUserName.Trim() : null,
+                    SalesUserId = canViewSalesUser && !string.IsNullOrWhiteSpace(salesUserId) ? salesUserId.Trim() : null,
+                    CustomerId = canViewCustomer && !string.IsNullOrWhiteSpace(customerId) ? customerId.Trim() : null,
                     SellOrderCode = sellOrderCode,
                     Pn = pn,
                     TransactionCurrency = transactionCurrency,
+                    StockOutPending = stockOutPending,
+                    InvoicePending = invoicePending,
                     Page = page,
                     PageSize = pageSize,
                     CurrentUserId = userId
@@ -243,7 +254,7 @@ namespace CRM.API.Controllers
             }
         }
 
-        /// <summary>销售订单详情页：底部页签用下游列表（采购申请/采购订单明细/入库/库存/出库通知/出库/收款/销项发票）。</summary>
+        /// <summary>销售订单详情页：底部页签用下游列表（需求明细/采购申请/采购订单明细/入库/库存/出库通知/出库/收款/销项发票）。</summary>
         [HttpGet("{id:guid}/detail-tab-aggregates")]
         public async Task<IActionResult> GetDetailTabAggregates(string id)
         {
@@ -759,8 +770,13 @@ namespace CRM.API.Controllers
                 }
             }
 
+            var rfqItemRows = await BuildRfqItemTabRowsAsync(itemIds, mask521);
+            var quoteRows = await BuildQuoteTabRowsAsync(itemIds, mask521, mask511);
+
             return new
             {
+                rfqItems = rfqItemRows,
+                quotes = quoteRows,
                 purchaseRequisitions = prRows,
                 purchaseOrderItems = purchaseOrderItemRows,
                 stockIns = stockInRows,
@@ -771,6 +787,260 @@ namespace CRM.API.Controllers
                 sellInvoices = sellInvRows,
                 qcImages = qcImageRows
             };
+        }
+
+        /// <summary>销售明细 → 报价单 → 需求明细行（与创建销售单/采购申请链路一致）。</summary>
+        private async Task<List<object>> BuildRfqItemTabRowsAsync(IReadOnlyList<string> itemIds, bool mask521)
+        {
+            if (itemIds.Count == 0)
+                return new List<object>();
+
+            var lineQuotes = await _db.SellOrderItems.AsNoTracking()
+                .Where(i => itemIds.Contains(i.Id) && i.QuoteId != null && i.QuoteId != "")
+                .Select(i => new { SellOrderItemId = i.Id, SellOrderItemCode = i.SellOrderItemCode, QuoteId = i.QuoteId! })
+                .ToListAsync();
+
+            if (lineQuotes.Count == 0)
+                return new List<object>();
+
+            var quoteIds = lineQuotes
+                .Select(x => x.QuoteId.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var quoteRfqLinks = await _db.Quotes.AsNoTracking()
+                .Where(q => quoteIds.Contains(q.Id) && q.RFQItemId != null && q.RFQItemId != "")
+                .Select(q => new { QuoteId = q.Id, RfqItemId = q.RFQItemId!, QuoteCode = q.QuoteCode })
+                .ToListAsync();
+
+            if (quoteRfqLinks.Count == 0)
+                return new List<object>();
+
+            var rfqItemIds = quoteRfqLinks
+                .Select(x => x.RfqItemId.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var rfqRows = await (
+                from item in _db.RFQItems.AsNoTracking()
+                join rfq in _db.RFQs.AsNoTracking() on item.RfqId equals rfq.Id
+                join cust in _db.Customers.AsNoTracking() on rfq.CustomerId equals cust.Id into custGroup
+                from cust in custGroup.DefaultIfEmpty()
+                join su in _db.Users.AsNoTracking() on rfq.SalesUserId equals su.Id into suGroup
+                from su in suGroup.DefaultIfEmpty()
+                where rfqItemIds.Contains(item.Id) && !item.IsDeleted && !rfq.IsDeleted
+                orderby rfq.CreateTime descending, item.LineNo
+                select new { item, rfq, cust, su }
+            ).ToListAsync();
+
+            var puIds = rfqRows
+                .SelectMany(x => new[] { x.item.AssignedPurchaserUserId1, x.item.AssignedPurchaserUserId2 })
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Select(id => id!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var puUsers = puIds.Count == 0
+                ? new Dictionary<string, User>(StringComparer.OrdinalIgnoreCase)
+                : await _db.Users.AsNoTracking()
+                    .Where(u => puIds.Contains(u.Id))
+                    .ToDictionaryAsync(u => u.Id, u => u, StringComparer.OrdinalIgnoreCase);
+
+            var quoteToLine = lineQuotes.ToDictionary(
+                x => x.QuoteId.Trim(),
+                x => x,
+                StringComparer.OrdinalIgnoreCase);
+
+            var quotedRfqItemIds = quoteRfqLinks
+                .Select(x => x.RfqItemId.Trim())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var result = new List<object>(rfqRows.Count);
+            foreach (var row in rfqRows)
+            {
+                var lineStatus = row.item.Status;
+                if (lineStatus == 0 && quotedRfqItemIds.Contains(row.item.Id.Trim()))
+                    lineStatus = 1;
+
+                var customerName = row.cust != null
+                    ? (row.cust.OfficialName ?? row.cust.NickName)
+                    : null;
+                if (mask521)
+                    customerName = null;
+
+                var salesUserName = mask521 ? null : EntityLookupService.FormatUserLoginName(row.su);
+
+                var link = quoteRfqLinks.FirstOrDefault(q =>
+                    string.Equals(q.RfqItemId.Trim(), row.item.Id.Trim(), StringComparison.OrdinalIgnoreCase));
+                string? sellOrderItemId = null;
+                string? sellOrderItemCode = null;
+                string? quoteCode = null;
+                if (link != null)
+                {
+                    quoteCode = link.QuoteCode;
+                    if (quoteToLine.TryGetValue(link.QuoteId.Trim(), out var soLine))
+                    {
+                        sellOrderItemId = soLine.SellOrderItemId;
+                        sellOrderItemCode = soLine.SellOrderItemCode;
+                    }
+                }
+
+                puUsers.TryGetValue(row.item.AssignedPurchaserUserId1 ?? "", out var pu1);
+                puUsers.TryGetValue(row.item.AssignedPurchaserUserId2 ?? "", out var pu2);
+
+                result.Add(new
+                {
+                    id = row.item.Id,
+                    rfqId = row.item.RfqId,
+                    rfqCode = row.rfq.RfqCode,
+                    lineNo = row.item.LineNo,
+                    mpn = row.item.Mpn,
+                    customerMpn = row.item.CustomerMpn,
+                    customerBrand = row.item.CustomerBrand,
+                    brand = row.item.Brand,
+                    quantity = row.item.Quantity,
+                    status = lineStatus,
+                    productionDate = row.item.ProductionDate,
+                    customerName,
+                    salesUserName,
+                    sellOrderItemId,
+                    sellOrderItemCode,
+                    quoteCode,
+                    assignedPurchaserName1 = EntityLookupService.FormatUserLoginName(pu1),
+                    assignedPurchaserName2 = EntityLookupService.FormatUserLoginName(pu2),
+                    rfqCreateTime = row.rfq.CreateTime,
+                    createTime = row.item.CreateTime
+                });
+            }
+
+            return result;
+        }
+
+        /// <summary>销售明细 <c>quote_id</c> 关联的报价主表（一条销售明细通常对应一张报价单）。</summary>
+        private async Task<List<object>> BuildQuoteTabRowsAsync(
+            IReadOnlyList<string> itemIds,
+            bool mask521,
+            bool mask511)
+        {
+            if (itemIds.Count == 0)
+                return new List<object>();
+
+            var lineQuotes = await _db.SellOrderItems.AsNoTracking()
+                .Where(i => itemIds.Contains(i.Id) && i.QuoteId != null && i.QuoteId != "" && !i.IsDeleted)
+                .Select(i => new { SellOrderItemId = i.Id, SellOrderItemCode = i.SellOrderItemCode, QuoteId = i.QuoteId! })
+                .ToListAsync();
+
+            if (lineQuotes.Count == 0)
+                return new List<object>();
+
+            var quoteIds = lineQuotes
+                .Select(x => x.QuoteId.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var quotes = await _db.Quotes.AsNoTracking()
+                .Where(q => quoteIds.Contains(q.Id) && !q.IsDeleted)
+                .OrderByDescending(q => q.CreateTime)
+                .ToListAsync();
+
+            if (quotes.Count == 0)
+                return new List<object>();
+
+            var userIds = quotes
+                .SelectMany(q => new[] { q.SalesUserId, q.PurchaseUserId })
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Select(id => id!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var users = userIds.Count == 0
+                ? new Dictionary<string, User>(StringComparer.OrdinalIgnoreCase)
+                : await _db.Users.AsNoTracking()
+                    .Where(u => userIds.Contains(u.Id))
+                    .ToDictionaryAsync(u => u.Id, u => u, StringComparer.OrdinalIgnoreCase);
+
+            var rfqIds = quotes
+                .Select(q => q.RFQId)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Select(id => id!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var rfqCodes = rfqIds.Count == 0
+                ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                : await _db.RFQs.AsNoTracking()
+                    .Where(r => rfqIds.Contains(r.Id))
+                    .ToDictionaryAsync(r => r.Id, r => r.RfqCode, StringComparer.OrdinalIgnoreCase);
+
+            var quoteItemEntities = await _db.QuoteItems.AsNoTracking()
+                .Where(qi => quoteIds.Contains(qi.QuoteId) && !qi.IsDeleted)
+                .OrderBy(qi => qi.CreateTime)
+                .ToListAsync();
+
+            var itemsByQuote = quoteItemEntities
+                .GroupBy(qi => qi.QuoteId.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+            var brandByQuote = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+            foreach (var qi in quoteItemEntities)
+            {
+                var qid = qi.QuoteId.Trim();
+                if (!brandByQuote.ContainsKey(qid) && !string.IsNullOrWhiteSpace(qi.Brand))
+                    brandByQuote[qid] = qi.Brand.Trim();
+            }
+
+            var lineByQuote = lineQuotes
+                .GroupBy(x => x.QuoteId.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            var result = new List<object>(quotes.Count);
+            foreach (var q in quotes)
+            {
+                var qid = q.Id.Trim();
+                lineByQuote.TryGetValue(qid, out var soLine);
+
+                string? rfqCode = null;
+                if (!string.IsNullOrWhiteSpace(q.RFQId)
+                    && rfqCodes.TryGetValue(q.RFQId.Trim(), out var code))
+                    rfqCode = code;
+
+                brandByQuote.TryGetValue(qid, out var brand);
+
+                users.TryGetValue(q.SalesUserId ?? "", out var su);
+                users.TryGetValue(q.PurchaseUserId ?? "", out var pu);
+
+                itemsByQuote.TryGetValue(qid, out var quoteItems);
+                var itemRows = (quoteItems ?? new List<QuoteItem>())
+                    .Select(qi => (object)new
+                    {
+                        quantity = qi.Quantity,
+                        unitPrice = qi.UnitPrice,
+                        currency = qi.Currency,
+                        vendorName = mask511 || string.IsNullOrWhiteSpace(qi.VendorName)
+                            ? null
+                            : qi.VendorName.Trim()
+                    })
+                    .ToList();
+
+                result.Add(new
+                {
+                    id = q.Id,
+                    quoteCode = q.QuoteCode,
+                    mpn = q.Mpn,
+                    brand,
+                    status = q.Status,
+                    rfqCode,
+                    salesUserName = mask521 ? null : EntityLookupService.FormatUserLoginName(su),
+                    purchaseUserName = EntityLookupService.FormatUserLoginName(pu),
+                    quoteDate = q.QuoteDate,
+                    sellOrderItemId = soLine?.SellOrderItemId,
+                    sellOrderItemCode = soLine?.SellOrderItemCode,
+                    items = itemRows,
+                    createTime = q.CreateTime
+                });
+            }
+
+            return result;
         }
 
         /// <summary>销售订单主表字段变更日志（log_change_fldval）。</summary>

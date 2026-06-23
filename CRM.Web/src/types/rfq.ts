@@ -275,7 +275,10 @@ export interface RFQItemSearchRequest {
   purchaserUserId?: string
   /** 为 true 时仅返回至少有一条报价记录的需求明细 */
   hasQuotesOnly?: boolean
+  /** 明细状态（0 待报价、1 已报价…，与列表「明细状态」列一致） */
   status?: RFQItemStatus | ''
+  /** 需求编号（rfq_code，模糊） */
+  rfqCode?: string
   startDate?: string
   endDate?: string
 }

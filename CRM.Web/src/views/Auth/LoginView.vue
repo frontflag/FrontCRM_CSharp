@@ -160,11 +160,6 @@
               <el-button @click="refreshQrCode">{{ t('login.refreshQr') }}</el-button>
             </div>
           </div>
-
-          <div class="card-footer">
-            <span class="footer-text">{{ t('login.noAccount') }}</span>
-            <router-link to="/register" class="footer-link">{{ t('login.registerNow') }}</router-link>
-          </div>
         </div>
         </div>
 
@@ -843,31 +838,6 @@ const handleLogin = async () => {
 @keyframes spin {
   to {
     transform: rotate(360deg);
-  }
-}
-
-.card-footer {
-  text-align: center;
-  margin-top: clamp(20px, 2.8vh, 36px);
-  padding-top: clamp(20px, 2.5vh, 32px);
-  padding-bottom: clamp(8px, 1vh, 14px);
-  border-top: 1px solid #f1f5f9;
-}
-
-.footer-text {
-  font-size: 0.8125rem;
-  color: #64748b;
-}
-
-.footer-link {
-  font-size: 0.8125rem;
-  color: #2563eb;
-  font-weight: 500;
-  text-decoration: none;
-  margin-left: 4px;
-
-  &:hover {
-    text-decoration: underline;
   }
 }
 

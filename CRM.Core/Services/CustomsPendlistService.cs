@@ -133,6 +133,21 @@ public class CustomsPendlistService : ICustomsPendlistService
         var now = DateTime.UtcNow;
         var actor = ActingUserIdNormalizer.Normalize(actingUserId);
 
+        var requestUserId = string.IsNullOrWhiteSpace(salesSor.RequestUserId)
+            ? actor
+            : salesSor.RequestUserId;
+        if (string.IsNullOrWhiteSpace(requestUserId))
+            throw new InvalidOperationException("销售出库通知缺少申请人，不能生成报关出库通知。");
+
+        var orphanCustomsSor = (await _stockOutRequestRepo.FindAsync(s =>
+                s.CustomsPendlistId == pendlist.Id && !s.IsDeleted))
+            .FirstOrDefault();
+        if (orphanCustomsSor != null)
+        {
+            throw new InvalidOperationException(
+                $"已存在关联报关出库通知 {orphanCustomsSor.RequestCode}，但待报关记录未正确关联，请联系管理员处理。");
+        }
+
         var customsSor = new StockOutRequest
         {
             Id = customsSorId,
@@ -143,11 +158,12 @@ public class CustomsPendlistService : ICustomsPendlistService
             MaterialName = salesSor.MaterialName,
             Quantity = pendlist.Qty,
             CustomerId = salesSor.CustomerId,
-            RequestUserId = string.IsNullOrWhiteSpace(salesSor.RequestUserId) ? (actor ?? salesSor.RequestUserId) : salesSor.RequestUserId,
+            RequestUserId = requestUserId,
             RequestDate = salesSor.RequestDate,
             Status = StockOutRequestStatusCode.PendingPacking,
             Remark = salesSor.Remark,
             ShipmentMethod = salesSor.ShipmentMethod,
+            ExpressCompany = salesSor.ExpressCompany,
             RegionType = RegionTypeCode.Overseas,
             StockOutType = StockOutTypeCode.Customs,
             CustomsPendlistId = pendlist.Id,
@@ -155,6 +171,11 @@ public class CustomsPendlistService : ICustomsPendlistService
             CreateTime = now,
             CreateByUserId = actor
         };
+
+        // 分步保存，避免 customs_pendlist ↔ stockout_notify 循环外键在同一批次中顺序冲突
+        // （与 StockOutService 先落销售出库通知、再落待报关记录一致）
+        await _stockOutRequestRepo.AddAsync(customsSor);
+        await _unitOfWork.SaveChangesAsync();
 
         salesSor.CustomsStatus = StockOutNotifyCustomsStatusCode.InCustoms;
         salesSor.ModifyTime = now;
@@ -165,7 +186,6 @@ public class CustomsPendlistService : ICustomsPendlistService
         pendlist.ModifyTime = now;
         pendlist.ModifyByUserId = actor;
 
-        await _stockOutRequestRepo.AddAsync(customsSor);
         await _stockOutRequestRepo.UpdateAsync(salesSor);
         await _pendlistRepo.UpdateAsync(pendlist);
         await _unitOfWork.SaveChangesAsync();
@@ -219,15 +239,48 @@ public class CustomsPendlistService : ICustomsPendlistService
     private async Task EnsureOverseasStockCoversQtyAsync(string sellOrderItemId, int qty)
     {
         var lineId = sellOrderItemId.Trim();
-        var overseasLayers = (await _stockItemRepo.FindAsync(si =>
+        var line = await _sellOrderItemRepo.GetByIdAsync(lineId)
+                   ?? throw new InvalidOperationException("关联的销售订单明细不存在。");
+
+        var customerOverseasLayers = (await _stockItemRepo.FindAsync(si =>
             si.SellOrderItemId == lineId
             && si.QtyRepertoryAvailable > 0
             && si.RegionType == RegionTypeCode.Overseas)).ToList();
-        var overseasAvail = overseasLayers.Sum(si => si.QtyRepertoryAvailable);
-        if (overseasAvail < qty)
+        var customerOverseasAvail = customerOverseasLayers.Sum(si => si.QtyRepertoryAvailable);
+        if (customerOverseasAvail >= qty)
+            return;
+
+        var stockingLayers = (await LoadEligibleStockingLayersAsync(line.PN, line.Brand))
+            .Where(si => RegionTypeCode.Normalize(si.RegionType) == RegionTypeCode.Overseas)
+            .ToList();
+        var stockingAvail = stockingLayers.Sum(si => si.QtyRepertoryAvailable);
+        if (customerOverseasAvail + stockingAvail < qty)
             throw new InvalidOperationException(
-                $"境外可用库存不足（当前 {overseasAvail}，需要 {qty}），不能生成报关出库通知。");
+                $"境外可用库存不足（客单 {customerOverseasAvail} + 备货 {stockingAvail}，需要 {qty}），不能生成报关出库通知。");
     }
+
+    /// <summary>与 <see cref="StockOutService.TryBuildCustomsPendlistAsync"/> 备货池口径一致。</summary>
+    private async Task<List<StockItem>> LoadEligibleStockingLayersAsync(string? purchasePn, string? purchaseBrand)
+    {
+        var pnKey = NormInventoryKey(purchasePn);
+        var brKey = NormInventoryKey(purchaseBrand);
+        if (string.IsNullOrEmpty(pnKey) || string.IsNullOrEmpty(brKey))
+            return new List<StockItem>();
+
+        var layers = (await _stockItemRepo.FindAsync(si =>
+            si.StockType == StockInventoryTypeCodes.Stocking
+            && si.QtyRepertoryAvailable > 0
+            && (si.TransferType == null
+                || si.TransferType != StockItemTransferTypeCodes.ManualTransferSource))).ToList();
+
+        return layers
+            .Where(si =>
+                string.Equals(NormInventoryKey(si.PurchasePn), pnKey, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(NormInventoryKey(si.PurchaseBrand), brKey, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    private static string NormInventoryKey(string? v) => (v ?? string.Empty).Trim();
 
     private async Task<IReadOnlyList<CustomsPendlistListItemDto>> ProjectListDtosAsync(IReadOnlyList<CustomsPendlist> rows)
     {

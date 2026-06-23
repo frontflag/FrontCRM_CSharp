@@ -42,7 +42,7 @@
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card stat-info">
-          <div class="stat-value">{{ maskSaleSensitiveFields ? '—' : canViewSalesAmount ? `¥${statAmount.toLocaleString()}` : '--' }}</div>
+          <div class="stat-value">{{ maskSaleSensitiveFields ? '—' : canViewSalesAmount ? `$${statAmount.toLocaleString()}` : '--' }}</div>
           <div class="stat-label">{{ t('salesOrderList.stats.totalAmount') }}</div>
         </el-card>
       </el-col>
@@ -350,7 +350,7 @@ const filterForm = ref({
 // 分页信息
 const pageInfo = ref({
   page: 1,
-  pageSize: 10,
+  pageSize: 20,
   total: 0
 })
 

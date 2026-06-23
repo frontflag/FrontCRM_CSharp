@@ -2,6 +2,7 @@ using CRM.Core.Interfaces;
 using CRM.Core.Models;
 using CRM.Core.Models.RFQ;
 using CRM.Core.Services;
+using CRM.Core.Utilities;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -102,13 +103,13 @@ public sealed class RfqItemListQuery : IRfqItemListQuery
 
         if (request.StartDate.HasValue)
         {
-            var start = request.StartDate.Value.Date;
+            var start = SalesAnalyticsDateFilter.ToUtcDateStart(request.StartDate.Value);
             q = q.Where(x => x.rfq.CreateTime >= start);
         }
 
         if (request.EndDate.HasValue)
         {
-            var endExclusive = request.EndDate.Value.Date.AddDays(1);
+            var endExclusive = SalesAnalyticsDateFilter.ToUtcDateEndExclusive(request.EndDate.Value);
             q = q.Where(x => x.rfq.CreateTime < endExclusive);
         }
 
@@ -166,6 +167,38 @@ public sealed class RfqItemListQuery : IRfqItemListQuery
                 _db.Quotes.AsNoTracking().Any(q =>
                     q.RFQItemId != null &&
                     q.RFQItemId == x.item.Id));
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.RfqCode))
+        {
+            var rfqKw = request.RfqCode.Trim().ToLowerInvariant();
+            q = q.Where(x => x.rfq.RfqCode.ToLower().Contains(rfqKw));
+        }
+
+        if (request.Status.HasValue)
+        {
+            var st = request.Status.Value;
+            if (st == 0)
+            {
+                q = q.Where(x =>
+                    x.item.Status == 0 &&
+                    !_db.Quotes.AsNoTracking().Any(quote =>
+                        quote.RFQItemId != null &&
+                        quote.RFQItemId == x.item.Id));
+            }
+            else if (st == 1)
+            {
+                q = q.Where(x =>
+                    x.item.Status == 1 ||
+                    (x.item.Status == 0 &&
+                     _db.Quotes.AsNoTracking().Any(quote =>
+                         quote.RFQItemId != null &&
+                         quote.RFQItemId == x.item.Id)));
+            }
+            else
+            {
+                q = q.Where(x => x.item.Status == st);
+            }
         }
 
         var total = await q.CountAsync(cancellationToken);

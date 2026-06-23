@@ -107,7 +107,10 @@
 
       <div class="customer-home__duo">
         <div class="customer-home__duo-col">
-          <div class="customer-home__section-title">{{ t('customerHome.sections.receivable') }}</div>
+          <div class="customer-home__section-title">
+            {{ t('customerHome.sections.receivable') }}
+            <span class="customer-home__unit">{{ t('customerHome.moneyUnit') }}</span>
+          </div>
           <div class="customer-home__row customer-home__row--2">
             <div class="customer-home__card">
               <div class="customer-home__icon customer-home__icon--blue" aria-hidden="true">
@@ -138,7 +141,10 @@
           </div>
         </div>
         <div class="customer-home__duo-col">
-          <div class="customer-home__section-title">{{ t('customerHome.sections.pendingOutbound') }}</div>
+          <div class="customer-home__section-title">
+            {{ t('customerHome.sections.pendingOutbound') }}
+            <span class="customer-home__unit">{{ t('customerHome.moneyUnit') }}</span>
+          </div>
           <div class="customer-home__row customer-home__row--2">
             <div class="customer-home__card">
               <div class="customer-home__icon customer-home__icon--mint" aria-hidden="true">
@@ -196,7 +202,7 @@ const moneyFmt = new Intl.NumberFormat('zh-CN', { minimumFractionDigits: 2, maxi
 const intFmt = new Intl.NumberFormat('zh-CN')
 
 function formatMoney(n: number) {
-  return moneyFmt.format(n ?? 0)
+  return `$ ${moneyFmt.format(n ?? 0)}`
 }
 
 function formatInt(n: number) {
@@ -403,6 +409,13 @@ onMounted(async () => {
   color: $text-primary;
   margin: 0 0 14px;
   letter-spacing: 0.04em;
+}
+
+.customer-home__unit {
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 400;
+  color: $text-muted;
 }
 
 .customer-home__row {

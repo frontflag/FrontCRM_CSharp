@@ -95,6 +95,14 @@ namespace CRM.Core.Interfaces
         public string? Pn { get; set; }
         /// <summary>交易币别筛选：rmb=人民币，foreign=外币（非人民币）。</summary>
         public string? TransactionCurrency { get; set; }
+        /// <summary>仅待出库/部分出库明细（与看板待办口径一致）。</summary>
+        public bool StockOutPending { get; set; }
+        /// <summary>仅待开票明细（invoice_amount_not &gt; 0 或开票进度未完成）。</summary>
+        public bool InvoicePending { get; set; }
+        /// <summary>销售订单业务员主键（精确匹配）。</summary>
+        public string? SalesUserId { get; set; }
+        /// <summary>客户主键（精确匹配）。</summary>
+        public string? CustomerId { get; set; }
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 20;
         public string? CurrentUserId { get; set; }

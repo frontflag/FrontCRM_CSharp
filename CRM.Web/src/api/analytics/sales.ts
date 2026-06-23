@@ -19,6 +19,7 @@ export interface SalesAnalyticsScopeContext {
   primaryDepartmentName?: string | null
   allowedViewLevels: SalesAnalyticsViewLevel[]
   allowedDepartments: { id: string; name: string }[]
+  allowedSalesUsers?: { id: string; name: string }[]
   dataFiltered: boolean
   maskAmounts: boolean
   resolvedSalesUserId?: string | null
@@ -32,11 +33,14 @@ export interface SalesAnalyticsSnapshot {
   salesOrderItemCount: number
   salesOrderCustomerCount: number
   salesAmountApproved?: number | null
+  salesAmountStockOut?: number | null
+  salesAmountReceived?: number | null
 }
 
 export interface SalesAnalyticsTodo {
   receivableAmount?: number | null
   pendingStockOutItemCount: number
+  pendingInvoiceAmount?: number | null
 }
 
 export interface SalesAnalyticsRankingRow {
@@ -59,8 +63,13 @@ export interface SalesAnalyticsDashboard {
 export interface SalesAnalyticsTrendPoint {
   period: string
   rfqItemCount: number
+  rfqCustomerCount: number
   salesOrderItemCount: number
+  salesOrderCustomerCount: number
   salesAmountApproved?: number | null
+  salesAmountStockOut?: number | null
+  salesAmountReceived?: number | null
+  receivableAmount?: number | null
   rfqToSalesConversionRate?: number | null
 }
 
