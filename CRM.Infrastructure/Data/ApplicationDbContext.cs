@@ -20,6 +20,7 @@ using CRM.Core.Models.System;
 using CRM.Core.Models.Tag;
 using CRM.Core.Models.Vendor;
 using CRM.Core.Models.Customs;
+using CRM.Core.Models.Ai;
 using Microsoft.EntityFrameworkCore;
 
 namespace CRM.Infrastructure.Data
@@ -117,6 +118,12 @@ namespace CRM.Infrastructure.Data
         public DbSet<CustomsPendlist> CustomsPendlists { get; set; } = null!;
         public DbSet<CustomsDeclaration> CustomsDeclarations { get; set; } = null!;
         public DbSet<CustomsDeclarationItem> CustomsDeclarationItems { get; set; } = null!;
+        public DbSet<AiProvider> AiProviders { get; set; } = null!;
+        public DbSet<AiPromptTemplate> AiPromptTemplates { get; set; } = null!;
+        public DbSet<AiScenario> AiScenarios { get; set; } = null!;
+        public DbSet<AiGlobalConfig> AiGlobalConfigs { get; set; } = null!;
+        public DbSet<AiInvocationCache> AiInvocationCaches { get; set; } = null!;
+        public DbSet<AiInvocationLog> AiInvocationLogs { get; set; } = null!;
         public DbSet<StockTransfer> StockTransfers { get; set; } = null!;
         public DbSet<StockTransferItem> StockTransferItems { get; set; } = null!;
         public DbSet<StockTransferManual> StockTransferManuals { get; set; } = null!;
@@ -2092,6 +2099,134 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.OperationDesc);
                 entity.HasIndex(e => e.OperationTime);
                 entity.HasIndex(e => new { e.BizType, e.RecordId });
+            });
+
+            modelBuilder.Entity<AiProvider>(entity =>
+            {
+                entity.ToTable("ai_provider");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.HasQueryFilter(e => !e.IsDeleted);
+                entity.Property(e => e.Code).HasColumnName("code").HasMaxLength(64);
+                entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(100);
+                entity.Property(e => e.BaseUrl).HasColumnName("base_url").HasMaxLength(500);
+                entity.Property(e => e.ApiKeyEnv).HasColumnName("api_key_env").HasMaxLength(128);
+                entity.Property(e => e.DefaultModel).HasColumnName("default_model").HasMaxLength(100);
+                entity.Property(e => e.TimeoutSeconds).HasColumnName("timeout_seconds");
+                entity.Property(e => e.IsEnabled).HasColumnName("is_enabled");
+                entity.Property(e => e.ExtraHeadersJson).HasColumnName("extra_headers").HasColumnType("jsonb");
+                entity.Property(e => e.CreateTime).HasColumnName("create_time");
+                entity.Property(e => e.ModifyTime).HasColumnName("modify_time");
+                entity.Ignore(e => e.CreateUserId);
+                entity.Ignore(e => e.ModifyUserId);
+                entity.HasIndex(e => e.Code).IsUnique().HasDatabaseName("UX_ai_provider_code");
+            });
+
+            modelBuilder.Entity<AiPromptTemplate>(entity =>
+            {
+                entity.ToTable("ai_prompt_template");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.HasQueryFilter(e => !e.IsDeleted);
+                entity.Property(e => e.Code).HasColumnName("code").HasMaxLength(100);
+                entity.Property(e => e.Version).HasColumnName("version");
+                entity.Property(e => e.SystemPrompt).HasColumnName("system_prompt");
+                entity.Property(e => e.UserPromptTemplate).HasColumnName("user_prompt_template");
+                entity.Property(e => e.OutputFormat).HasColumnName("output_format").HasMaxLength(20);
+                entity.Property(e => e.JsonSchemaHint).HasColumnName("json_schema_hint");
+                entity.Property(e => e.IsActive).HasColumnName("is_active");
+                entity.Property(e => e.CreateTime).HasColumnName("create_time");
+                entity.Property(e => e.ModifyTime).HasColumnName("modify_time");
+                entity.Ignore(e => e.CreateUserId);
+                entity.Ignore(e => e.ModifyUserId);
+                entity.HasIndex(e => new { e.Code, e.Version }).IsUnique().HasDatabaseName("UX_ai_prompt_template_code_ver");
+            });
+
+            modelBuilder.Entity<AiScenario>(entity =>
+            {
+                entity.ToTable("ai_scenario");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.HasQueryFilter(e => !e.IsDeleted);
+                entity.Property(e => e.Code).HasColumnName("code").HasMaxLength(100);
+                entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(200);
+                entity.Property(e => e.Description).HasColumnName("description");
+                entity.Property(e => e.ProviderCode).HasColumnName("provider_code").HasMaxLength(64);
+                entity.Property(e => e.Model).HasColumnName("model").HasMaxLength(100);
+                entity.Property(e => e.PromptTemplateId).HasColumnName("prompt_template_id").HasMaxLength(36);
+                entity.Property(e => e.CacheTtlSeconds).HasColumnName("cache_ttl_seconds");
+                entity.Property(e => e.CacheKeyFieldsJson).HasColumnName("cache_key_fields").HasColumnType("jsonb");
+                entity.Property(e => e.AllowedInputFieldsJson).HasColumnName("allowed_input_fields").HasColumnType("jsonb");
+                entity.Property(e => e.MaxTokens).HasColumnName("max_tokens");
+                entity.Property(e => e.Temperature).HasColumnName("temperature").HasColumnType("numeric(4,2)");
+                entity.Property(e => e.PermissionCode).HasColumnName("permission_code").HasMaxLength(100);
+                entity.Property(e => e.RateLimitPerUserPerMin).HasColumnName("rate_limit_per_user_per_min");
+                entity.Property(e => e.IsEnabled).HasColumnName("is_enabled");
+                entity.Property(e => e.CreateTime).HasColumnName("create_time");
+                entity.Property(e => e.ModifyTime).HasColumnName("modify_time");
+                entity.Ignore(e => e.CreateUserId);
+                entity.Ignore(e => e.ModifyUserId);
+                entity.HasIndex(e => e.Code).IsUnique().HasDatabaseName("UX_ai_scenario_code");
+            });
+
+            modelBuilder.Entity<AiGlobalConfig>(entity =>
+            {
+                entity.ToTable("ai_global_config");
+                entity.HasKey(e => e.ConfigKey);
+                entity.Property(e => e.ConfigKey).HasColumnName("config_key").HasMaxLength(64);
+                entity.Property(e => e.ConfigValue).HasColumnName("config_value").HasMaxLength(500);
+                entity.Property(e => e.Description).HasColumnName("description").HasMaxLength(500);
+                entity.Property(e => e.ModifyTime).HasColumnName("modify_time");
+            });
+
+            modelBuilder.Entity<AiInvocationCache>(entity =>
+            {
+                entity.ToTable("ai_invocation_cache");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(36);
+                entity.Property(e => e.CacheKey).HasColumnName("cache_key").HasMaxLength(64);
+                entity.Property(e => e.ScenarioCode).HasColumnName("scenario_code").HasMaxLength(100);
+                entity.Property(e => e.RequestFingerprintJson).HasColumnName("request_fingerprint").HasColumnType("jsonb");
+                entity.Property(e => e.ResponseContent).HasColumnName("response_content");
+                entity.Property(e => e.ResponseJson).HasColumnName("response_json").HasColumnType("jsonb");
+                entity.Property(e => e.ProviderCode).HasColumnName("provider_code").HasMaxLength(64);
+                entity.Property(e => e.Model).HasColumnName("model").HasMaxLength(100);
+                entity.Property(e => e.TemplateVersion).HasColumnName("template_version");
+                entity.Property(e => e.HitCount).HasColumnName("hit_count");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.ExpiresAt).HasColumnName("expires_at");
+                entity.HasIndex(e => e.CacheKey).IsUnique().HasDatabaseName("UX_ai_invocation_cache_key");
+                entity.HasIndex(e => e.ExpiresAt).HasDatabaseName("IX_ai_invocation_cache_expires");
+            });
+
+            modelBuilder.Entity<AiInvocationLog>(entity =>
+            {
+                entity.ToTable("ai_invocation_log");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(36);
+                entity.Property(e => e.ScenarioCode).HasColumnName("scenario_code").HasMaxLength(100);
+                entity.Property(e => e.ProviderCode).HasColumnName("provider_code").HasMaxLength(64);
+                entity.Property(e => e.Model).HasColumnName("model").HasMaxLength(100);
+                entity.Property(e => e.TemplateVersion).HasColumnName("template_version");
+                entity.Property(e => e.UserId).HasColumnName("user_id").HasMaxLength(36);
+                entity.Property(e => e.BizType).HasColumnName("biz_type").HasMaxLength(64);
+                entity.Property(e => e.BizId).HasColumnName("biz_id").HasMaxLength(64);
+                entity.Property(e => e.RequestFingerprintJson).HasColumnName("request_fingerprint").HasColumnType("jsonb");
+                entity.Property(e => e.PromptHash).HasColumnName("prompt_hash").HasMaxLength(64);
+                entity.Property(e => e.PromptPreview).HasColumnName("prompt_preview").HasMaxLength(200);
+                entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(20);
+                entity.Property(e => e.FromCache).HasColumnName("from_cache");
+                entity.Property(e => e.LatencyMs).HasColumnName("latency_ms");
+                entity.Property(e => e.ErrorMessage).HasColumnName("error_message").HasMaxLength(1000);
+                entity.Property(e => e.PromptTokens).HasColumnName("prompt_tokens");
+                entity.Property(e => e.CompletionTokens).HasColumnName("completion_tokens");
+                entity.Property(e => e.TotalTokens).HasColumnName("total_tokens");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.HasIndex(e => new { e.ScenarioCode, e.CreatedAt }).HasDatabaseName("IX_ai_invocation_log_scenario_created");
+                entity.HasIndex(e => new { e.UserId, e.CreatedAt }).HasDatabaseName("IX_ai_invocation_log_user_created");
             });
         }
     }

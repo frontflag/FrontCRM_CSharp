@@ -10,10 +10,21 @@ export function getApiErrorMessage(error: unknown, fallback = '操作失败，�
   }
 
   const err = error as Record<string, unknown>
-  const ax = err as { response?: { data?: unknown }; message?: string }
+  const ax = err as { response?: { status?: number; data?: unknown }; message?: string }
   const data = ax.response?.data
+  const status = ax.response?.status
 
-  if (typeof data === 'string' && data.trim()) return data.trim()
+  if (status === 504) {
+    return 'AI 调用超时（504）：Nginx 代理默认 60 秒会中断 Kimi 请求，请将 proxy_read_timeout 调整为 300s 后 reload nginx。'
+  }
+
+  if (typeof data === 'string' && data.trim()) {
+    const text = data.trim()
+    if (text.includes('504 Gateway Time-out') || text.includes('<html')) {
+      return 'AI 调用超时（504）：网关等待后端响应超时，请运维加大 Nginx proxy_read_timeout（建议 300s）。'
+    }
+    return text
+  }
 
   if (data && typeof data === 'object') {
     const d = data as Record<string, unknown>

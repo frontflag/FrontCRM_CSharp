@@ -832,7 +832,7 @@
         </SidebarMenuGroupFlyout>
 
         <SidebarMenuGroupFlyout
-          v-if="hasPermission('rbac.manage')"
+          v-if="hasPermission('rbac.manage') || hasPermission('biz.ai.admin')"
           :collapsed="isCollapsed"
           :expanded="openGroups.paramManagement"
           @toggle="toggleGroup('paramManagement')"
@@ -869,15 +869,36 @@
             </svg>
           </template>
           <template #submenu>
-            <router-link to="/system/company-info" class="submenu-item" active-class="active" exact>{{ t('layout.menu.companyInfo') }}</router-link>
-            <router-link to="/system/dict-items" class="submenu-item" active-class="active" exact>{{ t('layout.menu.dictItems') }}</router-link>
             <router-link
+              v-if="hasPermission('rbac.manage')"
+              to="/system/company-info"
+              class="submenu-item"
+              active-class="active"
+              exact
+            >{{ t('layout.menu.companyInfo') }}</router-link>
+            <router-link
+              v-if="hasPermission('rbac.manage')"
+              to="/system/dict-items"
+              class="submenu-item"
+              active-class="active"
+              exact
+            >{{ t('layout.menu.dictItems') }}</router-link>
+            <router-link
+              v-if="hasPermission('biz.ai.admin')"
+              to="/system/ai-config"
+              class="submenu-item"
+              active-class="active"
+              exact
+            >{{ t('layout.menu.aiConfig') }}</router-link>
+            <router-link
+              v-if="hasPermission('rbac.manage')"
               to="/system/purchase-params/assignee-count"
               class="submenu-item"
               active-class="active"
               exact
             >{{ t('layout.menu.purchaseParams') }}</router-link>
             <router-link
+              v-if="hasPermission('rbac.manage')"
               to="/system/finance-params/exchange-rates"
               class="submenu-item"
               active-class="active"
@@ -1567,6 +1588,7 @@ const pageTitleMap: Record<string, string> = {
   '/system/departments/create': 'layout.menu.departmentManagement',
   '/system/company-info': 'layout.menu.companyInfo',
   '/system/dict-items': 'layout.menu.dictItems',
+  '/system/ai-config': 'layout.menu.aiConfig',
   '/system/finance-params/exchange-rates': 'layout.menu.financeParams',
   '/system/finance-params/payment-banks': 'financeParams.paymentBanksNav',
   '/system/purchase-params/assignee-count': 'layout.menu.purchaseParams',
@@ -1616,6 +1638,7 @@ const pageTitleMap: Record<string, string> = {
   '/debug': 'layout.menu.debug',
   '/debug/data': 'layout.menu.debugData',
   '/debug/tools': 'layout.menu.debugData',
+  '/debug/ai': 'layout.menu.debugData',
   '/finance/payments': 'layout.menu.paymentManagement',
   '/finance/receipts': 'layout.menu.receiptManagement',
   '/finance/receivables': 'layout.menu.receiptManagement',
@@ -1925,7 +1948,7 @@ watch(
     if (p.startsWith('/system/')) {
       openGroups.value.systemManagement = true
     }
-    if (p === '/system/company-info' || p === '/system/dict-items' || p.startsWith('/system/purchase-params') || p.startsWith('/system/finance-params')) {
+    if (p === '/system/company-info' || p === '/system/dict-items' || p === '/system/ai-config' || p.startsWith('/system/purchase-params') || p.startsWith('/system/finance-params')) {
       openGroups.value.paramManagement = true
     }
     if (p === '/system/login-logs' || p === '/system/operation-logs') {

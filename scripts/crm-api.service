@@ -5,6 +5,12 @@
 #   sudo systemctl enable --now crm-api
 #
 # 连接串：写入 /opt/frontcrm/backend/appsettings.json（勿在 appsettings.Production.json 留空连接串覆盖）
+#
+# Kimi / Moonshot API Key（仅环境变量名在 DB；真实 Key 写入下方 env 文件，勿提交 Git）：
+#   sudo mkdir -p /etc/frontcrm && sudo nano /etc/frontcrm/crm-api.env
+#   内容：AI_MOONSHOT_API_KEY=sk-...
+#   sudo chmod 600 /etc/frontcrm/crm-api.env
+# 前缀 "-" 表示文件不存在时不报错（未配 AI 时可省略该文件）
 
 [Unit]
 Description=FrontCRM API
@@ -16,6 +22,7 @@ User=ubuntu
 WorkingDirectory=/opt/frontcrm/backend
 Environment=ASPNETCORE_ENVIRONMENT=Production
 Environment=ASPNETCORE_URLS=http://0.0.0.0:5000
+EnvironmentFile=-/etc/frontcrm/crm-api.env
 ExecStart=/usr/bin/dotnet /opt/frontcrm/backend/CRM.API.dll
 Restart=always
 RestartSec=5

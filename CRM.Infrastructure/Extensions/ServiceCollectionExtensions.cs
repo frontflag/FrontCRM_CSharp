@@ -19,6 +19,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using CRM.Infrastructure.Repositories;
 using CRM.Infrastructure.Services;
+using CRM.Infrastructure.Ai;
 
 namespace CRM.Infrastructure.Extensions
 {
@@ -91,6 +92,12 @@ namespace CRM.Infrastructure.Extensions
             // 替换方式：将下面一行改为 services.AddScoped<IComponentDataService, NexarComponentDataService>();
             services.AddScoped<IComponentDataService, MockComponentDataService>();
             services.AddScoped<IComponentCacheService, ComponentCacheService>();
+
+            services.AddSingleton<MockAiLlmProvider>();
+            services.AddSingleton<IAiSecretResolver, ConfigurationAiSecretResolver>();
+            services.AddScoped<IAiLlmProviderFactory, AiLlmProviderFactory>();
+            services.AddScoped<IAiOrchestrator, AiOrchestrator>();
+            services.AddScoped<IAiAdminService, AiAdminService>();
 
             return services;
         }

@@ -16,6 +16,11 @@ const routes: RouteRecordRaw[] = [
     name: 'Register',
     component: () => import('@/views/Auth/RegisterView.vue')
   },
+  // 常见误输 /ldebug -> /debug
+  {
+    path: '/ldebug',
+    redirect: '/debug'
+  },
   // 带左侧菜单的布局（需要认证）
   {
     path: '/',
@@ -882,6 +887,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/System/OperationLogList.vue'),
         meta: { requiresAuth: true, title: '操作日志', permission: 'rbac.manage' }
       },
+      {
+        path: 'system/ai-config',
+        name: 'AiConfig',
+        component: () => import('@/views/System/AiConfigPage.vue'),
+        meta: { requiresAuth: true, title: 'AI 配置', permission: 'biz.ai.admin' }
+      },
       // 财务模块（meta.permission 与 RbacService 按主部门剥离一致，防止直链 URL）
       {
         path: 'finance/payments',
@@ -966,6 +977,12 @@ const routes: RouteRecordRaw[] = [
         name: 'DebugTools',
         component: () => import('@/views/Debug/DebugTools.vue'),
         meta: { requiresAuth: true, title: 'Debug 工具', sysAdminOnly: true }
+      },
+      {
+        path: 'debug/ai',
+        name: 'DebugAi',
+        component: () => import('@/views/Debug/DebugAi.vue'),
+        meta: { requiresAuth: true, title: 'AI 物料规格', sysAdminOnly: true }
       },
       // 兼容历史访问链接：/debugdata -> /debug/data
       {

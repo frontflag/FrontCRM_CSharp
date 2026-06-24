@@ -55,6 +55,7 @@ onMounted(async () => {
       <div class="panel-body debug-links">
         <router-link class="debug-link" to="/debug/data">Debug 模拟数据</router-link>
         <router-link class="debug-link" to="/debug/tools">Debug 工具</router-link>
+        <router-link class="debug-link" to="/debug/ai">AI 物料规格</router-link>
       </div>
     </section>
 
