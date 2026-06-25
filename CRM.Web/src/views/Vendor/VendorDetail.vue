@@ -184,6 +184,14 @@
                 </svg>
                 {{ t('vendorDetail.contacts.add') }}
               </button>
+              <button
+                v-if="canWritePurchaseData && canAiParseVendorContact"
+                class="btn-add-item btn-add-item--ai"
+                type="button"
+                @click="openAiCreateContact"
+              >
+                {{ t('aiEntityCreate.aiCreate') }}
+              </button>
             </div>
             <CrmDataTable
               :data="contacts"
@@ -281,6 +289,14 @@
                   <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
                 {{ t('vendorDetail.addresses.add') }}
+              </button>
+              <button
+                v-if="canWritePurchaseData && canAiParseVendorAddress"
+                class="btn-add-item btn-add-item--ai"
+                type="button"
+                @click="openAiCreateAddress"
+              >
+                {{ t('aiEntityCreate.aiCreate') }}
               </button>
             </div>
             <CrmDataTable
@@ -700,6 +716,19 @@
       :title="t('vendorDetail.tagDialogTitle')"
       @success="fetchVendorTags"
     />
+
+    <AiEntityCreateHost
+      ref="aiContactCreateHostRef"
+      entity-type="VENDOR_CONTACT"
+      :parent-biz-id="vendorId"
+      :target-route="{ name: 'VendorContactCreate', params: { id: vendorId } }"
+    />
+    <AiEntityCreateHost
+      ref="aiAddressCreateHostRef"
+      entity-type="VENDOR_ADDRESS"
+      :parent-biz-id="vendorId"
+      :target-route="{ name: 'VendorAddressCreate', params: { id: vendorId } }"
+    />
   </div>
 </template>
 
@@ -730,12 +759,20 @@ import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiv
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly';
 import { useFinancePaymentBankOptions } from '@/composables/useFinancePaymentBankOptions';
 import { vendorBankLabel } from '@/utils/vendorFinancePaymentBank';
+import AiEntityCreateHost from '@/components/AiCreate/AiEntityCreateHost.vue';
+import { AI_PERMISSION_ENTITY_PARSE_VENDOR_CONTACT, AI_PERMISSION_ENTITY_PARSE_VENDOR_ADDRESS } from '@/api/ai';
+import { useAuthStore } from '@/stores/auth';
 
 const route = useRoute();
 const router = useRouter();
 const { t, locale } = useI18n();
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask();
 const { canWritePurchaseData } = useDepartmentDataReadOnly();
+const authStore = useAuthStore();
+const canAiParseVendorContact = computed(() => authStore.hasPermission(AI_PERMISSION_ENTITY_PARSE_VENDOR_CONTACT));
+const canAiParseVendorAddress = computed(() => authStore.hasPermission(AI_PERMISSION_ENTITY_PARSE_VENDOR_ADDRESS));
+const aiContactCreateHostRef = ref<InstanceType<typeof AiEntityCreateHost> | null>(null);
+const aiAddressCreateHostRef = ref<InstanceType<typeof AiEntityCreateHost> | null>(null);
 const { paymentBankOptions, loadPaymentBankOptions } = useFinancePaymentBankOptions();
 const vendorDict = useVendorDictStore();
 
@@ -1227,6 +1264,8 @@ const handleConfirmFreezeOrUnfreeze = async () => {
 };
 
 const goCreateContact = () => router.push({ name: 'VendorContactCreate', params: { id: vendorId } });
+const openAiCreateContact = () => aiContactCreateHostRef.value?.open();
+const openAiCreateAddress = () => aiAddressCreateHostRef.value?.open();
 const goEditContact = (row: VendorContactInfo) => router.push({ name: 'VendorContactEdit', params: { id: vendorId, contactId: row.id } });
 
 const handleDeleteContact = async (row: VendorContactInfo) => {

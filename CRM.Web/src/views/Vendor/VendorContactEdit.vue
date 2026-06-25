@@ -142,6 +142,8 @@ import { ElMessage, type FormInstance, type FormRules } from 'element-plus';
 import { vendorApi, vendorContactApi } from '@/api/vendor';
 import type { AddVendorContactRequest, UpdateVendorContactRequest } from '@/types/vendor';
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask';
+import { consumeAiPrefill } from '@/utils/aiPrefill';
+import { markEntityParseSaved } from '@/utils/entityParseLogTrack';
 
 const route = useRoute();
 const router = useRouter();
@@ -155,6 +157,7 @@ const vendorName = ref('供应商详情');
 const pageLoading = ref(false);
 const submitting = ref(false);
 const formRef = ref<FormInstance>();
+const aiParseLogId = ref<string | null>(null);
 // 新建成功后保存联系人 ID，用于名片上传
 const savedContactId = ref<string | null>(contactId || null);
 
@@ -213,6 +216,8 @@ onMounted(async () => {
         formData.remark = contact.remark || '';
         formData.id = contact.id;
       }
+    } else {
+      applyAiPrefillFromRoute();
     }
   } catch (e) {
     console.error('加载数据失败', e);
@@ -220,6 +225,32 @@ onMounted(async () => {
     pageLoading.value = false;
   }
 });
+
+function applyAiPrefillFromRoute() {
+  const raw = route.query.aiPrefill;
+  const token = Array.isArray(raw) ? raw[0] : raw;
+  if (!token || typeof token !== 'string') return;
+  const consumed = consumeAiPrefill('VENDOR_CONTACT', token);
+  const nextQuery = { ...route.query };
+  delete nextQuery.aiPrefill;
+  if (Object.keys(nextQuery).length) {
+    void router.replace({ query: nextQuery });
+  } else {
+    void router.replace({ query: {} });
+  }
+  if (!consumed) return;
+  aiParseLogId.value = consumed.parseLogId;
+  const payload = consumed.payload;
+  if (payload.cName != null) formData.cName = String(payload.cName);
+  if (payload.eName != null) formData.eName = String(payload.eName);
+  if (payload.title != null) formData.title = String(payload.title);
+  if (payload.department != null) formData.department = String(payload.department);
+  if (payload.mobile != null) formData.mobile = String(payload.mobile);
+  if (payload.tel != null) formData.tel = String(payload.tel);
+  if (payload.email != null) formData.email = String(payload.email);
+  if (payload.isMain === true) formData.isMain = true;
+  if (payload.remark != null) formData.remark = String(payload.remark);
+}
 
 const handleBack = () => {
   router.push({ name: 'VendorDetail', params: { id: vendorId }, query: { tab: 'contacts' } });
@@ -237,7 +268,11 @@ const handleSubmit = async () => {
     } else {
       const created = await vendorContactApi.createContact(vendorId, formData as AddVendorContactRequest);
       const newId = (created as any)?.id || (created as any)?.data?.id;
-      if (newId) savedContactId.value = newId;
+      if (newId) {
+        savedContactId.value = newId;
+        markEntityParseSaved(aiParseLogId.value, newId);
+        aiParseLogId.value = null;
+      }
       ElMessage.success('联系人已新增，可继续上传名片');
       if (!newId) handleBack();
     }

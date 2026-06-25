@@ -61,3 +61,44 @@ export function customerAddressCountryToSelect(countryName?: string | null): {
   }
   return { countrySelect: CUSTOMER_ADDRESS_COUNTRY_OTHER, countryOther: name }
 }
+
+const CHINA_CASCADER_COUNTRY_ALIASES: Record<string, string> = {
+  香港: '香港',
+  'Hong Kong': '香港',
+  HK: '香港',
+  台湾: '台湾',
+  Taiwan: '台湾',
+  TW: '台湾',
+  澳门: '澳门',
+  Macau: '澳门',
+  MO: '澳门'
+}
+
+/** 港澳台与国内地址均走「中国」+ 省市区级联 */
+export function usesChinaRegionCascader(countryName?: string | null, province?: string | null): boolean {
+  const c = String(countryName ?? '').trim()
+  if (!c || c === CUSTOMER_ADDRESS_COUNTRY_CHINA) return true
+  if (c in CHINA_CASCADER_COUNTRY_ALIASES || ['香港', '澳门', '台湾'].includes(c)) return true
+  const p = String(province ?? '').trim()
+  return ['香港', '台湾', '澳门'].includes(p)
+}
+
+/** 将港澳台等国家名归一为「中国」，并把地区名写入 province（供级联） */
+export function normalizeAddressChinaCascaderCountry(
+  country: string,
+  province: string
+): { country: string; province: string } {
+  const c = country.trim()
+  const p = province.trim()
+  if (!c || c === CUSTOMER_ADDRESS_COUNTRY_CHINA) {
+    return { country: CUSTOMER_ADDRESS_COUNTRY_CHINA, province: p }
+  }
+  const mapped = CHINA_CASCADER_COUNTRY_ALIASES[c]
+  if (mapped) {
+    return { country: CUSTOMER_ADDRESS_COUNTRY_CHINA, province: p || mapped }
+  }
+  if (['香港', '澳门', '台湾'].includes(c)) {
+    return { country: CUSTOMER_ADDRESS_COUNTRY_CHINA, province: p || c }
+  }
+  return { country: c, province: p }
+}

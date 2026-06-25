@@ -13,10 +13,30 @@
         <el-button v-if="canCreateNewRfq" class="btn-ghost btn-sm" @click="importDialogVisible = true">
           <el-icon><Upload /></el-icon>{{ t('rfqList.importExcel') }}
         </el-button>
-        <button v-if="canCreateNewRfq" class="btn-success" type="button" @click="goCreateRfq">
-          <el-icon class="btn-success__icon"><Plus /></el-icon>
-          {{ t('rfqList.create') }}
-        </button>
+        <template v-if="canCreateNewRfq">
+          <div v-if="canAiParseRfq" class="btn-split-group">
+            <button class="btn-success" type="button" @click="goCreateRfq">
+              <el-icon class="btn-success__icon"><Plus /></el-icon>
+              {{ t('rfqList.create') }}
+            </button>
+            <el-dropdown trigger="click" @command="onCreateDropdownCommand">
+              <button type="button" class="btn-success btn-success--caret" :aria-label="t('customerList.expandMenu')">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="aiCreate">{{ t('aiEntityCreate.aiCreate') }}</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+          <button v-else class="btn-success" type="button" @click="goCreateRfq">
+            <el-icon class="btn-success__icon"><Plus /></el-icon>
+            {{ t('rfqList.create') }}
+          </button>
+        </template>
       </div>
     </div>
 
@@ -204,6 +224,11 @@
       v-model="importDialogVisible"
       @created="handleImportCreated"
     />
+    <AiEntityCreateHost
+      ref="aiCreateHostRef"
+      entity-type="RFQ"
+      :target-route="{ name: 'RFQCreate' }"
+    />
   </div>
 </template>
 
@@ -215,6 +240,8 @@ import { useAuthStore } from '@/stores/auth'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { Plus, Search, Setting, Upload } from '@element-plus/icons-vue'
 import ImportRFQDialog from './components/ImportRFQDialog.vue'
+import AiEntityCreateHost from '@/components/AiCreate/AiEntityCreateHost.vue'
+import { AI_PERMISSION_ENTITY_PARSE_RFQ } from '@/api/ai'
 import { ElMessage } from 'element-plus'
 import { rfqApi } from '@/api/rfq'
 import { getApiErrorMessage } from '@/utils/apiError'
@@ -230,6 +257,8 @@ const authStore = useAuthStore()
 
 /** 新建需求 / Excel 导入（调用创建 API） */
 const canCreateNewRfq = computed(() => authStore.hasPermission('rfq.create'))
+const canAiParseRfq = computed(() => authStore.hasPermission(AI_PERMISSION_ENTITY_PARSE_RFQ))
+const aiCreateHostRef = ref<InstanceType<typeof AiEntityCreateHost> | null>(null)
 /** 编辑需求头表（分配等维护仍用 rfq.write） */
 const canEditRfq = computed(() => authStore.hasPermission('rfq.write'))
 /** 与后端 RFQ 脱敏一致：采购等角色可有 customer.read 但不应见需求侧客户名（需 customer.info.read） */
@@ -249,6 +278,10 @@ function goCreateRfq() {
     return
   }
   router.push({ name: 'RFQCreate' })
+}
+
+function onCreateDropdownCommand(cmd: string) {
+  if (cmd === 'aiCreate') aiCreateHostRef.value?.open()
 }
 
 const loading = ref(false)
@@ -784,6 +817,25 @@ html[data-theme='dark'] .rfq-list-qty {
   &:hover {
     transform: translateY(-1px);
     box-shadow: 0 4px 16px rgba(70, 191, 145, 0.3);
+  }
+
+  &--caret {
+    border-left: 1px solid rgba(255, 255, 255, 0.25);
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    min-width: 38px;
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+}
+
+.btn-split-group {
+  display: inline-flex;
+  align-items: stretch;
+
+  .btn-success:first-child {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
   }
 }
 

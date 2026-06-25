@@ -2,6 +2,7 @@ using System.Diagnostics;
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Ai;
+using CRM.Infrastructure.Ai.EntityParse;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -17,6 +18,7 @@ public sealed class AiOrchestrator : IAiOrchestrator
     private readonly IAiLlmProviderFactory _providerFactory;
     private readonly IRbacService _rbacService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IAiEntityParseLogService _entityParseLogService;
     private readonly ILogger<AiOrchestrator> _logger;
 
     public AiOrchestrator(
@@ -27,6 +29,7 @@ public sealed class AiOrchestrator : IAiOrchestrator
         IAiLlmProviderFactory providerFactory,
         IRbacService rbacService,
         IUnitOfWork unitOfWork,
+        IAiEntityParseLogService entityParseLogService,
         ILogger<AiOrchestrator> logger)
     {
         _scenarioRepo = scenarioRepo;
@@ -36,6 +39,7 @@ public sealed class AiOrchestrator : IAiOrchestrator
         _providerFactory = providerFactory;
         _rbacService = rbacService;
         _unitOfWork = unitOfWork;
+        _entityParseLogService = entityParseLogService;
         _logger = logger;
     }
 
@@ -86,17 +90,20 @@ public sealed class AiOrchestrator : IAiOrchestrator
                     scenario, provider, template, uid, request, fingerprintJson,
                     string.Empty, null, AiInvocationStatusCode.Cached, true, 0, null, null, cancellationToken);
 
-                return new AiInvokeResultDto
-                {
-                    InvocationId = cacheLogId,
-                    FromCache = true,
-                    Content = cached.ResponseContent,
-                    Data = AiJsonHelper.TryParseJsonObject(cached.ResponseJson ?? cached.ResponseContent),
-                    Usage = null,
-                    ScenarioCode = scenario.Code,
-                    ProviderCode = cached.ProviderCode,
-                    Model = cached.Model
-                };
+                return await EnrichEntityParseResultAsync(
+                    new AiInvokeResultDto
+                    {
+                        InvocationId = cacheLogId,
+                        FromCache = true,
+                        Content = cached.ResponseContent,
+                        Data = AiJsonHelper.TryParseJsonObject(cached.ResponseJson ?? cached.ResponseContent),
+                        Usage = null,
+                        ScenarioCode = scenario.Code,
+                        ProviderCode = cached.ProviderCode,
+                        Model = cached.Model
+                    },
+                    scenario, template, uid, request, filteredInput, cached.ResponseContent,
+                    cached.ResponseJson ?? cached.ResponseContent, true, 0, cancellationToken);
             }
         }
 
@@ -167,17 +174,71 @@ public sealed class AiOrchestrator : IAiOrchestrator
             ? AiJsonHelper.TryParseJsonObject(content)
             : null;
 
-        return new AiInvokeResultDto
+        return await EnrichEntityParseResultAsync(
+            new AiInvokeResultDto
+            {
+                InvocationId = logId,
+                FromCache = false,
+                Content = content,
+                Data = parsedData,
+                Usage = llmResult.Usage,
+                ScenarioCode = scenario.Code,
+                ProviderCode = provider.Code,
+                Model = scenario.Model
+            },
+            scenario, template, uid, request, filteredInput, content, content, false,
+            (int)sw.ElapsedMilliseconds, cancellationToken);
+    }
+
+    private async Task<AiInvokeResultDto> EnrichEntityParseResultAsync(
+        AiInvokeResultDto result,
+        AiScenario scenario,
+        AiPromptTemplate template,
+        string userId,
+        AiInvokeRequestDto request,
+        IReadOnlyDictionary<string, string?> filteredInput,
+        string rawLlmContent,
+        string parseResultRaw,
+        bool fromCache,
+        int latencyMs,
+        CancellationToken cancellationToken)
+    {
+        if (!EntityParseNormalizer.IsEntityParseScenario(scenario.Code))
+            return result;
+
+        filteredInput.TryGetValue("raw_text", out var rawText);
+        try
         {
-            InvocationId = logId,
-            FromCache = false,
-            Content = content,
-            Data = parsedData,
-            Usage = llmResult.Usage,
-            ScenarioCode = scenario.Code,
-            ProviderCode = provider.Code,
-            Model = scenario.Model
-        };
+            var created = await _entityParseLogService.TryCreateParsedLogAsync(new EntityParseLogCreateRequest
+            {
+                InvocationId = result.InvocationId,
+                ScenarioCode = scenario.Code,
+                EntityType = request.BizType,
+                UserId = userId,
+                ParentBizId = request.BizId,
+                RawText = rawText ?? string.Empty,
+                ParseResultRaw = parseResultRaw,
+                RawLlmObject = result.Data,
+                TemplateVersion = template.Version,
+                ProviderCode = result.ProviderCode,
+                Model = result.Model,
+                FromCache = fromCache,
+                LatencyMs = latencyMs
+            }, cancellationToken);
+
+            if (created != null)
+            {
+                result.EntityParseLogId = created.LogId;
+                if (created.NormalizedData != null)
+                    result.Data = created.NormalizedData;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "AI entity parse log write failed scenario={Scenario}", scenario.Code);
+        }
+
+        return result;
     }
 
     private static string AppendMaterialIntelLanguageGuard(string systemPrompt)

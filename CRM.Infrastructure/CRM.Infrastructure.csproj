@@ -16,6 +16,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Migrations\Sql\InventoryStockTablesColumnBusinessComments.sql" />
     <EmbeddedResource Include="Migrations\Sql\StockColumnBusinessComments.sql" />
+    <EmbeddedResource Include="Ai\EntityParse\china_regions.json" />
   </ItemGroup>
 
   <PropertyGroup>

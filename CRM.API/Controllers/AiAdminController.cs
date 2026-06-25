@@ -14,11 +14,16 @@ namespace CRM.API.Controllers;
 public class AiAdminController : ControllerBase
 {
     private readonly IAiAdminService _adminService;
+    private readonly IAiEntityParseLogService _entityParseLogService;
     private readonly ILogger<AiAdminController> _logger;
 
-    public AiAdminController(IAiAdminService adminService, ILogger<AiAdminController> logger)
+    public AiAdminController(
+        IAiAdminService adminService,
+        IAiEntityParseLogService entityParseLogService,
+        ILogger<AiAdminController> logger)
     {
         _adminService = adminService;
+        _entityParseLogService = entityParseLogService;
         _logger = logger;
     }
 
@@ -164,5 +169,78 @@ public class AiAdminController : ControllerBase
     {
         var summary = await _adminService.GetUsageSummaryAsync(cancellationToken);
         return Ok(ApiResponse<AiUsageSummaryDto>.Ok(summary, "ok"));
+    }
+
+    [HttpGet("entity-parse-logs")]
+    [RequirePermission("biz.ai.admin")]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<AiEntityParseLogListItemDto>>>> ListEntityParseLogs(
+        [FromQuery] int take = 50,
+        [FromQuery] string? scenarioCode = null,
+        [FromQuery] string? entityType = null,
+        [FromQuery] string? outcome = null,
+        [FromQuery] string? userId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var list = await _entityParseLogService.ListForAdminAsync(new AiEntityParseLogQueryDto
+        {
+            Take = take,
+            ScenarioCode = scenarioCode,
+            EntityType = entityType,
+            Outcome = outcome,
+            UserId = userId
+        }, cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<AiEntityParseLogListItemDto>>.Ok(list, "ok"));
+    }
+
+    [HttpGet("entity-parse-logs/export")]
+    [RequirePermission("biz.ai.admin")]
+    public async Task<IActionResult> ExportEntityParseLogs(
+        [FromQuery] int take = 500,
+        [FromQuery] string? scenarioCode = null,
+        [FromQuery] string? entityType = null,
+        [FromQuery] string? outcome = null,
+        [FromQuery] string? userId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var bytes = await _entityParseLogService.ExportCsvAsync(new AiEntityParseLogQueryDto
+        {
+            Take = take,
+            ScenarioCode = scenarioCode,
+            EntityType = entityType,
+            Outcome = outcome,
+            UserId = userId
+        }, cancellationToken);
+        var fileName = $"ai_entity_parse_logs_{DateTime.UtcNow:yyyyMMddHHmmss}.csv";
+        return File(bytes, "text/csv; charset=utf-8", fileName);
+    }
+
+    [HttpGet("entity-parse-logs/{id}")]
+    [RequirePermission("biz.ai.admin")]
+    public async Task<ActionResult<ApiResponse<AiEntityParseLogDetailDto>>> GetEntityParseLogDetail(
+        string id,
+        CancellationToken cancellationToken)
+    {
+        var detail = await _entityParseLogService.GetDetailForAdminAsync(id, cancellationToken);
+        if (detail == null)
+            return NotFound(ApiResponse<AiEntityParseLogDetailDto>.Fail("记录不存在", 404));
+        return Ok(ApiResponse<AiEntityParseLogDetailDto>.Ok(detail, "ok"));
+    }
+
+    [HttpPost("entity-parse-logs/purge")]
+    [RequirePermission("biz.ai.admin")]
+    public async Task<ActionResult<ApiResponse<object>>> PurgeEntityParseLogs(
+        [FromQuery] int keepDays = 180,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var deleted = await _entityParseLogService.PurgeOlderThanAsync(keepDays, cancellationToken);
+            return Ok(ApiResponse<object>.Ok(new { deleted, keepDays }, $"已清理 {deleted} 条记录"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Purge entity parse logs failed keepDays={KeepDays}", keepDays);
+            return StatusCode(500, ApiResponse<object>.Fail("清理失败"));
+        }
     }
 }

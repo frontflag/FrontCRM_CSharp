@@ -167,6 +167,8 @@ import { useRoute, useRouter } from 'vue-router';
 import { ElNotification, type FormInstance, type FormRules } from 'element-plus';
 import { customerContactApi, customerApi } from '@/api/customer';
 import type { CreateContactRequest } from '@/types/customer';
+import { consumeAiPrefill } from '@/utils/aiPrefill';
+import { markEntityParseSaved } from '@/utils/entityParseLogTrack';
 
 const route = useRoute();
 const router = useRouter();
@@ -179,6 +181,7 @@ const customerName = ref('客户详情');
 const pageLoading = ref(false);
 const submitting = ref(false);
 const formRef = ref<FormInstance>();
+const aiParseLogId = ref<string | null>(null);
 // 新建成功后保存联系人 ID，用于名片上传
 const savedContactId = ref<string | null>(contactId || null);
 
@@ -248,6 +251,8 @@ onMounted(async () => {
           remarks: contact.remarks || ''
         };
       }
+    } else {
+      applyAiPrefillFromRoute();
     }
   } catch (e) {
     console.error('加载数据失败', e);
@@ -255,6 +260,38 @@ onMounted(async () => {
     pageLoading.value = false;
   }
 });
+
+function applyAiPrefillFromRoute() {
+  const raw = route.query.aiPrefill;
+  const token = Array.isArray(raw) ? raw[0] : raw;
+  if (!token || typeof token !== 'string') return;
+  const consumed = consumeAiPrefill('CUSTOMER_CONTACT', token);
+  const nextQuery = { ...route.query };
+  delete nextQuery.aiPrefill;
+  if (Object.keys(nextQuery).length) {
+    void router.replace({ query: nextQuery });
+  } else {
+    void router.replace({ query: {} });
+  }
+  if (!consumed) return;
+  aiParseLogId.value = consumed.parseLogId;
+  const payload = consumed.payload;
+  formData.value = {
+    ...formData.value,
+    contactName: String(payload.contactName ?? formData.value.contactName),
+    gender: payload.gender != null ? Number(payload.gender) : formData.value.gender,
+    department: String(payload.department ?? formData.value.department),
+    position: String(payload.position ?? formData.value.position),
+    mobilePhone: String(payload.mobilePhone ?? formData.value.mobilePhone),
+    phone: String(payload.phone ?? formData.value.phone),
+    email: String(payload.email ?? formData.value.email),
+    fax: String(payload.fax ?? formData.value.fax),
+    socialAccount: String(payload.socialAccount ?? formData.value.socialAccount),
+    isDefault: payload.isDefault === true,
+    isDecisionMaker: payload.isDecisionMaker === true,
+    remarks: String(payload.remarks ?? formData.value.remarks)
+  };
+}
 
 const handleBack = () => {
   router.push({ name: 'CustomerDetail', params: { id: customerId }, query: { tab: 'contacts' } });
@@ -271,9 +308,12 @@ const handleSubmit = async () => {
       handleBack();
     } else {
       const created = await customerContactApi.createContact(customerId, formData.value);
-      // 保存联系人 ID 供名片上传使用
       const newId = (created as any)?.id || (created as any)?.data?.id;
-      if (newId) savedContactId.value = newId;
+      if (newId) {
+        savedContactId.value = newId;
+        markEntityParseSaved(aiParseLogId.value, newId);
+        aiParseLogId.value = null;
+      }
       ElNotification.success({ title: '添加成功', message: '联系人已添加，可继续上传名片' });
       // 新建成功后不立即跳转，等待用户上传名片（可选）
       // 如果没有 newId 则直接返回

@@ -1,4 +1,6 @@
--- AI module PostgreSQL bootstrap (DBeaver-safe: no double-brace literals anywhere)
+-- AI module PostgreSQL bootstrap
+-- DBeaver-safe：见 document/PRD/规范/业务规范/PostgreSQL增量脚本编写规范.md
+-- 脚本内勿出现双花括号占位符字面量（含注释）
 
 -- ========== tables ==========
 

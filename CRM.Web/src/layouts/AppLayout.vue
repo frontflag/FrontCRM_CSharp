@@ -1332,6 +1332,7 @@ const isCustomerLeftAuxRoute = computed(() => {
     n === 'CustomerFreezeManagement' ||
     n === 'CustomerContactCreate' ||
     n === 'CustomerContactEdit' ||
+    n === 'CustomerAddressCreate' ||
     n === 'CustomerWarrantyReport'
   )
 })
@@ -1362,6 +1363,7 @@ const isVendorLeftAuxRoute = computed(() => {
     n === 'VendorFreezeManagement' ||
     n === 'VendorContactCreate' ||
     n === 'VendorContactEdit' ||
+    n === 'VendorAddressCreate' ||
     n === 'VendorWarrantyReport'
   )
 })

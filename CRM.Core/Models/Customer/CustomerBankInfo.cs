@@ -49,6 +49,24 @@ namespace CRM.Core.Models.Customer
         public string? BankBranch { get; set; }
 
         /// <summary>
+        /// 银行地址
+        /// </summary>
+        [StringLength(500)]
+        public string? BankAddress { get; set; }
+
+        /// <summary>
+        /// 联行号 / 银行代码
+        /// </summary>
+        [StringLength(32)]
+        public string? BankCode { get; set; }
+
+        /// <summary>
+        /// SWIFT 代码
+        /// </summary>
+        [StringLength(64)]
+        public string? Swift { get; set; }
+
+        /// <summary>
         /// 币别
         /// </summary>
         public short? Currency { get; set; }

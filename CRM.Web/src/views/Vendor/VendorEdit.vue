@@ -353,6 +353,8 @@ import { useVendorDictStore } from '@/stores/vendorDict';
 import { logRecentApi } from '@/api/logRecent';
 import { VENDOR_RECENT_HISTORY_CHANGED_EVENT } from '@/constants/vendorRecentHistory';
 import FinancePaymentBankSelect from '@/components/Finance/FinancePaymentBankSelect.vue';
+import { consumeAiPrefill } from '@/utils/aiPrefill';
+import { markEntityParseSaved } from '@/utils/entityParseLogTrack';
 
 const route = useRoute();
 const router = useRouter();
@@ -365,6 +367,7 @@ const isEdit = computed(() => !!route.params.id);
 const vendorId = computed(() => route.params.id as string);
 
 const formRef = ref<FormInstance>();
+const aiParseLogId = ref<string | null>(null);
 const saving = ref(false);
 const currentDraftId = ref('');
 
@@ -636,12 +639,17 @@ const handleSave = async () => {
         await syncContactsForVendor(targetVendorId);
       }
 
-      return mode;
+      return { mode, targetVendorId };
     },
-    formatSuccess: (mode) => (mode === 'edit' ? t('vendorEdit.messages.saveSuccess') : t('vendorEdit.messages.createSuccess')),
-    onSuccess: (mode) => {
-      if (mode === 'create') router.replace({ name: 'VendorList' });
-      else void fetchVendorDetail();
+    formatSuccess: ({ mode }) => (mode === 'edit' ? t('vendorEdit.messages.saveSuccess') : t('vendorEdit.messages.createSuccess')),
+    onSuccess: ({ mode, targetVendorId }) => {
+      if (mode === 'create') {
+        markEntityParseSaved(aiParseLogId.value, targetVendorId);
+        aiParseLogId.value = null;
+        router.replace({ name: 'VendorList' });
+      } else {
+        void fetchVendorDetail();
+      }
     },
     errorMessage: (error: unknown) => {
       const e = error as { message?: string; data?: { message?: string } };
@@ -758,6 +766,23 @@ const syncContactsForVendor = async (targetVendorId: string) => {
   reconcileMainContactKey();
 };
 
+async function applyAiPrefillFromRoute() {
+  const raw = route.query.aiPrefill;
+  const token = Array.isArray(raw) ? raw[0] : raw;
+  if (!token || typeof token !== 'string') return;
+  const consumed = consumeAiPrefill('VENDOR', token);
+  const nextQuery = { ...route.query };
+  delete nextQuery.aiPrefill;
+  if (Object.keys(nextQuery).length) {
+    void router.replace({ query: nextQuery });
+  } else {
+    void router.replace({ query: {} });
+  }
+  if (!consumed) return;
+  aiParseLogId.value = consumed.parseLogId;
+  applyDraftPayload({ ...consumed.payload, contacts: [] });
+}
+
 onMounted(async () => {
   void vendorDict.ensureLoaded();
   void fetchVendorDetail();
@@ -766,6 +791,10 @@ onMounted(async () => {
     restoreDraftById(draftId).catch((err: any) => {
       ElMessage.error(err?.message || t('vendorEdit.messages.draftRestoreFailed'));
     });
+    return;
+  }
+  if (!isEdit.value) {
+    void applyAiPrefillFromRoute();
   }
 });
 </script>

@@ -232,6 +232,14 @@
                   </svg>
                   添加联系人
                 </button>
+                <button
+                  v-if="canWriteSaleData && canAiParseCustomerContact"
+                  class="btn-add-item btn-add-item--ai"
+                  type="button"
+                  @click="openAiCreateContact"
+                >
+                  {{ t('aiEntityCreate.aiCreate') }}
+                </button>
               </div>
               <CrmDataTable :data="customer.contacts" class="quantum-table"
                 :header-cell-style="tableHeaderStyle" :cell-style="tableCellStyle" :row-style="tableRowStyle">
@@ -316,6 +324,14 @@
                     <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                   </svg>
                   添加地址
+                </button>
+                <button
+                  v-if="canWriteSaleData && canAiParseCustomerAddress"
+                  class="btn-add-item btn-add-item--ai"
+                  type="button"
+                  @click="openAiCreateAddress"
+                >
+                  {{ t('aiEntityCreate.aiCreate') }}
                 </button>
               </div>
               <CrmDataTable :data="customer.addresses" class="quantum-table"
@@ -684,6 +700,19 @@
         <el-button type="primary" :loading="actionLoading" @click="handleConfirmRemoveBlacklist">确定</el-button>
       </template>
     </el-dialog>
+
+    <AiEntityCreateHost
+      ref="aiContactCreateHostRef"
+      entity-type="CUSTOMER_CONTACT"
+      :parent-biz-id="customerId"
+      :target-route="{ name: 'CustomerContactCreate', params: { id: customerId } }"
+    />
+    <AiEntityCreateHost
+      ref="aiAddressCreateHostRef"
+      entity-type="CUSTOMER_ADDRESS"
+      :parent-biz-id="customerId"
+      :target-route="{ name: 'CustomerAddressCreate', params: { id: customerId } }"
+    />
   </div>
 </template>
 
@@ -724,6 +753,8 @@ import { isDistrictPlaceholder } from '@/constants/region';
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask';
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly';
 import { formatTotalAmountNumber, listAmountCurrencyDockClass, listAmountCurrencyIso } from '@/utils/moneyFormat';
+import AiEntityCreateHost from '@/components/AiCreate/AiEntityCreateHost.vue';
+import { AI_PERMISSION_ENTITY_PARSE_CUSTOMER_CONTACT, AI_PERMISSION_ENTITY_PARSE_CUSTOMER_ADDRESS } from '@/api/ai';
 
 const route = useRoute();
 const router = useRouter();
@@ -732,6 +763,10 @@ const authStore = useAuthStore();
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask();
 const { canWriteSaleData } = useDepartmentDataReadOnly();
 const canCreateRfqFromCustomer = computed(() => authStore.hasPermission('rfq.create'));
+const canAiParseCustomerContact = computed(() => authStore.hasPermission(AI_PERMISSION_ENTITY_PARSE_CUSTOMER_CONTACT));
+const canAiParseCustomerAddress = computed(() => authStore.hasPermission(AI_PERMISSION_ENTITY_PARSE_CUSTOMER_ADDRESS));
+const aiContactCreateHostRef = ref<InstanceType<typeof AiEntityCreateHost> | null>(null);
+const aiAddressCreateHostRef = ref<InstanceType<typeof AiEntityCreateHost> | null>(null);
 const customerDict = useCustomerDictStore();
 const customerId = route.params.id as string;
 
@@ -1057,6 +1092,8 @@ const handleCreateRfq = () => {
 };
 
 const goAddContact = () => router.push({ name: 'CustomerContactCreate', params: { id: customerId } });
+const openAiCreateContact = () => aiContactCreateHostRef.value?.open();
+const openAiCreateAddress = () => aiAddressCreateHostRef.value?.open();
 const goEditContact = (contact: CustomerContactInfo) => router.push({ name: 'CustomerContactEdit', params: { id: customerId, contactId: contact.id } });
 const deleteContact = async (contact: CustomerContactInfo) => {
   try {

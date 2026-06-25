@@ -34,18 +34,41 @@
             </div>
           </div>
         </div>
-        <button
-          v-if="canCreateVendor"
-          type="button"
-          class="vendor-home__btn-create"
-          @click="goCreateVendor"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          {{ t('vendorHome.create') }}
-        </button>
+        <template v-if="canCreateVendor">
+          <div v-if="canAiParseVendor" class="vendor-home__split-create">
+            <button type="button" class="vendor-home__btn-create" @click="goCreateVendor">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              {{ t('vendorHome.create') }}
+            </button>
+            <el-dropdown trigger="click" @command="onCreateDropdownCommand">
+              <button type="button" class="vendor-home__btn-create vendor-home__btn-create--caret" :aria-label="t('vendorList.expandMenu')">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="aiCreate">{{ t('aiEntityCreate.aiCreate') }}</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+          <button
+            v-else
+            type="button"
+            class="vendor-home__btn-create"
+            @click="goCreateVendor"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            {{ t('vendorHome.create') }}
+          </button>
+        </template>
       </div>
     </div>
 
@@ -176,6 +199,12 @@
         </div>
       </div>
     </template>
+
+    <AiEntityCreateHost
+      ref="aiCreateHostRef"
+      entity-type="VENDOR"
+      :target-route="{ name: 'VendorCreate' }"
+    />
   </div>
 </template>
 
@@ -186,6 +215,8 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { vendorApi } from '@/api/vendor'
+import { AI_PERMISSION_ENTITY_PARSE_VENDOR } from '@/api/ai'
+import AiEntityCreateHost from '@/components/AiCreate/AiEntityCreateHost.vue'
 import { buildVendorListQuery } from '@/utils/vendorListQuery'
 import type { VendorStatistics } from '@/types/vendor'
 
@@ -195,6 +226,8 @@ const authStore = useAuthStore()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const canViewVendorInfo = authStore.hasPermission('vendor.info.read')
 const canCreateVendor = computed(() => authStore.hasPermission('vendor.write'))
+const canAiParseVendor = computed(() => authStore.hasPermission(AI_PERMISSION_ENTITY_PARSE_VENDOR))
+const aiCreateHostRef = ref<InstanceType<typeof AiEntityCreateHost> | null>(null)
 
 const keyword = ref('')
 const stats = ref<VendorStatistics | null>(null)
@@ -225,6 +258,10 @@ function goListPlain() {
 
 function goCreateVendor() {
   router.push({ name: 'VendorCreate' })
+}
+
+function onCreateDropdownCommand(cmd: string) {
+  if (cmd === 'aiCreate') aiCreateHostRef.value?.open()
 }
 
 onMounted(async () => {
@@ -393,6 +430,25 @@ onMounted(async () => {
     transform: translateY(-1px);
     box-shadow: 0 4px 16px color-mix(in srgb, $color-mint-green 35%, transparent);
   }
+}
+
+.vendor-home__split-create {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: stretch;
+}
+
+.vendor-home__btn-create--caret {
+  padding-left: 10px;
+  padding-right: 10px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-left: 1px solid color-mix(in srgb, #fff 25%, transparent);
+}
+
+.vendor-home__split-create > .vendor-home__btn-create:first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 .vendor-home__loading {

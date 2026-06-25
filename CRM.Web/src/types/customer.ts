@@ -114,6 +114,8 @@ export interface CustomerBankInfo {
   accountNumber: string
   accountName: string
   bankBranch: string
+  bankAddress?: string
+  bankCode?: string
   currency: number
   swiftCode?: string
   isDefault: boolean
@@ -456,6 +458,8 @@ export interface CreateBankInfoRequest {
   accountName: string
   bankName: string
   bankBranch: string
+  bankAddress?: string
+  bankCode?: string
   accountNumber: string
   currency: number
   swiftCode?: string

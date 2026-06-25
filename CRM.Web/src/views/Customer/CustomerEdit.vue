@@ -388,6 +388,8 @@ import { useI18n } from 'vue-i18n';
 import { ElNotification, ElMessageBox, type FormInstance, type FormRules } from 'element-plus';
 import { customerApi, customerContactApi } from '@/api/customer';
 import { draftApi } from '@/api/draft';
+import { consumeAiPrefill } from '@/utils/aiPrefill';
+import { markEntityParseSaved } from '@/utils/entityParseLogTrack';
 import SalesUserCascader from '@/components/SalesUserCascader.vue';
 import RegionCascaderWithQuickPick from '@/components/RegionCascaderWithQuickPick.vue';
 import { regionData } from '@/data/regions';
@@ -483,6 +485,7 @@ function normalizeContactRow(c: any, idx?: number) {
 const isEdit = computed(() => !!route.params.id);
 const customerId = computed(() => route.params.id as string);
 const formRef = ref<FormInstance>();
+const aiParseLogId = ref<string | null>(null);
 const currentDraftId = ref('');
 
 const formData = reactive<CreateCustomerRequest & { contacts: any[] }>({
@@ -757,6 +760,23 @@ const restoreDraftById = async (draftId: string) => {
   currentDraftId.value = draft.draftId;
 };
 
+async function applyAiPrefillFromRoute() {
+  const raw = route.query.aiPrefill;
+  const token = Array.isArray(raw) ? raw[0] : raw;
+  if (!token || typeof token !== 'string') return;
+  const consumed = consumeAiPrefill('CUSTOMER', token);
+  const nextQuery = { ...route.query };
+  delete nextQuery.aiPrefill;
+  if (Object.keys(nextQuery).length) {
+    void router.replace({ query: nextQuery });
+  } else {
+    void router.replace({ query: {} });
+  }
+  if (!consumed) return;
+  aiParseLogId.value = consumed.parseLogId;
+  await applyDraftPayload({ ...consumed.payload, contacts: [] });
+}
+
 const syncContactsForCustomer = async (targetCustomerId: string) => {
   const existingContacts = await customerContactApi.getContactsByCustomerId(targetCustomerId);
   const existingById = new Map(existingContacts.map((c: any) => [c.id, c]));
@@ -822,10 +842,17 @@ const handleSave = async () => {
       if (targetCustomerId) {
         await syncContactsForCustomer(targetCustomerId);
       }
+      return { editing, targetCustomerId };
     },
-    formatSuccess: () =>
+    formatSuccess: ({ editing }) =>
       editing ? t('customerEdit.messages.saveSuccessUpdate') : t('customerEdit.messages.saveSuccessCreate'),
-    onSuccess: () => router.push({ name: 'CustomerList' }),
+    onSuccess: ({ editing, targetCustomerId }) => {
+      if (!editing && targetCustomerId) {
+        markEntityParseSaved(aiParseLogId.value, targetCustomerId);
+        aiParseLogId.value = null;
+      }
+      router.push({ name: 'CustomerList' });
+    },
     errorMessage: (err: unknown) => {
       const e = err as {
         response?: { data?: { message?: string; errors?: string[] } };
@@ -860,6 +887,8 @@ onMounted(() => {
         message: err?.message || t('customerEdit.messages.restoreFailed')
       });
     });
+  } else if (!isEdit.value) {
+    void applyAiPrefillFromRoute();
   }
 });
 </script>

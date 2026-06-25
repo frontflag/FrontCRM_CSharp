@@ -98,6 +98,7 @@ namespace CRM.Infrastructure.Extensions
             services.AddScoped<IAiLlmProviderFactory, AiLlmProviderFactory>();
             services.AddScoped<IAiOrchestrator, AiOrchestrator>();
             services.AddScoped<IAiAdminService, AiAdminService>();
+            services.AddScoped<IAiEntityParseLogService, AiEntityParseLogService>();
 
             return services;
         }

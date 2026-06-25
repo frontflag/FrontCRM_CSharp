@@ -12,6 +12,7 @@
         </el-breadcrumb>
       </div>
       <div class="header-right">
+        <el-button v-if="!isEditMode" @click="saveDraftOnly">保存草稿</el-button>
         <el-button @click="router.back()">取消</el-button>
         <el-button type="primary" :loading="submitLoading" @click="handleSubmit">
           <el-icon><Check /></el-icon> {{ isEditMode ? '保存修改' : '保存' }}
@@ -543,10 +544,13 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElNotification } from 'element-plus'
 import { ArrowLeft, Check, Plus, QuestionFilled } from '@element-plus/icons-vue'
 import { rfqApi } from '@/api/rfq'
 import { customerApi, customerContactApi } from '@/api/customer'
+import { draftApi } from '@/api/draft'
+import { consumeAiPrefill } from '@/utils/aiPrefill'
+import { markEntityParseSaved } from '@/utils/entityParseLogTrack'
 import type { CreateRFQItemRequest, CreateRFQRequest, UpdateRFQRequest } from '@/types/rfq'
 import { useAuthStore } from '@/stores/auth'
 import { getApiErrorMessage } from '@/utils/apiError'
@@ -575,6 +579,16 @@ const authStore = useAuthStore()
 const { ensureLoaded: ensureMaterialPdDict, defaultCode: defaultProductionDateCode, coerceProductionDateToCode: coercePd } =
   useMaterialProductionDateDict()
 const customerDict = useCustomerDictStore()
+const currentDraftId = ref('')
+/** 已应用的 aiPrefill token，避免 StrictMode 重复 consume / 清 query 后误 reset */
+const appliedAiPrefillTokens = new Set<string>()
+const aiParseLogId = ref<string | null>(null)
+let skipCreateResetOnce = false
+
+function queryToken(v: unknown): string {
+  const raw = Array.isArray(v) ? v[0] : v
+  return typeof raw === 'string' ? raw.trim() : ''
+}
 
 /** 物料明细展示：面板（默认，每行 4 字段） / 列表（横向表格） */
 const materialItemsViewMode = ref<'panel' | 'list'>('panel')
@@ -780,6 +794,78 @@ async function applyPrefillCustomerFromQuery() {
   }
 }
 
+function buildDraftPayload() {
+  return {
+    ...formData.value,
+    items: formData.value.items.map((it: any) => ({ ...it }))
+  }
+}
+
+async function applyDraftPayload(payload: Record<string, unknown>) {
+  const p = payload || {}
+  if (typeof p.rfqCode === 'string' && p.rfqCode) {
+    formData.value.rfqCode = p.rfqCode
+  }
+  formData.value.customerId = String(p.customerId || '')
+  formData.value.customerName = String(p.customerName || '')
+  formData.value.contactId = String(p.contactId || '')
+  formData.value.contactEmail = String(p.contactEmail || '')
+  formData.value.salesUserId = String(p.salesUserId || formData.value.salesUserId || '')
+  formData.value.salesUserName = String(p.salesUserName || formData.value.salesUserName || '')
+  formData.value.product = String(p.product || '')
+  formData.value.projectBackground = String(p.projectBackground || '')
+  formData.value.competitor = String(p.competitor || '')
+  formData.value.remark = String(p.remark || '')
+  if (p.rfqType != null) formData.value.rfqType = Number(p.rfqType)
+  if (p.targetType != null) formData.value.targetType = Number(p.targetType)
+  if (p.quoteMethod != null) formData.value.quoteMethod = Number(p.quoteMethod)
+  if (p.assignMethod != null) formData.value.assignMethod = Number(p.assignMethod)
+  if (p.importance != null) formData.value.importance = normalizeImportance(p.importance)
+  formData.value.industry = await customerDict.resolveIndustryStorageLabel(String(p.industry || ''))
+  const items = Array.isArray(p.items) ? p.items : []
+  formData.value.items = items.length
+    ? items.map((raw: any) => ({
+        ...createEmptyRfqItem(),
+        ...raw,
+        quantity: raw.quantity != null && Number(raw.quantity) > 0 ? Number(raw.quantity) : 1
+      }))
+    : [createEmptyRfqItem()]
+  if (formData.value.customerId) {
+    const label = formData.value.customerName || '客户'
+    if (!customerOptions.value.some((o) => o.value === formData.value.customerId)) {
+      customerOptions.value = [{ value: formData.value.customerId, label }]
+    }
+    await loadContactsForCustomer(formData.value.customerId)
+    applyDefaultContactAndEmail()
+  }
+  await resolveBrandIdsForItems(formData.value.items)
+}
+
+async function restoreDraftById(draftId: string) {
+  const draft = await draftApi.getDraftById(draftId)
+  if (draft.entityType !== 'RFQ') throw new Error('该草稿不是 RFQ 类型')
+  await applyDraftPayload(JSON.parse(draft.payloadJson || '{}'))
+  currentDraftId.value = draft.draftId
+}
+
+async function saveDraftOnly() {
+  try {
+    const draft = await draftApi.saveDraft({
+      draftId: currentDraftId.value || undefined,
+      entityType: 'RFQ',
+      draftName: formData.value.product || formData.value.rfqCode || 'RFQ草稿',
+      payloadJson: JSON.stringify(buildDraftPayload())
+    })
+    currentDraftId.value = draft.draftId
+    ElNotification.success({ title: '保存成功', message: `草稿已保存（${draft.draftId}）` })
+  } catch (err: unknown) {
+    ElNotification.error({
+      title: '保存失败',
+      message: getApiErrorMessage(err, '草稿保存失败')
+    })
+  }
+}
+
 /** 新建/编辑页「重要程度」星级上限（Element Plus el-rate 的 max） */
 const RFQ_IMPORTANCE_RATE_MAX = 3
 
@@ -882,16 +968,65 @@ async function loadRfqForEdit() {
 }
 
 watch(
-  () => [route.name, route.params.id, route.query.customerId] as const,
+  () =>
+    [route.name, route.params.id, route.query.customerId, route.query.draftId, route.query.aiPrefill] as const,
   async () => {
     await ensureMaterialPdDict()
     await customerDict.ensureLoaded()
     if (route.name === 'RFQEdit' && rfqId.value) {
+      currentDraftId.value = ''
       await loadRfqForEdit()
-    } else if (route.name === 'RFQCreate') {
-      resetFormForCreate()
-      await applyPrefillCustomerFromQuery()
+      return
     }
+    if (route.name !== 'RFQCreate') return
+
+    const draftId = queryToken(route.query.draftId)
+    const aiToken = queryToken(route.query.aiPrefill)
+
+    if (draftId) {
+      resetFormForCreate()
+      currentDraftId.value = ''
+      try {
+        await restoreDraftById(draftId)
+      } catch (err: unknown) {
+        ElNotification.error({
+          title: '恢复失败',
+          message: getApiErrorMessage(err, '草稿恢复失败')
+        })
+      }
+      return
+    }
+
+    if (aiToken) {
+      if (!appliedAiPrefillTokens.has(aiToken)) {
+        resetFormForCreate()
+        currentDraftId.value = ''
+        const consumed = consumeAiPrefill('RFQ', aiToken)
+        if (consumed) {
+          aiParseLogId.value = consumed.parseLogId
+          await applyDraftPayload(consumed.payload)
+          appliedAiPrefillTokens.add(aiToken)
+        } else {
+          ElMessage.warning('预填数据已失效，请重新发起 AI 创建')
+        }
+      }
+      if (route.query.aiPrefill) {
+        skipCreateResetOnce = true
+        const q = { ...route.query }
+        delete q.aiPrefill
+        await router.replace({ query: q })
+      }
+      return
+    }
+
+    if (skipCreateResetOnce) {
+      skipCreateResetOnce = false
+      return
+    }
+
+    resetFormForCreate()
+    currentDraftId.value = ''
+    await applyPrefillCustomerFromQuery()
   },
   { immediate: true }
 )
@@ -1096,7 +1231,7 @@ const handleSubmit = async () => {
           items: buildItemPayload()
         }
         await rfqApi.updateRFQ(id, payload)
-        return 'edit' as const
+        return { mode: 'edit' as const, rfqId: id }
       }
       const createPayload: CreateRFQRequest = {
         customerId: formData.value.customerId,
@@ -1115,11 +1250,17 @@ const handleSubmit = async () => {
         remark: formData.value.remark,
         items: buildItemPayload()
       }
-      await rfqApi.createRFQ(createPayload)
-      return 'create' as const
+      const created = await rfqApi.createRFQ(createPayload)
+      return { mode: 'create' as const, rfqId: created?.id || '' }
     },
-    formatSuccess: (mode) => (mode === 'edit' ? '需求已更新' : '需求创建成功'),
-    onSuccess: () => router.push({ name: 'RFQList' }),
+    formatSuccess: (result) => (result.mode === 'edit' ? '需求已更新' : '需求创建成功'),
+    onSuccess: (result) => {
+      if (result.mode === 'create' && result.rfqId) {
+        markEntityParseSaved(aiParseLogId.value, result.rfqId)
+        aiParseLogId.value = null
+      }
+      router.push({ name: 'RFQList' })
+    },
     errorMessage: (e) => getApiErrorMessage(e, editMode ? '保存失败，请重试' : '创建失败，请重试')
   })
 }

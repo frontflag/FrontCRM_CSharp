@@ -7,6 +7,9 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AiEntityCreateHost: typeof import('./src/components/AiCreate/AiEntityCreateHost.vue')['default']
+    AiEntityParseConfirmDialog: typeof import('./src/components/AiCreate/AiEntityParseConfirmDialog.vue')['default']
+    AiTextParseDialog: typeof import('./src/components/AiCreate/AiTextParseDialog.vue')['default']
     AnalyticsBreakdownChart: typeof import('./src/components/Analytics/AnalyticsBreakdownChart.vue')['default']
     AnalyticsBreakdownPieChart: typeof import('./src/components/Analytics/AnalyticsBreakdownPieChart.vue')['default']
     AnalyticsKpiGrid: typeof import('./src/components/Analytics/AnalyticsKpiGrid.vue')['default']

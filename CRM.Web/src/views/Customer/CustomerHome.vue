@@ -35,18 +35,41 @@
             </div>
           </div>
         </div>
-        <button
-          v-if="canCreateCustomer"
-          type="button"
-          class="customer-home__btn-create"
-          @click="goCreateCustomer"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          {{ t('customerHome.create') }}
-        </button>
+        <template v-if="canCreateCustomer">
+          <div v-if="canAiParseCustomer" class="customer-home__split-create">
+            <button type="button" class="customer-home__btn-create" @click="goCreateCustomer">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              {{ t('customerHome.create') }}
+            </button>
+            <el-dropdown trigger="click" @command="onCreateDropdownCommand">
+              <button type="button" class="customer-home__btn-create customer-home__btn-create--caret" :aria-label="t('customerList.expandMenu')">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="aiCreate">{{ t('aiEntityCreate.aiCreate') }}</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+          <button
+            v-else
+            type="button"
+            class="customer-home__btn-create"
+            @click="goCreateCustomer"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            {{ t('customerHome.create') }}
+          </button>
+        </template>
       </div>
     </div>
 
@@ -178,6 +201,11 @@
         </div>
       </div>
     </template>
+    <AiEntityCreateHost
+      ref="aiCreateHostRef"
+      entity-type="CUSTOMER"
+      :target-route="{ name: 'CustomerCreate' }"
+    />
   </div>
 </template>
 
@@ -187,6 +215,8 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { customerApi } from '@/api/customer'
+import { AI_PERMISSION_ENTITY_PARSE_CUSTOMER } from '@/api/ai'
+import AiEntityCreateHost from '@/components/AiCreate/AiEntityCreateHost.vue'
 import { buildCustomerListQuery } from '@/utils/customerListQuery'
 import type { CustomerStatistics } from '@/types/customer'
 
@@ -194,6 +224,8 @@ const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
 const canCreateCustomer = computed(() => authStore.hasPermission('customer.write'))
+const canAiParseCustomer = computed(() => authStore.hasPermission(AI_PERMISSION_ENTITY_PARSE_CUSTOMER))
+const aiCreateHostRef = ref<InstanceType<typeof AiEntityCreateHost> | null>(null)
 const keyword = ref('')
 const stats = ref<CustomerStatistics | null>(null)
 const loadingStats = ref(false)
@@ -223,6 +255,10 @@ function goListPlain() {
 
 function goCreateCustomer() {
   router.push({ name: 'CustomerCreate' })
+}
+
+function onCreateDropdownCommand(cmd: string) {
+  if (cmd === 'aiCreate') aiCreateHostRef.value?.open()
 }
 
 onMounted(async () => {
@@ -394,6 +430,25 @@ onMounted(async () => {
     transform: translateY(-1px);
     box-shadow: 0 4px 16px color-mix(in srgb, $color-mint-green 35%, transparent);
   }
+}
+
+.customer-home__split-create {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: stretch;
+}
+
+.customer-home__btn-create--caret {
+  padding-left: 10px;
+  padding-right: 10px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-left: 1px solid color-mix(in srgb, #fff 25%, transparent);
+}
+
+.customer-home__split-create > .customer-home__btn-create:first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 .customer-home__loading {

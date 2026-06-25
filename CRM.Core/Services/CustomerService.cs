@@ -706,6 +706,9 @@ namespace CRM.Core.Services
                 BankAccount = request.BankAccount?.Trim(),
                 AccountName = request.AccountName?.Trim(),
                 BankBranch = request.BankBranch?.Trim(),
+                BankAddress = request.BankAddress?.Trim(),
+                BankCode = request.BankCode?.Trim(),
+                Swift = request.Swift?.Trim(),
                 Currency = request.Currency,
                 IsDefault = request.IsDefault,
                 Remark = request.Remark?.Trim(),
@@ -756,6 +759,12 @@ namespace CRM.Core.Services
                 bank.AccountName = request.AccountName.Trim();
             if (request.BankBranch != null)
                 bank.BankBranch = request.BankBranch.Trim();
+            if (request.BankAddress != null)
+                bank.BankAddress = request.BankAddress.Trim();
+            if (request.BankCode != null)
+                bank.BankCode = request.BankCode.Trim();
+            if (request.Swift != null)
+                bank.Swift = request.Swift.Trim();
             if (request.Currency.HasValue)
                 bank.Currency = request.Currency.Value;
             if (request.IsDefault.HasValue)

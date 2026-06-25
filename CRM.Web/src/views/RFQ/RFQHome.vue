@@ -52,18 +52,41 @@
             </div>
           </div>
         </div>
-        <button
-          v-if="showCreateRfqButton"
-          type="button"
-          class="rfq-home__btn-create"
-          @click="goCreateRfq"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          {{ t('rfqHome.create') }}
-        </button>
+        <template v-if="showCreateRfqButton">
+          <div v-if="canAiParseRfq" class="rfq-home__split-create">
+            <button type="button" class="rfq-home__btn-create" @click="goCreateRfq">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              {{ t('rfqHome.create') }}
+            </button>
+            <el-dropdown trigger="click" @command="onCreateDropdownCommand">
+              <button type="button" class="rfq-home__btn-create rfq-home__btn-create--caret" :aria-label="t('customerList.expandMenu')">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="aiCreate">{{ t('aiEntityCreate.aiCreate') }}</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+          <button
+            v-else
+            type="button"
+            class="rfq-home__btn-create"
+            @click="goCreateRfq"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            {{ t('rfqHome.create') }}
+          </button>
+        </template>
       </div>
     </div>
 
@@ -184,6 +207,11 @@
         </div>
       </div>
     </template>
+    <AiEntityCreateHost
+      ref="aiCreateHostRef"
+      entity-type="RFQ"
+      :target-route="{ name: 'RFQCreate' }"
+    />
   </div>
 </template>
 
@@ -199,8 +227,10 @@ import { quoteApi } from '@/api/quote'
 import {
   aiApi,
   AI_SCENARIO_MATERIAL_INTEL_LOOKUP,
-  AI_PERMISSION_MATERIAL_INTEL_LOOKUP
+  AI_PERMISSION_MATERIAL_INTEL_LOOKUP,
+  AI_PERMISSION_ENTITY_PARSE_RFQ
 } from '@/api/ai'
+import AiEntityCreateHost from '@/components/AiCreate/AiEntityCreateHost.vue'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { parseAiJsonObject } from '@/utils/aiJson'
 import MaterialIntelResultPanel from '@/components/RFQ/MaterialIntelResultPanel.vue'
@@ -210,6 +240,8 @@ const { t } = useI18n()
 const authStore = useAuthStore()
 /** 新建需求：需 rfq.create（采购侧可有 rfq.write 但无 create） */
 const showCreateRfqButton = computed(() => authStore.hasPermission('rfq.create'))
+const canAiParseRfq = computed(() => authStore.hasPermission(AI_PERMISSION_ENTITY_PARSE_RFQ))
+const aiCreateHostRef = ref<InstanceType<typeof AiEntityCreateHost> | null>(null)
 
 const keyword = ref('')
 const aiLoading = ref(false)
@@ -337,6 +369,10 @@ function goCreateRfq() {
     return
   }
   router.push({ name: 'RFQCreate' })
+}
+
+function onCreateDropdownCommand(cmd: string) {
+  if (cmd === 'aiCreate') aiCreateHostRef.value?.open()
 }
 
 async function loadStats() {
@@ -605,6 +641,25 @@ onUnmounted(() => {
     transform: translateY(-1px);
     box-shadow: 0 4px 16px color-mix(in srgb, $color-mint-green 35%, transparent);
   }
+}
+
+.rfq-home__split-create {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: stretch;
+}
+
+.rfq-home__btn-create--caret {
+  padding-left: 10px;
+  padding-right: 10px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-left: 1px solid color-mix(in srgb, #fff 25%, transparent);
+}
+
+.rfq-home__split-create > .rfq-home__btn-create:first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 .rfq-home__loading {

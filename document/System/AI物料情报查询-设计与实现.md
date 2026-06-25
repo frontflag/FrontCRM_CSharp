@@ -282,7 +282,12 @@ EF 迁移（按需）：`20260804100000_MaterialIntelLookupScenario` → `202608
 
 ### 7.3 Navicat / DBeaver 执行 SQL 注意
 
-含 `{{pn}}` 的 `user_prompt_template` **不可**在 Navicat 中以明文写入（会弹出「绑定参数」）。增量脚本已用 **hex + CHR 拼接** 写入占位符，请使用仓库内最新 `ai_material_intel_schema_v2_postgresql.sql`。
+含 `{{pn}}`、`{{raw_text}}` 等 AI 模板占位符时，**不可**在脚本中以明文或注释形式出现双花括号（会弹出「绑定参数」）。须用 **hex + CHR 拼接** 写入；完整规则见 **[PostgreSQL 增量脚本编写规范](../../PRD/规范/业务规范/PostgreSQL增量脚本编写规范.md)**。
+
+参考脚本：
+
+- `scripts/ai_material_intel_schema_v2_postgresql.sql`（`{{pn}}`）
+- `scripts/ai_entity_parse_postgresql.sql`（`{{raw_text}}`）
 
 ### 7.4 常见问题
 

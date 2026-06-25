@@ -124,6 +124,7 @@ namespace CRM.Infrastructure.Data
         public DbSet<AiGlobalConfig> AiGlobalConfigs { get; set; } = null!;
         public DbSet<AiInvocationCache> AiInvocationCaches { get; set; } = null!;
         public DbSet<AiInvocationLog> AiInvocationLogs { get; set; } = null!;
+        public DbSet<AiEntityParseLog> AiEntityParseLogs { get; set; } = null!;
         public DbSet<StockTransfer> StockTransfers { get; set; } = null!;
         public DbSet<StockTransferItem> StockTransferItems { get; set; } = null!;
         public DbSet<StockTransferManual> StockTransferManuals { get; set; } = null!;
@@ -525,6 +526,9 @@ namespace CRM.Infrastructure.Data
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.BankName).HasMaxLength(100);
                 entity.Property(e => e.BankAccount).HasMaxLength(50);
+                entity.Property(e => e.BankAddress).HasMaxLength(500);
+                entity.Property(e => e.BankCode).HasMaxLength(32);
+                entity.Property(e => e.Swift).HasMaxLength(64);
             });
 
             // Customer Contact History configuration
@@ -2228,6 +2232,37 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.CreatedAt).HasColumnName("created_at");
                 entity.HasIndex(e => new { e.ScenarioCode, e.CreatedAt }).HasDatabaseName("IX_ai_invocation_log_scenario_created");
                 entity.HasIndex(e => new { e.UserId, e.CreatedAt }).HasDatabaseName("IX_ai_invocation_log_user_created");
+            });
+
+            modelBuilder.Entity<AiEntityParseLog>(entity =>
+            {
+                entity.ToTable("ai_entity_parse_log");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(36);
+                entity.Property(e => e.InvocationId).HasColumnName("invocation_id").HasMaxLength(36);
+                entity.Property(e => e.ScenarioCode).HasColumnName("scenario_code").HasMaxLength(100);
+                entity.Property(e => e.EntityType).HasColumnName("entity_type").HasMaxLength(64);
+                entity.Property(e => e.UserId).HasColumnName("user_id").HasMaxLength(36);
+                entity.Property(e => e.ParentBizType).HasColumnName("parent_biz_type").HasMaxLength(64);
+                entity.Property(e => e.ParentBizId).HasColumnName("parent_biz_id").HasMaxLength(64);
+                entity.Property(e => e.RawText).HasColumnName("raw_text");
+                entity.Property(e => e.ParseResultRaw).HasColumnName("parse_result_raw");
+                entity.Property(e => e.ParseResultJson).HasColumnName("parse_result_json").HasColumnType("jsonb");
+                entity.Property(e => e.ConfirmedFieldsJson).HasColumnName("confirmed_fields_json").HasColumnType("jsonb");
+                entity.Property(e => e.Outcome).HasColumnName("outcome").HasMaxLength(20);
+                entity.Property(e => e.TemplateVersion).HasColumnName("template_version");
+                entity.Property(e => e.ProviderCode).HasColumnName("provider_code").HasMaxLength(64);
+                entity.Property(e => e.Model).HasColumnName("model").HasMaxLength(100);
+                entity.Property(e => e.FromCache).HasColumnName("from_cache");
+                entity.Property(e => e.LatencyMs).HasColumnName("latency_ms");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.ConfirmedAt).HasColumnName("confirmed_at");
+                entity.Property(e => e.SavedBizId).HasColumnName("saved_biz_id").HasMaxLength(64);
+                entity.Property(e => e.SavedAt).HasColumnName("saved_at");
+                entity.HasIndex(e => e.InvocationId).HasDatabaseName("IX_ai_entity_parse_log_invocation");
+                entity.HasIndex(e => new { e.ScenarioCode, e.CreatedAt }).HasDatabaseName("IX_ai_entity_parse_log_scenario_created");
+                entity.HasIndex(e => new { e.UserId, e.CreatedAt }).HasDatabaseName("IX_ai_entity_parse_log_user_created");
+                entity.HasIndex(e => new { e.Outcome, e.CreatedAt }).HasDatabaseName("IX_ai_entity_parse_log_outcome_created");
             });
         }
     }

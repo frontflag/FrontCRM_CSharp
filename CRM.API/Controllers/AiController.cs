@@ -14,15 +14,18 @@ public class AiController : ControllerBase
 {
     private readonly IAiOrchestrator _orchestrator;
     private readonly IAiAdminService _adminService;
+    private readonly IAiEntityParseLogService _entityParseLogService;
     private readonly ILogger<AiController> _logger;
 
     public AiController(
         IAiOrchestrator orchestrator,
         IAiAdminService adminService,
+        IAiEntityParseLogService entityParseLogService,
         ILogger<AiController> logger)
     {
         _orchestrator = orchestrator;
         _adminService = adminService;
+        _entityParseLogService = entityParseLogService;
         _logger = logger;
     }
 
@@ -75,5 +78,49 @@ public class AiController : ControllerBase
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         var list = await _adminService.ListInvokableScenariosForUserAsync(userId, cancellationToken);
         return Ok(ApiResponse<IReadOnlyList<AiScenarioListItemDto>>.Ok(list, "ok"));
+    }
+
+    /// <summary>entity.parse.* 用户在确认弹窗编辑后上报 confirmed_fields_json。</summary>
+    [HttpPost("entity-parse-logs/{id}/confirm")]
+    public async Task<ActionResult<ApiResponse<object>>> ConfirmEntityParseLog(
+        string id,
+        [FromBody] AiEntityParseLogConfirmDto body,
+        CancellationToken cancellationToken)
+    {
+        if (body.ConfirmedFields.ValueKind != System.Text.Json.JsonValueKind.Object)
+            return BadRequest(ApiResponse<object>.Fail("confirmedFields 必须为 JSON 对象"));
+
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        try
+        {
+            await _entityParseLogService.ConfirmAsync(id, userId ?? string.Empty, body.ConfirmedFields, cancellationToken);
+            return Ok(ApiResponse<object>.Ok(new { id }, "已记录确认结果"));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message));
+        }
+    }
+
+    /// <summary>entity.parse.* 用户保存成功后回写 saved_biz_id。</summary>
+    [HttpPost("entity-parse-logs/{id}/saved")]
+    public async Task<ActionResult<ApiResponse<object>>> MarkEntityParseLogSaved(
+        string id,
+        [FromBody] AiEntityParseLogSavedDto body,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(body?.SavedBizId))
+            return BadRequest(ApiResponse<object>.Fail("savedBizId 不能为空"));
+
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        try
+        {
+            await _entityParseLogService.MarkSavedAsync(id, userId ?? string.Empty, body.SavedBizId.Trim(), cancellationToken);
+            return Ok(ApiResponse<object>.Ok(new { id }, "已记录保存结果"));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message));
+        }
     }
 }

@@ -851,8 +851,11 @@ namespace CRM.Core.Interfaces
         public string? AccountNumber { get => BankAccount; set => BankAccount = value; }
         public string? AccountName { get; set; }
         public string? BankBranch { get; set; }
-        /// <summary>BankCode 是 BankBranch 的别名（SWIFT代码），前端兼容字段</summary>
-        public string? BankCode { get => BankBranch; set => BankBranch = value; }
+        public string? BankAddress { get; set; }
+        public string? BankCode { get; set; }
+        public string? Swift { get; set; }
+        /// <summary>Swift 前端兼容字段</summary>
+        public string? SwiftCode { get => Swift; set => Swift = value; }
         public short? Currency { get; set; }
         public bool IsDefault { get; set; } = false;
         public string? Remark { get; set; }
@@ -869,8 +872,11 @@ namespace CRM.Core.Interfaces
         public string? AccountNumber { get => BankAccount; set => BankAccount = value; }
         public string? AccountName { get; set; }
         public string? BankBranch { get; set; }
-        /// <summary>BankCode 是 BankBranch 的别名（SWIFT代码），前端兼容字段</summary>
-        public string? BankCode { get => BankBranch; set => BankBranch = value; }
+        public string? BankAddress { get; set; }
+        public string? BankCode { get; set; }
+        public string? Swift { get; set; }
+        /// <summary>Swift 前端兼容字段</summary>
+        public string? SwiftCode { get => Swift; set => Swift = value; }
         public short? Currency { get; set; }
         public bool? IsDefault { get; set; }
         public string? Remark { get; set; }

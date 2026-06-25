@@ -93,7 +93,7 @@
 | Debug 对照 | `CRM.Web/src/views/Debug/DebugMaterialIntel.vue` | 契约 v2 结构化 vs 原始 JSON |
 | 模型预设 | `CRM.Web/src/constants/aiProviderModels.ts` | 管理端 Model 下拉选项 |
 | 迁移 | `CRM.Infrastructure/Migrations/20260803180000_AiModuleSchema.cs` | 建表 + 种子 + 权限 |
-| SQL 脚本 | `scripts/ai_module_postgresql.sql` | 独立部署（DBeaver 友好） |
+| SQL 脚本 | `scripts/ai_module_postgresql.sql` | 独立部署；编写须符合 [PostgreSQL 增量脚本编写规范](../PRD/规范/业务规范/PostgreSQL增量脚本编写规范.md) |
 
 ---
 

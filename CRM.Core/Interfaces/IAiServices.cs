@@ -1,5 +1,6 @@
 namespace CRM.Core.Interfaces;
 
+using System.Text.Json;
 using CRM.Core.Models.Ai;
 
 public sealed class AiChatMessageDto
@@ -62,6 +63,114 @@ public sealed class AiInvokeResultDto
     public string ScenarioCode { get; set; } = string.Empty;
     public string ProviderCode { get; set; } = string.Empty;
     public string Model { get; set; } = string.Empty;
+    /// <summary>entity.parse.* 成功解析后写入 ai_entity_parse_log 的记录 id。</summary>
+    public string? EntityParseLogId { get; set; }
+}
+
+public sealed class EntityParseLogCreateRequest
+{
+    public string InvocationId { get; set; } = string.Empty;
+    public string ScenarioCode { get; set; } = string.Empty;
+    public string? EntityType { get; set; }
+    public string? UserId { get; set; }
+    public string? ParentBizId { get; set; }
+    public string? RawText { get; set; }
+    public string? ParseResultRaw { get; set; }
+    public object? RawLlmObject { get; set; }
+    public int TemplateVersion { get; set; } = 1;
+    public string ProviderCode { get; set; } = string.Empty;
+    public string Model { get; set; } = string.Empty;
+    public bool FromCache { get; set; }
+    public int LatencyMs { get; set; }
+}
+
+public sealed class EntityParseLogCreateResult
+{
+    public string LogId { get; set; } = string.Empty;
+    public object? NormalizedData { get; set; }
+}
+
+public sealed class AiEntityParseLogConfirmDto
+{
+    public JsonElement ConfirmedFields { get; set; }
+}
+
+public sealed class AiEntityParseLogSavedDto
+{
+    public string SavedBizId { get; set; } = string.Empty;
+}
+
+public sealed class AiEntityParseLogQueryDto
+{
+    public int Take { get; set; } = 50;
+    public string? ScenarioCode { get; set; }
+    public string? EntityType { get; set; }
+    public string? Outcome { get; set; }
+    public string? UserId { get; set; }
+}
+
+public class AiEntityParseLogListItemDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string InvocationId { get; set; } = string.Empty;
+    public string ScenarioCode { get; set; } = string.Empty;
+    public string EntityType { get; set; } = string.Empty;
+    public string? UserId { get; set; }
+    public string? ParentBizType { get; set; }
+    public string? ParentBizId { get; set; }
+    public string Outcome { get; set; } = string.Empty;
+    public string? SavedBizId { get; set; }
+    public int RawTextLength { get; set; }
+    public bool FromCache { get; set; }
+    public int LatencyMs { get; set; }
+    public string ProviderCode { get; set; } = string.Empty;
+    public string Model { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime? ConfirmedAt { get; set; }
+    public DateTime? SavedAt { get; set; }
+}
+
+public sealed class AiEntityParseLogDetailDto : AiEntityParseLogListItemDto
+{
+    public string RawText { get; set; } = string.Empty;
+    public object? ParseResultJson { get; set; }
+    public object? ConfirmedFieldsJson { get; set; }
+    public string? ParseResultRaw { get; set; }
+}
+
+public interface IAiEntityParseLogService
+{
+    Task<EntityParseLogCreateResult?> TryCreateParsedLogAsync(
+        EntityParseLogCreateRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task ConfirmAsync(
+        string logId,
+        string userId,
+        JsonElement confirmedFields,
+        CancellationToken cancellationToken = default);
+
+    Task MarkSavedAsync(
+        string logId,
+        string userId,
+        string savedBizId,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<AiEntityParseLogListItemDto>> ListForAdminAsync(
+        AiEntityParseLogQueryDto query,
+        CancellationToken cancellationToken = default);
+
+    Task<AiEntityParseLogDetailDto?> GetDetailForAdminAsync(
+        string logId,
+        CancellationToken cancellationToken = default);
+
+    Task<byte[]> ExportCsvAsync(
+        AiEntityParseLogQueryDto query,
+        CancellationToken cancellationToken = default);
+
+    Task<int> PurgeOlderThanAsync(
+        int keepDays,
+        CancellationToken cancellationToken = default);
 }
 
 public interface IAiOrchestrator

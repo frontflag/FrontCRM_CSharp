@@ -37,4 +37,26 @@ public static class AiGlobalConfigKeys
     public const string DailyQuotaLimit = "daily_quota_limit";
     public const string PromptPreviewEnabled = "prompt_preview_enabled";
     public const string PromptPreviewMaxChars = "prompt_preview_max_chars";
+    public const string EntityParseLogRetentionDays = "entity_parse_log_retention_days";
+}
+
+public static class AiEntityParseOutcomeCode
+{
+    public const string Parsed = "parsed";
+    public const string Confirmed = "confirmed";
+    public const string Failed = "failed";
+    public const string Saved = "saved";
+}
+
+public static class AiEntityParseScenarioCodes
+{
+    public const string Prefix = "entity.parse.";
+
+    public const string Customer = "entity.parse.customer";
+    public const string Rfq = "entity.parse.rfq";
+    public const string Vendor = "entity.parse.vendor";
+    public const string CustomerContact = "entity.parse.customer_contact";
+    public const string VendorContact = "entity.parse.vendor_contact";
+    public const string CustomerAddress = "entity.parse.customer_address";
+    public const string VendorAddress = "entity.parse.vendor_address";
 }

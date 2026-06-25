@@ -63,6 +63,7 @@ DECLARE
 
         -- AI 运行时（保留 ai_* 配置表）
         'ai_invocation_cache',
+        'ai_entity_parse_log',
         'ai_invocation_log',
 
         -- 客户

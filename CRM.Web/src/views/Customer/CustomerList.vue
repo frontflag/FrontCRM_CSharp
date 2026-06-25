@@ -34,6 +34,7 @@
               </button>
               <template #dropdown>
                 <el-dropdown-menu>
+                  <el-dropdown-item v-if="canAiParseCustomer" command="aiCreate">{{ t('aiEntityCreate.aiCreate') }}</el-dropdown-item>
                   <el-dropdown-item command="import">{{ t('customerList.importExcel') }}</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -271,6 +272,7 @@
               </button>
               <template #dropdown>
                 <el-dropdown-menu>
+                  <el-dropdown-item v-if="canAiParseCustomer" command="aiCreate">{{ t('aiEntityCreate.aiCreate') }}</el-dropdown-item>
                   <el-dropdown-item command="import">{{ t('customerList.importExcel') }}</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -305,6 +307,11 @@
     </div>
 
     <CustomerImportDialog v-model="importDialogVisible" @success="fetchCustomerList" />
+    <AiEntityCreateHost
+      ref="aiCreateHostRef"
+      entity-type="CUSTOMER"
+      :target-route="{ name: 'CustomerCreate' }"
+    />
   </div>
 </template>
 
@@ -323,6 +330,8 @@ import { useAuthStore } from '@/stores/auth';
 import { useCustomerDictStore } from '@/stores/customerDict';
 import PartyStatusIcons from '@/components/party/PartyStatusIcons.vue';
 import CustomerImportDialog from '@/components/Customer/CustomerImportDialog.vue';
+import AiEntityCreateHost from '@/components/AiCreate/AiEntityCreateHost.vue';
+import { AI_PERMISSION_ENTITY_PARSE_CUSTOMER } from '@/api/ai';
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import { buildCustomerListQuery, parseCustomerListQuery } from '@/utils/customerListQuery';
 import { CUSTOMER_WORKFLOW_STATUS_OPTIONS } from '@/constants/customerWorkflowStatus';
@@ -346,6 +355,8 @@ const canViewCustomerInfo = authStore.hasPermission('customer.info.read')
 /** 列表页已要求 customer.read；客户名称与编号同属基础识别信息，不应依赖 info.read（生产常见仅绑 read 导致无名称列） */
 const canViewCustomerNameColumn = authStore.hasPermission('customer.read')
 const canSubmitAudit = authStore.hasPermission('customer.write');
+const canAiParseCustomer = computed(() => authStore.hasPermission(AI_PERMISSION_ENTITY_PARSE_CUSTOMER));
+const aiCreateHostRef = ref<InstanceType<typeof AiEntityCreateHost> | null>(null);
 
 const importDialogVisible = ref(false);
 const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
@@ -577,6 +588,7 @@ const handleCreate = () => router.push('/customers/create');
 
 function onCreateDropdownCommand(cmd: string) {
   if (cmd === 'import') importDialogVisible.value = true;
+  if (cmd === 'aiCreate') aiCreateHostRef.value?.open();
 }
 const handleView = (row: Customer) => router.push(`/customers/${row.id}`);
 const handleEdit = (row: Customer) => router.push(`/customers/${row.id}/edit`);

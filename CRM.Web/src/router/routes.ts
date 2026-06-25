@@ -157,6 +157,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/Customer/CustomerContactEdit.vue'),
         meta: { requiresAuth: true, title: '编辑联系人', permission: 'customer.write' }
       },
+      {
+        path: 'customers/:id/addresses/create',
+        name: 'CustomerAddressCreate',
+        component: () => import('@/views/Customer/CustomerAddressEdit.vue'),
+        meta: { requiresAuth: true, title: '新增地址', permission: 'customer.write' }
+      },
       // RFQ 管理（首页 / 列表 / 详情仍使用 /rfqs/* 子路径）
       {
         path: 'rfq',
@@ -293,6 +299,12 @@ const routes: RouteRecordRaw[] = [
         name: 'VendorContactEdit',
         component: () => import('@/views/Vendor/VendorContactEdit.vue'),
         meta: { requiresAuth: true, title: '编辑联系人', permission: 'vendor.write' }
+      },
+      {
+        path: 'vendors/:id/addresses/create',
+        name: 'VendorAddressCreate',
+        component: () => import('@/views/Vendor/VendorAddressEdit.vue'),
+        meta: { requiresAuth: true, title: '新增地址', permission: 'vendor.write' }
       },
       // 库存管理
       {

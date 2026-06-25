@@ -93,6 +93,34 @@
         </el-table>
       </el-tab-pane>
 
+      <el-tab-pane :label="t('aiConfig.tabEntityParseLogs')" name="entityParseLogs">
+        <div class="log-toolbar">
+          <el-input v-model="entityParseScenarioFilter" placeholder="scenarioCode" clearable style="width: 180px" />
+          <el-select v-model="entityParseOutcomeFilter" clearable placeholder="outcome" style="width: 120px">
+            <el-option label="parsed" value="parsed" />
+            <el-option label="confirmed" value="confirmed" />
+            <el-option label="saved" value="saved" />
+            <el-option label="failed" value="failed" />
+          </el-select>
+          <el-input v-model="entityParseEntityFilter" placeholder="entityType" clearable style="width: 160px" />
+          <el-button @click="loadEntityParseLogs">{{ t('aiConfig.refresh') }}</el-button>
+          <el-button @click="exportEntityParseLogs">{{ t('aiConfig.exportCsv') }}</el-button>
+          <el-button type="danger" plain @click="purgeEntityParseLogs">{{ t('aiConfig.purgeOld') }}</el-button>
+        </div>
+        <el-table :data="entityParseLogs" stripe size="small" class="ai-logs-table" @row-click="openEntityParseDetail">
+          <el-table-column prop="createdAt" :label="t('aiConfig.colTime')" width="170">
+            <template #default="{ row }">{{ formatTime(row.createdAt) }}</template>
+          </el-table-column>
+          <el-table-column prop="scenarioCode" label="Scenario" min-width="150" show-overflow-tooltip />
+          <el-table-column prop="entityType" label="Entity" width="130" />
+          <el-table-column prop="outcome" label="Outcome" width="96" />
+          <el-table-column prop="rawTextLength" label="RawLen" width="80" align="right" />
+          <el-table-column prop="savedBizId" label="SavedId" min-width="120" show-overflow-tooltip />
+          <el-table-column prop="latencyMs" label="ms" width="72" align="right" />
+          <el-table-column prop="userId" label="User" width="100" show-overflow-tooltip />
+        </el-table>
+      </el-tab-pane>
+
       <el-tab-pane :label="t('aiConfig.tabLogs')" name="logs">
         <div class="log-toolbar">
           <el-input v-model="logScenarioFilter" placeholder="scenarioCode" clearable style="width: 220px" />
@@ -214,20 +242,36 @@
         <el-button type="primary" :loading="saving" @click="saveTemplate">{{ t('aiConfig.save') }}</el-button>
       </template>
     </el-dialog>
+
+    <el-drawer v-model="entityParseDetailVisible" :title="t('aiConfig.entityParseDetailTitle')" size="520px">
+      <div v-if="entityParseDetail" class="entity-parse-detail">
+        <p><strong>ID:</strong> {{ entityParseDetail.id }}</p>
+        <p><strong>Outcome:</strong> {{ entityParseDetail.outcome }}</p>
+        <p><strong>Saved:</strong> {{ entityParseDetail.savedBizId || '—' }}</p>
+        <h4>{{ t('aiConfig.rawText') }}</h4>
+        <pre class="detail-pre">{{ entityParseDetail.rawText || '—' }}</pre>
+        <h4>{{ t('aiConfig.parseResult') }}</h4>
+        <pre class="detail-pre">{{ formatJson(entityParseDetail.parseResultJson) }}</pre>
+        <h4>{{ t('aiConfig.confirmedFields') }}</h4>
+        <pre class="detail-pre">{{ formatJson(entityParseDetail.confirmedFieldsJson) }}</pre>
+      </div>
+    </el-drawer>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   aiApi,
   type AiProviderAdmin,
   type AiPromptTemplateAdmin,
   type AiScenarioAdmin,
   type AiInvocationLogItem,
-  type AiUsageSummary
+  type AiUsageSummary,
+  type AiEntityParseLogItem,
+  type AiEntityParseLogDetail
 } from '@/api/ai'
 import { buildModelOptions } from '@/constants/aiProviderModels'
 import { getApiErrorMessage } from '@/utils/apiError'
@@ -244,6 +288,12 @@ const scenarios = ref<AiScenarioAdmin[]>([])
 const templates = ref<AiPromptTemplateAdmin[]>([])
 const logs = ref<AiInvocationLogItem[]>([])
 const logScenarioFilter = ref('')
+const entityParseLogs = ref<AiEntityParseLogItem[]>([])
+const entityParseScenarioFilter = ref('entity.parse.')
+const entityParseOutcomeFilter = ref('')
+const entityParseEntityFilter = ref('')
+const entityParseDetailVisible = ref(false)
+const entityParseDetail = ref<AiEntityParseLogDetail | null>(null)
 
 const providerDialogVisible = ref(false)
 const scenarioDialogVisible = ref(false)
@@ -331,6 +381,72 @@ async function loadLogs() {
   }
 }
 
+function formatJson(value: unknown) {
+  if (value == null) return '—'
+  try {
+    return JSON.stringify(value, null, 2)
+  } catch {
+    return String(value)
+  }
+}
+
+async function loadEntityParseLogs() {
+  try {
+    entityParseLogs.value = await aiApi.listEntityParseLogs({
+      take: 100,
+      scenarioCode: entityParseScenarioFilter.value.trim() || undefined,
+      outcome: entityParseOutcomeFilter.value.trim() || undefined,
+      entityType: entityParseEntityFilter.value.trim() || undefined
+    })
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, t('aiConfig.loadFailed')))
+  }
+}
+
+async function openEntityParseDetail(row: AiEntityParseLogItem) {
+  try {
+    entityParseDetail.value = await aiApi.getEntityParseLogDetail(row.id)
+    entityParseDetailVisible.value = true
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, t('aiConfig.loadFailed')))
+  }
+}
+
+async function exportEntityParseLogs() {
+  try {
+    const blob = await aiApi.exportEntityParseLogs({
+      take: 1000,
+      scenarioCode: entityParseScenarioFilter.value.trim() || undefined,
+      outcome: entityParseOutcomeFilter.value.trim() || undefined,
+      entityType: entityParseEntityFilter.value.trim() || undefined
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `ai_entity_parse_logs_${Date.now()}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, t('aiConfig.exportFailed')))
+  }
+}
+
+async function purgeEntityParseLogs() {
+  try {
+    await ElMessageBox.confirm(t('aiConfig.purgeConfirm'), t('aiConfig.purgeTitle'), {
+      type: 'warning',
+      confirmButtonText: t('aiConfig.purgeConfirmBtn'),
+      cancelButtonText: t('aiConfig.cancel')
+    })
+    const result = await aiApi.purgeEntityParseLogs(180)
+    ElMessage.success(t('aiConfig.purgeDone', { count: result.deleted }))
+    await loadEntityParseLogs()
+  } catch (e: unknown) {
+    if (e === 'cancel' || e === 'close') return
+    ElMessage.error(getApiErrorMessage(e, t('aiConfig.purgeFailed')))
+  }
+}
+
 function openProviderEdit(row: AiProviderAdmin) {
   editingProvider.value = { ...row }
   providerDialogVisible.value = true
@@ -394,6 +510,7 @@ async function saveTemplate() {
 onMounted(async () => {
   await loadAll()
   await loadLogs()
+  await loadEntityParseLogs()
 })
 </script>
 
@@ -478,5 +595,21 @@ onMounted(async () => {
 .ai-logs-table :deep(th.col-nowrap .cell),
 .ai-logs-table :deep(td.col-nowrap .cell) {
   white-space: nowrap;
+}
+
+.entity-parse-detail {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.detail-pre {
+  max-height: 200px;
+  overflow: auto;
+  padding: 8px 10px;
+  background: #f5f7fa;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 </style>

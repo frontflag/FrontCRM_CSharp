@@ -3,8 +3,9 @@
     :model-value="modelValue"
     @update:model-value="$emit('update:modelValue', $event)"
     :title="isEdit ? '编辑银行信息' : '添加银行信息'"
-    width="600px"
+    width="720px"
     :close-on-click-modal="false"
+    class="customer-bank-dialog"
     @closed="handleClosed"
   >
     <el-form
@@ -42,14 +43,14 @@
         </el-col>
       </el-row>
       <el-row :gutter="20">
-        <el-col :span="16">
+        <el-col :span="12">
           <el-form-item label="银行账号" prop="accountNumber">
             <el-input v-model="formData.accountNumber" placeholder="请输入银行账号" />
           </el-form-item>
         </el-col>
-        <el-col :span="8">
-          <el-form-item label="币种" prop="currency">
-            <el-select v-model="formData.currency" placeholder="请选择" style="width: 100%">
+        <el-col :span="12">
+          <el-form-item label="币种" prop="currency" class="customer-bank-dialog__currency-item">
+            <el-select v-model="formData.currency" placeholder="请选择" class="customer-bank-dialog__currency-select">
               <el-option
                 v-for="opt in SETTLEMENT_CURRENCY_OPTIONS"
                 :key="opt.value"
@@ -62,8 +63,20 @@
       </el-row>
       <el-row :gutter="20">
         <el-col :span="24">
+          <el-form-item label="银行地址">
+            <el-input v-model="formData.bankAddress" placeholder="请输入银行地址" />
+          </el-form-item>
+        </el-col>
+      </el-row>
+      <el-row :gutter="20">
+        <el-col :span="12">
           <el-form-item label="SWIFT代码">
             <el-input v-model="formData.swiftCode" placeholder="请输入SWIFT代码（跨境汇款时需要）" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="12">
+          <el-form-item label="银行代码">
+            <el-input v-model="formData.bankCode" placeholder="请输入联行号/银行代码" />
           </el-form-item>
         </el-col>
       </el-row>
@@ -105,18 +118,18 @@ const submitting = ref(false);
 
 const isEdit = computed(() => !!props.bank);
 
-// 表单数据
 const formData = ref<CreateBankInfoRequest>({
   accountName: '',
   bankName: '',
   bankBranch: '',
+  bankAddress: '',
+  bankCode: '',
   accountNumber: '',
   currency: 1,
   swiftCode: '',
   isDefault: false
 });
 
-// 表单校验规则
 const formRules: FormRules = {
   accountName: [
     { required: true, message: '请输入账户名称', trigger: 'blur' }
@@ -136,7 +149,6 @@ const formRules: FormRules = {
   ]
 };
 
-// 银行选项
 const bankOptions = ref([
   { value: '中国工商银行', label: '中国工商银行' },
   { value: '中国建设银行', label: '中国建设银行' },
@@ -159,12 +171,13 @@ const bankOptions = ref([
   { value: '花旗银行', label: '花旗银行' }
 ]);
 
-// 重置表单
 const resetForm = () => {
   formData.value = {
     accountName: '',
     bankName: '',
     bankBranch: '',
+    bankAddress: '',
+    bankCode: '',
     accountNumber: '',
     currency: 1,
     swiftCode: '',
@@ -173,13 +186,14 @@ const resetForm = () => {
   formRef.value?.resetFields();
 };
 
-// 监听bank变化
 watch(() => props.bank, (newVal) => {
   if (newVal) {
     formData.value = {
       accountName: newVal.accountName,
       bankName: newVal.bankName,
       bankBranch: newVal.bankBranch,
+      bankAddress: newVal.bankAddress || '',
+      bankCode: newVal.bankCode || '',
       accountNumber: newVal.accountNumber,
       currency: newVal.currency,
       swiftCode: newVal.swiftCode || '',
@@ -190,12 +204,10 @@ watch(() => props.bank, (newVal) => {
   }
 }, { immediate: true });
 
-// 关闭时重置
 const handleClosed = () => {
   resetForm();
 };
 
-// 提交
 const handleSubmit = async () => {
   const valid = await formRef.value?.validate();
   if (!valid) return;
@@ -219,3 +231,25 @@ const handleSubmit = async () => {
   }
 };
 </script>
+
+<style scoped lang="scss">
+.customer-bank-dialog__currency-item {
+  :deep(.el-form-item__content) {
+    min-width: 0;
+  }
+}
+
+.customer-bank-dialog__currency-select {
+  width: 100%;
+  min-width: 120px;
+
+  :deep(.el-select__wrapper) {
+    min-width: 120px;
+  }
+
+  :deep(.el-select__selected-item) {
+    overflow: visible;
+    text-overflow: clip;
+  }
+}
+</style>
