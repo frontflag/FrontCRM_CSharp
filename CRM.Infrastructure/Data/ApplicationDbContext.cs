@@ -2165,6 +2165,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.PermissionCode).HasColumnName("permission_code").HasMaxLength(100);
                 entity.Property(e => e.RateLimitPerUserPerMin).HasColumnName("rate_limit_per_user_per_min");
                 entity.Property(e => e.IsEnabled).HasColumnName("is_enabled");
+                entity.Property(e => e.EnableWebSearch).HasColumnName("enable_web_search");
                 entity.Property(e => e.CreateTime).HasColumnName("create_time");
                 entity.Property(e => e.ModifyTime).HasColumnName("modify_time");
                 entity.Ignore(e => e.CreateUserId);

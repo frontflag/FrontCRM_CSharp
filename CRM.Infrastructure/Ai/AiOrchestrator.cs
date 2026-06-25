@@ -75,7 +75,7 @@ public sealed class AiOrchestrator : IAiOrchestrator
 
         var fingerprintJson = AiJsonHelper.CanonicalFingerprintJson(filteredInput, cacheKeyFields);
         var cacheKey = AiJsonHelper.ComputeSha256Hex(
-            $"{scenario.Code}|{scenario.Model}|{template.Version}|{fingerprintJson}");
+            $"{scenario.Code}|{scenario.Model}|{template.Version}|ws={(scenario.EnableWebSearch ? 1 : 0)}|{fingerprintJson}");
 
         if (scenario.CacheTtlSeconds > 0)
         {
@@ -102,6 +102,16 @@ public sealed class AiOrchestrator : IAiOrchestrator
 
         var systemPrompt = template.SystemPrompt;
         var userPrompt = AiJsonHelper.RenderTemplate(template.UserPromptTemplate, filteredInput);
+        if (!string.IsNullOrWhiteSpace(template.JsonSchemaHint))
+            userPrompt = userPrompt.TrimEnd() + "\n\n【JSON 结构要求】\n" + template.JsonSchemaHint.Trim();
+
+        if (string.Equals(scenario.Code, AiScenarioCodes.MaterialIntelLookup, StringComparison.OrdinalIgnoreCase))
+        {
+            systemPrompt = AppendMaterialIntelLanguageGuard(systemPrompt);
+            userPrompt = userPrompt.TrimEnd()
+                + "\n请将所有描述性字段（meaning、application_areas、technical_features、disclaimer 等）用简体中文输出，英文资料须翻译后再写入 JSON。"
+                + " spec_params.datasheet_url 与 spec_params.image_url 须尽量填写可访问的 https 链接，找不到填 null，禁止编造。";
+        }
         var messages = new List<AiChatMessageDto>
         {
             new() { Role = "system", Content = systemPrompt },
@@ -111,6 +121,8 @@ public sealed class AiOrchestrator : IAiOrchestrator
         var promptCombined = systemPrompt + "\n---\n" + userPrompt;
         var promptHash = AiJsonHelper.ComputeSha256Hex(promptCombined);
         var promptPreview = await BuildPromptPreviewAsync(promptCombined, cancellationToken);
+
+        EnsureWebSearchModelCompatible(scenario, provider);
 
         var sw = Stopwatch.StartNew();
         AiChatCompletionResult? llmResult = null;
@@ -125,7 +137,8 @@ public sealed class AiOrchestrator : IAiOrchestrator
                 Messages = messages,
                 MaxTokens = scenario.MaxTokens,
                 Temperature = scenario.Temperature,
-                TimeoutSeconds = provider.TimeoutSeconds
+                TimeoutSeconds = provider.TimeoutSeconds,
+                EnableWebSearch = scenario.EnableWebSearch
             }, cancellationToken);
         }
         catch (Exception ex)
@@ -150,19 +163,47 @@ public sealed class AiOrchestrator : IAiOrchestrator
         if (scenario.CacheTtlSeconds > 0 && !string.IsNullOrWhiteSpace(content))
             await SaveCacheAsync(scenario, template, provider, cacheKey, fingerprintJson, content, cancellationToken);
 
+        var parsedData = string.Equals(template.OutputFormat, AiOutputFormatCode.Json, StringComparison.OrdinalIgnoreCase)
+            ? AiJsonHelper.TryParseJsonObject(content)
+            : null;
+
         return new AiInvokeResultDto
         {
             InvocationId = logId,
             FromCache = false,
             Content = content,
-            Data = string.Equals(template.OutputFormat, AiOutputFormatCode.Json, StringComparison.OrdinalIgnoreCase)
-                ? AiJsonHelper.TryParseJsonObject(content)
-                : null,
+            Data = parsedData,
             Usage = llmResult.Usage,
             ScenarioCode = scenario.Code,
             ProviderCode = provider.Code,
             Model = scenario.Model
         };
+    }
+
+    private static string AppendMaterialIntelLanguageGuard(string systemPrompt)
+    {
+        const string guard = "【强制语言】part_number_breakdown.meaning、application_areas、technical_features、disclaimer 等描述字段必须全部使用简体中文，禁止英文句子；联网检索到的英文内容须翻译后再输出。";
+        if (systemPrompt.Contains("【强制语言】", StringComparison.Ordinal))
+            return systemPrompt;
+        return systemPrompt.TrimEnd() + "\n\n" + guard;
+    }
+
+    private static void EnsureWebSearchModelCompatible(AiScenario scenario, AiProvider provider)
+    {
+        if (!scenario.EnableWebSearch)
+            return;
+
+        var isMoonshot = string.Equals(provider.Code, AiProviderCodes.Moonshot, StringComparison.OrdinalIgnoreCase)
+            || (provider.BaseUrl ?? string.Empty).Contains("moonshot", StringComparison.OrdinalIgnoreCase);
+        if (!isMoonshot)
+            return;
+
+        var model = scenario.Model.Trim();
+        if (model.StartsWith("kimi-k2.7", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"联网搜索请使用 kimi-k2.5 或 kimi-k2.6；当前模型 {model} 与 Moonshot $web_search 不兼容。请在「AI 配置 → 场景」中更换 Model 后再查询。");
+        }
     }
 
     private async Task EnsurePermissionAsync(string? userId, string permissionCode)
@@ -255,8 +296,16 @@ public sealed class AiOrchestrator : IAiOrchestrator
         var existing = await _db.AiInvocationCaches
             .FirstOrDefaultAsync(c => c.CacheKey == cacheKey, cancellationToken);
         var responseJson = string.Equals(template.OutputFormat, AiOutputFormatCode.Json, StringComparison.OrdinalIgnoreCase)
-            ? content
+            ? AiJsonHelper.ExtractJsonObjectText(content)
             : null;
+        if (responseJson == null
+            && string.Equals(template.OutputFormat, AiOutputFormatCode.Json, StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(content))
+        {
+            _logger.LogWarning(
+                "AI cache skipped response_json: LLM output is not valid JSON scenario={Scenario}",
+                scenario.Code);
+        }
 
         if (existing != null)
         {
@@ -274,7 +323,7 @@ public sealed class AiOrchestrator : IAiOrchestrator
                 Id = Guid.NewGuid().ToString(),
                 CacheKey = cacheKey,
                 ScenarioCode = scenario.Code,
-                RequestFingerprintJson = fingerprintJson,
+                RequestFingerprintJson = AiJsonHelper.CoerceJsonObjectForJsonb(fingerprintJson) ?? "{}",
                 ResponseContent = content,
                 ResponseJson = responseJson,
                 ProviderCode = provider.Code,
@@ -286,7 +335,14 @@ public sealed class AiOrchestrator : IAiOrchestrator
             }, cancellationToken);
         }
 
-        await _unitOfWork.SaveChangesAsync();
+        try
+        {
+            await _unitOfWork.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "AI cache write failed scenario={Scenario}", scenario.Code);
+        }
     }
 
     private async Task<string> WriteLogAsync(
@@ -315,7 +371,7 @@ public sealed class AiOrchestrator : IAiOrchestrator
             UserId = string.IsNullOrEmpty(userId) ? null : userId,
             BizType = string.IsNullOrWhiteSpace(request.BizType) ? null : request.BizType.Trim(),
             BizId = string.IsNullOrWhiteSpace(request.BizId) ? null : request.BizId.Trim(),
-            RequestFingerprintJson = fingerprintJson,
+            RequestFingerprintJson = AiJsonHelper.CoerceJsonObjectForJsonb(fingerprintJson) ?? "{}",
             PromptHash = promptHash,
             PromptPreview = promptPreview,
             Status = status,

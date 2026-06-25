@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 
 namespace CRM.Infrastructure.Ai;
 
@@ -82,16 +83,99 @@ internal static class AiJsonHelper
 
     public static object? TryParseJsonObject(string content)
     {
-        var trimmed = (content ?? string.Empty).Trim();
-        if (string.IsNullOrEmpty(trimmed))
+        foreach (var candidate in EnumerateJsonCandidates(content))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(candidate);
+                if (doc.RootElement.ValueKind is JsonValueKind.Object)
+                    return doc.RootElement.Clone();
+            }
+            catch
+            {
+                // try next candidate
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>从 LLM 原始文本中提取可写入 PostgreSQL jsonb 的 JSON 对象字符串。</summary>
+    public static string? ExtractJsonObjectText(string? content)
+    {
+        foreach (var candidate in EnumerateJsonCandidates(content))
+        {
+            if (TryNormalizeJsonObject(candidate, out var normalized))
+                return normalized;
+        }
+
+        return null;
+    }
+
+    /// <summary>确保字符串为合法 JSON 对象，供 jsonb 列写入；失败时返回 null。</summary>
+    public static string? CoerceJsonObjectForJsonb(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
             return null;
+        return TryNormalizeJsonObject(json.Trim(), out var normalized) ? normalized : null;
+    }
+
+    private static bool TryNormalizeJsonObject(string candidate, out string normalized)
+    {
+        normalized = string.Empty;
+        if (string.IsNullOrWhiteSpace(candidate))
+            return false;
+
         try
         {
-            return JsonSerializer.Deserialize<JsonElement>(trimmed);
+            using var doc = JsonDocument.Parse(candidate);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object)
+                return false;
+            normalized = doc.RootElement.GetRawText();
+            return true;
         }
         catch
         {
-            return null;
+            return false;
         }
+    }
+
+    private static IEnumerable<string> EnumerateJsonCandidates(string? content)
+    {
+        var trimmed = (content ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(trimmed))
+            yield break;
+
+        var fenced = Regex.Match(
+            trimmed,
+            @"^```(?:json|JSON)?\s*\r?\n([\s\S]*?)\r?\n?```\s*$",
+            RegexOptions.Singleline);
+        if (fenced.Success)
+        {
+            var inner = fenced.Groups[1].Value.Trim();
+            if (!string.IsNullOrEmpty(inner))
+                yield return inner;
+        }
+
+        if (trimmed.StartsWith("```", StringComparison.Ordinal))
+        {
+            var firstLineEnd = trimmed.IndexOf('\n');
+            if (firstLineEnd >= 0)
+            {
+                var body = trimmed[(firstLineEnd + 1)..].TrimEnd();
+                while (body.EndsWith('`'))
+                    body = body[..^1].TrimEnd();
+                if (!string.IsNullOrEmpty(body))
+                    yield return body;
+            }
+        }
+
+        var start = trimmed.IndexOf('{');
+        var end = trimmed.LastIndexOf('}');
+        if (start >= 0 && end > start)
+            yield return trimmed[start..(end + 1)];
+
+        if (trimmed.StartsWith('{'))
+            yield return trimmed;
     }
 }

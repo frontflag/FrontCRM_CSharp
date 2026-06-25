@@ -3,7 +3,7 @@
 **文档版本：** v1.0  
 **更新日期：** 2026-06-24  
 **项目名称：** FrontCRM_CSharp（AI智销系统）  
-**关联技术文档：** [AI模块架构与实现](../System/AI模块架构与实现.md)
+**关联技术文档：** [AI模块架构与实现](../System/AI模块架构与实现.md) · [AI物料情报查询-设计与实现](../System/AI物料情报查询-设计与实现.md)
 
 ---
 
@@ -98,10 +98,11 @@
 
 #### C. Debug 调试页
 
-路径：**Debug → AI 物料规格**（`/debug/ai`）
+| 路径 | 场景 | 说明 |
+|------|------|------|
+| `/debug/ai` | `material.spec.lookup` | 输入 PN、品牌，展示 JSON、缓存/实时、Token |
+| `/debug/material-intel` | `material.intel.lookup` | 结构化预览 vs 原始 JSON、契约 v2 校验 |
 
-- 输入 PN、品牌，调用场景 `material.spec.lookup`
-- 展示 JSON 结果（只读）、缓存/实时标签、厂商/模型/Token
 - 支持复制 JSON
 
 #### D. 权限与限流
@@ -120,6 +121,20 @@
 | 输出字段 | `package`、`voltage`、`temperature_range`、`description`、`confidence`（low/medium/high）、`disclaimer` |
 | 业务规则 | 无法确认的字段填 `null`，禁止编造；输出纯 JSON |
 | 默认缓存 | 7 天，键 = PN + 品牌 |
+
+#### F. 业务场景：RFQ 物料情报查询（material.intel.lookup）
+
+| 项 | 约定 |
+|----|------|
+| 场景码 | `material.intel.lookup` |
+| 入口 | RFQ 首页「AI 查询」 |
+| 输入 | `pn`（必填） |
+| 输出 | 多板块 JSON（品牌、规格、替代料、价格、新闻等），契约 v2 |
+| 权限 | `biz.ai.material_intel.lookup` |
+| 默认缓存 | 90 天，键 = PN |
+| 联网 | 生产建议 Moonshot + `kimi-k2.5` + `$web_search` |
+
+设计与实现详见 [AI物料情报查询-设计与实现](../System/AI物料情报查询-设计与实现.md)。
 
 ### 3.2 本期不包含
 

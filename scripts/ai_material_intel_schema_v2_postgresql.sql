@@ -1,0 +1,15 @@
+-- 增量：material.intel.lookup 契约 v2（alternatives/pricing/industry_news 结构对齐）
+-- 执行后清除该场景缓存；需部署最新 API（json_schema_hint 注入）
+-- Navicat-safe：占位符用 CHR 拼接，脚本内勿出现双花括号 pn 字面量
+
+UPDATE public.ai_prompt_template
+SET system_prompt = '你是面向中国采购与销售用户的电子元器件情报助手。根据型号仅返回合法 JSON（禁止 markdown 代码块）。JSON 键名必须保持英文 snake_case 不变。所有描述性字符串值必须使用简体中文（品牌/原厂/官方型号代号可保留英文）；即使联网检索到英文网页，也必须先翻译为简体中文再写入 JSON。未知用 null，无数据用空数组。不要编造价格、库存、URL 或新闻。spec_params 必须包含 datasheet_url 与 image_url（https 可访问链接，无法确认填 null）。alternatives 必须为对象数组，每项含 part_number、brand、note。pricing 必须为对象，含 market_price、market_conditions、price_tiers、distributors。industry_news 必须为对象数组，每项含 title、url、summary。disclaimer 用中文说明仅供参考，请以原厂或授权渠道规格为准。',
+    user_prompt_template =
+        convert_from(decode('e69fa5e8afa2e794b5e5ad90e58583e599a8e4bbb6e59e8be58fb7efbc9a', 'hex'), 'UTF8')
+        || CHR(123) || CHR(123) || 'p' || 'n' || CHR(125) || CHR(125)
+        || convert_from(decode('e38082e4b8a5e6a0bce68c89204a534f4e20e7bb93e69e84e8bf94e59b9eefbc9a6272616e645f696e666fe38081737065635f706172616d73efbc88e590ab20706172745f6e756d6265725f627265616b646f776eefbc8c6d65616e696e6720e794a8e7ae80e4bd93e4b8ade69687efbc9be590ab206461746173686565745f75726ce38081696d6167655f75726cefbc89e380816170706c69636174696f6e5f6172656173efbc88e7ae80e4bd93e4b8ade69687e5ad97e7aca6e4b8b2e695b0e7bb84efbc89e38081616c7465726e617469766573efbc88e5afb9e8b1a1e695b0e7bb84efbc9a706172745f6e756d626572e380816272616e64e380816e6f7465efbc89e3808170726963696e67efbc886d61726b65745f7072696365e380816d61726b65745f636f6e646974696f6e73e3808170726963655f7469657273e380816469737472696275746f7273efbc89e38081696e6475737472795f6e657773efbc88e5afb9e8b1a1e695b0e7bb84efbc9a7469746c65e3808175726ce3808173756d6d617279efbc89e38081646973636c61696d6572e38082e68f8fe8bfb0e5ad97e6aeb5e794a8e7ae80e4bd93e4b8ade69687efbc9be69caae79fa5206e756c6cefbc8ce697a0e695b0e7bb84e9a1b9205b5de38082', 'hex'), 'UTF8'),
+    json_schema_hint = '{"brand_info":{"brand":"string|null","manufacturer":"string|null","origin":"string|null","product_line":"string|null","product_category":"string|null","series":"string|null"},"spec_params":{"category":"string|null","part_number_breakdown":[{"segment":"string","meaning":"string"}],"technical_features":["string"],"electrical_params":{},"datasheet_url":"string|null","image_url":"string|null"},"application_areas":["string"],"alternatives":[{"part_number":"string","brand":"string|null","note":"string|null"}],"pricing":{"market_price":{"reference_price":"string|null","currency":"string|null","note":"string|null"},"market_conditions":{"availability":"string|null","trend":"string|null","note":"string|null"},"price_tiers":[{"quantity":"string","unit_price":"string","currency":"string|null"}],"distributors":[{"distributor":"string","price_range":"string|null","currency":"string|null","stock_status":"string|null","moq":"string|null","last_updated":"string|null"}]},"industry_news":[{"title":"string","url":"string|null","summary":"string|null"}],"disclaimer":"string"}',
+    modify_time = (now() AT TIME ZONE 'utc')
+WHERE code = 'material.intel.lookup' AND version = 1;
+
+DELETE FROM public.ai_invocation_cache WHERE scenario_code = 'material.intel.lookup';

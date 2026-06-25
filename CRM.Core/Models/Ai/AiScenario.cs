@@ -61,6 +61,9 @@ public class AiScenario : BaseGuidEntity, ISoftDeletable
     [Column("is_enabled")]
     public bool IsEnabled { get; set; } = true;
 
+    [Column("enable_web_search")]
+    public bool EnableWebSearch { get; set; }
+
     [Column("is_deleted")]
     public bool IsDeleted { get; set; }
 }

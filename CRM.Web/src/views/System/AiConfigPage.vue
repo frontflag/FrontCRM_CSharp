@@ -184,10 +184,16 @@
           </el-select>
         </el-form-item>
         <el-form-item label="Cache TTL (s)"><el-input-number v-model="editingScenario.cacheTtlSeconds" :min="0" /></el-form-item>
-        <el-form-item label="Max Tokens"><el-input-number v-model="editingScenario.maxTokens" :min="256" :max="8192" /></el-form-item>
+        <el-form-item label="Max Tokens">
+          <el-input-number v-model="editingScenario.maxTokens" :min="256" :max="32768" :step="256" />
+        </el-form-item>
         <el-form-item label="Temperature"><el-input-number v-model="editingScenario.temperature" :min="0" :max="2" :step="0.1" /></el-form-item>
         <el-form-item label="Permission"><el-input v-model="editingScenario.permissionCode" /></el-form-item>
         <el-form-item label="Rate/min"><el-input-number v-model="editingScenario.rateLimitPerUserPerMin" :min="1" /></el-form-item>
+        <el-form-item :label="t('aiConfig.enableWebSearch')">
+          <el-switch v-model="editingScenario.enableWebSearch" />
+          <div class="field-hint">{{ t('aiConfig.enableWebSearchHint') }}</div>
+        </el-form-item>
         <el-form-item :label="t('aiConfig.colEnabled')"><el-switch v-model="editingScenario.isEnabled" /></el-form-item>
       </el-form>
       <template #footer>
@@ -460,6 +466,13 @@ onMounted(async () => {
 
 .field-full {
   width: 100%;
+}
+
+.field-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #909399;
 }
 
 .ai-logs-table :deep(th.col-nowrap .cell),

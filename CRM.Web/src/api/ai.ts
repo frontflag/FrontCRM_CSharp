@@ -62,6 +62,7 @@ export type AiScenarioAdmin = {
   permissionCode: string
   rateLimitPerUserPerMin: number
   isEnabled: boolean
+  enableWebSearch: boolean
 }
 
 export type AiInvocationLogItem = {
@@ -137,3 +138,5 @@ export const aiApi = {
 }
 
 export const AI_SCENARIO_MATERIAL_SPEC_LOOKUP = 'material.spec.lookup'
+export const AI_SCENARIO_MATERIAL_INTEL_LOOKUP = 'material.intel.lookup'
+export const AI_PERMISSION_MATERIAL_INTEL_LOOKUP = 'biz.ai.material_intel.lookup'

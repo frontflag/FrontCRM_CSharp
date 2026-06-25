@@ -25,10 +25,28 @@
                   class="rfq-home__pill-input"
                   :placeholder="t('rfqHome.searchPlaceholder')"
                   autocomplete="off"
-                  @keyup.enter="handleMaterialSearch"
+                  @keyup.enter="onSearchEnter"
                 />
               </div>
-              <button type="button" class="rfq-home__pill-btn" @click="handleMaterialSearch">{{ t('rfqHome.search') }}</button>
+              <el-tooltip
+                :disabled="canAiLookup"
+                :content="t('rfqHome.aiSearchNoPermission')"
+                placement="bottom"
+              >
+                <span class="rfq-home__pill-btn-wrap">
+                  <button
+                    type="button"
+                    class="rfq-home__pill-btn"
+                    :disabled="!canAiLookup || aiLoading"
+                    @click="handleAiSearch"
+                  >
+                    {{ t('rfqHome.aiSearch') }}
+                  </button>
+                </span>
+              </el-tooltip>
+              <button type="button" class="rfq-home__pill-btn rfq-home__pill-btn--secondary" @click="handleLocalPnSearch">
+                {{ t('rfqHome.localPnSearch') }}
+              </button>
               <button type="button" class="rfq-home__pill-link" @click="goPnPlain">{{ t('rfqHome.goMaterialList') }}</button>
               <button type="button" class="rfq-home__pill-link" @click="goRfqList">{{ t('rfqHome.goRfqList') }}</button>
             </div>
@@ -48,6 +66,19 @@
         </button>
       </div>
     </div>
+
+    <div v-if="aiLoading" class="rfq-home__ai-loading">
+      <el-icon class="is-loading rfq-home__ai-loading-icon"><Loading /></el-icon>
+      <span>{{ t('rfqHome.aiLoading', { seconds: aiLoadingSeconds }) }}</span>
+    </div>
+
+    <MaterialIntelResultPanel
+      v-if="aiResultData"
+      :data="aiResultData"
+      :from-cache="aiFromCache"
+      show-close
+      @close="clearAiResult"
+    />
 
     <div v-if="loadingStats" class="rfq-home__loading">{{ t('rfqHome.loading') }}</div>
 
@@ -157,13 +188,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
+import { Loading } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { rfqApi } from '@/api/rfq'
 import { quoteApi } from '@/api/quote'
+import {
+  aiApi,
+  AI_SCENARIO_MATERIAL_INTEL_LOOKUP,
+  AI_PERMISSION_MATERIAL_INTEL_LOOKUP
+} from '@/api/ai'
+import { getApiErrorMessage } from '@/utils/apiError'
+import { parseAiJsonObject } from '@/utils/aiJson'
+import MaterialIntelResultPanel from '@/components/RFQ/MaterialIntelResultPanel.vue'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -172,6 +212,13 @@ const authStore = useAuthStore()
 const showCreateRfqButton = computed(() => authStore.hasPermission('rfq.create'))
 
 const keyword = ref('')
+const aiLoading = ref(false)
+const aiLoadingSeconds = ref(0)
+let aiLoadingTimer: ReturnType<typeof setInterval> | null = null
+const aiResultData = ref<Record<string, unknown> | null>(null)
+const aiFromCache = ref(false)
+
+const canAiLookup = computed(() => authStore.hasPermission(AI_PERMISSION_MATERIAL_INTEL_LOOKUP))
 
 interface RfqHomeStats {
   totalRfqs: number
@@ -213,9 +260,63 @@ function formatPct(n: number | null) {
   return `${n.toFixed(1)}%`
 }
 
-function handleMaterialSearch() {
+function handleLocalPnSearch() {
   const q = keyword.value.trim()
   router.push({ path: '/pn', query: q ? { keyword: q } : {} })
+}
+
+function startAiLoadingTimer() {
+  aiLoadingSeconds.value = 0
+  stopAiLoadingTimer()
+  aiLoadingTimer = setInterval(() => {
+    aiLoadingSeconds.value += 1
+  }, 1000)
+}
+
+function stopAiLoadingTimer() {
+  if (aiLoadingTimer != null) {
+    clearInterval(aiLoadingTimer)
+    aiLoadingTimer = null
+  }
+}
+
+async function handleAiSearch() {
+  const pn = keyword.value.trim()
+  if (!pn) {
+    ElMessage.warning(t('rfqHome.aiSearchNeedPn'))
+    return
+  }
+  if (!canAiLookup.value) return
+
+  aiLoading.value = true
+  startAiLoadingTimer()
+  aiResultData.value = null
+  try {
+    const result = await aiApi.invoke({
+      scenarioCode: AI_SCENARIO_MATERIAL_INTEL_LOOKUP,
+      input: { pn }
+    })
+    aiFromCache.value = result.fromCache
+    aiResultData.value = parseAiJsonObject(result.data, result.content)
+    if (!aiResultData.value) {
+      ElMessage.warning(t('rfqHome.aiSearchEmpty'))
+    }
+  } catch (err) {
+    ElMessage.error(getApiErrorMessage(err, t('rfqHome.aiSearchFailed')))
+  } finally {
+    aiLoading.value = false
+    stopAiLoadingTimer()
+  }
+}
+
+function clearAiResult() {
+  aiResultData.value = null
+  aiFromCache.value = false
+}
+
+function onSearchEnter() {
+  if (canAiLookup.value) void handleAiSearch()
+  else handleLocalPnSearch()
 }
 
 function goPnPlain() {
@@ -305,6 +406,10 @@ async function loadStats() {
 onMounted(() => {
   loadStats()
 })
+
+onUnmounted(() => {
+  stopAiLoadingTimer()
+})
 </script>
 
 <style scoped lang="scss">
@@ -392,6 +497,11 @@ onMounted(() => {
   }
 }
 
+.rfq-home__pill-btn-wrap {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
 .rfq-home__pill-btn {
   flex-shrink: 0;
   margin: 0 4px;
@@ -407,13 +517,49 @@ onMounted(() => {
   box-shadow: var(--crm-shadow-glow);
   transition: filter 0.15s ease, transform 0.15s ease;
 
-  &:hover {
+  &:hover:not(:disabled) {
     filter: brightness(1.06);
   }
 
-  &:active {
+  &:active:not(:disabled) {
     transform: scale(0.98);
   }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  &--secondary {
+    color: $text-primary;
+    background: $layer-3;
+    border: 1px solid $border-panel;
+    box-shadow: none;
+
+    &:hover {
+      filter: none;
+      border-color: var(--crm-accent-018);
+      background: var(--crm-accent-008);
+    }
+  }
+}
+
+.rfq-home__ai-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: -64px auto 48px;
+  max-width: calc(100% * 2 / 3);
+  padding: 16px;
+  font-size: 14px;
+  color: $text-secondary;
+}
+
+.rfq-home__ai-loading-icon {
+  font-size: 20px;
+  color: $cyan-primary;
 }
 
 .rfq-home__pill-link {

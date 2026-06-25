@@ -91,9 +91,9 @@ public sealed class AiAdminService : IAiAdminService
 
     public async Task UpdateScenarioAsync(AiScenarioAdminDto dto, CancellationToken cancellationToken = default)
     {
-        _ = cancellationToken;
         var row = await _scenarioRepo.GetByIdAsync(dto.Id.Trim())
                   ?? throw new InvalidOperationException("AI 场景不存在。");
+        var webSearchChanged = row.EnableWebSearch != dto.EnableWebSearch;
         row.Name = dto.Name.Trim();
         row.Description = dto.Description;
         row.ProviderCode = dto.ProviderCode.Trim();
@@ -102,14 +102,21 @@ public sealed class AiAdminService : IAiAdminService
         row.CacheTtlSeconds = Math.Max(0, dto.CacheTtlSeconds);
         row.CacheKeyFieldsJson = string.IsNullOrWhiteSpace(dto.CacheKeyFieldsJson) ? "[]" : dto.CacheKeyFieldsJson;
         row.AllowedInputFieldsJson = string.IsNullOrWhiteSpace(dto.AllowedInputFieldsJson) ? "[]" : dto.AllowedInputFieldsJson;
-        row.MaxTokens = Math.Clamp(dto.MaxTokens, 256, 8192);
+        row.MaxTokens = Math.Clamp(dto.MaxTokens, 256, 32768);
         row.Temperature = Math.Clamp(dto.Temperature, 0m, 2m);
         row.PermissionCode = dto.PermissionCode.Trim();
         row.RateLimitPerUserPerMin = Math.Max(1, dto.RateLimitPerUserPerMin);
         row.IsEnabled = dto.IsEnabled;
+        row.EnableWebSearch = dto.EnableWebSearch;
         row.ModifyTime = DateTime.UtcNow;
         await _scenarioRepo.UpdateAsync(row);
         await _unitOfWork.SaveChangesAsync();
+        if (webSearchChanged)
+        {
+            await _db.AiInvocationCaches
+                .Where(c => c.ScenarioCode == row.Code)
+                .ExecuteDeleteAsync(cancellationToken);
+        }
     }
 
     public async Task<IReadOnlyList<AiInvocationLogListItemDto>> ListInvocationLogsAsync(
@@ -234,6 +241,7 @@ public sealed class AiAdminService : IAiAdminService
         Temperature = s.Temperature,
         PermissionCode = s.PermissionCode,
         RateLimitPerUserPerMin = s.RateLimitPerUserPerMin,
-        IsEnabled = s.IsEnabled
+        IsEnabled = s.IsEnabled,
+        EnableWebSearch = s.EnableWebSearch
     };
 }

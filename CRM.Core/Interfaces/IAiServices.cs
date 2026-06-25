@@ -16,6 +16,8 @@ public sealed class AiChatCompletionRequest
     public int MaxTokens { get; set; } = 2048;
     public decimal Temperature { get; set; } = 0.3m;
     public int TimeoutSeconds { get; set; } = 120;
+    /// <summary>为 true 且厂商为 Moonshot 时，调用内置 $web_search 联网搜索（多轮 tool_calls）。</summary>
+    public bool EnableWebSearch { get; set; }
 }
 
 public sealed class AiTokenUsageDto
@@ -116,6 +118,7 @@ public sealed class AiScenarioAdminDto
     public string PermissionCode { get; set; } = string.Empty;
     public int RateLimitPerUserPerMin { get; set; }
     public bool IsEnabled { get; set; }
+    public bool EnableWebSearch { get; set; }
 }
 
 public sealed class AiInvocationLogListItemDto

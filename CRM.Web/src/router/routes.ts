@@ -984,6 +984,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/Debug/DebugAi.vue'),
         meta: { requiresAuth: true, title: 'AI 物料规格', sysAdminOnly: true }
       },
+      {
+        path: 'debug/material-intel',
+        name: 'DebugMaterialIntel',
+        component: () => import('@/views/Debug/DebugMaterialIntel.vue'),
+        meta: { requiresAuth: true, title: 'AI 物料情报对照', sysAdminOnly: true }
+      },
       // 兼容历史访问链接：/debugdata -> /debug/data
       {
         path: 'debugdata',

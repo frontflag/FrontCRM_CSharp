@@ -52,6 +52,8 @@ import { computed, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { aiApi, AI_SCENARIO_MATERIAL_SPEC_LOOKUP, type AiInvokeResult } from '@/api/ai'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { parseAiJsonObject } from '@/utils/aiJson'
+import { copyTextToClipboard } from '@/utils/clipboard'
 
 const pn = ref('')
 const brand = ref('')
@@ -62,17 +64,9 @@ const canSubmit = computed(() => pn.value.trim().length > 0 && brand.value.trim(
 
 const formattedJson = computed(() => {
   if (!result.value) return ''
-  const data = result.value.data ?? tryParseJson(result.value.content)
+  const data = parseAiJsonObject(result.value.data, result.value.content)
   return JSON.stringify(data ?? { content: result.value.content }, null, 2)
 })
-
-function tryParseJson(text: string): unknown {
-  try {
-    return JSON.parse(text)
-  } catch {
-    return null
-  }
-}
 
 async function onInvoke() {
   if (!canSubmit.value) return
@@ -92,12 +86,20 @@ async function onInvoke() {
 
 async function copyJson() {
   if (!formattedJson.value) return
-  try {
-    await navigator.clipboard.writeText(formattedJson.value)
+  if (copyTextToClipboard(formattedJson.value)) {
     ElMessage.success('已复制到剪贴板')
-  } catch {
-    ElMessage.error('复制失败')
+    return
   }
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(formattedJson.value)
+      ElMessage.success('已复制到剪贴板')
+      return
+    } catch {
+      /* fall through */
+    }
+  }
+  ElMessage.error('复制失败')
 }
 </script>
 

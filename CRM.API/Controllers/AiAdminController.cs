@@ -3,6 +3,7 @@ using CRM.API.Models.DTOs;
 using CRM.Core.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Npgsql;
 
 namespace CRM.API.Controllers;
 
@@ -92,8 +93,17 @@ public class AiAdminController : ControllerBase
     public async Task<ActionResult<ApiResponse<IReadOnlyList<AiScenarioAdminDto>>>> ListScenarios(
         CancellationToken cancellationToken)
     {
-        var list = await _adminService.ListScenariosAsync(cancellationToken);
-        return Ok(ApiResponse<IReadOnlyList<AiScenarioAdminDto>>.Ok(list, "ok"));
+        try
+        {
+            var list = await _adminService.ListScenariosAsync(cancellationToken);
+            return Ok(ApiResponse<IReadOnlyList<AiScenarioAdminDto>>.Ok(list, "ok"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "加载 AI 场景失败");
+            var schemaMsg = TryMapAiScenarioSchemaError(ex);
+            return StatusCode(500, ApiResponse<IReadOnlyList<AiScenarioAdminDto>>.Fail(schemaMsg ?? "加载场景失败"));
+        }
     }
 
     [HttpPut("scenarios/{id}")]
@@ -116,8 +126,24 @@ public class AiAdminController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "更新 AI 场景失败 id={Id}", id);
-            return StatusCode(500, ApiResponse<object>.Fail("保存失败"));
+            var schemaMsg = TryMapAiScenarioSchemaError(ex);
+            return StatusCode(500, ApiResponse<object>.Fail(schemaMsg ?? "保存失败"));
         }
+    }
+
+    private static string? TryMapAiScenarioSchemaError(Exception ex)
+    {
+        for (var cur = ex; cur != null; cur = cur.InnerException)
+        {
+            if (cur is PostgresException pg
+                && pg.SqlState == PostgresErrorCodes.UndefinedColumn
+                && pg.MessageText.Contains("enable_web_search", StringComparison.OrdinalIgnoreCase))
+            {
+                return "数据库缺少字段 enable_web_search。请在 PostgreSQL 执行 scripts/ai_scenario_enable_web_search_postgresql.sql（或 ai_material_intel_lookup_postgresql.sql 末尾 ALTER TABLE），然后刷新本页再保存。";
+            }
+        }
+
+        return null;
     }
 
     [HttpGet("logs")]

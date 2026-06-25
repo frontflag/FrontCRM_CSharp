@@ -278,6 +278,12 @@ namespace CRM.Core.Services
                 RemovePermissionCodes(permissionCodes, "vendor.read", "vendor.write");
             }
 
+            // RFQ 查看权限用户可使用 AI 物料情报查询（/rfq 页；运行时合并，含部门身份补发的 rfq.read）。
+            if (permissionCodes.Exists(c => string.Equals(c, "rfq.read", StringComparison.OrdinalIgnoreCase)))
+            {
+                AddPermissionCodeIfMissing(permissionCodes, "biz.ai.material_intel.lookup");
+            }
+
             return new UserPermissionSummaryDto
             {
                 UserId = userId,

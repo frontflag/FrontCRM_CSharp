@@ -17,9 +17,10 @@
 - 场景（Scenario）驱动：提示词模板、缓存、限流、权限均可配置
 - PostgreSQL 缓存与调用日志
 - 管理端配置页 + Debug 调试页
-- 首个业务场景：`material.spec.lookup`（根据 PN + 品牌查询物料规格）
+- 业务场景：`material.spec.lookup`（Debug：PN + 品牌查规格）
+- 业务场景：**`material.intel.lookup`（RFQ 首页 AI 物料情报）** — 详见 [AI物料情报查询-设计与实现](./AI物料情报查询-设计与实现.md)
 
-**不在本文范围：** 流式输出（SSE）、多模态、向量检索/RAG、全局配置的管理 UI（`ai_global_config` 目前仅数据库/种子维护）。
+**不在本文范围：** 流式输出（SSE）、多模态、向量检索/RAG、全局配置的管理 UI（`ai_global_config` 目前仅数据库/种子维护）。**RFQ 物料情报 UI 渲染细节** 见专用文档，不在此重复。
 
 ---
 
@@ -87,6 +88,9 @@
 | 前端 API | `CRM.Web/src/api/ai.ts` | 调用封装（invoke 超时 180s） |
 | 管理页 | `CRM.Web/src/views/System/AiConfigPage.vue` | 厂商 / 场景 / 模板 / 日志 |
 | Debug 页 | `CRM.Web/src/views/Debug/DebugAi.vue` | 物料规格查询调试 |
+| RFQ AI 查询 | `CRM.Web/src/views/RFQ/RFQHome.vue` | 物料情报业务入口 |
+| 物料情报 UI | `CRM.Web/src/components/RFQ/MaterialIntelResultPanel.vue` 等 | 见 [AI物料情报查询-设计与实现](./AI物料情报查询-设计与实现.md) |
+| Debug 对照 | `CRM.Web/src/views/Debug/DebugMaterialIntel.vue` | 契约 v2 结构化 vs 原始 JSON |
 | 模型预设 | `CRM.Web/src/constants/aiProviderModels.ts` | 管理端 Model 下拉选项 |
 | 迁移 | `CRM.Infrastructure/Migrations/20260803180000_AiModuleSchema.cs` | 建表 + 种子 + 权限 |
 | SQL 脚本 | `scripts/ai_module_postgresql.sql` | 独立部署（DBeaver 友好） |
@@ -217,8 +221,9 @@ AiOrchestrator.InvokeAsync
 |--------|------|
 | `biz.ai.admin` | AI 配置管理（厂商/场景/模板/日志） |
 | `biz.ai.material_spec.lookup` | 调用 `material.spec.lookup` 场景 |
+| `biz.ai.material_intel.lookup` | 调用 `material.intel.lookup` 场景（RFQ 首页 AI 查询） |
 
-种子数据将上述权限赋给 `SYS_ADMIN`、`biz_all` 角色。
+种子数据将上述权限赋给 `SYS_ADMIN`、`biz_all` 角色；`material.intel.lookup` 另按 `rfq.read` 批量授予（见 SQL 脚本）。
 
 ---
 
@@ -316,6 +321,8 @@ Key 与端点必须匹配：国内平台申请的 Key 不能用于 `.ai` 端点�
 |------|------|-------------|
 | AI 配置 | `/system/ai-config` | `biz.ai.admin` |
 | AI Debug | `/debug/ai` | `sysAdminOnly` |
+| AI 物料情报对照 | `/debug/material-intel` | `sysAdminOnly` |
+| RFQ 首页 AI 查询 | `/rfq`（或需求管理首页） | `biz.ai.material_intel.lookup` |
 
 菜单项在 `AppLayout.vue`；i18n 键 `aiConfig.*`、`layout.menu.aiConfig`。
 
@@ -333,6 +340,12 @@ Key 与端点必须匹配：国内平台申请的 Key 不能用于 `.ai` 端点�
 - 输入：PN、品牌
 - 展示 JSON 结果（只读）
 - 常量：`AI_SCENARIO_MATERIAL_SPEC_LOOKUP`（`api/ai.ts`）
+
+### 8.4 RFQ 物料情报（`material.intel.lookup`）
+
+业务入口、JSON 契约 v2、前端渲染栈、部署与 Debug 对照见专用文档：
+
+**[AI物料情报查询-设计与实现](./AI物料情报查询-设计与实现.md)**
 
 ---
 
