@@ -574,15 +574,21 @@ namespace CRM.Core.Services
                 if (string.IsNullOrWhiteSpace(p.VendorBankId)) continue;
                 if (!vendorBankMap.TryGetValue(p.VendorBankId.Trim(), out var vendorBank)) continue;
 
-                string? name = null;
+                if (!string.IsNullOrWhiteSpace(vendorBank.AccountName))
+                    p.VendorBankAccountName = vendorBank.AccountName.Trim();
+
+                string? openingBank = null;
                 var linkedId = vendorBank.FinancePaymentBankId?.Trim();
                 if (!string.IsNullOrWhiteSpace(linkedId) && paymentBankNameMap.TryGetValue(linkedId, out var linkedName))
-                    name = linkedName;
+                    openingBank = linkedName;
                 else if (!string.IsNullOrWhiteSpace(vendorBank.BankName))
-                    name = vendorBank.BankName.Trim();
+                    openingBank = vendorBank.BankName.Trim();
 
-                if (!string.IsNullOrWhiteSpace(name))
-                    p.VendorBankName = name;
+                if (!string.IsNullOrWhiteSpace(openingBank))
+                {
+                    p.VendorBankName = openingBank;
+                    p.VendorBankOpeningBank = openingBank;
+                }
             }
         }
 

@@ -113,4 +113,69 @@ public sealed class DataPermissionServiceTests
         Assert.Single(result);
         Assert.Equal("v1", result[0].Id);
     }
+
+    [Fact]
+    public async Task FilterSalesOrdersAsync_dept_employee_only_sees_own_orders_even_when_logistics_scope_all()
+    {
+        var rbac = Substitute.For<IRbacService>();
+        rbac.GetUserPermissionSummaryAsync("king").Returns(new UserPermissionSummaryDto
+        {
+            UserId = "king",
+            IsSysAdmin = false,
+            IdentityType = 1,
+            SaleDataScope = 3,
+            LogisticsDataScope = 0,
+            RoleCodes = new[] { "DEPT_EMPLOYEE", "sales_operator" },
+            PrimaryDepartmentId = "dept-sales"
+        });
+
+        var deptRepo = Substitute.For<IRepository<RbacDepartment>>();
+        deptRepo.GetAllAsync().Returns(new List<RbacDepartment>
+        {
+            new() { Id = "dept-sales", Path = "Root/销售部", Status = 1 }
+        });
+
+        var userDeptRepo = Substitute.For<IRepository<RbacUserDepartment>>();
+        userDeptRepo.GetAllAsync().Returns(new List<RbacUserDepartment>
+        {
+            new() { UserId = "king", DepartmentId = "dept-sales", IsPrimary = true },
+            new() { UserId = "cecilia", DepartmentId = "dept-sales", IsPrimary = true }
+        });
+
+        var userRoleRepo = Substitute.For<IRepository<RbacUserRole>>();
+        userRoleRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<RbacUserRole, bool>>>())
+            .Returns(new List<RbacUserRole>
+            {
+                new() { UserId = "cecilia", RoleId = "role-emp" }
+            });
+
+        var roleRepo = Substitute.For<IRepository<RbacRole>>();
+        roleRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<RbacRole, bool>>>())
+            .Returns(new List<RbacRole>
+            {
+                new() { Id = "role-emp", RoleCode = "DEPT_EMPLOYEE", RoleName = "部门员工" }
+            });
+
+        var sut = new DataPermissionService(
+            rbac,
+            deptRepo,
+            userDeptRepo,
+            userRoleRepo,
+            roleRepo,
+            Substitute.For<IRepository<RFQ>>(),
+            Substitute.For<IRepository<RFQItem>>(),
+            Substitute.For<IRepository<CustomerInfo>>(),
+            Substitute.For<IRepository<VendorInfo>>());
+
+        var source = new List<SellOrder>
+        {
+            new() { Id = "so-king", SalesUserId = "king" },
+            new() { Id = "so-cecilia", SalesUserId = "cecilia" }
+        };
+
+        var result = await sut.FilterSalesOrdersAsync("king", source);
+
+        Assert.Single(result);
+        Assert.Equal("so-king", result[0].Id);
+    }
 }

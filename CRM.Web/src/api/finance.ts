@@ -43,8 +43,12 @@ export interface FinancePayment {
   feeIntermediateBankPayer?: string | null
   /** 列表/详情由后端填充 */
   paymentBankName?: string | null
-  /** 列表/详情由后端按 vendorBankId 填充 */
+  /** 列表/详情由后端按 vendorBankId 填充（开户银行，兼容旧字段） */
   vendorBankName?: string | null
+  /** 列表/详情由后端按 vendorBankId 填充 */
+  vendorBankAccountName?: string | null
+  /** 列表/详情由后端按 vendorBankId 填充 */
+  vendorBankOpeningBank?: string | null
   /** 通用备注（审核等） */
   remark?: string | null
   /** 后端 BaseEntity 序列化字段（camelCase: createTime） */

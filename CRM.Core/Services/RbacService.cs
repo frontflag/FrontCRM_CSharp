@@ -267,15 +267,25 @@ namespace CRM.Core.Services
             }
 
             // 主部门「隐藏客户管理」：与 SaleDataScope 无关，剥离客户模块读写权限。
+            // 财务部录入收款/销项发票等仍需 customer.read 用于下拉检索（菜单/路由仍由 HideCustomerManagement 控制）。
             if (hideCustomerManagement)
             {
                 RemovePermissionCodes(permissionCodes, "customer.read", "customer.write");
+                if (identityType == 5)
+                {
+                    AddPermissionCodeIfMissing(permissionCodes, "customer.read");
+                }
             }
 
             // 主部门「隐藏供应商管理」：与 PurchaseDataScope 无关，剥离供应商模块读写权限。
+            // 财务部录入付款/进项发票等仍需 vendor.read 用于下拉检索（菜单/路由仍由 HideVendorManagement 控制）。
             if (hideVendorManagement)
             {
                 RemovePermissionCodes(permissionCodes, "vendor.read", "vendor.write");
+                if (identityType == 5)
+                {
+                    AddPermissionCodeIfMissing(permissionCodes, "vendor.read");
+                }
             }
 
             // RFQ 查看权限用户可使用 AI 物料情报查询（/rfq 页；运行时合并，含部门身份补发的 rfq.read）。

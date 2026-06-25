@@ -111,9 +111,17 @@ namespace CRM.Core.Models.Finance
         [NotMapped]
         public string? PaymentBankName { get; set; }
 
-        /// <summary>列表/详情由后端按 <see cref="VendorBankId"/> 填充收款银行名称。</summary>
+        /// <summary>列表/详情由后端按 <see cref="VendorBankId"/> 填充收款银行名称（开户银行）。</summary>
         [NotMapped]
         public string? VendorBankName { get; set; }
+
+        /// <summary>列表/详情由后端按 <see cref="VendorBankId"/> 填充账户名称。</summary>
+        [NotMapped]
+        public string? VendorBankAccountName { get; set; }
+
+        /// <summary>列表/详情由后端按 <see cref="VendorBankId"/> 填充开户银行（与 <see cref="VendorBankName"/> 同源）。</summary>
+        [NotMapped]
+        public string? VendorBankOpeningBank { get; set; }
 
         /// <summary>关联采购订单货代单号（展示用，多明细去重拼接，不落库）。</summary>
         [NotMapped]

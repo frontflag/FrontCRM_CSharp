@@ -149,6 +149,10 @@ namespace CRM.API.Controllers
             [FromQuery] string? pn,
             [FromQuery] short? orderType,
             [FromQuery] string? transactionCurrency,
+            [FromQuery] short? paymentProgressStatus = null,
+            [FromQuery] short? purchaseProgressStatus = null,
+            [FromQuery] short? stockInProgressStatus = null,
+            [FromQuery] short? invoiceProgressStatus = null,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20,
             CancellationToken cancellationToken = default)
@@ -179,6 +183,10 @@ namespace CRM.API.Controllers
                     Pn = string.IsNullOrWhiteSpace(pn) ? null : pn.Trim(),
                     OrderType = orderType,
                     TransactionCurrency = transactionCurrency,
+                    PaymentProgressStatus = paymentProgressStatus,
+                    PurchaseProgressStatus = purchaseProgressStatus,
+                    StockInProgressStatus = stockInProgressStatus,
+                    InvoiceProgressStatus = invoiceProgressStatus,
                     Page = page,
                     PageSize = pageSize
                 };

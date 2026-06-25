@@ -268,11 +268,13 @@
           <el-input v-model="formData.remark" type="textarea" :rows="2" placeholder="请输入备注" />
         </el-form-item>
 
-        <!-- 采购报价：数量 / 价格 / 折算价（可增删行；折算价=人民币，按系统汇率自动算，不可手输） -->
+        <!-- 采购报价：数量 / 价格 / 折算价（USD，与订单 convert_price 口径一致） -->
         <div class="price-tier-panel">
           <div class="price-tier-header">
             <h4 class="price-tier-title">采购报价</h4>
-            <p class="price-tier-hint">折算价为人民币金额，根据「系统设置 → 财务参数 → 汇率」自动换算；修改单价或币别后自动更新。</p>
+            <p class="price-tier-hint">
+              折算价为美元单价，根据「系统设置 → 财务参数 → 汇率」自动换算（原币 → USD）；修改单价或币别后自动更新。
+            </p>
           </div>
           <CrmDataTable class="price-tier-table" :data="formData.quotePriceRows" size="small">
               <el-table-column label="数量" min-width="120">
@@ -297,7 +299,7 @@
                   />
                 </template>
               </el-table-column>
-              <el-table-column label="折算价（¥）" min-width="168">
+              <el-table-column label="折算价（USD）" min-width="168">
                 <template #default="{ $index }">
                   <span class="tier-converted-display" :title="convertedPriceTitle(formData.quotePriceRows[$index].convertedPrice)">
                     {{ formatConvertedPrice(formData.quotePriceRows[$index].convertedPrice) }}
@@ -354,6 +356,7 @@ import { authApi, type PurchaseDeptStaffUserOption } from '@/api/auth'
 import { useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
 import { financeExchangeRateApi } from '@/api/financeExchangeRate'
 import { CurrencyCode } from '@/constants/currency'
+import { unitLocalToUsd } from '@/utils/exchangeRateToUsd'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { canQuoteRfqItem } from '@/utils/rfqItemQuoteAccessRules'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
@@ -428,7 +431,7 @@ function emptyPriceRow() {
     unitPrice: 0,
     /** 与 SETTLEMENT_CURRENCY_OPTIONS / CurrencyCode 一致 */
     currency: CurrencyCode.RMB,
-    /** 人民币折算价，由汇率自动计算，勿手改 */
+    /** 美元折算单价（convert_price 口径），由汇率自动计算，勿手改 */
     convertedPrice: undefined as number | undefined
   }
 }
@@ -477,46 +480,22 @@ const formData = ref({
   quotePriceRows: [emptyPriceRow()]
 })
 
-function roundMoney6(n: number): number {
-  if (!Number.isFinite(n)) return 0
-  return Math.round(n * 1e6) / 1e6
-}
-
 /**
- * 系统汇率含义（与财务参数页一致）：1 USD 可兑 usdToCny 人民币、usdToHkd 港币、usdToEur 欧元。
- * 将单行「单价 + 币别」折算为人民币金额（不含税）。
+ * 将单行「单价 + 币别」折算为美元单价（与 ExchangeRateToUsdConverter / 订单 convert_price 一致）。
  */
-function unitPriceToCny(
+function unitPriceToUsd(
   unitPrice: number,
   currency: number,
   rates: { usdToCny: number; usdToHkd: number; usdToEur: number }
 ): number | undefined {
-  const p = Number(unitPrice)
-  if (!Number.isFinite(p) || p < 0) return undefined
-  const { usdToCny, usdToHkd, usdToEur } = rates
-  if (!usdToCny || usdToCny <= 0) return undefined
-
-  switch (currency) {
-    case CurrencyCode.RMB:
-      return roundMoney6(p)
-    case CurrencyCode.USD:
-      return roundMoney6(p * usdToCny)
-    case CurrencyCode.HKD:
-      if (!usdToHkd || usdToHkd <= 0) return undefined
-      return roundMoney6((p / usdToHkd) * usdToCny)
-    case CurrencyCode.EUR:
-      if (!usdToEur || usdToEur <= 0) return undefined
-      return roundMoney6((p / usdToEur) * usdToCny)
-    default:
-      return undefined
-  }
+  return unitLocalToUsd(unitPrice, currency, rates)
 }
 
 function recalcAllConvertedPrices() {
   const rates = exchangeRates.value
   for (const row of formData.value.quotePriceRows) {
-    const cny = unitPriceToCny(Number(row.unitPrice), Number(row.currency), rates)
-    if (row.convertedPrice !== cny) row.convertedPrice = cny
+    const usd = unitPriceToUsd(Number(row.unitPrice), Number(row.currency), rates)
+    if (row.convertedPrice !== usd) row.convertedPrice = usd
   }
 }
 
@@ -527,7 +506,7 @@ function formatConvertedPrice(v: number | undefined) {
 
 function convertedPriceTitle(v: number | undefined) {
   if (v == null || Number.isNaN(Number(v))) return ''
-  return `人民币折算价：${Number(v)}（保存时提交）`
+  return `美元折算价：${Number(v)} USD（保存时提交）`
 }
 
 async function refreshExchangeRatesFromApi() {

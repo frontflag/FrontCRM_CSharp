@@ -120,6 +120,63 @@
           <el-option :label="t('purchaseOrderItemList.filters.orderTypeSample')" :value="3" />
         </el-select>
 
+        <el-select
+          v-model="filters.paymentProgressStatus"
+          clearable
+          :placeholder="t('purchaseOrderItemList.filters.paymentProgressStatus')"
+          class="filter-select filter-select--progress"
+          :teleported="false"
+        >
+          <el-option
+            v-for="opt in poProgressFilterOptions('payment')"
+            :key="`payment-${opt.value}`"
+            :label="opt.label"
+            :value="opt.value"
+          />
+        </el-select>
+        <el-select
+          v-model="filters.purchaseProgressStatus"
+          clearable
+          :placeholder="t('purchaseOrderItemList.filters.purchaseProgressStatus')"
+          class="filter-select filter-select--progress"
+          :teleported="false"
+        >
+          <el-option
+            v-for="opt in poProgressFilterOptions('purchase')"
+            :key="`purchase-${opt.value}`"
+            :label="opt.label"
+            :value="opt.value"
+          />
+        </el-select>
+        <el-select
+          v-model="filters.stockInProgressStatus"
+          clearable
+          :placeholder="t('purchaseOrderItemList.filters.stockInProgressStatus')"
+          class="filter-select filter-select--progress"
+          :teleported="false"
+        >
+          <el-option
+            v-for="opt in poProgressFilterOptions('stockIn')"
+            :key="`stockIn-${opt.value}`"
+            :label="opt.label"
+            :value="opt.value"
+          />
+        </el-select>
+        <el-select
+          v-model="filters.invoiceProgressStatus"
+          clearable
+          :placeholder="t('purchaseOrderItemList.filters.invoiceProgressStatus')"
+          class="filter-select filter-select--progress"
+          :teleported="false"
+        >
+          <el-option
+            v-for="opt in poProgressFilterOptions('invoice')"
+            :key="`invoice-${opt.value}`"
+            :label="opt.label"
+            :value="opt.value"
+          />
+        </el-select>
+
         <button type="button" class="btn-primary btn-sm" :disabled="loading" @click="runSearch">
           {{ t('purchaseOrderItemList.filters.search') }}
         </button>
@@ -1179,8 +1236,27 @@ const filters = reactive({
   purchaseUserName: '',
   pn: '',
   transactionCurrency: '' as '' | 'rmb' | 'foreign',
-  orderType: undefined as number | undefined
+  orderType: undefined as number | undefined,
+  paymentProgressStatus: undefined as number | undefined,
+  purchaseProgressStatus: undefined as number | undefined,
+  stockInProgressStatus: undefined as number | undefined,
+  invoiceProgressStatus: undefined as number | undefined
 })
+
+type PoProgressFilterKind = 'payment' | 'purchase' | 'stockIn' | 'invoice'
+
+function poProgressFilterOptions(kind: PoProgressFilterKind) {
+  const keyMap: Record<PoProgressFilterKind, Record<0 | 1 | 2, string>> = {
+    payment: { 0: 'paymentPending', 1: 'paymentPartial', 2: 'paymentDone' },
+    purchase: { 0: 'purchasePending', 1: 'purchasePartial', 2: 'purchaseDone' },
+    stockIn: { 0: 'stockInPending', 1: 'stockInPartial', 2: 'stockInDone' },
+    invoice: { 0: 'invoicePending', 1: 'invoicePartial', 2: 'invoiceDone' }
+  }
+  return ([0, 1, 2] as const).map((value) => ({
+    value,
+    label: t(`purchaseOrderItemList.extendProgress.${keyMap[kind][value]}`)
+  }))
+}
 
 function isLineStockingPurchase(row: any) {
   return Number(row?.purchaseOrderType) === 2
@@ -1526,6 +1602,10 @@ async function loadList() {
       pn?: string
       orderType?: number
       transactionCurrency?: 'rmb' | 'foreign'
+      paymentProgressStatus?: number
+      purchaseProgressStatus?: number
+      stockInProgressStatus?: number
+      invoiceProgressStatus?: number
     } = {
       page: page.value,
       pageSize: pageSize.value
@@ -1539,6 +1619,18 @@ async function loadList() {
     if (filters.pn.trim()) params.pn = filters.pn.trim()
     if (filters.orderType !== undefined && filters.orderType !== null) params.orderType = filters.orderType
     if (filters.transactionCurrency) params.transactionCurrency = filters.transactionCurrency
+    if (filters.paymentProgressStatus !== undefined && filters.paymentProgressStatus !== null) {
+      params.paymentProgressStatus = filters.paymentProgressStatus
+    }
+    if (filters.purchaseProgressStatus !== undefined && filters.purchaseProgressStatus !== null) {
+      params.purchaseProgressStatus = filters.purchaseProgressStatus
+    }
+    if (filters.stockInProgressStatus !== undefined && filters.stockInProgressStatus !== null) {
+      params.stockInProgressStatus = filters.stockInProgressStatus
+    }
+    if (filters.invoiceProgressStatus !== undefined && filters.invoiceProgressStatus !== null) {
+      params.invoiceProgressStatus = filters.invoiceProgressStatus
+    }
 
     const data = (await purchaseOrderApi.getItemLinesPage(params)) as {
       items?: any[]
@@ -1573,6 +1665,10 @@ function resetFilters() {
   filters.pn = ''
   filters.transactionCurrency = ''
   filters.orderType = undefined
+  filters.paymentProgressStatus = undefined
+  filters.purchaseProgressStatus = undefined
+  filters.stockInProgressStatus = undefined
+  filters.invoiceProgressStatus = undefined
   page.value = 1
   void loadList()
 }
@@ -1767,6 +1863,9 @@ onMounted(() => {
 
 .filter-select {
   width: 130px;
+  &.filter-select--progress {
+    width: 132px;
+  }
   :deep(.el-select__wrapper) {
     background: $layer-2 !important;
     box-shadow: none !important;

@@ -99,6 +99,38 @@ public sealed class PurchaseOrderItemListQuery : IPurchaseOrderItemListQuery
                 q = q.Where(x => x.item.Currency != (short)CurrencyCode.RMB);
         }
 
+        if (request.PaymentProgressStatus is >= 0 and <= 2)
+        {
+            var status = request.PaymentProgressStatus.Value;
+            q = status == 0
+                ? q.Where(x => x.ext == null || x.ext.PaymentProgressStatus == 0)
+                : q.Where(x => x.ext != null && x.ext.PaymentProgressStatus == status);
+        }
+
+        if (request.PurchaseProgressStatus is >= 0 and <= 2)
+        {
+            var status = request.PurchaseProgressStatus.Value;
+            q = status == 0
+                ? q.Where(x => x.ext == null || x.ext.PurchaseProgressStatus == 0)
+                : q.Where(x => x.ext != null && x.ext.PurchaseProgressStatus == status);
+        }
+
+        if (request.StockInProgressStatus is >= 0 and <= 2)
+        {
+            var status = request.StockInProgressStatus.Value;
+            q = status == 0
+                ? q.Where(x => x.ext == null || x.ext.StockInProgressStatus == 0)
+                : q.Where(x => x.ext != null && x.ext.StockInProgressStatus == status);
+        }
+
+        if (request.InvoiceProgressStatus is >= 0 and <= 2)
+        {
+            var status = request.InvoiceProgressStatus.Value;
+            q = status == 0
+                ? q.Where(x => x.ext == null || x.ext.InvoiceProgressStatus == 0)
+                : q.Where(x => x.ext != null && x.ext.InvoiceProgressStatus == status);
+        }
+
         var total = await q.CountAsync(cancellationToken);
 
         var ordered = q

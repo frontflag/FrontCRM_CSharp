@@ -28,6 +28,18 @@ public sealed class PurchaseOrderItemListQueryRequest
     /// <summary>交易币别筛选：rmb=人民币，foreign=外币（非人民币）。</summary>
     public string? TransactionCurrency { get; set; }
 
+    /// <summary>付款进度 0/1/2（扩展表）。</summary>
+    public short? PaymentProgressStatus { get; set; }
+
+    /// <summary>采购进度 0/1/2（扩展表）。</summary>
+    public short? PurchaseProgressStatus { get; set; }
+
+    /// <summary>入库进度 0/1/2（扩展表）。</summary>
+    public short? StockInProgressStatus { get; set; }
+
+    /// <summary>开票进度 0/1/2（扩展表）。</summary>
+    public short? InvoiceProgressStatus { get; set; }
+
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 20;
 }

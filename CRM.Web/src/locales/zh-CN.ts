@@ -40,6 +40,21 @@ const zhCN = {
         code: '编号'
       }
     },
+    vendorReceivingBankExtendCol: {
+      columnTitle: '收款银行',
+      expand: '展开收款银行列',
+      collapse: '收起收款银行列',
+      pickField: '选择显示字段',
+      resizeSubCol: '拖动调整子列宽度',
+      fields: {
+        accountName: '账户名称',
+        openingBank: '开户银行'
+      },
+      fieldShort: {
+        accountName: '账户名称',
+        openingBank: '开户银行'
+      }
+    },
     save: '保存修改',
     saveSuccess: '保存成功',
     saveFailed: '保存失败',
@@ -3020,9 +3035,17 @@ const zhCN = {
       customerName: '客户名称',
       salesUserName: '业务员名称',
       pn: '物料型号',
+      customerSo: '客户订单号',
+      customerPn: '客户型号',
       transactionCurrency: '交易币别',
       transactionCurrencyRmb: '人民币',
       transactionCurrencyForeign: '外币',
+      purchaseProgressStatus: '采购状态',
+      stockInProgressStatus: '入库状态',
+      stockOutNotifyProgressStatus: '出库通知状态',
+      stockOutProgressStatus: '出库状态',
+      receiptProgressStatus: '收款状态',
+      invoiceProgressStatus: '开票状态',
       query: '查询',
       reset: '重置',
       refresh: '刷新'
@@ -3036,6 +3059,8 @@ const zhCN = {
       salesUser: '业务员',
       pn: '物料型号',
       brand: '品牌',
+      customerSo: '客户订单号',
+      customerPn: '客户型号',
       qty: '数量',
       currency: '币别',
       createTime: '创建时间',
@@ -3298,6 +3323,10 @@ const zhCN = {
       orderTypeStocking: '备货采购',
       orderTypeSample: '样品采购',
       stockingTag: '备货',
+      paymentProgressStatus: '付款状态',
+      purchaseProgressStatus: '采购状态',
+      stockInProgressStatus: '入库状态',
+      invoiceProgressStatus: '开票状态',
       search: '查询',
       reset: '重置',
       refresh: '刷新'

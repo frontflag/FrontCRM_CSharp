@@ -40,6 +40,21 @@ const enUS = {
         code: 'Code'
       }
     },
+    vendorReceivingBankExtendCol: {
+      columnTitle: 'Receiving bank',
+      expand: 'Expand receiving bank column',
+      collapse: 'Collapse receiving bank column',
+      pickField: 'Choose field to display',
+      resizeSubCol: 'Drag to resize sub-column',
+      fields: {
+        accountName: 'Account name',
+        openingBank: 'Opening bank'
+      },
+      fieldShort: {
+        accountName: 'Account',
+        openingBank: 'Bank'
+      }
+    },
     save: 'Save',
     saveSuccess: 'Saved successfully',
     saveFailed: 'Save failed',
@@ -3029,6 +3044,14 @@ const enUS = {
       transactionCurrency: 'Transaction currency',
       transactionCurrencyRmb: 'RMB',
       transactionCurrencyForeign: 'Foreign currency',
+      customerSo: 'Customer PO no.',
+      customerPn: 'Customer MPN',
+      purchaseProgressStatus: 'Purchase status',
+      stockInProgressStatus: 'Inbound status',
+      stockOutNotifyProgressStatus: 'Outbound notify status',
+      stockOutProgressStatus: 'Outbound status',
+      receiptProgressStatus: 'Receipt status',
+      invoiceProgressStatus: 'Invoice status',
       query: 'Search',
       reset: 'Reset',
       refresh: 'Refresh'
@@ -3042,6 +3065,8 @@ const enUS = {
       salesUser: 'Sales rep',
       pn: 'Material / MPN',
       brand: 'Brand',
+      customerSo: 'Customer PO no.',
+      customerPn: 'Customer MPN',
       qty: 'Qty',
       currency: 'Currency',
       createTime: 'Created at',
@@ -3310,6 +3335,10 @@ const enUS = {
       orderTypeStocking: 'Stocking PO',
       orderTypeSample: 'Sample PO',
       stockingTag: 'Stocking',
+      paymentProgressStatus: 'Payment status',
+      purchaseProgressStatus: 'Purchase status',
+      stockInProgressStatus: 'Stock-in status',
+      invoiceProgressStatus: 'Invoice status',
       search: 'Search',
       reset: 'Reset',
       refresh: 'Refresh'

@@ -106,7 +106,7 @@
     <!-- 数据表格 -->
     <CrmDataTable
       ref="dataTableRef"
-      column-layout-key="finance-payment-list-main-v2"
+      column-layout-key="finance-payment-list-main-v4"
       :columns="paymentTableColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -141,8 +141,19 @@
           :empty-text="t('quoteList.na')"
         />
       </template>
-      <template #col-vendorBankName="{ row }">
-        <span>{{ maskPurchaseSensitiveFields ? '—' : (paymentRowVendorBankName(row) || '—') }}</span>
+      <template #col-vendorReceivingBank-header>
+        <VendorReceivingBankExtendColumnHeader
+          :active-field="vendorReceivingBankExtendActiveField"
+          @set-active-field="setVendorReceivingBankExtendActiveField"
+        />
+      </template>
+      <template #col-vendorReceivingBank="{ row }">
+        <VendorReceivingBankExtendCell
+          :row="row"
+          :active-field="vendorReceivingBankExtendActiveField"
+          :masked="maskPurchaseSensitiveFields"
+          :empty-text="t('quoteList.na')"
+        />
       </template>
       <template #col-paymentBankName="{ row }">
         <span>{{ maskPurchaseSensitiveFields ? '—' : (paymentRowBankName(row) || '—') }}</span>
@@ -277,7 +288,13 @@ import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiv
 import { useFinanceWriteGate } from '@/composables/useDepartmentDataReadOnly'
 import VendorExtendColumnHeader from '@/components/list/VendorExtendColumnHeader.vue'
 import VendorExtendCell from '@/components/list/VendorExtendCell.vue'
+import VendorReceivingBankExtendColumnHeader from '@/components/list/VendorReceivingBankExtendColumnHeader.vue'
+import VendorReceivingBankExtendCell from '@/components/list/VendorReceivingBankExtendCell.vue'
 import { useVendorExtendColumn, isVendorExtendTableColumn } from '@/composables/useVendorExtendColumn'
+import {
+  useVendorReceivingBankExtendColumn,
+  isVendorReceivingBankExtendTableColumn
+} from '@/composables/useVendorReceivingBankExtendColumn'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -291,14 +308,27 @@ const {
   setActiveField: setVendorExtendActiveField,
   applyOuterWidthFromTable: applyVendorExtendOuterWidth
 } = useVendorExtendColumn()
+const {
+  expanded: vendorReceivingBankExtendExpanded,
+  activeField: vendorReceivingBankExtendActiveField,
+  colWidth: vendorReceivingBankExtendColWidth,
+  colMinWidth: vendorReceivingBankExtendColMinWidth,
+  setActiveField: setVendorReceivingBankExtendActiveField,
+  applyOuterWidthFromTable: applyVendorReceivingBankExtendOuterWidth
+} = useVendorReceivingBankExtendColumn()
 
 function onPaymentTableHeaderDragEnd(
   newWidth: number,
   _oldWidth: number,
   column: { property?: string; label?: string }
 ) {
-  if (!isVendorExtendTableColumn(column)) return
-  applyVendorExtendOuterWidth(newWidth)
+  if (isVendorExtendTableColumn(column)) {
+    applyVendorExtendOuterWidth(newWidth)
+    return
+  }
+  if (isVendorReceivingBankExtendTableColumn(column)) {
+    applyVendorReceivingBankExtendOuterWidth(newWidth)
+  }
 }
 
 /** 付款保存/完成/提交审核等：RBAC write + 主部门财务非只读 */
@@ -349,13 +379,6 @@ function paymentRowCreateTime(row: FinancePayment): string | undefined {
   return s || undefined
 }
 
-function paymentRowVendorBankName(row: FinancePayment): string {
-  const ext = row as unknown as Record<string, unknown>
-  const raw = row.vendorBankName ?? ext.VendorBankName ?? ext.vendorBankName
-  const s = raw != null ? String(raw).trim() : ''
-  return s
-}
-
 function paymentRowBankName(row: FinancePayment): string {
   const ext = row as unknown as Record<string, unknown>
   const raw = row.paymentBankName ?? ext.PaymentBankName ?? ext.paymentBankName
@@ -373,6 +396,8 @@ function paymentRowFreightForwarderOrderNo(row: FinancePayment): string {
 const paymentTableColumns = computed<CrmTableColumnDef[]>(() => {
   void vendorExtendExpanded.value
   void vendorExtendColWidth.value
+  void vendorReceivingBankExtendExpanded.value
+  void vendorReceivingBankExtendColWidth.value
   return [
   { key: 'status', label: t('financePaymentList.columns.status'), prop: 'status', width: 100, align: 'center' },
   {
@@ -386,12 +411,14 @@ const paymentTableColumns = computed<CrmTableColumnDef[]>(() => {
     labelClassName: 'vendor-extend-col'
   },
   {
-    key: 'vendorBankName',
-    label: t('financePaymentList.columns.vendorReceivingBank'),
-    prop: 'vendorBankName',
-    minWidth: 140,
-    width: 160,
-    showOverflowTooltip: true
+    key: 'vendorReceivingBank',
+    label: t('common.vendorReceivingBankExtendCol.columnTitle'),
+    prop: 'vendorReceivingBank',
+    minWidth: vendorReceivingBankExtendColMinWidth.value,
+    width: vendorReceivingBankExtendColWidth.value,
+    showOverflowTooltip: true,
+    className: 'vendor-extend-col',
+    labelClassName: 'vendor-extend-col'
   },
   {
     key: 'paymentBankName',

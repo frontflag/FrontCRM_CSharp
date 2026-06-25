@@ -65,13 +65,34 @@ export function buildSalesOrderItemListColumns(p: BuildSalesOrderItemListColumns
         showOverflowTooltip: true
       })
     }
+    const brandIdx = cols.findIndex((c) => c.key === 'brand')
+    if (brandIdx >= 0) {
+      cols.splice(
+        brandIdx + 1,
+        0,
+        {
+          key: 'customerSo',
+          label: p.t('salesOrderItemList.columns.customerSo'),
+          prop: 'customerSo',
+          minWidth: 130,
+          showOverflowTooltip: true
+        },
+        {
+          key: 'customerPn',
+          label: p.t('salesOrderItemList.columns.customerPn'),
+          prop: 'customerPn',
+          minWidth: 130,
+          showOverflowTooltip: true
+        }
+      )
+    }
   }
   const currencyColumn: CrmTableColumnDef = {
     key: 'currency',
     label: p.t('salesOrderItemList.columns.currency'),
     prop: 'currency',
-    width: 72,
-    minWidth: 72,
+    width: 88,
+    minWidth: 88,
     align: 'center',
     hideable: false
   }
@@ -158,7 +179,8 @@ export function buildSalesOrderItemListColumns(p: BuildSalesOrderItemListColumns
       key: 'stockOutNotifyProgressStatus',
       label: p.t('salesOrderItemList.columns.stockOutNotifyProgressStatus'),
       prop: 'stockOutNotifyProgressStatus',
-      width: 108,
+      width: 132,
+      minWidth: 132,
       align: 'center'
     },
     {

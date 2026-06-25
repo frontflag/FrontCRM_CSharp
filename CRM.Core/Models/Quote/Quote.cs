@@ -215,7 +215,7 @@ namespace CRM.Core.Models.Quote
         [Column("unit_price", TypeName = "numeric(18,6)")]
         public decimal UnitPrice { get; set; } = 0;
 
-        /// <summary>折算价（按汇率折算后的价格）</summary>
+        /// <summary>折算价（美元单价，与订单明细 convert_price 口径一致）</summary>
         [Column("converted_price", TypeName = "numeric(18,6)")]
         public decimal? ConvertedPrice { get; set; }
 

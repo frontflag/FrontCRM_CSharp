@@ -84,6 +84,117 @@ public sealed class SalesOrderItemLineListQuery : ISalesOrderItemLineListQuery
                 x.item.PN.ToLower().Contains(pn.ToLower()));
         }
 
+        if (!string.IsNullOrWhiteSpace(request.CustomerSo))
+        {
+            var k = request.CustomerSo.Trim();
+            q = q.Where(x =>
+                x.item.CustomerSo != null &&
+                x.item.CustomerSo.ToLower().Contains(k.ToLower()));
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.CustomerPn))
+        {
+            var k = request.CustomerPn.Trim();
+            q = q.Where(x =>
+                x.item.CustomerPn != null &&
+                x.item.CustomerPn.ToLower().Contains(k.ToLower()));
+        }
+
+        if (request.PurchaseProgressStatus is >= 0 and <= 2)
+        {
+            var status = request.PurchaseProgressStatus.Value;
+            q = status == 0
+                ? q.Where(x =>
+                    !_db.SellOrderItemExtends.Any(ext => ext.Id == x.item.Id && !ext.IsDeleted)
+                    || _db.SellOrderItemExtends.Any(ext =>
+                        ext.Id == x.item.Id && !ext.IsDeleted && ext.PurchaseProgressStatus == 0))
+                : q.Where(x =>
+                    _db.SellOrderItemExtends.Any(ext =>
+                        ext.Id == x.item.Id && !ext.IsDeleted && ext.PurchaseProgressStatus == status));
+        }
+
+        if (request.StockInProgressStatus is >= 0 and <= 2)
+        {
+            var status = request.StockInProgressStatus.Value;
+            q = status == 0
+                ? q.Where(x =>
+                    !_db.SellOrderItemExtends.Any(ext => ext.Id == x.item.Id && !ext.IsDeleted)
+                    || _db.SellOrderItemExtends.Any(ext =>
+                        ext.Id == x.item.Id && !ext.IsDeleted && ext.StockInProgressStatus == 0))
+                : q.Where(x =>
+                    _db.SellOrderItemExtends.Any(ext =>
+                        ext.Id == x.item.Id && !ext.IsDeleted && ext.StockInProgressStatus == status));
+        }
+
+        if (request.StockOutProgressStatus is >= 0 and <= 2)
+        {
+            var status = request.StockOutProgressStatus.Value;
+            q = status == 0
+                ? q.Where(x =>
+                    !_db.SellOrderItemExtends.Any(ext => ext.Id == x.item.Id && !ext.IsDeleted)
+                    || _db.SellOrderItemExtends.Any(ext =>
+                        ext.Id == x.item.Id && !ext.IsDeleted && ext.StockOutProgressStatus == 0))
+                : q.Where(x =>
+                    _db.SellOrderItemExtends.Any(ext =>
+                        ext.Id == x.item.Id && !ext.IsDeleted && ext.StockOutProgressStatus == status));
+        }
+
+        if (request.ReceiptProgressStatus is >= 0 and <= 2)
+        {
+            var status = request.ReceiptProgressStatus.Value;
+            q = status == 0
+                ? q.Where(x =>
+                    !_db.SellOrderItemExtends.Any(ext => ext.Id == x.item.Id && !ext.IsDeleted)
+                    || _db.SellOrderItemExtends.Any(ext =>
+                        ext.Id == x.item.Id && !ext.IsDeleted && ext.ReceiptProgressStatus == 0))
+                : q.Where(x =>
+                    _db.SellOrderItemExtends.Any(ext =>
+                        ext.Id == x.item.Id && !ext.IsDeleted && ext.ReceiptProgressStatus == status));
+        }
+
+        if (request.InvoiceProgressStatus is >= 0 and <= 2)
+        {
+            var status = request.InvoiceProgressStatus.Value;
+            q = status == 0
+                ? q.Where(x =>
+                    !_db.SellOrderItemExtends.Any(ext => ext.Id == x.item.Id && !ext.IsDeleted)
+                    || _db.SellOrderItemExtends.Any(ext =>
+                        ext.Id == x.item.Id && !ext.IsDeleted && ext.InvoiceProgressStatus == 0))
+                : q.Where(x =>
+                    _db.SellOrderItemExtends.Any(ext =>
+                        ext.Id == x.item.Id && !ext.IsDeleted && ext.InvoiceProgressStatus == status));
+        }
+
+        if (request.StockOutNotifyProgressStatus is >= 0 and <= 2)
+        {
+            var notifyStatus = request.StockOutNotifyProgressStatus.Value;
+            if (notifyStatus == 0)
+            {
+                q = q.Where(x =>
+                    !_db.SellOrderItemExtends.Any(ext => ext.Id == x.item.Id && !ext.IsDeleted)
+                    || _db.SellOrderItemExtends.Any(ext =>
+                        ext.Id == x.item.Id && !ext.IsDeleted && ext.QtyStockOutNotify <= 0m));
+            }
+            else if (notifyStatus == 2)
+            {
+                q = q.Where(x =>
+                    _db.SellOrderItemExtends.Any(ext =>
+                        ext.Id == x.item.Id
+                        && !ext.IsDeleted
+                        && ext.QtyStockOutNotify > 0m
+                        && ext.QtyStockOutNotify + 0.0000000001m >= x.item.Qty));
+            }
+            else
+            {
+                q = q.Where(x =>
+                    _db.SellOrderItemExtends.Any(ext =>
+                        ext.Id == x.item.Id
+                        && !ext.IsDeleted
+                        && ext.QtyStockOutNotify > 0m
+                        && ext.QtyStockOutNotify + 0.0000000001m < x.item.Qty));
+            }
+        }
+
         if (!string.IsNullOrWhiteSpace(request.TransactionCurrency))
         {
             var kind = request.TransactionCurrency.Trim().ToLowerInvariant();
@@ -151,6 +262,8 @@ public sealed class SalesOrderItemLineListQuery : ISalesOrderItemLineListQuery
                 SalesUserName = x.so.SalesUserName,
                 PN = x.item.PN,
                 Brand = x.item.Brand,
+                CustomerSo = x.item.CustomerSo,
+                CustomerPn = x.item.CustomerPn,
                 Qty = x.item.Qty,
                 Price = x.item.Price,
                 Currency = x.item.Currency,
@@ -172,6 +285,8 @@ public sealed class SalesOrderItemLineListQuery : ISalesOrderItemLineListQuery
                 r.SalesUserName,
                 r.PN,
                 r.Brand,
+                r.CustomerSo,
+                r.CustomerPn,
                 r.Qty,
                 r.Price,
                 r.Currency,
@@ -200,6 +315,8 @@ public sealed class SalesOrderItemLineListQuery : ISalesOrderItemLineListQuery
         string? salesUserName,
         string? pn,
         string? brand,
+        string? customerSo,
+        string? customerPn,
         decimal qty,
         decimal price,
         short currency,
@@ -235,6 +352,8 @@ public sealed class SalesOrderItemLineListQuery : ISalesOrderItemLineListQuery
             SalesUserName = salesUserName,
             PN = pn,
             Brand = brand,
+            CustomerSo = customerSo,
+            CustomerPn = customerPn,
             Qty = qty,
             Price = price,
             LineTotal = lineTotal,

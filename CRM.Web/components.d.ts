@@ -135,6 +135,8 @@ declare module 'vue' {
     VendorExtendColumnHeader: typeof import('./src/components/list/VendorExtendColumnHeader.vue')['default']
     VendorFavoritePanel: typeof import('./src/components/Vendor/VendorFavoritePanel.vue')['default']
     VendorImportDialog: typeof import('./src/components/Vendor/VendorImportDialog.vue')['default']
+    VendorReceivingBankExtendCell: typeof import('./src/components/list/VendorReceivingBankExtendCell.vue')['default']
+    VendorReceivingBankExtendColumnHeader: typeof import('./src/components/list/VendorReceivingBankExtendColumnHeader.vue')['default']
     VendorRecentHistoryPanel: typeof import('./src/components/Vendor/VendorRecentHistoryPanel.vue')['default']
     VendorSearchPanel: typeof import('./src/components/Vendor/VendorSearchPanel.vue')['default']
     VendorWarrantyReportDocument: typeof import('./src/components/Vendor/VendorWarrantyReportDocument.vue')['default']

@@ -82,6 +82,116 @@
             @keyup.enter="runSearch"
           />
         </div>
+        <template v-if="listCustomerColumnOk">
+          <div class="search-input-wrap">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              v-model="filters.customerSo"
+              class="search-input"
+              :placeholder="t('salesOrderItemList.filters.customerSo')"
+              @keyup.enter="runSearch"
+            />
+          </div>
+          <div class="search-input-wrap">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              v-model="filters.customerPn"
+              class="search-input"
+              :placeholder="t('salesOrderItemList.filters.customerPn')"
+              @keyup.enter="runSearch"
+            />
+          </div>
+        </template>
+        <el-select
+          v-model="filters.purchaseProgressStatus"
+          clearable
+          :placeholder="t('salesOrderItemList.filters.purchaseProgressStatus')"
+          class="filter-select filter-select--progress"
+          :teleported="false"
+        >
+          <el-option
+            v-for="opt in progressFilterOptions('purchase')"
+            :key="`purchase-${opt.value}`"
+            :label="opt.label"
+            :value="opt.value"
+          />
+        </el-select>
+        <el-select
+          v-model="filters.stockInProgressStatus"
+          clearable
+          :placeholder="t('salesOrderItemList.filters.stockInProgressStatus')"
+          class="filter-select filter-select--progress"
+          :teleported="false"
+        >
+          <el-option
+            v-for="opt in progressFilterOptions('stockIn')"
+            :key="`stockIn-${opt.value}`"
+            :label="opt.label"
+            :value="opt.value"
+          />
+        </el-select>
+        <el-select
+          v-model="filters.stockOutNotifyProgressStatus"
+          clearable
+          :placeholder="t('salesOrderItemList.filters.stockOutNotifyProgressStatus')"
+          class="filter-select filter-select--progress"
+          :teleported="false"
+        >
+          <el-option
+            v-for="opt in progressFilterOptions('stockOutNotify')"
+            :key="`stockOutNotify-${opt.value}`"
+            :label="opt.label"
+            :value="opt.value"
+          />
+        </el-select>
+        <el-select
+          v-model="filters.stockOutProgressStatus"
+          clearable
+          :placeholder="t('salesOrderItemList.filters.stockOutProgressStatus')"
+          class="filter-select filter-select--progress"
+          :teleported="false"
+        >
+          <el-option
+            v-for="opt in progressFilterOptions('stockOut')"
+            :key="`stockOut-${opt.value}`"
+            :label="opt.label"
+            :value="opt.value"
+          />
+        </el-select>
+        <el-select
+          v-model="filters.receiptProgressStatus"
+          clearable
+          :placeholder="t('salesOrderItemList.filters.receiptProgressStatus')"
+          class="filter-select filter-select--progress"
+          :teleported="false"
+        >
+          <el-option
+            v-for="opt in progressFilterOptions('receipt')"
+            :key="`receipt-${opt.value}`"
+            :label="opt.label"
+            :value="opt.value"
+          />
+        </el-select>
+        <el-select
+          v-model="filters.invoiceProgressStatus"
+          clearable
+          :placeholder="t('salesOrderItemList.filters.invoiceProgressStatus')"
+          class="filter-select filter-select--progress"
+          :teleported="false"
+        >
+          <el-option
+            v-for="opt in progressFilterOptions('invoice')"
+            :key="`invoice-${opt.value}`"
+            :label="opt.label"
+            :value="opt.value"
+          />
+        </el-select>
         <el-select
           v-model="filters.transactionCurrency"
           clearable
@@ -100,7 +210,7 @@
     <CrmDataTable
       ref="dataTableRef"
       class="quantum-table-block el-table-host"
-      column-layout-key="sales-order-item-list-v2"
+      column-layout-key="sales-order-item-list-v4"
       :columns="salesOrderItemColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -112,6 +222,12 @@
     >
       <template #col-customerName="{ row }">
         <span>{{ maskSaleSensitiveFields ? '—' : (row.customerName || '—') }}</span>
+      </template>
+      <template #col-customerSo="{ row }">
+        <span>{{ maskSaleSensitiveFields ? '—' : (row.customerSo || '—') }}</span>
+      </template>
+      <template #col-customerPn="{ row }">
+        <span>{{ maskSaleSensitiveFields ? '—' : (row.customerPn || '—') }}</span>
       </template>
       <template #col-salesUserName="{ row }">
         <span>{{ maskSaleSensitiveFields ? '—' : (row.salesUserName || '—') }}</span>
@@ -668,8 +784,30 @@ const filters = reactive({
   customerName: '',
   salesUserName: '',
   pn: '',
-  transactionCurrency: '' as '' | 'rmb' | 'foreign'
+  customerSo: '',
+  customerPn: '',
+  transactionCurrency: '' as '' | 'rmb' | 'foreign',
+  purchaseProgressStatus: undefined as number | undefined,
+  stockInProgressStatus: undefined as number | undefined,
+  stockOutNotifyProgressStatus: undefined as number | undefined,
+  stockOutProgressStatus: undefined as number | undefined,
+  receiptProgressStatus: undefined as number | undefined,
+  invoiceProgressStatus: undefined as number | undefined
 })
+
+type ExtendProgressKind = 'purchase' | 'stockIn' | 'stockOut' | 'stockOutNotify' | 'receipt' | 'invoice'
+
+function progressFilterOptions(kind: ExtendProgressKind) {
+  const slots: Array<{ value: 0 | 1 | 2; slot: 'pending' | 'partial' | 'complete' }> = [
+    { value: 0, slot: 'pending' },
+    { value: 1, slot: 'partial' },
+    { value: 2, slot: 'complete' }
+  ]
+  return slots.map(({ value, slot }) => ({
+    value,
+    label: t(`salesOrderItemList.extendProgress.${kind}.${slot}`)
+  }))
+}
 
 // ==============================
 // 新建采购申请弹窗
@@ -929,7 +1067,31 @@ async function loadList() {
     }
     const pnk = String(filters.pn ?? '').trim()
     if (pnk) params.pn = pnk
+    if (listCustomerColumnOk.value) {
+      const cso = String(filters.customerSo ?? '').trim()
+      if (cso) params.customerSo = cso
+      const cpn = String(filters.customerPn ?? '').trim()
+      if (cpn) params.customerPn = cpn
+    }
     if (filters.transactionCurrency) params.transactionCurrency = filters.transactionCurrency
+    if (filters.purchaseProgressStatus !== undefined && filters.purchaseProgressStatus !== null) {
+      params.purchaseProgressStatus = filters.purchaseProgressStatus
+    }
+    if (filters.stockInProgressStatus !== undefined && filters.stockInProgressStatus !== null) {
+      params.stockInProgressStatus = filters.stockInProgressStatus
+    }
+    if (filters.stockOutNotifyProgressStatus !== undefined && filters.stockOutNotifyProgressStatus !== null) {
+      params.stockOutNotifyProgressStatus = filters.stockOutNotifyProgressStatus
+    }
+    if (filters.stockOutProgressStatus !== undefined && filters.stockOutProgressStatus !== null) {
+      params.stockOutProgressStatus = filters.stockOutProgressStatus
+    }
+    if (filters.receiptProgressStatus !== undefined && filters.receiptProgressStatus !== null) {
+      params.receiptProgressStatus = filters.receiptProgressStatus
+    }
+    if (filters.invoiceProgressStatus !== undefined && filters.invoiceProgressStatus !== null) {
+      params.invoiceProgressStatus = filters.invoiceProgressStatus
+    }
     if (stockOutPending.value) params.stockOutPending = true
     if (invoicePending.value) params.invoicePending = true
     const suid = salesUserIdFilter.value.trim()
@@ -973,7 +1135,15 @@ function resetFilters() {
   filters.customerName = ''
   filters.salesUserName = ''
   filters.pn = ''
+  filters.customerSo = ''
+  filters.customerPn = ''
   filters.transactionCurrency = ''
+  filters.purchaseProgressStatus = undefined
+  filters.stockInProgressStatus = undefined
+  filters.stockOutNotifyProgressStatus = undefined
+  filters.stockOutProgressStatus = undefined
+  filters.receiptProgressStatus = undefined
+  filters.invoiceProgressStatus = undefined
   page.value = 1
   basketStore.clear()
   suppressBasketMerge.value = true
@@ -1260,6 +1430,9 @@ watch(
 }
 .filter-select {
   width: 130px;
+  &.filter-select--progress {
+    width: 148px;
+  }
   :deep(.el-select__wrapper) {
     background: $layer-2 !important;
     box-shadow: none !important;

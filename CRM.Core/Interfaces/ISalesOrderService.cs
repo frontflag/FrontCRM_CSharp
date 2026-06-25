@@ -103,6 +103,22 @@ namespace CRM.Core.Interfaces
         public string? SalesUserId { get; set; }
         /// <summary>客户主键（精确匹配）。</summary>
         public string? CustomerId { get; set; }
+        /// <summary>客户订单号（模糊匹配 <c>customer_so</c>）。</summary>
+        public string? CustomerSo { get; set; }
+        /// <summary>客户型号（模糊匹配 <c>customer_pn</c>）。</summary>
+        public string? CustomerPn { get; set; }
+        /// <summary>采购进度 0/1/2（扩展表）。</summary>
+        public short? PurchaseProgressStatus { get; set; }
+        /// <summary>入库进度 0/1/2（扩展表）。</summary>
+        public short? StockInProgressStatus { get; set; }
+        /// <summary>出库通知进度 0/1/2（由扩展表通知数量与销售数量推算）。</summary>
+        public short? StockOutNotifyProgressStatus { get; set; }
+        /// <summary>出库进度 0/1/2（扩展表）。</summary>
+        public short? StockOutProgressStatus { get; set; }
+        /// <summary>收款进度 0/1/2（扩展表）。</summary>
+        public short? ReceiptProgressStatus { get; set; }
+        /// <summary>开票进度 0/1/2（扩展表）。</summary>
+        public short? InvoiceProgressStatus { get; set; }
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 20;
         public string? CurrentUserId { get; set; }
@@ -123,6 +139,10 @@ namespace CRM.Core.Interfaces
         public string? SalesUserName { get; set; }
         public string? PN { get; set; }
         public string? Brand { get; set; }
+        /// <summary>客户订单号（库列 <c>customer_so</c>）。</summary>
+        public string? CustomerSo { get; set; }
+        /// <summary>客户型号（库列 <c>customer_pn</c>）。</summary>
+        public string? CustomerPn { get; set; }
         public decimal Qty { get; set; }
         public decimal Price { get; set; }
         public decimal LineTotal { get; set; }

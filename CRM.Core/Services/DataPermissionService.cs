@@ -185,7 +185,7 @@ namespace CRM.Core.Services
         public async Task<IReadOnlyList<SellOrder>> FilterSalesOrdersAsync(string userId, IEnumerable<SellOrder> source)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin || summary.SaleDataScope == 0 || summary.LogisticsDataScope == 0)
+            if (summary.IsSysAdmin || summary.SaleDataScope == 0)
                 return source.ToList();
             if (BusinessDepartmentRules.UseSellOrderAssistorOnlyScope(summary))
                 return source.Where(x => IsSellOrderAssistor(x, userId)).ToList();
@@ -471,8 +471,6 @@ namespace CRM.Core.Services
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
             if (summary.IsSysAdmin || summary.SaleDataScope == 0)
-                return query;
-            if (summary.LogisticsDataScope == 0)
                 return query;
             if (BusinessDepartmentRules.UseSellOrderAssistorOnlyScope(summary))
                 return query.Where(x => x.Assistor == userId);
