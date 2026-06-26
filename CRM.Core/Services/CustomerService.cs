@@ -83,6 +83,7 @@ namespace CRM.Core.Services
                 Industry = request.Industry?.Trim(),
                 Product = request.Product?.Trim(),
                 SalesUserId = salesUserId,
+                CompanyInfo = string.IsNullOrWhiteSpace(request.CompanyInfo) ? null : request.CompanyInfo.Trim(),
                 Remark = request.Remark?.Trim(),
                 CreditLine = request.CreditLine,
                 Payment = request.Payment,
@@ -138,14 +139,16 @@ namespace CRM.Core.Services
                     {
                         var cr = contacts[i];
                         if (cr == null) continue;
-                        var name = (cr.Name ?? cr.ContactName)?.Trim();
+                        var (resolvedCName, resolvedEName) = ContactNameResolver.ResolveForCreate(
+                            cr.CName, cr.EName, cr.Name, cr.ContactName);
                         var mobile = cr.Mobile?.Trim();
                         var phone = cr.Phone?.Trim();
-                        if (string.IsNullOrWhiteSpace(name) && string.IsNullOrWhiteSpace(mobile) && string.IsNullOrWhiteSpace(phone))
+                        if (string.IsNullOrWhiteSpace(resolvedCName) && string.IsNullOrWhiteSpace(resolvedEName)
+                            && string.IsNullOrWhiteSpace(mobile) && string.IsNullOrWhiteSpace(phone))
                             continue;
 
-                        if (string.IsNullOrWhiteSpace(name))
-                            throw new InvalidOperationException($"第 {i + 1} 条联系人缺少姓名");
+                        cr.CName = resolvedCName;
+                        cr.EName = resolvedEName;
 
                         if (!anyMarkedDefault && added == 0)
                             cr.IsDefault = true;
@@ -300,6 +303,8 @@ namespace CRM.Core.Services
                 customer.Industry = request.Industry.Trim();
             if (request.Product != null)
                 customer.Product = request.Product.Trim();
+            if (request.CompanyInfo != null)
+                customer.CompanyInfo = string.IsNullOrWhiteSpace(request.CompanyInfo) ? null : request.CompanyInfo.Trim();
             if (request.Remark != null)
                 customer.Remark = request.Remark.Trim();
             if (request.SalesUserId != null)
@@ -521,11 +526,15 @@ namespace CRM.Core.Services
                     await ResetDefaultContactAsync(customerId);
                 }
 
+                var (cName, eName) = ContactNameResolver.ResolveForCreate(
+                    request.CName, request.EName, request.Name, request.ContactName);
+
                 var contact = new CustomerContactInfo
                 {
                     Id = Guid.NewGuid().ToString(),
                     CustomerId = customerId,
-                    Name = request.Name?.Trim(),
+                    CName = cName,
+                    EName = eName,
                     Gender = request.Gender,
                     Department = request.Department?.Trim(),
                     Position = request.Position?.Trim(),
@@ -565,8 +574,19 @@ namespace CRM.Core.Services
                 await ResetDefaultContactAsync(contact.CustomerId);
             }
 
-            if (request.Name != null)
-                contact.Name = request.Name.Trim();
+            if (request.CName != null || request.EName != null || request.Name != null || request.ContactName != null)
+            {
+                var (cName, eName) = ContactNameResolver.ResolveForUpdate(
+                    contact.CName,
+                    contact.EName,
+                    request.CName,
+                    request.EName,
+                    request.Name,
+                    request.ContactName);
+                contact.CName = cName;
+                contact.EName = eName;
+            }
+
             if (request.Gender.HasValue)
                 contact.Gender = request.Gender.Value;
             if (request.Department != null)

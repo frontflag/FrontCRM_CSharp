@@ -217,6 +217,7 @@ namespace CRM.Core.Interfaces
     {
         public string? CName { get; set; }
         public string? EName { get; set; }
+        public short? Gender { get; set; }
         public string? Title { get; set; }
         public string? Department { get; set; }
         public string? Mobile { get; set; }
@@ -233,6 +234,7 @@ namespace CRM.Core.Interfaces
     {
         public string? CName { get; set; }
         public string? EName { get; set; }
+        public short? Gender { get; set; }
         public string? Title { get; set; }
         public string? Department { get; set; }
         public string? Mobile { get; set; }

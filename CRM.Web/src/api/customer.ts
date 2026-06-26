@@ -389,6 +389,7 @@ export const customerApi = {
       // P3 修复：customerType 前端已是数字，直接传递（默认值从 0 改为 1）
       type: (data.customerType && data.customerType > 0) ? data.customerType : ((data as any).type || 1),
       salesUserId: data.salesPersonId || (data as any).salesUserId,
+      companyInfo: data.companyInfo?.trim() || (data as any).companyInfo || undefined,
       remark: data.remarks || (data as any).remark,
       creditLine: data.creditLimit ?? (data as any).creditLine,
       payment: data.paymentTerms ?? (data as any).payment,
@@ -418,6 +419,7 @@ export const customerApi = {
       // P3 修复：customerType 直接传递
       type: (data.customerType && data.customerType > 0) ? data.customerType : ((data as any).type || 1),
       salesUserId: data.salesPersonId || (data as any).salesUserId,
+      companyInfo: data.companyInfo?.trim() || (data as any).companyInfo || undefined,
       remark: data.remarks || (data as any).remark,
       creditLine: data.creditLimit ?? (data as any).creditLine,
       payment: data.paymentTerms ?? (data as any).payment,
@@ -585,17 +587,21 @@ export const customerContactApi = {
       return 0
     })()
 
-    const name = data.contactName ?? data.name ?? ''
-    const mobile = data.mobilePhone ?? data.mobile ?? ''
+    const cNameRaw = (data.cName ?? '').trim()
+    const eNameRaw = (data.eName ?? '').trim()
+    const legacyName = (data.contactName ?? data.name ?? '').trim()
+
     const o: Record<string, unknown> = {
-      name,
-      contactName: name,
+      cName: cNameRaw || undefined,
+      eName: eNameRaw || undefined,
+      name: legacyName || undefined,
+      contactName: legacyName || undefined,
       gender: normalizedGender,
       department: data.department ?? '',
       position: data.position ?? '',
       phone: data.phone ?? data.tel ?? '',
-      mobile,
-      mobilePhone: mobile,
+      mobile: data.mobilePhone ?? data.mobile ?? '',
+      mobilePhone: data.mobilePhone ?? data.mobile ?? '',
       email: data.email ?? '',
       fax: data.fax ?? '',
       isDefault: Boolean(data.isDefault),

@@ -52,8 +52,8 @@
         <el-table :data="scenarios" stripe size="small">
           <el-table-column prop="code" label="Code" min-width="160" />
           <el-table-column prop="name" :label="t('aiConfig.colName')" min-width="140" />
-          <el-table-column prop="providerCode" label="Provider" width="100" />
-          <el-table-column prop="model" label="Model" width="120" />
+          <el-table-column prop="providerCode" label="Provider" min-width="120" />
+          <el-table-column prop="model" label="Model" min-width="260" />
           <el-table-column prop="permissionCode" label="Permission" min-width="180" show-overflow-tooltip />
           <el-table-column prop="isEnabled" :label="t('aiConfig.colEnabled')" width="80">
             <template #default="{ row }">

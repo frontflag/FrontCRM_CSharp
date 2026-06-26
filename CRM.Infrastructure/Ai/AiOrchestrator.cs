@@ -121,9 +121,51 @@ public sealed class AiOrchestrator : IAiOrchestrator
         }
         var messages = new List<AiChatMessageDto>
         {
-            new() { Role = "system", Content = systemPrompt },
-            new() { Role = "user", Content = userPrompt }
+            new() { Role = "system", Content = systemPrompt }
         };
+
+        if (AiEntityParseScenarioCodes.IsBusinessCardScenario(scenario.Code))
+        {
+            filteredInput.TryGetValue("image_base64", out var imageBase64);
+            filteredInput.TryGetValue("image_mime", out var imageMime);
+            if (string.IsNullOrWhiteSpace(imageBase64))
+                throw new InvalidOperationException("名片图片不能为空。");
+
+            var images = new List<AiChatImagePartDto>
+            {
+                new()
+                {
+                    Base64 = imageBase64!.Trim(),
+                    MimeType = string.IsNullOrWhiteSpace(imageMime) ? "image/jpeg" : imageMime!.Trim()
+                }
+            };
+
+            if (filteredInput.TryGetValue("image_base64_2", out var imageBase64Back)
+                && !string.IsNullOrWhiteSpace(imageBase64Back))
+            {
+                filteredInput.TryGetValue("image_mime_2", out var imageMimeBack);
+                images.Add(new AiChatImagePartDto
+                {
+                    Base64 = imageBase64Back.Trim(),
+                    MimeType = string.IsNullOrWhiteSpace(imageMimeBack) ? "image/jpeg" : imageMimeBack!.Trim()
+                });
+            }
+
+            var userContent = string.IsNullOrWhiteSpace(userPrompt) ? "请解析附件名片图片。" : userPrompt;
+            if (images.Count > 1)
+                userContent += "\n第一张为名片正面，第二张为名片反面，请合并两面全部信息后再输出 JSON。";
+
+            messages.Add(new AiChatMessageDto
+            {
+                Role = "user",
+                Content = userContent,
+                Images = images
+            });
+        }
+        else
+        {
+            messages.Add(new() { Role = "user", Content = userPrompt });
+        }
 
         var promptCombined = systemPrompt + "\n---\n" + userPrompt;
         var promptHash = AiJsonHelper.ComputeSha256Hex(promptCombined);
@@ -207,6 +249,8 @@ public sealed class AiOrchestrator : IAiOrchestrator
             return result;
 
         filteredInput.TryGetValue("raw_text", out var rawText);
+        if (string.IsNullOrWhiteSpace(rawText) && AiEntityParseScenarioCodes.IsBusinessCardScenario(scenario.Code))
+            rawText = filteredInput.ContainsKey("image_base64_2") ? "[business_card_image_dual]" : "[business_card_image]";
         try
         {
             var created = await _entityParseLogService.TryCreateParsedLogAsync(new EntityParseLogCreateRequest

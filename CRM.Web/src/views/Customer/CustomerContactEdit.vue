@@ -41,10 +41,17 @@
           <div class="section-title">基本信息</div>
           <el-row :gutter="32">
             <el-col :span="12">
-              <el-form-item label="姓名" prop="contactName">
-                <el-input v-model="formData.contactName" placeholder="请输入姓名" />
+              <el-form-item label="中文名" prop="cName">
+                <el-input v-model="formData.cName" placeholder="请输入中文名" />
               </el-form-item>
             </el-col>
+            <el-col :span="12">
+              <el-form-item label="英文名" prop="eName">
+                <el-input v-model="formData.eName" placeholder="请输入英文名" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row :gutter="32">
             <el-col :span="12">
               <el-form-item label="性别">
                 <el-radio-group v-model="formData.gender">
@@ -169,6 +176,10 @@ import { customerContactApi, customerApi } from '@/api/customer';
 import type { CreateContactRequest } from '@/types/customer';
 import { consumeAiPrefill } from '@/utils/aiPrefill';
 import { markEntityParseSaved } from '@/utils/entityParseLogTrack';
+import {
+  splitContactNamesFromApi,
+  validateContactNameAtLeastOne
+} from '@/utils/contactName';
 
 const route = useRoute();
 const router = useRouter();
@@ -186,7 +197,8 @@ const aiParseLogId = ref<string | null>(null);
 const savedContactId = ref<string | null>(contactId || null);
 
 const formData = ref<CreateContactRequest>({
-  contactName: '',
+  cName: '',
+  eName: '',
   gender: 0,
   department: '',
   position: '',
@@ -203,7 +215,20 @@ const formData = ref<CreateContactRequest>({
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const formRules: FormRules = {
-  contactName: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
+  cName: [
+    {
+      validator: (_rule, _value, callback) =>
+        validateContactNameAtLeastOne(_rule, _value, callback, formData.value),
+      trigger: ['blur', 'change']
+    }
+  ],
+  eName: [
+    {
+      validator: (_rule, _value, callback) =>
+        validateContactNameAtLeastOne(_rule, _value, callback, formData.value),
+      trigger: ['blur', 'change']
+    }
+  ],
   mobilePhone: [{ required: true, message: '请输入手机号码', trigger: 'blur' }],
   email: [
     {
@@ -236,8 +261,10 @@ onMounted(async () => {
       const detail = await customerApi.getCustomerById(customerId);
       const contact = detail.contacts?.find((c: any) => c.id === contactId);
       if (contact) {
+        const names = splitContactNamesFromApi(contact);
         formData.value = {
-          contactName: contact.contactName,
+          cName: names.cName,
+          eName: names.eName,
           gender: contact.gender,
           department: contact.department || '',
           position: contact.position || '',
@@ -278,7 +305,8 @@ function applyAiPrefillFromRoute() {
   const payload = consumed.payload;
   formData.value = {
     ...formData.value,
-    contactName: String(payload.contactName ?? formData.value.contactName),
+    cName: String(payload.cName ?? formData.value.cName ?? payload.contactName ?? ''),
+    eName: String(payload.eName ?? formData.value.eName ?? ''),
     gender: payload.gender != null ? Number(payload.gender) : formData.value.gender,
     department: String(payload.department ?? formData.value.department),
     position: String(payload.position ?? formData.value.position),

@@ -286,13 +286,22 @@
 
           <el-row :gutter="16">
             <el-col :span="6">
-              <el-form-item :label="t('vendorEdit.contacts.name')">
-                <el-input v-model="contact.cName" :placeholder="t('vendorEdit.contacts.namePh')" class="q-input" />
+              <el-form-item :label="t('vendorEdit.contacts.cName')">
+                <el-input v-model="contact.cName" :placeholder="t('vendorEdit.contacts.cNamePh')" class="q-input" />
               </el-form-item>
             </el-col>
             <el-col :span="6">
-              <el-form-item :label="t('vendorEdit.contacts.title')">
-                <el-input v-model="contact.title" :placeholder="t('vendorEdit.contacts.titlePh')" class="q-input" />
+              <el-form-item :label="t('vendorEdit.contacts.eName')">
+                <el-input v-model="contact.eName" :placeholder="t('vendorEdit.contacts.eNamePh')" class="q-input" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="6">
+              <el-form-item :label="t('vendorEdit.contacts.gender')">
+                <el-select v-model="contact.gender" :placeholder="t('vendorEdit.contacts.genderPlaceholder')" style="width: 100%" class="q-select">
+                  <el-option :label="t('vendorEdit.contacts.genderMale')" :value="1" />
+                  <el-option :label="t('vendorEdit.contacts.genderFemale')" :value="2" />
+                  <el-option :label="t('vendorEdit.contacts.genderUndisclosed')" :value="0" />
+                </el-select>
               </el-form-item>
             </el-col>
             <el-col :span="6">
@@ -300,14 +309,19 @@
                 <el-input v-model="contact.mobile" :placeholder="t('vendorEdit.contacts.mobilePh')" class="q-input" />
               </el-form-item>
             </el-col>
+          </el-row>
+
+          <el-row :gutter="16" style="margin-top: 6px;">
+            <el-col :span="6">
+              <el-form-item :label="t('vendorEdit.contacts.title')">
+                <el-input v-model="contact.title" :placeholder="t('vendorEdit.contacts.titlePh')" class="q-input" />
+              </el-form-item>
+            </el-col>
             <el-col :span="6">
               <el-form-item :label="t('vendorEdit.contacts.email')">
                 <el-input v-model="contact.email" :placeholder="t('vendorEdit.contacts.emailPh')" class="q-input" />
               </el-form-item>
             </el-col>
-          </el-row>
-
-          <el-row :gutter="16" style="margin-top: 6px;">
             <el-col :span="6">
               <el-form-item :label="t('vendorEdit.contacts.department')">
                 <el-input v-model="contact.department" :placeholder="t('vendorEdit.contacts.departmentPh')" class="q-input" />
@@ -318,6 +332,9 @@
                 <el-input v-model="contact.tel" :placeholder="t('vendorEdit.contacts.telPh')" class="q-input" />
               </el-form-item>
             </el-col>
+          </el-row>
+
+          <el-row :gutter="16" style="margin-top: 6px;">
             <el-col :span="6">
               <el-form-item :label="t('vendorEdit.contacts.remark')">
                 <el-input v-model="contact.remark" :placeholder="t('vendorEdit.contacts.remarkPh')" class="q-input" />
@@ -343,7 +360,8 @@ import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus';
-import { vendorApi, vendorBankApi, vendorContactApi } from '@/api/vendor';
+import { vendorApi, vendorBankApi, vendorContactApi, vendorAddressApi } from '@/api/vendor';
+import { documentApi } from '@/api/document';
 import { draftApi } from '@/api/draft';
 import type { CreateVendorRequest, UpdateVendorRequest, Vendor, VendorContactInfo } from '@/types/vendor';
 import { runValidatedFormSave } from '@/composables/useFormSubmit';
@@ -354,7 +372,12 @@ import { logRecentApi } from '@/api/logRecent';
 import { VENDOR_RECENT_HISTORY_CHANGED_EVENT } from '@/constants/vendorRecentHistory';
 import FinancePaymentBankSelect from '@/components/Finance/FinancePaymentBankSelect.vue';
 import { consumeAiPrefill } from '@/utils/aiPrefill';
+import { consumeBusinessCardFiles } from '@/utils/businessCardFileStore';
 import { markEntityParseSaved } from '@/utils/entityParseLogTrack';
+import {
+  hasContactName,
+  splitContactNamesFromApi
+} from '@/utils/contactName';
 
 const route = useRoute();
 const router = useRouter();
@@ -368,6 +391,10 @@ const vendorId = computed(() => route.params.id as string);
 
 const formRef = ref<FormInstance>();
 const aiParseLogId = ref<string | null>(null);
+const businessCardFlow = ref(false);
+const businessCardFiles = ref<File[]>([]);
+const businessCardContactKey = ref<string | null>(null);
+const businessCardAddress = ref<Record<string, unknown> | null>(null);
 const saving = ref(false);
 const currentDraftId = ref('');
 
@@ -529,10 +556,19 @@ const fetchVendorDetail = async () => {
     formData.financePaymentBankId = b0?.financePaymentBankId?.trim() ?? '';
     formData.bankAccount = b0?.bankAccount ?? '';
     formData.bankAccountName = b0?.accountName ?? '';
-    contacts.value = (data.contacts ?? []).map((c, idx: number) => ({
-      ...c,
-      _key: c.id || `srv-${idx}`
-    }));
+    contacts.value = (data.contacts ?? []).map((c, idx: number) => {
+      const names = splitContactNamesFromApi(c);
+      const gRaw = (c as any).gender;
+      const gNum = gRaw != null && gRaw !== '' ? Number(gRaw) : NaN;
+      const genderUi = gNum === 1 || gNum === 2 || gNum === 0 ? gNum : 1;
+      return {
+        ...c,
+        _key: c.id || `srv-${idx}`,
+        cName: names.cName || c.cName || '',
+        eName: names.eName || c.eName || '',
+        gender: genderUi
+      };
+    });
     reconcileMainContactKey();
     void vendorDict.hydrateVendorEditForm({
       industry: formData.industry,
@@ -554,18 +590,38 @@ const fetchVendorDetail = async () => {
   }
 };
 
-const buildDraftPayload = () => ({
-  ...formData,
-  contacts: contacts.value
-});
+const buildDraftPayload = () => {
+  if (businessCardFlow.value) {
+    return { ...formData, contacts: [] };
+  }
+  return {
+    ...formData,
+    contacts: contacts.value
+  };
+};
 
 const applyDraftPayload = (payload: any) => {
-  Object.assign(formData, payload || {});
-  if (Array.isArray(payload?.contacts)) {
-    contacts.value = payload.contacts.map((c: any, idx: number) => ({
-      ...c,
-      _key: c.id || c._key || `tmp-${idx}`
-    }));
+  const p = { ...(payload || {}) };
+  if (p._businessCardFlow) {
+    businessCardFlow.value = true;
+    businessCardContactKey.value = p._businessCardContactKey ? String(p._businessCardContactKey) : null;
+    businessCardAddress.value = (p._businessCardAddress as Record<string, unknown>) ?? null;
+    delete p._businessCardFlow;
+    delete p._businessCardContactKey;
+    delete p._businessCardAddress;
+  }
+  Object.assign(formData, p || {});
+  if (Array.isArray(p?.contacts)) {
+    contacts.value = p.contacts.map((c: any, idx: number) => {
+      const gRaw = c.gender;
+      const gNum = gRaw != null && gRaw !== '' ? Number(gRaw) : NaN;
+      const genderUi = gNum === 1 || gNum === 2 || gNum === 0 ? gNum : 1;
+      return {
+        ...c,
+        _key: c.id || c._key || `tmp-${idx}`,
+        gender: genderUi
+      };
+    });
     reconcileMainContactKey();
   }
   void vendorDict.hydrateVendorEditForm({
@@ -621,6 +677,14 @@ const handleSave = async () => {
     loading: saving,
     task: async () => {
       validateVendorContacts();
+      if (businessCardFlow.value && businessCardContactKey.value) {
+        const row = contacts.value.find((c) => c._key === businessCardContactKey.value);
+        const cName = (row?.cName || '').trim();
+        const eName = (row?.eName || '').trim();
+        if (!row || (!cName && !eName)) {
+          throw new Error(t('aiBusinessCard.errors.contactRequired'));
+        }
+      }
       let targetVendorId = '';
       let mode: 'edit' | 'create' = 'create';
       const payload = buildVendorApiPayload();
@@ -634,18 +698,48 @@ const handleSave = async () => {
         mode = 'create';
       }
 
+      let contactKeyToId = new Map<string, string>();
       if (targetVendorId) {
         await syncVendorBankForVendor(targetVendorId);
-        await syncContactsForVendor(targetVendorId);
+        contactKeyToId = await syncContactsForVendor(targetVendorId);
       }
 
-      return { mode, targetVendorId };
+      return { mode, targetVendorId, contactKeyToId };
     },
     formatSuccess: ({ mode }) => (mode === 'edit' ? t('vendorEdit.messages.saveSuccess') : t('vendorEdit.messages.createSuccess')),
-    onSuccess: ({ mode, targetVendorId }) => {
+    onSuccess: async ({ mode, targetVendorId, contactKeyToId }) => {
       if (mode === 'create') {
         markEntityParseSaved(aiParseLogId.value, targetVendorId);
         aiParseLogId.value = null;
+
+        if (businessCardFlow.value && targetVendorId) {
+          const contactId = businessCardContactKey.value
+            ? contactKeyToId.get(businessCardContactKey.value)
+            : undefined;
+          if (contactId && businessCardFiles.value.length) {
+            try {
+              await documentApi.uploadDocuments('contact', contactId, businessCardFiles.value);
+            } catch {
+              ElMessage.warning(t('aiBusinessCard.messages.cardUploadFailedMsg'));
+            }
+            businessCardFiles.value = [];
+          }
+          const addr = businessCardAddress.value;
+          const street = addr && typeof addr.address === 'string' ? addr.address.trim() : '';
+          if (street) {
+            try {
+              await vendorAddressApi.createAddress(targetVendorId, addr as any);
+            } catch {
+              // 地址创建失败不阻断主流程
+            }
+          }
+          businessCardFlow.value = false;
+          businessCardAddress.value = null;
+          businessCardContactKey.value = null;
+          router.replace({ name: 'VendorDetail', params: { id: targetVendorId } });
+          return;
+        }
+
         router.replace({ name: 'VendorList' });
       } else {
         void fetchVendorDetail();
@@ -661,12 +755,21 @@ const handleSave = async () => {
 const validateVendorContacts = () => {
   for (let i = 0; i < contacts.value.length; i++) {
     const contact = contacts.value[i];
-    const name = (contact.cName || '').trim();
-    if (!name) {
-      continue;
+    const cName = (contact.cName || '').trim();
+    const eName = (contact.eName || '').trim();
+    const mobile = (contact.mobile || '').trim();
+    const tel = (contact.tel || '').trim();
+    const email = (contact.email || '').trim();
+    const hasRowData = !!(cName || eName || mobile || tel || email || (contact.department || '').trim()
+      || (contact.title || '').trim() || (contact.remark || '').trim());
+
+    if (hasRowData && !hasContactName(contact)) {
+      throw new Error(t('vendorEdit.messages.contactNameRequired', { n: i + 1 }));
     }
 
-    const email = (contact.email || '').trim();
+    if (!hasContactName(contact)) {
+      continue;
+    }
 
     if (email && email !== '-' && !emailPattern.test(email)) {
       throw new Error(t('vendorEdit.messages.contactEmailInvalid', { n: i + 1 }));
@@ -687,6 +790,7 @@ const addContact = () => {
     _key: newKey,
     cName: '',
     eName: '',
+    gender: 1,
     title: '',
     department: '',
     mobile: '',
@@ -714,7 +818,8 @@ const removeContact = async (index: number) => {
   }
 };
 
-const syncContactsForVendor = async (targetVendorId: string) => {
+const syncContactsForVendor = async (targetVendorId: string): Promise<Map<string, string>> => {
+  const keyToId = new Map<string, string>();
   const existingContacts = await vendorContactApi.getContactsByVendorId(targetVendorId);
   const existingById = new Map(existingContacts.map((c: any) => [c.id, c]));
   const keptIds = new Set<string>();
@@ -731,10 +836,13 @@ const syncContactsForVendor = async (targetVendorId: string) => {
 
   for (const contact of preparedContacts) {
     const cName = (contact.cName || '').trim();
-    if (!cName) continue; // 跳过空行，避免插入空联系人
+    const eName = (contact.eName || '').trim();
+    if (!cName && !eName) continue;
 
     const payload = {
       cName: cName || undefined,
+      eName: eName || undefined,
+      gender: contact.gender === 0 || contact.gender === 1 || contact.gender === 2 ? contact.gender : 1,
       title: (contact.title || '').trim(),
       department: (contact.department || '').trim(),
       mobile: (contact.mobile || '').trim(),
@@ -750,7 +858,10 @@ const syncContactsForVendor = async (targetVendorId: string) => {
     } else {
       const created = await vendorContactApi.createContact(targetVendorId, payload as any);
       const createdId = (created as any)?.id || (created as any)?.data?.id;
-      if (createdId) keptIds.add(createdId);
+      if (createdId) {
+        keptIds.add(createdId);
+        if (contact._key) keyToId.set(String(contact._key), String(createdId));
+      }
     }
   }
 
@@ -764,12 +875,14 @@ const syncContactsForVendor = async (targetVendorId: string) => {
   const latest = await vendorContactApi.getContactsByVendorId(targetVendorId);
   contacts.value = latest.map((c: any, idx: number) => ({ ...c, _key: c.id || `srv-${idx}` }));
   reconcileMainContactKey();
+  return keyToId;
 };
 
 async function applyAiPrefillFromRoute() {
   const raw = route.query.aiPrefill;
   const token = Array.isArray(raw) ? raw[0] : raw;
   if (!token || typeof token !== 'string') return;
+  const cardFiles = consumeBusinessCardFiles(token);
   const consumed = consumeAiPrefill('VENDOR', token);
   const nextQuery = { ...route.query };
   delete nextQuery.aiPrefill;
@@ -780,7 +893,12 @@ async function applyAiPrefillFromRoute() {
   }
   if (!consumed) return;
   aiParseLogId.value = consumed.parseLogId;
-  applyDraftPayload({ ...consumed.payload, contacts: [] });
+  if (cardFiles.length) businessCardFiles.value = cardFiles;
+  if (consumed.payload._businessCardFlow) {
+    applyDraftPayload(consumed.payload);
+  } else {
+    applyDraftPayload({ ...consumed.payload, contacts: [] });
+  }
 }
 
 onMounted(async () => {

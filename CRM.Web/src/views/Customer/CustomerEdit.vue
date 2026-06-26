@@ -183,6 +183,19 @@
           </el-row>
           <el-row :gutter="20">
             <el-col :span="24">
+              <el-form-item :label="t('customerEdit.fields.companyInfo')">
+                <el-input
+                  v-model="formData.companyInfo"
+                  type="textarea"
+                  :rows="3"
+                  :placeholder="t('customerEdit.placeholders.companyInfo')"
+                  class="q-input"
+                />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row :gutter="20">
+            <el-col :span="24">
               <el-form-item :label="t('customerEdit.fields.remarks')">
                 <el-input
                   v-model="formData.remarks"
@@ -311,13 +324,22 @@
               </button>
             </div>
             <el-row :gutter="16">
-              <el-col :span="6">
+              <el-col :span="5">
                 <el-form-item
-                  :label="t('customerEdit.contacts.name')"
-                  :prop="`contacts.${index}.contactName`"
-                  :rules="{ required: true, message: t('customerEdit.contacts.nameRequired'), trigger: 'blur' }"
+                  :label="t('customerEdit.contacts.cName')"
+                  :prop="`contacts.${index}.cName`"
+                  :rules="[{ validator: contactRowNameValidator(contact), trigger: ['blur', 'change'] }]"
                 >
-                  <el-input v-model="contact.contactName" :placeholder="t('customerEdit.contacts.namePlaceholder')" class="q-input" />
+                  <el-input v-model="contact.cName" :placeholder="t('customerEdit.contacts.cNamePlaceholder')" class="q-input" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="5">
+                <el-form-item
+                  :label="t('customerEdit.contacts.eName')"
+                  :prop="`contacts.${index}.eName`"
+                  :rules="[{ validator: contactRowNameValidator(contact), trigger: ['blur', 'change'] }]"
+                >
+                  <el-input v-model="contact.eName" :placeholder="t('customerEdit.contacts.eNamePlaceholder')" class="q-input" />
                 </el-form-item>
               </el-col>
               <el-col :span="4">
@@ -330,7 +352,7 @@
                   </el-select>
                 </el-form-item>
               </el-col>
-              <el-col :span="6">
+              <el-col :span="5">
                 <el-form-item
                   :label="t('customerEdit.contacts.mobile')"
                   :prop="`contacts.${index}.mobilePhone`"
@@ -339,7 +361,7 @@
                   <el-input v-model="contact.mobilePhone" :placeholder="t('customerEdit.contacts.mobile')" class="q-input" />
                 </el-form-item>
               </el-col>
-              <el-col :span="8">
+              <el-col :span="5">
                 <el-form-item
                   :label="t('customerEdit.contacts.email')"
                   :prop="`contacts.${index}.email`"
@@ -386,10 +408,13 @@ import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { ElNotification, ElMessageBox, type FormInstance, type FormRules } from 'element-plus';
-import { customerApi, customerContactApi } from '@/api/customer';
+import { customerApi, customerContactApi, customerAddressApi } from '@/api/customer';
+import { documentApi } from '@/api/document';
 import { draftApi } from '@/api/draft';
 import { consumeAiPrefill } from '@/utils/aiPrefill';
+import { consumeBusinessCardFiles } from '@/utils/businessCardFileStore';
 import { markEntityParseSaved } from '@/utils/entityParseLogTrack';
+import { contactDisplayName, contactRowNameValidator, splitContactNamesFromApi } from '@/utils/contactName';
 import SalesUserCascader from '@/components/SalesUserCascader.vue';
 import RegionCascaderWithQuickPick from '@/components/RegionCascaderWithQuickPick.vue';
 import { regionData } from '@/data/regions';
@@ -471,10 +496,12 @@ function normalizeContactRow(c: any, idx?: number) {
     (c._key as string | undefined) ||
     (c.id as string | undefined) ||
     (idx !== undefined ? `tmp-${idx}` : newCustomerContactRowKey());
+  const names = splitContactNamesFromApi(c);
   return {
     ...c,
     _key,
-    contactName: c.contactName || c.name,
+    cName: (c.cName ?? names.cName) || '',
+    eName: (c.eName ?? names.eName) || '',
     mobilePhone: c.mobilePhone || c.mobile,
     position: c.position ?? c.title ?? '',
     gender: genderUi,
@@ -486,6 +513,10 @@ const isEdit = computed(() => !!route.params.id);
 const customerId = computed(() => route.params.id as string);
 const formRef = ref<FormInstance>();
 const aiParseLogId = ref<string | null>(null);
+const businessCardFlow = ref(false);
+const businessCardFiles = ref<File[]>([]);
+const businessCardContactKey = ref<string | null>(null);
+const businessCardAddress = ref<Record<string, unknown> | null>(null);
 const currentDraftId = ref('');
 
 const formData = reactive<CreateCustomerRequest & { contacts: any[] }>({
@@ -494,7 +525,7 @@ const formData = reactive<CreateCustomerRequest & { contacts: any[] }>({
   unifiedSocialCreditCode: '', salesPersonId: '', salesPersonName: '',
   country: '', province: '', city: '', district: '', address: '',
   creditLimit: 0, paymentTerms: 30, currency: 1, taxRate: 13,
-  invoiceType: 2, isActive: true, remarks: '', contacts: []
+  invoiceType: 2, isActive: true, companyInfo: '', remarks: '', contacts: []
 });
 
 const regionValue = ref<string[]>([]);
@@ -563,6 +594,7 @@ const fetchCustomerDetail = async () => {
       taxRate: customer.taxRate ?? 13,
       invoiceType: customer.invoiceType ?? 2,
       isActive: customer.isActive ?? true,
+      companyInfo: customerAny.companyInfo ?? '',
       remarks: customer.remarks || customerAny.remark,
       englishOfficialName: customerAny.englishOfficialName ?? '',
       contacts: customer.contacts || []
@@ -633,7 +665,8 @@ const addContact = () => {
   formData.contacts.push(
     normalizeContactRow({
       _key: newKey,
-      contactName: '',
+      cName: '',
+      eName: '',
       gender: 0,
       department: '',
       position: '',
@@ -680,8 +713,7 @@ const validateContactEmail = (_rule: unknown, value: string, callback: (error?: 
 
 const removeContact = async (index: number) => {
   try {
-    const name =
-      formData.contacts[index]?.contactName ||
+    const name = contactDisplayName(formData.contacts[index] ?? {}) ||
       t('customerEdit.contacts.indexLabel', { n: index + 1 });
     await ElMessageBox.confirm(
       t('customerEdit.contacts.removeContactConfirm', { name }),
@@ -699,16 +731,31 @@ const removeContact = async (index: number) => {
   }
 };
 
-const buildDraftPayload = () => ({
-  ...formData,
-  contacts: formData.contacts.map((c: any) => ({ ...c }))
-});
+const buildDraftPayload = () => {
+  if (businessCardFlow.value) {
+    const { contacts: _c, ...rest } = formData as any;
+    return { ...rest, contacts: [] };
+  }
+  return {
+    ...formData,
+    contacts: formData.contacts.map((c: any) => ({ ...c }))
+  };
+};
 
 const applyDraftPayload = async (payload: any) => {
-  Object.assign(formData, payload || {});
+  const p = { ...(payload || {}) };
+  if (p._businessCardFlow) {
+    businessCardFlow.value = true;
+    businessCardContactKey.value = p._businessCardContactKey ? String(p._businessCardContactKey) : null;
+    businessCardAddress.value = (p._businessCardAddress as Record<string, unknown>) ?? null;
+    delete p._businessCardFlow;
+    delete p._businessCardContactKey;
+    delete p._businessCardAddress;
+  }
+  Object.assign(formData, p || {});
   normalizeInvoiceTypeModel();
-  formData.contacts = Array.isArray(payload?.contacts)
-    ? payload.contacts.map((c: any, idx: number) => normalizeContactRow(c, idx))
+  formData.contacts = Array.isArray(p?.contacts)
+    ? p.contacts.map((c: any, idx: number) => normalizeContactRow(c, idx))
     : [];
   reconcileMainContactKey();
   if (formData.province && formData.city) {
@@ -764,6 +811,7 @@ async function applyAiPrefillFromRoute() {
   const raw = route.query.aiPrefill;
   const token = Array.isArray(raw) ? raw[0] : raw;
   if (!token || typeof token !== 'string') return;
+  const cardFiles = consumeBusinessCardFiles(token);
   const consumed = consumeAiPrefill('CUSTOMER', token);
   const nextQuery = { ...route.query };
   delete nextQuery.aiPrefill;
@@ -774,10 +822,16 @@ async function applyAiPrefillFromRoute() {
   }
   if (!consumed) return;
   aiParseLogId.value = consumed.parseLogId;
-  await applyDraftPayload({ ...consumed.payload, contacts: [] });
+  if (cardFiles.length) businessCardFiles.value = cardFiles;
+  if (consumed.payload._businessCardFlow) {
+    await applyDraftPayload(consumed.payload);
+  } else {
+    await applyDraftPayload({ ...consumed.payload, contacts: [] });
+  }
 }
 
-const syncContactsForCustomer = async (targetCustomerId: string) => {
+const syncContactsForCustomer = async (targetCustomerId: string): Promise<Map<string, string>> => {
+  const keyToId = new Map<string, string>();
   const existingContacts = await customerContactApi.getContactsByCustomerId(targetCustomerId);
   const existingById = new Map(existingContacts.map((c: any) => [c.id, c]));
   const keptIds = new Set<string>();
@@ -795,8 +849,13 @@ const syncContactsForCustomer = async (targetCustomerId: string) => {
   });
 
   for (const contact of preparedContacts) {
+    const cName = (contact.cName || '').trim();
+    const eName = (contact.eName || '').trim();
+    if (!cName && !eName) continue;
+
     const payload = {
-      contactName: contact.contactName || contact.name || '',
+      cName: cName || undefined,
+      eName: eName || undefined,
       gender: contact.gender,
       department: contact.department || '',
       position: contact.position || '',
@@ -815,7 +874,10 @@ const syncContactsForCustomer = async (targetCustomerId: string) => {
     } else {
       const created = await customerContactApi.createContact(targetCustomerId, payload as any);
       const createdId = (created as any)?.id || (created as any)?.data?.id;
-      if (createdId) keptIds.add(createdId);
+      if (createdId) {
+        keptIds.add(createdId);
+        if (contact._key) keyToId.set(String(contact._key), String(createdId));
+      }
     }
   }
 
@@ -824,12 +886,21 @@ const syncContactsForCustomer = async (targetCustomerId: string) => {
       await customerContactApi.deleteContact(oldContact.id);
     }
   }
+  return keyToId;
 };
 
 const handleSave = async () => {
   const editing = isEdit.value;
   await runValidatedFormSave(formRef, {
     task: async () => {
+      if (businessCardFlow.value && businessCardContactKey.value) {
+        const row = formData.contacts.find((c: any) => c._key === businessCardContactKey.value);
+        const cName = (row?.cName || '').trim();
+        const eName = (row?.eName || '').trim();
+        if (!row || (!cName && !eName)) {
+          throw new Error(t('aiBusinessCard.errors.contactRequired'));
+        }
+      }
       let targetCustomerId = '';
       if (editing) {
         await customerApi.updateCustomer(customerId.value, formData);
@@ -839,17 +910,49 @@ const handleSave = async () => {
         targetCustomerId = (created as any)?.id || (created as any)?.data?.id || '';
       }
 
+      let contactKeyToId = new Map<string, string>();
       if (targetCustomerId) {
-        await syncContactsForCustomer(targetCustomerId);
+        contactKeyToId = await syncContactsForCustomer(targetCustomerId);
       }
-      return { editing, targetCustomerId };
+      return { editing, targetCustomerId, contactKeyToId };
     },
     formatSuccess: ({ editing }) =>
       editing ? t('customerEdit.messages.saveSuccessUpdate') : t('customerEdit.messages.saveSuccessCreate'),
-    onSuccess: ({ editing, targetCustomerId }) => {
+    onSuccess: async ({ editing, targetCustomerId, contactKeyToId }) => {
       if (!editing && targetCustomerId) {
         markEntityParseSaved(aiParseLogId.value, targetCustomerId);
         aiParseLogId.value = null;
+
+        if (businessCardFlow.value) {
+          const contactId = businessCardContactKey.value
+            ? contactKeyToId.get(businessCardContactKey.value)
+            : undefined;
+          if (contactId && businessCardFiles.value.length) {
+            try {
+              await documentApi.uploadDocuments('contact', contactId, businessCardFiles.value);
+            } catch {
+              ElNotification.warning({
+                title: t('aiBusinessCard.messages.cardUploadFailedTitle'),
+                message: t('aiBusinessCard.messages.cardUploadFailedMsg')
+              });
+            }
+            businessCardFiles.value = [];
+          }
+          const addr = businessCardAddress.value;
+          const street = addr && typeof addr.streetAddress === 'string' ? addr.streetAddress.trim() : '';
+          if (street) {
+            try {
+              await customerAddressApi.createAddress(targetCustomerId, addr as any);
+            } catch {
+              // 地址创建失败不阻断主流程
+            }
+          }
+          businessCardFlow.value = false;
+          businessCardAddress.value = null;
+          businessCardContactKey.value = null;
+          router.push({ name: 'CustomerDetail', params: { id: targetCustomerId } });
+          return;
+        }
       }
       router.push({ name: 'CustomerList' });
     },

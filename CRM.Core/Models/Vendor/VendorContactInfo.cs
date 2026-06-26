@@ -38,6 +38,11 @@ namespace CRM.Core.Models.Vendor
         public string? EName { get; set; }
 
         /// <summary>
+        /// 性别：0=保密、1=男、2=女
+        /// </summary>
+        public short? Gender { get; set; }
+
+        /// <summary>
         /// 职位
         /// </summary>
         [StringLength(50)]

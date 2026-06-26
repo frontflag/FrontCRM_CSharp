@@ -1723,7 +1723,7 @@ const zhCN = {
     }
   },
   aiEntityCreate: {
-    aiCreate: 'AI 创建',
+    aiCreate: '粘贴文本',
     textDialog: {
       title: 'AI 解析文本',
       hint: '粘贴邮件、聊天记录或备注中的非结构化文本，系统将提取字段供您确认后填入新建表单。',
@@ -1787,6 +1787,7 @@ const zhCN = {
       taxNumber: '税号',
       companyInfo: '公司信息',
       contactName: '姓名',
+      cName: '中文名',
       gender: '性别',
       genderUndisclosed: '保密',
       genderMale: '男',
@@ -1821,6 +1822,44 @@ const zhCN = {
       noOfficialName: '未解析出供应商全称，请补充文本后重试',
       noContactName: '未解析出联系人姓名，请补充文本后重试',
       noStreetAddress: '未解析出详细地址，请补充文本后重试'
+    }
+  },
+  aiBusinessCard: {
+    uploadCard: '上传名片',
+    uploadDialog: {
+      title: '上传名片',
+      hint: '支持 JPG / PNG / WebP / HEIC。可分别上传正面与反面，或仅上传正面/单张合图；解析后将预填客户/供应商、联系人与地址。',
+      frontSide: '正面',
+      backSide: '反面',
+      optional: '可选',
+      pickFile: '点击或拖拽图片到此处',
+      clearSide: '移除',
+      repick: '全部重选',
+      parse: '开始解析',
+      noFrontFile: '请先上传名片正面',
+      noFile: '请先选择名片图片',
+      invalidFormat: '请选择图片文件',
+      tooLarge: '单张图片不能超过 20MB'
+    },
+    confirmDialog: {
+      title: '确认名片解析结果',
+      sectionCustomer: '客户信息',
+      sectionVendor: '供应商信息',
+      sectionContact: '联系人',
+      sectionAddress: '地址',
+      companyIntro: '公司介绍',
+      companyIntroPlaceholder: '由 slogan、业务标签等生成的公司介绍，可编辑',
+      remarksPlaceholder: '由 slogan、业务标签等生成的备注，可编辑',
+      similarVendorTitle: '系统中已有相似供应商',
+      similarVendorNote: '您仍可继续新建；请核对是否重复录入。'
+    },
+    errors: {
+      parseFailed: '名片解析失败',
+      contactRequired: '请保留名片对应的联系人（中文名或英文名）后再保存'
+    },
+    messages: {
+      cardUploadFailedTitle: '名片上传失败',
+      cardUploadFailedMsg: '客户已创建，请稍后在联系人编辑页补传名片'
     }
   },
   materialIntel: {
@@ -2214,6 +2253,7 @@ const zhCN = {
       creditCode: '社会信用代码',
       salesPerson: '所属业务员',
       region: '地区',
+      companyInfo: '公司介绍',
       remarks: '备注',
       creditLimit: '信用额度',
       paymentTerms: '账期(天)',
@@ -2231,6 +2271,7 @@ const zhCN = {
       creditCode: '请输入统一社会信用代码',
       salesPerson: '请选择业务员',
       region: '请选择地区',
+      companyInfo: '请输入公司介绍',
       remarks: '请输入备注信息'
     },
     invoiceType: {
@@ -2269,8 +2310,13 @@ const zhCN = {
       indexLabel: '联系人 {n}',
       delete: '删除',
       name: '姓名',
+      cName: '中文名',
+      eName: '英文名',
       namePlaceholder: '姓名',
+      cNamePlaceholder: '中文名',
+      eNamePlaceholder: '英文名',
       nameRequired: '请输入姓名',
+      nameAtLeastOne: '中文名与英文名至少填写一项',
       gender: '性别',
       genderPlaceholder: '性别',
       genderMale: '男',
@@ -2754,6 +2800,15 @@ const zhCN = {
       contactIndex: '联系人 {n}',
       remove: '删除',
       name: '姓名',
+      cName: '中文名',
+      cNamePh: '中文名',
+      eName: '英文名',
+      eNamePh: '英文名',
+      gender: '性别',
+      genderPlaceholder: '性别',
+      genderMale: '男',
+      genderFemale: '女',
+      genderUndisclosed: '保密',
       namePh: '联系人姓名',
       title: '职位',
       titlePh: '职位/角色',
@@ -2785,6 +2840,7 @@ const zhCN = {
       saveFailed: '保存失败',
       contactMobileInvalid: '联系人 {n} 手机号格式不正确',
       contactEmailInvalid: '联系人 {n} 邮箱格式不正确',
+      contactNameRequired: '联系人 {n}：中文名与英文名至少填写一项',
       deleteContactTitle: '确认删除',
       deleteContactConfirm: '确定要删除该联系人吗？',
       deleteFailed: '删除失败'

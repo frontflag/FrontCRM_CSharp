@@ -128,7 +128,10 @@ export interface CustomerBankInfo {
 export interface CustomerContactInfo {
   id: string
   customerId: string
-  contactName: string
+  cName?: string
+  eName?: string
+  /** 展示名：优先中文名，否则英文名（服务端计算） */
+  contactName?: string
   gender: number
   position?: string
   department?: string
@@ -421,7 +424,10 @@ export interface CustomerStatistics {
 
 // 创建联系人请求
 export interface CreateContactRequest {
-  contactName: string
+  cName?: string
+  eName?: string
+  /** @deprecated 请使用 cName/eName */
+  contactName?: string
   gender: number
   department?: string
   position?: string

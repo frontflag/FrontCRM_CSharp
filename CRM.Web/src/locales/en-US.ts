@@ -1746,7 +1746,7 @@ const enUS = {
     }
   },
   aiEntityCreate: {
-    aiCreate: 'AI Create',
+    aiCreate: 'Paste Text',
     textDialog: {
       title: 'Parse text with AI',
       hint: 'Paste unstructured text from email or chat. Fields will be extracted for your review before prefilling the form.',
@@ -1810,6 +1810,7 @@ const enUS = {
       taxNumber: 'Tax ID',
       companyInfo: 'Company info',
       contactName: 'Name',
+      cName: 'Chinese name',
       gender: 'Gender',
       genderUndisclosed: 'Undisclosed',
       genderMale: 'Male',
@@ -1844,6 +1845,44 @@ const enUS = {
       noOfficialName: 'No vendor official name extracted; add more context and retry',
       noContactName: 'No contact name extracted; add more context and retry',
       noStreetAddress: 'No street address extracted; add more context and retry'
+    }
+  },
+  aiBusinessCard: {
+    uploadCard: 'Upload business card',
+    uploadDialog: {
+      title: 'Upload business card',
+      hint: 'JPG / PNG / WebP / HEIC. Upload front and back separately, or front only / one combined image. Customer/vendor, contact and address will be prefilled after parsing.',
+      frontSide: 'Front',
+      backSide: 'Back',
+      optional: 'optional',
+      pickFile: 'Click or drag an image here',
+      clearSide: 'Remove',
+      repick: 'Clear all',
+      parse: 'Parse',
+      noFrontFile: 'Please upload the front side first',
+      noFile: 'Please select a card image first',
+      invalidFormat: 'Please select an image file',
+      tooLarge: 'Each image must be 20MB or smaller'
+    },
+    confirmDialog: {
+      title: 'Confirm card parse result',
+      sectionCustomer: 'Customer',
+      sectionVendor: 'Vendor',
+      sectionContact: 'Contact',
+      sectionAddress: 'Address',
+      companyIntro: 'Company profile',
+      companyIntroPlaceholder: 'Generated from slogan and business tags; editable',
+      remarksPlaceholder: 'Generated from slogan and business tags; editable',
+      similarVendorTitle: 'Similar vendors already exist',
+      similarVendorNote: 'You may still create a new vendor; please check for duplicates.'
+    },
+    errors: {
+      parseFailed: 'Business card parse failed',
+      contactRequired: 'Keep the contact from the card (Chinese or English name) before saving'
+    },
+    messages: {
+      cardUploadFailedTitle: 'Card upload failed',
+      cardUploadFailedMsg: 'Record was created; upload the card later on the contact edit page'
     }
   },
   materialIntel: {
@@ -2223,6 +2262,7 @@ const enUS = {
       creditCode: 'Unified social credit code',
       salesPerson: 'Sales rep',
       region: 'Region',
+      companyInfo: 'Company introduction',
       remarks: 'Remarks',
       creditLimit: 'Credit limit',
       paymentTerms: 'Payment terms (days)',
@@ -2240,6 +2280,7 @@ const enUS = {
       creditCode: 'Enter unified social credit code',
       salesPerson: 'Select sales rep',
       region: 'Select region',
+      companyInfo: 'Enter company introduction',
       remarks: 'Enter remarks'
     },
     invoiceType: {
@@ -2278,8 +2319,13 @@ const enUS = {
       indexLabel: 'Contact {n}',
       delete: 'Delete',
       name: 'Name',
+      cName: 'Chinese name',
+      eName: 'English name',
       namePlaceholder: 'Name',
+      cNamePlaceholder: 'Chinese name',
+      eNamePlaceholder: 'English name',
       nameRequired: 'Please enter the name',
+      nameAtLeastOne: 'Enter at least a Chinese or English name',
       gender: 'Gender',
       genderPlaceholder: 'Gender',
       genderMale: 'Male',
@@ -2761,7 +2807,16 @@ const enUS = {
       empty: 'No contacts yet. Use the button above to add.',
       contactIndex: 'Contact {n}',
       remove: 'Remove',
-      name: 'Name',
+      contactName: 'Name',
+      cName: 'Chinese name',
+      cNamePh: 'Chinese name',
+      eName: 'English name',
+      eNamePh: 'English name',
+      gender: 'Gender',
+      genderPlaceholder: 'Gender',
+      genderMale: 'Male',
+      genderFemale: 'Female',
+      genderUndisclosed: 'Undisclosed',
       namePh: 'Contact name',
       title: 'Title',
       titlePh: 'Title / role',
@@ -2793,6 +2848,7 @@ const enUS = {
       saveFailed: 'Save failed',
       contactMobileInvalid: 'Contact {n}: invalid mobile number',
       contactEmailInvalid: 'Contact {n}: invalid email',
+      contactNameRequired: 'Contact {n}: enter at least a Chinese or English name',
       deleteContactTitle: 'Confirm delete',
       deleteContactConfirm: 'Remove this contact?',
       deleteFailed: 'Delete failed'

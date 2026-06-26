@@ -69,6 +69,7 @@ import {
   type ParsedVendorFields
 } from '@/utils/entityParseSchema'
 import { setAiPrefill, type AiPrefillEntityType } from '@/utils/aiPrefill'
+import { hasContactName } from '@/utils/contactName'
 
 const props = defineProps<{
   entityType: AiPrefillEntityType
@@ -170,18 +171,14 @@ async function onGenerate(rawText: string) {
         return
       }
     } else if (props.entityType === 'CUSTOMER_CONTACT') {
-      parsedCustomerContact.value = useBackendNormalized
-        ? (obj as unknown as ParsedCustomerContactFields)
-        : normalizeCustomerContactParseResult(obj)
-      if (!parsedCustomerContact.value.contactName.trim()) {
+      parsedCustomerContact.value = normalizeCustomerContactParseResult(obj)
+      if (!hasContactName(parsedCustomerContact.value)) {
         ElMessage.warning(t('aiEntityCreate.errors.noContactName'))
         return
       }
     } else if (props.entityType === 'VENDOR_CONTACT') {
-      parsedVendorContact.value = useBackendNormalized
-        ? (obj as unknown as ParsedVendorContactFields)
-        : normalizeVendorContactParseResult(obj)
-      if (!parsedVendorContact.value.cName.trim() && !parsedVendorContact.value.eName.trim()) {
+      parsedVendorContact.value = normalizeVendorContactParseResult(obj)
+      if (!hasContactName(parsedVendorContact.value)) {
         ElMessage.warning(t('aiEntityCreate.errors.noContactName'))
         return
       }

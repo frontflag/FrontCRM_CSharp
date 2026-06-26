@@ -93,11 +93,127 @@ public sealed class MockAiLlmProvider : IAiLlmProvider
             });
         }
 
+        if (systemMsg.Contains("客户名片解析", StringComparison.Ordinal))
+        {
+            var json = """
+                       {
+                         "customer": {
+                           "customer_name": "Mock 名片客户有限公司",
+                           "customer_short_name": "Mock名片客户",
+                           "english_official_name": "Mock Business Card Co., Ltd.",
+                           "customer_type": 2,
+                           "customer_level": "B",
+                           "industry": "电子制造",
+                           "country": "中国",
+                           "province": "广东省",
+                           "city": "深圳市",
+                           "district": "福田区",
+                           "address": "Mock 深南大道 1000 号",
+                           "unified_social_credit_code": null,
+                           "credit_limit": null,
+                           "payment_terms": null,
+                           "currency": 1,
+                           "tax_rate": null,
+                           "invoice_type": null,
+                           "company_info": "以芯为源，赋能万物；专注半导体、新能源、智能芯片与 IoT 生态相关业务。",
+                           "remarks": null
+                         },
+                         "contact": {
+                           "c_name": "Mock 张三",
+                           "e_name": "Mock Zhang San",
+                           "gender": 1,
+                           "department": "采购部",
+                           "position": "采购经理",
+                           "mobile_phone": "13800138000",
+                           "phone": "0755-12345678",
+                           "email": "mock.card@example.com",
+                           "fax": null,
+                           "social_account": null,
+                           "is_default": true,
+                           "is_decision_maker": false,
+                           "remarks": null
+                         },
+                         "address": {
+                           "address_type": "Office",
+                           "country": "中国",
+                           "province": "广东省",
+                           "city": "深圳市",
+                           "district": "福田区",
+                           "street_address": "Mock 深南大道 1000 号",
+                           "company_name": "Mock 名片客户有限公司",
+                           "zip_code": "518000",
+                           "contact_person": "Mock 张三",
+                           "contact_phone": "13800138000",
+                           "is_default": true
+                         }
+                       }
+                       """;
+            return Task.FromResult(new AiChatCompletionResult
+            {
+                Content = json,
+                Usage = new AiTokenUsageDto { PromptTokens = 120, CompletionTokens = 280, TotalTokens = 400 }
+            });
+        }
+
+        if (systemMsg.Contains("供应商名片解析", StringComparison.Ordinal))
+        {
+            var json = """
+                       {
+                         "vendor": {
+                           "official_name": "Mock 名片供应商有限公司",
+                           "english_official_name": "Mock Vendor Card Co., Ltd.",
+                           "nick_name": "Mock名片供应商",
+                           "industry": "半导体、新能源、智能芯片、IoT生态",
+                           "level": 3,
+                           "credit": 2,
+                           "office_address": "Mock 科技园 Mock 路 88 号",
+                           "website": null,
+                           "trade_currency": 1,
+                           "payment_method": null,
+                           "payment_days": 30,
+                           "credit_code": null,
+                           "company_info": "以芯为源，赋能万物；主营半导体、新能源、智能芯片与 IoT 生态相关业务。",
+                           "remark": null
+                         },
+                         "contact": {
+                           "c_name": "Mock 李四",
+                           "e_name": "Mock Li Si",
+                           "gender": 1,
+                           "title": "销售经理",
+                           "department": "销售部",
+                           "mobile": "13900139000",
+                           "tel": "0755-87654321",
+                           "email": "vendor.card@example.com",
+                           "is_main": true,
+                           "remark": null
+                         },
+                         "address": {
+                           "address_type": 1,
+                           "country": "中国",
+                           "province": "广东省",
+                           "city": "深圳市",
+                           "area": "南山区",
+                           "address": "Mock 科技园 Mock 路 88 号",
+                           "contact_name": "Mock 李四",
+                           "contact_phone": "13900139000",
+                           "is_default": true,
+                           "remark": null
+                         }
+                       }
+                       """;
+            return Task.FromResult(new AiChatCompletionResult
+            {
+                Content = json,
+                Usage = new AiTokenUsageDto { PromptTokens = 115, CompletionTokens = 270, TotalTokens = 385 }
+            });
+        }
+
         if (systemMsg.Contains("客户联系人解析", StringComparison.Ordinal))
         {
             var json = """
                        {
-                         "contact_name": "Mock 张三",
+                         "c_name": "Mock 张三",
+                         "e_name": "Mock Zhang San",
                          "gender": 1,
                          "department": "采购部",
                          "position": "采购经理",

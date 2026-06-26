@@ -32,6 +32,7 @@
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item v-if="canAiParseVendor" command="aiCreate">{{ t('aiEntityCreate.aiCreate') }}</el-dropdown-item>
+                  <el-dropdown-item v-if="canAiParseVendorBusinessCard" command="uploadCard">{{ t('aiBusinessCard.uploadCard') }}</el-dropdown-item>
                   <el-dropdown-item command="import">{{ t('vendorList.importExcel') }}</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -295,6 +296,7 @@
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item v-if="canAiParseVendor" command="aiCreate">{{ t('aiEntityCreate.aiCreate') }}</el-dropdown-item>
+                  <el-dropdown-item v-if="canAiParseVendorBusinessCard" command="uploadCard">{{ t('aiBusinessCard.uploadCard') }}</el-dropdown-item>
                   <el-dropdown-item command="import">{{ t('vendorList.importExcel') }}</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -334,6 +336,11 @@
       entity-type="VENDOR"
       :target-route="{ name: 'VendorCreate' }"
     />
+    <AiBusinessCardCreateHost
+      ref="businessCardHostRef"
+      mode="vendor"
+      :target-route="{ name: 'VendorCreate' }"
+    />
   </div>
 </template>
 
@@ -354,7 +361,8 @@ import { useVendorDictStore } from '@/stores/vendorDict';
 import PartyStatusIcons from '@/components/party/PartyStatusIcons.vue';
 import VendorImportDialog from '@/components/Vendor/VendorImportDialog.vue';
 import AiEntityCreateHost from '@/components/AiCreate/AiEntityCreateHost.vue';
-import { AI_PERMISSION_ENTITY_PARSE_VENDOR } from '@/api/ai';
+import AiBusinessCardCreateHost from '@/components/AiCreate/AiBusinessCardCreateHost.vue';
+import { AI_PERMISSION_ENTITY_PARSE_VENDOR, AI_PERMISSION_ENTITY_PARSE_VENDOR_BUSINESS_CARD } from '@/api/ai';
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import { parseVendorListQuery, buildVendorListQuery } from '@/utils/vendorListQuery';
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
@@ -373,7 +381,11 @@ const vendorDict = useVendorDictStore();
 const canViewVendorInfo = authStore.hasPermission('vendor.info.read');
 const canSubmitAudit = authStore.hasPermission('vendor.write');
 const canAiParseVendor = computed(() => authStore.hasPermission(AI_PERMISSION_ENTITY_PARSE_VENDOR));
+const canAiParseVendorBusinessCard = computed(() =>
+  authStore.hasPermission(AI_PERMISSION_ENTITY_PARSE_VENDOR_BUSINESS_CARD)
+);
 const aiCreateHostRef = ref<InstanceType<typeof AiEntityCreateHost> | null>(null);
+const businessCardHostRef = ref<InstanceType<typeof AiBusinessCardCreateHost> | null>(null);
 const importDialogVisible = ref(false);
 const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
@@ -614,6 +626,7 @@ const handleCreate = () => router.push('/vendors/create');
 
 function onCreateDropdownCommand(cmd: string) {
   if (cmd === 'aiCreate') aiCreateHostRef.value?.open();
+  else if (cmd === 'uploadCard') businessCardHostRef.value?.open();
   else if (cmd === 'import') importDialogVisible.value = true;
 }
 const handleView = (row: Vendor) => router.push(`/vendors/${row.id}`);

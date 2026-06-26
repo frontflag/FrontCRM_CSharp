@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -249,6 +250,65 @@ public sealed class OpenAiCompatibleAiLlmProvider : IAiLlmProvider
         var arr = new JsonArray();
         foreach (var message in messages)
         {
+            var imageParts = message.Images?
+                .Where(i => !string.IsNullOrWhiteSpace(i.Base64))
+                .ToList();
+            if (imageParts is { Count: > 0 })
+            {
+                var contentArr = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["type"] = "text",
+                        ["text"] = message.Content ?? string.Empty
+                    }
+                };
+                foreach (var image in imageParts)
+                {
+                    var mime = string.IsNullOrWhiteSpace(image.MimeType) ? "image/jpeg" : image.MimeType.Trim();
+                    var dataUrl = $"data:{mime};base64,{image.Base64.Trim()}";
+                    contentArr.Add(new JsonObject
+                    {
+                        ["type"] = "image_url",
+                        ["image_url"] = new JsonObject { ["url"] = dataUrl }
+                    });
+                }
+
+                arr.Add(new JsonObject
+                {
+                    ["role"] = message.Role,
+                    ["content"] = contentArr
+                });
+                continue;
+            }
+
+            if (!string.IsNullOrWhiteSpace(message.ImageBase64))
+            {
+                var mime = string.IsNullOrWhiteSpace(message.ImageMimeType) ? "image/jpeg" : message.ImageMimeType.Trim();
+                var dataUrl = $"data:{mime};base64,{message.ImageBase64.Trim()}";
+                arr.Add(new JsonObject
+                {
+                    ["role"] = message.Role,
+                    ["content"] = new JsonArray
+                    {
+                        new JsonObject
+                        {
+                            ["type"] = "text",
+                            ["text"] = message.Content ?? string.Empty
+                        },
+                        new JsonObject
+                        {
+                            ["type"] = "image_url",
+                            ["image_url"] = new JsonObject
+                            {
+                                ["url"] = dataUrl
+                            }
+                        }
+                    }
+                });
+                continue;
+            }
+
             arr.Add(new JsonObject
             {
                 ["role"] = message.Role,

@@ -3,10 +3,22 @@ namespace CRM.Core.Interfaces;
 using System.Text.Json;
 using CRM.Core.Models.Ai;
 
+public sealed class AiChatImagePartDto
+{
+    public string Base64 { get; set; } = string.Empty;
+    public string MimeType { get; set; } = "image/jpeg";
+}
+
 public sealed class AiChatMessageDto
 {
     public string Role { get; set; } = "user";
     public string Content { get; set; } = string.Empty;
+    /// <summary>名片等多模态场景：纯 base64（不含 data: 前缀）。与 Images 二选一，Images 优先。</summary>
+    public string? ImageBase64 { get; set; }
+    /// <summary>如 image/jpeg、image/png。</summary>
+    public string? ImageMimeType { get; set; }
+    /// <summary>双面名片等多图场景，按顺序传入（如正面、反面）。</summary>
+    public List<AiChatImagePartDto>? Images { get; set; }
 }
 
 public sealed class AiChatCompletionRequest

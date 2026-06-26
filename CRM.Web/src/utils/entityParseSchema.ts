@@ -34,6 +34,7 @@ export type ParsedCustomerFields = {
   currency: number | null
   taxRate: number | null
   invoiceType: number | null
+  companyInfo: string
   remarks: string
 }
 
@@ -88,7 +89,8 @@ export type ParsedVendorFields = {
 }
 
 export type ParsedCustomerContactFields = {
-  contactName: string
+  cName: string
+  eName: string
   gender: number
   department: string
   position: string
@@ -105,6 +107,7 @@ export type ParsedCustomerContactFields = {
 export type ParsedVendorContactFields = {
   cName: string
   eName: string
+  gender: number
   title: string
   department: string
   mobile: string
@@ -206,6 +209,7 @@ export function emptyParsedCustomer(): ParsedCustomerFields {
     currency: null,
     taxRate: null,
     invoiceType: null,
+    companyInfo: '',
     remarks: ''
   }
 }
@@ -268,7 +272,8 @@ export function emptyParsedVendor(): ParsedVendorFields {
 
 export function emptyParsedCustomerContact(): ParsedCustomerContactFields {
   return {
-    contactName: '',
+    cName: '',
+    eName: '',
     gender: 0,
     department: '',
     position: '',
@@ -287,6 +292,7 @@ export function emptyParsedVendorContact(): ParsedVendorContactFields {
   return {
     cName: '',
     eName: '',
+    gender: 1,
     title: '',
     department: '',
     mobile: '',
@@ -357,6 +363,39 @@ function normalizeContactGender(v: unknown): number {
   return r === 1 || r === 2 ? r : 0
 }
 
+function defaultBusinessCardContactGender(v: unknown): number {
+  const g = normalizeContactGender(v)
+  return g === 1 || g === 2 ? g : 1
+}
+
+const SHORT_NAME_SUFFIXES = [
+  '股份有限公司',
+  '有限责任公司',
+  '有限公司',
+  '集团公司',
+  '集团',
+  '公司'
+]
+
+/** 从全称推断简称；若已有简称则原样返回 */
+export function inferEntityShortName(fullName: string, existingShort = ''): string {
+  const short = existingShort.trim()
+  if (short) return short
+  let name = fullName.trim()
+  if (!name) return ''
+  for (const suffix of SHORT_NAME_SUFFIXES) {
+    if (name.endsWith(suffix) && name.length > suffix.length) {
+      name = name.slice(0, -suffix.length).trim()
+      break
+    }
+  }
+  name = name.replace(/,?\s*Inc\.?$/i, '').trim()
+  name = name.replace(/\s+Ltd\.?$/i, '').trim()
+  name = name.replace(/\s+LLC\.?$/i, '').trim()
+  name = name.replace(/\s+Co\.?,?\s*Ltd\.?$/i, '').trim()
+  return name
+}
+
 function boolOrFalse(v: unknown): boolean {
   if (v === true || v === 1 || v === '1') return true
   if (typeof v === 'string') {
@@ -381,8 +420,11 @@ function normalizeVendorCredit(v: unknown): number | null {
 }
 
 export function normalizeCustomerContactParseResult(raw: Record<string, unknown>): ParsedCustomerContactFields {
+  const cName = str(raw.c_name ?? raw.cName ?? raw.contact_name ?? raw.contactName ?? raw.name)
+  const eName = str(raw.e_name ?? raw.eName ?? raw.english_name)
   return {
-    contactName: str(raw.contact_name ?? raw.name ?? raw.contactName),
+    cName,
+    eName,
     gender: normalizeContactGender(raw.gender ?? raw.sex),
     department: str(raw.department),
     position: str(raw.position ?? raw.title ?? raw.job_title),
@@ -400,7 +442,8 @@ export function normalizeCustomerContactParseResult(raw: Record<string, unknown>
 /** 客户联系人 AI 预填 → CustomerContactEdit formData */
 export function customerContactPrefillToFormPayload(parsed: ParsedCustomerContactFields): Record<string, unknown> {
   return {
-    contactName: parsed.contactName || undefined,
+    cName: parsed.cName || undefined,
+    eName: parsed.eName || undefined,
     gender: parsed.gender,
     department: parsed.department || undefined,
     position: parsed.position || undefined,
@@ -559,11 +602,12 @@ export function vendorAddressPrefillToFormPayload(parsed: ParsedVendorAddressFie
 }
 
 export function normalizeVendorContactParseResult(raw: Record<string, unknown>): ParsedVendorContactFields {
-  const cName = str(raw.c_name ?? raw.contact_name ?? raw.name ?? raw.cName)
+  const cName = str(raw.c_name ?? raw.cName ?? raw.contact_name ?? raw.contactName ?? raw.name)
   const eName = str(raw.e_name ?? raw.english_name ?? raw.eName)
   return {
     cName,
     eName,
+    gender: normalizeContactGender(raw.gender ?? raw.sex),
     title: str(raw.title ?? raw.position ?? raw.job_title),
     department: str(raw.department),
     mobile: str(raw.mobile ?? raw.mobile_phone ?? raw.cellphone),
@@ -579,6 +623,7 @@ export function vendorContactPrefillToFormPayload(parsed: ParsedVendorContactFie
   return {
     cName: parsed.cName || undefined,
     eName: parsed.eName || undefined,
+    gender: parsed.gender,
     title: parsed.title || undefined,
     department: parsed.department || undefined,
     mobile: parsed.mobile || undefined,
@@ -594,7 +639,7 @@ export function normalizeVendorParseResult(raw: Record<string, unknown>): Parsed
   return {
     officialName,
     englishOfficialName: str(raw.english_official_name),
-    nickName: str(raw.nick_name ?? raw.short_name ?? raw.vendor_short_name),
+    nickName: inferEntityShortName(officialName, str(raw.nick_name ?? raw.short_name ?? raw.vendor_short_name)),
     industry: str(raw.industry),
     level: normalizeVendorLevel(raw.level ?? raw.vendor_level),
     credit: normalizeVendorCredit(raw.credit ?? raw.identity ?? raw.vendor_credit),
@@ -664,9 +709,10 @@ function hasItemContent(item: ParsedRfqItemFields): boolean {
 
 export function normalizeCustomerParseResult(raw: Record<string, unknown>): ParsedCustomerFields {
   const level = normalizeCustomerLevel(raw.customer_level)
+  const customerName = str(raw.customer_name)
   return enrichCustomerRegionFields({
-    customerName: str(raw.customer_name),
-    customerShortName: str(raw.customer_short_name),
+    customerName,
+    customerShortName: inferEntityShortName(customerName, str(raw.customer_short_name)),
     englishOfficialName: str(raw.english_official_name),
     customerType: numOrNull(raw.customer_type),
     customerLevel: VALID_LEVELS.has(level) ? level : '',
@@ -682,7 +728,8 @@ export function normalizeCustomerParseResult(raw: Record<string, unknown>): Pars
     currency: numOrNull(raw.currency),
     taxRate: numOrNull(raw.tax_rate),
     invoiceType: numOrNull(raw.invoice_type),
-    remarks: str(raw.remarks)
+    companyInfo: str(raw.company_info ?? raw.companyInfo),
+    remarks: str(raw.remarks ?? raw.remark)
   })
 }
 
@@ -740,6 +787,7 @@ export function customerPrefillToFormPayload(parsed: ParsedCustomerFields): Reco
     district: parsed.district || undefined,
     address: parsed.address || undefined,
     unifiedSocialCreditCode: parsed.unifiedSocialCreditCode || undefined,
+    companyInfo: parsed.companyInfo || undefined,
     remarks: parsed.remarks || undefined,
     contacts: []
   }
@@ -805,4 +853,181 @@ export function rfqPrefillToFormPayload(parsed: ParsedRfqFields): Record<string,
     payload.importance = parsed.importance
   }
   return payload
+}
+
+export type ParsedCustomerBusinessCardFields = {
+  customer: ParsedCustomerFields
+  contact: ParsedCustomerContactFields
+  address: ParsedCustomerAddressFields | null
+}
+
+export type ParsedVendorBusinessCardFields = {
+  vendor: ParsedVendorFields
+  contact: ParsedVendorContactFields
+  address: ParsedVendorAddressFields | null
+}
+
+export function normalizeCustomerBusinessCardParseResult(raw: Record<string, unknown>): ParsedCustomerBusinessCardFields {
+  const customerRaw =
+    raw.customer && typeof raw.customer === 'object' && !Array.isArray(raw.customer)
+      ? (raw.customer as Record<string, unknown>)
+      : raw
+  const contactRaw =
+    raw.contact && typeof raw.contact === 'object' && !Array.isArray(raw.contact)
+      ? (raw.contact as Record<string, unknown>)
+      : {}
+  const customer = normalizeCustomerParseResult(customerRaw)
+  const cardCompanyInfo = str(
+    customerRaw.company_info ??
+      customerRaw.companyInfo ??
+      customerRaw.remarks ??
+      customerRaw.remark
+  )
+  if (cardCompanyInfo) {
+    customer.companyInfo = cardCompanyInfo
+    if (customer.remarks === cardCompanyInfo) customer.remarks = ''
+  }
+  const contact = {
+    ...normalizeCustomerContactParseResult(contactRaw),
+    isDefault: true,
+    gender: defaultBusinessCardContactGender(contactRaw.gender ?? contactRaw.sex)
+  }
+  let address: ParsedCustomerAddressFields | null = null
+  if (raw.address && typeof raw.address === 'object' && !Array.isArray(raw.address)) {
+    const addr = normalizeCustomerAddressParseResult(raw.address as Record<string, unknown>)
+    if (addr.streetAddress.trim()) {
+      address = { ...addr, isDefault: true }
+    }
+  }
+  return { customer, contact, address }
+}
+
+/** 兼容后端 camelCase 归一化与 AI 原始 snake_case 输出 */
+export function hydrateCustomerBusinessCardBundle(raw: Record<string, unknown>): ParsedCustomerBusinessCardFields {
+  const customerRaw =
+    raw.customer && typeof raw.customer === 'object' && !Array.isArray(raw.customer)
+      ? (raw.customer as Record<string, unknown>)
+      : raw
+  const isBackendNormalized =
+    'customerName' in customerRaw ||
+    'customerShortName' in customerRaw ||
+    'englishOfficialName' in customerRaw
+
+  const bundle: ParsedCustomerBusinessCardFields = isBackendNormalized
+    ? (JSON.parse(JSON.stringify(raw)) as ParsedCustomerBusinessCardFields)
+    : normalizeCustomerBusinessCardParseResult(raw)
+
+  const c = bundle.customer
+  if (!c.companyInfo?.trim()) {
+    const fromRemarks = c.remarks?.trim()
+    if (fromRemarks) {
+      c.companyInfo = fromRemarks
+      c.remarks = ''
+    }
+  }
+  return bundle
+}
+
+export function normalizeVendorBusinessCardParseResult(raw: Record<string, unknown>): ParsedVendorBusinessCardFields {
+  const vendorRaw =
+    raw.vendor && typeof raw.vendor === 'object' && !Array.isArray(raw.vendor)
+      ? (raw.vendor as Record<string, unknown>)
+      : raw
+  const contactRaw =
+    raw.contact && typeof raw.contact === 'object' && !Array.isArray(raw.contact)
+      ? (raw.contact as Record<string, unknown>)
+      : {}
+  const vendor = normalizeVendorParseResult(vendorRaw)
+  const cardCompanyInfo = str(vendorRaw.company_info ?? vendorRaw.remarks ?? vendorRaw.remark)
+  if (cardCompanyInfo) {
+    vendor.companyInfo = cardCompanyInfo
+    if (vendor.remark === cardCompanyInfo) vendor.remark = ''
+  }
+  const contact = {
+    ...normalizeVendorContactParseResult(contactRaw),
+    isMain: true,
+    gender: defaultBusinessCardContactGender(contactRaw.gender ?? contactRaw.sex)
+  }
+  let address: ParsedVendorAddressFields | null = null
+  if (raw.address && typeof raw.address === 'object' && !Array.isArray(raw.address)) {
+    const addr = normalizeVendorAddressParseResult(raw.address as Record<string, unknown>)
+    if (addr.address.trim()) {
+      address = { ...addr, isDefault: true }
+    }
+  }
+  return { vendor, contact, address }
+}
+
+export function customerBusinessCardPrefillToFormPayload(
+  parsed: ParsedCustomerBusinessCardFields,
+  contactKey: string
+): Record<string, unknown> {
+  return {
+    ...customerPrefillToFormPayload(parsed.customer),
+    contacts: [
+      {
+        _key: contactKey,
+        _fromBusinessCard: true,
+        cName: parsed.contact.cName,
+        eName: parsed.contact.eName,
+        gender: parsed.contact.gender,
+        department: parsed.contact.department,
+        position: parsed.contact.position,
+        mobilePhone: parsed.contact.mobilePhone,
+        phone: parsed.contact.phone,
+        email: parsed.contact.email,
+        fax: parsed.contact.fax,
+        isDefault: true,
+        isDecisionMaker: parsed.contact.isDecisionMaker,
+        remarks: parsed.contact.remarks
+      }
+    ],
+    _businessCardFlow: true,
+    _businessCardContactKey: contactKey,
+    _businessCardAddress: parsed.address ? customerAddressPrefillToFormPayload(parsed.address) : null
+  }
+}
+
+export function vendorBusinessCardPrefillToFormPayload(
+  parsed: ParsedVendorBusinessCardFields,
+  contactKey: string
+): Record<string, unknown> {
+  return {
+    ...vendorPrefillToFormPayload(parsed.vendor),
+    contacts: [
+      {
+        _key: contactKey,
+        _fromBusinessCard: true,
+        cName: parsed.contact.cName,
+        eName: parsed.contact.eName,
+        gender: parsed.contact.gender,
+        title: parsed.contact.title,
+        department: parsed.contact.department,
+        mobile: parsed.contact.mobile,
+        tel: parsed.contact.tel,
+        email: parsed.contact.email,
+        isMain: true,
+        remark: parsed.contact.remark
+      }
+    ],
+    _businessCardFlow: true,
+    _businessCardContactKey: contactKey,
+    _businessCardAddress: parsed.address ? vendorAddressPrefillToFormPayload(parsed.address) : null
+  }
+}
+
+export function customerBusinessCardConfirmPayload(parsed: ParsedCustomerBusinessCardFields): Record<string, unknown> {
+  return {
+    customer: parsed.customer,
+    contact: parsed.contact,
+    address: parsed.address
+  }
+}
+
+export function vendorBusinessCardConfirmPayload(parsed: ParsedVendorBusinessCardFields): Record<string, unknown> {
+  return {
+    vendor: parsed.vendor,
+    contact: parsed.contact,
+    address: parsed.address
+  }
 }

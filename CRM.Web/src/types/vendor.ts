@@ -4,6 +4,7 @@ export interface VendorContactInfo {
   vendorId: string
   cName?: string
   eName?: string
+  gender?: number
   title?: string
   department?: string
   mobile?: string
@@ -167,6 +168,7 @@ export interface VendorStatistics {
 export interface AddVendorContactRequest {
   cName?: string
   eName?: string
+  gender?: number
   title?: string
   department?: string
   mobile?: string
@@ -180,6 +182,7 @@ export interface AddVendorContactRequest {
 export interface UpdateVendorContactRequest {
   cName?: string
   eName?: string
+  gender?: number
   title?: string
   department?: string
   mobile?: string

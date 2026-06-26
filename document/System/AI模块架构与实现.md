@@ -19,8 +19,9 @@
 - 管理端配置页 + Debug 调试页
 - 业务场景：`material.spec.lookup`（Debug：PN + 品牌查规格）
 - 业务场景：**`material.intel.lookup`（RFQ 首页 AI 物料情报）** — 详见 [AI物料情报查询-设计与实现](./AI物料情报查询-设计与实现.md)
+- 业务场景：**`entity.parse.*`（7 类实体 AI 解析建单）** — 详见 [AI实体解析建单-设计与实现](./AI实体解析建单-设计与实现.md)
 
-**不在本文范围：** 流式输出（SSE）、多模态、向量检索/RAG、全局配置的管理 UI（`ai_global_config` 目前仅数据库/种子维护）。**RFQ 物料情报 UI 渲染细节** 见专用文档，不在此重复。
+**不在本文范围：** 流式输出（SSE）、多模态、向量检索/RAG、全局配置的管理 UI（`ai_global_config` 目前仅数据库/种子维护）。**RFQ 物料情报 UI 渲染细节** 见专用文档；**实体解析建单交互与日志** 见专用文档，不在此重复。
 
 ---
 
@@ -89,11 +90,15 @@
 | 管理页 | `CRM.Web/src/views/System/AiConfigPage.vue` | 厂商 / 场景 / 模板 / 日志 |
 | Debug 页 | `CRM.Web/src/views/Debug/DebugAi.vue` | 物料规格查询调试 |
 | RFQ AI 查询 | `CRM.Web/src/views/RFQ/RFQHome.vue` | 物料情报业务入口 |
+| 实体解析建单 | `CRM.Web/src/components/AiCreate/AiEntityCreateHost.vue` 等 | 见 [AI实体解析建单-设计与实现](./AI实体解析建单-设计与实现.md) |
+| 解析 Normalize | `CRM.Infrastructure/Ai/EntityParse/EntityParseNormalizer.cs` | 后端 KV 规范化 |
+| 解析质量日志 | `CRM.Infrastructure/Ai/AiEntityParseLogService.cs` | `ai_entity_parse_log` |
 | 物料情报 UI | `CRM.Web/src/components/RFQ/MaterialIntelResultPanel.vue` 等 | 见 [AI物料情报查询-设计与实现](./AI物料情报查询-设计与实现.md) |
 | Debug 对照 | `CRM.Web/src/views/Debug/DebugMaterialIntel.vue` | 契约 v2 结构化 vs 原始 JSON |
 | 模型预设 | `CRM.Web/src/constants/aiProviderModels.ts` | 管理端 Model 下拉选项 |
 | 迁移 | `CRM.Infrastructure/Migrations/20260803180000_AiModuleSchema.cs` | 建表 + 种子 + 权限 |
 | SQL 脚本 | `scripts/ai_module_postgresql.sql` | 独立部署；编写须符合 [PostgreSQL 增量脚本编写规范](../PRD/规范/业务规范/PostgreSQL增量脚本编写规范.md) |
+| 实体解析 SQL | `scripts/ai_entity_parse_postgresql.sql` 等 | 7 场景 + 质量日志表 |
 
 ---
 
@@ -430,7 +435,7 @@ Prompt 要求模型只输出 JSON、不编造、无法确认填 `null`。
 | 非流式 | 当前仅同步等待完整响应 |
 | `extra_headers` | 表字段存在，Provider 未使用 |
 | 全局配置 UI | `ai_global_config` 无管理页，需 SQL 修改 |
-| 生产业务页 | 除 Debug 外，尚未嵌入正式业务流程 |
+| 生产业务页 | 物料情报、实体解析建单已嵌入；其余场景待扩展 |
 | 缓存失效 | 无按场景一键清缓存 UI，需 SQL 或等 TTL 过期 |
 | 端点选择 | 不自动探测 `.cn` / `.ai`，需管理员配置 |
 
@@ -441,6 +446,7 @@ Prompt 要求模型只输出 JSON、不编造、无法确认填 `null`。
 | 版本 | 日期 | 说明 |
 |------|------|------|
 | v1.0 | 2026-06-24 | 初始版本：架构、数据模型、调用链、Moonshot 配置、首个场景 |
+| v1.1 | 2026-06-03 | 补充 entity.parse.* 实体解析建单与质量日志索引 |
 
 ---
 
@@ -448,5 +454,7 @@ Prompt 要求模型只输出 JSON、不编造、无法确认填 `null`。
 
 - [系统架构与底层运行机制文档](./系统架构与底层运行机制文档.md)
 - [AI 模块 PRD（产品）](../PRD/AI模块PRD.md)
+- [AI 实体解析建单-设计与实现](./AI实体解析建单-设计与实现.md)
+- [AI 物料情报查询-设计与实现](./AI物料情报查询-设计与实现.md)
 - [RBAC权限系统PRD](../PRD/RBAC权限系统PRD.md)
 - SQL 脚本：`scripts/ai_module_postgresql.sql`

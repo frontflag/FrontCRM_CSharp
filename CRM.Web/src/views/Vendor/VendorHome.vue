@@ -35,7 +35,7 @@
           </div>
         </div>
         <template v-if="canCreateVendor">
-          <div v-if="canAiParseVendor" class="vendor-home__split-create">
+          <div v-if="canShowAiCreateMenu" class="vendor-home__split-create">
             <button type="button" class="vendor-home__btn-create" @click="goCreateVendor">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <line x1="12" y1="5" x2="12" y2="19" />
@@ -51,7 +51,8 @@
               </button>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item command="aiCreate">{{ t('aiEntityCreate.aiCreate') }}</el-dropdown-item>
+                  <el-dropdown-item v-if="canAiParseVendor" command="aiCreate">{{ t('aiEntityCreate.aiCreate') }}</el-dropdown-item>
+                  <el-dropdown-item v-if="canAiParseVendorBusinessCard" command="uploadCard">{{ t('aiBusinessCard.uploadCard') }}</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
@@ -205,6 +206,11 @@
       entity-type="VENDOR"
       :target-route="{ name: 'VendorCreate' }"
     />
+    <AiBusinessCardCreateHost
+      ref="businessCardHostRef"
+      mode="vendor"
+      :target-route="{ name: 'VendorCreate' }"
+    />
   </div>
 </template>
 
@@ -215,8 +221,9 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { vendorApi } from '@/api/vendor'
-import { AI_PERMISSION_ENTITY_PARSE_VENDOR } from '@/api/ai'
+import { AI_PERMISSION_ENTITY_PARSE_VENDOR, AI_PERMISSION_ENTITY_PARSE_VENDOR_BUSINESS_CARD } from '@/api/ai'
 import AiEntityCreateHost from '@/components/AiCreate/AiEntityCreateHost.vue'
+import AiBusinessCardCreateHost from '@/components/AiCreate/AiBusinessCardCreateHost.vue'
 import { buildVendorListQuery } from '@/utils/vendorListQuery'
 import type { VendorStatistics } from '@/types/vendor'
 
@@ -227,7 +234,12 @@ const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const canViewVendorInfo = authStore.hasPermission('vendor.info.read')
 const canCreateVendor = computed(() => authStore.hasPermission('vendor.write'))
 const canAiParseVendor = computed(() => authStore.hasPermission(AI_PERMISSION_ENTITY_PARSE_VENDOR))
+const canAiParseVendorBusinessCard = computed(() =>
+  authStore.hasPermission(AI_PERMISSION_ENTITY_PARSE_VENDOR_BUSINESS_CARD)
+)
+const canShowAiCreateMenu = computed(() => canAiParseVendor.value || canAiParseVendorBusinessCard.value)
 const aiCreateHostRef = ref<InstanceType<typeof AiEntityCreateHost> | null>(null)
+const businessCardHostRef = ref<InstanceType<typeof AiBusinessCardCreateHost> | null>(null)
 
 const keyword = ref('')
 const stats = ref<VendorStatistics | null>(null)
@@ -262,6 +274,7 @@ function goCreateVendor() {
 
 function onCreateDropdownCommand(cmd: string) {
   if (cmd === 'aiCreate') aiCreateHostRef.value?.open()
+  if (cmd === 'uploadCard') businessCardHostRef.value?.open()
 }
 
 onMounted(async () => {

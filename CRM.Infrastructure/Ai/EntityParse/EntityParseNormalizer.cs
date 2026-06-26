@@ -41,6 +41,8 @@ public static class EntityParseNormalizer
         AiEntityParseScenarioCodes.VendorContact => "VENDOR_CONTACT",
         AiEntityParseScenarioCodes.CustomerAddress => "CUSTOMER_ADDRESS",
         AiEntityParseScenarioCodes.VendorAddress => "VENDOR_ADDRESS",
+        AiEntityParseScenarioCodes.CustomerBusinessCard => "CUSTOMER_BUSINESS_CARD",
+        AiEntityParseScenarioCodes.VendorBusinessCard => "VENDOR_BUSINESS_CARD",
         _ => null
     };
 
@@ -65,6 +67,8 @@ public static class EntityParseNormalizer
             AiEntityParseScenarioCodes.VendorContact => NormalizeVendorContact(raw),
             AiEntityParseScenarioCodes.CustomerAddress => NormalizeCustomerAddress(raw),
             AiEntityParseScenarioCodes.VendorAddress => NormalizeVendorAddress(raw),
+            AiEntityParseScenarioCodes.CustomerBusinessCard => NormalizeCustomerBusinessCard(raw),
+            AiEntityParseScenarioCodes.VendorBusinessCard => NormalizeVendorBusinessCard(raw),
             _ => null
         };
     }
@@ -82,7 +86,7 @@ public static class EntityParseNormalizer
         return new JsonObject
         {
             ["customerName"] = GetStr(raw, "customer_name"),
-            ["customerShortName"] = GetStr(raw, "customer_short_name"),
+            ["customerShortName"] = InferShortName(GetStr(raw, "customer_name"), GetStr(raw, "customer_short_name")),
             ["englishOfficialName"] = GetStr(raw, "english_official_name"),
             ["customerType"] = NumOrNull(raw, "customer_type"),
             ["customerLevel"] = ValidCustomerLevels.Contains(level) ? level : string.Empty,
@@ -98,6 +102,7 @@ public static class EntityParseNormalizer
             ["currency"] = NumOrNull(raw, "currency"),
             ["taxRate"] = NumOrNull(raw, "tax_rate"),
             ["invoiceType"] = NumOrNull(raw, "invoice_type"),
+            ["companyInfo"] = GetStr(raw, "company_info"),
             ["remarks"] = GetStr(raw, "remarks")
         };
     }
@@ -208,11 +213,81 @@ public static class EntityParseNormalizer
                || hasQty;
     }
 
+    private static JsonObject NormalizeCustomerBusinessCard(JsonElement raw)
+    {
+        var result = new JsonObject();
+        if (raw.TryGetProperty("customer", out var customerEl) && customerEl.ValueKind == JsonValueKind.Object)
+        {
+            result["customer"] = NormalizeCustomer(customerEl);
+            PromoteCustomerCardCompanyInfo(result["customer"] as JsonObject);
+        }
+        else
+            result["customer"] = new JsonObject();
+
+        if (raw.TryGetProperty("contact", out var contactEl) && contactEl.ValueKind == JsonValueKind.Object)
+        {
+            result["contact"] = NormalizeCustomerContact(contactEl);
+            ApplyDefaultBusinessCardContactGender(result["contact"] as JsonObject);
+        }
+        else
+            result["contact"] = new JsonObject();
+
+        if (raw.TryGetProperty("address", out var addressEl) && addressEl.ValueKind == JsonValueKind.Object)
+        {
+            var address = NormalizeCustomerAddress(addressEl);
+            var street = address["streetAddress"] is JsonValue sv ? sv.GetValue<string>()?.Trim() ?? string.Empty : string.Empty;
+            if (!string.IsNullOrWhiteSpace(street))
+                result["address"] = address;
+        }
+
+        return result;
+    }
+
+    /// <summary>名片场景：AI 常将公司简介写入 remarks，统一提升到 companyInfo。</summary>
+    private static void PromoteCustomerCardCompanyInfo(JsonObject? customer)
+    {
+        if (customer == null) return;
+        var companyInfo = GetStr(customer, "companyInfo");
+        var remarks = GetStr(customer, "remarks");
+        if (string.IsNullOrWhiteSpace(companyInfo) && remarks.Length > 0)
+        {
+            customer["companyInfo"] = remarks;
+            customer["remarks"] = string.Empty;
+        }
+    }
+
+    private static JsonObject NormalizeVendorBusinessCard(JsonElement raw)
+    {
+        var result = new JsonObject();
+        if (raw.TryGetProperty("vendor", out var vendorEl) && vendorEl.ValueKind == JsonValueKind.Object)
+            result["vendor"] = NormalizeVendor(vendorEl);
+        else
+            result["vendor"] = new JsonObject();
+
+        if (raw.TryGetProperty("contact", out var contactEl) && contactEl.ValueKind == JsonValueKind.Object)
+        {
+            result["contact"] = NormalizeVendorContact(contactEl);
+            ApplyDefaultBusinessCardContactGender(result["contact"] as JsonObject);
+        }
+        else
+            result["contact"] = new JsonObject();
+
+        if (raw.TryGetProperty("address", out var addressEl) && addressEl.ValueKind == JsonValueKind.Object)
+        {
+            var address = NormalizeVendorAddress(addressEl);
+            var street = address["address"] is JsonValue sv ? sv.GetValue<string>()?.Trim() ?? string.Empty : string.Empty;
+            if (!string.IsNullOrWhiteSpace(street))
+                result["address"] = address;
+        }
+
+        return result;
+    }
+
     private static JsonObject NormalizeVendor(JsonElement raw) => new()
     {
         ["officialName"] = GetStr(raw, "official_name", "vendor_name", "name"),
         ["englishOfficialName"] = GetStr(raw, "english_official_name"),
-        ["nickName"] = GetStr(raw, "nick_name", "short_name", "vendor_short_name"),
+        ["nickName"] = InferShortName(GetStr(raw, "official_name", "vendor_name", "name"), GetStr(raw, "nick_name", "short_name", "vendor_short_name")),
         ["industry"] = GetStr(raw, "industry"),
         ["level"] = NormalizeVendorLevel(GetAny(raw, "level", "vendor_level")),
         ["credit"] = NormalizeVendorCredit(GetAny(raw, "credit", "identity", "vendor_credit")),
@@ -222,25 +297,31 @@ public static class EntityParseNormalizer
         ["paymentMethod"] = GetStr(raw, "payment_method"),
         ["paymentDays"] = NumOrNull(raw, "payment_days", "payment_terms"),
         ["taxNumber"] = GetStr(raw, "credit_code", "tax_number", "unified_social_credit_code"),
-        ["companyInfo"] = GetStr(raw, "company_info"),
-        ["remark"] = GetStr(raw, "remark", "remarks")
+        ["companyInfo"] = GetStr(raw, "company_info", "remarks"),
+        ["remark"] = GetStr(raw, "remark")
     };
 
-    private static JsonObject NormalizeCustomerContact(JsonElement raw) => new()
+    private static JsonObject NormalizeCustomerContact(JsonElement raw)
     {
-        ["contactName"] = GetStr(raw, "contact_name", "name", "contactName"),
-        ["gender"] = NormalizeContactGender(GetAny(raw, "gender", "sex")),
-        ["department"] = GetStr(raw, "department"),
-        ["position"] = GetStr(raw, "position", "title", "job_title"),
-        ["mobilePhone"] = GetStr(raw, "mobile_phone", "mobile", "cellphone"),
-        ["phone"] = GetStr(raw, "phone", "landline", "tel"),
-        ["email"] = GetStr(raw, "email", "mail"),
-        ["fax"] = GetStr(raw, "fax"),
-        ["socialAccount"] = GetStr(raw, "social_account", "qq", "wechat", "weixin"),
-        ["isDefault"] = BoolOrFalse(GetAny(raw, "is_default", "default")),
-        ["isDecisionMaker"] = BoolOrFalse(GetAny(raw, "is_decision_maker", "decision_maker")),
-        ["remarks"] = GetStr(raw, "remark", "remarks", "notes")
-    };
+        var cName = GetStr(raw, "c_name", "contact_name", "name", "cName", "contactName");
+        var eName = GetStr(raw, "e_name", "english_name", "eName");
+        return new JsonObject
+        {
+            ["cName"] = cName,
+            ["eName"] = eName,
+            ["gender"] = NormalizeContactGender(GetAny(raw, "gender", "sex")),
+            ["department"] = GetStr(raw, "department"),
+            ["position"] = GetStr(raw, "position", "title", "job_title"),
+            ["mobilePhone"] = GetStr(raw, "mobile_phone", "mobile", "cellphone"),
+            ["phone"] = GetStr(raw, "phone", "landline", "tel"),
+            ["email"] = GetStr(raw, "email", "mail"),
+            ["fax"] = GetStr(raw, "fax"),
+            ["socialAccount"] = GetStr(raw, "social_account", "qq", "wechat", "weixin"),
+            ["isDefault"] = BoolOrFalse(GetAny(raw, "is_default", "default")),
+            ["isDecisionMaker"] = BoolOrFalse(GetAny(raw, "is_decision_maker", "decision_maker")),
+            ["remarks"] = GetStr(raw, "remark", "remarks", "notes")
+        };
+    }
 
     private static JsonObject NormalizeVendorContact(JsonElement raw)
     {
@@ -250,6 +331,7 @@ public static class EntityParseNormalizer
         {
             ["cName"] = cName,
             ["eName"] = eName,
+            ["gender"] = NormalizeContactGender(GetAny(raw, "gender", "sex")),
             ["title"] = GetStr(raw, "title", "position", "job_title"),
             ["department"] = GetStr(raw, "department"),
             ["mobile"] = GetStr(raw, "mobile", "mobile_phone", "cellphone"),
@@ -548,5 +630,42 @@ public static class EntityParseNormalizer
         var s = StrFromElement(el);
         if (string.IsNullOrEmpty(s)) return null;
         return double.TryParse(s, out var parsed) && double.IsFinite(parsed) ? parsed : null;
+    }
+
+    private static string InferShortName(string fullName, string existingShort)
+    {
+        if (!string.IsNullOrWhiteSpace(existingShort)) return existingShort.Trim();
+        var name = (fullName ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(name)) return string.Empty;
+
+        ReadOnlySpan<string> suffixes =
+        [
+            "股份有限公司", "有限责任公司", "有限公司", "集团公司", "集团", "公司"
+        ];
+        foreach (var suffix in suffixes)
+        {
+            if (name.EndsWith(suffix, StringComparison.Ordinal) && name.Length > suffix.Length)
+            {
+                name = name[..^suffix.Length].Trim();
+                break;
+            }
+        }
+
+        name = System.Text.RegularExpressions.Regex.Replace(name, @",?\s*Inc\.?$", string.Empty, System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
+        name = System.Text.RegularExpressions.Regex.Replace(name, @"\s+Ltd\.?$", string.Empty, System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
+        name = System.Text.RegularExpressions.Regex.Replace(name, @"\s+LLC\.?$", string.Empty, System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
+        name = System.Text.RegularExpressions.Regex.Replace(name, @"\s+Co\.?,?\s*Ltd\.?$", string.Empty, System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
+        return name.Trim();
+    }
+
+    private static void ApplyDefaultBusinessCardContactGender(JsonObject? contact)
+    {
+        if (contact == null) return;
+        var gender = contact["gender"] switch
+        {
+            JsonValue gv when gv.TryGetValue(out int g) => g,
+            _ => 0
+        };
+        if (gender is not (1 or 2)) contact["gender"] = 1;
     }
 }

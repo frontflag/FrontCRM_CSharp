@@ -41,10 +41,28 @@
           <div class="section-title">基本信息</div>
           <el-row :gutter="32">
             <el-col :span="12">
-              <el-form-item label="姓名">
-                <el-input v-model="formData.cName" placeholder="联系人姓名" />
+              <el-form-item label="中文名" prop="cName">
+                <el-input v-model="formData.cName" placeholder="请输入中文名" />
               </el-form-item>
             </el-col>
+            <el-col :span="12">
+              <el-form-item label="英文名" prop="eName">
+                <el-input v-model="formData.eName" placeholder="请输入英文名" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row :gutter="32">
+            <el-col :span="12">
+              <el-form-item label="性别">
+                <el-radio-group v-model="formData.gender">
+                  <el-radio :value="1">男</el-radio>
+                  <el-radio :value="2">女</el-radio>
+                  <el-radio :value="0">保密</el-radio>
+                </el-radio-group>
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row :gutter="32">
             <el-col :span="12">
               <el-form-item label="职位">
                 <el-input v-model="formData.title" placeholder="职位/角色" />
@@ -144,6 +162,7 @@ import type { AddVendorContactRequest, UpdateVendorContactRequest } from '@/type
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask';
 import { consumeAiPrefill } from '@/utils/aiPrefill';
 import { markEntityParseSaved } from '@/utils/entityParseLogTrack';
+import { splitContactNamesFromApi, validateContactNameAtLeastOne } from '@/utils/contactName';
 
 const route = useRoute();
 const router = useRouter();
@@ -164,12 +183,26 @@ const savedContactId = ref<string | null>(contactId || null);
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const formData = reactive<AddVendorContactRequest & { id?: string }>({
-  cName: '', title: '', department: '',
+  cName: '', eName: '', gender: 1, title: '', department: '',
   mobile: '', tel: '', email: '',
   isMain: false, remark: ''
 });
 
 const formRules: FormRules = {
+  cName: [
+    {
+      validator: (_rule, _value, callback) =>
+        validateContactNameAtLeastOne(_rule, _value, callback, formData),
+      trigger: ['blur', 'change']
+    }
+  ],
+  eName: [
+    {
+      validator: (_rule, _value, callback) =>
+        validateContactNameAtLeastOne(_rule, _value, callback, formData),
+      trigger: ['blur', 'change']
+    }
+  ],
   email: [
     {
       validator: (_rule: unknown, value: string, callback: (error?: Error) => void) => {
@@ -206,7 +239,12 @@ onMounted(async () => {
       const contacts = await vendorContactApi.getContactsByVendorId(vendorId);
       const contact = contacts.find((c) => c.id === contactId);
       if (contact) {
-        formData.cName = contact.cName || contact.eName || '';
+        const names = splitContactNamesFromApi(contact);
+        formData.cName = names.cName;
+        formData.eName = names.eName;
+        formData.gender = contact.gender != null && (contact.gender === 0 || contact.gender === 1 || contact.gender === 2)
+          ? contact.gender
+          : 1;
         formData.title = contact.title || '';
         formData.department = contact.department || '';
         formData.mobile = contact.mobile || '';
@@ -248,6 +286,10 @@ function applyAiPrefillFromRoute() {
   if (payload.mobile != null) formData.mobile = String(payload.mobile);
   if (payload.tel != null) formData.tel = String(payload.tel);
   if (payload.email != null) formData.email = String(payload.email);
+  if (payload.gender != null) {
+    const g = Number(payload.gender);
+    formData.gender = g === 0 || g === 1 || g === 2 ? g : 1;
+  }
   if (payload.isMain === true) formData.isMain = true;
   if (payload.remark != null) formData.remark = String(payload.remark);
 }

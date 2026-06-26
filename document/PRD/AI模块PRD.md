@@ -1,9 +1,9 @@
 # AI 模块 PRD
 
 **文档版本：** v1.0  
-**更新日期：** 2026-06-24  
+**更新日期：** 2026-06-03  
 **项目名称：** FrontCRM_CSharp（AI智销系统）  
-**关联技术文档：** [AI模块架构与实现](../System/AI模块架构与实现.md) · [AI物料情报查询-设计与实现](../System/AI物料情报查询-设计与实现.md)
+**关联技术文档：** [AI模块架构与实现](../System/AI模块架构与实现.md) · [AI物料情报查询-设计与实现](../System/AI物料情报查询-设计与实现.md) · [AI实体解析建单-设计与实现](../System/AI实体解析建单-设计与实现.md)
 
 ---
 
@@ -65,7 +65,29 @@
 
 **期望：** 可区分 401（Key/端点问题）、400（参数不兼容）、限流、权限不足等，无需查服务器日志即可完成一级排查。
 
-### 场景四：后续扩展（规划，未实现）
+### 场景五：AI 解析文本新建客户
+
+销售从邮件/名片复制公司信息，在 **客户首页/列表** 点击「AI 创建」，粘贴文本 → 确认字段 → 跳转新建客户页预填 → 保存。
+
+**期望：** 减少手工录入；可提示相似客户但不强制合并；解析过程可审计。
+
+### 场景六：AI 解析新建 RFQ
+
+采购在 **需求首页/列表** 粘贴含多行型号的询价邮件，AI 解析主档 + `items[]` 明细 → 确认 → 新建 RFQ 页预填。
+
+**期望：** 支持多物料行、目标价币别识别；用户仍可在创建页选正式客户。
+
+### 场景七：AI 解析新建供应商及联系人/地址
+
+与场景五类似，覆盖 **供应商主档**、**供应商/客户联系人**、**供应商/客户地址**（地址含国内省市区级联与港澳台规则）。
+
+**期望：** 详情页子实体创建时，日志能关联父客户/供应商 id。
+
+### 场景八：管理员分析解析质量
+
+管理员在 **AI 配置 → 实体解析日志** 查看 parsed / confirmed / saved 漏斗，导出 CSV，清理过期数据，用于优化 Prompt 与 normalize 规则。
+
+### 场景九：后续扩展（规划）
 
 - 在 **报价单 / 销售订单明细** 行内嵌入「AI 查规格」按钮
 - BOM 快速报价时批量补全规格字段
@@ -94,6 +116,7 @@
 | **场景** | 查看/编辑名称、描述、Provider（下拉）、Model（下拉）、缓存 TTL、Max Tokens、Temperature、权限码、每分钟限流、启用 |
 | **模板** | 编辑 System Prompt、User 模板（`{{pn}}` 等占位符）、JSON Schema 提示、是否激活 |
 | **调用日志** | 时间、场景、状态、缓存、耗时(ms)、Token、错误摘要；支持按 scenarioCode 筛选 |
+| **实体解析日志** | 粘贴解析质量：`parsed` / `confirmed` / `saved`；筛选、详情、CSV 导出、过期清理 |
 | **用量摘要** | 今日调用次数 / Token / 缓存命中 vs 全站日配额 |
 
 #### C. Debug 调试页
@@ -136,12 +159,34 @@
 
 设计与实现详见 [AI物料情报查询-设计与实现](../System/AI物料情报查询-设计与实现.md)。
 
+#### G. 业务场景：实体解析建单（entity.parse.*，7 个场景）
+
+| 场景码 | 业务 | 权限 | 入口 |
+|--------|------|------|------|
+| `entity.parse.customer` | 新建客户 | `biz.ai.entity.parse.customer` | 客户 Home/List |
+| `entity.parse.customer_contact` | 新建客户联系人 | `biz.ai.entity.parse.customer_contact` | 客户详情-联系人 |
+| `entity.parse.customer_address` | 新建客户地址 | `biz.ai.entity.parse.customer_address` | 客户详情-地址 |
+| `entity.parse.vendor` | 新建供应商 | `biz.ai.entity.parse.vendor` | 供应商 Home/List |
+| `entity.parse.vendor_contact` | 新建供应商联系人 | `biz.ai.entity.parse.vendor_contact` | 供应商详情-联系人 |
+| `entity.parse.vendor_address` | 新建供应商地址 | `biz.ai.entity.parse.vendor_address` | 供应商详情-地址 |
+| `entity.parse.rfq` | 新建 RFQ | `biz.ai.entity.parse.rfq` | 需求 Home/List |
+
+| 项 | 约定 |
+|----|------|
+| 输入 | `raw_text`（用户粘贴全文） |
+| 交互 | 粘贴 → 确认弹窗 → 创建页预填 → 用户保存 |
+| 缓存 | **关闭**（`cache_ttl_seconds=0`），保证每次可记完整日志 |
+| 质量日志 | 表 `ai_entity_parse_log`；outcome：`parsed` → `confirmed` → `saved` |
+| normalize | **后端**统一规范化 KV（与表单字段 camelCase 一致） |
+
+设计与实现详见 [AI实体解析建单-设计与实现](../System/AI实体解析建单-设计与实现.md)。
+
 ### 3.2 本期不包含
 
 | 项 | 说明 |
 |----|------|
 | 流式输出（打字机效果） | 仅同步等待完整响应 |
-| 业务页正式嵌入 | 除 Debug 外，报价/订单等页面尚未接入 |
+| 报价/订单行内 AI | 除 Debug、RFQ 情报、实体解析建单外，其他业务页尚未接入 |
 | 多模态（图片/PDF） | 仅文本 |
 | RAG / 向量库 / 知识库 | 依赖模型公开知识 + Prompt |
 | API Key 在 UI 内录入 | 仅配置环境变量 **名称**，Key 由运维设置 |
@@ -405,6 +450,7 @@ Key 与端点不匹配时，用户侧表现为调用失败，日志显示 401。
 | 版本 | 日期 | 说明 |
 |------|------|------|
 | v1.0 | 2026-06-24 | 初版：平台能力、管理端、Debug 物料规格、权限与验收 |
+| v1.1 | 2026-06-03 | 补充 entity.parse.* 七场景建单、质量日志、PRD 场景五～八 |
 
 ---
 
@@ -413,5 +459,7 @@ Key 与端点不匹配时，用户侧表现为调用失败，日志显示 401。
 | 文档 | 路径 |
 |------|------|
 | AI 模块架构与实现（研发） | `document/System/AI模块架构与实现.md` |
+| AI 实体解析建单-设计与实现 | `document/System/AI实体解析建单-设计与实现.md` |
+| AI 物料情报查询-设计与实现 | `document/System/AI物料情报查询-设计与实现.md` |
 | RBAC 权限系统 | `document/PRD/RBAC权限系统PRD.md` |
-| 数据库脚本 | `scripts/ai_module_postgresql.sql` |
+| 数据库脚本 | `scripts/ai_module_postgresql.sql`、`scripts/ai_entity_parse_postgresql.sql` |

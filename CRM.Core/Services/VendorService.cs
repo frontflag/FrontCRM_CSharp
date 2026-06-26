@@ -158,13 +158,16 @@ namespace CRM.Core.Services
                     {
                         var cr = contacts[i];
                         if (cr == null) continue;
-                        var cname = cr.CName?.Trim();
+                        var (resolvedCName, resolvedEName) = ContactNameResolver.ResolveForCreate(
+                            cr.CName, cr.EName);
                         var mobile = cr.Mobile?.Trim();
                         var tel = cr.Tel?.Trim();
-                        if (string.IsNullOrWhiteSpace(cname) && string.IsNullOrWhiteSpace(mobile) && string.IsNullOrWhiteSpace(tel))
+                        if (string.IsNullOrWhiteSpace(resolvedCName) && string.IsNullOrWhiteSpace(resolvedEName)
+                            && string.IsNullOrWhiteSpace(mobile) && string.IsNullOrWhiteSpace(tel))
                             continue;
-                        if (string.IsNullOrWhiteSpace(cname))
-                            throw new InvalidOperationException($"第 {i + 1} 条联系人缺少姓名");
+
+                        cr.CName = resolvedCName;
+                        cr.EName = resolvedEName;
 
                         if (!anyMain && added == 0)
                             cr.IsMain = true;
@@ -513,12 +516,16 @@ namespace CRM.Core.Services
             if (vendor == null)
                 throw new KeyNotFoundException($"找不到ID为 '{vendorId}' 的供应商");
 
+            var (cName, eName) = ContactNameResolver.ResolveForCreate(
+                request.CName, request.EName);
+
             var contact = new VendorContactInfo
             {
                 Id = Guid.NewGuid().ToString(),
                 VendorId = vendor.Id,
-                CName = request.CName?.Trim(),
-                EName = request.EName?.Trim(),
+                CName = cName,
+                EName = eName,
+                Gender = NormalizeContactGender(request.Gender),
                 Title = request.Title?.Trim(),
                 Department = request.Department?.Trim(),
                 Mobile = request.Mobile?.Trim(),
@@ -547,13 +554,23 @@ namespace CRM.Core.Services
             if (contact == null)
                 throw new KeyNotFoundException($"找不到ID为 '{contactId}' 的联系人");
 
-            if (request.CName != null) contact.CName = request.CName.Trim();
-            if (request.EName != null) contact.EName = request.EName.Trim();
+            if (request.CName != null || request.EName != null)
+            {
+                var (cName, eName) = ContactNameResolver.ResolveForUpdate(
+                    contact.CName,
+                    contact.EName,
+                    request.CName,
+                    request.EName);
+                contact.CName = cName;
+                contact.EName = eName;
+            }
+
             if (request.Title != null) contact.Title = request.Title.Trim();
             if (request.Department != null) contact.Department = request.Department.Trim();
             if (request.Mobile != null) contact.Mobile = request.Mobile.Trim();
             if (request.Tel != null) contact.Tel = request.Tel.Trim();
             if (request.Email != null) contact.Email = request.Email.Trim();
+            if (request.Gender.HasValue) contact.Gender = NormalizeContactGender(request.Gender);
             if (request.IsMain.HasValue) contact.IsMain = request.IsMain.Value;
             if (request.Remark != null) contact.Remark = request.Remark.Trim();
 
@@ -1183,6 +1200,16 @@ ORDER BY c.""ChangedAt"" DESC";
                 EntityDisplayName = entityDisplayName,
                 ExtraDetail = vendor?.Code != null ? $"所属供应商={vendor.Code}" : $"所属供应商Id={parentVendorId}"
             });
+        }
+
+        private static short? NormalizeContactGender(short? gender)
+        {
+            if (!gender.HasValue) return null;
+            return gender.Value switch
+            {
+                1 or 2 => gender.Value,
+                _ => 0
+            };
         }
     }
 }

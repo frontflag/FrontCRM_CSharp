@@ -35,6 +35,7 @@
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item v-if="canAiParseCustomer" command="aiCreate">{{ t('aiEntityCreate.aiCreate') }}</el-dropdown-item>
+                  <el-dropdown-item v-if="canAiParseCustomerBusinessCard" command="uploadCard">{{ t('aiBusinessCard.uploadCard') }}</el-dropdown-item>
                   <el-dropdown-item command="import">{{ t('customerList.importExcel') }}</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -273,6 +274,7 @@
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item v-if="canAiParseCustomer" command="aiCreate">{{ t('aiEntityCreate.aiCreate') }}</el-dropdown-item>
+                  <el-dropdown-item v-if="canAiParseCustomerBusinessCard" command="uploadCard">{{ t('aiBusinessCard.uploadCard') }}</el-dropdown-item>
                   <el-dropdown-item command="import">{{ t('customerList.importExcel') }}</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -312,6 +314,11 @@
       entity-type="CUSTOMER"
       :target-route="{ name: 'CustomerCreate' }"
     />
+    <AiBusinessCardCreateHost
+      ref="businessCardHostRef"
+      mode="customer"
+      :target-route="{ name: 'CustomerCreate' }"
+    />
   </div>
 </template>
 
@@ -331,7 +338,8 @@ import { useCustomerDictStore } from '@/stores/customerDict';
 import PartyStatusIcons from '@/components/party/PartyStatusIcons.vue';
 import CustomerImportDialog from '@/components/Customer/CustomerImportDialog.vue';
 import AiEntityCreateHost from '@/components/AiCreate/AiEntityCreateHost.vue';
-import { AI_PERMISSION_ENTITY_PARSE_CUSTOMER } from '@/api/ai';
+import AiBusinessCardCreateHost from '@/components/AiCreate/AiBusinessCardCreateHost.vue';
+import { AI_PERMISSION_ENTITY_PARSE_CUSTOMER, AI_PERMISSION_ENTITY_PARSE_CUSTOMER_BUSINESS_CARD } from '@/api/ai';
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import { buildCustomerListQuery, parseCustomerListQuery } from '@/utils/customerListQuery';
 import { CUSTOMER_WORKFLOW_STATUS_OPTIONS } from '@/constants/customerWorkflowStatus';
@@ -356,7 +364,11 @@ const canViewCustomerInfo = authStore.hasPermission('customer.info.read')
 const canViewCustomerNameColumn = authStore.hasPermission('customer.read')
 const canSubmitAudit = authStore.hasPermission('customer.write');
 const canAiParseCustomer = computed(() => authStore.hasPermission(AI_PERMISSION_ENTITY_PARSE_CUSTOMER));
+const canAiParseCustomerBusinessCard = computed(() =>
+  authStore.hasPermission(AI_PERMISSION_ENTITY_PARSE_CUSTOMER_BUSINESS_CARD)
+);
 const aiCreateHostRef = ref<InstanceType<typeof AiEntityCreateHost> | null>(null);
+const businessCardHostRef = ref<InstanceType<typeof AiBusinessCardCreateHost> | null>(null);
 
 const importDialogVisible = ref(false);
 const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
@@ -589,6 +601,7 @@ const handleCreate = () => router.push('/customers/create');
 function onCreateDropdownCommand(cmd: string) {
   if (cmd === 'import') importDialogVisible.value = true;
   if (cmd === 'aiCreate') aiCreateHostRef.value?.open();
+  if (cmd === 'uploadCard') businessCardHostRef.value?.open();
 }
 const handleView = (row: Customer) => router.push(`/customers/${row.id}`);
 const handleEdit = (row: Customer) => router.push(`/customers/${row.id}/edit`);

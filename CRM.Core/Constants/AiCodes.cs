@@ -59,4 +59,10 @@ public static class AiEntityParseScenarioCodes
     public const string VendorContact = "entity.parse.vendor_contact";
     public const string CustomerAddress = "entity.parse.customer_address";
     public const string VendorAddress = "entity.parse.vendor_address";
+    public const string CustomerBusinessCard = "entity.parse.customer_business_card";
+    public const string VendorBusinessCard = "entity.parse.vendor_business_card";
+
+    public static bool IsBusinessCardScenario(string scenarioCode) =>
+        string.Equals(scenarioCode, CustomerBusinessCard, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(scenarioCode, VendorBusinessCard, StringComparison.OrdinalIgnoreCase);
 }

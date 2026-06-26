@@ -25,11 +25,15 @@ export function normalizeVendorContactFromApi(raw: unknown): VendorContactInfo {
   }
   const cName = String(r.cName ?? r.contactName ?? '').trim();
   const eName = String(r.eName ?? '').trim();
+  const gRaw = r.gender;
+  const gNum = gRaw == null || gRaw === '' ? NaN : Number(gRaw);
+  const gender = gNum === 0 || gNum === 1 || gNum === 2 ? gNum : undefined;
   return {
     id: String(r.id ?? ''),
     vendorId: String(r.vendorId ?? ''),
     cName: cName || undefined,
     eName: eName || undefined,
+    gender,
     title: (r.title as string) || undefined,
     department: (r.department as string) || undefined,
     mobile: String(r.mobile ?? '').trim() || undefined,
@@ -429,6 +433,7 @@ export const vendorContactApi = {
     const payload = {
       cName: data.cName?.trim(),
       eName: data.eName?.trim(),
+      gender: data.gender,
       title: data.title?.trim(),
       department: data.department?.trim(),
       mobile: data.mobile?.trim(),
@@ -447,6 +452,7 @@ export const vendorContactApi = {
     const payload = {
       cName: data.cName?.trim(),
       eName: data.eName?.trim(),
+      gender: data.gender,
       title: data.title?.trim(),
       department: data.department?.trim(),
       mobile: data.mobile?.trim(),

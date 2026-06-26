@@ -190,14 +190,17 @@ namespace CRM.Core.Services
             {
                 if (contactEl.ValueKind != JsonValueKind.Object) continue;
 
+                string? cName = contactEl.TryGetProperty("cName", out var cNameEl) ? cNameEl.GetString() : null;
+                string? eName = contactEl.TryGetProperty("eName", out var eNameEl) ? eNameEl.GetString() : null;
                 string? contactName = null;
                 if (contactEl.TryGetProperty("contactName", out var contactNameEl))
                     contactName = contactNameEl.GetString();
                 else if (contactEl.TryGetProperty("name", out var nameEl))
                     contactName = nameEl.GetString();
 
-                // 若联系人内容为空，跳过，避免插入空记录
-                if (string.IsNullOrWhiteSpace(contactName)) continue;
+                if (string.IsNullOrWhiteSpace(cName) && string.IsNullOrWhiteSpace(eName)
+                    && string.IsNullOrWhiteSpace(contactName))
+                    continue;
 
                 short? gender = null;
                 if (contactEl.TryGetProperty("gender", out var genderEl) && genderEl.ValueKind != JsonValueKind.Null)
@@ -239,6 +242,8 @@ namespace CRM.Core.Services
 
                 var req = new AddContactRequest
                 {
+                    CName = cName?.Trim(),
+                    EName = eName?.Trim(),
                     Name = contactName?.Trim(),
                     Gender = gender,
                     Department = department?.Trim(),
@@ -270,9 +275,10 @@ namespace CRM.Core.Services
             {
                 if (contactEl.ValueKind != JsonValueKind.Object) continue;
 
-                // UI 字段：cName/title/department/mobile/tel/email/isMain/remark
+                // UI 字段：cName/eName/title/department/mobile/tel/email/isMain/remark
                 string? cName = contactEl.TryGetProperty("cName", out var cNameEl) ? cNameEl.GetString() : null;
-                if (string.IsNullOrWhiteSpace(cName)) continue;
+                string? eName = contactEl.TryGetProperty("eName", out var eNameEl) ? eNameEl.GetString() : null;
+                if (string.IsNullOrWhiteSpace(cName) && string.IsNullOrWhiteSpace(eName)) continue;
 
                 string? title = contactEl.TryGetProperty("title", out var titleEl) ? titleEl.GetString() : null;
                 string? department = contactEl.TryGetProperty("department", out var deptEl) ? deptEl.GetString() : null;
@@ -280,6 +286,13 @@ namespace CRM.Core.Services
                 string? tel = contactEl.TryGetProperty("tel", out var telEl) ? telEl.GetString() : null;
                 string? email = contactEl.TryGetProperty("email", out var emailEl) ? emailEl.GetString() : null;
                 string? remark = contactEl.TryGetProperty("remark", out var remarkEl) ? remarkEl.GetString() : null;
+
+                short? gender = null;
+                if (contactEl.TryGetProperty("gender", out var genderEl) && genderEl.ValueKind != JsonValueKind.Null)
+                {
+                    if (genderEl.TryGetInt16(out var g16)) gender = g16;
+                    else if (genderEl.TryGetInt32(out var g32)) gender = (short)g32;
+                }
 
                 bool isMain = false;
                 if (contactEl.TryGetProperty("isMain", out var isMainEl))
@@ -300,11 +313,13 @@ namespace CRM.Core.Services
                 var req = new AddVendorContactRequest
                 {
                     CName = cName?.Trim(),
+                    EName = eName?.Trim(),
                     Title = title?.Trim(),
                     Department = department?.Trim(),
                     Mobile = mobile?.Trim(),
                     Tel = tel?.Trim(),
                     Email = email?.Trim(),
+                    Gender = gender,
                     IsMain = isMain,
                     Remark = remark?.Trim()
                 };

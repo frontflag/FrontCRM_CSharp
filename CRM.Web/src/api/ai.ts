@@ -134,6 +134,25 @@ export const aiApi = {
     return apiClient.post<AiInvokeResult>('/api/v1/ai/invoke', payload, { timeout: 180000 })
   },
 
+  async invokeBusinessCard(payload: {
+    scenarioCode: string
+    front: File
+    back?: File | null
+    bizType?: string
+    bizId?: string
+  }): Promise<AiInvokeResult> {
+    const form = new FormData()
+    form.append('scenarioCode', payload.scenarioCode)
+    form.append('file', payload.front)
+    if (payload.back) form.append('fileBack', payload.back)
+    if (payload.bizType) form.append('bizType', payload.bizType)
+    if (payload.bizId) form.append('bizId', payload.bizId)
+    return apiClient.post<AiInvokeResult>('/api/v1/ai/invoke-business-card', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 180000
+    })
+  },
+
   async confirmEntityParseLog(
     parseLogId: string,
     confirmedFields: Record<string, unknown>
@@ -235,6 +254,8 @@ export const AI_SCENARIO_ENTITY_PARSE_CUSTOMER_CONTACT = 'entity.parse.customer_
 export const AI_SCENARIO_ENTITY_PARSE_VENDOR_CONTACT = 'entity.parse.vendor_contact'
 export const AI_SCENARIO_ENTITY_PARSE_CUSTOMER_ADDRESS = 'entity.parse.customer_address'
 export const AI_SCENARIO_ENTITY_PARSE_VENDOR_ADDRESS = 'entity.parse.vendor_address'
+export const AI_SCENARIO_ENTITY_PARSE_CUSTOMER_BUSINESS_CARD = 'entity.parse.customer_business_card'
+export const AI_SCENARIO_ENTITY_PARSE_VENDOR_BUSINESS_CARD = 'entity.parse.vendor_business_card'
 export const AI_PERMISSION_ENTITY_PARSE_CUSTOMER = 'biz.ai.entity.parse.customer'
 export const AI_PERMISSION_ENTITY_PARSE_RFQ = 'biz.ai.entity.parse.rfq'
 export const AI_PERMISSION_ENTITY_PARSE_VENDOR = 'biz.ai.entity.parse.vendor'
@@ -242,3 +263,5 @@ export const AI_PERMISSION_ENTITY_PARSE_CUSTOMER_CONTACT = 'biz.ai.entity.parse.
 export const AI_PERMISSION_ENTITY_PARSE_VENDOR_CONTACT = 'biz.ai.entity.parse.vendor_contact'
 export const AI_PERMISSION_ENTITY_PARSE_CUSTOMER_ADDRESS = 'biz.ai.entity.parse.customer_address'
 export const AI_PERMISSION_ENTITY_PARSE_VENDOR_ADDRESS = 'biz.ai.entity.parse.vendor_address'
+export const AI_PERMISSION_ENTITY_PARSE_CUSTOMER_BUSINESS_CARD = 'biz.ai.entity.parse.customer_business_card'
+export const AI_PERMISSION_ENTITY_PARSE_VENDOR_BUSINESS_CARD = 'biz.ai.entity.parse.vendor_business_card'

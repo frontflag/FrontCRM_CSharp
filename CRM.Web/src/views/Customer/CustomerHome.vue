@@ -36,7 +36,7 @@
           </div>
         </div>
         <template v-if="canCreateCustomer">
-          <div v-if="canAiParseCustomer" class="customer-home__split-create">
+          <div v-if="canShowAiCreateMenu" class="customer-home__split-create">
             <button type="button" class="customer-home__btn-create" @click="goCreateCustomer">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <line x1="12" y1="5" x2="12" y2="19" />
@@ -52,7 +52,8 @@
               </button>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item command="aiCreate">{{ t('aiEntityCreate.aiCreate') }}</el-dropdown-item>
+                  <el-dropdown-item v-if="canAiParseCustomer" command="aiCreate">{{ t('aiEntityCreate.aiCreate') }}</el-dropdown-item>
+                  <el-dropdown-item v-if="canAiParseCustomerBusinessCard" command="uploadCard">{{ t('aiBusinessCard.uploadCard') }}</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
@@ -206,6 +207,11 @@
       entity-type="CUSTOMER"
       :target-route="{ name: 'CustomerCreate' }"
     />
+    <AiBusinessCardCreateHost
+      ref="businessCardHostRef"
+      mode="customer"
+      :target-route="{ name: 'CustomerCreate' }"
+    />
   </div>
 </template>
 
@@ -215,8 +221,9 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { customerApi } from '@/api/customer'
-import { AI_PERMISSION_ENTITY_PARSE_CUSTOMER } from '@/api/ai'
+import { AI_PERMISSION_ENTITY_PARSE_CUSTOMER, AI_PERMISSION_ENTITY_PARSE_CUSTOMER_BUSINESS_CARD } from '@/api/ai'
 import AiEntityCreateHost from '@/components/AiCreate/AiEntityCreateHost.vue'
+import AiBusinessCardCreateHost from '@/components/AiCreate/AiBusinessCardCreateHost.vue'
 import { buildCustomerListQuery } from '@/utils/customerListQuery'
 import type { CustomerStatistics } from '@/types/customer'
 
@@ -225,7 +232,12 @@ const { t } = useI18n()
 const authStore = useAuthStore()
 const canCreateCustomer = computed(() => authStore.hasPermission('customer.write'))
 const canAiParseCustomer = computed(() => authStore.hasPermission(AI_PERMISSION_ENTITY_PARSE_CUSTOMER))
+const canAiParseCustomerBusinessCard = computed(() =>
+  authStore.hasPermission(AI_PERMISSION_ENTITY_PARSE_CUSTOMER_BUSINESS_CARD)
+)
+const canShowAiCreateMenu = computed(() => canAiParseCustomer.value || canAiParseCustomerBusinessCard.value)
 const aiCreateHostRef = ref<InstanceType<typeof AiEntityCreateHost> | null>(null)
+const businessCardHostRef = ref<InstanceType<typeof AiBusinessCardCreateHost> | null>(null)
 const keyword = ref('')
 const stats = ref<CustomerStatistics | null>(null)
 const loadingStats = ref(false)
@@ -259,6 +271,7 @@ function goCreateCustomer() {
 
 function onCreateDropdownCommand(cmd: string) {
   if (cmd === 'aiCreate') aiCreateHostRef.value?.open()
+  if (cmd === 'uploadCard') businessCardHostRef.value?.open()
 }
 
 onMounted(async () => {

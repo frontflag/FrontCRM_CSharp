@@ -426,6 +426,9 @@ namespace CRM.Core.Interfaces
         public string? Product { get; set; }
         public string? Email { get; set; }
         public string? Phone { get; set; }
+
+        /// <summary>公司简介</summary>
+        public string? CompanyInfo { get; set; }
         
         /// <summary>
         /// 业务员ID（后端字段名）
@@ -620,6 +623,9 @@ namespace CRM.Core.Interfaces
         
         public string? Industry { get; set; }
         public string? Product { get; set; }
+
+        /// <summary>公司简介</summary>
+        public string? CompanyInfo { get; set; }
         
         /// <summary>
         /// 备注（后端字段名）
@@ -805,9 +811,12 @@ namespace CRM.Core.Interfaces
     /// </summary>
     public class AddContactRequest
     {
+        public string? CName { get; set; }
+        public string? EName { get; set; }
+        /// <summary>Legacy：未传 CName/EName 时回退写入 CName</summary>
         public string? Name { get; set; }
-        /// <summary>ContactName 是 Name 的别名，前端兼容字段</summary>
-        public string? ContactName { get => Name; set => Name = value; }
+        /// <summary>Legacy 前端字段 contactName</summary>
+        public string? ContactName { get; set; }
         public short? Gender { get; set; }
         public string? Department { get; set; }
         public string? Position { get; set; }
@@ -825,9 +834,12 @@ namespace CRM.Core.Interfaces
     /// </summary>
     public class UpdateContactRequest
     {
+        public string? CName { get; set; }
+        public string? EName { get; set; }
+        /// <summary>Legacy：未传 CName/EName 时回退写入 CName</summary>
         public string? Name { get; set; }
-        /// <summary>ContactName 是 Name 的别名，前端兼容字段</summary>
-        public string? ContactName { get => Name; set => Name = value; }
+        /// <summary>Legacy 前端字段 contactName</summary>
+        public string? ContactName { get; set; }
         public short? Gender { get; set; }
         public string? Department { get; set; }
         public string? Position { get; set; }

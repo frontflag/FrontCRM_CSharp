@@ -606,3 +606,12 @@ SET system_prompt = '你是 CRM 供应商地址解析助手。从用户提供的
 WHERE code = 'entity.parse.vendor_address' AND version = 1;
 
 DELETE FROM public.ai_invocation_cache WHERE scenario_code = 'entity.parse.vendor_address';
+
+-- 客户联系人：输出 c_name + e_name（与供应商联系人一致）
+UPDATE public.ai_prompt_template
+SET system_prompt = '你是 CRM 客户联系人解析助手。从用户提供的非结构化文本（名片、邮件签名、聊天记录等）中提取单个联系人字段，仅输出合法 JSON（禁止 markdown 代码块）。JSON 键名必须 snake_case。文中未出现的字段填 null，禁止编造联系人 ID 或客户主档信息。不要输出客户公司名称、地址等主档字段。c_name 为中文姓名；e_name 为英文/拼音姓名；gender 为整数 0=保密/未知 1=男 2=女；is_default 为是否默认联系人布尔；is_decision_maker 为是否决策人布尔；social_account 为 QQ/微信等社交账号。',
+    json_schema_hint = '{"c_name":"string|null","e_name":"string|null","gender":"number|null","department":"string|null","position":"string|null","mobile_phone":"string|null","phone":"string|null","email":"string|null","fax":"string|null","social_account":"string|null","is_default":"boolean|null","is_decision_maker":"boolean|null","remarks":"string|null"}',
+    modify_time = (now() AT TIME ZONE 'utc')
+WHERE code = 'entity.parse.customer_contact' AND version = 1;
+
+DELETE FROM public.ai_invocation_cache WHERE scenario_code = 'entity.parse.customer_contact';

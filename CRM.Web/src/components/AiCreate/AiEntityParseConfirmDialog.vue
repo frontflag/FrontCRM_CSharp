@@ -149,10 +149,17 @@
       <el-form label-width="108px" class="ai-confirm-dialog__form">
         <el-row :gutter="16" class="ai-confirm-dialog__pair-row">
           <el-col :span="12">
-            <el-form-item :label="t('aiEntityCreate.fields.contactName')">
-              <el-input v-model="customerContactModel.contactName" />
+            <el-form-item :label="t('aiEntityCreate.fields.cName')">
+              <el-input v-model="customerContactModel.cName" />
             </el-form-item>
           </el-col>
+          <el-col :span="12">
+            <el-form-item :label="t('aiEntityCreate.fields.englishName')">
+              <el-input v-model="customerContactModel.eName" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="16" class="ai-confirm-dialog__pair-row">
           <el-col :span="12">
             <el-form-item :label="t('aiEntityCreate.fields.gender')">
               <el-select v-model="customerContactModel.gender" style="width: 100%">
@@ -385,7 +392,7 @@
       <el-form label-width="108px" class="ai-confirm-dialog__form">
         <el-row :gutter="16" class="ai-confirm-dialog__pair-row">
           <el-col :span="12">
-            <el-form-item :label="t('aiEntityCreate.fields.contactName')">
+            <el-form-item :label="t('aiEntityCreate.fields.cName')">
               <el-input v-model="vendorContactModel.cName" />
             </el-form-item>
           </el-col>
@@ -688,6 +695,8 @@ import {
   emptyParsedVendor,
   emptyParsedVendorAddress,
   emptyParsedVendorContact,
+  normalizeCustomerContactParseResult,
+  normalizeVendorContactParseResult,
   type ParsedCustomerAddressFields,
   type ParsedCustomerContactFields,
   type ParsedCustomerFields,
@@ -792,10 +801,9 @@ watch(
       }
     }
     if (props.entityType === 'CUSTOMER_CONTACT' && props.customerContactData) {
-      customerContactModel.value = {
-        ...props.customerContactData,
-        gender: props.customerContactData.gender ?? 0
-      }
+      customerContactModel.value = normalizeCustomerContactParseResult(
+        props.customerContactData as unknown as Record<string, unknown>
+      )
     }
     if (props.entityType === 'CUSTOMER_ADDRESS' && props.customerAddressData) {
       customerAddressModel.value = { ...props.customerAddressData }
@@ -804,7 +812,9 @@ watch(
       vendorAddressModel.value = { ...props.vendorAddressData }
     }
     if (props.entityType === 'VENDOR_CONTACT' && props.vendorContactData) {
-      vendorContactModel.value = { ...props.vendorContactData }
+      vendorContactModel.value = normalizeVendorContactParseResult(
+        props.vendorContactData as unknown as Record<string, unknown>
+      )
     }
   }
 )
