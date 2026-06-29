@@ -203,6 +203,8 @@ namespace CRM.Core.Interfaces
         public string? WarehouseId { get; set; }
         /// <summary>仓库编号（由 WarehouseId 解析；无档案时为空）</summary>
         public string? WarehouseCode { get; set; }
+        /// <summary>仓库名称（由 WarehouseId 解析；无档案时为空）</summary>
+        public string? WarehouseName { get; set; }
         public string? SellOrderItemId { get; set; }
     }
 

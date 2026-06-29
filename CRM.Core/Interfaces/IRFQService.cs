@@ -21,6 +21,43 @@ namespace CRM.Core.Interfaces
         /// <summary>手动将需求下全部明细的询价采购员设为指定用户（AssignMethod=4 指定采购员）。</summary>
         /// <param name="actingUserId">当前登录用户 ID（写入 modify_by_user_id）</param>
         Task<RFQ> AssignPurchaserAsync(string rfqId, AssignPurchaserRequest request, string? actingUserId = null);
+
+        /// <summary>标记需求明细为查无报价（status 0→5，不创建报价单、不回写主单）。</summary>
+        /// <param name="actingUserId">当前登录用户 ID（写入 modify_by_user_id）</param>
+        Task<RFQItem> MarkNoQuoteAsync(string itemId, string? actingUserId = null);
+
+        /// <summary>关闭需求：写入关闭记录并将主单置为终态。</summary>
+        Task<RfqCloseRecordListItem> CloseRfqAsync(string rfqId, CloseRfqRequest request, string? actingUserId = null);
+
+        /// <summary>需求关闭记录列表（按关闭时间倒序）。</summary>
+        Task<IReadOnlyList<RfqCloseRecordListItem>> GetCloseRecordsAsync(string rfqId);
+    }
+
+    /// <summary>关闭需求请求</summary>
+    public class CloseRfqRequest
+    {
+        public short CloseType { get; set; }
+        public string CloseReason { get; set; } = string.Empty;
+        public string? Remark { get; set; }
+    }
+
+    /// <summary>需求关闭记录（API 列表项，字段与前端 RFQCloseRecord / 表格列对齐）</summary>
+    public class RfqCloseRecordListItem
+    {
+        public string Id { get; set; } = string.Empty;
+        public string RfqId { get; set; } = string.Empty;
+        public short CloseType { get; set; }
+        public string CloseReason { get; set; } = string.Empty;
+        /// <summary>与 closeReason 相同，供关闭记录 Tab 列 reason 使用</summary>
+        public string Reason { get; set; } = string.Empty;
+        public string? ClosedBy { get; set; }
+        public string? ClosedByName { get; set; }
+        /// <summary>与 closedByName 相同，供关闭记录 Tab 列 operatorName 使用</summary>
+        public string? OperatorName { get; set; }
+        public DateTime ClosedAt { get; set; }
+        /// <summary>与 closedAt 相同，供关闭记录 Tab 列 createdAt 使用</summary>
+        public DateTime CreatedAt { get; set; }
+        public string? Remark { get; set; }
     }
 
     /// <summary>分配采购员请求（与前端 purchaserId / remark 对齐）</summary>
@@ -108,6 +145,9 @@ namespace CRM.Core.Interfaces
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
         public string? CurrentUserId { get; set; }
+
+        /// <summary>按标签 OR 筛选（AND 与其他条件组合）。</summary>
+        public List<string>? TagIds { get; set; }
     }
 
     public class RFQListItem
@@ -135,6 +175,9 @@ namespace CRM.Core.Interfaces
         public string? CreateByUserId { get; set; }
         /// <summary>创建人登录账号（列表组装；前端 createUserName）</summary>
         public string? CreateUserName { get; set; }
+
+        /// <summary>标签（仅对有查看权限的用户返回）</summary>
+        public List<EntityTagDto>? Tags { get; set; }
     }
 
     /// <summary>需求明细列表查询条件（对应 GET /rfqs/items）</summary>
@@ -154,7 +197,7 @@ namespace CRM.Core.Interfaces
         public string? PurchaserUserId { get; set; }
         /// <summary>为 true 时仅返回至少存在一条关联报价单（quote.rfq_item_id）的需求明细</summary>
         public bool? HasQuotesOnly { get; set; }
-        /// <summary>明细状态（与列表「明细状态」列一致：0 待报价、1 已报价等；1 含「待报价但有报价记录」）</summary>
+        /// <summary>明细状态（与列表「明细状态」列一致：0 待报价、1 已报价、5 查无报价等；1 含「待报价但有报价记录」）</summary>
         public short? Status { get; set; }
         /// <summary>需求编号（主表 rfq_code，模糊匹配）</summary>
         public string? RfqCode { get; set; }

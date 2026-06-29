@@ -6,6 +6,7 @@ export interface TagDefinitionDto {
   color?: string;
   entityType?: string;
   description?: string;
+  type?: number;
 }
 
 export interface ApplyTagsRequest {
@@ -80,7 +81,15 @@ export const tagApi = {
   /** 创建新标签定义 */
   async createTagDefinition(data: { name: string; color?: string; entityType?: string; description?: string }): Promise<TagDefinitionDto | null> {
     try {
-      const res = await apiClient.post<any>('/api/v1/tags', data);
+      const entityType = data.entityType?.trim().toUpperCase()
+      const res = await apiClient.post<any>('/api/v1/tags', {
+        name: data.name,
+        color: data.color,
+        entityType: data.entityType,
+        scope: entityType,
+        type: 2,
+        visibility: 1,
+      });
       const payload = res && typeof res === 'object' && 'data' in res ? res.data : res;
       return payload as TagDefinitionDto;
     } catch {

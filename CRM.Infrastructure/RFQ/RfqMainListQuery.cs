@@ -14,11 +14,16 @@ public sealed class RfqMainListQuery : IRfqMainListQuery
 
     private readonly ApplicationDbContext _db;
     private readonly IDataPermissionService _dataPermission;
+    private readonly ITagFilterService _tagFilterService;
 
-    public RfqMainListQuery(ApplicationDbContext db, IDataPermissionService dataPermission)
+    public RfqMainListQuery(
+        ApplicationDbContext db,
+        IDataPermissionService dataPermission,
+        ITagFilterService tagFilterService)
     {
         _db = db;
         _dataPermission = dataPermission;
+        _tagFilterService = tagFilterService;
     }
 
     /// <inheritdoc />
@@ -93,6 +98,25 @@ public sealed class RfqMainListQuery : IRfqMainListQuery
         {
             var endExclusive = SalesAnalyticsDateFilter.ToUtcDateEndExclusive(request.EndDate.Value);
             q = q.Where(r => r.CreateTime < endExclusive);
+        }
+
+        var tagIds = request.TagIds?
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (tagIds is { Count: > 0 })
+        {
+            var matchedIds = await _tagFilterService.QueryEntityIdsByTagsAsync(new TagFilterRequest
+            {
+                EntityType = CRM.Core.Constants.RfqTagConstants.EntityType,
+                IncludeTagIds = tagIds,
+                IncludeLogic = "OR"
+            });
+            if (matchedIds.Count == 0)
+                q = q.Where(r => false);
+            else
+                q = q.Where(r => matchedIds.Contains(r.Id));
         }
 
         return q;

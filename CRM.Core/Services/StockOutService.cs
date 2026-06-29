@@ -1420,11 +1420,17 @@ namespace CRM.Core.Services
             }
 
             string? warehouseCode = null;
+            string? warehouseName = null;
             if (!string.IsNullOrWhiteSpace(x.WarehouseId))
             {
                 var wh = await _warehouseRepository.GetByIdAsync(x.WarehouseId.Trim());
-                if (wh != null && !string.IsNullOrWhiteSpace(wh.WarehouseCode))
-                    warehouseCode = wh.WarehouseCode.Trim();
+                if (wh != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(wh.WarehouseCode))
+                        warehouseCode = wh.WarehouseCode.Trim();
+                    if (!string.IsNullOrWhiteSpace(wh.WarehouseName))
+                        warehouseName = wh.WarehouseName.Trim();
+                }
             }
 
             string? salesStockOutNotifyId = null;
@@ -1490,6 +1496,7 @@ namespace CRM.Core.Services
                 CourierTrackingNo = listRow.CourierTrackingNo,
                 WarehouseId = x.WarehouseId,
                 WarehouseCode = warehouseCode,
+                WarehouseName = warehouseName,
                 SellOrderItemId = string.IsNullOrWhiteSpace(x.SellOrderItemId) ? null : x.SellOrderItemId.Trim()
             };
         }

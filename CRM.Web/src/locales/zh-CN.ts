@@ -1529,6 +1529,7 @@ const zhCN = {
       searchPlaceholder: '需求编号/客户名称/产品',
       status: '状态',
       allStatus: '全部状态',
+      tags: '标签',
       query: '查询',
       reset: '重置'
     },
@@ -1543,6 +1544,7 @@ const zhCN = {
       rfqType: '需求类型',
       importance: '重要程度',
       remark: '备注',
+      tags: '标签',
       salesUser: '业务员',
       createTime: '创建时间',
       createUser: '创建人'
@@ -1654,7 +1656,8 @@ const zhCN = {
       quoted: '已报价',
       accepted: '已接受',
       rejected: '已拒绝',
-      closed: '已关闭'
+      closed: '已关闭',
+      noQuote: '查无报价'
     },
     dockQuotes: {
       title: '采购报价',
@@ -1679,7 +1682,13 @@ const zhCN = {
       layoutStackCompact: '上下布局：采购报价区高度约显示 2 行报价',
       layoutHeaderOnly: '仅显示采购报价标题栏'
     },
-    actions: { column: '操作', detail: '详情', quote: '报价' },
+    actions: { column: '操作', detail: '详情', quote: '报价', markNoQuote: '查无报价' },
+    confirmMarkNoQuote: {
+      title: '标记查无报价',
+      message: '确认将该需求明细标记为查无报价？标记后仍可直接创建报价。'
+    },
+    markNoQuoteSuccess: '已标记为查无报价',
+    markNoQuoteFailed: '标记查无报价失败',
     loadFailed: '加载需求明细失败',
     warnings: {
       missingQuoteId: '无法识别报价主键，无法编辑',
@@ -1964,6 +1973,7 @@ const zhCN = {
   },
   rfqDetail: {
     title: 'RFQ 详情',
+    rfqCodePrefix: '需求',
     back: '返回',
     favorite: '收藏需求',
     unfavorite: '取消收藏',
@@ -1991,6 +2001,11 @@ const zhCN = {
     closing: '关闭中...',
     confirmClose: '确认关闭',
     itemsCount: '共 {count} 条明细',
+    itemQuoteStats: {
+      pending: '待报价 {count} 行',
+      quoted: '已报价 {count} 行',
+      noQuote: '查无报价 {count} 行',
+    },
     recommendMeta: '系统推荐 · 当前处理中：{count} 条',
     sections: { basic: '基础信息', rfq: '需求信息', purchaser: '采购员信息' },
     tabs: { items: '需求明细', closeRecords: '关闭记录' },
@@ -2000,6 +2015,8 @@ const zhCN = {
       contact: '客户联系人',
       contactEmail: '联系人邮箱',
       salesUser: '业务员',
+      createDate: '创建日期',
+      createUser: '创建人',
       rfqType: '需求类型',
       quoteMethod: '报价方式',
       assignMethod: '分配方式',
@@ -2034,6 +2051,12 @@ const zhCN = {
     targetType: { priceCompare: '比价需求', exclusive: '独家需求', urgent: '紧急需求', normal: '常规需求' },
     purchaserStatus: { pending: '待处理', processing: '处理中', done: '已完成', rejected: '已拒绝' },
     closeType: { normal: '正常关闭', customerCancel: '客户取消', priceMismatch: '价格不符', other: '其他原因' },
+    tags: {
+      label: '标签',
+      add: '标签',
+      hint: '标签为跟进中的主观标记，与目标类型、重要程度及需求状态无关，可多选。',
+      dialogTitle: '为需求添加标签',
+    },
     deleteTitle: '删除确认',
     deleteConfirm: '确定删除需求「{code}」吗？此操作不可撤销。',
     confirmDelete: '确定删除',
@@ -2515,11 +2538,17 @@ const zhCN = {
     fields: {
       vendorCode: '供应商编号',
       vendorName: '供应商名称',
+      officialName: '中文全称',
+      englishOfficialName: '英文全称',
       shortName: '简称',
       industry: '行业',
       regionAddress: '地区/地址',
+      officeAddress: '办公地址',
+      website: '官方网站',
+      purchaser: '采购员',
       level: '等级',
       identity: '身份',
+      companyInfo: '公司简介',
       remarks: '备注',
       createdAt: '创建时间',
       updatedAt: '更新时间'
@@ -3427,6 +3456,27 @@ const zhCN = {
     submitAuditSuccess: '提交审核成功'
   },
   salesOrderDetailView: {
+    captionPrefix: '销售订单',
+    favorite: '收藏订单',
+    unfavorite: '取消收藏',
+    tags: { add: '标签' },
+    cancelOrder: '取消订单',
+    refresh: '刷新',
+    refreshing: '刷新中…',
+    edit: '编辑',
+    more: '更多操作',
+    deleteOrder: '删除订单',
+    basicInfo: '基本信息',
+    createDate: '创建日期',
+    createUser: '创建人',
+    totalAmount: '总金额',
+    customerAdvance: '客户预收余额',
+    itemRows: '行项目数',
+    deliveryDate: '交货日期',
+    createTime: '创建时间',
+    deliveryAddress: '送货地址',
+    remark: '备注',
+    auditRejectReason: '审核拒绝原因',
     tabs: {
       rfqItems: '需求明细',
       quotes: '报价',
@@ -3873,6 +3923,12 @@ const zhCN = {
     columnSettings: '列设置'
   },
   purchaseRequisitionDetail: {
+    back: '返回',
+    captionPrefix: '采购申请',
+    basicInfo: '基本信息',
+    createDate: '创建日期',
+    createUser: '创建人',
+    moreActions: '更多操作',
     tabs: {
       poItems: '采购订单明细'
     },
@@ -4426,6 +4482,16 @@ const zhCN = {
     }
   },
   stockInDetail: {
+    back: '返回',
+    captionPrefix: '入库单',
+    basicInfo: '基本信息',
+    createDate: '创建日期',
+    createUser: '创建人',
+    warehouseName: '仓库名称',
+    tabs: {
+      items: '入库明细',
+      stockItems: '库存明细'
+    },
     fields: {
       originalVendor: '原始供应商',
       customsArrivalNotify: '报关到货通知',
@@ -4549,6 +4615,8 @@ const zhCN = {
       sourceCode: '来源申请',
       customerName: '客户',
       salesUserName: '业务员',
+      totalQuantity: '合计数量',
+      sellOrderItemCode: '销售订单明细编号',
       expectedStockOutDate: '预计出库日期',
       stockOutDate: '出库日期',
       packingCount: '装箱单数',
@@ -4716,7 +4784,11 @@ const zhCN = {
   },
   stockOutDetail: {
     title: '出库单详情',
-    back: '返回列表',
+    back: '返回',
+    captionPrefix: '出库单',
+    basicInfo: '基本信息',
+    createDate: '创建日期',
+    createUser: '创建人',
     printInvoice: '打印 Invoice',
     save: '保存',
     saving: '保存中…',
@@ -4725,12 +4797,17 @@ const zhCN = {
     loadFailed: '加载失败',
     notFound: '出库单不存在',
     needDate: '请选择出库日期',
+    noItems: '暂无出库明细',
     sectionReadonly: '基本信息',
     sectionEditable: '可编辑信息',
     sectionDocs: '关联文档',
+    tabs: {
+      items: '出库明细',
+      documents: '关联文档'
+    },
     docHint: '可多次上传；下方列表展示本单全部已上传文档，支持预览与下载。',
     sourceCode: '来源申请',
-    warehouseCode: '仓库编号',
+    warehouseName: '仓库名称',
     shipmentMethod: '出货方式',
     shipmentPlaceholder: '请选择',
     courierTrackingNo: '快递单号',
@@ -5650,11 +5727,20 @@ const zhCN = {
   },
   financePaymentDetail: {
     backToList: '返回列表',
+    back: '返回',
+    captionPrefix: '付款单',
     breadcrumb: '付款管理',
     detail: '详情',
     basicInfo: '基本信息',
+    createDate: '创建日期',
+    createUser: '创建人',
     paymentLines: '付款明细',
     tabDocuments: '文档',
+    tabs: {
+      items: '付款明细',
+      documents: '关联文档',
+      bankSlip: '银行水单'
+    },
     noRelatedPo: '付款明细未关联采购订单，暂无文档',
     selectPoForDocs: '关联采购订单',
     poDocSource: '文档来源：采购订单 {code}',
@@ -5874,11 +5960,19 @@ const zhCN = {
   },
   financeReceiptDetail: {
     backToList: '返回列表',
+    back: '返回',
+    captionPrefix: '收款单',
     breadcrumb: '收款管理',
     detail: '详情',
     basicInfo: '基本信息',
+    createDate: '创建日期',
+    createUser: '创建人',
     receiptLines: '收款明细',
     bankSlip: '银行水单附件',
+    tabs: {
+      items: '收款明细',
+      bankSlip: '银行水单'
+    },
     notFound: '收款单不存在',
     noItems: '暂无明细',
     noAttachments: '暂无附件',

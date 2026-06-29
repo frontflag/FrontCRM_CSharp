@@ -92,6 +92,20 @@
           <el-option :label="t('rfqList.status.closed')" :value="7" />
           <el-option :label="t('rfqList.status.cancelled')" :value="8" />
         </el-select>
+        <el-select
+          v-if="showRfqTagFilter"
+          v-model="searchForm.tagIds"
+          multiple
+          collapse-tags
+          collapse-tags-tooltip
+          clearable
+          filterable
+          :placeholder="t('rfqList.filters.tags')"
+          class="status-select rfq-tag-filter"
+          :teleported="false"
+        >
+          <el-option v-for="tag in rfqTagFilterOptions" :key="tag.id" :label="tag.name" :value="tag.id" />
+        </el-select>
         <button type="button" class="btn-primary btn-sm" @click="handleSearch">
           <el-icon><Search /></el-icon>{{ t('rfqList.filters.query') }}
         </button>
@@ -121,11 +135,11 @@
         </template>
         <template #col-importance="{ row }">
           <el-rate
-            :model-value="importanceDisplayStars(row.importance)"
+            :model-value="rfqImportanceDisplayStars(row.importance)"
             disabled
             :max="3"
-            :colors="['#C99A45', '#C99A45', '#C99A45']"
-            void-color="rgba(200,216,232,0.2)"
+            :colors="[...RFQ_IMPORTANCE_RATE_COLORS]"
+            :void-color="RFQ_IMPORTANCE_RATE_VOID_COLOR"
           />
         </template>
         <template #col-rfqType="{ row }">
@@ -133,6 +147,10 @@
         </template>
         <template #col-targetType="{ row }">
           {{ getTargetTypeLabel(row.targetType ?? row.TargetType) }}
+        </template>
+        <template #col-tags="{ row }">
+          <TagListDisplay v-if="resolveRowTags(row).length > 0" :tags="resolveRowTags(row)" />
+          <span v-else>—</span>
         </template>
         <template #col-product="{ row }">
           {{ row.product || '—' }}
@@ -246,9 +264,17 @@ import { ElMessage } from 'element-plus'
 import { rfqApi } from '@/api/rfq'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
+import {
+  rfqImportanceDisplayStars,
+  RFQ_IMPORTANCE_RATE_COLORS,
+  RFQ_IMPORTANCE_RATE_VOID_COLOR
+} from '@/utils/rfqImportance'
 import { formatRfqTypeLabel } from '@/constants/rfqFormEnums'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import TagListDisplay from '@/components/Tag/TagListDisplay.vue'
+import { tagApi, type TagDefinitionDto } from '@/api/tag'
+import { canUseRfqTagUi } from '@/utils/rfqTagAccess'
 
 const router = useRouter()
 const route = useRoute()
@@ -267,6 +293,9 @@ const canViewCustomerInRfq = computed(
   () => authStore.hasPermission('customer.info.read') && !maskSaleSensitiveFields.value
 )
 const showRfqSalesUserColumn = computed(() => !maskSaleSensitiveFields.value)
+const showRfqTagColumn = computed(() => canUseRfqTagUi(authStore.user))
+const showRfqTagFilter = showRfqTagColumn
+const rfqTagFilterOptions = ref<TagDefinitionDto[]>([])
 
 function goCreateRfq() {
   if (authStore.isIdentityBlockedForPermission('rfq.create')) {
@@ -293,7 +322,8 @@ const stats = ref({ total: 0, pending: 0, processing: 0, quoted: 0 })
 // 搜索表单
 const searchForm = ref({
   keyword: '',
-  status: undefined as number | undefined
+  status: undefined as number | undefined,
+  tagIds: [] as string[],
 })
 
 // 分页信息
@@ -345,6 +375,17 @@ const rfqTableColumns = computed((): CrmTableColumnDef[] => {
   /** 重要程度：列表为三星，与 RFQCreate 一致；存盘值可能为 1–10，按同构规则映射到 1–3 星展示 */
   { key: 'importance', label: t('rfqList.columns.importance'), prop: 'importance', minWidth: 120, width: 120, align: 'center' as const },
   { key: 'remark', label: t('rfqList.columns.remark'), prop: 'remark', minWidth: 160, showOverflowTooltip: true },
+  )
+  if (showRfqTagColumn.value) {
+    cols.push({
+      key: 'tags',
+      label: t('rfqList.columns.tags'),
+      minWidth: 160,
+      width: 180,
+      showOverflowTooltip: true,
+    })
+  }
+  cols.push(
   {
     key: 'rfqCode',
     label: t('rfqList.columns.rfqCode'),
@@ -433,13 +474,9 @@ const getTargetTypeLabel = (type: unknown) => {
   return map[n] ?? t('rfqList.status.unknown')
 }
 
-/** 与 RFQCreate.vue `normalizeImportance` 一致：界面三星，兼容历史 1–10 存盘 */
-function importanceDisplayStars(v: unknown): number {
-  const n = Number(v)
-  if (!Number.isFinite(n) || n < 1) return 1
-  if (n <= 3) return Math.round(n)
-  if (n <= 5) return Math.min(3, Math.max(1, Math.round(n)))
-  return Math.max(1, Math.min(3, Math.round((n * 3) / 10)))
+function resolveRowTags(row: Record<string, unknown>): TagDefinitionDto[] {
+  const raw = row.tags ?? row.Tags
+  return Array.isArray(raw) ? (raw as TagDefinitionDto[]) : []
 }
 
 // 加载数据
@@ -449,6 +486,7 @@ const loadData = async () => {
     const res = await rfqApi.searchRFQs({
       keyword: searchForm.value.keyword,
       status: searchForm.value.status,
+      tagIds: searchForm.value.tagIds?.length ? searchForm.value.tagIds : undefined,
       pageNumber: pageInfo.value.page,
       pageSize: pageInfo.value.pageSize
     })
@@ -498,6 +536,17 @@ const handleReset = () => {
 }
 
 watch(
+  showRfqTagFilter,
+  () => {
+    if (!showRfqTagFilter.value) return
+    void tagApi.getTagDefinitions('RFQ').then((items) => {
+      rfqTagFilterOptions.value = items
+    })
+  },
+  { immediate: true }
+)
+
+watch(
   () => [route.name, route.query] as const,
   () => {
     if (route.name !== 'RFQList') return
@@ -509,7 +558,7 @@ watch(
       const n = Number(raw)
       if (!Number.isNaN(n)) st = n === 6 ? 7 : n
     }
-    searchForm.value = { keyword: kw, status: st }
+    searchForm.value = { keyword: kw, status: st, tagIds: [] }
     pageInfo.value.page = 1
     loadData()
   },

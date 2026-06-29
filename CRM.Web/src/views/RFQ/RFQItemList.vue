@@ -50,6 +50,7 @@
           <el-option :label="t('rfqItemList.status.accepted')" :value="2" />
           <el-option :label="t('rfqItemList.status.rejected')" :value="3" />
           <el-option :label="t('rfqItemList.status.closed')" :value="4" />
+          <el-option :label="t('rfqItemList.status.noQuote')" :value="5" />
         </el-select>
         <template v-if="canViewCustomerInRfq">
           <div class="search-input-wrap">
@@ -207,6 +208,12 @@
                 class="action-btn action-btn--warning"
                 @click.stop="goQuote(row)"
               >{{ t('rfqItemList.actions.quote') }}</button>
+              <button
+                v-if="canMarkNoQuoteRow(row)"
+                type="button"
+                class="action-btn action-btn--warning"
+                @click.stop="handleMarkNoQuote(row)"
+              >{{ t('rfqItemList.actions.markNoQuote') }}</button>
             </div>
           </div>
           <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -220,6 +227,9 @@
                 </el-dropdown-item>
                 <el-dropdown-item v-if="canQuoteRfqItemRow(row)" @click.stop="goQuote(row)">
                   <span class="op-more-item op-more-item--warning">{{ t('rfqItemList.actions.quote') }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="canMarkNoQuoteRow(row)" @click.stop="handleMarkNoQuote(row)">
+                  <span class="op-more-item op-more-item--warning">{{ t('rfqItemList.actions.markNoQuote') }}</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -710,7 +720,7 @@ import { rfqApi } from '@/api/rfq'
 import { quoteApi } from '@/api/quote'
 import { buildLinkAlertFieldsFromItem, fetchLinkedRfqItemRecord } from '@/utils/rfqLinkedItemSummary'
 import { assertQuotesSameCustomer } from '@/utils/quoteSalesOrderPrefill'
-import type { RFQItem, RFQItemStatus } from '@/types/rfq'
+import { RFQItemStatus, type RFQItem } from '@/types/rfq'
 import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import { authApi, type PurchaseUserSelectOption, type SalesUserSelectOption } from '@/api/auth'
 import { useAuthStore } from '@/stores/auth'
@@ -719,6 +729,11 @@ import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMa
 import { productionDateDisplayLabel, useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
 import { useRfqItemListBasketStore } from '@/stores/rfqItemListBasket'
 import { canQuoteRfqItem } from '@/utils/rfqItemQuoteAccessRules'
+import {
+  effectiveRfqItemLineStatus,
+  rfqItemStatusTagType,
+  RFQ_ITEM_STATUS_I18N_KEYS,
+} from '@/utils/rfqItemLineStatus'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { Setting } from '@element-plus/icons-vue'
@@ -739,6 +754,13 @@ const showRfqSalesUserColumn = computed(() => true)
 
 function canQuoteRfqItemRow(row: RFQItem): boolean {
   return canQuoteRfqItem(authStore.user, row)
+}
+
+function canMarkNoQuoteRow(row: RFQItem): boolean {
+  if (!canQuoteRfqItemRow(row)) return false
+  const raw = Number(row.status)
+  if (!Number.isFinite(raw) || raw !== RFQItemStatus.Pending) return false
+  return (quoteRecordCountByRfqItemId.value[row.id] ?? 0) === 0
 }
 
 /** 需求明细列表：按当前筛选与分页自动刷新间隔 */
@@ -1066,30 +1088,19 @@ function formatAssignedPurchasers(row: RFQItem) {
 
 function itemStatusText(s?: number | string) {
   const n = s === undefined || s === null || s === '' ? NaN : Number(s)
-  const map: Record<number, string> = {
-    0: t('rfqItemList.status.pending'),
-    1: t('rfqItemList.status.quoted'),
-    2: t('rfqItemList.status.accepted'),
-    3: t('rfqItemList.status.rejected'),
-    4: t('rfqItemList.status.closed')
-  }
-  return Number.isFinite(n) ? map[n] ?? t('quoteList.na') : t('quoteList.na')
+  const key = Number.isFinite(n) ? RFQ_ITEM_STATUS_I18N_KEYS[n] : undefined
+  return key ? t(key) : t('quoteList.na')
 }
 
-/** 待报价单独灰色标签；其余沿用主题 primary（蓝色） */
+/** 待报价单独灰色标签；查无报价黄色；其余沿用主题 primary（蓝色） */
 function itemStatusTagType(s?: number | string) {
-  const n = s === undefined || s === null || s === '' ? NaN : Number(s)
-  return Number.isFinite(n) && n === 0 ? 'info' : undefined
+  return rfqItemStatusTagType(s)
 }
 
 /** 库内 status 未回写或接口未部署旧版时，与「报价条目」列一致：有条数则不应仍显示待报价 */
 function effectiveItemLineStatus(row: RFQItem): number | undefined {
-  const raw = row.status
-  const n = raw === undefined || raw === null || (raw as unknown) === '' ? NaN : Number(raw)
   const qc = quoteRecordCountByRfqItemId.value[row.id] ?? 0
-  if (Number.isFinite(n) && n === 0 && qc > 0) return 1
-  if (Number.isFinite(n)) return n
-  return undefined
+  return effectiveRfqItemLineStatus(row.status, qc)
 }
 
 function quoteStatusText(status: number) {
@@ -1566,6 +1577,31 @@ function goQuote(row: RFQItem) {
       returnTo: route.fullPath
     }
   })
+}
+
+async function handleMarkNoQuote(row: RFQItem) {
+  if (!canMarkNoQuoteRow(row)) return
+  try {
+    await ElMessageBox.confirm(
+      t('rfqItemList.confirmMarkNoQuote.message'),
+      t('rfqItemList.confirmMarkNoQuote.title'),
+      {
+        type: 'warning',
+        confirmButtonText: t('common.confirm'),
+        cancelButtonText: t('common.cancel')
+      }
+    )
+  } catch {
+    return
+  }
+  try {
+    await rfqApi.markNoQuote(row.id)
+    ElMessage.success(t('rfqItemList.markNoQuoteSuccess'))
+    await loadData()
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : t('rfqItemList.markNoQuoteFailed')
+    ElMessage.error(msg)
+  }
 }
 
 function resolveQuoteRowId(row: Record<string, unknown>): string | undefined {

@@ -94,6 +94,8 @@ export interface StockInDetailItemDto {
   detailVendorName?: string | null
   /** 详情填充：仓库编号 */
   detailWarehouseCode?: string | null
+  /** 详情填充：仓库名称 */
+  detailWarehouseName?: string | null
   /** 详情填充：地域类型 */
   detailRegionType?: number | null
   /** 详情填充：入库类型 */
@@ -189,9 +191,13 @@ export interface StockInDto {
   status: number
   remark?: string
   createTime?: string
+  /** 详情/列表：创建人登录账号（由后端解析） */
+  createUserName?: string | null
   items?: StockInDetailItemDto[]
   /** 详情填充：仓库编号 */
   detailWarehouseCode?: string | null
+  /** 详情填充：仓库名称 */
+  detailWarehouseName?: string | null
   /** 详情填充：供应商展示名 */
   detailVendorName?: string | null
   /** 报关入库溯源（StockInType=20） */

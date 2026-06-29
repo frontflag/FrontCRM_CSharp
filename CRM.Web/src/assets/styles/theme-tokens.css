@@ -45,6 +45,12 @@ html[data-theme='dark'] {
   --crm-white-05: rgba(255, 255, 255, 0.05);
   --crm-white-06: rgba(255, 255, 255, 0.06);
   --crm-white-08: rgba(255, 255, 255, 0.08);
+  /* 业务详情页：区块标题栏 / Tab 导航栏（与采购订单详情 section-header 一致） */
+  --crm-detail-section-header-bg: rgba(0, 0, 0, 0.1);
+  /* 业务详情页：嵌套明细面板卡片内容区 */
+  --crm-detail-panel-card-bg: #0a1628;
+  /* 嵌套明细面板标题栏（与面板内列表表头同色；不同于区块 Tab 标题栏） */
+  --crm-detail-panel-card-head-bg: rgba(0, 212, 255, 0.04);
   --crm-table-header-bg: rgba(0, 212, 255, 0.04);
   /* 略加强，避免深色斑马线行上悬停不明显 */
   --crm-table-row-hover: rgba(0, 212, 255, 0.22);
@@ -294,6 +300,12 @@ html[data-theme='light'] {
   --crm-white-05: rgba(15, 23, 42, 0.05);
   --crm-white-06: rgba(15, 23, 42, 0.06);
   --crm-white-08: rgba(15, 23, 42, 0.08);
+  /* 业务详情页：区块标题栏 / Tab 导航栏 */
+  --crm-detail-section-header-bg: #f8fafc;
+  /* 业务详情页：嵌套明细面板卡片内容区 */
+  --crm-detail-panel-card-bg: #f5fdff;
+  /* 浅色下 rgba 叠 #F5FDFF 几乎不可见，用实色 #EBFBFF（与面板内列表表头一致） */
+  --crm-detail-panel-card-head-bg: #ebfbff;
   /* 表头与右侧固定「操作」列表头同色，避免主表头过浅、与固定列割裂 */
   --crm-op-col-header-bg: #e2e8f0;
   --crm-table-header-bg: var(--crm-op-col-header-bg);

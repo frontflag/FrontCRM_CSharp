@@ -1,6 +1,6 @@
 <template>
   <div class="customer-detail-page">
-    <!-- 页面头部（布局与样式与客户详情一致） -->
+    <!-- 页面头部（《业务详情页面规范》§3.7 主数据类 CaptionBar） -->
     <div class="page-header">
       <div class="header-left">
         <button class="btn-back" @click="goBack">
@@ -27,46 +27,51 @@
                   :blacklist="!!vendor.blackList"
                   size="md"
                 />
-              </div>
-              <button
-                v-if="vendor"
-                type="button"
-                class="btn-favorite-star"
-                :class="{ 'is-favorite': isFavorite }"
-                :disabled="favoriteLoading"
-                :title="isFavorite ? t('vendorDetail.favoriteRemove') : t('vendorDetail.favoriteAdd')"
-                :aria-label="isFavorite ? t('vendorDetail.favoriteRemove') : t('vendorDetail.favoriteAriaVendor')"
-                :aria-pressed="isFavorite"
-                @click="toggleFavorite"
-              >
-                <svg
-                  v-if="!isFavorite"
-                  class="star-icon"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.75"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
+                <button
+                  v-if="vendor"
+                  type="button"
+                  class="btn-favorite-star"
+                  :class="{ 'is-favorite': isFavorite }"
+                  :disabled="favoriteLoading"
+                  :title="isFavorite ? t('vendorDetail.favoriteRemove') : t('vendorDetail.favoriteAdd')"
+                  :aria-label="isFavorite ? t('vendorDetail.favoriteRemove') : t('vendorDetail.favoriteAriaVendor')"
+                  :aria-pressed="isFavorite"
+                  @click="toggleFavorite"
                 >
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                </svg>
-                <svg v-else class="star-icon star-icon--solid" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                </svg>
-              </button>
+                  <svg
+                    v-if="!isFavorite"
+                    class="star-icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.75"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                  </svg>
+                  <svg v-else class="star-icon star-icon--solid" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                  </svg>
+                </button>
+                <div v-if="showVendorHeaderTags" class="customer-header-tags-row tags-row">
+                  <TagListDisplay v-if="vendorTags.length" :tags="vendorTags" />
+                  <button
+                    v-if="canWritePurchaseData"
+                    type="button"
+                    class="btn-secondary customer-header-add-tag-btn"
+                    @click="showTagDialog = true"
+                  >
+                    <span class="customer-header-add-tag-icon" aria-hidden="true">±</span>
+                    标签
+                  </button>
+                </div>
+              </div>
             </div>
-            <div class="title-meta">
-              <span class="customer-code">{{ maskPurchaseSensitiveFields ? '—' : vendor?.code }}</span>
-              <span class="status-badge" :class="vendorStatusClass">{{ vendorStatusText }}</span>
-              <span v-if="vendor?.isDisenable" class="status-badge status--frozen">{{ t('vendorDetail.frozen') }}</span>
+            <div class="title-meta title-meta--caption customer-header-meta-row">
+              <span class="customer-code">{{ maskPurchaseSensitiveFields ? '—' : vendor?.code || '—' }}</span>
               <span v-if="vendorLevelDisplay !== '--'" class="level-badge">{{ vendorLevelDisplay }}</span>
               <span v-if="vendorIdentityDisplay !== '--'" class="level-badge level-badge--credit">{{ vendorIdentityDisplay }}</span>
-              <span v-if="vendor?.blackList" class="status-badge status--blacklist">{{ t('vendorDetail.blacklistBadge') }}</span>
-            </div>
-            <div class="title-tags-row">
-              <TagListDisplay :tags="vendorTags" />
-              <button v-if="canWritePurchaseData" class="btn-add-tag" @click="showTagDialog = true">{{ t('vendorDetail.addTag') }}</button>
             </div>
           </div>
         </div>
@@ -99,7 +104,7 @@
             </el-dropdown-menu>
           </template>
         </el-dropdown>
-        <button class="btn-success" v-if="canWritePurchaseData && vendor?.status !== 1" type="button" @click="handleActivate">
+        <button class="btn-secondary" v-if="canWritePurchaseData && vendor?.status !== 1" type="button" @click="handleActivate">
           {{ t('vendorDetail.activate') }}
         </button>
       </div>
@@ -110,54 +115,76 @@
       <!-- 基本信息卡片 -->
       <div class="info-section">
         <div class="section-header">
-          <div class="section-dot section-dot--cyan"></div>
-          <span class="section-title">{{ t('vendorDetail.basicInfo') }}</span>
-        </div>
-        <div class="info-grid">
-          <div class="info-item">
-            <span class="info-label">{{ t('vendorDetail.fields.vendorCode') }}</span>
-            <span class="info-value info-value--code">{{ maskPurchaseSensitiveFields ? '—' : vendor.code }}</span>
+          <div class="section-header__main">
+            <div class="section-dot section-dot--cyan"></div>
+            <span class="section-title">{{ t('vendorDetail.basicInfo') }}</span>
           </div>
+            <div class="section-header__meta">
+              <span class="section-header-meta-item">
+                <span class="section-header-meta-item__label">创建日期</span>
+                <span class="section-header-meta-item__value">{{ vendorBasicCreateDateText }}</span>
+              </span>
+              <span class="section-header-meta-item">
+                <span class="section-header-meta-item__label">创建人</span>
+                <span class="section-header-meta-item__value">{{ vendorBasicCreateUserText }}</span>
+              </span>
+            </div>
+        </div>
+        <div class="info-grid info-grid--inline-labels info-grid--basic">
           <div class="info-item">
-            <span class="info-label">{{ t('vendorDetail.fields.vendorName') }}</span>
+            <span class="info-label">{{ t('vendorDetail.fields.officialName') }}</span>
             <span
               class="info-value"
-              :class="{
-                'info-value--party-muted': vendor.isDisenable || vendor.blackList
-              }"
-            >{{ maskPurchaseSensitiveFields ? '—' : (vendor.officialName || '--') }}</span>
+              :class="{ 'info-value--party-muted': vendorPartyMuted }"
+            >{{ maskPurchaseSensitiveFields ? '—' : (vendor.officialName || vendor.name || '—') }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">{{ t('vendorDetail.fields.englishOfficialName') }}</span>
+            <span class="info-value">{{ maskPurchaseSensitiveFields ? '—' : (vendor.englishOfficialName || '—') }}</span>
           </div>
           <div class="info-item">
             <span class="info-label">{{ t('vendorDetail.fields.shortName') }}</span>
-            <span class="info-value">{{ maskPurchaseSensitiveFields ? '—' : (vendor.nickName || '--') }}</span>
+            <span class="info-value">{{ maskPurchaseSensitiveFields ? '—' : (vendor.nickName || '—') }}</span>
           </div>
-          <div class="info-item">
-            <span class="info-label">{{ t('vendorDetail.fields.industry') }}</span>
-            <span class="info-value">{{ industryDisplay }}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">{{ t('vendorDetail.fields.regionAddress') }}</span>
-            <span class="info-value">{{ maskPurchaseSensitiveFields ? '—' : (vendor.officeAddress || '--') }}</span>
-          </div>
+        </div>
+        <div class="info-grid info-grid--inline-labels info-grid--basic">
           <div class="info-item">
             <span class="info-label">{{ t('vendorDetail.fields.level') }}</span>
-            <span class="info-value">{{ vendorLevelDisplay }}</span>
+            <span class="info-value">{{ vendorLevelDisplay === '--' ? '—' : vendorLevelDisplay }}</span>
           </div>
           <div class="info-item">
             <span class="info-label">{{ t('vendorDetail.fields.identity') }}</span>
-            <span class="info-value">{{ vendorIdentityDisplay }}</span>
+            <span class="info-value">{{ vendorIdentityDisplay === '--' ? '—' : vendorIdentityDisplay }}</span>
           </div>
           <div class="info-item">
+            <span class="info-label">{{ t('vendorDetail.fields.industry') }}</span>
+            <span class="info-value">{{ industryDisplay === '--' ? '—' : industryDisplay }}</span>
+          </div>
+        </div>
+        <div class="info-grid info-grid--inline-labels info-grid--basic">
+          <div class="info-item">
+            <span class="info-label">{{ t('vendorDetail.fields.officeAddress') }}</span>
+            <span class="info-value">{{ maskPurchaseSensitiveFields ? '—' : (vendor.officeAddress || '—') }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">{{ t('vendorDetail.fields.website') }}</span>
+            <span class="info-value">{{ maskPurchaseSensitiveFields ? '—' : (vendor.website || '—') }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">{{ t('vendorDetail.fields.purchaser') }}</span>
+            <span class="info-value">{{ vendorPurchaserDisplay }}</span>
+          </div>
+        </div>
+        <div class="info-grid info-grid--inline-labels">
+          <div class="info-item info-item--span-all">
+            <span class="info-label">{{ t('vendorDetail.fields.companyInfo') }}</span>
+            <span class="info-value">{{ vendor.companyInfo || '—' }}</span>
+          </div>
+        </div>
+        <div class="info-grid info-grid--inline-labels">
+          <div class="info-item info-item--span-all">
             <span class="info-label">{{ t('vendorDetail.fields.remarks') }}</span>
-            <span class="info-value">{{ vendor.companyInfo || '--' }}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">{{ t('vendorDetail.fields.createdAt') }}</span>
-            <span class="info-value info-value--time">{{ formatDateTime(vendor.createTime) }}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">{{ t('vendorDetail.fields.updatedAt') }}</span>
-            <span class="info-value info-value--time">{{ formatDateTime(vendor.modifyTime) }}</span>
+            <span class="info-value">{{ vendor.remark || '—' }}</span>
           </div>
         </div>
       </div>
@@ -749,7 +776,7 @@ import VendorAddressDialog from './VendorAddressDialog.vue';
 import VendorBankDialog from './VendorBankDialog.vue';
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue';
 import DocumentListPanel from '@/components/Document/DocumentListPanel.vue';
-import { formatDisplayDateTime } from '@/utils/displayDateTime';
+import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime';
 import { operationBizTypeLabel } from '@/utils/businessLogLabels';
 import { logRecentApi } from '@/api/logRecent';
 import { VENDOR_RECENT_HISTORY_CHANGED_EVENT } from '@/constants/vendorRecentHistory';
@@ -794,6 +821,7 @@ const vendorAvatarChar = computed(() => {
 });
 
 const vendorTags = ref<TagDefinitionDto[]>([]);
+const showVendorHeaderTags = computed(() => canWritePurchaseData.value || vendorTags.value.length > 0);
 const contacts = ref<VendorContactInfo[]>([]);
 const addresses = ref<VendorAddress[]>([]);
 const banks = ref<VendorBankInfo[]>([]);
@@ -885,28 +913,6 @@ function toggleVendorDetailSubOpCol() {
   vendorDetailSubOpColExpanded.value = !vendorDetailSubOpColExpanded.value;
 }
 
-/** 与列表 VendorList / types 一致：1=新建 2=待审核 10=已审核… */
-const vendorStatusText = computed(() => {
-  const s = vendor.value?.status;
-  if (s === 1) return t('vendorList.status.new');
-  if (s === 2) return t('vendorList.status.pending');
-  if (s === 10) return t('vendorList.status.approved');
-  if (s === 12) return t('vendorList.status.pendingFinance');
-  if (s === 20) return t('vendorList.status.financeFiled');
-  if (s === -1) return t('vendorList.status.failed');
-  if (s === 0) return t('vendorList.status.draft');
-  return t('vendorList.status.unknown');
-});
-
-const vendorStatusClass = computed(() => {
-  const s = vendor.value?.status ?? 0;
-  if (s === 2 || s === 12) return 'status--pending';
-  if (s === 10 || s === 20) return 'status--approved';
-  if (s === -1) return 'status--danger';
-  if (s === 1) return 'status--draft';
-  return 'status--draft';
-});
-
 const vendorPartyMuted = computed(
   () => !!(vendor.value?.isDisenable || vendor.value?.blackList)
 );
@@ -914,6 +920,30 @@ const vendorPartyMuted = computed(
 const vendorLevelDisplay = computed(() => vendorDict.levelLabel(vendor.value?.level));
 const vendorIdentityDisplay = computed(() => vendorDict.identityLabel(vendor.value?.credit));
 const industryDisplay = computed(() => vendorDict.industryLabel(vendor.value?.industry));
+
+const vendorBasicCreateDateText = computed(() => {
+  const v = vendor.value;
+  if (!v?.createTime) return '—';
+  const s = formatDisplayDate(v.createTime);
+  return s === '--' ? '—' : s;
+});
+
+const vendorBasicCreateUserText = computed(() => {
+  const v = vendor.value as Record<string, unknown> | null | undefined;
+  if (!v) return '—';
+  const name = v.createUserName ?? v.CreateUserName ?? v.createdBy;
+  const s = name != null ? String(name).trim() : '';
+  return s || '—';
+});
+
+const vendorPurchaserDisplay = computed(() => {
+  if (maskPurchaseSensitiveFields.value) return '—';
+  const v = vendor.value as Record<string, unknown> | null | undefined;
+  if (!v) return '—';
+  const name = v.purchaserName ?? v.purchaseUserName ?? v.PurchaseUserName;
+  const s = name != null ? String(name).trim() : '';
+  return s || '—';
+});
 
 const refreshFavoriteStatus = async () => {
   const id = vendor.value?.id ?? vendorId;
@@ -1640,7 +1670,7 @@ onMounted(() => {
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: rgba(200, 220, 240, 0.5);
+  color: #ffc94d;
   cursor: pointer;
   transition: color 0.15s, background 0.15s, transform 0.12s;
 
@@ -1650,9 +1680,13 @@ onMounted(() => {
     display: block;
   }
 
-  &:hover:not(:disabled) {
-    color: #00d4ff;
-    background: rgba(0, 212, 255, 0.1);
+  &:not(.is-favorite) .star-icon {
+    stroke-dasharray: 3 2.5;
+  }
+
+  &:not(.is-favorite):hover:not(:disabled) {
+    color: #ffd666;
+    background: rgba(255, 201, 77, 0.12);
   }
 
   &:active:not(:disabled) {
@@ -1682,32 +1716,46 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
-.title-tags-row {
-  margin-top: 6px;
+.title-meta--caption {
+  margin-top: 4px;
+}
+
+.customer-header-meta-row {
+  min-height: 28px;
+}
+
+.customer-header-tags-row {
+  flex-shrink: 0;
+}
+
+.customer-header-add-tag-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.customer-header-add-tag-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.tags-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-.btn-add-tag {
-  padding: 3px 8px;
-  border-radius: 999px;
-  border: 1px dashed rgba(0, 212, 255, 0.35);
-  background: transparent;
-  color: rgba(200, 216, 232, 0.85);
-  font-size: 11px;
-  cursor: pointer;
-  transition: all 0.15s;
-
-  &:hover {
-    background: rgba(0, 212, 255, 0.08);
-  }
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .customer-code {
   font-family: 'Noto Sans SC', sans-serif;
-  font-size: 11px;
+  font-size: 12px;
   color: $text-muted;
 }
 
@@ -1783,10 +1831,43 @@ onMounted(() => {
 .section-header {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 16px;
   padding: 14px 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  background: rgba(0, 0, 0, 0.1);
+  background: var(--crm-detail-section-header-bg);
+}
+
+.section-header__main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.section-header__meta {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.section-header-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  &__label {
+    color: $text-muted;
+    &::after {
+      content: '：';
+    }
+  }
+  &__value {
+    color: $text-secondary;
+  }
 }
 
 .section-dot {
@@ -1817,7 +1898,6 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 5px;
-  padding: 16px 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   border-right: 1px solid rgba(255, 255, 255, 0.04);
 
@@ -1848,6 +1928,45 @@ onMounted(() => {
   }
 }
 
+.info-grid:not(.info-grid--inline-labels) .info-item {
+  padding: 16px 20px;
+}
+
+.info-grid--inline-labels .info-item {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  .info-label {
+    flex-shrink: 0;
+    white-space: nowrap;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 12px;
+    &::after {
+      content: '：';
+    }
+  }
+  .info-value {
+    flex: 1;
+    min-width: 0;
+    word-break: break-word;
+  }
+}
+
+.info-grid--basic {
+  .info-item {
+    &:nth-child(3n) { border-right: none; }
+  }
+  .info-item--basic-spacer {
+    border-right: none;
+  }
+}
+
+.info-grid--inline-labels .info-item--span-all {
+  grid-column: 1 / -1;
+  border-right: none;
+}
+
 .tabs-section {
   background: $layer-2;
   border: 1px solid $border-card;
@@ -1859,7 +1978,7 @@ onMounted(() => {
   display: flex;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   padding: 0 16px;
-  background: rgba(0, 0, 0, 0.1);
+  background: var(--crm-detail-section-header-bg);
 }
 
 .tab-btn {

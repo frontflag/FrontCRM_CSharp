@@ -1,0 +1,27 @@
+// ============================================================
+// 《业务详情页面规范》§4 / §5 — Key : Value 面板
+// ============================================================
+@import './variables.scss';
+
+.info-section .info-grid--inline-labels .info-item {
+  padding-top: $info-kv-item-padding-y;
+  padding-right: $info-kv-item-padding-x;
+  padding-bottom: $info-kv-item-padding-y;
+  padding-left: $info-kv-item-padding-x;
+}
+
+// 卡片底留白 = 行内边距 + 半个值字号（较首行顶留白多 6.5px）
+.info-section .info-grid--inline-labels:last-of-type {
+  padding-bottom: $info-kv-section-bottom-padding;
+
+  .info-item--basic-full-row:last-child,
+  .info-item--span-all:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  &:not(.info-grid--basic) .info-item:nth-last-child(-n + 3):not(.info-item--span-all) {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+}

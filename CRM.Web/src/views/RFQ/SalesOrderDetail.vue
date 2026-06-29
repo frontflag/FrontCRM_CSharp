@@ -1,6 +1,6 @@
 <template>
   <div class="sales-order-detail">
-    <!-- 详情 CaptionBar（对齐 detailsCaptionBar规范.md：删除 / 取消订单在「更多」） -->
+    <!-- 详情 CaptionBar（对齐《业务详情页面规范.md》） -->
     <div class="page-header">
       <div class="header-left">
         <button class="btn-back" type="button" @click="router.back()">
@@ -15,15 +15,16 @@
             <div class="page-title-row">
               <div class="page-title-with-icons">
                 <h1 class="page-title" :class="{ 'page-title--muted': order.status === -2 }">
-                  {{ captionTitle }}
+                  {{ t('salesOrderDetailView.captionPrefix') }} {{ order.sellOrderCode }}
                 </h1>
                 <button
                   type="button"
                   class="btn-favorite-star"
                   :class="{ 'is-favorite': soFavorited }"
                   :disabled="favoriteLoading"
-                  :title="soFavorited ? '取消收藏' : '收藏订单'"
+                  :title="soFavorited ? t('salesOrderDetailView.unfavorite') : t('salesOrderDetailView.favorite')"
                   :aria-pressed="soFavorited"
+                  :aria-label="soFavorited ? t('salesOrderDetailView.unfavorite') : t('salesOrderDetailView.favorite')"
                   @click="toggleFavorite"
                 >
                   <svg
@@ -42,32 +43,54 @@
                     <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                   </svg>
                 </button>
-                <el-tag :type="getStatusType(order.status)" size="small" effect="dark">
-                  {{ getStatusText(order.status) }}
-                </el-tag>
+                <div v-if="showSoHeaderTags" class="so-header-tags-row tags-row">
+                  <TagListDisplay v-if="currentTags.length" :tags="currentTags" />
+                  <button
+                    v-if="canWriteSo"
+                    type="button"
+                    class="btn-secondary so-header-add-tag-btn"
+                    @click="tagDialogVisible = true"
+                  >
+                    <span class="so-header-add-tag-icon" aria-hidden="true">±</span>
+                    {{ t('salesOrderDetailView.tags.add') }}
+                  </button>
+                </div>
               </div>
             </div>
-            <div v-if="captionMetaVisible" class="title-meta title-meta--caption">
-              <span class="caption-code">客户：{{ order.customerName }}</span>
+            <div class="title-meta title-meta--caption so-header-meta-row">
+              <el-tag :type="getStatusType(order.status)" size="small" effect="dark">
+                {{ getStatusText(order.status) }}
+              </el-tag>
             </div>
           </div>
         </div>
       </div>
       <div v-if="order" class="header-right">
-        <button class="btn-primary" type="button" :disabled="refreshingExtends" @click="handleRefreshItemExtends">
+        <button
+          v-if="canCancelSalesOrderFromMenu"
+          type="button"
+          class="btn-close-so"
+          @click="handleCancelSalesOrder"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
+          </svg>
+          {{ t('salesOrderDetailView.cancelOrder') }}
+        </button>
+        <button class="btn-secondary" type="button" :disabled="refreshingExtends" @click="handleRefreshItemExtends">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="23 4 23 10 17 10" />
             <polyline points="1 20 1 14 7 14" />
             <path d="M3.51 9a9 9 0 0 1 14.13-3.36L23 10M1 14l5.36 4.36A9 9 0 0 0 20.49 15" />
           </svg>
-          {{ refreshingExtends ? '刷新中...' : '刷新' }}
+          {{ refreshingExtends ? t('salesOrderDetailView.refreshing') : t('salesOrderDetailView.refresh') }}
         </button>
         <button v-if="canWriteSo" class="btn-primary" type="button" @click="handleEdit">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
           </svg>
-          编辑
+          {{ t('salesOrderDetailView.edit') }}
         </button>
         <el-dropdown
           v-if="canWriteSo"
@@ -76,19 +99,12 @@
           popper-class="so-detail-header-more-popper"
           @command="onHeaderMoreCommand"
         >
-          <button type="button" class="btn-more-actions" title="更多操作" aria-label="更多操作">
+          <button type="button" class="btn-more-actions" :title="t('salesOrderDetailView.more')" :aria-label="t('salesOrderDetailView.more')">
             <span class="btn-more-actions__dots" aria-hidden="true">⋯</span>
           </button>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item
-                v-if="canCancelSalesOrderFromMenu"
-                command="cancel_order"
-                class="detail-more-item--danger"
-              >
-                取消订单
-              </el-dropdown-item>
-              <el-dropdown-item command="delete" class="detail-more-item--danger">删除订单</el-dropdown-item>
+              <el-dropdown-item command="delete" class="detail-more-item--danger">{{ t('salesOrderDetailView.deleteOrder') }}</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -102,39 +118,34 @@
     <template v-else-if="order">
       <!-- 基本信息卡片 -->
       <div class="info-section">
-        <div class="section-header section-header--with-inline-code">
-          <div class="section-header-left">
+        <div class="section-header">
+          <div class="section-header__main">
             <div class="section-dot section-dot--cyan"></div>
-            <span class="section-title">基本信息</span>
-            <div class="section-header-code">
-              <span class="section-header-code__label">{{ t('salesOrderCreate.orderHeaderCodeLabel') }}</span>
-              <span class="section-header-code__value">{{ order.sellOrderCode || '—' }}</span>
-            </div>
+            <span class="section-title">{{ t('salesOrderDetailView.basicInfo') }}</span>
+          </div>
+          <div class="section-header__meta">
+            <span class="section-header-meta-item">
+              <span class="section-header-meta-item__label">{{ t('salesOrderDetailView.createDate') }}</span>
+              <span class="section-header-meta-item__value">{{ soBasicCreateDateText }}</span>
+            </span>
+            <span class="section-header-meta-item">
+              <span class="section-header-meta-item__label">{{ t('salesOrderDetailView.createUser') }}</span>
+              <span class="section-header-meta-item__value">{{ soBasicCreateUserText }}</span>
+            </span>
           </div>
         </div>
-        <div class="info-grid">
-          <div class="info-item" v-if="showCustomerIdentityFields">
+        <!-- 第 1 行：客户 · 客户联系人 · 总金额 -->
+        <div class="info-grid info-grid--inline-labels info-grid--basic">
+          <div v-if="showCustomerIdentityFields" class="info-item">
             <span class="info-label">{{ t('salesOrderCreate.fields.customer') }}</span>
-            <span class="info-value">{{ order.customerName || '--' }}</span>
+            <span class="info-value">{{ order.customerName || '—' }}</span>
           </div>
-          <div class="info-item" v-if="showCustomerIdentityFields">
+          <div v-if="showCustomerIdentityFields" class="info-item">
             <span class="info-label">{{ t('salesOrderCreate.fields.customerContact') }}</span>
-            <span class="info-value">{{ order.customerContactName || order.CustomerContactName || '--' }}</span>
+            <span class="info-value">{{ order.customerContactName || order.CustomerContactName || '—' }}</span>
           </div>
-          <div class="info-item">
-            <span class="info-label">业务员</span>
-            <span class="info-value">{{ maskSaleSensitiveFields ? '—' : order.salesUserName || '--' }}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">{{ t('salesOrderCreate.fields.assistor') }}</span>
-            <span class="info-value">{{ (order as any).assistorUserName || '--' }}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">状态</span>
-            <span class="info-value">{{ getStatusText(order.status) }}</span>
-          </div>
-          <div class="info-item" v-if="showSalesMoneyFields">
-            <span class="info-label">总金额</span>
+          <div v-if="showSalesMoneyFields" class="info-item">
+            <span class="info-label">{{ t('salesOrderDetailView.totalAmount') }}</span>
             <span class="info-value info-value--amount amount-with-code">
               <span>{{ formatTotalAmountNumber(order.total) }}</span>
               <span v-if="formatTotalAmountNumber(order.total) !== '—'" :class="['dock-tier-ccy', listAmountCurrencyDockClass(order.currency)]">
@@ -142,40 +153,40 @@
               </span>
             </span>
           </div>
-          <div class="info-item" v-if="showSalesMoneyFields && customerAdvanceText">
-            <span class="info-label">客户预收余额</span>
-            <span class="info-value">{{ customerAdvanceText }}</span>
+        </div>
+        <!-- 第 2 行：销售员 · 销售助理 · （占位） -->
+        <div class="info-grid info-grid--inline-labels info-grid--basic">
+          <div class="info-item">
+            <span class="info-label">{{ t('salesOrderCreate.fields.salesUser') }}</span>
+            <span class="info-value">{{ maskSaleSensitiveFields ? '—' : order.salesUserName || '—' }}</span>
           </div>
           <div class="info-item">
-            <span class="info-label">行项目数</span>
-            <span class="info-value">{{ order.itemRows ?? 0 }}</span>
+            <span class="info-label">{{ t('salesOrderCreate.fields.assistor') }}</span>
+            <span class="info-value">{{ showCustomerIdentityFields ? ((order as any).assistorUserName || '—') : '—' }}</span>
+          </div>
+          <div class="info-item info-item--basic-spacer" aria-hidden="true"></div>
+        </div>
+        <!-- 第 3 行：送货地址 · 交货日期 · （占位） -->
+        <div class="info-grid info-grid--inline-labels info-grid--basic">
+          <div class="info-item">
+            <span class="info-label">{{ t('salesOrderDetailView.deliveryAddress') }}</span>
+            <span class="info-value">{{ order.deliveryAddress || '—' }}</span>
           </div>
           <div class="info-item">
-            <span class="info-label">交货日期</span>
+            <span class="info-label">{{ t('salesOrderDetailView.deliveryDate') }}</span>
             <span class="info-value info-value--time">{{ formatDateTime(order.deliveryDate) }}</span>
           </div>
-          <div class="info-item">
-            <span class="info-label">创建时间</span>
-            <span class="info-value info-value--time">{{ formatDateTime(order.createTime) }}</span>
-          </div>
+          <div class="info-item info-item--basic-spacer" aria-hidden="true"></div>
+        </div>
+        <!-- 第 4 行：备注 -->
+        <div class="info-grid info-grid--inline-labels">
           <div class="info-item info-item--span-all">
-            <span class="info-label">标签</span>
-            <div class="tags-row">
-              <TagListDisplay :tags="currentTags" />
-              <button class="btn-add-tag" @click="tagDialogVisible = true">添加标签</button>
-            </div>
-          </div>
-          <div class="info-item info-item--span-all">
-            <span class="info-label">送货地址</span>
-            <span class="info-value">{{ order.deliveryAddress || '--' }}</span>
-          </div>
-          <div class="info-item info-item--span-all">
-            <span class="info-label">备注</span>
-            <span class="info-value">{{ order.headerRemarkDisplay || order.HeaderRemarkDisplay || order.comment || '--' }}</span>
+            <span class="info-label">{{ t('salesOrderDetailView.remark') }}</span>
+            <span class="info-value">{{ order.headerRemarkDisplay || order.HeaderRemarkDisplay || order.comment || '—' }}</span>
           </div>
           <div v-if="order.auditRemark || order.status === -1" class="info-item info-item--span-all">
-            <span class="info-label">审核拒绝原因</span>
-            <span class="info-value info-value--warn">{{ order.auditRemark || '--' }}</span>
+            <span class="info-label">{{ t('salesOrderDetailView.auditRejectReason') }}</span>
+            <span class="info-value info-value--warn">{{ order.auditRemark || '—' }}</span>
           </div>
         </div>
       </div>
@@ -214,8 +225,9 @@
             <CrmDataTable
               :data="order.items"
               size="small"
+              stripe
               v-if="order.items?.length"
-              class="items-table"
+              class="items-table detail-panel-list-table"
               row-key="id"
               @row-dblclick="onSalesOrderItemRowDblClick"
             >
@@ -1685,26 +1697,31 @@ const orderId = computed(() => {
   return String(raw ?? '').trim()
 })
 
-/** CaptionBar 主标题固定显示销售订单号（与基本信息区位置互换） */
-const captionTitle = computed(() => {
-  const o = order.value
-  if (!o) return '销售订单'
-  return o.sellOrderCode || '销售订单'
-})
-
-const captionMetaVisible = computed(() => {
-  const o = order.value
-  return Boolean(showCustomerIdentityFields.value && o?.customerName?.trim())
-})
-
+/** CaptionBar 头像缩写 */
 const captionAvatarChar = computed(() => {
-  const t = captionTitle.value
-  return (t && t[0]) || '销'
+  const code = order.value?.sellOrderCode?.trim()
+  return (code && code[0]) || '销'
+})
+
+const showSoHeaderTags = computed(() => canWriteSo.value || currentTags.value.length > 0)
+
+const soBasicCreateDateText = computed(() => {
+  const o = order.value
+  if (!o?.createTime) return '—'
+  const s = formatDisplayDate(o.createTime)
+  return s === '--' ? '—' : s
+})
+
+const soBasicCreateUserText = computed(() => {
+  const o = order.value as Record<string, unknown> | null | undefined
+  if (!o) return '—'
+  const name = o.createUserName ?? o.CreateUserName ?? o.createdBy
+  const s = name != null ? String(name).trim() : ''
+  return s || '—'
 })
 
 function onHeaderMoreCommand(cmd: string) {
-  if (cmd === 'cancel_order') void handleCancelSalesOrder()
-  else if (cmd === 'delete') void handleDeleteOrder()
+  if (cmd === 'delete') void handleDeleteOrder()
 }
 
 async function handleCancelSalesOrder() {
@@ -2214,6 +2231,7 @@ const handleEdit = () => {
 </script>
 
 <style lang="scss" scoped>
+/* UI：《业务详情页面规范.md》— 区块/Tab 标题栏、Key:Value 并排、§7.4 面板列表、嵌套明细面板 */
 @import '@/assets/styles/variables.scss';
 
 .sales-order-detail {
@@ -2305,7 +2323,30 @@ const handleEdit = () => {
 }
 
 .title-meta--caption {
-  margin-top: 0;
+  margin-top: 4px;
+}
+
+.so-header-meta-row {
+  min-height: 28px;
+}
+
+.so-header-tags-row {
+  flex-shrink: 0;
+}
+
+.so-header-add-tag-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.so-header-add-tag-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1;
 }
 
 .caption-code {
@@ -2323,19 +2364,23 @@ const handleEdit = () => {
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: rgba(200, 220, 240, 0.5);
+  color: #ffc94d;
   cursor: pointer;
   transition: color 0.15s, background 0.15s, transform 0.12s;
 
   .star-icon {
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
     display: block;
   }
 
-  &:hover:not(:disabled) {
-    color: #00d4ff;
-    background: rgba(0, 212, 255, 0.1);
+  &:not(.is-favorite) .star-icon {
+    stroke-dasharray: 3 2.5;
+  }
+
+  &:not(.is-favorite):hover:not(:disabled) {
+    color: #ffd666;
+    background: rgba(255, 201, 77, 0.12);
   }
 
   &:active:not(:disabled) {
@@ -2422,13 +2467,41 @@ const handleEdit = () => {
 }
 
 .btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 8px 14px;
   border-radius: $border-radius-md;
   border: 1px solid $border-panel;
   color: $text-secondary;
   font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
   background: rgba(255,255,255,0.05);
   cursor: pointer;
+  transition: all 0.2s;
+  &:hover {
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(0,212,255,0.25);
+  }
+}
+
+.btn-close-so {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: $border-radius-md;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: $color-amber;
+  border: none;
+  background: transparent;
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+  }
 }
 
 .loading-wrap {
@@ -2449,10 +2522,43 @@ const handleEdit = () => {
 .section-header {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 16px;
   padding: 14px 20px;
   border-bottom: 1px solid rgba(255,255,255,0.05);
-  background: rgba(0,0,0,0.1);
+  background: var(--crm-detail-section-header-bg);
+}
+
+.section-header__main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.section-header__meta {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.section-header-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  &__label {
+    color: $text-muted;
+    &::after {
+      content: '：';
+    }
+  }
+  &__value {
+    color: $text-secondary;
+  }
 }
 
 .section-header--with-inline-code {
@@ -2519,20 +2625,61 @@ const handleEdit = () => {
 }
 
 .info-item {
-  display: grid;
-  grid-template-columns: 84px minmax(0, 1fr);
-  align-items: center;
-  column-gap: 10px;
-  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
   border-bottom: 1px solid rgba(255,255,255,0.04);
   border-right: 1px solid rgba(255,255,255,0.04);
   &:nth-child(4n) { border-right: none; }
 }
 
+.info-grid:not(.info-grid--inline-labels) .info-item {
+  padding: 16px 20px;
+}
+
+.info-grid--inline-labels .info-item {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  .info-label {
+    flex-shrink: 0;
+    white-space: nowrap;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 12px;
+    &::after {
+      content: '：';
+    }
+  }
+  .info-value {
+    flex: 1;
+    min-width: 0;
+    word-break: break-word;
+  }
+}
+
 .info-item--span-all {
   grid-column: 1 / -1;
   border-right: none;
-  align-items: start;
+}
+
+.info-grid--inline-labels .info-item--span-all {
+  align-items: flex-start;
+}
+
+.info-grid--basic {
+  grid-template-columns: repeat(3, 1fr);
+  .info-item {
+    &:nth-child(4n) { border-right: 1px solid rgba(255,255,255,0.04); }
+    &:nth-child(3n) { border-right: none; }
+  }
+  .info-item--basic-full-row {
+    grid-column: 1 / -1;
+    border-right: none;
+  }
+  .info-item--basic-spacer {
+    border-right: none;
+  }
 }
 
 .info-label {
@@ -2597,14 +2744,14 @@ const handleEdit = () => {
   background: $layer-2;
   border: 1px solid $border-card;
   border-radius: $border-radius-lg;
-  padding: 0 20px 20px;
+  overflow: hidden;
 }
 
 .tabs-nav {
   display: flex;
   border-bottom: 1px solid rgba(255,255,255,0.06);
   padding: 0 16px;
-  background: rgba(0,0,0,0.1);
+  background: var(--crm-detail-section-header-bg);
 }
 
 .tab-btn {
@@ -2614,8 +2761,14 @@ const handleEdit = () => {
   border-bottom: 2px solid transparent;
   color: $text-muted;
   font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
   cursor: pointer;
+  transition: all 0.2s;
   margin-bottom: -1px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  &:hover { color: $text-secondary; }
 }
 
 .tab-btn--active {
@@ -2723,21 +2876,12 @@ const handleEdit = () => {
   margin-top: 4px;
 }
 
-.items-table {
-  // 与全站 .crm-items-table 一致：文字色跟随 html[data-theme]（勿写死浅色字，否则浅色主题下看不清）
-  --el-table-border-color: transparent;
-  --el-table-header-bg-color: var(--crm-table-header-bg);
-  --el-table-row-hover-bg-color: var(--crm-table-row-hover);
-  --el-table-bg-color: transparent;
-  --el-table-tr-bg-color: transparent;
-  --el-table-text-color: #{$text-primary};
-  --el-table-header-text-color: #{$text-muted};
+// §7.4 表头/表体基线见 detail-panel-list-table.scss；此处仅 CrmDataTable 操作列等页内扩展
+.detail-items-table-wrap :deep(.items-table) {
   --el-table-fixed-box-shadow: none;
   background: transparent !important;
   :deep(.el-table) {
-    // 与 td/.cell 双保险，避免 EP 默认色在浅色卡片上偏灰、难辨认
-    --el-table-text-color: #{$text-primary};
-    color: $text-primary;
+    color: var(--crm-table-text);
   }
   :deep(.el-table__inner-wrapper) {
     background: transparent;
@@ -2745,30 +2889,6 @@ const handleEdit = () => {
     &::after  { display: none !important; }
   }
   :deep(.el-table__border-left-patch) { display: none !important; }
-  :deep(.el-table__header-wrapper) {
-    th.el-table__cell {
-      background: var(--crm-table-header-bg) !important;
-      border-bottom: 1px solid var(--crm-table-header-line) !important;
-      border-right: none !important;
-      color: $text-muted !important;
-      font-size: 12px;
-      font-weight: 500;
-      letter-spacing: 0.3px;
-    }
-    th.el-table__cell .cell {
-      color: inherit !important;
-    }
-  }
-  :deep(.el-table__body-wrapper .el-table__body tr.el-table__row td.el-table__cell),
-  :deep(.el-table__fixed-body-wrapper .el-table__body tr.el-table__row td.el-table__cell) {
-    color: $text-primary !important;
-    font-size: 13px;
-  }
-  // 正文实际文字多在 .cell 内，须单独拉高对比度（否则仅 td 上色仍可能被 EP 覆盖）
-  :deep(.el-table__body-wrapper .el-table__body tr.el-table__row td.el-table__cell .cell),
-  :deep(.el-table__fixed-body-wrapper .el-table__body tr.el-table__row td.el-table__cell .cell) {
-    color: $text-primary !important;
-  }
   :deep(.el-table__cell) {
     .el-button { white-space: nowrap !important; }
     .cell { white-space: nowrap; }
@@ -2845,7 +2965,7 @@ const handleEdit = () => {
   margin-top: 20px;
   border: 1px solid $border-panel;
   border-radius: $border-radius-md;
-  background: $layer-2;
+  background: var(--crm-detail-panel-card-bg);
   overflow: hidden;
 }
 
@@ -2856,7 +2976,7 @@ const handleEdit = () => {
   flex-wrap: wrap;
   padding: 12px 16px;
   border-bottom: 1px solid $border-panel;
-  background: rgba(0, 212, 255, 0.04);
+  background: var(--crm-detail-panel-card-head-bg);
 }
 
 .so-item-line-detail-panel__title {

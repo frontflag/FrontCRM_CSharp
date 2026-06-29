@@ -238,7 +238,7 @@
     white-space: nowrap !important;
   }
 
-  /* 仅数据格单行；表头见下方，避免列标题被窄宽 + nowrap 截断 */
+  /* 数据格与表头均单行 nowrap */
   .el-table__body-wrapper td.el-table__cell .cell,
   .el-table__fixed-body-wrapper td.el-table__cell .cell {
     white-space: nowrap;
@@ -246,12 +246,10 @@
 
   .el-table__header-wrapper th.el-table__cell .cell,
   .el-table__fixed-header-wrapper th.el-table__cell .cell {
-    white-space: normal !important;
-    word-break: break-word !important;
-    overflow-wrap: anywhere !important;
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
     line-height: 1.35;
-    overflow: visible !important;
-    text-overflow: clip !important;
   }
 
   .el-table__body tr.table-row-pointer {

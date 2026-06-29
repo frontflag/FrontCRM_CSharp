@@ -79,6 +79,7 @@ namespace CRM.API.Extensions
             services.AddScoped<ITagService, TagService>();
             services.AddScoped<ITagApplyService, TagApplyService>();
             services.AddScoped<ITagFilterService, TagFilterService>();
+            services.AddScoped<IRfqTagService, RfqTagService>();
             services.AddScoped<IFavoriteService, FavoriteService>();
             services.AddScoped<ILogRecentService, LogRecentService>();
             services.AddScoped<ILogOperationAppendService, LogOperationAppendService>();

@@ -123,6 +123,10 @@ const toggleTag = (tag: TagDefinitionDto) => {
 const handleEnterCreate = async () => {
   const name = searchText.value.trim();
   if (!name) return;
+  if (props.entityType?.toUpperCase() === 'RFQ' && ['加急', '重点跟进', '需二次寻源', '追单'].includes(name)) {
+    ElMessage.warning('不能与系统预设标签同名');
+    return;
+  }
   // 检查是否已存在同名标签
   const existing = allTags.value.find(t => t.name === name);
   if (existing) {

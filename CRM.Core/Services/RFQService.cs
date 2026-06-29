@@ -26,6 +26,7 @@ namespace CRM.Core.Services
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IUserService _userService;
         private readonly IRepository<Quote> _quoteRepo;
+        private readonly IRepository<RfqCloseRecord> _closeRecordRepo;
         private readonly IRepository<User> _userRepo;
         private readonly IRbacService _rbacService;
         private readonly IRfqPurchaserAssignmentOrchestrator _purchaserAssignmentOrchestrator;
@@ -34,6 +35,7 @@ namespace CRM.Core.Services
         private readonly ILogger<RFQService> _logger;
         private readonly ILogOperationAppendService _logOperationAppend;
         private readonly IBizBrandService _bizBrandService;
+        private readonly IRfqTagService _rfqTagService;
 
         public RFQService(
             IRepository<RFQ> rfqRepo,
@@ -45,6 +47,7 @@ namespace CRM.Core.Services
             IDataPermissionService dataPermissionService,
             IUserService userService,
             IRepository<Quote> quoteRepo,
+            IRepository<RfqCloseRecord> closeRecordRepo,
             IRepository<User> userRepo,
             IRbacService rbacService,
             IRfqPurchaserAssignmentOrchestrator purchaserAssignmentOrchestrator,
@@ -52,7 +55,8 @@ namespace CRM.Core.Services
             IRfqItemListQuery rfqItemListQuery,
             ILogger<RFQService> logger,
             ILogOperationAppendService logOperationAppend,
-            IBizBrandService bizBrandService)
+            IBizBrandService bizBrandService,
+            IRfqTagService rfqTagService)
         {
             _rfqRepo = rfqRepo;
             _itemRepo = itemRepo;
@@ -63,6 +67,7 @@ namespace CRM.Core.Services
             _dataPermissionService = dataPermissionService;
             _userService = userService;
             _quoteRepo = quoteRepo;
+            _closeRecordRepo = closeRecordRepo;
             _userRepo = userRepo;
             _rbacService = rbacService;
             _purchaserAssignmentOrchestrator = purchaserAssignmentOrchestrator;
@@ -71,6 +76,7 @@ namespace CRM.Core.Services
             _logger = logger;
             _logOperationAppend = logOperationAppend;
             _bizBrandService = bizBrandService;
+            _rfqTagService = rfqTagService;
         }
 
         // ─── Create ──────────────────────────────────────────────────────────────
@@ -219,7 +225,10 @@ namespace CRM.Core.Services
             }
 
             if (!string.IsNullOrWhiteSpace(rfq.SalesUserId))
-                rfq.SalesUserName = await _entityLookup.GetUserDisplayNameAsync(rfq.SalesUserId);
+                rfq.SalesUserName = await _entityLookup.GetUserLoginNameAsync(rfq.SalesUserId);
+
+            if (!string.IsNullOrWhiteSpace(rfq.CreateByUserId))
+                rfq.CreateUserName = await _entityLookup.GetUserLoginNameAsync(rfq.CreateByUserId);
 
             if (canViewCustomer && !string.IsNullOrWhiteSpace(rfq.ContactId))
             {
@@ -230,12 +239,15 @@ namespace CRM.Core.Services
 
             foreach (var it in rfq.Items)
             {
-                it.AssignedPurchaserName1 = await _entityLookup.GetUserDisplayNameAsync(it.AssignedPurchaserUserId1);
-                it.AssignedPurchaserName2 = await _entityLookup.GetUserDisplayNameAsync(it.AssignedPurchaserUserId2);
+                it.AssignedPurchaserName1 = await _entityLookup.GetUserLoginNameAsync(it.AssignedPurchaserUserId1);
+                it.AssignedPurchaserName2 = await _entityLookup.GetUserLoginNameAsync(it.AssignedPurchaserUserId2);
             }
 
             if (!string.IsNullOrWhiteSpace(viewerUserId) && !canViewCustomer)
                 MaskRfqCustomerFieldsForViewer(rfq);
+
+            var createByUserIdForTags = rfq.CreateByUserId;
+            var salesUserIdForTags = rfq.SalesUserId;
 
             if (!string.IsNullOrWhiteSpace(viewerUserId))
             {
@@ -245,6 +257,16 @@ namespace CRM.Core.Services
                     rfq.SalesUserId = null;
                     rfq.SalesUserName = null;
                 }
+            }
+
+            if (!string.IsNullOrWhiteSpace(viewerUserId))
+            {
+                rfq.CanViewRfqTags = await _dataPermissionService.CanViewRfqTagsAsync(
+                    viewerUserId, createByUserIdForTags, salesUserIdForTags);
+                rfq.CanEditRfqTags = await _dataPermissionService.CanEditRfqTagsAsync(
+                    viewerUserId, createByUserIdForTags, salesUserIdForTags);
+                if (rfq.CanViewRfqTags)
+                    rfq.Tags = (await _rfqTagService.GetTagsForRfqAsync(id, viewerUserId)).ToList();
             }
 
             return rfq;
@@ -305,7 +327,8 @@ namespace CRM.Core.Services
                 CustomerId = effectiveCustomerIdFilter,
                 StartDate = request.StartDate,
                 EndDate = request.EndDate,
-                CurrentUserId = request.CurrentUserId
+                CurrentUserId = request.CurrentUserId,
+                TagIds = request.TagIds
             };
 
             var page = await _rfqMainListQuery.GetPagedWithAggregatesAsync(queryReq, default);
@@ -365,6 +388,20 @@ namespace CRM.Core.Services
                         it.SalesUserId = null;
                         it.SalesUserName = null;
                     }
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.CurrentUserId) && listItems.Count > 0)
+            {
+                var tagPermissionRows = page.Items.Select(r => (r.Id, r.CreateByUserId, r.SalesUserId));
+                var tagMap = await _rfqTagService.GetTagsForRfqIdsAsync(
+                    listItems.Select(i => i.Id),
+                    request.CurrentUserId,
+                    tagPermissionRows);
+                foreach (var it in listItems)
+                {
+                    if (tagMap.TryGetValue(it.Id, out var tags))
+                        it.Tags = tags.ToList();
                 }
             }
 
@@ -565,6 +602,141 @@ namespace CRM.Core.Services
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
 
             return await GetByIdAsync(rfqId) ?? rfq;
+        }
+
+        /// <inheritdoc />
+        public async Task<RFQItem> MarkNoQuoteAsync(string itemId, string? actingUserId = null)
+        {
+            if (string.IsNullOrWhiteSpace(itemId))
+                throw new ArgumentException("明细ID不能为空");
+
+            var id = itemId.Trim();
+            var item = await _itemRepo.GetByIdAsync(id);
+            if (item == null || item.IsDeleted)
+                throw new InvalidOperationException("需求明细不存在");
+
+            if (item.Status != (short)RfqItemStatus.Pending)
+                throw new InvalidOperationException("仅待报价状态可标记查无报价");
+
+            var quotes = await _quoteRepo.FindAsync(q => q.RFQItemId == id);
+            if (quotes.Any(q => !q.IsDeleted))
+                throw new InvalidOperationException("该明细已有报价记录，无法标记查无报价");
+
+            var rfq = await _rfqRepo.GetByIdAsync(item.RfqId);
+            if (rfq == null)
+                throw new InvalidOperationException("关联需求不存在");
+            if (rfq.Status == (short)RfqMainStatus.Closed || rfq.Status == (short)RfqMainStatus.Cancelled)
+                throw new InvalidOperationException("需求已关闭或已取消，无法操作");
+
+            var actorId = ActingUserIdNormalizer.Normalize(actingUserId);
+            if (string.IsNullOrEmpty(actorId))
+                throw new UnauthorizedAccessException("未登录或无法识别当前用户");
+
+            if (!await _dataPermissionService.CanAccessRFQAsync(actorId, rfq))
+                throw new UnauthorizedAccessException("无权限操作该需求明细");
+
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(actorId);
+            if (!RfqItemQuoteAccessRules.CanQuote(summary, item, actorId))
+                throw new UnauthorizedAccessException("无权标记该需求明细为查无报价");
+
+            item.Status = (short)RfqItemStatus.NoQuoteFound;
+            item.ModifyTime = DateTime.UtcNow;
+            await _itemRepo.UpdateAsync(item);
+            if (_unitOfWork != null)
+                await _unitOfWork.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "需求明细已标记查无报价。RFQItemId={ItemId} RfqId={RfqId} Status={Status}",
+                id, item.RfqId, item.Status);
+
+            return item;
+        }
+
+        /// <inheritdoc />
+        public async Task<RfqCloseRecordListItem> CloseRfqAsync(string rfqId, CloseRfqRequest request, string? actingUserId = null)
+        {
+            if (string.IsNullOrWhiteSpace(rfqId))
+                throw new ArgumentException("ID不能为空");
+            if (request == null || string.IsNullOrWhiteSpace(request.CloseReason))
+                throw new ArgumentException("请填写关闭原因");
+
+            var closeType = request.CloseType;
+            if (closeType is not (1 or 2 or 3 or 9))
+                throw new ArgumentException("关闭类型无效");
+
+            var id = rfqId.Trim();
+            var rfq = await _rfqRepo.GetByIdAsync(id);
+            if (rfq == null)
+                throw new InvalidOperationException("需求不存在");
+
+            if (rfq.Status == (short)RfqMainStatus.Closed || rfq.Status == (short)RfqMainStatus.Cancelled)
+                throw new InvalidOperationException("需求已关闭或已取消，无法重复关闭");
+
+            var actorId = ActingUserIdNormalizer.Normalize(actingUserId);
+            var reason = request.CloseReason.Trim();
+            var record = new RfqCloseRecord
+            {
+                RfqId = id,
+                CloseType = closeType,
+                CloseReason = reason,
+                Remark = string.IsNullOrWhiteSpace(request.Remark) ? null : request.Remark.Trim(),
+                ClosedByUserId = actorId,
+                CreateTime = DateTime.UtcNow,
+            };
+
+            rfq.Status = closeType == 2
+                ? (short)RfqMainStatus.Cancelled
+                : (short)RfqMainStatus.Closed;
+            rfq.ModifyTime = DateTime.UtcNow;
+            rfq.ModifyByUserId = actorId;
+
+            await _closeRecordRepo.AddAsync(record);
+            await _rfqRepo.UpdateAsync(rfq);
+            if (_unitOfWork != null)
+                await _unitOfWork.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "需求已关闭。RfqId={RfqId} CloseType={CloseType} NewStatus={Status} RecordId={RecordId}",
+                id, closeType, rfq.Status, record.Id);
+
+            return await MapCloseRecordAsync(record);
+        }
+
+        /// <inheritdoc />
+        public async Task<IReadOnlyList<RfqCloseRecordListItem>> GetCloseRecordsAsync(string rfqId)
+        {
+            if (string.IsNullOrWhiteSpace(rfqId))
+                return Array.Empty<RfqCloseRecordListItem>();
+
+            var id = rfqId.Trim();
+            var records = (await _closeRecordRepo.FindAsync(r => r.RfqId == id))
+                .OrderByDescending(r => r.CreateTime)
+                .ToList();
+
+            var result = new List<RfqCloseRecordListItem>(records.Count);
+            foreach (var record in records)
+                result.Add(await MapCloseRecordAsync(record));
+            return result;
+        }
+
+        private async Task<RfqCloseRecordListItem> MapCloseRecordAsync(RfqCloseRecord record)
+        {
+            var closedByName = await _entityLookup.GetUserDisplayNameAsync(record.ClosedByUserId);
+            var closedAt = record.CreateTime;
+            return new RfqCloseRecordListItem
+            {
+                Id = record.Id,
+                RfqId = record.RfqId,
+                CloseType = record.CloseType,
+                CloseReason = record.CloseReason,
+                Reason = record.CloseReason,
+                ClosedBy = record.ClosedByUserId,
+                ClosedByName = closedByName,
+                OperatorName = closedByName,
+                ClosedAt = closedAt,
+                CreatedAt = closedAt,
+                Remark = record.Remark,
+            };
         }
 
         private sealed record RfqItemSyncResult(

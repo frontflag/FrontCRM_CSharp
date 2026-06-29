@@ -2063,7 +2063,7 @@ onMounted(() => {
   flex-wrap: wrap;
   padding: 12px 16px;
   border-bottom: 1px solid $border-panel;
-  background: rgba(0, 212, 255, 0.04);
+  background: var(--crm-detail-panel-card-head-bg);
 }
 
 .so-item-line-detail-panel__title {

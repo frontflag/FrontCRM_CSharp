@@ -560,7 +560,7 @@ const stockOutTableColumns = computed<CrmTableColumnDef[]>(() => {
     minWidth: 140,
     showOverflowTooltip: true
   },
-  { key: 'packingCount', label: t('stockOutList.columns.packingCount'), prop: 'packingCount', width: 100, align: 'right' },
+  { key: 'packingCount', label: t('stockOutList.columns.packingCount'), prop: 'packingCount', width: 120, minWidth: 112, align: 'right' },
   { key: 'remark', label: t('stockOutList.columns.remark'), prop: 'remark', minWidth: 160, showOverflowTooltip: true },
   { key: 'createTime', label: t('stockOutList.columns.createTime'), width: 170 },
   { key: 'createUser', label: t('stockOutList.columns.createUser'), width: 120, showOverflowTooltip: true },

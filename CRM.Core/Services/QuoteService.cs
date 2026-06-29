@@ -253,20 +253,22 @@ namespace CRM.Core.Services
                         "需求明细不存在，无法回写状态。RFQItemId={RfqItemId} QuoteId={QuoteId}",
                         rfqItemIdTrim, quote.Id);
                 }
-                else if (rfqItem.Status != 0)
+                else if (rfqItem.Status != (short)RfqItemStatus.Pending
+                         && rfqItem.Status != (short)RfqItemStatus.NoQuoteFound)
                 {
                     _logger.LogInformation(
-                        "需求明细状态非待报价(0)，不覆盖。RFQItemId={RfqItemId} CurrentStatus={Status} QuoteId={QuoteId}",
+                        "需求明细状态非待报价(0)或查无报价(5)，不覆盖。RFQItemId={RfqItemId} CurrentStatus={Status} QuoteId={QuoteId}",
                         rfqItemIdTrim, rfqItem.Status, quote.Id);
                 }
                 else
                 {
-                    rfqItem.Status = 1;
+                    var prevStatus = rfqItem.Status;
+                    rfqItem.Status = (short)RfqItemStatus.Quoted;
                     rfqItem.ModifyTime = DateTime.UtcNow;
                     await _rfqItemRepository.UpdateAsync(rfqItem);
                     _logger.LogInformation(
-                        "需求明细状态已更新：待报价(0)→已报价(1)。RFQItemId={RfqItemId} RfqId={RfqId} QuoteId={QuoteId}",
-                        rfqItemIdTrim, rfqItem.RfqId, quote.Id);
+                        "需求明细状态已更新：{PrevStatus}→已报价(1)。RFQItemId={RfqItemId} RfqId={RfqId} QuoteId={QuoteId}",
+                        prevStatus, rfqItemIdTrim, rfqItem.RfqId, quote.Id);
                 }
             }
 

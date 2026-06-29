@@ -86,7 +86,7 @@ namespace CRM.API.Controllers
                     CurrentUserId = userId
                 };
                 var result = await _service.GetPagedAsync(request);
-                var assistorNameMap = await BuildUserDisplayNameMapAsync(result.Items.Select(x => x.Assistor));
+                var assistorNameMap = await BuildUserDisplayNameMapAsync(result.Items.SelectMany(x => new[] { x.Assistor, x.CreateByUserId }));
                 var customerMap = await LoadCustomerMapForSellOrdersAsync(result.Items, cancellationToken);
                 var items = result.Items
                     .Select(x =>
@@ -99,6 +99,7 @@ namespace CRM.API.Controllers
                             x,
                             summary,
                             assistorUserName: ResolveAssistorDisplayName(x.Assistor, assistorNameMap),
+                            createUserName: ResolveAssistorDisplayName(x.CreateByUserId, assistorNameMap),
                             customer: customer);
                     })
                     .ToList();
@@ -247,7 +248,7 @@ namespace CRM.API.Controllers
 
                 var companyProfile = await CompanyProfileBundleLoader.LoadAsync(_db, _logger, cancellationToken);
                 CompanyProfileBundleLoader.StripSmtpEmail(companyProfile);
-                var reportAssistorMap = await BuildUserDisplayNameMapAsync(new[] { order.Assistor });
+                var reportUserMap = await BuildUserDisplayNameMapAsync(new[] { order.Assistor, order.CreateByUserId });
                 return Ok(new
                 {
                     success = true,
@@ -258,7 +259,8 @@ namespace CRM.API.Controllers
                             summary,
                             itemExtends,
                             stockOutGate,
-                            ResolveAssistorDisplayName(order.Assistor, reportAssistorMap)),
+                            ResolveAssistorDisplayName(order.Assistor, reportUserMap),
+                            ResolveAssistorDisplayName(order.CreateByUserId, reportUserMap)),
                         companyProfile
                     }
                 });
@@ -1132,7 +1134,7 @@ namespace CRM.API.Controllers
                         order.Items.Select(i => i.Id));
                 }
 
-                var assistorNameMap = await BuildUserDisplayNameMapAsync(new[] { order.Assistor });
+                var userDisplayMap = await BuildUserDisplayNameMapAsync(new[] { order.Assistor, order.CreateByUserId });
                 return Ok(new
                 {
                     success = true,
@@ -1141,7 +1143,8 @@ namespace CRM.API.Controllers
                         summary,
                         itemExtends,
                         stockOutGate,
-                        ResolveAssistorDisplayName(order.Assistor, assistorNameMap))
+                        ResolveAssistorDisplayName(order.Assistor, userDisplayMap),
+                        ResolveAssistorDisplayName(order.CreateByUserId, userDisplayMap))
                 });
             }
             catch (Exception ex)
@@ -1158,12 +1161,16 @@ namespace CRM.API.Controllers
                 var orders = await _service.GetByCustomerIdAsync(customerId);
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 var summary = await GetPermissionSummaryAsync(userId);
-                var assistorNameMap = await BuildUserDisplayNameMapAsync(orders.Select(x => x.Assistor));
+                var assistorNameMap = await BuildUserDisplayNameMapAsync(orders.SelectMany(x => new[] { x.Assistor, x.CreateByUserId }));
                 return Ok(new
                 {
                     success = true,
                     data = orders
-                        .Select(x => MaskSalesOrder(x, summary, assistorUserName: ResolveAssistorDisplayName(x.Assistor, assistorNameMap)))
+                        .Select(x => MaskSalesOrder(
+                            x,
+                            summary,
+                            assistorUserName: ResolveAssistorDisplayName(x.Assistor, assistorNameMap),
+                            createUserName: ResolveAssistorDisplayName(x.CreateByUserId, assistorNameMap)))
                         .ToList()
                 });
             }
@@ -1263,7 +1270,7 @@ namespace CRM.API.Controllers
                         loaded.Items.Select(i => i.Id));
                 }
 
-                var createAssistorMap = await BuildUserDisplayNameMapAsync(new[] { loaded.Assistor });
+                var createUserMap = await BuildUserDisplayNameMapAsync(new[] { loaded.Assistor, loaded.CreateByUserId });
                 return CreatedAtAction(nameof(GetById), new { id = loaded.Id },
                     new
                     {
@@ -1273,7 +1280,8 @@ namespace CRM.API.Controllers
                             summary,
                             itemExtends,
                             stockOutGate,
-                            ResolveAssistorDisplayName(loaded.Assistor, createAssistorMap))
+                            ResolveAssistorDisplayName(loaded.Assistor, createUserMap),
+                            ResolveAssistorDisplayName(loaded.CreateByUserId, createUserMap))
                     });
             }
             catch (ArgumentException ex)
@@ -1581,6 +1589,7 @@ namespace CRM.API.Controllers
             IReadOnlyDictionary<string, SellOrderItemExtend>? itemExtends = null,
             IReadOnlyDictionary<string, StockOutApplyPurchaseGateDetailDto>? stockOutApplyPurchaseGateDetails = null,
             string? assistorUserName = null,
+            string? createUserName = null,
             CustomerInfo? customer = null)
         {
             var mask521 = SaleSensitiveFieldMask521.ShouldMask(summary);
@@ -1623,6 +1632,7 @@ namespace CRM.API.Controllers
                 order.CreateTime,
                 order.ModifyTime,
                 order.CreateByUserId,
+                createUserName = createUserName,
                 order.ModifyByUserId,
                 Items = (order.Items ?? Enumerable.Empty<CRM.Core.Models.Sales.SellOrderItem>()).Select(i =>
                 {

@@ -1551,6 +1551,7 @@ const enUS = {
       searchPlaceholder: 'RFQ code / customer / product',
       status: 'Status',
       allStatus: 'All statuses',
+      tags: 'Tags',
       query: 'Search',
       reset: 'Reset'
     },
@@ -1565,6 +1566,7 @@ const enUS = {
       rfqType: 'RFQ Type',
       importance: 'Importance',
       remark: 'Remark',
+      tags: 'Tags',
       salesUser: 'Sales Rep',
       createTime: 'Created At',
       createUser: 'Created By'
@@ -1676,7 +1678,8 @@ const enUS = {
       quoted: 'Quoted',
       accepted: 'Accepted',
       rejected: 'Rejected',
-      closed: 'Closed'
+      closed: 'Closed',
+      noQuote: 'No Quote Found'
     },
     dockQuotes: {
       title: 'Purchase Quotation',
@@ -1701,7 +1704,13 @@ const enUS = {
       layoutStackCompact: 'Stacked: quote panel height fits ~2 quote rows',
       layoutHeaderOnly: 'Collapse quotes panel to header bar only'
     },
-    actions: { column: 'Actions', detail: 'Detail', quote: 'Quote' },
+    actions: { column: 'Actions', detail: 'Detail', quote: 'Quote', markNoQuote: 'No Quote Found' },
+    confirmMarkNoQuote: {
+      title: 'Mark No Quote Found',
+      message: 'Mark this RFQ line as no quote found? You can still create a quote afterward.'
+    },
+    markNoQuoteSuccess: 'Marked as no quote found',
+    markNoQuoteFailed: 'Failed to mark no quote found',
     loadFailed: 'Failed to load RFQ items',
     warnings: {
       missingQuoteId: 'Cannot resolve quote id',
@@ -1973,6 +1982,7 @@ const enUS = {
   },
   rfqDetail: {
     title: 'RFQ Detail',
+    rfqCodePrefix: 'RFQ: ',
     back: 'Back',
     favorite: 'Favorite RFQ',
     unfavorite: 'Unfavorite',
@@ -2000,6 +2010,11 @@ const enUS = {
     closing: 'Closing...',
     confirmClose: 'Confirm Close',
     itemsCount: '{count} items total',
+    itemQuoteStats: {
+      pending: 'Pending quote {count}',
+      quoted: 'Quoted {count}',
+      noQuote: 'No quote found {count}',
+    },
     recommendMeta: 'Recommended · Handling now: {count}',
     sections: { basic: 'Basic Info', rfq: 'RFQ Info', purchaser: 'Purchaser Info' },
     tabs: { items: 'RFQ Items', closeRecords: 'Close Records' },
@@ -2009,6 +2024,8 @@ const enUS = {
       contact: 'Contact',
       contactEmail: 'Contact Email',
       salesUser: 'Sales Rep',
+      createDate: 'Created on',
+      createUser: 'Created by',
       rfqType: 'RFQ Type',
       quoteMethod: 'Quote Method',
       assignMethod: 'Assign Method',
@@ -2043,6 +2060,12 @@ const enUS = {
     targetType: { priceCompare: 'Price Compare', exclusive: 'Exclusive', urgent: 'Urgent', normal: 'Normal' },
     purchaserStatus: { pending: 'Pending', processing: 'Processing', done: 'Done', rejected: 'Rejected' },
     closeType: { normal: 'Normal Close', customerCancel: 'Customer Cancelled', priceMismatch: 'Price Mismatch', other: 'Other' },
+    tags: {
+      label: 'Tags',
+      add: 'Tags',
+      hint: 'Tags are subjective follow-up markers, independent of target type, importance, and RFQ status.',
+      dialogTitle: 'Add tags to RFQ',
+    },
     deleteTitle: 'Delete Confirmation',
     deleteConfirm: 'Delete RFQ "{code}"? This action cannot be undone.',
     confirmDelete: 'Delete',
@@ -3439,6 +3462,27 @@ const enUS = {
     submitAuditSuccess: 'Submitted for review'
   },
   salesOrderDetailView: {
+    captionPrefix: 'Sales order',
+    favorite: 'Favorite',
+    unfavorite: 'Unfavorite',
+    tags: { add: 'Tags' },
+    cancelOrder: 'Cancel order',
+    refresh: 'Refresh',
+    refreshing: 'Refreshing…',
+    edit: 'Edit',
+    more: 'More actions',
+    deleteOrder: 'Delete order',
+    basicInfo: 'Basic info',
+    createDate: 'Created on',
+    createUser: 'Created by',
+    totalAmount: 'Total amount',
+    customerAdvance: 'Customer advance balance',
+    itemRows: 'Line items',
+    deliveryDate: 'Delivery date',
+    createTime: 'Created at',
+    deliveryAddress: 'Delivery address',
+    remark: 'Remark',
+    auditRejectReason: 'Rejection reason',
     tabs: {
       rfqItems: 'RFQ Items',
       quotes: 'Quotes',
@@ -4436,6 +4480,16 @@ const enUS = {
     }
   },
   stockInDetail: {
+    back: 'Back',
+    captionPrefix: 'Stock-in',
+    basicInfo: 'Basic info',
+    createDate: 'Created on',
+    createUser: 'Created by',
+    warehouseName: 'Warehouse name',
+    tabs: {
+      items: 'Stock-in lines',
+      stockItems: 'Inventory lines'
+    },
     fields: {
       originalVendor: 'Original vendor',
       customsArrivalNotify: 'Customs arrival notice',
@@ -4559,6 +4613,8 @@ const enUS = {
       sourceCode: 'Source Request',
       customerName: 'Customer',
       salesUserName: 'Sales Rep',
+      totalQuantity: 'Total quantity',
+      sellOrderItemCode: 'Sales order line no.',
       expectedStockOutDate: 'Expected stock-out date',
       stockOutDate: 'Stock-Out Date',
       packingCount: 'Packing count',
@@ -4726,7 +4782,11 @@ const enUS = {
   },
   stockOutDetail: {
     title: 'Stock-Out Detail',
-    back: 'Back to list',
+    back: 'Back',
+    captionPrefix: 'Stock-out',
+    basicInfo: 'Basic info',
+    createDate: 'Created on',
+    createUser: 'Created by',
     printInvoice: 'Print Invoice',
     save: 'Save',
     saving: 'Saving…',
@@ -4735,12 +4795,17 @@ const enUS = {
     loadFailed: 'Failed to load',
     notFound: 'Stock-out not found',
     needDate: 'Please select stock-out date',
+    noItems: 'No stock-out lines',
     sectionReadonly: 'Overview',
     sectionEditable: 'Editable fields',
     sectionDocs: 'Attachments',
+    tabs: {
+      items: 'Stock-out lines',
+      documents: 'Attachments'
+    },
     docHint: 'Upload multiple files; the list below shows all documents for this stock-out.',
     sourceCode: 'Source request',
-    warehouseCode: 'Warehouse code',
+    warehouseName: 'Warehouse name',
     shipmentMethod: 'Shipment method',
     shipmentPlaceholder: 'Select',
     courierTrackingNo: 'Courier tracking no.',
@@ -5665,11 +5730,20 @@ const enUS = {
   },
   financePaymentDetail: {
     backToList: 'Back to list',
+    back: 'Back',
+    captionPrefix: 'Payment',
     breadcrumb: 'Payments',
     detail: 'Detail',
     basicInfo: 'Basic info',
+    createDate: 'Created on',
+    createUser: 'Created by',
     paymentLines: 'Payment lines',
     tabDocuments: 'Documents',
+    tabs: {
+      items: 'Payment lines',
+      documents: 'Related documents',
+      bankSlip: 'Bank slip'
+    },
     noRelatedPo: 'No linked purchase order on payment lines',
     selectPoForDocs: 'Purchase order',
     poDocSource: 'Documents from PO {code}',
@@ -5889,11 +5963,19 @@ const enUS = {
   },
   financeReceiptDetail: {
     backToList: 'Back to list',
+    back: 'Back',
+    captionPrefix: 'Receipt',
     breadcrumb: 'Receipts',
     detail: 'Detail',
     basicInfo: 'Basic info',
+    createDate: 'Created on',
+    createUser: 'Created by',
     receiptLines: 'Receipt lines',
     bankSlip: 'Bank slip attachments',
+    tabs: {
+      items: 'Receipt lines',
+      bankSlip: 'Bank slip'
+    },
     notFound: 'Receipt not found',
     noItems: 'No lines',
     noAttachments: 'No attachments',

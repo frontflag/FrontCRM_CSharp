@@ -1,0 +1,41 @@
+// ============================================================
+// 《业务详情页面规范》§7.4 面板列表
+// 覆盖 .crm-items-table 默认表头（--crm-table-header-bg）
+// ============================================================
+
+// CrmDataTable 默认套 .table-wrapper（全站列表圆角）；详情页面板列表须直角
+.detail-items-table-wrap > .table-wrapper.crm-items-table.detail-panel-list-table {
+  border-radius: 0;
+  min-height: 0;
+}
+
+.detail-items-table-wrap > .crm-items-table.detail-panel-list-table,
+.so-item-line-detail-panel .so-aggregate-table-wrap {
+  .el-table {
+    --el-table-header-bg-color: var(--crm-detail-panel-card-head-bg);
+    --el-table-row-hover-bg-color: var(--crm-table-row-hover);
+    --el-fill-color-light: var(--crm-detail-panel-card-head-bg);
+  }
+
+  .el-table__header-wrapper th.el-table__cell,
+  .el-table__fixed-header-wrapper th.el-table__cell,
+  .el-table__fixed-right th.el-table__cell {
+    background: var(--crm-detail-panel-card-head-bg) !important;
+    background-color: var(--crm-detail-panel-card-head-bg) !important;
+    border-bottom: 1px solid var(--crm-table-header-line) !important;
+    border-right: none !important;
+    color: var(--crm-table-header-text) !important;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    /* 与嵌套面板裸 el-table 一致；压过 EP size="small" 的 4px 0 */
+    padding: 12px 14px !important;
+  }
+
+  .el-table__header-wrapper th.el-table__cell .cell,
+  .el-table__fixed-header-wrapper th.el-table__cell .cell {
+    color: inherit !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}

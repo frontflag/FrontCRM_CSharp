@@ -1,37 +1,74 @@
 <template>
   <div class="stockin-edit-page" v-loading="detailLoading">
     <div class="page-header">
-      <div class="header-left">
-        <div class="page-title-group">
-          <div class="page-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-              <path d="M3 9h18" />
-              <path d="M9 21V9" />
-            </svg>
+      <template v-if="isCreateMode">
+        <div class="header-left">
+          <div class="page-title-group">
+            <div class="page-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <path d="M3 9h18" />
+                <path d="M9 21V9" />
+              </svg>
+            </div>
+            <h1 class="page-title">新建入库单</h1>
           </div>
-          <h1 class="page-title">{{ isCreateMode ? '新建入库单' : '入库单详情' }}</h1>
-          <span v-if="!isCreateMode && detailStatus !== null" :class="['status-badge', `status-${detailStatus}`]">{{ statusLabel(detailStatus) }}</span>
         </div>
-      </div>
-      <div class="header-right">
-        <button class="btn-secondary" @click="goBack">返回列表</button>
-        <button
-          v-if="isCreateMode && canWriteLogisticsData"
-          class="btn-primary"
-          style="margin-left: 8px"
-          @click="handleSubmit"
-          :disabled="submitting"
-        >
-          {{ submitting ? '保存中...' : '保存并入库' }}
-        </button>
-      </div>
+        <div class="header-right">
+          <button class="btn-secondary" type="button" @click="goBack">返回列表</button>
+          <button
+            v-if="canWriteLogisticsData"
+            class="btn-primary"
+            type="button"
+            @click="handleSubmit"
+            :disabled="submitting"
+          >
+            {{ submitting ? '保存中...' : '保存并入库' }}
+          </button>
+        </div>
+      </template>
+      <template v-else>
+        <div class="header-left">
+          <button class="btn-back" type="button" @click="goBack">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+            {{ t('stockInDetail.back') }}
+          </button>
+          <div class="stockin-caption-title-group">
+            <div class="caption-avatar-lg">{{ stockInCaptionAvatarChar }}</div>
+            <div>
+              <div class="page-title-row">
+                <div class="page-title-with-icons">
+                  <h1 class="page-title" :class="{ 'page-title--muted': detailStatus === 3 }">
+                    {{ t('stockInDetail.captionPrefix') }} {{ form.stockInCode || '—' }}
+                  </h1>
+                  <el-tooltip
+                    v-if="isCustomsStockInDetail && detailArrivalNotifyTooltip"
+                    :content="detailArrivalNotifyTooltip"
+                    placement="top"
+                    :hide-after="0"
+                  >
+                    <span class="customs-notify-tag">{{ t('stockInList.customsNotifyTag') }}</span>
+                  </el-tooltip>
+                </div>
+              </div>
+              <div class="title-meta title-meta--caption stockin-header-meta-row">
+                <el-tag v-if="detailStatus !== null" effect="dark" :type="stockInStatusTagType" size="small">
+                  {{ statusLabel(detailStatus) }}
+                </el-tag>
+                <StockBizTypeTag biz="in" :type="detailStockInType" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
     </div>
 
-    <div class="form-layout">
+    <div v-if="isCreateMode" class="form-layout">
       <div class="form-card">
         <h3 class="section-title">基础信息</h3>
-        <el-form v-if="isCreateMode" :model="form" label-width="90px" class="stockin-form">
+        <el-form :model="form" label-width="90px" class="stockin-form">
           <el-form-item label="入库单号" required>
             <el-input v-model="form.stockInCode" placeholder="如：SIN202603180001" />
           </el-form-item>
@@ -60,56 +97,175 @@
             <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="备注信息" />
           </el-form-item>
         </el-form>
-        <dl v-else class="stockin-report-dl" aria-label="基础信息">
-          <div class="stockin-report-row">
-            <dt>入库单号</dt>
-            <dd class="stockin-code-cell">
-              <span>{{ reportCellText(form.stockInCode) }}</span>
-              <el-tooltip
-                v-if="isCustomsStockInDetail && detailArrivalNotifyTooltip"
-                :content="detailArrivalNotifyTooltip"
-                placement="top"
-                :hide-after="0"
-              >
-                <span class="customs-notify-tag">{{ t('stockInList.customsNotifyTag') }}</span>
-              </el-tooltip>
-            </dd>
+      </div>
+
+      <div class="form-card">
+        <div class="section-header">
+          <h3 class="section-title">入库明细</h3>
+          <button type="button" class="btn-secondary btn-sm" @click="addRow">新增一行</button>
+        </div>
+        <div class="detail-items-table-wrap">
+          <el-table :data="form.items" class="items-table quantum-table" style="width: 100%">
+            <el-table-column type="index" width="50" align="center" />
+            <el-table-column label="物料型号" min-width="168" show-overflow-tooltip>
+              <template #default="{ row }">
+                <el-input
+                  v-model="row.materialCode"
+                  placeholder="物料主数据 Id（UUID）或采购明细行 Id"
+                />
+              </template>
+            </el-table-column>
+            <el-table-column label="品牌" min-width="120" show-overflow-tooltip>
+              <template #default="{ row }">
+                <el-input v-model="row.materialBrand" placeholder="可选" />
+              </template>
+            </el-table-column>
+            <el-table-column label="数量" width="110" align="right" header-align="right">
+              <template #default="{ row }">
+                <el-input-number v-model="row.quantity" :min="0" :step="1" />
+              </template>
+            </el-table-column>
+            <el-table-column label="单位" width="90" align="center" header-align="center">
+              <template #default="{ row }">
+                <el-input v-model="row.unit" placeholder="PCS" />
+              </template>
+            </el-table-column>
+            <el-table-column label="单价" width="120" align="right" header-align="right">
+              <template #default="{ row }">
+                <el-input-number
+                  v-if="!maskPurchaseSensitiveFields"
+                  v-model="row.unitPrice"
+                  :min="0"
+                  :precision="6"
+                  :controls="false"
+                />
+                <span v-else class="stockin-report-cell stockin-report-cell--num">—</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="批次号" width="140" show-overflow-tooltip>
+              <template #default="{ row }">
+                <el-input v-model="row.batchNo" placeholder="批次号" />
+              </template>
+            </el-table-column>
+            <el-table-column label="库位" width="140" show-overflow-tooltip>
+              <template #default="{ row }">
+                <el-input v-model="row.warehouseLocation" placeholder="库位编码" />
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="操作"
+              :width="stockInCreateOpColWidth"
+              :min-width="stockInCreateOpColMinWidth"
+              fixed="right"
+              align="center"
+              class-name="op-col"
+              label-class-name="op-col"
+            >
+              <template #header>
+                <div class="list-op-col-header--icon-only">
+                  <button
+                    type="button"
+                    class="op-col-toggle-btn list-op-col-toggle"
+                    :aria-label="stockInCreateOpColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+                    @click.stop="toggleStockInCreateOpCol"
+                  >
+                    {{ stockInCreateOpColExpanded ? '>' : '<' }}
+                  </button>
+                </div>
+              </template>
+              <template #default="{ $index }">
+                <div @click.stop @dblclick.stop>
+                  <div v-if="stockInCreateOpColExpanded" class="action-btns">
+                    <button v-if="canWriteLogisticsData" type="button" class="action-btn action-btn--danger" @click.stop="removeRow($index)">删除</button>
+                  </div>
+                  <el-dropdown v-else trigger="click" placement="bottom-end">
+                    <div class="op-more-dropdown-trigger">
+                      <button type="button" class="op-more-trigger">...</button>
+                    </div>
+                    <template #dropdown>
+                      <el-dropdown-menu>
+                        <el-dropdown-item v-if="canWriteLogisticsData" @click.stop="removeRow($index)">
+                          <span class="op-more-item op-more-item--danger">删除</span>
+                        </el-dropdown-item>
+                      </el-dropdown-menu>
+                    </template>
+                  </el-dropdown>
+                </div>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+        <div class="table-footer">
+          <div class="total">
+            合计数量：<span>{{ totalQuantityDisplay }}</span>
           </div>
-          <div class="stockin-report-row">
-            <dt>入库类型</dt>
-            <dd>
-              <StockBizTypeTag biz="in" :type="detailStockInType" />
-            </dd>
+        </div>
+      </div>
+    </div>
+
+    <div v-else class="detail-content">
+      <div class="info-section">
+        <div class="section-header">
+          <div class="section-header__main">
+            <div class="section-dot section-dot--cyan"></div>
+            <span class="section-title">{{ t('stockInDetail.basicInfo') }}</span>
           </div>
-          <div class="stockin-report-row">
-            <dt>仓库编号</dt>
-            <dd>{{ reportCellText(displayWarehouseCode) }}</dd>
+          <div class="section-header__meta">
+            <span class="section-header-meta-item">
+              <span class="section-header-meta-item__label">{{ t('stockInDetail.createDate') }}</span>
+              <span class="section-header-meta-item__value">{{ stockInBasicCreateDateText }}</span>
+            </span>
+            <span class="section-header-meta-item">
+              <span class="section-header-meta-item__label">{{ t('stockInDetail.createUser') }}</span>
+              <span class="section-header-meta-item__value">{{ stockInBasicCreateUserText }}</span>
+            </span>
           </div>
-          <div class="stockin-report-row">
-            <dt>{{ isCustomsStockInDetail ? t('stockInDetail.fields.originalVendor') : '供应商名称' }}</dt>
-            <dd>{{ reportCellText(formatRowVendorName({ vendorName: displayVendorName, vendorEnglishName: displayVendorEnglishName })) }}</dd>
+        </div>
+        <div class="info-grid info-grid--inline-labels info-grid--basic">
+          <div class="info-item">
+            <span class="info-label">{{ t('stockInList.columns.stockInType') }}</span>
+            <span class="info-value"><StockBizTypeTag biz="in" :type="detailStockInType" /></span>
           </div>
-          <div class="stockin-report-row">
-            <dt>{{
+          <div class="info-item">
+            <span class="info-label">{{ t('stockInDetail.warehouseName') }}</span>
+            <span class="info-value">{{ detailWarehouseNameText }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">{{ t('stockInList.columns.stockInDate') }}</span>
+            <span class="info-value info-value--time">{{ reportDateTimeText(form.stockInDate) }}</span>
+          </div>
+        </div>
+        <div class="info-grid info-grid--inline-labels info-grid--basic">
+          <div class="info-item">
+            <span class="info-label">{{ isCustomsStockInDetail ? t('stockInDetail.fields.originalVendor') : t('stockInList.columns.vendor') }}</span>
+            <span class="info-value">{{ reportCellText(formatRowVendorName({ vendorName: displayVendorName, vendorEnglishName: displayVendorEnglishName })) }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">{{
               isCustomsStockInDetail
                 ? t('stockInDetail.fields.customsArrivalNotify')
                 : t('stockInDetail.fields.purchaseArrivalNotify')
-            }}</dt>
-            <dd>{{ reportCellText(form.purchaseOrderId) }}</dd>
+            }}</span>
+            <span class="info-value">{{ reportCellText(form.purchaseOrderId) }}</span>
           </div>
-          <div class="stockin-report-row">
-            <dt>入库日期</dt>
-            <dd>{{ reportDateTimeText(form.stockInDate) }}</dd>
+          <div class="info-item info-item--basic-spacer" aria-hidden="true"></div>
+        </div>
+        <div class="info-grid info-grid--inline-labels">
+          <div class="info-item info-item--span-all">
+            <span class="info-label">{{ t('stockInList.columns.remark') }}</span>
+            <span class="info-value">{{ reportCellText(form.remark) }}</span>
           </div>
-          <div class="stockin-report-row stockin-report-row--block">
-            <dt>备注</dt>
-            <dd class="stockin-report-multiline">{{ reportCellText(form.remark) }}</dd>
-          </div>
-        </dl>
+        </div>
       </div>
 
-      <div v-if="isCustomsStockInDetail" class="form-card">
-        <h3 class="section-title">{{ t('stockInDetail.customsSection') }}</h3>
+      <div v-if="isCustomsStockInDetail" class="info-section">
+        <div class="section-header">
+          <div class="section-header__main">
+            <div class="section-dot section-dot--cyan"></div>
+            <span class="section-title">{{ t('stockInDetail.customsSection') }}</span>
+          </div>
+        </div>
+        <div class="info-section__body">
         <div v-if="customsContext?.qcCode" class="stockin-report-row stockin-report-row--inline">
           <span class="customs-meta-label">{{ t('stockInDetail.customsQc') }}</span>
           <router-link
@@ -337,59 +493,70 @@
           </div>
         </div>
         <div v-if="!customsContextItems.length" class="stockin-report-empty">{{ t('stockInDetail.noCustomsItems') }}</div>
+        </div>
       </div>
 
-      <div class="form-card">
-        <div class="section-header">
-          <h3 class="section-title">入库明细</h3>
-          <button v-if="isCreateMode" type="button" class="btn-secondary btn-sm" @click="addRow">新增一行</button>
+      <div class="tabs-section">
+        <div class="tabs-nav">
+          <button
+            type="button"
+            class="tab-btn"
+            :class="{ 'tab-btn--active': detailActiveTab === 'items' }"
+            @click="detailActiveTab = 'items'"
+          >
+            {{ t('stockInDetail.tabs.items') }}
+            <span v-if="form.items?.length" class="tab-count">{{ form.items.length }}</span>
+          </button>
+          <button
+            type="button"
+            class="tab-btn"
+            :class="{ 'tab-btn--active': detailActiveTab === 'stockItems' }"
+            @click="detailActiveTab = 'stockItems'"
+          >
+            {{ t('stockInDetail.tabs.stockItems') }}
+            <span v-if="stockItemRows.length" class="tab-count">{{ stockItemRows.length }}</span>
+          </button>
         </div>
-        <div class="detail-items-table-wrap">
-          <el-table :data="form.items" class="items-table quantum-table" style="width: 100%">
+        <div class="tabs-body">
+          <div v-show="detailActiveTab === 'items'" class="detail-items-table-wrap">
+          <CrmDataTable :data="form.items" class="items-table detail-panel-list-table" size="small" stripe>
             <el-table-column type="index" width="50" align="center" />
-            <el-table-column v-if="!isCreateMode" label="入库明细编号" min-width="148" show-overflow-tooltip>
+            <el-table-column label="入库明细编号" min-width="148" show-overflow-tooltip>
               <template #default="{ row }">
                 <span class="stockin-report-cell">{{ reportCellText(row.stockInItemCode) }}</span>
               </template>
             </el-table-column>
-            <el-table-column v-if="!isCreateMode" label="入库日期" width="148" show-overflow-tooltip>
+            <el-table-column label="入库日期" width="148" show-overflow-tooltip>
               <template #default="{ row }">
                 <span class="stockin-report-cell">{{ reportDateTimeText(row.stockInDate) }}</span>
               </template>
             </el-table-column>
-            <el-table-column v-if="!isCreateMode" label="到货通知单号" min-width="140" show-overflow-tooltip>
+            <el-table-column label="到货通知单号" min-width="140" show-overflow-tooltip>
               <template #default="{ row }">
                 <span class="stockin-report-cell">{{ reportCellText(row.sourceCode) }}</span>
               </template>
             </el-table-column>
-            <el-table-column v-if="!isCreateMode" label="采购订单明细编号" min-width="160" show-overflow-tooltip>
+            <el-table-column label="采购订单明细编号" min-width="160" show-overflow-tooltip>
               <template #default="{ row }">
                 <span class="stockin-report-cell">{{ reportCellText(row.purchaseOrderItemCode) }}</span>
               </template>
             </el-table-column>
-            <el-table-column v-if="!isCreateMode" label="供应商名称" min-width="160" show-overflow-tooltip>
+            <el-table-column label="供应商名称" min-width="160" show-overflow-tooltip>
               <template #default="{ row }">
                 <span class="stockin-report-cell">{{ reportCellText(formatRowVendorName(row)) }}</span>
               </template>
             </el-table-column>
             <el-table-column label="物料型号" min-width="168" show-overflow-tooltip>
               <template #default="{ row }">
-                <el-input
-                  v-if="isCreateMode"
-                  v-model="row.materialCode"
-                  placeholder="物料主数据 Id（UUID）或采购明细行 Id"
-                />
-                <span v-else class="stockin-report-cell">{{ reportCellText(row.materialName) }}</span>
+                <span class="stockin-report-cell">{{ reportCellText(row.materialName) }}</span>
               </template>
             </el-table-column>
             <el-table-column label="品牌" min-width="120" show-overflow-tooltip>
               <template #default="{ row }">
-                <el-input v-if="isCreateMode" v-model="row.materialBrand" placeholder="可选" />
-                <span v-else class="stockin-report-cell">{{ reportCellText(row.materialBrand) }}</span>
+                <span class="stockin-report-cell">{{ reportCellText(row.materialBrand) }}</span>
               </template>
             </el-table-column>
             <el-table-column
-              v-if="!isCreateMode"
               label="采购单价"
               min-width="140"
               align="right"
@@ -417,12 +584,10 @@
             </el-table-column>
             <el-table-column label="数量" width="110" align="right" header-align="right">
               <template #default="{ row }">
-                <el-input-number v-if="isCreateMode" v-model="row.quantity" :min="0" :step="1" />
-                <span v-else class="stockin-report-cell stockin-report-cell--num">{{ reportQtyText(row.quantity) }}</span>
+                <span class="stockin-report-cell stockin-report-cell--num">{{ reportQtyText(row.quantity) }}</span>
               </template>
             </el-table-column>
             <el-table-column
-              v-if="!isCreateMode"
               label="采购总额"
               min-width="140"
               align="right"
@@ -448,52 +613,33 @@
                 <span v-else class="stockin-report-cell">—</span>
               </template>
             </el-table-column>
-            <el-table-column v-if="!isCreateMode" label="地域类型" width="100" align="center" header-align="center">
+            <el-table-column label="地域类型" width="100" align="center" header-align="center">
               <template #default="{ row }">
                 <span class="stockin-report-cell">{{ regionTypeLabel(row.regionType) }}</span>
               </template>
             </el-table-column>
-            <el-table-column v-if="!isCreateMode" label="仓库" width="100" show-overflow-tooltip>
+            <el-table-column label="仓库" width="100" show-overflow-tooltip>
               <template #default="{ row }">
                 <span class="stockin-report-cell">{{ reportCellText(row.warehouseCode) }}</span>
               </template>
             </el-table-column>
-            <el-table-column v-if="!isCreateMode" label="入库类型" width="110" show-overflow-tooltip>
+            <el-table-column label="入库类型" width="110" show-overflow-tooltip>
               <template #default="{ row }">
                 <StockBizTypeTag biz="in" :type="row.stockInType ?? detailStockInType" />
               </template>
             </el-table-column>
-            <el-table-column v-if="isCreateMode" label="单位" width="90" align="center" header-align="center">
-              <template #default="{ row }">
-                <el-input v-model="row.unit" placeholder="PCS" />
-              </template>
-            </el-table-column>
-            <el-table-column v-if="isCreateMode" label="单价" width="120" align="right" header-align="right">
-              <template #default="{ row }">
-                <el-input-number
-                  v-if="!maskPurchaseSensitiveFields"
-                  v-model="row.unitPrice"
-                  :min="0"
-                  :precision="6"
-                  :controls="false"
-                />
-                <span v-else class="stockin-report-cell stockin-report-cell--num">—</span>
-              </template>
-            </el-table-column>
             <el-table-column label="批次号" width="140" show-overflow-tooltip>
               <template #default="{ row }">
-                <el-input v-if="isCreateMode" v-model="row.batchNo" placeholder="批次号" />
-                <span v-else class="stockin-report-cell">{{ reportCellText(row.batchNo) }}</span>
+                <span class="stockin-report-cell">{{ reportCellText(row.batchNo) }}</span>
               </template>
             </el-table-column>
             <el-table-column label="库位" width="140" show-overflow-tooltip>
               <template #default="{ row }">
-                <el-input v-if="isCreateMode" v-model="row.warehouseLocation" placeholder="库位编码" />
-                <span v-else class="stockin-report-cell">{{ reportCellText(row.warehouseLocation) }}</span>
+                <span class="stockin-report-cell">{{ reportCellText(row.warehouseLocation) }}</span>
               </template>
             </el-table-column>
             <el-table-column
-              v-if="!isCreateMode && detailStatus === 2"
+              v-if="detailStatus === 2"
               label="操作"
               :width="stockInReportOpColWidth"
               :min-width="stockInReportOpColMinWidth"
@@ -535,63 +681,16 @@
                 </div>
               </template>
             </el-table-column>
-            <el-table-column
-              v-if="isCreateMode"
-              label="操作"
-              :width="stockInCreateOpColWidth"
-              :min-width="stockInCreateOpColMinWidth"
-              fixed="right"
-              align="center"
-              class-name="op-col"
-              label-class-name="op-col"
-            >
-              <template #header>
-                <div class="list-op-col-header--icon-only">
-            <button
-              type="button"
-              class="op-col-toggle-btn list-op-col-toggle"
-              :aria-label="stockInCreateOpColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
-              @click.stop="toggleStockInCreateOpCol"
-            >
-              {{ stockInCreateOpColExpanded ? '>' : '<' }}
-            </button>
+          </CrmDataTable>
           </div>
-              </template>
-              <template #default="{ $index }">
-                <div @click.stop @dblclick.stop>
-                  <div v-if="stockInCreateOpColExpanded" class="action-btns">
-                    <button v-if="canWriteLogisticsData" type="button" class="action-btn action-btn--danger" @click.stop="removeRow($index)">删除</button>
-                  </div>
-                  <el-dropdown v-else trigger="click" placement="bottom-end">
-                    <div class="op-more-dropdown-trigger">
-                      <button type="button" class="op-more-trigger">...</button>
-                    </div>
-                    <template #dropdown>
-                      <el-dropdown-menu>
-                        <el-dropdown-item v-if="canWriteLogisticsData" @click.stop="removeRow($index)">
-                          <span class="op-more-item op-more-item--danger">删除</span>
-                        </el-dropdown-item>
-                      </el-dropdown-menu>
-                    </template>
-                  </el-dropdown>
-                </div>
-              </template>
-            </el-table-column>
-          </el-table>
-        </div>
-        <div class="table-footer">
-          <div class="total">
-            合计数量：<span>{{ totalQuantityDisplay }}</span>
+          <div v-show="detailActiveTab === 'items'" class="table-footer">
+            <div class="total">
+              合计数量：<span>{{ totalQuantityDisplay }}</span>
+            </div>
           </div>
-        </div>
-      </div>
 
-      <div v-if="!isCreateMode" class="form-card">
-        <div class="section-header">
-          <h3 class="section-title">库存明细</h3>
-        </div>
-        <div class="detail-items-table-wrap stockin-stock-items-table-wrap">
-          <el-table :data="stockItemRows" class="items-table quantum-table" style="width: 100%">
+          <div v-show="detailActiveTab === 'stockItems'" class="detail-items-table-wrap stockin-stock-items-table-wrap">
+          <CrmDataTable :data="stockItemRows" class="items-table detail-panel-list-table" size="small" stripe>
             <el-table-column type="index" width="50" align="center" fixed="left" />
             <el-table-column label="库存明细编号" min-width="150" show-overflow-tooltip fixed="left">
               <template #default="{ row }">
@@ -770,8 +869,9 @@
                 <span class="stockin-report-cell">{{ reportProductionDateText(row.productionDate) }}</span>
               </template>
             </el-table-column>
-          </el-table>
+          </CrmDataTable>
           <div v-if="!stockItemRows.length" class="stockin-report-empty">暂无对应库存明细</div>
+          </div>
         </div>
       </div>
     </div>
@@ -803,6 +903,7 @@ import {
 } from '@/api/stockIn'
 import { inventoryCenterApi, type StockItemListRow } from '@/api/inventoryCenter'
 import StockInBatchImportDialog from '@/components/Inventory/StockInBatchImportDialog.vue'
+import CrmDataTable from '@/components/CrmDataTable.vue'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { formatVendorNameReadonly } from '@/utils/vendorDisplayName'
@@ -819,6 +920,7 @@ import {
   unitPriceDockHasValue
 } from '@/utils/moneyFormat'
 import { useI18n } from 'vue-i18n'
+import { formatDisplayDate } from '@/utils/displayDateTime'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
@@ -832,6 +934,8 @@ const detailLoading = ref(false)
 const detailStatus = ref<number | null>(null)
 /** 详情页展示：仓库编号（非 UUID） */
 const displayWarehouseCode = ref('')
+/** 详情页展示：仓库名称 */
+const displayWarehouseName = ref('')
 /** 详情页展示：供应商名称 */
 const displayVendorName = ref('')
 const displayVendorEnglishName = ref('')
@@ -839,6 +943,9 @@ const displayVendorEnglishName = ref('')
 const detailStockInType = ref(0)
 const detailSourceDisplayNo = ref('')
 const detailRegionType = ref(REGION_TYPE_DOMESTIC)
+const detailCreateTime = ref('')
+const detailCreateUserName = ref('')
+const detailActiveTab = ref<'items' | 'stockItems'>('items')
 const stockItemRows = ref<StockItemListRow[]>([])
 const customsContext = ref<StockInCustomsContextDto | null>(null)
 
@@ -847,6 +954,35 @@ const batchImportItemId = ref('')
 const batchImportItemCode = ref('')
 
 const isCreateMode = computed(() => route.name === 'StockInCreate')
+
+const stockInCaptionAvatarChar = computed(() => {
+  const c = form.stockInCode?.trim()
+  return c ? c[0]! : '入'
+})
+
+const stockInBasicCreateDateText = computed(() => {
+  if (!detailCreateTime.value) return '—'
+  const s = formatDisplayDate(detailCreateTime.value)
+  return s === '--' ? '—' : s
+})
+
+const stockInBasicCreateUserText = computed(() => detailCreateUserName.value.trim() || '—')
+
+const detailWarehouseNameText = computed(() => {
+  const name = displayWarehouseName.value.trim()
+  if (name) return name
+  const code = displayWarehouseCode.value.trim()
+  return code || '—'
+})
+
+const stockInStatusTagType = computed((): '' | 'success' | 'warning' | 'info' | 'danger' => {
+  const s = detailStatus.value
+  if (s === 0) return 'info'
+  if (s === 1) return 'warning'
+  if (s === 2) return 'success'
+  if (s === 3) return 'danger'
+  return 'info'
+})
 
 /** 《列表操作列规范》：新建明细行 / 详情行内操作 */
 const stockInReportOpColExpanded = ref(false)
@@ -892,11 +1028,15 @@ const form = reactive<CreateStockInRequest>({
 function resetCreateForm() {
   detailStatus.value = null
   displayWarehouseCode.value = ''
+  displayWarehouseName.value = ''
   displayVendorName.value = ''
   displayVendorEnglishName.value = ''
   detailStockInType.value = 0
   detailSourceDisplayNo.value = ''
   detailRegionType.value = REGION_TYPE_DOMESTIC
+  detailCreateTime.value = ''
+  detailCreateUserName.value = ''
+  detailActiveTab.value = 'items'
   form.stockInCode = ''
   form.purchaseOrderId = ''
   form.vendorId = ''
@@ -933,11 +1073,14 @@ function extractDetailItemRows(d: StockInDto): Record<string, unknown>[] {
 function applyDetailToForm(d: StockInDto) {
   const r = d as unknown as Record<string, unknown>
   detailStatus.value = d.status ?? null
+  detailCreateTime.value = d.createTime ?? ''
+  detailCreateUserName.value = pickStr(r, 'createUserName', 'CreateUserName')
   form.stockInCode = d.stockInCode ?? ''
   form.warehouseId = d.warehouseId ?? ''
   form.vendorId = d.vendorId ?? ''
   const wh = pickStr(r, 'detailWarehouseCode', 'DetailWarehouseCode')
   displayWarehouseCode.value = wh || (form.warehouseId ? String(form.warehouseId) : '—')
+  displayWarehouseName.value = pickStr(r, 'detailWarehouseName', 'DetailWarehouseName')
   const vn = pickStr(r, 'detailVendorName', 'DetailVendorName')
   displayVendorName.value = vn || (form.vendorId ? String(form.vendorId) : '—')
   displayVendorEnglishName.value = pickStr(r, 'vendorEnglishName', 'VendorEnglishName', 'detailVendorEnglishName', 'DetailVendorEnglishName')
@@ -1063,15 +1206,15 @@ watch(
 const statusLabel = (s: number) => {
   switch (s) {
     case 0:
-      return '草稿'
+      return t('stockInList.status.draft')
     case 1:
-      return '待入库'
+      return t('stockInList.status.pending')
     case 2:
-      return '已入库'
+      return t('stockInList.status.done')
     case 3:
-      return '已取消'
+      return t('stockInList.status.cancelled')
     default:
-      return '未知'
+      return String(s)
   }
 }
 
@@ -1364,6 +1507,301 @@ function openBatchImport(row: StockInItemDto) {
   background: $layer-1;
   font-family: 'Noto Sans SC', sans-serif;
 }
+
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-muted;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.07);
+    color: $text-secondary;
+    border-color: rgba(0, 212, 255, 0.2);
+  }
+}
+
+.stockin-caption-title-group {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.caption-avatar-lg {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.3), rgba(0, 212, 255, 0.2));
+  border: 1px solid rgba(0, 212, 255, 0.25);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 700;
+  color: $cyan-primary;
+  flex-shrink: 0;
+}
+
+.page-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.page-title-with-icons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.title-meta--caption {
+  margin-top: 4px;
+}
+
+.stockin-header-meta-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-height: 28px;
+}
+
+.detail-content {
+  min-height: 200px;
+}
+
+.info-section {
+  background: $layer-2;
+  border: 1px solid $border-card;
+  border-radius: $border-radius-lg;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.info-section__body {
+  padding: 16px 20px 20px;
+}
+
+.section-header__main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.section-header__meta {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.section-header-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  &__label {
+    color: $text-muted;
+    &::after {
+      content: '：';
+    }
+  }
+  &__value {
+    color: $text-secondary;
+  }
+}
+
+.section-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  &--cyan {
+    background: $cyan-primary;
+    box-shadow: 0 0 6px rgba(0, 212, 255, 0.6);
+  }
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-right: 1px solid rgba(255, 255, 255, 0.04);
+  &:nth-child(3n) {
+    border-right: none;
+  }
+}
+
+.info-grid:not(.info-grid--inline-labels) .info-item {
+  padding: 16px 20px;
+}
+
+.info-grid--inline-labels .info-item {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  .info-label {
+    flex-shrink: 0;
+    white-space: nowrap;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 12px;
+    &::after {
+      content: '：';
+    }
+  }
+  .info-value {
+    flex: 1;
+    min-width: 0;
+    word-break: break-word;
+  }
+}
+
+.info-grid--basic {
+  .info-item {
+    &:nth-child(3n) {
+      border-right: none;
+    }
+  }
+  .info-item--basic-spacer {
+    border-right: none;
+  }
+}
+
+.info-grid--inline-labels .info-item--span-all {
+  grid-column: 1 / -1;
+  border-right: none;
+}
+
+.info-label {
+  font-size: 11px;
+  color: $text-muted;
+}
+
+.info-value {
+  font-size: 13px;
+  color: $text-secondary;
+  &--time {
+    font-size: 12px;
+    color: $text-muted;
+  }
+}
+
+.tabs-section {
+  background: $layer-2;
+  border: 1px solid $border-card;
+  border-radius: $border-radius-lg;
+  overflow: hidden;
+}
+
+.tabs-nav {
+  display: flex;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 0 16px;
+  background: var(--crm-detail-section-header-bg);
+}
+
+.tab-btn {
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: $text-muted;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: -1px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  &:hover {
+    color: $text-secondary;
+  }
+  &--active {
+    color: $cyan-primary;
+    border-bottom-color: $cyan-primary;
+  }
+}
+
+.tab-count {
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(0, 212, 255, 0.1);
+  color: $cyan-primary;
+}
+
+.tabs-body {
+  padding: 20px;
+}
+
+.detail-items-table-wrap {
+  margin-top: 4px;
+}
+
+// §7.4 表头/表体基线见 detail-panel-list-table.scss；此处仅 CrmDataTable 操作列等页内扩展
+.detail-items-table-wrap :deep(.items-table) {
+  --el-table-border-color: transparent;
+  --el-table-fixed-box-shadow: none;
+  background: transparent !important;
+  :deep(.el-table) {
+    color: var(--crm-table-text);
+  }
+  :deep(.el-table__inner-wrapper) {
+    background: transparent;
+    &::before {
+      display: none !important;
+    }
+    &::after {
+      display: none !important;
+    }
+  }
+  :deep(.el-table__border-left-patch) {
+    display: none !important;
+  }
+  :deep(.el-table__cell) {
+    .el-button {
+      white-space: nowrap !important;
+    }
+    .cell {
+      white-space: nowrap;
+    }
+  }
+}
+
+/* 库存明细列多：横向滚动 + 表头单行不换行 */
+.stockin-stock-items-table-wrap {
+  overflow-x: auto;
+  :deep(.items-table .el-table__header-wrapper th.el-table__cell .cell) {
+    white-space: nowrap;
+    word-break: keep-all;
+    line-height: 1.35;
+  }
+}
+
 .page-header {
   display: flex;
   align-items: center;
@@ -1429,7 +1867,11 @@ function openBatchImport(row: StockInItemDto) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  gap: 16px;
+  padding: 14px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--crm-detail-section-header-bg);
+  margin-bottom: 0;
   .section-title {
     margin: 0;
   }
@@ -1558,82 +2000,6 @@ function openBatchImport(row: StockInItemDto) {
   white-space: nowrap;
   flex-shrink: 0;
   &:hover { text-decoration: underline; }
-}
-
-/* 与订单详情「订单明细」表头/行样式一致（业务列表范式） */
-.detail-items-table-wrap {
-  margin-top: 4px;
-}
-
-/* 库存明细列多：横向滚动 + 表头单行不换行 */
-.stockin-stock-items-table-wrap {
-  overflow-x: auto;
-  .items-table {
-    :deep(.el-table__header-wrapper th.el-table__cell .cell) {
-      white-space: nowrap;
-      word-break: keep-all;
-      line-height: 1.35;
-    }
-  }
-}
-
-.items-table {
-  --el-table-border-color: transparent;
-  --el-table-header-bg-color: var(--crm-table-header-bg);
-  --el-table-row-hover-bg-color: var(--crm-table-row-hover);
-  --el-table-bg-color: transparent;
-  --el-table-tr-bg-color: transparent;
-  --el-table-text-color: #{$text-primary};
-  --el-table-header-text-color: #{$text-muted};
-  --el-table-fixed-box-shadow: none;
-  background: transparent !important;
-  :deep(.el-table) {
-    --el-table-text-color: #{$text-primary};
-    color: $text-primary;
-  }
-  :deep(.el-table__inner-wrapper) {
-    background: transparent;
-    &::before {
-      display: none !important;
-    }
-    &::after {
-      display: none !important;
-    }
-  }
-  :deep(.el-table__border-left-patch) {
-    display: none !important;
-  }
-  :deep(.el-table__header-wrapper) {
-    th.el-table__cell {
-      background: var(--crm-table-header-bg) !important;
-      border-bottom: 1px solid var(--crm-table-header-line) !important;
-      border-right: none !important;
-      color: $text-muted !important;
-      font-size: 12px;
-      font-weight: 500;
-      letter-spacing: 0.3px;
-    }
-    th.el-table__cell .cell {
-      color: inherit !important;
-    }
-  }
-  :deep(.el-table__body-wrapper .el-table__body tr.el-table__row td.el-table__cell),
-  :deep(.el-table__fixed-body-wrapper .el-table__body tr.el-table__row td.el-table__cell) {
-    color: $text-primary !important;
-    font-size: 13px;
-  }
-  :deep(.el-table__body-wrapper .el-table__body tr.el-table__row td.el-table__cell .cell),
-  :deep(.el-table__fixed-body-wrapper .el-table__body tr.el-table__row td.el-table__cell .cell) {
-    color: $text-primary !important;
-  }
-  :deep(.el-table__cell) {
-    .el-button {
-      white-space: nowrap !important;
-    }
-    .cell {
-      white-space: nowrap;
-    }
-  }
 }
 
 .stockin-code-cell {

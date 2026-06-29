@@ -1,6 +1,6 @@
 <template>
   <div class="customer-detail-page">
-    <!-- 页面头部 -->
+    <!-- 页面头部（《业务详情页面规范》§3.7 主数据类 CaptionBar） -->
     <div class="page-header">
       <div class="header-left">
         <button class="btn-back" @click="goBack">
@@ -30,46 +30,54 @@
                   :blacklist="!!customer.blackList"
                   size="md"
                 />
-              </div>
-              <button
-                v-if="customer"
-                type="button"
-                class="btn-favorite-star"
-                :class="{ 'is-favorite': isFavorite }"
-                :disabled="favoriteLoading"
-                :title="isFavorite ? '取消收藏' : '收藏'"
-                :aria-label="isFavorite ? '取消收藏' : '收藏客户'"
-                :aria-pressed="isFavorite"
-                @click="toggleFavorite"
-              >
-                <!-- 未收藏：空心星 -->
-                <svg
-                  v-if="!isFavorite"
-                  class="star-icon"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.75"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
+                <button
+                  v-if="customer"
+                  type="button"
+                  class="btn-favorite-star"
+                  :class="{ 'is-favorite': isFavorite }"
+                  :disabled="favoriteLoading"
+                  :title="isFavorite ? '取消收藏' : '收藏'"
+                  :aria-label="isFavorite ? '取消收藏' : '收藏客户'"
+                  :aria-pressed="isFavorite"
+                  @click="toggleFavorite"
                 >
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                </svg>
-                <!-- 已收藏：实心星 -->
-                <svg v-else class="star-icon star-icon--solid" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                </svg>
-              </button>
+                  <!-- 未收藏：空心星 -->
+                  <svg
+                    v-if="!isFavorite"
+                    class="star-icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.75"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                  </svg>
+                  <!-- 已收藏：实心星 -->
+                  <svg v-else class="star-icon star-icon--solid" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                  </svg>
+                </button>
+                <div v-if="showCustomerHeaderTags" class="customer-header-tags-row tags-row">
+                  <TagListDisplay v-if="customerTags.length" :tags="customerTags" />
+                  <button
+                    v-if="canWriteSaleData"
+                    type="button"
+                    class="btn-secondary customer-header-add-tag-btn"
+                    @click="showTagDialog = true"
+                  >
+                    <span class="customer-header-add-tag-icon" aria-hidden="true">±</span>
+                    标签
+                  </button>
+                </div>
+              </div>
             </div>
-            <div class="title-meta">
+            <div class="title-meta title-meta--caption customer-header-meta-row">
               <span class="customer-code">{{ detailCustomerCodeDisplay }}</span>
               <span v-if="customer?.customerLevel" class="level-badge" :class="`level-${customer.customerLevel?.toLowerCase()}`">
                 {{ customerDict.levelLabel(customer.customerLevel) }}
               </span>
-            </div>
-            <div class="title-tags-row">
-              <TagListDisplay :tags="customerTags" />
-              <button v-if="canWriteSaleData" class="btn-add-tag" @click="showTagDialog = true">添加标签</button>
             </div>
           </div>
         </div>
@@ -102,7 +110,7 @@
             </el-dropdown-menu>
           </template>
         </el-dropdown>
-        <button v-if="canWriteSaleData && canCreateRfqFromCustomer" class="btn-success" type="button" @click="handleCreateRfq">
+        <button v-if="canWriteSaleData && canCreateRfqFromCustomer" class="btn-secondary btn-create-rfq" type="button" @click="handleCreateRfq">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
             <polyline points="14 2 14 8 20 8"/>
@@ -119,91 +127,79 @@
         <!-- 基本信息卡片 -->
         <div class="info-section">
           <div class="section-header">
-            <div class="section-dot section-dot--cyan"></div>
-            <span class="section-title">基本信息</span>
-          </div>
-          <div class="info-grid">
-            <div class="info-item">
-              <span class="info-label">客户编号</span>
-              <span class="info-value info-value--code">{{ customer.customerCode }}</span>
+            <div class="section-header__main">
+              <div class="section-dot section-dot--cyan"></div>
+              <span class="section-title">基本信息</span>
             </div>
+            <div class="section-header__meta">
+              <span class="section-header-meta-item">
+                <span class="section-header-meta-item__label">创建日期</span>
+                <span class="section-header-meta-item__value">{{ customerBasicCreateDateText }}</span>
+              </span>
+              <span class="section-header-meta-item">
+                <span class="section-header-meta-item__label">创建人</span>
+                <span class="section-header-meta-item__value">{{ customerBasicCreateUserText }}</span>
+              </span>
+            </div>
+          </div>
+          <div class="info-grid info-grid--inline-labels info-grid--basic">
             <div class="info-item">
-              <span class="info-label">客户名称</span>
+              <span class="info-label">中文全称</span>
               <span
                 class="info-value"
                 :class="{
                   'info-value--party-muted':
                     customer.disenableStatus || customer.blackList
                 }"
-              >{{ detailCustomerNameDisplay }}</span>
+              >{{ maskSaleSensitiveFields ? '—' : (customer.customerName?.trim() || '—') }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">英文全称</span>
+              <span class="info-value">{{ maskSaleSensitiveFields ? '—' : (customer.englishOfficialName?.trim() || '—') }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">简称</span>
+              <span class="info-value">{{ maskSaleSensitiveFields ? '—' : (customer.customerShortName?.trim() || '—') }}</span>
+            </div>
+          </div>
+          <div class="info-grid info-grid--inline-labels info-grid--basic">
+            <div class="info-item">
+              <span class="info-label">客户等级</span>
+              <span class="info-value">{{ customerLevelDisplayText }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">客户类型</span>
-              <span class="info-value">{{ customerDict.typeLabel(customer.customerType ?? 0) }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">统一社会信用代码</span>
-              <span class="info-value info-value--code">{{ customer.unifiedSocialCreditCode || '--' }}</span>
+              <span class="info-value">{{ customerTypeDisplayText }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">行业</span>
-              <span class="info-value">{{ customerDict.industryLabel(customer.industry) }}</span>
+              <span class="info-value">{{ customerIndustryDisplayText }}</span>
             </div>
+          </div>
+          <div class="info-grid info-grid--inline-labels info-grid--basic">
             <div class="info-item">
               <span class="info-label">地区</span>
-              <span class="info-value">{{ customer.region || '--' }}</span>
+              <span class="info-value">{{ customer.region?.trim() || '—' }}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">所属业务员</span>
-              <span class="info-value">{{ maskSaleSensitiveFields ? '—' : customer.salesPersonName || '--' }}</span>
+              <span class="info-label">社会信用代码</span>
+              <span class="info-value info-value--code">{{ customer.unifiedSocialCreditCode?.trim() || '—' }}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">信用额度</span>
-              <span class="info-value">
-                <template v-if="maskSaleSensitiveFields">—</template>
-                <template v-else-if="customerDisplayCreditLimit !== null">
-                  <span class="amount-with-code">
-                    <span>{{ formatTotalAmountNumber(customerDisplayCreditLimit) }}</span>
-                    <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(customerDisplayCurrency)]">
-                      {{ listAmountCurrencyIso(customerDisplayCurrency) }}
-                    </span>
-                  </span>
-                </template>
-                <template v-else>—</template>
-              </span>
+              <span class="info-label">业务员</span>
+              <span class="info-value">{{ maskSaleSensitiveFields ? '—' : (customer.salesPersonName?.trim() || '—') }}</span>
             </div>
-            <div class="info-item">
-              <span class="info-label">账期(天)</span>
-              <span class="info-value">{{ customer.paymentTerms || 0 }}</span>
+          </div>
+          <div class="info-grid info-grid--inline-labels">
+            <div class="info-item info-item--span-all">
+              <span class="info-label">公司介绍</span>
+              <span class="info-value">{{ customerCompanyInfoText }}</span>
             </div>
-            <div class="info-item">
-              <span class="info-label">账户余额</span>
-              <span
-                class="info-value"
-                :class="{
-                  'amount-negative':
-                    !maskSaleSensitiveFields && customerDisplayBalance !== null && customerDisplayBalance < 0
-                }"
-              >
-                <template v-if="maskSaleSensitiveFields">—</template>
-                <template v-else-if="customerDisplayBalance !== null">
-                  <span class="amount-with-code">
-                    <span>{{ formatTotalAmountNumber(customerDisplayBalance) }}</span>
-                    <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(customerDisplayCurrency)]">
-                      {{ listAmountCurrencyIso(customerDisplayCurrency) }}
-                    </span>
-                  </span>
-                </template>
-                <template v-else>—</template>
-              </span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">创建时间</span>
-              <span class="info-value info-value--time">{{ formatDateTime(customer.createdAt) }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">更新时间</span>
-              <span class="info-value info-value--time">{{ formatDateTime(customer.updatedAt) }}</span>
+          </div>
+          <div class="info-grid info-grid--inline-labels">
+            <div class="info-item info-item--span-all">
+              <span class="info-label">备注</span>
+              <span class="info-value">{{ customer.remarks?.trim() || '—' }}</span>
             </div>
           </div>
         </div>
@@ -553,7 +549,7 @@
                 <p>暂无操作记录</p>
               </div>
               <div v-if="operationLogs.length > 0">
-                <div class="section-header" style="padding:8px 0 10px;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:12px">
+                <div class="section-header section-header--inline">
                   <div class="section-dot section-dot--cyan"></div>
                   <span class="section-title">操作日志</span>
                 </div>
@@ -574,7 +570,7 @@
                 </div>
               </div>
               <div v-if="fieldChangeLogs.length > 0" style="margin-top:20px">
-                <div class="section-header" style="padding:8px 0 10px;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:12px">
+                <div class="section-header section-header--inline">
                   <div class="section-dot section-dot--cyan"></div>
                   <span class="section-title">字段变更日志</span>
                 </div>
@@ -742,7 +738,7 @@ import AddressDialog from './components/AddressDialog.vue';
 import BankDialog from './components/BankDialog.vue';
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue';
 import DocumentListPanel from '@/components/Document/DocumentListPanel.vue';
-import { formatDisplayDateTime } from '@/utils/displayDateTime';
+import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime';
 import { parseApiBoolean } from '@/utils/parseApiBoolean';
 import { operationBizTypeLabel } from '@/utils/businessLogLabels';
 import { CUSTOMER_FAVORITES_CHANGED_EVENT } from '@/constants/customerFavorites';
@@ -752,7 +748,6 @@ import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency';
 import { isDistrictPlaceholder } from '@/constants/region';
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask';
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly';
-import { formatTotalAmountNumber, listAmountCurrencyDockClass, listAmountCurrencyIso } from '@/utils/moneyFormat';
 import AiEntityCreateHost from '@/components/AiCreate/AiEntityCreateHost.vue';
 import { AI_PERMISSION_ENTITY_PARSE_CUSTOMER_CONTACT, AI_PERMISSION_ENTITY_PARSE_CUSTOMER_ADDRESS } from '@/api/ai';
 
@@ -787,9 +782,6 @@ const customer = ref<Customer | null>(null);
 const detailCustomerTitle = computed(() =>
   maskSaleSensitiveFields.value ? '客户详情' : customer.value?.customerName?.trim() || '客户详情'
 );
-const detailCustomerNameDisplay = computed(() =>
-  maskSaleSensitiveFields.value ? '—' : customer.value?.customerName?.trim() || '—'
-);
 const detailCustomerCodeDisplay = computed(() =>
   maskSaleSensitiveFields.value ? '—' : customer.value?.customerCode?.trim() || '—'
 );
@@ -799,7 +791,44 @@ const detailAvatarChar = computed(() => {
   return (n && n[0]) || '?';
 });
 
+const customerBasicCreateDateText = computed(() => {
+  const c = customer.value;
+  const raw = c?.createdAt ?? c?.createTime;
+  if (!raw) return '—';
+  const s = formatDisplayDate(raw);
+  return s === '--' ? '—' : s;
+});
+
+const customerBasicCreateUserText = computed(() => {
+  const c = customer.value as Record<string, unknown> | null | undefined;
+  if (!c) return '—';
+  const name = c.createUserName ?? c.CreateUserName ?? c.createdBy ?? c.salesPersonName;
+  const s = name != null ? String(name).trim() : '';
+  return s || '—';
+});
+
+function customerDictDisplay(label: string) {
+  return label === '--' ? '—' : label;
+}
+
+const customerLevelDisplayText = computed(() =>
+  customerDictDisplay(customerDict.levelLabel(customer.value?.customerLevel))
+);
+const customerTypeDisplayText = computed(() =>
+  customerDictDisplay(customerDict.typeLabel(customer.value?.customerType ?? 0))
+);
+const customerIndustryDisplayText = computed(() =>
+  customerDictDisplay(customerDict.industryLabel(customer.value?.industry))
+);
+const customerCompanyInfoText = computed(() => {
+  const c = customer.value as Record<string, unknown> | null | undefined;
+  if (!c) return '—';
+  const s = String(c.companyInfo ?? c.CompanyInfo ?? '').trim();
+  return s || '—';
+});
+
 const customerTags = ref<TagDefinitionDto[]>([]);
+const showCustomerHeaderTags = computed(() => canWriteSaleData.value || customerTags.value.length > 0);
 const activeTab = ref('contacts');
 /** 《列表操作列规范》：联系人/地址/银行子表共用列头切换（同页仅一张 v-show 表可见） */
 const customerDetailSubOpColExpanded = ref(false);
@@ -1124,47 +1153,6 @@ const deleteBank = async (bank: CustomerBankInfo) => {
 };
 const handleBankSuccess = () => { editingBank.value = undefined; fetchCustomerDetail(); };
 
-/** 详情接口字段与列表归一化一致：可能为 creditLine / creditLineRemain / tradeCurrency */
-type CustomerMoneyApi = Customer & {
-  creditLine?: unknown
-  CreditLine?: unknown
-  creditLineRemain?: unknown
-  CreditLineRemain?: unknown
-  tradeCurrency?: unknown
-  TradeCurrency?: unknown
-}
-
-function resolveCustomerCreditLimit(c: Customer | null | undefined): number | null {
-  if (!c) return null
-  const r = c as CustomerMoneyApi
-  const v = c.creditLimit ?? r.creditLine ?? r.CreditLine
-  if (v === undefined || v === null || v === '') return null
-  const n = Number(v)
-  return Number.isFinite(n) ? n : null
-}
-
-function resolveCustomerBalance(c: Customer | null | undefined): number | null {
-  if (!c) return null
-  const r = c as CustomerMoneyApi
-  const v = c.balance ?? r.creditLineRemain ?? r.CreditLineRemain
-  if (v === undefined || v === null || v === '') return null
-  const n = Number(v)
-  return Number.isFinite(n) ? n : null
-}
-
-function resolveCustomerSettlementCurrency(c: Customer | null | undefined): number {
-  if (!c) return 1
-  const r = c as CustomerMoneyApi
-  const v = c.currency ?? r.tradeCurrency ?? r.TradeCurrency
-  if (v === undefined || v === null || v === '') return 1
-  const n = Number(v)
-  return Number.isFinite(n) ? n : 1
-}
-
-const customerDisplayCreditLimit = computed(() => resolveCustomerCreditLimit(customer.value))
-const customerDisplayBalance = computed(() => resolveCustomerBalance(customer.value))
-const customerDisplayCurrency = computed(() => resolveCustomerSettlementCurrency(customer.value))
-
 const formatDateTime = (date: string | undefined) => (date ? formatDisplayDateTime(date) : '--');
 const formatFullAddress = (address: CustomerAddress) =>
   [
@@ -1189,6 +1177,7 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
+/* UI：《业务详情页面规范.md》— 区块/Tab 标题栏、Key:Value 并排、quantum-table、CaptionBar 收藏星 */
 @import '@/assets/styles/variables.scss';
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500&display=swap');
 
@@ -1295,7 +1284,7 @@ onMounted(() => {
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: rgba(200, 220, 240, 0.5);
+  color: #ffc94d;
   cursor: pointer;
   transition: color 0.15s, background 0.15s, transform 0.12s;
 
@@ -1305,9 +1294,13 @@ onMounted(() => {
     display: block;
   }
 
-  &:hover:not(:disabled) {
-    color: #00d4ff;
-    background: rgba(0, 212, 255, 0.1);
+  &:not(.is-favorite) .star-icon {
+    stroke-dasharray: 3 2.5;
+  }
+
+  &:not(.is-favorite):hover:not(:disabled) {
+    color: #ffd666;
+    background: rgba(255, 201, 77, 0.12);
   }
 
   &:active:not(:disabled) {
@@ -1333,33 +1326,46 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
-.title-tags-row {
-  margin-top: 6px;
+.title-meta--caption {
+  margin-top: 4px;
+}
+
+.customer-header-meta-row {
+  min-height: 28px;
+}
+
+.customer-header-tags-row {
+  flex-shrink: 0;
+}
+
+.customer-header-add-tag-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.customer-header-add-tag-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.tags-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.btn-add-tag {
-  padding: 3px 8px;
-  border-radius: 999px;
-  border: 1px dashed rgba(0, 212, 255, 0.35);
-  background: transparent;
-  color: rgba(200, 216, 232, 0.85);
-  font-size: 11px;
-  cursor: pointer;
-  transition: all 0.15s;
-
-  &:hover {
-    background: rgba(0, 212, 255, 0.08);
-  }
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .customer-code {
   font-family: 'Noto Sans SC', sans-serif;
-  font-size: 11px;
+  font-size: 12px;
   color: $text-muted;
 }
 
@@ -1471,6 +1477,17 @@ onMounted(() => {
   &:hover { background: rgba(255,255,255,0.08); border-color: rgba(0,212,255,0.25); }
 }
 
+.btn-create-rfq {
+  color: $color-mint-green;
+  border-color: rgba(70, 191, 145, 0.35);
+
+  &:hover {
+    color: $color-mint-green;
+    background: rgba(70, 191, 145, 0.12);
+    border-color: rgba(70, 191, 145, 0.5);
+  }
+}
+
 .btn-more-actions {
   display: inline-flex;
   align-items: center;
@@ -1520,10 +1537,50 @@ onMounted(() => {
 .section-header {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 16px;
   padding: 14px 20px;
   border-bottom: 1px solid rgba(255,255,255,0.05);
-  background: rgba(0,0,0,0.1);
+  background: var(--crm-detail-section-header-bg);
+}
+
+.section-header__main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.section-header__meta {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.section-header-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  &__label {
+    color: $text-muted;
+    &::after {
+      content: '：';
+    }
+  }
+  &__value {
+    color: $text-secondary;
+  }
+}
+
+.section-header--inline {
+  padding: 8px 0 10px;
+  margin-bottom: 12px;
+  background: transparent;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .section-dot {
@@ -1551,7 +1608,6 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 5px;
-  padding: 16px 20px;
   border-bottom: 1px solid rgba(255,255,255,0.04);
   border-right: 1px solid rgba(255,255,255,0.04);
 
@@ -1571,6 +1627,45 @@ onMounted(() => {
     &--code   { font-family: 'Noto Sans SC', sans-serif; font-size: 12px; color: $color-ice-blue; }
     &--time   { font-size: 12px; color: $text-muted; }
   }
+}
+
+.info-grid:not(.info-grid--inline-labels) .info-item {
+  padding: 16px 20px;
+}
+
+.info-grid--inline-labels .info-item {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  .info-label {
+    flex-shrink: 0;
+    white-space: nowrap;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 12px;
+    &::after {
+      content: '：';
+    }
+  }
+  .info-value {
+    flex: 1;
+    min-width: 0;
+    word-break: break-word;
+  }
+}
+
+.info-grid--basic {
+  .info-item {
+    &:nth-child(3n) { border-right: none; }
+  }
+  .info-item--basic-spacer {
+    border-right: none;
+  }
+}
+
+.info-grid--inline-labels .info-item--span-all {
+  grid-column: 1 / -1;
+  border-right: none;
 }
 
 .type-badge {
@@ -1598,7 +1693,7 @@ onMounted(() => {
   display: flex;
   border-bottom: 1px solid rgba(255,255,255,0.06);
   padding: 0 16px;
-  background: rgba(0,0,0,0.1);
+  background: var(--crm-detail-section-header-bg);
 }
 
 .tab-btn {
@@ -1612,6 +1707,9 @@ onMounted(() => {
   cursor: pointer;
   transition: all 0.2s;
   margin-bottom: -1px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 
   &:hover { color: $text-secondary; }
 
@@ -1649,11 +1747,43 @@ onMounted(() => {
 
 // ---- 表格 ----
 .quantum-table {
+  --el-table-border-color: transparent;
+  --el-table-header-bg-color: rgba(0, 212, 255, 0.04);
+  --el-table-row-hover-bg-color: rgba(0, 212, 255, 0.04);
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: transparent;
+  --el-table-fixed-box-shadow: none;
   width: 100%;
   background: transparent !important;
 
-  :deep(.el-table__inner-wrapper) { background: transparent; }
-  :deep(tr) { background: transparent !important; &:hover td { background: rgba(0,212,255,0.04) !important; } }
+  :deep(.el-table__inner-wrapper) {
+    background: transparent;
+    &::before { display: none !important; }
+    &::after  { display: none !important; }
+  }
+  :deep(.el-table__border-left-patch) { display: none !important; }
+  :deep(.el-table__header-wrapper) {
+    th.el-table__cell {
+      background: rgba(0, 212, 255, 0.04) !important;
+      border-bottom: 1px solid rgba(0, 212, 255, 0.1) !important;
+      border-right: none !important;
+      color: rgba(200, 216, 232, 0.55);
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.3px;
+    }
+  }
+  :deep(.el-table__row) {
+    background: transparent !important;
+    td.el-table__cell {
+      background: transparent !important;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
+      border-right: none !important;
+    }
+    &:last-child td.el-table__cell { border-bottom: none !important; }
+    &:hover td.el-table__cell { background: rgba(0, 212, 255, 0.04) !important; }
+  }
+  :deep(tr) { background: transparent !important; }
   // 操作列按钮禁止折行
   :deep(.el-table__cell) {
     .el-button { white-space: nowrap !important; }

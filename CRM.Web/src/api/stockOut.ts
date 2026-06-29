@@ -60,6 +60,8 @@ export interface StockOutDetailDto extends StockOutDto {
   warehouseId?: string
   /** 仓库编号（服务端由 WarehouseId 解析） */
   warehouseCode?: string | null
+  /** 仓库名称（服务端由 WarehouseId 解析） */
+  warehouseName?: string | null
   sellOrderItemId?: string
 }
 
@@ -356,6 +358,7 @@ function normalizeStockOutDetailRow(row: unknown): StockOutDetailDto {
     ...base,
     warehouseId: (r.warehouseId ?? r.WarehouseId) as string | undefined,
     warehouseCode: (r.warehouseCode ?? r.WarehouseCode) as string | null | undefined,
+    warehouseName: (r.warehouseName ?? r.WarehouseName) as string | null | undefined,
     sellOrderItemId: (r.sellOrderItemId ?? r.SellOrderItemId) as string | undefined
   }
 }

@@ -214,6 +214,12 @@ namespace CRM.Core.Interfaces
         Task<bool> CanAccessVendorAsync(string userId, VendorInfo vendor);
         Task<bool> CanAccessRFQAsync(string userId, RFQ rfq);
 
+        /// <summary>需求主表标签：创建人/业务员/上级/管理员可看；采购不可看。</summary>
+        Task<bool> CanViewRfqTagsAsync(string userId, string? createByUserId, string? salesUserId);
+
+        /// <summary>需求主表标签：仅创建人与当前业务员可打/删。</summary>
+        Task<bool> CanEditRfqTagsAsync(string userId, string? createByUserId, string? salesUserId);
+
         /// <summary>需求明细行是否可见：销售数据范围 或 采购分配范围（采购员/经理/总监）。</summary>
         Task<Func<RFQ, RFQItem, bool>> GetRfqItemLineVisibilityPredicateAsync(string userId);
         Task<bool> CanAccessSalesOrderAsync(string userId, SellOrder salesOrder);

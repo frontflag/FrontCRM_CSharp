@@ -2,6 +2,8 @@
 @import './crm-unified-list.scss';
 @import './crm-quote-tier-dock.scss';
 @import './crm-list-table-row-density.scss';
+@import './detail-panel-list-table.scss';
+@import './business-detail-info-grid.scss';
 @import './print-purchase-order.scss';
 @import './workspace-side-panels.scss';
 
@@ -404,7 +406,7 @@ html {
   flex-wrap: nowrap;
 }
 
-// el-table：数据格单行 nowrap；表头允许换行，避免窄列截断列标题
+// el-table：数据格与表头均单行 nowrap
 .el-table .el-table__cell {
   .el-button {
     white-space: nowrap !important;
@@ -413,18 +415,12 @@ html {
 .el-table td.el-table__cell .cell {
   white-space: nowrap;
 }
-/*
- * 表头允许换行以完整显示标题；须压过各页 scoped 的 `.el-table__cell .cell { nowrap }`
- *（其选择器特异性可能高于「仅多一个 th」的全局规则）。
- */
 .el-table .el-table__header-wrapper th.el-table__cell .cell,
 .el-table .el-table__fixed-header-wrapper th.el-table__cell .cell {
-  white-space: normal !important;
-  word-break: break-word !important;
-  overflow-wrap: anywhere !important;
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
   line-height: 1.35;
-  overflow: visible !important;
-  text-overflow: clip !important;
 }
 
 // ============================================================

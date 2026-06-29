@@ -56,3 +56,13 @@ $crm-list-row-density-medium-cell-padding-y-total: 22px !default;
 /// 数据格水平 padding（单侧对称，与垂直分开可调）
 $crm-list-row-density-compact-cell-padding-x: 10px !default;
 $crm-list-row-density-medium-cell-padding-x: 14px !default;
+
+// --- 业务详情 Key : Value 面板（《业务详情页面规范》§4.3 / §5）---
+$info-kv-value-font-size: 13px !default;
+$info-kv-label-font-size: 12px !default;
+$info-kv-item-padding-x: 20px !default;
+$info-kv-item-padding-y-base: 16px !default;
+/// 行高：原 16px 上下内边距减去值字号一半（13px → 减 6.5px → 9.5px）
+$info-kv-item-padding-y: calc(#{$info-kv-item-padding-y-base} - #{$info-kv-value-font-size} / 2) !default;
+/// 卡片底留白：末行文字至卡片底 = 行内边距 + 值字号一半（约 16px）
+$info-kv-section-bottom-padding: calc(#{$info-kv-item-padding-y} + #{$info-kv-value-font-size} / 2) !default;

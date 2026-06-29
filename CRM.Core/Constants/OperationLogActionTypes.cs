@@ -19,4 +19,7 @@ public static class OperationLogActionTypes
 
     public const string RfqItemDelete = "需求明细删除";
     public const string QuoteItemDelete = "报价明细删除";
+
+    public const string RfqTagApply = "需求打标签";
+    public const string RfqTagRemove = "需求移除标签";
 }

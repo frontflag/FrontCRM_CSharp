@@ -60,6 +60,10 @@ namespace CRM.Core.Models.RFQ
         [Column("create_by_user_id")]
         public string? CreateByUserId { get; set; }
 
+        /// <summary>创建人登录账号（仅详情/列表展示用，不入库）</summary>
+        [NotMapped]
+        public string? CreateUserName { get; set; }
+
         /// <summary>最后修改需求时的登录用户 ID（GUID）</summary>
         [StringLength(36)]
         [Column("modify_by_user_id")]
@@ -128,6 +132,18 @@ namespace CRM.Core.Models.RFQ
 
         [Column("is_deleted")]
         public bool IsDeleted { get; set; }
+
+        /// <summary>标签（API 展示，不入库）</summary>
+        [NotMapped]
+        public List<EntityTagDto>? Tags { get; set; }
+
+        /// <summary>当前用户是否可查看标签</summary>
+        [NotMapped]
+        public bool CanViewRfqTags { get; set; }
+
+        /// <summary>当前用户是否可编辑标签</summary>
+        [NotMapped]
+        public bool CanEditRfqTags { get; set; }
 
         // 导航属性
         public virtual ICollection<RFQItem> Items { get; set; } = new List<RFQItem>();
@@ -238,7 +254,7 @@ namespace CRM.Core.Models.RFQ
         [Column("remark")]
         public string? Remark { get; set; }
 
-        /// <summary>状态 (0:待报价 1:已报价 2:已接受 3:已拒绝)</summary>
+        /// <summary>状态，取值见 <see cref="RfqItemStatus"/>：0 待报价、1 已报价、2 已接受、3 已拒绝、4 已关闭、5 查无报价</summary>
         [Column("status")]
         public short Status { get; set; } = 0;
 

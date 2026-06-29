@@ -36,6 +36,7 @@ namespace CRM.Core.Tests.Services
         private readonly IRepository<RbacDepartment> _rbacDepartmentRepo;
         private readonly IRepository<RbacUserDepartment> _rbacUserDepartmentRepo;
         private readonly IRepository<Quote> _quoteRepo;
+        private readonly IRepository<RfqCloseRecord> _closeRecordRepo;
         private readonly IRepository<User> _userRepo;
         private readonly IRbacService _rbacService;
         private readonly IRfqMainListQuery _rfqMainListQuery;
@@ -68,6 +69,7 @@ namespace CRM.Core.Tests.Services
             _rbacDepartmentRepo = Substitute.For<IRepository<RbacDepartment>>();
             _rbacUserDepartmentRepo = Substitute.For<IRepository<RbacUserDepartment>>();
             _quoteRepo = Substitute.For<IRepository<Quote>>();
+            _closeRecordRepo = Substitute.For<IRepository<RfqCloseRecord>>();
             _userRepo = Substitute.For<IRepository<User>>();
             _sysParamRepo.FindAsync(Arg.Any<Expression<Func<SysParam, bool>>>())
                 .Returns(Task.FromResult<IEnumerable<SysParam>>(Array.Empty<SysParam>()));
@@ -141,6 +143,7 @@ namespace CRM.Core.Tests.Services
                 _dataPermissionService,
                 _userService,
                 _quoteRepo,
+                _closeRecordRepo,
                 _userRepo,
                 _rbacService,
                 _purchaserAssignmentOrchestrator,
@@ -259,6 +262,7 @@ namespace CRM.Core.Tests.Services
                 Substitute.For<IDataPermissionService>(),
                 Substitute.For<IUserService>(),
                 Substitute.For<IRepository<Quote>>(),
+                Substitute.For<IRepository<RfqCloseRecord>>(),
                 Substitute.For<IRepository<User>>(),
                 rbacSvc,
                 orchestrator,
@@ -447,6 +451,38 @@ namespace CRM.Core.Tests.Services
             // Assert
             Assert.NotNull(result);
             Assert.Equal(2, result.TotalCount);
+        }
+
+        [Fact]
+        public async Task MarkNoQuoteAsync_PendingItemWithoutQuotes_SetsStatus5()
+        {
+            var itemId = "ITEM-001";
+            var rfqId = "RFQ-123";
+            var item = new RFQItem
+            {
+                Id = itemId,
+                RfqId = rfqId,
+                Status = (short)RfqItemStatus.Pending,
+                IsDeleted = false
+            };
+            var rfq = new RFQ
+            {
+                Id = rfqId,
+                RfqCode = "RF20260001",
+                Status = (short)RfqMainStatus.Assigned
+            };
+
+            _rfqItemRepository.GetByIdAsync(itemId).Returns(item);
+            _quoteRepo.FindAsync(Arg.Any<Expression<Func<Quote, bool>>>())
+                .Returns(Task.FromResult<IEnumerable<Quote>>(Array.Empty<Quote>()));
+            _rfqRepository.GetByIdAsync(rfqId).Returns(rfq);
+            _dataPermissionService.CanAccessRFQAsync(Arg.Any<string>(), Arg.Any<RFQ>()).Returns(true);
+
+            var result = await _rfqService.MarkNoQuoteAsync(itemId, "USER-001");
+
+            Assert.Equal((short)RfqItemStatus.NoQuoteFound, result.Status);
+            await _rfqItemRepository.Received(1).UpdateAsync(Arg.Is<RFQItem>(i =>
+                i.Id == itemId && i.Status == (short)RfqItemStatus.NoQuoteFound));
         }
     }
 }

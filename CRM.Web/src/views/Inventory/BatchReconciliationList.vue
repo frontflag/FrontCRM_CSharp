@@ -339,13 +339,13 @@ const tableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'waferOrigin', label: t('batchReconciliation.columns.waferOrigin'), prop: 'waferOrigin', width: 112, showOverflowTooltip: true },
   { key: 'lot', label: t('batchReconciliation.columns.lot'), prop: 'lot', width: 90, showOverflowTooltip: true },
   { key: 'serialNumber', label: t('batchReconciliation.columns.serialNumber'), prop: 'serialNumber', minWidth: 100, showOverflowTooltip: true },
-  { key: 'partCode', label: t('batchReconciliation.columns.partCode'), prop: 'partCode', minWidth: 100, showOverflowTooltip: true },
+  { key: 'partCode', label: t('batchReconciliation.columns.partCode'), prop: 'partCode', width: 120, minWidth: 112, showOverflowTooltip: true },
   { key: 'packingCode', label: t('batchReconciliation.columns.packingCode'), prop: 'packingCode', width: 130, showOverflowTooltip: true },
   { key: 'customerName', label: t('batchReconciliation.columns.customerName'), prop: 'customerName', minWidth: 120, showOverflowTooltip: true },
   { key: 'stockOutDate', label: t('batchReconciliation.columns.stockOutDate'), prop: 'stockOutDate', width: 110 },
-  { key: 'outQty', label: t('batchReconciliation.columns.outQty'), prop: 'outQty', width: 90, align: 'right' },
-  { key: 'totalOutQty', label: t('batchReconciliation.columns.totalOutQty'), prop: 'totalOutQty', width: 100, align: 'right' },
-  { key: 'remainingQty', label: t('batchReconciliation.columns.remainingQty'), prop: 'remainingQty', width: 100, align: 'right' }
+  { key: 'outQty', label: t('batchReconciliation.columns.outQty'), prop: 'outQty', width: 112, minWidth: 108, align: 'right' },
+  { key: 'totalOutQty', label: t('batchReconciliation.columns.totalOutQty'), prop: 'totalOutQty', width: 130, minWidth: 120, align: 'right' },
+  { key: 'remainingQty', label: t('batchReconciliation.columns.remainingQty'), prop: 'remainingQty', width: 112, minWidth: 108, align: 'right' }
 ])
 
 const consumptionColumns = computed<CrmTableColumnDef[]>(() => [

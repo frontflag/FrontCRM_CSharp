@@ -29,9 +29,18 @@ const BASE = '/api/v1/rfqs'
 function buildQuery(params: Record<string, any>): string {
   const q = new URLSearchParams()
   Object.entries(params).forEach(([k, v]) => {
-    if (v !== undefined && v !== null && v !== '') {
-      q.append(k, String(v))
+    if (v === undefined || v === null || v === '') {
+      return
     }
+    if (Array.isArray(v)) {
+      v.forEach((item) => {
+        if (item !== undefined && item !== null && item !== '') {
+          q.append(k, String(item))
+        }
+      })
+      return
+    }
+    q.append(k, String(v))
   })
   return q.toString()
 }
@@ -200,5 +209,9 @@ export const rfqApi = {
   /** 40. 新增关闭记录 */
   async addCloseRecord(rfqId: string, data: CloseRFQRequest): Promise<RFQCloseRecord> {
     return apiClient.post<RFQCloseRecord>(`${BASE}/${rfqId}/close-records`, data)
+  },
+  /** 41. 标记需求明细为查无报价（status 0→5） */
+  async markNoQuote(itemId: string): Promise<{ id: string; status: number }> {
+    return apiClient.post<{ id: string; status: number }>(`${BASE}/items/${itemId}/mark-no-quote`, {})
   },
 }

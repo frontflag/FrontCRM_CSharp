@@ -33,18 +33,18 @@ defineProps<{
   align-items: center;
   padding: 2px 8px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
-  border: 1px solid rgba(0, 212, 255, 0.3);
-  color: rgba(0, 212, 255, 0.85);
-  background: rgba(0, 212, 255, 0.08);
-  letter-spacing: 0.3px;
-  line-height: 1.6;
+  border: 1px solid var(--crm-accent-03, rgba(0, 212, 255, 0.3));
+  color: var(--crm-primary-color, rgba(0, 212, 255, 0.85));
+  background: var(--crm-accent-008, rgba(0, 212, 255, 0.08));
+  letter-spacing: 0.2px;
+  line-height: 1.5;
 }
 
 .tag-empty {
-  font-size: 11px;
-  color: rgba(200, 216, 232, 0.3);
-  font-style: italic;
+  font-size: 12px;
+  color: var(--crm-text-muted);
+  font-style: normal;
 }
 </style>

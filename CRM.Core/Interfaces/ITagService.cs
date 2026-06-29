@@ -43,6 +43,9 @@ namespace CRM.Core.Interfaces
         public string? Category { get; set; }
         public string? Scope { get; set; }
         public short Visibility { get; set; } = 3;
+
+        /// <summary>前端便捷字段，映射为 Scope（如 RFQ）。</summary>
+        public string? EntityType { get; set; }
     }
 
     /// <summary>
@@ -105,6 +108,15 @@ namespace CRM.Core.Interfaces
         public List<string> ExcludeTagIds { get; set; } = new();
         public int? PageIndex { get; set; }
         public int? PageSize { get; set; }
+    }
+
+    /// <summary>实体已打标签 DTO（列表/详情展示）。</summary>
+    public class EntityTagDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string? Color { get; set; }
+        public short Type { get; set; }
     }
 }
 

@@ -26,6 +26,7 @@ export enum RFQItemStatus {
   Accepted = 2,     // 已接受
   Rejected = 3,     // 已拒绝
   Closed = 4,       // 已关闭
+  NoQuoteFound = 5, // 查无报价
 }
 
 // 采购员处理状态
@@ -123,10 +124,23 @@ export interface RFQ {
 
   // 统计
   itemCount?: number
+  createTime?: string
   createdAt?: string
   updatedAt?: string
   createdBy?: string
   items?: RFQItem[]
+
+  /** 主表标签（有查看权限时返回） */
+  tags?: EntityTagDto[]
+  canViewRfqTags?: boolean
+  canEditRfqTags?: boolean
+}
+
+export interface EntityTagDto {
+  id: string
+  name: string
+  color?: string
+  type?: number
 }
 
 // ============================================================
@@ -242,6 +256,7 @@ export interface RFQSearchRequest {
   endDate?: string
   sortBy?: string
   sortDescending?: boolean
+  tagIds?: string[]
 }
 
 export interface RFQSearchResponse {

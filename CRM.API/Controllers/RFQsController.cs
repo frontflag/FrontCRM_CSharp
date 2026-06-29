@@ -34,11 +34,17 @@ namespace CRM.API.Controllers
             [FromQuery] short? status = null,
             [FromQuery] string? customerId = null,
             [FromQuery] string? startDate = null,
-            [FromQuery] string? endDate = null)
+            [FromQuery] string? endDate = null,
+            [FromQuery] string[]? tagIds = null)
         {
             try
             {
                 var pageNorm = page is >= 1 ? page!.Value : (pageNumber < 1 ? 1 : pageNumber);
+                var normalizedTagIds = tagIds?
+                    .SelectMany(v => (v ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                    .Where(id => !string.IsNullOrWhiteSpace(id))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
                 var request = new RFQQueryRequest
                 {
                     PageIndex = pageNorm,
@@ -48,7 +54,8 @@ namespace CRM.API.Controllers
                     CustomerId = customerId,
                     StartDate = PostgreSqlDateTime.ParseDateOnly(startDate),
                     EndDate = PostgreSqlDateTime.ParseDateOnly(endDate),
-                    CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                    CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
+                    TagIds = normalizedTagIds is { Count: > 0 } ? normalizedTagIds : null
                 };
                 var result = await _rfqService.GetPagedAsync(request);
                 return Ok(ApiResponse<object>.Ok(new
@@ -124,6 +131,37 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "获取需求明细列表失败");
                 return StatusCode(500, ApiResponse<object>.Fail($"获取需求明细列表失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>标记需求明细为查无报价（status 0→5）</summary>
+        // POST api/v1/rfqs/items/{itemId}/mark-no-quote
+        [HttpPost("items/{itemId}/mark-no-quote")]
+        [RequirePermission("rfq.read")]
+        public async Task<ActionResult<ApiResponse<object>>> MarkNoQuote(string itemId)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var item = await _rfqService.MarkNoQuoteAsync(itemId, userId);
+                return Ok(ApiResponse<object>.Ok(new { id = item.Id, status = item.Status }, "已标记为查无报价"));
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(403, ApiResponse<object>.Fail(ex.Message, 403));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(ApiResponse<object>.Fail(ex.Message, 409));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "标记查无报价失败: {ItemId}", itemId);
+                return StatusCode(500, ApiResponse<object>.Fail($"标记查无报价失败: {ex.Message}", 500));
             }
         }
 
@@ -288,6 +326,64 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "分配采购员失败: {Id}", id);
                 return StatusCode(500, ApiResponse<object>.Fail($"分配失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>需求关闭记录列表</summary>
+        // GET api/v1/rfqs/{id}/close-records
+        [HttpGet("{id}/close-records")]
+        [RequirePermission("rfq.read")]
+        public async Task<ActionResult<ApiResponse<object>>> GetCloseRecords(string id)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var rfq = await _rfqService.GetByIdAsync(id, userId);
+                if (rfq == null)
+                    return NotFound(ApiResponse<object>.Fail("需求不存在", 404));
+                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessRFQAsync(userId, rfq))
+                    return StatusCode(403, ApiResponse<object>.Fail("无权限访问该需求", 403));
+
+                var records = await _rfqService.GetCloseRecordsAsync(id);
+                return Ok(ApiResponse<object>.Ok(records, "获取关闭记录成功"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取关闭记录失败: {Id}", id);
+                return StatusCode(500, ApiResponse<object>.Fail($"获取关闭记录失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>关闭需求（写入关闭记录并更新主单终态）</summary>
+        // POST api/v1/rfqs/{id}/close-records
+        [HttpPost("{id}/close-records")]
+        [RequirePermission("rfq.write")]
+        public async Task<ActionResult<ApiResponse<object>>> AddCloseRecord(string id, [FromBody] CloseRfqRequest request)
+        {
+            try
+            {
+                var existing = await _rfqService.GetByIdAsync(id);
+                if (existing == null)
+                    return NotFound(ApiResponse<object>.Fail("需求不存在", 404));
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessRFQAsync(userId, existing))
+                    return StatusCode(403, ApiResponse<object>.Fail("无权限操作该需求", 403));
+
+                var record = await _rfqService.CloseRfqAsync(id, request, userId);
+                return Ok(ApiResponse<object>.Ok(record, "需求已关闭"));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(ApiResponse<object>.Fail(ex.Message, 409));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "关闭需求失败: {Id}", id);
+                return StatusCode(500, ApiResponse<object>.Fail($"关闭需求失败: {ex.Message}", 500));
             }
         }
 

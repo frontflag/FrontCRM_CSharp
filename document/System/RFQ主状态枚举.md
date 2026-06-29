@@ -26,6 +26,10 @@
 - 列表筛选与展示文案：`rfqList.status.*`（含 `closed`=`7`、`cancelled`=`8`）。
 - TypeScript 枚举：`CRM.Web/src/types/rfq.ts` 中 `RFQStatus`，与后端一一对应。
 
+## 相关文档
+
+- 需求明细状态（含查无报价）：[RFQ 明细状态枚举](./RFQ明细状态枚举.md)
+
 ## 维护
 
 若新增状态值：先改 **`RfqMainStatus`** 与本文档，再改前后端映射与迁移注释。

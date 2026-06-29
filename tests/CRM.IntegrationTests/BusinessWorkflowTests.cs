@@ -113,6 +113,7 @@ namespace CRM.IntegrationTests
                 _dataPermissionService,
                 _userService,
                 _quoteRepository,
+                Substitute.For<IRepository<RfqCloseRecord>>(),
                 _userRepo,
                 rfqRbac,
                 RfqAssignmentTestFactory.CreateEmptyItemRoundRobinOrchestrator(_sysParamRepo),
@@ -1350,8 +1351,7 @@ namespace CRM.IntegrationTests
             var service = new RFQService(
                 rfqRepo, itemRepo, customerRepo, entityLookup, unitOfWork,
                 serialNumberService, dataPermissionService, userService,
-                quoteRepo,
-                userRepo, rbacSvc, RfqAssignmentTestFactory.CreateEmptyItemRoundRobinOrchestrator(sysParamRepo), rfqMainMem, rfqItemMem, logger, Substitute.For<ILogOperationAppendService>(), BizBrandTestSubstitute.Create(new Dictionary<long, string> { [1] = "TEST-BRAND", [2] = "TI" }));
+                quoteRepo, Substitute.For<IRepository<RfqCloseRecord>>(), userRepo, rbacSvc, RfqAssignmentTestFactory.CreateEmptyItemRoundRobinOrchestrator(sysParamRepo), rfqMainMem, rfqItemMem, logger, Substitute.For<ILogOperationAppendService>(), BizBrandTestSubstitute.Create(new Dictionary<long, string> { [1] = "TEST-BRAND", [2] = "TI" }));
 
             // 模拟序列号生成
             serialNumberService.GenerateNextAsync(Arg.Any<string>()).Returns("RF20260001");
@@ -1467,8 +1467,7 @@ namespace CRM.IntegrationTests
             var service = new RFQService(
                 rfqRepo, itemRepo, customerRepo, entityLookup, unitOfWork,
                 serialNumberService, dataPermissionService, userService,
-                quoteRepo,
-                userRepo, rbacSvc, RfqAssignmentTestFactory.CreateEmptyItemRoundRobinOrchestrator(sysParamRepo), rfqMainMem, rfqItemMem, logger, Substitute.For<ILogOperationAppendService>(), BizBrandTestSubstitute.Create(new Dictionary<long, string> { [1] = "TEST-BRAND", [2] = "TI" }));
+                quoteRepo, Substitute.For<IRepository<RfqCloseRecord>>(), userRepo, rbacSvc, RfqAssignmentTestFactory.CreateEmptyItemRoundRobinOrchestrator(sysParamRepo), rfqMainMem, rfqItemMem, logger, Substitute.For<ILogOperationAppendService>(), BizBrandTestSubstitute.Create(new Dictionary<long, string> { [1] = "TEST-BRAND", [2] = "TI" }));
 
             // 模拟序列号生成
             serialNumberService.GenerateNextAsync(Arg.Any<string>()).Returns("RF20260001");
@@ -1596,8 +1595,7 @@ namespace CRM.IntegrationTests
             var service = new RFQService(
                 rfqRepo, itemRepo, customerRepo, entityLookup, unitOfWork,
                 serialNumberService, dataPermissionService, userService,
-                quoteRepo,
-                userRepo, rbacSvc, RfqAssignmentTestFactory.CreateEmptyItemRoundRobinOrchestrator(sysParamRepo), rfqMainMem, rfqItemMem, logger, Substitute.For<ILogOperationAppendService>(), BizBrandTestSubstitute.Create(new Dictionary<long, string> { [1] = "TEST-BRAND", [2] = "TI" }));
+                quoteRepo, Substitute.For<IRepository<RfqCloseRecord>>(), userRepo, rbacSvc, RfqAssignmentTestFactory.CreateEmptyItemRoundRobinOrchestrator(sysParamRepo), rfqMainMem, rfqItemMem, logger, Substitute.For<ILogOperationAppendService>(), BizBrandTestSubstitute.Create(new Dictionary<long, string> { [1] = "TEST-BRAND", [2] = "TI" }));
 
             // 准备用户数据
             var salesUserId = "SALES-USER-001";

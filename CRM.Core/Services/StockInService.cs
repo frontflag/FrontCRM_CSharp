@@ -273,9 +273,15 @@ namespace CRM.Core.Services
             if (!string.IsNullOrWhiteSpace(stockIn.WarehouseId))
             {
                 var wh = await _warehouseRepository.GetByIdAsync(stockIn.WarehouseId.Trim());
-                stockIn.DetailWarehouseCode = string.IsNullOrWhiteSpace(wh?.WarehouseCode)
-                    ? null
-                    : wh!.WarehouseCode.Trim();
+                if (wh != null)
+                {
+                    stockIn.DetailWarehouseCode = string.IsNullOrWhiteSpace(wh.WarehouseCode)
+                        ? null
+                        : wh.WarehouseCode.Trim();
+                    stockIn.DetailWarehouseName = string.IsNullOrWhiteSpace(wh.WarehouseName)
+                        ? null
+                        : wh.WarehouseName.Trim();
+                }
             }
 
             if (!string.IsNullOrWhiteSpace(stockIn.VendorId))
@@ -437,7 +443,28 @@ namespace CRM.Core.Services
             if (stockIn.StockInType == StockInTypeCode.Customs)
                 stockIn.CustomsContext = await _stockInCustomsContextQuery.LoadAsync(stockIn);
 
+            await PopulateStockInCreateUserNameAsync(stockIn);
+
             return stockIn;
+        }
+
+        private async Task PopulateStockInCreateUserNameAsync(StockIn stockIn)
+        {
+            var creatorId = !string.IsNullOrWhiteSpace(stockIn.CreateByUserId)
+                ? stockIn.CreateByUserId.Trim()
+                : stockIn.CreatedBy?.Trim();
+            if (string.IsNullOrWhiteSpace(creatorId))
+                return;
+
+            try
+            {
+                var u = await _userService.GetByIdAsync(creatorId);
+                stockIn.CreateUserName = EntityLookupService.FormatUserLoginName(u);
+            }
+            catch
+            {
+                // 用户表不可用时仍返回详情，仅不填充创建人账号
+            }
         }
 
         /// <inheritdoc />

@@ -296,6 +296,10 @@ namespace CRM.Core.Models.Inventory
         [NotMapped]
         public string? DetailWarehouseCode { get; set; }
 
+        /// <summary>详情接口填充：仓库名称（非表字段）</summary>
+        [NotMapped]
+        public string? DetailWarehouseName { get; set; }
+
         /// <summary>详情接口填充：供应商展示名（非表字段）</summary>
         [NotMapped]
         public string? DetailVendorName { get; set; }
@@ -303,6 +307,10 @@ namespace CRM.Core.Models.Inventory
         /// <summary>报关入库详情：溯源上下文（仅 StockInType=20 时由服务层填充）。</summary>
         [NotMapped]
         public StockInCustomsContextDto? CustomsContext { get; set; }
+
+        /// <summary>详情/列表展示：创建人登录账号（由 CreatedBy / CreateByUserId 解析，非表字段）</summary>
+        [NotMapped]
+        public string? CreateUserName { get; set; }
 
         [Column("is_deleted")]
         public bool IsDeleted { get; set; }

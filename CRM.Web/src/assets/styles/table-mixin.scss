@@ -70,7 +70,7 @@
     }
   }
 
-  // 数据格单行；表头换行由 main.scss / crm-unified-list 统一处理
+  // 数据格与表头单行 nowrap（全局见 main.scss / crm-unified-list）
   :deep(.el-table__cell .el-button) {
     white-space: nowrap !important;
   }

@@ -58,6 +58,7 @@ namespace CRM.Infrastructure.Data
         // ===== 需求模块 =====
         public DbSet<RFQ> RFQs { get; set; } = null!;
         public DbSet<RFQItem> RFQItems { get; set; } = null!;
+        public DbSet<RfqCloseRecord> RfqCloseRecords { get; set; } = null!;
 
         // ===== 报价模块 =====
         public DbSet<Quote> Quotes { get; set; } = null!;
@@ -213,6 +214,17 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.AssignedPurchaserUserId2).HasMaxLength(36);
                 entity.Property(e => e.Quantity).HasColumnType("numeric(18,4)").HasDefaultValue(1m);
                 entity.Property(e => e.TargetPrice).HasColumnType("numeric(18,6)");
+                entity.HasIndex(e => e.RfqId);
+            });
+
+            modelBuilder.Entity<RfqCloseRecord>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("rfq_close_record_id");
+                entity.Property(e => e.RfqId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.CloseReason).IsRequired().HasMaxLength(500);
+                entity.Property(e => e.Remark).HasMaxLength(500);
+                entity.Property(e => e.ClosedByUserId).HasMaxLength(36);
                 entity.HasIndex(e => e.RfqId);
             });
 

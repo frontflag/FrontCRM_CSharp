@@ -1,6 +1,6 @@
 <template>
   <div class="purchase-order-detail">
-    <!-- 详情 CaptionBar（对齐 document/PRD/规范/UI规范/详情CaptionBar规范.md） -->
+    <!-- 详情 CaptionBar（对齐《业务详情页面规范》§3） -->
     <div class="page-header">
       <div class="header-left">
         <button class="btn-back" type="button" @click="router.back()">
@@ -11,21 +11,16 @@
         </button>
         <div v-if="order" class="po-caption-title-group">
           <div class="caption-avatar-lg">{{ captionAvatarChar }}</div>
-          <div class="po-caption-text-stack">
-            <!-- 主标题：采购订单号 + 备货 + 状态 + 收藏 + 标签 -->
-            <div class="page-title-row page-title-row--po-primary">
+          <div>
+            <div class="page-title-row">
               <div class="page-title-with-icons">
                 <h1
                   class="page-title"
                   :class="{ 'page-title--muted': normalizePurchaseOrderMainStatus(order) === -2 }"
                 >
-                  <span class="po-caption-main-label">采购订单：</span>
-                  <span class="po-caption-main-code">{{ order.purchaseOrderCode }}</span>
+                  采购订单 {{ order.purchaseOrderCode }}
                 </h1>
                 <span v-if="isStockingPurchaseOrder" class="order-type-badge order-type-badge--stocking">备货</span>
-                <el-tag effect="dark" :type="getStatusType(normalizePurchaseOrderMainStatus(order))" size="small">
-                  {{ getStatusText(normalizePurchaseOrderMainStatus(order)) }}
-                </el-tag>
                 <button
                   type="button"
                   class="btn-favorite-star"
@@ -52,27 +47,65 @@
                     <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                   </svg>
                 </button>
-                <div class="title-inline-tags">
-                  <TagListDisplay :tags="currentTags" />
-                  <button v-if="canWritePo" type="button" class="btn-add-tag" @click="tagDialogVisible = true">添加标签</button>
+                <div v-if="showPoHeaderTags" class="po-header-tags-row tags-row">
+                  <TagListDisplay v-if="currentTags.length" :tags="currentTags" />
+                  <button v-if="canWritePo" type="button" class="btn-secondary po-header-add-tag-btn" @click="tagDialogVisible = true">
+                    <span class="po-header-add-tag-icon" aria-hidden="true">±</span>
+                    标签
+                  </button>
                 </div>
               </div>
             </div>
-            <!-- 副标题：供应商 -->
-            <div v-if="captionSubtitle" class="page-title-row po-caption-subtitle-row">
-              <span class="po-caption-subtitle-text">{{ captionSubtitle }}</span>
+            <div class="title-meta title-meta--caption po-header-meta-row">
+              <el-tag effect="dark" :type="getStatusType(normalizePurchaseOrderMainStatus(order))" size="small">
+                {{ getStatusText(normalizePurchaseOrderMainStatus(order)) }}
+              </el-tag>
+              <span v-if="captionSubtitle" class="po-caption-vendor-text">{{ captionSubtitle }}</span>
             </div>
           </div>
         </div>
       </div>
       <div v-if="order" class="header-right">
-        <button class="btn-primary" type="button" :disabled="refreshingExtends" @click="handleRefreshItemExtends">
+        <button
+          v-if="canCancelPurchaseOrderFromMenu"
+          type="button"
+          class="btn-close-po"
+          @click="handleCancelPurchaseOrder"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
+          </svg>
+          取消订单
+        </button>
+        <button class="btn-secondary" type="button" :disabled="refreshingExtends" @click="handleRefreshItemExtends">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="23 4 23 10 17 10" />
             <polyline points="1 20 1 14 7 14" />
             <path d="M3.51 9a9 9 0 0 1 14.13-3.36L23 10M1 14l5.36 4.36A9 9 0 0 0 20.49 15" />
           </svg>
           {{ refreshingExtends ? '刷新中...' : '刷新' }}
+        </button>
+        <button
+          v-if="order && purchaseOrderReportAllowed(normalizePurchaseOrderMainStatus(order))"
+          class="btn-secondary"
+          type="button"
+          @click="handleGoReport"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="12" y1="18" x2="12" y2="12" />
+            <line x1="9" y1="15" x2="15" y2="15" />
+          </svg>
+          打印订单
+        </button>
+        <button
+          v-if="canEditFreightForwarderOrderNo"
+          class="btn-secondary"
+          type="button"
+          @click="openFreightForwarderOrderNoDialog"
+        >
+          录入货代单号
         </button>
         <button v-if="canWritePo" class="btn-primary" type="button" @click="handleEdit">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -93,39 +126,10 @@
           </button>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item
-                v-if="canCancelPurchaseOrderFromMenu"
-                command="cancel_order"
-                class="detail-more-item--danger"
-              >
-                取消订单
-              </el-dropdown-item>
-              <el-dropdown-item v-if="canWritePo" command="delete" class="detail-more-item--danger">删除订单</el-dropdown-item>
+              <el-dropdown-item command="delete" class="detail-more-item--danger">删除订单</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
-        <button
-          v-if="order && purchaseOrderReportAllowed(normalizePurchaseOrderMainStatus(order))"
-          class="btn-success"
-          type="button"
-          @click="handleGoReport"
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-            <line x1="12" y1="18" x2="12" y2="12" />
-            <line x1="9" y1="15" x2="15" y2="15" />
-          </svg>
-          打印订单
-        </button>
-        <button
-          v-if="canEditFreightForwarderOrderNo"
-          class="btn-warning"
-          type="button"
-          @click="openFreightForwarderOrderNoDialog"
-        >
-          录入货代单号
-        </button>
       </div>
     </div>
 
@@ -134,25 +138,26 @@
     </div>
 
     <template v-else-if="order">
-      <!-- 基本信息卡片 -->
+      <!-- 基本信息（《业务详情页面规范》§4–§5） -->
       <div class="info-section">
         <div class="section-header">
-          <div class="section-dot section-dot--cyan"></div>
-          <span class="section-title">基本信息</span>
-        </div>
-        <div class="info-grid">
-          <div class="info-item">
-            <span class="info-label">采购订单号</span>
-            <span class="info-value info-value--code">
-              {{ order.purchaseOrderCode }}
-              <span v-if="isStockingPurchaseOrder" class="order-type-badge order-type-badge--stocking">备货</span>
+          <div class="section-header__main">
+            <div class="section-dot section-dot--cyan"></div>
+            <span class="section-title">基本信息</span>
+          </div>
+          <div class="section-header__meta">
+            <span class="section-header-meta-item">
+              <span class="section-header-meta-item__label">创建日期</span>
+              <span class="section-header-meta-item__value">{{ poBasicCreateDateText }}</span>
+            </span>
+            <span class="section-header-meta-item">
+              <span class="section-header-meta-item__label">创建人</span>
+              <span class="section-header-meta-item__value">{{ poBasicCreateUserText }}</span>
             </span>
           </div>
-          <div class="info-item">
-            <span class="info-label">状态</span>
-            <span class="info-value">{{ getStatusText(normalizePurchaseOrderMainStatus(order)) }}</span>
-          </div>
-          <div class="info-item" v-if="canViewVendorInfo">
+        </div>
+        <div class="info-grid info-grid--inline-labels info-grid--basic">
+          <div v-if="canViewVendorInfo" class="info-item">
             <span class="info-label">供应商</span>
             <span class="info-value">
               <vendor-name-readonly-text
@@ -163,13 +168,9 @@
           </div>
           <div class="info-item">
             <span class="info-label">采购员</span>
-            <span class="info-value">{{ order.purchaseUserName || '--' }}</span>
+            <span class="info-value">{{ order.purchaseUserName || '—' }}</span>
           </div>
-          <div class="info-item">
-            <span class="info-label">采购助理</span>
-            <span class="info-value">{{ order.assistorUserName || '--' }}</span>
-          </div>
-          <div class="info-item" v-if="canViewPurchaseAmount">
+          <div v-if="canViewPurchaseAmount" class="info-item">
             <span class="info-label">总金额</span>
             <span class="info-value info-value--amount amount-with-code">
               <span>{{ formatTotalAmountNumber(order.total) }}</span>
@@ -178,9 +179,11 @@
               </span>
             </span>
           </div>
+        </div>
+        <div class="info-grid info-grid--inline-labels info-grid--basic">
           <div class="info-item">
-            <span class="info-label">行项目数</span>
-            <span class="info-value">{{ order.itemRows ?? 0 }}</span>
+            <span class="info-label">采购助理</span>
+            <span class="info-value">{{ order.assistorUserName || '—' }}</span>
           </div>
           <div class="info-item">
             <span class="info-label">交货日期</span>
@@ -190,21 +193,23 @@
             <span class="info-label">货代单号</span>
             <span class="info-value">{{ order.freightForwarderOrderNo?.trim() || '—' }}</span>
           </div>
+        </div>
+        <div class="info-grid info-grid--inline-labels info-grid--basic">
           <div class="info-item">
-            <span class="info-label">创建时间</span>
-            <span class="info-value info-value--time">{{ formatDateTime(order.createTime) }}</span>
-          </div>
-          <div class="info-item info-item--span-all">
             <span class="info-label">送货地址</span>
-            <span class="info-value">{{ order.deliveryAddress || '--' }}</span>
+            <span class="info-value">{{ order.deliveryAddress || '—' }}</span>
           </div>
+          <div class="info-item info-item--basic-spacer" aria-hidden="true"></div>
+          <div class="info-item info-item--basic-spacer" aria-hidden="true"></div>
+        </div>
+        <div class="info-grid info-grid--inline-labels">
           <div class="info-item info-item--span-all">
             <span class="info-label">备注</span>
-            <span class="info-value">{{ order.comment || '--' }}</span>
+            <span class="info-value">{{ order.comment || '—' }}</span>
           </div>
           <div class="info-item info-item--span-all">
             <span class="info-label">内部备注</span>
-            <span class="info-value">{{ order.innerComment || '--' }}</span>
+            <span class="info-value">{{ order.innerComment || '—' }}</span>
           </div>
         </div>
       </div>
@@ -262,7 +267,7 @@
               </div>
               <CrmDataTable
                 ref="poDetailItemsTableRef"
-                class="quantum-table-block el-table-host items-table"
+                class="items-table detail-panel-list-table"
                 column-layout-key="purchase-order-detail-items"
                 :columns="poDetailItemsColumns"
                 :show-column-settings="false"
@@ -271,6 +276,7 @@
                 :row-key="poItemRowKey"
                 highlight-current-row
                 size="small"
+                stripe
                 @row-dblclick="onPurchaseOrderItemRowDblClick"
               >
                 <template #col-qty="{ row }">
@@ -814,7 +820,7 @@ import ApplyTagsDialog from '@/components/Tag/ApplyTagsDialog.vue'
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue'
 import DocumentListPanel from '@/components/Document/DocumentListPanel.vue'
 import VendorNameReadonlyText from '@/components/Vendor/VendorNameReadonlyText.vue'
-import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import { formatTotalAmountNumber, formatUnitPriceNumber } from '@/utils/moneyFormat'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
@@ -899,6 +905,23 @@ const canCancelPurchaseOrderFromMenu = computed(() => {
   const s = normalizePurchaseOrderMainStatus(o)
   if (!Number.isFinite(s) || s === -2) return false
   return s < 10
+})
+
+const showPoHeaderTags = computed(() => canWritePo.value || currentTags.value.length > 0)
+
+const poBasicCreateDateText = computed(() => {
+  const o = order.value
+  if (!o?.createTime) return '—'
+  const s = formatDisplayDate(o.createTime)
+  return s === '--' ? '—' : s
+})
+
+const poBasicCreateUserText = computed(() => {
+  const o = order.value as Record<string, unknown> | null | undefined
+  if (!o) return '—'
+  const name = o.createUserName ?? o.CreateUserName ?? o.createdBy ?? o.purchaseUserName
+  const s = name != null ? String(name).trim() : ''
+  return s || '—'
 })
 
 const poFavorited = ref(false)
@@ -1311,8 +1334,7 @@ const captionAvatarChar = computed(() => {
 })
 
 function onHeaderMoreCommand(cmd: string) {
-  if (cmd === 'cancel_order') void handleCancelPurchaseOrder()
-  else if (cmd === 'delete') void handleDeleteOrder()
+  if (cmd === 'delete') void handleDeleteOrder()
 }
 
 function openFreightForwarderOrderNoDialog() {
@@ -1636,29 +1658,6 @@ const handleEdit = () => {
   gap: 14px;
 }
 
-/* 与销售订单详情 Caption 一致：主标题行与副标题行之间 6px（销售单为 page-title-row 的 margin-bottom） */
-.po-caption-text-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  min-width: 0;
-  margin-bottom: 6px;
-}
-
-.po-caption-text-stack > .page-title-row--po-primary:not(:last-child) {
-  margin-bottom: 6px;
-}
-
-.po-caption-main-code {
-  font-family: 'Noto Sans SC', sans-serif;
-}
-
-.po-caption-subtitle-text {
-  font-size: 13px;
-  font-weight: 400;
-  color: $text-muted;
-}
-
 .caption-avatar-lg {
   width: 48px;
   height: 48px;
@@ -1679,15 +1678,7 @@ const handleEdit = () => {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  margin-bottom: 0;
-}
-
-.title-inline-tags {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  min-width: 0;
+  margin-bottom: 6px;
 }
 
 .page-title-with-icons {
@@ -1709,10 +1700,48 @@ const handleEdit = () => {
   }
 }
 
-.caption-code {
-  font-family: 'Noto Sans SC', sans-serif;
-  font-size: 11px;
+.title-meta--caption {
+  margin-top: 4px;
+}
+
+.po-header-meta-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-height: 28px;
+}
+
+.po-caption-vendor-text {
+  font-size: 13px;
+  font-weight: 400;
   color: $text-muted;
+}
+
+.po-header-tags-row {
+  flex-shrink: 0;
+}
+
+.po-header-add-tag-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.po-header-add-tag-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.tags-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .order-type-badge {
@@ -1735,19 +1764,41 @@ const handleEdit = () => {
   background: rgba(255, 191, 105, 0.14);
 }
 
-.btn-add-tag {
-  padding: 3px 8px;
-  border-radius: 999px;
-  border: 1px dashed rgba(0, 212, 255, 0.35);
-  background: transparent;
-  color: rgba(200, 216, 232, 0.85);
-  font-size: 11px;
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: $border-radius-md;
+  border: 1px solid $border-panel;
+  color: $text-secondary;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  background: rgba(255,255,255,0.05);
+  cursor: pointer;
+  transition: all 0.2s;
+  &:hover {
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(0,212,255,0.25);
+  }
+}
+
+.btn-close-po {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: $border-radius-md;
+  font-size: 13px;
   font-family: 'Noto Sans SC', sans-serif;
   cursor: pointer;
-  transition: all 0.15s;
-
+  transition: all 0.2s;
+  color: $color-amber;
+  border: none;
+  background: transparent;
   &:hover {
-    background: rgba(0, 212, 255, 0.08);
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
   }
 }
 
@@ -1903,10 +1954,43 @@ const handleEdit = () => {
 .section-header {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 16px;
   padding: 14px 20px;
   border-bottom: 1px solid rgba(255,255,255,0.05);
-  background: rgba(0,0,0,0.1);
+  background: var(--crm-detail-section-header-bg);
+}
+
+.section-header__main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.section-header__meta {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.section-header-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  &__label {
+    color: $text-muted;
+    &::after {
+      content: '：';
+    }
+  }
+  &__value {
+    color: $text-secondary;
+  }
 }
 
 .section-dot {
@@ -1924,26 +2008,64 @@ const handleEdit = () => {
 
 .info-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
 }
 
 .info-item {
-  display: grid;
-  grid-template-columns: 84px minmax(0, 1fr);
-  align-items: center;
-  column-gap: 10px;
-  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
   border-bottom: 1px solid rgba(255,255,255,0.04);
   border-right: 1px solid rgba(255,255,255,0.04);
-  &:nth-child(4n) {
-    border-right: none;
+  &:nth-child(3n) { border-right: none; }
+}
+
+.info-grid:not(.info-grid--inline-labels) .info-item {
+  padding: 16px 20px;
+}
+
+.info-grid--inline-labels .info-item {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  .info-label {
+    flex-shrink: 0;
+    white-space: nowrap;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 12px;
+    &::after {
+      content: '：';
+    }
+  }
+  .info-value {
+    flex: 1;
+    min-width: 0;
+    word-break: break-word;
   }
 }
 
 .info-item--span-all {
   grid-column: 1 / -1;
   border-right: none;
-  align-items: start;
+}
+
+.info-grid--inline-labels .info-item--span-all {
+  align-items: flex-start;
+}
+
+.info-grid--basic {
+  .info-item {
+    &:nth-child(3n) { border-right: none; }
+  }
+  .info-item--basic-full-row {
+    grid-column: 1 / -1;
+    border-right: none;
+  }
+  .info-item--basic-spacer {
+    border-right: none;
+  }
 }
 
 .info-label {
@@ -1969,7 +2091,7 @@ const handleEdit = () => {
 .info-value--amount {
   font-family: 'Noto Sans SC', sans-serif;
   color: $text-primary;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .amount-with-code {
@@ -2000,14 +2122,14 @@ const handleEdit = () => {
   background: $layer-2;
   border: 1px solid $border-card;
   border-radius: $border-radius-lg;
-  padding: 0 20px 20px;
+  overflow: hidden;
 }
 
 .tabs-nav {
   display: flex;
   border-bottom: 1px solid rgba(255,255,255,0.06);
   padding: 0 16px;
-  background: rgba(0,0,0,0.1);
+  background: var(--crm-detail-section-header-bg);
 }
 
 .tab-btn {
@@ -2045,6 +2167,62 @@ const handleEdit = () => {
 
 .detail-items-table-wrap {
   margin-top: 4px;
+}
+
+// §7.4 表头/表体基线见 detail-panel-list-table.scss；此处仅 CrmDataTable 操作列等页内扩展
+.detail-items-table-wrap :deep(.items-table) {
+  --el-table-border-color: transparent;
+  --el-table-fixed-box-shadow: none;
+  background: transparent !important;
+  :deep(.el-table) {
+    color: var(--crm-table-text);
+  }
+  :deep(.el-table__inner-wrapper) {
+    background: transparent;
+    &::before { display: none !important; }
+    &::after  { display: none !important; }
+  }
+  :deep(.el-table__border-left-patch) { display: none !important; }
+  :deep(.el-table__cell) {
+    .el-button { white-space: nowrap !important; }
+    .cell { white-space: nowrap; }
+  }
+  :deep(th.op-col.el-table__cell .cell) {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding-left: 2px !important;
+    padding-right: 2px !important;
+  }
+  :deep(th.op-col .po-detail-op-col-header--icon-only) {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+  }
+  :deep(th.op-col .po-detail-op-col-toggle) {
+    min-width: 28px;
+    min-height: 28px;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  :deep(.action-btns--po-detail-items) {
+    opacity: 1;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px;
+  }
+  .po-item-progress-sub {
+    margin-top: 2px;
+    font-size: 11px;
+    color: $text-muted;
+    line-height: 1.25;
+    white-space: normal;
+  }
+  :deep(.po-item-progress-qty-col .cell) {
+    white-space: normal;
+  }
 }
 
 .po-detail-items-table-stack {
@@ -2095,100 +2273,6 @@ html[data-theme='dark'] .purchase-order-detail .po-detail-biz-qty {
   color: $text-primary;
 }
 
-.items-table {
-  // 与全站 .crm-items-table、销售订单详情一致：勿写死浅色字，浅色主题下行字会发虚难辨
-  --el-table-border-color: transparent;
-  --el-table-header-bg-color: var(--crm-table-header-bg);
-  --el-table-row-hover-bg-color: var(--crm-table-row-hover);
-  --el-table-bg-color: transparent;
-  --el-table-tr-bg-color: transparent;
-  --el-table-text-color: #{$text-primary};
-  --el-table-header-text-color: #{$text-muted};
-  --el-table-fixed-box-shadow: none;
-  background: transparent !important;
-  :deep(.el-table) {
-    --el-table-text-color: #{$text-primary};
-    color: $text-primary;
-  }
-  :deep(.el-table__inner-wrapper) {
-    background: transparent;
-    &::before { display: none !important; }
-    &::after  { display: none !important; }
-  }
-  :deep(.el-table__border-left-patch) { display: none !important; }
-  :deep(.el-table__header-wrapper) {
-    th.el-table__cell {
-      background: var(--crm-table-header-bg) !important;
-      border-bottom: 1px solid var(--crm-table-header-line) !important;
-      border-right: none !important;
-      color: $text-muted !important;
-      font-size: 12px;
-      font-weight: 500;
-      letter-spacing: 0.3px;
-    }
-    th.el-table__cell .cell {
-      color: inherit !important;
-    }
-    /* 操作列：列头不展示「操作」文案，仅居中展示 < >，收窄列宽时仍可点 */
-    th.op-col.el-table__cell .cell {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding-left: 2px !important;
-      padding-right: 2px !important;
-    }
-    th.op-col .po-detail-op-col-header--icon-only {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      width: 100%;
-    }
-    th.op-col .po-detail-op-col-toggle {
-      min-width: 28px;
-      min-height: 28px;
-      font-size: 18px;
-      font-weight: 700;
-      line-height: 1;
-    }
-  }
-  :deep(.el-table__body-wrapper .el-table__body tr.el-table__row td.el-table__cell),
-  :deep(.el-table__fixed-body-wrapper .el-table__body tr.el-table__row td.el-table__cell) {
-    background: transparent !important;
-    border-bottom: 1px solid var(--crm-table-header-line);
-    border-right: none !important;
-    color: $text-primary !important;
-    font-size: 13px;
-  }
-  :deep(.el-table__body-wrapper .el-table__body tr.el-table__row:last-child td.el-table__cell),
-  :deep(.el-table__fixed-body-wrapper .el-table__body tr.el-table__row:last-child td.el-table__cell) {
-    border-bottom: none !important;
-  }
-  :deep(.el-table__body-wrapper .el-table__body tr.el-table__row td.el-table__cell .cell),
-  :deep(.el-table__fixed-body-wrapper .el-table__body tr.el-table__row td.el-table__cell .cell) {
-    color: $text-primary !important;
-  }
-  :deep(.el-table__cell) {
-    .el-button { white-space: nowrap !important; }
-    .cell { white-space: nowrap; }
-  }
-  :deep(.action-btns--po-detail-items) {
-    opacity: 1;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 4px;
-  }
-  .po-item-progress-sub {
-    margin-top: 2px;
-    font-size: 11px;
-    color: $text-muted;
-    line-height: 1.25;
-    white-space: normal;
-  }
-  :deep(.po-item-progress-qty-col .cell) {
-    white-space: normal;
-  }
-}
-
 .doc-tab-content {
   padding-top: 4px;
 
@@ -2214,7 +2298,7 @@ html[data-theme='dark'] .purchase-order-detail .po-detail-biz-qty {
   flex-wrap: wrap;
   padding: 12px 16px;
   border-bottom: 1px solid $border-panel;
-  background: rgba(0, 212, 255, 0.04);
+  background: var(--crm-detail-panel-card-head-bg);
 }
 
 .so-item-line-detail-panel__title {

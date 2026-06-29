@@ -120,7 +120,7 @@ namespace CRM.Core.Services
             if (!tagIds.Any())
                 return Array.Empty<TagDefinition>();
 
-            var tags = await _tagRepository.FindAsync(t => tagIds.Contains(t.Id) && t.Status == 1);
+            var tags = await _tagRepository.FindAsync(t => tagIds.Contains(t.Id) && !t.IsDeleted);
             return tags.OrderByDescending(t => t.SortOrder).ThenBy(t => t.Name).ToList();
         }
 

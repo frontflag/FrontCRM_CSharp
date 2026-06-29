@@ -1483,6 +1483,50 @@ namespace CRM.Core.Services
                 (!string.IsNullOrWhiteSpace(i.AssignedPurchaserUserId2) && purchaseAllow.Contains(i.AssignedPurchaserUserId2!)));
         }
 
+        /// <inheritdoc />
+        public async Task<bool> CanViewRfqTagsAsync(string userId, string? createByUserId, string? salesUserId)
+        {
+            if (string.IsNullOrWhiteSpace(userId)) return false;
+            var uid = userId.Trim();
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(uid);
+            if (summary.IsSysAdmin) return true;
+            if (!string.IsNullOrWhiteSpace(createByUserId)
+                && string.Equals(createByUserId.Trim(), uid, StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (!string.IsNullOrWhiteSpace(salesUserId)
+                && string.Equals(salesUserId.Trim(), uid, StringComparison.OrdinalIgnoreCase))
+                return true;
+            return await IsSalesSuperiorForRfqTagsAsync(uid, salesUserId, summary);
+        }
+
+        /// <inheritdoc />
+        public async Task<bool> CanEditRfqTagsAsync(string userId, string? createByUserId, string? salesUserId)
+        {
+            if (string.IsNullOrWhiteSpace(userId)) return false;
+            var uid = userId.Trim();
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(uid);
+            if (summary.IsSysAdmin) return false;
+            if (!string.IsNullOrWhiteSpace(createByUserId)
+                && string.Equals(createByUserId.Trim(), uid, StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (!string.IsNullOrWhiteSpace(salesUserId)
+                && string.Equals(salesUserId.Trim(), uid, StringComparison.OrdinalIgnoreCase))
+                return true;
+            return false;
+        }
+
+        private async Task<bool> IsSalesSuperiorForRfqTagsAsync(
+            string userId,
+            string? salesUserId,
+            UserPermissionSummaryDto summary)
+        {
+            if (string.IsNullOrWhiteSpace(salesUserId)) return false;
+            if (string.Equals(salesUserId.Trim(), userId, StringComparison.OrdinalIgnoreCase)) return false;
+            if (summary.SaleDataScope != 2 && summary.SaleDataScope != 3) return false;
+            var allowUserIds = await GetAllowedUserIdsAsync(summary, includeChildren: summary.SaleDataScope == 3);
+            return allowUserIds.Contains(salesUserId.Trim());
+        }
+
         public async Task<bool> CanAccessSalesOrderAsync(string userId, SellOrder salesOrder)
         {
             if (await IsLogisticsModuleUnrestrictedAsync(userId))
