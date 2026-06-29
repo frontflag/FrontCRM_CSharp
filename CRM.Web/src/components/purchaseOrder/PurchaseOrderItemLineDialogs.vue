@@ -10,13 +10,20 @@
       <el-form label-width="120px">
         <el-row :gutter="12">
           <el-col :span="12">
-            <el-form-item label="供应商信息">
-              <el-input :model-value="maskPurchaseSensitiveFields ? '—' : (paymentForm.vendorName || '--')" disabled />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
             <el-form-item label="采购员">
               <el-input :model-value="paymentForm.purchaseUserName || '--'" disabled />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="12">
+          <el-col :span="24">
+            <el-form-item label="供应商信息">
+              <vendor-name-readonly-field
+                :name-zh="paymentForm.vendorName"
+                :name-en="paymentForm.vendorEnglishName"
+                :masked="maskPurchaseSensitiveFields"
+                mode="compact"
+              />
             </el-form-item>
           </el-col>
         </el-row>
@@ -274,6 +281,7 @@ import { ElMessage } from 'element-plus'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
 import PaymentRequestVendorBankSection from '@/components/Vendor/PaymentRequestVendorBankSection.vue'
+import VendorNameReadonlyField from '@/components/Vendor/VendorNameReadonlyField.vue'
 import { formatDisplayDate } from '@/utils/displayDateTime'
 import { formatCurrencyTotal, formatCurrencyUnitPrice } from '@/utils/moneyFormat'
 import { financePaymentApi } from '@/api/finance'
@@ -297,6 +305,7 @@ const arrivalSubmitting = ref(false)
 const paymentForm = reactive<any>({
   vendorId: '',
   vendorName: '',
+  vendorEnglishName: '',
   purchaseUserName: '',
   vendorBankId: '',
   vendorBanks: [] as import('@/types/vendor').VendorBankInfo[],
@@ -382,6 +391,7 @@ function toDatePickerValue(v: unknown): string {
 async function openPayment(row: any) {
   paymentForm.vendorId = row.vendorId || ''
   paymentForm.vendorName = row.vendorName || ''
+  paymentForm.vendorEnglishName = row.vendorEnglishName || ''
   paymentForm.purchaseUserName = row.purchaseUserName || ''
   paymentForm.vendorBankId = ''
   paymentForm.vendorBanks = []

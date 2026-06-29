@@ -255,6 +255,7 @@ public sealed class RfqItemListQuery : IRfqItemListQuery
                 CustomerBrand = string.IsNullOrWhiteSpace(x.item.CustomerBrand) ? null : x.item.CustomerBrand.Trim(),
                 Brand = x.item.Brand,
                 Quantity = x.item.Quantity,
+                PriceCurrency = x.item.PriceCurrency,
                 Status = lineStatus,
                 CustomerId = x.rfq.CustomerId,
                 CustomerName = string.IsNullOrWhiteSpace(customerName) ? null : customerName,

@@ -28,6 +28,14 @@ namespace CRM.Core.Services
         private readonly IForceDeleteGuardService _forceDeleteGuard;
         private readonly ILogOperationAppendService _logOperationAppend;
         private readonly IFinancePaymentListQuery _paymentListQuery;
+        private readonly Document.IDocumentService _documentService;
+
+        private const short FinancePaymentStatusNew = 1;
+        private const short FinancePaymentStatusPendingAudit = 2;
+        private const short FinancePaymentStatusApproved = 10;
+        private const short FinancePaymentStatusCompleted = 100;
+        private const short FinancePaymentStatusAuditFailed = -1;
+        private const short FinancePaymentStatusCancelled = -2;
 
         public FinancePaymentService(
             IRepository<FinancePayment> paymentRepo,
@@ -45,6 +53,7 @@ namespace CRM.Core.Services
             IForceDeleteGuardService forceDeleteGuard,
             ILogOperationAppendService logOperationAppend,
             IFinancePaymentListQuery paymentListQuery,
+            Document.IDocumentService documentService,
             IUnitOfWork? unitOfWork = null)
         {
             _paymentRepo = paymentRepo;
@@ -62,6 +71,7 @@ namespace CRM.Core.Services
             _forceDeleteGuard = forceDeleteGuard;
             _logOperationAppend = logOperationAppend;
             _paymentListQuery = paymentListQuery;
+            _documentService = documentService;
             _unitOfWork = unitOfWork;
         }
 
@@ -283,6 +293,153 @@ namespace CRM.Core.Services
             return payment;
         }
 
+        public async Task<FinancePayment> UpdateRequestAsync(string id, UpdateFinancePaymentRequestBody request, string? actingUserId = null)
+        {
+            if (request == null) throw new ArgumentNullException(nameof(request));
+
+            var payment = await _paymentRepo.GetByIdAsync(id)
+                ?? throw new InvalidOperationException($"付款单 {id} 不存在");
+
+            if (payment.Status != FinancePaymentStatusNew && payment.Status != FinancePaymentStatusAuditFailed)
+                throw new InvalidOperationException("当前状态不允许编辑请款");
+
+            var existingItems = (await _itemRepo.FindAsync(i => i.FinancePaymentId == id)).ToList();
+            if (existingItems.Count == 0)
+                throw new InvalidOperationException("付款单无明细，无法编辑");
+
+            var (vendorBankId, financePaymentBankId) = await ResolvePaymentVendorBankAsync(
+                payment.VendorId,
+                request.VendorBankId ?? payment.VendorBankId,
+                payment.FinancePaymentBankId,
+                request.PaymentMode);
+
+            await ValidateAndApplyRequestItemsAsync(payment.Id, existingItems, request.Items);
+
+            var linesTotal = existingItems.Sum(i => i.PaymentAmountToBe);
+            var feeTotal = request.FeeIntermediateBank + request.FeeBankCharge + request.FeeFreight
+                + request.FeeMisc + request.FeeRounding;
+            payment.PaymentAmountToBe = Math.Round(linesTotal + feeTotal, 2, MidpointRounding.AwayFromZero);
+            payment.PaymentCurrency = request.PaymentCurrency;
+            payment.PaymentMode = request.PaymentMode;
+            payment.VendorBankId = vendorBankId;
+            payment.FinancePaymentBankId = financePaymentBankId;
+            payment.RequestRemark = string.IsNullOrWhiteSpace(request.RequestRemark)
+                ? null
+                : request.RequestRemark.Trim();
+            payment.FeeIntermediateBank = request.FeeIntermediateBank;
+            payment.FeeBankCharge = request.FeeBankCharge;
+            payment.FeeFreight = request.FeeFreight;
+            payment.FeeMisc = request.FeeMisc;
+            payment.FeeRounding = request.FeeRounding;
+            var payer = string.IsNullOrWhiteSpace(request.FeeIntermediateBankPayer)
+                ? null
+                : request.FeeIntermediateBankPayer.Trim();
+            payment.FeeIntermediateBankPayer = payer != null && payer.Length > 20 ? payer[..20] : payer;
+
+            if (payment.Status == FinancePaymentStatusAuditFailed)
+                payment.Status = FinancePaymentStatusNew;
+
+            payment.ModifyTime = DateTime.UtcNow;
+            payment.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
+            await _paymentRepo.UpdateAsync(payment);
+            if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+
+            foreach (var pid in existingItems
+                         .Select(i => i.PurchaseOrderItemId)
+                         .Where(s => !string.IsNullOrWhiteSpace(s))
+                         .Select(s => s!.Trim())
+                         .Distinct(StringComparer.OrdinalIgnoreCase))
+                await _poItemExtendSync.RecalculateAsync(pid);
+
+            payment.Items = existingItems;
+            await EnrichVendorCodesAsync(new[] { payment });
+            await EnrichVendorBankNamesAsync(new[] { payment });
+            await EnrichPaymentBankNamesAsync(new[] { payment });
+            await EnrichCreateUserNamesAsync(new[] { payment });
+            await EnrichFreightForwarderOrderNosAsync(new[] { payment });
+            return payment;
+        }
+
+        public async Task<FinancePayment> UpdateExecutionAsync(string id, UpdateFinancePaymentExecutionRequest request, string? actingUserId = null)
+        {
+            if (request == null) throw new ArgumentNullException(nameof(request));
+
+            var payment = await _paymentRepo.GetByIdAsync(id)
+                ?? throw new InvalidOperationException($"付款单 {id} 不存在");
+
+            if (payment.Status != FinancePaymentStatusApproved)
+                throw new InvalidOperationException("仅审核通过的付款单可保存付款执行信息");
+
+            if (request.CompanyBankId != null)
+            {
+                if (string.IsNullOrWhiteSpace(request.CompanyBankId))
+                    payment.CompanyBankId = null;
+                else
+                {
+                    await ValidateCompanyBankIdAsync(request.CompanyBankId);
+                    payment.CompanyBankId = request.CompanyBankId.Trim();
+                }
+            }
+
+            if (request.PaymentDate.HasValue)
+                payment.PaymentDate = PostgreSqlDateTime.ToUtc(request.PaymentDate.Value);
+            if (request.BankSlipNo != null)
+                payment.BankSlipNo = request.BankSlipNo;
+
+            payment.ModifyTime = DateTime.UtcNow;
+            payment.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
+            await _paymentRepo.UpdateAsync(payment);
+            if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+
+            await EnrichVendorCodesAsync(new[] { payment });
+            await EnrichVendorBankNamesAsync(new[] { payment });
+            await EnrichPaymentBankNamesAsync(new[] { payment });
+            await EnrichCreateUserNamesAsync(new[] { payment });
+            await EnrichFreightForwarderOrderNosAsync(new[] { payment });
+            return payment;
+        }
+
+        public async Task<FinancePayment> WithdrawAsync(string id, string actingUserId, bool actingUserHasFinancePaymentWrite)
+        {
+            if (string.IsNullOrWhiteSpace(actingUserId))
+                throw new ArgumentException("操作人不能为空", nameof(actingUserId));
+
+            var payment = await _paymentRepo.GetByIdAsync(id)
+                ?? throw new InvalidOperationException($"付款单 {id} 不存在");
+
+            if (payment.Status != FinancePaymentStatusApproved)
+                throw new InvalidOperationException("仅审核通过的付款单可撤回");
+
+            var isCreator = !string.IsNullOrWhiteSpace(payment.CreateByUserId)
+                && string.Equals(payment.CreateByUserId.Trim(), actingUserId.Trim(), StringComparison.OrdinalIgnoreCase);
+            if (!isCreator && !actingUserHasFinancePaymentWrite)
+                throw new InvalidOperationException("无权限撤回该付款单");
+
+            payment.CompanyBankId = null;
+            payment.BankSlipNo = null;
+            payment.PaymentDate = null;
+            payment.PaymentUserId = null;
+            payment.Status = FinancePaymentStatusNew;
+            payment.ModifyTime = DateTime.UtcNow;
+            payment.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
+            await _paymentRepo.UpdateAsync(payment);
+
+            var docs = await _documentService.GetByBizAsync(CrossSideDocumentAttachmentPolicy.BizFinancePayment, payment.Id);
+            foreach (var doc in docs)
+                await _documentService.SoftDeleteAsync(doc.Id, actingUserId.Trim());
+
+            if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+
+            var items = (await _itemRepo.FindAsync(i => i.FinancePaymentId == id)).ToList();
+            payment.Items = items;
+            await EnrichVendorCodesAsync(new[] { payment });
+            await EnrichVendorBankNamesAsync(new[] { payment });
+            await EnrichPaymentBankNamesAsync(new[] { payment });
+            await EnrichCreateUserNamesAsync(new[] { payment });
+            await EnrichFreightForwarderOrderNosAsync(new[] { payment });
+            return payment;
+        }
+
         public async Task DeleteAsync(string id)
         {
             var payment = await _paymentRepo.GetByIdAsync(id)
@@ -472,6 +629,83 @@ namespace CRM.Core.Services
             await _poRepo.UpdateAsync(po);
 
             await _poItemExtendSync.RecalculateAsync(payItem.PurchaseOrderItemId);
+        }
+
+        private async Task ValidateAndApplyRequestItemsAsync(
+            string paymentId,
+            IReadOnlyList<FinancePaymentItem> existingItems,
+            IReadOnlyList<UpdateFinancePaymentItemRequest> requestItems)
+        {
+            if (requestItems.Count != existingItems.Count)
+                throw new ArgumentException("请款明细行数不可增删");
+
+            var existingMap = existingItems
+                .Where(i => !string.IsNullOrWhiteSpace(i.Id))
+                .ToDictionary(i => i.Id.Trim(), i => i, StringComparer.OrdinalIgnoreCase);
+
+            var requestIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var req in requestItems)
+            {
+                var reqId = (req.Id ?? string.Empty).Trim();
+                if (string.IsNullOrEmpty(reqId) || !existingMap.ContainsKey(reqId))
+                    throw new ArgumentException($"无效的请款明细行：{req.Id}");
+                requestIds.Add(reqId);
+            }
+
+            if (existingItems.Any(i => !requestIds.Contains(i.Id.Trim())))
+                throw new ArgumentException("请款明细行不可缺失");
+
+            foreach (var req in requestItems)
+            {
+                var item = existingMap[req.Id.Trim()];
+                if (req.PaymentAmountToBe <= 0)
+                    throw new ArgumentException($"请款金额必须大于 0：{item.PN ?? item.Id}");
+
+                if (!string.IsNullOrWhiteSpace(item.PurchaseOrderItemId))
+                {
+                    var maxAllowed = await GetMaxRequestAmountForPoLineAsync(
+                        item.PurchaseOrderItemId.Trim(), paymentId);
+                    if (req.PaymentAmountToBe > maxAllowed + 0.0001m)
+                        throw new ArgumentException(
+                            $"物料 {item.PN ?? item.PurchaseOrderItemId} 请款金额不能大于待请款金额 {maxAllowed:F2}");
+                }
+
+                item.PaymentAmountToBe = Math.Round(req.PaymentAmountToBe, 2, MidpointRounding.AwayFromZero);
+                item.LineRemark = string.IsNullOrWhiteSpace(req.LineRemark) ? null : req.LineRemark.Trim();
+                item.VerificationToBe = item.PaymentAmountToBe;
+                item.ModifyTime = DateTime.UtcNow;
+                await _itemRepo.UpdateAsync(item);
+            }
+        }
+
+        private async Task<decimal> GetMaxRequestAmountForPoLineAsync(string poItemId, string paymentId)
+        {
+            var poItem = await _poItemRepo.GetByIdAsync(poItemId)
+                ?? throw new ArgumentException("采购明细不存在");
+            var lineTotal = Math.Round(poItem.Qty * poItem.Cost, 2, MidpointRounding.AwayFromZero);
+
+            var payItems = (await _itemRepo.FindAsync(p =>
+                p.PurchaseOrderItemId != null && p.PurchaseOrderItemId == poItemId)).ToList();
+            var paymentIds = payItems
+                .Select(p => p.FinancePaymentId)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var payments = paymentIds.Count == 0
+                ? new List<FinancePayment>()
+                : (await _paymentRepo.FindAsync(p => paymentIds.Contains(p.Id))).ToList();
+            var validPaymentIds = payments
+                .Where(p => p.Status != FinancePaymentStatusCancelled
+                    && p.Status != FinancePaymentStatusAuditFailed
+                    && !string.Equals(p.Id, paymentId, StringComparison.OrdinalIgnoreCase))
+                .Select(p => p.Id)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var otherRequested = payItems
+                .Where(pi => validPaymentIds.Contains(pi.FinancePaymentId))
+                .Sum(pi => pi.PaymentAmountToBe);
+
+            return Math.Max(0m, Math.Round(lineTotal - otherRequested, 2, MidpointRounding.AwayFromZero));
         }
 
         private async Task ValidateFinancePaymentBankIdAsync(string? bankId)

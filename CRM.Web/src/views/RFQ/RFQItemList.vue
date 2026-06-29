@@ -10,15 +10,6 @@
         </div>
         <div class="count-badge">{{ t('rfqItemList.count', { count: totalCount }) }}</div>
       </div>
-      <div class="header-right">
-        <el-button
-          type="warning"
-          :disabled="!canUseBatchQuote"
-          @click="handleBatchQuote"
-        >
-          {{ t('rfqItemList.batchQuote') }}
-        </el-button>
-      </div>
     </div>
 
     <!-- 搜索栏：与客户列表 CustomerList 同款布局与控件皮肤 -->
@@ -160,6 +151,16 @@
         </template>
         <template #col-customerBrand="{ row }">
           {{ row.customerBrand || '—' }}
+        </template>
+        <template #col-quantity="{ row }">
+          {{ row.quantity ?? '—' }}
+        </template>
+        <template #col-priceCurrency="{ row }">
+          <span
+            :class="['dock-tier-ccy', dockTierCurrencyCodeClass(resolveRfqItemPriceCurrency(row))]"
+          >
+            {{ dockTierCurrencyCode(resolveRfqItemPriceCurrency(row)) }}
+          </span>
         </template>
         <template #col-purchasers="{ row }">
           {{ formatAssignedPurchasers(row) }}
@@ -733,17 +734,12 @@ const { options: materialPdOptions, ensureLoaded: ensureMaterialPdDict } = useMa
 const canViewCustomerInRfq = computed(
   () => authStore.hasPermission('customer.info.read') && !maskSaleSensitiveFields.value
 )
-const showRfqSalesUserColumn = computed(() => !maskSaleSensitiveFields.value)
+/** 需求明细列表：采购部门需见主表业务员以便协同询价（§5.2.1 仍脱敏客户身份等） */
+const showRfqSalesUserColumn = computed(() => true)
 
 function canQuoteRfqItemRow(row: RFQItem): boolean {
   return canQuoteRfqItem(authStore.user, row)
 }
-
-/** 批量报价：篮内每条明细均须当前用户有权报价 */
-const canUseBatchQuote = computed(() => {
-  if (!basketCount.value) return false
-  return basketItems.value.every((row) => canQuoteRfqItemRow(row))
-})
 
 /** 需求明细列表：按当前筛选与分页自动刷新间隔 */
 const RFQ_ITEM_LIST_AUTO_REFRESH_MS = 5 * 60 * 1000
@@ -868,6 +864,14 @@ const rfqItemMainTableColumns = computed<CrmTableColumnDef[]>(() => {
     width: 108,
     minWidth: 96,
     align: 'right',
+    resizable: true
+  },
+  {
+    key: 'priceCurrency',
+    label: t('rfqItemList.columns.priceCurrency'),
+    width: 88,
+    minWidth: 80,
+    align: 'center',
     resizable: true
   }
   )
@@ -1217,6 +1221,22 @@ function formatDockTierQuantity(q: number) {
   if (!Number.isFinite(q)) return '—'
   if (Math.abs(q - Math.round(q)) < 1e-9) return String(Math.round(q))
   return q.toLocaleString('zh-CN', { maximumFractionDigits: 4 })
+}
+
+/** 明细目标价币别（与新建需求物料明细 priceCurrency 一致） */
+function resolveRfqItemPriceCurrency(row: RFQItem): number {
+  const raw = row.priceCurrency ?? row.currency
+  const n = typeof raw === 'number' ? raw : raw != null && raw !== '' ? Number(raw) : NaN
+  if (Number.isFinite(n) && n >= 1) return Math.round(n)
+  if (typeof raw === 'string') {
+    const u = raw.trim().toUpperCase()
+    if (u === 'USD') return 2
+    if (u === 'EUR') return 3
+    if (u === 'HKD') return 4
+    if (u === 'JPY') return 5
+    if (u === 'GBP') return 6
+  }
+  return 1
 }
 
 /** 与报价阶梯币别枚举一致：1=RMB，2=USD，3=EUR，4=HKD，5=JPY，6=GBP */
@@ -1587,35 +1607,6 @@ async function handleDockRowGenerateSalesOrder(row: Record<string, unknown>) {
   } finally {
     dockRowSalesOrderQuoteId.value = null
   }
-}
-
-function handleBatchQuote() {
-  const rows = basketStore.items
-  if (!rows.length) {
-    ElMessage.warning(t('rfqItemList.warnings.selectFromBasket'))
-    return
-  }
-  if (!rows.every((row) => canQuoteRfqItemRow(row))) {
-    ElMessage.warning(t('rfqItemList.warnings.batchQuoteNotAllowed'))
-    return
-  }
-  const rfqIds = new Set(rows.map((r) => r.rfqId).filter(Boolean))
-  if (rfqIds.size !== 1) {
-    ElMessage.warning(t('rfqItemList.warnings.sameRfqOnly'))
-    return
-  }
-  const rfqId = [...rfqIds][0]!
-  const ids = rows.map((r) => r.id).filter(Boolean)
-  const code = rows[0]?.rfqCode
-  router.push({
-    name: 'QuoteCreate',
-    query: {
-      rfqId,
-      rfqItemIds: ids.join(','),
-      ...(code ? { rfqCode: code } : {}),
-      returnTo: route.fullPath
-    }
-  })
 }
 
 onMounted(async () => {

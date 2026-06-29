@@ -7,6 +7,7 @@ export interface PurchaseOrderRecentEntry {
   id: string
   purchaseOrderCode: string
   vendorName: string
+  vendorEnglishName?: string
   at: string
 }
 
@@ -21,10 +22,15 @@ function parseList(raw: string | null): PurchaseOrderRecentEntry[] {
         const r = x as Record<string, unknown>
         const id = r.id != null ? String(r.id) : ''
         if (!id) return null
+        const vendorEnglishName =
+          r.vendorEnglishName != null && String(r.vendorEnglishName).trim()
+            ? String(r.vendorEnglishName)
+            : undefined
         return {
           id,
           purchaseOrderCode: r.purchaseOrderCode != null ? String(r.purchaseOrderCode) : '',
           vendorName: r.vendorName != null ? String(r.vendorName) : '',
+          vendorEnglishName,
           at: r.at != null ? String(r.at) : new Date().toISOString()
         } as PurchaseOrderRecentEntry
       })
@@ -38,6 +44,7 @@ export function recordPurchaseOrderRecentView(p: {
   id: string
   purchaseOrderCode?: string
   vendorName?: string
+  vendorEnglishName?: string
 }) {
   if (!p.id) return
   try {
@@ -47,6 +54,7 @@ export function recordPurchaseOrderRecentView(p: {
       id: p.id,
       purchaseOrderCode: p.purchaseOrderCode ?? '',
       vendorName: p.vendorName ?? '',
+      vendorEnglishName: p.vendorEnglishName?.trim() || undefined,
       at: new Date().toISOString()
     })
     list = list.slice(0, MAX_ENTRIES)

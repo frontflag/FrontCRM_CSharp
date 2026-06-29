@@ -766,7 +766,7 @@
                     <template #default="{ row }">{{ poItemStatusLabel(row?.itemStatus) }}</template>
                   </el-table-column>
                   <el-table-column label="供应商" min-width="140" show-overflow-tooltip>
-                    <template #default="{ row }">{{ maskPurchaseSensitiveFields ? '—' : (row.vendorName || '—') }}</template>
+                    <template #default="{ row }">{{ formatVendorNameReadonly(row.vendorName, row.vendorEnglishName, { masked: maskPurchaseSensitiveFields }) }}</template>
                   </el-table-column>
                   <el-table-column prop="purchaseUserName" label="采购员" width="100" show-overflow-tooltip />
                   <el-table-column prop="pn" label="PN" min-width="140" show-overflow-tooltip />
@@ -1175,6 +1175,7 @@ import { REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionTyp
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import { formatVendorNameReadonly } from '@/utils/vendorDisplayName'
 import { useSaleOrderWriteGate } from '@/composables/useDepartmentDataReadOnly'
 import ApplyStockOutDisabledHint from '@/components/RFQ/ApplyStockOutDisabledHint.vue'
 

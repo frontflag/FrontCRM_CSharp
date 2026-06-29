@@ -14,6 +14,8 @@ export interface StockInItemDto {
   purchaseOrderItemCode?: string
   /** 详情页：供应商名称 */
   vendorName?: string
+  /** 详情页：供应商英文名（展示用） */
+  vendorEnglishName?: string
   /** 创建时作为 MaterialId 提交；详情页仅保留数据不展示列 */
   materialCode: string
   /** 展示用：物料型号（与入库列表「物料型号」一致） */

@@ -24,6 +24,7 @@ export interface BatchReconciliationRow {
   freightForwarderOrderNo?: string | null
   vendorId?: string | null
   vendorName?: string | null
+  vendorEnglishName?: string | null
   materialModel?: string | null
   materialBrand?: string | null
   stockInItemQuantity: number

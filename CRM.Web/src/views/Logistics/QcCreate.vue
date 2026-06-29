@@ -31,11 +31,6 @@
               </el-form-item>
             </el-col>
             <el-col :span="6">
-              <el-form-item label="供应商">
-                <el-input :model-value="maskPurchaseSensitiveFields ? '—' : form.vendorName" disabled class="q-input q-input--readonly" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="6">
               <el-form-item label="采购员">
                 <el-input :model-value="form.purchaseUserName?.trim() || '—'" disabled class="q-input q-input--readonly" />
               </el-form-item>
@@ -43,6 +38,18 @@
             <el-col :span="6">
               <el-form-item label="采购单号">
                 <el-input v-model="form.purchaseOrderCode" disabled class="q-input q-input--readonly" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row :gutter="12">
+            <el-col :span="24">
+              <el-form-item label="供应商">
+                <vendor-name-readonly-field
+                  :name-zh="form.vendorName"
+                  :name-en="form.vendorEnglishName"
+                  :masked="maskPurchaseSensitiveFields"
+                  mode="compact"
+                />
               </el-form-item>
             </el-col>
           </el-row>
@@ -221,6 +228,7 @@ import { Plus } from '@element-plus/icons-vue'
 import apiClient from '@/api/client'
 import { documentApi, DOCUMENT_BIZ_TYPE_QC, type UploadDocumentDto } from '@/api/document'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import VendorNameReadonlyField from '@/components/Vendor/VendorNameReadonlyField.vue'
 import { getApiErrorMessage } from '@/utils/apiError'
 
 type QcUploadFile = UploadFile & { documentId?: string; uploadFailReason?: string }
@@ -244,6 +252,7 @@ const form = reactive<any>({
   materialCode: '',
   brand: '',
   vendorName: '',
+  vendorEnglishName: '',
   purchaseOrderCode: '',
   purchaseUserId: '',
   purchaseUserName: '',
@@ -509,6 +518,7 @@ const fillNotice = async (noticeId: string, opts?: { skipDefaultStockInPlanDate?
   form.materialCode = firstItem?.pn || row.pn || ''
   form.brand = firstItem?.brand || row.brand || ''
   form.vendorName = row.vendorName || ''
+  form.vendorEnglishName = row.vendorEnglishName || ''
   form.purchaseUserName = row.purchaseUserName || ''
   form.purchaseUserId = ''
   await applyPurchaseUserFromPurchaseOrder(row.purchaseOrderId)

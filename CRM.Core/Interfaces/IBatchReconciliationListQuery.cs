@@ -30,6 +30,7 @@ public class BatchReconciliationRowDto
     public string? FreightForwarderOrderNo { get; set; }
     public string? VendorId { get; set; }
     public string? VendorName { get; set; }
+    public string? VendorEnglishName { get; set; }
     public string? MaterialModel { get; set; }
     public string? MaterialBrand { get; set; }
     public int StockInItemQuantity { get; set; }

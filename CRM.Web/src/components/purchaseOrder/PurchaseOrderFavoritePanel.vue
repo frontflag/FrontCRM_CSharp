@@ -9,6 +9,7 @@ import {
   PURCHASE_ORDER_FAVORITES_CHANGED_EVENT
 } from '@/constants/purchaseOrderFavorites'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import { formatVendorNameReadonly } from '@/utils/vendorDisplayName'
 
 withDefaults(
   defineProps<{
@@ -101,7 +102,7 @@ onBeforeUnmount(() => {
           @click="goDetail(row)"
         >
           <td class="po-favorite-panel__code">{{ row.purchaseOrderCode || '—' }}</td>
-          <td class="po-favorite-panel__name">{{ maskPurchaseSensitiveFields ? '—' : (row.vendorName || '—') }}</td>
+          <td class="po-favorite-panel__name">{{ formatVendorNameReadonly(row.vendorName, row.vendorEnglishName, { masked: maskPurchaseSensitiveFields }) }}</td>
           <td>{{ getStatusText(Number(row.status)) }}</td>
         </tr>
       </tbody>

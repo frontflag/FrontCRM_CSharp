@@ -45,6 +45,10 @@ namespace CRM.Core.Models.Inventory
         [StringLength(64)]
         public string? VendorName { get; set; }
 
+        /// <summary>供应商英文名称（展示用，来自 vendorinfo，不落库）。</summary>
+        [NotMapped]
+        public string? VendorEnglishName { get; set; }
+
         /// <summary>供应商编号（展示用，由服务从采购单关联填充，不落库）。</summary>
         [NotMapped]
         public string? VendorCode { get; set; }
@@ -182,6 +186,9 @@ namespace CRM.Core.Models.Inventory
 
         [NotMapped]
         public string? VendorName { get; set; }
+
+        [NotMapped]
+        public string? VendorEnglishName { get; set; }
 
         [NotMapped]
         public string? PurchaseOrderCode { get; set; }

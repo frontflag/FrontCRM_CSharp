@@ -33,9 +33,13 @@
             <span class="order-code">{{ detail.financePurchaseInvoiceCode }}</span>
           </el-descriptions-item>
           <el-descriptions-item :label="t('financePurchaseInvoiceDetail.labels.invoiceNo')">{{ detail.invoiceNo || '-' }}</el-descriptions-item>
-          <el-descriptions-item :label="t('financePurchaseInvoiceDetail.labels.vendor')">{{
-            maskPurchaseSensitiveFields ? '—' : detail.vendorName
-          }}</el-descriptions-item>
+          <el-descriptions-item :label="t('financePurchaseInvoiceDetail.labels.vendor')">
+            <vendor-name-readonly-text
+              :name-zh="detail.vendorName"
+              :name-en="detail.vendorEnglishName"
+              :masked="maskPurchaseSensitiveFields"
+            />
+          </el-descriptions-item>
           <el-descriptions-item :label="t('financePurchaseInvoiceDetail.labels.amount')">
             <span v-if="maskPurchaseSensitiveFields">—</span>
             <span v-else class="amount">¥ {{ formatAmount(detail.invoiceTotal) }}</span>
@@ -98,6 +102,7 @@ import {
 } from '@/api/finance'
 import { formatDisplayDate } from '@/utils/displayDateTime'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import VendorNameReadonlyText from '@/components/Vendor/VendorNameReadonlyText.vue'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const router = useRouter()

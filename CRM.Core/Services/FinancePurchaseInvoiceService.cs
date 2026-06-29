@@ -2,6 +2,7 @@ using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Finance;
 using CRM.Core.Models.System;
+using CRM.Core.Models.Vendor;
 using CRM.Core.Utilities;
 
 namespace CRM.Core.Services
@@ -16,6 +17,7 @@ namespace CRM.Core.Services
         private readonly IForceDeleteGuardService _forceDeleteGuard;
         private readonly ILogOperationAppendService _logOperationAppend;
         private readonly IFinancePurchaseInvoiceListQuery _purchaseInvoiceListQuery;
+        private readonly IRepository<VendorInfo> _vendorRepo;
 
         public FinancePurchaseInvoiceService(
             IRepository<FinancePurchaseInvoice> invoiceRepo,
@@ -25,6 +27,7 @@ namespace CRM.Core.Services
             IForceDeleteGuardService forceDeleteGuard,
             ILogOperationAppendService logOperationAppend,
             IFinancePurchaseInvoiceListQuery purchaseInvoiceListQuery,
+            IRepository<VendorInfo> vendorRepo,
             IUnitOfWork? unitOfWork = null)
         {
             _invoiceRepo = invoiceRepo;
@@ -34,6 +37,7 @@ namespace CRM.Core.Services
             _forceDeleteGuard = forceDeleteGuard;
             _logOperationAppend = logOperationAppend;
             _purchaseInvoiceListQuery = purchaseInvoiceListQuery;
+            _vendorRepo = vendorRepo;
             _unitOfWork = unitOfWork;
         }
 
@@ -87,14 +91,27 @@ namespace CRM.Core.Services
             return invoice;
         }
 
-        public async Task<FinancePurchaseInvoice?> GetByIdAsync(string id) =>
-            await _invoiceRepo.GetByIdAsync(id);
+        public async Task<FinancePurchaseInvoice?> GetByIdAsync(string id)
+        {
+            var invoice = await _invoiceRepo.GetByIdAsync(id);
+            if (invoice != null)
+                await EnrichVendorEnglishNamesAsync(new[] { invoice });
+            return invoice;
+        }
 
-        public async Task<IEnumerable<FinancePurchaseInvoice>> GetAllAsync() =>
-            await _invoiceRepo.GetAllAsync();
+        public async Task<IEnumerable<FinancePurchaseInvoice>> GetAllAsync()
+        {
+            var all = (await _invoiceRepo.GetAllAsync()).ToList();
+            await EnrichVendorEnglishNamesAsync(all);
+            return all;
+        }
 
-        public async Task<PagedResult<FinancePurchaseInvoice>> GetPagedAsync(FinancePurchaseInvoiceQueryRequest request) =>
-            await _purchaseInvoiceListQuery.GetPagedAsync(request);
+        public async Task<PagedResult<FinancePurchaseInvoice>> GetPagedAsync(FinancePurchaseInvoiceQueryRequest request)
+        {
+            var result = await _purchaseInvoiceListQuery.GetPagedAsync(request);
+            await EnrichVendorEnglishNamesAsync(result.Items);
+            return result;
+        }
 
         public async Task<FinancePurchaseInvoice> UpdateAsync(string id, UpdateFinancePurchaseInvoiceRequest request, string? actingUserId = null)
         {
@@ -224,6 +241,18 @@ namespace CRM.Core.Services
             await _invoiceRepo.UpdateAsync(invoice);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
             await _poItemExtendSync.RecalculateForFinancePurchaseInvoiceAsync(id);
+        }
+
+        private async Task EnrichVendorEnglishNamesAsync(IEnumerable<FinancePurchaseInvoice> items)
+        {
+            var list = items.Where(x => x != null).ToList();
+            if (list.Count == 0) return;
+
+            var englishMap = await VendorDisplayEnrichment.LoadEnglishOfficialNameMapAsync(
+                _vendorRepo,
+                list.Select(x => x.VendorId));
+            foreach (var inv in list)
+                inv.VendorEnglishName = VendorDisplayEnrichment.ResolveEnglishOfficialName(englishMap, inv.VendorId);
         }
     }
 }

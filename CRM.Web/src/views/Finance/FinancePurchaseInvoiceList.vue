@@ -82,7 +82,11 @@
       </template>
       <template #col-invoiceNo="{ row }">{{ row.invoiceNo || '-' }}</template>
       <template #col-vendorName="{ row }">
-        <span>{{ maskPurchaseSensitiveFields ? '—' : (row.vendorName?.trim() || '—') }}</span>
+        <vendor-name-readonly-text
+          :name-zh="row.vendorName"
+          :name-en="row.vendorEnglishName"
+          :masked="maskPurchaseSensitiveFields"
+        />
       </template>
       <template #col-invoiceTotal="{ row }">
         <span v-if="maskPurchaseSensitiveFields">—</span>
@@ -300,6 +304,7 @@ import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { vendorApi } from '@/api/vendor'
 import type { Vendor } from '@/types/vendor'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import VendorNameReadonlyText from '@/components/Vendor/VendorNameReadonlyText.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useFinanceWriteGate } from '@/composables/useDepartmentDataReadOnly'
 

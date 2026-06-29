@@ -255,7 +255,7 @@
           <div class="biz-extra">
             <template v-if="auditRow.bizType === 'VENDOR'">
               <div class="extra-title">{{ t('pendingApprovals.vendorSection') }}</div>
-              <div class="extra-line"><span>{{ t('pendingApprovals.vendor.nameLabel') }}</span>{{ maskPurchaseSensitiveFields ? '—' : (auditDetail?.officialName || auditRow.counterpartyName || '—') }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.vendor.nameLabel') }}</span>{{ auditVendorNameLabel(auditDetail, auditRow.counterpartyName ?? undefined) }}</div>
               <div class="extra-line"><span>{{ t('pendingApprovals.vendor.codeLabel') }}</span>{{ auditRow.documentCode }}</div>
               <div class="extra-line"><span>{{ t('pendingApprovals.vendor.paymentMethod') }}</span>{{ maskPurchaseSensitiveFields ? '—' : (auditDetail?.paymentMethod || '—') }}</div>
               <div class="extra-line"><span>{{ t('pendingApprovals.vendor.paymentTerm') }}</span>{{ maskPurchaseSensitiveFields ? '—' : (auditDetail?.payment ?? '—') }}</div>
@@ -280,7 +280,7 @@
             <template v-else-if="auditRow.bizType === 'PURCHASE_ORDER'">
               <div class="extra-title">{{ t('pendingApprovals.purchaseOrderSection') }}</div>
               <div class="extra-line"><span>{{ t('pendingApprovals.purchaseOrder.poNo') }}</span>{{ auditRow.documentCode }}</div>
-              <div class="extra-line"><span>{{ t('pendingApprovals.purchaseOrder.vendor') }}</span>{{ maskPurchaseSensitiveFields ? '—' : (auditDetail?.vendorName || auditRow.counterpartyName || '—') }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.purchaseOrder.vendor') }}</span>{{ formatVendorNameReadonly(auditDetail?.vendorName, auditDetail?.vendorEnglishName, { masked: maskPurchaseSensitiveFields }) }}</div>
               <div class="extra-line"><span>{{ t('pendingApprovals.purchaseOrder.orderAmount') }}</span>{{ auditDetail?.total != null ? formatAmount(auditDetail.total, auditDetail.currency) : (auditRow.amount != null ? formatAmount(auditRow.amount, auditRow.currency) : '—') }}</div>
               <div class="extra-line"><span>{{ t('pendingApprovals.purchaseOrder.deliveryDate') }}</span>{{ auditDetail?.deliveryDate ? formatDate(auditDetail.deliveryDate) : '—' }}</div>
               <div class="extra-line"><span>{{ t('pendingApprovals.purchaseOrder.buyer') }}</span>{{ auditDetail?.purchaseUserName || auditDetail?.purchaseUserId || '—' }}</div>
@@ -295,7 +295,7 @@
             <template v-else-if="auditRow.bizType === 'FINANCE_PAYMENT'">
               <div class="extra-title">{{ t('pendingApprovals.paymentSection') }}</div>
               <div class="extra-line"><span>{{ t('pendingApprovals.payment.code') }}</span>{{ auditRow.documentCode }}</div>
-              <div class="extra-line"><span>{{ t('pendingApprovals.payment.vendor') }}</span>{{ maskPurchaseSensitiveFields ? '—' : (auditDetail?.vendorName || auditRow.counterpartyName || '—') }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.payment.vendor') }}</span>{{ formatVendorNameReadonly(auditDetail?.vendorName, auditDetail?.vendorEnglishName, { masked: maskPurchaseSensitiveFields }) }}</div>
               <div class="extra-line"><span>{{ t('pendingApprovals.payment.amount') }}</span>{{ formatFinancePaymentAuditAmount(auditRow, auditDetail) }}</div>
               <div class="extra-line"><span>{{ t('pendingApprovals.payment.mode') }}</span>{{ auditDetail?.paymentMode || '—' }}</div>
             </template>
@@ -348,6 +348,7 @@ import { financePaymentApi, financeReceiptApi } from '@/api/finance'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
 import { documentApi, type UploadDocumentDto } from '@/api/document'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import { formatVendorNameReadonly } from '@/utils/vendorDisplayName'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
@@ -677,6 +678,13 @@ const loadAuditDocs = async (row: PendingApprovalItem) => {
     auditDocsLoading.value = false
   }
 }
+
+const auditVendorNameLabel = (detail: any, fallback?: string) =>
+  formatVendorNameReadonly(
+    detail?.officialName || detail?.vendorName || fallback,
+    detail?.englishOfficialName || detail?.vendorEnglishName,
+    { masked: maskPurchaseSensitiveFields.value }
+  )
 
 const getSubmitRemark = () => {
   const d = auditDetail.value || {}

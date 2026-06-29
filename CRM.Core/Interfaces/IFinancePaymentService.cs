@@ -11,6 +11,12 @@ namespace CRM.Core.Interfaces
         Task<FinancePayment?> GetByIdAsync(string id);
         Task<IEnumerable<FinancePayment>> GetAllAsync();
         Task<FinancePayment> UpdateAsync(string id, UpdateFinancePaymentRequest request, string? actingUserId = null);
+        /// <summary>编辑请款（仅 status 1 / -1；-1 保存后转为 1）。</summary>
+        Task<FinancePayment> UpdateRequestAsync(string id, UpdateFinancePaymentRequestBody request, string? actingUserId = null);
+        /// <summary>保存付款执行信息（仅 status 10）。</summary>
+        Task<FinancePayment> UpdateExecutionAsync(string id, UpdateFinancePaymentExecutionRequest request, string? actingUserId = null);
+        /// <summary>撤回审核通过的请款（10→1），清空执行侧字段并删除水单附件。</summary>
+        Task<FinancePayment> WithdrawAsync(string id, string actingUserId, bool actingUserHasFinancePaymentWrite);
         Task DeleteAsync(string id);
         /// <summary>管理员强制删除：确认单号、守卫、删除（含采购扩展回算）并写操作日志。</summary>
         Task ForceDeleteAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName);
@@ -58,6 +64,35 @@ namespace CRM.Core.Interfaces
         public string? PN { get; set; }
         public string? Brand { get; set; }
         public string? LineRemark { get; set; }
+    }
+
+    public class UpdateFinancePaymentRequestBody
+    {
+        public string? VendorBankId { get; set; }
+        public short PaymentMode { get; set; } = 1;
+        public byte PaymentCurrency { get; set; } = 1;
+        public string? RequestRemark { get; set; }
+        public decimal FeeIntermediateBank { get; set; }
+        public decimal FeeBankCharge { get; set; }
+        public decimal FeeFreight { get; set; }
+        public decimal FeeMisc { get; set; }
+        public decimal FeeRounding { get; set; }
+        public string? FeeIntermediateBankPayer { get; set; }
+        public List<UpdateFinancePaymentItemRequest> Items { get; set; } = new();
+    }
+
+    public class UpdateFinancePaymentItemRequest
+    {
+        public string Id { get; set; } = string.Empty;
+        public decimal PaymentAmountToBe { get; set; }
+        public string? LineRemark { get; set; }
+    }
+
+    public class UpdateFinancePaymentExecutionRequest
+    {
+        public string? CompanyBankId { get; set; }
+        public DateTime? PaymentDate { get; set; }
+        public string? BankSlipNo { get; set; }
     }
 
     public class UpdateFinancePaymentRequest

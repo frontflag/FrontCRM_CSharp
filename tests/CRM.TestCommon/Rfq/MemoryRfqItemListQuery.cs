@@ -99,6 +99,7 @@ public sealed class MemoryRfqItemListQuery : IRfqItemListQuery
                 CustomerBrand = string.IsNullOrWhiteSpace(item.CustomerBrand) ? null : item.CustomerBrand.Trim(),
                 Brand = item.Brand,
                 Quantity = item.Quantity,
+                PriceCurrency = item.PriceCurrency,
                 Status = lineStatus,
                 CustomerId = rfq.CustomerId,
                 CustomerName = customerName,

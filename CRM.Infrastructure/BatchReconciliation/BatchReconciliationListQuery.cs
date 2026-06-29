@@ -445,6 +445,9 @@ public sealed class BatchReconciliationListQuery : IBatchReconciliationListQuery
                 FreightForwarderOrderNo = x.po?.FreightForwarderOrderNo,
                 VendorId = x.s.VendorId,
                 VendorName = FormatVendorName(x.vendor),
+                VendorEnglishName = string.IsNullOrWhiteSpace(x.vendor?.EnglishOfficialName)
+                    ? null
+                    : x.vendor!.EnglishOfficialName!.Trim(),
                 MaterialModel = x.si.PurchasePn,
                 MaterialBrand = x.si.PurchaseBrand,
                 StockInItemQuantity = x.si.Quantity,

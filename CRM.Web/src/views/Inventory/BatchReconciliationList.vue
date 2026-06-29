@@ -1,5 +1,6 @@
 <template>
-  <div class="batch-reconciliation-page">
+  <!-- 业务列表页：结构对齐《业务列表规范》《列表搜索栏规范》；表格见 CrmDataTable + 全局 crm-unified-list.scss -->
+  <div class="batch-reconciliation-list-page">
     <div class="page-header">
       <div class="header-left">
         <div class="page-title-group">
@@ -23,137 +24,171 @@
       </div>
     </div>
 
+    <!-- 搜索栏：与 StockInList / CustomerList 一致 -->
     <div class="search-bar">
       <div class="search-left">
-        <div class="search-input-wrap">
-          <input
-            v-model="filters.globalBatchNo"
-            class="search-input search-input--sm"
-            :placeholder="t('batchReconciliation.filters.globalBatchNoPlaceholder')"
-            @keyup.enter="() => void fetchList(true)"
-          />
-        </div>
-        <div class="search-input-wrap">
-          <input
-            v-model="filters.stockInCode"
-            class="search-input search-input--sm"
-            :placeholder="t('batchReconciliation.filters.stockInCodePlaceholder')"
-            @keyup.enter="() => void fetchList(true)"
-          />
-        </div>
-        <div class="search-input-wrap">
-          <input
-            v-model="filters.packingCode"
-            class="search-input search-input--sm"
-            :placeholder="t('batchReconciliation.filters.packingCodePlaceholder')"
-            @keyup.enter="() => void fetchList(true)"
-          />
-        </div>
-        <div class="search-input-wrap">
-          <input
-            v-model="filters.purchaseOrderCode"
-            class="search-input search-input--sm"
-            :placeholder="t('batchReconciliation.filters.purchaseOrderCodePlaceholder')"
-            @keyup.enter="() => void fetchList(true)"
-          />
-        </div>
-        <div class="search-input-wrap">
-          <input
-            v-model="filters.materialModel"
-            class="search-input search-input--sm"
-            :placeholder="t('batchReconciliation.filters.materialModelPlaceholder')"
-            @keyup.enter="() => void fetchList(true)"
-          />
-        </div>
-        <div class="search-input-wrap">
-          <input
-            v-model="filters.lot"
-            class="search-input search-input--sm"
-            :placeholder="t('batchReconciliation.filters.lotPlaceholder')"
-            @keyup.enter="() => void fetchList(true)"
-          />
-        </div>
-        <div class="search-input-wrap">
-          <input
-            v-model="filters.serialNumber"
-            class="search-input search-input--sm"
-            :placeholder="t('batchReconciliation.filters.serialNumberPlaceholder')"
-            @keyup.enter="() => void fetchList(true)"
-          />
-        </div>
-        <div v-if="!maskPurchaseSensitiveFields" class="search-input-wrap">
-          <input
-            v-model="filters.vendorName"
-            class="search-input search-input--sm"
-            :placeholder="t('batchReconciliation.filters.vendorNamePlaceholder')"
-            @keyup.enter="() => void fetchList(true)"
-          />
-        </div>
-        <div v-if="!maskSaleSensitiveFields" class="search-input-wrap">
-          <input
-            v-model="filters.customerName"
-            class="search-input search-input--sm"
-            :placeholder="t('batchReconciliation.filters.customerNamePlaceholder')"
-            @keyup.enter="() => void fetchList(true)"
-          />
-        </div>
-        <div class="search-input-wrap">
-          <input
-            v-model="filters.remark"
-            class="search-input search-input--sm"
-            :placeholder="t('batchReconciliation.filters.remarkPlaceholder')"
-            @keyup.enter="() => void fetchList(true)"
-          />
-        </div>
-        <button type="button" class="btn-primary btn-sm" @click="() => void fetchList(true)">{{ t('batchReconciliation.filters.search') }}</button>
-        <button type="button" class="btn-ghost btn-sm" @click="resetFilters">{{ t('batchReconciliation.filters.reset') }}</button>
+        <input
+          v-model="filters.globalBatchNo"
+          class="search-input search-input--filter"
+          :placeholder="t('batchReconciliation.filters.globalBatchNoPlaceholder')"
+          @keyup.enter="() => void fetchList(true)"
+        />
+        <input
+          v-model="filters.stockInCode"
+          class="search-input search-input--filter"
+          :placeholder="t('batchReconciliation.filters.stockInCodePlaceholder')"
+          @keyup.enter="() => void fetchList(true)"
+        />
+        <input
+          v-model="filters.packingCode"
+          class="search-input search-input--filter"
+          :placeholder="t('batchReconciliation.filters.packingCodePlaceholder')"
+          @keyup.enter="() => void fetchList(true)"
+        />
+        <input
+          v-model="filters.purchaseOrderCode"
+          class="search-input search-input--filter"
+          :placeholder="t('batchReconciliation.filters.purchaseOrderCodePlaceholder')"
+          @keyup.enter="() => void fetchList(true)"
+        />
+        <input
+          v-model="filters.materialModel"
+          class="search-input search-input--filter"
+          :placeholder="t('batchReconciliation.filters.materialModelPlaceholder')"
+          @keyup.enter="() => void fetchList(true)"
+        />
+        <input
+          v-model="filters.lot"
+          class="search-input search-input--filter search-input--lot"
+          :placeholder="t('batchReconciliation.filters.lotPlaceholder')"
+          @keyup.enter="() => void fetchList(true)"
+        />
+        <input
+          v-model="filters.serialNumber"
+          class="search-input search-input--filter search-input--sn"
+          :placeholder="t('batchReconciliation.filters.serialNumberPlaceholder')"
+          @keyup.enter="() => void fetchList(true)"
+        />
+        <input
+          v-if="!maskPurchaseSensitiveFields"
+          v-model="filters.vendorName"
+          class="search-input search-input--filter"
+          :placeholder="t('batchReconciliation.filters.vendorNamePlaceholder')"
+          @keyup.enter="() => void fetchList(true)"
+        />
+        <input
+          v-if="!maskSaleSensitiveFields"
+          v-model="filters.customerName"
+          class="search-input search-input--filter"
+          :placeholder="t('batchReconciliation.filters.customerNamePlaceholder')"
+          @keyup.enter="() => void fetchList(true)"
+        />
+        <input
+          v-model="filters.remark"
+          class="search-input search-input--filter"
+          :placeholder="t('batchReconciliation.filters.remarkPlaceholder')"
+          @keyup.enter="() => void fetchList(true)"
+        />
+        <button type="button" class="btn-primary btn-sm" @click="() => void fetchList(true)">
+          {{ t('batchReconciliation.filters.search') }}
+        </button>
+        <button type="button" class="btn-ghost btn-sm" @click="resetFilters">
+          {{ t('batchReconciliation.filters.reset') }}
+        </button>
       </div>
     </div>
 
-    <div class="main-table-section">
-      <CrmDataTable
-        ref="dataTableRef"
-        column-layout-key="batch-reconciliation-list-v1"
-        :columns="tableColumns"
-        :show-column-settings="true"
-        :density-toggle-anchor-el="rowDensityToggleAnchorEl"
-        :data="list"
-        v-loading="loading"
-        highlight-current-row
-        row-key="rowKey"
-        @row-click="onMainRowClick"
-      >
-        <template #col-vendorName="{ row }">
-          <span v-if="maskPurchaseSensitiveFields">—</span>
-          <span v-else>{{ row.vendorName || '—' }}</span>
-        </template>
-        <template #col-customerName="{ row }">
-          <span v-if="maskSaleSensitiveFields">—</span>
-          <span v-else>{{ row.customerName || '—' }}</span>
-        </template>
-        <template #col-stockInDate="{ row }">
-          {{ formatDate(row.stockInDate) }}
-        </template>
-        <template #col-stockOutDate="{ row }">
-          {{ row.stockOutDate ? formatDate(row.stockOutDate) : '—' }}
-        </template>
-      </CrmDataTable>
-
-      <div class="pagination-wrapper">
-        <div class="list-footer-left">
-          <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
-        </div>
-        <el-pagination
-          class="list-main-pagination"
-          v-model:current-page="listPage"
-          v-model:page-size="listPageSize"
-          :total="listTotalServer"
-          :page-sizes="[10, 20, 50, 100]"
-          layout="total, sizes, prev, pager, next, jumper"
-          @current-change="() => void fetchList(false)"
-          @size-change="onPageSizeChange"
+    <CrmDataTable
+      ref="dataTableRef"
+      class="batch-reconciliation-list-crm-table"
+      column-layout-key="batch-reconciliation-list-v2"
+      :columns="tableColumns"
+      :show-column-settings="false"
+      :density-toggle-anchor-el="rowDensityToggleAnchorEl"
+      :data="list"
+      v-loading="loading"
+      highlight-current-row
+      row-key="rowKey"
+      @row-click="onMainRowClick"
+    >
+      <template #col-vendorName="{ row }">
+        <vendor-name-readonly-text
+          :name-zh="row.vendorName"
+          :name-en="row.vendorEnglishName"
+          :masked="maskPurchaseSensitiveFields"
         />
+      </template>
+      <template #col-customerName="{ row }">
+        <span v-if="maskSaleSensitiveFields">—</span>
+        <span v-else>{{ row.customerName || '—' }}</span>
+      </template>
+      <template #col-stockInDate="{ row }">
+        <template v-for="p in [formatDateTimeParts(row.stockInDate)]" :key="'in-' + row.rowKey">
+          <span v-if="!p" class="inv-list-dash">—</span>
+          <span v-else-if="isTimeMidnightOnly(p.time)" class="crm-quote-create-time">
+            <span class="crm-quote-create-time__ymd">{{ p.date }}</span>
+          </span>
+          <span v-else class="crm-quote-create-time">
+            <span class="crm-quote-create-time__ymd">{{ p.date }}</span>
+            <span class="crm-quote-create-time__hm">{{ p.time }}</span>
+          </span>
+        </template>
+      </template>
+      <template #col-stockOutDate="{ row }">
+        <template v-for="p in [formatDateTimeParts(row.stockOutDate)]" :key="'out-' + row.rowKey">
+          <span v-if="!p" class="inv-list-dash">—</span>
+          <span v-else-if="isTimeMidnightOnly(p.time)" class="crm-quote-create-time">
+            <span class="crm-quote-create-time__ymd">{{ p.date }}</span>
+          </span>
+          <span v-else class="crm-quote-create-time">
+            <span class="crm-quote-create-time__ymd">{{ p.date }}</span>
+            <span class="crm-quote-create-time__hm">{{ p.time }}</span>
+          </span>
+        </template>
+      </template>
+      <template #col-stockInItemQuantity="{ row }">
+        <span class="inv-list-qty">{{ formatQtyCell(row.stockInItemQuantity) }}</span>
+      </template>
+      <template #col-batchQty="{ row }">
+        <span class="inv-list-qty">{{ formatQtyCell(row.batchQty) }}</span>
+      </template>
+      <template #col-outQty="{ row }">
+        <span class="inv-list-qty">{{ formatQtyCell(row.outQty) }}</span>
+      </template>
+      <template #col-totalOutQty="{ row }">
+        <span class="inv-list-qty">{{ formatQtyCell(row.totalOutQty) }}</span>
+      </template>
+      <template #col-remainingQty="{ row }">
+        <span class="inv-list-qty">{{ formatQtyCell(row.remainingQty) }}</span>
+      </template>
+    </CrmDataTable>
+
+    <div class="pagination-wrapper">
+      <div class="list-footer-left">
+        <el-tooltip :content="t('systemUser.colSetting')" placement="top" :hide-after="0">
+          <el-button
+            class="list-settings-btn"
+            link
+            type="primary"
+            :aria-label="t('systemUser.colSetting')"
+            @click="dataTableRef?.openColumnSettings?.()"
+          >
+            <el-icon><Setting /></el-icon>
+          </el-button>
+        </el-tooltip>
+        <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
+        <div class="list-footer-spacer" aria-hidden="true"></div>
       </div>
+      <el-pagination
+        class="list-main-pagination"
+        v-model:current-page="listPage"
+        v-model:page-size="listPageSize"
+        :total="listTotalServer"
+        :page-sizes="[10, 20, 50, 100]"
+        layout="total, sizes, prev, pager, next, jumper"
+        @current-change="() => void fetchList(false)"
+        @size-change="onPageSizeChange"
+      />
     </div>
 
     <div v-if="selectedGlobalBatchNo" class="consumption-panel">
@@ -168,6 +203,7 @@
         column-layout-key="batch-reconciliation-consumption-v1"
         :columns="consumptionColumns"
         :show-column-settings="false"
+        :show-row-density-toggle="false"
         :data="consumptionList"
         v-loading="consumptionLoading"
         embedded
@@ -176,8 +212,20 @@
           <span v-if="maskSaleSensitiveFields">—</span>
           <span v-else>{{ row.customerName || '—' }}</span>
         </template>
+        <template #col-outQty="{ row }">
+          <span class="inv-list-qty">{{ formatQtyCell(row.outQty) }}</span>
+        </template>
         <template #col-stockOutDate="{ row }">
-          {{ row.stockOutDate ? formatDate(row.stockOutDate) : '—' }}
+          <template v-for="p in [formatDateTimeParts(row.stockOutDate)]" :key="'c-out-' + row.stockOutBatchId">
+            <span v-if="!p" class="inv-list-dash">—</span>
+            <span v-else-if="isTimeMidnightOnly(p.time)" class="crm-quote-create-time">
+              <span class="crm-quote-create-time__ymd">{{ p.date }}</span>
+            </span>
+            <span v-else class="crm-quote-create-time">
+              <span class="crm-quote-create-time__ymd">{{ p.date }}</span>
+              <span class="crm-quote-create-time__hm">{{ p.time }}</span>
+            </span>
+          </template>
         </template>
       </CrmDataTable>
     </div>
@@ -188,6 +236,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
+import { Setting } from '@element-plus/icons-vue'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import {
   batchReconciliationApi,
@@ -196,9 +245,10 @@ import {
   type BatchReconciliationRow
 } from '@/api/batchReconciliation'
 import { getApiErrorMessage } from '@/utils/apiError'
-import { formatDisplayDate } from '@/utils/displayDateTime'
+import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import VendorNameReadonlyText from '@/components/Vendor/VendorNameReadonlyText.vue'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 
 type ListRow = BatchReconciliationRow & { rowKey: string }
@@ -237,8 +287,21 @@ const filters = reactive({
   remark: ''
 })
 
-function formatDate(v: string | null | undefined) {
-  return formatDisplayDate(v) || '—'
+function formatDateTimeParts(v: string | null | undefined) {
+  return formatDisplayDateTime2DigitYearParts(v)
+}
+
+function isTimeMidnightOnly(time: string) {
+  const s = String(time ?? '').trim()
+  return !s || s === '00:00' || s === '00:00:00'
+}
+
+/** 《业务列表规范》§3.2：数量千分位、tabular-nums */
+function formatQtyCell(v: unknown) {
+  if (v == null || v === '') return '—'
+  const n = Number(v)
+  if (!Number.isFinite(n)) return '—'
+  return n.toLocaleString('zh-CN')
 }
 
 function buildQuery(): BatchReconciliationQuery {
@@ -265,13 +328,15 @@ const tableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'freightForwarderOrderNo', label: t('batchReconciliation.columns.freightForwarderOrderNo'), prop: 'freightForwarderOrderNo', minWidth: 120, showOverflowTooltip: true },
   { key: 'vendorName', label: t('batchReconciliation.columns.vendorName'), prop: 'vendorName', minWidth: 120, showOverflowTooltip: true },
   { key: 'materialModel', label: t('batchReconciliation.columns.materialModel'), prop: 'materialModel', minWidth: 120, showOverflowTooltip: true },
-  { key: 'materialBrand', label: t('batchReconciliation.columns.materialBrand'), prop: 'materialBrand', width: 100, showOverflowTooltip: true },
-  { key: 'stockInItemQuantity', label: t('batchReconciliation.columns.stockInItemQuantity'), prop: 'stockInItemQuantity', width: 90, align: 'right' },
-  { key: 'batchDimension', label: t('batchReconciliation.columns.batchDimension'), prop: 'batchDimension', width: 90, showOverflowTooltip: true },
-  { key: 'batchUnit', label: t('batchReconciliation.columns.batchUnit'), prop: 'batchUnit', width: 100, showOverflowTooltip: true },
-  { key: 'unitNo', label: t('batchReconciliation.columns.unitNo'), prop: 'unitNo', minWidth: 100, showOverflowTooltip: true },
-  { key: 'batchQty', label: t('batchReconciliation.columns.batchQty'), prop: 'batchQty', width: 90, align: 'right' },
-  { key: 'dc', label: t('batchReconciliation.columns.dc'), prop: 'dc', width: 80, showOverflowTooltip: true },
+  { key: 'materialBrand', label: t('batchReconciliation.columns.materialBrand'), prop: 'materialBrand', width: 112, showOverflowTooltip: true },
+  { key: 'stockInItemQuantity', label: t('batchReconciliation.columns.stockInItemQuantity'), prop: 'stockInItemQuantity', width: 112, align: 'right' },
+  { key: 'batchDimension', label: t('batchReconciliation.columns.batchDimension'), prop: 'batchDimension', width: 112, showOverflowTooltip: true },
+  { key: 'batchUnit', label: t('batchReconciliation.columns.batchUnit'), prop: 'batchUnit', width: 148, showOverflowTooltip: true },
+  { key: 'unitNo', label: t('batchReconciliation.columns.unitNo'), prop: 'unitNo', width: 112, showOverflowTooltip: true },
+  { key: 'batchQty', label: t('batchReconciliation.columns.batchQty'), prop: 'batchQty', width: 112, align: 'right' },
+  { key: 'dc', label: t('batchReconciliation.columns.dc'), prop: 'dc', width: 100, showOverflowTooltip: true },
+  { key: 'packageOrigin', label: t('batchReconciliation.columns.packageOrigin'), prop: 'packageOrigin', width: 112, showOverflowTooltip: true },
+  { key: 'waferOrigin', label: t('batchReconciliation.columns.waferOrigin'), prop: 'waferOrigin', width: 112, showOverflowTooltip: true },
   { key: 'lot', label: t('batchReconciliation.columns.lot'), prop: 'lot', width: 90, showOverflowTooltip: true },
   { key: 'serialNumber', label: t('batchReconciliation.columns.serialNumber'), prop: 'serialNumber', minWidth: 100, showOverflowTooltip: true },
   { key: 'partCode', label: t('batchReconciliation.columns.partCode'), prop: 'partCode', minWidth: 100, showOverflowTooltip: true },
@@ -400,7 +465,7 @@ onMounted(() => {
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
 
-.batch-reconciliation-page {
+.batch-reconciliation-list-page {
   padding: 24px;
   min-height: 100%;
   background: $layer-1;
@@ -428,23 +493,25 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
-}
 
-.page-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: rgba(59, 130, 246, 0.12);
-  color: #2563eb;
-}
+  .page-icon {
+    width: 36px;
+    height: 36px;
+    background: rgba(0, 212, 255, 0.1);
+    border: 1px solid rgba(0, 212, 255, 0.25);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: $cyan-primary;
+  }
 
-.page-title {
-  margin: 0;
-  font-size: 1.25rem;
-  font-weight: 600;
+  .page-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: $text-primary;
+    margin: 0;
+  }
 }
 
 .count-badge {
@@ -456,20 +523,19 @@ onMounted(() => {
   padding: 3px 10px;
 }
 
+// ---- 搜索栏（与 StockInList / CustomerList 一致）----
 .search-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 12px;
 }
 
 .search-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
-}
-
-.search-input-wrap {
-  display: flex;
-  align-items: center;
 }
 
 .search-input {
@@ -480,11 +546,9 @@ onMounted(() => {
   border-radius: $border-radius-md;
   color: $text-primary;
   font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
   outline: none;
-
-  &--sm {
-    width: 140px;
-  }
+  transition: border-color 0.2s;
 
   &::placeholder {
     color: $text-muted;
@@ -492,6 +556,15 @@ onMounted(() => {
 
   &:focus {
     border-color: rgba(0, 212, 255, 0.4);
+  }
+
+  &--filter {
+    width: 160px;
+  }
+
+  &--lot,
+  &--sn {
+    width: 120px;
   }
 }
 
@@ -504,12 +577,24 @@ onMounted(() => {
   font-size: 12px;
   cursor: pointer;
   font-family: 'Noto Sans SC', sans-serif;
+  transition: all 0.2s;
 }
 
 .btn-primary {
   background: linear-gradient(135deg, rgba(0, 102, 255, 0.8), rgba(0, 212, 255, 0.7));
   border: 1px solid rgba(0, 212, 255, 0.4);
   color: #fff;
+  letter-spacing: 0.5px;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0, 212, 255, 0.25);
+  }
+
+  &.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
 }
 
 .btn-ghost {
@@ -526,27 +611,66 @@ onMounted(() => {
     opacity: 0.5;
     cursor: not-allowed;
   }
+
+  &.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
 }
 
-.main-table-section {
-  margin-bottom: 16px;
+/** 《业务列表规范》§3.2：数量字重与字色 */
+.inv-list-qty {
+  font-weight: 700;
+  color: #27292c;
+  font-variant-numeric: tabular-nums;
+}
+
+html[data-theme='dark'] .inv-list-qty {
+  color: $text-primary;
+}
+
+.inv-list-dash {
+  color: $text-muted;
 }
 
 .pagination-wrapper {
+  margin-top: 12px;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 16px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+}
+
+.list-main-pagination {
+  margin-left: auto;
+}
+
+.list-footer-left {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.list-settings-btn {
+  padding: 4px 6px !important;
+  min-width: 28px;
 }
 
 .list-footer-density-anchor {
-  display: inline-block;
-  width: 1px;
-  height: 1px;
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
+}
+
+.list-footer-spacer {
+  width: 26px;
+  flex: 0 0 26px;
 }
 
 .consumption-panel {
-  margin-top: 8px;
+  margin-top: 16px;
   padding: 12px 16px 16px;
   border: 1px solid $border-panel;
   border-radius: $border-radius-md;
@@ -568,7 +692,7 @@ onMounted(() => {
 
 .consumption-panel__code {
   font-family: ui-monospace, monospace;
-  color: #2563eb;
+  color: $cyan-primary;
   font-size: 13px;
 }
 
@@ -581,6 +705,7 @@ onMounted(() => {
   padding: 4px 10px;
   font-size: 12px;
   cursor: pointer;
+  font-family: 'Noto Sans SC', sans-serif;
 
   &:hover {
     color: $text-secondary;

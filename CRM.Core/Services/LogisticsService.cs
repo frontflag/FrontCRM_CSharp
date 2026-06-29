@@ -5,6 +5,7 @@ using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
 using CRM.Core.Models.System;
+using CRM.Core.Models.Vendor;
 using CRM.Core.Utilities;
 using Microsoft.Extensions.Logging;
 using System.Threading;
@@ -30,6 +31,7 @@ namespace CRM.Core.Services
         private readonly ILogOperationAppendService _logOperationAppend;
         private readonly ILogger<LogisticsService> _logger;
         private readonly IQcListQuery _qcListQuery;
+        private readonly IRepository<VendorInfo> _vendorRepo;
 
         public LogisticsService(
             IRepository<StockInNotify> notifyRepo,
@@ -48,7 +50,8 @@ namespace CRM.Core.Services
             IUserService userService,
             ILogOperationAppendService logOperationAppend,
             ILogger<LogisticsService> logger,
-            IQcListQuery qcListQuery)
+            IQcListQuery qcListQuery,
+            IRepository<VendorInfo> vendorRepo)
         {
             _notifyRepo = notifyRepo;
             _stockInRepo = stockInRepo;
@@ -67,6 +70,7 @@ namespace CRM.Core.Services
             _logOperationAppend = logOperationAppend;
             _logger = logger;
             _qcListQuery = qcListQuery;
+            _vendorRepo = vendorRepo;
         }
 
         /// <inheritdoc />
@@ -122,6 +126,12 @@ namespace CRM.Core.Services
                 : (await _notifyRepo.FindAsync(n => noticeKeyIds.Contains(n.Id))).ToList();
             var noticeMap = notices.ToDictionary(x => x.Id, x => x);
 
+            var vendorEnglishMap = await VendorDisplayEnrichment.LoadEnglishOfficialNameMapAsync(
+                _vendorRepo,
+                notices.Select(n => n.VendorId));
+            foreach (var notice in notices)
+                notice.VendorEnglishName = VendorDisplayEnrichment.ResolveEnglishOfficialName(vendorEnglishMap, notice.VendorId);
+
             var poIdsScope = notices.Select(n => n.PurchaseOrderId).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToList();
             var poById = poIdsScope.Count == 0
                 ? new Dictionary<string, PurchaseOrder>(StringComparer.OrdinalIgnoreCase)
@@ -166,6 +176,7 @@ namespace CRM.Core.Services
                 noticeMap.TryGetValue(qc.StockInNotifyId, out var notice);
 
                 qc.VendorName = notice?.VendorName;
+                qc.VendorEnglishName = notice?.VendorEnglishName;
                 qc.PurchaseOrderCode = notice?.PurchaseOrderCode;
                 qc.FreightForwarderOrderNo = notice == null
                     ? null
@@ -411,6 +422,12 @@ namespace CRM.Core.Services
             var notices = (await _notifyRepo.GetAllAsync()).ToList();
             var noticeMap = notices.ToDictionary(x => x.Id, x => x);
 
+            var vendorEnglishMapLegacy = await VendorDisplayEnrichment.LoadEnglishOfficialNameMapAsync(
+                _vendorRepo,
+                notices.Select(n => n.VendorId));
+            foreach (var notice in notices)
+                notice.VendorEnglishName = VendorDisplayEnrichment.ResolveEnglishOfficialName(vendorEnglishMapLegacy, notice.VendorId);
+
             var poIdsScopeLegacy = notices.Select(n => n.PurchaseOrderId).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToList();
             var poByIdLegacy = poIdsScopeLegacy.Count == 0
                 ? new Dictionary<string, PurchaseOrder>(StringComparer.OrdinalIgnoreCase)
@@ -439,6 +456,7 @@ namespace CRM.Core.Services
                 noticeMap.TryGetValue(qc.StockInNotifyId, out var notice);
 
                 qc.VendorName = notice?.VendorName;
+                qc.VendorEnglishName = notice?.VendorEnglishName;
                 qc.PurchaseOrderCode = notice?.PurchaseOrderCode;
                 qc.FreightForwarderOrderNo = notice == null
                     ? null

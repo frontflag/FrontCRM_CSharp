@@ -1,7 +1,7 @@
 <template>
   <el-dialog
     :model-value="modelValue"
-    :title="t('financePaymentList.dialogEdit')"
+    :title="t('financePaymentList.dialogPay')"
     width="920px"
     class="crm-dialog"
     destroy-on-close
@@ -27,18 +27,18 @@
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item :label="t('financePaymentList.formVendorName')">
-                <el-input
-                  v-if="maskPurchaseSensitiveFields"
-                  model-value="—"
-                  disabled
-                />
-                <el-input v-else :model-value="form.vendorName" readonly />
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
               <el-form-item :label="t('financePaymentList.formFreightForwarderOrderNo')">
                 <el-input :model-value="freightForwarderOrderNoDisplay" readonly />
+              </el-form-item>
+            </el-col>
+            <el-col :span="24">
+              <el-form-item :label="t('financePaymentList.formVendorName')">
+                <vendor-name-readonly-field
+                  :name-zh="form.vendorName"
+                  :name-en="form.vendorEnglishName"
+                  :masked="maskPurchaseSensitiveFields"
+                  mode="compact"
+                />
               </el-form-item>
             </el-col>
             <el-col :span="24">
@@ -83,13 +83,19 @@
               />
             </el-col>
             <el-col :span="12">
-              <el-form-item :label="t('financePaymentList.formAmount')" required>
-                <el-input-number v-model="form.paymentAmount" :precision="2" :min="0" style="width:100%" />
+              <el-form-item :label="t('financePaymentList.formAmount')">
+                <el-input-number
+                  :model-value="displayPaymentAmount"
+                  :precision="2"
+                  :min="0"
+                  disabled
+                  style="width:100%"
+                />
               </el-form-item>
             </el-col>
             <el-col :span="12">
               <el-form-item :label="t('financePaymentList.formMode')">
-                <el-select v-model="form.paymentMode" style="width:100%">
+                <el-select :model-value="form.paymentMode" disabled style="width:100%">
                   <el-option
                     v-for="k in paymentModeKeys"
                     :key="k"
@@ -101,7 +107,7 @@
             </el-col>
             <el-col :span="12">
               <el-form-item :label="t('financePaymentList.formCurrency')">
-                <el-select v-model="form.paymentCurrency" style="width:100%">
+                <el-select :model-value="form.paymentCurrency" disabled style="width:100%">
                   <el-option
                     v-for="opt in SETTLEMENT_CURRENCY_OPTIONS"
                     :key="opt.value"
@@ -212,6 +218,7 @@ import { useFinancePaymentBankOptions } from '@/composables/useFinancePaymentBan
 import { useCompanyBankOptions } from '@/composables/useCompanyBankOptions'
 import { formatVendorBankOptionLabel } from '@/utils/vendorFinancePaymentBank'
 import VendorBankInfoPanel from '@/components/Vendor/VendorBankInfoPanel.vue'
+import VendorNameReadonlyField from '@/components/Vendor/VendorNameReadonlyField.vue'
 import CompanyBankSelect from '@/components/Company/CompanyBankSelect.vue'
 import CompanyBankInfoPanel from '@/components/Company/CompanyBankInfoPanel.vue'
 
@@ -243,7 +250,7 @@ const slipFileInputRef = ref<HTMLInputElement | null>(null)
 const paymentId = ref<string | null>(null)
 
 const form = reactive<Partial<FinancePayment>>({
-  vendorId: '', vendorCode: '', vendorName: '', paymentAmount: 0, paymentMode: 1, paymentCurrency: 1,
+  vendorId: '', vendorCode: '', vendorName: '', vendorEnglishName: '', paymentAmount: 0, paymentMode: 1, paymentCurrency: 1,
   paymentDate: undefined, bankSlipNo: '', remark: '',
   companyBankId: null,
   vendorBankId: null,
@@ -283,6 +290,10 @@ const freightForwarderOrderNoDisplay = computed(() => {
 
 const canShowFinishButton = computed(() => Number(form.status) === 10)
 
+const displayPaymentAmount = computed(() =>
+  Number(form.paymentAmountToBe ?? form.paymentAmount ?? 0)
+)
+
 function triggerSlipFilePick() {
   slipFileInputRef.value?.click()
 }
@@ -293,7 +304,7 @@ async function initFromPayment(row: FinancePayment) {
     row.status === 100
       ? Number(row.paymentAmount ?? row.paymentAmountToBe ?? 0)
       : Number(row.paymentAmountToBe ?? row.paymentAmount ?? 0)
-  Object.assign(form, { ...row, paymentAmount: amountForEdit })
+  Object.assign(form, { ...row, paymentAmount: amountForEdit, paymentAmountToBe: row.paymentAmountToBe ?? amountForEdit })
   const ext = row as unknown as Record<string, unknown>
   let code = String(row.vendorCode ?? ext.VendorCode ?? '').trim()
   if (!code && row.vendorId) {
@@ -350,14 +361,10 @@ const saveForm = async () => {
   if (!paymentId.value) return
   saving.value = true
   try {
-    await financePaymentApi.update(paymentId.value, {
-      paymentAmountToBe: Number(form.paymentAmount ?? 0),
-      paymentCurrency: Number(form.paymentCurrency ?? 1),
-      paymentDate: form.paymentDate,
-      paymentMode: form.paymentMode,
-      bankSlipNo: form.bankSlipNo,
-      remark: form.remark,
+    await financePaymentApi.updateExecution(paymentId.value, {
       companyBankId: form.companyBankId ?? null,
+      paymentDate: form.paymentDate,
+      bankSlipNo: form.bankSlipNo,
     })
     ElMessage.success(t('financePaymentList.messages.saveOk'))
     emit('update:modelValue', false)

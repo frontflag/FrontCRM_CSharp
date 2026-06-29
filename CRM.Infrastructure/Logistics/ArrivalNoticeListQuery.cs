@@ -105,6 +105,26 @@ public sealed class ArrivalNoticeListQuery : IArrivalNoticeListQuery
             AttachItemSnapshot(row);
         }
 
+        var vendorIds = rows
+            .Select(x => x.VendorId)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (vendorIds.Count > 0)
+        {
+            var vendorEnglishMap = await _db.Vendors.AsNoTracking()
+                .Where(v => vendorIds.Contains(v.Id) && v.EnglishOfficialName != null && v.EnglishOfficialName != "")
+                .Select(v => new { v.Id, v.EnglishOfficialName })
+                .ToDictionaryAsync(x => x.Id, x => x.EnglishOfficialName!.Trim(), StringComparer.OrdinalIgnoreCase, cancellationToken);
+            foreach (var row in rows)
+            {
+                var vid = row.VendorId?.Trim();
+                if (!string.IsNullOrEmpty(vid) && vendorEnglishMap.TryGetValue(vid, out var english))
+                    row.VendorEnglishName = english;
+            }
+        }
+
         return new PagedResult<StockInNotify>
         {
             Items = rows,

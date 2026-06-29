@@ -151,7 +151,9 @@ export interface RFQItem {
 
   // 价格与数量
   targetPrice?: number               // 目标价
-  currency?: string                  // 货币单位（RMB/USD等）
+  /** 目标价币别（1=RMB 2=USD 3=EUR 4=HKD …，与新建需求物料明细 priceCurrency 一致） */
+  priceCurrency?: number
+  currency?: string                  // 货币单位（RMB/USD等，历史兼容）
   quantity: number                   // 数量
 
   // 日期

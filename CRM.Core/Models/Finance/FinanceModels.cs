@@ -400,6 +400,10 @@ namespace CRM.Core.Models.Finance
         [StringLength(200)]
         public string? VendorName { get; set; }
 
+        /// <summary>供应商英文名称（展示用，来自 vendorinfo，不落库）</summary>
+        [NotMapped]
+        public string? VendorEnglishName { get; set; }
+
         /// <summary>发票号码（纸质）</summary>
         [StringLength(32)]
         public string? InvoiceNo { get; set; }

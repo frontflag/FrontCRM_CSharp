@@ -54,7 +54,7 @@
           <template #default="{ row }">{{ maskSale ? '—' : row.sellOrderItemCode || '—' }}</template>
         </el-table-column>
         <el-table-column :label="t('stockInDetail.vendor')" min-width="120" show-overflow-tooltip>
-          <template #default="{ row }">{{ maskPurchase ? '—' : row.vendorName || '—' }}</template>
+          <template #default="{ row }">{{ formatVendorNameReadonly(row.vendorName, row.vendorEnglishName, { masked: maskPurchase }) }}</template>
         </el-table-column>
         <el-table-column :label="t('customsPages.items.colUnitPrice')" width="100" align="right">
           <template #default="{ row }">{{ moneyText(row.declareUnitPrice) }}</template>
@@ -99,6 +99,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { fetchCustomsDeclarationById, type CustomsDeclarationDetailDto } from '@/api/customs'
+import { formatVendorNameReadonly } from '@/utils/vendorDisplayName'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 

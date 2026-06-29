@@ -55,11 +55,38 @@ export interface FinancePayment {
   createTime?: string
   /** 兼容旧前端命名 */
   createdAt?: string
+  createByUserId?: string | null
   /** 列表/详情由后端按 CreateByUserId 填充 */
   createUserName?: string
   /** 关联采购订单货代单号（列表/详情由后端填充） */
   freightForwarderOrderNo?: string | null
   items?: FinancePaymentItem[]
+}
+
+export interface UpdateFinancePaymentRequestBody {
+  vendorBankId?: string | null
+  paymentMode: number
+  paymentCurrency: number
+  requestRemark?: string | null
+  feeIntermediateBank?: number
+  feeBankCharge?: number
+  feeFreight?: number
+  feeMisc?: number
+  feeRounding?: number
+  feeIntermediateBankPayer?: string | null
+  items: UpdateFinancePaymentItemBody[]
+}
+
+export interface UpdateFinancePaymentItemBody {
+  id: string
+  paymentAmountToBe: number
+  lineRemark?: string | null
+}
+
+export interface UpdateFinancePaymentExecutionBody {
+  companyBankId?: string | null
+  paymentDate?: string
+  bankSlipNo?: string | null
 }
 
 export interface FinancePaymentItem {
@@ -145,6 +172,7 @@ export interface FinancePurchaseInvoice {
   financePurchaseInvoiceCode: string
   vendorId: string
   vendorName?: string
+  vendorEnglishName?: string
   invoiceNo?: string
   invoiceTotal: number
   makeInvoiceDate?: string
@@ -260,6 +288,7 @@ export function normalizeFinancePurchaseInvoice(raw: unknown): FinancePurchaseIn
     financePurchaseInvoiceCode: code,
     vendorId: pickStrFromRecord(r, ['vendorId', 'VendorId']) ?? '',
     vendorName: pickStrFromRecord(r, ['vendorName', 'VendorName']),
+    vendorEnglishName: pickStrFromRecord(r, ['vendorEnglishName', 'VendorEnglishName']),
     invoiceNo: pickStrFromRecord(r, ['invoiceNo', 'InvoiceNo']),
     invoiceTotal,
     makeInvoiceDate: toDateYmd(pickStrFromRecord(r, ['makeInvoiceDate', 'MakeInvoiceDate', 'invoiceDate', 'InvoiceDate'])),
@@ -345,6 +374,12 @@ export const financePaymentApi = {
     apiClient.post<FinancePayment>(PAYMENT_BASE, data),
   update: (id: string, data: Partial<FinancePayment>) =>
     apiClient.put<FinancePayment>(`${PAYMENT_BASE}/${id}`, data),
+  updateRequest: (id: string, data: UpdateFinancePaymentRequestBody) =>
+    apiClient.put<FinancePayment>(`${PAYMENT_BASE}/${id}/request`, data),
+  updateExecution: (id: string, data: UpdateFinancePaymentExecutionBody) =>
+    apiClient.put<FinancePayment>(`${PAYMENT_BASE}/${id}/execution`, data),
+  withdraw: (id: string) =>
+    apiClient.post<FinancePayment>(`${PAYMENT_BASE}/${id}/withdraw`, {}),
   delete: (id: string) =>
     apiClient.delete(`${PAYMENT_BASE}/${id}`),
   forceDelete: (id: string, confirmBillCode: string) =>

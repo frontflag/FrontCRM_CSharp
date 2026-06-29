@@ -97,6 +97,7 @@ public static class PurchaseSensitiveFieldMask511
         foreach (var n in rows)
         {
             n.VendorName = null;
+            n.VendorEnglishName = null;
             n.VendorCode = null;
             n.VendorId = null;
             n.Cost = 0m;
@@ -109,7 +110,10 @@ public static class PurchaseSensitiveFieldMask511
     {
         if (!mask || rows == null) return;
         foreach (var q in rows)
+        {
             q.VendorName = null;
+            q.VendorEnglishName = null;
+        }
     }
 
     public static void ApplyInventoryStockItemRows(IEnumerable<InventoryStockItemRowDto>? rows, bool mask)
@@ -239,6 +243,7 @@ public static class PurchaseSensitiveFieldMask511
         if (!mask || inv == null) return;
         inv.VendorId = string.Empty;
         inv.VendorName = null;
+        inv.VendorEnglishName = null;
         inv.InvoiceAmount = 0m;
         inv.BillAmount = 0m;
         inv.TaxAmount = 0m;
@@ -266,6 +271,7 @@ public static class PurchaseSensitiveFieldMask511
         if (!mask || row == null) return;
         row.VendorId = null;
         row.VendorName = null;
+        row.VendorEnglishName = null;
     }
 
     public static void ApplyBatchReconciliationRows(IEnumerable<BatchReconciliationRowDto>? rows, bool mask)

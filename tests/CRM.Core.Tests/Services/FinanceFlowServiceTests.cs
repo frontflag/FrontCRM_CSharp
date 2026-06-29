@@ -1,5 +1,7 @@
+using CRM.Core.Document;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
+using CRM.Core.Models.Company;
 using CRM.Core.Models.Finance;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
@@ -48,12 +50,8 @@ namespace CRM.Core.Tests.Services
                 .Returns(new[] { poItem });
             poRepo.GetByIdAsync("po-1").Returns(po);
 
-            var svc = new FinancePaymentService(
-                paymentRepo, payItemRepo, Substitute.For<IRepository<FinancePaymentBank>>(), poRepo, poItemRepo, dataPermission, serialNumber, poExtendSync, vendorRepo, userRepo,
-                Substitute.For<IForceDeleteGuardService>(),
-                Substitute.For<ILogOperationAppendService>(),
-                Substitute.For<IFinancePaymentListQuery>(),
-                uow);
+            var svc = CreateFinancePaymentService(
+                paymentRepo, payItemRepo, poRepo, poItemRepo, dataPermission, serialNumber, poExtendSync, vendorRepo, userRepo, uow);
 
             await svc.VerifyPaymentItemAsync("pi-1", 100m);
 
@@ -109,12 +107,8 @@ namespace CRM.Core.Tests.Services
                 .Returns(new[] { poItem });
             poRepo.GetByIdAsync("po-1").Returns(po);
 
-            var svc = new FinancePaymentService(
-                paymentRepo, payItemRepo, Substitute.For<IRepository<FinancePaymentBank>>(), poRepo, poItemRepo, dataPermission, serialNumber, poExtendSync, vendorRepo, userRepo,
-                Substitute.For<IForceDeleteGuardService>(),
-                Substitute.For<ILogOperationAppendService>(),
-                Substitute.For<IFinancePaymentListQuery>(),
-                uow);
+            var svc = CreateFinancePaymentService(
+                paymentRepo, payItemRepo, poRepo, poItemRepo, dataPermission, serialNumber, poExtendSync, vendorRepo, userRepo, uow);
 
             await svc.UpdateStatusAsync(paymentId, 100);
 
@@ -171,6 +165,38 @@ namespace CRM.Core.Tests.Services
                 uow);
 
             await Assert.ThrowsAsync<InvalidOperationException>(() => svc.UpdateInvoiceStatusAsync("si-1", 100));
+        }
+
+        private static FinancePaymentService CreateFinancePaymentService(
+            IRepository<FinancePayment> paymentRepo,
+            IRepository<FinancePaymentItem> payItemRepo,
+            IRepository<PurchaseOrder> poRepo,
+            IRepository<PurchaseOrderItem> poItemRepo,
+            IDataPermissionService dataPermission,
+            ISerialNumberService serialNumber,
+            IPurchaseOrderItemExtendSyncService poExtendSync,
+            IRepository<VendorInfo> vendorRepo,
+            IRepository<User> userRepo,
+            IUnitOfWork uow)
+        {
+            return new FinancePaymentService(
+                paymentRepo,
+                payItemRepo,
+                Substitute.For<IRepository<FinancePaymentBank>>(),
+                poRepo,
+                poItemRepo,
+                dataPermission,
+                serialNumber,
+                poExtendSync,
+                vendorRepo,
+                Substitute.For<IRepository<VendorBankInfo>>(),
+                Substitute.For<IRepository<CompanyBankInfo>>(),
+                userRepo,
+                Substitute.For<IForceDeleteGuardService>(),
+                Substitute.For<ILogOperationAppendService>(),
+                Substitute.For<IFinancePaymentListQuery>(),
+                Substitute.For<IDocumentService>(),
+                uow);
         }
     }
 }

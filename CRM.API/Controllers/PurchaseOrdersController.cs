@@ -194,7 +194,10 @@ namespace CRM.API.Controllers
                 var result = await _purchaseOrderItemListQuery.GetPagedAsync(request, cancellationToken);
                 var loginMap = await LoadCreateUserLoginNamesForPoLinesAsync(result.Items, cancellationToken);
                 var paymentRequestFlags = await LoadPoItemIdsWithActivePaymentRequestAsync(result.Items, cancellationToken);
-                var items = MapPurchaseOrderItemListLines(result.Items, summary, loginMap, paymentRequestFlags);
+                IReadOnlyDictionary<string, string> vendorEnglishMap = canViewVendorInfo
+                    ? await LoadVendorEnglishNameMapForPoLinesAsync(result.Items, cancellationToken)
+                    : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                var items = MapPurchaseOrderItemListLines(result.Items, summary, loginMap, paymentRequestFlags, vendorEnglishMap);
                 return Ok(new
                 {
                     success = true,
@@ -421,6 +424,7 @@ namespace CRM.API.Controllers
                     paymentAmount = x.PaymentAmount,
                     x.PaymentCurrency,
                     x.PaymentDate,
+                    createByUserId = x.CreateByUserId,
                     x.CreateTime
                 })
                 .ToListAsync();
@@ -1125,11 +1129,35 @@ namespace CRM.API.Controllers
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
         }
 
+        private async Task<IReadOnlyDictionary<string, string>> LoadVendorEnglishNameMapForPoLinesAsync(
+            IEnumerable<PurchaseOrderItemListLineRaw> lines,
+            CancellationToken cancellationToken)
+        {
+            var ids = lines
+                .Select(r => r.VendorId)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Select(id => id.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (ids.Count == 0)
+                return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            return await _db.Vendors.AsNoTracking()
+                .Where(v => ids.Contains(v.Id) && v.EnglishOfficialName != null && v.EnglishOfficialName != "")
+                .Select(v => new { v.Id, v.EnglishOfficialName })
+                .ToDictionaryAsync(
+                    x => x.Id,
+                    x => x.EnglishOfficialName!.Trim(),
+                    StringComparer.OrdinalIgnoreCase,
+                    cancellationToken);
+        }
+
         private static List<object> MapPurchaseOrderItemListLines(
             IEnumerable<PurchaseOrderItemListLineRaw> lines,
             UserPermissionSummaryDto? summary,
             IReadOnlyDictionary<string, string?> createUserLoginByUserId,
-            IReadOnlySet<string> poItemIdsWithActivePaymentRequest)
+            IReadOnlySet<string> poItemIdsWithActivePaymentRequest,
+            IReadOnlyDictionary<string, string> vendorEnglishMap)
         {
             var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
             var canViewVendorInfo = !mask511 && (summary?.IsSysAdmin == true
@@ -1169,6 +1197,10 @@ namespace CRM.API.Controllers
                     purchaseOrderType = r.PurchaseOrderType,
                     vendorId = canViewVendorInfo ? r.VendorId : null,
                     vendorName = canViewVendorInfo ? r.VendorName : null,
+                    vendorEnglishName = canViewVendorInfo && !string.IsNullOrWhiteSpace(r.VendorId)
+                        && vendorEnglishMap.TryGetValue(r.VendorId.Trim(), out var ven)
+                        ? ven
+                        : null,
                     itemStatus = r.ItemStatus,
                     purchaseProgressStatus = r.PurchaseProgressStatus,
                     stockInProgressStatus = r.StockInProgressStatus,

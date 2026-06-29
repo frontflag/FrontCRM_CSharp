@@ -590,13 +590,20 @@
       <el-form label-width="120px">
         <el-row :gutter="12">
           <el-col :span="12">
-            <el-form-item :label="t('purchaseOrderItemList.paymentDialog.vendorInfo')">
-              <el-input :model-value="maskPurchaseSensitiveFields ? '—' : (paymentForm.vendorName || '--')" disabled />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
             <el-form-item :label="t('purchaseOrderItemList.paymentDialog.purchaser')">
               <el-input :model-value="paymentForm.purchaseUserName || '--'" disabled />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="12">
+          <el-col :span="24">
+            <el-form-item :label="t('purchaseOrderItemList.paymentDialog.vendorInfo')">
+              <vendor-name-readonly-field
+                :name-zh="paymentForm.vendorName"
+                :name-en="paymentForm.vendorEnglishName"
+                :masked="maskPurchaseSensitiveFields"
+                mode="compact"
+              />
             </el-form-item>
           </el-col>
         </el-row>
@@ -916,6 +923,7 @@ import {
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
 import PaymentRequestVendorBankSection from '@/components/Vendor/PaymentRequestVendorBankSection.vue'
+import VendorNameReadonlyField from '@/components/Vendor/VendorNameReadonlyField.vue'
 import ShipmentExpressFields from '@/components/Logistics/ShipmentExpressFields.vue'
 import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
 import { CurrencyCode } from '@/constants/currency'
@@ -1196,6 +1204,7 @@ const arrivalForm = reactive<any>({
 const paymentForm = reactive<any>({
   vendorId: '',
   vendorName: '',
+  vendorEnglishName: '',
   purchaseUserName: '',
   vendorBankId: '',
   vendorBanks: [] as import('@/types/vendor').VendorBankInfo[],
@@ -1390,6 +1399,7 @@ function buildFinancePaymentCode() {
 async function openPaymentDialog(row: any) {
   paymentForm.vendorId = row.vendorId || ''
   paymentForm.vendorName = row.vendorName || ''
+  paymentForm.vendorEnglishName = row.vendorEnglishName || ''
   paymentForm.purchaseUserName = row.purchaseUserName || ''
   paymentForm.vendorBankId = ''
   paymentForm.vendorBanks = []

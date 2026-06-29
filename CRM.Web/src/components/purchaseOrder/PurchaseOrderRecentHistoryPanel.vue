@@ -10,6 +10,7 @@ import {
   type PurchaseOrderRecentEntry
 } from '@/utils/purchaseOrderRecentHistory'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import { formatVendorNameReadonly } from '@/utils/vendorDisplayName'
 
 const props = withDefaults(
   defineProps<{
@@ -88,7 +89,7 @@ onBeforeUnmount(() => {
           @click="goDetail(row)"
         >
           <td class="po-recent-panel__code">{{ row.purchaseOrderCode || '—' }}</td>
-          <td class="po-recent-panel__name">{{ maskPurchaseSensitiveFields ? '—' : row.vendorName || '—' }}</td>
+          <td class="po-recent-panel__name">{{ formatVendorNameReadonly(row.vendorName, row.vendorEnglishName, { masked: maskPurchaseSensitiveFields }) }}</td>
           <td class="po-recent-panel__time">{{ formatAt(row.at) }}</td>
         </tr>
       </tbody>

@@ -86,7 +86,11 @@
       <template #col-courierTrackingNo="{ row }">{{ displayCourierTrackingNo(row) }}</template>
       <template #col-regionType="{ row }">{{ regionTypeLabel(row) }}</template>
       <template #col-vendorName="{ row }">
-        <span>{{ maskPurchaseSensitiveFields ? '—' : (row.vendorName?.trim() ? row.vendorName : '—') }}</span>
+        <vendor-name-readonly-text
+          :name-zh="row.vendorName"
+          :name-en="row.vendorEnglishName"
+          :masked="maskPurchaseSensitiveFields"
+        />
       </template>
       <template #col-expectQty="{ row }">
         <span class="inv-list-qty">{{ formatQtyCell(expectQty(row)) }}</span>
@@ -218,7 +222,11 @@
         :label-style="arrivalDetailLabelStyle"
       >
         <el-descriptions-item :label="t('arrivalNoticeList.detailDialog.vendorName')">
-          {{ maskPurchaseSensitiveFields ? '—' : (detailNotice.vendorName?.trim() || '—') }}
+          <vendor-name-readonly-text
+            :name-zh="detailNotice.vendorName"
+            :name-en="detailNotice.vendorEnglishName"
+            :masked="maskPurchaseSensitiveFields"
+          />
         </el-descriptions-item>
         <el-descriptions-item :label="t('arrivalNoticeList.detailDialog.vendorCode')">
           {{ maskPurchaseSensitiveFields ? '—' : (detailNotice.vendorCode?.trim() || '—') }}
@@ -270,6 +278,7 @@ import { useRouter } from 'vue-router'
 import { formatDisplayDate, formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import VendorNameReadonlyText from '@/components/Vendor/VendorNameReadonlyText.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 

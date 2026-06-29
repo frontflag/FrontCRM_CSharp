@@ -14,12 +14,21 @@
         </el-breadcrumb>
       </div>
       <div v-if="detail" class="detail-header__actions">
-        <el-button
-          v-if="canShowPayButton"
-          type="warning"
-          @click="payDialogVisible = true"
-        >
+        <el-button v-if="canEditRequestDetail" type="primary" @click="openEditRequest">
+          {{ t('financePaymentList.actions.editRequest') }}
+        </el-button>
+        <el-button v-if="canWithdrawDetail" @click="handleWithdraw">
+          {{ t('financePaymentList.actions.withdraw') }}
+        </el-button>
+        <el-button v-if="canPayExecuteDetail" type="warning" @click="payDialogVisible = true">
           {{ t('financePaymentList.actions.pay') }}
+        </el-button>
+        <el-button
+          v-if="canSubmitAuditDetail"
+          type="warning"
+          @click="handleSubmitAudit"
+        >
+          {{ t('financePaymentList.actions.submitAudit') }}
         </el-button>
       </div>
     </div>
@@ -47,7 +56,11 @@
               {{ paymentStatusLabel(detail.status) }}
             </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item :label="t('financePaymentDetail.labels.vendor')">{{ vendorDisplayName }}</el-descriptions-item>
+          <el-descriptions-item :label="t('financePaymentDetail.labels.vendor')">
+            <el-tooltip :content="vendorDisplayName" placement="top" :disabled="vendorDisplayTooltipDisabled">
+              <span class="vendor-display-name">{{ vendorDisplayName }}</span>
+            </el-tooltip>
+          </el-descriptions-item>
           <el-descriptions-item :label="t('financePaymentDetail.labels.amount')">
             <span class="amount">{{ CURRENCY_MAP[detail.paymentCurrency] }} {{ formatAmount(detail.paymentAmount) }}</span>
           </el-descriptions-item>
@@ -110,6 +123,11 @@
                 <el-table-column prop="cost" :label="t('financePaymentDetail.labels.unitPrice')" width="130" align="right">
                   <template #default="{ row }">
                     {{ row.cost == null ? '-' : formatAmount(Number(row.cost)) }}
+                  </template>
+                </el-table-column>
+                <el-table-column prop="paymentAmountToBe" :label="t('financePaymentDetail.labels.requestPaymentAmount')" width="140" align="right">
+                  <template #default="{ row }">
+                    {{ formatAmount(Number(row.paymentAmountToBe ?? 0)) }}
                   </template>
                 </el-table-column>
                 <el-table-column prop="paymentAmount" :label="t('financePaymentDetail.labels.paidAmount')" width="130" align="right">
@@ -214,6 +232,11 @@
 
     <el-empty v-else :description="t('financePaymentDetail.notFound')" />
 
+    <FinancePaymentRequestEditDialog
+      v-model="editDialogVisible"
+      :payment-id="paymentId"
+      @success="fetchDetail"
+    />
     <FinancePaymentPayDialog
       v-model="payDialogVisible"
       :payment="detail"
@@ -228,6 +251,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useFinanceEnumLabels } from '@/composables/useFinanceEnumLabels'
 import { ArrowLeft } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   financePaymentApi,
   CURRENCY_MAP,
@@ -240,29 +264,103 @@ import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiv
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue'
 import DocumentListPanel from '@/components/Document/DocumentListPanel.vue'
 import FinancePaymentPayDialog from '@/components/Finance/FinancePaymentPayDialog.vue'
-import { useFinanceWriteGate } from '@/composables/useDepartmentDataReadOnly'
+import FinancePaymentRequestEditDialog from '@/components/Finance/FinancePaymentRequestEditDialog.vue'
+import { useFinanceWriteGate, usePurchaseOrderWriteGate } from '@/composables/useDepartmentDataReadOnly'
+import { useAuthStore } from '@/stores/auth'
+import { formatVendorNameReadonly } from '@/utils/vendorDisplayName'
 
 const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
 const { paymentStatusLabel, paymentStatusTag, paymentModeLabel, verificationStatusLabel } = useFinanceEnumLabels()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
+const authStore = useAuthStore()
 const { canWriteFinancePayment: canFinancePaymentWrite } = useFinanceWriteGate()
+const { canWritePo } = usePurchaseOrderWriteGate()
 
 const loading = ref(false)
 const payDialogVisible = ref(false)
+const editDialogVisible = ref(false)
 const detail = ref<FinancePayment | null>(null)
 const paymentLineRows = ref<any[]>([])
 const vendorDisplayName = ref('-')
+
+const vendorDisplayTooltipDisabled = computed(() => {
+  if (maskPurchaseSensitiveFields.value) return true
+  const text = vendorDisplayName.value
+  return !text || text === '—' || text === '-'
+})
 const paymentLinesActiveTab = ref<'items' | 'documents'>('items')
 const selectedPoIdForDocs = ref('')
 const paymentSlipDocListRef = ref<InstanceType<typeof DocumentListPanel> | null>(null)
 const paymentId = computed(() => route.params.id as string)
 
-const canShowPayButton = computed(() => {
-  if (!canFinancePaymentWrite.value || !detail.value) return false
-  return [1, -1, 10].includes(detail.value.status)
+const canPayExecuteDetail = computed(() =>
+  !!detail.value && canFinancePaymentWrite.value && detail.value.status === 10
+)
+
+const canEditRequestDetail = computed(() => {
+  if (!detail.value) return false
+  if (detail.value.status !== 1 && detail.value.status !== -1) return false
+  return canFinancePaymentWrite.value || canWritePo.value
 })
+
+const canSubmitAuditDetail = computed(() =>
+  !!detail.value && detail.value.status === 1 && (canFinancePaymentWrite.value || canWritePo.value)
+)
+
+const canWithdrawDetail = computed(() => {
+  if (!detail.value || detail.value.status !== 10) return false
+  if (canFinancePaymentWrite.value) return true
+  const uid = String(authStore.user?.id ?? '').trim()
+  const creator = String(detail.value.createByUserId ?? '').trim()
+  return !!uid && !!creator && uid === creator
+})
+
+function openEditRequest() {
+  editDialogVisible.value = true
+}
+
+async function handleWithdraw() {
+  if (!detail.value) return
+  try {
+    await ElMessageBox.confirm(
+      t('financePaymentList.messages.withdrawMsg', { code: detail.value.financePaymentCode }),
+      t('financePaymentList.messages.withdrawTitle'),
+      { type: 'warning' }
+    )
+  } catch {
+    return
+  }
+  try {
+    await financePaymentApi.withdraw(detail.value.id)
+    ElMessage.success(t('financePaymentList.messages.withdrawn'))
+    await fetchDetail()
+    paymentSlipDocListRef.value?.refresh()
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('financePaymentList.messages.withdrawFailed'))
+  }
+}
+
+async function handleSubmitAudit() {
+  if (!detail.value) return
+  try {
+    await ElMessageBox.confirm(
+      t('financePaymentList.messages.submitAuditMsg', { code: detail.value.financePaymentCode }),
+      t('financePaymentList.messages.submitAuditTitle'),
+      { type: 'info' }
+    )
+  } catch {
+    return
+  }
+  try {
+    await financePaymentApi.submit(detail.value.id)
+    ElMessage.success(t('financePaymentList.messages.submitted'))
+    await fetchDetail()
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('financePaymentList.messages.operationFailed'))
+  }
+}
 
 const onPayDialogSuccess = async () => {
   await fetchDetail()
@@ -376,8 +474,9 @@ const resolveVendorDisplayName = async () => {
   }
 
   const rawName = String(current.vendorName || '').trim()
+  const rawEn = String(current.vendorEnglishName || '').trim()
   const rawId = String(current.vendorId || '').trim()
-  const pickVendorName = (v: any) =>
+  const pickVendorNameZh = (v: any) =>
     v?.officialName ||
     v?.OfficialName ||
     v?.nickName ||
@@ -387,13 +486,20 @@ const resolveVendorDisplayName = async () => {
     v?.vendorName ||
     v?.VendorName ||
     ''
+  const pickVendorNameEn = (v: any) =>
+    v?.englishOfficialName ||
+    v?.EnglishOfficialName ||
+    ''
   const pickVendorCode = (v: any) =>
     String(v?.code || v?.Code || '').trim()
+  const setDisplay = (zh: string, en?: string) => {
+    vendorDisplayName.value = formatVendorNameReadonly(zh, en || rawEn)
+  }
 
   // 正常名称直接展示；像 VEN0002 这种编码再尝试回查真实名称
   const looksLikeCode = (value: string) => /^VEN[\w-]*$/i.test(value)
   if (rawName && !looksLikeCode(rawName)) {
-    vendorDisplayName.value = rawName
+    setDisplay(rawName)
     return
   }
 
@@ -402,9 +508,10 @@ const resolveVendorDisplayName = async () => {
     try {
       const pageByCode = await vendorApi.searchVendors({ pageNumber: 1, pageSize: 20, keyword: rawName })
       const exactByCode = pageByCode?.items?.find((x: any) => pickVendorCode(x).toUpperCase() === rawName.toUpperCase())
-      const nameByCode = pickVendorName(exactByCode || pageByCode?.items?.[0])
+      const matched = exactByCode || pageByCode?.items?.[0]
+      const nameByCode = pickVendorNameZh(matched)
       if (nameByCode) {
-        vendorDisplayName.value = nameByCode
+        setDisplay(nameByCode, pickVendorNameEn(matched))
         return
       }
     } catch {
@@ -413,13 +520,13 @@ const resolveVendorDisplayName = async () => {
   }
 
   if (!rawId) {
-    vendorDisplayName.value = rawName || '-'
+    vendorDisplayName.value = formatVendorNameReadonly(rawName, rawEn) || '-'
     return
   }
 
   try {
     const v = await vendorApi.getVendorById(rawId)
-    vendorDisplayName.value = pickVendorName(v) || rawName || rawId
+    setDisplay(pickVendorNameZh(v) || rawName || rawId, pickVendorNameEn(v))
     return
   } catch {
     // ignored
@@ -428,9 +535,9 @@ const resolveVendorDisplayName = async () => {
   try {
     const page = await vendorApi.searchVendors({ pageNumber: 1, pageSize: 20, keyword: rawId })
     const first = page?.items?.[0]
-    vendorDisplayName.value = pickVendorName(first) || rawName || rawId
+    setDisplay(pickVendorNameZh(first) || rawName || rawId, pickVendorNameEn(first))
   } catch {
-    vendorDisplayName.value = rawName || rawId
+    vendorDisplayName.value = formatVendorNameReadonly(rawName || rawId, rawEn)
   }
 }
 
@@ -443,6 +550,10 @@ const formatAmount = (val: number) => {
 
 <style lang="scss" scoped>
 @import '@/assets/styles/variables.scss';
+
+.vendor-display-name {
+  word-break: break-word;
+}
 
 .finance-detail {
   padding: 20px;

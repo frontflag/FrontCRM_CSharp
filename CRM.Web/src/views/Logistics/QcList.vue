@@ -82,7 +82,11 @@
         <el-tag effect="dark" :type="stockInType(displayStockInStatus(row))">{{ stockInText(displayStockInStatus(row)) }}</el-tag>
       </template>
       <template #col-vendorName="{ row }">
-        <span>{{ maskPurchaseSensitiveFields ? '—' : (row.vendorName?.trim() ? row.vendorName : '—') }}</span>
+        <vendor-name-readonly-text
+          :name-zh="row.vendorName"
+          :name-en="row.vendorEnglishName"
+          :masked="maskPurchaseSensitiveFields"
+        />
       </template>
       <template #col-createTime="{ row }">{{ formatTime(row.createTime) }}</template>
       <template #col-createUser="{ row }">{{
@@ -206,6 +210,7 @@ import { useAuthStore } from '@/stores/auth'
 import { formatDisplayDateTime2DigitYear } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import VendorNameReadonlyText from '@/components/Vendor/VendorNameReadonlyText.vue'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const router = useRouter()

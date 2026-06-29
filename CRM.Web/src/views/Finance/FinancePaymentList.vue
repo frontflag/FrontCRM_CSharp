@@ -193,9 +193,36 @@
             <el-button
               size="small"
               text
+              type="primary"
+              v-if="canEditRequest(row)"
+              @click.stop="openEditRequest(row)"
+            >
+              {{ t('financePaymentList.actions.editRequest') }}
+            </el-button>
+            <el-button
+              size="small"
+              text
+              type="warning"
+              v-if="canPayExecute(row)"
+              @click.stop="openPay(row)"
+            >
+              {{ t('financePaymentList.actions.pay') }}
+            </el-button>
+            <el-button
+              size="small"
+              text
+              type="info"
+              v-if="canWithdrawPayment(row)"
+              @click.stop="withdrawPayment(row)"
+            >
+              {{ t('financePaymentList.actions.withdraw') }}
+            </el-button>
+            <el-button
+              size="small"
+              text
               type="warning"
               @click.stop="submitAudit(row)"
-              v-if="canFinancePaymentWrite && row.status === 1"
+              v-if="canSubmitAudit(row)"
             >
               {{ t('financePaymentList.actions.submitAudit') }}
             </el-button>
@@ -221,7 +248,16 @@
                 <el-dropdown-item @click.stop="openDetail(row)">
                   <span class="op-more-item op-more-item--primary">{{ t('financePaymentList.actions.detail') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item v-if="canFinancePaymentWrite && row.status === 1" @click.stop="submitAudit(row)">
+                <el-dropdown-item v-if="canEditRequest(row)" @click.stop="openEditRequest(row)">
+                  <span class="op-more-item op-more-item--primary">{{ t('financePaymentList.actions.editRequest') }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="canPayExecute(row)" @click.stop="openPay(row)">
+                  <span class="op-more-item op-more-item--warning">{{ t('financePaymentList.actions.pay') }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="canWithdrawPayment(row)" @click.stop="withdrawPayment(row)">
+                  <span class="op-more-item op-more-item--info">{{ t('financePaymentList.actions.withdraw') }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="canSubmitAudit(row)" @click.stop="submitAudit(row)">
                   <span class="op-more-item op-more-item--warning">{{ t('financePaymentList.actions.submitAudit') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item
@@ -263,6 +299,16 @@
         />
       </div>
 
+    <FinancePaymentRequestEditDialog
+      v-model="editDialogVisible"
+      :payment-id="editPaymentId"
+      @success="loadData"
+    />
+    <FinancePaymentPayDialog
+      v-model="payDialogVisible"
+      :payment="payPayment"
+      @success="loadData"
+    />
   </div>
 </template>
 
@@ -285,7 +331,9 @@ import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTim
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useAuthStore } from '@/stores/auth'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
-import { useFinanceWriteGate } from '@/composables/useDepartmentDataReadOnly'
+import { useFinanceWriteGate, usePurchaseOrderWriteGate } from '@/composables/useDepartmentDataReadOnly'
+import FinancePaymentRequestEditDialog from '@/components/Finance/FinancePaymentRequestEditDialog.vue'
+import FinancePaymentPayDialog from '@/components/Finance/FinancePaymentPayDialog.vue'
 import VendorExtendColumnHeader from '@/components/list/VendorExtendColumnHeader.vue'
 import VendorExtendCell from '@/components/list/VendorExtendCell.vue'
 import VendorReceivingBankExtendColumnHeader from '@/components/list/VendorReceivingBankExtendColumnHeader.vue'
@@ -333,6 +381,7 @@ function onPaymentTableHeaderDragEnd(
 
 /** 付款保存/完成/提交审核等：RBAC write + 主部门财务非只读 */
 const { canWriteFinancePayment: canFinancePaymentWrite } = useFinanceWriteGate()
+const { canWritePo } = usePurchaseOrderWriteGate()
 const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const { paymentStatusLabel, paymentStatusTag, paymentModeLabel } = useFinanceEnumLabels()
 
@@ -363,8 +412,8 @@ const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 // 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
 const OP_COL_COLLAPSED_WIDTH = 43
-const OP_COL_EXPANDED_WIDTH = 173
-const OP_COL_EXPANDED_MIN_WIDTH = 160
+const OP_COL_EXPANDED_WIDTH = 320
+const OP_COL_EXPANDED_MIN_WIDTH = 300
 const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
 const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_WIDTH : OP_COL_COLLAPSED_WIDTH))
 function toggleOpCol() {
@@ -499,6 +548,67 @@ const loadData = async () => {
     ElMessage.error(e?.message || t('financePaymentList.messages.loadFailed'))
   } finally {
     loading.value = false
+  }
+}
+
+const editDialogVisible = ref(false)
+const editPaymentId = ref<string | null>(null)
+const payDialogVisible = ref(false)
+const payPayment = ref<FinancePayment | null>(null)
+
+function paymentCreatorId(row: FinancePayment): string {
+  const ext = row as unknown as Record<string, unknown>
+  return String(row.createByUserId ?? ext.CreateByUserId ?? '').trim()
+}
+
+function canEditRequest(row: FinancePayment) {
+  if (row.status !== 1 && row.status !== -1) return false
+  return canFinancePaymentWrite.value || canWritePo.value
+}
+
+function canSubmitAudit(row: FinancePayment) {
+  if (row.status !== 1) return false
+  return canFinancePaymentWrite.value || canWritePo.value
+}
+
+function canPayExecute(row: FinancePayment) {
+  return canFinancePaymentWrite.value && row.status === 10
+}
+
+function canWithdrawPayment(row: FinancePayment) {
+  if (row.status !== 10) return false
+  if (canFinancePaymentWrite.value) return true
+  const uid = String(authStore.user?.id ?? '').trim()
+  const creator = paymentCreatorId(row)
+  return !!uid && !!creator && uid === creator
+}
+
+function openEditRequest(row: FinancePayment) {
+  editPaymentId.value = row.id
+  editDialogVisible.value = true
+}
+
+function openPay(row: FinancePayment) {
+  payPayment.value = row
+  payDialogVisible.value = true
+}
+
+const withdrawPayment = async (row: FinancePayment) => {
+  try {
+    await ElMessageBox.confirm(
+      t('financePaymentList.messages.withdrawMsg', { code: row.financePaymentCode }),
+      t('financePaymentList.messages.withdrawTitle'),
+      { type: 'warning' }
+    )
+  } catch {
+    return
+  }
+  try {
+    await financePaymentApi.withdraw(row.id)
+    ElMessage.success(t('financePaymentList.messages.withdrawn'))
+    await loadData()
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('financePaymentList.messages.withdrawFailed'))
   }
 }
 

@@ -179,6 +179,8 @@ namespace CRM.Core.Interfaces
         public string? CustomerBrand { get; set; }
         public string Brand { get; set; } = string.Empty;
         public decimal Quantity { get; set; }
+        /// <summary>目标价币别（1=RMB 2=USD 3=EUR 4=HKD …，与明细 PriceCurrency 一致）</summary>
+        public short PriceCurrency { get; set; } = 1;
         public short Status { get; set; }
         public string? CustomerId { get; set; }
         public string? CustomerName { get; set; }

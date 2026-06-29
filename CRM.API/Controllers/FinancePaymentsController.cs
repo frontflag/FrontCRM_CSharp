@@ -162,6 +162,99 @@ namespace CRM.API.Controllers
             }
         }
 
+        /// <summary>编辑请款（status 1 / -1）</summary>
+        [HttpPut("{id}/request")]
+        [RequireAnyPermission("finance-payment.write", "purchase-order.write")]
+        public async Task<IActionResult> UpdateRequest(string id, [FromBody] UpdateFinancePaymentRequestBody request)
+        {
+            try
+            {
+                var denied = await RejectIfFinanceDataReadOnlyAsync(allowPurchaseOrderWriteBypass: true);
+                if (denied != null) return denied;
+
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var payment = await _service.UpdateRequestAsync(id, request, userId);
+                return Ok(new { success = true, data = payment });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { success = false, message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "编辑请款失败");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>保存付款执行信息（status 10）</summary>
+        [HttpPut("{id}/execution")]
+        [RequirePermission("finance-payment.write")]
+        public async Task<IActionResult> UpdateExecution(string id, [FromBody] UpdateFinancePaymentExecutionRequest request)
+        {
+            try
+            {
+                var denied = await RejectIfFinanceDataReadOnlyAsync();
+                if (denied != null) return denied;
+
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var payment = await _service.UpdateExecutionAsync(id, request, userId);
+                return Ok(new { success = true, data = payment });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { success = false, message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "保存付款执行信息失败");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>撤回审核通过的请款（10→1）</summary>
+        [HttpPost("{id}/withdraw")]
+        [RequireAnyPermission("finance-payment.write", "finance-payment.read", "purchase-order.write", "purchase-order.read")]
+        public async Task<IActionResult> Withdraw(string id)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrWhiteSpace(userId))
+                    return StatusCode(403, new { success = false, message = "未登录或身份无效" });
+
+                var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
+                var hasFinWrite = summary?.PermissionCodes?.Any(c =>
+                    string.Equals(c, "finance-payment.write", StringComparison.OrdinalIgnoreCase)) == true;
+
+                if (hasFinWrite)
+                {
+                    var denied = await RejectIfFinanceDataReadOnlyAsync();
+                    if (denied != null) return denied;
+                }
+
+                var payment = await _service.WithdrawAsync(id, userId.Trim(), hasFinWrite);
+                return Ok(new { success = true, data = payment, message = "已撤回，请修改后重新提交审批" });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "撤回付款单失败");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
         /// <summary>更新付款单状态（提交审核/审核通过/驳回/作废等）；采购从明细提交草稿→待审用 Patch</summary>
         [HttpPatch("{id}/status")]
         [RequireAnyPermission("finance-payment.write", "purchase-order.write")]

@@ -409,18 +409,7 @@ namespace CRM.Core.Services
                     MaskRfqItemListRowCustomerFields(r);
             }
 
-            if (!string.IsNullOrWhiteSpace(request.CurrentUserId))
-            {
-                var s = await _rbacService.GetUserPermissionSummaryAsync(request.CurrentUserId.Trim());
-                if (SaleSensitiveFieldMask521.ShouldMask(s))
-                {
-                    foreach (var r in pagedItems)
-                    {
-                        r.SalesUserId = null;
-                        r.SalesUserName = null;
-                    }
-                }
-            }
+            // 需求明细列表：采购方向仍展示主表业务员，便于询价协同（不对 SalesUserId/Name 做 §5.2.1 脱敏）
 
             return new PagedResult<RFQItemListItem>
             {

@@ -55,10 +55,11 @@
             </el-form-item>
             <el-form-item v-else label="供应商">
               <div class="po-vendor-name-row">
-                <el-input
-                  :model-value="maskPurchaseSensitiveFields ? '—' : formData.vendorName"
-                  disabled
-                  placeholder="系统自动带出供应商"
+                <vendor-name-readonly-field
+                  :name-zh="formData.vendorName"
+                  :name-en="formData.vendorEnglishName"
+                  :masked="maskPurchaseSensitiveFields"
+                  mode="compact"
                   class="po-vendor-name-input"
                 />
                 <el-button
@@ -294,6 +295,7 @@ import { ElMessage } from 'element-plus'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
 import { purchaseRequisitionApi } from '@/api/purchaseRequisition'
 import { vendorApi, vendorContactApi } from '@/api/vendor'
+import VendorNameReadonlyField from '@/components/Vendor/VendorNameReadonlyField.vue'
 import { runSaveTask, validateElFormOrWarn } from '@/composables/useFormSubmit'
 import { getApiErrorMessage } from '@/utils/apiError'
 import type { Vendor } from '@/types/vendor'
@@ -401,6 +403,7 @@ const genOrderCode = () => {
 const formData = ref({
   purchaseOrderCode: genOrderCode(),
   vendorName: '',
+  vendorEnglishName: '',
   vendorId: '' as string,
   vendorContactName: '',
   vendorContactId: '' as string,
@@ -761,6 +764,7 @@ async function loadOrderForEdit(id: string) {
   const o = (await purchaseOrderApi.getById(id)) as Record<string, unknown>
   formData.value.purchaseOrderCode = String(o.purchaseOrderCode ?? formData.value.purchaseOrderCode)
   formData.value.vendorName = String(o.vendorName ?? '')
+  formData.value.vendorEnglishName = String(o.vendorEnglishName ?? o.VendorEnglishName ?? '')
   formData.value.vendorId = String(o.vendorId ?? '')
   formData.value.vendorContactId = String(o.vendorContactId ?? '')
   formData.value.vendorContactName = String((o as { vendorContactName?: string }).vendorContactName ?? '')

@@ -154,7 +154,12 @@
           </div>
           <div class="info-item" v-if="canViewVendorInfo">
             <span class="info-label">供应商</span>
-            <span class="info-value">{{ order.vendorName || '--' }}</span>
+            <span class="info-value">
+              <vendor-name-readonly-text
+                :name-zh="order.vendorName"
+                :name-en="order.vendorEnglishName"
+              />
+            </span>
           </div>
           <div class="info-item">
             <span class="info-label">采购员</span>
@@ -606,10 +611,50 @@
                   <el-table-column v-if="canViewPurchaseAmount" label="已付金额" width="130" align="right">
                     <template #default="{ row }">{{ formatTotalAmountNumber(row?.paymentAmount) }}</template>
                   </el-table-column>
-                  <el-table-column label="付款日期" width="160">
-                    <template #default="{ row }">{{ formatDateTime(row?.paymentDate) }}</template>
-                  </el-table-column>
-                </el-table>
+                <el-table-column label="付款日期" width="160">
+                  <template #default="{ row }">{{ formatDateTime(row?.paymentDate) }}</template>
+                </el-table-column>
+                <el-table-column label="操作" width="240" fixed="right">
+                  <template #default="{ row }">
+                    <el-button
+                      v-if="canEditPoPaymentRequest(row)"
+                      link
+                      type="primary"
+                      size="small"
+                      @click.stop="openPoPaymentEdit(row)"
+                    >
+                      编辑请款
+                    </el-button>
+                    <el-button
+                      v-if="canWithdrawPoPayment(row)"
+                      link
+                      type="info"
+                      size="small"
+                      @click.stop="withdrawPoPayment(row)"
+                    >
+                      撤回
+                    </el-button>
+                    <el-button
+                      v-if="canSubmitPoPaymentAudit(row)"
+                      link
+                      type="warning"
+                      size="small"
+                      @click.stop="submitPoPaymentAudit(row)"
+                    >
+                      提交审核
+                    </el-button>
+                    <el-button
+                      v-if="canPayPoPayment(row)"
+                      link
+                      type="warning"
+                      size="small"
+                      @click.stop="openPoPaymentPay(row)"
+                    >
+                      付款
+                    </el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
                 <el-empty v-else description="暂无数据" :image-size="64" />
               </div>
               <div v-show="poItemLinePanel.activeTab === 'arrivals'" class="po-aggregate-table-wrap">
@@ -725,6 +770,17 @@
       </template>
     </el-dialog>
 
+    <FinancePaymentRequestEditDialog
+      v-model="poPaymentEditVisible"
+      :payment-id="poPaymentEditId"
+      @success="reloadPoItemLinePanelAggregates"
+    />
+    <FinancePaymentPayDialog
+      v-model="poPaymentPayVisible"
+      :payment="poPaymentPayRow"
+      @success="reloadPoItemLinePanelAggregates"
+    />
+
   </div>
 </template>
 
@@ -757,6 +813,7 @@ import TagListDisplay from '@/components/Tag/TagListDisplay.vue'
 import ApplyTagsDialog from '@/components/Tag/ApplyTagsDialog.vue'
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue'
 import DocumentListPanel from '@/components/Document/DocumentListPanel.vue'
+import VendorNameReadonlyText from '@/components/Vendor/VendorNameReadonlyText.vue'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import { formatTotalAmountNumber, formatUnitPriceNumber } from '@/utils/moneyFormat'
 import { getApiErrorMessage } from '@/utils/apiError'
@@ -767,12 +824,17 @@ import PurchaseOrderItemLineDialogs from '@/components/purchaseOrder/PurchaseOrd
 import { buildPurchaseOrderDetailItemsColumns } from '@/composables/buildPurchaseOrderDetailItemsColumns'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import QcImagesReadonlyGallery from '@/components/Logistics/QcImagesReadonlyGallery.vue'
+import { financePaymentApi, type FinancePayment } from '@/api/finance'
+import FinancePaymentRequestEditDialog from '@/components/Finance/FinancePaymentRequestEditDialog.vue'
+import FinancePaymentPayDialog from '@/components/Finance/FinancePaymentPayDialog.vue'
+import { useFinanceWriteGate } from '@/composables/useDepartmentDataReadOnly'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { canWritePo } = usePurchaseOrderWriteGate()
+const { canWriteFinancePayment: canFinancePaymentWrite } = useFinanceWriteGate()
 const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 
 const FF_EDITABLE_PO_STATUSES = new Set([10, 20, 30, 50, 100])
@@ -926,6 +988,112 @@ const poItemLinePanel = reactive({
   loading: false,
   loadError: ''
 })
+
+const poPaymentEditVisible = ref(false)
+const poPaymentEditId = ref<string | null>(null)
+const poPaymentPayVisible = ref(false)
+const poPaymentPayRow = ref<FinancePayment | null>(null)
+
+function poPaymentRowId(row: { id?: string }) {
+  return String(row?.id ?? '').trim()
+}
+
+function poPaymentRowStatus(row: { status?: number }) {
+  return Number(row?.status ?? 0)
+}
+
+function poPaymentRowCreatorId(row: Record<string, unknown>) {
+  return String(row?.createByUserId ?? row?.CreateByUserId ?? '').trim()
+}
+
+function canEditPoPaymentRequest(row: { status?: number }) {
+  const s = poPaymentRowStatus(row)
+  if (s !== 1 && s !== -1) return false
+  return canWritePo.value || canFinancePaymentWrite.value
+}
+
+function canSubmitPoPaymentAudit(row: { status?: number }) {
+  return poPaymentRowStatus(row) === 1 && (canWritePo.value || canFinancePaymentWrite.value)
+}
+
+function canPayPoPayment(row: { status?: number }) {
+  return canFinancePaymentWrite.value && poPaymentRowStatus(row) === 10
+}
+
+function canWithdrawPoPayment(row: Record<string, unknown>) {
+  if (poPaymentRowStatus(row) !== 10) return false
+  if (canFinancePaymentWrite.value) return true
+  const uid = String(authStore.user?.id ?? '').trim()
+  const creator = poPaymentRowCreatorId(row)
+  return !!uid && !!creator && uid === creator
+}
+
+function openPoPaymentEdit(row: { id?: string }) {
+  poPaymentEditId.value = poPaymentRowId(row) || null
+  poPaymentEditVisible.value = true
+}
+
+async function openPoPaymentPay(row: { id?: string }) {
+  const id = poPaymentRowId(row)
+  if (!id) return
+  try {
+    poPaymentPayRow.value = await financePaymentApi.getById(id)
+    poPaymentPayVisible.value = true
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, '加载付款单失败'))
+  }
+}
+
+async function reloadPoItemLinePanelAggregates() {
+  const oid = String(route.params.id ?? '').trim()
+  const purchaseOrderItemId = poItemLinePanel.purchaseOrderItemId
+  if (!oid || !purchaseOrderItemId || !poItemLinePanel.visible) return
+  try {
+    lineTabAggregates.value = await purchaseOrderApi.getPurchaseOrderItemDetailTabAggregates(oid, purchaseOrderItemId)
+  } catch {
+    /* 刷新失败时保留原列表 */
+  }
+}
+
+async function withdrawPoPayment(row: Record<string, unknown>) {
+  const id = poPaymentRowId(row)
+  const code = String(row?.financePaymentCode ?? id)
+  if (!id) return
+  try {
+    await ElMessageBox.confirm(
+      `撤回后付款执行信息与水单附件将被清除，需修改后重新提交审批。确认撤回付款单 ${code}？`,
+      '撤回请款',
+      { type: 'warning' }
+    )
+  } catch {
+    return
+  }
+  try {
+    await financePaymentApi.withdraw(id)
+    ElMessage.success('已撤回，请修改后重新提交审批')
+    await reloadPoItemLinePanelAggregates()
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, '撤回失败'))
+  }
+}
+
+async function submitPoPaymentAudit(row: Record<string, unknown>) {
+  const id = poPaymentRowId(row)
+  const code = String(row?.financePaymentCode ?? id)
+  if (!id) return
+  try {
+    await ElMessageBox.confirm(`确认提交付款单 ${code} 审核？`, '提交审核', { type: 'info' })
+  } catch {
+    return
+  }
+  try {
+    await financePaymentApi.submit(id)
+    ElMessage.success('已提交审核')
+    await reloadPoItemLinePanelAggregates()
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, '操作失败'))
+  }
+}
 
 function closePoItemLinePanel() {
   poItemLinePanel.visible = false
@@ -1342,7 +1510,8 @@ const fetchOrder = async () => {
       recordPurchaseOrderRecentView({
         id: String(order.value.id),
         purchaseOrderCode: order.value.purchaseOrderCode,
-        vendorName: order.value.vendorName
+        vendorName: order.value.vendorName,
+        vendorEnglishName: order.value.vendorEnglishName
       })
       await loadFavoriteState()
       await nextTick()

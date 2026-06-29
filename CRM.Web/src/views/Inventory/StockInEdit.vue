@@ -87,7 +87,7 @@
           </div>
           <div class="stockin-report-row">
             <dt>{{ isCustomsStockInDetail ? t('stockInDetail.fields.originalVendor') : '供应商名称' }}</dt>
-            <dd>{{ reportCellText(maskPurchaseSensitiveFields ? '—' : displayVendorName) }}</dd>
+            <dd>{{ reportCellText(formatRowVendorName({ vendorName: displayVendorName, vendorEnglishName: displayVendorEnglishName })) }}</dd>
           </div>
           <div class="stockin-report-row">
             <dt>{{
@@ -262,9 +262,7 @@
             <template #default="{ row }">{{ reportQtyText(row.declareQty) }}</template>
           </el-table-column>
           <el-table-column :label="t('stockInDetail.vendor')" min-width="120" show-overflow-tooltip>
-            <template #default="{ row }">{{
-              maskPurchaseSensitiveFields ? '—' : row.vendorName || '—'
-            }}</template>
+            <template #default="{ row }">{{ formatRowVendorName(row) }}</template>
           </el-table-column>
           <el-table-column :label="t('stockInDetail.declareUnitPrice')" width="100" align="right">
             <template #default="{ row }">{{ customsFeeMoneyText(row.declareUnitPrice) }}</template>
@@ -371,7 +369,7 @@
             </el-table-column>
             <el-table-column v-if="!isCreateMode" label="供应商名称" min-width="160" show-overflow-tooltip>
               <template #default="{ row }">
-                <span class="stockin-report-cell">{{ reportCellText(maskPurchaseSensitiveFields ? '—' : row.vendorName) }}</span>
+                <span class="stockin-report-cell">{{ reportCellText(formatRowVendorName(row)) }}</span>
               </template>
             </el-table-column>
             <el-table-column label="物料型号" min-width="168" show-overflow-tooltip>
@@ -667,9 +665,7 @@
             </el-table-column>
             <el-table-column label="供应商名称" min-width="140" show-overflow-tooltip>
               <template #default="{ row }">
-                <span class="stockin-report-cell">{{
-                  maskPurchaseSensitiveFields ? '—' : reportCellText(row.vendorName)
-                }}</span>
+                <span class="stockin-report-cell">{{ reportCellText(formatRowVendorName(row)) }}</span>
               </template>
             </el-table-column>
             <el-table-column label="采购员名称" min-width="100" show-overflow-tooltip>
@@ -809,6 +805,7 @@ import { inventoryCenterApi, type StockItemListRow } from '@/api/inventoryCenter
 import StockInBatchImportDialog from '@/components/Inventory/StockInBatchImportDialog.vue'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import { formatVendorNameReadonly } from '@/utils/vendorDisplayName'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { normalizeRegionType, REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS } from '@/constants/regionType'
@@ -837,6 +834,7 @@ const detailStatus = ref<number | null>(null)
 const displayWarehouseCode = ref('')
 /** 详情页展示：供应商名称 */
 const displayVendorName = ref('')
+const displayVendorEnglishName = ref('')
 /** 详情页：单头入库类型 / 地域（库存明细行无值时回退） */
 const detailStockInType = ref(0)
 const detailSourceDisplayNo = ref('')
@@ -895,6 +893,7 @@ function resetCreateForm() {
   detailStatus.value = null
   displayWarehouseCode.value = ''
   displayVendorName.value = ''
+  displayVendorEnglishName.value = ''
   detailStockInType.value = 0
   detailSourceDisplayNo.value = ''
   detailRegionType.value = REGION_TYPE_DOMESTIC
@@ -941,6 +940,7 @@ function applyDetailToForm(d: StockInDto) {
   displayWarehouseCode.value = wh || (form.warehouseId ? String(form.warehouseId) : '—')
   const vn = pickStr(r, 'detailVendorName', 'DetailVendorName')
   displayVendorName.value = vn || (form.vendorId ? String(form.vendorId) : '—')
+  displayVendorEnglishName.value = pickStr(r, 'vendorEnglishName', 'VendorEnglishName', 'detailVendorEnglishName', 'DetailVendorEnglishName')
   const headerStockInTypeEarly = Number(d.stockInType) || 0
   if (headerStockInTypeEarly === StockInTypeCode.Customs) {
     form.purchaseOrderId = (d.sourceCode ?? '').trim()
@@ -956,6 +956,7 @@ function applyDetailToForm(d: StockInDto) {
   const headerStockInDate = normalizeDateForPicker(d.stockInDate)
   const headerSourceCode = (d.sourceCode ?? '').trim()
   const headerVendorName = displayVendorName.value
+  const headerVendorEnglishName = displayVendorEnglishName.value
   const headerWarehouseCode = displayWarehouseCode.value
   const headerRegionType = normalizeRegionType(d.regionType)
   const headerStockInType = Number(d.stockInType) || 0
@@ -1000,6 +1001,7 @@ function applyDetailToForm(d: StockInDto) {
       sourceCode: pickStr(it, 'detailSourceCode', 'DetailSourceCode') || headerSourceCode,
       purchaseOrderItemCode: pickStr(it, 'detailPurchaseOrderItemCode', 'DetailPurchaseOrderItemCode'),
       vendorName: pickStr(it, 'detailVendorName', 'DetailVendorName') || headerVendorName,
+      vendorEnglishName: pickStr(it, 'vendorEnglishName', 'VendorEnglishName', 'detailVendorEnglishName', 'DetailVendorEnglishName') || headerVendorEnglishName,
       materialCode: code,
       materialName: model,
       materialBrand: brand,
@@ -1100,6 +1102,10 @@ const removeRow = (index: number) => {
 const totalQuantity = computed(() => (form.items || []).reduce((sum, x) => sum + (x.quantity || 0), 0))
 /** 与业务列表数量展示一致（千分位） */
 const totalQuantityDisplay = computed(() => totalQuantity.value.toLocaleString('zh-CN'))
+
+function formatRowVendorName(row: { vendorName?: string | null; vendorEnglishName?: string | null }) {
+  return formatVendorNameReadonly(row.vendorName, row.vendorEnglishName, { masked: maskPurchaseSensitiveFields.value })
+}
 
 /** 详情只读报表：空值统一为 — */
 function reportCellText(v: unknown): string {

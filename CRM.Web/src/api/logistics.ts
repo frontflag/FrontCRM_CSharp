@@ -21,6 +21,7 @@ export interface StockInNotifyDto {
   sellOrderItemId?: string | null
   vendorId?: string
   vendorName?: string
+  vendorEnglishName?: string
   /** 供应商编号（接口从采购单关联填充） */
   vendorCode?: string | null
   purchaseUserName?: string
@@ -52,6 +53,7 @@ export interface QcInfoDto {
   stockInNotifyId: string
   stockInNotifyCode: string
   vendorName?: string
+  vendorEnglishName?: string
   purchaseOrderCode?: string
   freightForwarderOrderNo?: string | null
   salesOrderCode?: string
