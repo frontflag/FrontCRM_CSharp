@@ -34,6 +34,7 @@ export interface SalesOrderFieldChangeLogRow {
   id: string
   sellOrderId: string
   sellOrderCode?: string | null
+  objectLabel?: string | null
   fieldName: string
   fieldLabel?: string | null
   oldValue?: string | null

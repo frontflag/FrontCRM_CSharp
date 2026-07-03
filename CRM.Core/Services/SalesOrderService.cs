@@ -511,6 +511,7 @@ namespace CRM.Core.Services
             List<SellOrderItem>? insertedLines = null;
             List<SellOrderItem>? updatedLines = null;
             List<SellOrderItem>? deletedLines = null;
+            SellOrderItemSyncResult? syncResult = null;
             if (request.Items != null && request.Items.Count > 0)
             {
                 var effectiveType = request.Type ?? order.Type;
@@ -518,12 +519,12 @@ namespace CRM.Core.Services
                     effectiveType,
                     request.Items.Select(i => i.QuoteId).ToList());
 
-                var sync = await SyncSellOrderItemsOnUpdateAsync(order, id, request.Items, actingUserId);
-                insertedLines = sync.Inserted;
-                updatedLines = sync.Updated;
-                deletedLines = sync.Deleted;
-                order.Total = sync.Total;
-                order.ConvertTotal = sync.ConvertTotal;
+                syncResult = await SyncSellOrderItemsOnUpdateAsync(order, id, request.Items, actingUserId);
+                insertedLines = syncResult.Inserted;
+                updatedLines = syncResult.Updated;
+                deletedLines = syncResult.Deleted;
+                order.Total = syncResult.Total;
+                order.ConvertTotal = syncResult.ConvertTotal;
                 order.ItemRows = request.Items.Count;
                 replacedItemCount = request.Items.Count;
             }
@@ -534,6 +535,14 @@ namespace CRM.Core.Services
             await _unitOfWork.SaveChangesAsync();
 
             await LogSalesOrderHeaderChangesAsync(order, headerBefore, actingUserId);
+
+            if (syncResult != null)
+            {
+                foreach (var audit in syncResult.ItemUpdateAudits)
+                    await LogSellOrderItemFieldChangesAsync(audit.Item, audit.Before, actingUserId);
+                foreach (var ins in syncResult.Inserted)
+                    await LogSellOrderItemAddedAsync(ins, actingUserId);
+            }
 
             if (deletedLines is { Count: > 0 })
             {
@@ -1234,19 +1243,33 @@ namespace CRM.Core.Services
             if (string.IsNullOrWhiteSpace(sellOrderId))
                 return Array.Empty<SalesOrderFieldChangeLogDto>();
             var safe = SqlQ(sellOrderId.Trim());
+            var headerBiz = BusinessLogTypes.SalesOrder;
+            var itemBiz = BusinessLogTypes.SellOrderItem;
             var sql = $@"
 SELECT c.""Id"",
-       c.""RecordId"" AS ""SellOrderId"",
-       c.""RecordCode"" AS ""SellOrderCode"",
+       '{safe}' AS ""SellOrderId"",
+       so.sell_order_code AS ""SellOrderCode"",
        c.""FieldName"",
        c.""FieldLabel"",
        c.""OldValue"",
        c.""NewValue"",
        c.""ChangedByUserId"",
        c.""ChangedByUserName"",
-       c.""ChangedAt""
+       c.""ChangedAt"",
+       CASE
+         WHEN c.""BizType"" = '{headerBiz}' THEN '主表'
+         ELSE COALESCE(NULLIF(TRIM(c.""RecordCode""), ''), '明细')
+       END AS ""ObjectLabel""
 FROM log_change_fldval c
-WHERE c.""BizType"" = '{BusinessLogTypes.SalesOrder}' AND c.""RecordId"" = '{safe}'
+LEFT JOIN sellorder so ON so.""SellOrderId"" = '{safe}'
+WHERE (
+    c.""BizType"" = '{headerBiz}' AND c.""RecordId"" = '{safe}'
+) OR (
+    c.""BizType"" = '{itemBiz}' AND c.""RecordId"" IN (
+        SELECT i.""SellOrderItemId"" FROM sellorderitem i
+        WHERE i.sell_order_id = '{safe}'
+    )
+)
 ORDER BY c.""ChangedAt"" DESC";
             var rows = await _unitOfWork.QueryAsync<SalesOrderFieldChangeLogDto>(sql);
             return rows.ToList();
@@ -1321,7 +1344,9 @@ ORDER BY i.""ModifyTime"" DESC NULLS LAST, i.""CreateTime"" DESC";
             string? CustomerContactName,
             string? InvoiceInfo,
             string? PaymentTermsText,
-            string? Comment);
+            string? Comment,
+            decimal Total,
+            decimal ConvertTotal);
 
         private static SalesOrderHeaderSnapshot CaptureSalesOrderHeaderSnapshot(SellOrder order) =>
             new(
@@ -1337,7 +1362,9 @@ ORDER BY i.""ModifyTime"" DESC NULLS LAST, i.""CreateTime"" DESC";
                 order.CustomerContactName,
                 order.InvoiceInfo,
                 order.PaymentTermsText,
-                order.Comment);
+                order.Comment,
+                order.Total,
+                order.ConvertTotal);
 
         private async Task LogSalesOrderHeaderChangesAsync(
             SellOrder order,
@@ -1357,6 +1384,8 @@ ORDER BY i.""ModifyTime"" DESC NULLS LAST, i.""CreateTime"" DESC";
             await CompareAndLogHeaderFieldAsync(order, before.InvoiceInfo, after.InvoiceInfo, "invoiceInfo", "开票信息", actingUserId);
             await CompareAndLogHeaderFieldAsync(order, before.PaymentTermsText, after.PaymentTermsText, "paymentTermsText", "付款条款", actingUserId);
             await CompareAndLogHeaderFieldAsync(order, before.Comment, after.Comment, "comment", "备注", actingUserId);
+            await CompareAndLogHeaderFieldAsync(order, FormatDecimal2(before.Total), FormatDecimal2(after.Total), "total", "订单总额", actingUserId);
+            await CompareAndLogHeaderFieldAsync(order, FormatDecimal2(before.ConvertTotal), FormatDecimal2(after.ConvertTotal), "convertTotal", "折算总额(USD)", actingUserId);
         }
 
         private async Task CompareAndLogSoAssistorFieldAsync(
@@ -1427,10 +1456,124 @@ VALUES (gen_random_uuid()::text, '{BusinessLogTypes.SalesOrder}', '{safeRecordId
             return (id, string.IsNullOrWhiteSpace(user?.UserName) ? id : user!.UserName!.Trim());
         }
 
+        private static SellOrderItemFieldSnapshot CaptureSellOrderItemFieldSnapshot(SellOrderItem item) =>
+            new(
+                item.QuoteId,
+                item.ProductId,
+                item.PN,
+                item.Brand,
+                item.CustomerSo,
+                item.CustomerPn,
+                item.CustomerBrand,
+                item.Qty,
+                item.Price,
+                item.Currency,
+                item.DateCode,
+                item.DeliveryDate,
+                item.Comment);
+
+        private async Task LogSellOrderItemFieldChangesAsync(
+            SellOrderItem item,
+            SellOrderItemFieldSnapshot before,
+            string? actingUserId)
+        {
+            var after = CaptureSellOrderItemFieldSnapshot(item);
+            await CompareAndLogSoItemFieldAsync(item, before.Qty, after.Qty, "qty", "数量", FormatDecimal4, actingUserId);
+            await CompareAndLogSoItemFieldAsync(item, before.Price, after.Price, "price", "单价", FormatDecimal4, actingUserId);
+            await CompareAndLogSoItemFieldAsync(item, FormatCurrency(before.Currency), FormatCurrency(after.Currency), "currency", "币别", actingUserId);
+            await CompareAndLogSoItemFieldAsync(item, FormatDate(before.DeliveryDate), FormatDate(after.DeliveryDate), "deliveryDate", "交期", actingUserId);
+            await CompareAndLogSoItemFieldAsync(item, before.DateCode, after.DateCode, "dateCode", "DC", actingUserId);
+            await CompareAndLogSoItemFieldAsync(item, before.PN, after.PN, "pn", "物料型号", actingUserId);
+            await CompareAndLogSoItemFieldAsync(item, before.Brand, after.Brand, "brand", "品牌", actingUserId);
+            await CompareAndLogSoItemFieldAsync(item, before.Comment, after.Comment, "comment", "备注", actingUserId);
+            await CompareAndLogSoItemFieldAsync(item, before.QuoteId, after.QuoteId, "quoteId", "关联报价", actingUserId);
+            await CompareAndLogSoItemFieldAsync(item, before.CustomerSo, after.CustomerSo, "customerSo", "客户订单号", actingUserId);
+            await CompareAndLogSoItemFieldAsync(item, before.CustomerPn, after.CustomerPn, "customerPn", "客户料号", actingUserId);
+            await CompareAndLogSoItemFieldAsync(item, before.CustomerBrand, after.CustomerBrand, "customerBrand", "客户品牌", actingUserId);
+            await CompareAndLogSoItemFieldAsync(item, before.ProductId, after.ProductId, "productId", "产品ID", actingUserId);
+        }
+
+        private async Task LogSellOrderItemAddedAsync(SellOrderItem item, string? actingUserId)
+        {
+            var summary =
+                $"{item.SellOrderItemCode} · {item.PN} · 数量 {FormatDecimal4(item.Qty)} · 单价 {FormatDecimal4(item.Price)} {FormatCurrency(item.Currency)}";
+            await AddSellOrderItemFieldChangeLogAsync(item, "lineAdded", "新增明细", null, summary, actingUserId);
+        }
+
+        private async Task CompareAndLogSoItemFieldAsync(
+            SellOrderItem item,
+            string? oldVal,
+            string? newVal,
+            string fieldName,
+            string fieldLabel,
+            string? actingUserId)
+        {
+            var o = string.IsNullOrWhiteSpace(oldVal) ? null : oldVal.Trim();
+            var n = string.IsNullOrWhiteSpace(newVal) ? null : newVal.Trim();
+            if (string.Equals(o, n, StringComparison.Ordinal))
+                return;
+            await AddSellOrderItemFieldChangeLogAsync(item, fieldName, fieldLabel, o, n, actingUserId);
+        }
+
+        private async Task CompareAndLogSoItemFieldAsync(
+            SellOrderItem item,
+            decimal oldVal,
+            decimal newVal,
+            string fieldName,
+            string fieldLabel,
+            Func<decimal, string> format,
+            string? actingUserId)
+        {
+            if (oldVal == newVal)
+                return;
+            await AddSellOrderItemFieldChangeLogAsync(item, fieldName, fieldLabel, format(oldVal), format(newVal), actingUserId);
+        }
+
+        private async Task AddSellOrderItemFieldChangeLogAsync(
+            SellOrderItem item,
+            string fieldName,
+            string fieldLabel,
+            string? oldValue,
+            string? newValue,
+            string? actingUserId)
+        {
+            var (userId, userName) = await ResolveActorAsync(actingUserId);
+            var recordCode = string.IsNullOrWhiteSpace(item.SellOrderItemCode) ? null : item.SellOrderItemCode.Trim();
+            var recordCodeSql = recordCode == null ? "NULL" : $"'{SqlQ(recordCode)}'";
+            var sql = $@"
+INSERT INTO log_change_fldval (""Id"", ""BizType"", ""RecordId"", ""RecordCode"", ""FieldName"", ""FieldLabel"", ""OldValue"", ""NewValue"", ""ChangedAt"", ""ChangedByUserId"", ""ChangedByUserName"", ""ExtraInfo"", ""SysRemark"")
+VALUES (gen_random_uuid()::text, '{BusinessLogTypes.SellOrderItem}', '{SqlQ(item.Id)}', {recordCodeSql}, '{SqlQ(fieldName)}', '{SqlQ(fieldLabel)}', {(oldValue == null ? "NULL" : $"'{SqlQ(oldValue)}'")}, {(newValue == null ? "NULL" : $"'{SqlQ(newValue)}'")}, NOW(), {(userId == null ? "NULL" : $"'{SqlQ(userId)}'")}, '{SqlQ(userName)}', NULL, NULL)";
+            await _unitOfWork.ExecuteAsync(sql);
+        }
+
+        private static string FormatDecimal2(decimal value) =>
+            Math.Round(value, 2, MidpointRounding.AwayFromZero).ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+
+        private static string FormatDecimal4(decimal value) =>
+            Math.Round(value, 4, MidpointRounding.AwayFromZero).ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
+
+        private sealed record SellOrderItemFieldChangeAudit(SellOrderItem Item, SellOrderItemFieldSnapshot Before);
+
+        private sealed record SellOrderItemFieldSnapshot(
+            string? QuoteId,
+            string? ProductId,
+            string? PN,
+            string? Brand,
+            string? CustomerSo,
+            string? CustomerPn,
+            string? CustomerBrand,
+            decimal Qty,
+            decimal Price,
+            short Currency,
+            string? DateCode,
+            DateTime? DeliveryDate,
+            string? Comment);
+
         private sealed record SellOrderItemSyncResult(
             List<SellOrderItem> Inserted,
             List<SellOrderItem> Updated,
             List<SellOrderItem> Deleted,
+            List<SellOrderItemFieldChangeAudit> ItemUpdateAudits,
             decimal Total,
             decimal ConvertTotal);
 
@@ -1452,6 +1595,8 @@ VALUES (gen_random_uuid()::text, '{BusinessLogTypes.SalesOrder}', '{safeRecordId
             decimal convertTotalUsd = 0m;
 
             var newItemRequests = new List<CreateSalesOrderItemRequest>();
+            var itemUpdateAudits = new List<SellOrderItemFieldChangeAudit>();
+
             foreach (var itemReq in requestItems)
             {
                 var reqId = itemReq.Id?.Trim();
@@ -1461,10 +1606,12 @@ VALUES (gen_random_uuid()::text, '{BusinessLogTypes.SalesOrder}', '{safeRecordId
                         throw new InvalidOperationException($"销售订单明细 {reqId} 不存在或已删除");
 
                     keptIds.Add(reqId);
+                    var before = CaptureSellOrderItemFieldSnapshot(existing);
                     ApplySellOrderItemFromRequest(existing, itemReq, fx);
                     existing.ModifyTime = DateTime.UtcNow;
                     await _soItemRepo.UpdateAsync(existing);
                     updated.Add(existing);
+                    itemUpdateAudits.Add(new SellOrderItemFieldChangeAudit(existing, before));
                     total += existing.Qty * existing.Price;
                     convertTotalUsd += ExchangeRateToUsdConverter.LineAmountUsd(existing.Qty, existing.ConvertPrice);
                 }
@@ -1513,7 +1660,7 @@ VALUES (gen_random_uuid()::text, '{BusinessLogTypes.SalesOrder}', '{safeRecordId
                 deleted.Add(existing);
             }
 
-            return new SellOrderItemSyncResult(inserted, updated, deleted, total, convertTotalUsd);
+            return new SellOrderItemSyncResult(inserted, updated, deleted, itemUpdateAudits, total, convertTotalUsd);
         }
 
         private static void ApplySellOrderItemFromRequest(

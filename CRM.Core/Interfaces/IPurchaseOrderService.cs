@@ -52,6 +52,8 @@ namespace CRM.Core.Interfaces
         public string? ChangedByUserId { get; set; }
         public string? ChangedByUserName { get; set; }
         public DateTime ChangedAt { get; set; }
+        /// <summary>主表为「主表」；明细为行号如 PO00053-1。</summary>
+        public string? ObjectLabel { get; set; }
     }
 
     /// <summary>刷新采购订单供应商名称结果。</summary>

@@ -482,12 +482,13 @@ namespace CRM.Core.Services
             List<PurchaseOrderItem>? updatedLines = null;
             List<PurchaseOrderItem>? deletedLines = null;
             var recalcSellLineIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            PurchaseOrderItemSyncResult? syncResult = null;
             if (request.Items != null && request.Items.Count > 0)
             {
-                var sync = await SyncPurchaseOrderItemsOnUpdateAsync(order, id, request.Items, actingUserId, recalcSellLineIds);
-                insertedLines = sync.Inserted;
-                updatedLines = sync.Updated;
-                deletedLines = sync.Deleted;
+                syncResult = await SyncPurchaseOrderItemsOnUpdateAsync(order, id, request.Items, actingUserId, recalcSellLineIds);
+                insertedLines = syncResult.Inserted;
+                updatedLines = syncResult.Updated;
+                deletedLines = syncResult.Deleted;
                 var activeLines = request.Items.Count;
                 var distinctCurrencies = (insertedLines ?? new List<PurchaseOrderItem>())
                     .Concat(updatedLines ?? new List<PurchaseOrderItem>())
@@ -496,8 +497,8 @@ namespace CRM.Core.Services
                     .ToList();
                 if (distinctCurrencies.Count == 1)
                     order.Currency = distinctCurrencies[0];
-                order.Total = sync.Total;
-                order.ConvertTotal = sync.ConvertTotal;
+                order.Total = syncResult.Total;
+                order.ConvertTotal = syncResult.ConvertTotal;
                 order.ItemRows = activeLines;
                 replacedItemCount = activeLines;
                 order.Type = ResolvePurchaseOrderHeaderType(request.Type ?? order.Type, request.Items);
@@ -520,6 +521,14 @@ namespace CRM.Core.Services
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
 
             await LogPurchaseOrderHeaderChangesAsync(order, headerBefore, actingUserId);
+
+            if (syncResult != null)
+            {
+                foreach (var audit in syncResult.ItemUpdateAudits)
+                    await LogPurchaseOrderItemFieldChangesAsync(audit.Item, audit.Before, actingUserId);
+                foreach (var ins in syncResult.Inserted)
+                    await LogPurchaseOrderItemAddedAsync(ins, actingUserId);
+            }
 
             if (deletedLines is { Count: > 0 })
             {
@@ -1063,19 +1072,33 @@ namespace CRM.Core.Services
             if (_unitOfWork == null || string.IsNullOrWhiteSpace(purchaseOrderId))
                 return Array.Empty<PurchaseOrderFieldChangeLogDto>();
             var safe = SqlQ(purchaseOrderId.Trim());
+            var headerBiz = BusinessLogTypes.PurchaseOrder;
+            var itemBiz = BusinessLogTypes.PurchaseOrderItem;
             var sql = $@"
 SELECT c.""Id"",
-       c.""RecordId"" AS ""PurchaseOrderId"",
-       c.""RecordCode"" AS ""PurchaseOrderCode"",
+       '{safe}' AS ""PurchaseOrderId"",
+       po.purchase_order_code AS ""PurchaseOrderCode"",
        c.""FieldName"",
        c.""FieldLabel"",
        c.""OldValue"",
        c.""NewValue"",
        c.""ChangedByUserId"",
        c.""ChangedByUserName"",
-       c.""ChangedAt""
+       c.""ChangedAt"",
+       CASE
+         WHEN c.""BizType"" = '{headerBiz}' THEN '主表'
+         ELSE COALESCE(NULLIF(TRIM(c.""RecordCode""), ''), '明细')
+       END AS ""ObjectLabel""
 FROM log_change_fldval c
-WHERE c.""BizType"" = '{BusinessLogTypes.PurchaseOrder}' AND c.""RecordId"" = '{safe}'
+LEFT JOIN purchaseorder po ON po.""PurchaseOrderId"" = '{safe}'
+WHERE (
+    c.""BizType"" = '{headerBiz}' AND c.""RecordId"" = '{safe}'
+) OR (
+    c.""BizType"" = '{itemBiz}' AND c.""RecordId"" IN (
+        SELECT i.""PurchaseOrderItemId"" FROM purchaseorderitem i
+        WHERE i.purchase_order_id = '{safe}'
+    )
+)
 ORDER BY c.""ChangedAt"" DESC";
             var rows = await _unitOfWork.QueryAsync<PurchaseOrderFieldChangeLogDto>(sql);
             return rows.ToList();
@@ -1147,7 +1170,10 @@ ORDER BY i.""ModifyTime"" DESC NULLS LAST, i.""CreateTime"" DESC";
             DateTime? DeliveryDate,
             string? DeliveryAddress,
             string? Comment,
-            string? InnerComment);
+            string? InnerComment,
+            decimal Total,
+            decimal ConvertTotal,
+            short Type);
 
         private static PurchaseOrderHeaderSnapshot CapturePurchaseOrderHeaderSnapshot(PurchaseOrder order) =>
             new(
@@ -1158,7 +1184,10 @@ ORDER BY i.""ModifyTime"" DESC NULLS LAST, i.""CreateTime"" DESC";
                 order.DeliveryDate,
                 order.DeliveryAddress,
                 order.Comment,
-                order.InnerComment);
+                order.InnerComment,
+                order.Total,
+                order.ConvertTotal,
+                order.Type);
 
         private async Task LogPurchaseOrderHeaderChangesAsync(
             PurchaseOrder order,
@@ -1174,6 +1203,9 @@ ORDER BY i.""ModifyTime"" DESC NULLS LAST, i.""CreateTime"" DESC";
             await CompareAndLogPoHeaderFieldAsync(order, before.DeliveryAddress, after.DeliveryAddress, "deliveryAddress", "送货地址", actingUserId);
             await CompareAndLogPoHeaderFieldAsync(order, before.Comment, after.Comment, "comment", "备注", actingUserId);
             await CompareAndLogPoHeaderFieldAsync(order, before.InnerComment, after.InnerComment, "innerComment", "内部备注", actingUserId);
+            await CompareAndLogPoHeaderFieldAsync(order, FormatDecimal2(before.Total), FormatDecimal2(after.Total), "total", "订单总额", actingUserId);
+            await CompareAndLogPoHeaderFieldAsync(order, FormatDecimal2(before.ConvertTotal), FormatDecimal2(after.ConvertTotal), "convertTotal", "折算总额(USD)", actingUserId);
+            await CompareAndLogPoHeaderFieldAsync(order, FormatPurchaseOrderType(before.Type), FormatPurchaseOrderType(after.Type), "type", "订单类型", actingUserId);
         }
 
         private async Task CompareAndLogPoHeaderFieldAsync(
@@ -1236,10 +1268,116 @@ VALUES (gen_random_uuid()::text, '{BusinessLogTypes.PurchaseOrder}', '{safeRecor
             await _unitOfWork.ExecuteAsync(sql);
         }
 
+        private static PurchaseOrderItemFieldSnapshot CapturePurchaseOrderItemFieldSnapshot(PurchaseOrderItem item) =>
+            new(
+                item.SellOrderItemId,
+                item.VendorId,
+                item.ProductId,
+                item.PN,
+                item.Brand,
+                item.Qty,
+                item.Cost,
+                item.Currency,
+                item.DeliveryDate,
+                item.DateCode,
+                item.Comment,
+                item.InnerComment);
+
+        private async Task LogPurchaseOrderItemFieldChangesAsync(
+            PurchaseOrderItem item,
+            PurchaseOrderItemFieldSnapshot before,
+            string? actingUserId)
+        {
+            var after = CapturePurchaseOrderItemFieldSnapshot(item);
+            await CompareAndLogPoItemFieldAsync(item, before.Qty, after.Qty, "qty", "数量", FormatDecimal4, actingUserId);
+            await CompareAndLogPoItemFieldAsync(item, before.Cost, after.Cost, "cost", "单价", FormatDecimal4, actingUserId);
+            await CompareAndLogPoItemFieldAsync(item, FormatCurrency(before.Currency), FormatCurrency(after.Currency), "currency", "币别", actingUserId);
+            await CompareAndLogPoItemFieldAsync(item, FormatDate(before.DeliveryDate), FormatDate(after.DeliveryDate), "deliveryDate", "交期", actingUserId);
+            await CompareAndLogPoItemFieldAsync(item, before.DateCode, after.DateCode, "dateCode", "DC", actingUserId);
+            await CompareAndLogPoItemFieldAsync(item, before.PN, after.PN, "pn", "物料型号", actingUserId);
+            await CompareAndLogPoItemFieldAsync(item, before.Brand, after.Brand, "brand", "品牌", actingUserId);
+            await CompareAndLogPoItemFieldAsync(item, before.Comment, after.Comment, "comment", "备注", actingUserId);
+            await CompareAndLogPoItemFieldAsync(item, before.InnerComment, after.InnerComment, "innerComment", "内部备注", actingUserId);
+            await CompareAndLogPoItemFieldAsync(item, before.SellOrderItemId, after.SellOrderItemId, "sellOrderItemId", "关联销售明细", actingUserId);
+            await CompareAndLogPoItemFieldAsync(item, before.VendorId, after.VendorId, "vendorId", "行供应商", actingUserId);
+            await CompareAndLogPoItemFieldAsync(item, before.ProductId, after.ProductId, "productId", "产品ID", actingUserId);
+        }
+
+        private async Task LogPurchaseOrderItemAddedAsync(PurchaseOrderItem item, string? actingUserId)
+        {
+            var summary =
+                $"{item.PurchaseOrderItemCode} · {item.PN} · 数量 {FormatDecimal4(item.Qty)} · 单价 {FormatDecimal4(item.Cost)} {FormatCurrency(item.Currency)}";
+            await AddPurchaseOrderItemFieldChangeLogAsync(item, "lineAdded", "新增明细", null, summary, actingUserId);
+        }
+
+        private async Task CompareAndLogPoItemFieldAsync(
+            PurchaseOrderItem item,
+            string? oldVal,
+            string? newVal,
+            string fieldName,
+            string fieldLabel,
+            string? actingUserId)
+        {
+            var o = string.IsNullOrWhiteSpace(oldVal) ? null : oldVal.Trim();
+            var n = string.IsNullOrWhiteSpace(newVal) ? null : newVal.Trim();
+            if (string.Equals(o, n, StringComparison.Ordinal))
+                return;
+            await AddPurchaseOrderItemFieldChangeLogAsync(item, fieldName, fieldLabel, o, n, actingUserId);
+        }
+
+        private async Task CompareAndLogPoItemFieldAsync(
+            PurchaseOrderItem item,
+            decimal oldVal,
+            decimal newVal,
+            string fieldName,
+            string fieldLabel,
+            Func<decimal, string> format,
+            string? actingUserId)
+        {
+            if (oldVal == newVal)
+                return;
+            await AddPurchaseOrderItemFieldChangeLogAsync(item, fieldName, fieldLabel, format(oldVal), format(newVal), actingUserId);
+        }
+
+        private async Task AddPurchaseOrderItemFieldChangeLogAsync(
+            PurchaseOrderItem item,
+            string fieldName,
+            string fieldLabel,
+            string? oldValue,
+            string? newValue,
+            string? actingUserId)
+        {
+            if (_unitOfWork == null) return;
+            var (userId, userName) = await ResolveActorAsync(actingUserId);
+            var recordCode = string.IsNullOrWhiteSpace(item.PurchaseOrderItemCode) ? null : item.PurchaseOrderItemCode.Trim();
+            var recordCodeSql = recordCode == null ? "NULL" : $"'{SqlQ(recordCode)}'";
+            var sql = $@"
+INSERT INTO log_change_fldval (""Id"", ""BizType"", ""RecordId"", ""RecordCode"", ""FieldName"", ""FieldLabel"", ""OldValue"", ""NewValue"", ""ChangedAt"", ""ChangedByUserId"", ""ChangedByUserName"", ""ExtraInfo"", ""SysRemark"")
+VALUES (gen_random_uuid()::text, '{BusinessLogTypes.PurchaseOrderItem}', '{SqlQ(item.Id)}', {recordCodeSql}, '{SqlQ(fieldName)}', '{SqlQ(fieldLabel)}', {(oldValue == null ? "NULL" : $"'{SqlQ(oldValue)}'")}, {(newValue == null ? "NULL" : $"'{SqlQ(newValue)}'")}, NOW(), {(userId == null ? "NULL" : $"'{SqlQ(userId)}'")}, '{SqlQ(userName)}', NULL, NULL)";
+            await _unitOfWork.ExecuteAsync(sql);
+        }
+
+        private sealed record PurchaseOrderItemFieldChangeAudit(PurchaseOrderItem Item, PurchaseOrderItemFieldSnapshot Before);
+
+        private sealed record PurchaseOrderItemFieldSnapshot(
+            string? SellOrderItemId,
+            string? VendorId,
+            string? ProductId,
+            string? PN,
+            string? Brand,
+            decimal Qty,
+            decimal Cost,
+            short Currency,
+            DateTime? DeliveryDate,
+            string? DateCode,
+            string? Comment,
+            string? InnerComment);
+
         private sealed record PurchaseOrderItemSyncResult(
             List<PurchaseOrderItem> Inserted,
             List<PurchaseOrderItem> Updated,
             List<PurchaseOrderItem> Deleted,
+            List<PurchaseOrderItemFieldChangeAudit> ItemUpdateAudits,
             decimal Total,
             decimal ConvertTotal);
 
@@ -1261,6 +1399,7 @@ VALUES (gen_random_uuid()::text, '{BusinessLogTypes.PurchaseOrder}', '{safeRecor
             decimal total = 0m;
             decimal convertTotalUsd = 0m;
             var newItemRequests = new List<CreatePurchaseOrderItemRequest>();
+            var itemUpdateAudits = new List<PurchaseOrderItemFieldChangeAudit>();
 
             foreach (var itemReq in requestItems)
             {
@@ -1272,10 +1411,12 @@ VALUES (gen_random_uuid()::text, '{BusinessLogTypes.PurchaseOrder}', '{safeRecor
 
                     keptIds.Add(reqId);
                     var prevSell = existing.SellOrderItemId;
+                    var before = CapturePurchaseOrderItemFieldSnapshot(existing);
                     ApplyPurchaseOrderItemFromRequest(existing, itemReq, order, fx);
                     existing.ModifyTime = DateTime.UtcNow;
                     await _poItemRepo.UpdateAsync(existing);
                     updated.Add(existing);
+                    itemUpdateAudits.Add(new PurchaseOrderItemFieldChangeAudit(existing, before));
                     total += existing.Qty * existing.Cost;
                     convertTotalUsd += ExchangeRateToUsdConverter.LineAmountUsd(existing.Qty, existing.ConvertPrice);
                     TrackSellLineForRecalc(recalcSellLineIds, existing.SellOrderItemId);
@@ -1330,7 +1471,7 @@ VALUES (gen_random_uuid()::text, '{BusinessLogTypes.PurchaseOrder}', '{safeRecor
                 deleted.Add(existing);
             }
 
-            return new PurchaseOrderItemSyncResult(inserted, updated, deleted, total, convertTotalUsd);
+            return new PurchaseOrderItemSyncResult(inserted, updated, deleted, itemUpdateAudits, total, convertTotalUsd);
         }
 
         private static void TrackSellLineForRecalc(HashSet<string> recalcSellLineIds, string? sellOrderItemId)
@@ -1465,6 +1606,20 @@ VALUES (gen_random_uuid()::text, '{BusinessLogTypes.PurchaseOrder}', '{safeRecor
             6 => "GBP",
             _ => currency.ToString()
         };
+
+        private static string FormatPurchaseOrderType(short type) => type switch
+        {
+            PurchaseOrderItemLinkRules.PurchaseOrderTypeCustomer => "客单采购",
+            PurchaseOrderItemLinkRules.PurchaseOrderTypeStocking => "备货采购",
+            PurchaseOrderItemLinkRules.PurchaseOrderTypeSample => "样品采购",
+            _ => type.ToString()
+        };
+
+        private static string FormatDecimal2(decimal value) =>
+            Math.Round(value, 2, MidpointRounding.AwayFromZero).ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+
+        private static string FormatDecimal4(decimal value) =>
+            Math.Round(value, 4, MidpointRounding.AwayFromZero).ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
 
         private static string? FormatDate(DateTime? dt) =>
             dt.HasValue ? dt.Value.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) : null;

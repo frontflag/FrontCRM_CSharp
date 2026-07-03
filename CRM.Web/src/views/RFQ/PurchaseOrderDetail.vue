@@ -224,14 +224,14 @@
       <!-- TabBar：订单明细 | 文档（采购申请/付款/等到货等下游见底部「采购订单明细详情」） -->
       <div class="tabs-section">
         <div class="tabs-nav">
-          <button class="tab-btn" :class="{ 'tab-btn--active': activeTab === 'items' }" @click="activeTab = 'items'">订单明细</button>
+          <button class="tab-btn" :class="{ 'tab-btn--active': activeTab === 'items' }" @click="activeTab = 'items'">{{ formatOrderDetailTabLabel('订单明细', 'items') }}</button>
           <button
             v-if="!maskPurchaseSensitiveFields"
             class="tab-btn"
             :class="{ 'tab-btn--active': activeTab === 'documents' }"
             @click="activeTab = 'documents'"
           >
-            文档
+            {{ formatOrderDetailTabLabel('文档', 'documents') }}
           </button>
           <button
             v-if="!maskPurchaseSensitiveFields"
@@ -239,7 +239,7 @@
             :class="{ 'tab-btn--active': activeTab === 'changeLog' }"
             @click="activeTab = 'changeLog'"
           >
-            更改日志
+            {{ formatOrderDetailTabLabel('更改日志', 'changeLog') }}
           </button>
           <button
             v-if="!maskPurchaseSensitiveFields"
@@ -247,7 +247,7 @@
             :class="{ 'tab-btn--active': activeTab === 'deleteLog' }"
             @click="activeTab = 'deleteLog'"
           >
-            删除日志
+            {{ formatOrderDetailTabLabel('删除日志', 'deleteLog') }}
           </button>
         </div>
         <div class="tabs-body">
@@ -440,7 +440,7 @@
               :biz-id="String(order.id)"
               :max-files="20"
               :max-size-mb="100"
-              @uploaded="docListRef?.refresh()"
+              @uploaded="onPoDocumentUploaded"
             />
             <DocumentListPanel
               ref="docListRef"
@@ -457,6 +457,9 @@
               </el-table-column>
               <el-table-column label="操作人" width="100" show-overflow-tooltip>
                 <template #default="{ row }">{{ row.changedByUserName || '系统' }}</template>
+              </el-table-column>
+              <el-table-column label="对象" width="120" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.objectLabel || '主表' }}</template>
               </el-table-column>
               <el-table-column prop="fieldLabel" label="字段" min-width="120" show-overflow-tooltip>
                 <template #default="{ row }">{{ row.fieldLabel || row.fieldName }}</template>
@@ -835,6 +838,7 @@ import TagListDisplay from '@/components/Tag/TagListDisplay.vue'
 import ApplyTagsDialog from '@/components/Tag/ApplyTagsDialog.vue'
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue'
 import DocumentListPanel from '@/components/Document/DocumentListPanel.vue'
+import { documentApi } from '@/api/document'
 import VendorNameReadonlyText from '@/components/Vendor/VendorNameReadonlyText.vue'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import { formatTotalAmountNumber, formatUnitPriceNumber } from '@/utils/moneyFormat'
@@ -960,6 +964,7 @@ function applyPoDetailTabFromRoute() {
 
 watch(() => route.query.tab, applyPoDetailTabFromRoute, { immediate: true })
 
+const documentCount = ref(0)
 const changeLogs = ref<PurchaseOrderFieldChangeLogRow[]>([])
 const deletedItems = ref<PurchaseOrderDeletedItemRow[]>([])
 const changeLogsLoading = ref(false)
@@ -972,9 +977,52 @@ function resetOrderLogTabs() {
   deletedItems.value = []
   changeLogsLoaded.value = false
   deletedItemsLoaded.value = false
+  documentCount.value = 0
 }
 
-async function loadChangeLogs() {
+type OrderDetailTabKey = 'items' | 'documents' | 'changeLog' | 'deleteLog'
+
+function orderDetailTabCount(tab: OrderDetailTabKey): number {
+  switch (tab) {
+    case 'items':
+      return order.value?.items?.length ?? 0
+    case 'documents':
+      return documentCount.value
+    case 'changeLog':
+      return changeLogs.value.length
+    case 'deleteLog':
+      return deletedItems.value.length
+    default:
+      return 0
+  }
+}
+
+/** Tab 标题旁显示 (N)，与底部采购订单明细详情面板一致 */
+function formatOrderDetailTabLabel(label: string, tab: OrderDetailTabKey): string {
+  const count = orderDetailTabCount(tab)
+  return count > 0 ? `${label} (${count})` : label
+}
+
+async function fetchDocumentCount() {
+  const id = String(order.value?.id ?? '').trim()
+  if (!id) {
+    documentCount.value = 0
+    return
+  }
+  try {
+    const res = await documentApi.getDocuments('PURCHASE_ORDER', id)
+    documentCount.value = Array.isArray(res) ? res.length : 0
+  } catch {
+    documentCount.value = 0
+  }
+}
+
+function onPoDocumentUploaded() {
+  docListRef.value?.refresh()
+  void fetchDocumentCount()
+}
+
+async function loadChangeLogs(opts?: { silent?: boolean }) {
   const id = String(order.value?.id ?? '').trim()
   if (!id) return
   changeLogsLoading.value = true
@@ -982,13 +1030,13 @@ async function loadChangeLogs() {
     changeLogs.value = (await purchaseOrderApi.getChangeLogs(id)) ?? []
     changeLogsLoaded.value = true
   } catch (e: unknown) {
-    ElMessage.error(getApiErrorMessage(e, '加载更改日志失败'))
+    if (!opts?.silent) ElMessage.error(getApiErrorMessage(e, '加载更改日志失败'))
   } finally {
     changeLogsLoading.value = false
   }
 }
 
-async function loadDeletedItems() {
+async function loadDeletedItems(opts?: { silent?: boolean }) {
   const id = String(order.value?.id ?? '').trim()
   if (!id) return
   deletedItemsLoading.value = true
@@ -996,7 +1044,7 @@ async function loadDeletedItems() {
     deletedItems.value = (await purchaseOrderApi.getDeletedItems(id)) ?? []
     deletedItemsLoaded.value = true
   } catch (e: unknown) {
-    ElMessage.error(getApiErrorMessage(e, '加载删除日志失败'))
+    if (!opts?.silent) ElMessage.error(getApiErrorMessage(e, '加载删除日志失败'))
   } finally {
     deletedItemsLoading.value = false
   }
@@ -1591,7 +1639,6 @@ async function onPoLineDialogSuccess() {
 const fetchOrder = async () => {
   loading.value = true
   resetOrderLogTabs()
-  const logTab = activeTab.value
   try {
     const data = await purchaseOrderApi.getById(orderId.value)
     order.value = data ?? null
@@ -1620,8 +1667,11 @@ const fetchOrder = async () => {
     closePoItemLinePanel()
   } finally {
     loading.value = false
-    if (logTab === 'changeLog' && order.value?.id) void loadChangeLogs()
-    else if (logTab === 'deleteLog' && order.value?.id) void loadDeletedItems()
+    if (order.value?.id && !maskPurchaseSensitiveFields.value) {
+      void fetchDocumentCount()
+      if (!changeLogsLoaded.value) void loadChangeLogs({ silent: true })
+      if (!deletedItemsLoaded.value) void loadDeletedItems({ silent: true })
+    }
   }
 }
 

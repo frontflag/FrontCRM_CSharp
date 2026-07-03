@@ -62,6 +62,8 @@ namespace CRM.Core.Interfaces
         public string? ChangedByUserId { get; set; }
         public string? ChangedByUserName { get; set; }
         public DateTime ChangedAt { get; set; }
+        /// <summary>主表为「主表」；明细为行号如 SO00001-1。</summary>
+        public string? ObjectLabel { get; set; }
     }
 
     /// <summary>已软删除的销售订单明细。</summary>

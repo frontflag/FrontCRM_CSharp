@@ -37,6 +37,7 @@ export interface PurchaseOrderFieldChangeLogRow {
   id: string
   purchaseOrderId: string
   purchaseOrderCode?: string | null
+  objectLabel?: string | null
   fieldName: string
   fieldLabel?: string | null
   oldValue?: string | null
