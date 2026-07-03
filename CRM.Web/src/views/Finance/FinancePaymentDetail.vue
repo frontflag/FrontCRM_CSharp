@@ -108,15 +108,6 @@
             </div>
             <div class="info-item info-item--basic-spacer" aria-hidden="true"></div>
           </div>
-          <div class="payment-fee-detail-block">
-            <div class="payment-fee-detail-block__title">{{ t('financePaymentList.editRequest.feeSection') }}</div>
-            <PaymentFeeSection
-              readonly
-              :show-title="false"
-              :model-value="detailFeeForm"
-              :currency="detail.paymentCurrency"
-            />
-          </div>
           <div class="info-grid info-grid--inline-labels">
             <div class="info-item info-item--span-all">
               <span class="info-label">{{ t('financePaymentDetail.labels.requestRemark') }}</span>
@@ -128,6 +119,23 @@
               <span class="info-label">{{ t('financePaymentDetail.labels.remark') }}</span>
               <span class="info-value">{{ reportCellText(detail.remark) }}</span>
             </div>
+          </div>
+        </div>
+
+        <div class="info-section">
+          <div class="section-header">
+            <div class="section-header__main">
+              <div class="section-dot section-dot--cyan"></div>
+              <span class="section-title">{{ t('financePaymentList.editRequest.feeSection') }}</span>
+            </div>
+          </div>
+          <div class="payment-fee-section-body">
+            <PaymentFeeSection
+              readonly
+              :show-title="false"
+              :model-value="detailFeeForm"
+              :currency="detail.paymentCurrency"
+            />
           </div>
         </div>
 
@@ -796,16 +804,17 @@ function goBack() {
   min-height: 200px;
 }
 
-.payment-fee-detail-block {
-  padding: 12px 20px 4px;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-}
+.payment-fee-section-body {
+  padding: 4px 20px 12px;
 
-.payment-fee-detail-block__title {
-  font-size: 13px;
-  font-weight: 600;
-  color: $text-primary;
-  margin-bottom: 8px;
+  :deep(.payment-fee-section .el-form-item) {
+    margin-bottom: 12px;
+  }
+
+  :deep(.payment-fee-section .el-form-item__label) {
+    font-size: 12px;
+    color: $text-muted;
+  }
 }
 
 .info-section {
