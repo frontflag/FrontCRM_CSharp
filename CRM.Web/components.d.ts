@@ -106,6 +106,7 @@ declare module 'vue' {
     MaterialProductionDateSelect: typeof import('./src/components/MaterialProductionDateSelect.vue')['default']
     PackingCascadeItemSummary: typeof import('./src/components/Inventory/PackingCascadeItemSummary.vue')['default']
     PartyStatusIcons: typeof import('./src/components/party/PartyStatusIcons.vue')['default']
+    PaymentFeeSection: typeof import('./src/components/Finance/PaymentFeeSection.vue')['default']
     PaymentRequestVendorBankSection: typeof import('./src/components/Vendor/PaymentRequestVendorBankSection.vue')['default']
     PurchaseOpsAssistorSelect: typeof import('./src/components/PurchaseOpsAssistorSelect.vue')['default']
     PurchaseOrderFavoritePanel: typeof import('./src/components/purchaseOrder/PurchaseOrderFavoritePanel.vue')['default']

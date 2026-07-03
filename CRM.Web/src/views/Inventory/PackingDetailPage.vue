@@ -1170,7 +1170,10 @@ onMounted(() => {
 }
 
 .picking-source-normal {
+  display: inline-flex;
+  align-items: center;
   font-size: 12px;
-  color: $text-secondary;
+  font-weight: 600;
+  color: $cyan-primary;
 }
 </style>

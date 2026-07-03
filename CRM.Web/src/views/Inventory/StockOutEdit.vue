@@ -2024,8 +2024,11 @@ init()
   font-size: 16px;
 }
 .picking-source-normal {
+  display: inline-flex;
+  align-items: center;
   font-size: 12px;
-  color: rgba(200, 216, 232, 0.72);
+  font-weight: 600;
+  color: $cyan-primary;
 }
 .btn-primary:disabled {
   opacity: 0.45;

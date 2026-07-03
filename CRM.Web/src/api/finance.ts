@@ -87,6 +87,12 @@ export interface UpdateFinancePaymentExecutionBody {
   companyBankId?: string | null
   paymentDate?: string
   bankSlipNo?: string | null
+  feeIntermediateBank: number
+  feeBankCharge: number
+  feeFreight: number
+  feeMisc: number
+  feeRounding: number
+  feeIntermediateBankPayer?: string | null
 }
 
 export interface FinancePaymentItem {

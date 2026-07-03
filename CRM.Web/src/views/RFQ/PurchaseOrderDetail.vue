@@ -450,15 +450,22 @@
               style="margin-top: 16px;"
             />
           </div>
-          <div v-show="activeTab === 'changeLog' && !maskPurchaseSensitiveFields" v-loading="changeLogsLoading" class="po-aggregate-table-wrap">
-            <el-table v-if="changeLogs.length > 0" :data="changeLogs" size="small" stripe>
+          <div v-show="activeTab === 'changeLog' && !maskPurchaseSensitiveFields" class="detail-items-table-wrap">
+            <el-table
+              v-if="changeLogs.length > 0"
+              v-loading="changeLogsLoading"
+              :data="changeLogs"
+              class="detail-panel-list-table"
+              size="small"
+              stripe
+            >
               <el-table-column label="变更时间" width="160">
                 <template #default="{ row }">{{ formatDateTime(row?.changedAt) }}</template>
               </el-table-column>
               <el-table-column label="操作人" width="100" show-overflow-tooltip>
                 <template #default="{ row }">{{ row.changedByUserName || '系统' }}</template>
               </el-table-column>
-              <el-table-column label="对象" width="120" show-overflow-tooltip>
+              <el-table-column label="对象" width="140" show-overflow-tooltip>
                 <template #default="{ row }">{{ row.objectLabel || '主表' }}</template>
               </el-table-column>
               <el-table-column prop="fieldLabel" label="字段" min-width="120" show-overflow-tooltip>
@@ -471,7 +478,7 @@
                 <template #default="{ row }">{{ row.newValue ?? '(空)' }}</template>
               </el-table-column>
             </el-table>
-            <el-empty v-else description="暂无记录" :image-size="64" />
+            <DetailListPanelEmpty v-else-if="!changeLogsLoading" size="low" />
           </div>
           <div v-show="activeTab === 'deleteLog' && !maskPurchaseSensitiveFields" v-loading="deletedItemsLoading" class="po-aggregate-table-wrap">
             <el-table v-if="deletedItems.length > 0" :data="deletedItems" size="small" stripe>

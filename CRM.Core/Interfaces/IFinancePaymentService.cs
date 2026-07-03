@@ -93,6 +93,13 @@ namespace CRM.Core.Interfaces
         public string? CompanyBankId { get; set; }
         public DateTime? PaymentDate { get; set; }
         public string? BankSlipNo { get; set; }
+        /// <summary>付款执行阶段可调整的费用明细（仅 status 10；不改明细行请款额）。</summary>
+        public decimal FeeIntermediateBank { get; set; }
+        public decimal FeeBankCharge { get; set; }
+        public decimal FeeFreight { get; set; }
+        public decimal FeeMisc { get; set; }
+        public decimal FeeRounding { get; set; }
+        public string? FeeIntermediateBankPayer { get; set; }
     }
 
     public class UpdateFinancePaymentRequest

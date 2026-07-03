@@ -198,7 +198,7 @@
             :class="{ 'tab-btn--active': activeTab === tab.key }"
             @click="activeTab = tab.key"
           >
-            {{ formatTabLabel(tab.label, tab.key) }}
+            {{ formatDetailTabLabel(tab.label, tabCount(tab.key)) }}
           </button>
         </div>
         <div class="tabs-body">
@@ -797,6 +797,7 @@ import DetailListPanelEmpty from '@/components/Common/DetailListPanelEmpty.vue';
 import { documentApi } from '@/api/document';
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime';
 import { operationBizTypeLabel, masterEntityChangeLogObjectLabel } from '@/utils/businessLogLabels';
+import { formatDetailTabLabel } from '@/utils/detailTabLabel';
 import { logRecentApi } from '@/api/logRecent';
 import { VENDOR_RECENT_HISTORY_CHANGED_EVENT } from '@/constants/vendorRecentHistory';
 import { favoriteApi } from '@/api/favorite';
@@ -871,11 +872,6 @@ function tabCount(key: string): number {
   }
 }
 
-/** Tab 标题旁显示 (N)，与采销订单明细面板一致 */
-function formatTabLabel(label: string, key: string): string {
-  const count = tabCount(key);
-  return count > 0 ? `${label} (${count})` : label;
-}
 
 async function fetchDocumentCount() {
   const id = canonicalVendorId.value;

@@ -214,7 +214,7 @@
               :class="{ 'tab-btn--active': activeTab === tab.key }"
               @click="activeTab = tab.key"
             >
-              {{ formatTabLabel(tab.label, tab.key) }}
+              {{ formatDetailTabLabel(tab.label, tabCount(tab.key)) }}
             </button>
           </div>
 
@@ -780,6 +780,7 @@ import { documentApi } from '@/api/document';
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime';
 import { parseApiBoolean } from '@/utils/parseApiBoolean';
 import { operationBizTypeLabel, masterEntityChangeLogObjectLabel } from '@/utils/businessLogLabels';
+import { formatDetailTabLabel } from '@/utils/detailTabLabel';
 import { CUSTOMER_FAVORITES_CHANGED_EVENT } from '@/constants/customerFavorites';
 import { logRecentApi } from '@/api/logRecent';
 import { CUSTOMER_RECENT_HISTORY_CHANGED_EVENT } from '@/constants/customerRecentHistory';
@@ -923,11 +924,6 @@ function tabCount(key: string): number {
   }
 }
 
-/** Tab 标题旁显示 (N)，与采销订单明细面板一致 */
-function formatTabLabel(label: string, key: string): string {
-  const count = tabCount(key);
-  return count > 0 ? `${label} (${count})` : label;
-}
 
 async function fetchDocumentCount() {
   const id = canonicalCustomerId.value;

@@ -386,6 +386,25 @@ namespace CRM.Core.Services
             if (request.BankSlipNo != null)
                 payment.BankSlipNo = request.BankSlipNo;
 
+            if (request.FeeIntermediateBank < 0 || request.FeeBankCharge < 0 || request.FeeFreight < 0
+                || request.FeeMisc < 0 || request.FeeRounding < 0)
+                throw new ArgumentException("费用金额不能为负数");
+
+            var items = (await _itemRepo.FindAsync(i => i.FinancePaymentId == id)).ToList();
+            var linesTotal = items.Sum(i => i.PaymentAmountToBe);
+            var feeTotal = request.FeeIntermediateBank + request.FeeBankCharge + request.FeeFreight
+                + request.FeeMisc + request.FeeRounding;
+            payment.PaymentAmountToBe = Math.Round(linesTotal + feeTotal, 2, MidpointRounding.AwayFromZero);
+            payment.FeeIntermediateBank = request.FeeIntermediateBank;
+            payment.FeeBankCharge = request.FeeBankCharge;
+            payment.FeeFreight = request.FeeFreight;
+            payment.FeeMisc = request.FeeMisc;
+            payment.FeeRounding = request.FeeRounding;
+            var payer = string.IsNullOrWhiteSpace(request.FeeIntermediateBankPayer)
+                ? null
+                : request.FeeIntermediateBankPayer.Trim();
+            payment.FeeIntermediateBankPayer = payer != null && payer.Length > 20 ? payer[..20] : payer;
+
             payment.ModifyTime = DateTime.UtcNow;
             payment.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
             await _paymentRepo.UpdateAsync(payment);

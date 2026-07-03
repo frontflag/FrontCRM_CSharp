@@ -58,6 +58,19 @@
           </el-row>
         </section>
 
+        <!-- 费用明细（夹在收款信息与付款信息之间） -->
+        <section class="pay-dialog-panel pay-dialog-panel--fee">
+          <div class="pay-dialog-panel__head">
+            <span class="pay-dialog-panel__bar pay-dialog-panel__bar--fee" aria-hidden="true" />
+            <span class="pay-dialog-panel__title">{{ t('financePaymentList.editRequest.feeSection') }}</span>
+          </div>
+          <PaymentFeeSection
+            v-model="feeForm"
+            :currency="form.paymentCurrency ?? 1"
+            :disabled="!canFinancePaymentWrite"
+          />
+        </section>
+
         <!-- 付款信息（付款银行 / 付款明细） -->
         <section class="pay-dialog-panel pay-dialog-panel--payment">
           <div class="pay-dialog-panel__head">
@@ -221,6 +234,7 @@ import VendorBankInfoPanel from '@/components/Vendor/VendorBankInfoPanel.vue'
 import VendorNameReadonlyField from '@/components/Vendor/VendorNameReadonlyField.vue'
 import CompanyBankSelect from '@/components/Company/CompanyBankSelect.vue'
 import CompanyBankInfoPanel from '@/components/Company/CompanyBankInfoPanel.vue'
+import PaymentFeeSection, { type PaymentFeeForm } from '@/components/Finance/PaymentFeeSection.vue'
 
 const props = defineProps<{
   modelValue: boolean
@@ -248,6 +262,16 @@ const paymentDocs = ref<UploadDocumentDto[]>([])
 const uploadingSlipDocs = ref(false)
 const slipFileInputRef = ref<HTMLInputElement | null>(null)
 const paymentId = ref<string | null>(null)
+const linesTotal = ref(0)
+
+const feeForm = reactive<PaymentFeeForm>({
+  intermediateBankFee: 0,
+  bankCharge: 0,
+  freight: 0,
+  miscFee: 0,
+  rounding: 0,
+  intermediateBankFeePayer: '我方',
+})
 
 const form = reactive<Partial<FinancePayment>>({
   vendorId: '', vendorCode: '', vendorName: '', vendorEnglishName: '', paymentAmount: 0, paymentMode: 1, paymentCurrency: 1,
@@ -290,9 +314,18 @@ const freightForwarderOrderNoDisplay = computed(() => {
 
 const canShowFinishButton = computed(() => Number(form.status) === 10)
 
-const displayPaymentAmount = computed(() =>
-  Number(form.paymentAmountToBe ?? form.paymentAmount ?? 0)
+const feeTotal = computed(() =>
+  Number(feeForm.intermediateBankFee ?? 0) +
+  Number(feeForm.bankCharge ?? 0) +
+  Number(feeForm.freight ?? 0) +
+  Number(feeForm.miscFee ?? 0) +
+  Number(feeForm.rounding ?? 0)
 )
+
+const displayPaymentAmount = computed(() => {
+  const total = linesTotal.value + feeTotal.value
+  return Math.round(total * 100) / 100
+})
 
 function triggerSlipFilePick() {
   slipFileInputRef.value?.click()
@@ -300,34 +333,56 @@ function triggerSlipFilePick() {
 
 async function initFromPayment(row: FinancePayment) {
   paymentId.value = row.id
+  let detail = row
+  try {
+    detail = await financePaymentApi.getById(row.id)
+  } catch {
+    /* 列表行数据兜底 */
+  }
+
   const amountForEdit =
-    row.status === 100
-      ? Number(row.paymentAmount ?? row.paymentAmountToBe ?? 0)
-      : Number(row.paymentAmountToBe ?? row.paymentAmount ?? 0)
-  Object.assign(form, { ...row, paymentAmount: amountForEdit, paymentAmountToBe: row.paymentAmountToBe ?? amountForEdit })
-  const ext = row as unknown as Record<string, unknown>
-  let code = String(row.vendorCode ?? ext.VendorCode ?? '').trim()
-  if (!code && row.vendorId) {
+    detail.status === 100
+      ? Number(detail.paymentAmount ?? detail.paymentAmountToBe ?? 0)
+      : Number(detail.paymentAmountToBe ?? detail.paymentAmount ?? 0)
+  Object.assign(form, { ...detail, paymentAmount: amountForEdit, paymentAmountToBe: detail.paymentAmountToBe ?? amountForEdit })
+
+  linesTotal.value = (detail.items ?? []).reduce(
+    (sum, item) => sum + Number(item.paymentAmountToBe ?? 0),
+    0
+  )
+  Object.assign(feeForm, {
+    intermediateBankFee: Number(detail.feeIntermediateBank ?? 0),
+    bankCharge: Number(detail.feeBankCharge ?? 0),
+    freight: Number(detail.feeFreight ?? 0),
+    miscFee: Number(detail.feeMisc ?? 0),
+    rounding: Number(detail.feeRounding ?? 0),
+    intermediateBankFeePayer:
+      detail.feeIntermediateBankPayer === '供应商' ? '供应商' : '我方',
+  })
+
+  const ext = detail as unknown as Record<string, unknown>
+  let code = String(detail.vendorCode ?? ext.VendorCode ?? '').trim()
+  if (!code && detail.vendorId) {
     try {
-      const v = await vendorApi.getVendorById(row.vendorId)
+      const v = await vendorApi.getVendorById(detail.vendorId)
       code = (v.code || '').trim()
     } catch {
       /* 尽力补全供应商编码 */
     }
   }
   form.vendorCode = code
-  const companyBankId = String(row.companyBankId ?? ext.CompanyBankId ?? '').trim()
+  const companyBankId = String(detail.companyBankId ?? ext.CompanyBankId ?? '').trim()
   form.companyBankId = companyBankId || null
 
   await Promise.all([
-    loadPaymentDocs(row.id),
-    loadVendorReceivingBank(row.vendorId, row.vendorBankId),
+    loadPaymentDocs(detail.id),
+    loadVendorReceivingBank(detail.vendorId, detail.vendorBankId),
     loadPaymentBankOptions(),
     loadCompanyBankOptions()
   ])
 
   if (!form.companyBankId && !maskPurchaseSensitiveFields.value) {
-    const legacyName = String(row.paymentBankName ?? ext.PaymentBankName ?? '').trim()
+    const legacyName = String(detail.paymentBankName ?? ext.PaymentBankName ?? '').trim()
     if (legacyName) {
       const matched = companyBankRows.value.find((b) => b.bankName?.trim() === legacyName)
       if (matched) form.companyBankId = matched.id
@@ -361,10 +416,17 @@ const saveForm = async () => {
   if (!paymentId.value) return
   saving.value = true
   try {
+    const payer = feeForm.intermediateBankFeePayer === '供应商' ? '供应商' : '我方'
     await financePaymentApi.updateExecution(paymentId.value, {
       companyBankId: form.companyBankId ?? null,
       paymentDate: form.paymentDate,
       bankSlipNo: form.bankSlipNo,
+      feeIntermediateBank: Number(feeForm.intermediateBankFee || 0),
+      feeBankCharge: Number(feeForm.bankCharge || 0),
+      feeFreight: Number(feeForm.freight || 0),
+      feeMisc: Number(feeForm.miscFee || 0),
+      feeRounding: Number(feeForm.rounding || 0),
+      feeIntermediateBankPayer: payer,
     })
     ElMessage.success(t('financePaymentList.messages.saveOk'))
     emit('update:modelValue', false)
@@ -471,6 +533,11 @@ const completePayment = async () => {
   border-color: color-mix(in srgb, var(--el-color-warning-light-5) 28%, $border-card);
 }
 
+.pay-dialog-panel--fee {
+  background: color-mix(in srgb, var(--el-color-info-light-9) 72%, var(--el-bg-color));
+  border-color: color-mix(in srgb, var(--el-color-info-light-5) 28%, $border-card);
+}
+
 .pay-dialog-panel--payment {
   background: color-mix(in srgb, var(--el-color-success-light-9) 72%, var(--el-bg-color));
   border-color: color-mix(in srgb, var(--el-color-success-light-5) 28%, $border-card);
@@ -492,6 +559,10 @@ const completePayment = async () => {
 
 .pay-dialog-panel__bar--receiving {
   background: var(--el-color-warning);
+}
+
+.pay-dialog-panel__bar--fee {
+  background: var(--el-color-info);
 }
 
 .pay-dialog-panel__bar--payment {

@@ -73,7 +73,7 @@
             <div class="info-item">
               <span class="info-label">{{ t('financePaymentDetail.labels.amount') }}</span>
               <span class="info-value info-value--amount">
-                {{ CURRENCY_MAP[detail.paymentCurrency] }} {{ formatAmount(detail.paymentAmount) }}
+                {{ CURRENCY_MAP[detail.paymentCurrency] }} {{ formatAmount(detail.status === 100 ? detail.paymentAmount : (detail.paymentAmountToBe ?? detail.paymentAmount)) }}
               </span>
             </div>
             <div class="info-item">
@@ -108,11 +108,14 @@
             </div>
             <div class="info-item info-item--basic-spacer" aria-hidden="true"></div>
           </div>
-          <div class="info-grid info-grid--inline-labels">
-            <div class="info-item info-item--span-all">
-              <span class="info-label">{{ t('financePaymentDetail.feeSummaryLabel') }}</span>
-              <span class="info-value">{{ feeSummaryText }}</span>
-            </div>
+          <div class="payment-fee-detail-block">
+            <div class="payment-fee-detail-block__title">{{ t('financePaymentList.editRequest.feeSection') }}</div>
+            <PaymentFeeSection
+              readonly
+              :show-title="false"
+              :model-value="detailFeeForm"
+              :currency="detail.paymentCurrency"
+            />
           </div>
           <div class="info-grid info-grid--inline-labels">
             <div class="info-item info-item--span-all">
@@ -350,6 +353,7 @@ import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue'
 import DocumentListPanel from '@/components/Document/DocumentListPanel.vue'
 import FinancePaymentPayDialog from '@/components/Finance/FinancePaymentPayDialog.vue'
 import FinancePaymentRequestEditDialog from '@/components/Finance/FinancePaymentRequestEditDialog.vue'
+import PaymentFeeSection, { type PaymentFeeForm } from '@/components/Finance/PaymentFeeSection.vue'
 import { useFinanceWriteGate, usePurchaseOrderWriteGate } from '@/composables/useDepartmentDataReadOnly'
 import { useAuthStore } from '@/stores/auth'
 import { formatVendorNameReadonly } from '@/utils/vendorDisplayName'
@@ -506,13 +510,26 @@ watch(maskPurchaseSensitiveFields, (masked) => {
   }
 })
 
-const feeSummaryText = computed(() => {
+const detailFeeForm = computed<PaymentFeeForm>(() => {
   const d = detail.value
-  if (!d) return '—'
-  const sym = CURRENCY_MAP[d.paymentCurrency] || ''
-  const f = (n: unknown) => formatAmount(Number(n ?? 0))
-  const payer = (d.feeIntermediateBankPayer || '—').trim() || '—'
-  return `${sym} ${t('financePaymentDetail.labels.feeIntermediateBank')}${f(d.feeIntermediateBank)} · ${t('financePaymentDetail.labels.feeBankCharge')}${f(d.feeBankCharge)} · ${t('financePaymentDetail.labels.feeFreight')}${f(d.feeFreight)} · ${t('financePaymentDetail.labels.feeMisc')}${f(d.feeMisc)} · ${t('financePaymentDetail.labels.feeRounding')}${f(d.feeRounding)} · ${t('financePaymentDetail.labels.feePayer')}${payer}`
+  if (!d) {
+    return {
+      intermediateBankFee: 0,
+      bankCharge: 0,
+      freight: 0,
+      miscFee: 0,
+      rounding: 0,
+      intermediateBankFeePayer: '我方',
+    }
+  }
+  return {
+    intermediateBankFee: Number(d.feeIntermediateBank ?? 0),
+    bankCharge: Number(d.feeBankCharge ?? 0),
+    freight: Number(d.feeFreight ?? 0),
+    miscFee: Number(d.feeMisc ?? 0),
+    rounding: Number(d.feeRounding ?? 0),
+    intermediateBankFeePayer: d.feeIntermediateBankPayer === '供应商' ? '供应商' : '我方',
+  }
 })
 
 onMounted(() => {
@@ -777,6 +794,18 @@ function goBack() {
 
 .detail-content {
   min-height: 200px;
+}
+
+.payment-fee-detail-block {
+  padding: 12px 20px 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.payment-fee-detail-block__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: $text-primary;
+  margin-bottom: 8px;
 }
 
 .info-section {
