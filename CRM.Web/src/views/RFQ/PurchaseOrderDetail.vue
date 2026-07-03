@@ -772,7 +772,7 @@
       @success="refreshTags"
     />
 
-    <PurchaseOrderItemLineDialogs ref="poItemLineDialogsRef" @success="fetchOrder" />
+    <PurchaseOrderItemLineDialogs ref="poItemLineDialogsRef" @success="onPoLineDialogSuccess" />
 
     <el-dialog v-model="ffDialogVisible" title="货代单号" width="480px" destroy-on-close>
       <p class="ff-dialog-hint">与外部货代系统一一对应，用于全链路追溯；留空并保存可清除。</p>
@@ -1525,6 +1525,7 @@ async function handleRefreshItemExtends() {
   try {
     const result = await purchaseOrderApi.refreshItemExtends(order.value.id)
     await fetchOrder()
+    await reloadPoItemLinePanelAggregates()
     if (!result || result.changedItems <= 0) {
       await ElMessageBox.alert('无更新数据', '刷新结果', { confirmButtonText: '知道了' })
       return
@@ -1580,6 +1581,11 @@ async function toggleFavorite() {
   } finally {
     favoriteLoading.value = false
   }
+}
+
+async function onPoLineDialogSuccess() {
+  await fetchOrder()
+  await reloadPoItemLinePanelAggregates()
 }
 
 const fetchOrder = async () => {

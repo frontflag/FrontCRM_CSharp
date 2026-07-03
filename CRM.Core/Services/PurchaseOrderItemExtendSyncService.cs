@@ -3,6 +3,7 @@ using CRM.Core.Interfaces;
 using CRM.Core.Models.Finance;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Purchase;
+using CRM.Core.Utilities;
 
 namespace CRM.Core.Services;
 
@@ -104,6 +105,13 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
 
         var lineCancelled = poItem.Status == PoItemCancelled;
 
+        var lineAmountTotal = Math.Round(poItem.Qty * poItem.Cost, 2, MidpointRounding.AwayFromZero);
+        ext.PaymentAmount = lineAmountTotal;
+        ext.PurchaseInvoiceAmount = lineAmountTotal;
+
+        // --- 采购数量变更后：校验并回写单批次到货通知预计数量（多批次仅校验）---
+        await AlignArrivalNoticesWithPoLineQtyAsync(poItem, cancellationToken);
+
         // --- 到货通知状态回写（10未到货 / 20到货待检 / 30已质检 / 100已入库）---
         await RecalculateArrivalNoticeStatusesForPoLineAsync(id, cancellationToken);
 
@@ -188,6 +196,36 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
 
         if (!string.IsNullOrWhiteSpace(poItem.SellOrderItemId))
             await _sellSoItemExtendSync.RecalculateAsync(poItem.SellOrderItemId.Trim(), cancellationToken);
+    }
+
+    private async Task AlignArrivalNoticesWithPoLineQtyAsync(
+        PurchaseOrderItem poItem,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var notices = (await _notifyRepo.FindAsync(x => x.PurchaseOrderItemId == poItem.Id)).ToList();
+        if (notices.Count == 0) return;
+
+        var sumReceiveNotify = notices.Sum(x => (decimal)x.ReceiveQty);
+        var inTransit = notices.Sum(x => Math.Max(0m, x.ExpectQty - x.ReceiveQty));
+        if (poItem.Qty + 1e-9m < sumReceiveNotify + inTransit)
+            throw new InvalidOperationException(
+                $"采购数量不能小于已到货通知的已收与在途数量之和（已收 {sumReceiveNotify}，在途 {inTransit}）");
+
+        if (notices.Count != 1) return;
+
+        var notice = notices[0];
+        var targetExpect = InventoryQuantity.RoundFromDecimal(poItem.Qty);
+        if (notice.ExpectQty == targetExpect && notice.Cost == poItem.Cost) return;
+
+        notice.ExpectQty = targetExpect;
+        notice.Cost = poItem.Cost;
+        notice.ExpectTotal = Math.Round(poItem.Qty * poItem.Cost, 2, MidpointRounding.AwayFromZero);
+        if (notice.ReceiveQty > notice.ExpectQty)
+            notice.ReceiveQty = notice.ExpectQty;
+        notice.ReceiveTotal = Math.Round((decimal)notice.ReceiveQty * notice.Cost, 2, MidpointRounding.AwayFromZero);
+        notice.ModifyTime = DateTime.UtcNow;
+        await _notifyRepo.UpdateAsync(notice);
     }
 
     private async Task RecalculateArrivalNoticeStatusesForPoLineAsync(
