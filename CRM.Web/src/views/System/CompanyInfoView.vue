@@ -121,13 +121,31 @@
               <div class="section-title"><span class="title-bar"></span>{{ t('companyInfo.bank.sectionTitle') }}</div>
               <p class="section-hint">{{ t('companyInfo.bank.sectionHint') }}</p>
             </div>
-            <el-button type="primary" class="save-all-btn" :loading="saving" @click="saveAll">{{ t('companyInfo.saveAll') }}</el-button>
+            <el-button
+              v-if="bankViewMode !== 'list'"
+              type="primary"
+              class="save-all-btn"
+              :loading="saving"
+              @click="saveAll"
+            >{{ t('companyInfo.saveAll') }}</el-button>
           </div>
 
-          <el-tabs v-model="bankActiveTab" class="bank-info-tabs">
-            <el-tab-pane :label="t('companyInfo.bank.tabRmb')" name="rmb" />
-            <el-tab-pane :label="t('companyInfo.bank.tabForeign')" name="foreign" />
-          </el-tabs>
+          <div class="bank-info-toolbar">
+            <el-tabs v-model="bankActiveTab" class="bank-info-tabs">
+              <el-tab-pane :label="t('companyInfo.bank.tabRmb')" name="rmb" />
+              <el-tab-pane :label="t('companyInfo.bank.tabForeign')" name="foreign" />
+            </el-tabs>
+            <div class="bank-info-toolbar__actions">
+              <el-radio-group v-model="bankPaymentFilter" size="small" class="bank-payment-filter">
+                <el-radio label="all">{{ t('companyInfo.bank.filterAll') }}</el-radio>
+                <el-radio label="payment">{{ t('companyInfo.bank.availableForPayment') }}</el-radio>
+              </el-radio-group>
+              <el-radio-group v-model="bankViewMode" size="small" class="bank-toolbar-toggle bank-view-toggle">
+                <el-radio-button label="panel">{{ t('companyInfo.common.panel') }}</el-radio-button>
+                <el-radio-button label="list">{{ t('companyInfo.common.list') }}</el-radio-button>
+              </el-radio-group>
+            </div>
+          </div>
 
           <div v-if="filteredBankInfos.length === 0" class="bank-info-empty">
             <p class="bank-info-empty__hint">{{ t('companyInfo.bank.emptyTabHint') }}</p>
@@ -136,89 +154,88 @@
             </el-button>
           </div>
 
+          <div v-else-if="bankViewMode === 'list'" class="detail-items-table-wrap bank-info-list-wrap">
+            <el-table
+              :data="bankListTableData"
+              class="detail-panel-list-table bank-info-list-table"
+              size="small"
+              stripe
+              :row-class-name="bankListRowClassName"
+              @row-dblclick="onBankListRowDblClick"
+            >
+              <el-table-column
+                :label="t('companyInfo.bank.availableForPayment')"
+                width="96"
+                align="center"
+                header-align="center"
+              >
+                <template #default="{ row }">
+                  <el-icon v-if="row.availableForPayment" class="bank-payment-check-icon">
+                    <CircleCheck />
+                  </el-icon>
+                </template>
+              </el-table-column>
+              <el-table-column
+                prop="bankName"
+                :label="t('companyInfo.bank.bankName')"
+                min-width="180"
+                show-overflow-tooltip
+              />
+              <el-table-column
+                prop="accountName"
+                :label="t('companyInfo.bank.accountName')"
+                min-width="160"
+                show-overflow-tooltip
+              />
+              <el-table-column
+                prop="accountNumber"
+                :label="t('companyInfo.bank.accountNumber')"
+                min-width="150"
+                show-overflow-tooltip
+              />
+              <el-table-column prop="currency" :label="t('companyInfo.bank.currency')" width="80" />
+              <el-table-column :label="t('companyInfo.bank.bankType')" width="120" show-overflow-tooltip>
+                <template #default="{ row }">{{ bankTypeLabel(row.bankType) }}</template>
+              </el-table-column>
+              <el-table-column :label="t('companyInfo.bank.purposeType')" width="100" show-overflow-tooltip>
+                <template #default="{ row }">{{ purposeTypeLabel(row.purposeType) }}</template>
+              </el-table-column>
+              <el-table-column
+                prop="remark"
+                :label="t('companyInfo.bank.remark')"
+                min-width="140"
+                show-overflow-tooltip
+              />
+              <el-table-column
+                :label="t('companyInfo.common.default')"
+                width="72"
+                align="center"
+                header-align="center"
+              >
+                <template #default="{ row }">
+                  <el-tag v-if="row.isDefault" size="small" type="success" effect="plain">
+                    {{ t('companyInfo.common.default') }}
+                  </el-tag>
+                  <span v-else class="bank-info-list-muted">—</span>
+                </template>
+              </el-table-column>
+              <el-table-column :label="t('companyInfo.bank.status')" width="80" align="center" header-align="center">
+                <template #default="{ row }">
+                  <el-tag size="small" :type="row.enabled ? 'success' : 'info'" effect="plain">
+                    {{ bankEnabledLabel(row.enabled) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+
+          <template v-else>
           <div v-for="(item, idx) in filteredBankInfos" :key="item.row.id" class="group-card">
-            <div class="group-card__head">
-              <span class="group-card__title">{{ t('companyInfo.bank.groupTitle', { n: idx + 1 }) }}</span>
-              <div class="group-card__actions">
-                <el-checkbox v-model="item.row.availableForPayment">
-                  {{ t('companyInfo.bank.availableForPayment') }}
-                </el-checkbox>
-                <el-checkbox
-                  :model-value="item.row.isDefault"
-                  @update:model-value="(on: boolean) => toggleBankDefault(item.row, on)"
-                >
-                  {{ t('companyInfo.common.default') }}
-                </el-checkbox>
-                <span class="switch-label">{{ t('companyInfo.common.enabled') }}</span>
-                <el-switch v-model="item.row.enabled" />
-              </div>
-            </div>
-            <el-form label-width="120px" class="settings-form" :model="item.row">
-              <el-row :gutter="16">
-                <el-col :span="12">
-                  <el-form-item :label="t('companyInfo.bank.bankName')"><el-input v-model="item.row.bankName" /></el-form-item>
-                </el-col>
-                <el-col :span="12">
-                  <el-form-item :label="t('companyInfo.bank.accountName')"><el-input v-model="item.row.accountName" /></el-form-item>
-                </el-col>
-                <el-col :span="24">
-                  <el-form-item :label="t('companyInfo.bank.bankAddress')"><el-input v-model="item.row.bankAddress" /></el-form-item>
-                </el-col>
-                <el-col :span="12">
-                  <el-form-item>
-                    <template #label>
-                      <span :title="t('companyInfo.bank.swiftTitle')">{{ t('companyInfo.bank.swift') }}</span>
-                    </template>
-                    <el-input v-model="item.row.swift" :placeholder="t('companyInfo.bank.phSwift')" />
-                  </el-form-item>
-                </el-col>
-                <el-col :span="12">
-                  <el-form-item>
-                    <template #label>
-                      <span :title="t('companyInfo.bank.ibanTitle')">{{ t('companyInfo.bank.iban') }}</span>
-                    </template>
-                    <el-input v-model="item.row.iban" :placeholder="t('companyInfo.bank.phIban')" />
-                  </el-form-item>
-                </el-col>
-                <el-col :span="12">
-                  <el-form-item :label="t('companyInfo.bank.bankCode')"><el-input v-model="item.row.bankCode" /></el-form-item>
-                </el-col>
-                <el-col :span="12">
-                  <el-form-item :label="t('companyInfo.bank.accountNumber')"><el-input v-model="item.row.accountNumber" /></el-form-item>
-                </el-col>
-                <el-col :span="12">
-                  <el-form-item :label="t('companyInfo.bank.currency')">
-                    <el-select v-model="item.row.currency" style="width: 100%">
-                      <el-option label="RMB" value="RMB" />
-                      <el-option label="USD" value="USD" />
-                      <el-option label="EUR" value="EUR" />
-                    </el-select>
-                  </el-form-item>
-                </el-col>
-                <el-col :span="12">
-                  <el-form-item :label="t('companyInfo.bank.bankType')">
-                    <el-select v-model="item.row.bankType" style="width: 100%">
-                      <el-option :label="t('companyInfo.bank.bankTypeRmb')" value="rmb" />
-                      <el-option :label="t('companyInfo.bank.bankTypeForeign')" value="foreign" />
-                    </el-select>
-                  </el-form-item>
-                </el-col>
-                <el-col :span="12">
-                  <el-form-item :label="t('companyInfo.bank.country')"><el-input v-model="item.row.country" /></el-form-item>
-                </el-col>
-                <el-col :span="12">
-                  <el-form-item :label="t('companyInfo.bank.purposeType')">
-                    <el-select v-model="item.row.purposeType" style="width: 100%">
-                      <el-option :label="t('companyInfo.bank.purposePayment')" value="payment" />
-                      <el-option :label="t('companyInfo.bank.purposeReceipt')" value="receipt" />
-                    </el-select>
-                  </el-form-item>
-                </el-col>
-                <el-col :span="24">
-                  <el-form-item :label="t('companyInfo.bank.remark')"><el-input v-model="item.row.remark" type="textarea" :rows="2" /></el-form-item>
-                </el-col>
-              </el-row>
-            </el-form>
+            <CompanyBankAccountFields
+              :row="item.row"
+              :title="t('companyInfo.bank.groupTitle', { n: idx + 1 })"
+              @toggle-default="(on: boolean) => toggleBankDefault(item.row, on)"
+            />
             <div class="group-card__footer">
               <el-button
                 class="group-mini-btn"
@@ -241,6 +258,7 @@
               </el-button>
             </div>
           </div>
+          </template>
         </div>
 
         <!-- 公司 Logo -->
@@ -664,6 +682,34 @@
         </div>
       </div>
     </div>
+
+    <el-dialog
+      v-model="bankEditVisible"
+      :title="bankEditDialogTitle"
+      width="760px"
+      class="crm-dialog bank-edit-dialog"
+      destroy-on-close
+      @closed="bankEditIndex = -1"
+    >
+      <CompanyBankAccountFields
+        v-if="bankEditRow"
+        :row="bankEditRow"
+        @toggle-default="(on: boolean) => toggleBankDefault(bankEditRow!, on)"
+      />
+      <template #footer>
+        <div class="bank-edit-dialog__footer">
+          <el-button type="danger" plain :loading="bankEditDeleting" @click="deleteBankFromDialog">
+            {{ t('companyInfo.bank.deleteAccount') }}
+          </el-button>
+          <div class="bank-edit-dialog__footer-right">
+            <el-button @click="bankEditVisible = false">{{ t('common.cancel') }}</el-button>
+            <el-button type="primary" :loading="saving" @click="saveBankFromDialog">
+              {{ t('companyInfo.bank.saveAccount') }}
+            </el-button>
+          </div>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -672,7 +718,7 @@ import { ref, onMounted, onUnmounted, computed, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { UploadRequestOptions } from 'element-plus'
-import { OfficeBuilding, Wallet, Picture, PictureFilled, Location, Promotion, Document, Plus, Minus } from '@element-plus/icons-vue'
+import { OfficeBuilding, Wallet, Picture, PictureFilled, Location, Promotion, Document, Plus, Minus, CircleCheck } from '@element-plus/icons-vue'
 import {
   fetchCompanyProfile,
   saveCompanyProfile,
@@ -693,6 +739,7 @@ import { documentApi } from '@/api/document'
 import apiClient from '@/api/client'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { normalizeCompanyBankRow } from '@/utils/companyBank'
+import CompanyBankAccountFields from '@/components/Company/CompanyBankAccountFields.vue'
 
 type AssetPreview = { url: string; kind: 'image' | 'pdf' | 'other' }
 type WarehouseRowVm = WarehouseInfo & { _key: string }
@@ -704,7 +751,14 @@ const { t, locale } = useI18n()
 const activeNav = ref<'basic' | 'bank' | 'logo' | 'seal' | 'warehouse' | 'email' | 'report'>('basic')
 const reportActiveTab = ref<'invoice' | 'packing'>('invoice')
 type BankCurrencyTab = 'rmb' | 'foreign'
+type BankViewMode = 'panel' | 'list'
+type BankPaymentFilter = 'all' | 'payment'
 const bankActiveTab = ref<BankCurrencyTab>('rmb')
+const bankViewMode = ref<BankViewMode>('panel')
+const bankPaymentFilter = ref<BankPaymentFilter>('all')
+const bankEditVisible = ref(false)
+const bankEditIndex = ref(-1)
+const bankEditDeleting = ref(false)
 const loading = ref(false)
 const saving = ref(false)
 
@@ -849,10 +903,105 @@ function emptyBasic(): CompanyBasicRow {
 const filteredBankInfos = computed(() =>
   bankInfos.value
     .map((row, index) => ({ row, index }))
-    .filter(({ row }) =>
-      bankActiveTab.value === 'rmb' ? isRmbCurrency(row.currency) : !isRmbCurrency(row.currency)
-    )
+    .filter(({ row }) => {
+      const inTab =
+        bankActiveTab.value === 'rmb' ? isRmbCurrency(row.currency) : !isRmbCurrency(row.currency)
+      if (!inTab) return false
+      if (bankPaymentFilter.value === 'payment') return !!row.availableForPayment
+      return true
+    })
 )
+
+const bankListTableData = computed(() => filteredBankInfos.value.map(({ row }) => row))
+
+const bankEditRow = computed(() => {
+  const i = bankEditIndex.value
+  return i >= 0 ? bankInfos.value[i] ?? null : null
+})
+
+const bankEditDialogTitle = computed(() => {
+  const row = bankEditRow.value
+  if (!row) return t('companyInfo.bank.editDialogTitle')
+  const idx = filteredBankInfos.value.findIndex(({ row: r }) => r.id === row.id)
+  const n = idx >= 0 ? idx + 1 : 1
+  const name = (row.bankName || row.accountName || '').trim()
+  if (name) return t('companyInfo.bank.editDialogTitleWithName', { n, name })
+  return t('companyInfo.bank.editDialogTitle', { n })
+})
+
+function bankListRowClassName() {
+  return 'bank-info-list-row'
+}
+
+function onBankListRowDblClick(row: CompanyBankRow) {
+  const index = bankInfos.value.findIndex((b) => b.id === row.id)
+  if (index < 0) return
+  bankEditIndex.value = index
+  bankEditVisible.value = true
+}
+
+async function saveBankFromDialog() {
+  saving.value = true
+  try {
+    await saveCompanyProfile(bundle())
+    ElMessage.success(t('companyInfo.messages.saved'))
+    await load()
+    bankEditVisible.value = false
+    bankEditIndex.value = -1
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, t('companyInfo.messages.saveFailed')))
+  } finally {
+    saving.value = false
+  }
+}
+
+async function deleteBankFromDialog() {
+  const index = bankEditIndex.value
+  if (index < 0) return
+  try {
+    await ElMessageBox.confirm(
+      t('companyInfo.bank.deleteConfirmMsg'),
+      t('companyInfo.bank.deleteConfirmTitle'),
+      { type: 'warning' }
+    )
+  } catch {
+    return
+  }
+  bankEditDeleting.value = true
+  try {
+    const beforeLen = bankInfos.value.length
+    await removeBankAt(index)
+    if (bankInfos.value.length === beforeLen) return
+
+    bankEditVisible.value = false
+    bankEditIndex.value = -1
+    saving.value = true
+    await saveCompanyProfile(bundle())
+    ElMessage.success(t('companyInfo.messages.saved'))
+    await load()
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, t('companyInfo.messages.saveFailed')))
+  } finally {
+    bankEditDeleting.value = false
+    saving.value = false
+  }
+}
+
+function bankTypeLabel(bankType: string) {
+  return bankType === 'foreign'
+    ? t('companyInfo.bank.bankTypeForeign')
+    : t('companyInfo.bank.bankTypeRmb')
+}
+
+function purposeTypeLabel(purposeType: string) {
+  return purposeType === 'receipt'
+    ? t('companyInfo.bank.purposeReceipt')
+    : t('companyInfo.bank.purposePayment')
+}
+
+function bankEnabledLabel(enabled: boolean) {
+  return enabled ? t('companyInfo.common.enabled') : t('companyInfo.common.disabled')
+}
 
 function normalizeBankInfos(rows: CompanyBankRow[] | undefined | null): CompanyBankRow[] {
   if (!rows?.length) {
@@ -1296,12 +1445,130 @@ onUnmounted(() => {
   }
 }
 
-.bank-info-tabs {
+.bank-info-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.bank-info-tabs {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0;
 
   :deep(.el-tabs__header) {
     margin-bottom: 0;
   }
+}
+
+.bank-info-toolbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.bank-payment-filter {
+  display: inline-flex;
+  align-items: center;
+
+  :deep(.el-radio) {
+    margin-right: 14px;
+    height: auto;
+
+    &:last-child {
+      margin-right: 0;
+    }
+  }
+
+  :deep(.el-radio__label) {
+    font-size: 12px;
+    color: $text-muted;
+    padding-left: 6px;
+  }
+
+  :deep(.el-radio.is-checked .el-radio__label) {
+    color: $cyan-primary;
+  }
+
+  :deep(.el-radio__inner) {
+    width: 14px;
+    height: 14px;
+    background: rgba(0, 0, 0, 0.2);
+    border-color: $border-panel;
+  }
+
+  :deep(.el-radio__input.is-checked .el-radio__inner) {
+    border-color: rgba(0, 212, 255, 0.65);
+    background: rgba(0, 212, 255, 0.08);
+  }
+
+  :deep(.el-radio__input.is-checked .el-radio__inner::after) {
+    width: 6px;
+    height: 6px;
+    background: $cyan-primary;
+  }
+}
+
+.bank-toolbar-toggle {
+  :deep(.el-radio-button__inner) {
+    background: rgba(0, 0, 0, 0.2);
+    border-color: $border-panel;
+    color: $text-muted;
+    font-size: 12px;
+    padding: 5px 12px;
+  }
+
+  :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
+    background: rgba(0, 212, 255, 0.12);
+    border-color: rgba(0, 212, 255, 0.45);
+    color: $cyan-primary;
+    box-shadow: none;
+  }
+}
+
+.bank-view-toggle {
+  flex-shrink: 0;
+}
+
+.bank-info-list-wrap {
+  margin-bottom: 16px;
+}
+
+.bank-info-list-table {
+  :deep(.bank-info-list-row) {
+    cursor: pointer;
+  }
+}
+
+.bank-edit-dialog__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+}
+
+.bank-edit-dialog__footer-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.bank-info-list-muted {
+  color: $text-muted;
+  font-size: 12px;
+}
+
+.bank-payment-check-icon {
+  font-size: 16px;
+  color: var(--el-color-success);
+  vertical-align: middle;
 }
 
 .bank-info-empty {

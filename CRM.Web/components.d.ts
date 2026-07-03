@@ -25,6 +25,7 @@ declare module 'vue' {
     BizBrandCreateDialog: typeof import('./src/components/Biz/BizBrandCreateDialog.vue')['default']
     BizBrandSelect: typeof import('./src/components/Biz/BizBrandSelect.vue')['default']
     BusinessCardUploader: typeof import('./src/components/Contact/BusinessCardUploader.vue')['default']
+    CompanyBankAccountFields: typeof import('./src/components/Company/CompanyBankAccountFields.vue')['default']
     CompanyBankInfoPanel: typeof import('./src/components/Company/CompanyBankInfoPanel.vue')['default']
     CompanyBankSelect: typeof import('./src/components/Company/CompanyBankSelect.vue')['default']
     CrmDataTable: typeof import('./src/components/CrmDataTable.vue')['default']

@@ -1266,6 +1266,9 @@ const enUS = {
     common: {
       default: 'Default',
       enabled: 'Enabled',
+      disabled: 'Disabled',
+      list: 'List',
+      panel: 'Panel',
       addGroupBelow: 'Add a set below',
       removeGroup: 'Remove this set'
     },
@@ -1296,6 +1299,7 @@ const enUS = {
       sectionHint: 'RMB and foreign currency each allow one default account. Currency: RMB / USD / EUR; account type: RMB / foreign currency; purpose: pay / receive.',
       tabRmb: 'RMB',
       tabForeign: 'Foreign currency',
+      filterAll: 'All',
       emptyTabHint: 'No bank accounts in this category',
       addAccount: 'Add bank account',
       groupTitle: 'Bank account {n}',
@@ -1320,6 +1324,13 @@ const enUS = {
       purposeReceipt: 'Receipt',
       availableForPayment: 'Available for payment',
       remark: 'Remark',
+      status: 'Status',
+      editDialogTitle: 'Bank account {n}',
+      editDialogTitleWithName: 'Bank account {n} · {name}',
+      saveAccount: 'Save',
+      deleteAccount: 'Delete',
+      deleteConfirmTitle: 'Delete bank account',
+      deleteConfirmMsg: 'Delete this bank account? Changes will be saved immediately.',
       cannotDeleteHasPaymentsTitle: 'Cannot delete',
       cannotDeleteHasPayments:
         'This bank account is linked to payment records and cannot be deleted.',

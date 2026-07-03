@@ -1250,6 +1250,9 @@ const zhCN = {
     common: {
       default: '默认',
       enabled: '启用',
+      disabled: '停用',
+      list: '列表',
+      panel: '面板',
       addGroupBelow: '在本组下方新增一组',
       removeGroup: '删除本组'
     },
@@ -1279,6 +1282,7 @@ const zhCN = {
       sectionHint: '人民币与外币各自可设一组默认；币别：RMB / USD / EUR；银行类型：人民币账户 / 外币账户；用途：付款 / 收款。',
       tabRmb: '人民币',
       tabForeign: '外币',
+      filterAll: '全部',
       emptyTabHint: '当前分类下暂无银行账户',
       addAccount: '添加银行账户',
       groupTitle: '银行账户 {n}',
@@ -1303,6 +1307,13 @@ const zhCN = {
       purposeReceipt: '收款',
       availableForPayment: '可用付款',
       remark: '备注',
+      status: '状态',
+      editDialogTitle: '银行账户 {n}',
+      editDialogTitleWithName: '银行账户 {n} · {name}',
+      saveAccount: '保存',
+      deleteAccount: '删除',
+      deleteConfirmTitle: '删除银行账户',
+      deleteConfirmMsg: '确认删除该银行账户？删除后将立即保存。',
       cannotDeleteHasPaymentsTitle: '无法删除',
       cannotDeleteHasPayments: '该银行账户已有关联付款记录，不能删除。',
       cannotDeleteCheckFailed: '检查银行账户是否可删除失败'
