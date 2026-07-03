@@ -99,6 +99,10 @@ namespace CRM.Core.Services
             if (string.IsNullOrWhiteSpace(request.CustomerId))
                 throw new ArgumentException("客户ID不能为空", nameof(request.CustomerId));
 
+            SellOrderItemLinkRules.ValidateCustomerOrderItems(
+                request.Type,
+                request.Items.Select(i => i.QuoteId).ToList());
+
             var sellOrderCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.SalesOrder);
 
             var order = new SellOrder
@@ -509,6 +513,11 @@ namespace CRM.Core.Services
             List<SellOrderItem>? deletedLines = null;
             if (request.Items != null && request.Items.Count > 0)
             {
+                var effectiveType = request.Type ?? order.Type;
+                SellOrderItemLinkRules.ValidateCustomerOrderItems(
+                    effectiveType,
+                    request.Items.Select(i => i.QuoteId).ToList());
+
                 var sync = await SyncSellOrderItemsOnUpdateAsync(order, id, request.Items, actingUserId);
                 insertedLines = sync.Inserted;
                 updatedLines = sync.Updated;

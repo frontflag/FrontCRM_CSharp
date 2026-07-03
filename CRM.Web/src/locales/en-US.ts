@@ -3284,6 +3284,16 @@ const enUS = {
       customerContactId: 'Select customer contact',
       paymentTermsLabel: 'Enter or select payment terms'
     },
+    validate: {
+      customerOrderMinOneItem: 'Customer-order sales order requires at least one line',
+      customerOrderLineQuoteRequired:
+        'Each line on a customer-order sales order must link to a quote. Create the order from the quote list.',
+      customerOrderCannotRemoveLast: 'Customer-order sales order must keep at least one line'
+    },
+    hint: {
+      customerOrderFromQuote:
+        'Customer orders must be created from quotes. For manual lines, choose stocking or sample order type.'
+    },
     messages: {
       quotePartialMissing: 'Some quotes are missing or not accessible',
       sameCustomerRequired: 'Select quotes for the same customer only',

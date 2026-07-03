@@ -3284,6 +3284,14 @@ const zhCN = {
       customerContactId: '请选择客户联系人',
       paymentTermsLabel: '请填写或选择账期'
     },
+    validate: {
+      customerOrderMinOneItem: '客单销售订单至少需要一条明细',
+      customerOrderLineQuoteRequired: '客单销售订单的每条明细须关联报价单，请从报价列表生成销售订单',
+      customerOrderCannotRemoveLast: '客单销售订单至少须保留一条明细'
+    },
+    hint: {
+      customerOrderFromQuote: '客单类型须从报价列表生成；手工录入物料请选用备货或样品类型'
+    },
     messages: {
       quotePartialMissing: '部分报价单不存在或无权访问',
       sameCustomerRequired: '请选择同一家客户生成销售订单',

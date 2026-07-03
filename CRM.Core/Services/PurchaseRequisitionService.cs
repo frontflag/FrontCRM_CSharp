@@ -135,6 +135,7 @@ namespace CRM.Core.Services
                 throw new InvalidOperationException("申请采购数量不能大于剩余可采数量");
 
             var so = await _soRepo.GetByIdAsync(soItem.SellOrderId);
+            SellOrderItemLinkRules.ValidatePurchaseRequisitionAllowed(so?.Type ?? SellOrderItemLinkRules.SellOrderTypeCustomer, soItem.QuoteId);
 
             // 从报价主表 QuoteId 关联的报价明细中取一行（不按销单行 PN/品牌/单价等再匹配，见 QuoteItemForPrResolver）
             QuoteItem? matchedQuoteItem = null;

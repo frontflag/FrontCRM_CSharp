@@ -135,6 +135,17 @@
               </el-form-item>
             </el-col>
           </el-row>
+          <el-row v-if="showCustomerOrderFromQuoteHint" :gutter="20">
+            <el-col :span="24">
+              <el-alert
+                :title="t('salesOrderCreate.hint.customerOrderFromQuote')"
+                type="info"
+                :closable="false"
+                show-icon
+                class="customer-order-quote-hint"
+              />
+            </el-col>
+          </el-row>
           <el-row :gutter="20">
             <el-col :span="24">
               <el-form-item :label="t('salesOrderCreate.fields.remark')">
@@ -184,7 +195,13 @@
           <template #title>
             <div class="collapse-items-title-row">
               <span class="collapse-items-title-text">{{ t('salesOrderCreate.sections.items') }}</span>
-              <el-button type="primary" size="small" class="collapse-items-add-btn" @click.stop="addItem">
+              <el-button
+                v-if="allowAddSoItem"
+                type="primary"
+                size="small"
+                class="collapse-items-add-btn"
+                @click.stop="addItem"
+              >
                 <el-icon><Plus /></el-icon> {{ t('salesOrderCreate.itemsToolbar.addLine') }}
               </el-button>
             </div>
@@ -201,6 +218,7 @@
                   <span class="head-mpn__brand">{{ formData.items[index].brand || '—' }}</span>
                 </span>
                 <el-button
+                  v-if="canRemoveSoItem"
                   class="material-card-head-delete"
                   link
                   type="danger"
@@ -385,6 +403,12 @@ import { bizBrandApi } from '@/api/bizBrand'
 import { useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 import { formatTotalAmountNumber, formatUnitPriceNumber } from '@/utils/moneyFormat'
+import {
+  SO_TYPE_CUSTOMER,
+  shouldAllowManualAddSoItem,
+  validateCustomerOrderItemsForSave,
+  messageKeyForSoCustomerOrderValidateError
+} from '@/utils/sellOrderItemLinkRules'
 
 const router = useRouter()
 const route = useRoute()
@@ -394,6 +418,21 @@ const authStore = useAuthStore()
 /** 与采购订单一致：编辑走独立路由 `SalesOrderEdit`（/sales-orders/:id/edit） */
 const editId = computed(() => (route.name === 'SalesOrderEdit' ? String(route.params.id || '').trim() : ''))
 const isEditMode = computed(() => !!editId.value)
+/** 本次新建是否由报价 quoteIds 预填（用于客单提示文案） */
+const hasQuotePrefill = ref(false)
+
+/** 客单(1) 不允许手工添加明细；备货/样品可添加 */
+const allowAddSoItem = computed(() => shouldAllowManualAddSoItem(formData.value.type))
+
+/** 客单至少保留一条明细 */
+const canRemoveSoItem = computed(
+  () => formData.value.type !== SO_TYPE_CUSTOMER || formData.value.items.length > 1
+)
+
+/** 无报价预填且为客单时提示从报价入口建单 */
+const showCustomerOrderFromQuoteHint = computed(
+  () => !isEditMode.value && formData.value.type === SO_TYPE_CUSTOMER && !hasQuotePrefill.value
+)
 const { ensureLoaded: ensureMaterialPdDict, defaultCode: defaultProductionDateCode, coerceProductionDateToCode: coercePd } =
   useMaterialProductionDateDict()
 
@@ -774,13 +813,25 @@ async function resolveBrandIdsForItems(items: Array<{ brand?: string; brandId?: 
 }
 
 const addItem = () => {
+  if (!allowAddSoItem.value) return
   const line = emptyLine()
   line.currency = formData.value.currency
   line.dateCode = defaultProductionDateCode()
   formData.value.items.push(line)
 }
 
+function validateSoItemsCustomerOrderLinks(): boolean {
+  const err = validateCustomerOrderItemsForSave(formData.value.type, formData.value.items)
+  if (!err) return true
+  ElMessage.warning(t(messageKeyForSoCustomerOrderValidateError(err)))
+  return false
+}
+
 const removeItem = async (index: number) => {
+  if (!canRemoveSoItem.value) {
+    ElMessage.warning(t('salesOrderCreate.validate.customerOrderCannotRemoveLast'))
+    return
+  }
   try {
     await ElMessageBox.confirm(
       t('salesOrderCreate.messages.confirmDeleteLineMessage'),
@@ -1190,6 +1241,7 @@ onMounted(async () => {
     }
 
     if (lines.length) {
+      hasQuotePrefill.value = true
       formData.value.items = lines
       formData.value.currency = lines[0].currency ?? formData.value.currency
       await resolveBrandIdsForItems(formData.value.items)
@@ -1235,6 +1287,7 @@ const handleSubmit = async () => {
     await runValidatedFormSave(formRef, {
       loading: submitLoading,
       successMessage: t('salesOrderCreate.messages.updateSuccess'),
+      afterValidate: () => validateSoItemsCustomerOrderLinks(),
       task: async () => {
         await salesOrderApi.update(editId.value, {
           customerName: formData.value.customerName || undefined,
@@ -1264,6 +1317,7 @@ const handleSubmit = async () => {
   await runValidatedFormSave(formRef, {
     loading: submitLoading,
     successMessage: t('salesOrderCreate.messages.createSuccess'),
+    afterValidate: () => validateSoItemsCustomerOrderLinks(),
     task: async () => {
       await salesOrderApi.create({
         sellOrderCode: formData.value.sellOrderCode,
@@ -1296,6 +1350,10 @@ const handleSubmit = async () => {
 
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
+
+.customer-order-quote-hint {
+  margin-bottom: 12px;
+}
 
 .create-page {
   padding: 20px;
