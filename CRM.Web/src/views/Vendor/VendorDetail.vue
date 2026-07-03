@@ -198,8 +198,7 @@
             :class="{ 'tab-btn--active': activeTab === tab.key }"
             @click="activeTab = tab.key"
           >
-            {{ tab.label }}
-            <span class="tab-count">{{ tabCount(tab.key) }}</span>
+            {{ formatTabLabel(tab.label, tab.key) }}
           </button>
         </div>
         <div class="tabs-body">
@@ -221,12 +220,17 @@
                 {{ t('aiEntityCreate.aiCreate') }}
               </button>
             </div>
+            <div class="detail-items-table-wrap">
             <CrmDataTable
+              v-if="contacts?.length"
               :data="contacts"
-              class="quantum-table"
-              :header-cell-style="tableHeaderStyle"
-              :cell-style="tableCellStyle"
-              :row-style="tableRowStyle"
+              embedded
+              :border="false"
+              :show-column-settings="false"
+              :show-row-density-toggle="false"
+              size="small"
+              stripe
+              class="items-table detail-panel-list-table"
             >
               <el-table-column prop="cName" :label="t('vendorDetail.contacts.name')" min-width="140" show-overflow-tooltip>
                 <template #default="{ row }">
@@ -308,6 +312,8 @@
                 </template>
               </el-table-column>
             </CrmDataTable>
+            <DetailListPanelEmpty v-else size="low" />
+            </div>
           </div>
           <div v-show="activeTab === 'addresses'">
             <div class="tab-toolbar">
@@ -327,12 +333,17 @@
                 {{ t('aiEntityCreate.aiCreate') }}
               </button>
             </div>
+            <div class="detail-items-table-wrap">
             <CrmDataTable
+              v-if="addresses?.length"
               :data="addresses"
-              class="quantum-table"
-              :header-cell-style="tableHeaderStyle"
-              :cell-style="tableCellStyle"
-              :row-style="tableRowStyle"
+              embedded
+              :border="false"
+              :show-column-settings="false"
+              :show-row-density-toggle="false"
+              size="small"
+              stripe
+              class="items-table detail-panel-list-table"
             >
               <el-table-column prop="addressType" :label="t('vendorDetail.addresses.type')" width="100">
                 <template #default="{ row }">
@@ -413,6 +424,8 @@
                 </template>
               </el-table-column>
             </CrmDataTable>
+            <DetailListPanelEmpty v-else size="low" />
+            </div>
           </div>
           <div v-show="activeTab === 'banks'">
             <div class="tab-toolbar">
@@ -424,12 +437,17 @@
                 {{ t('vendorDetail.banks.add') }}
               </button>
             </div>
+            <div class="detail-items-table-wrap">
             <CrmDataTable
+              v-if="banks?.length"
               :data="banks"
-              class="quantum-table"
-              :header-cell-style="tableHeaderStyle"
-              :cell-style="tableCellStyle"
-              :row-style="tableRowStyle"
+              embedded
+              :border="false"
+              :show-column-settings="false"
+              :show-row-density-toggle="false"
+              size="small"
+              stripe
+              class="items-table detail-panel-list-table"
             >
               <el-table-column prop="accountName" :label="t('vendorDetail.banks.accountName')" min-width="160" show-overflow-tooltip>
                 <template #default="{ row }"><span class="cell-primary">{{ maskPurchaseSensitiveFields ? '—' : (row.accountName || '--') }}</span></template>
@@ -516,6 +534,8 @@
                 </template>
               </el-table-column>
             </CrmDataTable>
+            <DetailListPanelEmpty v-else size="low" />
+            </div>
           </div>
           <div v-show="activeTab === 'documents'" class="documents-tab">
             <DocumentUploadPanel
@@ -577,8 +597,31 @@
               </div>
             </div>
           </div>
+          <div v-show="activeTab === 'changeLogs'" class="detail-items-table-wrap">
+            <el-table v-if="fieldChangeLogs.length > 0" :data="fieldChangeLogs" class="detail-panel-list-table" size="small" stripe>
+              <el-table-column :label="t('vendorDetail.logs.colChangeTime')" width="160">
+                <template #default="{ row }">{{ formatDateTime(row?.changedAt || row?.changeTime || row?.operationTime || row?.createTime) }}</template>
+              </el-table-column>
+              <el-table-column :label="t('vendorDetail.logs.colOperator')" width="100" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.changedByUserName || row.operatorUserName || t('vendorDetail.logs.system') }}</template>
+              </el-table-column>
+              <el-table-column :label="t('vendorDetail.logs.colObject')" width="140" show-overflow-tooltip>
+                <template #default="{ row }">{{ vendorChangeLogObjectLabel(row) }}</template>
+              </el-table-column>
+              <el-table-column :label="t('vendorDetail.logs.colField')" min-width="120" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.fieldLabel || row.fieldName }}</template>
+              </el-table-column>
+              <el-table-column :label="t('vendorDetail.logs.colOldValue')" min-width="160" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.oldValue ?? t('vendorDetail.logs.emptyValue') }}</template>
+              </el-table-column>
+              <el-table-column :label="t('vendorDetail.logs.colNewValue')" min-width="160" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.newValue ?? t('vendorDetail.logs.emptyValue') }}</template>
+              </el-table-column>
+            </el-table>
+            <DetailListPanelEmpty v-else size="low" />
+          </div>
           <div v-show="activeTab === 'logs'" class="logs-tab">
-            <div v-if="operationLogs.length === 0 && fieldChangeLogs.length === 0" class="empty-state">
+            <div v-if="operationLogs.length === 0" class="empty-state">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                 <polyline points="14 2 14 8 20 8" />
@@ -586,10 +629,6 @@
               <p>{{ t('vendorDetail.logs.empty') }}</p>
             </div>
             <div v-if="operationLogs.length > 0" class="logs-section">
-              <div class="section-header" style="padding: 8px 0 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); margin-bottom: 12px">
-                <div class="section-dot section-dot--cyan"></div>
-                <span class="section-title">{{ t('vendorDetail.logs.operationLog') }}</span>
-              </div>
               <div v-for="log in operationLogs" :key="log.id" class="timeline-item">
                 <div class="timeline-dot dot--primary"></div>
                 <div class="timeline-content">
@@ -604,29 +643,6 @@
                   </span>
                   <span class="timeline-time">
                     {{ log.operatorUserName || t('vendorDetail.logs.system') }} · {{ formatDateTime(log.operationTime || log.createTime) }}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div v-if="fieldChangeLogs.length > 0" class="logs-section" style="margin-top: 20px">
-              <div class="section-header" style="padding: 8px 0 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); margin-bottom: 12px">
-                <div class="section-dot section-dot--cyan"></div>
-                <span class="section-title">{{ t('vendorDetail.logs.fieldChangeLog') }}</span>
-              </div>
-              <div v-for="log in fieldChangeLogs" :key="log.id" class="timeline-item">
-                <div class="timeline-dot dot--warning"></div>
-                <div class="timeline-content">
-                  <span class="timeline-text">
-                    <template v-if="log.bizType && log.bizType !== 'Vendor'">
-                      <span class="log-biz-pill">{{ operationBizTypeLabel(log.bizType) }}</span>
-                      ·
-                    </template>
-                    {{ log.fieldLabel || log.fieldName }}：{{ log.oldValue || t('vendorDetail.logs.emptyValue') }}{{ t('vendorDetail.logs.arrow') }}{{ log.newValue || t('vendorDetail.logs.emptyValue') }}
-                    <template v-if="log.recordCode">{{ t('vendorDetail.logs.docNoSuffix', { code: log.recordCode }) }}</template>
-                  </span>
-                  <span class="timeline-time">
-                    {{ log.changedByUserName || log.operatorUserName || t('vendorDetail.logs.system') }} ·
-                    {{ formatDateTime(log.changedAt || log.changeTime || log.operationTime || log.createTime) }}
                   </span>
                 </div>
               </div>
@@ -777,9 +793,10 @@ import VendorAddressDialog from './VendorAddressDialog.vue';
 import VendorBankDialog from './VendorBankDialog.vue';
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue';
 import DocumentListPanel from '@/components/Document/DocumentListPanel.vue';
+import DetailListPanelEmpty from '@/components/Common/DetailListPanelEmpty.vue';
 import { documentApi } from '@/api/document';
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime';
-import { operationBizTypeLabel } from '@/utils/businessLogLabels';
+import { operationBizTypeLabel, masterEntityChangeLogObjectLabel } from '@/utils/businessLogLabels';
 import { logRecentApi } from '@/api/logRecent';
 import { VENDOR_RECENT_HISTORY_CHANGED_EVENT } from '@/constants/vendorRecentHistory';
 import { favoriteApi } from '@/api/favorite';
@@ -845,11 +862,19 @@ function tabCount(key: string): number {
       return documentCount.value;
     case 'history':
       return histories.value.length;
+    case 'changeLogs':
+      return fieldChangeLogs.value.length;
     case 'logs':
-      return operationLogs.value.length + fieldChangeLogs.value.length;
+      return operationLogs.value.length;
     default:
       return 0;
   }
+}
+
+/** Tab 标题旁显示 (N)，与采销订单明细面板一致 */
+function formatTabLabel(label: string, key: string): string {
+  const count = tabCount(key);
+  return count > 0 ? `${label} (${count})` : label;
 }
 
 async function fetchDocumentCount() {
@@ -886,23 +911,6 @@ const blacklistReason = ref('');
 const removeFromBlacklistReason = ref('');
 const actionLoading = ref(false);
 
-const tableHeaderStyle = () => ({
-  background: '#0A1628',
-  color: 'rgba(200,216,232,0.55)',
-  fontSize: '12px',
-  fontWeight: '500',
-  letterSpacing: '0.5px',
-  borderBottom: '1px solid rgba(0,212,255,0.12)',
-  padding: '10px 0'
-});
-const tableCellStyle = () => ({
-  background: 'transparent',
-  borderBottom: '1px solid rgba(255,255,255,0.05)',
-  color: 'rgba(224,244,255,0.85)',
-  fontSize: '13px'
-});
-const tableRowStyle = () => ({ background: 'transparent' });
-
 const freezeDialogTitle = computed(() =>
   freezeMode.value === 'freeze' ? t('vendorDetail.freeze.titleFreeze') : t('vendorDetail.freeze.titleUnfreeze')
 );
@@ -924,12 +932,13 @@ const tabs = computed(() => {
     { key: 'banks', label: t('vendorDetail.tabs.banks') },
     { key: 'documents', label: t('vendorDetail.tabs.documents') },
     { key: 'history', label: t('vendorDetail.tabs.history') },
+    { key: 'changeLogs', label: t('vendorDetail.tabs.changeLogs') },
     { key: 'logs', label: t('vendorDetail.tabs.logs') }
   ];
 });
 const activeTab = ref('contacts');
 
-const VENDOR_DETAIL_TAB_KEYS = ['contacts', 'addresses', 'banks', 'documents', 'history', 'logs'] as const;
+const VENDOR_DETAIL_TAB_KEYS = ['contacts', 'addresses', 'banks', 'documents', 'history', 'changeLogs', 'logs'] as const;
 
 function applyVendorDetailTabFromRoute() {
   const tab = route.query.tab;
@@ -1036,6 +1045,11 @@ const formatDateTime = (val?: string) => {
   const s = formatDisplayDateTime(val);
   return s === '--' ? val : s;
 };
+
+function vendorChangeLogObjectLabel(row: { bizType?: string | null; recordCode?: string | null }) {
+  const label = masterEntityChangeLogObjectLabel(row.bizType, row.recordCode, 'Vendor');
+  return label === '主表' ? t('vendorDetail.logs.mainTable') : label;
+}
 
 function trackRecentDetail() {
   const v = vendor.value;
@@ -2036,9 +2050,7 @@ onMounted(() => {
   cursor: pointer;
   transition: all 0.2s;
   margin-bottom: -1px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  white-space: nowrap;
 
   &:hover {
     color: $text-secondary;
@@ -2050,24 +2062,38 @@ onMounted(() => {
   }
 }
 
-.tab-count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  padding: 1px 7px;
-  border-radius: 999px;
-  font-size: 11px;
-  line-height: 1.35;
-  font-family: 'Noto Sans SC', sans-serif;
-  font-variant-numeric: tabular-nums;
-  background: var(--crm-accent-01);
-  border: 1px solid var(--crm-accent-02);
-  color: var(--crm-primary-color);
-}
-
 .tabs-body {
   padding: 20px;
+}
+
+.detail-items-table-wrap {
+  margin-top: 4px;
+}
+
+// §7.4 面板列表：表头/表体基线见 detail-panel-list-table.scss；此处仅操作列等页内扩展
+.detail-items-table-wrap :deep(.items-table),
+.detail-items-table-wrap :deep(.crm-items-table.detail-panel-list-table) {
+  --el-table-border-color: transparent;
+  --el-table-fixed-box-shadow: none;
+  background: transparent !important;
+  border-radius: 0;
+  border: none;
+  min-height: 0;
+  overflow: visible;
+
+  :deep(.el-table) {
+    color: var(--crm-table-text);
+  }
+  :deep(.el-table__inner-wrapper) {
+    background: transparent;
+    &::before { display: none !important; }
+    &::after  { display: none !important; }
+  }
+  :deep(.el-table__border-left-patch) { display: none !important; }
+  :deep(.el-table__cell) {
+    .el-button { white-space: nowrap !important; }
+    .cell { white-space: nowrap; }
+  }
 }
 
 .tab-toolbar {
@@ -2091,29 +2117,6 @@ onMounted(() => {
   &:hover {
     background: rgba(70, 191, 145, 0.2);
     border-color: rgba(70, 191, 145, 0.5);
-  }
-}
-
-.quantum-table {
-  width: 100%;
-  background: transparent !important;
-
-  :deep(.el-table__inner-wrapper) {
-    background: transparent;
-  }
-  :deep(tr) {
-    background: transparent !important;
-    &:hover td {
-      background: rgba(0, 212, 255, 0.04) !important;
-    }
-  }
-  :deep(.el-table__cell) {
-    .el-button {
-      white-space: nowrap !important;
-    }
-    .cell {
-      white-space: nowrap;
-    }
   }
 }
 

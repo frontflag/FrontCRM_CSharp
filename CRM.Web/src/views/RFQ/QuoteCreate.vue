@@ -98,9 +98,10 @@
         </div>
         <div class="basic-info-section__body">
           <el-form ref="formRef" :model="formData" :rules="formRules" label-width="128px" class="upsert-form">
-        <el-row :gutter="20">
+        <!-- 第一行：供应商 · 联系人 · 失效日期 -->
+        <el-row :gutter="12" class="quote-triple-row">
           <template v-if="!maskPurchaseSensitiveFields">
-            <el-col :span="12">
+            <el-col :span="8">
               <el-form-item label="供应商" prop="vendorId">
                 <el-select
                   v-model="formData.vendorId"
@@ -123,7 +124,7 @@
                 </el-select>
               </el-form-item>
             </el-col>
-            <el-col :span="12">
+            <el-col :span="8">
               <el-form-item label="联系人" prop="vendorContactId">
                 <el-select
                   v-model="formData.vendorContactId"
@@ -142,31 +143,18 @@
             </el-col>
           </template>
           <template v-else>
-            <el-col :span="12">
+            <el-col :span="8">
               <el-form-item label="供应商">
                 <el-input model-value="—" disabled placeholder="—" />
               </el-form-item>
             </el-col>
-            <el-col :span="12">
+            <el-col :span="8">
               <el-form-item label="联系人">
                 <el-input model-value="—" disabled placeholder="—" />
               </el-form-item>
             </el-col>
           </template>
-        </el-row>
-
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="价格类型" prop="priceType">
-              <el-select v-model="formData.priceType" placeholder="请选择价格类型" class="q-select" style="width: 100%">
-                <el-option label="现货价" value="现货价" />
-                <el-option label="期货价" value="期货价" />
-                <el-option label="样品价" value="样品价" />
-                <el-option label="排单价" value="排单价" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
+          <el-col :span="8">
             <el-form-item label="失效日期" prop="expiryDate">
               <el-date-picker
                 v-model="formData.expiryDate"
@@ -180,6 +168,7 @@
           </el-col>
         </el-row>
 
+        <!-- 第二行：物料型号 · 品牌 · 品牌属地 -->
         <el-row :gutter="12" class="quote-triple-row">
           <el-col :span="8">
             <el-form-item label="物料型号" prop="mpn">
@@ -207,21 +196,52 @@
           </el-col>
         </el-row>
 
+        <!-- 第三行：价格类型 · 生产日期 · 交期 -->
         <el-row :gutter="12" class="quote-triple-row">
-          <el-col :span="12">
-            <el-form-item label="生产日期/DC" prop="productionDate">
-              <MaterialProductionDateSelect v-model="formData.productionDate" placeholder="请选择生产日期/DC" />
+          <el-col :span="8">
+            <el-form-item label="价格类型" prop="priceType">
+              <el-select v-model="formData.priceType" placeholder="请选择价格类型" class="q-select" style="width: 100%">
+                <el-option label="现货价" value="现货价" />
+                <el-option label="期货价" value="期货价" />
+                <el-option label="样品价" value="样品价" />
+                <el-option label="排单价" value="排单价" />
+              </el-select>
             </el-form-item>
           </el-col>
-          <el-col :span="12">
+          <el-col :span="8">
+            <el-form-item label="生产日期" prop="productionDate">
+              <MaterialProductionDateSelect v-model="formData.productionDate" placeholder="请选择生产日期" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
             <el-form-item label="交期">
               <el-input v-model="formData.leadTime" placeholder="请输入交期" clearable />
             </el-form-item>
           </el-col>
         </el-row>
 
-        <el-row :gutter="12" class="quote-origin-row">
+        <!-- 第四行：最小包装 · 起订量 · 库存 -->
+        <el-row :gutter="12" class="quote-triple-row">
           <el-col :span="8">
+            <el-form-item label="最小包装">
+              <el-input-number v-model="formData.minPackageQty" :min="0" :controls="false" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="起订量">
+              <el-input-number v-model="formData.moq" :min="0" :controls="false" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="库存">
+              <el-input-number v-model="formData.stockQty" :min="0" :controls="false" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <!-- 第五行：涂标 · 报价晶圆产地 · 报价封装产地 · 包邮 -->
+        <el-row :gutter="12" class="quote-quad-row">
+          <el-col :span="6">
             <el-form-item label="涂标">
               <el-radio-group v-model="formData.labelType" class="seg-group">
                 <el-radio-button :label="0">不涂标</el-radio-button>
@@ -230,7 +250,7 @@
               </el-radio-group>
             </el-form-item>
           </el-col>
-          <el-col :span="8">
+          <el-col :span="6">
             <el-form-item label="报价晶圆产地" prop="waferOrigin">
               <el-radio-group v-model="formData.waferOrigin" class="seg-group">
                 <el-radio-button :label="0">美产</el-radio-button>
@@ -239,41 +259,25 @@
               </el-radio-group>
             </el-form-item>
           </el-col>
-          <el-col :span="8">
+          <el-col :span="6">
             <el-form-item label="报价封装产地" prop="packageOrigin">
-              <div class="pkg-origin-row">
-                <el-radio-group v-model="formData.packageOrigin" class="seg-group">
-                  <el-radio-button :label="0">美产</el-radio-button>
-                  <el-radio-button :label="1">非美产</el-radio-button>
-                  <el-radio-button :label="2">待确定</el-radio-button>
-                </el-radio-group>
-                <span class="free-ship-label">包邮</span>
-                <el-switch v-model="formData.freeShipping" />
-              </div>
+              <el-radio-group v-model="formData.packageOrigin" class="seg-group">
+                <el-radio-button :label="0">美产</el-radio-button>
+                <el-radio-button :label="1">非美产</el-radio-button>
+                <el-radio-button :label="2">待确定</el-radio-button>
+              </el-radio-group>
+            </el-form-item>
+          </el-col>
+          <el-col :span="6">
+            <el-form-item label="包邮">
+              <el-switch v-model="formData.freeShipping" />
             </el-form-item>
           </el-col>
         </el-row>
 
+        <!-- 第六行：业务员 · 采购员 -->
         <el-row :gutter="12" class="quote-triple-row">
           <el-col :span="8">
-            <el-form-item label="最小包装(MPQ)">
-              <el-input-number v-model="formData.minPackageQty" :min="0" :controls="false" style="width: 100%" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="库存">
-              <el-input-number v-model="formData.stockQty" :min="0" :controls="false" style="width: 100%" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="起订量(MOQ)">
-              <el-input-number v-model="formData.moq" :min="0" :controls="false" style="width: 100%" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-
-        <el-row :gutter="20">
-          <el-col :span="12">
             <el-form-item label="业务员" prop="salesUserId">
               <template v-if="maskSaleSensitiveFields">
                 <el-input model-value="—" disabled />
@@ -286,7 +290,7 @@
               />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
+          <el-col :span="8">
             <el-form-item label="采购员" prop="purchaseUserId">
               <el-select
                 v-model="formData.purchaseUserId"
@@ -308,102 +312,265 @@
           </el-col>
         </el-row>
 
-        <el-form-item label="备注">
+        <!-- 第七行：备注（整行） -->
+        <el-form-item label="备注" class="quote-remark-item">
           <el-input v-model="formData.remark" type="textarea" :rows="2" placeholder="请输入备注" />
         </el-form-item>
           </el-form>
         </div>
       </div>
 
-    <!-- 采购报价（独立面板，§4 info-section） -->
+    <!-- 采购报价（独立面板，§4 info-section；编辑模式含更改日志/文档页签） -->
     <div class="info-section purchase-quote-section">
-      <div class="section-header">
-        <div class="section-header__main">
-          <div class="section-dot section-dot--cyan"></div>
-          <span class="section-title">{{ t('quoteUpsert.purchaseQuoteSection') }}</span>
+      <template v-if="!isEditMode">
+        <div class="section-header">
+          <div class="section-header__main">
+            <div class="section-dot section-dot--cyan"></div>
+            <span class="section-title">{{ t('quoteUpsert.purchaseQuoteSection') }}</span>
+          </div>
+          <div v-if="formData.quotePriceRows.length > 0" class="section-header__meta">
+            <span class="section-header-meta-item">
+              <span class="section-header-meta-item__label">{{ t('quoteUpsert.purchaseQuoteRowCount') }}</span>
+              <span class="section-header-meta-item__value">{{ formData.quotePriceRows.length }}</span>
+            </span>
+          </div>
         </div>
-        <div v-if="formData.quotePriceRows.length > 0" class="section-header__meta">
-          <span class="section-header-meta-item">
-            <span class="section-header-meta-item__label">{{ t('quoteUpsert.purchaseQuoteRowCount') }}</span>
-            <span class="section-header-meta-item__value">{{ formData.quotePriceRows.length }}</span>
-          </span>
-        </div>
-      </div>
-      <div class="purchase-quote-section__body">
-        <p class="purchase-quote-section__hint">
-          {{ t('quoteUpsert.purchaseQuoteHint') }}
-        </p>
-        <div class="detail-items-table-wrap">
-          <CrmDataTable
-            :data="formData.quotePriceRows"
-            class="items-table detail-panel-list-table quote-price-tier-table"
-            size="small"
-            stripe
-            embedded
-            :border="false"
-          >
-          <el-table-column :label="t('quoteUpsert.purchaseQuoteColumns.quantity')" min-width="120">
-            <template #default="{ $index }">
-              <el-input-number
-                v-model="formData.quotePriceRows[$index].quantity"
-                :min="0"
-                :controls="false"
-                style="width: 100%"
-              />
-            </template>
-          </el-table-column>
-          <el-table-column
-            :label="t('quoteUpsert.purchaseQuoteColumns.priceCurrency')"
-            min-width="220"
-            class-name="tier-col-price-ccy"
-          >
-            <template #default="{ $index }">
-              <SettlementCurrencyAmountInput
-                v-model="formData.quotePriceRows[$index].unitPrice"
-                v-model:currency="formData.quotePriceRows[$index].currency"
-                :min="0"
-                :precision="6"
-                size="small"
-                class="q-select tier-price-ccy-input"
-              />
-            </template>
-          </el-table-column>
-          <el-table-column :label="t('quoteUpsert.purchaseQuoteColumns.convertedUsd')" min-width="168">
-            <template #default="{ $index }">
-              <span
-                class="tier-converted-display"
-                :title="convertedPriceTitle(formData.quotePriceRows[$index].convertedPrice)"
+        <div class="purchase-quote-section__body">
+          <p class="purchase-quote-section__hint">
+            {{ t('quoteUpsert.purchaseQuoteHint') }}
+          </p>
+          <div class="detail-items-table-wrap">
+            <CrmDataTable
+              :data="formData.quotePriceRows"
+              class="items-table detail-panel-list-table quote-price-tier-table"
+              size="small"
+              stripe
+              embedded
+              :border="false"
+            >
+              <el-table-column :label="t('quoteUpsert.purchaseQuoteColumns.quantity')" min-width="120">
+                <template #default="{ $index }">
+                  <el-input-number
+                    v-model="formData.quotePriceRows[$index].quantity"
+                    :min="0"
+                    :controls="false"
+                    style="width: 100%"
+                  />
+                </template>
+              </el-table-column>
+              <el-table-column
+                :label="t('quoteUpsert.purchaseQuoteColumns.priceCurrency')"
+                min-width="220"
+                class-name="tier-col-price-ccy"
               >
-                {{ formatConvertedPrice(formData.quotePriceRows[$index].convertedPrice) }}
-              </span>
-            </template>
-          </el-table-column>
-          <el-table-column label="" width="108" align="center" fixed="right">
-            <template #default="{ $index }">
-              <div class="tier-actions">
-                <el-button
-                  type="danger"
-                  link
-                  :disabled="formData.quotePriceRows.length <= 1"
-                  @click="removePriceRow($index)"
-                  :title="t('quoteUpsert.purchaseQuoteActions.removeRow')"
-                >
-                  <el-icon><Minus /></el-icon>
-                </el-button>
-                <el-button
-                  type="primary"
-                  link
-                  @click="insertPriceRowAfter($index)"
-                  :title="t('quoteUpsert.purchaseQuoteActions.insertRow')"
-                >
-                  <el-icon><Plus /></el-icon>
-                </el-button>
-              </div>
-            </template>
-          </el-table-column>
-        </CrmDataTable>
+                <template #default="{ $index }">
+                  <SettlementCurrencyAmountInput
+                    v-model="formData.quotePriceRows[$index].unitPrice"
+                    v-model:currency="formData.quotePriceRows[$index].currency"
+                    :min="0"
+                    :precision="6"
+                    size="small"
+                    class="q-select tier-price-ccy-input"
+                  />
+                </template>
+              </el-table-column>
+              <el-table-column :label="t('quoteUpsert.purchaseQuoteColumns.convertedUsd')" min-width="168">
+                <template #default="{ $index }">
+                  <span
+                    class="tier-converted-display"
+                    :title="convertedPriceTitle(formData.quotePriceRows[$index].convertedPrice)"
+                  >
+                    {{ formatConvertedPrice(formData.quotePriceRows[$index].convertedPrice) }}
+                  </span>
+                </template>
+              </el-table-column>
+              <el-table-column label="" width="108" align="center" fixed="right">
+                <template #default="{ $index }">
+                  <div class="tier-actions">
+                    <el-button
+                      type="danger"
+                      link
+                      :disabled="formData.quotePriceRows.length <= 1"
+                      @click="removePriceRow($index)"
+                      :title="t('quoteUpsert.purchaseQuoteActions.removeRow')"
+                    >
+                      <el-icon><Minus /></el-icon>
+                    </el-button>
+                    <el-button
+                      type="primary"
+                      link
+                      @click="insertPriceRowAfter($index)"
+                      :title="t('quoteUpsert.purchaseQuoteActions.insertRow')"
+                    >
+                      <el-icon><Plus /></el-icon>
+                    </el-button>
+                  </div>
+                </template>
+              </el-table-column>
+            </CrmDataTable>
+          </div>
         </div>
-      </div>
+      </template>
+
+      <template v-else>
+        <div class="section-header">
+          <div class="section-header__main">
+            <div class="section-dot section-dot--cyan"></div>
+            <span class="section-title">{{ t('quoteUpsert.supplierQuoteSection') }}</span>
+          </div>
+        </div>
+        <div class="tabs-section">
+        <div class="tabs-nav">
+          <button
+            class="tab-btn"
+            :class="{ 'tab-btn--active': editPanelTab === 'items' }"
+            type="button"
+            @click="editPanelTab = 'items'"
+          >
+            {{ formatQuoteEditPanelTabLabel(t('quoteDetail.tabs.items'), 'items') }}
+          </button>
+          <button
+            class="tab-btn"
+            :class="{ 'tab-btn--active': editPanelTab === 'changeLogs' }"
+            type="button"
+            @click="editPanelTab = 'changeLogs'"
+          >
+            {{ formatQuoteEditPanelTabLabel(t('quoteDetail.tabs.changeLogs'), 'changeLogs') }}
+          </button>
+          <button
+            class="tab-btn"
+            :class="{ 'tab-btn--active': editPanelTab === 'documents' }"
+            type="button"
+            @click="editPanelTab = 'documents'"
+          >
+            {{ formatQuoteEditPanelTabLabel(t('quoteDetail.tabs.documents'), 'documents') }}
+          </button>
+        </div>
+        <div class="tabs-body">
+          <div v-show="editPanelTab === 'items'" class="purchase-quote-section__body purchase-quote-section__body--tab">
+            <p class="purchase-quote-section__hint">
+              {{ t('quoteUpsert.purchaseQuoteHint') }}
+            </p>
+            <div class="detail-items-table-wrap">
+              <CrmDataTable
+                :data="formData.quotePriceRows"
+                class="items-table detail-panel-list-table quote-price-tier-table"
+                size="small"
+                stripe
+                embedded
+                :border="false"
+              >
+                <el-table-column :label="t('quoteUpsert.purchaseQuoteColumns.quantity')" min-width="120">
+                  <template #default="{ $index }">
+                    <el-input-number
+                      v-model="formData.quotePriceRows[$index].quantity"
+                      :min="0"
+                      :controls="false"
+                      style="width: 100%"
+                    />
+                  </template>
+                </el-table-column>
+                <el-table-column
+                  :label="t('quoteUpsert.purchaseQuoteColumns.priceCurrency')"
+                  min-width="220"
+                  class-name="tier-col-price-ccy"
+                >
+                  <template #default="{ $index }">
+                    <SettlementCurrencyAmountInput
+                      v-model="formData.quotePriceRows[$index].unitPrice"
+                      v-model:currency="formData.quotePriceRows[$index].currency"
+                      :min="0"
+                      :precision="6"
+                      size="small"
+                      class="q-select tier-price-ccy-input"
+                    />
+                  </template>
+                </el-table-column>
+                <el-table-column :label="t('quoteUpsert.purchaseQuoteColumns.convertedUsd')" min-width="168">
+                  <template #default="{ $index }">
+                    <span
+                      class="tier-converted-display"
+                      :title="convertedPriceTitle(formData.quotePriceRows[$index].convertedPrice)"
+                    >
+                      {{ formatConvertedPrice(formData.quotePriceRows[$index].convertedPrice) }}
+                    </span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="" width="108" align="center" fixed="right">
+                  <template #default="{ $index }">
+                    <div class="tier-actions">
+                      <el-button
+                        type="danger"
+                        link
+                        :disabled="formData.quotePriceRows.length <= 1"
+                        @click="removePriceRow($index)"
+                        :title="t('quoteUpsert.purchaseQuoteActions.removeRow')"
+                      >
+                        <el-icon><Minus /></el-icon>
+                      </el-button>
+                      <el-button
+                        type="primary"
+                        link
+                        @click="insertPriceRowAfter($index)"
+                        :title="t('quoteUpsert.purchaseQuoteActions.insertRow')"
+                      >
+                        <el-icon><Plus /></el-icon>
+                      </el-button>
+                    </div>
+                  </template>
+                </el-table-column>
+              </CrmDataTable>
+            </div>
+          </div>
+          <div v-show="editPanelTab === 'changeLogs'" class="detail-items-table-wrap">
+            <el-table
+              v-if="fieldChangeLogs.length > 0"
+              v-loading="changeLogsLoading"
+              :data="fieldChangeLogs"
+              class="detail-panel-list-table"
+              size="small"
+              stripe
+            >
+              <el-table-column :label="t('quoteDetail.logs.colChangeTime')" width="160">
+                <template #default="{ row }">{{ formatChangeLogTime(row?.changedAt) }}</template>
+              </el-table-column>
+              <el-table-column :label="t('quoteDetail.logs.colOperator')" width="100" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.changedByUserName || t('quoteDetail.logs.system') }}</template>
+              </el-table-column>
+              <el-table-column :label="t('quoteDetail.logs.colObject')" width="140" show-overflow-tooltip>
+                <template #default="{ row }">{{ quoteChangeLogObjectLabel(row) }}</template>
+              </el-table-column>
+              <el-table-column :label="t('quoteDetail.logs.colField')" min-width="120" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.fieldLabel || row.fieldName }}</template>
+              </el-table-column>
+              <el-table-column :label="t('quoteDetail.logs.colOldValue')" min-width="160" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.oldValue ?? t('quoteDetail.logs.emptyValue') }}</template>
+              </el-table-column>
+              <el-table-column :label="t('quoteDetail.logs.colNewValue')" min-width="160" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.newValue ?? t('quoteDetail.logs.emptyValue') }}</template>
+              </el-table-column>
+            </el-table>
+            <DetailListPanelEmpty v-else-if="!changeLogsLoading" size="low" />
+          </div>
+          <div v-show="editPanelTab === 'documents'" class="doc-tab-content">
+            <DocumentUploadPanel
+              biz-type="QUOTE"
+              :biz-id="quoteEditId"
+              :max-files="20"
+              :max-size-mb="100"
+              @uploaded="onQuoteDocumentUploaded"
+            />
+            <DocumentListPanel
+              ref="docListRef"
+              biz-type="QUOTE"
+              :biz-id="quoteEditId"
+              view-mode="list"
+              style="margin-top: 16px"
+            />
+          </div>
+        </div>
+        </div>
+      </template>
     </div>
     </div>
   </div>
@@ -415,7 +582,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Check, Plus, Minus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { quoteApi } from '@/api/quote'
+import { quoteApi, type QuoteFieldChangeLogRow } from '@/api/quote'
 import { vendorApi, vendorContactApi } from '@/api/vendor'
 import { rfqApi } from '@/api/rfq'
 import type { Vendor } from '@/types/vendor'
@@ -437,7 +604,11 @@ import { financeExchangeRateApi } from '@/api/financeExchangeRate'
 import { CurrencyCode } from '@/constants/currency'
 import { unitLocalToUsd } from '@/utils/exchangeRateToUsd'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
-import { formatDisplayDate } from '@/utils/displayDateTime'
+import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
+import { quoteChangeLogObjectLabel } from '@/utils/businessLogLabels'
+import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue'
+import DocumentListPanel from '@/components/Document/DocumentListPanel.vue'
+import DetailListPanelEmpty from '@/components/Common/DetailListPanelEmpty.vue'
 import { canQuoteRfqItem } from '@/utils/rfqItemQuoteAccessRules'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import {
@@ -461,7 +632,85 @@ const purchaseUserSelectOptions = ref<PurchaseDeptStaffUserOption[]>([])
 const purchaseUserOptionsLoading = ref(false)
 
 const isEditMode = computed(() => route.name === 'QuoteEdit')
+const quoteEditId = computed(() => (isEditMode.value ? String(route.params.id ?? '') : ''))
 const quoteStatus = ref<number | null>(null)
+
+const editPanelTab = ref<'items' | 'changeLogs' | 'documents'>('items')
+const docListRef = ref<InstanceType<typeof DocumentListPanel> | null>(null)
+const documentCount = ref(0)
+const fieldChangeLogs = ref<QuoteFieldChangeLogRow[]>([])
+const changeLogsLoading = ref(false)
+const changeLogsLoaded = ref(false)
+
+type QuoteEditPanelTabKey = 'items' | 'changeLogs' | 'documents'
+
+function quoteEditPanelTabCount(tab: QuoteEditPanelTabKey): number {
+  switch (tab) {
+    case 'items':
+      return formData.value.quotePriceRows.length
+    case 'documents':
+      return documentCount.value
+    case 'changeLogs':
+      return fieldChangeLogs.value.length
+    default:
+      return 0
+  }
+}
+
+function formatQuoteEditPanelTabLabel(label: string, tab: QuoteEditPanelTabKey): string {
+  const count = quoteEditPanelTabCount(tab)
+  return count > 0 ? `${label} (${count})` : label
+}
+
+function resetChangeLogs() {
+  fieldChangeLogs.value = []
+  changeLogsLoaded.value = false
+}
+
+async function loadChangeLogs(opts?: { silent?: boolean }) {
+  const id = quoteEditId.value
+  if (!id) return
+  changeLogsLoading.value = true
+  try {
+    fieldChangeLogs.value = (await quoteApi.getChangeLogs(id)) ?? []
+    changeLogsLoaded.value = true
+  } catch (e: unknown) {
+    if (!opts?.silent) {
+      ElMessage.error(e instanceof Error ? e.message : t('quoteList.loadFailed'))
+    }
+  } finally {
+    changeLogsLoading.value = false
+  }
+}
+
+async function fetchDocumentCount() {
+  const id = quoteEditId.value
+  if (!id) {
+    documentCount.value = 0
+    return
+  }
+  try {
+    const { documentApi } = await import('@/api/document')
+    const res = await documentApi.getDocuments('QUOTE', id)
+    documentCount.value = Array.isArray(res) ? res.length : 0
+  } catch {
+    documentCount.value = 0
+  }
+}
+
+function formatChangeLogTime(v?: string) {
+  if (!v) return '—'
+  return formatDisplayDateTime(v) || '—'
+}
+
+function onQuoteDocumentUploaded() {
+  docListRef.value?.refresh()
+  void fetchDocumentCount()
+}
+
+watch(editPanelTab, (tab) => {
+  if (tab === 'changeLogs' && !changeLogsLoaded.value) void loadChangeLogs()
+})
 
 const rfqLink = computed(() => {
   const rfqId = route.query.rfqId as string | undefined
@@ -1067,6 +1316,9 @@ async function loadQuoteForEdit() {
   const id = route.params.id as string
   if (!id) return
   pageLoading.value = true
+  resetChangeLogs()
+  documentCount.value = 0
+  editPanelTab.value = 'items'
   try {
     const res = await quoteApi.getById(id)
     const q = res?.data as Record<string, unknown> | undefined
@@ -1076,6 +1328,8 @@ async function loadQuoteForEdit() {
       return
     }
     await applyQuoteToForm(q)
+    void loadChangeLogs({ silent: true })
+    void fetchDocumentCount()
     const itemId = formData.value.rfqItemId?.trim()
     const rfqId = (formData.value.rfqId || rfqLink.value.rfqId || '').trim()
     if (itemId && rfqId) {
@@ -1396,6 +1650,57 @@ const handleSubmit = async () => {
     padding: 20px;
   }
 
+  .purchase-quote-section__body--tab {
+    padding: 0;
+  }
+
+  .tabs-section {
+    background: $layer-2;
+    border: none;
+    border-radius: 0;
+    overflow: hidden;
+  }
+
+  .tabs-nav {
+    display: flex;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 0 16px;
+    background: var(--crm-detail-section-header-bg);
+  }
+
+  .tab-btn {
+    padding: 12px 16px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: $text-muted;
+    font-size: 13px;
+    font-family: 'Noto Sans SC', sans-serif;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: -1px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+
+    &:hover {
+      color: $text-secondary;
+    }
+
+    &--active {
+      color: $cyan-primary;
+      border-bottom-color: $cyan-primary;
+    }
+  }
+
+  .tabs-body {
+    padding: 20px;
+  }
+
+  .doc-tab-content {
+    min-height: 120px;
+  }
+
   .purchase-quote-section__hint {
     margin: 0 0 12px;
     padding: 0;
@@ -1573,11 +1878,15 @@ const handleSubmit = async () => {
     }
   }
 
-  .quote-origin-row,
+  .quote-quad-row,
   .quote-triple-row {
     :deep(.el-col) {
       min-width: 0;
     }
+  }
+
+  .quote-remark-item {
+    margin-bottom: 0;
   }
 
   .seg-group {
@@ -1597,20 +1906,6 @@ const handleSubmit = async () => {
       color: $cyan-primary;
       box-shadow: none;
     }
-  }
-
-  .pkg-origin-row {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 12px;
-    width: 100%;
-  }
-
-  .free-ship-label {
-    font-size: 13px;
-    color: $text-secondary;
-    margin-left: 8px;
   }
 }
 

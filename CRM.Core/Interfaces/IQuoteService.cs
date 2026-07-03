@@ -15,6 +15,26 @@ namespace CRM.Core.Interfaces
         Task<Quote> UpdateAsync(string id, UpdateQuoteRequest request, string? actingUserId = null);
         Task DeleteAsync(string id);
         Task UpdateStatusAsync(string id, short status, string? actingUserId = null);
+
+        /// <summary>报价主表及明细字段变更日志（<c>log_change_fldval</c>）。</summary>
+        Task<IReadOnlyList<QuoteFieldChangeLogDto>> GetFieldChangeLogsAsync(string quoteId);
+    }
+
+    /// <summary>报价字段变更日志行。</summary>
+    public class QuoteFieldChangeLogDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string QuoteId { get; set; } = string.Empty;
+        public string? QuoteCode { get; set; }
+        public string FieldName { get; set; } = string.Empty;
+        public string? FieldLabel { get; set; }
+        public string? OldValue { get; set; }
+        public string? NewValue { get; set; }
+        public string? ChangedByUserId { get; set; }
+        public string? ChangedByUserName { get; set; }
+        public DateTime ChangedAt { get; set; }
+        /// <summary>主表为「主表」；明细为 <c>{QuoteCode}#N</c>。</summary>
+        public string? ObjectLabel { get; set; }
     }
 
     /// <summary>

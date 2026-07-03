@@ -378,6 +378,20 @@ namespace CRM.Core.Tests.Services
             Assert.NotNull(result);
             Assert.Equal("更新备注", result.Remark);
             await _rfqRepository.Received(1).UpdateAsync(Arg.Any<RFQ>());
+            await _unitOfWork.Received().ExecuteAsync(Arg.Is<string>(s =>
+                s.Contains("log_change_fldval") && s.Contains("remark") && s.Contains("更新备注")));
+        }
+
+        [Fact]
+        public async Task CreateAsync_WithItems_ShouldWriteLineAddedChangeLog()
+        {
+            _rfqItemRepository.GetAllAsync().Returns(new List<RFQItem>());
+
+            var request = BuildValidCreateRequest();
+            await _rfqService.CreateAsync(request);
+
+            await _unitOfWork.Received().ExecuteAsync(Arg.Is<string>(s =>
+                s.Contains("log_change_fldval") && s.Contains("lineAdded")));
         }
 
         [Fact]

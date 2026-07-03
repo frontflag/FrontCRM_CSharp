@@ -10,7 +10,7 @@ namespace CRM.Core.Services
     /// <summary>
     /// 客户服务实现
     /// </summary>
-    public class CustomerService : ICustomerService
+    public partial class CustomerService : ICustomerService
     {
         private readonly IRepository<CustomerInfo> _customerRepository;
         private readonly IRepository<CustomerAddress> _addressRepository;
@@ -284,6 +284,8 @@ namespace CRM.Core.Services
             if (customer == null)
                 throw new KeyNotFoundException($"找不到ID为 '{id}' 的客户");
 
+            var headerBefore = CaptureCustomerHeaderSnapshot(customer);
+
             // 更新字段
             if (request.OfficialName != null)
                 customer.OfficialName = request.OfficialName.Trim();
@@ -329,6 +331,7 @@ namespace CRM.Core.Services
 
             await _customerRepository.UpdateAsync(customer);
             await _unitOfWork.SaveChangesAsync();
+            await LogCustomerHeaderFieldChangesAsync(customer, headerBefore, actingUserId);
             return customer;
         }
 
@@ -428,6 +431,7 @@ namespace CRM.Core.Services
 
             await _addressRepository.AddAsync(address);
             await _unitOfWork.SaveChangesAsync();
+            await LogCustomerAddressAddedAsync(address, null);
             return address;
         }
 
@@ -443,6 +447,8 @@ namespace CRM.Core.Services
             var address = addresses.FirstOrDefault();
             if (address == null)
                 throw new KeyNotFoundException($"找不到ID为 '{addressId}' 的地址");
+
+            var addressBefore = CaptureCustomerAddressSnapshot(address);
 
             // 如果设置为默认地址，重置其他默认地址
             if (request.IsDefault == true && !address.IsDefault)
@@ -479,6 +485,7 @@ namespace CRM.Core.Services
 
             await _addressRepository.UpdateAsync(address);
             await _unitOfWork.SaveChangesAsync();
+            await LogCustomerAddressFieldChangesAsync(address, addressBefore, null);
             return address;
         }
 
@@ -547,6 +554,7 @@ namespace CRM.Core.Services
 
                 await _contactRepository.AddAsync(contact);
                 await _unitOfWork.SaveChangesAsync();
+                await LogCustomerContactAddedAsync(contact, null);
                 return contact;
             }
             catch (Exception ex)
@@ -567,6 +575,8 @@ namespace CRM.Core.Services
             var contact = contacts.FirstOrDefault();
             if (contact == null)
                 throw new KeyNotFoundException($"找不到ID为 '{contactId}' 的联系人");
+
+            var contactBefore = CaptureCustomerContactSnapshot(contact);
 
             // 如果设置为默认联系人，重置其他默认联系人
             if (request.IsDefault == true && !contact.IsDefault)
@@ -608,6 +618,7 @@ namespace CRM.Core.Services
 
             await _contactRepository.UpdateAsync(contact);
             await _unitOfWork.SaveChangesAsync();
+            await LogCustomerContactFieldChangesAsync(contact, contactBefore, null);
             return contact;
         }
 
@@ -737,6 +748,7 @@ namespace CRM.Core.Services
 
             await _bankRepository.AddAsync(bank);
             await _unitOfWork.SaveChangesAsync();
+            await LogCustomerBankAddedAsync(bank, null);
             return bank;
         }
 
@@ -764,6 +776,8 @@ namespace CRM.Core.Services
             var bank = banks.FirstOrDefault();
             if (bank == null)
                 throw new KeyNotFoundException($"找不到ID为 '{bankId}' 的银行信息");
+
+            var bankBefore = CaptureCustomerBankSnapshot(bank);
 
             // 如果设置为默认银行，重置其他默认银行
             if (request.IsDefault == true && !bank.IsDefault)
@@ -796,6 +810,7 @@ namespace CRM.Core.Services
 
             await _bankRepository.UpdateAsync(bank);
             await _unitOfWork.SaveChangesAsync();
+            await LogCustomerBankFieldChangesAsync(bank, bankBefore, null);
             return bank;
         }
 
@@ -916,6 +931,7 @@ namespace CRM.Core.Services
 
             await _customerRepository.UpdateAsync(customer);
             await _unitOfWork.SaveChangesAsync();
+            await LogCustomerStatusFieldChangeAsync(customer, previousStatus, status, actingUserId);
         }
 
         /// <summary>
@@ -972,6 +988,7 @@ namespace CRM.Core.Services
 
             await _contactHistoryRepository.AddAsync(record);
             await _unitOfWork.SaveChangesAsync();
+            await LogCustomerContactHistoryAddedAsync(record, null);
             return record;
         }
 
@@ -1023,6 +1040,9 @@ namespace CRM.Core.Services
             var record = records.FirstOrDefault();
             if (record == null)
                 throw new KeyNotFoundException($"找不到ID为 '{historyId}' 的联系历史");
+
+            var historyBefore = CaptureCustomerContactHistorySnapshot(record);
+
             if (request.Type != null) record.Type = request.Type.Trim();
             if (request.Subject != null) record.Subject = request.Subject.Trim();
             if (request.Content != null) record.Content = request.Content.Trim();
@@ -1032,6 +1052,7 @@ namespace CRM.Core.Services
             if (request.Result != null) record.Result = request.Result.Trim();
             await _contactHistoryRepository.UpdateAsync(record);
             await _unitOfWork.SaveChangesAsync();
+            await LogCustomerContactHistoryFieldChangesAsync(record, historyBefore, null);
             return record;
         }
 
@@ -1276,6 +1297,15 @@ WHERE (c.""BizType"" = '{BusinessLogTypes.Customer}' AND c.""RecordId"" = '{safe
    OR (c.""BizType"" = '{BusinessLogTypes.CustomerContact}' AND c.""RecordId"" IN (
         SELECT ""ContactId"" FROM customercontactinfo WHERE ""CustomerId"" = '{safe}'
       ))
+   OR (c.""BizType"" = '{BusinessLogTypes.CustomerAddress}' AND c.""RecordId"" IN (
+        SELECT ""AddressId"" FROM customeraddress WHERE ""CustomerId"" = '{safe}'
+      ))
+   OR (c.""BizType"" = '{BusinessLogTypes.CustomerBank}' AND c.""RecordId"" IN (
+        SELECT ""BankId"" FROM customerbankinfo WHERE ""CustomerId"" = '{safe}'
+      ))
+   OR (c.""BizType"" = '{BusinessLogTypes.CustomerContactHistory}' AND c.""RecordId"" IN (
+        SELECT ""HistoryId"" FROM customercontacthistory WHERE ""CustomerId"" = '{safe}'
+      ))
 ORDER BY c.""ChangedAt"" DESC";
             return await _unitOfWork.QueryAsync<CustomerChangeLog>(sql);
         }
@@ -1321,18 +1351,21 @@ ORDER BY c.""ChangedAt"" DESC";
             var canonicalId = await ResolveCustomerIdByIdOrCodeAsync(customerId) ?? customerId.Trim();
             var custList = await _customerRepository.FindAsync(c => c.Id == canonicalId);
             var cust = custList.FirstOrDefault();
-            var recordCodeSql = cust?.CustomerCode != null ? $"'{SqlQ(cust.CustomerCode)}'" : "NULL";
-            var safeRecordId = SqlQ(canonicalId);
-            var safeField = SqlQ(fieldName);
-            var safeLabel = fieldLabel != null ? SqlQ(fieldLabel) : null;
-            var safeOld = oldValue != null ? SqlQ(oldValue) : null;
-            var safeNew = newValue != null ? SqlQ(newValue) : null;
-            var safeUserName = SqlQ(userName);
-            var safeUserId = userId != null ? SqlQ(userId) : null;
-            var sql = $@"
-INSERT INTO log_change_fldval (""Id"", ""BizType"", ""RecordId"", ""RecordCode"", ""FieldName"", ""FieldLabel"", ""OldValue"", ""NewValue"", ""ChangedAt"", ""ChangedByUserId"", ""ChangedByUserName"", ""ExtraInfo"", ""SysRemark"")
-VALUES (gen_random_uuid()::text, '{BusinessLogTypes.Customer}', '{safeRecordId}', {recordCodeSql}, '{safeField}', {(safeLabel == null ? "NULL" : $"'{safeLabel}'")}, {(safeOld == null ? "NULL" : $"'{safeOld}'")}, {(safeNew == null ? "NULL" : $"'{safeNew}'")}, NOW(), {(safeUserId == null ? "NULL" : $"'{safeUserId}'")}, '{safeUserName}', NULL, NULL)";
-            await _unitOfWork.ExecuteAsync(sql);
+            if (cust == null) return;
+            var (resolvedUserId, resolvedUserName) = string.IsNullOrWhiteSpace(userName)
+                ? await ResolveFieldChangeActorAsync(userId)
+                : (userId, userName);
+            await FieldChangeLogAppender.AppendIfChangedAsync(
+                _unitOfWork,
+                BusinessLogTypes.Customer,
+                cust.Id,
+                cust.CustomerCode,
+                fieldName,
+                fieldLabel ?? fieldName,
+                oldValue,
+                newValue,
+                resolvedUserId,
+                resolvedUserName ?? "系统");
         }
     }
 }

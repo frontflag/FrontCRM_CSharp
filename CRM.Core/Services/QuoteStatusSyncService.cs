@@ -1,6 +1,7 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Quote;
 using CRM.Core.Models.Sales;
+using CRM.Core.Utilities;
 using Microsoft.Extensions.Logging;
 
 namespace CRM.Core.Services;
@@ -40,9 +41,11 @@ public sealed class QuoteStatusSyncService : IQuoteStatusSyncService
         {
             if (quote.Status == (short)QuoteMainStatus.Closed) continue;
             if (quote.Status == (short)QuoteMainStatus.Won) continue;
+            var prev = quote.Status;
             quote.Status = (short)QuoteMainStatus.Won;
             quote.ModifyTime = DateTime.UtcNow;
             await _quoteRepo.UpdateAsync(quote);
+            await QuoteFieldChangeLogWriter.AppendQuoteStatusChangeAsync(_unitOfWork, quote, prev, quote.Status);
             changed = true;
             _logger.LogInformation(
                 "报价状态→成单 QuoteId={QuoteId} QuoteCode={QuoteCode}",
@@ -77,6 +80,7 @@ public sealed class QuoteStatusSyncService : IQuoteStatusSyncService
             quote.Status = (short)target;
             quote.ModifyTime = DateTime.UtcNow;
             await _quoteRepo.UpdateAsync(quote);
+            await QuoteFieldChangeLogWriter.AppendQuoteStatusChangeAsync(_unitOfWork, quote, prev, quote.Status);
             changed = true;
             _logger.LogInformation(
                 "报价状态回写 QuoteId={QuoteId} {PrevStatus}→{NewStatus}",
@@ -104,9 +108,11 @@ public sealed class QuoteStatusSyncService : IQuoteStatusSyncService
 
         foreach (var quote in quotes)
         {
+            var prev = quote.Status;
             quote.Status = (short)QuoteMainStatus.Closed;
             quote.ModifyTime = DateTime.UtcNow;
             await _quoteRepo.UpdateAsync(quote);
+            await QuoteFieldChangeLogWriter.AppendQuoteStatusChangeAsync(_unitOfWork, quote, prev, quote.Status);
             _logger.LogInformation(
                 "需求关闭：报价状态→关闭 QuoteId={QuoteId} RfqId={RfqId}",
                 quote.Id,

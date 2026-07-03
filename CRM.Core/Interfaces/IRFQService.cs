@@ -31,6 +31,26 @@ namespace CRM.Core.Interfaces
 
         /// <summary>需求关闭记录列表（按关闭时间倒序）。</summary>
         Task<IReadOnlyList<RfqCloseRecordListItem>> GetCloseRecordsAsync(string rfqId);
+
+        /// <summary>需求主表及明细字段变更日志（<c>log_change_fldval</c>）。</summary>
+        Task<IReadOnlyList<RfqFieldChangeLogDto>> GetFieldChangeLogsAsync(string rfqId);
+    }
+
+    /// <summary>需求字段变更日志行。</summary>
+    public class RfqFieldChangeLogDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string RfqId { get; set; } = string.Empty;
+        public string? RfqCode { get; set; }
+        public string FieldName { get; set; } = string.Empty;
+        public string? FieldLabel { get; set; }
+        public string? OldValue { get; set; }
+        public string? NewValue { get; set; }
+        public string? ChangedByUserId { get; set; }
+        public string? ChangedByUserName { get; set; }
+        public DateTime ChangedAt { get; set; }
+        /// <summary>主表为「主表」；明细为 <c>{RfqCode}-L{LineNo}</c>。</summary>
+        public string? ObjectLabel { get; set; }
     }
 
     /// <summary>关闭需求请求</summary>

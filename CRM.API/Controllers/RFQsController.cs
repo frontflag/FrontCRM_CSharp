@@ -329,6 +329,31 @@ namespace CRM.API.Controllers
             }
         }
 
+        /// <summary>需求主表及明细字段变更日志</summary>
+        // GET api/v1/rfqs/{id}/change-logs
+        [HttpGet("{id}/change-logs")]
+        [RequirePermission("rfq.read")]
+        public async Task<ActionResult<ApiResponse<object>>> GetChangeLogs(string id)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var rfq = await _rfqService.GetByIdAsync(id, userId);
+                if (rfq == null)
+                    return NotFound(ApiResponse<object>.Fail("需求不存在", 404));
+                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessRFQAsync(userId, rfq))
+                    return StatusCode(403, ApiResponse<object>.Fail("无权限访问该需求", 403));
+
+                var logs = await _rfqService.GetFieldChangeLogsAsync(id);
+                return Ok(ApiResponse<object>.Ok(logs, "获取更改日志成功"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取需求更改日志失败: {Id}", id);
+                return StatusCode(500, ApiResponse<object>.Fail($"获取更改日志失败: {ex.Message}", 500));
+            }
+        }
+
         /// <summary>需求关闭记录列表</summary>
         // GET api/v1/rfqs/{id}/close-records
         [HttpGet("{id}/close-records")]

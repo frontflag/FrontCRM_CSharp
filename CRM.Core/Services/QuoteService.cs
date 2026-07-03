@@ -12,7 +12,7 @@ namespace CRM.Core.Services
     /// <summary>
     /// 报价服务实现
     /// </summary>
-    public class QuoteService : IQuoteService
+    public partial class QuoteService : IQuoteService
     {
         private readonly IRepository<Quote> _quoteRepository;
         private readonly IRepository<QuoteItem> _quoteItemRepository;
@@ -238,12 +238,17 @@ namespace CRM.Core.Services
 
             await _quoteRepository.AddAsync(quote);
 
-            // 创建明细行
+            var createdItems = new List<QuoteItem>();
             foreach (var itemReq in request.Items)
             {
                 var item = MapToQuoteItem(quote.Id, itemReq);
                 await _quoteItemRepository.AddAsync(item);
+                createdItems.Add(item);
             }
+
+            var activeOrdered = createdItems.OrderBy(i => i.CreateTime).ToList();
+            foreach (var item in createdItems)
+                await LogQuoteItemAddedAsync(quote, item, activeOrdered, actingUserId);
 
             // 创建报价后回写需求明细状态（待报价/查无报价→已报价）
             _logger.LogInformation(
@@ -353,6 +358,8 @@ namespace CRM.Core.Services
                 await EnsureCanQuoteRfqItemAsync(linkedRfqItem, actingUserId);
             }
 
+            var headerBefore = CaptureQuoteHeaderSnapshot(quote);
+
             if (request.Mpn != null) quote.Mpn = request.Mpn;
             if (request.CustomerId != null) quote.CustomerId = request.CustomerId;
             if (request.SalesUserId != null) quote.SalesUserId = request.SalesUserId;
@@ -377,9 +384,11 @@ namespace CRM.Core.Services
             List<QuoteItem>? deletedLines = null;
             if (request.Items != null && request.Items.Count > 0)
             {
-                var sync = await SyncQuoteItemsOnUpdateAsync(quote, id, request.Items);
+                var sync = await SyncQuoteItemsOnUpdateAsync(quote, id, request.Items, actingUserId);
                 deletedLines = sync.Deleted;
             }
+
+            await LogQuoteHeaderFieldChangesAsync(quote, headerBefore, actingUserId);
 
             await _unitOfWork.SaveChangesAsync();
 
@@ -495,20 +504,21 @@ namespace CRM.Core.Services
 
         private sealed record QuoteItemSyncResult(
             List<QuoteItem> Inserted,
-            List<QuoteItem> Updated,
+            List<(QuoteItem Item, QuoteItemFieldSnapshot Before)> Updated,
             List<QuoteItem> Deleted);
 
         private async Task<QuoteItemSyncResult> SyncQuoteItemsOnUpdateAsync(
             Quote quote,
             string quoteId,
-            List<CreateQuoteItemRequest> requestItems)
+            List<CreateQuoteItemRequest> requestItems,
+            string? actingUserId)
         {
             var existingActive = (await _quoteItemRepository.FindAsync(i => i.QuoteId == quoteId))
                 .Where(i => !i.IsDeleted)
                 .ToDictionary(i => i.Id, StringComparer.OrdinalIgnoreCase);
 
             var inserted = new List<QuoteItem>();
-            var updated = new List<QuoteItem>();
+            var updated = new List<(QuoteItem Item, QuoteItemFieldSnapshot Before)>();
             var keptIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var newItemRequests = new List<CreateQuoteItemRequest>();
 
@@ -521,10 +531,11 @@ namespace CRM.Core.Services
                         throw new InvalidOperationException($"报价明细 {reqId} 不存在或已删除");
 
                     keptIds.Add(reqId);
+                    var before = CaptureQuoteItemFieldSnapshot(existing);
                     ApplyQuoteItemFromRequest(existing, itemReq);
                     existing.ModifyTime = DateTime.UtcNow;
                     await _quoteItemRepository.UpdateAsync(existing);
-                    updated.Add(existing);
+                    updated.Add((existing, before));
                 }
                 else
                 {
@@ -556,6 +567,18 @@ namespace CRM.Core.Services
                 await _quoteItemRepository.UpdateAsync(existing);
                 deleted.Add(existing);
             }
+
+            var activeOrdered = existingActive.Values
+                .Where(i => !deleted.Any(d => string.Equals(d.Id, i.Id, StringComparison.OrdinalIgnoreCase)))
+                .Concat(inserted)
+                .OrderBy(i => i.CreateTime)
+                .ToList();
+
+            foreach (var (item, before) in updated)
+                await LogQuoteItemFieldChangesAsync(quote, item, before, activeOrdered, actingUserId);
+
+            foreach (var item in inserted)
+                await LogQuoteItemAddedAsync(quote, item, activeOrdered, actingUserId);
 
             return new QuoteItemSyncResult(inserted, updated, deleted);
         }

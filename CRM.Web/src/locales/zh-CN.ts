@@ -1658,8 +1658,19 @@ const zhCN = {
     deleteSuccess: '删除成功',
     itemCount: '供应商报价 {count} 行',
     tabs: {
-      items: '供应商报价明细',
+      items: '报价明细',
+      changeLogs: '更改日志',
       documents: '文档'
+    },
+    logs: {
+      colChangeTime: '变更时间',
+      colOperator: '操作人',
+      colObject: '对象',
+      colField: '字段',
+      colOldValue: '原值',
+      colNewValue: '新值',
+      emptyValue: '(空)',
+      system: '系统'
     },
     fields: {
       rfqCode: '需求编号',
@@ -1688,6 +1699,7 @@ const zhCN = {
     createTitle: '新建报价',
     readOnlyHint: '只读',
     purchaseQuoteSection: '采购报价',
+    supplierQuoteSection: '供应商报价',
     purchaseQuoteRowCount: '阶梯行数',
     purchaseQuoteHint:
       '折算价为美元单价，根据「系统设置 → 财务参数 → 汇率」自动换算（原币 → USD）；修改单价或币别后自动更新。',
@@ -2094,7 +2106,17 @@ const zhCN = {
     },
     recommendMeta: '系统推荐 · 当前处理中：{count} 条',
     sections: { basic: '基础信息', rfq: '需求信息', purchaser: '采购员信息' },
-    tabs: { items: '需求明细', closeRecords: '关闭记录' },
+    tabs: { items: '需求明细', changeLogs: '更改日志', closeRecords: '关闭记录' },
+    logs: {
+      colChangeTime: '变更时间',
+      colOperator: '操作人',
+      colObject: '对象',
+      colField: '字段',
+      colOldValue: '原值',
+      colNewValue: '新值',
+      emptyValue: '(空)',
+      system: '系统'
+    },
     fields: {
       rfqCode: '需求单号',
       customer: '客户',
@@ -2155,6 +2177,8 @@ const zhCN = {
       favoriteFailedMessage: '收藏状态更新失败，请稍后重试',
       loadFailedTitle: '加载失败',
       loadFailedMessage: '需求详情加载失败，请检查网络连接',
+      changeLogsLoadFailedTitle: '加载失败',
+      changeLogsLoadFailedMessage: '更改日志加载失败，请稍后重试',
       selectPurchaserTitle: '请选择采购员',
       selectPurchaserMessage: '采购员不能为空',
       assignSuccessTitle: '分配成功',
@@ -2645,6 +2669,7 @@ const zhCN = {
       banks: '银行信息',
       documents: '文档',
       history: '联系历史',
+      changeLogs: '变更日志',
       logs: '操作日志'
     },
     contacts: {
@@ -2732,6 +2757,14 @@ const zhCN = {
     },
     logs: {
       empty: '暂无操作记录',
+      changeLogEmpty: '暂无变更记录',
+      colChangeTime: '变更时间',
+      colOperator: '操作人',
+      colObject: '对象',
+      colField: '字段',
+      colOldValue: '原值',
+      colNewValue: '新值',
+      mainTable: '主表',
       operationLog: '操作日志',
       fieldChangeLog: '字段变更日志',
       reasonSuffix: ' · 原因：{text}',

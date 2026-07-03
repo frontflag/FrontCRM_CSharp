@@ -262,8 +262,7 @@
               :class="['tab-btn', { 'tab-btn--active': activeTab === tab.key }]"
               @click="activeTab = tab.key"
             >
-              {{ tab.label }}
-              <span v-if="tab.count !== undefined" class="tab-count">{{ tab.count }}</span>
+              {{ formatRfqDetailTabLabel(tab.label, tab.key) }}
             </button>
           </div>
           <div class="tabs-body">
@@ -517,6 +516,38 @@
               </div>
             </div>
 
+            <!-- 更改日志 -->
+            <div v-if="activeTab === 'changeLogs'" class="detail-items-table-wrap">
+              <el-table
+                v-if="fieldChangeLogs.length > 0"
+                v-loading="changeLogsLoading"
+                :data="fieldChangeLogs"
+                class="detail-panel-list-table"
+                size="small"
+                stripe
+              >
+                <el-table-column :label="t('rfqDetail.logs.colChangeTime')" width="160">
+                  <template #default="{ row }">{{ formatChangeLogTime(row?.changedAt) }}</template>
+                </el-table-column>
+                <el-table-column :label="t('rfqDetail.logs.colOperator')" width="100" show-overflow-tooltip>
+                  <template #default="{ row }">{{ row.changedByUserName || t('rfqDetail.logs.system') }}</template>
+                </el-table-column>
+                <el-table-column :label="t('rfqDetail.logs.colObject')" width="140" show-overflow-tooltip>
+                  <template #default="{ row }">{{ rfqChangeLogObjectLabel(row) }}</template>
+                </el-table-column>
+                <el-table-column :label="t('rfqDetail.logs.colField')" min-width="120" show-overflow-tooltip>
+                  <template #default="{ row }">{{ row.fieldLabel || row.fieldName }}</template>
+                </el-table-column>
+                <el-table-column :label="t('rfqDetail.logs.colOldValue')" min-width="160" show-overflow-tooltip>
+                  <template #default="{ row }">{{ row.oldValue ?? t('rfqDetail.logs.emptyValue') }}</template>
+                </el-table-column>
+                <el-table-column :label="t('rfqDetail.logs.colNewValue')" min-width="160" show-overflow-tooltip>
+                  <template #default="{ row }">{{ row.newValue ?? t('rfqDetail.logs.emptyValue') }}</template>
+                </el-table-column>
+              </el-table>
+              <DetailListPanelEmpty v-else-if="!changeLogsLoading" size="low" />
+            </div>
+
             <!-- 关闭记录 -->
             <div v-if="activeTab === 'closeRecords'">
               <div v-if="closeRecords.length === 0" class="empty-state">
@@ -610,11 +641,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElNotification, ElMessageBox } from 'element-plus'
-import { rfqApi } from '@/api/rfq'
+import { rfqApi, type RfqFieldChangeLogRow } from '@/api/rfq'
 import { quoteApi } from '@/api/quote'
 import { favoriteApi } from '@/api/favorite'
 import { RFQ_FAVORITE_ENTITY_TYPE, RFQ_FAVORITES_CHANGED_EVENT } from '@/constants/rfqFavorites'
@@ -650,6 +681,8 @@ import {
   resolveRfqCanEditTagsForUser,
   resolveRfqCanViewTags,
 } from '@/utils/rfqTagAccess'
+import DetailListPanelEmpty from '@/components/Common/DetailListPanelEmpty.vue'
+import { rfqChangeLogObjectLabel } from '@/utils/businessLogLabels'
 
 const route = useRoute()
 const router = useRouter()
@@ -770,9 +803,66 @@ const rfqItems = ref<any[]>([])
 const quoteRecordCountByRfqItemId = ref<Record<string, number>>({})
 const closeRecords = ref<any[]>([])
 const itemsLoading = ref(false)
-const activeTab = ref('items')
+const activeTab = ref<'items' | 'changeLogs' | 'closeRecords'>('items')
+const fieldChangeLogs = ref<RfqFieldChangeLogRow[]>([])
+const changeLogsLoading = ref(false)
+const changeLogsLoaded = ref(false)
 /** 需求明细：列表（默认） / 面板 */
 const itemsViewMode = ref<'list' | 'panel'>('list')
+
+type RfqDetailTabKey = 'items' | 'changeLogs' | 'closeRecords'
+
+function rfqDetailTabCount(tab: RfqDetailTabKey): number {
+  switch (tab) {
+    case 'items':
+      return rfqItems.value.length
+    case 'changeLogs':
+      return fieldChangeLogs.value.length
+    case 'closeRecords':
+      return closeRecords.value.length
+    default:
+      return 0
+  }
+}
+
+function formatRfqDetailTabLabel(label: string, tab: RfqDetailTabKey): string {
+  const count = rfqDetailTabCount(tab)
+  return count > 0 ? `${label} (${count})` : label
+}
+
+function resetChangeLogs() {
+  fieldChangeLogs.value = []
+  changeLogsLoaded.value = false
+}
+
+async function loadChangeLogs(opts?: { silent?: boolean }) {
+  if (!rfqId) return
+  changeLogsLoading.value = true
+  try {
+    fieldChangeLogs.value = (await rfqApi.getChangeLogs(rfqId)) ?? []
+    changeLogsLoaded.value = true
+  } catch (e: unknown) {
+    if (!opts?.silent) {
+      ElNotification.error({
+        title: t('rfqDetail.toast.changeLogsLoadFailedTitle'),
+        message:
+          (e instanceof Error ? e.message : '') ||
+          t('rfqDetail.toast.changeLogsLoadFailedMessage'),
+      })
+    }
+  } finally {
+    changeLogsLoading.value = false
+  }
+}
+
+function formatChangeLogTime(v?: string) {
+  if (!v) return '—'
+  return formatDisplayDateTime(v) || '—'
+}
+
+watch(activeTab, (tab) => {
+  if (tab === 'changeLogs' && !changeLogsLoaded.value) void loadChangeLogs()
+})
 
 /** 《列表操作列规范》：需求明细「分配采购员」列 */
 const rfqDetailAssignOpColExpanded = ref(false)
@@ -790,8 +880,9 @@ function toggleRfqDetailAssignOpCol() {
 }
 
 const tabs = computed(() => [
-  { key: 'items', label: t('rfqDetail.tabs.items'), count: rfqItems.value.length },
-  { key: 'closeRecords', label: t('rfqDetail.tabs.closeRecords'), count: closeRecords.value.length }
+  { key: 'items' as const, label: t('rfqDetail.tabs.items') },
+  { key: 'changeLogs' as const, label: t('rfqDetail.tabs.changeLogs') },
+  { key: 'closeRecords' as const, label: t('rfqDetail.tabs.closeRecords') },
 ])
 
 const assignDialogVisible = ref(false)
@@ -982,6 +1073,7 @@ async function toggleFavorite() {
 
 async function loadRFQ() {
   loading.value = true
+  resetChangeLogs()
   try {
     rfq.value = await rfqApi.getRFQDetail(rfqId)
     if (rfq.value) {
@@ -990,6 +1082,7 @@ async function loadRFQ() {
         rfqCode: rfq.value.rfqCode,
         customerName: rfq.value.customerName
       })
+      void loadChangeLogs({ silent: true })
     }
     await loadFavoriteState()
   } catch {

@@ -214,8 +214,7 @@
               :class="{ 'tab-btn--active': activeTab === tab.key }"
               @click="activeTab = tab.key"
             >
-              {{ tab.label }}
-              <span class="tab-count">{{ tabCount(tab.key) }}</span>
+              {{ formatTabLabel(tab.label, tab.key) }}
             </button>
           </div>
 
@@ -238,8 +237,18 @@
                   {{ t('aiEntityCreate.aiCreate') }}
                 </button>
               </div>
-              <CrmDataTable :data="customer.contacts" class="quantum-table"
-                :header-cell-style="tableHeaderStyle" :cell-style="tableCellStyle" :row-style="tableRowStyle">
+              <div class="detail-items-table-wrap">
+              <CrmDataTable
+                v-if="customer.contacts?.length"
+                :data="customer.contacts"
+                embedded
+                :border="false"
+                :show-column-settings="false"
+                :show-row-density-toggle="false"
+                size="small"
+                stripe
+                class="items-table detail-panel-list-table"
+              >
                 <el-table-column prop="contactName" label="姓名" min-width="140" show-overflow-tooltip>
                   <template #default="{ row }"><span class="cell-primary">{{ maskSaleSensitiveFields ? '—' : row.contactName || '--' }}</span></template>
                 </el-table-column>
@@ -311,6 +320,8 @@
                   </template>
                 </el-table-column>
               </CrmDataTable>
+              <DetailListPanelEmpty v-else size="low" />
+              </div>
             </div>
 
             <!-- 地址信息 -->
@@ -331,8 +342,18 @@
                   {{ t('aiEntityCreate.aiCreate') }}
                 </button>
               </div>
-              <CrmDataTable :data="customer.addresses" class="quantum-table"
-                :header-cell-style="tableHeaderStyle" :cell-style="tableCellStyle" :row-style="tableRowStyle">
+              <div class="detail-items-table-wrap">
+              <CrmDataTable
+                v-if="customer.addresses?.length"
+                :data="customer.addresses"
+                embedded
+                :border="false"
+                :show-column-settings="false"
+                :show-row-density-toggle="false"
+                size="small"
+                stripe
+                class="items-table detail-panel-list-table"
+              >
                 <el-table-column prop="addressType" label="地址类型" width="110">
                   <template #default="{ row }">
                     <span class="type-badge type-0">{{ formatCustomerAddressTypeLabel(row.addressType) }}</span>
@@ -403,6 +424,8 @@
                   </template>
                 </el-table-column>
               </CrmDataTable>
+              <DetailListPanelEmpty v-else size="low" />
+              </div>
             </div>
 
             <!-- 银行信息 -->
@@ -415,8 +438,18 @@
                   添加银行信息
                 </button>
               </div>
-              <CrmDataTable :data="customer.banks" class="quantum-table"
-                :header-cell-style="tableHeaderStyle" :cell-style="tableCellStyle" :row-style="tableRowStyle">
+              <div class="detail-items-table-wrap">
+              <CrmDataTable
+                v-if="customer.banks?.length"
+                :data="customer.banks"
+                embedded
+                :border="false"
+                :show-column-settings="false"
+                :show-row-density-toggle="false"
+                size="small"
+                stripe
+                class="items-table detail-panel-list-table"
+              >
                 <el-table-column prop="accountName" label="账户名称" min-width="150">
                   <template #default="{ row }"><span class="cell-primary">{{ row.accountName }}</span></template>
                 </el-table-column>
@@ -483,6 +516,8 @@
                   </template>
                 </el-table-column>
               </CrmDataTable>
+              <DetailListPanelEmpty v-else size="low" />
+              </div>
             </div>
 
             <!-- 文档 -->
@@ -543,17 +578,38 @@
               </div>
             </div>
 
+            <!-- 变更日志 -->
+            <div v-show="activeTab === 'changeLogs'" class="detail-items-table-wrap">
+              <el-table v-if="fieldChangeLogs.length > 0" :data="fieldChangeLogs" class="detail-panel-list-table" size="small" stripe>
+                <el-table-column label="变更时间" width="160">
+                  <template #default="{ row }">{{ formatDateTime(row?.changedAt || row?.changeTime || row?.operationTime || row?.createTime) }}</template>
+                </el-table-column>
+                <el-table-column label="操作人" width="100" show-overflow-tooltip>
+                  <template #default="{ row }">{{ row.changedByUserName || row.operatorUserName || '系统' }}</template>
+                </el-table-column>
+                <el-table-column label="对象" width="140" show-overflow-tooltip>
+                  <template #default="{ row }">{{ masterEntityChangeLogObjectLabel(row.bizType, row.recordCode, 'Customer') }}</template>
+                </el-table-column>
+                <el-table-column label="字段" min-width="120" show-overflow-tooltip>
+                  <template #default="{ row }">{{ row.fieldLabel || row.fieldName }}</template>
+                </el-table-column>
+                <el-table-column label="原值" min-width="160" show-overflow-tooltip>
+                  <template #default="{ row }">{{ row.oldValue ?? '(空)' }}</template>
+                </el-table-column>
+                <el-table-column label="新值" min-width="160" show-overflow-tooltip>
+                  <template #default="{ row }">{{ row.newValue ?? '(空)' }}</template>
+                </el-table-column>
+              </el-table>
+              <DetailListPanelEmpty v-else size="low" />
+            </div>
+
             <!-- 操作日志 -->
             <div v-show="activeTab === 'logs'">
-              <div v-if="operationLogs.length === 0 && fieldChangeLogs.length === 0" class="empty-state">
+              <div v-if="operationLogs.length === 0" class="empty-state">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                 <p>暂无操作记录</p>
               </div>
               <div v-if="operationLogs.length > 0">
-                <div class="section-header section-header--inline">
-                  <div class="section-dot section-dot--cyan"></div>
-                  <span class="section-title">操作日志</span>
-                </div>
                 <div v-for="log in operationLogs" :key="log.id" class="timeline-item">
                   <div class="timeline-dot dot--primary"></div>
                   <div class="timeline-content">
@@ -567,26 +623,6 @@
                       <template v-if="log.recordCode"> · 单号 {{ log.recordCode }}</template>
                     </span>
                     <span class="timeline-time">{{ log.operatorUserName || '系统' }} · {{ formatDateTime(log.operationTime || log.createTime) }}</span>
-                  </div>
-                </div>
-              </div>
-              <div v-if="fieldChangeLogs.length > 0" style="margin-top:20px">
-                <div class="section-header section-header--inline">
-                  <div class="section-dot section-dot--cyan"></div>
-                  <span class="section-title">字段变更日志</span>
-                </div>
-                <div v-for="log in fieldChangeLogs" :key="log.id" class="timeline-item">
-                  <div class="timeline-dot dot--warning"></div>
-                  <div class="timeline-content">
-                    <span class="timeline-text">
-                      <template v-if="log.bizType && log.bizType !== 'Customer'">
-                        <span class="log-biz-pill">{{ operationBizTypeLabel(log.bizType) }}</span>
-                        ·
-                      </template>
-                      {{ log.fieldLabel || log.fieldName }}：{{ log.oldValue || '(空)' }} → {{ log.newValue || '(空)' }}
-                      <template v-if="log.recordCode"> · 单号 {{ log.recordCode }}</template>
-                    </span>
-                    <span class="timeline-time">{{ log.changedByUserName || log.operatorUserName || '系统' }} · {{ formatDateTime(log.changedAt || log.operationTime || log.createTime) }}</span>
                   </div>
                 </div>
               </div>
@@ -739,10 +775,11 @@ import AddressDialog from './components/AddressDialog.vue';
 import BankDialog from './components/BankDialog.vue';
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue';
 import DocumentListPanel from '@/components/Document/DocumentListPanel.vue';
+import DetailListPanelEmpty from '@/components/Common/DetailListPanelEmpty.vue';
 import { documentApi } from '@/api/document';
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime';
 import { parseApiBoolean } from '@/utils/parseApiBoolean';
-import { operationBizTypeLabel } from '@/utils/businessLogLabels';
+import { operationBizTypeLabel, masterEntityChangeLogObjectLabel } from '@/utils/businessLogLabels';
 import { CUSTOMER_FAVORITES_CHANGED_EVENT } from '@/constants/customerFavorites';
 import { logRecentApi } from '@/api/logRecent';
 import { CUSTOMER_RECENT_HISTORY_CHANGED_EVENT } from '@/constants/customerRecentHistory';
@@ -857,6 +894,7 @@ const tabs = [
   { key: 'banks', label: '银行信息' },
   { key: 'documents', label: '文档' },
   { key: 'contactHistory', label: '联系历史' },
+  { key: 'changeLogs', label: '变更日志' },
   { key: 'logs', label: '操作日志' }
 ];
 
@@ -876,11 +914,19 @@ function tabCount(key: string): number {
       return documentCount.value;
     case 'contactHistory':
       return contactHistories.value.length;
+    case 'changeLogs':
+      return fieldChangeLogs.value.length;
     case 'logs':
-      return operationLogs.value.length + fieldChangeLogs.value.length;
+      return operationLogs.value.length;
     default:
       return 0;
   }
+}
+
+/** Tab 标题旁显示 (N)，与采销订单明细面板一致 */
+function formatTabLabel(label: string, key: string): string {
+  const count = tabCount(key);
+  return count > 0 ? `${label} (${count})` : label;
 }
 
 async function fetchDocumentCount() {
@@ -932,10 +978,6 @@ const actionLoading = ref(false);
 const showTagDialog = ref(false);
 const isFavorite = ref(false);
 const favoriteLoading = ref(false);
-
-const tableHeaderStyle = () => ({ background: '#0A1628', color: 'rgba(200,216,232,0.55)', fontSize: '12px', fontWeight: '500', letterSpacing: '0.5px', borderBottom: '1px solid rgba(0,212,255,0.12)', padding: '10px 0' });
-const tableCellStyle = () => ({ background: 'transparent', borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'rgba(224,244,255,0.85)', fontSize: '13px' });
-const tableRowStyle = () => ({ background: 'transparent' });
 
 const refreshFavoriteStatus = async () => {
   try {
@@ -1750,9 +1792,7 @@ onMounted(() => {
   cursor: pointer;
   transition: all 0.2s;
   margin-bottom: -1px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  white-space: nowrap;
 
   &:hover { color: $text-secondary; }
 
@@ -1762,23 +1802,37 @@ onMounted(() => {
   }
 }
 
-.tab-count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  padding: 1px 7px;
-  border-radius: 999px;
-  font-size: 11px;
-  line-height: 1.35;
-  font-family: 'Noto Sans SC', sans-serif;
-  font-variant-numeric: tabular-nums;
-  background: var(--crm-accent-01);
-  border: 1px solid var(--crm-accent-02);
-  color: var(--crm-primary-color);
+.tabs-body { padding: 20px; }
+
+.detail-items-table-wrap {
+  margin-top: 4px;
 }
 
-.tabs-body { padding: 20px; }
+// §7.4 面板列表：表头/表体基线见 detail-panel-list-table.scss；此处仅操作列等页内扩展
+.detail-items-table-wrap :deep(.items-table),
+.detail-items-table-wrap :deep(.crm-items-table.detail-panel-list-table) {
+  --el-table-border-color: transparent;
+  --el-table-fixed-box-shadow: none;
+  background: transparent !important;
+  border-radius: 0;
+  border: none;
+  min-height: 0;
+  overflow: visible;
+
+  :deep(.el-table) {
+    color: var(--crm-table-text);
+  }
+  :deep(.el-table__inner-wrapper) {
+    background: transparent;
+    &::before { display: none !important; }
+    &::after  { display: none !important; }
+  }
+  :deep(.el-table__border-left-patch) { display: none !important; }
+  :deep(.el-table__cell) {
+    .el-button { white-space: nowrap !important; }
+    .cell { white-space: nowrap; }
+  }
+}
 
 .tab-toolbar {
   margin-bottom: 14px;
@@ -1801,52 +1855,6 @@ onMounted(() => {
   &:hover {
     background: rgba(70, 191, 145, 0.2);
     border-color: rgba(70, 191, 145, 0.5);
-  }
-}
-
-// ---- 表格 ----
-.quantum-table {
-  --el-table-border-color: transparent;
-  --el-table-header-bg-color: rgba(0, 212, 255, 0.04);
-  --el-table-row-hover-bg-color: rgba(0, 212, 255, 0.04);
-  --el-table-bg-color: transparent;
-  --el-table-tr-bg-color: transparent;
-  --el-table-fixed-box-shadow: none;
-  width: 100%;
-  background: transparent !important;
-
-  :deep(.el-table__inner-wrapper) {
-    background: transparent;
-    &::before { display: none !important; }
-    &::after  { display: none !important; }
-  }
-  :deep(.el-table__border-left-patch) { display: none !important; }
-  :deep(.el-table__header-wrapper) {
-    th.el-table__cell {
-      background: rgba(0, 212, 255, 0.04) !important;
-      border-bottom: 1px solid rgba(0, 212, 255, 0.1) !important;
-      border-right: none !important;
-      color: rgba(200, 216, 232, 0.55);
-      font-size: 12px;
-      font-weight: 500;
-      letter-spacing: 0.3px;
-    }
-  }
-  :deep(.el-table__row) {
-    background: transparent !important;
-    td.el-table__cell {
-      background: transparent !important;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
-      border-right: none !important;
-    }
-    &:last-child td.el-table__cell { border-bottom: none !important; }
-    &:hover td.el-table__cell { background: rgba(0, 212, 255, 0.04) !important; }
-  }
-  :deep(tr) { background: transparent !important; }
-  // 操作列按钮禁止折行
-  :deep(.el-table__cell) {
-    .el-button { white-space: nowrap !important; }
-    .cell { white-space: nowrap; }
   }
 }
 

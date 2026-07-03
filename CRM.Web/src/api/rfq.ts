@@ -25,6 +25,20 @@ import type {
 
 const BASE = '/api/v1/rfqs'
 
+export type RfqFieldChangeLogRow = {
+  id?: string
+  rfqId?: string
+  rfqCode?: string
+  fieldName?: string
+  fieldLabel?: string
+  oldValue?: string | null
+  newValue?: string | null
+  changedByUserId?: string | null
+  changedByUserName?: string | null
+  changedAt?: string
+  objectLabel?: string
+}
+
 // 构建查询字符串
 function buildQuery(params: Record<string, any>): string {
   const q = new URLSearchParams()
@@ -202,7 +216,11 @@ export const rfqApi = {
   async markQuoteRead(rfqId: string): Promise<void> {
     return apiClient.put(`${BASE}/${rfqId}/quote-read`)
   },
-  /** 39. 获取 RFQ 关闭记录 */
+  /** 39. 需求主表及明细字段变更日志 */
+  async getChangeLogs(rfqId: string): Promise<RfqFieldChangeLogRow[]> {
+    return apiClient.get<RfqFieldChangeLogRow[]>(`${BASE}/${rfqId}/change-logs`)
+  },
+  /** 40. 获取 RFQ 关闭记录 */
   async getCloseRecords(rfqId: string): Promise<RFQCloseRecord[]> {
     return apiClient.get<RFQCloseRecord[]>(`${BASE}/${rfqId}/close-records`)
   },

@@ -271,6 +271,24 @@ namespace CRM.API.Controllers
                 return StatusCode(500, new { success = false, message = ex.Message, errorCode = 500 });
             }
         }
+
+        /// <summary>报价主表及明细字段变更日志。</summary>
+        [HttpGet("{id}/change-logs")]
+        public async Task<IActionResult> GetChangeLogs(string id)
+        {
+            try
+            {
+                var quote = await _quoteService.GetByIdAsync(id);
+                if (quote == null)
+                    return NotFound(new { success = false, message = $"报价单 {id} 不存在", errorCode = 404 });
+                var logs = await _quoteService.GetFieldChangeLogsAsync(id);
+                return Ok(new { success = true, data = logs, errorCode = 0 });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message, errorCode = 500 });
+            }
+        }
     }
 
     public class QuoteUpdateStatusRequest

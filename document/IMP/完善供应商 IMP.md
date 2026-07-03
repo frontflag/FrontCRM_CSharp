@@ -102,14 +102,14 @@
    - 前端：
      - `VendorDetail.vue` 增加“联系历史”Tab：时间线/表格展示 + 新增/编辑/删除。
 
-10. **供应商操作日志 / 字段变更日志**
+10. **供应商操作日志 / 字段变更日志**（**已实现**，详见 [业务字段变更日志-设计与实现](../System/业务字段变更日志-设计与实现.md) §6）
     - 后端：
-      - 在现有日志体系（如 `BusinessLog`）中加入供应商相关记录。  
+      - 统一表 `log_change_fldval` / `log_operation`，BizType 见 `BusinessLogTypes`。  
       - 提供：  
         - `GET /api/v1/vendors/{id}/operation-logs`  
-        - `GET /api/v1/vendors/{id}/field-change-logs`。
+        - `GET /api/v1/vendors/{id}/change-logs`（兼容 `field-change-logs`）。
     - 前端：
-      - `VendorDetail.vue` 增加“操作日志/变更日志”Tab，复用客户的展示模式。
+      - `VendorDetail.vue`「变更日志」Tab，§7.4 六列表格，复用客户展示模式。
 
 ---
 

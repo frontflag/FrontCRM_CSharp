@@ -1680,8 +1680,19 @@ const enUS = {
     deleteSuccess: 'Deleted successfully',
     itemCount: '{count} vendor quote line(s)',
     tabs: {
-      items: 'Vendor quote lines',
+      items: 'Quote items',
+      changeLogs: 'Change log',
       documents: 'Documents'
+    },
+    logs: {
+      colChangeTime: 'Changed at',
+      colOperator: 'Operator',
+      colObject: 'Object',
+      colField: 'Field',
+      colOldValue: 'Old value',
+      colNewValue: 'New value',
+      emptyValue: '(empty)',
+      system: 'System'
     },
     fields: {
       rfqCode: 'RFQ code',
@@ -1710,6 +1721,7 @@ const enUS = {
     createTitle: 'New quote',
     readOnlyHint: 'Read-only',
     purchaseQuoteSection: 'Purchase quote',
+    supplierQuoteSection: 'Supplier quote',
     purchaseQuoteRowCount: 'Tier rows',
     purchaseQuoteHint:
       'Converted price is the USD unit price, auto-calculated from Settings → Finance → Exchange rates (local currency → USD); updates when price or currency changes.',
@@ -2103,7 +2115,17 @@ const enUS = {
     },
     recommendMeta: 'Recommended · Handling now: {count}',
     sections: { basic: 'Basic Info', rfq: 'RFQ Info', purchaser: 'Purchaser Info' },
-    tabs: { items: 'RFQ Items', closeRecords: 'Close Records' },
+    tabs: { items: 'RFQ Items', changeLogs: 'Change Logs', closeRecords: 'Close Records' },
+    logs: {
+      colChangeTime: 'Changed At',
+      colOperator: 'Operator',
+      colObject: 'Object',
+      colField: 'Field',
+      colOldValue: 'Old Value',
+      colNewValue: 'New Value',
+      emptyValue: '(empty)',
+      system: 'System'
+    },
     fields: {
       rfqCode: 'RFQ Code',
       customer: 'Customer',
@@ -2164,6 +2186,8 @@ const enUS = {
       favoriteFailedMessage: 'Failed to update favorite status',
       loadFailedTitle: 'Load Failed',
       loadFailedMessage: 'Failed to load RFQ detail, check network',
+      changeLogsLoadFailedTitle: 'Load Failed',
+      changeLogsLoadFailedMessage: 'Failed to load change logs, please try again',
       selectPurchaserTitle: 'Select Purchaser',
       selectPurchaserMessage: 'Purchaser is required',
       assignSuccessTitle: 'Assigned',
@@ -2647,6 +2671,7 @@ const enUS = {
       banks: 'Bank accounts',
       documents: 'Documents',
       history: 'Contact history',
+      changeLogs: 'Change log',
       logs: 'Activity log'
     },
     contacts: {
@@ -2734,6 +2759,14 @@ const enUS = {
     },
     logs: {
       empty: 'No activity yet',
+      changeLogEmpty: 'No field changes yet',
+      colChangeTime: 'Changed at',
+      colOperator: 'Changed by',
+      colObject: 'Object',
+      colField: 'Field',
+      colOldValue: 'Before',
+      colNewValue: 'After',
+      mainTable: 'Header',
       operationLog: 'Operation log',
       fieldChangeLog: 'Field change log',
       reasonSuffix: ' · Reason: {text}',

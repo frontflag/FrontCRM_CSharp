@@ -10,7 +10,7 @@ namespace CRM.Core.Services
     /// <summary>
     /// Vendor服务实现
     /// </summary>
-    public class VendorService : IVendorService
+    public partial class VendorService : IVendorService
     {
         private readonly IRepository<VendorInfo> _repository;
         private readonly IRepository<VendorContactInfo> _contactRepository;
@@ -269,6 +269,8 @@ namespace CRM.Core.Services
             if (entity == null)
                 throw new KeyNotFoundException($"找不到ID为 '{id}' 的记录");
 
+            var headerBefore = CaptureVendorHeaderSnapshot(entity);
+
             if (request.Name != null)
                 entity.OfficialName = request.Name.Trim();
             if (request.NickName != null)
@@ -320,6 +322,7 @@ namespace CRM.Core.Services
             entity.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
             await _repository.UpdateAsync(entity);
             await _unitOfWork.SaveChangesAsync();
+            await LogVendorHeaderFieldChangesAsync(entity, headerBefore, actingUserId);
             return entity;
         }
 
@@ -484,6 +487,7 @@ namespace CRM.Core.Services
             entity.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
             await _repository.UpdateAsync(entity);
             await _unitOfWork.SaveChangesAsync();
+            await LogVendorStatusFieldChangeAsync(entity, previousStatus, status, actingUserId);
         }
 
         /// <summary>
@@ -549,6 +553,7 @@ namespace CRM.Core.Services
 
             await _contactRepository.AddAsync(contact);
             await _unitOfWork.SaveChangesAsync();
+            await LogVendorContactAddedAsync(contact, null);
             return contact;
         }
 
@@ -564,6 +569,8 @@ namespace CRM.Core.Services
             var contact = list.FirstOrDefault();
             if (contact == null)
                 throw new KeyNotFoundException($"找不到ID为 '{contactId}' 的联系人");
+
+            var contactBefore = CaptureVendorContactSnapshot(contact);
 
             if (request.CName != null || request.EName != null)
             {
@@ -588,6 +595,7 @@ namespace CRM.Core.Services
             contact.ModifyTime = DateTime.UtcNow;
             await _contactRepository.UpdateAsync(contact);
             await _unitOfWork.SaveChangesAsync();
+            await LogVendorContactFieldChangesAsync(contact, contactBefore, null);
             return contact;
         }
 
@@ -692,6 +700,7 @@ namespace CRM.Core.Services
 
             await _addressRepository.AddAsync(address);
             await _unitOfWork.SaveChangesAsync();
+            await LogVendorAddressAddedAsync(address, null);
             return address;
         }
 
@@ -704,6 +713,8 @@ namespace CRM.Core.Services
             var address = list.FirstOrDefault();
             if (address == null)
                 throw new KeyNotFoundException($"找不到ID为 '{addressId}' 的地址");
+
+            var addressBefore = CaptureVendorAddressSnapshot(address);
 
             if (request.IsDefault == true && !address.IsDefault)
             {
@@ -732,6 +743,7 @@ namespace CRM.Core.Services
             address.ModifyTime = DateTime.UtcNow;
             await _addressRepository.UpdateAsync(address);
             await _unitOfWork.SaveChangesAsync();
+            await LogVendorAddressFieldChangesAsync(address, addressBefore, null);
             return address;
         }
 
@@ -892,6 +904,7 @@ namespace CRM.Core.Services
             await _bankRepository.AddAsync(bank);
             await _unitOfWork.SaveChangesAsync();
             await EnrichVendorBankPaymentBankNamesAsync(new List<VendorBankInfo> { bank });
+            await LogVendorBankAddedAsync(bank, null);
             return bank;
         }
 
@@ -904,6 +917,8 @@ namespace CRM.Core.Services
             var bank = list.FirstOrDefault();
             if (bank == null)
                 throw new KeyNotFoundException($"找不到ID为 '{bankId}' 的银行账户");
+
+            var bankBefore = CaptureVendorBankSnapshot(bank);
 
             if (request.IsDefault == true && !bank.IsDefault)
                 await ResetDefaultBankAsync(bank.VendorId);
@@ -933,6 +948,7 @@ namespace CRM.Core.Services
             await _bankRepository.UpdateAsync(bank);
             await _unitOfWork.SaveChangesAsync();
             await EnrichVendorBankPaymentBankNamesAsync(new List<VendorBankInfo> { bank });
+            await LogVendorBankFieldChangesAsync(bank, bankBefore, null);
             return bank;
         }
 
@@ -1014,6 +1030,7 @@ namespace CRM.Core.Services
 
             await _historyRepository.AddAsync(record);
             await _unitOfWork.SaveChangesAsync();
+            await LogVendorContactHistoryAddedAsync(record, null);
             return record;
         }
 
@@ -1027,6 +1044,8 @@ namespace CRM.Core.Services
             if (record == null)
                 throw new KeyNotFoundException($"找不到ID为 '{historyId}' 的联系记录");
 
+            var historyBefore = CaptureVendorContactHistorySnapshot(record);
+
             if (request.Type != null) record.Type = request.Type.Trim();
             if (request.Subject != null) record.Subject = request.Subject.Trim();
             if (request.Content != null) record.Content = request.Content.Trim();
@@ -1038,6 +1057,7 @@ namespace CRM.Core.Services
             record.ModifyTime = DateTime.UtcNow;
             await _historyRepository.UpdateAsync(record);
             await _unitOfWork.SaveChangesAsync();
+            await LogVendorContactHistoryFieldChangesAsync(record, historyBefore, null);
             return record;
         }
 
@@ -1115,6 +1135,15 @@ FROM log_change_fldval c
 WHERE (c.""BizType"" = '{BusinessLogTypes.Vendor}' AND c.""RecordId"" = '{safeId}')
    OR (c.""BizType"" = '{BusinessLogTypes.VendorContact}' AND c.""RecordId"" IN (
         SELECT ""ContactId"" FROM vendorcontactinfo WHERE ""VendorId"" = '{safeId}'
+      ))
+   OR (c.""BizType"" = '{BusinessLogTypes.VendorAddress}' AND c.""RecordId"" IN (
+        SELECT ""AddressId"" FROM vendoraddress WHERE ""VendorId"" = '{safeId}'
+      ))
+   OR (c.""BizType"" = '{BusinessLogTypes.VendorBank}' AND c.""RecordId"" IN (
+        SELECT ""BankId"" FROM vendorbankinfo WHERE ""VendorId"" = '{safeId}'
+      ))
+   OR (c.""BizType"" = '{BusinessLogTypes.VendorContactHistory}' AND c.""RecordId"" IN (
+        SELECT ""HistoryId"" FROM vendorcontacthistory WHERE ""VendorId"" = '{safeId}'
       ))
 ORDER BY c.""ChangedAt"" DESC";
             return await _unitOfWork.QueryAsync<VendorChangeLog>(sql);

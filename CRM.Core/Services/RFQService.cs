@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging;
 namespace CRM.Core.Services
 {
     /// <summary>需求(RFQ)服务实现</summary>
-    public class RFQService : IRFQService
+    public partial class RFQService : IRFQService
     {
         /// <summary>明细字符串列在库中为 NOT NULL；请求 JSON 可能带 null，需归一为非 null。</summary>
         private static string NormalizeLineString(string? value) => (value ?? string.Empty).Trim();
@@ -138,6 +138,7 @@ namespace CRM.Core.Services
 
             await _rfqRepo.AddAsync(rfq);
 
+            var createdItems = new List<RFQItem>();
             if (request.Items != null && request.Items.Count > 0)
             {
                 var assignmentContext = BuildAssignmentContext(
@@ -183,14 +184,22 @@ namespace CRM.Core.Services
                     };
                     await ApplyRfqItemFromRequestAsync(item, itemReq, i);
                     await _itemRepo.AddAsync(item);
+                    createdItems.Add(item);
                 }
             }
 
+            foreach (var item in createdItems)
+                await LogRfqItemAddedAsync(rfq, item, actingUserId);
+
+            var statusBeforeSave = (short)0;
             if (anyAssigned)
             {
                 rfq.AssignMethod = assignMethod;
                 rfq.Status = 1;
             }
+
+            if (rfq.Status != statusBeforeSave)
+                await AppendRfqStatusFieldChangeLogAsync(rfq, statusBeforeSave, rfq.Status, actingUserId);
 
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
 
@@ -467,6 +476,9 @@ namespace CRM.Core.Services
             var rfq = await _rfqRepo.GetByIdAsync(id);
             if (rfq == null) throw new InvalidOperationException($"需求 {id} 不存在");
 
+            var headerBefore = CaptureRfqHeaderSnapshot(rfq);
+            var statusBefore = rfq.Status;
+
             if (request.CustomerId != null) rfq.CustomerId = request.CustomerId;
             if (request.ContactId != null) rfq.ContactId = request.ContactId;
             if (request.ContactEmail != null) rfq.ContactEmail = request.ContactEmail;
@@ -511,6 +523,9 @@ namespace CRM.Core.Services
             }
 
             await _rfqRepo.UpdateAsync(rfq);
+            await LogRfqHeaderFieldChangesAsync(rfq, headerBefore, actingUserId);
+            if (statusBefore != rfq.Status)
+                await AppendRfqStatusFieldChangeLogAsync(rfq, statusBefore, rfq.Status, actingUserId);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
 
             if (deletedLines is { Count: > 0 })
@@ -557,13 +572,14 @@ namespace CRM.Core.Services
             if (string.IsNullOrWhiteSpace(id)) throw new ArgumentException("ID不能为空");
             var rfq = await _rfqRepo.GetByIdAsync(id);
             if (rfq == null) throw new InvalidOperationException($"需求 {id} 不存在");
-            // 历史 6（旧「已关闭」）已废弃，统一为 7（与迁移脚本及前端筛选一致）
             if (status == (short)RfqMainStatus.LegacyObsoleteClosed)
                 status = (short)RfqMainStatus.Closed;
+            var prev = rfq.Status;
             rfq.Status = status;
             rfq.ModifyTime = DateTime.UtcNow;
             rfq.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
             await _rfqRepo.UpdateAsync(rfq);
+            await AppendRfqStatusFieldChangeLogAsync(rfq, prev, rfq.Status, actingUserId);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
         }
 
@@ -587,6 +603,7 @@ namespace CRM.Core.Services
                 throw new ArgumentException("采购员不存在或已停用");
 
             var items = await _itemRepo.FindAsync(i => i.RfqId == rfqId);
+            var itemSnapshots = items.Where(i => !i.IsDeleted).Select(i => (Item: i, Before: CaptureRfqItemFieldSnapshot(i))).ToList();
             foreach (var item in items)
             {
                 item.AssignedPurchaserUserId1 = purchaser.Id;
@@ -595,12 +612,18 @@ namespace CRM.Core.Services
                 await _itemRepo.UpdateAsync(item);
             }
 
+            var statusBefore = rfq.Status;
             rfq.AssignMethod = RfqAssignMethodCodes.DesignatedPurchaser;
             if (rfq.Status == 0)
                 rfq.Status = 1;
             rfq.ModifyTime = DateTime.UtcNow;
             rfq.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
             await _rfqRepo.UpdateAsync(rfq);
+
+            foreach (var (item, before) in itemSnapshots)
+                await LogRfqItemFieldChangesAsync(rfq, item, before, actingUserId);
+            if (statusBefore != rfq.Status)
+                await AppendRfqStatusFieldChangeLogAsync(rfq, statusBefore, rfq.Status, actingUserId);
 
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
 
@@ -642,9 +665,11 @@ namespace CRM.Core.Services
             if (!RfqItemQuoteAccessRules.CanQuote(summary, item, actorId))
                 throw new UnauthorizedAccessException("无权标记该需求明细为查无报价");
 
+            var itemBefore = CaptureRfqItemFieldSnapshot(item);
             item.Status = (short)RfqItemStatus.NoQuoteFound;
             item.ModifyTime = DateTime.UtcNow;
             await _itemRepo.UpdateAsync(item);
+            await LogRfqItemFieldChangesAsync(rfq, item, itemBefore, actingUserId);
             if (_unitOfWork != null)
                 await _unitOfWork.SaveChangesAsync();
 
@@ -687,6 +712,7 @@ namespace CRM.Core.Services
                 CreateTime = DateTime.UtcNow,
             };
 
+            var statusBefore = rfq.Status;
             rfq.Status = closeType == 2
                 ? (short)RfqMainStatus.Cancelled
                 : (short)RfqMainStatus.Closed;
@@ -695,6 +721,7 @@ namespace CRM.Core.Services
 
             await _closeRecordRepo.AddAsync(record);
             await _rfqRepo.UpdateAsync(rfq);
+            await AppendRfqStatusFieldChangeLogAsync(rfq, statusBefore, rfq.Status, actingUserId);
             if (_unitOfWork != null)
                 await _unitOfWork.SaveChangesAsync();
 
@@ -746,7 +773,7 @@ namespace CRM.Core.Services
 
         private sealed record RfqItemSyncResult(
             List<RFQItem> Inserted,
-            List<RFQItem> Updated,
+            List<(RFQItem Item, RfqItemFieldSnapshot Before)> Updated,
             List<RFQItem> Deleted);
 
         private async Task<RfqItemSyncResult> SyncRfqItemsOnUpdateAsync(
@@ -760,7 +787,7 @@ namespace CRM.Core.Services
                 .ToDictionary(i => i.Id, StringComparer.OrdinalIgnoreCase);
 
             var inserted = new List<RFQItem>();
-            var updated = new List<RFQItem>();
+            var updated = new List<(RFQItem Item, RfqItemFieldSnapshot Before)>();
             var keptIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var newItemRequests = new List<(CreateRFQItemRequest Req, int Index)>();
 
@@ -774,10 +801,11 @@ namespace CRM.Core.Services
                         throw new InvalidOperationException($"需求明细 {reqId} 不存在或已删除");
 
                     keptIds.Add(reqId);
+                    var before = CaptureRfqItemFieldSnapshot(existing);
                     await ApplyRfqItemFromRequestAsync(existing, itemReq, i);
                     existing.ModifyTime = DateTime.UtcNow;
                     await _itemRepo.UpdateAsync(existing);
-                    updated.Add(existing);
+                    updated.Add((existing, before));
                 }
                 else
                 {
@@ -846,6 +874,12 @@ namespace CRM.Core.Services
                 await _itemRepo.UpdateAsync(existing);
                 deleted.Add(existing);
             }
+
+            foreach (var (item, before) in updated)
+                await LogRfqItemFieldChangesAsync(rfq, item, before, actingUserId);
+
+            foreach (var item in inserted)
+                await LogRfqItemAddedAsync(rfq, item, actingUserId);
 
             return new RfqItemSyncResult(inserted, updated, deleted);
         }

@@ -42,6 +42,7 @@ namespace CRM.Core.Tests.Services
             _serialNumberService = Substitute.For<ISerialNumberService>();
             _userService = Substitute.For<IUserService>();
             _userService.GetAllAsync().Returns(new List<User>());
+            _userService.GetByIdAsync(ActingUserId).Returns(new User { Id = ActingUserId, UserName = "tester" });
             _customerRepository = Substitute.For<IRepository<CustomerInfo>>();
             _customerRepository.FindAsync(Arg.Any<Expression<Func<CustomerInfo, bool>>>())
                 .Returns(Task.FromResult<IEnumerable<CustomerInfo>>(Array.Empty<CustomerInfo>()));
@@ -167,6 +168,21 @@ namespace CRM.Core.Tests.Services
 
             Assert.Equal("报价已更新", result.Remark);
             await _quoteRepository.Received(1).UpdateAsync(Arg.Any<Quote>());
+            await _unitOfWork.Received().ExecuteAsync(Arg.Is<string>(s =>
+                s.Contains("log_change_fldval") && s.Contains("remark") && s.Contains("报价已更新")));
+        }
+
+        [Fact]
+        public async Task CreateAsync_WithItems_ShouldWriteLineAddedChangeLog()
+        {
+            _quoteRepository.GetAllAsync().Returns(new List<Quote>());
+            _quoteItemRepository.GetAllAsync().Returns(new List<QuoteItem>());
+
+            var request = BuildValidCreateRequest();
+            await _quoteService.CreateAsync(request, ActingUserId);
+
+            await _unitOfWork.Received().ExecuteAsync(Arg.Is<string>(s =>
+                s.Contains("log_change_fldval") && s.Contains("lineAdded")));
         }
 
         [Fact]

@@ -153,6 +153,20 @@ type QuotePagedListPayload = {
   aggregates?: QuoteListAggregates
 }
 
+export type QuoteFieldChangeLogRow = {
+  id?: string
+  quoteId?: string
+  quoteCode?: string
+  fieldName?: string
+  fieldLabel?: string
+  oldValue?: string | null
+  newValue?: string | null
+  changedByUserId?: string | null
+  changedByUserName?: string | null
+  changedAt?: string
+  objectLabel?: string
+}
+
 export const quoteApi = {
   /**
    * GET /api/v1/quotes — 后端数据库分页与筛选；可选传 aggregateCreateFrom / aggregateCreateToExclusive（ISO）用于首页等区间统计。
@@ -214,6 +228,13 @@ export const quoteApi = {
   async getById(id: string) {
     const data = await apiClient.get<unknown>(`/api/v1/quotes/${encodeURIComponent(id)}`)
     return { data }
+  },
+
+  /** 报价主表及明细字段变更日志 */
+  async getChangeLogs(id: string) {
+    return await apiClient.get<QuoteFieldChangeLogRow[]>(
+      `/api/v1/quotes/${encodeURIComponent(id)}/change-logs`
+    )
   },
 
   async create(body: Record<string, unknown>) {

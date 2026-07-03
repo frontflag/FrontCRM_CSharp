@@ -162,8 +162,15 @@
               type="button"
               @click="activeTab = 'items'"
             >
-              {{ t('quoteDetail.tabs.items') }}
-              <span v-if="quoteItemCount" class="tab-count">{{ quoteItemCount }}</span>
+              {{ formatQuoteDetailTabLabel(t('quoteDetail.tabs.items'), 'items') }}
+            </button>
+            <button
+              class="tab-btn"
+              :class="{ 'tab-btn--active': activeTab === 'changeLogs' }"
+              type="button"
+              @click="activeTab = 'changeLogs'"
+            >
+              {{ formatQuoteDetailTabLabel(t('quoteDetail.tabs.changeLogs'), 'changeLogs') }}
             </button>
             <button
               class="tab-btn"
@@ -171,7 +178,7 @@
               type="button"
               @click="activeTab = 'documents'"
             >
-              {{ t('quoteDetail.tabs.documents') }}
+              {{ formatQuoteDetailTabLabel(t('quoteDetail.tabs.documents'), 'documents') }}
             </button>
           </div>
           <div class="tabs-body">
@@ -249,13 +256,43 @@
               </CrmDataTable>
               <p v-else class="quote-items-empty">{{ t('quoteDetail.itemsEmpty') }}</p>
             </div>
+            <div v-show="activeTab === 'changeLogs'" class="detail-items-table-wrap">
+              <el-table
+                v-if="fieldChangeLogs.length > 0"
+                v-loading="changeLogsLoading"
+                :data="fieldChangeLogs"
+                class="detail-panel-list-table"
+                size="small"
+                stripe
+              >
+                <el-table-column :label="t('quoteDetail.logs.colChangeTime')" width="160">
+                  <template #default="{ row }">{{ formatChangeLogTime(row?.changedAt) }}</template>
+                </el-table-column>
+                <el-table-column :label="t('quoteDetail.logs.colOperator')" width="100" show-overflow-tooltip>
+                  <template #default="{ row }">{{ row.changedByUserName || t('quoteDetail.logs.system') }}</template>
+                </el-table-column>
+                <el-table-column :label="t('quoteDetail.logs.colObject')" width="140" show-overflow-tooltip>
+                  <template #default="{ row }">{{ quoteChangeLogObjectLabel(row) }}</template>
+                </el-table-column>
+                <el-table-column :label="t('quoteDetail.logs.colField')" min-width="120" show-overflow-tooltip>
+                  <template #default="{ row }">{{ row.fieldLabel || row.fieldName }}</template>
+                </el-table-column>
+                <el-table-column :label="t('quoteDetail.logs.colOldValue')" min-width="160" show-overflow-tooltip>
+                  <template #default="{ row }">{{ row.oldValue ?? t('quoteDetail.logs.emptyValue') }}</template>
+                </el-table-column>
+                <el-table-column :label="t('quoteDetail.logs.colNewValue')" min-width="160" show-overflow-tooltip>
+                  <template #default="{ row }">{{ row.newValue ?? t('quoteDetail.logs.emptyValue') }}</template>
+                </el-table-column>
+              </el-table>
+              <DetailListPanelEmpty v-else-if="!changeLogsLoading" size="low" />
+            </div>
             <div v-show="activeTab === 'documents'" class="doc-tab-content">
               <DocumentUploadPanel
                 biz-type="QUOTE"
                 :biz-id="String(quote.id)"
                 :max-files="20"
                 :max-size-mb="100"
-                @uploaded="docListRef?.refresh()"
+                @uploaded="onQuoteDocumentUploaded"
               />
               <DocumentListPanel
                 ref="docListRef"
@@ -274,17 +311,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { quoteApi } from '@/api/quote'
+import { quoteApi, type QuoteFieldChangeLogRow } from '@/api/quote'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue'
 import DocumentListPanel from '@/components/Document/DocumentListPanel.vue'
+import DetailListPanelEmpty from '@/components/Common/DetailListPanelEmpty.vue'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
-import { formatDisplayDate } from '@/utils/displayDateTime'
+import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
+import { quoteChangeLogObjectLabel } from '@/utils/businessLogLabels'
 import {
   isQuoteDeleteForbidden,
   isQuoteReadOnly,
@@ -319,8 +358,77 @@ const route = useRoute()
 
 const loading = ref(false)
 const quote = ref<QuoteRecord | null>(null)
-const activeTab = ref<'items' | 'documents'>('items')
+const activeTab = ref<'items' | 'changeLogs' | 'documents'>('items')
 const docListRef = ref<InstanceType<typeof DocumentListPanel> | null>(null)
+const documentCount = ref(0)
+const fieldChangeLogs = ref<QuoteFieldChangeLogRow[]>([])
+const changeLogsLoading = ref(false)
+const changeLogsLoaded = ref(false)
+
+type QuoteDetailTabKey = 'items' | 'changeLogs' | 'documents'
+
+function quoteDetailTabCount(tab: QuoteDetailTabKey): number {
+  switch (tab) {
+    case 'items':
+      return quote.value?.items?.length ?? 0
+    case 'documents':
+      return documentCount.value
+    case 'changeLogs':
+      return fieldChangeLogs.value.length
+    default:
+      return 0
+  }
+}
+
+function formatQuoteDetailTabLabel(label: string, tab: QuoteDetailTabKey): string {
+  const count = quoteDetailTabCount(tab)
+  return count > 0 ? `${label} (${count})` : label
+}
+
+function resetChangeLogs() {
+  fieldChangeLogs.value = []
+  changeLogsLoaded.value = false
+}
+
+async function loadChangeLogs(opts?: { silent?: boolean }) {
+  const id = quoteId.value
+  if (!id) return
+  changeLogsLoading.value = true
+  try {
+    fieldChangeLogs.value = (await quoteApi.getChangeLogs(id)) ?? []
+    changeLogsLoaded.value = true
+  } catch (e: unknown) {
+    if (!opts?.silent) {
+      ElMessage.error(e instanceof Error ? e.message : t('quoteList.loadFailed'))
+    }
+  } finally {
+    changeLogsLoading.value = false
+  }
+}
+
+async function fetchDocumentCount() {
+  const id = quoteId.value
+  if (!id) {
+    documentCount.value = 0
+    return
+  }
+  try {
+    const { documentApi } = await import('@/api/document')
+    const res = await documentApi.getDocuments('QUOTE', id)
+    documentCount.value = Array.isArray(res) ? res.length : 0
+  } catch {
+    documentCount.value = 0
+  }
+}
+
+function formatChangeLogTime(v?: string) {
+  if (!v) return '—'
+  return formatDisplayDateTime(v) || '—'
+}
+
+watch(activeTab, (tab) => {
+  if (tab === 'changeLogs' && !changeLogsLoaded.value) void loadChangeLogs()
+})
 
 const quoteId = computed(() => String(route.params.id ?? ''))
 const quoteItemCount = computed(() => quote.value?.items?.length ?? 0)
@@ -371,9 +479,14 @@ async function fetchQuote() {
     return
   }
   loading.value = true
+  resetChangeLogs()
   try {
     const res = await quoteApi.getById(quoteId.value)
     quote.value = (res.data as QuoteRecord | null) || null
+    if (quote.value) {
+      void fetchDocumentCount()
+      void loadChangeLogs({ silent: true })
+    }
   } catch {
     quote.value = null
     ElMessage.error(t('quoteList.loadFailed'))
@@ -422,6 +535,11 @@ function formatCurrency(value: number, currency?: number) {
   if (!value) return '—'
   const symbol = currency === 1 ? '$' : '¥'
   return symbol + value.toLocaleString('zh-CN', { minimumFractionDigits: 4, maximumFractionDigits: 4 })
+}
+
+function onQuoteDocumentUploaded() {
+  docListRef.value?.refresh()
+  void fetchDocumentCount()
 }
 </script>
 
