@@ -55,6 +55,32 @@ const enUS = {
         openingBank: 'Bank'
       }
     },
+    dockQuoteExtendCol: {
+      columnTitle: 'Origin / shipping',
+      expand: 'Expand origin / shipping column',
+      collapse: 'Collapse origin / shipping column',
+      pickField: 'Choose field to display',
+      resizeSubCol: 'Drag to resize sub-column',
+      fields: {
+        waferOrigin: 'Wafer origin',
+        packageOrigin: 'Package origin',
+        freeShipping: 'Free shipping'
+      },
+      fieldShort: {
+        waferOrigin: 'Wafer',
+        packageOrigin: 'Package',
+        freeShipping: 'Ship'
+      },
+      origin: {
+        us: 'US-made',
+        nonUs: 'Non-US',
+        pending: 'TBD'
+      },
+      freeShipping: {
+        yes: 'Free',
+        no: 'No'
+      }
+    },
     save: 'Save',
     saveSuccess: 'Saved successfully',
     saveFailed: 'Save failed',
@@ -978,6 +1004,7 @@ const enUS = {
     colActive: 'Active',
     colActions: 'Actions',
     colTime: 'Time',
+    colExecutor: 'Executor',
     edit: 'Edit',
     editProvider: 'Edit Provider',
     editScenario: 'Edit Scenario',
@@ -1590,7 +1617,7 @@ const enUS = {
     title: 'Quote List',
     count: '{count} quotes total',
     generateSalesOrder: 'Generate Sales Order',
-    stats: { total: 'Total Quotes', pending: 'Draft/Pending', sent: 'Sent', accepted: 'Accepted' },
+    stats: { total: 'Total Quotes', new: 'New', won: 'Won', closed: 'Closed' },
     filters: {
       search: 'Search',
       placeholder: 'Quote code / RFQ code / MPN / customer / brand',
@@ -1618,25 +1645,79 @@ const enUS = {
       createUser: 'Created By'
     },
     status: {
-      draft: 'Draft',
-      pending: 'Pending Review',
-      approved: 'Approved',
-      sent: 'Sent',
-      accepted: 'Accepted',
-      rejected: 'Rejected',
-      expired: 'Expired',
+      new: 'New',
+      won: 'Won',
       closed: 'Closed',
       unknown: 'Unknown'
     },
     actions: { column: 'Actions', copy: 'Copy', edit: 'Edit', delete: 'Delete', copySuccess: 'Quote summary copied', copyFailed: 'Copy failed — please copy manually' },
     warnings: {
       selectFirst: 'Add quotes to the multi-select basket from the list first, then generate the sales order.',
-      invalidId: 'Unable to identify quote ID'
+      invalidId: 'Unable to identify quote ID',
+      cannotDeleteWon: 'Quotes in Won status cannot be deleted',
+      readOnly: 'This quote is read-only and cannot be edited'
     },
     deleteTitle: 'Warning',
     deleteConfirm: 'Are you sure you want to delete quote {code}?',
     loadFailed: 'Failed to load data',
     na: '—'
+  },
+  quoteDetail: {
+    back: 'Back',
+    captionPrefix: 'Quote',
+    title: 'Quote Detail',
+    notFound: 'Quote not found',
+    basicInfo: 'Basic info',
+    createDate: 'Created on',
+    createUser: 'Created by',
+    edit: 'Edit',
+    refresh: 'Refresh',
+    more: 'More actions',
+    deleteSuccess: 'Deleted successfully',
+    itemCount: '{count} vendor quote line(s)',
+    tabs: {
+      items: 'Vendor quote lines',
+      documents: 'Documents'
+    },
+    fields: {
+      rfqCode: 'RFQ code',
+      mpn: 'MPN',
+      brand: 'Brand',
+      quoteDate: 'Quote date',
+      customer: 'Customer',
+      salesUser: 'Sales rep',
+      purchaseUser: 'Purchaser',
+      remark: 'Remark'
+    },
+    itemsEmpty: 'No quote lines',
+    itemTable: {
+      vendor: 'Vendor',
+      contact: 'Contact',
+      brand: 'Brand',
+      quantity: 'Qty',
+      unitPrice: 'Unit price',
+      amount: 'Amount',
+      leadTime: 'Lead time',
+      stock: 'Stock'
+    }
+  },
+  quoteUpsert: {
+    back: 'Back to list',
+    createTitle: 'New quote',
+    readOnlyHint: 'Read-only',
+    purchaseQuoteSection: 'Purchase quote',
+    purchaseQuoteRowCount: 'Tier rows',
+    purchaseQuoteHint:
+      'Converted price is the USD unit price, auto-calculated from Settings → Finance → Exchange rates (local currency → USD); updates when price or currency changes.',
+    purchaseQuoteColumns: {
+      quantity: 'Qty',
+      priceCurrency: 'Price / currency',
+      convertedUsd: 'Converted (USD)'
+    },
+    purchaseQuoteActions: {
+      removeRow: 'Remove row',
+      insertRow: 'Insert row below'
+    }
   },
   rfqItemList: {
     title: 'RFQ Item List',
@@ -3526,7 +3607,34 @@ const enUS = {
     invSt2: 'In progress',
     invSt100: 'Issued',
     invSt101: 'Failed',
-    invStNeg1: 'Voided'
+    invStNeg1: 'Voided',
+    batchPanel: {
+      title: 'Outbound batches',
+      count: '{count} total',
+      tabs: {
+        list: 'Batch list',
+        exportLogs: 'Export history'
+      },
+      actions: {
+        export: 'Export'
+      },
+      exportLogs: {
+        columns: {
+          operationTime: 'Time',
+          operator: 'Operator',
+          exportedCount: 'Rows exported',
+          operationDesc: 'Description'
+        }
+      },
+      messages: {
+        loadListFailed: 'Failed to load batch list',
+        loadExportLogsFailed: 'Failed to load export history',
+        exportConfirmTitle: 'Export confirmation',
+        exportConfirmMessage: 'Export {count} outbound batch record(s) for sales order {code}?',
+        exportSuccess: 'Export successful',
+        exportFailed: 'Export failed'
+      }
+    }
   },
   purchaseOrderItemList: {
     title: 'Purchase order line items',
@@ -4576,6 +4684,78 @@ const enUS = {
       failed: 'Failed',
       partial: 'Partial pass',
       passed: 'Passed'
+    },
+    batchPanel: {
+      title: 'Stock-in batches',
+      count: '{count} records total',
+      tabs: {
+        list: 'Batch list',
+        logs: 'Logs'
+      },
+      actions: {
+        import: 'Import',
+        bulkDeleteByItem: 'Bulk delete',
+        export: 'Export',
+        edit: 'Edit',
+        delete: 'Delete'
+      },
+      columns: {
+        actions: 'Actions'
+      },
+      itemPicker: {
+        titleImport: 'Select stock-in item',
+        titleBulkDelete: 'Select item for bulk delete',
+        hintImport: 'This stock-in has multiple items. Select the line to import batches for.',
+        hintBulkDelete: 'Deletes all outbound batches under the selected item.',
+        placeholder: 'Select stock-in item',
+        confirm: 'OK',
+        cancel: 'Cancel'
+      },
+      prompts: {
+        reasonHint: 'Reason is required',
+        reasonPlaceholder: 'Delete reason',
+        reasonRequired: 'Please enter a delete reason',
+        confirm: 'Confirm',
+        cancel: 'Cancel',
+        deleteTitle: 'Delete batch {batchNo}',
+        bulkDeleteTitle: 'Bulk delete by item · {itemCode}'
+      },
+      logs: {
+        columns: {
+          operationTime: 'Time',
+          actionType: 'Action',
+          stockInItemCode: 'Item code',
+          affectedSummary: 'Affected',
+          skippedSummary: 'Skipped',
+          reason: 'Reason',
+          operator: 'Operator',
+          operationDesc: 'Description'
+        },
+        affectedSummary: '{count} record(s)',
+        skippedSummary: 'Skipped {count} (outbound)',
+        actionTypes: {
+          import: 'Import',
+          delete: 'Delete',
+          bulkDelete: 'Bulk delete',
+          update: 'Edit',
+          export: 'Export'
+        }
+      },
+      messages: {
+        loadListFailed: 'Failed to load batch list',
+        loadLogsFailed: 'Failed to load operation logs',
+        exportConfirmTitle: 'Export confirmation',
+        exportConfirmMessage: 'Export {count} stock-in batch record(s) for stock-in {code}?',
+        exportSuccess: 'Export succeeded',
+        exportFailed: 'Export failed',
+        deleteSuccess: 'Deleted',
+        deleteFailed: 'Delete failed',
+        bulkDeleteSuccess: 'Deleted {count} batch record(s)',
+        bulkDeletePartial: 'Deleted {deleted} / skipped {skipped} (outbound)',
+        bulkDeleteFailed: 'Bulk delete failed',
+        noItems: 'No stock-in items available',
+        batchNotFound: 'Batch record not found'
+      }
     }
   },
   stockOutList: {
@@ -5191,9 +5371,44 @@ const enUS = {
     customsBrokerRequired: 'Customs packing requires a customs broker',
     shipmentMethodRequired: 'Please select a shipping method'
   },
+  purchaseOrderDetail: {
+    batchPanel: {
+      title: 'Stock-in batches',
+      count: '{count} total',
+      tabs: {
+        list: 'Batch list',
+        exportLogs: 'Export history'
+      },
+      actions: {
+        export: 'Export'
+      },
+      emptyList: 'No related stock-in batches',
+      emptyExportLogs: 'No export records',
+      exportLogs: {
+        columns: {
+          operationTime: 'Time',
+          operator: 'Operator',
+          exportedCount: 'Exported rows',
+          operationDesc: 'Description'
+        }
+      },
+      messages: {
+        loadListFailed: 'Failed to load batch list',
+        loadExportLogsFailed: 'Failed to load export history',
+        exportConfirmTitle: 'Export confirmation',
+        exportConfirmMessage: 'Export {count} stock-in batch record(s) for purchase order {code}?',
+        exportSuccess: 'Export succeeded',
+        exportFailed: 'Export failed'
+      }
+    }
+  },
   packingDetail: {
     title: 'Packing list detail',
+    captionPrefix: 'Packing',
     back: 'Back to list',
+    basicInfo: 'Basic info',
+    createDate: 'Created',
+    createUser: 'Created by',
     sectionHeader: 'Header',
     sectionExtend: 'Additional packing info',
     sectionBox: 'Carton spec',
@@ -5266,6 +5481,74 @@ const enUS = {
     price: 'Sales price',
     deliveryReq: 'Delivery notes',
     linesEmpty: 'No lines',
+    batchPanel: {
+      title: 'Outbound batches',
+      count: '{count} total',
+      tabs: {
+        list: 'Outbound batches',
+        logs: 'Logs'
+      },
+      actions: {
+        import: 'Import',
+        export: 'Export',
+        bulkDelete: 'Bulk delete',
+        edit: 'Edit',
+        delete: 'Delete'
+      },
+      columns: {
+        actions: 'Actions'
+      },
+      editDialog: {
+        title: 'Edit outbound batch',
+        save: 'Save'
+      },
+      prompts: {
+        reasonHint: 'Reason is required',
+        reasonPlaceholder: 'Delete reason',
+        reasonRequired: 'Please enter a delete reason',
+        confirm: 'Confirm',
+        cancel: 'Cancel',
+        deleteTitle: 'Delete outbound batch {batchNo}',
+        bulkDeleteTitle: 'Bulk delete outbound batches · {packingCode}'
+      },
+      logs: {
+        columns: {
+          operationTime: 'Time',
+          actionType: 'Action',
+          packingCode: 'Packing no.',
+          affectedSummary: 'Affected',
+          skippedSummary: 'Skipped',
+          reason: 'Reason',
+          operator: 'Operator',
+          operationDesc: 'Description'
+        },
+        affectedSummary: '{count} row(s)',
+        skippedSummary: 'Skipped {count}',
+        actionTypes: {
+          import: 'Import',
+          delete: 'Delete',
+          bulkDelete: 'Bulk delete',
+          update: 'Edit',
+          export: 'Export'
+        }
+      },
+      messages: {
+        loadListFailed: 'Failed to load outbound batches',
+        loadLogsFailed: 'Failed to load operation logs',
+        exportConfirmTitle: 'Export confirmation',
+        exportConfirmMessage: 'Export {count} outbound batch record(s) for packing list {code}?',
+        exportSuccess: 'Export completed',
+        exportFailed: 'Export failed',
+        deleteSuccess: 'Deleted',
+        deleteFailed: 'Delete failed',
+        bulkDeleteSuccess: 'Deleted {count} outbound batch row(s)',
+        bulkDeleteFailed: 'Bulk delete failed',
+        batchNotFound: 'Outbound batch not found',
+        editSuccess: 'Saved',
+        editFailed: 'Save failed',
+        outQtyInvalid: 'Outbound qty must be a positive integer'
+      }
+    },
     notFound: 'Packing list not found',
     loadFailed: 'Failed to load packing detail',
     missingId: 'Missing packing list ID'

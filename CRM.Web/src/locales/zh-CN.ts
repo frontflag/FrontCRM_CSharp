@@ -55,6 +55,32 @@ const zhCN = {
         openingBank: '开户银行'
       }
     },
+    dockQuoteExtendCol: {
+      columnTitle: '产地/包邮',
+      expand: '展开产地/包邮列',
+      collapse: '收起产地/包邮列',
+      pickField: '选择显示字段',
+      resizeSubCol: '拖动调整子列宽度',
+      fields: {
+        waferOrigin: '晶圆产地',
+        packageOrigin: '封装产地',
+        freeShipping: '是否包邮'
+      },
+      fieldShort: {
+        waferOrigin: '晶圆',
+        packageOrigin: '封装',
+        freeShipping: '包邮'
+      },
+      origin: {
+        us: '美产',
+        nonUs: '非美产',
+        pending: '待确定'
+      },
+      freeShipping: {
+        yes: '包邮',
+        no: '不包邮'
+      }
+    },
     save: '保存修改',
     saveSuccess: '保存成功',
     saveFailed: '保存失败',
@@ -974,6 +1000,7 @@ const zhCN = {
     colActive: '激活',
     colActions: '操作',
     colTime: '时间',
+    colExecutor: '执行人',
     edit: '编辑',
     editProvider: '编辑厂商',
     editScenario: '编辑场景',
@@ -1568,7 +1595,7 @@ const zhCN = {
     title: '报价列表 (Quote)',
     count: '共 {count} 条报价',
     generateSalesOrder: '生成销售订单',
-    stats: { total: '报价总数', pending: '草稿/待审', sent: '已发送', accepted: '已接受' },
+    stats: { total: '报价总数', new: '新建', won: '成单', closed: '关闭' },
     filters: {
       search: '搜索',
       placeholder: '报价编号/需求编号/MPN/客户/品牌',
@@ -1596,25 +1623,79 @@ const zhCN = {
       createUser: '创建人'
     },
     status: {
-      draft: '草稿',
-      pending: '待审核',
-      approved: '已审核',
-      sent: '已发送',
-      accepted: '已接受',
-      rejected: '已拒绝',
-      expired: '已过期',
-      closed: '已关闭',
+      new: '新建',
+      won: '成单',
+      closed: '关闭',
       unknown: '未知'
     },
     actions: { column: '操作', copy: '复制', edit: '编辑', delete: '删除', copySuccess: '已复制报价摘要', copyFailed: '复制失败，请手动复制' },
     warnings: {
       selectFirst: '请先在列表中勾选报价加入复选篮子，再生成销售订单',
-      invalidId: '无法识别报价主键'
+      invalidId: '无法识别报价主键',
+      cannotDeleteWon: '成单状态的报价不可删除',
+      readOnly: '该报价为只读，无法编辑'
     },
     deleteTitle: '警告',
     deleteConfirm: '确定要删除报价单 {code} 吗？',
     loadFailed: '加载数据失败',
     na: '—'
+  },
+  quoteDetail: {
+    back: '返回',
+    captionPrefix: '报价',
+    title: '报价详情',
+    notFound: '报价单不存在',
+    basicInfo: '基本信息',
+    createDate: '创建日期',
+    createUser: '创建人',
+    edit: '编辑',
+    refresh: '刷新',
+    more: '更多操作',
+    deleteSuccess: '删除成功',
+    itemCount: '供应商报价 {count} 行',
+    tabs: {
+      items: '供应商报价明细',
+      documents: '文档'
+    },
+    fields: {
+      rfqCode: '需求编号',
+      mpn: '物料型号',
+      brand: '品牌',
+      quoteDate: '报价日期',
+      customer: '客户',
+      salesUser: '业务员',
+      purchaseUser: '采购员',
+      remark: '备注'
+    },
+    itemsEmpty: '暂无报价明细',
+    itemTable: {
+      vendor: '供应商',
+      contact: '联系人',
+      brand: '品牌',
+      quantity: '数量',
+      unitPrice: '单价',
+      amount: '金额',
+      leadTime: '交期',
+      stock: '库存'
+    }
+  },
+  quoteUpsert: {
+    back: '返回列表',
+    createTitle: '新建报价',
+    readOnlyHint: '只读',
+    purchaseQuoteSection: '采购报价',
+    purchaseQuoteRowCount: '阶梯行数',
+    purchaseQuoteHint:
+      '折算价为美元单价，根据「系统设置 → 财务参数 → 汇率」自动换算（原币 → USD）；修改单价或币别后自动更新。',
+    purchaseQuoteColumns: {
+      quantity: '数量',
+      priceCurrency: '价格 / 币别',
+      convertedUsd: '折算价（USD）'
+    },
+    purchaseQuoteActions: {
+      removeRow: '删除本行',
+      insertRow: '下方插入一行'
+    }
   },
   rfqItemList: {
     title: '需求明细',
@@ -3520,7 +3601,34 @@ const zhCN = {
     invSt2: '申请中',
     invSt100: '已开票',
     invSt101: '开票失败',
-    invStNeg1: '已作废'
+    invStNeg1: '已作废',
+    batchPanel: {
+      title: '出库批次',
+      count: '共 {count} 条',
+      tabs: {
+        list: '批次列表',
+        exportLogs: '导出记录'
+      },
+      actions: {
+        export: '导出'
+      },
+      exportLogs: {
+        columns: {
+          operationTime: '操作时间',
+          operator: '操作人',
+          exportedCount: '导出条数',
+          operationDesc: '说明'
+        }
+      },
+      messages: {
+        loadListFailed: '加载批次列表失败',
+        loadExportLogsFailed: '加载导出记录失败',
+        exportConfirmTitle: '导出确认',
+        exportConfirmMessage: '确定导出销售订单 {code} 的 {count} 条出库批次吗？',
+        exportSuccess: '导出成功',
+        exportFailed: '导出失败'
+      }
+    }
   },
   purchaseOrderItemList: {
     title: '采购订单明细',
@@ -4578,6 +4686,78 @@ const zhCN = {
       failed: '未通过',
       partial: '部分通过',
       passed: '已通过'
+    },
+    batchPanel: {
+      title: '入库批次',
+      count: '共 {count} 条',
+      tabs: {
+        list: '批次列表',
+        logs: '日志'
+      },
+      actions: {
+        import: '导入',
+        bulkDeleteByItem: '批量删除',
+        export: '导出',
+        edit: '编辑',
+        delete: '删除'
+      },
+      columns: {
+        actions: '操作'
+      },
+      itemPicker: {
+        titleImport: '选择入库明细',
+        titleBulkDelete: '选择要批量删除的入库明细',
+        hintImport: '该入库单有多条明细，请先选择要导入批次的明细行。',
+        hintBulkDelete: '将删除所选明细下的全部出库批次记录。',
+        placeholder: '请选择入库明细',
+        confirm: '确定',
+        cancel: '取消'
+      },
+      prompts: {
+        reasonHint: '请填写操作原因（必填）',
+        reasonPlaceholder: '删除原因',
+        reasonRequired: '请填写删除原因',
+        confirm: '确认',
+        cancel: '取消',
+        deleteTitle: '删除批次 {batchNo}',
+        bulkDeleteTitle: '按明细批量删除 · {itemCode}'
+      },
+      logs: {
+        columns: {
+          operationTime: '操作时间',
+          actionType: '操作类型',
+          stockInItemCode: '明细编号',
+          affectedSummary: '影响条数',
+          skippedSummary: '跳过',
+          reason: '删除原因',
+          operator: '操作人',
+          operationDesc: '说明'
+        },
+        affectedSummary: '{count} 条',
+        skippedSummary: '跳过 {count} 条（已出库）',
+        actionTypes: {
+          import: '导入',
+          delete: '删除',
+          bulkDelete: '批量删除',
+          update: '编辑',
+          export: '导出'
+        }
+      },
+      messages: {
+        loadListFailed: '加载批次列表失败',
+        loadLogsFailed: '加载操作日志失败',
+        exportConfirmTitle: '导出确认',
+        exportConfirmMessage: '确定导出入库单 {code} 的 {count} 条入库批次吗？',
+        exportSuccess: '导出成功',
+        exportFailed: '导出失败',
+        deleteSuccess: '已删除',
+        deleteFailed: '删除失败',
+        bulkDeleteSuccess: '已删除 {count} 条批次',
+        bulkDeletePartial: '成功 {deleted} 条 / 跳过 {skipped} 条（已出库）',
+        bulkDeleteFailed: '批量删除失败',
+        noItems: '暂无可用入库明细',
+        batchNotFound: '批次记录不存在'
+      }
     }
   },
   stockOutList: {
@@ -5188,9 +5368,44 @@ const zhCN = {
     customsBrokerRequired: '报关装箱须选择报关公司',
     shipmentMethodRequired: '请选择出货方式'
   },
+  purchaseOrderDetail: {
+    batchPanel: {
+      title: '入库批次',
+      count: '共 {count} 条',
+      tabs: {
+        list: '批次列表',
+        exportLogs: '导出记录'
+      },
+      actions: {
+        export: '导出'
+      },
+      emptyList: '暂无关联入库批次',
+      emptyExportLogs: '暂无导出记录',
+      exportLogs: {
+        columns: {
+          operationTime: '操作时间',
+          operator: '操作人',
+          exportedCount: '导出条数',
+          operationDesc: '说明'
+        }
+      },
+      messages: {
+        loadListFailed: '加载批次列表失败',
+        loadExportLogsFailed: '加载导出记录失败',
+        exportConfirmTitle: '导出确认',
+        exportConfirmMessage: '确定导出采购订单 {code} 的 {count} 条入库批次吗？',
+        exportSuccess: '导出成功',
+        exportFailed: '导出失败'
+      }
+    }
+  },
   packingDetail: {
     title: '装箱单详情',
+    captionPrefix: '装箱单',
     back: '返回列表',
+    basicInfo: '基础信息',
+    createDate: '创建日期',
+    createUser: '创建人',
     sectionHeader: '主表信息',
     sectionExtend: '装箱附加信息',
     sectionBox: '箱规',
@@ -5263,6 +5478,74 @@ const zhCN = {
     price: '销售价',
     deliveryReq: '送货要求',
     linesEmpty: '暂无明细',
+    batchPanel: {
+      title: '出库批次',
+      count: '共 {count} 条',
+      tabs: {
+        list: '出库批次',
+        logs: '日志'
+      },
+      actions: {
+        import: '导入',
+        export: '导出',
+        bulkDelete: '批量删除',
+        edit: '编辑',
+        delete: '删除'
+      },
+      columns: {
+        actions: '操作'
+      },
+      editDialog: {
+        title: '编辑出库批次',
+        save: '保存'
+      },
+      prompts: {
+        reasonHint: '请填写操作原因（必填）',
+        reasonPlaceholder: '删除原因',
+        reasonRequired: '请填写删除原因',
+        confirm: '确认',
+        cancel: '取消',
+        deleteTitle: '删除出库批次 {batchNo}',
+        bulkDeleteTitle: '批量删除出库批次 · {packingCode}'
+      },
+      logs: {
+        columns: {
+          operationTime: '操作时间',
+          actionType: '操作类型',
+          packingCode: '装箱单号',
+          affectedSummary: '影响条数',
+          skippedSummary: '跳过',
+          reason: '删除原因',
+          operator: '操作人',
+          operationDesc: '说明'
+        },
+        affectedSummary: '{count} 条',
+        skippedSummary: '跳过 {count} 条',
+        actionTypes: {
+          import: '导入',
+          delete: '删除',
+          bulkDelete: '批量删除',
+          update: '编辑',
+          export: '导出'
+        }
+      },
+      messages: {
+        loadListFailed: '加载出库批次列表失败',
+        loadLogsFailed: '加载操作日志失败',
+        exportConfirmTitle: '导出确认',
+        exportConfirmMessage: '确定导出装箱单 {code} 的 {count} 条出库批次吗？',
+        exportSuccess: '导出成功',
+        exportFailed: '导出失败',
+        deleteSuccess: '已删除',
+        deleteFailed: '删除失败',
+        bulkDeleteSuccess: '已删除 {count} 条出库批次',
+        bulkDeleteFailed: '批量删除失败',
+        batchNotFound: '出库批次记录不存在',
+        editSuccess: '已保存',
+        editFailed: '保存失败',
+        outQtyInvalid: '出库数量须为正整数'
+      }
+    },
     notFound: '未找到装箱单',
     loadFailed: '加载装箱单详情失败',
     missingId: '缺少装箱单 ID'

@@ -10,14 +10,17 @@
       </div>
       <div class="header-right">
         <el-button @click="handleBack">取消</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="handleSubmit">
+        <el-button v-if="!isReadOnly" type="primary" :loading="submitLoading" @click="handleSubmit">
           <el-icon><Check /></el-icon> 保存
         </el-button>
+        <el-tag v-else effect="dark" :type="quoteMainStatusTagType(quoteStatus)" size="small">
+          {{ t(quoteMainStatusI18nKey(quoteStatus)) }}（只读）
+        </el-tag>
       </div>
     </div>
 
     <el-card class="form-card" shadow="never" v-loading="loading" element-loading-background="rgba(10,22,40,0.8)">
-      <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px" class="upsert-form">
+      <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px" class="upsert-form" :disabled="isReadOnly">
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="报价编号">
@@ -193,6 +196,11 @@ import { authApi, type PurchaseDeptStaffUserOption } from '@/api/auth'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useI18n } from 'vue-i18n'
+import {
+  isQuoteReadOnly,
+  quoteMainStatusI18nKey,
+  quoteMainStatusTagType
+} from '@/utils/quoteMainStatus'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -286,6 +294,8 @@ async function loadPurchaseUserSelectOptions() {
 const loading = ref(false)
 const submitLoading = ref(false)
 const formRef = ref()
+const quoteStatus = ref(0)
+const isReadOnly = computed(() => isQuoteReadOnly(quoteStatus.value))
 
 const formData = ref({
   quoteCode: '',
@@ -342,6 +352,7 @@ const load = async () => {
       router.push({ name: 'QuoteList' })
       return
     }
+    quoteStatus.value = Number(q.status ?? q.Status ?? 0)
     formData.value = {
       quoteCode: String(q.quoteCode ?? q.QuoteCode ?? ''),
       mpn: String(q.mpn ?? q.Mpn ?? ''),
@@ -362,6 +373,7 @@ const load = async () => {
 }
 
 const handleSubmit = async () => {
+  if (isReadOnly.value) return
   await runValidatedFormSave(formRef, {
     loading: submitLoading,
     task: async () => {

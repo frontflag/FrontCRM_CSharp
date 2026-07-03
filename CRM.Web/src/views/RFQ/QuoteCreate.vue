@@ -2,11 +2,46 @@
   <div class="quote-upsert-page">
     <div class="page-header">
       <div class="header-left">
-        <el-button link @click="handleBack">
-          <el-icon><ArrowLeft /></el-icon>
-          返回列表
-        </el-button>
-        <div class="page-title">{{ upsertTitle }}</div>
+        <button class="btn-back" type="button" @click="handleBack">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+          {{ t('quoteUpsert.back') }}
+        </button>
+        <div class="quote-caption-title-group">
+          <div class="caption-avatar-lg">{{ captionAvatarChar }}</div>
+          <div>
+            <div class="page-title-row">
+              <div class="page-title-with-icons">
+                <h1
+                  class="page-title"
+                  :class="{ 'page-title--muted': isEditMode && quoteStatus === 2 }"
+                >
+                  <template v-if="isEditMode && formData.quoteCode">
+                    {{ t('quoteDetail.captionPrefix') }} {{ formData.quoteCode }}
+                  </template>
+                  <template v-else>{{ t('quoteUpsert.createTitle') }}</template>
+                </h1>
+              </div>
+            </div>
+            <div
+              v-if="isEditMode && quoteStatus != null"
+              class="title-meta title-meta--caption quote-header-meta-row"
+            >
+              <el-tag effect="dark" :type="quoteMainStatusTagType(quoteStatus)" size="small">
+                {{ t(quoteMainStatusI18nKey(quoteStatus)) }}
+              </el-tag>
+              <span v-if="isQuoteReadOnly(quoteStatus)" class="quote-caption-meta-text">
+                {{ t('quoteUpsert.readOnlyHint') }}
+              </span>
+            </div>
+            <div v-else-if="!isEditMode" class="title-meta title-meta--caption quote-header-meta-row">
+              <el-tag effect="dark" type="primary" size="small">
+                {{ t('quoteList.status.new') }}
+              </el-tag>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="header-right">
         <el-button @click="handleBack">取消</el-button>
@@ -16,7 +51,11 @@
       </div>
     </div>
 
-    <el-card class="form-card" shadow="never" v-loading="pageLoading">
+    <div
+      class="quote-upsert-content"
+      v-loading="pageLoading"
+      element-loading-background="rgba(10,22,40,0.8)"
+    >
       <el-alert
         v-if="hasRfqLinkAlert"
         type="info"
@@ -39,21 +78,26 @@
         </template>
       </el-alert>
 
-      <el-form ref="formRef" :model="formData" :rules="formRules" label-width="128px" class="upsert-form">
-        <!-- 基础 -->
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="报价编号">
-              <el-input v-model="formData.quoteCode" placeholder="系统自动生成" disabled />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="报价日期">
-              <el-input v-model="formData.quoteDate" disabled />
-            </el-form-item>
-          </el-col>
-        </el-row>
-
+      <!-- 基本信息（§4 info-section，参考销售订单详情） -->
+      <div class="info-section basic-info-section">
+        <div class="section-header">
+          <div class="section-header__main">
+            <div class="section-dot section-dot--cyan"></div>
+            <span class="section-title">{{ t('quoteDetail.basicInfo') }}</span>
+          </div>
+          <div class="section-header__meta">
+            <span class="section-header-meta-item">
+              <span class="section-header-meta-item__label">{{ t('quoteDetail.createDate') }}</span>
+              <span class="section-header-meta-item__value">{{ quoteBasicCreateDateText }}</span>
+            </span>
+            <span class="section-header-meta-item">
+              <span class="section-header-meta-item__label">{{ t('quoteDetail.createUser') }}</span>
+              <span class="section-header-meta-item__value">{{ quoteBasicCreateUserText }}</span>
+            </span>
+          </div>
+        </div>
+        <div class="basic-info-section__body">
+          <el-form ref="formRef" :model="formData" :rules="formRules" label-width="128px" class="upsert-form">
         <el-row :gutter="20">
           <template v-if="!maskPurchaseSensitiveFields">
             <el-col :span="12">
@@ -267,74 +311,109 @@
         <el-form-item label="备注">
           <el-input v-model="formData.remark" type="textarea" :rows="2" placeholder="请输入备注" />
         </el-form-item>
-
-        <!-- 采购报价：数量 / 价格 / 折算价（USD，与订单 convert_price 口径一致） -->
-        <div class="price-tier-panel">
-          <div class="price-tier-header">
-            <h4 class="price-tier-title">采购报价</h4>
-            <p class="price-tier-hint">
-              折算价为美元单价，根据「系统设置 → 财务参数 → 汇率」自动换算（原币 → USD）；修改单价或币别后自动更新。
-            </p>
-          </div>
-          <CrmDataTable class="price-tier-table" :data="formData.quotePriceRows" size="small">
-              <el-table-column label="数量" min-width="120">
-                <template #default="{ $index }">
-                  <el-input-number
-                    v-model="formData.quotePriceRows[$index].quantity"
-                    :min="0"
-                    :controls="false"
-                    style="width: 100%"
-                  />
-                </template>
-              </el-table-column>
-              <el-table-column label="价格 / 币别" min-width="220" class-name="tier-col-price-ccy">
-                <template #default="{ $index }">
-                  <SettlementCurrencyAmountInput
-                    v-model="formData.quotePriceRows[$index].unitPrice"
-                    v-model:currency="formData.quotePriceRows[$index].currency"
-                    :min="0"
-                    :precision="6"
-                    size="small"
-                    class="q-select tier-price-ccy-input"
-                  />
-                </template>
-              </el-table-column>
-              <el-table-column label="折算价（USD）" min-width="168">
-                <template #default="{ $index }">
-                  <span class="tier-converted-display" :title="convertedPriceTitle(formData.quotePriceRows[$index].convertedPrice)">
-                    {{ formatConvertedPrice(formData.quotePriceRows[$index].convertedPrice) }}
-                  </span>
-                </template>
-              </el-table-column>
-              <el-table-column label="" width="108" align="center" fixed="right">
-                <template #default="{ $index }">
-                  <div class="tier-actions">
-                    <el-button
-                      type="danger"
-                      link
-                      :disabled="formData.quotePriceRows.length <= 1"
-                      @click="removePriceRow($index)"
-                      title="删除本行"
-                    >
-                      <el-icon><Minus /></el-icon>
-                    </el-button>
-                    <el-button type="primary" link @click="insertPriceRowAfter($index)" title="下方插入一行">
-                      <el-icon><Plus /></el-icon>
-                    </el-button>
-                  </div>
-                </template>
-              </el-table-column>
-          </CrmDataTable>
+          </el-form>
         </div>
-      </el-form>
-    </el-card>
+      </div>
+
+    <!-- 采购报价（独立面板，§4 info-section） -->
+    <div class="info-section purchase-quote-section">
+      <div class="section-header">
+        <div class="section-header__main">
+          <div class="section-dot section-dot--cyan"></div>
+          <span class="section-title">{{ t('quoteUpsert.purchaseQuoteSection') }}</span>
+        </div>
+        <div v-if="formData.quotePriceRows.length > 0" class="section-header__meta">
+          <span class="section-header-meta-item">
+            <span class="section-header-meta-item__label">{{ t('quoteUpsert.purchaseQuoteRowCount') }}</span>
+            <span class="section-header-meta-item__value">{{ formData.quotePriceRows.length }}</span>
+          </span>
+        </div>
+      </div>
+      <div class="purchase-quote-section__body">
+        <p class="purchase-quote-section__hint">
+          {{ t('quoteUpsert.purchaseQuoteHint') }}
+        </p>
+        <div class="detail-items-table-wrap">
+          <CrmDataTable
+            :data="formData.quotePriceRows"
+            class="items-table detail-panel-list-table quote-price-tier-table"
+            size="small"
+            stripe
+            embedded
+            :border="false"
+          >
+          <el-table-column :label="t('quoteUpsert.purchaseQuoteColumns.quantity')" min-width="120">
+            <template #default="{ $index }">
+              <el-input-number
+                v-model="formData.quotePriceRows[$index].quantity"
+                :min="0"
+                :controls="false"
+                style="width: 100%"
+              />
+            </template>
+          </el-table-column>
+          <el-table-column
+            :label="t('quoteUpsert.purchaseQuoteColumns.priceCurrency')"
+            min-width="220"
+            class-name="tier-col-price-ccy"
+          >
+            <template #default="{ $index }">
+              <SettlementCurrencyAmountInput
+                v-model="formData.quotePriceRows[$index].unitPrice"
+                v-model:currency="formData.quotePriceRows[$index].currency"
+                :min="0"
+                :precision="6"
+                size="small"
+                class="q-select tier-price-ccy-input"
+              />
+            </template>
+          </el-table-column>
+          <el-table-column :label="t('quoteUpsert.purchaseQuoteColumns.convertedUsd')" min-width="168">
+            <template #default="{ $index }">
+              <span
+                class="tier-converted-display"
+                :title="convertedPriceTitle(formData.quotePriceRows[$index].convertedPrice)"
+              >
+                {{ formatConvertedPrice(formData.quotePriceRows[$index].convertedPrice) }}
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column label="" width="108" align="center" fixed="right">
+            <template #default="{ $index }">
+              <div class="tier-actions">
+                <el-button
+                  type="danger"
+                  link
+                  :disabled="formData.quotePriceRows.length <= 1"
+                  @click="removePriceRow($index)"
+                  :title="t('quoteUpsert.purchaseQuoteActions.removeRow')"
+                >
+                  <el-icon><Minus /></el-icon>
+                </el-button>
+                <el-button
+                  type="primary"
+                  link
+                  @click="insertPriceRowAfter($index)"
+                  :title="t('quoteUpsert.purchaseQuoteActions.insertRow')"
+                >
+                  <el-icon><Plus /></el-icon>
+                </el-button>
+              </div>
+            </template>
+          </el-table-column>
+        </CrmDataTable>
+        </div>
+      </div>
+    </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Check, Plus, Minus } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
+import { Check, Plus, Minus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { quoteApi } from '@/api/quote'
 import { vendorApi, vendorContactApi } from '@/api/vendor'
@@ -358,11 +437,20 @@ import { financeExchangeRateApi } from '@/api/financeExchangeRate'
 import { CurrencyCode } from '@/constants/currency'
 import { unitLocalToUsd } from '@/utils/exchangeRateToUsd'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import { formatDisplayDate } from '@/utils/displayDateTime'
 import { canQuoteRfqItem } from '@/utils/rfqItemQuoteAccessRules'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import {
+  QuoteMainStatus,
+  isQuoteReadOnly,
+  quoteMainStatusI18nKey,
+  quoteMainStatusTagType,
+  normalizeQuoteMainStatus
+} from '@/utils/quoteMainStatus'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const authStore = useAuthStore()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
@@ -373,7 +461,7 @@ const purchaseUserSelectOptions = ref<PurchaseDeptStaffUserOption[]>([])
 const purchaseUserOptionsLoading = ref(false)
 
 const isEditMode = computed(() => route.name === 'QuoteEdit')
-const upsertTitle = computed(() => (isEditMode.value ? '编辑报价' : '新建报价'))
+const quoteStatus = ref<number | null>(null)
 
 const rfqLink = computed(() => {
   const rfqId = route.query.rfqId as string | undefined
@@ -475,9 +563,34 @@ const formData = ref({
   purchaseUserId: '',
   salesUserName: '',
   purchaseUserName: '',
+  createTime: '',
+  createUserName: '',
   remark: '',
   /** 采购报价阶梯：数量 / 价格 / 币别 / 折算价，新建默认一行空白 */
   quotePriceRows: [emptyPriceRow()]
+})
+
+const captionAvatarChar = computed(() => {
+  const code = String(formData.value.quoteCode ?? '').trim()
+  if (code) return code.charAt(0).toUpperCase()
+  return 'Q'
+})
+
+const quoteBasicCreateDateText = computed(() => {
+  const raw = formData.value.createTime?.trim()
+  if (raw) return formatDisplayDate(raw) || '—'
+  const quoteDate = formData.value.quoteDate?.trim()
+  if (quoteDate) return formatDisplayDate(quoteDate) || quoteDate
+  return '—'
+})
+
+const quoteBasicCreateUserText = computed(() => {
+  const name = formData.value.createUserName?.trim()
+  if (name) return name
+  if (!isEditMode.value) {
+    return authStore.user?.userName?.trim() || '—'
+  }
+  return '—'
 })
 
 /**
@@ -804,9 +917,32 @@ function onVendorChange(val: string | null | undefined) {
   void loadVendorContacts(val)
 }
 
-async function loadVendorContacts(vendorId: string) {
+/** 编辑回填：联系人 ID 可能不在下拉列表中（已删/接口延迟），仍保留选中态 */
+function reconcileQuoteVendorContact(preferredContactId?: string, preferredContactName?: string) {
+  const id = (preferredContactId ?? formData.value.vendorContactId ?? '').trim()
+  const name = (preferredContactName ?? formData.value.contactName ?? '').trim()
+  if (!id) {
+    formData.value.vendorContactId = ''
+    if (!name) formData.value.contactName = ''
+    return
+  }
+  let hit = contactOptions.value.find((c) => c.value === id)
+  if (!hit) {
+    hit = { value: id, label: name || id }
+    contactOptions.value = [...contactOptions.value, hit]
+  }
+  formData.value.vendorContactId = id
+  formData.value.contactName = hit.label.split(' / ')[0]?.trim() || name || id
+}
+
+async function loadVendorContacts(
+  vendorId: string,
+  preferredContactId?: string,
+  preferredContactName?: string
+) {
   if (!vendorId) {
     contactOptions.value = []
+    reconcileQuoteVendorContact(preferredContactId, preferredContactName)
     return
   }
   contactLoading.value = true
@@ -821,6 +957,7 @@ async function loadVendorContacts(vendorId: string) {
   } finally {
     contactLoading.value = false
   }
+  reconcileQuoteVendorContact(preferredContactId, preferredContactName)
 }
 
 function onContactChange(id: string | undefined) {
@@ -833,7 +970,7 @@ function onContactChange(id: string | undefined) {
 }
 
 /** 将列表/详情中的报价主表 + 明细映射为新建页表单（与保存时结构一致） */
-function applyQuoteToForm(q: Record<string, unknown>) {
+async function applyQuoteToForm(q: Record<string, unknown>) {
   const prRows = q.quotePriceRows as unknown
   let rows: ReturnType<typeof emptyPriceRow>[] = []
   if (Array.isArray(prRows) && prRows.length > 0) {
@@ -863,6 +1000,9 @@ function applyQuoteToForm(q: Record<string, unknown>) {
   if (rows.length === 0) rows = [emptyPriceRow()]
 
   formData.value.quoteCode = String(q.quoteCode ?? q.quoteNumber ?? q.QuoteCode ?? '')
+  quoteStatus.value = normalizeQuoteMainStatus(q.status ?? q.Status) ?? QuoteMainStatus.New
+  formData.value.createTime = String(q.createTime ?? q.CreateTime ?? '')
+  formData.value.createUserName = String(q.createUserName ?? q.CreateUserName ?? q.createByUserId ?? '')
   formData.value.quoteDate = String(q.quoteDate ?? todayStr()).slice(0, 10)
   formData.value.rfqId = String(q.rfqId ?? q.RfqId ?? '')
   formData.value.rfqItemId = String(q.rfqItemId ?? q.RfqItemId ?? '')
@@ -879,8 +1019,10 @@ function applyQuoteToForm(q: Record<string, unknown>) {
   if (first) {
     formData.value.vendorId = String(first.vendorId ?? first.VendorId ?? '')
     formData.value.vendorName = String(first.vendorName ?? first.VendorName ?? '')
-    formData.value.contactName = String(first.contactName ?? first.ContactName ?? '')
-    formData.value.vendorContactId = ''
+    const savedContactId = String(first.contactId ?? first.ContactId ?? '').trim()
+    const savedContactName = String(first.contactName ?? first.ContactName ?? '').trim()
+    formData.value.contactName = savedContactName
+    formData.value.vendorContactId = savedContactId
     formData.value.priceType = String(first.priceType ?? first.PriceType ?? '')
     const exp = first.expiryDate ?? first.ExpiryDate
     formData.value.expiryDate = exp ? String(exp).slice(0, 10) : ''
@@ -908,7 +1050,7 @@ function applyQuoteToForm(q: Record<string, unknown>) {
       vendorOptions.value = [
         { value: formData.value.vendorId, label: formData.value.vendorName || formData.value.vendorId }
       ]
-      void loadVendorContacts(formData.value.vendorId)
+      await loadVendorContacts(formData.value.vendorId, savedContactId, savedContactName)
     }
   } else {
     formData.value.brand = String(q.brand ?? q.Brand ?? '')
@@ -929,7 +1071,7 @@ async function loadQuoteForEdit() {
       router.push({ name: 'QuoteList' })
       return
     }
-    applyQuoteToForm(q)
+    await applyQuoteToForm(q)
     const itemId = formData.value.rfqItemId?.trim()
     const rfqId = (formData.value.rfqId || rfqLink.value.rfqId || '').trim()
     if (itemId && rfqId) {
@@ -1041,7 +1183,7 @@ const handleSubmit = async () => {
     },
     onSuccess: (r) => {
       if (r.kind === 'edit') {
-        router.push({ name: 'QuoteDetail', params: { id: r.id } })
+        router.push({ name: 'QuoteList' })
         return
       }
       if (r.back) {
@@ -1063,23 +1205,122 @@ const handleSubmit = async () => {
   padding: 20px;
 }
 
+.quote-upsert-content {
+  min-height: 120px;
+}
+
 .page-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 16px;
   margin-bottom: 20px;
 
-  .page-title {
-    margin: 0;
-    color: $text-primary;
-    font-size: 20px;
-    font-weight: 600;
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
   }
 }
 
-.form-card {
-  background: #0a1628;
-  border: 1px solid rgba(0, 212, 255, 0.1);
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-muted;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.07);
+    color: $text-secondary;
+    border-color: rgba(0, 212, 255, 0.2);
+  }
+}
+
+.quote-caption-title-group {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.caption-avatar-lg {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.3), rgba(0, 212, 255, 0.2));
+  border: 1px solid rgba(0, 212, 255, 0.25);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 700;
+  color: $cyan-primary;
+  flex-shrink: 0;
+}
+
+.page-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.page-title-with-icons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: $text-primary;
+
+  &--muted {
+    color: rgba(150, 170, 195, 0.82);
+  }
+}
+
+.title-meta--caption {
+  margin-top: 4px;
+}
+
+.quote-header-meta-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-height: 28px;
+}
+
+.quote-caption-meta-text {
+  font-size: 13px;
+  color: $text-muted;
+}
+
+.basic-info-section__body {
+  padding: 16px 20px 20px;
 }
 
 .link-alert {
@@ -1146,28 +1387,59 @@ const handleSubmit = async () => {
   }
 }
 
-.price-tier-panel {
-  margin-top: 8px;
-  margin-bottom: 8px;
-  padding-top: 16px;
-  border-top: 1px solid rgba(0, 212, 255, 0.1);
-
-  .price-tier-header {
-    margin-bottom: 10px;
+.purchase-quote-section {
+  .purchase-quote-section__body {
+    padding: 20px;
   }
 
-  .price-tier-title {
-    margin: 0;
-    color: $text-primary;
-    font-size: 14px;
-    font-weight: 600;
-  }
-
-  .price-tier-hint {
-    margin: 6px 0 0;
+  .purchase-quote-section__hint {
+    margin: 0 0 12px;
+    padding: 0;
     font-size: 12px;
     line-height: 1.45;
-    color: $text-secondary;
+    color: $text-muted;
+  }
+
+  .detail-items-table-wrap {
+    margin-top: 0;
+  }
+
+  // §7.4 面板列表：表头/表体基线见 detail-panel-list-table.scss；此处仅页内扩展
+  .detail-items-table-wrap :deep(.items-table),
+  .detail-items-table-wrap :deep(.crm-items-table.detail-panel-list-table) {
+    --el-table-border-color: transparent;
+    --el-table-fixed-box-shadow: none;
+    background: transparent !important;
+    border-radius: 0;
+    border: none;
+    min-height: 0;
+    overflow: visible;
+
+    :deep(.el-table) {
+      color: var(--crm-table-text);
+    }
+
+    :deep(.el-table__inner-wrapper) {
+      background: transparent;
+
+      &::before {
+        display: none !important;
+      }
+
+      &::after {
+        display: none !important;
+      }
+    }
+
+    :deep(.el-table__border-left-patch) {
+      display: none !important;
+    }
+
+    :deep(.el-table__cell) {
+      .cell {
+        white-space: nowrap;
+      }
+    }
   }
 
   .tier-converted-display {
@@ -1194,6 +1466,76 @@ const handleSubmit = async () => {
   .tier-price-ccy-input {
     width: 100%;
   }
+}
+
+.info-section {
+  background: $layer-2;
+  border: 1px solid $border-card;
+  border-radius: $border-radius-lg;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--crm-detail-section-header-bg);
+}
+
+.section-header__main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.section-header__meta {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.section-header-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+
+  &__label {
+    color: $text-muted;
+
+    &::after {
+      content: '：';
+    }
+  }
+
+  &__value {
+    color: $text-secondary;
+  }
+}
+
+.section-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+
+  &--cyan {
+    background: $cyan-primary;
+    box-shadow: 0 0 6px rgba(0, 212, 255, 0.6);
+  }
+}
+
+.section-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: $text-primary;
 }
 
 .upsert-form {
@@ -1237,14 +1579,19 @@ const handleSubmit = async () => {
   .seg-group {
     flex-wrap: wrap;
     :deep(.el-radio-button__inner) {
-      background: rgba(255, 255, 255, 0.04);
-      border-color: rgba(0, 212, 255, 0.2);
-      color: rgba(200, 216, 232, 0.85);
+      background: $layer-3;
+      border-color: $border-panel;
+      color: $text-secondary;
+      font-size: 12px;
+      padding: 5px 10px;
+      box-shadow: none;
     }
-    :deep(.el-radio-button.is-active .el-radio-button__inner) {
-      background: rgba(0, 102, 255, 0.35);
-      border-color: rgba(0, 212, 255, 0.45);
-      color: #e8f4ff;
+    :deep(.el-radio-button.is-active .el-radio-button__inner),
+    :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
+      background: var(--crm-accent-012);
+      border-color: var(--crm-accent-045);
+      color: $cyan-primary;
+      box-shadow: none;
     }
   }
 
@@ -1258,7 +1605,7 @@ const handleSubmit = async () => {
 
   .free-ship-label {
     font-size: 13px;
-    color: rgba(200, 216, 232, 0.7);
+    color: $text-secondary;
     margin-left: 8px;
   }
 }

@@ -1,82 +1,255 @@
 <template>
-  <div class="quote-detail">
-    <!-- 面包屑 + 返回 -->
-    <div class="detail-header">
-      <el-button link @click="router.back()" class="back-btn">
-        <el-icon><ArrowLeft /></el-icon> 返回列表
-      </el-button>
-      <el-breadcrumb separator="/">
-        <el-breadcrumb-item :to="{ name: 'QuoteList' }">报价单</el-breadcrumb-item>
-        <el-breadcrumb-item>{{ quote?.quoteCode || '详情' }}</el-breadcrumb-item>
-      </el-breadcrumb>
-      <div class="header-actions" v-if="quote">
-        <el-button size="small" @click="handleUpdateStatus">更新状态</el-button>
-      </div>
-    </div>
-
-    <div v-if="loading" class="loading-wrap">
-      <el-skeleton :rows="8" animated />
-    </div>
-
-    <template v-else-if="quote">
-      <!-- 基本信息卡片 -->
-      <div class="info-card">
-        <div class="card-title">
-          <span class="title-bar"></span>
-          <span>基本信息</span>
-          <el-tag effect="dark" :type="getStatusType(quote.status)" size="small" style="margin-left: 12px;">
-            {{ getStatusText(quote.status) }}
-          </el-tag>
+  <div class="quote-detail-page">
+    <!-- 详情 CaptionBar（《业务详情页面规范》§3 单据类） -->
+    <div class="page-header">
+      <div class="header-left">
+        <button class="btn-back" type="button" @click="goBack">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+          {{ t('quoteDetail.back') }}
+        </button>
+        <div v-if="quote" class="quote-caption-title-group">
+          <div class="caption-avatar-lg">{{ quoteCaptionAvatarChar }}</div>
+          <div>
+            <div class="page-title-row">
+              <div class="page-title-with-icons">
+                <h1
+                  class="page-title"
+                  :class="{ 'page-title--muted': quote.status === 2 }"
+                >
+                  <template v-if="quote.quoteCode">
+                    {{ t('quoteDetail.captionPrefix') }} {{ quote.quoteCode }}
+                  </template>
+                  <template v-else>{{ t('quoteDetail.title') }}</template>
+                </h1>
+              </div>
+            </div>
+            <div class="title-meta title-meta--caption quote-header-meta-row">
+              <el-tag effect="dark" :type="getStatusType(quote.status)" size="small">
+                {{ getStatusText(quote.status) }}
+              </el-tag>
+              <span v-if="quoteItemCount > 0" class="quote-caption-meta-text">
+                {{ t('quoteDetail.itemCount', { count: quoteItemCount }) }}
+              </span>
+            </div>
+          </div>
         </div>
-        <el-descriptions :column="2" border class="order-desc">
-          <el-descriptions-item label="报价编号">
-            <span class="order-code">{{ quote.quoteCode }}</span>
-          </el-descriptions-item>
-          <el-descriptions-item label="状态">
-            <el-tag effect="dark" :type="getStatusType(quote.status)">{{ getStatusText(quote.status) }}</el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="物料型号">{{ quote.mpn }}</el-descriptions-item>
-          <el-descriptions-item label="报价日期">{{ quote.quoteDate }}</el-descriptions-item>
-          <el-descriptions-item label="业务员">{{ maskSaleSensitiveFields ? '—' : quote.salesUserName }}</el-descriptions-item>
-          <el-descriptions-item label="采购员">{{ quote.purchaseUserName }}</el-descriptions-item>
-          <el-descriptions-item label="备注" :span="2">{{ quote.remark || '-' }}</el-descriptions-item>
-        </el-descriptions>
       </div>
+      <div v-if="quote" class="header-right">
+        <button type="button" class="btn-secondary" :disabled="loading" @click="fetchQuote">
+          {{ t('quoteDetail.refresh') }}
+        </button>
+        <button v-if="canEditQuote" type="button" class="btn-primary" @click="handleEdit">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+          </svg>
+          {{ t('quoteDetail.edit') }}
+        </button>
+        <el-dropdown
+          trigger="click"
+          placement="bottom-end"
+          popper-class="quote-detail-header-more-popper"
+          @command="onHeaderMoreCommand"
+        >
+          <button
+            type="button"
+            class="btn-more-actions"
+            :title="t('quoteDetail.more')"
+            :aria-label="t('quoteDetail.more')"
+          >
+            <span class="btn-more-actions__dots" aria-hidden="true">⋯</span>
+          </button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item
+                v-if="canDeleteQuote"
+                command="delete"
+                class="detail-more-item--danger"
+              >
+                {{ t('quoteList.actions.delete') }}
+              </el-dropdown-item>
+              <el-dropdown-item v-else disabled>
+                {{ t('quoteList.warnings.cannotDeleteWon') }}
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </div>
+    </div>
 
-      <!-- TabBar：供应商报价明细 | 文档 -->
-      <div class="tab-card">
-        <el-tabs v-model="activeTab" class="detail-tabs">
-          <!-- 供应商报价明细 -->
-          <el-tab-pane label="供应商报价明细" name="items">
-            <CrmDataTable :data="quote.items" size="small" v-if="quote.items?.length" class="items-table">
-              <el-table-column type="index" width="50" label="#" />
-              <el-table-column prop="vendorName" label="供应商" min-width="140">
-                <template #default="{ row }">{{ maskPurchaseSensitiveFields ? '—' : (row.vendorName || '—') }}</template>
-              </el-table-column>
-              <el-table-column prop="contactName" label="联系人" width="100">
-                <template #default="{ row }">{{ maskPurchaseSensitiveFields ? '—' : (row.contactName || '—') }}</template>
-              </el-table-column>
-              <el-table-column prop="brand" label="品牌" width="100" />
-              <el-table-column prop="quantity" label="数量" width="80" align="right" />
-              <el-table-column prop="unitPrice" label="单价" width="110" align="right">
-                <template #default="{ row }">
-                  {{ formatCurrency(row.unitPrice, row.currency) }}
-                </template>
-              </el-table-column>
-              <el-table-column label="金额" width="110" align="right">
-                <template #default="{ row }">
-                  {{ formatCurrency(row.quantity * row.unitPrice, row.currency) }}
-                </template>
-              </el-table-column>
-              <el-table-column prop="leadTime" label="交期" width="100" />
-              <el-table-column prop="stockQty" label="库存" width="80" align="right" />
-            </CrmDataTable>
-            <el-empty v-else description="暂无报价明细" :image-size="80" />
-          </el-tab-pane>
+    <div v-loading="loading" element-loading-background="rgba(10,22,40,0.8)" class="detail-content">
+      <template v-if="quote">
+        <!-- 基本信息（§4–§5；CaptionBar 已展示报价编号，此处不重复） -->
+        <div class="info-section">
+          <div class="section-header">
+            <div class="section-header__main">
+              <div class="section-dot section-dot--cyan"></div>
+              <span class="section-title">{{ t('quoteDetail.basicInfo') }}</span>
+            </div>
+            <div class="section-header__meta">
+              <span class="section-header-meta-item">
+                <span class="section-header-meta-item__label">{{ t('quoteDetail.createDate') }}</span>
+                <span class="section-header-meta-item__value">{{ quoteBasicCreateDateText }}</span>
+              </span>
+              <span class="section-header-meta-item">
+                <span class="section-header-meta-item__label">{{ t('quoteDetail.createUser') }}</span>
+                <span class="section-header-meta-item__value">{{ quoteBasicCreateUserText }}</span>
+              </span>
+            </div>
+          </div>
+          <div class="info-grid info-grid--inline-labels info-grid--basic">
+            <div class="info-item">
+              <span class="info-label">{{ t('quoteDetail.fields.rfqCode') }}</span>
+              <span class="info-value info-value--code">
+                <button
+                  v-if="quote.rfqId && quote.rfqCode"
+                  type="button"
+                  class="info-link-btn"
+                  @click="goRfqDetail(quote.rfqId)"
+                >
+                  {{ quote.rfqCode }}
+                </button>
+                <template v-else>{{ quote.rfqCode || '—' }}</template>
+              </span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">{{ t('quoteDetail.fields.mpn') }}</span>
+              <span class="info-value">{{ quote.mpn || '—' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">{{ t('quoteDetail.fields.brand') }}</span>
+              <span class="info-value">{{ quoteBrandDisplay }}</span>
+            </div>
+          </div>
+          <div class="info-grid info-grid--inline-labels info-grid--basic">
+            <div class="info-item">
+              <span class="info-label">{{ t('quoteDetail.fields.quoteDate') }}</span>
+              <span class="info-value info-value--time">{{ quoteDateText }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">{{ t('quoteDetail.fields.customer') }}</span>
+              <span class="info-value">{{ maskSaleSensitiveFields ? '—' : (quote.customerName || '—') }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">{{ t('quoteDetail.fields.salesUser') }}</span>
+              <span class="info-value">{{ maskSaleSensitiveFields ? '—' : (quote.salesUserName || '—') }}</span>
+            </div>
+          </div>
+          <div class="info-grid info-grid--inline-labels info-grid--basic">
+            <div class="info-item">
+              <span class="info-label">{{ t('quoteDetail.fields.purchaseUser') }}</span>
+              <span class="info-value">{{ quote.purchaseUserName || '—' }}</span>
+            </div>
+            <div class="info-item info-item--basic-spacer" aria-hidden="true"></div>
+            <div class="info-item info-item--basic-spacer" aria-hidden="true"></div>
+          </div>
+          <div class="info-grid info-grid--inline-labels">
+            <div class="info-item info-item--span-all">
+              <span class="info-label">{{ t('quoteDetail.fields.remark') }}</span>
+              <span class="info-value">{{ quote.remark?.trim() || '—' }}</span>
+            </div>
+          </div>
+        </div>
 
-          <!-- 文档 -->
-          <el-tab-pane label="文档" name="documents">
-            <div class="doc-tab-content">
+        <!-- TabBar（§6） -->
+        <div class="tabs-section">
+          <div class="tabs-nav">
+            <button
+              class="tab-btn"
+              :class="{ 'tab-btn--active': activeTab === 'items' }"
+              type="button"
+              @click="activeTab = 'items'"
+            >
+              {{ t('quoteDetail.tabs.items') }}
+              <span v-if="quoteItemCount" class="tab-count">{{ quoteItemCount }}</span>
+            </button>
+            <button
+              class="tab-btn"
+              :class="{ 'tab-btn--active': activeTab === 'documents' }"
+              type="button"
+              @click="activeTab = 'documents'"
+            >
+              {{ t('quoteDetail.tabs.documents') }}
+            </button>
+          </div>
+          <div class="tabs-body">
+            <div v-show="activeTab === 'items'" class="detail-items-table-wrap">
+              <CrmDataTable
+                v-if="quoteItemCount > 0"
+                :data="quote.items"
+                class="items-table detail-panel-list-table"
+                size="small"
+                stripe
+              >
+                <el-table-column type="index" width="50" label="#" />
+                <el-table-column
+                  :label="t('quoteDetail.itemTable.vendor')"
+                  prop="vendorName"
+                  min-width="140"
+                  show-overflow-tooltip
+                >
+                  <template #default="{ row }">
+                    {{ maskPurchaseSensitiveFields ? '—' : (row.vendorName || '—') }}
+                  </template>
+                </el-table-column>
+                <el-table-column
+                  :label="t('quoteDetail.itemTable.contact')"
+                  prop="contactName"
+                  width="100"
+                  show-overflow-tooltip
+                >
+                  <template #default="{ row }">
+                    {{ maskPurchaseSensitiveFields ? '—' : (row.contactName || '—') }}
+                  </template>
+                </el-table-column>
+                <el-table-column
+                  :label="t('quoteDetail.itemTable.brand')"
+                  prop="brand"
+                  width="100"
+                  show-overflow-tooltip
+                />
+                <el-table-column
+                  :label="t('quoteDetail.itemTable.quantity')"
+                  prop="quantity"
+                  width="80"
+                  align="right"
+                />
+                <el-table-column
+                  :label="t('quoteDetail.itemTable.unitPrice')"
+                  width="110"
+                  align="right"
+                >
+                  <template #default="{ row }">
+                    {{ formatCurrency(row.unitPrice, row.currency) }}
+                  </template>
+                </el-table-column>
+                <el-table-column
+                  :label="t('quoteDetail.itemTable.amount')"
+                  width="110"
+                  align="right"
+                >
+                  <template #default="{ row }">
+                    {{ formatCurrency(Number(row.quantity) * Number(row.unitPrice), row.currency) }}
+                  </template>
+                </el-table-column>
+                <el-table-column
+                  :label="t('quoteDetail.itemTable.leadTime')"
+                  prop="leadTime"
+                  width="100"
+                  show-overflow-tooltip
+                />
+                <el-table-column
+                  :label="t('quoteDetail.itemTable.stock')"
+                  prop="stockQty"
+                  width="80"
+                  align="right"
+                />
+              </CrmDataTable>
+              <p v-else class="quote-items-empty">{{ t('quoteDetail.itemsEmpty') }}</p>
+            </div>
+            <div v-show="activeTab === 'documents'" class="doc-tab-content">
               <DocumentUploadPanel
                 biz-type="QUOTE"
                 :biz-id="String(quote.id)"
@@ -89,292 +262,637 @@
                 biz-type="QUOTE"
                 :biz-id="String(quote.id)"
                 view-mode="list"
-                style="margin-top: 16px;"
+                style="margin-top: 16px"
               />
             </div>
-          </el-tab-pane>
-        </el-tabs>
-      </div>
-    </template>
-
-    <el-empty v-else description="报价单不存在" />
-
-    <!-- 更新状态弹窗 -->
-    <el-dialog v-model="statusDialogVisible" title="更新状态" width="400px">
-      <el-form label-width="100px">
-        <el-form-item label="新状态">
-          <el-select v-model="newStatus" style="width: 100%">
-            <el-option label="草稿" :value="0" />
-            <el-option label="待审核" :value="1" />
-            <el-option label="已审核" :value="2" />
-            <el-option label="已发送" :value="3" />
-            <el-option label="已接受" :value="4" />
-            <el-option label="已拒绝" :value="5" />
-            <el-option label="已过期" :value="6" />
-            <el-option label="已关闭" :value="7" />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="statusDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="statusLoading" @click="confirmUpdateStatus">确定</el-button>
+          </div>
+        </div>
       </template>
-    </el-dialog>
+      <p v-else-if="!loading" class="quote-items-empty">{{ t('quoteDetail.notFound') }}</p>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ArrowLeft } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { useI18n } from 'vue-i18n'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { quoteApi } from '@/api/quote'
+import CrmDataTable from '@/components/CrmDataTable.vue'
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue'
 import DocumentListPanel from '@/components/Document/DocumentListPanel.vue'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import { formatDisplayDate } from '@/utils/displayDateTime'
+import {
+  isQuoteDeleteForbidden,
+  isQuoteReadOnly,
+  quoteMainStatusI18nKey,
+  quoteMainStatusTagType
+} from '@/utils/quoteMainStatus'
+
+type QuoteRecord = {
+  id?: string
+  quoteCode?: string
+  status?: number
+  rfqId?: string
+  rfqCode?: string
+  mpn?: string
+  brand?: string
+  quoteDate?: string
+  customerName?: string
+  salesUserName?: string
+  purchaseUserName?: string
+  remark?: string
+  createTime?: string
+  createUserName?: string
+  createByUserId?: string
+  items?: Array<Record<string, unknown>>
+}
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
+const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
 
 const loading = ref(false)
-const quote = ref<any>(null)
-const activeTab = ref('items')
+const quote = ref<QuoteRecord | null>(null)
+const activeTab = ref<'items' | 'documents'>('items')
 const docListRef = ref<InstanceType<typeof DocumentListPanel> | null>(null)
 
-const statusDialogVisible = ref(false)
-const statusLoading = ref(false)
-const newStatus = ref(0)
+const quoteId = computed(() => String(route.params.id ?? ''))
+const quoteItemCount = computed(() => quote.value?.items?.length ?? 0)
+const canEditQuote = computed(() => quote.value != null && !isQuoteReadOnly(quote.value.status))
+const canDeleteQuote = computed(() => quote.value != null && !isQuoteDeleteForbidden(quote.value.status))
 
-const quoteId = computed(() => route.params.id as string)
-
-onMounted(() => {
-  fetchQuote()
+const quoteCaptionAvatarChar = computed(() => {
+  const code = String(quote.value?.quoteCode ?? '').trim()
+  return code ? code.charAt(0).toUpperCase() : 'Q'
 })
 
-const fetchQuote = async () => {
+const quoteBrandDisplay = computed(() => {
+  const q = quote.value
+  if (!q) return '—'
+  if (q.brand) return q.brand
+  const first = q.items?.[0] as { brand?: string } | undefined
+  return first?.brand || '—'
+})
+
+const quoteBasicCreateDateText = computed(() => {
+  const raw = quote.value?.createTime
+  if (!raw) return '—'
+  return formatDisplayDate(String(raw)) || '—'
+})
+
+const quoteBasicCreateUserText = computed(() => {
+  const q = quote.value
+  if (!q) return '—'
+  return q.createUserName || q.createByUserId || '—'
+})
+
+const quoteDateText = computed(() => {
+  const raw = quote.value?.quoteDate
+  if (!raw) return '—'
+  const s = String(raw)
+  return formatDisplayDate(s.includes('T') ? s : s.slice(0, 10)) || s.slice(0, 10)
+})
+
+onMounted(() => {
+  void fetchQuote()
+})
+
+async function fetchQuote() {
+  if (!quoteId.value) {
+    quote.value = null
+    return
+  }
   loading.value = true
   try {
     const res = await quoteApi.getById(quoteId.value)
-    quote.value = res.data || null
+    quote.value = (res.data as QuoteRecord | null) || null
   } catch {
     quote.value = null
+    ElMessage.error(t('quoteList.loadFailed'))
   } finally {
     loading.value = false
   }
 }
 
-const getStatusType = (status: number) => {
-  const map: Record<number, string> = {
-    0: 'info', 1: 'warning', 2: 'primary', 3: 'success',
-    4: 'success', 5: 'danger', 6: 'info', 7: 'info'
-  }
-  return map[status] ?? 'info'
+function goBack() {
+  router.push({ name: 'QuoteList' })
 }
-const getStatusText = (status: number) => {
-  const map: Record<number, string> = {
-    0: '草稿', 1: '待审核', 2: '已审核', 3: '已发送',
-    4: '已接受', 5: '已拒绝', 6: '已过期', 7: '已关闭'
-  }
-  return map[status] ?? '未知'
+
+function goRfqDetail(rfqId: string) {
+  router.push({ name: 'RFQDetail', params: { id: rfqId } })
 }
-const formatCurrency = (value: number, currency?: number) => {
-  if (!value) return '-'
+
+function handleEdit() {
+  if (!canEditQuote.value || !quoteId.value) return
+  router.push({ name: 'QuoteEdit', params: { id: quoteId.value } })
+}
+
+async function onHeaderMoreCommand(command: string) {
+  if (command !== 'delete' || !quote.value || !canDeleteQuote.value) return
+  try {
+    await ElMessageBox.confirm(
+      t('quoteList.deleteConfirm', { code: quote.value.quoteCode || quoteId.value }),
+      t('quoteList.deleteTitle'),
+      { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
+    )
+  } catch {
+    return
+  }
+  try {
+    await quoteApi.delete(quoteId.value)
+    ElMessage.success(t('quoteDetail.deleteSuccess'))
+    router.push({ name: 'QuoteList' })
+  } catch (e: unknown) {
+    ElMessage.error(e instanceof Error ? e.message : t('quoteList.loadFailed'))
+  }
+}
+
+const getStatusType = (status: unknown) => quoteMainStatusTagType(status)
+const getStatusText = (status: unknown) => t(quoteMainStatusI18nKey(status))
+
+function formatCurrency(value: number, currency?: number) {
+  if (!value) return '—'
   const symbol = currency === 1 ? '$' : '¥'
   return symbol + value.toLocaleString('zh-CN', { minimumFractionDigits: 4, maximumFractionDigits: 4 })
 }
-
-const handleUpdateStatus = () => {
-  if (!quote.value) return
-  newStatus.value = quote.value.status
-  statusDialogVisible.value = true
-}
-
-const confirmUpdateStatus = async () => {
-  if (!quote.value) return
-  statusLoading.value = true
-  try {
-    await quoteApi.updateStatus(quote.value.id, newStatus.value)
-    quote.value.status = newStatus.value
-    statusDialogVisible.value = false
-    ElMessage.success('状态已更新')
-  } catch {
-    ElMessage.error('更新失败')
-  } finally {
-    statusLoading.value = false
-  }
-}
 </script>
 
-<style lang="scss" scoped>
+<style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
+@import '@/assets/styles/business-detail-info-grid.scss';
 
-.quote-detail {
-  padding: 20px;
+.quote-detail-page {
+  padding: 24px;
   min-height: 100%;
+  background: $layer-1;
+  font-family: 'Noto Sans SC', sans-serif;
 }
 
-.detail-header {
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.header-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  min-width: 0;
+}
+
+.header-right {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 20px;
-  .back-btn {
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-muted;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.07);
     color: $text-secondary;
-    &:hover { color: $cyan-primary; }
-  }
-  .header-actions {
-    margin-left: auto;
-    display: flex;
-    gap: 8px;
+    border-color: rgba(0, 212, 255, 0.2);
   }
 }
 
-.loading-wrap {
-  padding: 20px;
-  background: $layer-2;
-  border-radius: 8px;
+.quote-caption-title-group {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
 }
 
-.info-card {
-  background: $layer-2;
-  border: 1px solid $border-card;
-  border-radius: 8px;
-  padding: 16px 20px;
-  margin-bottom: 16px;
+.caption-avatar-lg {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.3), rgba(0, 212, 255, 0.2));
+  border: 1px solid rgba(0, 212, 255, 0.25);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 700;
+  color: $cyan-primary;
+  flex-shrink: 0;
 }
 
-.card-title {
+.page-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.page-title-with-icons {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 20px;
   font-weight: 600;
   color: $text-primary;
-  margin-bottom: 14px;
-  .title-bar {
-    width: 4px;
-    height: 16px;
-    background: $cyan-primary;
-    border-radius: 2px;
+
+  &--muted {
+    color: rgba(150, 170, 195, 0.82);
   }
 }
 
-.order-desc {
-  :deep(.el-descriptions__label) {
-    color: $text-muted;
-    background: $layer-3;
-    width: 100px;
+.title-meta--caption {
+  margin-top: 4px;
+}
+
+.quote-header-meta-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-height: 28px;
+}
+
+.quote-caption-meta-text {
+  font-size: 13px;
+  color: $text-muted;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.8), rgba(0, 212, 255, 0.7));
+  border: 1px solid rgba(0, 212, 255, 0.4);
+  border-radius: $border-radius-md;
+  color: #fff;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0, 212, 255, 0.25);
   }
-  :deep(.el-descriptions__content) {
-    background: $layer-2;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
   }
 }
 
-.order-code {
-  font-family: 'Courier New', monospace;
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
   color: $text-secondary;
-  font-weight: 600;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(0, 212, 255, 0.25);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 }
 
-.tab-card {
+.btn-more-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-secondary;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'Noto Sans SC', sans-serif;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(0, 212, 255, 0.25);
+    color: $text-primary;
+  }
+
+  &__dots {
+    font-size: 18px;
+    line-height: 1;
+    letter-spacing: 0.5px;
+    transform: translateY(-1px);
+    font-weight: 700;
+  }
+}
+
+.detail-content {
+  min-height: 200px;
+}
+
+.info-section {
   background: $layer-2;
   border: 1px solid $border-card;
-  border-radius: 8px;
-  padding: 0 20px 20px;
+  border-radius: $border-radius-lg;
+  margin-bottom: 16px;
+  overflow: hidden;
 }
 
-.detail-tabs {
-  :deep(.el-tabs__header) {
-    margin-bottom: 16px;
-    border-bottom: 1px solid $border-panel;
-    background: transparent;
-  }
-  :deep(.el-tabs__nav-wrap::after) {
-    display: none;
-  }
-  :deep(.el-tabs__active-bar) {
-    display: none;
-  }
-  :deep(.el-tabs__item) {
-    position: relative;
-    height: 30px;
-    line-height: 30px;
-    padding: 0 14px;
-    margin-right: 4px;
-    border-radius: 6px 6px 0 0;
-    border: 1px solid transparent;
-    border-bottom: none;
-    background: rgba(255, 255, 255, 0.03);
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--crm-detail-section-header-bg);
+}
+
+.section-header__main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.section-header__meta {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.section-header-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+
+  &__label {
     color: $text-muted;
-    font-size: 12px;
-    font-family: 'Noto Sans SC', sans-serif;
-    transition: all 0.15s;
-    &:hover {
-      background: rgba(0, 212, 255, 0.06);
-      border-color: rgba(0, 212, 255, 0.1);
-      color: rgba(180, 210, 230, 0.9);
-      color: $text-secondary;
-    }
-    &.is-active {
-      background: linear-gradient(180deg, rgba(0, 212, 255, 0.12) 0%, rgba(0, 212, 255, 0.05) 100%);
-      border-color: rgba(0, 212, 255, 0.25);
-      color: $cyan-primary;
-      font-weight: 600;
-      text-shadow: 0 0 8px rgba(0, 212, 255, 0.4);
-      box-shadow: 0 0 14px rgba(0, 212, 255, 0.15);
-      transform: translateY(-1px);
+
+    &::after {
+      content: '：';
     }
   }
-  :deep(.el-tabs__content) {
-    padding: 0;
+
+  &__value {
+    color: $text-secondary;
   }
 }
 
-.items-table {
-  // 无外边框，行间细线分隔，对标客户管理列表风格
+.section-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+
+  &--cyan {
+    background: $cyan-primary;
+    box-shadow: 0 0 6px rgba(0, 212, 255, 0.6);
+  }
+}
+
+.section-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: $text-primary;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-right: 1px solid rgba(255, 255, 255, 0.04);
+
+  &:nth-child(3n) {
+    border-right: none;
+  }
+}
+
+.info-grid--inline-labels .info-item {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+
+  .info-label {
+    flex-shrink: 0;
+    white-space: nowrap;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 12px;
+
+    &::after {
+      content: '：';
+    }
+  }
+
+  .info-value {
+    flex: 1;
+    min-width: 0;
+    word-break: break-word;
+  }
+}
+
+.info-grid--basic {
+  .info-item:nth-child(3n) {
+    border-right: none;
+  }
+
+  .info-item--basic-spacer {
+    border-right: none;
+  }
+}
+
+.info-grid--inline-labels .info-item--span-all {
+  grid-column: 1 / -1;
+  border-right: none;
+}
+
+.info-label {
+  font-size: 11px;
+  color: $text-muted;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.info-value {
+  font-size: 13px;
+  color: $text-secondary;
+
+  &--code {
+    font-family: 'Noto Sans SC', sans-serif;
+    font-size: 12px;
+    color: $color-ice-blue;
+  }
+
+  &--time {
+    font-size: 12px;
+    color: $text-muted;
+  }
+}
+
+.info-link-btn {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: $color-ice-blue;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+
+  &:hover {
+    color: $cyan-primary;
+    text-decoration: underline;
+  }
+}
+
+.tabs-section {
+  background: $layer-2;
+  border: 1px solid $border-card;
+  border-radius: $border-radius-lg;
+  overflow: hidden;
+}
+
+.tabs-nav {
+  display: flex;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 0 16px;
+  background: var(--crm-detail-section-header-bg);
+}
+
+.tab-btn {
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: $text-muted;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: -1px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  &:hover {
+    color: $text-secondary;
+  }
+
+  &--active {
+    color: $cyan-primary;
+    border-bottom-color: $cyan-primary;
+  }
+}
+
+.tab-count {
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(0, 212, 255, 0.1);
+  color: $cyan-primary;
+}
+
+.tabs-body {
+  padding: 20px;
+}
+
+.detail-items-table-wrap {
+  margin-top: 4px;
+}
+
+.detail-items-table-wrap :deep(.items-table) {
   --el-table-border-color: transparent;
-  --el-table-header-bg-color: rgba(0, 212, 255, 0.04);
-  --el-table-row-hover-bg-color: rgba(0, 212, 255, 0.04);
-  --el-table-bg-color: transparent;
-  --el-table-tr-bg-color: transparent;
   --el-table-fixed-box-shadow: none;
   background: transparent !important;
-  :deep(.el-table__inner-wrapper) {
+
+  .el-table {
+    color: var(--crm-table-text);
+  }
+
+  .el-table__inner-wrapper {
     background: transparent;
-    &::before { display: none !important; }
-    &::after  { display: none !important; }
-  }
-  :deep(.el-table__border-left-patch) { display: none !important; }
-  :deep(.el-table__header-wrapper) {
-    th.el-table__cell {
-      background: rgba(0, 212, 255, 0.04) !important;
-      border-bottom: 1px solid rgba(0, 212, 255, 0.1) !important;
-      border-right: none !important;
-      color: rgba(200, 216, 232, 0.55);
-      font-size: 12px;
-      font-weight: 500;
-      letter-spacing: 0.3px;
+
+    &::before {
+      display: none !important;
+    }
+
+    &::after {
+      display: none !important;
     }
   }
-  :deep(.el-table__row) {
-    background: transparent !important;
-    td.el-table__cell {
-      background: transparent !important;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
-      border-right: none !important;
-      color: rgba(224, 244, 255, 0.85);
-      font-size: 13px;
+
+  .el-table__border-left-patch {
+    display: none !important;
+  }
+
+  .el-table__cell {
+    .el-button {
+      white-space: nowrap !important;
     }
-    &:last-child td.el-table__cell { border-bottom: none !important; }
-    &:hover td.el-table__cell { background: rgba(0, 212, 255, 0.04) !important; }
+
+    .cell {
+      white-space: nowrap;
+    }
   }
-  :deep(.el-table__cell) {
-    .el-button { white-space: nowrap !important; }
-    .cell { white-space: nowrap; }
-  }
+}
+
+.quote-items-empty {
+  margin: 0;
+  padding: 24px 12px;
+  text-align: center;
+  color: $text-muted;
+  font-size: 13px;
 }
 
 .doc-tab-content {
