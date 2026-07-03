@@ -4,6 +4,7 @@ using CRM.Core.Models.Finance;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
+using CRM.Core.Utilities;
 using Microsoft.Extensions.Logging;
 
 namespace CRM.Core.Services;
@@ -97,11 +98,10 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
         ext.QtyAlreadyPurchased = purchasedQty;
         ext.QtyNotPurchase = Math.Max(0m, soItem.Qty - purchasedQty);
 
-        var requests = (await _stockOutRequestRepo.FindAsync(r => r.SalesOrderItemId == id))
-            .ToList();
-        var notifySum = requests.Where(r => r.Status != 2).Sum(r => r.Quantity);
-        ext.QtyStockOutNotify = notifySum;
-        ext.QtyStockOutNotifyNot = Math.Max(0m, soItem.Qty - notifySum);
+        var lineAmountTotal = Math.Round(soItem.Qty * soItem.Price, 2, MidpointRounding.AwayFromZero);
+        ext.ReceiptAmount = lineAmountTotal;
+        ext.InvoiceAmount = lineAmountTotal;
+        ext.PaymentAmountToBe = lineAmountTotal;
 
         // 实出数量 / 出库进度：stockout 头表 SellOrderItemId = 本销售明细、销售出库，状态为已出库(2) 或已完成(4)，累计 TotalQuantity 与销售明细数量比（与入库口径对称）
         var completedStockOuts = (await _stockOutRepo.FindAsync(o =>
@@ -112,6 +112,17 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
             .ToList();
         var sumStockOut = completedStockOuts.Sum(o => o.TotalQuantity);
         ext.QtyStockOutActual = sumStockOut;
+
+        // --- 销售数量变更后：校验并回写单条有效出库通知数量（多条仅校验）---
+        await AlignStockOutRequestsWithSoLineQtyAsync(soItem, sumStockOut, cancellationToken);
+
+        var requests = (await _stockOutRequestRepo.FindAsync(r => r.SalesOrderItemId == id))
+            .ToList();
+        var notifySum = requests
+            .Where(r => StockOutRequestStatusCode.IsActiveForQuantitySum(r.Status))
+            .Sum(r => r.Quantity);
+        ext.QtyStockOutNotify = notifySum;
+        ext.QtyStockOutNotifyNot = Math.Max(0m, soItem.Qty - notifySum);
 
         if (completedStockOuts.Count > 0)
         {
@@ -133,7 +144,8 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
             .ToList();
         var verifiedSum = receivables.Sum(r => r.VerifiedDone);
         ext.ReceiptAmountFinish = verifiedSum;
-        ext.ReceiptAmountNot = Math.Max(0m, ext.ReceiptAmount - verifiedSum);
+        ext.ReceiptAmountNot = Math.Max(0m, Math.Round(lineAmountTotal - verifiedSum, 2, MidpointRounding.AwayFromZero));
+        ext.InvoiceAmountNot = Math.Max(0m, Math.Round(lineAmountTotal - ext.InvoiceAmountFinish, 2, MidpointRounding.AwayFromZero));
 
         var qtyLine = soItem.Qty;
         if (ext.QtyAlreadyPurchased <= 0m)
@@ -197,6 +209,39 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
         _logger.LogInformation(
             "[SellLineStockOutSync] Recalculate done SellOrderItemId={SellOrderItemId} LineQty={LineQty} QtyStockOutActual={QtyStockOutActual} StockOutProgressStatus={StockOutProgressStatus} (0=待 1=部分 2=完成)",
             id, qtyLine, ext.QtyStockOutActual, ext.StockOutProgressStatus);
+    }
+
+    private async Task AlignStockOutRequestsWithSoLineQtyAsync(
+        SellOrderItem soItem,
+        decimal sumStockOutActual,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var requests = (await _stockOutRequestRepo.FindAsync(r => r.SalesOrderItemId == soItem.Id)).ToList();
+        if (requests.Count == 0) return;
+
+        var active = requests
+            .Where(r => StockOutRequestStatusCode.IsActiveForQuantitySum(r.Status))
+            .ToList();
+        var activeNotifySum = active.Sum(r => (decimal)r.Quantity);
+        if (soItem.Qty + 1e-9m < activeNotifySum)
+            throw new InvalidOperationException(
+                $"销售数量不能小于有效出库通知数量合计（已通知 {activeNotifySum}）");
+        if (soItem.Qty + 1e-9m < sumStockOutActual)
+            throw new InvalidOperationException(
+                $"销售数量不能小于已实际出库数量（{sumStockOutActual}）");
+
+        if (active.Count != 1) return;
+
+        var request = active[0];
+        if (request.Status == StockOutRequestStatusCode.StockedOut) return;
+
+        var targetQty = InventoryQuantity.RoundFromDecimal(soItem.Qty);
+        if (request.Quantity == targetQty) return;
+
+        request.Quantity = targetQty;
+        request.ModifyTime = DateTime.UtcNow;
+        await _stockOutRequestRepo.UpdateAsync(request);
     }
 
     private static void ApplyProfitFields(SellOrderItem soItem, SellOrderItemExtend ext, List<PurchaseOrderItem> poItems)

@@ -1665,6 +1665,17 @@ function closeSoItemLinePanel() {
   lineTabAggregates.value = null
 }
 
+async function reloadSoItemLinePanelAggregates() {
+  const oid = String(route.params.id ?? '').trim()
+  const sellOrderItemId = soItemLinePanel.sellOrderItemId
+  if (!oid || !sellOrderItemId || !soItemLinePanel.visible) return
+  try {
+    lineTabAggregates.value = await salesOrderApi.getSellOrderItemDetailTabAggregates(oid, sellOrderItemId)
+  } catch {
+    /* 刷新失败时保留原列表 */
+  }
+}
+
 async function selectSalesOrderItemRow(row: Record<string, unknown>) {
   if (maskSaleSensitiveFields.value) return
   const orderId = String(route.params.id ?? '').trim()
@@ -2010,6 +2021,7 @@ async function handleRefreshItemExtends() {
   try {
     const result = await salesOrderApi.refreshItemExtends(order.value.id)
     await fetchOrder()
+    await reloadSoItemLinePanelAggregates()
     if (!result || result.changedItems <= 0) {
       await ElMessageBox.alert('无更新数据', '刷新结果', { confirmButtonText: '知道了' })
       return
