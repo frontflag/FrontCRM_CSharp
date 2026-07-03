@@ -53,7 +53,7 @@
       </div>
     </div>
 
-    <el-card class="table-card">
+    <el-card v-loading="loading" class="table-card" element-loading-background="rgba(10,22,40,0.65)">
       <CrmDataTable
         ref="dataTableRef"
         column-layout-key="purchase-requisition-list-main"
@@ -61,13 +61,14 @@
         :show-column-settings="false"
         :density-toggle-anchor-el="rowDensityToggleAnchorEl"
         :data="list"
-        v-loading="loading"
+        row-key="id"
         highlight-current-row
         @row-dblclick="handleView"
+        @selection-change="onSelectionChange"
       >
         <template #col-status="{ row }">
-          <el-tag effect="dark" :type="getStatusTagType(row.status)" size="small">
-            {{ getStatusText(row.status) }}
+          <el-tag effect="dark" :type="getStatusTagType(resolvePrRowStatus(row))" size="small">
+            {{ getStatusText(resolvePrRowStatus(row)) }}
           </el-tag>
         </template>
         <template #col-expectedPurchaseTime="{ row }">{{ formatDisplayDateTime(row.expectedPurchaseTime) }}</template>
@@ -192,7 +193,42 @@
             </el-button>
           </el-tooltip>
           <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
-          <div class="list-footer-spacer" aria-hidden="true"></div>
+          <div v-if="canGeneratePurchaseOrder" class="list-footer-spacer" aria-hidden="true" />
+          <div v-if="canGeneratePurchaseOrder" class="basket-footer-left">
+            <el-button class="basket-open-btn" link type="primary" @click="basketDrawerVisible = true">
+              {{ t('purchaseRequisitionList.basket.open') }}<span v-if="basketCount" class="basket-count-label">{{ t('purchaseRequisitionList.basket.countLabel', { count: basketCount }) }}</span>
+            </el-button>
+            <el-button
+              v-if="basketCount"
+              class="basket-clear-btn"
+              link
+              type="warning"
+              @click="handleClearBasket"
+            >
+              {{ t('purchaseRequisitionList.basket.clear') }}
+            </el-button>
+            <el-tooltip
+              v-if="basketCount > 0 && basketCount < PR_PO_BATCH_MIN"
+              :content="t('purchaseRequisitionList.basket.batchMinTip')"
+              placement="top"
+            >
+              <span class="inline-flex">
+                <button type="button" class="btn-primary btn-sm basket-batch-purchase-btn" disabled>
+                  {{ t('purchaseRequisitionList.basket.batchGenerate') }}
+                </button>
+              </span>
+            </el-tooltip>
+            <button
+              v-else-if="basketCount >= PR_PO_BATCH_MIN"
+              type="button"
+              class="btn-primary btn-sm basket-batch-purchase-btn"
+              :disabled="batchGenerateLoading"
+              @click="handleBatchGenerateFromBasket"
+            >
+              {{ t('purchaseRequisitionList.basket.batchGenerate') }}
+            </button>
+          </div>
+          <div v-else class="list-footer-spacer" aria-hidden="true"></div>
         </div>
         <el-pagination
           v-model:current-page="page"
@@ -200,23 +236,92 @@
           :total="total"
           :page-sizes="[10, 20, 50, 100]"
           layout="total, sizes, prev, pager, next, jumper"
-          @current-change="loadList"
-          @size-change="loadList"
+          @current-change="handlePageChange"
+          @size-change="handlePageSizeChange"
         />
       </div>
     </el-card>
+
+    <el-drawer
+      v-model="basketDrawerVisible"
+      :title="t('purchaseRequisitionList.basket.title')"
+      direction="rtl"
+      size="min(560px, 94vw)"
+      class="pr-po-basket-drawer"
+    >
+      <p v-if="!basketCount" class="basket-drawer-hint">{{ t('purchaseRequisitionList.basket.emptyHint') }}</p>
+      <template v-else>
+        <p class="basket-drawer-summary">
+          {{ t('purchaseRequisitionList.basket.summary', { count: basketCount }) }}
+          <el-button class="basket-clear-btn basket-clear-btn--inline" link type="warning" @click="handleClearBasket">
+            {{ t('purchaseRequisitionList.basket.clear') }}
+          </el-button>
+        </p>
+        <div class="crm-items-table crm-data-table">
+          <el-table :data="basketItems" max-height="70vh" size="small" border stripe>
+            <el-table-column
+              prop="billCode"
+              :label="t('purchaseRequisitionList.columns.billCode')"
+              min-width="140"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              prop="pn"
+              :label="t('purchaseRequisitionList.columns.pn')"
+              min-width="120"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              prop="brand"
+              :label="t('purchaseRequisitionList.columns.brand')"
+              min-width="100"
+              show-overflow-tooltip
+            />
+            <el-table-column prop="qty" :label="t('purchaseRequisitionList.columns.qty')" width="100" align="right" />
+            <el-table-column :label="t('purchaseRequisitionList.basket.remove')" width="88" align="center" fixed="right">
+              <template #default="{ row }">
+                <el-button link type="danger" size="small" @click="removeOneFromBasket(row.id)">
+                  {{ t('purchaseRequisitionList.basket.remove') }}
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+        <div class="basket-drawer-actions">
+          <el-button
+            type="warning"
+            :disabled="basketCount < PR_PO_BATCH_MIN || batchGenerateLoading"
+            :loading="batchGenerateLoading"
+            @click="handleBatchGenerateFromBasket"
+          >
+            {{ t('purchaseRequisitionList.basket.batchGenerate') }}
+          </el-button>
+        </div>
+      </template>
+    </el-drawer>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, reactive, onMounted } from 'vue'
+import { computed, ref, reactive, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { storeToRefs } from 'pinia'
 import { Setting } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { purchaseRequisitionApi } from '@/api/purchaseRequisition'
 import { useAuthStore } from '@/stores/auth'
+import { usePurchaseRequisitionPoBasketStore } from '@/stores/purchaseRequisitionPoBasket'
 import { canGeneratePurchaseOrderFromRequisition } from '@/utils/purchaseOrderCreateGate'
+import {
+  isPrBasketEligibleStatus,
+  messageKeyForPrBatchValidateError,
+  PR_PO_BATCH_MIN,
+  PR_PO_BATCH_MAX,
+  prBatchValidateMessageParams,
+  validatePrBatchForPoGeneration,
+  type PrBatchValidateErrorCode
+} from '@/utils/purchaseRequisitionBatchPo'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
@@ -224,6 +329,12 @@ import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 const router = useRouter()
 const { t, locale } = useI18n()
 const authStore = useAuthStore()
+const basketStore = usePurchaseRequisitionPoBasketStore()
+const { count: basketCount, items: basketItems } = storeToRefs(basketStore)
+
+const basketDrawerVisible = ref(false)
+const suppressBasketMerge = ref(false)
+const batchGenerateLoading = ref(false)
 
 const canGeneratePurchaseOrder = computed(() =>
   canGeneratePurchaseOrderFromRequisition({
@@ -247,6 +358,8 @@ const list = ref<any[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
+/** 避免 el-pagination 初始化时重复触发 current-change */
+const paginationReady = ref(false)
 const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 
@@ -263,7 +376,18 @@ function toggleOpCol() {
 
 const purchaseReqColumns = computed<CrmTableColumnDef[]>(() => {
   void locale.value
-  return [
+  const cols: CrmTableColumnDef[] = [
+    {
+      key: 'sel',
+      type: 'selection',
+      width: 48,
+      hideable: false,
+      pinned: 'start',
+      resizable: false,
+      reserveSelection: true
+    }
+  ]
+  cols.push(
     { key: 'status', label: t('purchaseRequisitionList.columns.status'), prop: 'status', width: 160, align: 'center' },
     { key: 'pn', label: t('purchaseRequisitionList.columns.pn'), prop: 'pn', minWidth: 140, showOverflowTooltip: true },
     { key: 'brand', label: t('purchaseRequisitionList.columns.brand'), prop: 'brand', minWidth: 120, showOverflowTooltip: true },
@@ -319,9 +443,10 @@ const purchaseReqColumns = computed<CrmTableColumnDef[]>(() => {
       reorderable: false,
       className: 'op-col',
       labelClassName: 'op-col',
-    resizable: false
+      resizable: false
     }
-  ]
+  )
+  return cols
 })
 
 const filterForm = reactive({
@@ -329,6 +454,15 @@ const filterForm = reactive({
   sellOrderId: '',
   status: undefined as number | undefined
 })
+
+function resolvePrRowId(row: Record<string, unknown>): string {
+  return String(row.id ?? row.Id ?? '').trim()
+}
+
+function resolvePrRowStatus(row: Record<string, unknown>): number {
+  const n = Number(row.status ?? row.Status ?? -1)
+  return Number.isFinite(n) ? n : -1
+}
 
 function getStatusText(s: number) {
   const m: Record<number, string> = {
@@ -340,11 +474,11 @@ function getStatusText(s: number) {
   return m[s] ?? String(s)
 }
 
-function getStatusTagType(s: number): '' | 'success' | 'warning' | 'info' | 'danger' {
+function getStatusTagType(s: number): 'success' | 'warning' | 'info' | 'danger' {
   if (s === 0) return 'info'
   if (s === 1 || s === 2) return 'success'
   if (s === 3) return 'danger'
-  return ''
+  return 'info'
 }
 
 function getPrTypeLabel(typeVal: number) {
@@ -365,14 +499,33 @@ async function loadList() {
       page: page.value,
       pageSize: pageSize.value
     })
-    list.value = data?.items ?? []
-    total.value = data?.total ?? 0
-  } catch (e: any) {
+    list.value = (data?.items ?? []).map((row: Record<string, unknown>) => ({
+      ...row,
+      id: resolvePrRowId(row),
+      status: resolvePrRowStatus(row)
+    }))
+    total.value = Number(data?.total ?? data?.totalCount ?? 0)
+  } catch (e: unknown) {
     // eslint-disable-next-line no-console
     console.error(e)
+    ElMessage.error(t('purchaseRequisitionList.messages.loadFailed'))
   } finally {
     loading.value = false
   }
+  void nextTick(() => {
+    void restoreTableSelectionFromBasket()
+  })
+}
+
+function handlePageChange() {
+  if (!paginationReady.value) return
+  void loadList()
+}
+
+function handlePageSizeChange() {
+  if (!paginationReady.value) return
+  page.value = 1
+  void loadList()
 }
 
 function handleSearch() {
@@ -397,6 +550,118 @@ function handleGeneratePurchaseOrder(row: any) {
     return
   }
   router.push({ name: 'PurchaseOrderCreate', query: { requisitionId: row?.id } })
+}
+
+function onSelectionChange(rows: Record<string, unknown>[]) {
+  if (suppressBasketMerge.value || !canGeneratePurchaseOrder.value) return
+  const eligible = rows.filter((r) => isPrBasketEligibleStatus(resolvePrRowStatus(r)))
+  const ineligible = rows.filter((r) => !isPrBasketEligibleStatus(resolvePrRowStatus(r)))
+  if (ineligible.length > 0) {
+    suppressBasketMerge.value = true
+    for (const row of ineligible) {
+      dataTableRef.value?.toggleRowSelection(row, false)
+    }
+    void nextTick(() => {
+      suppressBasketMerge.value = false
+    })
+    ElMessage.warning(t('purchaseRequisitionList.basket.statusDenied'))
+  }
+  basketStore.mergePageSelection(list.value, eligible)
+}
+
+async function restoreTableSelectionFromBasket() {
+  if (!canGeneratePurchaseOrder.value) return
+  const table = dataTableRef.value
+  if (!table) return
+  try {
+    suppressBasketMerge.value = true
+    await nextTick()
+    table.clearSelection()
+    await nextTick()
+    for (const row of list.value) {
+      if (basketStore.has(resolvePrRowId(row))) {
+        table.toggleRowSelection(row, true)
+      }
+    }
+    await nextTick()
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error('[PurchaseRequisitionList] restore basket selection failed', e)
+  } finally {
+    suppressBasketMerge.value = false
+  }
+}
+
+function removeOneFromBasket(id: string) {
+  if (!id) return
+  basketStore.remove(id)
+  suppressBasketMerge.value = true
+  const row = list.value.find((r) => resolvePrRowId(r) === id)
+  if (row) {
+    dataTableRef.value?.toggleRowSelection(row, false)
+  }
+  void nextTick(() => {
+    suppressBasketMerge.value = false
+  })
+  ElMessage.success(t('purchaseRequisitionList.basket.removeSuccess'))
+}
+
+async function handleClearBasket() {
+  if (!basketStore.count) return
+  try {
+    await ElMessageBox.confirm(
+      t('purchaseRequisitionList.basket.clearConfirm'),
+      t('purchaseRequisitionList.basket.clear'),
+      { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
+    )
+  } catch {
+    return
+  }
+  basketStore.clear()
+  suppressBasketMerge.value = true
+  dataTableRef.value?.clearSelection()
+  await nextTick()
+  suppressBasketMerge.value = false
+  ElMessage.success(t('purchaseRequisitionList.basket.clearSuccess'))
+}
+
+async function showPrBatchValidateAlert(code: PrBatchValidateErrorCode) {
+  await ElMessageBox.alert(
+    t(messageKeyForPrBatchValidateError(code), prBatchValidateMessageParams(code)),
+    t('purchaseRequisitionList.basket.batchValidateTitle'),
+    { type: 'warning', confirmButtonText: t('common.confirm') }
+  )
+}
+
+async function handleBatchGenerateFromBasket() {
+  if (!canGeneratePurchaseOrder.value || batchGenerateLoading.value) return
+  const ids = basketStore.idOrder
+  if (ids.length < PR_PO_BATCH_MIN) {
+    await showPrBatchValidateAlert('batchMinCount')
+    return
+  }
+  if (ids.length > PR_PO_BATCH_MAX) {
+    await showPrBatchValidateAlert('batchMaxCount')
+    return
+  }
+
+  batchGenerateLoading.value = true
+  try {
+    const prs = await Promise.all(ids.map((id) => purchaseRequisitionApi.getById(id)))
+    const prRecords = prs.map((p) => p as unknown as Record<string, unknown>)
+    const err = validatePrBatchForPoGeneration(prRecords)
+    if (err) {
+      await showPrBatchValidateAlert(err)
+      return
+    }
+    basketDrawerVisible.value = false
+    router.push({ name: 'PurchaseOrderCreate', query: { requisitionIds: ids.join(',') } })
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e)
+    ElMessage.error(msg || t('purchaseRequisitionList.basket.prefillFailed'))
+  } finally {
+    batchGenerateLoading.value = false
+  }
 }
 
 async function handleSoftDelete(row: any) {
@@ -459,7 +724,10 @@ async function handleForceDelete(row: any) {
   }
 }
 
-onMounted(loadList)
+onMounted(async () => {
+  await loadList()
+  paginationReady.value = true
+})
 </script>
 
 <style scoped lang="scss">
@@ -666,6 +934,48 @@ onMounted(loadList)
   flex: 0 0 26px;
 }
 
+.basket-footer-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+}
+
+.basket-open-btn {
+  padding: 4px 6px 4px 8px !important;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.basket-clear-btn {
+  padding: 4px 8px 4px 2px !important;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.basket-batch-purchase-btn {
+  margin-left: 10px;
+  letter-spacing: normal;
+
+  &:hover:not(:disabled) {
+    transform: none;
+    box-shadow: none;
+  }
+}
+
+.basket-count-label {
+  color: $cyan-primary;
+  font-weight: 600;
+  margin-left: 2px;
+}
+
+.basket-drawer-actions {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+
 .inline-flex {
   display: inline-flex;
 }
@@ -684,6 +994,56 @@ onMounted(loadList)
   align-items: center;
   gap: 4px 8px;
   justify-content: flex-end;
+}
+</style>
+
+<style lang="scss">
+@import '@/assets/styles/variables.scss';
+
+.pr-po-basket-drawer {
+  background: $layer-2 !important;
+
+  .el-drawer__header {
+    color: $text-primary;
+    border-bottom: 1px solid $border-panel;
+    margin-bottom: 0;
+    padding-bottom: 12px;
+  }
+
+  .el-drawer__title {
+    color: $text-primary;
+    font-weight: 600;
+  }
+
+  .el-drawer__body {
+    background: $layer-2;
+    color: $text-secondary;
+  }
+
+  .basket-drawer-hint {
+    font-size: 13px;
+    color: $text-muted;
+    line-height: 1.6;
+    margin: 0 0 12px;
+  }
+
+  .basket-drawer-summary {
+    font-size: 13px;
+    color: $text-secondary;
+    margin: 0 0 12px;
+    line-height: 1.6;
+  }
+
+  .basket-clear-btn--inline {
+    vertical-align: baseline;
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 0 2px !important;
+    margin: 0 1px;
+    font-size: 13px !important;
+    font-weight: 500;
+    color: $color-amber !important;
+  }
 }
 </style>
 

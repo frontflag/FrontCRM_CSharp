@@ -163,12 +163,8 @@ namespace CRM.Core.Services
         private static string? NormalizeOptionalUserId(string? userId) =>
             string.IsNullOrWhiteSpace(userId) ? null : userId.Trim();
 
-        /// <summary>前端占位：无销售明细时传入的全零 GUID，不视为以销定采。</summary>
-        private const string EmptySellOrderItemSentinel = "00000000-0000-0000-0000-000000000000";
-
         private static bool IsLinkedSellOrderPurchaseLine(string? sellOrderItemId) =>
-            !string.IsNullOrWhiteSpace(sellOrderItemId) &&
-            !string.Equals(sellOrderItemId.Trim(), EmptySellOrderItemSentinel, StringComparison.OrdinalIgnoreCase);
+            PurchaseOrderItemLinkRules.IsLinkedSellOrderLine(sellOrderItemId);
 
         private async Task<int> RecalculatePurchaseRequisitionBySellLinesAsync(IEnumerable<string> sellOrderItemIds)
         {
@@ -190,17 +186,10 @@ namespace CRM.Core.Services
         private static string? NormalizeStoredSellOrderItemId(string? sellOrderItemId) =>
             IsLinkedSellOrderPurchaseLine(sellOrderItemId) ? sellOrderItemId!.Trim() : null;
 
-        /// <summary>
-        /// 有销售明细关联 → 客单采购(1)；否则备货(2)；无销售关联且请求为样品 → 3。
-        /// </summary>
-        private static short ResolvePurchaseOrderHeaderType(short requestedType, IEnumerable<CreatePurchaseOrderItemRequest> items)
-        {
-            if (items.Any(i => IsLinkedSellOrderPurchaseLine(i.SellOrderItemId)))
-                return 1;
-            if (requestedType == 3)
-                return 3;
-            return 2;
-        }
+        private static short ResolvePurchaseOrderHeaderType(short requestedType, IEnumerable<CreatePurchaseOrderItemRequest> items) =>
+            PurchaseOrderItemLinkRules.ResolveHeaderType(
+                requestedType,
+                items.Select(i => i.SellOrderItemId));
 
         public async Task<PurchaseOrder> CreateAsync(CreatePurchaseOrderRequest request, string? actingUserId = null)
         {
@@ -213,6 +202,9 @@ namespace CRM.Core.Services
 
             var total = request.Items.Sum(item => item.Qty * item.Cost);
             var headerType = ResolvePurchaseOrderHeaderType(request.Type, request.Items);
+            PurchaseOrderItemLinkRules.ValidateCustomerOrderItems(
+                headerType,
+                request.Items.Select(i => i.SellOrderItemId).ToList());
             var distinctLineCurrencies = request.Items.Select(i => i.Currency).Distinct().ToList();
             var headerCurrency = distinctLineCurrencies.Count == 1 ? distinctLineCurrencies[0] : request.Currency;
             var fx = await _financeExchangeRateService.GetCurrentAsync();
@@ -509,6 +501,9 @@ namespace CRM.Core.Services
                 order.ItemRows = activeLines;
                 replacedItemCount = activeLines;
                 order.Type = ResolvePurchaseOrderHeaderType(request.Type ?? order.Type, request.Items);
+                PurchaseOrderItemLinkRules.ValidateCustomerOrderItems(
+                    order.Type,
+                    request.Items.Select(i => i.SellOrderItemId).ToList());
             }
             else if (request.Type.HasValue)
             {

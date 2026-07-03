@@ -175,7 +175,7 @@
       <div class="form-section">
         <div class="section-title">
           <span class="title-bar"></span>订单明细
-          <el-button type="success" size="small" class="add-item-btn" @click="addItem">
+          <el-button v-if="allowAddPoItem" type="success" size="small" class="add-item-btn" @click="addItem">
             <el-icon><Plus /></el-icon> 添加明细
           </el-button>
         </div>
@@ -265,7 +265,15 @@
             </el-row>
 
             <div class="material-card-actions">
-              <el-button link type="danger" size="small" @click="removeItem(index)">删除</el-button>
+              <el-button
+                v-if="canRemovePoItem"
+                link
+                type="danger"
+                size="small"
+                @click="removeItem(index)"
+              >
+                删除
+              </el-button>
             </div>
 
             <div class="line-total-row">
@@ -291,9 +299,20 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, Check, Plus } from '@element-plus/icons-vue'
 import type { FormInstance } from 'element-plus'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
 import { purchaseRequisitionApi } from '@/api/purchaseRequisition'
+import { usePurchaseRequisitionPoBasketStore } from '@/stores/purchaseRequisitionPoBasket'
+import {
+  buildPoLineItemFromPr,
+  getPrPrefillPoType,
+  getPrQuoteCurrency,
+  messageKeyForPrBatchValidateError,
+  prBatchValidateMessageParams,
+  resolveLatestDeliveryDate,
+  resolvePurchaserFromPr,
+  validatePrBatchForPoGeneration
+} from '@/utils/purchaseRequisitionBatchPo'
 import { vendorApi, vendorContactApi } from '@/api/vendor'
 import VendorNameReadonlyField from '@/components/Vendor/VendorNameReadonlyField.vue'
 import { runSaveTask, validateElFormOrWarn } from '@/composables/useFormSubmit'
@@ -301,6 +320,11 @@ import { getApiErrorMessage } from '@/utils/apiError'
 import type { Vendor } from '@/types/vendor'
 import { useAuthStore } from '@/stores/auth'
 import { canSubmitPurchaseOrderCreate } from '@/utils/purchaseOrderCreateGate'
+import {
+  messageKeyForPoCustomerOrderValidateError,
+  PO_TYPE_CUSTOMER,
+  validateCustomerOrderItemsForSave
+} from '@/utils/purchaseOrderItemLinkRules'
 import PurchaserCascader from '@/components/PurchaserCascader.vue'
 import PurchaseOpsAssistorSelect from '@/components/PurchaseOpsAssistorSelect.vue'
 import { authApi, type PurchaseDeptStaffUserOption } from '@/api/auth'
@@ -320,6 +344,7 @@ const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
 const authStore = useAuthStore()
+const basketStore = usePurchaseRequisitionPoBasketStore()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { ensureLoaded: ensureMaterialPdDict, coerceProductionDateToCode: coercePd } = useMaterialProductionDateDict()
 
@@ -362,10 +387,28 @@ const requisitionId = computed(() => {
   if (!v) return undefined
   return String(v)
 })
+const requisitionIds = computed(() => {
+  const raw = route.query.requisitionIds
+  if (!raw) return [] as string[]
+  return String(raw)
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+})
+const hasRequisitionPrefill = computed(() => !!requisitionId.value || requisitionIds.value.length > 0)
 const generatedFromRequisition = ref(false)
+const generatedFromRequisitionBatch = ref(false)
+
+/** 客单采购(1) 不允许手工添加明细；备货/样品可添加 */
+const allowAddPoItem = computed(() => formData.value.type !== PO_TYPE_CUSTOMER)
+
+/** 客单采购至少保留一条明细 */
+const canRemovePoItem = computed(
+  () => formData.value.type !== PO_TYPE_CUSTOMER || formData.value.items.length > 1
+)
 
 /** 无采购申请链路的纯新建：允许搜索选择供应商/联系人（含备货采购?type=2） */
-const allowManualVendorPick = computed(() => !editId.value && !requisitionId.value)
+const allowManualVendorPick = computed(() => !editId.value && !hasRequisitionPrefill.value)
 /** 销售等需脱敏身份时禁止供应商搜索，避免下拉暴露名称 */
 const showVendorPicker = computed(
   () => allowManualVendorPick.value && !maskPurchaseSensitiveFields.value
@@ -691,7 +734,18 @@ const addItem = () => {
 }
 
 const removeItem = (index: number) => {
+  if (formData.value.type === PO_TYPE_CUSTOMER && formData.value.items.length <= 1) {
+    ElMessage.warning(t('purchaseOrderCreate.validate.customerOrderCannotRemoveLast'))
+    return
+  }
   formData.value.items.splice(index, 1)
+}
+
+function validatePoItemsCustomerOrderLinks(): boolean {
+  const err = validateCustomerOrderItemsForSave(formData.value.type, formData.value.items)
+  if (!err) return true
+  ElMessage.warning(t(messageKeyForPoCustomerOrderValidateError(err)))
+  return false
 }
 
 function onItemBrandChange(
@@ -824,6 +878,7 @@ const handleSubmit = async () => {
     if (!ok) return
   }
   if (!validateItemsBrand()) return
+  if (!validatePoItemsCustomerOrderLinks()) return
   await runSaveTask({
     loading: submitLoading,
     successMessage: editId.value ? '采购订单已保存' : '采购订单创建成功',
@@ -872,10 +927,16 @@ const handleSubmit = async () => {
       }
       await purchaseOrderApi.create(createBody)
     },
-    onSuccess: () =>
-      editId.value
-        ? router.push({ name: 'PurchaseOrderDetail', params: { id: editId.value } })
-        : router.push({ name: 'PurchaseOrderList' }),
+    onSuccess: () => {
+      if (!editId.value && (generatedFromRequisition.value || generatedFromRequisitionBatch.value)) {
+        basketStore.clear()
+      }
+      if (editId.value) {
+        router.push({ name: 'PurchaseOrderDetail', params: { id: editId.value } })
+      } else {
+        router.push({ name: 'PurchaseOrderList' })
+      }
+    },
     errorMessage: (err) => {
       if (import.meta.env.DEV) {
         // eslint-disable-next-line no-console
@@ -886,75 +947,84 @@ const handleSubmit = async () => {
   })
 }
 
+async function applyPrsToPurchaseOrderForm(prs: Record<string, unknown>[]) {
+  if (!prs.length) return
+  const first = prs[0]!
+
+  formData.value.purchaseOrderCode = genOrderCode()
+  formData.value.type = getPrPrefillPoType(first)
+  formData.value.vendorName = String(first.intendedVendorName ?? first.IntendedVendorName ?? '')
+  formData.value.vendorId = String(first.quoteVendorId ?? first.QuoteVendorId ?? '')
+  formData.value.vendorContactId = String(first.intendedVendorContactId ?? first.IntendedVendorContactId ?? '')
+  formData.value.vendorContactName = String(first.intendedVendorContactName ?? first.IntendedVendorContactName ?? '')
+
+  const purchaser = resolvePurchaserFromPr(first)
+  if (!staffPickLocked.value) {
+    formData.value.purchaseUserId = purchaser.id || formData.value.purchaseUserId
+    formData.value.purchaseUserName = purchaser.name || formData.value.purchaseUserName
+  }
+
+  formData.value.currency = getPrQuoteCurrency(first)
+  formData.value.deliveryDate = resolveLatestDeliveryDate(prs)
+  formData.value.comment = ''
+
+  const headerDelivery = formData.value.deliveryDate
+  formData.value.items = prs.map((pr) =>
+    buildPoLineItemFromPr(pr, {
+      manualVendorId: MANUAL_VENDOR_ID,
+      coercePd,
+      headerDeliveryDate: headerDelivery
+    })
+  )
+
+  await resolveBrandIdsForItems(formData.value.items)
+  generatedFromRequisition.value = true
+  generatedFromRequisitionBatch.value = prs.length > 1
+  await initStaffPickFields()
+  if (staffPickLocked.value) {
+    const assistantId = formData.value.assistor?.trim() || authStore.user?.id || ''
+    if (assistantId) await loadPurchaseUserSelectOptionsForAssistor(assistantId)
+  } else if (staffPickFree.value) {
+    reconcilePurchaseUserWithSelectOptions(false)
+  }
+}
+
 async function handleGeneratePurchaseOrder() {
   if (!requisitionId.value) return
   genLoading.value = true
   try {
     const pr = await purchaseRequisitionApi.getById(requisitionId.value)
-    const prExt = pr as Record<string, unknown>
-
-    // 基于采购申请预填采购订单：采购单价默认=报价金额，币别默认=报价币别（见 API quoteCost / quoteCurrency）
-    formData.value.purchaseOrderCode = genOrderCode()
-    // 订单类型：与销售订单一致（客单采购/备货采购/样品采购），非 PR 的专属/公开备货类型
-    const poType = Number(prExt.prefillPurchaseOrderType ?? 0)
-    formData.value.type = poType >= 1 && poType <= 3 ? poType : 1
-    formData.value.vendorName = pr.intendedVendorName ?? ''
-    formData.value.vendorId = pr.quoteVendorId ?? ''
-    formData.value.vendorContactId = pr.intendedVendorContactId ?? ''
-    formData.value.vendorContactName = pr.intendedVendorContactName ?? ''
-    // 采购员：报价单采购员 → 需求明细询价采购员 → 采购申请采购员（均可于本页修改）
-    const quoteUid = String(prExt.prefillPurchaseUserId ?? '').trim()
-    const quoteName = String(prExt.prefillPurchaseUserName ?? '').trim()
-    const rfqUid = String(prExt.prefillRfqPurchaserUserId ?? '').trim()
-    const rfqName = String(prExt.prefillRfqPurchaserUserName ?? '').trim()
-    const prUid = String(pr.purchaseUserId ?? '').trim()
-    const prName = String(pr.purchaseUserName ?? '').trim()
-    const pickUid = quoteUid || rfqUid || prUid
-    const pickName = quoteUid ? quoteName : rfqUid ? rfqName : prName
-    if (!staffPickLocked.value) {
-      formData.value.purchaseUserId = pickUid || formData.value.purchaseUserId
-      formData.value.purchaseUserName = pickName || formData.value.purchaseUserName
-    }
-    const quoteCostNum = Number(pr.quoteCost ?? prExt.quoteCost ?? 0) || 0
-    const quoteCurNum = Number(prExt.quoteCurrency ?? pr.currency ?? formData.value.currency ?? 1) || 1
-    formData.value.currency = quoteCurNum
-
-    const deliveryDateStr = pr.deliveryDate ? String(pr.deliveryDate).split('T')[0] : ''
-    formData.value.deliveryDate = deliveryDateStr || (pr.expectedPurchaseTime ? String(pr.expectedPurchaseTime).split('T')[0] : '')
-    // 基本信息-备注默认空白（PR里的备注/内部备注不回填到主表备注，避免干扰用户手工填写）
-    formData.value.comment = ''
-    formData.value.items = [
-      {
-        sellOrderItemId: pr.sellOrderItemId ? String(pr.sellOrderItemId).trim() : undefined,
-        vendorId: pr.quoteVendorId ?? MANUAL_VENDOR_ID,
-        pn: pr.pn ?? '',
-        brand: pr.brand ?? '',
-        brandId: undefined as number | undefined,
-        customerMaterialModel: pr.customerMaterialModel ?? '',
-        targetPrice: quoteCostNum,
-        qty: pr.qty ?? 1,
-        cost: quoteCostNum,
-        currency: quoteCurNum,
-        quoteCurrency: quoteCurNum,
-        dateCode: coercePd(String(pr.dateCode ?? '').trim()),
-        deliveryDate: deliveryDateStr || formData.value.deliveryDate || '',
-        comment: pr.itemRemark ?? '',
-        innerComment: ''
-      }
-    ]
-
-    await resolveBrandIdsForItems(formData.value.items)
-    generatedFromRequisition.value = true
-    await initStaffPickFields()
-    if (staffPickLocked.value) {
-      const assistantId = formData.value.assistor?.trim() || authStore.user?.id || ''
-      if (assistantId) await loadPurchaseUserSelectOptionsForAssistor(assistantId)
-    } else if (staffPickFree.value) {
-      reconcilePurchaseUserWithSelectOptions(false)
-    }
+    await applyPrsToPurchaseOrderForm([pr as unknown as Record<string, unknown>])
   } catch (e) {
     // eslint-disable-next-line no-console
     console.error(e)
+    ElMessage.error(t('purchaseRequisitionList.basket.prefillFailed'))
+  } finally {
+    genLoading.value = false
+  }
+}
+
+async function handleGenerateFromRequisitions(ids: string[]) {
+  if (!ids.length) return
+  genLoading.value = true
+  try {
+    const prs = await Promise.all(ids.map((id) => purchaseRequisitionApi.getById(id)))
+    const prRecords = prs.map((p) => p as unknown as Record<string, unknown>)
+    const err = validatePrBatchForPoGeneration(prRecords)
+    if (err) {
+      await ElMessageBox.alert(
+        t(messageKeyForPrBatchValidateError(err), prBatchValidateMessageParams(err)),
+        t('purchaseRequisitionList.basket.batchValidateTitle'),
+        { type: 'warning', confirmButtonText: t('common.confirm') }
+      )
+      router.back()
+      return
+    }
+    await applyPrsToPurchaseOrderForm(prRecords)
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error(e)
+    ElMessage.error(t('purchaseRequisitionList.basket.prefillFailed'))
   } finally {
     genLoading.value = false
   }
@@ -974,6 +1044,10 @@ onMounted(async () => {
     } catch {
       ElMessage.error('加载采购订单失败')
     }
+    return
+  }
+  if (requisitionIds.value.length > 0) {
+    await handleGenerateFromRequisitions(requisitionIds.value)
     return
   }
   if (requisitionId.value) {

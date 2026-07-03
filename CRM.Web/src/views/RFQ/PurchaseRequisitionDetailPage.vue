@@ -31,8 +31,41 @@
           </div>
         </div>
       </div>
-      <div v-if="data && showHeaderMoreMenu" class="header-right">
+      <div v-if="data && (canGeneratePurchaseOrder || showHeaderMoreMenu)" class="header-right">
+        <template v-if="canGeneratePurchaseOrder">
+          <button type="button" class="btn-warning" @click="handleGeneratePurchaseOrder">
+            {{ t('purchaseRequisitionDetail.generatePo') }}
+          </button>
+          <button
+            v-if="inPoBasket"
+            type="button"
+            class="btn-secondary"
+            disabled
+          >
+            {{ t('purchaseRequisitionDetail.addedToBatch') }}
+          </button>
+          <el-tooltip
+            v-else-if="!isPrBasketEligible"
+            :content="t('purchaseRequisitionList.basket.statusDenied')"
+            placement="bottom"
+          >
+            <span class="inline-flex">
+              <button type="button" class="btn-secondary" disabled>
+                {{ t('purchaseRequisitionDetail.addToBatch') }}
+              </button>
+            </span>
+          </el-tooltip>
+          <button
+            v-else
+            type="button"
+            class="btn-secondary"
+            @click="handleAddToBatch"
+          >
+            {{ t('purchaseRequisitionDetail.addToBatch') }}
+          </button>
+        </template>
         <el-dropdown
+          v-if="showHeaderMoreMenu"
           trigger="click"
           placement="bottom-end"
           popper-class="pr-detail-header-more-popper"
@@ -289,7 +322,13 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { purchaseRequisitionApi } from '@/api/purchaseRequisition'
 import { useAuthStore } from '@/stores/auth'
+import { usePurchaseRequisitionPoBasketStore } from '@/stores/purchaseRequisitionPoBasket'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import { canGeneratePurchaseOrderFromRequisition } from '@/utils/purchaseOrderCreateGate'
+import {
+  isPrBasketEligibleStatus,
+  normalizePrDetailToBasketItem
+} from '@/utils/purchaseRequisitionBatchPo'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 
@@ -321,7 +360,24 @@ const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
+const basketStore = usePurchaseRequisitionPoBasketStore()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
+
+const canGeneratePurchaseOrder = computed(() =>
+  canGeneratePurchaseOrderFromRequisition({
+    isSysAdmin: authStore.user?.isSysAdmin,
+    identityType: authStore.user?.identityType,
+    roleCodes: authStore.user?.roleCodes,
+    hasPermission: (code) => authStore.hasPermission(code)
+  })
+)
+
+const inPoBasket = computed(() => {
+  const id = String(data.value?.id ?? '').trim()
+  return id ? basketStore.has(id) : false
+})
+
+const isPrBasketEligible = computed(() => isPrBasketEligibleStatus(Number(data.value?.status ?? -1)))
 
 const loading = ref(false)
 const deleting = ref(false)
@@ -473,6 +529,26 @@ function goSellOrder(sellOrderId: string) {
   router.push({ name: 'SalesOrderDetail', params: { id: sellOrderId } })
 }
 
+function handleGeneratePurchaseOrder() {
+  if (!canGeneratePurchaseOrder.value || !data.value?.id) return
+  router.push({ name: 'PurchaseOrderCreate', query: { requisitionId: data.value.id } })
+}
+
+function handleAddToBatch() {
+  if (!canGeneratePurchaseOrder.value || !data.value) return
+  if (!isPrBasketEligible.value) {
+    ElMessage.warning(t('purchaseRequisitionList.basket.statusDenied'))
+    return
+  }
+  const item = normalizePrDetailToBasketItem(data.value as unknown as Record<string, unknown>)
+  if (!item) return
+  if (!basketStore.upsert(item)) {
+    ElMessage.warning(t('purchaseRequisitionList.basket.statusDenied'))
+    return
+  }
+  ElMessage.success(t('purchaseRequisitionList.basket.addSuccess', { count: basketStore.count }))
+}
+
 function onHeaderMoreCommand(command: string) {
   if (command === 'softDelete') void handleSoftDelete()
   else if (command === 'forceDelete') void handleForceDelete()
@@ -614,6 +690,45 @@ onMounted(load)
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+}
+
+.btn-warning {
+  padding: 8px 14px;
+  border-radius: $border-radius-md;
+  border: 1px solid rgba(201, 154, 69, 0.4);
+  color: $color-amber;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  background: rgba(201, 154, 69, 0.15);
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: $border-radius-md;
+  border: 1px solid $border-panel;
+  color: $text-secondary;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.inline-flex {
+  display: inline-flex;
 }
 
 .btn-back {

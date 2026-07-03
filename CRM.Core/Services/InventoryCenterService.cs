@@ -245,7 +245,6 @@ namespace CRM.Core.Services
             var allLedgers = (await _ledgerRepository.GetAllAsync()).ToList();
             var postedLayers = (await _stockItemRepository.FindAsync(x => x.StockInId == stockInId)).ToList();
             var changed = false;
-            var inboundStockType = await ResolveStockTypeForStockInAsync(stockIn, extendRows);
             var fx = await _financeExchangeRateService.GetCurrentAsync();
 
             foreach (var line in lines)
@@ -255,6 +254,7 @@ namespace CRM.Core.Services
 
                 var poiForBucket = await TryGetPoItemByStockInLineAsync(line);
                 extByLineId.TryGetValue(line.Id, out var lineExt);
+                var inboundStockType = await ResolveInboundStockTypeForLineAsync(stockIn, lineExt, poiForBucket);
                 var pnKey = NormStockBucketText(poiForBucket?.PN);
                 var brKey = NormStockBucketText(poiForBucket?.Brand);
                 var soKey = NormStockBucketText(lineExt?.SellOrderItemId);
@@ -504,6 +504,37 @@ namespace CRM.Core.Services
         }
 
         private static short NormalizeStockInventoryType(short type) => type is >= 1 and <= 3 ? type : (short)1;
+
+        /// <summary>入库过账：库存类型与采购订单头一致；客单头但行无销售关联时按备货入账。</summary>
+        private async Task<short> ResolveInboundStockTypeForLineAsync(
+            StockIn stockIn,
+            StockInItemExtend? lineExt,
+            PurchaseOrderItem? poiForBucket)
+        {
+            PurchaseOrder? po = null;
+            var poi = poiForBucket;
+            if (poi == null && !string.IsNullOrWhiteSpace(lineExt?.PurchaseOrderItemId))
+                poi = await _purchaseOrderItemRepository.GetByIdAsync(lineExt.PurchaseOrderItemId.Trim());
+            if (poi != null && !string.IsNullOrWhiteSpace(poi.PurchaseOrderId))
+                po = await _purchaseOrderRepository.GetByIdAsync(poi.PurchaseOrderId.Trim());
+
+            var headerType = po == null ? (short)1 : NormalizeStockInventoryType(po.Type);
+            var resolved = PurchaseOrderItemLinkRules.ResolveInboundStockType(
+                headerType,
+                lineExt?.SellOrderItemId,
+                poi?.SellOrderItemId);
+
+            if (headerType == PurchaseOrderItemLinkRules.PurchaseOrderTypeCustomer &&
+                resolved == PurchaseOrderItemLinkRules.PurchaseOrderTypeStocking)
+            {
+                _logger.LogWarning(
+                    "[InboundStockType] 客单采购入库行无销售明细关联，库存按备货类型入账 PoItemId={PoItemId} StockInId={StockInId}",
+                    poi?.Id ?? lineExt?.PurchaseOrderItemId ?? "(null)",
+                    stockIn.Id);
+            }
+
+            return resolved;
+        }
 
         /// <summary>入库过账：库存类型与采购订单头 <c>Type</c> 一致（经采购订单明细关联）。</summary>
         private async Task<short> ResolveStockTypeForStockInAsync(StockIn stockIn, IReadOnlyList<StockInItemExtend>? extendRows = null)

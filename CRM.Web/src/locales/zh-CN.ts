@@ -3471,6 +3471,13 @@ const zhCN = {
       basketCleared: '已清空复选篮子'
     }
   },
+  purchaseOrderCreate: {
+    validate: {
+      customerOrderMinOneItem: '客单采购订单至少需要一条明细',
+      customerOrderLineSellItemRequired: '客单采购订单的每条明细须关联销售订单明细，请从采购申请生成或勿手工添加无关联明细',
+      customerOrderCannotRemoveLast: '客单采购订单至少须保留一条明细'
+    }
+  },
   purchaseOrderList: {
     title: '采购订单',
     create: '新建采购订单',
@@ -3982,6 +3989,9 @@ const zhCN = {
   purchaseRequisitionList: {
     title: '采购申请列表',
     create: '新建采购申请',
+    messages: {
+      loadFailed: '加载采购申请列表失败'
+    },
     filters: {
       billCode: '采购申请号',
       billCodePlaceholder: '请输入采购申请号',
@@ -4033,7 +4043,34 @@ const zhCN = {
       deleteSuccess: '已删除',
       forceDeleteSuccess: '已强制删除'
     },
-    columnSettings: '列设置'
+    columnSettings: '列设置',
+    basket: {
+      title: '待生成采购单',
+      open: '复选篮子',
+      countLabel: '（{count}）',
+      clear: '清空篮子',
+      clearConfirm: '确定清空待生成采购单中的全部记录？',
+      clearSuccess: '已清空待生成采购单',
+      remove: '移除',
+      emptyHint: '暂无记录。在列表勾选或于详情点击「加入批量」即可加入，翻页后仍保留。',
+      summary: '共 {count} 条，可移除单条或清空后重新选择。',
+      batchGenerate: '生成采购订单',
+      batchValidateTitle: '提示',
+      batchMinTip: '请至少选择 2 条采购申请再批量生成采购订单',
+      batchMaxTip: '单次最多合并 {max} 条采购申请',
+      statusDenied: '仅「新建」或「部分完成」状态的申请可加入批量',
+      addToBatch: '加入批量',
+      addedToBatch: '已加入批量',
+      addSuccess: '已加入待生成采购单（共 {count} 条）',
+      removeFromBatch: '移出批量',
+      removeSuccess: '已从待生成采购单移除',
+      validateVendorMissing: '所选申请须均有报价供应商',
+      validateVendorMismatch: '所选申请的报价供应商须一致',
+      validatePoTypeMismatch: '所选申请关联销售单类型不一致',
+      validateCurrencyMismatch: '所选申请报价币别不一致，请分开下单',
+      validateStatusNotAllowed: '所选申请含不可生成采购订单的状态',
+      prefillFailed: '预填采购订单失败'
+    }
   },
   purchaseRequisitionDetail: {
     back: '返回',
@@ -4042,6 +4079,9 @@ const zhCN = {
     createDate: '创建日期',
     createUser: '创建人',
     moreActions: '更多操作',
+    generatePo: '生成采购订单',
+    addToBatch: '加入批量',
+    addedToBatch: '已加入批量',
     tabs: {
       poItems: '采购订单明细'
     },

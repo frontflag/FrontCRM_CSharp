@@ -3477,6 +3477,13 @@ const enUS = {
       basketCleared: 'Basket cleared'
     }
   },
+  purchaseOrderCreate: {
+    validate: {
+      customerOrderMinOneItem: 'Customer-order PO requires at least one line',
+      customerOrderLineSellItemRequired: 'Each line on a customer-order PO must link to a sales order line. Generate from purchase requisitions; do not add unlinked lines manually.',
+      customerOrderCannotRemoveLast: 'Customer-order PO must keep at least one line'
+    }
+  },
   purchaseOrderList: {
     title: 'Purchase Orders',
     create: 'New Purchase Order',
@@ -3990,6 +3997,9 @@ const enUS = {
   purchaseRequisitionList: {
     title: 'Purchase requisitions',
     create: 'New requisition',
+    messages: {
+      loadFailed: 'Failed to load purchase requisitions'
+    },
     filters: {
       billCode: 'Requisition no.',
       billCodePlaceholder: 'Enter requisition no.',
@@ -4041,9 +4051,45 @@ const enUS = {
       deleteSuccess: 'Deleted',
       forceDeleteSuccess: 'Force-deleted'
     },
-    columnSettings: 'Column settings'
+    columnSettings: 'Column settings',
+    basket: {
+      title: 'PO draft basket',
+      open: 'Selection basket',
+      countLabel: '({count})',
+      clear: 'Clear basket',
+      clearConfirm: 'Clear all requisitions in the PO draft basket?',
+      clearSuccess: 'PO draft basket cleared',
+      remove: 'Remove',
+      emptyHint: 'Empty. Select rows in the list or use Add to batch on detail; selections persist across pages.',
+      summary: '{count} item(s). Remove one or clear all to reselect.',
+      batchGenerate: 'Create purchase order',
+      batchValidateTitle: 'Notice',
+      batchMinTip: 'Select at least 2 requisitions to create one PO',
+      batchMaxTip: 'At most {max} requisitions per batch',
+      statusDenied: 'Only New or Partially done requisitions can be added',
+      addToBatch: 'Add to batch',
+      addedToBatch: 'In batch',
+      addSuccess: 'Added to PO draft basket ({count} total)',
+      removeFromBatch: 'Remove from batch',
+      removeSuccess: 'Removed from PO draft basket',
+      validateVendorMissing: 'All selected requisitions must have a quote vendor',
+      validateVendorMismatch: 'Quote vendor must be the same for all selected requisitions',
+      validatePoTypeMismatch: 'Sales order types differ among selected requisitions',
+      validateCurrencyMismatch: 'Quote currencies differ; create separate POs',
+      validateStatusNotAllowed: 'Selected requisitions include invalid status for PO creation',
+      prefillFailed: 'Failed to prefill purchase order'
+    }
   },
   purchaseRequisitionDetail: {
+    back: 'Back',
+    captionPrefix: 'Purchase requisition',
+    basicInfo: 'Basic info',
+    createDate: 'Created',
+    createUser: 'Created by',
+    moreActions: 'More',
+    generatePo: 'Create PO',
+    addToBatch: 'Add to batch',
+    addedToBatch: 'In batch',
     tabs: {
       poItems: 'PO line items'
     },
