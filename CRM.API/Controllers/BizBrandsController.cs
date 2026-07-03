@@ -25,12 +25,14 @@ public class BizBrandsController : ControllerBase
     public async Task<ActionResult<ApiResponse<BizBrandPagedDto>>> List(
         [FromQuery] string? brandCName,
         [FromQuery] string? brandEName,
+        [FromQuery] string? standardBrand,
         [FromQuery] string? alias,
         [FromQuery] string? country,
         [FromQuery] string? remark,
         [FromQuery] short? auditStatus,
         [FromQuery] DateTime? createTimeFrom,
         [FromQuery] DateTime? createTimeTo,
+        [FromQuery] bool exactMatch = false,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken ct = default)
@@ -41,12 +43,14 @@ public class BizBrandsController : ControllerBase
             {
                 BrandCName = brandCName,
                 BrandEName = brandEName,
+                StandardBrand = standardBrand,
                 Alias = alias,
                 Country = country,
                 Remark = remark,
                 AuditStatus = auditStatus,
                 CreateTimeFrom = createTimeFrom,
                 CreateTimeTo = createTimeTo,
+                ExactMatch = exactMatch,
                 Page = page,
                 PageSize = pageSize
             }, ct);

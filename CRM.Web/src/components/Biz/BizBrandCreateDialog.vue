@@ -17,7 +17,16 @@
         <el-input v-model="form.standardBrand" maxlength="300" />
       </el-form-item>
       <el-form-item :label="t('bizBrand.colAlias')">
-        <el-input v-model="form.alias" type="textarea" :rows="2" maxlength="500" />
+        <div class="alias-field-wrap">
+          <el-input
+            v-model="form.alias"
+            type="textarea"
+            :rows="2"
+            maxlength="500"
+            :placeholder="t('bizBrand.phAlias')"
+          />
+          <p class="field-hint">{{ t('bizBrand.aliasHint') }}</p>
+        </div>
       </el-form-item>
       <el-form-item :label="t('bizBrand.colCountryCode')">
         <el-input v-model="form.countryCode" maxlength="10" />
@@ -174,3 +183,16 @@ async function save() {
   }
 }
 </script>
+
+<style scoped>
+.alias-field-wrap {
+  width: 100%;
+}
+
+.field-hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  line-height: 1.5;
+}
+</style>

@@ -28,34 +28,40 @@
           <el-option :label="t('bizBrand.auditStatusApproved')" :value="2" />
         </el-select>
         <input
-          v-model="filters.brandCName"
-          class="search-input search-input--filter"
-          :placeholder="t('bizBrand.phBrandCName')"
-          @keyup.enter="handleSearch"
-        />
-        <input
           v-model="filters.brandEName"
           class="search-input search-input--filter"
           :placeholder="t('bizBrand.phBrandEName')"
-          @keyup.enter="handleSearch"
+          @keyup.enter="() => handleSearch()"
+        />
+        <input
+          v-model="filters.brandCName"
+          class="search-input search-input--filter"
+          :placeholder="t('bizBrand.phBrandCName')"
+          @keyup.enter="() => handleSearch()"
+        />
+        <input
+          v-model="filters.standardBrand"
+          class="search-input search-input--filter"
+          :placeholder="t('bizBrand.phStandardBrand')"
+          @keyup.enter="() => handleSearch()"
         />
         <input
           v-model="filters.alias"
           class="search-input search-input--filter"
           :placeholder="t('bizBrand.phAlias')"
-          @keyup.enter="handleSearch"
+          @keyup.enter="() => handleSearch()"
         />
         <input
           v-model="filters.country"
           class="search-input search-input--filter"
           :placeholder="t('bizBrand.phCountry')"
-          @keyup.enter="handleSearch"
+          @keyup.enter="() => handleSearch()"
         />
         <input
           v-model="filters.remark"
           class="search-input search-input--filter"
           :placeholder="t('bizBrand.phRemark')"
-          @keyup.enter="handleSearch"
+          @keyup.enter="() => handleSearch()"
         />
         <el-date-picker
           v-model="filters.createDateRange"
@@ -68,15 +74,39 @@
           clearable
           :teleported="false"
         />
-        <button type="button" class="btn-primary btn-sm" :disabled="loading" @click="handleSearch">
-          {{ t('bizBrand.query') }}
-        </button>
+        <div class="btn-split-group">
+          <button
+            type="button"
+            class="btn-primary btn-sm"
+            :disabled="loading"
+            @click="handleSearch(false)"
+          >
+            {{ t('bizBrand.query') }}
+          </button>
+          <el-dropdown trigger="click" :disabled="loading" @command="onQueryCommand">
+            <button
+              type="button"
+              class="btn-primary btn-sm btn-primary--caret"
+              :disabled="loading"
+              :aria-label="t('bizBrand.queryMore')"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="exact">{{ t('bizBrand.queryExact') }}</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
         <button type="button" class="btn-ghost btn-sm" :disabled="loading" @click="resetFilters">
           {{ t('bizBrand.reset') }}
         </button>
       </div>
       <div v-if="canWrite" class="search-right">
-        <button type="button" class="btn-primary btn-sm" @click="openCreate">{{ t('bizBrand.create') }}</button>
+        <button type="button" class="btn-success btn-sm" @click="openCreate">{{ t('bizBrand.create') }}</button>
       </div>
     </div>
 
@@ -226,7 +256,16 @@
           <el-input v-model="dialogForm.standardBrand" maxlength="300" />
         </el-form-item>
         <el-form-item :label="t('bizBrand.colAlias')">
-          <el-input v-model="dialogForm.alias" type="textarea" :rows="2" maxlength="500" />
+          <div class="alias-field-wrap">
+            <el-input
+              v-model="dialogForm.alias"
+              type="textarea"
+              :rows="2"
+              maxlength="500"
+              :placeholder="t('bizBrand.phAlias')"
+            />
+            <p class="field-hint">{{ t('bizBrand.aliasHint') }}</p>
+          </div>
         </el-form-item>
         <el-form-item :label="t('bizBrand.colCountryCode')">
           <el-input v-model="dialogForm.countryCode" maxlength="10" />
@@ -321,12 +360,14 @@ const rows = ref<BizBrandRow[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
+const searchExactMatch = ref(false)
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 
 const filters = reactive({
   brandCName: '',
   brandEName: '',
+  standardBrand: '',
   alias: '',
   country: '',
   remark: '',
@@ -479,12 +520,14 @@ async function loadList() {
     const data = await bizBrandApi.fetchList({
       brandCName: filters.brandCName,
       brandEName: filters.brandEName,
+      standardBrand: filters.standardBrand,
       alias: filters.alias,
       country: filters.country,
       remark: filters.remark,
       auditStatus: filters.auditStatus,
       createTimeFrom: filters.createDateRange?.[0],
       createTimeTo: filters.createDateRange?.[1],
+      exactMatch: searchExactMatch.value,
       page: page.value,
       pageSize: pageSize.value
     })
@@ -497,20 +540,27 @@ async function loadList() {
   }
 }
 
-function handleSearch() {
+function handleSearch(exact?: boolean) {
+  if (exact !== undefined) searchExactMatch.value = exact
   page.value = 1
   void loadList()
+}
+
+function onQueryCommand(command: string) {
+  if (command === 'exact') handleSearch(true)
 }
 
 function resetFilters() {
   filters.brandCName = ''
   filters.brandEName = ''
+  filters.standardBrand = ''
   filters.alias = ''
   filters.country = ''
   filters.remark = ''
   filters.auditStatus = undefined
   filters.createDateRange = null
-  handleSearch()
+  searchExactMatch.value = false
+  handleSearch(false)
 }
 
 function onPageSizeChange() {
@@ -843,13 +893,95 @@ onMounted(() => {
   word-break: break-word;
 }
 
+.alias-field-wrap {
+  width: 100%;
+}
+
+.field-hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: $text-muted;
+  line-height: 1.5;
+}
+
+.btn-split-group {
+  display: inline-flex;
+  align-items: stretch;
+  border-radius: $border-radius-md;
+  overflow: hidden;
+  vertical-align: middle;
+
+  :deep(.el-dropdown) {
+    display: inline-flex;
+    align-items: stretch;
+  }
+
+  .btn-primary:first-child {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-right: none;
+  }
+}
+
 .btn-primary {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 8px 16px;
   background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
-  border: none;
+  border: 1px solid rgba(0, 153, 204, 0.55);
+  border-radius: $border-radius-md;
+  color: #fff;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0, 212, 255, 0.25);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  &.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  &.btn-primary--caret {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border-left: 1px solid rgba(255, 255, 255, 0.28);
+    min-width: 34px;
+    padding-left: 8px;
+    padding-right: 8px;
+    justify-content: center;
+  }
+}
+
+.btn-split-group:hover .btn-primary:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0, 212, 255, 0.25);
+}
+
+.btn-split-group .btn-primary:hover:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+}
+
+// 新建/新增/创建（UI 规范：success 绿）
+.btn-success {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, rgba(46, 160, 67, 0.85), rgba(70, 191, 145, 0.75));
+  border: 1px solid rgba(70, 191, 145, 0.45);
   border-radius: $border-radius-md;
   color: #fff;
   font-size: 13px;
@@ -857,10 +989,11 @@ onMounted(() => {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
+  letter-spacing: 0.5px;
 
   &:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(0, 212, 255, 0.25);
+    box-shadow: 0 4px 16px rgba(70, 191, 145, 0.3);
   }
 
   &:disabled {

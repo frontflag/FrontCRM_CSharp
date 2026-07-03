@@ -1390,9 +1390,11 @@ const zhCN = {
     filterBrandEName: '品牌英文名',
     filterAlias: '品牌别名',
     filterCountry: '品牌国家',
-    phBrandCName: '中文名',
     phBrandEName: '英文名',
-    phAlias: '别名',
+    phBrandCName: '中文名',
+    phStandardBrand: '标准品牌名',
+    phAlias: '别名（可填搜索短码，如 TI、ON，逗号分隔）',
+    aliasHint: '可填写搜索短码（如 TI、ON、ST、WD），多个短码用逗号、顿号或换行分隔。在业务单据选择品牌时输入短码，对应品牌将优先出现在下拉列表顶部，便于快速定位常用品牌。',
     phCountry: '国家或代码',
     phRemark: '备注',
     phAuditStatus: '审核状态',
@@ -1402,6 +1404,8 @@ const zhCN = {
     auditStatusPending: '待审核',
     auditStatusApproved: '已审核',
     query: '查询',
+    queryExact: '精准查询',
+    queryMore: '更多查询方式',
     reset: '重置',
     colBrandEName: '品牌英文名',
     colBrandCName: '品牌中文名',
@@ -1761,7 +1765,8 @@ const zhCN = {
       layoutSideBySide: '左右各半：需求明细与采购报价并排',
       layoutStackHalf: '上下各半：需求明细与采购报价高度各占约 50%',
       layoutStackCompact: '上下布局：采购报价区高度约显示 2 行报价',
-      layoutHeaderOnly: '仅显示采购报价标题栏'
+      layoutHeaderOnly: '仅显示采购报价标题栏',
+      dragSplit: '拖动调整上下区域高度'
     },
     actions: { column: '操作', detail: '详情', quote: '报价', markNoQuote: '查无报价' },
     confirmMarkNoQuote: {

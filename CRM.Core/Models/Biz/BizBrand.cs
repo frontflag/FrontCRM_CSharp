@@ -28,7 +28,7 @@ public class BizBrand : ISoftDeletable
     [Column("standard_brand")]
     public string? StandardBrand { get; set; }
 
-    /// <summary>别名（可多值，逗号或换行分隔）。</summary>
+    /// <summary>别名（可多值，逗号或换行分隔；亦可配置搜索短码如 TI、ON，输入短码时下拉优先展示）。</summary>
     [StringLength(500)]
     [Column("alias")]
     public string? Alias { get; set; }

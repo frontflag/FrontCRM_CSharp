@@ -102,12 +102,14 @@ export const bizBrandApi = {
   async fetchList(params: {
     brandCName?: string
     brandEName?: string
+    standardBrand?: string
     alias?: string
     country?: string
     remark?: string
     auditStatus?: number
     createTimeFrom?: string
     createTimeTo?: string
+    exactMatch?: boolean
     page?: number
     pageSize?: number
   }): Promise<BizBrandPaged> {
@@ -115,12 +117,14 @@ export const bizBrandApi = {
       params: {
         brandCName: params.brandCName?.trim() || undefined,
         brandEName: params.brandEName?.trim() || undefined,
+        standardBrand: params.standardBrand?.trim() || undefined,
         alias: params.alias?.trim() || undefined,
         country: params.country?.trim() || undefined,
         remark: params.remark?.trim() || undefined,
         auditStatus: params.auditStatus ?? undefined,
         createTimeFrom: params.createTimeFrom || undefined,
         createTimeTo: params.createTimeTo || undefined,
+        exactMatch: params.exactMatch ? true : undefined,
         page: params.page ?? 1,
         pageSize: params.pageSize ?? 20
       }

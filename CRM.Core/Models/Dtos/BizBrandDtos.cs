@@ -23,12 +23,15 @@ public class BizBrandQuery
 {
     public string? BrandCName { get; set; }
     public string? BrandEName { get; set; }
+    public string? StandardBrand { get; set; }
     public string? Alias { get; set; }
     public string? Country { get; set; }
     public string? Remark { get; set; }
     public short? AuditStatus { get; set; }
     public DateTime? CreateTimeFrom { get; set; }
     public DateTime? CreateTimeTo { get; set; }
+    /// <summary>true 时文本筛选项按输入完全匹配（不含 % 模糊）。</summary>
+    public bool ExactMatch { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 20;
 }

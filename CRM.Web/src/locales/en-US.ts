@@ -1413,7 +1413,9 @@ const enUS = {
     filterCountry: 'Country',
     phBrandCName: 'Chinese name',
     phBrandEName: 'English name',
-    phAlias: 'Alias',
+    phStandardBrand: 'Standard brand',
+    phAlias: 'Alias (search short codes, e.g. TI, ON; comma-separated)',
+    aliasHint: 'Enter search short codes (e.g. TI, ON, ST, WD). Separate multiple codes with commas or line breaks. When selecting a brand in business forms, typing a short code prioritizes that brand at the top of the dropdown for faster access.',
     phCountry: 'Country or code',
     phRemark: 'Remark',
     phAuditStatus: 'Audit status',
@@ -1423,6 +1425,8 @@ const enUS = {
     auditStatusPending: 'Pending',
     auditStatusApproved: 'Approved',
     query: 'Search',
+    queryExact: 'Exact search',
+    queryMore: 'More search options',
     reset: 'Reset',
     colBrandEName: 'English name',
     colBrandCName: 'Chinese name',
@@ -1783,7 +1787,8 @@ const enUS = {
       layoutSideBySide: 'Split vertically: RFQ lines and purchase quotes each ~50% width',
       layoutStackHalf: 'Split horizontally: RFQ lines and purchase quotes each ~50% height',
       layoutStackCompact: 'Stacked: quote panel height fits ~2 quote rows',
-      layoutHeaderOnly: 'Collapse quotes panel to header bar only'
+      layoutHeaderOnly: 'Collapse quotes panel to header bar only',
+      dragSplit: 'Drag to resize upper and lower panels'
     },
     actions: { column: 'Actions', detail: 'Detail', quote: 'Quote', markNoQuote: 'No Quote Found' },
     confirmMarkNoQuote: {

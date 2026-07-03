@@ -22,29 +22,59 @@ public class BizBrandService : IBizBrandService
     {
         var q = _db.BizBrands.AsNoTracking().AsQueryable();
 
+        var exact = query.ExactMatch;
+
         var brandCName = TrimOrNull(query.BrandCName);
         if (brandCName != null)
-            q = q.Where(b => b.BrandCName != null && EF.Functions.ILike(b.BrandCName, $"%{brandCName}%"));
+        {
+            q = exact
+                ? q.Where(b => b.BrandCName != null && EF.Functions.ILike(b.BrandCName, brandCName))
+                : q.Where(b => b.BrandCName != null && EF.Functions.ILike(b.BrandCName, $"%{brandCName}%"));
+        }
 
         var brandEName = TrimOrNull(query.BrandEName);
         if (brandEName != null)
-            q = q.Where(b => b.BrandEName != null && EF.Functions.ILike(b.BrandEName, $"%{brandEName}%"));
+        {
+            q = exact
+                ? q.Where(b => b.BrandEName != null && EF.Functions.ILike(b.BrandEName, brandEName))
+                : q.Where(b => b.BrandEName != null && EF.Functions.ILike(b.BrandEName, $"%{brandEName}%"));
+        }
+
+        var standardBrand = TrimOrNull(query.StandardBrand);
+        if (standardBrand != null)
+        {
+            q = exact
+                ? q.Where(b => b.StandardBrand != null && EF.Functions.ILike(b.StandardBrand, standardBrand))
+                : q.Where(b => b.StandardBrand != null && EF.Functions.ILike(b.StandardBrand, $"%{standardBrand}%"));
+        }
 
         var alias = TrimOrNull(query.Alias);
         if (alias != null)
-            q = q.Where(b => b.Alias != null && EF.Functions.ILike(b.Alias, $"%{alias}%"));
+        {
+            q = exact
+                ? q.Where(b => b.Alias != null && EF.Functions.ILike(b.Alias, alias))
+                : q.Where(b => b.Alias != null && EF.Functions.ILike(b.Alias, $"%{alias}%"));
+        }
 
         var country = TrimOrNull(query.Country);
         if (country != null)
         {
-            q = q.Where(b =>
-                (b.Country != null && EF.Functions.ILike(b.Country, $"%{country}%")) ||
-                (b.CountryCode != null && EF.Functions.ILike(b.CountryCode, $"%{country}%")));
+            q = exact
+                ? q.Where(b =>
+                    (b.Country != null && EF.Functions.ILike(b.Country, country)) ||
+                    (b.CountryCode != null && EF.Functions.ILike(b.CountryCode, country)))
+                : q.Where(b =>
+                    (b.Country != null && EF.Functions.ILike(b.Country, $"%{country}%")) ||
+                    (b.CountryCode != null && EF.Functions.ILike(b.CountryCode, $"%{country}%")));
         }
 
         var remark = TrimOrNull(query.Remark);
         if (remark != null)
-            q = q.Where(b => b.Remark != null && EF.Functions.ILike(b.Remark, $"%{remark}%"));
+        {
+            q = exact
+                ? q.Where(b => b.Remark != null && EF.Functions.ILike(b.Remark, remark))
+                : q.Where(b => b.Remark != null && EF.Functions.ILike(b.Remark, $"%{remark}%"));
+        }
 
         if (query.AuditStatus.HasValue)
             q = q.Where(b => b.AuditStatus == query.AuditStatus.Value);
@@ -83,9 +113,14 @@ public class BizBrandService : IBizBrandService
         CancellationToken cancellationToken = default)
     {
         var pageSize = Math.Clamp(query.PageSize, 1, 100);
-        var q = _db.BizBrands.AsNoTracking().AsQueryable();
-
         var keyword = TrimOrNull(query.Keyword);
+
+        // 短码优先：在品牌管理「别名」中配置的 token（如 TI、ON）与关键词完全一致时置顶，无需代码硬编码。
+        var preferred = keyword != null
+            ? await FetchPreferredBrandsByAliasTokenAsync(keyword, cancellationToken)
+            : [];
+
+        var q = _db.BizBrands.AsNoTracking().AsQueryable();
         if (keyword != null)
         {
             q = q.Where(b =>
@@ -95,21 +130,63 @@ public class BizBrandService : IBizBrandService
                 (b.Alias != null && EF.Functions.ILike(b.Alias, $"%{keyword}%")));
         }
 
-        return await q
+        var regular = await q
             .OrderByDescending(b => b.AuditStatus == BizBrandAuditStatus.Approved)
             .ThenBy(b => b.StandardBrand)
             .ThenBy(b => b.Id)
             .Take(pageSize)
-            .Select(b => new BizBrandOptionDto
-            {
-                Id = b.Id,
-                StandardBrand = b.StandardBrand,
-                AuditStatus = b.AuditStatus,
-                BrandEName = b.BrandEName,
-                BrandCName = b.BrandCName
-            })
             .ToListAsync(cancellationToken);
+
+        var merged = MergeBrandOptions(preferred, regular, pageSize);
+        return merged.Select(ToOptionDto).ToList();
     }
+
+    private async Task<List<BizBrand>> FetchPreferredBrandsByAliasTokenAsync(
+        string keyword,
+        CancellationToken cancellationToken)
+    {
+        var candidates = await _db.BizBrands.AsNoTracking()
+            .Where(b => b.Alias != null && EF.Functions.ILike(b.Alias, $"%{keyword}%"))
+            .OrderByDescending(b => b.AuditStatus == BizBrandAuditStatus.Approved)
+            .ThenBy(b => b.StandardBrand)
+            .ThenBy(b => b.Id)
+            .ToListAsync(cancellationToken);
+
+        return candidates
+            .Where(b => BizBrandAliasHelper.ContainsExactToken(b.Alias, keyword))
+            .ToList();
+    }
+
+    private static List<BizBrand> MergeBrandOptions(List<BizBrand> preferred, List<BizBrand> regular, int pageSize)
+    {
+        var seen = new HashSet<long>();
+        var merged = new List<BizBrand>(pageSize);
+
+        foreach (var brand in preferred)
+        {
+            if (seen.Add(brand.Id))
+                merged.Add(brand);
+        }
+
+        foreach (var brand in regular)
+        {
+            if (seen.Add(brand.Id))
+                merged.Add(brand);
+            if (merged.Count >= pageSize)
+                break;
+        }
+
+        return merged.Count > pageSize ? merged.Take(pageSize).ToList() : merged;
+    }
+
+    private static BizBrandOptionDto ToOptionDto(BizBrand b) => new()
+    {
+        Id = b.Id,
+        StandardBrand = b.StandardBrand,
+        AuditStatus = b.AuditStatus,
+        BrandEName = b.BrandEName,
+        BrandCName = b.BrandCName
+    };
 
     public async Task<BizBrandRowDto?> GetByIdAsync(long id, CancellationToken cancellationToken = default)
     {
