@@ -1,6 +1,8 @@
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
+using CRM.Core.Models;
 using CRM.Core.Models.Ai;
+using CRM.Core.Services;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -135,6 +137,19 @@ public sealed class AiAdminService : IAiAdminService
             .Take(n)
             .ToListAsync(cancellationToken);
 
+        var userIds = rows
+            .Select(l => l.UserId)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id!)
+            .Distinct()
+            .ToList();
+
+        var userById = userIds.Count == 0
+            ? new Dictionary<string, User>()
+            : await _db.Users.AsNoTracking()
+                .Where(u => userIds.Contains(u.Id))
+                .ToDictionaryAsync(u => u.Id, cancellationToken);
+
         return rows.Select(l => new AiInvocationLogListItemDto
         {
             Id = l.Id,
@@ -142,6 +157,10 @@ public sealed class AiAdminService : IAiAdminService
             ProviderCode = l.ProviderCode,
             Model = l.Model,
             UserId = l.UserId,
+            ExecutorUserName = !string.IsNullOrWhiteSpace(l.UserId)
+                && userById.TryGetValue(l.UserId, out var user)
+                ? EntityLookupService.FormatUserLoginName(user)
+                : null,
             Status = l.Status,
             FromCache = l.FromCache,
             LatencyMs = l.LatencyMs,

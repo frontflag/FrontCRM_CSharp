@@ -36,7 +36,7 @@
           </div>
         </div>
         <template v-if="canCreateCustomer">
-          <div v-if="canShowAiCreateMenu" class="customer-home__split-create">
+          <div class="customer-home__split-create">
             <button type="button" class="customer-home__btn-create" @click="goCreateCustomer">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <line x1="12" y1="5" x2="12" y2="19" />
@@ -54,22 +54,11 @@
                 <el-dropdown-menu>
                   <el-dropdown-item v-if="canAiParseCustomer" command="aiCreate">{{ t('aiEntityCreate.aiCreate') }}</el-dropdown-item>
                   <el-dropdown-item v-if="canAiParseCustomerBusinessCard" command="uploadCard">{{ t('aiBusinessCard.uploadCard') }}</el-dropdown-item>
+                  <el-dropdown-item command="import">{{ t('customerList.importExcel') }}</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
           </div>
-          <button
-            v-else
-            type="button"
-            class="customer-home__btn-create"
-            @click="goCreateCustomer"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            {{ t('customerHome.create') }}
-          </button>
         </template>
       </div>
     </div>
@@ -202,6 +191,7 @@
         </div>
       </div>
     </template>
+    <CustomerImportDialog v-model="importDialogVisible" @success="loadStats" />
     <AiEntityCreateHost
       ref="aiCreateHostRef"
       entity-type="CUSTOMER"
@@ -222,6 +212,7 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { customerApi } from '@/api/customer'
 import { AI_PERMISSION_ENTITY_PARSE_CUSTOMER, AI_PERMISSION_ENTITY_PARSE_CUSTOMER_BUSINESS_CARD } from '@/api/ai'
+import CustomerImportDialog from '@/components/Customer/CustomerImportDialog.vue'
 import AiEntityCreateHost from '@/components/AiCreate/AiEntityCreateHost.vue'
 import AiBusinessCardCreateHost from '@/components/AiCreate/AiBusinessCardCreateHost.vue'
 import { buildCustomerListQuery } from '@/utils/customerListQuery'
@@ -235,7 +226,7 @@ const canAiParseCustomer = computed(() => authStore.hasPermission(AI_PERMISSION_
 const canAiParseCustomerBusinessCard = computed(() =>
   authStore.hasPermission(AI_PERMISSION_ENTITY_PARSE_CUSTOMER_BUSINESS_CARD)
 )
-const canShowAiCreateMenu = computed(() => canAiParseCustomer.value || canAiParseCustomerBusinessCard.value)
+const importDialogVisible = ref(false)
 const aiCreateHostRef = ref<InstanceType<typeof AiEntityCreateHost> | null>(null)
 const businessCardHostRef = ref<InstanceType<typeof AiBusinessCardCreateHost> | null>(null)
 const keyword = ref('')
@@ -270,11 +261,12 @@ function goCreateCustomer() {
 }
 
 function onCreateDropdownCommand(cmd: string) {
+  if (cmd === 'import') importDialogVisible.value = true
   if (cmd === 'aiCreate') aiCreateHostRef.value?.open()
   if (cmd === 'uploadCard') businessCardHostRef.value?.open()
 }
 
-onMounted(async () => {
+async function loadStats() {
   loadingStats.value = true
   try {
     stats.value = await customerApi.getCustomerStatistics()
@@ -283,6 +275,10 @@ onMounted(async () => {
   } finally {
     loadingStats.value = false
   }
+}
+
+onMounted(() => {
+  void loadStats()
 })
 </script>
 

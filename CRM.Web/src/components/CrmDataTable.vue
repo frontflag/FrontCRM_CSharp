@@ -86,6 +86,9 @@
         </el-table-column>
       </template>
       <slot v-else />
+      <template v-if="slots.empty" #empty>
+        <slot name="empty" />
+      </template>
     </el-table>
 
     <el-drawer

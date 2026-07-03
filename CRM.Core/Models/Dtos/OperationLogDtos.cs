@@ -12,6 +12,10 @@ public sealed class OperationLogQuery
     /// <summary>结束时间（含），UTC 或可解析的带时区字符串。</summary>
     public DateTime? OperationTimeTo { get; set; }
     public string? Reason { get; set; }
+    /// <summary>主单/业务记录 Id 精确匹配。</summary>
+    public string? RecordId { get; set; }
+    /// <summary>ActionType 前缀匹配（如 StockInBatch）。</summary>
+    public string? ActionTypePrefix { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 20;
 }
@@ -29,6 +33,7 @@ public sealed class OperationLogListItemDto
     public string? OperatorUserName { get; set; }
     public string? Reason { get; set; }
     public string? OperationDesc { get; set; }
+    public string? ExtraInfo { get; set; }
 }
 
 public sealed class OperationLogPagedResult

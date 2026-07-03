@@ -35,6 +35,7 @@ namespace CRM.Core.Services
         private readonly ISalesOrderItemLineListQuery _salesOrderItemLineListQuery;
         private readonly ILogOperationAppendService _logOperationAppend;
         private readonly ILogger<SalesOrderService> _logger;
+        private readonly IQuoteStatusSyncService _quoteStatusSync;
 
         public SalesOrderService(
             IRepository<SellOrder> soRepo,
@@ -57,7 +58,8 @@ namespace CRM.Core.Services
             ISalesOrderItemLineListQuery salesOrderItemLineListQuery,
             ILogOperationAppendService logOperationAppend,
             IUnitOfWork unitOfWork,
-            ILogger<SalesOrderService> logger)
+            ILogger<SalesOrderService> logger,
+            IQuoteStatusSyncService quoteStatusSync)
         {
             _soRepo = soRepo;
             _soItemRepo = soItemRepo;
@@ -80,7 +82,11 @@ namespace CRM.Core.Services
             _logOperationAppend = logOperationAppend ?? throw new ArgumentNullException(nameof(logOperationAppend));
             _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
             _logger = logger;
+            _quoteStatusSync = quoteStatusSync ?? throw new ArgumentNullException(nameof(quoteStatusSync));
         }
+
+        private static IEnumerable<string?> CollectQuoteIds(IEnumerable<SellOrderItem> items) =>
+            items.Select(i => i.QuoteId).Where(id => !string.IsNullOrWhiteSpace(id));
 
         private static string? NormalizeActingUserId(string? actingUserId) =>
             string.IsNullOrWhiteSpace(actingUserId) ? null : actingUserId.Trim();
@@ -201,6 +207,8 @@ namespace CRM.Core.Services
                     Source = nameof(SalesOrderService)
                 });
             }
+
+            await _quoteStatusSync.MarkQuotesWonAsync(CollectQuoteIds(createdLines));
 
             return order;
         }
@@ -528,6 +536,13 @@ namespace CRM.Core.Services
                     $"编辑销售订单 {order.SellOrderCode} 时删除明细行");
             }
 
+            var quoteIdsToSync = CollectQuoteIds(deletedLines ?? [])
+                .Concat(CollectQuoteIds(insertedLines ?? []))
+                .Concat(CollectQuoteIds(updatedLines ?? []));
+            await _quoteStatusSync.ReconcileQuotesAfterSalesOrderChangeAsync(quoteIdsToSync);
+            if (insertedLines is { Count: > 0 })
+                await _quoteStatusSync.MarkQuotesWonAsync(CollectQuoteIds(insertedLines));
+
             var touchedLines = new List<SellOrderItem>();
             if (insertedLines != null) touchedLines.AddRange(insertedLines);
             if (updatedLines != null) touchedLines.AddRange(updatedLines);
@@ -620,6 +635,8 @@ namespace CRM.Core.Services
             });
 
             await AppendSellOrderWholeDeleteOperationLogsAsync(order, itemsToDelete, actingUserId);
+
+            await _quoteStatusSync.ReconcileQuotesAfterSalesOrderChangeAsync(CollectQuoteIds(itemsToDelete));
         }
 
         public async Task UpdateStatusAsync(string id, SellOrderMainStatus status, string? auditRemark = null, string? actingUserId = null)
@@ -676,6 +693,14 @@ namespace CRM.Core.Services
                 ActorKind = OrderJourneyActorKinds.System,
                 Source = nameof(SalesOrderService)
             });
+
+            if (status == SellOrderMainStatus.Cancelled)
+            {
+                var orderItems = (await _soItemRepo.GetAllAsync())
+                    .Where(i => i.SellOrderId == id && !i.IsDeleted)
+                    .ToList();
+                await _quoteStatusSync.ReconcileQuotesAfterSalesOrderChangeAsync(CollectQuoteIds(orderItems));
+            }
         }
 
         public async Task RequestStockOutAsync(string id, string requestedBy)

@@ -34,6 +34,8 @@ public static class BusinessLogTypes
     public const string PickingTask = "PickingTask";
 
     public const string StockIn = "StockIn";
+    public const string StockInBatch = "StockInBatch";
+    public const string StockOutBatch = "StockOutBatch";
     public const string StockOut = "StockOut";
     public const string Packing = "Packing";
     public const string QcInspection = "QcInspection";

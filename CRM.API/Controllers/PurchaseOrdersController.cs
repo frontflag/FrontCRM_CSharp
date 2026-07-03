@@ -16,6 +16,9 @@ using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using System.Security.Claims;
 using System.Linq;
+using System.Text.Json;
+using CRM.Core.Constants;
+using CRM.Core.Models.Dtos;
 
 namespace CRM.API.Controllers
 {
@@ -31,6 +34,8 @@ namespace CRM.API.Controllers
         private readonly IRbacService _rbacService;
         private readonly IEntityLookupService _entityLookup;
         private readonly IEmailSender _emailSender;
+        private readonly IOperationLogQueryService _operationLogQuery;
+        private readonly ILogOperationAppendService _logOperationAppend;
         private readonly ApplicationDbContext _db;
         private readonly ILogger<PurchaseOrdersController> _logger;
 
@@ -42,6 +47,8 @@ namespace CRM.API.Controllers
             IRbacService rbacService,
             IEntityLookupService entityLookup,
             IEmailSender emailSender,
+            IOperationLogQueryService operationLogQuery,
+            ILogOperationAppendService logOperationAppend,
             ApplicationDbContext db,
             ILogger<PurchaseOrdersController> logger)
         {
@@ -52,8 +59,15 @@ namespace CRM.API.Controllers
             _rbacService = rbacService;
             _entityLookup = entityLookup;
             _emailSender = emailSender;
+            _operationLogQuery = operationLogQuery;
+            _logOperationAppend = logOperationAppend;
             _db = db;
             _logger = logger;
+        }
+
+        public sealed class PurchaseOrderBatchLogExportBody
+        {
+            public int ExportedCount { get; set; }
         }
 
         [HttpGet]
@@ -636,6 +650,83 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "获取采购订单删除明细失败: {Id}", id);
                 return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>采购订单详情「入库批次」面板导出记录（仅 PO 页发起的导出）。</summary>
+        [HttpGet("{id:guid}/batch-export-logs")]
+        public async Task<IActionResult> GetBatchExportLogs(
+            string id,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var order = await _service.GetByIdAsync(id);
+                if (order == null) return NotFound(new { success = false, message = "采购订单不存在" });
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessPurchaseOrderAsync(userId, order))
+                    return StatusCode(403, new { success = false, message = "无权限访问该采购订单" });
+
+                var data = await _operationLogQuery.QueryAsync(new OperationLogQuery
+                {
+                    BizType = BusinessLogTypes.PurchaseOrder,
+                    RecordId = id.Trim(),
+                    ActionType = PurchaseOrderBatchExportActionTypes.Export,
+                    Page = page,
+                    PageSize = pageSize
+                }, cancellationToken);
+
+                return Ok(new { success = true, data, message = "ok" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取采购订单入库批次导出记录失败 PurchaseOrderId={Id}", id);
+                return StatusCode(500, new { success = false, message = "获取导出记录失败" });
+            }
+        }
+
+        /// <summary>记录采购订单详情页导出入库批次 CSV 的操作日志。</summary>
+        [HttpPost("{id:guid}/batch-log-export")]
+        public async Task<IActionResult> LogBatchExport(
+            string id,
+            [FromBody] PurchaseOrderBatchLogExportBody body,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var order = await _service.GetByIdAsync(id);
+                if (order == null) return NotFound(new { success = false, message = "采购订单不存在" });
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessPurchaseOrderAsync(userId, order))
+                    return StatusCode(403, new { success = false, message = "无权限访问该采购订单" });
+
+                var count = Math.Max(0, body?.ExportedCount ?? 0);
+                var code = (order.PurchaseOrderCode ?? string.Empty).Trim();
+                var desc = string.IsNullOrEmpty(code)
+                    ? $"导出采购订单入库批次 {count} 条"
+                    : $"导出采购订单 {code} 入库批次 {count} 条";
+                var extraInfo = JsonSerializer.Serialize(new { exportedCount = count });
+
+                await _logOperationAppend.AppendAsync(
+                    BusinessLogTypes.PurchaseOrder,
+                    order.Id,
+                    code,
+                    PurchaseOrderBatchExportActionTypes.Export,
+                    userId,
+                    User.FindFirst(ClaimTypes.Name)?.Value ?? User.FindFirst(ClaimTypes.Email)?.Value,
+                    desc,
+                    null,
+                    extraInfo,
+                    cancellationToken);
+
+                return Ok(new { success = true, data = (object?)null, message = "已记录导出日志" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "记录采购订单入库批次导出日志失败 PurchaseOrderId={Id}", id);
+                return StatusCode(500, new { success = false, message = "记录导出日志失败" });
             }
         }
 

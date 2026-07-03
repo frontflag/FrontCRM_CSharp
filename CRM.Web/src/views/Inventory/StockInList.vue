@@ -596,8 +596,12 @@ const resetFilters = () => {
 }
 
 const handleView = (row: StockInListItemDto) => {
-  // 暂时直接进入编辑页查看
-  router.push(`/inventory/stock-in/${row.id}`)
+  const id = String(row?.id ?? (row as { Id?: string }).Id ?? '').trim()
+  if (!id) {
+    ElMessage.warning('无法打开详情：缺少入库单 ID')
+    return
+  }
+  void router.push({ name: 'StockInDetail', params: { id } })
 }
 
 const handleEditRemark = (row: StockInListItemDto) => {

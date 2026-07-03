@@ -61,7 +61,7 @@ namespace CRM.Core.Models.Quote
         [Column("quote_date")]
         public DateTime QuoteDate { get; set; } = DateTime.UtcNow;
 
-        /// <summary>状态 (0:草稿 1:待审核 2:已审核 3:已发送 4:已接受 5:已拒绝 6:已过期 7:已关闭)</summary>
+        /// <summary>状态 (0:新建 1:成单 2:关闭)，见 <see cref="QuoteMainStatus"/></summary>
         [Column("status")]
         public short Status { get; set; } = 0;
 
@@ -81,6 +81,10 @@ namespace CRM.Core.Models.Quote
         /// <summary>展示用：关联需求主表编号（由服务层按 RFQId 查 rfq 表填充，非表字段）</summary>
         [NotMapped]
         public string? RfqCode { get; set; }
+
+        /// <summary>展示用：创建人登录名（由服务层按 CreateByUserId 填充，非表字段）</summary>
+        [NotMapped]
+        public string? CreateUserName { get; set; }
 
         [StringLength(36)]
         [Column("create_by_user_id")]

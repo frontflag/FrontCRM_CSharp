@@ -309,25 +309,28 @@ else {
         Write-Host '    SkipLoginPage: server dist/tenant will be preserved' -ForegroundColor DarkYellow
     }
     $skipLoginFlag = if ($uploadLoginTheme) { '0' } else { '1' }
-    $rSyncFront = @"
-if [ '$skipLoginFlag' = '1' ]; then
-  $SudoCmd rm -rf /tmp/frontcrm_tenant_bak 2>/dev/null || true
-  if [ -d '$NonDockerFrontendRoot/tenant' ]; then
-    $SudoCmd cp -a '$NonDockerFrontendRoot/tenant' /tmp/frontcrm_tenant_bak
-  fi
-fi
-$SudoCmd rm -rf '$NonDockerFrontendRoot'/*
-$SudoCmd cp -r '$srcFront'/* '$NonDockerFrontendRoot'/
-if [ '$skipLoginFlag' = '1' ] && [ -d /tmp/frontcrm_tenant_bak ]; then
-  $SudoCmd rm -rf '$NonDockerFrontendRoot/tenant'
-  $SudoCmd cp -a /tmp/frontcrm_tenant_bak '$NonDockerFrontendRoot/tenant'
-  $SudoCmd rm -rf /tmp/frontcrm_tenant_bak
-fi
-$SudoCmd chown -R ${ServerUser}:${ServerUser} '$NonDockerFrontendRoot'
-$SudoCmd find '$NonDockerFrontendRoot' -type d -exec chmod 755 {} \;
-$SudoCmd find '$NonDockerFrontendRoot' -type f -exec chmod 644 {} \;
-"@
-    & ssh @SshTty @SshOpts -p $SshPort "$SshTarget" $rSyncFront
+    # 必须单行传给 ssh：PS 5.1 对未引用的多行字符串会按换行拆成多个参数，远程 bash 会报 syntax error (unexpected EOF)
+    $rSyncFrontParts = @()
+    if ($skipLoginFlag -eq '1') {
+        $rSyncFrontParts += (
+            $SudoCmd + ' rm -rf /tmp/frontcrm_tenant_bak 2>/dev/null || true; ' +
+            'if [ -d ''' + $NonDockerFrontendRoot + '/tenant'' ]; then ' + $SudoCmd + ' cp -a ''' + $NonDockerFrontendRoot + '/tenant'' /tmp/frontcrm_tenant_bak; fi'
+        )
+    }
+    $rSyncFrontParts += $SudoCmd + ' rm -rf ' + $NonDockerFrontendRoot + '/*'
+    $rSyncFrontParts += $SudoCmd + ' cp -r ' + $srcFront + '/* ' + $NonDockerFrontendRoot + '/'
+    if ($skipLoginFlag -eq '1') {
+        $rSyncFrontParts += (
+            'if [ -d /tmp/frontcrm_tenant_bak ]; then ' + $SudoCmd + ' rm -rf ' + $NonDockerFrontendRoot + '/tenant; ' +
+            $SudoCmd + ' cp -a /tmp/frontcrm_tenant_bak ' + $NonDockerFrontendRoot + '/tenant; ' +
+            $SudoCmd + ' rm -rf /tmp/frontcrm_tenant_bak; fi'
+        )
+    }
+    $rSyncFrontParts += $SudoCmd + ' chown -R ' + $ServerUser + ':' + $ServerUser + ' ' + $NonDockerFrontendRoot
+    $rSyncFrontParts += $SudoCmd + ' find ' + $NonDockerFrontendRoot + ' -type d -exec chmod 755 {} \;'
+    $rSyncFrontParts += $SudoCmd + ' find ' + $NonDockerFrontendRoot + ' -type f -exec chmod 644 {} \;'
+    $rSyncFront = ($rSyncFrontParts -join '; ')
+    & ssh @SshTty @SshOpts -p $SshPort "$SshTarget" "$rSyncFront"
     if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: sync frontend failed." -ForegroundColor Red; exit 1 }
 
     # 2) 覆盖后端 publish

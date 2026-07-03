@@ -349,7 +349,9 @@ const quoteBasicCreateDateText = computed(() => {
 const quoteBasicCreateUserText = computed(() => {
   const q = quote.value
   if (!q) return '—'
-  return q.createUserName || q.createByUserId || '—'
+  const name = String(q.createUserName ?? '').trim()
+  if (name) return name
+  return String(q.purchaseUserName ?? '').trim() || String(q.salesUserName ?? '').trim() || '—'
 })
 
 const quoteDateText = computed(() => {

@@ -82,9 +82,12 @@ namespace CRM.API.Controllers
                         aggregates = new
                         {
                             aggregates.TotalCount,
-                            aggregates.PendingCount,
-                            aggregates.SentCount,
-                            aggregates.AcceptedCount,
+                            aggregates.NewCount,
+                            aggregates.WonCount,
+                            aggregates.ClosedCount,
+                            pendingCount = aggregates.NewCount,
+                            sentCount = aggregates.WonCount,
+                            acceptedCount = aggregates.ClosedCount,
                             aggregates.CreatedInRangeCount
                         }
                     },
@@ -261,7 +264,7 @@ namespace CRM.API.Controllers
             }
             catch (InvalidOperationException ex)
             {
-                return NotFound(new { success = false, message = ex.Message, errorCode = 404 });
+                return BadRequest(new { success = false, message = ex.Message, errorCode = 400 });
             }
             catch (Exception ex)
             {

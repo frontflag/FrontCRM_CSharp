@@ -47,14 +47,26 @@ public sealed class QuoteListAggregates
 {
     public int TotalCount { get; set; }
 
-    /// <summary>状态为草稿(0)或待审核(1)。</summary>
-    public int PendingCount { get; set; }
+    /// <summary>状态为新建(0)。</summary>
+    public int NewCount { get; set; }
 
-    /// <summary>状态为已发送(3)。</summary>
-    public int SentCount { get; set; }
+    /// <summary>状态为成单(1)。</summary>
+    public int WonCount { get; set; }
 
-    /// <summary>状态为已接受(4)。</summary>
-    public int AcceptedCount { get; set; }
+    /// <summary>状态为关闭(2)。</summary>
+    public int ClosedCount { get; set; }
+
+    /// <summary>已废弃：请使用 <see cref="NewCount"/>。</summary>
+    [Obsolete("Use NewCount")]
+    public int PendingCount { get => NewCount; set => NewCount = value; }
+
+    /// <summary>已废弃：请使用 <see cref="WonCount"/>。</summary>
+    [Obsolete("Use WonCount")]
+    public int SentCount { get => WonCount; set => WonCount = value; }
+
+    /// <summary>已废弃：请使用 <see cref="ClosedCount"/>。</summary>
+    [Obsolete("Use ClosedCount")]
+    public int AcceptedCount { get => ClosedCount; set => ClosedCount = value; }
 
     /// <summary>在 <see cref="QuoteQueryRequest.AggregateCreateFromUtc"/>～<see cref="QuoteQueryRequest.AggregateCreateToExclusiveUtc"/> 内创建的条数；未传齐起止时为 null。</summary>
     public int? CreatedInRangeCount { get; set; }

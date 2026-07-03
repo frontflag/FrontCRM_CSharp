@@ -72,6 +72,7 @@ export type AiInvocationLogItem = {
   providerCode: string
   model: string
   userId?: string | null
+  executorUserName?: string | null
   status: string
   fromCache: boolean
   latencyMs: number

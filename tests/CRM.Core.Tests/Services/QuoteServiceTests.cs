@@ -27,6 +27,11 @@ namespace CRM.Core.Tests.Services
         private readonly IQuoteListQuery _quoteListQuery;
         private readonly QuoteService _quoteService;
 
+        private const string RfqItemId = "rfq-item-1";
+        private const string RfqId = "rfq-1";
+
+        private const string ActingUserId = "user-test-1";
+
         public QuoteServiceTests()
         {
             _quoteRepository = Substitute.For<IRepository<Quote>>();
@@ -55,6 +60,14 @@ namespace CRM.Core.Tests.Services
             var rbacService = Substitute.For<IRbacService>();
             rbacService.GetUserPermissionSummaryAsync(Arg.Any<string>())
                 .Returns(Task.FromResult(new UserPermissionSummaryDto { IsSysAdmin = true }));
+
+            _rfqItemRepository.GetByIdAsync(RfqItemId).Returns(new RFQItem
+            {
+                Id = RfqItemId,
+                RfqId = RfqId,
+                Status = (short)RfqItemStatus.Pending
+            });
+
             _quoteService = new QuoteService(
                 _quoteRepository,
                 _quoteItemRepository,
@@ -70,57 +83,66 @@ namespace CRM.Core.Tests.Services
                 Substitute.For<ILogOperationAppendService>());
         }
 
+        private static CreateQuoteRequest BuildValidCreateRequest() => new()
+        {
+            QuoteCode = "QT-2024-001",
+            RFQId = RfqId,
+            RFQItemId = RfqItemId,
+            CustomerId = "CUST-001",
+            SalesUserId = "USER-001",
+            PurchaseUserId = "USER-002",
+            QuoteDate = DateTime.UtcNow,
+            Mpn = "REF3430QDBVRQ1",
+            Remark = "测试报价",
+            Items = new List<CreateQuoteItemRequest>
+            {
+                new() { Quantity = 1, UnitPrice = 1.5m, Mpn = "REF3430QDBVRQ1" }
+            }
+        };
+
         [Fact]
         public async Task CreateAsync_ValidRequest_ShouldCreateQuote()
         {
-            // Arrange
-            var request = new CreateQuoteRequest
-            {
-                QuoteCode = "QT-2024-001",
-                CustomerId = "CUST-001",
-                SalesUserId = "USER-001",
-                PurchaseUserId = "USER-002",
-                QuoteDate = DateTime.UtcNow,
-                Mpn = "REF3430QDBVRQ1",
-                Remark = "测试报价"
-            };
             _quoteRepository.GetAllAsync().Returns(new List<Quote>());
             _quoteItemRepository.GetAllAsync().Returns(new List<QuoteItem>());
 
-            // Act
-            var result = await _quoteService.CreateAsync(request);
+            var request = BuildValidCreateRequest();
+            var result = await _quoteService.CreateAsync(request, ActingUserId);
 
-            // Assert
             Assert.NotNull(result);
             Assert.Equal("QT2603240001", result.QuoteCode);
-            await _serialNumberService.Received(1).GenerateNextAsync(ModuleCodes.Quotation);
-            Assert.Equal(request.CustomerId, result.CustomerId);
-            Assert.Equal(request.Mpn, result.Mpn);
-            Assert.Equal(0, result.Status); // 草稿状态
+            Assert.Equal(RfqId, result.RFQId);
+            Assert.Equal(RfqItemId, result.RFQItemId);
+            Assert.Equal((short)QuoteMainStatus.New, result.Status);
             await _quoteRepository.Received(1).AddAsync(Arg.Any<Quote>());
             await _unitOfWork.Received(1).SaveChangesAsync();
         }
 
         [Fact]
+        public async Task CreateAsync_WithoutRfqItemId_ShouldThrow()
+        {
+            var request = BuildValidCreateRequest();
+            request.RFQItemId = null;
+            await Assert.ThrowsAsync<ArgumentException>(() => _quoteService.CreateAsync(request));
+        }
+
+        [Fact]
         public async Task GetByIdAsync_ExistingId_ShouldReturnQuote()
         {
-            // Arrange
             var quoteId = "QT-123";
             var expectedQuote = new Quote
             {
                 Id = quoteId,
                 QuoteCode = "QT-2024-001",
                 CustomerId = "CUST-001",
-                Status = 1
+                Status = (short)QuoteMainStatus.Won
             };
             _quoteRepository.GetByIdAsync(quoteId).Returns(expectedQuote);
-            _quoteItemRepository.FindAsync(Arg.Any<System.Linq.Expressions.Expression<System.Func<QuoteItem, bool>>>())
+            _quoteItemRepository.FindAsync(Arg.Any<Expression<Func<QuoteItem, bool>>>())
                 .Returns(Task.FromResult<IEnumerable<QuoteItem>>(Array.Empty<QuoteItem>()));
 
-            // Act
             var result = await _quoteService.GetByIdAsync(quoteId);
 
-            // Assert
             Assert.NotNull(result);
             Assert.Equal(quoteId, result.Id);
             Assert.Equal(expectedQuote.Status, result.Status);
@@ -129,90 +151,71 @@ namespace CRM.Core.Tests.Services
         [Fact]
         public async Task UpdateAsync_ValidRequest_ShouldUpdateQuote()
         {
-            // Arrange
             var existingQuote = new Quote
             {
                 Id = "QT-123",
                 QuoteCode = "QT-2024-001",
                 CustomerId = "CUST-001",
-                Status = 0
+                RFQItemId = RfqItemId,
+                PurchaseUserId = "USER-002",
+                Status = (short)QuoteMainStatus.New
             };
             _quoteRepository.GetByIdAsync("QT-123").Returns(existingQuote);
             _quoteItemRepository.GetAllAsync().Returns(new List<QuoteItem>());
 
-            var updateRequest = new UpdateQuoteRequest
-            {
-                Remark = "报价已更新"
-            };
+            var result = await _quoteService.UpdateAsync("QT-123", new UpdateQuoteRequest { Remark = "报价已更新" }, ActingUserId);
 
-            // Act
-            var result = await _quoteService.UpdateAsync("QT-123", updateRequest);
-
-            // Assert
-            Assert.NotNull(result);
             Assert.Equal("报价已更新", result.Remark);
             await _quoteRepository.Received(1).UpdateAsync(Arg.Any<Quote>());
         }
 
         [Fact]
-        public async Task UpdateStatusAsync_ApproveQuote_ShouldSetApprovedStatus()
+        public async Task UpdateAsync_WonQuote_ShouldThrow()
         {
-            // Arrange
-            var quoteId = "QT-123";
-            var existingQuote = new Quote
+            _quoteRepository.GetByIdAsync("QT-123").Returns(new Quote
             {
-                Id = quoteId,
-                QuoteCode = "QT-2024-001",
-                Status = 0 // 草稿
-            };
-            _quoteRepository.GetByIdAsync(quoteId).Returns(existingQuote);
+                Id = "QT-123",
+                Status = (short)QuoteMainStatus.Won
+            });
 
-            // Act
-            await _quoteService.UpdateStatusAsync(quoteId, 1);
-
-            // Assert
-            await _quoteRepository.Received(1).UpdateAsync(Arg.Is<Quote>(q => q.Status == 1));
-            await _unitOfWork.Received(1).SaveChangesAsync();
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                _quoteService.UpdateAsync("QT-123", new UpdateQuoteRequest { Remark = "x" }));
         }
 
         [Fact]
-        public async Task UpdateStatusAsync_RejectQuote_ShouldSetRejectedStatus()
+        public async Task UpdateStatusAsync_ShouldRejectManualChange()
         {
-            // Arrange
-            var quoteId = "QT-123";
-            var existingQuote = new Quote
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                _quoteService.UpdateStatusAsync("QT-123", 1));
+        }
+
+        [Fact]
+        public async Task DeleteAsync_WonQuote_ShouldThrow()
+        {
+            _quoteRepository.GetByIdAsync("QT-123").Returns(new Quote
             {
-                Id = quoteId,
-                QuoteCode = "QT-2024-001",
-                Status = 0 // 草稿
-            };
-            _quoteRepository.GetByIdAsync(quoteId).Returns(existingQuote);
+                Id = "QT-123",
+                Status = (short)QuoteMainStatus.Won
+            });
 
-            // Act
-            await _quoteService.UpdateStatusAsync(quoteId, 5); // 5 = 已拒绝
-
-            // Assert
-            await _quoteRepository.Received(1).UpdateAsync(Arg.Is<Quote>(q => q.Status == 5));
-            await _unitOfWork.Received(1).SaveChangesAsync();
+            await Assert.ThrowsAsync<InvalidOperationException>(() => _quoteService.DeleteAsync("QT-123"));
         }
 
         [Fact]
         public async Task DeleteAsync_ExistingId_ShouldDeleteQuote()
         {
-            // Arrange
             var quoteId = "QT-123";
-            var existingQuote = new Quote
+            _quoteRepository.GetByIdAsync(quoteId).Returns(new Quote
             {
                 Id = quoteId,
-                QuoteCode = "QT-2024-001"
-            };
-            _quoteRepository.GetByIdAsync(quoteId).Returns(existingQuote);
+                QuoteCode = "QT-2024-001",
+                RFQItemId = RfqItemId,
+                Status = (short)QuoteMainStatus.New
+            });
             _quoteItemRepository.GetAllAsync().Returns(new List<QuoteItem>());
 
-            // Act
             await _quoteService.DeleteAsync(quoteId);
 
-            // Assert
             await _quoteRepository.Received(1).DeleteAsync(quoteId);
             await _unitOfWork.Received(1).SaveChangesAsync();
         }
@@ -220,7 +223,6 @@ namespace CRM.Core.Tests.Services
         [Fact]
         public async Task GetAllAsync_ShouldReturnAllQuotes()
         {
-            // Arrange
             var quotes = new List<Quote>
             {
                 new() { Id = "1", QuoteCode = "QT-001", CustomerId = "C1" },
@@ -229,11 +231,8 @@ namespace CRM.Core.Tests.Services
             };
             _quoteRepository.GetAllAsync().Returns(quotes);
 
-            // Act
             var result = await _quoteService.GetAllAsync();
 
-            // Assert
-            Assert.NotNull(result);
             Assert.Equal(3, result.Count());
         }
     }

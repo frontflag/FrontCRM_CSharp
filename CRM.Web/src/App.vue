@@ -1,16 +1,22 @@
 <template>
-  <div id="app">
-    <router-view />
-  </div>
+  <el-config-provider :locale="elementPlusLocale">
+    <div id="app">
+      <router-view />
+    </div>
+  </el-config-provider>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { fetchDisplaySettings } from '@/api/systemDisplay'
 import { setDisplayTimeZoneId } from '@/utils/displayTimeZone'
 import { useAuthStore } from '@/stores'
+import { getElementPlusLocale } from '@/plugins/elementPlusLocale'
 
 const authStore = useAuthStore()
+const { locale } = useI18n()
+const elementPlusLocale = computed(() => getElementPlusLocale(locale.value))
 
 onMounted(async () => {
   try {

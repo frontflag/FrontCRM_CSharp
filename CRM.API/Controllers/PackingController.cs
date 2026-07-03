@@ -3,7 +3,9 @@ using CRM.API.Models.DTOs;
 using CRM.API.Services;
 using CRM.API.Utilities;
 using CRM.Core.Constants;
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Dtos;
 using CRM.Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
 
@@ -15,6 +17,7 @@ public class PackingController : ControllerBase
 {
     private readonly IPackingService _packingService;
     private readonly IStockOutService _stockOutService;
+    private readonly IOperationLogQueryService _operationLogQuery;
     private readonly ApplicationDbContext _db;
     private readonly IRbacService _rbacService;
     private readonly ILogger<PackingController> _logger;
@@ -22,12 +25,14 @@ public class PackingController : ControllerBase
     public PackingController(
         IPackingService packingService,
         IStockOutService stockOutService,
+        IOperationLogQueryService operationLogQuery,
         ApplicationDbContext db,
         IRbacService rbacService,
         ILogger<PackingController> logger)
     {
         _packingService = packingService;
         _stockOutService = stockOutService;
+        _operationLogQuery = operationLogQuery;
         _db = db;
         _rbacService = rbacService;
         _logger = logger;
@@ -344,6 +349,37 @@ public class PackingController : ControllerBase
         {
             _logger.LogError(ex, "装箱单详情查询失败 id={Id}", id);
             return StatusCode(500, ApiResponse<PackingDetailDto>.Fail($"加载失败: {ex.Message}", 500));
+        }
+    }
+
+    /// <summary>装箱单详情「出库批次」面板操作日志（导入/删除/编辑/导出）。</summary>
+    [HttpGet("{id}/batch-operation-logs")]
+    public async Task<ActionResult<ApiResponse<OperationLogPagedResult>>> GetBatchOperationLogs(
+        string id,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var dto = await _packingService.GetPackingByIdAsync(id, cancellationToken);
+            if (dto == null)
+                return NotFound(ApiResponse<OperationLogPagedResult>.Fail("装箱单不存在", 404));
+
+            var data = await _operationLogQuery.QueryAsync(new OperationLogQuery
+            {
+                BizType = BusinessLogTypes.Packing,
+                RecordId = id.Trim(),
+                ActionTypePrefix = StockOutBatchOperationActionTypes.Prefix,
+                Page = page,
+                PageSize = pageSize
+            }, cancellationToken);
+            return Ok(ApiResponse<OperationLogPagedResult>.Ok(data, "ok"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "获取出库批次操作日志失败 PackingId={PackingId}", id);
+            return StatusCode(500, ApiResponse<OperationLogPagedResult>.Fail("获取操作日志失败", 500));
         }
     }
 

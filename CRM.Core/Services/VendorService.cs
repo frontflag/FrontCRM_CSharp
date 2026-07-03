@@ -212,7 +212,18 @@ namespace CRM.Core.Services
             var banks = (await _bankRepository.FindAsync(b => b.VendorId == vendor.Id)).ToList();
             await EnrichVendorBankPaymentBankNamesAsync(banks);
             vendor.BankAccounts = banks;
+            await TryFillPurchaseUserDisplayNameAsync(vendor);
             return vendor;
+        }
+
+        /// <summary>详情/列表展示：采购员登录账号（优先于 PurchaserName 冗余姓名）。</summary>
+        private async Task TryFillPurchaseUserDisplayNameAsync(VendorInfo entity)
+        {
+            if (string.IsNullOrWhiteSpace(entity.PurchaseUserId)) return;
+            var u = await _userService.GetByIdAsync(entity.PurchaseUserId.Trim());
+            if (u == null) return;
+            entity.PurchaseUserName = EntityLookupService.FormatUserLoginName(u)
+                ?? EntityLookupService.FormatUserDisplayName(u);
         }
 
         /// <summary>

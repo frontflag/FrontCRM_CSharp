@@ -2,9 +2,12 @@ import apiClient from './client'
 
 export interface BatchReconciliationQuery {
   globalBatchNo?: string
+  purchaseOrderId?: string
   purchaseOrderCode?: string
   stockInCode?: string
   packingCode?: string
+  packingId?: string
+  sellOrderId?: string
   materialModel?: string
   lot?: string
   serialNumber?: string
@@ -69,9 +72,12 @@ function buildQueryParams(params?: BatchReconciliationQuery & { page?: number; p
   const q: Record<string, string | number> = {}
   if (!params) return q
   if (params.globalBatchNo?.trim()) q.globalBatchNo = params.globalBatchNo.trim()
+  if (params.purchaseOrderId?.trim()) q.purchaseOrderId = params.purchaseOrderId.trim()
   if (params.purchaseOrderCode?.trim()) q.purchaseOrderCode = params.purchaseOrderCode.trim()
   if (params.stockInCode?.trim()) q.stockInCode = params.stockInCode.trim()
-  if (params.packingCode?.trim()) q.packingCode = params.packingCode.trim()
+  if (params.packingId?.trim()) q.packingId = params.packingId.trim()
+  else if (params.packingCode?.trim()) q.packingCode = params.packingCode.trim()
+  if (params.sellOrderId?.trim()) q.sellOrderId = params.sellOrderId.trim()
   if (params.materialModel?.trim()) q.materialModel = params.materialModel.trim()
   if (params.lot?.trim()) q.lot = params.lot.trim()
   if (params.serialNumber?.trim()) q.serialNumber = params.serialNumber.trim()

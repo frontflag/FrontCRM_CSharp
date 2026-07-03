@@ -270,6 +270,8 @@ public class PackingDetailDto
     public DateTime? ScheduleShipDate { get; set; }
     public string? Comment { get; set; }
     public DateTime CreateTime { get; set; }
+    public string? CreateByUserId { get; set; }
+    public string? CreateUserName { get; set; }
     public decimal? BoxNw { get; set; }
     public decimal? BoxGw { get; set; }
     public string? BoxDim { get; set; }

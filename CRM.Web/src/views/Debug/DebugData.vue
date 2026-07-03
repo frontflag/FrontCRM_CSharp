@@ -226,14 +226,9 @@ const statusOptionsByNode: Record<string, StatusOption[]> = {
     { value: 6, label: '已关闭' }
   ],
   quote: [
-    { value: 0, label: '草稿' },
-    { value: 1, label: '待审核' },
-    { value: 2, label: '已审核' },
-    { value: 3, label: '已发送' },
-    { value: 4, label: '已接受' },
-    { value: 5, label: '已拒绝' },
-    { value: 6, label: '已过期' },
-    { value: 7, label: '已关闭' }
+    { value: 0, label: '新建' },
+    { value: 1, label: '成单' },
+    { value: 2, label: '关闭' }
   ],
   salesorder: [
     { value: 1, label: '新建' },

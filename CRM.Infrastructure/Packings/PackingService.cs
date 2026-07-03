@@ -349,6 +349,10 @@ public class PackingService : IPackingService
         if (!string.IsNullOrWhiteSpace(pk.SalesId))
             salesUser = await _userRepository.GetByIdAsync(pk.SalesId.Trim());
 
+        User? createUser = null;
+        if (!string.IsNullOrWhiteSpace(pk.CreateByUserId))
+            createUser = await _userRepository.GetByIdAsync(pk.CreateByUserId.Trim());
+
         var lineIds = lines.Select(l => l.Id).ToList();
         var extendRows = lineIds.Count == 0
             ? new List<PackingItemExtend>()
@@ -459,6 +463,10 @@ public class PackingService : IPackingService
             ScheduleShipDate = pk.ScheduleShipDate,
             Comment = pk.Comment,
             CreateTime = pk.CreateTime,
+            CreateByUserId = pk.CreateByUserId,
+            CreateUserName = createUser == null
+                ? null
+                : EntityLookupService.FormatUserLoginName(createUser) ?? createUser.RealName ?? createUser.UserName,
             BoxNw = pk.ExtendBox?.Nw,
             BoxGw = pk.ExtendBox?.Gw,
             BoxDim = pk.ExtendBox?.Dim,

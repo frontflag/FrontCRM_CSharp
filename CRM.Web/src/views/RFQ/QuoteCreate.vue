@@ -587,10 +587,14 @@ const quoteBasicCreateDateText = computed(() => {
 const quoteBasicCreateUserText = computed(() => {
   const name = formData.value.createUserName?.trim()
   if (name) return name
-  if (!isEditMode.value) {
-    return authStore.user?.userName?.trim() || '—'
+  if (isEditMode.value) {
+    return (
+      formData.value.purchaseUserName?.trim() ||
+      formData.value.salesUserName?.trim() ||
+      '—'
+    )
   }
-  return '—'
+  return authStore.user?.userName?.trim() || '—'
 })
 
 /**
@@ -1002,7 +1006,7 @@ async function applyQuoteToForm(q: Record<string, unknown>) {
   formData.value.quoteCode = String(q.quoteCode ?? q.quoteNumber ?? q.QuoteCode ?? '')
   quoteStatus.value = normalizeQuoteMainStatus(q.status ?? q.Status) ?? QuoteMainStatus.New
   formData.value.createTime = String(q.createTime ?? q.CreateTime ?? '')
-  formData.value.createUserName = String(q.createUserName ?? q.CreateUserName ?? q.createByUserId ?? '')
+  formData.value.createUserName = String(q.createUserName ?? q.CreateUserName ?? '')
   formData.value.quoteDate = String(q.quoteDate ?? todayStr()).slice(0, 10)
   formData.value.rfqId = String(q.rfqId ?? q.RfqId ?? '')
   formData.value.rfqItemId = String(q.rfqItemId ?? q.RfqItemId ?? '')

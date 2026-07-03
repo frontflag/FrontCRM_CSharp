@@ -20,7 +20,6 @@
                 >
                   采购订单 {{ order.purchaseOrderCode }}
                 </h1>
-                <span v-if="isStockingPurchaseOrder" class="order-type-badge order-type-badge--stocking">备货</span>
                 <button
                   type="button"
                   class="btn-favorite-star"
@@ -60,7 +59,15 @@
               <el-tag effect="dark" :type="getStatusType(normalizePurchaseOrderMainStatus(order))" size="small">
                 {{ getStatusText(normalizePurchaseOrderMainStatus(order)) }}
               </el-tag>
-              <span v-if="captionSubtitle" class="po-caption-vendor-text">{{ captionSubtitle }}</span>
+              <el-tooltip
+                v-if="isStockingPurchaseOrder"
+                content="备货采购"
+                placement="top"
+              >
+                <el-tag type="warning" effect="plain" size="small" class="po-stocking-tag" round>
+                  备货
+                </el-tag>
+              </el-tooltip>
             </div>
           </div>
         </div>
@@ -267,16 +274,19 @@
               </div>
               <CrmDataTable
                 ref="poDetailItemsTableRef"
-                class="items-table detail-panel-list-table"
+                class="items-table detail-panel-list-table po-detail-items-table"
                 column-layout-key="purchase-order-detail-items"
                 :columns="poDetailItemsColumns"
                 :show-column-settings="false"
                 :density-toggle-anchor-el="poDetailItemsDensityAnchorEl"
+                :border="false"
+                embedded
                 :data="order.items"
                 :row-key="poItemRowKey"
-                highlight-current-row
+                :row-class-name="poItemRowClassName"
                 size="small"
                 stripe
+                @row-click="onPurchaseOrderItemRowClick"
                 @row-dblclick="onPurchaseOrderItemRowDblClick"
               >
                 <template #col-qty="{ row }">
@@ -486,7 +496,7 @@
       <div v-if="poItemLinePanel.visible && !maskPurchaseSensitiveFields" class="so-item-line-detail-panel">
         <div class="so-item-line-detail-panel__head">
           <span class="so-item-line-detail-panel__title">采购订单明细详情</span>
-          <span class="so-item-line-detail-panel__code">{{ poItemLinePanel.purchaseOrderItemCode || '—' }}</span>
+          <span class="so-item-line-detail-panel__code panel-hint__value">{{ poItemLinePanel.purchaseOrderItemCode || '—' }}</span>
           <button type="button" class="so-item-line-detail-panel__close" @click="closePoItemLinePanel">收起</button>
         </div>
         <el-alert
@@ -506,7 +516,7 @@
                 :class="{ 'tab-btn--active': poItemLinePanel.activeTab === 'requisitions' }"
                 @click="poItemLinePanel.activeTab = 'requisitions'"
               >
-                采购申请
+                {{ formatPoItemLineTabLabel('采购申请', 'requisitions') }}
               </button>
               <button
                 type="button"
@@ -514,7 +524,7 @@
                 :class="{ 'tab-btn--active': poItemLinePanel.activeTab === 'payments' }"
                 @click="poItemLinePanel.activeTab = 'payments'"
               >
-                付款
+                {{ formatPoItemLineTabLabel('付款', 'payments') }}
               </button>
               <button
                 type="button"
@@ -522,7 +532,7 @@
                 :class="{ 'tab-btn--active': poItemLinePanel.activeTab === 'arrivals' }"
                 @click="poItemLinePanel.activeTab = 'arrivals'"
               >
-                到货通知
+                {{ formatPoItemLineTabLabel('到货通知', 'arrivals') }}
               </button>
               <button
                 type="button"
@@ -530,7 +540,7 @@
                 :class="{ 'tab-btn--active': poItemLinePanel.activeTab === 'stockIns' }"
                 @click="poItemLinePanel.activeTab = 'stockIns'"
               >
-                入库
+                {{ formatPoItemLineTabLabel('入库', 'stockIns') }}
               </button>
               <button
                 type="button"
@@ -538,7 +548,7 @@
                 :class="{ 'tab-btn--active': poItemLinePanel.activeTab === 'stocks' }"
                 @click="poItemLinePanel.activeTab = 'stocks'"
               >
-                库存
+                {{ formatPoItemLineTabLabel('库存', 'stocks') }}
               </button>
               <button
                 type="button"
@@ -546,7 +556,7 @@
                 :class="{ 'tab-btn--active': poItemLinePanel.activeTab === 'purchaseInvoices' }"
                 @click="poItemLinePanel.activeTab = 'purchaseInvoices'"
               >
-                进项发票
+                {{ formatPoItemLineTabLabel('进项发票', 'purchaseInvoices') }}
               </button>
               <button
                 type="button"
@@ -554,7 +564,7 @@
                 :class="{ 'tab-btn--active': poItemLinePanel.activeTab === 'qcImages' }"
                 @click="poItemLinePanel.activeTab = 'qcImages'"
               >
-                质检图片
+                {{ formatPoItemLineTabLabel('质检图片', 'qcImages') }}
               </button>
             </div>
             <div class="tabs-body">
@@ -597,7 +607,7 @@
                     <template #default="{ row }">{{ formatDateTime(row?.expectedPurchaseTime) }}</template>
                   </el-table-column>
                 </el-table>
-                <el-empty v-else description="暂无数据" :image-size="64" />
+                <DetailListPanelEmpty v-else size="low" />
               </div>
               <div v-show="poItemLinePanel.activeTab === 'payments'" class="po-aggregate-table-wrap">
                 <el-table v-if="(lineTabAggregates?.payments?.length ?? 0) > 0" :data="lineTabAggregates?.payments ?? []" size="small" stripe>
@@ -661,7 +671,7 @@
                   </template>
                 </el-table-column>
               </el-table>
-                <el-empty v-else description="暂无数据" :image-size="64" />
+                <DetailListPanelEmpty v-else size="low" />
               </div>
               <div v-show="poItemLinePanel.activeTab === 'arrivals'" class="po-aggregate-table-wrap">
                 <el-table v-if="(lineTabAggregates?.arrivalNotices?.length ?? 0) > 0" :data="lineTabAggregates?.arrivalNotices ?? []" size="small" stripe>
@@ -675,7 +685,7 @@
                     <template #default="{ row }">{{ arrivalStatusText(row?.status) }}</template>
                   </el-table-column>
                 </el-table>
-                <el-empty v-else description="暂无数据" :image-size="64" />
+                <DetailListPanelEmpty v-else size="low" />
               </div>
               <div v-show="poItemLinePanel.activeTab === 'stockIns'" class="po-aggregate-table-wrap">
                 <el-table v-if="(lineTabAggregates?.stockIns?.length ?? 0) > 0" :data="lineTabAggregates?.stockIns ?? []" size="small" stripe>
@@ -697,7 +707,7 @@
                     <template #default="{ row }">{{ formatDateTime(row?.stockInDate) }}</template>
                   </el-table-column>
                 </el-table>
-                <el-empty v-else description="暂无数据" :image-size="64" />
+                <DetailListPanelEmpty v-else size="low" />
               </div>
               <div v-show="poItemLinePanel.activeTab === 'stocks'" class="po-aggregate-table-wrap">
                 <el-table v-if="(lineTabAggregates?.stockItems?.length ?? 0) > 0" :data="lineTabAggregates?.stockItems ?? []" size="small" stripe>
@@ -713,7 +723,7 @@
                   <el-table-column prop="qtyRepertory" label="现存量" width="100" align="right" />
                   <el-table-column prop="qtyRepertoryAvailable" label="可用量" width="100" align="right" />
                 </el-table>
-                <el-empty v-else description="暂无数据" :image-size="64" />
+                <DetailListPanelEmpty v-else size="low" />
               </div>
               <div v-show="poItemLinePanel.activeTab === 'purchaseInvoices'" class="po-aggregate-table-wrap">
                 <el-table v-if="(lineTabAggregates?.purchaseInvoices?.length ?? 0) > 0" :data="lineTabAggregates?.purchaseInvoices ?? []" size="small" stripe>
@@ -734,7 +744,7 @@
                     <template #default="{ row }">{{ formatDateTime(row?.invoiceDate) }}</template>
                   </el-table-column>
                 </el-table>
-                <el-empty v-else description="暂无数据" :image-size="64" />
+                <DetailListPanelEmpty v-else size="low" />
               </div>
               <div v-show="poItemLinePanel.activeTab === 'qcImages'" class="po-aggregate-table-wrap po-qc-images-wrap">
                 <QcImagesReadonlyGallery :images="lineTabAggregates?.qcImages ?? []" empty-text="暂无质检图片" />
@@ -743,6 +753,12 @@
           </div>
         </div>
       </div>
+
+      <PurchaseOrderStockInBatchPanel
+        v-if="!maskPurchaseSensitiveFields"
+        :purchase-order-id="String(order.id)"
+        :purchase-order-code="order.purchaseOrderCode || ''"
+      />
     </template>
 
     <el-empty v-else description="订单不存在" />
@@ -791,7 +807,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, reactive, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, reactive, watch, nextTick, defineAsyncComponent } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
@@ -829,11 +845,16 @@ import { recordPurchaseOrderRecentView } from '@/utils/purchaseOrderRecentHistor
 import PurchaseOrderItemLineDialogs from '@/components/purchaseOrder/PurchaseOrderItemLineDialogs.vue'
 import { buildPurchaseOrderDetailItemsColumns } from '@/composables/buildPurchaseOrderDetailItemsColumns'
 import CrmDataTable from '@/components/CrmDataTable.vue'
+import DetailListPanelEmpty from '@/components/Common/DetailListPanelEmpty.vue'
 import QcImagesReadonlyGallery from '@/components/Logistics/QcImagesReadonlyGallery.vue'
 import { financePaymentApi, type FinancePayment } from '@/api/finance'
 import FinancePaymentRequestEditDialog from '@/components/Finance/FinancePaymentRequestEditDialog.vue'
 import FinancePaymentPayDialog from '@/components/Finance/FinancePaymentPayDialog.vue'
 import { useFinanceWriteGate } from '@/composables/useDepartmentDataReadOnly'
+
+const PurchaseOrderStockInBatchPanel = defineAsyncComponent(
+  () => import('@/components/Inventory/PurchaseOrderStockInBatchPanel.vue')
+)
 
 const router = useRouter()
 const route = useRoute()
@@ -996,6 +1017,45 @@ watch(activeTab, (tab) => {
 
 /** 双击订单明细行：底部面板（按采购明细主键） */
 const lineTabAggregates = ref<PurchaseOrderDetailTabAggregates | null>(null)
+
+type PoItemLineTabKey =
+  | 'requisitions'
+  | 'payments'
+  | 'arrivals'
+  | 'stockIns'
+  | 'stocks'
+  | 'purchaseInvoices'
+  | 'qcImages'
+
+function poItemLineTabRecordCount(tab: PoItemLineTabKey): number {
+  const agg = lineTabAggregates.value
+  if (!agg) return 0
+  switch (tab) {
+    case 'requisitions':
+      return agg.purchaseRequisitions?.length ?? 0
+    case 'payments':
+      return agg.payments?.length ?? 0
+    case 'arrivals':
+      return agg.arrivalNotices?.length ?? 0
+    case 'stockIns':
+      return agg.stockIns?.length ?? 0
+    case 'stocks':
+      return agg.stockItems?.length ?? 0
+    case 'purchaseInvoices':
+      return agg.purchaseInvoices?.length ?? 0
+    case 'qcImages':
+      return agg.qcImages?.length ?? 0
+    default:
+      return 0
+  }
+}
+
+/** Tab 标题旁显示 (N)，便于未点开 Tab 时感知是否有数据 */
+function formatPoItemLineTabLabel(label: string, tab: PoItemLineTabKey): string {
+  const count = poItemLineTabRecordCount(tab)
+  return count > 0 ? `${label} (${count})` : label
+}
+
 const poItemLinePanel = reactive({
   visible: false,
   purchaseOrderItemId: '',
@@ -1124,7 +1184,7 @@ function closePoItemLinePanel() {
   lineTabAggregates.value = null
 }
 
-async function onPurchaseOrderItemRowDblClick(row: Record<string, unknown>) {
+async function selectPurchaseOrderItemRow(row: Record<string, unknown>) {
   if (maskPurchaseSensitiveFields.value) return
   const oid = String(route.params.id ?? '').trim()
   const purchaseOrderItemId = String(
@@ -1146,8 +1206,19 @@ async function onPurchaseOrderItemRowDblClick(row: Record<string, unknown>) {
   } finally {
     poItemLinePanel.loading = false
   }
-  await nextTick()
-  poDetailItemsTableRef.value?.setCurrentRow(row)
+}
+
+async function onPurchaseOrderItemRowClick(row: Record<string, unknown>) {
+  await selectPurchaseOrderItemRow(row)
+}
+
+async function onPurchaseOrderItemRowDblClick(row: Record<string, unknown>) {
+  await selectPurchaseOrderItemRow(row)
+}
+
+function poItemRowClassName({ row }: { row: Record<string, unknown> }) {
+  if (!poItemLinePanel.visible) return ''
+  return poItemRowKey(row) === poItemLinePanel.purchaseOrderItemId ? 'po-item-row--active' : ''
 }
 
 const docListRef = ref<InstanceType<typeof DocumentListPanel> | null>(null)
@@ -1200,7 +1271,7 @@ function findPurchaseOrderItemRow(itemId: string) {
 
 async function focusPurchaseOrderItemRow(row: Record<string, unknown>) {
   activeTab.value = 'items'
-  await onPurchaseOrderItemRowDblClick(row)
+  await selectPurchaseOrderItemRow(row)
 }
 
 async function applyInitialPurchaseOrderItemSelection() {
@@ -1311,14 +1382,6 @@ function openPoLinePayment(row: any) {
   if (!line) return
   poItemLineDialogsRef.value?.openPayment(line)
 }
-
-/** CaptionBar 副标题：供应商（主标题为采购订单号） */
-const captionSubtitle = computed(() => {
-  const o = order.value
-  if (!o) return ''
-  if (canViewVendorInfo.value && o.vendorName?.trim()) return String(o.vendorName).trim()
-  return ''
-})
 
 const isStockingPurchaseOrder = computed(() => Number(order.value?.type) === 2)
 
@@ -1705,17 +1768,14 @@ const handleEdit = () => {
 }
 
 .po-header-meta-row {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
   min-height: 28px;
 }
 
-.po-caption-vendor-text {
-  font-size: 13px;
-  font-weight: 400;
-  color: $text-muted;
+.title-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .po-header-tags-row {
@@ -1744,24 +1804,9 @@ const handleEdit = () => {
   gap: 6px;
 }
 
-.order-type-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1px 10px;
-  height: 22px;
-  border-radius: 999px;
-  font-size: 12px;
-  line-height: 1;
-  font-weight: 500;
-  white-space: nowrap;
-  box-sizing: border-box;
-}
-
-.order-type-badge--stocking {
-  color: #d48316;
-  border: 1px solid rgba(212, 131, 22, 0.55);
-  background: rgba(255, 191, 105, 0.14);
+.po-stocking-tag {
+  flex-shrink: 0;
+  cursor: default;
 }
 
 .btn-secondary {
@@ -1811,19 +1856,23 @@ const handleEdit = () => {
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: rgba(200, 220, 240, 0.5);
+  color: #ffc94d;
   cursor: pointer;
   transition: color 0.15s, background 0.15s, transform 0.12s;
 
   .star-icon {
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
     display: block;
   }
 
-  &:hover:not(:disabled) {
-    color: #00d4ff;
-    background: rgba(0, 212, 255, 0.1);
+  &:not(.is-favorite) .star-icon {
+    stroke-dasharray: 3 2.5;
+  }
+
+  &:not(.is-favorite):hover:not(:disabled) {
+    color: #ffd666;
+    background: rgba(255, 201, 77, 0.12);
   }
 
   &:active:not(:disabled) {
@@ -2170,10 +2219,15 @@ const handleEdit = () => {
 }
 
 // §7.4 表头/表体基线见 detail-panel-list-table.scss；此处仅 CrmDataTable 操作列等页内扩展
-.detail-items-table-wrap :deep(.items-table) {
+.detail-items-table-wrap :deep(.items-table),
+.detail-items-table-wrap :deep(.crm-items-table.detail-panel-list-table) {
   --el-table-border-color: transparent;
   --el-table-fixed-box-shadow: none;
   background: transparent !important;
+  border-radius: 0;
+  border: none;
+  min-height: 0;
+  overflow: visible;
   :deep(.el-table) {
     color: var(--crm-table-text);
   }
@@ -2229,6 +2283,10 @@ const handleEdit = () => {
   display: flex;
   flex-direction: column-reverse;
   gap: 12px;
+}
+
+.po-detail-items-table {
+  cursor: pointer;
 }
 
 /* 与 CustomerList / RFQItemList 底栏一致：《业务列表规范》列设置 + 行高密度 + Spacer */
@@ -2311,7 +2369,8 @@ html[data-theme='dark'] .purchase-order-detail .po-detail-biz-qty {
   font-size: 14px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  color: rgba(0, 212, 255, 0.95);
+  /* 级联从属面板单号 — 《业务详情页面规范》§7.4.6 .panel-hint__value */
+  color: $color-amber;
 }
 
 .so-item-line-detail-panel__close {

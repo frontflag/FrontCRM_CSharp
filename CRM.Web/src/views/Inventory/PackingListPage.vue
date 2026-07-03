@@ -209,7 +209,6 @@
               v-if="canWriteLogisticsData"
               type="button"
               class="action-btn action-btn--primary"
-              :disabled="!canImportOutBatch(row)"
               @click.stop="openOutBatchImport(row)"
             >
               {{ t('packingList.actions.outBatch') }}
@@ -265,7 +264,7 @@
                 <el-dropdown-item v-if="canWriteLogisticsData" :disabled="!canMarkPackingReady(row)" @click.stop="() => void markPackingReady(row)">
                   <span class="op-more-item">{{ t('packingList.actions.ready') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item v-if="canWriteLogisticsData" :disabled="!canImportOutBatch(row)" @click.stop="openOutBatchImport(row)">
+                <el-dropdown-item v-if="canWriteLogisticsData" @click.stop="openOutBatchImport(row)">
                   <span class="op-more-item op-more-item--primary">{{ t('packingList.actions.outBatch') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item @click.stop="() => void goInvoiceReport(row)">
@@ -685,15 +684,7 @@ function canConfirmPacking(row: PackingListItem): boolean {
   return Number(row?.status) === PackingStatusCode.New
 }
 
-function canImportOutBatch(row: PackingListItem): boolean {
-  return Number(row?.status) >= PackingStatusCode.Confirmed
-}
-
 function openOutBatchImport(row: PackingListItem) {
-  if (!canImportOutBatch(row)) {
-    ElMessage.error(t('packingList.outBatch.notConfirmedStatus'))
-    return
-  }
   const id = resolvePackingId(row)
   if (!id) return
   outBatchImportPackingId.value = id

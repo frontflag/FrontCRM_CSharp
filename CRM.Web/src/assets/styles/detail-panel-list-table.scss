@@ -3,13 +3,18 @@
 // 覆盖 .crm-items-table 默认表头（--crm-table-header-bg）
 // ============================================================
 
-// CrmDataTable 默认套 .table-wrapper（全站列表圆角）；详情页面板列表须直角
-.detail-items-table-wrap > .table-wrapper.crm-items-table.detail-panel-list-table {
+// CrmDataTable 默认套 .table-wrapper（全站列表圆角）；详情页面板列表须直角、无外框
+.detail-items-table-wrap .table-wrapper.crm-items-table.detail-panel-list-table,
+.detail-items-table-wrap .crm-items-table.crm-data-table--embedded.detail-panel-list-table {
   border-radius: 0;
   min-height: 0;
+  background: transparent;
+  border: none;
+  overflow: visible;
 }
 
-.detail-items-table-wrap > .crm-items-table.detail-panel-list-table,
+.detail-items-table-wrap .crm-items-table.detail-panel-list-table,
+.detail-items-table-wrap .el-table.detail-panel-list-table,
 .so-item-line-detail-panel .so-aggregate-table-wrap {
   .el-table {
     --el-table-header-bg-color: var(--crm-detail-panel-card-head-bg);
@@ -37,5 +42,108 @@
     color: inherit !important;
     padding-left: 0 !important;
     padding-right: 0 !important;
+  }
+
+  /* 矮版空态：表格内占位区压缩高度 */
+  .el-table__empty-block {
+    min-height: auto !important;
+  }
+}
+
+// §7.4.6 主从联动：选中行（明暗由 --crm-detail-row-active-bg 区分）
+// 特异性须压过 .crm-items-table 斑马线 / 悬停（crm-unified-list.scss、main.scss）
+.detail-items-table-wrap {
+  .crm-items-table .el-table__body-wrapper .el-table__body tr.el-table__row.so-item-row--active td.el-table__cell,
+  .crm-items-table .el-table__body-wrapper .el-table__body tr.el-table__row.po-item-row--active td.el-table__cell,
+  .crm-items-table .el-table__body-wrapper .el-table__body tr.el-table__row.packing-item-row--active td.el-table__cell,
+  .crm-items-table .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.so-item-row--active td.el-table__cell,
+  .crm-items-table .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.po-item-row--active td.el-table__cell,
+  .crm-items-table .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.packing-item-row--active td.el-table__cell,
+  .crm-items-table .el-table__fixed .el-table__body tr.el-table__row.so-item-row--active td.el-table__cell,
+  .crm-items-table .el-table__fixed .el-table__body tr.el-table__row.po-item-row--active td.el-table__cell,
+  .crm-items-table .el-table__fixed .el-table__body tr.el-table__row.packing-item-row--active td.el-table__cell,
+  .crm-items-table .el-table__fixed-right .el-table__body tr.el-table__row.so-item-row--active td.el-table__cell,
+  .crm-items-table .el-table__fixed-right .el-table__body tr.el-table__row.po-item-row--active td.el-table__cell,
+  .crm-items-table .el-table__fixed-right .el-table__body tr.el-table__row.packing-item-row--active td.el-table__cell,
+  .crm-items-table .el-table__body-wrapper .el-table__body tr.el-table__row.so-item-row--active:hover td.el-table__cell,
+  .crm-items-table .el-table__body-wrapper .el-table__body tr.el-table__row.po-item-row--active:hover td.el-table__cell,
+  .crm-items-table .el-table__body-wrapper .el-table__body tr.el-table__row.packing-item-row--active:hover td.el-table__cell,
+  .crm-items-table .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.so-item-row--active:hover td.el-table__cell,
+  .crm-items-table .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.po-item-row--active:hover td.el-table__cell,
+  .crm-items-table .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.packing-item-row--active:hover td.el-table__cell,
+  .crm-items-table .el-table__body-wrapper .el-table__body tr.el-table__row.so-item-row--active.hover-row td.el-table__cell,
+  .crm-items-table .el-table__body-wrapper .el-table__body tr.el-table__row.po-item-row--active.hover-row td.el-table__cell,
+  .crm-items-table .el-table__body-wrapper .el-table__body tr.el-table__row.packing-item-row--active.hover-row td.el-table__cell,
+  .crm-items-table .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.so-item-row--active.hover-row td.el-table__cell,
+  .crm-items-table .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.po-item-row--active.hover-row td.el-table__cell,
+  .crm-items-table .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.packing-item-row--active.hover-row td.el-table__cell,
+  .el-table.detail-panel-list-table .el-table__body-wrapper .el-table__body tr.el-table__row.so-item-row--active td.el-table__cell,
+  .el-table.detail-panel-list-table .el-table__body-wrapper .el-table__body tr.el-table__row.po-item-row--active td.el-table__cell,
+  .el-table.detail-panel-list-table .el-table__body-wrapper .el-table__body tr.el-table__row.packing-item-row--active td.el-table__cell,
+  .el-table.detail-panel-list-table .el-table__body-wrapper .el-table__body tr.el-table__row.so-item-row--active:hover td.el-table__cell,
+  .el-table.detail-panel-list-table .el-table__body-wrapper .el-table__body tr.el-table__row.po-item-row--active:hover td.el-table__cell,
+  .el-table.detail-panel-list-table .el-table__body-wrapper .el-table__body tr.el-table__row.packing-item-row--active:hover td.el-table__cell,
+  .el-table.detail-panel-list-table .el-table__body-wrapper .el-table__body tr.el-table__row.so-item-row--active.hover-row td.el-table__cell,
+  .el-table.detail-panel-list-table .el-table__body-wrapper .el-table__body tr.el-table__row.po-item-row--active.hover-row td.el-table__cell,
+  .el-table.detail-panel-list-table .el-table__body-wrapper .el-table__body tr.el-table__row.packing-item-row--active.hover-row td.el-table__cell {
+    background: var(--crm-detail-row-active-bg) !important;
+    background-color: var(--crm-detail-row-active-bg) !important;
+    box-shadow: none !important;
+    border-right: none !important;
+    border-left: none !important;
+  }
+
+  .crm-items-table .el-table__body-wrapper .el-table__body tr.el-table__row.so-item-row--active > td.el-table__cell:first-child,
+  .crm-items-table .el-table__body-wrapper .el-table__body tr.el-table__row.po-item-row--active > td.el-table__cell:first-child,
+  .crm-items-table .el-table__body-wrapper .el-table__body tr.el-table__row.packing-item-row--active > td.el-table__cell:first-child,
+  .el-table.detail-panel-list-table .el-table__body-wrapper .el-table__body tr.el-table__row.so-item-row--active > td.el-table__cell:first-child,
+  .el-table.detail-panel-list-table .el-table__body-wrapper .el-table__body tr.el-table__row.po-item-row--active > td.el-table__cell:first-child,
+  .el-table.detail-panel-list-table .el-table__body-wrapper .el-table__body tr.el-table__row.packing-item-row--active > td.el-table__cell:first-child {
+    position: relative;
+    padding-left: 22px !important;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 0;
+      height: 0;
+      border-top: 5px solid transparent;
+      border-bottom: 5px solid transparent;
+      border-left: 7px solid var(--crm-color-red-brown);
+      pointer-events: none;
+    }
+  }
+
+  .crm-items-table .el-table__body-wrapper .el-table__body tr.el-table__row.so-item-row--active > td.el-table__cell:first-child .cell,
+  .crm-items-table .el-table__body-wrapper .el-table__body tr.el-table__row.po-item-row--active > td.el-table__cell:first-child .cell,
+  .crm-items-table .el-table__body-wrapper .el-table__body tr.el-table__row.packing-item-row--active > td.el-table__cell:first-child .cell,
+  .el-table.detail-panel-list-table .el-table__body-wrapper .el-table__body tr.el-table__row.so-item-row--active > td.el-table__cell:first-child .cell,
+  .el-table.detail-panel-list-table .el-table__body-wrapper .el-table__body tr.el-table__row.po-item-row--active > td.el-table__cell:first-child .cell,
+  .el-table.detail-panel-list-table .el-table__body-wrapper .el-table__body tr.el-table__row.packing-item-row--active > td.el-table__cell:first-child .cell {
+    padding-left: 0;
+  }
+}
+
+html[data-theme='dark'] .detail-items-table-wrap {
+  .crm-items-table .el-table__body-wrapper .el-table__body tr.el-table__row.so-item-row--active td.el-table__cell,
+  .crm-items-table .el-table__body-wrapper .el-table__body tr.el-table__row.po-item-row--active td.el-table__cell,
+  .crm-items-table .el-table__body-wrapper .el-table__body tr.el-table__row.packing-item-row--active td.el-table__cell,
+  .crm-items-table .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.so-item-row--active td.el-table__cell,
+  .crm-items-table .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.po-item-row--active td.el-table__cell,
+  .crm-items-table .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.packing-item-row--active td.el-table__cell,
+  .crm-items-table .el-table__fixed .el-table__body tr.el-table__row.so-item-row--active td.el-table__cell,
+  .crm-items-table .el-table__fixed .el-table__body tr.el-table__row.po-item-row--active td.el-table__cell,
+  .crm-items-table .el-table__fixed .el-table__body tr.el-table__row.packing-item-row--active td.el-table__cell,
+  .crm-items-table .el-table__fixed-right .el-table__body tr.el-table__row.so-item-row--active td.el-table__cell,
+  .crm-items-table .el-table__fixed-right .el-table__body tr.el-table__row.po-item-row--active td.el-table__cell,
+  .crm-items-table .el-table__fixed-right .el-table__body tr.el-table__row.packing-item-row--active td.el-table__cell,
+  .el-table.detail-panel-list-table .el-table__body-wrapper .el-table__body tr.el-table__row.so-item-row--active td.el-table__cell,
+  .el-table.detail-panel-list-table .el-table__body-wrapper .el-table__body tr.el-table__row.po-item-row--active td.el-table__cell,
+  .el-table.detail-panel-list-table .el-table__body-wrapper .el-table__body tr.el-table__row.packing-item-row--active td.el-table__cell {
+    background: #114a60 !important;
+    background-color: #114a60 !important;
   }
 }

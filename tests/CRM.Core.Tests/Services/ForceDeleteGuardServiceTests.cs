@@ -1,5 +1,6 @@
 using CRM.Core.Models.Finance;
 using CRM.Core.Models.Inventory;
+using CRM.Core.Models.Customs;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Services;
 using CRM.Core.Tests.Fakes;
@@ -117,6 +118,8 @@ public class ForceDeleteGuardServiceTests
             stockOutItemRepo,
             purchaseOrderItemRepo,
             financeReceiptRepo,
-            financeReceivableRepo);
+            financeReceivableRepo,
+            new MemoryRepository<Packing>(),
+            new MemoryRepository<CustomsDeclaration>());
     }
 }

@@ -61,6 +61,33 @@ export interface PurchaseOrderDeletedItemRow {
   deletedByUserName?: string | null
 }
 
+export interface PurchaseOrderBatchExportLogRow {
+  id: string
+  operationTime: string
+  operatorUserName?: string | null
+  exportedCount?: number | null
+  operationDesc?: string | null
+}
+
+export type PurchaseOrderBatchExportLogPaged = {
+  items: PurchaseOrderBatchExportLogRow[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+function parsePoBatchExportLogExtra(raw: string | null | undefined): Partial<PurchaseOrderBatchExportLogRow> {
+  if (!raw?.trim()) return {}
+  try {
+    const o = JSON.parse(raw) as Record<string, unknown>
+    return {
+      exportedCount: o.exportedCount != null ? Number(o.exportedCount) : null
+    }
+  } catch {
+    return {}
+  }
+}
+
 export interface PurchaseOrderDetailTabAggregates {
   purchaseRequisitions: Array<{
     id: string
@@ -263,6 +290,36 @@ export const purchaseOrderApi = {
     return await apiClient.patch(`/api/v1/purchase-orders/${enc}/freight-forwarder-order-no`, {
       freightForwarderOrderNo
     })
+  },
+
+  async logBatchExport(purchaseOrderId: string, exportedCount: number): Promise<void> {
+    const enc = encodeURIComponent(purchaseOrderId)
+    await apiClient.post(`/api/v1/purchase-orders/${enc}/batch-log-export`, { exportedCount })
+  },
+
+  async getBatchExportLogs(
+    purchaseOrderId: string,
+    params?: { page?: number; pageSize?: number }
+  ): Promise<PurchaseOrderBatchExportLogPaged> {
+    const enc = encodeURIComponent(purchaseOrderId)
+    const res = await apiClient.get<any>(`/api/v1/purchase-orders/${enc}/batch-export-logs`, { params })
+    const d = res?.data ?? res
+    const items = Array.isArray(d?.items) ? d.items : []
+    return {
+      items: items.map((row: Record<string, unknown>) => {
+        const extra = parsePoBatchExportLogExtra(row.extraInfo as string | null | undefined)
+        return {
+          id: String(row.id ?? ''),
+          operationTime: String(row.operationTime ?? ''),
+          operatorUserName: (row.operatorUserName as string) ?? null,
+          operationDesc: (row.operationDesc as string) ?? null,
+          ...extra
+        }
+      }),
+      total: Number(d?.total ?? 0),
+      page: Number(d?.page ?? 1),
+      pageSize: Number(d?.pageSize ?? 20)
+    }
   }
 }
 

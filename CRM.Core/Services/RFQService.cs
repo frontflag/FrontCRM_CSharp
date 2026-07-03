@@ -36,6 +36,7 @@ namespace CRM.Core.Services
         private readonly ILogOperationAppendService _logOperationAppend;
         private readonly IBizBrandService _bizBrandService;
         private readonly IRfqTagService _rfqTagService;
+        private readonly IQuoteStatusSyncService _quoteStatusSync;
 
         public RFQService(
             IRepository<RFQ> rfqRepo,
@@ -56,7 +57,8 @@ namespace CRM.Core.Services
             ILogger<RFQService> logger,
             ILogOperationAppendService logOperationAppend,
             IBizBrandService bizBrandService,
-            IRfqTagService rfqTagService)
+            IRfqTagService rfqTagService,
+            IQuoteStatusSyncService quoteStatusSync)
         {
             _rfqRepo = rfqRepo;
             _itemRepo = itemRepo;
@@ -77,6 +79,7 @@ namespace CRM.Core.Services
             _logOperationAppend = logOperationAppend;
             _bizBrandService = bizBrandService;
             _rfqTagService = rfqTagService;
+            _quoteStatusSync = quoteStatusSync;
         }
 
         // ─── Create ──────────────────────────────────────────────────────────────
@@ -694,6 +697,8 @@ namespace CRM.Core.Services
             await _rfqRepo.UpdateAsync(rfq);
             if (_unitOfWork != null)
                 await _unitOfWork.SaveChangesAsync();
+
+            await _quoteStatusSync.CloseNewQuotesForRfqAsync(id);
 
             _logger.LogInformation(
                 "需求已关闭。RfqId={RfqId} CloseType={CloseType} NewStatus={Status} RecordId={RecordId}",

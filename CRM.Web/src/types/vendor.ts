@@ -38,6 +38,8 @@ export interface Vendor {
   remark?: string
   website?: string
   purchaserName?: string
+  /** 采购员登录账号（详情/列表 API 填充，展示用） */
+  purchaseUserName?: string
   tradeCurrency?: number
   /** 付款方式编码 */
   paymentMethod?: string

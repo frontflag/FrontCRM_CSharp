@@ -1,6 +1,11 @@
 <template>
   <div class="rfq-item-list-page customer-list-theme">
-    <div class="rfq-items-split-root" :class="dockSplitRootClass">
+    <div
+      ref="rfqItemsSplitRootRef"
+      class="rfq-items-split-root"
+      :class="dockSplitRootClass"
+      :style="dockSplitRootStyle"
+    >
     <div class="rfq-item-main">
     <div class="page-header">
       <div class="header-left">
@@ -284,6 +289,18 @@
     </div>
     </div>
 
+    <div
+      v-show="isDockSplitbarVisible"
+      class="rfq-dock-splitbar"
+      :class="{ 'is-dragging': isDockSplitDragging }"
+      role="separator"
+      :aria-label="t('rfqItemList.dockQuotes.dragSplit')"
+      :aria-orientation="'horizontal'"
+      @mousedown.prevent="startDockSplitDrag"
+    >
+      <span class="rfq-dock-splitbar__grip" aria-hidden="true" />
+    </div>
+
     <!-- 底部：采购报价（当前选中需求明细对应的报价列表） -->
     <div class="supplier-quote-dock" :class="{ collapsed: isPurchaseQuoteDockCollapsed }">
       <div class="dock-header">
@@ -304,21 +321,33 @@
                 <span class="la-pre">{{ linkAlertSep8Ideo }}</span>
                 <span class="la-block-detail">
                   <span class="la-muted">物料号</span><span class="la-pre">{{ linkAlertGap2 }}</span
-                  ><span class="la-value-green">{{ dockLinkAlert.mpn || '—' }}</span
+                  ><span class="la-value-brown">{{ dockLinkAlert.mpn || '—' }}</span
                   ><span class="la-pre">{{ linkAlertSep4Ideo }}</span><span class="la-muted">品牌</span
                   ><span class="la-pre">{{ linkAlertGap2 }}</span
-                  ><span class="la-value-green">{{ dockLinkAlert.brand || '—' }}</span
+                  ><span class="la-value-brown">{{ dockLinkAlert.brand || '—' }}</span
                   ><span class="la-pre">{{ linkAlertSep4Ideo }}</span><span class="la-muted">数量</span
                   ><span class="la-pre">{{ linkAlertGap2 }}</span
-                  ><span class="la-value-green">{{ dockLinkAlert.quantityDisplay }}</span
+                  ><span class="la-value-brown">{{ dockLinkAlert.quantityDisplay }}</span
                   ><span class="la-pre">{{ linkAlertSep4Ideo }}</span><span class="la-muted">目标价</span
                   ><span class="la-pre">{{ linkAlertGap2 }}</span
-                  ><span class="la-value-green">{{ dockLinkAlert.targetPriceText }}</span>
+                  ><span class="la-value-brown">{{ dockLinkAlert.targetPriceText }}</span>
                 </span>
               </div>
             </div>
           </div>
           <div class="dock-header-actions dock-layout-actions">
+            <el-tooltip :content="t('systemUser.colSetting')" placement="top" :hide-after="0">
+              <el-button
+                class="list-settings-btn dock-quote-col-settings-btn"
+                link
+                type="primary"
+                :aria-label="t('systemUser.colSetting')"
+                :disabled="!selectedRfqItem"
+                @click="dockQuoteTableRef?.openColumnSettings?.()"
+              >
+                <el-icon><Setting /></el-icon>
+              </el-button>
+            </el-tooltip>
             <el-tooltip :content="t('rfqItemList.dockQuotes.layoutSideBySide')" placement="top" :hide-after="0">
               <el-button
                 class="dock-layout-btn"
@@ -387,244 +416,204 @@
             class="dock-table-wrap"
             :class="{ 'dock-table-wrap--quotes-empty': !quotesLoading && !quotesForItem.length }"
           >
-            <div v-if="!quotesLoading && !quotesForItem.length" class="dock-quote-empty-row">{{ t('rfqItemList.dockQuotes.empty') }}</div>
             <CrmDataTable
-              v-else-if="quotesForItem.length"
+              v-if="selectedRfqItem"
+              ref="dockQuoteTableRef"
               embedded
               class="dock-quote-table"
+              column-layout-key="rfq-item-list-dock-quotes"
+              :columns="dockQuoteTableColumns"
+              :show-column-settings="false"
+              :show-row-density-toggle="false"
               :data="quotesForItem"
               size="small"
               stripe
               v-bind="dockQuoteTableExtraAttrs"
               :row-key="dockQuoteRowKey"
+              @header-dragend="onDockQuoteTableHeaderDragEnd"
             >
-              <el-table-column
-                :label="t('rfqItemList.dockQuotes.quoteCode')"
-                width="160"
-                min-width="160"
-                show-overflow-tooltip
-              >
-                <template #default="{ row }">{{ displayQuoteCode(row) }}</template>
-              </el-table-column>
-              <el-table-column
-                prop="mpn"
-                :label="t('rfqItemList.dockQuotes.mpn')"
-                min-width="120"
-                show-overflow-tooltip
-              />
-              <el-table-column
-                :label="t('rfqItemList.dockQuotes.brand')"
-                min-width="100"
-                width="110"
-                show-overflow-tooltip
-              >
-                <template #default="{ row }">{{ dockQuoteBrandDisplay(row as Record<string, unknown>) }}</template>
-              </el-table-column>
-              <el-table-column
-                :label="t('rfqItemList.dockQuotes.productionDateDc')"
-                min-width="104"
-                width="120"
-                show-overflow-tooltip
-                class-name="dock-tier-col"
-              >
-                <template #default="{ row }">
-                  <div class="dock-quote-tiers">
-                    <template v-if="dockQuoteLineItems(row as Record<string, unknown>).length">
-                      <div
-                        v-for="(it, idx) in dockQuoteLineItems(row as Record<string, unknown>)"
-                        :key="idx"
-                        class="dock-quote-tier-line"
-                      >
-                        {{ formatDockTierDateCode(it.dateCode) }}
-                      </div>
-                    </template>
-                    <span v-else class="dock-tier-empty">—</span>
-                  </div>
-                </template>
-              </el-table-column>
-              <el-table-column
-                :label="t('rfqItemList.dockQuotes.leadTime')"
-                min-width="100"
-                width="120"
-                show-overflow-tooltip
-                class-name="dock-tier-col"
-              >
-                <template #default="{ row }">
-                  <div class="dock-quote-tiers">
-                    <template v-if="dockQuoteLineItems(row as Record<string, unknown>).length">
-                      <div
-                        v-for="(it, idx) in dockQuoteLineItems(row as Record<string, unknown>)"
-                        :key="idx"
-                        class="dock-quote-tier-line"
-                      >
-                        {{ formatDockTierLeadTime(it.leadTime) }}
-                      </div>
-                    </template>
-                    <span v-else class="dock-tier-empty">—</span>
-                  </div>
-                </template>
-              </el-table-column>
-              <el-table-column
-                :label="t('rfqItemList.dockQuotes.vendorName')"
-                min-width="140"
-                show-overflow-tooltip
-              >
-                <template #default="{ row }">{{ dockQuoteVendorNamesDisplay(row as Record<string, unknown>) }}</template>
-              </el-table-column>
-              <el-table-column
-                :label="t('rfqItemList.dockQuotes.quoteQty')"
-                width="100"
-                min-width="88"
-                align="right"
-                class-name="dock-tier-col"
-              >
-                <template #default="{ row }">
-                  <div class="dock-quote-tiers">
-                    <template v-if="dockQuoteLineItems(row as Record<string, unknown>).length">
-                      <div
-                        v-for="(it, idx) in dockQuoteLineItems(row as Record<string, unknown>)"
-                        :key="idx"
-                        class="dock-quote-tier-line"
-                      >
-                        {{ formatDockTierQuantity(it.quantity) }}
-                      </div>
-                    </template>
-                    <span v-else class="dock-tier-empty">—</span>
-                  </div>
-                </template>
-              </el-table-column>
-              <el-table-column
-                :label="t('rfqItemList.dockQuotes.unitPriceTiers')"
-                min-width="128"
-                align="right"
-                class-name="dock-tier-col"
-              >
-                <template #default="{ row }">
-                  <div class="dock-quote-tiers">
-                    <template v-if="dockQuoteLineItems(row as Record<string, unknown>).length">
-                      <div
-                        v-for="(it, idx) in dockQuoteLineItems(row as Record<string, unknown>)"
-                        :key="idx"
-                        class="dock-quote-tier-line dock-tier-price-line"
-                      >
-                        <template v-if="!dockTierUnitPriceHasValue(it.unitPrice)">
-                          —
-                        </template>
-                        <template v-else>
-                          <template v-for="amt in [splitDockTierAmountParts(it.unitPrice)]" :key="idx + '-amt'">
-                            <span class="dock-tier-amt">
-                              <span class="dock-tier-amt-int">{{ amt.intPart }}</span
-                              ><span class="dock-tier-amt-frac">{{ amt.fracPart }}</span>
-                            </span>
-                          </template>
-                          <span class="dock-tier-ccy-gap">&nbsp;</span>
-                          <span :class="['dock-tier-ccy', dockTierCurrencyCodeClass(it.currency)]">{{
-                            dockTierCurrencyCode(it.currency)
-                          }}</span>
-                        </template>
-                      </div>
-                    </template>
-                    <span v-else class="dock-tier-empty">—</span>
-                  </div>
-                </template>
-              </el-table-column>
-              <el-table-column :label="t('rfqItemList.dockQuotes.status')" width="96" align="center">
-                <template #default="{ row }">
-                  <el-tag effect="dark" :type="quoteStatusType(row.status)" size="small">
-                    {{ quoteStatusText(row.status) }}
-                  </el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column
-                :label="t('rfqItemList.dockQuotes.purchaser')"
-                width="100"
-                show-overflow-tooltip
-              >
-                <template #default="{ row }">{{ dockQuotePurchaseUserDisplay(row as Record<string, unknown>) }}</template>
-              </el-table-column>
-              <el-table-column
-                :label="t('rfqItemList.dockQuotes.createTime')"
-                width="160"
-                show-overflow-tooltip
-                resizable
-              >
-                <template #default="{ row }">
-                  <template
-                    v-for="p in [formatDisplayDateTime2DigitYearParts((row as Record<string, unknown>).createTime as string)]"
-                    :key="String(dockQuoteRowKey(row)) + '-ct'"
-                  >
-                    <span v-if="p" class="crm-quote-create-time">
-                      <span class="crm-quote-create-time__ymd">{{ p.date }}</span>
-                      <span class="crm-quote-create-time__hm">{{ p.time }}</span>
-                    </span>
-                    <span v-else>—</span>
-                  </template>
-                </template>
-              </el-table-column>
-              <el-table-column
-                :label="t('rfqItemList.actions.column')"
-                :width="opDockColWidth"
-                :min-width="opDockColMinWidth"
-                align="center"
-                fixed="right"
-                class-name="op-col"
-                label-class-name="op-col"
-                :resizable="false"
-              >
-                <template #header>
-                  <div class="list-op-col-header--icon-only">
-                    <button
-                      type="button"
-                      class="op-col-toggle-btn list-op-col-toggle"
-                      :aria-label="opDockColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
-                      @click.stop="toggleOpDockCol"
+              <template #empty>
+                <div class="dock-quote-empty-row">{{ t('rfqItemList.dockQuotes.empty') }}</div>
+              </template>
+              <template #col-quoteCode="{ row }">
+                {{ displayQuoteCode(row as Record<string, unknown>) }}
+              </template>
+              <template #col-brand="{ row }">
+                {{ dockQuoteBrandDisplay(row as Record<string, unknown>) }}
+              </template>
+              <template #col-productionDateDc="{ row }">
+                <div class="dock-quote-tiers dock-quote-tiers--left">
+                  <template v-if="dockQuoteLineItems(row as Record<string, unknown>).length">
+                    <div
+                      v-for="(it, idx) in dockQuoteLineItems(row as Record<string, unknown>)"
+                      :key="idx"
+                      class="dock-quote-tier-line"
                     >
-                      {{ opDockColExpanded ? '>' : '<' }}
-                    </button>
-                  </div>
+                      {{ formatDockTierDateCode(it.dateCode) }}
+                    </div>
+                  </template>
+                  <span v-else class="dock-tier-empty">—</span>
+                </div>
+              </template>
+              <template #col-leadTime="{ row }">
+                <div class="dock-quote-tiers dock-quote-tiers--left">
+                  <template v-if="dockQuoteLineItems(row as Record<string, unknown>).length">
+                    <div
+                      v-for="(it, idx) in dockQuoteLineItems(row as Record<string, unknown>)"
+                      :key="idx"
+                      class="dock-quote-tier-line"
+                    >
+                      {{ formatDockTierLeadTime(it.leadTime) }}
+                    </div>
+                  </template>
+                  <span v-else class="dock-tier-empty">—</span>
+                </div>
+              </template>
+              <template #col-vendorName="{ row }">
+                {{ dockQuoteVendorNamesDisplay(row as Record<string, unknown>) }}
+              </template>
+              <template #col-quoteQty="{ row }">
+                <div class="dock-quote-tiers">
+                  <template v-if="dockQuoteLineItems(row as Record<string, unknown>).length">
+                    <div
+                      v-for="(it, idx) in dockQuoteLineItems(row as Record<string, unknown>)"
+                      :key="idx"
+                      class="dock-quote-tier-line"
+                    >
+                      {{ formatDockTierQuantity(it.quantity) }}
+                    </div>
+                  </template>
+                  <span v-else class="dock-tier-empty">—</span>
+                </div>
+              </template>
+              <template #col-unitPriceTiers="{ row }">
+                <div class="dock-quote-tiers">
+                  <template v-if="dockQuoteLineItems(row as Record<string, unknown>).length">
+                    <div
+                      v-for="(it, idx) in dockQuoteLineItems(row as Record<string, unknown>)"
+                      :key="idx"
+                      class="dock-quote-tier-line dock-tier-price-line"
+                    >
+                      <template v-if="!dockTierUnitPriceHasValue(it.unitPrice)">
+                        —
+                      </template>
+                      <template v-else>
+                        <template v-for="amt in [splitDockTierAmountParts(it.unitPrice)]" :key="idx + '-amt'">
+                          <span class="dock-tier-amt">
+                            <span class="dock-tier-amt-int">{{ amt.intPart }}</span
+                            ><span class="dock-tier-amt-frac">{{ amt.fracPart }}</span>
+                          </span>
+                        </template>
+                        <span class="dock-tier-ccy-gap">&nbsp;</span>
+                        <span :class="['dock-tier-ccy', dockTierCurrencyCodeClass(it.currency)]">{{
+                          dockTierCurrencyCode(it.currency)
+                        }}</span>
+                      </template>
+                    </div>
+                  </template>
+                  <span v-else class="dock-tier-empty">—</span>
+                </div>
+              </template>
+              <template #col-dockQuoteExtend-header>
+                <DockQuoteExtendColumnHeader
+                  :active-field="dockQuoteExtendActiveField"
+                  @set-active-field="setDockQuoteExtendActiveField"
+                />
+              </template>
+              <template #col-dockQuoteExtend="{ row }">
+                <DockQuoteExtendCell
+                  :row="row as Record<string, unknown>"
+                  :active-field="dockQuoteExtendActiveField"
+                  :empty-text="t('quoteList.na')"
+                />
+              </template>
+              <template #col-status="{ row }">
+                <el-tag effect="dark" :type="quoteStatusType(row.status)" size="small">
+                  {{ quoteStatusText(row.status) }}
+                </el-tag>
+              </template>
+              <template #col-purchaser="{ row }">
+                {{ dockQuotePurchaseUserDisplay(row as Record<string, unknown>) }}
+              </template>
+              <template #col-createTime="{ row }">
+                <template
+                  v-for="p in [formatDisplayDateTime2DigitYearParts((row as Record<string, unknown>).createTime as string)]"
+                  :key="String(dockQuoteRowKey(row)) + '-ct'"
+                >
+                  <span v-if="p" class="crm-quote-create-time">
+                    <span class="crm-quote-create-time__ymd">{{ p.date }}</span>
+                    <span class="crm-quote-create-time__hm">{{ p.time }}</span>
+                  </span>
+                  <span v-else>—</span>
                 </template>
-
-                <template #default="{ row }">
-                  <div v-if="opDockColExpanded" @click.stop @dblclick.stop>
-                    <div class="action-btns">
-                      <el-button
-                        class="action-btn action-btn--primary"
-                        link
-                        type="primary"
-                        size="small"
+              </template>
+              <template #col-actions-header>
+                <div class="list-op-col-header--icon-only">
+                  <button
+                    type="button"
+                    class="op-col-toggle-btn list-op-col-toggle"
+                    :aria-label="opDockColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+                    @click.stop="toggleOpDockCol"
+                  >
+                    {{ opDockColExpanded ? '>' : '<' }}
+                  </button>
+                </div>
+              </template>
+              <template #col-actions="{ row }">
+                <div v-if="opDockColExpanded" @click.stop @dblclick.stop>
+                  <div class="action-btns">
+                    <el-button
+                      class="action-btn"
+                      link
+                      size="small"
+                      @click.stop="handleCopyDockQuote(row)"
+                    >
+                      {{ t('quoteList.actions.copy') }}
+                    </el-button>
+                    <el-button
+                      v-if="canEditDockQuoteRow(row as Record<string, unknown>)"
+                      class="action-btn action-btn--primary"
+                      link
+                      type="primary"
+                      size="small"
+                      @click.stop="goEditDockQuote(row)"
+                    >
+                      {{ t('rfqItemList.dockQuotes.edit') }}
+                    </el-button>
+                    <el-button
+                      class="action-btn action-btn--warning"
+                      link
+                      type="warning"
+                      size="small"
+                      :loading="dockRowSalesOrderQuoteId === resolveQuoteRowId(row)"
+                      @click.stop="handleDockRowGenerateSalesOrder(row)"
+                    >
+                      {{ t('rfqItemList.dockQuotes.genSalesOrder') }}
+                    </el-button>
+                  </div>
+                </div>
+                <el-dropdown v-else trigger="click" placement="bottom-end">
+                  <div class="op-more-dropdown-trigger" @click.stop @dblclick.stop>
+                    <button type="button" class="op-more-trigger">...</button>
+                  </div>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item @click.stop="handleCopyDockQuote(row)">
+                        <span class="op-more-item">{{ t('quoteList.actions.copy') }}</span>
+                      </el-dropdown-item>
+                      <el-dropdown-item
+                        v-if="canEditDockQuoteRow(row as Record<string, unknown>)"
                         @click.stop="goEditDockQuote(row)"
                       >
-                        {{ t('rfqItemList.dockQuotes.edit') }}
-                      </el-button>
-                      <el-button
-                        class="action-btn action-btn--warning"
-                        link
-                        type="warning"
-                        size="small"
-                        :loading="dockRowSalesOrderQuoteId === resolveQuoteRowId(row)"
-                        @click.stop="handleDockRowGenerateSalesOrder(row)"
-                      >
-                        {{ t('rfqItemList.dockQuotes.genSalesOrder') }}
-                      </el-button>
-                    </div>
-                  </div>
-                  <el-dropdown v-else trigger="click" placement="bottom-end">
-                    <div class="op-more-dropdown-trigger" @click.stop @dblclick.stop>
-                      <button type="button" class="op-more-trigger">...</button>
-                    </div>
-                    <template #dropdown>
-                      <el-dropdown-menu>
-                        <el-dropdown-item @click.stop="goEditDockQuote(row)">
-                          <span class="op-more-item op-more-item--primary">{{ t('rfqItemList.dockQuotes.edit') }}</span>
-                        </el-dropdown-item>
-                        <el-dropdown-item @click.stop="handleDockRowGenerateSalesOrder(row)">
-                          <span class="op-more-item op-more-item--warning">{{ t('rfqItemList.dockQuotes.genSalesOrder') }}</span>
-                        </el-dropdown-item>
-                      </el-dropdown-menu>
-                    </template>
-                  </el-dropdown>
-                </template>
-              </el-table-column>
+                        <span class="op-more-item op-more-item--primary">{{ t('rfqItemList.dockQuotes.edit') }}</span>
+                      </el-dropdown-item>
+                      <el-dropdown-item @click.stop="handleDockRowGenerateSalesOrder(row)">
+                        <span class="op-more-item op-more-item--warning">{{ t('rfqItemList.dockQuotes.genSalesOrder') }}</span>
+                      </el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
+              </template>
             </CrmDataTable>
           </div>
         </template>
@@ -729,21 +718,46 @@ import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMa
 import { productionDateDisplayLabel, useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
 import { useRfqItemListBasketStore } from '@/stores/rfqItemListBasket'
 import { canQuoteRfqItem } from '@/utils/rfqItemQuoteAccessRules'
+import { copyQuoteSummaryToClipboard } from '@/utils/quoteSummaryCopy'
 import {
   effectiveRfqItemLineStatus,
   rfqItemStatusTagType,
   RFQ_ITEM_STATUS_I18N_KEYS,
 } from '@/utils/rfqItemLineStatus'
 import CrmDataTable from '@/components/CrmDataTable.vue'
+import DockQuoteExtendColumnHeader from '@/components/list/DockQuoteExtendColumnHeader.vue'
+import DockQuoteExtendCell from '@/components/list/DockQuoteExtendCell.vue'
+import {
+  useDockQuoteExtendColumn,
+  isDockQuoteExtendTableColumn
+} from '@/composables/useDockQuoteExtendColumn'
+import { quoteMainStatusI18nKey, quoteMainStatusTagType, isQuoteReadOnly } from '@/utils/quoteMainStatus'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { Setting } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const authStore = useAuthStore()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
+const {
+  activeField: dockQuoteExtendActiveField,
+  colWidth: dockQuoteExtendColWidth,
+  colMinWidth: dockQuoteExtendColMinWidth,
+  setActiveField: setDockQuoteExtendActiveField,
+  applyOuterWidthFromTable: applyDockQuoteExtendOuterWidth
+} = useDockQuoteExtendColumn()
+
+function onDockQuoteTableHeaderDragEnd(
+  newWidth: number,
+  _oldWidth: number,
+  column: { property?: string; label?: string }
+) {
+  if (!isDockQuoteExtendTableColumn(column)) return
+  applyDockQuoteExtendOuterWidth(newWidth)
+}
+
 const { options: materialPdOptions, ensureLoaded: ensureMaterialPdDict } = useMaterialProductionDateDict()
 /** 与后端 RFQ 脱敏一致：采购等角色可有 customer.read 但不应见需求侧客户名/客户料号筛选（需 customer.info.read）；§5.2.1 时强制不可见 */
 const canViewCustomerInRfq = computed(
@@ -758,9 +772,9 @@ function canQuoteRfqItemRow(row: RFQItem): boolean {
 
 function canMarkNoQuoteRow(row: RFQItem): boolean {
   if (!canQuoteRfqItemRow(row)) return false
-  const raw = Number(row.status)
-  if (!Number.isFinite(raw) || raw !== RFQItemStatus.Pending) return false
-  return (quoteRecordCountByRfqItemId.value[row.id] ?? 0) === 0
+  const qc = quoteRecordCountByRfqItemId.value[row.id] ?? 0
+  // 与「明细状态」列同一口径：仅待报价且报价条数为 0
+  return effectiveRfqItemLineStatus(row.status, qc) === RFQItemStatus.Pending
 }
 
 /** 需求明细列表：按当前筛选与分页自动刷新间隔 */
@@ -777,12 +791,17 @@ const totalCount = ref(0)
 
 /** CrmDataTable 暴露的 el-table 方法 */
 const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
+const dockQuoteTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const suppressBasketMerge = ref(false)
 const basketDrawerVisible = ref(false)
 
-/** 全页列表操作列宽度（《列表操作列规范》高密度，与采购订单明细表对齐） */
+/** 全页列表操作列宽度（《列表操作列规范》高密度） */
 const LIST_OP_COL_COLLAPSED_WIDTH = 43
+/** 主表：详情 + 报价 + 查无报价 三钮，宽于双钮列表 */
+const RFQ_ITEM_MAIN_OP_COL_EXPANDED_WIDTH = 256
+const RFQ_ITEM_MAIN_OP_COL_EXPANDED_MIN_WIDTH = 240
+/** 底部报价表 / 复选篮子：双钮或单钮 */
 const LIST_OP_COL_EXPANDED_WIDTH = 173
 const LIST_OP_COL_EXPANDED_MIN_WIDTH = 160
 
@@ -801,10 +820,10 @@ const dateRange = ref<[string, string] | null>(null)
 
 const opColExpanded = ref(false)
 const opColWidth = computed(() =>
-  opColExpanded.value ? LIST_OP_COL_EXPANDED_WIDTH : LIST_OP_COL_COLLAPSED_WIDTH
+  opColExpanded.value ? RFQ_ITEM_MAIN_OP_COL_EXPANDED_WIDTH : LIST_OP_COL_COLLAPSED_WIDTH
 )
 const opColMinWidth = computed(() =>
-  opColExpanded.value ? LIST_OP_COL_EXPANDED_MIN_WIDTH : LIST_OP_COL_COLLAPSED_WIDTH
+  opColExpanded.value ? RFQ_ITEM_MAIN_OP_COL_EXPANDED_MIN_WIDTH : LIST_OP_COL_COLLAPSED_WIDTH
 )
 function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
@@ -971,6 +990,127 @@ function toggleOpDockCol() {
   opDockColExpanded.value = !opDockColExpanded.value
 }
 
+/** 采购报价面板可配置列（localStorage：crm-table-columns:v1:rfq-item-list-dock-quotes） */
+const dockQuoteTableColumns = computed((): CrmTableColumnDef[] => {
+  void locale.value
+  void dockQuoteExtendColWidth.value
+  void opDockColWidth.value
+  return [
+    {
+      key: 'quoteCode',
+      label: t('rfqItemList.dockQuotes.quoteCode'),
+      width: 160,
+      minWidth: 160,
+      showOverflowTooltip: true,
+      resizable: true
+    },
+    {
+      key: 'mpn',
+      label: t('rfqItemList.dockQuotes.mpn'),
+      prop: 'mpn',
+      minWidth: 120,
+      showOverflowTooltip: true,
+      resizable: true
+    },
+    {
+      key: 'brand',
+      label: t('rfqItemList.dockQuotes.brand'),
+      minWidth: 100,
+      width: 110,
+      showOverflowTooltip: true,
+      resizable: true
+    },
+    {
+      key: 'productionDateDc',
+      label: t('rfqItemList.dockQuotes.productionDateDc'),
+      width: 120,
+      minWidth: 104,
+      showOverflowTooltip: true,
+      className: 'dock-tier-col dock-tier-col--left',
+      resizable: true
+    },
+    {
+      key: 'leadTime',
+      label: t('rfqItemList.dockQuotes.leadTime'),
+      width: 120,
+      minWidth: 100,
+      showOverflowTooltip: true,
+      className: 'dock-tier-col dock-tier-col--left',
+      resizable: true
+    },
+    {
+      key: 'vendorName',
+      label: t('rfqItemList.dockQuotes.vendorName'),
+      minWidth: 140,
+      showOverflowTooltip: true,
+      resizable: true
+    },
+    {
+      key: 'quoteQty',
+      label: t('rfqItemList.dockQuotes.quoteQty'),
+      width: 100,
+      minWidth: 88,
+      align: 'right',
+      className: 'dock-tier-col',
+      resizable: true
+    },
+    {
+      key: 'unitPriceTiers',
+      label: t('rfqItemList.dockQuotes.unitPriceTiers'),
+      minWidth: 128,
+      align: 'right',
+      className: 'dock-tier-col',
+      resizable: true
+    },
+    {
+      key: 'dockQuoteExtend',
+      label: t('common.dockQuoteExtendCol.columnTitle'),
+      prop: 'dockQuoteExtend',
+      width: dockQuoteExtendColWidth.value,
+      minWidth: dockQuoteExtendColMinWidth.value,
+      align: 'center',
+      className: 'customer-extend-col dock-quote-extend-col',
+      labelClassName: 'customer-extend-col dock-quote-extend-col',
+      resizable: true
+    },
+    {
+      key: 'status',
+      label: t('rfqItemList.dockQuotes.status'),
+      width: 96,
+      align: 'center',
+      resizable: true
+    },
+    {
+      key: 'purchaser',
+      label: t('rfqItemList.dockQuotes.purchaser'),
+      width: 100,
+      showOverflowTooltip: true,
+      resizable: true
+    },
+    {
+      key: 'createTime',
+      label: t('rfqItemList.dockQuotes.createTime'),
+      width: 160,
+      showOverflowTooltip: true,
+      resizable: true
+    },
+    {
+      key: 'actions',
+      label: t('rfqItemList.actions.column'),
+      width: opDockColWidth.value,
+      minWidth: opDockColMinWidth.value,
+      align: 'center',
+      fixed: 'right',
+      hideable: false,
+      pinned: 'end',
+      reorderable: false,
+      className: 'op-col',
+      labelClassName: 'op-col',
+      resizable: false
+    }
+  ]
+})
+
 const searchForm = reactive({
   customerKeyword: '',
   materialModel: '',
@@ -1006,6 +1146,11 @@ const selectedRfqItem = ref<RFQItem | null>(null)
 /** 需求明细主表与采购报价面板的相对布局（持久化至 localStorage） */
 type PurchaseQuoteDockLayout = 'sideBySide' | 'stackHalf' | 'stackCompact' | 'headerOnly'
 const PURCHASE_QUOTE_DOCK_LAYOUT_STORAGE_KEY = 'crm:rfq-item-list:purchase-quote-dock-layout'
+const PURCHASE_QUOTE_DOCK_SPLIT_RATIO_STORAGE_KEY = 'crm:rfq-item-list:purchase-quote-dock-split-ratio'
+const DOCK_SPLIT_RATIO_MIN = 0.2
+const DOCK_SPLIT_RATIO_MAX = 0.8
+const DOCK_SPLIT_RATIO_DEFAULT = 0.5
+const DOCK_SPLITBAR_HEIGHT_PX = 6
 const PURCHASE_QUOTE_DOCK_LAYOUTS: PurchaseQuoteDockLayout[] = [
   'sideBySide',
   'stackHalf',
@@ -1014,6 +1159,17 @@ const PURCHASE_QUOTE_DOCK_LAYOUTS: PurchaseQuoteDockLayout[] = [
 ]
 /** 紧凑模式下报价表 max-height（约 2 行数据 + 表头，small 表格） */
 const DOCK_QUOTE_TABLE_MAX_HEIGHT_COMPACT = 128
+
+function readPersistedDockSplitRatio(): number {
+  try {
+    const raw = localStorage.getItem(PURCHASE_QUOTE_DOCK_SPLIT_RATIO_STORAGE_KEY)
+    const n = raw != null ? Number(raw) : NaN
+    if (Number.isFinite(n) && n >= DOCK_SPLIT_RATIO_MIN && n <= DOCK_SPLIT_RATIO_MAX) return n
+  } catch {
+    /* ignore */
+  }
+  return DOCK_SPLIT_RATIO_DEFAULT
+}
 
 function readPersistedPurchaseQuoteDockLayout(): PurchaseQuoteDockLayout {
   try {
@@ -1028,6 +1184,9 @@ function readPersistedPurchaseQuoteDockLayout(): PurchaseQuoteDockLayout {
 }
 
 const purchaseQuoteDockLayout = ref<PurchaseQuoteDockLayout>(readPersistedPurchaseQuoteDockLayout())
+const dockSplitRatio = ref(readPersistedDockSplitRatio())
+const rfqItemsSplitRootRef = ref<HTMLElement | null>(null)
+const isDockSplitDragging = ref(false)
 
 watch(purchaseQuoteDockLayout, (v) => {
   try {
@@ -1037,8 +1196,67 @@ watch(purchaseQuoteDockLayout, (v) => {
   }
 })
 
+watch(dockSplitRatio, (v) => {
+  try {
+    localStorage.setItem(PURCHASE_QUOTE_DOCK_SPLIT_RATIO_STORAGE_KEY, String(v))
+  } catch {
+    /* ignore */
+  }
+})
+
+function clampDockSplitRatio(raw: number): number {
+  return Math.min(DOCK_SPLIT_RATIO_MAX, Math.max(DOCK_SPLIT_RATIO_MIN, raw))
+}
+
 function setPurchaseQuoteDockLayout(mode: PurchaseQuoteDockLayout) {
   purchaseQuoteDockLayout.value = mode
+}
+
+const isVerticalDockLayout = computed(
+  () => purchaseQuoteDockLayout.value === 'stackHalf' || purchaseQuoteDockLayout.value === 'stackCompact'
+)
+
+const isDockSplitbarVisible = computed(() => isVerticalDockLayout.value)
+
+const isDockSplitRatioLayout = computed(() => purchaseQuoteDockLayout.value === 'stackHalf')
+
+const dockSplitRootStyle = computed(() => {
+  if (!isDockSplitRatioLayout.value) return undefined
+  return {
+    '--dock-split-top': `${dockSplitRatio.value * 100}%`,
+    '--dock-splitbar-size': `${DOCK_SPLITBAR_HEIGHT_PX}px`
+  } as Record<string, string>
+})
+
+function startDockSplitDrag(ev: MouseEvent) {
+  const root = rfqItemsSplitRootRef.value
+  if (!root) return
+
+  isDockSplitDragging.value = true
+  purchaseQuoteDockLayout.value = 'stackHalf'
+
+  const startY = ev.clientY
+  const startRatio = dockSplitRatio.value
+  const rect = root.getBoundingClientRect()
+  const totalH = Math.max(1, rect.height - DOCK_SPLITBAR_HEIGHT_PX)
+
+  const onMove = (e: MouseEvent) => {
+    const dy = e.clientY - startY
+    dockSplitRatio.value = clampDockSplitRatio(startRatio + dy / totalH)
+  }
+
+  const onUp = () => {
+    isDockSplitDragging.value = false
+    document.removeEventListener('mousemove', onMove)
+    document.removeEventListener('mouseup', onUp)
+    document.body.style.cursor = ''
+    document.body.style.userSelect = ''
+  }
+
+  document.body.style.cursor = 'row-resize'
+  document.body.style.userSelect = 'none'
+  document.addEventListener('mousemove', onMove)
+  document.addEventListener('mouseup', onUp)
 }
 
 const isPurchaseQuoteDockCollapsed = computed(() => purchaseQuoteDockLayout.value === 'headerOnly')
@@ -1048,6 +1266,7 @@ const dockSplitRootClass = computed(() => ({
   'rfq-items-split-root--side': purchaseQuoteDockLayout.value === 'sideBySide',
   'rfq-items-split-root--stack-half': purchaseQuoteDockLayout.value === 'stackHalf',
   'rfq-items-split-root--stack-compact': purchaseQuoteDockLayout.value === 'stackCompact',
+  'rfq-items-split-root--stack-resizable': isDockSplitRatioLayout.value,
   'rfq-items-split-root--dock-body-fill':
     purchaseQuoteDockLayout.value === 'sideBySide' || purchaseQuoteDockLayout.value === 'stackHalf'
 }))
@@ -1104,31 +1323,15 @@ function effectiveItemLineStatus(row: RFQItem): number | undefined {
 }
 
 function quoteStatusText(status: number) {
-  const map: Record<number, string> = {
-    0: '草稿',
-    1: '待审核',
-    2: '已审核',
-    3: '已发送',
-    4: '已接受',
-    5: '已拒绝',
-    6: '已过期',
-    7: '已关闭'
-  }
-  return map[status] ?? '—'
+  return t(quoteMainStatusI18nKey(status))
 }
 
 function quoteStatusType(status: number) {
-  const map: Record<number, string> = {
-    0: 'info',
-    1: 'warning',
-    2: 'primary',
-    3: 'success',
-    4: 'success',
-    5: 'danger',
-    6: 'info',
-    7: 'info'
-  }
-  return map[status] || 'info'
+  return quoteMainStatusTagType(status)
+}
+
+function canEditDockQuoteRow(row: Record<string, unknown>) {
+  return !isQuoteReadOnly(row.status)
 }
 
 function displayQuoteCode(row: Record<string, unknown>) {
@@ -1300,6 +1503,9 @@ function splitDockTierAmountParts(unitPrice: number): { intPart: string; fracPar
 function mapRow(row: any): RFQItem {
   return {
     ...row,
+    status: row.status ?? row.Status,
+    assignedPurchaserUserId1: row.assignedPurchaserUserId1 ?? row.AssignedPurchaserUserId1,
+    assignedPurchaserUserId2: row.assignedPurchaserUserId2 ?? row.AssignedPurchaserUserId2,
     rfqCreateTime: row.rfqCreateTime,
     materialModel: row.mpn ?? row.materialModel,
     customerMaterialModel: row.customerMpn ?? row.customerMaterialModel,
@@ -1611,6 +1817,10 @@ function resolveQuoteRowId(row: Record<string, unknown>): string | undefined {
 }
 
 function goEditDockQuote(row: Record<string, unknown>) {
+  if (!canEditDockQuoteRow(row)) {
+    ElMessage.warning(t('quoteList.warnings.readOnly'))
+    return
+  }
   const id = resolveQuoteRowId(row)
   if (!id) {
     ElMessage.warning(t('rfqItemList.warnings.missingQuoteId'))
@@ -1621,6 +1831,18 @@ function goEditDockQuote(row: Record<string, unknown>) {
     params: { id },
     query: { returnTo: route.fullPath }
   })
+}
+
+async function handleCopyDockQuote(row: Record<string, unknown>) {
+  const ok = await copyQuoteSummaryToClipboard(row, {
+    naLabel: t('quoteList.na'),
+    materialPdOptions: materialPdOptions.value
+  })
+  if (ok) {
+    ElMessage.success(t('quoteList.actions.copySuccess'))
+    return
+  }
+  ElMessage.error(t('quoteList.actions.copyFailed'))
 }
 
 async function handleDockRowGenerateSalesOrder(row: Record<string, unknown>) {
@@ -1716,12 +1938,34 @@ onUnmounted(() => {
 
 .rfq-items-split-root--stack-half {
   .rfq-item-main {
-    flex: 1 1 50%;
     min-height: 0;
   }
 
   .supplier-quote-dock {
-    flex: 1 1 50%;
+    min-height: 0;
+  }
+}
+
+.rfq-items-split-root--stack-resizable {
+  display: grid;
+  grid-template-rows: minmax(160px, var(--dock-split-top, 50%)) var(--dock-splitbar-size, 6px) minmax(120px, 1fr);
+  grid-template-columns: 1fr;
+
+  .rfq-item-main {
+    grid-row: 1;
+    flex: unset;
+    min-height: 0;
+    overflow: hidden;
+    padding-bottom: 0;
+  }
+
+  .rfq-dock-splitbar {
+    grid-row: 2;
+  }
+
+  .supplier-quote-dock {
+    grid-row: 3;
+    flex: unset;
     min-height: 0;
   }
 }
@@ -1757,6 +2001,37 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   padding-bottom: 8px;
+}
+
+.rfq-dock-splitbar {
+  flex-shrink: 0;
+  height: 6px;
+  margin: 2px 0;
+  cursor: row-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  touch-action: none;
+  user-select: none;
+
+  &:hover,
+  &.is-dragging {
+    background: var(--crm-accent-008);
+  }
+
+  &__grip {
+    width: 48px;
+    height: 3px;
+    border-radius: 2px;
+    background: $border-panel;
+    pointer-events: none;
+  }
+}
+
+.rfq-items-split-root--stack-resizable .rfq-dock-splitbar {
+  margin: 0;
+  height: var(--dock-splitbar-size, 6px);
 }
 
 .supplier-quote-dock {
@@ -1873,8 +2148,8 @@ onUnmounted(() => {
   font-weight: 600;
 }
 
-.dock-link-alert-title-row .la-value-green {
-  color: #5fd89a;
+.dock-link-alert-title-row .la-value-brown {
+  color: $color-amber;
   font-weight: 600;
 }
 
@@ -2221,6 +2496,28 @@ onUnmounted(() => {
     --el-table-header-bg-color: rgba(255, 255, 255, 0.03);
     --el-table-tr-bg-color: transparent;
     --el-table-border-color: #{$border-panel};
+  }
+
+  /* 选中行左侧红色箭头（与业务详情 §7.4.6 主从联动选中行一致） */
+  :deep(.el-table__body-wrapper .el-table__body tr.el-table__row.current-row > td.el-table__cell:first-child),
+  :deep(.el-table__fixed-body-wrapper .el-table__body tr.el-table__row.current-row > td.el-table__cell:first-child),
+  :deep(.el-table__fixed .el-table__body tr.el-table__row.current-row > td.el-table__cell:first-child) {
+    position: relative;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 4px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 0;
+      height: 0;
+      border-top: 5px solid transparent;
+      border-bottom: 5px solid transparent;
+      border-left: 7px solid var(--crm-color-red-brown);
+      pointer-events: none;
+      z-index: 1;
+    }
   }
 
 }

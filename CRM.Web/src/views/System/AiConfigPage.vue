@@ -26,13 +26,13 @@
 
     <el-tabs v-model="activeTab" v-loading="loading">
       <el-tab-pane :label="t('aiConfig.tabProviders')" name="providers">
-        <el-table :data="providers" stripe size="small">
-          <el-table-column prop="code" label="Code" width="120" />
-          <el-table-column prop="name" :label="t('aiConfig.colName')" min-width="140" />
-          <el-table-column prop="baseUrl" label="Base URL" min-width="200" show-overflow-tooltip />
-          <el-table-column prop="apiKeyEnv" label="API Key Env" width="160" />
-          <el-table-column prop="defaultModel" label="Model" width="120" />
-          <el-table-column prop="timeoutSeconds" label="Timeout" width="90" />
+        <el-table :data="providers" stripe size="small" class="ai-providers-table">
+          <el-table-column prop="code" label="Code" min-width="1" show-overflow-tooltip />
+          <el-table-column prop="name" :label="t('aiConfig.colName')" min-width="1" show-overflow-tooltip />
+          <el-table-column prop="baseUrl" label="Base URL" min-width="1" show-overflow-tooltip />
+          <el-table-column prop="apiKeyEnv" label="API Key Env" min-width="1" show-overflow-tooltip />
+          <el-table-column prop="defaultModel" label="Model" min-width="1" show-overflow-tooltip />
+          <el-table-column prop="timeoutSeconds" label="Timeout" min-width="1" align="right" class-name="col-nowrap" label-class-name="col-nowrap" />
           <el-table-column prop="isEnabled" :label="t('aiConfig.colEnabled')" width="80">
             <template #default="{ row }">
               <el-tag :type="row.isEnabled ? 'success' : 'info'" size="small">
@@ -74,10 +74,10 @@
       </el-tab-pane>
 
       <el-tab-pane :label="t('aiConfig.tabTemplates')" name="templates">
-        <el-table :data="templates" stripe size="small">
-          <el-table-column prop="code" label="Code" min-width="160" />
-          <el-table-column prop="version" label="Ver" width="60" />
-          <el-table-column prop="outputFormat" label="Format" width="80" />
+        <el-table :data="templates" stripe size="small" class="ai-templates-table">
+          <el-table-column prop="code" label="Code" min-width="1" show-overflow-tooltip />
+          <el-table-column prop="version" label="Ver" min-width="1" align="center" class-name="col-nowrap" label-class-name="col-nowrap" />
+          <el-table-column prop="outputFormat" label="Format" min-width="1" align="center" class-name="col-nowrap" label-class-name="col-nowrap" />
           <el-table-column prop="isActive" :label="t('aiConfig.colActive')" width="80">
             <template #default="{ row }">
               <el-tag :type="row.isActive ? 'success' : 'info'" size="small">
@@ -129,6 +129,14 @@
         <el-table :data="logs" stripe size="small" class="ai-logs-table">
           <el-table-column prop="createdAt" :label="t('aiConfig.colTime')" width="170">
             <template #default="{ row }">{{ formatTime(row.createdAt) }}</template>
+          </el-table-column>
+          <el-table-column
+            prop="executorUserName"
+            :label="t('aiConfig.colExecutor')"
+            min-width="120"
+            show-overflow-tooltip
+          >
+            <template #default="{ row }">{{ row.executorUserName || '—' }}</template>
           </el-table-column>
           <el-table-column prop="scenarioCode" label="Scenario" min-width="160" show-overflow-tooltip />
           <el-table-column prop="status" label="Status" width="96" class-name="col-nowrap" label-class-name="col-nowrap" />
@@ -590,6 +598,21 @@ onMounted(async () => {
   font-size: 12px;
   line-height: 1.45;
   color: #909399;
+}
+
+.ai-providers-table :deep(.el-table__header),
+.ai-providers-table :deep(.el-table__body),
+.ai-templates-table :deep(.el-table__header),
+.ai-templates-table :deep(.el-table__body) {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.ai-providers-table :deep(th.col-nowrap .cell),
+.ai-providers-table :deep(td.col-nowrap .cell),
+.ai-templates-table :deep(th.col-nowrap .cell),
+.ai-templates-table :deep(td.col-nowrap .cell) {
+  white-space: nowrap;
 }
 
 .ai-logs-table :deep(th.col-nowrap .cell),

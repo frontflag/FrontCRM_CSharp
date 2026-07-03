@@ -519,7 +519,7 @@
         </div>
         <div class="tabs-body">
           <div v-show="detailActiveTab === 'items'" class="detail-items-table-wrap">
-          <CrmDataTable :data="form.items" class="items-table detail-panel-list-table" size="small" stripe>
+          <CrmDataTable :data="form.items" :border="false" class="items-table detail-panel-list-table" size="small" stripe>
             <el-table-column type="index" width="50" align="center" />
             <el-table-column label="入库明细编号" min-width="148" show-overflow-tooltip>
               <template #default="{ row }">
@@ -690,7 +690,7 @@
           </div>
 
           <div v-show="detailActiveTab === 'stockItems'" class="detail-items-table-wrap stockin-stock-items-table-wrap">
-          <CrmDataTable :data="stockItemRows" class="items-table detail-panel-list-table" size="small" stripe>
+          <CrmDataTable :data="stockItemRows" :border="false" class="items-table detail-panel-list-table" size="small" stripe>
             <el-table-column type="index" width="50" align="center" fixed="left" />
             <el-table-column label="库存明细编号" min-width="150" show-overflow-tooltip fixed="left">
               <template #default="{ row }">
@@ -874,6 +874,15 @@
           </div>
         </div>
       </div>
+
+      <StockInBatchPanel
+        v-if="detailBatchPanelReady && stockInRouteId"
+        ref="batchPanelRef"
+        :stock-in-id="stockInRouteId"
+        :stock-in-code="form.stockInCode"
+        :items="form.items ?? []"
+        :can-write="canWriteLogisticsData"
+      />
     </div>
 
     <StockInBatchImportDialog
@@ -881,12 +890,13 @@
       :stock-in-id="stockInHeaderId"
       :stock-in-item-id="batchImportItemId"
       :stock-in-item-code="batchImportItemCode"
+      @success="onRowBatchImportSuccess"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
 import { CUSTOMS_PENDLIST_STATUS } from '@/api/customs'
 import { PackingStatusCode } from '@/api/packing'
@@ -903,6 +913,10 @@ import {
 } from '@/api/stockIn'
 import { inventoryCenterApi, type StockItemListRow } from '@/api/inventoryCenter'
 import StockInBatchImportDialog from '@/components/Inventory/StockInBatchImportDialog.vue'
+
+const StockInBatchPanel = defineAsyncComponent(
+  () => import('@/components/Inventory/StockInBatchPanel.vue')
+)
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
@@ -952,6 +966,9 @@ const customsContext = ref<StockInCustomsContextDto | null>(null)
 const batchImportVisible = ref(false)
 const batchImportItemId = ref('')
 const batchImportItemCode = ref('')
+const batchPanelRef = ref<{ refresh?: () => void } | null>(null)
+/** 详情主数据加载完成后再挂载批次面板，避免与首屏加载争抢且便于隔离面板异常 */
+const detailBatchPanelReady = ref(false)
 
 const isCreateMode = computed(() => route.name === 'StockInCreate')
 
@@ -1009,9 +1026,15 @@ function toggleStockInCreateOpCol() {
   stockInCreateOpColExpanded.value = !stockInCreateOpColExpanded.value
 }
 
-const stockInHeaderId = computed(() =>
-  route.name === 'StockInDetail' && typeof route.params.id === 'string' ? route.params.id : ''
-)
+const stockInRouteId = computed(() => {
+  if (route.name !== 'StockInDetail') return ''
+  const p = route.params.id
+  if (typeof p === 'string') return p.trim()
+  if (Array.isArray(p) && p[0]) return String(p[0]).trim()
+  return ''
+})
+
+const stockInHeaderId = stockInRouteId
 
 const form = reactive<CreateStockInRequest>({
   stockInCode: '',
@@ -1164,39 +1187,51 @@ function applyDetailToForm(d: StockInDto) {
 }
 
 async function loadStockInDetail(id: string) {
+  const rid = (id ?? '').trim()
+  if (!rid) return
+
   detailLoading.value = true
+  detailBatchPanelReady.value = false
   try {
-    const data = await stockInApi.getById(id)
+    const data = await stockInApi.getById(rid)
     if (!data) {
       ElMessage.error('入库单不存在或无权查看')
-      router.replace('/inventory/stock-in')
+      router.replace({ name: 'StockInList' })
       return
     }
     applyDetailToForm(data)
     const stockInCode = (data.stockInCode ?? '').trim()
     if (stockInCode) {
-      const res = await inventoryCenterApi.searchStockItems({ stockInCode, page: 1, pageSize: 2000 })
-      stockItemRows.value = res.items.filter((r) => String(r.stockInId || '').trim() === id)
+      try {
+        const res = await inventoryCenterApi.searchStockItems({ stockInCode, page: 1, pageSize: 2000 })
+        stockItemRows.value = res.items.filter((r) => String(r.stockInId || '').trim() === rid)
+      } catch (stockErr) {
+        console.error(stockErr)
+        stockItemRows.value = []
+        ElMessage.warning('库存明细加载失败，其余信息已正常显示')
+      }
     } else {
       stockItemRows.value = []
     }
+    detailBatchPanelReady.value = detailStatus.value === 2
   } catch (e) {
     console.error(e)
     ElMessage.error('加载入库单失败')
-    router.replace('/inventory/stock-in')
+    router.replace({ name: 'StockInList' })
   } finally {
     detailLoading.value = false
   }
 }
 
 watch(
-  () => ({ name: route.name, id: route.params.id }),
+  () => ({ name: route.name, id: stockInRouteId.value }),
   async ({ name, id }) => {
     if (name === 'StockInCreate') {
+      detailBatchPanelReady.value = false
       resetCreateForm()
       return
     }
-    if (name === 'StockInDetail' && typeof id === 'string' && id) {
+    if (name === 'StockInDetail' && id) {
       await loadStockInDetail(id)
     }
   },
@@ -1496,6 +1531,10 @@ function openBatchImport(row: StockInItemDto) {
   batchImportVisible.value = true
 }
 
+function onRowBatchImportSuccess() {
+  batchPanelRef.value?.refresh?.()
+}
+
 </script>
 
 <style scoped lang="scss">
@@ -1767,6 +1806,8 @@ function openBatchImport(row: StockInItemDto) {
   --el-table-border-color: transparent;
   --el-table-fixed-box-shadow: none;
   background: transparent !important;
+  border-radius: 0;
+
   :deep(.el-table) {
     color: var(--crm-table-text);
   }
@@ -1789,6 +1830,26 @@ function openBatchImport(row: StockInItemDto) {
     .cell {
       white-space: nowrap;
     }
+  }
+  :deep(th.op-col.el-table__cell .cell) {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding-left: 2px !important;
+    padding-right: 2px !important;
+  }
+  :deep(th.op-col .list-op-col-header--icon-only) {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+  }
+  :deep(th.op-col .list-op-col-toggle) {
+    min-width: 28px;
+    min-height: 28px;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1;
   }
 }
 

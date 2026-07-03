@@ -213,6 +213,33 @@ export interface SalesOrderDetailTabAggregates {
 export type SellOrderItemStockTabRow = SalesOrderDetailTabAggregates['stockItems'][number]
 
 // 销售订单API
+export interface SalesOrderBatchExportLogRow {
+  id: string
+  operationTime: string
+  operatorUserName?: string | null
+  exportedCount?: number | null
+  operationDesc?: string | null
+}
+
+export type SalesOrderBatchExportLogPaged = {
+  items: SalesOrderBatchExportLogRow[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+function parseSoBatchExportLogExtra(raw: string | null | undefined): Partial<SalesOrderBatchExportLogRow> {
+  if (!raw?.trim()) return {}
+  try {
+    const o = JSON.parse(raw) as Record<string, unknown>
+    return {
+      exportedCount: o.exportedCount != null ? Number(o.exportedCount) : null
+    }
+  } catch {
+    return {}
+  }
+}
+
 export const salesOrderApi = {
   // 获取销售订单列表
   async getList(params?: Record<string, unknown>) {
@@ -340,6 +367,36 @@ export const salesOrderApi = {
   // 刷新销售订单明细扩展字段（读取下游数据重算）
   async refreshItemExtends(id: string) {
     return await apiClient.post<SalesOrderItemExtendRefreshResult>(`/api/v1/sales-orders/${id}/refresh-item-extends`, {})
+  },
+
+  async logBatchExport(salesOrderId: string, exportedCount: number): Promise<void> {
+    const enc = encodeURIComponent(salesOrderId)
+    await apiClient.post(`/api/v1/sales-orders/${enc}/batch-log-export`, { exportedCount })
+  },
+
+  async getBatchExportLogs(
+    salesOrderId: string,
+    params?: { page?: number; pageSize?: number }
+  ): Promise<SalesOrderBatchExportLogPaged> {
+    const enc = encodeURIComponent(salesOrderId)
+    const res = await apiClient.get<any>(`/api/v1/sales-orders/${enc}/batch-export-logs`, { params })
+    const d = res?.data ?? res
+    const items = Array.isArray(d?.items) ? d.items : []
+    return {
+      items: items.map((row: Record<string, unknown>) => {
+        const extra = parseSoBatchExportLogExtra(row.extraInfo as string | null | undefined)
+        return {
+          id: String(row.id ?? ''),
+          operationTime: String(row.operationTime ?? ''),
+          operatorUserName: (row.operatorUserName as string) ?? null,
+          operationDesc: (row.operationDesc as string) ?? null,
+          ...extra
+        }
+      }),
+      total: Number(d?.total ?? 0),
+      page: Number(d?.page ?? 1),
+      pageSize: Number(d?.pageSize ?? 20)
+    }
   }
 }
 

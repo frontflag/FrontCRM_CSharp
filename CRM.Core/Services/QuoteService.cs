@@ -184,6 +184,9 @@ namespace CRM.Core.Services
                 if (!string.IsNullOrWhiteSpace(q.SalesUserId) &&
                     users.TryGetValue(q.SalesUserId.Trim(), out var su))
                     q.SalesUserName = EntityLookupService.FormatUserLoginName(su);
+                if (!string.IsNullOrWhiteSpace(q.CreateByUserId) &&
+                    users.TryGetValue(q.CreateByUserId.Trim(), out var cu))
+                    q.CreateUserName = EntityLookupService.FormatUserLoginName(cu);
             }
         }
 
@@ -192,36 +195,45 @@ namespace CRM.Core.Services
             // 后端统一生成报价单号（忽略客户端传入）
             var quoteCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.Quotation);
 
-            // 仅使用 RFQItemId 绑定需求明细（同一需求下可有多条相同 MPN，禁止按 RFQId+Mpn 推断）
+            // 必须关联需求明细
             var rfqItemIdTrim = string.IsNullOrWhiteSpace(request.RFQItemId) ? null : request.RFQItemId.Trim();
+            if (string.IsNullOrWhiteSpace(rfqItemIdTrim))
+                throw new ArgumentException("必须关联需求明细");
 
-            RFQItem? linkedRfqItem = null;
+            var linkedRfqItem = await _rfqItemRepository.GetByIdAsync(rfqItemIdTrim)
+                ?? throw new ArgumentException("需求明细不存在");
+
             var purchaseUserId = string.IsNullOrWhiteSpace(request.PurchaseUserId) ? null : request.PurchaseUserId.Trim();
-            if (!string.IsNullOrWhiteSpace(rfqItemIdTrim))
-            {
-                linkedRfqItem = await _rfqItemRepository.GetByIdAsync(rfqItemIdTrim);
-                if (string.IsNullOrWhiteSpace(purchaseUserId))
-                    purchaseUserId = ResolveAssignedPurchaserUserId(linkedRfqItem);
-                await EnsureCanQuoteRfqItemAsync(linkedRfqItem, actingUserId);
-            }
+            if (string.IsNullOrWhiteSpace(purchaseUserId))
+                purchaseUserId = ResolveAssignedPurchaserUserId(linkedRfqItem);
+            await EnsureCanQuoteRfqItemAsync(linkedRfqItem, actingUserId);
 
             if (string.IsNullOrWhiteSpace(purchaseUserId))
                 throw new ArgumentException("请选择采购员");
+
+            var rfqIdFromItem = linkedRfqItem.RfqId?.Trim();
+            if (string.IsNullOrWhiteSpace(rfqIdFromItem))
+                throw new ArgumentException("需求明细未关联需求主单");
+
+            if (!string.IsNullOrWhiteSpace(request.RFQId) &&
+                !string.Equals(request.RFQId.Trim(), rfqIdFromItem, StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException("需求主单与明细不一致");
 
             var quote = new Quote
             {
                 Id = Guid.NewGuid().ToString(),
                 QuoteCode = quoteCode,
-                RFQId = request.RFQId,
+                RFQId = rfqIdFromItem,
                 RFQItemId = rfqItemIdTrim,
                 Mpn = request.Mpn,
                 CustomerId = request.CustomerId,
                 SalesUserId = request.SalesUserId,
                 PurchaseUserId = purchaseUserId,
                 QuoteDate = request.QuoteDate == default ? DateTime.UtcNow : PostgreSqlDateTime.ToUtc(request.QuoteDate),
-                Status = request.Status,
+                Status = (short)QuoteMainStatus.New,
                 Remark = request.Remark,
-                CreateTime = DateTime.UtcNow
+                CreateTime = DateTime.UtcNow,
+                CreateByUserId = ActingUserIdNormalizer.Normalize(actingUserId)
             };
 
             await _quoteRepository.AddAsync(quote);
@@ -233,43 +245,27 @@ namespace CRM.Core.Services
                 await _quoteItemRepository.AddAsync(item);
             }
 
-            // 创建报价后回写需求明细状态（仅 RFQItemId + 待报价→已报价）
-            if (string.IsNullOrWhiteSpace(rfqItemIdTrim))
+            // 创建报价后回写需求明细状态（待报价/查无报价→已报价）
+            _logger.LogInformation(
+                "创建报价后尝试回写需求明细状态。QuoteId={QuoteId} QuoteCode={QuoteCode} RFQItemId={RfqItemId}",
+                quote.Id, quoteCode, rfqItemIdTrim);
+
+            if (linkedRfqItem.Status != (short)RfqItemStatus.Pending
+                && linkedRfqItem.Status != (short)RfqItemStatus.NoQuoteFound)
             {
-                _logger.LogWarning(
-                    "创建报价后跳过需求明细状态回写：请求未带 RFQItemId。QuoteId={QuoteId} QuoteCode={QuoteCode} RFQId={RfqId}",
-                    quote.Id, quoteCode, request.RFQId);
+                _logger.LogInformation(
+                    "需求明细状态非待报价(0)或查无报价(5)，不覆盖。RFQItemId={RfqItemId} CurrentStatus={Status} QuoteId={QuoteId}",
+                    rfqItemIdTrim, linkedRfqItem.Status, quote.Id);
             }
             else
             {
+                var prevStatus = linkedRfqItem.Status;
+                linkedRfqItem.Status = (short)RfqItemStatus.Quoted;
+                linkedRfqItem.ModifyTime = DateTime.UtcNow;
+                await _rfqItemRepository.UpdateAsync(linkedRfqItem);
                 _logger.LogInformation(
-                    "创建报价后尝试回写需求明细状态。QuoteId={QuoteId} QuoteCode={QuoteCode} RFQItemId={RfqItemId}",
-                    quote.Id, quoteCode, rfqItemIdTrim);
-
-                var rfqItem = linkedRfqItem ?? await _rfqItemRepository.GetByIdAsync(rfqItemIdTrim);
-                if (rfqItem == null)
-                {
-                    _logger.LogWarning(
-                        "需求明细不存在，无法回写状态。RFQItemId={RfqItemId} QuoteId={QuoteId}",
-                        rfqItemIdTrim, quote.Id);
-                }
-                else if (rfqItem.Status != (short)RfqItemStatus.Pending
-                         && rfqItem.Status != (short)RfqItemStatus.NoQuoteFound)
-                {
-                    _logger.LogInformation(
-                        "需求明细状态非待报价(0)或查无报价(5)，不覆盖。RFQItemId={RfqItemId} CurrentStatus={Status} QuoteId={QuoteId}",
-                        rfqItemIdTrim, rfqItem.Status, quote.Id);
-                }
-                else
-                {
-                    var prevStatus = rfqItem.Status;
-                    rfqItem.Status = (short)RfqItemStatus.Quoted;
-                    rfqItem.ModifyTime = DateTime.UtcNow;
-                    await _rfqItemRepository.UpdateAsync(rfqItem);
-                    _logger.LogInformation(
-                        "需求明细状态已更新：{PrevStatus}→已报价(1)。RFQItemId={RfqItemId} RfqId={RfqId} QuoteId={QuoteId}",
-                        prevStatus, rfqItemIdTrim, rfqItem.RfqId, quote.Id);
-                }
+                    "需求明细状态已更新：{PrevStatus}→已报价(1)。RFQItemId={RfqItemId} RfqId={RfqId} QuoteId={QuoteId}",
+                    prevStatus, rfqItemIdTrim, linkedRfqItem.RfqId, quote.Id);
             }
 
             await _unitOfWork.SaveChangesAsync();
@@ -349,6 +345,8 @@ namespace CRM.Core.Services
             if (quote == null)
                 throw new InvalidOperationException($"报价单 {id} 不存在");
 
+            EnsureQuoteEditable(quote);
+
             if (!string.IsNullOrWhiteSpace(quote.RFQItemId))
             {
                 var linkedRfqItem = await _rfqItemRepository.GetByIdAsync(quote.RFQItemId.Trim());
@@ -369,7 +367,6 @@ namespace CRM.Core.Services
                 throw new ArgumentException("请选择采购员");
 
             if (request.QuoteDate.HasValue) quote.QuoteDate = PostgreSqlDateTime.ToUtc(request.QuoteDate.Value);
-            if (request.Status.HasValue) quote.Status = request.Status.Value;
             if (request.Remark != null) quote.Remark = request.Remark;
 
             quote.ModifyTime = DateTime.UtcNow;
@@ -409,6 +406,8 @@ namespace CRM.Core.Services
             var quote = await _quoteRepository.GetByIdAsync(id);
             if (quote == null)
                 throw new InvalidOperationException($"报价单 {id} 不存在");
+
+            EnsureQuoteDeletable(quote);
 
             // 先删明细行
             var items = await _quoteItemRepository.GetAllAsync();
@@ -472,21 +471,26 @@ namespace CRM.Core.Services
             await _unitOfWork.SaveChangesAsync();
         }
 
-        public async Task UpdateStatusAsync(string id, short status, string? actingUserId = null)
+        public Task UpdateStatusAsync(string id, short status, string? actingUserId = null)
         {
-            if (string.IsNullOrWhiteSpace(id))
-                throw new ArgumentException("ID不能为空", nameof(id));
+            _ = id;
+            _ = status;
+            _ = actingUserId;
+            throw new InvalidOperationException("报价状态由系统自动维护，不支持手动修改");
+        }
 
-            var quote = await _quoteRepository.GetByIdAsync(id);
-            if (quote == null)
-                throw new InvalidOperationException($"报价单 {id} 不存在");
+        private static void EnsureQuoteEditable(Quote quote)
+        {
+            if (quote.Status == (short)QuoteMainStatus.Won)
+                throw new InvalidOperationException("成单状态的报价不可编辑");
+            if (quote.Status == (short)QuoteMainStatus.Closed)
+                throw new InvalidOperationException("关闭状态的报价不可编辑");
+        }
 
-            quote.Status = status;
-            quote.ModifyTime = DateTime.UtcNow;
-            quote.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
-
-            await _quoteRepository.UpdateAsync(quote);
-            await _unitOfWork.SaveChangesAsync();
+        private static void EnsureQuoteDeletable(Quote quote)
+        {
+            if (quote.Status == (short)QuoteMainStatus.Won)
+                throw new InvalidOperationException("成单状态的报价不可删除");
         }
 
         private sealed record QuoteItemSyncResult(

@@ -215,6 +215,7 @@
               @click="activeTab = tab.key"
             >
               {{ tab.label }}
+              <span class="tab-count">{{ tabCount(tab.key) }}</span>
             </button>
           </div>
 
@@ -489,7 +490,7 @@
               <DocumentUploadPanel
                 bizType="Customer"
                 :bizId="canonicalCustomerId"
-                @uploaded="documentListRef?.refresh?.()"
+                @uploaded="onCustomerDocumentUploaded"
               />
               <DocumentListPanel
                 ref="documentListRef"
@@ -738,6 +739,7 @@ import AddressDialog from './components/AddressDialog.vue';
 import BankDialog from './components/BankDialog.vue';
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue';
 import DocumentListPanel from '@/components/Document/DocumentListPanel.vue';
+import { documentApi } from '@/api/document';
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime';
 import { parseApiBoolean } from '@/utils/parseApiBoolean';
 import { operationBizTypeLabel } from '@/utils/businessLogLabels';
@@ -859,6 +861,41 @@ const tabs = [
 ];
 
 const documentListRef = ref<InstanceType<typeof DocumentListPanel> | null>(null);
+const documentCount = ref(0);
+
+function tabCount(key: string): number {
+  const c = customer.value;
+  switch (key) {
+    case 'contacts':
+      return c?.contacts?.length ?? 0;
+    case 'addresses':
+      return c?.addresses?.length ?? 0;
+    case 'banks':
+      return c?.banks?.length ?? 0;
+    case 'documents':
+      return documentCount.value;
+    case 'contactHistory':
+      return contactHistories.value.length;
+    case 'logs':
+      return operationLogs.value.length + fieldChangeLogs.value.length;
+    default:
+      return 0;
+  }
+}
+
+async function fetchDocumentCount() {
+  const id = canonicalCustomerId.value;
+  if (!id) {
+    documentCount.value = 0;
+    return;
+  }
+  try {
+    const res = await documentApi.getDocuments('Customer', id);
+    documentCount.value = Array.isArray(res) ? res.length : 0;
+  } catch {
+    documentCount.value = 0;
+  }
+}
 
 // 联系历史
 const contactHistories = ref<any[]>([]);
@@ -932,6 +969,7 @@ const fetchCustomerDetail = async () => {
     customer.value = c;
     await refreshFavoriteStatus();
     trackRecentDetail();
+    void fetchDocumentCount();
     void customerDict.hydrateCustomerEditForm({
       customerType: c.customerType,
       customerLevel: c.customerLevel,
@@ -1166,6 +1204,11 @@ const formatFullAddress = (address: CustomerAddress) =>
     .filter(Boolean)
     .join(' ');
 const getCurrencyLabel = (currency: number) => CURRENCY_CODE_TO_TEXT[currency] || 'RMB';
+
+function onCustomerDocumentUploaded() {
+  documentListRef.value?.refresh?.();
+  void fetchDocumentCount();
+}
 
 onMounted(() => {
   void customerDict.ensureLoaded();
@@ -1719,6 +1762,22 @@ onMounted(() => {
   }
 }
 
+.tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1.35;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-variant-numeric: tabular-nums;
+  background: var(--crm-accent-01);
+  border: 1px solid var(--crm-accent-02);
+  color: var(--crm-primary-color);
+}
+
 .tabs-body { padding: 20px; }
 
 .tab-toolbar {
@@ -1922,13 +1981,11 @@ onMounted(() => {
 
 <!-- 下拉 Teleport 到 body，需非 scoped -->
 <style lang="scss">
-@import '@/assets/styles/variables.scss';
-
 .customer-detail-header-more-popper.el-dropdown__popper,
 .customer-detail-header-more-popper.el-popper {
-  background: $layer-2 !important;
-  border: 1px solid rgba(0, 212, 255, 0.15) !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45) !important;
+  background: var(--crm-dropdown-bg) !important;
+  border: 1px solid var(--crm-dropdown-border) !important;
+  box-shadow: var(--crm-dropdown-shadow) !important;
 }
 
 .customer-detail-header-more-popper .el-dropdown-menu {
@@ -1939,23 +1996,23 @@ onMounted(() => {
 }
 
 .customer-detail-header-more-popper .el-dropdown-menu__item {
-  color: rgba(200, 220, 240, 0.92) !important;
+  color: var(--crm-dropdown-item) !important;
   font-size: 13px;
 
   &:hover,
   &:focus {
-    background: rgba(0, 212, 255, 0.1) !important;
-    color: #e8f4ff !important;
+    background: var(--crm-dropdown-item-hover-bg) !important;
+    color: var(--crm-dropdown-item-hover-color) !important;
   }
 }
 
 .customer-detail-header-more-popper .detail-more-item--danger {
-  color: $color-red-brown !important;
+  color: var(--crm-danger-color) !important;
 
   &:hover,
   &:focus {
-    color: #e8a090 !important;
-    background: rgba(201, 87, 69, 0.12) !important;
+    color: var(--crm-danger-color) !important;
+    background: var(--crm-dropdown-item-hover-bg) !important;
   }
 }
 </style>

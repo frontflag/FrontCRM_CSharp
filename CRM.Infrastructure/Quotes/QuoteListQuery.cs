@@ -55,9 +55,9 @@ public sealed class QuoteListQuery : IQuoteListQuery
     {
         var q = await BuildFilteredQueryAsync(request, cancellationToken);
         var total = await q.CountAsync(cancellationToken);
-        var pending = await q.CountAsync(x => x.Status == 0 || x.Status == 1, cancellationToken);
-        var sent = await q.CountAsync(x => x.Status == 3, cancellationToken);
-        var accepted = await q.CountAsync(x => x.Status == 4, cancellationToken);
+        var newCount = await q.CountAsync(x => x.Status == (short)QuoteMainStatus.New, cancellationToken);
+        var wonCount = await q.CountAsync(x => x.Status == (short)QuoteMainStatus.Won, cancellationToken);
+        var closedCount = await q.CountAsync(x => x.Status == (short)QuoteMainStatus.Closed, cancellationToken);
 
         int? inRange = null;
         if (request.AggregateCreateFromUtc.HasValue && request.AggregateCreateToExclusiveUtc.HasValue)
@@ -72,9 +72,9 @@ public sealed class QuoteListQuery : IQuoteListQuery
         return new QuoteListAggregates
         {
             TotalCount = total,
-            PendingCount = pending,
-            SentCount = sent,
-            AcceptedCount = accepted,
+            NewCount = newCount,
+            WonCount = wonCount,
+            ClosedCount = closedCount,
             CreatedInRangeCount = inRange
         };
     }

@@ -5,6 +5,7 @@ using CRM.Core.Models;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
+using CRM.Core.Models.Vendor;
 using CRM.Core.Services;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -76,7 +77,8 @@ public class LogisticsServiceTests
             sellOrderItemRepo, sellOrderRepo, serial, poExtendSync, uow, userService,
             Substitute.For<ILogOperationAppendService>(),
             log,
-            Substitute.For<IQcListQuery>());
+            Substitute.For<IQcListQuery>(),
+            Substitute.For<IRepository<VendorInfo>>());
 
         var result = await svc.GetQcsAsync(new QcQueryRequest { Model = "UG-MPN-455565" });
 

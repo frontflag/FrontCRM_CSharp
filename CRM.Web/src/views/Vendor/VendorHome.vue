@@ -35,7 +35,7 @@
           </div>
         </div>
         <template v-if="canCreateVendor">
-          <div v-if="canShowAiCreateMenu" class="vendor-home__split-create">
+          <div class="vendor-home__split-create">
             <button type="button" class="vendor-home__btn-create" @click="goCreateVendor">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <line x1="12" y1="5" x2="12" y2="19" />
@@ -53,22 +53,11 @@
                 <el-dropdown-menu>
                   <el-dropdown-item v-if="canAiParseVendor" command="aiCreate">{{ t('aiEntityCreate.aiCreate') }}</el-dropdown-item>
                   <el-dropdown-item v-if="canAiParseVendorBusinessCard" command="uploadCard">{{ t('aiBusinessCard.uploadCard') }}</el-dropdown-item>
+                  <el-dropdown-item command="import">{{ t('vendorList.importExcel') }}</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
           </div>
-          <button
-            v-else
-            type="button"
-            class="vendor-home__btn-create"
-            @click="goCreateVendor"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            {{ t('vendorHome.create') }}
-          </button>
         </template>
       </div>
     </div>
@@ -201,6 +190,7 @@
       </div>
     </template>
 
+    <VendorImportDialog v-model="importDialogVisible" @success="loadStats" />
     <AiEntityCreateHost
       ref="aiCreateHostRef"
       entity-type="VENDOR"
@@ -222,6 +212,7 @@ import { useAuthStore } from '@/stores/auth'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { vendorApi } from '@/api/vendor'
 import { AI_PERMISSION_ENTITY_PARSE_VENDOR, AI_PERMISSION_ENTITY_PARSE_VENDOR_BUSINESS_CARD } from '@/api/ai'
+import VendorImportDialog from '@/components/Vendor/VendorImportDialog.vue'
 import AiEntityCreateHost from '@/components/AiCreate/AiEntityCreateHost.vue'
 import AiBusinessCardCreateHost from '@/components/AiCreate/AiBusinessCardCreateHost.vue'
 import { buildVendorListQuery } from '@/utils/vendorListQuery'
@@ -237,7 +228,7 @@ const canAiParseVendor = computed(() => authStore.hasPermission(AI_PERMISSION_EN
 const canAiParseVendorBusinessCard = computed(() =>
   authStore.hasPermission(AI_PERMISSION_ENTITY_PARSE_VENDOR_BUSINESS_CARD)
 )
-const canShowAiCreateMenu = computed(() => canAiParseVendor.value || canAiParseVendorBusinessCard.value)
+const importDialogVisible = ref(false)
 const aiCreateHostRef = ref<InstanceType<typeof AiEntityCreateHost> | null>(null)
 const businessCardHostRef = ref<InstanceType<typeof AiBusinessCardCreateHost> | null>(null)
 
@@ -273,11 +264,12 @@ function goCreateVendor() {
 }
 
 function onCreateDropdownCommand(cmd: string) {
+  if (cmd === 'import') importDialogVisible.value = true
   if (cmd === 'aiCreate') aiCreateHostRef.value?.open()
   if (cmd === 'uploadCard') businessCardHostRef.value?.open()
 }
 
-onMounted(async () => {
+async function loadStats() {
   loadingStats.value = true
   try {
     stats.value = await vendorApi.getVendorStatistics()
@@ -286,6 +278,10 @@ onMounted(async () => {
   } finally {
     loadingStats.value = false
   }
+}
+
+onMounted(() => {
+  void loadStats()
 })
 </script>
 

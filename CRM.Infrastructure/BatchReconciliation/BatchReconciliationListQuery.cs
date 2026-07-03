@@ -2,6 +2,7 @@ using CRM.Core.Interfaces;
 using CRM.Core.Models.Customer;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Purchase;
+using CRM.Core.Models.Sales;
 using CRM.Core.Models.Vendor;
 using CRM.Infrastructure.Data;
 using CRM.Infrastructure.PurchaseOrders;
@@ -205,17 +206,19 @@ public sealed class BatchReconciliationListQuery : IBatchReconciliationListQuery
             q = q.Where(x => x.s.StockInCode.Contains(needle));
         }
 
-        if (!string.IsNullOrWhiteSpace(request.PackingCode))
+        if (!string.IsNullOrWhiteSpace(request.PackingId))
+        {
+            var pid = request.PackingId.Trim();
+            q = q.Where(x => x.ob != null && x.ob.PackingId == pid);
+        }
+        else if (!string.IsNullOrWhiteSpace(request.PackingCode))
         {
             var needle = request.PackingCode.Trim();
             q = q.Where(x => x.p != null && x.p.Code.Contains(needle));
         }
 
-        if (!string.IsNullOrWhiteSpace(request.PurchaseOrderCode))
-        {
-            var needle = request.PurchaseOrderCode.Trim();
-            q = q.Where(x => x.po != null && x.po.PurchaseOrderCode != null && x.po.PurchaseOrderCode.Contains(needle));
-        }
+        q = ApplyPurchaseOrderFilter(q, request);
+        q = ApplySellOrderFilter(q, request);
 
         if (!string.IsNullOrWhiteSpace(request.MaterialModel))
         {
@@ -265,6 +268,9 @@ public sealed class BatchReconciliationListQuery : IBatchReconciliationListQuery
                 (x.ib.Remark != null && x.ib.Remark.Contains(needle)) ||
                 (x.s.Remark != null && x.s.Remark.Contains(needle)));
         }
+
+        if (!string.IsNullOrWhiteSpace(request.SellOrderId))
+            return await ApplySellOrderScopeToReconciliationAsync(request.CurrentUserId, q, cancellationToken);
 
         return await ApplyPurchaseScopeToReconciliationAsync(request.CurrentUserId, q, cancellationToken);
     }
@@ -320,11 +326,7 @@ public sealed class BatchReconciliationListQuery : IBatchReconciliationListQuery
                     _db.Packings.Any(p => p.Id == ob.PackingId && p.Code.Contains(needle))));
         }
 
-        if (!string.IsNullOrWhiteSpace(request.PurchaseOrderCode))
-        {
-            var needle = request.PurchaseOrderCode.Trim();
-            q = q.Where(x => x.po != null && x.po.PurchaseOrderCode != null && x.po.PurchaseOrderCode.Contains(needle));
-        }
+        q = ApplyPurchaseOrderFilter(q, request);
 
         if (!string.IsNullOrWhiteSpace(request.MaterialModel))
         {
@@ -381,6 +383,44 @@ public sealed class BatchReconciliationListQuery : IBatchReconciliationListQuery
         }
 
         return await ApplyPurchaseScopeToInBatchAsync(request.CurrentUserId, q, cancellationToken);
+    }
+
+    private IQueryable<ReconciliationRow> ApplySellOrderFilter(
+        IQueryable<ReconciliationRow> q,
+        BatchReconciliationQueryRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.SellOrderId))
+            return q;
+
+        var soId = request.SellOrderId.Trim();
+        return q.Where(x =>
+            x.ob != null &&
+            _db.PackingItems.Any(pi =>
+                !pi.IsDeleted &&
+                pi.PackingId == x.ob!.PackingId &&
+                pi.SellOrderId == soId));
+    }
+
+    private async Task<IQueryable<ReconciliationRow>> ApplySellOrderScopeToReconciliationAsync(
+        string? currentUserId,
+        IQueryable<ReconciliationRow> query,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(currentUserId))
+            return query;
+
+        var scopedSo = await _dataPermission.ApplySellOrderDataScopeAsync(
+            currentUserId,
+            _db.SellOrders.AsNoTracking(),
+            cancellationToken);
+
+        return query.Where(x =>
+            x.ob != null &&
+            _db.PackingItems.Any(pi =>
+                !pi.IsDeleted &&
+                pi.PackingId == x.ob!.PackingId &&
+                pi.SellOrderId != null &&
+                scopedSo.Any(so => so.Id == pi.SellOrderId)));
     }
 
     private async Task<IQueryable<ReconciliationRow>> ApplyPurchaseScopeToReconciliationAsync(
@@ -504,6 +544,42 @@ public sealed class BatchReconciliationListQuery : IBatchReconciliationListQuery
                     .Select(x => x.StockOutDate)
                     .FirstOrDefault(),
                 StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static IQueryable<ReconciliationRow> ApplyPurchaseOrderFilter(
+        IQueryable<ReconciliationRow> q,
+        BatchReconciliationQueryRequest request)
+    {
+        if (!string.IsNullOrWhiteSpace(request.PurchaseOrderId))
+        {
+            var pid = request.PurchaseOrderId.Trim();
+            q = q.Where(x => x.po != null && x.po.Id == pid);
+        }
+        else if (!string.IsNullOrWhiteSpace(request.PurchaseOrderCode))
+        {
+            var needle = request.PurchaseOrderCode.Trim();
+            q = q.Where(x => x.po != null && x.po.PurchaseOrderCode != null && x.po.PurchaseOrderCode.Contains(needle));
+        }
+
+        return q;
+    }
+
+    private static IQueryable<InBatchRow> ApplyPurchaseOrderFilter(
+        IQueryable<InBatchRow> q,
+        BatchReconciliationQueryRequest request)
+    {
+        if (!string.IsNullOrWhiteSpace(request.PurchaseOrderId))
+        {
+            var pid = request.PurchaseOrderId.Trim();
+            q = q.Where(x => x.po != null && x.po.Id == pid);
+        }
+        else if (!string.IsNullOrWhiteSpace(request.PurchaseOrderCode))
+        {
+            var needle = request.PurchaseOrderCode.Trim();
+            q = q.Where(x => x.po != null && x.po.PurchaseOrderCode != null && x.po.PurchaseOrderCode.Contains(needle));
+        }
+
+        return q;
     }
 
     private static string? FormatVendorName(VendorInfo? v)

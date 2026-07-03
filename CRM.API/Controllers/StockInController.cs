@@ -3,7 +3,9 @@ using System.Threading;
 using Microsoft.AspNetCore.Mvc;
 using CRM.API.Models.DTOs;
 using CRM.API.Utilities;
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Dtos;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Utilities;
 
@@ -14,15 +16,18 @@ namespace CRM.API.Controllers
     public class StockInController : ControllerBase
     {
         private readonly IStockInService _service;
+        private readonly IOperationLogQueryService _operationLogQuery;
         private readonly IRbacService _rbacService;
         private readonly ILogger<StockInController> _logger;
 
         public StockInController(
             IStockInService service,
+            IOperationLogQueryService operationLogQuery,
             IRbacService rbacService,
             ILogger<StockInController> logger)
         {
             _service = service;
+            _operationLogQuery = operationLogQuery;
             _rbacService = rbacService;
             _logger = logger;
         }
@@ -112,6 +117,37 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "获取入库单失败");
                 return StatusCode(500, ApiResponse<StockIn>.Fail($"获取入库单失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>入库单详情「入库批次」面板操作日志（导入/删除/编辑）。</summary>
+        [HttpGet("{id}/batch-operation-logs")]
+        public async Task<ActionResult<ApiResponse<OperationLogPagedResult>>> GetBatchOperationLogs(
+            string id,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!await _service.CanUserAccessStockInAsync(userId, id, cancellationToken))
+                    return NotFound(ApiResponse<OperationLogPagedResult>.Fail("入库单不存在", 404));
+
+                var data = await _operationLogQuery.QueryAsync(new OperationLogQuery
+                {
+                    BizType = BusinessLogTypes.StockIn,
+                    RecordId = id.Trim(),
+                    ActionTypePrefix = StockInBatchOperationActionTypes.Prefix,
+                    Page = page,
+                    PageSize = pageSize
+                }, cancellationToken);
+                return Ok(ApiResponse<OperationLogPagedResult>.Ok(data, "ok"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取入库批次操作日志失败 StockInId={StockInId}", id);
+                return StatusCode(500, ApiResponse<OperationLogPagedResult>.Fail("获取操作日志失败", 500));
             }
         }
 

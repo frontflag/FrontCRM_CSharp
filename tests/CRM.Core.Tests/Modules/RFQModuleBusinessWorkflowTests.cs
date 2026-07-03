@@ -84,7 +84,7 @@ public sealed class RFQModuleBusinessWorkflowTests
                 });
             var rfqMain = new MemoryRfqMainListQuery(RfqRepo, CustomerRepo, UserService, DataPermission);
             var rfqItem = new MemoryRfqItemListQuery(RfqRepo, ItemRepo, CustomerRepo, QuoteRepo, UserService, DataPermission);
-            Service = new RFQService(RfqRepo, ItemRepo, CustomerRepo, Lookup, UnitOfWork, Serial, DataPermission, UserService, QuoteRepo, Substitute.For<IRepository<RfqCloseRecord>>(), UserRepo, rbac, RfqAssignmentTestFactory.CreateEmptyItemRoundRobinOrchestrator(SysParamRepo), rfqMain, rfqItem, NullLogger<RFQService>.Instance, Substitute.For<ILogOperationAppendService>(), BizBrandTestSubstitute.Create(new Dictionary<long, string> { [1] = "ST", [2] = "B", [3] = "NX" }));
+            Service = new RFQService(RfqRepo, ItemRepo, CustomerRepo, Lookup, UnitOfWork, Serial, DataPermission, UserService, QuoteRepo, Substitute.For<IRepository<RfqCloseRecord>>(), UserRepo, rbac, RfqAssignmentTestFactory.CreateEmptyItemRoundRobinOrchestrator(SysParamRepo), rfqMain, rfqItem, NullLogger<RFQService>.Instance, Substitute.For<ILogOperationAppendService>(), BizBrandTestSubstitute.Create(new Dictionary<long, string> { [1] = "ST", [2] = "B", [3] = "NX" }), Substitute.For<IRfqTagService>(), Substitute.For<IQuoteStatusSyncService>());
         }
 
         private sealed class ConcurrentInt

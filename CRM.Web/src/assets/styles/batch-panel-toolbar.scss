@@ -1,0 +1,71 @@
+@import './variables.scss';
+
+.batch-panel-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px 0 10px;
+  flex-shrink: 0;
+
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: $border-radius-md;
+    font-size: 12px;
+    line-height: 1.4;
+    font-family: 'Noto Sans SC', sans-serif;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid $border-panel;
+    color: $text-secondary;
+
+    &:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(0, 212, 255, 0.25);
+      color: $text-secondary;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    &--danger {
+      background: rgba(201, 87, 69, 0.14);
+      border-color: rgba(201, 87, 69, 0.35);
+      color: #e5ada4;
+
+      &:hover:not(:disabled) {
+        background: rgba(201, 87, 69, 0.22);
+        border-color: rgba(201, 87, 69, 0.5);
+        color: #f0c4bc;
+      }
+    }
+  }
+}
+
+.batch-panel-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.batch-panel-list-footer-left {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.batch-panel-list-footer-left .list-settings-btn {
+  padding: 4px 6px !important;
+  min-width: 28px;
+}

@@ -151,7 +151,9 @@ namespace CRM.Core.Tests.Services
                 _rfqItemListQuery,
                 NullLogger<RFQService>.Instance,
                 Substitute.For<ILogOperationAppendService>(),
-                BizBrandTestSubstitute.Create(new Dictionary<long, string> { [1] = "Brand-A", [2] = "B2" }));
+                BizBrandTestSubstitute.Create(new Dictionary<long, string> { [1] = "Brand-A", [2] = "B2" }),
+                Substitute.For<IRfqTagService>(),
+                Substitute.For<IQuoteStatusSyncService>());
         }
 
         private static CreateRFQRequest BuildValidCreateRequest(Action<CreateRFQRequest>? tweak = null)
@@ -270,7 +272,9 @@ namespace CRM.Core.Tests.Services
                 rfqItem,
                 NullLogger<RFQService>.Instance,
                 Substitute.For<ILogOperationAppendService>(),
-                BizBrandTestSubstitute.Create(new Dictionary<long, string> { [1] = "Brand-A", [2] = "B2" }));
+                BizBrandTestSubstitute.Create(new Dictionary<long, string> { [1] = "Brand-A", [2] = "B2" }),
+                Substitute.For<IRfqTagService>(),
+                Substitute.For<IQuoteStatusSyncService>());
 
             var req = BuildValidCreateRequest(r =>
             {

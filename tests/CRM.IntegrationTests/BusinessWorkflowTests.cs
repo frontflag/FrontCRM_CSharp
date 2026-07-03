@@ -121,7 +121,9 @@ namespace CRM.IntegrationTests
                 rfqItemMem,
                 NullLogger<RFQService>.Instance,
                 Substitute.For<ILogOperationAppendService>(),
-                BizBrandTestSubstitute.Create(new Dictionary<long, string> { [1] = "TEST-BRAND", [2] = "TI" }));
+                BizBrandTestSubstitute.Create(new Dictionary<long, string> { [1] = "TEST-BRAND", [2] = "TI" }),
+                Substitute.For<IRfqTagService>(),
+                Substitute.For<IQuoteStatusSyncService>());
             var quoteCustomerRepo = Substitute.For<IRepository<CustomerInfo>>();
             quoteCustomerRepo.FindAsync(Arg.Any<Expression<Func<CustomerInfo, bool>>>())
                 .Returns(Task.FromResult<IEnumerable<CustomerInfo>>(Array.Empty<CustomerInfo>()));
@@ -189,6 +191,7 @@ namespace CRM.IntegrationTests
                 _poRepository,
                 _poItemRepository,
                 _prRepository,
+                quoteCustomerRepo,
                 _quoteItemRepository,
                 _dataPermissionService,
                 _serialNumberService,
@@ -202,7 +205,8 @@ namespace CRM.IntegrationTests
                 soItemLineQuery,
                 Substitute.For<ILogOperationAppendService>(),
                 _unitOfWork,
-                NullLogger<SalesOrderService>.Instance);
+                NullLogger<SalesOrderService>.Instance,
+                Substitute.For<IQuoteStatusSyncService>());
         }
 
 
@@ -234,27 +238,37 @@ namespace CRM.IntegrationTests
             Assert.Equal(0, rfq.Status);
 
             // Step 2: 创建报价单
+            const string rfqItemId = "RFQ-ITEM-WF-001";
+            _rfqItemRepository.GetByIdAsync(rfqItemId).Returns(new RFQItem
+            {
+                Id = rfqItemId,
+                RfqId = rfq.Id,
+                Status = (short)RfqItemStatus.Pending,
+                Mpn = "REF3430QDBVRQ1"
+            });
             var quoteRequest = new CreateQuoteRequest
             {
                 QuoteCode = "QT-2024-001",
+                RFQId = rfq.Id,
+                RFQItemId = rfqItemId,
                 CustomerId = rfq.CustomerId,
                 SalesUserId = rfq.SalesUserId,
+                PurchaseUserId = "USER-P1",
                 QuoteDate = DateTime.UtcNow,
-                Mpn = "REF3430QDBVRQ1"
+                Mpn = "REF3430QDBVRQ1",
+                Items = new List<CreateQuoteItemRequest>
+                {
+                    new() { Mpn = "REF3430QDBVRQ1", Quantity = 1, UnitPrice = 1m }
+                }
             };
             _quoteRepository.GetAllAsync().Returns(new List<Quote>());
             _quoteItemRepository.GetAllAsync().Returns(new List<QuoteItem>());
-            var quote = await _quoteService.CreateAsync(quoteRequest);
+            var quote = await _quoteService.CreateAsync(quoteRequest, "USER-001");
             Assert.NotNull(quote);
             Assert.Equal("QT-2024-001", quote.QuoteCode);
-            Assert.Equal(0, quote.Status);
+            Assert.Equal((short)QuoteMainStatus.New, quote.Status);
 
-            // Step 3: 审批报价单
-            _quoteRepository.GetByIdAsync(quote.Id).Returns(quote);
-            await _quoteService.UpdateStatusAsync(quote.Id, 2);
-            await _quoteRepository.Received(1).UpdateAsync(Arg.Is<Quote>(q => q.Status == 2));
-
-            // Step 4: 创建销售订单
+            // Step 3: 创建销售订单
             var orderRequest = new CreateSalesOrderRequest
             {
                 SellOrderCode = "SO-2024-001",
@@ -841,7 +855,8 @@ namespace CRM.IntegrationTests
                 _userService,
                 Substitute.For<ILogOperationAppendService>(),
                 logisticsLogger,
-                Substitute.For<IQcListQuery>());
+                Substitute.For<IQcListQuery>(),
+                Substitute.For<IRepository<VendorInfo>>());
 
             // 准备采购订单明细
             var purchaseOrderItemId = Guid.NewGuid().ToString();
@@ -1351,7 +1366,7 @@ namespace CRM.IntegrationTests
             var service = new RFQService(
                 rfqRepo, itemRepo, customerRepo, entityLookup, unitOfWork,
                 serialNumberService, dataPermissionService, userService,
-                quoteRepo, Substitute.For<IRepository<RfqCloseRecord>>(), userRepo, rbacSvc, RfqAssignmentTestFactory.CreateEmptyItemRoundRobinOrchestrator(sysParamRepo), rfqMainMem, rfqItemMem, logger, Substitute.For<ILogOperationAppendService>(), BizBrandTestSubstitute.Create(new Dictionary<long, string> { [1] = "TEST-BRAND", [2] = "TI" }));
+                quoteRepo, Substitute.For<IRepository<RfqCloseRecord>>(), userRepo, rbacSvc, RfqAssignmentTestFactory.CreateEmptyItemRoundRobinOrchestrator(sysParamRepo), rfqMainMem, rfqItemMem, logger, Substitute.For<ILogOperationAppendService>(), BizBrandTestSubstitute.Create(new Dictionary<long, string> { [1] = "TEST-BRAND", [2] = "TI" }), Substitute.For<IRfqTagService>(), Substitute.For<IQuoteStatusSyncService>());
 
             // 模拟序列号生成
             serialNumberService.GenerateNextAsync(Arg.Any<string>()).Returns("RF20260001");
@@ -1467,7 +1482,7 @@ namespace CRM.IntegrationTests
             var service = new RFQService(
                 rfqRepo, itemRepo, customerRepo, entityLookup, unitOfWork,
                 serialNumberService, dataPermissionService, userService,
-                quoteRepo, Substitute.For<IRepository<RfqCloseRecord>>(), userRepo, rbacSvc, RfqAssignmentTestFactory.CreateEmptyItemRoundRobinOrchestrator(sysParamRepo), rfqMainMem, rfqItemMem, logger, Substitute.For<ILogOperationAppendService>(), BizBrandTestSubstitute.Create(new Dictionary<long, string> { [1] = "TEST-BRAND", [2] = "TI" }));
+                quoteRepo, Substitute.For<IRepository<RfqCloseRecord>>(), userRepo, rbacSvc, RfqAssignmentTestFactory.CreateEmptyItemRoundRobinOrchestrator(sysParamRepo), rfqMainMem, rfqItemMem, logger, Substitute.For<ILogOperationAppendService>(), BizBrandTestSubstitute.Create(new Dictionary<long, string> { [1] = "TEST-BRAND", [2] = "TI" }), Substitute.For<IRfqTagService>(), Substitute.For<IQuoteStatusSyncService>());
 
             // 模拟序列号生成
             serialNumberService.GenerateNextAsync(Arg.Any<string>()).Returns("RF20260001");
@@ -1595,7 +1610,7 @@ namespace CRM.IntegrationTests
             var service = new RFQService(
                 rfqRepo, itemRepo, customerRepo, entityLookup, unitOfWork,
                 serialNumberService, dataPermissionService, userService,
-                quoteRepo, Substitute.For<IRepository<RfqCloseRecord>>(), userRepo, rbacSvc, RfqAssignmentTestFactory.CreateEmptyItemRoundRobinOrchestrator(sysParamRepo), rfqMainMem, rfqItemMem, logger, Substitute.For<ILogOperationAppendService>(), BizBrandTestSubstitute.Create(new Dictionary<long, string> { [1] = "TEST-BRAND", [2] = "TI" }));
+                quoteRepo, Substitute.For<IRepository<RfqCloseRecord>>(), userRepo, rbacSvc, RfqAssignmentTestFactory.CreateEmptyItemRoundRobinOrchestrator(sysParamRepo), rfqMainMem, rfqItemMem, logger, Substitute.For<ILogOperationAppendService>(), BizBrandTestSubstitute.Create(new Dictionary<long, string> { [1] = "TEST-BRAND", [2] = "TI" }), Substitute.For<IRfqTagService>(), Substitute.For<IQuoteStatusSyncService>());
 
             // 准备用户数据
             var salesUserId = "SALES-USER-001";
@@ -1679,26 +1694,36 @@ namespace CRM.IntegrationTests
             Assert.Equal("RF20260001", rfq.RfqCode);
 
             // Step 2: 创建报价单
+            const string rfqItemId2 = "RFQ-ITEM-WF-002";
+            _rfqItemRepository.GetByIdAsync(rfqItemId2).Returns(new RFQItem
+            {
+                Id = rfqItemId2,
+                RfqId = rfq.Id,
+                Status = (short)RfqItemStatus.Pending,
+                Mpn = "TEST-MPN-001"
+            });
             var quoteRequest = new CreateQuoteRequest
             {
                 QuoteCode = "QT-2024-001",
+                RFQId = rfq.Id,
+                RFQItemId = rfqItemId2,
                 CustomerId = rfq.CustomerId,
                 SalesUserId = rfq.SalesUserId,
+                PurchaseUserId = "USER-P1",
                 QuoteDate = DateTime.UtcNow,
-                Mpn = "TEST-MPN-001"
+                Mpn = "TEST-MPN-001",
+                Items = new List<CreateQuoteItemRequest>
+                {
+                    new() { Mpn = "TEST-MPN-001", Quantity = 1, UnitPrice = 1m }
+                }
             };
             _quoteRepository.GetAllAsync().Returns(new List<Quote>());
             _quoteItemRepository.GetAllAsync().Returns(new List<QuoteItem>());
-            var quote = await _quoteService.CreateAsync(quoteRequest);
+            var quote = await _quoteService.CreateAsync(quoteRequest, "USER-001");
             Assert.NotNull(quote);
             Assert.Equal("QT-2024-001", quote.QuoteCode);
 
-            // Step 3: 审批报价单
-            _quoteRepository.GetByIdAsync(quote.Id).Returns(quote);
-            await _quoteService.UpdateStatusAsync(quote.Id, 2);
-            await _quoteRepository.Received(1).UpdateAsync(Arg.Is<Quote>(q => q.Status == 2));
-
-            // Step 4: 创建销售订单
+            // Step 3: 创建销售订单
             var orderRequest = new CreateSalesOrderRequest
             {
                 SellOrderCode = "SO-2024-001",
@@ -1936,7 +1961,8 @@ namespace CRM.IntegrationTests
                 logisticsUnitOfWork, _userService,
                 Substitute.For<ILogOperationAppendService>(),
                 logisticsLogger2,
-                Substitute.For<IQcListQuery>());
+                Substitute.For<IQcListQuery>(),
+                Substitute.For<IRepository<VendorInfo>>());
 
             // 模拟到货通知仓储
             var allNotices = new List<StockInNotify>();
@@ -2043,7 +2069,8 @@ namespace CRM.IntegrationTests
                 Substitute.For<ILogOperationAppendService>(),
                 stockInLogger,
                 Substitute.For<IStockInListQuery>(),
-                Substitute.For<ICustomsV2FlowService>());
+                Substitute.For<ICustomsV2FlowService>(),
+                Substitute.For<IStockInCustomsContextQuery>());
 
             // 模拟入库单仓储
             var allStockIns = new List<StockIn>();
@@ -2196,8 +2223,10 @@ namespace CRM.IntegrationTests
             var dataPermissionServiceLocal = Substitute.For<IDataPermissionService>();
             var sellOrderItemExtendSyncLocal = Substitute.For<ISellOrderItemExtendSyncService>();
             var receiptUnitOfWork = Substitute.For<IUnitOfWork>();
+            var receiptCustomerRepo = Substitute.For<IRepository<CustomerInfo>>();
             var receiptService = new FinanceReceiptService(
                 receiptRepo, receiptItemRepo, financeSellInvoiceRepo, sellInvoiceItemRepoLocal, _salesOrderRepository,
+                receiptCustomerRepo,
                 _userRepo,
                 dataPermissionServiceLocal, receiptSerialNumberService, sellOrderItemExtendSyncLocal,
                 Substitute.For<IForceDeleteGuardService>(),

@@ -249,6 +249,8 @@ public sealed class AiInvocationLogListItemDto
     public string ProviderCode { get; set; } = string.Empty;
     public string Model { get; set; } = string.Empty;
     public string? UserId { get; set; }
+    /// <summary>执行 AI 功能的员工登录账号。</summary>
+    public string? ExecutorUserName { get; set; }
     public string Status { get; set; } = string.Empty;
     public bool FromCache { get; set; }
     public int LatencyMs { get; set; }

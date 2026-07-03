@@ -1,5 +1,6 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
+using CRM.Core.Models.Customer;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Quote;
 using CRM.Core.Models.Sales;
@@ -18,6 +19,7 @@ namespace CRM.Core.Tests.Services
         private readonly IRepository<PurchaseOrder> _poRepository;
         private readonly IRepository<PurchaseOrderItem> _poItemRepository;
         private readonly IRepository<PurchaseRequisition> _prRepository;
+        private readonly IRepository<CustomerInfo> _customerRepository;
         private readonly IRepository<QuoteItem> _quoteItemRepository;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly ISerialNumberService _serialNumberService;
@@ -40,6 +42,7 @@ namespace CRM.Core.Tests.Services
             _poRepository = Substitute.For<IRepository<PurchaseOrder>>();
             _poItemRepository = Substitute.For<IRepository<PurchaseOrderItem>>();
             _prRepository = Substitute.For<IRepository<PurchaseRequisition>>();
+            _customerRepository = Substitute.For<IRepository<CustomerInfo>>();
             _quoteItemRepository = Substitute.For<IRepository<QuoteItem>>();
             _dataPermissionService = Substitute.For<IDataPermissionService>();
             _serialNumberService = Substitute.For<ISerialNumberService>();
@@ -73,6 +76,7 @@ namespace CRM.Core.Tests.Services
                 _poRepository,
                 _poItemRepository,
                 _prRepository,
+                _customerRepository,
                 _quoteItemRepository,
                 _dataPermissionService,
                 _serialNumberService,
@@ -86,7 +90,8 @@ namespace CRM.Core.Tests.Services
                 _salesOrderItemLineListQuery,
                 Substitute.For<ILogOperationAppendService>(),
                 _unitOfWork,
-                NullLogger<SalesOrderService>.Instance);
+                NullLogger<SalesOrderService>.Instance,
+                Substitute.For<IQuoteStatusSyncService>());
         }
 
         [Fact]

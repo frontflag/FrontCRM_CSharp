@@ -188,8 +188,11 @@
         <template #col-comment="{ row }">
           {{ row.headerRemarkDisplay || row.comment || '—' }}
         </template>
+        <template #col-assistorUserName="{ row }">
+          {{ row.assistorUserName || row.AssistorUserName || '—' }}
+        </template>
         <template #col-createUser="{ row }">
-          {{ row.createUserName || row.createdBy || row.salesUserName || '—' }}
+          {{ row.createUserName || row.createdBy || '—' }}
         </template>
         <template #col-actions-header>
           <div class="list-op-col-header--icon-only">

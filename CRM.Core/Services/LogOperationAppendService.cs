@@ -23,6 +23,7 @@ public class LogOperationAppendService : ILogOperationAppendService
         string? operatorUserName,
         string? operationDesc,
         string? reason = null,
+        string? extraInfo = null,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -34,9 +35,10 @@ public class LogOperationAppendService : ILogOperationAppendService
         var safeUserName = SqlQ(operatorUserName);
         var opUserSql = string.IsNullOrWhiteSpace(operatorUserId) ? "NULL" : $"'{SqlQ(operatorUserId)}'";
         var reasonSql = string.IsNullOrWhiteSpace(reason) ? "NULL" : $"'{SqlQ(reason)}'";
+        var extraInfoSql = string.IsNullOrWhiteSpace(extraInfo) ? "NULL" : $"'{SqlQ(extraInfo)}'";
         var sql = $@"
 INSERT INTO log_operation (""Id"", ""BizType"", ""RecordId"", ""RecordCode"", ""ActionType"", ""OperationTime"", ""OperatorUserId"", ""OperatorUserName"", ""Reason"", ""ExtraInfo"", ""SysRemark"", ""OperationDesc"")
-VALUES (gen_random_uuid()::text, '{safeBiz}', '{safeRecordId}', {recordCodeSql}, '{safeAction}', NOW(), {opUserSql}, '{safeUserName}', {reasonSql}, NULL, NULL, '{safeDesc}')";
+VALUES (gen_random_uuid()::text, '{safeBiz}', '{safeRecordId}', {recordCodeSql}, '{safeAction}', NOW(), {opUserSql}, '{safeUserName}', {reasonSql}, {extraInfoSql}, NULL, '{safeDesc}')";
         await _unitOfWork.ExecuteAsync(sql);
     }
 
@@ -69,6 +71,7 @@ VALUES (gen_random_uuid()::text, '{safeBiz}', '{safeRecordId}', {recordCodeSql},
             string.IsNullOrWhiteSpace(entry.OperatorUserName) ? null : entry.OperatorUserName.Trim(),
             operationDesc,
             string.IsNullOrWhiteSpace(entry.Reason) ? null : entry.Reason.Trim(),
+            null,
             cancellationToken);
     }
 

@@ -6,9 +6,15 @@ public class BatchReconciliationQueryRequest
     public string? CurrentUserId { get; set; }
 
     public string? GlobalBatchNo { get; set; }
+    /// <summary>采购订单 Id 精确匹配（PO 详情入库批次面板）。</summary>
+    public string? PurchaseOrderId { get; set; }
     public string? PurchaseOrderCode { get; set; }
     public string? StockInCode { get; set; }
     public string? PackingCode { get; set; }
+    /// <summary>装箱单 Id 精确匹配（出库批次面板列表）。</summary>
+    public string? PackingId { get; set; }
+    /// <summary>销售订单 Id 精确匹配（SO 详情出库批次面板）。</summary>
+    public string? SellOrderId { get; set; }
     public string? MaterialModel { get; set; }
     public string? Lot { get; set; }
     public string? SerialNumber { get; set; }

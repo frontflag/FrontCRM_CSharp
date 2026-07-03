@@ -55,12 +55,53 @@ namespace CRM.Core.Interfaces
         public List<string> GlobalBatchNos { get; set; } = new();
     }
 
+    public class StockInBatchOperationContext
+    {
+        public string? OperatorUserId { get; set; }
+        public string? OperatorUserName { get; set; }
+    }
+
+    public class StockInBatchBulkDeleteResultDto
+    {
+        public int DeletedCount { get; set; }
+        public int SkippedCount { get; set; }
+        public List<string> DeletedGlobalBatchNos { get; set; } = new();
+        public List<StockInBatchBulkDeleteSkippedDto> Skipped { get; set; } = new();
+    }
+
+    public class StockInBatchBulkDeleteSkippedDto
+    {
+        public string GlobalBatchNo { get; set; } = string.Empty;
+        public string Reason { get; set; } = string.Empty;
+    }
+
     public interface IStockInBatchService
     {
         Task<IReadOnlyList<StockInBatch>> ListAsync(StockInBatchListQuery? query, CancellationToken cancellationToken = default);
         Task<StockInBatch?> GetByIdAsync(string id, CancellationToken cancellationToken = default);
-        Task<StockInBatch> UpdateAsync(string id, StockInBatchUpdateRequest request, CancellationToken cancellationToken = default);
-        Task<StockInBatchImportResultDto> ImportAsync(StockInBatchImportRequest request, CancellationToken cancellationToken = default);
-        Task SoftDeleteAsync(string id, CancellationToken cancellationToken = default);
+        Task<StockInBatch> UpdateAsync(
+            string id,
+            StockInBatchUpdateRequest request,
+            StockInBatchOperationContext? context = null,
+            CancellationToken cancellationToken = default);
+        Task<StockInBatchImportResultDto> ImportAsync(
+            StockInBatchImportRequest request,
+            StockInBatchOperationContext? context = null,
+            CancellationToken cancellationToken = default);
+        Task SoftDeleteAsync(
+            string id,
+            string? reason,
+            StockInBatchOperationContext? context = null,
+            CancellationToken cancellationToken = default);
+        Task<StockInBatchBulkDeleteResultDto> BulkDeleteByItemAsync(
+            string stockInItemId,
+            string reason,
+            StockInBatchOperationContext? context = null,
+            CancellationToken cancellationToken = default);
+        Task LogExportAsync(
+            string stockInId,
+            int exportedCount,
+            StockInBatchOperationContext? context = null,
+            CancellationToken cancellationToken = default);
     }
 }

@@ -223,12 +223,16 @@
         <div class="tabs-body">
           <div v-show="activeTab === 'items'" class="detail-items-table-wrap">
             <CrmDataTable
+              v-if="order.items?.length"
               :data="order.items"
               size="small"
               stripe
-              v-if="order.items?.length"
-              class="items-table detail-panel-list-table"
+              embedded
+              :border="false"
+              class="items-table detail-panel-list-table so-detail-items-table"
               row-key="id"
+              :row-class-name="soItemRowClassName"
+              @row-click="onSalesOrderItemRowClick"
               @row-dblclick="onSalesOrderItemRowDblClick"
             >
               <el-table-column type="index" width="50" label="#" />
@@ -485,7 +489,7 @@
                 </template>
               </el-table-column>
             </CrmDataTable>
-            <el-empty v-else description="暂无明细" :image-size="80" />
+            <DetailListPanelEmpty v-else size="low" />
           </div>
           <div v-show="activeTab === 'documents' && !maskSaleSensitiveFields" class="doc-tab-content">
             <DocumentUploadPanel
@@ -521,7 +525,7 @@
                 <template #default="{ row }">{{ row.newValue ?? '(空)' }}</template>
               </el-table-column>
             </el-table>
-            <el-empty v-else :description="t('salesOrderDetailView.empty')" :image-size="64" />
+            <DetailListPanelEmpty v-else size="low" />
           </div>
           <div v-show="activeTab === 'deleteLog' && !maskSaleSensitiveFields" v-loading="deletedItemsLoading" class="so-aggregate-table-wrap">
             <el-table v-if="deletedItems.length > 0" :data="deletedItems" size="small" stripe>
@@ -540,7 +544,7 @@
               </el-table-column>
               <el-table-column prop="comment" label="备注" min-width="140" show-overflow-tooltip />
             </el-table>
-            <el-empty v-else :description="t('salesOrderDetailView.empty')" :image-size="64" />
+            <DetailListPanelEmpty v-else size="low" />
           </div>
         </div>
       </div>
@@ -549,7 +553,7 @@
       <div v-if="soItemLinePanel.visible && !maskSaleSensitiveFields" class="so-item-line-detail-panel">
         <div class="so-item-line-detail-panel__head">
           <span class="so-item-line-detail-panel__title">销售订单明细详情</span>
-          <span class="so-item-line-detail-panel__code">{{ soItemLinePanel.sellOrderItemCode || '—' }}</span>
+          <span class="so-item-line-detail-panel__code panel-hint__value">{{ soItemLinePanel.sellOrderItemCode || '—' }}</span>
           <button type="button" class="so-item-line-detail-panel__close" @click="closeSoItemLinePanel">收起</button>
         </div>
         <el-alert
@@ -635,7 +639,7 @@
                     <template #default="{ row }">{{ formatDateTime(row?.rfqCreateTime) }}</template>
                   </el-table-column>
                 </el-table>
-                <el-empty v-else :description="t('salesOrderDetailView.empty')" :image-size="64" />
+                <DetailListPanelEmpty v-else size="low" />
               </div>
               <div v-show="soItemLinePanel.activeTab === 'quotes'" class="so-aggregate-table-wrap">
                 <el-table
@@ -717,7 +721,7 @@
                     <template #default="{ row }">{{ formatDateTime(row?.createTime) }}</template>
                   </el-table-column>
                 </el-table>
-                <el-empty v-else :description="t('salesOrderDetailView.empty')" :image-size="64" />
+                <DetailListPanelEmpty v-else size="low" />
               </div>
               <div v-show="soItemLinePanel.activeTab === 'pr'" class="so-aggregate-table-wrap">
                 <el-table
@@ -745,7 +749,7 @@
                     <template #default="{ row }">{{ formatDateTime(row?.createTime) }}</template>
                   </el-table-column>
                 </el-table>
-                <el-empty v-else :description="t('salesOrderDetailView.empty')" :image-size="64" />
+                <DetailListPanelEmpty v-else size="low" />
               </div>
               <div v-show="soItemLinePanel.activeTab === 'po'" class="so-aggregate-table-wrap">
                 <el-table
@@ -791,7 +795,7 @@
                     <template #default="{ row }">{{ formatDateTime(row?.createTime) }}</template>
                   </el-table-column>
                 </el-table>
-                <el-empty v-else :description="t('salesOrderDetailView.empty')" :image-size="64" />
+                <DetailListPanelEmpty v-else size="low" />
               </div>
               <div v-show="soItemLinePanel.activeTab === 'stockIn'" class="so-aggregate-table-wrap">
                 <el-table v-if="(lineTabAggregates?.stockIns?.length ?? 0) > 0" :data="lineTabAggregates?.stockIns ?? []" size="small" stripe>
@@ -816,7 +820,7 @@
                     <template #default="{ row }">{{ formatDateTime(row?.createTime) }}</template>
                   </el-table-column>
                 </el-table>
-                <el-empty v-else :description="t('salesOrderDetailView.empty')" :image-size="64" />
+                <DetailListPanelEmpty v-else size="low" />
               </div>
               <div v-show="soItemLinePanel.activeTab === 'stock'" class="so-aggregate-table-wrap">
                 <el-table v-if="(lineTabAggregates?.stockItems?.length ?? 0) > 0" :data="lineTabAggregates?.stockItems ?? []" size="small" stripe>
@@ -866,7 +870,7 @@
                   <el-table-column prop="locationId" label="库位" min-width="110" show-overflow-tooltip />
                   <el-table-column label="可用" width="100" align="right" prop="qtyRepertoryAvailable" />
                 </el-table>
-                <el-empty v-else :description="t('salesOrderDetailView.empty')" :image-size="64" />
+                <DetailListPanelEmpty v-else size="low" />
               </div>
               <div v-show="soItemLinePanel.activeTab === 'outNotify'" class="so-aggregate-table-wrap">
                 <el-table
@@ -935,7 +939,7 @@
                     </template>
                   </el-table-column>
                 </el-table>
-                <el-empty v-else :description="t('salesOrderDetailView.empty')" :image-size="64" />
+                <DetailListPanelEmpty v-else size="low" />
               </div>
               <div v-show="soItemLinePanel.activeTab === 'stockOut'" class="so-aggregate-table-wrap">
                 <el-table v-if="(lineTabAggregates?.stockOuts?.length ?? 0) > 0" :data="lineTabAggregates?.stockOuts ?? []" size="small" stripe>
@@ -956,7 +960,7 @@
                     <template #default="{ row }">{{ formatDateTime(row?.createTime) }}</template>
                   </el-table-column>
                 </el-table>
-                <el-empty v-else :description="t('salesOrderDetailView.empty')" :image-size="64" />
+                <DetailListPanelEmpty v-else size="low" />
               </div>
               <div v-show="soItemLinePanel.activeTab === 'receipt'" class="so-aggregate-table-wrap">
                 <el-table v-if="(lineTabAggregates?.receipts?.length ?? 0) > 0" :data="lineTabAggregates?.receipts ?? []" size="small" stripe>
@@ -995,7 +999,7 @@
                     <template #default="{ row }">{{ formatDateTime(row?.createTime) }}</template>
                   </el-table-column>
                 </el-table>
-                <el-empty v-else :description="t('salesOrderDetailView.empty')" :image-size="64" />
+                <DetailListPanelEmpty v-else size="low" />
               </div>
               <div v-show="soItemLinePanel.activeTab === 'sellInvoice'" class="so-aggregate-table-wrap">
                 <el-table v-if="(lineTabAggregates?.sellInvoices?.length ?? 0) > 0" :data="lineTabAggregates?.sellInvoices ?? []" size="small" stripe>
@@ -1035,7 +1039,7 @@
                     <template #default="{ row }">{{ formatDateTime(row?.createTime) }}</template>
                   </el-table-column>
                 </el-table>
-                <el-empty v-else :description="t('salesOrderDetailView.empty')" :image-size="64" />
+                <DetailListPanelEmpty v-else size="low" />
               </div>
               <div v-show="soItemLinePanel.activeTab === 'qcImages'" class="so-aggregate-table-wrap so-qc-images-wrap">
                 <QcImagesReadonlyGallery
@@ -1047,6 +1051,12 @@
           </div>
         </div>
       </div>
+
+      <SalesOrderStockOutBatchPanel
+        v-if="!maskSaleSensitiveFields"
+        :sales-order-id="String(order.id)"
+        :sales-order-code="order.sellOrderCode || ''"
+      />
     </template>
 
     <el-empty v-else :description="loadError || '订单不存在'" />
@@ -1141,7 +1151,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, watch, nextTick, defineAsyncComponent } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
@@ -1186,10 +1196,16 @@ import QcImagesReadonlyGallery from '@/components/Logistics/QcImagesReadonlyGall
 import { REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import { quoteMainStatusI18nKey } from '@/utils/quoteMainStatus'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { formatVendorNameReadonly } from '@/utils/vendorDisplayName'
 import { useSaleOrderWriteGate } from '@/composables/useDepartmentDataReadOnly'
 import ApplyStockOutDisabledHint from '@/components/RFQ/ApplyStockOutDisabledHint.vue'
+import DetailListPanelEmpty from '@/components/Common/DetailListPanelEmpty.vue'
+
+const SalesOrderStockOutBatchPanel = defineAsyncComponent(
+  () => import('@/components/Inventory/SalesOrderStockOutBatchPanel.vue')
+)
 
 const router = useRouter()
 const route = useRoute()
@@ -1649,10 +1665,10 @@ function closeSoItemLinePanel() {
   lineTabAggregates.value = null
 }
 
-async function onSalesOrderItemRowDblClick(row: Record<string, unknown>) {
+async function selectSalesOrderItemRow(row: Record<string, unknown>) {
   if (maskSaleSensitiveFields.value) return
   const orderId = String(route.params.id ?? '').trim()
-  const sellOrderItemId = String(row?.sellOrderItemId ?? row?.id ?? row?.Id ?? '').trim()
+  const sellOrderItemId = soItemRowKey(row)
   const sellOrderItemCode = String(row?.sellOrderItemCode ?? '').trim()
   if (!orderId || !sellOrderItemId) return
   soItemLinePanel.sellOrderItemId = sellOrderItemId
@@ -1669,6 +1685,23 @@ async function onSalesOrderItemRowDblClick(row: Record<string, unknown>) {
   } finally {
     soItemLinePanel.loading = false
   }
+}
+
+async function onSalesOrderItemRowClick(row: Record<string, unknown>) {
+  await selectSalesOrderItemRow(row)
+}
+
+async function onSalesOrderItemRowDblClick(row: Record<string, unknown>) {
+  await selectSalesOrderItemRow(row)
+}
+
+function soItemRowKey(row: Record<string, unknown>) {
+  return String(row?.sellOrderItemId ?? row?.id ?? row?.Id ?? '').trim()
+}
+
+function soItemRowClassName({ row }: { row: Record<string, unknown> }) {
+  if (!soItemLinePanel.visible) return ''
+  return soItemRowKey(row) === soItemLinePanel.sellOrderItemId ? 'so-item-row--active' : ''
 }
 
 watch(maskSaleSensitiveFields, (m) => {
@@ -2035,18 +2068,8 @@ function formatRfqItemAssignedPurchasers(row: {
 }
 
 function quoteStatusLabel(status?: unknown) {
-  const map: Record<number, string> = {
-    0: t('quoteList.status.draft'),
-    1: t('quoteList.status.pending'),
-    2: t('quoteList.status.approved'),
-    3: t('quoteList.status.sent'),
-    4: t('quoteList.status.accepted'),
-    5: t('quoteList.status.rejected'),
-    6: t('quoteList.status.expired'),
-    7: t('quoteList.status.closed')
-  }
   const s = Number(status)
-  return Number.isFinite(s) ? (map[s] ?? `(${String(status)})`) : '—'
+  return Number.isFinite(s) ? t(quoteMainStatusI18nKey(s)) : '—'
 }
 
 interface SoQuoteTierLine {
@@ -2877,9 +2900,15 @@ const handleEdit = () => {
 }
 
 // §7.4 表头/表体基线见 detail-panel-list-table.scss；此处仅 CrmDataTable 操作列等页内扩展
-.detail-items-table-wrap :deep(.items-table) {
+.detail-items-table-wrap :deep(.items-table),
+.detail-items-table-wrap :deep(.crm-items-table.detail-panel-list-table) {
+  --el-table-border-color: transparent;
   --el-table-fixed-box-shadow: none;
   background: transparent !important;
+  border-radius: 0;
+  border: none;
+  min-height: 0;
+  overflow: visible;
   :deep(.el-table) {
     color: var(--crm-table-text);
   }
@@ -2957,6 +2986,10 @@ const handleEdit = () => {
   }
 }
 
+.so-detail-items-table {
+  cursor: pointer;
+}
+
 .doc-tab-content {
   padding-top: 4px;
 }
@@ -2989,7 +3022,8 @@ const handleEdit = () => {
   font-size: 14px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  color: rgba(0, 212, 255, 0.95);
+  /* 级联从属面板单号 — 《业务详情页面规范》§7.4.6 .panel-hint__value */
+  color: $color-amber;
 }
 
 .so-item-line-detail-panel__close {

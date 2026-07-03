@@ -18,16 +18,16 @@
         <div class="stat-label">{{ t('quoteList.stats.total') }}</div>
       </div>
       <div class="stat-card stat-card--pending">
-        <div class="stat-value">{{ stats.pending }}</div>
-        <div class="stat-label">{{ t('quoteList.stats.pending') }}</div>
+        <div class="stat-value">{{ stats.newCount }}</div>
+        <div class="stat-label">{{ t('quoteList.stats.new') }}</div>
       </div>
       <div class="stat-card stat-card--sent">
-        <div class="stat-value">{{ stats.sent }}</div>
-        <div class="stat-label">{{ t('quoteList.stats.sent') }}</div>
+        <div class="stat-value">{{ stats.wonCount }}</div>
+        <div class="stat-label">{{ t('quoteList.stats.won') }}</div>
       </div>
       <div class="stat-card stat-card--accepted">
-        <div class="stat-value">{{ stats.accepted }}</div>
-        <div class="stat-label">{{ t('quoteList.stats.accepted') }}</div>
+        <div class="stat-value">{{ stats.closedCount }}</div>
+        <div class="stat-label">{{ t('quoteList.stats.closed') }}</div>
       </div>
     </div>
 
@@ -54,14 +54,9 @@
           class="status-select status-select--quote-status"
           :teleported="false"
         >
-          <el-option :label="t('quoteList.status.draft')" :value="0" />
-          <el-option :label="t('quoteList.status.pending')" :value="1" />
-          <el-option :label="t('quoteList.status.approved')" :value="2" />
-          <el-option :label="t('quoteList.status.sent')" :value="3" />
-          <el-option :label="t('quoteList.status.accepted')" :value="4" />
-          <el-option :label="t('quoteList.status.rejected')" :value="5" />
-          <el-option :label="t('quoteList.status.expired')" :value="6" />
-          <el-option :label="t('quoteList.status.closed')" :value="7" />
+          <el-option :label="t('quoteList.status.new')" :value="0" />
+          <el-option :label="t('quoteList.status.won')" :value="1" />
+          <el-option :label="t('quoteList.status.closed')" :value="2" />
         </el-select>
         <button type="button" class="btn-primary btn-sm" @click="handleSearch">
           <el-icon><Search /></el-icon>{{ t('quoteList.filters.query') }}
@@ -74,7 +69,8 @@
     <div class="table-wrapper" v-loading="loading">
       <CrmDataTable
         ref="dataTableRef"
-        column-layout-key="quote-list-main-v3"
+        class="dock-quote-table"
+        column-layout-key="quote-list-main-v4"
         :columns="quoteTableColumns"
         :show-column-settings="false"
         :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -83,6 +79,7 @@
         highlight-current-row
         @selection-change="onQuoteSelectionChange"
         @row-dblclick="handleEdit"
+        @header-dragend="onQuoteTableHeaderDragEnd"
       >
         <template #col-quoteCode="{ row }">
           <span class="quote-code-cell">{{ displayQuoteCode(row) }}</span>
@@ -120,6 +117,19 @@
         </template>
         <template #col-vendorCount="{ row }">
           {{ maskPurchaseSensitiveFields ? '—' : (row.items?.length || 0) }}
+        </template>
+        <template #col-dockQuoteExtend-header>
+          <DockQuoteExtendColumnHeader
+            :active-field="dockQuoteExtendActiveField"
+            @set-active-field="setDockQuoteExtendActiveField"
+          />
+        </template>
+        <template #col-dockQuoteExtend="{ row }">
+          <DockQuoteExtendCell
+            :row="row as Record<string, unknown>"
+            :active-field="dockQuoteExtendActiveField"
+            :empty-text="t('quoteList.na')"
+          />
         </template>
         <template #col-quoteDate="{ row }">
           {{ formatDisplayDate(row.quoteDate) }}
@@ -160,10 +170,20 @@
               <button type="button" class="action-btn" @click.stop="handleCopyQuoteSummary(row)">
                 {{ t('quoteList.actions.copy') }}
               </button>
-              <button type="button" class="action-btn action-btn--primary" @click.stop="handleEdit(row)">
+              <button
+                v-if="canEditQuoteRow(row)"
+                type="button"
+                class="action-btn action-btn--primary"
+                @click.stop="handleEdit(row)"
+              >
                 {{ t('quoteList.actions.edit') }}
               </button>
-              <button type="button" class="action-btn action-btn--danger" @click.stop="handleDelete(row)">
+              <button
+                v-if="canDeleteQuoteRow(row)"
+                type="button"
+                class="action-btn action-btn--danger"
+                @click.stop="handleDelete(row)"
+              >
                 {{ t('quoteList.actions.delete') }}
               </button>
             </div>
@@ -176,10 +196,10 @@
                   <el-dropdown-item @click.stop="handleCopyQuoteSummary(row)">
                     <span class="op-more-item">{{ t('quoteList.actions.copy') }}</span>
                   </el-dropdown-item>
-                  <el-dropdown-item @click.stop="handleEdit(row)">
+                  <el-dropdown-item v-if="canEditQuoteRow(row)" @click.stop="handleEdit(row)">
                     <span class="op-more-item op-more-item--primary">{{ t('quoteList.actions.edit') }}</span>
                   </el-dropdown-item>
-                  <el-dropdown-item @click.stop="handleDelete(row)">
+                  <el-dropdown-item v-if="canDeleteQuoteRow(row)" @click.stop="handleDelete(row)">
                     <span class="op-more-item op-more-item--danger">{{ t('quoteList.actions.delete') }}</span>
                   </el-dropdown-item>
                 </el-dropdown-menu>
@@ -349,17 +369,46 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { quoteApi } from '@/api/quote'
 import { useQuoteListBasketStore } from '@/stores/quoteListBasket'
 import { listAmountCurrencyDockClass, listAmountCurrencyIso } from '@/utils/moneyFormat'
-import { copyTextToClipboard } from '@/utils/clipboard'
+import { copyQuoteSummaryToClipboard } from '@/utils/quoteSummaryCopy'
 import { assertQuotesSameCustomer } from '@/utils/quoteSalesOrderPrefill'
 import { formatDisplayDate, formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import CrmDataTable from '@/components/CrmDataTable.vue'
+import DockQuoteExtendColumnHeader from '@/components/list/DockQuoteExtendColumnHeader.vue'
+import DockQuoteExtendCell from '@/components/list/DockQuoteExtendCell.vue'
+import {
+  useDockQuoteExtendColumn,
+  isDockQuoteExtendTableColumn
+} from '@/composables/useDockQuoteExtendColumn'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { productionDateDisplayLabel, useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
+import {
+  isQuoteDeleteForbidden,
+  isQuoteReadOnly,
+  quoteMainStatusI18nKey,
+  quoteMainStatusTagType
+} from '@/utils/quoteMainStatus'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
+const {
+  activeField: dockQuoteExtendActiveField,
+  colWidth: dockQuoteExtendColWidth,
+  colMinWidth: dockQuoteExtendColMinWidth,
+  setActiveField: setDockQuoteExtendActiveField,
+  applyOuterWidthFromTable: applyDockQuoteExtendOuterWidth
+} = useDockQuoteExtendColumn()
+
+function onQuoteTableHeaderDragEnd(
+  newWidth: number,
+  _oldWidth: number,
+  column: { property?: string; label?: string }
+) {
+  if (!isDockQuoteExtendTableColumn(column)) return
+  applyDockQuoteExtendOuterWidth(newWidth)
+}
+
 const { options: materialPdOptions, ensureLoaded: ensureMaterialPdDict } = useMaterialProductionDateDict()
 const router = useRouter()
 const route = useRoute()
@@ -389,7 +438,7 @@ function toggleQuoteBasketOpCol() {
   quoteBasketOpColExpanded.value = !quoteBasketOpColExpanded.value
 }
 const suppressBasketMerge = ref(false)
-const stats = ref({ total: 0, pending: 0, sent: 0, accepted: 0 })
+const stats = ref({ total: 0, newCount: 0, wonCount: 0, closedCount: 0 })
 
 // 搜索表单
 const searchForm = ref({
@@ -417,6 +466,7 @@ function toggleOpCol() {
 
 /** 报价列表主表可配置列（localStorage：crm-table-columns:v1:quote-list-main） */
 const quoteTableColumns = computed<CrmTableColumnDef[]>(() => {
+  void dockQuoteExtendColWidth.value
   const cols: CrmTableColumnDef[] = [
     {
       key: 'sel',
@@ -463,6 +513,17 @@ const quoteTableColumns = computed<CrmTableColumnDef[]>(() => {
   cols.push(
     { key: 'purchaseUserName', label: t('quoteList.columns.purchaseUser'), prop: 'purchaseUserName', width: 100 },
     { key: 'vendorCount', label: t('quoteList.columns.vendorCount'), width: 132, minWidth: 132, align: 'center' },
+    {
+      key: 'dockQuoteExtend',
+      label: t('common.dockQuoteExtendCol.columnTitle'),
+      prop: 'dockQuoteExtend',
+      width: dockQuoteExtendColWidth.value,
+      minWidth: dockQuoteExtendColMinWidth.value,
+      align: 'center',
+      className: 'customer-extend-col dock-quote-extend-col',
+      labelClassName: 'customer-extend-col dock-quote-extend-col',
+      resizable: true
+    },
     { key: 'quoteDate', label: t('quoteList.columns.quoteDate'), prop: 'quoteDate', width: 160 },
     {
       key: 'quoteCode',
@@ -619,73 +680,29 @@ function displayQuoteLeadTime(row: Record<string, unknown>): string {
   return t('quoteList.na')
 }
 
-function formatCopyUnitPrice(value: number): string {
-  if (!Number.isFinite(value)) return '—'
-  const fixed = value.toFixed(6).replace(/\.?0+$/, '')
-  return fixed || '0'
-}
-
-/** 复制摘要：物料型号、品牌、数量PCS、单价+币别、生产日期 */
-function buildQuoteSummaryCopyText(row: Record<string, unknown>): string {
-  const mpn = firstQuoteItemMpn(row) || '—'
-
-  const brandRaw = displayFirstItemBrand(row)
-  const brand = brandRaw === t('quoteList.na') ? '—' : brandRaw
-
-  const qtyRaw = displayFirstItemQuantity(row)
-  const qty = qtyRaw === t('quoteList.na') ? '—' : `${qtyRaw}PCS`
-
-  let priceCurrency = '—'
-  const it = firstQuoteItem(row)
-  if (it) {
-    const p = it.unitPrice ?? it.UnitPrice
-    const n = Number(p)
-    if (Number.isFinite(n)) {
-      const ccy = listAmountCurrencyIso(Number(it.currency ?? it.Currency ?? 1))
-      priceCurrency = `${formatCopyUnitPrice(n)}${ccy}`
-    }
-  }
-
-  const pdRaw = displayQuoteProductionDateDc(row)
-  const pd = pdRaw === t('quoteList.na') ? '—' : pdRaw
-
-  return [mpn, brand, qty, priceCurrency, pd].join('    ')
-}
-
 async function handleCopyQuoteSummary(row: Record<string, unknown>) {
-  const text = buildQuoteSummaryCopyText(row)
-  const ok = copyTextToClipboard(text)
+  const ok = await copyQuoteSummaryToClipboard(row, {
+    naLabel: t('quoteList.na'),
+    materialPdOptions: materialPdOptions.value
+  })
   if (ok) {
     ElMessage.success(t('quoteList.actions.copySuccess'))
     return
-  }
-  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-    try {
-      await navigator.clipboard.writeText(text)
-      ElMessage.success(t('quoteList.actions.copySuccess'))
-      return
-    } catch {
-      /* fall through */
-    }
   }
   ElMessage.error(t('quoteList.actions.copyFailed'))
 }
 
 // 状态处理
-const getStatusType = (status: number) => {
-  const map: Record<number, string> = { 
-    0: 'info', 1: 'warning', 2: 'primary', 3: 'success',
-    4: 'success', 5: 'danger', 6: 'info', 7: 'info'
-  }
-  return map[status] || 'info'
+const getStatusType = (status: number) => quoteMainStatusTagType(status)
+
+const getStatusText = (status: number) => t(quoteMainStatusI18nKey(status))
+
+function canEditQuoteRow(row: Record<string, unknown>) {
+  return !isQuoteReadOnly(row.status)
 }
 
-const getStatusText = (status: number) => {
-  const map: Record<number, string> = {
-    0: t('quoteList.status.draft'), 1: t('quoteList.status.pending'), 2: t('quoteList.status.approved'), 3: t('quoteList.status.sent'),
-    4: t('quoteList.status.accepted'), 5: t('quoteList.status.rejected'), 6: t('quoteList.status.expired'), 7: t('quoteList.status.closed')
-  }
-  return map[status] || t('quoteList.status.unknown')
+function canDeleteQuoteRow(row: Record<string, unknown>) {
+  return !isQuoteDeleteForbidden(row.status)
 }
 
 // 加载数据
@@ -706,12 +723,12 @@ const loadData = async () => {
       pageInfo.value.page = maxPage
       return await loadData()
     }
-    const agg = res.aggregates
+    const agg = res.aggregates as Record<string, number> | undefined
     stats.value = {
       total: agg?.totalCount ?? res.total ?? 0,
-      pending: agg?.pendingCount ?? 0,
-      sent: agg?.sentCount ?? 0,
-      accepted: agg?.acceptedCount ?? 0
+      newCount: agg?.newCount ?? agg?.pendingCount ?? 0,
+      wonCount: agg?.wonCount ?? agg?.sentCount ?? 0,
+      closedCount: agg?.closedCount ?? agg?.acceptedCount ?? 0
     }
   } catch (error) {
     ElMessage.error(t('quoteList.loadFailed'))
@@ -833,12 +850,20 @@ async function handleGenerateSalesOrder() {
 }
 
 // 编辑
-const handleEdit = (row: any) => {
+const handleEdit = (row: Record<string, unknown>) => {
+  if (!canEditQuoteRow(row)) {
+    router.push({ name: 'QuoteDetail', params: { id: String(row.id) } })
+    return
+  }
   router.push({ name: 'QuoteEdit', params: { id: String(row.id) } })
 }
 
 // 删除
-const handleDelete = async (row: any) => {
+const handleDelete = async (row: Record<string, unknown>) => {
+  if (!canDeleteQuoteRow(row)) {
+    ElMessage.warning(t('quoteList.warnings.cannotDeleteWon'))
+    return
+  }
   try {
     await ElMessageBox.confirm(
       t('quoteList.deleteConfirm', { code: displayQuoteCode(row) }),
@@ -846,7 +871,8 @@ const handleDelete = async (row: any) => {
       { type: 'warning' }
     )
     const rid = resolveQuoteId(row)
-    await quoteApi.delete(row.id)
+    if (!rid) return
+    await quoteApi.delete(rid)
     if (rid) basketStore.remove(rid)
     loadData()
   } catch {

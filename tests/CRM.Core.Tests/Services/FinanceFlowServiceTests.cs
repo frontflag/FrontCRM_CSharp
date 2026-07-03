@@ -2,6 +2,7 @@ using CRM.Core.Document;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
 using CRM.Core.Models.Company;
+using CRM.Core.Models.Customer;
 using CRM.Core.Models.Finance;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
@@ -128,6 +129,7 @@ namespace CRM.Core.Tests.Services
             var sellInvoiceRepo = Substitute.For<IRepository<FinanceSellInvoice>>();
             var sellInvoiceItemRepo = Substitute.For<IRepository<SellInvoiceItem>>();
             var sellOrderRepo = Substitute.For<IRepository<SellOrder>>();
+            var customerRepo = Substitute.For<IRepository<CustomerInfo>>();
             var userRepo = Substitute.For<IRepository<User>>();
             var dataPermission = Substitute.For<IDataPermissionService>();
             var serialNumber = Substitute.For<ISerialNumberService>();
@@ -137,7 +139,7 @@ namespace CRM.Core.Tests.Services
             receiptRepo.GetByIdAsync("r-1").Returns(new FinanceReceipt { Id = "r-1", Status = 0 });
 
             var svc = new FinanceReceiptService(
-                receiptRepo, receiptItemRepo, sellInvoiceRepo, sellInvoiceItemRepo, sellOrderRepo, userRepo, dataPermission, serialNumber, extendSync,
+                receiptRepo, receiptItemRepo, sellInvoiceRepo, sellInvoiceItemRepo, sellOrderRepo, customerRepo, userRepo, dataPermission, serialNumber, extendSync,
                 Substitute.For<IForceDeleteGuardService>(),
                 Substitute.For<ILogOperationAppendService>(),
                 Substitute.For<IFinanceReceiptListQuery>(),

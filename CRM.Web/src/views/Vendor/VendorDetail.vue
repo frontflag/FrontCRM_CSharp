@@ -199,6 +199,7 @@
             @click="activeTab = tab.key"
           >
             {{ tab.label }}
+            <span class="tab-count">{{ tabCount(tab.key) }}</span>
           </button>
         </div>
         <div class="tabs-body">
@@ -520,7 +521,7 @@
             <DocumentUploadPanel
               bizType="Vendor"
               :bizId="canonicalVendorId"
-              @uploaded="documentListRef?.refresh?.()"
+              @uploaded="onVendorDocumentUploaded"
             />
             <DocumentListPanel ref="documentListRef" bizType="Vendor" :bizId="canonicalVendorId" view-mode="grid" />
           </div>
@@ -776,6 +777,7 @@ import VendorAddressDialog from './VendorAddressDialog.vue';
 import VendorBankDialog from './VendorBankDialog.vue';
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue';
 import DocumentListPanel from '@/components/Document/DocumentListPanel.vue';
+import { documentApi } from '@/api/document';
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime';
 import { operationBizTypeLabel } from '@/utils/businessLogLabels';
 import { logRecentApi } from '@/api/logRecent';
@@ -829,6 +831,46 @@ const histories = ref<any[]>([]);
 const operationLogs = ref<any[]>([]);
 const fieldChangeLogs = ref<any[]>([]);
 const documentListRef = ref<InstanceType<typeof DocumentListPanel> | null>(null);
+const documentCount = ref(0);
+
+function tabCount(key: string): number {
+  switch (key) {
+    case 'contacts':
+      return contacts.value.length;
+    case 'addresses':
+      return addresses.value.length;
+    case 'banks':
+      return banks.value.length;
+    case 'documents':
+      return documentCount.value;
+    case 'history':
+      return histories.value.length;
+    case 'logs':
+      return operationLogs.value.length + fieldChangeLogs.value.length;
+    default:
+      return 0;
+  }
+}
+
+async function fetchDocumentCount() {
+  const id = canonicalVendorId.value;
+  if (!id) {
+    documentCount.value = 0;
+    return;
+  }
+  try {
+    const res = await documentApi.getDocuments('Vendor', id);
+    documentCount.value = Array.isArray(res) ? res.length : 0;
+  } catch {
+    documentCount.value = 0;
+  }
+}
+
+function onVendorDocumentUploaded() {
+  documentListRef.value?.refresh?.();
+  void fetchDocumentCount();
+}
+
 const showTagDialog = ref(false);
 const isFavorite = ref(false);
 const favoriteLoading = ref(false);
@@ -940,7 +982,7 @@ const vendorPurchaserDisplay = computed(() => {
   if (maskPurchaseSensitiveFields.value) return '—';
   const v = vendor.value as Record<string, unknown> | null | undefined;
   if (!v) return '—';
-  const name = v.purchaserName ?? v.purchaseUserName ?? v.PurchaseUserName;
+  const name = v.purchaseUserName ?? v.PurchaseUserName ?? v.purchaserName ?? v.PurchaserName;
   const s = name != null ? String(name).trim() : '';
   return s || '—';
 });
@@ -1029,6 +1071,7 @@ const fetchVendor = async () => {
     vendor.value = await vendorApi.getVendorById(vendorId);
     await refreshFavoriteStatus();
     trackRecentDetail();
+    void fetchDocumentCount();
     if (vendor.value) {
       void vendorDict.hydrateVendorEditForm({
         industry: vendor.value.industry,
@@ -1457,6 +1500,7 @@ onMounted(() => {
   void loadPaymentBankOptions();
   void fetchVendor();
   void fetchVendorTags();
+  void fetchDocumentCount();
 });
 </script>
 
@@ -1992,6 +2036,9 @@ onMounted(() => {
   cursor: pointer;
   transition: all 0.2s;
   margin-bottom: -1px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 
   &:hover {
     color: $text-secondary;
@@ -2001,6 +2048,22 @@ onMounted(() => {
     color: $cyan-primary;
     border-bottom-color: $cyan-primary;
   }
+}
+
+.tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1.35;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-variant-numeric: tabular-nums;
+  background: var(--crm-accent-01);
+  border: 1px solid var(--crm-accent-02);
+  color: var(--crm-primary-color);
 }
 
 .tabs-body {
@@ -2322,13 +2385,11 @@ onMounted(() => {
 
 <!-- 下拉 Teleport 到 body，需非 scoped（与客户详情一致） -->
 <style lang="scss">
-@import '@/assets/styles/variables.scss';
-
 .vendor-detail-header-more-popper.el-dropdown__popper,
 .vendor-detail-header-more-popper.el-popper {
-  background: $layer-2 !important;
-  border: 1px solid rgba(0, 212, 255, 0.15) !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45) !important;
+  background: var(--crm-dropdown-bg) !important;
+  border: 1px solid var(--crm-dropdown-border) !important;
+  box-shadow: var(--crm-dropdown-shadow) !important;
 }
 
 .vendor-detail-header-more-popper .el-dropdown-menu {
@@ -2339,23 +2400,23 @@ onMounted(() => {
 }
 
 .vendor-detail-header-more-popper .el-dropdown-menu__item {
-  color: rgba(200, 220, 240, 0.92) !important;
+  color: var(--crm-dropdown-item) !important;
   font-size: 13px;
 
   &:hover,
   &:focus {
-    background: rgba(0, 212, 255, 0.1) !important;
-    color: #e8f4ff !important;
+    background: var(--crm-dropdown-item-hover-bg) !important;
+    color: var(--crm-dropdown-item-hover-color) !important;
   }
 }
 
 .vendor-detail-header-more-popper .detail-more-item--danger {
-  color: $color-red-brown !important;
+  color: var(--crm-danger-color) !important;
 
   &:hover,
   &:focus {
-    color: #e8a090 !important;
-    background: rgba(201, 87, 69, 0.12) !important;
+    color: var(--crm-danger-color) !important;
+    background: var(--crm-dropdown-item-hover-bg) !important;
   }
 }
 </style>

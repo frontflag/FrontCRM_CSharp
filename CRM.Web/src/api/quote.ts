@@ -133,8 +133,14 @@ function mapQuoteCreateFormToUpdate(form: Record<string, unknown>): Record<strin
 /** 与 GET /api/v1/quotes 的 data.aggregates 对齐（axios 已解包外层 success/data）。 */
 export type QuoteListAggregates = {
   totalCount: number
+  newCount?: number
+  wonCount?: number
+  closedCount?: number
+  /** @deprecated use newCount */
   pendingCount: number
+  /** @deprecated use wonCount */
   sentCount: number
+  /** @deprecated use closedCount */
   acceptedCount: number
   createdInRangeCount: number | null
 }

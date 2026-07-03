@@ -202,6 +202,7 @@ export interface PackingDetail {
   scheduleShipDate?: string | null
   comment?: string | null
   createTime: string
+  createUserName?: string | null
   boxNw?: number | null
   boxGw?: number | null
   boxDim?: string | null
@@ -379,6 +380,7 @@ function unwrapDetail(res: unknown): PackingDetail | null {
     scheduleShipDate: (d.scheduleShipDate ?? d.ScheduleShipDate) as string | null | undefined,
     comment: (d.comment ?? d.Comment) as string | null | undefined,
     createTime: String(d.createTime ?? d.CreateTime ?? ''),
+    createUserName: (d.createUserName ?? d.CreateUserName) as string | null | undefined,
     boxNw: d.boxNw != null || d.BoxNw != null ? Number(d.boxNw ?? d.BoxNw) : null,
     boxGw: d.boxGw != null || d.BoxGw != null ? Number(d.boxGw ?? d.BoxGw) : null,
     boxDim: (d.boxDim ?? d.BoxDim) as string | null | undefined,
@@ -793,6 +795,19 @@ export function packingStatusLabel(status: number): string {
     100: '出库完成'
   }
   return map[status] ?? String(status)
+}
+
+/** CaptionBar / 详情副标题：与列表状态语义一致的 el-tag type */
+export function packingStatusTagType(
+  status: number
+): '' | 'success' | 'warning' | 'info' | 'danger' | 'primary' {
+  if (status === 10) return 'info'
+  if (status === 20) return 'primary'
+  if (status === 30) return 'warning'
+  if (status === 40) return 'success'
+  if (status === 50) return 'warning'
+  if (status === 100) return 'success'
+  return 'info'
 }
 
 export function packingMaterialTypeLabel(type: number): string {

@@ -24,6 +24,30 @@ namespace CRM.API.Controllers
             _logger = logger;
         }
 
+        public sealed class StockInBatchDeleteBody
+        {
+            public string Reason { get; set; } = string.Empty;
+        }
+
+        public sealed class StockInBatchBulkDeleteByItemBody
+        {
+            public string StockInItemId { get; set; } = string.Empty;
+            public string Reason { get; set; } = string.Empty;
+        }
+
+        public sealed class StockInBatchLogExportBody
+        {
+            public string StockInId { get; set; } = string.Empty;
+            public int ExportedCount { get; set; }
+        }
+
+        private StockInBatchOperationContext OperationContext() => new()
+        {
+            OperatorUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
+            OperatorUserName = User.FindFirst(ClaimTypes.Name)?.Value
+                ?? User.FindFirst(ClaimTypes.Email)?.Value
+        };
+
         /// <summary>Excel 解析后的批次行批量写入 <c>stock_in_batch</c>，每行自动生成全局编号。</summary>
         [HttpPost("import")]
         public async Task<ActionResult<ApiResponse<StockInBatchImportResultDto>>> Import(
@@ -34,7 +58,7 @@ namespace CRM.API.Controllers
             {
                 if (request == null)
                     return BadRequest(ApiResponse<StockInBatchImportResultDto>.Fail("请求体不能为空", 400));
-                var result = await _service.ImportAsync(request, cancellationToken);
+                var result = await _service.ImportAsync(request, OperationContext(), cancellationToken);
                 return Ok(ApiResponse<StockInBatchImportResultDto>.Ok(
                     result,
                     $"成功导入 {result.ImportedCount} 条批次记录"));
@@ -47,6 +71,64 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "导入入库批次失败");
                 return StatusCode(500, ApiResponse<StockInBatchImportResultDto>.Fail($"导入入库批次失败: {ex.Message}", 500));
+            }
+        }
+
+        [HttpPost("bulk-delete-by-item")]
+        public async Task<ActionResult<ApiResponse<StockInBatchBulkDeleteResultDto>>> BulkDeleteByItem(
+            [FromBody] StockInBatchBulkDeleteByItemBody body,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (body == null)
+                    return BadRequest(ApiResponse<StockInBatchBulkDeleteResultDto>.Fail("请求体不能为空", 400));
+                var result = await _service.BulkDeleteByItemAsync(
+                    body.StockInItemId,
+                    body.Reason,
+                    OperationContext(),
+                    cancellationToken);
+                return Ok(ApiResponse<StockInBatchBulkDeleteResultDto>.Ok(result, "批量删除完成"));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<StockInBatchBulkDeleteResultDto>.Fail(ex.Message, 400));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<StockInBatchBulkDeleteResultDto>.Fail(ex.Message, 400));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "批量删除入库批次失败");
+                return StatusCode(500, ApiResponse<StockInBatchBulkDeleteResultDto>.Fail($"批量删除入库批次失败: {ex.Message}", 500));
+            }
+        }
+
+        [HttpPost("log-export")]
+        public async Task<ActionResult<ApiResponse<object>>> LogExport(
+            [FromBody] StockInBatchLogExportBody body,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (body == null)
+                    return BadRequest(ApiResponse<object>.Fail("请求体不能为空", 400));
+                await _service.LogExportAsync(body.StockInId, body.ExportedCount, OperationContext(), cancellationToken);
+                return Ok(ApiResponse<object>.Ok(null!, "已记录导出日志"));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "记录入库批次导出日志失败");
+                return StatusCode(500, ApiResponse<object>.Fail($"记录导出日志失败: {ex.Message}", 500));
             }
         }
 
@@ -117,7 +199,7 @@ namespace CRM.API.Controllers
             {
                 if (request == null)
                     return BadRequest(ApiResponse<StockInBatch>.Fail("请求体不能为空", 400));
-                var entity = await _service.UpdateAsync(id, request, cancellationToken);
+                var entity = await _service.UpdateAsync(id, request, OperationContext(), cancellationToken);
                 return Ok(ApiResponse<StockInBatch>.Ok(entity, "更新批次记录成功"));
             }
             catch (InvalidOperationException ex)
@@ -132,11 +214,14 @@ namespace CRM.API.Controllers
         }
 
         [HttpDelete("{id}")]
-        public async Task<ActionResult<ApiResponse<object>>> SoftDelete(string id, CancellationToken cancellationToken)
+        public async Task<ActionResult<ApiResponse<object>>> SoftDelete(
+            string id,
+            [FromBody] StockInBatchDeleteBody body,
+            CancellationToken cancellationToken)
         {
             try
             {
-                await _service.SoftDeleteAsync(id, cancellationToken);
+                await _service.SoftDeleteAsync(id, body?.Reason, OperationContext(), cancellationToken);
                 return Ok(ApiResponse<object>.Ok(null!, "已删除批次记录"));
             }
             catch (InvalidOperationException ex)

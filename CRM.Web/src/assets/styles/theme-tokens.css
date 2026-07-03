@@ -54,6 +54,8 @@ html[data-theme='dark'] {
   --crm-table-header-bg: rgba(0, 212, 255, 0.04);
   /* 略加强，避免深色斑马线行上悬停不明显 */
   --crm-table-row-hover: rgba(0, 212, 255, 0.22);
+  /* 业务详情 §7.4.6：主从联动选中行 */
+  --crm-detail-row-active-bg: #114a60;
   /* 斑马线：主表偶数行 / 右侧固定列 / 操作列（不透明底需单独色） */
   --crm-table-row-base: transparent;
   --crm-table-row-stripe: rgba(255, 255, 255, 0.045);
@@ -311,6 +313,8 @@ html[data-theme='light'] {
   --crm-table-header-bg: var(--crm-op-col-header-bg);
   /* 实色便于盖住斑马线，且在 #f1f5f9 条纹上仍清晰可见 */
   --crm-table-row-hover: #dbeafe;
+  /* 业务详情 §7.4.6：主从联动选中行 */
+  --crm-detail-row-active-bg: #fffaea;
   --crm-table-row-base: transparent;
   --crm-table-row-stripe: #f1f5f9;
   --crm-table-fixed-right-stripe: #eef2f7;
@@ -371,7 +375,7 @@ html[data-theme='light'] {
   --crm-user-name: #0f172a;
   --crm-user-chevron: #64748b;
   --crm-user-trigger-hover: rgba(37, 99, 235, 0.08);
-  --crm-layout-sidebar-bg: #f8fafc;
+  --crm-layout-sidebar-bg: #eaf5ff;
   --crm-layout-sidebar-border: #e2e8f0;
   --crm-layout-sidebar-border-soft: #e2e8f0;
   --crm-collapse-btn-bg: #f1f5f9;

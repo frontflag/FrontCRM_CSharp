@@ -47,6 +47,99 @@
     padding-bottom: 6px;
   }
 
+  .dock-tier-col--left .cell {
+    text-align: left;
+  }
+
+  /* 产地/包邮扩展列：晶圆、封装、包邮 居中对齐（采购报价底栏 / 报价列表） */
+  td.customer-extend-col.el-table__cell .cell,
+  th.customer-extend-col.el-table__cell .cell {
+    text-align: center !important;
+  }
+
+  td.customer-extend-col.dock-quote-extend-col.el-table__cell .cell,
+  th.customer-extend-col.dock-quote-extend-col.el-table__cell .cell,
+  td.dock-quote-extend-col.el-table__cell .cell,
+  th.dock-quote-extend-col.el-table__cell .cell {
+    text-align: center !important;
+  }
+
+  .dock-quote-extend-cell {
+    align-items: center !important;
+    width: 100%;
+  }
+
+  /* 展开态：与表头切换按钮同宽占位，三列 grid 与表头对齐 */
+  .dock-quote-extend-cell.is-expanded {
+    flex-direction: row !important;
+    align-items: center !important;
+  }
+
+  .dock-quote-extend-cell__toggle-spacer {
+    flex: 0 0 32px;
+    width: 32px;
+    min-width: 32px;
+    flex-shrink: 0;
+  }
+
+  .dock-quote-extend-cell.is-expanded .dock-quote-extend-cell__cols,
+  .dock-quote-extend-cell.is-expanded .customer-extend-cell__cols {
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-items: center !important;
+    align-items: center;
+  }
+
+  .dock-quote-extend-cell.is-expanded .customer-extend-cell__col {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    width: 100%;
+    max-width: 100%;
+    text-align: center !important;
+  }
+
+  .dock-quote-extend-cell .customer-extend-cell__value,
+  .dock-quote-extend-cell .customer-extend-cell__value--single {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    text-align: center !important;
+  }
+
+  .dock-quote-extend-cell.is-expanded .dock-quote-free-ship-icon {
+    width: auto;
+  }
+
+  .dock-quote-extend-cell .dock-quote-free-ship-icon {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+  }
+
+  .dock-quote-extend-col-header.is-expanded .customer-extend-col-header__cols {
+    justify-items: center !important;
+    align-items: center;
+  }
+
+  .dock-quote-extend-col-header.is-expanded .customer-extend-col-header__col-wrap {
+    justify-content: center !important;
+    width: 100%;
+  }
+
+  .dock-quote-extend-col-header.is-expanded .customer-extend-col-header__col-label {
+    flex: 1 1 auto;
+    width: 100%;
+    text-align: center !important;
+  }
+
+  .dock-quote-extend-col-header:not(.is-expanded) .customer-extend-col-header__title {
+    justify-content: center;
+    flex: 1 1 auto;
+  }
+
   /* 报价数量列：加粗；数字色与金额列一致（产品指定 #27292C） */
   .dock-quote-tier-line:not(.dock-tier-price-line) {
     font-weight: 700;
@@ -79,6 +172,11 @@ html[data-theme='dark'] .dock-quote-table {
   gap: 4px;
   align-items: flex-end;
   text-align: right;
+
+  &--left {
+    align-items: flex-start;
+    text-align: left;
+  }
 }
 
 .dock-quote-tier-line {

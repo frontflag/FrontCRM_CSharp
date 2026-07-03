@@ -14,6 +14,7 @@ public interface ILogOperationAppendService
         string? operatorUserName,
         string? operationDesc,
         string? reason = null,
+        string? extraInfo = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>业务删除统一写 log_operation（凡删除必记）。</summary>

@@ -2,17 +2,20 @@ using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
 using CRM.Core.Models.Customer;
+using CRM.Core.Models.Dtos;
 using CRM.Core.Models.Quote;
 using CRM.Core.Models.Sales;
 using CRM.Core.Services;
 using CRM.Core.Utilities;
 using CRM.API.Authorization;
 using CRM.API.Services;
+using CRM.API.Services.Interfaces;
 using CRM.Infrastructure.Data;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace CRM.API.Controllers
 {
@@ -27,6 +30,8 @@ namespace CRM.API.Controllers
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IRbacService _rbacService;
         private readonly IRepository<SellOrderItemExtend> _soItemExtendRepo;
+        private readonly IOperationLogQueryService _operationLogQuery;
+        private readonly ILogOperationAppendService _logOperationAppend;
         private readonly ApplicationDbContext _db;
         private readonly ILogger<SalesOrdersController> _logger;
 
@@ -37,6 +42,8 @@ namespace CRM.API.Controllers
             IDataPermissionService dataPermissionService,
             IRbacService rbacService,
             IRepository<SellOrderItemExtend> soItemExtendRepo,
+            IOperationLogQueryService operationLogQuery,
+            ILogOperationAppendService logOperationAppend,
             ApplicationDbContext db,
             ILogger<SalesOrdersController> logger)
         {
@@ -46,8 +53,15 @@ namespace CRM.API.Controllers
             _dataPermissionService = dataPermissionService;
             _rbacService = rbacService;
             _soItemExtendRepo = soItemExtendRepo;
+            _operationLogQuery = operationLogQuery;
+            _logOperationAppend = logOperationAppend;
             _db = db;
             _logger = logger;
+        }
+
+        public sealed class SalesOrderBatchLogExportBody
+        {
+            public int ExportedCount { get; set; }
         }
 
         [HttpGet]
@@ -1082,6 +1096,83 @@ namespace CRM.API.Controllers
             }
         }
 
+        /// <summary>销售订单详情「出库批次」面板导出记录（仅 SO 页发起的导出）。</summary>
+        [HttpGet("{id:guid}/batch-export-logs")]
+        public async Task<IActionResult> GetBatchExportLogs(
+            string id,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var order = await _service.GetByIdAsync(id);
+                if (order == null) return NotFound(new { success = false, message = "销售订单不存在" });
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessSalesOrderAsync(userId, order))
+                    return StatusCode(403, new { success = false, message = "无权限访问该销售订单" });
+
+                var data = await _operationLogQuery.QueryAsync(new OperationLogQuery
+                {
+                    BizType = BusinessLogTypes.SalesOrder,
+                    RecordId = id.Trim(),
+                    ActionType = SalesOrderBatchExportActionTypes.Export,
+                    Page = page,
+                    PageSize = pageSize
+                }, cancellationToken);
+
+                return Ok(new { success = true, data, message = "ok" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取销售订单出库批次导出记录失败 SalesOrderId={Id}", id);
+                return StatusCode(500, new { success = false, message = "获取导出记录失败" });
+            }
+        }
+
+        /// <summary>记录销售订单详情页导出出库批次 CSV 的操作日志。</summary>
+        [HttpPost("{id:guid}/batch-log-export")]
+        public async Task<IActionResult> LogBatchExport(
+            string id,
+            [FromBody] SalesOrderBatchLogExportBody body,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var order = await _service.GetByIdAsync(id);
+                if (order == null) return NotFound(new { success = false, message = "销售订单不存在" });
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessSalesOrderAsync(userId, order))
+                    return StatusCode(403, new { success = false, message = "无权限访问该销售订单" });
+
+                var count = Math.Max(0, body?.ExportedCount ?? 0);
+                var code = (order.SellOrderCode ?? string.Empty).Trim();
+                var desc = string.IsNullOrEmpty(code)
+                    ? $"导出销售订单出库批次 {count} 条"
+                    : $"导出销售订单 {code} 出库批次 {count} 条";
+                var extraInfo = JsonSerializer.Serialize(new { exportedCount = count });
+
+                await _logOperationAppend.AppendAsync(
+                    BusinessLogTypes.SalesOrder,
+                    order.Id,
+                    code,
+                    SalesOrderBatchExportActionTypes.Export,
+                    userId,
+                    User.FindFirst(ClaimTypes.Name)?.Value ?? User.FindFirst(ClaimTypes.Email)?.Value,
+                    desc,
+                    null,
+                    extraInfo,
+                    cancellationToken);
+
+                return Ok(new { success = true, data = (object?)null, message = "已记录导出日志" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "记录销售订单出库批次导出日志失败 SalesOrderId={Id}", id);
+                return StatusCode(500, new { success = false, message = "记录导出日志失败" });
+            }
+        }
+
         /// <summary>已软删除的销售订单明细行。</summary>
         [HttpGet("{id:guid}/deleted-items")]
         public async Task<IActionResult> GetDeletedItems(string id)
@@ -1493,7 +1584,8 @@ namespace CRM.API.Controllers
                 .ToListAsync();
             return users.ToDictionary(
                 u => u.Id,
-                u => string.IsNullOrWhiteSpace(u.RealName) ? u.UserName : u.RealName.Trim(),
+                u => EntityLookupService.FormatUserLoginName(new User { UserName = u.UserName })
+                    ?? u.Id,
                 StringComparer.OrdinalIgnoreCase);
         }
 

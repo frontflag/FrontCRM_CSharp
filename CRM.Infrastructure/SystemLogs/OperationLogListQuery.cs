@@ -47,6 +47,18 @@ public sealed class OperationLogListQuery : IOperationLogQueryService
             q = q.Where(o => o.RecordCode != null && o.RecordCode.ToLower().Contains(p));
         }
 
+        if (!string.IsNullOrWhiteSpace(query.RecordId))
+        {
+            var rid = query.RecordId.Trim();
+            q = q.Where(o => o.RecordId == rid);
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.ActionTypePrefix))
+        {
+            var prefix = query.ActionTypePrefix.Trim();
+            q = q.Where(o => o.ActionType.StartsWith(prefix));
+        }
+
         if (!string.IsNullOrWhiteSpace(query.OperatorUserName))
         {
             var p = query.OperatorUserName.Trim().ToLowerInvariant();
@@ -89,7 +101,8 @@ public sealed class OperationLogListQuery : IOperationLogQueryService
             OperatorUserId = o.OperatorUserId,
             OperatorUserName = o.OperatorUserName,
             Reason = o.Reason,
-            OperationDesc = o.OperationDesc
+            OperationDesc = o.OperationDesc,
+            ExtraInfo = o.ExtraInfo
         }).ToList();
 
         return new OperationLogPagedResult
