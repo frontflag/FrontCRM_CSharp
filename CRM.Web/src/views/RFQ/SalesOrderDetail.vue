@@ -602,7 +602,7 @@
                 {{ formatSoItemLineTabLabel('出库', 'stockOut') }}
               </button>
               <button type="button" class="tab-btn" :class="{ 'tab-btn--active': soItemLinePanel.activeTab === 'receipt' }" @click="soItemLinePanel.activeTab = 'receipt'">
-                {{ formatSoItemLineTabLabel('收款', 'receipt') }}
+                {{ formatSoItemLineTabLabel(t('salesOrderDetailView.tabs.receiptWriteOff'), 'receipt') }}
               </button>
               <button type="button" class="tab-btn" :class="{ 'tab-btn--active': soItemLinePanel.activeTab === 'sellInvoice' }" @click="soItemLinePanel.activeTab = 'sellInvoice'">
                 {{ formatSoItemLineTabLabel('销项发票', 'sellInvoice') }}
@@ -973,41 +973,57 @@
                 <DetailListPanelEmpty v-else size="low" />
               </div>
               <div v-show="soItemLinePanel.activeTab === 'receipt'" class="so-aggregate-table-wrap">
-                <el-table v-if="(lineTabAggregates?.receipts?.length ?? 0) > 0" :data="lineTabAggregates?.receipts ?? []" size="small" stripe>
+                <el-table v-if="(lineTabAggregates?.receiptWriteOffs?.length ?? 0) > 0" :data="lineTabAggregates?.receiptWriteOffs ?? []" size="small" stripe>
                   <el-table-column type="index" width="50" label="#" />
-                  <el-table-column min-width="200" label="收款单号">
+                  <el-table-column :label="t('financeReceiptWriteOffLedger.columns.createTime')" width="170" prop="createTime">
+                    <template #default="{ row }">{{ row.createTime ? formatDateTime(row.createTime) : '—' }}</template>
+                  </el-table-column>
+                  <el-table-column :label="t('financeReceiptWriteOffLedger.columns.source')" width="100" prop="writeOffSource">
+                    <template #default="{ row }">{{ receiptWriteOffSourceLabel(row.writeOffSource) }}</template>
+                  </el-table-column>
+                  <el-table-column :label="t('financeReceiptWriteOffLedger.columns.receiptCode')" min-width="130" prop="financeReceiptCode">
                     <template #default="{ row }">
-                      <router-link class="so-tab-link" :to="`/finance/receipts/${row.id}`">{{ row.financeReceiptCode }}</router-link>
+                      <router-link
+                        v-if="row.financeReceiptId && row.financeReceiptCode"
+                        class="so-tab-link"
+                        :to="`/finance/receipts/${row.financeReceiptId}`"
+                      >{{ row.financeReceiptCode }}</router-link>
+                      <span v-else>{{ row.financeReceiptCode || '—' }}</span>
                     </template>
                   </el-table-column>
-                  <el-table-column prop="customerName" label="客户" min-width="160" show-overflow-tooltip />
-                  <el-table-column label="状态" width="100" prop="status">
-                    <template #default="{ row }">{{ receiptStatusLabel(row?.status) }}</template>
-                  </el-table-column>
-                  <el-table-column v-if="showSalesMoneyFields" label="金额" width="120" align="right">
+                  <el-table-column :label="t('financeReceiptWriteOffLedger.columns.receivableCode')" min-width="130" prop="receivableCode">
                     <template #default="{ row }">
-                      <span v-if="row.receiptAmount != null" class="amount-with-code">
-                        <span>{{ formatTotalAmountNumber(row.receiptAmount) }}</span>
+                      <router-link
+                        v-if="row.financeReceivableId && row.receivableCode"
+                        class="so-tab-link"
+                        :to="`/finance/receivables/${row.financeReceivableId}`"
+                      >{{ row.receivableCode }}</router-link>
+                      <span v-else>{{ row.receivableCode || '—' }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column :label="t('financeReceiptWriteOffLedger.columns.stockOutCode')" min-width="130" prop="stockOutCode" show-overflow-tooltip />
+                  <el-table-column v-if="showCustomerIdentityFields" :label="t('financeReceiptWriteOffLedger.columns.customer')" min-width="160" show-overflow-tooltip>
+                    <template #default="{ row }">{{ formatReceiptWriteOffCustomerLabel(row) }}</template>
+                  </el-table-column>
+                  <el-table-column :label="t('financeReceiptWriteOffLedger.columns.pn')" min-width="120" prop="pn" show-overflow-tooltip />
+                  <el-table-column :label="t('financeReceiptWriteOffLedger.columns.brand')" width="100" prop="brand" show-overflow-tooltip />
+                  <el-table-column v-if="showSalesMoneyFields" :label="t('financeReceiptWriteOffLedger.columns.amount')" width="150" align="right">
+                    <template #default="{ row }">
+                      <span v-if="row.amount != null" class="amount-with-code">
+                        <span>{{ formatTotalAmountNumber(row.amount) }}</span>
                         <span
-                          v-if="formatTotalAmountNumber(row.receiptAmount) !== '—'"
-                          :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.receiptCurrency)]"
-                          >{{ listAmountCurrencyIso(row.receiptCurrency) }}</span
-                        >
+                          v-if="formatTotalAmountNumber(row.amount) !== '—'"
+                          :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]"
+                        >{{ listAmountCurrencyIso(row.currency) }}</span>
                       </span>
                       <span v-else>—</span>
                     </template>
                   </el-table-column>
-                  <el-table-column v-else label="金额" width="100" align="right">
+                  <el-table-column v-else :label="t('financeReceiptWriteOffLedger.columns.amount')" width="100" align="right">
                     <template #default>—</template>
                   </el-table-column>
-                  <el-table-column label="收款日期" width="120" prop="receiptDate">
-                    <template #default="{ row }">{{
-                      row?.receiptDate ? formatDateTime(row.receiptDate) : '—'
-                    }}</template>
-                  </el-table-column>
-                  <el-table-column label="创建时间" width="160" prop="createTime">
-                    <template #default="{ row }">{{ formatDateTime(row?.createTime) }}</template>
-                  </el-table-column>
+                  <el-table-column :label="t('financeReceiptWriteOffLedger.columns.operator')" width="110" prop="operatorUserName" show-overflow-tooltip />
+                  <el-table-column :label="t('financeReceiptWriteOffLedger.columns.remark')" min-width="140" prop="remark" show-overflow-tooltip />
                 </el-table>
                 <DetailListPanelEmpty v-else size="low" />
               </div>
@@ -1210,6 +1226,7 @@ import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMa
 import { quoteMainStatusI18nKey } from '@/utils/quoteMainStatus'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { formatVendorNameReadonly } from '@/utils/vendorDisplayName'
+import { formatCustomerNameReadonlyFromRow } from '@/utils/customerDisplayName'
 import { useSaleOrderWriteGate } from '@/composables/useDepartmentDataReadOnly'
 import ApplyStockOutDisabledHint from '@/components/RFQ/ApplyStockOutDisabledHint.vue'
 import DetailListPanelEmpty from '@/components/Common/DetailListPanelEmpty.vue'
@@ -1689,7 +1706,7 @@ function soItemLineTabRecordCount(tab: SoItemLineTabKey): number {
     case 'stockOut':
       return agg.stockOuts?.length ?? 0
     case 'receipt':
-      return agg.receipts?.length ?? 0
+      return agg.receiptWriteOffs?.length ?? 0
     case 'sellInvoice':
       return agg.sellInvoices?.length ?? 0
     case 'qcImages':
@@ -2283,6 +2300,18 @@ function outReqStatusLabel(v: unknown) {
   if (s === 2) return t('salesOrderDetailView.outReqSt2')
   return `(${String(v)})`
 }
+function receiptWriteOffSourceLabel(source?: number) {
+  if (source === 20) return t('financeReceiptWriteOffLedger.writeOffSource.advancePool')
+  return t('financeReceiptWriteOffLedger.writeOffSource.receiptItem')
+}
+
+function formatReceiptWriteOffCustomerLabel(row: SalesOrderDetailTabAggregates['receiptWriteOffs'][number]) {
+  return formatCustomerNameReadonlyFromRow({
+    customerName: row.customerName,
+    customerEnglishName: row.customerEnglishName
+  })
+}
+
 function stockOutStatusLabel(v: unknown) {
   const s = Number(v)
   if (s === 0) return t('salesOrderDetailView.soSt0')
@@ -2291,15 +2320,7 @@ function stockOutStatusLabel(v: unknown) {
   if (s === 3) return t('salesOrderDetailView.soSt3')
   return `(${String(v)})`
 }
-function receiptStatusLabel(v: unknown) {
-  const s = Number(v)
-  if (s === 0) return t('salesOrderDetailView.recSt0')
-  if (s === 1) return t('salesOrderDetailView.recSt1')
-  if (s === 2) return t('salesOrderDetailView.recSt2')
-  if (s === 3) return t('salesOrderDetailView.recSt3')
-  if (s === 4) return t('salesOrderDetailView.recSt4')
-  return `(${String(v)})`
-}
+
 function sellInvoiceStatusLabel(v: unknown) {
   const s = Number(v)
   if (s === 1) return t('salesOrderDetailView.invSt1')

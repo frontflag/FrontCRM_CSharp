@@ -1883,6 +1883,10 @@ namespace CRM.Infrastructure.Data.Migrations
                     b.Property<decimal>("ReceiptConvertAmount")
                         .HasColumnType("numeric(18,2)");
 
+                    b.Property<string>("Remark")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
                     b.Property<string>("SellOrderId")
                         .HasMaxLength(36)
                         .HasColumnType("character varying(36)");

@@ -10,11 +10,18 @@ public static class StockOutTypeCode
     public const short Return = 30;
     public const short Scrap = 40;
 
+    /// <summary>历史 <c>stock_out.StockOutType</c> 销售出库（迁移 <c>20260531120000</c> 前为 1）。</summary>
+    public const short LegacySales = 1;
+
     /// <summary>移库/调拨虚拟出库（非装箱单业务枚举；列表与统计需排除）。</summary>
     public const short Transfer = 3;
 
     public static bool IsDefined(short value) =>
-        value is Sales or Customs or Return or Scrap or Transfer;
+        value is Sales or Customs or Return or Scrap or Transfer or LegacySales;
+
+    /// <summary>是否为销售出库（含历史类型 1）。</summary>
+    public static bool IsSalesStockOut(short value) =>
+        value is Sales or LegacySales;
 
     /// <summary>装箱/出库通知业务类型（不含移库 <see cref="Transfer"/>）。</summary>
     public static bool IsPackingBusinessType(short value) =>

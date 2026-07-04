@@ -11,7 +11,10 @@ export interface FinanceReceivable {
   sellOrderItemId: string
   customerId: string
   customerName?: string
+  customerEnglishName?: string
+  customerCode?: string
   salesUserId?: string
+  salesUserName?: string
   pn?: string
   brand?: string
   outboundQty: number
@@ -23,6 +26,19 @@ export interface FinanceReceivable {
   verificationStatus: number
   stockOutDate?: string
   createTime?: string
+}
+
+export interface FinanceReceivableWriteOffDetailItem {
+  id: string
+  amount: number
+  writeOffSource: number
+  createTime?: string
+  financeReceiptId?: string
+  financeReceiptItemId?: string
+  financeReceiptCode?: string
+  operatorUserId?: string
+  operatorUserName?: string
+  remark?: string
 }
 
 export interface FinanceReceiptItemWriteOffCandidate {
@@ -39,17 +55,70 @@ export interface FinanceReceiptItemWriteOffCandidate {
     sellOrderId?: string
     pn?: string
     brand?: string
+    remark?: string
   }
   financeReceiptCode: string
   receiptStatus: number
   remainingAmount: number
   receiptPurpose?: number
   advanceSellOrderId?: string
+  receiptDate?: string
+  receiptAmount: number
+  receiptCurrency: number
+  receiptMode: number
+  remark?: string
+}
+
+export interface FinanceReceivableWriteOffCandidateRow {
+  id: string
+  receivableCode?: string
+  stockOutId: string
+  stockOutCode: string
+  sellOrderId: string
+  sellOrderCode?: string
+  sellOrderItemId: string
+  customerId: string
+  customerName?: string
+  salesUserId?: string
+  salesUserName?: string
+  pn?: string
+  brand?: string
+  outboundQty: number
+  unitPrice: number
+  currency: number
+  amount: number
+  verifiedDone: number
+  verifiedToBe: number
+  verificationStatus: number
+  stockOutDate?: string
+  freightForwarderOrderNo?: string
+  stockInCode?: string
+}
+
+export interface FinanceWriteOffCustomerCurrencyTotal {
+  currency: number
+  amount: number
+}
+
+export interface FinanceWriteOffCustomerSummary {
+  customerId: string
+  customerName?: string
+  customerEnglishName?: string
+  customerCode?: string
+  salesUserId?: string
+  salesUserName?: string
+  pendingWriteOffTotal: number
+  currency?: number | null
+  isMultiCurrency: boolean
+  currencyTotals: FinanceWriteOffCustomerCurrencyTotal[]
+  pendingReceiptItemCount: number
+  earliestReceiptDate?: string | null
+  latestReceiptDate?: string | null
 }
 
 export interface FinanceReceivableWriteOffCandidates {
   receiptItems: FinanceReceiptItemWriteOffCandidate[]
-  receivables: FinanceReceivable[]
+  receivables: FinanceReceivableWriteOffCandidateRow[]
   advanceBalances: FinanceCustomerAdvanceBalance[]
 }
 
@@ -78,6 +147,41 @@ export interface FinanceReceivableWriteOffResult {
   soMismatches: FinanceReceivableWriteOffSoMismatch[]
 }
 
+export interface CreditReceiptItemRemainderToPoolResult {
+  creditedAmount: number
+  remainingAfter: number
+}
+
+export interface FinanceReceivableWriteOffLedgerItem {
+  id: string
+  amount: number
+  writeOffSource: number
+  createTime?: string
+  financeReceiptId?: string
+  financeReceiptItemId?: string
+  financeReceiptCode?: string
+  financeReceivableId: string
+  receivableCode?: string
+  stockOutCode?: string
+  sellOrderCode?: string
+  customerId: string
+  customerName?: string
+  customerEnglishName?: string
+  pn?: string
+  brand?: string
+  currency: number
+  operatorUserId?: string
+  operatorUserName?: string
+  remark?: string
+}
+
+export interface FinanceReceivableWriteOffLedgerPage {
+  items: FinanceReceivableWriteOffLedgerItem[]
+  total: number
+  page: number
+  pageSize: number
+}
+
 export interface FinanceReceivableWriteOffRequest {
   allocations: FinanceReceivableWriteOffAllocation[]
   advancePoolAllocations?: FinanceAdvancePoolAllocation[]
@@ -93,10 +197,24 @@ export const financeReceivableApi = {
       RECEIVABLE_BASE,
       { params }
     ),
+  getById: (id: string) => apiClient.get<FinanceReceivable>(`${RECEIVABLE_BASE}/${encodeURIComponent(id)}`),
+  getWriteOffs: (id: string) =>
+    apiClient.get<FinanceReceivableWriteOffDetailItem[]>(`${RECEIVABLE_BASE}/${encodeURIComponent(id)}/write-offs`),
+  getWriteOffCustomerSummaries: (keyword?: string) =>
+    apiClient.get<FinanceWriteOffCustomerSummary[]>(`${WRITE_OFF_BASE}/customer-summaries`, {
+      params: keyword?.trim() ? { keyword: keyword.trim() } : undefined
+    }),
+  getWriteOffLedger: (params: { keyword?: string; page?: number; pageSize?: number }) =>
+    apiClient.get<FinanceReceivableWriteOffLedgerPage>(`${WRITE_OFF_BASE}/ledger`, { params }),
   getWriteOffCandidates: (customerId: string) =>
     apiClient.get<FinanceReceivableWriteOffCandidates>(`${WRITE_OFF_BASE}/candidates`, {
       params: { customerId }
     }),
   applyWriteOff: (payload: FinanceReceivableWriteOffRequest) =>
-    apiClient.post<FinanceReceivableWriteOffResult>(WRITE_OFF_BASE, payload)
+    apiClient.post<FinanceReceivableWriteOffResult>(WRITE_OFF_BASE, payload),
+  creditReceiptItemRemainderToAdvancePool: (receiptItemId: string, amount?: number) =>
+    apiClient.post<CreditReceiptItemRemainderToPoolResult>(
+      `${WRITE_OFF_BASE}/receipt-items/${encodeURIComponent(receiptItemId)}/credit-to-advance-pool`,
+      amount != null && amount > 0 ? { amount } : {}
+    )
 }

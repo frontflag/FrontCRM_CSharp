@@ -152,6 +152,7 @@ export interface FinanceReceiptItem {
   productId?: string
   pn?: string
   brand?: string
+  remark?: string
   verificationStatus: number
   verificationDone: number
   verificationToBe: number
@@ -165,12 +166,30 @@ export interface CreateFinanceReceiptItem {
   advanceSellOrderId?: string
   pn?: string
   brand?: string
+  remark?: string
 }
 
 export interface CreateFinanceReceiptPayload extends Omit<Partial<FinanceReceipt>, 'items'> {
   items?: CreateFinanceReceiptItem[]
   receiptPurpose?: number
   advanceSellOrderId?: string
+}
+
+export interface FinanceReceiptWriteOffRecord {
+  id: string
+  amount: number
+  writeOffSource: number
+  createTime?: string
+  financeReceiptItemId?: string
+  financeReceivableId: string
+  receivableCode?: string
+  stockOutCode?: string
+  sellOrderCode?: string
+  pn?: string
+  brand?: string
+  currency: number
+  operatorUserId?: string
+  operatorUserName?: string
 }
 
 export interface FinancePurchaseInvoice {
@@ -412,6 +431,8 @@ export const financeReceiptApi = {
     apiClient.get<PageResult<FinanceReceipt>>(RECEIPT_BASE, { params }),
   getById: (id: string) =>
     apiClient.get<FinanceReceipt>(`${RECEIPT_BASE}/${id}`),
+  getWriteOffs: (id: string) =>
+    apiClient.get<FinanceReceiptWriteOffRecord[]>(`${RECEIPT_BASE}/${id}/write-offs`),
   create: (data: CreateFinanceReceiptPayload) =>
     apiClient.post<FinanceReceipt>(RECEIPT_BASE, data),
   update: (id: string, data: Partial<FinanceReceipt>) =>

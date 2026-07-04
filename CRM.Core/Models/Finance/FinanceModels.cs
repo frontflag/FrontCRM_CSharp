@@ -374,6 +374,11 @@ namespace CRM.Core.Models.Finance
         [Column("advance_pool_amount", TypeName = "numeric(18,2)")]
         public decimal AdvancePoolAmount { get; set; }
 
+        /// <summary>备注</summary>
+        [StringLength(500)]
+        [Column("remark")]
+        public string? Remark { get; set; }
+
         [ForeignKey("FinanceReceiptId")]
         public virtual FinanceReceipt? Receipt { get; set; }
 

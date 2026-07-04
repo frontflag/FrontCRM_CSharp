@@ -110,6 +110,9 @@
         <el-button type="primary" :loading="refreshingFinancePaymentRemark" @click="onRefreshFinancePaymentRemark">
           刷新付款备注
         </el-button>
+        <el-button type="success" :loading="refreshingFinanceReceivables" @click="onRefreshFinanceReceivables">
+          刷新应收款
+        </el-button>
       </div>
       <div class="refresh-hint">回填 STOCK_OUT / STOCK_OUT_REVERSE 的 UnitCost、Amount、currency（调试临时工具）。</div>
       <div v-if="stockLedgerRefreshResult" class="simulate-result">
@@ -144,6 +147,34 @@
         <div>明细 LineRemark 更新：{{ financePaymentRemarkLegacyResult.itemsLineRemarkUpdated }} 条</div>
         <div>付款银行 Id 按名称纠正：{{ financePaymentRemarkLegacyResult.bankIdsResolvedFromName }} 条</div>
       </div>
+      <div class="refresh-hint refresh-hint--second">
+        「刷新应收款」：仅扫描销售出库（含历史类型 1 与现行 10）且状态为「出库完成」(4) 的单据并补生成应收；同时软删出库单尚未完成时误生成的历史应收。仅调试使用。
+      </div>
+      <div v-if="financeReceivableRefreshResult" class="simulate-result">
+        <div>出库完成(4) 销售出库：{{ financeReceivableRefreshResult.totalCompletedSalesStockOuts }} 条</div>
+        <div>已有应收款：{{ financeReceivableRefreshResult.alreadyHasReceivableCount }} 条</div>
+        <div>待补生成候选：{{ financeReceivableRefreshResult.candidateCount }} 条</div>
+        <div>新建应收款：{{ financeReceivableRefreshResult.createdCount }} 条</div>
+        <div>补写出库日期：{{ financeReceivableRefreshResult.stockOutDatesSyncedCount }} 条</div>
+        <div>移除过早应收：{{ financeReceivableRefreshResult.prematureReceivablesRemovedCount }} 条</div>
+        <div>跳过（不满足条件）：{{ financeReceivableRefreshResult.skippedIneligibleCount }} 条</div>
+        <div>失败：{{ financeReceivableRefreshResult.failedCount }} 条</div>
+        <div v-if="financeReceivableRefreshResult.createdStockOutCodes.length">
+          新建出库单号：{{ financeReceivableRefreshResult.createdStockOutCodes.join('，') }}
+        </div>
+        <div v-if="financeReceivableRefreshResult.skippedIneligibleStockOutCodes.length">
+          跳过出库单号：{{ financeReceivableRefreshResult.skippedIneligibleStockOutCodes.join('，') }}
+        </div>
+        <div v-if="financeReceivableRefreshResult.stockOutDatesSyncedStockOutCodes.length">
+          补写出库日期单号：{{ financeReceivableRefreshResult.stockOutDatesSyncedStockOutCodes.join('，') }}
+        </div>
+        <div v-if="financeReceivableRefreshResult.prematureReceivablesRemovedStockOutCodes.length">
+          移除过早应收单号：{{ financeReceivableRefreshResult.prematureReceivablesRemovedStockOutCodes.join('，') }}
+        </div>
+        <div v-if="financeReceivableRefreshResult.failedMessages.length">
+          失败明细：{{ financeReceivableRefreshResult.failedMessages.join('；') }}
+        </div>
+      </div>
     </section>
   </div>
 </template>
@@ -159,13 +190,15 @@ import {
   refreshSellOrderCommentSplit,
   refreshSellOrderItemCustomerPnFromComment,
   refreshFinancePaymentRemarkFromLegacy,
+  refreshFinanceReceivablesFromStockOuts,
   type SimulateBusinessChainResponse,
   type SimulateDataOrigin,
   type RfqChainPreview,
   type RefreshStockLedgerResult,
   type RefreshSellOrderCommentSplitResult,
   type RefreshSellOrderItemCustomerPnFromCommentResult,
-  type RefreshFinancePaymentLegacyRemarkResult
+  type RefreshFinancePaymentLegacyRemarkResult,
+  type RefreshFinanceReceivablesFromStockOutsResult
 } from '@/api/debug'
 import { getApiErrorMessage } from '@/utils/apiError'
 
@@ -318,6 +351,8 @@ const refreshingSellOrderItemCustomerPn = ref(false)
 const sellOrderItemCustomerPnResult = ref<RefreshSellOrderItemCustomerPnFromCommentResult | null>(null)
 const refreshingFinancePaymentRemark = ref(false)
 const financePaymentRemarkLegacyResult = ref<RefreshFinancePaymentLegacyRemarkResult | null>(null)
+const refreshingFinanceReceivables = ref(false)
+const financeReceivableRefreshResult = ref<RefreshFinanceReceivablesFromStockOutsResult | null>(null)
 
 const onPreviewRfqChain = async () => {
   const code = rfqChainCode.value.trim()
@@ -489,6 +524,35 @@ const onRefreshFinancePaymentRemark = async () => {
     ElMessage.error(getApiErrorMessage(e, '刷新付款备注失败'))
   } finally {
     refreshingFinancePaymentRemark.value = false
+  }
+}
+
+const onRefreshFinanceReceivables = async () => {
+  if (refreshingFinanceReceivables.value) return
+  try {
+    await ElMessageBox.confirm(
+      '将扫描出库完成(4) 的销售出库并补生成应收，同时移除准备出库阶段误生成的历史应收。是否继续？',
+      '确认刷新应收款',
+      { type: 'warning', confirmButtonText: '继续', cancelButtonText: '取消' }
+    )
+  } catch {
+    return
+  }
+  refreshingFinanceReceivables.value = true
+  try {
+    const result = await refreshFinanceReceivablesFromStockOuts()
+    financeReceivableRefreshResult.value = result
+    ElMessage.success(
+      `刷新完成：出库完成 ${result.totalCompletedSalesStockOuts} 条，` +
+        `候选 ${result.candidateCount} 条，新建 ${result.createdCount} 条，` +
+        `补写出库日期 ${result.stockOutDatesSyncedCount} 条，` +
+        `移除过早应收 ${result.prematureReceivablesRemovedCount} 条，` +
+        `跳过 ${result.skippedIneligibleCount} 条，失败 ${result.failedCount} 条`
+    )
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '刷新应收款失败'))
+  } finally {
+    refreshingFinanceReceivables.value = false
   }
 }
 

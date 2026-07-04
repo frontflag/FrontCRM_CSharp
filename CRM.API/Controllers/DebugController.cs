@@ -18,6 +18,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using System.Security.Claims;
 
 namespace CRM.API.Controllers
 {
@@ -32,6 +33,7 @@ namespace CRM.API.Controllers
         private readonly ISellOrderExtendLineSeqService _sellLineSeq;
         private readonly IPurchaseOrderExtendLineSeqService _poLineSeq;
         private readonly IStockInExtendLineSeqService _stockInLineSeq;
+        private readonly IFinanceReceivableService _financeReceivableService;
         private const short PoStatusInProgress = 50;
         private const short PoStatusCompleted = 100;
         private const short PoStatusAuditFailed = -1;
@@ -49,7 +51,8 @@ namespace CRM.API.Controllers
             IFinanceExchangeRateService financeExchangeRateService,
             ISellOrderExtendLineSeqService sellLineSeq,
             IPurchaseOrderExtendLineSeqService poLineSeq,
-            IStockInExtendLineSeqService stockInLineSeq)
+            IStockInExtendLineSeqService stockInLineSeq,
+            IFinanceReceivableService financeReceivableService)
         {
             _context = context;
             _configuration = configuration;
@@ -58,6 +61,7 @@ namespace CRM.API.Controllers
             _sellLineSeq = sellLineSeq;
             _poLineSeq = poLineSeq;
             _stockInLineSeq = stockInLineSeq;
+            _financeReceivableService = financeReceivableService;
         }
 
         public class DebugItemDto
@@ -137,6 +141,24 @@ namespace CRM.API.Controllers
         }
 
         /// <summary>Debug：将历史打包在 <c>financepayment.Remark</c> 中的请款信息拆回结构化列并清空 Remark。</summary>
+        public class RefreshFinanceReceivablesFromStockOutsResultDto
+        {
+            public int TotalCompletedSalesStockOuts { get; set; }
+            public int AlreadyHasReceivableCount { get; set; }
+            public int CandidateCount { get; set; }
+            public int CreatedCount { get; set; }
+            public int SkippedIneligibleCount { get; set; }
+            public int FailedCount { get; set; }
+            public int StockOutDatesSyncedCount { get; set; }
+            public int PrematureReceivablesRemovedCount { get; set; }
+            public List<string> CreatedStockOutCodes { get; set; } = new();
+            public List<string> SkippedIneligibleStockOutCodes { get; set; } = new();
+            public List<string> StockOutDatesSyncedStockOutCodes { get; set; } = new();
+            public List<string> PrematureReceivablesRemovedStockOutCodes { get; set; } = new();
+            public List<string> FailedStockOutCodes { get; set; } = new();
+            public List<string> FailedMessages { get; set; } = new();
+        }
+
         public class RefreshFinancePaymentLegacyRemarkResultDto
         {
             public int TotalPaymentsRemarkNonEmpty { get; set; }
@@ -1280,6 +1302,48 @@ namespace CRM.API.Controllers
                 return StatusCode(500,
                     ApiResponse<RefreshFinancePaymentLegacyRemarkResultDto>.Fail(
                         $"刷新付款备注失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>
+        /// Debug：为出库完成(4)的销售出库补生成应收款；并清理非完成态误生成的历史应收。
+        /// </summary>
+        [Authorize]
+        [HttpPost("refresh-finance-receivables-from-stock-outs")]
+        public async Task<ActionResult<ApiResponse<RefreshFinanceReceivablesFromStockOutsResultDto>>> RefreshFinanceReceivablesFromStockOuts()
+        {
+            try
+            {
+                var actingUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var backfill = await _financeReceivableService.BackfillReceivablesFromCompletedStockOutsAsync(actingUserId);
+
+                var result = new RefreshFinanceReceivablesFromStockOutsResultDto
+                {
+                    TotalCompletedSalesStockOuts = backfill.TotalCompletedSalesStockOuts,
+                    AlreadyHasReceivableCount = backfill.AlreadyHasReceivableCount,
+                    CandidateCount = backfill.CandidateCount,
+                    CreatedCount = backfill.CreatedCount,
+                    SkippedIneligibleCount = backfill.SkippedIneligibleCount,
+                    FailedCount = backfill.FailedCount,
+                    StockOutDatesSyncedCount = backfill.StockOutDatesSyncedCount,
+                    PrematureReceivablesRemovedCount = backfill.PrematureReceivablesRemovedCount,
+                    CreatedStockOutCodes = backfill.CreatedStockOutCodes,
+                    SkippedIneligibleStockOutCodes = backfill.SkippedIneligibleStockOutCodes,
+                    StockOutDatesSyncedStockOutCodes = backfill.StockOutDatesSyncedStockOutCodes,
+                    PrematureReceivablesRemovedStockOutCodes = backfill.PrematureReceivablesRemovedStockOutCodes,
+                    FailedStockOutCodes = backfill.FailedStockOutCodes,
+                    FailedMessages = backfill.FailedMessages
+                };
+
+                return Ok(ApiResponse<RefreshFinanceReceivablesFromStockOutsResultDto>.Ok(
+                    result,
+                    $"刷新应收款完成：新建 {result.CreatedCount} 条，补写出库日期 {result.StockOutDatesSyncedCount} 条，移除过早应收 {result.PrematureReceivablesRemovedCount} 条，跳过 {result.SkippedIneligibleCount} 条，失败 {result.FailedCount} 条"));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500,
+                    ApiResponse<RefreshFinanceReceivablesFromStockOutsResultDto>.Fail(
+                        $"刷新应收款失败: {ex.Message}", 500));
             }
         }
 

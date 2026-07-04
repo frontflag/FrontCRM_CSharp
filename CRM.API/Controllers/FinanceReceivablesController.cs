@@ -47,7 +47,7 @@ public class FinanceReceivablesController : ControllerBase
                 PageSize = pageSize,
                 CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
             };
-            var result = await _service.GetPagedAsync(request);
+            var result = await _service.GetPagedListAsync(request);
             return Ok(new
             {
                 success = true,
@@ -66,6 +66,51 @@ public class FinanceReceivablesController : ControllerBase
             return StatusCode(500, new { success = false, message = ex.Message });
         }
     }
+
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(string id)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(id))
+                return BadRequest(new { success = false, message = "请指定应收款" });
+
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var data = await _service.GetByIdAsync(id, userId);
+            if (data == null)
+                return NotFound(new { success = false, message = "应收款不存在或无权查看" });
+
+            return Ok(new { success = true, data });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "获取应收款详情失败 Id={Id}", id);
+            return StatusCode(500, new { success = false, message = ex.Message });
+        }
+    }
+
+    [HttpGet("{id}/write-offs")]
+    public async Task<IActionResult> GetWriteOffs(string id)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(id))
+                return BadRequest(new { success = false, message = "请指定应收款" });
+
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var receivable = await _service.GetByIdAsync(id, userId);
+            if (receivable == null)
+                return NotFound(new { success = false, message = "应收款不存在或无权查看" });
+
+            var data = await _service.GetWriteOffsByReceivableIdAsync(id, userId);
+            return Ok(new { success = true, data });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "获取应收款核销记录失败 Id={Id}", id);
+            return StatusCode(500, new { success = false, message = ex.Message });
+        }
+    }
 }
 
 [RequirePermission("finance-receipt.read")]
@@ -74,14 +119,68 @@ public class FinanceReceivablesController : ControllerBase
 public class FinanceReceivableWriteOffsController : ControllerBase
 {
     private readonly IFinanceReceivableService _service;
+    private readonly IFinanceCustomerAdvanceService _advanceService;
     private readonly ILogger<FinanceReceivableWriteOffsController> _logger;
 
     public FinanceReceivableWriteOffsController(
         IFinanceReceivableService service,
+        IFinanceCustomerAdvanceService advanceService,
         ILogger<FinanceReceivableWriteOffsController> logger)
     {
         _service = service;
+        _advanceService = advanceService;
         _logger = logger;
+    }
+
+    [HttpGet("ledger")]
+    public async Task<IActionResult> GetLedger(
+        [FromQuery] string? keyword,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var result = await _service.GetWriteOffLedgerPagedAsync(new FinanceReceivableWriteOffLedgerQueryRequest
+            {
+                Keyword = keyword,
+                Page = page,
+                PageSize = pageSize,
+                CurrentUserId = userId
+            });
+            return Ok(new
+            {
+                success = true,
+                data = new
+                {
+                    items = result.Items,
+                    total = result.TotalCount,
+                    page = result.PageIndex,
+                    pageSize = result.PageSize
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "获取收款核销流水失败");
+            return StatusCode(500, new { success = false, message = ex.Message });
+        }
+    }
+
+    [HttpGet("customer-summaries")]
+    public async Task<IActionResult> GetCustomerSummaries([FromQuery] string? keyword)
+    {
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var data = await _service.GetWriteOffCustomerSummariesAsync(keyword, userId);
+            return Ok(new { success = true, data });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "获取收款核销客户汇总失败");
+            return StatusCode(500, new { success = false, message = ex.Message });
+        }
     }
 
     [HttpGet("candidates")]
@@ -134,6 +233,46 @@ public class FinanceReceivableWriteOffsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "收款核销失败");
+            return StatusCode(500, new { success = false, message = ex.Message });
+        }
+    }
+
+    public class CreditReceiptItemRemainderToPoolRequest
+    {
+        public decimal? Amount { get; set; }
+    }
+
+    [RequirePermission("finance-receipt.write")]
+    [HttpPost("receipt-items/{receiptItemId}/credit-to-advance-pool")]
+    public async Task<IActionResult> CreditReceiptItemRemainderToAdvancePool(
+        string receiptItemId,
+        [FromBody] CreditReceiptItemRemainderToPoolRequest? body)
+    {
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var result = await _advanceService.CreditReceiptItemRemainderToAdvancePoolAsync(
+                receiptItemId,
+                body?.Amount,
+                userId);
+            return Ok(new
+            {
+                success = true,
+                data = result,
+                message = $"已转入预收池 {result.CreditedAmount:0.##}，收款明细剩余可核销 {result.RemainingAfter:0.##}"
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "收款余额转预收失败 ReceiptItemId={ReceiptItemId}", receiptItemId);
             return StatusCode(500, new { success = false, message = ex.Message });
         }
     }

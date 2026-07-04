@@ -307,3 +307,22 @@
     background: rgba(0, 212, 255, 0.03);
   }
 }
+
+// 财务金额强调色 — 与应收款详情 info-value--amount / --received / --pending 一致
+.finance-amount-emphasis {
+  font-family: 'Noto Sans SC', sans-serif;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+
+  &--amount {
+    color: $cyan-primary;
+  }
+
+  &--verified {
+    color: $success-color;
+  }
+
+  &--pending {
+    color: #e8a838;
+  }
+}

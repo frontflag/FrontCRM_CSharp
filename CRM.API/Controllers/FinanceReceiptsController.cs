@@ -15,17 +15,20 @@ namespace CRM.API.Controllers
     public class FinanceReceiptsController : ControllerBase
     {
         private readonly IFinanceReceiptService _service;
+        private readonly IFinanceReceivableService _receivableService;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IRbacService _rbacService;
         private readonly ILogger<FinanceReceiptsController> _logger;
 
         public FinanceReceiptsController(
             IFinanceReceiptService service,
+            IFinanceReceivableService receivableService,
             IDataPermissionService dataPermissionService,
             IRbacService rbacService,
             ILogger<FinanceReceiptsController> logger)
         {
             _service = service;
+            _receivableService = receivableService;
             _dataPermissionService = dataPermissionService;
             _rbacService = rbacService;
             _logger = logger;
@@ -83,6 +86,41 @@ namespace CRM.API.Controllers
             }
             catch (Exception ex)
             {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>获取收款单核销流水</summary>
+        [HttpGet("{id}/write-offs")]
+        public async Task<IActionResult> GetWriteOffs(string id)
+        {
+            try
+            {
+                var receipt = await _service.GetByIdAsync(id);
+                if (receipt == null) return NotFound(new { success = false, message = "收款单不存在" });
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessFinanceReceiptAsync(userId, receipt))
+                    return StatusCode(403, new { success = false, message = "无权限访问该收款单" });
+
+                var items = await _receivableService.GetWriteOffsByReceiptIdAsync(id);
+                if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
+                {
+                    foreach (var item in items)
+                    {
+                        item.Amount = 0m;
+                        item.PN = null;
+                        item.Brand = null;
+                        item.StockOutCode = null;
+                        item.SellOrderCode = null;
+                        item.ReceivableCode = null;
+                    }
+                }
+
+                return Ok(new { success = true, data = items });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取收款单核销流水失败 ReceiptId={ReceiptId}", id);
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }

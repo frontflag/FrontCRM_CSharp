@@ -40,12 +40,19 @@
     </div>
 
     <CrmDataTable
-      column-layout-key="finance-receivable-list-main"
+      column-layout-key="finance-receivable-list-main-v4"
       :columns="tableColumns"
       :show-column-settings="false"
       :data="tableData"
       v-loading="loading"
+      @header-dragend="onReceivableTableHeaderDragEnd"
     >
+      <template #col-verificationStatus="{ row }">
+        <el-tag :type="verificationTagType(row.verificationStatus)" size="small">
+          {{ verificationLabel(row.verificationStatus) }}
+        </el-tag>
+      </template>
+      <template #col-stockOutDate="{ row }">{{ formatDate(row.stockOutDate) }}</template>
       <template #col-receivableCode="{ row }">
         <span class="code-text">{{ row.receivableCode || '—' }}</span>
       </template>
@@ -54,15 +61,71 @@
           {{ row.stockOutCode }}
         </router-link>
       </template>
-      <template #col-verificationStatus="{ row }">
-        <el-tag :type="verificationTagType(row.verificationStatus)" size="small">
-          {{ verificationLabel(row.verificationStatus) }}
-        </el-tag>
+      <template #col-customer-header>
+        <CustomerExtendColumnHeader
+          :active-field="customerExtendActiveField"
+          @set-active-field="setCustomerExtendActiveField"
+        />
       </template>
-      <template #col-amount="{ row }">{{ formatAmount(row.amount) }}</template>
-      <template #col-verifiedDone="{ row }">{{ formatAmount(row.verifiedDone) }}</template>
-      <template #col-verifiedToBe="{ row }">{{ formatAmount(row.verifiedToBe) }}</template>
-      <template #col-stockOutDate="{ row }">{{ formatDate(row.stockOutDate) }}</template>
+      <template #col-customer="{ row }">
+        <CustomerExtendCell
+          :row="row"
+          :active-field="customerExtendActiveField"
+          :masked="maskSaleSensitiveFields"
+          :empty-text="t('quoteList.na')"
+        />
+      </template>
+      <template #col-salesUserName="{ row }">
+        {{ maskSaleSensitiveFields ? '—' : (row.salesUserName || '—') }}
+      </template>
+      <template #col-amount="{ row }">
+        <span class="amount-text amount-text--receivable">{{
+          maskSaleSensitiveFields ? '—' : formatAmountWithCurrency(row.amount, row.currency)
+        }}</span>
+      </template>
+      <template #col-verifiedDone="{ row }">
+        <span class="amount-text amount-text--received">{{
+          maskSaleSensitiveFields ? '—' : formatAmountWithCurrency(row.verifiedDone, row.currency)
+        }}</span>
+      </template>
+      <template #col-verifiedToBe="{ row }">
+        <span class="amount-text amount-text--pending">{{
+          maskSaleSensitiveFields ? '—' : formatAmountWithCurrency(row.verifiedToBe, row.currency)
+        }}</span>
+      </template>
+      <template #col-actions-header>
+        <div class="list-op-col-header--icon-only">
+          <button
+            type="button"
+            class="op-col-toggle-btn list-op-col-toggle"
+            :aria-label="opColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+            @click.stop="toggleOpCol"
+          >
+            {{ opColExpanded ? '>' : '<' }}
+          </button>
+        </div>
+      </template>
+      <template #col-actions="{ row }">
+        <div @click.stop @dblclick.stop>
+          <div v-if="opColExpanded" class="action-btns">
+            <el-button size="small" text type="primary" @click.stop="openDetail(row)">
+              {{ t('financeReceivableList.actions.detail') }}
+            </el-button>
+          </div>
+          <el-dropdown v-else trigger="click" placement="bottom-end">
+            <div class="op-more-dropdown-trigger">
+              <button type="button" class="op-more-trigger">...</button>
+            </div>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item @click.stop="openDetail(row)">
+                  <span class="op-more-item op-more-item--primary">{{ t('financeReceivableList.actions.detail') }}</span>
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
+      </template>
     </CrmDataTable>
 
     <div class="pagination-wrap">
@@ -85,13 +148,46 @@ import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Search } from '@element-plus/icons-vue'
 import { financeReceivableApi, type FinanceReceivable } from '@/api/financeReceivable'
+import { CURRENCY_MAP } from '@/api/finance'
 import { useFinanceWriteGate } from '@/composables/useDepartmentDataReadOnly'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import CustomerExtendColumnHeader from '@/components/list/CustomerExtendColumnHeader.vue'
+import CustomerExtendCell from '@/components/list/CustomerExtendCell.vue'
+import { useCustomerExtendColumn, isCustomerExtendTableColumn } from '@/composables/useCustomerExtendColumn'
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 
 const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
 const { canWriteFinanceReceipt } = useFinanceWriteGate()
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
+const {
+  expanded: customerExtendExpanded,
+  activeField: customerExtendActiveField,
+  colWidth: customerExtendColWidth,
+  colMinWidth: customerExtendColMinWidth,
+  setActiveField: setCustomerExtendActiveField,
+  applyOuterWidthFromTable: applyCustomerExtendOuterWidth
+} = useCustomerExtendColumn()
+
+function onReceivableTableHeaderDragEnd(
+  newWidth: number,
+  _oldWidth: number,
+  column: { property?: string; label?: string }
+) {
+  if (!isCustomerExtendTableColumn(column)) return
+  applyCustomerExtendOuterWidth(newWidth)
+}
+
+const opColExpanded = ref(false)
+const OP_COL_COLLAPSED_WIDTH = 43
+const OP_COL_EXPANDED_WIDTH = 88
+const OP_COL_EXPANDED_MIN_WIDTH = 80
+const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
+const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_WIDTH : OP_COL_COLLAPSED_WIDTH))
+function toggleOpCol() {
+  opColExpanded.value = !opColExpanded.value
+}
 
 const loading = ref(false)
 const tableData = ref<FinanceReceivable[]>([])
@@ -105,23 +201,75 @@ const query = reactive({
   pageSize: 20
 })
 
-const tableColumns = computed<CrmTableColumnDef[]>(() => [
-  { key: 'receivableCode', prop: 'receivableCode', label: t('financeReceivableList.columns.code'), minWidth: 120 },
-  { key: 'stockOutCode', prop: 'stockOutCode', label: t('financeReceivableList.columns.stockOutCode'), minWidth: 130 },
-  { key: 'customerName', prop: 'customerName', label: t('financeReceivableList.columns.customer'), minWidth: 140 },
-  { key: 'pn', prop: 'pn', label: t('financeReceivableList.columns.pn'), minWidth: 120 },
-  { key: 'brand', prop: 'brand', label: t('financeReceivableList.columns.brand'), minWidth: 100 },
-  { key: 'outboundQty', prop: 'outboundQty', label: t('financeReceivableList.columns.qty'), width: 90, align: 'right' },
-  { key: 'amount', prop: 'amount', label: t('financeReceivableList.columns.amount'), width: 110, align: 'right' },
-  { key: 'verifiedDone', prop: 'verifiedDone', label: t('financeReceivableList.columns.verifiedDone'), width: 110, align: 'right' },
-  { key: 'verifiedToBe', prop: 'verifiedToBe', label: t('financeReceivableList.columns.verifiedToBe'), width: 110, align: 'right' },
-  { key: 'verificationStatus', prop: 'verificationStatus', label: t('financeReceivableList.columns.verificationStatus'), width: 100 },
-  { key: 'stockOutDate', prop: 'stockOutDate', label: t('financeReceivableList.columns.stockOutDate'), width: 120 }
-])
+const tableColumns = computed<CrmTableColumnDef[]>(() => {
+  void customerExtendExpanded.value
+  void customerExtendColWidth.value
+  return [
+    {
+      key: 'verificationStatus',
+      prop: 'verificationStatus',
+      label: t('financeReceivableList.columns.verificationStatus'),
+      width: 108,
+      minWidth: 108,
+      align: 'center'
+    },
+    { key: 'stockOutDate', prop: 'stockOutDate', label: t('financeReceivableList.columns.stockOutDate'), width: 120 },
+    { key: 'receivableCode', prop: 'receivableCode', label: t('financeReceivableList.columns.code'), minWidth: 120 },
+    { key: 'stockOutCode', prop: 'stockOutCode', label: t('financeReceivableList.columns.stockOutCode'), minWidth: 130 },
+    {
+      key: 'customer',
+      label: t('common.customerExtendCol.columnTitle'),
+      prop: 'customer',
+      minWidth: customerExtendColMinWidth.value,
+      width: customerExtendColWidth.value,
+      showOverflowTooltip: true,
+      className: 'customer-extend-col',
+      labelClassName: 'customer-extend-col'
+    },
+    {
+      key: 'salesUserName',
+      prop: 'salesUserName',
+      label: t('financeReceivableList.columns.salesUser'),
+      width: 96,
+      minWidth: 96,
+      showOverflowTooltip: true
+    },
+    { key: 'pn', prop: 'pn', label: t('financeReceivableList.columns.pn'), minWidth: 120 },
+    { key: 'brand', prop: 'brand', label: t('financeReceivableList.columns.brand'), minWidth: 100 },
+    { key: 'outboundQty', prop: 'outboundQty', label: t('financeReceivableList.columns.qty'), width: 112, minWidth: 112, align: 'right' },
+    { key: 'amount', prop: 'amount', label: t('financeReceivableList.columns.amount'), width: 190, minWidth: 180, align: 'right', className: 'receivable-amount-col', labelClassName: 'receivable-amount-col' },
+    { key: 'verifiedDone', prop: 'verifiedDone', label: t('financeReceivableList.columns.verifiedDone'), width: 190, minWidth: 180, align: 'right', className: 'receivable-amount-col', labelClassName: 'receivable-amount-col' },
+    { key: 'verifiedToBe', prop: 'verifiedToBe', label: t('financeReceivableList.columns.verifiedToBe'), width: 190, minWidth: 180, align: 'right', className: 'receivable-amount-col', labelClassName: 'receivable-amount-col' },
+    {
+      key: 'actions',
+      label: t('financeReceivableList.columns.actions'),
+      width: opColWidth.value,
+      minWidth: opColMinWidth.value,
+      fixed: 'right',
+      hideable: false,
+      pinned: 'end',
+      reorderable: false,
+      className: 'op-col',
+      labelClassName: 'op-col',
+      resizable: false
+    }
+  ]
+})
 
 function formatAmount(v?: number) {
   if (v == null) return '—'
   return Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function currencyLabel(currency?: number) {
+  if (currency == null) return ''
+  return CURRENCY_MAP[currency] ?? String(currency)
+}
+
+function formatAmountWithCurrency(amount?: number, currency?: number) {
+  if (amount == null) return '—'
+  if (currency == null) return formatAmount(amount)
+  return `${formatAmount(amount)} ${currencyLabel(currency)}`
 }
 
 function formatDate(v?: string) {
@@ -180,10 +328,15 @@ watch(
 function goWriteOff() {
   router.push({ name: 'FinanceReceiptWriteOff' })
 }
+
+function openDetail(row: FinanceReceivable) {
+  router.push({ name: 'FinanceReceivableDetail', params: { id: row.id } })
+}
 </script>
 
 <style scoped lang="scss">
 @import './finance-common.scss';
+@import '@/assets/styles/variables.scss';
 
 .pagination-wrap {
   margin-top: 16px;
@@ -195,5 +348,24 @@ function goWriteOff() {
   color: var(--el-color-primary);
   text-decoration: none;
   &:hover { text-decoration: underline; }
+}
+
+.amount-text {
+  white-space: nowrap;
+
+  &--receivable {
+    color: $cyan-primary;
+    font-weight: 700;
+  }
+
+  &--received {
+    color: $success-color;
+    font-weight: 700;
+  }
+
+  &--pending {
+    color: #e8a838;
+    font-weight: 700;
+  }
 }
 </style>

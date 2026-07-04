@@ -21,4 +21,13 @@ public interface IFinanceReceivableListQuery
     Task<PagedResult<FinanceReceivable>> GetPagedAsync(
         FinanceReceivableQueryRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<FinanceReceivable?> GetByIdScopedAsync(
+        string id,
+        string? currentUserId,
+        CancellationToken cancellationToken = default);
+
+    Task<PagedResult<FinanceReceivableWriteOffLedgerItem>> GetWriteOffLedgerPagedAsync(
+        FinanceReceivableWriteOffLedgerQueryRequest request,
+        CancellationToken cancellationToken = default);
 }

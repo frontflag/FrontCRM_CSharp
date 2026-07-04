@@ -48,6 +48,10 @@ public class FinanceReceivable : BaseGuidEntity, ISoftDeletable
     [Column("customer_name")]
     public string? CustomerName { get; set; }
 
+    /// <summary>客户英文名（详情/列表 API 填充，不落库）</summary>
+    [NotMapped]
+    public string? CustomerEnglishName { get; set; }
+
     [StringLength(36)]
     [Column("sales_user_id")]
     public string? SalesUserId { get; set; }

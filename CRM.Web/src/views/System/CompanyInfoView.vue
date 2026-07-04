@@ -227,6 +227,7 @@
                 </template>
               </el-table-column>
             </el-table>
+            <p class="bank-info-list-hint">{{ t('companyInfo.bank.listDblClickHint') }}</p>
           </div>
 
           <template v-else>
@@ -1537,6 +1538,13 @@ onUnmounted(() => {
 
 .bank-info-list-wrap {
   margin-bottom: 16px;
+}
+
+.bank-info-list-hint {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: $text-muted;
+  line-height: 1.5;
 }
 
 .bank-info-list-table {

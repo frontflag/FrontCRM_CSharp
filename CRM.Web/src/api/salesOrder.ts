@@ -183,15 +183,24 @@ export interface SalesOrderDetailTabAggregates {
     sellOrderItemId?: string | null
     createTime: string
   }>
-  receipts: Array<{
+  receiptWriteOffs: Array<{
     id: string
-    financeReceiptCode: string
-    status: number
+    amount: number
+    writeOffSource: number
+    createTime?: string | null
+    financeReceiptId?: string | null
+    financeReceiptCode?: string | null
+    financeReceivableId: string
+    receivableCode?: string | null
+    stockOutCode?: string | null
+    sellOrderCode?: string | null
     customerName?: string | null
-    receiptAmount: number
-    receiptCurrency: number
-    receiptDate?: string | null
-    createTime: string
+    customerEnglishName?: string | null
+    pn?: string | null
+    brand?: string | null
+    currency: number
+    operatorUserName?: string | null
+    remark?: string | null
   }>
   sellInvoices: Array<{
     id: string

@@ -937,6 +937,12 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '应收款', permission: 'finance-receipt.read' }
       },
       {
+        path: 'finance/receivables/:id',
+        name: 'FinanceReceivableDetail',
+        component: () => import('@/views/Finance/FinanceReceivableDetail.vue'),
+        meta: { requiresAuth: true, title: '应收款详情', permission: 'finance-receipt.read' }
+      },
+      {
         path: 'finance/customer-advances',
         name: 'FinanceCustomerAdvanceList',
         component: () => import('@/views/Finance/FinanceCustomerAdvanceList.vue'),
@@ -947,6 +953,12 @@ const routes: RouteRecordRaw[] = [
         name: 'FinanceReceiptWriteOff',
         component: () => import('@/views/Finance/FinanceReceiptWriteOffPage.vue'),
         meta: { requiresAuth: true, title: '收款核销', permission: 'finance-receipt.read' }
+      },
+      {
+        path: 'finance/receipt-write-off/ledger',
+        name: 'FinanceReceiptWriteOffLedger',
+        component: () => import('@/views/Finance/FinanceReceiptWriteOffLedgerPage.vue'),
+        meta: { requiresAuth: true, title: '收款核销流水', permission: 'finance-receipt.read' }
       },
       {
         path: 'finance/purchase-invoices',

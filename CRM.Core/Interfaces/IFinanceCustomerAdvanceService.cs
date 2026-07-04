@@ -32,6 +32,12 @@ public class FinanceCustomerAdvanceBalanceDto
     public decimal TotalApplied { get; set; }
 }
 
+public class CreditReceiptItemRemainderToPoolResult
+{
+    public decimal CreditedAmount { get; set; }
+    public decimal RemainingAfter { get; set; }
+}
+
 public class FinanceReceivableWriteOffSoMismatch
 {
     public string FinanceReceivableId { get; set; } = string.Empty;
@@ -82,6 +88,13 @@ public interface IFinanceCustomerAdvanceService
         FinanceReceiptItem item,
         decimal amount,
         string? actingUserId = null);
+
+    /// <summary>将收款明细可核销余额（全部或指定金额）手动转入客户预收池。</summary>
+    Task<CreditReceiptItemRemainderToPoolResult> CreditReceiptItemRemainderToAdvancePoolAsync(
+        string receiptItemId,
+        decimal? amount = null,
+        string? actingUserId = null,
+        CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<FinanceCustomerAdvanceBalanceDto>> GetBalancesForCustomerAsync(string customerId);
 

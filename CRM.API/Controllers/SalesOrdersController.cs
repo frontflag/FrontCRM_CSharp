@@ -1,4 +1,5 @@
 using CRM.Core.Constants;
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
 using CRM.Core.Models.Customer;
@@ -32,6 +33,7 @@ namespace CRM.API.Controllers
         private readonly IRepository<SellOrderItemExtend> _soItemExtendRepo;
         private readonly IOperationLogQueryService _operationLogQuery;
         private readonly ILogOperationAppendService _logOperationAppend;
+        private readonly IFinanceReceivableService _financeReceivableService;
         private readonly ApplicationDbContext _db;
         private readonly ILogger<SalesOrdersController> _logger;
 
@@ -44,6 +46,7 @@ namespace CRM.API.Controllers
             IRepository<SellOrderItemExtend> soItemExtendRepo,
             IOperationLogQueryService operationLogQuery,
             ILogOperationAppendService logOperationAppend,
+            IFinanceReceivableService financeReceivableService,
             ApplicationDbContext db,
             ILogger<SalesOrdersController> logger)
         {
@@ -55,6 +58,7 @@ namespace CRM.API.Controllers
             _soItemExtendRepo = soItemExtendRepo;
             _operationLogQuery = operationLogQuery;
             _logOperationAppend = logOperationAppend;
+            _financeReceivableService = financeReceivableService;
             _db = db;
             _logger = logger;
         }
@@ -286,7 +290,7 @@ namespace CRM.API.Controllers
             }
         }
 
-        /// <summary>销售订单详情页：底部页签用下游列表（需求明细/采购申请/采购订单明细/入库/库存/出库通知/出库/收款/销项发票）。</summary>
+        /// <summary>销售订单详情页：底部页签用下游列表（需求明细/采购申请/采购订单明细/入库/库存/出库通知/出库/收款核销/销项发票）。</summary>
         [HttpGet("{id:guid}/detail-tab-aggregates")]
         public async Task<IActionResult> GetDetailTabAggregates(string id)
         {
@@ -308,7 +312,7 @@ namespace CRM.API.Controllers
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
-                var data = await BuildSalesOrderDetailTabAggregatesPayloadAsync(id, itemIds, sellOrderItemIdScope: null, mask521, mask511);
+                var data = await BuildSalesOrderDetailTabAggregatesPayloadAsync(id, itemIds, sellOrderItemIdScope: null, mask521, mask511, userId);
                 return Ok(new { success = true, data });
             }
             catch (Exception ex)
@@ -347,7 +351,7 @@ namespace CRM.API.Controllers
                 var mask521 = SaleSensitiveFieldMask521.ShouldMask(summary);
                 var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
 
-                var data = await BuildSalesOrderDetailTabAggregatesPayloadAsync(id, orderLineIds, sellOrderItemIdScope: lineId, mask521, mask511);
+                var data = await BuildSalesOrderDetailTabAggregatesPayloadAsync(id, orderLineIds, sellOrderItemIdScope: lineId, mask521, mask511, userId);
                 return Ok(new { success = true, data });
             }
             catch (Exception ex)
@@ -357,13 +361,14 @@ namespace CRM.API.Controllers
             }
         }
 
-        /// <param name="sellOrderItemIdScope">非 null 时：采购申请、采购订单明细、出库通知、收款明细仅保留该销售明细；在库/出库/销项发票链仅使用该明细。</param>
+        /// <param name="sellOrderItemIdScope">非 null 时：采购申请、采购订单明细、出库通知、收款核销仅保留该销售明细；在库/出库/销项发票链仅使用该明细。</param>
         private async Task<object> BuildSalesOrderDetailTabAggregatesPayloadAsync(
             string orderId,
             IReadOnlyList<string> allOrderLineIds,
             string? sellOrderItemIdScope,
             bool mask521,
-            bool mask511)
+            bool mask511,
+            string? currentUserId)
         {
             var itemIds = sellOrderItemIdScope != null
                 ? new List<string> { sellOrderItemIdScope }
@@ -577,42 +582,41 @@ namespace CRM.API.Controllers
                     .ToListAsync()).Cast<object>().ToList();
             }
 
-            var receiptItemQuery = _db.FinanceReceiptItems.AsNoTracking();
-            if (sellOrderItemIdScope != null)
-                receiptItemQuery = receiptItemQuery.Where(i => i.SellOrderItemId == sellOrderItemIdScope);
-            else
-                receiptItemQuery = receiptItemQuery.Where(i => i.SellOrderId == orderId
-                    || (i.SellOrderItemId != null && itemIds.Contains(i.SellOrderItemId!)));
-            var receiptHeaderIds = await receiptItemQuery
-                .Select(i => i.FinanceReceiptId)
-                .Distinct()
-                .ToListAsync();
+            var receiptWriteOffEntities = itemIds.Count == 0
+                ? Array.Empty<FinanceReceivableWriteOffLedgerItem>()
+                : await _financeReceivableService.GetWriteOffLedgerBySellOrderItemIdsAsync(itemIds, currentUserId);
 
-            var receiptEntities = await _db.FinanceReceipts.AsNoTracking()
-                .Where(r => receiptHeaderIds.Contains(r.Id))
-                .OrderByDescending(r => r.CreateTime)
-                .ToListAsync();
-
-            var receiptRows = receiptEntities
-                .Select(r =>
+            var receiptWriteOffRows = receiptWriteOffEntities
+                .Select(row =>
                 {
-                    var cname = r.CustomerName;
-                    var amt = r.ReceiptAmount;
+                    var amt = row.Amount;
+                    var cname = row.CustomerName;
+                    var cnameEn = row.CustomerEnglishName;
                     if (mask521)
                     {
-                        cname = null;
                         amt = 0m;
+                        cname = null;
+                        cnameEn = null;
                     }
-                    return new
+                    return (object)new
                     {
-                        id = r.Id,
-                        financeReceiptCode = r.FinanceReceiptCode,
-                        r.Status,
+                        id = row.Id,
+                        amount = amt,
+                        writeOffSource = row.WriteOffSource,
+                        createTime = row.CreateTime,
+                        financeReceiptId = row.FinanceReceiptId,
+                        financeReceiptCode = row.FinanceReceiptCode,
+                        financeReceivableId = row.FinanceReceivableId,
+                        receivableCode = row.ReceivableCode,
+                        stockOutCode = row.StockOutCode,
+                        sellOrderCode = row.SellOrderCode,
                         customerName = cname,
-                        receiptAmount = amt,
-                        r.ReceiptCurrency,
-                        r.ReceiptDate,
-                        r.CreateTime
+                        customerEnglishName = cnameEn,
+                        pn = row.PN,
+                        brand = row.Brand,
+                        currency = row.Currency,
+                        operatorUserName = row.OperatorUserName,
+                        remark = row.Remark
                     };
                 })
                 .ToList();
@@ -815,7 +819,7 @@ namespace CRM.API.Controllers
                 stockItems = stockItemRows,
                 stockOutRequests = outReqRows,
                 stockOuts = stockOutRows,
-                receipts = receiptRows,
+                receiptWriteOffs = receiptWriteOffRows,
                 sellInvoices = sellInvRows,
                 qcImages = qcImageRows
             };

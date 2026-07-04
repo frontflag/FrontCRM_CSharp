@@ -7,6 +7,9 @@ namespace CRM.Core.Services;
 
 public class FinanceCustomerAdvanceService : IFinanceCustomerAdvanceService
 {
+    private const short ReceiptApproved = 2;
+    private const short ReceiptReceived = 3;
+
     private readonly IRepository<FinanceCustomerAdvance> _advanceRepo;
     private readonly IRepository<FinanceCustomerAdvanceLedger> _ledgerRepo;
     private readonly IRepository<FinanceReceipt> _receiptRepo;
@@ -196,6 +199,49 @@ public class FinanceCustomerAdvanceService : IFinanceCustomerAdvanceService
     }
 
     /// <inheritdoc />
+    public async Task<CreditReceiptItemRemainderToPoolResult> CreditReceiptItemRemainderToAdvancePoolAsync(
+        string receiptItemId,
+        decimal? amount = null,
+        string? actingUserId = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(receiptItemId))
+            throw new ArgumentException("请指定收款明细", nameof(receiptItemId));
+
+        var item = await _receiptItemRepo.GetByIdAsync(receiptItemId.Trim())
+            ?? throw new InvalidOperationException("收款明细不存在");
+        if (item.IsDeleted)
+            throw new InvalidOperationException("收款明细已失效");
+
+        var receipt = await _receiptRepo.GetByIdAsync(item.FinanceReceiptId)
+            ?? throw new InvalidOperationException("收款单不存在");
+        if (receipt.IsDeleted)
+            throw new InvalidOperationException("收款单已失效");
+        if (receipt.Status != ReceiptApproved && receipt.Status != ReceiptReceived)
+            throw new InvalidOperationException($"收款单 {receipt.FinanceReceiptCode} 未审核，不可转预收");
+
+        var remaining = GetReceiptItemRemaining(item);
+        if (remaining <= 0m)
+            throw new InvalidOperationException("该收款明细无可转预收余额");
+
+        var creditAmount = amount.HasValue && amount.Value > 0m
+            ? Math.Min(amount.Value, remaining)
+            : remaining;
+        if (creditAmount <= 0m)
+            throw new ArgumentException("转入金额必须大于 0", nameof(amount));
+
+        await CreditAutoInExcessAsync(receipt, item, creditAmount, actingUserId);
+        if (_unitOfWork != null)
+            await _unitOfWork.SaveChangesAsync();
+
+        return new CreditReceiptItemRemainderToPoolResult
+        {
+            CreditedAmount = creditAmount,
+            RemainingAfter = GetReceiptItemRemaining(item)
+        };
+    }
+
+    /// <inheritdoc />
     public async Task ApplyFromPoolAsync(
         string customerId,
         short currency,
@@ -328,4 +374,7 @@ public class FinanceCustomerAdvanceService : IFinanceCustomerAdvanceService
         await _advanceRepo.AddAsync(row);
         return row;
     }
+
+    private static decimal GetReceiptItemRemaining(FinanceReceiptItem item) =>
+        item.ReceiptConvertAmount - item.VerifiedAmount - item.AdvancePoolAmount;
 }

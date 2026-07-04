@@ -51,6 +51,14 @@ namespace CRM.Infrastructure.Repositories
         public async Task UpdateAsync(T entity)
         {
             entity.ModifyTime = DateTime.UtcNow;
+            var entry = _context.Entry(entity);
+            // 新建实体（Added）仅改内存字段即可，SaveChanges 会 INSERT；不可 Update 否则变成 UPDATE 导致 0 行并发异常
+            if (entry.State == EntityState.Added)
+            {
+                await Task.CompletedTask;
+                return;
+            }
+
             _dbSet.Update(entity);
             await Task.CompletedTask;
         }

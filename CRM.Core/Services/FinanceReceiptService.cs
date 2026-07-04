@@ -191,6 +191,7 @@ namespace CRM.Core.Services
                     ProductId = item.ProductId,
                     PN = item.PN,
                     Brand = item.Brand,
+                    Remark = item.Remark,
                     ReceiptPurpose = purpose,
                     AdvanceSellOrderId = string.IsNullOrWhiteSpace(advanceSo) ? null : advanceSo.Trim(),
                     VerificationStatus = 0,
@@ -202,6 +203,9 @@ namespace CRM.Core.Services
             receipt.ReceiptPurpose = headerPurpose;
 
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+
+            var savedItems = (await _itemRepo.FindAsync(i => i.FinanceReceiptId == receipt.Id)).ToList();
+            AttachReceiptItems(receipt, savedItems);
             return receipt;
         }
 
@@ -220,10 +224,43 @@ namespace CRM.Core.Services
 
         public async Task<FinanceReceipt?> GetByIdAsync(string id)
         {
+            if (string.IsNullOrWhiteSpace(id)) return null;
+
             var r = await _receiptRepo.GetByIdAsync(id);
             if (r == null) return null;
+
+            var items = (await _itemRepo.FindAsync(i => i.FinanceReceiptId == id)).ToList();
+            AttachReceiptItems(r, items);
             await EnrichCreateUserNamesAsync(new List<FinanceReceipt> { r });
             return r;
+        }
+
+        /// <summary>挂载收款明细；主表有金额但无明细行时补一条仅用于展示的占位行（历史数据/仅改主表金额）。</summary>
+        private static void AttachReceiptItems(FinanceReceipt receipt, IReadOnlyList<FinanceReceiptItem> items)
+        {
+            receipt.Items = items
+                .OrderBy(i => i.CreateTime)
+                .ThenBy(i => i.Id, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (receipt.Items.Count > 0)
+            {
+                receipt.ReceiptPurpose = receipt.Items.Max(i => i.ReceiptPurpose);
+                return;
+            }
+
+            if (receipt.ReceiptAmount <= 0m) return;
+
+            receipt.Items = new List<FinanceReceiptItem>
+            {
+                new FinanceReceiptItem
+                {
+                    FinanceReceiptId = receipt.Id,
+                    ReceiptAmount = receipt.ReceiptAmount,
+                    ReceiptConvertAmount = receipt.ReceiptAmount,
+                    VerificationStatus = 0,
+                }
+            };
         }
 
         public async Task<IEnumerable<FinanceReceipt>> GetAllAsync() =>

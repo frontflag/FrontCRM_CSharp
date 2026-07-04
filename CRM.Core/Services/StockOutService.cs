@@ -1357,9 +1357,6 @@ namespace CRM.Core.Services
             if (isCustomsOut)
                 await _customsV2FlowService.OnCustomsStockOutCompletedAsync(requestId, actingUserId);
 
-            if (stockOutHeaderType == StockOutTypeCode.Sales)
-                await _financeReceivableService.TryEnsureFromStockOutAsync(stockOut.Id, actingUserId);
-
             return stockOut;
         }
 
@@ -2796,7 +2793,7 @@ namespace CRM.Core.Services
             const short stockOutFinished = 4;
             static bool IsOutboundDone(short s) => s == stockOutCompleted || s == stockOutFinished;
 
-            if (stockOut.StockOutType != StockOutTypeCode.Sales)
+            if (!StockOutTypeCode.IsSalesStockOut(stockOut.StockOutType))
             {
                 _logger.LogInformation(
                     "[SellLineStockOutSync] UpdateStatus skip extend chain (not sales stock-out) StockOutId={StockOutId} StockOutType={StockOutType}",
@@ -2805,9 +2802,9 @@ namespace CRM.Core.Services
                 return;
             }
 
-            if (IsOutboundDone(status) && !IsOutboundDone(previousStatus))
+            if (status == stockOutFinished && previousStatus != stockOutFinished)
                 await _financeReceivableService.TryEnsureFromStockOutAsync(stockOut.Id, actingUserId);
-            else if (!IsOutboundDone(status) && IsOutboundDone(previousStatus))
+            else if (status != stockOutFinished && previousStatus == stockOutFinished)
                 await _financeReceivableService.TrySoftDeleteForStockOutAsync(stockOut.Id, actingUserId);
 
             StockOutRequest? sorForLine = null;

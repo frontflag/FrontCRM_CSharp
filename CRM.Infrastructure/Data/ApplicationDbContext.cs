@@ -1691,6 +1691,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.AdvancePoolAmount).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
                 entity.Property(e => e.ReceiptPurpose).HasColumnName("receipt_purpose").HasDefaultValue((short)10);
                 entity.Property(e => e.AdvanceSellOrderId).HasColumnName("advance_sell_order_id");
+                entity.Property(e => e.Remark).HasMaxLength(500);
                 entity.HasIndex(e => e.FinanceReceiptId);
             });
 

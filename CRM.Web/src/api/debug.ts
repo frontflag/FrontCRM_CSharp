@@ -137,6 +137,23 @@ export type RefreshFinancePaymentLegacyRemarkResult = {
   bankIdsResolvedFromName: number
 }
 
+export type RefreshFinanceReceivablesFromStockOutsResult = {
+  totalCompletedSalesStockOuts: number
+  alreadyHasReceivableCount: number
+  candidateCount: number
+  createdCount: number
+  skippedIneligibleCount: number
+  failedCount: number
+  stockOutDatesSyncedCount: number
+  prematureReceivablesRemovedCount: number
+  createdStockOutCodes: string[]
+  skippedIneligibleStockOutCodes: string[]
+  stockOutDatesSyncedStockOutCodes: string[]
+  prematureReceivablesRemovedStockOutCodes: string[]
+  failedStockOutCodes: string[]
+  failedMessages: string[]
+}
+
 export type RefreshPurchaseOrderMainStatusResult = {
   totalOrders: number
   changedOrders: number
@@ -233,5 +250,40 @@ export async function refreshFinancePaymentRemarkFromLegacy(): Promise<RefreshFi
     skippedMalformed: Number(inner?.skippedMalformed ?? inner?.SkippedMalformed ?? 0),
     itemsLineRemarkUpdated: Number(inner?.itemsLineRemarkUpdated ?? inner?.ItemsLineRemarkUpdated ?? 0),
     bankIdsResolvedFromName: Number(inner?.bankIdsResolvedFromName ?? inner?.BankIdsResolvedFromName ?? 0)
+  }
+}
+
+function normalizeStringList(raw: unknown): string[] {
+  return Array.isArray(raw) ? raw.map((x: unknown) => String(x)) : []
+}
+
+/** POST /api/v1/debug/refresh-finance-receivables-from-stock-outs — 为已完成出库补生成应收款 */
+export async function refreshFinanceReceivablesFromStockOuts(): Promise<RefreshFinanceReceivablesFromStockOutsResult> {
+  const raw = await apiClient.post<any>('/api/v1/debug/refresh-finance-receivables-from-stock-outs', {})
+  const outer = (raw?.data ?? raw?.Data ?? raw) as Record<string, any>
+  const inner = (outer?.data ?? outer?.Data ?? outer) as Record<string, any>
+  return {
+    totalCompletedSalesStockOuts: Number(inner?.totalCompletedSalesStockOuts ?? inner?.TotalCompletedSalesStockOuts ?? 0),
+    alreadyHasReceivableCount: Number(inner?.alreadyHasReceivableCount ?? inner?.AlreadyHasReceivableCount ?? 0),
+    candidateCount: Number(inner?.candidateCount ?? inner?.CandidateCount ?? 0),
+    createdCount: Number(inner?.createdCount ?? inner?.CreatedCount ?? 0),
+    skippedIneligibleCount: Number(inner?.skippedIneligibleCount ?? inner?.SkippedIneligibleCount ?? 0),
+    failedCount: Number(inner?.failedCount ?? inner?.FailedCount ?? 0),
+    stockOutDatesSyncedCount: Number(inner?.stockOutDatesSyncedCount ?? inner?.StockOutDatesSyncedCount ?? 0),
+    prematureReceivablesRemovedCount: Number(
+      inner?.prematureReceivablesRemovedCount ?? inner?.PrematureReceivablesRemovedCount ?? 0
+    ),
+    createdStockOutCodes: normalizeStringList(inner?.createdStockOutCodes ?? inner?.CreatedStockOutCodes),
+    skippedIneligibleStockOutCodes: normalizeStringList(
+      inner?.skippedIneligibleStockOutCodes ?? inner?.SkippedIneligibleStockOutCodes
+    ),
+    stockOutDatesSyncedStockOutCodes: normalizeStringList(
+      inner?.stockOutDatesSyncedStockOutCodes ?? inner?.StockOutDatesSyncedStockOutCodes
+    ),
+    prematureReceivablesRemovedStockOutCodes: normalizeStringList(
+      inner?.prematureReceivablesRemovedStockOutCodes ?? inner?.PrematureReceivablesRemovedStockOutCodes
+    ),
+    failedStockOutCodes: normalizeStringList(inner?.failedStockOutCodes ?? inner?.FailedStockOutCodes),
+    failedMessages: normalizeStringList(inner?.failedMessages ?? inner?.FailedMessages)
   }
 }

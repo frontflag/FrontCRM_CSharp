@@ -94,29 +94,111 @@
           </div>
         </div>
 
-        <div class="tabs-section">
-          <div class="tabs-nav">
-            <button
-              class="tab-btn"
-              type="button"
-              :class="{ 'tab-btn--active': detailActiveTab === 'items' }"
-              @click="detailActiveTab = 'items'"
-            >
-              {{ t('financeReceiptDetail.tabs.items') }}
-              <span v-if="detail.items?.length" class="tab-count">{{ detail.items.length }}</span>
-            </button>
-            <button
-              class="tab-btn"
-              type="button"
-              :class="{ 'tab-btn--active': detailActiveTab === 'bankSlip' }"
-              @click="detailActiveTab = 'bankSlip'"
-            >
-              {{ t('financeReceiptDetail.tabs.bankSlip') }}
-              <span v-if="!maskSaleSensitiveFields && receiptDocs.length" class="tab-count">{{ receiptDocs.length }}</span>
-            </button>
+        <div class="info-section">
+          <div class="section-header">
+            <div class="section-header__main">
+              <div class="section-dot section-dot--cyan"></div>
+              <span class="section-title">{{ t('financeReceiptDetail.tabs.bankSlip') }}</span>
+              <span v-if="!maskSaleSensitiveFields && receiptDocs.length" class="section-count">{{ receiptDocs.length }}</span>
+            </div>
           </div>
-          <div class="tabs-body">
-            <div v-show="detailActiveTab === 'items'" class="detail-items-table-wrap">
+          <div v-if="maskSaleSensitiveFields" class="detail-items-table-wrap">
+            <DetailListPanelEmpty size="low" :description="t('common.crossSideAttachmentsRestricted')" />
+          </div>
+          <div v-else class="detail-items-table-wrap">
+            <CrmDataTable
+              v-if="receiptDocs.length"
+              :data="receiptDocs"
+              embedded
+              :border="false"
+              :show-column-settings="false"
+              :show-row-density-toggle="false"
+              class="items-table detail-panel-list-table"
+              size="small"
+              stripe
+            >
+              <el-table-column type="index" width="50" label="#" />
+              <el-table-column
+                prop="originalFileName"
+                :label="t('financeReceiptDetail.labels.fileName')"
+                min-width="260"
+                show-overflow-tooltip
+              />
+              <el-table-column
+                prop="remark"
+                :label="t('financeReceiptDetail.labels.remark')"
+                min-width="140"
+                show-overflow-tooltip
+              />
+              <el-table-column prop="createTime" :label="t('financeReceiptDetail.labels.uploadTime')" width="170">
+                <template #default="{ row }">
+                  {{ row.createTime ? formatDisplayDateTime(row.createTime) : '—' }}
+                </template>
+              </el-table-column>
+              <el-table-column
+                :label="t('financeReceiptDetail.labels.actions')"
+                :width="receiptDocsOpColWidth"
+                :min-width="receiptDocsOpColMinWidth"
+                fixed="right"
+                align="center"
+                class-name="op-col"
+                label-class-name="op-col"
+              >
+                <template #header>
+                  <div class="list-op-col-header--icon-only">
+                    <button
+                      type="button"
+                      class="op-col-toggle-btn list-op-col-toggle"
+                      :aria-label="receiptDocsOpColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+                      @click.stop="toggleReceiptDocsOpCol"
+                    >
+                      {{ receiptDocsOpColExpanded ? '>' : '<' }}
+                    </button>
+                  </div>
+                </template>
+                <template #default="{ row }">
+                  <div @click.stop @dblclick.stop>
+                    <div v-if="receiptDocsOpColExpanded" class="action-btns">
+                      <el-button size="small" text type="primary" @click.stop="previewDoc(row)">{{
+                        t('financeReceiptDetail.preview')
+                      }}</el-button>
+                      <el-button size="small" text type="primary" @click.stop="downloadDoc(row)">{{
+                        t('financeReceiptDetail.download')
+                      }}</el-button>
+                    </div>
+                    <el-dropdown v-else trigger="click" placement="bottom-end">
+                      <div class="op-more-dropdown-trigger">
+                        <button type="button" class="op-more-trigger">...</button>
+                      </div>
+                      <template #dropdown>
+                        <el-dropdown-menu>
+                          <el-dropdown-item @click.stop="previewDoc(row)">
+                            <span class="op-more-item op-more-item--primary">{{ t('financeReceiptDetail.preview') }}</span>
+                          </el-dropdown-item>
+                          <el-dropdown-item divided @click.stop="downloadDoc(row)">
+                            <span class="op-more-item op-more-item--primary">{{ t('financeReceiptDetail.download') }}</span>
+                          </el-dropdown-item>
+                        </el-dropdown-menu>
+                      </template>
+                    </el-dropdown>
+                  </div>
+                </template>
+              </el-table-column>
+            </CrmDataTable>
+            <DetailListPanelEmpty v-else size="low" :description="t('financeReceiptDetail.noAttachments')" />
+          </div>
+        </div>
+
+        <div class="info-section">
+          <div class="section-header">
+            <div class="section-header__main">
+              <div class="section-dot section-dot--cyan"></div>
+              <span class="section-title">{{ t('financeReceiptDetail.tabs.items') }}</span>
+              <span v-if="detail.items?.length" class="section-count">{{ detail.items.length }}</span>
+            </div>
+          </div>
+          <div class="detail-panel-section-body">
+            <div class="detail-items-table-wrap">
               <el-empty v-if="!detail.items?.length" :description="t('financeReceiptDetail.noItems')" :image-size="80" />
               <CrmDataTable
                 v-else
@@ -126,19 +208,6 @@
                 stripe
               >
                 <el-table-column type="index" width="50" label="#" />
-                <el-table-column prop="pn" :label="t('financeReceiptDetail.labels.pn')" min-width="150" show-overflow-tooltip />
-                <el-table-column prop="brand" :label="t('financeReceiptDetail.labels.brand')" width="120" show-overflow-tooltip />
-                <el-table-column
-                  prop="receiptAmount"
-                  :label="t('financeReceiptDetail.labels.receivedAmount')"
-                  width="130"
-                  align="right"
-                  header-align="right"
-                >
-                  <template #default="{ row }">
-                    {{ maskSaleSensitiveFields ? '—' : formatAmount(row.receiptAmount) }}
-                  </template>
-                </el-table-column>
                 <el-table-column :label="t('financeReceiptDetail.labels.verifyStatus')" width="120" align="center">
                   <template #default="{ row }">
                     <el-tag
@@ -150,91 +219,127 @@
                     </el-tag>
                   </template>
                 </el-table-column>
+                <el-table-column
+                  prop="receiptConvertAmount"
+                  :label="t('financeReceiptDetail.labels.receiptConvertAmount')"
+                  width="160"
+                  align="right"
+                  header-align="right"
+                >
+                  <template #default="{ row }">
+                    {{ maskSaleSensitiveFields ? '—' : formatReceiptItemConvertAmountDisplay(row) }}
+                  </template>
+                </el-table-column>
+                <el-table-column
+                  prop="verifiedAmount"
+                  :label="t('financeReceiptDetail.labels.verifiedAmount')"
+                  width="140"
+                  align="right"
+                  header-align="right"
+                >
+                  <template #default="{ row }">
+                    {{ maskSaleSensitiveFields ? '—' : formatAmount(row.verifiedAmount) }}
+                  </template>
+                </el-table-column>
+                <el-table-column
+                  :label="t('financeReceiptDetail.labels.pendingVerifyAmount')"
+                  width="120"
+                  align="right"
+                  header-align="right"
+                >
+                  <template #default="{ row }">
+                    {{ maskSaleSensitiveFields ? '—' : formatAmount(receiptItemPendingVerifyAmount(row)) }}
+                  </template>
+                </el-table-column>
+                <el-table-column
+                  prop="advancePoolAmount"
+                  :label="t('financeReceiptDetail.labels.advancePoolAmount')"
+                  width="160"
+                  align="right"
+                  header-align="right"
+                >
+                  <template #default="{ row }">
+                    {{ maskSaleSensitiveFields ? '—' : formatAmount(row.advancePoolAmount) }}
+                  </template>
+                </el-table-column>
+                <el-table-column
+                  prop="remark"
+                  :label="t('financeReceiptDetail.labels.remark')"
+                  min-width="120"
+                  show-overflow-tooltip
+                >
+                  <template #default="{ row }">
+                    {{ row.remark?.trim() || '—' }}
+                  </template>
+                </el-table-column>
               </CrmDataTable>
             </div>
-            <div v-show="detailActiveTab === 'bankSlip'">
-              <el-alert
-                v-if="maskSaleSensitiveFields"
-                type="info"
-                :closable="false"
-                show-icon
-                :title="t('common.crossSideAttachmentsRestricted')"
-              />
-              <template v-else>
-                <el-empty v-if="!receiptDocs.length" :description="t('financeReceiptDetail.noAttachments')" :image-size="80" />
-                <div v-else class="detail-items-table-wrap">
-                <CrmDataTable :data="receiptDocs" class="items-table detail-panel-list-table" size="small" stripe>
-                  <el-table-column type="index" width="50" label="#" />
-                  <el-table-column
-                    prop="originalFileName"
-                    :label="t('financeReceiptDetail.labels.fileName')"
-                    min-width="260"
-                    show-overflow-tooltip
-                  />
-                  <el-table-column
-                    prop="remark"
-                    :label="t('financeReceiptDetail.labels.remark')"
-                    min-width="140"
-                    show-overflow-tooltip
-                  />
-                  <el-table-column prop="createTime" :label="t('financeReceiptDetail.labels.uploadTime')" width="170">
-                    <template #default="{ row }">
-                      {{ row.createTime ? formatDisplayDateTime(row.createTime) : '—' }}
-                    </template>
-                  </el-table-column>
-                  <el-table-column
-                    :label="t('financeReceiptDetail.labels.actions')"
-                    :width="receiptDocsOpColWidth"
-                    :min-width="receiptDocsOpColMinWidth"
-                    fixed="right"
-                    align="center"
-                    class-name="op-col"
-                    label-class-name="op-col"
-                  >
-                    <template #header>
-                      <div class="list-op-col-header--icon-only">
-                        <button
-                          type="button"
-                          class="op-col-toggle-btn list-op-col-toggle"
-                          :aria-label="receiptDocsOpColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
-                          @click.stop="toggleReceiptDocsOpCol"
-                        >
-                          {{ receiptDocsOpColExpanded ? '>' : '<' }}
-                        </button>
-                      </div>
-                    </template>
-                    <template #default="{ row }">
-                      <div @click.stop @dblclick.stop>
-                        <div v-if="receiptDocsOpColExpanded" class="action-btns">
-                          <el-button size="small" text type="primary" @click.stop="previewDoc(row)">{{
-                            t('financeReceiptDetail.preview')
-                          }}</el-button>
-                          <el-button size="small" text type="primary" @click.stop="downloadDoc(row)">{{
-                            t('financeReceiptDetail.download')
-                          }}</el-button>
-                        </div>
-                        <el-dropdown v-else trigger="click" placement="bottom-end">
-                          <div class="op-more-dropdown-trigger">
-                            <button type="button" class="op-more-trigger">...</button>
-                          </div>
-                          <template #dropdown>
-                            <el-dropdown-menu>
-                              <el-dropdown-item @click.stop="previewDoc(row)">
-                                <span class="op-more-item op-more-item--primary">{{ t('financeReceiptDetail.preview') }}</span>
-                              </el-dropdown-item>
-                              <el-dropdown-item divided @click.stop="downloadDoc(row)">
-                                <span class="op-more-item op-more-item--primary">{{ t('financeReceiptDetail.download') }}</span>
-                              </el-dropdown-item>
-                            </el-dropdown-menu>
-                          </template>
-                        </el-dropdown>
-                      </div>
-                    </template>
-                  </el-table-column>
-                </CrmDataTable>
-                </div>
-              </template>
+          </div>
+        </div>
+
+        <div class="info-section">
+          <div class="section-header">
+            <div class="section-header__main">
+              <div class="section-dot section-dot--cyan"></div>
+              <span class="section-title">{{ t('financeReceiptDetail.writeOffSection') }}</span>
+              <span v-if="writeOffRecords.length" class="section-count">{{ writeOffRecords.length }}</span>
             </div>
+          </div>
+          <div class="detail-items-table-wrap">
+            <CrmDataTable
+              v-if="writeOffRecords.length"
+              :data="writeOffRecords"
+              embedded
+              :border="false"
+              :show-column-settings="false"
+              :show-row-density-toggle="false"
+              class="items-table detail-panel-list-table"
+              size="small"
+              stripe
+            >
+              <el-table-column type="index" width="50" label="#" />
+              <el-table-column :label="t('financeReceiptDetail.writeOffLabels.createTime')" width="170">
+                <template #default="{ row }">
+                  {{ row.createTime ? formatDisplayDateTime(row.createTime) : '—' }}
+                </template>
+              </el-table-column>
+              <el-table-column :label="t('financeReceiptDetail.writeOffLabels.source')" width="100">
+                <template #default="{ row }">
+                  {{ writeOffSourceLabel(row.writeOffSource) }}
+                </template>
+              </el-table-column>
+              <el-table-column
+                prop="stockOutCode"
+                :label="t('financeReceiptDetail.writeOffLabels.stockOutCode')"
+                min-width="120"
+                show-overflow-tooltip
+              />
+              <el-table-column
+                prop="sellOrderCode"
+                :label="t('financeReceiptDetail.writeOffLabels.sellOrderCode')"
+                min-width="120"
+                show-overflow-tooltip
+              />
+              <el-table-column prop="pn" :label="t('financeReceiptDetail.writeOffLabels.pn')" min-width="120" show-overflow-tooltip />
+              <el-table-column prop="brand" :label="t('financeReceiptDetail.writeOffLabels.brand')" width="100" show-overflow-tooltip />
+              <el-table-column
+                :label="t('financeReceiptDetail.writeOffLabels.amount')"
+                width="150"
+                align="right"
+                header-align="right"
+              >
+                <template #default="{ row }">
+                  {{ maskSaleSensitiveFields ? '—' : formatWriteOffAmountDisplay(row) }}
+                </template>
+              </el-table-column>
+              <el-table-column
+                prop="operatorUserName"
+                :label="t('financeReceiptDetail.writeOffLabels.operator')"
+                width="110"
+                show-overflow-tooltip
+              />
+            </CrmDataTable>
+            <DetailListPanelEmpty v-else size="low" :description="t('financeReceiptDetail.noWriteOffs')" />
           </div>
         </div>
       </template>
@@ -249,9 +354,10 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useFinanceEnumLabels } from '@/composables/useFinanceEnumLabels'
-import { financeReceiptApi, CURRENCY_MAP, type FinanceReceipt } from '@/api/finance'
+import { financeReceiptApi, CURRENCY_MAP, type FinanceReceipt, type FinanceReceiptItem, type FinanceReceiptWriteOffRecord } from '@/api/finance'
 import { documentApi, type UploadDocumentDto } from '@/api/document'
 import CrmDataTable from '@/components/CrmDataTable.vue'
+import DetailListPanelEmpty from '@/components/Common/DetailListPanelEmpty.vue'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 
@@ -264,7 +370,7 @@ const { receiptStatusLabel, receiptStatusTag, paymentModeLabel, verificationStat
 const loading = ref(false)
 const detail = ref<FinanceReceipt | null>(null)
 const receiptDocs = ref<UploadDocumentDto[]>([])
-const detailActiveTab = ref<'items' | 'bankSlip'>('items')
+const writeOffRecords = ref<FinanceReceiptWriteOffRecord[]>([])
 
 const receiptId = computed(() => route.params.id as string)
 
@@ -322,12 +428,25 @@ const fetchDetail = async () => {
   loading.value = true
   try {
     detail.value = await financeReceiptApi.getById(receiptId.value)
-    await loadReceiptDocs()
+    await Promise.all([loadReceiptDocs(), loadWriteOffRecords()])
   } catch {
     detail.value = null
     receiptDocs.value = []
+    writeOffRecords.value = []
   } finally {
     loading.value = false
+  }
+}
+
+const loadWriteOffRecords = async () => {
+  if (!receiptId.value) {
+    writeOffRecords.value = []
+    return
+  }
+  try {
+    writeOffRecords.value = await financeReceiptApi.getWriteOffs(receiptId.value)
+  } catch {
+    writeOffRecords.value = []
   }
 }
 
@@ -358,6 +477,34 @@ const downloadDoc = async (doc: UploadDocumentDto) => {
 const formatAmount = (val: number) => {
   if (val == null) return '—'
   return val.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function receiptItemConvertAmount(row: FinanceReceiptItem): number {
+  const v = row.receiptConvertAmount ?? row.receiptAmount
+  return Number(v) || 0
+}
+
+function formatReceiptItemConvertAmountDisplay(row: FinanceReceiptItem): string {
+  const currencyCode = detail.value?.receiptCurrency
+  const currency = currencyCode != null ? CURRENCY_MAP[currencyCode] : undefined
+  const amount = formatAmount(receiptItemConvertAmount(row))
+  return currency ? `${currency} ${amount}` : amount
+}
+
+/** 待核销 = 收款折算金额 − 累计已核销 */
+function receiptItemPendingVerifyAmount(row: FinanceReceiptItem): number {
+  return receiptItemConvertAmount(row) - (Number(row.verifiedAmount) || 0)
+}
+
+function writeOffSourceLabel(source?: number) {
+  if (source === 20) return t('financeReceiptDetail.writeOffSource.advancePool')
+  return t('financeReceiptDetail.writeOffSource.receiptItem')
+}
+
+function formatWriteOffAmountDisplay(row: FinanceReceiptWriteOffRecord): string {
+  const currency = CURRENCY_MAP[row.currency] ?? ''
+  const amount = formatAmount(row.amount)
+  return currency ? `${currency} ${amount}` : amount
 }
 
 function goBack() {
@@ -635,55 +782,16 @@ function goBack() {
   }
 }
 
-.tabs-section {
-  background: $layer-2;
-  border: 1px solid $border-card;
-  border-radius: $border-radius-lg;
-  overflow: hidden;
+.detail-panel-section-body {
+  padding: 16px 20px 20px;
 }
 
-.tabs-nav {
-  display: flex;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  padding: 0 16px;
-  background: var(--crm-detail-section-header-bg);
-}
-
-.tab-btn {
-  padding: 12px 16px;
-  background: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
-  color: $text-muted;
-  font-size: 13px;
-  font-family: 'Noto Sans SC', sans-serif;
-  cursor: pointer;
-  transition: all 0.2s;
-  margin-bottom: -1px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-
-  &:hover {
-    color: $text-secondary;
-  }
-
-  &--active {
-    color: $cyan-primary;
-    border-bottom-color: $cyan-primary;
-  }
-}
-
-.tab-count {
+.section-count {
   font-size: 11px;
   padding: 1px 7px;
   border-radius: 999px;
   background: rgba(0, 212, 255, 0.1);
   color: $cyan-primary;
-}
-
-.tabs-body {
-  padding: 20px;
 }
 
 .detail-items-table-wrap :deep(.items-table) {

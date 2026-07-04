@@ -53,6 +53,7 @@ namespace CRM.Core.Interfaces
         public string? Brand { get; set; }
         public short ReceiptPurpose { get; set; } = FinanceReceiptPurposeCode.Normal;
         public string? AdvanceSellOrderId { get; set; }
+        public string? Remark { get; set; }
     }
 
     public class UpdateFinanceReceiptRequest

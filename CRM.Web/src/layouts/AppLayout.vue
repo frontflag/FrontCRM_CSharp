@@ -1631,6 +1631,7 @@ const pageTitleMap: Record<string, string> = {
   '/finance/receivables': 'layout.menu.receiptManagement',
   '/finance/customer-advances': 'layout.menu.receiptManagement',
   '/finance/receipt-write-off': 'layout.menu.receiptManagement',
+  '/finance/receipt-write-off/ledger': 'layout.menu.receiptManagement',
   '/finance/purchase-invoices': 'layout.menu.purchaseInvoices',
   '/finance/sell-invoices': 'layout.menu.sellInvoices'
 }
