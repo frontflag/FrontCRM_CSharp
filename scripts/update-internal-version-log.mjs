@@ -27,11 +27,8 @@ let subject = ''
 let commitDate = new Date()
 
 try {
-  const line = execSync('git log -1 --format=%ci|%s', { cwd: repoRoot, encoding: 'utf-8' }).trim()
-  const pipe = line.indexOf('|')
-  if (pipe === -1) process.exit(0)
-  const ci = line.slice(0, pipe).trim()
-  subject = line.slice(pipe + 1).trim()
+  const ci = execSync('git log -1 --format=%ci', { cwd: repoRoot, encoding: 'utf-8' }).trim()
+  subject = execSync('git log -1 --format=%s', { cwd: repoRoot, encoding: 'utf-8' }).trim()
   commitDate = new Date(ci)
 } catch {
   process.exit(0)
