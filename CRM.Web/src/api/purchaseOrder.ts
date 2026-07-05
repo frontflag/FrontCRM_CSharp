@@ -157,6 +157,30 @@ export interface PurchaseOrderDetailTabAggregates {
   }>
   /** 采购明细关联质检单上的图片文档（只读展示） */
   qcImages: QcImageReadonlyRow[]
+  /** 采购订单明细详情「概况」页签（仅单条明细 aggregates 接口返回） */
+  lineOverview?: PurchaseOrderLineOverview | null
+}
+
+export interface PurchaseOrderLineOverviewQtyMetric {
+  total: number
+  done?: number
+  pending?: number
+}
+
+export interface PurchaseOrderLineOverviewAmountMetric {
+  total: number
+  done?: number
+  pending?: number
+  currency?: number
+}
+
+export interface PurchaseOrderLineOverview {
+  lineAmount: { total: number; currency?: number }
+  lineQty: { total: number }
+  payment: PurchaseOrderLineOverviewAmountMetric
+  arrivalNotice: PurchaseOrderLineOverviewQtyMetric
+  stockIn: PurchaseOrderLineOverviewQtyMetric
+  purchaseInvoice: PurchaseOrderLineOverviewAmountMetric
 }
 
 // 采购订单API

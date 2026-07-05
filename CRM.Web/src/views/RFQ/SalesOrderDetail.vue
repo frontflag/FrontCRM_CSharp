@@ -577,6 +577,9 @@
         <div v-loading="soItemLinePanel.loading" class="so-item-line-detail-panel__body so-item-line-detail-panel__body--tabbed">
           <div class="tabs-section so-item-line-detail-tabs-section">
             <div class="tabs-nav">
+              <button type="button" class="tab-btn" :class="{ 'tab-btn--active': soItemLinePanel.activeTab === 'overview' }" @click="soItemLinePanel.activeTab = 'overview'">
+                {{ t('salesOrderDetailView.tabs.overview') }}
+              </button>
               <button type="button" class="tab-btn" :class="{ 'tab-btn--active': soItemLinePanel.activeTab === 'rfqItems' }" @click="soItemLinePanel.activeTab = 'rfqItems'">
                 {{ formatSoItemLineTabLabel(t('salesOrderDetailView.tabs.rfqItems'), 'rfqItems') }}
               </button>
@@ -612,6 +615,47 @@
               </button>
             </div>
             <div class="tabs-body">
+              <div v-show="soItemLinePanel.activeTab === 'overview'" class="so-line-overview-wrap">
+                <table v-if="lineTabAggregates?.lineOverview" class="so-line-overview">
+                  <thead>
+                    <tr>
+                      <th class="so-line-overview__corner" />
+                      <th
+                        v-for="col in soLineOverviewColumns"
+                        :key="col.key"
+                        :class="['so-line-overview__col-head', overviewColHeadClass(col)]"
+                      >
+                        {{ col.label }}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="row in soLineOverviewRows" :key="row.key">
+                      <th class="so-line-overview__row-head">{{ row.label }}</th>
+                      <td
+                        v-for="col in soLineOverviewColumns"
+                        :key="`${row.key}-${col.key}`"
+                        class="so-line-overview__cell"
+                        :class="{ 'so-line-overview__cell--right': col.isAmount }"
+                      >
+                        <span v-if="formatOverviewCell(col, row.key).type === 'dash'">—</span>
+                        <span
+                          v-else-if="formatOverviewCell(col, row.key).type === 'qty'"
+                          class="so-line-overview__qty"
+                        >{{ formatOverviewCell(col, row.key).text }}</span>
+                        <span v-else class="amount-with-code">
+                          <span>{{ formatOverviewCell(col, row.key).text }}</span>
+                          <span
+                            v-if="formatOverviewCell(col, row.key).currency != null"
+                            :class="['dock-tier-ccy', listAmountCurrencyDockClass(formatOverviewCell(col, row.key).currency)]"
+                          >{{ listAmountCurrencyIso(formatOverviewCell(col, row.key).currency) }}</span>
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+                <DetailListPanelEmpty v-else-if="!soItemLinePanel.loading" size="low" :description="t('salesOrderDetailView.overview.empty')" />
+              </div>
               <div v-show="soItemLinePanel.activeTab === 'rfqItems'" class="so-aggregate-table-wrap">
                 <el-table
                   v-if="(lineTabAggregates?.rfqItems?.length ?? 0) > 0"
@@ -1185,7 +1229,9 @@ import salesOrderApi, {
   type SalesOrderItemExtendRefreshResult,
   type SalesOrderDetailTabAggregates,
   type SalesOrderFieldChangeLogRow,
-  type SalesOrderDeletedItemRow
+  type SalesOrderDeletedItemRow,
+  type SellOrderLineOverviewAmountMetric,
+  type SellOrderLineOverviewQtyMetric
 } from '@/api/salesOrder'
 import { financeCustomerAdvanceApi } from '@/api/financeCustomerAdvance'
 import { CURRENCY_MAP } from '@/api/finance'
@@ -1237,7 +1283,7 @@ const SalesOrderStockOutBatchPanel = defineAsyncComponent(
 
 const router = useRouter()
 const route = useRoute()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const authStore = useAuthStore()
 const { options: materialPdOptions, ensureLoaded: ensureMaterialPdDict } = useMaterialProductionDateDict()
 function fmtSoItemDateCode(row: { dateCode?: string; DateCode?: string } | null | undefined) {
@@ -1673,6 +1719,7 @@ function goStockOutCreateFromNotify(row: Record<string, unknown>) {
 const lineTabAggregates = ref<SalesOrderDetailTabAggregates | null>(null)
 
 type SoItemLineTabKey =
+  | 'overview'
   | 'rfqItems'
   | 'quotes'
   | 'pr'
@@ -1689,6 +1736,8 @@ function soItemLineTabRecordCount(tab: SoItemLineTabKey): number {
   const agg = lineTabAggregates.value
   if (!agg) return 0
   switch (tab) {
+    case 'overview':
+      return 0
     case 'rfqItems':
       return agg.rfqItems?.length ?? 0
     case 'quotes':
@@ -1722,11 +1771,169 @@ function formatSoItemLineTabLabel(label: string, tab: SoItemLineTabKey): string 
   return count > 0 ? `${label} (${count})` : label
 }
 
+type SoLineOverviewColumnKey =
+  | 'lineAmount'
+  | 'lineQty'
+  | 'purchaseRequisition'
+  | 'purchaseOrder'
+  | 'stockIn'
+  | 'stockOutNotify'
+  | 'stockOut'
+  | 'receiptWriteOff'
+  | 'invoice'
+
+type OverviewHeaderTone = 'none' | 'gray' | 'yellow' | 'green' | 'red'
+
+type SoLineOverviewColumnDef = {
+  key: SoLineOverviewColumnKey
+  label: string
+  isAmount: boolean
+  colorize: boolean
+  metric: SellOrderLineOverviewQtyMetric | SellOrderLineOverviewAmountMetric | { total: number; currency?: number }
+}
+
+const soLineOverviewRows = computed(() => {
+  void locale.value
+  return [
+    { key: 'total' as const, label: t('salesOrderDetailView.overview.rowTotal') },
+    { key: 'done' as const, label: t('salesOrderDetailView.overview.rowDone') },
+    { key: 'pending' as const, label: t('salesOrderDetailView.overview.rowPending') }
+  ]
+})
+
+const soLineOverviewColumns = computed<SoLineOverviewColumnDef[]>(() => {
+  void locale.value
+  const o = lineTabAggregates.value?.lineOverview
+  if (!o) return []
+  return [
+    {
+      key: 'lineAmount',
+      label: t('salesOrderDetailView.overview.colLineAmount'),
+      isAmount: true,
+      colorize: false,
+      metric: o.lineAmount
+    },
+    {
+      key: 'lineQty',
+      label: t('salesOrderDetailView.overview.colLineQty'),
+      isAmount: false,
+      colorize: false,
+      metric: o.lineQty
+    },
+    {
+      key: 'purchaseRequisition',
+      label: t('salesOrderDetailView.overview.colPurchaseRequisition'),
+      isAmount: false,
+      colorize: true,
+      metric: o.purchaseRequisition
+    },
+    {
+      key: 'purchaseOrder',
+      label: t('salesOrderDetailView.overview.colPurchaseOrder'),
+      isAmount: false,
+      colorize: true,
+      metric: o.purchaseOrder
+    },
+    {
+      key: 'stockIn',
+      label: t('salesOrderDetailView.overview.colStockIn'),
+      isAmount: false,
+      colorize: true,
+      metric: o.stockIn
+    },
+    {
+      key: 'stockOutNotify',
+      label: t('salesOrderDetailView.overview.colStockOutNotify'),
+      isAmount: false,
+      colorize: true,
+      metric: o.stockOutNotify
+    },
+    {
+      key: 'stockOut',
+      label: t('salesOrderDetailView.overview.colStockOut'),
+      isAmount: false,
+      colorize: true,
+      metric: o.stockOut
+    },
+    {
+      key: 'receiptWriteOff',
+      label: t('salesOrderDetailView.overview.colReceiptWriteOff'),
+      isAmount: true,
+      colorize: true,
+      metric: o.receiptWriteOff
+    },
+    {
+      key: 'invoice',
+      label: t('salesOrderDetailView.overview.colInvoice'),
+      isAmount: true,
+      colorize: true,
+      metric: o.invoice
+    }
+  ]
+})
+
+function overviewMetricDone(metric: SoLineOverviewColumnDef['metric']): number {
+  if (!('done' in metric) || metric.done == null) return 0
+  return Number(metric.done) || 0
+}
+
+function overviewMetricTotal(metric: SoLineOverviewColumnDef['metric']): number {
+  return Number(metric.total) || 0
+}
+
+function overviewHeaderTone(col: SoLineOverviewColumnDef): OverviewHeaderTone {
+  if (!col.colorize) return 'none'
+  const total = overviewMetricTotal(col.metric)
+  const done = overviewMetricDone(col.metric)
+  if (done > total + 1e-9) return 'red'
+  if (done <= 1e-9) return 'gray'
+  if (done + 1e-9 >= total) return 'green'
+  return 'yellow'
+}
+
+function overviewColHeadClass(col: SoLineOverviewColumnDef): string {
+  const tone = overviewHeaderTone(col)
+  if (tone === 'none') return ''
+  return `so-line-overview__col-head--${tone}`
+}
+
+function formatOverviewQty(v: number) {
+  const n = Number(v)
+  if (!Number.isFinite(n)) return '—'
+  if (Math.abs(n - Math.round(n)) < 1e-9) return String(Math.round(n))
+  return n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 4 })
+}
+
+function formatOverviewCell(
+  col: SoLineOverviewColumnDef,
+  rowKey: 'total' | 'done' | 'pending'
+): { type: 'dash' | 'qty' | 'amount'; text: string; currency?: number } {
+  const metric = col.metric
+  if (!col.colorize && rowKey !== 'total') {
+    return { type: 'dash', text: '—' }
+  }
+
+  let raw: number | undefined
+  if (rowKey === 'total') raw = metric.total
+  else if ('done' in metric && rowKey === 'done') raw = metric.done
+  else if ('pending' in metric && rowKey === 'pending') raw = metric.pending
+
+  if (raw == null) return { type: 'dash', text: '—' }
+
+  if (col.isAmount) {
+    if (!showSalesMoneyFields.value) return { type: 'dash', text: '—' }
+    const currency = 'currency' in metric ? metric.currency : undefined
+    return { type: 'amount', text: formatTotalAmountNumber(raw), currency }
+  }
+
+  return { type: 'qty', text: formatOverviewQty(raw) }
+}
+
 const soItemLinePanel = reactive({
   visible: false,
   sellOrderItemId: '',
   sellOrderItemCode: '',
-  activeTab: 'rfqItems',
+  activeTab: 'overview',
   loading: false,
   loadError: ''
 })
@@ -1757,7 +1964,7 @@ async function selectSalesOrderItemRow(row: Record<string, unknown>) {
   soItemLinePanel.sellOrderItemId = sellOrderItemId
   soItemLinePanel.sellOrderItemCode = sellOrderItemCode || sellOrderItemId
   soItemLinePanel.visible = true
-  soItemLinePanel.activeTab = 'rfqItems'
+  soItemLinePanel.activeTab = 'overview'
   soItemLinePanel.loading = true
   soItemLinePanel.loadError = ''
   lineTabAggregates.value = null
@@ -2896,6 +3103,81 @@ const handleEdit = () => {
 .so-aggregate-table-wrap {
   margin-top: 4px;
 }
+
+.so-line-overview-wrap {
+  margin-top: 4px;
+  overflow-x: auto;
+}
+
+.so-line-overview {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--crm-table-text);
+
+  th,
+  td {
+    border: 1px solid var(--crm-table-cell-line);
+    padding: 10px 12px;
+    vertical-align: middle;
+  }
+
+  &__corner {
+    width: 88px;
+    min-width: 88px;
+    background: var(--crm-detail-section-header-bg);
+  }
+
+  &__row-head {
+    text-align: left;
+    font-weight: 400;
+    white-space: nowrap;
+    background: var(--crm-detail-section-header-bg);
+    color: var(--crm-table-header-text);
+  }
+
+  &__col-head {
+    text-align: center;
+    font-weight: 400;
+    white-space: nowrap;
+    background: var(--crm-detail-section-header-bg);
+    color: var(--crm-table-header-text);
+
+    &--gray {
+      color: $info-color;
+    }
+
+    &--yellow {
+      color: $warning-color;
+    }
+
+    &--green {
+      color: $success-color;
+    }
+
+    &--red {
+      color: $danger-color;
+    }
+  }
+
+  &__cell {
+    text-align: center;
+    color: var(--crm-table-text);
+    font-weight: 500;
+    background: var(--crm-card-bg);
+
+    &--right {
+      text-align: right;
+    }
+  }
+
+  &__qty {
+    font-variant-numeric: tabular-nums;
+    color: var(--crm-table-text);
+  }
+}
+
 .so-tab-link {
   color: $cyan-primary;
   text-decoration: none;

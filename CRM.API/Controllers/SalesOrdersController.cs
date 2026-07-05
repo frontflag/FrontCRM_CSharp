@@ -809,6 +809,15 @@ namespace CRM.API.Controllers
             var rfqItemRows = await BuildRfqItemTabRowsAsync(itemIds, mask521);
             var quoteRows = await BuildQuoteTabRowsAsync(itemIds, mask521, mask511);
 
+            object? lineOverview = null;
+            if (sellOrderItemIdScope != null)
+            {
+                lineOverview = await BuildSellOrderLineOverviewAsync(
+                    sellOrderItemIdScope,
+                    prRows.Select(p => (p.Status, p.Qty)).ToList(),
+                    mask521);
+            }
+
             return new
             {
                 rfqItems = rfqItemRows,
@@ -821,7 +830,130 @@ namespace CRM.API.Controllers
                 stockOuts = stockOutRows,
                 receiptWriteOffs = receiptWriteOffRows,
                 sellInvoices = sellInvRows,
-                qcImages = qcImageRows
+                qcImages = qcImageRows,
+                lineOverview
+            };
+        }
+
+        private const short PrStatusCancelled = 3;
+        private const short StockInCompletedStatus = 2;
+
+        /// <summary>销售订单明细详情「概况」页签：4×10 执行进度矩阵（仅单条明细 scope 时返回）。</summary>
+        private async Task<object?> BuildSellOrderLineOverviewAsync(
+            string lineId,
+            IReadOnlyList<(short Status, decimal Qty)> prEntries,
+            bool mask521)
+        {
+            var soItem = await _db.SellOrderItems.AsNoTracking()
+                .Where(i => i.Id == lineId)
+                .Select(i => new { i.Qty, i.Price, i.Currency })
+                .FirstOrDefaultAsync();
+            if (soItem == null)
+                return null;
+
+            var ext = await _db.SellOrderItemExtends.AsNoTracking()
+                .Where(e => e.Id == lineId)
+                .Select(e => new
+                {
+                    e.QtyAlreadyPurchased,
+                    e.QtyNotPurchase,
+                    e.QtyStockOutNotify,
+                    e.QtyStockOutNotifyNot,
+                    e.QtyStockOutActual,
+                    e.ReceiptAmount,
+                    e.ReceiptAmountFinish,
+                    e.ReceiptAmountNot,
+                    e.InvoiceAmount,
+                    e.InvoiceAmountFinish,
+                    e.InvoiceAmountNot
+                })
+                .FirstOrDefaultAsync();
+
+            var qtyLine = soItem.Qty;
+            var lineAmount = Math.Round(qtyLine * soItem.Price, 2, MidpointRounding.AwayFromZero);
+            var currency = soItem.Currency;
+
+            var prDone = prEntries
+                .Where(p => p.Status != PrStatusCancelled)
+                .Sum(p => p.Qty);
+            var prPending = Math.Max(0m, qtyLine - prDone);
+
+            decimal stockInDone = 0m;
+            var extMatches = await _db.StockInItemExtends.AsNoTracking()
+                .Where(x => x.SellOrderItemId == lineId)
+                .Select(x => x.Id)
+                .ToListAsync();
+            if (extMatches.Count > 0)
+            {
+                var siItems = await _db.StockInItems.AsNoTracking()
+                    .Where(x => extMatches.Contains(x.Id))
+                    .Select(x => new { x.StockInId, x.Quantity })
+                    .ToListAsync();
+                var siIds = siItems.Select(x => x.StockInId).Distinct().ToList();
+                var completedSiIds = await _db.StockIns.AsNoTracking()
+                    .Where(s => siIds.Contains(s.Id)
+                        && s.Status == StockInCompletedStatus
+                        && s.StockInType == StockInTypeCode.Purchase)
+                    .Select(s => s.Id)
+                    .ToListAsync();
+                var completedSet = completedSiIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
+                stockInDone = siItems
+                    .Where(i => completedSet.Contains(i.StockInId))
+                    .Sum(i => (decimal)i.Quantity);
+            }
+            var stockInPending = Math.Max(0m, qtyLine - stockInDone);
+
+            var poDone = ext?.QtyAlreadyPurchased ?? 0m;
+            var poPending = ext?.QtyNotPurchase ?? Math.Max(0m, qtyLine - poDone);
+            var notifyDone = ext?.QtyStockOutNotify ?? 0m;
+            var notifyPending = ext?.QtyStockOutNotifyNot ?? Math.Max(0m, qtyLine - notifyDone);
+            var stockOutDone = ext?.QtyStockOutActual ?? 0m;
+            var stockOutPending = Math.Max(0m, qtyLine - stockOutDone);
+
+            var receiptTotal = ext?.ReceiptAmount ?? lineAmount;
+            var receiptDone = ext?.ReceiptAmountFinish ?? 0m;
+            var receiptPending = ext?.ReceiptAmountNot ?? Math.Max(0m, receiptTotal - receiptDone);
+            var invoiceTotal = ext?.InvoiceAmount ?? lineAmount;
+            var invoiceDone = ext?.InvoiceAmountFinish ?? 0m;
+            var invoicePending = ext?.InvoiceAmountNot ?? Math.Max(0m, invoiceTotal - invoiceDone);
+
+            if (mask521)
+            {
+                lineAmount = 0m;
+                receiptTotal = 0m;
+                receiptDone = 0m;
+                receiptPending = 0m;
+                invoiceTotal = 0m;
+                invoiceDone = 0m;
+                invoicePending = 0m;
+            }
+
+            static object QtyMetric(decimal total, decimal done, decimal pending) => new
+            {
+                total,
+                done,
+                pending
+            };
+
+            static object AmtMetric(decimal total, decimal done, decimal pending, short currencyCode) => new
+            {
+                total,
+                done,
+                pending,
+                currency = currencyCode
+            };
+
+            return new
+            {
+                lineAmount = new { total = lineAmount, currency },
+                lineQty = new { total = qtyLine },
+                purchaseRequisition = QtyMetric(qtyLine, prDone, prPending),
+                purchaseOrder = QtyMetric(qtyLine, poDone, poPending),
+                stockIn = QtyMetric(qtyLine, stockInDone, stockInPending),
+                stockOutNotify = QtyMetric(qtyLine, notifyDone, notifyPending),
+                stockOut = QtyMetric(qtyLine, stockOutDone, stockOutPending),
+                receiptWriteOff = AmtMetric(receiptTotal, receiptDone, receiptPending, currency),
+                invoice = AmtMetric(invoiceTotal, invoiceDone, invoicePending, currency)
             };
         }
 

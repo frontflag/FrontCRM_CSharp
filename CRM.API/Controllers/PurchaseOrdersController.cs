@@ -599,6 +599,14 @@ namespace CRM.API.Controllers
                 }
             }
 
+            object? lineOverview = null;
+            if (!string.IsNullOrWhiteSpace(purchaseOrderItemIdScope))
+            {
+                lineOverview = await BuildPurchaseOrderLineOverviewAsync(
+                    purchaseOrderItemIdScope.Trim(),
+                    mask511);
+            }
+
             return new
             {
                 purchaseRequisitions = prRows,
@@ -607,7 +615,88 @@ namespace CRM.API.Controllers
                 stockIns = stockInRows,
                 stockItems = stockItemRows,
                 purchaseInvoices = invoiceRows,
-                qcImages = qcImageRows
+                qcImages = qcImageRows,
+                lineOverview
+            };
+        }
+
+        /// <summary>采购订单明细详情「概况」页签：4×7 执行进度矩阵（仅单条明细 scope 时返回）。</summary>
+        private async Task<object?> BuildPurchaseOrderLineOverviewAsync(
+            string lineId,
+            bool mask511)
+        {
+            var poItem = await _db.PurchaseOrderItems.AsNoTracking()
+                .Where(i => i.Id == lineId)
+                .Select(i => new { i.Qty, i.Cost, i.Currency })
+                .FirstOrDefaultAsync();
+            if (poItem == null)
+                return null;
+
+            var ext = await _db.PurchaseOrderItemExtends.AsNoTracking()
+                .Where(e => e.Id == lineId)
+                .Select(e => new
+                {
+                    e.QtyStockInNotifyExpectSum,
+                    e.QtyReceiveTotal,
+                    e.PaymentAmount,
+                    e.PaymentAmountFinish,
+                    e.PaymentAmountNot,
+                    e.PurchaseInvoiceAmount,
+                    e.PurchaseInvoiceDone,
+                    e.PurchaseInvoiceToBe
+                })
+                .FirstOrDefaultAsync();
+
+            var qtyLine = poItem.Qty;
+            var lineAmount = Math.Round(qtyLine * poItem.Cost, 2, MidpointRounding.AwayFromZero);
+            var currency = poItem.Currency;
+
+            var arrivalDone = ext?.QtyStockInNotifyExpectSum ?? 0m;
+            var arrivalPending = Math.Max(0m, qtyLine - arrivalDone);
+            var stockInDone = ext?.QtyReceiveTotal ?? 0m;
+            var stockInPending = Math.Max(0m, qtyLine - stockInDone);
+
+            var paymentTotal = ext?.PaymentAmount ?? lineAmount;
+            var paymentDone = ext?.PaymentAmountFinish ?? 0m;
+            var paymentPending = ext?.PaymentAmountNot ?? Math.Max(0m, paymentTotal - paymentDone);
+            var invoiceTotal = ext?.PurchaseInvoiceAmount ?? lineAmount;
+            var invoiceDone = ext?.PurchaseInvoiceDone ?? 0m;
+            var invoicePending = ext?.PurchaseInvoiceToBe ?? Math.Max(0m, invoiceTotal - invoiceDone);
+
+            if (mask511)
+            {
+                lineAmount = 0m;
+                paymentTotal = 0m;
+                paymentDone = 0m;
+                paymentPending = 0m;
+                invoiceTotal = 0m;
+                invoiceDone = 0m;
+                invoicePending = 0m;
+            }
+
+            static object QtyMetric(decimal total, decimal done, decimal pending) => new
+            {
+                total,
+                done,
+                pending
+            };
+
+            static object AmtMetric(decimal total, decimal done, decimal pending, short currencyCode) => new
+            {
+                total,
+                done,
+                pending,
+                currency = currencyCode
+            };
+
+            return new
+            {
+                lineAmount = new { total = lineAmount, currency },
+                lineQty = new { total = qtyLine },
+                payment = AmtMetric(paymentTotal, paymentDone, paymentPending, currency),
+                arrivalNotice = QtyMetric(qtyLine, arrivalDone, arrivalPending),
+                stockIn = QtyMetric(qtyLine, stockInDone, stockInPending),
+                purchaseInvoice = AmtMetric(invoiceTotal, invoiceDone, invoicePending, currency)
             };
         }
 

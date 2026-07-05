@@ -217,6 +217,33 @@ export interface SalesOrderDetailTabAggregates {
   }>
   /** 销售明细关联质检单上的图片文档（只读展示） */
   qcImages: QcImageReadonlyRow[]
+  /** 销售订单明细详情「概况」页签（仅单条明细 aggregates 接口返回） */
+  lineOverview?: SellOrderLineOverview | null
+}
+
+export interface SellOrderLineOverviewQtyMetric {
+  total: number
+  done?: number
+  pending?: number
+}
+
+export interface SellOrderLineOverviewAmountMetric {
+  total: number
+  done?: number
+  pending?: number
+  currency?: number
+}
+
+export interface SellOrderLineOverview {
+  lineAmount: { total: number; currency?: number }
+  lineQty: { total: number }
+  purchaseRequisition: SellOrderLineOverviewQtyMetric
+  purchaseOrder: SellOrderLineOverviewQtyMetric
+  stockIn: SellOrderLineOverviewQtyMetric
+  stockOutNotify: SellOrderLineOverviewQtyMetric
+  stockOut: SellOrderLineOverviewQtyMetric
+  receiptWriteOff: SellOrderLineOverviewAmountMetric
+  invoice: SellOrderLineOverviewAmountMetric
 }
 
 /** 销售订单明细详情 / 参考面板「库存」Tab 行 */

@@ -523,6 +523,14 @@
               <button
                 type="button"
                 class="tab-btn"
+                :class="{ 'tab-btn--active': poItemLinePanel.activeTab === 'overview' }"
+                @click="poItemLinePanel.activeTab = 'overview'"
+              >
+                概况
+              </button>
+              <button
+                type="button"
+                class="tab-btn"
                 :class="{ 'tab-btn--active': poItemLinePanel.activeTab === 'requisitions' }"
                 @click="poItemLinePanel.activeTab = 'requisitions'"
               >
@@ -578,6 +586,47 @@
               </button>
             </div>
             <div class="tabs-body">
+              <div v-show="poItemLinePanel.activeTab === 'overview'" class="so-line-overview-wrap">
+                <table v-if="lineTabAggregates?.lineOverview" class="so-line-overview">
+                  <thead>
+                    <tr>
+                      <th class="so-line-overview__corner" />
+                      <th
+                        v-for="col in poLineOverviewColumns"
+                        :key="col.key"
+                        :class="['so-line-overview__col-head', poOverviewColHeadClass(col)]"
+                      >
+                        {{ col.label }}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="row in poLineOverviewRows" :key="row.key">
+                      <th class="so-line-overview__row-head">{{ row.label }}</th>
+                      <td
+                        v-for="col in poLineOverviewColumns"
+                        :key="`${row.key}-${col.key}`"
+                        class="so-line-overview__cell"
+                        :class="{ 'so-line-overview__cell--right': col.isAmount }"
+                      >
+                        <span v-if="formatPoOverviewCell(col, row.key).type === 'dash'">—</span>
+                        <span
+                          v-else-if="formatPoOverviewCell(col, row.key).type === 'qty'"
+                          class="so-line-overview__qty"
+                        >{{ formatPoOverviewCell(col, row.key).text }}</span>
+                        <span v-else class="amount-with-code">
+                          <span>{{ formatPoOverviewCell(col, row.key).text }}</span>
+                          <span
+                            v-if="formatPoOverviewCell(col, row.key).currency != null"
+                            :class="['amount-ccy', currencyCodeClass(formatPoOverviewCell(col, row.key).currency)]"
+                          >{{ currencyCodeText(formatPoOverviewCell(col, row.key).currency) }}</span>
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+                <DetailListPanelEmpty v-else-if="!poItemLinePanel.loading" size="low" description="暂无概况数据" />
+              </div>
               <div v-show="poItemLinePanel.activeTab === 'requisitions'" class="po-aggregate-table-wrap">
                 <el-table
                   v-if="(lineTabAggregates?.purchaseRequisitions?.length ?? 0) > 0"
@@ -826,7 +875,9 @@ import {
   type PurchaseOrderDetailTabAggregates,
   type PurchaseOrderItemExtendRefreshResult,
   type PurchaseOrderFieldChangeLogRow,
-  type PurchaseOrderDeletedItemRow
+  type PurchaseOrderDeletedItemRow,
+  type PurchaseOrderLineOverviewAmountMetric,
+  type PurchaseOrderLineOverviewQtyMetric
 } from '@/api/purchaseOrder'
 import { favoriteApi } from '@/api/favorite'
 import {
@@ -1074,6 +1125,7 @@ watch(activeTab, (tab) => {
 const lineTabAggregates = ref<PurchaseOrderDetailTabAggregates | null>(null)
 
 type PoItemLineTabKey =
+  | 'overview'
   | 'requisitions'
   | 'payments'
   | 'arrivals'
@@ -1086,6 +1138,8 @@ function poItemLineTabRecordCount(tab: PoItemLineTabKey): number {
   const agg = lineTabAggregates.value
   if (!agg) return 0
   switch (tab) {
+    case 'overview':
+      return 0
     case 'requisitions':
       return agg.purchaseRequisitions?.length ?? 0
     case 'payments':
@@ -1111,11 +1165,142 @@ function formatPoItemLineTabLabel(label: string, tab: PoItemLineTabKey): string 
   return count > 0 ? `${label} (${count})` : label
 }
 
+type PoLineOverviewColumnKey =
+  | 'lineAmount'
+  | 'lineQty'
+  | 'payment'
+  | 'arrivalNotice'
+  | 'stockIn'
+  | 'purchaseInvoice'
+
+type PoOverviewHeaderTone = 'none' | 'gray' | 'yellow' | 'green' | 'red'
+
+type PoLineOverviewColumnDef = {
+  key: PoLineOverviewColumnKey
+  label: string
+  isAmount: boolean
+  colorize: boolean
+  metric: PurchaseOrderLineOverviewQtyMetric | PurchaseOrderLineOverviewAmountMetric | { total: number; currency?: number }
+}
+
+const poLineOverviewRows = [
+  { key: 'total' as const, label: '总数' },
+  { key: 'done' as const, label: '已执行' },
+  { key: 'pending' as const, label: '待处理' }
+]
+
+const poLineOverviewColumns = computed<PoLineOverviewColumnDef[]>(() => {
+  const o = lineTabAggregates.value?.lineOverview
+  if (!o) return []
+  return [
+    {
+      key: 'lineAmount',
+      label: '采购订单明细总额',
+      isAmount: true,
+      colorize: false,
+      metric: o.lineAmount
+    },
+    {
+      key: 'lineQty',
+      label: '采购订单明细数量',
+      isAmount: false,
+      colorize: false,
+      metric: o.lineQty
+    },
+    {
+      key: 'payment',
+      label: '付款',
+      isAmount: true,
+      colorize: true,
+      metric: o.payment
+    },
+    {
+      key: 'arrivalNotice',
+      label: '到货通知',
+      isAmount: false,
+      colorize: true,
+      metric: o.arrivalNotice
+    },
+    {
+      key: 'stockIn',
+      label: '入库',
+      isAmount: false,
+      colorize: true,
+      metric: o.stockIn
+    },
+    {
+      key: 'purchaseInvoice',
+      label: '进项发票',
+      isAmount: true,
+      colorize: true,
+      metric: o.purchaseInvoice
+    }
+  ]
+})
+
+function poOverviewMetricDone(metric: PoLineOverviewColumnDef['metric']): number {
+  if (!('done' in metric) || metric.done == null) return 0
+  return Number(metric.done) || 0
+}
+
+function poOverviewMetricTotal(metric: PoLineOverviewColumnDef['metric']): number {
+  return Number(metric.total) || 0
+}
+
+function poOverviewHeaderTone(col: PoLineOverviewColumnDef): PoOverviewHeaderTone {
+  if (!col.colorize) return 'none'
+  const total = poOverviewMetricTotal(col.metric)
+  const done = poOverviewMetricDone(col.metric)
+  if (done > total + 1e-9) return 'red'
+  if (done <= 1e-9) return 'gray'
+  if (done + 1e-9 >= total) return 'green'
+  return 'yellow'
+}
+
+function poOverviewColHeadClass(col: PoLineOverviewColumnDef): string {
+  const tone = poOverviewHeaderTone(col)
+  if (tone === 'none') return ''
+  return `so-line-overview__col-head--${tone}`
+}
+
+function formatPoOverviewQty(v: number) {
+  const n = Number(v)
+  if (!Number.isFinite(n)) return '—'
+  if (Math.abs(n - Math.round(n)) < 1e-9) return String(Math.round(n))
+  return n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 4 })
+}
+
+function formatPoOverviewCell(
+  col: PoLineOverviewColumnDef,
+  rowKey: 'total' | 'done' | 'pending'
+): { type: 'dash' | 'qty' | 'amount'; text: string; currency?: number } {
+  const metric = col.metric
+  if (!col.colorize && rowKey !== 'total') {
+    return { type: 'dash', text: '—' }
+  }
+
+  let raw: number | undefined
+  if (rowKey === 'total') raw = metric.total
+  else if ('done' in metric && rowKey === 'done') raw = metric.done
+  else if ('pending' in metric && rowKey === 'pending') raw = metric.pending
+
+  if (raw == null) return { type: 'dash', text: '—' }
+
+  if (col.isAmount) {
+    if (!canViewPurchaseAmount.value) return { type: 'dash', text: '—' }
+    const currency = 'currency' in metric ? metric.currency : undefined
+    return { type: 'amount', text: formatTotalAmountNumber(raw), currency }
+  }
+
+  return { type: 'qty', text: formatPoOverviewQty(raw) }
+}
+
 const poItemLinePanel = reactive({
   visible: false,
   purchaseOrderItemId: '',
   purchaseOrderItemCode: '',
-  activeTab: 'requisitions' as
+  activeTab: 'overview' as
+    | 'overview'
     | 'requisitions'
     | 'payments'
     | 'arrivals'
@@ -1250,7 +1435,7 @@ async function selectPurchaseOrderItemRow(row: Record<string, unknown>) {
   poItemLinePanel.purchaseOrderItemId = purchaseOrderItemId
   poItemLinePanel.purchaseOrderItemCode = purchaseOrderItemCode || purchaseOrderItemId
   poItemLinePanel.visible = true
-  poItemLinePanel.activeTab = 'requisitions'
+  poItemLinePanel.activeTab = 'overview'
   poItemLinePanel.loading = true
   poItemLinePanel.loadError = ''
   lineTabAggregates.value = null
@@ -2401,6 +2586,84 @@ html[data-theme='dark'] .purchase-order-detail .po-detail-biz-qty {
     border: 1px dashed rgba(0, 212, 255, 0.5);
     border-radius: 8px;
     background: rgba(0, 212, 255, 0.03);
+  }
+}
+
+.po-aggregate-table-wrap {
+  margin-top: 4px;
+}
+
+.so-line-overview-wrap {
+  margin-top: 4px;
+  overflow-x: auto;
+}
+
+.so-line-overview {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--crm-table-text);
+
+  th,
+  td {
+    border: 1px solid var(--crm-table-cell-line);
+    padding: 10px 12px;
+    vertical-align: middle;
+  }
+
+  &__corner {
+    width: 88px;
+    min-width: 88px;
+    background: var(--crm-detail-section-header-bg);
+  }
+
+  &__row-head {
+    text-align: left;
+    font-weight: 400;
+    white-space: nowrap;
+    background: var(--crm-detail-section-header-bg);
+    color: var(--crm-table-header-text);
+  }
+
+  &__col-head {
+    text-align: center;
+    font-weight: 400;
+    white-space: nowrap;
+    background: var(--crm-detail-section-header-bg);
+    color: var(--crm-table-header-text);
+
+    &--gray {
+      color: $info-color;
+    }
+
+    &--yellow {
+      color: $warning-color;
+    }
+
+    &--green {
+      color: $success-color;
+    }
+
+    &--red {
+      color: $danger-color;
+    }
+  }
+
+  &__cell {
+    text-align: center;
+    color: var(--crm-table-text);
+    font-weight: 500;
+    background: var(--crm-card-bg);
+
+    &--right {
+      text-align: right;
+    }
+  }
+
+  &__qty {
+    font-variant-numeric: tabular-nums;
+    color: var(--crm-table-text);
   }
 }
 
