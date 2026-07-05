@@ -140,6 +140,18 @@ export interface CustomsDeclarationDetailItemViewDto {
   vendorId?: string | null
   vendorName?: string | null
   stockOutRequestId: string
+  arrivalNotifyCode?: string | null
+}
+
+export interface CreateCustomsArrivalNotifiesResultDto {
+  declarationId: string
+  createdCount: number
+  created: Array<{
+    noticeId: string
+    noticeCode: string
+    lineNo: number
+    customsDeclarationItemId: string
+  }>
 }
 
 export interface CustomsDeclarationDetailDto {
@@ -163,6 +175,11 @@ export interface CustomsDeclarationDetailDto {
   toWarehouseCode?: string | null
   remark?: string | null
   createTime: string
+  canCreateArrivalNotifies?: boolean
+  pendingArrivalNotifyCount?: number
+  existingArrivalNotifyCount?: number
+  existingArrivalNotifyCodes?: string[]
+  arrivalNotifyBlockReason?: string | null
   items?: CustomsDeclarationDetailItemViewDto[]
 }
 
@@ -240,6 +257,15 @@ export async function patchCustomsDeclarationItem(
   body: Record<string, unknown>
 ): Promise<void> {
   await apiClient.patch(`/api/v1/customs-declaration-items/${encodeURIComponent(id)}`, body)
+}
+
+export async function createCustomsArrivalNotifies(
+  id: string
+): Promise<CreateCustomsArrivalNotifiesResultDto> {
+  return apiClient.post<CreateCustomsArrivalNotifiesResultDto>(
+    `/api/v1/customs-declarations/${encodeURIComponent(id)}/create-arrival-notifies`,
+    {}
+  )
 }
 
 export async function completeCustomsDeclaration(id: string): Promise<void> {

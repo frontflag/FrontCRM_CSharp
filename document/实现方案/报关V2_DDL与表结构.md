@@ -179,9 +179,21 @@ customs_declaration_item ──→ stockin_notify.customs_declaration_item_id
 
 | 新增 | 列 | 说明 |
 |------|-----|------|
-| `customs_declaration_item_id` | varchar(36) NULL | 从报关明细发起到货；**唯一**（未删且非空） |
+| `customs_declaration_item_id` | varchar(36) NULL | 从报关明细关联；**唯一**（未删且非空） |
 
-发起条件（应用层）：对应报关明细所属报关单 **已报关出库完成**。
+**发起方式（V2 定稿，2026-07）**
+
+| 项 | 约定 |
+|----|------|
+| **触发** | **人工**：报关单详情/列表点击「生成报关到货通知」 |
+| **API** | `POST /api/v1/customs-declarations/{id}/create-arrival-notifies` |
+| **前置** | ① 海关状态 = **已结关**（`CustomsClearanceStatus=100`）；② 已维护 **目标境内仓库**（`ToWarehouseId`）；③ 各明细对应 **报关出库通知已执行出库**（`Status=100`）；④ 该明细尚无到货通知（幂等） |
+| **不再自动** | ~~报关出库完成时系统自动创建~~（已移除，避免关务未结关时境内仓过早出现待检） |
+| **粒度** | 按报关单头 **批量** 为本单所有满足条件的明细各生成一条 `StockInType=20` 到货通知 |
+
+服务实现：`CustomsV2FlowService.CreateCustomsArrivalNotifiesAsync`。
+
+**完整设计与操作说明：** [报关到货通知（手工发起）— 设计与实现](../../System/报关/报关到货通知-设计与实现.md)
 
 ---
 
@@ -222,5 +234,6 @@ customs_declaration_item ──→ stockin_notify.customs_declaration_item_id
 | 文档 | 关系 |
 |------|------|
 | `报关_移库.md` | 移库一步过账 **废弃** |
-| `报关模块完整实施方案.md` | 被本文 **V2 流程**  supersede |
+| `报关模块完整实施方案.md` | 被本文 **V2 流程** supersede |
+| `System/报关/报关到货通知-设计与实现.md` | 境内到货通知 **手工发起** 规则与实现 |
 | `报关V2前备份` commit | 代码基线 |

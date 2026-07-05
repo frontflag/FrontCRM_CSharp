@@ -194,6 +194,12 @@ const zhCN = {
       completeOk: '已提交报关完成',
       detailTitle: '报关单详情',
       itemsTitle: '报关明细',
+      colArrivalNotify: '到货通知',
+      createArrivalNotifies: '生成报关到货通知',
+      createArrivalConfirm: '将为本报关单下尚未生成到货通知且已报关出库完成的明细批量生成通知，是否继续？',
+      createArrivalOk: '已生成 {count} 条报关到货通知',
+      createArrivalOkWithCodes: '已生成报关到货通知：{codes}',
+      existingArrivalNotifies: '已生成到货通知：{codes}',
       selectPlaceholder: '请选择'
     },
     items: {

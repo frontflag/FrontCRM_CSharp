@@ -371,65 +371,74 @@ public class CustomsV2FlowService : ICustomsV2FlowService
         ext.CustomsDeclarationItemId = decItem.Id;
     }
 
-    public async Task OnCustomsStockOutCompletedAsync(string customsStockOutRequestId, string? actingUserId, CancellationToken cancellationToken = default)
+    public async Task<CreateCustomsArrivalNotifiesResultDto> CreateCustomsArrivalNotifiesAsync(
+        string declarationId,
+        string? actingUserId,
+        CancellationToken cancellationToken = default)
     {
         _ = cancellationToken;
-        var sor = await LoadCustomsStockOutRequestAsync(customsStockOutRequestId);
-        var decItem = await FindDeclarationItemByCustomsStockOutNotifyAsync(sor.Id);
-        if (decItem == null)
-            return;
+        var readiness = await EvaluateArrivalNotifyReadinessAsync(declarationId);
+        if (!readiness.CanCreate)
+            throw new InvalidOperationException(readiness.BlockReason ?? "当前不能生成报关到货通知。");
 
-        var existing = (await _stockInNotifyRepo.FindAsync(n =>
-            n.CustomsDeclarationItemId == decItem.Id && !n.IsDeleted)).FirstOrDefault();
-        if (existing != null)
-            return;
+        var dec = await _declarationRepo.GetByIdAsync(declarationId.Trim())
+                  ?? throw new InvalidOperationException("报关单不存在。");
+        var items = (await _declarationItemRepo.FindAsync(i => i.DeclarationId == dec.Id && !i.IsDeleted))
+            .OrderBy(i => i.LineNo)
+            .ToList();
 
-        var dec = await _declarationRepo.GetByIdAsync(decItem.DeclarationId.Trim());
-        if (dec == null || dec.IsDeleted)
-            return;
-
-        var toWh = dec.ToWarehouseId?.Trim() ?? string.Empty;
-        if (string.IsNullOrEmpty(toWh))
-            throw new InvalidOperationException("报关单未维护目标境内仓库，无法生成报关到货通知。");
-
-        var noticeCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.ArrivalNotice);
         var now = DateTime.UtcNow;
-        var actor = ActingUserIdNormalizer.Normalize(actingUserId);
-        var cost = decItem.TaxIncludedUnitPrice > 0m ? decItem.TaxIncludedUnitPrice : decItem.DeclareUnitPrice;
-        var expectQty = decItem.DeclareQty;
-        var expectTotal = Math.Round(expectQty * cost, 2, MidpointRounding.AwayFromZero);
+        var created = new List<CreatedCustomsArrivalNotifyLineDto>();
 
-        var notice = new StockInNotify
+        foreach (var decItem in items)
         {
-            Id = Guid.NewGuid().ToString(),
-            NoticeCode = noticeCode,
-            PurchaseOrderId = string.Empty,
-            PurchaseOrderCode = string.Empty,
-            PurchaseOrderItemId = string.Empty,
-            SellOrderItemId = decItem.SellOrderItemId,
-            VendorId = decItem.VendorId,
-            Status = 10,
-            ExpectedArrivalDate = now.Date,
-            RegionType = RegionTypeCode.Domestic,
-            StockInType = StockInTypeCode.Customs,
-            Pn = decItem.PurchasePn,
-            Brand = decItem.PurchaseBrand,
-            ExpectQty = expectQty,
-            ReceiveQty = 0,
-            PassedQty = 0,
-            Cost = cost,
-            ExpectTotal = expectTotal,
-            ReceiveTotal = 0,
-            CustomsDeclarationItemId = decItem.Id,
-            CreateTime = now,
-            IsDeleted = false
-        };
-        await _stockInNotifyRepo.AddAsync(notice);
+            var existing = (await _stockInNotifyRepo.FindAsync(n =>
+                n.CustomsDeclarationItemId == decItem.Id && !n.IsDeleted)).FirstOrDefault();
+            if (existing != null)
+                continue;
+
+            var customsSorId = decItem.CustomsStockOutNotifyId?.Trim() ?? string.Empty;
+            if (string.IsNullOrEmpty(customsSorId))
+                continue;
+
+            var sor = await _stockOutRequestRepo.GetByIdAsync(customsSorId);
+            if (sor == null || sor.IsDeleted || sor.Status != StockOutRequestStatusCode.StockedOut)
+                continue;
+
+            var notice = await BuildCustomsArrivalNotifyAsync(dec, decItem, now);
+            await _stockInNotifyRepo.AddAsync(notice);
+            created.Add(new CreatedCustomsArrivalNotifyLineDto
+            {
+                NoticeId = notice.Id,
+                NoticeCode = notice.NoticeCode,
+                LineNo = decItem.LineNo,
+                CustomsDeclarationItemId = decItem.Id
+            });
+
+            _logger.LogInformation(
+                "CustomsV2 arrival notify created manually DeclarationId={DeclarationId} NoticeId={NoticeId} CdiId={CdiId}",
+                dec.Id, notice.Id, decItem.Id);
+        }
+
+        if (created.Count == 0)
+            throw new InvalidOperationException("没有可生成的报关到货通知（可能已全部生成）。");
+
         await _unitOfWork.SaveChangesAsync();
 
-        _logger.LogInformation(
-            "CustomsV2 arrival notify created CustomsSorId={SorId} NoticeId={NoticeId} CdiId={CdiId}",
-            sor.Id, notice.Id, decItem.Id);
+        return new CreateCustomsArrivalNotifiesResultDto
+        {
+            DeclarationId = dec.Id,
+            CreatedCount = created.Count,
+            Created = created
+        };
+    }
+
+    public Task<CustomsDeclarationArrivalNotifyReadinessDto> GetArrivalNotifyReadinessAsync(
+        string declarationId,
+        CancellationToken cancellationToken = default)
+    {
+        _ = cancellationToken;
+        return EvaluateArrivalNotifyReadinessAsync(declarationId);
     }
 
     public async Task OnCustomsStockInCompletedAsync(string stockInId, string? actingUserId, CancellationToken cancellationToken = default)
@@ -704,6 +713,170 @@ public class CustomsV2FlowService : ICustomsV2FlowService
         if (StockOutTypeCode.NormalizeForNotify(sor.StockOutType) != StockOutTypeCode.Customs)
             throw new InvalidOperationException("须为报关出库通知。");
         return sor;
+    }
+
+    private async Task<StockInNotify> BuildCustomsArrivalNotifyAsync(
+        CustomsDeclaration dec,
+        CustomsDeclarationItem decItem,
+        DateTime now)
+    {
+        var toWh = dec.ToWarehouseId?.Trim() ?? string.Empty;
+        if (string.IsNullOrEmpty(toWh))
+            throw new InvalidOperationException("报关单未维护目标境内仓库，无法生成报关到货通知。");
+
+        var noticeCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.ArrivalNotice);
+        var cost = decItem.TaxIncludedUnitPrice > 0m ? decItem.TaxIncludedUnitPrice : decItem.DeclareUnitPrice;
+        var expectQty = decItem.DeclareQty;
+        var expectTotal = Math.Round(expectQty * cost, 2, MidpointRounding.AwayFromZero);
+
+        return new StockInNotify
+        {
+            Id = Guid.NewGuid().ToString(),
+            NoticeCode = noticeCode,
+            PurchaseOrderId = string.Empty,
+            PurchaseOrderCode = string.Empty,
+            PurchaseOrderItemId = string.Empty,
+            SellOrderItemId = decItem.SellOrderItemId,
+            VendorId = decItem.VendorId,
+            Status = 10,
+            ExpectedArrivalDate = now.Date,
+            RegionType = RegionTypeCode.Domestic,
+            StockInType = StockInTypeCode.Customs,
+            Pn = decItem.PurchasePn,
+            Brand = decItem.PurchaseBrand,
+            ExpectQty = expectQty,
+            ReceiveQty = 0,
+            PassedQty = 0,
+            Cost = cost,
+            ExpectTotal = expectTotal,
+            ReceiveTotal = 0,
+            CustomsDeclarationItemId = decItem.Id,
+            CreateTime = now,
+            IsDeleted = false
+        };
+    }
+
+    private async Task<CustomsDeclarationArrivalNotifyReadinessDto> EvaluateArrivalNotifyReadinessAsync(string declarationId)
+    {
+        var key = declarationId?.Trim() ?? string.Empty;
+        if (string.IsNullOrEmpty(key))
+        {
+            return new CustomsDeclarationArrivalNotifyReadinessDto
+            {
+                BlockReason = "报关单 ID 无效。"
+            };
+        }
+
+        var dec = await _declarationRepo.GetByIdAsync(key);
+        if (dec == null || dec.IsDeleted)
+        {
+            return new CustomsDeclarationArrivalNotifyReadinessDto
+            {
+                BlockReason = "报关单不存在。"
+            };
+        }
+
+        if (dec.InternalStatus == CustomsDeclarationInternalStatus.Voided)
+        {
+            return new CustomsDeclarationArrivalNotifyReadinessDto
+            {
+                BlockReason = "报关单已作废。"
+            };
+        }
+
+        if (dec.CustomsClearanceStatus != CustomsClearanceStatusCodes.Cleared)
+        {
+            return new CustomsDeclarationArrivalNotifyReadinessDto
+            {
+                BlockReason = "海关状态须为「已结关」后才能生成报关到货通知。"
+            };
+        }
+
+        if (string.IsNullOrWhiteSpace(dec.ToWarehouseId))
+        {
+            return new CustomsDeclarationArrivalNotifyReadinessDto
+            {
+                BlockReason = "请先在报关单上维护目标境内仓库。"
+            };
+        }
+
+        var items = (await _declarationItemRepo.FindAsync(i => i.DeclarationId == dec.Id && !i.IsDeleted))
+            .OrderBy(i => i.LineNo)
+            .ToList();
+        if (items.Count == 0)
+        {
+            return new CustomsDeclarationArrivalNotifyReadinessDto
+            {
+                BlockReason = "报关单无明细。"
+            };
+        }
+
+        var existingCodes = new List<string>();
+        var pendingCount = 0;
+        var existingCount = 0;
+        var blockedByStockOut = false;
+
+        foreach (var decItem in items)
+        {
+            var existing = (await _stockInNotifyRepo.FindAsync(n =>
+                n.CustomsDeclarationItemId == decItem.Id && !n.IsDeleted)).FirstOrDefault();
+            if (existing != null)
+            {
+                existingCount++;
+                if (!string.IsNullOrWhiteSpace(existing.NoticeCode))
+                    existingCodes.Add(existing.NoticeCode.Trim());
+                continue;
+            }
+
+            var customsSorId = decItem.CustomsStockOutNotifyId?.Trim() ?? string.Empty;
+            if (string.IsNullOrEmpty(customsSorId))
+            {
+                blockedByStockOut = true;
+                continue;
+            }
+
+            var sor = await _stockOutRequestRepo.GetByIdAsync(customsSorId);
+            if (sor == null || sor.IsDeleted || sor.Status != StockOutRequestStatusCode.StockedOut)
+            {
+                blockedByStockOut = true;
+                continue;
+            }
+
+            pendingCount++;
+        }
+
+        if (pendingCount == 0 && existingCount == items.Count)
+        {
+            return new CustomsDeclarationArrivalNotifyReadinessDto
+            {
+                CanCreate = false,
+                PendingCount = 0,
+                ExistingCount = existingCount,
+                ExistingNoticeCodes = existingCodes,
+                BlockReason = "全部明细已生成报关到货通知。"
+            };
+        }
+
+        if (pendingCount == 0 && blockedByStockOut)
+        {
+            return new CustomsDeclarationArrivalNotifyReadinessDto
+            {
+                CanCreate = false,
+                PendingCount = 0,
+                ExistingCount = existingCount,
+                ExistingNoticeCodes = existingCodes,
+                BlockReason = "存在未完成报关出库的明细，请执行报关出库后再生成。"
+            };
+        }
+
+        return new CustomsDeclarationArrivalNotifyReadinessDto
+        {
+            CanCreate = pendingCount > 0,
+            PendingCount = pendingCount,
+            ExistingCount = existingCount,
+            ExistingNoticeCodes = existingCodes,
+            BlockReason = pendingCount > 0 ? null : "当前没有可生成的报关到货通知。"
+        };
     }
 
     private async Task<CustomsDeclarationItem?> FindDeclarationItemByCustomsStockOutNotifyAsync(string customsStockOutNotifyId)

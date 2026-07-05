@@ -194,6 +194,12 @@ const enUS = {
       completeOk: 'Submitted',
       detailTitle: 'Declaration detail',
       itemsTitle: 'Line items',
+      colArrivalNotify: 'Arrival notice',
+      createArrivalNotifies: 'Create customs arrival notices',
+      createArrivalConfirm: 'Create arrival notices for all eligible lines on this declaration?',
+      createArrivalOk: 'Created {count} arrival notice(s)',
+      createArrivalOkWithCodes: 'Created arrival notices: {codes}',
+      existingArrivalNotifies: 'Existing arrival notices: {codes}',
       selectPlaceholder: 'Select'
     },
     items: {

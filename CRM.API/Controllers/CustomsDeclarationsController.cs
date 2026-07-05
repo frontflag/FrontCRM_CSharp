@@ -198,6 +198,15 @@ public class CustomsDeclarationsController : ControllerBase
 
         var firstSor = items.FirstOrDefault()?.StockOutRequestId;
 
+        var readiness = await _customsV2FlowService.GetArrivalNotifyReadinessAsync(key);
+        var notifyByCdi = await _db.StockInNotifies.AsNoTracking()
+            .Where(n => !n.IsDeleted && n.CustomsDeclarationItemId != null)
+            .Where(n => items.Select(i => i.Id).Contains(n.CustomsDeclarationItemId!))
+            .ToListAsync();
+        var notifyCodeByCdi = notifyByCdi
+            .GroupBy(n => n.CustomsDeclarationItemId!.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().NoticeCode?.Trim(), StringComparer.OrdinalIgnoreCase);
+
         var dto = new CustomsDeclarationDetailViewDto
         {
             Id = row.Id,
@@ -220,6 +229,11 @@ public class CustomsDeclarationsController : ControllerBase
             ToWarehouseCode = toWh?.WarehouseCode,
             Remark = row.Remark,
             CreateTime = row.CreateTime,
+            CanCreateArrivalNotifies = readiness.CanCreate,
+            PendingArrivalNotifyCount = readiness.PendingCount,
+            ExistingArrivalNotifyCount = readiness.ExistingCount,
+            ExistingArrivalNotifyCodes = readiness.ExistingNoticeCodes.ToList(),
+            ArrivalNotifyBlockReason = readiness.BlockReason,
             Items = items.Select(i =>
             {
                 string? vendorName = null;
@@ -261,7 +275,8 @@ public class CustomsDeclarationsController : ControllerBase
                     CustomerName = customerName,
                     VendorId = i.VendorId,
                     VendorName = vendorName,
-                    StockOutRequestId = i.StockOutRequestId
+                    StockOutRequestId = i.StockOutRequestId,
+                    ArrivalNotifyCode = notifyCodeByCdi.TryGetValue(i.Id.Trim(), out var nc) ? nc : null
                 };
             }).ToList()
         };
@@ -384,6 +399,32 @@ public class CustomsDeclarationsController : ControllerBase
         {
             _logger.LogError(ex, "更新海关状态失败");
             return StatusCode(500, ApiResponse<object>.Fail(ex.Message, 500));
+        }
+    }
+
+    [HttpPost("{id}/create-arrival-notifies")]
+    public async Task<ActionResult<ApiResponse<CreateCustomsArrivalNotifiesResultDto>>> CreateArrivalNotifies(string id)
+    {
+        try
+        {
+            if (!await CustomsModuleAccessHttp.CanAccessAsync(_rbacService, User))
+                return StatusCode(403, ApiResponse<CreateCustomsArrivalNotifiesResultDto>.Fail("当前账号无权访问报关模块", 403));
+
+            if (!await LogisticsDataAccessHttp.CanWriteAsync(_rbacService, User))
+                return StatusCode(403, ApiResponse<CreateCustomsArrivalNotifiesResultDto>.Fail("当前账号物流数据为只读或禁止", 403));
+
+            var uid = User?.Claims?.FirstOrDefault(c => c.Type == "sub" || c.Type == "userId")?.Value;
+            var result = await _customsV2FlowService.CreateCustomsArrivalNotifiesAsync(id, uid);
+            return Ok(ApiResponse<CreateCustomsArrivalNotifiesResultDto>.Ok(result, $"已生成 {result.CreatedCount} 条报关到货通知"));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<CreateCustomsArrivalNotifiesResultDto>.Fail(ex.Message, 400));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "生成报关到货通知失败");
+            return StatusCode(500, ApiResponse<CreateCustomsArrivalNotifiesResultDto>.Fail(ex.Message, 500));
         }
     }
 

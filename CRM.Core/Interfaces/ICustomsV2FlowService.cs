@@ -20,7 +20,15 @@ public interface ICustomsV2FlowService
 
     void ApplyCustomsStockOutExtend(StockOutItemExtend ext, StockItem layer, string? packingItemId, IReadOnlyDictionary<string, CustomsDeclarationItem> decItemByPackingItemId);
 
-    Task OnCustomsStockOutCompletedAsync(string customsStockOutRequestId, string? actingUserId, CancellationToken cancellationToken = default);
+    /// <summary>报关单头人工发起：为本单尚未生成到货通知且已报关出库完成的明细批量创建报关到货通知。</summary>
+    Task<CreateCustomsArrivalNotifiesResultDto> CreateCustomsArrivalNotifiesAsync(
+        string declarationId,
+        string? actingUserId,
+        CancellationToken cancellationToken = default);
+
+    Task<CustomsDeclarationArrivalNotifyReadinessDto> GetArrivalNotifyReadinessAsync(
+        string declarationId,
+        CancellationToken cancellationToken = default);
 
     Task OnCustomsStockInCompletedAsync(string stockInId, string? actingUserId, CancellationToken cancellationToken = default);
 
@@ -44,4 +52,28 @@ public sealed class CustomsDeclarationItemPatch
     public decimal? InspectionFee { get; set; }
     public decimal? TotalValueTax { get; set; }
     public decimal? TaxIncludedUnitPrice { get; set; }
+}
+
+public sealed class CreateCustomsArrivalNotifiesResultDto
+{
+    public string DeclarationId { get; set; } = string.Empty;
+    public int CreatedCount { get; set; }
+    public IReadOnlyList<CreatedCustomsArrivalNotifyLineDto> Created { get; set; } = Array.Empty<CreatedCustomsArrivalNotifyLineDto>();
+}
+
+public sealed class CreatedCustomsArrivalNotifyLineDto
+{
+    public string NoticeId { get; set; } = string.Empty;
+    public string NoticeCode { get; set; } = string.Empty;
+    public int LineNo { get; set; }
+    public string CustomsDeclarationItemId { get; set; } = string.Empty;
+}
+
+public sealed class CustomsDeclarationArrivalNotifyReadinessDto
+{
+    public bool CanCreate { get; set; }
+    public int PendingCount { get; set; }
+    public int ExistingCount { get; set; }
+    public IReadOnlyList<string> ExistingNoticeCodes { get; set; } = Array.Empty<string>();
+    public string? BlockReason { get; set; }
 }

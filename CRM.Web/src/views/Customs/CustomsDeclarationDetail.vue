@@ -2,10 +2,36 @@
   <div class="customs-declaration-detail" v-loading="loading">
     <div class="page-header">
       <h1 class="page-title">{{ t('customsPages.declarations.detailTitle') }}</h1>
-      <el-button @click="goBack">{{ t('stockOutDetail.back') }}</el-button>
+      <div class="header-actions">
+        <el-button
+          v-if="canWriteLogistics && detail?.canCreateArrivalNotifies"
+          type="primary"
+          :loading="creatingArrival"
+          @click="handleCreateArrivalNotifies"
+        >
+          {{ t('customsPages.declarations.createArrivalNotifies') }}
+        </el-button>
+        <el-button @click="goBack">{{ t('stockOutDetail.back') }}</el-button>
+      </div>
     </div>
 
     <template v-if="detail">
+      <el-alert
+        v-if="detail.arrivalNotifyBlockReason && !detail.canCreateArrivalNotifies && detail.existingArrivalNotifyCount === 0"
+        type="info"
+        :closable="false"
+        show-icon
+        class="arrival-hint"
+        :title="detail.arrivalNotifyBlockReason"
+      />
+      <el-alert
+        v-else-if="detail.existingArrivalNotifyCodes?.length"
+        type="success"
+        :closable="false"
+        show-icon
+        class="arrival-hint"
+        :title="t('customsPages.declarations.existingArrivalNotifies', { codes: detail.existingArrivalNotifyCodes.join('、') })"
+      />
       <el-descriptions :column="2" border class="desc-block">
         <el-descriptions-item :label="t('customsPages.declarations.colDecCode')">{{ detail.declarationCode }}</el-descriptions-item>
         <el-descriptions-item :label="t('customsPages.declarations.colBroker')">
@@ -86,6 +112,9 @@
         <el-table-column :label="t('customsPages.items.colTotalTax')" width="100" align="right">
           <template #default="{ row }">{{ moneyText(row.totalValueTax) }}</template>
         </el-table-column>
+        <el-table-column :label="t('customsPages.declarations.colArrivalNotify')" min-width="120" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.arrivalNotifyCode || '—' }}</template>
+        </el-table-column>
       </el-table>
     </template>
 
@@ -97,18 +126,25 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { fetchCustomsDeclarationById, type CustomsDeclarationDetailDto } from '@/api/customs'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+  createCustomsArrivalNotifies,
+  fetchCustomsDeclarationById,
+  type CustomsDeclarationDetailDto
+} from '@/api/customs'
 import { formatVendorNameReadonly } from '@/utils/vendorDisplayName'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
+const { canWriteLogisticsData: canWriteLogistics } = useDepartmentDataReadOnly()
 const { maskPurchaseSensitiveFields: maskPurchase } = usePurchaseSensitiveFieldMask()
 const { maskSaleSensitiveFields: maskSale } = useSaleSensitiveFieldMask()
 const loading = ref(false)
+const creatingArrival = ref(false)
 const loadError = ref('')
 const detail = ref<CustomsDeclarationDetailDto | null>(null)
 
@@ -163,6 +199,35 @@ function goBack() {
   router.push({ name: 'CustomsDeclarationList' })
 }
 
+async function handleCreateArrivalNotifies() {
+  const id = detail.value?.id
+  if (!id) return
+  try {
+    await ElMessageBox.confirm(
+      t('customsPages.declarations.createArrivalConfirm'),
+      t('customsPages.declarations.createArrivalNotifies'),
+      { type: 'warning' }
+    )
+  } catch {
+    return
+  }
+  creatingArrival.value = true
+  try {
+    const result = await createCustomsArrivalNotifies(id)
+    const codes = result.created?.map((c) => c.noticeCode).filter(Boolean).join('、')
+    ElMessage.success(
+      codes
+        ? t('customsPages.declarations.createArrivalOkWithCodes', { codes })
+        : t('customsPages.declarations.createArrivalOk', { count: result.createdCount })
+    )
+    await load()
+  } catch (e: unknown) {
+    ElMessage.error(e instanceof Error ? e.message : String(e))
+  } finally {
+    creatingArrival.value = false
+  }
+}
+
 async function load() {
   const id = typeof route.params.id === 'string' ? route.params.id.trim() : ''
   if (!id) {
@@ -198,6 +263,14 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 16px;
+}
+.header-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.arrival-hint {
+  margin-bottom: 12px;
 }
 .page-title {
   margin: 0;

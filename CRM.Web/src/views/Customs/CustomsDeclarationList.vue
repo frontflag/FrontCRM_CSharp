@@ -67,6 +67,14 @@
       <el-table-column :label="t('customsPages.declarations.colActions')" width="320" fixed="right">
         <template #default="{ row }">
           <el-button v-if="canWriteLogisticsData" link type="primary" @click.stop="openClearance(row)">{{ t('customsPages.declarations.setClearance') }}</el-button>
+          <el-button
+            v-if="canWriteLogisticsData && row.customsClearanceStatus === 100 && row.internalStatus !== -1"
+            link
+            type="primary"
+            @click.stop="handleCreateArrival(row)"
+          >
+            {{ t('customsPages.declarations.createArrivalNotifies') }}
+          </el-button>
           <el-button v-if="canWriteLogisticsData" link type="danger" @click.stop="handleDelete(row)">删除</el-button>
           <el-button v-if="isSysAdmin" link type="danger" @click.stop="handleForceDelete(row)">强制删除</el-button>
         </template>
@@ -93,6 +101,7 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
+  createCustomsArrivalNotifies,
   deleteCustomsDeclaration,
   fetchCustomsDeclarations,
   forceDeleteCustomsDeclaration,
@@ -238,6 +247,30 @@ async function handleForceDelete(row: CustomsDeclarationListItemDto) {
 
 function onDblClick(row: CustomsDeclarationListItemDto) {
   router.push({ name: 'CustomsDeclarationDetail', params: { id: row.id } })
+}
+
+async function handleCreateArrival(row: CustomsDeclarationListItemDto) {
+  try {
+    await ElMessageBox.confirm(
+      t('customsPages.declarations.createArrivalConfirm'),
+      t('customsPages.declarations.createArrivalNotifies'),
+      { type: 'warning' }
+    )
+  } catch {
+    return
+  }
+  try {
+    const result = await createCustomsArrivalNotifies(row.id)
+    const codes = result.created?.map((c) => c.noticeCode).filter(Boolean).join('、')
+    ElMessage.success(
+      codes
+        ? t('customsPages.declarations.createArrivalOkWithCodes', { codes })
+        : t('customsPages.declarations.createArrivalOk', { count: result.createdCount })
+    )
+    await load()
+  } catch (e: unknown) {
+    ElMessage.error(e instanceof Error ? e.message : String(e))
+  }
 }
 
 onMounted(() => {

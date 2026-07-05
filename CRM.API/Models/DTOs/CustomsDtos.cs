@@ -73,6 +73,12 @@ public sealed class CustomsDeclarationDetailViewDto
     public string? Remark { get; set; }
     public DateTime CreateTime { get; set; }
     public List<CustomsDeclarationDetailItemViewDto> Items { get; set; } = new();
+    /// <summary>是否可人工生成报关到货通知（已结关、已维护目标仓、存在待生成明细）。</summary>
+    public bool CanCreateArrivalNotifies { get; set; }
+    public int PendingArrivalNotifyCount { get; set; }
+    public int ExistingArrivalNotifyCount { get; set; }
+    public List<string> ExistingArrivalNotifyCodes { get; set; } = new();
+    public string? ArrivalNotifyBlockReason { get; set; }
 }
 
 public sealed class CustomsDeclarationDetailItemViewDto
@@ -99,6 +105,7 @@ public sealed class CustomsDeclarationDetailItemViewDto
     public string? VendorId { get; set; }
     public string? VendorName { get; set; }
     public string StockOutRequestId { get; set; } = string.Empty;
+    public string? ArrivalNotifyCode { get; set; }
 }
 
 public sealed class StockTransferListItemDto

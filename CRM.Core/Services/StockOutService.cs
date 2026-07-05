@@ -1354,9 +1354,6 @@ namespace CRM.Core.Services
                 "[SellLineStockOutSync] ExecuteStockOut after Recalculate SellOrderItemId={SellOrderItemId} SaveChanges={Rows}",
                 sellLineId, saveExtend);
 
-            if (isCustomsOut)
-                await _customsV2FlowService.OnCustomsStockOutCompletedAsync(requestId, actingUserId);
-
             return stockOut;
         }
 
