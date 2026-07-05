@@ -1,1 +1,2 @@
+2026-07-05 17:40:37 | docs: 内外版本日志设计与实现文档及 Debug 页 PRD 更新
 2026-07-05 17:37:14 | fix: post-commit 版本日志脚本兼容 Windows git format
