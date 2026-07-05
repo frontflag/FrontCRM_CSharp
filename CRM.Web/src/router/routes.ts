@@ -16,6 +16,12 @@ const routes: RouteRecordRaw[] = [
     name: 'Register',
     component: () => import('@/views/Auth/RegisterView.vue')
   },
+  {
+    path: '/release-notes',
+    name: 'ReleaseNotes',
+    component: () => import('@/views/ReleaseNotes/ReleaseNotesPage.vue'),
+    meta: { requiresAuth: false, title: '版本更新日志' }
+  },
   // 常见误输 /ldebug -> /debug
   {
     path: '/ldebug',
@@ -989,6 +995,12 @@ const routes: RouteRecordRaw[] = [
         name: 'DocumentDemo',
         component: () => import('@/views/Document/DocumentDemo.vue'),
         meta: { requiresAuth: true, title: '文档模块演示' }
+      },
+      {
+        path: 'debug/internal-version-log',
+        name: 'DebugInternalVersionLog',
+        component: () => import('@/views/Debug/DebugInternalVersionLog.vue'),
+        meta: { requiresAuth: true, title: '内部版本日志', sysAdminOnly: true }
       },
       {
         path: 'debug/data',

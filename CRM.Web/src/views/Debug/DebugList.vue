@@ -41,7 +41,7 @@ onMounted(async () => {
       <h1>Debug</h1>
       <div class="debug-sub">
         当前前端构建版本：<span class="mono version-strong">{{ FRONTEND_DEBUG_VERSION }}</span>
-        （来自 package.json，每次 <code>npm run build</code> 写入；用于核对线上是否为本次构建）
+        （post-commit 自动写入；用于核对线上是否为本次构建）
       </div>
       <div class="debug-sub muted">按 PRD：数据库面板仅展示库名（脱敏），debug 表记录；版本号见上。</div>
     </div>
@@ -53,6 +53,8 @@ onMounted(async () => {
         <span class="meta-value mono version-strong">{{ FRONTEND_DEBUG_VERSION }}</span>
       </div>
       <div class="panel-body debug-links">
+        <router-link class="debug-link" to="/release-notes">版本更新日志</router-link>
+        <router-link class="debug-link" to="/debug/internal-version-log">内部版本日志</router-link>
         <router-link class="debug-link" to="/debug/data">Debug 模拟数据</router-link>
         <router-link class="debug-link" to="/debug/tools">Debug 工具</router-link>
         <router-link class="debug-link" to="/debug/ai">AI 物料规格</router-link>

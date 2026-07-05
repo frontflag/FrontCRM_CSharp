@@ -49,7 +49,12 @@ router.beforeEach((to, _from, next) => {
   const isDebugList =
     to.name === 'DebugList' || to.path === '/debug' || to.path === '/debug/'
 
-  if (previewMode || isDebugList) {
+  const isPublicPage =
+    isDebugList ||
+    to.name === 'ReleaseNotes' ||
+    to.path === '/release-notes'
+
+  if (previewMode || isPublicPage) {
     next()
   } else if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next('/login')
