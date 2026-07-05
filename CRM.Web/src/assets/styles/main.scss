@@ -443,10 +443,25 @@ html {
 }
 
 .el-select__placeholder {
-  color: $text-placeholder !important;
+  &.is-transparent {
+    color: $text-placeholder !important;
+  }
+
+  &:not(.is-transparent) {
+    color: $text-primary !important;
+  }
+}
+
+/** filterable 已选值展开筛选时仍为 is-transparent，有 clear 按钮表示已有值 */
+.el-select__wrapper.is-filterable:has(.el-select__clear) .el-select__placeholder.is-transparent {
+  color: $text-primary !important;
 }
 
 .el-select__selected-item {
+  color: $text-primary !important;
+}
+
+.el-select__input {
   color: $text-primary !important;
 }
 
