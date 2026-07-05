@@ -1045,7 +1045,16 @@
                       <span v-else>{{ row.receivableCode || '—' }}</span>
                     </template>
                   </el-table-column>
-                  <el-table-column :label="t('financeReceiptWriteOffLedger.columns.stockOutCode')" min-width="130" prop="stockOutCode" show-overflow-tooltip />
+                  <el-table-column :label="t('financeReceiptWriteOffLedger.columns.stockOutCode')" min-width="130" prop="stockOutCode" show-overflow-tooltip>
+                    <template #default="{ row }">
+                      <router-link
+                        v-if="row.stockOutId && row.stockOutCode"
+                        class="so-tab-link"
+                        :to="`/inventory/stock-out/${row.stockOutId}`"
+                      >{{ row.stockOutCode }}</router-link>
+                      <span v-else>{{ row.stockOutCode || '—' }}</span>
+                    </template>
+                  </el-table-column>
                   <el-table-column v-if="showCustomerIdentityFields" :label="t('financeReceiptWriteOffLedger.columns.customer')" min-width="160" show-overflow-tooltip>
                     <template #default="{ row }">{{ formatReceiptWriteOffCustomerLabel(row) }}</template>
                   </el-table-column>

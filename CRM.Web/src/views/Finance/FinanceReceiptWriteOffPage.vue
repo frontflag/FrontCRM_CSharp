@@ -58,11 +58,14 @@
             <el-button type="primary" size="small" class="panel-search__btn" @click="loadCustomerSummaries">
               {{ t('financeReceiptWriteOff.customerSearchBtn') }}
             </el-button>
+            <el-checkbox v-model="excludeNoReceivable" class="panel-search__filter">
+              {{ t('financeReceiptWriteOff.excludeNoReceivable') }}
+            </el-checkbox>
           </div>
           <div ref="customerTableWrapRef" class="detail-items-table-wrap">
             <el-table
               ref="customerTableRef"
-              :data="customerSummaries"
+              :data="displayedCustomerSummaries"
               class="detail-panel-list-table customer-panel-table"
               size="small"
               stripe
@@ -620,6 +623,7 @@ function setupCustomerTableResizeObserver() {
 let customerTableResizeObserver: ResizeObserver | null = null
 
 const customerKeyword = ref('')
+const excludeNoReceivable = ref(false)
 const customerSummaries = ref<FinanceWriteOffCustomerSummary[]>([])
 const selectedCustomerId = ref('')
 const selectedCustomerSummary = ref<FinanceWriteOffCustomerSummary | null>(null)
@@ -634,7 +638,8 @@ const selectedReceiptItemId = ref('')
 
 const filteredReceiptItems = computed(() => {
   if (selectedCurrency.value == null) return receiptItems.value
-  return receiptItems.value.filter(r => r.receiptCurrency === selectedCurrency.value)
+  const currency = Number(selectedCurrency.value)
+  return receiptItems.value.filter(r => Number(r.receiptCurrency) === currency)
 })
 
 const selectedReceiptItem = computed(() =>
@@ -663,6 +668,12 @@ const filteredAdvanceBalances = computed(() => {
   return advanceBalances.value.filter(a => a.currency === selectedCurrency.value)
 })
 
+const displayedCustomerSummaries = computed(() => {
+  const rows = customerSummaries.value
+  if (!excludeNoReceivable.value) return rows
+  return rows.filter(r => r.hasOpenReceivable)
+})
+
 function customerRowKey(row: FinanceWriteOffCustomerSummary) {
   return `${row.customerId}::${row.currency ?? 0}`
 }
@@ -675,9 +686,14 @@ function findCustomerSummaryRow(customerId: string, currency: number | null | un
 }
 
 function customerRowClassName({ row }: { row: FinanceWriteOffCustomerSummary }) {
-  return row.customerId === selectedCustomerId.value && row.currency === selectedCurrency.value
-    ? 'is-write-off-customer-selected'
-    : ''
+  const classes: string[] = []
+  if (row.customerId === selectedCustomerId.value && row.currency === selectedCurrency.value) {
+    classes.push('is-write-off-customer-selected')
+  }
+  if (!row.hasOpenReceivable) {
+    classes.push('is-write-off-customer-no-receivable')
+  }
+  return classes.join(' ')
 }
 
 function currentCustomerNameZh(row: FinanceWriteOffCustomerSummary) {
@@ -772,6 +788,10 @@ async function loadCustomerSummaries() {
         ? findCustomerSummaryRow(selectedCustomerId.value, selectedCurrency.value)
         : undefined
     if (matched) {
+      if (excludeNoReceivable.value && !matched.hasOpenReceivable) {
+        clearCustomerSelection()
+        return
+      }
       selectedCustomerSummary.value = matched
       await loadCandidates(matched.customerId, matched.currency ?? null, false)
       return
@@ -1022,6 +1042,29 @@ watch(customerExtendExpanded, () => relayoutCustomerTable())
 watch(receiptDateExtendDisplayWidth, () => relayoutCustomerTable())
 
 watch(receiptDateExtendExpanded, () => relayoutCustomerTable())
+
+watch(excludeNoReceivable, () => {
+  if (!excludeNoReceivable.value) {
+    relayoutCustomerTable()
+    return
+  }
+  if (!selectedCustomerId.value || selectedCurrency.value == null) {
+    relayoutCustomerTable()
+    return
+  }
+  const stillVisible = displayedCustomerSummaries.value.some(
+    r => r.customerId === selectedCustomerId.value && r.currency === selectedCurrency.value
+  )
+  if (!stillVisible) {
+    const first = displayedCustomerSummaries.value[0]
+    if (first) {
+      void loadCandidates(first.customerId, first.currency ?? null, true)
+    } else {
+      clearCustomerSelection()
+    }
+  }
+  relayoutCustomerTable()
+})
 </script>
 
 <style scoped lang="scss">
@@ -1035,6 +1078,40 @@ watch(receiptDateExtendExpanded, () => relayoutCustomerTable())
   font-size: 14px;
   color: $text-primary;
   line-height: 1.5;
+}
+
+@mixin write-off-select-col-cell-surface {
+  td.customer-row-select-col.el-table__cell,
+  td.customer-row-select-col.el-table-fixed-column--right,
+  .el-table__fixed-right td.customer-row-select-col.el-table__cell {
+    padding: 0 !important;
+    border-left: none !important;
+    background: var(--crm-detail-panel-card-bg) !important;
+    background-color: var(--crm-detail-panel-card-bg) !important;
+    box-shadow: inset 1px 0 0 var(--crm-table-header-line);
+
+    .cell {
+      padding: 0 !important;
+      overflow: visible;
+    }
+  }
+
+  .el-table__body tr.el-table__row--striped td.customer-row-select-col.el-table__cell,
+  .el-table__body tr.el-table__row--striped td.customer-row-select-col.el-table-fixed-column--right,
+  .el-table__fixed-right .el-table__body tr.el-table__row--striped td.customer-row-select-col.el-table__cell {
+    background: var(--crm-table-fixed-right-stripe, var(--crm-table-row-stripe)) !important;
+    background-color: var(--crm-table-fixed-right-stripe, var(--crm-table-row-stripe)) !important;
+  }
+
+  .el-table__body tr:hover td.customer-row-select-col.el-table__cell,
+  .el-table__body tr.hover-row td.customer-row-select-col.el-table__cell,
+  .el-table__body tr:hover td.customer-row-select-col.el-table-fixed-column--right,
+  .el-table__body tr.hover-row td.customer-row-select-col.el-table-fixed-column--right,
+  .el-table__fixed-right .el-table__body tr:hover td.customer-row-select-col.el-table__cell,
+  .el-table__fixed-right .el-table__body tr.hover-row td.customer-row-select-col.el-table__cell {
+    background: var(--crm-table-row-hover) !important;
+    background-color: var(--crm-table-row-hover) !important;
+  }
 }
 
 .write-off-page {
@@ -1145,6 +1222,14 @@ watch(receiptDateExtendExpanded, () => relayoutCustomerTable())
           color: $color-amber;
         }
 
+        .el-table__body tr.is-write-off-customer-no-receivable:not(.is-write-off-customer-selected) > td.el-table__cell {
+          color: var(--el-text-color-placeholder);
+        }
+
+        .el-table__body tr.is-write-off-customer-no-receivable:not(.is-write-off-customer-selected) .customer-pending-total-cell {
+          color: var(--el-text-color-placeholder);
+        }
+
         .el-table__body tr.is-write-off-customer-selected > td.el-table__cell {
           background: #fffaea !important;
           background-color: #fffaea !important;
@@ -1191,15 +1276,13 @@ watch(receiptDateExtendExpanded, () => relayoutCustomerTable())
           }
         }
 
-        td.customer-row-select-col.el-table__cell {
-          padding: 0 !important;
-          border-left: none !important;
-          background: transparent !important;
+        @include write-off-select-col-cell-surface;
 
-          .cell {
-            padding: 0 !important;
-            overflow: visible;
-          }
+        .el-table__body tr.is-write-off-customer-selected td.customer-row-select-col.el-table__cell,
+        .el-table__body tr.is-write-off-customer-selected td.customer-row-select-col.el-table-fixed-column--right,
+        .el-table__fixed-right .el-table__body tr.is-write-off-customer-selected td.customer-row-select-col.el-table__cell {
+          background: #fffaea !important;
+          background-color: #fffaea !important;
         }
 
         .customer-row-select-action {
@@ -1278,15 +1361,13 @@ watch(receiptDateExtendExpanded, () => relayoutCustomerTable())
           }
         }
 
-        td.customer-row-select-col.el-table__cell {
-          padding: 0 !important;
-          border-left: none !important;
-          background: transparent !important;
+        @include write-off-select-col-cell-surface;
 
-          .cell {
-            padding: 0 !important;
-            overflow: visible;
-          }
+        .el-table__body tr.is-write-off-receipt-selected td.customer-row-select-col.el-table__cell,
+        .el-table__body tr.is-write-off-receipt-selected td.customer-row-select-col.el-table-fixed-column--right,
+        .el-table__fixed-right .el-table__body tr.is-write-off-receipt-selected td.customer-row-select-col.el-table__cell {
+          background: #fffaea !important;
+          background-color: #fffaea !important;
         }
 
         .customer-row-select-action {
@@ -1399,6 +1480,52 @@ watch(receiptDateExtendExpanded, () => relayoutCustomerTable())
       --el-table-border-color: transparent;
       --el-table-fixed-box-shadow: none;
       background: transparent !important;
+
+      // 右固定列须不透明，避免横向滚动时主表列文字透出
+      .el-table__fixed-right,
+      .el-table__fixed-right-patch {
+        background: var(--crm-detail-panel-card-bg) !important;
+        background-color: var(--crm-detail-panel-card-bg) !important;
+      }
+
+      .el-table__fixed-right th.el-table__cell,
+      th.el-table-fixed-column--right {
+        background: var(--crm-detail-panel-card-head-bg) !important;
+        background-color: var(--crm-detail-panel-card-head-bg) !important;
+      }
+
+      .el-table__fixed-right td.el-table__cell,
+      td.el-table-fixed-column--right {
+        background: var(--crm-detail-panel-card-bg) !important;
+        background-color: var(--crm-detail-panel-card-bg) !important;
+        box-shadow: inset 1px 0 0 var(--crm-table-header-line);
+      }
+
+      .el-table__fixed-right .el-table__body tr.el-table__row--striped td.el-table__cell,
+      .el-table__body tr.el-table__row--striped td.el-table-fixed-column--right {
+        background: var(--crm-table-fixed-right-stripe, var(--crm-table-row-stripe)) !important;
+        background-color: var(--crm-table-fixed-right-stripe, var(--crm-table-row-stripe)) !important;
+      }
+
+      .el-table__fixed-right .el-table__body tr.el-table__row:hover td.el-table__cell,
+      .el-table__fixed-right .el-table__body tr.el-table__row.hover-row td.el-table__cell,
+      .el-table__body tr.el-table__row:hover td.el-table-fixed-column--right,
+      .el-table__body tr.el-table__row.hover-row td.el-table-fixed-column--right {
+        background: var(--crm-table-row-hover) !important;
+        background-color: var(--crm-table-row-hover) !important;
+      }
+
+      .el-table__fixed-right .el-table__body tr.is-write-off-customer-selected td.el-table__cell,
+      .el-table__body tr.is-write-off-customer-selected td.el-table-fixed-column--right {
+        background: #fffaea !important;
+        background-color: #fffaea !important;
+      }
+
+      .el-table__fixed-right .el-table__body tr.is-write-off-receipt-selected td.el-table__cell,
+      .el-table__body tr.is-write-off-receipt-selected td.el-table-fixed-column--right {
+        background: #fffaea !important;
+        background-color: #fffaea !important;
+      }
     }
   }
 
@@ -1503,6 +1630,17 @@ watch(receiptDateExtendExpanded, () => relayoutCustomerTable())
 
   .panel-search__btn {
     flex-shrink: 0;
+  }
+
+  .panel-search__filter {
+    flex-shrink: 0;
+    margin-left: 4px;
+    white-space: nowrap;
+
+    :deep(.el-checkbox__label) {
+      font-size: 12px;
+      padding-left: 6px;
+    }
   }
 
   .panel-toggle {

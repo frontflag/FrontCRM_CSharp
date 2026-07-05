@@ -192,7 +192,9 @@ export interface SalesOrderDetailTabAggregates {
     financeReceiptCode?: string | null
     financeReceivableId: string
     receivableCode?: string | null
+    stockOutId?: string | null
     stockOutCode?: string | null
+    sellOrderId?: string | null
     sellOrderCode?: string | null
     customerName?: string | null
     customerEnglishName?: string | null

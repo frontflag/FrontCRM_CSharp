@@ -58,6 +58,7 @@
         </el-button>
       </div>
       <div class="search-right">
+        <el-button @click="goWriteOff">{{ t('financeReceiptList.goWriteOff') }}</el-button>
         <el-button v-if="canWriteFinanceReceipt" type="primary" @click="openCreate">
           <el-icon><Plus /></el-icon> {{ t('financeReceiptList.create') }}
         </el-button>
@@ -642,6 +643,10 @@ async function searchSo(keyword: string) {
   } finally {
     soSearchLoading.value = false
   }
+}
+
+function goWriteOff() {
+  router.push({ name: 'FinanceReceiptWriteOff' })
 }
 
 const openCreate = () => {

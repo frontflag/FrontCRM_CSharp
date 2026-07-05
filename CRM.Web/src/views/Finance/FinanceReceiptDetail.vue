@@ -480,8 +480,9 @@ const formatAmount = (val: number) => {
 }
 
 function receiptItemConvertAmount(row: FinanceReceiptItem): number {
-  const v = row.receiptConvertAmount ?? row.receiptAmount
-  return Number(v) || 0
+  const convert = Number(row.receiptConvertAmount) || 0
+  if (convert > 0) return convert
+  return Number(row.receiptAmount) || 0
 }
 
 function formatReceiptItemConvertAmountDisplay(row: FinanceReceiptItem): string {

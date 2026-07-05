@@ -539,6 +539,7 @@ public class FinanceReceivableService : IFinanceReceivableService
     }
 
     /// <inheritdoc />
+    /// <remarks>左栏 API 始终返回「有待核销收款」的客户；hasOpenReceivable 标记该客户该币别是否有未清应收。</remarks>
     public async Task<IReadOnlyList<FinanceWriteOffCustomerSummary>> GetWriteOffCustomerSummariesAsync(
         string? keyword,
         string? currentUserId = null,
@@ -570,34 +571,18 @@ public class FinanceReceivableService : IFinanceReceivableService
                 bucket.TrackReceiptDate(receipt.ReceiptDate.Value);
         }
 
-        var openReceivables = await GetPagedAsync(new FinanceReceivableQueryRequest
+        var openReceivableKeys = (await GetPagedAsync(new FinanceReceivableQueryRequest
         {
             OnlyOpen = true,
             Page = 1,
             PageSize = 2000,
             CurrentUserId = currentUserId
-        }, cancellationToken);
-
-        foreach (var receivable in openReceivables.Items)
-        {
-            var key = BuildCustomerCurrencyKey(receivable.CustomerId, (byte)receivable.Currency);
-            if (!buckets.TryGetValue(key, out var bucket))
-            {
-                bucket = new CustomerCurrencyWriteOffBucket
-                {
-                    CustomerId = receivable.CustomerId.Trim(),
-                    CustomerName = receivable.CustomerName,
-                    Currency = receivable.Currency
-                };
-                buckets[key] = bucket;
-            }
-
-            bucket.PendingWriteOffAmount += receivable.VerifiedToBe;
-            if (string.IsNullOrWhiteSpace(bucket.CustomerName) && !string.IsNullOrWhiteSpace(receivable.CustomerName))
-                bucket.CustomerName = receivable.CustomerName;
-        }
+        }, cancellationToken)).Items
+            .Select(r => BuildCustomerCurrencyKey(r.CustomerId, r.Currency))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var summaries = buckets.Values
+            .Where(bucket => bucket.PendingReceiptItemCount > 0 && bucket.PendingWriteOffAmount > 0m)
             .Select(bucket => new FinanceWriteOffCustomerSummary
             {
                 CustomerId = bucket.CustomerId,
@@ -615,7 +600,9 @@ public class FinanceReceivableService : IFinanceReceivableService
                 ],
                 PendingReceiptItemCount = bucket.PendingReceiptItemCount,
                 EarliestReceiptDate = bucket.EarliestReceiptDate,
-                LatestReceiptDate = bucket.LatestReceiptDate
+                LatestReceiptDate = bucket.LatestReceiptDate,
+                HasOpenReceivable = openReceivableKeys.Contains(
+                    BuildCustomerCurrencyKey(bucket.CustomerId, bucket.Currency))
             })
             .AsEnumerable();
 
@@ -643,6 +630,7 @@ public class FinanceReceivableService : IFinanceReceivableService
 
         return ContainsIgnoreCase(row.CustomerName, keyword)
             || ContainsIgnoreCase(row.CustomerEnglishName, keyword)
+            || ContainsIgnoreCase(row.CustomerCode, keyword)
             || ContainsIgnoreCase(row.SalesUserName, keyword);
     }
 
@@ -765,9 +753,39 @@ public class FinanceReceivableService : IFinanceReceivableService
         cancellationToken.ThrowIfCancellationRequested();
 
         var receiptItems = (await _receiptItemRepo.GetAllAsync()).ToList();
-        var receiptIds = receiptItems.Select(i => i.FinanceReceiptId).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        var receipts = (await _receiptRepo.FindAsync(r => receiptIds.Contains(r.Id))).ToList();
-        var receiptMap = receipts.ToDictionary(r => r.Id, StringComparer.OrdinalIgnoreCase);
+        var eligibleReceipts = (await _receiptRepo.FindAsync(r =>
+            !r.IsDeleted && (r.Status == ReceiptApproved || r.Status == ReceiptReceived))).ToList();
+
+        var mutated = false;
+        foreach (var receipt in eligibleReceipts)
+        {
+            var hasActiveItem = receiptItems.Exists(i =>
+                !i.IsDeleted
+                && string.Equals(i.FinanceReceiptId, receipt.Id, StringComparison.OrdinalIgnoreCase));
+            if (hasActiveItem || receipt.ReceiptAmount <= 0m)
+                continue;
+
+            var materialized = new FinanceReceiptItem
+            {
+                Id = Guid.NewGuid().ToString(),
+                FinanceReceiptId = receipt.Id,
+                ReceiptAmount = receipt.ReceiptAmount,
+                ReceiptConvertAmount = receipt.ReceiptAmount,
+                VerificationStatus = 0,
+                CreateTime = DateTime.UtcNow
+            };
+            await _receiptItemRepo.AddAsync(materialized);
+            receiptItems.Add(materialized);
+            mutated = true;
+        }
+
+        if (mutated && _unitOfWork != null)
+            await _unitOfWork.SaveChangesAsync();
+
+        var receiptMap = eligibleReceipts
+            .Where(r => !string.IsNullOrWhiteSpace(r.Id))
+            .GroupBy(r => r.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
         var result = new List<PendingReceiptItemCandidate>();
         foreach (var item in receiptItems)
@@ -776,12 +794,8 @@ public class FinanceReceivableService : IFinanceReceivableService
                 continue;
             if (!receiptMap.TryGetValue(item.FinanceReceiptId, out var receipt))
                 continue;
-            if (receipt.IsDeleted)
-                continue;
-            if (receipt.Status != ReceiptApproved && receipt.Status != ReceiptReceived)
-                continue;
 
-            var remaining = GetReceiptItemRemaining(item);
+            var remaining = FinanceReceiptItemWriteOffHelper.GetRemaining(item);
             if (remaining <= 0m)
                 continue;
 
@@ -1181,7 +1195,7 @@ public class FinanceReceivableService : IFinanceReceivableService
     }
 
     private static decimal GetReceiptItemRemaining(FinanceReceiptItem item) =>
-        item.ReceiptConvertAmount - item.VerifiedAmount - item.AdvancePoolAmount;
+        FinanceReceiptItemWriteOffHelper.GetRemaining(item);
 
     /// <inheritdoc />
     public async Task<FinanceReceivableWriteOffResult> ApplyWriteOffAsync(

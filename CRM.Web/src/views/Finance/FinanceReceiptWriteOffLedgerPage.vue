@@ -56,6 +56,26 @@
         </router-link>
         <span v-else>{{ row.receivableCode || '—' }}</span>
       </template>
+      <template #col-stockOutCode="{ row }">
+        <router-link
+          v-if="row.stockOutId && row.stockOutCode"
+          class="link-text"
+          :to="`/inventory/stock-out/${row.stockOutId}`"
+        >
+          {{ row.stockOutCode }}
+        </router-link>
+        <span v-else>{{ row.stockOutCode || '—' }}</span>
+      </template>
+      <template #col-sellOrderCode="{ row }">
+        <router-link
+          v-if="row.sellOrderId && row.sellOrderCode"
+          class="link-text"
+          :to="`/sales-orders/${row.sellOrderId}`"
+        >
+          {{ row.sellOrderCode }}
+        </router-link>
+        <span v-else>{{ row.sellOrderCode || '—' }}</span>
+      </template>
       <template #col-customer="{ row }">
         {{ formatCustomerLabel(row) }}
       </template>
@@ -192,11 +212,14 @@ onMounted(loadData)
 }
 
 .link-text {
-  color: var(--el-color-primary);
+  color: inherit;
   text-decoration: none;
+  cursor: default;
 
   &:hover {
+    color: var(--el-color-primary);
     text-decoration: underline;
+    cursor: pointer;
   }
 }
 </style>

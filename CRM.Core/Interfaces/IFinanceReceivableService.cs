@@ -107,13 +107,17 @@ public class FinanceWriteOffCustomerSummary
     public string? CustomerCode { get; set; }
     public string? SalesUserId { get; set; }
     public string? SalesUserName { get; set; }
+    /// <summary>待核销收款剩余金额合计（不含应收待核销）。</summary>
     public decimal PendingWriteOffTotal { get; set; }
     public short? Currency { get; set; }
     public bool IsMultiCurrency { get; set; }
     public List<FinanceWriteOffCustomerCurrencyTotal> CurrencyTotals { get; set; } = new();
+    /// <summary>待核销收款明细条数。</summary>
     public int PendingReceiptItemCount { get; set; }
     public DateTime? EarliestReceiptDate { get; set; }
     public DateTime? LatestReceiptDate { get; set; }
+    /// <summary>该客户该币别是否存在未清应收（verified_to_be &gt; 0，与右栏口径一致）。</summary>
+    public bool HasOpenReceivable { get; set; }
 }
 
 public interface IFinanceReceivableService
@@ -141,6 +145,7 @@ public interface IFinanceReceivableService
 
     Task<FinanceReceivableWriteOffCandidates> GetWriteOffCandidatesAsync(string customerId, string? currentUserId = null, CancellationToken cancellationToken = default);
 
+    /// <summary>收款核销左栏：待核销收款客户汇总；附带 hasOpenReceivable 供前端过滤与灰显（见设计文档 §2.2.1）。</summary>
     Task<IReadOnlyList<FinanceWriteOffCustomerSummary>> GetWriteOffCustomerSummariesAsync(
         string? keyword,
         string? currentUserId = null,
@@ -236,7 +241,9 @@ public class FinanceReceivableWriteOffLedgerItem
     public string? FinanceReceiptCode { get; set; }
     public string FinanceReceivableId { get; set; } = string.Empty;
     public string? ReceivableCode { get; set; }
+    public string? StockOutId { get; set; }
     public string? StockOutCode { get; set; }
+    public string? SellOrderId { get; set; }
     public string? SellOrderCode { get; set; }
     public string CustomerId { get; set; } = string.Empty;
     public string? CustomerName { get; set; }

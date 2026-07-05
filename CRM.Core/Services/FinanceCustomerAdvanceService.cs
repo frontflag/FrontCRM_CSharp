@@ -120,7 +120,7 @@ public class FinanceCustomerAdvanceService : IFinanceCustomerAdvanceService
             if (IsReceiptItemAlreadyCreditedToPool(item))
                 continue;
 
-            var amount = item.ReceiptConvertAmount - item.VerifiedAmount - item.AdvancePoolAmount;
+            var amount = FinanceReceiptItemWriteOffHelper.GetRemaining(item);
             if (amount <= 0m)
                 continue;
 
@@ -148,7 +148,7 @@ public class FinanceCustomerAdvanceService : IFinanceCustomerAdvanceService
         string? actingUserId = null,
         string? remark = null)
     {
-        var amount = item.ReceiptConvertAmount - item.VerifiedAmount - item.AdvancePoolAmount;
+        var amount = FinanceReceiptItemWriteOffHelper.GetRemaining(item);
         if (amount <= 0m)
             return;
 
@@ -376,5 +376,5 @@ public class FinanceCustomerAdvanceService : IFinanceCustomerAdvanceService
     }
 
     private static decimal GetReceiptItemRemaining(FinanceReceiptItem item) =>
-        item.ReceiptConvertAmount - item.VerifiedAmount - item.AdvancePoolAmount;
+        FinanceReceiptItemWriteOffHelper.GetRemaining(item);
 }

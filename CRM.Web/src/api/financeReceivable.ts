@@ -114,6 +114,8 @@ export interface FinanceWriteOffCustomerSummary {
   pendingReceiptItemCount: number
   earliestReceiptDate?: string | null
   latestReceiptDate?: string | null
+  /** 该客户该币别是否存在未清应收（与右栏口径一致） */
+  hasOpenReceivable?: boolean
 }
 
 export interface FinanceReceivableWriteOffCandidates {
@@ -162,7 +164,9 @@ export interface FinanceReceivableWriteOffLedgerItem {
   financeReceiptCode?: string
   financeReceivableId: string
   receivableCode?: string
+  stockOutId?: string
   stockOutCode?: string
+  sellOrderId?: string
   sellOrderCode?: string
   customerId: string
   customerName?: string
