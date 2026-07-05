@@ -267,12 +267,10 @@
             <p class="field-hint">{{ t('bizBrand.aliasHint') }}</p>
           </div>
         </el-form-item>
-        <el-form-item :label="t('bizBrand.colCountryCode')">
-          <el-input v-model="dialogForm.countryCode" maxlength="10" />
-        </el-form-item>
-        <el-form-item :label="t('bizBrand.colCountry')">
-          <el-input v-model="dialogForm.country" maxlength="100" />
-        </el-form-item>
+        <BizBrandCountryFields
+          v-model:country="dialogForm.country"
+          v-model:country-code="dialogForm.countryCode"
+        />
         <el-form-item :label="t('bizBrand.colRemark')">
           <el-input v-model="dialogForm.remark" type="textarea" :rows="3" maxlength="500" />
         </el-form-item>
@@ -349,6 +347,7 @@ import { useAuthStore } from '@/stores/auth'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import BizBrandCountryFields from '@/components/Biz/BizBrandCountryFields.vue'
 
 const { t } = useI18n()
 const authStore = useAuthStore()

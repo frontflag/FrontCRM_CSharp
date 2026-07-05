@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS public.biz_brand (
     brand_c_name character varying(200) NULL,
     standard_brand character varying(300) NULL,
     alias character varying(500) NULL,
-    country_code character varying(10) NULL,
+    country_code character varying(32) NULL,
     country character varying(100) NULL
 );
 

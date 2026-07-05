@@ -34,7 +34,7 @@ public class BizBrand : ISoftDeletable
     public string? Alias { get; set; }
 
     /// <summary>国家/地区代码（如 CN、US）。</summary>
-    [StringLength(10)]
+    [StringLength(32)]
     [Column("country_code")]
     public string? CountryCode { get; set; }
 

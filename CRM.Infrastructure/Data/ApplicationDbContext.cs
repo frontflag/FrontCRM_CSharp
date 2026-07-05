@@ -1626,7 +1626,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.BrandCName).HasColumnName("brand_c_name").HasMaxLength(200);
                 entity.Property(e => e.StandardBrand).HasColumnName("standard_brand").HasMaxLength(300);
                 entity.Property(e => e.Alias).HasColumnName("alias").HasMaxLength(500);
-                entity.Property(e => e.CountryCode).HasColumnName("country_code").HasMaxLength(10);
+                entity.Property(e => e.CountryCode).HasColumnName("country_code").HasMaxLength(32);
                 entity.Property(e => e.Country).HasColumnName("country").HasMaxLength(100);
                 entity.Property(e => e.Remark).HasColumnName("remark").HasMaxLength(500);
                 entity.Property(e => e.CreateByUserId).HasColumnName("create_by_user_id").HasMaxLength(36);

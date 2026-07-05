@@ -28,12 +28,10 @@
           <p class="field-hint">{{ t('bizBrand.aliasHint') }}</p>
         </div>
       </el-form-item>
-      <el-form-item :label="t('bizBrand.colCountryCode')">
-        <el-input v-model="form.countryCode" maxlength="10" />
-      </el-form-item>
-      <el-form-item :label="t('bizBrand.colCountry')">
-        <el-input v-model="form.country" maxlength="100" />
-      </el-form-item>
+      <BizBrandCountryFields
+        v-model:country="form.country"
+        v-model:country-code="form.countryCode"
+      />
       <el-form-item :label="t('bizBrand.colRemark')">
         <el-input v-model="form.remark" type="textarea" :rows="3" maxlength="500" />
       </el-form-item>
@@ -51,6 +49,7 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { bizBrandApi, type BizBrandRow, type UpsertBizBrandPayload } from '@/api/bizBrand'
 import { getApiErrorMessage } from '@/utils/apiError'
+import BizBrandCountryFields from '@/components/Biz/BizBrandCountryFields.vue'
 
 const props = withDefaults(
   defineProps<{

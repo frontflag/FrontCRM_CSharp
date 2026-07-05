@@ -22,6 +22,7 @@ declare module 'vue' {
     ApplyStockOutDisabledHint: typeof import('./src/components/RFQ/ApplyStockOutDisabledHint.vue')['default']
     ApplyTagsDialog: typeof import('./src/components/Tag/ApplyTagsDialog.vue')['default']
     AssistantRelationPanel: typeof import('./src/components/System/AssistantRelationPanel.vue')['default']
+    BizBrandCountryFields: typeof import('./src/components/Biz/BizBrandCountryFields.vue')['default']
     BizBrandCreateDialog: typeof import('./src/components/Biz/BizBrandCreateDialog.vue')['default']
     BizBrandSelect: typeof import('./src/components/Biz/BizBrandSelect.vue')['default']
     BusinessCardUploader: typeof import('./src/components/Contact/BusinessCardUploader.vue')['default']
