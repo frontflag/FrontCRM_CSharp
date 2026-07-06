@@ -4292,6 +4292,11 @@ namespace CRM.Infrastructure.Data.Migrations
                         .HasColumnType("character varying(64)")
                         .HasColumnName("purchase_order_item_code");
 
+                    b.Property<string>("PurchaseRequisitionId")
+                        .HasMaxLength(36)
+                        .HasColumnType("character varying(36)")
+                        .HasColumnName("purchase_requisition_id");
+
                     b.Property<decimal>("Qty")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("numeric(18,4)")
@@ -4326,6 +4331,8 @@ namespace CRM.Infrastructure.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("PurchaseOrderId");
+
+                    b.HasIndex("PurchaseRequisitionId");
 
                     b.HasIndex("SellOrderItemId");
 
@@ -7678,7 +7685,14 @@ namespace CRM.Infrastructure.Data.Migrations
                         .HasForeignKey("SellOrderItemId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("CRM.Core.Models.Purchase.PurchaseRequisition", "PurchaseRequisition")
+                        .WithMany()
+                        .HasForeignKey("PurchaseRequisitionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("PurchaseOrder");
+
+                    b.Navigation("PurchaseRequisition");
 
                     b.Navigation("SellOrderItem");
                 });

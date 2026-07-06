@@ -186,6 +186,9 @@ namespace CRM.Core.Services
         private static string? NormalizeStoredSellOrderItemId(string? sellOrderItemId) =>
             IsLinkedSellOrderPurchaseLine(sellOrderItemId) ? sellOrderItemId!.Trim() : null;
 
+        private static string? NormalizeStoredPurchaseRequisitionId(string? purchaseRequisitionId) =>
+            string.IsNullOrWhiteSpace(purchaseRequisitionId) ? null : purchaseRequisitionId.Trim();
+
         private static short ResolvePurchaseOrderHeaderType(short requestedType, IEnumerable<CreatePurchaseOrderItemRequest> items) =>
             PurchaseOrderItemLinkRules.ResolveHeaderType(
                 requestedType,
@@ -272,6 +275,7 @@ namespace CRM.Core.Services
                     PurchaseOrderId = order.Id,
                     PurchaseOrderItemCode = OrderLineItemCodes.Purchase(order.PurchaseOrderCode, seq),
                     SellOrderItemId = NormalizeStoredSellOrderItemId(item.SellOrderItemId),
+                    PurchaseRequisitionId = NormalizeStoredPurchaseRequisitionId(item.PurchaseRequisitionId),
                     VendorId = !string.IsNullOrWhiteSpace(item.VendorId) ? item.VendorId.Trim() : request.VendorId,
                     ProductId = item.ProductId,
                     PN = item.PN,
@@ -1487,6 +1491,7 @@ VALUES (gen_random_uuid()::text, '{BusinessLogTypes.PurchaseOrderItem}', '{SqlQ(
             FinanceExchangeRateDto fx)
         {
             target.SellOrderItemId = NormalizeStoredSellOrderItemId(item.SellOrderItemId);
+            target.PurchaseRequisitionId = NormalizeStoredPurchaseRequisitionId(item.PurchaseRequisitionId);
             target.VendorId = !string.IsNullOrWhiteSpace(item.VendorId) ? item.VendorId.Trim() : order.VendorId;
             target.ProductId = item.ProductId;
             target.PN = item.PN;

@@ -187,6 +187,11 @@ namespace CRM.Core.Models.Purchase
         [Column("sell_order_item_id")]
         public string? SellOrderItemId { get; set; }
 
+        /// <summary>来源采购申请 ID；从 PR 生成 PO 时写入，用于完成度与下游展示</summary>
+        [StringLength(36)]
+        [Column("purchase_requisition_id")]
+        public string? PurchaseRequisitionId { get; set; }
+
         /// <summary>供应商ID</summary>
         [Required]
         [StringLength(36)]
@@ -279,5 +284,6 @@ namespace CRM.Core.Models.Purchase
         // 导航属性
         public virtual PurchaseOrder? PurchaseOrder { get; set; }
         public virtual SellOrderItem? SellOrderItem { get; set; }
+        public virtual PurchaseRequisition? PurchaseRequisition { get; set; }
     }
 }

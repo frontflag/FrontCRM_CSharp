@@ -115,6 +115,7 @@ describe('purchaseRequisitionBatchPo - 校验与预填', () => {
       coercePd: (v) => v || 'PD-NA',
       headerDeliveryDate: '2026-07-20'
     })
+    expect(line.purchaseRequisitionId).toBe('pr-1')
     expect(line.pn).toBe('PN-A')
     expect(line.qty).toBe(10)
     expect(line.cost).toBe(1.5)

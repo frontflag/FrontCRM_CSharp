@@ -124,6 +124,10 @@ namespace CRM.Core.Interfaces
 
         /// <summary>销售订单明细ID(以销定采核心字段)；无销售行时省略或传 null</summary>
         public string? SellOrderItemId { get; set; }
+
+        /// <summary>来源采购申请 ID；从 PR 生成 PO 时传入</summary>
+        public string? PurchaseRequisitionId { get; set; }
+
         /// <summary>供应商ID</summary>
         public string VendorId { get; set; } = string.Empty;
         /// <summary>商品/物料ID</summary>

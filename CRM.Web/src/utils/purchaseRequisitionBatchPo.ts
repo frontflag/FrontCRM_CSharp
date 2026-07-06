@@ -126,6 +126,7 @@ export function resolvePurchaserFromPr(pr: Record<string, unknown>): { id: strin
 }
 
 export type PoLineItemDraft = {
+  purchaseRequisitionId?: string
   sellOrderItemId?: string
   vendorId: string
   pn: string
@@ -160,6 +161,7 @@ export function buildPoLineItemFromPr(
       : ''
 
   return {
+    purchaseRequisitionId: String(pr.id ?? pr.Id ?? '').trim() || undefined,
     sellOrderItemId: pr.sellOrderItemId ? String(pr.sellOrderItemId).trim() : undefined,
     vendorId: getPrQuoteVendorId(pr) || opts.manualVendorId,
     pn: String(pr.pn ?? pr.PN ?? ''),

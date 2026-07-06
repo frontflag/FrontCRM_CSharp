@@ -290,9 +290,25 @@ namespace CRM.API.Controllers
                     });
                 }
 
-                // 以销定采：采购订单明细与销售明细行一一对应（SellOrderItemId 与申请一致即视为同链路段）
-                var lineRows = (await _poItemRepo.FindAsync(i => i.SellOrderItemId == soItemKey)).ToList();
-                var lines = lineRows
+                // 显式 purchase_requisition_id + 历史未回填 PO 行的 FIFO 兜底
+                var allLinesOnSo = (await _poItemRepo.FindAsync(i => i.SellOrderItemId == soItemKey)).ToList();
+                var prsOnLine = PurchaseRequisitionPoLinkHelper.OrderPrsOnSellLine(
+                    await _prRepo.FindAsync(p => p.SellOrderItemId == soItemKey));
+
+                var prKey = pr.Id.Trim();
+                var explicitLines = allLinesOnSo
+                    .Where(i => string.Equals(i.PurchaseRequisitionId, prKey, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                var unlinkedOnSo = allLinesOnSo.Where(i => i.PurchaseRequisitionId == null).ToList();
+                var legacyIds = PurchaseRequisitionPoLinkHelper.GetLegacyPoItemIdsForRequisition(
+                    prKey, prsOnLine, unlinkedOnSo);
+                var legacyLines = allLinesOnSo.Where(i => legacyIds.Contains(i.Id)).ToList();
+
+                var lineMap = new Dictionary<string, PurchaseOrderItem>(StringComparer.OrdinalIgnoreCase);
+                foreach (var line in explicitLines.Concat(legacyLines))
+                    lineMap[line.Id] = line;
+
+                var lines = lineMap.Values
                     .OrderBy(i => i.PurchaseOrderItemCode, StringComparer.Ordinal)
                     .ToList();
 
@@ -320,6 +336,7 @@ namespace CRM.API.Controllers
                         purchaseOrderCode = po?.PurchaseOrderCode,
                         purchaseOrderItemCode = it.PurchaseOrderItemCode,
                         sellOrderItemId = it.SellOrderItemId,
+                        purchaseRequisitionId = it.PurchaseRequisitionId,
                         vendorId = mask511 ? null : it.VendorId,
                         poStatus = po?.Status,
                         pn = it.PN,

@@ -800,6 +800,7 @@ function buildItemsPayload() {
   const headerVendor = formData.value.vendorId?.trim() || ''
   return formData.value.items.map((it) => ({
     purchaseOrderItemId: it.purchaseOrderItemId?.trim() || undefined,
+    purchaseRequisitionId: it.purchaseRequisitionId?.trim() || undefined,
     sellOrderItemId: linkedSellOrderItemIdForPayload(it.sellOrderItemId),
     vendorId: it.vendorId?.trim() || headerVendor || MANUAL_VENDOR_ID,
     pn: it.pn,
@@ -845,6 +846,10 @@ async function loadOrderForEdit(id: string) {
       d == null ? '' : typeof d === 'string' ? d.split('T')[0]! : String(d)
     return {
       purchaseOrderItemId: String(it.id ?? it.Id ?? it.purchaseOrderItemId ?? '').trim() || undefined,
+      purchaseRequisitionId: (() => {
+        const s = String(it.purchaseRequisitionId ?? it.PurchaseRequisitionId ?? '').trim()
+        return s || undefined
+      })(),
       sellOrderItemId: it.sellOrderItemId as string | undefined,
       vendorId: it.vendorId as string | undefined,
       pn: String(it.pn ?? ''),

@@ -389,6 +389,13 @@ namespace CRM.Infrastructure.Data
                       .HasForeignKey(e => e.SellOrderItemId)
                       .IsRequired(false)
                       .OnDelete(DeleteBehavior.Restrict);
+                entity.Property(e => e.PurchaseRequisitionId).HasColumnName("purchase_requisition_id").HasMaxLength(36);
+                entity.HasIndex(e => e.PurchaseRequisitionId);
+                entity.HasOne(e => e.PurchaseRequisition)
+                      .WithMany()
+                      .HasForeignKey(e => e.PurchaseRequisitionId)
+                      .IsRequired(false)
+                      .OnDelete(DeleteBehavior.Restrict);
                 entity.Property(e => e.DeletedByUserId).HasColumnName("deleted_by_user_id").HasMaxLength(36);
                 entity.Property(e => e.DeletedByUserName).HasColumnName("deleted_by_user_name").HasMaxLength(100);
             });

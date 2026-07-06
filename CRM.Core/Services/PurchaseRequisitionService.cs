@@ -213,14 +213,28 @@ namespace CRM.Core.Services
             // 已取消保持已取消，不参与自动回写。
             if (pr.Status == 3) return;
 
-            var poItems = (await _poItemRepo.FindAsync(i =>
-                i.SellOrderItemId != null &&
-                i.SellOrderItemId == pr.SellOrderItemId))
-                .ToList();
+            var prId = pr.Id.Trim();
+            var soItemKey = pr.SellOrderItemId?.Trim();
+            decimal linkedQty;
 
-            var linkedQty = poItems
-                .Where(i => i.Status != -1 && i.Status != -2)
-                .Sum(i => i.Qty);
+            if (string.IsNullOrEmpty(soItemKey))
+            {
+                var explicitOnly = (await _poItemRepo.FindAsync(i => i.PurchaseRequisitionId == prId)).ToList();
+                linkedQty = explicitOnly
+                    .Where(i => PurchaseRequisitionPoLinkHelper.IsActivePoItem(i.Status))
+                    .Sum(i => i.Qty);
+            }
+            else
+            {
+                var prsOnLine = PurchaseRequisitionPoLinkHelper.OrderPrsOnSellLine(
+                    await _prRepo.FindAsync(p => p.SellOrderItemId == soItemKey));
+                var explicitItems = (await _poItemRepo.FindAsync(i => i.PurchaseRequisitionId == prId)).ToList();
+                var unlinkedOnLine = (await _poItemRepo.FindAsync(i =>
+                    i.SellOrderItemId == soItemKey &&
+                    i.PurchaseRequisitionId == null)).ToList();
+                linkedQty = PurchaseRequisitionPoLinkHelper.ComputeLinkedQtyForRequisition(
+                    pr, prsOnLine, explicitItems, unlinkedOnLine);
+            }
 
             short nextStatus;
             if (linkedQty <= 0m)
@@ -237,28 +251,43 @@ namespace CRM.Core.Services
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
         }
 
-        private async Task<bool> HasPurchaseOrderDownstreamAsync(string sellOrderItemId, CancellationToken cancellationToken)
+        private async Task<bool> HasPurchaseOrderDownstreamAsync(PurchaseRequisition pr, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (string.IsNullOrWhiteSpace(sellOrderItemId)) return false;
-            var key = sellOrderItemId.Trim();
-            var items = (await _poItemRepo.FindAsync(i =>
-                i.SellOrderItemId != null &&
-                i.SellOrderItemId == key)).ToList();
-            return items.Count > 0;
+            var codes = await GetDownstreamPurchaseOrderItemCodesAsync(pr, cancellationToken);
+            return codes.Count > 0;
         }
 
-        private async Task<IReadOnlyList<string>> GetDownstreamPurchaseOrderItemCodesAsync(string sellOrderItemId, CancellationToken cancellationToken)
+        private async Task<IReadOnlyList<string>> GetDownstreamPurchaseOrderItemCodesAsync(
+            PurchaseRequisition pr,
+            CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (string.IsNullOrWhiteSpace(sellOrderItemId))
+            var prId = pr.Id.Trim();
+            var explicitItems = (await _poItemRepo.FindAsync(i => i.PurchaseRequisitionId == prId)).ToList();
+            var explicitCodes = explicitItems
+                .Select(i => string.IsNullOrWhiteSpace(i.PurchaseOrderItemCode) ? i.Id : i.PurchaseOrderItemCode.Trim())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(5)
+                .ToArray();
+            if (explicitCodes.Length > 0)
+                return explicitCodes;
+
+            var soKey = pr.SellOrderItemId?.Trim();
+            if (string.IsNullOrWhiteSpace(soKey))
                 return Array.Empty<string>();
-            var key = sellOrderItemId.Trim();
-            var items = (await _poItemRepo.FindAsync(i =>
-                    i.SellOrderItemId != null &&
-                    i.SellOrderItemId == key))
-                .ToList();
-            return items
+
+            var prsOnLine = PurchaseRequisitionPoLinkHelper.OrderPrsOnSellLine(
+                await _prRepo.FindAsync(p => p.SellOrderItemId == soKey));
+            var unlinkedOnLine = (await _poItemRepo.FindAsync(i =>
+                i.SellOrderItemId == soKey &&
+                i.PurchaseRequisitionId == null)).ToList();
+            var legacyIds = PurchaseRequisitionPoLinkHelper.GetLegacyPoItemIdsForRequisition(
+                prId, prsOnLine, unlinkedOnLine);
+
+            return unlinkedOnLine
+                .Where(i => legacyIds.Contains(i.Id))
                 .Select(i => string.IsNullOrWhiteSpace(i.PurchaseOrderItemCode) ? i.Id : i.PurchaseOrderItemCode.Trim())
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -290,7 +319,7 @@ namespace CRM.Core.Services
             if (pr.Status != 0)
                 throw new InvalidOperationException("仅状态为「新建」的采购申请可普通删除。");
 
-            if (await HasPurchaseOrderDownstreamAsync(pr.SellOrderItemId, cancellationToken))
+            if (await HasPurchaseOrderDownstreamAsync(pr, cancellationToken))
                 throw new InvalidOperationException("已存在关联的采购订单明细（以销定采），无法删除采购申请。");
 
             var uid = ActingUserIdNormalizer.Normalize(actingUserId);
@@ -334,7 +363,7 @@ namespace CRM.Core.Services
             if (!string.Equals(confirmBillCode.Trim(), pr.BillCode.Trim(), StringComparison.Ordinal))
                 throw new InvalidOperationException("确认单号与采购申请单号不一致，已拒绝删除。");
 
-            var downstreamPoItemCodes = await GetDownstreamPurchaseOrderItemCodesAsync(pr.SellOrderItemId, cancellationToken);
+            var downstreamPoItemCodes = await GetDownstreamPurchaseOrderItemCodesAsync(pr, cancellationToken);
             if (downstreamPoItemCodes.Count > 0)
                 throw new InvalidOperationException(
                     $"存在下游业务节点：采购订单明细；下游数据单号：{string.Join("、", downstreamPoItemCodes)}");
