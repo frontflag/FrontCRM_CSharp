@@ -79,6 +79,7 @@ namespace CRM.API.Controllers
         public async Task<IActionResult> GetPaged(
             [FromQuery] string? keyword,
             [FromQuery] string? sellOrderId,
+            [FromQuery] string? sellOrderCode,
             [FromQuery] short? status,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20,
@@ -91,6 +92,7 @@ namespace CRM.API.Controllers
                     {
                         Keyword = keyword,
                         SellOrderId = sellOrderId,
+                        SellOrderCode = sellOrderCode,
                         Status = status,
                         Page = page,
                         PageSize = pageSize,

@@ -4087,7 +4087,7 @@ const enUS = {
       billCode: 'Requisition no.',
       billCodePlaceholder: 'Enter requisition no.',
       sellOrder: 'Sales order',
-      sellOrderPlaceholder: 'Sales order ID',
+      sellOrderPlaceholder: 'Sales order no.',
       allStatus: 'All statuses',
       search: 'Search',
       reset: 'Reset'

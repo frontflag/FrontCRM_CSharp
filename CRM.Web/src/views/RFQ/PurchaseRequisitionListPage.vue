@@ -25,7 +25,7 @@
             <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
           <input
-            v-model="filterForm.sellOrderId"
+            v-model="filterForm.sellOrderCode"
             class="search-input search-input--narrow"
             :placeholder="t('purchaseRequisitionList.filters.sellOrderPlaceholder')"
             @keyup.enter="handleSearch"
@@ -451,7 +451,7 @@ const purchaseReqColumns = computed<CrmTableColumnDef[]>(() => {
 
 const filterForm = reactive({
   billCode: '',
-  sellOrderId: '',
+  sellOrderCode: '',
   status: undefined as number | undefined
 })
 
@@ -494,7 +494,7 @@ async function loadList() {
   try {
     const data = await purchaseRequisitionApi.getList({
       keyword: filterForm.billCode.trim() || undefined,
-      sellOrderId: filterForm.sellOrderId.trim() || undefined,
+      sellOrderCode: filterForm.sellOrderCode.trim() || undefined,
       status: filterForm.status,
       page: page.value,
       pageSize: pageSize.value
@@ -535,7 +535,7 @@ function handleSearch() {
 
 function handleReset() {
   filterForm.billCode = ''
-  filterForm.sellOrderId = ''
+  filterForm.sellOrderCode = ''
   filterForm.status = undefined
   page.value = 1
   loadList()

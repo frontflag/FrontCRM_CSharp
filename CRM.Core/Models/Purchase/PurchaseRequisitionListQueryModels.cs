@@ -5,6 +5,8 @@ public sealed class PurchaseRequisitionListQueryRequest
 {
     public string? Keyword { get; set; }
     public string? SellOrderId { get; set; }
+    /// <summary>销售订单号（模糊匹配 sell_order_code）。</summary>
+    public string? SellOrderCode { get; set; }
     public short? Status { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 20;

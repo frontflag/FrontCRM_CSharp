@@ -52,6 +52,12 @@ public sealed class PurchaseRequisitionListQuery : IPurchaseRequisitionListQuery
             q = q.Where(x => x.pr.SellOrderId == sid);
         }
 
+        if (!string.IsNullOrWhiteSpace(request.SellOrderCode))
+        {
+            var code = request.SellOrderCode.Trim().ToLowerInvariant();
+            q = q.Where(x => x.SellOrderCode != null && x.SellOrderCode.ToLower().Contains(code));
+        }
+
         if (request.Status.HasValue)
             q = q.Where(x => x.pr.Status == request.Status.Value);
 

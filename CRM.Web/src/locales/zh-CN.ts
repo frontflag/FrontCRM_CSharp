@@ -4077,7 +4077,7 @@ const zhCN = {
       billCode: '采购申请号',
       billCodePlaceholder: '请输入采购申请号',
       sellOrder: '销售订单',
-      sellOrderPlaceholder: '销售订单 ID',
+      sellOrderPlaceholder: '请输入销售订单号',
       allStatus: '全部状态',
       search: '搜索',
       reset: '重置'
