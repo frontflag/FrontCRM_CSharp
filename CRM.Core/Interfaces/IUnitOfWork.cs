@@ -5,6 +5,7 @@ namespace CRM.Core.Interfaces
         Task<int> SaveChangesAsync();
         Task<IEnumerable<T>> QueryAsync<T>(string sql) where T : class, new();
         Task ExecuteAsync(string sql);
+        Task ExecuteAsync(string sql, params object[] parameters);
         /// <summary>执行非查询 SQL，返回受影响行数（用于需确认落库的场景）</summary>
         Task<int> ExecuteNonQueryAsync(string sql);
 

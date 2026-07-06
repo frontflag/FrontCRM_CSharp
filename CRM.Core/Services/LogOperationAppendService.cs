@@ -12,8 +12,6 @@ public class LogOperationAppendService : ILogOperationAppendService
         _unitOfWork = unitOfWork;
     }
 
-    private static string SqlQ(string? s) => (s ?? "").Replace("'", "''", StringComparison.Ordinal);
-
     public async Task AppendAsync(
         string bizType,
         string recordId,
@@ -27,19 +25,21 @@ public class LogOperationAppendService : ILogOperationAppendService
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var safeBiz = SqlQ(bizType);
-        var safeRecordId = SqlQ(recordId);
-        var recordCodeSql = string.IsNullOrWhiteSpace(recordCode) ? "NULL" : $"'{SqlQ(recordCode)}'";
-        var safeAction = SqlQ(actionType);
-        var safeDesc = SqlQ(operationDesc);
-        var safeUserName = SqlQ(operatorUserName);
-        var opUserSql = string.IsNullOrWhiteSpace(operatorUserId) ? "NULL" : $"'{SqlQ(operatorUserId)}'";
-        var reasonSql = string.IsNullOrWhiteSpace(reason) ? "NULL" : $"'{SqlQ(reason)}'";
-        var extraInfoSql = string.IsNullOrWhiteSpace(extraInfo) ? "NULL" : $"'{SqlQ(extraInfo)}'";
-        var sql = $@"
-INSERT INTO log_operation (""Id"", ""BizType"", ""RecordId"", ""RecordCode"", ""ActionType"", ""OperationTime"", ""OperatorUserId"", ""OperatorUserName"", ""Reason"", ""ExtraInfo"", ""SysRemark"", ""OperationDesc"")
-VALUES (gen_random_uuid()::text, '{safeBiz}', '{safeRecordId}', {recordCodeSql}, '{safeAction}', NOW(), {opUserSql}, '{safeUserName}', {reasonSql}, {extraInfoSql}, NULL, '{safeDesc}')";
-        await _unitOfWork.ExecuteAsync(sql);
+        const string sql = """
+            INSERT INTO log_operation ("Id", "BizType", "RecordId", "RecordCode", "ActionType", "OperationTime", "OperatorUserId", "OperatorUserName", "Reason", "ExtraInfo", "SysRemark", "OperationDesc")
+            VALUES (gen_random_uuid()::text, {0}, {1}, {2}, {3}, NOW(), {4}, {5}, {6}, {7}, NULL, {8})
+            """;
+        await _unitOfWork.ExecuteAsync(
+            sql,
+            bizType,
+            recordId,
+            recordCode,
+            actionType,
+            operatorUserId,
+            operatorUserName ?? string.Empty,
+            reason,
+            extraInfo,
+            operationDesc ?? string.Empty);
     }
 
     public Task AppendDeleteAsync(DeleteOperationLogEntry entry, CancellationToken cancellationToken = default)

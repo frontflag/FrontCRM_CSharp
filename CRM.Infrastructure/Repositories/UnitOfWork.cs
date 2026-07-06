@@ -132,6 +132,12 @@ namespace CRM.Infrastructure.Repositories
             await _context.Database.ExecuteSqlRawAsync(sql);
         }
 
+        /// <summary>参数化执行原生 SQL，避免 JSON 等文本中的 <c>{</c> 被 EF 误解析为格式占位符。</summary>
+        public async Task ExecuteAsync(string sql, params object[] parameters)
+        {
+            await _context.Database.ExecuteSqlRawAsync(sql, parameters);
+        }
+
         public async Task<int> ExecuteNonQueryAsync(string sql)
         {
             return await _context.Database.ExecuteSqlRawAsync(sql);

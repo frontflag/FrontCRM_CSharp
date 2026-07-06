@@ -1,4 +1,5 @@
 using CRM.Core.Models.Inventory;
+using System.Text.Json.Serialization;
 
 namespace CRM.Core.Interfaces
 {
@@ -14,6 +15,7 @@ namespace CRM.Core.Interfaces
         public string? BatchDimension { get; set; }
         public string? BatchUnit { get; set; }
         public string? UnitNo { get; set; }
+        [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
         public int BatchQty { get; set; }
         public string? Dc { get; set; }
         public string? PackageOrigin { get; set; }
@@ -31,6 +33,7 @@ namespace CRM.Core.Interfaces
         public string? BatchDimension { get; set; }
         public string? BatchUnit { get; set; }
         public string? UnitNo { get; set; }
+        [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
         public int BatchQty { get; set; }
         public string? Dc { get; set; }
         public string? PackageOrigin { get; set; }
