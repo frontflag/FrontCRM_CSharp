@@ -156,6 +156,10 @@ namespace CRM.Core.Services
                 CreateByUserId = ActingUserIdNormalizer.Normalize(actingUserId ?? request.OperatorId)
             };
 
+            if (string.IsNullOrWhiteSpace(stockIn.VendorId) &&
+                !string.IsNullOrWhiteSpace(notifyForCreate?.VendorId))
+                stockIn.VendorId = notifyForCreate!.VendorId.Trim();
+
             await _stockInRepository.AddAsync(stockIn);
             // 先落主单，避免后续插入明细时触发 FK(stockinitem.stockinid -> stockin.stockinid) 失败
             await _unitOfWork.SaveChangesAsync();
@@ -191,6 +195,9 @@ namespace CRM.Core.Services
                     // 质检生成入库等场景前端可能传 0 价：按采购明细 Id（与 MaterialId 一致）回填采购单价
                     if (price == 0m && poiForLine != null)
                         price = poiForLine.Cost;
+                    if (price == 0m && poiForLine == null && notifyForCreate != null &&
+                        IsCustomsArrivalNotify(notifyForCreate) && notifyForCreate.Cost > 0m)
+                        price = notifyForCreate.Cost;
 
                     var qtyInt = InventoryQuantity.RoundFromDecimal(item.Quantity);
                     var amount = qtyInt * price;
@@ -213,12 +220,24 @@ namespace CRM.Core.Services
                     };
                     lineIndex++;
                     ApplyPurchaseSnapshotToStockInItem(line, poiForLine);
+                    if (poiForLine == null && notifyForCreate != null && IsCustomsArrivalNotify(notifyForCreate))
+                        ApplyCustomsArrivalNotifySnapshotToStockInItem(line, notifyForCreate);
                     await _stockInItemRepository.AddAsync(line);
 
                     string? sellCodeForExt = null;
+                    string? sellIdForExt = null;
                     if (poiForLine != null && !string.IsNullOrWhiteSpace(poiForLine.SellOrderItemId))
                     {
-                        var soLine = await _sellOrderItemRepository.GetByIdAsync(poiForLine.SellOrderItemId.Trim());
+                        sellIdForExt = poiForLine.SellOrderItemId.Trim();
+                        var soLine = await _sellOrderItemRepository.GetByIdAsync(sellIdForExt);
+                        if (!string.IsNullOrWhiteSpace(soLine?.SellOrderItemCode))
+                            sellCodeForExt = soLine!.SellOrderItemCode.Trim();
+                    }
+                    else if (notifyForCreate != null && IsCustomsArrivalNotify(notifyForCreate) &&
+                             !string.IsNullOrWhiteSpace(notifyForCreate.SellOrderItemId))
+                    {
+                        sellIdForExt = notifyForCreate.SellOrderItemId.Trim();
+                        var soLine = await _sellOrderItemRepository.GetByIdAsync(sellIdForExt);
                         if (!string.IsNullOrWhiteSpace(soLine?.SellOrderItemCode))
                             sellCodeForExt = soLine!.SellOrderItemCode.Trim();
                     }
@@ -231,9 +250,7 @@ namespace CRM.Core.Services
                         PurchaseOrderItemCode = string.IsNullOrWhiteSpace(poiForLine?.PurchaseOrderItemCode)
                             ? null
                             : poiForLine!.PurchaseOrderItemCode.Trim(),
-                        SellOrderItemId = string.IsNullOrWhiteSpace(poiForLine?.SellOrderItemId)
-                            ? null
-                            : poiForLine!.SellOrderItemId.Trim(),
+                        SellOrderItemId = sellIdForExt,
                         SellOrderItemCode = sellCodeForExt,
                         CreateTime = line.CreateTime
                     });
@@ -1426,6 +1443,20 @@ namespace CRM.Core.Services
             line.PurchasePn = string.IsNullOrWhiteSpace(poi.PN) ? null : poi.PN.Trim();
             line.PurchaseBrand = string.IsNullOrWhiteSpace(poi.Brand) ? null : poi.Brand.Trim();
             line.Currency = poi.Currency;
+        }
+
+        private static bool IsCustomsArrivalNotify(StockInNotify notify) =>
+            StockInTypeCode.NormalizeForNotify(notify.StockInType) == StockInTypeCode.Customs
+            || !string.IsNullOrWhiteSpace(notify.CustomsDeclarationItemId);
+
+        /// <summary>报关到货通知生成入库：无采购明细时从通知快照 PN/品牌/币别。</summary>
+        private static void ApplyCustomsArrivalNotifySnapshotToStockInItem(StockInItem line, StockInNotify notify)
+        {
+            if (string.IsNullOrWhiteSpace(line.PurchasePn) && !string.IsNullOrWhiteSpace(notify.Pn))
+                line.PurchasePn = notify.Pn.Trim();
+            if (string.IsNullOrWhiteSpace(line.PurchaseBrand) && !string.IsNullOrWhiteSpace(notify.Brand))
+                line.PurchaseBrand = notify.Brand.Trim();
+            line.Currency ??= (short)CurrencyCode.RMB;
         }
 
         /// <summary>

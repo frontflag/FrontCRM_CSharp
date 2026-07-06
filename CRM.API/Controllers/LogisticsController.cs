@@ -58,6 +58,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? freightForwarderOrderNo,
             [FromQuery] DateTime? expectedArrivalDate,
             [FromQuery] string? id,
+            [FromQuery] short? stockInType,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20,
             CancellationToken cancellationToken = default)
@@ -71,6 +72,7 @@ namespace CRM.API.Controllers
                     freightForwarderOrderNo,
                     expectedArrivalDate,
                     string.IsNullOrWhiteSpace(id) ? null : id.Trim(),
+                    stockInType,
                     page,
                     pageSize,
                     userId,

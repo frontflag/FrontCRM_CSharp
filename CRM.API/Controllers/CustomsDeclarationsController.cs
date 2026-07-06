@@ -17,6 +17,7 @@ public class CustomsDeclarationsController : ControllerBase
 {
     private readonly ICustomsDeclarationService _service;
     private readonly ICustomsV2FlowService _customsV2FlowService;
+    private readonly ICustomsDeclarationBusinessRecordsQuery _businessRecordsQuery;
     private readonly IRbacService _rbacService;
     private readonly IDataPermissionService _dataPermissionService;
     private readonly ApplicationDbContext _db;
@@ -25,6 +26,7 @@ public class CustomsDeclarationsController : ControllerBase
     public CustomsDeclarationsController(
         ICustomsDeclarationService service,
         ICustomsV2FlowService customsV2FlowService,
+        ICustomsDeclarationBusinessRecordsQuery businessRecordsQuery,
         IRbacService rbacService,
         IDataPermissionService dataPermissionService,
         ApplicationDbContext db,
@@ -32,6 +34,7 @@ public class CustomsDeclarationsController : ControllerBase
     {
         _service = service;
         _customsV2FlowService = customsV2FlowService;
+        _businessRecordsQuery = businessRecordsQuery;
         _rbacService = rbacService;
         _dataPermissionService = dataPermissionService;
         _db = db;
@@ -122,12 +125,31 @@ public class CustomsDeclarationsController : ControllerBase
                 .GroupBy(i => i.DeclarationId)
                 .Select(g => new { DeclarationId = g.Key, SorId = g.OrderBy(i => i.LineNo).Select(i => i.StockOutRequestId).FirstOrDefault() })
                 .ToDictionaryAsync(x => x.DeclarationId, x => x.SorId);
+            var sorIds = firstSorByDec.Values
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(s => s!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var sorCodeById = sorIds.Count == 0
+                ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                : await _db.StockOutRequests.AsNoTracking()
+                    .Where(r => sorIds.Contains(r.Id))
+                    .ToDictionaryAsync(
+                        r => r.Id.Trim(),
+                        r => r.RequestCode?.Trim() ?? string.Empty,
+                        StringComparer.OrdinalIgnoreCase);
             var list = rows.Select(x => new CustomsDeclarationListItemDto
             {
                 Id = x.d.Id,
                 DeclarationCode = x.d.DeclarationCode,
                 PackingId = x.d.PackingId,
                 StockOutRequestId = firstSorByDec.TryGetValue(x.d.Id, out var sor) ? sor : null,
+                StockOutRequestCode = firstSorByDec.TryGetValue(x.d.Id, out var sorId)
+                    && !string.IsNullOrWhiteSpace(sorId)
+                    && sorCodeById.TryGetValue(sorId.Trim(), out var sorCode)
+                    && !string.IsNullOrWhiteSpace(sorCode)
+                        ? sorCode
+                        : null,
                 CustomsBrokerId = x.d.CustomsBrokerId,
                 CustomsBrokerName = x.b.Cname,
                 DeclarationType = x.d.DeclarationType,
@@ -197,6 +219,21 @@ public class CustomsDeclarationsController : ControllerBase
         var custById = customers.ToDictionary(c => c.Id.Trim(), c => c, StringComparer.OrdinalIgnoreCase);
 
         var firstSor = items.FirstOrDefault()?.StockOutRequestId;
+        string? firstSorCode = null;
+        if (!string.IsNullOrWhiteSpace(firstSor))
+        {
+            var sorRow = await _db.StockOutRequests.AsNoTracking()
+                .FirstOrDefaultAsync(r => r.Id == firstSor.Trim());
+            firstSorCode = sorRow?.RequestCode?.Trim();
+        }
+
+        string? createUserDisplay = null;
+        if (!string.IsNullOrWhiteSpace(row.CreateByUserId))
+        {
+            var creator = await _db.Users.AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Id == row.CreateByUserId.Trim());
+            createUserDisplay = creator?.UserName?.Trim();
+        }
 
         var readiness = await _customsV2FlowService.GetArrivalNotifyReadinessAsync(key);
         var notifyByCdi = await _db.StockInNotifies.AsNoTracking()
@@ -214,6 +251,7 @@ public class CustomsDeclarationsController : ControllerBase
             PackingId = row.PackingId,
             PackingCode = packing?.Code,
             StockOutRequestId = string.IsNullOrWhiteSpace(firstSor) ? null : firstSor.Trim(),
+            StockOutRequestCode = firstSorCode,
             CustomsBrokerId = row.CustomsBrokerId,
             CustomsBrokerName = broker?.Cname,
             CustomsBrokerCode = broker?.BrokerCode,
@@ -229,6 +267,8 @@ public class CustomsDeclarationsController : ControllerBase
             ToWarehouseCode = toWh?.WarehouseCode,
             Remark = row.Remark,
             CreateTime = row.CreateTime,
+            CreateByUserId = row.CreateByUserId,
+            CreateUserDisplay = createUserDisplay,
             CanCreateArrivalNotifies = readiness.CanCreate,
             PendingArrivalNotifyCount = readiness.PendingCount,
             ExistingArrivalNotifyCount = readiness.ExistingCount,
@@ -315,6 +355,25 @@ public class CustomsDeclarationsController : ControllerBase
         }
 
         return Ok(ApiResponse<CustomsDeclarationDetailViewDto>.Ok(dto, "OK"));
+    }
+
+    [HttpGet("{id}/business-records")]
+    public async Task<ActionResult<ApiResponse<CustomsDeclarationBusinessRecordsDto>>> GetBusinessRecords(string id)
+    {
+        if (!await CustomsModuleAccessHttp.CanAccessAsync(_rbacService, User))
+            return StatusCode(403, ApiResponse<CustomsDeclarationBusinessRecordsDto>.Fail("当前账号无权访问报关模块", 403));
+
+        var key = id.Trim();
+        var exists = await _db.CustomsDeclarations.AsNoTracking()
+            .AnyAsync(x => x.Id == key && !x.IsDeleted);
+        if (!exists)
+            return NotFound(ApiResponse<CustomsDeclarationBusinessRecordsDto>.Fail("报关单不存在", 404));
+
+        var dto = await _businessRecordsQuery.LoadAsync(key);
+        if (dto == null)
+            return NotFound(ApiResponse<CustomsDeclarationBusinessRecordsDto>.Fail("报关单不存在", 404));
+
+        return Ok(ApiResponse<CustomsDeclarationBusinessRecordsDto>.Ok(dto, "OK"));
     }
 
     [HttpGet("by-stock-out-request/{stockOutRequestId}")]

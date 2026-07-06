@@ -200,7 +200,32 @@ const zhCN = {
       createArrivalOk: '已生成 {count} 条报关到货通知',
       createArrivalOkWithCodes: '已生成报关到货通知：{codes}',
       existingArrivalNotifies: '已生成到货通知：{codes}',
-      selectPlaceholder: '请选择'
+      selectPlaceholder: '请选择',
+      captionPrefix: '报关单',
+      basicInfo: '基础信息',
+      sectionItems: '报关明细',
+      sectionBusinessRecords: '业务记录',
+      colExchangeRate: '汇率',
+      colWarehouseRoute: '源仓 → 目标仓',
+      colCustomsPacking: '报关装箱单',
+      businessRecords: {
+        salesOrder: '销售订单明细',
+        purchaseOrder: '采购订单明细',
+        stockOutNotify: '出库通知',
+        customsStockOutNotify: '报关出库通知',
+        customsPacking: '报关装箱单',
+        customsStockOut: '报关出库',
+        customsArrivalNotify: '报关到货通知',
+        customsStockIn: '报关入库',
+        packing: '装箱单',
+        stockOut: '出库',
+        colCode: '单号',
+        colStatus: '状态',
+        colOccurredAt: '业务时间',
+        empty: '暂无相关单据',
+        sellLineNormal: '正常',
+        sellLineCancelled: '已取消'
+      }
     },
     items: {
       title: '报关明细',
@@ -3927,7 +3952,8 @@ const zhCN = {
       status: '状态',
       allStatus: '全部状态',
       poCode: '采购单号',
-      poCodePlaceholder: '请输入采购单号',
+      poCodePlaceholder: '采购单号 / 到货通知单号',
+      arrivalTypePlaceholder: '到货类型',
       expectedDate: '预计到货日期',
       datePlaceholder: '选择日期',
       search: '搜索',
@@ -3944,6 +3970,7 @@ const zhCN = {
     columns: {
       noticeCode: '到货通知号',
       status: '状态',
+      arrivalType: '到货类型',
       purchaseOrderCode: '采购单号',
       pn: '型号',
       brand: '品牌',
@@ -3984,6 +4011,66 @@ const zhCN = {
     },
     messages: {
       arrivedSuccess: '已确认到货，等待质检'
+    }
+  },
+  qcDetail: {
+    back: '返回',
+    createTitle: '新建质检',
+    captionPrefix: '质检',
+    cancel: '取消',
+    save: '保存质检',
+    update: '更新质检',
+    saving: '保存中...',
+    meta: {
+      notice: '到货通知',
+      createDate: '创建日期',
+      createUser: '创建人'
+    },
+    sections: {
+      supply: '供应信息',
+      delivery: '送货信息',
+      material: '物料信息',
+      qcInfo: '质检信息',
+      images: '质检图片'
+    },
+    fields: {
+      noticeCode: '到货通知编码',
+      purchaseUser: '采购员',
+      purchaseOrderCode: '采购单号',
+      vendor: '供应商',
+      noticeRemark: '到货通知备注',
+      expressNo: '快递单号',
+      deliveryMethod: '送货方式',
+      expressMethod: '快递方式',
+      arrivalDate: '到货日期',
+      stockInPlanDate: '入库日期',
+      materialCode: '物料型号',
+      brand: '品牌',
+      arrivedTotalQty: '到货数量',
+      sampleQty: '抽检数量',
+      sampleDate: '抽检日期',
+      qcUser: '质检人',
+      qcResult: '质检结果',
+      stockInQty: '可入库数量',
+      remark: '备注'
+    },
+    qcResult: {
+      pass: '通过',
+      partial: '部分通过',
+      reject: '拒收'
+    },
+    qcUserPlaceholder: '请选择物流部员工',
+    stockInPlanDatePlaceholder: '生成入库单用',
+    uploadHintCreate:
+      '新建：当前尚无质检单号，首次点击「保存质检」会创建单据；保存前已选好的图片会随本次保存一并上传。单张图片上限 8MB，最多 24 张。',
+    uploadHintEdit:
+      '编辑：可随时添加图片，点击「保存质检」后新选择的图片会上传并关联本单；删除已保存缩略图会同步删除服务端文档。通过「质检列表」再次进入本页可查看历史图片。',
+    messages: {
+      noticeMissing: '缺少到货通知ID',
+      saveSuccess: '质检已保存',
+      updateSuccess: '质检已更新',
+      createFailed: '创建质检失败',
+      updateFailed: '更新质检失败'
     }
   },
   qcList: {
@@ -5123,6 +5210,9 @@ const zhCN = {
   stockOutNotifyList: {
     title: '出库通知',
     detailTitle: '出库通知详情',
+    captionPrefix: '出库通知',
+    basicInfo: '基本信息',
+    notFound: '出库通知不存在',
     executeTitle: '执行出库',
     backToNotifyList: '返回出库通知',
     executeSubmit: '执行出库',
@@ -5244,6 +5334,7 @@ const zhCN = {
     },
     columnSettings: '列设置',
     detail: {
+      sectionRelated: '关联记录',
       viewOrder: '查看销售订单',
       loadRelatedFailed: '加载关联数据失败',
       tabs: {
@@ -5319,6 +5410,7 @@ const zhCN = {
       confirm: '确认装箱单',
       pick: '拣货',
       ready: '备货',
+      regenerateCustomsDeclaration: '补生成报关单',
       stockOut: '出库',
       outBatch: '出库批次',
       delete: '删除',
@@ -5347,6 +5439,12 @@ const zhCN = {
       success: '装箱单已确认',
       failed: '确认装箱单失败',
       notNewStatus: '仅「新建」状态的装箱单可以确认'
+    },
+    regenerateCustomsDeclaration: {
+      title: '补生成报关单',
+      message: '将为该报关装箱单重新生成报关单；若已完成拣货，将自动回写报关明细。',
+      success: '报关单已补生成',
+      failed: '补生成报关单失败'
     },
     ready: {
       title: '备货',
@@ -5744,6 +5842,8 @@ const zhCN = {
     },
     detail: {
       back: '返回列表',
+      captionPrefix: '拣货单',
+      basicInfo: '基础信息',
       sectionHeader: '基本信息',
       sectionPacking: '装箱信息',
       sectionLines: '拣货明细',

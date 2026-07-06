@@ -100,6 +100,9 @@ namespace CRM.Core.Interfaces
         public string? FreightForwarderOrderNo { get; set; }
         public string? SalesOrderCode { get; set; }
 
+        /// <summary>到货类型（<see cref="StockInTypeCode"/>：10 采购 / 20 报关 / 30 退货 / 40 报废）。</summary>
+        public short? StockInType { get; set; }
+
         /// <summary>当前用户 Id（服务端注入，用于采购数据范围过滤）。</summary>
         public string? CurrentUserId { get; set; }
     }

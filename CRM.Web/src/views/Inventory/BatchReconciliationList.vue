@@ -692,7 +692,7 @@ html[data-theme='dark'] .inv-list-qty {
 
 .consumption-panel__code {
   font-family: ui-monospace, monospace;
-  color: $cyan-primary;
+  color: $color-amber;
   font-size: 13px;
 }
 

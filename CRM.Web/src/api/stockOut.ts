@@ -482,7 +482,7 @@ export type StockOutRequestListPaged = { items: StockOutRequestDto[]; total: num
 /** GET 出库明细列表 */
 export type StockOutItemListPaged = { items: StockOutItemListRow[]; total: number; page: number; pageSize: number }
 
-function normalizeStockOutListRow(row: unknown): StockOutDto {
+export function normalizeStockOutListRow(row: unknown): StockOutDto {
   const r = row as Record<string, unknown>
   return {
     id: String(r.id ?? r.Id ?? ''),
@@ -527,7 +527,7 @@ function unwrapPagedStockOuts(res: unknown): StockOutListPaged {
   return { items: [], total: 0, page: 1, pageSize: 20 }
 }
 
-function normalizeStockOutRequestRow(row: unknown): StockOutRequestDto {
+export function normalizeStockOutRequestRow(row: unknown): StockOutRequestDto {
   const r = row as Record<string, unknown>
   return {
     id: String(r.id ?? r.Id ?? ''),

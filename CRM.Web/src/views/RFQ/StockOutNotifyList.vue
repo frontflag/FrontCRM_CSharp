@@ -146,6 +146,17 @@
         <span v-else-if="row.packingCode?.trim()">{{ row.packingCode.trim() }}</span>
         <span v-else>—</span>
       </template>
+      <template #col-salesOrderCode="{ row }">
+        <router-link
+          v-if="row.salesOrderId?.trim() && row.salesOrderCode?.trim()"
+          class="link-text"
+          :to="`/sales-orders/${row.salesOrderId.trim()}`"
+          @click.stop
+        >
+          {{ row.salesOrderCode.trim() }}
+        </router-link>
+        <span v-else>{{ row.salesOrderCode?.trim() || '—' }}</span>
+      </template>
       <template #col-requestDate="{ row }">{{ formatRequestDateTime(row.requestDate) }}</template>
       <template #col-createTime="{ row }">{{ formatRequestDateTime(row.createTime) }}</template>
       <template #col-createUser="{ row }">{{ row.createUserName || row.requestUserName || '--' }}</template>
@@ -322,6 +333,7 @@ import { stockOutApi, type StockOutRequestDto } from '@/api/stockOut'
 import { normalizeRegionType, REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS } from '@/constants/regionType'
 import { formatDate as formatDateTimeZh } from '@/utils/date'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import { buildStockOutNotifyListColumns } from '@/composables/buildStockOutNotifyListColumns'
 import { useAuthStore } from '@/stores/auth'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { useStockOutNotifyListBasketStore } from '@/stores/stockOutNotifyListBasket'
@@ -408,85 +420,13 @@ function buildListQueryParams() {
 
 const stockOutNotifyColumns = computed<CrmTableColumnDef[]>(() => {
   void locale.value
-  return [
-  {
-    key: 'selection',
-    type: 'selection',
-    width: 44,
-    fixed: 'left',
-    hideable: false,
-    reorderable: false,
-    reserveSelection: true
-  },
-  { key: 'status', label: t('stockOutNotifyList.columns.status'), prop: 'status', width: 110, align: 'center' },
-  {
-    key: 'customsStatus',
-    label: t('stockOutNotifyList.columns.customsStatus'),
-    width: 120,
-    minWidth: 110,
-    align: 'center'
-  },
-  {
-    key: 'stockOutType',
-    label: t('stockOutNotifyList.columns.stockOutType'),
-    width: 110,
-    minWidth: 100,
-    align: 'center'
-  },
-  { key: 'materialModel', label: t('stockOutNotifyList.columns.materialModel'), prop: 'materialModel', width: 180, showOverflowTooltip: true },
-  { key: 'brand', label: t('stockOutNotifyList.columns.brand'), prop: 'brand', width: 140, showOverflowTooltip: true },
-  { key: 'outQuantity', label: t('stockOutNotifyList.columns.outQuantity'), prop: 'outQuantity', width: 110, align: 'right' },
-  {
-    key: 'regionType',
-    label: t('stockOutNotifyList.columns.regionType'),
-    width: 100,
-    minWidth: 100,
-    align: 'center'
-  },
-  {
-    key: 'shipmentMethod',
-    label: t('stockOutNotifyList.columns.shipmentMethod'),
-    width: 120,
-    minWidth: 100,
-    showOverflowTooltip: true
-  },
-  {
-    key: 'expressCompany',
-    label: t('stockOutNotifyList.columns.expressCompany'),
-    width: 120,
-    minWidth: 100,
-    showOverflowTooltip: true
-  },
-  {
-    key: 'packingCode',
-    label: t('stockOutNotifyList.columns.packingCode'),
-    prop: 'packingCode',
-    width: 150,
-    minWidth: 130,
-    showOverflowTooltip: true
-  },
-  { key: 'requestDate', label: t('stockOutNotifyList.columns.requestDate'), prop: 'requestDate', width: 170 },
-  { key: 'salesUserName', label: t('stockOutNotifyList.columns.salesUserName'), prop: 'salesUserName', width: 130, showOverflowTooltip: true },
-  { key: 'customerName', label: t('stockOutNotifyList.columns.customer'), prop: 'customerName', minWidth: 180, showOverflowTooltip: true },
-  { key: 'remark', label: t('stockOutNotifyList.columns.remark'), prop: 'remark', minWidth: 180, showOverflowTooltip: true },
-  { key: 'requestCode', label: t('stockOutNotifyList.columns.requestCode'), prop: 'requestCode', width: 190, minWidth: 170 },
-  { key: 'salesOrderCode', label: t('stockOutNotifyList.columns.salesOrderCode'), prop: 'salesOrderCode', width: 160, minWidth: 160 },
-  { key: 'createTime', label: t('stockOutNotifyList.columns.createTime'), prop: 'createTime', width: 170 },
-  { key: 'createUser', label: t('stockOutNotifyList.columns.createUser'), width: 140, showOverflowTooltip: true },
-  {
-    key: 'actions',
-    label: t('stockOutNotifyList.columns.actions'),
-    width: opColWidth.value,
-    minWidth: opColMinWidth.value,
-    fixed: 'right',
-    hideable: false,
-    pinned: 'end',
-    reorderable: false,
-    className: 'op-col',
-    labelClassName: 'op-col',
-  resizable: false
-  }
-  ]
+  return buildStockOutNotifyListColumns({
+    t,
+    opColWidth: opColWidth.value,
+    opColMinWidth: opColMinWidth.value,
+    withSelection: true,
+    withActions: true
+  })
 })
 
 const statusLabel = (s: number) => {
@@ -500,7 +440,7 @@ const statusLabel = (s: number) => {
 
 function customsStatusLabel(code?: number | null): string {
   const n = Number(code ?? 0)
-  if (n === STOCK_OUT_NOTIFY_CUSTOMS_STATUS.NotRequired) return t('stockOutNotifyList.customsStatus.notRequired')
+  if (n === STOCK_OUT_NOTIFY_CUSTOMS_STATUS.NotRequired) return '—'
   if (n === STOCK_OUT_NOTIFY_CUSTOMS_STATUS.PendingCustoms) return t('stockOutNotifyList.customsStatus.pendingCustoms')
   if (n === STOCK_OUT_NOTIFY_CUSTOMS_STATUS.InCustoms) return t('stockOutNotifyList.customsStatus.inCustoms')
   if (n === STOCK_OUT_NOTIFY_CUSTOMS_STATUS.Completed) return t('stockOutNotifyList.customsStatus.completed')
@@ -1146,6 +1086,18 @@ onMounted(() => {
 }
 .cell-link:hover {
   text-decoration: underline;
+}
+
+.link-text {
+  color: inherit;
+  text-decoration: none;
+  cursor: default;
+
+  &:hover {
+    color: var(--el-color-primary);
+    text-decoration: underline;
+    cursor: pointer;
+  }
 }
 </style>
 

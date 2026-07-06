@@ -260,7 +260,7 @@ export {
 export const PACKING_MATERIAL_TYPE_FILTER_VALUES = [10, 20, 30] as const
 export type PackingItemListPaged = { items: PackingItemListRow[]; total: number; page: number; pageSize: number }
 
-function normalizePackingListItem(row: unknown): PackingListItem {
+export function normalizePackingListItem(row: unknown): PackingListItem {
   const r = row as Record<string, unknown>
   return {
     id: String(r.id ?? r.Id ?? ''),
@@ -629,6 +629,17 @@ export const packingApi = {
       await apiClient.post<unknown>(`/api/v1/packing/${encodeURIComponent(rid)}/confirm`)
     } catch (e) {
       throw new Error(parseApiError(e, '确认装箱单失败'))
+    }
+  },
+
+  /** 报关装箱单补生成报关单（强制删除报关单后修复） */
+  async regenerateCustomsDeclaration(id: string): Promise<void> {
+    const rid = String(id || '').trim()
+    if (!rid) throw new Error('缺少装箱单 ID')
+    try {
+      await apiClient.post<unknown>(`/api/v1/packing/${encodeURIComponent(rid)}/regenerate-customs-declaration`)
+    } catch (e) {
+      throw new Error(parseApiError(e, '补生成报关单失败'))
     }
   },
 

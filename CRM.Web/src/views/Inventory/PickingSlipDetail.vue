@@ -1,278 +1,440 @@
 <template>
-  <div class="picking-slip-detail-page stockout-notify-page">
+  <div
+    class="picking-slip-detail-page"
+    v-loading="loading"
+    element-loading-background="rgba(10,22,40,0.8)"
+  >
     <div class="page-header">
       <div class="header-left">
-        <div class="page-title-group">
-          <div class="page-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
+        <button class="btn-back" type="button" @click="goBack">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+          {{ t('pickingSlip.detail.back') }}
+        </button>
+        <div v-if="detail" class="picking-caption-title-group">
+          <div class="caption-avatar-lg">{{ pickingCaptionAvatarChar }}</div>
+          <div>
+            <div class="page-title-row">
+              <div class="page-title-with-icons">
+                <h1 class="page-title">
+                  {{ t('pickingSlip.detail.captionPrefix') }} {{ taskCodeDisplay }}
+                </h1>
+              </div>
+            </div>
+            <div class="title-meta title-meta--caption picking-header-meta-row">
+              <el-tag effect="dark" :type="pickingStatusTagType(pickingStatusNum)" size="small">
+                {{ statusLabel(detail) }}
+              </el-tag>
+            </div>
           </div>
-          <h1 class="page-title">{{ t('pickingSlip.detailTitle') }}</h1>
         </div>
-      </div>
-      <div class="header-right">
-        <button type="button" class="btn-secondary" @click="goBack">{{ t('pickingSlip.detail.back') }}</button>
       </div>
     </div>
 
-    <el-skeleton v-if="loading" :rows="6" animated />
-    <template v-else-if="detail">
-      <div class="detail-card">
-        <h3 class="section-title">{{ t('pickingSlip.detail.sectionHeader') }}</h3>
-        <el-descriptions :column="2" border>
-          <el-descriptions-item :label="t('pickingSlip.columns.status')">{{ statusLabel(detail) }}</el-descriptions-item>
-          <el-descriptions-item :label="t('pickingSlip.columns.warehouse')">{{ d('warehouseDisplay') }}</el-descriptions-item>
-          <el-descriptions-item :label="t('pickingSlip.columns.materialModel')">{{ d('materialModel') }}</el-descriptions-item>
-          <el-descriptions-item :label="t('pickingSlip.columns.brand')">{{ d('brand') }}</el-descriptions-item>
-          <el-descriptions-item :label="t('pickingSlip.columns.customerName')">{{ d('customerName') }}</el-descriptions-item>
-          <el-descriptions-item :label="t('pickingSlip.columns.salesUserName')">{{ d('salesUserName') }}</el-descriptions-item>
-          <el-descriptions-item :label="t('pickingSlip.columns.planQtyTotal')">{{ d('planQtyTotal') }}</el-descriptions-item>
-          <el-descriptions-item :label="t('pickingSlip.columns.lineCount')">{{ d('lineCount') }}</el-descriptions-item>
-          <el-descriptions-item :label="t('pickingSlip.columns.stockOutRequestCode')">{{ d('stockOutRequestCode') }}</el-descriptions-item>
-          <el-descriptions-item :label="t('pickingSlip.columns.taskCode')">{{ d('taskCode') }}</el-descriptions-item>
-          <el-descriptions-item :label="t('pickingSlip.columns.createTime')">{{ formatTime }}</el-descriptions-item>
-          <el-descriptions-item :label="t('pickingSlip.columns.createUser')">{{ d('createUserDisplay') }}</el-descriptions-item>
-          <el-descriptions-item v-if="d('remark') !== '—'" :label="t('pickingSlip.detail.remark')" :span="2">
-            {{ d('remark') }}
-          </el-descriptions-item>
-          <el-descriptions-item
-            v-if="stockTypesDisplay"
-            :label="t('pickingSlip.detail.stockTypes')"
-            :span="2"
-          >{{ stockTypesDisplay }}</el-descriptions-item>
-        </el-descriptions>
-      </div>
-
-      <div v-if="packingPanel" class="detail-card">
-        <h3 class="section-title">{{ t('pickingSlip.detail.sectionPacking') }}</h3>
-        <el-descriptions :column="2" border>
-          <el-descriptions-item :label="t('packingList.columns.packingCode')">
-            <router-link
-              v-if="packingPanel.packingId"
-              class="cell-link"
-              :to="{ name: 'PackingDetail', params: { id: packingPanel.packingId } }"
-            >
-              {{ packingPanel.packingCode || packingPanel.packingId }}
-            </router-link>
-            <span v-else>{{ packingPanel.packingCode || '—' }}</span>
-          </el-descriptions-item>
-          <el-descriptions-item :label="t('packingList.columns.shipmentMethod')">
-            {{ shipmentMethodDisplay(packingPanel.shipmentMethod) }}
-          </el-descriptions-item>
-          <el-descriptions-item :label="t('pickingSlip.detail.expressCompany')" :span="2">
-            {{ expressCompanyDisplay(packingPanel.expressCompany) }}
-          </el-descriptions-item>
-        </el-descriptions>
-      </div>
-
-      <div class="detail-card">
-        <h3 class="section-title">{{ t('pickingSlip.detail.sectionLines') }}</h3>
-        <el-table :data="lines" border class="lines-table" size="small" empty-text="—">
-          <el-table-column :label="t('pickingSlip.detail.itemCode')" min-width="140" show-overflow-tooltip>
-            <template #default="{ row }">{{ row.itemCode || '—' }}</template>
-          </el-table-column>
-          <el-table-column label="物料" min-width="120" prop="materialId" show-overflow-tooltip />
-          <el-table-column label="在库明细编号" min-width="140" show-overflow-tooltip>
-            <template #default="{ row }">{{ lineStockItemCode(row) }}</template>
-          </el-table-column>
-          <el-table-column label="入库明细编号" min-width="140" show-overflow-tooltip>
-            <template #default="{ row }">{{ lineStockInItemCode(row) }}</template>
-          </el-table-column>
-          <el-table-column :label="t('inventoryList.columns.stockType')" width="100" align="center">
-            <template #default="{ row }">{{ stockTypeLabel(row) }}</template>
-          </el-table-column>
-          <el-table-column label="计划" width="88" align="right">
-            <template #default="{ row }">{{ row.planQty }}</template>
-          </el-table-column>
-          <el-table-column label="已拣" width="88" align="right">
-            <template #default="{ row }">{{ row.pickedQty }}</template>
-          </el-table-column>
-          <el-table-column label="来源" width="110" align="center">
-            <template #default="{ row }">
-              <span v-if="lineIsStocking(row)" class="tag-stocking">{{ t('inventoryList.stockTypes.stocking') }}</span>
-              <span v-else class="tag-normal">{{ t('inventoryList.stockTypes.customer') }}</span>
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
-
-      <div v-loading="relatedLoading" class="detail-card related-tabs-card">
-        <el-alert v-if="relatedLoadError" type="warning" :closable="false" class="related-alert" :title="relatedLoadError" />
-        <el-tabs v-model="relatedActiveTab" type="border-card" class="related-tabs">
-          <el-tab-pane :label="t('pickingSlip.detail.tabs.sellLine')" name="sellLine">
-            <div v-if="!stockOutRequestCodeTrim" class="related-tab-hint">{{ t('pickingSlip.detail.relatedEmpty.noRequestCode') }}</div>
-            <div v-else-if="!matchedRequest" class="related-tab-hint">{{ t('pickingSlip.detail.relatedEmpty.noMatchedRequest') }}</div>
-            <template v-else>
-              <div class="related-tab-toolbar">
+    <div class="detail-content">
+      <template v-if="detail">
+        <div class="info-section">
+          <div class="section-header">
+            <div class="section-header__main">
+              <div class="section-dot section-dot--cyan"></div>
+              <span class="section-title">{{ t('pickingSlip.detail.basicInfo') }}</span>
+            </div>
+            <div class="section-header__meta">
+              <span class="section-header-meta-item">
+                <span class="section-header-meta-item__label">{{ t('pickingSlip.columns.createTime') }}</span>
+                <span class="section-header-meta-item__value">{{ formatTime }}</span>
+              </span>
+              <span class="section-header-meta-item">
+                <span class="section-header-meta-item__label">{{ t('pickingSlip.columns.createUser') }}</span>
+                <span class="section-header-meta-item__value">{{ d('createUserDisplay') }}</span>
+              </span>
+            </div>
+          </div>
+          <div class="info-grid info-grid--inline-labels info-grid--basic">
+            <div class="info-item">
+              <span class="info-label">{{ t('pickingSlip.columns.warehouse') }}</span>
+              <span class="info-value">{{ d('warehouseDisplay') }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">{{ t('pickingSlip.columns.materialModel') }}</span>
+              <span class="info-value">{{ d('materialModel') }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">{{ t('pickingSlip.columns.brand') }}</span>
+              <span class="info-value">{{ d('brand') }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">{{ t('pickingSlip.columns.customerName') }}</span>
+              <span class="info-value">{{ d('customerName') }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">{{ t('pickingSlip.columns.salesUserName') }}</span>
+              <span class="info-value">{{ d('salesUserName') }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">{{ t('pickingSlip.columns.planQtyTotal') }}</span>
+              <span class="info-value">{{ d('planQtyTotal') }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">{{ t('pickingSlip.columns.lineCount') }}</span>
+              <span class="info-value">{{ d('lineCount') }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">{{ t('pickingSlip.columns.stockOutRequestCode') }}</span>
+              <span class="info-value">
                 <router-link
-                  v-if="linkedSalesOrderId"
-                  class="related-toolbar-link"
-                  :to="{ name: 'SalesOrderDetail', params: { id: linkedSalesOrderId } }"
+                  v-if="matchedRequest?.id && stockOutRequestCodeTrim"
+                  class="link-text"
+                  :to="{ name: 'StockOutNotifyDetail', params: { id: matchedRequest.id } }"
                 >
-                  {{ t('pickingSlip.detail.tabs.viewOrder') }}
+                  {{ stockOutRequestCodeTrim }}
                 </router-link>
-              </div>
-              <CrmDataTable
-                class="quantum-table-block el-table-host picking-so-item-embed"
-                embedded
-                column-layout-key="sales-order-item-list-v2"
-                :columns="pickingSoItemColumns"
-                :show-column-settings="false"
-                :show-row-density-toggle="false"
-                :data="salesOrderItemRows"
-                row-key="sellOrderItemId"
+                <span v-else>{{ stockOutRequestCodeTrim || '—' }}</span>
+              </span>
+            </div>
+            <div class="info-item info-item--basic-spacer" aria-hidden="true"></div>
+          </div>
+          <div v-if="stockTypesDisplay" class="info-grid info-grid--inline-labels">
+            <div class="info-item info-item--span-all">
+              <span class="info-label">{{ t('pickingSlip.detail.stockTypes') }}</span>
+              <span class="info-value">{{ stockTypesDisplay }}</span>
+            </div>
+          </div>
+          <div v-if="d('remark') !== '—'" class="info-grid info-grid--inline-labels">
+            <div class="info-item info-item--span-all">
+              <span class="info-label">{{ t('pickingSlip.detail.remark') }}</span>
+              <span class="info-value">{{ d('remark') }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="packingPanel" class="info-section">
+          <div class="section-header">
+            <div class="section-header__main">
+              <div class="section-dot section-dot--cyan"></div>
+              <span class="section-title">{{ t('pickingSlip.detail.sectionPacking') }}</span>
+            </div>
+          </div>
+          <div class="info-grid info-grid--inline-labels info-grid--basic">
+            <div class="info-item">
+              <span class="info-label">{{ t('packingList.columns.packingCode') }}</span>
+              <span class="info-value">
+                <router-link
+                  v-if="packingPanel.packingId"
+                  class="link-text"
+                  :to="{ name: 'PackingDetail', params: { id: packingPanel.packingId } }"
+                >
+                  {{ packingPanel.packingCode || packingPanel.packingId }}
+                </router-link>
+                <span v-else>{{ packingPanel.packingCode || '—' }}</span>
+              </span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">{{ t('packingList.columns.shipmentMethod') }}</span>
+              <span class="info-value">{{ shipmentMethodDisplay(packingPanel.shipmentMethod) }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">{{ t('pickingSlip.detail.expressCompany') }}</span>
+              <span class="info-value">{{ expressCompanyDisplay(packingPanel.expressCompany) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-section">
+          <div class="section-header">
+            <div class="section-header__main">
+              <div class="section-dot section-dot--cyan"></div>
+              <span class="section-title">{{ t('pickingSlip.detail.sectionLines') }}</span>
+              <span v-if="lines.length" class="section-count">{{ lines.length }}</span>
+            </div>
+          </div>
+          <div class="detail-panel-section-body">
+            <div class="detail-items-table-wrap">
+              <el-table
+                :data="lines"
+                class="detail-panel-list-table"
                 size="small"
-                :empty-text="t('pickingSlip.detail.relatedEmpty.noSalesLine')"
-                @row-dblclick="onPickingSoItemDblclick"
+                empty-text="—"
               >
-                <template #col-customerName="{ row }">
-                  <span>{{ maskSaleSensitiveFields ? '—' : (row.customerName || '—') }}</span>
-                </template>
-                <template #col-salesUserName="{ row }">
-                  <span>{{ maskSaleSensitiveFields ? '—' : (row.salesUserName || '—') }}</span>
-                </template>
-                <template #col-orderStatus="{ row }">
-                  <el-tag effect="dark" :type="soItemStatusTagType(row.orderStatus)" size="small">{{ soItemStatusText(row.orderStatus) }}</el-tag>
-                </template>
-                <template #col-purchaseProgressStatus="{ row }">
-                  <el-tag effect="dark" :type="soItemExtendTriTagType(row.purchaseProgressStatus)" size="small">
-                    {{ soItemExtendTriLabel('purchase', row.purchaseProgressStatus) }}
-                  </el-tag>
-                </template>
-                <template #col-stockInProgressStatus="{ row }">
-                  <el-tag effect="dark" :type="soItemExtendTriTagType(row.stockInProgressStatus)" size="small">
-                    {{ soItemExtendTriLabel('stockIn', row.stockInProgressStatus) }}
-                  </el-tag>
-                </template>
-                <template #col-stockOutProgressStatus="{ row }">
-                  <el-tag effect="dark" :type="soItemExtendTriTagType(row.stockOutProgressStatus)" size="small">
-                    {{ soItemExtendTriLabel('stockOut', row.stockOutProgressStatus) }}
-                  </el-tag>
-                </template>
-                <template #col-stockOutNotifyProgressStatus="{ row }">
-                  <el-tag effect="dark" :type="soItemExtendTriTagType(row.stockOutNotifyProgressStatus)" size="small">
-                    {{ soItemExtendTriLabel('stockOutNotify', row.stockOutNotifyProgressStatus) }}
-                  </el-tag>
-                </template>
-                <template #col-receiptProgressStatus="{ row }">
-                  <el-tag effect="dark" :type="soItemExtendTriTagType(row.receiptProgressStatus)" size="small">
-                    {{ soItemExtendTriLabel('receipt', row.receiptProgressStatus) }}
-                  </el-tag>
-                </template>
-                <template #col-invoiceProgressStatus="{ row }">
-                  <el-tag effect="dark" :type="soItemExtendTriTagType(row.invoiceProgressStatus)" size="small">
-                    {{ soItemExtendTriLabel('invoice', row.invoiceProgressStatus) }}
-                  </el-tag>
-                </template>
-                <template #col-currency="{ row }">{{ soItemSettlementCurrencyLabel(row.currency) }}</template>
-                <template #col-price="{ row }">
-                  <span class="amount-with-code">
-                    <span>{{ formatUnitPriceNumber(row.price) }}</span>
-                    <span v-if="formatUnitPriceNumber(row.price) !== '—'" :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]">
-                      {{ listAmountCurrencyIso(row.currency) }}
+                <el-table-column :label="t('pickingSlip.detail.itemCode')" min-width="140" show-overflow-tooltip>
+                  <template #default="{ row }">{{ row.itemCode || '—' }}</template>
+                </el-table-column>
+                <el-table-column label="物料" min-width="120" prop="materialId" show-overflow-tooltip />
+                <el-table-column label="在库明细编号" min-width="140" show-overflow-tooltip>
+                  <template #default="{ row }">{{ lineStockItemCode(row) }}</template>
+                </el-table-column>
+                <el-table-column label="入库明细编号" min-width="140" show-overflow-tooltip>
+                  <template #default="{ row }">{{ lineStockInItemCode(row) }}</template>
+                </el-table-column>
+                <el-table-column :label="t('inventoryList.columns.stockType')" width="100" align="center">
+                  <template #default="{ row }">{{ stockTypeLabel(row) }}</template>
+                </el-table-column>
+                <el-table-column label="计划" width="88" align="right">
+                  <template #default="{ row }">{{ row.planQty }}</template>
+                </el-table-column>
+                <el-table-column label="已拣" width="88" align="right">
+                  <template #default="{ row }">{{ row.pickedQty }}</template>
+                </el-table-column>
+                <el-table-column label="来源" width="110" align="center">
+                  <template #default="{ row }">
+                    <span v-if="lineIsStocking(row)" class="tag-stocking">{{ t('inventoryList.stockTypes.stocking') }}</span>
+                    <span v-else class="tag-normal">{{ t('inventoryList.stockTypes.customer') }}</span>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
+          </div>
+        </div>
+
+        <div v-loading="relatedLoading" class="tabs-section">
+          <el-alert
+            v-if="relatedLoadError"
+            type="warning"
+            :closable="false"
+            class="related-alert"
+            :title="relatedLoadError"
+          />
+          <div class="tabs-nav">
+            <button
+              type="button"
+              class="tab-btn"
+              :class="{ 'tab-btn--active': relatedActiveTab === 'sellLine' }"
+              @click="relatedActiveTab = 'sellLine'"
+            >
+              {{ t('pickingSlip.detail.tabs.sellLine') }}
+            </button>
+            <button
+              type="button"
+              class="tab-btn"
+              :class="{ 'tab-btn--active': relatedActiveTab === 'request' }"
+              @click="relatedActiveTab = 'request'"
+            >
+              {{ t('pickingSlip.detail.tabs.stockOutRequest') }}
+            </button>
+            <button
+              type="button"
+              class="tab-btn"
+              :class="{ 'tab-btn--active': relatedActiveTab === 'stockOut' }"
+              @click="relatedActiveTab = 'stockOut'"
+            >
+              {{ t('pickingSlip.detail.tabs.stockOut') }}
+            </button>
+          </div>
+          <div class="tabs-body">
+            <div v-show="relatedActiveTab === 'sellLine'">
+              <div v-if="!stockOutRequestCodeTrim" class="panel-hint">{{ t('pickingSlip.detail.relatedEmpty.noRequestCode') }}</div>
+              <div v-else-if="!matchedRequest" class="panel-hint">{{ t('pickingSlip.detail.relatedEmpty.noMatchedRequest') }}</div>
+              <template v-else>
+                <CrmDataTable
+                  class="quantum-table-block el-table-host picking-so-item-embed"
+                  embedded
+                  column-layout-key="sales-order-item-list-v2"
+                  :columns="pickingSoItemColumns"
+                  :show-column-settings="false"
+                  :show-row-density-toggle="false"
+                  :data="salesOrderItemRows"
+                  row-key="sellOrderItemId"
+                  size="small"
+                  :empty-text="t('pickingSlip.detail.relatedEmpty.noSalesLine')"
+                  @row-dblclick="onPickingSoItemDblclick"
+                >
+                  <template #col-customerName="{ row }">
+                    <span>{{ maskSaleSensitiveFields ? '—' : (row.customerName || '—') }}</span>
+                  </template>
+                  <template #col-salesUserName="{ row }">
+                    <span>{{ maskSaleSensitiveFields ? '—' : (row.salesUserName || '—') }}</span>
+                  </template>
+                  <template #col-orderStatus="{ row }">
+                    <el-tag effect="dark" :type="soItemStatusTagType(row.orderStatus)" size="small">{{ soItemStatusText(row.orderStatus) }}</el-tag>
+                  </template>
+                  <template #col-purchaseProgressStatus="{ row }">
+                    <el-tag effect="dark" :type="soItemExtendTriTagType(row.purchaseProgressStatus)" size="small">
+                      {{ soItemExtendTriLabel('purchase', row.purchaseProgressStatus) }}
+                    </el-tag>
+                  </template>
+                  <template #col-stockInProgressStatus="{ row }">
+                    <el-tag effect="dark" :type="soItemExtendTriTagType(row.stockInProgressStatus)" size="small">
+                      {{ soItemExtendTriLabel('stockIn', row.stockInProgressStatus) }}
+                    </el-tag>
+                  </template>
+                  <template #col-stockOutProgressStatus="{ row }">
+                    <el-tag effect="dark" :type="soItemExtendTriTagType(row.stockOutProgressStatus)" size="small">
+                      {{ soItemExtendTriLabel('stockOut', row.stockOutProgressStatus) }}
+                    </el-tag>
+                  </template>
+                  <template #col-stockOutNotifyProgressStatus="{ row }">
+                    <el-tag effect="dark" :type="soItemExtendTriTagType(row.stockOutNotifyProgressStatus)" size="small">
+                      {{ soItemExtendTriLabel('stockOutNotify', row.stockOutNotifyProgressStatus) }}
+                    </el-tag>
+                  </template>
+                  <template #col-receiptProgressStatus="{ row }">
+                    <el-tag effect="dark" :type="soItemExtendTriTagType(row.receiptProgressStatus)" size="small">
+                      {{ soItemExtendTriLabel('receipt', row.receiptProgressStatus) }}
+                    </el-tag>
+                  </template>
+                  <template #col-invoiceProgressStatus="{ row }">
+                    <el-tag effect="dark" :type="soItemExtendTriTagType(row.invoiceProgressStatus)" size="small">
+                      {{ soItemExtendTriLabel('invoice', row.invoiceProgressStatus) }}
+                    </el-tag>
+                  </template>
+                  <template #col-currency="{ row }">{{ soItemSettlementCurrencyLabel(row.currency) }}</template>
+                  <template #col-price="{ row }">
+                    <span class="amount-with-code">
+                      <span>{{ formatUnitPriceNumber(row.price) }}</span>
+                      <span v-if="formatUnitPriceNumber(row.price) !== '—'" :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]">
+                        {{ listAmountCurrencyIso(row.currency) }}
+                      </span>
                     </span>
-                  </span>
-                </template>
-                <template #col-lineTotal="{ row }">
-                  <span class="amount-with-code">
-                    <span>{{ formatTotalAmountNumber(row.lineTotal) }}</span>
-                    <span v-if="formatTotalAmountNumber(row.lineTotal) !== '—'" :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]">
-                      {{ listAmountCurrencyIso(row.currency) }}
+                  </template>
+                  <template #col-lineTotal="{ row }">
+                    <span class="amount-with-code">
+                      <span>{{ formatTotalAmountNumber(row.lineTotal) }}</span>
+                      <span v-if="formatTotalAmountNumber(row.lineTotal) !== '—'" :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]">
+                        {{ listAmountCurrencyIso(row.currency) }}
+                      </span>
                     </span>
-                  </span>
-                </template>
-                <template #col-usdUnitPrice="{ row }">
-                  <span v-if="row.usdUnitPrice != null" class="amount-with-code">
-                    <span>{{ Number(row.usdUnitPrice).toFixed(6) }}</span>
-                    <span class="dock-tier-ccy dock-tier-ccy--usd">USD</span>
-                  </span>
-                  <span v-else>—</span>
-                </template>
-                <template #col-usdLineTotal="{ row }">
-                  <span v-if="row.usdLineTotal != null" class="amount-with-code">
-                    <span>{{ Number(row.usdLineTotal).toFixed(2) }}</span>
-                    <span class="dock-tier-ccy dock-tier-ccy--usd">USD</span>
-                  </span>
-                  <span v-else>—</span>
-                </template>
-                <template #col-salesProfitExpected="{ row }">
-                  <span v-if="row.salesProfitExpected != null" class="amount-with-code">
-                    <span>{{ Number(row.salesProfitExpected).toFixed(2) }}</span>
-                    <span class="dock-tier-ccy dock-tier-ccy--usd">USD</span>
-                  </span>
-                  <span v-else>—</span>
-                </template>
-                <template #col-profitOutBizUsd="{ row }">
-                  <span v-if="row.profitOutBizUsd != null" class="amount-with-code">
-                    <span>{{ Number(row.profitOutBizUsd).toFixed(2) }}</span>
-                    <span class="dock-tier-ccy dock-tier-ccy--usd">USD</span>
-                  </span>
-                  <span v-else>—</span>
-                </template>
-                <template #col-profitOutRateBiz="{ row }">{{
-                  row.profitOutRateBiz != null ? Number(row.profitOutRateBiz).toFixed(6) : '—'
-                }}</template>
-                <template #col-createTime="{ row }">{{ soItemFormatDt(row.createTime || row.orderCreateTime) }}</template>
-                <template #col-createUser="{ row }">{{
-                  row.createUserName || row.createdBy || (!maskSaleSensitiveFields ? row.salesUserName : '') || '—'
-                }}</template>
-              </CrmDataTable>
-            </template>
-          </el-tab-pane>
-          <el-tab-pane :label="t('pickingSlip.detail.tabs.stockOutRequest')" name="request">
-            <div v-if="!stockOutRequestCodeTrim" class="related-tab-hint">{{ t('pickingSlip.detail.relatedEmpty.noRequestCode') }}</div>
-            <el-table v-else :data="matchedRequestTable" border size="small" class="lines-table" :empty-text="t('pickingSlip.detail.relatedEmpty.noMatchedRequest')">
-              <el-table-column :label="t('stockOutNotifyList.columns.requestCode')" min-width="140" show-overflow-tooltip prop="requestCode" />
-              <el-table-column :label="t('stockOutNotifyList.columns.salesOrderCode')" min-width="140" show-overflow-tooltip prop="salesOrderCode" />
-              <el-table-column :label="t('stockOutNotifyList.columns.materialModel')" min-width="120" show-overflow-tooltip prop="materialModel" />
-              <el-table-column :label="t('stockOutNotifyList.columns.brand')" width="100" show-overflow-tooltip prop="brand" />
-              <el-table-column :label="t('stockOutNotifyList.columns.outQuantity')" width="96" align="right" prop="outQuantity" />
-              <el-table-column :label="t('stockOutNotifyList.columns.status')" width="100" align="center">
-                <template #default="{ row }">{{ stockOutRequestStatusLabel(Number(row.status)) }}</template>
-              </el-table-column>
-              <el-table-column :label="t('stockOutNotifyList.columns.requestDate')" min-width="150" show-overflow-tooltip>
-                <template #default="{ row }">{{ formatRelatedDateTime(row.expectedStockOutDate) }}</template>
-              </el-table-column>
-              <el-table-column :label="t('stockOutNotifyList.columns.customer')" min-width="120" show-overflow-tooltip>
-                <template #default="{ row }">{{ maskCustomerCell(row.customerName) }}</template>
-              </el-table-column>
-              <el-table-column :label="t('stockOutNotifyList.columns.salesUserName')" width="110" show-overflow-tooltip>
-                <template #default="{ row }">{{ maskSalesCell(row.salesUserName) }}</template>
-              </el-table-column>
-            </el-table>
-          </el-tab-pane>
-          <el-tab-pane :label="t('pickingSlip.detail.tabs.stockOut')" name="stockOut">
-            <div v-if="!stockOutRequestCodeTrim" class="related-tab-hint">{{ t('pickingSlip.detail.relatedEmpty.noRequestCode') }}</div>
-            <el-table v-else :data="relatedStockOuts" border size="small" class="lines-table" :empty-text="t('pickingSlip.detail.relatedEmpty.noStockOuts')">
-              <el-table-column :label="t('stockOutList.columns.stockOutCode')" min-width="140" show-overflow-tooltip>
-                <template #default="{ row }">
-                  <router-link v-if="row.id" class="cell-link" :to="{ name: 'StockOutDetail', params: { id: row.id } }">
-                    {{ row.stockOutCode || '—' }}
-                  </router-link>
-                  <span v-else>{{ row.stockOutCode || '—' }}</span>
-                </template>
-              </el-table-column>
-              <el-table-column :label="t('stockOutList.columns.status')" width="100" align="center">
-                <template #default="{ row }">{{ stockOutStatusLabel(Number(row.status)) }}</template>
-              </el-table-column>
-              <el-table-column :label="t('stockOutList.columns.sourceCode')" min-width="120" show-overflow-tooltip prop="sourceCode" />
-              <el-table-column :label="t('stockOutList.columns.totalQuantity')" width="96" align="right" prop="totalQuantity" />
-              <el-table-column :label="t('stockOutList.columns.stockOutDate')" min-width="150" show-overflow-tooltip>
-                <template #default="{ row }">{{ formatRelatedDateTime(row.stockOutDate) }}</template>
-              </el-table-column>
-              <el-table-column :label="t('stockOutList.columns.customerName')" min-width="120" show-overflow-tooltip>
-                <template #default="{ row }">{{ maskCustomerCell(row.customerName) }}</template>
-              </el-table-column>
-              <el-table-column :label="t('stockOutList.columns.salesUserName')" width="110" show-overflow-tooltip>
-                <template #default="{ row }">{{ maskSalesCell(row.salesUserName) }}</template>
-              </el-table-column>
-            </el-table>
-          </el-tab-pane>
-        </el-tabs>
-      </div>
-    </template>
-    <el-empty v-else :description="loadError || '—'" />
+                  </template>
+                  <template #col-usdUnitPrice="{ row }">
+                    <span v-if="row.usdUnitPrice != null" class="amount-with-code">
+                      <span>{{ Number(row.usdUnitPrice).toFixed(6) }}</span>
+                      <span class="dock-tier-ccy dock-tier-ccy--usd">USD</span>
+                    </span>
+                    <span v-else>—</span>
+                  </template>
+                  <template #col-usdLineTotal="{ row }">
+                    <span v-if="row.usdLineTotal != null" class="amount-with-code">
+                      <span>{{ Number(row.usdLineTotal).toFixed(2) }}</span>
+                      <span class="dock-tier-ccy dock-tier-ccy--usd">USD</span>
+                    </span>
+                    <span v-else>—</span>
+                  </template>
+                  <template #col-salesProfitExpected="{ row }">
+                    <span v-if="row.salesProfitExpected != null" class="amount-with-code">
+                      <span>{{ Number(row.salesProfitExpected).toFixed(2) }}</span>
+                      <span class="dock-tier-ccy dock-tier-ccy--usd">USD</span>
+                    </span>
+                    <span v-else>—</span>
+                  </template>
+                  <template #col-profitOutBizUsd="{ row }">
+                    <span v-if="row.profitOutBizUsd != null" class="amount-with-code">
+                      <span>{{ Number(row.profitOutBizUsd).toFixed(2) }}</span>
+                      <span class="dock-tier-ccy dock-tier-ccy--usd">USD</span>
+                    </span>
+                    <span v-else>—</span>
+                  </template>
+                  <template #col-profitOutRateBiz="{ row }">{{
+                    row.profitOutRateBiz != null ? Number(row.profitOutRateBiz).toFixed(6) : '—'
+                  }}</template>
+                  <template #col-createTime="{ row }">{{ soItemFormatDt(row.createTime || row.orderCreateTime) }}</template>
+                  <template #col-createUser="{ row }">{{
+                    row.createUserName || row.createdBy || (!maskSaleSensitiveFields ? row.salesUserName : '') || '—'
+                  }}</template>
+                </CrmDataTable>
+              </template>
+            </div>
+            <div v-show="relatedActiveTab === 'request'">
+              <div v-if="!stockOutRequestCodeTrim" class="panel-hint">{{ t('pickingSlip.detail.relatedEmpty.noRequestCode') }}</div>
+              <div v-else class="detail-items-table-wrap">
+                <el-table
+                  :data="matchedRequestTable"
+                  class="detail-panel-list-table"
+                  size="small"
+                  :empty-text="t('pickingSlip.detail.relatedEmpty.noMatchedRequest')"
+                >
+                  <el-table-column :label="t('stockOutNotifyList.columns.requestCode')" min-width="140" show-overflow-tooltip>
+                    <template #default="{ row }">
+                      <router-link
+                        v-if="row.id"
+                        class="link-text"
+                        :to="{ name: 'StockOutNotifyDetail', params: { id: row.id } }"
+                      >
+                        {{ row.requestCode || '—' }}
+                      </router-link>
+                      <span v-else>{{ row.requestCode || '—' }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column :label="t('stockOutNotifyList.columns.salesOrderCode')" min-width="140" show-overflow-tooltip>
+                    <template #default="{ row }">
+                      <router-link
+                        v-if="row.salesOrderId && row.salesOrderCode"
+                        class="link-text"
+                        :to="{ name: 'SalesOrderDetail', params: { id: row.salesOrderId } }"
+                      >
+                        {{ row.salesOrderCode }}
+                      </router-link>
+                      <span v-else>{{ row.salesOrderCode || '—' }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column :label="t('stockOutNotifyList.columns.materialModel')" min-width="120" show-overflow-tooltip prop="materialModel" />
+                  <el-table-column :label="t('stockOutNotifyList.columns.brand')" width="100" show-overflow-tooltip prop="brand" />
+                  <el-table-column :label="t('stockOutNotifyList.columns.outQuantity')" width="96" align="right" prop="outQuantity" />
+                  <el-table-column :label="t('stockOutNotifyList.columns.status')" width="100" align="center">
+                    <template #default="{ row }">
+                      <el-tag effect="dark" :type="stockOutRequestStatusTagType(Number(row.status))" size="small">
+                        {{ stockOutRequestStatusLabel(Number(row.status)) }}
+                      </el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column :label="t('stockOutNotifyList.columns.requestDate')" min-width="150" show-overflow-tooltip>
+                    <template #default="{ row }">{{ formatRelatedDateTime(row.expectedStockOutDate) }}</template>
+                  </el-table-column>
+                  <el-table-column :label="t('stockOutNotifyList.columns.customer')" min-width="120" show-overflow-tooltip>
+                    <template #default="{ row }">{{ maskCustomerCell(row.customerName) }}</template>
+                  </el-table-column>
+                  <el-table-column :label="t('stockOutNotifyList.columns.salesUserName')" width="110" show-overflow-tooltip>
+                    <template #default="{ row }">{{ maskSalesCell(row.salesUserName) }}</template>
+                  </el-table-column>
+                </el-table>
+              </div>
+            </div>
+            <div v-show="relatedActiveTab === 'stockOut'">
+              <div v-if="!stockOutRequestCodeTrim" class="panel-hint">{{ t('pickingSlip.detail.relatedEmpty.noRequestCode') }}</div>
+              <div v-else class="detail-items-table-wrap">
+                <el-table
+                  :data="relatedStockOuts"
+                  class="detail-panel-list-table"
+                  size="small"
+                  :empty-text="t('pickingSlip.detail.relatedEmpty.noStockOuts')"
+                >
+                  <el-table-column :label="t('stockOutList.columns.stockOutCode')" min-width="140" show-overflow-tooltip>
+                    <template #default="{ row }">
+                      <router-link
+                        v-if="row.id"
+                        class="link-text"
+                        :to="{ name: 'StockOutDetail', params: { id: row.id } }"
+                      >
+                        {{ row.stockOutCode || '—' }}
+                      </router-link>
+                      <span v-else>{{ row.stockOutCode || '—' }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column :label="t('stockOutList.columns.status')" width="100" align="center">
+                    <template #default="{ row }">
+                      <el-tag effect="dark" :type="stockOutStatusTagType(Number(row.status))" size="small">
+                        {{ stockOutStatusLabel(Number(row.status)) }}
+                      </el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column :label="t('stockOutList.columns.sourceCode')" min-width="120" show-overflow-tooltip prop="sourceCode" />
+                  <el-table-column :label="t('stockOutList.columns.totalQuantity')" width="96" align="right" prop="totalQuantity" />
+                  <el-table-column :label="t('stockOutList.columns.stockOutDate')" min-width="150" show-overflow-tooltip>
+                    <template #default="{ row }">{{ formatRelatedDateTime(row.stockOutDate) }}</template>
+                  </el-table-column>
+                  <el-table-column :label="t('stockOutList.columns.customerName')" min-width="120" show-overflow-tooltip>
+                    <template #default="{ row }">{{ maskCustomerCell(row.customerName) }}</template>
+                  </el-table-column>
+                  <el-table-column :label="t('stockOutList.columns.salesUserName')" width="110" show-overflow-tooltip>
+                    <template #default="{ row }">{{ maskSalesCell(row.salesUserName) }}</template>
+                  </el-table-column>
+                </el-table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+      <el-empty v-else-if="!loading" :description="loadError || '—'" />
+    </div>
   </div>
 </template>
 
@@ -348,6 +510,22 @@ const stockOutRequestCodeTrim = computed(() => {
 })
 
 const raw = computed(() => detail.value as unknown as Record<string, unknown> | null)
+
+const taskCodeDisplay = computed(() => {
+  const code = d('taskCode')
+  return code === '—' ? '—' : code
+})
+
+const pickingStatusNum = computed(() => {
+  const r = raw.value
+  if (!r) return 0
+  return Number(r.status ?? r.Status ?? 0)
+})
+
+const pickingCaptionAvatarChar = computed(() => {
+  const code = taskCodeDisplay.value.trim()
+  return code && code !== '—' ? code[0]! : '拣'
+})
 
 const packingPanel = computed(() => {
   const r = raw.value
@@ -449,6 +627,14 @@ function statusLabel(row: PickingTaskDetailView) {
   return t('pickingSlip.status.unknown')
 }
 
+function pickingStatusTagType(s: number): '' | 'success' | 'warning' | 'info' | 'danger' {
+  if (s === 1) return 'info'
+  if (s === 2) return 'warning'
+  if (s === 100) return 'success'
+  if (s === -1) return 'info'
+  return 'info'
+}
+
 function lineRecord(line: PickingTaskLine) {
   return line as unknown as Record<string, unknown>
 }
@@ -505,6 +691,15 @@ function stockOutRequestStatusLabel(s: number) {
   return t('stockOutNotifyList.status.unknown')
 }
 
+function stockOutRequestStatusTagType(s: number): '' | 'success' | 'warning' | 'info' | 'danger' {
+  if (s === STOCK_OUT_REQUEST_STATUS.PendingCustoms) return 'warning'
+  if (s === STOCK_OUT_REQUEST_STATUS.PendingPacking) return 'info'
+  if (s === STOCK_OUT_REQUEST_STATUS.Packed) return 'warning'
+  if (s === STOCK_OUT_REQUEST_STATUS.StockedOut) return 'success'
+  if (s === STOCK_OUT_REQUEST_STATUS.Cancelled) return 'info'
+  return 'info'
+}
+
 function stockOutStatusLabel(s: number) {
   switch (s) {
     case 0:
@@ -522,6 +717,13 @@ function stockOutStatusLabel(s: number) {
   }
 }
 
+function stockOutStatusTagType(s: number): '' | 'success' | 'warning' | 'info' | 'danger' {
+  if (s === 2 || s === 4) return 'success'
+  if (s === 1) return 'warning'
+  if (s === 3) return 'info'
+  return 'info'
+}
+
 function formatRelatedDateTime(v?: string | null) {
   if (v == null || v === '') return '—'
   return formatDateTimeZh(v, 'YYYY-MM-DD HH:mm')
@@ -532,7 +734,6 @@ function toNum(v: unknown): number {
   return Number.isFinite(n) ? n : 0
 }
 
-/** 将订单详情中的明细行展平为与 `/sales-order-items` 列表 API 相近的字段，供 CrmDataTable 使用 */
 function toSalesOrderItemListRow(order: Record<string, unknown>, item: Record<string, unknown>): SalesOrderItemLineRow {
   const sellOrderItemId = String(item.id ?? item.sellOrderItemId ?? item.SellOrderItemId ?? '').trim()
   const qty = toNum(item.qty ?? item.Qty)
@@ -725,113 +926,343 @@ onMounted(() => {
 
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
+@import '@/assets/styles/business-detail-info-grid.scss';
 
 .picking-slip-detail-page {
   padding: 24px;
   min-height: 100%;
   background: $layer-1;
+  font-family: 'Noto Sans SC', sans-serif;
 }
+
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-muted;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.07);
+    color: $text-secondary;
+    border-color: rgba(0, 212, 255, 0.2);
+  }
+}
+
 .page-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 20px;
 }
-.header-left,
-.header-right {
+
+.header-left {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
 }
-.page-title-group {
+
+.picking-caption-title-group {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
+  min-width: 0;
 }
-.page-icon {
-  width: 36px;
-  height: 36px;
-  background: rgba(0, 212, 255, 0.1);
+
+.caption-avatar-lg {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.3), rgba(0, 212, 255, 0.2));
   border: 1px solid rgba(0, 212, 255, 0.25);
-  border-radius: 10px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 20px;
+  font-weight: 700;
   color: $cyan-primary;
+  flex-shrink: 0;
 }
+
+.page-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.page-title-with-icons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
 .page-title {
+  margin: 0;
   font-size: 20px;
   font-weight: 600;
   color: $text-primary;
-  margin: 0;
 }
-.btn-secondary {
-  padding: 8px 14px;
-  border-radius: $border-radius-md;
+
+.title-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.title-meta--caption {
+  margin-top: 4px;
+}
+
+.picking-header-meta-row {
+  min-height: 28px;
+}
+
+.detail-content {
+  min-height: 200px;
+}
+
+.info-section {
+  background: $layer-2;
+  border: 1px solid $border-card;
+  border-radius: $border-radius-lg;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--crm-detail-section-header-bg);
+
+  .section-title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: $text-primary;
+  }
+}
+
+.section-header__main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.section-header__meta {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.section-header-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+
+  &__label {
+    color: $text-muted;
+
+    &::after {
+      content: '：';
+    }
+  }
+
+  &__value {
+    color: $text-secondary;
+  }
+}
+
+.section-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+
+  &--cyan {
+    background: $cyan-primary;
+    box-shadow: 0 0 6px rgba(0, 212, 255, 0.6);
+  }
+}
+
+.section-count {
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(0, 212, 255, 0.1);
+  color: $cyan-primary;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-right: 1px solid rgba(255, 255, 255, 0.04);
+
+  &:nth-child(3n) {
+    border-right: none;
+  }
+}
+
+.info-grid--inline-labels .info-item {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+
+  .info-label {
+    flex-shrink: 0;
+    white-space: nowrap;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 12px;
+
+    &::after {
+      content: '：';
+    }
+  }
+
+  .info-value {
+    flex: 1;
+    min-width: 0;
+    word-break: break-word;
+  }
+}
+
+.info-grid--basic {
+  .info-item {
+    &:nth-child(3n) {
+      border-right: none;
+    }
+  }
+
+  .info-item--basic-spacer {
+    border-right: none;
+  }
+}
+
+.info-grid--inline-labels .info-item--span-all {
+  grid-column: 1 / -1;
+  border-right: none;
+}
+
+.info-label {
+  font-size: 11px;
+  color: $text-muted;
+}
+
+.info-value {
   font-size: 13px;
-  cursor: pointer;
-  border: 1px solid $border-panel;
-  background: rgba(255, 255, 255, 0.05);
   color: $text-secondary;
 }
-.detail-card {
-  background: $layer-2;
-  border-radius: 8px;
-  padding: 16px 18px;
-  margin-bottom: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+
+.detail-panel-section-body {
+  padding: 0;
 }
-.section-title {
-  margin: 0 0 12px;
-  font-size: 15px;
-  font-weight: 600;
-  color: $text-primary;
+
+.detail-items-table-wrap {
+  margin-top: 0;
 }
-.lines-table {
-  width: 100%;
-}
+
 .tag-stocking {
   color: #ffc107;
   font-weight: 600;
   font-size: 12px;
 }
+
 .tag-normal {
   font-size: 12px;
   color: rgba(200, 216, 232, 0.75);
 }
-.related-tabs-card {
-  position: relative;
+
+.tabs-section {
+  background: $layer-2;
+  border: 1px solid $border-card;
+  border-radius: $border-radius-lg;
+  overflow: hidden;
+  margin-bottom: 16px;
 }
+
 .related-alert {
-  margin-bottom: 12px;
+  margin: 12px 16px 0;
 }
-.related-tabs {
-  --el-tabs-header-height: 40px;
+
+.tabs-nav {
+  display: flex;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 0 16px;
+  background: var(--crm-detail-section-header-bg);
 }
-.related-tabs :deep(.el-tabs__content) {
-  padding: 12px 14px 14px;
+
+.tab-btn {
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: $text-muted;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: -1px;
+
+  &:hover {
+    color: $text-secondary;
+  }
+
+  &--active {
+    color: $cyan-primary;
+    border-bottom-color: $cyan-primary;
+  }
 }
-.related-tab-hint {
+
+.tabs-body {
+  padding: 20px;
+}
+
+.panel-hint {
+  margin: 0;
   font-size: 13px;
   color: $text-secondary;
-  padding: 8px 0 4px;
+  line-height: 1.5;
 }
-.related-tab-toolbar {
-  margin-bottom: 10px;
-}
-.related-toolbar-link {
-  font-size: 13px;
-  color: $cyan-primary;
+
+.link-text {
+  color: inherit;
   text-decoration: none;
-}
-.related-toolbar-link:hover {
-  text-decoration: underline;
-}
-.cell-link {
-  color: $cyan-primary;
-  text-decoration: none;
-}
-.cell-link:hover {
-  text-decoration: underline;
+  cursor: default;
+
+  &:hover {
+    color: var(--el-color-primary);
+    text-decoration: underline;
+    cursor: pointer;
+  }
 }
 </style>

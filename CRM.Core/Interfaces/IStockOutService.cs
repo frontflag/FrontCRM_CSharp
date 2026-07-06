@@ -24,6 +24,11 @@ namespace CRM.Core.Interfaces
             int page,
             int pageSize,
             CancellationToken cancellationToken = default);
+
+        /// <summary>按出库通知 Id 批量加载列表行（供业务详情嵌入场景）。</summary>
+        Task<List<StockOutRequestListItemDto>> GetStockOutRequestListItemsByIdsAsync(
+            IReadOnlyList<string> ids,
+            CancellationToken cancellationToken = default);
         /// <summary>
         /// 执行出库（内部包含预占/拣货/出库确认的 FIFO 逻辑）
         /// </summary>
@@ -39,6 +44,11 @@ namespace CRM.Core.Interfaces
             StockOutListQueryRequest? filter,
             int page,
             int pageSize,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>按 Id 批量返回出库单列表行（与 <see cref="GetStockOutListPagedAsync"/> 列表字段一致）。</summary>
+        Task<List<StockOutListItemDto>> GetStockOutListItemsByIdsAsync(
+            IReadOnlyList<string> ids,
             CancellationToken cancellationToken = default);
 
         /// <summary>出库明细（<c>stockoutitem</c>）全量列表，头表字段与 <see cref="GetStockOutListAsync"/> 展示口径一致。</summary>

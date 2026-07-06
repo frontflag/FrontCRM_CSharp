@@ -21,4 +21,12 @@ public static class StockOutRequestStatusCode
     public static bool IsCancelled(short status) => status == Cancelled;
 
     public static bool IsActiveForQuantitySum(short status) => status != Cancelled;
+
+    /// <summary>
+    /// 是否计入销售明细「已通知出库数量」。
+    /// 报关出库通知（<see cref="StockOutTypeCode.Customs"/>）与销售出库通知一一对应，不重复占用销售数量。
+    /// </summary>
+    public static bool IsCountedForSalesLineNotifyQuantity(short status, short stockOutType) =>
+        IsActiveForQuantitySum(status)
+        && StockOutTypeCode.NormalizeForNotify(stockOutType) != StockOutTypeCode.Customs;
 }

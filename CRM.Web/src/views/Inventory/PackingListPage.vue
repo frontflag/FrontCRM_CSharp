@@ -206,6 +206,14 @@
               {{ t('packingList.actions.ready') }}
             </button>
             <button
+              v-if="canWriteLogisticsData && canRegenerateCustomsDeclaration(row)"
+              type="button"
+              class="action-btn action-btn--primary"
+              @click.stop="() => void regenerateCustomsDeclaration(row)"
+            >
+              {{ t('packingList.actions.regenerateCustomsDeclaration') }}
+            </button>
+            <button
               v-if="canWriteLogisticsData"
               type="button"
               class="action-btn action-btn--primary"
@@ -263,6 +271,9 @@
                 </el-dropdown-item>
                 <el-dropdown-item v-if="canWriteLogisticsData" :disabled="!canMarkPackingReady(row)" @click.stop="() => void markPackingReady(row)">
                   <span class="op-more-item">{{ t('packingList.actions.ready') }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="canWriteLogisticsData && canRegenerateCustomsDeclaration(row)" @click.stop="() => void regenerateCustomsDeclaration(row)">
+                  <span class="op-more-item op-more-item--primary">{{ t('packingList.actions.regenerateCustomsDeclaration') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="canWriteLogisticsData" @click.stop="openOutBatchImport(row)">
                   <span class="op-more-item op-more-item--primary">{{ t('packingList.actions.outBatch') }}</span>
@@ -468,10 +479,12 @@ import {
   PACKING_STATUS_FILTER_VALUES,
   PACKING_STOCK_OUT_TYPE_FILTER_VALUES,
   PackingStatusCode,
+  StockOutTypeCode,
   type PackingListItem,
   type PackingListQuery
 } from '@/api/packing'
 import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
+import { buildPackingListColumns } from '@/composables/buildPackingListColumns'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
@@ -547,44 +560,13 @@ const filterForm = reactive<FilterForm>(defaultFilterForm())
 
 const packingColumns = computed<CrmTableColumnDef[]>(() => {
   void locale.value
-  return [
-    {
-      key: 'selection',
-      type: 'selection',
-      width: 44,
-      fixed: 'left',
-      hideable: false,
-      reorderable: false,
-      reserveSelection: true
-    },
-    { key: 'packingCode', label: t('packingList.columns.packingCode'), width: 160, minWidth: 160, showOverflowTooltip: true },
-    { key: 'status', label: t('packingList.columns.status'), width: 110, minWidth: 110, align: 'center' },
-    { key: 'stockOutType', label: t('packingList.columns.stockOutType'), width: 140, minWidth: 140, align: 'center' },
-    { key: 'materialType', label: t('packingList.columns.materialType'), width: 140, minWidth: 140, align: 'center' },
-    { key: 'customerName', label: t('packingList.columns.customerName'), width: 140, minWidth: 140, showOverflowTooltip: true },
-    { key: 'salesUserName', label: t('packingList.columns.salesUserName'), width: 130, minWidth: 130, showOverflowTooltip: true },
-    { key: 'warehouseName', label: t('packingList.columns.warehouseName'), width: 120, minWidth: 120, showOverflowTooltip: true },
-    { key: 'requestDate', label: t('packingList.columns.expectedShipDate'), width: 150, minWidth: 150 },
-    { key: 'shipmentMethod', label: t('packingList.columns.shipmentMethod'), width: 120, minWidth: 100, showOverflowTooltip: true },
-    { key: 'expressCompany', label: t('packingList.columns.expressCompany'), width: 120, minWidth: 100, showOverflowTooltip: true },
-    { key: 'itemRows', label: t('packingList.columns.itemRows'), width: 120, minWidth: 120, align: 'right' },
-    { key: 'remark', label: t('packingList.columns.remark'), minWidth: 160, showOverflowTooltip: true },
-    { key: 'createTime', label: t('packingList.columns.createTime'), width: 170, minWidth: 170 },
-    { key: 'createUserName', label: t('packingList.columns.createUserName'), width: 140, minWidth: 140, showOverflowTooltip: true },
-    {
-      key: 'actions',
-      label: t('packingList.columns.actions'),
-      width: opColWidth.value,
-      minWidth: opColMinWidth.value,
-      fixed: 'right',
-      hideable: false,
-      pinned: 'end',
-      reorderable: false,
-      className: 'op-col',
-      labelClassName: 'op-col',
-      resizable: false
-    }
-  ]
+  return buildPackingListColumns({
+    t,
+    opColWidth: opColWidth.value,
+    opColMinWidth: opColMinWidth.value,
+    withSelection: true,
+    withActions: true
+  })
 })
 
 function formatCreateTimeParts(v?: string | null) {
@@ -682,6 +664,12 @@ watch(listTotal, () => {
 
 function canConfirmPacking(row: PackingListItem): boolean {
   return Number(row?.status) === PackingStatusCode.New
+}
+
+function canRegenerateCustomsDeclaration(row: PackingListItem): boolean {
+  if (Number(row?.stockOutType) !== StockOutTypeCode.Customs) return false
+  const status = Number(row?.status)
+  return status >= PackingStatusCode.Confirmed && status < PackingStatusCode.StockOutFinished
 }
 
 function openOutBatchImport(row: PackingListItem) {
@@ -784,6 +772,38 @@ async function confirmPacking(row: PackingListItem) {
     await fetchList(false)
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : t('packingList.confirm.failed'))
+  }
+}
+
+async function regenerateCustomsDeclaration(row: PackingListItem) {
+  const id = resolvePackingId(row)
+  if (!id) return
+
+  if (!canRegenerateCustomsDeclaration(row)) {
+    ElMessage.error(t('packingList.regenerateCustomsDeclaration.failed'))
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      t('packingList.regenerateCustomsDeclaration.message'),
+      t('packingList.regenerateCustomsDeclaration.title'),
+      {
+        type: 'warning',
+        confirmButtonText: t('common.confirm'),
+        cancelButtonText: t('common.cancel')
+      }
+    )
+  } catch {
+    return
+  }
+
+  try {
+    await packingApi.regenerateCustomsDeclaration(id)
+    ElMessage.success(t('packingList.regenerateCustomsDeclaration.success'))
+    await fetchList(false)
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : t('packingList.regenerateCustomsDeclaration.failed'))
   }
 }
 

@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
 using CRM.Infrastructure.Data;
@@ -44,6 +45,12 @@ public sealed class QcListQuery : IQcListQuery
                 qcQuery = qcQuery.Where(q => q.Id == qid);
             }
 
+            if (request.StockInType.HasValue)
+            {
+                var type = StockInTypeCode.NormalizeForNotify(request.StockInType.Value);
+                qcQuery = qcQuery.Where(q => q.StockInType == type);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.VendorName))
             {
                 var k = request.VendorName.Trim().ToLowerInvariant();
@@ -58,7 +65,8 @@ public sealed class QcListQuery : IQcListQuery
                 var k = request.PurchaseOrderCode.Trim().ToLowerInvariant();
                 qcQuery = qcQuery.Where(q => _db.StockInNotifies.Any(n =>
                     n.Id == q.StockInNotifyId &&
-                    n.PurchaseOrderCode.ToLower().Contains(k)));
+                    ((n.PurchaseOrderCode != null && n.PurchaseOrderCode.ToLower().Contains(k))
+                     || (n.NoticeCode != null && n.NoticeCode.ToLower().Contains(k)))));
             }
 
             if (!string.IsNullOrWhiteSpace(request.FreightForwarderOrderNo))

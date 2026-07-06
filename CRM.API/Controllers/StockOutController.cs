@@ -434,14 +434,26 @@ namespace CRM.API.Controllers
                 if (!guard.CanDelete)
                     return BadRequest(ApiResponse<object>.Fail(guard.Message, 400));
 
-                await _customsPendlistService.EnsureSalesNotifyDeletableAsync(entity.Id);
+                var actingUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                    ?? User.FindFirst("sub")?.Value
+                    ?? User.FindFirst("userId")?.Value;
+
+                if (StockOutTypeCode.NormalizeForNotify(entity.StockOutType) == StockOutTypeCode.Customs)
+                {
+                    await _customsPendlistService.RevertPendlistOnCustomsOutNotifyDeleteAsync(
+                        entity.Id,
+                        actingUserId);
+                }
+                else
+                {
+                    await _customsPendlistService.EnsureSalesNotifyDeletableAsync(entity.Id);
+                }
 
                 await _stockOutRequestRepo.DeleteAsync(entity.Id);
-                await _customsPendlistService.CancelBySalesStockOutNotifyAsync(
-                    entity.Id,
-                    User.FindFirst(ClaimTypes.NameIdentifier)?.Value
-                    ?? User.FindFirst("sub")?.Value
-                    ?? User.FindFirst("userId")?.Value);
+                if (StockOutTypeCode.NormalizeForNotify(entity.StockOutType) != StockOutTypeCode.Customs)
+                {
+                    await _customsPendlistService.CancelBySalesStockOutNotifyAsync(entity.Id, actingUserId);
+                }
                 await _unitOfWork.SaveChangesAsync();
                 return Ok(ApiResponse<object>.Ok(null, "删除出库通知成功"));
             }

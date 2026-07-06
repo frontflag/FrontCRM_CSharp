@@ -1,198 +1,300 @@
 <template>
-  <div class="qc-create-page">
+  <div
+    class="qc-detail-page"
+    v-loading="pageLoading"
+    element-loading-background="rgba(10,22,40,0.8)"
+  >
+    <!-- CaptionBar（《业务详情页面规范》§3 单据类） -->
     <div class="page-header">
       <div class="header-left">
-        <button class="btn-back" @click="goBack">返回</button>
-        <div class="page-title-group">
-          <div class="page-icon">QC</div>
-          <h1 class="page-title">{{ isEdit ? '编辑质检' : '新建质检' }}</h1>
+        <button class="btn-back" type="button" @click="goBack">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+          {{ t('qcDetail.back') }}
+        </button>
+        <div class="qc-caption-title-group">
+          <div class="caption-avatar-lg">{{ captionAvatarChar }}</div>
+          <div>
+            <div class="page-title-row">
+              <div class="page-title-with-icons">
+                <h1 class="page-title" :class="{ 'page-title--muted': isEdit && qcRecord?.status === -1 }">
+                  {{ pageTitle }}
+                </h1>
+              </div>
+            </div>
+            <div class="title-meta title-meta--caption qc-header-meta-row">
+              <template v-if="isEdit && qcRecord">
+                <el-tag effect="dark" :type="qcStatusTagType(qcRecord.status)" size="small">
+                  {{ qcStatusText(qcRecord.status) }}
+                </el-tag>
+                <el-tag effect="dark" :type="stockInStatusTagType(displayStockInStatus(qcRecord))" size="small">
+                  {{ stockInStatusText(displayStockInStatus(qcRecord)) }}
+                </el-tag>
+              </template>
+              <span v-else-if="form.noticeCode" class="qc-caption-meta-text">
+                {{ t('qcDetail.meta.notice') }} {{ form.noticeCode }}
+              </span>
+              <StockBizTypeTag v-if="detailStockInType != null" biz="in" :type="detailStockInType" />
+            </div>
+          </div>
         </div>
       </div>
       <div class="header-right">
-        <button class="btn-secondary" @click="goBack">取消</button>
-        <button class="btn-primary" :disabled="submitting" @click="submitQc">
-          {{ submitting ? '保存中...' : (isEdit ? '更新质检' : '保存质检') }}
+        <button type="button" class="btn-secondary btn-close-qc" @click="goBack">
+          {{ t('qcDetail.cancel') }}
+        </button>
+        <button type="button" class="btn-primary" :disabled="submitting" @click="submitQc">
+          {{ submitting ? t('qcDetail.saving') : isEdit ? t('qcDetail.update') : t('qcDetail.save') }}
         </button>
       </div>
     </div>
 
-    <div class="qc-layout">
-      <div class="form-section">
+    <div class="detail-content">
+      <!-- 供应信息（只读） -->
+      <div class="info-section">
         <div class="section-header">
-          <div class="section-dot section-dot--cyan"></div>
-          <span class="section-title">供应信息</span>
+          <div class="section-header__main">
+            <div class="section-dot section-dot--cyan"></div>
+            <span class="section-title">{{ t('qcDetail.sections.supply') }}</span>
+          </div>
+          <div v-if="isEdit && qcRecord" class="section-header__meta">
+            <span class="section-header-meta-item">
+              <span class="section-header-meta-item__label">{{ t('qcDetail.meta.createDate') }}</span>
+              <span class="section-header-meta-item__value">{{ qcCreateDateText }}</span>
+            </span>
+            <span class="section-header-meta-item">
+              <span class="section-header-meta-item__label">{{ t('qcDetail.meta.createUser') }}</span>
+              <span class="section-header-meta-item__value">{{ qcCreateUserText }}</span>
+            </span>
+          </div>
         </div>
-        <div class="section-body">
-          <el-form label-width="120px" class="qc-form">
-          <el-row :gutter="12">
-            <el-col :span="6">
-              <el-form-item label="到货通知编码">
-                <el-input v-model="form.noticeCode" disabled class="q-input q-input--readonly" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="6">
-              <el-form-item label="采购员">
-                <el-input :model-value="form.purchaseUserName?.trim() || '—'" disabled class="q-input q-input--readonly" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="6">
-              <el-form-item label="采购单号">
-                <el-input v-model="form.purchaseOrderCode" disabled class="q-input q-input--readonly" />
-              </el-form-item>
-            </el-col>
-          </el-row>
-          <el-row :gutter="12">
-            <el-col :span="24">
-              <el-form-item label="供应商">
-                <vendor-name-readonly-field
-                  :name-zh="form.vendorName"
-                  :name-en="form.vendorEnglishName"
-                  :masked="maskPurchaseSensitiveFields"
-                  mode="compact"
-                />
-              </el-form-item>
-            </el-col>
-          </el-row>
-          <el-form-item label="到货通知备注">
-            <el-input v-model="form.noticeRemark" type="textarea" :rows="2" disabled class="q-input q-input--readonly" />
-          </el-form-item>
-          </el-form>
+        <div class="info-grid info-grid--inline-labels info-grid--basic">
+          <div class="info-item">
+            <span class="info-label">{{ t('qcDetail.fields.noticeCode') }}</span>
+            <span class="info-value info-value--code">{{ cellText(form.noticeCode) }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">{{ t('qcDetail.fields.purchaseUser') }}</span>
+            <span class="info-value">{{ cellText(form.purchaseUserName) }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">{{ t('qcDetail.fields.purchaseOrderCode') }}</span>
+            <span class="info-value info-value--code">{{ cellText(form.purchaseOrderCode) }}</span>
+          </div>
+        </div>
+        <div class="info-grid info-grid--inline-labels">
+          <div class="info-item info-item--span-all">
+            <span class="info-label">{{ t('qcDetail.fields.vendor') }}</span>
+            <span class="info-value">
+              <vendor-name-readonly-text
+                :name-zh="form.vendorName"
+                :name-en="form.vendorEnglishName"
+                :masked="maskPurchaseSensitiveFields"
+              />
+            </span>
+          </div>
+          <div v-if="form.noticeRemark?.trim()" class="info-item info-item--span-all">
+            <span class="info-label">{{ t('qcDetail.fields.noticeRemark') }}</span>
+            <span class="info-value">{{ form.noticeRemark.trim() }}</span>
+          </div>
         </div>
       </div>
 
-      <div class="form-section">
+      <!-- 送货信息 -->
+      <div class="info-section">
         <div class="section-header">
-          <div class="section-dot section-dot--amber"></div>
-          <span class="section-title">送货信息</span>
+          <div class="section-header__main">
+            <div class="section-dot section-dot--amber"></div>
+            <span class="section-title">{{ t('qcDetail.sections.delivery') }}</span>
+          </div>
         </div>
-        <div class="section-body">
+        <div class="info-section__body">
           <el-form label-width="120px" class="qc-form">
-          <el-row :gutter="12">
-            <el-col :span="6"><el-form-item label="快递单号"><el-input v-model="form.expressNo" class="q-input" /></el-form-item></el-col>
-            <el-col :span="6"><el-form-item label="送货方式"><el-input v-model="form.deliveryMethod" class="q-input" /></el-form-item></el-col>
-            <el-col :span="6"><el-form-item label="快递方式"><el-input v-model="form.expressMethod" class="q-input" /></el-form-item></el-col>
-            <el-col :span="6"><el-form-item label="到货日期"><el-date-picker v-model="form.arrivalDate" type="date" value-format="YYYY-MM-DD" style="width:100%" class="q-date" /></el-form-item></el-col>
-            <el-col :span="6"><el-form-item label="入库日期"><el-date-picker v-model="form.stockInPlanDate" type="date" value-format="YYYY-MM-DD" placeholder="生成入库单用" style="width:100%" class="q-date" /></el-form-item></el-col>
-          </el-row>
-          </el-form>
-        </div>
-      </div>
-
-      <div class="form-section">
-        <div class="section-header">
-          <div class="section-dot section-dot--green"></div>
-          <span class="section-title">物料信息</span>
-        </div>
-        <div class="section-body">
-          <el-form label-width="120px" class="qc-form">
-          <el-row :gutter="12">
-            <el-col :span="8"><el-form-item label="物料型号"><el-input v-model="form.materialCode" class="q-input" /></el-form-item></el-col>
-            <el-col :span="8"><el-form-item label="品牌"><el-input v-model="form.brand" class="q-input" /></el-form-item></el-col>
-            <el-col :span="8">
-              <el-form-item label="到货数量">
-                <el-input-number
-                  v-model="form.arrivedTotalQty"
-                  :min="0"
-                  :precision="0"
-                  :step="1"
-                  step-strictly
-                  style="width:100%"
-                  class="q-number"
-                />
-              </el-form-item>
-            </el-col>
-          </el-row>
-          </el-form>
-        </div>
-      </div>
-
-      <div class="form-section">
-        <div class="section-header">
-          <div class="section-dot section-dot--cyan"></div>
-          <span class="section-title">质检信息</span>
-        </div>
-        <div class="section-body">
-          <el-form label-width="120px" class="qc-form">
-          <el-row :gutter="12">
-            <el-col :span="6">
-              <el-form-item label="抽检数量">
-                <el-input-number
-                  v-model="form.sampleQty"
-                  :min="0"
-                  :precision="0"
-                  :step="1"
-                  step-strictly
-                  style="width:100%"
-                  class="q-number"
-                />
-              </el-form-item>
-            </el-col>
-            <el-col :span="6"><el-form-item label="抽检日期"><el-date-picker v-model="form.sampleDate" type="date" value-format="YYYY-MM-DD" style="width:100%" class="q-date" /></el-form-item></el-col>
-            <el-col :span="6">
-              <el-form-item label="质检人">
-                <el-select
-                  v-model="form.qcUserId"
-                  filterable
-                  clearable
-                  placeholder="请选择物流部员工"
-                  style="width:100%"
-                  :class="['q-select', 'qc-inspector-select']"
-                  @change="onQcInspectorChange"
-                >
-                  <el-option
-                    v-for="u in logisticsUserOptions"
-                    :key="u.id"
-                    :label="inspectorOptionLabel(u)"
-                    :value="u.id"
+            <el-row :gutter="12">
+              <el-col :md="6" :sm="12" :xs="24">
+                <el-form-item :label="t('qcDetail.fields.expressNo')">
+                  <el-input v-model="form.expressNo" class="q-input" />
+                </el-form-item>
+              </el-col>
+              <el-col :md="6" :sm="12" :xs="24">
+                <el-form-item :label="t('qcDetail.fields.deliveryMethod')">
+                  <el-input v-model="form.deliveryMethod" class="q-input" />
+                </el-form-item>
+              </el-col>
+              <el-col :md="6" :sm="12" :xs="24">
+                <el-form-item :label="t('qcDetail.fields.expressMethod')">
+                  <el-input v-model="form.expressMethod" class="q-input" />
+                </el-form-item>
+              </el-col>
+              <el-col :md="6" :sm="12" :xs="24">
+                <el-form-item :label="t('qcDetail.fields.arrivalDate')">
+                  <el-date-picker
+                    v-model="form.arrivalDate"
+                    type="date"
+                    value-format="YYYY-MM-DD"
+                    style="width: 100%"
+                    class="q-date"
                   />
-                </el-select>
-              </el-form-item>
-            </el-col>
-            <el-col :span="6">
-              <el-form-item label="质检结果">
-                <el-select
-                  v-model="form.qcResult"
-                  style="width:100%"
-                  :class="['q-select', 'qc-result-select', `qc-result-${form.qcResult}`]"
-                >
-                  <el-option label="通过" value="pass" />
-                  <el-option label="部分通过" value="partial" />
-                  <el-option label="拒收" value="reject" />
-                </el-select>
-              </el-form-item>
-            </el-col>
-            <el-col :span="6">
-              <el-form-item label="可入库数量">
-                <el-input-number
-                  v-model="form.stockInQty"
-                  :min="0"
-                  :precision="0"
-                  :step="1"
-                  step-strictly
-                  style="width:100%"
-                  class="q-number"
-                />
-              </el-form-item>
-            </el-col>
-          </el-row>
-          <el-form-item label="备注"><el-input v-model="form.remark" type="textarea" :rows="2" class="q-input" /></el-form-item>
+                </el-form-item>
+              </el-col>
+              <el-col :md="6" :sm="12" :xs="24">
+                <el-form-item :label="t('qcDetail.fields.stockInPlanDate')">
+                  <el-date-picker
+                    v-model="form.stockInPlanDate"
+                    type="date"
+                    value-format="YYYY-MM-DD"
+                    :placeholder="t('qcDetail.stockInPlanDatePlaceholder')"
+                    style="width: 100%"
+                    class="q-date"
+                  />
+                </el-form-item>
+              </el-col>
+            </el-row>
           </el-form>
         </div>
       </div>
 
-      <div class="form-section">
+      <!-- 物料信息 -->
+      <div class="info-section">
         <div class="section-header">
-          <div class="section-dot section-dot--amber"></div>
-          <span class="section-title">质检图片</span>
+          <div class="section-header__main">
+            <div class="section-dot section-dot--green"></div>
+            <span class="section-title">{{ t('qcDetail.sections.material') }}</span>
+          </div>
         </div>
-        <div class="section-body">
+        <div class="info-section__body">
+          <el-form label-width="120px" class="qc-form">
+            <el-row :gutter="12">
+              <el-col :md="8" :sm="12" :xs="24">
+                <el-form-item :label="t('qcDetail.fields.materialCode')">
+                  <el-input v-model="form.materialCode" class="q-input" />
+                </el-form-item>
+              </el-col>
+              <el-col :md="8" :sm="12" :xs="24">
+                <el-form-item :label="t('qcDetail.fields.brand')">
+                  <el-input v-model="form.brand" class="q-input" />
+                </el-form-item>
+              </el-col>
+              <el-col :md="8" :sm="12" :xs="24">
+                <el-form-item :label="t('qcDetail.fields.arrivedTotalQty')">
+                  <el-input-number
+                    v-model="form.arrivedTotalQty"
+                    :min="0"
+                    :precision="0"
+                    :step="1"
+                    step-strictly
+                    style="width: 100%"
+                    class="q-number"
+                  />
+                </el-form-item>
+              </el-col>
+            </el-row>
+          </el-form>
+        </div>
+      </div>
+
+      <!-- 质检信息 -->
+      <div class="info-section">
+        <div class="section-header">
+          <div class="section-header__main">
+            <div class="section-dot section-dot--cyan"></div>
+            <span class="section-title">{{ t('qcDetail.sections.qcInfo') }}</span>
+          </div>
+        </div>
+        <div class="info-section__body">
+          <el-form label-width="120px" class="qc-form">
+            <el-row :gutter="12">
+              <el-col :md="6" :sm="12" :xs="24">
+                <el-form-item :label="t('qcDetail.fields.sampleQty')">
+                  <el-input-number
+                    v-model="form.sampleQty"
+                    :min="0"
+                    :precision="0"
+                    :step="1"
+                    step-strictly
+                    style="width: 100%"
+                    class="q-number"
+                  />
+                </el-form-item>
+              </el-col>
+              <el-col :md="6" :sm="12" :xs="24">
+                <el-form-item :label="t('qcDetail.fields.sampleDate')">
+                  <el-date-picker
+                    v-model="form.sampleDate"
+                    type="date"
+                    value-format="YYYY-MM-DD"
+                    style="width: 100%"
+                    class="q-date"
+                  />
+                </el-form-item>
+              </el-col>
+              <el-col :md="6" :sm="12" :xs="24">
+                <el-form-item :label="t('qcDetail.fields.qcUser')">
+                  <el-select
+                    v-model="form.qcUserId"
+                    filterable
+                    clearable
+                    :placeholder="t('qcDetail.qcUserPlaceholder')"
+                    style="width: 100%"
+                    :class="['q-select', 'qc-inspector-select']"
+                    @change="onQcInspectorChange"
+                  >
+                    <el-option
+                      v-for="u in logisticsUserOptions"
+                      :key="u.id"
+                      :label="inspectorOptionLabel(u)"
+                      :value="u.id"
+                    />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :md="6" :sm="12" :xs="24">
+                <el-form-item :label="t('qcDetail.fields.qcResult')">
+                  <el-select
+                    v-model="form.qcResult"
+                    style="width: 100%"
+                    :class="['q-select', 'qc-result-select', `qc-result-${form.qcResult}`]"
+                  >
+                    <el-option :label="t('qcDetail.qcResult.pass')" value="pass" />
+                    <el-option :label="t('qcDetail.qcResult.partial')" value="partial" />
+                    <el-option :label="t('qcDetail.qcResult.reject')" value="reject" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :md="6" :sm="12" :xs="24">
+                <el-form-item :label="t('qcDetail.fields.stockInQty')">
+                  <el-input-number
+                    v-model="form.stockInQty"
+                    :min="0"
+                    :precision="0"
+                    :step="1"
+                    step-strictly
+                    style="width: 100%"
+                    class="q-number"
+                  />
+                </el-form-item>
+              </el-col>
+            </el-row>
+            <el-form-item :label="t('qcDetail.fields.remark')">
+              <el-input v-model="form.remark" type="textarea" :rows="2" class="q-input" />
+            </el-form-item>
+          </el-form>
+        </div>
+      </div>
+
+      <!-- 质检图片 -->
+      <div class="info-section">
+        <div class="section-header">
+          <div class="section-header__main">
+            <div class="section-dot section-dot--amber"></div>
+            <span class="section-title">{{ t('qcDetail.sections.images') }}</span>
+          </div>
+        </div>
+        <div class="info-section__body">
           <div class="qc-upload-hint-block">
-            <p v-if="!currentQcId" class="qc-upload-hint">
-              <strong>新建：</strong>当前尚无质检单号，首次点击「保存质检」会创建单据；保存前已选好的图片会随本次保存一并上传。单张图片上限 8MB，最多 24 张。
-            </p>
-            <p v-else class="qc-upload-hint">
-              <strong>编辑：</strong>可随时添加图片，点击「保存质检」后新选择的图片会上传并关联本单；删除已保存缩略图会同步删除服务端文档。通过「质检列表」再次进入本页可查看历史图片。
-            </p>
+            <p v-if="!currentQcId" class="qc-upload-hint">{{ t('qcDetail.uploadHintCreate') }}</p>
+            <p v-else class="qc-upload-hint">{{ t('qcDetail.uploadHintEdit') }}</p>
           </div>
           <el-upload
             class="qc-upload"
@@ -217,10 +319,11 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { UploadFile, UploadRawFile } from 'element-plus'
-import { logisticsApi } from '@/api/logistics'
+import { logisticsApi, type QcInfoDto } from '@/api/logistics'
 import { authApi, type SalesUserSelectOption } from '@/api/auth'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
 import { useRoute, useRouter } from 'vue-router'
@@ -228,21 +331,24 @@ import { Plus } from '@element-plus/icons-vue'
 import apiClient from '@/api/client'
 import { documentApi, DOCUMENT_BIZ_TYPE_QC, type UploadDocumentDto } from '@/api/document'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
-import VendorNameReadonlyField from '@/components/Vendor/VendorNameReadonlyField.vue'
+import VendorNameReadonlyText from '@/components/Vendor/VendorNameReadonlyText.vue'
+import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { formatDisplayDate } from '@/utils/displayDateTime'
 
 type QcUploadFile = UploadFile & { documentId?: string; uploadFailReason?: string }
 
+const { t } = useI18n()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const route = useRoute()
 const router = useRouter()
+const pageLoading = ref(false)
 const submitting = ref(false)
 const isEdit = ref(false)
 const currentQcId = ref('')
-/** 仅物流部门（及仓储等）职员，供质检人下拉 */
+const qcRecord = ref<QcInfoDto | null>(null)
+const detailStockInType = ref<number | undefined>(undefined)
 const logisticsUserOptions = ref<SalesUserSelectOption[]>([])
-
-/** 质检图片（含已保存文档的预览与待上传的本地文件） */
 const qcFileList = ref<QcUploadFile[]>([])
 const qcPreviewBlobUrls: string[] = []
 
@@ -261,7 +367,6 @@ const form = reactive<any>({
   expressMethod: '',
   expressNo: '',
   arrivalDate: '',
-  /** 与后端 qcinfo.StockInPlanDate 对应；默认来自到货通知预计到货日 */
   stockInPlanDate: '',
   sampleQty: 0,
   sampleDate: '',
@@ -272,6 +377,69 @@ const form = reactive<any>({
   remark: '',
   arrivedTotalQty: 0
 })
+
+const captionAvatarChar = computed(() => {
+  const code = isEdit.value ? qcRecord.value?.qcCode?.trim() : form.noticeCode?.trim()
+  if (code) return code.slice(-1).toUpperCase()
+  return isEdit.value ? 'Q' : '检'
+})
+
+const pageTitle = computed(() => {
+  if (isEdit.value && qcRecord.value?.qcCode?.trim()) {
+    return `${t('qcDetail.captionPrefix')} ${qcRecord.value.qcCode.trim()}`
+  }
+  return t('qcDetail.createTitle')
+})
+
+const qcCreateDateText = computed(() => formatDisplayDate(qcRecord.value?.createTime) || '—')
+
+const qcCreateUserText = computed(() => {
+  const name = qcRecord.value?.createUserName ?? qcRecord.value?.CreateUserName
+  return String(name ?? '').trim() || '—'
+})
+
+function cellText(v: unknown) {
+  const s = String(v ?? '').trim()
+  return s || '—'
+}
+
+function qcStatusText(s: number) {
+  const keyMap: Record<number, 'failed' | 'partial' | 'passed'> = {
+    [-1]: 'failed',
+    10: 'partial',
+    100: 'passed'
+  }
+  const k = keyMap[s]
+  return k ? t(`qcList.qcStatus.${k}`) : t('qcList.qcStatus.unknown')
+}
+
+function qcStatusTagType(s: number) {
+  return ({ [-1]: 'danger', 10: 'warning', 100: 'success' } as Record<number, string>)[s] || 'info'
+}
+
+function stockInStatusText(s: number | undefined) {
+  const keyMap: Record<number, 'rejected' | 'notStocked' | 'partial' | 'all'> = {
+    [-1]: 'rejected',
+    1: 'notStocked',
+    10: 'partial',
+    100: 'all'
+  }
+  if (s === undefined || s === null) return t('qcList.stockInStatus.unknown')
+  const k = keyMap[s]
+  return k ? t(`qcList.stockInStatus.${k}`) : t('qcList.stockInStatus.unknown')
+}
+
+function stockInStatusTagType(s: number | undefined) {
+  return s === undefined || s === null
+    ? 'info'
+    : ({ [-1]: 'danger', 1: 'info', 10: 'warning', 100: 'success' } as Record<number, string>)[s] || 'info'
+}
+
+function displayStockInStatus(row: QcInfoDto) {
+  if (row.status === -1) return -1
+  if (!row.stockInId) return 1
+  return row.stockInStatus
+}
 
 function inspectorOptionLabel(u: SalesUserSelectOption) {
   return (u.realName || u.label || u.userName || '').trim() || u.id
@@ -295,11 +463,10 @@ async function loadLogisticsUsers() {
   }
 }
 
-/** 按采购订单主键拉取采购员（与采购单号唯一对应），名称以订单数据为准 */
 function isImageDocumentDto(d: UploadDocumentDto): boolean {
-  const t = (d.mimeType || '').toLowerCase()
-  const e = (d.fileExtension || '').toLowerCase()
-  return /^image\//.test(t) || ['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(e)
+  const mime = (d.mimeType || '').toLowerCase()
+  const ext = (d.fileExtension || '').toLowerCase()
+  return /^image\//.test(mime) || ['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)
 }
 
 function revokeQcPreviewUrls() {
@@ -318,7 +485,7 @@ async function loadQcDocuments(qcId: string) {
     let seq = 0
     for (const d of imageDocs) {
       const blob = (await apiClient.get(`/api/v1/documents/${encodeURIComponent(d.id)}/preview?thumbnail=true`, {
-        responseType: 'blob',
+        responseType: 'blob'
       })) as unknown as Blob
       if (!(blob instanceof Blob) || blob.size === 0) continue
       const url = URL.createObjectURL(blob)
@@ -329,7 +496,7 @@ async function loadQcDocuments(qcId: string) {
         url,
         uid: Date.now() + seq,
         status: 'success',
-        documentId: d.id,
+        documentId: d.id
       })
     }
     qcFileList.value = list
@@ -345,7 +512,7 @@ async function beforeRemoveQcImage(uploadFile: UploadFile) {
       await ElMessageBox.confirm(`确定删除图片「${uploadFile.name}」？`, '删除确认', {
         type: 'warning',
         confirmButtonText: '删除',
-        cancelButtonText: '取消',
+        cancelButtonText: '取消'
       })
       await documentApi.deleteDocument(qf.documentId)
       if (uploadFile.url?.startsWith('blob:')) {
@@ -409,7 +576,6 @@ function qcUploadFileLabel(item: QcUploadFile): string {
   return item.name || item.raw?.name || '未知文件'
 }
 
-/** 逐张上传，已成功写入服务端的文件不回滚；失败项保留本地 raw 供补传 */
 async function uploadPendingQcImages(qcId: string, pending: QcUploadFile[]): Promise<QcImageUploadBatchResult> {
   const failed: QcImageUploadFailure[] = []
   let successCount = 0
@@ -429,23 +595,18 @@ async function uploadPendingQcImages(qcId: string, pending: QcUploadFile[]): Pro
 function buildQcUploadResultMessage(result: QcImageUploadBatchResult): string {
   const { successCount, failed } = result
   const failCount = failed.length
-  const detailLines = failed
-    .slice(0, 5)
-    .map((f) => `「${qcUploadFileLabel(f.item)}」：${f.reason}`)
+  const detailLines = failed.slice(0, 5).map((f) => `「${qcUploadFileLabel(f.item)}」：${f.reason}`)
   const detail =
-    failCount <= 5
-      ? detailLines.join('；')
-      : `${detailLines.join('；')}…等共 ${failCount} 张`
+    failCount <= 5 ? detailLines.join('；') : `${detailLines.join('；')}…等共 ${failCount} 张`
   return [
     `质检主单已保存。图片上传：成功 ${successCount} 张，失败 ${failCount} 张。`,
     failCount ? `失败明细：${detail}。` : '',
-    '未成功的图片仍保留在下方列表中，补传后再次点击「保存质检」即可，无需重新选择已成功的图片。',
+    '未成功的图片仍保留在下方列表中，补传后再次点击「保存质检」即可，无需重新选择已成功的图片。'
   ]
     .filter(Boolean)
     .join('')
 }
 
-/** 刷新已保存缩略图，并把仍待上传的失败项重新挂回列表 */
 async function refreshQcFileListAfterUpload(qcId: string, failed: QcImageUploadFailure[]) {
   await loadQcDocuments(qcId)
   for (const { item, reason } of failed) {
@@ -462,12 +623,11 @@ async function refreshQcFileListAfterUpload(qcId: string, failed: QcImageUploadF
       uid: item.uid,
       status: 'fail',
       raw: file,
-      uploadFailReason: reason,
+      uploadFailReason: reason
     })
   }
 }
 
-/** 解析质检计划入库日（兼容 camelCase / PascalCase、ISO 带时区） */
 function qcStockInPlanDateToYmd(v: unknown): string {
   if (v == null || v === '') return ''
   const s = String(v).trim()
@@ -491,10 +651,6 @@ async function applyPurchaseUserFromPurchaseOrder(purchaseOrderId: string | unde
   }
 }
 
-/**
- * 根据到货通知补齐表单；返回预计到货日 YYYY-MM-DD（无则空串）。
- * 编辑质检时勿用预计到货日覆盖已保存的「入库日期」，传 skipDefaultStockInPlanDate: true。
- */
 const fillNotice = async (noticeId: string, opts?: { skipDefaultStockInPlanDate?: boolean }): Promise<string> => {
   form.noticeId = noticeId
   if (!noticeId) return Promise.resolve('')
@@ -505,14 +661,12 @@ const fillNotice = async (noticeId: string, opts?: { skipDefaultStockInPlanDate?
   })
   const row = noticeRows[0]
   if (!row) return ''
+  detailStockInType.value = row.stockInType
   const firstItem = row.items?.[0]
   const sumItemArrived = Number((row.items || []).reduce((s, x) => s + Number(x.arrivedQty || 0), 0))
   const rq = Number(row.receiveQty ?? 0)
   const eq = Number(row.expectQty ?? 0)
-  /** 与到货单表一致：优先明细汇总；否则用行级实收；仍为 0 则用本批通知数量作送检基准 */
-  const arrivedTotalQty = Math.round(
-    sumItemArrived > 0 ? sumItemArrived : rq > 0 ? rq : eq
-  )
+  const arrivedTotalQty = Math.round(sumItemArrived > 0 ? sumItemArrived : rq > 0 ? rq : eq)
   form.noticeCode = row.noticeCode || ''
   form.purchaseOrderCode = row.purchaseOrderCode || ''
   form.materialCode = firstItem?.pn || row.pn || ''
@@ -543,7 +697,8 @@ const loadPageData = async () => {
     const { items: qcRows } = await logisticsApi.getQcs({ qcId, page: 1, pageSize: 1 })
     const qc = qcRows[0]
     if (qc) {
-      // 先回填质检记录本身，保证“查看”打开时一定带出已有判定数据
+      qcRecord.value = qc
+      detailStockInType.value = qc.stockInType
       form.noticeId = qc.stockInNotifyId || ''
       form.noticeCode = qc.stockInNotifyCode || ''
       form.purchaseOrderCode = qc.purchaseOrderCode || ''
@@ -554,14 +709,12 @@ const loadPageData = async () => {
       form.sampleQty = passR
       form.arrivedTotalQty = passR + rejectR
 
-      // 再补齐到货通知维度的数据（供应商/物料等）；勿用预计到货日覆盖 qcinfo 已保存的入库计划日
       const expectedYmd = await fillNotice(qc.stockInNotifyId, { skipDefaultStockInPlanDate: true })
       form.qcResult = qc.status === -1 ? 'reject' : qc.status === 10 ? 'partial' : 'pass'
       form.stockInQty = Math.round(Number(qc.passQty || 0))
       form.sampleQty = Math.round(Number(qc.passQty || 0))
       form.remark = String(qc.remark ?? '').trim()
-      const savedYmd =
-        qcStockInPlanDateToYmd(qc.stockInPlanDate) || qcStockInPlanDateToYmd(qc.StockInPlanDate)
+      const savedYmd = qcStockInPlanDateToYmd(qc.stockInPlanDate) || qcStockInPlanDateToYmd(qc.StockInPlanDate)
       form.stockInPlanDate = savedYmd || expectedYmd
     }
     await loadQcDocuments(qcId)
@@ -569,13 +722,14 @@ const loadPageData = async () => {
   }
 
   isEdit.value = false
+  qcRecord.value = null
   await fillNotice(noticeId)
 }
 
 const submitQc = async () => {
   if (submitting.value) return
   if (!form.noticeId) {
-    ElMessage.warning('缺少到货通知ID')
+    ElMessage.warning(t('qcDetail.messages.noticeMissing'))
     return
   }
   submitting.value = true
@@ -587,19 +741,21 @@ const submitQc = async () => {
       qcId = qc.id
       currentQcId.value = qcId
       isEdit.value = true
+      qcRecord.value = qc
     }
     const passQty = Math.round(Number(form.stockInQty || 0))
     const rejectQty = Math.max(0, Math.round(Number(form.arrivedTotalQty || 0)) - passQty)
     const plan = (form.stockInPlanDate || '').trim()
-    await logisticsApi.updateQcResult(qcId, {
+    const updated = await logisticsApi.updateQcResult(qcId, {
       result: form.qcResult,
       passQty,
       rejectQty,
       hasStockInPlanDate: true,
       stockInPlanDate: plan ? `${plan}T12:00:00.000Z` : null,
       hasRemark: true,
-      remark: (form.remark || '').trim() || null,
+      remark: (form.remark || '').trim() || null
     })
+    qcRecord.value = updated
     if (qcFileList.value.length > MAX_QC_IMAGES) {
       ElMessage.warning(`质检图片最多 ${MAX_QC_IMAGES} 张，当前已选 ${qcFileList.value.length} 张，请删除多余图片`)
       return
@@ -607,7 +763,6 @@ const submitQc = async () => {
     const pendingItems = qcFileList.value.filter((f) => f.raw != null)
     let uploadResult: QcImageUploadBatchResult | null = null
     if (pendingItems.length) {
-      // 附件走独立上传接口；逐张上传，已成功的不回滚
       uploadResult = await uploadPendingQcImages(qcId, pendingItems)
     }
     if (uploadResult && uploadResult.failed.length > 0) {
@@ -615,17 +770,22 @@ const submitQc = async () => {
       ElMessage.warning({
         message: buildQcUploadResultMessage(uploadResult),
         duration: 12_000,
-        showClose: true,
+        showClose: true
       })
       return
     }
     if (pendingItems.length) {
       await loadQcDocuments(qcId)
     }
-    ElMessage.success(wasEdit ? '质检已更新' : '质检已保存')
+    ElMessage.success(wasEdit ? t('qcDetail.messages.updateSuccess') : t('qcDetail.messages.saveSuccess'))
     router.push({ name: 'QcList', query: { qcId } })
-  } catch (e: any) {
-    ElMessage.error(e?.message || (isEdit.value ? '更新质检失败' : '创建质检失败'))
+  } catch (e: unknown) {
+    ElMessage.error(
+      getApiErrorMessage(
+        e,
+        isEdit.value ? t('qcDetail.messages.updateFailed') : t('qcDetail.messages.createFailed')
+      )
+    )
   } finally {
     submitting.value = false
   }
@@ -634,7 +794,12 @@ const submitQc = async () => {
 const goBack = () => router.back()
 
 onMounted(async () => {
-  await Promise.all([loadLogisticsUsers(), loadPageData()])
+  pageLoading.value = true
+  try {
+    await Promise.all([loadLogisticsUsers(), loadPageData()])
+  } finally {
+    pageLoading.value = false
+  }
 })
 
 onUnmounted(() => {
@@ -645,7 +810,7 @@ onUnmounted(() => {
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
 
-.qc-create-page {
+.qc-detail-page {
   padding: 24px;
   min-height: 100%;
   background: $layer-1;
@@ -654,110 +819,324 @@ onUnmounted(() => {
 
 .page-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 16px;
   margin-bottom: 24px;
-  .header-left { display: flex; align-items: center; gap: 14px; }
-  .header-right { display: flex; gap: 10px; }
 }
 
-.btn-back,
-.btn-secondary {
+.header-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  min-width: 0;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.btn-back {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 8px 14px;
-  background: rgba(255, 255, 255, 0.05);
+  padding: 7px 12px;
+  background: rgba(255, 255, 255, 0.04);
   border: 1px solid $border-panel;
   border-radius: $border-radius-md;
-  color: $text-secondary;
+  color: $text-muted;
   font-size: 13px;
   cursor: pointer;
   transition: all 0.2s;
-  &:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(0, 212, 255, 0.25); }
+  flex-shrink: 0;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.07);
+    color: $text-secondary;
+    border-color: rgba(0, 212, 255, 0.2);
+  }
 }
 
+.qc-caption-title-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.caption-avatar-lg {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.3), rgba(0, 212, 255, 0.2));
+  border: 1px solid rgba(0, 212, 255, 0.25);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 700;
+  color: $cyan-primary;
+  flex-shrink: 0;
+}
+
+.page-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.page-title-with-icons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.page-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: $text-primary;
+  margin: 0;
+
+  &--muted {
+    opacity: 0.55;
+  }
+}
+
+.title-meta--caption {
+  margin-top: 4px;
+}
+
+.qc-header-meta-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-height: 28px;
+}
+
+.qc-caption-meta-text {
+  font-size: 12px;
+  color: $text-muted;
+}
+
+.btn-secondary,
 .btn-primary {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 16px;
-  background: linear-gradient(135deg, rgba(0, 102, 255, 0.8), rgba(0, 212, 255, 0.7));
-  border: 1px solid rgba(0, 212, 255, 0.4);
+  padding: 8px 14px;
   border-radius: $border-radius-md;
-  color: #fff;
   font-size: 13px;
   cursor: pointer;
   transition: all 0.2s;
-  &:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 
-.page-title-group {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  .page-icon {
-    width: 32px;
-    height: 32px;
-    background: rgba(0, 212, 255, 0.1);
-    border: 1px solid rgba(0, 212, 255, 0.25);
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: $cyan-primary;
-    font-size: 12px;
-    font-weight: 700;
-  }
-  .page-title {
-    font-size: 18px;
-    font-weight: 600;
-    color: $text-primary;
-    margin: 0;
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid $border-panel;
+  color: $text-secondary;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(0, 212, 255, 0.25);
   }
 }
 
-.qc-layout { display: flex; flex-direction: column; gap: 12px; }
+.btn-close-qc {
+  color: $color-amber;
+  border: none;
+  background: transparent;
 
-.form-section {
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+  }
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.8), rgba(0, 212, 255, 0.7));
+  border: 1px solid rgba(0, 212, 255, 0.4);
+  color: #fff;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.detail-content {
+  min-height: 200px;
+}
+
+.info-section {
   background: $layer-2;
   border: 1px solid $border-card;
   border-radius: $border-radius-lg;
+  margin-bottom: 16px;
   overflow: hidden;
 }
+
+.info-section__body {
+  padding: 16px 20px 20px;
+}
+
 .section-header {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 16px;
   padding: 14px 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  background: rgba(0, 0, 0, 0.1);
+  background: var(--crm-detail-section-header-bg);
 }
+
+.section-header__main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.section-header__meta {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.section-header-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+
+  &__label {
+    color: $text-muted;
+
+    &::after {
+      content: '：';
+    }
+  }
+
+  &__value {
+    color: $text-secondary;
+  }
+}
+
 .section-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
-  &--cyan  { background: $cyan-primary; box-shadow: 0 0 6px rgba(0,212,255,0.6); }
-  &--amber { background: $color-amber;  box-shadow: 0 0 6px rgba(201,154,69,0.6); }
-  &--green { background: $color-mint-green; box-shadow: 0 0 6px rgba(70,191,145,0.6); }
+
+  &--cyan {
+    background: $cyan-primary;
+    box-shadow: 0 0 6px rgba(0, 212, 255, 0.6);
+  }
+
+  &--amber {
+    background: $color-amber;
+    box-shadow: 0 0 6px rgba(201, 154, 69, 0.6);
+  }
+
+  &--green {
+    background: $color-mint-green;
+    box-shadow: 0 0 6px rgba(70, 191, 145, 0.6);
+  }
 }
-.section-title { font-size: 14px; font-weight: 500; color: $text-primary; }
-.section-body { padding: 16px 20px; }
-.qc-upload-title { font-size: 14px; font-weight: 600; margin-bottom: 8px; color: $text-secondary; }
+
+.section-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: $text-primary;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-right: 1px solid rgba(255, 255, 255, 0.04);
+
+  &:nth-child(3n) {
+    border-right: none;
+  }
+}
+
+.info-grid:not(.info-grid--inline-labels) .info-item {
+  padding: 16px 20px;
+}
+
+.info-grid--inline-labels .info-item {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+
+  .info-label {
+    flex-shrink: 0;
+    white-space: nowrap;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 12px;
+
+    &::after {
+      content: '：';
+    }
+  }
+
+  .info-value {
+    flex: 1;
+    min-width: 0;
+    word-break: break-word;
+  }
+}
+
+.info-grid--basic .info-item:nth-child(3n) {
+  border-right: none;
+}
+
+.info-grid--inline-labels .info-item--span-all {
+  grid-column: 1 / -1;
+  border-right: none;
+}
+
+.info-label {
+  font-size: 11px;
+  color: $text-muted;
+}
+
+.info-value {
+  font-size: 13px;
+  color: $text-secondary;
+
+  &--code {
+    color: $color-ice-blue;
+  }
+}
+
 .qc-upload-hint-block {
   margin-bottom: 10px;
 }
+
 .qc-upload-hint {
   font-size: 12px;
   color: $text-muted;
-  margin: 0 0 6px;
+  margin: 0;
   line-height: 1.55;
-  &:last-child { margin-bottom: 0; }
-  strong {
-    color: $text-secondary;
-    font-weight: 600;
-  }
 }
 
 .qc-upload {
@@ -814,15 +1193,9 @@ onUnmounted(() => {
     box-shadow: none !important;
     color: $text-primary !important;
   }
-  :deep(.el-input__inner) { color: $text-primary !important; }
-}
 
-.q-input--readonly {
-  :deep(.el-input__wrapper),
-  :deep(.el-textarea__inner) {
-    cursor: default;
-    opacity: 0.92;
-    background-color: rgba(255, 255, 255, 0.04) !important;
+  :deep(.el-input__inner) {
+    color: $text-primary !important;
   }
 }
 

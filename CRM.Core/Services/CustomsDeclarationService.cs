@@ -13,6 +13,7 @@ public class CustomsDeclarationService : ICustomsDeclarationService
 {
     private readonly IRepository<CustomsDeclaration> _declarationRepo;
     private readonly IRepository<CustomsDeclarationItem> _declarationItemRepo;
+    private readonly IRepository<Packing> _packingRepo;
     private readonly IRepository<StockTransfer> _transferRepo;
     private readonly IRepository<StockTransferItem> _transferItemRepo;
     private readonly IRepository<StockItem> _stockItemRepo;
@@ -28,6 +29,7 @@ public class CustomsDeclarationService : ICustomsDeclarationService
     public CustomsDeclarationService(
         IRepository<CustomsDeclaration> declarationRepo,
         IRepository<CustomsDeclarationItem> declarationItemRepo,
+        IRepository<Packing> packingRepo,
         IRepository<StockTransfer> transferRepo,
         IRepository<StockTransferItem> transferItemRepo,
         IRepository<StockItem> stockItemRepo,
@@ -42,6 +44,7 @@ public class CustomsDeclarationService : ICustomsDeclarationService
     {
         _declarationRepo = declarationRepo;
         _declarationItemRepo = declarationItemRepo;
+        _packingRepo = packingRepo;
         _transferRepo = transferRepo;
         _transferItemRepo = transferItemRepo;
         _stockItemRepo = stockItemRepo;
@@ -117,6 +120,9 @@ public class CustomsDeclarationService : ICustomsDeclarationService
         foreach (var item in items)
             await _declarationItemRepo.DeleteAsync(item.Id);
         await _declarationRepo.DeleteAsync(row.Id);
+
+        await ClearPackingDeclarationLinksAsync(row, null);
+
         await _unitOfWork.SaveChangesAsync();
 
         await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
@@ -148,6 +154,9 @@ public class CustomsDeclarationService : ICustomsDeclarationService
         foreach (var item in items)
             await _declarationItemRepo.DeleteAsync(item.Id);
         await _declarationRepo.DeleteAsync(row.Id);
+
+        await ClearPackingDeclarationLinksAsync(row, actingUserId);
+
         await _unitOfWork.SaveChangesAsync();
 
         await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
@@ -183,6 +192,38 @@ public class CustomsDeclarationService : ICustomsDeclarationService
 
             transfer.IsDeleted = true;
             await _transferRepo.UpdateAsync(transfer);
+        }
+    }
+
+    private async Task ClearPackingDeclarationLinksAsync(CustomsDeclaration row, string? actingUserId)
+    {
+        var decId = row.Id.Trim();
+        var packings = (await _packingRepo.FindAsync(p =>
+            !p.IsDeleted && p.CustomsDeclarationId != null && p.CustomsDeclarationId == decId)).ToList();
+
+        if (!string.IsNullOrWhiteSpace(row.PackingId))
+        {
+            var byHeader = await _packingRepo.GetByIdAsync(row.PackingId.Trim());
+            if (byHeader != null
+                && !byHeader.IsDeleted
+                && string.Equals(byHeader.CustomsDeclarationId?.Trim(), decId, StringComparison.OrdinalIgnoreCase)
+                && packings.All(p => !string.Equals(p.Id, byHeader.Id, StringComparison.OrdinalIgnoreCase)))
+            {
+                packings.Add(byHeader);
+            }
+        }
+
+        if (packings.Count == 0)
+            return;
+
+        var now = DateTime.UtcNow;
+        var actor = ActingUserIdNormalizer.Normalize(actingUserId);
+        foreach (var packing in packings)
+        {
+            packing.CustomsDeclarationId = null;
+            packing.ModifyTime = now;
+            packing.ModifyByUserId = actor;
+            await _packingRepo.UpdateAsync(packing);
         }
     }
 }

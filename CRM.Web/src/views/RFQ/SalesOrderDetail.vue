@@ -966,7 +966,7 @@
                     </template>
                     <template #default="{ row }">
                       <div @click.stop @dblclick.stop>
-                        <template v-if="Number(row.status) !== 1">
+                        <template v-if="Number(row.status) !== STOCK_OUT_REQUEST_STATUS.StockedOut && Number(row.status) !== STOCK_OUT_REQUEST_STATUS.Cancelled">
                           <div v-if="soOutNotifyOpColExpanded">
                             <router-link
                               class="so-tab-link so-tab-link--sm"
@@ -1285,6 +1285,7 @@ import { formatCustomerNameReadonlyFromRow } from '@/utils/customerDisplayName'
 import { useSaleOrderWriteGate } from '@/composables/useDepartmentDataReadOnly'
 import ApplyStockOutDisabledHint from '@/components/RFQ/ApplyStockOutDisabledHint.vue'
 import DetailListPanelEmpty from '@/components/Common/DetailListPanelEmpty.vue'
+import { STOCK_OUT_REQUEST_STATUS } from '@/constants/stockOutRequestStatus'
 
 const SalesOrderStockOutBatchPanel = defineAsyncComponent(
   () => import('@/components/Inventory/SalesOrderStockOutBatchPanel.vue')
@@ -1998,6 +1999,12 @@ function soItemRowKey(row: Record<string, unknown>) {
   return String(row?.sellOrderItemId ?? row?.id ?? row?.Id ?? '').trim()
 }
 
+function resolveDeepLinkSellOrderItemId() {
+  const q = route.query.sellOrderItemId ?? route.query.itemId
+  const raw = Array.isArray(q) ? q[0] : q
+  return String(raw ?? '').trim()
+}
+
 function soItemRowClassName({ row }: { row: Record<string, unknown> }) {
   if (!soItemLinePanel.visible) return ''
   return soItemRowKey(row) === soItemLinePanel.sellOrderItemId ? 'so-item-row--active' : ''
@@ -2168,11 +2175,17 @@ const fetchOrder = async () => {
       })
       await loadFavoriteState()
       await nextTick()
-      // 底部「销售订单明细详情」：默认按订单明细第一行加载（与双击同一接口）
+      // 底部「销售订单明细详情」：默认按订单明细第一行加载（与双击同一接口）；支持 ?sellOrderItemId= 深链
       if (!maskSaleSensitiveFields.value) {
         const lines = order.value.items
         if (Array.isArray(lines) && lines.length > 0) {
-          await onSalesOrderItemRowDblClick(lines[0] as Record<string, unknown>)
+          const deepLinkItemId = resolveDeepLinkSellOrderItemId()
+          const target = deepLinkItemId
+            ? lines.find((line) => soItemRowKey(line as Record<string, unknown>) === deepLinkItemId)
+            : undefined
+          await selectSalesOrderItemRow(
+            (target ?? lines[0]) as Record<string, unknown>
+          )
         }
       }
     } else {
@@ -2511,10 +2524,12 @@ function stockInStatusLabel(v: unknown) {
 }
 function outReqStatusLabel(v: unknown) {
   const s = Number(v)
-  if (s === 0) return t('salesOrderDetailView.outReqSt0')
-  if (s === 1) return t('salesOrderDetailView.outReqSt1')
-  if (s === 2) return t('salesOrderDetailView.outReqSt2')
-  return `(${String(v)})`
+  if (s === STOCK_OUT_REQUEST_STATUS.PendingCustoms) return t('stockOutNotifyList.status.pendingCustoms')
+  if (s === STOCK_OUT_REQUEST_STATUS.PendingPacking) return t('stockOutNotifyList.status.pendingPacking')
+  if (s === STOCK_OUT_REQUEST_STATUS.Packed) return t('stockOutNotifyList.status.packed')
+  if (s === STOCK_OUT_REQUEST_STATUS.StockedOut) return t('stockOutNotifyList.status.stockedOut')
+  if (s === STOCK_OUT_REQUEST_STATUS.Cancelled) return t('stockOutNotifyList.status.cancelled')
+  return t('stockOutNotifyList.status.unknown')
 }
 function receiptWriteOffSourceLabel(source?: number) {
   if (source === 20) return t('financeReceiptWriteOffLedger.writeOffSource.advancePool')

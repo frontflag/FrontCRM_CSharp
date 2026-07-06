@@ -15,42 +15,40 @@
         <button class="btn-secondary" @click="goBack">
           {{ isPickOnlyPage ? t('pickCreate.back') : t('stockOutNotifyList.backToNotifyList') }}
         </button>
-        <template v-if="!isNotifyDetailPage">
-          <button
-            v-if="isPickOnlyPage && packingId && form.warehouseId"
-            type="button"
-            class="btn-primary"
-            :disabled="submittingPickingOrder || !pickDraftConfirmed"
-            :title="submitPickingOrderBtnTitle"
-            @click="submitPickingOrder"
-          >
-            {{ submittingPickingOrder ? t('pickCreate.submittingPickingOrder') : t('pickCreate.submitPickingOrder') }}
-          </button>
-          <button
-            v-if="!isPickOnlyPage"
-            class="btn-picking"
-            :disabled="requestAlreadyShipped || hasActivePickingTask"
-            :title="generatePickingBtnTitle"
-            @click="handleGeneratePicking"
-          >
-            {{ t('pickCreate.generateTask') }}
-          </button>
-          <button
-            v-if="!isPickOnlyPage"
-            class="btn-primary"
-            style="margin-left: 8px"
-            :disabled="submitting || !canExecuteStockOut"
-            :title="executeOutHint"
-            @click="handleSubmit"
-          >
-            {{ submitting ? t('stockOutNotifyList.executing') : t('stockOutNotifyList.executeSubmit') }}
-          </button>
-        </template>
+        <button
+          v-if="isPickOnlyPage && packingId && form.warehouseId"
+          type="button"
+          class="btn-primary"
+          :disabled="submittingPickingOrder || !pickDraftConfirmed"
+          :title="submitPickingOrderBtnTitle"
+          @click="submitPickingOrder"
+        >
+          {{ submittingPickingOrder ? t('pickCreate.submittingPickingOrder') : t('pickCreate.submitPickingOrder') }}
+        </button>
+        <button
+          v-if="!isPickOnlyPage"
+          class="btn-picking"
+          :disabled="requestAlreadyShipped || hasActivePickingTask"
+          :title="generatePickingBtnTitle"
+          @click="handleGeneratePicking"
+        >
+          {{ t('pickCreate.generateTask') }}
+        </button>
+        <button
+          v-if="!isPickOnlyPage"
+          class="btn-primary"
+          style="margin-left: 8px"
+          :disabled="submitting || !canExecuteStockOut"
+          :title="executeOutHint"
+          @click="handleSubmit"
+        >
+          {{ submitting ? t('stockOutNotifyList.executing') : t('stockOutNotifyList.executeSubmit') }}
+        </button>
       </div>
     </div>
 
     <el-alert
-      v-if="!isNotifyDetailPage && !isPickOnlyPage && form.stockOutRequestId"
+      v-if="!isPickOnlyPage && form.stockOutRequestId"
       class="flow-alert"
       type="info"
       :closable="false"
@@ -73,51 +71,7 @@
     <div v-if="!isPickOnlyPage" class="form-layout">
       <div class="form-card">
         <h3 class="section-title">基础信息</h3>
-        <el-descriptions v-if="isNotifyDetailPage" :column="2" border class="notify-detail-desc">
-          <el-descriptions-item label="出库通知单号">
-            <span class="notify-code-cell">
-              <span>{{ notifyRequestCodeDisplay }}</span>
-              <el-tooltip
-                v-if="notifyDetailIsCustoms && notifyDetailSalesNotifyTooltip"
-                :content="notifyDetailSalesNotifyTooltip"
-                placement="top"
-                :hide-after="0"
-              >
-                <span class="customs-notify-tag">{{ t('stockOutNotifyList.customsNotifyTag') }}</span>
-              </el-tooltip>
-            </span>
-          </el-descriptions-item>
-          <el-descriptions-item :label="t('stockOutNotifyList.columns.status')">{{ notifyDetailStatusLabel }}</el-descriptions-item>
-          <el-descriptions-item :label="t('stockOutNotifyList.columns.stockOutType')">
-            <StockBizTypeTag biz="out" :type="currentRequest?.stockOutType" />
-          </el-descriptions-item>
-          <el-descriptions-item :label="t('stockOutNotifyList.columns.customsStatus')">{{ notifyDetailCustomsStatusLabel }}</el-descriptions-item>
-          <el-descriptions-item
-            v-if="notifyDetailIsCustoms && notifyDetailSalesNotifyId"
-            :label="t('stockOutNotifyList.salesNotifyCodeLink')"
-          >
-            <router-link
-              :to="{ name: 'StockOutNotifyDetail', params: { id: notifyDetailSalesNotifyId } }"
-              class="cell-link"
-            >
-              {{ notifyDetailSalesNotifyCode || notifyDetailSalesNotifyId }}
-            </router-link>
-          </el-descriptions-item>
-          <el-descriptions-item :label="t('stockOutNotifyList.columns.materialModel')">{{ currentRequest?.materialModel || '—' }}</el-descriptions-item>
-          <el-descriptions-item :label="t('stockOutNotifyList.columns.brand')">{{ currentRequest?.brand || '—' }}</el-descriptions-item>
-          <el-descriptions-item :label="t('stockOutNotifyList.columns.outQuantity')">{{ formatQty(currentRequest?.outQuantity) }}</el-descriptions-item>
-          <el-descriptions-item :label="t('stockOutNotifyList.columns.regionType')">{{ notifyDetailRegionLabel }}</el-descriptions-item>
-          <el-descriptions-item :label="t('stockOutNotifyList.columns.requestDate')">{{ notifyDetailRequestDate }}</el-descriptions-item>
-          <el-descriptions-item :label="t('stockOutNotifyList.columns.salesOrderCode')">{{ currentRequest?.salesOrderCode || '—' }}</el-descriptions-item>
-          <el-descriptions-item :label="t('stockOutNotifyList.columns.customer')">{{ currentRequest?.customerName || '—' }}</el-descriptions-item>
-          <el-descriptions-item :label="t('stockOutNotifyList.columns.salesUserName')">{{ currentRequest?.salesUserName || '—' }}</el-descriptions-item>
-          <el-descriptions-item :label="t('stockOutNotifyList.columns.remark')" :span="2">{{ currentRequest?.remark || '—' }}</el-descriptions-item>
-          <el-descriptions-item :label="t('stockOutNotifyList.columns.createTime')">{{ notifyDetailCreateTime }}</el-descriptions-item>
-          <el-descriptions-item :label="t('stockOutNotifyList.columns.createUser')">
-            {{ notifyDetailCreateUser }}
-          </el-descriptions-item>
-        </el-descriptions>
-        <el-form v-else class="basic-info-form" :model="form" label-width="6em">
+        <el-form class="basic-info-form" :model="form" label-width="6em">
           <el-form-item label="出库执行单号" required>
             <el-input v-model="form.stockOutCode" placeholder="如：SOUT202603180001" />
           </el-form-item>
@@ -153,7 +107,6 @@
         </el-form>
       </div>
 
-      <template v-if="!isNotifyDetailPage">
       <div class="form-card">
         <div class="section-header">
           <h3 class="section-title">出库明细</h3>
@@ -224,10 +177,7 @@
           </div>
         </div>
       </div>
-      </template>
     </div>
-
-    <StockOutNotifyDetailTabs v-if="isNotifyDetailPage" :request="currentRequest" />
 
     <div
       v-if="isPickOnlyPage && packingId"
@@ -249,7 +199,7 @@
     </div>
 
     <div
-      v-if="!isNotifyDetailPage && !isPickOnlyPage"
+      v-if="!isPickOnlyPage"
       class="form-card form-card--after-outbound"
       v-show="form.stockOutRequestId"
     >
@@ -432,7 +382,7 @@
 
 
     <div
-      v-if="!isNotifyDetailPage && (isPickOnlyPage ? packingId && form.warehouseId : pendingPickingTask && form.stockOutRequestId)"
+      v-if="isPickOnlyPage ? packingId && form.warehouseId : pendingPickingTask && form.stockOutRequestId"
       class="form-card"
     >
       <h3 class="section-title">{{ isPickOnlyPage ? t('pickCreate.pickingDetailsTitle') : '拣货明细（按在库 stockitem）' }}</h3>
@@ -597,13 +547,7 @@ import {
 } from '@/api/inventoryCenter'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime, formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
-import { normalizeRegionType, REGION_TYPE_OVERSEAS } from '@/constants/regionType'
 import { STOCK_OUT_REQUEST_STATUS } from '@/constants/stockOutRequestStatus'
-import { STOCK_OUT_NOTIFY_CUSTOMS_STATUS } from '@/constants/stockOutNotifyCustomsStatus'
-import { StockOutTypeCode } from '@/constants/stockOutType'
-import { formatDate as formatDateTimeZh } from '@/utils/date'
-import StockOutNotifyDetailTabs from '@/components/Inventory/StockOutNotifyDetailTabs.vue'
-import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { packingApi } from '@/api/packing'
 import {
   PACKING_STOCK_OUT_QUEUE_KEY,
@@ -674,70 +618,11 @@ function resolvePackingId(): string {
 
 const packingId = computed(() => resolvePackingId())
 
-const isNotifyDetailPage = computed(() => route.name === 'StockOutNotifyDetail')
 const isPickOnlyPage = computed(() => route.name === 'PickCreate')
 
 const pageTitle = computed(() => {
   if (isPickOnlyPage.value) return t('pickCreate.title')
-  if (isNotifyDetailPage.value) return t('stockOutNotifyList.detailTitle')
   return t('stockOutNotifyList.executeTitle')
-})
-
-const notifyDetailStatusLabel = computed(() => {
-  const s = Number(currentRequest.value?.status)
-  if (s === STOCK_OUT_REQUEST_STATUS.PendingCustoms) return t('stockOutNotifyList.status.pendingCustoms')
-  if (s === STOCK_OUT_REQUEST_STATUS.PendingPacking) return t('stockOutNotifyList.status.pendingPacking')
-  if (s === STOCK_OUT_REQUEST_STATUS.Packed) return t('stockOutNotifyList.status.packed')
-  if (s === STOCK_OUT_REQUEST_STATUS.StockedOut) return t('stockOutNotifyList.status.stockedOut')
-  if (s === STOCK_OUT_REQUEST_STATUS.Cancelled) return t('stockOutNotifyList.status.cancelled')
-  return t('stockOutNotifyList.status.unknown')
-})
-
-const notifyDetailIsCustoms = computed(
-  () => Number(currentRequest.value?.stockOutType ?? StockOutTypeCode.Sales) === StockOutTypeCode.Customs
-)
-
-const notifyDetailCustomsStatusLabel = computed(() => {
-  const n = Number(currentRequest.value?.customsStatus ?? 0)
-  if (n === STOCK_OUT_NOTIFY_CUSTOMS_STATUS.NotRequired) return t('stockOutNotifyList.customsStatus.notRequired')
-  if (n === STOCK_OUT_NOTIFY_CUSTOMS_STATUS.PendingCustoms) return t('stockOutNotifyList.customsStatus.pendingCustoms')
-  if (n === STOCK_OUT_NOTIFY_CUSTOMS_STATUS.InCustoms) return t('stockOutNotifyList.customsStatus.inCustoms')
-  if (n === STOCK_OUT_NOTIFY_CUSTOMS_STATUS.Completed) return t('stockOutNotifyList.customsStatus.completed')
-  return '—'
-})
-
-const notifyDetailSalesNotifyId = computed(() => String(currentRequest.value?.salesStockOutNotifyId ?? '').trim())
-
-const notifyDetailSalesNotifyCode = computed(() => String(currentRequest.value?.salesStockOutNotifyCode ?? '').trim())
-
-const notifyDetailSalesNotifyTooltip = computed(() => {
-  const code = notifyDetailSalesNotifyCode.value
-  if (!code) return ''
-  return t('stockOutNotifyList.salesNotifyCodeTooltip', { code })
-})
-
-const notifyDetailRegionLabel = computed(() => {
-  const r = currentRequest.value as unknown as Record<string, unknown> | null
-  if (!r) return '—'
-  const n = normalizeRegionType(r.regionType ?? r.RegionType)
-  return n === REGION_TYPE_OVERSEAS ? t('inventoryList.warehouse.regionOverseas') : t('inventoryList.warehouse.regionDomestic')
-})
-
-const notifyDetailRequestDate = computed(() => {
-  const v = currentRequest.value?.requestDate
-  if (v == null || v === '') return '—'
-  return formatDateTimeZh(v, 'YYYY-MM-DD HH:mm')
-})
-
-const notifyDetailCreateTime = computed(() => {
-  const v = currentRequest.value?.createTime
-  if (v == null || v === '') return '—'
-  return formatDateTimeZh(v, 'YYYY-MM-DD HH:mm')
-})
-
-const notifyDetailCreateUser = computed(() => {
-  const r = currentRequest.value as StockOutRequestDto & { createUserName?: string }
-  return r?.createUserName || r?.requestUserName || '—'
 })
 
 const form = reactive<ExecuteForm>({
@@ -1724,10 +1609,6 @@ const goBack = () => {
 
 const init = async () => {
   await loadWarehouses()
-  if (isNotifyDetailPage.value) {
-    await loadRequest()
-    return
-  }
   if (isPickOnlyPage.value) {
     if (!packingId.value) {
       ElMessage.error(t('pickCreate.missingPackingId'))

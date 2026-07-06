@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Purchase;
@@ -32,9 +33,23 @@ public static class PurchaseOrderDataScopeQueryHelper
             return query;
 
         var scopedPo = await GetScopedPurchaseOrdersAsync(dataPermission, db, currentUserId, cancellationToken);
+
+        var scopedDec = db.CustomsDeclarations.AsNoTracking().Where(d => !d.IsDeleted);
+        scopedDec = await dataPermission.ApplyLogisticsCreatorUserScopeAsync(
+            currentUserId,
+            scopedDec,
+            d => d.CreateByUserId,
+            cancellationToken);
+
         return query.Where(n =>
-            n.PurchaseOrderId != null
-            && scopedPo.Any(po => po.Id == n.PurchaseOrderId));
+            (!string.IsNullOrEmpty(n.PurchaseOrderId)
+             && scopedPo.Any(po => po.Id == n.PurchaseOrderId))
+            || (!string.IsNullOrEmpty(n.CustomsDeclarationItemId)
+                && n.StockInType == StockInTypeCode.Customs
+                && db.CustomsDeclarationItems.Any(cdi =>
+                    cdi.Id == n.CustomsDeclarationItemId
+                    && !cdi.IsDeleted
+                    && scopedDec.Any(dec => dec.Id == cdi.DeclarationId))));
     }
 
     public static async Task<IQueryable<QCInfo>> FilterQcInfosAsync(
@@ -48,12 +63,26 @@ public static class PurchaseOrderDataScopeQueryHelper
             return query;
 
         var scopedPo = await GetScopedPurchaseOrdersAsync(dataPermission, db, currentUserId, cancellationToken);
+
+        var scopedDec = db.CustomsDeclarations.AsNoTracking().Where(d => !d.IsDeleted);
+        scopedDec = await dataPermission.ApplyLogisticsCreatorUserScopeAsync(
+            currentUserId,
+            scopedDec,
+            d => d.CreateByUserId,
+            cancellationToken);
+
         return query.Where(q =>
             db.StockInNotifies.Any(n =>
                 n.Id == q.StockInNotifyId
                 && !n.IsDeleted
-                && n.PurchaseOrderId != null
-                && scopedPo.Any(po => po.Id == n.PurchaseOrderId)));
+                && ((!string.IsNullOrEmpty(n.PurchaseOrderId)
+                     && scopedPo.Any(po => po.Id == n.PurchaseOrderId))
+                    || (!string.IsNullOrEmpty(n.CustomsDeclarationItemId)
+                        && n.StockInType == StockInTypeCode.Customs
+                        && db.CustomsDeclarationItems.Any(cdi =>
+                            cdi.Id == n.CustomsDeclarationItemId
+                            && !cdi.IsDeleted
+                            && scopedDec.Any(dec => dec.Id == cdi.DeclarationId))))));
     }
 
     public static async Task<IQueryable<StockInBatch>> FilterStockInBatchesAsync(

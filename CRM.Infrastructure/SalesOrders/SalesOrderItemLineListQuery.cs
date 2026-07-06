@@ -303,6 +303,73 @@ public sealed class SalesOrderItemLineListQuery : ISalesOrderItemLineListQuery
         };
     }
 
+    /// <inheritdoc />
+    public async Task<List<SellOrderItemLineDto>> GetByIdsAsync(
+        IReadOnlyList<string> sellOrderItemIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (sellOrderItemIds == null || sellOrderItemIds.Count == 0)
+            return new List<SellOrderItemLineDto>();
+
+        var ids = sellOrderItemIds
+            .Select(x => x?.Trim())
+            .Where(x => !string.IsNullOrEmpty(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Cast<string>()
+            .ToList();
+        if (ids.Count == 0)
+            return new List<SellOrderItemLineDto>();
+
+        var raw = await (
+            from item in _db.SellOrderItems.AsNoTracking()
+            join so in _db.SellOrders.AsNoTracking() on item.SellOrderId equals so.Id
+            where ids.Contains(item.Id)
+            orderby item.SellOrderItemCode
+            select new
+            {
+                SellOrderItemId = item.Id,
+                SellOrderId = item.SellOrderId,
+                SellOrderCode = so.SellOrderCode,
+                SellOrderItemCode = item.SellOrderItemCode,
+                OrderStatus = (short)so.Status,
+                OrderCreateTime = so.CreateTime,
+                CustomerId = so.CustomerId,
+                CustomerName = so.CustomerName,
+                SalesUserName = so.SalesUserName,
+                PN = item.PN,
+                Brand = item.Brand,
+                CustomerSo = item.CustomerSo,
+                CustomerPn = item.CustomerPn,
+                Qty = item.Qty,
+                Price = item.Price,
+                Currency = item.Currency,
+                ConvertPrice = item.ConvertPrice,
+                ItemStatus = item.Status
+            }).ToListAsync(cancellationToken);
+
+        return raw
+            .Select(r => MapLine(
+                r.SellOrderItemId,
+                r.SellOrderId,
+                r.SellOrderCode,
+                r.SellOrderItemCode,
+                r.OrderStatus,
+                r.OrderCreateTime,
+                r.CustomerId,
+                r.CustomerName,
+                r.SalesUserName,
+                r.PN,
+                r.Brand,
+                r.CustomerSo,
+                r.CustomerPn,
+                r.Qty,
+                r.Price,
+                r.Currency,
+                r.ConvertPrice,
+                r.ItemStatus))
+            .ToList();
+    }
+
     private static SellOrderItemLineDto MapLine(
         string sellOrderItemId,
         string sellOrderId,

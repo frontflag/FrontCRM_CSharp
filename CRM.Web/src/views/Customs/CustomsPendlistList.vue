@@ -37,8 +37,35 @@
       @row-click="onPendlistRowClick"
     >
       <el-table-column prop="salesStockOutNotifyCode" :label="t('customsPages.pendlists.colSalesSor')" min-width="140" />
-      <el-table-column prop="salesOrderCode" :label="t('customsPages.pendlists.colSalesOrder')" min-width="120" />
-      <el-table-column prop="sellOrderItemCode" :label="t('customsPages.pendlists.colSoLine')" min-width="120" />
+      <el-table-column prop="salesOrderCode" :label="t('customsPages.pendlists.colSalesOrder')" min-width="120">
+        <template #default="{ row }">
+          <router-link
+            v-if="row.salesOrderId && row.salesOrderCode"
+            class="link-text"
+            :to="`/sales-orders/${row.salesOrderId}`"
+            @click.stop
+          >
+            {{ row.salesOrderCode }}
+          </router-link>
+          <span v-else>{{ row.salesOrderCode || '—' }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column prop="sellOrderItemCode" :label="t('customsPages.pendlists.colSoLine')" min-width="120">
+        <template #default="{ row }">
+          <router-link
+            v-if="row.salesOrderId && row.sellOrderItemId && row.sellOrderItemCode"
+            class="link-text"
+            :to="{
+              path: `/sales-orders/${row.salesOrderId}`,
+              query: { sellOrderItemId: row.sellOrderItemId }
+            }"
+            @click.stop
+          >
+            {{ row.sellOrderItemCode }}
+          </router-link>
+          <span v-else>{{ row.sellOrderItemCode || '—' }}</span>
+        </template>
+      </el-table-column>
       <el-table-column prop="materialCode" :label="t('customsPages.pendlists.colMaterial')" min-width="140" show-overflow-tooltip />
       <el-table-column prop="materialName" :label="t('customsPages.pendlists.colBrand')" width="100" show-overflow-tooltip />
       <el-table-column prop="qty" :label="t('customsPages.pendlists.colQty')" width="80" align="right" />
@@ -70,7 +97,7 @@
     <div v-if="refPanel.visible" class="so-item-line-detail-panel">
       <div class="so-item-line-detail-panel__head">
         <span class="so-item-line-detail-panel__title">{{ t('customsPages.pendlists.refPanelTitle') }}</span>
-        <span class="so-item-line-detail-panel__code">{{ refPanel.salesStockOutNotifyCode || '—' }}</span>
+        <span class="so-item-line-detail-panel__code panel-hint__value">{{ refPanel.salesStockOutNotifyCode || '—' }}</span>
         <button type="button" class="so-item-line-detail-panel__close" @click="closeRefPanel">
           {{ t('customsPages.pendlists.refPanelClose') }}
         </button>
@@ -283,6 +310,18 @@ onMounted(() => {
   width: 100%;
 }
 
+.link-text {
+  color: inherit;
+  text-decoration: none;
+  cursor: default;
+
+  &:hover {
+    color: var(--el-color-primary);
+    text-decoration: underline;
+    cursor: pointer;
+  }
+}
+
 .tabs-section {
   background: $layer-2;
   border: 1px solid $border-card;
@@ -345,7 +384,6 @@ onMounted(() => {
   font-size: 14px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  color: rgba(0, 212, 255, 0.95);
 }
 
 .so-item-line-detail-panel__close {

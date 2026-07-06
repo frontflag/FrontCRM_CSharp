@@ -119,7 +119,7 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
         var requests = (await _stockOutRequestRepo.FindAsync(r => r.SalesOrderItemId == id))
             .ToList();
         var notifySum = requests
-            .Where(r => StockOutRequestStatusCode.IsActiveForQuantitySum(r.Status))
+            .Where(r => StockOutRequestStatusCode.IsCountedForSalesLineNotifyQuantity(r.Status, r.StockOutType))
             .Sum(r => r.Quantity);
         ext.QtyStockOutNotify = notifySum;
         ext.QtyStockOutNotifyNot = Math.Max(0m, soItem.Qty - notifySum);
@@ -221,7 +221,7 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
         if (requests.Count == 0) return;
 
         var active = requests
-            .Where(r => StockOutRequestStatusCode.IsActiveForQuantitySum(r.Status))
+            .Where(r => StockOutRequestStatusCode.IsCountedForSalesLineNotifyQuantity(r.Status, r.StockOutType))
             .ToList();
         var activeNotifySum = active.Sum(r => (decimal)r.Quantity);
         if (soItem.Qty + 1e-9m < activeNotifySum)

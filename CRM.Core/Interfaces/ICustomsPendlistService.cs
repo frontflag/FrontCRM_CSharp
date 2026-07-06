@@ -19,6 +19,9 @@ public interface ICustomsPendlistService
 
     /// <summary>销售出库通知软删后：同步取消 pendlist。</summary>
     Task CancelBySalesStockOutNotifyAsync(string salesStockOutNotifyId, string? actingUserId);
+
+    /// <summary>报关出库通知删除后：回退 pendlist 至待处理并解除关联。</summary>
+    Task RevertPendlistOnCustomsOutNotifyDeleteAsync(string customsStockOutNotifyId, string? actingUserId);
 }
 
 public sealed class CustomsPendlistListItemDto

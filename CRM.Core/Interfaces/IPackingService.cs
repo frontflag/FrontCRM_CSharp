@@ -11,6 +11,11 @@ public interface IPackingService
         int pageSize,
         CancellationToken cancellationToken = default);
 
+    /// <summary>按 Id 批量返回装箱单列表行（与 <see cref="GetPackingListPagedAsync"/> 列表字段一致）。</summary>
+    Task<List<PackingListItemDto>> GetPackingListItemsByIdsAsync(
+        IReadOnlyList<string> ids,
+        CancellationToken cancellationToken = default);
+
     Task<PagedResult<PackingItemListRowDto>> GetPackingItemListPagedAsync(
         string? keyword,
         string? packingCode,
@@ -64,6 +69,12 @@ public interface IPackingService
 
     /// <summary>确认装箱单：仅 <see cref="PackingStatusCode.New"/> 可转为 <see cref="PackingStatusCode.Confirmed"/>。</summary>
     Task ConfirmPackingAsync(
+        string packingId,
+        string? actingUserId = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>报关装箱单补生成报关单（已确认及之后状态；强制删除报关单后修复孤儿关联）。</summary>
+    Task RegenerateCustomsDeclarationAsync(
         string packingId,
         string? actingUserId = null,
         CancellationToken cancellationToken = default);

@@ -396,6 +396,7 @@ import { ElMessage } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import { stockOutApi, type StockOutDto, type StockOutListQuery, type StockOutMarkFinishContext } from '@/api/stockOut'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import { buildStockOutListColumns } from '@/composables/buildStockOutListColumns'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
@@ -525,59 +526,16 @@ function resetEditDialog() {
 const stockOutTableColumns = computed<CrmTableColumnDef[]>(() => {
   void customerExtendExpanded.value
   void customerExtendColWidth.value
-  return [
-  { key: 'stockOutCode', label: t('stockOutList.columns.stockOutCode'), prop: 'stockOutCode', width: 190, minWidth: 170, showOverflowTooltip: true },
-  { key: 'status', label: t('stockOutList.columns.status'), prop: 'status', width: 110, align: 'center' },
-  {
-    key: 'stockOutType',
-    label: t('stockOutList.columns.stockOutType'),
-    prop: 'stockOutType',
-    width: 110,
-    align: 'center'
-  },
-  { key: 'expectedStockOutDate', label: t('stockOutList.columns.expectedStockOutDate'), prop: 'expectedStockOutDate', width: 130 },
-  { key: 'stockOutDate', label: t('stockOutList.columns.stockOutDate'), prop: 'stockOutDate', width: 170 },
-  { key: 'shipmentMethod', label: t('stockOutList.columns.shipmentMethod'), prop: 'shipmentMethod', width: 120, minWidth: 100, showOverflowTooltip: true },
-  { key: 'expressCompany', label: t('stockOutList.columns.expressCompany'), prop: 'expressCompany', width: 120, minWidth: 100, showOverflowTooltip: true },
-  { key: 'courierTrackingNo', label: t('stockOutList.columns.courierTrackingNo'), prop: 'courierTrackingNo', width: 140, minWidth: 120, showOverflowTooltip: true },
-  {
-    key: 'customer',
-    label: t('common.customerExtendCol.columnTitle'),
-    prop: 'customer',
-    minWidth: customerExtendColMinWidth.value,
-    width: customerExtendColWidth.value,
-    showOverflowTooltip: true,
-    className: 'customer-extend-col',
-    labelClassName: 'customer-extend-col'
-  },
-  { key: 'salesUserName', label: t('stockOutList.columns.salesUserName'), prop: 'salesUserName', width: 110, minWidth: 100, showOverflowTooltip: true },
-  { key: 'packingCodes', label: t('stockOutList.columns.packingCodes'), prop: 'packingCodes', width: 160, minWidth: 140, showOverflowTooltip: true },
-  {
-    key: 'freightForwarderOrderNo',
-    label: t('common.freightForwarderOrderNo'),
-    prop: 'freightForwarderOrderNo',
-    width: 160,
-    minWidth: 140,
-    showOverflowTooltip: true
-  },
-  { key: 'packingCount', label: t('stockOutList.columns.packingCount'), prop: 'packingCount', width: 120, minWidth: 112, align: 'right' },
-  { key: 'remark', label: t('stockOutList.columns.remark'), prop: 'remark', minWidth: 160, showOverflowTooltip: true },
-  { key: 'createTime', label: t('stockOutList.columns.createTime'), width: 170 },
-  { key: 'createUser', label: t('stockOutList.columns.createUser'), width: 120, showOverflowTooltip: true },
-  {
-    key: 'actions',
-    label: t('stockOutList.columns.actions'),
-    width: opColWidth.value,
-    minWidth: opColMinWidth.value,
-    fixed: 'right',
-    hideable: false,
-    pinned: 'end',
-    reorderable: false,
-    className: 'op-col',
-    labelClassName: 'op-col',
-    resizable: false
-  }
-  ]
+  return buildStockOutListColumns({
+    t,
+    opColWidth: opColWidth.value,
+    opColMinWidth: opColMinWidth.value,
+    withSelection: false,
+    withActions: true,
+    withCustomerExtend: true,
+    customerExtendColWidth: customerExtendColWidth.value,
+    customerExtendColMinWidth: customerExtendColMinWidth.value
+  })
 })
 
 function syncFiltersFromRoute() {

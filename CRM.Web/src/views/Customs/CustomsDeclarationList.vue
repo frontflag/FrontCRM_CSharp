@@ -58,7 +58,18 @@
       <el-table-column prop="customsBrokerName" :label="t('customsPages.declarations.colBroker')" min-width="140" />
       <el-table-column prop="totalTaxAmount" :label="t('customsPages.declarations.colTotal')" width="120" align="right" />
       <el-table-column prop="remark" :label="t('customsPages.declarations.colRemark')" min-width="120" show-overflow-tooltip />
-      <el-table-column prop="stockOutRequestId" :label="t('customsPages.declarations.colSor')" min-width="200" show-overflow-tooltip />
+      <el-table-column :label="t('customsPages.declarations.colSor')" min-width="160" show-overflow-tooltip>
+        <template #default="{ row }">
+          <router-link
+            v-if="row.stockOutRequestId"
+            :to="{ name: 'StockOutNotifyDetail', params: { id: row.stockOutRequestId } }"
+            class="cell-link"
+          >
+            {{ row.stockOutRequestCode || row.stockOutRequestId }}
+          </router-link>
+          <span v-else>—</span>
+        </template>
+      </el-table-column>
       <el-table-column prop="declarationCode" :label="t('customsPages.declarations.colDecCode')" width="140" />
       <el-table-column prop="createTime" :label="t('customsPages.declarations.colCreateTime')" width="170">
         <template #default="{ row }">{{ formatDt(row.createTime) }}</template>
@@ -295,6 +306,13 @@ onMounted(() => {
 }
 .data-table {
   width: 100%;
+}
+.cell-link {
+  color: var(--el-color-primary);
+  text-decoration: none;
+}
+.cell-link:hover {
+  text-decoration: underline;
 }
 .sub-title {
   margin: 16px 0 8px;

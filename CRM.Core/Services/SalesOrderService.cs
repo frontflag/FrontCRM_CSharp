@@ -767,6 +767,29 @@ namespace CRM.Core.Services
             };
         }
 
+        public async Task<List<SellOrderItemLineDto>> GetSellOrderItemLinesByIdsAsync(
+            IReadOnlyList<string> sellOrderItemIds,
+            CancellationToken cancellationToken = default)
+        {
+            var list = await _salesOrderItemLineListQuery.GetByIdsAsync(sellOrderItemIds, cancellationToken);
+            if (list.Count == 0)
+                return list;
+
+            var orderIds = list
+                .Select(x => x.SellOrderId)
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(s => s.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var orders = (await _soRepo.FindAsync(o => orderIds.Contains(o.Id))).ToList();
+            var orderDict = orders.ToDictionary(o => o.Id, StringComparer.OrdinalIgnoreCase);
+
+            await HydrateSellOrderLineListSalesLoginAsync(list, orderDict);
+            await EnrichSellOrderItemLineListAsync(list);
+
+            return list;
+        }
+
         /// <summary>扩展表、出库门闸、剩余可采等（仅当前页行）。</summary>
         private async Task EnrichSellOrderItemLineListAsync(List<SellOrderItemLineDto> list)
         {

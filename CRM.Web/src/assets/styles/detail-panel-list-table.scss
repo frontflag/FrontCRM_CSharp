@@ -147,3 +147,11 @@ html[data-theme='dark'] .detail-items-table-wrap {
     background-color: #114a60 !important;
   }
 }
+
+// §7.4.6 级联从属面板 / 页签标题旁单号 — 琥珀色（禁止青色）
+.so-item-line-detail-panel__head .so-item-line-detail-panel__code,
+.consumption-panel__head .consumption-panel__code,
+.panel-hint__value {
+  color: $color-amber !important;
+  font-variant-numeric: tabular-nums;
+}

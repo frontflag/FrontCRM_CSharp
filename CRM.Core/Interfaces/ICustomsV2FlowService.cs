@@ -10,6 +10,12 @@ public interface ICustomsV2FlowService
 
     Task GenerateDeclarationOnPackingConfirmAsync(string packingId, string? actingUserId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// 报关装箱单补生成报关单：清除已删除报关单的孤儿关联后重新生成；
+    /// 若已有完成的拣货任务则回写报关明细源在库行。
+    /// </summary>
+    Task EnsureCustomsDeclarationForPackingAsync(string packingId, string? actingUserId, CancellationToken cancellationToken = default);
+
     Task WritebackDeclarationItemsAfterPickingAsync(string packingId, string pickingTaskId, string? actingUserId, CancellationToken cancellationToken = default);
 
     Task EnsureCustomsOutReadyAsync(string customsStockOutRequestId, CancellationToken cancellationToken = default);

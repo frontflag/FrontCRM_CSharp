@@ -462,7 +462,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'inventory/stock-out-notifies/:id',
         name: 'StockOutNotifyDetail',
-        component: () => import('@/views/Inventory/StockOutEdit.vue'),
+        component: () => import('@/views/Inventory/StockOutNotifyDetail.vue'),
         meta: {
           requiresAuth: true,
           title: '出库通知详情',

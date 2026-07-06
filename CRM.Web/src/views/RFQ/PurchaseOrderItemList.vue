@@ -357,7 +357,7 @@
     <div v-if="poItemLinePanel.visible && !maskPurchaseSensitiveFields" class="so-item-line-detail-panel">
       <div class="so-item-line-detail-panel__head">
         <span class="so-item-line-detail-panel__title">{{ t('purchaseOrderItemList.lineDetailPanel.title') }}</span>
-        <span class="so-item-line-detail-panel__code">{{ poItemLinePanel.purchaseOrderItemCode || '—' }}</span>
+        <span class="so-item-line-detail-panel__code panel-hint__value">{{ poItemLinePanel.purchaseOrderItemCode || '—' }}</span>
         <button type="button" class="so-item-line-detail-panel__close" @click="closePoItemLinePanel">
           {{ t('purchaseOrderItemList.lineDetailPanel.close') }}
         </button>
@@ -921,6 +921,7 @@ import {
   listAmountCurrencyIso
 } from '@/utils/moneyFormat'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import { buildPurchaseOrderItemListColumns } from '@/composables/buildPurchaseOrderItemListColumns'
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
 import PaymentRequestVendorBankSection from '@/components/Vendor/PaymentRequestVendorBankSection.vue'
 import VendorNameReadonlyField from '@/components/Vendor/VendorNameReadonlyField.vue'
@@ -1049,118 +1050,16 @@ function toggleOpCol() {
 
 const purchaseOrderItemColumns = computed<CrmTableColumnDef[]>(() => {
   void locale.value
-  const cols: CrmTableColumnDef[] = [
-    { key: 'selection', type: 'selection', width: 48, reserveSelection: true, fixed: 'left', hideable: false, reorderable: false },
-    {
-      key: 'purchaseOrderItemCode',
-      label: t('purchaseOrderItemList.columns.purchaseOrderItemCode'),
-      prop: 'purchaseOrderItemCode',
-      width: 180,
-      minWidth: 168,
-      fixed: 'left',
-      showOverflowTooltip: true
-    },
-    {
-      key: 'purchaseOrderCode',
-      label: t('purchaseOrderItemList.columns.purchaseOrderCode'),
-      prop: 'purchaseOrderCode',
-      width: 160,
-      minWidth: 160,
-      showOverflowTooltip: true
-    },
-    {
-      key: 'freightForwarderOrderNo',
-      label: t('common.freightForwarderOrderNo'),
-      prop: 'freightForwarderOrderNo',
-      width: 160,
-      minWidth: 140,
-      showOverflowTooltip: true
-    },
-    { key: 'itemStatus', label: t('purchaseOrderItemList.columns.itemStatus'), prop: 'itemStatus', width: 160, align: 'center' }
-  ]
-  if (canViewVendor.value) {
-    cols.push({
-      key: 'vendorName',
-      label: t('purchaseOrderItemList.columns.vendorName'),
-      prop: 'vendorName',
-      minWidth: 200,
-      showOverflowTooltip: true
-    })
-  }
-  if (canViewPurchaseUser.value) {
-    cols.push({
-      key: 'purchaseUserName',
-      label: t('purchaseOrderItemList.columns.purchaseUserName'),
-      prop: 'purchaseUserName',
-      width: 100,
-      showOverflowTooltip: true
-    })
-  }
-  cols.push(
-    { key: 'pn', label: t('purchaseOrderItemList.columns.pn'), prop: 'pn', minWidth: 130, showOverflowTooltip: true },
-    { key: 'brand', label: t('purchaseOrderItemList.columns.brand'), prop: 'brand', width: 110, showOverflowTooltip: true },
-    { key: 'qty', label: t('purchaseOrderItemList.columns.qty'), prop: 'qty', width: 100, align: 'right' }
-  )
-  if (canViewAmount.value) {
-    cols.push(
-      { key: 'cost', label: t('purchaseOrderItemList.columns.cost'), prop: 'cost', width: 160, align: 'right' },
-      { key: 'lineTotal', label: t('purchaseOrderItemList.columns.lineTotal'), prop: 'lineTotal', width: 160, align: 'right' }
-    )
-  }
-  cols.push(
-    { key: 'createTime', label: t('purchaseOrderItemList.columns.createTime'), width: 160 },
-    { key: 'createUser', label: t('purchaseOrderItemList.columns.createUser'), width: 120, showOverflowTooltip: true },
-    {
-      key: 'paymentRequestProgressStatus',
-      label: t('purchaseOrderItemList.columns.paymentRequestProgressStatus'),
-      prop: 'paymentRequestProgressStatus',
-      width: 130,
-      align: 'center'
-    },
-    {
-      key: 'paymentProgressStatus',
-      label: t('purchaseOrderItemList.columns.paymentProgressStatus'),
-      prop: 'paymentProgressStatus',
-      width: 120,
-      align: 'center'
-    },
-    {
-      key: 'purchaseProgressStatus',
-      label: t('purchaseOrderItemList.columns.purchaseProgressStatus'),
-      prop: 'purchaseProgressStatus',
-      width: 120,
-      align: 'center'
-    },
-    {
-      key: 'stockInProgressStatus',
-      label: t('purchaseOrderItemList.columns.stockInProgressStatus'),
-      prop: 'stockInProgressStatus',
-      width: 120,
-      align: 'center'
-    },
-    {
-      key: 'invoiceProgressStatus',
-      label: t('purchaseOrderItemList.columns.invoiceProgressStatus'),
-      prop: 'invoiceProgressStatus',
-      width: 120,
-      align: 'center'
-    }
-  )
-  cols.push({
-    key: 'actions',
-    label: t('purchaseOrderItemList.columns.actions'),
-    width: opColWidth.value,
-    minWidth: opColMinWidth.value,
-    fixed: 'right',
-    align: 'center',
-    hideable: false,
-    pinned: 'end',
-    reorderable: false,
-    className: 'op-col',
-    labelClassName: 'op-col',
-    resizable: false
+  return buildPurchaseOrderItemListColumns({
+    t,
+    canViewVendor: canViewVendor.value,
+    canViewPurchaseUser: canViewPurchaseUser.value,
+    canViewAmount: canViewAmount.value,
+    opColWidth: opColWidth.value,
+    opColMinWidth: opColMinWidth.value,
+    withSelection: true,
+    withActions: true
   })
-  return cols
 })
 
 const tableRef = ref<any>(null)
@@ -2076,7 +1975,6 @@ onMounted(() => {
   font-size: 14px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  color: rgba(0, 212, 255, 0.95);
 }
 
 .so-item-line-detail-panel__close {

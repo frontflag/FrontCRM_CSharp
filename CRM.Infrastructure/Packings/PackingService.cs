@@ -91,7 +91,58 @@ public class PackingService : IPackingService
             };
         }
 
-        var idSet = paged.Items.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var items = await ProjectPackingListItemDtosAsync(paged.Items.ToList(), cancellationToken);
+
+        return new PagedResult<PackingListItemDto>
+        {
+            Items = items,
+            TotalCount = paged.TotalCount,
+            PageIndex = paged.PageIndex,
+            PageSize = paged.PageSize
+        };
+    }
+
+    public async Task<List<PackingListItemDto>> GetPackingListItemsByIdsAsync(
+        IReadOnlyList<string> ids,
+        CancellationToken cancellationToken = default)
+    {
+        if (ids == null || ids.Count == 0)
+            return new List<PackingListItemDto>();
+
+        var idList = ids
+            .Select(x => x?.Trim())
+            .Where(x => !string.IsNullOrEmpty(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Cast<string>()
+            .ToList();
+        if (idList.Count == 0)
+            return new List<PackingListItemDto>();
+
+        var dtos = await ProjectPackingListItemDtosAsync(idList, cancellationToken);
+        var dtoById = dtos.ToDictionary(d => d.Id.Trim(), d => d, StringComparer.OrdinalIgnoreCase);
+
+        var result = new List<PackingListItemDto>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var id in ids)
+        {
+            var key = id.Trim();
+            if (!seen.Add(key))
+                continue;
+            if (dtoById.TryGetValue(key, out var dto))
+                result.Add(dto);
+        }
+
+        return result;
+    }
+
+    private async Task<List<PackingListItemDto>> ProjectPackingListItemDtosAsync(
+        IReadOnlyList<string> orderedIds,
+        CancellationToken cancellationToken)
+    {
+        if (orderedIds == null || orderedIds.Count == 0)
+            return new List<PackingListItemDto>();
+
+        var idSet = orderedIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
         var packings = (await _packingRepository.FindAsync(x => idSet.Contains(x.Id))).ToList();
         var byId = packings.ToDictionary(x => x.Id.Trim(), x => x, StringComparer.OrdinalIgnoreCase);
 
@@ -166,7 +217,7 @@ public class PackingService : IPackingService
                 : EntityLookupService.FormatUserLoginName(user) ?? user.RealName ?? user.UserName;
 
         var items = new List<PackingListItemDto>();
-        foreach (var id in paged.Items)
+        foreach (var id in orderedIds)
         {
             if (!byId.TryGetValue(id.Trim(), out var pk))
                 continue;
@@ -225,13 +276,7 @@ public class PackingService : IPackingService
             });
         }
 
-        return new PagedResult<PackingListItemDto>
-        {
-            Items = items,
-            TotalCount = paged.TotalCount,
-            PageIndex = paged.PageIndex,
-            PageSize = paged.PageSize
-        };
+        return items;
     }
 
     public async Task<PagedResult<PackingItemListRowDto>> GetPackingItemListPagedAsync(
@@ -1200,6 +1245,19 @@ public class PackingService : IPackingService
 
         if (StockOutTypeCode.NormalizeForNotify(packing.StockOutType) == StockOutTypeCode.Customs)
             await _customsV2FlowService.GenerateDeclarationOnPackingConfirmAsync(id, actingUserId, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task RegenerateCustomsDeclarationAsync(
+        string packingId,
+        string? actingUserId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var id = packingId?.Trim();
+        if (string.IsNullOrEmpty(id))
+            throw new ArgumentException("装箱单 ID 无效", nameof(packingId));
+
+        await _customsV2FlowService.EnsureCustomsDeclarationForPackingAsync(id, actingUserId, cancellationToken);
     }
 
     /// <inheritdoc />

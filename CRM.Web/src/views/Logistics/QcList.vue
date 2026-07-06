@@ -10,6 +10,21 @@
     <!-- 搜索栏：与 CustomerList / ArrivalNoticeList 同款布局与控件皮肤 -->
     <div class="search-bar">
       <div class="search-left">
+        <el-select
+          v-model="filters.stockInType"
+          clearable
+          :placeholder="t('arrivalNoticeList.filters.arrivalTypePlaceholder')"
+          class="arrival-type-select"
+          :teleported="false"
+          @change="handleSearch"
+        >
+          <el-option
+            v-for="v in STOCK_IN_TYPE_FILTER_VALUES"
+            :key="v"
+            :label="arrivalTypeLabel(v)"
+            :value="v"
+          />
+        </el-select>
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
             <circle cx="11" cy="11" r="8" />
@@ -78,8 +93,11 @@
       <template #col-status="{ row }">
         <el-tag effect="dark" :type="qcType(row.status)">{{ qcText(row.status) }}</el-tag>
       </template>
+      <template #col-stockInType="{ row }">
+        <StockBizTypeTag biz="in" :type="row.stockInType" />
+      </template>
       <template #col-stockInStatus="{ row }">
-        <el-tag effect="dark" :type="stockInType(displayStockInStatus(row))">{{ stockInText(displayStockInStatus(row)) }}</el-tag>
+        <el-tag effect="dark" :type="stockInStatusTagType(displayStockInStatus(row))">{{ stockInText(displayStockInStatus(row)) }}</el-tag>
       </template>
       <template #col-vendorName="{ row }">
         <vendor-name-readonly-text
@@ -211,6 +229,8 @@ import { formatDisplayDateTime2DigitYear } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import VendorNameReadonlyText from '@/components/Vendor/VendorNameReadonlyText.vue'
+import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
+import { StockInTypeCode, STOCK_IN_TYPE_FILTER_VALUES } from '@/constants/stockInType'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const router = useRouter()
@@ -245,6 +265,13 @@ const qcTableColumns = computed<CrmTableColumnDef[]>(() => {
   void locale.value
   return [
     { key: 'status', label: t('qcList.columns.status'), prop: 'status', width: 120, align: 'center' },
+    {
+      key: 'stockInType',
+      label: t('arrivalNoticeList.columns.arrivalType'),
+      prop: 'stockInType',
+      width: 110,
+      align: 'center'
+    },
     { key: 'model', label: t('qcList.columns.model'), prop: 'model', minWidth: 160, showOverflowTooltip: true },
     { key: 'brand', label: t('qcList.columns.brand'), prop: 'brand', minWidth: 120, showOverflowTooltip: true },
     { key: 'vendorName', label: t('qcList.columns.vendorName'), prop: 'vendorName', minWidth: 160, showOverflowTooltip: true },
@@ -299,12 +326,20 @@ const qcTableColumns = computed<CrmTableColumnDef[]>(() => {
 })
 
 const filters = ref({
+  stockInType: undefined as number | undefined,
   model: '',
   vendorName: '',
   purchaseOrderCode: '',
   freightForwarderOrderNo: '',
   salesOrderCode: '',
 })
+
+function arrivalTypeLabel(type: number): string {
+  if (type === StockInTypeCode.Customs) return t('stockInList.stockInTypeLabels.customs')
+  if (type === StockInTypeCode.Return) return t('stockInList.stockInTypeLabels.return')
+  if (type === StockInTypeCode.Scrap) return t('stockInList.stockInTypeLabels.scrap')
+  return t('stockInList.stockInTypeLabels.purchase')
+}
 const getYYMMDD = (d: Date) => {
   const yy = String(d.getFullYear()).slice(-2)
   const mm = String(d.getMonth() + 1).padStart(2, '0')
@@ -357,7 +392,7 @@ const stockInText = (s: number | undefined) => {
   const k = keyMap[s]
   return k ? t(`qcList.stockInStatus.${k}`) : t('qcList.stockInStatus.unknown')
 }
-const stockInType = (s: number | undefined) =>
+const stockInStatusTagType = (s: number | undefined) =>
   (s === undefined || s === null ? 'info' : ({ [-1]: 'danger', 1: 'info', 10: 'warning', 100: 'success' }[s] || 'info'))
 
 /** 未绑定入库单时忽略历史脏数据（StockInStatus 误存为 10/100） */
@@ -377,6 +412,10 @@ function syncFiltersFromRoute() {
   filters.value.freightForwarderOrderNo =
     typeof q.freightForwarderOrderNo === 'string' ? q.freightForwarderOrderNo : ''
   filters.value.salesOrderCode = typeof q.salesOrderCode === 'string' ? q.salesOrderCode : ''
+  const stRaw = q.stockInType
+  const st = typeof stRaw === 'string' && stRaw !== '' ? Number(stRaw) : undefined
+  filters.value.stockInType =
+    st != null && !Number.isNaN(st) && (STOCK_IN_TYPE_FILTER_VALUES as readonly number[]).includes(st) ? st : undefined
 }
 
 function onQcPageSizeChange() {
@@ -394,6 +433,7 @@ function applyQcList(resetPage: boolean) {
       purchaseOrderCode: filters.value.purchaseOrderCode || undefined,
       freightForwarderOrderNo: filters.value.freightForwarderOrderNo.trim() || undefined,
       salesOrderCode: filters.value.salesOrderCode || undefined,
+      stockInType: filters.value.stockInType,
       page: listPage.value,
       pageSize: listPageSize.value
     })
@@ -436,11 +476,15 @@ const handleSearch = () => {
   if (ff) query.freightForwarderOrderNo = ff
   const s = filters.value.salesOrderCode.trim()
   if (s) query.salesOrderCode = s
+  if (filters.value.stockInType != null && !Number.isNaN(Number(filters.value.stockInType))) {
+    query.stockInType = String(filters.value.stockInType)
+  }
   router.replace({ name: 'QcList', query })
 }
 
 const resetFilters = () => {
   filters.value = {
+    stockInType: undefined,
     model: '',
     vendorName: '',
     purchaseOrderCode: '',
@@ -705,6 +749,16 @@ const createStockIn = async (row: QcInfoDto) => {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.arrival-type-select {
+  width: 140px;
+  :deep(.el-select__wrapper) {
+    background: $layer-2 !important;
+    box-shadow: none !important;
+    border: 1px solid $border-panel !important;
+    border-radius: $border-radius-md !important;
+  }
 }
 
 .filter-field-label {

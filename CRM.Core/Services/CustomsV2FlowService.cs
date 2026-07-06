@@ -24,6 +24,7 @@ public class CustomsV2FlowService : ICustomsV2FlowService
     private readonly IRepository<SellOrderItem> _sellOrderItemRepo;
     private readonly IRepository<WarehouseInfo> _warehouseRepo;
     private readonly IRepository<CustomsBroker> _brokerRepo;
+    private readonly IRepository<PickingTask> _pickingTaskRepo;
     private readonly IRepository<PickingTaskItem> _pickingTaskItemRepo;
     private readonly ISerialNumberService _serialNumberService;
     private readonly IFinanceExchangeRateService _financeExchangeRateService;
@@ -44,6 +45,7 @@ public class CustomsV2FlowService : ICustomsV2FlowService
         IRepository<SellOrderItem> sellOrderItemRepo,
         IRepository<WarehouseInfo> warehouseRepo,
         IRepository<CustomsBroker> brokerRepo,
+        IRepository<PickingTask> pickingTaskRepo,
         IRepository<PickingTaskItem> pickingTaskItemRepo,
         ISerialNumberService serialNumberService,
         IFinanceExchangeRateService financeExchangeRateService,
@@ -63,6 +65,7 @@ public class CustomsV2FlowService : ICustomsV2FlowService
         _sellOrderItemRepo = sellOrderItemRepo;
         _warehouseRepo = warehouseRepo;
         _brokerRepo = brokerRepo;
+        _pickingTaskRepo = pickingTaskRepo;
         _pickingTaskItemRepo = pickingTaskItemRepo;
         _serialNumberService = serialNumberService;
         _financeExchangeRateService = financeExchangeRateService;
@@ -114,7 +117,14 @@ public class CustomsV2FlowService : ICustomsV2FlowService
         _ = cancellationToken;
         var packing = await RequireCustomsPackingAsync(packingId);
         if (!string.IsNullOrWhiteSpace(packing.CustomsDeclarationId))
-            return;
+        {
+            var linkedDec = await _declarationRepo.GetByIdAsync(packing.CustomsDeclarationId.Trim());
+            if (linkedDec != null && !linkedDec.IsDeleted)
+                return;
+
+            await ClearOrphanDeclarationLinkAsync(packing, actingUserId);
+            packing = await RequireCustomsPackingAsync(packingId);
+        }
 
         if (string.IsNullOrWhiteSpace(packing.CustomsBrokerId))
             throw new InvalidOperationException("报关装箱单缺少报关公司，不能确认。");
@@ -246,6 +256,49 @@ public class CustomsV2FlowService : ICustomsV2FlowService
         _logger.LogInformation(
             "CustomsV2 declaration generated PackingId={PackingId} DeclarationId={DeclarationId} Code={Code} Lines={Lines}",
             packing.Id, decId, decCode, items.Count);
+    }
+
+    public async Task EnsureCustomsDeclarationForPackingAsync(
+        string packingId,
+        string? actingUserId,
+        CancellationToken cancellationToken = default)
+    {
+        _ = cancellationToken;
+        var id = packingId?.Trim() ?? string.Empty;
+        if (string.IsNullOrEmpty(id))
+            throw new ArgumentException("装箱单 ID 无效", nameof(packingId));
+
+        var packing = await RequireCustomsPackingAsync(id);
+        if (packing.Status < PackingStatusCode.Confirmed)
+            throw new InvalidOperationException("请先确认装箱单后再补生成报关单。");
+        if (packing.Status >= PackingStatusCode.StockOutFinished)
+            throw new InvalidOperationException("装箱单已出库完成，不能补生成报关单。");
+
+        await ClearOrphanDeclarationLinkAsync(packing, actingUserId);
+        packing = await RequireCustomsPackingAsync(id);
+
+        if (!string.IsNullOrWhiteSpace(packing.CustomsDeclarationId))
+        {
+            var existingDec = await _declarationRepo.GetByIdAsync(packing.CustomsDeclarationId.Trim());
+            if (existingDec != null && !existingDec.IsDeleted)
+                return;
+        }
+
+        await GenerateDeclarationOnPackingConfirmAsync(id, actingUserId, cancellationToken);
+
+        var completedTask = (await _pickingTaskRepo.FindAsync(t =>
+                !t.IsDeleted && t.PackingId != null && t.PackingId == id && t.Status == 100))
+            .OrderByDescending(t => t.ModifyTime ?? DateTime.MinValue)
+            .ThenByDescending(t => t.CreateTime)
+            .FirstOrDefault();
+        if (completedTask != null)
+        {
+            await WritebackDeclarationItemsAfterPickingAsync(
+                id,
+                completedTask.Id,
+                actingUserId,
+                cancellationToken);
+        }
     }
 
     public async Task WritebackDeclarationItemsAfterPickingAsync(
@@ -557,7 +610,30 @@ public class CustomsV2FlowService : ICustomsV2FlowService
             if (row.Status == CustomsPendlistStatusCode.Cancelled || row.Status == CustomsPendlistStatusCode.Closed)
                 continue;
 
-            row.Status = CustomsPendlistStatusCode.Open;
+            var customsNotifyStillActive = false;
+            if (!string.IsNullOrWhiteSpace(row.CustomsStockOutNotifyId))
+            {
+                var customsSor = await _stockOutRequestRepo.GetByIdAsync(row.CustomsStockOutNotifyId.Trim());
+                if (customsSor != null && !customsSor.IsDeleted)
+                {
+                    customsNotifyStillActive = true;
+                    if (customsSor.CustomsStatus == StockOutNotifyCustomsStatusCode.InCustoms)
+                    {
+                        customsSor.CustomsStatus = StockOutNotifyCustomsStatusCode.PendingCustoms;
+                        customsSor.ModifyTime = now;
+                        customsSor.ModifyByUserId = actor;
+                        await _stockOutRequestRepo.UpdateAsync(customsSor);
+                    }
+                }
+                else
+                {
+                    row.CustomsStockOutNotifyId = null;
+                }
+            }
+
+            row.Status = customsNotifyStillActive
+                ? CustomsPendlistStatusCode.CustomsOutNotifyCreated
+                : CustomsPendlistStatusCode.Open;
             row.ModifyTime = now;
             row.ModifyByUserId = actor;
             await _pendlistRepo.UpdateAsync(row);
@@ -571,20 +647,6 @@ public class CustomsV2FlowService : ICustomsV2FlowService
                 salesSor.ModifyTime = now;
                 salesSor.ModifyByUserId = actor;
                 await _stockOutRequestRepo.UpdateAsync(salesSor);
-            }
-
-            if (!string.IsNullOrWhiteSpace(row.CustomsStockOutNotifyId))
-            {
-                var customsSor = await _stockOutRequestRepo.GetByIdAsync(row.CustomsStockOutNotifyId.Trim());
-                if (customsSor != null
-                    && !customsSor.IsDeleted
-                    && customsSor.CustomsStatus == StockOutNotifyCustomsStatusCode.InCustoms)
-                {
-                    customsSor.CustomsStatus = StockOutNotifyCustomsStatusCode.PendingCustoms;
-                    customsSor.ModifyTime = now;
-                    customsSor.ModifyByUserId = actor;
-                    await _stockOutRequestRepo.UpdateAsync(customsSor);
-                }
             }
         }
 
@@ -677,6 +739,28 @@ public class CustomsV2FlowService : ICustomsV2FlowService
         dec.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
         await _declarationRepo.UpdateAsync(dec);
         await _unitOfWork.SaveChangesAsync();
+    }
+
+    private async Task ClearOrphanDeclarationLinkAsync(Packing packing, string? actingUserId)
+    {
+        var decId = packing.CustomsDeclarationId?.Trim() ?? string.Empty;
+        if (string.IsNullOrEmpty(decId))
+            return;
+
+        var dec = await _declarationRepo.GetByIdAsync(decId);
+        if (dec != null && !dec.IsDeleted)
+            return;
+
+        packing.CustomsDeclarationId = null;
+        packing.ModifyTime = DateTime.UtcNow;
+        packing.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
+        await _packingRepo.UpdateAsync(packing);
+        await _unitOfWork.SaveChangesAsync();
+
+        _logger.LogWarning(
+            "Cleared orphan customs declaration link PackingId={PackingId} DeclarationId={DeclarationId}",
+            packing.Id,
+            decId);
     }
 
     private async Task<Packing> RequireCustomsPackingAsync(string packingId)
@@ -882,9 +966,78 @@ public class CustomsV2FlowService : ICustomsV2FlowService
     private async Task<CustomsDeclarationItem?> FindDeclarationItemByCustomsStockOutNotifyAsync(string customsStockOutNotifyId)
     {
         var key = customsStockOutNotifyId.Trim();
-        var items = (await _declarationItemRepo.FindAsync(i =>
+        var direct = (await _declarationItemRepo.FindAsync(i =>
             i.CustomsStockOutNotifyId == key && !i.IsDeleted)).ToList();
-        return items.OrderBy(i => i.LineNo).FirstOrDefault();
+        if (direct.Count > 0)
+            return direct.OrderBy(i => i.LineNo).FirstOrDefault();
+
+        var sor = await _stockOutRequestRepo.GetByIdAsync(key);
+        if (sor == null || sor.IsDeleted)
+            return null;
+
+        var candidates = new List<CustomsDeclarationItem>();
+
+        var pendlistId = sor.CustomsPendlistId?.Trim();
+        if (!string.IsNullOrEmpty(pendlistId))
+        {
+            candidates.AddRange(await _declarationItemRepo.FindAsync(i =>
+                i.CustomsPendlistId == pendlistId && !i.IsDeleted));
+        }
+
+        if (candidates.Count == 0)
+        {
+            var packingItems = (await _packingItemRepo.FindAsync(pi =>
+                pi.StockOutNotifyId == key && !pi.IsDeleted)).ToList();
+            var packingItemIds = packingItems
+                .Select(pi => pi.Id.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            foreach (var piId in packingItemIds)
+            {
+                candidates.AddRange(await _declarationItemRepo.FindAsync(i =>
+                    i.PackingItemId == piId && !i.IsDeleted));
+            }
+        }
+
+        candidates = candidates
+            .GroupBy(i => i.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First())
+            .ToList();
+        if (candidates.Count == 0)
+            return null;
+
+        await ResyncDeclarationItemsCustomsNotifyIdAsync(candidates, key);
+        return candidates.OrderBy(i => i.LineNo).FirstOrDefault();
+    }
+
+    private async Task ResyncDeclarationItemsCustomsNotifyIdAsync(
+        IReadOnlyList<CustomsDeclarationItem> items,
+        string customsStockOutNotifyId)
+    {
+        if (items.Count == 0)
+            return;
+
+        var key = customsStockOutNotifyId.Trim();
+        var now = DateTime.UtcNow;
+        var changed = false;
+        foreach (var item in items)
+        {
+            if (string.Equals(item.CustomsStockOutNotifyId?.Trim(), key, StringComparison.OrdinalIgnoreCase))
+                continue;
+            item.CustomsStockOutNotifyId = key;
+            item.ModifyTime = now;
+            await _declarationItemRepo.UpdateAsync(item);
+            changed = true;
+        }
+
+        if (!changed)
+            return;
+
+        await _unitOfWork.SaveChangesAsync();
+        _logger.LogWarning(
+            "已回写报关明细 CustomsStockOutNotifyId={NotifyId}，共 {Count} 行（报关出库通知曾变更）",
+            key,
+            items.Count);
     }
 
     private async Task<string> ResolveDefaultDomesticWarehouseIdAsync()

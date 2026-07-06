@@ -183,6 +183,35 @@ export interface PurchaseOrderLineOverview {
   purchaseInvoice: PurchaseOrderLineOverviewAmountMetric
 }
 
+export interface PurchaseOrderItemListLineRow {
+  purchaseOrderItemId: string
+  purchaseOrderId: string
+  purchaseOrderItemCode?: string
+  purchaseOrderCode?: string
+  freightForwarderOrderNo?: string | null
+  purchaseOrderType?: number
+  vendorId?: string | null
+  vendorName?: string | null
+  vendorEnglishName?: string | null
+  itemStatus?: number
+  purchaseProgressStatus?: number
+  stockInProgressStatus?: number
+  paymentRequestProgressStatus?: number
+  paymentProgressStatus?: number
+  invoiceProgressStatus?: number
+  orderCreateTime?: string | null
+  createTime?: string | null
+  purchaseUserName?: string | null
+  createUserName?: string | null
+  createdBy?: string | null
+  pn?: string | null
+  brand?: string | null
+  qty?: number
+  cost?: number
+  lineTotal?: number
+  currency?: number
+}
+
 // 采购订单API
 export const purchaseOrderApi = {
   // 获取采购订单列表（分页，与后端 PurchaseOrdersController 一致）

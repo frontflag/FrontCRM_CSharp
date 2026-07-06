@@ -11,8 +11,16 @@ public interface IArrivalNoticeListQuery
         string? freightForwarderOrderNo,
         DateTime? expectedArrivalDate,
         string? noticeId,
+        short? stockInType,
         int page,
         int pageSize,
         string? currentUserId = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>按 Id 批量返回到货通知列表行（与 <see cref="GetPagedAsync"/> 列表字段一致）。</summary>
+    Task<List<StockInNotify>> GetByIdsAsync(
+        IReadOnlyList<string> ids,
+        string? currentUserId = null,
+        bool applyDataScope = true,
         CancellationToken cancellationToken = default);
 }

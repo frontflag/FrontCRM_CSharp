@@ -24,6 +24,21 @@
           <el-option :label="t('arrivalNoticeList.status.qcDone')" :value="30" />
           <el-option :label="t('arrivalNoticeList.status.stocked')" :value="100" />
         </el-select>
+        <el-select
+          v-model="filters.stockInType"
+          clearable
+          :placeholder="t('arrivalNoticeList.filters.arrivalTypePlaceholder')"
+          class="arrival-type-select"
+          :teleported="false"
+          @change="loadData"
+        >
+          <el-option
+            v-for="v in STOCK_IN_TYPE_FILTER_VALUES"
+            :key="v"
+            :label="arrivalTypeLabel(v)"
+            :value="v"
+          />
+        </el-select>
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
             <circle cx="11" cy="11" r="8" />
@@ -78,6 +93,9 @@
     >
       <template #col-status="{ row }">
         <el-tag effect="dark" :type="statusType(row.status)">{{ statusText(row.status) }}</el-tag>
+      </template>
+      <template #col-stockInType="{ row }">
+        <StockBizTypeTag biz="in" :type="row.stockInType" />
       </template>
       <template #col-pn="{ row }">{{ displayPn(row) }}</template>
       <template #col-brand="{ row }">{{ displayBrand(row) }}</template>
@@ -274,18 +292,22 @@ import { ElMessage } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import { logisticsApi, type StockInNotifyDto, type StockInNotifyItemDto } from '@/api/logistics'
 import { normalizeRegionType, REGION_TYPE_OVERSEAS } from '@/constants/regionType'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { formatDisplayDate, formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
+import { buildArrivalNoticeListColumns } from '@/composables/buildArrivalNoticeListColumns'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import VendorNameReadonlyText from '@/components/Vendor/VendorNameReadonlyText.vue'
+import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
+import { StockInTypeCode, STOCK_IN_TYPE_FILTER_VALUES } from '@/constants/stockInType'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const authStore = useAuthStore()
 const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const router = useRouter()
+const route = useRoute()
 const { t, locale } = useI18n()
 const { ensureLoaded: ensureLogisticsDict, shipmentArrivalOptions } = useLogisticsFormDict()
 const loading = ref(false)
@@ -313,68 +335,12 @@ function toggleOpCol() {
 
 const arrivalNoticeColumns = computed<CrmTableColumnDef[]>(() => {
   void locale.value
-  return [
-    { key: 'status', label: t('arrivalNoticeList.columns.status'), prop: 'status', width: 110, align: 'center' },
-    { key: 'pn', label: t('arrivalNoticeList.columns.pn'), minWidth: 120, showOverflowTooltip: true },
-    { key: 'brand', label: t('arrivalNoticeList.columns.brand'), width: 100, showOverflowTooltip: true },
-    {
-      key: 'expectedArrivalDate',
-      label: t('arrivalNoticeList.columns.expectedArrivalDate'),
-      width: 130,
-      align: 'center'
-    },
-    {
-      key: 'shipmentMethod',
-      label: t('arrivalNoticeList.columns.expectedArrivalMethod'),
-      width: 136,
-      minWidth: 136,
-      align: 'center',
-      showOverflowTooltip: true
-    },
-    {
-      key: 'courierTrackingNo',
-      label: t('arrivalNoticeList.columns.expectedArrivalExpressNo'),
-      width: 184,
-      minWidth: 184,
-      showOverflowTooltip: true
-    },
-    { key: 'vendorName', label: t('arrivalNoticeList.columns.vendorName'), prop: 'vendorName', minWidth: 160 },
-    { key: 'purchaseUserName', label: t('arrivalNoticeList.columns.purchaseUserName'), prop: 'purchaseUserName', width: 120 },
-    { key: 'expectQty', label: t('arrivalNoticeList.columns.expectQty'), width: 120, minWidth: 120, align: 'right' },
-    { key: 'receiveQty', label: t('arrivalNoticeList.columns.receiveQty'), width: 120, minWidth: 120, align: 'right' },
-    { key: 'passedQty', label: t('arrivalNoticeList.columns.passedQty'), width: 120, minWidth: 120, align: 'right' },
-    {
-      key: 'regionType',
-      label: t('arrivalNoticeList.columns.arrivalRegion'),
-      width: 100,
-      align: 'center'
-    },
-    { key: 'noticeCode', label: t('arrivalNoticeList.columns.noticeCode'), prop: 'noticeCode', width: 170 },
-    { key: 'purchaseOrderCode', label: t('arrivalNoticeList.columns.purchaseOrderCode'), prop: 'purchaseOrderCode', width: 160 },
-    {
-      key: 'freightForwarderOrderNo',
-      label: t('common.freightForwarderOrderNo'),
-      prop: 'freightForwarderOrderNo',
-      width: 160,
-      minWidth: 140,
-      showOverflowTooltip: true
-    },
-    { key: 'createTime', label: t('arrivalNoticeList.columns.createTime'), prop: 'createTime', width: 170 },
-    { key: 'createUser', label: t('arrivalNoticeList.columns.createUser'), width: 120, showOverflowTooltip: true },
-    {
-      key: 'actions',
-      label: t('arrivalNoticeList.columns.actions'),
-      width: opColWidth.value,
-      minWidth: opColMinWidth.value,
-      fixed: 'right',
-      hideable: false,
-      pinned: 'end',
-      reorderable: false,
-      className: 'op-col',
-      labelClassName: 'op-col',
-    resizable: false
-    }
-  ]
+  return buildArrivalNoticeListColumns({
+    t,
+    opColWidth: opColWidth.value,
+    opColMinWidth: opColMinWidth.value,
+    withActions: true
+  })
 })
 
 const itemsVisible = ref(false)
@@ -384,15 +350,24 @@ const detailNotice = ref<StockInNotifyDto | null>(null)
 const arrivalDetailLabelStyle = { minWidth: '8.5em', whiteSpace: 'nowrap' as const }
 const filters = ref<{
   status?: number
+  stockInType?: number
   purchaseOrderCode: string
   freightForwarderOrderNo: string
   expectedArrivalDate: string
 }>({
   status: undefined,
+  stockInType: undefined,
   purchaseOrderCode: '',
   freightForwarderOrderNo: '',
   expectedArrivalDate: ''
 })
+
+function arrivalTypeLabel(type: number): string {
+  if (type === StockInTypeCode.Customs) return t('stockInList.stockInTypeLabels.customs')
+  if (type === StockInTypeCode.Return) return t('stockInList.stockInTypeLabels.return')
+  if (type === StockInTypeCode.Scrap) return t('stockInList.stockInTypeLabels.scrap')
+  return t('stockInList.stockInTypeLabels.purchase')
+}
 
 const num = (v: unknown) => Number(v ?? 0)
 
@@ -487,12 +462,15 @@ function onArrivalPageSizeChange() {
 function applyArrivalList(resetPage: boolean) {
   if (resetPage) listPage.value = 1
   loading.value = true
+  const noticeIdFromRoute = String(route.query.noticeId ?? '').trim() || undefined
   logisticsApi
     .getArrivalNotices({
       status: filters.value.status,
+      stockInType: filters.value.stockInType,
       purchaseOrderCode: filters.value.purchaseOrderCode.trim() || undefined,
       freightForwarderOrderNo: filters.value.freightForwarderOrderNo.trim() || undefined,
       expectedArrivalDate: filters.value.expectedArrivalDate || undefined,
+      id: noticeIdFromRoute,
       page: listPage.value,
       pageSize: listPageSize.value
     })
@@ -511,6 +489,7 @@ const refreshArrivalList = () => applyArrivalList(false)
 const resetFilters = () => {
   filters.value = {
     status: undefined,
+    stockInType: undefined,
     purchaseOrderCode: '',
     freightForwarderOrderNo: '',
     expectedArrivalDate: ''
@@ -568,6 +547,13 @@ const onDetailClosed = () => {
 }
 
 loadData()
+
+watch(
+  () => route.query.noticeId,
+  () => {
+    applyArrivalList(true)
+  }
+)
 
 onMounted(async () => {
   try {
@@ -677,7 +663,8 @@ html[data-theme='dark'] .inv-list-qty {
   }
 }
 
-.status-select {
+.status-select,
+.arrival-type-select {
   width: 140px;
   :deep(.el-select__wrapper) {
     background: $layer-2 !important;

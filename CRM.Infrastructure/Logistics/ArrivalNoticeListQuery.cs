@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
 using CRM.Infrastructure.Data;
@@ -26,6 +27,7 @@ public sealed class ArrivalNoticeListQuery : IArrivalNoticeListQuery
         string? freightForwarderOrderNo,
         DateTime? expectedArrivalDate,
         string? noticeId,
+        short? stockInType,
         int page,
         int pageSize,
         string? currentUserId = null,
@@ -47,10 +49,18 @@ public sealed class ArrivalNoticeListQuery : IArrivalNoticeListQuery
         if (status.HasValue)
             q = q.Where(x => x.Status == status.Value);
 
+        if (stockInType.HasValue)
+        {
+            var type = StockInTypeCode.NormalizeForNotify(stockInType.Value);
+            q = q.Where(x => x.StockInType == type);
+        }
+
         if (!string.IsNullOrWhiteSpace(purchaseOrderCode))
         {
             var k = purchaseOrderCode.Trim().ToLowerInvariant();
-            q = q.Where(x => x.PurchaseOrderCode.ToLower().Contains(k));
+            q = q.Where(x =>
+                (x.PurchaseOrderCode != null && x.PurchaseOrderCode.ToLower().Contains(k))
+                || (x.NoticeCode != null && x.NoticeCode.ToLower().Contains(k)));
         }
 
         if (!string.IsNullOrWhiteSpace(freightForwarderOrderNo))
@@ -78,22 +88,81 @@ public sealed class ArrivalNoticeListQuery : IArrivalNoticeListQuery
             .Take(ps)
             .ToListAsync(cancellationToken);
 
-        if (rows.Count == 0)
+        if (rows.Count > 0)
+            await EnrichRowsAsync(rows, cancellationToken);
+
+        return new PagedResult<StockInNotify>
         {
-            return new PagedResult<StockInNotify>
-            {
-                Items = rows,
-                TotalCount = total,
-                PageIndex = p,
-                PageSize = ps
-            };
+            Items = rows,
+            TotalCount = total,
+            PageIndex = p,
+            PageSize = ps
+        };
+    }
+
+    /// <inheritdoc />
+    public async Task<List<StockInNotify>> GetByIdsAsync(
+        IReadOnlyList<string> ids,
+        string? currentUserId = null,
+        bool applyDataScope = true,
+        CancellationToken cancellationToken = default)
+    {
+        if (ids == null || ids.Count == 0)
+            return new List<StockInNotify>();
+
+        var idList = ids
+            .Select(x => x?.Trim())
+            .Where(x => !string.IsNullOrEmpty(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Cast<string>()
+            .ToList();
+        if (idList.Count == 0)
+            return new List<StockInNotify>();
+
+        var q = _db.StockInNotifies.AsNoTracking()
+            .Where(x => !x.IsDeleted && idList.Contains(x.Id));
+        if (applyDataScope)
+        {
+            q = await PurchaseOrderDataScopeQueryHelper.FilterArrivalNoticesAsync(
+                _dataPermission, _db, currentUserId, q, cancellationToken);
         }
 
+        var loaded = await q.ToListAsync(cancellationToken);
+        if (loaded.Count == 0)
+            return new List<StockInNotify>();
+
+        await EnrichRowsAsync(loaded, cancellationToken);
+
+        var byId = loaded.ToDictionary(x => x.Id.Trim(), x => x, StringComparer.OrdinalIgnoreCase);
+        var result = new List<StockInNotify>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var id in ids)
+        {
+            var key = id.Trim();
+            if (!seen.Add(key))
+                continue;
+            if (byId.TryGetValue(key, out var row))
+                result.Add(row);
+        }
+
+        return result;
+    }
+
+    private async Task EnrichRowsAsync(IReadOnlyList<StockInNotify> rows, CancellationToken cancellationToken)
+    {
+        if (rows.Count == 0)
+            return;
+
         var poIds = rows.Select(x => x.PurchaseOrderId).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToList();
-        var poMeta = await _db.PurchaseOrders.AsNoTracking()
-            .Where(po => poIds.Contains(po.Id))
-            .Select(po => new { po.Id, po.VendorCode, po.FreightForwarderOrderNo })
-            .ToDictionaryAsync(x => x.Id, x => x, cancellationToken);
+        var poMeta = poIds.Count == 0
+            ? new Dictionary<string, (string? VendorCode, string? FreightForwarderOrderNo)>(StringComparer.OrdinalIgnoreCase)
+            : await _db.PurchaseOrders.AsNoTracking()
+                .Where(po => poIds.Contains(po.Id))
+                .Select(po => new { po.Id, po.VendorCode, po.FreightForwarderOrderNo })
+                .ToDictionaryAsync(
+                    x => x.Id,
+                    x => (x.VendorCode, x.FreightForwarderOrderNo),
+                    cancellationToken);
 
         foreach (var row in rows)
         {
@@ -102,6 +171,7 @@ public sealed class ArrivalNoticeListQuery : IArrivalNoticeListQuery
                 row.VendorCode = meta.VendorCode;
                 row.FreightForwarderOrderNo = meta.FreightForwarderOrderNo;
             }
+
             AttachItemSnapshot(row);
         }
 
@@ -111,27 +181,23 @@ public sealed class ArrivalNoticeListQuery : IArrivalNoticeListQuery
             .Select(x => x!.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
-        if (vendorIds.Count > 0)
-        {
-            var vendorEnglishMap = await _db.Vendors.AsNoTracking()
-                .Where(v => vendorIds.Contains(v.Id) && v.EnglishOfficialName != null && v.EnglishOfficialName != "")
-                .Select(v => new { v.Id, v.EnglishOfficialName })
-                .ToDictionaryAsync(x => x.Id, x => x.EnglishOfficialName!.Trim(), StringComparer.OrdinalIgnoreCase, cancellationToken);
-            foreach (var row in rows)
-            {
-                var vid = row.VendorId?.Trim();
-                if (!string.IsNullOrEmpty(vid) && vendorEnglishMap.TryGetValue(vid, out var english))
-                    row.VendorEnglishName = english;
-            }
-        }
+        if (vendorIds.Count == 0)
+            return;
 
-        return new PagedResult<StockInNotify>
+        var vendorEnglishMap = await _db.Vendors.AsNoTracking()
+            .Where(v => vendorIds.Contains(v.Id) && v.EnglishOfficialName != null && v.EnglishOfficialName != "")
+            .Select(v => new { v.Id, v.EnglishOfficialName })
+            .ToDictionaryAsync(
+                x => x.Id,
+                x => x.EnglishOfficialName!.Trim(),
+                StringComparer.OrdinalIgnoreCase,
+                cancellationToken);
+        foreach (var row in rows)
         {
-            Items = rows,
-            TotalCount = total,
-            PageIndex = p,
-            PageSize = ps
-        };
+            var vid = row.VendorId?.Trim();
+            if (!string.IsNullOrEmpty(vid) && vendorEnglishMap.TryGetValue(vid, out var english))
+                row.VendorEnglishName = english;
+        }
     }
 
     private static void AttachItemSnapshot(StockInNotify n)

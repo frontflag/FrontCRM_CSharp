@@ -200,7 +200,32 @@ const enUS = {
       createArrivalOk: 'Created {count} arrival notice(s)',
       createArrivalOkWithCodes: 'Created arrival notices: {codes}',
       existingArrivalNotifies: 'Existing arrival notices: {codes}',
-      selectPlaceholder: 'Select'
+      selectPlaceholder: 'Select',
+      captionPrefix: 'Customs declaration',
+      basicInfo: 'Basic information',
+      sectionItems: 'Declaration lines',
+      sectionBusinessRecords: 'Business records',
+      colExchangeRate: 'Exchange rate',
+      colWarehouseRoute: 'Source → target warehouse',
+      colCustomsPacking: 'Customs packing list',
+      businessRecords: {
+        salesOrder: 'Sales order line',
+        purchaseOrder: 'Purchase order line',
+        stockOutNotify: 'Stock-out notify',
+        customsStockOutNotify: 'Customs stock-out notify',
+        customsPacking: 'Customs packing list',
+        customsStockOut: 'Customs stock-out',
+        customsArrivalNotify: 'Customs arrival notice',
+        customsStockIn: 'Customs stock-in',
+        packing: 'Packing list',
+        stockOut: 'Stock-out',
+        colCode: 'Document no.',
+        colStatus: 'Status',
+        colOccurredAt: 'Business time',
+        empty: 'No related documents',
+        sellLineNormal: 'Active',
+        sellLineCancelled: 'Cancelled'
+      }
     },
     items: {
       title: 'Declaration line items',
@@ -3936,7 +3961,8 @@ const enUS = {
       status: 'Status',
       allStatus: 'All statuses',
       poCode: 'PO no.',
-      poCodePlaceholder: 'Enter PO number',
+      poCodePlaceholder: 'PO no. / arrival notice no.',
+      arrivalTypePlaceholder: 'Arrival type',
       expectedDate: 'Expected arrival',
       datePlaceholder: 'Select date',
       search: 'Search',
@@ -3953,6 +3979,7 @@ const enUS = {
     columns: {
       noticeCode: 'Notice no.',
       status: 'Status',
+      arrivalType: 'Arrival type',
       purchaseOrderCode: 'PO no.',
       pn: 'MPN',
       brand: 'Brand',
@@ -3993,6 +4020,66 @@ const enUS = {
     },
     messages: {
       arrivedSuccess: 'Receipt confirmed; awaiting QC.'
+    }
+  },
+  qcDetail: {
+    back: 'Back',
+    createTitle: 'New QC',
+    captionPrefix: 'QC',
+    cancel: 'Cancel',
+    save: 'Save QC',
+    update: 'Update QC',
+    saving: 'Saving…',
+    meta: {
+      notice: 'Arrival notice',
+      createDate: 'Created',
+      createUser: 'Created by'
+    },
+    sections: {
+      supply: 'Supplier info',
+      delivery: 'Delivery info',
+      material: 'Material info',
+      qcInfo: 'QC info',
+      images: 'QC images'
+    },
+    fields: {
+      noticeCode: 'Arrival notice no.',
+      purchaseUser: 'Buyer',
+      purchaseOrderCode: 'PO no.',
+      vendor: 'Vendor',
+      noticeRemark: 'Arrival notice remark',
+      expressNo: 'Tracking no.',
+      deliveryMethod: 'Delivery method',
+      expressMethod: 'Courier method',
+      arrivalDate: 'Arrival date',
+      stockInPlanDate: 'Stock-in date',
+      materialCode: 'Material / MPN',
+      brand: 'Brand',
+      arrivedTotalQty: 'Arrived qty',
+      sampleQty: 'Sample qty',
+      sampleDate: 'Sample date',
+      qcUser: 'Inspector',
+      qcResult: 'QC result',
+      stockInQty: 'Stock-in qty',
+      remark: 'Remark'
+    },
+    qcResult: {
+      pass: 'Passed',
+      partial: 'Partial pass',
+      reject: 'Rejected'
+    },
+    qcUserPlaceholder: 'Select logistics staff',
+    stockInPlanDatePlaceholder: 'For stock-in creation',
+    uploadHintCreate:
+      'New: no QC number yet. The first Save creates the document; selected images upload with that save. Max 8 MB per image, up to 24 images.',
+    uploadHintEdit:
+      'Edit: add images anytime; new selections upload on Save. Removing a saved thumbnail deletes the server document. Re-open from the QC list to view history.',
+    messages: {
+      noticeMissing: 'Arrival notice ID is required.',
+      saveSuccess: 'QC saved.',
+      updateSuccess: 'QC updated.',
+      createFailed: 'Failed to create QC.',
+      updateFailed: 'Failed to update QC.'
     }
   },
   qcList: {
@@ -5129,6 +5216,9 @@ const enUS = {
   stockOutNotifyList: {
     title: 'Stock-Out Notices',
     detailTitle: 'Stock-Out Notice Detail',
+    captionPrefix: 'Stock-out notice',
+    basicInfo: 'Basic information',
+    notFound: 'Stock-out notice not found',
     executeTitle: 'Execute Stock-Out',
     backToNotifyList: 'Back to notices',
     executeSubmit: 'Execute stock-out',
@@ -5250,6 +5340,7 @@ const enUS = {
     },
     columnSettings: 'Column settings',
     detail: {
+      sectionRelated: 'Related records',
       viewOrder: 'View sales order',
       loadRelatedFailed: 'Failed to load related data',
       tabs: {
@@ -5755,6 +5846,8 @@ const enUS = {
     },
     detail: {
       back: 'Back to list',
+      captionPrefix: 'Picking slip',
+      basicInfo: 'Overview',
       sectionHeader: 'Overview',
       sectionPacking: 'Packing info',
       sectionLines: 'Picking lines',

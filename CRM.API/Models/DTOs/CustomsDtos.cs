@@ -7,6 +7,8 @@ public sealed class CustomsDeclarationListItemDto
     public string? PackingId { get; set; }
     /// <summary>列表展示用：取首条明细关联的销售出库通知。</summary>
     public string? StockOutRequestId { get; set; }
+    /// <summary>列表展示用：<see cref="StockOutRequestId"/> 对应业务单号。</summary>
+    public string? StockOutRequestCode { get; set; }
     public string CustomsBrokerId { get; set; } = string.Empty;
     public string? CustomsBrokerName { get; set; }
     public short DeclarationType { get; set; }
@@ -57,6 +59,7 @@ public sealed class CustomsDeclarationDetailViewDto
     public string? PackingId { get; set; }
     public string? PackingCode { get; set; }
     public string? StockOutRequestId { get; set; }
+    public string? StockOutRequestCode { get; set; }
     public string CustomsBrokerId { get; set; } = string.Empty;
     public string? CustomsBrokerName { get; set; }
     public string? CustomsBrokerCode { get; set; }
@@ -72,6 +75,8 @@ public sealed class CustomsDeclarationDetailViewDto
     public string? ToWarehouseCode { get; set; }
     public string? Remark { get; set; }
     public DateTime CreateTime { get; set; }
+    public string? CreateByUserId { get; set; }
+    public string? CreateUserDisplay { get; set; }
     public List<CustomsDeclarationDetailItemViewDto> Items { get; set; } = new();
     /// <summary>是否可人工生成报关到货通知（已结关、已维护目标仓、存在待生成明细）。</summary>
     public bool CanCreateArrivalNotifies { get; set; }

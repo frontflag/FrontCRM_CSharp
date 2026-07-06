@@ -115,7 +115,17 @@ public class CustomsPendlistService : ICustomsPendlistService
         if (pendlist.Status != CustomsPendlistStatusCode.Open)
             throw new InvalidOperationException("仅「待处理」状态的待报关记录可生成报关出库通知。");
         if (!string.IsNullOrWhiteSpace(pendlist.CustomsStockOutNotifyId))
-            throw new InvalidOperationException("该待报关记录已生成报关出库通知，请勿重复操作。");
+        {
+            var linkedCustomsSor = await _stockOutRequestRepo.GetByIdAsync(pendlist.CustomsStockOutNotifyId.Trim());
+            if (linkedCustomsSor != null && !linkedCustomsSor.IsDeleted)
+                throw new InvalidOperationException("该待报关记录已生成报关出库通知，请勿重复操作。");
+
+            pendlist.CustomsStockOutNotifyId = null;
+            pendlist.ModifyTime = DateTime.UtcNow;
+            pendlist.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
+            await _pendlistRepo.UpdateAsync(pendlist);
+            await _unitOfWork.SaveChangesAsync();
+        }
 
         var salesSor = await _stockOutRequestRepo.GetByIdAsync(pendlist.SalesStockOutNotifyId.Trim())
                        ?? throw new InvalidOperationException("关联的销售出库通知不存在。");
@@ -234,6 +244,59 @@ public class CustomsPendlistService : ICustomsPendlistService
             row.ModifyByUserId = actor;
             await _pendlistRepo.UpdateAsync(row);
         }
+    }
+
+    public async Task RevertPendlistOnCustomsOutNotifyDeleteAsync(string customsStockOutNotifyId, string? actingUserId)
+    {
+        var key = customsStockOutNotifyId?.Trim() ?? string.Empty;
+        if (string.IsNullOrEmpty(key))
+            return;
+
+        var rows = (await _pendlistRepo.FindAsync(p =>
+                p.CustomsStockOutNotifyId == key && !p.IsDeleted))
+            .ToList();
+
+        var customsSor = await _stockOutRequestRepo.GetByIdAsync(key);
+        if (customsSor != null && !string.IsNullOrWhiteSpace(customsSor.CustomsPendlistId))
+        {
+            var pendlistId = customsSor.CustomsPendlistId.Trim();
+            if (rows.All(r => !string.Equals(r.Id, pendlistId, StringComparison.OrdinalIgnoreCase)))
+            {
+                var byPendlistId = await _pendlistRepo.GetByIdAsync(pendlistId);
+                if (byPendlistId != null && !byPendlistId.IsDeleted)
+                    rows.Add(byPendlistId);
+            }
+        }
+
+        if (rows.Count == 0)
+            return;
+
+        var now = DateTime.UtcNow;
+        var actor = ActingUserIdNormalizer.Normalize(actingUserId);
+        foreach (var row in rows)
+        {
+            if (row.Status == CustomsPendlistStatusCode.Cancelled || row.Status == CustomsPendlistStatusCode.Closed)
+                continue;
+
+            row.CustomsStockOutNotifyId = null;
+            row.Status = CustomsPendlistStatusCode.Open;
+            row.ModifyTime = now;
+            row.ModifyByUserId = actor;
+            await _pendlistRepo.UpdateAsync(row);
+
+            var salesSor = await _stockOutRequestRepo.GetByIdAsync(row.SalesStockOutNotifyId.Trim());
+            if (salesSor != null
+                && !salesSor.IsDeleted
+                && salesSor.CustomsStatus == StockOutNotifyCustomsStatusCode.InCustoms)
+            {
+                salesSor.CustomsStatus = StockOutNotifyCustomsStatusCode.PendingCustoms;
+                salesSor.ModifyTime = now;
+                salesSor.ModifyByUserId = actor;
+                await _stockOutRequestRepo.UpdateAsync(salesSor);
+            }
+        }
+
+        await _unitOfWork.SaveChangesAsync();
     }
 
     private async Task EnsureOverseasStockCoversQtyAsync(string sellOrderItemId, int qty)

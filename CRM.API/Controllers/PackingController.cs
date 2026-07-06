@@ -445,6 +445,33 @@ public class PackingController : ControllerBase
         }
     }
 
+    /// <summary>报关装箱单补生成报关单（强制删除报关单后修复孤儿关联）。</summary>
+    [HttpPost("{id:guid}/regenerate-customs-declaration")]
+    public async Task<ActionResult<ApiResponse<object>>> RegenerateCustomsDeclaration(
+        string id,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            await _packingService.RegenerateCustomsDeclarationAsync(id, actorId, cancellationToken);
+            return Ok(ApiResponse<object>.Ok(new { ok = true }, "报关单已补生成"));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "补生成报关单失败 id={Id}", id);
+            return StatusCode(500, ApiResponse<object>.Fail($"补生成失败: {ex.Message}", 500));
+        }
+    }
+
     /// <summary>备货完成（status 30 → 40）。</summary>
     [HttpPost("{id:guid}/ready")]
     public async Task<ActionResult<ApiResponse<object>>> MarkReady(

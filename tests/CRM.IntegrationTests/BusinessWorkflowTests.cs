@@ -514,6 +514,7 @@ namespace CRM.IntegrationTests
                 Substitute.For<IStockOutRequestListQuery>(),
                 Substitute.For<IStockOutItemListQuery>(),
                 Substitute.For<ICustomsV2FlowService>(),
+                Substitute.For<ICustomsPendlistService>(),
                 Substitute.For<IFinanceReceivableService>());
 
             // 准备销售订单明细
@@ -696,6 +697,7 @@ namespace CRM.IntegrationTests
                 Substitute.For<IStockOutRequestListQuery>(),
                 Substitute.For<IStockOutItemListQuery>(),
                 Substitute.For<ICustomsV2FlowService>(),
+                Substitute.For<ICustomsPendlistService>(),
                 Substitute.For<IFinanceReceivableService>());
 
             var sellOrderItem = new SellOrderItem
@@ -2147,6 +2149,7 @@ namespace CRM.IntegrationTests
                 Substitute.For<IStockOutRequestListQuery>(),
                 Substitute.For<IStockOutItemListQuery>(),
                 Substitute.For<ICustomsV2FlowService>(),
+                Substitute.For<ICustomsPendlistService>(),
                 Substitute.For<IFinanceReceivableService>());
 
             // 模拟出库申请仓储

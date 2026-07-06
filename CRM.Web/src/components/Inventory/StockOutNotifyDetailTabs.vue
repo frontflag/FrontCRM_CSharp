@@ -1,8 +1,20 @@
 <template>
-  <div v-loading="loading" class="detail-card related-tabs-card">
+  <div v-loading="loading" class="stock-out-notify-detail-tabs">
     <el-alert v-if="loadError" type="warning" :closable="false" class="related-alert" :title="loadError" />
-    <el-tabs v-model="activeTab" type="border-card" class="related-tabs">
-      <el-tab-pane :label="t('stockOutNotifyList.detail.tabs.sellLine')" name="sellLine">
+    <div class="tabs-nav">
+      <button
+        v-for="tab in tabs"
+        :key="tab.key"
+        type="button"
+        class="tab-btn"
+        :class="{ 'tab-btn--active': activeTab === tab.key }"
+        @click="activeTab = tab.key"
+      >
+        {{ tab.label }}
+      </button>
+    </div>
+    <div class="tabs-body">
+      <div v-show="activeTab === 'sellLine'">
         <div v-if="!request" class="related-tab-hint">{{ t('stockOutNotifyList.detail.relatedEmpty.noRequest') }}</div>
         <template v-else>
           <div class="related-tab-toolbar">
@@ -120,30 +132,30 @@
             }}</template>
           </CrmDataTable>
         </template>
-      </el-tab-pane>
+      </div>
 
-      <el-tab-pane :label="t('stockOutNotifyList.detail.tabs.packing')" name="packing">
+      <div v-show="activeTab === 'packing'">
         <div class="related-tab-hint">{{ t('stockOutNotifyList.detail.relatedEmpty.noPacking') }}</div>
-        <el-table :data="packingRows" border size="small" class="lines-table" :empty-text="t('stockOutNotifyList.detail.relatedEmpty.noPacking')">
+        <el-table :data="packingRows" border size="small" class="lines-table detail-panel-list-table" :empty-text="t('stockOutNotifyList.detail.relatedEmpty.noPacking')">
           <el-table-column :label="t('stockOutNotifyList.detail.packingColumns.code')" min-width="140" show-overflow-tooltip prop="packingCode" />
           <el-table-column :label="t('stockOutNotifyList.detail.packingColumns.status')" width="100" align="center" prop="status" />
           <el-table-column :label="t('stockOutNotifyList.detail.packingColumns.createTime')" min-width="150" show-overflow-tooltip prop="createTime" />
         </el-table>
-      </el-tab-pane>
+      </div>
 
-      <el-tab-pane :label="t('stockOutNotifyList.detail.tabs.stockOut')" name="stockOut">
+      <div v-show="activeTab === 'stockOut'">
         <div v-if="!requestCodeTrim" class="related-tab-hint">{{ t('stockOutNotifyList.detail.relatedEmpty.noRequestCode') }}</div>
         <el-table
           v-else
           :data="relatedStockOuts"
           border
           size="small"
-          class="lines-table"
+          class="lines-table detail-panel-list-table"
           :empty-text="t('stockOutNotifyList.detail.relatedEmpty.noStockOuts')"
         >
           <el-table-column :label="t('stockOutList.columns.stockOutCode')" min-width="140" show-overflow-tooltip>
             <template #default="{ row }">
-              <router-link v-if="row.id" class="cell-link" :to="{ name: 'StockOutDetail', params: { id: row.id } }">
+              <router-link v-if="row.id" class="link-text" :to="{ name: 'StockOutDetail', params: { id: row.id } }">
                 {{ row.stockOutCode || '—' }}
               </router-link>
               <span v-else>{{ row.stockOutCode || '—' }}</span>
@@ -164,8 +176,8 @@
             <template #default="{ row }">{{ maskSalesCell(row.salesUserName) }}</template>
           </el-table-column>
         </el-table>
-      </el-tab-pane>
-    </el-tabs>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -204,6 +216,12 @@ const salesOrderItemRows = ref<SalesOrderItemLineRow[]>([])
 const relatedStockOuts = ref<StockOutDto[]>([])
 const linkedSalesOrderId = ref('')
 const packingRows = ref<{ packingCode: string; status: string; createTime: string }[]>([])
+
+const tabs = computed(() => [
+  { key: 'sellLine', label: t('stockOutNotifyList.detail.tabs.sellLine') },
+  { key: 'packing', label: t('stockOutNotifyList.detail.tabs.packing') },
+  { key: 'stockOut', label: t('stockOutNotifyList.detail.tabs.stockOut') }
+])
 
 const canViewCustomer = computed(
   () => authStore.hasPermission('customer.info.read') || authStore.hasPermission('sales-order.read')
@@ -408,49 +426,74 @@ watch(
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
 
-.detail-card {
-  background: $layer-2;
-  border-radius: 8px;
-  padding: 16px 18px;
-  margin-bottom: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-}
-.related-tabs-card {
-  position: relative;
-}
 .related-alert {
-  margin-bottom: 12px;
+  margin: 12px 16px 0;
 }
-.related-tabs {
-  --el-tabs-header-height: 40px;
+
+.tabs-nav {
+  display: flex;
+  flex-wrap: wrap;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 0 16px;
+  background: var(--crm-detail-section-header-bg);
 }
-.related-tabs :deep(.el-tabs__content) {
-  padding: 12px 14px 14px;
+
+.tab-btn {
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: $text-muted;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: -1px;
+
+  &:hover {
+    color: $text-secondary;
+  }
+
+  &--active {
+    color: $cyan-primary;
+    border-bottom-color: $cyan-primary;
+  }
 }
+
+.tabs-body {
+  padding: 20px;
+}
+
 .related-tab-hint {
   font-size: 13px;
   color: $text-secondary;
   padding: 8px 0 4px;
 }
+
 .related-tab-toolbar {
   margin-bottom: 10px;
 }
+
 .related-toolbar-link {
   font-size: 13px;
   color: $cyan-primary;
   text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
 }
-.related-toolbar-link:hover {
-  text-decoration: underline;
-}
+
 .lines-table {
   width: 100%;
 }
-.cell-link {
+
+.link-text {
   color: $cyan-primary;
   text-decoration: none;
-}
-.cell-link:hover {
-  text-decoration: underline;
+
+  &:hover {
+    text-decoration: underline;
+  }
 }
 </style>

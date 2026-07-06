@@ -27,6 +27,11 @@ namespace CRM.Core.Interfaces
         /// <summary>分页查询销售订单明细行（含订单头字段），用于明细列表</summary>
         Task<PagedResult<SellOrderItemLineDto>> GetSellOrderItemLinesPagedAsync(SellOrderItemLineQueryRequest request);
 
+        /// <summary>按销售明细 Id 批量加载列表行（含扩展表/门闸等 enrich），供业务详情嵌入场景。</summary>
+        Task<List<SellOrderItemLineDto>> GetSellOrderItemLinesByIdsAsync(
+            IReadOnlyList<string> sellOrderItemIds,
+            CancellationToken cancellationToken = default);
+
         /// <summary>
         /// 销售明细是否满足「已下采购且采购单主状态已达供应商确认(≥30)」——用于申请出库按钮与门闸。
         /// Key 为销售明细 Id（大小写不敏感字典）。

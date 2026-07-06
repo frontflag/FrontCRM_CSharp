@@ -1,4 +1,9 @@
 import apiClient from './client'
+import type { SalesOrderItemLineRow } from '@/stores/salesOrderItemListBasket'
+import type { PurchaseOrderItemListLineRow } from '@/api/purchaseOrder'
+import { normalizeStockOutRequestRow, normalizeStockOutListRow, type StockOutDto, type StockOutRequestDto } from '@/api/stockOut'
+import { normalizePackingListItem, type PackingListItem } from '@/api/packing'
+import { normalizeStockInNotifyRow, type StockInNotifyDto } from '@/api/logistics'
 
 /** 报关公司服务方向：10 深圳、20 香港（与库列 Type 一致）。 */
 export const CustomsBrokerRegionType = {
@@ -57,7 +62,8 @@ export interface CreateCustomsOutNotifyResultDto {
 export interface CustomsDeclarationListItemDto {
   id: string
   declarationCode: string
-  stockOutRequestId: string
+  stockOutRequestId?: string | null
+  stockOutRequestCode?: string | null
   customsBrokerId: string
   customsBrokerName?: string | null
   declarationType: number
@@ -160,6 +166,7 @@ export interface CustomsDeclarationDetailDto {
   packingId?: string | null
   packingCode?: string | null
   stockOutRequestId?: string | null
+  stockOutRequestCode?: string | null
   customsBrokerId: string
   customsBrokerName?: string | null
   customsBrokerCode?: string | null
@@ -175,6 +182,8 @@ export interface CustomsDeclarationDetailDto {
   toWarehouseCode?: string | null
   remark?: string | null
   createTime: string
+  createByUserId?: string | null
+  createUserDisplay?: string | null
   canCreateArrivalNotifies?: boolean
   pendingArrivalNotifyCount?: number
   existingArrivalNotifyCount?: number
@@ -237,6 +246,209 @@ export async function fetchCustomsDeclarations(params: Record<string, unknown>):
 
 export async function fetchCustomsDeclarationById(id: string): Promise<CustomsDeclarationDetailDto> {
   return apiClient.get<CustomsDeclarationDetailDto>(`/api/v1/customs-declarations/${encodeURIComponent(id)}`)
+}
+
+export interface CustomsDeclarationBusinessRecordRowDto {
+  id: string
+  code: string
+  status?: number | null
+  occurredAt?: string | null
+  parentId?: string | null
+}
+
+export interface CustomsDeclarationBusinessRecordsDto {
+  salesOrders: CustomsDeclarationBusinessRecordRowDto[]
+  salesOrderItems: SalesOrderItemLineRow[]
+  stockOutNotifyItems: StockOutRequestDto[]
+  purchaseOrders: CustomsDeclarationBusinessRecordRowDto[]
+  purchaseOrderItems: PurchaseOrderItemListLineRow[]
+  stockOutNotifies: CustomsDeclarationBusinessRecordRowDto[]
+  customsStockOutNotifyItems: StockOutRequestDto[]
+  customsStockOutNotifies: CustomsDeclarationBusinessRecordRowDto[]
+  customsPackings: CustomsDeclarationBusinessRecordRowDto[]
+  customsPackingItems: PackingListItem[]
+  customsStockOuts: CustomsDeclarationBusinessRecordRowDto[]
+  customsStockOutItems: StockOutDto[]
+  customsArrivalNotifies: CustomsDeclarationBusinessRecordRowDto[]
+  customsArrivalNotifyItems: StockInNotifyDto[]
+  customsStockIns: CustomsDeclarationBusinessRecordRowDto[]
+  packings: CustomsDeclarationBusinessRecordRowDto[]
+  packingItems: PackingListItem[]
+  stockOuts: CustomsDeclarationBusinessRecordRowDto[]
+  stockOutItems: StockOutDto[]
+}
+
+export async function fetchCustomsDeclarationBusinessRecords(
+  id: string
+): Promise<CustomsDeclarationBusinessRecordsDto> {
+  const raw = await apiClient.get<Record<string, unknown>>(
+    `/api/v1/customs-declarations/${encodeURIComponent(id)}/business-records`
+  )
+  return normalizeCustomsDeclarationBusinessRecords(raw)
+}
+
+function normalizeRecordRow(raw: unknown): CustomsDeclarationBusinessRecordRowDto {
+  const r = (raw ?? {}) as Record<string, unknown>
+  return {
+    id: String(r.id ?? r.Id ?? ''),
+    code: String(r.code ?? r.Code ?? ''),
+    status: (r.status ?? r.Status) as number | null | undefined,
+    occurredAt: (r.occurredAt ?? r.OccurredAt) as string | null | undefined,
+    parentId: (r.parentId ?? r.ParentId) as string | null | undefined
+  }
+}
+
+function pickRecordRows(raw: Record<string, unknown>, camel: string, pascal: string) {
+  const rows = raw[camel] ?? raw[pascal]
+  if (!Array.isArray(rows)) return []
+  return rows.map(normalizeRecordRow)
+}
+
+function normalizeSalesOrderItemLine(raw: unknown): SalesOrderItemLineRow {
+  const r = (raw ?? {}) as Record<string, unknown>
+  const sellOrderItemId = String(r.sellOrderItemId ?? r.SellOrderItemId ?? '').trim()
+  const qty = Number(r.qty ?? r.Qty)
+  const priceRaw = r.price ?? r.Price
+  const lineTotalRaw = r.lineTotal ?? r.LineTotal
+  let lineTotal: number | undefined
+  if (lineTotalRaw != null && lineTotalRaw !== '') lineTotal = Number(lineTotalRaw)
+  else if (priceRaw != null && priceRaw !== '' && Number.isFinite(Number(priceRaw))) {
+    lineTotal = (Number.isFinite(qty) ? qty : 0) * Number(priceRaw)
+  }
+
+  return {
+    sellOrderItemId,
+    sellOrderId: String(r.sellOrderId ?? r.SellOrderId ?? ''),
+    sellOrderCode: String(r.sellOrderCode ?? r.SellOrderCode ?? ''),
+    sellOrderItemCode: (r.sellOrderItemCode ?? r.SellOrderItemCode) as string | undefined,
+    orderStatus: r.orderStatus ?? r.OrderStatus,
+    orderCreateTime: r.orderCreateTime ?? r.OrderCreateTime,
+    customerId: r.customerId ?? r.CustomerId,
+    customerName: r.customerName ?? r.CustomerName,
+    salesUserName: r.salesUserName ?? r.SalesUserName,
+    pn: r.pn ?? r.PN,
+    brand: r.brand ?? r.Brand,
+    customerSo: r.customerSo ?? r.CustomerSo,
+    customerPn: r.customerPn ?? r.CustomerPn,
+    qty: Number.isFinite(qty) ? qty : 0,
+    price: r.price ?? r.Price,
+    lineTotal,
+    currency: r.currency ?? r.Currency,
+    usdUnitPrice: r.usdUnitPrice ?? r.UsdUnitPrice,
+    usdLineTotal: r.usdLineTotal ?? r.UsdLineTotal,
+    itemStatus: r.itemStatus ?? r.ItemStatus,
+    purchaseProgressStatus: r.purchaseProgressStatus ?? r.PurchaseProgressStatus,
+    stockInProgressStatus: r.stockInProgressStatus ?? r.StockInProgressStatus,
+    stockOutProgressStatus: r.stockOutProgressStatus ?? r.StockOutProgressStatus,
+    stockOutNotifyProgressStatus: r.stockOutNotifyProgressStatus ?? r.StockOutNotifyProgressStatus,
+    receiptProgressStatus: r.receiptProgressStatus ?? r.ReceiptProgressStatus,
+    invoiceProgressStatus: r.invoiceProgressStatus ?? r.InvoiceProgressStatus,
+    salesProfitExpected: r.salesProfitExpected ?? r.SalesProfitExpected,
+    profitOutBizUsd: r.profitOutBizUsd ?? r.ProfitOutBizUsd,
+    profitOutRateBiz: r.profitOutRateBiz ?? r.ProfitOutRateBiz
+  } as SalesOrderItemLineRow
+}
+
+function pickSalesOrderItemRows(raw: Record<string, unknown>, camel: string, pascal: string) {
+  const rows = raw[camel] ?? raw[pascal]
+  if (!Array.isArray(rows)) return []
+  return rows.map(normalizeSalesOrderItemLine)
+}
+
+function pickStockOutNotifyItemRows(raw: Record<string, unknown>, camel: string, pascal: string) {
+  const rows = raw[camel] ?? raw[pascal]
+  if (!Array.isArray(rows)) return []
+  return rows.map(normalizeStockOutRequestRow)
+}
+
+function pickPackingItemRows(raw: Record<string, unknown>, camel: string, pascal: string) {
+  const rows = raw[camel] ?? raw[pascal]
+  if (!Array.isArray(rows)) return []
+  return rows.map(normalizePackingListItem)
+}
+
+function pickStockOutItemRows(raw: Record<string, unknown>, camel: string, pascal: string) {
+  const rows = raw[camel] ?? raw[pascal]
+  if (!Array.isArray(rows)) return []
+  return rows.map(normalizeStockOutListRow)
+}
+
+function pickArrivalNotifyItemRows(raw: Record<string, unknown>, camel: string, pascal: string) {
+  const rows = raw[camel] ?? raw[pascal]
+  if (!Array.isArray(rows)) return []
+  return rows.map(normalizeStockInNotifyRow)
+}
+
+function normalizePurchaseOrderItemListLine(raw: unknown): PurchaseOrderItemListLineRow {
+  const r = (raw ?? {}) as Record<string, unknown>
+  const qty = Number(r.qty ?? r.Qty)
+  const costRaw = r.cost ?? r.Cost
+  const lineTotalRaw = r.lineTotal ?? r.LineTotal
+  let lineTotal: number | undefined
+  if (lineTotalRaw != null && lineTotalRaw !== '') lineTotal = Number(lineTotalRaw)
+  else if (costRaw != null && costRaw !== '' && Number.isFinite(Number(costRaw))) {
+    lineTotal = (Number.isFinite(qty) ? qty : 0) * Number(costRaw)
+  }
+
+  return {
+    purchaseOrderItemId: String(r.purchaseOrderItemId ?? r.PurchaseOrderItemId ?? '').trim(),
+    purchaseOrderId: String(r.purchaseOrderId ?? r.PurchaseOrderId ?? '').trim(),
+    purchaseOrderItemCode: (r.purchaseOrderItemCode ?? r.PurchaseOrderItemCode) as string | undefined,
+    purchaseOrderCode: (r.purchaseOrderCode ?? r.PurchaseOrderCode) as string | undefined,
+    freightForwarderOrderNo: (r.freightForwarderOrderNo ?? r.FreightForwarderOrderNo) as string | null | undefined,
+    purchaseOrderType: Number(r.purchaseOrderType ?? r.PurchaseOrderType ?? 0) || undefined,
+    vendorId: (r.vendorId ?? r.VendorId) as string | null | undefined,
+    vendorName: (r.vendorName ?? r.VendorName) as string | null | undefined,
+    vendorEnglishName: (r.vendorEnglishName ?? r.VendorEnglishName) as string | null | undefined,
+    itemStatus: (r.itemStatus ?? r.ItemStatus) as number | undefined,
+    purchaseProgressStatus: (r.purchaseProgressStatus ?? r.PurchaseProgressStatus) as number | undefined,
+    stockInProgressStatus: (r.stockInProgressStatus ?? r.StockInProgressStatus) as number | undefined,
+    paymentRequestProgressStatus: (r.paymentRequestProgressStatus ?? r.PaymentRequestProgressStatus) as number | undefined,
+    paymentProgressStatus: (r.paymentProgressStatus ?? r.PaymentProgressStatus) as number | undefined,
+    invoiceProgressStatus: (r.invoiceProgressStatus ?? r.InvoiceProgressStatus) as number | undefined,
+    orderCreateTime: (r.orderCreateTime ?? r.OrderCreateTime) as string | null | undefined,
+    createTime: (r.createTime ?? r.CreateTime) as string | null | undefined,
+    purchaseUserName: (r.purchaseUserName ?? r.PurchaseUserName) as string | null | undefined,
+    createUserName: (r.createUserName ?? r.CreateUserName) as string | null | undefined,
+    createdBy: (r.createdBy ?? r.CreatedBy) as string | null | undefined,
+    pn: (r.pn ?? r.Pn ?? r.PN) as string | null | undefined,
+    brand: (r.brand ?? r.Brand) as string | null | undefined,
+    qty: Number.isFinite(qty) ? qty : undefined,
+    cost: costRaw != null && costRaw !== '' ? Number(costRaw) : undefined,
+    lineTotal,
+    currency: (r.currency ?? r.Currency) as number | undefined
+  }
+}
+
+function pickPurchaseOrderItemRows(raw: Record<string, unknown>, camel: string, pascal: string) {
+  const rows = raw[camel] ?? raw[pascal]
+  if (!Array.isArray(rows)) return []
+  return rows.map(normalizePurchaseOrderItemListLine)
+}
+
+function normalizeCustomsDeclarationBusinessRecords(raw: unknown): CustomsDeclarationBusinessRecordsDto {
+  const r = (raw ?? {}) as Record<string, unknown>
+  return {
+    salesOrders: pickRecordRows(r, 'salesOrders', 'SalesOrders'),
+    salesOrderItems: pickSalesOrderItemRows(r, 'salesOrderItems', 'SalesOrderItems'),
+    purchaseOrders: pickRecordRows(r, 'purchaseOrders', 'PurchaseOrders'),
+    purchaseOrderItems: pickPurchaseOrderItemRows(r, 'purchaseOrderItems', 'PurchaseOrderItems'),
+    stockOutNotifyItems: pickStockOutNotifyItemRows(r, 'stockOutNotifyItems', 'StockOutNotifyItems'),
+    stockOutNotifies: pickRecordRows(r, 'stockOutNotifies', 'StockOutNotifies'),
+    customsStockOutNotifyItems: pickStockOutNotifyItemRows(r, 'customsStockOutNotifyItems', 'CustomsStockOutNotifyItems'),
+    customsStockOutNotifies: pickRecordRows(r, 'customsStockOutNotifies', 'CustomsStockOutNotifies'),
+    customsPackings: pickRecordRows(r, 'customsPackings', 'CustomsPackings'),
+    customsPackingItems: pickPackingItemRows(r, 'customsPackingItems', 'CustomsPackingItems'),
+    customsStockOuts: pickRecordRows(r, 'customsStockOuts', 'CustomsStockOuts'),
+    customsStockOutItems: pickStockOutItemRows(r, 'customsStockOutItems', 'CustomsStockOutItems'),
+    customsArrivalNotifies: pickRecordRows(r, 'customsArrivalNotifies', 'CustomsArrivalNotifies'),
+    customsArrivalNotifyItems: pickArrivalNotifyItemRows(r, 'customsArrivalNotifyItems', 'CustomsArrivalNotifyItems'),
+    customsStockIns: pickRecordRows(r, 'customsStockIns', 'CustomsStockIns'),
+    packings: pickRecordRows(r, 'packings', 'Packings'),
+    packingItems: pickPackingItemRows(r, 'packingItems', 'PackingItems'),
+    stockOuts: pickRecordRows(r, 'stockOuts', 'StockOuts'),
+    stockOutItems: pickStockOutItemRows(r, 'stockOutItems', 'StockOutItems')
+  }
 }
 
 export async function patchCustomsClearanceStatus(id: string, customsClearanceStatus: number): Promise<void> {

@@ -56,6 +56,7 @@ namespace CRM.Core.Services
         private readonly IStockOutRequestListQuery _stockOutRequestListQuery;
         private readonly IStockOutItemListQuery _stockOutItemListQuery;
         private readonly ICustomsV2FlowService _customsV2FlowService;
+        private readonly ICustomsPendlistService _customsPendlistService;
         private readonly IFinanceReceivableService _financeReceivableService;
 
         public StockOutService(
@@ -93,6 +94,7 @@ namespace CRM.Core.Services
             IStockOutRequestListQuery stockOutRequestListQuery,
             IStockOutItemListQuery stockOutItemListQuery,
             ICustomsV2FlowService customsV2FlowService,
+            ICustomsPendlistService customsPendlistService,
             IFinanceReceivableService financeReceivableService)
         {
             _stockOutRepository = stockOutRepository;
@@ -129,6 +131,7 @@ namespace CRM.Core.Services
             _stockOutRequestListQuery = stockOutRequestListQuery;
             _stockOutItemListQuery = stockOutItemListQuery;
             _customsV2FlowService = customsV2FlowService;
+            _customsPendlistService = customsPendlistService;
             _financeReceivableService = financeReceivableService;
         }
 
@@ -164,7 +167,9 @@ namespace CRM.Core.Services
             // 勿用 string.Equals(..., OrdinalIgnoreCase)：EF Core 无法翻译为 SQL（Npgsql）
             var existingReqs = (await _stockOutRequestRepository.FindAsync(r => r.SalesOrderItemId == lineId))
                 .ToList();
-            var alreadyNotified = existingReqs.Where(r => StockOutRequestStatusCode.IsActiveForQuantitySum(r.Status)).Sum(r => r.Quantity);
+            var alreadyNotified = existingReqs
+                .Where(r => StockOutRequestStatusCode.IsCountedForSalesLineNotifyQuantity(r.Status, r.StockOutType))
+                .Sum(r => r.Quantity);
             var remainingByLine = soItem.Qty - alreadyNotified;
             if (remainingByLine <= 0m)
                 throw new InvalidOperationException("该销售明细可出库通知数量已用尽，无法继续申请");
@@ -299,7 +304,9 @@ namespace CRM.Core.Services
             await EnsureSellLineMeetsStockOutPurchaseGateAsync(lineId);
             var existingReqs = (await _stockOutRequestRepository.FindAsync(r => r.SalesOrderItemId == lineId))
                 .ToList();
-            var alreadyNotified = existingReqs.Where(r => StockOutRequestStatusCode.IsActiveForQuantitySum(r.Status)).Sum(r => r.Quantity);
+            var alreadyNotified = existingReqs
+                .Where(r => StockOutRequestStatusCode.IsCountedForSalesLineNotifyQuantity(r.Status, r.StockOutType))
+                .Sum(r => r.Quantity);
             var remainingNotify = soItem.Qty - alreadyNotified;
             if (remainingNotify < 0m)
                 remainingNotify = 0m;
@@ -639,6 +646,43 @@ namespace CRM.Core.Services
                 PageIndex = paged.PageIndex,
                 PageSize = paged.PageSize
             };
+        }
+
+        public async Task<List<StockOutRequestListItemDto>> GetStockOutRequestListItemsByIdsAsync(
+            IReadOnlyList<string> ids,
+            CancellationToken cancellationToken = default)
+        {
+            if (ids == null || ids.Count == 0)
+                return new List<StockOutRequestListItemDto>();
+
+            var idList = ids
+                .Select(x => x?.Trim())
+                .Where(x => !string.IsNullOrEmpty(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Cast<string>()
+                .ToList();
+            if (idList.Count == 0)
+                return new List<StockOutRequestListItemDto>();
+
+            var reqs = (await _stockOutRequestRepository.FindAsync(r => idList.Contains(r.Id))).ToList();
+            if (reqs.Count == 0)
+                return new List<StockOutRequestListItemDto>();
+
+            var dtoById = (await ProjectStockOutRequestListDtosAsync(reqs))
+                .ToDictionary(d => d.Id.Trim(), d => d, StringComparer.OrdinalIgnoreCase);
+
+            var result = new List<StockOutRequestListItemDto>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var id in ids)
+            {
+                var key = id.Trim();
+                if (!seen.Add(key))
+                    continue;
+                if (dtoById.TryGetValue(key, out var dto))
+                    result.Add(dto);
+            }
+
+            return result;
         }
 
         private async Task<List<StockOutRequestListItemDto>> ProjectStockOutRequestListDtosAsync(
@@ -997,7 +1041,14 @@ namespace CRM.Core.Services
 
             var isCustomsOut = StockOutTypeCode.NormalizeForNotify(stockOutRequest.StockOutType) == StockOutTypeCode.Customs;
             if (isCustomsOut)
+            {
+                if (isPackingBatch && !string.IsNullOrEmpty(executePackingId))
+                    await _customsV2FlowService.EnsureCustomsDeclarationForPackingAsync(executePackingId, actingUserId);
+                else if (packingIds.Count == 1 && !string.IsNullOrEmpty(packingIds[0]))
+                    await _customsV2FlowService.EnsureCustomsDeclarationForPackingAsync(packingIds[0]!, actingUserId);
+
                 await _customsV2FlowService.EnsureCustomsOutReadyAsync(requestId);
+            }
 
             var stockOutCode = string.IsNullOrWhiteSpace(request.StockOutCode)
                 ? await _serialNumberService.GenerateNextAsync(ModuleCodes.StockOut)
@@ -1547,6 +1598,41 @@ namespace CRM.Core.Services
                 PageIndex = paged.PageIndex,
                 PageSize = paged.PageSize
             };
+        }
+
+        public async Task<List<StockOutListItemDto>> GetStockOutListItemsByIdsAsync(
+            IReadOnlyList<string> ids,
+            CancellationToken cancellationToken = default)
+        {
+            if (ids == null || ids.Count == 0)
+                return new List<StockOutListItemDto>();
+
+            var idList = ids
+                .Select(x => x?.Trim())
+                .Where(x => !string.IsNullOrEmpty(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Cast<string>()
+                .ToList();
+            if (idList.Count == 0)
+                return new List<StockOutListItemDto>();
+
+            var loaded = (await _stockOutRepository.FindAsync(x => idList.Contains(x.Id))).ToList();
+            if (loaded.Count == 0)
+                return new List<StockOutListItemDto>();
+
+            var byId = loaded.ToDictionary(x => x.Id.Trim(), x => x, StringComparer.OrdinalIgnoreCase);
+            var ordered = new List<StockOut>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var id in ids)
+            {
+                var key = id.Trim();
+                if (!seen.Add(key))
+                    continue;
+                if (byId.TryGetValue(key, out var ent))
+                    ordered.Add(ent);
+            }
+
+            return await ProjectStockOutListDtosForOutsAsync(ordered);
         }
 
         private async Task<List<StockOutListItemDto>> ProjectStockOutListDtosForOutsAsync(IReadOnlyList<StockOut> outs)
@@ -2690,6 +2776,13 @@ namespace CRM.Core.Services
             var guard = await _forceDeleteGuard.CanForceDeleteStockOutRequestAsync(entity.Id);
             if (!guard.CanDelete)
                 throw new ArgumentException(guard.Message);
+
+            if (StockOutTypeCode.NormalizeForNotify(entity.StockOutType) == StockOutTypeCode.Customs)
+            {
+                await _customsPendlistService.RevertPendlistOnCustomsOutNotifyDeleteAsync(
+                    entity.Id,
+                    actingUserId);
+            }
 
             await _stockOutRequestRepository.DeleteAsync(entity.Id);
             await _unitOfWork.SaveChangesAsync();

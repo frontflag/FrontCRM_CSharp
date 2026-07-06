@@ -181,4 +181,72 @@ public sealed class PurchaseOrderItemListQuery : IPurchaseOrderItemListQuery
             PageSize = pageSize
         };
     }
+
+    /// <inheritdoc />
+    public async Task<List<PurchaseOrderItemListLineRaw>> GetByIdsAsync(
+        IReadOnlyList<string> purchaseOrderItemIds,
+        string? currentUserId = null,
+        bool applyDataScope = true,
+        CancellationToken cancellationToken = default)
+    {
+        if (purchaseOrderItemIds == null || purchaseOrderItemIds.Count == 0)
+            return new List<PurchaseOrderItemListLineRaw>();
+
+        var idList = purchaseOrderItemIds
+            .Select(x => x?.Trim())
+            .Where(x => !string.IsNullOrEmpty(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Cast<string>()
+            .ToList();
+        if (idList.Count == 0)
+            return new List<PurchaseOrderItemListLineRaw>();
+
+        var poQuery = _db.PurchaseOrders.AsNoTracking();
+        if (applyDataScope)
+        {
+            poQuery = await _dataPermission.ApplyPurchaseOrderDataScopeAsync(
+                currentUserId,
+                poQuery,
+                cancellationToken);
+        }
+
+        return await (
+                from item in _db.PurchaseOrderItems.AsNoTracking()
+                where idList.Contains(item.Id)
+                join po in poQuery on item.PurchaseOrderId equals po.Id
+                join ext in _db.PurchaseOrderItemExtends.AsNoTracking() on item.Id equals ext.Id into extGroup
+                from ext in extGroup.DefaultIfEmpty()
+                select new PurchaseOrderItemListLineRaw
+                {
+                    PurchaseOrderItemId = item.Id,
+                    PurchaseOrderId = item.PurchaseOrderId,
+                    PurchaseOrderItemCode = item.PurchaseOrderItemCode,
+                    PurchaseOrderCode = po.PurchaseOrderCode,
+                    FreightForwarderOrderNo = po.FreightForwarderOrderNo,
+                    PurchaseOrderType = po.Type >= 1 && po.Type <= 3 ? po.Type : (short)1,
+                    OrderStatus = po.Status,
+                    OrderCreateTime = po.CreateTime,
+                    PurchaseUserName = po.PurchaseUserName,
+                    CreateByUserId = po.CreateByUserId,
+                    VendorId = item.VendorId,
+                    VendorName = po.VendorName,
+                    Pn = item.PN,
+                    Brand = item.Brand,
+                    ItemStatus = item.Status,
+                    FinancePaymentStatus = item.FinancePaymentStatus,
+                    PurchaseProgressStatus = ext != null ? ext.PurchaseProgressStatus : (short)0,
+                    StockInProgressStatus = ext != null ? ext.StockInProgressStatus : (short)0,
+                    PaymentProgressStatus = ext != null ? ext.PaymentProgressStatus : (short)0,
+                    InvoiceProgressStatus = ext != null ? ext.InvoiceProgressStatus : (short)0,
+                    PaymentAmount = ext != null
+                        ? ext.PaymentAmount
+                        : Math.Round(item.Qty * item.Cost, 2, MidpointRounding.AwayFromZero),
+                    PaymentAmountRequested = ext != null ? ext.PaymentAmountRequested : 0m,
+                    Qty = item.Qty,
+                    Cost = item.Cost,
+                    Currency = item.Currency,
+                    DeliveryDate = item.DeliveryDate
+                })
+            .ToListAsync(cancellationToken);
+    }
 }

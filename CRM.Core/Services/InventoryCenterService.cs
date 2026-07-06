@@ -62,15 +62,21 @@ namespace CRM.Core.Services
         private async Task ApplyPurchasePnBrandFromStockInLineAsync(StockInfo stock, StockInItem line)
         {
             var key = line.MaterialId?.Trim();
-            if (string.IsNullOrEmpty(key))
-                return;
+            PurchaseOrderItem? poi = null;
+            if (!string.IsNullOrEmpty(key))
+                poi = await _purchaseOrderItemRepository.GetByIdAsync(key);
 
-            var poi = await _purchaseOrderItemRepository.GetByIdAsync(key);
-            if (poi == null)
+            if (poi != null)
+            {
+                stock.PurchasePn = string.IsNullOrWhiteSpace(poi.PN) ? null : poi.PN.Trim();
+                stock.PurchaseBrand = string.IsNullOrWhiteSpace(poi.Brand) ? null : poi.Brand.Trim();
                 return;
+            }
 
-            stock.PurchasePn = string.IsNullOrWhiteSpace(poi.PN) ? null : poi.PN.Trim();
-            stock.PurchaseBrand = string.IsNullOrWhiteSpace(poi.Brand) ? null : poi.Brand.Trim();
+            if (!string.IsNullOrWhiteSpace(line.PurchasePn))
+                stock.PurchasePn = line.PurchasePn.Trim();
+            if (!string.IsNullOrWhiteSpace(line.PurchaseBrand))
+                stock.PurchaseBrand = line.PurchaseBrand.Trim();
         }
 
         private async Task<PurchaseOrderItem?> TryGetPoItemByStockInLineAsync(StockInItem line)
@@ -255,8 +261,8 @@ namespace CRM.Core.Services
                 var poiForBucket = await TryGetPoItemByStockInLineAsync(line);
                 extByLineId.TryGetValue(line.Id, out var lineExt);
                 var inboundStockType = await ResolveInboundStockTypeForLineAsync(stockIn, lineExt, poiForBucket);
-                var pnKey = NormStockBucketText(poiForBucket?.PN);
-                var brKey = NormStockBucketText(poiForBucket?.Brand);
+                var pnKey = NormStockBucketText(poiForBucket?.PN ?? line.PurchasePn);
+                var brKey = NormStockBucketText(poiForBucket?.Brand ?? line.PurchaseBrand);
                 var soKey = NormStockBucketText(lineExt?.SellOrderItemId);
                 var whKey = stockIn.WarehouseId?.Trim() ?? string.Empty;
                 var regionKey = RegionTypeCode.Normalize(stockIn.RegionType);
@@ -281,8 +287,12 @@ namespace CRM.Core.Services
                         StockType = inboundStockType,
                         RegionType = RegionTypeCode.Normalize(stockIn.RegionType),
                         CreateTime = DateTime.UtcNow,
-                        PurchasePn = string.IsNullOrWhiteSpace(poiForBucket?.PN) ? null : poiForBucket!.PN!.Trim(),
-                        PurchaseBrand = string.IsNullOrWhiteSpace(poiForBucket?.Brand) ? null : poiForBucket!.Brand!.Trim()
+                        PurchasePn = string.IsNullOrWhiteSpace(poiForBucket?.PN)
+                            ? (string.IsNullOrWhiteSpace(line.PurchasePn) ? null : line.PurchasePn.Trim())
+                            : poiForBucket!.PN!.Trim(),
+                        PurchaseBrand = string.IsNullOrWhiteSpace(poiForBucket?.Brand)
+                            ? (string.IsNullOrWhiteSpace(line.PurchaseBrand) ? null : line.PurchaseBrand.Trim())
+                            : poiForBucket!.Brand!.Trim()
                     };
                     await _stockRepository.AddAsync(stock);
                     allStocks.Add(stock);
@@ -330,8 +340,8 @@ namespace CRM.Core.Services
                     QtyOut = 0,
                     UnitCost = line.Price,
                     Amount = line.Amount,
-                    Currency = line.Currency.GetValueOrDefault((short)CurrencyCode.RMB) > 0
-                        ? line.Currency!.Value
+                    Currency = line.Currency.HasValue && line.Currency.Value > 0
+                        ? line.Currency.Value
                         : (short)CurrencyCode.RMB,
                     Remark = $"入库单 {stockIn.StockInCode}",
                     CreateTime = DateTime.UtcNow
