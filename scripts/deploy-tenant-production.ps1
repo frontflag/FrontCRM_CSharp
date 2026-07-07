@@ -69,10 +69,13 @@ if ($Tenant -eq 'all') {
     $batchTenants = @('semicore', 'idesemi', 'ecoinf', 'fz')
     $failedTenants = New-Object System.Collections.Generic.List[string]
     $succeededTenants = New-Object System.Collections.Generic.List[string]
+    $tenantResults = New-Object System.Collections.Generic.List[object]
+    $batchStartTime = Get-Date
 
     Write-Host ""
     Write-Host "=== Deploy ALL tenants (sequential) ===" -ForegroundColor Cyan
     Write-Host "Order: $($batchTenants -join ' -> ')" -ForegroundColor Gray
+    Write-Host "Started at: $($batchStartTime.ToString('yyyy-MM-dd HH:mm:ss'))" -ForegroundColor Gray
     Write-Host ""
 
     for ($i = 0; $i -lt $batchTenants.Count; $i++) {
@@ -81,12 +84,27 @@ if ($Tenant -eq 'all') {
         Write-Host ">>> Batch $($i + 1)/$($batchTenants.Count): $t" -ForegroundColor Magenta
         Write-Host ""
 
+        $tenantStartTime = Get-Date
         $childParams = Get-DeployTenantChildParams -TargetTenant $t
         & $PSCommandPath @childParams
-        if ($LASTEXITCODE -ne 0) {
+        $tenantExitCode = $LASTEXITCODE
+        $tenantEndTime = Get-Date
+        $tenantElapsedMinutes = [math]::Round(($tenantEndTime - $tenantStartTime).TotalMinutes, 1)
+        $tenantSucceeded = ($tenantExitCode -eq 0)
+
+        $tenantResults.Add([PSCustomObject]@{
+            Tenant         = $t
+            Succeeded      = $tenantSucceeded
+            StartedAt      = $tenantStartTime
+            FinishedAt     = $tenantEndTime
+            ElapsedMinutes = $tenantElapsedMinutes
+            ExitCode       = $tenantExitCode
+        }) | Out-Null
+
+        if (-not $tenantSucceeded) {
             $failedTenants.Add($t) | Out-Null
             Write-Host ""
-            Write-Host "!!! Tenant '$t' deploy failed (exit $LASTEXITCODE); continuing with next tenant..." -ForegroundColor Red
+            Write-Host "!!! Tenant '$t' deploy failed (exit $tenantExitCode); continuing with next tenant..." -ForegroundColor Red
         } else {
             $succeededTenants.Add($t) | Out-Null
         }
@@ -95,9 +113,24 @@ if ($Tenant -eq 'all') {
     $successCount = $succeededTenants.Count
     $failCount = $failedTenants.Count
     $summaryColor = if ($failCount -gt 0) { 'Red' } else { 'Green' }
+    $batchEndTime = Get-Date
+    $elapsedMinutes = [math]::Round(($batchEndTime - $batchStartTime).TotalMinutes, 1)
 
     Write-Host ""
     Write-Host "=== Batch deploy summary ===" -ForegroundColor $summaryColor
+    Write-Host "Started at: $($batchStartTime.ToString('yyyy-MM-dd HH:mm:ss'))" -ForegroundColor Gray
+    Write-Host "Finished at: $($batchEndTime.ToString('yyyy-MM-dd HH:mm:ss'))" -ForegroundColor Gray
+    Write-Host "Elapsed: $elapsedMinutes minute(s)" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "--- Per tenant ---" -ForegroundColor Cyan
+    foreach ($result in $tenantResults) {
+        $statusLabel = if ($result.Succeeded) { 'OK' } else { 'FAILED' }
+        $statusColor = if ($result.Succeeded) { 'Green' } else { 'Red' }
+        $startedText = $result.StartedAt.ToString('yyyy-MM-dd HH:mm:ss')
+        $finishedText = $result.FinishedAt.ToString('yyyy-MM-dd HH:mm:ss')
+        Write-Host ("[{0}] {1,-8} {2} -> {3}  ({4} min)" -f $statusLabel, $result.Tenant, $startedText, $finishedText, $result.ElapsedMinutes) -ForegroundColor $statusColor
+    }
+    Write-Host ""
     Write-Host "Succeeded: $successCount tenant(s)" -ForegroundColor Green
     if ($successCount -gt 0) {
         Write-Host "  Tenants: $($succeededTenants -join ', ')" -ForegroundColor Gray
