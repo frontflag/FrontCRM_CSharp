@@ -66,7 +66,7 @@ function Get-DeployTenantChildParams {
 }
 
 if ($Tenant -eq 'all') {
-    $batchTenants = @('semicore', 'idesemi', 'fz')
+    $batchTenants = @('semicore', 'idesemi', 'ecoinf', 'fz')
     $failedTenants = New-Object System.Collections.Generic.List[string]
     $succeededTenants = New-Object System.Collections.Generic.List[string]
 
