@@ -3,7 +3,9 @@ using CRM.Core.Interfaces;
 using CRM.Core.Models;
 using CRM.Core.Models.Customs;
 using CRM.Core.Models.Inventory;
+using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
+using CRM.Core.Models.Vendor;
 using CRM.Core.Utilities;
 using Microsoft.Extensions.Logging;
 
@@ -22,6 +24,9 @@ public class CustomsV2FlowService : ICustomsV2FlowService
     private readonly IRepository<StockItem> _stockItemRepo;
     private readonly IRepository<SellOrder> _sellOrderRepo;
     private readonly IRepository<SellOrderItem> _sellOrderItemRepo;
+    private readonly IRepository<PurchaseOrder> _purchaseOrderRepo;
+    private readonly IRepository<PurchaseOrderItem> _purchaseOrderItemRepo;
+    private readonly IRepository<VendorInfo> _vendorRepo;
     private readonly IRepository<WarehouseInfo> _warehouseRepo;
     private readonly IRepository<CustomsBroker> _brokerRepo;
     private readonly IRepository<PickingTask> _pickingTaskRepo;
@@ -43,6 +48,9 @@ public class CustomsV2FlowService : ICustomsV2FlowService
         IRepository<StockItem> stockItemRepo,
         IRepository<SellOrder> sellOrderRepo,
         IRepository<SellOrderItem> sellOrderItemRepo,
+        IRepository<PurchaseOrder> purchaseOrderRepo,
+        IRepository<PurchaseOrderItem> purchaseOrderItemRepo,
+        IRepository<VendorInfo> vendorRepo,
         IRepository<WarehouseInfo> warehouseRepo,
         IRepository<CustomsBroker> brokerRepo,
         IRepository<PickingTask> pickingTaskRepo,
@@ -63,6 +71,9 @@ public class CustomsV2FlowService : ICustomsV2FlowService
         _stockItemRepo = stockItemRepo;
         _sellOrderRepo = sellOrderRepo;
         _sellOrderItemRepo = sellOrderItemRepo;
+        _purchaseOrderRepo = purchaseOrderRepo;
+        _purchaseOrderItemRepo = purchaseOrderItemRepo;
+        _vendorRepo = vendorRepo;
         _warehouseRepo = warehouseRepo;
         _brokerRepo = brokerRepo;
         _pickingTaskRepo = pickingTaskRepo;
@@ -349,7 +360,7 @@ public class CustomsV2FlowService : ICustomsV2FlowService
             decItem.SourceStockItemId = layerId;
             decItem.DeclareQty = pickedQty;
             decItem.OriginalPurchasePrice = layer.PurchasePrice;
-            decItem.VendorId = string.IsNullOrWhiteSpace(layer.VendorId) ? null : layer.VendorId.Trim();
+            decItem.VendorId = await ResolveOriginalVendorIdFromStockLayerAsync(layer);
             decItem.ModifyTime = now;
             await _declarationItemRepo.UpdateAsync(decItem);
         }
@@ -812,6 +823,18 @@ public class CustomsV2FlowService : ICustomsV2FlowService
         var cost = decItem.TaxIncludedUnitPrice > 0m ? decItem.TaxIncludedUnitPrice : decItem.DeclareUnitPrice;
         var expectQty = decItem.DeclareQty;
         var expectTotal = Math.Round(expectQty * cost, 2, MidpointRounding.AwayFromZero);
+        var vendorId = string.IsNullOrWhiteSpace(decItem.VendorId) ? null : decItem.VendorId.Trim();
+        string? vendorName = null;
+        if (!string.IsNullOrEmpty(vendorId))
+        {
+            var vendor = await _vendorRepo.GetByIdAsync(vendorId);
+            if (vendor != null)
+            {
+                vendorName = !string.IsNullOrWhiteSpace(vendor.OfficialName) ? vendor.OfficialName.Trim()
+                    : !string.IsNullOrWhiteSpace(vendor.NickName) ? vendor.NickName.Trim()
+                    : vendor.Code?.Trim();
+            }
+        }
 
         return new StockInNotify
         {
@@ -821,7 +844,8 @@ public class CustomsV2FlowService : ICustomsV2FlowService
             PurchaseOrderCode = string.Empty,
             PurchaseOrderItemId = string.Empty,
             SellOrderItemId = decItem.SellOrderItemId,
-            VendorId = decItem.VendorId,
+            VendorId = vendorId,
+            VendorName = vendorName,
             Status = 10,
             ExpectedArrivalDate = now.Date,
             RegionType = RegionTypeCode.Domestic,
@@ -1050,5 +1074,26 @@ public class CustomsV2FlowService : ICustomsV2FlowService
         if (domestic == null || string.IsNullOrWhiteSpace(domestic.Id))
             throw new InvalidOperationException("未找到启用的境内仓库，请先在仓库档案中配置后再确认报关装箱。");
         return domestic.Id.Trim();
+    }
+
+    /// <summary>拣货回写报关明细：优先在库行 VendorId，否则沿采购明细→采购单头解析原供应商。</summary>
+    private async Task<string?> ResolveOriginalVendorIdFromStockLayerAsync(StockItem layer)
+    {
+        if (!string.IsNullOrWhiteSpace(layer.VendorId))
+            return layer.VendorId.Trim();
+
+        var poiId = layer.PurchaseOrderItemId?.Trim();
+        if (string.IsNullOrEmpty(poiId))
+            return null;
+
+        var poi = await _purchaseOrderItemRepo.GetByIdAsync(poiId);
+        if (poi == null || string.IsNullOrWhiteSpace(poi.PurchaseOrderId))
+            return null;
+
+        var po = await _purchaseOrderRepo.GetByIdAsync(poi.PurchaseOrderId.Trim());
+        if (po == null || string.IsNullOrWhiteSpace(po.VendorId))
+            return null;
+
+        return po.VendorId.Trim();
     }
 }

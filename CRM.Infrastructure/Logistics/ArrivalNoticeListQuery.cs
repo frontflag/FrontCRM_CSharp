@@ -13,11 +13,16 @@ public sealed class ArrivalNoticeListQuery : IArrivalNoticeListQuery
 
     private readonly ApplicationDbContext _db;
     private readonly IDataPermissionService _dataPermission;
+    private readonly ICustomsTraceQuery _customsTraceQuery;
 
-    public ArrivalNoticeListQuery(ApplicationDbContext db, IDataPermissionService dataPermission)
+    public ArrivalNoticeListQuery(
+        ApplicationDbContext db,
+        IDataPermissionService dataPermission,
+        ICustomsTraceQuery customsTraceQuery)
     {
         _db = db;
         _dataPermission = dataPermission;
+        _customsTraceQuery = customsTraceQuery;
     }
 
     /// <inheritdoc />
@@ -174,6 +179,8 @@ public sealed class ArrivalNoticeListQuery : IArrivalNoticeListQuery
 
             AttachItemSnapshot(row);
         }
+
+        await _customsTraceQuery.EnrichCustomsStockInNotifiesAsync(rows, cancellationToken);
 
         var vendorIds = rows
             .Select(x => x.VendorId)

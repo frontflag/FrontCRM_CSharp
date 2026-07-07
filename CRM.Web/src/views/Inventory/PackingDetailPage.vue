@@ -26,7 +26,12 @@
               <el-tag effect="dark" :type="packingStatusTagType(detail.status)" size="small">
                 {{ packingStatusLabel(detail.status) }}
               </el-tag>
-              <StockBizTypeTag biz="out" :type="detail.stockOutType" />
+              <StockBizTypeTag
+                biz="out"
+                :type="detail.stockOutType"
+                :customs-declaration-id="detail.customsDeclarationId"
+                :customs-declaration-code="detail.customsDeclarationCode"
+              />
             </div>
           </div>
         </div>
@@ -64,7 +69,12 @@
             <div class="info-item">
               <span class="info-label">{{ t('packingDetail.stockOutType') }}</span>
               <span class="info-value">
-                <StockBizTypeTag biz="out" :type="detail.stockOutType" />
+                <StockBizTypeTag
+                biz="out"
+                :type="detail.stockOutType"
+                :customs-declaration-id="detail.customsDeclarationId"
+                :customs-declaration-code="detail.customsDeclarationCode"
+              />
               </span>
             </div>
           </div>
@@ -100,6 +110,8 @@
             </div>
           </div>
         </div>
+
+        <StockOutCustomsSummaryPanel v-if="detail.customsSummary?.declarationId" :summary="detail.customsSummary" />
 
         <div class="tabs-section">
           <div class="tabs-nav">
@@ -484,6 +496,7 @@ import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTim
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
+import StockOutCustomsSummaryPanel from '@/components/Customs/StockOutCustomsSummaryPanel.vue'
 import PackingCascadeItemSummary from '@/components/Inventory/PackingCascadeItemSummary.vue'
 
 const StockOutBatchPanel = defineAsyncComponent(

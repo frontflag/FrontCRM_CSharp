@@ -3979,10 +3979,13 @@ const zhCN = {
       stocked: '已入库'
     },
     statusUnknown: '未知',
+    customsDeclarationIconTooltipLabel: '报关单号码',
+    customsDeclarationIconTooltip: '报关单号码：{code}',
     columns: {
       noticeCode: '到货通知号',
       status: '状态',
       arrivalType: '到货类型',
+      customsDeclaration: '报关单',
       purchaseOrderCode: '采购单号',
       pn: '型号',
       brand: '品牌',
@@ -4778,6 +4781,7 @@ const zhCN = {
       stockInCode: '入库单号',
       status: '状态',
       stockInType: '入库类型',
+      customsDeclaration: '报关单',
       sourceCode: '到货通知号',
       purchaseOrderCode: '采购单号',
       materialModel: '物料型号',
@@ -4805,6 +4809,8 @@ const zhCN = {
       scrap: '报废入库'
     },
     customsNotifyTag: '报关',
+    customsDeclarationIconTooltipLabel: '报关单号码',
+    customsDeclarationIconTooltip: '报关单号码：{code}',
     arrivalNotifyCodeTooltip: '原到货通知：{code}',
     messages: {
       loadFailed: '加载入库单失败',
@@ -5217,7 +5223,11 @@ const zhCN = {
     shipmentPlaceholder: '请选择',
     courierTrackingNo: '快递单号',
     trackingPlaceholder: '选填',
-    pickDate: '选择日期'
+    pickDate: '选择日期',
+    customsSection: '报关信息',
+    customsDeclaration: '报关单',
+    customsBroker: '报关公司',
+    viewFullCustomsInfo: '查看完整报关信息'
   },
   stockOutNotifyList: {
     title: '出库通知',

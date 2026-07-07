@@ -137,7 +137,12 @@
         </span>
       </template>
       <template #col-stockInType="{ row }">
-        <StockBizTypeTag biz="in" :type="row.stockInType" />
+        <StockBizTypeTag
+          biz="in"
+          :type="row.stockInType"
+          :customs-declaration-id="row.customsDeclarationId"
+          :customs-declaration-code="row.customsDeclarationCode"
+        />
       </template>
       <template #col-status="{ row }">
         <span :class="['status-badge', `status-${row.status}`]">{{ statusLabel(row.status) }}</span>
@@ -336,8 +341,11 @@ const stockInTableColumns = computed<CrmTableColumnDef[]>(() => {
     key: 'stockInType',
     label: t('stockInList.columns.stockInType'),
     prop: 'stockInType',
-    width: 110,
-    align: 'center'
+    width: 140,
+    minWidth: 130,
+    align: 'center',
+    className: 'stock-in-type-col',
+    labelClassName: 'stock-in-type-col'
   },
   { key: 'materialModel', label: t('stockInList.columns.materialModel'), minWidth: 140, showOverflowTooltip: true },
   { key: 'materialBrand', label: t('stockInList.columns.brand'), minWidth: 120, showOverflowTooltip: true },
@@ -917,6 +925,10 @@ const handleForceDeleteRow = async (row: StockInListItemDto) => {
   align-items: center;
   gap: 6px;
   max-width: 100%;
+}
+
+:deep(.stock-in-type-col .cell) {
+  overflow: visible;
 }
 
 .customs-notify-tag {

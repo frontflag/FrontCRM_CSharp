@@ -44,6 +44,7 @@ namespace CRM.Core.Services
         private readonly IStockInListQuery _stockInListQuery;
         private readonly ICustomsV2FlowService _customsV2FlowService;
         private readonly IStockInCustomsContextQuery _stockInCustomsContextQuery;
+        private readonly ICustomsTraceQuery _customsTraceQuery;
 
         public StockInService(
             IRepository<StockIn> stockInRepository,
@@ -72,7 +73,8 @@ namespace CRM.Core.Services
             ILogger<StockInService> logger,
             IStockInListQuery stockInListQuery,
             ICustomsV2FlowService customsV2FlowService,
-            IStockInCustomsContextQuery stockInCustomsContextQuery)
+            IStockInCustomsContextQuery stockInCustomsContextQuery,
+            ICustomsTraceQuery customsTraceQuery)
         {
             _stockInRepository = stockInRepository;
             _stockInItemRepository = stockInItemRepository;
@@ -101,6 +103,7 @@ namespace CRM.Core.Services
             _stockInListQuery = stockInListQuery;
             _customsV2FlowService = customsV2FlowService;
             _stockInCustomsContextQuery = stockInCustomsContextQuery;
+            _customsTraceQuery = customsTraceQuery;
         }
 
         public async Task<StockIn> CreateAsync(CreateStockInRequest request, string? actingUserId = null)
@@ -755,6 +758,32 @@ namespace CRM.Core.Services
                 qcByStockInId = new Dictionary<string, QCInfo>(StringComparer.Ordinal);
             }
 
+            var customsNotifyIds = raw
+                .Where(s => s.StockInType == StockInTypeCode.Customs)
+                .SelectMany(s => new[] { s.SourceId, qcByStockInId.TryGetValue(s.Id, out var q0) ? q0.StockInNotifyId : null })
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var customsTraceByNotifyId = customsNotifyIds.Count == 0
+                ? new Dictionary<string, CustomsTraceLinkDto>(StringComparer.OrdinalIgnoreCase)
+                : (await _customsTraceQuery.GetByStockInNotifyIdsAsync(customsNotifyIds)).ToDictionary(
+                    kv => kv.Key,
+                    kv => kv.Value,
+                    StringComparer.OrdinalIgnoreCase);
+            if (customsTraceByNotifyId.Count > 0)
+            {
+                var mergedVendorIds = vendorIds.ToList();
+                foreach (var trace in customsTraceByNotifyId.Values)
+                {
+                    if (!string.IsNullOrWhiteSpace(trace.VendorId))
+                        mergedVendorIds.Add(trace.VendorId.Trim());
+                }
+                vendorIds = mergedVendorIds
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+
             var venDict = vendorIds.Count == 0
                 ? new Dictionary<string, VendorInfo>()
                 : (await _vendorRepository.FindAsync(v => vendorIds.Contains(v.Id))).ToDictionary(v => v.Id);
@@ -834,7 +863,18 @@ namespace CRM.Core.Services
                 string? vendorName = null;
                 string? vendorEnglishName = null;
                 string? vendorCode = null;
-                if (!string.IsNullOrWhiteSpace(s.VendorId) && venDict.TryGetValue(s.VendorId!, out var v))
+                var vendorIdForLookup = s.VendorId;
+                if (s.StockInType == StockInTypeCode.Customs && string.IsNullOrWhiteSpace(vendorIdForLookup))
+                {
+                    var notifyKey = !string.IsNullOrWhiteSpace(s.SourceId)
+                        ? s.SourceId.Trim()
+                        : (qcByStockInId.TryGetValue(s.Id, out var qcNotify) ? qcNotify.StockInNotifyId?.Trim() : null);
+                    if (!string.IsNullOrEmpty(notifyKey)
+                        && customsTraceByNotifyId.TryGetValue(notifyKey, out var traceVendor)
+                        && !string.IsNullOrWhiteSpace(traceVendor.VendorId))
+                        vendorIdForLookup = traceVendor.VendorId;
+                }
+                if (!string.IsNullOrWhiteSpace(vendorIdForLookup) && venDict.TryGetValue(vendorIdForLookup!, out var v))
                 {
                     vendorName = !string.IsNullOrWhiteSpace(v.OfficialName) ? v.OfficialName
                         : !string.IsNullOrWhiteSpace(v.NickName) ? v.NickName
@@ -951,6 +991,21 @@ namespace CRM.Core.Services
                     }
                 }
 
+                string? customsDeclarationId = null;
+                string? customsDeclarationCode = null;
+                if (s.StockInType == StockInTypeCode.Customs)
+                {
+                    var notifyKey = !string.IsNullOrWhiteSpace(s.SourceId)
+                        ? s.SourceId.Trim()
+                        : (qcByStockInId.TryGetValue(s.Id, out var qcDec) ? qcDec.StockInNotifyId?.Trim() : null);
+                    if (!string.IsNullOrEmpty(notifyKey)
+                        && customsTraceByNotifyId.TryGetValue(notifyKey, out var traceDec))
+                    {
+                        customsDeclarationId = traceDec.CustomsDeclarationId;
+                        customsDeclarationCode = traceDec.CustomsDeclarationCode;
+                    }
+                }
+
                 result.Add(new StockInListItemDto
                 {
                     Id = s.Id,
@@ -958,7 +1013,7 @@ namespace CRM.Core.Services
                     StockInType = s.StockInType,
                     SourceDisplayNo = sourceDisplay,
                     WarehouseId = s.WarehouseId,
-                    VendorId = s.VendorId,
+                    VendorId = vendorIdForLookup ?? s.VendorId,
                     VendorName = vendorName,
                     VendorEnglishName = vendorEnglishName,
                     VendorCode = vendorCode,
@@ -975,7 +1030,9 @@ namespace CRM.Core.Services
                     Remark = s.Remark,
                     CreateTime = s.CreateTime,
                     CreateUserName = createUserName,
-                    HasBatchEntered = stockInIdsWithBatch.Contains(s.Id.Trim())
+                    HasBatchEntered = stockInIdsWithBatch.Contains(s.Id.Trim()),
+                    CustomsDeclarationId = customsDeclarationId,
+                    CustomsDeclarationCode = customsDeclarationCode
                 });
             }
 

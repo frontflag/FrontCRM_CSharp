@@ -423,6 +423,14 @@ namespace CRM.Core.Interfaces
         public string? ShipmentMethod { get; set; }
         /// <summary>快递公司（字典 LogisticsExpressMethod ItemCode；未维护时为 null）。</summary>
         public string? ExpressCompany { get; set; }
+        /// <summary>装箱单出库类型。</summary>
+        public short StockOutType { get; set; }
+        /// <summary>关联报关单 ID（来自装箱单 <c>customs_declaration_id</c>）。</summary>
+        public string? CustomsDeclarationId { get; set; }
+        /// <summary>关联报关单号（展示用）。</summary>
+        public string? CustomsDeclarationCode { get; set; }
+        /// <summary>报关摘要（Hub 跳转 + 报关公司名）。</summary>
+        public StockOutCustomsSummaryDto? CustomsSummary { get; set; }
     }
 
     public class GeneratePickingTaskRequest

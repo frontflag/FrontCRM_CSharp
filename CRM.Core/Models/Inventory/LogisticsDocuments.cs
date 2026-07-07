@@ -114,6 +114,14 @@ namespace CRM.Core.Models.Inventory
         [Column("customs_declaration_item_id")]
         public string? CustomsDeclarationItemId { get; set; }
 
+        /// <summary>关联报关单主键（列表展示，由服务层 join 填充）。</summary>
+        [NotMapped]
+        public string? CustomsDeclarationId { get; set; }
+
+        /// <summary>关联报关单号（列表展示，由服务层 join 填充）。</summary>
+        [NotMapped]
+        public string? CustomsDeclarationCode { get; set; }
+
         /// <summary>软删除标记；为 true 时全局查询过滤器排除。</summary>
         [Column("is_deleted")]
         public bool IsDeleted { get; set; }
@@ -204,6 +212,14 @@ namespace CRM.Core.Models.Inventory
 
         [NotMapped]
         public string? Brand { get; set; }
+
+        /// <summary>关联报关单主键（列表展示，由服务层 join 填充）。</summary>
+        [NotMapped]
+        public string? CustomsDeclarationId { get; set; }
+
+        /// <summary>关联报关单号（列表展示，由服务层 join 填充）。</summary>
+        [NotMapped]
+        public string? CustomsDeclarationCode { get; set; }
 
         [StringLength(36)]
         [Column("create_by_user_id")]

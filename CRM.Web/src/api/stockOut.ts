@@ -37,6 +37,18 @@ export interface StockOutDto {
   salesStockOutNotifyId?: string | null
   /** 报关出库单关联的原销售出库通知单号 */
   salesStockOutNotifyCode?: string | null
+  /** 关联报关单主键（报关出库 Type=20） */
+  customsDeclarationId?: string | null
+  /** 关联报关单号 */
+  customsDeclarationCode?: string | null
+}
+
+export interface StockOutCustomsSummaryDto {
+  declarationId: string
+  declarationCode: string
+  customsBrokerId?: string | null
+  customsBrokerName?: string | null
+  customsClearanceStatus?: number | null
 }
 
 export interface StockOutMarkFinishPacking {
@@ -63,6 +75,7 @@ export interface StockOutDetailDto extends StockOutDto {
   /** 仓库名称（服务端由 WarehouseId 解析） */
   warehouseName?: string | null
   sellOrderItemId?: string
+  customsSummary?: StockOutCustomsSummaryDto | null
 }
 
 export interface StockOutApplyRegionInventoryDto {
@@ -351,6 +364,23 @@ async function loadStockOutCompanyBundleFallback(id: string): Promise<StockOutIn
   }
 }
 
+export function normalizeStockOutCustomsSummary(raw: unknown): StockOutCustomsSummaryDto | null {
+  if (!raw || typeof raw !== 'object') return null
+  const r = raw as Record<string, unknown>
+  const declarationId = String(r.declarationId ?? r.DeclarationId ?? '').trim()
+  if (!declarationId) return null
+  return {
+    declarationId,
+    declarationCode: String(r.declarationCode ?? r.DeclarationCode ?? '').trim(),
+    customsBrokerId: (r.customsBrokerId ?? r.CustomsBrokerId) as string | null | undefined,
+    customsBrokerName: (r.customsBrokerName ?? r.CustomsBrokerName) as string | null | undefined,
+    customsClearanceStatus:
+      r.customsClearanceStatus != null || r.CustomsClearanceStatus != null
+        ? Number(r.customsClearanceStatus ?? r.CustomsClearanceStatus)
+        : null
+  }
+}
+
 function normalizeStockOutDetailRow(row: unknown): StockOutDetailDto {
   const base = normalizeStockOutListRow(row)
   const r = row as Record<string, unknown>
@@ -359,7 +389,8 @@ function normalizeStockOutDetailRow(row: unknown): StockOutDetailDto {
     warehouseId: (r.warehouseId ?? r.WarehouseId) as string | undefined,
     warehouseCode: (r.warehouseCode ?? r.WarehouseCode) as string | null | undefined,
     warehouseName: (r.warehouseName ?? r.WarehouseName) as string | null | undefined,
-    sellOrderItemId: (r.sellOrderItemId ?? r.SellOrderItemId) as string | undefined
+    sellOrderItemId: (r.sellOrderItemId ?? r.SellOrderItemId) as string | undefined,
+    customsSummary: normalizeStockOutCustomsSummary(r.customsSummary ?? r.CustomsSummary)
   }
 }
 
@@ -452,6 +483,12 @@ export interface StockOutRequestDto {
   /** 销售明细币别（1=RMB 2=USD …） */
   currency?: number
   createTime?: string
+  /** 关联报关单主键（报关出库通知 Type=20） */
+  customsDeclarationId?: string | null
+  /** 关联报关单号 */
+  customsDeclarationCode?: string | null
+  /** 报关公司名称（展示用） */
+  customsBrokerName?: string | null
 }
 
 /** GET 出库单列表：<code>data</code> 与《翻页查询规范》一致 */
@@ -510,7 +547,9 @@ export function normalizeStockOutListRow(row: unknown): StockOutDto {
     courierTrackingNo: (r.courierTrackingNo ?? r.CourierTrackingNo) as string | null | undefined,
     freightForwarderOrderNo: (r.freightForwarderOrderNo ?? r.FreightForwarderOrderNo) as string | null | undefined,
     salesStockOutNotifyId: (r.salesStockOutNotifyId ?? r.SalesStockOutNotifyId) as string | null | undefined,
-    salesStockOutNotifyCode: (r.salesStockOutNotifyCode ?? r.SalesStockOutNotifyCode) as string | null | undefined
+    salesStockOutNotifyCode: (r.salesStockOutNotifyCode ?? r.SalesStockOutNotifyCode) as string | null | undefined,
+    customsDeclarationId: (r.customsDeclarationId ?? r.CustomsDeclarationId) as string | null | undefined,
+    customsDeclarationCode: (r.customsDeclarationCode ?? r.CustomsDeclarationCode) as string | null | undefined
   }
 }
 
@@ -558,7 +597,10 @@ export function normalizeStockOutRequestRow(row: unknown): StockOutRequestDto {
     salesStockOutNotifyId: (r.salesStockOutNotifyId ?? r.SalesStockOutNotifyId) as string | null | undefined,
     salesStockOutNotifyCode: (r.salesStockOutNotifyCode ?? r.SalesStockOutNotifyCode) as string | null | undefined,
     currency: r.currency != null || r.Currency != null ? Number(r.currency ?? r.Currency) : undefined,
-    createTime: (r.createTime ?? r.CreateTime) as string | undefined
+    createTime: (r.createTime ?? r.CreateTime) as string | undefined,
+    customsDeclarationId: (r.customsDeclarationId ?? r.CustomsDeclarationId) as string | null | undefined,
+    customsDeclarationCode: (r.customsDeclarationCode ?? r.CustomsDeclarationCode) as string | null | undefined,
+    customsBrokerName: (r.customsBrokerName ?? r.CustomsBrokerName) as string | null | undefined
   }
 }
 

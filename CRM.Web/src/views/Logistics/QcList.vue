@@ -94,7 +94,12 @@
         <el-tag effect="dark" :type="qcType(row.status)">{{ qcText(row.status) }}</el-tag>
       </template>
       <template #col-stockInType="{ row }">
-        <StockBizTypeTag biz="in" :type="row.stockInType" />
+        <StockBizTypeTag
+          biz="in"
+          :type="row.stockInType"
+          :customs-declaration-id="row.customsDeclarationId"
+          :customs-declaration-code="row.customsDeclarationCode"
+        />
       </template>
       <template #col-stockInStatus="{ row }">
         <el-tag effect="dark" :type="stockInStatusTagType(displayStockInStatus(row))">{{ stockInText(displayStockInStatus(row)) }}</el-tag>
@@ -269,8 +274,11 @@ const qcTableColumns = computed<CrmTableColumnDef[]>(() => {
       key: 'stockInType',
       label: t('arrivalNoticeList.columns.arrivalType'),
       prop: 'stockInType',
-      width: 110,
-      align: 'center'
+      width: 140,
+      minWidth: 130,
+      align: 'center',
+      className: 'stock-in-type-col',
+      labelClassName: 'stock-in-type-col'
     },
     { key: 'model', label: t('qcList.columns.model'), prop: 'model', minWidth: 160, showOverflowTooltip: true },
     { key: 'brand', label: t('qcList.columns.brand'), prop: 'brand', minWidth: 120, showOverflowTooltip: true },
@@ -913,6 +921,10 @@ const createStockIn = async (row: QcInfoDto) => {
 .list-footer-spacer {
   width: 26px;
   flex: 0 0 26px;
+}
+
+:deep(.stock-in-type-col .cell) {
+  overflow: visible;
 }
 
 .qc-warehouse-pick-hint {

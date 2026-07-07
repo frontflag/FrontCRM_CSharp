@@ -29,7 +29,7 @@ export function buildPackingListColumns(p: BuildPackingListColumnsParams): CrmTa
   cols.push(
     { key: 'packingCode', label: p.t('packingList.columns.packingCode'), width: 160, minWidth: 160, showOverflowTooltip: true },
     { key: 'status', label: p.t('packingList.columns.status'), width: 110, minWidth: 110, align: 'center' },
-    { key: 'stockOutType', label: p.t('packingList.columns.stockOutType'), width: 140, minWidth: 140, align: 'center' },
+    { key: 'stockOutType', label: p.t('packingList.columns.stockOutType'), width: 140, minWidth: 140, align: 'center', className: 'stock-out-type-col', labelClassName: 'stock-out-type-col' },
     { key: 'materialType', label: p.t('packingList.columns.materialType'), width: 140, minWidth: 140, align: 'center' },
     { key: 'customerName', label: p.t('packingList.columns.customerName'), width: 140, minWidth: 140, showOverflowTooltip: true },
     { key: 'salesUserName', label: p.t('packingList.columns.salesUserName'), width: 130, minWidth: 130, showOverflowTooltip: true },

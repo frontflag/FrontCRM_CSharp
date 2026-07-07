@@ -324,6 +324,10 @@ export interface PickingTaskPackingPanel {
   packingCode?: string | null
   shipmentMethod?: string | null
   expressCompany?: string | null
+  stockOutType?: number
+  customsDeclarationId?: string | null
+  customsDeclarationCode?: string | null
+  customsSummary?: import('./stockOut').StockOutCustomsSummaryDto | null
 }
 
 export interface PickingTaskDetailView extends PickingTaskListRow {

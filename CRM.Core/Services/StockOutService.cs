@@ -58,6 +58,7 @@ namespace CRM.Core.Services
         private readonly ICustomsV2FlowService _customsV2FlowService;
         private readonly ICustomsPendlistService _customsPendlistService;
         private readonly IFinanceReceivableService _financeReceivableService;
+        private readonly ICustomsTraceQuery _customsTraceQuery;
 
         public StockOutService(
             IRepository<StockOut> stockOutRepository,
@@ -95,7 +96,8 @@ namespace CRM.Core.Services
             IStockOutItemListQuery stockOutItemListQuery,
             ICustomsV2FlowService customsV2FlowService,
             ICustomsPendlistService customsPendlistService,
-            IFinanceReceivableService financeReceivableService)
+            IFinanceReceivableService financeReceivableService,
+            ICustomsTraceQuery customsTraceQuery)
         {
             _stockOutRepository = stockOutRepository;
             _stockOutItemRepository = stockOutItemRepository;
@@ -133,6 +135,7 @@ namespace CRM.Core.Services
             _customsV2FlowService = customsV2FlowService;
             _customsPendlistService = customsPendlistService;
             _financeReceivableService = financeReceivableService;
+            _customsTraceQuery = customsTraceQuery;
         }
 
         public async Task<StockOutRequest> CreateStockOutRequestAsync(CreateStockOutRequestRequest request, string? actingUserId = null)
@@ -601,7 +604,7 @@ namespace CRM.Core.Services
                 .ThenByDescending(x => x.RequestDate)
                 .ThenBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
                 .ToList();
-            return await ProjectStockOutRequestListDtosAsync(reqs);
+            return await EnrichStockOutRequestListDtosAsync(await ProjectStockOutRequestListDtosAsync(reqs));
         }
 
         /// <inheritdoc />
@@ -638,7 +641,7 @@ namespace CRM.Core.Services
                     ordered.Add(ent);
             }
 
-            var dtos = await ProjectStockOutRequestListDtosAsync(ordered);
+            var dtos = await EnrichStockOutRequestListDtosAsync(await ProjectStockOutRequestListDtosAsync(ordered));
             return new PagedResult<StockOutRequestListItemDto>
             {
                 Items = dtos,
@@ -668,7 +671,7 @@ namespace CRM.Core.Services
             if (reqs.Count == 0)
                 return new List<StockOutRequestListItemDto>();
 
-            var dtoById = (await ProjectStockOutRequestListDtosAsync(reqs))
+            var dtoById = (await EnrichStockOutRequestListDtosAsync(await ProjectStockOutRequestListDtosAsync(reqs)))
                 .ToDictionary(d => d.Id.Trim(), d => d, StringComparer.OrdinalIgnoreCase);
 
             var result = new List<StockOutRequestListItemDto>();
@@ -683,6 +686,20 @@ namespace CRM.Core.Services
             }
 
             return result;
+        }
+
+        private async Task<List<StockOutRequestListItemDto>> EnrichStockOutRequestListDtosAsync(
+            List<StockOutRequestListItemDto> dtos)
+        {
+            await _customsTraceQuery.EnrichStockOutRequestListItemsAsync(dtos);
+            return dtos;
+        }
+
+        private async Task<List<StockOutListItemDto>> EnrichStockOutListDtosAsync(
+            List<StockOutListItemDto> dtos)
+        {
+            await _customsTraceQuery.EnrichStockOutListItemsAsync(dtos);
+            return dtos;
         }
 
         private async Task<List<StockOutRequestListItemDto>> ProjectStockOutRequestListDtosAsync(
@@ -1517,6 +1534,13 @@ namespace CRM.Core.Services
                 CourierTrackingNo = string.IsNullOrWhiteSpace(x.CourierTrackingNo) ? null : x.CourierTrackingNo.Trim()
             };
 
+            var customsSummary = await _customsTraceQuery.ResolveStockOutCustomsSummaryAsync(x);
+            if (customsSummary != null)
+            {
+                listRow.CustomsDeclarationId = customsSummary.DeclarationId;
+                listRow.CustomsDeclarationCode = customsSummary.DeclarationCode;
+            }
+
             return new StockOutDetailViewDto
             {
                 Id = listRow.Id,
@@ -1526,6 +1550,8 @@ namespace CRM.Core.Services
                 SourceId = listRow.SourceId,
                 SalesStockOutNotifyId = listRow.SalesStockOutNotifyId,
                 SalesStockOutNotifyCode = listRow.SalesStockOutNotifyCode,
+                CustomsDeclarationId = listRow.CustomsDeclarationId,
+                CustomsDeclarationCode = listRow.CustomsDeclarationCode,
                 StockOutDate = listRow.StockOutDate,
                 TotalQuantity = listRow.TotalQuantity,
                 TotalAmount = listRow.TotalAmount,
@@ -1542,7 +1568,8 @@ namespace CRM.Core.Services
                 WarehouseId = x.WarehouseId,
                 WarehouseCode = warehouseCode,
                 WarehouseName = warehouseName,
-                SellOrderItemId = string.IsNullOrWhiteSpace(x.SellOrderItemId) ? null : x.SellOrderItemId.Trim()
+                SellOrderItemId = string.IsNullOrWhiteSpace(x.SellOrderItemId) ? null : x.SellOrderItemId.Trim(),
+                CustomsSummary = customsSummary
             };
         }
 
@@ -1722,7 +1749,7 @@ namespace CRM.Core.Services
                 .ToList();
             var salesNotifyByCustomsSourceId = await ResolveSalesNotifyLinkByCustomsStockOutNotifyIdsAsync(customsSourceIds);
 
-            return outs
+            var dtos = outs
                 .Select(x =>
                 {
                     SellOrderItem? line = null;
@@ -1835,6 +1862,8 @@ namespace CRM.Core.Services
                     };
                 })
                 .ToList();
+
+            return await EnrichStockOutListDtosAsync(dtos);
         }
 
         private sealed class StockOutPackingSummary

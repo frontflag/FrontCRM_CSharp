@@ -49,6 +49,7 @@ namespace CRM.Core.Services
         private readonly IInventoryCountPlanListQuery _inventoryCountPlanListQuery;
         private readonly IStockInListQuery _stockInListQuery;
         private readonly ICustomsV2FlowService _customsV2FlowService;
+        private readonly ICustomsTraceQuery _customsTraceQuery;
         private readonly IDataPermissionService _dataPermissionService;
         private static bool IsTableMissingException(Exception ex)
             => (ex.Message?.Contains("42P01") ?? false)
@@ -171,6 +172,7 @@ namespace CRM.Core.Services
             IInventoryCountPlanListQuery inventoryCountPlanListQuery,
             IStockInListQuery stockInListQuery,
             ICustomsV2FlowService customsV2FlowService,
+            ICustomsTraceQuery customsTraceQuery,
             IDataPermissionService dataPermissionService,
             ILogger<InventoryCenterService> logger)
         {
@@ -207,6 +209,7 @@ namespace CRM.Core.Services
             _inventoryCountPlanListQuery = inventoryCountPlanListQuery;
             _stockInListQuery = stockInListQuery;
             _customsV2FlowService = customsV2FlowService;
+            _customsTraceQuery = customsTraceQuery;
             _dataPermissionService = dataPermissionService;
             _logger = logger;
         }

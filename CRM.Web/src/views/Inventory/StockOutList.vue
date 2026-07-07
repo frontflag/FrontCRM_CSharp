@@ -131,7 +131,12 @@
         <span :class="['status-badge', `status-${row.status}`]">{{ statusLabel(row.status) }}</span>
       </template>
       <template #col-stockOutType="{ row }">
-        <StockBizTypeTag biz="out" :type="row.stockOutType" />
+        <StockBizTypeTag
+          biz="out"
+          :type="row.stockOutType"
+          :customs-declaration-id="row.customsDeclarationId"
+          :customs-declaration-code="row.customsDeclarationCode"
+        />
       </template>
       <template #col-stockOutCode="{ row }">
         <span class="stock-out-code-cell">
@@ -1210,6 +1215,10 @@ const handleForceDeleteRow = async (row: StockOutDto) => {
   border: 1px solid rgba(255, 184, 77, 0.45);
   cursor: default;
   user-select: none;
+}
+
+:deep(.stock-out-type-col .cell) {
+  overflow: visible;
 }
 
 </style>

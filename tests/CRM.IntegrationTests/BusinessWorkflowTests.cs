@@ -515,7 +515,8 @@ namespace CRM.IntegrationTests
                 Substitute.For<IStockOutItemListQuery>(),
                 Substitute.For<ICustomsV2FlowService>(),
                 Substitute.For<ICustomsPendlistService>(),
-                Substitute.For<IFinanceReceivableService>());
+                Substitute.For<IFinanceReceivableService>(),
+                Substitute.For<ICustomsTraceQuery>());
 
             // 准备销售订单明细
             var sellOrderItem = new SellOrderItem
@@ -698,7 +699,8 @@ namespace CRM.IntegrationTests
                 Substitute.For<IStockOutItemListQuery>(),
                 Substitute.For<ICustomsV2FlowService>(),
                 Substitute.For<ICustomsPendlistService>(),
-                Substitute.For<IFinanceReceivableService>());
+                Substitute.For<IFinanceReceivableService>(),
+                Substitute.For<ICustomsTraceQuery>());
 
             var sellOrderItem = new SellOrderItem
             {
@@ -858,7 +860,8 @@ namespace CRM.IntegrationTests
                 Substitute.For<ILogOperationAppendService>(),
                 logisticsLogger,
                 Substitute.For<IQcListQuery>(),
-                Substitute.For<IRepository<VendorInfo>>());
+                Substitute.For<IRepository<VendorInfo>>(),
+                Substitute.For<ICustomsTraceQuery>());
 
             // 准备采购订单明细
             var purchaseOrderItemId = Guid.NewGuid().ToString();
@@ -1964,7 +1967,8 @@ namespace CRM.IntegrationTests
                 Substitute.For<ILogOperationAppendService>(),
                 logisticsLogger2,
                 Substitute.For<IQcListQuery>(),
-                Substitute.For<IRepository<VendorInfo>>());
+                Substitute.For<IRepository<VendorInfo>>(),
+                Substitute.For<ICustomsTraceQuery>());
 
             // 模拟到货通知仓储
             var allNotices = new List<StockInNotify>();
@@ -2072,7 +2076,8 @@ namespace CRM.IntegrationTests
                 stockInLogger,
                 Substitute.For<IStockInListQuery>(),
                 Substitute.For<ICustomsV2FlowService>(),
-                Substitute.For<IStockInCustomsContextQuery>());
+                Substitute.For<IStockInCustomsContextQuery>(),
+                Substitute.For<ICustomsTraceQuery>());
 
             // 模拟入库单仓储
             var allStockIns = new List<StockIn>();
@@ -2150,7 +2155,8 @@ namespace CRM.IntegrationTests
                 Substitute.For<IStockOutItemListQuery>(),
                 Substitute.For<ICustomsV2FlowService>(),
                 Substitute.For<ICustomsPendlistService>(),
-                Substitute.For<IFinanceReceivableService>());
+                Substitute.For<IFinanceReceivableService>(),
+                Substitute.For<ICustomsTraceQuery>());
 
             // 模拟出库申请仓储
             var allStockOutRequests = new List<StockOutRequest>();

@@ -235,6 +235,10 @@ export interface StockInListItemDto {
   createUserName?: string | null
   /** 是否已录入入库批次 */
   hasBatchEntered?: boolean
+  /** 关联报关单主键（报关入库 Type=20） */
+  customsDeclarationId?: string | null
+  /** 关联报关单号（报关入库 Type=20） */
+  customsDeclarationCode?: string | null
 }
 
 /** GET 入库单列表：与《翻页查询规范》<code>data</code> 结构一致 */

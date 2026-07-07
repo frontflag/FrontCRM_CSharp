@@ -37,7 +37,12 @@
               <el-tag effect="dark" :type="notifyStatusTagType" size="small">
                 {{ notifyStatusLabel }}
               </el-tag>
-              <StockBizTypeTag biz="out" :type="request.stockOutType" />
+              <StockBizTypeTag
+                biz="out"
+                :type="request.stockOutType"
+                :customs-declaration-id="request.customsDeclarationId"
+                :customs-declaration-code="request.customsDeclarationCode"
+              />
               <el-tag v-if="customsStatusLabel !== '—'" effect="dark" :type="customsStatusTagType" size="small">
                 {{ customsStatusLabel }}
               </el-tag>
@@ -137,6 +142,8 @@
           </div>
         </div>
 
+        <StockOutCustomsSummaryPanel v-if="notifyCustomsSummary" :summary="notifyCustomsSummary" />
+
         <div class="tabs-section">
           <div class="section-header section-header--tabs">
             <div class="section-header__main">
@@ -160,7 +167,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import StockOutNotifyDetailTabs from '@/components/Inventory/StockOutNotifyDetailTabs.vue'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
-import { stockOutApi, type StockOutRequestDto } from '@/api/stockOut'
+import StockOutCustomsSummaryPanel from '@/components/Customs/StockOutCustomsSummaryPanel.vue'
+import { stockOutApi, type StockOutCustomsSummaryDto, type StockOutRequestDto } from '@/api/stockOut'
 import { normalizeRegionType, REGION_TYPE_OVERSEAS } from '@/constants/regionType'
 import { STOCK_OUT_REQUEST_STATUS } from '@/constants/stockOutRequestStatus'
 import { STOCK_OUT_NOTIFY_CUSTOMS_STATUS } from '@/constants/stockOutNotifyCustomsStatus'
@@ -192,6 +200,17 @@ const requestCodeDisplay = computed(() => {
 const isCustomsNotify = computed(
   () => Number(request.value?.stockOutType ?? StockOutTypeCode.Sales) === StockOutTypeCode.Customs
 )
+
+const notifyCustomsSummary = computed((): StockOutCustomsSummaryDto | null => {
+  const r = request.value
+  const declarationId = String(r?.customsDeclarationId ?? '').trim()
+  if (!declarationId) return null
+  return {
+    declarationId,
+    declarationCode: String(r?.customsDeclarationCode ?? '').trim() || declarationId,
+    customsBrokerName: String(r?.customsBrokerName ?? '').trim() || null
+  }
+})
 
 const salesNotifyId = computed(() => String(request.value?.salesStockOutNotifyId ?? '').trim())
 const salesNotifyCode = computed(() => String(request.value?.salesStockOutNotifyCode ?? '').trim())

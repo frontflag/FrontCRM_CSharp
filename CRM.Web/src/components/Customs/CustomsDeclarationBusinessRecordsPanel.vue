@@ -528,7 +528,12 @@
                 </el-tag>
               </template>
               <template #col-stockInType="{ row }">
-                <StockBizTypeTag biz="in" :type="row.stockInType" />
+                <StockBizTypeTag
+                  biz="in"
+                  :type="row.stockInType"
+                  :customs-declaration-id="row.customsDeclarationId ?? declarationId"
+                  :customs-declaration-code="row.customsDeclarationCode"
+                />
               </template>
               <template #col-pn="{ row }">{{ arrivalDisplayPn(row) }}</template>
               <template #col-brand="{ row }">{{ arrivalDisplayBrand(row) }}</template>

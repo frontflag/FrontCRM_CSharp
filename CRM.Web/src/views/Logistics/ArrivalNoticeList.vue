@@ -95,7 +95,12 @@
         <el-tag effect="dark" :type="statusType(row.status)">{{ statusText(row.status) }}</el-tag>
       </template>
       <template #col-stockInType="{ row }">
-        <StockBizTypeTag biz="in" :type="row.stockInType" />
+        <StockBizTypeTag
+          biz="in"
+          :type="row.stockInType"
+          :customs-declaration-id="row.customsDeclarationId"
+          :customs-declaration-code="row.customsDeclarationCode"
+        />
       </template>
       <template #col-pn="{ row }">{{ displayPn(row) }}</template>
       <template #col-brand="{ row }">{{ displayBrand(row) }}</template>
@@ -800,5 +805,9 @@ html[data-theme='dark'] .inv-list-qty {
 .list-footer-spacer {
   width: 26px;
   flex: 0 0 26px;
+}
+
+:deep(.stock-in-type-col .cell) {
+  overflow: visible;
 }
 </style>

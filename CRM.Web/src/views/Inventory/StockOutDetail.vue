@@ -30,7 +30,12 @@
               <el-tag effect="dark" :type="stockOutStatusTagType" size="small">
                 {{ statusLabel(detail.status) }}
               </el-tag>
-              <StockBizTypeTag biz="out" :type="detail.stockOutType" />
+              <StockBizTypeTag
+                biz="out"
+                :type="detail.stockOutType"
+                :customs-declaration-id="detail.customsDeclarationId"
+                :customs-declaration-code="detail.customsDeclarationCode"
+              />
             </div>
           </div>
         </div>
@@ -122,6 +127,8 @@
             </div>
           </div>
         </div>
+
+        <StockOutCustomsSummaryPanel v-if="detail.customsSummary?.declarationId" :summary="detail.customsSummary" />
 
         <div class="info-section">
           <div class="section-header">
@@ -287,6 +294,7 @@ import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { StockOutTypeCode } from '@/constants/stockOutType'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
+import StockOutCustomsSummaryPanel from '@/components/Customs/StockOutCustomsSummaryPanel.vue'
 import { formatDisplayDate } from '@/utils/displayDateTime'
 
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()

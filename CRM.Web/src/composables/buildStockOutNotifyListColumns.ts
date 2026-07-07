@@ -38,9 +38,11 @@ export function buildStockOutNotifyListColumns(p: BuildStockOutNotifyListColumns
     {
       key: 'stockOutType',
       label: p.t('stockOutNotifyList.columns.stockOutType'),
-      width: 110,
-      minWidth: 100,
-      align: 'center'
+      width: 140,
+      minWidth: 130,
+      align: 'center',
+      className: 'stock-out-type-col',
+      labelClassName: 'stock-out-type-col'
     },
     {
       key: 'materialModel',

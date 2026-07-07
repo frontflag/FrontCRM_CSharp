@@ -35,7 +35,13 @@
               <span v-else-if="form.noticeCode" class="qc-caption-meta-text">
                 {{ t('qcDetail.meta.notice') }} {{ form.noticeCode }}
               </span>
-              <StockBizTypeTag v-if="detailStockInType != null" biz="in" :type="detailStockInType" />
+              <StockBizTypeTag
+                v-if="detailStockInType != null"
+                biz="in"
+                :type="detailStockInType"
+                :customs-declaration-id="qcRecord?.customsDeclarationId"
+                :customs-declaration-code="qcRecord?.customsDeclarationCode"
+              />
             </div>
           </div>
         </div>

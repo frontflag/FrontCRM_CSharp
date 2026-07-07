@@ -16,8 +16,11 @@ export function buildArrivalNoticeListColumns(p: BuildArrivalNoticeListColumnsPa
       key: 'stockInType',
       label: p.t('arrivalNoticeList.columns.arrivalType'),
       prop: 'stockInType',
-      width: 110,
-      align: 'center'
+      width: 140,
+      minWidth: 130,
+      align: 'center',
+      className: 'stock-in-type-col',
+      labelClassName: 'stock-in-type-col'
     },
     { key: 'pn', label: p.t('arrivalNoticeList.columns.pn'), minWidth: 120, showOverflowTooltip: true },
     { key: 'brand', label: p.t('arrivalNoticeList.columns.brand'), width: 100, showOverflowTooltip: true },

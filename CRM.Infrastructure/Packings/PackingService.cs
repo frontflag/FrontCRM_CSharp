@@ -31,6 +31,7 @@ public class PackingService : IPackingService
     private readonly IPackingItemLineSeqService _packingItemLineSeq;
     private readonly IStockOutService _stockOutService;
     private readonly ICustomsV2FlowService _customsV2FlowService;
+    private readonly ICustomsTraceQuery _customsTraceQuery;
     private readonly IForceDeleteGuardService _forceDeleteGuard;
     private readonly IInventoryCenterService _inventoryCenterService;
     private readonly ILogOperationAppendService _logOperationAppend;
@@ -50,6 +51,7 @@ public class PackingService : IPackingService
         IPackingItemLineSeqService packingItemLineSeq,
         IStockOutService stockOutService,
         ICustomsV2FlowService customsV2FlowService,
+        ICustomsTraceQuery customsTraceQuery,
         IForceDeleteGuardService forceDeleteGuard,
         IInventoryCenterService inventoryCenterService,
         ILogOperationAppendService logOperationAppend)
@@ -68,6 +70,7 @@ public class PackingService : IPackingService
         _packingItemLineSeq = packingItemLineSeq;
         _stockOutService = stockOutService;
         _customsV2FlowService = customsV2FlowService;
+        _customsTraceQuery = customsTraceQuery;
         _forceDeleteGuard = forceDeleteGuard;
         _inventoryCenterService = inventoryCenterService;
         _logOperationAppend = logOperationAppend;
@@ -211,6 +214,24 @@ public class PackingService : IPackingService
 
         var notifySummaryByPackingId = await LoadNotifySummaryByPackingIdsAsync(idSet, cancellationToken);
 
+        var decIds = packings
+            .Where(p => StockOutTypeCode.NormalizeForNotify(p.StockOutType) == StockOutTypeCode.Customs)
+            .Select(p => p.CustomsDeclarationId?.Trim())
+            .Where(x => !string.IsNullOrEmpty(x))
+            .Cast<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var decCodeById = decIds.Count == 0
+            ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            : (await _db.CustomsDeclarations.AsNoTracking()
+                    .Where(d => decIds.Contains(d.Id) && !d.IsDeleted)
+                    .Select(d => new { d.Id, d.DeclarationCode })
+                    .ToListAsync(cancellationToken))
+                .ToDictionary(
+                    d => d.Id.Trim(),
+                    d => d.DeclarationCode.Trim(),
+                    StringComparer.OrdinalIgnoreCase);
+
         static string? FormatUserName(User? user) =>
             user == null
                 ? null
@@ -249,6 +270,17 @@ public class PackingService : IPackingService
                 ? ship!.ExpressCompany.Trim()
                 : notifySummary.ExpressCompany;
 
+            string? customsDeclarationId = null;
+            string? customsDeclarationCode = null;
+            if (StockOutTypeCode.NormalizeForNotify(pk.StockOutType) == StockOutTypeCode.Customs)
+            {
+                customsDeclarationId = string.IsNullOrWhiteSpace(pk.CustomsDeclarationId)
+                    ? null
+                    : pk.CustomsDeclarationId.Trim();
+                if (!string.IsNullOrEmpty(customsDeclarationId))
+                    decCodeById.TryGetValue(customsDeclarationId, out customsDeclarationCode);
+            }
+
             items.Add(new PackingListItemDto
             {
                 Id = pk.Id,
@@ -272,7 +304,9 @@ public class PackingService : IPackingService
                 CreateByUserId = pk.CreateByUserId,
                 CreateUserName = FormatUserName(createUser),
                 ShipCompany = ship?.ShipCompany,
-                ShipAddress = ship?.ShipAddress
+                ShipAddress = ship?.ShipAddress,
+                CustomsDeclarationId = customsDeclarationId,
+                CustomsDeclarationCode = customsDeclarationCode
             });
         }
 
@@ -491,6 +525,19 @@ public class PackingService : IPackingService
             });
         }
 
+        var customsDeclarationId = string.IsNullOrWhiteSpace(pk.CustomsDeclarationId)
+            ? null
+            : pk.CustomsDeclarationId.Trim();
+        StockOutCustomsSummaryDto? customsSummary = null;
+        string? customsDeclarationCode = null;
+        if (!string.IsNullOrEmpty(customsDeclarationId))
+        {
+            customsSummary = await _customsTraceQuery.ResolveCustomsSummaryByDeclarationIdAsync(
+                customsDeclarationId,
+                cancellationToken);
+            customsDeclarationCode = customsSummary?.DeclarationCode;
+        }
+
         return new PackingDetailDto
         {
             Id = pk.Id,
@@ -532,6 +579,9 @@ public class PackingService : IPackingService
 #pragma warning disable CS0618
             DeliveryMethod = pk.ExtendShip?.DeliveryMethod,
 #pragma warning restore CS0618
+            CustomsDeclarationId = customsDeclarationId,
+            CustomsDeclarationCode = customsDeclarationCode,
+            CustomsSummary = customsSummary,
             Items = detailLines,
             StockOutNotifies = await LoadStockOutNotifiesForPackingAsync(lines, cancellationToken),
             ItemExtends = extendRows.Select(e =>

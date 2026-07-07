@@ -115,7 +115,12 @@
       </template>
       <template #col-customsStatus="{ row }">{{ customsStatusLabel(row.customsStatus) }}</template>
       <template #col-stockOutType="{ row }">
-        <StockBizTypeTag biz="out" :type="row.stockOutType" />
+        <StockBizTypeTag
+          biz="out"
+          :type="row.stockOutType"
+          :customs-declaration-id="row.customsDeclarationId"
+          :customs-declaration-code="row.customsDeclarationCode"
+        />
       </template>
       <template #col-requestCode="{ row }">
         <span class="notify-code-cell">
@@ -1128,5 +1133,9 @@ onMounted(() => {
     font-size: 13px !important;
     font-weight: 500;
   }
+}
+
+:deep(.stock-out-type-col .cell) {
+  overflow: visible;
 }
 </style>

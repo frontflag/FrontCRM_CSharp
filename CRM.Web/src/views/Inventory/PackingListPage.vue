@@ -125,7 +125,12 @@
         <span :class="['status-badge', `packing-status-${row.status}`]">{{ packingStatusLabel(row.status) }}</span>
       </template>
       <template #col-stockOutType="{ row }">
-        <StockBizTypeTag biz="out" :type="row.stockOutType" />
+        <StockBizTypeTag
+          biz="out"
+          :type="row.stockOutType"
+          :customs-declaration-id="row.customsDeclarationId"
+          :customs-declaration-code="row.customsDeclarationCode"
+        />
       </template>
       <template #col-materialType="{ row }">{{ packingMaterialTypeLabel(row.materialType) }}</template>
       <template #col-customerName="{ row }">
@@ -1542,5 +1547,9 @@ onMounted(() => {
 
 .packing-batch-stock-out-dialog__date-picker {
   width: 100%;
+}
+
+:deep(.stock-out-type-col .cell) {
+  overflow: visible;
 }
 </style>

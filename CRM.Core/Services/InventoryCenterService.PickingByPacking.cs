@@ -707,7 +707,8 @@ public partial class InventoryCenterService
     /// <summary>拣货详情「装箱信息」：从关联装箱单及其出库通知读取物流字段（不在拣货单表冗余）。</summary>
     private async Task<PickingTaskPackingPanelDto?> BuildPickingTaskPackingPanelAsync(
         PickingTask task,
-        Packing? packingHint = null)
+        Packing? packingHint = null,
+        CancellationToken cancellationToken = default)
     {
         var packingId = task.PackingId?.Trim();
         if (string.IsNullOrEmpty(packingId))
@@ -738,6 +739,23 @@ public partial class InventoryCenterService
             firstNotify = notifies.FirstOrDefault();
         }
 
+        string? customsDeclarationId = null;
+        string? customsDeclarationCode = null;
+        StockOutCustomsSummaryDto? customsSummary = null;
+        if (StockOutTypeCode.NormalizeForNotify(packing.StockOutType) == StockOutTypeCode.Customs)
+        {
+            customsDeclarationId = string.IsNullOrWhiteSpace(packing.CustomsDeclarationId)
+                ? null
+                : packing.CustomsDeclarationId.Trim();
+            if (!string.IsNullOrEmpty(customsDeclarationId))
+            {
+                customsSummary = await _customsTraceQuery.ResolveCustomsSummaryByDeclarationIdAsync(
+                    customsDeclarationId,
+                    cancellationToken);
+                customsDeclarationCode = customsSummary?.DeclarationCode;
+            }
+        }
+
         return new PickingTaskPackingPanelDto
         {
             PackingId = packingId,
@@ -747,7 +765,11 @@ public partial class InventoryCenterService
                 : firstNotify!.ShipmentMethod.Trim(),
             ExpressCompany = string.IsNullOrWhiteSpace(firstNotify?.ExpressCompany)
                 ? null
-                : firstNotify!.ExpressCompany.Trim()
+                : firstNotify!.ExpressCompany.Trim(),
+            StockOutType = packing.StockOutType,
+            CustomsDeclarationId = customsDeclarationId,
+            CustomsDeclarationCode = customsDeclarationCode,
+            CustomsSummary = customsSummary
         };
     }
 

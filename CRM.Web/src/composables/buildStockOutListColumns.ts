@@ -44,8 +44,11 @@ export function buildStockOutListColumns(p: BuildStockOutListColumnsParams): Crm
       key: 'stockOutType',
       label: p.t('stockOutList.columns.stockOutType'),
       prop: 'stockOutType',
-      width: 110,
-      align: 'center'
+      width: 140,
+      minWidth: 130,
+      align: 'center',
+      className: 'stock-out-type-col',
+      labelClassName: 'stock-out-type-col'
     },
     {
       key: 'expectedStockOutDate',

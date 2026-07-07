@@ -3988,10 +3988,13 @@ const enUS = {
       stocked: 'Stocked in'
     },
     statusUnknown: 'Unknown',
+    customsDeclarationIconTooltipLabel: 'Customs declaration no.',
+    customsDeclarationIconTooltip: 'Customs declaration no.: {code}',
     columns: {
       noticeCode: 'Notice no.',
       status: 'Status',
       arrivalType: 'Arrival type',
+      customsDeclaration: 'Customs declaration',
       purchaseOrderCode: 'PO no.',
       pn: 'MPN',
       brand: 'Brand',
@@ -4784,6 +4787,7 @@ const enUS = {
       stockInCode: 'Stock-In Code',
       status: 'Status',
       stockInType: 'Stock-in type',
+      customsDeclaration: 'Customs declaration',
       sourceCode: 'Arrival Notice No.',
       purchaseOrderCode: 'Purchase Order No.',
       materialModel: 'Material Model',
@@ -4811,6 +4815,8 @@ const enUS = {
       scrap: 'Scrap stock-in'
     },
     customsNotifyTag: 'Customs',
+    customsDeclarationIconTooltipLabel: 'Customs declaration no.',
+    customsDeclarationIconTooltip: 'Customs declaration no.: {code}',
     arrivalNotifyCodeTooltip: 'Original arrival notice: {code}',
     messages: {
       loadFailed: 'Failed to load stock-in list',
@@ -5223,7 +5229,11 @@ const enUS = {
     shipmentPlaceholder: 'Select',
     courierTrackingNo: 'Courier tracking no.',
     trackingPlaceholder: 'Optional',
-    pickDate: 'Pick date'
+    pickDate: 'Pick date',
+    customsSection: 'Customs info',
+    customsDeclaration: 'Customs declaration',
+    customsBroker: 'Customs broker',
+    viewFullCustomsInfo: 'View full customs info'
   },
   stockOutNotifyList: {
     title: 'Stock-Out Notices',

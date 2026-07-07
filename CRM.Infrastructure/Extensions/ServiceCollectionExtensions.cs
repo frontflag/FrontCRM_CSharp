@@ -4,6 +4,7 @@ using CRM.Infrastructure.PurchaseOrders;
 using CRM.Infrastructure.RfqListQueries;
 using CRM.Infrastructure.SalesOrders;
 using CRM.Infrastructure.Quotes;
+using CRM.Infrastructure.Customs;
 using CRM.Infrastructure.Customers;
 using CRM.Infrastructure.Vendors;
 using CRM.Infrastructure.PurchaseRequisitions;
@@ -59,6 +60,7 @@ namespace CRM.Infrastructure.Extensions
             services.AddScoped<IQcListQuery, QcListQuery>();
             services.AddScoped<IStockInListQuery, StockInListQuery>();
             services.AddScoped<IStockInCustomsContextQuery, StockInCustomsContextQuery>();
+            services.AddScoped<ICustomsTraceQuery, CustomsTraceQuery>();
             services.AddScoped<ICustomsDeclarationBusinessRecordsQuery, global::CRM.Infrastructure.Customs.CustomsDeclarationBusinessRecordsQuery>();
             services.AddScoped<IStockOutListQuery, StockOutListQuery>();
             services.AddScoped<IStockOutRequestListQuery, StockOutRequestListQuery>();

@@ -32,6 +32,7 @@ namespace CRM.Core.Services
         private readonly ILogger<LogisticsService> _logger;
         private readonly IQcListQuery _qcListQuery;
         private readonly IRepository<VendorInfo> _vendorRepo;
+        private readonly ICustomsTraceQuery _customsTraceQuery;
 
         public LogisticsService(
             IRepository<StockInNotify> notifyRepo,
@@ -51,7 +52,8 @@ namespace CRM.Core.Services
             ILogOperationAppendService logOperationAppend,
             ILogger<LogisticsService> logger,
             IQcListQuery qcListQuery,
-            IRepository<VendorInfo> vendorRepo)
+            IRepository<VendorInfo> vendorRepo,
+            ICustomsTraceQuery customsTraceQuery)
         {
             _notifyRepo = notifyRepo;
             _stockInRepo = stockInRepo;
@@ -71,6 +73,7 @@ namespace CRM.Core.Services
             _logger = logger;
             _qcListQuery = qcListQuery;
             _vendorRepo = vendorRepo;
+            _customsTraceQuery = customsTraceQuery;
         }
 
         /// <inheritdoc />
@@ -124,6 +127,7 @@ namespace CRM.Core.Services
             var notices = noticeKeyIds.Count == 0
                 ? new List<StockInNotify>()
                 : (await _notifyRepo.FindAsync(n => noticeKeyIds.Contains(n.Id))).ToList();
+            await _customsTraceQuery.EnrichCustomsStockInNotifiesAsync(notices, cancellationToken);
             var noticeMap = notices.ToDictionary(x => x.Id, x => x);
 
             var vendorEnglishMap = await VendorDisplayEnrichment.LoadEnglishOfficialNameMapAsync(
@@ -178,6 +182,8 @@ namespace CRM.Core.Services
                 qc.VendorName = notice?.VendorName;
                 qc.VendorEnglishName = notice?.VendorEnglishName;
                 qc.PurchaseOrderCode = notice?.PurchaseOrderCode;
+                qc.CustomsDeclarationId = notice?.CustomsDeclarationId;
+                qc.CustomsDeclarationCode = notice?.CustomsDeclarationCode;
                 qc.FreightForwarderOrderNo = notice == null
                     ? null
                     : FreightForwarderOrderNoLookup.FromPurchaseOrderId(notice.PurchaseOrderId, poById);
@@ -420,6 +426,7 @@ namespace CRM.Core.Services
                 return list;
 
             var notices = (await _notifyRepo.GetAllAsync()).ToList();
+            await _customsTraceQuery.EnrichCustomsStockInNotifiesAsync(notices);
             var noticeMap = notices.ToDictionary(x => x.Id, x => x);
 
             var vendorEnglishMapLegacy = await VendorDisplayEnrichment.LoadEnglishOfficialNameMapAsync(
@@ -458,6 +465,8 @@ namespace CRM.Core.Services
                 qc.VendorName = notice?.VendorName;
                 qc.VendorEnglishName = notice?.VendorEnglishName;
                 qc.PurchaseOrderCode = notice?.PurchaseOrderCode;
+                qc.CustomsDeclarationId = notice?.CustomsDeclarationId;
+                qc.CustomsDeclarationCode = notice?.CustomsDeclarationCode;
                 qc.FreightForwarderOrderNo = notice == null
                     ? null
                     : FreightForwarderOrderNoLookup.FromPurchaseOrderId(notice.PurchaseOrderId, poByIdLegacy);

@@ -57,7 +57,12 @@
                 <el-tag v-if="detailStatus !== null" effect="dark" :type="stockInStatusTagType" size="small">
                   {{ statusLabel(detailStatus) }}
                 </el-tag>
-                <StockBizTypeTag biz="in" :type="detailStockInType" />
+                <StockBizTypeTag
+                  biz="in"
+                  :type="detailStockInType"
+                  :customs-declaration-id="primaryCustomsDeclaration?.declarationId"
+                  :customs-declaration-code="primaryCustomsDeclaration?.declarationCode"
+                />
               </div>
             </div>
           </div>
@@ -224,7 +229,14 @@
         <div class="info-grid info-grid--inline-labels info-grid--basic">
           <div class="info-item">
             <span class="info-label">{{ t('stockInList.columns.stockInType') }}</span>
-            <span class="info-value"><StockBizTypeTag biz="in" :type="detailStockInType" /></span>
+            <span class="info-value">
+              <StockBizTypeTag
+                biz="in"
+                :type="detailStockInType"
+                :customs-declaration-id="primaryCustomsDeclaration?.declarationId"
+                :customs-declaration-code="primaryCustomsDeclaration?.declarationCode"
+              />
+            </span>
           </div>
           <div class="info-item">
             <span class="info-label">{{ t('stockInDetail.warehouseName') }}</span>
@@ -623,9 +635,14 @@
                 <span class="stockin-report-cell">{{ reportCellText(row.warehouseCode) }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="入库类型" width="110" show-overflow-tooltip>
+            <el-table-column label="入库类型" width="140" show-overflow-tooltip>
               <template #default="{ row }">
-                <StockBizTypeTag biz="in" :type="row.stockInType ?? detailStockInType" />
+                <StockBizTypeTag
+                  biz="in"
+                  :type="row.stockInType ?? detailStockInType"
+                  :customs-declaration-id="primaryCustomsDeclaration?.declarationId"
+                  :customs-declaration-code="primaryCustomsDeclaration?.declarationCode"
+                />
               </template>
             </el-table-column>
             <el-table-column label="批次号" width="140" show-overflow-tooltip>
@@ -707,9 +724,14 @@
                 <span class="stockin-report-cell">{{ stockItemStockTypeLabel(row) }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="入库类型" min-width="88" show-overflow-tooltip>
+            <el-table-column label="入库类型" min-width="140" show-overflow-tooltip>
               <template #default="{ row }">
-                <StockBizTypeTag biz="in" :type="row.stockInType ?? detailStockInType" />
+                <StockBizTypeTag
+                  biz="in"
+                  :type="row.stockInType ?? detailStockInType"
+                  :customs-declaration-id="primaryCustomsDeclaration?.declarationId"
+                  :customs-declaration-code="primaryCustomsDeclaration?.declarationCode"
+                />
               </template>
             </el-table-column>
             <el-table-column label="入库明细编号" min-width="150" show-overflow-tooltip>
@@ -1344,6 +1366,8 @@ const customsDeclarationSummaries = computed(() => {
   }
   return [...map.values()]
 })
+
+const primaryCustomsDeclaration = computed(() => customsDeclarationSummaries.value[0] ?? null)
 
 function customsWarehouseRoute(row: StockInCustomsContextItemDto): string {
   const from = (row.fromWarehouseCode ?? row.fromWarehouseId ?? '').trim()

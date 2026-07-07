@@ -1,4 +1,5 @@
 import apiClient from './client'
+import { normalizeStockOutCustomsSummary, type StockOutCustomsSummaryDto } from './stockOut'
 import { parsePackingBundlePayload, parseInvoiceBundlePayload, type StockOutPackingReportBundle, type PackingReportLine, type StockOutInvoiceReportBundle } from './stockOut'
 
 /** 装箱单详情明细 → Packing 报表明细行（与后端 MapPackingLines 字段一致） */
@@ -43,6 +44,8 @@ export interface PackingListItem {
   shipCompany?: string | null
   /** packing_extend_ship.ship_address */
   shipAddress?: string | null
+  customsDeclarationId?: string | null
+  customsDeclarationCode?: string | null
 }
 
 export interface PackingItemListRow {
@@ -220,6 +223,9 @@ export interface PackingDetail {
   expressCompany?: string | null
   /** @deprecated 请使用 shipmentMethod */
   deliveryMethod?: number | null
+  customsDeclarationId?: string | null
+  customsDeclarationCode?: string | null
+  customsSummary?: StockOutCustomsSummaryDto | null
   items: PackingDetailLine[]
   itemExtends: PackingDetailItemExtend[]
   stockOutNotifies: PackingStockOutNotifyRow[]
@@ -284,7 +290,9 @@ export function normalizePackingListItem(row: unknown): PackingListItem {
     createByUserId: (r.createByUserId ?? r.CreateByUserId) as string | null | undefined,
     createUserName: (r.createUserName ?? r.CreateUserName) as string | null | undefined,
     shipCompany: (r.shipCompany ?? r.ShipCompany) as string | null | undefined,
-    shipAddress: (r.shipAddress ?? r.ShipAddress) as string | null | undefined
+    shipAddress: (r.shipAddress ?? r.ShipAddress) as string | null | undefined,
+    customsDeclarationId: (r.customsDeclarationId ?? r.CustomsDeclarationId) as string | null | undefined,
+    customsDeclarationCode: (r.customsDeclarationCode ?? r.CustomsDeclarationCode) as string | null | undefined
   }
 }
 
@@ -400,6 +408,9 @@ function unwrapDetail(res: unknown): PackingDetail | null {
       d.deliveryMethod != null || d.DeliveryMethod != null
         ? Number(d.deliveryMethod ?? d.DeliveryMethod)
         : null,
+    customsDeclarationId: (d.customsDeclarationId ?? d.CustomsDeclarationId) as string | null | undefined,
+    customsDeclarationCode: (d.customsDeclarationCode ?? d.CustomsDeclarationCode) as string | null | undefined,
+    customsSummary: normalizeStockOutCustomsSummary(d.customsSummary ?? d.CustomsSummary),
     items,
     itemExtends,
     stockOutNotifies: unwrapPackingStockOutNotifies(d)

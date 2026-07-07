@@ -78,7 +78,8 @@ public class LogisticsServiceTests
             Substitute.For<ILogOperationAppendService>(),
             log,
             Substitute.For<IQcListQuery>(),
-            Substitute.For<IRepository<VendorInfo>>());
+            Substitute.For<IRepository<VendorInfo>>(),
+            Substitute.For<ICustomsTraceQuery>());
 
         var result = await svc.GetQcsAsync(new QcQueryRequest { Model = "UG-MPN-455565" });
 

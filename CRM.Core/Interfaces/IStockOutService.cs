@@ -206,6 +206,12 @@ namespace CRM.Core.Interfaces
 
         /// <summary>报关出库单关联的原销售出库通知单号。</summary>
         public string? SalesStockOutNotifyCode { get; set; }
+
+        /// <summary>关联报关单主键（报关出库 Type=20）。</summary>
+        public string? CustomsDeclarationId { get; set; }
+
+        /// <summary>关联报关单号。</summary>
+        public string? CustomsDeclarationCode { get; set; }
     }
 
     public class StockOutDetailViewDto : StockOutListItemDto
@@ -216,6 +222,9 @@ namespace CRM.Core.Interfaces
         /// <summary>仓库名称（由 WarehouseId 解析；无档案时为空）</summary>
         public string? WarehouseName { get; set; }
         public string? SellOrderItemId { get; set; }
+
+        /// <summary>报关出库详情轻量摘要（StockOutType=报关时有值）。</summary>
+        public StockOutCustomsSummaryDto? CustomsSummary { get; set; }
     }
 
     public class UpdateStockOutHeaderRequest
@@ -300,6 +309,15 @@ namespace CRM.Core.Interfaces
         public short Currency { get; set; }
 
         public DateTime CreateTime { get; set; }
+
+        /// <summary>关联报关单主键（报关出库通知 Type=20）。</summary>
+        public string? CustomsDeclarationId { get; set; }
+
+        /// <summary>关联报关单号。</summary>
+        public string? CustomsDeclarationCode { get; set; }
+
+        /// <summary>报关公司名称（展示用）。</summary>
+        public string? CustomsBrokerName { get; set; }
     }
 
     public class ExecuteStockOutRequest

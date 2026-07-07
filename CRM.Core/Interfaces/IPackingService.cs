@@ -237,6 +237,10 @@ public class PackingListItemDto
     public string? ShipCompany { get; set; }
     /// <summary>送货地址（<c>packing_extend_ship.ship_address</c>）。</summary>
     public string? ShipAddress { get; set; }
+    /// <summary>关联报关单 ID（<c>packing.customs_declaration_id</c>，报关装箱单确认后写入）。</summary>
+    public string? CustomsDeclarationId { get; set; }
+    /// <summary>关联报关单号（展示用）。</summary>
+    public string? CustomsDeclarationCode { get; set; }
 }
 
 public class PackingItemListRowDto
@@ -300,6 +304,12 @@ public class PackingDetailDto
     public string? ExpressCompany { get; set; }
     [Obsolete("请使用 ShipmentMethod")]
     public short? DeliveryMethod { get; set; }
+    /// <summary>关联报关单 ID（<c>packing.customs_declaration_id</c>）。</summary>
+    public string? CustomsDeclarationId { get; set; }
+    /// <summary>关联报关单号（展示用）。</summary>
+    public string? CustomsDeclarationCode { get; set; }
+    /// <summary>报关摘要（Hub 跳转 + 报关公司名）。</summary>
+    public StockOutCustomsSummaryDto? CustomsSummary { get; set; }
     public List<PackingDetailLineDto> Items { get; set; } = new();
     public List<PackingDetailItemExtendDto> ItemExtends { get; set; } = new();
     public List<PackingStockOutNotifyRowDto> StockOutNotifies { get; set; } = new();

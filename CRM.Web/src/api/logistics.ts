@@ -44,6 +44,10 @@ export interface StockInNotifyDto {
   courierTrackingNo?: string | null
   /** 快递公司（字典 LogisticsExpressMethod ItemCode） */
   expressCompany?: string | null
+  /** 关联报关单主键（报关到货 Type=20） */
+  customsDeclarationId?: string | null
+  /** 关联报关单号（报关到货 Type=20） */
+  customsDeclarationCode?: string | null
   createTime: string
   modifyTime?: string
   createUserName?: string | null
@@ -96,6 +100,8 @@ export function normalizeStockInNotifyRow(row: unknown): StockInNotifyDto {
     shipmentMethod: (r.shipmentMethod ?? r.ShipmentMethod) as string | null | undefined,
     courierTrackingNo: (r.courierTrackingNo ?? r.CourierTrackingNo) as string | null | undefined,
     expressCompany: (r.expressCompany ?? r.ExpressCompany) as string | null | undefined,
+    customsDeclarationId: (r.customsDeclarationId ?? r.CustomsDeclarationId) as string | null | undefined,
+    customsDeclarationCode: (r.customsDeclarationCode ?? r.CustomsDeclarationCode) as string | null | undefined,
     createTime: String(r.createTime ?? r.CreateTime ?? ''),
     modifyTime: (r.modifyTime ?? r.ModifyTime) as string | undefined,
     createUserName: (r.createUserName ?? r.CreateUserName) as string | null | undefined,
@@ -123,6 +129,10 @@ export interface QcInfoDto {
   stockInId?: string
   /** 入库类型：10采购 20报关 30退货 40报废 */
   stockInType?: number
+  /** 关联报关单主键（报关质检 Type=20） */
+  customsDeclarationId?: string | null
+  /** 关联报关单号（报关质检 Type=20） */
+  customsDeclarationCode?: string | null
   /** 质检保存的计划入库日（ISO）；生成入库单时优先使用 */
   stockInPlanDate?: string | null
   /** 部分接口仍返回 PascalCase */

@@ -41,6 +41,12 @@ namespace CRM.Core.Interfaces
         public string? CreateUserName { get; set; }
         /// <summary>是否存在已录入的入库批次（任一明细有关联批次记录）。</summary>
         public bool HasBatchEntered { get; set; }
+
+        /// <summary>关联报关单主键（报关入库 Type=20 时由服务层填充）。</summary>
+        public string? CustomsDeclarationId { get; set; }
+
+        /// <summary>关联报关单号（报关入库 Type=20 时由服务层填充）。</summary>
+        public string? CustomsDeclarationCode { get; set; }
     }
 
     /// <summary>

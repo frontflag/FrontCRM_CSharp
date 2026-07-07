@@ -139,6 +139,11 @@
               <span class="info-value">{{ expressCompanyDisplay(packingPanel.expressCompany) }}</span>
             </div>
           </div>
+          <StockOutCustomsSummaryPanel
+            v-if="packingPanel.customsSummary?.declarationId"
+            embedded
+            :summary="packingPanel.customsSummary"
+          />
         </div>
 
         <div class="info-section">
@@ -453,7 +458,8 @@ import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import type { SalesOrderItemLineRow } from '@/stores/salesOrderItemListBasket'
 import { inventoryCenterApi, type PickingTaskDetailView, type PickingTaskLine } from '@/api/inventoryCenter'
-import { stockOutApi, type StockOutDto, type StockOutRequestDto } from '@/api/stockOut'
+import { normalizeStockOutCustomsSummary, stockOutApi, type StockOutDto, type StockOutRequestDto } from '@/api/stockOut'
+import StockOutCustomsSummaryPanel from '@/components/Customs/StockOutCustomsSummaryPanel.vue'
 import { salesOrderApi } from '@/api/salesOrder'
 import { formatDate as formatDateTimeZh } from '@/utils/date'
 import { getApiErrorMessage } from '@/utils/apiError'
@@ -538,7 +544,11 @@ const packingPanel = computed(() => {
     packingId,
     packingCode: (p.packingCode ?? p.PackingCode) as string | null | undefined,
     shipmentMethod: (p.shipmentMethod ?? p.ShipmentMethod) as string | null | undefined,
-    expressCompany: (p.expressCompany ?? p.ExpressCompany) as string | null | undefined
+    expressCompany: (p.expressCompany ?? p.ExpressCompany) as string | null | undefined,
+    stockOutType: Number(p.stockOutType ?? p.StockOutType ?? 0) || undefined,
+    customsDeclarationId: (p.customsDeclarationId ?? p.CustomsDeclarationId) as string | null | undefined,
+    customsDeclarationCode: (p.customsDeclarationCode ?? p.CustomsDeclarationCode) as string | null | undefined,
+    customsSummary: normalizeStockOutCustomsSummary(p.customsSummary ?? p.CustomsSummary)
   }
 })
 
