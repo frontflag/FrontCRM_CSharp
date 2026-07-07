@@ -335,7 +335,7 @@ import {
 import MaterialProductionDateSelect from '@/components/MaterialProductionDateSelect.vue'
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
 import BizBrandSelect from '@/components/Biz/BizBrandSelect.vue'
-import { bizBrandApi } from '@/api/bizBrand'
+import { resolveBrandIdsForItems } from '@/utils/bizBrandMatch'
 import { formatCurrencyTotal, formatUnitPriceWithCurrencyCodeSuffix } from '@/utils/moneyFormat'
 import { useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
@@ -760,27 +760,6 @@ function onItemBrandChange(
   }
 }
 
-async function resolveBrandIdsForItems(items: Array<{ brand?: string; brandId?: number }>) {
-  for (let i = 0; i < items.length; i++) {
-    const it = items[i]
-    if (it.brandId && it.brandId > 0) continue
-    const text = (it.brand || '').trim()
-    if (!text) continue
-    try {
-      const opts = await bizBrandApi.fetchOptions({ keyword: text, pageSize: 50 })
-      const match = opts.find(
-        (o) => (o.standardBrand || '').trim().toLowerCase() === text.toLowerCase()
-      )
-      if (match) {
-        it.brandId = match.id
-        it.brand = (match.standardBrand || text).trim()
-      }
-    } catch {
-      /* 无法匹配时保留文本，提交前校验提示重选 */
-    }
-  }
-}
-
 function validateItemsBrand(): boolean {
   if (!formData.value.items.length) {
     ElMessage.warning('请至少添加一条订单明细')
@@ -866,7 +845,7 @@ async function loadOrderForEdit(id: string) {
       innerComment: String(it.innerComment ?? '')
     }
   })
-  await resolveBrandIdsForItems(formData.value.items)
+  await resolveBrandIdsForItems(formData.value.items, { silent: true })
 }
 
 const handleSubmit = async () => {
@@ -982,7 +961,7 @@ async function applyPrsToPurchaseOrderForm(prs: Record<string, unknown>[]) {
     })
   )
 
-  await resolveBrandIdsForItems(formData.value.items)
+  await resolveBrandIdsForItems(formData.value.items, { silent: true })
   generatedFromRequisition.value = true
   generatedFromRequisitionBatch.value = prs.length > 1
   await initStaffPickFields()

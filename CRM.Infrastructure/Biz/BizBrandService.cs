@@ -185,7 +185,8 @@ public class BizBrandService : IBizBrandService
         StandardBrand = b.StandardBrand,
         AuditStatus = b.AuditStatus,
         BrandEName = b.BrandEName,
-        BrandCName = b.BrandCName
+        BrandCName = b.BrandCName,
+        Alias = b.Alias
     };
 
     public async Task<BizBrandRowDto?> GetByIdAsync(long id, CancellationToken cancellationToken = default)

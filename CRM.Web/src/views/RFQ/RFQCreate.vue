@@ -1,40 +1,67 @@
 <template>
-  <div class="create-page" v-loading="pageLoading">
-    <!-- 面包屑 + 操作栏 -->
+  <div class="rfq-upsert-page">
+    <!-- CaptionBar（《业务详情页面规范》§3 单据类） -->
     <div class="page-header">
       <div class="header-left">
-        <el-button link @click="router.back()">
-          <el-icon><ArrowLeft /></el-icon> 返回列表
-        </el-button>
-        <el-breadcrumb separator="/">
-          <el-breadcrumb-item>需求管理</el-breadcrumb-item>
-          <el-breadcrumb-item>{{ isEditMode ? '编辑需求' : '新建需求' }}</el-breadcrumb-item>
-        </el-breadcrumb>
+        <button class="btn-back" type="button" @click="handleBack">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+          返回列表
+        </button>
+        <div class="rfq-caption-title-group">
+          <div class="caption-avatar-lg">{{ captionAvatarChar }}</div>
+          <div>
+            <div class="page-title-row">
+              <div class="page-title-with-icons">
+                <h1 class="page-title">
+                  <template v-if="isEditMode && formData.rfqCode">需求 {{ formData.rfqCode }}</template>
+                  <template v-else>新建需求</template>
+                </h1>
+              </div>
+            </div>
+            <div class="title-meta title-meta--caption rfq-header-meta-row">
+              <el-tag effect="dark" :type="isEditMode ? 'warning' : 'primary'" size="small">
+                {{ isEditMode ? '编辑' : '新建' }}
+              </el-tag>
+              <span v-if="formData.rfqCode" class="rfq-caption-meta-text">单号 {{ formData.rfqCode }}</span>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="header-right">
         <el-button v-if="!isEditMode" @click="saveDraftOnly">保存草稿</el-button>
-        <el-button @click="router.back()">取消</el-button>
+        <el-button @click="handleBack">取消</el-button>
         <el-button type="primary" :loading="submitLoading" @click="handleSubmit">
           <el-icon><Check /></el-icon> {{ isEditMode ? '保存修改' : '保存' }}
         </el-button>
       </div>
     </div>
 
-    <!-- 表单卡片 -->
-    <el-form ref="formRef" :model="formData" :rules="formRules" label-width="108px" class="create-form">
+    <div
+      class="rfq-upsert-content"
+      v-loading="pageLoading"
+      element-loading-background="rgba(10,22,40,0.8)"
+    >
+    <el-form ref="formRef" :model="formData" :rules="formRules" label-width="108px" class="upsert-form">
 
       <!-- 基础信息 -->
-      <div class="form-section">
-        <div class="section-title">
-          <span class="title-bar"></span>基础信息
+      <div class="info-section basic-info-section">
+        <div class="section-header">
+          <div class="section-header__main">
+            <div class="section-dot section-dot--cyan"></div>
+            <span class="section-title">基础信息</span>
+          </div>
+          <div class="section-header__meta">
+            <span class="section-header-meta-item">
+              <span class="section-header-meta-item__label">业务员</span>
+              <span class="section-header-meta-item__value">{{ formData.salesUserName || authStore.user?.userName || '—' }}</span>
+            </span>
+          </div>
         </div>
-        <el-row :gutter="24">
-          <el-col :span="12">
-            <el-form-item label="需求编号">
-              <el-input v-model="formData.rfqCode" disabled placeholder="系统自动生成" class="q-input" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
+        <div class="basic-info-section__body">
+        <el-row :gutter="12" class="rfq-basic-triple-row">
+          <el-col :span="8">
             <el-form-item label="客户" prop="customerId">
               <el-select
                 ref="customerSelectRef"
@@ -61,9 +88,7 @@
               </el-select>
             </el-form-item>
           </el-col>
-        </el-row>
-        <el-row :gutter="24">
-          <el-col :span="12">
+          <el-col :span="8">
             <el-form-item label="客户联系人">
               <el-select
                 v-model="formData.contactId"
@@ -84,14 +109,14 @@
               </el-select>
             </el-form-item>
           </el-col>
-          <el-col :span="12">
+          <el-col :span="8">
             <el-form-item label="联系人邮箱">
               <el-input v-model="formData.contactEmail" placeholder="选择联系人可自动带出，也可手填" class="q-input" />
             </el-form-item>
           </el-col>
         </el-row>
-        <el-row :gutter="24">
-          <el-col :span="12">
+        <el-row :gutter="12" class="rfq-basic-triple-row">
+          <el-col :span="8">
             <el-form-item label="业务员">
               <SalesUserCascader
                 v-model="formData.salesUserId"
@@ -102,13 +127,18 @@
             </el-form-item>
           </el-col>
         </el-row>
+        </div>
       </div>
 
       <!-- 需求信息 -->
-      <div class="form-section">
-        <div class="section-title">
-          <span class="title-bar"></span>需求信息
+      <div class="info-section">
+        <div class="section-header">
+          <div class="section-header__main">
+            <div class="section-dot section-dot--cyan"></div>
+            <span class="section-title">需求信息</span>
+          </div>
         </div>
+        <div class="info-section__body">
         <el-row :gutter="24">
           <el-col :span="8">
             <el-form-item label="需求类型" prop="rfqType">
@@ -234,15 +264,17 @@
             </el-form-item>
           </el-col>
         </el-row>
+        </div>
       </div>
 
       <!-- 物料明细：面板（默认） / 列表 可切换 -->
-      <div class="form-section">
-        <div class="section-title section-title--items">
-          <div class="section-title__left">
-            <span class="title-bar"></span>物料明细
+      <div class="info-section items-section">
+        <div class="section-header section-header--items">
+          <div class="section-header__main">
+            <div class="section-dot section-dot--amber"></div>
+            <span class="section-title">物料明细</span>
           </div>
-          <div class="section-title__right">
+          <div class="section-header__actions">
             <el-radio-group v-model="materialItemsViewMode" size="small" class="items-view-toggle">
               <el-radio-button label="panel">面板</el-radio-button>
               <el-radio-button label="list">列表</el-radio-button>
@@ -252,7 +284,7 @@
             </el-button>
           </div>
         </div>
-
+        <div class="items-section__body">
         <!-- 面板：每行 4 个字段（span=6） -->
         <div v-if="materialItemsViewMode === 'panel' && formData.items.length > 0" class="items-panel-list">
           <div
@@ -292,6 +324,9 @@
                     size="default"
                     @change="(p) => onItemBrandChange(row, p)"
                   />
+                  <div v-if="itemNeedsBrandAttention(row)" class="brand-import-hint">
+                    导入品牌「{{ row._importBrandText || row.brand }}」未能自动匹配，请手动选择
+                  </div>
                 </div>
               </el-col>
             </el-row>
@@ -391,7 +426,7 @@
 
         <!-- 列表：横向表格 -->
         <div v-if="materialItemsViewMode === 'list' && formData.items.length > 0" class="items-table-wrap">
-          <el-table :data="formData.items" size="small" class="items-table">
+          <el-table :data="formData.items" size="small" class="items-table items-table--h-scroll">
             <el-table-column label="客户物料型号" min-width="130">
               <template #default="{ $index }">
                 <el-input v-model="formData.items[$index].customerMpn" placeholder="客户物料型号" class="q-input" />
@@ -407,7 +442,7 @@
                 <el-input v-model="formData.items[$index].mpn" placeholder="物料型号(MPN)" class="q-input" />
               </template>
             </el-table-column>
-            <el-table-column label="品牌" min-width="100">
+            <el-table-column label="品牌" min-width="220" class-name="rfq-table-brand-col">
               <template #default="{ $index }">
                 <BizBrandSelect
                   v-model="formData.items[$index].brandId"
@@ -415,6 +450,12 @@
                   size="small"
                   @change="(p) => onItemBrandChange(formData.items[$index], p)"
                 />
+                <div
+                  v-if="itemNeedsBrandAttention(formData.items[$index])"
+                  class="brand-import-hint brand-import-hint--table"
+                >
+                  导入「{{ formData.items[$index]._importBrandText || formData.items[$index].brand }}」待选择
+                </div>
               </template>
             </el-table-column>
             <el-table-column label="目标价 / 币别" min-width="200" class-name="rfq-table-target-ccy-col">
@@ -484,7 +525,7 @@
                 <el-input v-model="formData.items[$index].alternativeMaterials" placeholder="逗号分隔" class="q-input" />
               </template>
             </el-table-column>
-            <el-table-column label="备注" min-width="100">
+            <el-table-column label="备注" min-width="220" class-name="rfq-table-remark-col">
               <template #default="{ $index }">
                 <el-input v-model="formData.items[$index].remark" placeholder="备注" class="q-input" />
               </template>
@@ -535,9 +576,11 @@
         <div v-if="formData.items.length === 0" class="empty-hint">
           暂无明细，点击「添加明细」添加
         </div>
+        </div>
       </div>
 
     </el-form>
+    </div>
   </div>
 </template>
 
@@ -545,7 +588,7 @@
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElNotification } from 'element-plus'
-import { ArrowLeft, Check, Plus, QuestionFilled } from '@element-plus/icons-vue'
+import { Check, Plus, QuestionFilled } from '@element-plus/icons-vue'
 import { rfqApi } from '@/api/rfq'
 import { customerApi, customerContactApi } from '@/api/customer'
 import { draftApi } from '@/api/draft'
@@ -564,7 +607,7 @@ import {
 import MaterialProductionDateSelect from '@/components/MaterialProductionDateSelect.vue'
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
 import BizBrandSelect from '@/components/Biz/BizBrandSelect.vue'
-import { bizBrandApi } from '@/api/bizBrand'
+import { resolveBrandIdsForItems } from '@/utils/bizBrandMatch'
 import { useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
 import { useCustomerDictStore } from '@/stores/customerDict'
 import { useI18n } from 'vue-i18n'
@@ -615,6 +658,16 @@ const rfqId = computed(() => {
 })
 
 const isEditMode = computed(() => route.name === 'RFQEdit' && !!rfqId.value)
+
+const captionAvatarChar = computed(() => {
+  const code = String(formData.value.rfqCode ?? '').trim()
+  if (code) return code.charAt(0).toUpperCase()
+  return 'R'
+})
+
+function handleBack() {
+  router.push({ name: 'RFQList' })
+}
 
 // 客户下拉搜索
 const customerOptions = ref<{ value: string; label: string }[]>([])
@@ -838,7 +891,13 @@ async function applyDraftPayload(payload: Record<string, unknown>) {
     await loadContactsForCustomer(formData.value.customerId)
     applyDefaultContactAndEmail()
   }
-  await resolveBrandIdsForItems(formData.value.items)
+  // Excel 导入第二步已做品牌匹配与提示，进入新建页不再重复弹 Toast
+  if (p._prefillSource !== 'excel-import') {
+    await resolveBrandIdsForItems(formData.value.items, {
+      onWarning: (msg) => ElMessage.warning(msg)
+    })
+    clearResolvedImportBrandHints(formData.value.items)
+  }
 }
 
 async function restoreDraftById(draftId: string) {
@@ -957,7 +1016,10 @@ async function loadRfqForEdit() {
       remark: data.remark || '',
       items: data.items?.length ? mapItemsFromApi(data.items) : []
     }
-    await resolveBrandIdsForItems(formData.value.items)
+    await resolveBrandIdsForItems(formData.value.items, {
+      onWarning: (msg) => ElMessage.warning(msg)
+    })
+    clearResolvedImportBrandHints(formData.value.items)
     formData.value.industry = await customerDict.resolveIndustryStorageLabel(data.industry || '')
   } catch (e) {
     ElMessage.error(getApiErrorMessage(e, '加载需求失败'))
@@ -1113,41 +1175,34 @@ const removeItem = (index: number) => {
   formData.value.items.splice(index, 1)
 }
 
+function itemNeedsBrandAttention(row: {
+  brand?: string
+  brandId?: number
+  _importBrandText?: string
+}): boolean {
+  const hasId = row.brandId != null && row.brandId > 0
+  const text = (row._importBrandText || row.brand || '').trim()
+  return !hasId && !!text
+}
+
+function clearResolvedImportBrandHints(
+  items: Array<{ brandId?: number; _importBrandText?: string }>
+) {
+  for (const it of items) {
+    if (it.brandId && it.brandId > 0) it._importBrandText = undefined
+  }
+}
+
 function onItemBrandChange(
-  row: { brand?: string; brandId?: number },
+  row: { brand?: string; brandId?: number; _importBrandText?: string },
   payload: { id: number; standardBrand: string }
 ) {
   if (payload.id > 0) {
     row.brand = (payload.standardBrand || '').trim()
+    row._importBrandText = undefined
   } else {
     row.brand = ''
     row.brandId = undefined
-  }
-}
-
-async function resolveBrandIdsForItems(items: Array<{ brand?: string; brandId?: number }>) {
-  for (let i = 0; i < items.length; i++) {
-    const it = items[i]
-    if (it.brandId && it.brandId > 0) continue
-    const text = (it.brand || '').trim()
-    if (!text) {
-      ElMessage.warning(`明细 ${i + 1}：请重新选择品牌`)
-      continue
-    }
-    try {
-      const opts = await bizBrandApi.fetchOptions({ keyword: text, pageSize: 50 })
-      const match = opts.find(
-        (o) => (o.standardBrand || '').trim().toLowerCase() === text.toLowerCase()
-      )
-      if (match) {
-        it.brandId = match.id
-        it.brand = (match.standardBrand || text).trim()
-      } else {
-        ElMessage.warning(`明细 ${i + 1}：历史品牌「${text}」无法匹配，请重新选择品牌`)
-      }
-    } catch {
-      ElMessage.warning(`明细 ${i + 1}：历史品牌「${text}」无法匹配，请重新选择品牌`)
-    }
   }
 }
 
@@ -1269,83 +1324,214 @@ const handleSubmit = async () => {
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
 
-/* RFQCreate.vue — 新建需求独立页面，暗色科技风 */
-.create-page {
-  padding: 20px;
+.rfq-upsert-page {
+  padding: 24px;
   min-height: 100%;
+  background: $layer-1;
+  font-family: 'Noto Sans SC', sans-serif;
+}
+
+.rfq-upsert-content {
+  min-height: 120px;
 }
 
 .page-header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
   margin-bottom: 20px;
 
   .header-left {
     display: flex;
     align-items: center;
-    gap: 12px;
-
-    :deep(.el-button.is-link) {
-      color: $text-muted;
-      font-size: 13px;
-      &:hover { color: $cyan-primary; }
-    }
+    gap: 14px;
+    min-width: 0;
+    flex: 1;
   }
 
   .header-right {
     display: flex;
+    align-items: center;
     gap: 10px;
+    flex-shrink: 0;
   }
 }
 
-.create-form {
-  .form-section {
-    background: $layer-2;
-    border: 1px solid $border-card;
-    border-radius: $border-radius-md;
-    padding: 20px 24px;
-    margin-bottom: 16px;
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-muted;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.07);
+    color: $text-secondary;
+    border-color: rgba(0, 212, 255, 0.2);
+  }
+}
+
+.rfq-caption-title-group {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.caption-avatar-lg {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.3), rgba(0, 212, 255, 0.2));
+  border: 1px solid rgba(0, 212, 255, 0.25);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 700;
+  color: $cyan-primary;
+  flex-shrink: 0;
+}
+
+.page-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.page-title-with-icons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: $text-primary;
+}
+
+.title-meta--caption {
+  margin-top: 4px;
+}
+
+.rfq-header-meta-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-height: 28px;
+}
+
+.rfq-caption-meta-text {
+  font-size: 13px;
+  color: $text-muted;
+}
+
+.info-section {
+  background: $layer-2;
+  border: 1px solid $border-card;
+  border-radius: $border-radius-lg;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--crm-detail-section-header-bg);
+
+  &--items {
+    flex-wrap: wrap;
+  }
+}
+
+.section-header__main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.section-header__meta,
+.section-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.section-header-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+
+  &__label {
+    color: $text-muted;
+
+    &::after {
+      content: '：';
+    }
   }
 
-  .section-title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    color: $text-primary;
-    margin-bottom: 20px;
+  &__value {
+    color: $text-secondary;
+  }
+}
 
-    .title-bar {
-      width: 3px;
-      height: 16px;
-      background: linear-gradient(180deg, $cyan-primary, $blue-primary);
-      border-radius: 2px;
-    }
+.section-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
 
-    .add-item-btn {
-      margin-left: auto;
-    }
+  &--cyan {
+    background: $cyan-primary;
+    box-shadow: 0 0 6px rgba(0, 212, 255, 0.6);
+  }
 
-    &--items {
-      flex-wrap: wrap;
-      justify-content: space-between;
-      gap: 12px;
+  &--amber {
+    background: $color-amber;
+    box-shadow: 0 0 6px rgba(201, 154, 69, 0.5);
+  }
+}
 
-      .section-title__left {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
+.section-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: $text-primary;
+}
 
-      .section-title__right {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        flex-wrap: wrap;
-        margin-left: auto;
-      }
+.basic-info-section__body,
+.info-section__body,
+.items-section__body {
+  padding: 16px 20px 20px;
+}
+
+.upsert-form {
+  .rfq-basic-triple-row {
+    :deep(.el-col) {
+      min-width: 0;
     }
   }
 
@@ -1404,7 +1590,6 @@ const handleSubmit = async () => {
     flex-shrink: 0;
   }
 
-  /* 背景 / 竞争对手 / 重要程度 同行：星级与单行输入区垂直对齐 */
   .rfq-row-bg-comp-importance {
     align-items: flex-start;
     .importance-inline-item :deep(.el-form-item__content) {
@@ -1537,6 +1722,13 @@ const handleSubmit = async () => {
 .items-table-wrap {
   width: 100%;
   overflow-x: auto;
+  overflow-y: hidden;
+}
+
+// 列表模式：列总宽超出容器时出现横向滚动条
+.items-table--h-scroll {
+  width: max-content;
+  min-width: 1880px;
 }
 
 .q-date {
@@ -1599,6 +1791,33 @@ const handleSubmit = async () => {
     overflow: visible;
     white-space: normal;
   }
+  :deep(.rfq-table-brand-col .cell) {
+    overflow: visible;
+    white-space: normal;
+  }
+  :deep(.rfq-table-brand-col .biz-brand-select__control) {
+    min-width: 148px;
+  }
+  :deep(.rfq-table-brand-col .el-select__selected-item) {
+    overflow: visible;
+    text-overflow: clip;
+  }
+  :deep(.rfq-table-remark-col .cell) {
+    overflow: visible;
+    white-space: normal;
+  }
+}
+
+.brand-import-hint {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #e6a23c;
+}
+
+.brand-import-hint--table {
+  margin-top: 6px;
+  max-width: 220px;
 }
 
 .empty-hint {

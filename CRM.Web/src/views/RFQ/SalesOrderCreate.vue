@@ -399,7 +399,7 @@ import {
 import MaterialProductionDateSelect from '@/components/MaterialProductionDateSelect.vue'
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
 import BizBrandSelect from '@/components/Biz/BizBrandSelect.vue'
-import { bizBrandApi } from '@/api/bizBrand'
+import { resolveBrandIdsForItems } from '@/utils/bizBrandMatch'
 import { useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 import { formatTotalAmountNumber, formatUnitPriceNumber } from '@/utils/moneyFormat'
@@ -791,27 +791,6 @@ function onItemBrandChange(
   }
 }
 
-async function resolveBrandIdsForItems(items: Array<{ brand?: string; brandId?: number }>) {
-  for (let i = 0; i < items.length; i++) {
-    const it = items[i]
-    if (it.brandId && it.brandId > 0) continue
-    const text = (it.brand || '').trim()
-    if (!text) continue
-    try {
-      const opts = await bizBrandApi.fetchOptions({ keyword: text, pageSize: 50 })
-      const match = opts.find(
-        (o) => (o.standardBrand || '').trim().toLowerCase() === text.toLowerCase()
-      )
-      if (match) {
-        it.brandId = match.id
-        it.brand = (match.standardBrand || text).trim()
-      }
-    } catch {
-      /* 提交前由表单校验提示重选 */
-    }
-  }
-}
-
 const addItem = () => {
   if (!allowAddSoItem.value) return
   const line = emptyLine()
@@ -1058,7 +1037,7 @@ async function loadOrderForEdit(id: string) {
     }
     return line
   })
-  await resolveBrandIdsForItems(formData.value.items)
+  await resolveBrandIdsForItems(formData.value.items, { silent: true })
 }
 
 function parseReturnTo(): string | null {
@@ -1244,7 +1223,7 @@ onMounted(async () => {
       hasQuotePrefill.value = true
       formData.value.items = lines
       formData.value.currency = lines[0].currency ?? formData.value.currency
-      await resolveBrandIdsForItems(formData.value.items)
+      await resolveBrandIdsForItems(formData.value.items, { silent: true })
     } else {
       addItem()
     }

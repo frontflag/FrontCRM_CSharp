@@ -238,10 +238,7 @@
     </div>
 
     <!-- 导入 Excel 创建 RFQ 对话框 -->
-    <ImportRFQDialog
-      v-model="importDialogVisible"
-      @created="handleImportCreated"
-    />
+    <ImportRFQDialog v-model="importDialogVisible" />
     <AiEntityCreateHost
       ref="aiCreateHostRef"
       entity-type="RFQ"
@@ -576,11 +573,6 @@ const handlePageChange = (val: number) => {
   loadData()
 }
 
-// 新建
-// 导入 Excel 创建 RFQ 成功后刷新列表
-const handleImportCreated = (_rfqId: string) => {
-  loadData()
-}
 
 // 编辑：与「新建需求」共用 RFQCreate 页面（路由 rfqs/:id/edit）
 const handleEdit = (row: any) => {

@@ -40,6 +40,7 @@ export type BizBrandOption = {
   auditStatus?: number | null
   brandEName?: string | null
   brandCName?: string | null
+  alias?: string | null
 }
 
 function normalizeBizBrandOption(raw: Record<string, unknown>): BizBrandOption {
@@ -49,7 +50,8 @@ function normalizeBizBrandOption(raw: Record<string, unknown>): BizBrandOption {
     standardBrand: pickString(raw.standardBrand ?? raw.StandardBrand),
     auditStatus: pickNumber(raw.auditStatus ?? raw.AuditStatus),
     brandEName: pickString(raw.brandEName ?? raw.BrandEName),
-    brandCName: pickString(raw.brandCName ?? raw.BrandCName)
+    brandCName: pickString(raw.brandCName ?? raw.BrandCName),
+    alias: pickString(raw.alias ?? raw.Alias)
   }
 }
 

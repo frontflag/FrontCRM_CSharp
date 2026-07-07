@@ -50,6 +50,8 @@ public class BizBrandOptionDto
     public short? AuditStatus { get; set; }
     public string? BrandEName { get; set; }
     public string? BrandCName { get; set; }
+    /// <summary>别名（逗号/分号等分隔），供前端精确 token 匹配。</summary>
+    public string? Alias { get; set; }
 }
 
 public class BizBrandOptionsQuery

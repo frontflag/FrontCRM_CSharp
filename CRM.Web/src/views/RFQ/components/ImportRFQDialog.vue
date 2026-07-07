@@ -2,14 +2,14 @@
   <el-dialog
     v-model="visible"
     :title="stepTitle"
-    width="900px"
+    width="1320px"
     :close-on-click-modal="false"
     :before-close="handleClose"
     class="import-rfq-dialog"
     destroy-on-close
   >
     <!-- ── STEP 1：上传 Excel ── -->
-    <div v-if="step === 1" class="step-upload">
+    <div v-if="step === 1" class="step-upload import-rfq-step-pane">
       <div class="upload-tips">
         <el-alert type="info" :closable="false" show-icon>
           <template #title>
@@ -46,7 +46,6 @@
         <el-button link type="primary" @click="clearFile">重新选择</el-button>
       </div>
 
-      <!-- 字段映射说明 -->
       <div class="field-mapping-table">
         <div class="mapping-title">Excel 列对应关系</div>
         <el-table :data="columnMapping" size="small" border>
@@ -65,62 +64,23 @@
     </div>
 
     <!-- ── STEP 2：预览解析结果 ── -->
-    <div v-if="step === 2" class="step-preview">
-      <!-- RFQ 基础信息填写 -->
-      <div class="rfq-base-form">
-        <div class="section-label">RFQ 基础信息</div>
-        <el-form :model="rfqBaseForm" label-width="100px" size="small" inline>
-          <el-form-item label="客户" required>
-            <el-select
-              v-model="rfqBaseForm.customerId"
-              filterable
-              remote
-              :remote-method="searchCustomers"
-              :loading="customerSearchLoading"
-              placeholder="请输入客户名称搜索"
-              style="width:200px"
-              clearable
-            >
-              <el-option
-                v-for="c in customerOptions"
-                :key="c.id"
-                :label="c.customerName"
-                :value="c.id"
-              />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="来源">
-            <el-select v-model="rfqBaseForm.source" style="width:120px" clearable>
-              <el-option label="线下" :value="1" />
-              <el-option label="线上" :value="2" />
-              <el-option label="邮件" :value="3" />
-              <el-option label="电话" :value="4" />
-              <el-option label="导入" :value="5" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="需求类型">
-            <el-select v-model="rfqBaseForm.rfqType" style="width:120px" clearable>
-              <el-option v-for="o in RFQ_TYPE_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="备注">
-            <el-input v-model="rfqBaseForm.remark" placeholder="RFQ 备注" style="width:200px" />
-          </el-form-item>
-        </el-form>
-      </div>
-
-      <!-- 解析统计 -->
+    <div v-if="step === 2" class="step-preview import-rfq-step-pane">
       <div class="parse-stats">
         <el-tag type="success">成功解析 {{ validItems.length }} 行</el-tag>
+        <el-tag v-if="matchedBrandCount" type="success" style="margin-left:8px;">
+          品牌已匹配 {{ matchedBrandCount }} 行
+        </el-tag>
+        <el-tag v-if="pendingBrandCount" type="warning" style="margin-left:8px;">
+          品牌待选择 {{ pendingBrandCount }} 行
+        </el-tag>
         <el-tag v-if="errorItems.length" type="danger" style="margin-left:8px;">
           {{ errorItems.length }} 行有错误
         </el-tag>
-        <el-tag v-if="skippedRows > 0" type="warning" style="margin-left:8px;">
+        <el-tag v-if="skippedRows > 0" type="info" style="margin-left:8px;">
           跳过 {{ skippedRows }} 行空行
         </el-tag>
       </div>
 
-      <!-- 错误提示 -->
       <el-alert
         v-if="errorItems.length"
         type="warning"
@@ -128,61 +88,61 @@
         style="margin-bottom:10px;"
       >
         <template #title>
-          以下行存在问题（已标红），请检查后再提交，或忽略错误行继续创建。
+          以下行存在问题（已标红），将忽略错误行；有效行将进入「新建需求」页继续编辑。
         </template>
       </el-alert>
 
-      <!-- 预览表格 -->
-      <el-table
-        :data="previewItems"
-        size="small"
-        border
-        max-height="340"
-        :row-class-name="getRowClass"
-      >
-        <el-table-column type="index" label="行" width="50" align="center" />
-        <el-table-column prop="customerMaterialModel" label="客户物料型号" min-width="140" />
-        <el-table-column prop="materialModel" label="物料型号(MPN)" min-width="140" />
-        <el-table-column prop="customerBrand" label="客户品牌" width="110" />
-        <el-table-column prop="brand" label="品牌" width="110" />
-        <el-table-column prop="quantity" label="数量" width="80" align="right" />
-        <el-table-column prop="targetPrice" label="目标价" width="90" align="right">
+      <div ref="previewTableWrapRef" class="preview-table-wrap">
+        <el-table
+          v-loading="brandMatchingLoading"
+          class="preview-table"
+          :data="previewItems"
+          size="small"
+          border
+          :max-height="previewTableMaxHeight"
+          :row-class-name="getRowClass"
+        >
+        <el-table-column type="index" label="行" width="52" align="center" />
+        <el-table-column
+          prop="customerMaterialModel"
+          label="客户物料型号"
+          min-width="120"
+          show-overflow-tooltip
+        />
+        <el-table-column prop="materialModel" label="物料型号(MPN)" min-width="150" show-overflow-tooltip />
+        <el-table-column prop="customerBrand" label="客户品牌" width="96" show-overflow-tooltip />
+        <el-table-column label="供应品牌" width="108" show-overflow-tooltip>
+          <template #default="{ row }">
+            {{ row._supplyBrandDisplay || '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column label="品牌匹配" min-width="168" show-overflow-tooltip>
+          <template #default="{ row }">
+            <el-tag v-if="row._error" type="danger" size="small">{{ row._error }}</el-tag>
+            <el-tag v-else-if="row._brandMatchStatus === 'matched'" type="success" size="small">
+              {{ row._brandMatchLabel }}
+            </el-tag>
+            <el-tag v-else-if="row._brandMatchStatus === 'pending'" type="warning" size="small">
+              {{ row._brandMatchLabel }}
+            </el-tag>
+            <el-tag v-else-if="row._brandMatchStatus === 'empty'" type="info" size="small">
+              缺少品牌
+            </el-tag>
+            <span v-else style="color:#909399">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="quantity" label="数量" width="96" align="right" />
+        <el-table-column prop="targetPrice" label="目标价" width="100" align="right">
           <template #default="{ row }">
             {{ row.targetPrice != null ? row.targetPrice : '-' }}
           </template>
         </el-table-column>
-        <el-table-column prop="currency" label="货币" width="70" align="center" />
+        <el-table-column prop="currency" label="货币" width="88" align="center" />
         <el-table-column prop="remark" label="备注" min-width="100" show-overflow-tooltip />
-        <el-table-column label="状态" width="80" align="center">
-          <template #default="{ row }">
-            <el-tag v-if="row._error" type="danger" size="small">{{ row._error }}</el-tag>
-            <el-tag v-else type="success" size="small">正常</el-tag>
-          </template>
-        </el-table-column>
-      </el-table>
-    </div>
-
-    <!-- ── STEP 3：创建结果 ── -->
-    <div v-if="step === 3" class="step-result">
-      <div v-if="createSuccess" class="result-success">
-        <el-result icon="success" :title="`RFQ 创建成功`" :sub-title="`需求单号：${createdRFQCode}`">
-          <template #extra>
-            <el-button type="primary" @click="handleViewCreated">查看 RFQ 详情</el-button>
-            <el-button @click="handleClose">关闭</el-button>
-          </template>
-        </el-result>
-      </div>
-      <div v-else class="result-error">
-        <el-result icon="error" title="创建失败" :sub-title="createError">
-          <template #extra>
-            <el-button type="primary" @click="step = 2">返回修改</el-button>
-            <el-button @click="handleClose">关闭</el-button>
-          </template>
-        </el-result>
+        </el-table>
       </div>
     </div>
 
-    <!-- ── 底部按钮 ── -->
     <template #footer>
       <div class="dialog-footer">
         <el-button @click="handleClose">取消</el-button>
@@ -199,10 +159,10 @@
           v-if="step === 2"
           type="primary"
           :loading="submitting"
-          :disabled="validItems.length === 0 || !rfqBaseForm.customerId"
-          @click="handleSubmit"
+          :disabled="validItems.length === 0 || brandMatchingLoading"
+          @click="handleGoToCreate"
         >
-          确认创建 RFQ（{{ validItems.length }} 条明细）
+          进入新建需求（{{ validItems.length }} 条明细）
         </el-button>
       </div>
     </template>
@@ -210,30 +170,38 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { UploadFilled, Download, CircleCheckFilled } from '@element-plus/icons-vue'
 import * as XLSX from 'xlsx'
-import { rfqApi } from '@/api/rfq'
-import { customerApi } from '@/api/customer'
-import type { CreateRFQRequest, CreateRFQItemRequest } from '@/types/rfq'
-import { RFQ_TYPE_OPTIONS } from '@/constants/rfqFormEnums'
+import type { CreateRFQItemRequest } from '@/types/rfq'
+import { setAiPrefill } from '@/utils/aiPrefill'
+import {
+  brandMatchStatusLabel,
+  buildBrandMatchCache,
+  resolveBrandMatchKeyword,
+  type BrandMatchStatus
+} from '@/utils/bizBrandMatch'
 
 const router = useRouter()
-const emit = defineEmits<{ (e: 'created', rfqId: string): void }>()
 
-// ── 对话框状态 ──
+type PreviewItem = CreateRFQItemRequest & {
+  _error?: string
+  _supplyBrandDisplay?: string
+  _brandMatchStatus?: BrandMatchStatus
+  _brandMatchLabel?: string
+  _importBrandText?: string
+}
+
 const visible = defineModel<boolean>({ default: false })
 const step = ref(1)
 
 const stepTitle = computed(() => {
   if (step.value === 1) return '导入 Excel 创建 RFQ — 第1步：上传文件'
-  if (step.value === 2) return '导入 Excel 创建 RFQ — 第2步：预览并确认'
-  return '导入 Excel 创建 RFQ — 第3步：创建结果'
+  return '导入 Excel 创建 RFQ — 第2步：预览并确认'
 })
 
-// ── 文件上传 ──
 const uploadedFileName = ref('')
 const rawFile = ref<File | null>(null)
 
@@ -247,50 +215,62 @@ function clearFile() {
   uploadedFileName.value = ''
 }
 
-// ── 解析结果 ──
-const previewItems = ref<(CreateRFQItemRequest & { _error?: string })[]>([])
+const previewItems = ref<PreviewItem[]>([])
 const skippedRows = ref(0)
+const brandMatchingLoading = ref(false)
 
-const validItems = computed(() => previewItems.value.filter(r => !r._error))
-const errorItems = computed(() => previewItems.value.filter(r => !!r._error))
+const validItems = computed(() => previewItems.value.filter((r) => !r._error))
+const errorItems = computed(() => previewItems.value.filter((r) => !!r._error))
+const matchedBrandCount = computed(
+  () => validItems.value.filter((r) => r._brandMatchStatus === 'matched').length
+)
+const pendingBrandCount = computed(
+  () =>
+    validItems.value.filter((r) => r._brandMatchStatus === 'pending' || r._brandMatchStatus === 'empty')
+      .length
+)
 
-// ── RFQ 基础信息 ──
-const rfqBaseForm = ref({
-  customerId: '',
-  source: 5, // 导入
-  rfqType: undefined as number | undefined,
-  remark: '',
-})
 
-// ── 客户搜索 ──
-const customerOptions = ref<any[]>([])
-const customerSearchLoading = ref(false)
-async function searchCustomers(query: string) {
-  if (!query) return
-  customerSearchLoading.value = true
-  try {
-    const res = await customerApi.searchCustomers({ searchTerm: query, pageSize: 20 })
-    customerOptions.value = res.items || []
-  } catch {
-    customerOptions.value = []
-  } finally {
-    customerSearchLoading.value = false
-  }
+const previewTableWrapRef = ref<HTMLElement | null>(null)
+const previewTableMaxHeight = ref(480)
+let previewTableResizeObserver: ResizeObserver | null = null
+
+function updatePreviewTableHeight() {
+  const el = previewTableWrapRef.value
+  if (!el) return
+  previewTableMaxHeight.value = Math.max(240, el.clientHeight)
 }
 
-// ── 提交状态 ──
-const submitting = ref(false)
-const createSuccess = ref(false)
-const createError = ref('')
-const createdRFQCode = ref('')
-const createdRFQId = ref('')
+function bindPreviewTableResizeObserver() {
+  previewTableResizeObserver?.disconnect()
+  previewTableResizeObserver = null
+  const el = previewTableWrapRef.value
+  if (!el) return
+  updatePreviewTableHeight()
+  previewTableResizeObserver = new ResizeObserver(updatePreviewTableHeight)
+  previewTableResizeObserver.observe(el)
+}
 
-// ── Excel 列映射说明 ──
+watch(
+  () => [step.value, visible.value] as const,
+  async ([s, open]) => {
+    if (s !== 2 || !open) return
+    await nextTick()
+    bindPreviewTableResizeObserver()
+  }
+)
+
+onUnmounted(() => {
+  previewTableResizeObserver?.disconnect()
+})
+
+const submitting = ref(false)
+
 const columnMapping = [
   { col: 'A', field: '客户物料型号', required: false, example: 'ABC-123', note: '客户自己的物料编号' },
   { col: 'B', field: '物料型号(MPN)', required: true, example: 'STM32F103C8T6', note: '标准物料型号，必填' },
-  { col: 'C', field: '客户品牌', required: false, example: 'ST', note: '客户指定品牌' },
-  { col: 'D', field: '品牌', required: false, example: 'STMicroelectronics', note: '我方品牌' },
+  { col: 'C', field: '客户品牌', required: false, example: 'ST', note: 'D 列为空时用于品牌匹配' },
+  { col: 'D', field: '供应品牌', required: false, example: 'STMicroelectronics', note: '优先匹配；支持中英文名/别名' },
   { col: 'E', field: '数量', required: true, example: '1000', note: '需求数量，必填，正整数' },
   { col: 'F', field: '目标价', required: false, example: '2.5', note: '目标单价' },
   { col: 'G', field: '货币', required: false, example: 'RMB', note: 'RMB/USD/EUR/HKD，默认 RMB' },
@@ -300,8 +280,16 @@ const columnMapping = [
   { col: 'K', field: '备注', required: false, example: '需2年内产品', note: '行备注' },
 ]
 
-// ── 解析 Excel ──
-function parseExcel(file: File): Promise<(CreateRFQItemRequest & { _error?: string })[]> {
+function mapCurrencyToPriceCurrency(c?: string | number): number {
+  if (typeof c === 'number' && c >= 1 && c <= 4) return c
+  const u = String(c || '').toUpperCase()
+  if (u.includes('USD')) return 2
+  if (u.includes('EUR')) return 3
+  if (u.includes('HKD')) return 4
+  return 1
+}
+
+function parseExcel(file: File): Promise<PreviewItem[]> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = (e) => {
@@ -311,21 +299,22 @@ function parseExcel(file: File): Promise<(CreateRFQItemRequest & { _error?: stri
         const ws = wb.Sheets[wb.SheetNames[0]]
         const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
 
-        // 跳过第一行（表头）
         const dataRows = rows.slice(1)
         skippedRows.value = 0
         let lineNo = 1
-        const items: (CreateRFQItemRequest & { _error?: string })[] = []
+        const items: PreviewItem[] = []
 
         for (const row of dataRows) {
-          // 跳过完全空行
           const isEmptyRow = row.every((cell: any) => cell === '' || cell == null)
-          if (isEmptyRow) { skippedRows.value++; continue }
+          if (isEmptyRow) {
+            skippedRows.value++
+            continue
+          }
 
           const customerMaterialModel = String(row[0] || '').trim()
           const materialModel = String(row[1] || '').trim()
           const customerBrand = String(row[2] || '').trim()
-          const brand = String(row[3] || '').trim()
+          const supplyBrand = String(row[3] || '').trim()
           const quantityRaw = row[4]
           const targetPriceRaw = row[5]
           const currency = String(row[6] || 'RMB').trim().toUpperCase() || 'RMB'
@@ -334,20 +323,21 @@ function parseExcel(file: File): Promise<(CreateRFQItemRequest & { _error?: stri
           const alternatives = String(row[9] || '').trim()
           const remark = String(row[10] || '').trim()
 
-          // 验证必填字段
           let error = ''
           if (!materialModel) error = '缺少MPN'
           const quantity = Number(quantityRaw)
           if (!error && (isNaN(quantity) || quantity <= 0)) error = '数量无效'
 
-          const item: CreateRFQItemRequest & { _error?: string } = {
+          const matchKeyword = resolveBrandMatchKeyword(supplyBrand, customerBrand)
+
+          const item: PreviewItem = {
             lineNo: lineNo++,
             customerMaterialModel: customerMaterialModel || undefined,
             materialModel,
             customerMpn: customerMaterialModel || undefined,
             mpn: materialModel,
             customerBrand: customerBrand || undefined,
-            brand: brand || undefined,
+            brand: supplyBrand || undefined,
             quantity: isNaN(quantity) ? 0 : quantity,
             targetPrice: targetPriceRaw !== '' && targetPriceRaw != null ? Number(targetPriceRaw) : undefined,
             currency: currency || 'RMB',
@@ -358,6 +348,8 @@ function parseExcel(file: File): Promise<(CreateRFQItemRequest & { _error?: stri
             alternativeMaterials: alternatives || undefined,
             remark: remark || undefined,
             _key: lineNo,
+            _supplyBrandDisplay: supplyBrand || customerBrand || '',
+            _importBrandText: matchKeyword || undefined
           }
           if (error) item._error = error
           items.push(item)
@@ -372,7 +364,41 @@ function parseExcel(file: File): Promise<(CreateRFQItemRequest & { _error?: stri
   })
 }
 
-// ── 进入预览步骤 ──
+async function resolvePreviewBrandMatches(items: PreviewItem[]) {
+  brandMatchingLoading.value = true
+  try {
+    const keywords = items
+      .filter((it) => !it._error)
+      .map((it) => resolveBrandMatchKeyword(it.brand, it.customerBrand))
+      .filter(Boolean)
+    const cache = await buildBrandMatchCache(keywords)
+
+    for (const it of items) {
+      if (it._error) continue
+      const kw = resolveBrandMatchKeyword(it.brand, it.customerBrand)
+      if (!kw) {
+        it._brandMatchStatus = 'empty'
+        it._brandMatchLabel = '缺少品牌'
+        it._importBrandText = undefined
+        continue
+      }
+      const result = cache.get(kw.toLowerCase()) ?? { status: 'pending' as const, matchKeyword: kw }
+      it._brandMatchStatus = result.status
+      it._brandMatchLabel = brandMatchStatusLabel(result)
+      it._importBrandText = kw
+      if (result.status === 'matched' && result.brandId) {
+        it.brandId = result.brandId
+        it.brand = result.standardBrand
+      } else {
+        it.brand = kw
+        it.brandId = undefined
+      }
+    }
+  } finally {
+    brandMatchingLoading.value = false
+  }
+}
+
 async function goToPreview() {
   if (!rawFile.value) return
   try {
@@ -382,87 +408,69 @@ async function goToPreview() {
       return
     }
     step.value = 2
-  } catch (err) {
+    await resolvePreviewBrandMatches(previewItems.value)
+    await nextTick()
+    bindPreviewTableResizeObserver()
+  } catch {
     ElMessage.error('Excel 解析失败，请检查文件格式')
   }
 }
 
-// ── 行样式 ──
-function getRowClass({ row }: { row: any }) {
+function getRowClass({ row }: { row: PreviewItem }) {
   return row._error ? 'row-error' : ''
 }
 
-// ── 提交创建 ──
-async function handleSubmit() {
-  if (!rfqBaseForm.value.customerId) {
-    ElMessage.warning('请选择客户')
-    return
+function buildPrefillPayload() {
+  return {
+    _prefillSource: 'excel-import',
+    items: validItems.value.map((it) => ({
+      customerMpn: it.customerMpn || it.customerMaterialModel || '',
+      customerBrand: it.customerBrand || '',
+      mpn: it.mpn || it.materialModel || '',
+      brand: it.brand || '',
+      brandId: it.brandId,
+      quantity: it.quantity,
+      targetPrice: it.targetPrice,
+      priceCurrency: mapCurrencyToPriceCurrency(it.currency),
+      minPackageQty: it.minPackageQty,
+      minOrderQty: it.minOrderQty ?? it.moq,
+      alternativeMaterials: it.alternativeMaterials || it.alternatives || '',
+      remark: it.remark || '',
+      _importBrandText:
+        it.brandId && it.brandId > 0 ? undefined : it._importBrandText || undefined
+    }))
   }
+}
+
+async function handleGoToCreate() {
   if (validItems.value.length === 0) {
     ElMessage.warning('没有有效的明细行')
     return
   }
   submitting.value = true
   try {
-    const payload: CreateRFQRequest = {
-      customerId: rfqBaseForm.value.customerId,
-      source: rfqBaseForm.value.source as any,
-      rfqType: rfqBaseForm.value.rfqType as any,
-      remark: rfqBaseForm.value.remark || undefined,
-      items: validItems.value.map(item => {
-        const { _error, _key, ...rest } = item as any
-        return rest
-      }),
-    }
-    const created = await rfqApi.createRFQ(payload)
-    createdRFQCode.value = (created as any).rfqCode || (created as any).id || '已创建'
-    createdRFQId.value = (created as any).id || ''
-    createSuccess.value = true
-    step.value = 3
-    emit('created', createdRFQId.value)
-  } catch (err: any) {
-    createError.value = err?.message || '创建 RFQ 失败，请稍后重试'
-    createSuccess.value = false
-    step.value = 3
+    const token = setAiPrefill('RFQ', buildPrefillPayload())
+    visible.value = false
+    handleClose()
+    await router.push({ name: 'RFQCreate', query: { aiPrefill: token } })
   } finally {
     submitting.value = false
   }
 }
 
-// ── 查看创建的 RFQ ──
-function handleViewCreated() {
-  if (createdRFQId.value) {
-    router.push({ name: 'RFQDetail', params: { id: createdRFQId.value } })
-  }
-  visible.value = false
-}
-
-// ── 关闭 ──
 function handleClose() {
   visible.value = false
-  // 重置状态
   step.value = 1
   uploadedFileName.value = ''
   rawFile.value = null
   previewItems.value = []
   skippedRows.value = 0
-  createSuccess.value = false
-  createError.value = ''
-  createdRFQCode.value = ''
-  createdRFQId.value = ''
-  rfqBaseForm.value = {
-    customerId: '',
-    source: 5,
-    rfqType: undefined,
-    remark: '',
-  }
+  brandMatchingLoading.value = false
 }
 
-// ── 下载模板 ──
 function downloadTemplate() {
-  // 构建模板数据
   const headers = [
-    '客户物料型号', '物料型号(MPN)*', '客户品牌', '品牌',
+    '客户物料型号', '物料型号(MPN)*', '客户品牌', '供应品牌',
     '数量*', '目标价', '货币(RMB/USD/EUR/HKD)',
     '最小包装量', '最小起订量(MOQ)', '可替代料(逗号分隔)', '备注'
   ]
@@ -472,10 +480,7 @@ function downloadTemplate() {
     '100', '500', 'STM32F103CBT6', '需2年内产品'
   ]
   const ws = XLSX.utils.aoa_to_sheet([headers, exampleRow])
-
-  // 设置列宽
   ws['!cols'] = headers.map(() => ({ wch: 20 }))
-
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, 'RFQ明细')
   XLSX.writeFile(wb, 'RFQ导入模板.xlsx')
@@ -483,10 +488,24 @@ function downloadTemplate() {
 </script>
 
 <style lang="scss">
-.import-rfq-dialog {
-  .el-dialog__body { padding: 16px 20px; }
+$import-rfq-dialog-body-height: 900px;
 
-  // 错误行高亮
+.import-rfq-dialog {
+  .el-dialog__body {
+    padding: 16px 20px;
+    height: $import-rfq-dialog-body-height;
+    min-height: $import-rfq-dialog-body-height;
+    max-height: calc(100vh - 120px);
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .el-dialog {
+    max-width: calc(100vw - 48px);
+  }
+
   .el-table .row-error td {
     background-color: rgba(245, 108, 108, 0.08) !important;
   }
@@ -494,7 +513,17 @@ function downloadTemplate() {
 </style>
 
 <style lang="scss" scoped>
+.import-rfq-step-pane {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
 .step-upload {
+  overflow: hidden;
   .upload-tips { margin-bottom: 16px; }
 
   .excel-upload-area {
@@ -502,6 +531,7 @@ function downloadTemplate() {
     :deep(.el-upload) { width: 100%; }
     :deep(.el-upload-dragger) {
       width: 100%;
+      padding: 28px 12px;
       background: rgba(0, 212, 255, 0.03);
       border-color: rgba(0, 212, 255, 0.2);
       &:hover { border-color: rgba(0, 212, 255, 0.5); }
@@ -509,47 +539,56 @@ function downloadTemplate() {
   }
 
   .uploaded-file-info {
-    display: flex; align-items: center; gap: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
     margin: 10px 0;
-    padding: 8px 12px;
+    min-height: 72px;
+    padding: 0 16px;
     background: rgba(103, 194, 58, 0.08);
     border: 1px solid rgba(103, 194, 58, 0.2);
     border-radius: 4px;
     font-size: 13px;
+    line-height: 1.5;
+    color: #4d4d4d;
+
+    strong {
+      color: #303133;
+      font-weight: 600;
+    }
   }
 
   .field-mapping-table {
     margin-top: 16px;
     .mapping-title {
-      font-size: 13px; font-weight: 600;
-      color: rgba(0, 212, 255, 0.7);
+      font-size: 13px;
+      font-weight: 400;
+      color: #4d4d4d;
       margin-bottom: 8px;
     }
   }
 }
 
 .step-preview {
-  .rfq-base-form {
-    background: rgba(0, 212, 255, 0.03);
-    border: 1px solid rgba(0, 212, 255, 0.1);
-    border-radius: 6px;
-    padding: 12px 16px;
-    margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 
-    .section-label {
-      font-size: 12px; font-weight: 700;
-      color: rgba(0, 212, 255, 0.6);
-      letter-spacing: 1px;
-      margin-bottom: 10px;
-      text-transform: uppercase;
-    }
+  .parse-stats {
+    flex-shrink: 0;
+    margin-bottom: 10px;
   }
 
-  .parse-stats { margin-bottom: 10px; }
-}
+  .preview-table-wrap {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
 
-.step-result {
-  .result-success, .result-error { padding: 20px 0; }
+  .preview-table {
+    width: 100%;
+    height: 100%;
+  }
 }
 
 .dialog-footer {
