@@ -1863,7 +1863,7 @@ const enUS = {
       layoutHeaderOnly: 'Collapse quotes panel to header bar only',
       dragSplit: 'Drag to resize upper and lower panels'
     },
-    actions: { column: 'Actions', detail: 'Detail', quote: 'Quote', markNoQuote: 'No Quote Found' },
+    actions: { column: 'Actions', detail: 'Detail', quote: 'Quote', markNoQuote: 'No Quote Found', copy: 'Copy', copySuccess: 'Copied RFQ line (MPN, brand, qty, currency)', copyFailed: 'Copy failed; copy manually' },
     confirmMarkNoQuote: {
       title: 'Mark No Quote Found',
       message: 'Mark this RFQ line as no quote found? You can still create a quote afterward.'

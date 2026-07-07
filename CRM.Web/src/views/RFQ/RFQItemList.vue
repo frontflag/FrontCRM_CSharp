@@ -207,6 +207,7 @@
           <div v-if="opColExpanded" @click.stop @dblclick.stop>
             <div class="action-btns">
               <button type="button" class="action-btn action-btn--primary" @click.stop="goDetail(row)">{{ t('rfqItemList.actions.detail') }}</button>
+              <button type="button" class="action-btn" @click.stop="handleCopyRfqItemRow(row)">{{ t('rfqItemList.actions.copy') }}</button>
               <button
                 v-if="canQuoteRfqItemRow(row)"
                 type="button"
@@ -229,6 +230,9 @@
               <el-dropdown-menu>
                 <el-dropdown-item @click.stop="goDetail(row)">
                   <span class="op-more-item op-more-item--primary">{{ t('rfqItemList.actions.detail') }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item @click.stop="handleCopyRfqItemRow(row)">
+                  <span class="op-more-item">{{ t('rfqItemList.actions.copy') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="canQuoteRfqItemRow(row)" @click.stop="goQuote(row)">
                   <span class="op-more-item op-more-item--warning">{{ t('rfqItemList.actions.quote') }}</span>
@@ -719,6 +723,7 @@ import { productionDateDisplayLabel, useMaterialProductionDateDict } from '@/com
 import { useRfqItemListBasketStore } from '@/stores/rfqItemListBasket'
 import { canQuoteRfqItem } from '@/utils/rfqItemQuoteAccessRules'
 import { copyQuoteSummaryToClipboard } from '@/utils/quoteSummaryCopy'
+import { copyTextToClipboard } from '@/utils/clipboard'
 import {
   effectiveRfqItemLineStatus,
   rfqItemStatusTagType,
@@ -798,9 +803,9 @@ const basketDrawerVisible = ref(false)
 
 /** 全页列表操作列宽度（《列表操作列规范》高密度） */
 const LIST_OP_COL_COLLAPSED_WIDTH = 43
-/** 主表：详情 + 报价 + 查无报价 三钮，宽于双钮列表 */
-const RFQ_ITEM_MAIN_OP_COL_EXPANDED_WIDTH = 256
-const RFQ_ITEM_MAIN_OP_COL_EXPANDED_MIN_WIDTH = 240
+/** 主表：详情 + 报价 + 查无报价 + 复制 四钮 */
+const RFQ_ITEM_MAIN_OP_COL_EXPANDED_WIDTH = 320
+const RFQ_ITEM_MAIN_OP_COL_EXPANDED_MIN_WIDTH = 300
 /** 底部报价表 / 复选篮子：双钮或单钮 */
 const LIST_OP_COL_EXPANDED_WIDTH = 173
 const LIST_OP_COL_EXPANDED_MIN_WIDTH = 160
@@ -1831,6 +1836,30 @@ function goEditDockQuote(row: Record<string, unknown>) {
     params: { id },
     query: { returnTo: route.fullPath }
   })
+}
+
+async function handleCopyRfqItemRow(row: RFQItem) {
+  const rowAny = row as RFQItem & { mpn?: string }
+  const mpn = String(rowAny.materialModel || rowAny.mpn || '').trim() || '—'
+  const brand = String(row.brand || '').trim() || '—'
+  const qty = row.quantity != null && Number.isFinite(row.quantity) ? String(row.quantity) : '—'
+  const currency = dockTierCurrencyCode(resolveRfqItemPriceCurrency(row))
+  const text = [mpn, brand, qty, currency].join('    ')
+
+  if (copyTextToClipboard(text)) {
+    ElMessage.success(t('rfqItemList.actions.copySuccess'))
+    return
+  }
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text)
+      ElMessage.success(t('rfqItemList.actions.copySuccess'))
+      return
+    } catch {
+      /* fall through */
+    }
+  }
+  ElMessage.error(t('rfqItemList.actions.copyFailed'))
 }
 
 async function handleCopyDockQuote(row: Record<string, unknown>) {
