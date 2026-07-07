@@ -101,6 +101,9 @@
         <el-button type="danger" :loading="refreshingStockLedger" @click="onRefreshStockLedger">
           刷新stockledger
         </el-button>
+        <el-button type="danger" :loading="recalculatingStock" @click="onRecalculateStockAggregates">
+          重算库存
+        </el-button>
         <el-button type="warning" :loading="refreshingSellOrderComments" @click="onRefreshSellOrderCommentSplit">
           刷新Sellorder
         </el-button>
@@ -115,6 +118,17 @@
         </el-button>
       </div>
       <div class="refresh-hint">回填 STOCK_OUT / STOCK_OUT_REVERSE 的 UnitCost、Amount、currency（调试临时工具）。</div>
+      <div class="refresh-hint refresh-hint--second">
+        「重算库存」：按未软删 <span class="mono">stock_item</span> 全库回写 <span class="mono">stock</span> 汇总桶数量（修复删除入库/明细后汇总滞后；库存中心与出货通知「在库可用」将同步为真实值）。仅调试使用。
+      </div>
+      <div v-if="stockRecalculateResult" class="simulate-result">
+        <div>扫描汇总桶：{{ stockRecalculateResult.totalBuckets }} 个</div>
+        <div>修正桶数：{{ stockRecalculateResult.bucketsUpdated }} 个</div>
+        <div>可用量高估合计：{{ stockRecalculateResult.totalAvailOverstatement }}</div>
+        <div v-if="stockRecalculateResult.updatedStockCodes.length">
+          已修正编号（最多 30 条）：{{ stockRecalculateResult.updatedStockCodes.join('，') }}
+        </div>
+      </div>
       <div v-if="stockLedgerRefreshResult" class="simulate-result">
         <div>STOCK_OUT 更新：{{ stockLedgerRefreshResult.stockOutUpdated }} 条</div>
         <div>STOCK_OUT_REVERSE 更新：{{ stockLedgerRefreshResult.stockOutReverseUpdated }} 条</div>
@@ -191,10 +205,12 @@ import {
   refreshSellOrderItemCustomerPnFromComment,
   refreshFinancePaymentRemarkFromLegacy,
   refreshFinanceReceivablesFromStockOuts,
+  recalculateStockAggregates,
   type SimulateBusinessChainResponse,
   type SimulateDataOrigin,
   type RfqChainPreview,
   type RefreshStockLedgerResult,
+  type RecalculateStockAggregatesResult,
   type RefreshSellOrderCommentSplitResult,
   type RefreshSellOrderItemCustomerPnFromCommentResult,
   type RefreshFinancePaymentLegacyRemarkResult,
@@ -345,6 +361,8 @@ const chainError = ref<string | null>(null)
 const chainSearched = ref(false)
 const refreshingStockLedger = ref(false)
 const stockLedgerRefreshResult = ref<RefreshStockLedgerResult | null>(null)
+const recalculatingStock = ref(false)
+const stockRecalculateResult = ref<RecalculateStockAggregatesResult | null>(null)
 const refreshingSellOrderComments = ref(false)
 const sellOrderCommentSplitResult = ref<RefreshSellOrderCommentSplitResult | null>(null)
 const refreshingSellOrderItemCustomerPn = ref(false)
@@ -453,6 +471,31 @@ const onRefreshStockLedger = async () => {
     ElMessage.error(getApiErrorMessage(e, '刷新 stockledger 失败'))
   } finally {
     refreshingStockLedger.value = false
+  }
+}
+
+const onRecalculateStockAggregates = async () => {
+  if (recalculatingStock.value) return
+  try {
+    await ElMessageBox.confirm(
+      '将按未软删 stock_item 全库重算 stock 汇总桶数量，修正删除入库/明细后的汇总滞后。库存中心与出货通知可用量可能下降为真实值。是否继续？',
+      '确认重算库存',
+      { type: 'warning', confirmButtonText: '继续', cancelButtonText: '取消' }
+    )
+  } catch {
+    return
+  }
+  recalculatingStock.value = true
+  try {
+    const result = await recalculateStockAggregates()
+    stockRecalculateResult.value = result
+    ElMessage.success(
+      `重算完成：扫描 ${result.totalBuckets} 个桶，修正 ${result.bucketsUpdated} 个，可用量高估合计 ${result.totalAvailOverstatement}`
+    )
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '重算库存失败'))
+  } finally {
+    recalculatingStock.value = false
   }
 }
 

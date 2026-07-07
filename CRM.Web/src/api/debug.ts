@@ -118,6 +118,14 @@ export type RefreshStockLedgerResult = {
   currencyDefaulted: number
 }
 
+export type RecalculateStockAggregatesResult = {
+  totalBuckets: number
+  mismatchedBefore: number
+  bucketsUpdated: number
+  totalAvailOverstatement: number
+  updatedStockCodes: string[]
+}
+
 export type RefreshSellOrderCommentSplitResult = {
   totalWithComment: number
   rowsProcessed: number
@@ -200,6 +208,21 @@ export async function refreshStockLedger(): Promise<RefreshStockLedgerResult> {
     stockOutUpdated: Number(inner?.stockOutUpdated ?? inner?.StockOutUpdated ?? 0),
     stockOutReverseUpdated: Number(inner?.stockOutReverseUpdated ?? inner?.StockOutReverseUpdated ?? 0),
     currencyDefaulted: Number(inner?.currencyDefaulted ?? inner?.CurrencyDefaulted ?? 0)
+  }
+}
+
+/** POST /api/v1/debug/recalculate-stock-aggregates — 按 stock_item 全库重算 stock 汇总桶 */
+export async function recalculateStockAggregates(): Promise<RecalculateStockAggregatesResult> {
+  const raw = await apiClient.post<any>('/api/v1/debug/recalculate-stock-aggregates', {})
+  const outer = (raw?.data ?? raw?.Data ?? raw) as Record<string, any>
+  const inner = (outer?.data ?? outer?.Data ?? outer) as Record<string, any>
+  const codesRaw = inner?.updatedStockCodes ?? inner?.UpdatedStockCodes
+  return {
+    totalBuckets: Number(inner?.totalBuckets ?? inner?.TotalBuckets ?? 0),
+    mismatchedBefore: Number(inner?.mismatchedBefore ?? inner?.MismatchedBefore ?? 0),
+    bucketsUpdated: Number(inner?.bucketsUpdated ?? inner?.BucketsUpdated ?? 0),
+    totalAvailOverstatement: Number(inner?.totalAvailOverstatement ?? inner?.TotalAvailOverstatement ?? 0),
+    updatedStockCodes: Array.isArray(codesRaw) ? codesRaw.map((x: unknown) => String(x)) : []
   }
 }
 

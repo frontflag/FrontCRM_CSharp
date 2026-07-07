@@ -1100,18 +1100,28 @@ namespace CRM.Core.Services
                     $"存在下游业务节点：库存明细；下游数据单号：{string.Join("、", stockItemCodes)}");
             }
 
+            var aggregateIdsToRecalc = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var items = (await _stockInItemRepository.FindAsync(i => i.StockInId == sid)).ToList();
             foreach (var item in items)
             {
                 foreach (var batch in (await _stockInBatchRepository.FindAsync(b => b.StockInItemId == item.Id)).ToList())
                     await _stockInBatchRepository.DeleteAsync(batch.Id);
 
-                foreach (var si in (await _stockItemRepository.FindAsync(x => x.StockInItemId == item.Id)).ToList())
-                    await _stockItemRepository.DeleteAsync(si.Id);
+                foreach (var si in (await _stockItemRepository.FindIgnoreFiltersAsync(x => x.StockInItemId == item.Id)).ToList())
+                {
+                    var aggId = si.StockAggregateId?.Trim();
+                    if (!string.IsNullOrWhiteSpace(aggId))
+                        aggregateIdsToRecalc.Add(aggId);
+                    if (!si.IsDeleted)
+                        await _stockItemRepository.DeleteAsync(si.Id);
+                }
 
                 await _stockInItemExtendRepository.DeleteAsync(item.Id);
                 await _stockInItemRepository.DeleteAsync(item.Id);
             }
+
+            foreach (var aggId in aggregateIdsToRecalc)
+                await _inventoryCenterService.RecalculateStockAggregateTotalsAsync(aggId);
 
             await _unitOfWork.ExecuteNonQueryAsync(
                 $@"UPDATE public.stock_in_extend SET is_deleted = true, ""ModifyTime"" = NOW() WHERE ""StockInId"" = '{EscapeSqlLiteral(sid)}'");

@@ -101,6 +101,10 @@ namespace CRM.Core.Interfaces
         /// <summary>按当前在库明细行汇总回写 <c>stock</c> 占用/销售/在库数量（删除明细后调用）。</summary>
         Task RecalculateStockAggregateTotalsAsync(string? stockAggregateId);
 
+        /// <summary>全库扫描未删 <c>stock</c> 汇总桶，按未软删 <c>stock_item</c> 重算数量（Debug 一键修复滞后桶）。</summary>
+        Task<RecalculateAllStockAggregatesResult> RecalculateAllStockAggregateTotalsAsync(
+            CancellationToken cancellationToken = default);
+
         /// <summary>是否存在未软删出库单头或明细关联本拣货任务。</summary>
         Task<bool> HasStockOutLinkedToPickingTaskAsync(string pickingTaskId);
     }
@@ -108,6 +112,17 @@ namespace CRM.Core.Interfaces
     public class SellOrderLineAvailableQtyDto
     {
         public int AvailableQty { get; set; }
+    }
+
+    /// <summary>全库重算 <c>stock</c> 汇总桶结果（与明细层 <c>stock_item</c> 对齐）。</summary>
+    public class RecalculateAllStockAggregatesResult
+    {
+        public int TotalBuckets { get; set; }
+        public int MismatchedBefore { get; set; }
+        public int BucketsUpdated { get; set; }
+        /// <summary>修复前可用量合计高估量（仅统计 bucket_avail &gt; detail_avail 的差值之和）。</summary>
+        public int TotalAvailOverstatement { get; set; }
+        public List<string> UpdatedStockCodes { get; set; } = new();
     }
 
     public class InventoryMaterialOverviewDto

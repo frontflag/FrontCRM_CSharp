@@ -2431,6 +2431,96 @@ namespace CRM.Core.Services
             stock.QtyRepertoryAvailable = rows.Sum(x => x.QtyRepertoryAvailable);
             await _stockRepository.UpdateAsync(stock);
         }
+
+        /// <inheritdoc />
+        public async Task<RecalculateAllStockAggregatesResult> RecalculateAllStockAggregateTotalsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            var result = new RecalculateAllStockAggregatesResult();
+            List<StockInfo> stocks;
+            try
+            {
+                stocks = (await _stockRepository.GetAllAsync()).ToList();
+            }
+            catch (Exception ex) when (IsTableMissingException(ex))
+            {
+                return result;
+            }
+
+            result.TotalBuckets = stocks.Count;
+            if (stocks.Count == 0)
+                return result;
+
+            var aggIds = stocks
+                .Select(s => s.Id?.Trim())
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Cast<string>()
+                .ToList();
+
+            List<StockItem> allItems;
+            try
+            {
+                allItems = aggIds.Count == 0
+                    ? new List<StockItem>()
+                    : (await _stockItemRepository.FindAsync(x => aggIds.Contains(x.StockAggregateId))).ToList();
+            }
+            catch (Exception ex) when (IsTableMissingException(ex))
+            {
+                allItems = new List<StockItem>();
+            }
+
+            var totalsByAgg = allItems
+                .Where(x => !string.IsNullOrWhiteSpace(x.StockAggregateId))
+                .GroupBy(x => x.StockAggregateId.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    g => g.Key,
+                    g => (
+                        Occupy: g.Sum(x => x.QtyOccupy),
+                        Sales: g.Sum(x => x.QtySales),
+                        Repertory: g.Sum(x => x.QtyRepertory),
+                        Avail: g.Sum(x => x.QtyRepertoryAvailable)),
+                    StringComparer.OrdinalIgnoreCase);
+
+            foreach (var stock in stocks)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var aggId = stock.Id?.Trim();
+                if (string.IsNullOrWhiteSpace(aggId))
+                    continue;
+
+                totalsByAgg.TryGetValue(aggId, out var totals);
+                var newOccupy = totals.Occupy;
+                var newSales = totals.Sales;
+                var newRepertory = totals.Repertory;
+                var newAvail = totals.Avail;
+
+                if (stock.QtyOccupy == newOccupy
+                    && stock.QtySales == newSales
+                    && stock.QtyRepertory == newRepertory
+                    && stock.QtyRepertoryAvailable == newAvail)
+                    continue;
+
+                result.MismatchedBefore++;
+                if (stock.QtyRepertoryAvailable > newAvail)
+                    result.TotalAvailOverstatement += stock.QtyRepertoryAvailable - newAvail;
+
+                stock.QtyOccupy = newOccupy;
+                stock.QtySales = newSales;
+                stock.QtyRepertory = newRepertory;
+                stock.QtyRepertoryAvailable = newAvail;
+                await _stockRepository.UpdateAsync(stock);
+                result.BucketsUpdated++;
+
+                if (!string.IsNullOrWhiteSpace(stock.StockCode) && result.UpdatedStockCodes.Count < 30)
+                    result.UpdatedStockCodes.Add(stock.StockCode.Trim());
+            }
+
+            if (result.BucketsUpdated > 0)
+                await _unitOfWork.SaveChangesAsync();
+
+            return result;
+        }
     }
 }
 

@@ -34,6 +34,7 @@ namespace CRM.API.Controllers
         private readonly IPurchaseOrderExtendLineSeqService _poLineSeq;
         private readonly IStockInExtendLineSeqService _stockInLineSeq;
         private readonly IFinanceReceivableService _financeReceivableService;
+        private readonly IInventoryCenterService _inventoryCenterService;
         private const short PoStatusInProgress = 50;
         private const short PoStatusCompleted = 100;
         private const short PoStatusAuditFailed = -1;
@@ -52,7 +53,8 @@ namespace CRM.API.Controllers
             ISellOrderExtendLineSeqService sellLineSeq,
             IPurchaseOrderExtendLineSeqService poLineSeq,
             IStockInExtendLineSeqService stockInLineSeq,
-            IFinanceReceivableService financeReceivableService)
+            IFinanceReceivableService financeReceivableService,
+            IInventoryCenterService inventoryCenterService)
         {
             _context = context;
             _configuration = configuration;
@@ -62,6 +64,7 @@ namespace CRM.API.Controllers
             _poLineSeq = poLineSeq;
             _stockInLineSeq = stockInLineSeq;
             _financeReceivableService = financeReceivableService;
+            _inventoryCenterService = inventoryCenterService;
         }
 
         public class DebugItemDto
@@ -171,6 +174,15 @@ namespace CRM.API.Controllers
             public int ItemsLineRemarkUpdated { get; set; }
             /// <summary>主表 <c>FinancePaymentBankId</c> 原非表内主键，经 <c>BankName</c> 匹配后写回真实 Id 的条数（含仅走本段修正的历史行）。</summary>
             public int BankIdsResolvedFromName { get; set; }
+        }
+
+        public class RecalculateStockAggregatesResultDto
+        {
+            public int TotalBuckets { get; set; }
+            public int MismatchedBefore { get; set; }
+            public int BucketsUpdated { get; set; }
+            public int TotalAvailOverstatement { get; set; }
+            public List<string> UpdatedStockCodes { get; set; } = new();
         }
 
         [HttpGet]
@@ -1344,6 +1356,38 @@ namespace CRM.API.Controllers
                 return StatusCode(500,
                     ApiResponse<RefreshFinanceReceivablesFromStockOutsResultDto>.Fail(
                         $"刷新应收款失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>
+        /// Debug：按未软删 stock_item 全库重算 stock 汇总桶数量（修复汇总滞后）。
+        /// </summary>
+        [Authorize]
+        [HttpPost("recalculate-stock-aggregates")]
+        public async Task<ActionResult<ApiResponse<RecalculateStockAggregatesResultDto>>> RecalculateStockAggregates(
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var backfill = await _inventoryCenterService.RecalculateAllStockAggregateTotalsAsync(cancellationToken);
+                var result = new RecalculateStockAggregatesResultDto
+                {
+                    TotalBuckets = backfill.TotalBuckets,
+                    MismatchedBefore = backfill.MismatchedBefore,
+                    BucketsUpdated = backfill.BucketsUpdated,
+                    TotalAvailOverstatement = backfill.TotalAvailOverstatement,
+                    UpdatedStockCodes = backfill.UpdatedStockCodes
+                };
+
+                return Ok(ApiResponse<RecalculateStockAggregatesResultDto>.Ok(
+                    result,
+                    $"重算库存完成：扫描 {result.TotalBuckets} 个汇总桶，修正 {result.BucketsUpdated} 个（可用量高估合计 {result.TotalAvailOverstatement}）"));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500,
+                    ApiResponse<RecalculateStockAggregatesResultDto>.Fail(
+                        $"重算库存失败: {ex.Message}", 500));
             }
         }
 
