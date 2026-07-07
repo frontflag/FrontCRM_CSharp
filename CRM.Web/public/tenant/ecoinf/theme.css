@@ -1,0 +1,9 @@
+/* eco-inf：深色工业风 + 荧光绿强调色（登录页主体样式在 LoginViewEcoinf.vue） */
+html,
+body {
+  background: #0a0a0a;
+}
+
+.login-view.login-view--ecoinf {
+  background: #0a0a0a;
+}

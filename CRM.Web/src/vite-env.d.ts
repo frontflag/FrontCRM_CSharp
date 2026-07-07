@@ -16,6 +16,8 @@ interface ImportMetaEnv {
   readonly VITE_LOGIN_WELCOME_TITLE?: string
   readonly VITE_LOGIN_WELCOME_SUB?: string
   readonly VITE_LOGIN_COPYRIGHT?: string
+  readonly VITE_LOGIN_DESCRIPTION?: string
+  readonly VITE_LOGIN_ACCOUNT_PLACEHOLDER?: string
 }
 
 interface ImportMeta {

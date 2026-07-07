@@ -3,18 +3,20 @@
 #
 # 公司1 Semicore  129.226.161.3  蓝色登录页  left-right
 # 公司2 IDESemi   43.154.198.15  紫色登录页  right-left（可在 .env.production.idesemi 改）
+# 公司3 ECO-INF  ecoinf  深色荧光绿登录页（production.ecoinf，部署前请在 tenants.json 配置 serverIP）
 # 仿真 FZ        43.129.212.65  与 Semicore 相同构建（production.semicore）
 #
 # 示例：
 #   .\scripts\deploy-tenant-production.ps1 -Tenant semicore
 #   .\scripts\deploy-tenant-production.ps1 -Tenant idesemi -SkipLoginPage
 #   .\scripts\deploy-tenant-production.ps1 -Tenant idesemi -IncludeLoginPage
+#   .\scripts\deploy-tenant-production.ps1 -Tenant ecoinf
 #   .\scripts\deploy-tenant-production.ps1 -Tenant fz
 #   .\scripts\deploy-tenant-production.ps1 -Tenant all
 
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet('semicore', 'idesemi', 'fz', 'all')]
+    [ValidateSet('semicore', 'idesemi', 'fz', 'ecoinf', 'all')]
     [string]$Tenant,
 
     [switch]$SkipBuild,

@@ -636,7 +636,19 @@ const zhCN = {
     passwordRequired: '请输入密码',
     passwordLength: '密码长度不能少于6个字符',
     loginFailedDefault: '登录失败，请检查账号和密码',
-    loginFailedRetry: '登录失败，请稍后重试'
+    loginFailedRetry: '登录失败，请稍后重试',
+    accountLabelEcoinf: '账号',
+    rememberMe30Days: '保持登录状态 (30天)',
+    loginButtonEcoinf: '登录系统',
+    contactAdmin: '无法访问？联系系统管理员',
+    systemStatusOperational: 'SYSTEM STATUS: OPERATIONAL',
+    ecoinfSloganLine1: '链接核心，驱动未来',
+    ecoinfSloganLine2: 'CONNECT THE CORE, DRIVE THE FUTURE',
+    ecoinfDescription:
+      'Advanced semiconductor logistics and industrial intelligence system. High-precision monitoring for the global electronics supply chain.',
+    ecoinfWelcomeTitle: '欢迎回来',
+    ecoinfWelcomeSub: 'AUTHENTICATION REQUIRED',
+    ecoinfCopyright: 'ECO-INF SYSTEMS | © 2026 eco-inf Systems. All rights reserved.'
   },
   salesAnalytics: {
     title: '销售分析',

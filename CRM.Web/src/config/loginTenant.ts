@@ -1,4 +1,4 @@
-/** 构建时注入：semicore | idesemi（见 .env.production.*） */
+/** 构建时注入：semicore | idesemi | ecoinf（见 .env.production.*） */
 export const LOGIN_TENANT_ID = (import.meta.env.VITE_TENANT_ID?.trim() || 'semicore').toLowerCase()
 
 /** left-right：口号左 / 登录右；right-left：登录左 / 口号右 */

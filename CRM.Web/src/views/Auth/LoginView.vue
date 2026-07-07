@@ -1,5 +1,6 @@
 <template>
-  <div :class="['login-view', `login-view--${loginTenantId}`]">
+  <LoginViewEcoinf v-if="loginTenantId === 'ecoinf'" />
+  <div v-else :class="['login-view', `login-view--${loginTenantId}`]">
     <div :class="['login-split', `login-split--${loginLayoutMode}`]">
       <!-- 左侧：品牌与 Slogan -->
       <aside class="login-slogan" aria-label="brand">
@@ -180,6 +181,7 @@ import { getWechatQrCode, checkWechatLoginStatus } from '@/api/wechatAuth'
 import { COMPANY_LOGIN_LOGO_URL } from '@/api/companyProfile'
 import { LOGIN_TENANT_ID, loginPageLayout, loginTenantText, loginThemeCssHref } from '@/config/loginTenant'
 import fallbackLoginLogoUrl from '@/assets/brand/semicore-login-logo.png'
+import LoginViewEcoinf from '@/views/Auth/LoginViewEcoinf.vue'
 
 const loginTenantId = LOGIN_TENANT_ID
 const loginLayoutMode = loginPageLayout()

@@ -636,7 +636,19 @@ const enUS = {
     passwordRequired: 'Please enter password',
     passwordLength: 'Password must be at least 6 characters',
     loginFailedDefault: 'Login failed. Check account and password.',
-    loginFailedRetry: 'Login failed. Please try again later.'
+    loginFailedRetry: 'Login failed. Please try again later.',
+    accountLabelEcoinf: 'Account',
+    rememberMe30Days: 'Keep me signed in (30 days)',
+    loginButtonEcoinf: 'Sign In',
+    contactAdmin: "Can't access? Contact system administrator",
+    systemStatusOperational: 'SYSTEM STATUS: OPERATIONAL',
+    ecoinfSloganLine1: '链接核心，驱动未来',
+    ecoinfSloganLine2: 'CONNECT THE CORE, DRIVE THE FUTURE',
+    ecoinfDescription:
+      'Advanced semiconductor logistics and industrial intelligence system. High-precision monitoring for the global electronics supply chain.',
+    ecoinfWelcomeTitle: 'Welcome back',
+    ecoinfWelcomeSub: 'AUTHENTICATION REQUIRED',
+    ecoinfCopyright: 'ECO-INF SYSTEMS | © 2026 eco-inf Systems. All rights reserved.'
   },
   salesAnalytics: {
     title: 'Sales Analytics',

@@ -5,10 +5,11 @@
 #   .\build_with_temp_path.ps1
 #   .\build_with_temp_path.ps1 -Tenant semicore
 #   .\build_with_temp_path.ps1 -Tenant idesemi
+#   .\build_with_temp_path.ps1 -Tenant ecoinf
 #   .\build_with_temp_path.ps1 -Tenant fz
 
 param(
-    [ValidateSet('semicore', 'idesemi', 'fz')]
+    [ValidateSet('semicore', 'idesemi', 'fz', 'ecoinf')]
     [string]$Tenant = 'semicore'
 )
 

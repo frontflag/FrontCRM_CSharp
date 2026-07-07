@@ -30,5 +30,16 @@
     "nonDockerFrontendRoot": "/opt/frontcrm/frontend",
     "nonDockerBackendRoot": "/opt/frontcrm/backend",
     "deploymentMode": "nonDocker"
+  },
+  "ecoinf": {
+    "displayName": "ECO-INF",
+    "buildMode": "production.ecoinf",
+    "serverIP": "43.154.245.178",
+    "sshPort": 22,
+    "serverUser": "ubuntu",
+    "remoteDeployPath": "/home/ubuntu/frontcrm",
+    "nonDockerFrontendRoot": "/opt/frontcrm/frontend",
+    "nonDockerBackendRoot": "/opt/frontcrm/backend",
+    "deploymentMode": "nonDocker"
   }
 }

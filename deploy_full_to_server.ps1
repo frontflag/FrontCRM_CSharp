@@ -25,7 +25,7 @@ param(
     [switch]$AllowPasswordPrompt,
     # 远程 sudo 无 NOPASSWD 且无 TTY 时会一直等密码（看起来像卡住）。默认用 sudo -n 秒失败；需交互输密码时加本开关（会 ssh -t）
     [switch]$RequestTtyForSudo,
-    [ValidateSet('semicore', 'idesemi', 'fz', '')]
+    [ValidateSet('semicore', 'idesemi', 'fz', 'ecoinf', '')]
     [string]$Tenant = '',
     # 默认上传登录页主题（dist/tenant）；加 -SkipLoginPage 保留服务器上现有 tenant 目录
     [switch]$IncludeLoginPage,
