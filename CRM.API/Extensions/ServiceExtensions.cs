@@ -147,6 +147,11 @@ namespace CRM.API.Extensions
             services.AddScoped<IFinanceReceiptService, FinanceReceiptService>();
             services.AddScoped<IRepository<CRM.Core.Models.Finance.FinanceReceipt>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FinanceReceipt>>();
             services.AddScoped<IRepository<CRM.Core.Models.Finance.FinanceReceiptItem>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FinanceReceiptItem>>();
+            services.AddScoped<IFreightForwarderCompanyService, FreightForwarderCompanyService>();
+            services.AddScoped<IFinanceFreightForwarderPayableService, FinanceFreightForwarderPayableService>();
+            services.AddScoped<IRepository<CRM.Core.Models.Finance.FreightForwarderCompany>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FreightForwarderCompany>>();
+            services.AddScoped<IRepository<CRM.Core.Models.Finance.FreightForwarderCompanyBank>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FreightForwarderCompanyBank>>();
+            services.AddScoped<IRepository<CRM.Core.Models.Finance.FinanceFreightForwarderPayment>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FinanceFreightForwarderPayment>>();
             services.AddScoped<IFinanceReceivableService, FinanceReceivableService>();
             services.AddScoped<IFinanceCustomerAdvanceService, FinanceCustomerAdvanceService>();
             services.AddScoped<IRepository<CRM.Core.Models.Finance.FinanceReceivable>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FinanceReceivable>>();

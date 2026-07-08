@@ -131,6 +131,9 @@ export interface FinanceReceipt {
   remark?: string
   /** 列表汇总：10普通 20预收 */
   receiptPurpose?: number
+  isFreightForwarderPayment?: boolean
+  freightForwarderCompanyId?: string | null
+  freightForwarderCompanyName?: string | null
   createdAt?: string
   /** 列表/详情接口由后端根据 createByUserId 填充 */
   createUserName?: string

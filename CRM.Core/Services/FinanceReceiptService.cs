@@ -27,6 +27,7 @@ namespace CRM.Core.Services
         private readonly ILogOperationAppendService _logOperationAppend;
         private readonly IFinanceReceiptListQuery _receiptListQuery;
         private readonly IFinanceCustomerAdvanceService _advanceService;
+        private readonly IRepository<FreightForwarderCompany> _ffCompanyRepo;
 
         public FinanceReceiptService(
             IRepository<FinanceReceipt> receiptRepo,
@@ -43,6 +44,7 @@ namespace CRM.Core.Services
             ILogOperationAppendService logOperationAppend,
             IFinanceReceiptListQuery receiptListQuery,
             IFinanceCustomerAdvanceService advanceService,
+            IRepository<FreightForwarderCompany> ffCompanyRepo,
             IUnitOfWork? unitOfWork = null)
         {
             _receiptRepo = receiptRepo;
@@ -59,6 +61,7 @@ namespace CRM.Core.Services
             _logOperationAppend = logOperationAppend;
             _receiptListQuery = receiptListQuery;
             _advanceService = advanceService;
+            _ffCompanyRepo = ffCompanyRepo;
             _unitOfWork = unitOfWork;
         }
 
@@ -125,6 +128,12 @@ namespace CRM.Core.Services
             if (string.IsNullOrWhiteSpace(request.CustomerId))
                 throw new ArgumentException("客户ID不能为空", nameof(request.CustomerId));
 
+            ValidateFreightForwarderReceiptFlags(
+                request.IsFreightForwarderPayment,
+                request.ReceiptPurpose,
+                request.FreightForwarderCompanyId);
+            await EnsureFreightForwarderCompanyExistsAsync(request.FreightForwarderCompanyId);
+
             var receiptCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.Receipt);
 
             var receipt = new FinanceReceipt
@@ -142,6 +151,10 @@ namespace CRM.Core.Services
                 ReceiptBankId = request.ReceiptBankId,
                 BankSlipNo = request.BankSlipNo,
                 Remark = request.Remark,
+                IsFreightForwarderPayment = request.IsFreightForwarderPayment,
+                FreightForwarderCompanyId = string.IsNullOrWhiteSpace(request.FreightForwarderCompanyId)
+                    ? null
+                    : request.FreightForwarderCompanyId.Trim(),
                 Status = 0,
                 CreateTime = DateTime.UtcNow,
                 CreateByUserId = ActingUserIdNormalizer.Normalize(actingUserId)
@@ -156,7 +169,9 @@ namespace CRM.Core.Services
                 itemRequests.Add(new CreateFinanceReceiptItemRequest
                 {
                     ReceiptAmount = request.ReceiptAmount,
-                    ReceiptPurpose = request.ReceiptPurpose,
+                    ReceiptPurpose = request.IsFreightForwarderPayment
+                        ? FinanceReceiptPurposeCode.Normal
+                        : request.ReceiptPurpose,
                     AdvanceSellOrderId = request.AdvanceSellOrderId,
                     SellOrderId = string.IsNullOrWhiteSpace(request.AdvanceSellOrderId)
                         ? null
@@ -168,6 +183,8 @@ namespace CRM.Core.Services
             foreach (var item in itemRequests)
             {
                 var purpose = ResolveReceiptPurpose(item.ReceiptPurpose, request.ReceiptPurpose);
+                if (request.IsFreightForwarderPayment)
+                    purpose = FinanceReceiptPurposeCode.Normal;
                 if (purpose == FinanceReceiptPurposeCode.Advance)
                     headerPurpose = FinanceReceiptPurposeCode.Advance;
 
@@ -232,6 +249,7 @@ namespace CRM.Core.Services
             var items = (await _itemRepo.FindAsync(i => i.FinanceReceiptId == id)).ToList();
             AttachReceiptItems(r, items);
             await EnrichCreateUserNamesAsync(new List<FinanceReceipt> { r });
+            await EnrichFreightForwarderCompanyNamesAsync(new List<FinanceReceipt> { r });
             return r;
         }
 
@@ -272,6 +290,7 @@ namespace CRM.Core.Services
             var items = result.Items.ToList();
             await EnrichCreateUserNamesAsync(items);
             await EnrichCustomerExtendFieldsAsync(items);
+            await EnrichFreightForwarderCompanyNamesAsync(items);
             return new PagedResult<FinanceReceipt>
             {
                 Items = items,
@@ -295,6 +314,23 @@ namespace CRM.Core.Services
             if (request.ReceiptMode.HasValue) receipt.ReceiptMode = request.ReceiptMode.Value;
             if (request.BankSlipNo != null) receipt.BankSlipNo = request.BankSlipNo;
             if (request.Remark != null) receipt.Remark = request.Remark;
+
+            if (request.IsFreightForwarderPayment.HasValue || request.FreightForwarderCompanyId != null)
+            {
+                var nextFf = request.IsFreightForwarderPayment ?? receipt.IsFreightForwarderPayment;
+                var nextCompanyId = request.FreightForwarderCompanyId != null
+                    ? (string.IsNullOrWhiteSpace(request.FreightForwarderCompanyId) ? null : request.FreightForwarderCompanyId.Trim())
+                    : receipt.FreightForwarderCompanyId;
+
+                var items = (await _itemRepo.FindAsync(i => i.FinanceReceiptId == id)).ToList();
+                var hasAdvance = items.Any(i => i.ReceiptPurpose == FinanceReceiptPurposeCode.Advance);
+                ValidateFreightForwarderReceiptFlags(nextFf, hasAdvance ? FinanceReceiptPurposeCode.Advance : FinanceReceiptPurposeCode.Normal, nextCompanyId);
+                await EnsureFreightForwarderCompanyExistsAsync(nextCompanyId);
+
+                receipt.IsFreightForwarderPayment = nextFf;
+                receipt.FreightForwarderCompanyId = nextCompanyId;
+            }
+
             receipt.ModifyTime = DateTime.UtcNow;
             receipt.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
 
@@ -476,6 +512,44 @@ namespace CRM.Core.Services
             order.ModifyTime = DateTime.UtcNow;
             order.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
             await _sellOrderRepo.UpdateAsync(order);
+        }
+
+        private static void ValidateFreightForwarderReceiptFlags(
+            bool isFreightForwarderPayment, short receiptPurpose, string? freightForwarderCompanyId)
+        {
+            if (!isFreightForwarderPayment)
+                return;
+            if (receiptPurpose == FinanceReceiptPurposeCode.Advance)
+                throw new InvalidOperationException("货代付款与预收款不能同时勾选");
+        }
+
+        private async Task EnsureFreightForwarderCompanyExistsAsync(string? freightForwarderCompanyId)
+        {
+            if (string.IsNullOrWhiteSpace(freightForwarderCompanyId))
+                return;
+            _ = await _ffCompanyRepo.GetByIdAsync(freightForwarderCompanyId.Trim())
+                ?? throw new InvalidOperationException("货代公司不存在");
+        }
+
+        private async Task EnrichFreightForwarderCompanyNamesAsync(IReadOnlyList<FinanceReceipt> items)
+        {
+            if (items.Count == 0) return;
+            var ids = items
+                .Select(r => r.FreightForwarderCompanyId)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Select(id => id!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (ids.Count == 0) return;
+
+            var companies = (await _ffCompanyRepo.FindAsync(c => ids.Contains(c.Id))).ToList();
+            var map = companies.ToDictionary(c => c.Id, c => c.Cname, StringComparer.OrdinalIgnoreCase);
+            foreach (var r in items)
+            {
+                if (!string.IsNullOrWhiteSpace(r.FreightForwarderCompanyId)
+                    && map.TryGetValue(r.FreightForwarderCompanyId, out var name))
+                    r.FreightForwarderCompanyName = name;
+            }
         }
     }
 }

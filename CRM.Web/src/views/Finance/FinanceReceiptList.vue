@@ -278,8 +278,31 @@
           </el-col>
           <el-col v-if="!editingId && !maskSaleSensitiveFields" :span="12">
             <el-form-item :label="t('financeReceiptList.formAdvance')">
-              <el-checkbox v-model="form.isAdvanceReceipt">{{ t('financeReceiptList.formAdvance') }}</el-checkbox>
-              <div v-if="form.isAdvanceReceipt" class="field-hint">{{ t('financeReceiptList.formAdvanceHint') }}</div>
+              <div class="checkbox-hint-row">
+                <el-checkbox v-model="form.isAdvanceReceipt" :disabled="!!form.isFfPayment">{{ t('financeReceiptList.formAdvance') }}</el-checkbox>
+                <span v-if="form.isAdvanceReceipt" class="checkbox-hint">{{ t('financeReceiptList.formAdvanceHint') }}</span>
+              </div>
+            </el-form-item>
+          </el-col>
+          <el-col v-if="!editingId && !maskSaleSensitiveFields" :span="12">
+            <el-form-item :label="t('financeReceiptList.formFfPayment')">
+              <div class="checkbox-hint-row">
+                <el-checkbox v-model="form.isFfPayment" :disabled="!!form.isAdvanceReceipt">{{ t('financeReceiptList.formFfPayment') }}</el-checkbox>
+                <span v-if="form.isFfPayment" class="checkbox-hint">{{ t('financeReceiptList.formFfPaymentHint') }}</span>
+              </div>
+            </el-form-item>
+          </el-col>
+          <el-col v-if="!editingId && form.isFfPayment && !maskSaleSensitiveFields" :span="12" :offset="12">
+            <el-form-item :label="t('financeFfPayableList.colFfCompany')">
+              <el-select
+                v-model="form.freightForwarderCompanyId"
+                filterable
+                clearable
+                :placeholder="t('financeReceiptList.formFfCompanyPh')"
+                style="width:100%"
+              >
+                <el-option v-for="c in ffCompanyOptions" :key="c.id" :label="c.cname" :value="c.id" />
+              </el-select>
             </el-form-item>
           </el-col>
           <el-col v-if="!editingId && form.isAdvanceReceipt && !maskSaleSensitiveFields" :span="12">
@@ -413,6 +436,7 @@ import { useCustomerExtendColumn, isCustomerExtendTableColumn } from '@/composab
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useAuthStore } from '@/stores/auth'
 import { useFinanceWriteGate } from '@/composables/useDepartmentDataReadOnly'
+import { fetchFreightForwarderCompanies, type FreightForwarderCompany } from '@/api/freightForwarderCompany'
 
 const router = useRouter()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
@@ -610,7 +634,12 @@ function triggerSlipFilePick() {
   slipFileInputRef.value?.click()
 }
 
-const form = reactive<Partial<FinanceReceipt> & { isAdvanceReceipt?: boolean; advanceSellOrderId?: string }>({
+const form = reactive<Partial<FinanceReceipt> & {
+  isAdvanceReceipt?: boolean
+  advanceSellOrderId?: string
+  isFfPayment?: boolean
+  freightForwarderCompanyId?: string
+}>({
   customerId: '',
   customerName: '',
   receiptAmount: 0,
@@ -621,7 +650,11 @@ const form = reactive<Partial<FinanceReceipt> & { isAdvanceReceipt?: boolean; ad
   remark: '',
   isAdvanceReceipt: false,
   advanceSellOrderId: '',
+  isFfPayment: false,
+  freightForwarderCompanyId: '',
 })
+
+const ffCompanyOptions = ref<FreightForwarderCompany[]>([])
 
 const soOptions = ref<{ value: string; label: string }[]>([])
 const soSearchLoading = ref(false)
@@ -665,6 +698,8 @@ const openCreate = () => {
     remark: '',
     isAdvanceReceipt: false,
     advanceSellOrderId: '',
+    isFfPayment: false,
+    freightForwarderCompanyId: '',
   })
   soOptions.value = []
   dialogVisible.value = true
@@ -674,6 +709,9 @@ const openEdit = (row: FinanceReceipt) => {
   editingId.value = row.id
   pendingSlipFiles.value = []
   Object.assign(form, { ...row })
+  form.isFfPayment = !!row.isFreightForwarderPayment
+  form.freightForwarderCompanyId = row.freightForwarderCompanyId || ''
+  form.isAdvanceReceipt = row.receiptPurpose === 20
   customerOptions.value = row.customerId
     ? [{ value: row.customerId, label: row.customerName || t('financeReceiptList.customerFallback') }]
     : []
@@ -752,15 +790,19 @@ const saveForm = async () => {
         receiptMode: form.receiptMode,
         bankSlipNo: form.bankSlipNo,
         remark: form.remark,
+        isFreightForwarderPayment: form.isFfPayment,
+        freightForwarderCompanyId: form.isFfPayment ? (form.freightForwarderCompanyId || undefined) : undefined,
       })
     } else {
       const amount = Number(form.receiptAmount ?? 0)
-      const { isAdvanceReceipt, advanceSellOrderId, ...receiptHeader } = form
+      const { isAdvanceReceipt, advanceSellOrderId, isFfPayment, freightForwarderCompanyId, ...receiptHeader } = form
       const receiptPurpose = isAdvanceReceipt ? 20 : 10
       const created = await financeReceiptApi.create({
         ...receiptHeader,
         receiptPurpose,
         advanceSellOrderId: isAdvanceReceipt ? (advanceSellOrderId || undefined) : undefined,
+        isFreightForwarderPayment: !!isFfPayment,
+        freightForwarderCompanyId: isFfPayment ? (freightForwarderCompanyId || undefined) : undefined,
         items: amount > 0
           ? [{
               receiptAmount: amount,
@@ -867,7 +909,10 @@ const handleForceDeleteRow = async (row: FinanceReceipt) => {
 
 const formatAmount = (v: number) => v?.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'
 
-onMounted(loadData)
+onMounted(async () => {
+  ffCompanyOptions.value = await fetchFreightForwarderCompanies(true)
+  await loadData()
+})
 </script>
 
 <style lang="scss" scoped>
@@ -960,5 +1005,18 @@ onMounted(loadData)
 .slip-no-docs {
   font-size: 13px;
   color: var(--el-text-color-placeholder);
+}
+
+.checkbox-hint-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.checkbox-hint {
+  margin-left: 2em;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  line-height: 1.45;
 }
 </style>

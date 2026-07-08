@@ -94,6 +94,7 @@ declare module 'vue' {
     ElTimelineItem: typeof import('element-plus/es')['ElTimelineItem']
     ElTooltip: typeof import('element-plus/es')['ElTooltip']
     ElUpload: typeof import('element-plus/es')['ElUpload']
+    FinanceFreightForwarderPaymentPayDialog: typeof import('./src/components/Finance/FinanceFreightForwarderPaymentPayDialog.vue')['default']
     FinancePaymentBankSelect: typeof import('./src/components/Finance/FinancePaymentBankSelect.vue')['default']
     FinancePaymentPayDialog: typeof import('./src/components/Finance/FinancePaymentPayDialog.vue')['default']
     FinancePaymentRequestEditDialog: typeof import('./src/components/Finance/FinancePaymentRequestEditDialog.vue')['default']

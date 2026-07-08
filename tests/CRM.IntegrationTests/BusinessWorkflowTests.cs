@@ -2242,6 +2242,7 @@ namespace CRM.IntegrationTests
                 Substitute.For<ILogOperationAppendService>(),
                 Substitute.For<IFinanceReceiptListQuery>(),
                 Substitute.For<IFinanceCustomerAdvanceService>(),
+                Substitute.For<IRepository<FreightForwarderCompany>>(),
                 receiptUnitOfWork);
 
             // 模拟收款仓储

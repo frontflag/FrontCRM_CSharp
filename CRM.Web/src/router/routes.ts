@@ -961,6 +961,24 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '预收款', permission: 'finance-receipt.read' }
       },
       {
+        path: 'finance/freight-forwarder-payables',
+        name: 'FinanceFreightForwarderPayableList',
+        component: () => import('@/views/Finance/FinanceFreightForwarderPayableList.vue'),
+        meta: { requiresAuth: true, title: '货代付款', permission: 'finance-receipt.read' }
+      },
+      {
+        path: 'finance/freight-forwarder-payables/:id',
+        name: 'FinanceFreightForwarderPayableDetail',
+        component: () => import('@/views/Finance/FinanceFreightForwarderPayableDetail.vue'),
+        meta: { requiresAuth: true, title: '货代付款详情', permission: 'finance-receipt.read' }
+      },
+      {
+        path: 'finance/freight-forwarder-companies',
+        name: 'FreightForwarderCompanyManage',
+        component: () => import('@/views/Finance/FreightForwarderCompanyManage.vue'),
+        meta: { requiresAuth: true, title: '货代公司管理', permission: 'finance-receipt.read' }
+      },
+      {
         path: 'finance/receipt-write-off',
         name: 'FinanceReceiptWriteOff',
         component: () => import('@/views/Finance/FinanceReceiptWriteOffPage.vue'),

@@ -674,6 +674,12 @@
                 class="submenu-item"
                 active-class="active"
               >{{ t('layout.menu.sellInvoices') }}</router-link>
+              <router-link
+                v-if="hasPermission('finance-receipt.read')"
+                to="/finance/freight-forwarder-payables"
+                class="submenu-item"
+                active-class="active"
+              >{{ t('layout.menu.freightForwarderPayables') }}</router-link>
             </template>
           </SidebarMenuGroupFlyout>
         </div>

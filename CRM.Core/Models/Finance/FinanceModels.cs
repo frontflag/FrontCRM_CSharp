@@ -295,6 +295,19 @@ namespace CRM.Core.Models.Finance
         [NotMapped]
         public short ReceiptPurpose { get; set; } = FinanceReceiptPurposeCode.Normal;
 
+        /// <summary>是否货代付款收款（转付货代台账）</summary>
+        [Column("is_freight_forwarder_payment")]
+        public bool IsFreightForwarderPayment { get; set; }
+
+        /// <summary>货代公司主键（可选，首次付款前必填）</summary>
+        [StringLength(36)]
+        [Column("freight_forwarder_company_id")]
+        public string? FreightForwarderCompanyId { get; set; }
+
+        /// <summary>货代公司名称（API 填充，不落库）</summary>
+        [NotMapped]
+        public string? FreightForwarderCompanyName { get; set; }
+
         [Column("is_deleted")]
         public bool IsDeleted { get; set; }
 

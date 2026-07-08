@@ -95,6 +95,9 @@ namespace CRM.Infrastructure.Data
         public DbSet<FinanceReceivableWriteOff> FinanceReceivableWriteOffs { get; set; } = null!;
         public DbSet<FinanceCustomerAdvance> FinanceCustomerAdvances { get; set; } = null!;
         public DbSet<FinanceCustomerAdvanceLedger> FinanceCustomerAdvanceLedgers { get; set; } = null!;
+        public DbSet<FreightForwarderCompany> FreightForwarderCompanies { get; set; } = null!;
+        public DbSet<FreightForwarderCompanyBank> FreightForwarderCompanyBanks { get; set; } = null!;
+        public DbSet<FinanceFreightForwarderPayment> FinanceFreightForwarderPayments { get; set; } = null!;
         public DbSet<PaymentRequest> PaymentRequests { get; set; } = null!;
 
         // ===== 物料主数据 =====
@@ -472,6 +475,7 @@ namespace CRM.Infrastructure.Data
             modelBuilder.Entity<FinancePaymentItem>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<FinanceReceipt>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<FinanceReceiptItem>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<FinanceFreightForwarderPayment>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<FinanceReceivable>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<FinanceCustomerAdvance>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<FinancePurchaseInvoice>().HasQueryFilter(e => !e.IsDeleted);
@@ -1333,6 +1337,57 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.ModifyByUserId).HasColumnName("modify_by_user_id").HasMaxLength(36);
             });
 
+            modelBuilder.Entity<FreightForwarderCompany>(entity =>
+            {
+                entity.ToTable("freight_forwarder_company");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("Id");
+                entity.Property(e => e.CompanyCode).IsRequired().HasMaxLength(32);
+                entity.HasIndex(e => e.CompanyCode).IsUnique().HasFilter("is_deleted = false");
+                entity.Property(e => e.Cname).HasColumnName("cname").IsRequired().HasMaxLength(200);
+                entity.Property(e => e.Ename).HasColumnName("ename").HasMaxLength(200);
+                entity.Property(e => e.Remark).HasMaxLength(500);
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+                entity.Property(e => e.DeletedByUserId).HasColumnName("deleted_by_user_id").HasMaxLength(36);
+                entity.HasQueryFilter(e => !e.IsDeleted);
+                // freight_forwarder_company 使用 create_by_user_id（GUID），无 BaseEntity 的 bigint CreateUserId
+                entity.Ignore(e => e.CreateUserId);
+                entity.Ignore(e => e.ModifyUserId);
+                entity.Property(e => e.CreateByUserId).HasColumnName("create_by_user_id").HasMaxLength(36);
+                entity.Property(e => e.ModifyByUserId).HasColumnName("modify_by_user_id").HasMaxLength(36);
+            });
+
+            modelBuilder.Entity<FreightForwarderCompanyBank>(entity =>
+            {
+                entity.ToTable("freight_forwarder_company_bank");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("Id");
+                entity.Property(e => e.FreightForwarderCompanyId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.BankName).IsRequired().HasMaxLength(200);
+                entity.Property(e => e.AccountName).HasMaxLength(200);
+                entity.Property(e => e.AccountNo).HasMaxLength(64);
+                entity.HasIndex(e => e.FreightForwarderCompanyId);
+                entity.Ignore(e => e.CreateUserId);
+                entity.Ignore(e => e.ModifyUserId);
+                entity.Property(e => e.CreateByUserId).HasColumnName("create_by_user_id").HasMaxLength(36);
+                entity.Property(e => e.ModifyByUserId).HasColumnName("modify_by_user_id").HasMaxLength(36);
+            });
+
+            modelBuilder.Entity<FinanceFreightForwarderPayment>(entity =>
+            {
+                entity.ToTable("finance_freight_forwarder_payment");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("FinanceFfPaymentId");
+                entity.Property(e => e.PaymentAmount).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.HasIndex(e => e.FinanceReceiptId);
+                entity.Ignore(e => e.CreateUserId);
+                entity.Ignore(e => e.ModifyUserId);
+                entity.Property(e => e.CreateByUserId).HasColumnName("create_by_user_id").HasMaxLength(36);
+                entity.Property(e => e.ModifyByUserId).HasColumnName("modify_by_user_id").HasMaxLength(36);
+            });
+
             modelBuilder.Entity<CustomsDeclaration>(entity =>
             {
                 entity.ToTable("customs_declaration");
@@ -1732,6 +1787,8 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.Id).HasColumnName("FinanceReceiptId");
                 entity.Property(e => e.FinanceReceiptCode).IsRequired().HasMaxLength(16);
                 entity.Property(e => e.ReceiptAmount).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.IsFreightForwarderPayment).HasColumnName("is_freight_forwarder_payment").HasDefaultValue(false);
+                entity.Property(e => e.FreightForwarderCompanyId).HasColumnName("freight_forwarder_company_id").HasMaxLength(36);
                 entity.HasIndex(e => e.FinanceReceiptCode).IsUnique();
                 entity.HasMany(e => e.Items)
                     .WithOne(i => i.Receipt)

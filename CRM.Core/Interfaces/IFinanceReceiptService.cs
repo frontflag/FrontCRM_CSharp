@@ -37,6 +37,8 @@ namespace CRM.Core.Interfaces
         public short ReceiptPurpose { get; set; } = FinanceReceiptPurposeCode.Normal;
         /// <summary>预收可选挂销售订单</summary>
         public string? AdvanceSellOrderId { get; set; }
+        public bool IsFreightForwarderPayment { get; set; }
+        public string? FreightForwarderCompanyId { get; set; }
         public List<CreateFinanceReceiptItemRequest> Items { get; set; } = new();
     }
 
@@ -66,6 +68,8 @@ namespace CRM.Core.Interfaces
         public short? ReceiptMode { get; set; }
         public string? BankSlipNo { get; set; }
         public string? Remark { get; set; }
+        public bool? IsFreightForwarderPayment { get; set; }
+        public string? FreightForwarderCompanyId { get; set; }
     }
 
     public class FinanceReceiptQueryRequest

@@ -63,6 +63,8 @@ namespace CRM.Core.Interfaces
         public const string CustomsDeclaration = "CustomsDeclaration";
         /// <summary>报关公司 CBR。</summary>
         public const string CustomsBroker = "CustomsBroker";
+        /// <summary>货代公司 FFC。</summary>
+        public const string FreightForwarderCompany = "FreightForwarderCompany";
         /// <summary>装箱单 Pak。</summary>
         public const string Packing = "Packing";
         /// <summary>应收款 ARV。</summary>

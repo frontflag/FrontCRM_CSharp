@@ -41,6 +41,7 @@
     { "id": "MENU_FINANCE_PAYMENT", "label": "付款记录", "routeNames": ["FinancePaymentList", "FinancePaymentDetail"], "pathPrefixes": ["/finance/payments"] },
     { "id": "MENU_FINANCE_PURCHASE_INV", "label": "进项发票", "routeNames": ["FinancePurchaseInvoiceList", "FinancePurchaseInvoiceDetail"], "pathPrefixes": ["/finance/purchase-invoices"] },
     { "id": "MENU_FINANCE_RECEIPT", "label": "收款记录", "routeNames": ["FinanceReceiptList", "FinanceReceiptDetail"], "pathPrefixes": ["/finance/receipts"] },
+    { "id": "MENU_FINANCE_FF_PAYABLE", "label": "货代付款", "routeNames": ["FinanceFreightForwarderPayableList", "FinanceFreightForwarderPayableDetail", "FreightForwarderCompanyManage"], "pathPrefixes": ["/finance/freight-forwarder-payables", "/finance/freight-forwarder-companies"] },
     { "id": "MENU_FINANCE_SELL_INV", "label": "销项发票", "routeNames": ["FinanceSellInvoiceList", "FinanceSellInvoiceDetail"], "pathPrefixes": ["/finance/sell-invoices"] },
 
     { "id": "MENU_REPORT_ANALYSIS", "label": "报表分析", "routeNames": [], "pathPrefixes": [] },

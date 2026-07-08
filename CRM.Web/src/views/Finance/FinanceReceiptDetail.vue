@@ -30,6 +30,14 @@
               >
                 {{ receiptPurposeLabel(detail.receiptPurpose) }}
               </el-tag>
+              <el-tag
+                v-if="detail.isFreightForwarderPayment"
+                effect="dark"
+                size="small"
+                type="success"
+              >
+                {{ t('financeReceiptList.formFfPayment') }}
+              </el-tag>
             </div>
           </div>
         </div>
@@ -71,6 +79,10 @@
             <div class="info-item">
               <span class="info-label">{{ t('financeReceiptDetail.labels.mode') }}</span>
               <span class="info-value">{{ paymentModeLabel(detail.receiptMode) }}</span>
+            </div>
+            <div v-if="detail.isFreightForwarderPayment" class="info-item">
+              <span class="info-label">{{ t('financeFfPayableList.colFfCompany') }}</span>
+              <span class="info-value">{{ detail.freightForwarderCompanyName || '—' }}</span>
             </div>
           </div>
           <div class="info-grid info-grid--inline-labels info-grid--basic">

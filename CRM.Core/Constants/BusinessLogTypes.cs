@@ -41,6 +41,7 @@ public static class BusinessLogTypes
     public const string QcInspection = "QcInspection";
     public const string CustomsDeclaration = "CustomsDeclaration";
     public const string CustomsBroker = "CustomsBroker";
+    public const string FreightForwarderCompany = "FreightForwarderCompany";
 
     public const string FinancePayment = "FinancePayment";
     public const string FinanceReceipt = "FinanceReceipt";

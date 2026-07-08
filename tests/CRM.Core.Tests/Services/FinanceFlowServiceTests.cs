@@ -144,6 +144,7 @@ namespace CRM.Core.Tests.Services
                 Substitute.For<ILogOperationAppendService>(),
                 Substitute.For<IFinanceReceiptListQuery>(),
                 Substitute.For<IFinanceCustomerAdvanceService>(),
+                Substitute.For<IRepository<FreightForwarderCompany>>(),
                 uow);
 
             await Assert.ThrowsAsync<InvalidOperationException>(() => svc.UpdateStatusAsync("r-1", 3));

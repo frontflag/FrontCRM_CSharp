@@ -12,6 +12,7 @@ public static class CrossSideDocumentAttachmentPolicy
     public const string BizFinancePayment = "FINANCE_PAYMENT";
     public const string BizSalesOrder = "SALES_ORDER";
     public const string BizFinanceReceipt = "FINANCE_RECEIPT";
+    public const string BizFinanceFfPayment = "FINANCE_FF_PAYMENT";
 
     public static bool IsPurchaseSideAttachmentBizType(string? bizType)
     {
@@ -24,7 +25,8 @@ public static class CrossSideDocumentAttachmentPolicy
     {
         if (string.IsNullOrWhiteSpace(bizType)) return false;
         return bizType.Equals(BizSalesOrder, StringComparison.OrdinalIgnoreCase)
-               || bizType.Equals(BizFinanceReceipt, StringComparison.OrdinalIgnoreCase);
+               || bizType.Equals(BizFinanceReceipt, StringComparison.OrdinalIgnoreCase)
+               || bizType.Equals(BizFinanceFfPayment, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>销售方向等（与 §5.1.1 一致）不可访问采购订单/付款附件。</summary>

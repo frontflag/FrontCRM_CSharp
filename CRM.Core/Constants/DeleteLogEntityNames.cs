@@ -41,5 +41,6 @@ public static class DeleteLogEntityNames
 
     public const string CustomsDeclaration = "报关单";
     public const string CustomsBroker = "报关公司";
+    public const string FreightForwarderCompany = "货代公司";
     public const string Document = "附件文档";
 }
