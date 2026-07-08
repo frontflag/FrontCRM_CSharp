@@ -206,7 +206,9 @@ export interface PurchaseOrderItemListLineRow {
   createdBy?: string | null
   pn?: string | null
   brand?: string | null
-  qty?: number
+      qty?: number
+  qtyStockInNotifyExpectSum?: number
+  qtyStockInNotifyNot?: number
   cost?: number
   lineTotal?: number
   currency?: number

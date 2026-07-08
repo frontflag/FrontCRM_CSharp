@@ -363,6 +363,7 @@ namespace CRM.Core.Services
             await _unitOfWork.SaveChangesAsync();
 
             await _poItemExtendSync.RecalculateAsync(poItem.Id);
+            await _unitOfWork.SaveChangesAsync();
             notice.VendorCode = po.VendorCode;
             AttachItemSnapshot(notice);
             return notice;

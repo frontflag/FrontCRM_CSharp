@@ -1400,6 +1400,8 @@ namespace CRM.API.Controllers
                     cost = costOut,
                     lineTotal,
                     paymentRequestedAmount = canViewPurchaseAmount ? r.PaymentAmountRequested : 0m,
+                    qtyStockInNotifyExpectSum = r.QtyStockInNotifyExpectSum,
+                    qtyStockInNotifyNot = r.QtyStockInNotifyNot,
                     currency = r.Currency,
                     deliveryDate = r.DeliveryDate
                 });
@@ -1621,6 +1623,8 @@ namespace CRM.API.Controllers
                         stockInProgressQty = ext?.QtyReceiveTotal ?? 0m,
                         paymentProgressAmount = canViewPurchaseAmount ? (ext?.PaymentAmountFinish ?? 0m) : 0m,
                         paymentRequestedAmount = canViewPurchaseAmount ? (ext?.PaymentAmountRequested ?? 0m) : 0m,
+                        qtyStockInNotifyExpectSum = ext?.QtyStockInNotifyExpectSum ?? 0m,
+                        qtyStockInNotifyNot = ext?.QtyStockInNotifyNot ?? i.Qty,
                         invoiceProgressAmount = canViewPurchaseAmount ? (ext?.PurchaseInvoiceDone ?? 0m) : 0m,
                         // 业务口径：主单已确认即可申请付款；兼容历史数据中“主单已确认但明细状态未同步到30”的情况
                         CanApplyPayment = canInitiatePaymentFromPo

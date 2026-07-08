@@ -154,7 +154,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="arrivalDialogVisible" title="新建到货通知" width="1180px" align-center destroy-on-close>
+    <el-dialog v-model="arrivalDialogVisible" title="新建到货通知" width="1240px" align-center destroy-on-close>
       <div class="arrival-form-layout">
         <div class="arrival-section">
           <el-form label-width="120px" class="arrival-notice-form">
@@ -234,17 +234,37 @@
             <el-table-column label="序号" width="70">
               <template #default="{ $index }">{{ $index + 1 }}</template>
             </el-table-column>
-            <el-table-column label="原厂型号" min-width="180">
-              <template #default="{ row }"><el-input v-model="row.pn" /></template>
-            </el-table-column>
-            <el-table-column label="品牌" width="120">
-              <template #default="{ row }"><el-input v-model="row.brand" /></template>
-            </el-table-column>
-            <el-table-column label="数量" min-width="168" align="right">
+            <el-table-column label="物料型号" min-width="160" show-overflow-tooltip>
               <template #default="{ row }">
+                <span class="arrival-line-label">{{ row.pn || '—' }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="品牌" min-width="130" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="arrival-line-label">{{ row.brand || '—' }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="订单数量" width="100" align="right">
+              <template #default="{ row }">{{ formatArrivalNoticeQty(row.orderQty) }}</template>
+            </el-table-column>
+            <el-table-column label="已通知数量" min-width="118" align="right">
+              <template #default="{ row }">{{ formatArrivalNoticeQty(row.alreadyNotified) }}</template>
+            </el-table-column>
+            <el-table-column label="可申请数量" min-width="118" align="right">
+              <template #default="{ row }">
+                <span :class="{ 'arrival-applicable-zero': row.applicableQty <= 0 }">
+                  {{ formatArrivalNoticeQty(row.applicableQty) }}
+                </span>
+              </template>
+            </el-table-column>
+            <el-table-column label="本次数量" min-width="140" align="right">
+              <template #default="{ row }">
+                <span v-if="row.applicableQty <= 0" class="arrival-qty-cannot-apply">不可申请</span>
                 <el-input-number
+                  v-else
                   v-model="row.qty"
                   :min="0"
+                  :max="row.applicableQty"
                   :precision="0"
                   :step="1"
                   class="arrival-qty-input"
@@ -290,6 +310,10 @@ import ShipmentExpressFields from '@/components/Logistics/ShipmentExpressFields.
 import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { filterEnabledVendorBanks, resolveVendorDefaultBankId } from '@/utils/vendorFinancePaymentBank'
+import {
+  buildPurchaseArrivalNoticeLineRow,
+  formatArrivalNoticeQty
+} from '@/utils/purchaseArrivalNoticeLine'
 
 import { vendorBankApi } from '@/api/vendor'
 
@@ -458,15 +482,7 @@ async function openArrival(row: any) {
   arrivalForm.regionType = REGION_TYPE_DOMESTIC
   arrivalForm.inspectionRequirement = ''
   arrivalForm.remark = ''
-  arrivalForm.lines = [
-    {
-      pn: row.pn || '',
-      brand: row.brand || '',
-      qty: Math.max(0, Math.round(Number(row.qty ?? 0))),
-      spec: '',
-      packaging: ''
-    }
-  ]
+  arrivalForm.lines = [buildPurchaseArrivalNoticeLineRow(row)]
   arrivalDialogVisible.value = true
 }
 
@@ -484,9 +500,15 @@ async function submitArrivalNotice() {
     ElMessage.warning('请填写预计到货日期')
     return
   }
-  const expectQty = Number(arrivalForm.lines?.[0]?.qty ?? 0)
+  const line = arrivalForm.lines?.[0]
+  const expectQty = Number(line?.qty ?? 0)
+  const applicableQty = Math.max(0, Math.round(Number(line?.applicableQty ?? 0)))
   if (!expectQty || expectQty <= 0) {
     ElMessage.warning('请填写大于 0 的本次到货数量')
+    return
+  }
+  if (expectQty > applicableQty) {
+    ElMessage.warning(`本次数量不能超过可申请数量（${applicableQty}）`)
     return
   }
   arrivalSubmitting.value = true
@@ -616,5 +638,20 @@ defineExpose({ openPayment, openArrival })
 }
 :deep(.arrival-qty-input .el-input__wrapper) {
   width: 100%;
+}
+
+.arrival-applicable-zero {
+  color: $warning-color;
+}
+
+.arrival-qty-cannot-apply {
+  color: $text-muted;
+  font-size: 13px;
+}
+
+.arrival-line-label {
+  display: inline-block;
+  color: $text-primary;
+  line-height: 32px;
 }
 </style>

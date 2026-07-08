@@ -76,6 +76,10 @@ public sealed class PurchaseOrderItemListLineRaw
     public short InvoiceProgressStatus { get; set; }
     public decimal PaymentAmount { get; set; }
     public decimal PaymentAmountRequested { get; set; }
+    /// <summary>累计已下达货通知预期数量（<see cref="PurchaseOrderItemExtend.QtyStockInNotifyExpectSum"/>）。</summary>
+    public decimal QtyStockInNotifyExpectSum { get; set; }
+    /// <summary>剩余可下达货通知数量（<see cref="PurchaseOrderItemExtend.QtyStockInNotifyNot"/>）。</summary>
+    public decimal QtyStockInNotifyNot { get; set; }
     public decimal Qty { get; set; }
     public decimal Cost { get; set; }
     public short Currency { get; set; }

@@ -1587,6 +1587,10 @@ function poDetailLineToListShape(it: any) {
     cost,
     lineTotal: qty * cost,
     paymentRequestedAmount: Number(it.paymentRequestedAmount ?? it.PaymentRequestedAmount ?? 0),
+    qtyStockInNotifyExpectSum: Number(
+      it.qtyStockInNotifyExpectSum ?? it.QtyStockInNotifyExpectSum ?? 0
+    ),
+    qtyStockInNotifyNot: Number(it.qtyStockInNotifyNot ?? it.QtyStockInNotifyNot ?? qty),
     currency: it.currency ?? it.Currency ?? o.currency,
     deliveryDate: it.deliveryDate ?? it.DeliveryDate ?? o.deliveryDate,
     canApplyPayment: Boolean(it.canApplyPayment ?? it.CanApplyPayment)

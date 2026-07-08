@@ -166,6 +166,8 @@ public sealed class PurchaseOrderItemListQuery : IPurchaseOrderItemListQuery
                     ? x.ext.PaymentAmount
                     : Math.Round(x.item.Qty * x.item.Cost, 2, MidpointRounding.AwayFromZero),
                 PaymentAmountRequested = x.ext != null ? x.ext.PaymentAmountRequested : 0m,
+                QtyStockInNotifyExpectSum = x.ext != null ? x.ext.QtyStockInNotifyExpectSum : 0m,
+                QtyStockInNotifyNot = x.ext != null ? x.ext.QtyStockInNotifyNot : x.item.Qty,
                 Qty = x.item.Qty,
                 Cost = x.item.Cost,
                 Currency = x.item.Currency,
@@ -242,6 +244,8 @@ public sealed class PurchaseOrderItemListQuery : IPurchaseOrderItemListQuery
                         ? ext.PaymentAmount
                         : Math.Round(item.Qty * item.Cost, 2, MidpointRounding.AwayFromZero),
                     PaymentAmountRequested = ext != null ? ext.PaymentAmountRequested : 0m,
+                    QtyStockInNotifyExpectSum = ext != null ? ext.QtyStockInNotifyExpectSum : 0m,
+                    QtyStockInNotifyNot = ext != null ? ext.QtyStockInNotifyNot : item.Qty,
                     Qty = item.Qty,
                     Cost = item.Cost,
                     Currency = item.Currency,

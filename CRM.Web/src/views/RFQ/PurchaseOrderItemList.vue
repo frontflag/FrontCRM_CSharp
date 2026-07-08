@@ -757,7 +757,7 @@
     <el-dialog
       v-model="arrivalDialogVisible"
       :title="t('purchaseOrderItemList.arrivalDialog.title')"
-      width="1180px"
+      width="1240px"
       align-center
       destroy-on-close
     >
@@ -843,17 +843,39 @@
             <el-table-column :label="t('purchaseOrderItemList.arrivalDialog.seq')" width="70">
               <template #default="{ $index }">{{ $index + 1 }}</template>
             </el-table-column>
-            <el-table-column :label="t('purchaseOrderItemList.arrivalDialog.factoryPn')" min-width="180">
-              <template #default="{ row }"><el-input v-model="row.pn" /></template>
-            </el-table-column>
-            <el-table-column :label="t('purchaseOrderItemList.arrivalDialog.brand')" width="120">
-              <template #default="{ row }"><el-input v-model="row.brand" /></template>
-            </el-table-column>
-            <el-table-column :label="t('purchaseOrderItemList.arrivalDialog.qty')" min-width="168" align="right">
+            <el-table-column :label="t('purchaseOrderItemList.arrivalDialog.materialPn')" min-width="160" show-overflow-tooltip>
               <template #default="{ row }">
+                <span class="arrival-line-label">{{ row.pn || '—' }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column :label="t('purchaseOrderItemList.arrivalDialog.brand')" min-width="130" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="arrival-line-label">{{ row.brand || '—' }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column :label="t('purchaseOrderItemList.arrivalDialog.orderQty')" width="100" align="right">
+              <template #default="{ row }">{{ formatArrivalNoticeQty(row.orderQty) }}</template>
+            </el-table-column>
+            <el-table-column :label="t('purchaseOrderItemList.arrivalDialog.alreadyNotified')" min-width="118" align="right">
+              <template #default="{ row }">{{ formatArrivalNoticeQty(row.alreadyNotified) }}</template>
+            </el-table-column>
+            <el-table-column :label="t('purchaseOrderItemList.arrivalDialog.applicableQty')" min-width="118" align="right">
+              <template #default="{ row }">
+                <span :class="{ 'arrival-applicable-zero': row.applicableQty <= 0 }">
+                  {{ formatArrivalNoticeQty(row.applicableQty) }}
+                </span>
+              </template>
+            </el-table-column>
+            <el-table-column :label="t('purchaseOrderItemList.arrivalDialog.thisQty')" min-width="140" align="right">
+              <template #default="{ row }">
+                <span v-if="row.applicableQty <= 0" class="arrival-qty-cannot-apply">
+                  {{ t('purchaseOrderItemList.messages.cannotApplyArrival') }}
+                </span>
                 <el-input-number
+                  v-else
                   v-model="row.qty"
                   :min="0"
+                  :max="row.applicableQty"
                   :precision="0"
                   :step="1"
                   class="arrival-qty-input"
@@ -932,6 +954,10 @@ import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { vendorBankApi } from '@/api/vendor'
 import { filterEnabledVendorBanks, resolveVendorDefaultBankId } from '@/utils/vendorFinancePaymentBank'
+import {
+  buildPurchaseArrivalNoticeLineRow,
+  formatArrivalNoticeQty
+} from '@/utils/purchaseArrivalNoticeLine'
 import QcImagesReadonlyGallery from '@/components/Logistics/QcImagesReadonlyGallery.vue'
 
 const router = useRouter()
@@ -1363,13 +1389,7 @@ async function openArrivalDialog(row: any) {
   arrivalForm.qcDate = ''
   arrivalForm.stockInUser = ''
   arrivalForm.stockInDate = ''
-  arrivalForm.lines = [{
-    pn: row.pn || '',
-    brand: row.brand || '',
-    qty: Math.max(0, Math.round(Number(row.qty ?? 0))),
-    spec: '',
-    packaging: ''
-  }]
+  arrivalForm.lines = [buildPurchaseArrivalNoticeLineRow(row)]
   arrivalDialogVisible.value = true
 }
 
@@ -1402,9 +1422,17 @@ async function submitArrivalNotice() {
     ElMessage.warning(t('purchaseOrderItemList.messages.fillExpectedDate'))
     return
   }
-  const expectQty = Number(arrivalForm.lines?.[0]?.qty ?? 0)
+  const line = arrivalForm.lines?.[0]
+  const expectQty = Number(line?.qty ?? 0)
+  const applicableQty = Math.max(0, Math.round(Number(line?.applicableQty ?? 0)))
   if (!expectQty || expectQty <= 0) {
     ElMessage.warning(t('purchaseOrderItemList.messages.qtyMustBePositive'))
+    return
+  }
+  if (expectQty > applicableQty) {
+    ElMessage.warning(
+      t('purchaseOrderItemList.messages.qtyExceedsApplicable', { max: formatArrivalNoticeQty(applicableQty) })
+    )
     return
   }
   arrivalSubmitting.value = true
@@ -1896,6 +1924,21 @@ onMounted(() => {
 }
 :deep(.arrival-qty-input .el-input__wrapper) {
   width: 100%;
+}
+
+.arrival-applicable-zero {
+  color: $warning-color;
+}
+
+.arrival-qty-cannot-apply {
+  color: $text-muted;
+  font-size: 13px;
+}
+
+.arrival-line-label {
+  display: inline-block;
+  color: $text-primary;
+  line-height: 32px;
 }
 
 .tabs-section {

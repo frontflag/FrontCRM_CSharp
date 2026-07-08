@@ -113,7 +113,7 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
         var sumStockOut = completedStockOuts.Sum(o => o.TotalQuantity);
         ext.QtyStockOutActual = sumStockOut;
 
-        // --- 销售数量变更后：校验并回写单条有效出库通知数量（多条仅校验）---
+        // --- 销售数量变更后：校验；单条有效出库通知仅收缩超量，不将部分通知扩成整单（多条仅校验）---
         await AlignStockOutRequestsWithSoLineQtyAsync(soItem, sumStockOut, cancellationToken);
 
         var requests = (await _stockOutRequestRepo.FindAsync(r => r.SalesOrderItemId == id))
@@ -223,6 +223,23 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
         var active = requests
             .Where(r => StockOutRequestStatusCode.IsCountedForSalesLineNotifyQuantity(r.Status, r.StockOutType))
             .ToList();
+
+        if (active.Count == 1)
+        {
+            var request = active[0];
+            if (request.Status != StockOutRequestStatusCode.StockedOut)
+            {
+                var targetQty = InventoryQuantity.RoundFromDecimal(soItem.Qty);
+                // 分批出库：部分通知数量有意小于销售行数量，刷新/重算时不得自动扩成整单。
+                if (request.Quantity > targetQty)
+                {
+                    request.Quantity = targetQty;
+                    request.ModifyTime = DateTime.UtcNow;
+                    await _stockOutRequestRepo.UpdateAsync(request);
+                }
+            }
+        }
+
         var activeNotifySum = active.Sum(r => (decimal)r.Quantity);
         if (soItem.Qty + 1e-9m < activeNotifySum)
             throw new InvalidOperationException(
@@ -230,18 +247,6 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
         if (soItem.Qty + 1e-9m < sumStockOutActual)
             throw new InvalidOperationException(
                 $"销售数量不能小于已实际出库数量（{sumStockOutActual}）");
-
-        if (active.Count != 1) return;
-
-        var request = active[0];
-        if (request.Status == StockOutRequestStatusCode.StockedOut) return;
-
-        var targetQty = InventoryQuantity.RoundFromDecimal(soItem.Qty);
-        if (request.Quantity == targetQty) return;
-
-        request.Quantity = targetQty;
-        request.ModifyTime = DateTime.UtcNow;
-        await _stockOutRequestRepo.UpdateAsync(request);
     }
 
     private static void ApplyProfitFields(SellOrderItem soItem, SellOrderItemExtend ext, List<PurchaseOrderItem> poItems)
