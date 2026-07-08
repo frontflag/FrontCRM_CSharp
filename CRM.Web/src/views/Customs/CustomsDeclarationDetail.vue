@@ -57,7 +57,7 @@
         />
         <el-alert
           v-else-if="detail.existingArrivalNotifyCodes?.length"
-          type="success"
+          type="warning"
           :closable="false"
           show-icon
           class="arrival-hint"
