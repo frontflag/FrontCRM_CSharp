@@ -6259,7 +6259,7 @@ const zhCN = {
       createUser: '创建人',
       actions: '操作'
     },
-    actions: { detail: '详情', pay: '付款', editRequest: '编辑请款', withdraw: '撤回', submitAudit: '提交审核', cancel: '取消' },
+    actions: { detail: '详情', pay: '付款', editRequest: '编辑请款', withdraw: '撤回', submitAudit: '提交审核', cancel: '取消', reverseVerification: '反核销' },
     columnSettings: '列设置',
     dialogCreate: '新建付款单',
     dialogEdit: '编辑付款单',
@@ -6338,6 +6338,11 @@ const zhCN = {
       withdrawMsg: '撤回后付款执行信息与水单附件将被清除，需修改后重新提交审批。确认撤回付款单 {code}？',
       withdrawn: '已撤回，请修改后重新提交审批',
       withdrawFailed: '撤回失败',
+      reverseVerificationTitle: '反核销确认',
+      reverseVerificationPrompt: '请输入付款单号以确认反核销',
+      reverseVerificationSuccess: '反核销成功，付款单已回到审核通过状态',
+      reverseVerificationFailed: '反核销失败',
+      reverseVerificationBillMismatch: '输入单号不匹配，已取消',
     }
   },
   financePaymentDetail: {
@@ -6437,7 +6442,7 @@ const zhCN = {
       createUser: '创建人',
       actions: '操作'
     },
-    actions: { detail: '详情', edit: '编辑', submitAudit: '提交审核', approve: '审核通过', cancel: '取消' },
+    actions: { detail: '详情', edit: '编辑', submitAudit: '提交审核', approve: '审核通过', cancel: '取消', reverseVerification: '反核销' },
     columnSettings: '列设置',
     dialogCreate: '新建收款单',
     dialogEdit: '编辑收款单',
@@ -6485,7 +6490,11 @@ const zhCN = {
       approved: '审核通过，已标记为已收款',
       cancelTitle: '取消确认',
       cancelMsg: '确认取消收款单 {code}？',
-      cancelled: '已取消'
+      cancelled: '已取消',
+      reverseVerificationPrompt: '请输入收款单号以确认反核销',
+      reverseVerificationSuccess: '反核销成功，收款单核销已撤销',
+      reverseVerificationFailed: '反核销失败',
+      reverseVerificationBillMismatch: '输入单号不匹配，已取消'
     },
     unknownCustomer: '未知客户',
     customerFallback: '客户'

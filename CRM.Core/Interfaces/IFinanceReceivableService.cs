@@ -155,6 +155,12 @@ public interface IFinanceReceivableService
 
     Task<IReadOnlyList<FinanceReceivableWriteOffListItem>> GetWriteOffsByReceiptIdAsync(string receiptId, CancellationToken cancellationToken = default);
 
+    /// <summary>撤销收款单下全部收款明细来源的应收核销流水（物理删除流水并回滚应收/明细）。</summary>
+    Task<FinanceReceiptReverseWriteOffResult> ReverseWriteOffsByReceiptAsync(
+        string receiptId,
+        string? actingUserId = null,
+        CancellationToken cancellationToken = default);
+
     Task<PagedResult<FinanceReceivableWriteOffLedgerItem>> GetWriteOffLedgerPagedAsync(
         FinanceReceivableWriteOffLedgerQueryRequest request,
         CancellationToken cancellationToken = default);
@@ -169,6 +175,13 @@ public interface IFinanceReceivableService
     Task<FinanceReceivableBackfillResult> BackfillReceivablesFromCompletedStockOutsAsync(
         string? actingUserId = null,
         CancellationToken cancellationToken = default);
+}
+
+public class FinanceReceiptReverseWriteOffResult
+{
+    public int WriteOffCount { get; set; }
+    public IReadOnlyList<string> ReceivableCodes { get; set; } = Array.Empty<string>();
+    public IReadOnlyList<string> StockOutCodes { get; set; } = Array.Empty<string>();
 }
 
 public class FinanceReceivableBackfillResult

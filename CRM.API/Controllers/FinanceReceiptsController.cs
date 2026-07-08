@@ -333,6 +333,51 @@ namespace CRM.API.Controllers
             }
         }
 
+        /// <summary>收款反核销（撤销核销流水，主单状态不变）</summary>
+        [HttpPost("{id}/reverse-verification")]
+        [RequirePermission("finance-receipt.write")]
+        public async Task<IActionResult> ReverseVerification(string id, [FromBody] ForceDeleteFinanceReceiptRequest? body)
+        {
+            try
+            {
+                var denied = await RejectIfFinanceDataReadOnlyAsync();
+                if (denied != null) return denied;
+
+                if (body == null || string.IsNullOrWhiteSpace(body.ConfirmBillCode))
+                    return BadRequest(new { success = false, message = "请填写 confirmBillCode" });
+
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrWhiteSpace(userId))
+                    return StatusCode(403, new { success = false, message = "未登录或身份无效" });
+
+                var userName = User.FindFirst(ClaimTypes.Name)?.Value;
+                var receipt = await _service.ReverseVerificationAsync(
+                    id,
+                    body.ConfirmBillCode.Trim(),
+                    userId.Trim(),
+                    string.IsNullOrWhiteSpace(userName) ? null : userName.Trim());
+
+                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessFinanceReceiptAsync(userId, receipt))
+                    return StatusCode(403, new { success = false, message = "无权访问该收款单" });
+
+                SaleSensitiveFieldMask521.ApplyFinanceReceipt(receipt, true);
+                return Ok(new { success = true, message = "反核销成功", data = receipt });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "收款反核销失败");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
         /// <summary>强制删除收款单（仅系统管理员）</summary>
         [HttpPost("{id}/force-delete")]
         [RequirePermission("finance-receipt.write")]

@@ -20,6 +20,8 @@ namespace CRM.Core.Interfaces
         Task DeleteAsync(string id);
         /// <summary>管理员强制删除：确认单号、守卫、删除（含采购扩展回算）并写操作日志。</summary>
         Task ForceDeleteAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName);
+        /// <summary>反核销：仅 status=100；回滚明细核销并 100→10，重算 PO 付款状态。</summary>
+        Task<FinancePayment> ReverseVerificationAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName);
         /// <param name="remark">审核驳回原因等补充说明（可选）</param>
         Task UpdateStatusAsync(string id, short status, string? remark = null, string? actingUserId = null);
         Task VerifyPaymentItemAsync(string paymentItemId, decimal amount);

@@ -424,9 +424,54 @@ namespace CRM.API.Controllers
             {
                 return NotFound(new { success = false, message = "付款单不存在" });
             }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "删除付款单失败");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>付款反核销（100→10，回滚核销并同步采购付款状态）</summary>
+        [HttpPost("{id}/reverse-verification")]
+        [RequirePermission("finance-payment.write")]
+        public async Task<IActionResult> ReverseVerification(string id, [FromBody] ForceDeleteFinancePaymentRequest? body)
+        {
+            try
+            {
+                var denied = await RejectIfFinanceDataReadOnlyAsync();
+                if (denied != null) return denied;
+
+                if (body == null || string.IsNullOrWhiteSpace(body.ConfirmBillCode))
+                    return BadRequest(new { success = false, message = "请填写 confirmBillCode" });
+
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrWhiteSpace(userId))
+                    return StatusCode(403, new { success = false, message = "未登录或身份无效" });
+
+                var userName = User.FindFirst(ClaimTypes.Name)?.Value;
+                var payment = await _service.ReverseVerificationAsync(
+                    id,
+                    body.ConfirmBillCode.Trim(),
+                    userId.Trim(),
+                    string.IsNullOrWhiteSpace(userName) ? null : userName.Trim());
+
+                return Ok(new { success = true, message = "反核销成功", data = payment });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "付款反核销失败");
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }

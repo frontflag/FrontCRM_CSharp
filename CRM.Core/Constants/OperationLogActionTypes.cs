@@ -22,4 +22,10 @@ public static class OperationLogActionTypes
 
     public const string RfqTagApply = "需求打标签";
     public const string RfqTagRemove = "需求移除标签";
+
+    /// <summary>付款单反核销（付款完成回滚至审核通过）。</summary>
+    public const string FinancePaymentReverseVerification = "付款反核销";
+
+    /// <summary>收款单反核销（撤销核销流水，主单状态不变）。</summary>
+    public const string FinanceReceiptReverseVerification = "收款反核销";
 }

@@ -1535,6 +1535,91 @@ public class FinanceReceivableService : IFinanceReceivableService
         return result;
     }
 
+    /// <inheritdoc />
+    public async Task<FinanceReceiptReverseWriteOffResult> ReverseWriteOffsByReceiptAsync(
+        string receiptId,
+        string? actingUserId = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(receiptId))
+            throw new ArgumentException("收款单ID不能为空", nameof(receiptId));
+
+        var rid = receiptId.Trim();
+        var itemIds = (await _receiptItemRepo.FindAsync(i => i.FinanceReceiptId == rid))
+            .Select(i => i.Id.Trim())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var writeOffs = (await _writeOffRepo.FindAsync(w =>
+                w.WriteOffSource == FinanceReceivableWriteOffSourceCode.ReceiptItem
+                && ((w.FinanceReceiptId != null && w.FinanceReceiptId == rid)
+                    || (w.FinanceReceiptItemId != null && itemIds.Contains(w.FinanceReceiptItemId.Trim())))))
+            .OrderByDescending(w => w.CreateTime)
+            .ThenByDescending(w => w.Id, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var touchedLines = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var receivableCodes = new List<string>();
+        var stockOutCodes = new List<string>();
+
+        foreach (var writeOff in writeOffs)
+        {
+            var receivable = await _receivableRepo.GetByIdAsync(writeOff.FinanceReceivableId);
+            if (receivable == null || receivable.IsDeleted)
+                continue;
+
+            var amount = writeOff.Amount;
+            receivable.VerifiedDone = Math.Max(0m, receivable.VerifiedDone - amount);
+            receivable.VerifiedToBe = Math.Max(0m, receivable.Amount - receivable.VerifiedDone);
+            receivable.VerificationStatus = FinanceVerificationStatusCode.Resolve(
+                receivable.Amount, receivable.VerifiedDone);
+            receivable.ModifyTime = DateTime.UtcNow;
+            receivable.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
+            await _receivableRepo.UpdateAsync(receivable);
+
+            if (!string.IsNullOrWhiteSpace(writeOff.FinanceReceiptItemId))
+            {
+                var receiptItem = await _receiptItemRepo.GetByIdAsync(writeOff.FinanceReceiptItemId);
+                if (receiptItem != null)
+                {
+                    receiptItem.VerifiedAmount = Math.Max(0m, receiptItem.VerifiedAmount - amount);
+                    receiptItem.VerificationStatus = FinanceVerificationStatusCode.Resolve(
+                        FinanceReceiptItemWriteOffHelper.EffectiveConvertAmount(receiptItem),
+                        receiptItem.VerifiedAmount);
+                    receiptItem.ModifyTime = DateTime.UtcNow;
+                    await _receiptItemRepo.UpdateAsync(receiptItem);
+                }
+            }
+
+            await _writeOffRepo.DeleteAsync(writeOff.Id);
+
+            touchedLines.Add(receivable.SellOrderItemId);
+            if (receivableCodes.Count < 5 && !string.IsNullOrWhiteSpace(receivable.ReceivableCode))
+                receivableCodes.Add(receivable.ReceivableCode.Trim());
+            if (stockOutCodes.Count < 5 && !string.IsNullOrWhiteSpace(receivable.StockOutCode))
+                stockOutCodes.Add(receivable.StockOutCode.Trim());
+        }
+
+        if (_unitOfWork != null)
+            await _unitOfWork.SaveChangesAsync();
+
+        foreach (var lineId in touchedLines)
+            await _sellOrderItemExtendSync.RecalculateAsync(lineId);
+
+        if (_unitOfWork != null)
+            await _unitOfWork.SaveChangesAsync();
+
+        return new FinanceReceiptReverseWriteOffResult
+        {
+            WriteOffCount = writeOffs.Count,
+            ReceivableCodes = receivableCodes
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList(),
+            StockOutCodes = stockOutCodes
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList()
+        };
+    }
+
     private async Task EnrichWriteOffOperatorNamesAsync(IReadOnlyList<FinanceReceivableWriteOffListItem> items)
     {
         if (items.Count == 0) return;

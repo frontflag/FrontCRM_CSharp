@@ -116,6 +116,8 @@ public class ForceDeleteGuardService : IForceDeleteGuardService
                 ? "存在下游业务节点：收款核销明细，不能强制删除收款单"
                 : $"存在下游业务节点：销项发票；下游数据单号：{string.Join("、", invoiceCodes)}");
         }
+        if (items.Any(x => x.AdvancePoolAmount > 0m))
+            return ForceDeleteGuardResult.Deny("存在下游业务节点：客户预收池入账，须先回滚预收池后再删除");
         return ForceDeleteGuardResult.Allow();
     }
 

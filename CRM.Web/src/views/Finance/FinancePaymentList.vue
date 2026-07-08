@@ -236,6 +236,15 @@
               {{ t('financePaymentList.actions.cancel') }}
             </el-button>
             <el-button size="small" text type="danger" @click.stop="handleDeleteRow(row)" v-if="canFinancePaymentWrite">删除</el-button>
+            <el-button
+              size="small"
+              text
+              type="warning"
+              @click.stop="handleReverseVerificationRow(row)"
+              v-if="canReverseVerification(row)"
+            >
+              {{ t('financePaymentList.actions.reverseVerification') }}
+            </el-button>
             <el-button size="small" text type="danger" @click.stop="handleForceDeleteRow(row)" v-if="canFinancePaymentWrite && isSysAdmin">强制删除</el-button>
           </div>
 
@@ -268,6 +277,9 @@
                 </el-dropdown-item>
                 <el-dropdown-item divided v-if="canFinancePaymentWrite" @click.stop="handleDeleteRow(row)">
                   <span class="op-more-item op-more-item--danger">删除</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="canReverseVerification(row)" @click.stop="handleReverseVerificationRow(row)">
+                  <span class="op-more-item op-more-item--warning">{{ t('financePaymentList.actions.reverseVerification') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="canFinancePaymentWrite && isSysAdmin" @click.stop="handleForceDeleteRow(row)">
                   <span class="op-more-item op-more-item--danger">强制删除</span>
@@ -412,8 +424,8 @@ const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 // 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
 const OP_COL_COLLAPSED_WIDTH = 43
-const OP_COL_EXPANDED_WIDTH = 320
-const OP_COL_EXPANDED_MIN_WIDTH = 300
+const OP_COL_EXPANDED_WIDTH = 400
+const OP_COL_EXPANDED_MIN_WIDTH = 380
 const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
 const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_WIDTH : OP_COL_COLLAPSED_WIDTH))
 function toggleOpCol() {
@@ -575,6 +587,10 @@ function canPayExecute(row: FinancePayment) {
   return canFinancePaymentWrite.value && row.status === 10
 }
 
+function canReverseVerification(row: FinancePayment) {
+  return canFinancePaymentWrite.value && row.status === 100
+}
+
 function canWithdrawPayment(row: FinancePayment) {
   if (row.status !== 10) return false
   if (canFinancePaymentWrite.value) return true
@@ -668,6 +684,25 @@ const handleDeleteRow = async (row: FinancePayment) => {
     await loadData()
   } catch (e: any) {
     ElMessage.error(e?.message || '删除失败')
+  }
+}
+
+const handleReverseVerificationRow = async (row: FinancePayment) => {
+  const entered = window.prompt(
+    t('financePaymentList.messages.reverseVerificationPrompt'),
+    row.financePaymentCode || ''
+  )?.trim() ?? ''
+  if (!entered) return
+  if (entered !== String(row.financePaymentCode || '').trim()) {
+    ElMessage.error(t('financePaymentList.messages.reverseVerificationBillMismatch'))
+    return
+  }
+  try {
+    await financePaymentApi.reverseVerification(row.id, entered)
+    ElMessage.success(t('financePaymentList.messages.reverseVerificationSuccess'))
+    await loadData()
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('financePaymentList.messages.reverseVerificationFailed'))
   }
 }
 

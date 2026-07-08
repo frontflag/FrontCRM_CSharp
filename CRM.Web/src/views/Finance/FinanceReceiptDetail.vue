@@ -42,6 +42,11 @@
           </div>
         </div>
       </div>
+      <div v-if="detail" class="header-right">
+        <el-button v-if="canReverseVerificationDetail" type="warning" @click="handleReverseVerification">
+          {{ t('financeReceiptList.actions.reverseVerification') }}
+        </el-button>
+      </div>
     </div>
 
     <div class="detail-content">
@@ -365,7 +370,9 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { ElMessage } from 'element-plus'
 import { useFinanceEnumLabels } from '@/composables/useFinanceEnumLabels'
+import { useFinanceWriteGate } from '@/composables/useDepartmentDataReadOnly'
 import { financeReceiptApi, CURRENCY_MAP, type FinanceReceipt, type FinanceReceiptItem, type FinanceReceiptWriteOffRecord } from '@/api/finance'
 import { documentApi, type UploadDocumentDto } from '@/api/document'
 import CrmDataTable from '@/components/CrmDataTable.vue'
@@ -378,6 +385,7 @@ const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const route = useRoute()
 const { t } = useI18n()
 const { receiptStatusLabel, receiptStatusTag, paymentModeLabel, verificationStatusLabel } = useFinanceEnumLabels()
+const { canWriteFinanceReceipt } = useFinanceWriteGate()
 
 const loading = ref(false)
 const detail = ref<FinanceReceipt | null>(null)
@@ -385,6 +393,10 @@ const receiptDocs = ref<UploadDocumentDto[]>([])
 const writeOffRecords = ref<FinanceReceiptWriteOffRecord[]>([])
 
 const receiptId = computed(() => route.params.id as string)
+
+const canReverseVerificationDetail = computed(
+  () => !!detail.value && canWriteFinanceReceipt.value && [2, 3].includes(detail.value.status)
+)
 
 const receiptCaptionAvatarChar = computed(() => {
   const c = detail.value?.financeReceiptCode?.trim()
@@ -447,6 +459,24 @@ const fetchDetail = async () => {
     writeOffRecords.value = []
   } finally {
     loading.value = false
+  }
+}
+
+async function handleReverseVerification() {
+  if (!detail.value) return
+  const code = detail.value.financeReceiptCode || ''
+  const entered = window.prompt(t('financeReceiptList.messages.reverseVerificationPrompt'), code)?.trim() ?? ''
+  if (!entered) return
+  if (entered !== code.trim()) {
+    ElMessage.error(t('financeReceiptList.messages.reverseVerificationBillMismatch'))
+    return
+  }
+  try {
+    await financeReceiptApi.reverseVerification(detail.value.id, entered)
+    ElMessage.success(t('financeReceiptList.messages.reverseVerificationSuccess'))
+    await fetchDetail()
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('financeReceiptList.messages.reverseVerificationFailed'))
   }
 }
 
@@ -636,6 +666,13 @@ function goBack() {
   align-items: center;
   gap: 10px;
   min-width: 0;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .detail-content {

@@ -39,6 +39,9 @@
         <el-button v-if="canSubmitAuditDetail" type="warning" @click="handleSubmitAudit">
           {{ t('financePaymentList.actions.submitAudit') }}
         </el-button>
+        <el-button v-if="canReverseVerificationDetail" type="warning" @click="handleReverseVerification">
+          {{ t('financePaymentList.actions.reverseVerification') }}
+        </el-button>
       </div>
     </div>
 
@@ -434,6 +437,10 @@ const canWithdrawDetail = computed(() => {
   return !!uid && !!creator && uid === creator
 })
 
+const canReverseVerificationDetail = computed(
+  () => !!detail.value && canFinancePaymentWrite.value && detail.value.status === 100
+)
+
 function reportCellText(v: unknown): string {
   if (v === null || v === undefined) return '—'
   const s = String(v).trim()
@@ -462,6 +469,24 @@ async function handleWithdraw() {
     paymentSlipDocListRef.value?.refresh()
   } catch (e: any) {
     ElMessage.error(e?.message || t('financePaymentList.messages.withdrawFailed'))
+  }
+}
+
+async function handleReverseVerification() {
+  if (!detail.value) return
+  const code = detail.value.financePaymentCode || ''
+  const entered = window.prompt(t('financePaymentList.messages.reverseVerificationPrompt'), code)?.trim() ?? ''
+  if (!entered) return
+  if (entered !== String(code).trim()) {
+    ElMessage.error(t('financePaymentList.messages.reverseVerificationBillMismatch'))
+    return
+  }
+  try {
+    await financePaymentApi.reverseVerification(detail.value.id, entered)
+    ElMessage.success(t('financePaymentList.messages.reverseVerificationSuccess'))
+    await fetchDetail()
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('financePaymentList.messages.reverseVerificationFailed'))
   }
 }
 

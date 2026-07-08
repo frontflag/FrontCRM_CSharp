@@ -150,6 +150,15 @@
             <el-button size="small" text type="warning" @click.stop="approveReceipt(row)" v-if="canWriteFinanceReceipt && row.status === 1">{{ t('financeReceiptList.actions.approve') }}</el-button>
             <el-button size="small" text type="danger" @click.stop="cancelReceipt(row)" v-if="canWriteFinanceReceipt && [0,1].includes(row.status)">{{ t('financeReceiptList.actions.cancel') }}</el-button>
             <el-button v-if="canWriteFinanceReceipt" size="small" text type="danger" @click.stop="handleDeleteRow(row)">删除</el-button>
+            <el-button
+              v-if="canReverseVerification(row)"
+              size="small"
+              text
+              type="warning"
+              @click.stop="handleReverseVerificationRow(row)"
+            >
+              {{ t('financeReceiptList.actions.reverseVerification') }}
+            </el-button>
             <el-button v-if="isSysAdmin" size="small" text type="danger" @click.stop="handleForceDeleteRow(row)">强制删除</el-button>
           </div>
 
@@ -176,6 +185,9 @@
                 </el-dropdown-item>
                 <el-dropdown-item v-if="canWriteFinanceReceipt" divided @click.stop="handleDeleteRow(row)">
                   <span class="op-more-item op-more-item--danger">删除</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="canReverseVerification(row)" @click.stop="handleReverseVerificationRow(row)">
+                  <span class="op-more-item op-more-item--warning">{{ t('financeReceiptList.actions.reverseVerification') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="isSysAdmin" @click.stop="handleForceDeleteRow(row)">
                   <span class="op-more-item op-more-item--danger">强制删除</span>
@@ -889,6 +901,29 @@ const handleDeleteRow = async (row: FinanceReceipt) => {
   await financeReceiptApi.delete(row.id)
   ElMessage.success('删除成功')
   await loadData()
+}
+
+function canReverseVerification(row: FinanceReceipt) {
+  return canWriteFinanceReceipt.value && [2, 3].includes(row.status)
+}
+
+const handleReverseVerificationRow = async (row: FinanceReceipt) => {
+  const entered = window.prompt(
+    t('financeReceiptList.messages.reverseVerificationPrompt'),
+    row.financeReceiptCode || ''
+  )?.trim() ?? ''
+  if (!entered) return
+  if (entered !== String(row.financeReceiptCode || '').trim()) {
+    ElMessage.error(t('financeReceiptList.messages.reverseVerificationBillMismatch'))
+    return
+  }
+  try {
+    await financeReceiptApi.reverseVerification(row.id, entered)
+    ElMessage.success(t('financeReceiptList.messages.reverseVerificationSuccess'))
+    await loadData()
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('financeReceiptList.messages.reverseVerificationFailed'))
+  }
 }
 
 const handleForceDeleteRow = async (row: FinanceReceipt) => {

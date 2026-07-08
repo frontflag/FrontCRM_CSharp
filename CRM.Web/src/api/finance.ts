@@ -412,6 +412,10 @@ export const financePaymentApi = {
     apiClient.delete(`${PAYMENT_BASE}/${id}`),
   forceDelete: (id: string, confirmBillCode: string) =>
     apiClient.post(`${PAYMENT_BASE}/${id}/force-delete`, { confirmBillCode: confirmBillCode.trim() }),
+  reverseVerification: (id: string, confirmBillCode: string) =>
+    apiClient.post<FinancePayment>(`${PAYMENT_BASE}/${id}/reverse-verification`, {
+      confirmBillCode: confirmBillCode.trim()
+    }),
   updateStatus: (id: string, status: number) =>
     apiClient.patch(`${PAYMENT_BASE}/${id}/status`, { status }),
   submit: (id: string) =>
@@ -444,6 +448,10 @@ export const financeReceiptApi = {
     apiClient.delete(`${RECEIPT_BASE}/${id}`),
   forceDelete: (id: string, confirmBillCode: string) =>
     apiClient.post(`${RECEIPT_BASE}/${id}/force-delete`, { confirmBillCode: confirmBillCode.trim() }),
+  reverseVerification: (id: string, confirmBillCode: string) =>
+    apiClient.post<FinanceReceipt>(`${RECEIPT_BASE}/${id}/reverse-verification`, {
+      confirmBillCode: confirmBillCode.trim()
+    }),
   updateStatus: (id: string, status: number) =>
     apiClient.patch(`${RECEIPT_BASE}/${id}/status`, { status }),
   submit: (id: string) =>

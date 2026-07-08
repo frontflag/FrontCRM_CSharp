@@ -6264,7 +6264,7 @@ const enUS = {
       createUser: 'Created by',
       actions: 'Actions'
     },
-    actions: { detail: 'Detail', pay: 'Pay', editRequest: 'Edit request', withdraw: 'Withdraw', submitAudit: 'Submit for approval', cancel: 'Cancel' },
+    actions: { detail: 'Detail', pay: 'Pay', editRequest: 'Edit request', withdraw: 'Withdraw', submitAudit: 'Submit for approval', cancel: 'Cancel', reverseVerification: 'Reverse verification' },
     columnSettings: 'Column settings',
     dialogCreate: 'New payment',
     dialogEdit: 'Edit payment',
@@ -6343,6 +6343,11 @@ const enUS = {
       withdrawMsg: 'Execution fields and slip attachments will be cleared; you must edit and resubmit for approval. Withdraw payment {code}?',
       withdrawn: 'Withdrawn; edit and resubmit for approval',
       withdrawFailed: 'Withdraw failed',
+      reverseVerificationTitle: 'Reverse verification',
+      reverseVerificationPrompt: 'Enter payment number to confirm reverse verification',
+      reverseVerificationSuccess: 'Reverse verification succeeded; payment is back to approved',
+      reverseVerificationFailed: 'Reverse verification failed',
+      reverseVerificationBillMismatch: 'Payment number mismatch; cancelled',
     }
   },
   financePaymentDetail: {
@@ -6442,7 +6447,7 @@ const enUS = {
       createUser: 'Created by',
       actions: 'Actions'
     },
-    actions: { detail: 'Detail', edit: 'Edit', submitAudit: 'Submit for approval', approve: 'Approve', cancel: 'Cancel' },
+    actions: { detail: 'Detail', edit: 'Edit', submitAudit: 'Submit for approval', approve: 'Approve', cancel: 'Cancel', reverseVerification: 'Reverse verification' },
     columnSettings: 'Column settings',
     dialogCreate: 'New receipt',
     dialogEdit: 'Edit receipt',
@@ -6490,7 +6495,11 @@ const enUS = {
       approved: 'Approved and marked received',
       cancelTitle: 'Cancel',
       cancelMsg: 'Cancel receipt {code}?',
-      cancelled: 'Cancelled'
+      cancelled: 'Cancelled',
+      reverseVerificationPrompt: 'Enter receipt number to confirm reverse verification',
+      reverseVerificationSuccess: 'Reverse verification succeeded; write-offs cleared',
+      reverseVerificationFailed: 'Reverse verification failed',
+      reverseVerificationBillMismatch: 'Receipt number mismatch; cancelled'
     },
     unknownCustomer: 'Unknown customer',
     customerFallback: 'Customer'

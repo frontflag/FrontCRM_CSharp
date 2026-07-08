@@ -463,6 +463,11 @@ namespace CRM.Core.Services
         {
             var payment = await _paymentRepo.GetByIdAsync(id)
                 ?? throw new InvalidOperationException($"付款单 {id} 不存在");
+
+            var guard = await _forceDeleteGuard.CanForceDeleteFinancePaymentAsync(payment.Id);
+            if (!guard.CanDelete)
+                throw new ArgumentException(guard.Message);
+
             await DeleteCoreAsync(payment);
             await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
             {
@@ -521,6 +526,90 @@ namespace CRM.Core.Services
                 OperatorUserName = actingUserName?.Trim(),
                 OperationDescOverride = $"强制删除付款单：Id={entity.Id}，Code={entity.FinancePaymentCode}"
             });
+        }
+
+        /// <inheritdoc />
+        public async Task<FinancePayment> ReverseVerificationAsync(
+            string id,
+            string confirmBillCode,
+            string actingUserId,
+            string? actingUserName)
+        {
+            if (string.IsNullOrWhiteSpace(confirmBillCode))
+                throw new ArgumentException("请填写 confirmBillCode", nameof(confirmBillCode));
+            if (string.IsNullOrWhiteSpace(actingUserId))
+                throw new ArgumentException("操作人不能为空", nameof(actingUserId));
+
+            var payment = await _paymentRepo.GetByIdAsync(id.Trim())
+                ?? throw new InvalidOperationException("付款单不存在");
+            if (!string.Equals(confirmBillCode.Trim(), payment.FinancePaymentCode?.Trim(), StringComparison.Ordinal))
+                throw new ArgumentException("确认单号不匹配，已拒绝反核销");
+
+            if (payment.Status != FinancePaymentStatusCompleted)
+                throw new InvalidOperationException("仅付款完成状态的付款单可反核销");
+
+            var items = (await _itemRepo.FindAsync(i => i.FinancePaymentId == payment.Id)).ToList();
+            if (!items.Any(i => i.VerificationStatus > 0 || i.VerificationDone > 0m))
+                throw new ArgumentException("当前付款单无需反核销");
+
+            var poItemIds = items
+                .Where(i => !string.IsNullOrWhiteSpace(i.PurchaseOrderItemId))
+                .Select(i => i.PurchaseOrderItemId!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var poItemCodes = new List<string>();
+            foreach (var poItemId in poItemIds.Take(5))
+            {
+                var poi = await _poItemRepo.GetByIdAsync(poItemId);
+                if (poi == null) continue;
+                var code = string.IsNullOrWhiteSpace(poi.PurchaseOrderItemCode)
+                    ? poi.Id
+                    : poi.PurchaseOrderItemCode.Trim();
+                if (!string.IsNullOrWhiteSpace(code))
+                    poItemCodes.Add(code);
+            }
+
+            foreach (var item in items)
+            {
+                item.VerificationStatus = 0;
+                item.VerificationDone = 0m;
+                item.VerificationToBe = item.PaymentAmountToBe;
+                item.PaymentAmount = 0m;
+                item.ModifyTime = DateTime.UtcNow;
+                await _itemRepo.UpdateAsync(item);
+            }
+
+            payment.Status = FinancePaymentStatusApproved;
+            payment.PaymentAmount = 0m;
+            payment.PaymentTotalAmount = 0m;
+            payment.ModifyTime = DateTime.UtcNow;
+            payment.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
+            await _paymentRepo.UpdateAsync(payment);
+
+            if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+
+            foreach (var item in items.Where(i => !string.IsNullOrWhiteSpace(i.PurchaseOrderItemId)))
+                await SyncPurchaseFinanceStatusAsync(item);
+
+            if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+
+            var poCodesText = poItemCodes.Count > 0 ? string.Join("、", poItemCodes) : "—";
+            await _logOperationAppend.AppendAsync(
+                BusinessLogTypes.FinancePayment,
+                payment.Id,
+                payment.FinancePaymentCode,
+                OperationLogActionTypes.FinancePaymentReverseVerification,
+                actingUserId.Trim(),
+                actingUserName?.Trim(),
+                $"付款反核销：Id={payment.Id}，Code={payment.FinancePaymentCode}，100→10，关联采购明细：{poCodesText}");
+
+            payment.Items = items;
+            await EnrichVendorCodesAsync(new[] { payment });
+            await EnrichVendorBankNamesAsync(new[] { payment });
+            await EnrichPaymentBankNamesAsync(new[] { payment });
+            await EnrichCreateUserNamesAsync(new[] { payment });
+            await EnrichFreightForwarderOrderNosAsync(new[] { payment });
+            return payment;
         }
 
         public async Task UpdateStatusAsync(string id, short status, string? remark = null, string? actingUserId = null)
