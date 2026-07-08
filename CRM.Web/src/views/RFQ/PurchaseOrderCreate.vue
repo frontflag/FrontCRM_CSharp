@@ -1,39 +1,82 @@
 <template>
-  <div class="create-page">
-    <!-- 面包屑 + 操作栏 -->
+  <div class="po-upsert-page">
+    <!-- CaptionBar（《业务详情页面规范》§3 单据类） -->
     <div class="page-header">
       <div class="header-left">
-        <el-button link @click="router.back()">
-          <el-icon><ArrowLeft /></el-icon> 返回列表
-        </el-button>
-        <el-breadcrumb separator="/">
-          <el-breadcrumb-item>订单管理</el-breadcrumb-item>
-          <el-breadcrumb-item>采购管理</el-breadcrumb-item>
-          <el-breadcrumb-item>{{ pageTitle }}</el-breadcrumb-item>
-        </el-breadcrumb>
+        <button class="btn-back" type="button" @click="handleBack">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+          返回列表
+        </button>
+        <div class="po-caption-title-group">
+          <div class="caption-avatar-lg">{{ captionAvatarChar }}</div>
+          <div>
+            <div class="page-title-row">
+              <div class="page-title-with-icons">
+                <h1 class="page-title">
+                  <template v-if="isEditMode && formData.purchaseOrderCode">
+                    采购订单 {{ formData.purchaseOrderCode }}
+                  </template>
+                  <template v-else>{{ pageTitle }}</template>
+                </h1>
+              </div>
+            </div>
+            <div class="title-meta title-meta--caption po-header-meta-row">
+              <el-tag effect="dark" :type="isEditMode ? 'warning' : 'primary'" size="small">
+                {{ isEditMode ? '编辑' : '新建' }}
+              </el-tag>
+              <el-tag
+                v-if="Number(formData.type) === 2"
+                type="warning"
+                effect="plain"
+                size="small"
+                class="po-stocking-tag"
+                round
+              >
+                备货
+              </el-tag>
+              <span v-if="formData.purchaseOrderCode" class="po-caption-meta-text">
+                单号 {{ formData.purchaseOrderCode }}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="header-right">
-        <el-button plain class="po-header-btn-cancel" @click="router.back()">取消</el-button>
-        <el-button type="primary" :loading="submitLoading" class="po-header-btn-save" @click="handleSubmit">
-          <el-icon><Check /></el-icon> 保存
-        </el-button>
+        <button class="btn-secondary" type="button" @click="handleBack">取消</button>
+        <button class="btn-primary" type="button" :disabled="submitLoading" @click="handleSubmit">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          {{ isEditMode ? '保存修改' : '保存' }}
+        </button>
       </div>
     </div>
 
-    <!-- 表单卡片 -->
-    <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px" class="create-form">
+    <div
+      class="po-upsert-content"
+      v-loading="genLoading || submitLoading"
+      element-loading-background="rgba(10,22,40,0.8)"
+    >
+    <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px" class="upsert-form">
 
-      <!-- 基本信息 -->
-      <div class="form-section">
-        <div class="section-title">
-          <span class="title-bar"></span>基本信息
+      <!-- 基本信息（§4 info-section） -->
+      <div class="info-section basic-info-section">
+        <div class="section-header">
+          <div class="section-header__main">
+            <div class="section-dot section-dot--cyan"></div>
+            <span class="section-title">基本信息</span>
+          </div>
+          <div v-if="formData.purchaseUserName" class="section-header__meta">
+            <span class="section-header-meta-item">
+              <span class="section-header-meta-item__label">采购员</span>
+              <span class="section-header-meta-item__value">{{ formData.purchaseUserName || '—' }}</span>
+            </span>
+          </div>
         </div>
+        <div class="basic-info-section__body">
         <el-row :gutter="24">
-          <el-col :span="12">
-            <el-form-item label="订单号">
-              <el-input v-model="formData.purchaseOrderCode" disabled placeholder="系统自动生成" />
-            </el-form-item>
-          </el-col>
           <el-col :span="12">
             <el-form-item v-if="showVendorPicker" label="供应商" prop="vendorId">
               <el-select
@@ -169,16 +212,31 @@
             </el-form-item>
           </el-col>
         </el-row>
+        </div>
       </div>
 
       <!-- 订单明细 -->
-      <div class="form-section">
-        <div class="section-title">
-          <span class="title-bar"></span>订单明细
-          <el-button v-if="allowAddPoItem" type="success" size="small" class="add-item-btn" @click="addItem">
-            <el-icon><Plus /></el-icon> 添加明细
-          </el-button>
+      <div class="info-section items-section">
+        <div class="section-header section-header--items">
+          <div class="section-header__main">
+            <div class="section-dot section-dot--amber"></div>
+            <span class="section-title">订单明细</span>
+          </div>
+          <div class="section-header__actions">
+            <button
+              v-if="allowAddPoItem"
+              type="button"
+              class="btn-success add-item-btn"
+              @click="addItem"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              添加明细
+            </button>
+          </div>
         </div>
+        <div class="items-section__body">
         <div v-if="formData.items.length === 0" class="items-empty">暂无明细</div>
 
         <div v-for="(item, index) in formData.items" :key="index" class="material-card">
@@ -287,9 +345,11 @@
           <span class="total-label">合计金额：</span>
           <span class="total-amount">{{ formatCurrencyTotal(calculateTotal, formData.currency) }}</span>
         </div>
+        </div>
       </div>
 
     </el-form>
+    </div>
   </div>
 </template>
 
@@ -297,7 +357,6 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Check, Plus } from '@element-plus/icons-vue'
 import type { FormInstance } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
@@ -349,12 +408,25 @@ const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { ensureLoaded: ensureMaterialPdDict, coerceProductionDateToCode: coercePd } = useMaterialProductionDateDict()
 
 const editId = computed(() => (route.name === 'PurchaseOrderEdit' ? String(route.params.id || '').trim() : ''))
+const isEditMode = computed(() => !!editId.value)
 const pageTitle = computed(() => {
   if (editId.value) return '编辑采购订单'
   const qType = Number(route.query.type)
   if (qType === 2) return '新建备货采购订单'
   return '新建采购订单'
 })
+
+const captionAvatarChar = computed(() => {
+  if (!maskPurchaseSensitiveFields.value && formData.value.vendorName?.trim()) {
+    return formData.value.vendorName.trim()[0] || '采'
+  }
+  const code = String(formData.value.purchaseOrderCode ?? '').trim()
+  return (code && code[0]) || '采'
+})
+
+function handleBack() {
+  router.back()
+}
 
 /** 手工录入时尚无供应商时的占位（满足后端非空）；销售明细无关联时不应再传占位 GUID */
 const MANUAL_VENDOR_ID = '00000000-0000-0000-0000-000000000002'
@@ -1056,34 +1128,280 @@ onMounted(async () => {
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
 
-/* PurchaseOrderCreate.vue — 独立新建页面，暗色科技风；页头/明细按钮见《列表操作按钮颜色规范》语义 */
-.create-page {
-  padding: 20px;
+.po-upsert-page {
+  padding: 24px;
   min-height: 100%;
+  background: $layer-1;
+  font-family: 'Noto Sans SC', sans-serif;
+}
+
+.po-upsert-content {
+  min-height: 120px;
 }
 
 .page-header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
   margin-bottom: 20px;
 
   .header-left {
     display: flex;
     align-items: center;
-    gap: 12px;
-
-    .el-button.is-link {
-      color: $text-muted;
-      font-size: 13px;
-      &:hover { color: $cyan-primary; }
-    }
+    gap: 14px;
+    min-width: 0;
+    flex: 1;
   }
 
   .header-right {
     display: flex;
+    align-items: center;
     gap: 10px;
+    flex-shrink: 0;
   }
+}
+
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-muted;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.07);
+    color: $text-secondary;
+    border-color: rgba(0, 212, 255, 0.2);
+  }
+}
+
+.po-caption-title-group {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.caption-avatar-lg {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.3), rgba(0, 212, 255, 0.2));
+  border: 1px solid rgba(0, 212, 255, 0.25);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 700;
+  color: $cyan-primary;
+  flex-shrink: 0;
+}
+
+.page-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.page-title-with-icons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: $text-primary;
+}
+
+.title-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.title-meta--caption {
+  margin-top: 4px;
+}
+
+.po-header-meta-row {
+  min-height: 28px;
+}
+
+.po-caption-meta-text {
+  font-size: 13px;
+  color: $text-muted;
+}
+
+.po-stocking-tag {
+  margin-left: 2px;
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: transparent;
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-secondary;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(0, 212, 255, 0.25);
+    color: $text-primary;
+  }
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.8), rgba(0, 212, 255, 0.7));
+  border: 1px solid rgba(0, 212, 255, 0.4);
+  border-radius: $border-radius-md;
+  color: #fff;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0, 212, 255, 0.25);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.btn-success {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: linear-gradient(135deg, rgba(46, 160, 67, 0.88), rgba(70, 191, 145, 0.78));
+  border: 1px solid rgba(70, 191, 145, 0.45);
+  border-radius: $border-radius-md;
+  color: #fff;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(70, 191, 145, 0.3);
+  }
+}
+
+.info-section {
+  background: $layer-2;
+  border: 1px solid $border-card;
+  border-radius: $border-radius-lg;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--crm-detail-section-header-bg);
+
+  &--items {
+    flex-wrap: wrap;
+  }
+}
+
+.section-header__main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.section-header__meta,
+.section-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.section-header-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+
+  &__label {
+    color: $text-muted;
+
+    &::after {
+      content: '：';
+    }
+  }
+
+  &__value {
+    color: $text-secondary;
+  }
+}
+
+.section-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+
+  &--cyan {
+    background: $cyan-primary;
+    box-shadow: 0 0 6px rgba(0, 212, 255, 0.6);
+  }
+
+  &--amber {
+    background: $color-amber;
+    box-shadow: 0 0 6px rgba(201, 154, 69, 0.5);
+  }
+}
+
+.section-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: $text-primary;
+}
+
+.basic-info-section__body,
+.items-section__body {
+  padding: 16px 20px 20px;
 }
 
 .po-vendor-select {
@@ -1106,46 +1424,7 @@ onMounted(async () => {
   text-align: center;
 }
 
-.create-form {
-  .form-section {
-    background: $layer-2;
-    border: 1px solid $border-card;
-    border-radius: 8px;
-    padding: 20px 24px;
-    margin-bottom: 16px;
-  }
-
-  .section-title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    color: $text-primary;
-    margin-bottom: 20px;
-
-    .title-bar {
-      width: 3px;
-      height: 16px;
-      background: linear-gradient(180deg, #00c8ff, #0066cc);
-      border-radius: 2px;
-    }
-
-    .add-item-btn {
-      margin-left: auto;
-    }
-
-    /* success：新增明细行，与规范「新建/新增/创建」同色 */
-    :deep(.add-item-btn.el-button--success) {
-      --el-button-bg-color: rgba(46, 160, 67, 0.2);
-      --el-button-border-color: rgba(70, 191, 145, 0.45);
-      --el-button-text-color: #6fe0a8;
-      --el-button-hover-bg-color: rgba(46, 160, 67, 0.32);
-      --el-button-hover-border-color: rgba(95, 212, 168, 0.55);
-      --el-button-hover-text-color: #9af0c4;
-    }
-  }
-
+.upsert-form {
   :deep(.el-form-item__label) {
     color: $text-muted;
     font-size: 13px;
