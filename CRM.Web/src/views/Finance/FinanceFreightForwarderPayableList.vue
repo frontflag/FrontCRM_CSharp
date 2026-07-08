@@ -71,13 +71,13 @@
         <span>{{ row.freightForwarderCompanyName || '—' }}</span>
       </template>
       <template #col-receiptAmount="{ row }">
-        <span class="amount-text dock-quote-tier-line">{{ formatTotalAmountNumber(row.receiptAmount) }}</span>
+        <span class="amount-text amount-text--receivable dock-quote-tier-line">{{ formatTotalAmountNumber(row.receiptAmount) }}</span>
       </template>
       <template #col-paidAmount="{ row }">
-        <span class="amount-text dock-quote-tier-line">{{ formatTotalAmountNumber(row.paidAmount) }}</span>
+        <span class="amount-text amount-text--received dock-quote-tier-line">{{ formatTotalAmountNumber(row.paidAmount) }}</span>
       </template>
       <template #col-pendingAmount="{ row }">
-        <span class="amount-text dock-quote-tier-line">{{ formatTotalAmountNumber(row.pendingAmount) }}</span>
+        <span class="amount-text amount-text--pending dock-quote-tier-line">{{ formatTotalAmountNumber(row.pendingAmount) }}</span>
       </template>
       <template #col-receiptCurrency="{ row }">
         <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.receiptCurrency)]">
@@ -369,5 +369,24 @@ onMounted(async () => {
 .list-footer-spacer {
   width: 26px;
   flex: 0 0 26px;
+}
+
+.amount-text {
+  white-space: nowrap;
+
+  &--receivable {
+    color: $cyan-primary;
+    font-weight: 700;
+  }
+
+  &--received {
+    color: $success-color;
+    font-weight: 700;
+  }
+
+  &--pending {
+    color: #e8a838;
+    font-weight: 700;
+  }
 }
 </style>

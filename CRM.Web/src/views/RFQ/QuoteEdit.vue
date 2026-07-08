@@ -192,6 +192,7 @@ import { quoteApi } from '@/api/quote'
 import { runValidatedFormSave } from '@/composables/useFormSubmit'
 import SalesUserCascader from '@/components/SalesUserCascader.vue'
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
+import { CurrencyCode, normalizeSettlementCurrencyCode } from '@/constants/currency'
 import { authApi, type PurchaseDeptStaffUserOption } from '@/api/auth'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
@@ -327,10 +328,18 @@ const addItem = () => {
     brand: '',
     quantity: 1,
     unitPrice: 0,
-    currency: 1,
+    currency: CurrencyCode.RMB,
     leadTime: '',
     stockQty: 0
   })
+}
+
+function mapQuoteEditItems(raw: unknown): Array<Record<string, unknown>> {
+  if (!Array.isArray(raw)) return []
+  return raw.map((it: Record<string, unknown>) => ({
+    ...it,
+    currency: normalizeSettlementCurrencyCode(it.currency ?? it.Currency)
+  }))
 }
 
 const removeItem = (index: number) => {
@@ -361,7 +370,7 @@ const load = async () => {
       salesUserName: String(q.salesUserName ?? ''),
       purchaseUserName: String(q.purchaseUserName ?? ''),
       remark: String(q.remark ?? ''),
-      items: q.items ? JSON.parse(JSON.stringify(q.items)) : []
+      items: mapQuoteEditItems(q.items)
     }
     reconcileQuotePurchaseUserWithSelectOptions(true)
   } catch (e: any) {

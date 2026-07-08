@@ -601,7 +601,7 @@ import MaterialProductionDateSelect from '@/components/MaterialProductionDateSel
 import { authApi, type PurchaseDeptStaffUserOption } from '@/api/auth'
 import { useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
 import { financeExchangeRateApi } from '@/api/financeExchangeRate'
-import { CurrencyCode } from '@/constants/currency'
+import { CurrencyCode, normalizeSettlementCurrencyCode } from '@/constants/currency'
 import { unitLocalToUsd } from '@/utils/exchangeRateToUsd'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
@@ -771,13 +771,6 @@ function emptyPriceRow() {
     /** 美元折算单价（convert_price 口径），由汇率自动计算，勿手改 */
     convertedPrice: undefined as number | undefined
   }
-}
-
-/** 列表/模拟数据里可能出现 2=USD，与表单选项对齐为 1 */
-function normalizeQuoteCurrency(c: unknown): number {
-  if (c === 0 || c === 1) return c
-  if (c === 2) return 1
-  return 1
 }
 
 const formData = ref({
@@ -1231,7 +1224,7 @@ async function applyQuoteToForm(q: Record<string, unknown>) {
       id: String(r.id ?? r.Id ?? '').trim() || undefined,
       quantity: Number(r.quantity) || 0,
       unitPrice: r.unitPrice != null && r.unitPrice !== '' ? Number(r.unitPrice) : 0,
-      currency: normalizeQuoteCurrency(r.currency),
+      currency: normalizeSettlementCurrencyCode(r.currency ?? r.Currency),
       convertedPrice:
         r.convertedPrice != null && r.convertedPrice !== '' ? Number(r.convertedPrice) : undefined
     }))
@@ -1242,7 +1235,7 @@ async function applyQuoteToForm(q: Record<string, unknown>) {
         id: String(it.id ?? it.Id ?? '').trim() || undefined,
         quantity: Number(it.quantity) || 0,
         unitPrice: it.unitPrice != null && it.unitPrice !== '' ? Number(it.unitPrice) : 0,
-        currency: normalizeQuoteCurrency(it.currency),
+        currency: normalizeSettlementCurrencyCode(it.currency ?? it.Currency),
         convertedPrice:
           it.convertedPrice != null && it.convertedPrice !== ''
             ? Number(it.convertedPrice)

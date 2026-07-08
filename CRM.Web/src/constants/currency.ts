@@ -68,3 +68,37 @@ export function settlementVatRateDecimal(currencyCode: number | undefined | null
   const c = Number(currencyCode)
   return c === CurrencyCode.RMB ? SETTLEMENT_RMB_VAT_RATE_DECIMAL : 0
 }
+
+const SETTLEMENT_CURRENCY_LABEL_TO_CODE: Record<string, CurrencyCode> = {
+  RMB: CurrencyCode.RMB,
+  USD: CurrencyCode.USD,
+  EUR: CurrencyCode.EUR,
+  HKD: CurrencyCode.HKD,
+}
+
+/**
+ * 将接口/列表中的币别原始值规范为与 SETTLEMENT_CURRENCY_OPTIONS 一致的 short 编码。
+ * 支持：统一 1-based 编码、历史 0-based quoteitem 编码、ISO 字符串（RMB/USD/…）。
+ */
+export function normalizeSettlementCurrencyCode(raw: unknown): CurrencyCode {
+  if (raw == null || raw === '') return CurrencyCode.RMB
+
+  if (typeof raw === 'string') {
+    const s = raw.trim().toUpperCase()
+    const byLabel = SETTLEMENT_CURRENCY_LABEL_TO_CODE[s]
+    if (byLabel != null) return byLabel
+    const n = Number(s)
+    if (Number.isFinite(n)) return normalizeSettlementCurrencyCode(n)
+    return CurrencyCode.RMB
+  }
+
+  const n = Number(raw)
+  if (!Number.isFinite(n)) return CurrencyCode.RMB
+
+  if (n >= CurrencyCode.RMB && n <= CurrencyCode.GBP) return n as CurrencyCode
+
+  // 历史 quoteitem.currency：0=RMB 1=USD 2=EUR 3=HKD（迁移前）
+  if (n >= 0 && n <= 3) return (n + 1) as CurrencyCode
+
+  return CurrencyCode.RMB
+}
