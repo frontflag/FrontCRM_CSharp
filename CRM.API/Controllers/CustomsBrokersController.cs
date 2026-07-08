@@ -56,6 +56,8 @@ public class CustomsBrokersController : ControllerBase
         public string? Ename { get; set; }
         /// <summary>10=深圳 20=香港</summary>
         public short Type { get; set; } = 10;
+        /// <summary>1+纯费率，如 1.03 表示 3%。</summary>
+        public decimal AgencyRate { get; set; } = 1m;
         public string? Remark { get; set; }
     }
 
@@ -64,6 +66,7 @@ public class CustomsBrokersController : ControllerBase
         public string Cname { get; set; } = string.Empty;
         public string? Ename { get; set; }
         public short Type { get; set; } = 10;
+        public decimal AgencyRate { get; set; } = 1m;
         public string? Remark { get; set; }
     }
 
@@ -82,7 +85,7 @@ public class CustomsBrokersController : ControllerBase
                 return StatusCode(403, ApiResponse<CustomsBroker>.Fail("当前账号无权访问报关模块", 403));
 
             var uid = User?.Claims?.FirstOrDefault(c => c.Type == "sub" || c.Type == "userId")?.Value;
-            var row = await _service.CreateAsync(body.Cname, body.Ename, body.Type, body.Remark, uid);
+            var row = await _service.CreateAsync(body.Cname, body.Ename, body.Type, body.AgencyRate, body.Remark, uid);
             return Ok(ApiResponse<CustomsBroker>.Ok(row, "创建成功"));
         }
         catch (ArgumentException ex)
@@ -109,7 +112,7 @@ public class CustomsBrokersController : ControllerBase
                 return StatusCode(403, ApiResponse<CustomsBroker>.Fail("当前账号无权访问报关模块", 403));
 
             var uid = User?.Claims?.FirstOrDefault(c => c.Type == "sub" || c.Type == "userId")?.Value;
-            var row = await _service.UpdateAsync(id, body.Cname, body.Ename, body.Type, body.Remark, uid);
+            var row = await _service.UpdateAsync(id, body.Cname, body.Ename, body.Type, body.AgencyRate, body.Remark, uid);
             return Ok(ApiResponse<CustomsBroker>.Ok(row, "保存成功"));
         }
         catch (InvalidOperationException ex)

@@ -18,6 +18,9 @@
       <el-table-column prop="type" :label="t('customsPages.brokers.colRegionType')" width="120">
         <template #default="{ row }">{{ regionLabel(row.type) }}</template>
       </el-table-column>
+      <el-table-column :label="t('customsPages.brokers.colAgencyRate')" width="120" align="right">
+        <template #default="{ row }">{{ agencyRateText(row.agencyRate) }}</template>
+      </el-table-column>
       <el-table-column prop="remark" :label="t('customsPages.brokers.colRemark')" min-width="200" show-overflow-tooltip />
       <el-table-column prop="status" :label="t('customsPages.brokers.colStatus')" width="100">
         <template #default="{ row }">{{ brokerStatusLabel(row.status) }}</template>
@@ -71,6 +74,17 @@
             <el-option :label="t('customsPages.brokers.regionHongKong')" :value="CustomsBrokerRegionType.HongKong" />
           </el-select>
         </el-form-item>
+        <el-form-item :label="t('customsPages.brokers.formAgencyRate')" required>
+          <el-input-number
+            v-model="createForm.agencyRate"
+            :min="1"
+            :precision="6"
+            :step="0.001"
+            controls-position="right"
+            style="width: 100%"
+          />
+          <p class="field-hint">{{ t('customsPages.brokers.formAgencyRateHint') }}</p>
+        </el-form-item>
         <el-form-item :label="t('customsPages.brokers.formRemark')">
           <el-input v-model="createForm.remark" type="textarea" rows="3" maxlength="500" show-word-limit />
         </el-form-item>
@@ -97,6 +111,17 @@
             <el-option :label="t('customsPages.brokers.regionShenzhen')" :value="CustomsBrokerRegionType.Shenzhen" />
             <el-option :label="t('customsPages.brokers.regionHongKong')" :value="CustomsBrokerRegionType.HongKong" />
           </el-select>
+        </el-form-item>
+        <el-form-item :label="t('customsPages.brokers.formAgencyRate')" required>
+          <el-input-number
+            v-model="editForm.agencyRate"
+            :min="1"
+            :precision="6"
+            :step="0.001"
+            controls-position="right"
+            style="width: 100%"
+          />
+          <p class="field-hint">{{ t('customsPages.brokers.formAgencyRateHint') }}</p>
         </el-form-item>
         <el-form-item :label="t('customsPages.brokers.formRemark')">
           <el-input v-model="editForm.remark" type="textarea" rows="3" maxlength="500" show-word-limit />
@@ -142,6 +167,7 @@ const createForm = reactive({
   cname: '',
   ename: '',
   type: CustomsBrokerRegionType.Shenzhen as CustomsBrokerRegion,
+  agencyRate: 1,
   remark: ''
 })
 const editVisible = ref(false)
@@ -152,6 +178,7 @@ const editForm = reactive({
   cname: '',
   ename: '',
   type: CustomsBrokerRegionType.Shenzhen as CustomsBrokerRegion,
+  agencyRate: 1,
   remark: '',
   status: 1 as number
 })
@@ -199,6 +226,16 @@ function regionLabel(type: number) {
   return t('customsPages.brokers.regionShenzhen')
 }
 
+function agencyRateText(rate: number | undefined) {
+  const r = Number(rate ?? 1)
+  if (!Number.isFinite(r) || r < 1) return '1.000000'
+  return r.toFixed(6)
+}
+
+function validateAgencyRate(rate: number): boolean {
+  return Number.isFinite(rate) && rate >= 1
+}
+
 async function load() {
   loading.value = true
   try {
@@ -219,6 +256,7 @@ function resetCreate() {
   createForm.cname = ''
   createForm.ename = ''
   createForm.type = CustomsBrokerRegionType.Shenzhen
+  createForm.agencyRate = 1
   createForm.remark = ''
 }
 
@@ -227,12 +265,17 @@ async function submitCreate() {
     ElMessage.warning(t('customsPages.brokers.validateCnameRequired'))
     return
   }
+  if (!validateAgencyRate(createForm.agencyRate)) {
+    ElMessage.warning(t('customsPages.brokers.validateAgencyRate'))
+    return
+  }
   createSaving.value = true
   try {
     await createCustomsBroker({
       cname: createForm.cname.trim(),
       ename: createForm.ename.trim() || undefined,
       type: createForm.type,
+      agencyRate: createForm.agencyRate,
       remark: createForm.remark.trim() || undefined
     })
     ElMessage.success(t('common.createSuccess'))
@@ -251,6 +294,7 @@ function resetEdit() {
   editForm.cname = ''
   editForm.ename = ''
   editForm.type = CustomsBrokerRegionType.Shenzhen
+  editForm.agencyRate = 1
   editForm.remark = ''
   editForm.status = 1
 }
@@ -262,6 +306,7 @@ function onDblClick(row: CustomsBrokerDto) {
   editForm.ename = row.ename ?? ''
   editForm.type =
     row.type === CustomsBrokerRegionType.HongKong ? CustomsBrokerRegionType.HongKong : CustomsBrokerRegionType.Shenzhen
+  editForm.agencyRate = Number(row.agencyRate ?? 1) >= 1 ? Number(row.agencyRate) : 1
   editForm.remark = row.remark ?? ''
   editForm.status = row.status
   editVisible.value = true
@@ -272,12 +317,17 @@ async function submitEdit() {
     ElMessage.warning(t('customsPages.brokers.validateCnameRequired'))
     return
   }
+  if (!validateAgencyRate(editForm.agencyRate)) {
+    ElMessage.warning(t('customsPages.brokers.validateAgencyRate'))
+    return
+  }
   editSaving.value = true
   try {
     await updateCustomsBroker(editForm.id, {
       cname: editForm.cname.trim(),
       ename: editForm.ename.trim() || undefined,
       type: editForm.type,
+      agencyRate: editForm.agencyRate,
       remark: editForm.remark.trim() || undefined
     })
     ElMessage.success(t('common.saveSuccess'))
@@ -317,5 +367,11 @@ onMounted(() => {
   margin: 0 0 12px;
   font-size: 13px;
   color: var(--el-text-color-secondary);
+}
+.field-hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  line-height: 1.4;
 }
 </style>

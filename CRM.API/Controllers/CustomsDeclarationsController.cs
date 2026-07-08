@@ -260,7 +260,10 @@ public class CustomsDeclarationsController : ControllerBase
             CustomsClearanceStatus = row.CustomsClearanceStatus,
             DeclareDate = row.DeclareDate,
             ExchangeRate = row.ExchangeRate,
+            BrokerAgencyRate = row.BrokerAgencyRate,
             TotalTaxAmount = row.TotalTaxAmount,
+            FeesCalculatedAt = row.FeesCalculatedAt,
+            FeesLocked = row.FeesLocked,
             FromWarehouseId = row.FromWarehouseId,
             ToWarehouseId = row.ToWarehouseId,
             FromWarehouseCode = fromWh?.WarehouseCode,
@@ -302,6 +305,12 @@ public class CustomsDeclarationsController : ControllerBase
                     DeclareQty = i.DeclareQty,
                     DeclareUnitPrice = i.DeclareUnitPrice,
                     OriginalPurchasePrice = i.OriginalPurchasePrice,
+                    PurchaseCostParamId = i.PurchaseCostParamId,
+                    PurchaseRatio = i.PurchaseRatio,
+                    PurchaseCurrency = i.PurchaseCurrency,
+                    DutyRate = i.DutyRate,
+                    VatRate = i.VatRate,
+                    CostUsd = i.CostUsd,
                     DutyAmount = i.DutyAmount,
                     VatAmount = i.VatAmount,
                     CustomsPaymentGoods = i.CustomsPaymentGoods,
@@ -326,13 +335,21 @@ public class CustomsDeclarationsController : ControllerBase
         if (mask511)
         {
             dto.ExchangeRate = 0m;
+            dto.BrokerAgencyRate = 0m;
             dto.TotalTaxAmount = 0m;
+            dto.FeesCalculatedAt = null;
             foreach (var it in dto.Items)
             {
                 it.VendorId = null;
                 it.VendorName = null;
                 it.DeclareUnitPrice = 0m;
                 it.OriginalPurchasePrice = 0m;
+                it.PurchaseCostParamId = null;
+                it.PurchaseRatio = 0m;
+                it.PurchaseCurrency = null;
+                it.DutyRate = 0m;
+                it.VatRate = 0m;
+                it.CostUsd = 0m;
                 it.DutyAmount = 0m;
                 it.VatAmount = 0m;
                 it.CustomsPaymentGoods = 0m;
@@ -408,6 +425,34 @@ public class CustomsDeclarationsController : ControllerBase
     {
         public string? ToWarehouseId { get; set; }
         public string? Remark { get; set; }
+        public decimal? ExchangeRate { get; set; }
+        public string? CustomsBrokerId { get; set; }
+    }
+
+    [HttpPost("{id}/recalculate-fees")]
+    public async Task<ActionResult<ApiResponse<RecalculateCustomsDeclarationFeesResultDto>>> RecalculateFees(string id)
+    {
+        try
+        {
+            if (!await CustomsModuleAccessHttp.CanAccessAsync(_rbacService, User))
+                return StatusCode(403, ApiResponse<RecalculateCustomsDeclarationFeesResultDto>.Fail("当前账号无权访问报关模块", 403));
+
+            if (!await LogisticsDataAccessHttp.CanWriteAsync(_rbacService, User))
+                return StatusCode(403, ApiResponse<RecalculateCustomsDeclarationFeesResultDto>.Fail("当前账号物流数据为只读或禁止", 403));
+
+            var uid = User?.Claims?.FirstOrDefault(c => c.Type == "sub" || c.Type == "userId")?.Value;
+            var result = await _customsV2FlowService.RecalculateDeclarationFeesAsync(id, uid);
+            return Ok(ApiResponse<RecalculateCustomsDeclarationFeesResultDto>.Ok(result, "试算成功"));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<RecalculateCustomsDeclarationFeesResultDto>.Fail(ex.Message, 400));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "报关费用试算失败 {Id}", id);
+            return StatusCode(500, ApiResponse<RecalculateCustomsDeclarationFeesResultDto>.Fail(ex.Message, 500));
+        }
     }
 
     [HttpPatch("{id}")]
@@ -422,7 +467,7 @@ public class CustomsDeclarationsController : ControllerBase
                 return StatusCode(403, ApiResponse<object>.Fail("当前账号物流数据为只读或禁止", 403));
             var uid = User?.Claims?.FirstOrDefault(c => c.Type == "sub" || c.Type == "userId")?.Value;
             await _customsV2FlowService.UpdateDeclarationHeaderAsync(
-                id, body?.ToWarehouseId, body?.Remark, uid);
+                id, body?.ToWarehouseId, body?.Remark, uid, body?.ExchangeRate, body?.CustomsBrokerId);
             return Ok(ApiResponse<object>.Ok(null, "已更新报关单"));
         }
         catch (InvalidOperationException ex)

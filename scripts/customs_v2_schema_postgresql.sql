@@ -264,6 +264,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS "UX_stockin_notify_cdi"
 
 COMMENT ON COLUMN public.stockin_notify.customs_declaration_item_id IS '报关到货：从报关明细发起（StockInType=20）';
 
+-- ---------------------------------------------------------------------------
+-- 9. 报关费用 F1（见 scripts/customs_fees_f1_schema_postgresql.sql 完整脚本）
+-- ---------------------------------------------------------------------------
+-- 生产环境可单独执行 customs_fees_f1_schema_postgresql.sql，或通过 EF Migration 20260807120000_CustomsFeesF1Schema。
+
 COMMIT;
 
 -- =============================================================================

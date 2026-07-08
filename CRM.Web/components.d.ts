@@ -37,6 +37,7 @@ declare module 'vue' {
     CustomerRecentHistoryPanel: typeof import('./src/components/Customer/CustomerRecentHistoryPanel.vue')['default']
     CustomerSearchPanel: typeof import('./src/components/Customer/CustomerSearchPanel.vue')['default']
     CustomsDeclarationBusinessRecordsPanel: typeof import('./src/components/Customs/CustomsDeclarationBusinessRecordsPanel.vue')['default']
+    CustomsDeclarationFeesPanel: typeof import('./src/components/Customs/CustomsDeclarationFeesPanel.vue')['default']
     CustomsDeclarationIconLink: typeof import('./src/components/Customs/CustomsDeclarationIconLink.vue')['default']
     CustomsDeclarationLink: typeof import('./src/components/Customs/CustomsDeclarationLink.vue')['default']
     DetailListPanelEmpty: typeof import('./src/components/Common/DetailListPanelEmpty.vue')['default']

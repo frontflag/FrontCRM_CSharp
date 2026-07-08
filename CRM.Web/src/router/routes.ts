@@ -886,6 +886,12 @@ const routes: RouteRecordRaw[] = [
             meta: { requiresAuth: true, title: '财务参数', permission: 'rbac.manage' }
           },
           {
+            path: 'purchase-cost-params',
+            name: 'FinancePurchaseCostParams',
+            component: () => import('@/views/System/PurchaseCostParamSettings.vue'),
+            meta: { requiresAuth: true, title: '财务参数', permission: 'rbac.manage' }
+          },
+          {
             path: 'payment-banks',
             name: 'FinancePaymentBanks',
             component: () => import('@/views/System/FinancePaymentBankSettings.vue'),

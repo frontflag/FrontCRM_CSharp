@@ -1256,7 +1256,12 @@ namespace CRM.Core.Services
             stockIn.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
 
             if (status == 2)
+            {
+                if (stockIn.StockInType == StockInTypeCode.Customs)
+                    await _customsV2FlowService.ValidateCustomsStockInFeesAsync(stockIn.Id);
+
                 await SyncStockInRegionTypeFromNotifyAsync(stockIn);
+            }
 
             await _stockInRepository.UpdateAsync(stockIn);
             await _unitOfWork.SaveChangesAsync();

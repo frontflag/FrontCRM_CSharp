@@ -193,7 +193,7 @@ customs_declaration_item ──→ stockin_notify.customs_declaration_item_id
 
 服务实现：`CustomsV2FlowService.CreateCustomsArrivalNotifiesAsync`。
 
-**完整设计与操作说明：** [报关到货通知（手工发起）— 设计与实现](../../System/报关/报关到货通知-设计与实现.md)
+**完整设计与操作说明：** [报关到货通知（手工发起）— 设计与实现](../../System/报关/报关到货通知-设计与实现.md)、[报关业务溯源与供应商口径](../../System/报关/报关业务溯源与供应商口径-设计与实现.md)（`VendorId`、报关单 Hub 跳转）
 
 ---
 
@@ -233,7 +233,48 @@ customs_declaration_item ──→ stockin_notify.customs_declaration_item_id
 
 | 文档 | 关系 |
 |------|------|
-| `报关_移库.md` | 移库一步过账 **废弃** |
+| `报关_移库.md` | **已作废**；移库一步过账废弃 |
+| `System/报关/报关费用方案.md` | **费用定稿**（系数、汇率、公式、DDL 增量规划 §16） |
+| `System/报关/报关费用面板-原型字段清单.md` | 详情页「报关费用」面板字段 |
 | `报关模块完整实施方案.md` | 被本文 **V2 流程** supersede |
 | `System/报关/报关到货通知-设计与实现.md` | 境内到货通知 **手工发起** 规则与实现 |
 | `报关V2前备份` commit | 代码基线 |
+
+---
+
+## 16. 报关费用扩展（定稿 · 待 F1 迁移）
+
+> 完整业务规则见《[报关费用方案](../System/报关/报关费用方案.md)》；UI 见《[报关费用面板 — 原型字段清单](../System/报关/报关费用面板-原型字段清单.md)》。
+
+### 16.1 新表 `purchase_cost_param`
+
+| 列 | 类型 | 说明 |
+|----|------|------|
+| `id` | varchar(36) PK | |
+| `ratio` | numeric(10,4) NOT NULL | 采购系数 |
+| `start_time` | timestamptz NOT NULL | 生效开始时间 |
+| `remark` | varchar(500) | |
+| `is_deleted` | bool DEFAULT false | |
+
+### 16.2 变更 `customs_broker`
+
+| 新增 | `agency_rate` numeric(10,6) NOT NULL DEFAULT 1 | 1+代理费率 |
+
+### 16.3 变更 `customs_declaration`
+
+| 新增 | `broker_agency_rate` | 试算时快照 |
+| 新增 | `fees_calculated_at` | 最后试算时间 |
+| 新增 | `fees_locked` | 可选锁定 |
+| 语义 | `exchange_rate` | **关务手工**，非财务自动锁定 |
+
+### 16.4 变更 `customs_declaration_item`
+
+| 新增 | `purchase_cost_param_id` | 系数配置 Id |
+| 新增 | `purchase_ratio` | 系数快照 |
+| 新增 | `purchase_currency` | 采购币别 |
+| 新增 | `cost_usd` | 采购美金价 |
+| 新增 | `duty_rate` | 关税税率 |
+| 新增 | `vat_rate` | 增值税率，默认 0.13 |
+| 可选 | `customs_usd_price` | 报关美金价 |
+
+脚本增量在 F1 追加至 `scripts/customs_fees_f1_schema_postgresql.sql` 与 EF Migration `20260807120000_CustomsFeesF1Schema`。

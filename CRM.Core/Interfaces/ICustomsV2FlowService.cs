@@ -40,9 +40,33 @@ public interface ICustomsV2FlowService
 
     Task RevertPendlistOnPackingDeleteAsync(IReadOnlyList<string> customsPendlistIds, string? actingUserId, CancellationToken cancellationToken = default);
 
-    Task UpdateDeclarationHeaderAsync(string declarationId, string? toWarehouseId, string? remark, string? actingUserId, CancellationToken cancellationToken = default);
+    Task UpdateDeclarationHeaderAsync(
+        string declarationId,
+        string? toWarehouseId,
+        string? remark,
+        string? actingUserId,
+        decimal? exchangeRate = null,
+        string? customsBrokerId = null,
+        CancellationToken cancellationToken = default);
 
     Task UpdateDeclarationItemAsync(string itemId, CustomsDeclarationItemPatch patch, string? actingUserId, CancellationToken cancellationToken = default);
+
+    /// <summary>全单报关费用试算（对齐 EBS §3.3）。</summary>
+    Task<RecalculateCustomsDeclarationFeesResultDto> RecalculateDeclarationFeesAsync(
+        string declarationId,
+        string? actingUserId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>报关入库过账前校验费用完整性（与到货通知门禁一致）。</summary>
+    Task ValidateCustomsStockInFeesAsync(string stockInId, CancellationToken cancellationToken = default);
+}
+
+public sealed class RecalculateCustomsDeclarationFeesResultDto
+{
+    public string DeclarationId { get; set; } = string.Empty;
+    public DateTime FeesCalculatedAtUtc { get; set; }
+    public decimal TotalTaxAmount { get; set; }
+    public int LineCount { get; set; }
 }
 
 public sealed class CustomsDeclarationItemPatch
@@ -50,14 +74,10 @@ public sealed class CustomsDeclarationItemPatch
     public string? HsCode { get; set; }
     public int? DeclareQty { get; set; }
     public decimal? DeclareUnitPrice { get; set; }
-    public decimal? DutyAmount { get; set; }
-    public decimal? VatAmount { get; set; }
-    public decimal? CustomsPaymentGoods { get; set; }
-    public decimal? CustomsAgencyFee { get; set; }
+    public decimal? DutyRate { get; set; }
+    public decimal? VatRate { get; set; }
     public decimal? OtherFee { get; set; }
     public decimal? InspectionFee { get; set; }
-    public decimal? TotalValueTax { get; set; }
-    public decimal? TaxIncludedUnitPrice { get; set; }
 }
 
 public sealed class CreateCustomsArrivalNotifiesResultDto

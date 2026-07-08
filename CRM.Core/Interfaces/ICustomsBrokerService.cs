@@ -10,9 +10,9 @@ public interface ICustomsBrokerService
     Task<CustomsBroker?> GetByIdAsync(string id);
 
     /// <summary>创建报关公司；<c>BrokerCode</c> 由 <see cref="ISerialNumberService"/>（<c>sys_serial_number</c> 模块 <c>CustomsBroker</c>）自动生成。</summary>
-    Task<CustomsBroker> CreateAsync(string cname, string? ename, short regionType, string? remark, string? actingUserId);
+    Task<CustomsBroker> CreateAsync(string cname, string? ename, short regionType, decimal agencyRate, string? remark, string? actingUserId);
 
-    Task<CustomsBroker> UpdateAsync(string id, string cname, string? ename, short regionType, string? remark, string? actingUserId);
+    Task<CustomsBroker> UpdateAsync(string id, string cname, string? ename, short regionType, decimal agencyRate, string? remark, string? actingUserId);
 
     Task<CustomsBroker> SetStatusAsync(string id, short status, string? actingUserId);
 

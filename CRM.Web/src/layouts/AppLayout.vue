@@ -1577,6 +1577,7 @@ const pageTitleMap: Record<string, string> = {
   '/system/dict-items': 'layout.menu.dictItems',
   '/system/ai-config': 'layout.menu.aiConfig',
   '/system/finance-params/exchange-rates': 'layout.menu.financeParams',
+  '/system/finance-params/purchase-cost-params': 'financeParams.purchaseCostParamsNav',
   '/system/finance-params/payment-banks': 'financeParams.paymentBanksNav',
   '/system/purchase-params/assignee-count': 'layout.menu.purchaseParams',
   '/system/purchase-params/quoter-pool': 'purchaseParams.quoterPoolNav',

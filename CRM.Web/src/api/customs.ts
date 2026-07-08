@@ -18,6 +18,7 @@ export interface CustomsBrokerDto {
   ename?: string | null
   type: number
   status: number
+  agencyRate?: number
   remark?: string | null
   createTime?: string
 }
@@ -132,6 +133,12 @@ export interface CustomsDeclarationDetailItemViewDto {
   declareQty: number
   declareUnitPrice: number
   originalPurchasePrice: number
+  purchaseCurrency?: number | null
+  purchaseRatio?: number
+  purchaseCostParamId?: string | null
+  costUsd?: number
+  dutyRate?: number
+  vatRate?: number
   dutyAmount: number
   vatAmount: number
   customsPaymentGoods: number
@@ -175,6 +182,9 @@ export interface CustomsDeclarationDetailDto {
   customsClearanceStatus: number
   declareDate: string
   exchangeRate: number
+  brokerAgencyRate?: number
+  feesCalculatedAt?: string | null
+  feesLocked?: boolean
   totalTaxAmount: number
   fromWarehouseId: string
   toWarehouseId: string
@@ -217,6 +227,7 @@ export async function createCustomsBroker(body: {
   cname: string
   ename?: string | null
   type: number
+  agencyRate?: number
   remark?: string | null
 }): Promise<CustomsBrokerDto> {
   return apiClient.post<CustomsBrokerDto>('/api/v1/customs-brokers', body)
@@ -224,7 +235,13 @@ export async function createCustomsBroker(body: {
 
 export async function updateCustomsBroker(
   id: string,
-  body: { cname: string; ename?: string | null; type: number; remark?: string | null }
+  body: {
+    cname: string
+    ename?: string | null
+    type: number
+    agencyRate?: number
+    remark?: string | null
+  }
 ): Promise<CustomsBrokerDto> {
   return apiClient.put<CustomsBrokerDto>(`/api/v1/customs-brokers/${encodeURIComponent(id)}`, body)
 }
@@ -459,17 +476,51 @@ export async function patchCustomsClearanceStatus(id: string, customsClearanceSt
 
 export async function patchCustomsDeclarationHeader(
   id: string,
-  body: { toWarehouseId?: string | null; remark?: string | null }
+  body: {
+    toWarehouseId?: string | null
+    remark?: string | null
+    exchangeRate?: number | null
+    customsBrokerId?: string | null
+  }
 ): Promise<void> {
   await apiClient.patch(`/api/v1/customs-declarations/${encodeURIComponent(id)}`, body)
 }
 
+export interface PatchCustomsDeclarationItemBody {
+  hsCode?: string | null
+  declareQty?: number | null
+  declareUnitPrice?: number | null
+  dutyRate?: number | null
+  vatRate?: number | null
+  otherFee?: number | null
+  inspectionFee?: number | null
+}
+
 export async function patchCustomsDeclarationItem(
   id: string,
-  body: Record<string, unknown>
+  body: PatchCustomsDeclarationItemBody
 ): Promise<void> {
   await apiClient.patch(`/api/v1/customs-declaration-items/${encodeURIComponent(id)}`, body)
 }
+
+export interface RecalculateCustomsDeclarationFeesResultDto {
+  declarationId: string
+  feesCalculatedAtUtc: string
+  totalTaxAmount: number
+  lineCount: number
+}
+
+export async function recalculateCustomsDeclarationFees(
+  id: string
+): Promise<RecalculateCustomsDeclarationFeesResultDto> {
+  return apiClient.post<RecalculateCustomsDeclarationFeesResultDto>(
+    `/api/v1/customs-declarations/${encodeURIComponent(id)}/recalculate-fees`,
+    {}
+  )
+}
+
+export type { PurchaseCostParamDto } from './purchaseCostParam'
+export { fetchEffectivePurchaseCostParam } from './purchaseCostParam'
 
 export async function createCustomsArrivalNotifies(
   id: string

@@ -34,14 +34,10 @@ public class CustomsDeclarationItemsController : ControllerBase
         public string? HsCode { get; set; }
         public int? DeclareQty { get; set; }
         public decimal? DeclareUnitPrice { get; set; }
-        public decimal? DutyAmount { get; set; }
-        public decimal? VatAmount { get; set; }
-        public decimal? CustomsPaymentGoods { get; set; }
-        public decimal? CustomsAgencyFee { get; set; }
+        public decimal? DutyRate { get; set; }
+        public decimal? VatRate { get; set; }
         public decimal? OtherFee { get; set; }
         public decimal? InspectionFee { get; set; }
-        public decimal? TotalValueTax { get; set; }
-        public decimal? TaxIncludedUnitPrice { get; set; }
     }
 
     [HttpPatch("{id}")]
@@ -60,14 +56,10 @@ public class CustomsDeclarationItemsController : ControllerBase
                 HsCode = body?.HsCode,
                 DeclareQty = body?.DeclareQty,
                 DeclareUnitPrice = body?.DeclareUnitPrice,
-                DutyAmount = body?.DutyAmount,
-                VatAmount = body?.VatAmount,
-                CustomsPaymentGoods = body?.CustomsPaymentGoods,
-                CustomsAgencyFee = body?.CustomsAgencyFee,
+                DutyRate = body?.DutyRate,
+                VatRate = body?.VatRate,
                 OtherFee = body?.OtherFee,
-                InspectionFee = body?.InspectionFee,
-                TotalValueTax = body?.TotalValueTax,
-                TaxIncludedUnitPrice = body?.TaxIncludedUnitPrice
+                InspectionFee = body?.InspectionFee
             }, uid);
             return Ok(ApiResponse<object>.Ok(null, "已更新报关明细"));
         }

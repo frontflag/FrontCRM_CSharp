@@ -36,6 +36,10 @@ public class CustomsBroker : BaseGuidEntity
 
     public short Status { get; set; } = 1;
 
+    /// <summary>报关代理费率：1+纯费率（如 1.03 表示 3%）。</summary>
+    [Column("agency_rate", TypeName = "numeric(10,6)")]
+    public decimal AgencyRate { get; set; } = 1m;
+
     [StringLength(500)]
     public string? Remark { get; set; }
 
@@ -87,10 +91,20 @@ public class CustomsDeclaration : BaseGuidEntity, ISoftDeletable
     public DateTime DeclareDate { get; set; } = DateTime.UtcNow.Date;
 
     [Column(TypeName = "numeric(18,6)")]
-    public decimal ExchangeRate { get; set; } = 1m;
+    public decimal ExchangeRate { get; set; }
+
+    /// <summary>试算时快照的报关公司代理费率（1+纯费率）。</summary>
+    [Column("broker_agency_rate", TypeName = "numeric(10,6)")]
+    public decimal BrokerAgencyRate { get; set; } = 1m;
 
     [Column(TypeName = "numeric(18,2)")]
     public decimal TotalTaxAmount { get; set; }
+
+    [Column("fees_calculated_at")]
+    public DateTime? FeesCalculatedAt { get; set; }
+
+    [Column("fees_locked")]
+    public bool FeesLocked { get; set; }
 
     [Required]
     [StringLength(36)]
@@ -156,6 +170,29 @@ public class CustomsDeclarationItem : BaseGuidEntity, ISoftDeletable
 
     [Column("original_purchase_price", TypeName = "numeric(18,6)")]
     public decimal OriginalPurchasePrice { get; set; }
+
+    [StringLength(36)]
+    [Column("purchase_cost_param_id")]
+    public string? PurchaseCostParamId { get; set; }
+
+    [Column("purchase_ratio", TypeName = "numeric(10,4)")]
+    public decimal PurchaseRatio { get; set; } = 1m;
+
+    /// <summary>采购币别快照（<see cref="Constants.CurrencyCode"/>）。</summary>
+    [Column("purchase_currency")]
+    public short? PurchaseCurrency { get; set; }
+
+    [Column("cost_usd", TypeName = "numeric(18,6)")]
+    public decimal CostUsd { get; set; }
+
+    [Column("duty_rate", TypeName = "numeric(18,6)")]
+    public decimal DutyRate { get; set; }
+
+    [Column("vat_rate", TypeName = "numeric(18,6)")]
+    public decimal VatRate { get; set; } = 0.13m;
+
+    [Column("customs_usd_price", TypeName = "numeric(18,6)")]
+    public decimal CustomsUsdPrice { get; set; }
 
     [StringLength(36)]
     [Column("vendor_id")]

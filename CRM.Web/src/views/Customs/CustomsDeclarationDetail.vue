@@ -95,14 +95,6 @@
               <span class="info-value">{{ formatDate(detail.declareDate) }}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">{{ t('customsPages.declarations.colExchangeRate') }}</span>
-              <span class="info-value">{{ moneyText(detail.exchangeRate) }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">{{ t('customsPages.declarations.colTotal') }}</span>
-              <span class="info-value">{{ moneyText(detail.totalTaxAmount) }}</span>
-            </div>
-            <div class="info-item">
               <span class="info-label">{{ t('customsPages.declarations.colWarehouseRoute') }}</span>
               <span class="info-value">{{ warehouseRoute }}</span>
             </div>
@@ -142,6 +134,13 @@
           </div>
         </div>
 
+        <CustomsDeclarationFeesPanel
+          :detail="detail"
+          :can-write="canWriteLogistics"
+          :mask-purchase="maskPurchase"
+          @refresh="load"
+        />
+
         <div class="info-section">
           <div class="section-header">
             <div class="section-header__main">
@@ -175,24 +174,6 @@
                 </el-table-column>
                 <el-table-column :label="t('customsPages.items.colTaxUnit')" width="100" align="right">
                   <template #default="{ row }">{{ unitPriceText(row.taxIncludedUnitPrice) }}</template>
-                </el-table-column>
-                <el-table-column :label="t('customsPages.items.colDuty')" width="90" align="right">
-                  <template #default="{ row }">{{ moneyText(row.dutyAmount) }}</template>
-                </el-table-column>
-                <el-table-column :label="t('customsPages.items.colVat')" width="90" align="right">
-                  <template #default="{ row }">{{ moneyText(row.vatAmount) }}</template>
-                </el-table-column>
-                <el-table-column :label="t('customsPages.items.colGoods')" width="100" align="right">
-                  <template #default="{ row }">{{ moneyText(row.customsPaymentGoods) }}</template>
-                </el-table-column>
-                <el-table-column :label="t('customsPages.items.colAgency')" width="100" align="right">
-                  <template #default="{ row }">{{ moneyText(row.customsAgencyFee) }}</template>
-                </el-table-column>
-                <el-table-column :label="t('customsPages.items.colOther')" width="80" align="right">
-                  <template #default="{ row }">{{ moneyText(row.otherFee) }}</template>
-                </el-table-column>
-                <el-table-column :label="t('customsPages.items.colInspection')" width="90" align="right">
-                  <template #default="{ row }">{{ moneyText(row.inspectionFee) }}</template>
                 </el-table-column>
                 <el-table-column :label="t('customsPages.items.colTotalTax')" width="100" align="right">
                   <template #default="{ row }">{{ moneyText(row.totalValueTax) }}</template>
@@ -229,6 +210,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import DetailListPanelEmpty from '@/components/Common/DetailListPanelEmpty.vue'
 import CustomsDeclarationBusinessRecordsPanel from '@/components/Customs/CustomsDeclarationBusinessRecordsPanel.vue'
+import CustomsDeclarationFeesPanel from '@/components/Customs/CustomsDeclarationFeesPanel.vue'
 import {
   createCustomsArrivalNotifies,
   fetchCustomsDeclarationById,

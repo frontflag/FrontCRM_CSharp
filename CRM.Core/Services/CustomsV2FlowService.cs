@@ -33,6 +33,8 @@ public class CustomsV2FlowService : ICustomsV2FlowService
     private readonly IRepository<PickingTaskItem> _pickingTaskItemRepo;
     private readonly ISerialNumberService _serialNumberService;
     private readonly IFinanceExchangeRateService _financeExchangeRateService;
+    private readonly IPurchaseCostParamService _purchaseCostParamService;
+    private readonly ICustomsFeeCalculator _customsFeeCalculator;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<CustomsV2FlowService> _logger;
 
@@ -57,6 +59,8 @@ public class CustomsV2FlowService : ICustomsV2FlowService
         IRepository<PickingTaskItem> pickingTaskItemRepo,
         ISerialNumberService serialNumberService,
         IFinanceExchangeRateService financeExchangeRateService,
+        IPurchaseCostParamService purchaseCostParamService,
+        ICustomsFeeCalculator customsFeeCalculator,
         IUnitOfWork unitOfWork,
         ILogger<CustomsV2FlowService> logger)
     {
@@ -80,6 +84,8 @@ public class CustomsV2FlowService : ICustomsV2FlowService
         _pickingTaskItemRepo = pickingTaskItemRepo;
         _serialNumberService = serialNumberService;
         _financeExchangeRateService = financeExchangeRateService;
+        _purchaseCostParamService = purchaseCostParamService;
+        _customsFeeCalculator = customsFeeCalculator;
         _unitOfWork = unitOfWork;
         _logger = logger;
     }
@@ -140,8 +146,8 @@ public class CustomsV2FlowService : ICustomsV2FlowService
         if (string.IsNullOrWhiteSpace(packing.CustomsBrokerId))
             throw new InvalidOperationException("报关装箱单缺少报关公司，不能确认。");
 
-        _ = await _brokerRepo.GetByIdAsync(packing.CustomsBrokerId.Trim())
-            ?? throw new InvalidOperationException("报关公司不存在。");
+        var broker = await _brokerRepo.GetByIdAsync(packing.CustomsBrokerId.Trim())
+                     ?? throw new InvalidOperationException("报关公司不存在。");
 
         var fromWh = packing.StorageId?.Trim() ?? string.Empty;
         if (string.IsNullOrEmpty(fromWh))
@@ -173,7 +179,8 @@ public class CustomsV2FlowService : ICustomsV2FlowService
             InternalStatus = CustomsDeclarationInternalStatus.Processing,
             CustomsClearanceStatus = CustomsClearanceStatusCodes.None,
             DeclareDate = now.Date,
-            ExchangeRate = fx.UsdToCny > 0m ? fx.UsdToCny : 1m,
+            ExchangeRate = fx.UsdToCny > 0m ? fx.UsdToCny : 0m,
+            BrokerAgencyRate = broker.AgencyRate > 0m ? broker.AgencyRate : 1m,
             TotalTaxAmount = 0m,
             FromWarehouseId = fromWh,
             ToWarehouseId = toWh,
@@ -360,6 +367,7 @@ public class CustomsV2FlowService : ICustomsV2FlowService
             decItem.SourceStockItemId = layerId;
             decItem.DeclareQty = pickedQty;
             decItem.OriginalPurchasePrice = layer.PurchasePrice;
+            decItem.PurchaseCurrency = layer.PurchaseCurrency;
             decItem.VendorId = await ResolveOriginalVendorIdFromStockLayerAsync(layer);
             decItem.ModifyTime = now;
             await _declarationItemRepo.UpdateAsync(decItem);
@@ -669,6 +677,8 @@ public class CustomsV2FlowService : ICustomsV2FlowService
         string? toWarehouseId,
         string? remark,
         string? actingUserId,
+        decimal? exchangeRate = null,
+        string? customsBrokerId = null,
         CancellationToken cancellationToken = default)
     {
         _ = cancellationToken;
@@ -678,9 +688,12 @@ public class CustomsV2FlowService : ICustomsV2FlowService
             throw new InvalidOperationException("已完成报关单不能修改头信息。");
         if (dec.InternalStatus == CustomsDeclarationInternalStatus.Voided)
             throw new InvalidOperationException("报关单已作废。");
+        if (dec.FeesLocked && (exchangeRate.HasValue || customsBrokerId != null))
+            throw new InvalidOperationException("报关费用已锁定，不能修改汇率或报关公司。");
 
         var now = DateTime.UtcNow;
         var actor = ActingUserIdNormalizer.Normalize(actingUserId);
+        var shouldRecalculate = false;
 
         if (toWarehouseId != null)
         {
@@ -697,10 +710,33 @@ public class CustomsV2FlowService : ICustomsV2FlowService
         if (remark != null)
             dec.Remark = string.IsNullOrWhiteSpace(remark) ? null : remark.Trim();
 
+        if (exchangeRate.HasValue)
+        {
+            if (exchangeRate.Value <= 0m)
+                throw new InvalidOperationException("报关汇率须大于 0。");
+            dec.ExchangeRate = exchangeRate.Value;
+            shouldRecalculate = true;
+        }
+
+        if (customsBrokerId != null)
+        {
+            var brokerKey = customsBrokerId.Trim();
+            if (string.IsNullOrEmpty(brokerKey))
+                throw new InvalidOperationException("报关公司不能为空。");
+            var broker = await _brokerRepo.GetByIdAsync(brokerKey)
+                         ?? throw new InvalidOperationException("报关公司不存在。");
+            dec.CustomsBrokerId = brokerKey;
+            dec.BrokerAgencyRate = broker.AgencyRate > 0m ? broker.AgencyRate : 1m;
+            shouldRecalculate = true;
+        }
+
         dec.ModifyTime = now;
         dec.ModifyByUserId = actor;
         await _declarationRepo.UpdateAsync(dec);
         await _unitOfWork.SaveChangesAsync();
+
+        if (shouldRecalculate && dec.ExchangeRate > 0m)
+            await RecalculateDeclarationFeesAsync(dec.Id, actingUserId, cancellationToken);
     }
 
     public async Task UpdateDeclarationItemAsync(
@@ -722,6 +758,47 @@ public class CustomsV2FlowService : ICustomsV2FlowService
         if (dec.InternalStatus == CustomsDeclarationInternalStatus.Voided)
             throw new InvalidOperationException("报关单已作废。");
 
+        if (dec.FeesLocked)
+        {
+            if (patch.HsCode != null
+                || patch.DeclareQty.HasValue
+                || patch.DeclareUnitPrice.HasValue
+                || patch.DutyRate.HasValue
+                || patch.VatRate.HasValue)
+            {
+                throw new InvalidOperationException("报关费用已锁定，仅可修改杂费与商检费。");
+            }
+
+            var footerChanged = false;
+            if (patch.OtherFee.HasValue)
+            {
+                row.OtherFee = patch.OtherFee.Value;
+                footerChanged = true;
+            }
+
+            if (patch.InspectionFee.HasValue)
+                row.InspectionFee = patch.InspectionFee.Value;
+
+            if (!footerChanged && !patch.InspectionFee.HasValue)
+                return;
+
+            if (footerChanged)
+                ApplyLineFooterTotals(row);
+
+            row.ModifyTime = DateTime.UtcNow;
+            await _declarationItemRepo.UpdateAsync(row);
+
+            var allItems = (await _declarationItemRepo.FindAsync(i => i.DeclarationId == dec.Id && !i.IsDeleted)).ToList();
+            dec.TotalTaxAmount = allItems.Sum(i => i.TotalValueTax);
+            dec.ModifyTime = DateTime.UtcNow;
+            dec.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
+            await _declarationRepo.UpdateAsync(dec);
+            await _unitOfWork.SaveChangesAsync();
+            return;
+        }
+
+        var shouldRecalculate = false;
+
         if (patch.HsCode != null)
             row.HsCode = string.IsNullOrWhiteSpace(patch.HsCode) ? null : patch.HsCode.Trim();
         if (patch.DeclareQty.HasValue)
@@ -729,27 +806,164 @@ public class CustomsV2FlowService : ICustomsV2FlowService
             if (patch.DeclareQty.Value <= 0)
                 throw new InvalidOperationException("申报数量须大于 0。");
             row.DeclareQty = patch.DeclareQty.Value;
+            shouldRecalculate = true;
         }
 
-        if (patch.DeclareUnitPrice.HasValue) row.DeclareUnitPrice = patch.DeclareUnitPrice.Value;
-        if (patch.DutyAmount.HasValue) row.DutyAmount = patch.DutyAmount.Value;
-        if (patch.VatAmount.HasValue) row.VatAmount = patch.VatAmount.Value;
-        if (patch.CustomsPaymentGoods.HasValue) row.CustomsPaymentGoods = patch.CustomsPaymentGoods.Value;
-        if (patch.CustomsAgencyFee.HasValue) row.CustomsAgencyFee = patch.CustomsAgencyFee.Value;
-        if (patch.OtherFee.HasValue) row.OtherFee = patch.OtherFee.Value;
-        if (patch.InspectionFee.HasValue) row.InspectionFee = patch.InspectionFee.Value;
-        if (patch.TotalValueTax.HasValue) row.TotalValueTax = patch.TotalValueTax.Value;
-        if (patch.TaxIncludedUnitPrice.HasValue) row.TaxIncludedUnitPrice = patch.TaxIncludedUnitPrice.Value;
+        if (patch.DeclareUnitPrice.HasValue)
+            row.DeclareUnitPrice = patch.DeclareUnitPrice.Value;
+
+        if (patch.DutyRate.HasValue)
+        {
+            if (patch.DutyRate.Value < 0m)
+                throw new InvalidOperationException("关税税率不能为负数。");
+            row.DutyRate = patch.DutyRate.Value;
+            shouldRecalculate = true;
+        }
+
+        if (patch.VatRate.HasValue)
+        {
+            if (patch.VatRate.Value < 0m)
+                throw new InvalidOperationException("增值税率不能为负数。");
+            row.VatRate = patch.VatRate.Value;
+            shouldRecalculate = true;
+        }
+
+        if (patch.OtherFee.HasValue)
+        {
+            row.OtherFee = patch.OtherFee.Value;
+            shouldRecalculate = true;
+        }
+
+        if (patch.InspectionFee.HasValue)
+            row.InspectionFee = patch.InspectionFee.Value;
 
         row.ModifyTime = DateTime.UtcNow;
         await _declarationItemRepo.UpdateAsync(row);
+        await _unitOfWork.SaveChangesAsync();
 
-        var allItems = (await _declarationItemRepo.FindAsync(i => i.DeclarationId == dec.Id && !i.IsDeleted)).ToList();
-        dec.TotalTaxAmount = allItems.Sum(i => i.TotalValueTax);
-        dec.ModifyTime = DateTime.UtcNow;
-        dec.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
+        if (shouldRecalculate && dec.ExchangeRate > 0m)
+            await RecalculateDeclarationFeesAsync(dec.Id, actingUserId, cancellationToken);
+    }
+
+    public async Task<RecalculateCustomsDeclarationFeesResultDto> RecalculateDeclarationFeesAsync(
+        string declarationId,
+        string? actingUserId,
+        CancellationToken cancellationToken = default)
+    {
+        _ = cancellationToken;
+        var dec = await _declarationRepo.GetByIdAsync(declarationId.Trim())
+                  ?? throw new InvalidOperationException("报关单不存在。");
+        if (dec.IsDeleted)
+            throw new InvalidOperationException("报关单不存在。");
+        if (dec.InternalStatus == CustomsDeclarationInternalStatus.Voided)
+            throw new InvalidOperationException("报关单已作废。");
+        if (dec.FeesLocked)
+            throw new InvalidOperationException("报关费用已锁定，不能试算。");
+        if (dec.ExchangeRate <= 0m)
+            throw new InvalidOperationException("请填写报关汇率。");
+
+        var items = (await _declarationItemRepo.FindAsync(i => i.DeclarationId == dec.Id && !i.IsDeleted))
+            .OrderBy(i => i.LineNo)
+            .ToList();
+        if (items.Count == 0)
+            throw new InvalidOperationException("报关单无明细。");
+
+        foreach (var item in items)
+        {
+            if (item.OriginalPurchasePrice <= 0m)
+                throw new InvalidOperationException($"第 {item.LineNo} 行请先完成拣货回写采购价。");
+            if (item.DeclareQty <= 0)
+                throw new InvalidOperationException($"第 {item.LineNo} 行申报数量无效。");
+        }
+
+        var costParam = await _purchaseCostParamService.GetEffectiveAsync();
+        var broker = await _brokerRepo.GetByIdAsync(dec.CustomsBrokerId.Trim())
+                     ?? throw new InvalidOperationException("报关公司不存在。");
+        var brokerRate = broker.AgencyRate > 0m ? broker.AgencyRate : 1m;
+        var systemFx = await _financeExchangeRateService.GetCurrentAsync(cancellationToken);
+        var now = DateTime.UtcNow;
+        var actor = ActingUserIdNormalizer.Normalize(actingUserId);
+
+        foreach (var item in items)
+        {
+            var purchaseCurrency = item.PurchaseCurrency
+                                   ?? (short)CurrencyCode.RMB;
+            if (!item.PurchaseCurrency.HasValue && !string.IsNullOrWhiteSpace(item.SourceStockItemId))
+            {
+                var layer = await _stockItemRepo.GetByIdAsync(item.SourceStockItemId.Trim());
+                if (layer != null)
+                    purchaseCurrency = layer.PurchaseCurrency;
+            }
+
+            var result = _customsFeeCalculator.CalculateLine(
+                item.OriginalPurchasePrice,
+                purchaseCurrency,
+                costParam.Ratio,
+                dec.ExchangeRate,
+                item.DeclareQty,
+                item.DutyRate,
+                item.VatRate > 0m ? item.VatRate : 0.13m,
+                brokerRate,
+                item.OtherFee,
+                item.InspectionFee,
+                systemFx);
+
+            item.PurchaseCostParamId = costParam.Id;
+            item.PurchaseRatio = costParam.Ratio;
+            item.PurchaseCurrency = purchaseCurrency;
+            item.CostUsd = result.CostUsd;
+            item.CustomsUsdPrice = result.CustomsUsdPrice;
+            item.CustomsPaymentGoods = result.CustomsPaymentGoods;
+            item.DutyAmount = result.DutyAmount;
+            item.VatAmount = result.VatAmount;
+            item.CustomsAgencyFee = result.CustomsAgencyFee;
+            item.TotalValueTax = result.TotalValueTax;
+            item.TaxIncludedUnitPrice = result.TaxIncludedUnitPrice;
+            item.ModifyTime = now;
+            await _declarationItemRepo.UpdateAsync(item);
+        }
+
+        dec.BrokerAgencyRate = brokerRate;
+        dec.TotalTaxAmount = items.Sum(i => i.TotalValueTax);
+        dec.FeesCalculatedAt = now;
+        dec.ModifyTime = now;
+        dec.ModifyByUserId = actor;
         await _declarationRepo.UpdateAsync(dec);
         await _unitOfWork.SaveChangesAsync();
+
+        return new RecalculateCustomsDeclarationFeesResultDto
+        {
+            DeclarationId = dec.Id,
+            FeesCalculatedAtUtc = PostgreSqlDateTime.ToUtc(now),
+            TotalTaxAmount = dec.TotalTaxAmount,
+            LineCount = items.Count
+        };
+    }
+
+    public async Task ValidateCustomsStockInFeesAsync(string stockInId, CancellationToken cancellationToken = default)
+    {
+        _ = cancellationToken;
+        var stockIn = await _stockInRepo.GetByIdAsync(stockInId.Trim())
+                      ?? throw new InvalidOperationException("入库单不存在。");
+        if (stockIn.StockInType != StockInTypeCode.Customs)
+            return;
+
+        StockInNotify? notify = null;
+        if (!string.IsNullOrWhiteSpace(stockIn.SourceId))
+            notify = await _stockInNotifyRepo.GetByIdAsync(stockIn.SourceId.Trim());
+
+        var cdiId = notify?.CustomsDeclarationItemId?.Trim() ?? string.Empty;
+        if (string.IsNullOrEmpty(cdiId))
+            throw new InvalidOperationException("报关入库单缺少报关明细关联，无法校验费用。");
+
+        var decItem = await _declarationItemRepo.GetByIdAsync(cdiId)
+                      ?? throw new InvalidOperationException("报关明细不存在。");
+        var dec = await _declarationRepo.GetByIdAsync(decItem.DeclarationId.Trim())
+                  ?? throw new InvalidOperationException("报关单不存在。");
+
+        var reason = ValidateDeclarationItemFeesForInbound(dec, decItem);
+        if (reason != null)
+            throw new InvalidOperationException(reason);
     }
 
     private async Task ClearOrphanDeclarationLinkAsync(Packing packing, string? actingUserId)
@@ -900,6 +1114,22 @@ public class CustomsV2FlowService : ICustomsV2FlowService
             };
         }
 
+        if (dec.ExchangeRate <= 0m)
+        {
+            return new CustomsDeclarationArrivalNotifyReadinessDto
+            {
+                BlockReason = "请填写报关汇率。"
+            };
+        }
+
+        if (!dec.FeesCalculatedAt.HasValue)
+        {
+            return new CustomsDeclarationArrivalNotifyReadinessDto
+            {
+                BlockReason = "请先完成报关费用试算。"
+            };
+        }
+
         if (string.IsNullOrWhiteSpace(dec.ToWarehouseId))
         {
             return new CustomsDeclarationArrivalNotifyReadinessDto
@@ -923,9 +1153,17 @@ public class CustomsV2FlowService : ICustomsV2FlowService
         var pendingCount = 0;
         var existingCount = 0;
         var blockedByStockOut = false;
+        string? blockedByFees = null;
 
         foreach (var decItem in items)
         {
+            var feeReason = ValidateDeclarationItemFeesForInbound(dec, decItem);
+            if (feeReason != null)
+            {
+                blockedByFees = feeReason;
+                break;
+            }
+
             var existing = (await _stockInNotifyRepo.FindAsync(n =>
                 n.CustomsDeclarationItemId == decItem.Id && !n.IsDeleted)).FirstOrDefault();
             if (existing != null)
@@ -951,6 +1189,18 @@ public class CustomsV2FlowService : ICustomsV2FlowService
             }
 
             pendingCount++;
+        }
+
+        if (blockedByFees != null)
+        {
+            return new CustomsDeclarationArrivalNotifyReadinessDto
+            {
+                CanCreate = false,
+                PendingCount = pendingCount,
+                ExistingCount = existingCount,
+                ExistingNoticeCodes = existingCodes,
+                BlockReason = blockedByFees
+            };
         }
 
         if (pendingCount == 0 && existingCount == items.Count)
@@ -1095,5 +1345,35 @@ public class CustomsV2FlowService : ICustomsV2FlowService
             return null;
 
         return po.VendorId.Trim();
+    }
+
+    private static void ApplyLineFooterTotals(CustomsDeclarationItem item)
+    {
+        if (item.DeclareQty <= 0)
+            throw new InvalidOperationException($"第 {item.LineNo} 行申报数量无效。");
+
+        var qty = (decimal)item.DeclareQty;
+        item.TotalValueTax = Math.Round(
+            item.CustomsPaymentGoods + item.DutyAmount + item.VatAmount + item.CustomsAgencyFee + item.OtherFee,
+            2,
+            MidpointRounding.AwayFromZero);
+        item.TaxIncludedUnitPrice = Math.Round(item.TotalValueTax / qty, 6, MidpointRounding.AwayFromZero);
+    }
+
+    private static string? ValidateDeclarationItemFeesForInbound(CustomsDeclaration dec, CustomsDeclarationItem item)
+    {
+        if (dec.ExchangeRate <= 0m)
+            return "请填写报关汇率。";
+        if (item.OriginalPurchasePrice <= 0m)
+            return $"第 {item.LineNo} 行请先完成拣货回写采购价。";
+        if (string.IsNullOrWhiteSpace(item.PurchaseCostParamId) || item.PurchaseRatio <= 0m)
+            return $"第 {item.LineNo} 行未配置或未试算采购系数。";
+        if (item.DutyRate < 0m)
+            return $"第 {item.LineNo} 行请填写报关税率。";
+        if (item.DutyRate == 0m && string.IsNullOrWhiteSpace(item.HsCode))
+            return $"第 {item.LineNo} 行零关税须维护 HS 编码。";
+        if (item.TaxIncludedUnitPrice <= 0m)
+            return $"第 {item.LineNo} 行请先完成报关费用试算。";
+        return null;
     }
 }

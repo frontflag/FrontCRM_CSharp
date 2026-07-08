@@ -88,6 +88,8 @@ public class CustomsDeclarationService : ICustomsDeclarationService
             throw new InvalidOperationException("报关单已完成，不能修改海关状态");
 
         dec.CustomsClearanceStatus = customsClearanceStatus;
+        if (customsClearanceStatus == CustomsClearanceStatusCodes.Cleared)
+            dec.FeesLocked = true;
         dec.ModifyTime = DateTime.UtcNow;
         dec.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
         await _declarationRepo.UpdateAsync(dec);

@@ -42,11 +42,12 @@ public class CustomsBrokerService : ICustomsBrokerService
 
     public Task<CustomsBroker?> GetByIdAsync(string id) => _repo.GetByIdAsync(id);
 
-    public async Task<CustomsBroker> CreateAsync(string cname, string? ename, short regionType, string? remark, string? actingUserId)
+    public async Task<CustomsBroker> CreateAsync(string cname, string? ename, short regionType, decimal agencyRate, string? remark, string? actingUserId)
     {
         if (string.IsNullOrWhiteSpace(cname))
             throw new ArgumentException("公司中文名不能为空", nameof(cname));
         EnsureRegionType(regionType);
+        EnsureAgencyRate(agencyRate);
 
         var code = await _serialNumberService.GenerateNextAsync(ModuleCodes.CustomsBroker);
 
@@ -57,6 +58,7 @@ public class CustomsBrokerService : ICustomsBrokerService
             Cname = cname.Trim(),
             Ename = string.IsNullOrWhiteSpace(ename) ? null : ename.Trim(),
             RegionType = regionType,
+            AgencyRate = agencyRate,
             Status = CustomsBrokerStatusCodes.Active,
             IsDeleted = false,
             Remark = string.IsNullOrWhiteSpace(remark) ? null : remark.Trim(),
@@ -68,7 +70,7 @@ public class CustomsBrokerService : ICustomsBrokerService
         return row;
     }
 
-    public async Task<CustomsBroker> UpdateAsync(string id, string cname, string? ename, short regionType, string? remark, string? actingUserId)
+    public async Task<CustomsBroker> UpdateAsync(string id, string cname, string? ename, short regionType, decimal agencyRate, string? remark, string? actingUserId)
     {
         var row = await _repo.GetByIdAsync(id);
         if (row == null)
@@ -77,10 +79,12 @@ public class CustomsBrokerService : ICustomsBrokerService
         if (string.IsNullOrWhiteSpace(cname))
             throw new ArgumentException("公司中文名不能为空", nameof(cname));
         EnsureRegionType(regionType);
+        EnsureAgencyRate(agencyRate);
 
         row.Cname = cname.Trim();
         row.Ename = string.IsNullOrWhiteSpace(ename) ? null : ename.Trim();
         row.RegionType = regionType;
+        row.AgencyRate = agencyRate;
         row.Remark = string.IsNullOrWhiteSpace(remark) ? null : remark.Trim();
         row.ModifyTime = DateTime.UtcNow;
         row.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
@@ -134,6 +138,12 @@ public class CustomsBrokerService : ICustomsBrokerService
             OperatorUserId = actorId,
             OperatorUserName = actorName
         });
+    }
+
+    private static void EnsureAgencyRate(decimal agencyRate)
+    {
+        if (agencyRate < 1m)
+            throw new ArgumentException("代理费率须为 1+纯费率形式，不能小于 1。", nameof(agencyRate));
     }
 
     private static void EnsureRegionType(short regionType)

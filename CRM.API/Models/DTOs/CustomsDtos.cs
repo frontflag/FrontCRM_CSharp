@@ -68,7 +68,10 @@ public sealed class CustomsDeclarationDetailViewDto
     public short CustomsClearanceStatus { get; set; }
     public DateTime DeclareDate { get; set; }
     public decimal ExchangeRate { get; set; }
+    public decimal BrokerAgencyRate { get; set; } = 1m;
     public decimal TotalTaxAmount { get; set; }
+    public DateTime? FeesCalculatedAt { get; set; }
+    public bool FeesLocked { get; set; }
     public string FromWarehouseId { get; set; } = string.Empty;
     public string ToWarehouseId { get; set; } = string.Empty;
     public string? FromWarehouseCode { get; set; }
@@ -96,6 +99,12 @@ public sealed class CustomsDeclarationDetailItemViewDto
     public int DeclareQty { get; set; }
     public decimal DeclareUnitPrice { get; set; }
     public decimal OriginalPurchasePrice { get; set; }
+    public string? PurchaseCostParamId { get; set; }
+    public decimal PurchaseRatio { get; set; } = 1m;
+    public short? PurchaseCurrency { get; set; }
+    public decimal DutyRate { get; set; }
+    public decimal VatRate { get; set; } = 0.13m;
+    public decimal CostUsd { get; set; }
     public decimal DutyAmount { get; set; }
     public decimal VatAmount { get; set; }
     public decimal CustomsPaymentGoods { get; set; }

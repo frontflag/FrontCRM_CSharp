@@ -116,6 +116,8 @@ namespace CRM.Infrastructure.Data
         public DbSet<StockItem> StockItems { get; set; } = null!;
         public DbSet<StockOutRequest> StockOutRequests { get; set; } = null!;
         public DbSet<CustomsBroker> CustomsBrokers { get; set; } = null!;
+        public DbSet<PurchaseCostParam> PurchaseCostParams { get; set; } = null!;
+        public DbSet<PurchaseCostParamChangeLog> PurchaseCostParamChangeLogs { get; set; } = null!;
         public DbSet<CustomsPendlist> CustomsPendlists { get; set; } = null!;
         public DbSet<CustomsDeclaration> CustomsDeclarations { get; set; } = null!;
         public DbSet<CustomsDeclarationItem> CustomsDeclarationItems { get; set; } = null!;
@@ -1322,6 +1324,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.Cname).HasColumnName("cname").IsRequired().HasMaxLength(200);
                 entity.Property(e => e.Ename).HasColumnName("ename").HasMaxLength(200);
                 entity.Property(e => e.RegionType).HasColumnName("Type");
+                entity.Property(e => e.AgencyRate).HasColumnName("agency_rate").HasColumnType("numeric(10,6)").HasDefaultValue(1m);
                 entity.Property(e => e.Remark).HasMaxLength(500);
                 entity.Property(e => e.IsDeleted).HasDefaultValue(false);
                 entity.Property(e => e.DeletedByUserId).HasColumnName("deleted_by_user_id").HasMaxLength(36);
@@ -1346,6 +1349,9 @@ namespace CRM.Infrastructure.Data
                     .HasFilter("is_deleted = false AND packing_id IS NOT NULL");
                 entity.Property(e => e.CustomsBrokerId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.ExchangeRate).HasColumnType("numeric(18,6)");
+                entity.Property(e => e.BrokerAgencyRate).HasColumnName("broker_agency_rate").HasColumnType("numeric(10,6)").HasDefaultValue(1m);
+                entity.Property(e => e.FeesCalculatedAt).HasColumnName("fees_calculated_at");
+                entity.Property(e => e.FeesLocked).HasColumnName("fees_locked").HasDefaultValue(false);
                 entity.Property(e => e.TotalTaxAmount).HasColumnType("numeric(18,2)");
                 entity.Property(e => e.Remark).HasMaxLength(500);
                 entity.Property(e => e.CreateByUserId).HasColumnName("create_by_user_id").HasMaxLength(36);
@@ -1383,11 +1389,56 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.CustomsStockOutNotifyId).HasColumnName("customs_stockout_notify_id").HasMaxLength(36);
                 entity.Property(e => e.PackingItemId).HasColumnName("packing_item_id").HasMaxLength(36);
                 entity.Property(e => e.OriginalPurchasePrice).HasColumnName("original_purchase_price").HasColumnType("numeric(18,6)").HasDefaultValue(0m);
+                entity.Property(e => e.PurchaseCostParamId).HasColumnName("purchase_cost_param_id").HasMaxLength(36);
+                entity.Property(e => e.PurchaseRatio).HasColumnName("purchase_ratio").HasColumnType("numeric(10,4)").HasDefaultValue(1m);
+                entity.Property(e => e.PurchaseCurrency).HasColumnName("purchase_currency");
+                entity.Property(e => e.CostUsd).HasColumnName("cost_usd").HasColumnType("numeric(18,6)").HasDefaultValue(0m);
+                entity.Property(e => e.DutyRate).HasColumnName("duty_rate").HasColumnType("numeric(18,6)").HasDefaultValue(0m);
+                entity.Property(e => e.VatRate).HasColumnName("vat_rate").HasColumnType("numeric(18,6)").HasDefaultValue(0.13m);
+                entity.Property(e => e.CustomsUsdPrice).HasColumnName("customs_usd_price").HasColumnType("numeric(18,6)").HasDefaultValue(0m);
                 entity.Property(e => e.VendorId).HasColumnName("vendor_id").HasMaxLength(36);
                 entity.HasIndex(e => e.PackingItemId)
                     .IsUnique()
                     .HasDatabaseName("UX_cdi_packing_item")
                     .HasFilter("is_deleted = false AND packing_item_id IS NOT NULL");
+            });
+
+            modelBuilder.Entity<PurchaseCostParam>(entity =>
+            {
+                entity.ToTable("purchase_cost_param");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.Ratio).HasColumnName("ratio").HasColumnType("numeric(10,4)");
+                entity.Property(e => e.StartTime).HasColumnName("start_time");
+                entity.Property(e => e.Remark).HasColumnName("remark").HasMaxLength(500);
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.HasQueryFilter(e => !e.IsDeleted);
+                entity.Property(e => e.CreateByUserId).HasColumnName("create_by_user_id").HasMaxLength(36);
+                entity.Property(e => e.ModifyByUserId).HasColumnName("modify_by_user_id").HasMaxLength(36);
+                entity.Property(e => e.CreateTime).HasColumnName("create_time");
+                entity.Property(e => e.ModifyTime).HasColumnName("modify_time");
+                entity.Ignore(e => e.CreateUserId);
+                entity.Ignore(e => e.ModifyUserId);
+                entity.HasIndex(e => new { e.StartTime, e.CreateTime })
+                    .HasDatabaseName("IX_purchase_cost_param_effective")
+                    .HasFilter("is_deleted = false");
+            });
+
+            modelBuilder.Entity<PurchaseCostParamChangeLog>(entity =>
+            {
+                entity.ToTable("purchase_cost_param_change_log");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.PurchaseCostParamId).HasColumnName("purchase_cost_param_id").HasMaxLength(36);
+                entity.Property(e => e.Ratio).HasColumnName("ratio").HasColumnType("numeric(10,4)");
+                entity.Property(e => e.StartTime).HasColumnName("start_time");
+                entity.Property(e => e.ChangeUserId).HasColumnName("change_user_id").HasMaxLength(36);
+                entity.Property(e => e.ChangeUserName).HasColumnName("change_user_name").HasMaxLength(100);
+                entity.Property(e => e.ChangeSummary).HasColumnName("change_summary").HasMaxLength(500);
+                entity.Property(e => e.CreateTime).HasColumnName("create_time");
+                entity.Ignore(e => e.CreateUserId);
+                entity.Ignore(e => e.ModifyUserId);
+                entity.Ignore(e => e.ModifyTime);
             });
 
             modelBuilder.Entity<CustomsPendlist>(entity =>
