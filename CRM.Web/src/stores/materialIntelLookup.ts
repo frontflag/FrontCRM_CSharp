@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import { aiApi, AI_SCENARIO_MATERIAL_INTEL_LOOKUP } from '@/api/ai'
+import { aiApi, AI_SCENARIO_MATERIAL_INTEL_LOOKUP, type AiInvocationTriggerType } from '@/api/ai'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { parseAiJsonObject } from '@/utils/aiJson'
 import { normalizeMaterialPn } from '@/utils/materialPn'
@@ -63,7 +63,10 @@ export const useMaterialIntelLookupStore = defineStore('materialIntelLookup', ()
     loadingStartedAt.value = next
   }
 
-  async function ensureLookup(pn: string, options?: { force?: boolean }): Promise<void> {
+  async function ensureLookup(
+    pn: string,
+    options?: { force?: boolean; triggerType?: AiInvocationTriggerType }
+  ): Promise<void> {
     const key = normalizeMaterialPn(pn)
     if (!key) return
 
@@ -84,7 +87,8 @@ export const useMaterialIntelLookupStore = defineStore('materialIntelLookup', ()
       try {
         const result = await aiApi.invoke({
           scenarioCode: AI_SCENARIO_MATERIAL_INTEL_LOOKUP,
-          input: { pn: key }
+          input: { pn: key },
+          triggerType: options?.triggerType ?? 'manual'
         })
         const data = parseAiJsonObject(result.data, result.content)
         cacheByPn.value = {

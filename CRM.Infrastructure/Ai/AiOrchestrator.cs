@@ -480,6 +480,7 @@ public sealed class AiOrchestrator : IAiOrchestrator
             PromptHash = promptHash,
             PromptPreview = promptPreview,
             Status = status,
+            TriggerType = AiInvocationTriggerType.NormalizeOrDefault(request.TriggerType),
             FromCache = fromCache,
             LatencyMs = latencyMs,
             ErrorMessage = error == null ? null : (error.Length > 1000 ? error[..1000] : error),
@@ -491,5 +492,48 @@ public sealed class AiOrchestrator : IAiOrchestrator
         await _db.AiInvocationLogs.AddAsync(log, cancellationToken);
         await _unitOfWork.SaveChangesAsync();
         return log.Id;
+    }
+
+    public async Task<bool> IsInvokeCachedAsync(
+        AiInvokeRequestDto request,
+        CancellationToken cancellationToken = default)
+    {
+        var cacheKey = await ResolveCacheKeyForRequestAsync(request, cancellationToken);
+        if (string.IsNullOrEmpty(cacheKey))
+            return false;
+        return await IsCacheHitReadOnlyAsync(cacheKey, cancellationToken);
+    }
+
+    private async Task<string?> ResolveCacheKeyForRequestAsync(
+        AiInvokeRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        var scenarioCode = (request.ScenarioCode ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(scenarioCode))
+            return null;
+
+        var scenario = (await _scenarioRepo.FindAsync(s => s.Code == scenarioCode && !s.IsDeleted))
+            .FirstOrDefault();
+        if (scenario == null || !scenario.IsEnabled || scenario.CacheTtlSeconds <= 0)
+            return null;
+
+        var template = await _templateRepo.GetByIdAsync(scenario.PromptTemplateId.Trim());
+        if (template == null || template.IsDeleted || !template.IsActive)
+            return null;
+
+        var allowedFields = AiJsonHelper.ParseStringArray(scenario.AllowedInputFieldsJson);
+        var cacheKeyFields = AiJsonHelper.ParseStringArray(scenario.CacheKeyFieldsJson);
+        var rawInput = request.Input ?? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        var filteredInput = AiJsonHelper.FilterInput(rawInput, allowedFields);
+        var fingerprintJson = AiJsonHelper.CanonicalFingerprintJson(filteredInput, cacheKeyFields);
+        return AiJsonHelper.ComputeSha256Hex(
+            $"{scenario.Code}|{scenario.Model}|{template.Version}|ws={(scenario.EnableWebSearch ? 1 : 0)}|{fingerprintJson}");
+    }
+
+    private async Task<bool> IsCacheHitReadOnlyAsync(string cacheKey, CancellationToken cancellationToken)
+    {
+        var now = DateTime.UtcNow;
+        return await _db.AiInvocationCaches.AsNoTracking()
+            .AnyAsync(c => c.CacheKey == cacheKey && c.ExpiresAt > now, cancellationToken);
     }
 }

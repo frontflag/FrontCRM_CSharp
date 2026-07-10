@@ -124,13 +124,19 @@ public sealed class AiAdminService : IAiAdminService
     public async Task<IReadOnlyList<AiInvocationLogListItemDto>> ListInvocationLogsAsync(
         int take,
         string? scenarioCode,
+        string? triggerType = null,
         CancellationToken cancellationToken = default)
     {
         var n = Math.Clamp(take, 1, 500);
         var code = (scenarioCode ?? string.Empty).Trim();
+        var trigger = (triggerType ?? string.Empty).Trim();
         var query = _db.AiInvocationLogs.AsNoTracking().AsQueryable();
         if (!string.IsNullOrEmpty(code))
             query = query.Where(l => l.ScenarioCode == code);
+        if (string.Equals(trigger, AiInvocationTriggerType.Manual, StringComparison.OrdinalIgnoreCase))
+            query = query.Where(l => l.TriggerType == AiInvocationTriggerType.Manual);
+        else if (string.Equals(trigger, AiInvocationTriggerType.Auto, StringComparison.OrdinalIgnoreCase))
+            query = query.Where(l => l.TriggerType == AiInvocationTriggerType.Auto);
 
         var rows = await query
             .OrderByDescending(l => l.CreatedAt)
@@ -161,6 +167,7 @@ public sealed class AiAdminService : IAiAdminService
                 && userById.TryGetValue(l.UserId, out var user)
                 ? EntityLookupService.FormatUserLoginName(user)
                 : null,
+            TriggerType = l.TriggerType,
             Status = l.Status,
             FromCache = l.FromCache,
             LatencyMs = l.LatencyMs,

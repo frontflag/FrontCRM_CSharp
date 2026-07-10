@@ -32,6 +32,16 @@ public static class AiInvocationStatusCode
     public const string Cached = "cached";
 }
 
+/// <summary>AI 调用触发方式：人工主动 vs 界面联动补刷。</summary>
+public static class AiInvocationTriggerType
+{
+    public const string Manual = "manual";
+    public const string Auto = "auto";
+
+    public static string NormalizeOrDefault(string? raw) =>
+        string.Equals(raw?.Trim(), Auto, StringComparison.OrdinalIgnoreCase) ? Auto : Manual;
+}
+
 public static class AiGlobalConfigKeys
 {
     public const string DailyQuotaLimit = "daily_quota_limit";

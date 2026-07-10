@@ -1857,7 +1857,7 @@ function onItemRowClick(row: RFQItem) {
   const pn = resolveRfqItemMaterialPn(row)
   materialIntelLookupStore.bindPn(pn)
   if (pn && authStore.hasPermission(AI_PERMISSION_MATERIAL_INTEL_LOOKUP)) {
-    void materialIntelLookupStore.ensureLookup(pn)
+    void materialIntelLookupStore.ensureLookup(pn, { triggerType: 'auto' })
   }
   if (workspaceLayout && !workspaceLayout.rightPanelVisible.value) {
     workspaceLayout.toggleRightPanel(true)

@@ -310,3 +310,39 @@ export async function refreshFinanceReceivablesFromStockOuts(): Promise<RefreshF
     failedMessages: normalizeStringList(inner?.failedMessages ?? inner?.FailedMessages)
   }
 }
+
+export type RefreshRfqMaterialIntelCacheResult = {
+  totalRfqItemRows: number
+  distinctPnCount: number
+  alreadyCachedCount: number
+  invokedCount: number
+  failedCount: number
+  invokedPns: string[]
+  failedPns: string[]
+  failedMessages: string[]
+}
+
+function normalizeRefreshRfqMaterialIntelCacheResult(raw: unknown): RefreshRfqMaterialIntelCacheResult {
+  const outer = (raw as Record<string, unknown> | null | undefined)
+  const inner = (outer?.data ?? outer?.Data ?? outer) as Record<string, unknown> | null | undefined
+  return {
+    totalRfqItemRows: Number(inner?.totalRfqItemRows ?? inner?.TotalRfqItemRows ?? 0),
+    distinctPnCount: Number(inner?.distinctPnCount ?? inner?.DistinctPnCount ?? 0),
+    alreadyCachedCount: Number(inner?.alreadyCachedCount ?? inner?.AlreadyCachedCount ?? 0),
+    invokedCount: Number(inner?.invokedCount ?? inner?.InvokedCount ?? 0),
+    failedCount: Number(inner?.failedCount ?? inner?.FailedCount ?? 0),
+    invokedPns: normalizeStringList(inner?.invokedPns ?? inner?.InvokedPns),
+    failedPns: normalizeStringList(inner?.failedPns ?? inner?.FailedPns),
+    failedMessages: normalizeStringList(inner?.failedMessages ?? inner?.FailedMessages)
+  }
+}
+
+/** POST /api/v1/debug/refresh-rfq-material-intel-cache — 为无 AI 缓存的 RFQ 物料型号批量触发查询 */
+export async function refreshRfqMaterialIntelCache(): Promise<RefreshRfqMaterialIntelCacheResult> {
+  const raw = await apiClient.post<unknown>(
+    '/api/v1/debug/refresh-rfq-material-intel-cache',
+    {},
+    { timeout: 3_600_000 }
+  )
+  return normalizeRefreshRfqMaterialIntelCacheResult(raw)
+}

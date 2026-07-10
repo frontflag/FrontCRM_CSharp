@@ -35,6 +35,7 @@ namespace CRM.API.Controllers
         private readonly IStockInExtendLineSeqService _stockInLineSeq;
         private readonly IFinanceReceivableService _financeReceivableService;
         private readonly IInventoryCenterService _inventoryCenterService;
+        private readonly IAiOrchestrator _aiOrchestrator;
         private const short PoStatusInProgress = 50;
         private const short PoStatusCompleted = 100;
         private const short PoStatusAuditFailed = -1;
@@ -54,7 +55,8 @@ namespace CRM.API.Controllers
             IPurchaseOrderExtendLineSeqService poLineSeq,
             IStockInExtendLineSeqService stockInLineSeq,
             IFinanceReceivableService financeReceivableService,
-            IInventoryCenterService inventoryCenterService)
+            IInventoryCenterService inventoryCenterService,
+            IAiOrchestrator aiOrchestrator)
         {
             _context = context;
             _configuration = configuration;
@@ -65,6 +67,7 @@ namespace CRM.API.Controllers
             _stockInLineSeq = stockInLineSeq;
             _financeReceivableService = financeReceivableService;
             _inventoryCenterService = inventoryCenterService;
+            _aiOrchestrator = aiOrchestrator;
         }
 
         public class DebugItemDto
@@ -183,6 +186,19 @@ namespace CRM.API.Controllers
             public int BucketsUpdated { get; set; }
             public int TotalAvailOverstatement { get; set; }
             public List<string> UpdatedStockCodes { get; set; } = new();
+        }
+
+        /// <summary>Debug：为 RFQ 需求明细中尚无 AI 物料情报缓存的 PN 批量触发 material.intel.lookup。</summary>
+        public class RefreshRfqMaterialIntelCacheResultDto
+        {
+            public int TotalRfqItemRows { get; set; }
+            public int DistinctPnCount { get; set; }
+            public int AlreadyCachedCount { get; set; }
+            public int InvokedCount { get; set; }
+            public int FailedCount { get; set; }
+            public List<string> InvokedPns { get; set; } = new();
+            public List<string> FailedPns { get; set; } = new();
+            public List<string> FailedMessages { get; set; } = new();
         }
 
         [HttpGet]
@@ -1356,6 +1372,100 @@ namespace CRM.API.Controllers
                 return StatusCode(500,
                     ApiResponse<RefreshFinanceReceivablesFromStockOutsResultDto>.Fail(
                         $"刷新应收款失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>
+        /// Debug：遍历未软删 RFQ 需求明细的物料型号，对尚无 AI 物料情报缓存的 PN 批量触发查询（trigger_type=auto）。
+        /// </summary>
+        [Authorize]
+        [HttpPost("refresh-rfq-material-intel-cache")]
+        public async Task<ActionResult<ApiResponse<RefreshRfqMaterialIntelCacheResultDto>>> RefreshRfqMaterialIntelCache(
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var actingUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var mpns = await _context.RFQItems.AsNoTracking()
+                    .Where(i => !i.IsDeleted)
+                    .Select(i => i.Mpn)
+                    .ToListAsync(cancellationToken);
+
+                var pnSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var raw in mpns)
+                {
+                    var pn = (raw ?? string.Empty).Trim();
+                    if (!string.IsNullOrEmpty(pn))
+                        pnSet.Add(pn);
+                }
+
+                var result = new RefreshRfqMaterialIntelCacheResultDto
+                {
+                    TotalRfqItemRows = mpns.Count,
+                    DistinctPnCount = pnSet.Count
+                };
+
+                if (pnSet.Count == 0)
+                {
+                    return Ok(ApiResponse<RefreshRfqMaterialIntelCacheResultDto>.Ok(
+                        result, "无带物料型号的需求明细"));
+                }
+
+                foreach (var pn in pnSet.OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var probe = new AiInvokeRequestDto
+                    {
+                        ScenarioCode = AiScenarioCodes.MaterialIntelLookup,
+                        Input = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+                        {
+                            ["pn"] = pn
+                        }
+                    };
+
+                    if (await _aiOrchestrator.IsInvokeCachedAsync(probe, cancellationToken))
+                    {
+                        result.AlreadyCachedCount++;
+                        continue;
+                    }
+
+                    try
+                    {
+                        await _aiOrchestrator.InvokeAsync(
+                            new AiInvokeRequestDto
+                            {
+                                ScenarioCode = AiScenarioCodes.MaterialIntelLookup,
+                                Input = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+                                {
+                                    ["pn"] = pn
+                                },
+                                TriggerType = AiInvocationTriggerType.Auto
+                            },
+                            actingUserId,
+                            cancellationToken);
+                        result.InvokedCount++;
+                        if (result.InvokedPns.Count < 30)
+                            result.InvokedPns.Add(pn);
+                    }
+                    catch (Exception ex)
+                    {
+                        result.FailedCount++;
+                        if (result.FailedPns.Count < 30)
+                            result.FailedPns.Add(pn);
+                        if (result.FailedMessages.Count < 20)
+                            result.FailedMessages.Add($"{pn}: {ex.Message}");
+                    }
+                }
+
+                return Ok(ApiResponse<RefreshRfqMaterialIntelCacheResultDto>.Ok(
+                    result,
+                    $"刷 AI 需求物料完成：去重 PN {result.DistinctPnCount} 个，已有缓存 {result.AlreadyCachedCount} 个，新触发 {result.InvokedCount} 个，失败 {result.FailedCount} 个"));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500,
+                    ApiResponse<RefreshRfqMaterialIntelCacheResultDto>.Fail(
+                        $"刷 AI 需求物料失败: {ex.Message}", 500));
             }
         }
 

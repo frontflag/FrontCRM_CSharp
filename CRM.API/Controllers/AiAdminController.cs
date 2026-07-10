@@ -156,9 +156,10 @@ public class AiAdminController : ControllerBase
     public async Task<ActionResult<ApiResponse<IReadOnlyList<AiInvocationLogListItemDto>>>> ListLogs(
         [FromQuery] int take = 50,
         [FromQuery] string? scenarioCode = null,
+        [FromQuery] string? triggerType = null,
         CancellationToken cancellationToken = default)
     {
-        var list = await _adminService.ListInvocationLogsAsync(take, scenarioCode, cancellationToken);
+        var list = await _adminService.ListInvocationLogsAsync(take, scenarioCode, triggerType, cancellationToken);
         return Ok(ApiResponse<IReadOnlyList<AiInvocationLogListItemDto>>.Ok(list, "ok"));
     }
 

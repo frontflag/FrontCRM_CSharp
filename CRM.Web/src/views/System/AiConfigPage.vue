@@ -124,6 +124,17 @@
       <el-tab-pane :label="t('aiConfig.tabLogs')" name="logs">
         <div class="log-toolbar">
           <el-input v-model="logScenarioFilter" placeholder="scenarioCode" clearable style="width: 220px" />
+          <el-select
+            v-model="logTriggerFilter"
+            :placeholder="t('aiConfig.filterTriggerTypeAll')"
+            clearable
+            style="width: 140px"
+            @change="loadLogs"
+          >
+            <el-option :label="t('aiConfig.filterTriggerTypeAll')" value="" />
+            <el-option :label="t('aiConfig.triggerTypeManual')" value="manual" />
+            <el-option :label="t('aiConfig.triggerTypeAuto')" value="auto" />
+          </el-select>
           <el-button @click="loadLogs">{{ t('aiConfig.refresh') }}</el-button>
         </div>
         <el-table :data="logs" stripe size="small" class="ai-logs-table">
@@ -137,6 +148,15 @@
             show-overflow-tooltip
           >
             <template #default="{ row }">{{ row.executorUserName || '—' }}</template>
+          </el-table-column>
+          <el-table-column
+            prop="triggerType"
+            :label="t('aiConfig.colTriggerType')"
+            width="108"
+            class-name="col-nowrap"
+            label-class-name="col-nowrap"
+          >
+            <template #default="{ row }">{{ formatTriggerType(row.triggerType) }}</template>
           </el-table-column>
           <el-table-column prop="scenarioCode" label="Scenario" min-width="160" show-overflow-tooltip />
           <el-table-column prop="status" label="Status" width="96" class-name="col-nowrap" label-class-name="col-nowrap" />
@@ -277,6 +297,7 @@ import {
   type AiPromptTemplateAdmin,
   type AiScenarioAdmin,
   type AiInvocationLogItem,
+  type AiInvocationTriggerType,
   type AiUsageSummary,
   type AiEntityParseLogItem,
   type AiEntityParseLogDetail
@@ -296,6 +317,7 @@ const scenarios = ref<AiScenarioAdmin[]>([])
 const templates = ref<AiPromptTemplateAdmin[]>([])
 const logs = ref<AiInvocationLogItem[]>([])
 const logScenarioFilter = ref('')
+const logTriggerFilter = ref<AiInvocationTriggerType | ''>('')
 const entityParseLogs = ref<AiEntityParseLogItem[]>([])
 const entityParseScenarioFilter = ref('entity.parse.')
 const entityParseOutcomeFilter = ref('')
@@ -349,6 +371,12 @@ function formatTime(iso: string) {
   }
 }
 
+function formatTriggerType(value?: AiInvocationTriggerType | null) {
+  if (value === 'manual') return t('aiConfig.triggerTypeManual')
+  if (value === 'auto') return t('aiConfig.triggerTypeAuto')
+  return '—'
+}
+
 async function loadAll() {
   loading.value = true
   loadError.value = null
@@ -383,7 +411,11 @@ async function loadAll() {
 
 async function loadLogs() {
   try {
-    logs.value = await aiApi.listLogs(80, logScenarioFilter.value.trim() || undefined)
+    logs.value = await aiApi.listLogs(
+      80,
+      logScenarioFilter.value.trim() || undefined,
+      logTriggerFilter.value || undefined
+    )
   } catch (e: unknown) {
     ElMessage.error(getApiErrorMessage(e, t('aiConfig.loadFailed')))
   }

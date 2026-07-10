@@ -2351,6 +2351,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.PromptHash).HasColumnName("prompt_hash").HasMaxLength(64);
                 entity.Property(e => e.PromptPreview).HasColumnName("prompt_preview").HasMaxLength(200);
                 entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(20);
+                entity.Property(e => e.TriggerType).HasColumnName("trigger_type").HasMaxLength(20);
                 entity.Property(e => e.FromCache).HasColumnName("from_cache");
                 entity.Property(e => e.LatencyMs).HasColumnName("latency_ms");
                 entity.Property(e => e.ErrorMessage).HasColumnName("error_message").HasMaxLength(1000);

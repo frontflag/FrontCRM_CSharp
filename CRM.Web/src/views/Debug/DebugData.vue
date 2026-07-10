@@ -116,6 +116,9 @@
         <el-button type="success" :loading="refreshingFinanceReceivables" @click="onRefreshFinanceReceivables">
           刷新应收款
         </el-button>
+        <el-button type="primary" :loading="refreshingRfqMaterialIntel" @click="onRefreshRfqMaterialIntel">
+          刷AI需求物料
+        </el-button>
       </div>
       <div class="refresh-hint">回填 STOCK_OUT / STOCK_OUT_REVERSE 的 UnitCost、Amount、currency（调试临时工具）。</div>
       <div class="refresh-hint refresh-hint--second">
@@ -189,6 +192,23 @@
           失败明细：{{ financeReceivableRefreshResult.failedMessages.join('；') }}
         </div>
       </div>
+      <div class="refresh-hint refresh-hint--second">
+        「刷AI需求物料」：遍历未软删 <span class="mono">rfqitem.mpn</span> 去重；对尚无
+        <span class="mono">material.intel.lookup</span> AI 缓存的物料型号后台触发查询（执行类型=系统补刷）。耗时可较长，请勿重复点击。
+      </div>
+      <div v-if="rfqMaterialIntelRefreshResult" class="simulate-result">
+        <div>需求明细行数：{{ rfqMaterialIntelRefreshResult.totalRfqItemRows }}</div>
+        <div>去重物料型号：{{ rfqMaterialIntelRefreshResult.distinctPnCount }}</div>
+        <div>已有 AI 缓存：{{ rfqMaterialIntelRefreshResult.alreadyCachedCount }}</div>
+        <div>新触发查询：{{ rfqMaterialIntelRefreshResult.invokedCount }}</div>
+        <div>失败：{{ rfqMaterialIntelRefreshResult.failedCount }}</div>
+        <div v-if="rfqMaterialIntelRefreshResult.invokedPns.length">
+          已触发 PN（最多 30 条）：{{ rfqMaterialIntelRefreshResult.invokedPns.join('，') }}
+        </div>
+        <div v-if="rfqMaterialIntelRefreshResult.failedMessages.length">
+          失败明细：{{ rfqMaterialIntelRefreshResult.failedMessages.join('；') }}
+        </div>
+      </div>
     </section>
   </div>
 </template>
@@ -206,6 +226,7 @@ import {
   refreshFinancePaymentRemarkFromLegacy,
   refreshFinanceReceivablesFromStockOuts,
   recalculateStockAggregates,
+  refreshRfqMaterialIntelCache,
   type SimulateBusinessChainResponse,
   type SimulateDataOrigin,
   type RfqChainPreview,
@@ -214,7 +235,8 @@ import {
   type RefreshSellOrderCommentSplitResult,
   type RefreshSellOrderItemCustomerPnFromCommentResult,
   type RefreshFinancePaymentLegacyRemarkResult,
-  type RefreshFinanceReceivablesFromStockOutsResult
+  type RefreshFinanceReceivablesFromStockOutsResult,
+  type RefreshRfqMaterialIntelCacheResult
 } from '@/api/debug'
 import { getApiErrorMessage } from '@/utils/apiError'
 
@@ -371,6 +393,8 @@ const refreshingFinancePaymentRemark = ref(false)
 const financePaymentRemarkLegacyResult = ref<RefreshFinancePaymentLegacyRemarkResult | null>(null)
 const refreshingFinanceReceivables = ref(false)
 const financeReceivableRefreshResult = ref<RefreshFinanceReceivablesFromStockOutsResult | null>(null)
+const refreshingRfqMaterialIntel = ref(false)
+const rfqMaterialIntelRefreshResult = ref<RefreshRfqMaterialIntelCacheResult | null>(null)
 
 const onPreviewRfqChain = async () => {
   const code = rfqChainCode.value.trim()
@@ -596,6 +620,31 @@ const onRefreshFinanceReceivables = async () => {
     ElMessage.error(getApiErrorMessage(e, '刷新应收款失败'))
   } finally {
     refreshingFinanceReceivables.value = false
+  }
+}
+
+const onRefreshRfqMaterialIntel = async () => {
+  if (refreshingRfqMaterialIntel.value) return
+  try {
+    await ElMessageBox.confirm(
+      '将遍历全部未软删 RFQ 需求明细的物料型号，对尚无 AI 物料情报缓存的 PN 依次触发查询（系统补刷）。可能耗时较长并消耗 AI 配额，是否继续？',
+      '确认刷 AI 需求物料',
+      { type: 'warning', confirmButtonText: '继续', cancelButtonText: '取消' }
+    )
+  } catch {
+    return
+  }
+  refreshingRfqMaterialIntel.value = true
+  try {
+    const result = await refreshRfqMaterialIntelCache()
+    rfqMaterialIntelRefreshResult.value = result
+    ElMessage.success(
+      `刷 AI 需求物料完成：去重 ${result.distinctPnCount} 个 PN，已有缓存 ${result.alreadyCachedCount} 个，新触发 ${result.invokedCount} 个，失败 ${result.failedCount} 个`
+    )
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '刷 AI 需求物料失败'))
+  } finally {
+    refreshingRfqMaterialIntel.value = false
   }
 }
 

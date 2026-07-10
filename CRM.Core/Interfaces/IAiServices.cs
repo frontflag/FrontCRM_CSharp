@@ -63,6 +63,8 @@ public sealed class AiInvokeRequestDto
     public Dictionary<string, string?> Input { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public string? BizType { get; set; }
     public string? BizId { get; set; }
+    /// <summary>触发方式：manual=人工主动，auto=系统补刷；缺省为 manual。</summary>
+    public string? TriggerType { get; set; }
 }
 
 public sealed class AiInvokeResultDto
@@ -188,6 +190,9 @@ public interface IAiEntityParseLogService
 public interface IAiOrchestrator
 {
     Task<AiInvokeResultDto> InvokeAsync(AiInvokeRequestDto request, string? userId, CancellationToken cancellationToken = default);
+
+    /// <summary>判断指定场景与输入是否已有未过期的 AI 响应缓存（不写入日志、不递增命中计数）。</summary>
+    Task<bool> IsInvokeCachedAsync(AiInvokeRequestDto request, CancellationToken cancellationToken = default);
 }
 
 public sealed class AiScenarioListItemDto
@@ -251,6 +256,7 @@ public sealed class AiInvocationLogListItemDto
     public string? UserId { get; set; }
     /// <summary>执行 AI 功能的员工登录账号。</summary>
     public string? ExecutorUserName { get; set; }
+    public string? TriggerType { get; set; }
     public string Status { get; set; } = string.Empty;
     public bool FromCache { get; set; }
     public int LatencyMs { get; set; }
@@ -275,7 +281,11 @@ public interface IAiAdminService
     Task UpdateTemplateAsync(AiPromptTemplateAdminDto dto, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AiScenarioAdminDto>> ListScenariosAsync(CancellationToken cancellationToken = default);
     Task UpdateScenarioAsync(AiScenarioAdminDto dto, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<AiInvocationLogListItemDto>> ListInvocationLogsAsync(int take, string? scenarioCode, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<AiInvocationLogListItemDto>> ListInvocationLogsAsync(
+        int take,
+        string? scenarioCode,
+        string? triggerType = null,
+        CancellationToken cancellationToken = default);
     Task<AiUsageSummaryDto> GetUsageSummaryAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AiScenarioListItemDto>> ListInvokableScenariosForUserAsync(string? userId, CancellationToken cancellationToken = default);
 }

@@ -109,7 +109,7 @@ onBeforeUnmount(() => stopLoadingTimer())
 
 function retryLookup() {
   if (!boundPn.value) return
-  void materialIntelStore.ensureLookup(boundPn.value, { force: true })
+  void materialIntelStore.ensureLookup(boundPn.value, { force: true, triggerType: 'manual' })
 }
 </script>
 

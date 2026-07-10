@@ -53,6 +53,10 @@ public class AiInvocationLog
     [Column("status")]
     public string Status { get; set; } = string.Empty;
 
+    [StringLength(20)]
+    [Column("trigger_type")]
+    public string? TriggerType { get; set; }
+
     [Column("from_cache")]
     public bool FromCache { get; set; }
 

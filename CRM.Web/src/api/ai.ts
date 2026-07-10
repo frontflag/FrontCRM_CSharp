@@ -6,6 +6,8 @@ export type AiTokenUsage = {
   totalTokens: number
 }
 
+export type AiInvocationTriggerType = 'manual' | 'auto'
+
 export type AiInvokeResult = {
   invocationId: string
   fromCache: boolean
@@ -73,6 +75,7 @@ export type AiInvocationLogItem = {
   model: string
   userId?: string | null
   executorUserName?: string | null
+  triggerType?: AiInvocationTriggerType | null
   status: string
   fromCache: boolean
   latencyMs: number
@@ -131,6 +134,7 @@ export const aiApi = {
     input: Record<string, string | null | undefined>
     bizType?: string
     bizId?: string
+    triggerType?: AiInvocationTriggerType
   }): Promise<AiInvokeResult> {
     return apiClient.post<AiInvokeResult>('/api/v1/ai/invoke', payload, { timeout: 180000 })
   },
@@ -197,9 +201,17 @@ export const aiApi = {
     await apiClient.put(`${AI_ADMIN_BASE}/scenarios/${encodeURIComponent(id)}`, dto)
   },
 
-  async listLogs(take = 50, scenarioCode?: string): Promise<AiInvocationLogItem[]> {
+  async listLogs(
+    take = 50,
+    scenarioCode?: string,
+    triggerType?: AiInvocationTriggerType
+  ): Promise<AiInvocationLogItem[]> {
     return apiClient.get<AiInvocationLogItem[]>(`${AI_ADMIN_BASE}/logs`, {
-      params: { take, scenarioCode: scenarioCode || undefined }
+      params: {
+        take,
+        scenarioCode: scenarioCode || undefined,
+        triggerType: triggerType || undefined
+      }
     })
   },
 

@@ -334,7 +334,7 @@ async function handleAiSearch() {
   displayPn.value = pn
   startAiLoadingTimer()
   try {
-    await materialIntelStore.ensureLookup(pn, { force: true })
+    await materialIntelStore.ensureLookup(pn, { force: true, triggerType: 'manual' })
     const entry = materialIntelStore.getCacheEntry(pn)
     if (entry?.status === 'done' && !entry.data) {
       ElMessage.warning(t('rfqHome.aiSearchEmpty'))
