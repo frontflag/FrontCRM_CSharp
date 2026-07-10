@@ -601,7 +601,7 @@ import MaterialProductionDateSelect from '@/components/MaterialProductionDateSel
 import { authApi, type PurchaseDeptStaffUserOption } from '@/api/auth'
 import { useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
 import { financeExchangeRateApi } from '@/api/financeExchangeRate'
-import { CurrencyCode, normalizeSettlementCurrencyCode } from '@/constants/currency'
+import { normalizeSettlementCurrencyCode, DEFAULT_SETTLEMENT_CURRENCY_CODE, DEFAULT_SETTLEMENT_CURRENCY_STRING } from '@/constants/currency'
 import { unitLocalToUsd } from '@/utils/exchangeRateToUsd'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
@@ -767,7 +767,7 @@ function emptyPriceRow() {
     quantity: 0,
     unitPrice: 0,
     /** 与 SETTLEMENT_CURRENCY_OPTIONS / CurrencyCode 一致 */
-    currency: CurrencyCode.RMB,
+    currency: DEFAULT_SETTLEMENT_CURRENCY_CODE,
     /** 美元折算单价（convert_price 口径），由汇率自动计算，勿手改 */
     convertedPrice: undefined as number | undefined
   }
@@ -784,7 +784,7 @@ const formData = ref({
   /** 需求明细数量（摘要条展示），与下方报价阶梯行独立 */
   quantity: 1,
   targetPrice: undefined as number | undefined,
-  currencyLabel: 'RMB',
+  currencyLabel: DEFAULT_SETTLEMENT_CURRENCY_STRING,
 
   vendorId: '',
   vendorName: '',
@@ -899,7 +899,7 @@ const targetPriceText = computed(() => {
   if (p == null || p === ('' as any)) return '—'
   const n = Number(p)
   if (Number.isNaN(n)) return '—'
-  return `${n.toLocaleString('zh-CN', { minimumFractionDigits: 4, maximumFractionDigits: 4 })} ${formData.value.currencyLabel || 'RMB'}`
+  return `${n.toLocaleString('zh-CN', { minimumFractionDigits: 4, maximumFractionDigits: 4 })} ${formData.value.currencyLabel || DEFAULT_SETTLEMENT_CURRENCY_STRING}`
 })
 
 function formatNumber(n: number) {
@@ -1417,7 +1417,7 @@ const handleSubmit = async () => {
         rfqId: formData.value.rfqId || rfqLink.value.rfqId,
         rfqItemId: fallbackItemId,
         quotePriceRows: rows.map((r) => ({ ...r })),
-        quoteCurrency: first?.currency ?? 1,
+        quoteCurrency: first?.currency ?? DEFAULT_SETTLEMENT_CURRENCY_CODE,
         unitPrice: first?.unitPrice ?? 0,
         convertedPrice: first?.convertedPrice,
         quoteLineQuantity: first?.quantity,

@@ -508,7 +508,7 @@ import { draftApi } from '@/api/draft'
 import type { CreateRFQRequest, CreateRFQItemRequest } from '@/types/rfq'
 import { getApiErrorMessage } from '@/utils/apiError'
 import SalesUserCascader from '@/components/SalesUserCascader.vue'
-import { SETTLEMENT_CURRENCY_STRING_OPTIONS } from '@/constants/currency'
+import { SETTLEMENT_CURRENCY_STRING_OPTIONS, DEFAULT_SETTLEMENT_CURRENCY_STRING, DEFAULT_SETTLEMENT_CURRENCY_CODE } from '@/constants/currency'
 import {
   RFQ_TYPE_OPTIONS,
   QUOTE_METHOD_OPTIONS,
@@ -570,7 +570,7 @@ const formData = reactive<{
   salesUserId: '',
   salesUserName: '',
   source: 1,
-  currency: 'RMB',
+  currency: DEFAULT_SETTLEMENT_CURRENCY_STRING,
   rfqType: 1,
   quoteMethod: 2,
   assignMethod: 2,
@@ -603,7 +603,7 @@ function newItem(): any {
     customerBrand: '',
     brand: '',
     targetPrice: undefined,
-    currency: 'RMB',
+    currency: DEFAULT_SETTLEMENT_CURRENCY_STRING,
     quantity: 1,
     productionDate: '',
     expiryDate: '',
@@ -758,7 +758,7 @@ async function loadRFQ() {
     formData.salesUserId = data.salesUserId || ''
     formData.salesUserName = data.salesUserName || ''
     formData.source = data.source || 1
-    formData.currency = data.currency || 'RMB'
+    formData.currency = data.currency || DEFAULT_SETTLEMENT_CURRENCY_STRING
     formData.rfqType = data.rfqType
     formData.quoteMethod = data.quoteMethod
     formData.assignMethod = 2
@@ -832,7 +832,7 @@ async function handleSave() {
         customerBrand: item.customerBrand || undefined,
         brand: item.brand || undefined,
         targetPrice: item.targetPrice,
-        priceCurrency: ({ 'RMB': 1, 'CNY': 1, 'USD': 2, 'EUR': 3, 'HKD': 4 }[item.currency || 'RMB'] || 1) as any,
+        priceCurrency: ({ 'RMB': 1, 'CNY': 1, 'USD': 2, 'EUR': 3, 'HKD': 4 }[item.currency || DEFAULT_SETTLEMENT_CURRENCY_STRING] || DEFAULT_SETTLEMENT_CURRENCY_CODE) as any,
         quantity: item.quantity,
         productionDate: item.productionDate || undefined,
         expiryDate: item.expiryDate || undefined,
@@ -887,7 +887,7 @@ function buildCreatePayload(): CreateRFQRequest {
       customerBrand: item.customerBrand || undefined,
       brand: item.brand || undefined,
       targetPrice: item.targetPrice,
-      priceCurrency: ({ 'RMB': 1, 'CNY': 1, 'USD': 2, 'EUR': 3, 'HKD': 4 }[item.currency || 'RMB'] || 1) as any,
+      priceCurrency: ({ 'RMB': 1, 'CNY': 1, 'USD': 2, 'EUR': 3, 'HKD': 4 }[item.currency || DEFAULT_SETTLEMENT_CURRENCY_STRING] || DEFAULT_SETTLEMENT_CURRENCY_CODE) as any,
       quantity: item.quantity,
       productionDate: item.productionDate || undefined,
       expiryDate: item.expiryDate || undefined,
@@ -905,7 +905,7 @@ async function applyDraftPayload(payload: any) {
   formData.contactPersonEmail = payload.contactEmail || payload.contactPersonEmail || ''
   formData.salesUserId = payload.salesUserId || ''
   formData.source = payload.source ?? 1
-    formData.currency = payload.currency || 'RMB'
+    formData.currency = payload.currency || DEFAULT_SETTLEMENT_CURRENCY_STRING
   formData.rfqType = payload.rfqType ?? 1
   formData.quoteMethod = payload.quoteMethod ?? 2
   formData.assignMethod = 2
@@ -923,7 +923,7 @@ async function applyDraftPayload(payload: any) {
     customerBrand: item.customerBrand || '',
     brand: item.brand || '',
     targetPrice: item.targetPrice,
-    currency: ({ 1: 'RMB', 2: 'USD', 3: 'EUR', 4: 'HKD' } as any)[item.priceCurrency] || (item.currency === 'CNY' ? 'RMB' : item.currency || 'RMB'),
+    currency: ({ 1: 'RMB', 2: 'USD', 3: 'EUR', 4: 'HKD' } as any)[item.priceCurrency] || (item.currency === 'CNY' ? 'RMB' : item.currency || DEFAULT_SETTLEMENT_CURRENCY_STRING),
     quantity: item.quantity ?? 1,
     productionDate: item.productionDate || '',
     expiryDate: item.expiryDate || '',

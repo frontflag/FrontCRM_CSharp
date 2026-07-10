@@ -401,7 +401,7 @@ import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmount
 import BizBrandSelect from '@/components/Biz/BizBrandSelect.vue'
 import { resolveBrandIdsForItems } from '@/utils/bizBrandMatch'
 import { useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
-import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
+import { CURRENCY_CODE_TO_TEXT, DEFAULT_SETTLEMENT_CURRENCY_CODE } from '@/constants/currency'
 import { formatTotalAmountNumber, formatUnitPriceNumber } from '@/utils/moneyFormat'
 import {
   SO_TYPE_CUSTOMER,
@@ -528,9 +528,9 @@ function emptyLine(): OrderLineDraft {
     brandId: undefined,
     customerPo: '',
     price: 0,
-    currency: 1,
+    currency: DEFAULT_SETTLEMENT_CURRENCY_CODE,
     purchasePriceDisplay: 0,
-    purchaseQuoteCurrency: 1,
+    purchaseQuoteCurrency: DEFAULT_SETTLEMENT_CURRENCY_CODE,
     qty: 1,
     dateCode: '',
     deliveryDate: '',
@@ -554,7 +554,7 @@ const formData = ref({
   invoiceInfo: '',
   paymentTermsLabel: 'NET 30',
   deliveryAddress: '',
-  currency: 1,
+  currency: DEFAULT_SETTLEMENT_CURRENCY_CODE,
   items: [] as OrderLineDraft[]
 })
 

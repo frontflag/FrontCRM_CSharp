@@ -215,9 +215,12 @@
         </el-form-item>
         <el-form-item :label="t('financeFfPayableList.colCurrency')">
           <el-select v-model="bankForm.currency" style="width:100%">
-            <el-option label="RMB" :value="1" />
-            <el-option label="USD" :value="2" />
-            <el-option label="EUR" :value="3" />
+            <el-option
+              v-for="opt in SETTLEMENT_CURRENCY_OPTIONS"
+              :key="opt.value"
+              :label="opt.label"
+              :value="opt.value"
+            />
           </el-select>
         </el-form-item>
         <el-form-item :label="t('freightForwarderCompany.default')">
@@ -255,6 +258,7 @@ import {
   type FreightForwarderCompany,
   type FreightForwarderCompanyBank
 } from '@/api/freightForwarderCompany'
+import { SETTLEMENT_CURRENCY_OPTIONS, DEFAULT_SETTLEMENT_CURRENCY_CODE } from '@/constants/currency'
 import { useFinanceWriteGate } from '@/composables/useDepartmentDataReadOnly'
 
 const { t } = useI18n()
@@ -291,7 +295,7 @@ const bankForm = reactive({
   bankName: '',
   accountName: '',
   accountNo: '',
-  currency: 1,
+  currency: DEFAULT_SETTLEMENT_CURRENCY_CODE,
   isDefault: false,
   isDisabled: false
 })
@@ -489,7 +493,7 @@ function openBankForm(row?: FreightForwarderCompanyBank) {
   bankForm.bankName = row?.bankName || ''
   bankForm.accountName = row?.accountName || ''
   bankForm.accountNo = row?.accountNo || ''
-  bankForm.currency = row?.currency ?? 1
+  bankForm.currency = row?.currency ?? DEFAULT_SETTLEMENT_CURRENCY_CODE
   bankForm.isDefault = row?.isDefault ?? false
   bankForm.isDisabled = row?.isDisabled ?? false
   bankFormVisible.value = true

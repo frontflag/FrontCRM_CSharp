@@ -192,7 +192,7 @@ import { quoteApi } from '@/api/quote'
 import { runValidatedFormSave } from '@/composables/useFormSubmit'
 import SalesUserCascader from '@/components/SalesUserCascader.vue'
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
-import { CurrencyCode, normalizeSettlementCurrencyCode } from '@/constants/currency'
+import { normalizeSettlementCurrencyCode, DEFAULT_SETTLEMENT_CURRENCY_CODE } from '@/constants/currency'
 import { authApi, type PurchaseDeptStaffUserOption } from '@/api/auth'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
@@ -328,7 +328,7 @@ const addItem = () => {
     brand: '',
     quantity: 1,
     unitPrice: 0,
-    currency: CurrencyCode.RMB,
+    currency: DEFAULT_SETTLEMENT_CURRENCY_CODE,
     leadTime: '',
     stockQty: 0
   })

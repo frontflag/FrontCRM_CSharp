@@ -307,7 +307,7 @@ import { runValidatedFormSave } from '@/composables/useFormSubmit'
 import type { BOM, BOMItem } from '@/types/bom'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import { formatUnitPriceNumber } from '@/utils/moneyFormat'
-import { SETTLEMENT_CURRENCY_STRING_OPTIONS } from '@/constants/currency'
+import { SETTLEMENT_CURRENCY_STRING_OPTIONS, DEFAULT_SETTLEMENT_CURRENCY_STRING } from '@/constants/currency'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -427,7 +427,7 @@ const currentItem = ref<BOMItem | null>(null)
 const quoteFormRef = ref()
 const quoteForm = ref({
   quotedPrice: 0,
-  quotedCurrency: 'RMB',
+  quotedCurrency: DEFAULT_SETTLEMENT_CURRENCY_STRING,
   quotedStock: undefined as number | undefined,
   quotedDeliveryDays: undefined as number | undefined,
   quotedBrand: '',
@@ -442,7 +442,7 @@ const openManualQuote = (item: BOMItem, isEdit: boolean) => {
   isEditQuote.value = isEdit
   quoteForm.value = {
     quotedPrice: item.quotedPrice ?? 0,
-    quotedCurrency: item.quotedCurrency || item.currency || 'RMB',
+    quotedCurrency: item.quotedCurrency || item.currency || DEFAULT_SETTLEMENT_CURRENCY_STRING,
     quotedStock: item.quotedStock,
     quotedDeliveryDays: item.quotedDeliveryDays,
     quotedBrand: item.quotedBrand || '',

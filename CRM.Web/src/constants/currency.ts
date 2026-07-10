@@ -16,11 +16,15 @@ export enum CurrencyCode {
 
 export type CurrencyOption = { label: string; value: CurrencyCode };
 
+/** 新建表单 / 空值时的默认结算币别（与下拉首项 USD 一致） */
+export const DEFAULT_SETTLEMENT_CURRENCY_CODE = CurrencyCode.USD;
+export const DEFAULT_SETTLEMENT_CURRENCY_STRING = 'USD';
+
 /** 客户/供应商「结算货币」及全系统币种下拉（仅四项，顺序固定；展示为 ISO 代码） */
 export const SETTLEMENT_CURRENCY_OPTIONS: CurrencyOption[] = [
+  { label: 'USD', value: CurrencyCode.USD },
   { label: 'RMB', value: CurrencyCode.RMB },
   { label: 'HKD', value: CurrencyCode.HKD },
-  { label: 'USD', value: CurrencyCode.USD },
   { label: 'EUR', value: CurrencyCode.EUR },
 ];
 
@@ -29,9 +33,9 @@ export const SETTLEMENT_CURRENCY_OPTIONS: CurrencyOption[] = [
  * 标签与顺序同 SETTLEMENT_CURRENCY_OPTIONS。
  */
 export const SETTLEMENT_CURRENCY_STRING_OPTIONS: { label: string; value: string }[] = [
+  { label: 'USD', value: 'USD' },
   { label: 'RMB', value: 'RMB' },
   { label: 'HKD', value: 'HKD' },
-  { label: 'USD', value: 'USD' },
   { label: 'EUR', value: 'EUR' },
 ];
 
@@ -81,7 +85,7 @@ const SETTLEMENT_CURRENCY_LABEL_TO_CODE: Record<string, CurrencyCode> = {
  * 支持：统一 1-based 编码、历史 0-based quoteitem 编码、ISO 字符串（RMB/USD/…）。
  */
 export function normalizeSettlementCurrencyCode(raw: unknown): CurrencyCode {
-  if (raw == null || raw === '') return CurrencyCode.RMB
+  if (raw == null || raw === '') return DEFAULT_SETTLEMENT_CURRENCY_CODE
 
   if (typeof raw === 'string') {
     const s = raw.trim().toUpperCase()
@@ -89,16 +93,16 @@ export function normalizeSettlementCurrencyCode(raw: unknown): CurrencyCode {
     if (byLabel != null) return byLabel
     const n = Number(s)
     if (Number.isFinite(n)) return normalizeSettlementCurrencyCode(n)
-    return CurrencyCode.RMB
+    return DEFAULT_SETTLEMENT_CURRENCY_CODE
   }
 
   const n = Number(raw)
-  if (!Number.isFinite(n)) return CurrencyCode.RMB
+  if (!Number.isFinite(n)) return DEFAULT_SETTLEMENT_CURRENCY_CODE
 
   if (n >= CurrencyCode.RMB && n <= CurrencyCode.GBP) return n as CurrencyCode
 
   // 历史 quoteitem.currency：0=RMB 1=USD 2=EUR 3=HKD（迁移前）
   if (n >= 0 && n <= 3) return (n + 1) as CurrencyCode
 
-  return CurrencyCode.RMB
+  return DEFAULT_SETTLEMENT_CURRENCY_CODE
 }

@@ -725,7 +725,7 @@ import PaymentRequestVendorBankSection from '@/components/Vendor/PaymentRequestV
 import VendorNameReadonlyField from '@/components/Vendor/VendorNameReadonlyField.vue'
 import ShipmentExpressFields from '@/components/Logistics/ShipmentExpressFields.vue'
 import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
-import { CurrencyCode } from '@/constants/currency'
+import { CurrencyCode, DEFAULT_SETTLEMENT_CURRENCY_CODE } from '@/constants/currency'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { usePurchaseOrderWriteGate } from '@/composables/useDepartmentDataReadOnly'
 import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick'
@@ -917,7 +917,7 @@ const paymentForm = reactive<any>({
   vendorBankId: '',
   vendorBanks: [] as import('@/types/vendor').VendorBankInfo[],
   paymentMode: 1,
-  currency: 1,
+  currency: DEFAULT_SETTLEMENT_CURRENCY_CODE,
   remark: '',
   fee: {
     intermediateBankFee: 0,

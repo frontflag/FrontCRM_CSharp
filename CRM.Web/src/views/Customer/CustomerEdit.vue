@@ -472,7 +472,7 @@ import { regionData } from '@/data/regions';
 import { type CreateCustomerRequest } from '@/types/customer';
 import { useCustomerDictStore } from '@/stores/customerDict';
 import { runValidatedFormSave } from '@/composables/useFormSubmit';
-import { SETTLEMENT_CURRENCY_OPTIONS, CurrencyCode } from '@/constants/currency';
+import { SETTLEMENT_CURRENCY_OPTIONS, CurrencyCode, DEFAULT_SETTLEMENT_CURRENCY_CODE } from '@/constants/currency';
 import { logRecentApi } from '@/api/logRecent';
 import { CUSTOMER_RECENT_HISTORY_CHANGED_EVENT } from '@/constants/customerRecentHistory';
 import {
@@ -588,7 +588,7 @@ const formData = reactive<CreateCustomerRequest & { contacts: any[] }>({
   customerType: 2, customerLevel: 'B', industry: '',
   unifiedSocialCreditCode: '', salesPersonId: '', salesPersonName: '',
   country: '', province: '', city: '', district: '', address: '',
-  creditLimit: 0, paymentTerms: 30, currency: 1, taxRate: 13,
+  creditLimit: 0, paymentTerms: 30, currency: DEFAULT_SETTLEMENT_CURRENCY_CODE, taxRate: 0,
   invoiceType: 2, isActive: true, companyInfo: '', remarks: '', contacts: []
 });
 
@@ -602,7 +602,7 @@ function normalizeInvoiceTypeModel() {
 
 /** 结算币别变更时联动税率、发票类型（非 RMB：0 + 无需开票；RMB：13 + 增值税普通发票） */
 function applyTaxInvoiceByCurrency(currency: number | undefined) {
-  const c = currency ?? CurrencyCode.RMB;
+  const c = currency ?? DEFAULT_SETTLEMENT_CURRENCY_CODE;
   if (c === CurrencyCode.RMB) {
     formData.taxRate = 13;
     formData.invoiceType = 2;
@@ -656,7 +656,7 @@ const fetchCustomerDetail = async () => {
       unifiedSocialCreditCode: customer.unifiedSocialCreditCode || customerAny.creditCode,
       creditLimit: customer.creditLimit ?? 0,
       paymentTerms: customer.paymentTerms ?? 30,
-      currency: customer.currency ?? 1,
+      currency: customer.currency ?? DEFAULT_SETTLEMENT_CURRENCY_CODE,
       taxRate: customer.taxRate ?? 13,
       invoiceType: customer.invoiceType ?? 2,
       isActive: customer.isActive ?? true,

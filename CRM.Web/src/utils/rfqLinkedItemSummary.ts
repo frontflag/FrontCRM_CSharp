@@ -3,6 +3,7 @@
  */
 import { rfqApi } from '@/api/rfq'
 import type { RFQ, RFQItem } from '@/types/rfq'
+import { DEFAULT_SETTLEMENT_CURRENCY_STRING } from '@/constants/currency'
 
 export function extractMpn(raw: Record<string, unknown>): string {
   const v =
@@ -31,7 +32,8 @@ export function mapCurrencyLabelFromRaw(raw: Record<string, unknown>): string {
   if (c === 2) return 'USD'
   if (c === 3) return 'EUR'
   if (c === 4) return 'HKD'
-  return 'RMB'
+  if (c === 1) return 'RMB'
+  return DEFAULT_SETTLEMENT_CURRENCY_STRING
 }
 
 export function formatLinkAlertQuantity(item: Record<string, unknown>): string {
@@ -46,7 +48,7 @@ export function formatLinkTargetPriceText(item: Record<string, unknown>): string
   const currencyLabel = mapCurrencyLabelFromRaw(item)
   if (targetPrice == null || Number.isNaN(Number(targetPrice))) return '—'
   const n = Number(targetPrice)
-  return `${n.toLocaleString('zh-CN', { minimumFractionDigits: 4, maximumFractionDigits: 4 })} ${currencyLabel || 'RMB'}`
+  return `${n.toLocaleString('zh-CN', { minimumFractionDigits: 4, maximumFractionDigits: 4 })} ${currencyLabel || DEFAULT_SETTLEMENT_CURRENCY_STRING}`
 }
 
 /** 与 QuoteCreate linkAlertRfqDisplay 一致：优先需求编号，否则 id */

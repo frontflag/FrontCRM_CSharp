@@ -15,6 +15,7 @@ import {
   VENDOR_ADDRESS_COUNTRY_OVERSEAS_CODE,
   vendorAddressCountryCode
 } from '@/constants/vendorAddress'
+import { DEFAULT_SETTLEMENT_CURRENCY_CODE } from '@/constants/currency'
 
 export type ParsedCustomerFields = {
   customerName: string
@@ -221,7 +222,7 @@ export function emptyParsedRfqItem(): ParsedRfqItemFields {
     mpn: '',
     brand: '',
     targetPrice: null,
-    priceCurrency: 1,
+    priceCurrency: DEFAULT_SETTLEMENT_CURRENCY_CODE,
     quantity: 1,
     productionDate: '',
     expiryDate: '',
@@ -261,7 +262,7 @@ export function emptyParsedVendor(): ParsedVendorFields {
     credit: null,
     officeAddress: '',
     website: '',
-    currency: 1,
+    currency: DEFAULT_SETTLEMENT_CURRENCY_CODE,
     paymentMethod: '',
     paymentDays: null,
     taxNumber: '',
@@ -645,7 +646,7 @@ export function normalizeVendorParseResult(raw: Record<string, unknown>): Parsed
     credit: normalizeVendorCredit(raw.credit ?? raw.identity ?? raw.vendor_credit),
     officeAddress: str(raw.office_address ?? raw.address),
     website: str(raw.website),
-    currency: mapPriceCurrency(raw.trade_currency ?? raw.currency) ?? 1,
+    currency: mapPriceCurrency(raw.trade_currency ?? raw.currency) ?? DEFAULT_SETTLEMENT_CURRENCY_CODE,
     paymentMethod: str(raw.payment_method),
     paymentDays: numOrNull(raw.payment_days ?? raw.payment_terms),
     taxNumber: str(raw.credit_code ?? raw.tax_number ?? raw.unified_social_credit_code),
@@ -684,7 +685,7 @@ function normalizeRfqItemFields(itemRaw: Record<string, unknown>): ParsedRfqItem
   item.brand = str(itemRaw.brand)
   item.targetPrice = numOrNull(itemRaw.target_price)
   item.priceCurrency =
-    mapPriceCurrency(itemRaw.price_currency ?? itemRaw.target_price_currency ?? itemRaw.currency) ?? 1
+    mapPriceCurrency(itemRaw.price_currency ?? itemRaw.target_price_currency ?? itemRaw.currency) ?? DEFAULT_SETTLEMENT_CURRENCY_CODE
   item.quantity = numOrNull(itemRaw.quantity)
   item.productionDate = str(itemRaw.production_date)
   item.expiryDate = str(itemRaw.expiry_date)
@@ -826,7 +827,7 @@ export function rfqPrefillToFormPayload(parsed: ParsedRfqFields): Record<string,
       alternativeMaterials: it.alternativeMaterials,
       remark: it.remark,
       priceCurrency:
-        it.priceCurrency != null && it.priceCurrency >= 1 && it.priceCurrency <= 4 ? it.priceCurrency : 1
+        it.priceCurrency != null && it.priceCurrency >= 1 && it.priceCurrency <= 4 ? it.priceCurrency : DEFAULT_SETTLEMENT_CURRENCY_CODE
     }
   })
 

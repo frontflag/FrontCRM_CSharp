@@ -300,6 +300,7 @@ import { computed, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
+import { DEFAULT_SETTLEMENT_CURRENCY_CODE } from '@/constants/currency'
 import PaymentRequestVendorBankSection from '@/components/Vendor/PaymentRequestVendorBankSection.vue'
 import VendorNameReadonlyField from '@/components/Vendor/VendorNameReadonlyField.vue'
 import { formatDisplayDate } from '@/utils/displayDateTime'
@@ -334,7 +335,7 @@ const paymentForm = reactive<any>({
   vendorBankId: '',
   vendorBanks: [] as import('@/types/vendor').VendorBankInfo[],
   paymentMode: 1,
-  currency: 1,
+  currency: DEFAULT_SETTLEMENT_CURRENCY_CODE,
   remark: '',
   fee: {
     intermediateBankFee: 0,

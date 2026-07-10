@@ -122,7 +122,7 @@
 import { reactive, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { VendorBankFormPayload, VendorBankInfo } from '@/types/vendor';
-import { CurrencyCode, SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency';
+import { CurrencyCode, SETTLEMENT_CURRENCY_OPTIONS, DEFAULT_SETTLEMENT_CURRENCY_CODE } from '@/constants/currency';
 import FinancePaymentBankSelect from '@/components/Finance/FinancePaymentBankSelect.vue';
 
 const { t } = useI18n();
@@ -151,7 +151,7 @@ const defaultForm = (): VendorBankFormPayload => ({
   country: '',
   accountType: 'rmb',
   purposeType: 'payment',
-  currency: CurrencyCode.RMB,
+  currency: DEFAULT_SETTLEMENT_CURRENCY_CODE,
   isDefault: false,
   isEnabled: true,
   remark: ''
@@ -175,7 +175,7 @@ function applyBankToForm(val: VendorBankInfo) {
   form.country = val.country || '';
   form.accountType = val.accountType === 'foreign' ? 'foreign' : 'rmb';
   form.purposeType = val.purposeType === 'receipt' ? 'receipt' : 'payment';
-  form.currency = val.currency ?? CurrencyCode.RMB;
+  form.currency = val.currency ?? DEFAULT_SETTLEMENT_CURRENCY_CODE;
   form.isDefault = !!val.isDefault;
   form.isEnabled = val.isEnabled !== false;
   form.remark = val.remark || '';

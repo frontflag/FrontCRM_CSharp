@@ -365,7 +365,7 @@ import { documentApi } from '@/api/document';
 import { draftApi } from '@/api/draft';
 import type { CreateVendorRequest, UpdateVendorRequest, Vendor, VendorContactInfo } from '@/types/vendor';
 import { runValidatedFormSave } from '@/composables/useFormSubmit';
-import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency';
+import { SETTLEMENT_CURRENCY_OPTIONS, DEFAULT_SETTLEMENT_CURRENCY_CODE } from '@/constants/currency';
 import PurchaserCascader from '@/components/PurchaserCascader.vue';
 import { useVendorDictStore } from '@/stores/vendorDict';
 import { logRecentApi } from '@/api/logRecent';
@@ -414,7 +414,7 @@ const formData = reactive({
   contactEmail: '',
   officeAddress: '',
   website: '',
-  currency: 1 as number,
+  currency: DEFAULT_SETTLEMENT_CURRENCY_CODE as number,
   paymentMethod: '',
   paymentDays: 0,
   purchaseUserId: '',

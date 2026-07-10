@@ -151,6 +151,7 @@ import { formatUnitPriceWithCurrencyCodeSuffix, formatTotalAmountNumber, listAmo
 import { buildApplyArrivalDisabledHintContent, applyArrivalButtonDisabled } from '@/utils/applyArrivalDisabledHint'
 import { buildApplyPaymentDisabledHintContent, applyPaymentButtonDisabled } from '@/utils/applyPaymentDisabledHint'
 import { calcProgressPercent, getArrivalMetrics, getPaymentMetrics } from '@/utils/purchaseOrderItemOpsPanel'
+import { DEFAULT_SETTLEMENT_CURRENCY_CODE } from '@/constants/currency'
 
 const props = defineProps<{
   row: Record<string, unknown> | null
@@ -198,7 +199,7 @@ const arrivalProgressPct = computed(() =>
 const paymentMetrics = computed(() =>
   props.row
     ? getPaymentMetrics(props.row, props.aggregates)
-    : { lineTotal: 0, requestedAmount: 0, availableAmount: 0, currency: 1 }
+    : { lineTotal: 0, requestedAmount: 0, availableAmount: 0, currency: DEFAULT_SETTLEMENT_CURRENCY_CODE }
 )
 const paymentCurrency = computed(() => paymentMetrics.value.currency)
 

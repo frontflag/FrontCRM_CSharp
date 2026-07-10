@@ -393,6 +393,7 @@ import {
 } from '@/utils/purchaseOrderStaffPickRules'
 import MaterialProductionDateSelect from '@/components/MaterialProductionDateSelect.vue'
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
+import { DEFAULT_SETTLEMENT_CURRENCY_CODE } from '@/constants/currency'
 import BizBrandSelect from '@/components/Biz/BizBrandSelect.vue'
 import { resolveBrandIdsForItems } from '@/utils/bizBrandMatch'
 import { formatCurrencyTotal, formatUnitPriceWithCurrencyCodeSuffix } from '@/utils/moneyFormat'
@@ -526,7 +527,7 @@ const formData = ref({
   purchaseUserName: '',
   assistor: '' as string,
   type: 1,
-  currency: 1,
+  currency: DEFAULT_SETTLEMENT_CURRENCY_CODE,
   deliveryDate: '',
   deliveryAddress: '',
   comment: '',
@@ -878,7 +879,7 @@ async function loadOrderForEdit(id: string) {
   formData.value.purchaseUserName = String(o.purchaseUserName ?? '')
   formData.value.assistor = String(o.assistor ?? '')
   formData.value.type = Number(o.type ?? 1)
-  formData.value.currency = Number(o.currency ?? 1)
+  formData.value.currency = Number(o.currency ?? DEFAULT_SETTLEMENT_CURRENCY_CODE)
   const dd = o.deliveryDate
   formData.value.deliveryDate =
     dd == null ? '' : typeof dd === 'string' ? dd.split('T')[0]! : String(dd)

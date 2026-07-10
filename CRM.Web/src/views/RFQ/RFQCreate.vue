@@ -606,6 +606,7 @@ import {
 } from '@/constants/rfqFormEnums'
 import MaterialProductionDateSelect from '@/components/MaterialProductionDateSelect.vue'
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
+import { DEFAULT_SETTLEMENT_CURRENCY_CODE, normalizeSettlementCurrencyCode } from '@/constants/currency'
 import BizBrandSelect from '@/components/Biz/BizBrandSelect.vue'
 import { resolveBrandIdsForItems } from '@/utils/bizBrandMatch'
 import { useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
@@ -781,7 +782,7 @@ function createEmptyRfqItem() {
     minOrderQty: undefined,
     alternativeMaterials: '',
     remark: '',
-    priceCurrency: 1
+    priceCurrency: DEFAULT_SETTLEMENT_CURRENCY_CODE
   }
 }
 
@@ -938,12 +939,7 @@ function normalizeImportance(v: unknown): number {
 }
 
 function mapCurrencyToPriceCurrency(c?: string | number): number {
-  if (typeof c === 'number' && c >= 1 && c <= 4) return c
-  const u = String(c || '').toUpperCase()
-  if (u.includes('USD')) return 2
-  if (u.includes('EUR')) return 3
-  if (u.includes('HKD')) return 4
-  return 1
+  return normalizeSettlementCurrencyCode(c)
 }
 
 function formatExpiryForPicker(v: unknown): string {
@@ -1247,7 +1243,7 @@ function buildItemPayload(): CreateRFQItemRequest[] {
       brand: (it.brand || '').trim(),
       brandId: it.brandId != null && it.brandId > 0 ? Number(it.brandId) : undefined,
       targetPrice: it.targetPrice != null ? Number(it.targetPrice) : undefined,
-      priceCurrency: Number(it.priceCurrency) || 1,
+      priceCurrency: Number(it.priceCurrency) || DEFAULT_SETTLEMENT_CURRENCY_CODE,
       quantity: qty,
       productionDate: (it.productionDate || '').trim() || undefined,
       expiryDate,

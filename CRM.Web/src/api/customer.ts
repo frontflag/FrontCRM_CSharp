@@ -1,4 +1,5 @@
 import apiClient from './client';
+import { DEFAULT_SETTLEMENT_CURRENCY_CODE } from '@/constants/currency';
 import { parseApiBoolean } from '@/utils/parseApiBoolean';
 import { industryCellToStorageLabel } from '@/utils/customerIndustryStorage';
 import type {
@@ -271,7 +272,7 @@ export function normalizeCustomerBankFromApi(raw: unknown): CustomerBankInfo {
       accountNumber: '',
       accountName: '',
       bankBranch: '',
-      currency: 1,
+      currency: DEFAULT_SETTLEMENT_CURRENCY_CODE,
       isDefault: false
     };
   }

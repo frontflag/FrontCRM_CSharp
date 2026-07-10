@@ -130,7 +130,7 @@
         row-key="id"
         highlight-current-row
         @row-click="onItemRowClick"
-        @row-dblclick="goDetail"
+        @row-dblclick="onRfqItemRowDblClick"
         @selection-change="onSelectionChange"
       >
         <template #col-itemStatus="{ row }">
@@ -456,6 +456,7 @@
               v-bind="dockQuoteTableExtraAttrs"
               :row-key="dockQuoteRowKey"
               @header-dragend="onDockQuoteTableHeaderDragEnd"
+              @row-dblclick="onDockQuoteRowDblClick"
             >
               <template #empty>
                 <div class="dock-quote-empty-row">{{ t('rfqItemList.dockQuotes.empty') }}</div>
@@ -772,12 +773,14 @@ import {
 } from '@/composables/useDockQuoteExtendColumn'
 import { quoteMainStatusI18nKey, quoteMainStatusTagType, isQuoteReadOnly } from '@/utils/quoteMainStatus'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick'
 import { Setting } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
 const { t, locale } = useI18n()
 const authStore = useAuthStore()
+const canEditRfq = computed(() => authStore.hasPermission('rfq.write'))
 const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const materialIntelLookupStore = useMaterialIntelLookupStore()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
@@ -1867,6 +1870,31 @@ function onItemRowClick(row: RFQItem) {
 function goDetail(row: RFQItem) {
   if (!row.rfqId) return
   router.push({ name: 'RFQDetail', params: { id: row.rfqId } })
+}
+
+function goEditRfqFromItem(row: RFQItem) {
+  if (!canEditRfq.value) {
+    ElMessage.warning(t('rfqList.editNeedRfqWrite'))
+    return
+  }
+  if (!row.rfqId) return
+  router.push({ name: 'RFQEdit', params: { id: row.rfqId } })
+}
+
+/** 双击：需求详情；按住 Ctrl 双击：编辑所属需求（与需求列表「编辑」同入口） */
+function onRfqItemRowDblClick(row: RFQItem, _column: unknown, event?: MouseEvent) {
+  onCrmDetailListRowDblClick(row, _column, event, {
+    canEdit: canEditRfq.value,
+    onEdit: goEditRfqFromItem,
+    onDefault: goDetail,
+  })
+}
+
+function onDockQuoteRowDblClick(row: Record<string, unknown>, _column: unknown, event?: MouseEvent) {
+  onCrmDetailListRowDblClick(row, _column, event, {
+    canEdit: (r) => canEditDockQuoteRow(r),
+    onEdit: goEditDockQuote,
+  })
 }
 
 function persistRfqItemListStateForReturn(targetItemId?: string) {

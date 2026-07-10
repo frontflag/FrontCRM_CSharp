@@ -183,6 +183,7 @@ import {
   resolveBrandMatchKeyword,
   type BrandMatchStatus
 } from '@/utils/bizBrandMatch'
+import { DEFAULT_SETTLEMENT_CURRENCY_STRING } from '@/constants/currency'
 
 const router = useRouter()
 
@@ -273,7 +274,7 @@ const columnMapping = [
   { col: 'D', field: '供应品牌', required: false, example: 'STMicroelectronics', note: '优先匹配；支持中英文名/别名' },
   { col: 'E', field: '数量', required: true, example: '1000', note: '需求数量，必填，正整数' },
   { col: 'F', field: '目标价', required: false, example: '2.5', note: '目标单价' },
-  { col: 'G', field: '货币', required: false, example: 'RMB', note: 'RMB/USD/EUR/HKD，默认 RMB' },
+  { col: 'G', field: '货币', required: false, example: 'USD', note: 'USD/RMB/HKD/EUR，默认 USD' },
   { col: 'H', field: '最小包装量', required: false, example: '100', note: '最小包装数量' },
   { col: 'I', field: '最小起订量', required: false, example: '500', note: 'MOQ' },
   { col: 'J', field: '可替代料', required: false, example: 'STM32F103CBT6', note: '多个用逗号分隔' },
@@ -317,7 +318,7 @@ function parseExcel(file: File): Promise<PreviewItem[]> {
           const supplyBrand = String(row[3] || '').trim()
           const quantityRaw = row[4]
           const targetPriceRaw = row[5]
-          const currency = String(row[6] || 'RMB').trim().toUpperCase() || 'RMB'
+          const currency = String(row[6] || DEFAULT_SETTLEMENT_CURRENCY_STRING).trim().toUpperCase() || DEFAULT_SETTLEMENT_CURRENCY_STRING
           const minPackageQty = row[7] ? Number(row[7]) : undefined
           const moq = row[8] ? Number(row[8]) : undefined
           const alternatives = String(row[9] || '').trim()
@@ -340,7 +341,7 @@ function parseExcel(file: File): Promise<PreviewItem[]> {
             brand: supplyBrand || undefined,
             quantity: isNaN(quantity) ? 0 : quantity,
             targetPrice: targetPriceRaw !== '' && targetPriceRaw != null ? Number(targetPriceRaw) : undefined,
-            currency: currency || 'RMB',
+            currency: currency || DEFAULT_SETTLEMENT_CURRENCY_STRING,
             minPackageQty,
             moq,
             minOrderQty: moq,

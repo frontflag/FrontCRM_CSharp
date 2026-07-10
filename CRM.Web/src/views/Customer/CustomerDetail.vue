@@ -836,7 +836,7 @@ import { formatDetailTabLabel } from '@/utils/detailTabLabel';
 import { CUSTOMER_FAVORITES_CHANGED_EVENT } from '@/constants/customerFavorites';
 import { logRecentApi } from '@/api/logRecent';
 import { CUSTOMER_RECENT_HISTORY_CHANGED_EVENT } from '@/constants/customerRecentHistory';
-import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency';
+import { CURRENCY_CODE_TO_TEXT, DEFAULT_SETTLEMENT_CURRENCY_CODE, DEFAULT_SETTLEMENT_CURRENCY_STRING } from '@/constants/currency';
 import { isDistrictPlaceholder } from '@/constants/region';
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask';
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly';
@@ -926,7 +926,7 @@ function customerStatusLabel(status: number | undefined): string {
 
 const customerStatusDisplayText = computed(() => customerStatusLabel(customer.value?.status));
 
-const customerCurrencyCode = computed(() => Number(customer.value?.currency ?? 1));
+const customerCurrencyCode = computed(() => Number(customer.value?.currency ?? DEFAULT_SETTLEMENT_CURRENCY_CODE));
 
 function resolveCustomerCreditLimit(c: Customer | null): number | null {
   if (!c) return null;
@@ -1367,7 +1367,7 @@ const formatFullAddress = (address: CustomerAddress) =>
   ]
     .filter(Boolean)
     .join(' ');
-const getCurrencyLabel = (currency: number) => CURRENCY_CODE_TO_TEXT[currency] || 'RMB';
+const getCurrencyLabel = (currency: number) => CURRENCY_CODE_TO_TEXT[currency] || DEFAULT_SETTLEMENT_CURRENCY_STRING;
 
 function onCustomerDocumentUploaded() {
   documentListRef.value?.refresh?.();

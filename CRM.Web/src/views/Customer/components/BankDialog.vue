@@ -100,7 +100,7 @@ import { ref, computed, watch } from 'vue';
 import { ElNotification, type FormInstance, type FormRules } from 'element-plus';
 import { customerBankApi } from '@/api/customer';
 import type { CustomerBankInfo, CreateBankInfoRequest } from '@/types/customer';
-import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency';
+import { SETTLEMENT_CURRENCY_OPTIONS, DEFAULT_SETTLEMENT_CURRENCY_CODE } from '@/constants/currency';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -125,7 +125,7 @@ const formData = ref<CreateBankInfoRequest>({
   bankAddress: '',
   bankCode: '',
   accountNumber: '',
-  currency: 1,
+  currency: DEFAULT_SETTLEMENT_CURRENCY_CODE,
   swiftCode: '',
   isDefault: false
 });
@@ -179,7 +179,7 @@ const resetForm = () => {
     bankAddress: '',
     bankCode: '',
     accountNumber: '',
-    currency: 1,
+    currency: DEFAULT_SETTLEMENT_CURRENCY_CODE,
     swiftCode: '',
     isDefault: false
   };

@@ -52,9 +52,12 @@
         <el-col :span="12">
           <el-form-item :label="t('companyInfo.bank.currency')">
             <el-select v-model="row.currency" style="width: 100%">
-              <el-option label="RMB" value="RMB" />
-              <el-option label="USD" value="USD" />
-              <el-option label="EUR" value="EUR" />
+              <el-option
+                v-for="opt in SETTLEMENT_CURRENCY_STRING_OPTIONS"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
+              />
             </el-select>
           </el-form-item>
         </el-col>
@@ -89,6 +92,7 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import { SETTLEMENT_CURRENCY_STRING_OPTIONS } from '@/constants/currency'
 import type { CompanyBankRow } from '@/api/companyProfile'
 
 defineProps<{

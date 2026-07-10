@@ -223,7 +223,7 @@ import * as XLSX from 'xlsx'
 import { bomApi } from '@/api/bom'
 import type { BOM, CreateBOMItemRequest } from '@/types/bom'
 import { runValidatedFormSave } from '@/composables/useFormSubmit'
-import { SETTLEMENT_CURRENCY_STRING_OPTIONS } from '@/constants/currency'
+import { SETTLEMENT_CURRENCY_STRING_OPTIONS, DEFAULT_SETTLEMENT_CURRENCY_STRING } from '@/constants/currency'
 
 const router = useRouter()
 
@@ -235,7 +235,7 @@ const formData = ref({
   bomType: 1,
   source: 5,
   industry: '',
-  currency: 'RMB',
+  currency: DEFAULT_SETTLEMENT_CURRENCY_STRING,
   remark: '',
 })
 const formRules = {

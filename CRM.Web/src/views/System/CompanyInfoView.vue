@@ -740,6 +740,7 @@ import { documentApi } from '@/api/document'
 import apiClient from '@/api/client'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { normalizeCompanyBankRow } from '@/utils/companyBank'
+import { DEFAULT_SETTLEMENT_CURRENCY_STRING } from '@/constants/currency'
 import CompanyBankAccountFields from '@/components/Company/CompanyBankAccountFields.vue'
 
 type AssetPreview = { url: string; kind: 'image' | 'pdf' | 'other' }
@@ -1059,7 +1060,7 @@ function emptyBank(): CompanyBankRow {
     iban: '',
     bankCode: '',
     accountNumber: '',
-    currency: 'RMB',
+    currency: DEFAULT_SETTLEMENT_CURRENCY_STRING,
     country: '',
     bankType: 'rmb',
     purposeType: 'payment',

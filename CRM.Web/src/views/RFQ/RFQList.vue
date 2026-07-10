@@ -123,7 +123,7 @@
         :density-toggle-anchor-el="rowDensityToggleAnchorEl"
         :data="rfqList"
         highlight-current-row
-        @row-dblclick="handleView"
+        @row-dblclick="onRfqRowDblClick"
       >
         <template #col-rfqCode="{ row }">
           <el-link type="primary" @click="handleView(row)">{{ row.rfqCode }}</el-link>
@@ -272,6 +272,7 @@ import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import TagListDisplay from '@/components/Tag/TagListDisplay.vue'
 import { tagApi, type TagDefinitionDto } from '@/api/tag'
 import { canUseRfqTagUi } from '@/utils/rfqTagAccess'
+import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick'
 
 const router = useRouter()
 const route = useRoute()
@@ -586,6 +587,15 @@ const handleEdit = (row: any) => {
 // 查看
 const handleView = (row: any) => {
   router.push({ name: 'RFQDetail', params: { id: row.id } })
+}
+
+/** 双击：详情；按住 Ctrl 双击：编辑（与行操作「编辑」同入口） */
+function onRfqRowDblClick(row: any, _column: unknown, event?: MouseEvent) {
+  onCrmDetailListRowDblClick(row, _column, event, {
+    canEdit: canEditRfq.value,
+    onEdit: handleEdit,
+    onDefault: handleView,
+  })
 }
 
 </script>

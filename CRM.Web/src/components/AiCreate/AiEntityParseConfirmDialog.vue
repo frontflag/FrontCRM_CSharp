@@ -711,7 +711,7 @@ import {
   type CustomerMatchOption
 } from '@/composables/useCustomerFuzzyMatch'
 import type { AiPrefillEntityType } from '@/utils/aiPrefill'
-import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
+import { SETTLEMENT_CURRENCY_OPTIONS, DEFAULT_SETTLEMENT_CURRENCY_CODE } from '@/constants/currency'
 import { usesChinaRegionCascader } from '@/constants/customerAddress'
 
 const settlementCurrencyOptions = SETTLEMENT_CURRENCY_OPTIONS
@@ -788,7 +788,7 @@ watch(
         ...props.rfqData,
         items: (props.rfqData.items.length ? props.rfqData.items : [{ ...emptyParsedRfqItem() }]).map((it) => ({
           ...it,
-          priceCurrency: it.priceCurrency ?? 1,
+          priceCurrency: it.priceCurrency ?? DEFAULT_SETTLEMENT_CURRENCY_CODE,
           quantity: it.quantity != null && it.quantity > 0 ? it.quantity : 1
         }))
       }
@@ -797,7 +797,7 @@ watch(
     if (props.entityType === 'VENDOR' && props.vendorData) {
       vendorModel.value = {
         ...props.vendorData,
-        currency: props.vendorData.currency ?? 1
+        currency: props.vendorData.currency ?? DEFAULT_SETTLEMENT_CURRENCY_CODE
       }
     }
     if (props.entityType === 'CUSTOMER_CONTACT' && props.customerContactData) {

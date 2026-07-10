@@ -298,7 +298,7 @@ import {
   type FinancePurchaseInvoice,
   type PageQuery,
 } from '@/api/finance'
-import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
+import { SETTLEMENT_CURRENCY_OPTIONS, DEFAULT_SETTLEMENT_CURRENCY_CODE } from '@/constants/currency'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { vendorApi } from '@/api/vendor'
@@ -437,7 +437,7 @@ const form = reactive<Partial<FinancePurchaseInvoice>>({
   makeInvoiceDate: undefined,
   purchaseInvoiceType: 100,
   type: 10,
-  currency: 1,
+  currency: DEFAULT_SETTLEMENT_CURRENCY_CODE,
   remark: ''
 })
 
@@ -495,7 +495,7 @@ const openCreate = () => {
     makeInvoiceDate: undefined,
     purchaseInvoiceType: 100,
     type: 10,
-    currency: 1,
+    currency: DEFAULT_SETTLEMENT_CURRENCY_CODE,
     remark: ''
   })
   dialogVisible.value = true

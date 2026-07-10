@@ -1,4 +1,5 @@
 import apiClient from './client'
+import { DEFAULT_SETTLEMENT_CURRENCY_CODE } from '@/constants/currency'
 
 const getYYMMDD = (d: Date) => {
   const yy = String(d.getFullYear()).slice(-2)
@@ -36,7 +37,7 @@ function buildItemsFromQuoteCreateForm(form: Record<string, unknown>): Record<st
       waferOrigin: Number(form.waferOrigin ?? 2),
       packageOrigin: Number(form.packageOrigin ?? 2),
       freeShipping: Boolean(form.freeShipping),
-      currency: Number(r.currency ?? 1),
+      currency: Number(r.currency ?? DEFAULT_SETTLEMENT_CURRENCY_CODE),
       quantity: qty,
       unitPrice: up,
       convertedPrice:
@@ -98,7 +99,7 @@ function mapQuoteEditSimpleToUpdate(body: Record<string, unknown>): Record<strin
     waferOrigin: Number(it.waferOrigin ?? 2),
     packageOrigin: Number(it.packageOrigin ?? 2),
     freeShipping: Boolean(it.freeShipping ?? false),
-    currency: Number(it.currency ?? 1),
+    currency: Number(it.currency ?? DEFAULT_SETTLEMENT_CURRENCY_CODE),
     quantity: Number(it.quantity),
     unitPrice: Number(it.unitPrice),
     convertedPrice: it.convertedPrice != null ? Number(it.convertedPrice) : undefined,

@@ -1,4 +1,4 @@
-import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
+import { CURRENCY_CODE_TO_TEXT, DEFAULT_SETTLEMENT_CURRENCY_STRING } from '@/constants/currency'
 
 /**
  * 全站金额精度：单价 6 位小数，总额/金额 2 位小数（与后端 numeric 一致）
@@ -55,7 +55,7 @@ export function formatUnitPriceWithCurrencyCodeSuffix(value: unknown, currency?:
   if (s === '—') return s
   const c = Number(currency)
   const code =
-    (Number.isFinite(c) && CURRENCY_CODE_TO_TEXT[c as keyof typeof CURRENCY_CODE_TO_TEXT]) || 'RMB'
+    (Number.isFinite(c) && CURRENCY_CODE_TO_TEXT[c as keyof typeof CURRENCY_CODE_TO_TEXT]) || DEFAULT_SETTLEMENT_CURRENCY_STRING
   return `${s} ${code}`
 }
 
