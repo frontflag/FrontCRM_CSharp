@@ -641,6 +641,7 @@ const enUS = {
       favorites: 'Favorites',
       history: 'History',
       ops: 'Actions',
+      material: 'Material',
       help: 'Help'
     }
   },
@@ -1949,6 +1950,11 @@ const enUS = {
     basket: {
       batchCopy: 'Batch Copy',
       batchCopySuccess: 'Copied {count} RFQ line(s) from basket'
+    },
+    materialPanel: {
+      noPn: 'The selected line has no part number to look up.',
+      pnLabel: 'MPN',
+      retry: 'Retry lookup'
     },
     confirmMarkNoQuote: {
       title: 'Mark No Quote Found',

@@ -1224,6 +1224,10 @@
             @apply-arrival="purchaseOrderItemOpsStore.runApplyArrival()"
             @apply-payment="purchaseOrderItemOpsStore.runApplyPayment()"
           />
+          <RfqItemMaterialPanel
+            v-show="showRfqItemMaterialPanel"
+            class="aux-panel-tab-body"
+          />
           <HelpManualPanel v-show="rightActiveTabId === 'r4'" class="aux-panel-tab-body" />
         </div>
       </aside>
@@ -1265,8 +1269,10 @@ import PurchaseOrderFavoritePanel from '@/components/purchaseOrder/PurchaseOrder
 import PurchaseOrderRecentHistoryPanel from '@/components/purchaseOrder/PurchaseOrderRecentHistoryPanel.vue'
 import HelpManualPanel from '@/components/workspace/HelpManualPanel.vue'
 import SalesOrderItemOpsPanel from '@/components/RFQ/SalesOrderItemOpsPanel.vue'
+import RfqItemMaterialPanel from '@/components/RFQ/RfqItemMaterialPanel.vue'
 import PurchaseOrderItemOpsPanel from '@/components/RFQ/PurchaseOrderItemOpsPanel.vue'
 import { useSalesOrderItemOpsPanelStore } from '@/stores/salesOrderItemOpsPanel'
+import { useMaterialIntelLookupStore } from '@/stores/materialIntelLookup'
 import { usePurchaseOrderItemOpsPanelStore } from '@/stores/purchaseOrderItemOpsPanel'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleOrderWriteGate } from '@/composables/useDepartmentDataReadOnly'
@@ -1293,6 +1299,7 @@ const simulationTopBarStyle = computed(() => {
 const { isDark, toggleTheme } = useUiTheme()
 const { t, locale } = useI18n()
 const salesOrderItemOpsStore = useSalesOrderItemOpsPanelStore()
+const materialIntelLookupStore = useMaterialIntelLookupStore()
 const purchaseOrderItemOpsStore = usePurchaseOrderItemOpsPanelStore()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
@@ -1536,6 +1543,7 @@ const showPurchaseOrderRecentHistoryPanel = computed(
 
 const isSalesOrderItemListRoute = computed(() => route.name === 'SalesOrderItemList')
 const isPurchaseOrderItemListRoute = computed(() => route.name === 'PurchaseOrderItemList')
+const isRfqItemListRoute = computed(() => route.name === 'RFQItemList')
 
 const showSalesOrderItemOpsPanel = computed(
   () => rightActiveTabId.value === 'r-ops' && isSalesOrderItemListRoute.value
@@ -1543,6 +1551,10 @@ const showSalesOrderItemOpsPanel = computed(
 
 const showPurchaseOrderItemOpsPanel = computed(
   () => rightActiveTabId.value === 'r-ops' && isPurchaseOrderItemListRoute.value
+)
+
+const showRfqItemMaterialPanel = computed(
+  () => rightActiveTabId.value === 'r-material' && isRfqItemListRoute.value
 )
 
 const canPurchaseOrderItemOpsArrival = computed(() => authStore.hasPermission('purchase-order.read'))
@@ -1562,12 +1574,23 @@ watch(
       ]
       if (name === 'SalesOrderItemList') purchaseOrderItemOpsStore.clear()
       if (name === 'PurchaseOrderItemList') salesOrderItemOpsStore.clear()
+      materialIntelLookupStore.clearBound()
+      return
+    }
+    if (name === 'RFQItemList') {
+      rightTabs.value = [
+        { id: 'r-material', labelKey: 'layout.auxTabs.material' },
+        { id: 'r4', labelKey: 'layout.auxTabs.help' }
+      ]
+      salesOrderItemOpsStore.clear()
+      purchaseOrderItemOpsStore.clear()
       return
     }
     rightTabs.value = [{ id: 'r4', labelKey: 'layout.auxTabs.help' }]
     rightActiveTabId.value = 'r4'
     salesOrderItemOpsStore.clear()
     purchaseOrderItemOpsStore.clear()
+    materialIntelLookupStore.clearBound()
   },
   { immediate: true }
 )

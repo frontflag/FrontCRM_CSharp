@@ -640,6 +640,7 @@ const zhCN = {
       favorites: '收藏',
       history: '历史',
       ops: '操作',
+      material: '物料',
       help: '帮助'
     }
   },
@@ -1926,6 +1927,11 @@ const zhCN = {
     basket: {
       batchCopy: '批量复制',
       batchCopySuccess: '已复制篮子中 {count} 条需求明细'
+    },
+    materialPanel: {
+      noPn: '当前选中行暂无物料型号，无法查询。',
+      pnLabel: '物料型号',
+      retry: '重新查询'
     },
     confirmMarkNoQuote: {
       title: '标记查无报价',

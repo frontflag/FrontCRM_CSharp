@@ -225,15 +225,12 @@ import { useAuthStore } from '@/stores/auth'
 import { rfqApi } from '@/api/rfq'
 import { quoteApi } from '@/api/quote'
 import {
-  aiApi,
-  AI_SCENARIO_MATERIAL_INTEL_LOOKUP,
   AI_PERMISSION_MATERIAL_INTEL_LOOKUP,
   AI_PERMISSION_ENTITY_PARSE_RFQ
 } from '@/api/ai'
 import AiEntityCreateHost from '@/components/AiCreate/AiEntityCreateHost.vue'
-import { getApiErrorMessage } from '@/utils/apiError'
-import { parseAiJsonObject } from '@/utils/aiJson'
 import MaterialIntelResultPanel from '@/components/RFQ/MaterialIntelResultPanel.vue'
+import { useMaterialIntelLookupStore } from '@/stores/materialIntelLookup'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -244,13 +241,27 @@ const canAiParseRfq = computed(() => authStore.hasPermission(AI_PERMISSION_ENTIT
 const aiCreateHostRef = ref<InstanceType<typeof AiEntityCreateHost> | null>(null)
 
 const keyword = ref('')
-const aiLoading = ref(false)
+const displayPn = ref('')
 const aiLoadingSeconds = ref(0)
 let aiLoadingTimer: ReturnType<typeof setInterval> | null = null
-const aiResultData = ref<Record<string, unknown> | null>(null)
-const aiFromCache = ref(false)
+const materialIntelStore = useMaterialIntelLookupStore()
 
 const canAiLookup = computed(() => authStore.hasPermission(AI_PERMISSION_MATERIAL_INTEL_LOOKUP))
+
+const aiLoading = computed(() =>
+  displayPn.value ? materialIntelStore.isPnLoading(displayPn.value) : false
+)
+
+const aiResultData = computed(() => {
+  if (!displayPn.value) return null
+  const entry = materialIntelStore.getCacheEntry(displayPn.value)
+  return entry?.status === 'done' ? entry.data : null
+})
+
+const aiFromCache = computed(() => {
+  if (!displayPn.value) return false
+  return materialIntelStore.getCacheEntry(displayPn.value)?.fromCache ?? false
+})
 
 interface RfqHomeStats {
   totalRfqs: number
@@ -320,30 +331,24 @@ async function handleAiSearch() {
   }
   if (!canAiLookup.value) return
 
-  aiLoading.value = true
+  displayPn.value = pn
   startAiLoadingTimer()
-  aiResultData.value = null
   try {
-    const result = await aiApi.invoke({
-      scenarioCode: AI_SCENARIO_MATERIAL_INTEL_LOOKUP,
-      input: { pn }
-    })
-    aiFromCache.value = result.fromCache
-    aiResultData.value = parseAiJsonObject(result.data, result.content)
-    if (!aiResultData.value) {
+    await materialIntelStore.ensureLookup(pn, { force: true })
+    const entry = materialIntelStore.getCacheEntry(pn)
+    if (entry?.status === 'done' && !entry.data) {
       ElMessage.warning(t('rfqHome.aiSearchEmpty'))
     }
-  } catch (err) {
-    ElMessage.error(getApiErrorMessage(err, t('rfqHome.aiSearchFailed')))
+    if (entry?.status === 'error') {
+      ElMessage.error(entry.errorMessage || t('rfqHome.aiSearchFailed'))
+    }
   } finally {
-    aiLoading.value = false
     stopAiLoadingTimer()
   }
 }
 
 function clearAiResult() {
-  aiResultData.value = null
-  aiFromCache.value = false
+  displayPn.value = ''
 }
 
 function onSearchEnter() {

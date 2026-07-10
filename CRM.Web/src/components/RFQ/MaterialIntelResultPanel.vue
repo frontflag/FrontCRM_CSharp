@@ -1,5 +1,8 @@
 <template>
-  <section class="material-intel-panel">
+  <section
+    class="material-intel-panel"
+    :class="{ 'material-intel-panel--embedded': layout === 'embedded' }"
+  >
     <div class="material-intel-panel__head">
       <h2 class="material-intel-panel__title">{{ t('materialIntel.title') }}</h2>
       <div class="material-intel-panel__tags">
@@ -36,11 +39,15 @@ import JsonValueRenderer from '@/components/RFQ/JsonValueRenderer.vue'
 import { copyTextToClipboard } from '@/utils/clipboard'
 import { isPlainObject, visibleEntries } from '@/utils/jsonDisplay'
 
-const props = defineProps<{
-  data: Record<string, unknown> | null | undefined
-  fromCache?: boolean
-  showClose?: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    data: Record<string, unknown> | null | undefined
+    fromCache?: boolean
+    showClose?: boolean
+    layout?: 'centered' | 'embedded'
+  }>(),
+  { layout: 'centered' }
+)
 
 const emit = defineEmits<{ close: [] }>()
 
@@ -89,6 +96,15 @@ async function copyJson() {
   border: 1px solid $border-panel;
   border-radius: 14px;
   box-shadow: $shadow-md;
+
+  &--embedded {
+    margin: 0 0 12px;
+    max-width: 100%;
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 10px;
+    box-shadow: none;
+  }
 }
 
 .material-intel-panel__head {
@@ -114,6 +130,12 @@ async function copyJson() {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  overflow-x: auto;
+  min-width: 0;
+}
+
+.material-intel-panel--embedded .material-intel-panel__title {
+  font-size: 14px;
 }
 
 .material-intel-panel__footer {

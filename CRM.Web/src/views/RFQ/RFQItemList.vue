@@ -730,7 +730,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, reactive, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { computed, ref, reactive, onMounted, onUnmounted, onBeforeUnmount, nextTick, watch, inject } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -754,6 +754,10 @@ import {
   consumeRfqItemListRestoreState,
   saveRfqItemListRestoreState
 } from '@/utils/rfqItemListRestore'
+import { resolveRfqItemMaterialPn } from '@/utils/materialPn'
+import { useMaterialIntelLookupStore } from '@/stores/materialIntelLookup'
+import { AI_PERMISSION_MATERIAL_INTEL_LOOKUP } from '@/api/ai'
+import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import {
   effectiveRfqItemLineStatus,
   rfqItemStatusTagType,
@@ -774,6 +778,8 @@ const router = useRouter()
 const route = useRoute()
 const { t, locale } = useI18n()
 const authStore = useAuthStore()
+const workspaceLayout = inject(WorkspaceLayoutKey, null)
+const materialIntelLookupStore = useMaterialIntelLookupStore()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const {
@@ -1847,6 +1853,15 @@ function onItemRowClick(row: RFQItem) {
   selectedRfqItem.value = row
   void loadQuotesForRfqItem(row)
   void refreshDockLinkAlert(row)
+
+  const pn = resolveRfqItemMaterialPn(row)
+  materialIntelLookupStore.bindPn(pn)
+  if (pn && authStore.hasPermission(AI_PERMISSION_MATERIAL_INTEL_LOOKUP)) {
+    void materialIntelLookupStore.ensureLookup(pn)
+  }
+  if (workspaceLayout && !workspaceLayout.rightPanelVisible.value) {
+    workspaceLayout.toggleRightPanel(true)
+  }
 }
 
 function goDetail(row: RFQItem) {
@@ -1991,6 +2006,10 @@ onMounted(async () => {
     if (route.name !== 'RFQItemList' || loading.value) return
     void loadData()
   }, RFQ_ITEM_LIST_AUTO_REFRESH_MS)
+})
+
+onBeforeUnmount(() => {
+  materialIntelLookupStore.clearBound()
 })
 
 onUnmounted(() => {

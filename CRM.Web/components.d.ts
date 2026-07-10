@@ -127,6 +127,7 @@ declare module 'vue' {
     RecentHistoryList: typeof import('./src/components/workspace/RecentHistoryList.vue')['default']
     RegionCascaderWithQuickPick: typeof import('./src/components/RegionCascaderWithQuickPick.vue')['default']
     RFQFavoritePanel: typeof import('./src/components/RFQ/RFQFavoritePanel.vue')['default']
+    RfqItemMaterialPanel: typeof import('./src/components/RFQ/RfqItemMaterialPanel.vue')['default']
     RFQItemSearchPanel: typeof import('./src/components/RFQ/RFQItemSearchPanel.vue')['default']
     RFQRecentHistoryPanel: typeof import('./src/components/RFQ/RFQRecentHistoryPanel.vue')['default']
     RFQSearchPanel: typeof import('./src/components/RFQ/RFQSearchPanel.vue')['default']
