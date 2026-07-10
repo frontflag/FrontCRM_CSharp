@@ -3974,6 +3974,29 @@ const zhCN = {
       notifyArrival: '通知到货',
       applyPayment: '申请付款'
     },
+    opsPanel: {
+      title: '采购订单明细',
+      close: '收起',
+      pickRow: '单击列表行查看概况与操作入口',
+      overviewTitle: '订单明细',
+      arrivalTitle: '到货通知',
+      paymentTitle: '申请付款',
+      completed: '已完成',
+      notifiedQty: '已通知数量',
+      notifyAvailableQty: '可通知数量',
+      requestedAmount: '已申请金额',
+      availableAmount: '可申请金额',
+      arrivalNeedConfirmed: '当前明细尚未供应商确认，暂不可通知到货。',
+      arrivalNextConfirmed: '下一步：等待采购明细状态变为「已确认」后再通知到货。',
+      arrivalNoRemaining: '本明细到货通知数量已满，无可通知余量。',
+      arrivalNextNoRemaining: '下一步：到货通知已全部完成，无需再创建通知。',
+      paymentNeedConfirmed: '当前明细尚未供应商确认，暂不可申请付款。',
+      paymentNextConfirmed: '下一步：等待采购明细状态变为「已确认」后再申请付款。',
+      paymentNotEligible: '当前不满足申请付款条件（可能已有在途请款或主单状态限制）。',
+      paymentNextNotEligible: '下一步：确认无在途请款单且明细/主单均已供应商确认。',
+      paymentNoRemaining: '本明细请款金额已满，无可申请余量。',
+      paymentNextNoRemaining: '下一步：请款申请已全部完成，无需再申请付款。'
+    },
     columnSettings: '列设置',
     paymentDialog: {
       title: '申请付款窗口',
@@ -4071,7 +4094,8 @@ const zhCN = {
       fillRequestAmount: '请填写本次请款金额，且必须大于0',
       paymentNoId: '创建请款单成功，但未获取到单据ID',
       paymentSubmitted: '请款单已提交审批',
-      paymentSubmitFailed: '提交审批失败，请稍后重试'
+      paymentSubmitFailed: '提交审批失败，请稍后重试',
+      loadLineFailed: '加载明细失败'
     }
   },
   arrivalNoticeList: {

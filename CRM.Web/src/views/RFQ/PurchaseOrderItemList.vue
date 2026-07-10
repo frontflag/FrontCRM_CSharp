@@ -196,7 +196,9 @@
       :data="tableRows"
       v-loading="loading"
       row-key="purchaseOrderItemId"
+      :row-class-name="opsPanelRowClassName"
       @selection-change="onSelectionChange"
+      @row-click="onRowClick"
       @row-dblclick="onPurchaseOrderItemRowDblClick"
     >
       <template #col-purchaseOrderItemCode="{ row }">
@@ -352,232 +354,6 @@
         @current-change="onPageChange"
         @size-change="onPageSizeChange"
       />
-    </div>
-
-    <div v-if="poItemLinePanel.visible && !maskPurchaseSensitiveFields" class="so-item-line-detail-panel">
-      <div class="so-item-line-detail-panel__head">
-        <span class="so-item-line-detail-panel__title">{{ t('purchaseOrderItemList.lineDetailPanel.title') }}</span>
-        <span class="so-item-line-detail-panel__code panel-hint__value">{{ poItemLinePanel.purchaseOrderItemCode || '—' }}</span>
-        <button type="button" class="so-item-line-detail-panel__close" @click="closePoItemLinePanel">
-          {{ t('purchaseOrderItemList.lineDetailPanel.close') }}
-        </button>
-      </div>
-      <el-alert
-        v-if="poItemLinePanel.loadError"
-        type="error"
-        :closable="false"
-        :title="poItemLinePanel.loadError"
-        class="so-item-line-detail-panel__alert"
-        show-icon
-      />
-      <div v-loading="poItemLinePanel.loading" class="so-item-line-detail-panel__body so-item-line-detail-panel__body--tabbed">
-        <div class="tabs-section so-item-line-detail-tabs-section">
-          <div class="tabs-nav">
-            <button
-              type="button"
-              class="tab-btn"
-              :class="{ 'tab-btn--active': poItemLinePanel.activeTab === 'requisitions' }"
-              @click="poItemLinePanel.activeTab = 'requisitions'"
-            >
-              采购申请
-            </button>
-            <button
-              type="button"
-              class="tab-btn"
-              :class="{ 'tab-btn--active': poItemLinePanel.activeTab === 'payments' }"
-              @click="poItemLinePanel.activeTab = 'payments'"
-            >
-              付款
-            </button>
-            <button
-              type="button"
-              class="tab-btn"
-              :class="{ 'tab-btn--active': poItemLinePanel.activeTab === 'arrivals' }"
-              @click="poItemLinePanel.activeTab = 'arrivals'"
-            >
-              到货通知
-            </button>
-            <button
-              type="button"
-              class="tab-btn"
-              :class="{ 'tab-btn--active': poItemLinePanel.activeTab === 'stockIns' }"
-              @click="poItemLinePanel.activeTab = 'stockIns'"
-            >
-              入库
-            </button>
-            <button
-              type="button"
-              class="tab-btn"
-              :class="{ 'tab-btn--active': poItemLinePanel.activeTab === 'stocks' }"
-              @click="poItemLinePanel.activeTab = 'stocks'"
-            >
-              库存
-            </button>
-            <button
-              type="button"
-              class="tab-btn"
-              :class="{ 'tab-btn--active': poItemLinePanel.activeTab === 'purchaseInvoices' }"
-              @click="poItemLinePanel.activeTab = 'purchaseInvoices'"
-            >
-              进项发票
-            </button>
-            <button
-              type="button"
-              class="tab-btn"
-              :class="{ 'tab-btn--active': poItemLinePanel.activeTab === 'qcImages' }"
-              @click="poItemLinePanel.activeTab = 'qcImages'"
-            >
-              {{ t('purchaseOrderItemList.lineDetailPanel.qcImages') }}
-            </button>
-          </div>
-          <div class="tabs-body">
-            <div v-show="poItemLinePanel.activeTab === 'requisitions'" class="po-aggregate-table-wrap">
-              <el-table
-                v-if="(lineTabAggregates?.purchaseRequisitions?.length ?? 0) > 0"
-                :data="lineTabAggregates?.purchaseRequisitions ?? []"
-                size="small"
-                stripe
-              >
-                <el-table-column type="index" width="50" label="#" />
-                <el-table-column label="申请单号" min-width="180">
-                  <template #default="{ row }">
-                    <router-link class="po-tab-link" :to="`/purchase-requisitions/${row.id}`">{{ row.billCode }}</router-link>
-                  </template>
-                </el-table-column>
-                <el-table-column label="状态" width="100">
-                  <template #default="{ row }">{{ poDetailPrStatusText(row?.status) }}</template>
-                </el-table-column>
-                <el-table-column label="销售订单号" min-width="140" show-overflow-tooltip>
-                  <template #default="{ row }">
-                    <router-link
-                      v-if="row.sellOrderId && row.sellOrderCode"
-                      class="po-tab-link"
-                      :to="`/sales-orders/${row.sellOrderId}`"
-                    >
-                      {{ row.sellOrderCode }}
-                    </router-link>
-                    <span v-else-if="row.sellOrderCode">{{ row.sellOrderCode }}</span>
-                    <span v-else>—</span>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="salesUserName" label="业务员" width="120" show-overflow-tooltip>
-                  <template #default="{ row }">{{ row.salesUserName?.trim() || '—' }}</template>
-                </el-table-column>
-                <el-table-column prop="pn" label="PN" min-width="140" show-overflow-tooltip />
-                <el-table-column prop="brand" label="品牌" width="120" show-overflow-tooltip />
-                <el-table-column prop="qty" label="数量" width="100" align="right" />
-                <el-table-column label="预计采购" width="160">
-                  <template #default="{ row }">{{ poAggFormatDt(row?.expectedPurchaseTime) }}</template>
-                </el-table-column>
-              </el-table>
-              <el-empty v-else :description="t('purchaseOrderItemList.lineDetailPanel.empty')" :image-size="64" />
-            </div>
-            <div v-show="poItemLinePanel.activeTab === 'payments'" class="po-aggregate-table-wrap">
-              <el-table v-if="(lineTabAggregates?.payments?.length ?? 0) > 0" :data="lineTabAggregates?.payments ?? []" size="small" stripe>
-                <el-table-column type="index" width="50" label="#" />
-                <el-table-column label="付款单号" min-width="180">
-                  <template #default="{ row }">
-                    <router-link class="po-tab-link" :to="`/finance/payments/${row.id}`">{{ row.financePaymentCode }}</router-link>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="vendorName" label="供应商" min-width="160" show-overflow-tooltip />
-                <el-table-column label="状态" width="110">
-                  <template #default="{ row }">{{ poDetailPaymentStatusText(row?.status) }}</template>
-                </el-table-column>
-                <el-table-column v-if="canViewAmount" label="待付金额" width="130" align="right">
-                  <template #default="{ row }">{{ formatTotalAmountNumber(row?.paymentAmountToBe) }}</template>
-                </el-table-column>
-                <el-table-column v-if="canViewAmount" label="已付金额" width="130" align="right">
-                  <template #default="{ row }">{{ formatTotalAmountNumber(row?.paymentAmount) }}</template>
-                </el-table-column>
-                <el-table-column label="付款日期" width="160">
-                  <template #default="{ row }">{{ poAggFormatDt(row?.paymentDate) }}</template>
-                </el-table-column>
-              </el-table>
-              <el-empty v-else :description="t('purchaseOrderItemList.lineDetailPanel.empty')" :image-size="64" />
-            </div>
-            <div v-show="poItemLinePanel.activeTab === 'arrivals'" class="po-aggregate-table-wrap">
-              <el-table v-if="(lineTabAggregates?.arrivalNotices?.length ?? 0) > 0" :data="lineTabAggregates?.arrivalNotices ?? []" size="small" stripe>
-                <el-table-column type="index" width="50" label="#" />
-                <el-table-column prop="noticeCode" label="通知单号" min-width="180" show-overflow-tooltip />
-                <el-table-column prop="pn" label="PN" min-width="140" show-overflow-tooltip />
-                <el-table-column prop="brand" label="品牌" width="120" show-overflow-tooltip />
-                <el-table-column prop="expectQty" label="预计数量" width="100" align="right" />
-                <el-table-column prop="receiveQty" label="已收数量" width="100" align="right" />
-                <el-table-column label="状态" width="120">
-                  <template #default="{ row }">{{ poDetailArrivalStatusText(row?.status) }}</template>
-                </el-table-column>
-              </el-table>
-              <el-empty v-else :description="t('purchaseOrderItemList.lineDetailPanel.empty')" :image-size="64" />
-            </div>
-            <div v-show="poItemLinePanel.activeTab === 'stockIns'" class="po-aggregate-table-wrap">
-              <el-table v-if="(lineTabAggregates?.stockIns?.length ?? 0) > 0" :data="lineTabAggregates?.stockIns ?? []" size="small" stripe>
-                <el-table-column type="index" width="50" label="#" />
-                <el-table-column label="入库单号" min-width="180">
-                  <template #default="{ row }">
-                    <router-link class="po-tab-link" :to="`/inventory/stock-in/${row.id}`">{{ row.stockInCode }}</router-link>
-                  </template>
-                </el-table-column>
-                <el-table-column label="类型" width="100">
-                  <template #default="{ row }">
-                    <StockBizTypeTag biz="in" :type="row?.stockInType" />
-                  </template>
-                </el-table-column>
-                <el-table-column label="状态" width="100">
-                  <template #default="{ row }">{{ poDetailStockInStatusText(row?.status) }}</template>
-                </el-table-column>
-                <el-table-column label="入库日期" width="160">
-                  <template #default="{ row }">{{ poAggFormatDt(row?.stockInDate) }}</template>
-                </el-table-column>
-              </el-table>
-              <el-empty v-else :description="t('purchaseOrderItemList.lineDetailPanel.empty')" :image-size="64" />
-            </div>
-            <div v-show="poItemLinePanel.activeTab === 'stocks'" class="po-aggregate-table-wrap">
-              <el-table v-if="(lineTabAggregates?.stockItems?.length ?? 0) > 0" :data="lineTabAggregates?.stockItems ?? []" size="small" stripe>
-                <el-table-column type="index" width="50" label="#" />
-                <el-table-column label="在库明细" min-width="200">
-                  <template #default="{ row }">
-                    <router-link class="po-tab-link" :to="`/inventory/stocks/${row.stockAggregateId}`">{{ row.stockItemCode || row.id }}</router-link>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="purchaseOrderItemCode" label="采购明细号" min-width="140" show-overflow-tooltip />
-                <el-table-column prop="purchasePn" label="PN" min-width="140" show-overflow-tooltip />
-                <el-table-column prop="purchaseBrand" label="品牌" width="120" show-overflow-tooltip />
-                <el-table-column prop="qtyRepertory" label="现存量" width="100" align="right" />
-                <el-table-column prop="qtyRepertoryAvailable" label="可用量" width="100" align="right" />
-              </el-table>
-              <el-empty v-else :description="t('purchaseOrderItemList.lineDetailPanel.empty')" :image-size="64" />
-            </div>
-            <div v-show="poItemLinePanel.activeTab === 'purchaseInvoices'" class="po-aggregate-table-wrap">
-              <el-table v-if="(lineTabAggregates?.purchaseInvoices?.length ?? 0) > 0" :data="lineTabAggregates?.purchaseInvoices ?? []" size="small" stripe>
-                <el-table-column type="index" width="50" label="#" />
-                <el-table-column label="进项发票" min-width="180">
-                  <template #default="{ row }">
-                    <router-link class="po-tab-link" :to="`/finance/purchase-invoices/${row.id}`">{{ row.invoiceNo || row.id }}</router-link>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="vendorName" label="供应商" min-width="160" show-overflow-tooltip />
-                <el-table-column v-if="canViewAmount" label="发票金额" width="120" align="right">
-                  <template #default="{ row }">{{ formatTotalAmountNumber(row?.invoiceAmount) }}</template>
-                </el-table-column>
-                <el-table-column label="认证状态" width="100">
-                  <template #default="{ row }">{{ Number(row?.confirmStatus) === 1 ? '已认证' : '未认证' }}</template>
-                </el-table-column>
-                <el-table-column label="开票日期" width="160">
-                  <template #default="{ row }">{{ poAggFormatDt(row?.invoiceDate) }}</template>
-                </el-table-column>
-              </el-table>
-              <el-empty v-else :description="t('purchaseOrderItemList.lineDetailPanel.empty')" :image-size="64" />
-            </div>
-            <div v-show="poItemLinePanel.activeTab === 'qcImages'" class="po-aggregate-table-wrap po-qc-images-wrap">
-              <QcImagesReadonlyGallery
-                :images="lineTabAggregates?.qcImages ?? []"
-                :empty-text="t('purchaseOrderItemList.lineDetailPanel.emptyQcImages')"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
 
     <el-dialog
@@ -924,12 +700,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, inject, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { Setting } from '@element-plus/icons-vue'
-import { purchaseOrderApi, type PurchaseOrderDetailTabAggregates } from '@/api/purchaseOrder'
+import { purchaseOrderApi } from '@/api/purchaseOrder'
 import { financePaymentApi } from '@/api/finance'
 import { logisticsApi } from '@/api/logistics'
 import { ElMessage } from 'element-plus'
@@ -950,48 +726,33 @@ import VendorNameReadonlyField from '@/components/Vendor/VendorNameReadonlyField
 import ShipmentExpressFields from '@/components/Logistics/ShipmentExpressFields.vue'
 import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
 import { CurrencyCode } from '@/constants/currency'
-import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
+import { usePurchaseOrderItemOpsPanelStore } from '@/stores/purchaseOrderItemOpsPanel'
 import { vendorBankApi } from '@/api/vendor'
 import { filterEnabledVendorBanks, resolveVendorDefaultBankId } from '@/utils/vendorFinancePaymentBank'
 import {
   buildPurchaseArrivalNoticeLineRow,
   formatArrivalNoticeQty
 } from '@/utils/purchaseArrivalNoticeLine'
-import QcImagesReadonlyGallery from '@/components/Logistics/QcImagesReadonlyGallery.vue'
 
 const router = useRouter()
 const route = useRoute()
 const { t, locale } = useI18n()
 const authStore = useAuthStore()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
+const workspaceLayout = inject(WorkspaceLayoutKey, null)
+const purchaseOrderItemOpsStore = usePurchaseOrderItemOpsPanelStore()
 
-const lineTabAggregates = ref<PurchaseOrderDetailTabAggregates | null>(null)
-const poItemLinePanel = reactive({
-  visible: false,
-  purchaseOrderItemId: '',
-  purchaseOrderItemCode: '',
-  activeTab: 'requisitions' as
-    | 'requisitions'
-    | 'payments'
-    | 'arrivals'
-    | 'stockIns'
-    | 'stocks'
-    | 'purchaseInvoices'
-    | 'qcImages',
-  loading: false,
-  loadError: ''
-})
-
-function closePoItemLinePanel() {
-  poItemLinePanel.visible = false
-  poItemLinePanel.loadError = ''
-  lineTabAggregates.value = null
-}
-
-watch(maskPurchaseSensitiveFields, (m) => {
-  if (m) closePoItemLinePanel()
-})
+/** 与采购订单列表/详情一致：脱敏时不得展示供应商检索与列 */
+const canViewVendor = computed(
+  () =>
+    !maskPurchaseSensitiveFields.value &&
+    (authStore.hasPermission('vendor.info.read') ||
+      authStore.hasPermission('vendor.read') ||
+      authStore.hasPermission('purchase-order.read') ||
+      authStore.hasPermission('purchase-order.write'))
+)
 
 async function onPurchaseOrderItemRowDblClick(row: Record<string, unknown>) {
   if (maskPurchaseSensitiveFields.value) return
@@ -1005,48 +766,53 @@ async function onPurchaseOrderItemRowDblClick(row: Record<string, unknown>) {
   })
 }
 
-function poAggFormatDt(v?: string | null) {
-  if (!v) return '—'
-  const s = formatDisplayDateTime(v)
-  return s === '--' ? '—' : s
+async function refreshOpsPanelIfOpen() {
+  if (!purchaseOrderItemOpsStore.row) return
+  const panelVisible = workspaceLayout?.rightPanelVisible.value ?? false
+  await purchaseOrderItemOpsStore.refreshFromListRows(
+    tableRows.value,
+    t('purchaseOrderItemList.messages.loadLineFailed'),
+    panelVisible
+  )
 }
 
-function poDetailPrStatusText(v?: number) {
-  const map: Record<number, string> = { 0: '新建', 1: '部分完成', 2: '全部完成', 3: '已取消' }
-  return map[Number(v)] ?? '—'
+function isRightPanelVisible() {
+  return workspaceLayout?.rightPanelVisible.value ?? false
 }
 
-function poDetailPaymentStatusText(v?: number) {
-  const map: Record<number, string> = {
-    1: '新建',
-    2: '待审核',
-    10: '审核通过',
-    100: '付款完成',
-    [-1]: '审核失败',
-    [-2]: '已取消'
+async function onRowClick(row: Record<string, unknown>) {
+  if (maskPurchaseSensitiveFields.value) return
+  workspaceLayout?.setRightActiveTab('r-ops')
+
+  if (isRightPanelVisible()) {
+    await purchaseOrderItemOpsStore.selectRow(row, t('purchaseOrderItemList.messages.loadLineFailed'))
+    return
   }
-  return map[Number(v)] ?? '—'
+
+  purchaseOrderItemOpsStore.setRowOnly(row)
+  workspaceLayout?.toggleRightPanel(true)
 }
 
-function poDetailArrivalStatusText(v?: number) {
-  const map: Record<number, string> = { 10: '未到货', 20: '到货待检', 30: '已质检', 100: '已入库', 1: '新建' }
-  return map[Number(v)] ?? '—'
+function opsPanelRowClassName({ row }: { row: Record<string, unknown> }) {
+  if (!purchaseOrderItemOpsStore.row) return ''
+  return purchaseOrderItemOpsStore.rowKey(row) === purchaseOrderItemOpsStore.rowKey(purchaseOrderItemOpsStore.row)
+    ? 'so-item-row--active'
+    : ''
 }
 
-function poDetailStockInStatusText(v?: number) {
-  const map: Record<number, string> = { 0: '草稿', 1: '待入库', 2: '已入库', 3: '已取消' }
-  return map[Number(v)] ?? '—'
-}
+watch(maskPurchaseSensitiveFields, (masked) => {
+  if (masked) purchaseOrderItemOpsStore.clear()
+})
 
-/** 与采购订单列表/详情一致：脱敏时不得展示供应商检索与列 */
-const canViewVendor = computed(
-  () =>
-    !maskPurchaseSensitiveFields.value &&
-    (authStore.hasPermission('vendor.info.read') ||
-      authStore.hasPermission('vendor.read') ||
-      authStore.hasPermission('purchase-order.read') ||
-      authStore.hasPermission('purchase-order.write'))
+watch(
+  () => workspaceLayout?.rightPanelVisible.value,
+  (visible, wasVisible) => {
+    if (route.name !== 'PurchaseOrderItemList') return
+    if (!visible || wasVisible || !purchaseOrderItemOpsStore.row) return
+    void purchaseOrderItemOpsStore.loadAggregates(t('purchaseOrderItemList.messages.loadLineFailed'))
+  }
 )
+
 const canViewPurchaseUser = computed(() => authStore.hasPermission('purchase.user.read') || authStore.hasPermission('purchase-order.read'))
 const canViewAmount = computed(
   () => !maskPurchaseSensitiveFields.value && authStore.hasPermission('purchase.amount.read')
@@ -1524,7 +1290,6 @@ function onSelectionChange(rows: any[]) {
 }
 
 async function loadList() {
-  closePoItemLinePanel()
   loading.value = true
   try {
     const params: {
@@ -1585,6 +1350,7 @@ async function loadList() {
     total.value = nTotal
     if (typeof data.page === 'number' && data.page >= 1) page.value = data.page
     clearTableSelection()
+    await refreshOpsPanelIfOpen()
   } catch (e: any) {
     // eslint-disable-next-line no-console
     console.error(e)
@@ -1626,11 +1392,24 @@ function goDetail(row: any) {
 }
 
 onMounted(() => {
+  purchaseOrderItemOpsStore.registerHandlers({
+    applyArrival: (row) => {
+      void openArrivalDialog(row)
+    },
+    applyPayment: (row) => {
+      void openPaymentDialog(row)
+    }
+  })
   const qpn = route.query.pn
   if (typeof qpn === 'string' && qpn.trim()) {
     filters.pn = qpn.trim()
   }
   void loadList()
+})
+
+onBeforeUnmount(() => {
+  purchaseOrderItemOpsStore.unregisterHandlers()
+  purchaseOrderItemOpsStore.clear()
 })
 </script>
 

@@ -1209,6 +1209,21 @@
             @apply-purchase="salesOrderItemOpsStore.runApplyPurchase()"
             @apply-stock-out="salesOrderItemOpsStore.runApplyStockOut()"
           />
+          <PurchaseOrderItemOpsPanel
+            v-show="showPurchaseOrderItemOpsPanel"
+            embedded
+            :row="purchaseOrderItemOpsStore.row"
+            :aggregates="purchaseOrderItemOpsStore.aggregates"
+            :loading="purchaseOrderItemOpsStore.loading"
+            :load-error="purchaseOrderItemOpsStore.loadError"
+            :mask-sensitive="maskPurchaseSensitiveFields"
+            :can-create-arrival-notice="canPurchaseOrderItemOpsArrival"
+            :can-initiate-payment="canPurchaseOrderItemOpsPayment"
+            class="aux-panel-tab-body"
+            @clear="purchaseOrderItemOpsStore.clear()"
+            @apply-arrival="purchaseOrderItemOpsStore.runApplyArrival()"
+            @apply-payment="purchaseOrderItemOpsStore.runApplyPayment()"
+          />
           <HelpManualPanel v-show="rightActiveTabId === 'r4'" class="aux-panel-tab-body" />
         </div>
       </aside>
@@ -1250,7 +1265,10 @@ import PurchaseOrderFavoritePanel from '@/components/purchaseOrder/PurchaseOrder
 import PurchaseOrderRecentHistoryPanel from '@/components/purchaseOrder/PurchaseOrderRecentHistoryPanel.vue'
 import HelpManualPanel from '@/components/workspace/HelpManualPanel.vue'
 import SalesOrderItemOpsPanel from '@/components/RFQ/SalesOrderItemOpsPanel.vue'
+import PurchaseOrderItemOpsPanel from '@/components/RFQ/PurchaseOrderItemOpsPanel.vue'
 import { useSalesOrderItemOpsPanelStore } from '@/stores/salesOrderItemOpsPanel'
+import { usePurchaseOrderItemOpsPanelStore } from '@/stores/purchaseOrderItemOpsPanel'
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleOrderWriteGate } from '@/composables/useDepartmentDataReadOnly'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { Sunny, Moon } from '@element-plus/icons-vue'
@@ -1275,7 +1293,9 @@ const simulationTopBarStyle = computed(() => {
 const { isDark, toggleTheme } = useUiTheme()
 const { t, locale } = useI18n()
 const salesOrderItemOpsStore = useSalesOrderItemOpsPanelStore()
+const purchaseOrderItemOpsStore = usePurchaseOrderItemOpsPanelStore()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { canWriteSo: canSalesOrderItemOpsWriteSo } = useSaleOrderWriteGate()
 const canSalesOrderItemOpsPurchase = computed(
   () =>
@@ -1515,24 +1535,39 @@ const showPurchaseOrderRecentHistoryPanel = computed(
 )
 
 const isSalesOrderItemListRoute = computed(() => route.name === 'SalesOrderItemList')
+const isPurchaseOrderItemListRoute = computed(() => route.name === 'PurchaseOrderItemList')
 
 const showSalesOrderItemOpsPanel = computed(
   () => rightActiveTabId.value === 'r-ops' && isSalesOrderItemListRoute.value
 )
 
+const showPurchaseOrderItemOpsPanel = computed(
+  () => rightActiveTabId.value === 'r-ops' && isPurchaseOrderItemListRoute.value
+)
+
+const canPurchaseOrderItemOpsArrival = computed(() => authStore.hasPermission('purchase-order.read'))
+
+const canPurchaseOrderItemOpsPayment = computed(
+  () =>
+    authStore.hasPermission('finance-payment.write') || authStore.hasPermission('purchase-order.write')
+)
+
 watch(
   () => route.name,
   (name) => {
-    if (name === 'SalesOrderItemList') {
+    if (name === 'SalesOrderItemList' || name === 'PurchaseOrderItemList') {
       rightTabs.value = [
         { id: 'r-ops', labelKey: 'layout.auxTabs.ops' },
         { id: 'r4', labelKey: 'layout.auxTabs.help' }
       ]
+      if (name === 'SalesOrderItemList') purchaseOrderItemOpsStore.clear()
+      if (name === 'PurchaseOrderItemList') salesOrderItemOpsStore.clear()
       return
     }
     rightTabs.value = [{ id: 'r4', labelKey: 'layout.auxTabs.help' }]
     rightActiveTabId.value = 'r4'
     salesOrderItemOpsStore.clear()
+    purchaseOrderItemOpsStore.clear()
   },
   { immediate: true }
 )

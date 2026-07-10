@@ -3986,6 +3986,29 @@ const enUS = {
       notifyArrival: 'Notify arrival',
       applyPayment: 'Request payment'
     },
+    opsPanel: {
+      title: 'Purchase order line',
+      close: 'Close',
+      pickRow: 'Click a list row to view overview and actions',
+      overviewTitle: 'Order line',
+      arrivalTitle: 'Arrival notice',
+      paymentTitle: 'Payment request',
+      completed: 'Completed',
+      notifiedQty: 'Notified qty',
+      notifyAvailableQty: 'Available to notify',
+      requestedAmount: 'Requested amount',
+      availableAmount: 'Available to request',
+      arrivalNeedConfirmed: 'Line is not supplier-confirmed yet; arrival notice is not available.',
+      arrivalNextConfirmed: 'Next: wait until the line status is Confirmed before notifying arrival.',
+      arrivalNoRemaining: 'Arrival notice quantity is fully allocated; nothing left to notify.',
+      arrivalNextNoRemaining: 'Next: arrival notices are complete; no further notice is needed.',
+      paymentNeedConfirmed: 'Line is not supplier-confirmed yet; payment request is not available.',
+      paymentNextConfirmed: 'Next: wait until the line status is Confirmed before requesting payment.',
+      paymentNotEligible: 'Payment request is not allowed (open request or header/line status may block it).',
+      paymentNextNotEligible: 'Next: ensure no open payment request and line/header are supplier-confirmed.',
+      paymentNoRemaining: 'Payment request amount is fully allocated; nothing left to request.',
+      paymentNextNoRemaining: 'Next: payment requests are complete; no further request is needed.'
+    },
     columnSettings: 'Column settings',
     paymentDialog: {
       title: 'Request payment',
@@ -4084,7 +4107,8 @@ const enUS = {
       fillRequestAmount: 'Enter a payment amount greater than 0.',
       paymentNoId: 'Payment request created but no document ID was returned.',
       paymentSubmitted: 'Payment request submitted for approval.',
-      paymentSubmitFailed: 'Submit failed. Please try again.'
+      paymentSubmitFailed: 'Submit failed. Please try again.',
+      loadLineFailed: 'Failed to load line details'
     }
   },
   arrivalNoticeList: {
