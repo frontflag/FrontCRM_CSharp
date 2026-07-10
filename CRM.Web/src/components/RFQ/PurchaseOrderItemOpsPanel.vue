@@ -70,48 +70,6 @@
 
       <section class="ops-card">
         <header class="ops-card__head">
-          <h3 class="ops-card__title">{{ t('purchaseOrderItemList.opsPanel.arrivalTitle') }}</h3>
-          <span v-if="arrivalCompleted" class="ops-card__done">
-            <el-icon class="ops-card__done-icon" aria-hidden="true"><CircleCheck /></el-icon>
-            {{ t('purchaseOrderItemList.opsPanel.completed') }}
-          </span>
-        </header>
-        <div class="ops-card__body">
-          <div class="ops-metrics">
-            <div class="ops-metrics__item">
-              <span class="ops-metrics__label">{{ t('purchaseOrderItemList.opsPanel.notifiedQty') }}</span>
-              <span class="ops-metrics__value">{{ formatQty(arrivalNotifiedQty) }}</span>
-            </div>
-            <div class="ops-metrics__item">
-              <span class="ops-metrics__label">{{ t('purchaseOrderItemList.opsPanel.notifyAvailableQty') }}</span>
-              <span class="ops-metrics__value">{{ formatQty(arrivalAvailableQty) }}</span>
-            </div>
-          </div>
-          <p v-if="arrivalDisabledHint && !arrivalCompleted" class="ops-status ops-status--warn">{{ arrivalDisabledHint.summary }}</p>
-          <div class="ops-progress">
-            <div class="ops-progress__track">
-              <div class="ops-progress__bar ops-progress__bar--arrival" :style="{ width: `${arrivalProgressPct}%` }" />
-            </div>
-          </div>
-          <ul v-if="arrivalDisabledHint?.details.length && !arrivalCompleted" class="ops-hint-list">
-            <li v-for="(line, idx) in arrivalDisabledHint.details" :key="`a-${idx}`">{{ line }}</li>
-          </ul>
-          <p v-if="arrivalDisabledHint && !arrivalCompleted" class="ops-next-step">{{ arrivalDisabledHint.nextStep }}</p>
-          <button
-            v-if="canCreateArrivalNotice && !arrivalCompleted"
-            type="button"
-            class="ops-action-btn"
-            :class="arrivalBtnDisabled ? 'ops-action-btn--disabled' : 'ops-action-btn--primary'"
-            :disabled="arrivalBtnDisabled"
-            @click="emit('apply-arrival')"
-          >
-            {{ t('purchaseOrderItemList.actions.notifyArrival') }}
-          </button>
-        </div>
-      </section>
-
-      <section class="ops-card">
-        <header class="ops-card__head">
           <h3 class="ops-card__title">{{ t('purchaseOrderItemList.opsPanel.paymentTitle') }}</h3>
           <span v-if="paymentCompleted" class="ops-card__done">
             <el-icon class="ops-card__done-icon" aria-hidden="true"><CircleCheck /></el-icon>
@@ -164,6 +122,48 @@
             @click="emit('apply-payment')"
           >
             {{ t('purchaseOrderItemList.actions.applyPayment') }}
+          </button>
+        </div>
+      </section>
+
+      <section class="ops-card">
+        <header class="ops-card__head">
+          <h3 class="ops-card__title">{{ t('purchaseOrderItemList.opsPanel.arrivalTitle') }}</h3>
+          <span v-if="arrivalCompleted" class="ops-card__done">
+            <el-icon class="ops-card__done-icon" aria-hidden="true"><CircleCheck /></el-icon>
+            {{ t('purchaseOrderItemList.opsPanel.completed') }}
+          </span>
+        </header>
+        <div class="ops-card__body">
+          <div class="ops-metrics">
+            <div class="ops-metrics__item">
+              <span class="ops-metrics__label">{{ t('purchaseOrderItemList.opsPanel.notifiedQty') }}</span>
+              <span class="ops-metrics__value">{{ formatQty(arrivalNotifiedQty) }}</span>
+            </div>
+            <div class="ops-metrics__item">
+              <span class="ops-metrics__label">{{ t('purchaseOrderItemList.opsPanel.notifyAvailableQty') }}</span>
+              <span class="ops-metrics__value">{{ formatQty(arrivalAvailableQty) }}</span>
+            </div>
+          </div>
+          <p v-if="arrivalDisabledHint && !arrivalCompleted" class="ops-status ops-status--warn">{{ arrivalDisabledHint.summary }}</p>
+          <div class="ops-progress">
+            <div class="ops-progress__track">
+              <div class="ops-progress__bar ops-progress__bar--arrival" :style="{ width: `${arrivalProgressPct}%` }" />
+            </div>
+          </div>
+          <ul v-if="arrivalDisabledHint?.details.length && !arrivalCompleted" class="ops-hint-list">
+            <li v-for="(line, idx) in arrivalDisabledHint.details" :key="`a-${idx}`">{{ line }}</li>
+          </ul>
+          <p v-if="arrivalDisabledHint && !arrivalCompleted" class="ops-next-step">{{ arrivalDisabledHint.nextStep }}</p>
+          <button
+            v-if="canCreateArrivalNotice && !arrivalCompleted"
+            type="button"
+            class="ops-action-btn"
+            :class="arrivalBtnDisabled ? 'ops-action-btn--disabled' : 'ops-action-btn--primary'"
+            :disabled="arrivalBtnDisabled"
+            @click="emit('apply-arrival')"
+          >
+            {{ t('purchaseOrderItemList.actions.notifyArrival') }}
           </button>
         </div>
       </section>

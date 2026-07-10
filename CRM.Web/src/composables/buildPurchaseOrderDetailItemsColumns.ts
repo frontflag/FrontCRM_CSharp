@@ -32,8 +32,8 @@ export function buildPurchaseOrderDetailItemsColumns(
   }
   cols.push(
     { key: 'purchaseProgressStatus', label: '采购状态', width: 100, align: 'center' },
-    { key: 'stockInProgressStatus', label: '入库状态', width: 100, align: 'center' },
     { key: 'paymentProgressStatus', label: '付款状态', width: 100, align: 'center' },
+    { key: 'stockInProgressStatus', label: '入库状态', width: 100, align: 'center' },
     { key: 'invoiceProgressStatus', label: '开票状态', width: 100, align: 'center' },
     {
       key: 'purchaseProgressQty',

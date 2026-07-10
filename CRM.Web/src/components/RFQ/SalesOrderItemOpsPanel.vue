@@ -39,10 +39,7 @@
         </div>
       </section>
 
-      <section class="ops-card">
-        <header class="ops-card__head">
-          <h3 class="ops-card__title">{{ t('salesOrderItemList.opsPanel.statusTitle') }}</h3>
-        </header>
+      <section class="ops-card ops-card--status-only">
         <div class="ops-card__body ops-card__body--status">
           <div class="ops-status-tags">
             <div class="ops-status-tags__row">
@@ -561,6 +558,10 @@ function formatQty(v: number) {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.ops-card--status-only .ops-card__body--status {
+  padding-top: 10px;
 }
 
 .ops-card__body--status {
