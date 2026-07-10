@@ -231,6 +231,7 @@
               size="small"
               stripe
               class="items-table detail-panel-list-table"
+              @row-dblclick="onVendorContactRowDblClick"
             >
               <el-table-column prop="cName" :label="t('vendorDetail.contacts.name')" min-width="140" show-overflow-tooltip>
                 <template #default="{ row }">
@@ -344,6 +345,7 @@
               size="small"
               stripe
               class="items-table detail-panel-list-table"
+              @row-dblclick="onVendorAddressRowDblClick"
             >
               <el-table-column prop="addressType" :label="t('vendorDetail.addresses.type')" width="100">
                 <template #default="{ row }">
@@ -448,6 +450,7 @@
               size="small"
               stripe
               class="items-table detail-panel-list-table"
+              @row-dblclick="onVendorBankRowDblClick"
             >
               <el-table-column prop="accountName" :label="t('vendorDetail.banks.accountName')" min-width="160" show-overflow-tooltip>
                 <template #default="{ row }"><span class="cell-primary">{{ maskPurchaseSensitiveFields ? '—' : (row.accountName || '--') }}</span></template>
@@ -804,6 +807,7 @@ import { favoriteApi } from '@/api/favorite';
 import { VENDOR_FAVORITES_CHANGED_EVENT } from '@/constants/vendorFavorites';
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask';
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly';
+import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick';
 import { useFinancePaymentBankOptions } from '@/composables/useFinancePaymentBankOptions';
 import { vendorBankLabel } from '@/utils/vendorFinancePaymentBank';
 import AiEntityCreateHost from '@/components/AiCreate/AiEntityCreateHost.vue';
@@ -1458,6 +1462,27 @@ const openEditBank = (row: VendorBankInfo) => {
   editingBank.value = row;
   bankDialogVisible.value = true;
 };
+
+function onVendorContactRowDblClick(row: VendorContactInfo, _column: unknown, event?: MouseEvent) {
+  onCrmDetailListRowDblClick(row, _column, event, {
+    canEdit: canWritePurchaseData.value,
+    onEdit: goEditContact,
+  });
+}
+
+function onVendorAddressRowDblClick(row: VendorAddress, _column: unknown, event?: MouseEvent) {
+  onCrmDetailListRowDblClick(row, _column, event, {
+    canEdit: canWritePurchaseData.value,
+    onEdit: openEditAddress,
+  });
+}
+
+function onVendorBankRowDblClick(row: VendorBankInfo, _column: unknown, event?: MouseEvent) {
+  onCrmDetailListRowDblClick(row, _column, event, {
+    canEdit: canWritePurchaseData.value,
+    onEdit: openEditBank,
+  });
+}
 
 const handleBankDialogConfirm = async (payload: any) => {
   try {

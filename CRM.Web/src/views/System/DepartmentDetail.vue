@@ -127,6 +127,7 @@
               :header-cell-style="tableHeaderStyle"
               :cell-style="tableCellStyle"
               :row-style="tableRowStyle"
+              @row-dblclick="onDepartmentUserRowDblClick"
             >
               <el-table-column prop="userName" label="员工账号" min-width="120">
                 <template #default="{ row }"><span class="cell-primary">{{ row.userName }}</span></template>
@@ -212,6 +213,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { rbacAdminApi, type AdminUserDto, type RbacDepartment } from '@/api/rbacAdmin'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -327,6 +329,12 @@ watch(departmentId, load, { immediate: true })
 const goBack = () => router.push({ name: 'DepartmentList' })
 const handleEdit = () => router.push({ name: 'DepartmentEdit', params: { id: departmentId.value } })
 const goEditUser = (userId: string) => router.push({ name: 'UserEdit', params: { id: userId } })
+
+function onDepartmentUserRowDblClick(row: AdminUserDto, _column: unknown, event?: MouseEvent) {
+  onCrmDetailListRowDblClick(row, _column, event, {
+    onEdit: (r) => goEditUser(r.id),
+  })
+}
 
 function onHeaderMoreCommand(cmd: string) {
   if (cmd === 'delete') void handleDeleteClick()

@@ -57,6 +57,7 @@
             size="small"
             stripe
             class="items-table detail-panel-list-table"
+            @row-dblclick="onBatchRowDblClick"
           >
             <template #col-vendorName="{ row }">
               <vendor-name-readonly-text
@@ -232,6 +233,7 @@ import { useBatchReconciliationTableColumns } from '@/composables/useBatchReconc
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick'
 import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
@@ -503,6 +505,13 @@ function openEdit(row: ListRow) {
   if (!id) return
   editBatchId.value = id
   editVisible.value = true
+}
+
+function onBatchRowDblClick(row: ListRow, _column: unknown, event?: MouseEvent) {
+  onCrmDetailListRowDblClick(row, _column, event, {
+    canEdit: props.canWrite,
+    onEdit: openEdit,
+  })
 }
 
 function onImportSuccess() {

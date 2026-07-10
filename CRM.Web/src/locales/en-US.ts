@@ -2542,7 +2542,7 @@ const enUS = {
     },
     sections: {
       basicInfo: 'Basic information',
-      financialInfo: 'Financial information'
+      financialInfo: 'Business attributes'
     },
     fields: {
       customerCode: 'Customer code',

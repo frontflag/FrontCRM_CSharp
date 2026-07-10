@@ -220,7 +220,7 @@
       :row-class-name="opsPanelRowClassName"
       @selection-change="onSelectionChange"
       @row-click="onRowClick"
-      @row-dblclick="goDetail"
+      @row-dblclick="onSalesOrderItemListRowDblClick"
     >
       <template #col-customerName="{ row }">
         <span>{{ maskSaleSensitiveFields ? '—' : (row.customerName || '—') }}</span>
@@ -673,6 +673,7 @@ import {
 import { buildApplyStockOutDisabledHintContent } from '@/utils/applyStockOutDisabledHint'
 import type { ApplyStockOutDisabledHintContent } from '@/utils/applyStockOutDisabledHint'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick'
 import { formatTotalAmountNumber, formatUnitPriceNumber, listAmountCurrencyDockClass, listAmountCurrencyIso } from '@/utils/moneyFormat'
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 import type { SalesOrderItemLineRow } from '@/stores/salesOrderItemListBasket'
@@ -1163,6 +1164,14 @@ function resetFilters() {
 
 function goDetail(row: any) {
   router.push({ name: 'SalesOrderDetail', params: { id: row.sellOrderId } })
+}
+
+function onSalesOrderItemListRowDblClick(row: any, _column: unknown, event?: MouseEvent) {
+  onCrmDetailListRowDblClick(row, _column, event, {
+    canEdit: canWriteSo.value,
+    onEdit: goEdit,
+    onDefault: goDetail,
+  })
 }
 
 async function refreshOpsPanelIfOpen() {

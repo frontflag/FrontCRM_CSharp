@@ -2532,7 +2532,7 @@ const zhCN = {
     },
     sections: {
       basicInfo: '基本信息',
-      financialInfo: '财务信息'
+      financialInfo: '业务属性'
     },
     fields: {
       customerCode: '客户编号',

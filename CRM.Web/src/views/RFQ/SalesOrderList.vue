@@ -139,7 +139,7 @@
         :data="orderList"
         row-key="id"
         highlight-current-row
-        @row-dblclick="handleView"
+        @row-dblclick="onSalesOrderRowDblClick"
         @current-change="onTableCurrentRowChange"
         @header-dragend="onSalesOrderTableHeaderDragEnd"
       >
@@ -298,6 +298,7 @@ import CustomerExtendCell from '@/components/list/CustomerExtendCell.vue'
 import { useCustomerExtendColumn, isCustomerExtendTableColumn } from '@/composables/useCustomerExtendColumn'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
+import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick'
 
 const router = useRouter()
 const route = useRoute()
@@ -648,6 +649,14 @@ const handleEdit = (row: { id?: string }) => {
 // 查看
 const handleView = (row: any) => {
   router.push({ name: 'SalesOrderDetail', params: { id: row.id } })
+}
+
+function onSalesOrderRowDblClick(row: { id?: string }, _column: unknown, event?: MouseEvent) {
+  onCrmDetailListRowDblClick(row, _column, event, {
+    canEdit: canWriteSaleData.value,
+    onEdit: handleEdit,
+    onDefault: handleView,
+  })
 }
 
 const handlePrintReport = (row: { id?: string }) => {

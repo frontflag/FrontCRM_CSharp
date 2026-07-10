@@ -256,7 +256,7 @@
     cursor: pointer;
   }
 
-  /* 单击行：左侧红棕箭头（§业务列表行选中指示，与详情面板 §7.4.6 同款） */
+  /* 单击行：左侧橙色箭头（§业务列表行选中指示，与详情面板 §7.4.6 同款） */
   .el-table__body-wrapper .el-table__body tr.el-table__row.crm-list-row--clicked > td.el-table__cell:first-child,
   .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.crm-list-row--clicked > td.el-table__cell:first-child,
   .el-table__fixed .el-table__body tr.el-table__row.crm-list-row--clicked > td.el-table__cell:first-child,
@@ -274,7 +274,7 @@
       height: 0;
       border-top: 5px solid transparent;
       border-bottom: 5px solid transparent;
-      border-left: 7px solid var(--crm-color-red-brown);
+      border-left: 7px solid var(--crm-list-row-indicator-color);
       pointer-events: none;
     }
 

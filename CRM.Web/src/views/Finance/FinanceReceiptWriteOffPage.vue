@@ -1254,7 +1254,7 @@ watch(excludeNoReceivable, () => {
             height: 0;
             border-top: 5px solid transparent;
             border-bottom: 5px solid transparent;
-            border-left: 7px solid var(--crm-color-red-brown);
+            border-left: 7px solid var(--crm-list-row-indicator-color);
             pointer-events: none;
             z-index: 1;
           }
@@ -1339,7 +1339,7 @@ watch(excludeNoReceivable, () => {
             height: 0;
             border-top: 5px solid transparent;
             border-bottom: 5px solid transparent;
-            border-left: 7px solid var(--crm-color-red-brown);
+            border-left: 7px solid var(--crm-list-row-indicator-color);
             pointer-events: none;
             z-index: 1;
           }

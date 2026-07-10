@@ -2673,7 +2673,7 @@ onUnmounted(() => {
     --el-table-border-color: #{$border-panel};
   }
 
-  /* 选中行左侧红色箭头（与业务详情 §7.4.6 主从联动选中行一致） */
+  /* 选中行左侧橙色箭头（与业务详情 §7.4.6 主从联动选中行一致） */
   :deep(.el-table__body-wrapper .el-table__body tr.el-table__row.current-row > td.el-table__cell:first-child),
   :deep(.el-table__fixed-body-wrapper .el-table__body tr.el-table__row.current-row > td.el-table__cell:first-child),
   :deep(.el-table__fixed .el-table__body tr.el-table__row.current-row > td.el-table__cell:first-child) {
@@ -2689,7 +2689,7 @@ onUnmounted(() => {
       height: 0;
       border-top: 5px solid transparent;
       border-bottom: 5px solid transparent;
-      border-left: 7px solid var(--crm-color-red-brown);
+      border-left: 7px solid var(--crm-list-row-indicator-color);
       pointer-events: none;
       z-index: 1;
     }

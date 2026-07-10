@@ -1,31 +1,62 @@
 <template>
   <div class="customer-edit-page">
-    <!-- 页面头部 -->
+    <!-- CaptionBar（《业务详情页面规范》§3.7 主数据类 · 编辑） -->
     <div class="page-header">
       <div class="header-left">
-        <button class="btn-back" @click="goBack">
+        <button class="btn-back" type="button" @click="goBack">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="15 18 9 12 15 6"/>
           </svg>
           {{ t('customerEdit.page.back') }}
         </button>
-        <div class="page-title-group">
-          <div class="page-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>
+        <div v-if="isEdit" class="customer-title-group">
+          <div class="customer-avatar-lg">{{ editAvatarChar }}</div>
+          <div>
+            <div class="page-title-row">
+              <div class="page-title-with-icons">
+                <h1 class="page-title">{{ editCaptionTitle }}</h1>
+              </div>
+            </div>
+            <div class="title-meta title-meta--caption customer-header-meta-row">
+              <span class="customer-code">{{ formData.customerCode?.trim() || '—' }}</span>
+              <span
+                v-if="formData.customerLevel"
+                class="level-badge"
+                :class="`level-${String(formData.customerLevel).toLowerCase()}`"
+              >
+                {{ customerDict.levelLabel(formData.customerLevel) }}
+              </span>
+              <el-tag effect="dark" type="warning" size="small">编辑</el-tag>
+            </div>
           </div>
-          <h1 class="page-title">{{ isEdit ? t('customerEdit.page.editTitle') : t('customerEdit.page.createTitle') }}</h1>
+        </div>
+        <div v-else class="customer-title-group">
+          <div class="customer-avatar-lg customer-avatar-lg--new">+</div>
+          <div>
+            <div class="page-title-row">
+              <div class="page-title-with-icons">
+                <h1 class="page-title">{{ t('customerEdit.page.createTitle') }}</h1>
+              </div>
+            </div>
+            <div class="title-meta title-meta--caption customer-header-meta-row">
+              <el-tag effect="dark" type="primary" size="small">新建</el-tag>
+            </div>
+          </div>
         </div>
       </div>
       <div class="header-right">
         <template v-if="isEdit">
-          <button class="btn-primary" @click="handleSave">{{ t('customerEdit.page.save') }}</button>
+          <button class="btn-secondary" type="button" @click="goBack">{{ t('common.cancel') }}</button>
+          <button class="btn-primary" type="button" @click="handleSave">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            {{ t('customerEdit.page.save') }}
+          </button>
         </template>
         <template v-else>
-          <button class="btn-secondary" @click="saveDraftOnly">{{ t('customerEdit.page.saveDraft') }}</button>
-          <button class="btn-warning" @click="handleConvertToFormal">
+          <button class="btn-secondary" type="button" @click="saveDraftOnly">{{ t('customerEdit.page.saveDraft') }}</button>
+          <button class="btn-warning" type="button" @click="handleConvertToFormal">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
               <polyline points="17 21 17 13 7 13 7 21"/>
@@ -37,6 +68,7 @@
       </div>
     </div>
 
+    <div v-loading="pageLoading" element-loading-background="rgba(10,22,40,0.8)" class="detail-content">
     <el-form
       ref="formRef"
       :model="formData"
@@ -44,13 +76,25 @@
       label-width="110px"
       class="customer-form"
     >
-      <!-- 基本信息 -->
-      <div class="form-section">
+      <!-- 基本信息（§4 info-section） -->
+      <div class="info-section">
         <div class="section-header">
-          <div class="section-dot section-dot--cyan"></div>
-          <span class="section-title">{{ t('customerEdit.sections.basicInfo') }}</span>
+          <div class="section-header__main">
+            <div class="section-dot section-dot--cyan"></div>
+            <span class="section-title">{{ t('customerEdit.sections.basicInfo') }}</span>
+          </div>
+          <div v-if="isEdit && customerEditMeta" class="section-header__meta">
+            <span class="section-header-meta-item">
+              <span class="section-header-meta-item__label">创建日期</span>
+              <span class="section-header-meta-item__value">{{ customerEditMeta.createDateText }}</span>
+            </span>
+            <span class="section-header-meta-item">
+              <span class="section-header-meta-item__label">创建人</span>
+              <span class="section-header-meta-item__value">{{ customerEditMeta.createUserText }}</span>
+            </span>
+          </div>
         </div>
-        <div class="section-body">
+        <div class="info-section__body">
           <el-row :gutter="20">
             <el-col :span="8">
               <el-form-item :label="t('customerEdit.fields.customerCode')" prop="customerCode">
@@ -210,13 +254,15 @@
         </div>
       </div>
 
-      <!-- 财务信息 -->
-      <div class="form-section">
+      <!-- 业务属性（§4 info-section） -->
+      <div class="info-section">
         <div class="section-header">
-          <div class="section-dot section-dot--amber"></div>
-          <span class="section-title">{{ t('customerEdit.sections.financialInfo') }}</span>
+          <div class="section-header__main">
+            <div class="section-dot section-dot--cyan"></div>
+            <span class="section-title">{{ t('customerEdit.sections.financialInfo') }}</span>
+          </div>
         </div>
-        <div class="section-body">
+        <div class="info-section__body">
           <el-row :gutter="20">
             <el-col :span="8">
               <el-form-item :label="t('customerEdit.fields.creditLimit')">
@@ -286,18 +332,22 @@
       </div>
 
       <!-- 联系人信息 -->
-      <div class="form-section">
+      <div class="info-section">
         <div class="section-header">
-          <div class="section-dot section-dot--green"></div>
-          <span class="section-title">{{ t('customerEdit.contacts.sectionTitle') }}</span>
-          <button type="button" class="btn-add-contact" @click="addContact">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            {{ t('customerEdit.contacts.addContact') }}
-          </button>
+          <div class="section-header__main">
+            <div class="section-dot section-dot--cyan"></div>
+            <span class="section-title">{{ t('customerEdit.contacts.sectionTitle') }}</span>
+          </div>
+          <div class="section-header__actions">
+            <button type="button" class="btn-add-item" @click="addContact">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              {{ t('customerEdit.contacts.addContact') }}
+            </button>
+          </div>
         </div>
-        <div class="section-body">
+        <div class="info-section__body">
           <div v-if="formData.contacts.length === 0" class="empty-contacts">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
@@ -400,6 +450,7 @@
         </div>
       </div>
     </el-form>
+    </div>
   </div>
 </template>
 
@@ -428,6 +479,7 @@ import {
   REGION_DISTRICT_PLACEHOLDER,
   regionCascaderValueFromFields
 } from '@/constants/region';
+import { formatDisplayDate } from '@/utils/displayDateTime';
 
 /** 发票类型：0 = 无需开票（el-select 不用空串，避免显示成「请选择」） */
 const INVOICE_TYPE_NONE = 0 as const;
@@ -512,6 +564,18 @@ function normalizeContactRow(c: any, idx?: number) {
 const isEdit = computed(() => !!route.params.id);
 const customerId = computed(() => route.params.id as string);
 const formRef = ref<FormInstance>();
+const pageLoading = ref(false);
+const customerEditMeta = ref<{ createDateText: string; createUserText: string } | null>(null);
+
+const editCaptionTitle = computed(() => {
+  const name = formData.customerName?.trim();
+  return name || t('customerEdit.page.editTitle');
+});
+
+const editAvatarChar = computed(() => {
+  const n = formData.customerName?.trim();
+  return (n && n[0]) || '?';
+});
 const aiParseLogId = ref<string | null>(null);
 const businessCardFlow = ref(false);
 const businessCardFiles = ref<File[]>([]);
@@ -577,6 +641,8 @@ function onSalesPersonChange(p: { id: string; label: string }) {
 
 const fetchCustomerDetail = async () => {
   if (!isEdit.value) return;
+  pageLoading.value = true;
+  customerEditMeta.value = null;
   try {
     const customer = await customerApi.getCustomerById(customerId.value);
     const customerAny = customer as any;
@@ -601,6 +667,14 @@ const fetchCustomerDetail = async () => {
     };
     Object.assign(formData, mappedData);
     normalizeInvoiceTypeModel();
+    const rawCreate = customer.createdAt ?? customer.createTime ?? customerAny.CreateTime;
+    const createDateText = rawCreate ? formatDisplayDate(rawCreate) : '—';
+    const createUser =
+      customerAny.createUserName ?? customerAny.CreateUserName ?? customerAny.createdBy ?? customer.salesPersonName;
+    customerEditMeta.value = {
+      createDateText: createDateText === '--' ? '—' : createDateText,
+      createUserText: createUser != null && String(createUser).trim() ? String(createUser).trim() : '—',
+    };
     await customerDict.ensureLoaded();
     formData.industry = await customerDict.resolveIndustryStorageLabel(formData.industry || undefined);
     if (mappedData.province && mappedData.city) {
@@ -637,6 +711,8 @@ const fetchCustomerDetail = async () => {
       title: t('customerEdit.messages.loadFailedTitle'),
       message: t('customerEdit.messages.loadFailedMsg')
     });
+  } finally {
+    pageLoading.value = false;
   }
 };
 
@@ -997,6 +1073,7 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
+/* UI：《业务详情页面规范.md》— CaptionBar §3.7、info-section §4、编辑页保存区 §3.6 */
 @import '@/assets/styles/variables.scss';
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500&display=swap');
 
@@ -1007,7 +1084,6 @@ onMounted(() => {
   font-family: 'Noto Sans SC', sans-serif;
 }
 
-// ---- 页面头部 ----
 .page-header {
   display: flex;
   align-items: center;
@@ -1017,11 +1093,12 @@ onMounted(() => {
   .header-left {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 16px;
   }
 
   .header-right {
     display: flex;
+    align-items: center;
     gap: 10px;
   }
 }
@@ -1047,36 +1124,94 @@ onMounted(() => {
   }
 }
 
-.page-title-group {
+.customer-title-group {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.customer-avatar-lg {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.3), rgba(0, 212, 255, 0.2));
+  border: 1px solid rgba(0, 212, 255, 0.25);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 700;
+  color: $cyan-primary;
+  flex-shrink: 0;
+
+  &--new {
+    font-size: 24px;
+    font-weight: 500;
+  }
+}
+
+.page-title-row {
   display: flex;
   align-items: center;
   gap: 10px;
+  margin-bottom: 6px;
+}
 
-  .page-icon {
-    width: 32px;
-    height: 32px;
-    background: rgba(0, 212, 255, 0.1);
-    border: 1px solid rgba(0, 212, 255, 0.25);
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: $cyan-primary;
-  }
+.page-title-with-icons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
 
-  .page-title {
-    font-size: 18px;
-    font-weight: 600;
-    color: $text-primary;
-    margin: 0;
-  }
+.page-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: $text-primary;
+  margin: 0;
+}
+
+.title-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.title-meta--caption {
+  margin-top: 4px;
+}
+
+.customer-header-meta-row {
+  min-height: 28px;
+}
+
+.customer-code {
+  font-size: 12px;
+  color: $text-muted;
+}
+
+.level-badge {
+  display: inline-block;
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 3px;
+
+  &.level-vip       { background: rgba(201,87,69,0.2);  color: #C95745; border: 1px solid rgba(201,87,69,0.3); }
+  &.level-important { background: rgba(201,154,69,0.2); color: #C99A45; border: 1px solid rgba(201,154,69,0.3); }
+  &.level-normal    { background: rgba(107,122,141,0.2); color: #8A9BB0; border: 1px solid rgba(107,122,141,0.3); }
+  &.level-lead      { background: rgba(70,191,145,0.15); color: #46BF91; border: 1px solid rgba(70,191,145,0.3); }
+  &.level-b         { background: rgba(50,149,201,0.15); color: $color-steel-cyan; border: 1px solid rgba(50,149,201,0.25); }
+  &.level-c         { background: rgba(107,122,141,0.2); color: #8A9BB0; border: 1px solid rgba(107,122,141,0.3); }
+  &.level-d         { background: rgba(107,122,141,0.15); color: #8A9BB0; border: 1px solid rgba(107,122,141,0.25); }
 }
 
 .btn-primary {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 16px;
+  padding: 8px 14px;
   background: linear-gradient(135deg, rgba(0, 102, 255, 0.8), rgba(0, 212, 255, 0.7));
   border: 1px solid rgba(0, 212, 255, 0.4);
   border-radius: $border-radius-md;
@@ -1112,12 +1247,11 @@ onMounted(() => {
   }
 }
 
-// 业务流转：草稿转正式（禁止用蓝/红/绿）
 .btn-warning {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 16px;
+  padding: 8px 14px;
   background: rgba(201, 154, 69, 0.18);
   border: 1px solid rgba(201, 154, 69, 0.45);
   border-radius: $border-radius-md;
@@ -1133,8 +1267,7 @@ onMounted(() => {
   }
 }
 
-// ---- 表单区块 ----
-.form-section {
+.info-section {
   background: $layer-2;
   border: 1px solid $border-card;
   border-radius: $border-radius-lg;
@@ -1145,10 +1278,53 @@ onMounted(() => {
 .section-header {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 16px;
   padding: 14px 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  background: rgba(0, 0, 0, 0.1);
+  background: var(--crm-detail-section-header-bg);
+}
+
+.section-header__main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.section-header__meta {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.section-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.section-header-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+
+  &__label {
+    color: $text-muted;
+    &::after {
+      content: '：';
+    }
+  }
+
+  &__value {
+    color: $text-secondary;
+  }
 }
 
 .section-dot {
@@ -1157,30 +1333,26 @@ onMounted(() => {
   border-radius: 50%;
   flex-shrink: 0;
 
-  &--cyan  { background: $cyan-primary; box-shadow: 0 0 6px rgba(0,212,255,0.6); }
-  &--amber { background: $color-amber;  box-shadow: 0 0 6px rgba(201,154,69,0.6); }
-  &--green { background: $color-mint-green; box-shadow: 0 0 6px rgba(70,191,145,0.6); }
+  &--cyan { background: $cyan-primary; box-shadow: 0 0 6px rgba(0, 212, 255, 0.6); }
 }
 
 .section-title {
   font-size: 14px;
   font-weight: 500;
   color: $text-primary;
-  flex: 1;
 }
 
-.section-body {
+.info-section__body {
   padding: 20px;
 }
 
-// ---- 添加联系人按钮 ----
-.btn-add-contact {
+.btn-add-item {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 10px;
-  background: rgba(70, 191, 145, 0.1);
-  border: 1px solid rgba(70, 191, 145, 0.3);
+  padding: 5px 12px;
+  background: rgba(70, 191, 145, 0.12);
+  border: 1px solid rgba(70, 191, 145, 0.35);
   border-radius: $border-radius-sm;
   color: $color-mint-green;
   font-size: 12px;
@@ -1189,8 +1361,8 @@ onMounted(() => {
   transition: all 0.2s;
 
   &:hover {
-    background: rgba(70, 191, 145, 0.18);
-    box-shadow: 0 0 8px rgba(70, 191, 145, 0.2);
+    background: rgba(70, 191, 145, 0.2);
+    border-color: rgba(70, 191, 145, 0.5);
   }
 }
 

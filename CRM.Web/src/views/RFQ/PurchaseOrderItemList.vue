@@ -727,6 +727,8 @@ import ShipmentExpressFields from '@/components/Logistics/ShipmentExpressFields.
 import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
 import { CurrencyCode } from '@/constants/currency'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import { usePurchaseOrderWriteGate } from '@/composables/useDepartmentDataReadOnly'
+import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick'
 import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import { usePurchaseOrderItemOpsPanelStore } from '@/stores/purchaseOrderItemOpsPanel'
 import { vendorBankApi } from '@/api/vendor'
@@ -741,6 +743,7 @@ const route = useRoute()
 const { t, locale } = useI18n()
 const authStore = useAuthStore()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
+const { canWritePo } = usePurchaseOrderWriteGate()
 const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const purchaseOrderItemOpsStore = usePurchaseOrderItemOpsPanelStore()
 
@@ -754,7 +757,15 @@ const canViewVendor = computed(
       authStore.hasPermission('purchase-order.write'))
 )
 
-async function onPurchaseOrderItemRowDblClick(row: Record<string, unknown>) {
+async function onPurchaseOrderItemRowDblClick(row: Record<string, unknown>, _column: unknown, event?: MouseEvent) {
+  onCrmDetailListRowDblClick(row, _column, event, {
+    canEdit: canWritePo.value && !maskPurchaseSensitiveFields.value,
+    onEdit: goEdit,
+    onDefault: navigatePurchaseOrderItemDetail,
+  })
+}
+
+function navigatePurchaseOrderItemDetail(row: Record<string, unknown>) {
   if (maskPurchaseSensitiveFields.value) return
   const purchaseOrderId = String(row?.purchaseOrderId ?? '').trim()
   const purchaseOrderItemId = String(row?.purchaseOrderItemId ?? '').trim()
@@ -764,6 +775,12 @@ async function onPurchaseOrderItemRowDblClick(row: Record<string, unknown>) {
     params: { id: purchaseOrderId },
     query: { purchaseOrderItemId }
   })
+}
+
+function goEdit(row: Record<string, unknown>) {
+  const purchaseOrderId = String(row?.purchaseOrderId ?? '').trim()
+  if (!purchaseOrderId) return
+  router.push({ name: 'PurchaseOrderEdit', params: { id: purchaseOrderId } })
 }
 
 async function refreshOpsPanelIfOpen() {

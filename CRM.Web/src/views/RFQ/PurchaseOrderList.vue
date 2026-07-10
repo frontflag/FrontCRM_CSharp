@@ -224,7 +224,7 @@
         :data="orderList"
         row-key="id"
         highlight-current-row
-        @row-dblclick="handleView"
+        @row-dblclick="onPurchaseOrderRowDblClick"
         @header-dragend="onPurchaseOrderTableHeaderDragEnd"
       >
         <template #col-purchaseOrderCode="{ row }">
@@ -431,6 +431,7 @@ import VendorExtendCell from '@/components/list/VendorExtendCell.vue'
 import { useVendorExtendColumn, isVendorExtendTableColumn } from '@/composables/useVendorExtendColumn'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
+import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -790,6 +791,14 @@ const handleEdit = (row: any) => {
 // 查看
 const handleView = (row: any) => {
   router.push({ name: 'PurchaseOrderDetail', params: { id: row.id } })
+}
+
+function onPurchaseOrderRowDblClick(row: { id?: string }, _column: unknown, event?: MouseEvent) {
+  onCrmDetailListRowDblClick(row, _column, event, {
+    canEdit: canWritePurchaseData.value,
+    onEdit: handleEdit,
+    onDefault: handleView,
+  })
 }
 
 const handlePrintOrder = (row: any) => {

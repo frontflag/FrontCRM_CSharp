@@ -1245,6 +1245,7 @@ import salesOrderApi, {
 import { financeCustomerAdvanceApi } from '@/api/financeCustomerAdvance'
 import { CURRENCY_MAP } from '@/api/finance'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick'
 import purchaseRequisitionApi from '@/api/purchaseRequisition'
 import { runSaveTask, validateElFormOrWarn } from '@/composables/useFormSubmit'
 import { favoriteApi } from '@/api/favorite'
@@ -1347,7 +1348,7 @@ function applyPurchaseDisabled(row: Record<string, unknown>) {
 }
 
 function goSoItemDetail(row: Record<string, unknown>) {
-  void onSalesOrderItemRowDblClick(row)
+  void selectSalesOrderItemRow(row)
 }
 
 function goSoItemEdit(_row: Record<string, unknown>) {
@@ -1991,8 +1992,12 @@ async function onSalesOrderItemRowClick(row: Record<string, unknown>) {
   await selectSalesOrderItemRow(row)
 }
 
-async function onSalesOrderItemRowDblClick(row: Record<string, unknown>) {
-  await selectSalesOrderItemRow(row)
+async function onSalesOrderItemRowDblClick(row: Record<string, unknown>, _column: unknown, event?: MouseEvent) {
+  onCrmDetailListRowDblClick(row, _column, event, {
+    canEdit: canWriteSo.value,
+    onEdit: goSoItemEdit,
+    onDefault: (r) => void selectSalesOrderItemRow(r),
+  })
 }
 
 function soItemRowKey(row: Record<string, unknown>) {

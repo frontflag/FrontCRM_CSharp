@@ -110,7 +110,7 @@
             </el-dropdown-menu>
           </template>
         </el-dropdown>
-        <button v-if="canWriteSaleData && canCreateRfqFromCustomer" class="btn-secondary btn-create-rfq" type="button" @click="handleCreateRfq">
+        <button v-if="canWriteSaleData && canCreateRfqFromCustomer" class="btn-success" type="button" @click="handleCreateRfq">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
             <polyline points="14 2 14 8 20 8"/>
@@ -164,16 +164,16 @@
           </div>
           <div class="info-grid info-grid--inline-labels info-grid--basic">
             <div class="info-item">
-              <span class="info-label">客户等级</span>
-              <span class="info-value">{{ customerLevelDisplayText }}</span>
-            </div>
-            <div class="info-item">
               <span class="info-label">客户类型</span>
               <span class="info-value">{{ customerTypeDisplayText }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">行业</span>
               <span class="info-value">{{ customerIndustryDisplayText }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">客户状态</span>
+              <span class="info-value">{{ customerStatusDisplayText }}</span>
             </div>
           </div>
           <div class="info-grid info-grid--inline-labels info-grid--basic">
@@ -204,6 +204,46 @@
           </div>
         </div>
 
+        <!-- 业务属性（§4 info-section） -->
+        <div class="info-section">
+          <div class="section-header">
+            <div class="section-header__main">
+              <div class="section-dot section-dot--cyan"></div>
+              <span class="section-title">业务属性</span>
+            </div>
+          </div>
+          <div class="info-grid info-grid--inline-labels info-grid--basic">
+            <div class="info-item">
+              <span class="info-label">信用额度</span>
+              <span class="info-value">
+                <span v-if="customerCreditLimitText === '—'">—</span>
+                <span v-else class="amount-with-code">
+                  <span>{{ customerCreditLimitText }}</span>
+                  <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(customerCurrencyCode)]">
+                    {{ listAmountCurrencyIso(customerCurrencyCode) }}
+                  </span>
+                </span>
+              </span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">账期（天）</span>
+              <span class="info-value">{{ customerPaymentTermsText }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">账户余额</span>
+              <span class="info-value" :class="{ 'amount-negative': customerBalanceNegative }">
+                <span v-if="customerBalanceText === '—'">—</span>
+                <span v-else class="amount-with-code">
+                  <span>{{ customerBalanceText }}</span>
+                  <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(customerCurrencyCode)]">
+                    {{ listAmountCurrencyIso(customerCurrencyCode) }}
+                  </span>
+                </span>
+              </span>
+            </div>
+          </div>
+        </div>
+
         <!-- 标签页 -->
         <div class="tabs-section">
           <div class="tabs-nav">
@@ -222,6 +262,7 @@
             <!-- 联系人 -->
             <div v-show="activeTab === 'contacts'">
               <div class="tab-toolbar">
+                <div class="tab-toolbar__actions">
                 <button v-if="canWriteSaleData" class="btn-add-item" @click="goAddContact">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -236,6 +277,7 @@
                 >
                   {{ t('aiEntityCreate.aiCreate') }}
                 </button>
+                </div>
               </div>
               <div class="detail-items-table-wrap">
               <CrmDataTable
@@ -248,6 +290,7 @@
                 size="small"
                 stripe
                 class="items-table detail-panel-list-table"
+                @row-dblclick="onCustomerContactRowDblClick"
               >
                 <el-table-column prop="contactName" label="姓名" min-width="140" show-overflow-tooltip>
                   <template #default="{ row }"><span class="cell-primary">{{ maskSaleSensitiveFields ? '—' : row.contactName || '--' }}</span></template>
@@ -327,6 +370,7 @@
             <!-- 地址信息 -->
             <div v-show="activeTab === 'addresses'">
               <div class="tab-toolbar">
+                <div class="tab-toolbar__actions">
                 <button v-if="canWriteSaleData" class="btn-add-item" @click="showAddressDialog = true">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -341,6 +385,7 @@
                 >
                   {{ t('aiEntityCreate.aiCreate') }}
                 </button>
+                </div>
               </div>
               <div class="detail-items-table-wrap">
               <CrmDataTable
@@ -353,6 +398,7 @@
                 size="small"
                 stripe
                 class="items-table detail-panel-list-table"
+                @row-dblclick="onCustomerAddressRowDblClick"
               >
                 <el-table-column prop="addressType" label="地址类型" width="110">
                   <template #default="{ row }">
@@ -431,12 +477,14 @@
             <!-- 银行信息 -->
             <div v-show="activeTab === 'banks'">
               <div class="tab-toolbar">
+                <div class="tab-toolbar__actions">
                 <button v-if="canWriteSaleData" class="btn-add-item" @click="showBankDialog = true">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                   </svg>
                   添加银行信息
                 </button>
+                </div>
               </div>
               <div class="detail-items-table-wrap">
               <CrmDataTable
@@ -449,6 +497,7 @@
                 size="small"
                 stripe
                 class="items-table detail-panel-list-table"
+                @row-dblclick="onCustomerBankRowDblClick"
               >
                 <el-table-column prop="accountName" label="账户名称" min-width="150">
                   <template #default="{ row }"><span class="cell-primary">{{ row.accountName }}</span></template>
@@ -538,12 +587,14 @@
             <!-- 联系历史 -->
             <div v-show="activeTab === 'contactHistory'">
               <div class="tab-toolbar">
+                <div class="tab-toolbar__actions">
                 <button v-if="canWriteSaleData" class="btn-add-item" @click="showContactHistoryForm = true">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                   </svg>
                   添加记录
                 </button>
+                </div>
               </div>
               <!-- 新增表单 -->
               <div v-if="showContactHistoryForm" class="inline-form">
@@ -778,6 +829,7 @@ import DocumentListPanel from '@/components/Document/DocumentListPanel.vue';
 import DetailListPanelEmpty from '@/components/Common/DetailListPanelEmpty.vue';
 import { documentApi } from '@/api/document';
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime';
+import { formatTotalAmountNumber, listAmountCurrencyDockClass, listAmountCurrencyIso } from '@/utils/moneyFormat';
 import { parseApiBoolean } from '@/utils/parseApiBoolean';
 import { operationBizTypeLabel, masterEntityChangeLogObjectLabel } from '@/utils/businessLogLabels';
 import { formatDetailTabLabel } from '@/utils/detailTabLabel';
@@ -788,6 +840,7 @@ import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency';
 import { isDistrictPlaceholder } from '@/constants/region';
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask';
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly';
+import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick';
 import AiEntityCreateHost from '@/components/AiCreate/AiEntityCreateHost.vue';
 import { AI_PERMISSION_ENTITY_PARSE_CUSTOMER_CONTACT, AI_PERMISSION_ENTITY_PARSE_CUSTOMER_ADDRESS } from '@/api/ai';
 
@@ -851,15 +904,67 @@ function customerDictDisplay(label: string) {
   return label === '--' ? '—' : label;
 }
 
-const customerLevelDisplayText = computed(() =>
-  customerDictDisplay(customerDict.levelLabel(customer.value?.customerLevel))
-);
 const customerTypeDisplayText = computed(() =>
   customerDictDisplay(customerDict.typeLabel(customer.value?.customerType ?? 0))
 );
 const customerIndustryDisplayText = computed(() =>
   customerDictDisplay(customerDict.industryLabel(customer.value?.industry))
 );
+
+function customerStatusLabel(status: number | undefined): string {
+  const s = Number(status ?? 0);
+  const map: Record<number, string> = {
+    1: '新建',
+    2: '待审核',
+    10: '已审核',
+    12: '待财务审核',
+    20: '财务建档',
+    [-1]: '审核失败',
+  };
+  return map[s] ?? (Number.isFinite(s) && s !== 0 ? String(s) : '—');
+}
+
+const customerStatusDisplayText = computed(() => customerStatusLabel(customer.value?.status));
+
+const customerCurrencyCode = computed(() => Number(customer.value?.currency ?? 1));
+
+function resolveCustomerCreditLimit(c: Customer | null): number | null {
+  if (!c) return null;
+  const raw = c.creditLimit ?? (c as unknown as { creditLine?: number }).creditLine;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+function resolveCustomerBalance(c: Customer | null): number | null {
+  if (!c) return null;
+  const raw = c.balance ?? (c as unknown as { creditLineRemain?: number }).creditLineRemain;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+const customerCreditLimitText = computed(() => {
+  if (maskSaleSensitiveFields.value) return '—';
+  const n = resolveCustomerCreditLimit(customer.value);
+  return n == null ? '—' : formatTotalAmountNumber(n);
+});
+
+const customerBalanceText = computed(() => {
+  if (maskSaleSensitiveFields.value) return '—';
+  const n = resolveCustomerBalance(customer.value);
+  return n == null ? '—' : formatTotalAmountNumber(n);
+});
+
+const customerBalanceNegative = computed(() => {
+  const n = resolveCustomerBalance(customer.value);
+  return n != null && n < 0;
+});
+
+const customerPaymentTermsText = computed(() => {
+  if (maskSaleSensitiveFields.value) return '—';
+  const n = Number(customer.value?.paymentTerms);
+  return Number.isFinite(n) ? String(n) : '—';
+});
+
 const customerCompanyInfoText = computed(() => {
   const c = customer.value as Record<string, unknown> | null | undefined;
   if (!c) return '—';
@@ -1229,6 +1334,27 @@ const deleteBank = async (bank: CustomerBankInfo) => {
 };
 const handleBankSuccess = () => { editingBank.value = undefined; fetchCustomerDetail(); };
 
+function onCustomerContactRowDblClick(row: CustomerContactInfo, _column: unknown, event?: MouseEvent) {
+  onCrmDetailListRowDblClick(row, _column, event, {
+    canEdit: canWriteSaleData.value,
+    onEdit: goEditContact,
+  });
+}
+
+function onCustomerAddressRowDblClick(row: CustomerAddress, _column: unknown, event?: MouseEvent) {
+  onCrmDetailListRowDblClick(row, _column, event, {
+    canEdit: canWriteSaleData.value,
+    onEdit: editAddress,
+  });
+}
+
+function onCustomerBankRowDblClick(row: CustomerBankInfo, _column: unknown, event?: MouseEvent) {
+  onCrmDetailListRowDblClick(row, _column, event, {
+    canEdit: canWriteSaleData.value,
+    onEdit: editBank,
+  });
+}
+
 const formatDateTime = (date: string | undefined) => (date ? formatDisplayDateTime(date) : '--');
 const formatFullAddress = (address: CustomerAddress) =>
   [
@@ -1260,6 +1386,7 @@ onMounted(() => {
 <style scoped lang="scss">
 /* UI：《业务详情页面规范.md》— 区块/Tab 标题栏、Key:Value 并排、quantum-table、CaptionBar 收藏星 */
 @import '@/assets/styles/variables.scss';
+@import '@/assets/styles/business-detail-info-grid.scss';
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500&display=swap');
 
 .customer-detail-page {
@@ -1284,6 +1411,7 @@ onMounted(() => {
 
   .header-right {
     display: flex;
+    align-items: center;
     gap: 10px;
   }
 }
@@ -1420,6 +1548,7 @@ onMounted(() => {
 
 .customer-header-tags-row {
   flex-shrink: 0;
+  gap: 8px;
 }
 
 .customer-header-add-tag-btn {
@@ -1556,17 +1685,6 @@ onMounted(() => {
   transition: all 0.2s;
 
   &:hover { background: rgba(255,255,255,0.08); border-color: rgba(0,212,255,0.25); }
-}
-
-.btn-create-rfq {
-  color: $color-mint-green;
-  border-color: rgba(70, 191, 145, 0.35);
-
-  &:hover {
-    color: $color-mint-green;
-    background: rgba(70, 191, 145, 0.12);
-    border-color: rgba(70, 191, 145, 0.5);
-  }
 }
 
 .btn-more-actions {
@@ -1831,7 +1949,17 @@ onMounted(() => {
 }
 
 .tab-toolbar {
+  display: flex;
+  align-items: center;
   margin-bottom: 14px;
+}
+
+.tab-toolbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-left: auto;
 }
 
 .btn-add-item {

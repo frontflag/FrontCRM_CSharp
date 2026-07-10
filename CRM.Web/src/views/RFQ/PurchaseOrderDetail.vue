@@ -669,7 +669,7 @@
                 <DetailListPanelEmpty v-else size="low" />
               </div>
               <div v-show="poItemLinePanel.activeTab === 'payments'" class="po-aggregate-table-wrap">
-                <el-table v-if="(lineTabAggregates?.payments?.length ?? 0) > 0" :data="lineTabAggregates?.payments ?? []" size="small" stripe>
+                <el-table v-if="(lineTabAggregates?.payments?.length ?? 0) > 0" :data="lineTabAggregates?.payments ?? []" size="small" stripe @row-dblclick="onPoPaymentRowDblClick">
                   <el-table-column type="index" width="50" label="#" />
                   <el-table-column label="付款单号" min-width="180">
                     <template #default="{ row }">
@@ -901,6 +901,7 @@ import VendorNameReadonlyText from '@/components/Vendor/VendorNameReadonlyText.v
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import { formatTotalAmountNumber, formatUnitPriceNumber } from '@/utils/moneyFormat'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick'
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { recordPurchaseOrderRecentView } from '@/utils/purchaseOrderRecentHistory'
@@ -1354,6 +1355,13 @@ function canWithdrawPoPayment(row: Record<string, unknown>) {
 function openPoPaymentEdit(row: { id?: string }) {
   poPaymentEditId.value = poPaymentRowId(row) || null
   poPaymentEditVisible.value = true
+}
+
+function onPoPaymentRowDblClick(row: { id?: string; status?: number }, _column: unknown, event?: MouseEvent) {
+  onCrmDetailListRowDblClick(row, _column, event, {
+    canEdit: canEditPoPaymentRequest(row),
+    onEdit: openPoPaymentEdit,
+  })
 }
 
 async function openPoPaymentPay(row: { id?: string }) {

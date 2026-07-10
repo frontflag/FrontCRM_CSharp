@@ -56,6 +56,8 @@ html[data-theme='dark'] {
   --crm-table-row-hover: rgba(0, 212, 255, 0.22);
   /* 业务详情 §7.4.6：主从联动选中行 */
   --crm-detail-row-active-bg: #114a60;
+  /* 业务列表 / 详情面板：选中行左侧箭头 */
+  --crm-list-row-indicator-color: var(--crm-color-amber);
   /* 斑马线：主表偶数行 / 右侧固定列 / 操作列（不透明底需单独色） */
   --crm-table-row-base: transparent;
   --crm-table-row-stripe: rgba(255, 255, 255, 0.045);
@@ -315,6 +317,8 @@ html[data-theme='light'] {
   --crm-table-row-hover: #dbeafe;
   /* 业务详情 §7.4.6：主从联动选中行 */
   --crm-detail-row-active-bg: #fffaea;
+  /* 业务列表 / 详情面板：选中行左侧箭头 */
+  --crm-list-row-indicator-color: var(--crm-color-amber);
   --crm-table-row-base: transparent;
   --crm-table-row-stripe: #f1f5f9;
   --crm-table-fixed-right-stripe: #eef2f7;

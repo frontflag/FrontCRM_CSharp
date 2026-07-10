@@ -164,7 +164,7 @@
         :show-column-settings="false"
         :data="vendorList"
         row-key="id"
-        @row-dblclick="handleView"
+        @row-dblclick="onVendorRowDblClick"
       >
         <template #col-status="{ row }">
           <span class="status-badge" :class="getStatusClass(row.status)">
@@ -365,6 +365,7 @@ import AiBusinessCardCreateHost from '@/components/AiCreate/AiBusinessCardCreate
 import { AI_PERMISSION_ENTITY_PARSE_VENDOR, AI_PERMISSION_ENTITY_PARSE_VENDOR_BUSINESS_CARD } from '@/api/ai';
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import { parseVendorListQuery, buildVendorListQuery } from '@/utils/vendorListQuery';
+import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick';
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const route = useRoute();
@@ -631,6 +632,15 @@ function onCreateDropdownCommand(cmd: string) {
 }
 const handleView = (row: Vendor) => router.push(`/vendors/${row.id}`);
 const handleEdit = (row: Vendor) => router.push(`/vendors/${row.id}/edit`);
+
+/** 双击：详情；按住 Ctrl 双击：编辑（与行操作「编辑」同入口） */
+function onVendorRowDblClick(row: Vendor, _column: unknown, event?: MouseEvent) {
+  onCrmDetailListRowDblClick(row, _column, event, {
+    canEdit: canSubmitAudit,
+    onEdit: handleEdit,
+    onDefault: handleView,
+  });
+}
 
 function goVendorWarrantyReport(row: Vendor, lang: 'en' | 'zh') {
   if (!row?.id) return
