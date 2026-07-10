@@ -393,6 +393,8 @@ export interface UpdateRFQStatusRequest {
 export interface AssignPurchaserRequest {
   purchaserId: string
   remark?: string
+  /** 指定时仅更新该明细；省略则批量更新全部未软删明细 */
+  rfqItemId?: string
 }
 
 // 关闭 RFQ 请求

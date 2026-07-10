@@ -278,7 +278,7 @@
                     v-if="showAssignPurchaserToolbar"
                     type="button"
                     class="btn-add-item"
-                    @click="showAssignDialog"
+                    @click="showAssignDialog()"
                   >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
@@ -489,11 +489,11 @@
             </button>
           </div>
                   </template>
-                  <template #default>
+                  <template #default="{ row, $index }">
                     <div v-if="rfqClosedForAssign" class="cell-muted">—</div>
                     <div v-else @click.stop @dblclick.stop>
                       <div v-if="rfqDetailAssignOpColExpanded" class="action-btns">
-                        <button type="button" class="action-btn action-btn--primary" @click.stop="showAssignDialog">
+                        <button type="button" class="action-btn action-btn--primary" @click.stop="showAssignDialog(row, $index)">
                           {{ t('rfqDetail.assignPurchaser') }}
                         </button>
                       </div>
@@ -503,7 +503,7 @@
                         </div>
                         <template #dropdown>
                           <el-dropdown-menu>
-                            <el-dropdown-item @click.stop="showAssignDialog">
+                            <el-dropdown-item @click.stop="showAssignDialog(row, $index)">
                               <span class="op-more-item op-more-item--primary">{{ t('rfqDetail.assignPurchaser') }}</span>
                             </el-dropdown-item>
                           </el-dropdown-menu>
@@ -577,7 +577,7 @@
     </div>
 
     <!-- 分配采购员弹窗 -->
-    <el-dialog v-model="assignDialogVisible" :title="t('rfqDetail.assignPurchaser')" width="480px" :close-on-click-modal="false">
+    <el-dialog v-model="assignDialogVisible" :title="assignDialogTitle" width="480px" :close-on-click-modal="false">
       <div v-if="recommendedPurchaser" class="recommend-card">
         <div class="recommend-avatar">{{ recommendedPurchaser.name?.charAt(0) }}</div>
         <div>
@@ -745,12 +745,9 @@ const rfqClosedForAssign = computed(() => {
   const s = rfq.value?.status
   return s === 7 || s === 8
 })
-/** 面板视图下无「操作」列，用工具栏提供同一入口 */
+/** 工具栏提供「为全部明细分配采购员」入口（列表/面板均显示；单行分配见列表操作列） */
 const showAssignPurchaserToolbar = computed(
-  () =>
-    canAssignRfqPurchaser.value &&
-    itemsViewMode.value === 'panel' &&
-    !rfqClosedForAssign.value
+  () => canAssignRfqPurchaser.value && !rfqClosedForAssign.value
 )
 
 /** 需求明细报价统计（与列表 effective 状态口径一致） */
@@ -888,7 +885,16 @@ const tabs = computed(() => [
 const assignDialogVisible = ref(false)
 const assignLoading = ref(false)
 const recommendedPurchaser = ref<any>(null)
+const assignTargetItemId = ref<string | null>(null)
+const assignTargetLineNo = ref<number | null>(null)
 const assignForm = reactive({ purchaserId: '', remark: '' })
+
+const assignDialogTitle = computed(() => {
+  if (assignTargetLineNo.value != null) {
+    return t('rfqDetail.assignPurchaserForLine', { n: assignTargetLineNo.value })
+  }
+  return t('rfqDetail.assignPurchaserForAll')
+})
 
 const closeDialogVisible = ref(false)
 const closeLoading = ref(false)
@@ -1123,7 +1129,17 @@ async function loadCloseRecords() {
   catch { closeRecords.value = [] }
 }
 
-async function showAssignDialog() {
+async function showAssignDialog(row?: { id?: string; lineNo?: number }, rowIndex?: number) {
+  assignTargetItemId.value = row?.id?.trim() || null
+  const lineNo = Number(row?.lineNo)
+  assignTargetLineNo.value =
+    row != null
+      ? lineNo > 0
+        ? lineNo
+        : rowIndex != null
+          ? rowIndex + 1
+          : null
+      : null
   assignForm.purchaserId = ''; assignForm.remark = ''; recommendedPurchaser.value = null
   try {
     const recommended = await rfqApi.getRecommendedPurchasers(rfqId)
@@ -1146,7 +1162,11 @@ async function handleAssignConfirm() {
   }
   assignLoading.value = true
   try {
-    await rfqApi.assignPurchaser(rfqId, { purchaserId: assignForm.purchaserId, remark: assignForm.remark })
+    await rfqApi.assignPurchaser(rfqId, {
+      purchaserId: assignForm.purchaserId,
+      remark: assignForm.remark,
+      ...(assignTargetItemId.value ? { rfqItemId: assignTargetItemId.value } : {})
+    })
     ElNotification.success({ title: t('rfqDetail.toast.assignSuccessTitle'), message: t('rfqDetail.toast.assignSuccessMessage') })
     assignDialogVisible.value = false
     await loadRFQ()

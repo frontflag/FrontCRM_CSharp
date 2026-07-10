@@ -18,7 +18,7 @@ namespace CRM.Core.Interfaces
         /// <param name="actingUserId">当前登录用户 ID（写入 modify_by_user_id）</param>
         Task UpdateStatusAsync(string id, short status, string? actingUserId = null);
 
-        /// <summary>手动将需求下全部明细的询价采购员设为指定用户（AssignMethod=4 指定采购员）。</summary>
+        /// <summary>手动分配询价采购员。指定 <see cref="AssignPurchaserRequest.RfqItemId"/> 时仅更新该明细；否则更新需求下全部未软删明细。</summary>
         /// <param name="actingUserId">当前登录用户 ID（写入 modify_by_user_id）</param>
         Task<RFQ> AssignPurchaserAsync(string rfqId, AssignPurchaserRequest request, string? actingUserId = null);
 
@@ -85,6 +85,8 @@ namespace CRM.Core.Interfaces
     {
         public string PurchaserId { get; set; } = string.Empty;
         public string? Remark { get; set; }
+        /// <summary>可选：仅更新该需求明细；省略则批量更新全部未软删明细。</summary>
+        public string? RfqItemId { get; set; }
     }
 
     public class CreateRFQRequest

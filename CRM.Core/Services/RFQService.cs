@@ -602,9 +602,30 @@ namespace CRM.Core.Services
             if (purchaser == null || !purchaser.IsActive)
                 throw new ArgumentException("采购员不存在或已停用");
 
-            var items = await _itemRepo.FindAsync(i => i.RfqId == rfqId);
-            var itemSnapshots = items.Where(i => !i.IsDeleted).Select(i => (Item: i, Before: CaptureRfqItemFieldSnapshot(i))).ToList();
-            foreach (var item in items)
+            var itemId = request.RfqItemId?.Trim();
+            var isSingleItem = !string.IsNullOrEmpty(itemId);
+
+            var items = (await _itemRepo.FindAsync(i => i.RfqId == rfqId)).ToList();
+            var activeItems = items.Where(i => !i.IsDeleted).ToList();
+
+            List<RFQItem> targets;
+            if (isSingleItem)
+            {
+                var target = activeItems.FirstOrDefault(i =>
+                    string.Equals(i.Id, itemId, StringComparison.OrdinalIgnoreCase));
+                if (target == null)
+                    throw new ArgumentException("需求明细不存在或已删除");
+                targets = new List<RFQItem> { target };
+            }
+            else
+            {
+                if (activeItems.Count == 0)
+                    throw new ArgumentException("需求无可用明细");
+                targets = activeItems;
+            }
+
+            var itemSnapshots = targets.Select(i => (Item: i, Before: CaptureRfqItemFieldSnapshot(i))).ToList();
+            foreach (var item in targets)
             {
                 item.AssignedPurchaserUserId1 = purchaser.Id;
                 item.AssignedPurchaserUserId2 = null;
@@ -613,21 +634,47 @@ namespace CRM.Core.Services
             }
 
             var statusBefore = rfq.Status;
-            rfq.AssignMethod = RfqAssignMethodCodes.DesignatedPurchaser;
-            if (rfq.Status == 0)
-                rfq.Status = 1;
+            if (!isSingleItem)
+                rfq.AssignMethod = RfqAssignMethodCodes.DesignatedPurchaser;
+
             rfq.ModifyTime = DateTime.UtcNow;
             rfq.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
             await _rfqRepo.UpdateAsync(rfq);
 
             foreach (var (item, before) in itemSnapshots)
                 await LogRfqItemFieldChangesAsync(rfq, item, before, actingUserId);
-            if (statusBefore != rfq.Status)
-                await AppendRfqStatusFieldChangeLogAsync(rfq, statusBefore, rfq.Status, actingUserId);
+
+            await TryAdvanceRfqToAssignedWhenAllItemsHavePurchaserAsync(rfq, statusBefore, items, actingUserId);
 
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
 
             return await GetByIdAsync(rfqId) ?? rfq;
+        }
+
+        private static bool RfqItemHasAssignedPurchaser(RFQItem item) =>
+            !string.IsNullOrWhiteSpace(item.AssignedPurchaserUserId1)
+            || !string.IsNullOrWhiteSpace(item.AssignedPurchaserUserId2);
+
+        /// <summary>仅当全部未软删明细均已分配采购员时，将主单从待分配(0)推进为已分配(1)。</summary>
+        private async Task TryAdvanceRfqToAssignedWhenAllItemsHavePurchaserAsync(
+            RFQ rfq,
+            short statusBefore,
+            IEnumerable<RFQItem> allItems,
+            string? actingUserId)
+        {
+            var activeItems = allItems.Where(i => !i.IsDeleted).ToList();
+            if (activeItems.Count == 0 || activeItems.Any(i => !RfqItemHasAssignedPurchaser(i)))
+                return;
+
+            if (rfq.Status != (short)RfqMainStatus.PendingAssign)
+                return;
+
+            rfq.Status = (short)RfqMainStatus.Assigned;
+            rfq.ModifyTime = DateTime.UtcNow;
+            rfq.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
+            await _rfqRepo.UpdateAsync(rfq);
+            if (statusBefore != rfq.Status)
+                await AppendRfqStatusFieldChangeLogAsync(rfq, statusBefore, rfq.Status, actingUserId);
         }
 
         /// <inheritdoc />

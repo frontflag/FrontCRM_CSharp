@@ -302,8 +302,12 @@ namespace CRM.API.Controllers
                 if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessRFQAsync(userId, existing))
                     return StatusCode(403, ApiResponse<object>.Fail("无权限操作该需求", 403));
 
-                var rfq = await _rfqService.AssignPurchaserAsync(id, request);
-                var resolvedPurchaserId = rfq.Items?.FirstOrDefault()?.AssignedPurchaserUserId1 ?? request.PurchaserId.Trim();
+                var rfq = await _rfqService.AssignPurchaserAsync(id, request, userId);
+                var assignedItem = !string.IsNullOrWhiteSpace(request.RfqItemId)
+                    ? rfq.Items?.FirstOrDefault(i =>
+                        string.Equals(i.Id, request.RfqItemId.Trim(), StringComparison.OrdinalIgnoreCase))
+                    : rfq.Items?.FirstOrDefault(i => !i.IsDeleted);
+                var resolvedPurchaserId = assignedItem?.AssignedPurchaserUserId1 ?? request.PurchaserId.Trim();
                 return Ok(ApiResponse<object>.Ok(new
                 {
                     id = Guid.NewGuid().ToString("N"),
