@@ -39,6 +39,35 @@
         </div>
       </section>
 
+      <section class="ops-card ops-card--status-only">
+        <div class="ops-card__body ops-card__body--status">
+          <div class="ops-status-tags">
+            <div class="ops-status-tags__row">
+              <el-tag
+                v-for="item in statusRow1"
+                :key="item.kind"
+                effect="dark"
+                :type="poStatusTagType(item.kind, statusValue(item.prop))"
+                size="small"
+              >
+                {{ poStatusLabel(t, item.kind, statusValue(item.prop)) }}
+              </el-tag>
+            </div>
+            <div class="ops-status-tags__row">
+              <el-tag
+                v-for="item in statusRow2"
+                :key="item.kind"
+                effect="dark"
+                :type="poStatusTagType(item.kind, statusValue(item.prop))"
+                size="small"
+              >
+                {{ poStatusLabel(t, item.kind, statusValue(item.prop)) }}
+              </el-tag>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="ops-card">
         <header class="ops-card__head">
           <h3 class="ops-card__title">{{ t('purchaseOrderItemList.opsPanel.arrivalTitle') }}</h3>
@@ -150,7 +179,7 @@ import type { PurchaseOrderDetailTabAggregates } from '@/api/purchaseOrder'
 import { formatUnitPriceWithCurrencyCodeSuffix, formatTotalAmountNumber, listAmountCurrencyDockClass, listAmountCurrencyIso } from '@/utils/moneyFormat'
 import { buildApplyArrivalDisabledHintContent, applyArrivalButtonDisabled } from '@/utils/applyArrivalDisabledHint'
 import { buildApplyPaymentDisabledHintContent, applyPaymentButtonDisabled } from '@/utils/applyPaymentDisabledHint'
-import { calcProgressPercent, getArrivalMetrics, getPaymentMetrics } from '@/utils/purchaseOrderItemOpsPanel'
+import { calcProgressPercent, getArrivalMetrics, getPaymentMetrics, poStatusLabel, poStatusTagType, type PoItemStatusKind } from '@/utils/purchaseOrderItemOpsPanel'
 import { DEFAULT_SETTLEMENT_CURRENCY_CODE } from '@/constants/currency'
 
 const props = defineProps<{
@@ -186,6 +215,24 @@ const displayUnitPriceWithCurrency = computed(() =>
   formatUnitPriceWithCurrencyCodeSuffix(props.row?.cost, Number(props.row?.currency))
 )
 const orderQty = computed(() => Math.max(0, Math.trunc(Number(props.row?.qty) || 0)))
+
+const statusRow1: ReadonlyArray<{ kind: PoItemStatusKind; prop: string }> = [
+  { kind: 'paymentRequest', prop: 'paymentRequestProgressStatus' },
+  { kind: 'payment', prop: 'paymentProgressStatus' }
+]
+
+const statusRow2: ReadonlyArray<{ kind: PoItemStatusKind; prop: string }> = [
+  { kind: 'purchase', prop: 'purchaseProgressStatus' },
+  { kind: 'stockIn', prop: 'stockInProgressStatus' },
+  { kind: 'invoice', prop: 'invoiceProgressStatus' }
+]
+
+function statusValue(prop: string): number | undefined {
+  const raw = props.row?.[prop]
+  if (raw === undefined || raw === null || raw === '') return undefined
+  const n = Number(raw)
+  return Number.isFinite(n) ? n : undefined
+}
 
 const arrivalMetrics = computed(() =>
   props.row ? getArrivalMetrics(props.row, props.aggregates) : { orderQty: 0, notifiedQty: 0, applicableQty: 0 }
@@ -495,6 +542,33 @@ function formatQty(v: number) {
 
 .so-item-ops-root--embedded .ops-overview-line--hero {
   color: $color-amber;
+}
+
+.ops-card--status-only .ops-card__body--status {
+  padding-top: 10px;
+}
+
+.ops-card__body--status {
+  padding-top: 8px;
+}
+
+.ops-status-tags {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ops-status-tags__row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: 8px;
+  align-items: center;
+}
+
+.ops-status-tags__row :deep(.el-tag) {
+  width: 100%;
+  justify-content: center;
+  box-sizing: border-box;
 }
 
 .ops-metrics {

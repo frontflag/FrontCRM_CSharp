@@ -39,6 +39,38 @@
         </div>
       </section>
 
+      <section class="ops-card">
+        <header class="ops-card__head">
+          <h3 class="ops-card__title">{{ t('salesOrderItemList.opsPanel.statusTitle') }}</h3>
+        </header>
+        <div class="ops-card__body ops-card__body--status">
+          <div class="ops-status-tags">
+            <div class="ops-status-tags__row">
+              <el-tag
+                v-for="item in progressRow1"
+                :key="item.kind"
+                effect="dark"
+                :type="extendTriTagType(progressStatus(item.prop))"
+                size="small"
+              >
+                {{ extendTriLabel(t, item.kind, progressStatus(item.prop)) }}
+              </el-tag>
+            </div>
+            <div class="ops-status-tags__row">
+              <el-tag
+                v-for="item in progressRow2"
+                :key="item.kind"
+                effect="dark"
+                :type="extendTriTagType(progressStatus(item.prop))"
+                size="small"
+              >
+                {{ extendTriLabel(t, item.kind, progressStatus(item.prop)) }}
+              </el-tag>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section v-if="showStockPanel" class="ops-card">
         <header class="ops-card__head">
           <h3 class="ops-card__title">{{ t('salesOrderItemList.opsPanel.stockTitle') }}</h3>
@@ -155,7 +187,13 @@ import { salesOrderMainAllowsPurchaseAndStockOut, salesOrderLineApplyStockOutBut
 import { formatUnitPriceWithCurrencyCodeSuffix } from '@/utils/moneyFormat'
 import { buildApplyPurchaseDisabledHintContent, applyPurchaseButtonDisabled } from '@/utils/applyPurchaseDisabledHint'
 import { buildApplyStockOutDisabledHintContent } from '@/utils/applyStockOutDisabledHint'
-import { calcProgressPercent, summarizeStockingByRegion } from '@/utils/sellOrderItemOpsPanel'
+import {
+  calcProgressPercent,
+  extendTriLabel,
+  extendTriTagType,
+  summarizeStockingByRegion,
+  type SellOrderExtendProgressKind
+} from '@/utils/sellOrderItemOpsPanel'
 
 const props = defineProps<{
   row: Record<string, unknown> | null
@@ -190,6 +228,25 @@ const displayUnitPriceWithCurrency = computed(() =>
   formatUnitPriceWithCurrencyCodeSuffix(props.row?.price, Number(props.row?.currency))
 )
 const orderQty = computed(() => Math.max(0, Math.trunc(Number(props.row?.qty) || 0)))
+
+const progressRow1: ReadonlyArray<{ kind: SellOrderExtendProgressKind; prop: string }> = [
+  { kind: 'purchase', prop: 'purchaseProgressStatus' },
+  { kind: 'stockIn', prop: 'stockInProgressStatus' },
+  { kind: 'stockOutNotify', prop: 'stockOutNotifyProgressStatus' }
+]
+
+const progressRow2: ReadonlyArray<{ kind: SellOrderExtendProgressKind; prop: string }> = [
+  { kind: 'stockOut', prop: 'stockOutProgressStatus' },
+  { kind: 'receipt', prop: 'receiptProgressStatus' },
+  { kind: 'invoice', prop: 'invoiceProgressStatus' }
+]
+
+function progressStatus(prop: string): number | undefined {
+  const raw = props.row?.[prop]
+  if (raw === undefined || raw === null || raw === '') return undefined
+  const n = Number(raw)
+  return Number.isFinite(n) ? n : undefined
+}
 
 const stockSummary = computed(() => summarizeStockingByRegion(props.aggregates?.stockItems ?? []))
 const showStockPanel = computed(() => stockSummary.value.total > 0)
@@ -504,6 +561,29 @@ function formatQty(v: number) {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.ops-card__body--status {
+  padding-top: 8px;
+}
+
+.ops-status-tags {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ops-status-tags__row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: 8px;
+  align-items: center;
+}
+
+.ops-status-tags__row :deep(.el-tag) {
+  width: 100%;
+  justify-content: center;
+  box-sizing: border-box;
 }
 
 .ops-overview-line {

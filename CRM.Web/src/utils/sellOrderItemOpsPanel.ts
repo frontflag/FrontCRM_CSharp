@@ -23,3 +23,30 @@ export function calcProgressPercent(done: number, total: number): number {
   const pct = Math.round((Math.max(0, done) / total) * 100)
   return Math.min(100, Math.max(0, pct))
 }
+
+/** 销售明细扩展进度种类（0=待 1=部分 2=完成） */
+export type SellOrderExtendProgressKind =
+  | 'purchase'
+  | 'stockIn'
+  | 'stockOut'
+  | 'stockOutNotify'
+  | 'receipt'
+  | 'invoice'
+
+export function extendTriTagType(v?: number): '' | 'success' | 'warning' | 'info' | 'danger' {
+  const map: Record<number, '' | 'info' | 'success' | 'warning' | 'danger'> = {
+    0: 'info',
+    1: 'warning',
+    2: 'success'
+  }
+  return v !== undefined && v !== null ? (map[v] ?? 'info') : 'info'
+}
+
+export function extendTriLabel(
+  t: (key: string, ...args: unknown[]) => string,
+  kind: SellOrderExtendProgressKind,
+  v?: number
+): string {
+  const slot = v === 2 ? 'complete' : v === 1 ? 'partial' : 'pending'
+  return t(`salesOrderItemList.extendProgress.${kind}.${slot}`)
+}

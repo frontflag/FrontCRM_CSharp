@@ -3,6 +3,44 @@ import { calcProgressPercent } from '@/utils/sellOrderItemOpsPanel'
 
 export { calcProgressPercent }
 
+export type PoItemStatusKind = 'paymentRequest' | 'payment' | 'purchase' | 'stockIn' | 'invoice'
+
+const PO_EXTEND_KEY: Record<Exclude<PoItemStatusKind, 'paymentRequest'>, Record<number, string>> = {
+  purchase: { 0: 'purchasePending', 1: 'purchasePartial', 2: 'purchaseDone' },
+  stockIn: { 0: 'stockInPending', 1: 'stockInPartial', 2: 'stockInDone' },
+  payment: { 0: 'paymentPending', 1: 'paymentPartial', 2: 'paymentDone' },
+  invoice: { 0: 'invoicePending', 1: 'invoicePartial', 2: 'invoiceDone' }
+}
+
+export function poExtendTriTagType(v?: number): '' | 'success' | 'warning' | 'info' | 'danger' {
+  const map: Record<number, '' | 'info' | 'success' | 'warning' | 'danger'> = {
+    0: 'info',
+    1: 'warning',
+    2: 'success'
+  }
+  return v !== undefined && v !== null ? (map[v] ?? 'info') : 'info'
+}
+
+export function poStatusTagType(kind: PoItemStatusKind, v?: number): '' | 'success' | 'warning' | 'info' | 'danger' {
+  if (kind === 'paymentRequest') return Number(v ?? 0) >= 1 ? 'success' : 'info'
+  return poExtendTriTagType(v)
+}
+
+export function poStatusLabel(
+  t: (key: string, ...args: unknown[]) => string,
+  kind: PoItemStatusKind,
+  v?: number
+): string {
+  if (kind === 'paymentRequest') {
+    return Number(v ?? 0) >= 1
+      ? t('purchaseOrderItemList.extendProgress.paymentRequestApplied')
+      : t('purchaseOrderItemList.extendProgress.paymentRequestPending')
+  }
+  const n = Number(v ?? 0)
+  const key = PO_EXTEND_KEY[kind][n]
+  return key ? t(`purchaseOrderItemList.extendProgress.${key}`) : String(v ?? 0)
+}
+
 export function getPoLineTotal(row: Record<string, unknown>): number {
   const direct = Number(row.lineTotal ?? row.LineTotal ?? NaN)
   if (Number.isFinite(direct) && direct > 0) {
