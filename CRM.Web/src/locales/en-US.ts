@@ -637,6 +637,7 @@ const enUS = {
       search: 'Search',
       favorites: 'Favorites',
       history: 'History',
+      ops: 'Actions',
       help: 'Help'
     }
   },
@@ -3562,6 +3563,41 @@ const enUS = {
       applyPurchase: 'Request purchase',
       applyStockOut: 'Request stock-out',
       remove: 'Remove'
+    },
+    opsPanel: {
+      title: 'Sales order line',
+      close: 'Close',
+      pickRow: 'Click a list row to view overview, stock, and actions',
+      overviewTitle: 'Order line',
+      lineCode: 'Line code',
+      customerNameZh: 'Customer (ZH)',
+      customerNameEn: 'Customer (EN)',
+      pn: 'Material / MPN',
+      brand: 'Brand',
+      currency: 'Currency',
+      qty: 'Quantity',
+      stockTitle: 'Stocking inventory',
+      stockDomestic: 'Mainland warehouse',
+      stockOverseas: 'Overseas warehouse',
+      stockTotal: 'Total stock',
+      purchaseTitle: 'Purchase requisition',
+      stockOutTitle: 'Outbound notification',
+      completed: 'Completed',
+      appliedQty: 'Requested qty',
+      availableQty: 'Available to request',
+      notifiedQty: 'Notified qty',
+      notifyAvailableQty: 'Available to notify',
+      progressPct: '{pct}% complete',
+      canApplyNow: 'Ready to apply',
+      purchaseNextAudit: 'Next: wait until the sales order header is approved before requesting purchase.',
+      purchaseNextNoRemaining:
+        'Next: after existing POs or open PRs are processed, request again if order quantity remains.',
+      stockOutNextAudit: 'Next: wait until the sales order header is approved before requesting stock-out.',
+      stockOutNextDone: 'Next: outbound is complete for this line; no further notification is needed.',
+      stockOutNextPurchaseGate:
+        'Next: create linked PO lines and ensure related POs reach Supplier Confirmed or later.',
+      stockOutNextPendingPurchase:
+        'Next: advance purchase progress, or ensure stocking available qty for the same PN+brand is greater than 0.'
     },
     columnSettings: 'Column settings',
     basket: {

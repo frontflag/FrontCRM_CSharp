@@ -143,6 +143,8 @@ namespace CRM.Core.Interfaces
         public DateTime OrderCreateTime { get; set; }
         public string? CustomerId { get; set; }
         public string? CustomerName { get; set; }
+        /// <summary>客户英文全称（<c>CustomerInfo.EnglishOfficialName</c>）。</summary>
+        public string? CustomerEnglishName { get; set; }
         public string? SalesUserName { get; set; }
         public string? PN { get; set; }
         public string? Brand { get; set; }

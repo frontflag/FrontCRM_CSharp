@@ -23,6 +23,7 @@ export interface WorkspaceLayoutApi {
   toggleRightFullscreen: (fullscreen?: boolean) => void
   toggleCenterFullscreen: (fullscreen?: boolean) => void
   cycleSidebarMode: () => void
+  setRightActiveTab: (tabId: string) => void
 }
 
 export const WorkspaceLayoutKey: InjectionKey<WorkspaceLayoutApi> = Symbol('workspaceLayout')
@@ -218,6 +219,10 @@ export function useWorkspaceLayout() {
     window.removeEventListener('workspace:toggle-center-fullscreen', onWindowWorkspaceEvent)
   })
 
+  const setRightActiveTab = (tabId: string) => {
+    if (rightTabs.value.some((t) => t.id === tabId)) rightActiveTabId.value = tabId
+  }
+
   const api: WorkspaceLayoutApi = {
     sidebarMode,
     leftPanelVisible,
@@ -230,7 +235,8 @@ export function useWorkspaceLayout() {
     toggleLeftFullscreen,
     toggleRightFullscreen,
     toggleCenterFullscreen,
-    cycleSidebarMode
+    cycleSidebarMode,
+    setRightActiveTab
   }
 
   provide(WorkspaceLayoutKey, api)

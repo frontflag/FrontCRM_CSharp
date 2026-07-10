@@ -1194,6 +1194,21 @@
           </div>
         </div>
         <div class="aux-panel-body">
+          <SalesOrderItemOpsPanel
+            v-show="showSalesOrderItemOpsPanel"
+            embedded
+            :row="salesOrderItemOpsStore.row"
+            :aggregates="salesOrderItemOpsStore.aggregates"
+            :loading="salesOrderItemOpsStore.loading"
+            :load-error="salesOrderItemOpsStore.loadError"
+            :mask-sensitive="maskSaleSensitiveFields"
+            :can-purchase-req="canSalesOrderItemOpsPurchase"
+            :can-write-so="canSalesOrderItemOpsWriteSo"
+            class="aux-panel-tab-body"
+            @clear="salesOrderItemOpsStore.clear()"
+            @apply-purchase="salesOrderItemOpsStore.runApplyPurchase()"
+            @apply-stock-out="salesOrderItemOpsStore.runApplyStockOut()"
+          />
           <HelpManualPanel v-show="rightActiveTabId === 'r4'" class="aux-panel-tab-body" />
         </div>
       </aside>
@@ -1234,6 +1249,10 @@ import SalesOrderRecentHistoryPanel from '@/components/SalesOrder/SalesOrderRece
 import PurchaseOrderFavoritePanel from '@/components/purchaseOrder/PurchaseOrderFavoritePanel.vue'
 import PurchaseOrderRecentHistoryPanel from '@/components/purchaseOrder/PurchaseOrderRecentHistoryPanel.vue'
 import HelpManualPanel from '@/components/workspace/HelpManualPanel.vue'
+import SalesOrderItemOpsPanel from '@/components/RFQ/SalesOrderItemOpsPanel.vue'
+import { useSalesOrderItemOpsPanelStore } from '@/stores/salesOrderItemOpsPanel'
+import { useSaleOrderWriteGate } from '@/composables/useDepartmentDataReadOnly'
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { Sunny, Moon } from '@element-plus/icons-vue'
 import { useUiTheme } from '@/composables/useUiTheme'
 import { setAppLocale, type AppLocale } from '@/plugins/i18n'
@@ -1255,6 +1274,15 @@ const simulationTopBarStyle = computed(() => {
 })
 const { isDark, toggleTheme } = useUiTheme()
 const { t, locale } = useI18n()
+const salesOrderItemOpsStore = useSalesOrderItemOpsPanelStore()
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
+const { canWriteSo: canSalesOrderItemOpsWriteSo } = useSaleOrderWriteGate()
+const canSalesOrderItemOpsPurchase = computed(
+  () =>
+    authStore.hasPermission('purchase-requisition.write') ||
+    authStore.hasPermission('sales-order.write') ||
+    authStore.hasPermission('sales-order.read')
+)
 const brandFullText = computed(() => appBrandTitle(t('layout.brandFull')))
 const currentLocale = ref<AppLocale>(locale.value as AppLocale)
 
@@ -1484,6 +1512,29 @@ const showPurchaseOrderFavoritePanel = computed(
 
 const showPurchaseOrderRecentHistoryPanel = computed(
   () => leftActiveTabId.value === 'l3' && isPurchaseOrderLeftAuxRoute.value
+)
+
+const isSalesOrderItemListRoute = computed(() => route.name === 'SalesOrderItemList')
+
+const showSalesOrderItemOpsPanel = computed(
+  () => rightActiveTabId.value === 'r-ops' && isSalesOrderItemListRoute.value
+)
+
+watch(
+  () => route.name,
+  (name) => {
+    if (name === 'SalesOrderItemList') {
+      rightTabs.value = [
+        { id: 'r-ops', labelKey: 'layout.auxTabs.ops' },
+        { id: 'r4', labelKey: 'layout.auxTabs.help' }
+      ]
+      return
+    }
+    rightTabs.value = [{ id: 'r4', labelKey: 'layout.auxTabs.help' }]
+    rightActiveTabId.value = 'r4'
+    salesOrderItemOpsStore.clear()
+  },
+  { immediate: true }
 )
 
 /** 模板沿用 isCollapsed：仅「边条」模式隐藏菜单文字 */
@@ -3147,7 +3198,9 @@ onBeforeUnmount(() => {
 .aux-panel-body {
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 12px 14px;
   font-size: 13px;
   color: var(--crm-aux-body-text);
@@ -3159,8 +3212,12 @@ onBeforeUnmount(() => {
 .aux-panel-tab-body {
   flex: 1;
   min-height: 0;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
 }
 
 .aux-placeholder {

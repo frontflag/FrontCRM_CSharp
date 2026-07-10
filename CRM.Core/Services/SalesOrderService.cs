@@ -463,6 +463,33 @@ namespace CRM.Core.Services
             }
         }
 
+        private async Task HydrateSellOrderLineListCustomerEnglishAsync(List<SellOrderItemLineDto> rows)
+        {
+            if (rows.Count == 0) return;
+
+            var customerIds = rows
+                .Select(x => x.CustomerId)
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(s => s!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (customerIds.Count == 0) return;
+
+            var customers = (await _customerRepo.FindAsync(c => customerIds.Contains(c.Id))).ToList();
+            var byId = customers
+                .Where(c => !string.IsNullOrWhiteSpace(c.Id))
+                .GroupBy(c => c.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            foreach (var row in rows)
+            {
+                if (string.IsNullOrWhiteSpace(row.CustomerId)) continue;
+                if (!byId.TryGetValue(row.CustomerId.Trim(), out var cust)) continue;
+                if (!string.IsNullOrWhiteSpace(cust.EnglishOfficialName))
+                    row.CustomerEnglishName = cust.EnglishOfficialName.Trim();
+            }
+        }
+
         private async Task HydrateSellOrderLineListSalesLoginAsync(
             List<SellOrderItemLineDto> rows,
             Dictionary<string, SellOrder> orderDict)
@@ -756,6 +783,7 @@ namespace CRM.Core.Services
             var orderDict = orders.ToDictionary(o => o.Id, StringComparer.OrdinalIgnoreCase);
 
             await HydrateSellOrderLineListSalesLoginAsync(list, orderDict);
+            await HydrateSellOrderLineListCustomerEnglishAsync(list);
             await EnrichSellOrderItemLineListAsync(list);
 
             return new PagedResult<SellOrderItemLineDto>
@@ -785,6 +813,7 @@ namespace CRM.Core.Services
             var orderDict = orders.ToDictionary(o => o.Id, StringComparer.OrdinalIgnoreCase);
 
             await HydrateSellOrderLineListSalesLoginAsync(list, orderDict);
+            await HydrateSellOrderLineListCustomerEnglishAsync(list);
             await EnrichSellOrderItemLineListAsync(list);
 
             return list;

@@ -21,6 +21,7 @@ export interface StockOutApplyPurchaseGateDetail {
 export interface ApplyStockOutDisabledHintContent {
   summary: string
   details: string[]
+  nextStep: string
 }
 
 type TranslateFn = (key: string, params?: Record<string, unknown>) => string
@@ -106,6 +107,12 @@ export function buildApplyStockOutDisabledHintContent(
   const purchaseProgress = Number(row.purchaseProgressStatus ?? row.PurchaseProgressStatus)
   const stockOutProgress = Number(row.stockOutProgressStatus ?? row.StockOutProgressStatus)
 
+  const nextStepMap = {
+    stockOutDone: 'salesOrderItemList.opsPanel.stockOutNextDone',
+    needPurchaseGate: 'salesOrderItemList.opsPanel.stockOutNextPurchaseGate',
+    pendingPurchase: 'salesOrderItemList.opsPanel.stockOutNextPendingPurchase'
+  } as const
+
   if (stockOutProgress === 2) {
     details.push(
       t('salesOrderItemList.messages.applyStockOutHintDetailStockOutDone', {
@@ -135,7 +142,7 @@ export function buildApplyStockOutDisabledHintContent(
     }
   }
 
-  return { summary, details: [...new Set(details)] }
+  return { summary, details: [...new Set(details)], nextStep: t(nextStepMap[key]) }
 }
 
 /** 供旧调用方兼容：拼接为单段文本。 */

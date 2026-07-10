@@ -217,7 +217,9 @@
       :data="list"
       v-loading="loading"
       row-key="sellOrderItemId"
+      :row-class-name="opsPanelRowClassName"
       @selection-change="onSelectionChange"
+      @row-click="onRowClick"
       @row-dblclick="goDetail"
     >
       <template #col-customerName="{ row }">
@@ -644,7 +646,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, nextTick, watch } from 'vue'
+import { ref, reactive, computed, nextTick, watch, inject, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
@@ -654,6 +656,8 @@ import ApplyStockOutDialog from '@/components/RFQ/ApplyStockOutDialog.vue'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
 import { useSalesOrderItemListBasketStore } from '@/stores/salesOrderItemListBasket'
+import { useSalesOrderItemOpsPanelStore } from '@/stores/salesOrderItemOpsPanel'
+import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import salesOrderApi from '@/api/salesOrder'
 import purchaseRequisitionApi from '@/api/purchaseRequisition'
@@ -681,6 +685,8 @@ const router = useRouter()
 const route = useRoute()
 const { t, locale } = useI18n()
 const authStore = useAuthStore()
+const workspaceLayout = inject(WorkspaceLayoutKey, null)
+const salesOrderItemOpsStore = useSalesOrderItemOpsPanelStore()
 
 const basketStore = useSalesOrderItemListBasketStore()
 const { count: basketCount, items: basketItems } = storeToRefs(basketStore)
@@ -1123,6 +1129,7 @@ async function loadList() {
   }
   await nextTick()
   await restoreTableSelectionFromBasket()
+  await refreshOpsPanelIfOpen()
 }
 
 function resetFilters() {
@@ -1157,6 +1164,69 @@ function resetFilters() {
 function goDetail(row: any) {
   router.push({ name: 'SalesOrderDetail', params: { id: row.sellOrderId } })
 }
+
+async function refreshOpsPanelIfOpen() {
+  if (!salesOrderItemOpsStore.row) return
+  const panelVisible = workspaceLayout?.rightPanelVisible.value ?? false
+  await salesOrderItemOpsStore.refreshFromListRows(
+    list.value,
+    t('salesOrderItemList.messages.loadLineFailed'),
+    panelVisible
+  )
+}
+
+function isRightPanelVisible() {
+  return workspaceLayout?.rightPanelVisible.value ?? false
+}
+
+async function onRowClick(row: Record<string, unknown>) {
+  if (maskSaleSensitiveFields.value) return
+  workspaceLayout?.setRightActiveTab('r-ops')
+
+  if (isRightPanelVisible()) {
+    await salesOrderItemOpsStore.selectRow(row, t('salesOrderItemList.messages.loadLineFailed'))
+    return
+  }
+
+  salesOrderItemOpsStore.setRowOnly(row)
+  workspaceLayout?.toggleRightPanel(true)
+}
+
+function opsPanelRowClassName({ row }: { row: Record<string, unknown> }) {
+  if (!salesOrderItemOpsStore.row) return ''
+  return salesOrderItemOpsStore.rowKey(row) === salesOrderItemOpsStore.rowKey(salesOrderItemOpsStore.row)
+    ? 'so-item-row--active'
+    : ''
+}
+
+watch(maskSaleSensitiveFields, (masked) => {
+  if (masked) salesOrderItemOpsStore.clear()
+})
+
+watch(
+  () => workspaceLayout?.rightPanelVisible.value,
+  (visible, wasVisible) => {
+    if (route.name !== 'SalesOrderItemList') return
+    if (!visible || wasVisible || !salesOrderItemOpsStore.row) return
+    void salesOrderItemOpsStore.loadAggregates(t('salesOrderItemList.messages.loadLineFailed'))
+  }
+)
+
+onMounted(() => {
+  salesOrderItemOpsStore.registerHandlers({
+    applyPurchase: (row) => {
+      void applyPurchaseOne(row)
+    },
+    applyStockOut: (row) => {
+      applyStockOutOne(row)
+    }
+  })
+})
+
+onBeforeUnmount(() => {
+  salesOrderItemOpsStore.unregisterHandlers()
+  salesOrderItemOpsStore.clear()
+})
 
 function goEdit(row: any) {
   router.push({ name: 'SalesOrderEdit', params: { id: String(row.sellOrderId) } })
