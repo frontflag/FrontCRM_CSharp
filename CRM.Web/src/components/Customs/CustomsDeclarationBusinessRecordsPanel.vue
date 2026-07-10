@@ -501,7 +501,9 @@
               <template #col-shipmentMethod="{ row }">{{ shipmentMethodDisplay(row.shipmentMethod) }}</template>
               <template #col-expressCompany="{ row }">{{ expressCompanyDisplay(row.expressCompany) }}</template>
               <template #col-courierTrackingNo="{ row }">{{ row.courierTrackingNo || '—' }}</template>
-              <template #col-freightForwarderOrderNo="{ row }">{{ row.freightForwarderOrderNo || '—' }}</template>
+              <template #col-freightForwarderOrderNo="{ row }">
+                <CrmListCopyableTextCell :text="row.freightForwarderOrderNo || ''" />
+              </template>
               <template #col-remark="{ row }">{{ row.remark?.trim() || '—' }}</template>
             </CrmDataTable>
           </div>
@@ -568,7 +570,9 @@
                 <span v-else>{{ row.noticeCode || '—' }}</span>
               </template>
               <template #col-purchaseOrderCode="{ row }">{{ row.purchaseOrderCode?.trim() || '—' }}</template>
-              <template #col-freightForwarderOrderNo="{ row }">{{ row.freightForwarderOrderNo?.trim() || '—' }}</template>
+              <template #col-freightForwarderOrderNo="{ row }">
+                <CrmListCopyableTextCell :text="row.freightForwarderOrderNo?.trim() || ''" />
+              </template>
               <template #col-createTime="{ row }">
                 <template v-for="p in [formatArrivalCreateTimeParts(row.createTime)]" :key="`ct-${row.id}`">
                   <span v-if="p" class="crm-quote-create-time">

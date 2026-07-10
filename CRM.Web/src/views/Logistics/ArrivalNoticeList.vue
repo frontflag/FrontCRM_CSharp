@@ -102,8 +102,12 @@
           :customs-declaration-code="row.customsDeclarationCode"
         />
       </template>
-      <template #col-pn="{ row }">{{ displayPn(row) }}</template>
-      <template #col-brand="{ row }">{{ displayBrand(row) }}</template>
+      <template #col-pn="{ row }">
+        <CrmListCopyableTextCell :text="rawPn(row)" />
+      </template>
+      <template #col-brand="{ row }">
+        <CrmListCopyableTextCell :text="rawBrand(row)" />
+      </template>
       <template #col-expectedArrivalDate="{ row }">{{ formatExpected(row.expectedArrivalDate) }}</template>
       <template #col-shipmentMethod="{ row }">{{ shipmentMethodDisplay(pickShipmentMethod(row)) }}</template>
       <template #col-courierTrackingNo="{ row }">{{ displayCourierTrackingNo(row) }}</template>

@@ -142,10 +142,10 @@
         <span>{{ displayCell(row, 'warehouseDisplay') }}</span>
       </template>
       <template #col-materialModel="{ row }">
-        <span>{{ displayCell(row, 'materialModel') }}</span>
+        <CrmListCopyableTextCell :text="copyableCell(row, 'materialModel')" />
       </template>
       <template #col-brand="{ row }">
-        <span>{{ displayCell(row, 'brand') }}</span>
+        <CrmListCopyableTextCell :text="copyableCell(row, 'brand')" />
       </template>
       <template #col-customerName="{ row }">
         <span>{{ displayCell(row, 'customerName') }}</span>
@@ -173,7 +173,7 @@
         <span v-else>{{ displayCell(row, 'packingCode') }}</span>
       </template>
       <template #col-freightForwarderOrderNo="{ row }">
-        <span>{{ displayCell(row, 'freightForwarderOrderNo') }}</span>
+        <CrmListCopyableTextCell :text="copyableCell(row, 'freightForwarderOrderNo')" />
       </template>
       <template #col-taskCode="{ row }">
         <span class="mono-cell">{{ displayCell(row, 'taskCode') }}</span>
@@ -312,6 +312,14 @@ function rowKey(row: PickingTaskListRow) {
 
 function rowRecord(row: PickingTaskListRow) {
   return row as unknown as Record<string, unknown>
+}
+
+function copyableCell(row: PickingTaskListRow, camel: string) {
+  const r = rowRecord(row)
+  const pascal = camel.charAt(0).toUpperCase() + camel.slice(1)
+  const v = r[camel] ?? r[pascal]
+  if (v == null || v === '') return ''
+  return String(v)
 }
 
 function displayCell(row: PickingTaskListRow, camel: string) {

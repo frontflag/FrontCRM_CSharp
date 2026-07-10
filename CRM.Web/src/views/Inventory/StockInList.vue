@@ -147,8 +147,12 @@
       <template #col-status="{ row }">
         <span :class="['status-badge', `status-${row.status}`]">{{ statusLabel(row.status) }}</span>
       </template>
-      <template #col-materialModel="{ row }">{{ stockInMaterialModel(row) }}</template>
-      <template #col-materialBrand="{ row }">{{ stockInMaterialBrand(row) }}</template>
+      <template #col-materialModel="{ row }">
+        <CrmListCopyableTextCell :text="stockInMaterialModelCopyValue(row)" />
+      </template>
+      <template #col-materialBrand="{ row }">
+        <CrmListCopyableTextCell :text="stockInMaterialBrandCopyValue(row)" />
+      </template>
       <template #col-warehouseName="{ row }">{{ warehouseNameOf(row.warehouseId) }}</template>
       <template #col-stockInDate="{ row }">
         <span class="text-secondary">{{ formatDate(row.stockInDate) }}</span>
@@ -429,16 +433,14 @@ function pickRowStr(row: Record<string, unknown>, camel: string, pascal: string)
   return typeof v === 'string' ? v.trim() : ''
 }
 
-const stockInMaterialModel = (row: StockInListItemDto) => {
+const stockInMaterialModelCopyValue = (row: StockInListItemDto) => {
   const r = row as unknown as Record<string, unknown>
-  const s = pickRowStr(r, 'materialModelSummary', 'MaterialModelSummary')
-  return s || t('quoteList.na')
+  return pickRowStr(r, 'materialModelSummary', 'MaterialModelSummary')
 }
 
-const stockInMaterialBrand = (row: StockInListItemDto) => {
+const stockInMaterialBrandCopyValue = (row: StockInListItemDto) => {
   const r = row as unknown as Record<string, unknown>
-  const s = pickRowStr(r, 'materialBrandSummary', 'MaterialBrandSummary')
-  return s || t('quoteList.na')
+  return pickRowStr(r, 'materialBrandSummary', 'MaterialBrandSummary')
 }
 
 /** 列表金额后展示的 ISO 币别（RMB/USD 等）；无编码时返回空串 */

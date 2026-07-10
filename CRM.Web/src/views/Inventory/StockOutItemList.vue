@@ -137,9 +137,10 @@
         prop="freightForwarderOrderNo"
         :label="t('common.freightForwarderOrderNo')"
         width="160"
-        show-overflow-tooltip
       >
-        <template #default="{ row }">{{ row.freightForwarderOrderNo?.trim() || t('quoteList.na') }}</template>
+        <template #default="{ row }">
+          <CrmListCopyableTextCell :text="row.freightForwarderOrderNo?.trim() || ''" />
+        </template>
       </el-table-column>
       <el-table-column :label="t('stockOutItemList.columns.stockOutDate')" width="118">
         <template #default="{ row }">{{ formatDateOnly(row.stockOutDate) }}</template>

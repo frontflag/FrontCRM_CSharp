@@ -57,7 +57,14 @@
       </div>
     </Teleport>
 
-    <el-table v-bind="tableAttrs" ref="innerTableRef" :border="props.border" style="width: 100%">
+    <el-table
+      v-bind="tableAttrs"
+      ref="innerTableRef"
+      :border="props.border"
+      :row-class-name="mergedRowClassName"
+      style="width: 100%"
+      @row-click="onInternalRowClick"
+    >
       <template v-if="configMode">
         <el-table-column
           v-for="col in orderedVisibleColumns"
@@ -71,7 +78,7 @@
           :align="col.align"
           :sortable="col.sortable"
           :formatter="col.formatter"
-          :show-overflow-tooltip="col.showOverflowTooltip"
+          :show-overflow-tooltip="isCrmListCopyableFieldKey(col.key) ? false : col.showOverflowTooltip"
           :class-name="col.className"
           :label-class-name="col.labelClassName"
           :resizable="col.resizable !== false && col.type !== 'selection'"
@@ -82,6 +89,14 @@
           </template>
           <template v-if="col.type !== 'selection' && col.type !== 'index' && slots[slotName(col)]" #default="scope">
             <slot :name="slotName(col)" v-bind="scope" />
+          </template>
+          <template
+            v-else-if="col.type !== 'selection' && col.type !== 'index' && isCrmListCopyableFieldKey(col.key)"
+            #default="scope"
+          >
+            <CrmListCopyableTextCell
+              :text="resolveCrmListCopyableCellValue(scope.row as Record<string, unknown>, col)"
+            />
           </template>
         </el-table-column>
       </template>
@@ -168,6 +183,16 @@ import {
   writePersistedRowDensity,
   type CrmTableRowDensity
 } from '@/utils/crmTableRowDensityStorage'
+import CrmListCopyableTextCell from '@/components/CrmListCopyableTextCell.vue'
+import {
+  isCrmListCopyableFieldKey,
+  resolveCrmListCopyableCellValue
+} from '@/utils/crmListCopyableField'
+import {
+  mergeCrmListRowClassName,
+  resolveCrmTableRowKey,
+  type CrmTableRowKeyProp
+} from '@/utils/crmListClickedRow'
 
 type CheckboxValue = boolean | string | number
 
@@ -230,6 +255,48 @@ const densityTeleportTarget = computed(() => props.densityToggleAnchorEl ?? null
 const attrs = useAttrs()
 const slots = useSlots()
 
+const clickedRowKey = ref<string | null>(null)
+
+const rowKeyProp = computed<CrmTableRowKeyProp>(() => {
+  const raw = attrs.rowKey ?? attrs['row-key']
+  if (typeof raw === 'function') return raw as (row: Record<string, unknown>) => string
+  if (typeof raw === 'string') return raw
+  return undefined
+})
+
+const userRowClassName = computed(
+  () => attrs.rowClassName ?? attrs['row-class-name']
+)
+
+watch(
+  () => attrs.data,
+  (data) => {
+    if (!clickedRowKey.value) return
+    const rows = Array.isArray(data) ? data : []
+    const stillThere = rows.some(
+      (r) => resolveCrmTableRowKey(r as Record<string, unknown>, rowKeyProp.value) === clickedRowKey.value
+    )
+    if (!stillThere) clickedRowKey.value = null
+  },
+  { deep: false }
+)
+
+function mergedRowClassName(ctx: { row: Record<string, unknown>; rowIndex: number }): string {
+  return mergeCrmListRowClassName(
+    userRowClassName.value as string | ((c: { row: Record<string, unknown>; rowIndex: number }) => string) | undefined,
+    ctx,
+    clickedRowKey.value,
+    rowKeyProp.value
+  )
+}
+
+function onInternalRowClick(row: Record<string, unknown>, column: unknown, event: Event) {
+  const key = resolveCrmTableRowKey(row, rowKeyProp.value)
+  clickedRowKey.value = key || null
+  const handler = attrs.onRowClick as ((...args: unknown[]) => void) | undefined
+  handler?.(row, column, event)
+}
+
 const tableAttrs = computed(() => {
   const a = { ...attrs } as Record<string, unknown>
   delete a.class
@@ -240,6 +307,9 @@ const tableAttrs = computed(() => {
   delete a.rowDensityStorageKey
   delete a.showRowDensityToggle
   delete a.densityToggleAnchorEl
+  delete a.rowClassName
+  delete a['row-class-name']
+  delete a.onRowClick
   return a
 })
 
@@ -322,6 +392,9 @@ defineExpose({
   setCurrentRow: (row?: unknown) => innerTableRef.value?.setCurrentRow(row),
   getSelectionRows: () => innerTableRef.value?.getSelectionRows?.(),
   resetColumnLayout: () => persist.resetToDefault(),
+  clearClickedRow: () => {
+    clickedRowKey.value = null
+  },
   /** 外部触发打开「列设置」抽屉（如放到表格底栏按钮） */
   openColumnSettings: () => {
     if (!configMode.value) return

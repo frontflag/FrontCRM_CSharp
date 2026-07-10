@@ -32,8 +32,9 @@
       v-loading="loading"
       stripe
       border
-      class="data-table"
+      class="data-table crm-items-table"
       highlight-current-row
+      :row-class-name="pendlistRowClassName"
       @row-click="onPendlistRowClick"
     >
       <el-table-column prop="salesStockOutNotifyCode" :label="t('customsPages.pendlists.colSalesSor')" min-width="140" />
@@ -147,12 +148,17 @@ import { salesOrderApi, type SellOrderItemStockTabRow } from '@/api/salesOrder'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { getApiErrorMessage } from '@/utils/apiError'
 import SellOrderItemStockTabTable from '@/components/RFQ/SellOrderItemStockTabTable.vue'
+import { useCrmListClickedRow } from '@/utils/crmListClickedRow'
 
 const { t } = useI18n()
 const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 const loading = ref(false)
 const creatingId = ref('')
 const list = ref<CustomsPendlistListItemDto[]>([])
+const { markClickedRow, clickedRowClassName: pendlistRowClassName, clearClickedRow } = useCrmListClickedRow(
+  list,
+  'id'
+)
 const stockItems = ref<SellOrderItemStockTabRow[]>([])
 const filters = reactive<{ status?: number; keyword: string }>({
   status: CUSTOMS_PENDLIST_STATUS.Open,
@@ -192,6 +198,7 @@ function closeRefPanel() {
   refPanel.visible = false
   refPanel.loadError = ''
   stockItems.value = []
+  clearClickedRow()
 }
 
 async function loadRefPanelStock(row: CustomsPendlistListItemDto) {
@@ -217,6 +224,7 @@ async function loadRefPanelStock(row: CustomsPendlistListItemDto) {
 }
 
 async function onPendlistRowClick(row: CustomsPendlistListItemDto) {
+  markClickedRow(row as unknown as Record<string, unknown>)
   refPanel.visible = true
   refPanel.pendlistId = row.id
   refPanel.salesOrderId = String(row.salesOrderId ?? '').trim()

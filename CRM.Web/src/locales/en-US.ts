@@ -6,6 +6,9 @@ const enUS = {
     cancel: 'Cancel',
     edit: 'Edit',
     loading: 'Loading...',
+    copy: 'Copy',
+    copySuccess: 'Copied',
+    copyFailed: 'Copy failed — please copy manually',
     listOpCol: { expand: 'Expand action column', collapse: 'Collapse action column' },
     customerExtendCol: {
       columnTitle: 'Customer',

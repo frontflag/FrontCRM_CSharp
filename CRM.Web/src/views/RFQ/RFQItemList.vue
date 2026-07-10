@@ -147,10 +147,10 @@
           </span>
         </template>
         <template #col-materialModel="{ row }">
-          {{ row.materialModel || row.mpn || '—' }}
+          <CrmListCopyableTextCell :text="row.materialModel || row.mpn || ''" />
         </template>
         <template #col-brand="{ row }">
-          {{ row.brand || '—' }}
+          <CrmListCopyableTextCell :text="row.brand || ''" />
         </template>
         <template #col-customerPart="{ row }">
           {{ row.customerMaterialModel || row.customerMpn || '—' }}

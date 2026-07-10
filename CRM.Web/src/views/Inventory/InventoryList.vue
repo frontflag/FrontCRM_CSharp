@@ -119,8 +119,12 @@
       @row-click="onRowClick"
     >
       <template #col-stockCode="{ row }">{{ stockCodeDisplay(row) }}</template>
-      <template #col-materialModel="{ row }">{{ materialModelDisplay(row) }}</template>
-      <template #col-materialBrand="{ row }">{{ materialBrandDisplay(row) }}</template>
+      <template #col-materialModel="{ row }">
+        <CrmListCopyableTextCell :text="materialModelCopyValue(row)" />
+      </template>
+      <template #col-materialBrand="{ row }">
+        <CrmListCopyableTextCell :text="materialBrandCopyValue(row)" />
+      </template>
       <template #col-warehouseName="{ row }">{{ warehouseNameOf(row.warehouseId) }}</template>
       <template #col-region="{ row }">
         <span class="region-type-chip" :class="`region-type-chip--${regionTypeKind(row)}`">
@@ -421,19 +425,18 @@ const stockCodeDisplay = (row: InventoryOverview) => {
   return code || '—'
 }
 
-/** 规格型号；兼容 PascalCase；无型号时回退物料 ID */
-const materialModelDisplay = (row: InventoryOverview) => {
+/** 规格型号可复制原文；兼容 PascalCase；无型号时回退物料 ID */
+const materialModelCopyValue = (row: InventoryOverview) => {
   const r = row as unknown as Record<string, unknown>
   const model = pickRowStr(r, 'materialModel', 'MaterialModel').trim()
   const id = pickRowStr(r, 'materialId', 'MaterialId').trim()
-  return model || id || '—'
+  return model || id
 }
 
-/** 品牌（接口 materialName：优先 stock 冗余 purchase_brand）；兼容 PascalCase */
-const materialBrandDisplay = (row: InventoryOverview) => {
+/** 品牌可复制原文（接口 materialName：优先 stock 冗余 purchase_brand）；兼容 PascalCase */
+const materialBrandCopyValue = (row: InventoryOverview) => {
   const r = row as unknown as Record<string, unknown>
-  const name = pickRowStr(r, 'materialName', 'MaterialName').trim()
-  return name || '—'
+  return pickRowStr(r, 'materialName', 'MaterialName').trim()
 }
 
 async function runInventoryFetch(resetPage: boolean) {

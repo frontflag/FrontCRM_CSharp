@@ -117,7 +117,7 @@
       row-class-name="table-row-pointer"
     >
       <template #col-freightForwarderOrderNo="{ row }">
-        <span>{{ paymentRowFreightForwarderOrderNo(row) || '—' }}</span>
+        <CrmListCopyableTextCell :text="paymentRowFreightForwarderOrderNo(row)" />
       </template>
       <template #col-financePaymentCode="{ row }">
         <span class="code-text">{{ row.financePaymentCode }}</span>

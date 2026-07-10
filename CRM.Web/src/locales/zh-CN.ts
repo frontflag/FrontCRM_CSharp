@@ -6,6 +6,9 @@ const zhCN = {
     cancel: '取消',
     edit: '编辑',
     loading: '加载中...',
+    copy: '复制',
+    copySuccess: '已复制',
+    copyFailed: '复制失败，请手动复制',
     listOpCol: { expand: '展开操作列', collapse: '收起操作列' },
     customerExtendCol: {
       columnTitle: '客户',

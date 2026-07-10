@@ -93,7 +93,7 @@
           <span>{{ displayRfqCode(row) }}</span>
         </template>
         <template #col-brand="{ row }">
-          <span>{{ displayFirstItemBrand(row) }}</span>
+          <CrmListCopyableTextCell :text="firstItemBrandRaw(row)" />
         </template>
         <template #col-productionDateDc="{ row }">
           <span>{{ displayQuoteProductionDateDc(row) }}</span>
@@ -594,12 +594,12 @@ function firstQuoteItemMpn(row: Record<string, unknown>): string {
   return m != null && String(m).trim() !== '' ? String(m).trim() : ''
 }
 
-function displayFirstItemBrand(row: Record<string, unknown>) {
+function firstItemBrandRaw(row: Record<string, unknown>) {
   const it = firstQuoteItem(row)
-  if (!it) return t('quoteList.na')
+  if (!it) return ''
   const b = it.brand ?? it.Brand
-  if (b != null && String(b).trim() !== '') return String(b)
-  return t('quoteList.na')
+  if (b != null && String(b).trim() !== '') return String(b).trim()
+  return ''
 }
 
 function displayFirstItemUnitPriceValue(row: Record<string, unknown>) {

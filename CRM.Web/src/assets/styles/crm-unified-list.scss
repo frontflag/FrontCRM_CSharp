@@ -255,6 +255,48 @@
   .el-table__body tr.table-row-pointer {
     cursor: pointer;
   }
+
+  /* 单击行：左侧红棕箭头（§业务列表行选中指示，与详情面板 §7.4.6 同款） */
+  .el-table__body-wrapper .el-table__body tr.el-table__row.crm-list-row--clicked > td.el-table__cell:first-child,
+  .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.crm-list-row--clicked > td.el-table__cell:first-child,
+  .el-table__fixed .el-table__body tr.el-table__row.crm-list-row--clicked > td.el-table__cell:first-child,
+  .el-table__fixed-right .el-table__body tr.el-table__row.crm-list-row--clicked > td.el-table__cell:first-child {
+    position: relative;
+    padding-left: 22px !important;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 0;
+      height: 0;
+      border-top: 5px solid transparent;
+      border-bottom: 5px solid transparent;
+      border-left: 7px solid var(--crm-color-red-brown);
+      pointer-events: none;
+    }
+
+    .cell {
+      padding-left: 0;
+    }
+  }
+
+  .el-table__body-wrapper .el-table__body tr.el-table__row.crm-list-row--clicked td.el-table__cell,
+  .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.crm-list-row--clicked td.el-table__cell,
+  .el-table__fixed .el-table__body tr.el-table__row.crm-list-row--clicked td.el-table__cell,
+  .el-table__fixed-right .el-table__body tr.el-table__row.crm-list-row--clicked td.el-table__cell,
+  .el-table__body-wrapper .el-table__body tr.el-table__row.crm-list-row--clicked:hover td.el-table__cell,
+  .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.crm-list-row--clicked:hover td.el-table__cell,
+  .el-table__body-wrapper .el-table__body tr.el-table__row.crm-list-row--clicked.hover-row td.el-table__cell,
+  .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.crm-list-row--clicked.hover-row td.el-table__cell {
+    background: var(--crm-detail-row-active-bg) !important;
+    background-color: var(--crm-detail-row-active-bg) !important;
+    box-shadow: none !important;
+    border-right: none !important;
+    border-left: none !important;
+  }
 }
 
 // --- CrmDataTable（components/CrmDataTable.vue）：border 开启列宽拖拽；隐藏列间竖线 ---
@@ -739,4 +781,49 @@ html[data-theme='dark'] .crm-items-table.crm-data-table td.op-col .op-more-dropd
   border: 1px solid $border-card;
   border-radius: $border-radius-lg;
   overflow: hidden;
+}
+
+// --- 业务列表：物料型号 / 品牌 / 货代单号 · 悬停可复制提示框 ---
+.crm-list-copy-tooltip {
+  padding: 8px 10px !important;
+  max-width: min(420px, 92vw);
+}
+
+.crm-list-copy-tooltip__body {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.crm-list-copy-tooltip__text {
+  flex: 1;
+  min-width: 0;
+  word-break: break-all;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.crm-list-copy-tooltip__btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 2px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.88);
+  cursor: pointer;
+  line-height: 1;
+
+  &:hover:not(:disabled) {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
 }

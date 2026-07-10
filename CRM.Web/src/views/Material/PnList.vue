@@ -172,7 +172,9 @@ onMounted(() => {
         stripe
         class="pn-table"
       >
-        <template #col-materialModel="{ row }">{{ row.materialModel || '—' }}</template>
+      <template #col-materialModel="{ row }">
+        <CrmListCopyableTextCell :text="row.materialModel || ''" />
+      </template>
         <template #col-materialName="{ row }">{{ row.materialName || '—' }}</template>
         <template #col-warehouse="{ row }">{{ row.warehouseCode?.trim() || row.warehouseId || '—' }}</template>
         <template #col-lastMoveTime="{ row }">{{ formatTime(row.lastMoveTime) }}</template>
