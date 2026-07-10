@@ -41,6 +41,7 @@ namespace CRM.Core.Services
         private readonly ISellOrderItemExtendSyncService _sellOrderItemExtendSync;
         private readonly IPurchaseRequisitionService? _purchaseRequisitionService;
         private readonly IPurchaseOrderItemExtendSyncService _poItemExtendSync;
+        private readonly IPurchaseOrderMainStatusSyncService? _poMainStatusSync;
         private readonly IPurchaseOrderExtendLineSeqService _poLineSeq;
         private readonly IUserService? _userService;
         private readonly ILogOperationAppendService? _logOperationAppend;
@@ -66,6 +67,7 @@ namespace CRM.Core.Services
             IPurchaseOrderItemExtendSyncService poItemExtendSync,
             IPurchaseOrderExtendLineSeqService poLineSeq,
             ILogger<PurchaseOrderService> logger,
+            IPurchaseOrderMainStatusSyncService? poMainStatusSync = null,
             IUserService? userService = null,
             ILogOperationAppendService? logOperationAppend = null,
             IUnitOfWork? unitOfWork = null,
@@ -86,6 +88,7 @@ namespace CRM.Core.Services
             _sellOrderItemExtendSync = sellOrderItemExtendSync;
             _purchaseRequisitionService = purchaseRequisitionService;
             _poItemExtendSync = poItemExtendSync;
+            _poMainStatusSync = poMainStatusSync;
             _poLineSeq = poLineSeq;
             _userService = userService;
             _logOperationAppend = logOperationAppend;
@@ -725,14 +728,8 @@ namespace CRM.Core.Services
 
             result.ChangedItems = result.Changes.Count;
 
-            var targetOrderStatus = ComputeOrderStatusAfterRefresh(order, items);
-            if (targetOrderStatus != order.Status)
-            {
+            if (_poMainStatusSync != null && await _poMainStatusSync.TrySyncOrderMainStatusAsync(orderId, cancellationToken))
                 result.ChangedFieldsCount += 1;
-                order.Status = targetOrderStatus;
-                order.ModifyTime = DateTime.UtcNow;
-                await _poRepo.UpdateAsync(order);
-            }
 
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
 
@@ -841,21 +838,6 @@ namespace CRM.Core.Services
             if ((after?.PaymentProgressStatus ?? 0) < 2 && next >= ItemStatusPaid)
                 next = Math.Min(next, StatusConfirmed);
 
-            return next;
-        }
-
-        private static short ComputeOrderStatusAfterRefresh(PurchaseOrder order, IReadOnlyList<PurchaseOrderItem> items)
-        {
-            if (order.Status is StatusCancelled or StatusAuditFailed)
-                return order.Status;
-            var activeItems = items.Where(i => i.Status != StatusCancelled).ToList();
-            if (activeItems.Count == 0)
-                return order.Status;
-            var next = order.Status;
-            if (next < StatusInProgress && activeItems.All(i => i.Status >= ItemStatusShipped))
-                next = StatusInProgress;
-            if (next < StatusCompleted && activeItems.All(i => i.Status >= StatusCompleted))
-                next = StatusCompleted;
             return next;
         }
 

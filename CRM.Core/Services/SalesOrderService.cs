@@ -28,6 +28,7 @@ namespace CRM.Core.Services
         private readonly IOrderJourneyLogService _orderJourneyLog;
         private readonly IRepository<QuoteItem> _quoteItemRepo;
         private readonly ISellOrderItemExtendSyncService _soItemExtendSync;
+        private readonly ISellOrderMainStatusSyncService _mainStatusSync;
         private readonly ISellOrderItemPurchasedStockAvailableSyncService _purchasedStockAvailableSync;
         private readonly ISellOrderExtendLineSeqService _soLineSeq;
         private readonly IUserService _userService;
@@ -51,6 +52,7 @@ namespace CRM.Core.Services
             IFinanceExchangeRateService financeExchangeRateService,
             IOrderJourneyLogService orderJourneyLog,
             ISellOrderItemExtendSyncService soItemExtendSync,
+            ISellOrderMainStatusSyncService mainStatusSync,
             ISellOrderItemPurchasedStockAvailableSyncService purchasedStockAvailableSync,
             ISellOrderExtendLineSeqService soLineSeq,
             IUserService userService,
@@ -74,6 +76,7 @@ namespace CRM.Core.Services
             _financeExchangeRateService = financeExchangeRateService;
             _orderJourneyLog = orderJourneyLog;
             _soItemExtendSync = soItemExtendSync;
+            _mainStatusSync = mainStatusSync;
             _purchasedStockAvailableSync = purchasedStockAvailableSync;
             _soLineSeq = soLineSeq;
             _userService = userService ?? throw new ArgumentNullException(nameof(userService));
@@ -750,7 +753,7 @@ namespace CRM.Core.Services
 
         public async Task RequestStockOutAsync(string id, string requestedBy)
         {
-            // 申请出库后进入「进行中」（完成=Completed 由业务手动或后续流程标记）
+            // 申请出库后进入「进行中」；完成=Completed 由全部明细收款完成自动同步
             await UpdateStatusAsync(id, SellOrderMainStatus.InProgress, null, NormalizeActingUserId(requestedBy));
         }
 
@@ -961,23 +964,8 @@ namespace CRM.Core.Services
             }
 
             // 销售订单明细列表「主状态」列 = 主表 sellorder.status；与明细扩展刷新对齐（可上调/下调，避免头表与执行事实长期脱节）
-            var lineIds = items.Select(i => i.Id).ToList();
-            var extendById = new Dictionary<string, SellOrderItemExtend>(StringComparer.OrdinalIgnoreCase);
-            if (lineIds.Count > 0)
-            {
-                foreach (var ext in await _soItemExtendRepo.FindAsync(e => lineIds.Contains(e.Id)))
-                    extendById[ext.Id] = ext;
-            }
-
-            var beforeOrderStatus = order.Status;
-            var targetOrderStatus = ComputeSellOrderMainStatusAfterRefresh(order, items, extendById);
-            if (targetOrderStatus != beforeOrderStatus)
-            {
-                order.Status = targetOrderStatus;
-                order.ModifyTime = DateTime.UtcNow;
-                await _soRepo.UpdateAsync(order);
+            if (await _mainStatusSync.TrySyncOrderMainStatusAsync(orderId, cancellationToken))
                 result.ChangedFieldsCount += 1;
-            }
 
             result.ChangedItems = result.Changes.Count;
             await _unitOfWork.SaveChangesAsync();
@@ -986,78 +974,6 @@ namespace CRM.Core.Services
                 "SO明细扩展刷新完成: SalesOrderId={SalesOrderId} Code={Code} TotalItems={TotalItems} ChangedItems={ChangedItems} ChangedFields={ChangedFields}",
                 orderId, order.SellOrderCode, result.TotalItems, result.ChangedItems, result.ChangedFieldsCount);
             return result;
-        }
-
-        /// <summary>
-        /// 按未取消明细的扩展进度对齐 <see cref="SellOrder.Status"/>（与列表 <c>orderStatus</c> 同源）。
-        /// 新建/待审核/取消/审核失败不自动改写；已审核起可根据执行链上调或纠正「完成」。
-        /// </summary>
-        private static SellOrderMainStatus ComputeSellOrderMainStatusAfterRefresh(
-            SellOrder order,
-            IReadOnlyList<SellOrderItem> items,
-            IReadOnlyDictionary<string, SellOrderItemExtend> extendByItemId)
-        {
-            // sellorderitem.status：1=已取消（见实体注释）
-            const short cancelledLine = 1;
-            if (order.Status is SellOrderMainStatus.Cancelled or SellOrderMainStatus.AuditFailed
-                or SellOrderMainStatus.New or SellOrderMainStatus.PendingAudit)
-                return order.Status;
-
-            var hasActiveLine = false;
-            foreach (var it in items)
-            {
-                if (it.Status != cancelledLine)
-                {
-                    hasActiveLine = true;
-                    break;
-                }
-            }
-
-            if (!hasActiveLine)
-                return order.Status;
-
-            bool AnyActiveExecutionStarted()
-            {
-                foreach (var it in items)
-                {
-                    if (it.Status == cancelledLine)
-                        continue;
-                    if (!extendByItemId.TryGetValue(it.Id, out var e))
-                        continue;
-                    if (e.PurchaseProgressStatus > 0 || e.StockInProgressStatus > 0 || e.StockOutProgressStatus > 0
-                        || e.ReceiptProgressStatus > 0 || e.InvoiceProgressStatus > 0
-                        || e.QtyStockOutNotify > 0m)
-                        return true;
-                }
-
-                return false;
-            }
-
-            bool AllActiveStockOutComplete()
-            {
-                foreach (var it in items)
-                {
-                    if (it.Status == cancelledLine)
-                        continue;
-                    if (!extendByItemId.TryGetValue(it.Id, out var e) || e.StockOutProgressStatus < 2)
-                        return false;
-                }
-
-                return true;
-            }
-
-            var next = order.Status;
-
-            if (next == SellOrderMainStatus.Approved && AnyActiveExecutionStarted())
-                next = SellOrderMainStatus.InProgress;
-
-            if (next == SellOrderMainStatus.InProgress && AllActiveStockOutComplete())
-                next = SellOrderMainStatus.Completed;
-
-            if (next == SellOrderMainStatus.Completed && !AllActiveStockOutComplete())
-                next = SellOrderMainStatus.InProgress;
-
-            return next;
         }
 
         /// <inheritdoc />

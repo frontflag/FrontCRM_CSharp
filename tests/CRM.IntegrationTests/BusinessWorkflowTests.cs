@@ -198,6 +198,7 @@ namespace CRM.IntegrationTests
                 _financeExchangeRateService,
                 _orderJourneyLog,
                 soItemExtendSync,
+                Substitute.For<ISellOrderMainStatusSyncService>(),
                 Substitute.For<ISellOrderItemPurchasedStockAvailableSyncService>(),
                 soLineSeq,
                 _userService,
@@ -990,6 +991,7 @@ namespace CRM.IntegrationTests
                 soItemRepo, extendRepo, poItemRepo, stockInRepo, stockInItemExtendRepo, stockInItemRepo,
                 stockOutRequestRepo,
                 stockOutRepo, receivableRepo,
+                Substitute.For<ISellOrderMainStatusSyncService>(),
                 NullLogger<SellOrderItemExtendSyncService>.Instance);
 
             // 准备销售订单明细
@@ -1173,7 +1175,7 @@ namespace CRM.IntegrationTests
             var service = new PurchaseOrderItemExtendSyncService(
                 poItemRepo, poRepo, extendRepo, notifyRepo, payItemRepo, paymentRepo,
                 purInvItemRepo, purInvRepo, stockInRepo, stockInItemRepo, stockInItemExtendRepo, qcRepo,
-                sellSoItemExtendSync);
+                sellSoItemExtendSync, Substitute.For<IPurchaseOrderMainStatusSyncService>());
 
             // 准备采购订单明细
             var purchaseOrderItemId = Guid.NewGuid().ToString();

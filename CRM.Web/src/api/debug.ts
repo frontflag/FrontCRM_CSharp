@@ -167,6 +167,19 @@ export type RefreshPurchaseOrderMainStatusResult = {
   changedOrders: number
   changedOrderCodes: string[]
   skippedTerminalOrders: number
+  totalItems: number
+  changedItems: number
+  failedCount: number
+  failedMessages: string[]
+}
+
+export type RefreshSellOrderMainStatusResult = {
+  totalOrders: number
+  changedOrders: number
+  changedOrderCodes: string[]
+  skippedTerminalOrders: number
+  failedCount: number
+  failedMessages: string[]
 }
 
 function normalizeRfqChainPreview(raw: unknown): RfqChainPreview {
@@ -257,7 +270,27 @@ export async function refreshPurchaseOrderMainStatus(): Promise<RefreshPurchaseO
     totalOrders: Number(inner?.totalOrders ?? inner?.TotalOrders ?? 0),
     changedOrders: Number(inner?.changedOrders ?? inner?.ChangedOrders ?? 0),
     changedOrderCodes: Array.isArray(codesRaw) ? codesRaw.map((x: unknown) => String(x)) : [],
-    skippedTerminalOrders: Number(inner?.skippedTerminalOrders ?? inner?.SkippedTerminalOrders ?? 0)
+    skippedTerminalOrders: Number(inner?.skippedTerminalOrders ?? inner?.SkippedTerminalOrders ?? 0),
+    totalItems: Number(inner?.totalItems ?? inner?.TotalItems ?? 0),
+    changedItems: Number(inner?.changedItems ?? inner?.ChangedItems ?? 0),
+    failedCount: Number(inner?.failedCount ?? inner?.FailedCount ?? 0),
+    failedMessages: normalizeStringList(inner?.failedMessages ?? inner?.FailedMessages)
+  }
+}
+
+/** POST /api/v1/debug/refresh-sellorder-main-status — 批量刷新销售订单明细扩展并重算主状态 */
+export async function refreshSellOrderMainStatus(): Promise<RefreshSellOrderMainStatusResult> {
+  const raw = await apiClient.post<any>('/api/v1/debug/refresh-sellorder-main-status', {})
+  const outer = (raw?.data ?? raw?.Data ?? raw) as Record<string, any>
+  const inner = (outer?.data ?? outer?.Data ?? outer) as Record<string, any>
+  const codesRaw = inner?.changedOrderCodes ?? inner?.ChangedOrderCodes
+  return {
+    totalOrders: Number(inner?.totalOrders ?? inner?.TotalOrders ?? 0),
+    changedOrders: Number(inner?.changedOrders ?? inner?.ChangedOrders ?? 0),
+    changedOrderCodes: Array.isArray(codesRaw) ? codesRaw.map((x: unknown) => String(x)) : [],
+    skippedTerminalOrders: Number(inner?.skippedTerminalOrders ?? inner?.SkippedTerminalOrders ?? 0),
+    failedCount: Number(inner?.failedCount ?? inner?.FailedCount ?? 0),
+    failedMessages: normalizeStringList(inner?.failedMessages ?? inner?.FailedMessages)
   }
 }
 

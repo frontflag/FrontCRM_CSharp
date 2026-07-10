@@ -1,4 +1,5 @@
 using CRM.Core.Constants;
+using CRM.Core.Interfaces;
 using CRM.Core.Models.Finance;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Purchase;
@@ -6,12 +7,16 @@ using CRM.Core.Models.Sales;
 using CRM.Core.Services;
 using CRM.Core.Tests.Fakes;
 using Microsoft.Extensions.Logging.Abstractions;
+using NSubstitute;
 using Xunit;
 
 namespace CRM.Core.Tests.Services;
 
 public class SellOrderItemExtendSyncServiceTests
 {
+    private static ISellOrderMainStatusSyncService NoOpMainStatusSync()
+        => Substitute.For<ISellOrderMainStatusSyncService>();
+
     [Fact]
     public async Task RecalculateAsync_UpdatesAmountFields_WhenLineQtyChanges()
     {
@@ -48,6 +53,7 @@ public class SellOrderItemExtendSyncServiceTests
             new MemoryRepository<StockOutRequest>(),
             new MemoryRepository<StockOut>(),
             new MemoryRepository<FinanceReceivable>(),
+            NoOpMainStatusSync(),
             NullLogger<SellOrderItemExtendSyncService>.Instance);
 
         await service.RecalculateAsync(lineId);
@@ -98,6 +104,7 @@ public class SellOrderItemExtendSyncServiceTests
             requestRepo,
             new MemoryRepository<StockOut>(),
             new MemoryRepository<FinanceReceivable>(),
+            NoOpMainStatusSync(),
             NullLogger<SellOrderItemExtendSyncService>.Instance);
 
         await service.RecalculateAsync(lineId);
@@ -148,6 +155,7 @@ public class SellOrderItemExtendSyncServiceTests
             requestRepo,
             new MemoryRepository<StockOut>(),
             new MemoryRepository<FinanceReceivable>(),
+            NoOpMainStatusSync(),
             NullLogger<SellOrderItemExtendSyncService>.Instance);
 
         await service.RecalculateAsync(lineId);
@@ -200,6 +208,7 @@ public class SellOrderItemExtendSyncServiceTests
             requestRepo,
             new MemoryRepository<StockOut>(),
             new MemoryRepository<FinanceReceivable>(),
+            NoOpMainStatusSync(),
             NullLogger<SellOrderItemExtendSyncService>.Instance);
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => service.RecalculateAsync(lineId));
@@ -251,6 +260,7 @@ public class SellOrderItemExtendSyncServiceTests
             requestRepo,
             new MemoryRepository<StockOut>(),
             new MemoryRepository<FinanceReceivable>(),
+            NoOpMainStatusSync(),
             NullLogger<SellOrderItemExtendSyncService>.Instance);
 
         await service.RecalculateAsync(lineId);
@@ -259,5 +269,117 @@ public class SellOrderItemExtendSyncServiceTests
         Assert.NotNull(updated);
         Assert.Equal(66m, updated!.QtyStockOutNotify);
         Assert.Equal(0m, updated.QtyStockOutNotifyNot);
+    }
+
+    [Fact]
+    public async Task RecalculateAsync_WithPurchaseQty_SyncsOrderMainStatusToInProgress()
+    {
+        var orderId = Guid.NewGuid().ToString();
+        var lineId = Guid.NewGuid().ToString();
+        var orderRepo = new MemoryRepository<SellOrder>();
+        var soItemRepo = new MemoryRepository<SellOrderItem>();
+        var extendRepo = new MemoryRepository<SellOrderItemExtend>();
+        var poItemRepo = new MemoryRepository<PurchaseOrderItem>();
+
+        await orderRepo.AddAsync(new SellOrder
+        {
+            Id = orderId,
+            Status = SellOrderMainStatus.Approved,
+            SellOrderCode = "SO-SYNC"
+        });
+        await soItemRepo.AddAsync(new SellOrderItem
+        {
+            Id = lineId,
+            SellOrderId = orderId,
+            Qty = 10m,
+            Price = 1m
+        });
+        await extendRepo.AddAsync(new SellOrderItemExtend { Id = lineId });
+        await poItemRepo.AddAsync(new PurchaseOrderItem
+        {
+            Id = Guid.NewGuid().ToString(),
+            SellOrderItemId = lineId,
+            Qty = 5m
+        });
+
+        var mainStatusSync = new SellOrderMainStatusSyncService(
+            orderRepo, soItemRepo, extendRepo, NullLogger<SellOrderMainStatusSyncService>.Instance);
+
+        var service = new SellOrderItemExtendSyncService(
+            soItemRepo,
+            extendRepo,
+            poItemRepo,
+            new MemoryRepository<StockIn>(),
+            new MemoryRepository<StockInItemExtend>(),
+            new MemoryRepository<StockInItem>(),
+            new MemoryRepository<StockOutRequest>(),
+            new MemoryRepository<StockOut>(),
+            new MemoryRepository<FinanceReceivable>(),
+            mainStatusSync,
+            NullLogger<SellOrderItemExtendSyncService>.Instance);
+
+        await service.RecalculateAsync(lineId);
+
+        var order = await orderRepo.GetByIdAsync(orderId);
+        Assert.Equal(SellOrderMainStatus.InProgress, order!.Status);
+    }
+
+    [Fact]
+    public async Task RecalculateAsync_WithFullReceipt_SyncsOrderMainStatusToCompleted()
+    {
+        var orderId = Guid.NewGuid().ToString();
+        var lineId = Guid.NewGuid().ToString();
+        var orderRepo = new MemoryRepository<SellOrder>();
+        var soItemRepo = new MemoryRepository<SellOrderItem>();
+        var extendRepo = new MemoryRepository<SellOrderItemExtend>();
+        var receivableRepo = new MemoryRepository<FinanceReceivable>();
+
+        await orderRepo.AddAsync(new SellOrder
+        {
+            Id = orderId,
+            Status = SellOrderMainStatus.InProgress,
+            SellOrderCode = "SO-RECEIPT"
+        });
+        await soItemRepo.AddAsync(new SellOrderItem
+        {
+            Id = lineId,
+            SellOrderId = orderId,
+            Qty = 10m,
+            Price = 1m
+        });
+        await extendRepo.AddAsync(new SellOrderItemExtend { Id = lineId });
+        await receivableRepo.AddAsync(new FinanceReceivable
+        {
+            Id = Guid.NewGuid().ToString(),
+            SellOrderItemId = lineId,
+            SellOrderId = orderId,
+            StockOutId = Guid.NewGuid().ToString(),
+            StockOutCode = "OUT-001",
+            VerifiedDone = 10m,
+            IsDeleted = false
+        });
+
+        var mainStatusSync = new SellOrderMainStatusSyncService(
+            orderRepo, soItemRepo, extendRepo, NullLogger<SellOrderMainStatusSyncService>.Instance);
+
+        var service = new SellOrderItemExtendSyncService(
+            soItemRepo,
+            extendRepo,
+            new MemoryRepository<PurchaseOrderItem>(),
+            new MemoryRepository<StockIn>(),
+            new MemoryRepository<StockInItemExtend>(),
+            new MemoryRepository<StockInItem>(),
+            new MemoryRepository<StockOutRequest>(),
+            new MemoryRepository<StockOut>(),
+            receivableRepo,
+            mainStatusSync,
+            NullLogger<SellOrderItemExtendSyncService>.Instance);
+
+        await service.RecalculateAsync(lineId);
+
+        var order = await orderRepo.GetByIdAsync(orderId);
+        Assert.Equal(SellOrderMainStatus.Completed, order!.Status);
+        var ext = await extendRepo.GetByIdAsync(lineId);
+        Assert.Equal(2, ext!.ReceiptProgressStatus);
     }
 }

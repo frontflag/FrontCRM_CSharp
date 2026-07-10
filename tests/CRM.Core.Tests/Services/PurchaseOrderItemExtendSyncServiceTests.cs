@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Finance;
 using CRM.Core.Models.Inventory;
@@ -30,7 +31,8 @@ public class PurchaseOrderItemExtendSyncServiceTests
             new MemoryRepository<StockInItem>(),
             new MemoryRepository<StockInItemExtend>(),
             new MemoryRepository<QCInfo>(),
-            Substitute.For<ISellOrderItemExtendSyncService>());
+            Substitute.For<ISellOrderItemExtendSyncService>(),
+            Substitute.For<IPurchaseOrderMainStatusSyncService>());
     }
 
     [Fact]
@@ -119,5 +121,159 @@ public class PurchaseOrderItemExtendSyncServiceTests
         Assert.NotNull(notice);
         Assert.Equal(800, notice!.ExpectQty);
         Assert.Equal(800m, notice.ExpectTotal);
+    }
+
+    [Fact]
+    public async Task RecalculateAsync_FullStockInOnly_KeepsPurchaseProgressPartial()
+    {
+        var poId = Guid.NewGuid().ToString();
+        var lineId = Guid.NewGuid().ToString();
+        var stockInId = Guid.NewGuid().ToString();
+        var stockInItemId = Guid.NewGuid().ToString();
+        var poItemRepo = new MemoryRepository<PurchaseOrderItem>();
+        var poRepo = new MemoryRepository<PurchaseOrder>();
+        var extendRepo = new MemoryRepository<PurchaseOrderItemExtend>();
+        var notifyRepo = new MemoryRepository<StockInNotify>();
+        var stockInRepo = new MemoryRepository<StockIn>();
+        var stockInItemRepo = new MemoryRepository<StockInItem>();
+        var stockInItemExtendRepo = new MemoryRepository<StockInItemExtend>();
+
+        await poRepo.AddAsync(new PurchaseOrder { Id = poId, Status = 50 });
+        await poItemRepo.AddAsync(new PurchaseOrderItem
+        {
+            Id = lineId,
+            PurchaseOrderId = poId,
+            Qty = 4000m,
+            Cost = 3.18m,
+            Status = 60
+        });
+        await extendRepo.AddAsync(new PurchaseOrderItemExtend { Id = lineId });
+        await stockInRepo.AddAsync(new StockIn
+        {
+            Id = stockInId,
+            StockInCode = "STI-TEST",
+            Status = 2,
+            StockInType = StockInTypeCode.Purchase,
+            WarehouseId = Guid.NewGuid().ToString()
+        });
+        await stockInItemExtendRepo.AddAsync(new StockInItemExtend
+        {
+            Id = stockInItemId,
+            StockInId = stockInId,
+            PurchaseOrderItemId = lineId
+        });
+        await stockInItemRepo.AddAsync(new StockInItem
+        {
+            Id = stockInItemId,
+            StockInId = stockInId,
+            Quantity = 4000
+        });
+
+        var service = new PurchaseOrderItemExtendSyncService(
+            poItemRepo,
+            poRepo,
+            extendRepo,
+            notifyRepo,
+            new MemoryRepository<FinancePaymentItem>(),
+            new MemoryRepository<FinancePayment>(),
+            new MemoryRepository<FinancePurchaseInvoiceItem>(),
+            new MemoryRepository<FinancePurchaseInvoice>(),
+            stockInRepo,
+            stockInItemRepo,
+            stockInItemExtendRepo,
+            new MemoryRepository<QCInfo>(),
+            Substitute.For<ISellOrderItemExtendSyncService>(),
+            Substitute.For<IPurchaseOrderMainStatusSyncService>());
+
+        await service.RecalculateAsync(lineId);
+
+        var ext = await extendRepo.GetByIdAsync(lineId);
+        Assert.NotNull(ext);
+        Assert.Equal(1, ext!.PurchaseProgressStatus);
+        Assert.Equal(2, ext.StockInProgressStatus);
+        Assert.Equal(0, ext.PaymentProgressStatus);
+    }
+
+    [Fact]
+    public async Task RecalculateAsync_FullStockInAndFullPayment_SetsPurchaseProgressComplete()
+    {
+        var poId = Guid.NewGuid().ToString();
+        var lineId = Guid.NewGuid().ToString();
+        var stockInId = Guid.NewGuid().ToString();
+        var stockInItemId = Guid.NewGuid().ToString();
+        var paymentId = Guid.NewGuid().ToString();
+        var poItemRepo = new MemoryRepository<PurchaseOrderItem>();
+        var poRepo = new MemoryRepository<PurchaseOrder>();
+        var extendRepo = new MemoryRepository<PurchaseOrderItemExtend>();
+        var notifyRepo = new MemoryRepository<StockInNotify>();
+        var stockInRepo = new MemoryRepository<StockIn>();
+        var stockInItemRepo = new MemoryRepository<StockInItem>();
+        var stockInItemExtendRepo = new MemoryRepository<StockInItemExtend>();
+        var payItemRepo = new MemoryRepository<FinancePaymentItem>();
+        var paymentRepo = new MemoryRepository<FinancePayment>();
+
+        await poRepo.AddAsync(new PurchaseOrder { Id = poId, Status = 50 });
+        await poItemRepo.AddAsync(new PurchaseOrderItem
+        {
+            Id = lineId,
+            PurchaseOrderId = poId,
+            Qty = 4000m,
+            Cost = 3.18m,
+            Status = 60
+        });
+        await extendRepo.AddAsync(new PurchaseOrderItemExtend { Id = lineId });
+        await stockInRepo.AddAsync(new StockIn
+        {
+            Id = stockInId,
+            StockInCode = "STI-TEST",
+            Status = 2,
+            StockInType = StockInTypeCode.Purchase,
+            WarehouseId = Guid.NewGuid().ToString()
+        });
+        await stockInItemExtendRepo.AddAsync(new StockInItemExtend
+        {
+            Id = stockInItemId,
+            StockInId = stockInId,
+            PurchaseOrderItemId = lineId
+        });
+        await stockInItemRepo.AddAsync(new StockInItem
+        {
+            Id = stockInItemId,
+            StockInId = stockInId,
+            Quantity = 4000
+        });
+        await paymentRepo.AddAsync(new FinancePayment { Id = paymentId, Status = 10 });
+        await payItemRepo.AddAsync(new FinancePaymentItem
+        {
+            Id = Guid.NewGuid().ToString(),
+            FinancePaymentId = paymentId,
+            PurchaseOrderItemId = lineId,
+            PaymentAmountToBe = 12720m,
+            VerificationDone = 12720m
+        });
+
+        var service = new PurchaseOrderItemExtendSyncService(
+            poItemRepo,
+            poRepo,
+            extendRepo,
+            notifyRepo,
+            payItemRepo,
+            paymentRepo,
+            new MemoryRepository<FinancePurchaseInvoiceItem>(),
+            new MemoryRepository<FinancePurchaseInvoice>(),
+            stockInRepo,
+            stockInItemRepo,
+            stockInItemExtendRepo,
+            new MemoryRepository<QCInfo>(),
+            Substitute.For<ISellOrderItemExtendSyncService>(),
+            Substitute.For<IPurchaseOrderMainStatusSyncService>());
+
+        await service.RecalculateAsync(lineId);
+
+        var ext = await extendRepo.GetByIdAsync(lineId);
+        Assert.NotNull(ext);
+        Assert.Equal(2, ext!.PurchaseProgressStatus);
+        Assert.Equal(2, ext.StockInProgressStatus);
+        Assert.Equal(2, ext.PaymentProgressStatus);
     }
 }

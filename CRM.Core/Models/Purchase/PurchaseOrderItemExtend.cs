@@ -67,7 +67,7 @@ namespace CRM.Core.Models.Purchase
         [Column(TypeName = "numeric(18,2)")]
         public decimal ReceiptAmountFinish { get; set; }
 
-        /// <summary>采购执行进度：0=待采购 1=部分采购 2=采购完成（本明细状态；主单或明细取消时数量记 0、状态待采购）</summary>
+        /// <summary>采购执行进度：0=待采购 1=采购中 2=采购完成（付款完成且入库数量达行 Qty；明细或主单取消时数量记 0、状态待采购）</summary>
         public short PurchaseProgressStatus { get; set; }
 
         /// <summary>本行有效采购数量：明细未取消且采购主单未取消时为行 Qty，否则 0。</summary>

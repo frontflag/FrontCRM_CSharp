@@ -35,6 +35,7 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
     private readonly IRepository<StockOutRequest> _stockOutRequestRepo;
     private readonly IRepository<StockOut> _stockOutRepo;
     private readonly IRepository<FinanceReceivable> _receivableRepo;
+    private readonly ISellOrderMainStatusSyncService _mainStatusSync;
     private readonly ILogger<SellOrderItemExtendSyncService> _logger;
 
     public SellOrderItemExtendSyncService(
@@ -47,6 +48,7 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
         IRepository<StockOutRequest> stockOutRequestRepo,
         IRepository<StockOut> stockOutRepo,
         IRepository<FinanceReceivable> receivableRepo,
+        ISellOrderMainStatusSyncService mainStatusSync,
         ILogger<SellOrderItemExtendSyncService> logger)
     {
         _soItemRepo = soItemRepo;
@@ -58,6 +60,7 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
         _stockOutRequestRepo = stockOutRequestRepo;
         _stockOutRepo = stockOutRepo;
         _receivableRepo = receivableRepo;
+        _mainStatusSync = mainStatusSync;
         _logger = logger;
     }
 
@@ -209,6 +212,9 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
         _logger.LogInformation(
             "[SellLineStockOutSync] Recalculate done SellOrderItemId={SellOrderItemId} LineQty={LineQty} QtyStockOutActual={QtyStockOutActual} StockOutProgressStatus={StockOutProgressStatus} (0=待 1=部分 2=完成)",
             id, qtyLine, ext.QtyStockOutActual, ext.StockOutProgressStatus);
+
+        if (!string.IsNullOrWhiteSpace(soItem.SellOrderId))
+            await _mainStatusSync.TrySyncOrderMainStatusAsync(soItem.SellOrderId, cancellationToken);
     }
 
     private async Task AlignStockOutRequestsWithSoLineQtyAsync(

@@ -302,4 +302,31 @@ purchaseOrderItemExtend.QtyStockInNotifyNot = purchaseOrderItem.Qty - stockInNot
 
 ---
 
-*文档生成时间：2026年3月29日*
+## 八、FrontCRM 执行进度字段（现行实现）
+
+> 本节描述 **FrontCRM（CRM.Core）** 中 `purchaseorderitemextend` 上四个 `*_progress_status` 字段的重算口径；与上文 EBS 遗留分仓数量字段并存时，**列表「采购/入库/付款状态」列以本节进度字段为准**。
+
+统一枚举：**0=待 / 1=部分 / 2=完成**。重算入口：`PurchaseOrderItemExtendSyncService.RecalculateAsync`。
+
+| 字段 | 列名 | 完成(2)条件 | 部分(1)条件 |
+|------|------|-------------|-------------|
+| `purchase_progress_status` | 采购状态 | 付款完成 **且** 入库数量 ≥ 行 `qty` | 未达完成，但行已确认或已有入库或已有核销付款 |
+| `stock_in_progress_status` | 入库状态 | `qty_receive_total` ≥ 行 `qty` | `0 < qty_receive_total < qty` |
+| `payment_progress_status` | 付款状态 | `payment_amount_finish` ≥ `payment_amount` | `0 < payment_amount_finish < payment_amount` |
+| `invoice_progress_status` | 开票状态 | `purchase_invoice_done` ≥ `purchase_invoice_amount` | 介于 0 与全额之间 |
+
+**主单 `purchaseorder.status` 自动同步**（已确认起）：任一有效明细 `payment_progress_status` 或 `stock_in_progress_status` 为 **1** → 主单 **50 进行中**；全部有效明细 `purchase_progress_status` 为 **2** → 主单 **100 采购完成**。
+
+完整规则（含明细 `status` 里程碑、人工审批流转）：[采购订单主状态](../../System/采购订单主状态.md)。
+
+**现行代码索引**：
+
+| 项 | 路径 |
+|----|------|
+| 实体 | `CRM.Core/Models/Purchase/PurchaseOrderItemExtend.cs` |
+| 扩展重算 | `CRM.Core/Services/PurchaseOrderItemExtendSyncService.cs` |
+| 主状态同步 | `CRM.Core/Services/PurchaseOrderMainStatusSyncService.cs` |
+
+---
+
+*文档生成时间：2026年3月29日 · §八增补：2026-07-11（FrontCRM 进度状态口径）*

@@ -13,7 +13,6 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
     private const short PoItemCancelled = -2;
     private const short PoOrderCancelled = -2;
     private const short PoItemConfirmed = 30;
-    private const short PoItemCompleted = 100;
     private const short FinancePaymentCancelled = -2;
     private const short FinancePaymentAuditFailed = -1;
     private const short StockInCancelled = 3;
@@ -39,6 +38,7 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
     private readonly IRepository<QCInfo> _qcRepo;
     private readonly IUnitOfWork? _unitOfWork;
     private readonly ISellOrderItemExtendSyncService _sellSoItemExtendSync;
+    private readonly IPurchaseOrderMainStatusSyncService _poMainStatusSync;
 
     public PurchaseOrderItemExtendSyncService(
         IRepository<PurchaseOrderItem> poItemRepo,
@@ -54,6 +54,7 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
         IRepository<StockInItemExtend> stockInItemExtendRepo,
         IRepository<QCInfo> qcRepo,
         ISellOrderItemExtendSyncService sellSoItemExtendSync,
+        IPurchaseOrderMainStatusSyncService poMainStatusSync,
         IUnitOfWork? unitOfWork = null)
     {
         _poItemRepo = poItemRepo;
@@ -69,6 +70,7 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
         _stockInItemExtendRepo = stockInItemExtendRepo;
         _qcRepo = qcRepo;
         _sellSoItemExtendSync = sellSoItemExtendSync;
+        _poMainStatusSync = poMainStatusSync;
         _unitOfWork = unitOfWork;
     }
 
@@ -126,9 +128,24 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
         var stockInCompletedQty = await SumCompletedPurchaseStockInQtyForPoLineAsync(poItem.Id, cancellationToken);
         ext.QtyReceiveTotal = stockInCompletedQty;
 
+        // --- 付款汇总（采购进度需与入库进度一并判定，故提前计算）---
+        var payItems = (await _payItemRepo.FindAsync(p =>
+                p.PurchaseOrderItemId != null && p.PurchaseOrderItemId == id))
+            .ToList();
+        var paymentIds = payItems.Select(p => p.FinancePaymentId).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var payments = paymentIds.Count == 0
+            ? new List<FinancePayment>()
+            : (await _paymentRepo.FindAsync(x => paymentIds.Contains(x.Id))).ToList();
+        var validPaymentIds = payments
+            .Where(p => p.Status != FinancePaymentCancelled && p.Status != FinancePaymentAuditFailed)
+            .Select(p => p.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var payRequested = payItems.Where(pi => validPaymentIds.Contains(pi.FinancePaymentId)).Sum(pi => pi.PaymentAmountToBe);
+        var payDone = payItems.Where(pi => validPaymentIds.Contains(pi.FinancePaymentId)).Sum(pi => pi.VerificationDone);
+
         var invalidPurchaseLine = lineCancelled || poCancelled;
 
-        // --- 采购进度（本行有效采购量 + 状态；明细或主单取消则数量 0、状态待采购）---
+        // --- 采购进度（付款完成且入库完成=采购完成；否则已确认或执行中=采购中）---
         if (invalidPurchaseLine)
         {
             ext.PurchaseProgressQty = 0m;
@@ -137,11 +154,14 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
         else
         {
             ext.PurchaseProgressQty = poItem.Qty;
-            ext.PurchaseProgressStatus = poItem.Status >= PoItemCompleted
-                ? ProgressComplete
-                : poItem.Status >= PoItemConfirmed
-                    ? ProgressPartial
-                    : ProgressPending;
+            var stockInComplete = stockInCompletedQty + 1e-9m >= poItem.Qty;
+            var paymentComplete = lineAmountTotal > 0m && payDone + 0.0001m >= lineAmountTotal;
+            if (stockInComplete && paymentComplete)
+                ext.PurchaseProgressStatus = ProgressComplete;
+            else if (poItem.Status >= PoItemConfirmed || stockInCompletedQty > 0m || payDone > 0m)
+                ext.PurchaseProgressStatus = ProgressPartial;
+            else
+                ext.PurchaseProgressStatus = ProgressPending;
         }
 
         // --- 入库进度（相对本行有效采购数量）---
@@ -156,21 +176,8 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
             ext.StockInProgressStatus = ProgressPartial;
 
         // --- 付款：排除已取消、审核失败的付款单 ---
-        var payItems = (await _payItemRepo.FindAsync(p =>
-                p.PurchaseOrderItemId != null && p.PurchaseOrderItemId == id))
-            .ToList();
-        var paymentIds = payItems.Select(p => p.FinancePaymentId).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        var payments = paymentIds.Count == 0
-            ? new List<FinancePayment>()
-            : (await _paymentRepo.FindAsync(x => paymentIds.Contains(x.Id))).ToList();
-        var validPaymentIds = payments
-            .Where(p => p.Status != FinancePaymentCancelled && p.Status != FinancePaymentAuditFailed)
-            .Select(p => p.Id)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var payRequested = payItems.Where(pi => validPaymentIds.Contains(pi.FinancePaymentId)).Sum(pi => pi.PaymentAmountToBe);
         ext.PaymentAmountRequested = Math.Round(payRequested, 2, MidpointRounding.AwayFromZero);
 
-        var payDone = payItems.Where(pi => validPaymentIds.Contains(pi.FinancePaymentId)).Sum(pi => pi.VerificationDone);
         ext.PaymentAmountFinish = Math.Round(payDone, 2, MidpointRounding.AwayFromZero);
         ext.PaymentAmountNot = Math.Max(0m, Math.Round(ext.PaymentAmount - ext.PaymentAmountFinish, 2, MidpointRounding.AwayFromZero));
         if (ext.PaymentAmountFinish <= 0m)
@@ -196,6 +203,9 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
 
         if (!string.IsNullOrWhiteSpace(poItem.SellOrderItemId))
             await _sellSoItemExtendSync.RecalculateAsync(poItem.SellOrderItemId.Trim(), cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(poItem.PurchaseOrderId))
+            await _poMainStatusSync.TrySyncOrderMainStatusAsync(poItem.PurchaseOrderId.Trim(), cancellationToken);
     }
 
     private async Task AlignArrivalNoticesWithPoLineQtyAsync(

@@ -83,6 +83,7 @@ namespace CRM.Core.Tests.Services
                 _financeExchangeRateService,
                 _orderJourneyLog,
                 _soItemExtendSync,
+                Substitute.For<ISellOrderMainStatusSyncService>(),
                 _purchasedStockAvailableSync,
                 _soLineSeq,
                 _userService,

@@ -107,6 +107,12 @@
         <el-button type="warning" :loading="refreshingSellOrderComments" @click="onRefreshSellOrderCommentSplit">
           刷新Sellorder
         </el-button>
+        <el-button type="primary" :loading="refreshingSellOrderMainStatus" @click="onRefreshSellOrderMainStatus">
+          刷新销售订单状态
+        </el-button>
+        <el-button type="primary" :loading="refreshingPurchaseOrderMainStatus" @click="onRefreshPurchaseOrderMainStatus">
+          刷新采购订单状态
+        </el-button>
         <el-button type="warning" :loading="refreshingSellOrderItemCustomerPn" @click="onRefreshSellOrderItemCustomerPn">
           刷新sellorderitem
         </el-button>
@@ -144,6 +150,38 @@
       <div v-if="sellOrderCommentSplitResult" class="simulate-result">
         <div>扫描（comment 非空）：{{ sellOrderCommentSplitResult.totalWithComment }} 条</div>
         <div>已执行 legacy 拆分：{{ sellOrderCommentSplitResult.rowsProcessed }} 条</div>
+      </div>
+      <div class="refresh-hint refresh-hint--second">
+        「刷新销售订单状态」：遍历未软删销售订单，逐单调用详情页「刷新扩展」同源接口，重算明细扩展并按规则同步主状态（审核通过→进行中、全部收款完成→完成等）。跳过取消/审核失败单。耗时可较长，请勿重复点击。
+      </div>
+      <div v-if="sellOrderMainStatusResult" class="simulate-result">
+        <div>扫描订单：{{ sellOrderMainStatusResult.totalOrders }} 条</div>
+        <div>主状态变更：{{ sellOrderMainStatusResult.changedOrders }} 条</div>
+        <div>跳过终态（取消/审核失败）：{{ sellOrderMainStatusResult.skippedTerminalOrders }} 条</div>
+        <div>失败：{{ sellOrderMainStatusResult.failedCount }} 条</div>
+        <div v-if="sellOrderMainStatusResult.changedOrderCodes.length">
+          变更单号（最多 50 条）：{{ sellOrderMainStatusResult.changedOrderCodes.join('，') }}
+        </div>
+        <div v-if="sellOrderMainStatusResult.failedMessages.length">
+          失败明细：{{ sellOrderMainStatusResult.failedMessages.join('；') }}
+        </div>
+      </div>
+      <div class="refresh-hint refresh-hint--second">
+        「刷新采购订单状态」：遍历全部采购订单，逐单调用详情页「刷新扩展」同源接口，重算明细扩展、同步明细状态与主状态（部分付款/部分入库→进行中，全部采购完成→采购完成）。跳过取消/审核失败单。耗时可较长，请勿重复点击。
+      </div>
+      <div v-if="purchaseOrderMainStatusResult" class="simulate-result">
+        <div>扫描订单：{{ purchaseOrderMainStatusResult.totalOrders }} 条</div>
+        <div>扫描明细：{{ purchaseOrderMainStatusResult.totalItems }} 条</div>
+        <div>明细有变更：{{ purchaseOrderMainStatusResult.changedItems }} 条</div>
+        <div>主状态变更：{{ purchaseOrderMainStatusResult.changedOrders }} 条</div>
+        <div>跳过终态（取消/审核失败）：{{ purchaseOrderMainStatusResult.skippedTerminalOrders }} 条</div>
+        <div>失败：{{ purchaseOrderMainStatusResult.failedCount }} 条</div>
+        <div v-if="purchaseOrderMainStatusResult.changedOrderCodes.length">
+          主状态变更单号（最多 50 条）：{{ purchaseOrderMainStatusResult.changedOrderCodes.join('，') }}
+        </div>
+        <div v-if="purchaseOrderMainStatusResult.failedMessages.length">
+          失败明细：{{ purchaseOrderMainStatusResult.failedMessages.join('；') }}
+        </div>
       </div>
       <div class="refresh-hint refresh-hint--second">
         「刷新sellorderitem」：从 <span class="mono">sellorderitem.comment</span> 首行「客户物料型号：」等前缀解析，写入
@@ -222,6 +260,8 @@ import {
   deleteRfqChain,
   refreshStockLedger,
   refreshSellOrderCommentSplit,
+  refreshSellOrderMainStatus,
+  refreshPurchaseOrderMainStatus,
   refreshSellOrderItemCustomerPnFromComment,
   refreshFinancePaymentRemarkFromLegacy,
   refreshFinanceReceivablesFromStockOuts,
@@ -233,6 +273,8 @@ import {
   type RefreshStockLedgerResult,
   type RecalculateStockAggregatesResult,
   type RefreshSellOrderCommentSplitResult,
+  type RefreshSellOrderMainStatusResult,
+  type RefreshPurchaseOrderMainStatusResult,
   type RefreshSellOrderItemCustomerPnFromCommentResult,
   type RefreshFinancePaymentLegacyRemarkResult,
   type RefreshFinanceReceivablesFromStockOutsResult,
@@ -387,6 +429,10 @@ const recalculatingStock = ref(false)
 const stockRecalculateResult = ref<RecalculateStockAggregatesResult | null>(null)
 const refreshingSellOrderComments = ref(false)
 const sellOrderCommentSplitResult = ref<RefreshSellOrderCommentSplitResult | null>(null)
+const refreshingSellOrderMainStatus = ref(false)
+const sellOrderMainStatusResult = ref<RefreshSellOrderMainStatusResult | null>(null)
+const refreshingPurchaseOrderMainStatus = ref(false)
+const purchaseOrderMainStatusResult = ref<RefreshPurchaseOrderMainStatusResult | null>(null)
 const refreshingSellOrderItemCustomerPn = ref(false)
 const sellOrderItemCustomerPnResult = ref<RefreshSellOrderItemCustomerPnFromCommentResult | null>(null)
 const refreshingFinancePaymentRemark = ref(false)
@@ -543,6 +589,59 @@ const onRefreshSellOrderCommentSplit = async () => {
     ElMessage.error(getApiErrorMessage(e, '拆分 sellorder.comment 失败'))
   } finally {
     refreshingSellOrderComments.value = false
+  }
+}
+
+const onRefreshSellOrderMainStatus = async () => {
+  if (refreshingSellOrderMainStatus.value) return
+  try {
+    await ElMessageBox.confirm(
+      '将遍历全部未软删销售订单，逐单重算明细扩展并同步主状态（与详情页「刷新扩展」一致）。订单较多时可能耗时较长，是否继续？',
+      '确认刷新销售订单状态',
+      { type: 'warning', confirmButtonText: '继续', cancelButtonText: '取消' }
+    )
+  } catch {
+    return
+  }
+  refreshingSellOrderMainStatus.value = true
+  try {
+    const result = await refreshSellOrderMainStatus()
+    sellOrderMainStatusResult.value = result
+    ElMessage.success(
+      `刷新完成：扫描 ${result.totalOrders} 条，主状态变更 ${result.changedOrders} 条，` +
+        `跳过终态 ${result.skippedTerminalOrders} 条，失败 ${result.failedCount} 条`
+    )
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '刷新销售订单状态失败'))
+  } finally {
+    refreshingSellOrderMainStatus.value = false
+  }
+}
+
+const onRefreshPurchaseOrderMainStatus = async () => {
+  if (refreshingPurchaseOrderMainStatus.value) return
+  try {
+    await ElMessageBox.confirm(
+      '将遍历全部采购订单，逐单重算明细扩展、同步明细状态与主状态（与详情页「刷新扩展」一致）。订单较多时可能耗时较长，是否继续？',
+      '确认刷新采购订单状态',
+      { type: 'warning', confirmButtonText: '继续', cancelButtonText: '取消' }
+    )
+  } catch {
+    return
+  }
+  refreshingPurchaseOrderMainStatus.value = true
+  try {
+    const result = await refreshPurchaseOrderMainStatus()
+    purchaseOrderMainStatusResult.value = result
+    ElMessage.success(
+      `刷新完成：扫描 ${result.totalOrders} 条，明细 ${result.totalItems} 条，` +
+        `明细变更 ${result.changedItems} 条，主状态变更 ${result.changedOrders} 条，` +
+        `跳过终态 ${result.skippedTerminalOrders} 条，失败 ${result.failedCount} 条`
+    )
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '刷新采购订单状态失败'))
+  } finally {
+    refreshingPurchaseOrderMainStatus.value = false
   }
 }
 

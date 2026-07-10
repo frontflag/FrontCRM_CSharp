@@ -36,6 +36,8 @@ namespace CRM.API.Controllers
         private readonly IFinanceReceivableService _financeReceivableService;
         private readonly IInventoryCenterService _inventoryCenterService;
         private readonly IAiOrchestrator _aiOrchestrator;
+        private readonly ISalesOrderService _salesOrderService;
+        private readonly IPurchaseOrderService _purchaseOrderService;
         private const short PoStatusInProgress = 50;
         private const short PoStatusCompleted = 100;
         private const short PoStatusAuditFailed = -1;
@@ -56,7 +58,9 @@ namespace CRM.API.Controllers
             IStockInExtendLineSeqService stockInLineSeq,
             IFinanceReceivableService financeReceivableService,
             IInventoryCenterService inventoryCenterService,
-            IAiOrchestrator aiOrchestrator)
+            IAiOrchestrator aiOrchestrator,
+            ISalesOrderService salesOrderService,
+            IPurchaseOrderService purchaseOrderService)
         {
             _context = context;
             _configuration = configuration;
@@ -68,6 +72,8 @@ namespace CRM.API.Controllers
             _financeReceivableService = financeReceivableService;
             _inventoryCenterService = inventoryCenterService;
             _aiOrchestrator = aiOrchestrator;
+            _salesOrderService = salesOrderService;
+            _purchaseOrderService = purchaseOrderService;
         }
 
         public class DebugItemDto
@@ -126,6 +132,20 @@ namespace CRM.API.Controllers
             public int ChangedOrders { get; set; }
             public List<string> ChangedOrderCodes { get; set; } = new();
             public int SkippedTerminalOrders { get; set; }
+            public int TotalItems { get; set; }
+            public int ChangedItems { get; set; }
+            public int FailedCount { get; set; }
+            public List<string> FailedMessages { get; set; } = new();
+        }
+
+        public class RefreshSellOrderMainStatusResultDto
+        {
+            public int TotalOrders { get; set; }
+            public int ChangedOrders { get; set; }
+            public List<string> ChangedOrderCodes { get; set; } = new();
+            public int SkippedTerminalOrders { get; set; }
+            public int FailedCount { get; set; }
+            public List<string> FailedMessages { get; set; } = new();
         }
 
         public class RefreshSellOrderCommentSplitResultDto
@@ -945,31 +965,22 @@ namespace CRM.API.Controllers
         }
 
         /// <summary>
-        /// 临时调试工具：回填 stockledger 的出库成本与币别（避免手工 SQL 受大小写列名影响）。
+        /// 临时调试工具：批量刷新采购订单明细扩展、明细状态与主状态（与详情页「刷新扩展」同源）。
         /// </summary>
         [Authorize]
         [HttpPost("refresh-purchase-order-main-status")]
-        public async Task<ActionResult<ApiResponse<RefreshPurchaseOrderMainStatusResultDto>>> RefreshPurchaseOrderMainStatus()
+        public async Task<ActionResult<ApiResponse<RefreshPurchaseOrderMainStatusResultDto>>> RefreshPurchaseOrderMainStatus(
+            CancellationToken cancellationToken)
         {
-            await using var tx = await _context.Database.BeginTransactionAsync();
             try
             {
-                var orders = await _context.PurchaseOrders.ToListAsync();
+                var orders = await _context.PurchaseOrders.ToListAsync(cancellationToken);
                 if (orders.Count == 0)
                 {
                     var empty = new RefreshPurchaseOrderMainStatusResultDto();
                     return Ok(ApiResponse<RefreshPurchaseOrderMainStatusResultDto>.Ok(empty, "无采购订单可刷新"));
                 }
 
-                var orderIds = orders.Select(o => o.Id).ToList();
-                var items = await _context.PurchaseOrderItems
-                    .Where(i => orderIds.Contains(i.PurchaseOrderId))
-                    .ToListAsync();
-                var itemGroups = items
-                    .GroupBy(i => i.PurchaseOrderId)
-                    .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
-
-                var now = DateTime.UtcNow;
                 var result = new RefreshPurchaseOrderMainStatusResultDto
                 {
                     TotalOrders = orders.Count
@@ -977,58 +988,103 @@ namespace CRM.API.Controllers
 
                 foreach (var order in orders)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     if (order.Status is PoStatusCancelled or PoStatusAuditFailed)
                     {
                         result.SkippedTerminalOrders++;
                         continue;
                     }
 
-                    if (!itemGroups.TryGetValue(order.Id, out var orderItems) || orderItems.Count == 0)
-                        continue;
+                    var before = order.Status;
+                    try
+                    {
+                        var refresh = await _purchaseOrderService.RefreshItemExtendsAsync(order.Id, cancellationToken);
+                        result.TotalItems += refresh.TotalItems;
+                        result.ChangedItems += refresh.ChangedItems;
 
-                    var activeItems = orderItems.Where(i => i.Status != PoStatusCancelled).ToList();
-                    if (activeItems.Count == 0)
-                        continue;
-
-                    var next = ComputePurchaseOrderMainStatusFromItems(activeItems);
-
-                    if (next == order.Status)
-                        continue;
-
-                    order.Status = next;
-                    order.ModifyTime = now;
-                    result.ChangedOrders++;
-                    result.ChangedOrderCodes.Add(order.PurchaseOrderCode ?? order.Id);
+                        await _context.Entry(order).ReloadAsync(cancellationToken);
+                        if (order.Status != before)
+                        {
+                            result.ChangedOrders++;
+                            if (result.ChangedOrderCodes.Count < 50)
+                                result.ChangedOrderCodes.Add(order.PurchaseOrderCode ?? order.Id);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        result.FailedCount++;
+                        if (result.FailedMessages.Count < 20)
+                            result.FailedMessages.Add($"{order.PurchaseOrderCode ?? order.Id}: {ex.Message}");
+                    }
                 }
 
-                await _context.SaveChangesAsync();
-                await tx.CommitAsync();
-
-                return Ok(ApiResponse<RefreshPurchaseOrderMainStatusResultDto>.Ok(result, "采购订单主状态刷新完成"));
+                return Ok(ApiResponse<RefreshPurchaseOrderMainStatusResultDto>.Ok(result, "采购订单状态刷新完成"));
             }
             catch (Exception ex)
             {
-                await tx.RollbackAsync();
-                return StatusCode(500, ApiResponse<RefreshPurchaseOrderMainStatusResultDto>.Fail($"刷新采购订单主状态失败: {ex.Message}", 500));
+                return StatusCode(500, ApiResponse<RefreshPurchaseOrderMainStatusResultDto>.Fail($"刷新采购订单状态失败: {ex.Message}", 500));
             }
         }
 
-        private static short ComputePurchaseOrderMainStatusFromItems(IReadOnlyList<PurchaseOrderItem> activeItems)
+        /// <summary>
+        /// 临时调试工具：批量刷新销售订单明细扩展并重算主状态（与详情页「刷新扩展」同源，含主状态同步规则）。
+        /// </summary>
+        [Authorize]
+        [HttpPost("refresh-sellorder-main-status")]
+        public async Task<ActionResult<ApiResponse<RefreshSellOrderMainStatusResultDto>>> RefreshSellOrderMainStatus(
+            CancellationToken cancellationToken)
         {
-            // 与业务语义对齐：主状态只取主流程节点，不映射明细的 40(已付款)/60(已入库)。
-            if (activeItems.All(i => i.Status >= PoStatusCompleted))
-                return PoStatusCompleted;
-            if (activeItems.All(i => i.Status >= PoStatusInProgress))
-                return PoStatusInProgress;
-            if (activeItems.All(i => i.Status >= PoStatusConfirmed))
-                return PoStatusConfirmed;
-            if (activeItems.All(i => i.Status >= PoStatusPendingConfirm))
-                return PoStatusPendingConfirm;
-            if (activeItems.All(i => i.Status >= PoStatusApproved))
-                return PoStatusApproved;
-            if (activeItems.All(i => i.Status >= PoStatusPendingAudit))
-                return PoStatusPendingAudit;
-            return PoStatusNew;
+            try
+            {
+                var orders = await _context.SellOrders
+                    .Where(o => !o.IsDeleted)
+                    .ToListAsync(cancellationToken);
+                if (orders.Count == 0)
+                {
+                    var empty = new RefreshSellOrderMainStatusResultDto();
+                    return Ok(ApiResponse<RefreshSellOrderMainStatusResultDto>.Ok(empty, "无销售订单可刷新"));
+                }
+
+                var result = new RefreshSellOrderMainStatusResultDto
+                {
+                    TotalOrders = orders.Count
+                };
+
+                foreach (var order in orders)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (order.Status is SellOrderMainStatus.Cancelled or SellOrderMainStatus.AuditFailed)
+                    {
+                        result.SkippedTerminalOrders++;
+                        continue;
+                    }
+
+                    var before = order.Status;
+                    try
+                    {
+                        await _salesOrderService.RefreshItemExtendsAsync(order.Id, cancellationToken);
+                        await _context.Entry(order).ReloadAsync(cancellationToken);
+                        if (order.Status != before)
+                        {
+                            result.ChangedOrders++;
+                            if (result.ChangedOrderCodes.Count < 50)
+                                result.ChangedOrderCodes.Add(order.SellOrderCode ?? order.Id);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        result.FailedCount++;
+                        if (result.FailedMessages.Count < 20)
+                            result.FailedMessages.Add($"{order.SellOrderCode ?? order.Id}: {ex.Message}");
+                    }
+                }
+
+                return Ok(ApiResponse<RefreshSellOrderMainStatusResultDto>.Ok(result, "销售订单主状态刷新完成"));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ApiResponse<RefreshSellOrderMainStatusResultDto>.Fail($"刷新销售订单主状态失败: {ex.Message}", 500));
+            }
         }
 
         [Authorize]

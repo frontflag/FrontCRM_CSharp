@@ -71,6 +71,8 @@ namespace CRM.API.Extensions
             services.AddScoped<IPurchaseCostParamService, PurchaseCostParamService>();
             services.AddScoped<IRepository<CRM.Core.Models.Customs.PurchaseCostParam>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Customs.PurchaseCostParam>>();
             services.AddScoped<IRepository<CRM.Core.Models.Customs.PurchaseCostParamChangeLog>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Customs.PurchaseCostParamChangeLog>>();
+            services.AddScoped<ISellOrderMainStatusSyncService, SellOrderMainStatusSyncService>();
+            services.AddScoped<IPurchaseOrderMainStatusSyncService, PurchaseOrderMainStatusSyncService>();
             services.AddScoped<ISellOrderItemExtendSyncService, SellOrderItemExtendSyncService>();
             services.AddScoped<ISellOrderItemPurchasedStockAvailableSyncService, SellOrderItemPurchasedStockAvailableSyncService>();
             services.AddScoped<IPurchaseOrderItemExtendSyncService, PurchaseOrderItemExtendSyncService>();
