@@ -1946,6 +1946,10 @@ const enUS = {
       dragSplit: 'Drag to resize upper and lower panels'
     },
     actions: { column: 'Actions', detail: 'Detail', quote: 'Quote', markNoQuote: 'No Quote Found', copy: 'Copy', copySuccess: 'Copied RFQ line (MPN, brand, qty, currency)', copyFailed: 'Copy failed; copy manually' },
+    basket: {
+      batchCopy: 'Batch Copy',
+      batchCopySuccess: 'Copied {count} RFQ line(s) from basket'
+    },
     confirmMarkNoQuote: {
       title: 'Mark No Quote Found',
       message: 'Mark this RFQ line as no quote found? You can still create a quote afterward.'

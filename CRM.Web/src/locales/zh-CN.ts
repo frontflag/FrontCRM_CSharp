@@ -1923,6 +1923,10 @@ const zhCN = {
       dragSplit: '拖动调整上下区域高度'
     },
     actions: { column: '操作', detail: '详情', quote: '报价', markNoQuote: '查无报价', copy: '复制', copySuccess: '已复制需求明细（物料型号、品牌、数量、币别）', copyFailed: '复制失败，请手动复制' },
+    basket: {
+      batchCopy: '批量复制',
+      batchCopySuccess: '已复制篮子中 {count} 条需求明细'
+    },
     confirmMarkNoQuote: {
       title: '标记查无报价',
       message: '确认将该需求明细标记为查无报价？标记后仍可直接创建报价。'

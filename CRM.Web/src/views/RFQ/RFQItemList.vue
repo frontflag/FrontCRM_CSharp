@@ -340,6 +340,27 @@
             </div>
           </div>
           <div class="dock-header-actions dock-layout-actions">
+            <div
+              v-if="selectedRfqItem && (canQuoteRfqItemRow(selectedRfqItem) || canMarkNoQuoteRow(selectedRfqItem))"
+              class="dock-selected-row-actions"
+            >
+              <button
+                v-if="canMarkNoQuoteRow(selectedRfqItem)"
+                type="button"
+                class="dock-row-action-btn dock-row-action-btn--no-quote"
+                @click="handleMarkNoQuote(selectedRfqItem)"
+              >
+                {{ t('rfqItemList.actions.markNoQuote') }}
+              </button>
+              <button
+                v-if="canQuoteRfqItemRow(selectedRfqItem)"
+                type="button"
+                class="dock-row-action-btn dock-row-action-btn--quote"
+                @click="goQuote(selectedRfqItem)"
+              >
+                {{ t('rfqItemList.actions.quote') }}
+              </button>
+            </div>
             <el-tooltip :content="t('systemUser.colSetting')" placement="top" :hide-after="0">
               <el-button
                 class="list-settings-btn dock-quote-col-settings-btn"
@@ -698,6 +719,11 @@
             </el-table-column>
           </el-table>
         </div>
+        <div class="basket-drawer-actions">
+          <el-button type="primary" @click="handleBatchCopyBasket">
+            {{ t('rfqItemList.basket.batchCopy') }}
+          </el-button>
+        </div>
       </template>
     </el-drawer>
   </div>
@@ -724,6 +750,10 @@ import { useRfqItemListBasketStore } from '@/stores/rfqItemListBasket'
 import { canQuoteRfqItem } from '@/utils/rfqItemQuoteAccessRules'
 import { copyQuoteSummaryToClipboard } from '@/utils/quoteSummaryCopy'
 import { copyTextToClipboard } from '@/utils/clipboard'
+import {
+  consumeRfqItemListRestoreState,
+  saveRfqItemListRestoreState
+} from '@/utils/rfqItemListRestore'
 import {
   effectiveRfqItemLineStatus,
   rfqItemStatusTagType,
@@ -1147,6 +1177,8 @@ const pageInfo = reactive({
 
 /** 当前点击选中的需求明细（用于底部采购报价面板） */
 const selectedRfqItem = ref<RFQItem | null>(null)
+/** 从报价页返回时恢复选中行（loadData 消费后清空） */
+const pendingRestoreSelectedItemId = ref<string | undefined>()
 
 /** 需求明细主表与采购报价面板的相对布局（持久化至 localStorage） */
 type PurchaseQuoteDockLayout = 'sideBySide' | 'stackHalf' | 'stackCompact' | 'headerOnly'
@@ -1586,13 +1618,16 @@ async function loadData() {
     totalCount.value = res.totalCount ?? 0
     pageInfo.total = res.totalCount ?? 0
 
-    const selId = selectedRfqItem.value?.id
+    const selId = pendingRestoreSelectedItemId.value || selectedRfqItem.value?.id
+    pendingRestoreSelectedItemId.value = undefined
     if (selId) {
       const found = tableData.value.find((r) => r.id === selId)
       if (found) {
         selectedRfqItem.value = found
         await loadQuotesForRfqItem(found)
         await refreshDockLinkAlert(found)
+        await nextTick()
+        dataTableRef.value?.setCurrentRow(found)
       } else {
         selectedRfqItem.value = null
         quotesForItem.value = []
@@ -1644,11 +1679,26 @@ function handleReset() {
 
 watch(
   () => [route.name, route.query] as const,
-  () => {
+  (curr, prev) => {
     if (route.name !== 'RFQItemList') return
     applyRouteQueryToFilters()
-    pageInfo.page = 1
-    loadData()
+
+    const restored = consumeRfqItemListRestoreState()
+    if (restored) {
+      pageInfo.page = restored.page
+      pageInfo.pageSize = restored.pageSize
+      pendingRestoreSelectedItemId.value = restored.selectedItemId
+    } else {
+      const queryChanged =
+        prev != null &&
+        prev[0] === 'RFQItemList' &&
+        JSON.stringify(prev[1]) !== JSON.stringify(curr[1])
+      const enteredFromOtherRoute = prev == null || prev[0] !== 'RFQItemList'
+      if (queryChanged || enteredFromOtherRoute) {
+        pageInfo.page = 1
+      }
+    }
+    void loadData()
   },
   { deep: true, immediate: true }
 )
@@ -1704,6 +1754,40 @@ async function handleClearBasket() {
   await nextTick()
   suppressBasketMerge.value = false
   ElMessage.success('已清空复选篮子')
+}
+
+function formatRfqItemCopyLine(row: RFQItem): string {
+  const rowAny = row as RFQItem & { mpn?: string }
+  const mpn = String(rowAny.materialModel || rowAny.mpn || '').trim() || '—'
+  const brand = String(row.brand || '').trim() || '—'
+  const qty = row.quantity != null && Number.isFinite(row.quantity) ? String(row.quantity) : '—'
+  const currency = dockTierCurrencyCode(resolveRfqItemPriceCurrency(row))
+  return [mpn, brand, qty, currency].join('    ')
+}
+
+async function copyRfqItemTextToClipboard(text: string): Promise<boolean> {
+  if (copyTextToClipboard(text)) return true
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text)
+      return true
+    } catch {
+      return false
+    }
+  }
+  return false
+}
+
+async function handleBatchCopyBasket() {
+  const lines = basketItems.value.map(formatRfqItemCopyLine)
+  if (!lines.length) return
+  const text = lines.join('\n')
+  const ok = await copyRfqItemTextToClipboard(text)
+  if (ok) {
+    ElMessage.success(t('rfqItemList.basket.batchCopySuccess', { count: lines.length }))
+    return
+  }
+  ElMessage.error(t('rfqItemList.actions.copyFailed'))
 }
 
 function dockQuoteRowKey(row: Record<string, unknown>) {
@@ -1770,6 +1854,14 @@ function goDetail(row: RFQItem) {
   router.push({ name: 'RFQDetail', params: { id: row.rfqId } })
 }
 
+function persistRfqItemListStateForReturn(targetItemId?: string) {
+  saveRfqItemListRestoreState({
+    page: pageInfo.page,
+    pageSize: pageInfo.pageSize,
+    selectedItemId: targetItemId || selectedRfqItem.value?.id
+  })
+}
+
 function goQuote(row: RFQItem) {
   if (!canQuoteRfqItemRow(row)) {
     ElMessage.warning(t('rfqItemList.warnings.quoteNotAllowed'))
@@ -1779,6 +1871,7 @@ function goQuote(row: RFQItem) {
     ElMessage.warning(t('rfqItemList.warnings.missingIds'))
     return
   }
+  persistRfqItemListStateForReturn(row.id)
   router.push({
     name: 'QuoteCreate',
     query: {
@@ -1839,25 +1932,11 @@ function goEditDockQuote(row: Record<string, unknown>) {
 }
 
 async function handleCopyRfqItemRow(row: RFQItem) {
-  const rowAny = row as RFQItem & { mpn?: string }
-  const mpn = String(rowAny.materialModel || rowAny.mpn || '').trim() || '—'
-  const brand = String(row.brand || '').trim() || '—'
-  const qty = row.quantity != null && Number.isFinite(row.quantity) ? String(row.quantity) : '—'
-  const currency = dockTierCurrencyCode(resolveRfqItemPriceCurrency(row))
-  const text = [mpn, brand, qty, currency].join('    ')
-
-  if (copyTextToClipboard(text)) {
+  const text = formatRfqItemCopyLine(row)
+  const ok = await copyRfqItemTextToClipboard(text)
+  if (ok) {
     ElMessage.success(t('rfqItemList.actions.copySuccess'))
     return
-  }
-  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-    try {
-      await navigator.clipboard.writeText(text)
-      ElMessage.success(t('rfqItemList.actions.copySuccess'))
-      return
-    } catch {
-      /* fall through */
-    }
   }
   ElMessage.error(t('rfqItemList.actions.copyFailed'))
 }
@@ -2106,6 +2185,54 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+}
+
+.dock-selected-row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 4px;
+}
+
+.dock-row-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 92px;
+  min-width: 92px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-weight: 500;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  line-height: 1.2;
+
+  &--quote {
+    background: linear-gradient(135deg, rgba(0, 102, 255, 0.92), rgba(0, 168, 232, 0.88));
+    border-color: rgba(0, 102, 255, 0.55);
+    color: #fff;
+
+    &:hover {
+      background: linear-gradient(135deg, rgba(0, 118, 255, 1), rgba(0, 188, 245, 0.95));
+      box-shadow: 0 2px 10px rgba(0, 102, 255, 0.28);
+    }
+  }
+
+  &--no-quote {
+    background: #fef9e7;
+    border-color: rgba(230, 162, 60, 0.42);
+    color: #b88230;
+
+    &:hover {
+      background: #fdf3d7;
+      border-color: rgba(230, 162, 60, 0.58);
+      box-shadow: 0 2px 8px rgba(230, 162, 60, 0.16);
+    }
+  }
 }
 
 .dock-title {
@@ -2659,16 +2786,21 @@ onUnmounted(() => {
 .rfq-basket-drawer {
   .basket-drawer-hint {
     font-size: 13px;
-    color: rgba(255, 255, 255, 0.55);
+    color: $text-secondary;
     line-height: 1.6;
     margin: 0 0 12px;
   }
 
   .basket-drawer-summary {
     font-size: 13px;
-    color: rgba(232, 244, 255, 0.75);
+    color: $text-secondary;
     margin: 0 0 12px;
     line-height: 1.6;
+
+    strong {
+      color: $text-primary;
+      font-weight: 600;
+    }
   }
 
   /* 与列表页底部「清空篮子」同款 label 链式按钮，嵌入说明句内 */
@@ -2680,6 +2812,12 @@ onUnmounted(() => {
     margin: 0 1px;
     font-size: 13px !important;
     font-weight: 500;
+  }
+
+  .basket-drawer-actions {
+    margin-top: 16px;
+    display: flex;
+    justify-content: flex-end;
   }
 
 }
