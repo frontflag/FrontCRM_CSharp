@@ -75,6 +75,10 @@ export interface StockOutDetailDto extends StockOutDto {
   /** 仓库名称（服务端由 WarehouseId 解析） */
   warehouseName?: string | null
   sellOrderItemId?: string
+  /** 关联销售订单主键 */
+  sellOrderId?: string
+  /** 关联销售订单号 */
+  sellOrderCode?: string
   customsSummary?: StockOutCustomsSummaryDto | null
 }
 
@@ -390,6 +394,8 @@ function normalizeStockOutDetailRow(row: unknown): StockOutDetailDto {
     warehouseCode: (r.warehouseCode ?? r.WarehouseCode) as string | null | undefined,
     warehouseName: (r.warehouseName ?? r.WarehouseName) as string | null | undefined,
     sellOrderItemId: (r.sellOrderItemId ?? r.SellOrderItemId) as string | undefined,
+    sellOrderId: (r.sellOrderId ?? r.SellOrderId) as string | undefined,
+    sellOrderCode: (r.sellOrderCode ?? r.SellOrderCode) as string | undefined,
     customsSummary: normalizeStockOutCustomsSummary(r.customsSummary ?? r.CustomsSummary)
   }
 }
@@ -441,6 +447,10 @@ export interface StockOutItemListRow {
   packingId?: string | null
   packingCode?: string | null
   freightForwarderOrderNo?: string | null
+  /** 销售单价（出库扩展快照或销售订单明细单价） */
+  salesPrice?: number | null
+  /** 销售币别（1=RMB 2=USD …） */
+  salesCurrency?: number | null
 }
 
 export interface StockOutRequestDto {
@@ -618,11 +628,38 @@ function unwrapPagedRequests(res: unknown): StockOutRequestListPaged {
   return { items: [], total: 0, page: 1, pageSize: 20 }
 }
 
+function normalizeStockOutItemListRow(row: unknown): StockOutItemListRow {
+  const r = row as Record<string, unknown>
+  return {
+    stockOutItemId: String(r.stockOutItemId ?? r.StockOutItemId ?? ''),
+    stockOutId: String(r.stockOutId ?? r.StockOutId ?? ''),
+    status: Number(r.status ?? r.Status ?? 0),
+    stockOutCode: String(r.stockOutCode ?? r.StockOutCode ?? ''),
+    stockOutDate: String(r.stockOutDate ?? r.StockOutDate ?? ''),
+    customerName: (r.customerName ?? r.CustomerName) as string | null | undefined,
+    salesUserName: (r.salesUserName ?? r.SalesUserName) as string | null | undefined,
+    purchasePn: (r.purchasePn ?? r.PurchasePn) as string | null | undefined,
+    purchaseBrand: (r.purchaseBrand ?? r.PurchaseBrand) as string | null | undefined,
+    outQuantity: Number(r.outQuantity ?? r.OutQuantity ?? 0),
+    shipmentMethod: (r.shipmentMethod ?? r.ShipmentMethod) as string | null | undefined,
+    courierTrackingNo: (r.courierTrackingNo ?? r.CourierTrackingNo) as string | null | undefined,
+    sellOrderItemCode: (r.sellOrderItemCode ?? r.SellOrderItemCode) as string | null | undefined,
+    stockInCode: (r.stockInCode ?? r.StockInCode) as string | null | undefined,
+    packingId: (r.packingId ?? r.PackingId) as string | null | undefined,
+    packingCode: (r.packingCode ?? r.PackingCode) as string | null | undefined,
+    freightForwarderOrderNo: (r.freightForwarderOrderNo ?? r.FreightForwarderOrderNo) as string | null | undefined,
+    salesPrice:
+      r.salesPrice != null || r.SalesPrice != null ? Number(r.salesPrice ?? r.SalesPrice) : null,
+    salesCurrency:
+      r.salesCurrency != null || r.SalesCurrency != null ? Number(r.salesCurrency ?? r.SalesCurrency) : null
+  }
+}
+
 function unwrapPagedStockOutItems(res: unknown): StockOutItemListPaged {
   const d = res && typeof res === 'object' ? (res as Record<string, unknown>) : null
   if (d && Array.isArray(d.items)) {
     return {
-      items: d.items as StockOutItemListRow[],
+      items: (d.items as unknown[]).map(normalizeStockOutItemListRow),
       total: Number(d.total ?? 0),
       page: Number(d.page ?? 1),
       pageSize: Number(d.pageSize ?? 20)

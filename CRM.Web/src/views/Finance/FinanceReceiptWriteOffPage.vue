@@ -358,7 +358,19 @@
             <el-table-column :label="t('financeReceiptWriteOff.colStockOutDate')" width="108">
               <template #default="{ row }">{{ formatDate(row.stockOutDate) }}</template>
             </el-table-column>
-            <el-table-column prop="stockOutCode" :label="t('financeReceiptWriteOff.colStockOut')" min-width="118" show-overflow-tooltip />
+            <el-table-column prop="stockOutCode" :label="t('financeReceiptWriteOff.colStockOut')" min-width="118" show-overflow-tooltip>
+              <template #default="{ row }">
+                <router-link
+                  v-if="row.stockOutId && row.stockOutCode"
+                  class="link-text"
+                  :to="{ name: 'StockOutDetail', params: { id: row.stockOutId } }"
+                  @click.stop
+                >
+                  {{ row.stockOutCode }}
+                </router-link>
+                <span v-else>{{ row.stockOutCode || '—' }}</span>
+              </template>
+            </el-table-column>
             <el-table-column prop="sellOrderCode" :label="t('financeReceiptWriteOff.colSellOrderCode')" min-width="118" show-overflow-tooltip>
               <template #default="{ row }">{{ row.sellOrderCode || '—' }}</template>
             </el-table-column>
@@ -1697,6 +1709,15 @@ watch(excludeNoReceivable, () => {
     display: flex;
     gap: 12px;
     justify-content: flex-end;
+  }
+
+  .link-text {
+    color: var(--el-color-primary);
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
   }
 }
 </style>

@@ -1569,6 +1569,8 @@ namespace CRM.Core.Services
                 WarehouseCode = warehouseCode,
                 WarehouseName = warehouseName,
                 SellOrderItemId = string.IsNullOrWhiteSpace(x.SellOrderItemId) ? null : x.SellOrderItemId.Trim(),
+                SellOrderId = string.IsNullOrWhiteSpace(so?.Id) ? null : so!.Id.Trim(),
+                SellOrderCode = string.IsNullOrWhiteSpace(so?.SellOrderCode) ? null : so!.SellOrderCode.Trim(),
                 CustomsSummary = customsSummary
             };
         }
@@ -2201,6 +2203,9 @@ namespace CRM.Core.Services
 
                 var outQty = line.ActualQty > 0 ? line.ActualQty : line.Quantity;
 
+                extendByOutItemId.TryGetValue(line.Id.Trim(), out var extSales);
+                var (salesPrice, salesCurrency) = ResolveStockOutItemListSalesPrice(extSales, soLine);
+
                 result.Add(new StockOutItemListRowDto
                 {
                     StockOutItemId = line.Id,
@@ -2218,7 +2223,9 @@ namespace CRM.Core.Services
                     SellOrderItemCode = sellOrderItemCode,
                     StockInCode = headerStockInCode,
                     PackingId = packingDisplay.Id,
-                    PackingCode = packingDisplay.Code
+                    PackingCode = packingDisplay.Code,
+                    SalesPrice = salesPrice,
+                    SalesCurrency = salesCurrency
                 });
             }
 
@@ -2440,6 +2447,9 @@ namespace CRM.Core.Services
                     freightForwarderOrderNo = FreightForwarderOrderNoLookup.FromPurchaseOrderItemId(
                         extFf.PurchaseOrderItemId, poiByIdForFf, poByIdForFf);
 
+                extendByOutItemId.TryGetValue(line.Id.Trim(), out var extSales);
+                var (salesPrice, salesCurrency) = ResolveStockOutItemListSalesPrice(extSales, soLine);
+
                 result.Add(new StockOutItemListRowDto
                 {
                     StockOutItemId = line.Id,
@@ -2458,7 +2468,9 @@ namespace CRM.Core.Services
                     StockInCode = headerStockInCode,
                     PackingId = packingDisplay.Id,
                     PackingCode = packingDisplay.Code,
-                    FreightForwarderOrderNo = freightForwarderOrderNo
+                    FreightForwarderOrderNo = freightForwarderOrderNo,
+                    SalesPrice = salesPrice,
+                    SalesCurrency = salesCurrency
                 });
             }
 
@@ -2541,6 +2553,27 @@ namespace CRM.Core.Services
             }
 
             return result;
+        }
+
+        private static (decimal? SalesPrice, short? SalesCurrency) ResolveStockOutItemListSalesPrice(
+            StockOutItemExtend? ext,
+            SellOrderItem? soLine)
+        {
+            if (ext?.SalesPrice is > 0)
+            {
+                return (
+                    ext.SalesPrice,
+                    ext.SalesCurrency is > 0 ? ext.SalesCurrency : null);
+            }
+
+            if (soLine != null && soLine.Price > 0)
+            {
+                return (
+                    soLine.Price,
+                    soLine.Currency > 0 ? soLine.Currency : null);
+            }
+
+            return (null, null);
         }
 
         private static bool TextContainsOptional(string? haystack, string? needleTrimmedOrNull)

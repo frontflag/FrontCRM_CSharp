@@ -262,7 +262,11 @@ export async function refreshSellOrderItemCustomerPnFromComment(): Promise<Refre
 }
 
 export async function refreshPurchaseOrderMainStatus(): Promise<RefreshPurchaseOrderMainStatusResult> {
-  const raw = await apiClient.post<any>('/api/v1/debug/refresh-purchase-order-main-status', {})
+  const raw = await apiClient.post<any>(
+    '/api/v1/debug/refresh-purchase-order-main-status',
+    {},
+    { timeout: 3_600_000 }
+  )
   const outer = (raw?.data ?? raw?.Data ?? raw) as Record<string, any>
   const inner = (outer?.data ?? outer?.Data ?? outer) as Record<string, any>
   const codesRaw = inner?.changedOrderCodes ?? inner?.ChangedOrderCodes
@@ -280,7 +284,11 @@ export async function refreshPurchaseOrderMainStatus(): Promise<RefreshPurchaseO
 
 /** POST /api/v1/debug/refresh-sellorder-main-status — 批量刷新销售订单明细扩展并重算主状态 */
 export async function refreshSellOrderMainStatus(): Promise<RefreshSellOrderMainStatusResult> {
-  const raw = await apiClient.post<any>('/api/v1/debug/refresh-sellorder-main-status', {})
+  const raw = await apiClient.post<any>(
+    '/api/v1/debug/refresh-sellorder-main-status',
+    {},
+    { timeout: 3_600_000 }
+  )
   const outer = (raw?.data ?? raw?.Data ?? raw) as Record<string, any>
   const inner = (outer?.data ?? outer?.Data ?? outer) as Record<string, any>
   const codesRaw = inner?.changedOrderCodes ?? inner?.ChangedOrderCodes

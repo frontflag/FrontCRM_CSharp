@@ -203,55 +203,168 @@
               <CrmDataTable
                 v-else-if="stockOutItems.length"
                 :data="stockOutItems"
-                class="items-table detail-panel-list-table"
+                class="items-table detail-panel-list-table receivable-stock-out-item-embed"
                 size="small"
                 stripe
                 row-key="stockOutItemId"
               >
-                <el-table-column type="index" width="50" align="center" />
-                <el-table-column
-                  prop="purchasePn"
-                  :label="t('stockOutItemList.columns.purchasePn')"
-                  min-width="140"
-                  show-overflow-tooltip
-                />
-                <el-table-column
-                  prop="purchaseBrand"
-                  :label="t('stockOutItemList.columns.purchaseBrand')"
-                  width="100"
-                  show-overflow-tooltip
-                />
-                <el-table-column
-                  :label="t('stockOutItemList.columns.outQuantity')"
-                  width="100"
-                  align="right"
-                  header-align="right"
-                >
-                  <template #default="{ row }">{{ formatNum(row.outQuantity) }}</template>
+                <el-table-column :label="t('stockOutItemList.columns.status')" width="100" align="center">
+                  <template #default="{ row }">
+                    <span :class="['status-badge', `status-${row.status}`]">{{ stockOutItemStatusLabel(row.status) }}</span>
+                  </template>
                 </el-table-column>
+                <el-table-column
+                  prop="stockOutCode"
+                  :label="t('stockOutItemList.columns.stockOutCode')"
+                  width="150"
+                  show-overflow-tooltip
+                />
                 <el-table-column
                   prop="stockInCode"
                   :label="t('stockOutItemList.columns.stockInCode')"
-                  min-width="130"
+                  width="140"
                   show-overflow-tooltip
                 >
-                  <template #default="{ row }">{{ row.stockInCode || '—' }}</template>
+                  <template #default="{ row }">{{ row.stockInCode || stockOutItemNa }}</template>
                 </el-table-column>
                 <el-table-column
                   prop="packingCode"
                   :label="t('stockOutItemList.columns.packingCode')"
+                  width="150"
+                  show-overflow-tooltip
+                >
+                  <template #default="{ row }">
+                    <router-link
+                      v-if="row.packingId?.trim() && row.packingCode?.trim()"
+                      class="cell-link mono-cell"
+                      :to="`/inventory/packing/${row.packingId.trim()}`"
+                      @click.stop
+                    >
+                      {{ row.packingCode.trim() }}
+                    </router-link>
+                    <span v-else-if="row.packingCode?.trim()" class="mono-cell">{{ row.packingCode.trim() }}</span>
+                    <span v-else>{{ stockOutItemNa }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column
+                  prop="freightForwarderOrderNo"
+                  :label="t('common.freightForwarderOrderNo')"
+                  width="160"
+                  show-overflow-tooltip
+                >
+                  <template #default="{ row }">{{ row.freightForwarderOrderNo?.trim() || stockOutItemNa }}</template>
+                </el-table-column>
+                <el-table-column :label="t('stockOutItemList.columns.stockOutDate')" width="118">
+                  <template #default="{ row }">{{ formatStockOutDateOnly(row.stockOutDate) }}</template>
+                </el-table-column>
+                <el-table-column
+                  prop="customerName"
+                  :label="t('stockOutItemList.columns.customerName')"
+                  min-width="120"
+                  show-overflow-tooltip
+                >
+                  <template #default="{ row }">{{ maskSaleSensitiveFields ? '—' : row.customerName || stockOutItemNa }}</template>
+                </el-table-column>
+                <el-table-column
+                  prop="salesUserName"
+                  :label="t('stockOutItemList.columns.salesUserName')"
+                  width="100"
+                  show-overflow-tooltip
+                >
+                  <template #default="{ row }">{{ maskSaleSensitiveFields ? '—' : row.salesUserName || stockOutItemNa }}</template>
+                </el-table-column>
+                <el-table-column
+                  prop="purchasePn"
+                  :label="t('stockOutItemList.columns.purchasePn')"
                   min-width="130"
                   show-overflow-tooltip
                 >
-                  <template #default="{ row }">{{ row.packingCode || '—' }}</template>
+                  <template #default="{ row }">{{ row.purchasePn || stockOutItemNa }}</template>
+                </el-table-column>
+                <el-table-column
+                  prop="purchaseBrand"
+                  :label="t('stockOutItemList.columns.purchaseBrand')"
+                  min-width="100"
+                  show-overflow-tooltip
+                >
+                  <template #default="{ row }">{{ row.purchaseBrand || stockOutItemNa }}</template>
+                </el-table-column>
+                <el-table-column
+                  prop="outQuantity"
+                  :label="t('stockOutItemList.columns.outQuantity')"
+                  min-width="120"
+                  align="right"
+                  show-overflow-tooltip
+                />
+                <el-table-column
+                  :label="t('financeReceivableDetail.stockOutItemLabels.salesUnitPrice')"
+                  min-width="132"
+                  align="right"
+                  header-align="right"
+                  class-name="stock-item-unit-price-col"
+                >
+                  <template #default="{ row }">
+                    <span v-if="!listShowAmountColumns">—</span>
+                    <template v-else-if="row.salesPrice != null && unitPriceDockHasValue(row.salesPrice)">
+                      <div class="dock-tier-price-line">
+                        <template v-for="amt in [splitUnitPriceDockParts(row.salesPrice)]" :key="`sup-${row.stockOutItemId}`">
+                          <span class="dock-tier-amt">
+                            <span class="dock-tier-amt-int">{{ amt.intPart }}</span
+                            ><span class="dock-tier-amt-frac">{{ amt.fracPart }}</span>
+                          </span>
+                        </template>
+                        <span class="dock-tier-ccy-gap">&nbsp;</span>
+                        <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.salesCurrency)]">{{
+                          listAmountCurrencyIso(row.salesCurrency)
+                        }}</span>
+                      </div>
+                    </template>
+                    <span v-else>{{ stockOutItemNa }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column
+                  :label="t('financeReceivableDetail.stockOutItemLabels.outAmount')"
+                  min-width="128"
+                  align="right"
+                  header-align="right"
+                >
+                  <template #default="{ row }">
+                    <span v-if="!listShowAmountColumns">—</span>
+                    <template v-else-if="stockOutLineAmount(row) != null">
+                      <div class="dock-tier-price-line">
+                        <span class="dock-tier-amt">{{ formatTotalAmountNumber(stockOutLineAmount(row)) }}</span>
+                        <span class="dock-tier-ccy-gap">&nbsp;</span>
+                        <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.salesCurrency)]">{{
+                          listAmountCurrencyIso(row.salesCurrency)
+                        }}</span>
+                      </div>
+                    </template>
+                    <span v-else>{{ stockOutItemNa }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column
+                  prop="shipmentMethod"
+                  :label="t('stockOutItemList.columns.shipmentMethod')"
+                  width="110"
+                  show-overflow-tooltip
+                >
+                  <template #default="{ row }">{{ stockOutItemShipmentMethodDisplay(row.shipmentMethod) }}</template>
+                </el-table-column>
+                <el-table-column
+                  prop="courierTrackingNo"
+                  :label="t('stockOutItemList.columns.courierTrackingNo')"
+                  width="130"
+                  show-overflow-tooltip
+                >
+                  <template #default="{ row }">{{ row.courierTrackingNo || stockOutItemNa }}</template>
                 </el-table-column>
                 <el-table-column
                   prop="sellOrderItemCode"
                   :label="t('stockOutItemList.columns.sellOrderItemCode')"
-                  min-width="150"
+                  width="130"
                   show-overflow-tooltip
                 >
-                  <template #default="{ row }">{{ row.sellOrderItemCode || '—' }}</template>
+                  <template #default="{ row }">{{ row.sellOrderItemCode || stockOutItemNa }}</template>
                 </el-table-column>
               </CrmDataTable>
             </div>
@@ -274,6 +387,145 @@
             </div>
           </div>
         </div>
+
+        <div class="info-section">
+          <div class="section-header">
+            <div class="section-header__main">
+              <div class="section-dot section-dot--cyan"></div>
+              <span class="section-title">{{ t('financeReceivableDetail.sellOrderItemSection') }}</span>
+              <span v-if="sellOrderItemRows.length" class="section-count">{{ sellOrderItemRows.length }}</span>
+            </div>
+          </div>
+          <div class="detail-panel-section-body">
+            <div v-loading="sellOrderItemLoading" class="detail-items-table-wrap">
+              <CrmDataTable
+                v-if="sellOrderItemRows.length"
+                :data="sellOrderItemRows"
+                embedded
+                column-layout-key="stock-out-detail-so-item"
+                :columns="sellOrderItemColumns"
+                :border="false"
+                :show-column-settings="false"
+                :show-row-density-toggle="false"
+                class="items-table detail-panel-list-table receivable-so-item-embed"
+                size="small"
+                stripe
+                row-key="sellOrderItemId"
+              >
+                <template #col-customerName="{ row }">
+                  <span>{{ maskSaleSensitiveFields ? '—' : (row.customerName || '—') }}</span>
+                </template>
+                <template #col-customerSo="{ row }">
+                  <span>{{ maskSaleSensitiveFields ? '—' : (row.customerSo || '—') }}</span>
+                </template>
+                <template #col-customerPn="{ row }">
+                  <span>{{ maskSaleSensitiveFields ? '—' : (row.customerPn || '—') }}</span>
+                </template>
+                <template #col-salesUserName="{ row }">
+                  <span>{{ maskSaleSensitiveFields ? '—' : (row.salesUserName || '—') }}</span>
+                </template>
+                <template #col-orderStatus="{ row }">
+                  <el-tag effect="dark" :type="soItemStatusTagType(row.orderStatus)" size="small">
+                    {{ soItemStatusText(row.orderStatus) }}
+                  </el-tag>
+                </template>
+                <template #col-purchaseProgressStatus="{ row }">
+                  <el-tag effect="dark" :type="soItemExtendTriTagType(row.purchaseProgressStatus)" size="small">
+                    {{ soItemExtendTriLabel('purchase', row.purchaseProgressStatus) }}
+                  </el-tag>
+                </template>
+                <template #col-stockInProgressStatus="{ row }">
+                  <el-tag effect="dark" :type="soItemExtendTriTagType(row.stockInProgressStatus)" size="small">
+                    {{ soItemExtendTriLabel('stockIn', row.stockInProgressStatus) }}
+                  </el-tag>
+                </template>
+                <template #col-stockOutProgressStatus="{ row }">
+                  <el-tag effect="dark" :type="soItemExtendTriTagType(row.stockOutProgressStatus)" size="small">
+                    {{ soItemExtendTriLabel('stockOut', row.stockOutProgressStatus) }}
+                  </el-tag>
+                </template>
+                <template #col-stockOutNotifyProgressStatus="{ row }">
+                  <el-tag effect="dark" :type="soItemExtendTriTagType(row.stockOutNotifyProgressStatus)" size="small">
+                    {{ soItemExtendTriLabel('stockOutNotify', row.stockOutNotifyProgressStatus) }}
+                  </el-tag>
+                </template>
+                <template #col-receiptProgressStatus="{ row }">
+                  <el-tag effect="dark" :type="soItemExtendTriTagType(row.receiptProgressStatus)" size="small">
+                    {{ soItemExtendTriLabel('receipt', row.receiptProgressStatus) }}
+                  </el-tag>
+                </template>
+                <template #col-invoiceProgressStatus="{ row }">
+                  <el-tag effect="dark" :type="soItemExtendTriTagType(row.invoiceProgressStatus)" size="small">
+                    {{ soItemExtendTriLabel('invoice', row.invoiceProgressStatus) }}
+                  </el-tag>
+                </template>
+                <template #col-currency="{ row }">{{ soItemSettlementCurrencyLabel(row.currency) }}</template>
+                <template #col-price="{ row }">
+                  <span class="amount-with-code">
+                    <span>{{ formatUnitPriceNumber(row.price) }}</span>
+                    <span
+                      v-if="formatUnitPriceNumber(row.price) !== '—'"
+                      :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]"
+                    >
+                      {{ listAmountCurrencyIso(row.currency) }}
+                    </span>
+                  </span>
+                </template>
+                <template #col-lineTotal="{ row }">
+                  <span class="amount-with-code">
+                    <span>{{ formatTotalAmountNumber(row.lineTotal) }}</span>
+                    <span
+                      v-if="formatTotalAmountNumber(row.lineTotal) !== '—'"
+                      :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]"
+                    >
+                      {{ listAmountCurrencyIso(row.currency) }}
+                    </span>
+                  </span>
+                </template>
+                <template #col-usdUnitPrice="{ row }">
+                  <span v-if="row.usdUnitPrice != null" class="amount-with-code">
+                    <span>{{ Number(row.usdUnitPrice).toFixed(6) }}</span>
+                    <span class="dock-tier-ccy dock-tier-ccy--usd">USD</span>
+                  </span>
+                  <span v-else>—</span>
+                </template>
+                <template #col-usdLineTotal="{ row }">
+                  <span v-if="row.usdLineTotal != null" class="amount-with-code">
+                    <span>{{ Number(row.usdLineTotal).toFixed(2) }}</span>
+                    <span class="dock-tier-ccy dock-tier-ccy--usd">USD</span>
+                  </span>
+                  <span v-else>—</span>
+                </template>
+                <template #col-salesProfitExpected="{ row }">
+                  <span v-if="row.salesProfitExpected != null" class="amount-with-code">
+                    <span>{{ Number(row.salesProfitExpected).toFixed(2) }}</span>
+                    <span class="dock-tier-ccy dock-tier-ccy--usd">USD</span>
+                  </span>
+                  <span v-else>—</span>
+                </template>
+                <template #col-profitOutBizUsd="{ row }">
+                  <span v-if="row.profitOutBizUsd != null" class="amount-with-code">
+                    <span>{{ Number(row.profitOutBizUsd).toFixed(2) }}</span>
+                    <span class="dock-tier-ccy dock-tier-ccy--usd">USD</span>
+                  </span>
+                  <span v-else>—</span>
+                </template>
+                <template #col-profitOutRateBiz="{ row }">{{
+                  row.profitOutRateBiz != null ? Number(row.profitOutRateBiz).toFixed(6) : '—'
+                }}</template>
+                <template #col-createTime="{ row }">{{ soItemFormatDt(row.createTime || row.orderCreateTime) }}</template>
+                <template #col-createUser="{ row }">{{
+                  row.createUserName || row.createdBy || (!maskSaleSensitiveFields ? row.salesUserName : '') || '—'
+                }}</template>
+              </CrmDataTable>
+              <DetailListPanelEmpty
+                v-else-if="!sellOrderItemLoading"
+                size="low"
+                :description="t('financeReceivableDetail.noSellOrderItem')"
+              />
+            </div>
+          </div>
+        </div>
       </template>
 
       <el-empty v-else-if="!loading" :description="loadError || t('stockOutDetail.notFound')" />
@@ -287,15 +539,33 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { stockOutApi, type StockOutDetailDto, type StockOutItemListRow } from '@/api/stockOut'
+import salesOrderApi from '@/api/salesOrder'
 import CrmDataTable from '@/components/CrmDataTable.vue'
+import DetailListPanelEmpty from '@/components/Common/DetailListPanelEmpty.vue'
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue'
 import DocumentListPanel from '@/components/Document/DocumentListPanel.vue'
+import { buildSalesOrderItemListColumns } from '@/composables/buildSalesOrderItemListColumns'
+import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import { translateSalesOrderStatus, salesOrderStatusTagType } from '@/constants/salesOrderStatus'
+import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { StockOutTypeCode } from '@/constants/stockOutType'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import StockOutCustomsSummaryPanel from '@/components/Customs/StockOutCustomsSummaryPanel.vue'
-import { formatDisplayDate } from '@/utils/displayDateTime'
+import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
+import { useAuthStore } from '@/stores/auth'
+import type { SalesOrderItemLineRow } from '@/stores/salesOrderItemListBasket'
+import {
+  formatTotalAmountNumber,
+  formatUnitPriceNumber,
+  listAmountCurrencyDockClass,
+  listAmountCurrencyIso,
+  splitUnitPriceDockParts,
+  unitPriceDockHasValue
+} from '@/utils/moneyFormat'
+
+const authStore = useAuthStore()
 
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 
@@ -303,15 +573,49 @@ const DOC_BIZ = 'STOCK_OUT'
 
 const route = useRoute()
 const router = useRouter()
-const { t } = useI18n()
-const { ensureLoaded: ensureLogisticsDict, shipmentArrivalOptions: shipmentMethodOptions } = useLogisticsFormDict()
+const { t, locale } = useI18n()
+const { ensureLoaded: ensureLogisticsDict, shipmentArrivalOptions: shipmentMethodOptions, arrivalOptions } =
+  useLogisticsFormDict()
+
+const stockOutItemNa = computed(() => t('quoteList.na'))
+
+const arrivalLabelByCode = computed(() => {
+  const m = new Map<string, string>()
+  for (const o of arrivalOptions.value) {
+    const k = String(o.value ?? '').trim()
+    if (k) m.set(k.toLowerCase(), o.label)
+  }
+  return m
+})
+
+const canViewCustomer = computed(
+  () => authStore.hasPermission('customer.info.read') || authStore.hasPermission('sales-order.read')
+)
+const canViewAmount = computed(() => authStore.hasPermission('sales.amount.read'))
+const listCustomerColumnOk = computed(() => canViewCustomer.value && !maskSaleSensitiveFields.value)
+const listShowAmountColumns = computed(() => canViewAmount.value && !maskSaleSensitiveFields.value)
+
+const sellOrderItemColumns = computed<CrmTableColumnDef[]>(() => {
+  void locale.value
+  return buildSalesOrderItemListColumns({
+    t,
+    listCustomerColumnOk: listCustomerColumnOk.value,
+    listShowAmountColumns: listShowAmountColumns.value,
+    opColWidth: 0,
+    opColMinWidth: 0,
+    withSelection: false,
+    withActions: false
+  })
+})
 
 const loading = ref(false)
 const saving = ref(false)
 const itemsLoading = ref(false)
+const sellOrderItemLoading = ref(false)
 const loadError = ref('')
 const detail = ref<StockOutDetailDto | null>(null)
 const stockOutItems = ref<StockOutItemListRow[]>([])
+const sellOrderItemRows = ref<SalesOrderItemLineRow[]>([])
 const detailActiveTab = ref<'items' | 'documents'>('items')
 const docListRef = ref<InstanceType<typeof DocumentListPanel> | null>(null)
 
@@ -391,6 +695,80 @@ function reportCellText(v: unknown): string {
 
 const formatNum = (v: number) => (v == null ? '—' : Number(v).toLocaleString())
 
+function stockOutLineAmount(row: StockOutItemListRow): number | null {
+  if (!unitPriceDockHasValue(row.salesPrice)) return null
+  const qty = Number(row.outQuantity)
+  const price = Number(row.salesPrice)
+  if (!Number.isFinite(qty) || !Number.isFinite(price)) return null
+  return qty * price
+}
+
+function stockOutItemShipmentMethodDisplay(code?: string | number | null) {
+  if (code === null || code === undefined || code === '') return stockOutItemNa.value
+  const c = String(code).trim()
+  if (!c) return stockOutItemNa.value
+  return arrivalLabelByCode.value.get(c.toLowerCase()) ?? c
+}
+
+function stockOutItemStatusLabel(s: number) {
+  switch (s) {
+    case 0:
+      return t('stockOutList.status.draft')
+    case 1:
+      return t('stockOutList.status.pending')
+    case 2:
+      return t('stockOutList.status.done')
+    case 3:
+      return t('stockOutList.status.cancelled')
+    case 4:
+      return t('stockOutList.status.finished')
+    default:
+      return t('rfqDetail.unknown')
+  }
+}
+
+function formatStockOutDateOnly(v?: string | null) {
+  if (!v) return stockOutItemNa.value
+  return formatDisplayDateTime(v).split(/\s+/)[0] || stockOutItemNa.value
+}
+
+function soItemSettlementCurrencyLabel(code: unknown): string {
+  const c = Number(code)
+  if (!Number.isFinite(c)) return '—'
+  return CURRENCY_CODE_TO_TEXT[c as keyof typeof CURRENCY_CODE_TO_TEXT] ?? '—'
+}
+
+function soItemStatusText(s: number) {
+  return translateSalesOrderStatus(s, t)
+}
+
+function soItemStatusTagType(s: number): '' | 'success' | 'warning' | 'info' | 'danger' {
+  return salesOrderStatusTagType(s) as '' | 'success' | 'warning' | 'info' | 'danger'
+}
+
+function soItemExtendTriTagType(v?: number): '' | 'success' | 'warning' | 'info' | 'danger' {
+  const map: Record<number, '' | 'info' | 'success' | 'warning' | 'danger'> = {
+    0: 'info',
+    1: 'warning',
+    2: 'success'
+  }
+  return v !== undefined && v !== null ? (map[v] ?? 'info') : 'info'
+}
+
+function soItemExtendTriLabel(
+  kind: 'purchase' | 'stockIn' | 'stockOut' | 'stockOutNotify' | 'receipt' | 'invoice',
+  v?: number
+): string {
+  const slot = v === 2 ? 'complete' : v === 1 ? 'partial' : 'pending'
+  return t(`salesOrderItemList.extendProgress.${kind}.${slot}`)
+}
+
+function soItemFormatDt(v: unknown) {
+  if (v == null || v === '') return '—'
+  const s = formatDisplayDateTime(String(v))
+  return s === '--' ? '—' : s
+}
+
 const isCustomsStockOut = computed(() => Number(detail.value?.stockOutType) === StockOutTypeCode.Customs)
 
 const detailSalesNotifyId = computed(() => String(detail.value?.salesStockOutNotifyId ?? '').trim())
@@ -416,6 +794,33 @@ const statusLabel = (s: number) => {
       return t('stockOutList.status.finished')
     default:
       return String(s)
+  }
+}
+
+async function loadSellOrderItem() {
+  const orderCode = detail.value?.sellOrderCode?.trim()
+  const itemId = detail.value?.sellOrderItemId?.trim()
+  if (!orderCode || !itemId) {
+    sellOrderItemRows.value = []
+    return
+  }
+  sellOrderItemLoading.value = true
+  try {
+    const data = (await salesOrderApi.getItemLines({
+      sellOrderCode: orderCode,
+      page: 1,
+      pageSize: 100
+    })) as { items?: SalesOrderItemLineRow[] }
+    const items = data.items ?? []
+    const matched = items.find((row) => {
+      const rid = String(row.sellOrderItemId ?? row.id ?? '').trim()
+      return rid === itemId
+    })
+    sellOrderItemRows.value = matched ? [matched] : []
+  } catch {
+    sellOrderItemRows.value = []
+  } finally {
+    sellOrderItemLoading.value = false
   }
 }
 
@@ -453,10 +858,11 @@ async function load() {
     }
     detail.value = d
     syncEditFromDetail(d)
-    await loadItems()
+    await Promise.all([loadItems(), loadSellOrderItem()])
   } catch {
     detail.value = null
     loadError.value = t('stockOutDetail.loadFailed')
+    sellOrderItemRows.value = []
   } finally {
     loading.value = false
   }
@@ -502,6 +908,69 @@ onMounted(() => void load())
 
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
+@import '@/assets/styles/crm-quote-tier-dock.scss';
+
+.amount-with-code {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.mono-cell {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+
+  &.status-0 {
+    background: rgba(255, 255, 255, 0.05);
+    color: $text-muted;
+  }
+
+  &.status-1 {
+    background: rgba(255, 193, 7, 0.15);
+    color: #ffc107;
+  }
+
+  &.status-2 {
+    background: rgba(70, 191, 145, 0.18);
+    color: #46bf91;
+  }
+
+  &.status-3 {
+    background: rgba(201, 87, 69, 0.18);
+    color: #c95745;
+  }
+
+  &.status-4 {
+    background: rgba(0, 212, 255, 0.18);
+    color: $cyan-primary;
+  }
+}
+
+.section-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: $cyan-primary;
+  background: rgba(0, 212, 255, 0.12);
+  border: 1px solid rgba(0, 212, 255, 0.25);
+}
+
+.detail-panel-section-body {
+  padding: 16px 20px 20px;
+}
 
 .stockout-detail-page {
   padding: 24px;

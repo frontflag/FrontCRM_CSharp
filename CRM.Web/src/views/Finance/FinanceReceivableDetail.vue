@@ -291,6 +291,52 @@
                 show-overflow-tooltip
               />
               <el-table-column
+                :label="t('financeReceivableDetail.stockOutItemLabels.salesUnitPrice')"
+                min-width="132"
+                align="right"
+                header-align="right"
+                class-name="stock-item-unit-price-col"
+              >
+                <template #default="{ row }">
+                  <span v-if="!listShowAmountColumns">—</span>
+                  <template v-else-if="row.salesPrice != null && unitPriceDockHasValue(row.salesPrice)">
+                    <div class="dock-tier-price-line">
+                      <template v-for="amt in [splitUnitPriceDockParts(row.salesPrice)]" :key="`sup-${row.stockOutItemId}`">
+                        <span class="dock-tier-amt">
+                          <span class="dock-tier-amt-int">{{ amt.intPart }}</span
+                          ><span class="dock-tier-amt-frac">{{ amt.fracPart }}</span>
+                        </span>
+                      </template>
+                      <span class="dock-tier-ccy-gap">&nbsp;</span>
+                      <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.salesCurrency)]">{{
+                        listAmountCurrencyIso(row.salesCurrency)
+                      }}</span>
+                    </div>
+                  </template>
+                  <span v-else>{{ stockOutItemNa }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column
+                :label="t('financeReceivableDetail.stockOutItemLabels.outAmount')"
+                min-width="128"
+                align="right"
+                header-align="right"
+              >
+                <template #default="{ row }">
+                  <span v-if="!listShowAmountColumns">—</span>
+                  <template v-else-if="stockOutLineAmount(row) != null">
+                    <div class="dock-tier-price-line">
+                      <span class="dock-tier-amt">{{ formatTotalAmountNumber(stockOutLineAmount(row)) }}</span>
+                      <span class="dock-tier-ccy-gap">&nbsp;</span>
+                      <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.salesCurrency)]">{{
+                        listAmountCurrencyIso(row.salesCurrency)
+                      }}</span>
+                    </div>
+                  </template>
+                  <span v-else>{{ stockOutItemNa }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column
                 prop="shipmentMethod"
                 :label="t('stockOutItemList.columns.shipmentMethod')"
                 width="110"
@@ -481,7 +527,7 @@ import { translateSalesOrderStatus, salesOrderStatusTagType } from '@/constants/
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import { formatCustomerNameReadonlyFromRow } from '@/utils/customerDisplayName'
-import { formatTotalAmountNumber, formatUnitPriceNumber, listAmountCurrencyDockClass, listAmountCurrencyIso } from '@/utils/moneyFormat'
+import { formatTotalAmountNumber, formatUnitPriceNumber, listAmountCurrencyDockClass, listAmountCurrencyIso, splitUnitPriceDockParts, unitPriceDockHasValue } from '@/utils/moneyFormat'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { useAuthStore } from '@/stores/auth'
@@ -551,6 +597,14 @@ function stockOutItemShipmentMethodDisplay(code?: string | number | null) {
   const c = String(code).trim()
   if (!c) return stockOutItemNa.value
   return arrivalLabelByCode.value.get(c.toLowerCase()) ?? c
+}
+
+function stockOutLineAmount(row: StockOutItemListRow): number | null {
+  if (!unitPriceDockHasValue(row.salesPrice)) return null
+  const qty = Number(row.outQuantity)
+  const price = Number(row.salesPrice)
+  if (!Number.isFinite(qty) || !Number.isFinite(price)) return null
+  return qty * price
 }
 
 function stockOutItemStatusLabel(s: number) {

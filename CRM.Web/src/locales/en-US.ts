@@ -5388,6 +5388,10 @@ const enUS = {
       items: 'Stock-out lines',
       documents: 'Attachments'
     },
+    itemColumns: {
+      salesUnitPrice: 'Sales unit price',
+      outAmount: 'Stock-out amount'
+    },
     docHint: 'Upload multiple files; the list below shows all documents for this stock-out.',
     sourceCode: 'Source request',
     warehouseName: 'Warehouse name',
@@ -6663,6 +6667,8 @@ const enUS = {
       purchasePn: 'Purchase PN',
       purchaseBrand: 'Purchase brand',
       outQuantity: 'Out qty',
+      salesUnitPrice: 'Sales unit price',
+      outAmount: 'Stock-out amount',
       stockInCode: 'Stock-in',
       packingCode: 'Packing',
       sellOrderItemCode: 'SO line'

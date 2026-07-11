@@ -45,6 +45,8 @@
       :show-column-settings="false"
       :data="tableData"
       v-loading="loading"
+      row-class-name="table-row-pointer"
+      @row-dblclick="openDetail"
       @header-dragend="onReceivableTableHeaderDragEnd"
     >
       <template #col-verificationStatus="{ row }">

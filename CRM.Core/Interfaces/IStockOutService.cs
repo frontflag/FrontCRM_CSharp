@@ -223,6 +223,12 @@ namespace CRM.Core.Interfaces
         public string? WarehouseName { get; set; }
         public string? SellOrderItemId { get; set; }
 
+        /// <summary>关联销售订单主键。</summary>
+        public string? SellOrderId { get; set; }
+
+        /// <summary>关联销售订单号。</summary>
+        public string? SellOrderCode { get; set; }
+
         /// <summary>报关出库详情轻量摘要（StockOutType=报关时有值）。</summary>
         public StockOutCustomsSummaryDto? CustomsSummary { get; set; }
     }
@@ -406,5 +412,11 @@ namespace CRM.Core.Interfaces
 
         /// <summary>货代单号（自采购订单头 JOIN）</summary>
         public string? FreightForwarderOrderNo { get; set; }
+
+        /// <summary>销售单价（优先出库明细扩展快照，否则销售订单明细单价）。</summary>
+        public decimal? SalesPrice { get; set; }
+
+        /// <summary>销售币别（与 <see cref="Constants.CurrencyCode"/> 一致）。</summary>
+        public short? SalesCurrency { get; set; }
     }
 }

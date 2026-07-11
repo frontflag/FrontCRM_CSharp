@@ -5378,6 +5378,10 @@ const zhCN = {
       items: '出库明细',
       documents: '关联文档'
     },
+    itemColumns: {
+      salesUnitPrice: '销售单价',
+      outAmount: '出库金额'
+    },
     docHint: '可多次上传；下方列表展示本单全部已上传文档，支持预览与下载。',
     sourceCode: '来源申请',
     warehouseName: '仓库名称',
@@ -6655,6 +6659,8 @@ const zhCN = {
       purchasePn: '采购型号',
       purchaseBrand: '采购品牌',
       outQuantity: '出库数量',
+      salesUnitPrice: '销售单价',
+      outAmount: '出库金额',
       stockInCode: '入库单号',
       packingCode: '装箱单号',
       sellOrderItemCode: '销售明细号'

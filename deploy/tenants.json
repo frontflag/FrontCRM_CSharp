@@ -18,7 +18,8 @@
     "serverUser": "ubuntu",
     "remoteDeployPath": "/home/ubuntu/frontcrm",
     "nonDockerFrontendRoot": "/opt/frontcrm/frontend",
-    "nonDockerBackendRoot": "/opt/frontcrm/backend"
+    "nonDockerBackendRoot": "/opt/frontcrm/backend",
+    "deploymentMode": "nonDocker"
   },
   "fz": {
     "displayName": "FZ",
