@@ -166,7 +166,9 @@ $SshOpts = @(
     "-o", "ConnectTimeout=30",
     "-o", "ServerAliveInterval=10",
     "-o", "ServerAliveCountMax=3",
-    "-o", "StrictHostKeyChecking=no"
+    "-o", "StrictHostKeyChecking=no",
+    "-o", "GSSAPIAuthentication=no",
+    "-o", "KbdInteractiveAuthentication=no"
 )
 if (-not $AllowPasswordPrompt) {
     $SshOpts += @("-o", "BatchMode=yes")
@@ -176,7 +178,9 @@ if (-not $AllowPasswordPrompt) {
 }
 $ScpOpts = @(
     "-o", "ConnectTimeout=30",
-    "-o", "StrictHostKeyChecking=no"
+    "-o", "StrictHostKeyChecking=no",
+    "-o", "GSSAPIAuthentication=no",
+    "-o", "KbdInteractiveAuthentication=no"
 )
 if (-not $AllowPasswordPrompt) {
     $ScpOpts += @("-o", "BatchMode=yes")
@@ -223,13 +227,28 @@ if (-not $AllowPasswordPrompt) {
     Write-Host "  For password upload: .\deploy_full_to_server.ps1 -SkipBuild -AllowPasswordPrompt" -ForegroundColor Cyan
     Write-Host "  Or add your .pub to server ~/.ssh/authorized_keys, or use -SshKeyPath." -ForegroundColor DarkGray
 }
-& ssh @SshOpts -p $SshPort "$SshTarget" "mkdir -p '$RemoteDeployPath'"
-if ($LASTEXITCODE -ne 0) {
+$mkdirJob = Start-Job -ScriptBlock {
+    param($SshExe, $Opts, $Port, $Target, $RemotePath)
+    & $SshExe @Opts -p $Port $Target "mkdir -p '$RemotePath'"
+    return $LASTEXITCODE
+} -ArgumentList $sshPath.Source, $SshOpts, $SshPort, $SshTarget, $RemoteDeployPath
+$mkdirWait = Wait-Job -Job $mkdirJob -Timeout 60
+if (-not $mkdirWait -or $mkdirJob.State -eq 'Running') {
+    Stop-Job -Job $mkdirJob -ErrorAction SilentlyContinue
+    Remove-Job -Job $mkdirJob -Force -ErrorAction SilentlyContinue
+    Write-Host "ERROR: ssh mkdir timed out after 60s (Windows SSH hang). Press Ctrl+C if still stuck, then re-run the same command." -ForegroundColor Red
+    Write-Host "  Tip: close hung ssh.exe in Task Manager, or run: Get-Process ssh | Stop-Process -Force" -ForegroundColor Yellow
+    exit 1
+}
+[void]($mkdirExit = Receive-Job -Job $mkdirJob)
+Remove-Job -Job $mkdirJob -Force -ErrorAction SilentlyContinue
+if ($mkdirExit -ne 0) {
     Write-Host "ERROR: ssh mkdir failed. Check: network/firewall port 22; ssh key for $SshTarget; or use -AllowPasswordPrompt for password login." -ForegroundColor Red
     exit 1
 }
 
 Write-Host "Uploading $DeployPackageName/* -> $RemoteDeployPath/ ..." -ForegroundColor Yellow
+Write-Host "  (scp has no progress bar; ~$([Math]::Round($packageSize, 0)) MB may take several minutes on slow uplink)" -ForegroundColor DarkGray
 Write-Host "NOTE: 仓库 data/ 不在部署包内；scp 不会删除远程仅有、本地没有的目录。生产 data/ip2region 请在服务器单独维护。" -ForegroundColor DarkGray
 & scp @ScpOpts -r -P $SshPort "$localDot" "$($SshTarget):$($RemoteDeployPath)/"
 
@@ -389,3 +408,4 @@ Write-Host "Frontend: http://$ServerIP" -ForegroundColor Gray
 Write-Host ('API:      http://{0}:{1}/api/v1' -f $ServerIP, $BackendPort) -ForegroundColor Gray
 Write-Host ""
 Write-Host "deploy_full_to_server.ps1 done." -ForegroundColor Green
+exit 0

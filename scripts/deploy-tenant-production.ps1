@@ -142,17 +142,52 @@ function Get-DeployLogTail {
     return ($lines[-1]).Trim()
 }
 
-function ConvertTo-DeployResultArray {
-    param($Value)
+function Test-DeployResultRow {
+    param($Result)
 
-    if ($null -eq $Value) { return @() }
-    if ($Value -is [System.Collections.Generic.List[object]]) {
-        return ,@($Value.ToArray())
+    return (
+        $null -ne $Result -and
+        $Result -is [PSCustomObject] -and
+        -not [string]::IsNullOrWhiteSpace([string]$Result.Tenant)
+    )
+}
+
+function Get-DeployResultItems {
+    param(
+        [AllowNull()]
+        $Value
+    )
+
+    $items = New-Object System.Collections.Generic.List[object]
+
+    function Add-DeployResultItem {
+        param($Item)
+
+        if ($null -eq $Item) { return }
+        if ($Item -is [PSCustomObject]) {
+            if (Test-DeployResultRow $Item) {
+                $items.Add($Item) | Out-Null
+            }
+            return
+        }
+        if ($Item -is [System.Collections.Generic.List[object]]) {
+            foreach ($inner in $Item) { Add-DeployResultItem $inner }
+            return
+        }
+        if ($Item -is [System.Array]) {
+            foreach ($inner in $Item) { Add-DeployResultItem $inner }
+            return
+        }
+        if ($Item -is [System.Collections.IEnumerable] -and -not ($Item -is [string])) {
+            foreach ($inner in $Item) { Add-DeployResultItem $inner }
+            return
+        }
+
+        $items.Add($Item) | Out-Null
     }
-    if ($Value -is [System.Collections.IEnumerable] -and -not ($Value -is [string])) {
-        return ,@($Value)
-    }
-    return ,@($Value)
+
+    Add-DeployResultItem $Value
+    return @($items.ToArray())
 }
 
 function Format-DeployTimestamp {
@@ -180,7 +215,7 @@ function Invoke-SequentialTenantDeploy {
 
         Write-Host ""
         Write-Host ">>> Deploy tenant: $tenantId ($packageName -> $($cfg.serverUser)@$($cfg.serverIP))" -ForegroundColor Magenta
-        & $DeployScriptPath @deployParams
+        & $DeployScriptPath @deployParams | Out-Null
         $tenantExitCode = if ($null -ne $LASTEXITCODE) { [int]$LASTEXITCODE } else { 0 }
         $tenantEndTime = Get-Date
         $tenantSucceeded = ($tenantExitCode -eq 0)
@@ -200,7 +235,7 @@ function Invoke-SequentialTenantDeploy {
         }
     }
 
-    return ,@($results.ToArray())
+    return Get-DeployResultItems $results
 }
 
 function Invoke-ParallelTenantDeploy {
@@ -322,7 +357,7 @@ function Invoke-ParallelTenantDeploy {
             }) | Out-Null
         }
 
-        return ,@($results.ToArray())
+        return Get-DeployResultItems $results
     }
     finally {
         $runspacePool.Close()
@@ -451,7 +486,8 @@ if ($Tenant -eq 'all') {
             -LogRoot $logRoot `
             -EffectiveSshKeyPath $effectiveSshKeyPath
 
-        foreach ($result in (ConvertTo-DeployResultArray $parallelResults)) {
+        foreach ($result in (Get-DeployResultItems $parallelResults)) {
+            if (-not (Test-DeployResultRow $result)) { continue }
             Write-Host ""
             Write-Host "----- Deploy output: $($result.Tenant) ($($result.Package)) -----" -ForegroundColor Cyan
             if ($result.Output) {
@@ -466,19 +502,19 @@ if ($Tenant -eq 'all') {
             }
 
             $tenantResults.Add([PSCustomObject]@{
-                Tenant         = $result.Tenant
-                Succeeded      = $result.Succeeded
+                Tenant         = [string]$result.Tenant
+                Succeeded      = [bool]$result.Succeeded
                 StartedAt      = $result.StartedAt
                 FinishedAt     = $result.FinishedAt
                 ElapsedMinutes = $result.ElapsedMinutes
                 ExitCode       = $result.ExitCode
-                Package        = $result.Package
+                Package        = [string]$result.Package
             }) | Out-Null
 
             if ($result.Succeeded) {
-                $succeededTenants.Add($result.Tenant) | Out-Null
+                $succeededTenants.Add([string]$result.Tenant) | Out-Null
             } else {
-                $failedTenants.Add($result.Tenant) | Out-Null
+                $failedTenants.Add([string]$result.Tenant) | Out-Null
             }
         }
     } else {
@@ -488,21 +524,22 @@ if ($Tenant -eq 'all') {
             -TenantIds $batchTenants `
             -EffectiveSshKeyPath $effectiveSshKeyPath
 
-        foreach ($result in (ConvertTo-DeployResultArray $sequentialResults)) {
+        foreach ($result in (Get-DeployResultItems $sequentialResults)) {
+            if (-not (Test-DeployResultRow $result)) { continue }
             $tenantResults.Add([PSCustomObject]@{
-                Tenant         = $result.Tenant
-                Succeeded      = $result.Succeeded
+                Tenant         = [string]$result.Tenant
+                Succeeded      = [bool]$result.Succeeded
                 StartedAt      = $result.StartedAt
                 FinishedAt     = $result.FinishedAt
                 ElapsedMinutes = $result.ElapsedMinutes
                 ExitCode       = $result.ExitCode
-                Package        = $result.Package
+                Package        = [string]$result.Package
             }) | Out-Null
 
             if ($result.Succeeded) {
-                $succeededTenants.Add($result.Tenant) | Out-Null
+                $succeededTenants.Add([string]$result.Tenant) | Out-Null
             } else {
-                $failedTenants.Add($result.Tenant) | Out-Null
+                $failedTenants.Add([string]$result.Tenant) | Out-Null
             }
         }
     }
@@ -520,14 +557,14 @@ if ($Tenant -eq 'all') {
     Write-Host "Elapsed: $elapsedMinutes minute(s)" -ForegroundColor Gray
     Write-Host ""
     Write-Host "--- Per tenant ---" -ForegroundColor Cyan
-    foreach ($result in (ConvertTo-DeployResultArray $tenantResults)) {
-        if ($null -eq $result) { continue }
+    foreach ($result in $tenantResults) {
+        if (-not (Test-DeployResultRow $result)) { continue }
         $statusLabel = if ($result.Succeeded) { 'OK' } else { 'FAILED' }
         $statusColor = if ($result.Succeeded) { 'Green' } else { 'Red' }
         $startedText = Format-DeployTimestamp $result.StartedAt
         $finishedText = Format-DeployTimestamp $result.FinishedAt
-        $tenantName = if ($result.Tenant) { [string]$result.Tenant } else { '-' }
-        $packageName = if ($result.Package) { [string]$result.Package } else { '-' }
+        $tenantName = if (-not [string]::IsNullOrWhiteSpace($result.Tenant)) { [string]$result.Tenant } else { '-' }
+        $packageName = if (-not [string]::IsNullOrWhiteSpace($result.Package)) { [string]$result.Package } else { '-' }
         $elapsed = if ($null -ne $result.ElapsedMinutes) { $result.ElapsedMinutes } else { '-' }
         Write-Host ("[{0}] {1,-8} {2} -> {3}  ({4} min)  [{5}]" -f $statusLabel, $tenantName, $startedText, $finishedText, $elapsed, $packageName) -ForegroundColor $statusColor
     }
@@ -567,5 +604,5 @@ if ($SkipBuild) {
 
 $params = Get-DeployFullParams -TargetTenant $Tenant -TenantConfig $cfg -DeployPackageName $packageName -EffectiveSshKeyPath (Resolve-DeploySshKeyPath -ExplicitPath $SshKeyPath)
 
-& $deployScript @params
+& $deployScript @params | Out-Null
 exit $LASTEXITCODE
