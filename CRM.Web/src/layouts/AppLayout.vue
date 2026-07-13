@@ -1224,6 +1224,19 @@
             @apply-arrival="purchaseOrderItemOpsStore.runApplyArrival()"
             @apply-payment="purchaseOrderItemOpsStore.runApplyPayment()"
           />
+          <CustomsDeclarationOpsPanel
+            v-show="showCustomsDeclarationOpsPanel"
+            embedded
+            :row="customsDeclarationOpsStore.row"
+            :detail="customsDeclarationOpsStore.detail"
+            :loading="customsDeclarationOpsStore.loading"
+            :load-error="customsDeclarationOpsStore.loadError"
+            :action-loading="customsDeclarationOpsStore.actionLoading"
+            :can-write-logistics="canWriteLogisticsData"
+            class="aux-panel-tab-body"
+            @set-clearance="customsDeclarationOpsStore.runSetClearance()"
+            @create-arrival="customsDeclarationOpsStore.runCreateArrival()"
+          />
           <RfqItemMaterialPanel
             v-show="showRfqItemMaterialPanel"
             class="aux-panel-tab-body"
@@ -1271,11 +1284,13 @@ import HelpManualPanel from '@/components/workspace/HelpManualPanel.vue'
 import SalesOrderItemOpsPanel from '@/components/RFQ/SalesOrderItemOpsPanel.vue'
 import RfqItemMaterialPanel from '@/components/RFQ/RfqItemMaterialPanel.vue'
 import PurchaseOrderItemOpsPanel from '@/components/RFQ/PurchaseOrderItemOpsPanel.vue'
+import CustomsDeclarationOpsPanel from '@/components/Customs/CustomsDeclarationOpsPanel.vue'
 import { useSalesOrderItemOpsPanelStore } from '@/stores/salesOrderItemOpsPanel'
 import { useMaterialIntelLookupStore } from '@/stores/materialIntelLookup'
 import { usePurchaseOrderItemOpsPanelStore } from '@/stores/purchaseOrderItemOpsPanel'
+import { useCustomsDeclarationOpsPanelStore } from '@/stores/customsDeclarationOpsPanel'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
-import { useSaleOrderWriteGate } from '@/composables/useDepartmentDataReadOnly'
+import { useSaleOrderWriteGate, useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { Sunny, Moon } from '@element-plus/icons-vue'
 import { useUiTheme } from '@/composables/useUiTheme'
@@ -1301,9 +1316,11 @@ const { t, locale } = useI18n()
 const salesOrderItemOpsStore = useSalesOrderItemOpsPanelStore()
 const materialIntelLookupStore = useMaterialIntelLookupStore()
 const purchaseOrderItemOpsStore = usePurchaseOrderItemOpsPanelStore()
+const customsDeclarationOpsStore = useCustomsDeclarationOpsPanelStore()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { canWriteSo: canSalesOrderItemOpsWriteSo } = useSaleOrderWriteGate()
+const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 const canSalesOrderItemOpsPurchase = computed(
   () =>
     authStore.hasPermission('purchase-requisition.write') ||
@@ -1544,6 +1561,7 @@ const showPurchaseOrderRecentHistoryPanel = computed(
 const isSalesOrderItemListRoute = computed(() => route.name === 'SalesOrderItemList')
 const isPurchaseOrderItemListRoute = computed(() => route.name === 'PurchaseOrderItemList')
 const isRfqItemListRoute = computed(() => route.name === 'RFQItemList')
+const isCustomsDeclarationListRoute = computed(() => route.name === 'CustomsDeclarationList')
 
 const showSalesOrderItemOpsPanel = computed(
   () => rightActiveTabId.value === 'r-ops' && isSalesOrderItemListRoute.value
@@ -1551,6 +1569,10 @@ const showSalesOrderItemOpsPanel = computed(
 
 const showPurchaseOrderItemOpsPanel = computed(
   () => rightActiveTabId.value === 'r-ops' && isPurchaseOrderItemListRoute.value
+)
+
+const showCustomsDeclarationOpsPanel = computed(
+  () => rightActiveTabId.value === 'r-ops' && isCustomsDeclarationListRoute.value
 )
 
 const showRfqItemMaterialPanel = computed(
@@ -1574,6 +1596,17 @@ watch(
       ]
       if (name === 'SalesOrderItemList') purchaseOrderItemOpsStore.clear()
       if (name === 'PurchaseOrderItemList') salesOrderItemOpsStore.clear()
+      customsDeclarationOpsStore.clear()
+      materialIntelLookupStore.clearBound()
+      return
+    }
+    if (name === 'CustomsDeclarationList') {
+      rightTabs.value = [
+        { id: 'r-ops', labelKey: 'layout.auxTabs.ops' },
+        { id: 'r4', labelKey: 'layout.auxTabs.help' }
+      ]
+      salesOrderItemOpsStore.clear()
+      purchaseOrderItemOpsStore.clear()
       materialIntelLookupStore.clearBound()
       return
     }
@@ -1590,6 +1623,7 @@ watch(
     rightActiveTabId.value = 'r4'
     salesOrderItemOpsStore.clear()
     purchaseOrderItemOpsStore.clear()
+    customsDeclarationOpsStore.clear()
     materialIntelLookupStore.clearBound()
   },
   { immediate: true }

@@ -82,7 +82,8 @@
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
       :data="pagedRows"
       v-loading="loading"
-      row-class-name="table-row-pointer"
+      :row-class-name="opsPanelRowClassName"
+      @row-click="onRowClick"
       @row-dblclick="onDblClick"
     >
       <template #col-internalStatus="{ row }">
@@ -237,13 +238,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, inject, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import {
   createCustomsArrivalNotifies,
   deleteCustomsDeclaration,
@@ -253,13 +255,17 @@ import {
   type CustomsDeclarationListItemDto
 } from '@/api/customs'
 import { useAuthStore } from '@/stores/auth'
+import { useCustomsDeclarationOpsPanelStore } from '@/stores/customsDeclarationOpsPanel'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import { formatTotalAmountNumber } from '@/utils/moneyFormat'
 
 const { t } = useI18n()
+const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const customsDeclarationOpsStore = useCustomsDeclarationOpsPanelStore()
+const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 const isSysAdmin = authStore.user?.isSysAdmin === true
 
@@ -409,7 +415,54 @@ async function load() {
   } finally {
     loading.value = false
   }
+  await refreshOpsPanelIfOpen()
 }
+
+async function refreshOpsPanelIfOpen() {
+  if (!customsDeclarationOpsStore.row) return
+  const panelVisible = workspaceLayout?.rightPanelVisible.value ?? false
+  await customsDeclarationOpsStore.refreshFromListRows(
+    allRows.value as unknown as Record<string, unknown>[],
+    t('customsPages.declarations.opsPanel.loadFailed'),
+    panelVisible
+  )
+}
+
+function isRightPanelVisible() {
+  return workspaceLayout?.rightPanelVisible.value ?? false
+}
+
+async function onRowClick(row: CustomsDeclarationListItemDto) {
+  workspaceLayout?.setRightActiveTab('r-ops')
+
+  if (isRightPanelVisible()) {
+    await customsDeclarationOpsStore.selectRow(
+      row as unknown as Record<string, unknown>,
+      t('customsPages.declarations.opsPanel.loadFailed')
+    )
+    return
+  }
+
+  customsDeclarationOpsStore.setRowOnly(row as unknown as Record<string, unknown>)
+  workspaceLayout?.toggleRightPanel(true)
+}
+
+function opsPanelRowClassName({ row }: { row: CustomsDeclarationListItemDto }) {
+  if (!customsDeclarationOpsStore.row) return 'table-row-pointer'
+  return customsDeclarationOpsStore.rowKey(row as unknown as Record<string, unknown>) ===
+    customsDeclarationOpsStore.rowKey(customsDeclarationOpsStore.row)
+    ? 'so-item-row--active'
+    : 'table-row-pointer'
+}
+
+watch(
+  () => workspaceLayout?.rightPanelVisible.value,
+  (visible, wasVisible) => {
+    if (route.name !== 'CustomsDeclarationList') return
+    if (!visible || wasVisible || !customsDeclarationOpsStore.row) return
+    void customsDeclarationOpsStore.loadDetail(t('customsPages.declarations.opsPanel.loadFailed'))
+  }
+)
 
 function openClearance(row: CustomsDeclarationListItemDto) {
   clearanceRow.value = row
@@ -425,6 +478,12 @@ async function saveClearance() {
     ElMessage.success(t('customsPages.declarations.clearanceSaved'))
     clearanceVisible.value = false
     await load()
+    if (
+      customsDeclarationOpsStore.row &&
+      customsDeclarationOpsStore.rowKey(customsDeclarationOpsStore.row) === clearanceRow.value.id
+    ) {
+      await customsDeclarationOpsStore.loadDetail(t('customsPages.declarations.opsPanel.loadFailed'))
+    }
   } catch (e: unknown) {
     ElMessage.error(e instanceof Error ? e.message : String(e))
   } finally {
@@ -490,6 +549,7 @@ async function handleCreateArrival(row: CustomsDeclarationListItemDto) {
   } catch {
     return
   }
+  customsDeclarationOpsStore.actionLoading = true
   try {
     const result = await createCustomsArrivalNotifies(row.id)
     const codes = result.created?.map((c) => c.noticeCode).filter(Boolean).join('、')
@@ -499,13 +559,34 @@ async function handleCreateArrival(row: CustomsDeclarationListItemDto) {
         : t('customsPages.declarations.createArrivalOk', { count: result.createdCount })
     )
     await load()
+    if (
+      customsDeclarationOpsStore.row &&
+      customsDeclarationOpsStore.rowKey(customsDeclarationOpsStore.row) === row.id
+    ) {
+      await customsDeclarationOpsStore.loadDetail(t('customsPages.declarations.opsPanel.loadFailed'))
+    }
   } catch (e: unknown) {
     ElMessage.error(e instanceof Error ? e.message : String(e))
+  } finally {
+    customsDeclarationOpsStore.actionLoading = false
   }
 }
 
 onMounted(() => {
+  customsDeclarationOpsStore.registerHandlers({
+    setClearance: (row) => {
+      openClearance(row as unknown as CustomsDeclarationListItemDto)
+    },
+    createArrival: (row) => {
+      void handleCreateArrival(row as unknown as CustomsDeclarationListItemDto)
+    }
+  })
   void load()
+})
+
+onBeforeUnmount(() => {
+  customsDeclarationOpsStore.unregisterHandlers()
+  customsDeclarationOpsStore.clear()
 })
 </script>
 
