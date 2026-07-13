@@ -178,6 +178,8 @@ export const quoteApi = {
     keyword?: string
     status?: number
     rfqItemId?: string | null
+    startDate?: string | null
+    endDate?: string | null
     aggregateCreateFrom?: string | null
     aggregateCreateToExclusive?: string | null
   }) {
@@ -190,6 +192,10 @@ export const quoteApi = {
     if (params?.status !== undefined && params?.status !== null) q.set('status', String(params.status))
     if (params?.rfqItemId != null && String(params.rfqItemId).trim() !== '')
       q.set('rfqItemId', String(params.rfqItemId).trim())
+    if (params?.startDate != null && String(params.startDate).trim() !== '')
+      q.set('startDate', String(params.startDate).trim())
+    if (params?.endDate != null && String(params.endDate).trim() !== '')
+      q.set('endDate', String(params.endDate).trim())
     if (params?.aggregateCreateFrom != null && String(params.aggregateCreateFrom).trim() !== '')
       q.set('aggregateCreateFrom', String(params.aggregateCreateFrom).trim())
     if (

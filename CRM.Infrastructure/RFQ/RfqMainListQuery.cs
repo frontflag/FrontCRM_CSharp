@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace CRM.Infrastructure.RfqListQueries;
 
 /// <summary>需求主表列表：EF 数据库分页（与内存全表方案行为对齐）。</summary>
-public sealed class RfqMainListQuery : IRfqMainListQuery
+public sealed partial class RfqMainListQuery : IRfqMainListQuery
 {
     /// <summary>单页上限；与采购主表列表对齐，便于大批量导出等场景。</summary>
     public const int MaxPageSize = 2000;

@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using CRM.API.Authorization;
 using CRM.API.Models.DTOs;
+using CRM.API.Utilities;
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Analytics;
 using CRM.Core.Utilities;
 using System.Security.Claims;
 
@@ -13,13 +15,25 @@ namespace CRM.API.Controllers
     public class RFQsController : ControllerBase
     {
         private readonly IRFQService _rfqService;
+        private readonly IRfqMainListQuery _rfqMainListQuery;
+        private readonly IRfqItemListQuery _rfqItemListQuery;
         private readonly IDataPermissionService _dataPermissionService;
+        private readonly IRbacService _rbacService;
         private readonly ILogger<RFQsController> _logger;
 
-        public RFQsController(IRFQService rfqService, IDataPermissionService dataPermissionService, ILogger<RFQsController> logger)
+        public RFQsController(
+            IRFQService rfqService,
+            IRfqMainListQuery rfqMainListQuery,
+            IRfqItemListQuery rfqItemListQuery,
+            IDataPermissionService dataPermissionService,
+            IRbacService rbacService,
+            ILogger<RFQsController> logger)
         {
             _rfqService = rfqService;
+            _rfqMainListQuery = rfqMainListQuery;
+            _rfqItemListQuery = rfqItemListQuery;
             _dataPermissionService = dataPermissionService;
+            _rbacService = rbacService;
             _logger = logger;
         }
 
@@ -77,6 +91,74 @@ namespace CRM.API.Controllers
             }
         }
 
+        [HttpGet("analytics/dashboard")]
+        [RequirePermission("rfq.read")]
+        public async Task<IActionResult> GetListAnalyticsDashboard(
+            [FromQuery] string? keyword,
+            [FromQuery] short? status,
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            [FromQuery] string[]? tagIds,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, maskCustomerNames) = await BuildListAnalyticsQueryRequestAsync(
+                keyword, status, startDate, endDate, tagIds, cancellationToken);
+            var data = await _rfqMainListQuery.GetListAnalyticsDashboardAsync(request, maskCustomerNames, cancellationToken);
+            return Ok(ApiResponse<RfqListAnalyticsDashboardDto>.Ok(data));
+        }
+
+        [HttpGet("analytics/trends")]
+        [RequirePermission("rfq.read")]
+        public async Task<IActionResult> GetListAnalyticsTrends(
+            [FromQuery] string? keyword,
+            [FromQuery] short? status,
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            [FromQuery] string[]? tagIds,
+            [FromQuery] string? groupBy,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, _) = await BuildListAnalyticsQueryRequestAsync(
+                keyword, status, startDate, endDate, tagIds, cancellationToken);
+            var data = await _rfqMainListQuery.GetListAnalyticsTrendsAsync(
+                request,
+                string.IsNullOrWhiteSpace(groupBy) ? "month" : groupBy.Trim(),
+                cancellationToken);
+            return Ok(ApiResponse<IReadOnlyList<RfqListAnalyticsTrendPointDto>>.Ok(data));
+        }
+
+        [HttpGet("analytics/breakdowns")]
+        [RequirePermission("rfq.read")]
+        public async Task<IActionResult> GetListAnalyticsBreakdowns(
+            [FromQuery] string? keyword,
+            [FromQuery] short? status,
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            [FromQuery] string[]? tagIds,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, _) = await BuildListAnalyticsQueryRequestAsync(
+                keyword, status, startDate, endDate, tagIds, cancellationToken);
+            var data = await _rfqMainListQuery.GetListAnalyticsBreakdownsAsync(request, cancellationToken);
+            return Ok(ApiResponse<IReadOnlyList<SalesAnalyticsBreakdownGroupDto>>.Ok(data));
+        }
+
+        [HttpGet("analytics/rankings")]
+        [RequirePermission("rfq.read")]
+        public async Task<IActionResult> GetListAnalyticsRankings(
+            [FromQuery] string? keyword,
+            [FromQuery] short? status,
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            [FromQuery] string[]? tagIds,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, maskCustomerNames) = await BuildListAnalyticsQueryRequestAsync(
+                keyword, status, startDate, endDate, tagIds, cancellationToken);
+            var data = await _rfqMainListQuery.GetListAnalyticsRankingsAsync(request, maskCustomerNames, cancellationToken);
+            return Ok(ApiResponse<RfqListAnalyticsRankingsDto>.Ok(data));
+        }
+
         /// <summary>需求明细分页（须放在 {id} 之前，否则 "items" 会被当成 id）</summary>
         // GET api/v1/rfqs/items?...&salesUserId=&salesUserKeyword=&purchaserUserId=
         [HttpGet("items")]
@@ -132,6 +214,98 @@ namespace CRM.API.Controllers
                 _logger.LogError(ex, "获取需求明细列表失败");
                 return StatusCode(500, ApiResponse<object>.Fail($"获取需求明细列表失败: {ex.Message}", 500));
             }
+        }
+
+        [HttpGet("items/analytics/dashboard")]
+        [RequirePermission("rfq.read")]
+        public async Task<IActionResult> GetItemListAnalyticsDashboard(
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            [FromQuery] string? customerKeyword,
+            [FromQuery] string? materialModel,
+            [FromQuery] string? salesUserId,
+            [FromQuery] string? salesUserKeyword,
+            [FromQuery] string? purchaserUserId,
+            [FromQuery] string? hasQuotesOnly,
+            [FromQuery] short? status,
+            [FromQuery] string? rfqCode,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, maskCustomerNames) = await BuildItemListAnalyticsQueryRequestAsync(
+                startDate, endDate, customerKeyword, materialModel, salesUserId, salesUserKeyword,
+                purchaserUserId, hasQuotesOnly, status, rfqCode, cancellationToken);
+            var data = await _rfqItemListQuery.GetListAnalyticsDashboardAsync(request, maskCustomerNames, cancellationToken);
+            return Ok(ApiResponse<RfqListAnalyticsDashboardDto>.Ok(data));
+        }
+
+        [HttpGet("items/analytics/trends")]
+        [RequirePermission("rfq.read")]
+        public async Task<IActionResult> GetItemListAnalyticsTrends(
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            [FromQuery] string? customerKeyword,
+            [FromQuery] string? materialModel,
+            [FromQuery] string? salesUserId,
+            [FromQuery] string? salesUserKeyword,
+            [FromQuery] string? purchaserUserId,
+            [FromQuery] string? hasQuotesOnly,
+            [FromQuery] short? status,
+            [FromQuery] string? rfqCode,
+            [FromQuery] string? groupBy,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, _) = await BuildItemListAnalyticsQueryRequestAsync(
+                startDate, endDate, customerKeyword, materialModel, salesUserId, salesUserKeyword,
+                purchaserUserId, hasQuotesOnly, status, rfqCode, cancellationToken);
+            var data = await _rfqItemListQuery.GetListAnalyticsTrendsAsync(
+                request,
+                string.IsNullOrWhiteSpace(groupBy) ? "month" : groupBy.Trim(),
+                cancellationToken);
+            return Ok(ApiResponse<IReadOnlyList<RfqListAnalyticsTrendPointDto>>.Ok(data));
+        }
+
+        [HttpGet("items/analytics/breakdowns")]
+        [RequirePermission("rfq.read")]
+        public async Task<IActionResult> GetItemListAnalyticsBreakdowns(
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            [FromQuery] string? customerKeyword,
+            [FromQuery] string? materialModel,
+            [FromQuery] string? salesUserId,
+            [FromQuery] string? salesUserKeyword,
+            [FromQuery] string? purchaserUserId,
+            [FromQuery] string? hasQuotesOnly,
+            [FromQuery] short? status,
+            [FromQuery] string? rfqCode,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, _) = await BuildItemListAnalyticsQueryRequestAsync(
+                startDate, endDate, customerKeyword, materialModel, salesUserId, salesUserKeyword,
+                purchaserUserId, hasQuotesOnly, status, rfqCode, cancellationToken);
+            var data = await _rfqItemListQuery.GetListAnalyticsBreakdownsAsync(request, cancellationToken);
+            return Ok(ApiResponse<IReadOnlyList<SalesAnalyticsBreakdownGroupDto>>.Ok(data));
+        }
+
+        [HttpGet("items/analytics/rankings")]
+        [RequirePermission("rfq.read")]
+        public async Task<IActionResult> GetItemListAnalyticsRankings(
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            [FromQuery] string? customerKeyword,
+            [FromQuery] string? materialModel,
+            [FromQuery] string? salesUserId,
+            [FromQuery] string? salesUserKeyword,
+            [FromQuery] string? purchaserUserId,
+            [FromQuery] string? hasQuotesOnly,
+            [FromQuery] short? status,
+            [FromQuery] string? rfqCode,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, maskCustomerNames) = await BuildItemListAnalyticsQueryRequestAsync(
+                startDate, endDate, customerKeyword, materialModel, salesUserId, salesUserKeyword,
+                purchaserUserId, hasQuotesOnly, status, rfqCode, cancellationToken);
+            var data = await _rfqItemListQuery.GetListAnalyticsRankingsAsync(request, maskCustomerNames, cancellationToken);
+            return Ok(ApiResponse<RfqItemListAnalyticsRankingsDto>.Ok(data));
         }
 
         /// <summary>标记需求明细为查无报价（status 0→5）</summary>
@@ -414,6 +588,89 @@ namespace CRM.API.Controllers
                 _logger.LogError(ex, "关闭需求失败: {Id}", id);
                 return StatusCode(500, ApiResponse<object>.Fail($"关闭需求失败: {ex.Message}", 500));
             }
+        }
+
+        private async Task<(RFQQueryRequest Request, bool MaskCustomerNames)> BuildListAnalyticsQueryRequestAsync(
+            string? keyword,
+            short? status,
+            string? startDate,
+            string? endDate,
+            string[]? tagIds,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var mask521 = await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User);
+            var summary = string.IsNullOrWhiteSpace(userId)
+                ? null
+                : await _rbacService.GetUserPermissionSummaryAsync(userId);
+            var canViewCustomer = !mask521 && (summary?.IsSysAdmin == true
+                || (summary?.PermissionCodes?.Contains("customer.info.read") ?? false));
+            var maskCustomerNames = !canViewCustomer;
+
+            var normalizedTagIds = tagIds?
+                .SelectMany(v => (v ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var request = new RFQQueryRequest
+            {
+                Keyword = keyword,
+                Status = status,
+                StartDate = PostgreSqlDateTime.ParseDateOnly(startDate),
+                EndDate = PostgreSqlDateTime.ParseDateOnly(endDate),
+                CurrentUserId = userId,
+                TagIds = normalizedTagIds is { Count: > 0 } ? normalizedTagIds : null
+            };
+
+            return (request, maskCustomerNames);
+        }
+
+        private async Task<(RFQItemQueryRequest Request, bool MaskCustomerNames)> BuildItemListAnalyticsQueryRequestAsync(
+            string? startDate,
+            string? endDate,
+            string? customerKeyword,
+            string? materialModel,
+            string? salesUserId,
+            string? salesUserKeyword,
+            string? purchaserUserId,
+            string? hasQuotesOnly,
+            short? status,
+            string? rfqCode,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var mask521 = await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User);
+            var summary = string.IsNullOrWhiteSpace(userId)
+                ? null
+                : await _rbacService.GetUserPermissionSummaryAsync(userId);
+            var canViewCustomer = !mask521 && (summary?.IsSysAdmin == true
+                || (summary?.PermissionCodes?.Contains("customer.info.read") ?? false));
+            var maskCustomerNames = !canViewCustomer;
+
+            var request = new RFQItemQueryRequest
+            {
+                StartDate = PostgreSqlDateTime.ParseDateOnly(startDate),
+                EndDate = PostgreSqlDateTime.ParseDateOnly(endDate),
+                CustomerKeyword = canViewCustomer && !string.IsNullOrWhiteSpace(customerKeyword)
+                    ? customerKeyword.Trim()
+                    : null,
+                MaterialModel = !string.IsNullOrWhiteSpace(materialModel) ? materialModel.Trim() : null,
+                SalesUserId = !mask521 && !string.IsNullOrWhiteSpace(salesUserId) ? salesUserId.Trim() : null,
+                SalesUserKeyword = !mask521 && !string.IsNullOrWhiteSpace(salesUserKeyword)
+                    ? salesUserKeyword.Trim()
+                    : null,
+                PurchaserUserId = !string.IsNullOrWhiteSpace(purchaserUserId) ? purchaserUserId.Trim() : null,
+                HasQuotesOnly = ParseQueryBool(hasQuotesOnly),
+                Status = status,
+                RfqCode = !string.IsNullOrWhiteSpace(rfqCode) ? rfqCode.Trim() : null,
+                CurrentUserId = userId,
+                CanViewCustomerInList = canViewCustomer
+            };
+
+            return (request, maskCustomerNames);
         }
 
         /// <summary>解析查询字符串布尔（兼容 true/True/1/yes），避免模型绑定对 query 的歧义。</summary>

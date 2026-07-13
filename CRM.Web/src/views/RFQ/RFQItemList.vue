@@ -1,12 +1,5 @@
 <template>
   <div class="rfq-item-list-page customer-list-theme">
-    <div
-      ref="rfqItemsSplitRootRef"
-      class="rfq-items-split-root"
-      :class="dockSplitRootClass"
-      :style="dockSplitRootStyle"
-    >
-    <div class="rfq-item-main">
     <div class="page-header">
       <div class="header-left">
         <div class="page-title-group">
@@ -115,9 +108,28 @@
         </el-checkbox>
         <button class="btn-primary btn-sm" type="button" @click="handleSearch">{{ t('rfqItemList.filters.query') }}</button>
         <button class="btn-ghost btn-sm" type="button" @click="handleReset">{{ t('rfqItemList.filters.reset') }}</button>
+        <button
+          class="btn-ghost btn-sm btn-board-active"
+          type="button"
+          @click="toggleViewMode"
+        >
+          {{ viewMode === 'board' ? t('rfqItemList.filters.listView') : t('rfqItemList.filters.boardView') }}
+        </button>
       </div>
     </div>
 
+    <div v-if="viewMode === 'board'" class="rfq-item-board-scroll">
+      <RfqItemListBoard :filters="boardFilters" />
+    </div>
+
+    <div
+      v-show="viewMode === 'list'"
+      ref="rfqItemsSplitRootRef"
+      class="rfq-items-split-root"
+      :class="dockSplitRootClass"
+      :style="dockSplitRootStyle"
+    >
+    <div class="rfq-item-main">
     <div class="rfq-item-table-panel">
       <div class="table-card-scroll rfq-items-main-table" v-loading="loading">
       <CrmDataTable
@@ -765,6 +777,8 @@ import {
   RFQ_ITEM_STATUS_I18N_KEYS,
 } from '@/utils/rfqItemLineStatus'
 import CrmDataTable from '@/components/CrmDataTable.vue'
+import RfqItemListBoard from './RfqItemListBoard.vue'
+import type { RfqItemListAnalyticsQuery } from '@/api/rfqItemAnalytics'
 import DockQuoteExtendColumnHeader from '@/components/list/DockQuoteExtendColumnHeader.vue'
 import DockQuoteExtendCell from '@/components/list/DockQuoteExtendCell.vue'
 import {
@@ -830,6 +844,7 @@ const basketStore = useRfqItemListBasketStore()
 const { count: basketCount, items: basketItems } = storeToRefs(basketStore)
 
 const loading = ref(false)
+const viewMode = ref<'list' | 'board'>('list')
 const tableData = ref<RFQItem[]>([])
 const totalCount = ref(0)
 
@@ -1164,6 +1179,29 @@ const searchForm = reactive({
   purchaserUserId: undefined as string | undefined,
   hasQuotesOnly: false
 })
+
+const boardFilters = computed((): RfqItemListAnalyticsQuery => {
+  const q: RfqItemListAnalyticsQuery = {}
+  if (dateRange.value?.[0]) q.startDate = dateRange.value[0]
+  if (dateRange.value?.[1]) q.endDate = dateRange.value[1]
+  const ck = searchForm.customerKeyword.trim()
+  if (ck) q.customerKeyword = ck
+  const mm = searchForm.materialModel.trim()
+  if (mm) q.materialModel = mm
+  const rc = searchForm.rfqCode.trim()
+  if (rc) q.rfqCode = rc
+  if (searchForm.itemStatus !== undefined && searchForm.itemStatus !== null) {
+    q.status = searchForm.itemStatus
+  }
+  if (searchForm.salesUserId) q.salesUserId = searchForm.salesUserId
+  if (searchForm.purchaserUserId) q.purchaserUserId = searchForm.purchaserUserId
+  if (searchForm.hasQuotesOnly) q.hasQuotesOnly = true
+  return q
+})
+
+function toggleViewMode() {
+  viewMode.value = viewMode.value === 'list' ? 'board' : 'list'
+}
 
 const salesUsers = ref<SalesUserSelectOption[]>([])
 const purchaseUsers = ref<PurchaseUserSelectOption[]>([])
@@ -1707,7 +1745,7 @@ watch(
         pageInfo.page = 1
       }
     }
-    void loadData()
+    if (viewMode.value === 'list') void loadData()
   },
   { deep: true, immediate: true }
 )
@@ -2031,7 +2069,7 @@ onMounted(async () => {
     purchaseUsers.value = []
   }
   rfqItemListAutoRefreshTimer = window.setInterval(() => {
-    if (route.name !== 'RFQItemList' || loading.value) return
+    if (route.name !== 'RFQItemList' || viewMode.value !== 'list' || loading.value) return
     void loadData()
   }, RFQ_ITEM_LIST_AUTO_REFRESH_MS)
 })
@@ -2072,6 +2110,13 @@ onUnmounted(() => {
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+
+.rfq-item-board-scroll {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .rfq-items-split-root--side {
@@ -2631,6 +2676,18 @@ onUnmounted(() => {
   &:hover {
     border-color: rgba(0, 212, 255, 0.3);
     color: $text-secondary;
+  }
+}
+
+.btn-ghost.btn-board-active {
+  border-color: rgba(0, 212, 255, 0.45);
+  color: #00d4ff;
+  background: rgba(0, 212, 255, 0.08);
+
+  &:hover {
+    border-color: rgba(0, 212, 255, 0.55);
+    color: #00d4ff;
+    background: rgba(0, 212, 255, 0.12);
   }
 }
 

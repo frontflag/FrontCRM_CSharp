@@ -1,5 +1,6 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
+using CRM.Core.Models.Analytics;
 using CRM.Core.Models.Customer;
 using CRM.Core.Models.Quote;
 using CRM.Core.Models.RFQ;
@@ -207,4 +208,30 @@ public sealed class MemoryRfqItemListQuery : IRfqItemListQuery
             PageSize = pageSize
         };
     }
+
+    public Task<RfqListAnalyticsDashboardDto> GetListAnalyticsDashboardAsync(
+        RFQItemQueryRequest request,
+        bool maskCustomerNames,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(new RfqListAnalyticsDashboardDto
+        {
+            Context = new RfqListAnalyticsContextDto { MaskCustomerNames = maskCustomerNames }
+        });
+
+    public Task<IReadOnlyList<RfqListAnalyticsTrendPointDto>> GetListAnalyticsTrendsAsync(
+        RFQItemQueryRequest request,
+        string groupBy,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<RfqListAnalyticsTrendPointDto>>(Array.Empty<RfqListAnalyticsTrendPointDto>());
+
+    public Task<IReadOnlyList<SalesAnalyticsBreakdownGroupDto>> GetListAnalyticsBreakdownsAsync(
+        RFQItemQueryRequest request,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<SalesAnalyticsBreakdownGroupDto>>(Array.Empty<SalesAnalyticsBreakdownGroupDto>());
+
+    public Task<RfqItemListAnalyticsRankingsDto> GetListAnalyticsRankingsAsync(
+        RFQItemQueryRequest request,
+        bool maskCustomerNames,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(new RfqItemListAnalyticsRankingsDto());
 }

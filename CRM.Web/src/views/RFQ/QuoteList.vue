@@ -12,7 +12,7 @@
     </div>
 
     <!-- 统计卡片（非 el-card，与 RFQList 一致） -->
-    <div class="statistics-row">
+    <div v-if="viewMode === 'list'" class="statistics-row">
       <div class="stat-card">
         <div class="stat-value">{{ stats.total }}</div>
         <div class="stat-label">{{ t('quoteList.stats.total') }}</div>
@@ -34,6 +34,17 @@
     <!-- 筛选栏：非 el-card，与业务列表规范一致 -->
     <div class="search-bar">
       <div class="search-left">
+        <el-date-picker
+          v-model="dateRange"
+          type="daterange"
+          :range-separator="t('quoteList.filters.to')"
+          :start-placeholder="t('quoteList.filters.startDate')"
+          :end-placeholder="t('quoteList.filters.endDate')"
+          value-format="YYYY-MM-DD"
+          clearable
+          class="filter-date-range"
+          :teleported="false"
+        />
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
             <circle cx="11" cy="11" r="8" />
@@ -62,11 +73,22 @@
           <el-icon><Search /></el-icon>{{ t('quoteList.filters.query') }}
         </button>
         <button type="button" class="btn-ghost btn-sm" @click="handleReset">{{ t('quoteList.filters.reset') }}</button>
+        <button
+          type="button"
+          class="btn-ghost btn-sm btn-board-active"
+          @click="toggleViewMode"
+        >
+          {{ viewMode === 'board' ? t('quoteList.filters.listView') : t('quoteList.filters.boardView') }}
+        </button>
       </div>
     </div>
 
+    <div v-if="viewMode === 'board'" class="quote-board-scroll">
+      <QuoteListBoard :filters="boardFilters" />
+    </div>
+
     <!-- 主表：.table-wrapper + CrmDataTable（全局 crm-unified-list） -->
-    <div class="table-wrapper" v-loading="loading">
+    <div v-show="viewMode === 'list'" class="table-wrapper" v-loading="loading">
       <CrmDataTable
         ref="dataTableRef"
         class="dock-quote-table"
@@ -210,7 +232,7 @@
       </CrmDataTable>
     </div>
 
-    <div v-if="pageInfo.total > 0" class="pagination-wrapper">
+    <div v-if="viewMode === 'list' && pageInfo.total > 0" class="pagination-wrapper">
       <div class="list-footer-left">
         <el-tooltip :content="t('systemUser.colSetting')" placement="top" :hide-after="0">
           <el-button
@@ -374,6 +396,8 @@ import { assertQuotesSameCustomer } from '@/utils/quoteSalesOrderPrefill'
 import { formatDisplayDate, formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import CrmDataTable from '@/components/CrmDataTable.vue'
+import QuoteListBoard from './QuoteListBoard.vue'
+import type { QuoteListAnalyticsQuery } from '@/api/quoteListAnalytics'
 import DockQuoteExtendColumnHeader from '@/components/list/DockQuoteExtendColumnHeader.vue'
 import DockQuoteExtendCell from '@/components/list/DockQuoteExtendCell.vue'
 import {
@@ -439,12 +463,30 @@ function toggleQuoteBasketOpCol() {
 }
 const suppressBasketMerge = ref(false)
 const stats = ref({ total: 0, newCount: 0, wonCount: 0, closedCount: 0 })
+const viewMode = ref<'list' | 'board'>('list')
+const dateRange = ref<[string, string] | null>(null)
 
 // 搜索表单
 const searchForm = ref({
   keyword: '',
   status: undefined as number | undefined
 })
+
+const boardFilters = computed((): QuoteListAnalyticsQuery => {
+  const q: QuoteListAnalyticsQuery = {}
+  if (dateRange.value?.[0]) q.startDate = dateRange.value[0]
+  if (dateRange.value?.[1]) q.endDate = dateRange.value[1]
+  const kw = searchForm.value.keyword.trim()
+  if (kw) q.keyword = kw
+  if (searchForm.value.status !== undefined && searchForm.value.status !== null) {
+    q.status = searchForm.value.status
+  }
+  return q
+})
+
+function toggleViewMode() {
+  viewMode.value = viewMode.value === 'list' ? 'board' : 'list'
+}
 
 // 分页信息
 const pageInfo = ref({
@@ -714,6 +756,8 @@ const loadData = async () => {
       pageSize: pageInfo.value.pageSize,
       keyword: searchForm.value.keyword,
       status: searchForm.value.status,
+      startDate: dateRange.value?.[0],
+      endDate: dateRange.value?.[1],
       rfqItemId: undefined
     })
     quoteListRows.value = (res.data || []) as Record<string, unknown>[]
@@ -742,13 +786,14 @@ const loadData = async () => {
 // 搜索和重置
 const handleSearch = () => {
   pageInfo.value.page = 1
-  loadData()
+  if (viewMode.value === 'list') loadData()
 }
 
 const handleReset = () => {
   searchForm.value = { keyword: '', status: undefined }
+  dateRange.value = null
   pageInfo.value.page = 1
-  loadData()
+  if (viewMode.value === 'list') loadData()
 }
 
 const handleSizeChange = (val: number) => {
@@ -882,7 +927,7 @@ const handleDelete = async (row: Record<string, unknown>) => {
 
 onMounted(() => {
   void ensureMaterialPdDict()
-  void loadData()
+  if (viewMode.value === 'list') void loadData()
 })
 </script>
 
@@ -891,10 +936,28 @@ onMounted(() => {
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500&display=swap');
 
 .quote-list-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
   padding: 24px;
-  min-height: 100%;
+  padding-bottom: 12px;
   background: $layer-1;
   font-family: 'Noto Sans SC', sans-serif;
+}
+
+.quote-board-scroll {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.btn-ghost.btn-board-active {
+  border-color: rgba(0, 212, 255, 0.45);
+  color: #00d4ff;
+  background: rgba(0, 212, 255, 0.08);
 }
 
 .page-header {

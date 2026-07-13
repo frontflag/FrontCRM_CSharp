@@ -1731,8 +1731,60 @@ const enUS = {
       status: 'Status',
       allStatus: 'All statuses',
       tags: 'Tags',
+      createDateFrom: 'Created from',
+      createDateTo: 'Created to',
+      createDateSep: 'to',
       query: 'Search',
-      reset: 'Reset'
+      reset: 'Reset',
+      boardView: 'Board',
+      listView: 'List'
+    },
+    board: {
+      hint: 'Stats match current filters; converted lines use approved+ sales orders linked via quotes.',
+      refresh: 'Refresh',
+      loadFailed: 'Failed to load board data',
+      groupBy: { day: 'Daily', week: 'Weekly', month: 'Monthly' },
+      sections: {
+        kpi: 'RFQ overview',
+        trendCustomers: 'Publishing customers trend',
+        trendRfqs: 'RFQ count trend',
+        trendItems: 'RFQ line count trend'
+      },
+      kpi: {
+        publishedCustomers: 'Publishing customers',
+        repeatCustomers: 'Repeat-inquiry customers',
+        repeatRfqs: 'Repeat inquiries',
+        rfqCount: 'RFQ count',
+        rfqItemCount: 'RFQ line count',
+        convertedLines: 'Converted lines',
+        conversionRate: 'RFQ conversion rate'
+      },
+      trendUnit: {
+        customers: 'customers',
+        rfqs: 'RFQs',
+        items: 'lines'
+      },
+      breakdown: {
+        rfqStatus: 'RFQ status',
+        rfqType: 'RFQ type',
+        targetType: 'Target type',
+        industry: 'Industry',
+        assignedPurchaser: 'Assigned purchaser',
+        quoteDistribution: 'Quote distribution',
+        unassignedPurchaser: 'Unassigned',
+        unsetIndustry: 'Unset'
+      },
+      quoteDistribution: {
+        hasQuote: 'Quoted',
+        noQuoteFound: 'No quote found',
+        pendingUnprocessed: 'Pending (purchasing)'
+      },
+      rankings: {
+        customerByLineCount: 'Top 10 customers (by lines)',
+        salesUserByLineCount: 'Top 10 sales users (by lines)',
+        name: 'Name',
+        lineCount: 'Lines'
+      }
     },
     columns: {
       rfqCode: 'RFQ Code',
@@ -1773,10 +1825,16 @@ const enUS = {
     filters: {
       search: 'Search',
       placeholder: 'Quote code / RFQ code / MPN / customer / brand',
+      createDate: 'RFQ created',
+      to: 'to',
+      startDate: 'From',
+      endDate: 'To',
       status: 'Status',
       allStatus: 'All statuses',
       query: 'Search',
-      reset: 'Reset'
+      reset: 'Reset',
+      boardView: 'Board',
+      listView: 'List'
     },
     columns: {
       quoteCode: 'Quote Code',
@@ -1812,7 +1870,82 @@ const enUS = {
     deleteTitle: 'Warning',
     deleteConfirm: 'Are you sure you want to delete quote {code}?',
     loadFailed: 'Failed to load data',
-    na: '—'
+    na: '—',
+    board: {
+      hint: 'Stats match current filters; status applies to quote rows only; converted lines use approved+ sales orders.',
+      refresh: 'Refresh',
+      loadFailed: 'Failed to load board data',
+      groupBy: { day: 'Daily', week: 'Weekly', month: 'Monthly' },
+      sections: {
+        kpi: 'Quote overview',
+        trendVendors: 'Quoting vendors trend',
+        trendItems: 'RFQ line items trend',
+        trendValidQuotes: 'Valid quotes trend'
+      },
+      kpi: {
+        quoteVendors: 'Quoting vendors',
+        validQuotes: 'Valid quote entries',
+        noQuoteFound: 'No-quote-found lines',
+        rfqQuoteRate: 'RFQ quote rate',
+        avgResponse: 'Avg response time',
+        avgQuotesPerItem: 'Avg quotes per line',
+        convertedLines: 'Converted lines',
+        quoteConversionRate: 'Quote conversion rate',
+        minutesUnit: 'min'
+      },
+      trendUnit: {
+        vendors: '',
+        items: '',
+        quotes: ''
+      },
+      breakdown: {
+        quoteStatus: 'Quote status',
+        quoteDistribution: 'Quote distribution',
+        labelType: 'Label type',
+        waferOrigin: 'Wafer origin',
+        packageOrigin: 'Package origin',
+        freeShipping: 'Free shipping',
+        brand: 'Brand',
+        assignedPurchaser: 'Assigned purchaser',
+        quotePurchaser: 'Quote purchaser',
+        unassignedPurchaser: 'Unassigned',
+        unset: 'Unset',
+        other: 'Other'
+      },
+      labelType: {
+        '0': 'No label',
+        '1': 'Relabel',
+        '2': 'TBD'
+      },
+      origin: {
+        '0': 'US',
+        '1': 'Non-US',
+        '2': 'TBD'
+      },
+      freeShipping: {
+        '0': 'No',
+        '1': 'Yes'
+      },
+      quoteDistribution: {
+        hasQuote: 'Quoted',
+        noQuoteFound: 'No quote found',
+        pendingUnprocessed: 'Pending'
+      },
+      rankings: {
+        vendorByRfqItemCount: 'Top 10 vendors (RFQ lines)',
+        purchaserByQuoteCount: 'Top 10 purchasers (quote count)',
+        purchaserByQuoteRate: 'Top 10 purchasers (quote rate)',
+        mpnByQuoteCount: 'Top 10 MPN (quote count)',
+        mpnByQty: 'Top 10 MPN (qty)',
+        brandByQuoteCount: 'Top 10 brands (quote count)',
+        brandByQty: 'Top 10 brands (qty)',
+        name: 'Name',
+        rfqItemCount: 'RFQ lines',
+        quoteCount: 'Quotes',
+        quoteRate: 'Rate',
+        qty: 'Qty'
+      }
+    }
   },
   quoteDetail: {
     back: 'Back',
@@ -1900,7 +2033,70 @@ const enUS = {
       allPurchasers: 'All purchasers',
       hasQuotes: 'Has quotes',
       query: 'Search',
-      reset: 'Reset'
+      reset: 'Reset',
+      boardView: 'Board',
+      listView: 'List'
+    },
+    board: {
+      hint: 'Stats match current filters; converted lines use approved+ sales orders linked via quotes; conversion rate excludes no-quote-found lines.',
+      refresh: 'Refresh',
+      loadFailed: 'Failed to load board data',
+      groupBy: { day: 'Daily', week: 'Weekly', month: 'Monthly' },
+      sections: {
+        kpi: 'RFQ overview',
+        trendCustomers: 'Publishing customers trend',
+        trendRfqs: 'RFQ count trend',
+        trendItems: 'RFQ line count trend'
+      },
+      kpi: {
+        publishedCustomers: 'Publishing customers',
+        repeatCustomers: 'Repeat-inquiry customers',
+        repeatRfqs: 'Repeat inquiries',
+        rfqCount: 'RFQ count',
+        rfqItemCount: 'RFQ line count',
+        convertedLines: 'Converted lines',
+        conversionRate: 'RFQ conversion rate'
+      },
+      trendUnit: {
+        customers: 'customers',
+        rfqs: 'RFQs',
+        items: 'lines'
+      },
+      breakdown: {
+        rfqStatus: 'RFQ status',
+        rfqType: 'RFQ type',
+        targetType: 'Target type',
+        industry: 'Industry',
+        currency: 'Currency',
+        brand: 'Brand distribution',
+        assignedPurchaser: 'Assigned purchaser',
+        quoteDistribution: 'Quote distribution',
+        unassignedPurchaser: 'Unassigned',
+        unset: 'Unset',
+        other: 'Other'
+      },
+      currency: {
+        '1': 'RMB',
+        '2': 'USD',
+        '3': 'EUR',
+        '4': 'HKD'
+      },
+      quoteDistribution: {
+        hasQuote: 'Quoted',
+        noQuoteFound: 'No quote found',
+        pendingUnprocessed: 'Pending (purchasing)'
+      },
+      rankings: {
+        customerByLineCount: 'Top 10 customers (by lines)',
+        salesUserByLineCount: 'Top 10 sales users (by lines)',
+        mpnByLineCount: 'Top 10 MPNs (by lines)',
+        mpnByQty: 'Top 10 MPNs (by quantity)',
+        brandByLineCount: 'Top 10 brands (by lines)',
+        brandByQty: 'Top 10 brands (by quantity)',
+        name: 'Name',
+        lineCount: 'Lines',
+        qty: 'Qty'
+      }
     },
     columns: {
       itemStatus: 'Item Status',

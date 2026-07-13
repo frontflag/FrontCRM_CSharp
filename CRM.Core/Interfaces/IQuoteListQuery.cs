@@ -1,3 +1,4 @@
+using CRM.Core.Models.Analytics;
 using CRM.Core.Models.Quote;
 
 namespace CRM.Core.Interfaces;
@@ -14,6 +15,27 @@ public interface IQuoteListQuery
     Task<IReadOnlyDictionary<string, int>> GetQuoteCountsByRfqItemIdsAsync(
         IReadOnlyCollection<string> rfqItemIds,
         string? currentUserId = null,
+        CancellationToken cancellationToken = default);
+
+    Task<QuoteListAnalyticsDashboardDto> GetListAnalyticsDashboardAsync(
+        QuoteQueryRequest request,
+        bool maskCustomerNames,
+        bool maskVendorNames,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<QuoteListAnalyticsTrendPointDto>> GetListAnalyticsTrendsAsync(
+        QuoteQueryRequest request,
+        string groupBy,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<SalesAnalyticsBreakdownGroupDto>> GetListAnalyticsBreakdownsAsync(
+        QuoteQueryRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<QuoteListAnalyticsRankingsDto> GetListAnalyticsRankingsAsync(
+        QuoteQueryRequest request,
+        bool maskCustomerNames,
+        bool maskVendorNames,
         CancellationToken cancellationToken = default);
 }
 
@@ -40,6 +62,12 @@ public sealed class QuoteQueryRequest
 
     /// <summary>可选；上界为排他（CreateTime &lt; 该时刻）。</summary>
     public DateTime? AggregateCreateToExclusiveUtc { get; set; }
+
+    /// <summary>关联需求创建日起（<c>rfq.create_time</c>，含当日）。</summary>
+    public DateTime? StartDate { get; set; }
+
+    /// <summary>关联需求创建日止（<c>rfq.create_time</c>，含当日）。</summary>
+    public DateTime? EndDate { get; set; }
 }
 
 /// <summary>报价列表汇总（全量筛选结果，非仅当前页）。</summary>

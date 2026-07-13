@@ -106,6 +106,17 @@
         >
           <el-option v-for="tag in rfqTagFilterOptions" :key="tag.id" :label="tag.name" :value="tag.id" />
         </el-select>
+        <el-date-picker
+          v-model="searchForm.dateRange"
+          type="daterange"
+          :range-separator="t('rfqList.filters.createDateSep')"
+          :start-placeholder="t('rfqList.filters.createDateFrom')"
+          :end-placeholder="t('rfqList.filters.createDateTo')"
+          value-format="YYYY-MM-DD"
+          class="filter-date-range rfq-list-date-range"
+          clearable
+          :teleported="false"
+        />
         <button type="button" class="btn-primary btn-sm" @click="handleSearch">
           <el-icon><Search /></el-icon>{{ t('rfqList.filters.query') }}
         </button>
@@ -322,6 +333,7 @@ const searchForm = ref({
   keyword: '',
   status: undefined as number | undefined,
   tagIds: [] as string[],
+  dateRange: null as [string, string] | null
 })
 
 // 分页信息
@@ -485,6 +497,8 @@ const loadData = async () => {
       keyword: searchForm.value.keyword,
       status: searchForm.value.status,
       tagIds: searchForm.value.tagIds?.length ? searchForm.value.tagIds : undefined,
+      startDate: searchForm.value.dateRange?.[0],
+      endDate: searchForm.value.dateRange?.[1],
       pageNumber: pageInfo.value.page,
       pageSize: pageInfo.value.pageSize
     })
@@ -526,6 +540,8 @@ const handleSearch = () => {
   if (searchForm.value.status !== undefined && searchForm.value.status !== null) {
     q.status = String(searchForm.value.status)
   }
+  if (searchForm.value.dateRange?.[0]) q.startDate = searchForm.value.dateRange[0]
+  if (searchForm.value.dateRange?.[1]) q.endDate = searchForm.value.dateRange[1]
   router.replace({ name: 'RFQList', query: q })
 }
 
@@ -556,7 +572,10 @@ watch(
       const n = Number(raw)
       if (!Number.isNaN(n)) st = n === 6 ? 7 : n
     }
-    searchForm.value = { keyword: kw, status: st, tagIds: [] }
+    const sd = typeof route.query.startDate === 'string' ? route.query.startDate : ''
+    const ed = typeof route.query.endDate === 'string' ? route.query.endDate : ''
+    const dateRange: [string, string] | null = sd && ed ? [sd, ed] : null
+    searchForm.value = { keyword: kw, status: st, tagIds: [], dateRange }
     pageInfo.value.page = 1
     loadData()
   },
@@ -731,6 +750,16 @@ function onRfqRowDblClick(row: any, _column: unknown, event?: MouseEvent) {
 
 .status-select--rfq-status {
   width: 140px;
+}
+
+.filter-date-range.rfq-list-date-range {
+  width: 260px;
+  :deep(.el-range-editor.el-input__wrapper) {
+    background: $layer-2 !important;
+    box-shadow: none !important;
+    border: 1px solid $border-panel !important;
+    border-radius: $border-radius-md !important;
+  }
 }
 
 // ---- 表格：.table-wrapper / CrmDataTable 全局样式见 crm-unified-list.scss ----

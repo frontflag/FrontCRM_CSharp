@@ -1708,8 +1708,60 @@ const zhCN = {
       status: '状态',
       allStatus: '全部状态',
       tags: '标签',
+      createDateFrom: '创建开始',
+      createDateTo: '创建结束',
+      createDateSep: '至',
       query: '查询',
-      reset: '重置'
+      reset: '重置',
+      boardView: '看板',
+      listView: '列表'
+    },
+    board: {
+      hint: '统计范围与当前筛选条件一致；成单口径为审核通过及以上销售订单关联的需求明细。',
+      refresh: '刷新',
+      loadFailed: '看板数据加载失败',
+      groupBy: { day: '按日', week: '按周', month: '按月' },
+      sections: {
+        kpi: '需求概览',
+        trendCustomers: '发布客户数趋势',
+        trendRfqs: '需求数趋势',
+        trendItems: '需求明细数趋势'
+      },
+      kpi: {
+        publishedCustomers: '发布需求客户数',
+        repeatCustomers: '复询需求客户数',
+        repeatRfqs: '复询需求数',
+        rfqCount: '需求数',
+        rfqItemCount: '需求明细数',
+        convertedLines: '成单明细数',
+        conversionRate: '需求成单率'
+      },
+      trendUnit: {
+        customers: '家',
+        rfqs: '单',
+        items: '条'
+      },
+      breakdown: {
+        rfqStatus: '需求主状态',
+        rfqType: '需求类型',
+        targetType: '目标类型',
+        industry: '行业',
+        assignedPurchaser: '分配采购员',
+        quoteDistribution: '报价分布',
+        unassignedPurchaser: '未分配采购员',
+        unsetIndustry: '未设置'
+      },
+      quoteDistribution: {
+        hasQuote: '有报价',
+        noQuoteFound: '查无报价',
+        pendingUnprocessed: '采购未处理'
+      },
+      rankings: {
+        customerByLineCount: '客户 Top10（需求明细数）',
+        salesUserByLineCount: '业务员 Top10（需求明细数）',
+        name: '名称',
+        lineCount: '明细数'
+      }
     },
     columns: {
       rfqCode: '需求编号',
@@ -1750,10 +1802,16 @@ const zhCN = {
     filters: {
       search: '搜索',
       placeholder: '报价编号/需求编号/MPN/客户/品牌',
+      createDate: '需求创建日期',
+      to: '至',
+      startDate: '创建起',
+      endDate: '创建止',
       status: '状态',
       allStatus: '全部状态',
       query: '查询',
-      reset: '重置'
+      reset: '重置',
+      boardView: '看板',
+      listView: '列表'
     },
     columns: {
       quoteCode: '报价编号',
@@ -1789,7 +1847,82 @@ const zhCN = {
     deleteTitle: '警告',
     deleteConfirm: '确定要删除报价单 {code} 吗？',
     loadFailed: '加载数据失败',
-    na: '—'
+    na: '—',
+    board: {
+      hint: '统计范围与当前筛选条件一致；status 仅过滤报价主表；成单口径为审核通过及以上销售订单关联的需求明细。',
+      refresh: '刷新',
+      loadFailed: '看板数据加载失败',
+      groupBy: { day: '按日', week: '按周', month: '按月' },
+      sections: {
+        kpi: '报价概览',
+        trendVendors: '报价供应商数趋势',
+        trendItems: '需求明细数趋势',
+        trendValidQuotes: '有效报价数趋势'
+      },
+      kpi: {
+        quoteVendors: '提供报价的供应商数',
+        validQuotes: '有效报价条目数',
+        noQuoteFound: '查无报价条目数',
+        rfqQuoteRate: '需求报价率',
+        avgResponse: '报价平均响应时间',
+        avgQuotesPerItem: '报价平均数',
+        convertedLines: '成单数',
+        quoteConversionRate: '报价成单率',
+        minutesUnit: '分钟'
+      },
+      trendUnit: {
+        vendors: '家',
+        items: '条',
+        quotes: '条'
+      },
+      breakdown: {
+        quoteStatus: '报价主状态',
+        quoteDistribution: '报价分布',
+        labelType: '涂标',
+        waferOrigin: '晶圆产地',
+        packageOrigin: '封装产地',
+        freeShipping: '包邮',
+        brand: '品牌分布',
+        assignedPurchaser: '分配采购员',
+        quotePurchaser: '报价采购员',
+        unassignedPurchaser: '未分配采购员',
+        unset: '未设置',
+        other: '其他'
+      },
+      labelType: {
+        '0': '不涂标',
+        '1': '涂标',
+        '2': '待确定'
+      },
+      origin: {
+        '0': '美产',
+        '1': '非美产',
+        '2': '待确定'
+      },
+      freeShipping: {
+        '0': '否',
+        '1': '是'
+      },
+      quoteDistribution: {
+        hasQuote: '有报价',
+        noQuoteFound: '查无报价',
+        pendingUnprocessed: '采购未处理'
+      },
+      rankings: {
+        vendorByRfqItemCount: '供应商 Top10（需求明细数）',
+        purchaserByQuoteCount: '报价采购员 Top10（条目数）',
+        purchaserByQuoteRate: '报价采购员 Top10（报价率）',
+        mpnByQuoteCount: 'MPN Top10（报价条数）',
+        mpnByQty: 'MPN Top10（需求数量）',
+        brandByQuoteCount: '品牌 Top10（报价条数）',
+        brandByQty: '品牌 Top10（需求数量）',
+        name: '名称',
+        rfqItemCount: '需求明细数',
+        quoteCount: '报价条数',
+        quoteRate: '报价率',
+        qty: '数量'
+      }
+    }
   },
   quoteDetail: {
     back: '返回',
@@ -1877,7 +2010,70 @@ const zhCN = {
       allPurchasers: '全部采购员',
       hasQuotes: '有报价',
       query: '查询',
-      reset: '重置'
+      reset: '重置',
+      boardView: '看板',
+      listView: '列表'
+    },
+    board: {
+      hint: '统计范围与当前筛选条件一致；成单口径为审核通过及以上销售订单关联的需求明细；成单率分母排除查无报价。',
+      refresh: '刷新',
+      loadFailed: '看板数据加载失败',
+      groupBy: { day: '按日', week: '按周', month: '按月' },
+      sections: {
+        kpi: '需求概览',
+        trendCustomers: '发布客户数趋势',
+        trendRfqs: '需求数趋势',
+        trendItems: '需求明细数趋势'
+      },
+      kpi: {
+        publishedCustomers: '发布需求客户数',
+        repeatCustomers: '复询需求客户数',
+        repeatRfqs: '复询需求数',
+        rfqCount: '需求数',
+        rfqItemCount: '需求明细数',
+        convertedLines: '成单明细数',
+        conversionRate: '需求成单率'
+      },
+      trendUnit: {
+        customers: '家',
+        rfqs: '单',
+        items: '条'
+      },
+      breakdown: {
+        rfqStatus: '需求主状态',
+        rfqType: '需求类型',
+        targetType: '目标类型',
+        industry: '行业',
+        currency: '币别',
+        brand: '品牌分布',
+        assignedPurchaser: '分配采购员',
+        quoteDistribution: '报价分布',
+        unassignedPurchaser: '未分配采购员',
+        unset: '未设置',
+        other: '其他'
+      },
+      currency: {
+        '1': 'RMB',
+        '2': 'USD',
+        '3': 'EUR',
+        '4': 'HKD'
+      },
+      quoteDistribution: {
+        hasQuote: '有报价',
+        noQuoteFound: '查无报价',
+        pendingUnprocessed: '采购未处理'
+      },
+      rankings: {
+        customerByLineCount: '客户 Top10（需求明细数）',
+        salesUserByLineCount: '业务员 Top10（需求明细数）',
+        mpnByLineCount: 'MPN Top10（需求明细数）',
+        mpnByQty: 'MPN Top10（需求数量）',
+        brandByLineCount: '品牌 Top10（需求明细数）',
+        brandByQty: '品牌 Top10（需求数量）',
+        name: '名称',
+        lineCount: '明细数',
+        qty: '数量'
+      }
     },
     columns: {
       itemStatus: '明细状态',

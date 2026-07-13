@@ -1,5 +1,8 @@
+using CRM.API.Authorization;
+using CRM.API.Models.DTOs;
 using CRM.API.Utilities;
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Analytics;
 using CRM.Core.Utilities;
 using Microsoft.AspNetCore.Mvc;
 using System.Globalization;
@@ -32,6 +35,8 @@ namespace CRM.API.Controllers
             [FromQuery] string? keyword = null,
             [FromQuery] short? status = null,
             [FromQuery] string? rfqItemId = null,
+            [FromQuery] string? startDate = null,
+            [FromQuery] string? endDate = null,
             [FromQuery] string? aggregateCreateFrom = null,
             [FromQuery] string? aggregateCreateToExclusive = null,
             CancellationToken cancellationToken = default)
@@ -52,6 +57,8 @@ namespace CRM.API.Controllers
                     Keyword = keyword,
                     Status = status,
                     RfqItemId = rfqItemId,
+                    StartDate = PostgreSqlDateTime.ParseDateOnly(startDate),
+                    EndDate = PostgreSqlDateTime.ParseDateOnly(endDate),
                     AggregateCreateFromUtc = aggFrom,
                     AggregateCreateToExclusiveUtc = aggToEx,
                     CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
@@ -98,6 +105,109 @@ namespace CRM.API.Controllers
             {
                 return StatusCode(500, new { success = false, message = ex.Message, errorCode = 500 });
             }
+        }
+
+        [HttpGet("analytics/dashboard")]
+        [RequirePermission("quote.read")]
+        public async Task<IActionResult> GetListAnalyticsDashboard(
+            [FromQuery] string? keyword,
+            [FromQuery] short? status,
+            [FromQuery] string? rfqItemId,
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, maskCustomerNames, maskVendorNames) = await BuildListAnalyticsQueryRequestAsync(
+                keyword, status, rfqItemId, startDate, endDate, cancellationToken);
+            var data = await _quoteListQuery.GetListAnalyticsDashboardAsync(
+                request, maskCustomerNames, maskVendorNames, cancellationToken);
+            return Ok(ApiResponse<QuoteListAnalyticsDashboardDto>.Ok(data));
+        }
+
+        [HttpGet("analytics/trends")]
+        [RequirePermission("quote.read")]
+        public async Task<IActionResult> GetListAnalyticsTrends(
+            [FromQuery] string? keyword,
+            [FromQuery] short? status,
+            [FromQuery] string? rfqItemId,
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            [FromQuery] string? groupBy,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, _, _) = await BuildListAnalyticsQueryRequestAsync(
+                keyword, status, rfqItemId, startDate, endDate, cancellationToken);
+            var data = await _quoteListQuery.GetListAnalyticsTrendsAsync(
+                request,
+                string.IsNullOrWhiteSpace(groupBy) ? "month" : groupBy.Trim(),
+                cancellationToken);
+            return Ok(ApiResponse<IReadOnlyList<QuoteListAnalyticsTrendPointDto>>.Ok(data));
+        }
+
+        [HttpGet("analytics/breakdowns")]
+        [RequirePermission("quote.read")]
+        public async Task<IActionResult> GetListAnalyticsBreakdowns(
+            [FromQuery] string? keyword,
+            [FromQuery] short? status,
+            [FromQuery] string? rfqItemId,
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, _, _) = await BuildListAnalyticsQueryRequestAsync(
+                keyword, status, rfqItemId, startDate, endDate, cancellationToken);
+            var data = await _quoteListQuery.GetListAnalyticsBreakdownsAsync(request, cancellationToken);
+            return Ok(ApiResponse<IReadOnlyList<SalesAnalyticsBreakdownGroupDto>>.Ok(data));
+        }
+
+        [HttpGet("analytics/rankings")]
+        [RequirePermission("quote.read")]
+        public async Task<IActionResult> GetListAnalyticsRankings(
+            [FromQuery] string? keyword,
+            [FromQuery] short? status,
+            [FromQuery] string? rfqItemId,
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, maskCustomerNames, maskVendorNames) = await BuildListAnalyticsQueryRequestAsync(
+                keyword, status, rfqItemId, startDate, endDate, cancellationToken);
+            var data = await _quoteListQuery.GetListAnalyticsRankingsAsync(
+                request, maskCustomerNames, maskVendorNames, cancellationToken);
+            return Ok(ApiResponse<QuoteListAnalyticsRankingsDto>.Ok(data));
+        }
+
+        private async Task<(QuoteQueryRequest Request, bool MaskCustomerNames, bool MaskVendorNames)>
+            BuildListAnalyticsQueryRequestAsync(
+                string? keyword,
+                short? status,
+                string? rfqItemId,
+                string? startDate,
+                string? endDate,
+                CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var mask521 = await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User);
+            var maskVendorNames = await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User);
+            var summary = string.IsNullOrWhiteSpace(userId)
+                ? null
+                : await _rbacService.GetUserPermissionSummaryAsync(userId);
+            var canViewCustomer = !mask521 && (summary?.IsSysAdmin == true
+                || (summary?.PermissionCodes?.Contains("customer.info.read") ?? false));
+            var maskCustomerNames = !canViewCustomer;
+
+            var request = new QuoteQueryRequest
+            {
+                Keyword = !string.IsNullOrWhiteSpace(keyword) ? keyword.Trim() : null,
+                Status = status,
+                RfqItemId = !string.IsNullOrWhiteSpace(rfqItemId) ? rfqItemId.Trim() : null,
+                StartDate = PostgreSqlDateTime.ParseDateOnly(startDate),
+                EndDate = PostgreSqlDateTime.ParseDateOnly(endDate),
+                CurrentUserId = userId
+            };
+
+            return (request, maskCustomerNames, maskVendorNames);
         }
 
         private static bool TryParseAggregateInstant(string? s, out DateTime utc)

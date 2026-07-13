@@ -1,3 +1,4 @@
+using CRM.Core.Models.Analytics;
 using CRM.Core.Models.RFQ;
 
 namespace CRM.Core.Interfaces;
@@ -8,6 +9,25 @@ public interface IRfqMainListQuery
     /// <summary>同筛选条件下的分页主表行及列表页统计（非仅当前页）。</summary>
     Task<RfqMainListQueryPage> GetPagedWithAggregatesAsync(
         RFQQueryRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<RfqListAnalyticsDashboardDto> GetListAnalyticsDashboardAsync(
+        RFQQueryRequest request,
+        bool maskCustomerNames,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<RfqListAnalyticsTrendPointDto>> GetListAnalyticsTrendsAsync(
+        RFQQueryRequest request,
+        string groupBy,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<SalesAnalyticsBreakdownGroupDto>> GetListAnalyticsBreakdownsAsync(
+        RFQQueryRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<RfqListAnalyticsRankingsDto> GetListAnalyticsRankingsAsync(
+        RFQQueryRequest request,
+        bool maskCustomerNames,
         CancellationToken cancellationToken = default);
 }
 
