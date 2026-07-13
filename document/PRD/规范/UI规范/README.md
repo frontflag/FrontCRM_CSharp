@@ -38,7 +38,7 @@
   - 目标：凡「分页 + 多选 + 批量操作」的列表，统一使用「复选篮子」（跨页保留、页脚左对齐入口、抽屉查看/移除、清空确认、批量动作以篮子为准）；参考 `RFQItemList.vue`、`PurchaseRequisitionListPage.vue`（多 PR 合并 PO 见《[采购申请-多选批量生成采购订单](../../../实现方案/采购申请-多选批量生成采购订单.md)》）。
 
 - [扩展面板.帮助规范](./扩展面板.帮助规范.md)
-  - 目标：约定右侧「帮助」扩展面板（扩展面板.帮助）的 Markdown 编写结构（页面功能 / 操作说明卡片块）、状态用语义名称、省略通用操作说明；以及与 `HelpManualPanel.vue` 中 `help-md` 标题层级与 `.help-op-block` 等展示样式一致；参考 `销售订单_MENU_SALES_ORDERS.md`。
+  - 目标：约定右侧「帮助」扩展面板（扩展面板.帮助）的 Markdown 编写结构（页面功能 / 操作说明卡片块）、状态用语义名称、省略通用操作说明；**§2.6** 要求正文面向业务用户、禁止权限码/路由/字段名等开发向内容；以及与 `HelpManualPanel.vue` 中 `help-md` 标题层级与 `.help-op-block` 等展示样式一致；生成后执行 `scripts/clean-help-user-facing.mjs`；参考 `销售订单_MENU_SALES_ORDERS.md`。
 
 - [省市地区级联选择控件规范](./省市地区级联选择控件规范.md)
   - 目标：约定封装组件 `RegionCascaderWithQuickPick` 的 UI（收藏入口、星标、取消收藏）、可选省/市/区与区占位符、`el-cascader` 配置及与表单/持久化的一致性。

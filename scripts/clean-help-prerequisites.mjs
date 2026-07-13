@@ -1,5 +1,7 @@
 /**
  * 移除帮助页中无实际限制的「前置条件：无」行；保留有真实限制的前置条件。
+ *
+ * 与 clean-help-user-facing.mjs 配合使用；正文要求见《扩展面板.帮助规范》§2.6。
  * 用法：node scripts/clean-help-prerequisites.mjs
  */
 import fs from 'node:fs'

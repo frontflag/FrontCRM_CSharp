@@ -2,6 +2,8 @@
  * 1) 将仓库 help/ 同步到 CRM.Web/public/help
  * 2) 根据 help/menu-registry.json 生成 帮助文档目录.md
  * 3) 为每个菜单项生成缺省的 pages/{菜单名称}_{id}.md 占位（不覆盖已有文件）
+ *
+ * 占位正文为用户向简短文案，不含开发指引；完稿须符合《扩展面板.帮助规范》§2.6。
  */
 import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -18,21 +20,11 @@ const STUB = (label, catalogName) => `[${catalogName.replace(/\.md$/, '')}](../$
 
 ## 页面功能
 
-（请补充：本页面支持的业务目标、可查/可改的数据范围。）
+本页帮助说明正在完善中。
 
 ## 操作说明
 
-（请按《扩展面板.帮助规范》使用 \`help-op-block\` 卡片：**操作名** / **说明：** / **前置条件：**。通用操作「详情」「编辑」「删除」可省略整卡。）
-
-<div class="help-op-block">
-
-**示例操作**
-
-**说明：** 占位描述。
-
-**前置条件：** 无
-
-</div>
+如有疑问，请联系系统管理员。
 `
 
 function main() {

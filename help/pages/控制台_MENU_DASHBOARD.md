@@ -15,7 +15,6 @@
 
 **说明：** 跳转至客户列表。
 
-
 </div>
 
 <div class="help-op-block">
@@ -24,14 +23,12 @@
 
 **说明：** 跳转至客户新建页。
 
-
 </div>
 
 <div class="help-op-block">
 
 **系统设置**
 
-**说明：** 跳转至 `/dashboard/settings`。
-
+**说明：** 跳转至控制台设置。
 
 </div>

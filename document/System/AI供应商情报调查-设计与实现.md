@@ -345,7 +345,13 @@ SELECT "PermissionCode" FROM sys_permission WHERE "PermissionCode" = 'biz.ai.ven
 
 ### 8.5 帮助文档
 
-`help/pages/供应商_MENU_VENDOR_HOME.md`（含首页 AI 调查、右栏调查、权限说明）。
+| 项 | 说明 |
+|----|------|
+| 源文件 | `help/pages/供应商_MENU_VENDOR_HOME.md` |
+| 内容重点 | 首页 AI 调查、右栏调查、输入建议、与客户侧差异 |
+| 正文要求 | 用户向表述；权限写「AI 供应商情报调查权限」等业务名称，不写 `biz.ai.vendor_intel.lookup`；见 [扩展面板.帮助规范 §2.6](../PRD/规范/UI规范/扩展面板.帮助规范.md) |
+
+编写或更新后执行 `node scripts/clean-help-user-facing.mjs` 自检。
 
 ---
 

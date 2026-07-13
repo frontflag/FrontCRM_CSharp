@@ -1,6 +1,14 @@
 import fs from 'fs'
 import path from 'path'
+import { spawnSync } from 'child_process'
 import { fileURLToPath } from 'url'
+
+/**
+ * 历史批量生成 help/pages 正文（会覆盖已有文件，慎用）。
+ *
+ * 生成内容须符合《扩展面板.帮助规范》§2.6（用户向、禁止开发向表述）。
+ * 本脚本在写入后会自动执行 clean-help-user-facing.mjs。
+ */
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const pagesDir = path.join(__dirname, '..', 'help', 'pages')
@@ -672,3 +680,11 @@ for (const [file, label, body] of docs) {
   fs.writeFileSync(path.join(pagesDir, file), render(label, body), 'utf8')
 }
 console.log('wrote', docs.length, 'files')
+
+const clean = spawnSync('node', ['scripts/clean-help-user-facing.mjs'], {
+  cwd: path.join(__dirname, '..'),
+  stdio: 'inherit',
+})
+if (clean.status !== 0) {
+  process.exit(clean.status ?? 1)
+}

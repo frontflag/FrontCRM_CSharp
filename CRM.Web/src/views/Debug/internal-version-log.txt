@@ -1,3 +1,4 @@
+2026-07-14 07:51:01 | docs(help): require user-facing help pages and strip dev jargon
 2026-07-14 07:37:55 | feat(vendor-intel): mirror AI supplier intelligence lookup end-to-end
 2026-07-14 06:50:19 | feat(customer-intel): add AI customer intelligence lookup end-to-end.
 2026-07-13 20:50:59 | fix: 新建报价失效日期非必填，需求创建页帮助图标改黄色

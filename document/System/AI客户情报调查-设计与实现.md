@@ -634,8 +634,9 @@ CustomerIntelResultPanel.vue（复用，双模式）
 | 注册 | `help/menu-registry.json` → `MENU_CUSTOMER_HOME`（`CustomerHome`、`CustomerList`、`CustomerDetail` 等） |
 | 同步 | `scripts/sync-help.mjs` → `CRM.Web/public/help/` |
 | 内容重点 | **AI 调查使用方法**、输入建议、首页与右栏调查对比、列表操作 |
+| 正文要求 | 用户向表述，**禁止**权限码、CSS/i18n、路由等开发信息；见 [扩展面板.帮助规范 §2.6](../PRD/规范/UI规范/扩展面板.帮助规范.md) |
 
-用户可见操作说明与 §7.6、§7.7 技术约定保持一致；首页三行提示为简版，帮助页为完整版。
+用户可见操作说明与 §7.6、§7.7 技术约定保持一致；首页三行提示为简版，帮助页为完整版（帮助正文须改写为业务语言，不可直接粘贴本节权限码/字段名）。
 
 #### 7.6.7 首页 v1 明确不做
 
