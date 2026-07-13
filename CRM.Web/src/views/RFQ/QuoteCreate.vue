@@ -1040,7 +1040,6 @@ const formRules = computed(() => {
   const base: Record<string, unknown[]> = {
     mpn: [{ required: true, message: '请输入物料型号', trigger: 'blur' }],
     priceType: [{ required: true, message: '请选择价格类型', trigger: 'change' }],
-    expiryDate: [{ required: true, message: '请选择失效日期', trigger: 'change' }],
     brand: [{ required: true, message: '请输入品牌', trigger: 'blur' }],
     productionDate: [{ required: true, message: '请选择生产日期/DC', trigger: 'change' }],
     waferOrigin: [{ required: true, message: '请选择晶圆产地', trigger: 'change' }],

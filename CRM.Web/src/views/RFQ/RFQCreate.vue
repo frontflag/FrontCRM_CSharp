@@ -1573,7 +1573,7 @@ const handleSubmit = async () => {
   }
   .rfq-label-help {
     font-size: 14px;
-    color: rgba(0, 212, 255, 0.55);
+    color: #eab308;
     cursor: help;
     vertical-align: middle;
   }
@@ -1595,7 +1595,7 @@ const handleSubmit = async () => {
   .assign-method-option-tip {
     margin-left: auto;
     font-size: 14px;
-    color: rgba(0, 212, 255, 0.55);
+    color: #eab308;
     cursor: help;
     flex-shrink: 0;
   }
@@ -1865,7 +1865,7 @@ const handleSubmit = async () => {
     margin-left: auto;
     flex-shrink: 0;
     font-size: 14px;
-    color: rgba(0, 212, 255, 0.55);
+    color: #eab308;
     cursor: help;
   }
 }
