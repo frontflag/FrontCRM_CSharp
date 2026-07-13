@@ -1,0 +1,117 @@
+import apiClient from './client'
+import type { SalesAnalyticsBreakdownGroup } from './analytics/sales'
+import type { PurchaseOrderListAnalyticsCurrencyLine } from './purchaseOrderAnalytics'
+
+export interface PurchaseOrderItemListAnalyticsQuery {
+  startDate?: string
+  endDate?: string
+  purchaseOrderCode?: string
+  freightForwarderOrderNo?: string
+  vendorName?: string
+  purchaseUserName?: string
+  pn?: string
+  orderType?: number
+  transactionCurrency?: string
+  paymentProgressStatus?: number
+  purchaseProgressStatus?: number
+  stockInProgressStatus?: number
+  invoiceProgressStatus?: number
+  groupBy?: 'day' | 'week' | 'month'
+}
+
+export interface PurchaseOrderItemListAnalyticsSnapshot {
+  approvedVendorCount: number
+  approvedOrderCount: number
+  approvedLineCount: number
+  approvedAmountUsd?: number | null
+  currencyLines: PurchaseOrderListAnalyticsCurrencyLine[]
+  inStockVendorCount: number
+  inStockLineCount: number
+  inStockAmountUsd?: number | null
+  maxStockAgeDays?: number | null
+  payableVendorCount: number
+  payableLineCount: number
+  payableAmountUsd?: number | null
+  payableCurrencyLines: PurchaseOrderListAnalyticsCurrencyLine[]
+}
+
+export interface PurchaseOrderItemListAnalyticsDashboard {
+  context: { maskAmounts: boolean }
+  snapshot: PurchaseOrderItemListAnalyticsSnapshot
+}
+
+export interface PurchaseOrderItemListAnalyticsTrendPoint {
+  period: string
+  approvedOrderCount: number
+  approvedLineCount: number
+  approvedLineAmountUsd?: number | null
+}
+
+export interface PurchaseOrderItemListAnalyticsRankingRow {
+  id: string
+  name: string
+  amount?: number | null
+  orderCount: number
+}
+
+export interface PurchaseOrderItemListAnalyticsRankings {
+  vendorByAmount: PurchaseOrderItemListAnalyticsRankingRow[]
+  pnByAmount: PurchaseOrderItemListAnalyticsRankingRow[]
+  pnByQty: PurchaseOrderItemListAnalyticsRankingRow[]
+  brandByAmount: PurchaseOrderItemListAnalyticsRankingRow[]
+  brandByQty: PurchaseOrderItemListAnalyticsRankingRow[]
+  purchaseUserByAmount: PurchaseOrderItemListAnalyticsRankingRow[]
+}
+
+function buildParams(q: PurchaseOrderItemListAnalyticsQuery): Record<string, string | number> {
+  const p: Record<string, string | number> = {}
+  if (q.startDate) p.startDate = q.startDate
+  if (q.endDate) p.endDate = q.endDate
+  if (q.purchaseOrderCode) p.purchaseOrderCode = q.purchaseOrderCode
+  if (q.freightForwarderOrderNo) p.freightForwarderOrderNo = q.freightForwarderOrderNo
+  if (q.vendorName) p.vendorName = q.vendorName
+  if (q.purchaseUserName) p.purchaseUserName = q.purchaseUserName
+  if (q.pn) p.pn = q.pn
+  if (q.orderType !== undefined && q.orderType !== null) p.orderType = q.orderType
+  if (q.transactionCurrency) p.transactionCurrency = q.transactionCurrency
+  if (q.paymentProgressStatus !== undefined && q.paymentProgressStatus !== null) {
+    p.paymentProgressStatus = q.paymentProgressStatus
+  }
+  if (q.purchaseProgressStatus !== undefined && q.purchaseProgressStatus !== null) {
+    p.purchaseProgressStatus = q.purchaseProgressStatus
+  }
+  if (q.stockInProgressStatus !== undefined && q.stockInProgressStatus !== null) {
+    p.stockInProgressStatus = q.stockInProgressStatus
+  }
+  if (q.invoiceProgressStatus !== undefined && q.invoiceProgressStatus !== null) {
+    p.invoiceProgressStatus = q.invoiceProgressStatus
+  }
+  if (q.groupBy) p.groupBy = q.groupBy
+  return p
+}
+
+export const purchaseOrderItemListAnalyticsApi = {
+  getDashboard(query: PurchaseOrderItemListAnalyticsQuery): Promise<PurchaseOrderItemListAnalyticsDashboard> {
+    return apiClient.get<PurchaseOrderItemListAnalyticsDashboard>('/api/v1/purchase-orders/items/analytics/dashboard', {
+      params: buildParams(query)
+    })
+  },
+
+  getTrends(query: PurchaseOrderItemListAnalyticsQuery): Promise<PurchaseOrderItemListAnalyticsTrendPoint[]> {
+    return apiClient.get<PurchaseOrderItemListAnalyticsTrendPoint[]>('/api/v1/purchase-orders/items/analytics/trends', {
+      params: buildParams(query)
+    })
+  },
+
+  getBreakdowns(query: PurchaseOrderItemListAnalyticsQuery): Promise<SalesAnalyticsBreakdownGroup[]> {
+    return apiClient.get<SalesAnalyticsBreakdownGroup[]>('/api/v1/purchase-orders/items/analytics/breakdowns', {
+      params: buildParams(query)
+    })
+  },
+
+  getRankings(query: PurchaseOrderItemListAnalyticsQuery): Promise<PurchaseOrderItemListAnalyticsRankings> {
+    return apiClient.get<PurchaseOrderItemListAnalyticsRankings>('/api/v1/purchase-orders/items/analytics/rankings', {
+      params: buildParams(query)
+    })
+  }
+}

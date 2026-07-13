@@ -20,8 +20,8 @@
       </div>
     </div>
 
-    <!-- 统计卡片 -->
-    <el-row :gutter="20" class="stat-row">
+    <!-- 统计卡片（列表模式） -->
+    <el-row v-if="viewMode === 'list'" :gutter="20" class="stat-row">
       <el-col :span="6">
         <el-card class="stat-card">
           <div class="stat-value">{{ statTotal }}</div>
@@ -126,10 +126,19 @@
         />
         <button class="btn-primary btn-sm" type="button" @click="handleSearch">{{ t('salesOrderList.filters.search') }}</button>
         <button class="btn-ghost btn-sm" type="button" @click="handleReset">{{ t('salesOrderList.filters.reset') }}</button>
+        <button
+          class="btn-ghost btn-sm btn-board-active"
+          type="button"
+          @click="toggleViewMode"
+        >
+          {{ viewMode === 'board' ? t('salesOrderList.filters.listView') : t('salesOrderList.filters.boardView') }}
+        </button>
       </div>
     </div>
 
-    <div class="table-wrapper" v-loading="loading">
+    <SalesOrderListBoard v-if="viewMode === 'board'" :filters="boardFilters" />
+
+    <div v-show="viewMode === 'list'" class="table-wrapper" v-loading="loading">
       <CrmDataTable
         ref="listTableRef"
         column-layout-key="sales-order-list-main-v2"
@@ -299,12 +308,15 @@ import { useCustomerExtendColumn, isCustomerExtendTableColumn } from '@/composab
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick'
+import SalesOrderListBoard from './SalesOrderListBoard.vue'
+import type { SalesOrderListAnalyticsQuery } from '@/api/salesOrderAnalytics'
 
 const router = useRouter()
 const route = useRoute()
 const { t, locale } = useI18n()
 
 const loading = ref(false)
+const viewMode = ref<'list' | 'board'>('list')
 const orderList = ref<any[]>([])
 const listTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
@@ -459,6 +471,32 @@ const statusFilterOptions = computed(() => {
 const statPending = computed(() => listAggregates.value.pendingCount)
 const statApproved = computed(() => listAggregates.value.approvedPlusCount)
 const statAmount = computed(() => listAggregates.value.totalAmountSum)
+
+const boardFilters = computed((): SalesOrderListAnalyticsQuery => {
+  const q: SalesOrderListAnalyticsQuery = {}
+  const code = filterForm.value.code.trim()
+  if (code) q.code = code
+  if (canViewCustomerInfo.value) {
+    const customer = filterForm.value.customer.trim()
+    if (customer) q.customer = customer
+  }
+  if (!maskSaleSensitiveFields.value) {
+    const salesUser = filterForm.value.salesUserName.trim()
+    if (salesUser) q.salesUserName = salesUser
+  }
+  const cm = filterForm.value.comment.trim()
+  if (cm) q.comment = cm
+  if (filterForm.value.status !== undefined && filterForm.value.status !== null) {
+    q.status = filterForm.value.status
+  }
+  if (filterForm.value.createDateRange?.[0]) q.startDate = filterForm.value.createDateRange[0]
+  if (filterForm.value.createDateRange?.[1]) q.endDate = filterForm.value.createDateRange[1]
+  return q
+})
+
+function toggleViewMode() {
+  viewMode.value = viewMode.value === 'list' ? 'board' : 'list'
+}
 
 // 状态处理
 const getStatusType = (status: number) => salesOrderStatusTagType(status)
@@ -908,6 +946,12 @@ const submitForAudit = async (row: any) => {
     border-color: rgba(0, 212, 255, 0.3);
     color: $text-secondary;
   }
+}
+
+.btn-board-active {
+  border-color: rgba(0, 212, 255, 0.45);
+  color: #00d4ff;
+  background: rgba(0, 212, 255, 0.08);
 }
 
 .pagination-wrapper {

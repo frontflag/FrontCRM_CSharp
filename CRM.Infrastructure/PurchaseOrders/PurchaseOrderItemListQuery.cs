@@ -1,4 +1,3 @@
-using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Purchase;
 using CRM.Infrastructure.Data;
@@ -7,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace CRM.Infrastructure.PurchaseOrders;
 
 /// <inheritdoc cref="IPurchaseOrderItemListQuery" />
-public sealed class PurchaseOrderItemListQuery : IPurchaseOrderItemListQuery
+public sealed partial class PurchaseOrderItemListQuery : IPurchaseOrderItemListQuery
 {
     /// <summary>明细列表单页上限（与产品确认）。</summary>
     public const int MaxPageSize = 100;
@@ -29,150 +28,16 @@ public sealed class PurchaseOrderItemListQuery : IPurchaseOrderItemListQuery
         var page = request.Page < 1 ? 1 : request.Page;
         var pageSize = request.PageSize < 1 ? 20 : Math.Min(request.PageSize, MaxPageSize);
 
-        var scopedPo = await _dataPermission.ApplyPurchaseOrderDataScopeAsync(
-            request.CurrentUserId,
-            _db.PurchaseOrders.AsNoTracking(),
-            cancellationToken);
+        var filtered = await PurchaseOrderItemListFilter.BuildFilteredJoinQueryAsync(
+            _db, _dataPermission, request, cancellationToken);
+        var total = await filtered.CountAsync(cancellationToken);
 
-        var q =
-            from item in _db.PurchaseOrderItems.AsNoTracking()
-            join po in scopedPo on item.PurchaseOrderId equals po.Id
-            join ext in _db.PurchaseOrderItemExtends.AsNoTracking() on item.Id equals ext.Id into extGroup
-            from ext in extGroup.DefaultIfEmpty()
-            select new { item, po, ext };
-
-        if (request.StartDate.HasValue)
-            q = q.Where(x => x.po.CreateTime >= request.StartDate.Value);
-
-        if (request.EndDate.HasValue)
-            q = q.Where(x => x.po.CreateTime <= request.EndDate.Value.AddDays(1));
-
-        if (!string.IsNullOrWhiteSpace(request.PurchaseOrderCode))
-        {
-            var c = request.PurchaseOrderCode.Trim();
-            q = q.Where(x =>
-                x.po.PurchaseOrderCode != null &&
-                x.po.PurchaseOrderCode.ToLower().Contains(c.ToLower()));
-        }
-
-        if (!string.IsNullOrWhiteSpace(request.FreightForwarderOrderNo))
-        {
-            var f = request.FreightForwarderOrderNo.Trim();
-            q = q.Where(x =>
-                x.po.FreightForwarderOrderNo != null &&
-                x.po.FreightForwarderOrderNo.ToLower().Contains(f.ToLower()));
-        }
-
-        if (!string.IsNullOrWhiteSpace(request.VendorName))
-        {
-            var v = request.VendorName.Trim();
-            q = q.Where(x =>
-                x.po.VendorName != null &&
-                x.po.VendorName.ToLower().Contains(v.ToLower()));
-        }
-
-        if (!string.IsNullOrWhiteSpace(request.PurchaseUserName))
-        {
-            var p = request.PurchaseUserName.Trim();
-            q = q.Where(x =>
-                x.po.PurchaseUserName != null &&
-                x.po.PurchaseUserName.ToLower().Contains(p.ToLower()));
-        }
-
-        if (!string.IsNullOrWhiteSpace(request.Pn))
-        {
-            var pn = request.Pn.Trim();
-            q = q.Where(x =>
-                x.item.PN != null &&
-                x.item.PN.ToLower().Contains(pn.ToLower()));
-        }
-
-        if (request.OrderType.HasValue)
-            q = q.Where(x => x.po.Type == request.OrderType.Value);
-
-        if (!string.IsNullOrWhiteSpace(request.TransactionCurrency))
-        {
-            var kind = request.TransactionCurrency.Trim().ToLowerInvariant();
-            if (kind is "rmb" or "cny" or "人民币")
-                q = q.Where(x => x.item.Currency == (short)CurrencyCode.RMB);
-            else if (kind is "foreign" or "外币")
-                q = q.Where(x => x.item.Currency != (short)CurrencyCode.RMB);
-        }
-
-        if (request.PaymentProgressStatus is >= 0 and <= 2)
-        {
-            var status = request.PaymentProgressStatus.Value;
-            q = status == 0
-                ? q.Where(x => x.ext == null || x.ext.PaymentProgressStatus == 0)
-                : q.Where(x => x.ext != null && x.ext.PaymentProgressStatus == status);
-        }
-
-        if (request.PurchaseProgressStatus is >= 0 and <= 2)
-        {
-            var status = request.PurchaseProgressStatus.Value;
-            q = status == 0
-                ? q.Where(x => x.ext == null || x.ext.PurchaseProgressStatus == 0)
-                : q.Where(x => x.ext != null && x.ext.PurchaseProgressStatus == status);
-        }
-
-        if (request.StockInProgressStatus is >= 0 and <= 2)
-        {
-            var status = request.StockInProgressStatus.Value;
-            q = status == 0
-                ? q.Where(x => x.ext == null || x.ext.StockInProgressStatus == 0)
-                : q.Where(x => x.ext != null && x.ext.StockInProgressStatus == status);
-        }
-
-        if (request.InvoiceProgressStatus is >= 0 and <= 2)
-        {
-            var status = request.InvoiceProgressStatus.Value;
-            q = status == 0
-                ? q.Where(x => x.ext == null || x.ext.InvoiceProgressStatus == 0)
-                : q.Where(x => x.ext != null && x.ext.InvoiceProgressStatus == status);
-        }
-
-        var total = await q.CountAsync(cancellationToken);
-
-        var ordered = q
-            .OrderByDescending(x => x.po.CreateTime)
-            .ThenBy(x => x.item.PurchaseOrderItemCode);
-
-        var slice = await ordered
+        var slice = await filtered
+            .OrderByDescending(x => x.Po.CreateTime)
+            .ThenBy(x => x.Item.PurchaseOrderItemCode)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(x => new PurchaseOrderItemListLineRaw
-            {
-                PurchaseOrderItemId = x.item.Id,
-                PurchaseOrderId = x.item.PurchaseOrderId,
-                PurchaseOrderItemCode = x.item.PurchaseOrderItemCode,
-                PurchaseOrderCode = x.po.PurchaseOrderCode,
-                FreightForwarderOrderNo = x.po.FreightForwarderOrderNo,
-                PurchaseOrderType = x.po.Type >= 1 && x.po.Type <= 3 ? x.po.Type : (short)1,
-                OrderStatus = x.po.Status,
-                OrderCreateTime = x.po.CreateTime,
-                PurchaseUserName = x.po.PurchaseUserName,
-                CreateByUserId = x.po.CreateByUserId,
-                VendorId = x.item.VendorId,
-                VendorName = x.po.VendorName,
-                Pn = x.item.PN,
-                Brand = x.item.Brand,
-                ItemStatus = x.item.Status,
-                FinancePaymentStatus = x.item.FinancePaymentStatus,
-                PurchaseProgressStatus = x.ext != null ? x.ext.PurchaseProgressStatus : (short)0,
-                StockInProgressStatus = x.ext != null ? x.ext.StockInProgressStatus : (short)0,
-                PaymentProgressStatus = x.ext != null ? x.ext.PaymentProgressStatus : (short)0,
-                InvoiceProgressStatus = x.ext != null ? x.ext.InvoiceProgressStatus : (short)0,
-                PaymentAmount = x.ext != null
-                    ? x.ext.PaymentAmount
-                    : Math.Round(x.item.Qty * x.item.Cost, 2, MidpointRounding.AwayFromZero),
-                PaymentAmountRequested = x.ext != null ? x.ext.PaymentAmountRequested : 0m,
-                QtyStockInNotifyExpectSum = x.ext != null ? x.ext.QtyStockInNotifyExpectSum : 0m,
-                QtyStockInNotifyNot = x.ext != null ? x.ext.QtyStockInNotifyNot : x.item.Qty,
-                Qty = x.item.Qty,
-                Cost = x.item.Cost,
-                Currency = x.item.Currency,
-                DeliveryDate = x.item.DeliveryDate
-            })
+            .Select(x => MapLineRaw(x))
             .ToListAsync(cancellationToken);
 
         return new PagedResult<PurchaseOrderItemListLineRaw>
@@ -213,44 +78,48 @@ public sealed class PurchaseOrderItemListQuery : IPurchaseOrderItemListQuery
         }
 
         return await (
-                from item in _db.PurchaseOrderItems.AsNoTracking()
-                where idList.Contains(item.Id)
-                join po in poQuery on item.PurchaseOrderId equals po.Id
-                join ext in _db.PurchaseOrderItemExtends.AsNoTracking() on item.Id equals ext.Id into extGroup
-                from ext in extGroup.DefaultIfEmpty()
-                select new PurchaseOrderItemListLineRaw
-                {
-                    PurchaseOrderItemId = item.Id,
-                    PurchaseOrderId = item.PurchaseOrderId,
-                    PurchaseOrderItemCode = item.PurchaseOrderItemCode,
-                    PurchaseOrderCode = po.PurchaseOrderCode,
-                    FreightForwarderOrderNo = po.FreightForwarderOrderNo,
-                    PurchaseOrderType = po.Type >= 1 && po.Type <= 3 ? po.Type : (short)1,
-                    OrderStatus = po.Status,
-                    OrderCreateTime = po.CreateTime,
-                    PurchaseUserName = po.PurchaseUserName,
-                    CreateByUserId = po.CreateByUserId,
-                    VendorId = item.VendorId,
-                    VendorName = po.VendorName,
-                    Pn = item.PN,
-                    Brand = item.Brand,
-                    ItemStatus = item.Status,
-                    FinancePaymentStatus = item.FinancePaymentStatus,
-                    PurchaseProgressStatus = ext != null ? ext.PurchaseProgressStatus : (short)0,
-                    StockInProgressStatus = ext != null ? ext.StockInProgressStatus : (short)0,
-                    PaymentProgressStatus = ext != null ? ext.PaymentProgressStatus : (short)0,
-                    InvoiceProgressStatus = ext != null ? ext.InvoiceProgressStatus : (short)0,
-                    PaymentAmount = ext != null
-                        ? ext.PaymentAmount
-                        : Math.Round(item.Qty * item.Cost, 2, MidpointRounding.AwayFromZero),
-                    PaymentAmountRequested = ext != null ? ext.PaymentAmountRequested : 0m,
-                    QtyStockInNotifyExpectSum = ext != null ? ext.QtyStockInNotifyExpectSum : 0m,
-                    QtyStockInNotifyNot = ext != null ? ext.QtyStockInNotifyNot : item.Qty,
-                    Qty = item.Qty,
-                    Cost = item.Cost,
-                    Currency = item.Currency,
-                    DeliveryDate = item.DeliveryDate
-                })
-            .ToListAsync(cancellationToken);
+            from item in _db.PurchaseOrderItems.AsNoTracking()
+            where idList.Contains(item.Id)
+            join po in poQuery on item.PurchaseOrderId equals po.Id
+            join ext in _db.PurchaseOrderItemExtends.AsNoTracking().Where(e => !e.IsDeleted)
+                on item.Id equals ext.Id into extGroup
+            from ext in extGroup.DefaultIfEmpty()
+            select MapLineRaw(new PurchaseOrderItemLineJoin { Item = item, Po = po, Ext = ext })
+        ).ToListAsync(cancellationToken);
     }
+
+    private static PurchaseOrderItemListLineRaw MapLineRaw(PurchaseOrderItemLineJoin x) =>
+        new()
+        {
+            PurchaseOrderItemId = x.Item.Id,
+            PurchaseOrderId = x.Item.PurchaseOrderId,
+            PurchaseOrderItemCode = x.Item.PurchaseOrderItemCode,
+            PurchaseOrderCode = x.Po.PurchaseOrderCode,
+            FreightForwarderOrderNo = x.Po.FreightForwarderOrderNo,
+            PurchaseOrderType = x.Po.Type >= 1 && x.Po.Type <= 3 ? x.Po.Type : (short)1,
+            OrderStatus = x.Po.Status,
+            OrderCreateTime = x.Po.CreateTime,
+            PurchaseUserName = x.Po.PurchaseUserName,
+            CreateByUserId = x.Po.CreateByUserId,
+            VendorId = x.Item.VendorId,
+            VendorName = x.Po.VendorName,
+            Pn = x.Item.PN,
+            Brand = x.Item.Brand,
+            ItemStatus = x.Item.Status,
+            FinancePaymentStatus = x.Item.FinancePaymentStatus,
+            PurchaseProgressStatus = x.Ext != null ? x.Ext.PurchaseProgressStatus : (short)0,
+            StockInProgressStatus = x.Ext != null ? x.Ext.StockInProgressStatus : (short)0,
+            PaymentProgressStatus = x.Ext != null ? x.Ext.PaymentProgressStatus : (short)0,
+            InvoiceProgressStatus = x.Ext != null ? x.Ext.InvoiceProgressStatus : (short)0,
+            PaymentAmount = x.Ext != null
+                ? x.Ext.PaymentAmount
+                : Math.Round(x.Item.Qty * x.Item.Cost, 2, MidpointRounding.AwayFromZero),
+            PaymentAmountRequested = x.Ext != null ? x.Ext.PaymentAmountRequested : 0m,
+            QtyStockInNotifyExpectSum = x.Ext != null ? x.Ext.QtyStockInNotifyExpectSum : 0m,
+            QtyStockInNotifyNot = x.Ext != null ? x.Ext.QtyStockInNotifyNot : x.Item.Qty,
+            Qty = x.Item.Qty,
+            Cost = x.Item.Cost,
+            Currency = x.Item.Currency,
+            DeliveryDate = x.Item.DeliveryDate
+        };
 }

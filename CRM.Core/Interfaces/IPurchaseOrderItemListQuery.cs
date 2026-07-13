@@ -1,3 +1,5 @@
+using CRM.Core.Models.Analytics;
+
 namespace CRM.Core.Interfaces;
 
 /// <summary>采购订单明细行列表：数据库分页（与 <c>GET /api/v1/purchase-orders/items</c> 对应）。</summary>
@@ -12,6 +14,27 @@ public interface IPurchaseOrderItemListQuery
         IReadOnlyList<string> purchaseOrderItemIds,
         string? currentUserId = null,
         bool applyDataScope = true,
+        CancellationToken cancellationToken = default);
+
+    Task<PurchaseOrderItemListAnalyticsDashboardDto> GetListAnalyticsDashboardAsync(
+        PurchaseOrderItemListQueryRequest request,
+        bool maskAmounts,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<PurchaseOrderItemListAnalyticsTrendPointDto>> GetListAnalyticsTrendsAsync(
+        PurchaseOrderItemListQueryRequest request,
+        string groupBy,
+        bool maskAmounts,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<SalesAnalyticsBreakdownGroupDto>> GetListAnalyticsBreakdownsAsync(
+        PurchaseOrderItemListQueryRequest request,
+        bool maskAmounts,
+        CancellationToken cancellationToken = default);
+
+    Task<PurchaseOrderItemListAnalyticsRankingsDto> GetListAnalyticsRankingsAsync(
+        PurchaseOrderItemListQueryRequest request,
+        bool maskAmounts,
         CancellationToken cancellationToken = default);
 }
 

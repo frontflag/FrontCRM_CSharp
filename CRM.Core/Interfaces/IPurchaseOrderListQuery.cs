@@ -1,3 +1,4 @@
+using CRM.Core.Models.Analytics;
 using CRM.Core.Models.Purchase;
 
 namespace CRM.Core.Interfaces;
@@ -9,6 +10,27 @@ public interface IPurchaseOrderListQuery
 
     /// <summary>与列表相同筛选条件下的汇总（用于列表页统计卡片；金额是否返回由调用方按权限决定）。</summary>
     Task<PurchaseOrderListAggregates> GetAggregatesAsync(PurchaseOrderQueryRequest request, CancellationToken cancellationToken = default);
+
+    Task<PurchaseOrderListAnalyticsDashboardDto> GetListAnalyticsDashboardAsync(
+        PurchaseOrderQueryRequest request,
+        bool maskAmounts,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<PurchaseOrderListAnalyticsTrendPointDto>> GetListAnalyticsTrendsAsync(
+        PurchaseOrderQueryRequest request,
+        string groupBy,
+        bool maskAmounts,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<SalesAnalyticsBreakdownGroupDto>> GetListAnalyticsBreakdownsAsync(
+        PurchaseOrderQueryRequest request,
+        bool maskAmounts,
+        CancellationToken cancellationToken = default);
+
+    Task<PurchaseOrderListAnalyticsRankingsDto> GetListAnalyticsRankingsAsync(
+        PurchaseOrderQueryRequest request,
+        bool maskAmounts,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>采购订单列表汇总（全量筛选结果，非仅当前页）。</summary>

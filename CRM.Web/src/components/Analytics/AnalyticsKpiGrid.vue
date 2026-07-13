@@ -1,4 +1,10 @@
 <script setup lang="ts">
+export type AnalyticsKpiCurrencyItem = {
+  currencyLabel: string
+  originalText: string
+  usdText: string
+}
+
 defineProps<{
   items: {
     key: string
@@ -6,10 +12,14 @@ defineProps<{
     value: string
     /** 原币分档行（如 CNY 1,234.56），显示在折算 USD 下方 */
     currencyLines?: string[]
+    /** 结构化原币分档（横向卡片，与 layout=split 搭配） */
+    currencyItems?: AnalyticsKpiCurrencyItem[]
     /** 原币区小标题（如「原币」） */
     currencyCaption?: string
     /** 主金额上方小标题（如「折算 USD」） */
     valueCaption?: string
+    /** stack：竖向（默认）；split：左侧总额 + 右侧原币横排 */
+    layout?: 'stack' | 'split'
     tone?: 'todo' | 'snapshot'
     drillable?: boolean
     /** money：缩小字号并禁止折行，适配 12 位整数金额 */
@@ -30,7 +40,8 @@ const emit = defineEmits<{
       class="kpi-card"
       :class="{
         'kpi-card--todo': item.tone === 'todo',
-        'kpi-card--clickable': item.drillable
+        'kpi-card--clickable': item.drillable,
+        'kpi-card--split': item.layout === 'split'
       }"
       :role="item.drillable ? 'button' : undefined"
       :tabindex="item.drillable ? 0 : undefined"
@@ -38,7 +49,25 @@ const emit = defineEmits<{
       @keydown.enter="item.drillable && emit('item-click', item.key)"
     >
       <span class="kpi-label">{{ item.label }}</span>
-      <div class="kpi-amount-block">
+
+      <div v-if="item.layout === 'split'" class="kpi-split-body">
+        <div class="kpi-split-col kpi-split-col--main">
+          <span v-if="item.valueCaption" class="kpi-split-caption">{{ item.valueCaption }}</span>
+          <span class="kpi-value kpi-value--split-money">{{ item.value }}</span>
+        </div>
+        <div
+          v-for="cur in item.currencyItems ?? []"
+          :key="`${item.key}-${cur.currencyLabel}`"
+          class="kpi-split-col kpi-split-col--currency"
+        >
+          <span class="kpi-currency-item-label">{{ cur.currencyLabel }}</span>
+          <div class="kpi-currency-card">
+            <span class="kpi-currency-card-original">{{ cur.originalText }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div v-else class="kpi-amount-block">
         <span v-if="item.valueCaption" class="kpi-value-caption">{{ item.valueCaption }}</span>
         <span
           class="kpi-value"
@@ -152,5 +181,102 @@ const emit = defineEmits<{
 
 .kpi-card--todo .kpi-currency-line {
   color: var(--el-text-color-regular);
+}
+
+.kpi-card--split {
+  grid-column: span 3;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 1100px) {
+  .kpi-card--split {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 900px) {
+  .kpi-card--split {
+    grid-column: span 1;
+  }
+}
+
+.kpi-split-body {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  flex: 1;
+  min-height: 72px;
+}
+
+.kpi-split-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.kpi-split-col--main {
+  flex: 0 0 auto;
+  min-width: 180px;
+  padding-right: 20px;
+  border-right: 1px solid var(--el-border-color-lighter);
+}
+
+.kpi-split-col--main + .kpi-split-col--currency {
+  margin-left: 20px;
+}
+
+.kpi-split-col--currency + .kpi-split-col--currency {
+  margin-left: 50px;
+}
+
+.kpi-split-col--currency {
+  flex: 0 0 auto;
+  width: max-content;
+  min-width: max-content;
+}
+
+.kpi-split-caption,
+.kpi-currency-item-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--el-text-color-secondary);
+  line-height: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  margin-top: 7px;
+}
+
+.kpi-value--split-money {
+  font-size: 26px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.kpi-currency-card {
+  display: flex;
+  align-items: center;
+  flex: 1 0 auto;
+  width: max-content;
+  min-height: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.kpi-currency-card-original {
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--el-text-color-primary);
+  white-space: nowrap;
 }
 </style>

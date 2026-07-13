@@ -1,3 +1,4 @@
+using CRM.Core.Models.Analytics;
 using CRM.Core.Models.Sales;
 
 namespace CRM.Core.Interfaces;
@@ -15,6 +16,27 @@ public interface ISalesOrderListQuery
     /// </summary>
     Task<SalesOrderListAnalyticsComparable> GetAnalyticsComparableAsync(
         SalesOrderQueryRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<SalesOrderListAnalyticsDashboardDto> GetListAnalyticsDashboardAsync(
+        SalesOrderQueryRequest request,
+        bool maskAmounts,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<SalesOrderListAnalyticsTrendPointDto>> GetListAnalyticsTrendsAsync(
+        SalesOrderQueryRequest request,
+        string groupBy,
+        bool maskAmounts,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<SalesAnalyticsBreakdownGroupDto>> GetListAnalyticsBreakdownsAsync(
+        SalesOrderQueryRequest request,
+        bool maskAmounts,
+        CancellationToken cancellationToken = default);
+
+    Task<SalesOrderListAnalyticsRankingsDto> GetListAnalyticsRankingsAsync(
+        SalesOrderQueryRequest request,
+        bool maskAmounts,
         CancellationToken cancellationToken = default);
 }
 

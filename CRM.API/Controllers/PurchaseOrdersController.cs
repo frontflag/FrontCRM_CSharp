@@ -18,7 +18,9 @@ using System.Security.Claims;
 using System.Linq;
 using System.Text.Json;
 using CRM.Core.Constants;
+using CRM.Core.Models.Analytics;
 using CRM.Core.Models.Dtos;
+using CRM.API.Models.DTOs;
 
 namespace CRM.API.Controllers
 {
@@ -149,6 +151,196 @@ namespace CRM.API.Controllers
                 _logger.LogError(ex, "获取采购订单列表失败");
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
+        }
+
+        [HttpGet("analytics/dashboard")]
+        public async Task<IActionResult> GetListAnalyticsDashboard(
+            [FromQuery] string? keyword,
+            [FromQuery] string? code,
+            [FromQuery] string? vendor,
+            [FromQuery] string? freightForwarderOrderNo,
+            [FromQuery] string? purchaseUserName,
+            [FromQuery] string? comment,
+            [FromQuery] short? orderType,
+            [FromQuery] short? status,
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, maskAmounts) = await BuildListAnalyticsQueryRequestAsync(
+                keyword, code, vendor, freightForwarderOrderNo, purchaseUserName, comment, orderType, status, startDate, endDate, cancellationToken);
+            var data = await _purchaseOrderListQuery.GetListAnalyticsDashboardAsync(request, maskAmounts, cancellationToken);
+            return Ok(ApiResponse<PurchaseOrderListAnalyticsDashboardDto>.Ok(data));
+        }
+
+        [HttpGet("analytics/trends")]
+        public async Task<IActionResult> GetListAnalyticsTrends(
+            [FromQuery] string? keyword,
+            [FromQuery] string? code,
+            [FromQuery] string? vendor,
+            [FromQuery] string? freightForwarderOrderNo,
+            [FromQuery] string? purchaseUserName,
+            [FromQuery] string? comment,
+            [FromQuery] short? orderType,
+            [FromQuery] short? status,
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            [FromQuery] string? groupBy,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, maskAmounts) = await BuildListAnalyticsQueryRequestAsync(
+                keyword, code, vendor, freightForwarderOrderNo, purchaseUserName, comment, orderType, status, startDate, endDate, cancellationToken);
+            var data = await _purchaseOrderListQuery.GetListAnalyticsTrendsAsync(
+                request,
+                string.IsNullOrWhiteSpace(groupBy) ? "month" : groupBy.Trim(),
+                maskAmounts,
+                cancellationToken);
+            return Ok(ApiResponse<IReadOnlyList<PurchaseOrderListAnalyticsTrendPointDto>>.Ok(data));
+        }
+
+        [HttpGet("analytics/breakdowns")]
+        public async Task<IActionResult> GetListAnalyticsBreakdowns(
+            [FromQuery] string? keyword,
+            [FromQuery] string? code,
+            [FromQuery] string? vendor,
+            [FromQuery] string? freightForwarderOrderNo,
+            [FromQuery] string? purchaseUserName,
+            [FromQuery] string? comment,
+            [FromQuery] short? orderType,
+            [FromQuery] short? status,
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, maskAmounts) = await BuildListAnalyticsQueryRequestAsync(
+                keyword, code, vendor, freightForwarderOrderNo, purchaseUserName, comment, orderType, status, startDate, endDate, cancellationToken);
+            var data = await _purchaseOrderListQuery.GetListAnalyticsBreakdownsAsync(request, maskAmounts, cancellationToken);
+            return Ok(ApiResponse<IReadOnlyList<SalesAnalyticsBreakdownGroupDto>>.Ok(data));
+        }
+
+        [HttpGet("analytics/rankings")]
+        public async Task<IActionResult> GetListAnalyticsRankings(
+            [FromQuery] string? keyword,
+            [FromQuery] string? code,
+            [FromQuery] string? vendor,
+            [FromQuery] string? freightForwarderOrderNo,
+            [FromQuery] string? purchaseUserName,
+            [FromQuery] string? comment,
+            [FromQuery] short? orderType,
+            [FromQuery] short? status,
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, maskAmounts) = await BuildListAnalyticsQueryRequestAsync(
+                keyword, code, vendor, freightForwarderOrderNo, purchaseUserName, comment, orderType, status, startDate, endDate, cancellationToken);
+            var data = await _purchaseOrderListQuery.GetListAnalyticsRankingsAsync(request, maskAmounts, cancellationToken);
+            return Ok(ApiResponse<PurchaseOrderListAnalyticsRankingsDto>.Ok(data));
+        }
+
+        [HttpGet("items/analytics/dashboard")]
+        public async Task<IActionResult> GetItemListAnalyticsDashboard(
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            [FromQuery] string? purchaseOrderCode,
+            [FromQuery] string? freightForwarderOrderNo,
+            [FromQuery] string? vendorName,
+            [FromQuery] string? purchaseUserName,
+            [FromQuery] string? pn,
+            [FromQuery] short? orderType,
+            [FromQuery] string? transactionCurrency,
+            [FromQuery] short? paymentProgressStatus = null,
+            [FromQuery] short? purchaseProgressStatus = null,
+            [FromQuery] short? stockInProgressStatus = null,
+            [FromQuery] short? invoiceProgressStatus = null,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, maskAmounts) = await BuildItemListAnalyticsQueryRequestAsync(
+                startDate, endDate, purchaseOrderCode, freightForwarderOrderNo, vendorName, purchaseUserName,
+                pn, orderType, transactionCurrency, paymentProgressStatus, purchaseProgressStatus,
+                stockInProgressStatus, invoiceProgressStatus, cancellationToken);
+            var data = await _purchaseOrderItemListQuery.GetListAnalyticsDashboardAsync(request, maskAmounts, cancellationToken);
+            return Ok(ApiResponse<PurchaseOrderItemListAnalyticsDashboardDto>.Ok(data));
+        }
+
+        [HttpGet("items/analytics/trends")]
+        public async Task<IActionResult> GetItemListAnalyticsTrends(
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            [FromQuery] string? purchaseOrderCode,
+            [FromQuery] string? freightForwarderOrderNo,
+            [FromQuery] string? vendorName,
+            [FromQuery] string? purchaseUserName,
+            [FromQuery] string? pn,
+            [FromQuery] short? orderType,
+            [FromQuery] string? transactionCurrency,
+            [FromQuery] short? paymentProgressStatus = null,
+            [FromQuery] short? purchaseProgressStatus = null,
+            [FromQuery] short? stockInProgressStatus = null,
+            [FromQuery] short? invoiceProgressStatus = null,
+            [FromQuery] string? groupBy = null,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, maskAmounts) = await BuildItemListAnalyticsQueryRequestAsync(
+                startDate, endDate, purchaseOrderCode, freightForwarderOrderNo, vendorName, purchaseUserName,
+                pn, orderType, transactionCurrency, paymentProgressStatus, purchaseProgressStatus,
+                stockInProgressStatus, invoiceProgressStatus, cancellationToken);
+            var data = await _purchaseOrderItemListQuery.GetListAnalyticsTrendsAsync(
+                request,
+                string.IsNullOrWhiteSpace(groupBy) ? "month" : groupBy.Trim(),
+                maskAmounts,
+                cancellationToken);
+            return Ok(ApiResponse<IReadOnlyList<PurchaseOrderItemListAnalyticsTrendPointDto>>.Ok(data));
+        }
+
+        [HttpGet("items/analytics/breakdowns")]
+        public async Task<IActionResult> GetItemListAnalyticsBreakdowns(
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            [FromQuery] string? purchaseOrderCode,
+            [FromQuery] string? freightForwarderOrderNo,
+            [FromQuery] string? vendorName,
+            [FromQuery] string? purchaseUserName,
+            [FromQuery] string? pn,
+            [FromQuery] short? orderType,
+            [FromQuery] string? transactionCurrency,
+            [FromQuery] short? paymentProgressStatus = null,
+            [FromQuery] short? purchaseProgressStatus = null,
+            [FromQuery] short? stockInProgressStatus = null,
+            [FromQuery] short? invoiceProgressStatus = null,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, maskAmounts) = await BuildItemListAnalyticsQueryRequestAsync(
+                startDate, endDate, purchaseOrderCode, freightForwarderOrderNo, vendorName, purchaseUserName,
+                pn, orderType, transactionCurrency, paymentProgressStatus, purchaseProgressStatus,
+                stockInProgressStatus, invoiceProgressStatus, cancellationToken);
+            var data = await _purchaseOrderItemListQuery.GetListAnalyticsBreakdownsAsync(request, maskAmounts, cancellationToken);
+            return Ok(ApiResponse<IReadOnlyList<SalesAnalyticsBreakdownGroupDto>>.Ok(data));
+        }
+
+        [HttpGet("items/analytics/rankings")]
+        public async Task<IActionResult> GetItemListAnalyticsRankings(
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            [FromQuery] string? purchaseOrderCode,
+            [FromQuery] string? freightForwarderOrderNo,
+            [FromQuery] string? vendorName,
+            [FromQuery] string? purchaseUserName,
+            [FromQuery] string? pn,
+            [FromQuery] short? orderType,
+            [FromQuery] string? transactionCurrency,
+            [FromQuery] short? paymentProgressStatus = null,
+            [FromQuery] short? purchaseProgressStatus = null,
+            [FromQuery] short? stockInProgressStatus = null,
+            [FromQuery] short? invoiceProgressStatus = null,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, maskAmounts) = await BuildItemListAnalyticsQueryRequestAsync(
+                startDate, endDate, purchaseOrderCode, freightForwarderOrderNo, vendorName, purchaseUserName,
+                pn, orderType, transactionCurrency, paymentProgressStatus, purchaseProgressStatus,
+                stockInProgressStatus, invoiceProgressStatus, cancellationToken);
+            var data = await _purchaseOrderItemListQuery.GetListAnalyticsRankingsAsync(request, maskAmounts, cancellationToken);
+            return Ok(ApiResponse<PurchaseOrderItemListAnalyticsRankingsDto>.Ok(data));
         }
 
         /// <summary>采购订单明细行列表（数据库分页；与前端 <c>/purchase-order-items</c> 对齐）。</summary>
@@ -1408,6 +1600,101 @@ namespace CRM.API.Controllers
             }
 
             return list;
+        }
+
+        private async Task<(PurchaseOrderItemListQueryRequest Request, bool MaskAmounts)> BuildItemListAnalyticsQueryRequestAsync(
+            string? startDate,
+            string? endDate,
+            string? purchaseOrderCode,
+            string? freightForwarderOrderNo,
+            string? vendorName,
+            string? purchaseUserName,
+            string? pn,
+            short? orderType,
+            string? transactionCurrency,
+            short? paymentProgressStatus,
+            short? purchaseProgressStatus,
+            short? stockInProgressStatus,
+            short? invoiceProgressStatus,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var summary = await GetPermissionSummaryAsync(userId);
+            var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
+            var canViewVendorInfo = !mask511 && (summary?.IsSysAdmin == true
+                || SummaryHasPermission(summary, "vendor.info.read")
+                || SummaryHasPermission(summary, "vendor.read")
+                || SummaryHasPermission(summary, "purchase-order.read")
+                || SummaryHasPermission(summary, "purchase-order.write"));
+            var canViewPurchaseAmount = !mask511 && (summary?.IsSysAdmin == true
+                || SummaryHasPermission(summary, "purchase.amount.read"));
+            var maskAmounts = !canViewPurchaseAmount;
+            var canViewPurchaseUser = summary?.IsSysAdmin == true
+                || SummaryHasPermission(summary, "purchase.user.read")
+                || SummaryHasPermission(summary, "purchase-order.read");
+
+            var request = new PurchaseOrderItemListQueryRequest
+            {
+                CurrentUserId = userId,
+                StartDate = DateTime.TryParse(startDate, out var sd) ? sd : null,
+                EndDate = DateTime.TryParse(endDate, out var ed) ? ed : null,
+                PurchaseOrderCode = string.IsNullOrWhiteSpace(purchaseOrderCode) ? null : purchaseOrderCode.Trim(),
+                FreightForwarderOrderNo = string.IsNullOrWhiteSpace(freightForwarderOrderNo) ? null : freightForwarderOrderNo.Trim(),
+                VendorName = canViewVendorInfo && !string.IsNullOrWhiteSpace(vendorName) ? vendorName.Trim() : null,
+                PurchaseUserName = canViewPurchaseUser && !string.IsNullOrWhiteSpace(purchaseUserName) ? purchaseUserName.Trim() : null,
+                Pn = string.IsNullOrWhiteSpace(pn) ? null : pn.Trim(),
+                OrderType = orderType,
+                TransactionCurrency = transactionCurrency,
+                PaymentProgressStatus = paymentProgressStatus,
+                PurchaseProgressStatus = purchaseProgressStatus,
+                StockInProgressStatus = stockInProgressStatus,
+                InvoiceProgressStatus = invoiceProgressStatus
+            };
+
+            return (request, maskAmounts);
+        }
+
+        private async Task<(PurchaseOrderQueryRequest Request, bool MaskAmounts)> BuildListAnalyticsQueryRequestAsync(
+            string? keyword,
+            string? code,
+            string? vendor,
+            string? freightForwarderOrderNo,
+            string? purchaseUserName,
+            string? comment,
+            short? orderType,
+            short? status,
+            string? startDate,
+            string? endDate,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var summary = await GetPermissionSummaryAsync(userId);
+            var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
+            var canViewPurchaseAmount = !mask511 && (summary?.IsSysAdmin == true
+                || SummaryHasPermission(summary, "purchase.amount.read"));
+            var maskAmounts = !canViewPurchaseAmount;
+            var canViewPurchaseUser = summary?.IsSysAdmin == true
+                || SummaryHasPermission(summary, "purchase.user.read")
+                || SummaryHasPermission(summary, "purchase-order.read");
+
+            var request = new PurchaseOrderQueryRequest
+            {
+                Keyword = keyword,
+                PurchaseOrderCodeFilter = string.IsNullOrWhiteSpace(code) ? null : code.Trim(),
+                VendorNameFilter = string.IsNullOrWhiteSpace(vendor) ? null : vendor.Trim(),
+                FreightForwarderOrderNoFilter = string.IsNullOrWhiteSpace(freightForwarderOrderNo) ? null : freightForwarderOrderNo.Trim(),
+                PurchaseUserNameFilter = canViewPurchaseUser && !string.IsNullOrWhiteSpace(purchaseUserName) ? purchaseUserName.Trim() : null,
+                CommentFilter = string.IsNullOrWhiteSpace(comment) ? null : comment.Trim(),
+                OrderType = orderType,
+                Status = status,
+                StartDate = DateTime.TryParse(startDate, out var start) ? start : null,
+                EndDate = DateTime.TryParse(endDate, out var end) ? end : null,
+                CurrentUserId = userId
+            };
+
+            return (request, maskAmounts);
         }
 
         private static bool SummaryHasPermission(UserPermissionSummaryDto? summary, string code)

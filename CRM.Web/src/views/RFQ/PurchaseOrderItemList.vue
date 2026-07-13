@@ -183,9 +183,19 @@
         <button type="button" class="btn-ghost btn-sm" :disabled="loading" @click="resetFilters">
           {{ t('purchaseOrderItemList.filters.reset') }}
         </button>
+        <button
+          class="btn-ghost btn-sm btn-board-active"
+          type="button"
+          @click="toggleViewMode"
+        >
+          {{ viewMode === 'board' ? t('purchaseOrderItemList.filters.listView') : t('purchaseOrderItemList.filters.boardView') }}
+        </button>
       </div>
     </div>
 
+    <PurchaseOrderItemListBoard v-if="viewMode === 'board'" :filters="boardFilters" />
+
+    <div v-show="viewMode === 'list'">
     <CrmDataTable
       ref="tableRef"
       class="quantum-table-block el-table-host"
@@ -354,6 +364,7 @@
         @current-change="onPageChange"
         @size-change="onPageSizeChange"
       />
+    </div>
     </div>
 
     <el-dialog
@@ -705,6 +716,8 @@ import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { Setting } from '@element-plus/icons-vue'
+import PurchaseOrderItemListBoard from './PurchaseOrderItemListBoard.vue'
+import type { PurchaseOrderItemListAnalyticsQuery } from '@/api/purchaseOrderItemAnalytics'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
 import { financePaymentApi } from '@/api/finance'
 import { logisticsApi } from '@/api/logistics'
@@ -746,6 +759,7 @@ const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { canWritePo } = usePurchaseOrderWriteGate()
 const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const purchaseOrderItemOpsStore = usePurchaseOrderItemOpsPanelStore()
+const viewMode = ref<'list' | 'board'>('list')
 
 /** 与采购订单列表/详情一致：脱敏时不得展示供应商检索与列 */
 const canViewVendor = computed(
@@ -959,6 +973,45 @@ const filters = reactive({
   stockInProgressStatus: undefined as number | undefined,
   invoiceProgressStatus: undefined as number | undefined
 })
+
+const boardFilters = computed((): PurchaseOrderItemListAnalyticsQuery => {
+  const q: PurchaseOrderItemListAnalyticsQuery = {}
+  if (dateRange.value?.[0]) q.startDate = dateRange.value[0]
+  if (dateRange.value?.[1]) q.endDate = dateRange.value[1]
+  const poc = String(filters.purchaseOrderCode ?? '').trim()
+  if (poc) q.purchaseOrderCode = poc
+  const ffo = String(filters.freightForwarderOrderNo ?? '').trim()
+  if (ffo) q.freightForwarderOrderNo = ffo
+  if (canViewVendor.value) {
+    const vn = String(filters.vendorName ?? '').trim()
+    if (vn) q.vendorName = vn
+  }
+  if (canViewPurchaseUser.value) {
+    const pun = String(filters.purchaseUserName ?? '').trim()
+    if (pun) q.purchaseUserName = pun
+  }
+  const pnk = String(filters.pn ?? '').trim()
+  if (pnk) q.pn = pnk
+  if (filters.orderType !== undefined && filters.orderType !== null) q.orderType = filters.orderType
+  if (filters.transactionCurrency) q.transactionCurrency = filters.transactionCurrency
+  if (filters.paymentProgressStatus !== undefined && filters.paymentProgressStatus !== null) {
+    q.paymentProgressStatus = filters.paymentProgressStatus
+  }
+  if (filters.purchaseProgressStatus !== undefined && filters.purchaseProgressStatus !== null) {
+    q.purchaseProgressStatus = filters.purchaseProgressStatus
+  }
+  if (filters.stockInProgressStatus !== undefined && filters.stockInProgressStatus !== null) {
+    q.stockInProgressStatus = filters.stockInProgressStatus
+  }
+  if (filters.invoiceProgressStatus !== undefined && filters.invoiceProgressStatus !== null) {
+    q.invoiceProgressStatus = filters.invoiceProgressStatus
+  }
+  return q
+})
+
+function toggleViewMode() {
+  viewMode.value = viewMode.value === 'list' ? 'board' : 'list'
+}
 
 type PoProgressFilterKind = 'payment' | 'purchase' | 'stockIn' | 'invoice'
 
@@ -1532,6 +1585,11 @@ onBeforeUnmount(() => {
     opacity: 0.45;
     cursor: not-allowed;
   }
+}
+.btn-board-active {
+  border-color: rgba(0, 212, 255, 0.45);
+  color: #00d4ff;
+  background: rgba(0, 212, 255, 0.08);
 }
 .search-bar {
   display: flex;

@@ -28,7 +28,7 @@
     </div>
 
     <!-- 统计卡片 -->
-    <el-row :gutter="20" class="stat-row">
+    <el-row v-if="viewMode === 'list'" :gutter="20" class="stat-row">
       <el-col :span="6">
         <el-card class="stat-card">
           <div class="stat-value">{{ statTotal }}</div>
@@ -211,10 +211,19 @@
         />
         <button type="button" class="btn-primary btn-sm" @click="handleSearch">{{ t('purchaseOrderList.filters.search') }}</button>
         <button type="button" class="btn-ghost btn-sm" @click="handleReset">{{ t('purchaseOrderList.filters.reset') }}</button>
+        <button
+          class="btn-ghost btn-sm btn-board-active"
+          type="button"
+          @click="toggleViewMode"
+        >
+          {{ viewMode === 'board' ? t('purchaseOrderList.filters.listView') : t('purchaseOrderList.filters.boardView') }}
+        </button>
       </div>
     </div>
 
-    <div class="table-wrapper" v-loading="loading">
+    <PurchaseOrderListBoard v-if="viewMode === 'board'" :filters="boardFilters" />
+
+    <div v-show="viewMode === 'list'" class="table-wrapper" v-loading="loading">
       <CrmDataTable
         ref="dataTableRef"
         column-layout-key="purchase-order-list-main"
@@ -412,6 +421,7 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
+import type { PurchaseOrderListAnalyticsQuery } from '@/api/purchaseOrderAnalytics'
 import { useAuthStore } from '@/stores/auth'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import {
@@ -428,6 +438,7 @@ import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import VendorExtendColumnHeader from '@/components/list/VendorExtendColumnHeader.vue'
 import VendorExtendCell from '@/components/list/VendorExtendCell.vue'
+import PurchaseOrderListBoard from './PurchaseOrderListBoard.vue'
 import { useVendorExtendColumn, isVendorExtendTableColumn } from '@/composables/useVendorExtendColumn'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
@@ -455,6 +466,7 @@ function onPurchaseOrderTableHeaderDragEnd(
 }
 
 const loading = ref(false)
+const viewMode = ref<'list' | 'board'>('list')
 const orderList = ref<any[]>([])
 const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
@@ -605,6 +617,37 @@ const filterForm = ref({
   status: undefined as number | undefined,
   orderType: undefined as number | undefined
 })
+
+const boardFilters = computed((): PurchaseOrderListAnalyticsQuery => {
+  const q: PurchaseOrderListAnalyticsQuery = {}
+  const c = filterForm.value.code.trim()
+  if (c) q.code = c
+  if (canViewVendorInfo.value) {
+    const vendor = filterForm.value.vendor.trim()
+    if (vendor) q.vendor = vendor
+  }
+  const ff = filterForm.value.freightForwarderOrderNo.trim()
+  if (ff) q.freightForwarderOrderNo = ff
+  if (canViewPurchaseUser.value) {
+    const pu = filterForm.value.purchaseUserName.trim()
+    if (pu) q.purchaseUserName = pu
+  }
+  const cm = filterForm.value.comment.trim()
+  if (cm) q.comment = cm
+  if (filterForm.value.status !== undefined && filterForm.value.status !== null) {
+    q.status = filterForm.value.status
+  }
+  if (filterForm.value.orderType !== undefined && filterForm.value.orderType !== null) {
+    q.orderType = filterForm.value.orderType
+  }
+  if (filterForm.value.createDateRange?.[0]) q.startDate = filterForm.value.createDateRange[0]
+  if (filterForm.value.createDateRange?.[1]) q.endDate = filterForm.value.createDateRange[1]
+  return q
+})
+
+function toggleViewMode() {
+  viewMode.value = viewMode.value === 'list' ? 'board' : 'list'
+}
 
 // 分页信息
 const pageInfo = ref({
@@ -1142,6 +1185,12 @@ onMounted(loadData)
     border-color: rgba(0, 212, 255, 0.3);
     color: $text-secondary;
   }
+}
+
+.btn-board-active {
+  border-color: rgba(0, 212, 255, 0.45);
+  color: #00d4ff;
+  background: rgba(0, 212, 255, 0.08);
 }
 
 .table-wrapper :deep(.el-table) {

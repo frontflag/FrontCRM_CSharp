@@ -204,9 +204,19 @@
         </el-select>
         <button type="button" class="btn-primary btn-sm" :disabled="loading" @click="runSearch">{{ t('salesOrderItemList.filters.query') }}</button>
         <button type="button" class="btn-ghost btn-sm" @click="resetFilters">{{ t('salesOrderItemList.filters.reset') }}</button>
+        <button
+          class="btn-ghost btn-sm btn-board-active"
+          type="button"
+          @click="toggleViewMode"
+        >
+          {{ viewMode === 'board' ? t('salesOrderItemList.filters.listView') : t('salesOrderItemList.filters.boardView') }}
+        </button>
       </div>
     </div>
 
+    <SalesOrderItemListBoard v-if="viewMode === 'board'" :filters="boardFilters" />
+
+    <div v-show="viewMode === 'list'">
     <CrmDataTable
       ref="dataTableRef"
       class="quantum-table-block el-table-host"
@@ -459,6 +469,7 @@
         @size-change="onPageSizeChange"
       />
     </div>
+    </div>
 
     <el-drawer
       v-model="basketDrawerVisible"
@@ -653,6 +664,8 @@ import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'elem
 import { Setting } from '@element-plus/icons-vue'
 import ApplyStockOutDisabledHint from '@/components/RFQ/ApplyStockOutDisabledHint.vue'
 import ApplyStockOutDialog from '@/components/RFQ/ApplyStockOutDialog.vue'
+import SalesOrderItemListBoard from './SalesOrderItemListBoard.vue'
+import type { SalesOrderItemListAnalyticsQuery } from '@/api/salesOrderItemAnalytics'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
 import { useSalesOrderItemListBasketStore } from '@/stores/salesOrderItemListBasket'
@@ -718,6 +731,7 @@ const listCustomerColumnOk = computed(() => canViewCustomer.value && !maskSaleSe
 const listSalesUserFilterOk = computed(() => !maskSaleSensitiveFields.value)
 const listShowAmountColumns = computed(() => canViewAmount.value && !maskSaleSensitiveFields.value)
 const { canWriteSo } = useSaleOrderWriteGate()
+const viewMode = ref<'list' | 'board'>('list')
 /** 业务员可从销售明细发起采购申请，不必单独持有 purchase-requisition.write */
 const canPurchaseReq = computed(
   () =>
@@ -801,6 +815,58 @@ const filters = reactive({
   receiptProgressStatus: undefined as number | undefined,
   invoiceProgressStatus: undefined as number | undefined
 })
+
+const boardFilters = computed((): SalesOrderItemListAnalyticsQuery => {
+  const q: SalesOrderItemListAnalyticsQuery = {}
+  if (dateRange.value?.[0]) q.orderCreateStart = dateRange.value[0]
+  if (dateRange.value?.[1]) q.orderCreateEnd = dateRange.value[1]
+  const soc = String(filters.sellOrderCode ?? '').trim()
+  if (soc) q.sellOrderCode = soc
+  if (listCustomerColumnOk.value) {
+    const cn = String(filters.customerName ?? '').trim()
+    if (cn) q.customerName = cn
+    const cso = String(filters.customerSo ?? '').trim()
+    if (cso) q.customerSo = cso
+    const cpn = String(filters.customerPn ?? '').trim()
+    if (cpn) q.customerPn = cpn
+    const cid = customerIdFilter.value.trim()
+    if (cid) q.customerId = cid
+  }
+  if (listSalesUserFilterOk.value) {
+    const sun = String(filters.salesUserName ?? '').trim()
+    if (sun) q.salesUserName = sun
+    const suid = salesUserIdFilter.value.trim()
+    if (suid) q.salesUserId = suid
+  }
+  const pnk = String(filters.pn ?? '').trim()
+  if (pnk) q.pn = pnk
+  if (filters.transactionCurrency) q.transactionCurrency = filters.transactionCurrency
+  if (filters.purchaseProgressStatus !== undefined && filters.purchaseProgressStatus !== null) {
+    q.purchaseProgressStatus = filters.purchaseProgressStatus
+  }
+  if (filters.stockInProgressStatus !== undefined && filters.stockInProgressStatus !== null) {
+    q.stockInProgressStatus = filters.stockInProgressStatus
+  }
+  if (filters.stockOutNotifyProgressStatus !== undefined && filters.stockOutNotifyProgressStatus !== null) {
+    q.stockOutNotifyProgressStatus = filters.stockOutNotifyProgressStatus
+  }
+  if (filters.stockOutProgressStatus !== undefined && filters.stockOutProgressStatus !== null) {
+    q.stockOutProgressStatus = filters.stockOutProgressStatus
+  }
+  if (filters.receiptProgressStatus !== undefined && filters.receiptProgressStatus !== null) {
+    q.receiptProgressStatus = filters.receiptProgressStatus
+  }
+  if (filters.invoiceProgressStatus !== undefined && filters.invoiceProgressStatus !== null) {
+    q.invoiceProgressStatus = filters.invoiceProgressStatus
+  }
+  if (stockOutPending.value) q.stockOutPending = true
+  if (invoicePending.value) q.invoicePending = true
+  return q
+})
+
+function toggleViewMode() {
+  viewMode.value = viewMode.value === 'list' ? 'board' : 'list'
+}
 
 type ExtendProgressKind = 'purchase' | 'stockIn' | 'stockOut' | 'stockOutNotify' | 'receipt' | 'invoice'
 
@@ -1458,6 +1524,11 @@ watch(
     opacity: 0.45;
     cursor: not-allowed;
   }
+}
+.btn-board-active {
+  border-color: rgba(0, 212, 255, 0.45);
+  color: #00d4ff;
+  background: rgba(0, 212, 255, 0.08);
 }
 .search-bar {
   display: flex;
