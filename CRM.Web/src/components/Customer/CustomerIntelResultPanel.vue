@@ -5,16 +5,16 @@
   >
     <div class="customer-intel-panel__head">
       <div class="customer-intel-panel__head-main">
-        <h2 class="customer-intel-panel__title">{{ t('customerIntel.title') }}</h2>
+        <h2 class="customer-intel-panel__title">{{ ti('title') }}</h2>
         <div class="customer-intel-panel__tags">
-          <el-tag v-if="fromCache" size="small" type="info">{{ t('customerIntel.fromCache') }}</el-tag>
-          <el-tag v-else-if="hasReport" size="small" type="success">{{ t('customerIntel.live') }}</el-tag>
+          <el-tag v-if="fromCache" size="small" type="info">{{ ti('fromCache') }}</el-tag>
+          <el-tag v-else-if="hasReport" size="small" type="success">{{ ti('live') }}</el-tag>
         </div>
       </div>
       <div class="customer-intel-panel__head-actions">
         <el-tooltip
           v-if="sections.length"
-          :content="allSectionsCollapsed ? t('customerIntel.expandAllSections') : t('customerIntel.collapseAllSections')"
+          :content="allSectionsCollapsed ? ti('expandAllSections') : ti('collapseAllSections')"
           placement="top"
           :show-after="200"
         >
@@ -23,7 +23,7 @@
             text
             type="primary"
             class="customer-intel-panel__sections-toggle-all"
-            :aria-label="allSectionsCollapsed ? t('customerIntel.expandAllSections') : t('customerIntel.collapseAllSections')"
+            :aria-label="allSectionsCollapsed ? ti('expandAllSections') : ti('collapseAllSections')"
             @click="toggleAllSections"
           >
             <el-icon>
@@ -32,7 +32,7 @@
             </el-icon>
           </el-button>
         </el-tooltip>
-        <el-button v-if="showClose" size="small" text @click="emit('close')">{{ t('customerIntel.close') }}</el-button>
+        <el-button v-if="showClose" size="small" text @click="emit('close')">{{ ti('close') }}</el-button>
       </div>
     </div>
 
@@ -42,7 +42,7 @@
       type="warning"
       :closable="false"
       show-icon
-      :title="t('customerIntel.disclaimerShort')"
+      :title="ti('disclaimerShort')"
     />
 
     <div v-if="sections.length" class="customer-intel-panel__sections-wrap">
@@ -80,7 +80,7 @@
             </el-tooltip>
           </div>
           <el-tooltip
-            :content="isSectionCollapsed(section, idx) ? t('customerIntel.expandSection') : t('customerIntel.collapseSection')"
+            :content="isSectionCollapsed(section, idx) ? ti('expandSection') : ti('collapseSection')"
             placement="top"
             :show-after="200"
           >
@@ -89,7 +89,7 @@
               text
               type="primary"
               class="customer-intel-panel__section-toggle"
-              :aria-label="isSectionCollapsed(section, idx) ? t('customerIntel.expandSection') : t('customerIntel.collapseSection')"
+              :aria-label="isSectionCollapsed(section, idx) ? ti('expandSection') : ti('collapseSection')"
               @click.stop="toggleSection(section, idx)"
             >
               <el-icon>
@@ -128,13 +128,18 @@ const props = withDefaults(
     fromCache?: boolean
     layout?: 'centered' | 'embedded'
     showClose?: boolean
+    i18nKeyPrefix?: string
   }>(),
-  { layout: 'embedded', showClose: false }
+  { layout: 'embedded', showClose: false, i18nKeyPrefix: 'customerIntel' }
 )
 
 const emit = defineEmits<{ close: [] }>()
 
 const { t } = useI18n()
+
+function ti(key: string): string {
+  return t(`${props.i18nKeyPrefix}.${key}`)
+}
 
 const sections = computed(() => extractCustomerIntelSections(props.data))
 const hasReport = computed(() => sections.value.length > 0)
@@ -209,10 +214,10 @@ function confidenceTagType(section: Record<string, unknown>): 'success' | 'warni
 
 function confidenceTooltip(section: Record<string, unknown>): string {
   const raw = sectionConfidence(section).toLowerCase()
-  if (raw === 'high') return t('customerIntel.confidenceTipHigh')
-  if (raw === 'medium-high') return t('customerIntel.confidenceTipMediumHigh')
-  if (raw === 'medium') return t('customerIntel.confidenceTipMedium')
-  return t('customerIntel.confidenceTipLow')
+  if (raw === 'high') return ti('confidenceTipHigh')
+  if (raw === 'medium-high') return ti('confidenceTipMediumHigh')
+  if (raw === 'medium') return ti('confidenceTipMedium')
+  return ti('confidenceTipLow')
 }
 
 function sectionContent(section: Record<string, unknown>): Record<string, unknown> {

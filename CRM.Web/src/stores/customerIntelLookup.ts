@@ -19,25 +19,102 @@ export type CustomerIntelCrmContext = {
   disenableStatus?: boolean
 }
 
+type CustomerIntelSlot = {
+  currentReport: CustomerIntelReportDetail | null
+  historyReports: CustomerIntelReportSummary[]
+  loadError: string
+}
+
+function emptySlot(): CustomerIntelSlot {
+  return { currentReport: null, historyReports: [], loadError: '' }
+}
+
+function customerKey(customerId?: string | null): string | null {
+  const id = customerId?.trim()
+  return id || null
+}
+
+/**
+ * 客户情报右栏状态（列表/详情「调查」页签）。
+ * 按 customerId 分槽；进行中的调查不因切换选中行而取消（对齐 materialIntelLookup）。
+ */
 export const useCustomerIntelLookupStore = defineStore('customerIntelLookup', () => {
   const boundContext = ref<CustomerIntelCrmContext | null>(null)
-  const currentReport = ref<CustomerIntelReportDetail | null>(null)
-  const historyReports = ref<CustomerIntelReportSummary[]>([])
-  const loadingLatest = ref(false)
-  const investigating = ref(false)
-  const loadError = ref('')
-  const investigateStartedAt = ref(0)
+  const slotByCustomerId = ref<Record<string, CustomerIntelSlot>>({})
 
-  const boundCustomerId = computed(() => boundContext.value?.customerId?.trim() || null)
+  const investigatingCustomerIds = ref<string[]>([])
+  const loadingLatestCustomerIds = ref<string[]>([])
+  const investigateStartedAt = ref<Record<string, number>>({})
 
-  function isInvestigating(): boolean {
-    return investigating.value
+  const inFlightInvestigate = new Map<string, Promise<void>>()
+  const inFlightLoadLatest = new Map<string, Promise<void>>()
+
+  const boundCustomerId = computed(() => customerKey(boundContext.value?.customerId))
+
+  function getSlot(customerId: string): CustomerIntelSlot {
+    return slotByCustomerId.value[customerId] ?? emptySlot()
   }
 
-  function getInvestigateElapsedSeconds(): number {
-    if (!investigating.value || !investigateStartedAt.value) return 0
-    return Math.max(0, Math.floor((Date.now() - investigateStartedAt.value) / 1000))
+  function patchSlot(customerId: string, patch: Partial<CustomerIntelSlot>) {
+    slotByCustomerId.value = {
+      ...slotByCustomerId.value,
+      [customerId]: { ...getSlot(customerId), ...patch }
+    }
   }
+
+  function isCustomerInvestigating(customerId: string): boolean {
+    return investigatingCustomerIds.value.includes(customerId)
+  }
+
+  function isCustomerLoadingLatest(customerId: string): boolean {
+    return loadingLatestCustomerIds.value.includes(customerId)
+  }
+
+  function getInvestigateElapsedSeconds(customerId: string): number {
+    const started = investigateStartedAt.value[customerId]
+    if (!started) return 0
+    return Math.max(0, Math.floor((Date.now() - started) / 1000))
+  }
+
+  function addInvestigating(customerId: string) {
+    if (!investigatingCustomerIds.value.includes(customerId)) {
+      investigatingCustomerIds.value = [...investigatingCustomerIds.value, customerId]
+    }
+    investigateStartedAt.value = { ...investigateStartedAt.value, [customerId]: Date.now() }
+  }
+
+  function removeInvestigating(customerId: string) {
+    investigatingCustomerIds.value = investigatingCustomerIds.value.filter((id) => id !== customerId)
+    const next = { ...investigateStartedAt.value }
+    delete next[customerId]
+    investigateStartedAt.value = next
+  }
+
+  function addLoadingLatest(customerId: string) {
+    if (!loadingLatestCustomerIds.value.includes(customerId)) {
+      loadingLatestCustomerIds.value = [...loadingLatestCustomerIds.value, customerId]
+    }
+  }
+
+  function removeLoadingLatest(customerId: string) {
+    loadingLatestCustomerIds.value = loadingLatestCustomerIds.value.filter((id) => id !== customerId)
+  }
+
+  const boundSlot = computed(() => {
+    const id = boundCustomerId.value
+    if (!id) return emptySlot()
+    return getSlot(id)
+  })
+
+  const boundCurrentReport = computed(() => boundSlot.value.currentReport)
+  const boundHistoryReports = computed(() => boundSlot.value.historyReports)
+  const boundLoadError = computed(() => boundSlot.value.loadError)
+  const boundInvestigating = computed(() =>
+    boundCustomerId.value ? isCustomerInvestigating(boundCustomerId.value) : false
+  )
+  const boundLoadingLatest = computed(() =>
+    boundCustomerId.value ? isCustomerLoadingLatest(boundCustomerId.value) : false
+  )
 
   function bindContext(ctx: CustomerIntelCrmContext | null) {
     boundContext.value = ctx
@@ -60,90 +137,115 @@ export const useCustomerIntelLookupStore = defineStore('customerIntelLookup', ()
 
   function clearBound() {
     boundContext.value = null
-    currentReport.value = null
-    historyReports.value = []
-    loadError.value = ''
   }
 
-  async function loadLatest(): Promise<void> {
-    const ctx = boundContext.value
-    if (!ctx?.customerId) {
-      currentReport.value = null
-      return
-    }
-    loadingLatest.value = true
-    loadError.value = ''
+  async function loadHistoryFor(customerId: string, take = 20): Promise<void> {
     try {
-      currentReport.value = await customerIntelApi.getLatestByCustomerId(ctx.customerId)
-    } catch (e: unknown) {
-      loadError.value = getApiErrorMessage(e, '加载调查报告失败')
-      currentReport.value = null
-    } finally {
-      loadingLatest.value = false
+      const list = await customerIntelApi.listByCustomerId(customerId, take)
+      patchSlot(customerId, { historyReports: list })
+    } catch {
+      patchSlot(customerId, { historyReports: [] })
     }
+  }
+
+  async function loadLatest(customerId?: string): Promise<void> {
+    const id = customerKey(customerId ?? boundContext.value?.customerId)
+    if (!id) return
+
+    const existing = inFlightLoadLatest.get(id)
+    if (existing) return existing
+
+    const task = (async () => {
+      addLoadingLatest(id)
+      patchSlot(id, { loadError: '' })
+      try {
+        const report = await customerIntelApi.getLatestByCustomerId(id)
+        patchSlot(id, { currentReport: report })
+      } catch (e: unknown) {
+        patchSlot(id, {
+          currentReport: null,
+          loadError: getApiErrorMessage(e, '加载调查报告失败')
+        })
+      } finally {
+        removeLoadingLatest(id)
+        inFlightLoadLatest.delete(id)
+      }
+    })()
+
+    inFlightLoadLatest.set(id, task)
+    return task
   }
 
   async function loadHistory(take = 20): Promise<void> {
-    const ctx = boundContext.value
-    if (!ctx?.customerId) {
-      historyReports.value = []
-      return
-    }
-    try {
-      historyReports.value = await customerIntelApi.listByCustomerId(ctx.customerId, take)
-    } catch {
-      historyReports.value = []
-    }
+    const id = boundCustomerId.value
+    if (!id) return
+    await loadHistoryFor(id, take)
   }
 
   async function selectReportById(reportId: string): Promise<void> {
-    if (!reportId.trim()) return
-    loadingLatest.value = true
-    loadError.value = ''
+    const id = boundCustomerId.value
+    if (!id || !reportId.trim()) return
+
+    addLoadingLatest(id)
+    patchSlot(id, { loadError: '' })
     try {
-      currentReport.value = await customerIntelApi.getById(reportId)
+      const report = await customerIntelApi.getById(reportId)
+      patchSlot(id, { currentReport: report })
     } catch (e: unknown) {
-      loadError.value = getApiErrorMessage(e, '加载报告失败')
+      patchSlot(id, { loadError: getApiErrorMessage(e, '加载报告失败') })
     } finally {
-      loadingLatest.value = false
+      removeLoadingLatest(id)
     }
   }
 
   async function investigate(options?: { force?: boolean }): Promise<void> {
     const ctx = boundContext.value
+    const id = customerKey(ctx?.customerId)
     const companyName = ctx?.companyName?.trim()
-    if (!companyName) return
+    if (!id || !companyName) return
 
-    investigating.value = true
-    investigateStartedAt.value = Date.now()
-    loadError.value = ''
-    try {
-      const result = await customerIntelApi.investigate({
-        customerId: ctx?.customerId ?? null,
-        companyName,
-        creditCode: ctx?.creditCode ?? null,
-        region: ctx?.region ?? null,
-        forceRefresh: !!options?.force
-      })
-      currentReport.value = result.report
-      await loadHistory()
-    } catch (e: unknown) {
-      loadError.value = getApiErrorMessage(e, '客户情报调查失败')
-    } finally {
-      investigating.value = false
-      investigateStartedAt.value = 0
-    }
+    const existing = inFlightInvestigate.get(id)
+    if (existing && !options?.force) return existing
+
+    const snapshot: CustomerIntelCrmContext = { ...ctx, companyName }
+
+    const task = (async () => {
+      addInvestigating(id)
+      patchSlot(id, { loadError: '' })
+      try {
+        const result = await customerIntelApi.investigate({
+          customerId: snapshot.customerId ?? null,
+          companyName: snapshot.companyName,
+          creditCode: snapshot.creditCode ?? null,
+          region: snapshot.region ?? null,
+          forceRefresh: !!options?.force
+        })
+        patchSlot(id, { currentReport: result.report })
+        await loadHistoryFor(id)
+      } catch (e: unknown) {
+        patchSlot(id, { loadError: getApiErrorMessage(e, '客户情报调查失败') })
+      } finally {
+        removeInvestigating(id)
+        inFlightInvestigate.delete(id)
+      }
+    })()
+
+    inFlightInvestigate.set(id, task)
+    return task
   }
 
   return {
     boundContext,
     boundCustomerId,
-    currentReport,
-    historyReports,
-    loadingLatest,
-    investigating,
-    loadError,
-    isInvestigating,
+    boundCurrentReport,
+    boundHistoryReports,
+    boundLoadError,
+    boundInvestigating,
+    boundLoadingLatest,
+    slotByCustomerId,
+    getSlot,
+    isCustomerInvestigating,
+    isCustomerLoadingLatest,
     getInvestigateElapsedSeconds,
     bindContext,
     readSessionSelectedId,

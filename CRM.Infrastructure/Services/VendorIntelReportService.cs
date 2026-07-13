@@ -1,31 +1,31 @@
 using System.Text.Json;
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
-using CRM.Core.Models.Customer;
+using CRM.Core.Models.Vendor;
 using CRM.Infrastructure.Ai;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace CRM.Infrastructure.Services;
 
-public sealed class CustomerIntelReportService : ICustomerIntelReportService
+public sealed class VendorIntelReportService : IVendorIntelReportService
 {
     private readonly ApplicationDbContext _db;
     private readonly IAiOrchestrator _aiOrchestrator;
-    private readonly IRepository<CustomerInfo> _customerRepo;
+    private readonly IRepository<VendorInfo> _vendorRepo;
 
-    public CustomerIntelReportService(
+    public VendorIntelReportService(
         ApplicationDbContext db,
         IAiOrchestrator aiOrchestrator,
-        IRepository<CustomerInfo> customerRepo)
+        IRepository<VendorInfo> vendorRepo)
     {
         _db = db;
         _aiOrchestrator = aiOrchestrator;
-        _customerRepo = customerRepo;
+        _vendorRepo = vendorRepo;
     }
 
-    public async Task<CustomerIntelInvestigateResultDto> InvestigateAsync(
-        CustomerIntelInvestigateRequest request,
+    public async Task<VendorIntelInvestigateResultDto> InvestigateAsync(
+        VendorIntelInvestigateRequest request,
         string? userId,
         CancellationToken cancellationToken = default)
     {
@@ -35,29 +35,27 @@ public sealed class CustomerIntelReportService : ICustomerIntelReportService
 
         var creditCode = NormalizeOptional(request.CreditCode);
         var region = NormalizeOptional(request.Region);
-        var customerId = NormalizeOptional(request.CustomerId);
+        var vendorId = NormalizeOptional(request.VendorId);
 
-        if (!string.IsNullOrEmpty(customerId))
+        if (!string.IsNullOrEmpty(vendorId))
         {
-            var customer = await _customerRepo.GetByIdAsync(customerId)
-                           ?? throw new InvalidOperationException("客户不存在");
+            var vendor = await _vendorRepo.GetByIdAsync(vendorId)
+                           ?? throw new InvalidOperationException("供应商不存在");
             if (string.IsNullOrEmpty(creditCode))
-                creditCode = NormalizeOptional(customer.CreditCode);
-            if (string.IsNullOrEmpty(region))
-                region = NormalizeOptional(customer.City ?? customer.Region);
+                creditCode = NormalizeOptional(vendor.CreditCode);
             if (string.IsNullOrEmpty(companyName))
-                companyName = (customer.OfficialName ?? string.Empty).Trim();
+                companyName = (vendor.OfficialName ?? string.Empty).Trim();
         }
 
         var fingerprint = IntelReportFingerprint.Build(companyName, creditCode);
 
         if (!request.ForceRefresh)
         {
-            var peer = await IntelReportPeerCache.TryLoadFromVendorTableAsync(_db, fingerprint, cancellationToken);
+            var peer = await IntelReportPeerCache.TryLoadFromCustomerTableAsync(_db, fingerprint, cancellationToken);
             if (peer != null)
             {
                 var cached = await SaveReportAsync(
-                    customerId,
+                    vendorId,
                     companyName,
                     creditCode,
                     fingerprint,
@@ -68,7 +66,7 @@ public sealed class CustomerIntelReportService : ICustomerIntelReportService
                     peer.SchemaVersion,
                     cancellationToken);
                 cached.FromCache = true;
-                return new CustomerIntelInvestigateResultDto
+                return new VendorIntelInvestigateResultDto
                 {
                     Report = cached,
                     FromCache = true,
@@ -82,16 +80,16 @@ public sealed class CustomerIntelReportService : ICustomerIntelReportService
             ["company_name"] = companyName,
             ["credit_code"] = creditCode,
             ["region"] = region,
-            ["customer_id"] = customerId
+            ["vendor_id"] = vendorId
         };
 
         var invokeResult = await _aiOrchestrator.InvokeAsync(
             new AiInvokeRequestDto
             {
-                ScenarioCode = AiScenarioCodes.CustomerIntelLookup,
+                ScenarioCode = AiScenarioCodes.VendorIntelLookup,
                 Input = input,
-                BizType = "CUSTOMER",
-                BizId = customerId,
+                BizType = "VENDOR",
+                BizId = vendorId,
                 TriggerType = AiInvocationTriggerType.Manual,
                 ForceRefresh = request.ForceRefresh
             },
@@ -101,7 +99,7 @@ public sealed class CustomerIntelReportService : ICustomerIntelReportService
         var reportJson = ResolveReportJson(invokeResult);
 
         var saved = await SaveReportAsync(
-            customerId,
+            vendorId,
             companyName,
             creditCode,
             fingerprint,
@@ -113,7 +111,7 @@ public sealed class CustomerIntelReportService : ICustomerIntelReportService
             cancellationToken);
 
         saved.FromCache = invokeResult.FromCache;
-        return new CustomerIntelInvestigateResultDto
+        return new VendorIntelInvestigateResultDto
         {
             Report = saved,
             FromCache = invokeResult.FromCache,
@@ -121,40 +119,40 @@ public sealed class CustomerIntelReportService : ICustomerIntelReportService
         };
     }
 
-    public async Task<CustomerIntelReportDetailDto?> GetLatestByCustomerIdAsync(
-        string customerId,
+    public async Task<VendorIntelReportDetailDto?> GetLatestByVendorIdAsync(
+        string vendorId,
         CancellationToken cancellationToken = default)
     {
-        var id = customerId.Trim();
+        var id = vendorId.Trim();
         if (string.IsNullOrEmpty(id)) return null;
 
-        var row = await _db.CustomerIntelReports.AsNoTracking()
-            .Where(r => r.CustomerId == id && r.IsLatest)
+        var row = await _db.VendorIntelReports.AsNoTracking()
+            .Where(r => r.VendorId == id && r.IsLatest)
             .OrderByDescending(r => r.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
 
         if (row != null)
             return await MapDetailAsync(row, cancellationToken);
 
-        var customer = await _customerRepo.GetByIdAsync(id);
-        if (customer == null) return null;
+        var vendor = await _vendorRepo.GetByIdAsync(id);
+        if (vendor == null) return null;
 
-        var name = (customer.OfficialName ?? string.Empty).Trim();
+        var name = (vendor.OfficialName ?? string.Empty).Trim();
         if (string.IsNullOrEmpty(name)) return null;
 
-        return await GetLatestByQueryAsync(name, customer.CreditCode, cancellationToken);
+        return await GetLatestByQueryAsync(name, vendor.CreditCode, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<CustomerIntelReportSummaryDto>> ListByCustomerIdAsync(
-        string customerId,
+    public async Task<IReadOnlyList<VendorIntelReportSummaryDto>> ListByVendorIdAsync(
+        string vendorId,
         int take = 20,
         CancellationToken cancellationToken = default)
     {
-        var id = customerId.Trim();
-        if (string.IsNullOrEmpty(id)) return Array.Empty<CustomerIntelReportSummaryDto>();
+        var id = vendorId.Trim();
+        if (string.IsNullOrEmpty(id)) return Array.Empty<VendorIntelReportSummaryDto>();
 
-        var rows = await _db.CustomerIntelReports.AsNoTracking()
-            .Where(r => r.CustomerId == id)
+        var rows = await _db.VendorIntelReports.AsNoTracking()
+            .Where(r => r.VendorId == id)
             .OrderByDescending(r => r.CreatedAt)
             .Take(Math.Clamp(take, 1, 100))
             .ToListAsync(cancellationToken);
@@ -162,11 +160,11 @@ public sealed class CustomerIntelReportService : ICustomerIntelReportService
         if (rows.Count > 0)
             return await MapSummariesAsync(rows, cancellationToken);
 
-        var customer = await _customerRepo.GetByIdAsync(id);
-        if (customer == null) return Array.Empty<CustomerIntelReportSummaryDto>();
+        var vendor = await _vendorRepo.GetByIdAsync(id);
+        if (vendor == null) return Array.Empty<VendorIntelReportSummaryDto>();
 
-        var fingerprint = IntelReportFingerprint.Build(customer.OfficialName ?? string.Empty, customer.CreditCode);
-        rows = await _db.CustomerIntelReports.AsNoTracking()
+        var fingerprint = IntelReportFingerprint.Build(vendor.OfficialName ?? string.Empty, vendor.CreditCode);
+        rows = await _db.VendorIntelReports.AsNoTracking()
             .Where(r => r.QueryFingerprint == fingerprint)
             .OrderByDescending(r => r.CreatedAt)
             .Take(Math.Clamp(take, 1, 100))
@@ -175,26 +173,26 @@ public sealed class CustomerIntelReportService : ICustomerIntelReportService
         return await MapSummariesAsync(rows, cancellationToken);
     }
 
-    public async Task<CustomerIntelReportDetailDto?> GetByIdAsync(
+    public async Task<VendorIntelReportDetailDto?> GetByIdAsync(
         string reportId,
         CancellationToken cancellationToken = default)
     {
         var id = reportId.Trim();
         if (string.IsNullOrEmpty(id)) return null;
 
-        var row = await _db.CustomerIntelReports.AsNoTracking()
+        var row = await _db.VendorIntelReports.AsNoTracking()
             .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
 
         return row == null ? null : await MapDetailAsync(row, cancellationToken);
     }
 
-    public async Task<CustomerIntelReportDetailDto?> GetLatestByQueryAsync(
+    public async Task<VendorIntelReportDetailDto?> GetLatestByQueryAsync(
         string companyName,
         string? creditCode,
         CancellationToken cancellationToken = default)
     {
         var fingerprint = IntelReportFingerprint.Build(companyName, creditCode);
-        var row = await _db.CustomerIntelReports.AsNoTracking()
+        var row = await _db.VendorIntelReports.AsNoTracking()
             .Where(r => r.QueryFingerprint == fingerprint && r.IsLatest)
             .OrderByDescending(r => r.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
@@ -202,45 +200,14 @@ public sealed class CustomerIntelReportService : ICustomerIntelReportService
         if (row != null)
             return await MapDetailAsync(row, cancellationToken);
 
-        var peer = await IntelReportPeerCache.TryLoadFromVendorTableAsync(_db, fingerprint, cancellationToken);
+        var peer = await IntelReportPeerCache.TryLoadFromCustomerTableAsync(_db, fingerprint, cancellationToken);
         if (peer == null) return null;
 
         return MapPeerReadOnly(companyName.Trim(), creditCode, peer);
     }
 
-    private static CustomerIntelReportDetailDto MapPeerReadOnly(
-        string companyName,
-        string? creditCode,
-        PeerIntelSnapshot peer)
-    {
-        object? report = null;
-        try
-        {
-            report = JsonSerializer.Deserialize<object>(peer.ReportJson);
-        }
-        catch
-        {
-            report = peer.ReportJson;
-        }
-
-        return new CustomerIntelReportDetailDto
-        {
-            CompanyName = companyName,
-            CreditCode = creditCode,
-            Source = "cache",
-            IsLatest = true,
-            Report = report,
-            SchemaVersion = peer.SchemaVersion,
-            InvocationLogId = peer.InvocationLogId,
-            FromCache = true
-        };
-    }
-
-    internal static string BuildQueryFingerprint(string companyName, string? creditCode) =>
-        IntelReportFingerprint.Build(companyName, creditCode);
-
-    private async Task<CustomerIntelReportDetailDto> SaveReportAsync(
-        string? customerId,
+    private async Task<VendorIntelReportDetailDto> SaveReportAsync(
+        string? vendorId,
         string companyName,
         string? creditCode,
         string fingerprint,
@@ -251,20 +218,20 @@ public sealed class CustomerIntelReportService : ICustomerIntelReportService
         string schemaVersion,
         CancellationToken cancellationToken)
     {
-        await _db.CustomerIntelReports
+        await _db.VendorIntelReports
             .Where(r => r.QueryFingerprint == fingerprint && r.IsLatest)
             .ExecuteUpdateAsync(
                 s => s.SetProperty(r => r.IsLatest, false),
                 cancellationToken);
 
-        var entity = new CustomerIntelReport
+        var entity = new VendorIntelReport
         {
             Id = Guid.NewGuid().ToString(),
-            CustomerId = customerId,
+            VendorId = vendorId,
             CompanyName = companyName,
             CreditCode = creditCode,
             QueryFingerprint = fingerprint,
-            ScenarioCode = AiScenarioCodes.CustomerIntelLookup,
+            ScenarioCode = AiScenarioCodes.VendorIntelLookup,
             ReportJson = AiJsonHelper.CoerceJsonObjectForJsonb(reportJson) ?? "{}",
             SchemaVersion = schemaVersion,
             Source = source,
@@ -274,14 +241,14 @@ public sealed class CustomerIntelReportService : ICustomerIntelReportService
             CreatedAt = DateTime.UtcNow
         };
 
-        _db.CustomerIntelReports.Add(entity);
+        _db.VendorIntelReports.Add(entity);
         await _db.SaveChangesAsync(cancellationToken);
 
         return await MapDetailAsync(entity, cancellationToken);
     }
 
-    private async Task<CustomerIntelReportDetailDto> MapDetailAsync(
-        CustomerIntelReport row,
+    private async Task<VendorIntelReportDetailDto> MapDetailAsync(
+        VendorIntelReport row,
         CancellationToken cancellationToken)
     {
         var summary = (await MapSummariesAsync(new[] { row }, cancellationToken)).First();
@@ -295,10 +262,10 @@ public sealed class CustomerIntelReportService : ICustomerIntelReportService
             report = row.ReportJson;
         }
 
-        return new CustomerIntelReportDetailDto
+        return new VendorIntelReportDetailDto
         {
             Id = summary.Id,
-            CustomerId = summary.CustomerId,
+            VendorId = summary.VendorId,
             CompanyName = summary.CompanyName,
             CreditCode = summary.CreditCode,
             Source = summary.Source,
@@ -313,8 +280,36 @@ public sealed class CustomerIntelReportService : ICustomerIntelReportService
         };
     }
 
-    private async Task<IReadOnlyList<CustomerIntelReportSummaryDto>> MapSummariesAsync(
-        IReadOnlyList<CustomerIntelReport> rows,
+    private static VendorIntelReportDetailDto MapPeerReadOnly(
+        string companyName,
+        string? creditCode,
+        PeerIntelSnapshot peer)
+    {
+        object? report = null;
+        try
+        {
+            report = JsonSerializer.Deserialize<object>(peer.ReportJson);
+        }
+        catch
+        {
+            report = peer.ReportJson;
+        }
+
+        return new VendorIntelReportDetailDto
+        {
+            CompanyName = companyName,
+            CreditCode = creditCode,
+            Source = "cache",
+            IsLatest = true,
+            Report = report,
+            SchemaVersion = peer.SchemaVersion,
+            InvocationLogId = peer.InvocationLogId,
+            FromCache = true
+        };
+    }
+
+    private async Task<IReadOnlyList<VendorIntelReportSummaryDto>> MapSummariesAsync(
+        IReadOnlyList<VendorIntelReport> rows,
         CancellationToken cancellationToken)
     {
         var userIds = rows
@@ -331,10 +326,10 @@ public sealed class CustomerIntelReportService : ICustomerIntelReportService
                 .Select(u => new { u.Id, Name = u.UserName ?? u.RealName ?? u.Id })
                 .ToDictionaryAsync(x => x.Id, x => x.Name, StringComparer.OrdinalIgnoreCase, cancellationToken);
 
-        return rows.Select(r => new CustomerIntelReportSummaryDto
+        return rows.Select(r => new VendorIntelReportSummaryDto
         {
             Id = r.Id,
-            CustomerId = r.CustomerId,
+            VendorId = r.VendorId,
             CompanyName = r.CompanyName,
             CreditCode = r.CreditCode,
             Source = r.Source,

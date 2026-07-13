@@ -811,6 +811,7 @@ import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick';
 import { useFinancePaymentBankOptions } from '@/composables/useFinancePaymentBankOptions';
 import { vendorBankLabel } from '@/utils/vendorFinancePaymentBank';
 import AiEntityCreateHost from '@/components/AiCreate/AiEntityCreateHost.vue';
+import { useVendorIntelLookupStore } from '@/stores/vendorIntelLookup';
 import { AI_PERMISSION_ENTITY_PARSE_VENDOR_CONTACT, AI_PERMISSION_ENTITY_PARSE_VENDOR_ADDRESS } from '@/api/ai';
 import { useAuthStore } from '@/stores/auth';
 
@@ -832,6 +833,7 @@ const vendorId = route.params.id as string;
 const canonicalVendorId = computed(() => vendor.value?.id ?? (route.params.id as string));
 const loading = ref(false);
 const vendor = ref<Vendor | null>(null);
+const vendorIntelLookupStore = useVendorIntelLookupStore();
 
 const vendorHeaderTitle = computed(() => {
   if (!vendor.value) return t('vendorDetail.titleFallback');
@@ -1083,6 +1085,17 @@ const fetchVendor = async () => {
   loading.value = true;
   try {
     vendor.value = await vendorApi.getVendorById(vendorId);
+    if (vendor.value) {
+      vendorIntelLookupStore.bindContext({
+        vendorId: vendor.value.id,
+        companyName: (vendor.value.officialName || vendor.value.name || vendor.value.code || '').trim(),
+        creditCode: vendor.value.creditCode || null,
+        region: null,
+        purchaserName: vendor.value.purchaseUserName || vendor.value.purchaserName || null,
+        blackList: !!vendor.value.blackList,
+        isDisenable: !!vendor.value.isDisenable
+      });
+    }
     await refreshFavoriteStatus();
     trackRecentDetail();
     void fetchDocumentCount();

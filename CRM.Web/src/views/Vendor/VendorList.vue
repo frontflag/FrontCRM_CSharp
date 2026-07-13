@@ -164,6 +164,8 @@
         :show-column-settings="false"
         :data="vendorList"
         row-key="id"
+        :row-class-name="vendorListRowClassName"
+        @row-click="onVendorRowClick"
         @row-dblclick="onVendorRowDblClick"
       >
         <template #col-status="{ row }">
@@ -345,7 +347,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, watch, nextTick, computed } from 'vue';
+import { ref, reactive, onMounted, watch, nextTick, computed, inject } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -366,11 +368,15 @@ import { AI_PERMISSION_ENTITY_PARSE_VENDOR, AI_PERMISSION_ENTITY_PARSE_VENDOR_BU
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import { parseVendorListQuery, buildVendorListQuery } from '@/utils/vendorListQuery';
 import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick';
+import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
+import { useVendorIntelLookupStore } from '@/stores/vendorIntelLookup'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const route = useRoute();
 const router = useRouter();
 const { t } = useI18n()
+const workspaceLayout = inject(WorkspaceLayoutKey, null)
+const vendorIntelLookupStore = useVendorIntelLookupStore()
 
 function isPartyStatusMuted(v: Vendor) {
   return !!(v.isDisenable || v.blackList);
@@ -607,6 +613,7 @@ const fetchVendorList = async () => {
     }));
     vendorList.value = mapped;
     totalCount.value = response.totalCount ?? response.total ?? 0;
+    tryRestoreIntelSelection();
   } catch (error: any) {
     // 仅在 404 时按“空结果”兜底；其余错误（如 401/403/500）应明确提示
     const httpStatus = error?.httpStatus ?? error?.response?.status;
@@ -624,6 +631,43 @@ const fetchVendorList = async () => {
 };
 
 const handleCreate = () => router.push('/vendors/create');
+
+function buildVendorIntelContext(row: Vendor) {
+  return {
+    vendorId: row.id,
+    companyName: (row.officialName || row.name || row.code || '').trim(),
+    creditCode: row.creditCode || null,
+    region: null,
+    purchaserName: row.purchaseUserName || row.purchaserName || null,
+    blackList: !!row.blackList,
+    isDisenable: !!row.isDisenable
+  }
+}
+
+function vendorListRowClassName({ row }: { row: Vendor }) {
+  const parts = ['table-row-pointer']
+  const id = String(row.id ?? '')
+  if (id && vendorIntelLookupStore.boundVendorId === id) {
+    parts.push('crm-list-row--clicked')
+  }
+  return parts.join(' ')
+}
+
+function onVendorRowClick(row: Vendor) {
+  vendorIntelLookupStore.bindContext(buildVendorIntelContext(row))
+  workspaceLayout?.setRightActiveTab('r-vendor-intel')
+  if (!workspaceLayout?.rightPanelVisible.value) {
+    workspaceLayout?.toggleRightPanel(true)
+  }
+}
+
+function tryRestoreIntelSelection() {
+  const savedId = vendorIntelLookupStore.readSessionSelectedId()
+  if (!savedId) return
+  const row = vendorList.value.find((v) => v.id === savedId)
+  if (!row) return
+  vendorIntelLookupStore.bindContext(buildVendorIntelContext(row))
+}
 
 function onCreateDropdownCommand(cmd: string) {
   if (cmd === 'aiCreate') aiCreateHostRef.value?.open();

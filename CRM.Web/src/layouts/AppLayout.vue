@@ -1245,6 +1245,10 @@
             v-show="showCustomerIntelPanel"
             class="aux-panel-tab-body"
           />
+          <VendorIntelPanel
+            v-show="showVendorIntelPanel"
+            class="aux-panel-tab-body"
+          />
           <HelpManualPanel v-show="rightActiveTabId === 'r4'" class="aux-panel-tab-body" />
         </div>
       </aside>
@@ -1288,11 +1292,13 @@ import HelpManualPanel from '@/components/workspace/HelpManualPanel.vue'
 import SalesOrderItemOpsPanel from '@/components/RFQ/SalesOrderItemOpsPanel.vue'
 import RfqItemMaterialPanel from '@/components/RFQ/RfqItemMaterialPanel.vue'
 import CustomerIntelPanel from '@/components/Customer/CustomerIntelPanel.vue'
+import VendorIntelPanel from '@/components/Vendor/VendorIntelPanel.vue'
 import PurchaseOrderItemOpsPanel from '@/components/RFQ/PurchaseOrderItemOpsPanel.vue'
 import CustomsDeclarationOpsPanel from '@/components/Customs/CustomsDeclarationOpsPanel.vue'
 import { useSalesOrderItemOpsPanelStore } from '@/stores/salesOrderItemOpsPanel'
 import { useMaterialIntelLookupStore } from '@/stores/materialIntelLookup'
 import { useCustomerIntelLookupStore } from '@/stores/customerIntelLookup'
+import { useVendorIntelLookupStore } from '@/stores/vendorIntelLookup'
 import { usePurchaseOrderItemOpsPanelStore } from '@/stores/purchaseOrderItemOpsPanel'
 import { useCustomsDeclarationOpsPanelStore } from '@/stores/customsDeclarationOpsPanel'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
@@ -1322,6 +1328,7 @@ const { t, locale } = useI18n()
 const salesOrderItemOpsStore = useSalesOrderItemOpsPanelStore()
 const materialIntelLookupStore = useMaterialIntelLookupStore()
 const customerIntelLookupStore = useCustomerIntelLookupStore()
+const vendorIntelLookupStore = useVendorIntelLookupStore()
 const purchaseOrderItemOpsStore = usePurchaseOrderItemOpsPanelStore()
 const customsDeclarationOpsStore = useCustomsDeclarationOpsPanelStore()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
@@ -1594,6 +1601,14 @@ const showCustomerIntelPanel = computed(
   () => rightActiveTabId.value === 'r-customer-intel' && isCustomerIntelRoute.value
 )
 
+const isVendorIntelRoute = computed(
+  () => route.name === 'VendorList' || route.name === 'VendorDetail'
+)
+
+const showVendorIntelPanel = computed(
+  () => rightActiveTabId.value === 'r-vendor-intel' && isVendorIntelRoute.value
+)
+
 const canPurchaseOrderItemOpsArrival = computed(() => authStore.hasPermission('purchase-order.read'))
 
 const canPurchaseOrderItemOpsPayment = computed(
@@ -1633,6 +1648,7 @@ watch(
       salesOrderItemOpsStore.clear()
       purchaseOrderItemOpsStore.clear()
       customerIntelLookupStore.clearBound()
+      vendorIntelLookupStore.clearBound()
       return
     }
     if (name === 'CustomerList' || name === 'CustomerDetail') {
@@ -1644,8 +1660,24 @@ watch(
       purchaseOrderItemOpsStore.clear()
       customsDeclarationOpsStore.clear()
       materialIntelLookupStore.clearBound()
+      vendorIntelLookupStore.clearBound()
       if (rightActiveTabId.value !== 'r-customer-intel' && rightActiveTabId.value !== 'r4') {
         rightActiveTabId.value = 'r-customer-intel'
+      }
+      return
+    }
+    if (name === 'VendorList' || name === 'VendorDetail') {
+      rightTabs.value = [
+        { id: 'r-vendor-intel', labelKey: 'layout.auxTabs.vendorIntel' },
+        { id: 'r4', labelKey: 'layout.auxTabs.help' }
+      ]
+      salesOrderItemOpsStore.clear()
+      purchaseOrderItemOpsStore.clear()
+      customsDeclarationOpsStore.clear()
+      materialIntelLookupStore.clearBound()
+      customerIntelLookupStore.clearBound()
+      if (rightActiveTabId.value !== 'r-vendor-intel' && rightActiveTabId.value !== 'r4') {
+        rightActiveTabId.value = 'r-vendor-intel'
       }
       return
     }
@@ -1656,6 +1688,7 @@ watch(
     customsDeclarationOpsStore.clear()
     materialIntelLookupStore.clearBound()
     customerIntelLookupStore.clearBound()
+    vendorIntelLookupStore.clearBound()
   },
   { immediate: true }
 )

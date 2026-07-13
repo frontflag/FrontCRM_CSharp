@@ -443,14 +443,18 @@ registry → ownership → business → scale → certifications → timeline �
 ```
 CustomerList 单击
     → bindContext(CustomerIntelCrmContext)
-    → loadLatest() + loadHistory()   // watch customerId
-    → CustomerIntelPanel 渲染
+    → loadLatest(customerId) + loadHistory()   // watch boundCustomerId
+    → CustomerIntelPanel 渲染（仅展示当前客户槽位 bound* 状态）
 
 用户点击「发起调查」
-    → store.investigate({ force })
-    → POST /api/v1/customer-intel-reports/investigate
-    → currentReport 更新 → CustomerIntelResultPanel :data="reportData"
+    → store.investigate({ force })   // 快照 context，按 customerId 写入 slotByCustomerId
+    → POST /api/v1/customer-intel-reports/investigate（后台可继续，切换行不取消）
+    → boundCurrentReport 更新 → CustomerIntelResultPanel :data="reportData"
+```
 
+**右栏切换行（对齐需求明细「物料」页签）：** `customerIntelLookup` 按 `customerId` 分槽（`slotByCustomerId`、`investigatingCustomerIds`、`inFlightInvestigate`）。客户 A 调查中切换到 B 时，右栏展示 B 的状态并可对 B「发起调查」；A 的请求在后台完成后写入 A 的槽位。
+
+```
 CustomerIntelResultPanel
     → extractCustomerIntelSections(data)  // 按 relations.section_order 或 13 章默认序排序
     → 每章 section.summary + CustomerIntelSectionContent(section.content)

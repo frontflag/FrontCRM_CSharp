@@ -330,6 +330,7 @@ Key 与端点必须匹配：国内平台申请的 Key 不能用于 `.ai` 端点�
 | AI 物料情报对照 | `/debug/material-intel` | `sysAdminOnly` |
 | RFQ 首页 AI 查询 | `/rfq`（或需求管理首页） | `biz.ai.material_intel.lookup` |
 | 客户首页 AI 调查 | `/custome`（客户管理首页） | `biz.ai.customer_intel.lookup` |
+| 供应商首页 AI 调查 | `/vendor`（供应商管理首页） | `biz.ai.vendor_intel.lookup` |
 
 菜单项在 `AppLayout.vue`；i18n 键 `aiConfig.*`、`layout.menu.aiConfig`。
 
@@ -359,6 +360,19 @@ Key 与端点必须匹配：国内平台申请的 Key 不能用于 `.ai` 端点�
 业务入口含 **客户首页 `/custome` AI 调查** 与 **客户列表/详情右栏「调查」**；13 章契约、缓存策略、双入口状态隔离见专用文档：
 
 **[AI客户情报调查-设计与实现](./AI客户情报调查-设计与实现.md)**（§7.6 客户首页实现细则）
+
+### 8.6 供应商情报调查（`vendor.intel.lookup`）
+
+业务入口含 **供应商首页 `/vendor` AI 调查** 与 **供应商列表/详情右栏「调查」**；镜像客户 13 章契约；独立场景/表；**双向跨主体缓存**；右栏 `vendorIntelLookup` **按 vendorId 分槽**（切换行不取消进行中调查，对齐物料页签）：
+
+| 页面 | 路由 | 权限 |
+|------|------|------|
+| 供应商首页 AI 调查 | `/vendor` | `biz.ai.vendor_intel.lookup` |
+| 供应商列表/详情右栏 | `VendorList` / `VendorDetail` | 同上 |
+
+专用文档：**[AI供应商情报调查-设计与实现](./AI供应商情报调查-设计与实现.md)**
+
+部署脚本：`scripts/ai_vendor_intel_lookup_postgresql.sql`；Migration：`20260731200000_VendorIntelReportAndScenario`。
 
 ---
 

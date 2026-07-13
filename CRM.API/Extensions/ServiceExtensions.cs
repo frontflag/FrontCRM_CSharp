@@ -39,6 +39,7 @@ namespace CRM.API.Extensions
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<ICustomerService, CustomerService>();
             services.AddScoped<ICustomerIntelReportService, CustomerIntelReportService>();
+            services.AddScoped<IVendorIntelReportService, VendorIntelReportService>();
             services.AddScoped<IEntityLookupService, EntityLookupService>();
             services.AddScoped<IRFQService, RFQService>();
             services.AddScoped<IRfqPurchaserRoundRobinCursorStore, RfqPurchaserRoundRobinCursorStore>();

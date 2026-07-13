@@ -303,12 +303,15 @@ public sealed class MockAiLlmProvider : IAiLlmProvider
             });
         }
 
-        if (systemMsg.Contains("客户情报", StringComparison.Ordinal))
+        if (systemMsg.Contains("客户情报", StringComparison.Ordinal)
+            || systemMsg.Contains("供应商情报", StringComparison.Ordinal))
         {
             var company = ExtractBetween(userMsg, "企业名称", "；")
                           ?? ExtractBetween(userMsg, "企业名称", ";")
                           ?? ExtractBetween(userMsg, "company_name", "；")
-                          ?? "Mock 客户有限公司";
+                          ?? (systemMsg.Contains("供应商情报", StringComparison.Ordinal)
+                              ? "Mock 供应商有限公司"
+                              : "Mock 客户有限公司");
             company = company.Trim().TrimStart('：', ':').Trim();
             var json = BuildMockCustomerIntelJson(company);
             return Task.FromResult(new AiChatCompletionResult

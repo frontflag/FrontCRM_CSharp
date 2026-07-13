@@ -11,6 +11,7 @@ public static class AiScenarioCodes
     public const string MaterialSpecLookup = "material.spec.lookup";
     public const string MaterialIntelLookup = "material.intel.lookup";
     public const string CustomerIntelLookup = "customer.intel.lookup";
+    public const string VendorIntelLookup = "vendor.intel.lookup";
 }
 
 public static class AiPermissionCodes
@@ -19,6 +20,7 @@ public static class AiPermissionCodes
     public const string MaterialSpecLookup = "biz.ai.material_spec.lookup";
     public const string MaterialIntelLookup = "biz.ai.material_intel.lookup";
     public const string CustomerIntelLookup = "biz.ai.customer_intel.lookup";
+    public const string VendorIntelLookup = "biz.ai.vendor_intel.lookup";
 }
 
 public static class AiOutputFormatCode

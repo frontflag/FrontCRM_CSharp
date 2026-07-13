@@ -20,6 +20,7 @@ namespace CRM.API.Controllers
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IRepository<PurchaseOrder> _purchaseOrderRepository;
         private readonly IRbacService _rbacService;
+        private readonly IVendorIntelReportService _vendorIntelReportService;
         private readonly ILogger<VendorsController> _logger;
 
         public VendorsController(
@@ -28,6 +29,7 @@ namespace CRM.API.Controllers
             IDataPermissionService dataPermissionService,
             IRepository<PurchaseOrder> purchaseOrderRepository,
             IRbacService rbacService,
+            IVendorIntelReportService vendorIntelReportService,
             ILogger<VendorsController> logger)
         {
             _vendorService = vendorService;
@@ -35,6 +37,7 @@ namespace CRM.API.Controllers
             _dataPermissionService = dataPermissionService;
             _purchaseOrderRepository = purchaseOrderRepository;
             _rbacService = rbacService;
+            _vendorIntelReportService = vendorIntelReportService;
             _logger = logger;
         }
 
@@ -1021,6 +1024,26 @@ namespace CRM.API.Controllers
                 _logger.LogError(ex, "设置供应商默认地址失败");
                 return StatusCode(500, ApiResponse<object>.Fail($"设置供应商默认地址失败: {ex.Message}", 500));
             }
+        }
+
+        // ===== 供应商 AI 情报报告 =====
+        [HttpGet("{id}/intel-reports/latest")]
+        [RequirePermission("biz.ai.vendor_intel.lookup")]
+        public async Task<ActionResult<ApiResponse<VendorIntelReportDetailDto>>> GetLatestIntelReport(string id, CancellationToken ct)
+        {
+            var result = await _vendorIntelReportService.GetLatestByVendorIdAsync(id, ct);
+            return Ok(ApiResponse<VendorIntelReportDetailDto>.Ok(result!, result == null ? "暂无报告" : "ok"));
+        }
+
+        [HttpGet("{id}/intel-reports")]
+        [RequirePermission("biz.ai.vendor_intel.lookup")]
+        public async Task<ActionResult<ApiResponse<IReadOnlyList<VendorIntelReportSummaryDto>>>> ListIntelReports(
+            string id,
+            [FromQuery] int take = 20,
+            CancellationToken ct = default)
+        {
+            var list = await _vendorIntelReportService.ListByVendorIdAsync(id, take, ct);
+            return Ok(ApiResponse<IReadOnlyList<VendorIntelReportSummaryDto>>.Ok(list, "ok"));
         }
     }
 }

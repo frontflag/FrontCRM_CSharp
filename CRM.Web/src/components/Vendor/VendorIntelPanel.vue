@@ -1,15 +1,15 @@
 <template>
-  <div class="customer-intel-side-panel">
-    <p v-if="!canInvestigate" class="customer-intel-side-panel__hint">
-      {{ t('customerIntel.noPermission') }}
+  <div class="vendor-intel-side-panel">
+    <p v-if="!canInvestigate" class="vendor-intel-side-panel__hint">
+      {{ t('vendorIntel.noPermission') }}
     </p>
-    <p v-else-if="!boundContext" class="customer-intel-side-panel__hint">
-      {{ t('customerIntel.selectCustomerHint') }}
+    <p v-else-if="!boundContext" class="vendor-intel-side-panel__hint">
+      {{ t('vendorIntel.selectVendorHint') }}
     </p>
     <template v-else>
-      <CustomerIntelCrmContextBar :context="boundContext" />
+      <VendorIntelCrmContextBar :context="boundContext" />
 
-      <div class="customer-intel-side-panel__toolbar">
+      <div class="vendor-intel-side-panel__toolbar">
         <el-button
           type="primary"
           size="small"
@@ -17,7 +17,7 @@
           :disabled="boundLoadingLatest"
           @click="onInvestigate(false)"
         >
-          {{ hasReport ? t('customerIntel.reinvestigate') : t('customerIntel.investigate') }}
+          {{ hasReport ? t('vendorIntel.reinvestigate') : t('vendorIntel.investigate') }}
         </el-button>
         <el-button
           v-if="hasReport"
@@ -25,16 +25,16 @@
           :loading="boundInvestigating"
           @click="onInvestigate(true)"
         >
-          {{ t('customerIntel.forceRefresh') }}
+          {{ t('vendorIntel.forceRefresh') }}
         </el-button>
       </div>
 
-      <div v-if="boundHistoryReports.length > 1" class="customer-intel-side-panel__history">
-        <span class="customer-intel-side-panel__history-label">{{ t('customerIntel.history') }}</span>
+      <div v-if="boundHistoryReports.length > 1" class="vendor-intel-side-panel__history">
+        <span class="vendor-intel-side-panel__history-label">{{ t('vendorIntel.history') }}</span>
         <el-select
           :model-value="boundCurrentReport?.id ?? ''"
           size="small"
-          class="customer-intel-side-panel__history-select"
+          class="vendor-intel-side-panel__history-select"
           @change="onHistoryChange"
         >
           <el-option
@@ -46,29 +46,30 @@
         </el-select>
       </div>
 
-      <div v-if="boundInvestigating" class="customer-intel-side-panel__loading">
+      <div v-if="boundInvestigating" class="vendor-intel-side-panel__loading">
         <el-icon class="is-loading"><Loading /></el-icon>
-        <span>{{ t('customerIntel.loading', { seconds: loadingSeconds }) }}</span>
+        <span>{{ t('vendorIntel.loading', { seconds: loadingSeconds }) }}</span>
       </div>
 
-      <div v-else-if="boundLoadError" class="customer-intel-side-panel__error">
+      <div v-else-if="boundLoadError" class="vendor-intel-side-panel__error">
         <p>{{ boundLoadError }}</p>
-        <el-button size="small" type="primary" @click="onInvestigate(false)">{{ t('customerIntel.retry') }}</el-button>
+        <el-button size="small" type="primary" @click="onInvestigate(false)">{{ t('vendorIntel.retry') }}</el-button>
       </div>
 
-      <div v-else-if="boundLoadingLatest" class="customer-intel-side-panel__loading">
+      <div v-else-if="boundLoadingLatest" class="vendor-intel-side-panel__loading">
         <el-icon class="is-loading"><Loading /></el-icon>
-        <span>{{ t('customerIntel.loadingLatest') }}</span>
+        <span>{{ t('vendorIntel.loadingLatest') }}</span>
       </div>
 
-      <p v-else-if="!hasReport" class="customer-intel-side-panel__hint">
-        {{ t('customerIntel.emptyReport') }}
+      <p v-else-if="!hasReport" class="vendor-intel-side-panel__hint">
+        {{ t('vendorIntel.emptyReport') }}
       </p>
 
       <CustomerIntelResultPanel
         v-else
         :data="reportData"
         :from-cache="!!boundCurrentReport?.fromCache"
+        i18n-key-prefix="vendorIntel"
         layout="embedded"
       />
     </template>
@@ -82,18 +83,18 @@ import { storeToRefs } from 'pinia'
 import { ElMessageBox } from 'element-plus'
 import { Loading } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
-import { AI_PERMISSION_CUSTOMER_INTEL_LOOKUP } from '@/api/ai'
-import { useCustomerIntelLookupStore } from '@/stores/customerIntelLookup'
-import type { CustomerIntelReportSummary } from '@/api/customerIntel'
-import CustomerIntelCrmContextBar from '@/components/Customer/CustomerIntelCrmContextBar.vue'
+import { AI_PERMISSION_VENDOR_INTEL_LOOKUP } from '@/api/ai'
+import { useVendorIntelLookupStore } from '@/stores/vendorIntelLookup'
+import type { VendorIntelReportSummary } from '@/api/vendorIntel'
+import VendorIntelCrmContextBar from '@/components/Vendor/VendorIntelCrmContextBar.vue'
 import CustomerIntelResultPanel from '@/components/Customer/CustomerIntelResultPanel.vue'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
-const store = useCustomerIntelLookupStore()
+const store = useVendorIntelLookupStore()
 const {
   boundContext,
-  boundCustomerId,
+  boundVendorId,
   boundCurrentReport,
   boundHistoryReports,
   boundLoadError,
@@ -101,7 +102,7 @@ const {
   boundLoadingLatest
 } = storeToRefs(store)
 
-const canInvestigate = computed(() => authStore.hasPermission(AI_PERMISSION_CUSTOMER_INTEL_LOOKUP))
+const canInvestigate = computed(() => authStore.hasPermission(AI_PERMISSION_VENDOR_INTEL_LOOKUP))
 
 const reportData = computed(() => {
   const report = boundCurrentReport.value?.report
@@ -124,7 +125,7 @@ function stopLoadingTimer() {
 }
 
 function syncLoadingSeconds() {
-  const id = boundCustomerId.value
+  const id = boundVendorId.value
   if (!id || !boundInvestigating.value) {
     loadingSeconds.value = 0
     stopLoadingTimer()
@@ -133,21 +134,21 @@ function syncLoadingSeconds() {
   loadingSeconds.value = store.getInvestigateElapsedSeconds(id)
   if (!loadingTimer) {
     loadingTimer = setInterval(() => {
-      const cid = boundCustomerId.value
-      if (!cid || !store.isCustomerInvestigating(cid)) {
+      const vid = boundVendorId.value
+      if (!vid || !store.isVendorInvestigating(vid)) {
         stopLoadingTimer()
         return
       }
-      loadingSeconds.value = store.getInvestigateElapsedSeconds(cid)
+      loadingSeconds.value = store.getInvestigateElapsedSeconds(vid)
     }, 1000)
   }
 }
 
-watch([boundCustomerId, boundInvestigating], syncLoadingSeconds, { immediate: true })
+watch([boundVendorId, boundInvestigating], syncLoadingSeconds, { immediate: true })
 onBeforeUnmount(() => stopLoadingTimer())
 
 watch(
-  boundCustomerId,
+  boundVendorId,
   (id) => {
     if (!id || !canInvestigate.value) return
     void store.loadLatest(id)
@@ -156,7 +157,7 @@ watch(
   { immediate: true }
 )
 
-function formatHistoryLabel(item: CustomerIntelReportSummary): string {
+function formatHistoryLabel(item: VendorIntelReportSummary): string {
   const dt = item.createdAt ? new Date(item.createdAt) : null
   const time = dt && !Number.isNaN(dt.getTime()) ? dt.toLocaleString() : item.createdAt
   const who = item.createdByUserName || item.createdBy || ''
@@ -167,10 +168,10 @@ async function onInvestigate(force: boolean) {
   if (!boundContext.value) return
   if (force && boundCurrentReport.value) {
     try {
-      await ElMessageBox.confirm(t('customerIntel.forceRefreshConfirm'), t('customerIntel.forceRefresh'), {
+      await ElMessageBox.confirm(t('vendorIntel.forceRefreshConfirm'), t('vendorIntel.forceRefresh'), {
         type: 'warning',
-        confirmButtonText: t('customerIntel.confirm'),
-        cancelButtonText: t('customerIntel.cancel')
+        confirmButtonText: t('vendorIntel.confirm'),
+        cancelButtonText: t('vendorIntel.cancel')
       })
     } catch {
       return
@@ -187,7 +188,7 @@ function onHistoryChange(reportId: string) {
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
 
-.customer-intel-side-panel {
+.vendor-intel-side-panel {
   height: 100%;
   min-height: 0;
   overflow: auto;

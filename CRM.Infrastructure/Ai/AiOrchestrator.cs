@@ -125,6 +125,12 @@ public sealed class AiOrchestrator : IAiOrchestrator
             userPrompt = userPrompt.TrimEnd()
                 + "\n请使用简体中文输出所有描述性内容。禁止编造司法风险数量、行政处罚或联系方式；查不到填 null 或空数组并标注 confidence: low。";
         }
+        else if (string.Equals(scenario.Code, AiScenarioCodes.VendorIntelLookup, StringComparison.OrdinalIgnoreCase))
+        {
+            systemPrompt = AppendVendorIntelLanguageGuard(systemPrompt);
+            userPrompt = userPrompt.TrimEnd()
+                + "\n请使用简体中文输出所有描述性内容。从采购与供应链视角评估供应商资质、交付与合规；禁止编造司法风险数量、行政处罚或联系方式；查不到填 null 或空数组并标注 confidence: low。";
+        }
         var messages = new List<AiChatMessageDto>
         {
             new() { Role = "system", Content = systemPrompt }
@@ -303,6 +309,14 @@ public sealed class AiOrchestrator : IAiOrchestrator
     {
         const string guard = "【强制语言】客户情报报告所有描述性字段必须使用简体中文；JSON 键名保持英文 snake_case；sections[].id 必须使用约定英文 id。";
         if (systemPrompt.Contains("【客户情报强制语言】", StringComparison.Ordinal))
+            return systemPrompt;
+        return systemPrompt.TrimEnd() + "\n\n" + guard;
+    }
+
+    private static string AppendVendorIntelLanguageGuard(string systemPrompt)
+    {
+        const string guard = "【强制语言】供应商情报报告所有描述性字段必须使用简体中文；JSON 键名保持英文 snake_case；sections[].id 必须使用约定英文 id。";
+        if (systemPrompt.Contains("【供应商情报强制语言】", StringComparison.Ordinal))
             return systemPrompt;
         return systemPrompt.TrimEnd() + "\n\n" + guard;
     }

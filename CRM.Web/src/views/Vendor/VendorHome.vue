@@ -26,12 +26,33 @@
                   class="vendor-home__pill-input"
                   :placeholder="canViewVendorInfo ? t('vendorHome.searchPlaceholderFull') : t('vendorHome.searchPlaceholderCode')"
                   autocomplete="off"
-                  @keyup.enter="handleSearch"
+                  @keyup.enter="onSearchEnter"
                 />
               </div>
-              <button type="button" class="vendor-home__pill-btn" @click="handleSearch">{{ t('vendorHome.search') }}</button>
+              <el-tooltip
+                :disabled="canAiIntelLookup"
+                :content="t('vendorHome.aiSearchNoPermission')"
+                placement="bottom"
+              >
+                <span class="vendor-home__pill-btn-wrap">
+                  <button
+                    type="button"
+                    class="vendor-home__pill-btn"
+                    :disabled="!canAiIntelLookup || aiLoading"
+                    @click="handleAiSearch"
+                  >
+                    {{ t('vendorHome.aiSearch') }}
+                  </button>
+                </span>
+              </el-tooltip>
+              <button type="button" class="vendor-home__pill-btn vendor-home__pill-btn--secondary" @click="handleSearch">
+                {{ t('vendorHome.searchVendors') }}
+              </button>
               <button type="button" class="vendor-home__pill-link" @click="goListPlain">{{ t('vendorHome.goList') }}</button>
             </div>
+            <p v-if="canAiIntelLookup" class="vendor-home__ai-hint">
+              {{ t('vendorHome.aiSearchHint') }}
+            </p>
           </div>
         </div>
         <template v-if="canCreateVendor">
@@ -61,6 +82,21 @@
         </template>
       </div>
     </div>
+
+    <div v-if="aiLoading" class="vendor-home__ai-loading">
+      <el-icon class="is-loading vendor-home__ai-loading-icon"><Loading /></el-icon>
+      <span>{{ t('vendorHome.aiLoading', { seconds: aiLoadingSeconds }) }}</span>
+    </div>
+
+    <CustomerIntelResultPanel
+      v-if="aiResultData"
+      :data="aiResultData"
+      :from-cache="aiFromCache"
+      i18n-key-prefix="vendorIntel"
+      layout="centered"
+      show-close
+      @close="clearAiResult"
+    />
 
     <div v-if="loadingStats" class="vendor-home__loading">{{ t('vendorHome.loading') }}</div>
 
@@ -205,17 +241,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { ElMessage } from 'element-plus'
+import { Loading } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { vendorApi } from '@/api/vendor'
-import { AI_PERMISSION_ENTITY_PARSE_VENDOR, AI_PERMISSION_ENTITY_PARSE_VENDOR_BUSINESS_CARD } from '@/api/ai'
+import { vendorIntelApi } from '@/api/vendorIntel'
+import { AI_PERMISSION_ENTITY_PARSE_VENDOR, AI_PERMISSION_ENTITY_PARSE_VENDOR_BUSINESS_CARD, AI_PERMISSION_VENDOR_INTEL_LOOKUP } from '@/api/ai'
 import VendorImportDialog from '@/components/Vendor/VendorImportDialog.vue'
+import CustomerIntelResultPanel from '@/components/Customer/CustomerIntelResultPanel.vue'
 import AiEntityCreateHost from '@/components/AiCreate/AiEntityCreateHost.vue'
 import AiBusinessCardCreateHost from '@/components/AiCreate/AiBusinessCardCreateHost.vue'
 import { buildVendorListQuery } from '@/utils/vendorListQuery'
+import { getApiErrorMessage } from '@/utils/apiError'
 import type { VendorStatistics } from '@/types/vendor'
 
 const router = useRouter()
@@ -228,6 +269,7 @@ const canAiParseVendor = computed(() => authStore.hasPermission(AI_PERMISSION_EN
 const canAiParseVendorBusinessCard = computed(() =>
   authStore.hasPermission(AI_PERMISSION_ENTITY_PARSE_VENDOR_BUSINESS_CARD)
 )
+const canAiIntelLookup = computed(() => authStore.hasPermission(AI_PERMISSION_VENDOR_INTEL_LOOKUP))
 const importDialogVisible = ref(false)
 const aiCreateHostRef = ref<InstanceType<typeof AiEntityCreateHost> | null>(null)
 const businessCardHostRef = ref<InstanceType<typeof AiBusinessCardCreateHost> | null>(null)
@@ -235,6 +277,11 @@ const businessCardHostRef = ref<InstanceType<typeof AiBusinessCardCreateHost> | 
 const keyword = ref('')
 const stats = ref<VendorStatistics | null>(null)
 const loadingStats = ref(false)
+const aiLoading = ref(false)
+const aiLoadingSeconds = ref(0)
+const aiResultData = ref<Record<string, unknown> | null>(null)
+const aiFromCache = ref(false)
+let aiLoadingTimer: ReturnType<typeof setInterval> | null = null
 
 const moneyFmt = new Intl.NumberFormat('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const intFmt = new Intl.NumberFormat('zh-CN')
@@ -253,6 +300,64 @@ function handleSearch() {
     favoriteOnly: false
   })
   router.push({ name: 'VendorList', query: q })
+}
+
+function startAiLoadingTimer() {
+  aiLoadingSeconds.value = 0
+  stopAiLoadingTimer()
+  aiLoadingTimer = setInterval(() => {
+    aiLoadingSeconds.value += 1
+  }, 1000)
+}
+
+function stopAiLoadingTimer() {
+  if (aiLoadingTimer != null) {
+    clearInterval(aiLoadingTimer)
+    aiLoadingTimer = null
+  }
+}
+
+async function handleAiSearch() {
+  const companyName = keyword.value.trim()
+  if (!companyName) {
+    ElMessage.warning(t('vendorHome.aiSearchNeedCompany'))
+    return
+  }
+  if (!canAiIntelLookup.value) return
+
+  aiLoading.value = true
+  startAiLoadingTimer()
+  try {
+    const result = await vendorIntelApi.investigate({
+      companyName,
+      vendorId: null,
+      forceRefresh: false
+    })
+    const report = result.report?.report
+    if (report && typeof report === 'object' && !Array.isArray(report) && Object.keys(report).length > 0) {
+      aiResultData.value = report as Record<string, unknown>
+      aiFromCache.value = !!result.fromCache
+    } else {
+      aiResultData.value = null
+      ElMessage.warning(t('vendorHome.aiSearchEmpty'))
+    }
+  } catch (e: unknown) {
+    aiResultData.value = null
+    ElMessage.error(getApiErrorMessage(e, t('vendorHome.aiSearchFailed')))
+  } finally {
+    aiLoading.value = false
+    stopAiLoadingTimer()
+  }
+}
+
+function clearAiResult() {
+  aiResultData.value = null
+  aiFromCache.value = false
+}
+
+function onSearchEnter() {
+  if (canAiIntelLookup.value) void handleAiSearch()
+  else handleSearch()
 }
 
 function goListPlain() {
@@ -282,6 +387,10 @@ async function loadStats() {
 
 onMounted(() => {
   void loadStats()
+})
+
+onBeforeUnmount(() => {
+  stopAiLoadingTimer()
 })
 </script>
 
@@ -326,6 +435,21 @@ onMounted(() => {
   width: 100%;
   max-width: calc(100% * 2 / 3);
   min-width: 0;
+}
+
+.vendor-home__ai-hint {
+  margin: 10px 0 0;
+  padding: 0 16px;
+  font-size: 12px;
+  line-height: 1.65;
+  color: $text-muted;
+  text-align: left;
+  white-space: pre-line;
+}
+
+.vendor-home__pill-btn-wrap {
+  display: inline-flex;
+  flex-shrink: 0;
 }
 
 .vendor-home__pill {
@@ -387,13 +511,49 @@ onMounted(() => {
   box-shadow: var(--crm-shadow-glow);
   transition: filter 0.15s ease, transform 0.15s ease;
 
-  &:hover {
+  &:hover:not(:disabled) {
     filter: brightness(1.06);
   }
 
-  &:active {
+  &:active:not(:disabled) {
     transform: scale(0.98);
   }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  &--secondary {
+    color: $text-primary;
+    background: $layer-3;
+    border: 1px solid $border-panel;
+    box-shadow: none;
+
+    &:hover {
+      filter: none;
+      border-color: var(--crm-accent-018);
+      background: var(--crm-accent-008);
+    }
+  }
+}
+
+.vendor-home__ai-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: -64px auto 48px;
+  max-width: calc(100% * 2 / 3);
+  padding: 16px;
+  font-size: 14px;
+  color: $text-secondary;
+}
+
+.vendor-home__ai-loading-icon {
+  font-size: 20px;
+  color: $cyan-primary;
 }
 
 .vendor-home__pill-link {
