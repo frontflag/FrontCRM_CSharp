@@ -153,7 +153,8 @@ namespace CRM.IntegrationTests
                 quoteListQuery,
                 quoteRbacService,
                 NullLogger<QuoteService>.Instance,
-                Substitute.For<ILogOperationAppendService>());
+                Substitute.For<ILogOperationAppendService>(),
+                Substitute.For<CRM.Core.Interfaces.IPurchaseQuoterPoolService>());
             _financeExchangeRateService = Substitute.For<IFinanceExchangeRateService>();
             _financeExchangeRateService.GetCurrentAsync(default).ReturnsForAnyArgs(new FinanceExchangeRateDto
             {

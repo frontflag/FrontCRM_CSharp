@@ -81,7 +81,8 @@ namespace CRM.Core.Tests.Services
                 _quoteListQuery,
                 rbacService,
                 NullLogger<QuoteService>.Instance,
-                Substitute.For<ILogOperationAppendService>());
+                Substitute.For<ILogOperationAppendService>(),
+                Substitute.For<IPurchaseQuoterPoolService>());
         }
 
         private static CreateQuoteRequest BuildValidCreateRequest() => new()

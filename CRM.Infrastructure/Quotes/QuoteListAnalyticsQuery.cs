@@ -351,7 +351,7 @@ public sealed partial class QuoteListQuery
         CancellationToken cancellationToken)
     {
         var demandQuery = await QuoteListFilter.BuildParallelDemandQueryAsync(
-            _db, _rbacService, _dataPermission, request, cancellationToken);
+            _db, _rbacService, _dataPermission, _purchaseQuoterPoolService, request, cancellationToken);
         var demandRows = await demandQuery
             .Select(x => new QuoteDemandAnalyticsRow
             {

@@ -13,6 +13,7 @@ internal static class RfqItemListFilter
         ApplicationDbContext db,
         IRbacService rbacService,
         IDataPermissionService dataPermission,
+        IPurchaseQuoterPoolService purchaseQuoterPoolService,
         RFQItemQueryRequest request,
         CancellationToken cancellationToken)
     {
@@ -43,6 +44,12 @@ internal static class RfqItemListFilter
                 }
                 else
                 {
+                    var protectionMinutes = await purchaseQuoterPoolService.GetDemandProtectionMinutesAsync(cancellationToken);
+                    var protectionCutoffUtc = RfqDemandProtectionRules.ProtectionCutoffUtc(
+                        protectionMinutes,
+                        DateTime.UtcNow);
+                    var protectionPoolEnabled = RfqDemandProtectionRules.CanParticipateInProtectionPool(summary);
+
                     HashSet<string>? saleAllow = null;
                     if (summary.SaleDataScope == 2 || summary.SaleDataScope == 3)
                         saleAllow = await dataPermission.GetAllowedUserIdsForDataScopeAsync(
@@ -82,7 +89,9 @@ internal static class RfqItemListFilter
                                  ((!string.IsNullOrWhiteSpace(x.Item.AssignedPurchaserUserId1) &&
                                    purchaseAllow.Contains(x.Item.AssignedPurchaserUserId1!)) ||
                                   (!string.IsNullOrWhiteSpace(x.Item.AssignedPurchaserUserId2) &&
-                                   purchaseAllow.Contains(x.Item.AssignedPurchaserUserId2!))))
+                                   purchaseAllow.Contains(x.Item.AssignedPurchaserUserId2!)))) ||
+                                (protectionPoolEnabled &&
+                                 (protectionMinutes <= 0 || x.Item.CreateTime <= protectionCutoffUtc))
                             )
                         ));
                 }

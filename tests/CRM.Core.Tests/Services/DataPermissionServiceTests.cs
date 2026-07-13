@@ -24,7 +24,8 @@ public sealed class DataPermissionServiceTests
             Substitute.For<IRepository<RFQ>>(),
             Substitute.For<IRepository<RFQItem>>(),
             Substitute.For<IRepository<CustomerInfo>>(),
-            Substitute.For<IRepository<VendorInfo>>());
+            Substitute.For<IRepository<VendorInfo>>(),
+            Substitute.For<IPurchaseQuoterPoolService>());
 
     [Fact]
     public async Task FilterVendorsAsync_sys_admin_not_cleared_when_purchase_scope_is_none()
@@ -165,7 +166,8 @@ public sealed class DataPermissionServiceTests
             Substitute.For<IRepository<RFQ>>(),
             Substitute.For<IRepository<RFQItem>>(),
             Substitute.For<IRepository<CustomerInfo>>(),
-            Substitute.For<IRepository<VendorInfo>>());
+            Substitute.For<IRepository<VendorInfo>>(),
+            Substitute.For<IPurchaseQuoterPoolService>());
 
         var source = new List<SellOrder>
         {

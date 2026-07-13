@@ -12,15 +12,18 @@ public sealed partial class QuoteListQuery : IQuoteListQuery
     private readonly ApplicationDbContext _db;
     private readonly IDataPermissionService _dataPermission;
     private readonly IRbacService _rbacService;
+    private readonly IPurchaseQuoterPoolService _purchaseQuoterPoolService;
 
     public QuoteListQuery(
         ApplicationDbContext db,
         IDataPermissionService dataPermission,
-        IRbacService rbacService)
+        IRbacService rbacService,
+        IPurchaseQuoterPoolService purchaseQuoterPoolService)
     {
         _db = db;
         _dataPermission = dataPermission;
         _rbacService = rbacService;
+        _purchaseQuoterPoolService = purchaseQuoterPoolService;
     }
 
     /// <inheritdoc />

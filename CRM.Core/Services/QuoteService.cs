@@ -26,6 +26,7 @@ namespace CRM.Core.Services
         private readonly IRbacService _rbacService;
         private readonly ILogger<QuoteService> _logger;
         private readonly ILogOperationAppendService _logOperationAppend;
+        private readonly IPurchaseQuoterPoolService _purchaseQuoterPoolService;
 
         public QuoteService(
             IRepository<Quote> quoteRepository,
@@ -39,7 +40,8 @@ namespace CRM.Core.Services
             IQuoteListQuery quoteListQuery,
             IRbacService rbacService,
             ILogger<QuoteService> logger,
-            ILogOperationAppendService logOperationAppend)
+            ILogOperationAppendService logOperationAppend,
+            IPurchaseQuoterPoolService purchaseQuoterPoolService)
         {
             _quoteRepository = quoteRepository;
             _quoteItemRepository = quoteItemRepository;
@@ -53,6 +55,7 @@ namespace CRM.Core.Services
             _rbacService = rbacService;
             _logger = logger;
             _logOperationAppend = logOperationAppend;
+            _purchaseQuoterPoolService = purchaseQuoterPoolService;
         }
 
         /// <summary>为列表/详情 JSON 填充需求主表编号（与 RFQId 对应）。</summary>
@@ -671,7 +674,8 @@ namespace CRM.Core.Services
                 throw new InvalidOperationException("关联的需求明细不存在，无法报价");
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(actorId);
-            if (!RfqItemQuoteAccessRules.CanQuote(summary, rfqItem, actorId))
+            var protectionMinutes = await _purchaseQuoterPoolService.GetDemandProtectionMinutesAsync();
+            if (!RfqItemQuoteAccessRules.CanQuote(summary, rfqItem, actorId, protectionMinutes))
                 throw new UnauthorizedAccessException("无权为该需求明细创建或编辑报价");
         }
     }

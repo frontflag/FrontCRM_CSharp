@@ -62,6 +62,50 @@ public class PurchaseParamsController : ControllerBase
         }
     }
 
+    [HttpGet("demand-protection-minutes")]
+    [RequirePermission("rbac.manage")]
+    public async Task<ActionResult<ApiResponse<PurchaseParamsDemandProtectionMinutesDto>>> GetDemandProtectionMinutes(CancellationToken ct)
+    {
+        try
+        {
+            var minutes = await _service.GetDemandProtectionMinutesAsync(ct);
+            return Ok(ApiResponse<PurchaseParamsDemandProtectionMinutesDto>.Ok(
+                new PurchaseParamsDemandProtectionMinutesDto { Minutes = minutes },
+                "ok"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "读取需求保护时长失败");
+            return StatusCode(500, ApiResponse<PurchaseParamsDemandProtectionMinutesDto>.Fail("读取失败", 500));
+        }
+    }
+
+    [HttpPut("demand-protection-minutes")]
+    [RequirePermission("rbac.manage")]
+    public async Task<ActionResult<ApiResponse<PurchaseParamsDemandProtectionMinutesDto>>> SetDemandProtectionMinutes(
+        [FromBody] SetPurchaseParamsDemandProtectionMinutesRequest? body,
+        CancellationToken ct)
+    {
+        if (body == null)
+            return BadRequest(ApiResponse<PurchaseParamsDemandProtectionMinutesDto>.Fail("请求体为空", 400));
+        try
+        {
+            await _service.SetDemandProtectionMinutesAsync(body.Minutes, ct);
+            return Ok(ApiResponse<PurchaseParamsDemandProtectionMinutesDto>.Ok(
+                new PurchaseParamsDemandProtectionMinutesDto { Minutes = body.Minutes },
+                "已保存"));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse<PurchaseParamsDemandProtectionMinutesDto>.Fail(ex.Message, 400));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "保存需求保护时长失败");
+            return StatusCode(500, ApiResponse<PurchaseParamsDemandProtectionMinutesDto>.Fail("保存失败", 500));
+        }
+    }
+
     [HttpGet("quoter-pool")]
     [RequirePermission("rbac.manage")]
     public async Task<ActionResult<ApiResponse<PurchaseQuoterPoolListResponse>>> GetQuoterPool(

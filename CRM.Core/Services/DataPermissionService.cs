@@ -24,6 +24,7 @@ namespace CRM.Core.Services
         private readonly IRepository<RFQItem> _rfqItemRepo;
         private readonly IRepository<CustomerInfo> _customerRepo;
         private readonly IRepository<VendorInfo> _vendorRepo;
+        private readonly IPurchaseQuoterPoolService _purchaseQuoterPoolService;
 
         public DataPermissionService(
             IRbacService rbacService,
@@ -34,7 +35,8 @@ namespace CRM.Core.Services
             IRepository<RFQ> rfqRepo,
             IRepository<RFQItem> rfqItemRepo,
             IRepository<CustomerInfo> customerRepo,
-            IRepository<VendorInfo> vendorRepo)
+            IRepository<VendorInfo> vendorRepo,
+            IPurchaseQuoterPoolService purchaseQuoterPoolService)
         {
             _rbacService = rbacService;
             _departmentRepo = departmentRepo;
@@ -45,6 +47,7 @@ namespace CRM.Core.Services
             _rfqItemRepo = rfqItemRepo;
             _customerRepo = customerRepo;
             _vendorRepo = vendorRepo;
+            _purchaseQuoterPoolService = purchaseQuoterPoolService;
         }
 
         public async Task<IReadOnlyList<CustomerInfo>> FilterCustomersAsync(string userId, IEnumerable<CustomerInfo> source)
@@ -1398,6 +1401,9 @@ namespace CRM.Core.Services
             if (summary.IsSysAdmin)
                 return (_, __) => true;
 
+            var protectionMinutes = await _purchaseQuoterPoolService.GetDemandProtectionMinutesAsync();
+            var utcNow = DateTime.UtcNow;
+
             HashSet<string>? saleAllow = null;
             if (summary.SaleDataScope == 2)
                 saleAllow = await GetAllowedUserIdsAsync(summary, includeChildren: false);
@@ -1410,6 +1416,8 @@ namespace CRM.Core.Services
             else if (summary.PurchaseDataScope == 3)
                 purchaseAllow = await GetAllowedUserIdsAsync(summary, includeChildren: true);
 
+            var uid = userId.Trim();
+
             return (rfq, item) =>
             {
                 bool saleOk = false;
@@ -1417,24 +1425,15 @@ namespace CRM.Core.Services
                 {
                     if (summary.SaleDataScope == 0) saleOk = true;
                     else if (summary.SaleDataScope == 1)
-                        saleOk = string.Equals(rfq.SalesUserId, userId, StringComparison.OrdinalIgnoreCase);
+                        saleOk = string.Equals(rfq.SalesUserId, uid, StringComparison.OrdinalIgnoreCase);
                     else if ((summary.SaleDataScope == 2 || summary.SaleDataScope == 3) && saleAllow != null && !string.IsNullOrWhiteSpace(rfq.SalesUserId))
                         saleOk = saleAllow.Contains(rfq.SalesUserId);
                 }
 
                 if (saleOk) return true;
 
-                if (summary.PurchaseDataScope == 4) return false;
-                if (summary.PurchaseDataScope == 0) return true;
-                if (summary.PurchaseDataScope == 1)
-                {
-                    return string.Equals(item.AssignedPurchaserUserId1, userId, StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(item.AssignedPurchaserUserId2, userId, StringComparison.OrdinalIgnoreCase);
-                }
-
-                if (purchaseAllow == null) return false;
-                return (!string.IsNullOrWhiteSpace(item.AssignedPurchaserUserId1) && purchaseAllow.Contains(item.AssignedPurchaserUserId1!))
-                    || (!string.IsNullOrWhiteSpace(item.AssignedPurchaserUserId2) && purchaseAllow.Contains(item.AssignedPurchaserUserId2!));
+                return RfqDemandProtectionRules.IsPurchaseSideVisible(
+                    summary, item, uid, purchaseAllow, protectionMinutes, utcNow);
             };
         }
 
@@ -1467,20 +1466,18 @@ namespace CRM.Core.Services
             var items = (await _rfqItemRepo.FindAsync(i => i.RfqId == rfq.Id)).ToList();
             if (items.Count == 0) return false;
 
-            if (summary.PurchaseDataScope == 1)
-            {
-                return items.Any(i =>
-                    string.Equals(i.AssignedPurchaserUserId1, userId, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(i.AssignedPurchaserUserId2, userId, StringComparison.OrdinalIgnoreCase));
-            }
+            var protectionMinutes = await _purchaseQuoterPoolService.GetDemandProtectionMinutesAsync();
+            var utcNow = DateTime.UtcNow;
 
             HashSet<string>? purchaseAllow = summary.PurchaseDataScope == 3
                 ? await GetAllowedUserIdsAsync(summary, includeChildren: true)
-                : await GetAllowedUserIdsAsync(summary, includeChildren: false);
+                : summary.PurchaseDataScope == 2
+                    ? await GetAllowedUserIdsAsync(summary, includeChildren: false)
+                    : null;
 
             return items.Any(i =>
-                (!string.IsNullOrWhiteSpace(i.AssignedPurchaserUserId1) && purchaseAllow.Contains(i.AssignedPurchaserUserId1!)) ||
-                (!string.IsNullOrWhiteSpace(i.AssignedPurchaserUserId2) && purchaseAllow.Contains(i.AssignedPurchaserUserId2!)));
+                RfqDemandProtectionRules.IsPurchaseSideVisible(
+                    summary, i, userId, purchaseAllow, protectionMinutes, utcNow));
         }
 
         /// <inheritdoc />

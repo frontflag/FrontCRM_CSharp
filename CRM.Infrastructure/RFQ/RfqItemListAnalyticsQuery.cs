@@ -255,7 +255,7 @@ public sealed partial class RfqItemListQuery
         CancellationToken cancellationToken)
     {
         var filtered = await RfqItemListFilter.BuildFilteredJoinQueryAsync(
-            _db, _rbacService, _dataPermission, request, cancellationToken);
+            _db, _rbacService, _dataPermission, _purchaseQuoterPoolService, request, cancellationToken);
 
         var rows = await filtered
             .Select(x => new RfqItemAnalyticsRow

@@ -46,6 +46,7 @@ internal static class QuoteListFilter
         ApplicationDbContext db,
         IRbacService rbacService,
         IDataPermissionService dataPermission,
+        IPurchaseQuoterPoolService purchaseQuoterPoolService,
         QuoteQueryRequest request,
         CancellationToken cancellationToken)
     {
@@ -65,7 +66,7 @@ internal static class QuoteListFilter
                 SalesUser = su
             };
 
-        q = await ApplyDemandDataScopeAsync(db, rbacService, dataPermission, request, q, cancellationToken);
+        q = await ApplyDemandDataScopeAsync(db, rbacService, dataPermission, purchaseQuoterPoolService, request, q, cancellationToken);
         q = ApplyKeywordToDemand(db, q, request.Keyword);
         q = ApplyRfqCreateDateToDemand(q, request.StartDate, request.EndDate);
 
@@ -198,6 +199,7 @@ internal static class QuoteListFilter
         ApplicationDbContext db,
         IRbacService rbacService,
         IDataPermissionService dataPermission,
+        IPurchaseQuoterPoolService purchaseQuoterPoolService,
         QuoteQueryRequest request,
         IQueryable<QuoteDemandJoin> q,
         CancellationToken cancellationToken)
@@ -214,6 +216,10 @@ internal static class QuoteListFilter
 
         if (summary.SaleDataScope == 4 && summary.PurchaseDataScope == 4)
             return q.Where(_ => false);
+
+        var protectionMinutes = await purchaseQuoterPoolService.GetDemandProtectionMinutesAsync(cancellationToken);
+        var protectionCutoffUtc = RfqDemandProtectionRules.ProtectionCutoffUtc(protectionMinutes, DateTime.UtcNow);
+        var protectionPoolEnabled = RfqDemandProtectionRules.CanParticipateInProtectionPool(summary);
 
         HashSet<string>? saleAllow = null;
         if (summary.SaleDataScope == 2 || summary.SaleDataScope == 3)
@@ -254,7 +260,9 @@ internal static class QuoteListFilter
                      ((!string.IsNullOrWhiteSpace(x.Item.AssignedPurchaserUserId1) &&
                        purchaseAllow.Contains(x.Item.AssignedPurchaserUserId1!)) ||
                       (!string.IsNullOrWhiteSpace(x.Item.AssignedPurchaserUserId2) &&
-                       purchaseAllow.Contains(x.Item.AssignedPurchaserUserId2!))))
+                       purchaseAllow.Contains(x.Item.AssignedPurchaserUserId2!)))) ||
+                    (protectionPoolEnabled &&
+                     (protectionMinutes <= 0 || x.Item.CreateTime <= protectionCutoffUtc))
                 )
             ));
     }

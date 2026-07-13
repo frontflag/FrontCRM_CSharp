@@ -866,6 +866,12 @@ const routes: RouteRecordRaw[] = [
             meta: { requiresAuth: true, title: '采购参数', permission: 'rbac.manage' }
           },
           {
+            path: 'demand-protection',
+            name: 'PurchaseDemandProtection',
+            component: () => import('@/views/System/PurchaseDemandProtectionSettings.vue'),
+            meta: { requiresAuth: true, title: '采购参数', permission: 'rbac.manage' }
+          },
+          {
             path: 'quoter-pool',
             name: 'PurchaseQuoterPool',
             component: () => import('@/views/System/PurchaseQuoterPoolSettings.vue'),

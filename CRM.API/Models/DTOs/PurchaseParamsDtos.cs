@@ -5,9 +5,19 @@ public class PurchaseParamsAssigneeCountDto
     public int Count { get; set; }
 }
 
+public class PurchaseParamsDemandProtectionMinutesDto
+{
+    public int Minutes { get; set; }
+}
+
 public class SetPurchaseParamsAssigneeCountRequest
 {
     public int Count { get; set; }
+}
+
+public class SetPurchaseParamsDemandProtectionMinutesRequest
+{
+    public int Minutes { get; set; }
 }
 
 public class PurchaseQuoterPoolMemberResponse

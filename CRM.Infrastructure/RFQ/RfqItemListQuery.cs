@@ -16,15 +16,18 @@ public sealed partial class RfqItemListQuery : IRfqItemListQuery
     private readonly ApplicationDbContext _db;
     private readonly IRbacService _rbacService;
     private readonly IDataPermissionService _dataPermission;
+    private readonly IPurchaseQuoterPoolService _purchaseQuoterPoolService;
 
     public RfqItemListQuery(
         ApplicationDbContext db,
         IRbacService rbacService,
-        IDataPermissionService dataPermission)
+        IDataPermissionService dataPermission,
+        IPurchaseQuoterPoolService purchaseQuoterPoolService)
     {
         _db = db;
         _rbacService = rbacService;
         _dataPermission = dataPermission;
+        _purchaseQuoterPoolService = purchaseQuoterPoolService;
     }
 
     /// <inheritdoc />
@@ -36,7 +39,7 @@ public sealed partial class RfqItemListQuery : IRfqItemListQuery
         var pageSize = request.PageSize < 1 ? 20 : Math.Min(request.PageSize, MaxPageSize);
 
         var q = await RfqItemListFilter.BuildFilteredJoinQueryAsync(
-            _db, _rbacService, _dataPermission, request, cancellationToken);
+            _db, _rbacService, _dataPermission, _purchaseQuoterPoolService, request, cancellationToken);
 
         var total = await q.CountAsync(cancellationToken);
 

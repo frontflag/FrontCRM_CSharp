@@ -26,6 +26,14 @@
           <el-icon class="nav-icon"><List /></el-icon>
           <span>{{ t('purchaseParams.quoterPoolNav') }}</span>
         </router-link>
+        <router-link
+          to="/system/purchase-params/demand-protection"
+          class="nav-item"
+          active-class="active"
+        >
+          <el-icon class="nav-icon"><Timer /></el-icon>
+          <span>{{ t('purchaseParams.demandProtectionNav') }}</span>
+        </router-link>
       </div>
 
       <div class="settings-content">
@@ -37,7 +45,7 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import { User, List } from '@element-plus/icons-vue'
+import { User, List, Timer } from '@element-plus/icons-vue'
 
 const { t } = useI18n()
 </script>

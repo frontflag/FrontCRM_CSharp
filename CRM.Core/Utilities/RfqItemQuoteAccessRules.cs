@@ -35,15 +35,52 @@ public static class RfqItemQuoteAccessRules
                || (!string.IsNullOrEmpty(id2) && string.Equals(id2, uid, StringComparison.OrdinalIgnoreCase));
     }
 
-    public static bool CanQuote(UserPermissionSummaryDto summary, RFQItem item, string? actingUserId)
+    public static bool CanQuote(
+        UserPermissionSummaryDto summary,
+        RFQItem item,
+        string? actingUserId,
+        int protectionMinutes = 0,
+        DateTime? utcNow = null)
     {
         if (summary.IsSysAdmin)
             return true;
         if (IsPurchaseDepartmentDirector(summary))
             return true;
-        return IsAssignedQuoter(actingUserId ?? summary.UserId, item);
+
+        var actorId = actingUserId ?? summary.UserId;
+        if (IsAssignedQuoter(actorId, item))
+            return true;
+
+        var now = utcNow ?? DateTime.UtcNow;
+        if (RfqDemandProtectionRules.CanParticipateInProtectionPool(summary)
+            && RfqDemandProtectionRules.IsProtectionExpired(item.CreateTime, protectionMinutes, now))
+            return true;
+
+        return false;
     }
 
+    public static bool CanQuote(UserPermissionSummaryDto summary, RFQItem item, string? actingUserId)
+        => CanQuote(summary, item, actingUserId, 0, null);
+
+    public static bool CanQuote(
+        UserPermissionSummaryDto summary,
+        string? assignedPurchaserUserId1,
+        string? assignedPurchaserUserId2,
+        string? actingUserId,
+        DateTime itemCreateTimeUtc,
+        int protectionMinutes = 0,
+        DateTime? utcNow = null)
+    {
+        var item = new RFQItem
+        {
+            AssignedPurchaserUserId1 = assignedPurchaserUserId1,
+            AssignedPurchaserUserId2 = assignedPurchaserUserId2,
+            CreateTime = itemCreateTimeUtc
+        };
+        return CanQuote(summary, item, actingUserId, protectionMinutes, utcNow);
+    }
+
+    [Obsolete("Use overload with item CreateTime when protection applies.")]
     public static bool CanQuote(UserPermissionSummaryDto summary, string? assignedPurchaserUserId1, string? assignedPurchaserUserId2, string? actingUserId)
     {
         if (summary.IsSysAdmin)

@@ -144,6 +144,66 @@ public class PurchaseQuoterPoolService : IPurchaseQuoterPoolService
             .ToList();
     }
 
+    public async Task<int> GetDemandProtectionMinutesAsync(CancellationToken cancellationToken = default)
+    {
+        var row = await _db.SysParams.AsNoTracking()
+            .FirstOrDefaultAsync(
+                p => p.ParamCode == SysParamCodes.RfqDemandProtectionMinutes && p.Status == 1,
+                cancellationToken);
+        if (row == null)
+            return RfqDemandProtectionRules.DefaultProtectionMinutes;
+
+        if (int.TryParse(row.ValueString?.Trim(), out var parsed)
+            && parsed >= 0
+            && parsed <= RfqDemandProtectionRules.MaxProtectionMinutes)
+            return parsed;
+
+        return RfqDemandProtectionRules.DefaultProtectionMinutes;
+    }
+
+    public async Task SetDemandProtectionMinutesAsync(int minutes, CancellationToken cancellationToken = default)
+    {
+        if (minutes < 0 || minutes > RfqDemandProtectionRules.MaxProtectionMinutes)
+            throw new ArgumentException(
+                $"需求保护时长须在 0～{RfqDemandProtectionRules.MaxProtectionMinutes} 分钟之间",
+                nameof(minutes));
+
+        var row = await _db.SysParams
+            .FirstOrDefaultAsync(p => p.ParamCode == SysParamCodes.RfqDemandProtectionMinutes, cancellationToken);
+
+        if (row == null)
+        {
+            var groupFrom = await _db.SysParams.AsNoTracking()
+                .FirstOrDefaultAsync(p => p.ParamCode == SysParamCodes.RfqRoundRobinAssigneeCount, cancellationToken);
+            row = new SysParam
+            {
+                Id = Guid.NewGuid().ToString(),
+                ParamCode = SysParamCodes.RfqDemandProtectionMinutes,
+                ParamName = "需求保护时长",
+                GroupId = groupFrom?.GroupId,
+                DataType = ParamDataType.Integer,
+                ValueString = minutes.ToString(),
+                DefaultValue = RfqDemandProtectionRules.DefaultProtectionMinutes.ToString(),
+                Description = "需求明细创建后在此分钟数内仅分配采购员可见/可报价；超过后任意采购员可见/可报价。0 表示无保护期。",
+                IsSystem = true,
+                IsEditable = true,
+                IsVisible = true,
+                SortOrder = 13,
+                Status = 1,
+                CreateTime = DateTime.UtcNow
+            };
+            await _db.SysParams.AddAsync(row, cancellationToken);
+        }
+        else
+        {
+            row.ValueString = minutes.ToString();
+            row.ModifyTime = DateTime.UtcNow;
+            _db.SysParams.Update(row);
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
     private async Task<HashSet<string>> LoadPoolUserIdSetAsync(CancellationToken cancellationToken)
     {
         var ids = await _db.SysPurchaseQuoterPools.AsNoTracking()

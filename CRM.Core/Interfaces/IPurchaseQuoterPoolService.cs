@@ -29,4 +29,9 @@ public interface IPurchaseQuoterPoolService
 
     /// <summary>轮询用：按 sort_order 排序，且仅返回在职用户。</summary>
     Task<IReadOnlyList<string>> GetOrderedActivePoolUserIdsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>需求明细保护时长（分钟）；0 表示关闭。</summary>
+    Task<int> GetDemandProtectionMinutesAsync(CancellationToken cancellationToken = default);
+
+    Task SetDemandProtectionMinutesAsync(int minutes, CancellationToken cancellationToken = default);
 }

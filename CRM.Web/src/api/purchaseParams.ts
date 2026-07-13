@@ -25,6 +25,16 @@ export const purchaseParamsApi = {
     return res.count
   },
 
+  async getDemandProtectionMinutes(): Promise<number> {
+    const res = await apiClient.get<{ minutes: number }>('/api/v1/purchase-params/demand-protection-minutes')
+    return res.minutes
+  },
+
+  async setDemandProtectionMinutes(minutes: number): Promise<number> {
+    const res = await apiClient.put<{ minutes: number }>('/api/v1/purchase-params/demand-protection-minutes', { minutes })
+    return res.minutes
+  },
+
   async getQuoterPool(filter: 'all' | 'selected' = 'all'): Promise<PurchaseQuoterPoolListResponse> {
     return apiClient.get<PurchaseQuoterPoolListResponse>('/api/v1/purchase-params/quoter-pool', {
       params: { filter }

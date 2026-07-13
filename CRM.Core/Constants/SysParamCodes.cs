@@ -23,5 +23,8 @@ namespace CRM.Core.Constants
 
         /// <summary>每条 RFQ 轮询分配的报价员人数（1 或 2，持久化在 ValueString）</summary>
         public const string RfqRoundRobinAssigneeCount = "System.RFQ.RoundRobinAssigneeCount";
+
+        /// <summary>需求明细保护时长（分钟）；超过后任意采购员可见/可报价；0 表示关闭</summary>
+        public const string RfqDemandProtectionMinutes = "System.RFQ.DemandProtectionMinutes";
     }
 }

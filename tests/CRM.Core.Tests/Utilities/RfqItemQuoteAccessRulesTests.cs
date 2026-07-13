@@ -55,4 +55,58 @@ public class RfqItemQuoteAccessRulesTests
         var item = new RFQItem { AssignedPurchaserUserId1 = "other" };
         Assert.False(RfqItemQuoteAccessRules.CanQuote(Summary(), item, "u1"));
     }
+
+    [Fact]
+    public void CanQuote_ProtectionExpired_AllowsPurchaseDeptMember()
+    {
+        var now = new DateTime(2026, 7, 13, 12, 0, 0, DateTimeKind.Utc);
+        var item = new RFQItem
+        {
+            AssignedPurchaserUserId1 = "other",
+            CreateTime = now.AddMinutes(-31)
+        };
+        var summary = new UserPermissionSummaryDto
+        {
+            UserId = "u1",
+            BelongsToPurchaseDept = true,
+            PurchaseDataScope = 1
+        };
+        Assert.True(RfqItemQuoteAccessRules.CanQuote(summary, item, "u1", 30, now));
+    }
+
+    [Fact]
+    public void CanQuote_WithinProtection_DeniesUnassigned()
+    {
+        var now = new DateTime(2026, 7, 13, 12, 0, 0, DateTimeKind.Utc);
+        var item = new RFQItem
+        {
+            AssignedPurchaserUserId1 = "other",
+            CreateTime = now.AddMinutes(-10)
+        };
+        var summary = new UserPermissionSummaryDto
+        {
+            UserId = "u1",
+            BelongsToPurchaseDept = true,
+            PurchaseDataScope = 1
+        };
+        Assert.False(RfqItemQuoteAccessRules.CanQuote(summary, item, "u1", 30, now));
+    }
+
+    [Fact]
+    public void CanQuote_NoProtectionPeriod_AllowsPurchaseDeptMember()
+    {
+        var now = new DateTime(2026, 7, 13, 12, 0, 0, DateTimeKind.Utc);
+        var item = new RFQItem
+        {
+            AssignedPurchaserUserId1 = "other",
+            CreateTime = now
+        };
+        var summary = new UserPermissionSummaryDto
+        {
+            UserId = "u1",
+            BelongsToPurchaseDept = true,
+            PurchaseDataScope = 1
+        };
+        Assert.True(RfqItemQuoteAccessRules.CanQuote(summary, item, "u1", 0, now));
+    }
 }

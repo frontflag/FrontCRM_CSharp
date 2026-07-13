@@ -1729,6 +1729,7 @@ const pageTitleMap: Record<string, string> = {
   '/system/finance-params/purchase-cost-params': 'financeParams.purchaseCostParamsNav',
   '/system/finance-params/payment-banks': 'financeParams.paymentBanksNav',
   '/system/purchase-params/assignee-count': 'layout.menu.purchaseParams',
+  '/system/purchase-params/demand-protection': 'purchaseParams.demandProtectionNav',
   '/system/purchase-params/quoter-pool': 'purchaseParams.quoterPoolNav',
   '/system/login-logs': 'layout.menu.loginLog',
   '/system/operation-logs': 'layout.menu.operationLog',
