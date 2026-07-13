@@ -19,6 +19,7 @@ namespace CRM.API.Controllers
         private readonly IRfqItemListQuery _rfqItemListQuery;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IRbacService _rbacService;
+        private readonly IPurchaseQuoterPoolService _purchaseQuoterPoolService;
         private readonly ILogger<RFQsController> _logger;
 
         public RFQsController(
@@ -27,6 +28,7 @@ namespace CRM.API.Controllers
             IRfqItemListQuery rfqItemListQuery,
             IDataPermissionService dataPermissionService,
             IRbacService rbacService,
+            IPurchaseQuoterPoolService purchaseQuoterPoolService,
             ILogger<RFQsController> logger)
         {
             _rfqService = rfqService;
@@ -34,6 +36,7 @@ namespace CRM.API.Controllers
             _rfqItemListQuery = rfqItemListQuery;
             _dataPermissionService = dataPermissionService;
             _rbacService = rbacService;
+            _purchaseQuoterPoolService = purchaseQuoterPoolService;
             _logger = logger;
         }
 
@@ -336,6 +339,25 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "标记查无报价失败: {ItemId}", itemId);
                 return StatusCode(500, ApiResponse<object>.Fail($"标记查无报价失败: {ex.Message}", 500));
+            }
+        }
+
+        [HttpGet("default-assign-method")]
+        [RequirePermission("rfq.create")]
+        public async Task<ActionResult<ApiResponse<PurchaseParamsDefaultAssignMethodDto>>> GetDefaultAssignMethodForCreate(
+            CancellationToken ct)
+        {
+            try
+            {
+                var assignMethod = await _purchaseQuoterPoolService.GetDefaultAssignMethodAsync(ct);
+                return Ok(ApiResponse<PurchaseParamsDefaultAssignMethodDto>.Ok(
+                    new PurchaseParamsDefaultAssignMethodDto { AssignMethod = assignMethod },
+                    "ok"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "读取默认分配方式失败");
+                return StatusCode(500, ApiResponse<PurchaseParamsDefaultAssignMethodDto>.Fail("读取失败", 500));
             }
         }
 

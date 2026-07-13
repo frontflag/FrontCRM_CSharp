@@ -20,6 +20,16 @@ public class SetPurchaseParamsDemandProtectionMinutesRequest
     public int Minutes { get; set; }
 }
 
+public class PurchaseParamsDefaultAssignMethodDto
+{
+    public short AssignMethod { get; set; }
+}
+
+public class SetPurchaseParamsDefaultAssignMethodRequest
+{
+    public short AssignMethod { get; set; }
+}
+
 public class PurchaseQuoterPoolMemberResponse
 {
     public string UserId { get; set; } = string.Empty;

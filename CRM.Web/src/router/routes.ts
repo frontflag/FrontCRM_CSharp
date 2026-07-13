@@ -876,6 +876,12 @@ const routes: RouteRecordRaw[] = [
             name: 'PurchaseQuoterPool',
             component: () => import('@/views/System/PurchaseQuoterPoolSettings.vue'),
             meta: { requiresAuth: true, title: '采购参数', permission: 'rbac.manage' }
+          },
+          {
+            path: 'default-assign-method',
+            name: 'PurchaseDefaultAssignMethod',
+            component: () => import('@/views/System/PurchaseDefaultAssignMethodSettings.vue'),
+            meta: { requiresAuth: true, title: '采购参数', permission: 'rbac.manage' }
           }
         ]
       },

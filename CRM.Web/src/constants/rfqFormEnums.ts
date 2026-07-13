@@ -20,12 +20,14 @@ export const QUOTE_METHOD_OPTIONS: ReadonlyArray<{ label: string; value: number 
 
 /** 分配方式下拉（与 DB assign_method 一致） */
 export const ASSIGN_METHOD_OPTIONS: ReadonlyArray<{ label: string; value: number; tip: string }> = [
+  { label: '采报优先', value: 5, tip: '按物料型号优先分配给曾采购或报价的采购员；无记录时按条目轮询' },
   { label: '条目轮询', value: 2, tip: '按需求条目轮询分配报价员' },
   { label: '品牌轮询', value: 3, tip: '按品牌轮询分配报价员' }
 ]
 
 /** @deprecated 请使用 ASSIGN_METHOD_OPTIONS[].tip */
-export const ASSIGN_METHOD_ITEM_ROUND_ROBIN_TIP = ASSIGN_METHOD_OPTIONS[0].tip
+export const ASSIGN_METHOD_ITEM_ROUND_ROBIN_TIP =
+  ASSIGN_METHOD_OPTIONS.find((o) => o.value === 2)?.tip ?? '按需求条目轮询分配报价员'
 
 /** 历史数据 1/4 仅用于详情只读展示 */
 const ASSIGN_METHOD_LEGACY_LABELS: Readonly<Record<number, string>> = {

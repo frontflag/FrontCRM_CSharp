@@ -27,6 +27,14 @@
           <span>{{ t('purchaseParams.quoterPoolNav') }}</span>
         </router-link>
         <router-link
+          to="/system/purchase-params/default-assign-method"
+          class="nav-item"
+          active-class="active"
+        >
+          <el-icon class="nav-icon"><Operation /></el-icon>
+          <span>{{ t('purchaseParams.defaultAssignMethodNav') }}</span>
+        </router-link>
+        <router-link
           to="/system/purchase-params/demand-protection"
           class="nav-item"
           active-class="active"
@@ -45,7 +53,7 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import { User, List, Timer } from '@element-plus/icons-vue'
+import { User, List, Timer, Operation } from '@element-plus/icons-vue'
 
 const { t } = useI18n()
 </script>

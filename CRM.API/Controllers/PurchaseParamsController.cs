@@ -106,6 +106,51 @@ public class PurchaseParamsController : ControllerBase
         }
     }
 
+    [HttpGet("default-assign-method")]
+    [RequirePermission("rbac.manage")]
+    public async Task<ActionResult<ApiResponse<PurchaseParamsDefaultAssignMethodDto>>> GetDefaultAssignMethod(CancellationToken ct)
+    {
+        try
+        {
+            var assignMethod = await _service.GetDefaultAssignMethodAsync(ct);
+            return Ok(ApiResponse<PurchaseParamsDefaultAssignMethodDto>.Ok(
+                new PurchaseParamsDefaultAssignMethodDto { AssignMethod = assignMethod },
+                "ok"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "读取默认分配方式失败");
+            return StatusCode(500, ApiResponse<PurchaseParamsDefaultAssignMethodDto>.Fail("读取失败", 500));
+        }
+    }
+
+    [HttpPut("default-assign-method")]
+    [RequirePermission("rbac.manage")]
+    public async Task<ActionResult<ApiResponse<PurchaseParamsDefaultAssignMethodDto>>> SetDefaultAssignMethod(
+        [FromBody] SetPurchaseParamsDefaultAssignMethodRequest? body,
+        CancellationToken ct)
+    {
+        if (body == null)
+            return BadRequest(ApiResponse<PurchaseParamsDefaultAssignMethodDto>.Fail("请求体为空", 400));
+        try
+        {
+            await _service.SetDefaultAssignMethodAsync(body.AssignMethod, ct);
+            var assignMethod = await _service.GetDefaultAssignMethodAsync(ct);
+            return Ok(ApiResponse<PurchaseParamsDefaultAssignMethodDto>.Ok(
+                new PurchaseParamsDefaultAssignMethodDto { AssignMethod = assignMethod },
+                "已保存"));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse<PurchaseParamsDefaultAssignMethodDto>.Fail(ex.Message, 400));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "保存默认分配方式失败");
+            return StatusCode(500, ApiResponse<PurchaseParamsDefaultAssignMethodDto>.Fail("保存失败", 500));
+        }
+    }
+
     [HttpGet("quoter-pool")]
     [RequirePermission("rbac.manage")]
     public async Task<ActionResult<ApiResponse<PurchaseQuoterPoolListResponse>>> GetQuoterPool(

@@ -40,8 +40,10 @@ namespace CRM.API.Extensions
             services.AddScoped<IEntityLookupService, EntityLookupService>();
             services.AddScoped<IRFQService, RFQService>();
             services.AddScoped<IRfqPurchaserRoundRobinCursorStore, RfqPurchaserRoundRobinCursorStore>();
+            services.AddScoped<RfqPurchaserRoundRobinPicker>();
             services.AddScoped<IRfqPurchaserAssignStrategy, ItemRoundRobinPurchaserAssignStrategy>();
             services.AddScoped<IRfqPurchaserAssignStrategy, SameBrandPurchaserAssignStrategy>();
+            services.AddScoped<IRfqPurchaserAssignStrategy, PurchaseQuotePriorityPurchaserAssignStrategy>();
             services.AddScoped<IRfqPurchaserAssignmentOrchestrator, RfqPurchaserAssignmentOrchestrator>();
             services.AddScoped<IRepository<CRM.Core.Models.RFQ.RFQ>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.RFQ.RFQ>>();
             services.AddScoped<IRepository<CRM.Core.Models.RFQ.RFQItem>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.RFQ.RFQItem>>();

@@ -10,6 +10,7 @@ public sealed class RfqItemAssignmentInput
 {
     public string ItemKey { get; set; } = string.Empty;
     public int LineNo { get; set; }
+    public string? Mpn { get; set; }
     public string? Brand { get; set; }
     public long? BrandId { get; set; }
 }

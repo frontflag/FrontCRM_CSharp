@@ -100,7 +100,7 @@ public sealed class SameBrandPurchaserAssignStrategyTests
         });
 
         Assert.Equal(("U-A", "U-M"), (outcome.Assignments[0].PurchaserUserId1, outcome.Assignments[0].PurchaserUserId2));
-        Assert.Equal(("U-Z", "U-A"), (outcome.Assignments[1].PurchaserUserId1, outcome.Assignments[1].PurchaserUserId2));
+        Assert.Equal(("U-A", "U-M"), (outcome.Assignments[1].PurchaserUserId1, outcome.Assignments[1].PurchaserUserId2));
 
         var cursorRow = (await sysParamRepo.FindAsync(p => p.ParamCode == SysParamCodes.RfqPurchaserRoundRobinCursor)).First();
         Assert.Equal("2", cursorRow.ValueString);

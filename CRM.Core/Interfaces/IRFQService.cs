@@ -97,7 +97,7 @@ namespace CRM.Core.Interfaces
         public string? SalesUserId { get; set; }
         public short RfqType { get; set; } = 1;
         public short QuoteMethod { get; set; } = 1;
-        public short AssignMethod { get; set; } = 2;
+        public short AssignMethod { get; set; } = 5;
         public string? Industry { get; set; }
         public string? Product { get; set; }
         public short TargetType { get; set; } = 1;

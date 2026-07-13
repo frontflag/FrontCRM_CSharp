@@ -14,26 +14,36 @@ public static class RfqAssignmentTestFactory
         IPurchaseQuoterPoolService pool,
         IRepository<SysParam> sysParamRepo,
         ILogger<RfqPurchaserAssignmentOrchestrator>? orchestratorLogger = null) =>
-        CreateDefaultOrchestrator(pool, sysParamRepo, orchestratorLogger);
+        CreateDefaultOrchestrator(pool, sysParamRepo, orchestratorLogger: orchestratorLogger);
 
     public static IRfqPurchaserAssignmentOrchestrator CreateDefaultOrchestrator(
         IPurchaseQuoterPoolService pool,
         IRepository<SysParam> sysParamRepo,
+        IRfqMpnPurchaserAffinityLookup? mpnLookup = null,
         ILogger<RfqPurchaserAssignmentOrchestrator>? orchestratorLogger = null)
     {
         var cursorStore = new RfqPurchaserRoundRobinCursorStore(
             sysParamRepo,
             NullLogger<RfqPurchaserRoundRobinCursorStore>.Instance);
+        var picker = new RfqPurchaserRoundRobinPicker(
+            pool,
+            cursorStore,
+            NullLogger<RfqPurchaserRoundRobinPicker>.Instance);
+        var lookup = mpnLookup ?? CreateEmptyMpnLookup();
         IRfqPurchaserAssignStrategy[] strategies =
         [
             new ItemRoundRobinPurchaserAssignStrategy(
-                pool,
-                cursorStore,
+                picker,
                 NullLogger<ItemRoundRobinPurchaserAssignStrategy>.Instance),
             new SameBrandPurchaserAssignStrategy(
                 pool,
                 cursorStore,
-                NullLogger<SameBrandPurchaserAssignStrategy>.Instance)
+                NullLogger<SameBrandPurchaserAssignStrategy>.Instance),
+            new PurchaseQuotePriorityPurchaserAssignStrategy(
+                pool,
+                lookup,
+                picker,
+                NullLogger<PurchaseQuotePriorityPurchaserAssignStrategy>.Instance)
         ];
         return new RfqPurchaserAssignmentOrchestrator(
             strategies,
@@ -51,5 +61,17 @@ public static class RfqAssignmentTestFactory
             .Returns(Array.Empty<string>());
         svc.GetAssigneeCountAsync(Arg.Any<CancellationToken>()).Returns(2);
         return svc;
+    }
+
+    public static IRfqMpnPurchaserAffinityLookup CreateEmptyMpnLookup()
+    {
+        var lookup = Substitute.For<IRfqMpnPurchaserAffinityLookup>();
+        lookup.GetPurchasersFromPurchaseHistoryAsync(
+                Arg.Any<string>(), Arg.Any<IReadOnlySet<string>>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(Array.Empty<string>());
+        lookup.GetPurchasersFromQuoteHistoryAsync(
+                Arg.Any<string>(), Arg.Any<IReadOnlySet<string>>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(Array.Empty<string>());
+        return lookup;
     }
 }

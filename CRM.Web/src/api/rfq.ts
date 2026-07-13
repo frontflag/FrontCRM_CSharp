@@ -116,6 +116,11 @@ export const rfqApi = {
   async createRFQ(data: CreateRFQRequest): Promise<RFQ> {
     return apiClient.post<RFQ>(BASE, data)
   },
+  /** 新建需求页默认分配方式（2/3/5） */
+  async getDefaultAssignMethod(): Promise<number> {
+    const res = await apiClient.get<{ assignMethod: number }>(`${BASE}/default-assign-method`)
+    return res.assignMethod
+  },
   /** 14. 批量自动生成 RFQ/报价/订单 */
   async batchAutoGenerate(data: CreateRFQRequest[]): Promise<{ successCount: number; failCount: number; errors: string[] }> {
     return apiClient.post(`${BASE}/batch-auto-generate`, data)

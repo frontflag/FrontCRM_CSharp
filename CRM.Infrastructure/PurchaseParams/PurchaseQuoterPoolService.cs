@@ -204,6 +204,63 @@ public class PurchaseQuoterPoolService : IPurchaseQuoterPoolService
         await _db.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<short> GetDefaultAssignMethodAsync(CancellationToken cancellationToken = default)
+    {
+        var row = await _db.SysParams.AsNoTracking()
+            .FirstOrDefaultAsync(
+                p => p.ParamCode == SysParamCodes.RfqDefaultAssignMethod && p.Status == 1,
+                cancellationToken);
+        if (row == null)
+            return RfqDefaultAssignMethodRules.DefaultAssignMethod;
+
+        if (short.TryParse(row.ValueString?.Trim(), out var parsed))
+            return RfqDefaultAssignMethodRules.Normalize(parsed);
+
+        return RfqDefaultAssignMethodRules.DefaultAssignMethod;
+    }
+
+    public async Task SetDefaultAssignMethodAsync(short assignMethod, CancellationToken cancellationToken = default)
+    {
+        if (!RfqDefaultAssignMethodRules.IsAllowed(assignMethod))
+            throw new ArgumentException("默认分配方式须为条目轮询、品牌轮询或采报优先", nameof(assignMethod));
+
+        var normalized = RfqDefaultAssignMethodRules.Normalize(assignMethod);
+        var row = await _db.SysParams
+            .FirstOrDefaultAsync(p => p.ParamCode == SysParamCodes.RfqDefaultAssignMethod, cancellationToken);
+
+        if (row == null)
+        {
+            var groupFrom = await _db.SysParams.AsNoTracking()
+                .FirstOrDefaultAsync(p => p.ParamCode == SysParamCodes.RfqRoundRobinAssigneeCount, cancellationToken);
+            row = new SysParam
+            {
+                Id = Guid.NewGuid().ToString(),
+                ParamCode = SysParamCodes.RfqDefaultAssignMethod,
+                ParamName = "默认分配方式",
+                GroupId = groupFrom?.GroupId,
+                DataType = ParamDataType.Integer,
+                ValueString = normalized.ToString(),
+                DefaultValue = RfqDefaultAssignMethodRules.DefaultAssignMethod.ToString(),
+                Description = "新建需求页「分配方式」下拉默认选中项（2 条目轮询 / 3 品牌轮询 / 5 采报优先）。",
+                IsSystem = true,
+                IsEditable = true,
+                IsVisible = true,
+                SortOrder = 14,
+                Status = 1,
+                CreateTime = DateTime.UtcNow
+            };
+            await _db.SysParams.AddAsync(row, cancellationToken);
+        }
+        else
+        {
+            row.ValueString = normalized.ToString();
+            row.ModifyTime = DateTime.UtcNow;
+            _db.SysParams.Update(row);
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
     private async Task<HashSet<string>> LoadPoolUserIdSetAsync(CancellationToken cancellationToken)
     {
         var ids = await _db.SysPurchaseQuoterPools.AsNoTracking()

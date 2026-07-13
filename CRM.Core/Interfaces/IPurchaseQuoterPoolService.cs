@@ -34,4 +34,9 @@ public interface IPurchaseQuoterPoolService
     Task<int> GetDemandProtectionMinutesAsync(CancellationToken cancellationToken = default);
 
     Task SetDemandProtectionMinutesAsync(int minutes, CancellationToken cancellationToken = default);
+
+    /// <summary>新建需求时默认分配方式（2/3/5）。</summary>
+    Task<short> GetDefaultAssignMethodAsync(CancellationToken cancellationToken = default);
+
+    Task SetDefaultAssignMethodAsync(short assignMethod, CancellationToken cancellationToken = default);
 }

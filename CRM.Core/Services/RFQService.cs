@@ -147,6 +147,7 @@ namespace CRM.Core.Services
                     RfqAssignmentTrigger.Create,
                     request.Items.Select((itemReq, i) => (
                         LineNo: itemReq.LineNo > 0 ? itemReq.LineNo : i + 1,
+                        Mpn: NormalizeLineString(itemReq.Mpn),
                         Brand: NormalizeLineString(itemReq.Brand),
                         BrandId: itemReq.BrandId)));
 
@@ -872,6 +873,7 @@ namespace CRM.Core.Services
                     RfqAssignmentTrigger.AddItems,
                     newItemRequests.Select(x => (
                         LineNo: x.Req.LineNo > 0 ? x.Req.LineNo : x.Index + 1,
+                        Mpn: NormalizeLineString(x.Req.Mpn),
                         Brand: NormalizeLineString(x.Req.Brand),
                         BrandId: x.Req.BrandId)),
                     existingBrandAssignees);
@@ -998,7 +1000,7 @@ namespace CRM.Core.Services
         }
 
         private static short ResolveAssignMethod(short assignMethod) =>
-            assignMethod > 0 ? assignMethod : RfqAssignMethodCodes.ItemRoundRobin;
+            assignMethod > 0 ? assignMethod : RfqAssignMethodCodes.PurchaseQuotePriority;
 
         private static Dictionary<string, (string? PurchaserUserId1, string? PurchaserUserId2)> BuildExistingBrandAssignees(
             IEnumerable<RFQItem> existingItems) =>
@@ -1013,7 +1015,7 @@ namespace CRM.Core.Services
             string rfqId,
             string? rfqCode,
             RfqAssignmentTrigger trigger,
-            IEnumerable<(int LineNo, string Brand, long? BrandId)> lines,
+            IEnumerable<(int LineNo, string Mpn, string Brand, long? BrandId)> lines,
             IReadOnlyDictionary<string, (string? PurchaserUserId1, string? PurchaserUserId2)>? existingBrandAssignees = null) =>
             new()
             {
@@ -1025,6 +1027,7 @@ namespace CRM.Core.Services
                 {
                     ItemKey = x.LineNo.ToString(),
                     LineNo = x.LineNo,
+                    Mpn = x.Mpn,
                     Brand = x.Brand,
                     BrandId = x.BrandId
                 }).ToList()

@@ -26,5 +26,8 @@ namespace CRM.Core.Constants
 
         /// <summary>需求明细保护时长（分钟）；超过后任意采购员可见/可报价；0 表示关闭</summary>
         public const string RfqDemandProtectionMinutes = "System.RFQ.DemandProtectionMinutes";
+
+        /// <summary>新建需求时分配方式默认值（2 条目轮询 / 3 品牌轮询 / 5 采报优先）</summary>
+        public const string RfqDefaultAssignMethod = "System.RFQ.DefaultAssignMethod";
     }
 }

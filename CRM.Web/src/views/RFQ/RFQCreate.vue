@@ -620,6 +620,18 @@ const formRef = ref()
 const submitLoading = ref(false)
 const pageLoading = ref(false)
 const authStore = useAuthStore()
+
+let cachedDefaultAssignMethod: number | null = null
+
+async function resolveDefaultAssignMethod(): Promise<number> {
+  if (cachedDefaultAssignMethod != null) return cachedDefaultAssignMethod
+  try {
+    cachedDefaultAssignMethod = await rfqApi.getDefaultAssignMethod()
+  } catch {
+    cachedDefaultAssignMethod = 5
+  }
+  return cachedDefaultAssignMethod
+}
 const { ensureLoaded: ensureMaterialPdDict, defaultCode: defaultProductionDateCode, coerceProductionDateToCode: coercePd } =
   useMaterialProductionDateDict()
 const customerDict = useCustomerDictStore()
@@ -799,7 +811,7 @@ const emptyForm = () => ({
   rfqType: 1,
   targetType: 1,
   quoteMethod: 2,
-  assignMethod: 2,
+  assignMethod: 5,
   importance: 1,
   projectBackground: '',
   competitor: '',
@@ -809,9 +821,11 @@ const emptyForm = () => ({
 
 const formData = ref(emptyForm())
 
-function resetFormForCreate() {
+async function resetFormForCreate() {
+  const defaultAssignMethod = await resolveDefaultAssignMethod()
   formData.value = {
     ...emptyForm(),
+    assignMethod: defaultAssignMethod,
     items: [createEmptyRfqItem()]
   }
   contactOptions.value = []
@@ -1005,7 +1019,7 @@ async function loadRfqForEdit() {
       rfqType: data.rfqType ?? 1,
       targetType: data.targetType ?? 1,
       quoteMethod: d.quoteMethod ?? 2,
-      assignMethod: 2,
+      assignMethod: data.assignMethod ?? 5,
       importance: normalizeImportance(d.importanceLevel ?? d.importance),
       projectBackground: data.projectBackground || '',
       competitor: data.competitor || '',
@@ -1042,7 +1056,7 @@ watch(
     const aiToken = queryToken(route.query.aiPrefill)
 
     if (draftId) {
-      resetFormForCreate()
+      await resetFormForCreate()
       currentDraftId.value = ''
       try {
         await restoreDraftById(draftId)
@@ -1057,7 +1071,7 @@ watch(
 
     if (aiToken) {
       if (!appliedAiPrefillTokens.has(aiToken)) {
-        resetFormForCreate()
+        await resetFormForCreate()
         currentDraftId.value = ''
         const consumed = consumeAiPrefill('RFQ', aiToken)
         if (consumed) {
@@ -1082,7 +1096,7 @@ watch(
       return
     }
 
-    resetFormForCreate()
+    await resetFormForCreate()
     currentDraftId.value = ''
     await applyPrefillCustomerFromQuery()
   },

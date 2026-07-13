@@ -1,4 +1,5 @@
 using CRM.Core.Interfaces;
+using CRM.Core.Interfaces.RfqAssignment;
 using CRM.Infrastructure.Data;
 using CRM.Infrastructure.PurchaseOrders;
 using CRM.Infrastructure.RfqListQueries;
@@ -21,6 +22,7 @@ using Microsoft.Extensions.DependencyInjection;
 using CRM.Infrastructure.Repositories;
 using CRM.Infrastructure.Services;
 using CRM.Infrastructure.Ai;
+using CRM.Infrastructure.RfqAssignment;
 
 namespace CRM.Infrastructure.Extensions
 {
@@ -103,6 +105,7 @@ namespace CRM.Infrastructure.Extensions
             services.AddScoped<IAiOrchestrator, AiOrchestrator>();
             services.AddScoped<IAiAdminService, AiAdminService>();
             services.AddScoped<IAiEntityParseLogService, AiEntityParseLogService>();
+            services.AddScoped<IRfqMpnPurchaserAffinityLookup, RfqMpnPurchaserAffinityLookup>();
 
             return services;
         }

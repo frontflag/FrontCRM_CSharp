@@ -68,7 +68,8 @@ export enum AssignMethod {
   SamePurchaser = 1, // 历史：系统分配同一采购
   PurchaseRoundRobin = 2, // 条目轮询
   SameBrandSamePurchaser = 3, // 品牌轮询
-  DesignatedPurchaser = 4 // 历史：指定采购员
+  DesignatedPurchaser = 4, // 历史：指定采购员
+  PurchaseQuotePriority = 5 // 采报优先
 }
 
 // 目标类型

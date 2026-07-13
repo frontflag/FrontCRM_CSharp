@@ -278,6 +278,7 @@ namespace CRM.Core.Tests.Services
 
             var req = BuildValidCreateRequest(r =>
             {
+                r.AssignMethod = RfqAssignMethodCodes.ItemRoundRobin;
                 r.Items.Add(new CreateRFQItemRequest { Mpn = "MPN-002", BrandId = 2, Brand = "B2", Quantity = 1 });
             });
 
