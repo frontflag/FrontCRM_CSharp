@@ -65,6 +65,8 @@ public sealed class AiInvokeRequestDto
     public string? BizId { get; set; }
     /// <summary>触发方式：manual=人工主动，auto=系统补刷；缺省为 manual。</summary>
     public string? TriggerType { get; set; }
+    /// <summary>为 true 时跳过 PG 调用缓存，强制请求 LLM。</summary>
+    public bool ForceRefresh { get; set; }
 }
 
 public sealed class AiInvokeResultDto

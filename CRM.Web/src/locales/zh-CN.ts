@@ -688,6 +688,7 @@ const zhCN = {
       history: '历史',
       ops: '操作',
       material: '物料',
+      customerIntel: '调查',
       help: '帮助'
     }
   },
@@ -2468,6 +2469,37 @@ const zhCN = {
       item: '条目'
     }
   },
+  customerIntel: {
+    title: '客户情报调查',
+    disclaimerShort: '本信息来自公开渠道及 AI 整理，仅供参考，请人工核实',
+    fromCache: '缓存',
+    live: '实时',
+    noPermission: '无 AI 客户情报调查权限',
+    selectCustomerHint: '请在列表中单击选择客户，或打开客户详情查看调查报告',
+    investigate: '发起调查',
+    reinvestigate: '重新调查',
+    forceRefresh: '强制刷新',
+    forceRefreshConfirm: '将跳过缓存并消耗 AI 配额，是否继续？',
+    confirm: '确定',
+    cancel: '取消',
+    history: '历史报告',
+    loading: '正在调查客户情报，请稍候…（{seconds} 秒）',
+    loadingLatest: '正在加载调查报告…',
+    emptyReport: '暂无调查报告，点击「发起调查」获取客户情报',
+    retry: '重试',
+    copySection: '复制本章',
+    copyOk: '已复制',
+    copyFail: '复制失败',
+    expandSection: '展开',
+    collapseSection: '收起',
+    expandAllSections: '全部展开',
+    collapseAllSections: '全部收起',
+    close: '关闭',
+    confidenceTipHigh: '置信度高：公开来源较充分，多源可交叉，本章内容相对可信，仍建议关键事实人工核实。',
+    confidenceTipMediumHigh: '置信度中高：公开信息较完整，个别字段可能待核实，请结合来源与业务场景判断。',
+    confidenceTipMedium: '置信度中：有部分公开依据，但不够完整或存在推断，请重点核对摘要与关键字段。',
+    confidenceTipLow: '置信度低：公开信息较少或匹配不确定，本章仅供参考，请务必人工核实后再用于业务决策。'
+  },
   rfqDetail: {
     title: 'RFQ 详情',
     rfqCodePrefix: '需求',
@@ -3400,7 +3432,16 @@ const zhCN = {
   },
   customerHome: {
     searchPlaceholder: '输入客户名称、编号或关键词…',
-    search: '搜索',
+    search: '搜索客户',
+    searchCustomers: '搜索客户',
+    aiSearch: 'AI 调查',
+    aiSearchNoPermission: '无 AI 客户情报调查权限（biz.ai.customer_intel.lookup）',
+    aiSearchNeedCompany: '请输入企业名称',
+    aiSearchHint:
+      'AI 调查提示：\n请尽量输入工商登记全称（如「华为技术有限公司」），避免仅用简称或品牌名；\n若知道统一社会信用代码或所在地区，可在名称后一并填写，有助于提高匹配准确度。',
+    aiLoading: '正在调查客户情报，请稍候…（{seconds} 秒）',
+    aiSearchFailed: 'AI 调查失败',
+    aiSearchEmpty: '未返回有效调查报告',
     goList: '进入列表查询',
     create: '新建客户',
     loading: '加载概要数据…',

@@ -689,6 +689,7 @@ const enUS = {
       history: 'History',
       ops: 'Actions',
       material: 'Material',
+      customerIntel: 'Intel',
       help: 'Help'
     }
   },
@@ -2478,6 +2479,37 @@ const enUS = {
       note: 'Note'
     }
   },
+  customerIntel: {
+    title: 'Customer Intelligence',
+    disclaimerShort: 'Information from public sources and AI synthesis; verify manually',
+    fromCache: 'Cached',
+    live: 'Live',
+    noPermission: 'No permission for customer intelligence lookup',
+    selectCustomerHint: 'Select a customer in the list or open customer detail to view reports',
+    investigate: 'Investigate',
+    reinvestigate: 'Re-investigate',
+    forceRefresh: 'Force refresh',
+    forceRefreshConfirm: 'This skips cache and consumes AI quota. Continue?',
+    confirm: 'Confirm',
+    cancel: 'Cancel',
+    history: 'History',
+    loading: 'Investigating customer intelligence… ({seconds}s)',
+    loadingLatest: 'Loading report…',
+    emptyReport: 'No report yet. Click Investigate to start.',
+    retry: 'Retry',
+    copySection: 'Copy section',
+    copyOk: 'Copied',
+    copyFail: 'Copy failed',
+    expandSection: 'Expand',
+    collapseSection: 'Collapse',
+    expandAllSections: 'Expand all',
+    collapseAllSections: 'Collapse all',
+    close: 'Close',
+    confidenceTipHigh: 'High confidence: sufficient public sources with cross-checks; still verify critical facts manually.',
+    confidenceTipMediumHigh: 'Medium-high confidence: fairly complete public data; some fields may need verification.',
+    confidenceTipMedium: 'Medium confidence: partial public evidence or inference; review summary and key fields.',
+    confidenceTipLow: 'Low confidence: limited or uncertain public data; for reference only—verify before business use.'
+  },
   rfqDetail: {
     title: 'RFQ Detail',
     rfqCodePrefix: 'RFQ: ',
@@ -3403,7 +3435,16 @@ const enUS = {
   },
   customerHome: {
     searchPlaceholder: 'Enter customer name, code, or keyword…',
-    search: 'Search',
+    search: 'Search Customers',
+    searchCustomers: 'Search Customers',
+    aiSearch: 'AI Investigate',
+    aiSearchNoPermission: 'No permission for customer intelligence lookup (biz.ai.customer_intel.lookup)',
+    aiSearchNeedCompany: 'Enter a company name',
+    aiSearchHint:
+      'AI investigate tip: use the full registered legal name (e.g. full company name with entity type). Avoid nicknames or brand names only; adding unified social credit code or region in the same field improves match accuracy.',
+    aiLoading: 'Investigating customer intelligence… ({seconds}s)',
+    aiSearchFailed: 'AI investigation failed',
+    aiSearchEmpty: 'No valid investigation report returned',
     goList: 'Open list query',
     create: 'New Customer',
     loading: 'Loading summary...',

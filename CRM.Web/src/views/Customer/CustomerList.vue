@@ -141,6 +141,8 @@
         :data="customerList"
         :density-toggle-anchor-el="rowDensityToggleAnchorEl"
         row-key="id"
+        :row-class-name="customerListRowClassName"
+        @row-click="onCustomerRowClick"
         @row-dblclick="onRowDblClick"
       >
         <template #col-status="{ row }">
@@ -323,7 +325,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, watch, nextTick, computed } from 'vue';
+import { ref, reactive, onMounted, watch, nextTick, computed, inject } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n'
 import { ElNotification, ElMessageBox } from 'element-plus';
@@ -346,10 +348,14 @@ import { CUSTOMER_WORKFLOW_STATUS_OPTIONS } from '@/constants/customerWorkflowSt
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
+import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
+import { useCustomerIntelLookupStore } from '@/stores/customerIntelLookup'
 
 const router = useRouter();
 const route = useRoute();
 const { t } = useI18n()
+const workspaceLayout = inject(WorkspaceLayoutKey, null)
+const customerIntelLookupStore = useCustomerIntelLookupStore()
 
 function isPartyStatusMuted(c: Customer) {
   return !!(c.disenableStatus || c.blackList);
@@ -500,6 +506,7 @@ const fetchCustomerList = async () => {
     }))
     customerList.value = mapped
     totalCount.value = response.totalCount ?? response.total ?? 0
+    tryRestoreIntelSelection()
   } catch (error: any) {
     // 仅在真实网络/服务器错误时提示，空数据不报错
     const isEmptyResult = !error?.response || error?.response?.status === 404;
@@ -603,6 +610,43 @@ function onCreateDropdownCommand(cmd: string) {
   if (cmd === 'aiCreate') aiCreateHostRef.value?.open();
   if (cmd === 'uploadCard') businessCardHostRef.value?.open();
 }
+function buildCustomerIntelContext(row: Customer) {
+  return {
+    customerId: row.id,
+    companyName: (row.customerName || row.customerShortName || '').trim(),
+    creditCode: row.unifiedSocialCreditCode || (row as { creditCode?: string }).creditCode || null,
+    region: row.city || row.region || null,
+    salesPersonName: row.salesPersonName || null,
+    blackList: !!row.blackList,
+    disenableStatus: !!row.disenableStatus
+  }
+}
+
+function customerListRowClassName({ row }: { row: Customer }) {
+  const parts = ['table-row-pointer']
+  const id = String(row.id ?? '')
+  if (id && customerIntelLookupStore.boundCustomerId === id) {
+    parts.push('crm-list-row--clicked')
+  }
+  return parts.join(' ')
+}
+
+function onCustomerRowClick(row: Customer) {
+  customerIntelLookupStore.bindContext(buildCustomerIntelContext(row))
+  workspaceLayout?.setRightActiveTab('r-customer-intel')
+  if (!workspaceLayout?.rightPanelVisible.value) {
+    workspaceLayout?.toggleRightPanel(true)
+  }
+}
+
+function tryRestoreIntelSelection() {
+  const savedId = customerIntelLookupStore.readSessionSelectedId()
+  if (!savedId) return
+  const row = customerList.value.find((c) => c.id === savedId)
+  if (!row) return
+  customerIntelLookupStore.bindContext(buildCustomerIntelContext(row))
+}
+
 const handleView = (row: Customer) => router.push(`/customers/${row.id}`);
 const handleEdit = (row: Customer) => router.push(`/customers/${row.id}/edit`);
 

@@ -13,6 +13,7 @@ using Microsoft.OpenApi.Models;
 using System.Text;
 using CRM.Infrastructure.Extensions;
 using CRM.Infrastructure.Document;
+using CRM.Infrastructure.Services;
 using IP2Region.Net.Abstractions;
 using IP2Region.Net.XDB;
 using Microsoft.Extensions.Hosting;
@@ -37,6 +38,7 @@ namespace CRM.API.Extensions
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<ICustomerService, CustomerService>();
+            services.AddScoped<ICustomerIntelReportService, CustomerIntelReportService>();
             services.AddScoped<IEntityLookupService, EntityLookupService>();
             services.AddScoped<IRFQService, RFQService>();
             services.AddScoped<IRfqPurchaserRoundRobinCursorStore, RfqPurchaserRoundRobinCursorStore>();

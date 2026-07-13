@@ -17,6 +17,7 @@ namespace CRM.API.Controllers
     public class CustomersController : ControllerBase
     {
         private readonly ICustomerService _customerService;
+        private readonly ICustomerIntelReportService _customerIntelReportService;
         private readonly IApprovalRecordService _approvalRecordService;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IRepository<SellOrder> _sellOrderRepository;
@@ -25,6 +26,7 @@ namespace CRM.API.Controllers
 
         public CustomersController(
             ICustomerService customerService,
+            ICustomerIntelReportService customerIntelReportService,
             IApprovalRecordService approvalRecordService,
             IDataPermissionService dataPermissionService,
             IRepository<SellOrder> sellOrderRepository,
@@ -32,6 +34,7 @@ namespace CRM.API.Controllers
             ILogger<CustomersController> logger)
         {
             _customerService = customerService;
+            _customerIntelReportService = customerIntelReportService;
             _approvalRecordService = approvalRecordService;
             _dataPermissionService = dataPermissionService;
             _sellOrderRepository = sellOrderRepository;
@@ -942,6 +945,26 @@ namespace CRM.API.Controllers
                 return Ok(ApiResponse<object>.Ok(logs));
             }
             catch (Exception ex) { return StatusCode(500, ApiResponse<object>.Fail(ex.Message, 500)); }
+        }
+
+        // ===== 客户 AI 情报报告 =====
+        [HttpGet("{id}/intel-reports/latest")]
+        [RequirePermission("biz.ai.customer_intel.lookup")]
+        public async Task<ActionResult<ApiResponse<CustomerIntelReportDetailDto>>> GetLatestIntelReport(string id, CancellationToken ct)
+        {
+            var result = await _customerIntelReportService.GetLatestByCustomerIdAsync(id, ct);
+            return Ok(ApiResponse<CustomerIntelReportDetailDto>.Ok(result!, result == null ? "暂无报告" : "ok"));
+        }
+
+        [HttpGet("{id}/intel-reports")]
+        [RequirePermission("biz.ai.customer_intel.lookup")]
+        public async Task<ActionResult<ApiResponse<IReadOnlyList<CustomerIntelReportSummaryDto>>>> ListIntelReports(
+            string id,
+            [FromQuery] int take = 20,
+            CancellationToken ct = default)
+        {
+            var list = await _customerIntelReportService.ListByCustomerIdAsync(id, take, ct);
+            return Ok(ApiResponse<IReadOnlyList<CustomerIntelReportSummaryDto>>.Ok(list, "ok"));
         }
     }
 }

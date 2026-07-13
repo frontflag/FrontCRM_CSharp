@@ -1241,6 +1241,10 @@
             v-show="showRfqItemMaterialPanel"
             class="aux-panel-tab-body"
           />
+          <CustomerIntelPanel
+            v-show="showCustomerIntelPanel"
+            class="aux-panel-tab-body"
+          />
           <HelpManualPanel v-show="rightActiveTabId === 'r4'" class="aux-panel-tab-body" />
         </div>
       </aside>
@@ -1283,10 +1287,12 @@ import PurchaseOrderRecentHistoryPanel from '@/components/purchaseOrder/Purchase
 import HelpManualPanel from '@/components/workspace/HelpManualPanel.vue'
 import SalesOrderItemOpsPanel from '@/components/RFQ/SalesOrderItemOpsPanel.vue'
 import RfqItemMaterialPanel from '@/components/RFQ/RfqItemMaterialPanel.vue'
+import CustomerIntelPanel from '@/components/Customer/CustomerIntelPanel.vue'
 import PurchaseOrderItemOpsPanel from '@/components/RFQ/PurchaseOrderItemOpsPanel.vue'
 import CustomsDeclarationOpsPanel from '@/components/Customs/CustomsDeclarationOpsPanel.vue'
 import { useSalesOrderItemOpsPanelStore } from '@/stores/salesOrderItemOpsPanel'
 import { useMaterialIntelLookupStore } from '@/stores/materialIntelLookup'
+import { useCustomerIntelLookupStore } from '@/stores/customerIntelLookup'
 import { usePurchaseOrderItemOpsPanelStore } from '@/stores/purchaseOrderItemOpsPanel'
 import { useCustomsDeclarationOpsPanelStore } from '@/stores/customsDeclarationOpsPanel'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
@@ -1315,6 +1321,7 @@ const { isDark, toggleTheme } = useUiTheme()
 const { t, locale } = useI18n()
 const salesOrderItemOpsStore = useSalesOrderItemOpsPanelStore()
 const materialIntelLookupStore = useMaterialIntelLookupStore()
+const customerIntelLookupStore = useCustomerIntelLookupStore()
 const purchaseOrderItemOpsStore = usePurchaseOrderItemOpsPanelStore()
 const customsDeclarationOpsStore = useCustomsDeclarationOpsPanelStore()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
@@ -1579,6 +1586,14 @@ const showRfqItemMaterialPanel = computed(
   () => rightActiveTabId.value === 'r-material' && isRfqItemListRoute.value
 )
 
+const isCustomerIntelRoute = computed(
+  () => route.name === 'CustomerList' || route.name === 'CustomerDetail'
+)
+
+const showCustomerIntelPanel = computed(
+  () => rightActiveTabId.value === 'r-customer-intel' && isCustomerIntelRoute.value
+)
+
 const canPurchaseOrderItemOpsArrival = computed(() => authStore.hasPermission('purchase-order.read'))
 
 const canPurchaseOrderItemOpsPayment = computed(
@@ -1617,6 +1632,21 @@ watch(
       ]
       salesOrderItemOpsStore.clear()
       purchaseOrderItemOpsStore.clear()
+      customerIntelLookupStore.clearBound()
+      return
+    }
+    if (name === 'CustomerList' || name === 'CustomerDetail') {
+      rightTabs.value = [
+        { id: 'r-customer-intel', labelKey: 'layout.auxTabs.customerIntel' },
+        { id: 'r4', labelKey: 'layout.auxTabs.help' }
+      ]
+      salesOrderItemOpsStore.clear()
+      purchaseOrderItemOpsStore.clear()
+      customsDeclarationOpsStore.clear()
+      materialIntelLookupStore.clearBound()
+      if (rightActiveTabId.value !== 'r-customer-intel' && rightActiveTabId.value !== 'r4') {
+        rightActiveTabId.value = 'r-customer-intel'
+      }
       return
     }
     rightTabs.value = [{ id: 'r4', labelKey: 'layout.auxTabs.help' }]
@@ -1625,6 +1655,7 @@ watch(
     purchaseOrderItemOpsStore.clear()
     customsDeclarationOpsStore.clear()
     materialIntelLookupStore.clearBound()
+    customerIntelLookupStore.clearBound()
   },
   { immediate: true }
 )

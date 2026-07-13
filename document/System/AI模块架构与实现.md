@@ -19,6 +19,7 @@
 - 管理端配置页 + Debug 调试页
 - 业务场景：`material.spec.lookup`（Debug：PN + 品牌查规格）
 - 业务场景：**`material.intel.lookup`（RFQ 首页 AI 物料情报）** — 详见 [AI物料情报查询-设计与实现](./AI物料情报查询-设计与实现.md)
+- 业务场景：**`customer.intel.lookup`（客户情报调查）** — 详见 [AI客户情报调查-设计与实现](./AI客户情报调查-设计与实现.md)（右栏 + **客户首页 `/custome`** 已落地）
 - 业务场景：**`entity.parse.*`（7 类实体 AI 解析建单）** — 详见 [AI实体解析建单-设计与实现](./AI实体解析建单-设计与实现.md)
 
 **不在本文范围：** 流式输出（SSE）、多模态、向量检索/RAG、全局配置的管理 UI（`ai_global_config` 目前仅数据库/种子维护）。**RFQ 物料情报 UI 渲染细节** 见专用文档；**实体解析建单交互与日志** 见专用文档，不在此重复。
@@ -328,6 +329,7 @@ Key 与端点必须匹配：国内平台申请的 Key 不能用于 `.ai` 端点�
 | AI Debug | `/debug/ai` | `sysAdminOnly` |
 | AI 物料情报对照 | `/debug/material-intel` | `sysAdminOnly` |
 | RFQ 首页 AI 查询 | `/rfq`（或需求管理首页） | `biz.ai.material_intel.lookup` |
+| 客户首页 AI 调查 | `/custome`（客户管理首页） | `biz.ai.customer_intel.lookup` |
 
 菜单项在 `AppLayout.vue`；i18n 键 `aiConfig.*`、`layout.menu.aiConfig`。
 
@@ -351,6 +353,12 @@ Key 与端点必须匹配：国内平台申请的 Key 不能用于 `.ai` 端点�
 业务入口、JSON 契约 v2、前端渲染栈、部署与 Debug 对照见专用文档：
 
 **[AI物料情报查询-设计与实现](./AI物料情报查询-设计与实现.md)**
+
+### 8.5 客户情报调查（`customer.intel.lookup`）
+
+业务入口含 **客户首页 `/custome` AI 调查** 与 **客户列表/详情右栏「调查」**；13 章契约、缓存策略、双入口状态隔离见专用文档：
+
+**[AI客户情报调查-设计与实现](./AI客户情报调查-设计与实现.md)**（§7.6 客户首页实现细则）
 
 ---
 

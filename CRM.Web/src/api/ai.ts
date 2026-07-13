@@ -259,6 +259,8 @@ export const aiApi = {
 export const AI_SCENARIO_MATERIAL_SPEC_LOOKUP = 'material.spec.lookup'
 export const AI_SCENARIO_MATERIAL_INTEL_LOOKUP = 'material.intel.lookup'
 export const AI_PERMISSION_MATERIAL_INTEL_LOOKUP = 'biz.ai.material_intel.lookup'
+export const AI_SCENARIO_CUSTOMER_INTEL_LOOKUP = 'customer.intel.lookup'
+export const AI_PERMISSION_CUSTOMER_INTEL_LOOKUP = 'biz.ai.customer_intel.lookup'
 
 export const AI_SCENARIO_ENTITY_PARSE_CUSTOMER = 'entity.parse.customer'
 export const AI_SCENARIO_ENTITY_PARSE_RFQ = 'entity.parse.rfq'

@@ -303,6 +303,21 @@ public sealed class MockAiLlmProvider : IAiLlmProvider
             });
         }
 
+        if (systemMsg.Contains("客户情报", StringComparison.Ordinal))
+        {
+            var company = ExtractBetween(userMsg, "企业名称", "；")
+                          ?? ExtractBetween(userMsg, "企业名称", ";")
+                          ?? ExtractBetween(userMsg, "company_name", "；")
+                          ?? "Mock 客户有限公司";
+            company = company.Trim().TrimStart('：', ':').Trim();
+            var json = BuildMockCustomerIntelJson(company);
+            return Task.FromResult(new AiChatCompletionResult
+            {
+                Content = json,
+                Usage = new AiTokenUsageDto { PromptTokens = 200, CompletionTokens = 1200, TotalTokens = 1400 }
+            });
+        }
+
         var pn = ExtractBetween(userMsg, "PN=", "，") ?? ExtractBetween(userMsg, "PN=", ",") ?? "UNKNOWN";
         var brand = ExtractBetween(userMsg, "品牌=", "。") ?? ExtractBetween(userMsg, "品牌=", ".") ?? "UNKNOWN";
 
@@ -484,6 +499,197 @@ public sealed class MockAiLlmProvider : IAiLlmProvider
         if (string.IsNullOrWhiteSpace(existing))
             return line.Trim();
         return $"{existing.Trim()}；{line.Trim()}";
+    }
+
+    private static string BuildMockCustomerIntelJson(string companyName)
+    {
+        var safeName = string.IsNullOrWhiteSpace(companyName) ? "Mock 客户有限公司" : companyName.Trim();
+        return $$"""
+                   {
+                     "meta": {
+                       "schema_version": "1.1",
+                       "company_name_primary": "{{safeName}}",
+                       "company_name_aliases": [],
+                       "credit_code": null,
+                       "region": "广东省深圳市",
+                       "generated_at": "2026-07-14T00:00:00Z",
+                       "data_freshness": "mixed",
+                       "overall_confidence": "low"
+                     },
+                     "query": {
+                       "company_name": "{{safeName}}",
+                       "credit_code": null,
+                       "region": null,
+                       "intent": "full"
+                     },
+                     "sections": [
+                       {
+                         "id": "registry",
+                         "title": "基础档案",
+                         "summary": "Mock 开发数据，请配置 moonshot 后使用真实调查。",
+                         "confidence": "low",
+                         "content": {
+                           "official_name": "{{safeName}}",
+                           "operating_status": "存续（Mock）"
+                         },
+                         "sources": []
+                       },
+                       {
+                         "id": "ownership",
+                         "title": "股权结构",
+                         "summary": "Mock 股权结构",
+                         "confidence": "low",
+                         "content": {
+                           "shareholders": [],
+                           "parent_company": null,
+                           "ultimate_controller": null,
+                           "listed_info": { "is_listed": false, "stock_code": null, "exchange": null },
+                           "ownership_notes": "Mock 数据"
+                         },
+                         "sources": []
+                       },
+                       {
+                         "id": "business",
+                         "title": "经营业务",
+                         "summary": "Mock 主营业务示例",
+                         "confidence": "low",
+                         "content": {
+                           "main_products": ["示例产品 A", "示例产品 B"],
+                           "business_model": "ODM/OEM",
+                           "industry_tags": ["电子制造"]
+                         },
+                         "sources": []
+                       },
+                       {
+                         "id": "scale",
+                         "title": "企业规模",
+                         "summary": "Mock 规模数据",
+                         "confidence": "low",
+                         "content": { "employee_total": { "value": 500, "unit": "人" } },
+                         "sources": []
+                       },
+                       {
+                         "id": "certifications",
+                         "title": "资质与认证",
+                         "summary": "Mock 资质认证",
+                         "confidence": "low",
+                         "content": {
+                           "is_high_tech_enterprise": false,
+                           "items": [],
+                           "honors": []
+                         },
+                         "sources": []
+                       },
+                       {
+                         "id": "timeline",
+                         "title": "发展历程",
+                         "summary": "Mock 发展历程",
+                         "confidence": "low",
+                         "content": { "events": [] },
+                         "sources": []
+                       },
+                       {
+                         "id": "contacts",
+                         "title": "联系方式",
+                         "summary": "Mock 联系方式",
+                         "confidence": "low",
+                         "content": { "locations": [], "public_emails": [] },
+                         "sources": []
+                       },
+                       {
+                         "id": "compliance_risks",
+                         "title": "合规与司法风险",
+                         "summary": "Mock 无司法风险记录",
+                         "confidence": "low",
+                         "content": {
+                           "risk_level": "low",
+                           "checks": [
+                             { "type": "litigation", "count": 0, "status": "clear" }
+                           ],
+                           "attention_items": []
+                         },
+                         "sources": []
+                       },
+                       {
+                         "id": "market_risks",
+                         "title": "经营与市场风险",
+                         "summary": "Mock 市场风险",
+                         "confidence": "low",
+                         "content": {
+                           "risk_level": "low",
+                           "items": [],
+                           "customer_concentration": null,
+                           "competition_summary": null,
+                           "policy_risks": []
+                         },
+                         "sources": []
+                       },
+                       {
+                         "id": "procurement_signals",
+                         "title": "采购与供应链信号",
+                         "summary": "Mock 采购信号",
+                         "confidence": "low",
+                         "content": {
+                           "items": [],
+                           "expansion_signals": [],
+                           "bom_needs": [],
+                           "localization_signals": []
+                         },
+                         "sources": []
+                       },
+                       {
+                         "id": "opportunities",
+                         "title": "商机线索",
+                         "summary": "Mock 商机",
+                         "confidence": "low",
+                         "content": {
+                           "items": [
+                             {
+                               "id": "opp-mock-1",
+                               "type": "other",
+                               "title": "Mock 商机示例",
+                               "description": "请配置 moonshot 获取真实商机。",
+                               "priority": "medium",
+                               "suggested_actions": ["配置 AI_MOONSHOT_API_KEY"]
+                             }
+                           ]
+                         },
+                         "sources": []
+                       },
+                       {
+                         "id": "key_people",
+                         "title": "关键人与组织",
+                         "summary": "Mock 关键人",
+                         "confidence": "low",
+                         "content": {
+                           "people": [],
+                           "org_summary": null,
+                           "rd_team_summary": null
+                         },
+                         "sources": []
+                       },
+                       {
+                         "id": "ai_assessment",
+                         "title": "AI 综合评估",
+                         "summary": "Mock 评估，仅供开发联调",
+                         "confidence": "low",
+                         "content": {
+                           "dimensions": [],
+                           "overall_summary": "Mock 数据",
+                           "visit_strategy": {},
+                           "recommended_next_steps": []
+                         },
+                         "sources": []
+                       }
+                     ],
+                     "relations": {
+                       "section_order": ["registry","ownership","business","scale","certifications","timeline","contacts","compliance_risks","market_risks","procurement_signals","opportunities","key_people","ai_assessment"],
+                       "for_risk_control": ["registry","ownership","compliance_risks","market_risks"],
+                       "for_sales_followup": ["opportunities","procurement_signals","timeline","key_people","ai_assessment"]
+                     },
+                     "disclaimer": "本信息来自公开渠道及 AI 整理，仅供参考；当前为 Mock 开发数据。"
+                   }
+                   """;
     }
 
     private static string BuildDefaultMockRfqJson()

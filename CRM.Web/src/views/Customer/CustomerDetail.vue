@@ -821,6 +821,7 @@ import ApplyTagsDialog from '@/components/Tag/ApplyTagsDialog.vue';
 import PartyStatusIcons from '@/components/party/PartyStatusIcons.vue';
 import type { Customer, CustomerContactInfo, CustomerAddress, CustomerBankInfo } from '@/types/customer';
 import { useCustomerDictStore } from '@/stores/customerDict';
+import { useCustomerIntelLookupStore } from '@/stores/customerIntelLookup';
 
 import AddressDialog from './components/AddressDialog.vue';
 import BankDialog from './components/BankDialog.vue';
@@ -856,6 +857,7 @@ const canAiParseCustomerAddress = computed(() => authStore.hasPermission(AI_PERM
 const aiContactCreateHostRef = ref<InstanceType<typeof AiEntityCreateHost> | null>(null);
 const aiAddressCreateHostRef = ref<InstanceType<typeof AiEntityCreateHost> | null>(null);
 const customerDict = useCustomerDictStore();
+const customerIntelLookupStore = useCustomerIntelLookupStore();
 const customerId = route.params.id as string;
 
 /** 客户联系人性别：0=保密、1=男、2=女 */
@@ -1110,6 +1112,15 @@ const fetchCustomerDetail = async () => {
       c.addresses = c.addresses.map((a) => normalizeCustomerAddressFromApi(a));
     }
     customer.value = c;
+    customerIntelLookupStore.bindContext({
+      customerId: c.id,
+      companyName: (c.customerName || c.customerShortName || '').trim(),
+      creditCode: c.unifiedSocialCreditCode || null,
+      region: c.city || c.region || null,
+      salesPersonName: c.salesPersonName || null,
+      blackList: !!c.blackList,
+      disenableStatus: !!c.disenableStatus
+    });
     await refreshFavoriteStatus();
     trackRecentDetail();
     void fetchDocumentCount();

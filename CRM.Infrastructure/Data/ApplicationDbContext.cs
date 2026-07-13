@@ -39,6 +39,7 @@ namespace CRM.Infrastructure.Data
         public DbSet<CustomerContactInfo> CustomerContacts { get; set; } = null!;
         public DbSet<CustomerBankInfo> CustomerBanks { get; set; } = null!;
         public DbSet<CustomerContactHistory> CustomerContactHistories { get; set; } = null!;
+        public DbSet<CustomerIntelReport> CustomerIntelReports { get; set; } = null!;
 
         // ===== 供应商相关表 =====
         public DbSet<VendorInfo> Vendors { get; set; } = null!;
@@ -563,6 +564,16 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.CustomerId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.Type).HasMaxLength(50);
                 entity.Property(e => e.Content).HasMaxLength(500);
+            });
+
+            modelBuilder.Entity<CustomerIntelReport>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.CompanyName).IsRequired().HasMaxLength(256);
+                entity.Property(e => e.QueryFingerprint).IsRequired().HasMaxLength(64);
+                entity.Property(e => e.ReportJson).HasColumnType("jsonb");
+                entity.HasIndex(e => new { e.QueryFingerprint, e.IsLatest });
+                entity.HasIndex(e => new { e.CustomerId, e.CreatedAt });
             });
 
             // Vendor configuration（主表 HasQueryFilter 见上文「软删除全局过滤器」；DeleteAsync 走 ISoftDeletable 与 VendorService 标删一致）
