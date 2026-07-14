@@ -54,6 +54,10 @@
     { "id": "MENU_FINANCE_FF_PAYABLE", "label": "货代付款", "routeNames": ["FinanceFreightForwarderPayableList", "FinanceFreightForwarderPayableDetail", "FreightForwarderCompanyManage"], "pathPrefixes": ["/finance/freight-forwarder-payables", "/finance/freight-forwarder-companies"] },
     { "id": "MENU_FINANCE_SELL_INV", "label": "销项发票", "routeNames": ["FinanceSellInvoiceList", "FinanceSellInvoiceDetail"], "pathPrefixes": ["/finance/sell-invoices"] },
 
+    { "id": "MENU_FINANCE_STOCK_ACCUMULATED", "label": "库存滚存", "routeNames": ["FinanceStockAccumulatedList", "FinanceStockAccumulatedItemList"], "pathPrefixes": ["/finance/stock-accumulated"] },
+    { "id": "MENU_FINANCE_CUSTOMER_ACCUMULATED", "label": "客户滚存", "routeNames": ["FinanceCustomerAccumulatedList", "FinanceCustomerAccumulatedItemList"], "pathPrefixes": ["/finance/customer-accumulated"] },
+    { "id": "MENU_FINANCE_VENDOR_ACCUMULATED", "label": "供应商滚存", "routeNames": ["FinanceVendorAccumulatedList", "FinanceVendorAccumulatedItemList"], "pathPrefixes": ["/finance/vendor-accumulated"] },
+
     { "id": "MENU_REPORT_ANALYSIS", "label": "报表分析", "routeNames": [], "pathPrefixes": [] },
 
     { "id": "MENU_SYS_USERS", "label": "员工管理", "routeNames": ["UserList", "UserCreate", "UserEdit"], "pathPrefixes": ["/system/users"] },

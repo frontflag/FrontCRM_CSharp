@@ -1,11 +1,41 @@
 ---
-description: 全站列表/表格与客户列表统一视觉
+description: 全站列表/表格与客户列表统一视觉；CrmDataTable 列宽与表头完整显示（强制）
 globs: CRM.Web/src/**/*.vue
 ---
 
 # 列表样式约定（FrontCRM）
 
 全局已在 `main.scss` 引入 `crm-unified-list.scss`，并与 `main.scss` 内全局 `el-table` 覆盖一致。
+
+规范全文：`document/PRD/规范/UI规范/列表字段宽度规范PRD.md` **§3.3**、`业务列表规范.md` **§1.6**。
+
+## 列标题完整显示（强制）
+
+新建或改版含 **`CrmDataTable`** / **`el-table`** 的列表时：
+
+1. **表头列标题**须一行内**完整展示**，**禁止**默认出现 `入库...`、`上期...` 等表头 `…` 省略。
+2. 每列 `minWidth`（固定宽列还须 `width`）须 **≥ 列 `label` 全文宽度**（以 **zh-CN** 为准）。
+3. **推荐**使用工具函数估算下限：
+
+```ts
+import { estimateListColumnHeaderMinWidth } from '@/utils/listColumnHeaderWidth'
+
+// 示例：右对齐数量列
+{
+  key: 'stockInQty',
+  label: t('xxx.columns.stockInQty'),
+  prop: 'stockInQty',
+  minWidth: estimateListColumnHeaderMinWidth(t('xxx.columns.stockInQty'), { align: 'right' }),
+  width: estimateListColumnHeaderMinWidth(t('xxx.columns.stockInQty'), { align: 'right' }),
+  align: 'right'
+}
+```
+
+4. **推荐下限速查**：4 汉字列 ≥ **120**；`xxx(USD)` 类 ≥ **130**；更长标题按 §3.3 递增。
+5. 调整默认列宽或 i18n 列名后，视情况递增 **`column-layout-key`**（如 `v1` → `v2`），避免 localStorage 旧窄宽覆盖。
+6. 完成前**自检**：1920 / 1366 宽下目视确认**全部列标题**无 `…`。
+
+表体长文本可 `show-overflow-tooltip`；**表头不适用省略号兜底**。
 
 ## 原生 `<table>`
 

@@ -94,6 +94,138 @@ public class FinanceStockAccumulatedController : ControllerBase
         }
     }
 
+    [HttpGet("vendors")]
+    public async Task<IActionResult> GetVendors(
+        [FromQuery] FinanceVendorAccumulatedQueryRequest request,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var denied = await DenyIfFinanceForbiddenAsync();
+        if (denied != null)
+            return denied;
+
+        if (string.IsNullOrWhiteSpace(request.Month))
+            return BadRequest(ApiResponse<object>.Fail("请选择月份！", 400));
+
+        try
+        {
+            var maskAmounts = await ResolveMaskAmountsAsync();
+            var result = await _query.GetVendorPageAsync(request, page, pageSize, maskAmounts, cancellationToken);
+            return Ok(ApiResponse<FinanceVendorAccumulatedListDto>.Ok(result));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<object>.Fail($"加载供应商滚存失败：{ex.Message}", 500));
+        }
+    }
+
+    [HttpGet("vendor-items")]
+    public async Task<IActionResult> GetVendorItems(
+        [FromQuery] FinanceVendorAccumulatedItemQueryRequest request,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var denied = await DenyIfFinanceForbiddenAsync();
+        if (denied != null)
+            return denied;
+
+        if (string.IsNullOrWhiteSpace(request.Month))
+            return BadRequest(ApiResponse<object>.Fail("请选择月份！", 400));
+
+        if (request.VendorId == null)
+            return BadRequest(ApiResponse<object>.Fail("请选择供应商！", 400));
+
+        try
+        {
+            var maskAmounts = await ResolveMaskAmountsAsync();
+            var result = await _query.GetVendorItemPageAsync(request, page, pageSize, maskAmounts, cancellationToken);
+            return Ok(ApiResponse<object>.Ok(new
+            {
+                maskAmounts,
+                items = result.Items,
+                total = result.TotalCount,
+                page = result.PageIndex,
+                pageSize = result.PageSize
+            }));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+        }
+    }
+
+    [HttpGet("customers")]
+    public async Task<IActionResult> GetCustomers(
+        [FromQuery] FinanceCustomerAccumulatedQueryRequest request,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var denied = await DenyIfFinanceForbiddenAsync();
+        if (denied != null)
+            return denied;
+
+        if (string.IsNullOrWhiteSpace(request.Month))
+            return BadRequest(ApiResponse<object>.Fail("请选择月份！", 400));
+
+        try
+        {
+            var maskAmounts = await ResolveMaskAmountsAsync();
+            var result = await _query.GetCustomerPageAsync(request, page, pageSize, maskAmounts, cancellationToken);
+            return Ok(ApiResponse<FinanceCustomerAccumulatedListDto>.Ok(result));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<object>.Fail($"加载客户滚存失败：{ex.Message}", 500));
+        }
+    }
+
+    [HttpGet("customer-items")]
+    public async Task<IActionResult> GetCustomerItems(
+        [FromQuery] FinanceCustomerAccumulatedItemQueryRequest request,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var denied = await DenyIfFinanceForbiddenAsync();
+        if (denied != null)
+            return denied;
+
+        if (string.IsNullOrWhiteSpace(request.Month))
+            return BadRequest(ApiResponse<object>.Fail("请选择月份！", 400));
+
+        if (request.CustomerId == null)
+            return BadRequest(ApiResponse<object>.Fail("请选择客户！", 400));
+
+        try
+        {
+            var maskAmounts = await ResolveMaskAmountsAsync();
+            var result = await _query.GetCustomerItemPageAsync(request, page, pageSize, maskAmounts, cancellationToken);
+            return Ok(ApiResponse<object>.Ok(new
+            {
+                maskAmounts,
+                items = result.Items,
+                total = result.TotalCount,
+                page = result.PageIndex,
+                pageSize = result.PageSize
+            }));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+        }
+    }
+
     private async Task<IActionResult?> DenyIfFinanceForbiddenAsync()
     {
         if (!await FinanceDataAccessHttp.CanViewFinanceMenusAsync(_rbacService, User))

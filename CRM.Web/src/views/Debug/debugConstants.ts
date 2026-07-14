@@ -1,2 +1,2 @@
 /** Debug 页展示用前端版本号（post-commit 自动更新，格式 1.1.MMdd-HHmm + 提交说明） */
-export const FRONTEND_DEBUG_VERSION = '1.1.0714-1538 feat(finance): add inventory stock accumulated reports under 库存报表'
+export const FRONTEND_DEBUG_VERSION = '1.1.0714-1939 feat(finance): complete stock, customer, and vendor accumulated reports'

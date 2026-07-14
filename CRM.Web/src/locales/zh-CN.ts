@@ -645,6 +645,8 @@ const zhCN = {
       sellInvoices: '销项发票',
       inventoryReports: '库存报表',
       stockAccumulated: '库存滚存',
+      customerAccumulated: '客户滚存',
+      vendorAccumulated: '供应商滚存',
       reportAnalytics: '报表分析',
       businessManagement: '业务管理',
       brandManagement: '品牌管理',
@@ -988,7 +990,8 @@ const zhCN = {
       pnPlaceholder: '物料型号',
       stockInCodePlaceholder: '入库单号',
       stockInTimeStart: '入库日期起',
-      stockInTimeEnd: '入库日期止'
+      stockInTimeEnd: '入库日期止',
+      reset: '重置'
     },
     columns: {
       yearMonth: '年月',
@@ -1010,12 +1013,102 @@ const zhCN = {
     actions: {
       detail: '明细',
       backToSummary: '返回汇总',
-      search: '查询'
+      search: '查询',
+      prevMonth: '上一月',
+      nextMonth: '下一月'
     },
     messages: {
       yearRequired: '请选择年份',
       monthRequired: '请选择月份',
       loadFailed: '加载库存滚存失败'
+    }
+  },
+  vendorAccumulated: {
+    summaryTitle: '供应商滚存',
+    detailTitle: '供应商明细滚存 · {month} · {vendor}',
+    detailTitleBase: '供应商明细滚存',
+    unspecified: '未指定',
+    filters: {
+      monthPlaceholder: '选择月份',
+      vendorKeywordsPlaceholder: '供应商：全称 / 简称 / 英文名 / 编码',
+      keywordsPlaceholder: '搜索物料型号',
+      pnPlaceholder: '物料型号',
+      stockInCodePlaceholder: '入库单号',
+      stockInTimeStart: '入库日期起',
+      stockInTimeEnd: '入库日期止',
+      reset: '重置'
+    },
+    columns: {
+      vendorName: '供应商',
+      prvAmountTotal: '上期金额(USD)',
+      currentStockInAmountTotal: '本期入库(USD)',
+      currentStockOutAmountTotal: '本期出库(USD)',
+      balanceAmountTotal: '结余金额(USD)',
+      prvStockQty: '上期数量',
+      stockInQty: '入库数量',
+      stockOutQty: '出库数量',
+      balanceStockQty: '结余数量',
+      billCode: '入库单号',
+      pn: '物料型号',
+      stockInTime: '入库时间',
+      prvQty: '上期数量',
+      balanceQty: '结余数量',
+      actions: '操作'
+    },
+    actions: {
+      detail: '明细',
+      backToSummary: '返回汇总',
+      search: '查询',
+      prevMonth: '上一月',
+      nextMonth: '下一月'
+    },
+    messages: {
+      monthRequired: '请选择月份',
+      loadFailed: '加载供应商滚存失败'
+    }
+  },
+  customerAccumulated: {
+    summaryTitle: '客户滚存',
+    detailTitle: '客户明细滚存 · {month} · {customer}',
+    detailTitleBase: '客户明细滚存',
+    unspecified: '未指定',
+    filters: {
+      monthPlaceholder: '选择月份',
+      customerKeywordsPlaceholder: '客户：全称 / 简称 / 英文名 / 编码',
+      keywordsPlaceholder: '搜索物料型号',
+      pnPlaceholder: '物料型号',
+      stockInCodePlaceholder: '入库单号',
+      stockInTimeStart: '入库日期起',
+      stockInTimeEnd: '入库日期止',
+      reset: '重置'
+    },
+    columns: {
+      customerName: '客户',
+      prvAmountTotal: '上期金额(USD)',
+      currentStockInAmountTotal: '本期入库(USD)',
+      currentStockOutAmountTotal: '本期出库(USD)',
+      balanceAmountTotal: '结余金额(USD)',
+      prvStockQty: '上期数量',
+      stockInQty: '入库数量',
+      stockOutQty: '出库数量',
+      balanceStockQty: '结余数量',
+      billCode: '入库单号',
+      pn: '物料型号',
+      stockInTime: '入库时间',
+      prvQty: '上期数量',
+      balanceQty: '结余数量',
+      actions: '操作'
+    },
+    actions: {
+      detail: '明细',
+      backToSummary: '返回汇总',
+      search: '查询',
+      prevMonth: '上一月',
+      nextMonth: '下一月'
+    },
+    messages: {
+      monthRequired: '请选择月份',
+      loadFailed: '加载客户滚存失败'
     }
   },
   financeAnalytics: {

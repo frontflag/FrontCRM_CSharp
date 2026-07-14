@@ -35,6 +35,7 @@ export interface FinanceStockAccumulatedItemQuery {
 
 export interface FinanceStockAccumulatedItemRow {
   stockInItemId: string
+  stockInId: string
   billCode: string
   pn?: string | null
   stockInTime: string
@@ -56,6 +57,72 @@ export interface FinanceStockAccumulatedItemPage {
   pageSize: number
 }
 
+export interface FinanceVendorAccumulatedRow {
+  vendorId: string
+  vendorName?: string | null
+  prvAmountTotal: number | null
+  currentStockInAmountTotal: number | null
+  currentStockOutAmountTotal: number | null
+  balanceAmountTotal: number | null
+  prvStockQty: number
+  stockInQty: number
+  stockOutQty: number
+  balanceStockQty: number
+}
+
+export interface FinanceVendorAccumulatedQuery {
+  month?: string
+  queryKeywords?: string
+  page?: number
+  pageSize?: number
+}
+
+export interface FinanceVendorAccumulatedList {
+  month: string
+  maskAmounts: boolean
+  items: FinanceVendorAccumulatedRow[]
+  totalCount: number
+  pageIndex: number
+  pageSize: number
+}
+
+export interface FinanceCustomerAccumulatedRow {
+  customerId: string
+  customerName?: string | null
+  prvAmountTotal: number | null
+  currentStockInAmountTotal: number | null
+  currentStockOutAmountTotal: number | null
+  balanceAmountTotal: number | null
+  prvStockQty: number
+  stockInQty: number
+  stockOutQty: number
+  balanceStockQty: number
+}
+
+export interface FinanceCustomerAccumulatedQuery {
+  month?: string
+  queryKeywords?: string
+  page?: number
+  pageSize?: number
+}
+
+export interface FinanceCustomerAccumulatedList {
+  month: string
+  maskAmounts: boolean
+  items: FinanceCustomerAccumulatedRow[]
+  totalCount: number
+  pageIndex: number
+  pageSize: number
+}
+
+export interface FinanceCustomerAccumulatedItemQuery extends FinanceStockAccumulatedItemQuery {
+  customerId?: string
+}
+
+export interface FinanceVendorAccumulatedItemQuery extends FinanceStockAccumulatedItemQuery {
+  vendorId?: string
+}
+
 const BASE = '/api/v1/finance/accumulated'
 
 export const financeStockAccumulatedApi = {
@@ -67,5 +134,17 @@ export const financeStockAccumulatedApi = {
   },
   getStockItems(query: FinanceStockAccumulatedItemQuery) {
     return apiClient.get<FinanceStockAccumulatedItemPage>(`${BASE}/stock-items`, { params: query })
+  },
+  getVendors(query: FinanceVendorAccumulatedQuery) {
+    return apiClient.get<FinanceVendorAccumulatedList>(`${BASE}/vendors`, { params: query })
+  },
+  getVendorItems(query: FinanceVendorAccumulatedItemQuery) {
+    return apiClient.get<FinanceStockAccumulatedItemPage>(`${BASE}/vendor-items`, { params: query })
+  },
+  getCustomers(query: FinanceCustomerAccumulatedQuery) {
+    return apiClient.get<FinanceCustomerAccumulatedList>(`${BASE}/customers`, { params: query })
+  },
+  getCustomerItems(query: FinanceCustomerAccumulatedItemQuery) {
+    return apiClient.get<FinanceStockAccumulatedItemPage>(`${BASE}/customer-items`, { params: query })
   }
 }

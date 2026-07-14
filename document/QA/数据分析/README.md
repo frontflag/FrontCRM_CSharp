@@ -8,6 +8,8 @@
 | 采购分析 | `/reports/purchase` | [采购分析-测试对照说明.md](./采购分析-测试对照说明.md) |
 | 物流分析 | `/reports/logistics` | [物流分析-测试对照说明.md](./物流分析-测试对照说明.md) |
 | 财务分析 | `/reports/finance` | [财务分析-测试对照说明.md](./财务分析-测试对照说明.md) |
+| 库存滚存 | `/finance/stock-accumulated` | [库存滚存-测试对照说明.md](./库存滚存-测试对照说明.md) |
+| 供应商滚存 | `/finance/vendor-accumulated` | [供应商滚存-测试对照说明.md](./供应商滚存-测试对照说明.md) |
 
 **使用方式：**
 

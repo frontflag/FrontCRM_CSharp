@@ -1,0 +1,48 @@
+// 《业务详情页面规范》§7.4 — 面板内列表检索条（参考 FinanceReceiptWriteOffPage.vue .panel-search）
+@import './variables.scss';
+
+.panel-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+
+  &__input {
+    flex: 1;
+    min-width: 200px;
+  }
+
+  &__field {
+    width: 180px;
+    flex-shrink: 0;
+  }
+
+  &__date-range {
+    width: 240px;
+    flex-shrink: 0;
+  }
+
+  &__clear {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--el-text-color-placeholder);
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+
+    &:hover {
+      color: var(--el-text-color-secondary);
+    }
+  }
+
+  &__btn,
+  &__reset {
+    flex-shrink: 0;
+  }
+}

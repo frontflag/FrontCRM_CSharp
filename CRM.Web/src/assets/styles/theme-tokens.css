@@ -15,6 +15,7 @@ html[data-theme='dark'] {
   --crm-success-color: #46bf91;
   --crm-warning-color: #c99a45;
   --crm-danger-color: #c95745;
+  --crm-accumulated-balance-negative-color: #f08a9a;
   --crm-info-color: #6b7a8d;
   --crm-text-primary: #e0f4ff;
   --crm-text-secondary: rgba(224, 244, 255, 0.7);
@@ -274,6 +275,7 @@ html[data-theme='light'] {
   --crm-success-color: #059669;
   --crm-warning-color: #d97706;
   --crm-danger-color: #dc2626;
+  --crm-accumulated-balance-negative-color: #db4b6b;
   --crm-info-color: #64748b;
   --crm-text-primary: #0f172a;
   --crm-text-secondary: rgba(15, 23, 42, 0.72);

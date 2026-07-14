@@ -725,6 +725,18 @@
                 class="submenu-item"
                 active-class="active"
               >{{ t('layout.menu.stockAccumulated') }}</router-link>
+              <router-link
+                v-if="hasPermission('finance-accumulated.read')"
+                to="/finance/customer-accumulated"
+                class="submenu-item"
+                active-class="active"
+              >{{ t('layout.menu.customerAccumulated') }}</router-link>
+              <router-link
+                v-if="hasPermission('finance-accumulated.read')"
+                to="/finance/vendor-accumulated"
+                class="submenu-item"
+                active-class="active"
+              >{{ t('layout.menu.vendorAccumulated') }}</router-link>
             </template>
           </SidebarMenuGroupFlyout>
         </div>
@@ -1898,7 +1910,11 @@ const pageTitleMap: Record<string, string> = {
   '/finance/purchase-invoices': 'layout.menu.purchaseInvoices',
   '/finance/sell-invoices': 'layout.menu.sellInvoices',
   '/finance/stock-accumulated': 'layout.menu.stockAccumulated',
-  '/finance/stock-accumulated/items': 'layout.menu.stockAccumulated'
+  '/finance/stock-accumulated/items': 'layout.menu.stockAccumulated',
+  '/finance/customer-accumulated': 'layout.menu.customerAccumulated',
+  '/finance/customer-accumulated/items': 'layout.menu.customerAccumulated',
+  '/finance/vendor-accumulated': 'layout.menu.vendorAccumulated',
+  '/finance/vendor-accumulated/items': 'layout.menu.vendorAccumulated'
 }
 
 const routeMetaTitleKeyMap: Record<string, string> = {
@@ -2208,6 +2224,9 @@ watch(
       openGroups.value.systemLogs = true
     }
     if (p === '/finance/stock-accumulated' || p.startsWith('/finance/stock-accumulated/')) {
+      openGroups.value.financeInventoryReports = true
+    }
+    if (p === '/finance/vendor-accumulated' || p.startsWith('/finance/vendor-accumulated/')) {
       openGroups.value.financeInventoryReports = true
     }
   },

@@ -17,4 +17,32 @@ public interface IFinanceStockAccumulatedQuery
         int pageSize,
         bool maskAmounts,
         CancellationToken cancellationToken = default);
+
+    Task<FinanceVendorAccumulatedListDto> GetVendorPageAsync(
+        FinanceVendorAccumulatedQueryRequest request,
+        int page,
+        int pageSize,
+        bool maskAmounts,
+        CancellationToken cancellationToken = default);
+
+    Task<PagedResult<FinanceStockAccumulatedItemRowDto>> GetVendorItemPageAsync(
+        FinanceVendorAccumulatedItemQueryRequest request,
+        int page,
+        int pageSize,
+        bool maskAmounts,
+        CancellationToken cancellationToken = default);
+
+    Task<FinanceCustomerAccumulatedListDto> GetCustomerPageAsync(
+        FinanceCustomerAccumulatedQueryRequest request,
+        int page,
+        int pageSize,
+        bool maskAmounts,
+        CancellationToken cancellationToken = default);
+
+    Task<PagedResult<FinanceStockAccumulatedItemRowDto>> GetCustomerItemPageAsync(
+        FinanceCustomerAccumulatedItemQueryRequest request,
+        int page,
+        int pageSize,
+        bool maskAmounts,
+        CancellationToken cancellationToken = default);
 }

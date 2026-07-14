@@ -20,7 +20,7 @@
   - 目标：表格内可跳转业务单号（收款单号、应收单号、出库单号、销售订单号等）**默认与正文同色**、**悬停**变蓝+下划线+手型光标；推荐类名 `.link-text`；参考 `FinanceReceiptWriteOffLedgerPage.vue`。
 
 - [列表字段宽度规范PRD](./列表字段宽度规范PRD.md)
-  - 目标：统一列表字段 `width / min-width / tooltip` 的配置方式，保障可读性与一致性。
+  - 目标：列表页 `width` / `min-width` / `show-overflow-tooltip`；**§3.3 强制** 表头列标题须完整显示（禁止表头 `…` 省略）；工具 `CRM.Web/src/utils/listColumnHeaderWidth.ts`。
 
 - [列表操作按钮颜色规范PRD](./列表操作按钮颜色规范PRD.md)
   - 目标：统一操作列按钮颜色语义（查看/编辑=蓝，高危=红，新建/新增/创建=绿，业务流转=非蓝非红非绿，常用黄/灰）。

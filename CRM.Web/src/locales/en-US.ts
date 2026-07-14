@@ -646,6 +646,8 @@ const enUS = {
       sellInvoices: 'Sales Invoices',
       inventoryReports: 'Inventory Reports',
       stockAccumulated: 'Stock Accumulated',
+      customerAccumulated: 'Customer Accumulated',
+      vendorAccumulated: 'Vendor Accumulated',
       reportAnalytics: 'Report Analytics',
       businessManagement: 'Business management',
       brandManagement: 'Brand management',
@@ -989,7 +991,8 @@ const enUS = {
       pnPlaceholder: 'PN',
       stockInCodePlaceholder: 'Stock-in code',
       stockInTimeStart: 'Stock-in from',
-      stockInTimeEnd: 'Stock-in to'
+      stockInTimeEnd: 'Stock-in to',
+      reset: 'Reset'
     },
     columns: {
       yearMonth: 'Month',
@@ -1011,12 +1014,102 @@ const enUS = {
     actions: {
       detail: 'Detail',
       backToSummary: 'Back to summary',
-      search: 'Search'
+      search: 'Search',
+      prevMonth: 'Previous month',
+      nextMonth: 'Next month'
     },
     messages: {
       yearRequired: 'Please select a year',
       monthRequired: 'Please select a month',
       loadFailed: 'Failed to load stock accumulated data'
+    }
+  },
+  vendorAccumulated: {
+    summaryTitle: 'Vendor Accumulated',
+    detailTitle: 'Vendor Item Accumulated · {month} · {vendor}',
+    detailTitleBase: 'Vendor Item Accumulated',
+    unspecified: 'Unspecified',
+    filters: {
+      monthPlaceholder: 'Select month',
+      vendorKeywordsPlaceholder: 'Vendor: official / nick / English name / code',
+      keywordsPlaceholder: 'Search PN',
+      pnPlaceholder: 'PN',
+      stockInCodePlaceholder: 'Stock-in code',
+      stockInTimeStart: 'Stock-in from',
+      stockInTimeEnd: 'Stock-in to',
+      reset: 'Reset'
+    },
+    columns: {
+      vendorName: 'Vendor',
+      prvAmountTotal: 'Opening (USD)',
+      currentStockInAmountTotal: 'Inbound (USD)',
+      currentStockOutAmountTotal: 'Outbound (USD)',
+      balanceAmountTotal: 'Balance (USD)',
+      prvStockQty: 'Opening Qty',
+      stockInQty: 'Inbound Qty',
+      stockOutQty: 'Outbound Qty',
+      balanceStockQty: 'Balance Qty',
+      billCode: 'Stock-in code',
+      pn: 'PN',
+      stockInTime: 'Stock-in time',
+      prvQty: 'Opening Qty',
+      balanceQty: 'Balance Qty',
+      actions: 'Actions'
+    },
+    actions: {
+      detail: 'Detail',
+      backToSummary: 'Back to summary',
+      search: 'Search',
+      prevMonth: 'Previous month',
+      nextMonth: 'Next month'
+    },
+    messages: {
+      monthRequired: 'Please select a month',
+      loadFailed: 'Failed to load vendor accumulated data'
+    }
+  },
+  customerAccumulated: {
+    summaryTitle: 'Customer Accumulated',
+    detailTitle: 'Customer item accumulated · {month} · {customer}',
+    detailTitleBase: 'Customer item accumulated',
+    unspecified: 'Unspecified',
+    filters: {
+      monthPlaceholder: 'Select month',
+      customerKeywordsPlaceholder: 'Customer: official / nick / English name / code',
+      keywordsPlaceholder: 'Search part number',
+      pnPlaceholder: 'Part number',
+      stockInCodePlaceholder: 'Stock-in code',
+      stockInTimeStart: 'Stock-in from',
+      stockInTimeEnd: 'Stock-in to',
+      reset: 'Reset'
+    },
+    columns: {
+      customerName: 'Customer',
+      prvAmountTotal: 'Prior amount (USD)',
+      currentStockInAmountTotal: 'Current stock-in (USD)',
+      currentStockOutAmountTotal: 'Current stock-out (USD)',
+      balanceAmountTotal: 'Balance amount (USD)',
+      prvStockQty: 'Prior qty',
+      stockInQty: 'Stock-in qty',
+      stockOutQty: 'Stock-out qty',
+      balanceStockQty: 'Balance qty',
+      billCode: 'Stock-in code',
+      pn: 'Part number',
+      stockInTime: 'Stock-in time',
+      prvQty: 'Prior qty',
+      balanceQty: 'Balance qty',
+      actions: 'Actions'
+    },
+    actions: {
+      detail: 'Detail',
+      backToSummary: 'Back to summary',
+      search: 'Search',
+      prevMonth: 'Previous month',
+      nextMonth: 'Next month'
+    },
+    messages: {
+      monthRequired: 'Please select a month',
+      loadFailed: 'Failed to load customer accumulated data'
     }
   },
   financeAnalytics: {

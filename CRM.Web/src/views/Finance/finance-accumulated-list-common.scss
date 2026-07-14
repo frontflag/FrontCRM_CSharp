@@ -1,0 +1,189 @@
+@import './finance-common.scss';
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.page-header .header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.page-header .header-left .finance-list-page-title {
+  margin: 0;
+  min-width: 0;
+}
+
+.accumulated-detail-title__vendor,
+.accumulated-detail-title__customer {
+  color: $color-amber;
+}
+
+.accumulated-detail-title__sep {
+  color: $text-muted;
+}
+
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-muted;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.07);
+    color: $text-secondary;
+    border-color: rgba(0, 212, 255, 0.2);
+  }
+}
+
+.page-header--stacked {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.header-filter {
+  width: 140px;
+}
+
+.header-period-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.period-step-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-secondary;
+  font-size: 16px;
+  font-family: 'Noto Sans SC', sans-serif;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.07);
+    color: $text-primary;
+    border-color: rgba(0, 212, 255, 0.2);
+  }
+}
+
+:deep(.accumulated-month-row--active > td) {
+  background-color: rgba(0, 212, 255, 0.08) !important;
+}
+
+// 滚存汇总：8 个指标列等宽，表格总宽撑满父容器
+.stock-accumulated-page,
+.vendor-accumulated-page,
+.customer-accumulated-page {
+  :deep(.crm-data-table .el-table) {
+    table-layout: fixed;
+    width: 100%;
+  }
+
+  :deep(.el-table__header-wrapper table),
+  :deep(.el-table__body-wrapper table) {
+    width: 100% !important;
+  }
+}
+
+.pagination-wrap {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.list-footer-left {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.list-settings-btn {
+  padding: 4px 6px !important;
+  min-width: 28px;
+}
+
+.list-footer-density-anchor {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
+}
+
+.list-footer-spacer {
+  width: 26px;
+  flex: 0 0 26px;
+}
+
+:deep(.table-row-pointer) {
+  cursor: pointer;
+}
+
+.amount-text {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+
+  &--balance {
+    font-weight: 700;
+    color: $cyan-primary;
+  }
+}
+
+// 滚存列表：上期/本期入库/本期出库金额 — 正文色、不加粗
+.accumulated-amount-neutral {
+  font-family: 'Noto Sans SC', sans-serif;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  font-weight: 400;
+  color: $text-primary;
+  white-space: nowrap;
+}
+
+// 滚存列表：结余数量 — 橙色加粗；负数为纷红
+.accumulated-qty-balance {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: $warning-color;
+
+  &.accumulated-balance-negative {
+    color: $accumulated-balance-negative-color;
+  }
+}
+
+// 滚存列表：结余金额/数量负数 — 纷红色
+.amount-text--balance.accumulated-balance-negative {
+  color: $accumulated-balance-negative-color;
+}
+
+.link-text {
+  color: var(--el-color-primary);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
