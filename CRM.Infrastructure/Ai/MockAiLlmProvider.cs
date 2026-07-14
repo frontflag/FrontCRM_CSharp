@@ -66,6 +66,16 @@ public sealed class MockAiLlmProvider : IAiLlmProvider
             });
         }
 
+        if (systemMsg.Contains("RFQ Excel 表头列映射", StringComparison.Ordinal))
+        {
+            var json = BuildMockRfqExcelColumnMapJson(userMsg);
+            return Task.FromResult(new AiChatCompletionResult
+            {
+                Content = json,
+                Usage = new AiTokenUsageDto { PromptTokens = 60, CompletionTokens = 120, TotalTokens = 180 }
+            });
+        }
+
         if (systemMsg.Contains("供应商主档解析", StringComparison.Ordinal))
         {
             var json = """
@@ -773,5 +783,71 @@ public sealed class MockAiLlmProvider : IAiLlmProvider
             priceCurrency = 1;
 
         return qtyMatch.Success;
+    }
+
+    private static string BuildMockRfqExcelColumnMapJson(string userMsg)
+    {
+        var headers = new List<string>();
+        var headerMatch = Regex.Match(userMsg, @"表头列表[：:]\s*(\[[\s\S]*?\])", RegexOptions.CultureInvariant);
+        if (headerMatch.Success)
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(headerMatch.Groups[1].Value);
+                if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var el in doc.RootElement.EnumerateArray())
+                    {
+                        if (el.ValueKind == JsonValueKind.String)
+                            headers.Add(el.GetString() ?? string.Empty);
+                    }
+                }
+            }
+            catch
+            {
+                // ignore parse errors
+            }
+        }
+
+        var columns = new List<object>();
+        for (var i = 0; i < headers.Count; i++)
+        {
+            var field = GuessRfqExcelField(headers[i]);
+            if (field != null)
+                columns.Add(new { col_index = i, field, confidence = 0.85 });
+        }
+
+        var payload = new { header_row_index = 0, columns };
+        return JsonSerializer.Serialize(payload);
+    }
+
+    private static string? GuessRfqExcelField(string header)
+    {
+        var h = (header ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(h))
+            return null;
+        if (h.Contains("客户", StringComparison.Ordinal) && (h.Contains("型号", StringComparison.Ordinal) || h.Contains("料号", StringComparison.Ordinal) || h.Contains("MPN", StringComparison.OrdinalIgnoreCase)))
+            return "customer_mpn";
+        if (h.Contains("MPN", StringComparison.OrdinalIgnoreCase) || h.Contains("物料型号", StringComparison.Ordinal) || h.Contains("Part", StringComparison.OrdinalIgnoreCase))
+            return "mpn";
+        if (h.Contains("客户品牌", StringComparison.Ordinal))
+            return "customer_brand";
+        if (h.Contains("品牌", StringComparison.Ordinal) || h.Contains("厂商", StringComparison.Ordinal) || h.Contains("Manufacturer", StringComparison.OrdinalIgnoreCase))
+            return "brand";
+        if (h.Contains("数量", StringComparison.Ordinal) || h.Contains("Qty", StringComparison.OrdinalIgnoreCase))
+            return "quantity";
+        if (h.Contains("目标价", StringComparison.Ordinal) || h.Contains("单价", StringComparison.Ordinal))
+            return "target_price";
+        if (h.Contains("货币", StringComparison.Ordinal) || h.Contains("币种", StringComparison.Ordinal) || h.Contains("Currency", StringComparison.OrdinalIgnoreCase))
+            return "price_currency";
+        if (h.Contains("包装", StringComparison.Ordinal))
+            return "min_package_qty";
+        if (h.Contains("起订", StringComparison.Ordinal) || h.Contains("MOQ", StringComparison.OrdinalIgnoreCase))
+            return "min_order_qty";
+        if (h.Contains("替代", StringComparison.Ordinal))
+            return "alternative_materials";
+        if (h.Contains("备注", StringComparison.Ordinal) || h.Contains("Remark", StringComparison.OrdinalIgnoreCase))
+            return "remark";
+        return null;
     }
 }

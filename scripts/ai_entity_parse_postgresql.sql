@@ -615,3 +615,5 @@ SET system_prompt = '你是 CRM 客户联系人解析助手。从用户提供的
 WHERE code = 'entity.parse.customer_contact' AND version = 1;
 
 DELETE FROM public.ai_invocation_cache WHERE scenario_code = 'entity.parse.customer_contact';
+
+-- entity.parse.rfq_excel_column_map：见 scripts/ai_entity_parse_rfq_excel_column_map_postgresql.sql（单独执行）

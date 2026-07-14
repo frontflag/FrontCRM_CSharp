@@ -69,7 +69,26 @@
               </button>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item command="aiCreate">{{ t('aiEntityCreate.aiCreate') }}</el-dropdown-item>
+                  <el-dropdown-item command="aiCreate">
+                    <el-tooltip
+                      :content="t('rfqList.createMenuTip.pasteText')"
+                      placement="right"
+                      effect="light"
+                      :show-after="400"
+                    >
+                      <span class="rfq-create-menu-item">{{ t('aiEntityCreate.aiCreate') }}</span>
+                    </el-tooltip>
+                  </el-dropdown-item>
+                  <el-dropdown-item command="excelImport">
+                    <el-tooltip
+                      :content="t('rfqList.createMenuTip.excelImport')"
+                      placement="right"
+                      effect="light"
+                      :show-after="400"
+                    >
+                      <span class="rfq-create-menu-item">{{ t('rfqExcelImport.menuLabel') }}</span>
+                    </el-tooltip>
+                  </el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
@@ -212,6 +231,7 @@
       entity-type="RFQ"
       :target-route="{ name: 'RFQCreate' }"
     />
+    <RfqExcelImportHost ref="excelImportHostRef" />
   </div>
 </template>
 
@@ -229,6 +249,7 @@ import {
   AI_PERMISSION_ENTITY_PARSE_RFQ
 } from '@/api/ai'
 import AiEntityCreateHost from '@/components/AiCreate/AiEntityCreateHost.vue'
+import RfqExcelImportHost from '@/components/AiCreate/RfqExcelImportHost.vue'
 import MaterialIntelResultPanel from '@/components/RFQ/MaterialIntelResultPanel.vue'
 import { useMaterialIntelLookupStore } from '@/stores/materialIntelLookup'
 
@@ -239,6 +260,7 @@ const authStore = useAuthStore()
 const showCreateRfqButton = computed(() => authStore.hasPermission('rfq.create'))
 const canAiParseRfq = computed(() => authStore.hasPermission(AI_PERMISSION_ENTITY_PARSE_RFQ))
 const aiCreateHostRef = ref<InstanceType<typeof AiEntityCreateHost> | null>(null)
+const excelImportHostRef = ref<InstanceType<typeof RfqExcelImportHost> | null>(null)
 
 const keyword = ref('')
 const displayPn = ref('')
@@ -378,6 +400,7 @@ function goCreateRfq() {
 
 function onCreateDropdownCommand(cmd: string) {
   if (cmd === 'aiCreate') aiCreateHostRef.value?.open()
+  else if (cmd === 'excelImport') excelImportHostRef.value?.open()
 }
 
 async function loadStats() {
@@ -799,5 +822,10 @@ onUnmounted(() => {
   font-size: 12px;
   color: $text-muted;
   line-height: 1.35;
+}
+
+.rfq-create-menu-item {
+  display: block;
+  width: 100%;
 }
 </style>

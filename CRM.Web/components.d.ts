@@ -132,6 +132,7 @@ declare module 'vue' {
     QcSearchPanel: typeof import('./src/components/Logistics/QcSearchPanel.vue')['default']
     RecentHistoryList: typeof import('./src/components/workspace/RecentHistoryList.vue')['default']
     RegionCascaderWithQuickPick: typeof import('./src/components/RegionCascaderWithQuickPick.vue')['default']
+    RfqExcelImportHost: typeof import('./src/components/AiCreate/RfqExcelImportHost.vue')['default']
     RFQFavoritePanel: typeof import('./src/components/RFQ/RFQFavoritePanel.vue')['default']
     RfqItemMaterialPanel: typeof import('./src/components/RFQ/RfqItemMaterialPanel.vue')['default']
     RFQItemSearchPanel: typeof import('./src/components/RFQ/RFQItemSearchPanel.vue')['default']

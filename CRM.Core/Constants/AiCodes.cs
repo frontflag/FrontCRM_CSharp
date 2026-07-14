@@ -68,6 +68,8 @@ public static class AiEntityParseScenarioCodes
 
     public const string Customer = "entity.parse.customer";
     public const string Rfq = "entity.parse.rfq";
+    /// <summary>RFQ Excel 表头列映射（仅映列，不写 entity parse log）。</summary>
+    public const string RfqExcelColumnMap = "entity.parse.rfq_excel_column_map";
     public const string Vendor = "entity.parse.vendor";
     public const string CustomerContact = "entity.parse.customer_contact";
     public const string VendorContact = "entity.parse.vendor_contact";

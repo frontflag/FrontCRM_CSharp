@@ -29,8 +29,12 @@ public static class EntityParseNormalizer
         ["MO"] = "澳门"
     };
 
-    public static bool IsEntityParseScenario(string scenarioCode) =>
-        scenarioCode.StartsWith(AiEntityParseScenarioCodes.Prefix, StringComparison.OrdinalIgnoreCase);
+    public static bool IsEntityParseScenario(string scenarioCode)
+    {
+        if (!scenarioCode.StartsWith(AiEntityParseScenarioCodes.Prefix, StringComparison.OrdinalIgnoreCase))
+            return false;
+        return !string.Equals(scenarioCode, AiEntityParseScenarioCodes.RfqExcelColumnMap, StringComparison.OrdinalIgnoreCase);
+    }
 
     public static string? EntityTypeFromScenario(string scenarioCode) => scenarioCode.ToLowerInvariant() switch
     {

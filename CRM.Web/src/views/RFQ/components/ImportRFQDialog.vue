@@ -1,12 +1,15 @@
 <template>
   <el-dialog
+    ref="mainDialogRef"
     v-model="visible"
     :title="stepTitle"
-    width="1320px"
+    width="960px"
     :close-on-click-modal="false"
     :before-close="handleClose"
     class="import-rfq-dialog"
     destroy-on-close
+    @opened="onMainDialogOpened"
+    @closed="onMainDialogClosed"
   >
     <!-- ── STEP 1：上传 Excel ── -->
     <div v-if="step === 1" class="step-upload import-rfq-step-pane">
@@ -14,9 +17,12 @@
         <el-alert type="info" :closable="false" show-icon>
           <template #title>
             <span>
-              请上传 Excel 文件（.xlsx / .xls），每行代表一条 RFQ 明细（RFQItem）。
+              {{ t('rfqExcelImport.uploadHintPhase2') }}
               <el-link type="primary" :underline="false" @click="downloadTemplate" style="margin-left:8px;">
-                <el-icon><Download /></el-icon> 下载模板
+                <el-icon><Download /></el-icon> {{ t('rfqExcelImport.downloadTemplate') }}
+              </el-link>
+              <el-link type="primary" :underline="false" @click="fieldDescVisible = true" style="margin-left:12px;">
+                {{ t('rfqExcelImport.fieldDescButton') }}
               </el-link>
             </span>
           </template>
@@ -33,136 +39,193 @@
       >
         <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
         <div class="el-upload__text">
-          拖拽 Excel 文件到此处，或 <em>点击上传</em>
+          {{ t('rfqExcelImport.dragOrClick') }}
         </div>
         <template #tip>
-          <div class="el-upload__tip">支持 .xlsx / .xls 格式，文件大小不超过 10MB</div>
+          <div class="el-upload__tip">{{ t('rfqExcelImport.fileTip') }}</div>
         </template>
       </el-upload>
 
       <div v-if="uploadedFileName" class="uploaded-file-info">
         <el-icon color="#67c23a"><CircleCheckFilled /></el-icon>
-        <span>已选择：<strong>{{ uploadedFileName }}</strong></span>
-        <el-button link type="primary" @click="clearFile">重新选择</el-button>
+        <span>{{ t('rfqExcelImport.selectedFile', { name: uploadedFileName }) }}</span>
+        <el-button link type="primary" @click="clearFile">{{ t('rfqExcelImport.reselect') }}</el-button>
       </div>
 
-      <div class="field-mapping-table">
-        <div class="mapping-title">Excel 列对应关系</div>
-        <el-table :data="columnMapping" size="small" border>
-          <el-table-column prop="col" label="Excel 列" width="100" align="center" />
-          <el-table-column prop="field" label="字段名称" width="160" />
-          <el-table-column prop="required" label="必填" width="70" align="center">
+      <div v-if="rawRows.length" class="header-row-picker">
+        <span class="header-row-picker__label">{{ t('rfqExcelImport.headerRowLabel') }}</span>
+        <el-input-number
+          v-model="headerRowNumber"
+          :min="1"
+          :max="headerRowMax"
+          size="small"
+          controls-position="right"
+          @change="onHeaderRowNumberChange"
+        />
+        <span class="header-row-picker__hint">{{ t('rfqExcelImport.headerRowHint') }}</span>
+      </div>
+
+      <div v-if="headerPreviewRows.length" class="header-preview-table">
+        <div class="mapping-title">{{ t('rfqExcelImport.headerPreview') }}</div>
+        <el-table :data="headerPreviewRows" size="small" border>
+          <el-table-column prop="rowLabel" :label="t('rfqExcelImport.previewRow')" width="72" align="center" />
+          <el-table-column
+            v-for="col in headerPreviewCols"
+            :key="col.index"
+            :label="col.letter"
+            min-width="100"
+            show-overflow-tooltip
+          >
             <template #default="{ row }">
-              <el-tag v-if="row.required" type="danger" size="small">必填</el-tag>
-              <span v-else style="color:#909399">-</span>
+              {{ row.cells[col.index] || '—' }}
             </template>
           </el-table-column>
-          <el-table-column prop="example" label="示例值" />
-          <el-table-column prop="note" label="说明" />
         </el-table>
       </div>
     </div>
 
-    <!-- ── STEP 2：预览解析结果 ── -->
-    <div v-if="step === 2" class="step-preview import-rfq-step-pane">
+    <el-dialog
+      ref="fieldDescDialogRef"
+      v-model="fieldDescVisible"
+      :title="t('rfqExcelImport.fieldDescTitle')"
+      width="720px"
+      append-to-body
+      destroy-on-close
+      class="import-rfq-field-desc-dialog"
+      @opened="onFieldDescDialogOpened"
+      @closed="onFieldDescDialogClosed"
+    >
+      <div class="field-desc-hint">{{ t('rfqExcelImport.supportedFields') }}</div>
+      <el-table :data="supportedFields" size="small" border max-height="420">
+        <el-table-column prop="label" :label="t('rfqExcelImport.colField')" width="160" />
+        <el-table-column prop="required" :label="t('rfqExcelImport.colRequired')" width="70" align="center">
+          <template #default="{ row }">
+            <el-tag v-if="row.required" type="danger" size="small">{{ t('rfqExcelImport.required') }}</el-tag>
+            <span v-else style="color:#909399">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="example" :label="t('rfqExcelImport.colExample')" width="140" />
+        <el-table-column prop="note" :label="t('rfqExcelImport.colNote')" />
+      </el-table>
+      <template #footer>
+        <el-button type="primary" @click="fieldDescVisible = false">{{ t('common.confirm') }}</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- ── STEP 2：列映射与解析统计 ── -->
+    <div v-if="step === 2" class="step-mapping import-rfq-step-pane">
+      <div class="mapping-toolbar">
+        <el-button size="small" :disabled="aiMappingLoading" @click="applyRuleMappings">
+          {{ t('rfqExcelImport.reapplyRuleMapping') }}
+        </el-button>
+        <el-button size="small" :loading="aiMappingLoading" @click="invokeAiColumnMapping(false)">
+          {{ t('rfqExcelImport.aiMapColumns') }}
+        </el-button>
+        <span class="mapping-toolbar__meta">
+          {{ t('rfqExcelImport.headerRowSelected', { row: headerRowIndex + 1 }) }}
+        </span>
+      </div>
+
       <div class="parse-stats">
-        <el-tag type="success">成功解析 {{ validItems.length }} 行</el-tag>
+        <el-tag type="success">{{ t('rfqExcelImport.statsSuccess', { count: validItems.length }) }}</el-tag>
         <el-tag v-if="matchedBrandCount" type="success" style="margin-left:8px;">
-          品牌已匹配 {{ matchedBrandCount }} 行
+          {{ t('rfqExcelImport.statsBrandMatched', { count: matchedBrandCount }) }}
         </el-tag>
         <el-tag v-if="pendingBrandCount" type="warning" style="margin-left:8px;">
-          品牌待选择 {{ pendingBrandCount }} 行
+          {{ t('rfqExcelImport.statsBrandPending', { count: pendingBrandCount }) }}
         </el-tag>
         <el-tag v-if="errorItems.length" type="danger" style="margin-left:8px;">
-          {{ errorItems.length }} 行有错误
+          {{ t('rfqExcelImport.statsError', { count: errorItems.length }) }}
         </el-tag>
         <el-tag v-if="skippedRows > 0" type="info" style="margin-left:8px;">
-          跳过 {{ skippedRows }} 行空行
+          {{ t('rfqExcelImport.statsSkipped', { count: skippedRows }) }}
         </el-tag>
       </div>
 
       <el-alert
-        v-if="errorItems.length"
+        v-if="!hasRequiredColumns"
+        type="error"
+        :closable="false"
+        style="margin-bottom:10px;"
+        :title="t('rfqExcelImport.missingRequiredColumns', { fields: missingRequiredFields.join('、') })"
+      />
+
+      <el-alert
+        v-else-if="errorItems.length"
         type="warning"
         :closable="false"
         style="margin-bottom:10px;"
-      >
-        <template #title>
-          以下行存在问题（已标红），将忽略错误行；有效行将进入「新建需求」页继续编辑。
-        </template>
-      </el-alert>
+        :title="t('rfqExcelImport.errorRowsHint')"
+      />
 
-      <div ref="previewTableWrapRef" class="preview-table-wrap">
+      <div class="mapping-result-table">
+        <div class="mapping-title">{{ t('rfqExcelImport.detectedMappingEditable') }}</div>
         <el-table
-          v-loading="brandMatchingLoading"
-          class="preview-table"
-          :data="previewItems"
+          v-loading="brandMatchingLoading || aiMappingLoading"
+          :data="columnMappings"
           size="small"
           border
-          :max-height="previewTableMaxHeight"
-          :row-class-name="getRowClass"
         >
-        <el-table-column type="index" label="行" width="52" align="center" />
-        <el-table-column
-          prop="customerMaterialModel"
-          label="客户物料型号"
-          min-width="120"
-          show-overflow-tooltip
-        />
-        <el-table-column prop="materialModel" label="物料型号(MPN)" min-width="150" show-overflow-tooltip />
-        <el-table-column prop="customerBrand" label="客户品牌" width="96" show-overflow-tooltip />
-        <el-table-column label="供应品牌" width="108" show-overflow-tooltip>
-          <template #default="{ row }">
-            {{ row._supplyBrandDisplay || '-' }}
-          </template>
-        </el-table-column>
-        <el-table-column label="品牌匹配" min-width="168" show-overflow-tooltip>
-          <template #default="{ row }">
-            <el-tag v-if="row._error" type="danger" size="small">{{ row._error }}</el-tag>
-            <el-tag v-else-if="row._brandMatchStatus === 'matched'" type="success" size="small">
-              {{ row._brandMatchLabel }}
-            </el-tag>
-            <el-tag v-else-if="row._brandMatchStatus === 'pending'" type="warning" size="small">
-              {{ row._brandMatchLabel }}
-            </el-tag>
-            <el-tag v-else-if="row._brandMatchStatus === 'empty'" type="info" size="small">
-              缺少品牌
-            </el-tag>
-            <span v-else style="color:#909399">-</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="quantity" label="数量" width="96" align="right" />
-        <el-table-column prop="targetPrice" label="目标价" width="100" align="right">
-          <template #default="{ row }">
-            {{ row.targetPrice != null ? row.targetPrice : '-' }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="currency" label="货币" width="88" align="center" />
-        <el-table-column prop="remark" label="备注" min-width="100" show-overflow-tooltip />
+          <el-table-column prop="colLetter" :label="t('rfqExcelImport.colExcel')" width="72" align="center" />
+          <el-table-column prop="headerText" :label="t('rfqExcelImport.colHeader')" min-width="140" show-overflow-tooltip />
+          <el-table-column :label="t('rfqExcelImport.colMappedField')" min-width="200">
+            <template #default="{ row }">
+              <el-select
+                :model-value="row.fieldKey"
+                size="small"
+                clearable
+                :placeholder="t('rfqExcelImport.unmapped')"
+                class="mapping-field-select"
+                @update:model-value="(v: RfqExcelItemFieldKey | null | undefined) => onMappingFieldChange(row, v ?? null)"
+              >
+                <el-option
+                  v-for="opt in fieldSelectOptions"
+                  :key="String(opt.value)"
+                  :label="opt.label"
+                  :value="opt.value"
+                />
+              </el-select>
+            </template>
+          </el-table-column>
+          <el-table-column :label="t('rfqExcelImport.colMappingSource')" width="88" align="center">
+            <template #default="{ row }">
+              <el-tag v-if="row.matched" size="small" :type="mappingSourceTagType(row.mappingSource)">
+                {{ mappingSourceLabel(row.mappingSource, t) }}
+              </el-tag>
+              <span v-else style="color:#909399">-</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="required" :label="t('rfqExcelImport.colRequired')" width="70" align="center">
+            <template #default="{ row }">
+              <el-tag v-if="row.required" type="danger" size="small">{{ t('rfqExcelImport.required') }}</el-tag>
+              <span v-else style="color:#909399">-</span>
+            </template>
+          </el-table-column>
         </el-table>
       </div>
     </div>
 
     <template #footer>
       <div class="dialog-footer">
-        <el-button @click="handleClose">取消</el-button>
-        <el-button v-if="step === 2" @click="step = 1">上一步</el-button>
+        <el-button @click="handleClose">{{ t('common.cancel') }}</el-button>
+        <el-button v-if="step === 2" @click="step = 1">{{ t('rfqExcelImport.prevStep') }}</el-button>
         <el-button
           v-if="step === 1"
           type="primary"
+          :loading="parsingFile"
           :disabled="!uploadedFileName"
-          @click="goToPreview"
+          @click="goToMapping"
         >
-          下一步：预览数据
+          {{ t('rfqExcelImport.nextMapping') }}
         </el-button>
         <el-button
           v-if="step === 2"
           type="primary"
           :loading="submitting"
-          :disabled="validItems.length === 0 || brandMatchingLoading"
-          @click="handleGoToCreate"
+          :disabled="validItems.length === 0 || brandMatchingLoading || aiMappingLoading || !hasRequiredColumns"
+          @click="handleConfirmParse"
         >
-          进入新建需求（{{ validItems.length }} 条明细）
+          {{ t('rfqExcelImport.confirmParse', { count: validItems.length }) }}
         </el-button>
       </div>
     </template>
@@ -170,58 +233,192 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, nextTick, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import { UploadFilled, Download, CircleCheckFilled } from '@element-plus/icons-vue'
 import * as XLSX from 'xlsx'
-import type { CreateRFQItemRequest } from '@/types/rfq'
-import { setAiPrefill } from '@/utils/aiPrefill'
 import {
   brandMatchStatusLabel,
   buildBrandMatchCache,
   resolveBrandMatchKeyword,
   type BrandMatchStatus
 } from '@/utils/bizBrandMatch'
+import {
+  emptyParsedRfq,
+  type ParsedRfqFields,
+  type ParsedRfqItemFields
+} from '@/utils/entityParseSchema'
+import {
+  RFQ_EXCEL_FIELD_METAS,
+  RFQ_EXCEL_MAX_DATA_ROWS,
+  RFQ_EXCEL_MAX_HEADER_ROW_OPTIONS,
+  buildAiColumnMapInput,
+  buildRuleColumnMappings,
+  filterColumnMappingsWithData,
+  countNonEmptyDataRows,
+  fieldMetaLabel,
+  mappingSourceLabel,
+  mergeRuleAndAiMappings,
+  parseAiColumnMapResponse,
+  parseRfqExcelRows,
+  resolveHeaderFieldKey,
+  type RfqExcelColumnMappingRow,
+  type RfqExcelAiColumnMapResult,
+  type RfqExcelItemFieldKey,
+  type RfqExcelMappingSource,
+  type RfqExcelParseRowResult
+} from '@/utils/rfqExcelColumnMap'
+import { aiApi, AI_SCENARIO_ENTITY_PARSE_RFQ_EXCEL_COLUMN_MAP } from '@/api/ai'
+import { getApiErrorMessage } from '@/utils/apiError'
 import { DEFAULT_SETTLEMENT_CURRENCY_STRING } from '@/constants/currency'
+import { useResizableDialog } from '@/composables/useResizableDialog'
 
-const router = useRouter()
+type ElDialogExpose = {
+  dialogContentRef?: {
+    $el: HTMLElement
+  }
+}
 
-type PreviewItem = CreateRFQItemRequest & {
+const mainDialogRef = ref<ElDialogExpose | null>(null)
+const fieldDescDialogRef = ref<ElDialogExpose | null>(null)
+
+const { enableResizableDialogWithRetry: enableMainResizable, disableResizableDialog: disableMainResizable, fitDialogToContentWithRetry: fitMainDialogToContent } =
+  useResizableDialog({
+    resolveDialogEl: () => mainDialogRef.value?.dialogContentRef?.$el ?? null,
+    minWidth: 720,
+    minHeight: 420
+  })
+
+const { enableResizableDialogWithRetry: enableFieldDescResizable, disableResizableDialog: disableFieldDescResizable } =
+  useResizableDialog({
+    resolveDialogEl: () => fieldDescDialogRef.value?.dialogContentRef?.$el ?? null,
+    minWidth: 520,
+    minHeight: 320
+  })
+
+async function onMainDialogOpened() {
+  await nextTick()
+  enableMainResizable()
+  await scheduleFitMainDialog()
+}
+
+function onMainDialogClosed() {
+  disableMainResizable()
+}
+
+async function onFieldDescDialogOpened() {
+  await nextTick()
+  enableFieldDescResizable()
+}
+
+function onFieldDescDialogClosed() {
+  disableFieldDescResizable()
+}
+
+const emit = defineEmits<{
+  parsed: [data: ParsedRfqFields]
+}>()
+
+const { t } = useI18n()
+
+type ParsedItem = ParsedRfqItemFields & {
   _error?: string
-  _supplyBrandDisplay?: string
   _brandMatchStatus?: BrandMatchStatus
   _brandMatchLabel?: string
   _importBrandText?: string
 }
 
 const visible = defineModel<boolean>({ default: false })
+const fieldDescVisible = ref(false)
 const step = ref(1)
 
-const stepTitle = computed(() => {
-  if (step.value === 1) return '导入 Excel 创建 RFQ — 第1步：上传文件'
-  return '导入 Excel 创建 RFQ — 第2步：预览并确认'
-})
+const stepTitle = computed(() =>
+  step.value === 1 ? t('rfqExcelImport.step1Title') : t('rfqExcelImport.step2Title')
+)
+
+const supportedFields = RFQ_EXCEL_FIELD_METAS.map((m) => ({
+  label: m.label,
+  required: m.required,
+  example: m.example,
+  note: m.note
+}))
+
+const fieldSelectOptions = computed(() => [
+  { value: null as RfqExcelItemFieldKey | null, label: t('rfqExcelImport.unmapped') },
+  ...RFQ_EXCEL_FIELD_METAS.map((m) => ({ value: m.key as RfqExcelItemFieldKey, label: m.label }))
+])
 
 const uploadedFileName = ref('')
 const rawFile = ref<File | null>(null)
+const rawRows = ref<unknown[][]>([])
+const headerRowIndex = ref(0)
+const headerRowNumber = ref(1)
+const headerRowMax = computed(() =>
+  Math.min(RFQ_EXCEL_MAX_HEADER_ROW_OPTIONS, Math.max(1, rawRows.value.length))
+)
 
-function handleFileChange(file: any) {
-  rawFile.value = file.raw
-  uploadedFileName.value = file.name
-}
+const headerPreviewRows = computed(() => {
+  const limit = Math.min(rawRows.value.length, RFQ_EXCEL_MAX_HEADER_ROW_OPTIONS)
+  return Array.from({ length: limit }, (_, i) => {
+    const row = rawRows.value[i] ?? []
+    const cells = row.map((c) => String(c ?? '').trim())
+    return {
+      rowIndex: i,
+      rowLabel: String(i + 1),
+      isHeader: i === headerRowIndex.value,
+      cells
+    }
+  })
+})
 
-function clearFile() {
-  rawFile.value = null
-  uploadedFileName.value = ''
-}
+const headerPreviewCols = computed(() => {
+  const header = rawRows.value[headerRowIndex.value] ?? []
+  const colCount = Math.min(
+    8,
+    Math.max(header.length, ...headerPreviewRows.value.map((r) => r.cells.length), 1)
+  )
+  return Array.from({ length: colCount }, (_, index) => ({
+    index,
+    letter: String.fromCharCode(65 + (index % 26))
+  }))
+})
 
-const previewItems = ref<PreviewItem[]>([])
+const parsedRows = ref<ParsedItem[]>([])
+const columnMappings = ref<RfqExcelColumnMappingRow[]>([])
 const skippedRows = ref(0)
+const hasRequiredColumns = ref(true)
+const missingRequiredFields = ref<string[]>([])
 const brandMatchingLoading = ref(false)
+const aiMappingLoading = ref(false)
+const parsingFile = ref(false)
+const submitting = ref(false)
 
-const validItems = computed(() => previewItems.value.filter((r) => !r._error))
-const errorItems = computed(() => previewItems.value.filter((r) => !!r._error))
+async function scheduleFitMainDialog() {
+  if (!visible.value) return
+  await nextTick()
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => fitMainDialogToContent())
+  })
+}
+
+watch(
+  () =>
+    [
+      rawRows.value.length,
+      step.value,
+      headerRowIndex.value,
+      columnMappings.value.length,
+      brandMatchingLoading.value,
+      aiMappingLoading.value
+    ] as const,
+  () => {
+    void scheduleFitMainDialog()
+  }
+)
+
+const validItems = computed(() => parsedRows.value.filter((r) => !r._error))
+const errorItems = computed(() => parsedRows.value.filter((r) => !!r._error))
 const matchedBrandCount = computed(
   () => validItems.value.filter((r) => r._brandMatchStatus === 'matched').length
 )
@@ -231,66 +428,13 @@ const pendingBrandCount = computed(
       .length
 )
 
-
-const previewTableWrapRef = ref<HTMLElement | null>(null)
-const previewTableMaxHeight = ref(480)
-let previewTableResizeObserver: ResizeObserver | null = null
-
-function updatePreviewTableHeight() {
-  const el = previewTableWrapRef.value
-  if (!el) return
-  previewTableMaxHeight.value = Math.max(240, el.clientHeight)
+function mappingSourceTagType(source?: RfqExcelMappingSource) {
+  if (source === 'ai') return 'warning'
+  if (source === 'manual') return 'info'
+  return 'success'
 }
 
-function bindPreviewTableResizeObserver() {
-  previewTableResizeObserver?.disconnect()
-  previewTableResizeObserver = null
-  const el = previewTableWrapRef.value
-  if (!el) return
-  updatePreviewTableHeight()
-  previewTableResizeObserver = new ResizeObserver(updatePreviewTableHeight)
-  previewTableResizeObserver.observe(el)
-}
-
-watch(
-  () => [step.value, visible.value] as const,
-  async ([s, open]) => {
-    if (s !== 2 || !open) return
-    await nextTick()
-    bindPreviewTableResizeObserver()
-  }
-)
-
-onUnmounted(() => {
-  previewTableResizeObserver?.disconnect()
-})
-
-const submitting = ref(false)
-
-const columnMapping = [
-  { col: 'A', field: '客户物料型号', required: false, example: 'ABC-123', note: '客户自己的物料编号' },
-  { col: 'B', field: '物料型号(MPN)', required: true, example: 'STM32F103C8T6', note: '标准物料型号，必填' },
-  { col: 'C', field: '客户品牌', required: false, example: 'ST', note: 'D 列为空时用于品牌匹配' },
-  { col: 'D', field: '供应品牌', required: false, example: 'STMicroelectronics', note: '优先匹配；支持中英文名/别名' },
-  { col: 'E', field: '数量', required: true, example: '1000', note: '需求数量，必填，正整数' },
-  { col: 'F', field: '目标价', required: false, example: '2.5', note: '目标单价' },
-  { col: 'G', field: '货币', required: false, example: 'USD', note: 'USD/RMB/HKD/EUR，默认 USD' },
-  { col: 'H', field: '最小包装量', required: false, example: '100', note: '最小包装数量' },
-  { col: 'I', field: '最小起订量', required: false, example: '500', note: 'MOQ' },
-  { col: 'J', field: '可替代料', required: false, example: 'STM32F103CBT6', note: '多个用逗号分隔' },
-  { col: 'K', field: '备注', required: false, example: '需2年内产品', note: '行备注' },
-]
-
-function mapCurrencyToPriceCurrency(c?: string | number): number {
-  if (typeof c === 'number' && c >= 1 && c <= 4) return c
-  const u = String(c || '').toUpperCase()
-  if (u.includes('USD')) return 2
-  if (u.includes('EUR')) return 3
-  if (u.includes('HKD')) return 4
-  return 1
-}
-
-function parseExcel(file: File): Promise<PreviewItem[]> {
+function readExcelRows(file: File): Promise<unknown[][]> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = (e) => {
@@ -298,64 +442,8 @@ function parseExcel(file: File): Promise<PreviewItem[]> {
         const data = new Uint8Array(e.target!.result as ArrayBuffer)
         const wb = XLSX.read(data, { type: 'array' })
         const ws = wb.Sheets[wb.SheetNames[0]]
-        const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
-
-        const dataRows = rows.slice(1)
-        skippedRows.value = 0
-        let lineNo = 1
-        const items: PreviewItem[] = []
-
-        for (const row of dataRows) {
-          const isEmptyRow = row.every((cell: any) => cell === '' || cell == null)
-          if (isEmptyRow) {
-            skippedRows.value++
-            continue
-          }
-
-          const customerMaterialModel = String(row[0] || '').trim()
-          const materialModel = String(row[1] || '').trim()
-          const customerBrand = String(row[2] || '').trim()
-          const supplyBrand = String(row[3] || '').trim()
-          const quantityRaw = row[4]
-          const targetPriceRaw = row[5]
-          const currency = String(row[6] || DEFAULT_SETTLEMENT_CURRENCY_STRING).trim().toUpperCase() || DEFAULT_SETTLEMENT_CURRENCY_STRING
-          const minPackageQty = row[7] ? Number(row[7]) : undefined
-          const moq = row[8] ? Number(row[8]) : undefined
-          const alternatives = String(row[9] || '').trim()
-          const remark = String(row[10] || '').trim()
-
-          let error = ''
-          if (!materialModel) error = '缺少MPN'
-          const quantity = Number(quantityRaw)
-          if (!error && (isNaN(quantity) || quantity <= 0)) error = '数量无效'
-
-          const matchKeyword = resolveBrandMatchKeyword(supplyBrand, customerBrand)
-
-          const item: PreviewItem = {
-            lineNo: lineNo++,
-            customerMaterialModel: customerMaterialModel || undefined,
-            materialModel,
-            customerMpn: customerMaterialModel || undefined,
-            mpn: materialModel,
-            customerBrand: customerBrand || undefined,
-            brand: supplyBrand || undefined,
-            quantity: isNaN(quantity) ? 0 : quantity,
-            targetPrice: targetPriceRaw !== '' && targetPriceRaw != null ? Number(targetPriceRaw) : undefined,
-            currency: currency || DEFAULT_SETTLEMENT_CURRENCY_STRING,
-            minPackageQty,
-            moq,
-            minOrderQty: moq,
-            alternatives: alternatives || undefined,
-            alternativeMaterials: alternatives || undefined,
-            remark: remark || undefined,
-            _key: lineNo,
-            _supplyBrandDisplay: supplyBrand || customerBrand || '',
-            _importBrandText: matchKeyword || undefined
-          }
-          if (error) item._error = error
-          items.push(item)
-        }
-        resolve(items)
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }) as unknown[][]
+        resolve(rows)
       } catch (err) {
         reject(err)
       }
@@ -365,7 +453,52 @@ function parseExcel(file: File): Promise<PreviewItem[]> {
   })
 }
 
-async function resolvePreviewBrandMatches(items: PreviewItem[]) {
+async function loadRowsFromFile() {
+  if (!rawFile.value) {
+    rawRows.value = []
+    return
+  }
+  parsingFile.value = true
+  try {
+    rawRows.value = await readExcelRows(rawFile.value)
+    if (headerRowIndex.value >= rawRows.value.length) {
+      headerRowIndex.value = 0
+      headerRowNumber.value = 1
+    }
+  } catch {
+    rawRows.value = []
+    ElMessage.error(t('rfqExcelImport.parseFailed'))
+  } finally {
+    parsingFile.value = false
+    if (rawRows.value.length > 0) {
+      await scheduleFitMainDialog()
+    }
+  }
+}
+
+async function handleFileChange(file: { raw: File; name: string }) {
+  rawFile.value = file.raw
+  uploadedFileName.value = file.name
+  headerRowIndex.value = 0
+  headerRowNumber.value = 1
+  await loadRowsFromFile()
+}
+
+function clearFile() {
+  rawFile.value = null
+  uploadedFileName.value = ''
+  rawRows.value = []
+  headerRowIndex.value = 0
+  headerRowNumber.value = 1
+}
+
+function onHeaderRowNumberChange(val: number | undefined) {
+  const n = val ?? 1
+  headerRowIndex.value = Math.max(0, Math.min(n - 1, headerRowMax.value - 1))
+  headerRowNumber.value = headerRowIndex.value + 1
+}
+
+async function resolveBrandMatches(items: ParsedItem[]) {
   brandMatchingLoading.value = true
   try {
     const keywords = items
@@ -379,7 +512,7 @@ async function resolvePreviewBrandMatches(items: PreviewItem[]) {
       const kw = resolveBrandMatchKeyword(it.brand, it.customerBrand)
       if (!kw) {
         it._brandMatchStatus = 'empty'
-        it._brandMatchLabel = '缺少品牌'
+        it._brandMatchLabel = t('rfqExcelImport.brandMissing')
         it._importBrandText = undefined
         continue
       }
@@ -389,7 +522,7 @@ async function resolvePreviewBrandMatches(items: PreviewItem[]) {
       it._importBrandText = kw
       if (result.status === 'matched' && result.brandId) {
         it.brandId = result.brandId
-        it.brand = result.standardBrand
+        it.brand = result.standardBrand ?? kw
       } else {
         it.brand = kw
         it.brandId = undefined
@@ -400,60 +533,278 @@ async function resolvePreviewBrandMatches(items: PreviewItem[]) {
   }
 }
 
-async function goToPreview() {
+function mapParseRows(rows: RfqExcelParseRowResult[]): ParsedItem[] {
+  return rows.map((r) => ({
+    ...r.item,
+    _error: r.error
+  }))
+}
+
+function currentHeaders(): unknown[] {
+  return rawRows.value[headerRowIndex.value] ?? []
+}
+
+function buildRuleMappingsForCurrentSheet() {
+  return buildRuleColumnMappings(currentHeaders(), {
+    rows: rawRows.value,
+    headerRowIndex: headerRowIndex.value
+  })
+}
+
+async function applyParseFromMappings(mappings: RfqExcelColumnMappingRow[], options?: { skipBrand?: boolean }) {
+  const visibleMappings = filterColumnMappingsWithData(
+    mappings,
+    rawRows.value,
+    headerRowIndex.value
+  )
+  const result = parseRfqExcelRows(rawRows.value, {
+    headerRowIndex: headerRowIndex.value,
+    columnMappings: visibleMappings
+  })
+  columnMappings.value = visibleMappings
+  skippedRows.value = result.skippedEmptyRows
+  hasRequiredColumns.value = result.hasRequiredColumns
+  missingRequiredFields.value = result.missingRequiredFields
+  parsedRows.value = mapParseRows(result.rows)
+  if (!options?.skipBrand) {
+    await resolveBrandMatches(parsedRows.value)
+  }
+}
+
+function applyRuleMappings() {
+  const mappings = buildRuleMappingsForCurrentSheet()
+  void applyParseFromMappings(mappings)
+}
+
+async function invokeAiColumnMapping(silent: boolean) {
+  const headers = currentHeaders()
+  if (!headers.some((h) => String(h ?? '').trim())) {
+    if (!silent) ElMessage.warning(t('rfqExcelImport.noHeaderText'))
+    return false
+  }
+
+  const beforeMappings = columnMappings.value.map((m) => ({ colIndex: m.colIndex, fieldKey: m.fieldKey }))
+  const hadRequiredBefore = hasRequiredColumns.value
+  const validBefore = validItems.value.length
+
+  aiMappingLoading.value = true
+  try {
+    const { headersJson, targetFieldsJson } = buildAiColumnMapInput(headers)
+    const result = await aiApi.invoke({
+      scenarioCode: AI_SCENARIO_ENTITY_PARSE_RFQ_EXCEL_COLUMN_MAP,
+      input: {
+        headers: headersJson,
+        target_fields: targetFieldsJson
+      },
+      bizType: 'RFQ'
+    })
+
+    const aiResult = parseAiColumnMapResponse(result.data, result.content ?? '', headers, headerRowIndex.value)
+    if (!aiResult) {
+      if (hasRequiredColumns.value && validItems.value.length > 0) {
+        if (!silent) ElMessage.success(t('rfqExcelImport.aiMapReady', { rows: validItems.value.length }))
+        return true
+      }
+      if (hasRequiredColumns.value) {
+        if (!silent) ElMessage.info(t('rfqExcelImport.aiMapParseSkipped'))
+        return true
+      }
+      if (!silent) ElMessage.error(t('rfqExcelImport.aiMapFailed'))
+      return false
+    }
+
+    if (aiResult.headerRowIndex !== headerRowIndex.value && aiResult.headerRowIndex < rawRows.value.length) {
+      headerRowIndex.value = aiResult.headerRowIndex
+      headerRowNumber.value = headerRowIndex.value + 1
+    }
+
+    const baseMappings =
+      columnMappings.value.length > 0 ? columnMappings.value : buildRuleMappingsForCurrentSheet()
+    const merged = finalizeMappingsAfterAi(baseMappings, aiResult)
+    await applyParseFromMappings(merged)
+    if (!silent) notifyAiMappingOutcome(beforeMappings, hadRequiredBefore, validBefore, merged)
+    return true
+  } catch (e) {
+    if (!silent) ElMessage.error(getApiErrorMessage(e, t('rfqExcelImport.aiMapFailed')))
+    return false
+  } finally {
+    aiMappingLoading.value = false
+  }
+}
+
+/** AI 合并后，对仍为「未识别」的列再尝试规则同义词（不覆盖 AI 已填列） */
+function finalizeMappingsAfterAi(
+  baseMappings: RfqExcelColumnMappingRow[],
+  aiResult: RfqExcelAiColumnMapResult
+) {
+  const merged = mergeRuleAndAiMappings(baseMappings, aiResult)
+  const usedFields = new Set(
+    merged.map((m) => m.fieldKey).filter((k): k is RfqExcelItemFieldKey => !!k)
+  )
+  return merged.map((m) => {
+    if (m.fieldKey) return m
+    const fk = resolveHeaderFieldKey(m.headerText)
+    if (!fk || usedFields.has(fk)) return m
+    usedFields.add(fk)
+    const meta = RFQ_EXCEL_FIELD_METAS.find((f) => f.key === fk)
+    return {
+      ...m,
+      fieldKey: fk,
+      fieldLabel: fieldMetaLabel(fk),
+      required: meta?.required ?? false,
+      matched: true,
+      mappingSource: 'rule' as const
+    }
+  })
+}
+
+function notifyAiMappingOutcome(
+  beforeMappings: Array<{ colIndex: number; fieldKey: RfqExcelItemFieldKey | null | undefined }>,
+  hadRequiredBefore: boolean,
+  validBefore: number,
+  merged: RfqExcelColumnMappingRow[]
+) {
+  const newlyMappedCount = merged.filter((m) => {
+    const prev = beforeMappings.find((b) => b.colIndex === m.colIndex)
+    return !!m.fieldKey && !prev?.fieldKey
+  }).length
+  const aiFilledCount = merged.filter((m) => m.mappingSource === 'ai' && m.fieldKey).length
+  const validNow = validItems.value.length
+  const improved =
+    newlyMappedCount > 0 ||
+    (!hadRequiredBefore && hasRequiredColumns.value) ||
+    validNow > validBefore
+
+  if (improved) {
+    if (aiFilledCount > 0) {
+      ElMessage.success(t('rfqExcelImport.aiMapSuccessFilled', { count: aiFilledCount }))
+    } else {
+      ElMessage.success(t('rfqExcelImport.aiMapReady', { rows: validNow }))
+    }
+    return
+  }
+
+  if (hasRequiredColumns.value && validNow > 0) {
+    ElMessage.success(t('rfqExcelImport.aiMapReady', { rows: validNow }))
+    return
+  }
+
+  if (!hasRequiredColumns.value) {
+    ElMessage.warning(t('rfqExcelImport.aiMapStillIncomplete'))
+  }
+}
+
+function onMappingFieldChange(row: RfqExcelColumnMappingRow, newKey: RfqExcelItemFieldKey | null) {
+  const updated = columnMappings.value.map((m) => {
+    if (m.colIndex === row.colIndex) {
+      const meta = newKey ? RFQ_EXCEL_FIELD_METAS.find((f) => f.key === newKey) : undefined
+      return {
+        ...m,
+        fieldKey: newKey,
+        fieldLabel: fieldMetaLabel(newKey),
+        required: meta?.required ?? false,
+        matched: !!newKey,
+        mappingSource: 'manual' as const,
+        confidence: null
+      }
+    }
+    if (newKey && m.fieldKey === newKey) {
+      return {
+        ...m,
+        fieldKey: null,
+        fieldLabel: '—',
+        required: false,
+        matched: false,
+        mappingSource: 'manual' as const,
+        confidence: null
+      }
+    }
+    return m
+  })
+  columnMappings.value = updated
+  void applyParseFromMappings(updated)
+}
+
+async function goToMapping() {
   if (!rawFile.value) return
   try {
-    previewItems.value = await parseExcel(rawFile.value)
-    if (previewItems.value.length === 0) {
-      ElMessage.warning('Excel 中没有有效数据行，请检查文件内容')
+    if (!rawRows.value.length) await loadRowsFromFile()
+    if (rawRows.value.length < 2) {
+      ElMessage.warning(t('rfqExcelImport.noDataRows'))
       return
     }
+
+    const dataRowCount = countNonEmptyDataRows(rawRows.value, headerRowIndex.value)
+    if (dataRowCount === 0) {
+      ElMessage.warning(t('rfqExcelImport.noDataRows'))
+      return
+    }
+    if (dataRowCount > RFQ_EXCEL_MAX_DATA_ROWS) {
+      ElMessage.error(t('rfqExcelImport.maxRowsExceeded', { max: RFQ_EXCEL_MAX_DATA_ROWS }))
+      return
+    }
+
+    const ruleMappings = buildRuleMappingsForCurrentSheet()
+    const ruleCheck = parseRfqExcelRows(rawRows.value, {
+      headerRowIndex: headerRowIndex.value,
+      columnMappings: ruleMappings
+    })
+
     step.value = 2
-    await resolvePreviewBrandMatches(previewItems.value)
-    await nextTick()
-    bindPreviewTableResizeObserver()
+    columnMappings.value = ruleMappings
+    skippedRows.value = ruleCheck.skippedEmptyRows
+    hasRequiredColumns.value = ruleCheck.hasRequiredColumns
+    missingRequiredFields.value = ruleCheck.missingRequiredFields
+    parsedRows.value = mapParseRows(ruleCheck.rows)
+
+    if (!ruleCheck.hasRequiredColumns) {
+      const aiOk = await invokeAiColumnMapping(true)
+      if (!aiOk) {
+        await applyParseFromMappings(ruleMappings, { skipBrand: false })
+      }
+    } else {
+      await resolveBrandMatches(parsedRows.value)
+    }
   } catch {
-    ElMessage.error('Excel 解析失败，请检查文件格式')
+    ElMessage.error(t('rfqExcelImport.parseFailed'))
   }
 }
 
-function getRowClass({ row }: { row: PreviewItem }) {
-  return row._error ? 'row-error' : ''
+function buildParsedRfqFields(): ParsedRfqFields {
+  const base = emptyParsedRfq()
+  base.items = validItems.value.map((it) => ({
+    customerMpn: it.customerMpn,
+    customerBrand: it.customerBrand,
+    mpn: it.mpn,
+    brand: it.brand,
+    brandId: it.brandId,
+    targetPrice: it.targetPrice,
+    priceCurrency: it.priceCurrency,
+    quantity: it.quantity,
+    productionDate: it.productionDate,
+    expiryDate: it.expiryDate,
+    minPackageQty: it.minPackageQty,
+    minOrderQty: it.minOrderQty,
+    alternativeMaterials: it.alternativeMaterials,
+    remark: it.remark,
+    _importBrandText: it.brandId && it.brandId > 0 ? undefined : it._importBrandText
+  }))
+  return base
 }
 
-function buildPrefillPayload() {
-  return {
-    _prefillSource: 'excel-import',
-    items: validItems.value.map((it) => ({
-      customerMpn: it.customerMpn || it.customerMaterialModel || '',
-      customerBrand: it.customerBrand || '',
-      mpn: it.mpn || it.materialModel || '',
-      brand: it.brand || '',
-      brandId: it.brandId,
-      quantity: it.quantity,
-      targetPrice: it.targetPrice,
-      priceCurrency: mapCurrencyToPriceCurrency(it.currency),
-      minPackageQty: it.minPackageQty,
-      minOrderQty: it.minOrderQty ?? it.moq,
-      alternativeMaterials: it.alternativeMaterials || it.alternatives || '',
-      remark: it.remark || '',
-      _importBrandText:
-        it.brandId && it.brandId > 0 ? undefined : it._importBrandText || undefined
-    }))
+async function handleConfirmParse() {
+  if (!hasRequiredColumns.value) {
+    ElMessage.error(t('rfqExcelImport.missingRequiredColumns', { fields: missingRequiredFields.value.join('、') }))
+    return
   }
-}
-
-async function handleGoToCreate() {
   if (validItems.value.length === 0) {
-    ElMessage.warning('没有有效的明细行')
+    ElMessage.warning(t('rfqExcelImport.noValidRows'))
     return
   }
   submitting.value = true
   try {
-    const token = setAiPrefill('RFQ', buildPrefillPayload())
-    visible.value = false
+    emit('parsed', buildParsedRfqFields())
     handleClose()
-    await router.push({ name: 'RFQCreate', query: { aiPrefill: token } })
   } finally {
     submitting.value = false
   }
@@ -461,24 +812,49 @@ async function handleGoToCreate() {
 
 function handleClose() {
   visible.value = false
+  fieldDescVisible.value = false
   step.value = 1
   uploadedFileName.value = ''
   rawFile.value = null
-  previewItems.value = []
+  rawRows.value = []
+  headerRowIndex.value = 0
+  headerRowNumber.value = 1
+  parsedRows.value = []
+  columnMappings.value = []
   skippedRows.value = 0
+  hasRequiredColumns.value = true
+  missingRequiredFields.value = []
   brandMatchingLoading.value = false
+  aiMappingLoading.value = false
+  parsingFile.value = false
 }
 
 function downloadTemplate() {
   const headers = [
-    '客户物料型号', '物料型号(MPN)*', '客户品牌', '供应品牌',
-    '数量*', '目标价', '货币(RMB/USD/EUR/HKD)',
-    '最小包装量', '最小起订量(MOQ)', '可替代料(逗号分隔)', '备注'
+    '客户物料型号',
+    '物料型号(MPN)*',
+    '客户品牌',
+    '供应品牌',
+    '数量*',
+    '目标价',
+    `货币(${DEFAULT_SETTLEMENT_CURRENCY_STRING}/USD/EUR/HKD)`,
+    '最小包装量',
+    '最小起订量(MOQ)',
+    '可替代料(逗号分隔)',
+    '备注'
   ]
   const exampleRow = [
-    'ABC-001', 'STM32F103C8T6', 'ST', 'STMicroelectronics',
-    '1000', '2.5', 'RMB',
-    '100', '500', 'STM32F103CBT6', '需2年内产品'
+    'ABC-001',
+    'STM32F103C8T6',
+    'ST',
+    'STMicroelectronics',
+    '1000',
+    '2.5',
+    DEFAULT_SETTLEMENT_CURRENCY_STRING,
+    '100',
+    '500',
+    'STM32F103CBT6',
+    '需2年内产品'
   ]
   const ws = XLSX.utils.aoa_to_sheet([headers, exampleRow])
   ws['!cols'] = headers.map(() => ({ wch: 20 }))
@@ -489,53 +865,103 @@ function downloadTemplate() {
 </script>
 
 <style lang="scss">
-$import-rfq-dialog-body-height: 900px;
-
-.import-rfq-dialog {
-  .el-dialog__body {
-    padding: 16px 20px;
-    height: $import-rfq-dialog-body-height;
-    min-height: $import-rfq-dialog-body-height;
-    max-height: calc(100vh - 120px);
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  .el-dialog {
+.import-rfq-dialog,
+.import-rfq-field-desc-dialog {
+  &.el-dialog {
     max-width: calc(100vw - 48px);
   }
 
-  .el-table .row-error td {
-    background-color: rgba(245, 108, 108, 0.08) !important;
+  .el-dialog__body {
+    padding: 16px 20px;
+    box-sizing: border-box;
+    overflow-y: auto;
+  }
+}
+
+.crm-dialog-resizable {
+  position: relative !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  max-height: none !important;
+  margin-top: 8vh !important;
+
+  .el-dialog__header {
+    flex: 0 0 auto;
+  }
+
+  .el-dialog__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none !important;
+    overflow-y: auto;
+  }
+
+  .el-dialog__footer {
+    flex: 0 0 auto;
+  }
+}
+
+.crm-dialog-resize-handle {
+  position: absolute;
+  z-index: 10;
+  background: transparent;
+
+  &:hover {
+    background: rgba(64, 158, 255, 0.15);
+  }
+
+  &--e {
+    top: 0;
+    right: 0;
+    width: 12px;
+    height: 100%;
+    cursor: ew-resize;
+  }
+
+  &--s {
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 12px;
+    cursor: ns-resize;
+  }
+
+  &--se {
+    right: 0;
+    bottom: 0;
+    width: 20px;
+    height: 20px;
+    cursor: nwse-resize;
   }
 }
 </style>
 
 <style lang="scss" scoped>
 .import-rfq-step-pane {
-  flex: 1;
-  min-height: 0;
-  height: 100%;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
 }
 
 .step-upload {
-  overflow: hidden;
-  .upload-tips { margin-bottom: 16px; }
+  .upload-tips {
+    margin-bottom: 16px;
+  }
 
   .excel-upload-area {
     width: 100%;
-    :deep(.el-upload) { width: 100%; }
+    :deep(.el-upload) {
+      width: 100%;
+    }
     :deep(.el-upload-dragger) {
       width: 100%;
       padding: 28px 12px;
       background: rgba(0, 212, 255, 0.03);
       border-color: rgba(0, 212, 255, 0.2);
-      &:hover { border-color: rgba(0, 212, 255, 0.5); }
+      &:hover {
+        border-color: rgba(0, 212, 255, 0.5);
+      }
     }
   }
 
@@ -544,55 +970,82 @@ $import-rfq-dialog-body-height: 900px;
     align-items: center;
     gap: 8px;
     margin: 10px 0;
-    min-height: 72px;
+    min-height: 48px;
     padding: 0 16px;
     background: rgba(103, 194, 58, 0.08);
     border: 1px solid rgba(103, 194, 58, 0.2);
     border-radius: 4px;
     font-size: 13px;
-    line-height: 1.5;
     color: #4d4d4d;
+  }
 
-    strong {
-      color: #303133;
-      font-weight: 600;
+  .header-row-picker {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 12px 0 8px;
+    font-size: 13px;
+
+    &__label {
+      color: #4d4d4d;
+    }
+
+    &__hint {
+      color: #909399;
+      font-size: 12px;
     }
   }
 
-  .field-mapping-table {
-    margin-top: 16px;
+  .header-preview-table {
+    margin-top: 12px;
     .mapping-title {
       font-size: 13px;
-      font-weight: 400;
       color: #4d4d4d;
       margin-bottom: 8px;
     }
   }
 }
 
-.step-preview {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
+.step-mapping {
+  .mapping-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+
+    &__meta {
+      margin-left: auto;
+      font-size: 12px;
+      color: #909399;
+    }
+  }
 
   .parse-stats {
-    flex-shrink: 0;
     margin-bottom: 10px;
   }
 
-  .preview-table-wrap {
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
+  .mapping-result-table {
+    .mapping-title {
+      font-size: 13px;
+      color: #4d4d4d;
+      margin-bottom: 8px;
+    }
   }
 
-  .preview-table {
+  .mapping-field-select {
     width: 100%;
-    height: 100%;
   }
 }
 
 .dialog-footer {
-  display: flex; justify-content: flex-end; gap: 10px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.field-desc-hint {
+  font-size: 13px;
+  color: #4d4d4d;
+  margin-bottom: 10px;
 }
 </style>

@@ -44,6 +44,7 @@ export type ParsedRfqItemFields = {
   customerBrand: string
   mpn: string
   brand: string
+  brandId?: number
   targetPrice: number | null
   priceCurrency: number | null
   quantity: number | null
@@ -53,6 +54,8 @@ export type ParsedRfqItemFields = {
   minOrderQty: number | null
   alternativeMaterials: string
   remark: string
+  /** Excel 导入品牌待匹配时的原始关键词 */
+  _importBrandText?: string
 }
 
 export type ParsedRfqFields = {
@@ -817,7 +820,7 @@ export function rfqPrefillToFormPayload(parsed: ParsedRfqFields): Record<string,
       customerBrand: it.customerBrand,
       mpn,
       brand: it.brand,
-      brandId: undefined,
+      brandId: it.brandId != null && it.brandId > 0 ? it.brandId : undefined,
       quantity: it.quantity != null && it.quantity > 0 ? it.quantity : 1,
       targetPrice: it.targetPrice ?? undefined,
       productionDate: it.productionDate,
@@ -827,7 +830,9 @@ export function rfqPrefillToFormPayload(parsed: ParsedRfqFields): Record<string,
       alternativeMaterials: it.alternativeMaterials,
       remark: it.remark,
       priceCurrency:
-        it.priceCurrency != null && it.priceCurrency >= 1 && it.priceCurrency <= 4 ? it.priceCurrency : DEFAULT_SETTLEMENT_CURRENCY_CODE
+        it.priceCurrency != null && it.priceCurrency >= 1 && it.priceCurrency <= 4 ? it.priceCurrency : DEFAULT_SETTLEMENT_CURRENCY_CODE,
+      _importBrandText:
+        it.brandId != null && it.brandId > 0 ? undefined : it._importBrandText || undefined
     }
   })
 

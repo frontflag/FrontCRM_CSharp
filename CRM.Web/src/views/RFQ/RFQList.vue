@@ -10,7 +10,11 @@
         <div class="count-badge">{{ t('rfqList.count', { count: totalCount }) }}</div>
       </div>
       <div class="header-right">
-        <el-button v-if="canCreateNewRfq" class="btn-ghost btn-sm" @click="importDialogVisible = true">
+        <el-button
+          v-if="canCreateNewRfq && canAiParseRfq"
+          class="btn-ghost btn-sm"
+          @click="excelImportHostRef?.open()"
+        >
           <el-icon><Upload /></el-icon>{{ t('rfqList.importExcel') }}
         </el-button>
         <template v-if="canCreateNewRfq">
@@ -27,7 +31,26 @@
               </button>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item command="aiCreate">{{ t('aiEntityCreate.aiCreate') }}</el-dropdown-item>
+                  <el-dropdown-item command="aiCreate">
+                    <el-tooltip
+                      :content="t('rfqList.createMenuTip.pasteText')"
+                      placement="right"
+                      effect="light"
+                      :show-after="400"
+                    >
+                      <span class="rfq-create-menu-item">{{ t('aiEntityCreate.aiCreate') }}</span>
+                    </el-tooltip>
+                  </el-dropdown-item>
+                  <el-dropdown-item command="excelImport">
+                    <el-tooltip
+                      :content="t('rfqList.createMenuTip.excelImport')"
+                      placement="right"
+                      effect="light"
+                      :show-after="400"
+                    >
+                      <span class="rfq-create-menu-item">{{ t('rfqExcelImport.menuLabel') }}</span>
+                    </el-tooltip>
+                  </el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
@@ -248,8 +271,7 @@
       />
     </div>
 
-    <!-- 导入 Excel 创建 RFQ 对话框 -->
-    <ImportRFQDialog v-model="importDialogVisible" />
+    <RfqExcelImportHost ref="excelImportHostRef" />
     <AiEntityCreateHost
       ref="aiCreateHostRef"
       entity-type="RFQ"
@@ -265,7 +287,7 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { Plus, Search, Setting, Upload } from '@element-plus/icons-vue'
-import ImportRFQDialog from './components/ImportRFQDialog.vue'
+import RfqExcelImportHost from '@/components/AiCreate/RfqExcelImportHost.vue'
 import AiEntityCreateHost from '@/components/AiCreate/AiEntityCreateHost.vue'
 import { AI_PERMISSION_ENTITY_PARSE_RFQ } from '@/api/ai'
 import { ElMessage } from 'element-plus'
@@ -294,6 +316,7 @@ const authStore = useAuthStore()
 const canCreateNewRfq = computed(() => authStore.hasPermission('rfq.create'))
 const canAiParseRfq = computed(() => authStore.hasPermission(AI_PERMISSION_ENTITY_PARSE_RFQ))
 const aiCreateHostRef = ref<InstanceType<typeof AiEntityCreateHost> | null>(null)
+const excelImportHostRef = ref<InstanceType<typeof RfqExcelImportHost> | null>(null)
 /** 编辑需求头表（分配等维护仍用 rfq.write） */
 const canEditRfq = computed(() => authStore.hasPermission('rfq.write'))
 /** 与后端 RFQ 脱敏一致：采购等角色可有 customer.read 但不应见需求侧客户名（需 customer.info.read） */
@@ -320,6 +343,7 @@ function goCreateRfq() {
 
 function onCreateDropdownCommand(cmd: string) {
   if (cmd === 'aiCreate') aiCreateHostRef.value?.open()
+  else if (cmd === 'excelImport') excelImportHostRef.value?.open()
 }
 
 const loading = ref(false)
@@ -423,8 +447,6 @@ const rfqTableColumns = computed((): CrmTableColumnDef[] => {
   )
   return cols
 })
-
-const importDialogVisible = ref(false)
 
 const totalCount = computed(() => pageInfo.value.total)
 
@@ -979,5 +1001,10 @@ html[data-theme='dark'] .rfq-list-qty {
 
 .op-more-item--info {
   color: rgba(200, 216, 232, 0.85);
+}
+
+.rfq-create-menu-item {
+  display: block;
+  width: 100%;
 }
 </style>
