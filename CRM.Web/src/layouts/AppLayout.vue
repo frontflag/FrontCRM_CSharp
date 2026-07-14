@@ -682,6 +682,51 @@
               >{{ t('layout.menu.freightForwarderPayables') }}</router-link>
             </template>
           </SidebarMenuGroupFlyout>
+
+          <!-- 库存报表组：位于收款管理之后 -->
+          <SidebarMenuGroupFlyout
+            v-if="
+              showFinanceMenus &&
+              (isSysAdmin || identityType !== 6) &&
+              hasPermission('finance-accumulated.read')
+            "
+            :collapsed="isCollapsed"
+            :expanded="openGroups.financeInventoryReports"
+            @toggle="toggleGroup('financeInventoryReports')"
+          >
+            <template #icon>
+              <span class="menu-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M3 3v18h18"/>
+                  <path d="M7 16l4-8 4 5 5-9"/>
+                </svg>
+              </span>
+            </template>
+            <template #label>
+              <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.inventoryReports') }}</span>
+            </template>
+            <template #chevron>
+              <svg
+                v-if="!isCollapsed"
+                class="chevron"
+                :class="{ rotated: openGroups.financeInventoryReports }"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M6 9l6 6 6-6"/>
+              </svg>
+            </template>
+            <template #submenu>
+              <router-link
+                v-if="hasPermission('finance-accumulated.read')"
+                to="/finance/stock-accumulated"
+                class="submenu-item"
+                active-class="active"
+              >{{ t('layout.menu.stockAccumulated') }}</router-link>
+            </template>
+          </SidebarMenuGroupFlyout>
         </div>
 
         <!-- 数据分析 -->
@@ -1715,6 +1760,7 @@ const openGroups = ref({
   finance: false,
   financePayments: false,
   financeReceipts: false,
+  financeInventoryReports: false,
   systemManagement: false,
   paramManagement: false,
   systemLogs: false
@@ -1736,6 +1782,7 @@ const expandAllGroups = () => {
     finance: true,
     financePayments: true,
     financeReceipts: true,
+    financeInventoryReports: true,
     systemManagement: true,
     paramManagement: true,
     systemLogs: true
@@ -1745,7 +1792,7 @@ const expandAllGroups = () => {
 const toggleCollapse = () => {
   cycleSidebarMode()
   if (sidebarMode.value === 'narrow') {
-    openGroups.value = { purchase: false, sales: false, inventory: false, stockInManagement: false, customs: false, stockOutManagement: false, customers: false, vendors: false, rfqs: false, quotes: false, finance: false, financePayments: false, financeReceipts: false, systemManagement: false, paramManagement: false, systemLogs: false }
+    openGroups.value = { purchase: false, sales: false, inventory: false, stockInManagement: false, customs: false, stockOutManagement: false, customers: false, vendors: false, rfqs: false, quotes: false, finance: false, financePayments: false, financeReceipts: false, financeInventoryReports: false, systemManagement: false, paramManagement: false, systemLogs: false }
   } else if (sidebarMode.value === 'full' && isSysAdmin.value) {
     expandAllGroups()
   }
@@ -1849,7 +1896,9 @@ const pageTitleMap: Record<string, string> = {
   '/finance/receipt-write-off': 'layout.menu.receiptManagement',
   '/finance/receipt-write-off/ledger': 'layout.menu.receiptManagement',
   '/finance/purchase-invoices': 'layout.menu.purchaseInvoices',
-  '/finance/sell-invoices': 'layout.menu.sellInvoices'
+  '/finance/sell-invoices': 'layout.menu.sellInvoices',
+  '/finance/stock-accumulated': 'layout.menu.stockAccumulated',
+  '/finance/stock-accumulated/items': 'layout.menu.stockAccumulated'
 }
 
 const routeMetaTitleKeyMap: Record<string, string> = {
@@ -2157,6 +2206,9 @@ watch(
     }
     if (p === '/system/login-logs' || p === '/system/operation-logs') {
       openGroups.value.systemLogs = true
+    }
+    if (p === '/finance/stock-accumulated' || p.startsWith('/finance/stock-accumulated/')) {
+      openGroups.value.financeInventoryReports = true
     }
   },
   { immediate: true }

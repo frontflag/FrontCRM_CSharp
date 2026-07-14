@@ -144,8 +144,9 @@ function retryLookup() {
 }
 
 .rfq-item-material-panel__pn-val {
+  font-size: 14px;
   font-weight: 600;
-  color: $text-primary;
+  color: $color-amber;
 }
 
 .rfq-item-material-panel__loading {

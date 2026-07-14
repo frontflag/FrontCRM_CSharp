@@ -1,3 +1,4 @@
+2026-07-14 15:38:23 | feat(finance): add inventory stock accumulated reports under 库存报表
 2026-07-14 07:51:01 | docs(help): require user-facing help pages and strip dev jargon
 2026-07-14 07:37:55 | feat(vendor-intel): mirror AI supplier intelligence lookup end-to-end
 2026-07-14 06:50:19 | feat(customer-intel): add AI customer intelligence lookup end-to-end.

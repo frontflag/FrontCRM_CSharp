@@ -85,11 +85,13 @@ try {
 
   $TempScripts = Join-Path $TempBuildRoot "scripts"
   New-Item -ItemType Directory -Path $TempScripts -Force | Out-Null
-  $SyncHelpSrc = Join-Path $RepoRoot "scripts\sync-help.mjs"
-  if (-not (Test-Path $SyncHelpSrc)) {
-    throw "sync-help.mjs not found: $SyncHelpSrc"
+  foreach ($scriptName in @("sync-help.mjs", "verify-help-dist.mjs")) {
+    $scriptSrc = Join-Path $RepoRoot "scripts\$scriptName"
+    if (-not (Test-Path $scriptSrc)) {
+      throw "Required build script not found: $scriptSrc"
+    }
+    Copy-Item -Force $scriptSrc (Join-Path $TempScripts $scriptName)
   }
-  Copy-Item -Force $SyncHelpSrc (Join-Path $TempScripts "sync-help.mjs")
 
   $HelpSrc = Join-Path $RepoRoot "help"
   if (Test-Path $HelpSrc) {

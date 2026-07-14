@@ -862,19 +862,30 @@ namespace CRM.Core.Services
                     list.Count);
             }
 
-            var gate = await GetStockOutApplyPurchaseGateDetailsBySellLineIdsAsync(list.Select(x => x.SellOrderItemId));
-            foreach (var row in list)
+            try
             {
-                var key = row.SellOrderItemId?.Trim() ?? string.Empty;
-                if (!string.IsNullOrEmpty(key) && gate.TryGetValue(key, out var detail))
+                var gate = await GetStockOutApplyPurchaseGateDetailsBySellLineIdsAsync(list.Select(x => x.SellOrderItemId));
+                foreach (var row in list)
                 {
-                    row.StockOutApplyPurchaseGateDetail = detail;
-                    row.StockOutApplyPurchaseGateOk = detail.Ok;
+                    var key = row.SellOrderItemId?.Trim() ?? string.Empty;
+                    if (!string.IsNullOrEmpty(key) && gate.TryGetValue(key, out var detail))
+                    {
+                        row.StockOutApplyPurchaseGateDetail = detail;
+                        row.StockOutApplyPurchaseGateOk = detail.Ok;
+                    }
+                    else
+                    {
+                        row.StockOutApplyPurchaseGateOk = false;
+                    }
                 }
-                else
-                {
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex,
+                    "[SellLineStockOutGate] GetSellOrderItemLinesPagedAsync merge stock-out apply purchase gate failed; gate columns left at default. LineIdCount={Count}",
+                    list.Count);
+                foreach (var row in list)
                     row.StockOutApplyPurchaseGateOk = false;
-                }
             }
 
             try

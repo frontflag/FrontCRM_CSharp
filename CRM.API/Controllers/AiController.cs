@@ -60,8 +60,7 @@ public class AiController : ControllerBase
         catch (OperationCanceledException ex) when (HttpContext.RequestAborted.IsCancellationRequested)
         {
             _logger.LogWarning(ex, "AI invoke canceled (client/proxy timeout) scenario={Scenario}", request.ScenarioCode);
-            return StatusCode(504, ApiResponse<AiInvokeResultDto>.Fail(
-                "AI 调用超时：网关或浏览器在结果返回前断开连接。请让运维将 Nginx proxy_read_timeout 调整为至少 300s（见 scripts/nginx-ai-invoke-timeout.snippet.conf）。", 504));
+            return StatusCode(504, ApiResponse<AiInvokeResultDto>.Fail("AI 调用超时，请稍后重试。", 504));
         }
         catch (Exception ex)
         {

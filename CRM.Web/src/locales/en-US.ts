@@ -644,6 +644,8 @@ const enUS = {
       freightForwarderPayables: 'Freight forwarder payments',
       receiptWriteOff: 'Receipt Write-off',
       sellInvoices: 'Sales Invoices',
+      inventoryReports: 'Inventory Reports',
+      stockAccumulated: 'Stock Accumulated',
       reportAnalytics: 'Report Analytics',
       businessManagement: 'Business management',
       brandManagement: 'Brand management',
@@ -976,6 +978,45 @@ const enUS = {
       name: 'Name',
       qty: 'Qty',
       amount: 'Amount'
+    }
+  },
+  stockAccumulated: {
+    summaryTitle: 'Stock Accumulated',
+    detailTitle: 'Stock Item Accumulated · {month}',
+    filters: {
+      yearPlaceholder: 'Select year',
+      keywordsPlaceholder: 'Search PN',
+      pnPlaceholder: 'PN',
+      stockInCodePlaceholder: 'Stock-in code',
+      stockInTimeStart: 'Stock-in from',
+      stockInTimeEnd: 'Stock-in to'
+    },
+    columns: {
+      yearMonth: 'Month',
+      prvAmountTotal: 'Opening (USD)',
+      currentStockInAmountTotal: 'Inbound (USD)',
+      currentStockOutAmountTotal: 'Outbound (USD)',
+      balanceAmountTotal: 'Balance (USD)',
+      prvStockQty: 'Opening Qty',
+      stockInQty: 'Inbound Qty',
+      stockOutQty: 'Outbound Qty',
+      balanceStockQty: 'Balance Qty',
+      billCode: 'Stock-in code',
+      pn: 'PN',
+      stockInTime: 'Stock-in time',
+      prvQty: 'Opening Qty',
+      balanceQty: 'Balance Qty',
+      actions: 'Actions'
+    },
+    actions: {
+      detail: 'Detail',
+      backToSummary: 'Back to summary',
+      search: 'Search'
+    },
+    messages: {
+      yearRequired: 'Please select a year',
+      monthRequired: 'Please select a month',
+      loadFailed: 'Failed to load stock accumulated data'
     }
   },
   financeAnalytics: {

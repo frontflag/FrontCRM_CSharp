@@ -5,6 +5,7 @@
   "scripts": {
     "predev": "node ../scripts/sync-help.mjs",
     "prebuild": "node ../scripts/sync-help.mjs",
+    "postbuild": "node ../scripts/verify-help-dist.mjs",
     "dev": "vite",
     "dev:ecoinf": "vite --mode development.ecoinf",
     "typecheck": "vue-tsc --noEmit",

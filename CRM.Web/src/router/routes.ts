@@ -1027,6 +1027,18 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '销项发票详情', permission: 'finance-sell-invoice.read' }
       },
       {
+        path: 'finance/stock-accumulated',
+        name: 'FinanceStockAccumulatedList',
+        component: () => import('@/views/Finance/FinanceStockAccumulatedList.vue'),
+        meta: { requiresAuth: true, title: '库存滚存', permission: 'finance-accumulated.read' }
+      },
+      {
+        path: 'finance/stock-accumulated/items',
+        name: 'FinanceStockAccumulatedItemList',
+        component: () => import('@/views/Finance/FinanceStockAccumulatedItemList.vue'),
+        meta: { requiresAuth: true, title: '库存明细滚存', permission: 'finance-accumulated.read' }
+      },
+      {
         path: 'documents/demo',
         name: 'DocumentDemo',
         component: () => import('@/views/Document/DocumentDemo.vue'),

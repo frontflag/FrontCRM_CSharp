@@ -32,7 +32,12 @@ node scripts/clean-help-prerequisites.mjs
 
 # 推荐：将残留的开发向表述改为用户语言（AI 或脚本批量生成后默认执行）
 node scripts/clean-help-user-facing.mjs
+
+# 构建后自动校验（npm run build 的 postbuild 会执行；也可手动跑）
+node scripts/verify-help-dist.mjs
 ```
+
+`verify-help-dist.mjs` 会逐文件比对 `help/` 与 `CRM.Web/dist/help/`，任一页面或目录不一致则构建/部署失败，避免线上仍是旧版帮助。
 
 使用 `scripts/generate-help-pages-content.mjs` 批量生成时会自动调用 `clean-help-user-facing.mjs`（该生成脚本**会覆盖**已有页面，慎用）。
 

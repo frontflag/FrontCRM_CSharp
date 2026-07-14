@@ -643,6 +643,8 @@ const zhCN = {
       freightForwarderPayables: '货代付款',
       receiptWriteOff: '收款核销',
       sellInvoices: '销项发票',
+      inventoryReports: '库存报表',
+      stockAccumulated: '库存滚存',
       reportAnalytics: '报表分析',
       businessManagement: '业务管理',
       brandManagement: '品牌管理',
@@ -975,6 +977,45 @@ const zhCN = {
       name: '名称',
       qty: '数量',
       amount: '金额'
+    }
+  },
+  stockAccumulated: {
+    summaryTitle: '库存滚存',
+    detailTitle: '库存明细滚存 · {month}',
+    filters: {
+      yearPlaceholder: '选择年份',
+      keywordsPlaceholder: '搜索物料型号',
+      pnPlaceholder: '物料型号',
+      stockInCodePlaceholder: '入库单号',
+      stockInTimeStart: '入库日期起',
+      stockInTimeEnd: '入库日期止'
+    },
+    columns: {
+      yearMonth: '年月',
+      prvAmountTotal: '上期金额(USD)',
+      currentStockInAmountTotal: '本期入库(USD)',
+      currentStockOutAmountTotal: '本期出库(USD)',
+      balanceAmountTotal: '结余金额(USD)',
+      prvStockQty: '上期数量',
+      stockInQty: '入库数量',
+      stockOutQty: '出库数量',
+      balanceStockQty: '结余数量',
+      billCode: '入库单号',
+      pn: '物料型号',
+      stockInTime: '入库时间',
+      prvQty: '上期数量',
+      balanceQty: '结余数量',
+      actions: '操作'
+    },
+    actions: {
+      detail: '明细',
+      backToSummary: '返回汇总',
+      search: '查询'
+    },
+    messages: {
+      yearRequired: '请选择年份',
+      monthRequired: '请选择月份',
+      loadFailed: '加载库存滚存失败'
     }
   },
   financeAnalytics: {
