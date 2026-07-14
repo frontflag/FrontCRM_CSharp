@@ -171,5 +171,24 @@ export const bizBrandApi = {
   async getById(id: number): Promise<BizBrandRow> {
     const raw = await apiClient.get<Record<string, unknown>>(`${BASE}/${id}`)
     return normalizeBizBrandRow(raw)
+  },
+
+  async rememberLearnedMapping(body: { sourceText: string; brandId: number }): Promise<void> {
+    await apiClient.post(`${BASE}/learned-mappings/remember`, body)
+  },
+
+  async resolveLearnedMappings(body: { sourceTexts: string[] }): Promise<
+    Array<{ sourceText: string; sourceKey: string; brandId: number; standardBrand?: string | null }>
+  > {
+    const raw = await apiClient.post<
+      Array<Record<string, unknown>> | Record<string, unknown>
+    >(`${BASE}/learned-mappings/resolve`, body)
+    const list = Array.isArray(raw) ? raw : ((raw.items ?? raw.Items) as Record<string, unknown>[] | undefined)
+    return (list ?? []).map((row) => ({
+      sourceText: String(row.sourceText ?? row.SourceText ?? ''),
+      sourceKey: String(row.sourceKey ?? row.SourceKey ?? ''),
+      brandId: Number(row.brandId ?? row.BrandId ?? 0),
+      standardBrand: pickString(row.standardBrand ?? row.StandardBrand)
+    }))
   }
 }

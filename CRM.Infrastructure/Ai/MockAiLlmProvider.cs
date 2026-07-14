@@ -76,6 +76,16 @@ public sealed class MockAiLlmProvider : IAiLlmProvider
             });
         }
 
+        if (systemMsg.Contains("RFQ Excel 导入品牌映射", StringComparison.Ordinal))
+        {
+            var json = BuildMockRfqExcelBrandMapJson(userMsg);
+            return Task.FromResult(new AiChatCompletionResult
+            {
+                Content = json,
+                Usage = new AiTokenUsageDto { PromptTokens = 50, CompletionTokens = 100, TotalTokens = 150 }
+            });
+        }
+
         if (systemMsg.Contains("供应商主档解析", StringComparison.Ordinal))
         {
             var json = """
@@ -848,6 +858,63 @@ public sealed class MockAiLlmProvider : IAiLlmProvider
             return "alternative_materials";
         if (h.Contains("备注", StringComparison.Ordinal) || h.Contains("Remark", StringComparison.OrdinalIgnoreCase))
             return "remark";
+        return null;
+    }
+
+    private static string BuildMockRfqExcelBrandMapJson(string userMsg)
+    {
+        var sourceTexts = new List<string>();
+        var match = Regex.Match(userMsg, @"待映射品牌原文[：:]\s*(\[[\s\S]*?\])", RegexOptions.CultureInvariant);
+        if (match.Success)
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(match.Groups[1].Value);
+                if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var el in doc.RootElement.EnumerateArray())
+                    {
+                        if (el.ValueKind == JsonValueKind.String)
+                            sourceTexts.Add(el.GetString() ?? string.Empty);
+                    }
+                }
+            }
+            catch
+            {
+                // ignore parse errors
+            }
+        }
+
+        var mappings = new List<object>();
+        foreach (var text in sourceTexts)
+        {
+            var standard = GuessRfqExcelStandardBrand(text);
+            if (!string.IsNullOrWhiteSpace(standard))
+                mappings.Add(new { source_text = text, standard_brand = standard, confidence = 0.88 });
+        }
+
+        return JsonSerializer.Serialize(new { mappings });
+    }
+
+    private static string? GuessRfqExcelStandardBrand(string sourceText)
+    {
+        var s = (sourceText ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(s))
+            return null;
+
+        var upper = s.ToUpperInvariant();
+        if (upper.StartsWith("TI", StringComparison.Ordinal) || s.Contains("德州仪器", StringComparison.Ordinal))
+            return "Texas Instruments";
+        if (upper.StartsWith("ST", StringComparison.Ordinal) || s.Contains("意法", StringComparison.Ordinal))
+            return "STMicroelectronics";
+        if (upper.StartsWith("ADI", StringComparison.Ordinal) || s.Contains("亚德诺", StringComparison.Ordinal))
+            return "Analog Devices";
+        if (upper.StartsWith("NX", StringComparison.Ordinal) || s.Contains("恩智浦", StringComparison.Ordinal) || s.Contains("NXP", StringComparison.OrdinalIgnoreCase))
+            return "NXP Semiconductors";
+        if (upper.StartsWith("ON", StringComparison.Ordinal) || s.Contains("安森美", StringComparison.Ordinal))
+            return "onsemi";
+        if (s.Contains("英飞凌", StringComparison.Ordinal) || upper.Contains("INFINEON", StringComparison.Ordinal))
+            return "Infineon";
         return null;
     }
 }

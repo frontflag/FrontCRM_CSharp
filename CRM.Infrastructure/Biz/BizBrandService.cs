@@ -408,4 +408,104 @@ public class BizBrandService : IBizBrandService
         AuditByUserId = row.AuditByUserId,
         AuditTime = row.AuditTime
     };
+
+    public async Task RememberLearnedMappingAsync(
+        RememberBizBrandLearnedMappingRequest request,
+        string? actingUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var sourceText = TrimOrNull(request.SourceText);
+        if (sourceText == null)
+            throw new ArgumentException("source_text 不能为空", nameof(request));
+        if (request.BrandId <= 0)
+            throw new ArgumentException("brand_id 无效", nameof(request));
+
+        var brand = await _db.BizBrands.AsNoTracking()
+            .FirstOrDefaultAsync(b => b.Id == request.BrandId && !b.IsDeleted, cancellationToken);
+        if (brand == null)
+            throw new KeyNotFoundException($"找不到 ID 为 {request.BrandId} 的品牌");
+
+        var sourceKey = BizBrandSourceKeyHelper.Normalize(sourceText);
+        if (string.IsNullOrEmpty(sourceKey))
+            throw new ArgumentException("source_text 归一化后为空", nameof(request));
+
+        var userId = ActingUserIdNormalizer.Normalize(actingUserId);
+        var now = DateTime.UtcNow;
+        var existing = await _db.BizBrandLearnedMappings
+            .FirstOrDefaultAsync(m => m.SourceKey == sourceKey, cancellationToken);
+
+        if (existing == null)
+        {
+            _db.BizBrandLearnedMappings.Add(new BizBrandLearnedMapping
+            {
+                SourceText = sourceText,
+                SourceKey = sourceKey,
+                BrandId = request.BrandId,
+                HitCount = 1,
+                LastUsedByUserId = userId,
+                CreateByUserId = userId,
+                CreateTime = now,
+                UpdateTime = now,
+                IsActive = true
+            });
+        }
+        else
+        {
+            existing.SourceText = sourceText;
+            existing.BrandId = request.BrandId;
+            existing.HitCount += 1;
+            existing.LastUsedByUserId = userId;
+            existing.UpdateTime = now;
+            existing.IsActive = true;
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<List<BizBrandLearnedMappingResolvedDto>> ResolveLearnedMappingsAsync(
+        ResolveBizBrandLearnedMappingsRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var keys = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var raw in request.SourceTexts ?? [])
+        {
+            var text = TrimOrNull(raw);
+            if (text == null) continue;
+            var key = BizBrandSourceKeyHelper.Normalize(text);
+            if (string.IsNullOrEmpty(key) || keys.ContainsKey(key)) continue;
+            keys[key] = text;
+        }
+
+        if (keys.Count == 0)
+            return [];
+
+        var keyList = keys.Keys.ToList();
+        var rows = await _db.BizBrandLearnedMappings.AsNoTracking()
+            .Where(m => m.IsActive && keyList.Contains(m.SourceKey))
+            .ToListAsync(cancellationToken);
+
+        if (rows.Count == 0)
+            return [];
+
+        var brandIds = rows.Select(r => r.BrandId).Distinct().ToList();
+        var brands = await _db.BizBrands.AsNoTracking()
+            .Where(b => brandIds.Contains(b.Id) && !b.IsDeleted)
+            .ToDictionaryAsync(b => b.Id, cancellationToken);
+
+        var result = new List<BizBrandLearnedMappingResolvedDto>();
+        foreach (var row in rows)
+        {
+            if (!brands.TryGetValue(row.BrandId, out var brand))
+                continue;
+            result.Add(new BizBrandLearnedMappingResolvedDto
+            {
+                SourceText = keys.GetValueOrDefault(row.SourceKey) ?? row.SourceText,
+                SourceKey = row.SourceKey,
+                BrandId = row.BrandId,
+                StandardBrand = TrimOrNull(brand.StandardBrand) ?? TrimOrNull(brand.BrandEName)
+            });
+        }
+
+        return result;
+    }
 }

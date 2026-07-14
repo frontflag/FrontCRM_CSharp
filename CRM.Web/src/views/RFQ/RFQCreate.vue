@@ -609,7 +609,7 @@ import MaterialProductionDateSelect from '@/components/MaterialProductionDateSel
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
 import { DEFAULT_SETTLEMENT_CURRENCY_CODE, normalizeSettlementCurrencyCode } from '@/constants/currency'
 import BizBrandSelect from '@/components/Biz/BizBrandSelect.vue'
-import { resolveBrandIdsForItems } from '@/utils/bizBrandMatch'
+import { resolveBrandIdsForItems, rememberLearnedBrandMapping } from '@/utils/bizBrandMatch'
 import { useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
 import { useCustomerDictStore } from '@/stores/customerDict'
 import { useI18n } from 'vue-i18n'
@@ -1208,8 +1208,14 @@ function onItemBrandChange(
   row: { brand?: string; brandId?: number; _importBrandText?: string },
   payload: { id: number; standardBrand: string }
 ) {
+  const importText = (row._importBrandText || '').trim()
   if (payload.id > 0) {
     row.brand = (payload.standardBrand || '').trim()
+    if (importText) {
+      void rememberLearnedBrandMapping(importText, payload.id)
+        .then(() => ElMessage.success({ message: t('rfqExcelImport.brandLearned'), duration: 2000 }))
+        .catch(() => {})
+    }
     row._importBrandText = undefined
   } else {
     row.brand = ''

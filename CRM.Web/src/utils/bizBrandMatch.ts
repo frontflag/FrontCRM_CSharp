@@ -1,14 +1,16 @@
 import { bizBrandApi, type BizBrandOption } from '@/api/bizBrand'
 
-const ALIAS_TOKEN_SEPARATORS = /[,;\n\r，、|]/
+const ALIAS_TOKEN_SEPARATORS = /[,;\n\r，、|/]/
 
 export type BrandMatchStatus = 'matched' | 'pending' | 'empty'
+export type BrandMappingSource = 'learned' | 'rule' | 'ai'
 
 export type BrandMatchResult = {
   status: BrandMatchStatus
   brandId?: number
   standardBrand?: string
   matchKeyword?: string
+  mappingSource?: BrandMappingSource
 }
 
 function norm(s: string | null | undefined): string {
@@ -17,6 +19,60 @@ function norm(s: string | null | undefined): string {
 
 function equalsIgnoreCase(a: string, b: string): boolean {
   return a.toLowerCase() === b.toLowerCase()
+}
+
+function toHalfWidth(input: string): string {
+  let out = ''
+  for (const ch of input) {
+    const code = ch.charCodeAt(0)
+    if (code >= 0xff01 && code <= 0xff5e) out += String.fromCharCode(code - 0xfee0)
+    else if (code === 0x3000) out += ' '
+    else out += ch
+  }
+  return out
+}
+
+function collapseWhitespace(s: string): string {
+  return s.replace(/\s+/g, ' ').trim()
+}
+
+/** 与后端 BizBrandSourceKeyHelper 一致：全公司学习映射查重键 */
+export function normalizeBrandSourceKey(raw: string | null | undefined): string {
+  const text = norm(raw)
+  if (!text) return ''
+  let s = text.replace(/（/g, '(').replace(/）/g, ')')
+  s = toHalfWidth(s)
+  s = collapseWhitespace(s)
+  return s.toLowerCase()
+}
+
+/** 从导入原文拆出多个候选关键词（规则层，非品牌清单） */
+export function expandBrandMatchCandidates(raw: string): string[] {
+  const text = norm(raw)
+  if (!text) return []
+
+  const normalized = text.replace(/（/g, '(').replace(/）/g, ')')
+  const candidates: string[] = []
+  const push = (v: string) => {
+    const t = norm(v)
+    if (!t) return
+    if (!candidates.some((c) => equalsIgnoreCase(c, t))) candidates.push(t)
+  }
+
+  push(text)
+  push(normalized)
+
+  const parenIdx = normalized.indexOf('(')
+  if (parenIdx > 0) {
+    push(normalized.slice(0, parenIdx))
+    const inside = normalized.slice(parenIdx + 1).replace(/\).*$/, '')
+    push(inside)
+  }
+
+  for (const part of normalized.split('/')) push(part)
+  for (const part of normalized.split(ALIAS_TOKEN_SEPARATORS)) push(part)
+
+  return candidates
 }
 
 /** 与后端 BizBrandAliasHelper.ContainsExactToken 一致 */
@@ -77,40 +133,95 @@ export async function fetchBrandOptionsForKeyword(keyword: string): Promise<BizB
   return bizBrandApi.fetchOptions({ keyword: text, pageSize: 50 })
 }
 
-export async function matchBrandKeyword(keyword: string): Promise<BrandMatchResult> {
+function cacheLookupKey(keyword: string): string {
+  return normalizeBrandSourceKey(keyword)
+}
+
+async function matchBrandKeywordWithRules(
+  keyword: string,
+  learnedByKey: Map<string, BrandMatchResult>
+): Promise<BrandMatchResult> {
   const text = norm(keyword)
   if (!text) return { status: 'empty' }
-  try {
-    const opts = await fetchBrandOptionsForKeyword(text)
-    const match = pickBizBrandMatch(text, opts)
-    if (match) {
-      return {
-        status: 'matched',
-        brandId: match.id,
-        standardBrand: norm(match.standardBrand) || text,
-        matchKeyword: text
-      }
-    }
-    return { status: 'pending', matchKeyword: text }
-  } catch {
-    return { status: 'pending', matchKeyword: text }
+
+  const sourceKey = normalizeBrandSourceKey(text)
+  const learned = learnedByKey.get(sourceKey)
+  if (learned?.status === 'matched' && learned.brandId) {
+    return { ...learned, matchKeyword: text }
   }
+
+  for (const candidate of expandBrandMatchCandidates(text)) {
+    try {
+      const opts = await fetchBrandOptionsForKeyword(candidate)
+      const match = pickBizBrandMatch(candidate, opts)
+      if (match) {
+        return {
+          status: 'matched',
+          brandId: match.id,
+          standardBrand: norm(match.standardBrand) || candidate,
+          matchKeyword: text,
+          mappingSource: 'rule'
+        }
+      }
+    } catch {
+      // try next candidate
+    }
+  }
+
+  return { status: 'pending', matchKeyword: text }
+}
+
+export async function matchBrandKeyword(keyword: string): Promise<BrandMatchResult> {
+  const cache = await buildBrandMatchCache([keyword])
+  return cache.get(cacheLookupKey(keyword)) ?? { status: 'pending', matchKeyword: norm(keyword) }
 }
 
 export async function buildBrandMatchCache(
   keywords: string[]
 ): Promise<Map<string, BrandMatchResult>> {
-  const cache = new Map<string, BrandMatchResult>()
-  const seen = new Set<string>()
+  const uniqueTexts: string[] = []
+  const seenKeys = new Set<string>()
   for (const raw of keywords) {
     const text = norm(raw)
     if (!text) continue
-    const key = text.toLowerCase()
-    if (seen.has(key)) continue
-    seen.add(key)
-    cache.set(key, await matchBrandKeyword(text))
+    const sk = normalizeBrandSourceKey(text)
+    if (seenKeys.has(sk)) continue
+    seenKeys.add(sk)
+    uniqueTexts.push(text)
+  }
+
+  const learnedByKey = new Map<string, BrandMatchResult>()
+  if (uniqueTexts.length > 0) {
+    try {
+      const learnedRows = await bizBrandApi.resolveLearnedMappings({ sourceTexts: uniqueTexts })
+      for (const row of learnedRows) {
+        const sk = normalizeBrandSourceKey(row.sourceText)
+        if (!sk || !row.brandId) continue
+        learnedByKey.set(sk, {
+          status: 'matched',
+          brandId: row.brandId,
+          standardBrand: norm(row.standardBrand) || row.sourceText,
+          matchKeyword: row.sourceText,
+          mappingSource: 'learned'
+        })
+      }
+    } catch {
+      // learned lookup optional
+    }
+  }
+
+  const cache = new Map<string, BrandMatchResult>()
+  for (const text of uniqueTexts) {
+    const result = await matchBrandKeywordWithRules(text, learnedByKey)
+    cache.set(cacheLookupKey(text), result)
   }
   return cache
+}
+
+export async function rememberLearnedBrandMapping(sourceText: string, brandId: number): Promise<void> {
+  const text = norm(sourceText)
+  if (!text || brandId <= 0) return
+  await bizBrandApi.rememberLearnedMapping({ sourceText: text, brandId })
 }
 
 export async function resolveBrandIdsForItems(
@@ -136,7 +247,7 @@ export async function resolveBrandIdsForItems(
       if (!silent) warn(`明细 ${i + 1}：请选择供应品牌`)
       continue
     }
-    const result = cache.get(kw.toLowerCase())
+    const result = cache.get(cacheLookupKey(kw))
     if (result?.status === 'matched' && result.brandId) {
       it.brandId = result.brandId
       it.brand = result.standardBrand

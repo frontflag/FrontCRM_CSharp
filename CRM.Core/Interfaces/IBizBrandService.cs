@@ -11,4 +11,6 @@ public interface IBizBrandService
     Task<BizBrandRowDto> UpdateAsync(long id, UpsertBizBrandRequest request, CancellationToken cancellationToken = default);
     Task<BizBrandRowDto> ApproveAsync(long id, string? actingUserId, CancellationToken cancellationToken = default);
     Task DeleteAsync(long id, string? actingUserId, CancellationToken cancellationToken = default);
+    Task RememberLearnedMappingAsync(RememberBizBrandLearnedMappingRequest request, string? actingUserId, CancellationToken cancellationToken = default);
+    Task<List<BizBrandLearnedMappingResolvedDto>> ResolveLearnedMappingsAsync(ResolveBizBrandLearnedMappingsRequest request, CancellationToken cancellationToken = default);
 }

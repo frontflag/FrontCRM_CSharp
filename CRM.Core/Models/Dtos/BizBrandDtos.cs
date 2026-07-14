@@ -70,3 +70,22 @@ public class UpsertBizBrandRequest
     public string? Country { get; set; }
     public string? Remark { get; set; }
 }
+
+public class RememberBizBrandLearnedMappingRequest
+{
+    public string? SourceText { get; set; }
+    public long BrandId { get; set; }
+}
+
+public class ResolveBizBrandLearnedMappingsRequest
+{
+    public List<string> SourceTexts { get; set; } = new();
+}
+
+public class BizBrandLearnedMappingResolvedDto
+{
+    public string SourceText { get; set; } = string.Empty;
+    public string SourceKey { get; set; } = string.Empty;
+    public long BrandId { get; set; }
+    public string? StandardBrand { get; set; }
+}

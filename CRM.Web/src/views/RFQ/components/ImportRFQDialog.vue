@@ -144,6 +144,9 @@
         <el-button size="small" :loading="aiMappingLoading" @click="invokeAiColumnMapping(false)">
           {{ t('rfqExcelImport.aiMapColumns') }}
         </el-button>
+        <el-button size="small" :loading="aiBrandLoading" :disabled="!pendingBrandCount" @click="invokeAiBrandMatching">
+          {{ t('rfqExcelImport.aiMapBrands') }}
+        </el-button>
         <span class="mapping-toolbar__meta">
           <span v-if="sheetNames.length > 1 && currentSheetName">{{ t('rfqExcelImport.sheetSelected', { name: currentSheetName }) }}</span>
           <span>{{ t('rfqExcelImport.headerRowSelected', { row: headerRowIndex + 1 }) }}</span>
@@ -152,8 +155,11 @@
 
       <div class="parse-stats">
         <el-tag type="success">{{ t('rfqExcelImport.statsSuccess', { count: validItems.length }) }}</el-tag>
-        <el-tag v-if="matchedBrandCount" type="success" style="margin-left:8px;">
-          {{ t('rfqExcelImport.statsBrandMatched', { count: matchedBrandCount }) }}
+        <el-tag v-if="brandLearnedRuleMatchedCount" type="success" style="margin-left:8px;">
+          {{ t('rfqExcelImport.statsBrandLearnedRuleMatched', { count: brandLearnedRuleMatchedCount }) }}
+        </el-tag>
+        <el-tag v-if="brandAiMatchedCount" type="warning" style="margin-left:8px;">
+          {{ t('rfqExcelImport.statsBrandAiMatched', { count: brandAiMatchedCount }) }}
         </el-tag>
         <el-tag v-if="pendingBrandCount" type="warning" style="margin-left:8px;">
           {{ t('rfqExcelImport.statsBrandPending', { count: pendingBrandCount }) }}
@@ -185,7 +191,7 @@
       <div class="mapping-result-table">
         <div class="mapping-title">{{ t('rfqExcelImport.detectedMappingEditable') }}</div>
         <el-table
-          v-loading="brandMatchingLoading || aiMappingLoading"
+          v-loading="brandMatchingLoading || aiMappingLoading || aiBrandLoading"
           :data="columnMappings"
           size="small"
           border
@@ -265,7 +271,11 @@ import * as XLSX from 'xlsx'
 import {
   brandMatchStatusLabel,
   buildBrandMatchCache,
+  fetchBrandOptionsForKeyword,
+  normalizeBrandSourceKey,
+  pickBizBrandMatch,
   resolveBrandMatchKeyword,
+  type BrandMappingSource,
   type BrandMatchStatus
 } from '@/utils/bizBrandMatch'
 import {
@@ -293,11 +303,16 @@ import {
   type RfqExcelMappingSource,
   type RfqExcelParseRowResult
 } from '@/utils/rfqExcelColumnMap'
-import { aiApi, AI_SCENARIO_ENTITY_PARSE_RFQ_EXCEL_COLUMN_MAP } from '@/api/ai'
+import {
+  aiApi,
+  AI_SCENARIO_ENTITY_PARSE_RFQ_EXCEL_BRAND_MAP,
+  AI_SCENARIO_ENTITY_PARSE_RFQ_EXCEL_COLUMN_MAP
+} from '@/api/ai'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { DEFAULT_SETTLEMENT_CURRENCY_STRING } from '@/constants/currency'
 import { useResizableDialog } from '@/composables/useResizableDialog'
 import { loadRfqExcelWorkbook, type RfqExcelWorkbookCache } from '@/utils/rfqExcelWorkbook'
+import { buildAiBrandMapInput, parseAiBrandMapResponse } from '@/utils/rfqExcelBrandMap'
 
 type ElDialogExpose = {
   dialogContentRef?: {
@@ -352,6 +367,7 @@ type ParsedItem = ParsedRfqItemFields & {
   _brandMatchStatus?: BrandMatchStatus
   _brandMatchLabel?: string
   _importBrandText?: string
+  _brandMappingSource?: BrandMappingSource
 }
 
 const visible = defineModel<boolean>({ default: false })
@@ -443,6 +459,7 @@ const hasRequiredColumns = ref(true)
 const missingRequiredFields = ref<string[]>([])
 const brandMatchingLoading = ref(false)
 const aiMappingLoading = ref(false)
+const aiBrandLoading = ref(false)
 const parsingFile = ref(false)
 const submitting = ref(false)
 
@@ -463,7 +480,8 @@ watch(
       selectedSheetIndex.value,
       columnMappings.value.length,
       brandMatchingLoading.value,
-      aiMappingLoading.value
+      aiMappingLoading.value,
+      aiBrandLoading.value
     ] as const,
   () => {
     void scheduleFitMainDialog()
@@ -472,8 +490,14 @@ watch(
 
 const validItems = computed(() => parsedRows.value.filter((r) => !r._error))
 const errorItems = computed(() => parsedRows.value.filter((r) => !!r._error))
-const matchedBrandCount = computed(
-  () => validItems.value.filter((r) => r._brandMatchStatus === 'matched').length
+const brandLearnedRuleMatchedCount = computed(
+  () =>
+    validItems.value.filter(
+      (r) => r._brandMatchStatus === 'matched' && r._brandMappingSource !== 'ai'
+    ).length
+)
+const brandAiMatchedCount = computed(
+  () => validItems.value.filter((r) => r._brandMatchStatus === 'matched' && r._brandMappingSource === 'ai').length
 )
 const pendingBrandCount = computed(
   () =>
@@ -562,9 +586,10 @@ async function resolveBrandMatches(items: ParsedItem[]) {
         it._importBrandText = undefined
         continue
       }
-      const result = cache.get(kw.toLowerCase()) ?? { status: 'pending' as const, matchKeyword: kw }
+      const result = cache.get(normalizeBrandSourceKey(kw)) ?? { status: 'pending' as const, matchKeyword: kw }
       it._brandMatchStatus = result.status
       it._brandMatchLabel = brandMatchStatusLabel(result)
+      it._brandMappingSource = result.mappingSource
       it._importBrandText = kw
       if (result.status === 'matched' && result.brandId) {
         it.brandId = result.brandId
@@ -576,6 +601,75 @@ async function resolveBrandMatches(items: ParsedItem[]) {
     }
   } finally {
     brandMatchingLoading.value = false
+  }
+}
+
+async function invokeAiBrandMatching() {
+  const pendingItems = validItems.value.filter((r) => r._brandMatchStatus === 'pending' && r._importBrandText)
+  if (!pendingItems.length) {
+    ElMessage.info(t('rfqExcelImport.aiBrandMapNoPending'))
+    return
+  }
+
+  const uniqueTexts = [...new Set(pendingItems.map((r) => (r._importBrandText || '').trim()).filter(Boolean))]
+  aiBrandLoading.value = true
+  try {
+    const { sourceTextsJson } = buildAiBrandMapInput(uniqueTexts)
+    const result = await aiApi.invoke({
+      scenarioCode: AI_SCENARIO_ENTITY_PARSE_RFQ_EXCEL_BRAND_MAP,
+      input: { source_texts: sourceTextsJson },
+      bizType: 'RFQ'
+    })
+
+    const aiResult = parseAiBrandMapResponse(result.data, result.content ?? '')
+    if (!aiResult?.mappings.length) {
+      ElMessage.info(t('rfqExcelImport.aiBrandMapNoResult'))
+      return
+    }
+
+    const aiCache = new Map<string, { brandId: number; standardBrand: string }>()
+    for (const mapping of aiResult.mappings) {
+      const standardBrand = (mapping.standardBrand || '').trim()
+      if (!standardBrand) continue
+      const opts = await fetchBrandOptionsForKeyword(standardBrand)
+      const match = pickBizBrandMatch(standardBrand, opts)
+      if (!match?.id) continue
+      aiCache.set(normalizeBrandSourceKey(mapping.sourceText), {
+        brandId: match.id,
+        standardBrand: (match.standardBrand || standardBrand).trim()
+      })
+    }
+
+    let matchedNow = 0
+    for (const it of parsedRows.value) {
+      if (it._error || it._brandMatchStatus !== 'pending') continue
+      const kw = (it._importBrandText || resolveBrandMatchKeyword(it.brand, it.customerBrand)).trim()
+      if (!kw) continue
+      const hit = aiCache.get(normalizeBrandSourceKey(kw))
+      if (!hit) continue
+      it.brandId = hit.brandId
+      it.brand = hit.standardBrand
+      it._brandMatchStatus = 'matched'
+      it._brandMappingSource = 'ai'
+      it._brandMatchLabel = brandMatchStatusLabel({
+        status: 'matched',
+        brandId: hit.brandId,
+        standardBrand: hit.standardBrand,
+        matchKeyword: kw,
+        mappingSource: 'ai'
+      })
+      matchedNow++
+    }
+
+    if (matchedNow > 0) {
+      ElMessage.success(t('rfqExcelImport.aiBrandMapSuccess', { count: matchedNow }))
+    } else {
+      ElMessage.info(t('rfqExcelImport.aiBrandMapNoResult'))
+    }
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, t('rfqExcelImport.aiBrandMapFailed')))
+  } finally {
+    aiBrandLoading.value = false
   }
 }
 

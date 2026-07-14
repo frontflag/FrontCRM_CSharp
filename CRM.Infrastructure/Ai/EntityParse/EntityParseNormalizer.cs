@@ -33,7 +33,8 @@ public static class EntityParseNormalizer
     {
         if (!scenarioCode.StartsWith(AiEntityParseScenarioCodes.Prefix, StringComparison.OrdinalIgnoreCase))
             return false;
-        return !string.Equals(scenarioCode, AiEntityParseScenarioCodes.RfqExcelColumnMap, StringComparison.OrdinalIgnoreCase);
+        return !string.Equals(scenarioCode, AiEntityParseScenarioCodes.RfqExcelColumnMap, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(scenarioCode, AiEntityParseScenarioCodes.RfqExcelBrandMap, StringComparison.OrdinalIgnoreCase);
     }
 
     public static string? EntityTypeFromScenario(string scenarioCode) => scenarioCode.ToLowerInvariant() switch

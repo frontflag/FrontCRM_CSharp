@@ -2520,6 +2520,8 @@ const enUS = {
     unmapped: 'Unmapped',
     detectedMapping: 'Detected column mapping',
     statsSuccess: 'Parsed {count} rows',
+    statsBrandLearnedRuleMatched: 'Rule/learned matched {count} rows',
+    statsBrandAiMatched: 'AI matched {count} rows',
     statsBrandMatched: 'Brand matched {count} rows',
     statsBrandPending: 'Brand pending {count} rows',
     statsError: '{count} rows with errors',
@@ -2549,6 +2551,7 @@ const enUS = {
     mappingSourceAi: 'AI',
     mappingSourceManual: 'Manual',
     aiMapColumns: 'AI smart header match',
+    aiMapBrands: 'AI smart brand match',
     reapplyRuleMapping: 'General rule header match',
     aiMapSuccess: 'AI column mapping applied',
     aiMapSuccessFilled: 'AI filled {count} column mapping(s)',
@@ -2556,7 +2559,12 @@ const enUS = {
     aiMapFailed: 'AI column mapping failed. Adjust manually or retry.',
     aiMapParseSkipped: 'AI response could not be parsed. Check unmapped columns or map manually.',
     aiMapStillIncomplete: 'Required columns are still unmapped. Select fields in the table below.',
-    noHeaderText: 'Header row is empty. Change the header row number.'
+    noHeaderText: 'Header row is empty. Change the header row number.',
+    aiBrandMapSuccess: 'AI matched {count} brand(s)',
+    aiBrandMapFailed: 'AI brand matching failed. Select manually or retry.',
+    aiBrandMapNoResult: 'AI could not match more brands. Select manually.',
+    aiBrandMapNoPending: 'No brands pending match',
+    brandLearned: 'Brand mapping saved; it will auto-match on next import'
   },
   aiBusinessCard: {
     uploadCard: 'Upload business card',

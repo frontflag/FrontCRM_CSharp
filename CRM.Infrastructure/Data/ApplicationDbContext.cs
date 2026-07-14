@@ -167,6 +167,7 @@ namespace CRM.Infrastructure.Data
         public DbSet<UserFavorite> UserFavorites { get; set; } = null!;
         public DbSet<BizDraft> BizDrafts { get; set; } = null!;
         public DbSet<BizBrand> BizBrands { get; set; } = null!;
+        public DbSet<BizBrandLearnedMapping> BizBrandLearnedMappings { get; set; } = null!;
         public DbSet<RbacDepartment> RbacDepartments { get; set; } = null!;
         public DbSet<RbacRole> RbacRoles { get; set; } = null!;
         public DbSet<RbacPermission> RbacPermissions { get; set; } = null!;
@@ -1775,6 +1776,24 @@ namespace CRM.Infrastructure.Data
                 entity.HasIndex(e => e.BrandEName);
                 entity.HasIndex(e => e.StandardBrand);
                 entity.HasIndex(e => e.CountryCode);
+            });
+
+            modelBuilder.Entity<BizBrandLearnedMapping>(entity =>
+            {
+                entity.ToTable("biz_brand_learned_mapping");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+                entity.Property(e => e.SourceText).HasColumnName("source_text").HasMaxLength(500).IsRequired();
+                entity.Property(e => e.SourceKey).HasColumnName("source_key").HasMaxLength(500).IsRequired();
+                entity.Property(e => e.BrandId).HasColumnName("brand_id");
+                entity.Property(e => e.HitCount).HasColumnName("hit_count").HasDefaultValue(1);
+                entity.Property(e => e.LastUsedByUserId).HasColumnName("last_used_by_user_id").HasMaxLength(36);
+                entity.Property(e => e.CreateByUserId).HasColumnName("create_by_user_id").HasMaxLength(36);
+                entity.Property(e => e.CreateTime).HasColumnName("create_time");
+                entity.Property(e => e.UpdateTime).HasColumnName("update_time");
+                entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+                entity.HasIndex(e => e.SourceKey).IsUnique();
+                entity.HasIndex(e => e.BrandId);
             });
 
             // ===== 通用草稿表配置 =====

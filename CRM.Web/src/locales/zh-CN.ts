@@ -2495,6 +2495,8 @@ const zhCN = {
     unmapped: '未识别',
     detectedMapping: '检测到的列映射',
     statsSuccess: '成功解析 {count} 行',
+    statsBrandLearnedRuleMatched: '规则/学习已匹配 {count} 行',
+    statsBrandAiMatched: 'AI 已匹配 {count} 行',
     statsBrandMatched: '品牌已匹配 {count} 行',
     statsBrandPending: '品牌待选择 {count} 行',
     statsError: '{count} 行有错误',
@@ -2524,6 +2526,7 @@ const zhCN = {
     mappingSourceAi: 'AI',
     mappingSourceManual: '手动',
     aiMapColumns: 'AI智能匹配表头',
+    aiMapBrands: 'AI 智能匹配品牌',
     reapplyRuleMapping: '通用规则匹配表头',
     aiMapSuccess: 'AI 列映射已应用',
     aiMapSuccessFilled: 'AI 已补充 {count} 列映射',
@@ -2531,7 +2534,12 @@ const zhCN = {
     aiMapFailed: 'AI 列映射失败，请手动调整或重试',
     aiMapParseSkipped: 'AI 响应未能解析，请检查未识别列或手动选择匹配字段',
     aiMapStillIncomplete: '仍有必填列未映射，请在下方手动选择匹配字段',
-    noHeaderText: '表头行为空，请调整表头行号'
+    noHeaderText: '表头行为空，请调整表头行号',
+    aiBrandMapSuccess: 'AI 已匹配 {count} 个品牌',
+    aiBrandMapFailed: 'AI 品牌匹配失败，请手动选择或重试',
+    aiBrandMapNoResult: 'AI 未能识别更多品牌，请手动选择',
+    aiBrandMapNoPending: '没有待匹配的品牌',
+    brandLearned: '已记住该品牌映射，下次导入将自动匹配'
   },
   aiBusinessCard: {
     uploadCard: '上传名片',

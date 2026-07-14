@@ -202,4 +202,53 @@ public class BizBrandsController : ControllerBase
             return StatusCode(500, ApiResponse<object>.Fail("删除失败", 500));
         }
     }
+
+    [HttpPost("learned-mappings/remember")]
+    public async Task<IActionResult> RememberLearnedMapping(
+        [FromBody] RememberBizBrandLearnedMappingRequest body,
+        CancellationToken ct)
+    {
+        if (body == null)
+            return BadRequest(ApiResponse<object>.Fail("请求体为空", 400));
+
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            await _brandService.RememberLearnedMappingAsync(body, userId, ct);
+            return Ok(ApiResponse<object>.Ok(null, "ok"));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ApiResponse<object>.Fail(ex.Message, 404));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "记住品牌学习映射失败");
+            return StatusCode(500, ApiResponse<object>.Fail("保存失败", 500));
+        }
+    }
+
+    [HttpPost("learned-mappings/resolve")]
+    public async Task<IActionResult> ResolveLearnedMappings(
+        [FromBody] ResolveBizBrandLearnedMappingsRequest body,
+        CancellationToken ct)
+    {
+        if (body == null)
+            return BadRequest(ApiResponse<List<BizBrandLearnedMappingResolvedDto>>.Fail("请求体为空", 400));
+
+        try
+        {
+            var items = await _brandService.ResolveLearnedMappingsAsync(body, ct);
+            return Ok(ApiResponse<List<BizBrandLearnedMappingResolvedDto>>.Ok(items, "ok"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "解析品牌学习映射失败");
+            return StatusCode(500, ApiResponse<List<BizBrandLearnedMappingResolvedDto>>.Fail("查询失败", 500));
+        }
+    }
 }
