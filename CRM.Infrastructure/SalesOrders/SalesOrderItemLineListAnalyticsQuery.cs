@@ -184,7 +184,7 @@ public sealed partial class SalesOrderItemLineListQuery
         var salesUserItems = BuildBreakdownFromRows(
             approvedRows,
             r => r.SalesUserId ?? "_unset",
-            r => string.IsNullOrWhiteSpace(r.SalesUserName) ? "未分配业务员" : r.SalesUserName!,
+            r => string.IsNullOrWhiteSpace(r.SalesUserName) ? "未分配销售员" : r.SalesUserName!,
             r => maskAmounts ? 1m : CalcUsdLineTotal(r) ?? 0m,
             maskAmounts);
 
@@ -200,7 +200,7 @@ public sealed partial class SalesOrderItemLineListQuery
             new() { GroupKey = "brandQty", GroupLabel = "品牌数量（成单 Qty）", Items = brandQtyItems },
             new() { GroupKey = "brandAmount", GroupLabel = "品牌金额（成单 USD）", Items = brandAmountItems },
             new() { GroupKey = "dateCode", GroupLabel = "生产日期/DC（成单）", Items = dateCodeItems },
-            new() { GroupKey = "salesUser", GroupLabel = "业务员（成单 USD）", Items = salesUserItems }
+            new() { GroupKey = "salesUser", GroupLabel = "销售员（成单 USD）", Items = salesUserItems }
         };
     }
 
@@ -289,7 +289,7 @@ public sealed partial class SalesOrderItemLineListQuery
             {
                 Id = g.Key,
                 Name = g.Key == "_unset"
-                    ? "未分配业务员"
+                    ? "未分配销售员"
                     : (g.First().SalesUserName ?? g.Key),
                 Amount = maskAmounts ? null : g.Sum(r => CalcUsdLineTotal(r) ?? 0m),
                 OrderCount = g.Count()

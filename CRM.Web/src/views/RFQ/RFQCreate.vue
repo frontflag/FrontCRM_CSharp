@@ -273,6 +273,7 @@
           <div class="section-header__main">
             <div class="section-dot section-dot--amber"></div>
             <span class="section-title">物料明细</span>
+            <span class="section-item-count">共 {{ formData.items.length }} 条</span>
           </div>
           <div class="section-header__actions">
             <el-radio-group v-model="materialItemsViewMode" size="small" class="items-view-toggle">
@@ -1530,6 +1531,13 @@ const handleSubmit = async () => {
   font-size: 14px;
   font-weight: 500;
   color: $text-primary;
+}
+
+.section-item-count {
+  font-size: 12px;
+  font-weight: 400;
+  color: $text-muted;
+  white-space: nowrap;
 }
 
 .basic-info-section__body,

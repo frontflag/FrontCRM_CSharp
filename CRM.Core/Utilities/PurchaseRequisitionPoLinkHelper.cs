@@ -9,6 +9,9 @@ public static class PurchaseRequisitionPoLinkHelper
 {
     public static bool IsActivePoItem(short status) => status != -1 && status != -2;
 
+    /// <summary>采购订单主表未取消（<c>status != -2</c>）。</summary>
+    public static bool IsActivePurchaseOrderHeader(short status) => status != -2;
+
     public static IReadOnlyList<PurchaseRequisition> OrderPrsOnSellLine(IEnumerable<PurchaseRequisition> prs) =>
         prs.Where(p => !p.IsDeleted)
             .OrderBy(p => p.CreateTime)

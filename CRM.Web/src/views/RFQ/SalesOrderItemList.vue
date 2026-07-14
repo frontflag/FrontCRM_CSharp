@@ -76,6 +76,18 @@
             <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
           <input
+            v-model="filters.purchaseUserAccount"
+            class="search-input"
+            :placeholder="t('salesOrderItemList.filters.purchaseUserAccount')"
+            @keyup.enter="runSearch"
+          />
+        </div>
+        <div class="search-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
             v-model="filters.pn"
             class="search-input"
             :placeholder="t('salesOrderItemList.filters.pn')"
@@ -220,7 +232,7 @@
     <CrmDataTable
       ref="dataTableRef"
       class="quantum-table-block el-table-host"
-      column-layout-key="sales-order-item-list-v4"
+      column-layout-key="sales-order-item-list-v5"
       :columns="salesOrderItemColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -243,6 +255,9 @@
       </template>
       <template #col-salesUserName="{ row }">
         <span>{{ maskSaleSensitiveFields ? '—' : (row.salesUserName || '—') }}</span>
+      </template>
+      <template #col-purchaseUserAccountDisplay="{ row }">
+        <span>{{ row.purchaseUserAccountDisplay || '—' }}</span>
       </template>
       <template #col-orderStatus="{ row }">
         <el-tag effect="dark" :type="statusTagType(row.orderStatus)" size="small">{{ statusText(row.orderStatus) }}</el-tag>
@@ -804,6 +819,7 @@ const filters = reactive({
   sellOrderCode: '',
   customerName: '',
   salesUserName: '',
+  purchaseUserAccount: '',
   pn: '',
   customerSo: '',
   customerPn: '',
@@ -840,6 +856,8 @@ const boardFilters = computed((): SalesOrderItemListAnalyticsQuery => {
   }
   const pnk = String(filters.pn ?? '').trim()
   if (pnk) q.pn = pnk
+  const pua = String(filters.purchaseUserAccount ?? '').trim()
+  if (pua) q.purchaseUserAccount = pua
   if (filters.transactionCurrency) q.transactionCurrency = filters.transactionCurrency
   if (filters.purchaseProgressStatus !== undefined && filters.purchaseProgressStatus !== null) {
     q.purchaseProgressStatus = filters.purchaseProgressStatus
@@ -1140,6 +1158,8 @@ async function loadList() {
     }
     const pnk = String(filters.pn ?? '').trim()
     if (pnk) params.pn = pnk
+    const pua = String(filters.purchaseUserAccount ?? '').trim()
+    if (pua) params.purchaseUserAccount = pua
     if (listCustomerColumnOk.value) {
       const cso = String(filters.customerSo ?? '').trim()
       if (cso) params.customerSo = cso
@@ -1208,6 +1228,7 @@ function resetFilters() {
   filters.sellOrderCode = ''
   filters.customerName = ''
   filters.salesUserName = ''
+  filters.purchaseUserAccount = ''
   filters.pn = ''
   filters.customerSo = ''
   filters.customerPn = ''

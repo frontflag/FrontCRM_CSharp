@@ -1,3 +1,4 @@
+2026-07-14 21:35:31 | feat(销售): 销售明细列表采购员列与需求页物料条数
 2026-07-14 19:52:36 | chore: 纳入 Cursor 项目规则并约定提交规范
 2026-07-14 19:39:06 | feat(finance): complete stock, customer, and vendor accumulated reports
 2026-07-14 15:38:23 | feat(finance): add inventory stock accumulated reports under 库存报表

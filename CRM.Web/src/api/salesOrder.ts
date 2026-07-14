@@ -292,6 +292,7 @@ export const salesOrderApi = {
     customerName?: string
     salesUserName?: string
     salesUserId?: string
+    purchaseUserAccount?: string
     customerId?: string
     stockOutPending?: boolean | string
     invoicePending?: boolean | string

@@ -238,6 +238,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? customerName,
             [FromQuery] string? salesUserName,
             [FromQuery] string? salesUserId,
+            [FromQuery] string? purchaseUserAccount,
             [FromQuery] string? customerId,
             [FromQuery] string? sellOrderCode,
             [FromQuery] string? pn,
@@ -255,7 +256,7 @@ namespace CRM.API.Controllers
             CancellationToken cancellationToken = default)
         {
             var (request, maskAmounts) = await BuildItemListAnalyticsQueryRequestAsync(
-                orderCreateStart, orderCreateEnd, customerName, salesUserName, salesUserId, customerId,
+                orderCreateStart, orderCreateEnd, customerName, salesUserName, salesUserId, purchaseUserAccount, customerId,
                 sellOrderCode, pn, customerSo, customerPn, transactionCurrency, stockOutPending, invoicePending,
                 purchaseProgressStatus, stockInProgressStatus, stockOutNotifyProgressStatus, stockOutProgressStatus,
                 receiptProgressStatus, invoiceProgressStatus, cancellationToken);
@@ -270,6 +271,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? customerName,
             [FromQuery] string? salesUserName,
             [FromQuery] string? salesUserId,
+            [FromQuery] string? purchaseUserAccount,
             [FromQuery] string? customerId,
             [FromQuery] string? sellOrderCode,
             [FromQuery] string? pn,
@@ -288,7 +290,7 @@ namespace CRM.API.Controllers
             CancellationToken cancellationToken = default)
         {
             var (request, maskAmounts) = await BuildItemListAnalyticsQueryRequestAsync(
-                orderCreateStart, orderCreateEnd, customerName, salesUserName, salesUserId, customerId,
+                orderCreateStart, orderCreateEnd, customerName, salesUserName, salesUserId, purchaseUserAccount, customerId,
                 sellOrderCode, pn, customerSo, customerPn, transactionCurrency, stockOutPending, invoicePending,
                 purchaseProgressStatus, stockInProgressStatus, stockOutNotifyProgressStatus, stockOutProgressStatus,
                 receiptProgressStatus, invoiceProgressStatus, cancellationToken);
@@ -307,6 +309,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? customerName,
             [FromQuery] string? salesUserName,
             [FromQuery] string? salesUserId,
+            [FromQuery] string? purchaseUserAccount,
             [FromQuery] string? customerId,
             [FromQuery] string? sellOrderCode,
             [FromQuery] string? pn,
@@ -324,7 +327,7 @@ namespace CRM.API.Controllers
             CancellationToken cancellationToken = default)
         {
             var (request, maskAmounts) = await BuildItemListAnalyticsQueryRequestAsync(
-                orderCreateStart, orderCreateEnd, customerName, salesUserName, salesUserId, customerId,
+                orderCreateStart, orderCreateEnd, customerName, salesUserName, salesUserId, purchaseUserAccount, customerId,
                 sellOrderCode, pn, customerSo, customerPn, transactionCurrency, stockOutPending, invoicePending,
                 purchaseProgressStatus, stockInProgressStatus, stockOutNotifyProgressStatus, stockOutProgressStatus,
                 receiptProgressStatus, invoiceProgressStatus, cancellationToken);
@@ -339,6 +342,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? customerName,
             [FromQuery] string? salesUserName,
             [FromQuery] string? salesUserId,
+            [FromQuery] string? purchaseUserAccount,
             [FromQuery] string? customerId,
             [FromQuery] string? sellOrderCode,
             [FromQuery] string? pn,
@@ -356,7 +360,7 @@ namespace CRM.API.Controllers
             CancellationToken cancellationToken = default)
         {
             var (request, maskAmounts) = await BuildItemListAnalyticsQueryRequestAsync(
-                orderCreateStart, orderCreateEnd, customerName, salesUserName, salesUserId, customerId,
+                orderCreateStart, orderCreateEnd, customerName, salesUserName, salesUserId, purchaseUserAccount, customerId,
                 sellOrderCode, pn, customerSo, customerPn, transactionCurrency, stockOutPending, invoicePending,
                 purchaseProgressStatus, stockInProgressStatus, stockOutNotifyProgressStatus, stockOutProgressStatus,
                 receiptProgressStatus, invoiceProgressStatus, cancellationToken);
@@ -372,6 +376,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? customerName,
             [FromQuery] string? salesUserName,
             [FromQuery] string? salesUserId,
+            [FromQuery] string? purchaseUserAccount,
             [FromQuery] string? customerId,
             [FromQuery] string? sellOrderCode,
             [FromQuery] string? pn,
@@ -407,6 +412,7 @@ namespace CRM.API.Controllers
                     CustomerName = canViewCustomer && !string.IsNullOrWhiteSpace(customerName) ? customerName.Trim() : null,
                     SalesUserName = canViewSalesUser && !string.IsNullOrWhiteSpace(salesUserName) ? salesUserName.Trim() : null,
                     SalesUserId = canViewSalesUser && !string.IsNullOrWhiteSpace(salesUserId) ? salesUserId.Trim() : null,
+                    PurchaseUserAccount = !string.IsNullOrWhiteSpace(purchaseUserAccount) ? purchaseUserAccount.Trim() : null,
                     CustomerId = canViewCustomer && !string.IsNullOrWhiteSpace(customerId) ? customerId.Trim() : null,
                     SellOrderCode = sellOrderCode,
                     Pn = pn,
@@ -1819,6 +1825,7 @@ namespace CRM.API.Controllers
             string? customerName,
             string? salesUserName,
             string? salesUserId,
+            string? purchaseUserAccount,
             string? customerId,
             string? sellOrderCode,
             string? pn,
@@ -1855,6 +1862,7 @@ namespace CRM.API.Controllers
                 CustomerName = canViewCustomer && !string.IsNullOrWhiteSpace(customerName) ? customerName.Trim() : null,
                 SalesUserName = canViewSalesUser && !string.IsNullOrWhiteSpace(salesUserName) ? salesUserName.Trim() : null,
                 SalesUserId = canViewSalesUser && !string.IsNullOrWhiteSpace(salesUserId) ? salesUserId.Trim() : null,
+                PurchaseUserAccount = !string.IsNullOrWhiteSpace(purchaseUserAccount) ? purchaseUserAccount.Trim() : null,
                 CustomerId = canViewCustomer && !string.IsNullOrWhiteSpace(customerId) ? customerId.Trim() : null,
                 SellOrderCode = sellOrderCode,
                 Pn = pn,
@@ -1972,6 +1980,7 @@ namespace CRM.API.Controllers
                 CustomerName = canViewCustomer ? r.CustomerName : null,
                 CustomerEnglishName = canViewCustomer ? r.CustomerEnglishName : null,
                 SalesUserName = mask521 ? null : r.SalesUserName,
+                r.PurchaseUserAccountDisplay,
                 r.PN,
                 r.Brand,
                 CustomerSo = canViewCustomer ? r.CustomerSo : null,

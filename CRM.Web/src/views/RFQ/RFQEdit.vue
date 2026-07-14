@@ -277,10 +277,10 @@
       <div class="form-section">
         <div class="section-header">
           <div class="section-dot section-dot--amber"></div>
-          <span class="section-title">物料明细</span>
-          <span class="item-count-badge" v-if="formData.items.length > 0">
-            当前 1/{{ formData.items.length }} 条明细
-          </span>
+          <div class="section-header__title-block">
+            <span class="section-title section-title--inline">物料明细</span>
+            <span class="section-item-count">共 {{ formData.items.length }} 条</span>
+          </div>
           <div class="section-actions">
             <button type="button" class="btn-check-dup" @click="checkDuplicates" v-if="formData.customerId && formData.items.length > 0">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1286,15 +1286,25 @@ onMounted(async () => {
   font-weight: 500;
   color: $text-primary;
   flex: 1;
+
+  &--inline {
+    flex: none;
+  }
 }
 
-.item-count-badge {
+.section-header__title-block {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.section-item-count {
   font-size: 12px;
+  font-weight: 400;
   color: $text-muted;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid $border-panel;
-  border-radius: 4px;
-  padding: 1px 8px;
+  white-space: nowrap;
 }
 
 .section-actions {

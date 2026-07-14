@@ -1,5 +1,7 @@
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
+using CRM.Core.Models;
+using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
 using CRM.Core.Utilities;
 using CRM.Infrastructure.Data;
@@ -194,6 +196,28 @@ internal static class SalesOrderItemLineListFilter
         {
             var uid = request.SalesUserId.Trim();
             q = q.Where(x => x.So.SalesUserId == uid);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.PurchaseUserAccount))
+        {
+            var keyword = request.PurchaseUserAccount.Trim().ToLower();
+            q = q.Where(x =>
+                db.PurchaseOrderItems.Any(poi =>
+                    poi.SellOrderItemId == x.Item.Id
+                    && poi.Status != -1
+                    && poi.Status != -2
+                    && db.PurchaseOrders.Any(po =>
+                        po.Id == poi.PurchaseOrderId
+                        && po.Status != -2
+                        && (
+                            (po.PurchaseUserName != null && po.PurchaseUserName.ToLower().Contains(keyword))
+                            || (po.PurchaseUserId != null && db.Users.Any(u =>
+                                u.Id == po.PurchaseUserId
+                                && (
+                                    u.UserName.ToLower().Contains(keyword)
+                                    || (u.RealName != null && u.RealName.ToLower().Contains(keyword))
+                                )))
+                        ))));
         }
 
         if (!string.IsNullOrWhiteSpace(request.CustomerId))

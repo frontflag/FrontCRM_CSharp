@@ -934,6 +934,113 @@ namespace CRM.Core.Services
                     "[SellLinePurchaseRemaining] GetSellOrderItemLinesPagedAsync merge purchase remaining qty failed; PurchaseRemainingQty left unset. LineIdCount={Count}",
                     list.Count);
             }
+
+            try
+            {
+                await EnrichPurchaseUserAccountDisplayAsync(list);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex,
+                    "[SellLinePurchaseUser] merge purchase user account display failed; column left empty. LineIdCount={Count}",
+                    list.Count);
+            }
+        }
+
+        /// <summary>按有效 PO 主表采购员汇总登录账号（PO 创建时间升序、去重、中文逗号拼接）。</summary>
+        private async Task EnrichPurchaseUserAccountDisplayAsync(List<SellOrderItemLineDto> list)
+        {
+            if (list.Count == 0)
+                return;
+
+            var lineIds = list
+                .Select(x => x.SellOrderItemId)
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(s => s.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (lineIds.Count == 0)
+                return;
+
+            var poItems = (await _poItemRepo.FindAsync(i =>
+                    i.SellOrderItemId != null && lineIds.Contains(i.SellOrderItemId)))
+                .Where(i => PurchaseRequisitionPoLinkHelper.IsActivePoItem(i.Status))
+                .ToList();
+            if (poItems.Count == 0)
+                return;
+
+            var poIds = poItems
+                .Select(i => i.PurchaseOrderId)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Select(id => id.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (poIds.Count == 0)
+                return;
+
+            var poHeaders = (await _poRepo.FindAsync(p => poIds.Contains(p.Id)))
+                .Where(p => PurchaseRequisitionPoLinkHelper.IsActivePurchaseOrderHeader(p.Status))
+                .ToDictionary(p => p.Id, p => p, StringComparer.OrdinalIgnoreCase);
+            if (poHeaders.Count == 0)
+                return;
+
+            var purchasersByLine = new Dictionary<string, List<(DateTime CreateTime, string UserId)>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var poi in poItems)
+            {
+                var sellId = poi.SellOrderItemId?.Trim();
+                if (string.IsNullOrEmpty(sellId))
+                    continue;
+                if (!poHeaders.TryGetValue(poi.PurchaseOrderId, out var po))
+                    continue;
+                if (string.IsNullOrWhiteSpace(po.PurchaseUserId))
+                    continue;
+
+                var userId = po.PurchaseUserId.Trim();
+                if (!purchasersByLine.TryGetValue(sellId, out var bucket))
+                {
+                    bucket = new List<(DateTime, string)>();
+                    purchasersByLine[sellId] = bucket;
+                }
+
+                bucket.Add((po.CreateTime, userId));
+            }
+
+            if (purchasersByLine.Count == 0)
+                return;
+
+            var userIds = purchasersByLine.Values
+                .SelectMany(x => x.Select(t => t.UserId))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var accountByUserId = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var userId in userIds)
+            {
+                var user = await _userService.GetByIdAsync(userId);
+                var account = EntityLookupService.FormatUserLoginName(user);
+                if (!string.IsNullOrWhiteSpace(account))
+                    accountByUserId[userId] = account;
+            }
+
+            foreach (var row in list)
+            {
+                var sellId = row.SellOrderItemId?.Trim() ?? string.Empty;
+                if (string.IsNullOrEmpty(sellId) || !purchasersByLine.TryGetValue(sellId, out var entries))
+                    continue;
+
+                var accounts = entries
+                    .OrderBy(e => e.CreateTime)
+                    .ThenBy(e => e.UserId, StringComparer.Ordinal)
+                    .Select(e => e.UserId)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Select(uid => accountByUserId.TryGetValue(uid, out var acct) ? acct : null)
+                    .Where(a => !string.IsNullOrWhiteSpace(a))
+                    .Cast<string>()
+                    .ToList();
+
+                if (accounts.Count > 0)
+                    row.PurchaseUserAccountDisplay = string.Join("，", accounts);
+            }
         }
 
         public async Task<SalesOrderItemExtendRefreshResult> RefreshItemExtendsAsync(string salesOrderId, CancellationToken cancellationToken = default)

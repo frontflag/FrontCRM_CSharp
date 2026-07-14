@@ -108,6 +108,8 @@ namespace CRM.Core.Interfaces
         public bool InvoicePending { get; set; }
         /// <summary>销售订单业务员主键（精确匹配）。</summary>
         public string? SalesUserId { get; set; }
+        /// <summary>采购员账号/姓名关键词（纯 PO 口径：关联有效采购订单主表采购员模糊匹配）。</summary>
+        public string? PurchaseUserAccount { get; set; }
         /// <summary>客户主键（精确匹配）。</summary>
         public string? CustomerId { get; set; }
         /// <summary>客户订单号（模糊匹配 <c>customer_so</c>）。</summary>
@@ -146,6 +148,8 @@ namespace CRM.Core.Interfaces
         /// <summary>客户英文全称（<c>CustomerInfo.EnglishOfficialName</c>）。</summary>
         public string? CustomerEnglishName { get; set; }
         public string? SalesUserName { get; set; }
+        /// <summary>关联有效采购订单采购员登录账号（按 PO 创建时间升序、去重后以中文逗号拼接；无 PO 为空）。</summary>
+        public string? PurchaseUserAccountDisplay { get; set; }
         public string? PN { get; set; }
         public string? Brand { get; set; }
         /// <summary>客户订单号（库列 <c>customer_so</c>）。</summary>

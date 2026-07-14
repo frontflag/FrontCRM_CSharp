@@ -48,6 +48,14 @@ export function buildSalesOrderItemListColumns(p: BuildSalesOrderItemListColumns
     },
     { key: 'orderStatus', label: p.t('salesOrderItemList.columns.status'), prop: 'orderStatus', width: 160, align: 'center' },
     { key: 'salesUserName', label: p.t('salesOrderItemList.columns.salesUser'), prop: 'salesUserName', width: 100, showOverflowTooltip: true },
+    {
+      key: 'purchaseUserAccountDisplay',
+      label: p.t('salesOrderItemList.columns.purchaseUserAccount'),
+      prop: 'purchaseUserAccountDisplay',
+      width: 120,
+      minWidth: 100,
+      showOverflowTooltip: true
+    },
     { key: 'pn', label: p.t('salesOrderItemList.columns.pn'), prop: 'pn', minWidth: 130, showOverflowTooltip: true },
     { key: 'brand', label: p.t('salesOrderItemList.columns.brand'), prop: 'brand', width: 110, showOverflowTooltip: true },
     { key: 'qty', label: p.t('salesOrderItemList.columns.qty'), prop: 'qty', width: 100, align: 'right' },
