@@ -52,17 +52,40 @@
         <el-button link type="primary" @click="clearFile">{{ t('rfqExcelImport.reselect') }}</el-button>
       </div>
 
-      <div v-if="rawRows.length" class="header-row-picker">
-        <span class="header-row-picker__label">{{ t('rfqExcelImport.headerRowLabel') }}</span>
-        <el-input-number
-          v-model="headerRowNumber"
-          :min="1"
-          :max="headerRowMax"
-          size="small"
-          controls-position="right"
-          @change="onHeaderRowNumberChange"
-        />
-        <span class="header-row-picker__hint">{{ t('rfqExcelImport.headerRowHint') }}</span>
+      <div v-if="rawRows.length" class="import-options">
+        <div class="import-options__row">
+          <div v-if="sheetNames.length > 1" class="import-options__item">
+            <span class="import-options__label">{{ t('rfqExcelImport.sheetLabel') }}</span>
+            <el-select
+              v-model="selectedSheetIndex"
+              size="small"
+              class="import-options__sheet"
+              @change="onSheetIndexChange"
+            >
+              <el-option
+                v-for="(name, idx) in sheetNames"
+                :key="`${idx}-${name}`"
+                :label="formatSheetOptionLabel(name, idx)"
+                :value="idx"
+              />
+            </el-select>
+          </div>
+          <div class="import-options__item">
+            <span class="import-options__label">{{ t('rfqExcelImport.headerRowLabel') }}</span>
+            <el-input-number
+              v-model="headerRowNumber"
+              :min="1"
+              :max="headerRowMax"
+              size="small"
+              controls-position="right"
+              @change="onHeaderRowNumberChange"
+            />
+          </div>
+        </div>
+        <div class="import-options__hints">
+          <span v-if="sheetNames.length > 1">{{ t('rfqExcelImport.sheetHint') }}</span>
+          <span>{{ t('rfqExcelImport.headerRowHint') }}</span>
+        </div>
       </div>
 
       <div v-if="headerPreviewRows.length" class="header-preview-table">
@@ -122,7 +145,8 @@
           {{ t('rfqExcelImport.aiMapColumns') }}
         </el-button>
         <span class="mapping-toolbar__meta">
-          {{ t('rfqExcelImport.headerRowSelected', { row: headerRowIndex + 1 }) }}
+          <span v-if="sheetNames.length > 1 && currentSheetName">{{ t('rfqExcelImport.sheetSelected', { name: currentSheetName }) }}</span>
+          <span>{{ t('rfqExcelImport.headerRowSelected', { row: headerRowIndex + 1 }) }}</span>
         </span>
       </div>
 
@@ -273,6 +297,7 @@ import { aiApi, AI_SCENARIO_ENTITY_PARSE_RFQ_EXCEL_COLUMN_MAP } from '@/api/ai'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { DEFAULT_SETTLEMENT_CURRENCY_STRING } from '@/constants/currency'
 import { useResizableDialog } from '@/composables/useResizableDialog'
+import { loadRfqExcelWorkbook, type RfqExcelWorkbookCache } from '@/utils/rfqExcelWorkbook'
 
 type ElDialogExpose = {
   dialogContentRef?: {
@@ -351,12 +376,39 @@ const fieldSelectOptions = computed(() => [
 
 const uploadedFileName = ref('')
 const rawFile = ref<File | null>(null)
+const sheetNames = ref<string[]>([])
+const selectedSheetIndex = ref(0)
+let workbookCache: RfqExcelWorkbookCache | null = null
 const rawRows = ref<unknown[][]>([])
 const headerRowIndex = ref(0)
 const headerRowNumber = ref(1)
 const headerRowMax = computed(() =>
   Math.min(RFQ_EXCEL_MAX_HEADER_ROW_OPTIONS, Math.max(1, rawRows.value.length))
 )
+
+const currentSheetName = computed(() => sheetNames.value[selectedSheetIndex.value] ?? '')
+
+function formatSheetOptionLabel(name: string, index: number) {
+  return `${index + 1}. ${name}`
+}
+
+function resetSheetState() {
+  workbookCache = null
+  sheetNames.value = []
+  selectedSheetIndex.value = 0
+}
+
+function applyRowsFromSelectedSheet() {
+  if (!workbookCache) {
+    rawRows.value = []
+    return
+  }
+  rawRows.value = workbookCache.readSheetRows(selectedSheetIndex.value)
+  if (headerRowIndex.value >= rawRows.value.length) {
+    headerRowIndex.value = 0
+    headerRowNumber.value = 1
+  }
+}
 
 const headerPreviewRows = computed(() => {
   const limit = Math.min(rawRows.value.length, RFQ_EXCEL_MAX_HEADER_ROW_OPTIONS)
@@ -408,6 +460,7 @@ watch(
       rawRows.value.length,
       step.value,
       headerRowIndex.value,
+      selectedSheetIndex.value,
       columnMappings.value.length,
       brandMatchingLoading.value,
       aiMappingLoading.value
@@ -434,38 +487,22 @@ function mappingSourceTagType(source?: RfqExcelMappingSource) {
   return 'success'
 }
 
-function readExcelRows(file: File): Promise<unknown[][]> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      try {
-        const data = new Uint8Array(e.target!.result as ArrayBuffer)
-        const wb = XLSX.read(data, { type: 'array' })
-        const ws = wb.Sheets[wb.SheetNames[0]]
-        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }) as unknown[][]
-        resolve(rows)
-      } catch (err) {
-        reject(err)
-      }
-    }
-    reader.onerror = reject
-    reader.readAsArrayBuffer(file)
-  })
-}
-
 async function loadRowsFromFile() {
   if (!rawFile.value) {
+    resetSheetState()
     rawRows.value = []
     return
   }
   parsingFile.value = true
   try {
-    rawRows.value = await readExcelRows(rawFile.value)
-    if (headerRowIndex.value >= rawRows.value.length) {
-      headerRowIndex.value = 0
-      headerRowNumber.value = 1
+    workbookCache = await loadRfqExcelWorkbook(rawFile.value)
+    sheetNames.value = workbookCache.sheetNames
+    if (selectedSheetIndex.value >= sheetNames.value.length) {
+      selectedSheetIndex.value = 0
     }
+    applyRowsFromSelectedSheet()
   } catch {
+    resetSheetState()
     rawRows.value = []
     ElMessage.error(t('rfqExcelImport.parseFailed'))
   } finally {
@@ -481,15 +518,24 @@ async function handleFileChange(file: { raw: File; name: string }) {
   uploadedFileName.value = file.name
   headerRowIndex.value = 0
   headerRowNumber.value = 1
+  selectedSheetIndex.value = 0
   await loadRowsFromFile()
 }
 
 function clearFile() {
   rawFile.value = null
   uploadedFileName.value = ''
+  resetSheetState()
   rawRows.value = []
   headerRowIndex.value = 0
   headerRowNumber.value = 1
+}
+
+function onSheetIndexChange() {
+  headerRowIndex.value = 0
+  headerRowNumber.value = 1
+  applyRowsFromSelectedSheet()
+  void scheduleFitMainDialog()
 }
 
 function onHeaderRowNumberChange(val: number | undefined) {
@@ -816,6 +862,7 @@ function handleClose() {
   step.value = 1
   uploadedFileName.value = ''
   rawFile.value = null
+  resetSheetState()
   rawRows.value = []
   headerRowIndex.value = 0
   headerRowNumber.value = 1
@@ -979,20 +1026,39 @@ function downloadTemplate() {
     color: #4d4d4d;
   }
 
-  .header-row-picker {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+  .import-options {
     margin: 12px 0 8px;
     font-size: 13px;
 
-    &__label {
-      color: #4d4d4d;
+    &__row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px 24px;
     }
 
-    &__hint {
-      color: #909399;
+    &__item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    &__label {
+      color: #4d4d4d;
+      white-space: nowrap;
+    }
+
+    &__sheet {
+      min-width: 200px;
+    }
+
+    &__hints {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+      margin-top: 6px;
       font-size: 12px;
+      color: #909399;
     }
   }
 
@@ -1017,6 +1083,10 @@ function downloadTemplate() {
       margin-left: auto;
       font-size: 12px;
       color: #909399;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 2px;
     }
   }
 
