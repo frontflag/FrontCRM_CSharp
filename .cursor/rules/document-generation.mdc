@@ -1,0 +1,26 @@
+---
+description: Document directory rules; document/EBS is read-only EBS legacy reference
+alwaysApply: true
+---
+
+# Document generation (FrontCRM)
+
+Read and follow `document/System/文档生成规范.md` when creating or updating any repo Markdown docs.
+
+## `document/EBS/` — read-only
+
+- **Never modify** any file under `document/EBS/` (no edits, links, fixes, or FrontCRM notes).
+- **Never create** FrontCRM design/implementation/QA docs under `document/EBS/`.
+- Use EBS docs only as **read-only reference**; link to them from FrontCRM docs elsewhere.
+
+## Where to write FrontCRM docs
+
+| Type | Path |
+|------|------|
+| Design + implementation | `document/System/{domain}/` — `*-设计与实现.md` |
+| QA test对照 | `document/QA/` |
+| Analytics / dashboards | `document/IMP/` |
+| User help | `help/pages/` (business language only) |
+
+Wrong: `document/EBS/.../库存滚存-设计与实现.md`  
+Right: `document/System/.../库存滚存-设计与实现.md` + link to EBS reference doc.

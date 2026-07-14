@@ -1,0 +1,46 @@
+---
+description: Git 提交与 PR 说明一律使用中文
+alwaysApply: true
+---
+
+# Git 提交信息使用中文
+
+在本仓库向 GitHub 提交代码时，**commit message 与 PR 标题/正文必须使用中文**（专有名词、路径、权限码等技术标识可保留英文）。
+
+## Commit message
+
+- 标题与正文用中文写清「为什么改」，类型前缀可保留常见英文习惯：`feat`、`fix`、`docs`、`refactor`、`chore` 等。
+- 示例：
+
+```
+feat(finance): 完成库存、客户、供应商滚存报表
+
+新增客户滚存 API 与页面，统一链接权限门控，并补充设计与帮助文档。
+```
+
+```
+fix(inventory): 修复入库单详情链接在无库存权限时仍显示为可点
+```
+
+- 避免整段英文说明（如 `complete stock, customer, and vendor accumulated reports`）。
+
+## Pull Request
+
+- PR **title** 与 **body**（Summary、Test plan）使用中文。
+- 代码引用、API 路径、文件名可保持原文。
+
+## 执行时机
+
+用户说「提交」「commit」「推送到 github」「创建 PR」时，默认按本规则撰写，无需用户再次提醒。
+
+## 纳入版本库的文件
+
+每次向 GitHub 提交时，**必须检查并纳入**仓库根目录 `.cursor/rules/` 下的全部规则文件（有新增、修改或删除时一并 `git add`）：
+
+```
+.cursor/rules/
+```
+
+- 仅提交该目录下的 `.mdc` 规则，勿把整个 `.cursor/` 下无关缓存一并提交。
+- 若本次改动未触及规则文件，提交前仍执行 `git status .cursor/rules/` 确认无遗漏。
+- `CRM.Web/.cursor/rules/` 为前端子项目规则，有变更时同样纳入提交。
