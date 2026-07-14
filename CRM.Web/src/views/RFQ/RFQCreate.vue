@@ -297,158 +297,52 @@
               <span class="item-panel-card__idx">明细 {{ idx + 1 }}</span>
               <el-button link type="danger" @click.stop="removeItem(idx)">删除</el-button>
             </div>
-            <el-row :gutter="16" class="item-panel-row">
-              <el-col :span="6">
-                <div class="item-panel-field">
-                  <div class="item-panel-field__label">客户物料型号</div>
-                  <el-input v-model="row.customerMpn" placeholder="客户物料型号" class="q-input" />
-                </div>
-              </el-col>
-              <el-col :span="6">
-                <div class="item-panel-field">
-                  <div class="item-panel-field__label">客户品牌</div>
-                  <el-input v-model="row.customerBrand" placeholder="客户品牌" class="q-input" />
-                </div>
-              </el-col>
-              <el-col :span="6">
-                <div class="item-panel-field">
-                  <div class="item-panel-field__label">物料型号</div>
-                  <el-input v-model="row.mpn" placeholder="物料型号(MPN)" class="q-input" />
-                </div>
-              </el-col>
-              <el-col :span="6">
-                <div class="item-panel-field">
-                  <div class="item-panel-field__label">品牌</div>
-                  <BizBrandSelect
-                    v-model="row.brandId"
-                    placeholder="请选择品牌"
-                    size="default"
-                    @change="(p) => onItemBrandChange(row, p)"
-                  />
-                  <div v-if="itemNeedsBrandAttention(row)" class="brand-import-hint">
-                    导入品牌「{{ row._importBrandText || row.brand }}」未能自动匹配，请手动选择
-                  </div>
-                </div>
-              </el-col>
-            </el-row>
-            <el-row :gutter="16" class="item-panel-row">
-              <el-col :span="6">
-                <div class="item-panel-field">
-                  <div class="item-panel-field__label">目标价 / 币别</div>
-                  <SettlementCurrencyAmountInput
-                    v-model="row.targetPrice"
-                    v-model:currency="row.priceCurrency"
-                    :min="0"
-                    :precision="6"
-                    class="q-number rfq-target-price-ccy"
-                  />
-                </div>
-              </el-col>
-              <el-col :span="6">
-                <div class="item-panel-field">
-                  <div class="item-panel-field__label">数量</div>
-                  <el-input-number
-                    v-model="row.quantity"
-                    :min="1"
-                    :controls="false"
-                    style="width: 100%"
-                    class="q-number"
-                  />
-                </div>
-              </el-col>
-              <el-col :span="6">
-                <div class="item-panel-field">
-                  <div class="item-panel-field__label">生产日期</div>
-                  <MaterialProductionDateSelect v-model="row.productionDate" select-class="q-select" />
-                </div>
-              </el-col>
-              <el-col :span="6">
-                <div class="item-panel-field">
-                  <div class="item-panel-field__label">失效日期</div>
-                  <el-date-picker
-                    v-model="row.expiryDate"
-                    type="date"
-                    placeholder="选择日期"
-                    value-format="YYYY-MM-DD"
-                    style="width: 100%"
-                    class="q-date"
-                  />
-                </div>
-              </el-col>
-            </el-row>
-            <el-row :gutter="16" class="item-panel-row">
-              <el-col :span="8">
-                <div class="item-panel-field">
-                  <div class="item-panel-field__label">最小包装（PCS）</div>
-                  <el-input-number
-                    v-model="row.minPackageQty"
-                    :min="0"
-                    :controls="false"
-                    style="width: 100%"
-                    class="q-number"
-                  />
-                </div>
-              </el-col>
-              <el-col :span="8">
-                <div class="item-panel-field">
-                  <div class="item-panel-field__label">最小起订量（PCS）</div>
-                  <el-input-number
-                    v-model="row.minOrderQty"
-                    :min="0"
-                    :controls="false"
-                    style="width: 100%"
-                    class="q-number"
-                  />
-                </div>
-              </el-col>
-              <el-col :span="8">
-                <div class="item-panel-field">
-                  <div class="item-panel-field__label">可替代料</div>
-                  <el-input v-model="row.alternativeMaterials" placeholder="逗号分隔" class="q-input" />
-                </div>
-              </el-col>
-            </el-row>
-            <el-row :gutter="16" class="item-panel-row">
-              <el-col :span="24">
-                <div class="item-panel-field item-panel-field--remark">
-                  <div class="item-panel-field__label">备注</div>
-                  <el-input
-                    v-model="row.remark"
-                    type="textarea"
-                    :rows="2"
-                    placeholder="备注"
-                    class="q-input"
-                  />
-                </div>
-              </el-col>
-            </el-row>
+            <RfqItemPanelFields :row="row" @brand-change="(p) => onItemBrandChange(row, p)" />
           </div>
         </div>
 
         <!-- 列表：横向表格 -->
         <div v-if="materialItemsViewMode === 'list' && formData.items.length > 0" class="items-table-wrap">
-          <el-table :data="formData.items" size="small" class="items-table items-table--h-scroll">
-            <el-table-column label="客户物料型号" min-width="130">
+          <el-table
+            :data="formData.items"
+            :row-key="rfqItemRowKey"
+            size="small"
+            class="items-table items-table--row-dblclick"
+            style="width: 100%"
+            @row-dblclick="onListItemRowDblClick"
+          >
+            <el-table-column
+              type="index"
+              label="序号"
+              width="56"
+              align="center"
+              fixed="left"
+              class-name="rfq-table-seq-col"
+              label-class-name="rfq-table-seq-col"
+            />
+            <el-table-column label="客户物料型号" min-width="168" class-name="rfq-table-mpn-col" show-overflow-tooltip>
               <template #default="{ $index }">
                 <el-input v-model="formData.items[$index].customerMpn" placeholder="客户物料型号" class="q-input" />
               </template>
             </el-table-column>
-            <el-table-column label="客户品牌" min-width="100">
+            <el-table-column label="客户品牌" min-width="220" class-name="rfq-table-customer-brand-col" show-overflow-tooltip>
               <template #default="{ $index }">
                 <el-input v-model="formData.items[$index].customerBrand" placeholder="客户品牌" class="q-input" />
               </template>
             </el-table-column>
-            <el-table-column label="物料型号" min-width="140">
+            <el-table-column label="物料型号" min-width="168" class-name="rfq-table-mpn-col" show-overflow-tooltip>
               <template #default="{ $index }">
                 <el-input v-model="formData.items[$index].mpn" placeholder="物料型号(MPN)" class="q-input" />
               </template>
             </el-table-column>
-            <el-table-column label="品牌" min-width="220" class-name="rfq-table-brand-col">
+            <el-table-column label="品牌" min-width="220" class-name="rfq-table-brand-col" show-overflow-tooltip>
               <template #default="{ $index }">
                 <BizBrandSelect
                   v-model="formData.items[$index].brandId"
+                  delegate-create-dialog
                   placeholder="请选择品牌"
                   size="small"
+                  @request-create="openListBrandCreateDialog($index)"
                   @change="(p) => onItemBrandChange(formData.items[$index], p)"
                 />
                 <div
@@ -459,7 +353,7 @@
                 </div>
               </template>
             </el-table-column>
-            <el-table-column label="目标价 / 币别" min-width="200" class-name="rfq-table-target-ccy-col">
+            <el-table-column label="目标价 / 币别" min-width="228" class-name="rfq-table-target-ccy-col" show-overflow-tooltip>
               <template #default="{ $index }">
                 <SettlementCurrencyAmountInput
                   v-model="formData.items[$index].targetPrice"
@@ -471,7 +365,7 @@
                 />
               </template>
             </el-table-column>
-            <el-table-column label="数量" width="100">
+            <el-table-column label="数量" min-width="112" class-name="rfq-table-qty-col" show-overflow-tooltip>
               <template #default="{ $index }">
                 <el-input-number
                   v-model="formData.items[$index].quantity"
@@ -482,12 +376,12 @@
                 />
               </template>
             </el-table-column>
-            <el-table-column label="生产日期" min-width="140">
+            <el-table-column label="生产日期" min-width="100" show-overflow-tooltip>
               <template #default="{ $index }">
                 <MaterialProductionDateSelect v-model="formData.items[$index].productionDate" select-class="q-select" />
               </template>
             </el-table-column>
-            <el-table-column label="失效日期" width="138">
+            <el-table-column label="失效日期" min-width="168" class-name="rfq-table-expiry-col" show-overflow-tooltip>
               <template #default="{ $index }">
                 <el-date-picker
                   v-model="formData.items[$index].expiryDate"
@@ -499,7 +393,7 @@
                 />
               </template>
             </el-table-column>
-            <el-table-column label="最小包装（PCS）" width="100">
+            <el-table-column label="最小包装（PCS）" min-width="148" show-overflow-tooltip>
               <template #default="{ $index }">
                 <el-input-number
                   v-model="formData.items[$index].minPackageQty"
@@ -510,7 +404,7 @@
                 />
               </template>
             </el-table-column>
-            <el-table-column label="最小起订量（PCS）" width="100">
+            <el-table-column label="最小起订量（PCS）" min-width="160" show-overflow-tooltip>
               <template #default="{ $index }">
                 <el-input-number
                   v-model="formData.items[$index].minOrderQty"
@@ -521,12 +415,12 @@
                 />
               </template>
             </el-table-column>
-            <el-table-column label="可替代料" min-width="120">
+            <el-table-column label="可替代料" min-width="96" show-overflow-tooltip>
               <template #default="{ $index }">
                 <el-input v-model="formData.items[$index].alternativeMaterials" placeholder="逗号分隔" class="q-input" />
               </template>
             </el-table-column>
-            <el-table-column label="备注" min-width="220" class-name="rfq-table-remark-col">
+            <el-table-column label="备注" min-width="120" class-name="rfq-table-remark-col" show-overflow-tooltip>
               <template #default="{ $index }">
                 <el-input v-model="formData.items[$index].remark" placeholder="备注" class="q-input" />
               </template>
@@ -555,6 +449,7 @@
               <template #default="{ $index }">
                 <div @click.stop @dblclick.stop>
                   <div v-if="rfqCreateLineOpColExpanded" class="action-btns">
+                    <el-button link type="primary" @click.stop="openListItemView($index)">查看</el-button>
                     <el-button link type="danger" @click.stop="removeItem($index)">删除</el-button>
                   </div>
                   <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -563,6 +458,9 @@
                     </div>
                     <template #dropdown>
                       <el-dropdown-menu>
+                        <el-dropdown-item @click.stop="openListItemView($index)">
+                          <span class="op-more-item">查看</span>
+                        </el-dropdown-item>
                         <el-dropdown-item @click.stop="removeItem($index)">
                           <span class="op-more-item op-more-item--danger">删除</span>
                         </el-dropdown-item>
@@ -582,6 +480,30 @@
 
     </el-form>
     </div>
+
+    <BizBrandCreateDialog v-model="listBrandCreateVisible" mode="add" @created="onListBrandCreated" />
+
+    <el-dialog
+      v-model="listItemViewVisible"
+      :title="listItemViewTitle"
+      width="960px"
+      align-center
+      destroy-on-close
+      class="rfq-item-view-dialog"
+      @closed="onListItemViewClosed"
+    >
+      <div v-if="listItemViewRow" class="item-panel-card item-panel-card--dialog">
+        <RfqItemPanelFields
+          :row="listItemViewRow"
+          delegate-brand-create
+          @request-brand-create="onListItemViewBrandCreate"
+          @brand-change="(p) => onItemBrandChange(listItemViewRow!, p)"
+        />
+      </div>
+      <template #footer>
+        <el-button @click="listItemViewVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -609,6 +531,9 @@ import MaterialProductionDateSelect from '@/components/MaterialProductionDateSel
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
 import { DEFAULT_SETTLEMENT_CURRENCY_CODE, normalizeSettlementCurrencyCode } from '@/constants/currency'
 import BizBrandSelect from '@/components/Biz/BizBrandSelect.vue'
+import BizBrandCreateDialog from '@/components/Biz/BizBrandCreateDialog.vue'
+import RfqItemPanelFields from '@/views/RFQ/components/RfqItemPanelFields.vue'
+import type { BizBrandRow } from '@/api/bizBrand'
 import { resolveBrandIdsForItems, rememberLearnedBrandMapping } from '@/utils/bizBrandMatch'
 import { useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
 import { useCustomerDictStore } from '@/stores/customerDict'
@@ -649,12 +574,88 @@ function queryToken(v: unknown): string {
 
 /** 物料明细展示：面板（默认，每行 4 字段） / 列表（横向表格） */
 const materialItemsViewMode = ref<'panel' | 'list'>('panel')
+const listBrandCreateVisible = ref(false)
+const listBrandCreateRowIndex = ref<number | null>(null)
+const listItemViewVisible = ref(false)
+const listItemViewIndex = ref(-1)
 
-/** 《列表操作列规范》：需求明细行 */
-const rfqCreateLineOpColExpanded = ref(false)
+const listItemViewRow = computed(() => {
+  const idx = listItemViewIndex.value
+  if (idx < 0) return null
+  return formData.value.items[idx] ?? null
+})
+
+const listItemViewTitle = computed(() => {
+  const idx = listItemViewIndex.value
+  return idx >= 0 ? `明细 ${idx + 1}` : '明细'
+})
+
+let rfqItemRowKeySeq = 0
+function nextRfqItemRowKey() {
+  rfqItemRowKeySeq += 1
+  return `rfq-item-${rfqItemRowKeySeq}`
+}
+
+function rfqItemRowKey(row: { id?: number; _clientRowKey?: string; mpn?: string }) {
+  if (row.id != null && row.id > 0) return `server-${row.id}`
+  return row._clientRowKey || `fallback-${row.mpn || ''}`
+}
+
+function openListBrandCreateDialog(rowIndex: number) {
+  // #region agent log
+  fetch('http://127.0.0.1:7628/ingest/9e34eb36-d730-47f8-8f07-5577b16184b2',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'69a872'},body:JSON.stringify({sessionId:'69a872',runId:'post-fix',hypothesisId:'H3-H5',location:'RFQCreate.vue:openListBrandCreateDialog',message:'delegated create open',data:{rowIndex},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
+  listBrandCreateRowIndex.value = rowIndex
+  listBrandCreateVisible.value = true
+}
+
+function onListBrandCreated(row: BizBrandRow) {
+  const idx = listBrandCreateRowIndex.value
+  if (idx == null || idx < 0 || !row.id) return
+  const item = formData.value.items[idx]
+  if (!item) return
+  item.brandId = row.id
+  onItemBrandChange(item, {
+    id: row.id,
+    standardBrand: (row.standardBrand || '').trim(),
+    auditStatus: row.auditStatus
+  })
+  listBrandCreateRowIndex.value = null
+}
+
+function openListItemView(index: number) {
+  listItemViewIndex.value = index
+  listItemViewVisible.value = true
+}
+
+function onListItemRowDblClick(row: Record<string, unknown>, _column: unknown, event: MouseEvent) {
+  const target = event.target as HTMLElement | null
+  if (
+    target?.closest(
+      '.el-input, .el-select, .el-button, .el-dropdown, .op-more-trigger, .biz-brand-select, .op-col'
+    )
+  ) {
+    return
+  }
+  const idx = formData.value.items.indexOf(row as (typeof formData.value.items)[number])
+  if (idx >= 0) openListItemView(idx)
+}
+
+function onListItemViewClosed() {
+  listItemViewIndex.value = -1
+}
+
+function onListItemViewBrandCreate() {
+  if (listItemViewIndex.value >= 0) {
+    openListBrandCreateDialog(listItemViewIndex.value)
+  }
+}
+
+/** 《列表操作列规范》：需求明细行（仅「查看」「删除」，默认展开） */
+const rfqCreateLineOpColExpanded = ref(true)
 const RFQ_CREATE_OP_COL_COLLAPSED = 43
-const RFQ_CREATE_OP_COL_EXPANDED = 173
-const RFQ_CREATE_OP_COL_EXPANDED_MIN = 160
+const RFQ_CREATE_OP_COL_EXPANDED = 112
+const RFQ_CREATE_OP_COL_EXPANDED_MIN = 108
 const rfqCreateLineOpColWidth = computed(() =>
   rfqCreateLineOpColExpanded.value ? RFQ_CREATE_OP_COL_EXPANDED : RFQ_CREATE_OP_COL_COLLAPSED
 )
@@ -782,6 +783,7 @@ const genRfqCode = () => {
 /** 一条空白物料明细（新建默认 1 条，与「添加明细」结构一致） */
 function createEmptyRfqItem() {
   return {
+    _clientRowKey: nextRfqItemRowKey(),
     customerMpn: '',
     customerBrand: '',
     mpn: '',
@@ -972,6 +974,7 @@ function formatExpiryForPicker(v: unknown): string {
 
 function mapItemsFromApi(items: any[]) {
   return items.map((raw: any) => ({
+    _clientRowKey: nextRfqItemRowKey(),
     id: raw.id || raw.Id || undefined,
     customerMpn: raw.customerMpn || raw.customerMaterialModel || '',
     customerBrand: raw.customerBrand || '',
@@ -1206,7 +1209,7 @@ function clearResolvedImportBrandHints(
 
 function onItemBrandChange(
   row: { brand?: string; brandId?: number; _importBrandText?: string },
-  payload: { id: number; standardBrand: string }
+  payload: { id: number; standardBrand: string; auditStatus?: number | null }
 ) {
   const importText = (row._importBrandText || '').trim()
   if (payload.id > 0) {
@@ -1704,19 +1707,52 @@ const handleSubmit = async () => {
   padding: 14px 16px 16px;
 }
 
+.item-panel-card--dialog {
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
+.rfq-item-view-dialog {
+  :deep(.el-dialog__body) {
+    padding-top: 8px;
+  }
+}
+
+.items-table .action-btns {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+  width: 100%;
+}
+
+.items-table--row-dblclick {
+  :deep(.el-table__body tr.el-table__row) {
+    cursor: pointer;
+  }
+  :deep(.el-table__body tr.el-table__row .op-col),
+  :deep(.el-table__body tr.el-table__row .el-input),
+  :deep(.el-table__body tr.el-table__row .el-select),
+  :deep(.el-table__body tr.el-table__row .biz-brand-select) {
+    cursor: default;
+  }
+}
+
 .item-panel-card__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
   padding-bottom: 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid $border-panel;
 }
 
 .item-panel-card__idx {
   font-size: 12px;
   font-weight: 600;
-  color: rgba(200, 216, 232, 0.75);
+  color: $text-primary;
   letter-spacing: 0.3px;
 }
 
@@ -1745,14 +1781,7 @@ const handleSubmit = async () => {
 
 .items-table-wrap {
   width: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
-}
-
-// 列表模式：列总宽超出容器时出现横向滚动条
-.items-table--h-scroll {
-  width: max-content;
-  min-width: 1880px;
+  overflow: hidden;
 }
 
 .q-date {
@@ -1784,28 +1813,113 @@ const handleSubmit = async () => {
     &::after  { display: none !important; }
   }
   :deep(.el-table__border-left-patch) { display: none !important; }
+  :deep(th.op-col.el-table__cell .cell) {
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+  }
+  :deep(td.op-col.el-table__cell .cell) {
+    padding-left: 6px !important;
+    padding-right: 6px !important;
+  }
   :deep(.el-table__header-wrapper) {
     th.el-table__cell {
       background: rgba(0, 212, 255, 0.04) !important;
       border-bottom: 1px solid rgba(0, 212, 255, 0.1) !important;
       border-right: none !important;
-      color: rgba(200, 216, 232, 0.55);
+      color: $text-secondary;
       font-size: 12px;
       font-weight: 500;
       letter-spacing: 0.3px;
+      .cell {
+        color: $text-secondary;
+        white-space: nowrap;
+        overflow: visible;
+        text-overflow: clip;
+      }
     }
+  }
+  :deep(.el-table__fixed-header-wrapper th.el-table__cell .cell) {
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
   }
   :deep(.el-table__row) {
     background: transparent !important;
-    td.el-table__cell {
+    td.el-table__cell:not(.rfq-table-seq-col):not(.op-col) {
       background: transparent !important;
       border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
       border-right: none !important;
-      color: rgba(224, 244, 255, 0.85);
+      color: $text-primary;
       font-size: 13px;
+      .cell {
+        color: inherit;
+      }
     }
-    &:last-child td.el-table__cell { border-bottom: none !important; }
-    &:hover td.el-table__cell { background: rgba(0, 212, 255, 0.04) !important; }
+    &:last-child td.el-table__cell:not(.rfq-table-seq-col):not(.op-col) {
+      border-bottom: none !important;
+    }
+    &:hover td.el-table__cell:not(.rfq-table-seq-col):not(.op-col) {
+      background: rgba(0, 212, 255, 0.04) !important;
+    }
+  }
+  // 序号列、操作列：不透明底色（与列表页操作列规范一致）
+  :deep(th.rfq-table-seq-col.el-table__cell),
+  :deep(td.rfq-table-seq-col.el-table__cell) {
+    background-color: $layer-2 !important;
+    box-shadow: inset -1px 0 0 var(--crm-table-header-line);
+  }
+  :deep(th.rfq-table-seq-col.el-table__cell) {
+    background-color: var(--crm-op-col-header-bg) !important;
+  }
+  :deep(th.op-col.el-table__cell),
+  :deep(td.op-col.el-table__cell) {
+    background-color: $layer-2 !important;
+    box-shadow: inset 1px 0 0 var(--crm-table-header-line);
+  }
+  :deep(th.op-col.el-table__cell) {
+    background-color: var(--crm-op-col-header-bg) !important;
+  }
+  :deep(.el-table__body tr.el-table__row:nth-child(even) td.rfq-table-seq-col.el-table__cell),
+  :deep(.el-table__body tr.el-table__row:nth-child(even) td.op-col.el-table__cell) {
+    background-color: var(--crm-op-col-row-stripe) !important;
+  }
+  :deep(.el-table__body tr.el-table__row:hover td.rfq-table-seq-col.el-table__cell),
+  :deep(.el-table__body tr.el-table__row.hover-row td.rfq-table-seq-col.el-table__cell),
+  :deep(.el-table__body tr.el-table__row:hover td.op-col.el-table__cell),
+  :deep(.el-table__body tr.el-table__row.hover-row td.op-col.el-table__cell) {
+    background: linear-gradient(0deg, var(--crm-table-row-hover), var(--crm-table-row-hover)), $layer-2 !important;
+  }
+  :deep(.rfq-table-seq-col.el-table__cell) {
+    color: $text-secondary !important;
+    font-weight: 500;
+    .cell {
+      color: $text-secondary !important;
+    }
+  }
+  :deep(.el-table__fixed-left),
+  :deep(.el-table__fixed-right) {
+    background-color: $layer-2 !important;
+    &::before {
+      background-color: $layer-2 !important;
+    }
+    .el-table__fixed-header-wrapper th.rfq-table-seq-col.el-table__cell,
+    .el-table__fixed-header-wrapper th.op-col.el-table__cell {
+      background-color: var(--crm-op-col-header-bg) !important;
+    }
+    .el-table__fixed-body-wrapper td.rfq-table-seq-col.el-table__cell,
+    .el-table__fixed-body-wrapper td.op-col.el-table__cell {
+      background-color: $layer-2 !important;
+    }
+    .el-table__fixed-body-wrapper .el-table__body tr.el-table__row:nth-child(even) td.rfq-table-seq-col.el-table__cell,
+    .el-table__fixed-body-wrapper .el-table__body tr.el-table__row:nth-child(even) td.op-col.el-table__cell {
+      background-color: var(--crm-op-col-row-stripe) !important;
+    }
+    .el-table__fixed-body-wrapper .el-table__body tr.el-table__row:hover td.rfq-table-seq-col.el-table__cell,
+    .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.hover-row td.rfq-table-seq-col.el-table__cell,
+    .el-table__fixed-body-wrapper .el-table__body tr.el-table__row:hover td.op-col.el-table__cell,
+    .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.hover-row td.op-col.el-table__cell {
+      background: linear-gradient(0deg, var(--crm-table-row-hover), var(--crm-table-row-hover)), $layer-2 !important;
+    }
   }
   :deep(.el-table__cell) {
     .el-button { white-space: nowrap !important; }
@@ -1814,6 +1928,33 @@ const handleSubmit = async () => {
   :deep(.rfq-table-target-ccy-col .cell) {
     overflow: visible;
     white-space: normal;
+  }
+  :deep(.rfq-table-mpn-col .cell),
+  :deep(.rfq-table-qty-col .cell),
+  :deep(.rfq-table-expiry-col .cell) {
+    overflow: visible;
+    white-space: normal;
+  }
+  :deep(.rfq-table-mpn-col .q-input),
+  :deep(.rfq-table-qty-col .q-number) {
+    width: 100%;
+    min-width: 0;
+  }
+  :deep(.rfq-table-expiry-col .q-date),
+  :deep(.rfq-table-expiry-col .el-date-editor) {
+    width: 100% !important;
+    min-width: 152px;
+  }
+  :deep(.rfq-table-target-ccy-col .settlement-currency-amount) {
+    min-width: 200px;
+  }
+  :deep(.rfq-table-customer-brand-col .cell) {
+    overflow: visible;
+    white-space: normal;
+  }
+  :deep(.rfq-table-customer-brand-col .q-input) {
+    width: 100%;
+    min-width: 0;
   }
   :deep(.rfq-table-brand-col .cell) {
     overflow: visible;

@@ -40,7 +40,12 @@
     >
       {{ t('bizBrand.create') }}
     </button>
-    <BizBrandCreateDialog v-model="createDialogVisible" mode="add" @created="onBrandCreated" />
+    <BizBrandCreateDialog
+      v-if="!delegateCreateDialog"
+      v-model="createDialogVisible"
+      mode="add"
+      @created="onBrandCreated"
+    />
   </div>
 </template>
 
@@ -59,6 +64,8 @@ const props = withDefaults(
     disabled?: boolean
     size?: 'default' | 'small' | 'large'
     showCreateButton?: boolean
+    /** 列表表格等场景：由父级挂载唯一弹窗，避免单元格卸载导致闪烁 */
+    delegateCreateDialog?: boolean
   }>(),
   {
     modelValue: undefined,
@@ -66,13 +73,15 @@ const props = withDefaults(
     clearable: true,
     disabled: false,
     size: 'default',
-    showCreateButton: true
+    showCreateButton: true,
+    delegateCreateDialog: false
   }
 )
 
 const emit = defineEmits<{
   'update:modelValue': [value: number | undefined]
   change: [payload: { id: number; standardBrand: string; auditStatus?: number | null }]
+  'request-create': []
 }>()
 
 const { t } = useI18n()
@@ -200,6 +209,10 @@ async function ensureSelectedLoaded(id: number) {
 }
 
 function openCreateDialog() {
+  if (props.delegateCreateDialog) {
+    emit('request-create')
+    return
+  }
   createDialogVisible.value = true
 }
 
