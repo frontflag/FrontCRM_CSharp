@@ -1,17 +1,15 @@
 <template>
   <div class="so-item-line-performance-panel">
-    <div class="so-item-line-performance-panel__head">
-      <button
-        type="button"
-        class="so-item-line-performance-panel__toggle"
-        :aria-expanded="!collapsed"
-        @click="onToggleClick"
-      >
-        <span class="so-item-line-performance-panel__toggle-icon" :class="{ 'is-collapsed': collapsed }">▾</span>
-        <span class="so-item-line-performance-panel__title">{{ t('salesOrderDetailView.performance.title') }}</span>
-      </button>
+    <button
+      type="button"
+      class="so-item-line-performance-panel__head"
+      :aria-expanded="!collapsed"
+      @click="onToggleClick"
+    >
+      <span class="so-item-line-performance-panel__toggle-icon" :class="{ 'is-collapsed': collapsed }">▾</span>
+      <span class="so-item-line-performance-panel__title">{{ t('salesOrderDetailView.performance.title') }}</span>
       <span class="so-item-line-performance-panel__code panel-hint__value">{{ sellOrderItemCode || '—' }}</span>
-    </div>
+    </button>
     <div v-show="!collapsed" v-loading="loading" class="so-item-line-performance-panel__body">
       <template v-if="lineProfit">
         <div class="so-line-performance-vars">
@@ -284,20 +282,19 @@ function formatGrossMargin(profitUsd: number, revenueUsd: number): string | null
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+  width: 100%;
   padding: 12px 16px;
+  border: none;
   border-bottom: 1px solid $border-panel;
   background: var(--crm-detail-panel-card-head-bg);
-}
-
-.so-item-line-performance-panel__toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0;
-  border: none;
-  background: transparent;
   cursor: pointer;
-  color: var(--crm-text-primary);
+  text-align: left;
+  color: inherit;
+  font: inherit;
+
+  &:hover {
+    background: var(--crm-detail-section-header-bg);
+  }
 }
 
 .so-item-line-performance-panel__toggle-icon {

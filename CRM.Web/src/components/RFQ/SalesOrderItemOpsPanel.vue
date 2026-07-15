@@ -97,7 +97,7 @@
         </div>
       </section>
 
-      <section v-if="showStockingUsagePanel" class="ops-card">
+      <section v-if="showStockingUsagePanel" class="ops-card ops-card--stocking-usage">
         <header class="ops-card__head">
           <h3 class="ops-card__title">{{ t('salesOrderItemList.opsPanel.stockingUsageTitle') }}</h3>
         </header>
@@ -600,6 +600,16 @@ function formatQty(v: number) {
   border-radius: 12px;
   border: 1px solid rgba(15, 23, 42, 0.06);
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+.ops-card--stocking-usage {
+  background: #fffbeb;
+  border-color: rgba(217, 119, 6, 0.14);
+}
+
+.so-item-ops-root--embedded .ops-card.ops-card--stocking-usage {
+  background: #fffbeb;
+  border-color: rgba(217, 119, 6, 0.14);
 }
 
 .ops-card__head {
