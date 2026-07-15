@@ -182,6 +182,16 @@ export type RefreshSellOrderMainStatusResult = {
   failedMessages: string[]
 }
 
+/** POST /api/v1/debug/refresh-sellorderitemextend-outbound-profit — 批量重算销售明细出库利润 */
+export type RefreshSellOrderItemExtendOutboundProfitResult = {
+  totalLines: number
+  linesWithOutboundQty: number
+  profitChangedCount: number
+  changedLineCodes: string[]
+  failedCount: number
+  failedMessages: string[]
+}
+
 function normalizeRfqChainPreview(raw: unknown): RfqChainPreview {
   const r = raw as Record<string, unknown> | null | undefined
   const inner = (r?.data ?? r?.Data ?? r) as Record<string, unknown> | null | undefined
@@ -297,6 +307,26 @@ export async function refreshSellOrderMainStatus(): Promise<RefreshSellOrderMain
     changedOrders: Number(inner?.changedOrders ?? inner?.ChangedOrders ?? 0),
     changedOrderCodes: Array.isArray(codesRaw) ? codesRaw.map((x: unknown) => String(x)) : [],
     skippedTerminalOrders: Number(inner?.skippedTerminalOrders ?? inner?.SkippedTerminalOrders ?? 0),
+    failedCount: Number(inner?.failedCount ?? inner?.FailedCount ?? 0),
+    failedMessages: normalizeStringList(inner?.failedMessages ?? inner?.FailedMessages)
+  }
+}
+
+/** POST /api/v1/debug/refresh-sellorderitemextend-outbound-profit — 批量重算 sellorderitemextend 出库利润 */
+export async function refreshSellOrderItemExtendOutboundProfit(): Promise<RefreshSellOrderItemExtendOutboundProfitResult> {
+  const raw = await apiClient.post<any>(
+    '/api/v1/debug/refresh-sellorderitemextend-outbound-profit',
+    {},
+    { timeout: 3_600_000 }
+  )
+  const outer = (raw?.data ?? raw?.Data ?? raw) as Record<string, any>
+  const inner = (outer?.data ?? outer?.Data ?? outer) as Record<string, any>
+  const codesRaw = inner?.changedLineCodes ?? inner?.ChangedLineCodes
+  return {
+    totalLines: Number(inner?.totalLines ?? inner?.TotalLines ?? 0),
+    linesWithOutboundQty: Number(inner?.linesWithOutboundQty ?? inner?.LinesWithOutboundQty ?? 0),
+    profitChangedCount: Number(inner?.profitChangedCount ?? inner?.ProfitChangedCount ?? 0),
+    changedLineCodes: Array.isArray(codesRaw) ? codesRaw.map((x: unknown) => String(x)) : [],
     failedCount: Number(inner?.failedCount ?? inner?.FailedCount ?? 0),
     failedMessages: normalizeStringList(inner?.failedMessages ?? inner?.FailedMessages)
   }

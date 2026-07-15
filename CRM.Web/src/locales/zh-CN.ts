@@ -4563,7 +4563,10 @@ const zhCN = {
         poQtyTotal: 'PO 数量合计',
         poCostUsdTotal: 'PO 成本合计（USD）',
         poCostUsdConfirmed: '已确认 PO 成本（USD）',
-        avgPoCostUsd: 'PO 加权均价（USD）',
+        avgPoCostUsd: 'PO 折算采购单价（USD）',
+        poBatchLine: '{poItem} · 折算采购单价 × 数量',
+        effectiveOutboundAvgCostUsd: '批次采购单价（USD）',
+        outboundBatchLine: '{poItem} · 真实采购单价 × 数量',
         qtyStockOutActual: '已出库数量',
         outboundRevenueUsd: '出库销售收入（USD）',
         outboundCostUsd: '出库采购成本（USD）',
@@ -4584,12 +4587,18 @@ const zhCN = {
         salesProfitNoCost: '预计销售利润(USD) = 销售收入 − 已确认采购成本 = {revenue} − {cost} = {result}',
         salesRate: '预计销售利润率 = 销售收入 ÷ 已确认采购成本 = {revenue} ÷ {cost} = {result}',
         salesRateUnavailable: '预计销售利润率 = 销售收入 ÷ 已确认采购成本 = {revenue} ÷ {cost} = —（已确认成本为 0）',
-        avgPoCostUsd: 'PO加权均价(USD) = 全部PO成本合计 ÷ PO数量合计 = {poCostTotal} ÷ {poQty} = {result}',
-        avgPoCostMissing: 'PO加权均价 = 0（无关联采购订单明细，出库成本按 0 计）。',
+        avgPoCostUsd: 'PO折算采购单价(USD) = 全部PO成本合计 ÷ PO数量合计 = {poCostTotal} ÷ {poQty} = {result}',
+        avgPoCostMissing: 'PO折算采购单价 = 0（无关联采购订单明细，出库成本按 0 计）。',
+        outboundActualCostLine:
+          '出库采购成本(USD) · {poItem} = 真实采购单价 × 出库数量 = {purchasePrice} × {qty} = {result}',
+        outboundActualCostTotal: '出库采购成本合计(USD) = Σ(真实采购单价 × 出库数量) = {result}',
+        outboundCostFallbackWeighted: '无出库批次成本快照，出库成本回退为 PO 折算采购单价口径。',
+        outboundCostUsdActual: '出库采购成本(USD) = 实际批次成本合计 = {result}',
+        outboundProfitActual: '出库利润(USD) = 出库销售收入 − 实际批次成本 = {revenue} − {cost} = {result}',
         outboundRevenueUsd: '出库销售收入(USD) = 已出库数量 × 折算单价 = {qty} × {convertPrice} = {result}',
-        outboundCostUsd: '出库采购成本(USD) = 已出库数量 × PO加权均价 = {qty} × {avgCost} = {result}',
+        outboundCostUsd: '出库采购成本(USD) = 已出库数量 × PO折算采购单价 = {qty} × {avgCost} = {result}',
         outboundProfit:
-          '出库利润(USD) = (折算单价 − PO加权均价) × 已出库数量 = ({convertPrice} − {avgCost}) × {qty} = {result}',
+          '出库利润(USD) = (折算单价 − PO折算采购单价) × 已出库数量 = ({convertPrice} − {avgCost}) × {qty} = {result}',
         outboundRate: '出库利润率 = 出库销售收入 ÷ 出库采购成本 = {revenue} ÷ {cost} = {result}',
         outboundRateUnavailable:
           '出库利润率 = 出库销售收入 ÷ 出库采购成本 = {revenue} ÷ {cost} = —（出库成本为 0）',
@@ -4608,11 +4617,13 @@ const zhCN = {
           '预计销售：存在已下单但未确认的采购成本（当前采购状态：{purchaseStatus}），全 PO 口径利润高于已确认口径。',
         notShippedYet: '出库：尚未发生实际出库（当前出库状态：{stockOutStatus}），出库利润为 0。',
         outboundBreakEven:
-          '出库：已出库 {qty}，销售单价与加权平均采购成本持平（利润率约 1.00），出库毛利为 0。',
+          '出库：已出库 {qty}，销售单价与采购折算单价持平（利润率约 1.00），出库毛利为 0。',
         outboundZeroProfitShipped:
-          '出库：已出库 {qty}，销售单价与加权平均采购成本相同或极为接近，出库毛利为 0。',
+          '出库：已出库 {qty}，销售单价与采购折算单价相同或极为接近，出库毛利为 0。',
         outboundNoCostBaseline:
           '出库：出库利润为正但出库采购成本为 0（当前采购状态：{purchaseStatus}），利润率无法按收入÷成本计算。',
+        outboundCostFallbackWeighted:
+          '出库：尚无出库批次成本快照，出库成本与利润暂按 PO 折算采购单价回退计算。',
         noRevenue: '销售收入为 0 或无效，各层毛利率无法计算。'
       }
     },

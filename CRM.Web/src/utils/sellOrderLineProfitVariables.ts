@@ -153,13 +153,26 @@ export function buildSellOrderLineProfitVariableGroups(
       key: 'poCostUsdConfirmed',
       label: t('salesOrderDetailView.performance.variables.poCostUsdConfirmed'),
       value: `${fmtUsd2(lineProfit.poCostUsdConfirmed)} USD`
-    },
-    {
-      key: 'avgPoCostUsd',
-      label: t('salesOrderDetailView.performance.variables.avgPoCostUsd'),
-      value: lineProfit.poQtyTotal > 0 ? `${fmtUnit6(lineProfit.avgPoCostUsd)} USD` : '—'
     }
   ]
+
+  if ((lineProfit.poCostLines?.length ?? 0) > 0) {
+    for (const [idx, line] of lineProfit.poCostLines!.entries()) {
+      const poLabel =
+        line.purchaseOrderItemCode?.trim() || line.purchaseOrderItemId?.trim() || `PO ${idx + 1}`
+      purchaseItems.push({
+        key: `poBatch-${idx}`,
+        label: t('salesOrderDetailView.performance.variables.poBatchLine', { poItem: poLabel }),
+        value: `${fmtUnit6(line.convertPriceUsd)} USD × ${fmtQty(line.qty)} = ${fmtUsd2(line.costUsd)} USD`
+      })
+    }
+  } else if (lineProfit.poQtyTotal > 0) {
+    purchaseItems.push({
+      key: 'avgPoCostUsd',
+      label: t('salesOrderDetailView.performance.variables.avgPoCostUsd'),
+      value: `${fmtUnit6(lineProfit.avgPoCostUsd)} USD`
+    })
+  }
 
   const outboundItems: SellOrderLineProfitVariableItem[] = [
     {
@@ -171,13 +184,38 @@ export function buildSellOrderLineProfitVariableGroups(
       key: 'outboundRevenueUsd',
       label: t('salesOrderDetailView.performance.variables.outboundRevenueUsd'),
       value: `${fmtUsd2(lineProfit.outboundRevenueUsd)} USD`
+    }
+  ]
+
+  if (lineProfit.useActualOutboundCost && (lineProfit.outboundCostLines?.length ?? 0) > 0) {
+    for (const [idx, line] of lineProfit.outboundCostLines!.entries()) {
+      const poLabel =
+        line.purchaseOrderItemCode?.trim() || line.purchaseOrderItemId?.trim() || `批次 ${idx + 1}`
+      outboundItems.push({
+        key: `outboundBatch-${idx}`,
+        label: t('salesOrderDetailView.performance.variables.outboundBatchLine', { poItem: poLabel }),
+        value: `${fmtUnit6(line.purchasePriceUsd)} USD × ${fmtQty(line.qty)} = ${fmtUsd2(line.costUsd)} USD`
+      })
+    }
+  }
+
+  outboundItems.push(
+    {
+      key: 'effectiveOutboundAvgCostUsd',
+      label: lineProfit.useActualOutboundCost
+        ? t('salesOrderDetailView.performance.variables.effectiveOutboundAvgCostUsd')
+        : t('salesOrderDetailView.performance.variables.avgPoCostUsd'),
+      value:
+        lineProfit.qtyStockOutActual > 0 || (lineProfit.effectiveOutboundAvgCostUsd ?? lineProfit.avgPoCostUsd) > 0
+          ? `${fmtUnit6(lineProfit.effectiveOutboundAvgCostUsd ?? lineProfit.avgPoCostUsd)} USD`
+          : '—'
     },
     {
       key: 'outboundCostUsd',
       label: t('salesOrderDetailView.performance.variables.outboundCostUsd'),
       value: `${fmtUsd2(lineProfit.outboundCostUsd)} USD`
     }
-  ]
+  )
 
   return [
     {

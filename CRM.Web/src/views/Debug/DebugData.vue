@@ -110,6 +110,13 @@
         <el-button type="primary" :loading="refreshingSellOrderMainStatus" @click="onRefreshSellOrderMainStatus">
           刷新销售订单状态
         </el-button>
+        <el-button
+          type="primary"
+          :loading="refreshingSellOrderItemExtendOutboundProfit"
+          @click="onRefreshSellOrderItemExtendOutboundProfit"
+        >
+          刷新出库利润
+        </el-button>
         <el-button type="primary" :loading="refreshingPurchaseOrderMainStatus" @click="onRefreshPurchaseOrderMainStatus">
           刷新采购订单状态
         </el-button>
@@ -164,6 +171,23 @@
         </div>
         <div v-if="sellOrderMainStatusResult.failedMessages.length">
           失败明细：{{ sellOrderMainStatusResult.failedMessages.join('；') }}
+        </div>
+      </div>
+      <div class="refresh-hint refresh-hint--second">
+        「刷新出库利润」：遍历未软删销售明细扩展，逐行重算出库利润（<span class="mono">ProfitOutBizUsd</span> /
+        <span class="mono">ProfitOutRateBiz</span>）；成本优先取 <span class="mono">stock_out_item_extend</span>
+        真实采购价，无批次快照时回退 PO 加权均价。与绩效面板、离线 SQL 脚本同源，不刷新订单主状态。耗时可较长，请勿重复点击。
+      </div>
+      <div v-if="sellOrderItemExtendOutboundProfitResult" class="simulate-result">
+        <div>扫描明细：{{ sellOrderItemExtendOutboundProfitResult.totalLines }} 条</div>
+        <div>有已出库数量：{{ sellOrderItemExtendOutboundProfitResult.linesWithOutboundQty }} 条</div>
+        <div>出库利润变更：{{ sellOrderItemExtendOutboundProfitResult.profitChangedCount }} 条</div>
+        <div>失败：{{ sellOrderItemExtendOutboundProfitResult.failedCount }} 条</div>
+        <div v-if="sellOrderItemExtendOutboundProfitResult.changedLineCodes.length">
+          变更明细号（最多 50 条）：{{ sellOrderItemExtendOutboundProfitResult.changedLineCodes.join('，') }}
+        </div>
+        <div v-if="sellOrderItemExtendOutboundProfitResult.failedMessages.length">
+          失败明细：{{ sellOrderItemExtendOutboundProfitResult.failedMessages.join('；') }}
         </div>
       </div>
       <div class="refresh-hint refresh-hint--second">
@@ -261,6 +285,7 @@ import {
   refreshStockLedger,
   refreshSellOrderCommentSplit,
   refreshSellOrderMainStatus,
+  refreshSellOrderItemExtendOutboundProfit,
   refreshPurchaseOrderMainStatus,
   refreshSellOrderItemCustomerPnFromComment,
   refreshFinancePaymentRemarkFromLegacy,
@@ -274,6 +299,7 @@ import {
   type RecalculateStockAggregatesResult,
   type RefreshSellOrderCommentSplitResult,
   type RefreshSellOrderMainStatusResult,
+  type RefreshSellOrderItemExtendOutboundProfitResult,
   type RefreshPurchaseOrderMainStatusResult,
   type RefreshSellOrderItemCustomerPnFromCommentResult,
   type RefreshFinancePaymentLegacyRemarkResult,
@@ -431,6 +457,8 @@ const refreshingSellOrderComments = ref(false)
 const sellOrderCommentSplitResult = ref<RefreshSellOrderCommentSplitResult | null>(null)
 const refreshingSellOrderMainStatus = ref(false)
 const sellOrderMainStatusResult = ref<RefreshSellOrderMainStatusResult | null>(null)
+const refreshingSellOrderItemExtendOutboundProfit = ref(false)
+const sellOrderItemExtendOutboundProfitResult = ref<RefreshSellOrderItemExtendOutboundProfitResult | null>(null)
 const refreshingPurchaseOrderMainStatus = ref(false)
 const purchaseOrderMainStatusResult = ref<RefreshPurchaseOrderMainStatusResult | null>(null)
 const refreshingSellOrderItemCustomerPn = ref(false)
@@ -615,6 +643,33 @@ const onRefreshSellOrderMainStatus = async () => {
     ElMessage.error(getApiErrorMessage(e, '刷新销售订单状态失败'))
   } finally {
     refreshingSellOrderMainStatus.value = false
+  }
+}
+
+const onRefreshSellOrderItemExtendOutboundProfit = async () => {
+  if (refreshingSellOrderItemExtendOutboundProfit.value) return
+  try {
+    await ElMessageBox.confirm(
+      '将遍历全部未软删销售明细扩展，逐行重算出库利润（优先 stock_out_item_extend 真实采购价，无快照时回退 PO 加权均价）。' +
+        '不刷新订单主状态。明细较多时可能耗时较长，是否继续？',
+      '确认刷新出库利润',
+      { type: 'warning', confirmButtonText: '继续', cancelButtonText: '取消' }
+    )
+  } catch {
+    return
+  }
+  refreshingSellOrderItemExtendOutboundProfit.value = true
+  try {
+    const result = await refreshSellOrderItemExtendOutboundProfit()
+    sellOrderItemExtendOutboundProfitResult.value = result
+    ElMessage.success(
+      `刷新完成：扫描 ${result.totalLines} 条，有出库 ${result.linesWithOutboundQty} 条，` +
+        `利润变更 ${result.profitChangedCount} 条，失败 ${result.failedCount} 条`
+    )
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '刷新出库利润失败'))
+  } finally {
+    refreshingSellOrderItemExtendOutboundProfit.value = false
   }
 }
 

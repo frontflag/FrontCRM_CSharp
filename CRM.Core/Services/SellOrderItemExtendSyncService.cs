@@ -34,6 +34,8 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
     private readonly IRepository<StockInItem> _stockInItemRepo;
     private readonly IRepository<StockOutRequest> _stockOutRequestRepo;
     private readonly IRepository<StockOut> _stockOutRepo;
+    private readonly IRepository<StockOutItem> _stockOutItemRepo;
+    private readonly IRepository<StockOutItemExtend> _stockOutItemExtendRepo;
     private readonly IRepository<FinanceReceivable> _receivableRepo;
     private readonly ISellOrderMainStatusSyncService _mainStatusSync;
     private readonly ILogger<SellOrderItemExtendSyncService> _logger;
@@ -47,6 +49,8 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
         IRepository<StockInItem> stockInItemRepo,
         IRepository<StockOutRequest> stockOutRequestRepo,
         IRepository<StockOut> stockOutRepo,
+        IRepository<StockOutItem> stockOutItemRepo,
+        IRepository<StockOutItemExtend> stockOutItemExtendRepo,
         IRepository<FinanceReceivable> receivableRepo,
         ISellOrderMainStatusSyncService mainStatusSync,
         ILogger<SellOrderItemExtendSyncService> logger)
@@ -59,6 +63,8 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
         _stockInItemRepo = stockInItemRepo;
         _stockOutRequestRepo = stockOutRequestRepo;
         _stockOutRepo = stockOutRepo;
+        _stockOutItemRepo = stockOutItemRepo;
+        _stockOutItemExtendRepo = stockOutItemExtendRepo;
         _receivableRepo = receivableRepo;
         _mainStatusSync = mainStatusSync;
         _logger = logger;
@@ -204,7 +210,8 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
         else
             ext.InvoiceProgressStatus = ProgressPartial;
 
-        ApplyProfitFields(soItem, ext, poItems);
+        var outboundCostLines = await LoadOutboundCostLinesAsync(id, completedStockOuts);
+        ApplyProfitFields(soItem, ext, poItems, outboundCostLines);
 
         ext.ModifyTime = DateTime.UtcNow;
         await _extendRepo.UpdateAsync(ext);
@@ -255,7 +262,11 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
                 $"销售数量不能小于已实际出库数量（{sumStockOutActual}）");
     }
 
-    private static void ApplyProfitFields(SellOrderItem soItem, SellOrderItemExtend ext, List<PurchaseOrderItem> poItems)
+    private static void ApplyProfitFields(
+        SellOrderItem soItem,
+        SellOrderItemExtend ext,
+        List<PurchaseOrderItem> poItems,
+        IReadOnlyList<SellOrderOutboundCostLine> outboundCostLines)
     {
         var revUsdNow = Math.Round(soItem.Qty * soItem.ConvertPrice, 2, MidpointRounding.AwayFromZero);
         var quoteCostUsdLine = Math.Round(soItem.Qty * ext.QuoteConvertCost, 2, MidpointRounding.AwayFromZero);
@@ -289,14 +300,62 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
             ? poItems.Sum(p => p.Qty * p.ConvertPrice) / sumPoQty
             : 0m;
         var outQty = ext.QtyStockOutActual;
-        ext.ProfitOutBizUsd = Math.Round((soItem.ConvertPrice - avgCostUsd) * outQty, 2, MidpointRounding.AwayFromZero);
         var revOut = Math.Round(outQty * soItem.ConvertPrice, 2, MidpointRounding.AwayFromZero);
-        var costOut = Math.Round(outQty * avgCostUsd, 2, MidpointRounding.AwayFromZero);
-        ext.ProfitOutRateBiz = costOut > 0m
-            ? Math.Round(revOut / costOut, 6, MidpointRounding.AwayFromZero)
-            : 0m;
+        var outboundSnapshot = SellOrderOutboundProfitCalc.Compute(revOut, outQty, outboundCostLines, avgCostUsd);
+        ext.ProfitOutBizUsd = outboundSnapshot.ProfitOutBizUsd;
+        ext.ProfitOutRateBiz = outboundSnapshot.ProfitOutRateBiz;
         // 财务 USD：出库时点汇率与加权成本方案未接入前，与业务 USD 同口径写入
         ext.ProfitOutFinUsd = ext.ProfitOutBizUsd;
         ext.ProfitOutRateFin = ext.ProfitOutRateBiz;
+    }
+
+    private async Task<List<SellOrderOutboundCostLine>> LoadOutboundCostLinesAsync(
+        string sellOrderItemId,
+        IReadOnlyList<StockOut> completedStockOuts)
+    {
+        if (completedStockOuts.Count == 0)
+            return new List<SellOrderOutboundCostLine>();
+
+        var outIds = completedStockOuts
+            .Select(o => o.Id.Trim())
+            .Where(x => !string.IsNullOrEmpty(x))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (outIds.Count == 0)
+            return new List<SellOrderOutboundCostLine>();
+
+        var outItems = (await _stockOutItemRepo.FindAsync(i =>
+                !i.IsDeleted && outIds.Contains(i.StockOutId)))
+            .ToList();
+        if (outItems.Count == 0)
+            return new List<SellOrderOutboundCostLine>();
+
+        var qtyByItemId = outItems.ToDictionary(
+            i => i.Id.Trim(),
+            i => i.ActualQty > 0 ? i.ActualQty : i.Quantity,
+            StringComparer.OrdinalIgnoreCase);
+        var itemIds = qtyByItemId.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var extends = (await _stockOutItemExtendRepo.FindAsync(e =>
+                !e.IsDeleted && itemIds.Contains(e.Id)))
+            .ToList();
+
+        var lines = new List<SellOrderOutboundCostLine>(extends.Count);
+        foreach (var e in extends)
+        {
+            var itemId = e.Id.Trim();
+            var qty = e.QtyStockOut > 0 ? e.QtyStockOut : qtyByItemId.GetValueOrDefault(itemId, 0);
+            if (qty <= 0)
+                continue;
+
+            lines.Add(new SellOrderOutboundCostLine
+            {
+                PurchaseOrderItemId = e.PurchaseOrderItemId,
+                PurchaseOrderItemCode = e.PurchaseOrderItemCode,
+                PurchasePriceUsd = e.PurchasePriceUsd,
+                Qty = qty,
+                ProfitOutBizUsd = e.ProfitOutBizUsd
+            });
+        }
+
+        return lines;
     }
 }

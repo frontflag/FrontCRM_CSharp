@@ -52,6 +52,8 @@ public class SellOrderItemExtendSyncServiceTests
             new MemoryRepository<StockInItem>(),
             new MemoryRepository<StockOutRequest>(),
             new MemoryRepository<StockOut>(),
+            new MemoryRepository<StockOutItem>(),
+            new MemoryRepository<StockOutItemExtend>(),
             new MemoryRepository<FinanceReceivable>(),
             NoOpMainStatusSync(),
             NullLogger<SellOrderItemExtendSyncService>.Instance);
@@ -103,6 +105,8 @@ public class SellOrderItemExtendSyncServiceTests
             new MemoryRepository<StockInItem>(),
             requestRepo,
             new MemoryRepository<StockOut>(),
+            new MemoryRepository<StockOutItem>(),
+            new MemoryRepository<StockOutItemExtend>(),
             new MemoryRepository<FinanceReceivable>(),
             NoOpMainStatusSync(),
             NullLogger<SellOrderItemExtendSyncService>.Instance);
@@ -154,6 +158,8 @@ public class SellOrderItemExtendSyncServiceTests
             new MemoryRepository<StockInItem>(),
             requestRepo,
             new MemoryRepository<StockOut>(),
+            new MemoryRepository<StockOutItem>(),
+            new MemoryRepository<StockOutItemExtend>(),
             new MemoryRepository<FinanceReceivable>(),
             NoOpMainStatusSync(),
             NullLogger<SellOrderItemExtendSyncService>.Instance);
@@ -207,6 +213,8 @@ public class SellOrderItemExtendSyncServiceTests
             new MemoryRepository<StockInItem>(),
             requestRepo,
             new MemoryRepository<StockOut>(),
+            new MemoryRepository<StockOutItem>(),
+            new MemoryRepository<StockOutItemExtend>(),
             new MemoryRepository<FinanceReceivable>(),
             NoOpMainStatusSync(),
             NullLogger<SellOrderItemExtendSyncService>.Instance);
@@ -259,6 +267,8 @@ public class SellOrderItemExtendSyncServiceTests
             new MemoryRepository<StockInItem>(),
             requestRepo,
             new MemoryRepository<StockOut>(),
+            new MemoryRepository<StockOutItem>(),
+            new MemoryRepository<StockOutItemExtend>(),
             new MemoryRepository<FinanceReceivable>(),
             NoOpMainStatusSync(),
             NullLogger<SellOrderItemExtendSyncService>.Instance);
@@ -314,6 +324,8 @@ public class SellOrderItemExtendSyncServiceTests
             new MemoryRepository<StockInItem>(),
             new MemoryRepository<StockOutRequest>(),
             new MemoryRepository<StockOut>(),
+            new MemoryRepository<StockOutItem>(),
+            new MemoryRepository<StockOutItemExtend>(),
             new MemoryRepository<FinanceReceivable>(),
             mainStatusSync,
             NullLogger<SellOrderItemExtendSyncService>.Instance);
@@ -371,6 +383,8 @@ public class SellOrderItemExtendSyncServiceTests
             new MemoryRepository<StockInItem>(),
             new MemoryRepository<StockOutRequest>(),
             new MemoryRepository<StockOut>(),
+            new MemoryRepository<StockOutItem>(),
+            new MemoryRepository<StockOutItemExtend>(),
             receivableRepo,
             mainStatusSync,
             NullLogger<SellOrderItemExtendSyncService>.Instance);

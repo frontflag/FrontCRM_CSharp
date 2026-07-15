@@ -4576,7 +4576,10 @@ const enUS = {
         poQtyTotal: 'Total PO qty',
         poCostUsdTotal: 'Total PO cost (USD)',
         poCostUsdConfirmed: 'Confirmed PO cost (USD)',
-        avgPoCostUsd: 'PO weighted avg (USD)',
+        avgPoCostUsd: 'PO convert unit cost (USD)',
+        poBatchLine: '{poItem} · convert unit cost × qty',
+        effectiveOutboundAvgCostUsd: 'Batch unit cost (USD)',
+        outboundBatchLine: '{poItem} · actual unit cost × qty',
         qtyStockOutActual: 'Shipped qty',
         outboundRevenueUsd: 'Outbound revenue (USD)',
         outboundCostUsd: 'Outbound cost (USD)',
@@ -4598,12 +4601,18 @@ const enUS = {
         salesRate: 'Sales expected margin = revenue ÷ confirmed PO cost = {revenue} ÷ {cost} = {result}',
         salesRateUnavailable:
           'Sales expected margin = revenue ÷ confirmed PO cost = {revenue} ÷ {cost} = — (zero confirmed cost)',
-        avgPoCostUsd: 'PO weighted avg (USD) = total PO cost ÷ total PO qty = {poCostTotal} ÷ {poQty} = {result}',
-        avgPoCostMissing: 'PO weighted avg = 0 (no linked PO lines; outbound cost treated as 0).',
+        avgPoCostUsd: 'PO convert unit cost (USD) = total PO cost ÷ total PO qty = {poCostTotal} ÷ {poQty} = {result}',
+        avgPoCostMissing: 'PO convert unit cost = 0 (no linked PO lines; outbound cost treated as 0).',
+        outboundActualCostLine:
+          'Outbound cost (USD) · {poItem} = actual unit cost × shipped qty = {purchasePrice} × {qty} = {result}',
+        outboundActualCostTotal: 'Total outbound cost (USD) = Σ(actual unit cost × shipped qty) = {result}',
+        outboundCostFallbackWeighted: 'No outbound batch cost snapshot; falling back to PO convert unit cost.',
+        outboundCostUsdActual: 'Outbound cost (USD) = actual batch cost total = {result}',
+        outboundProfitActual: 'Outbound profit (USD) = outbound revenue − actual batch cost = {revenue} − {cost} = {result}',
         outboundRevenueUsd: 'Outbound revenue (USD) = shipped qty × convert price = {qty} × {convertPrice} = {result}',
-        outboundCostUsd: 'Outbound cost (USD) = shipped qty × PO weighted avg cost = {qty} × {avgCost} = {result}',
+        outboundCostUsd: 'Outbound cost (USD) = shipped qty × PO convert unit cost = {qty} × {avgCost} = {result}',
         outboundProfit:
-          'Outbound profit (USD) = (convert price − PO weighted avg) × shipped qty = ({convertPrice} − {avgCost}) × {qty} = {result}',
+          'Outbound profit (USD) = (convert price − PO convert unit cost) × shipped qty = ({convertPrice} − {avgCost}) × {qty} = {result}',
         outboundRate: 'Outbound margin = outbound revenue ÷ outbound cost = {revenue} ÷ {cost} = {result}',
         outboundRateUnavailable:
           'Outbound margin = outbound revenue ÷ outbound cost = {revenue} ÷ {cost} = — (zero outbound cost)',
@@ -4623,11 +4632,13 @@ const enUS = {
           'Sales expected: PO cost exists but is not fully confirmed (purchase status: {purchaseStatus}); full-PO profit exceeds confirmed basis.',
         notShippedYet: 'Outbound: no actual shipment yet (stock-out status: {stockOutStatus}); outbound profit is 0.',
         outboundBreakEven:
-          'Outbound: {qty} shipped; unit price equals weighted average PO cost (margin ≈ 1.00); outbound gross profit is 0.',
+          'Outbound: {qty} shipped; unit price equals PO convert unit cost (margin ≈ 1.00); outbound gross profit is 0.',
         outboundZeroProfitShipped:
-          'Outbound: {qty} shipped; unit price equals or is very close to weighted average PO cost; outbound gross profit is 0.',
+          'Outbound: {qty} shipped; unit price equals or is very close to PO convert unit cost; outbound gross profit is 0.',
         outboundNoCostBaseline:
           'Outbound: positive profit but zero outbound purchase cost (purchase status: {purchaseStatus}); margin (revenue÷cost) cannot be shown.',
+        outboundCostFallbackWeighted:
+          'Outbound: no outbound batch cost snapshot yet; cost and profit use PO convert unit cost fallback.',
         noRevenue: 'Revenue is zero or invalid; gross margin cannot be computed.'
       }
     },

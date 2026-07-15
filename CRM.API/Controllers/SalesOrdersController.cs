@@ -1631,21 +1631,48 @@ namespace CRM.API.Controllers
             var salesRate = SellOrderItemProfitDisplay.ResolveSalesExpectedRateForDisplay(
                 revenueUsd,
                 ext.PoCostUsdConfirmed);
-            var outboundRate = SellOrderItemProfitDisplay.ResolveProfitOutRateBizForDisplay(
-                ext.ProfitOutRateBiz,
-                ext.ProfitOutBizUsd);
-
             var poItems = await _db.PurchaseOrderItems.AsNoTracking()
                 .Where(p => p.SellOrderItemId == lineId)
-                .Select(p => new { p.Qty, p.ConvertPrice })
+                .Select(p => new { p.Id, p.PurchaseOrderItemCode, p.Qty, p.ConvertPrice })
                 .ToListAsync();
             var poQtyTotal = poItems.Sum(p => p.Qty);
             var avgPoCostUsd = poQtyTotal > 0m
                 ? Math.Round(poItems.Sum(p => p.Qty * p.ConvertPrice) / poQtyTotal, 6, MidpointRounding.AwayFromZero)
                 : 0m;
+            var poCostLines = poItems
+                .GroupBy(p => new
+                {
+                    PoId = p.Id.Trim(),
+                    PoCode = (p.PurchaseOrderItemCode ?? string.Empty).Trim(),
+                    p.ConvertPrice
+                })
+                .Select(g => new
+                {
+                    purchaseOrderItemId = g.Key.PoId,
+                    purchaseOrderItemCode = string.IsNullOrEmpty(g.Key.PoCode) ? null : g.Key.PoCode,
+                    convertPriceUsd = g.Key.ConvertPrice,
+                    qty = g.Sum(x => x.Qty),
+                    costUsd = Math.Round(g.Sum(x => x.Qty * x.ConvertPrice), 2, MidpointRounding.AwayFromZero)
+                })
+                .OrderBy(l => l.purchaseOrderItemCode ?? l.purchaseOrderItemId, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(l => l.convertPriceUsd)
+                .ToList();
             var outQty = ext.QtyStockOutActual;
             var outboundRevenueUsd = Math.Round(outQty * soItem.ConvertPrice, 2, MidpointRounding.AwayFromZero);
-            var outboundCostUsd = Math.Round(outQty * avgPoCostUsd, 2, MidpointRounding.AwayFromZero);
+
+            var outboundCostLineRows = await LoadSellOrderOutboundCostLinesAsync(lineId);
+            var outboundSnapshot = SellOrderOutboundProfitCalc.Compute(
+                outboundRevenueUsd,
+                outQty,
+                outboundCostLineRows,
+                avgPoCostUsd);
+            var outboundCostUsd = outboundSnapshot.OutboundCostUsd;
+            var effectiveOutboundAvgCostUsd = outboundSnapshot.EffectiveAvgCostUsd;
+            var outboundProfitUsd = outboundSnapshot.ProfitOutBizUsd;
+            var outboundRateStored = outboundSnapshot.ProfitOutRateBiz;
+            var outboundRate = SellOrderItemProfitDisplay.ResolveProfitOutRateBizForDisplay(
+                outboundRateStored,
+                outboundProfitUsd);
 
             return new
             {
@@ -1668,6 +1695,18 @@ namespace CRM.API.Controllers
                 qtyStockOutActual = outQty,
                 poQtyTotal,
                 avgPoCostUsd,
+                poCostLines,
+                useActualOutboundCost = outboundSnapshot.UseActualBatchCost,
+                effectiveOutboundAvgCostUsd,
+                outboundCostLines = outboundSnapshot.CostLines.Select(l => new
+                {
+                    purchaseOrderItemId = l.PurchaseOrderItemId,
+                    purchaseOrderItemCode = l.PurchaseOrderItemCode,
+                    purchasePriceUsd = l.PurchasePriceUsd,
+                    qty = l.Qty,
+                    costUsd = Math.Round(l.Qty * l.PurchasePriceUsd, 2, MidpointRounding.AwayFromZero),
+                    profitOutBizUsd = l.ProfitOutBizUsd
+                }),
                 outboundRevenueUsd,
                 outboundCostUsd,
                 purchaseProgressStatus = ext.PurchaseProgressStatus,
@@ -1684,10 +1723,53 @@ namespace CRM.API.Controllers
                 },
                 outbound = new
                 {
-                    profitUsd = ext.ProfitOutBizUsd,
+                    profitUsd = outboundProfitUsd,
                     profitRate = outboundRate
                 }
             };
+        }
+
+        private async Task<List<SellOrderOutboundCostLine>> LoadSellOrderOutboundCostLinesAsync(string sellOrderItemId)
+        {
+            var lineId = sellOrderItemId.Trim();
+            const short stockOutCompleted = 2;
+            const short stockOutFinished = 4;
+
+            var raw = await (
+                from so in _db.StockOuts.AsNoTracking()
+                join soi in _db.StockOutItems.AsNoTracking() on so.Id equals soi.StockOutId
+                join ext in _db.StockOutItemExtends.AsNoTracking() on soi.Id equals ext.Id
+                where !so.IsDeleted
+                      && !soi.IsDeleted
+                      && !ext.IsDeleted
+                      && (so.Status == stockOutCompleted || so.Status == stockOutFinished)
+                      && so.StockOutType == StockOutTypeCode.Sales
+                      && so.SellOrderItemId == lineId
+                select new
+                {
+                    ext.PurchaseOrderItemId,
+                    ext.PurchaseOrderItemCode,
+                    ext.PurchasePriceUsd,
+                    ext.QtyStockOut,
+                    ext.ProfitOutBizUsd,
+                    QtyFallback = soi.ActualQty > 0 ? soi.ActualQty : soi.Quantity
+                }).ToListAsync();
+
+            return raw
+                .Select(r =>
+                {
+                    var qty = r.QtyStockOut > 0 ? r.QtyStockOut : r.QtyFallback;
+                    return new SellOrderOutboundCostLine
+                    {
+                        PurchaseOrderItemId = r.PurchaseOrderItemId,
+                        PurchaseOrderItemCode = r.PurchaseOrderItemCode,
+                        PurchasePriceUsd = r.PurchasePriceUsd,
+                        Qty = qty,
+                        ProfitOutBizUsd = r.ProfitOutBizUsd
+                    };
+                })
+                .Where(l => l.Qty > 0)
+                .ToList();
         }
 
         /// <summary>销售明细 → 报价单 → 需求明细行（与创建销售单/采购申请链路一致）。</summary>

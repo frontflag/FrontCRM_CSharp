@@ -213,6 +213,23 @@ export interface SellOrderLineProfitLayer {
   profitRate?: number | null
 }
 
+export interface SellOrderLinePoCostLine {
+  purchaseOrderItemId?: string | null
+  purchaseOrderItemCode?: string | null
+  convertPriceUsd: number
+  qty: number
+  costUsd: number
+}
+
+export interface SellOrderLineOutboundCostLine {
+  purchaseOrderItemId?: string | null
+  purchaseOrderItemCode?: string | null
+  purchasePriceUsd: number
+  qty: number
+  costUsd: number
+  profitOutBizUsd: number
+}
+
 /** GET .../sell-order-items/{itemId}/line-profit */
 export interface SellOrderLineProfit {
   qty: number
@@ -234,6 +251,10 @@ export interface SellOrderLineProfit {
   qtyStockOutActual: number
   poQtyTotal: number
   avgPoCostUsd: number
+  poCostLines?: SellOrderLinePoCostLine[]
+  useActualOutboundCost?: boolean
+  effectiveOutboundAvgCostUsd?: number
+  outboundCostLines?: SellOrderLineOutboundCostLine[]
   outboundRevenueUsd: number
   outboundCostUsd: number
   purchaseProgressStatus?: number

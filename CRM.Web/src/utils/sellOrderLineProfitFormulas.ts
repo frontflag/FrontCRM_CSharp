@@ -59,6 +59,9 @@ export function buildSellOrderLineProfitLayerFormulas(
     poQtyTotal,
     poCostUsdTotal,
     avgPoCostUsd,
+    useActualOutboundCost = false,
+    effectiveOutboundAvgCostUsd,
+    outboundCostLines = [],
     outboundRevenueUsd,
     outboundCostUsd,
     quote,
@@ -187,14 +190,40 @@ export function buildSellOrderLineProfitLayerFormulas(
 
   const outQtyText = fmtQty(qtyStockOutActual)
   const outboundLines: SellOrderLineProfitFormulaLine[] = []
-  if (poQtyTotal > 0) {
+  const outboundAvgCost = effectiveOutboundAvgCostUsd ?? avgPoCostUsd
+  const outboundAvgCostText = fmtUsd6(outboundAvgCost)
+
+  if (useActualOutboundCost && (outboundCostLines?.length ?? 0) > 0) {
+    for (const [idx, line] of outboundCostLines.entries()) {
+      const poLabel = line.purchaseOrderItemCode?.trim() || line.purchaseOrderItemId?.trim() || '—'
+      outboundLines.push({
+        key: `actualCostLine-${idx}`,
+        text: t('salesOrderDetailView.performance.formulas.outboundActualCostLine', {
+          poItem: poLabel,
+          purchasePrice: fmtUsd6(line.purchasePriceUsd),
+          qty: fmtQty(line.qty),
+          result: fmtUsd2(line.costUsd)
+        })
+      })
+    }
+    outboundLines.push({
+      key: 'actualCostTotal',
+      text: t('salesOrderDetailView.performance.formulas.outboundActualCostTotal', {
+        result: fmtUsd2(outboundCostUsd)
+      })
+    })
+  } else if (poQtyTotal > 0) {
     outboundLines.push({
       key: 'avgCost',
       text: t('salesOrderDetailView.performance.formulas.avgPoCostUsd', {
         poCostTotal: fmtUsd2(poCostUsdTotal),
         poQty: fmtQty(poQtyTotal),
-        result: fmtUsd6(avgPoCostUsd)
+        result: outboundAvgCostText
       })
+    })
+    outboundLines.push({
+      key: 'avgCostFallbackNote',
+      text: t('salesOrderDetailView.performance.formulas.outboundCostFallbackWeighted')
     })
   } else {
     outboundLines.push({
@@ -213,20 +242,30 @@ export function buildSellOrderLineProfitLayerFormulas(
     },
     {
       key: 'outCost',
-      text: t('salesOrderDetailView.performance.formulas.outboundCostUsd', {
-        qty: outQtyText,
-        avgCost: fmtUsd6(avgPoCostUsd),
-        result: fmtUsd2(outboundCostUsd)
-      })
+      text: useActualOutboundCost
+        ? t('salesOrderDetailView.performance.formulas.outboundCostUsdActual', {
+            result: fmtUsd2(outboundCostUsd)
+          })
+        : t('salesOrderDetailView.performance.formulas.outboundCostUsd', {
+            qty: outQtyText,
+            avgCost: outboundAvgCostText,
+            result: fmtUsd2(outboundCostUsd)
+          })
     },
     {
       key: 'profit',
-      text: t('salesOrderDetailView.performance.formulas.outboundProfit', {
-        convertPrice: convertPriceText,
-        avgCost: fmtUsd6(avgPoCostUsd),
-        qty: outQtyText,
-        result: formatUsdProfitAmount(outbound.profitUsd)
-      })
+      text: useActualOutboundCost
+        ? t('salesOrderDetailView.performance.formulas.outboundProfitActual', {
+            revenue: fmtUsd2(outboundRevenueUsd),
+            cost: fmtUsd2(outboundCostUsd),
+            result: formatUsdProfitAmount(outbound.profitUsd)
+          })
+        : t('salesOrderDetailView.performance.formulas.outboundProfit', {
+            convertPrice: convertPriceText,
+            avgCost: outboundAvgCostText,
+            qty: outQtyText,
+            result: formatUsdProfitAmount(outbound.profitUsd)
+          })
     },
     {
       key: 'rate',

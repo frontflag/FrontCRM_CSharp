@@ -357,8 +357,10 @@ function formatGrossMargin(profitUsd: number, revenueUsd: number): string | null
 
 .so-line-performance-vars__item {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: 8px;
+  column-gap: 8px;
+  row-gap: 2px;
   min-width: 0;
   font-size: 12px;
   line-height: 1.5;
@@ -372,11 +374,11 @@ function formatGrossMargin(profitUsd: number, revenueUsd: number): string | null
 
 .so-line-performance-vars__value {
   flex: 1 1 auto;
-  min-width: 0;
+  min-width: max-content;
   font-variant-numeric: tabular-nums;
   color: var(--crm-table-text);
   font-weight: 500;
-  word-break: break-word;
+  white-space: nowrap;
 }
 
 .so-line-performance {

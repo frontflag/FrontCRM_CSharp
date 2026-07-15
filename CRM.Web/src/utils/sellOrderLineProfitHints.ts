@@ -46,6 +46,7 @@ export function buildSellOrderLineProfitHints(
     qtyStockOutActual,
     purchaseProgressStatus,
     stockOutProgressStatus,
+    useActualOutboundCost = false,
     quote,
     salesExpected,
     outbound
@@ -119,6 +120,14 @@ export function buildSellOrderLineProfitHints(
         })
       })
     }
+  }
+
+  if (!useActualOutboundCost && qtyStockOutActual > 0) {
+    hints.push({
+      level: 'outbound',
+      type: 'info',
+      message: t('salesOrderDetailView.performance.hints.outboundCostFallbackWeighted')
+    })
   }
 
   if (outbound.profitRate == null && outbound.profitUsd > EPS) {

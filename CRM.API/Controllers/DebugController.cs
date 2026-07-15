@@ -38,6 +38,7 @@ namespace CRM.API.Controllers
         private readonly IAiOrchestrator _aiOrchestrator;
         private readonly ISalesOrderService _salesOrderService;
         private readonly IPurchaseOrderService _purchaseOrderService;
+        private readonly ISellOrderItemExtendSyncService _sellOrderItemExtendSync;
         private const short PoStatusInProgress = 50;
         private const short PoStatusCompleted = 100;
         private const short PoStatusAuditFailed = -1;
@@ -60,7 +61,8 @@ namespace CRM.API.Controllers
             IInventoryCenterService inventoryCenterService,
             IAiOrchestrator aiOrchestrator,
             ISalesOrderService salesOrderService,
-            IPurchaseOrderService purchaseOrderService)
+            IPurchaseOrderService purchaseOrderService,
+            ISellOrderItemExtendSyncService sellOrderItemExtendSync)
         {
             _context = context;
             _configuration = configuration;
@@ -74,6 +76,7 @@ namespace CRM.API.Controllers
             _aiOrchestrator = aiOrchestrator;
             _salesOrderService = salesOrderService;
             _purchaseOrderService = purchaseOrderService;
+            _sellOrderItemExtendSync = sellOrderItemExtendSync;
         }
 
         public class DebugItemDto
@@ -144,6 +147,17 @@ namespace CRM.API.Controllers
             public int ChangedOrders { get; set; }
             public List<string> ChangedOrderCodes { get; set; } = new();
             public int SkippedTerminalOrders { get; set; }
+            public int FailedCount { get; set; }
+            public List<string> FailedMessages { get; set; } = new();
+        }
+
+        /// <summary>Debug：批量重算销售明细扩展出库利润（实际批次成本优先，与绩效面板 / SQL 脚本同源）。</summary>
+        public class RefreshSellOrderItemExtendOutboundProfitResultDto
+        {
+            public int TotalLines { get; set; }
+            public int LinesWithOutboundQty { get; set; }
+            public int ProfitChangedCount { get; set; }
+            public List<string> ChangedLineCodes { get; set; } = new();
             public int FailedCount { get; set; }
             public List<string> FailedMessages { get; set; } = new();
         }
@@ -1084,6 +1098,80 @@ namespace CRM.API.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, ApiResponse<RefreshSellOrderMainStatusResultDto>.Fail($"刷新销售订单主状态失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>
+        /// 临时调试工具：批量重算 sellorderitemextend 出库利润（ProfitOutBizUsd / ProfitOutRateBiz）。
+        /// 逐行调用 <see cref="ISellOrderItemExtendSyncService.RecalculateAsync"/>，出库成本优先取 stock_out_item_extend 真实采购价。
+        /// </summary>
+        [Authorize]
+        [HttpPost("refresh-sellorderitemextend-outbound-profit")]
+        public async Task<ActionResult<ApiResponse<RefreshSellOrderItemExtendOutboundProfitResultDto>>>
+            RefreshSellOrderItemExtendOutboundProfit(CancellationToken cancellationToken)
+        {
+            try
+            {
+                var rows = await (
+                    from soi in _context.SellOrderItems.AsNoTracking()
+                    join ext in _context.SellOrderItemExtends.AsNoTracking() on soi.Id equals ext.Id
+                    where !soi.IsDeleted && !ext.IsDeleted
+                    select new
+                    {
+                        soi.Id,
+                        soi.SellOrderItemCode,
+                        ext.QtyStockOutActual,
+                        ext.ProfitOutBizUsd
+                    }).ToListAsync(cancellationToken);
+
+                var result = new RefreshSellOrderItemExtendOutboundProfitResultDto
+                {
+                    TotalLines = rows.Count
+                };
+
+                foreach (var row in rows)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var beforeProfit = row.ProfitOutBizUsd;
+                    if (row.QtyStockOutActual > 0m)
+                        result.LinesWithOutboundQty++;
+
+                    try
+                    {
+                        await _sellOrderItemExtendSync.RecalculateAsync(row.Id, cancellationToken);
+                        await _context.SaveChangesAsync(cancellationToken);
+
+                        var afterProfit = await _context.SellOrderItemExtends.AsNoTracking()
+                            .Where(e => e.Id == row.Id)
+                            .Select(e => e.ProfitOutBizUsd)
+                            .FirstOrDefaultAsync(cancellationToken);
+
+                        if (Math.Abs(afterProfit - beforeProfit) >= 0.01m)
+                        {
+                            result.ProfitChangedCount++;
+                            if (result.ChangedLineCodes.Count < 50)
+                                result.ChangedLineCodes.Add(row.SellOrderItemCode ?? row.Id);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        result.FailedCount++;
+                        if (result.FailedMessages.Count < 20)
+                            result.FailedMessages.Add($"{row.SellOrderItemCode ?? row.Id}: {ex.Message}");
+                    }
+                }
+
+                return Ok(ApiResponse<RefreshSellOrderItemExtendOutboundProfitResultDto>.Ok(
+                    result,
+                    "销售明细出库利润批量重算完成"));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(
+                    500,
+                    ApiResponse<RefreshSellOrderItemExtendOutboundProfitResultDto>.Fail(
+                        $"批量重算出库利润失败: {ex.Message}",
+                        500));
             }
         }
 

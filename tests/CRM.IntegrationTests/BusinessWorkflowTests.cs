@@ -985,13 +985,15 @@ namespace CRM.IntegrationTests
             var stockInItemRepo = Substitute.For<IRepository<StockInItem>>();
             var stockOutRequestRepo = Substitute.For<IRepository<StockOutRequest>>();
             var stockOutRepo = Substitute.For<IRepository<StockOut>>();
+            var stockOutItemRepo = Substitute.For<IRepository<StockOutItem>>();
+            var stockOutItemExtendRepo = Substitute.For<IRepository<StockOutItemExtend>>();
             var receivableRepo = Substitute.For<IRepository<FinanceReceivable>>();
 
             // 创建同步服务
             var service = new SellOrderItemExtendSyncService(
                 soItemRepo, extendRepo, poItemRepo, stockInRepo, stockInItemExtendRepo, stockInItemRepo,
                 stockOutRequestRepo,
-                stockOutRepo, receivableRepo,
+                stockOutRepo, stockOutItemRepo, stockOutItemExtendRepo, receivableRepo,
                 Substitute.For<ISellOrderMainStatusSyncService>(),
                 NullLogger<SellOrderItemExtendSyncService>.Instance);
 
