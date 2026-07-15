@@ -42,5 +42,12 @@ if (-not (Test-Path $distHelp)) {
 }
 
 Write-Host ">>> Verify help in deploy package: $DeployPackagePath" -ForegroundColor Gray
-& node $verifyScript --source $sourceHelp --dist $distHelp
+$verifyOutput = & node $verifyScript --source $sourceHelp --dist $distHelp 2>&1
+foreach ($line in @($verifyOutput)) {
+    if ($line -is [System.Management.Automation.ErrorRecord]) {
+        Write-Host $line.ToString() -ForegroundColor Red
+    } else {
+        Write-Host $line
+    }
+}
 exit $LASTEXITCODE

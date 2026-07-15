@@ -5,7 +5,7 @@
  *
  * 占位正文为用户向简短文案，不含开发指引；完稿须符合《扩展面板.帮助规范》§2.6。
  */
-import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -37,6 +37,9 @@ function main() {
   if (!existsSync(regPath)) {
     console.warn('[sync-help] 未找到 menu-registry.json，仅复制 help')
     mkdirSync(join(repoRoot, 'CRM.Web', 'public'), { recursive: true })
+    if (existsSync(dest)) {
+      rmSync(dest, { recursive: true, force: true })
+    }
     cpSync(helpRoot, dest, { recursive: true })
     console.log('[sync-help] 已同步', helpRoot, '->', dest)
     return
@@ -69,6 +72,9 @@ function main() {
   }
 
   mkdirSync(join(repoRoot, 'CRM.Web', 'public'), { recursive: true })
+  if (existsSync(dest)) {
+    rmSync(dest, { recursive: true, force: true })
+  }
   cpSync(helpRoot, dest, { recursive: true })
   console.log('[sync-help] 已同步', helpRoot, '->', dest)
 }

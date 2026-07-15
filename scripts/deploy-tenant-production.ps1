@@ -391,14 +391,14 @@ function Test-BatchDeployPackages {
 
         $verifyHelpScript = Join-Path $RootPath "scripts\verify-deploy-help.ps1"
         if (Test-Path $verifyHelpScript) {
-            & $verifyHelpScript -DeployPackagePath $packagePath -RepoRoot $RootPath
+            & $verifyHelpScript -DeployPackagePath $packagePath -RepoRoot $RootPath | Out-Null
             if ($LASTEXITCODE -ne 0) {
                 $missing.Add("$packageName (help stale)") | Out-Null
             }
         }
     }
 
-    return ,$missing
+    return [string[]]@($missing.ToArray())
 }
 
 Initialize-DeployScriptConsole
