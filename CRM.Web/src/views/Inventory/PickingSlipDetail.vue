@@ -371,8 +371,8 @@
                       <span v-else>{{ row.salesOrderCode || '—' }}</span>
                     </template>
                   </el-table-column>
-                  <el-table-column :label="t('stockOutNotifyList.columns.materialModel')" min-width="120" show-overflow-tooltip prop="materialModel" />
-                  <el-table-column :label="t('stockOutNotifyList.columns.brand')" width="100" show-overflow-tooltip prop="brand" />
+                  <CrmCopyableTableColumn :label="t('stockOutNotifyList.columns.materialModel')" min-width="120" prop="materialModel" />
+                  <CrmCopyableTableColumn :label="t('stockOutNotifyList.columns.brand')" width="100" prop="brand" />
                   <el-table-column :label="t('stockOutNotifyList.columns.outQuantity')" width="96" align="right" prop="outQuantity" />
                   <el-table-column :label="t('stockOutNotifyList.columns.status')" width="100" align="center">
                     <template #default="{ row }">

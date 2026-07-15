@@ -153,8 +153,8 @@
             <div v-if="detail.items?.length" class="detail-items-table-wrap">
               <el-table :data="detail.items" size="small" border class="detail-panel-list-table">
                 <el-table-column prop="lineNo" label="#" width="56" align="center" />
-                <el-table-column prop="purchasePn" :label="t('customsPages.items.colPn')" min-width="120" show-overflow-tooltip />
-                <el-table-column prop="purchaseBrand" :label="t('customsPages.items.colBrand')" width="96" show-overflow-tooltip />
+                <CrmCopyableTableColumn prop="purchasePn" :label="t('customsPages.items.colPn')" min-width="120" />
+                <CrmCopyableTableColumn prop="purchaseBrand" :label="t('customsPages.items.colBrand')" width="96" />
                 <el-table-column prop="hsCode" :label="t('customsPages.items.colHs')" width="100" show-overflow-tooltip />
                 <el-table-column prop="declareQty" :label="t('customsPages.items.colQty')" width="90" align="right" />
                 <el-table-column :label="t('customsPages.items.colCustomer')" min-width="120" show-overflow-tooltip>

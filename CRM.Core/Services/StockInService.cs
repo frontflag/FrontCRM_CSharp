@@ -1080,6 +1080,42 @@ namespace CRM.Core.Services
             };
         }
 
+        public async Task<List<StockInListItemDto>> GetStockInListItemsByIdsAsync(
+            IReadOnlyList<string> ids,
+            CancellationToken cancellationToken = default)
+        {
+            if (ids == null || ids.Count == 0)
+                return new List<StockInListItemDto>();
+
+            var idList = ids
+                .Select(x => x?.Trim())
+                .Where(x => !string.IsNullOrEmpty(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Cast<string>()
+                .ToList();
+            if (idList.Count == 0)
+                return new List<StockInListItemDto>();
+
+            var loaded = (await _stockInRepository.FindAsync(x => idList.Contains(x.Id))).ToList();
+            if (loaded.Count == 0)
+                return new List<StockInListItemDto>();
+
+            var byId = loaded.ToDictionary(x => x.Id.Trim(), x => x, StringComparer.OrdinalIgnoreCase);
+            var ordered = new List<StockIn>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var id in ids)
+            {
+                var key = id.Trim();
+                if (!seen.Add(key))
+                    continue;
+                if (byId.TryGetValue(key, out var ent))
+                    ordered.Add(ent);
+            }
+
+            var (dtos, _) = await BuildStockInListDtosCoreAsync(ordered);
+            return dtos;
+        }
+
         public async Task<IReadOnlyList<StockInListItemDto>> GetListAsync(StockInQueryRequest? request = null)
         {
             const short transferStockInType = StockInTypeCode.Transfer;

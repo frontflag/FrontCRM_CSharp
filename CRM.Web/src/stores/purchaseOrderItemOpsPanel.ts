@@ -86,6 +86,21 @@ export const usePurchaseOrderItemOpsPanelStore = defineStore('purchaseOrderItemO
     await loadAggregates(loadFailedText)
   }
 
+  /** 外部已拉取 aggregates 时写入 store，避免重复请求（如采购订单详情底部面板） */
+  function syncRowAndAggregates(
+    target: RowRecord,
+    data: PurchaseOrderDetailTabAggregates | null,
+    options?: { error?: string }
+  ) {
+    const key = rowKey(target)
+    if (!key) return
+    row.value = target
+    aggregates.value = data
+    aggregatesRowKey.value = data ? key : ''
+    loadError.value = String(options?.error ?? '').trim()
+    loading.value = false
+  }
+
   async function refreshFromListRows(
     rows: RowRecord[],
     loadFailedText = '加载明细失败',
@@ -118,6 +133,7 @@ export const usePurchaseOrderItemOpsPanelStore = defineStore('purchaseOrderItemO
     setRowOnly,
     loadAggregates,
     selectRow,
+    syncRowAndAggregates,
     refreshFromListRows,
     runApplyArrival,
     runApplyPayment,

@@ -14,4 +14,11 @@ public interface IInventoryStockItemListQuery
         int page,
         int pageSize,
         CancellationToken cancellationToken = default);
+
+    /// <summary>按主键顺序返回库存明细列表行（字段与 <see cref="GetPagedAsync"/> 一致）。</summary>
+    Task<List<InventoryStockItemListRowDto>> GetByIdsAsync(
+        IReadOnlyList<string> orderedStockItemIds,
+        string? currentUserId = null,
+        bool applyDataScope = true,
+        CancellationToken cancellationToken = default);
 }

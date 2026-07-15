@@ -188,14 +188,13 @@
                   min-width="160"
                   show-overflow-tooltip
                 />
-                <el-table-column
+                <CrmCopyableTableColumn
                   prop="freightForwarderOrderNo"
                   :label="t('financePaymentDetail.labels.freightForwarderOrderNo')"
                   min-width="150"
-                  show-overflow-tooltip
                 />
-                <el-table-column prop="pn" :label="t('financePaymentDetail.labels.pn')" min-width="150" show-overflow-tooltip />
-                <el-table-column prop="brand" :label="t('financePaymentDetail.labels.brand')" width="120" show-overflow-tooltip />
+                <CrmCopyableTableColumn prop="pn" :label="t('financePaymentDetail.labels.pn')" min-width="150" />
+                <CrmCopyableTableColumn prop="brand" :label="t('financePaymentDetail.labels.brand')" width="120" />
                 <el-table-column prop="qty" :label="t('financePaymentDetail.labels.qty')" width="100" align="right" header-align="right">
                   <template #default="{ row }">{{ row.qty ?? '—' }}</template>
                 </el-table-column>

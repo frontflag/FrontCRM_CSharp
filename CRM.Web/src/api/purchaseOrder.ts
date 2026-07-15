@@ -1,5 +1,8 @@
 import apiClient from './client'
 import type { QcImageReadonlyRow } from './document'
+import type { StockInListItemDto } from './stockIn'
+import type { StockInNotifyDto } from './logistics'
+import type { StockItemListRow } from './inventoryCenter'
 
 export interface PurchaseOrderItemExtendFieldChangeDto {
   field: string
@@ -115,36 +118,9 @@ export interface PurchaseOrderDetailTabAggregates {
     paymentDate?: string | null
     createTime: string
   }>
-  arrivalNotices: Array<{
-    id: string
-    noticeCode: string
-    pn?: string | null
-    brand?: string | null
-    expectQty: number
-    receiveQty: number
-    status: number
-    expectedArrivalDate?: string | null
-    createTime: string
-  }>
-  stockIns: Array<{
-    id: string
-    stockInCode: string
-    stockInType: number
-    status: number
-    stockInDate: string
-    createTime: string
-  }>
-  stockItems: Array<{
-    id: string
-    stockItemCode?: string | null
-    stockAggregateId: string
-    purchasePn?: string | null
-    purchaseBrand?: string | null
-    qtyRepertory: number
-    qtyRepertoryAvailable: number
-    purchaseOrderItemId?: string | null
-    purchaseOrderItemCode?: string | null
-  }>
+  arrivalNotices: StockInNotifyDto[]
+  stockIns: StockInListItemDto[]
+  stockItems: StockItemListRow[]
   purchaseInvoices: Array<{
     id: string
     vendorName?: string | null
@@ -160,6 +136,10 @@ export interface PurchaseOrderDetailTabAggregates {
   /** 采购订单明细详情「概况」页签（仅单条明细 aggregates 接口返回） */
   lineOverview?: PurchaseOrderLineOverview | null
 }
+
+export type PurchaseOrderItemArrivalNoticeTabRow = PurchaseOrderDetailTabAggregates['arrivalNotices'][number]
+export type PurchaseOrderItemStockInTabRow = PurchaseOrderDetailTabAggregates['stockIns'][number]
+export type PurchaseOrderItemStockTabRow = PurchaseOrderDetailTabAggregates['stockItems'][number]
 
 export interface PurchaseOrderLineOverviewQtyMetric {
   total: number

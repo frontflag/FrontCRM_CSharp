@@ -1643,7 +1643,15 @@ const showPurchaseOrderRecentHistoryPanel = computed(
 )
 
 const isSalesOrderItemListRoute = computed(() => route.name === 'SalesOrderItemList')
+const isSalesOrderDetailRoute = computed(() => route.name === 'SalesOrderDetail')
+const isSalesOrderItemOpsRoute = computed(
+  () => isSalesOrderItemListRoute.value || isSalesOrderDetailRoute.value
+)
 const isPurchaseOrderItemListRoute = computed(() => route.name === 'PurchaseOrderItemList')
+const isPurchaseOrderDetailRoute = computed(() => route.name === 'PurchaseOrderDetail')
+const isPurchaseOrderItemOpsRoute = computed(
+  () => isPurchaseOrderItemListRoute.value || isPurchaseOrderDetailRoute.value
+)
 const isRfqItemListRoute = computed(() => route.name === 'RFQItemList')
 const isCustomsDeclarationListRoute = computed(() => route.name === 'CustomsDeclarationList')
 const isStockOutNotifyListRoute = computed(
@@ -1651,11 +1659,11 @@ const isStockOutNotifyListRoute = computed(
 )
 
 const showSalesOrderItemOpsPanel = computed(
-  () => rightActiveTabId.value === 'r-ops' && isSalesOrderItemListRoute.value
+  () => rightActiveTabId.value === 'r-ops' && isSalesOrderItemOpsRoute.value
 )
 
 const showPurchaseOrderItemOpsPanel = computed(
-  () => rightActiveTabId.value === 'r-ops' && isPurchaseOrderItemListRoute.value
+  () => rightActiveTabId.value === 'r-ops' && isPurchaseOrderItemOpsRoute.value
 )
 
 const showCustomsDeclarationOpsPanel = computed(
@@ -1708,16 +1716,32 @@ function syncStockOutNotifyListRightTabs() {
 watch(
   () => route.name,
   (name) => {
-    if (name === 'SalesOrderItemList' || name === 'PurchaseOrderItemList') {
+    if (name === 'SalesOrderItemList' || name === 'SalesOrderDetail') {
       rightTabs.value = [
         { id: 'r-ops', labelKey: 'layout.auxTabs.ops' },
         { id: 'r4', labelKey: 'layout.auxTabs.help' }
       ]
-      if (name === 'SalesOrderItemList') purchaseOrderItemOpsStore.clear()
-      if (name === 'PurchaseOrderItemList') salesOrderItemOpsStore.clear()
+      purchaseOrderItemOpsStore.clear()
       customsDeclarationOpsStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
+      if (rightActiveTabId.value !== 'r-ops' && rightActiveTabId.value !== 'r4') {
+        rightActiveTabId.value = 'r-ops'
+      }
+      return
+    }
+    if (name === 'PurchaseOrderItemList' || name === 'PurchaseOrderDetail') {
+      rightTabs.value = [
+        { id: 'r-ops', labelKey: 'layout.auxTabs.ops' },
+        { id: 'r4', labelKey: 'layout.auxTabs.help' }
+      ]
+      salesOrderItemOpsStore.clear()
+      customsDeclarationOpsStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
+      materialIntelLookupStore.clearBound()
+      if (rightActiveTabId.value !== 'r-ops' && rightActiveTabId.value !== 'r4') {
+        rightActiveTabId.value = 'r-ops'
+      }
       return
     }
     if (name === 'CustomsDeclarationList') {

@@ -487,8 +487,8 @@
             min-width="160"
             show-overflow-tooltip
           />
-          <el-table-column prop="pn" :label="t('purchaseOrderItemList.paymentDialog.colPn')" min-width="120" />
-          <el-table-column prop="brand" :label="t('purchaseOrderItemList.paymentDialog.colBrand')" width="100" />
+          <CrmCopyableTableColumn prop="pn" :label="t('purchaseOrderItemList.paymentDialog.colPn')" min-width="120" />
+          <CrmCopyableTableColumn prop="brand" :label="t('purchaseOrderItemList.paymentDialog.colBrand')" width="100" />
           <el-table-column prop="qty" :label="t('purchaseOrderItemList.paymentDialog.colQty')" width="90" align="right" />
           <el-table-column prop="cost" :label="t('purchaseOrderItemList.paymentDialog.colUnitPrice')" width="160" align="right">
             <template #default="{ row }">{{ formatCurrencyUnitPrice(row.cost, row.currency) }}</template>
@@ -630,14 +630,14 @@
             <el-table-column :label="t('purchaseOrderItemList.arrivalDialog.seq')" width="70">
               <template #default="{ $index }">{{ $index + 1 }}</template>
             </el-table-column>
-            <el-table-column :label="t('purchaseOrderItemList.arrivalDialog.materialPn')" min-width="160" show-overflow-tooltip>
+            <el-table-column :label="t('purchaseOrderItemList.arrivalDialog.materialPn')" min-width="160">
               <template #default="{ row }">
-                <span class="arrival-line-label">{{ row.pn || '—' }}</span>
+                <CrmListCopyableTextCell :text="row.pn || ''" />
               </template>
             </el-table-column>
-            <el-table-column :label="t('purchaseOrderItemList.arrivalDialog.brand')" min-width="130" show-overflow-tooltip>
+            <el-table-column :label="t('purchaseOrderItemList.arrivalDialog.brand')" min-width="130">
               <template #default="{ row }">
-                <span class="arrival-line-label">{{ row.brand || '—' }}</span>
+                <CrmListCopyableTextCell :text="row.brand || ''" />
               </template>
             </el-table-column>
             <el-table-column :label="t('purchaseOrderItemList.arrivalDialog.orderQty')" width="100" align="right">

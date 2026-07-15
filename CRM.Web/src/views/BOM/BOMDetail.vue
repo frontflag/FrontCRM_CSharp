@@ -122,12 +122,8 @@
           <el-table-column type="selection" width="44" />
           <el-table-column label="#" prop="lineNo" width="50" align="center" />
           <el-table-column label="客户物料型号" prop="customerMaterialModel" min-width="130" show-overflow-tooltip />
-          <el-table-column label="MPN" prop="materialModel" min-width="150" show-overflow-tooltip>
-            <template #default="{ row }">
-              <span class="mpn-text">{{ row.materialModel || '—' }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="品牌" prop="brand" width="100" show-overflow-tooltip />
+          <CrmCopyableTableColumn label="MPN" prop="materialModel" min-width="150" />
+          <CrmCopyableTableColumn label="品牌" prop="brand" width="100" />
           <el-table-column label="数量" prop="quantity" width="80" align="right" />
           <el-table-column label="目标价" width="90" align="right">
             <template #default="{ row }">

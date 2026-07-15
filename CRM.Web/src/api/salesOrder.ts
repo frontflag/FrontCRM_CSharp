@@ -59,6 +59,10 @@ export interface SalesOrderDeletedItemRow {
   deletedByUserName?: string | null
 }
 
+import type { PackingListItem } from './packing'
+import type { StockInListItemDto } from './stockIn'
+import type { StockOutDto, StockOutRequestDto } from './stockOut'
+
 /** GET /api/v1/sales-orders/{id}/detail-tab-aggregates */
 export interface SalesOrderDetailTabAggregates {
   rfqItems: Array<{
@@ -131,14 +135,7 @@ export interface SalesOrderDetailTabAggregates {
     purchaseUserName?: string | null
     createTime: string
   }>
-  stockIns: Array<{
-    id: string
-    stockInCode: string
-    stockInType: number
-    status: number
-    stockInDate: string
-    createTime: string
-  }>
+  stockIns: StockInListItemDto[]
   stockItems: Array<{
     id: string
     stockItemCode?: string | null
@@ -165,24 +162,10 @@ export interface SalesOrderDetailTabAggregates {
     batchNo?: string | null
     locationId?: string | null
   }>
-  stockOutRequests: Array<{
-    id: string
-    requestCode: string
-    materialCode: string
-    quantity: number
-    status: number
-    requestDate: string
-    createTime: string
-  }>
-  stockOuts: Array<{
-    id: string
-    stockOutCode: string
-    status: number
-    totalQuantity: number
-    stockOutDate: string
-    sellOrderItemId?: string | null
-    createTime: string
-  }>
+  /** 销售明细关联装箱单（字段与 /inventory/packing 列表一致） */
+  packings: PackingListItem[]
+  stockOutRequests: StockOutRequestDto[]
+  stockOuts: StockOutDto[]
   receiptWriteOffs: Array<{
     id: string
     amount: number
@@ -221,6 +204,21 @@ export interface SalesOrderDetailTabAggregates {
   qcImages: QcImageReadonlyRow[]
   /** 销售订单明细详情「概况」页签（仅单条明细 aggregates 接口返回） */
   lineOverview?: SellOrderLineOverview | null
+  /** 使用备货（仅单条明细 aggregates 接口返回；按采购主单汇总备货补充拣货量） */
+  stockingUsage?: SellOrderStockingUsage | null
+}
+
+export interface SellOrderStockingUsageItem {
+  purchaseOrderId: string
+  purchaseOrderCode: string
+  purchaseOrderCreateTime?: string | null
+  purchaseUserName?: string | null
+  usedQty: number
+}
+
+export interface SellOrderStockingUsage {
+  totalUsedQty: number
+  items: SellOrderStockingUsageItem[]
 }
 
 export interface SellOrderLineOverviewQtyMetric {
@@ -250,6 +248,10 @@ export interface SellOrderLineOverview {
 
 /** 销售订单明细详情 / 参考面板「库存」Tab 行 */
 export type SellOrderItemStockTabRow = SalesOrderDetailTabAggregates['stockItems'][number]
+export type SellOrderItemStockInTabRow = SalesOrderDetailTabAggregates['stockIns'][number]
+export type SellOrderItemPackingTabRow = SalesOrderDetailTabAggregates['packings'][number]
+export type SellOrderItemStockOutNotifyTabRow = SalesOrderDetailTabAggregates['stockOutRequests'][number]
+export type SellOrderItemStockOutTabRow = SalesOrderDetailTabAggregates['stockOuts'][number]
 
 // 销售订单API
 export interface SalesOrderBatchExportLogRow {

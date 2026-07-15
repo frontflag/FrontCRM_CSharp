@@ -38,6 +38,9 @@ namespace CRM.API.Controllers
         private readonly IEmailSender _emailSender;
         private readonly IOperationLogQueryService _operationLogQuery;
         private readonly ILogOperationAppendService _logOperationAppend;
+        private readonly IStockInService _stockInService;
+        private readonly IArrivalNoticeListQuery _arrivalNoticeListQuery;
+        private readonly IInventoryStockItemListQuery _inventoryStockItemListQuery;
         private readonly ApplicationDbContext _db;
         private readonly ILogger<PurchaseOrdersController> _logger;
 
@@ -51,6 +54,9 @@ namespace CRM.API.Controllers
             IEmailSender emailSender,
             IOperationLogQueryService operationLogQuery,
             ILogOperationAppendService logOperationAppend,
+            IStockInService stockInService,
+            IArrivalNoticeListQuery arrivalNoticeListQuery,
+            IInventoryStockItemListQuery inventoryStockItemListQuery,
             ApplicationDbContext db,
             ILogger<PurchaseOrdersController> logger)
         {
@@ -63,6 +69,9 @@ namespace CRM.API.Controllers
             _emailSender = emailSender;
             _operationLogQuery = operationLogQuery;
             _logOperationAppend = logOperationAppend;
+            _stockInService = stockInService;
+            _arrivalNoticeListQuery = arrivalNoticeListQuery;
+            _inventoryStockItemListQuery = inventoryStockItemListQuery;
             _db = db;
             _logger = logger;
         }
@@ -485,8 +494,9 @@ namespace CRM.API.Controllers
                     return StatusCode(403, new { success = false, message = "无权限访问该采购订单" });
                 var summary = await GetPermissionSummaryAsync(userId);
                 var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
+                var mask521 = SaleSensitiveFieldMask521.ShouldMask(summary);
 
-                var data = await BuildPurchaseOrderDetailTabAggregatesPayloadAsync(id, order, purchaseOrderItemIdScope: null, mask511);
+                var data = await BuildPurchaseOrderDetailTabAggregatesPayloadAsync(id, order, purchaseOrderItemIdScope: null, mask511, mask521, userId);
                 return Ok(new { success = true, data });
             }
             catch (Exception ex)
@@ -523,8 +533,9 @@ namespace CRM.API.Controllers
 
                 var summary = await GetPermissionSummaryAsync(userId);
                 var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
+                var mask521 = SaleSensitiveFieldMask521.ShouldMask(summary);
 
-                var data = await BuildPurchaseOrderDetailTabAggregatesPayloadAsync(id, order, lineId, mask511);
+                var data = await BuildPurchaseOrderDetailTabAggregatesPayloadAsync(id, order, lineId, mask511, mask521, userId);
                 return Ok(new { success = true, data });
             }
             catch (Exception ex)
@@ -539,7 +550,9 @@ namespace CRM.API.Controllers
             string purchaseOrderId,
             PurchaseOrder order,
             string? purchaseOrderItemIdScope,
-            bool mask511)
+            bool mask511,
+            bool mask521,
+            string? currentUserId = null)
         {
             var allItems = order.Items ?? new List<PurchaseOrderItem>();
             List<string> poItemIds;
@@ -635,25 +648,7 @@ namespace CRM.API.Controllers
                 })
                 .ToListAsync();
 
-            IQueryable<StockInNotify> noticeQuery = _db.StockInNotifies.AsNoTracking().Where(x => x.PurchaseOrderId == purchaseOrderId);
-            if (!string.IsNullOrWhiteSpace(purchaseOrderItemIdScope))
-                noticeQuery = noticeQuery.Where(x => poItemIds.Contains(x.PurchaseOrderItemId));
-
-            var noticeRows = await noticeQuery
-                .OrderByDescending(x => x.CreateTime)
-                .Select(x => new
-                {
-                    id = x.Id,
-                    noticeCode = x.NoticeCode,
-                    x.Pn,
-                    x.Brand,
-                    x.ExpectQty,
-                    x.ReceiveQty,
-                    x.Status,
-                    x.ExpectedArrivalDate,
-                    x.CreateTime
-                })
-                .ToListAsync();
+            var noticeRows = await BuildPurchaseOrderTabArrivalNoticesAsync(poItemIds, mask511, currentUserId);
 
             var stockInIds = poItemIds.Count == 0
                 ? new List<string>()
@@ -662,38 +657,10 @@ namespace CRM.API.Controllers
                     .Select(x => x.StockInId)
                     .Distinct()
                     .ToListAsync();
-            var stockInRows = await _db.StockIns.AsNoTracking()
-                .Where(x => stockInIds.Contains(x.Id))
-                .OrderByDescending(x => x.CreateTime)
-                .Select(x => new
-                {
-                    id = x.Id,
-                    stockInCode = x.StockInCode,
-                    x.StockInType,
-                    x.Status,
-                    x.StockInDate,
-                    x.CreateTime
-                })
-                .ToListAsync();
 
-            var stockItemRows = poItemIds.Count == 0
-                ? new List<object>()
-                : (await _db.StockItems.AsNoTracking()
-                    .Where(x => x.PurchaseOrderItemId != null && poItemIds.Contains(x.PurchaseOrderItemId))
-                    .OrderByDescending(x => x.CreateTime)
-                    .Select(x => new
-                    {
-                        id = x.Id,
-                        x.StockItemCode,
-                        x.StockAggregateId,
-                        x.PurchasePn,
-                        x.PurchaseBrand,
-                        x.QtyRepertory,
-                        x.QtyRepertoryAvailable,
-                        x.PurchaseOrderItemId,
-                        x.PurchaseOrderItemCode
-                    })
-                    .ToListAsync()).Cast<object>().ToList();
+            var stockInRows = await BuildPurchaseOrderTabStockInsAsync(poItemIds, mask511);
+
+            var stockItemRows = await BuildPurchaseOrderTabStockItemsAsync(poItemIds, mask511, mask521, currentUserId);
 
             var invHeaderIds = stockInIds.Count == 0
                 ? new List<string>()
@@ -811,6 +778,234 @@ namespace CRM.API.Controllers
                 lineOverview
             };
         }
+
+        /// <summary>
+        /// 采购明细下游「到货通知」：按 <c>purchase_order_item_id</c> 关联到货通知，字段与到货通知列表（<see cref="StockInNotify"/> 列表序列化）一致。
+        /// </summary>
+        private async Task<List<object>> BuildPurchaseOrderTabArrivalNoticesAsync(
+            IReadOnlyList<string> poItemIds,
+            bool mask511,
+            string? currentUserId)
+        {
+            if (poItemIds.Count == 0)
+                return new List<object>();
+
+            var orderedIds = await _db.StockInNotifies.AsNoTracking()
+                .Where(x => !x.IsDeleted && poItemIds.Contains(x.PurchaseOrderItemId))
+                .OrderByDescending(x => x.CreateTime)
+                .ThenByDescending(x => x.Id)
+                .Select(x => x.Id)
+                .ToListAsync();
+
+            if (orderedIds.Count == 0)
+                return new List<object>();
+
+            var rows = await _arrivalNoticeListQuery.GetByIdsAsync(
+                orderedIds,
+                currentUserId,
+                applyDataScope: false);
+
+            if (mask511)
+                PurchaseSensitiveFieldMask511.ApplyStockInNotifies(rows, true);
+
+            return rows.Select(n => (object)new
+            {
+                id = n.Id,
+                noticeCode = n.NoticeCode,
+                purchaseOrderId = n.PurchaseOrderId,
+                purchaseOrderCode = n.PurchaseOrderCode,
+                freightForwarderOrderNo = n.FreightForwarderOrderNo,
+                purchaseOrderItemId = n.PurchaseOrderItemId,
+                sellOrderItemId = n.SellOrderItemId,
+                vendorId = n.VendorId,
+                vendorName = n.VendorName,
+                vendorEnglishName = n.VendorEnglishName,
+                vendorCode = n.VendorCode,
+                purchaseUserName = n.PurchaseUserName,
+                status = n.Status,
+                expectedArrivalDate = n.ExpectedArrivalDate,
+                regionType = n.RegionType,
+                stockInType = n.StockInType,
+                pn = n.Pn,
+                brand = n.Brand,
+                expectQty = n.ExpectQty,
+                receiveQty = n.ReceiveQty,
+                passedQty = n.PassedQty,
+                remark = n.Remark,
+                shipmentMethod = n.ShipmentMethod,
+                courierTrackingNo = n.CourierTrackingNo,
+                expressCompany = n.ExpressCompany,
+                customsDeclarationId = n.CustomsDeclarationId,
+                customsDeclarationCode = n.CustomsDeclarationCode,
+                createTime = n.CreateTime,
+                items = new[]
+                {
+                    new
+                    {
+                        id = n.Id,
+                        stockInNotifyId = n.Id,
+                        purchaseOrderItemId = n.PurchaseOrderItemId,
+                        pn = n.Pn,
+                        brand = n.Brand,
+                        qty = n.ExpectQty,
+                        arrivedQty = n.ReceiveQty,
+                        passedQty = n.PassedQty
+                    }
+                }
+            }).ToList();
+        }
+
+        /// <summary>
+        /// 采购明细下游「入库」：经入库明细扩展 <c>purchase_order_item_id</c> 反查入库单，字段与入库单列表（<see cref="StockInListItemDto"/>）一致。
+        /// </summary>
+        private async Task<List<object>> BuildPurchaseOrderTabStockInsAsync(IReadOnlyList<string> poItemIds, bool mask511)
+        {
+            if (poItemIds.Count == 0)
+                return new List<object>();
+
+            var stockInIdList = await _db.StockInItemExtends.AsNoTracking()
+                .Where(e => e.PurchaseOrderItemId != null && poItemIds.Contains(e.PurchaseOrderItemId!))
+                .Select(e => e.StockInId)
+                .Distinct()
+                .ToListAsync();
+
+            if (stockInIdList.Count == 0)
+                return new List<object>();
+
+            var orderedIds = await _db.StockIns.AsNoTracking()
+                .Where(si => stockInIdList.Contains(si.Id))
+                .OrderByDescending(si => si.CreateTime)
+                .ThenByDescending(si => si.Id)
+                .Select(si => si.Id)
+                .ToListAsync();
+
+            if (orderedIds.Count == 0)
+                return new List<object>();
+
+            var dtos = await _stockInService.GetStockInListItemsByIdsAsync(orderedIds);
+            if (mask511)
+                PurchaseSensitiveFieldMask511.ApplyStockInListItems(dtos, true);
+
+            return dtos.Select(d => (object)new
+            {
+                id = d.Id,
+                stockInCode = d.StockInCode,
+                stockInType = d.StockInType,
+                sourceDisplayNo = d.SourceDisplayNo,
+                warehouseId = d.WarehouseId,
+                vendorId = d.VendorId,
+                vendorName = d.VendorName,
+                vendorEnglishName = d.VendorEnglishName,
+                vendorCode = d.VendorCode,
+                purchaseOrderCode = d.PurchaseOrderCode,
+                freightForwarderOrderNo = d.FreightForwarderOrderNo,
+                salesOrderCode = d.SalesOrderCode,
+                materialModelSummary = d.MaterialModelSummary,
+                materialBrandSummary = d.MaterialBrandSummary,
+                stockInDate = d.StockInDate,
+                totalQuantity = d.TotalQuantity,
+                totalAmount = d.TotalAmount,
+                currencyCode = d.CurrencyCode,
+                status = d.Status,
+                remark = d.Remark,
+                createTime = d.CreateTime,
+                createUserName = d.CreateUserName,
+                hasBatchEntered = d.HasBatchEntered,
+                customsDeclarationId = d.CustomsDeclarationId,
+                customsDeclarationCode = d.CustomsDeclarationCode
+            }).ToList();
+        }
+
+        /// <summary>
+        /// 采购明细下游「库存」：按 <c>purchase_order_item_id</c> 关联库存明细，字段与全库库存明细列表（<see cref="InventoryStockItemListRowDto"/>）一致。
+        /// </summary>
+        private async Task<List<object>> BuildPurchaseOrderTabStockItemsAsync(
+            IReadOnlyList<string> poItemIds,
+            bool mask511,
+            bool mask521,
+            string? currentUserId)
+        {
+            if (poItemIds.Count == 0)
+                return new List<object>();
+
+            var orderedIds = await _db.StockItems.AsNoTracking()
+                .Where(x =>
+                    x.PurchaseOrderItemId != null &&
+                    poItemIds.Contains(x.PurchaseOrderItemId) &&
+                    (x.TransferType == null || x.TransferType != StockItemTransferTypeCodes.ManualTransferSource))
+                .OrderByDescending(x => x.CreateTime)
+                .ThenByDescending(x => x.Id)
+                .Select(x => x.Id)
+                .ToListAsync();
+
+            if (orderedIds.Count == 0)
+                return new List<object>();
+
+            var rows = await _inventoryStockItemListQuery.GetByIdsAsync(
+                orderedIds,
+                currentUserId,
+                applyDataScope: false);
+
+            if (mask511)
+                PurchaseSensitiveFieldMask511.ApplyInventoryStockItemListRows(rows, true);
+            if (mask521)
+                SaleSensitiveFieldMask521.ApplyInventoryStockItemListRows(rows, true);
+
+            return rows.Select(r => (object)MapPurchaseOrderTabStockItemRow(r)).ToList();
+        }
+
+        private static object MapPurchaseOrderTabStockItemRow(InventoryStockItemListRowDto r) =>
+            new
+            {
+                stockItemId = r.StockItemId,
+                stockItemCode = r.StockItemCode,
+                stockInItemId = r.StockInItemId,
+                stockInItemCode = r.StockInItemCode,
+                stockInId = r.StockInId,
+                stockInCode = r.StockInCode,
+                stockInDate = r.StockInDate,
+                materialId = r.MaterialId,
+                locationId = r.LocationId,
+                batchNo = r.BatchNo,
+                productionDate = r.ProductionDate,
+                purchasePn = r.PurchasePn,
+                purchaseBrand = r.PurchaseBrand,
+                freightForwarderOrderNo = r.FreightForwarderOrderNo,
+                purchaseOrderItemCode = r.PurchaseOrderItemCode,
+                sellOrderItemCode = r.SellOrderItemCode,
+                qtyInbound = r.QtyInbound,
+                qtyStockOut = r.QtyStockOut,
+                qtyRepertory = r.QtyRepertory,
+                qtyRepertoryAvailable = r.QtyRepertoryAvailable,
+                qtyOccupy = r.QtyOccupy,
+                qtySales = r.QtySales,
+                purchasePrice = r.PurchasePrice,
+                purchaseCurrency = r.PurchaseCurrency,
+                purchasePriceUsd = r.PurchasePriceUsd,
+                salesPrice = r.SalesPrice,
+                salesCurrency = r.SalesCurrency,
+                salesPriceUsd = r.SalesPriceUsd,
+                vendorId = r.VendorId,
+                vendorName = r.VendorName,
+                vendorEnglishName = r.VendorEnglishName,
+                vendorCode = r.VendorCode,
+                customerId = r.CustomerId,
+                customerName = r.CustomerName,
+                regionType = r.RegionType,
+                stockType = r.StockType,
+                stockInType = r.StockInType,
+                customerPn = r.CustomerPn,
+                customerBrand = r.CustomerBrand,
+                purchaserName = r.PurchaserName,
+                salespersonName = r.SalespersonName,
+                createTime = r.CreateTime,
+                stockAggregateId = r.StockAggregateId,
+                warehouseId = r.WarehouseId,
+                warehouseCode = r.WarehouseCode,
+                warehouseName = r.WarehouseName,
+                outboundStatus = r.OutboundStatus,
+                profitOutBizUsd = r.ProfitOutBizUsd
+            };
 
         /// <summary>采购订单明细详情「概况」页签：4×7 执行进度矩阵（仅单条明细 scope 时返回）。</summary>
         private async Task<object?> BuildPurchaseOrderLineOverviewAsync(

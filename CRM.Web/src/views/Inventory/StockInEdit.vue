@@ -417,11 +417,15 @@
           <el-table-column :label="t('stockInDetail.customsDeclaration')" min-width="120">
             <template #default="{ row }">{{ row.declarationCode }}-{{ row.lineNo }}</template>
           </el-table-column>
-          <el-table-column :label="t('stockInDetail.purchasePn')" min-width="120" show-overflow-tooltip>
-            <template #default="{ row }">{{ row.purchasePn || '—' }}</template>
+          <el-table-column :label="t('stockInDetail.purchasePn')" min-width="120">
+            <template #default="{ row }">
+              <CrmListCopyableTextCell :text="pickCrmCopyableRowField(row, 'purchasePn')" />
+            </template>
           </el-table-column>
-          <el-table-column :label="t('customsPages.items.colBrand')" width="96" show-overflow-tooltip>
-            <template #default="{ row }">{{ row.purchaseBrand || '—' }}</template>
+          <el-table-column :label="t('customsPages.items.colBrand')" width="96">
+            <template #default="{ row }">
+              <CrmListCopyableTextCell :text="pickCrmCopyableRowField(row, 'purchaseBrand')" />
+            </template>
           </el-table-column>
           <el-table-column :label="t('stockInDetail.hsCode')" width="100" show-overflow-tooltip>
             <template #default="{ row }">{{ row.hsCode || '—' }}</template>
@@ -558,14 +562,18 @@
                 <span class="stockin-report-cell">{{ reportCellText(formatRowVendorName(row)) }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="物料型号" min-width="168" show-overflow-tooltip>
+            <el-table-column label="物料型号" min-width="168">
               <template #default="{ row }">
-                <span class="stockin-report-cell">{{ reportCellText(row.materialName) }}</span>
+                <span class="stockin-report-cell">
+                  <CrmListCopyableTextCell :text="String(row.materialName ?? '').trim()" />
+                </span>
               </template>
             </el-table-column>
-            <el-table-column label="品牌" min-width="120" show-overflow-tooltip>
+            <el-table-column label="品牌" min-width="120">
               <template #default="{ row }">
-                <span class="stockin-report-cell">{{ reportCellText(row.materialBrand) }}</span>
+                <span class="stockin-report-cell">
+                  <CrmListCopyableTextCell :text="String(row.materialBrand ?? '').trim()" />
+                </span>
               </template>
             </el-table-column>
             <el-table-column
@@ -744,14 +752,18 @@
                 <span class="stockin-report-cell">{{ reportDateTimeText(row.stockInDate) }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="物料型号" min-width="168" show-overflow-tooltip>
+            <el-table-column label="物料型号" min-width="168">
               <template #default="{ row }">
-                <span class="stockin-report-cell">{{ reportCellText(row.purchasePn) }}</span>
+                <span class="stockin-report-cell">
+                  <CrmListCopyableTextCell :text="pickCrmCopyableRowField(row, 'purchasePn')" />
+                </span>
               </template>
             </el-table-column>
-            <el-table-column label="品牌" min-width="120" show-overflow-tooltip>
+            <el-table-column label="品牌" min-width="120">
               <template #default="{ row }">
-                <span class="stockin-report-cell">{{ reportCellText(row.purchaseBrand) }}</span>
+                <span class="stockin-report-cell">
+                  <CrmListCopyableTextCell :text="pickCrmCopyableRowField(row, 'purchaseBrand')" />
+                </span>
               </template>
             </el-table-column>
             <el-table-column label="客户物料型号" min-width="140" show-overflow-tooltip>
@@ -943,6 +955,7 @@ import CrmDataTable from '@/components/CrmDataTable.vue'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { formatVendorNameReadonly } from '@/utils/vendorDisplayName'
+import { pickCrmCopyableRowField } from '@/utils/crmListCopyableField'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { normalizeRegionType, REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS } from '@/constants/regionType'

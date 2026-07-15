@@ -114,14 +114,14 @@
         </div>
         <el-table :data="form.items" class="quantum-table">
           <el-table-column type="index" width="50" />
-          <el-table-column label="物料型号" min-width="140" show-overflow-tooltip>
+          <el-table-column label="物料型号" min-width="140">
             <template #default="{ row }">
-              <span class="stock-out-line-material">{{ (row.materialCode || '').trim() || '—' }}</span>
+              <CrmListCopyableTextCell :text="(row.materialCode || '').trim()" />
             </template>
           </el-table-column>
-          <el-table-column label="品牌" min-width="160" show-overflow-tooltip>
+          <el-table-column label="品牌" min-width="160">
             <template #default="{ row }">
-              <span class="stock-out-line-material">{{ (row.materialName || '').trim() || '—' }}</span>
+              <CrmListCopyableTextCell :text="(row.materialName || '').trim()" />
             </template>
           </el-table-column>
           <el-table-column label="出库数量" width="110" align="right">
@@ -362,8 +362,8 @@
         <el-table-column :label="t('packingDetail.itemCode')" prop="itemCode" min-width="140" show-overflow-tooltip>
           <template #default="{ row }">{{ row.itemCode || '—' }}</template>
         </el-table-column>
-        <el-table-column :label="t('packingItemList.columns.pn')" prop="pn" min-width="140" show-overflow-tooltip />
-        <el-table-column :label="t('packingItemList.columns.brand')" prop="brand" min-width="120" show-overflow-tooltip />
+        <CrmCopyableTableColumn :label="t('packingItemList.columns.pn')" prop="pn" min-width="140" />
+        <CrmCopyableTableColumn :label="t('packingItemList.columns.brand')" prop="brand" min-width="120" />
         <el-table-column :label="t('packingItemList.columns.qty')" prop="qty" width="88" align="right">
           <template #default="{ row }">{{ formatQty(row.qty) }}</template>
         </el-table-column>
@@ -477,15 +477,20 @@
         <el-table-column
           :label="t('common.freightForwarderOrderNo')"
           min-width="140"
-          show-overflow-tooltip
         >
-          <template #default="{ row }">{{ row.freightForwarderOrderNo?.trim() || '—' }}</template>
+          <template #default="{ row }">
+            <CrmListCopyableTextCell :text="pickCrmCopyableRowField(row, 'freightForwarderOrderNo')" />
+          </template>
         </el-table-column>
-        <el-table-column label="型号" min-width="100" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.purchasePn || '—' }}</template>
+        <el-table-column label="型号" min-width="100">
+          <template #default="{ row }">
+            <CrmListCopyableTextCell :text="pickCrmCopyableRowField(row, 'purchasePn')" />
+          </template>
         </el-table-column>
-        <el-table-column label="品牌" min-width="88" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.purchaseBrand || '—' }}</template>
+        <el-table-column label="品牌" min-width="88">
+          <template #default="{ row }">
+            <CrmListCopyableTextCell :text="pickCrmCopyableRowField(row, 'purchaseBrand')" />
+          </template>
         </el-table-column>
         <el-table-column
           :label="t('inventoryList.columns.stockType')"
@@ -546,6 +551,7 @@ import {
   type WarehouseInfo
 } from '@/api/inventoryCenter'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { pickCrmCopyableRowField } from '@/utils/crmListCopyableField'
 import { formatDisplayDateTime, formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import { STOCK_OUT_REQUEST_STATUS } from '@/constants/stockOutRequestStatus'
 import { packingApi } from '@/api/packing'

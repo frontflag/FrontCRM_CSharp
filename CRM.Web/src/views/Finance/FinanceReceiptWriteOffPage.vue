@@ -377,8 +377,10 @@
             <el-table-column prop="salesUserName" :label="t('financeReceiptWriteOff.colSalesUser')" width="96" show-overflow-tooltip>
               <template #default="{ row }">{{ row.salesUserName || '—' }}</template>
             </el-table-column>
-            <el-table-column prop="freightForwarderOrderNo" :label="t('financeReceiptWriteOff.colFreightForwarder')" min-width="110" show-overflow-tooltip>
-              <template #default="{ row }">{{ row.freightForwarderOrderNo || '—' }}</template>
+            <el-table-column prop="freightForwarderOrderNo" :label="t('financeReceiptWriteOff.colFreightForwarder')" min-width="110">
+              <template #default="{ row }">
+                <CrmListCopyableTextCell :text="pickCrmCopyableRowField(row, 'freightForwarderOrderNo')" />
+              </template>
             </el-table-column>
             <el-table-column prop="stockInCode" :label="t('financeReceiptWriteOff.colStockInCode')" min-width="110" show-overflow-tooltip>
               <template #default="{ row }">{{ row.stockInCode || '—' }}</template>
@@ -455,6 +457,7 @@ import { useCustomerExtendColumn } from '@/composables/useCustomerExtendColumn'
 import { useWriteOffReceiptDateExtendColumn } from '@/composables/useWriteOffReceiptDateExtendColumn'
 import type { CustomerExtendRowSlice } from '@/constants/listCustomerExtendColumnSpec'
 import type { WriteOffReceiptDateRowSlice } from '@/constants/writeOffReceiptDateExtendColumnSpec'
+import { pickCrmCopyableRowField } from '@/utils/crmListCopyableField'
 
 type ReceivableWriteOffRow = FinanceReceivableWriteOffCandidateRow & {
   writeOffAmount: number

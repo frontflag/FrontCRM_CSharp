@@ -162,8 +162,8 @@
         <h3 class="section-title">{{ t('packingDetail.sectionLines') }}</h3>
         <el-table :data="draft.lines" border class="lines-table" size="small" :empty-text="t('packingDetail.linesEmpty')">
           <el-table-column :label="t('stockOutNotifyList.columns.requestCode')" prop="requestCode" min-width="140" show-overflow-tooltip />
-          <el-table-column :label="t('packingItemList.columns.pn')" prop="pn" min-width="140" show-overflow-tooltip />
-          <el-table-column :label="t('packingItemList.columns.brand')" prop="brand" min-width="120" show-overflow-tooltip />
+          <CrmCopyableTableColumn :label="t('packingItemList.columns.pn')" prop="pn" min-width="140" />
+          <CrmCopyableTableColumn :label="t('packingItemList.columns.brand')" prop="brand" min-width="120" />
           <el-table-column :label="t('packingItemList.columns.qty')" prop="qty" width="88" align="right" />
           <el-table-column :label="t('packingItemList.columns.sellOrderCode')" min-width="140" show-overflow-tooltip>
             <template #default="{ row }">{{ row.sellOrderCode || '—' }}</template>

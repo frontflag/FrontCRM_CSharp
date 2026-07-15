@@ -38,8 +38,8 @@
           </span>
         </template>
       </el-table-column>
-      <el-table-column prop="purchasePn" label="PN" min-width="140" show-overflow-tooltip />
-      <el-table-column prop="purchaseBrand" :label="t('sellOrderItemStockTab.colBrand')" width="120" show-overflow-tooltip />
+      <CrmCopyableTableColumn prop="purchasePn" label="PN" min-width="140" />
+      <CrmCopyableTableColumn prop="purchaseBrand" :label="t('sellOrderItemStockTab.colBrand')" width="120" />
       <el-table-column :label="t('sellOrderItemStockTab.colQtyInbound')" width="110" align="right" prop="qtyInbound" />
       <el-table-column :label="t('sellOrderItemStockTab.colQtyStockOut')" width="110" align="right" prop="qtyStockOut" />
       <el-table-column :label="t('sellOrderItemStockTab.colQtyRepertory')" width="100" align="right" prop="qtyRepertory" />

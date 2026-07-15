@@ -78,7 +78,7 @@
           :align="col.align"
           :sortable="col.sortable"
           :formatter="col.formatter"
-          :show-overflow-tooltip="isCrmListCopyableFieldKey(col.key) ? false : col.showOverflowTooltip"
+          :show-overflow-tooltip="isCrmListCopyableColumn(col) ? false : col.showOverflowTooltip"
           :class-name="col.className"
           :label-class-name="col.labelClassName"
           :resizable="col.resizable !== false && col.type !== 'selection'"
@@ -91,7 +91,7 @@
             <slot :name="slotName(col)" v-bind="scope" />
           </template>
           <template
-            v-else-if="col.type !== 'selection' && col.type !== 'index' && isCrmListCopyableFieldKey(col.key)"
+            v-else-if="col.type !== 'selection' && col.type !== 'index' && isCrmListCopyableColumn(col)"
             #default="scope"
           >
             <CrmListCopyableTextCell
@@ -185,7 +185,7 @@ import {
 } from '@/utils/crmTableRowDensityStorage'
 import CrmListCopyableTextCell from '@/components/CrmListCopyableTextCell.vue'
 import {
-  isCrmListCopyableFieldKey,
+  isCrmListCopyableColumn,
   resolveCrmListCopyableCellValue
 } from '@/utils/crmListCopyableField'
 import {

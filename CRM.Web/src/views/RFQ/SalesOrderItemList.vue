@@ -529,7 +529,7 @@
               min-width="120"
               show-overflow-tooltip
             />
-            <el-table-column prop="pn" :label="t('salesOrderItemList.columns.pn')" min-width="130" show-overflow-tooltip />
+            <CrmCopyableTableColumn prop="pn" :label="t('salesOrderItemList.columns.pn')" min-width="130" />
             <el-table-column prop="qty" :label="t('salesOrderItemList.columns.qty')" width="72" align="right" />
             <el-table-column
               :label="t('salesOrderItemList.columns.actions')"

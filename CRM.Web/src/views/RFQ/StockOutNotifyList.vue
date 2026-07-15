@@ -248,14 +248,23 @@
         >
           {{ t('stockOutNotifyList.basket.clear') }}
         </el-button>
-        <button
-          type="button"
-          class="btn-primary btn-sm basket-batch-purchase-btn"
-          :disabled="!basketCount"
-          @click="handleCreatePacking"
+        <el-tooltip
+          :content="t('stockOutNotifyList.packing.createPackingSelectFirst')"
+          placement="top"
+          :disabled="!!basketCount"
+          :hide-after="0"
         >
-          {{ t('stockOutNotifyList.actions.createPacking') }}
-        </button>
+          <span class="basket-batch-purchase-btn-wrap">
+            <button
+              type="button"
+              class="btn-primary btn-sm basket-batch-purchase-btn"
+              :disabled="!basketCount"
+              @click="handleCreatePacking"
+            >
+              {{ t('stockOutNotifyList.actions.createPacking') }}
+            </button>
+          </span>
+        </el-tooltip>
       </div>
       <el-pagination
         class="list-main-pagination quantum-pagination"
@@ -735,6 +744,7 @@ async function showPackingValidationAlert(reasons: string[]) {
 }
 
 async function handleCreatePacking() {
+  if (!basketCount.value) return
   const rows = basketStore.items.filter(isPendingNotify)
   const validation = validatePackingSelection(rows)
   if (!validation.ok) {
@@ -993,9 +1003,14 @@ onMounted(() => {
   transition: all 0.2s;
   letter-spacing: 0.5px;
 
-  &:hover {
+  &:hover:not(:disabled) {
     transform: translateY(-1px);
     box-shadow: 0 4px 16px rgba(0, 212, 255, 0.25);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
   }
 
   &.btn-sm {
@@ -1088,6 +1103,11 @@ onMounted(() => {
 .list-footer-spacer {
   width: 26px;
   flex: 0 0 26px;
+}
+
+.basket-batch-purchase-btn-wrap {
+  display: inline-flex;
+  vertical-align: middle;
 }
 
 .basket-batch-purchase-btn {

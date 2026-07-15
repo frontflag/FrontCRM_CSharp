@@ -242,8 +242,8 @@
                 >
                   <template #default="{ row }">{{ row.itemCode?.trim() || '—' }}</template>
                 </el-table-column>
-                <el-table-column :label="t('packingItemList.columns.pn')" prop="pn" min-width="140" show-overflow-tooltip />
-                <el-table-column :label="t('packingItemList.columns.brand')" prop="brand" min-width="120" show-overflow-tooltip />
+                <CrmCopyableTableColumn :label="t('packingItemList.columns.pn')" prop="pn" min-width="140" />
+                <CrmCopyableTableColumn :label="t('packingItemList.columns.brand')" prop="brand" min-width="120" />
                 <el-table-column :label="t('packingItemList.columns.qty')" prop="qty" width="88" align="right" />
                 <el-table-column :label="t('packingDetail.unit')" prop="unit" width="72" />
                 <el-table-column :label="t('packingItemList.columns.sellOrderCode')" min-width="140" show-overflow-tooltip>
@@ -429,13 +429,12 @@
                   min-width="140"
                   show-overflow-tooltip
                 />
-                <el-table-column
+                <CrmCopyableTableColumn
                   :label="t('stockOutNotifyList.columns.materialModel')"
                   prop="materialModel"
                   min-width="140"
-                  show-overflow-tooltip
                 />
-                <el-table-column :label="t('stockOutNotifyList.columns.brand')" prop="brand" min-width="120" show-overflow-tooltip />
+                <CrmCopyableTableColumn :label="t('stockOutNotifyList.columns.brand')" prop="brand" min-width="120" />
                 <el-table-column :label="t('stockOutNotifyList.columns.outQuantity')" prop="outQuantity" width="100" align="right" />
                 <el-table-column :label="t('stockOutNotifyList.columns.regionType')" width="100" align="center">
                   <template #default="{ row }">{{ stockOutNotifyRegionLabel(row) }}</template>

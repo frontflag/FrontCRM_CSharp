@@ -151,12 +151,8 @@
       <el-table-column prop="salesUserName" :label="t('stockOutItemList.columns.salesUserName')" width="100" show-overflow-tooltip>
         <template #default="{ row }">{{ maskSaleSensitiveFields ? '—' : row.salesUserName || t('quoteList.na') }}</template>
       </el-table-column>
-      <el-table-column prop="purchasePn" :label="t('stockOutItemList.columns.purchasePn')" min-width="130" show-overflow-tooltip>
-        <template #default="{ row }">{{ row.purchasePn || t('quoteList.na') }}</template>
-      </el-table-column>
-      <el-table-column prop="purchaseBrand" :label="t('stockOutItemList.columns.purchaseBrand')" min-width="100" show-overflow-tooltip>
-        <template #default="{ row }">{{ row.purchaseBrand || t('quoteList.na') }}</template>
-      </el-table-column>
+      <CrmCopyableTableColumn prop="purchasePn" :label="t('stockOutItemList.columns.purchasePn')" min-width="130" :empty-text="t('quoteList.na')" />
+      <CrmCopyableTableColumn prop="purchaseBrand" :label="t('stockOutItemList.columns.purchaseBrand')" min-width="100" :empty-text="t('quoteList.na')" />
       <el-table-column
         prop="outQuantity"
         :label="t('stockOutItemList.columns.outQuantity')"

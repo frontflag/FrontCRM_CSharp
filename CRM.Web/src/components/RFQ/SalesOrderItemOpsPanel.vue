@@ -73,17 +73,69 @@
           <h3 class="ops-card__title">{{ t('salesOrderItemList.opsPanel.stockTitle') }}</h3>
         </header>
         <div class="ops-card__body">
-          <div class="ops-kv">
-            <span class="ops-kv__label">{{ t('salesOrderItemList.opsPanel.stockDomestic') }}</span>
-            <span class="ops-kv__value ops-kv__value--accent">{{ formatQty(stockSummary.domestic) }}</span>
-          </div>
-          <div class="ops-kv">
-            <span class="ops-kv__label">{{ t('salesOrderItemList.opsPanel.stockOverseas') }}</span>
-            <span class="ops-kv__value ops-kv__value--accent">{{ formatQty(stockSummary.overseas) }}</span>
+          <div class="ops-stock-region-row">
+            <div class="ops-stock-region-cell">
+              <span class="ops-kv__label">{{ t('salesOrderItemList.opsPanel.stockDomestic') }}</span>
+              <span class="ops-kv__sep" aria-hidden="true">：</span>
+              <span class="ops-kv__value ops-kv__value--accent">{{ formatQty(stockSummary.domestic) }}</span>
+            </div>
+            <div class="ops-stock-region-cell">
+              <span class="ops-kv__label">{{ t('salesOrderItemList.opsPanel.stockOverseas') }}</span>
+              <span class="ops-kv__sep" aria-hidden="true">：</span>
+              <span class="ops-kv__value ops-kv__value--accent">{{ formatQty(stockSummary.overseas) }}</span>
+            </div>
           </div>
           <div class="ops-kv ops-kv--divider">
             <span class="ops-kv__label">{{ t('salesOrderItemList.opsPanel.stockTotal') }}</span>
             <span class="ops-kv__value ops-kv__value--strong">{{ formatQty(stockSummary.total) }}</span>
+          </div>
+        </div>
+      </section>
+
+      <section v-if="showStockingUsagePanel" class="ops-card">
+        <header class="ops-card__head">
+          <h3 class="ops-card__title">{{ t('salesOrderItemList.opsPanel.stockingUsageTitle') }}</h3>
+        </header>
+        <div class="ops-card__body ops-card__body--stocking-usage">
+          <div
+            v-for="(entry, idx) in stockingUsageItems"
+            :key="entry.purchaseOrderId || idx"
+            class="ops-stocking-usage-entry"
+            :class="{ 'ops-stocking-usage-entry--divider': idx > 0 }"
+          >
+            <div class="ops-stock-region-row">
+              <div class="ops-stock-region-cell">
+                <span class="ops-kv__label">{{ t('salesOrderItemList.opsPanel.stockingUsagePoCode') }}</span>
+                <span class="ops-kv__sep" aria-hidden="true">：</span>
+                <span class="ops-kv__value">
+                  <router-link
+                    v-if="entry.purchaseOrderId && canViewPurchaseOrder"
+                    :to="{ name: 'PurchaseOrderDetail', params: { id: entry.purchaseOrderId } }"
+                    class="cell-link"
+                  >
+                    {{ entry.purchaseOrderCode || '—' }}
+                  </router-link>
+                  <span v-else>{{ entry.purchaseOrderCode || '—' }}</span>
+                </span>
+              </div>
+              <div class="ops-stock-region-cell">
+                <span class="ops-kv__label">{{ t('salesOrderItemList.opsPanel.stockingUsagePurchaser') }}</span>
+                <span class="ops-kv__sep" aria-hidden="true">：</span>
+                <span class="ops-kv__value">{{ entry.purchaseUserName?.trim() || '—' }}</span>
+              </div>
+            </div>
+            <div class="ops-stock-region-row">
+              <div class="ops-stock-region-cell">
+                <span class="ops-kv__label">{{ t('salesOrderItemList.opsPanel.stockingUsagePoDate') }}</span>
+                <span class="ops-kv__sep" aria-hidden="true">：</span>
+                <span class="ops-kv__value">{{ formatPoCreateDate(entry.purchaseOrderCreateTime) }}</span>
+              </div>
+              <div class="ops-stock-region-cell">
+                <span class="ops-kv__label">{{ t('salesOrderItemList.opsPanel.stockingUsageQty') }}</span>
+                <span class="ops-kv__sep" aria-hidden="true">：</span>
+                <span class="ops-kv__value ops-kv__value--accent">{{ formatQty(entry.usedQty) }}</span>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -179,6 +231,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { CircleCheck } from '@element-plus/icons-vue'
+import { useAuthStore } from '@/stores/auth'
 import type { SalesOrderDetailTabAggregates } from '@/api/salesOrder'
 import { salesOrderMainAllowsPurchaseAndStockOut, salesOrderLineApplyStockOutButtonDisabled } from '@/constants/salesOrderStatus'
 import { formatUnitPriceWithCurrencyCodeSuffix } from '@/utils/moneyFormat'
@@ -212,6 +265,9 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const authStore = useAuthStore()
+
+const canViewPurchaseOrder = computed(() => authStore.hasPermission('purchase-order.read'))
 
 const lineCode = computed(() => String(props.row?.sellOrderItemCode ?? '—') || '—')
 const displayCustomerName = computed(() => (props.maskSensitive ? '—' : String(props.row?.customerName ?? '—') || '—'))
@@ -247,6 +303,14 @@ function progressStatus(prop: string): number | undefined {
 
 const stockSummary = computed(() => summarizeStockingByRegion(props.aggregates?.stockItems ?? []))
 const showStockPanel = computed(() => stockSummary.value.total > 0)
+
+const stockingUsageItems = computed(() => props.aggregates?.stockingUsage?.items ?? [])
+const showStockingUsagePanel = computed(() => stockingUsageItems.value.length > 0)
+
+function formatPoCreateDate(raw?: string | null): string {
+  if (!raw) return '—'
+  return String(raw).slice(0, 10)
+}
 
 const purchaseAppliedQty = computed(() => {
   const fromOverview = props.aggregates?.lineOverview?.purchaseRequisition?.done
@@ -393,6 +457,12 @@ function formatQty(v: number) {
 .so-item-ops-root--embedded .ops-kv__value {
   flex: 0 1 46%;
   max-width: 46%;
+}
+
+.so-item-ops-root--embedded .ops-stock-region-cell .ops-kv__value {
+  flex: 0 0 auto;
+  max-width: none;
+  text-align: left;
 }
 
 .so-item-ops-root--embedded .ops-kv--divider {
@@ -631,6 +701,40 @@ function formatQty(v: number) {
   border-top: 1px solid rgba(15, 23, 42, 0.08);
 }
 
+.ops-stock-region-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  padding: 6px 0;
+}
+
+.ops-stock-region-cell {
+  flex: 1 1 50%;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 0;
+  font-size: 13px;
+  text-align: left;
+}
+
+.ops-stock-region-cell .ops-kv__label {
+  flex: 0 0 auto;
+}
+
+.ops-stock-region-cell .ops-kv__sep {
+  flex: 0 0 auto;
+  color: $text-secondary;
+}
+
+.ops-stock-region-cell .ops-kv__value {
+  flex: 0 0 auto;
+  text-align: left;
+  max-width: none;
+  min-width: 0;
+}
+
 .ops-kv__label {
   color: $text-secondary;
   flex: 1;
@@ -650,6 +754,12 @@ function formatQty(v: number) {
 .ops-kv__value--accent {
   color: $cyan-primary;
   font-weight: 700;
+}
+
+.ops-stocking-usage-entry--divider {
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
 }
 
 .ops-metrics {

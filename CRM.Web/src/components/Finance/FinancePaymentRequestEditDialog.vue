@@ -139,8 +139,8 @@
         <div class="section-title">{{ t('financePaymentList.editRequest.linesSection') }}</div>
         <CrmDataTable :data="form.lines" size="small">
           <el-table-column prop="purchaseOrderCode" :label="t('financePaymentList.editRequest.colPoCode')" width="160" show-overflow-tooltip />
-          <el-table-column prop="pn" :label="t('financePaymentList.editRequest.colPn')" min-width="120" />
-          <el-table-column prop="brand" :label="t('financePaymentList.editRequest.colBrand')" width="100" />
+          <CrmCopyableTableColumn prop="pn" :label="t('financePaymentList.editRequest.colPn')" min-width="120" />
+          <CrmCopyableTableColumn prop="brand" :label="t('financePaymentList.editRequest.colBrand')" width="100" />
           <el-table-column prop="qty" :label="t('financePaymentList.editRequest.colQty')" width="90" align="right" />
           <el-table-column :label="t('financePaymentList.editRequest.colPending')" width="140" align="right">
             <template #default="{ row }">{{ formatMoney(row.pendingRequested, form.paymentCurrency) }}</template>

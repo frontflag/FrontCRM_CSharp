@@ -71,6 +71,12 @@ namespace CRM.Core.Interfaces
             int page,
             int pageSize,
             CancellationToken cancellationToken = default);
+
+        /// <summary>按 Id 批量返回入库单列表行（与 <see cref="GetListPagedAsync"/> 列表字段一致）。</summary>
+        Task<List<StockInListItemDto>> GetStockInListItemsByIdsAsync(
+            IReadOnlyList<string> ids,
+            CancellationToken cancellationToken = default);
+
         Task<StockIn> UpdateAsync(string id, UpdateStockInRequest request, string? actingUserId = null);
         Task DeleteAsync(string id);
         /// <summary>管理员强制删除：校验入库单号、调用删除链并写操作日志。</summary>

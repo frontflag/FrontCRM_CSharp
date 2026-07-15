@@ -244,9 +244,10 @@
                 prop="freightForwarderOrderNo"
                 :label="t('common.freightForwarderOrderNo')"
                 width="160"
-                show-overflow-tooltip
               >
-                <template #default="{ row }">{{ row.freightForwarderOrderNo?.trim() || stockOutItemNa }}</template>
+                <template #default="{ row }">
+                  <CrmListCopyableTextCell :text="pickCrmCopyableRowField(row, 'freightForwarderOrderNo')" :empty-text="stockOutItemNa" />
+                </template>
               </el-table-column>
               <el-table-column :label="t('stockOutItemList.columns.stockOutDate')" width="118">
                 <template #default="{ row }">{{ formatStockOutDateOnly(row.stockOutDate) }}</template>
@@ -271,17 +272,19 @@
                 prop="purchasePn"
                 :label="t('stockOutItemList.columns.purchasePn')"
                 min-width="130"
-                show-overflow-tooltip
               >
-                <template #default="{ row }">{{ row.purchasePn || stockOutItemNa }}</template>
+                <template #default="{ row }">
+                  <CrmListCopyableTextCell :text="pickCrmCopyableRowField(row, 'purchasePn')" :empty-text="stockOutItemNa" />
+                </template>
               </el-table-column>
               <el-table-column
                 prop="purchaseBrand"
                 :label="t('stockOutItemList.columns.purchaseBrand')"
                 min-width="100"
-                show-overflow-tooltip
               >
-                <template #default="{ row }">{{ row.purchaseBrand || stockOutItemNa }}</template>
+                <template #default="{ row }">
+                  <CrmListCopyableTextCell :text="pickCrmCopyableRowField(row, 'purchaseBrand')" :empty-text="stockOutItemNa" />
+                </template>
               </el-table-column>
               <el-table-column
                 prop="outQuantity"
@@ -527,6 +530,7 @@ import { translateSalesOrderStatus, salesOrderStatusTagType } from '@/constants/
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import { formatCustomerNameReadonlyFromRow } from '@/utils/customerDisplayName'
+import { pickCrmCopyableRowField } from '@/utils/crmListCopyableField'
 import { formatTotalAmountNumber, formatUnitPriceNumber, listAmountCurrencyDockClass, listAmountCurrencyIso, splitUnitPriceDockParts, unitPriceDockHasValue } from '@/utils/moneyFormat'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'

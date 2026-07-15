@@ -489,8 +489,8 @@
                 <template #default="{ row }">{{ row.deletedByUserName || '—' }}</template>
               </el-table-column>
               <el-table-column prop="purchaseOrderItemCode" label="采购订单明细编号" min-width="140" show-overflow-tooltip />
-              <el-table-column prop="pn" label="物料型号" min-width="140" show-overflow-tooltip />
-              <el-table-column prop="brand" label="品牌" width="100" show-overflow-tooltip />
+              <CrmCopyableTableColumn prop="pn" label="物料型号" min-width="140" />
+              <CrmCopyableTableColumn prop="brand" label="品牌" width="100" />
               <el-table-column label="数量" width="90" align="right" prop="qty" />
               <el-table-column label="单价+币别" width="120" align="right">
                 <template #default="{ row }">{{ formatDeletedPoItemCost(row) }}</template>
@@ -588,6 +588,14 @@
             <div class="tabs-body">
               <div v-show="poItemLinePanel.activeTab === 'overview'" class="so-line-overview-wrap">
                 <table v-if="lineTabAggregates?.lineOverview" class="so-line-overview">
+                  <colgroup>
+                    <col class="so-line-overview__col-first" />
+                    <col
+                      v-for="col in poLineOverviewColumns"
+                      :key="`cg-${col.key}`"
+                      class="so-line-overview__col-data"
+                    />
+                  </colgroup>
                   <thead>
                     <tr>
                       <th class="so-line-overview__corner" />
@@ -659,8 +667,8 @@
                   <el-table-column prop="salesUserName" label="业务员" width="120" show-overflow-tooltip>
                     <template #default="{ row }">{{ row.salesUserName?.trim() || '—' }}</template>
                   </el-table-column>
-                  <el-table-column prop="pn" label="PN" min-width="140" show-overflow-tooltip />
-                  <el-table-column prop="brand" label="品牌" width="120" show-overflow-tooltip />
+                  <CrmCopyableTableColumn prop="pn" label="PN" min-width="140" />
+                  <CrmCopyableTableColumn prop="brand" label="品牌" width="120" />
                   <el-table-column prop="qty" label="数量" width="100" align="right" />
                   <el-table-column label="预计采购" width="160">
                     <template #default="{ row }">{{ formatDateTime(row?.expectedPurchaseTime) }}</template>
@@ -733,56 +741,13 @@
                 <DetailListPanelEmpty v-else size="low" />
               </div>
               <div v-show="poItemLinePanel.activeTab === 'arrivals'" class="po-aggregate-table-wrap">
-                <el-table v-if="(lineTabAggregates?.arrivalNotices?.length ?? 0) > 0" :data="lineTabAggregates?.arrivalNotices ?? []" size="small" stripe>
-                  <el-table-column type="index" width="50" label="#" />
-                  <el-table-column prop="noticeCode" label="通知单号" min-width="180" show-overflow-tooltip />
-                  <el-table-column prop="pn" label="PN" min-width="140" show-overflow-tooltip />
-                  <el-table-column prop="brand" label="品牌" width="120" show-overflow-tooltip />
-                  <el-table-column prop="expectQty" label="预计数量" width="100" align="right" />
-                  <el-table-column prop="receiveQty" label="已收数量" width="100" align="right" />
-                  <el-table-column label="状态" width="120">
-                    <template #default="{ row }">{{ arrivalStatusText(row?.status) }}</template>
-                  </el-table-column>
-                </el-table>
-                <DetailListPanelEmpty v-else size="low" />
+                <PurchaseOrderItemArrivalNoticeTabTable :items="lineTabAggregates?.arrivalNotices ?? []" />
               </div>
               <div v-show="poItemLinePanel.activeTab === 'stockIns'" class="po-aggregate-table-wrap">
-                <el-table v-if="(lineTabAggregates?.stockIns?.length ?? 0) > 0" :data="lineTabAggregates?.stockIns ?? []" size="small" stripe>
-                  <el-table-column type="index" width="50" label="#" />
-                  <el-table-column label="入库单号" min-width="180">
-                    <template #default="{ row }">
-                      <router-link class="po-tab-link" :to="`/inventory/stock-in/${row.id}`">{{ row.stockInCode }}</router-link>
-                    </template>
-                  </el-table-column>
-                  <el-table-column label="类型" width="100">
-                    <template #default="{ row }">
-                      <StockBizTypeTag biz="in" :type="row?.stockInType" />
-                    </template>
-                  </el-table-column>
-                  <el-table-column label="状态" width="100">
-                    <template #default="{ row }">{{ stockInStatusText(row?.status) }}</template>
-                  </el-table-column>
-                  <el-table-column label="入库日期" width="160">
-                    <template #default="{ row }">{{ formatDateTime(row?.stockInDate) }}</template>
-                  </el-table-column>
-                </el-table>
-                <DetailListPanelEmpty v-else size="low" />
+                <SellOrderItemStockInTabTable :items="lineTabAggregates?.stockIns ?? []" />
               </div>
               <div v-show="poItemLinePanel.activeTab === 'stocks'" class="po-aggregate-table-wrap">
-                <el-table v-if="(lineTabAggregates?.stockItems?.length ?? 0) > 0" :data="lineTabAggregates?.stockItems ?? []" size="small" stripe>
-                  <el-table-column type="index" width="50" label="#" />
-                  <el-table-column label="在库明细" min-width="200">
-                    <template #default="{ row }">
-                      <router-link class="po-tab-link" :to="`/inventory/stocks/${row.stockAggregateId}`">{{ row.stockItemCode || row.id }}</router-link>
-                    </template>
-                  </el-table-column>
-                  <el-table-column prop="purchaseOrderItemCode" label="采购明细号" min-width="140" show-overflow-tooltip />
-                  <el-table-column prop="purchasePn" label="PN" min-width="140" show-overflow-tooltip />
-                  <el-table-column prop="purchaseBrand" label="品牌" width="120" show-overflow-tooltip />
-                  <el-table-column prop="qtyRepertory" label="现存量" width="100" align="right" />
-                  <el-table-column prop="qtyRepertoryAvailable" label="可用量" width="100" align="right" />
-                </el-table>
-                <DetailListPanelEmpty v-else size="low" />
+                <PurchaseOrderItemStockTabTable :items="lineTabAggregates?.stockItems ?? []" />
               </div>
               <div v-show="poItemLinePanel.activeTab === 'purchaseInvoices'" class="po-aggregate-table-wrap">
                 <el-table v-if="(lineTabAggregates?.purchaseInvoices?.length ?? 0) > 0" :data="lineTabAggregates?.purchaseInvoices ?? []" size="small" stripe>
@@ -866,7 +831,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, reactive, watch, nextTick, defineAsyncComponent } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, reactive, watch, nextTick, inject, defineAsyncComponent } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
@@ -903,9 +868,13 @@ import { formatTotalAmountNumber, formatUnitPriceNumber } from '@/utils/moneyFor
 import { getApiErrorMessage } from '@/utils/apiError'
 import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick'
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
-import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
+import PurchaseOrderItemArrivalNoticeTabTable from '@/components/RFQ/PurchaseOrderItemArrivalNoticeTabTable.vue'
+import SellOrderItemStockInTabTable from '@/components/RFQ/SellOrderItemStockInTabTable.vue'
+import PurchaseOrderItemStockTabTable from '@/components/RFQ/PurchaseOrderItemStockTabTable.vue'
 import { recordPurchaseOrderRecentView } from '@/utils/purchaseOrderRecentHistory'
 import PurchaseOrderItemLineDialogs from '@/components/purchaseOrder/PurchaseOrderItemLineDialogs.vue'
+import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
+import { usePurchaseOrderItemOpsPanelStore } from '@/stores/purchaseOrderItemOpsPanel'
 import { buildPurchaseOrderDetailItemsColumns } from '@/composables/buildPurchaseOrderDetailItemsColumns'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import DetailListPanelEmpty from '@/components/Common/DetailListPanelEmpty.vue'
@@ -922,6 +891,8 @@ const PurchaseOrderStockInBatchPanel = defineAsyncComponent(
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const workspaceLayout = inject(WorkspaceLayoutKey, null)
+const purchaseOrderItemOpsStore = usePurchaseOrderItemOpsPanelStore()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { canWritePo } = usePurchaseOrderWriteGate()
 const { canWriteFinancePayment: canFinancePaymentWrite } = useFinanceWriteGate()
@@ -1381,6 +1352,8 @@ async function reloadPoItemLinePanelAggregates() {
   if (!oid || !purchaseOrderItemId || !poItemLinePanel.visible) return
   try {
     lineTabAggregates.value = await purchaseOrderApi.getPurchaseOrderItemDetailTabAggregates(oid, purchaseOrderItemId)
+    const row = findPurchaseOrderItemRow(purchaseOrderItemId)
+    if (row) syncOpsPanelFromLinePanel(row)
   } catch {
     /* 刷新失败时保留原列表 */
   }
@@ -1440,6 +1413,7 @@ async function selectPurchaseOrderItemRow(row: Record<string, unknown>) {
   ).trim()
   const purchaseOrderItemCode = String(row?.purchaseOrderItemCode ?? '').trim()
   if (!oid || !purchaseOrderItemId) return
+  workspaceLayout?.setRightActiveTab('r-ops')
   poItemLinePanel.purchaseOrderItemId = purchaseOrderItemId
   poItemLinePanel.purchaseOrderItemCode = purchaseOrderItemCode || purchaseOrderItemId
   poItemLinePanel.visible = true
@@ -1447,10 +1421,14 @@ async function selectPurchaseOrderItemRow(row: Record<string, unknown>) {
   poItemLinePanel.loading = true
   poItemLinePanel.loadError = ''
   lineTabAggregates.value = null
+  const opsRow = toOpsPanelRow(row)
+  if (opsRow) purchaseOrderItemOpsStore.syncRowAndAggregates(opsRow, null)
   try {
     lineTabAggregates.value = await purchaseOrderApi.getPurchaseOrderItemDetailTabAggregates(oid, purchaseOrderItemId)
+    syncOpsPanelFromLinePanel(row)
   } catch (e: unknown) {
     poItemLinePanel.loadError = getApiErrorMessage(e, '加载明细关联数据失败')
+    syncOpsPanelFromLinePanel(row, poItemLinePanel.loadError)
   } finally {
     poItemLinePanel.loading = false
   }
@@ -1465,8 +1443,12 @@ async function onPurchaseOrderItemRowDblClick(row: Record<string, unknown>) {
 }
 
 function poItemRowClassName({ row }: { row: Record<string, unknown> }) {
-  if (!poItemLinePanel.visible) return ''
-  return poItemRowKey(row) === poItemLinePanel.purchaseOrderItemId ? 'po-item-row--active' : ''
+  const key = poItemRowKey(row)
+  const bottomActive = poItemLinePanel.visible && key === poItemLinePanel.purchaseOrderItemId
+  const opsActive =
+    !!purchaseOrderItemOpsStore.row &&
+    purchaseOrderItemOpsStore.rowKey(row) === purchaseOrderItemOpsStore.rowKey(purchaseOrderItemOpsStore.row)
+  return bottomActive || opsActive ? 'po-item-row--active' : ''
 }
 
 const docListRef = ref<InstanceType<typeof DocumentListPanel> | null>(null)
@@ -1478,7 +1460,10 @@ watch(maskPurchaseSensitiveFields, (m) => {
   if (m && (activeTab.value === 'documents' || activeTab.value === 'changeLog' || activeTab.value === 'deleteLog')) {
     activeTab.value = 'items'
   }
-  if (m) closePoItemLinePanel()
+  if (m) {
+    closePoItemLinePanel()
+    purchaseOrderItemOpsStore.clear()
+  }
 })
 
 function onDocTabDragOver() {
@@ -1583,6 +1568,15 @@ function poDetailLineToListShape(it: any) {
     purchaseOrderItemId: String(
       it.purchaseOrderItemId ?? it.PurchaseOrderItemId ?? it.id ?? it.Id ?? ''
     ),
+    purchaseOrderItemCode: String(
+      it.purchaseOrderItemCode ??
+        it.PurchaseOrderItemCode ??
+        it.purchaseOrderItemId ??
+        it.PurchaseOrderItemId ??
+        it.id ??
+        it.Id ??
+        ''
+    ).trim(),
     purchaseOrderId: String(o.id),
     purchaseOrderCode: o.purchaseOrderCode,
     vendorId: o.vendorId,
@@ -1603,6 +1597,25 @@ function poDetailLineToListShape(it: any) {
     deliveryDate: it.deliveryDate ?? it.DeliveryDate ?? o.deliveryDate,
     canApplyPayment: Boolean(it.canApplyPayment ?? it.CanApplyPayment)
   }
+}
+
+function toOpsPanelRow(row: Record<string, unknown>): Record<string, unknown> | null {
+  const shaped = poDetailLineToListShape(row)
+  if (shaped) return shaped
+  const oid = String(route.params.id ?? '').trim()
+  const purchaseOrderItemId = poItemRowKey(row)
+  if (!oid || !purchaseOrderItemId) return null
+  return {
+    ...row,
+    purchaseOrderId: String(row.purchaseOrderId ?? oid).trim() || oid,
+    purchaseOrderItemId
+  }
+}
+
+function syncOpsPanelFromLinePanel(row: Record<string, unknown>, error = '') {
+  const opsRow = toOpsPanelRow(row)
+  if (!opsRow) return
+  purchaseOrderItemOpsStore.syncRowAndAggregates(opsRow, lineTabAggregates.value, { error })
 }
 
 function poLineShowArrival(row: any) {
@@ -1795,12 +1808,46 @@ async function handleRefreshItemExtends() {
 
 onMounted(() => {
   fetchOrder()
+  purchaseOrderItemOpsStore.registerHandlers({
+    applyArrival: (row) => {
+      poItemLineDialogsRef.value?.openArrival(row)
+    },
+    applyPayment: (row) => {
+      poItemLineDialogsRef.value?.openPayment(row)
+    }
+  })
+})
+
+onBeforeUnmount(() => {
+  purchaseOrderItemOpsStore.unregisterHandlers()
 })
 
 watch(orderId, () => {
   closePoItemLinePanel()
+  purchaseOrderItemOpsStore.clear()
   fetchOrder()
 })
+
+watch(
+  () => workspaceLayout?.rightPanelVisible.value,
+  (visible, wasVisible) => {
+    if (route.name !== 'PurchaseOrderDetail') return
+    if (!visible || wasVisible || !purchaseOrderItemOpsStore.row) return
+    const opsKey = purchaseOrderItemOpsStore.rowKey(purchaseOrderItemOpsStore.row)
+    if (
+      lineTabAggregates.value &&
+      poItemLinePanel.visible &&
+      poItemLinePanel.purchaseOrderItemId === opsKey
+    ) {
+      purchaseOrderItemOpsStore.syncRowAndAggregates(
+        purchaseOrderItemOpsStore.row,
+        lineTabAggregates.value
+      )
+      return
+    }
+    void purchaseOrderItemOpsStore.loadAggregates('加载明细失败')
+  }
+)
 
 async function loadFavoriteState() {
   const id = orderId.value
@@ -1909,8 +1956,6 @@ const formatDateTime = (v?: string) => (v ? formatDisplayDateTime(v) : '--')
 
 const prStatusText = (v?: number) => ({ 0: '新建', 1: '部分完成', 2: '全部完成', 3: '已取消' } as Record<number, string>)[Number(v)] ?? '--'
 const paymentStatusText = (v?: number) => ({ 1: '新建', 2: '待审核', 10: '审核通过', 100: '付款完成', [-1]: '审核失败', [-2]: '已取消' } as Record<number, string>)[Number(v)] ?? '--'
-const arrivalStatusText = (v?: number) => ({ 10: '未到货', 20: '到货待检', 30: '已质检', 100: '已入库', 1: '新建' } as Record<number, string>)[Number(v)] ?? '--'
-const stockInStatusText = (v?: number) => ({ 0: '草稿', 1: '待入库', 2: '已入库', 3: '已取消' } as Record<number, string>)[Number(v)] ?? '--'
 
 const handleEdit = () => {
   if (!order.value?.id) return
@@ -2612,6 +2657,7 @@ html[data-theme='dark'] .purchase-order-detail .po-detail-biz-qty {
 
 .so-line-overview {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 14px;
   line-height: 1.45;
@@ -2624,13 +2670,21 @@ html[data-theme='dark'] .purchase-order-detail .po-detail-biz-qty {
     vertical-align: middle;
   }
 
+  &__col-first {
+    width: 88px;
+  }
+
   &__corner {
     width: 88px;
     min-width: 88px;
+    max-width: 88px;
     background: var(--crm-detail-section-header-bg);
   }
 
   &__row-head {
+    width: 88px;
+    min-width: 88px;
+    max-width: 88px;
     text-align: left;
     font-weight: 400;
     white-space: nowrap;
@@ -2641,7 +2695,8 @@ html[data-theme='dark'] .purchase-order-detail .po-detail-biz-qty {
   &__col-head {
     text-align: center;
     font-weight: 400;
-    white-space: nowrap;
+    white-space: normal;
+    word-break: break-word;
     background: var(--crm-detail-section-header-bg);
     color: var(--crm-table-header-text);
 

@@ -111,8 +111,8 @@
         <div class="section-title">订单明细列表</div>
         <CrmDataTable :data="paymentForm.lines" size="small">
           <el-table-column prop="purchaseOrderCode" label="采购单号" width="160" min-width="160" show-overflow-tooltip />
-          <el-table-column prop="pn" label="型号" min-width="120" />
-          <el-table-column prop="brand" label="品牌" width="100" />
+          <CrmCopyableTableColumn prop="pn" label="型号" min-width="120" />
+          <CrmCopyableTableColumn prop="brand" label="品牌" width="100" />
           <el-table-column prop="qty" label="数量" width="90" align="right" />
           <el-table-column prop="cost" label="单价" width="160" align="right">
             <template #default="{ row }">{{ formatCurrencyUnitPrice(row.cost, row.currency) }}</template>
@@ -234,14 +234,18 @@
             <el-table-column label="序号" width="70">
               <template #default="{ $index }">{{ $index + 1 }}</template>
             </el-table-column>
-            <el-table-column label="物料型号" min-width="160" show-overflow-tooltip>
+            <el-table-column label="物料型号" min-width="160">
               <template #default="{ row }">
-                <span class="arrival-line-label">{{ row.pn || '—' }}</span>
+                <span class="arrival-line-label">
+                  <CrmListCopyableTextCell :text="pickCrmCopyableRowField(row, 'pn')" />
+                </span>
               </template>
             </el-table-column>
-            <el-table-column label="品牌" min-width="130" show-overflow-tooltip>
+            <el-table-column label="品牌" min-width="130">
               <template #default="{ row }">
-                <span class="arrival-line-label">{{ row.brand || '—' }}</span>
+                <span class="arrival-line-label">
+                  <CrmListCopyableTextCell :text="pickCrmCopyableRowField(row, 'brand')" />
+                </span>
               </template>
             </el-table-column>
             <el-table-column label="订单数量" width="100" align="right">
@@ -305,6 +309,7 @@ import PaymentRequestVendorBankSection from '@/components/Vendor/PaymentRequestV
 import VendorNameReadonlyField from '@/components/Vendor/VendorNameReadonlyField.vue'
 import { formatDisplayDate } from '@/utils/displayDateTime'
 import { formatCurrencyTotal, formatCurrencyUnitPrice } from '@/utils/moneyFormat'
+import { pickCrmCopyableRowField } from '@/utils/crmListCopyableField'
 import { financePaymentApi } from '@/api/finance'
 import { logisticsApi } from '@/api/logistics'
 import ShipmentExpressFields from '@/components/Logistics/ShipmentExpressFields.vue'

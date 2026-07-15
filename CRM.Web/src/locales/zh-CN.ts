@@ -4248,6 +4248,11 @@ const zhCN = {
       stockDomestic: '大陆仓',
       stockOverseas: '海外仓',
       stockTotal: '总计库存',
+      stockingUsageTitle: '使用备货',
+      stockingUsagePoCode: '采购单号',
+      stockingUsagePoDate: '生成日期',
+      stockingUsagePurchaser: '采购员',
+      stockingUsageQty: '使用数量',
       purchaseTitle: '采购申请',
       stockOutTitle: '出库通知',
       completed: '已完成',
@@ -5473,6 +5478,27 @@ const zhCN = {
     outboundDone: '出库完成',
     empty: '暂无数据'
   },
+  sellOrderItemPackingTab: {
+    empty: '暂无装箱单'
+  },
+  sellOrderItemStockOutTab: {
+    empty: '暂无出库单'
+  },
+  sellOrderItemStockInTab: {
+    empty: '暂无入库单'
+  },
+  purchaseOrderItemStockInTab: {
+    empty: '暂无入库单'
+  },
+  purchaseOrderItemArrivalNoticeTab: {
+    empty: '暂无到货通知'
+  },
+  purchaseOrderItemStockTab: {
+    empty: '暂无库存明细'
+  },
+  sellOrderItemStockOutNotifyTab: {
+    empty: '暂无出库通知'
+  },
   inventoryList: {
     title: '库存中心',
     count: '共 {count} 条',
@@ -6266,6 +6292,7 @@ const zhCN = {
     },
     packing: {
       noSelection: '请至少选择一条「待装箱」的出库通知',
+      createPackingSelectFirst: '请先勾选出库通知记录',
       onlyPendingSelectable: '仅「待装箱」状态可加入复选篮子',
       cannotCreateTitle: '无法生成装箱单',
       cannotCreateIntro: '所选出库通知不满足生成装箱单的条件：',

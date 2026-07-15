@@ -472,8 +472,8 @@ function rowClassName({ row }: { row: CustomsDeclarationDetailItemViewDto }) {
           :row-class-name="rowClassName"
         >
           <el-table-column prop="lineNo" label="#" width="52" align="center" />
-          <el-table-column prop="purchasePn" :label="t('customsPages.items.colPn')" min-width="128" />
-          <el-table-column prop="purchaseBrand" :label="t('customsPages.items.colBrand')" min-width="108" />
+          <CrmCopyableTableColumn prop="purchasePn" :label="t('customsPages.items.colPn')" min-width="128" />
+          <CrmCopyableTableColumn prop="purchaseBrand" :label="t('customsPages.items.colBrand')" min-width="108" />
           <el-table-column prop="declareQty" :label="t('customsPages.items.colQty')" min-width="112" align="right" />
           <el-table-column :label="t('stockInDetail.originalPrice')" min-width="118" align="right">
             <template #default="{ row }">{{ unitPriceText(row.originalPurchasePrice) }}</template>

@@ -174,12 +174,14 @@
             <el-table :data="parsedItems" class="preview-table" max-height="360" size="small">
               <el-table-column label="#" type="index" width="40" />
               <el-table-column label="客户物料型号" prop="customerMpn" min-width="130" show-overflow-tooltip />
-              <el-table-column label="MPN" prop="mpn" min-width="140" show-overflow-tooltip>
+              <el-table-column label="MPN" prop="mpn" min-width="140">
                 <template #default="{ row }">
-                  <span :class="{ 'text-error': row._hasError }">{{ row.mpn || '—' }}</span>
+                  <span :class="{ 'text-error': row._hasError }">
+                    <CrmListCopyableTextCell :text="pickCrmCopyableRowField(row, 'mpn')" />
+                  </span>
                 </template>
               </el-table-column>
-              <el-table-column label="品牌" prop="brand" width="90" show-overflow-tooltip />
+              <CrmCopyableTableColumn label="品牌" prop="brand" width="90" />
               <el-table-column label="数量" prop="quantity" width="70" align="right" />
               <el-table-column label="目标价" prop="targetPrice" width="80" align="right">
                 <template #default="{ row }">{{ row.targetPrice ?? '—' }}</template>
@@ -224,6 +226,7 @@ import { bomApi } from '@/api/bom'
 import type { BOM, CreateBOMItemRequest } from '@/types/bom'
 import { runValidatedFormSave } from '@/composables/useFormSubmit'
 import { SETTLEMENT_CURRENCY_STRING_OPTIONS, DEFAULT_SETTLEMENT_CURRENCY_STRING } from '@/constants/currency'
+import { pickCrmCopyableRowField } from '@/utils/crmListCopyableField'
 
 const router = useRouter()
 

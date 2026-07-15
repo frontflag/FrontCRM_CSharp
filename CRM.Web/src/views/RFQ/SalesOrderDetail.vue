@@ -263,8 +263,8 @@
                 min-width="120"
                 show-overflow-tooltip
               />
-              <el-table-column prop="pn" label="物料型号" min-width="160" />
-              <el-table-column prop="brand" label="品牌" width="120" />
+              <CrmCopyableTableColumn prop="pn" label="物料型号" min-width="160" />
+              <CrmCopyableTableColumn prop="brand" label="品牌" width="120" />
               <el-table-column label="" width="48" class-name="so-item-col-spacer" label-class-name="so-item-col-spacer">
                 <template #default />
               </el-table-column>
@@ -546,8 +546,8 @@
                 <template #default="{ row }">{{ row.deletedByUserName || '—' }}</template>
               </el-table-column>
               <el-table-column prop="sellOrderItemCode" label="销售订单明细编号" min-width="140" show-overflow-tooltip />
-              <el-table-column prop="pn" label="物料型号" min-width="140" show-overflow-tooltip />
-              <el-table-column prop="brand" label="品牌" width="100" show-overflow-tooltip />
+              <CrmCopyableTableColumn prop="pn" label="物料型号" min-width="140" />
+              <CrmCopyableTableColumn prop="brand" label="品牌" width="100" />
               <el-table-column label="数量" width="90" align="right" prop="qty" />
               <el-table-column label="单价+币别" width="120" align="right">
                 <template #default="{ row }">{{ formatDeletedItemPrice(row) }}</template>
@@ -600,6 +600,9 @@
               </button>
               <button type="button" class="tab-btn" :class="{ 'tab-btn--active': soItemLinePanel.activeTab === 'outNotify' }" @click="soItemLinePanel.activeTab = 'outNotify'">
                 {{ formatSoItemLineTabLabel('出库通知', 'outNotify') }}
+              </button>
+              <button type="button" class="tab-btn" :class="{ 'tab-btn--active': soItemLinePanel.activeTab === 'packing' }" @click="soItemLinePanel.activeTab = 'packing'">
+                {{ formatSoItemLineTabLabel('装箱单', 'packing') }}
               </button>
               <button type="button" class="tab-btn" :class="{ 'tab-btn--active': soItemLinePanel.activeTab === 'stockOut' }" @click="soItemLinePanel.activeTab = 'stockOut'">
                 {{ formatSoItemLineTabLabel('出库', 'stockOut') }}
@@ -674,8 +677,8 @@
                   <el-table-column label="销售员" width="110" show-overflow-tooltip>
                     <template #default="{ row }">{{ row.salesUserName || '—' }}</template>
                   </el-table-column>
-                  <el-table-column prop="mpn" label="物料型号" min-width="140" show-overflow-tooltip />
-                  <el-table-column prop="brand" label="品牌" width="120" show-overflow-tooltip />
+                  <CrmCopyableTableColumn prop="mpn" label="物料型号" min-width="140" />
+                  <CrmCopyableTableColumn prop="brand" label="品牌" width="120" />
                   <el-table-column label="数量" width="100" align="right" prop="quantity" />
                   <el-table-column label="状态" width="100">
                     <template #default="{ row }">{{ rfqItemStatusLabel(row?.status) }}</template>
@@ -710,8 +713,8 @@
                     </template>
                   </el-table-column>
                   <el-table-column prop="rfqCode" label="需求编号" min-width="130" show-overflow-tooltip />
-                  <el-table-column prop="mpn" label="物料型号" min-width="140" show-overflow-tooltip />
-                  <el-table-column prop="brand" label="品牌" width="120" show-overflow-tooltip />
+                  <CrmCopyableTableColumn prop="mpn" label="物料型号" min-width="140" />
+                  <CrmCopyableTableColumn prop="brand" label="品牌" width="120" />
                   <el-table-column label="供应商" min-width="140" show-overflow-tooltip>
                     <template #default="{ row }">{{ soQuoteVendorNamesDisplay(row) }}</template>
                   </el-table-column>
@@ -793,8 +796,8 @@
                   <el-table-column label="状态" width="100" prop="status">
                     <template #default="{ row }">{{ prStatusLabel(row?.status) }}</template>
                   </el-table-column>
-                  <el-table-column prop="pn" label="PN" min-width="140" show-overflow-tooltip />
-                  <el-table-column prop="brand" label="品牌" width="120" show-overflow-tooltip />
+                  <CrmCopyableTableColumn prop="pn" label="PN" min-width="140" />
+                  <CrmCopyableTableColumn prop="brand" label="品牌" width="120" />
                   <el-table-column label="数量" width="100" align="right" prop="qty" />
                   <el-table-column label="预计采购" width="160" prop="expectedPurchaseTime">
                     <template #default="{ row }">{{ formatDateTime(row?.expectedPurchaseTime) }}</template>
@@ -839,8 +842,8 @@
                     <template #default="{ row }">{{ formatVendorNameReadonly(row.vendorName, row.vendorEnglishName, { masked: maskPurchaseSensitiveFields }) }}</template>
                   </el-table-column>
                   <el-table-column prop="purchaseUserName" label="采购员" width="100" show-overflow-tooltip />
-                  <el-table-column prop="pn" label="PN" min-width="140" show-overflow-tooltip />
-                  <el-table-column prop="brand" label="品牌" width="120" show-overflow-tooltip />
+                  <CrmCopyableTableColumn prop="pn" label="PN" min-width="140" />
+                  <CrmCopyableTableColumn prop="brand" label="品牌" width="120" />
                   <el-table-column label="数量" width="100" align="right" prop="qty" />
                   <el-table-column label="单价" width="110" align="right">
                     <template #default="{ row }">{{ maskPurchaseSensitiveFields ? '—' : formatPoLineCost(row) }}</template>
@@ -852,29 +855,7 @@
                 <DetailListPanelEmpty v-else size="low" />
               </div>
               <div v-show="soItemLinePanel.activeTab === 'stockIn'" class="so-aggregate-table-wrap">
-                <el-table v-if="(lineTabAggregates?.stockIns?.length ?? 0) > 0" :data="lineTabAggregates?.stockIns ?? []" size="small" stripe>
-                  <el-table-column type="index" width="50" label="#" />
-                  <el-table-column min-width="180" label="入库单号">
-                    <template #default="{ row }">
-                      <router-link class="so-tab-link" :to="`/inventory/stock-in/${row.id}`">{{ row.stockInCode }}</router-link>
-                    </template>
-                  </el-table-column>
-                  <el-table-column label="类型" width="100" prop="stockInType">
-                    <template #default="{ row }">
-                      <StockBizTypeTag biz="in" :type="row?.stockInType" />
-                    </template>
-                  </el-table-column>
-                  <el-table-column label="状态" width="100" prop="status">
-                    <template #default="{ row }">{{ stockInStatusLabel(row?.status) }}</template>
-                  </el-table-column>
-                  <el-table-column label="入库日期" width="160" prop="stockInDate">
-                    <template #default="{ row }">{{ formatDateTime(row?.stockInDate) }}</template>
-                  </el-table-column>
-                  <el-table-column label="创建时间" width="160" prop="createTime">
-                    <template #default="{ row }">{{ formatDateTime(row?.createTime) }}</template>
-                  </el-table-column>
-                </el-table>
-                <DetailListPanelEmpty v-else size="low" />
+                <SellOrderItemStockInTabTable :items="lineTabAggregates?.stockIns ?? []" />
               </div>
               <div v-show="soItemLinePanel.activeTab === 'stock'" class="so-aggregate-table-wrap">
                 <el-table v-if="(lineTabAggregates?.stockItems?.length ?? 0) > 0" :data="lineTabAggregates?.stockItems ?? []" size="small" stripe>
@@ -913,8 +894,8 @@
                       </span>
                     </template>
                   </el-table-column>
-                  <el-table-column prop="purchasePn" label="PN" min-width="140" show-overflow-tooltip />
-                  <el-table-column prop="purchaseBrand" label="品牌" width="120" show-overflow-tooltip />
+                  <CrmCopyableTableColumn prop="purchasePn" label="PN" min-width="140" />
+                  <CrmCopyableTableColumn prop="purchaseBrand" label="品牌" width="120" />
                   <el-table-column label="总入库数量" width="110" align="right" prop="qtyInbound" />
                   <el-table-column label="已出库数量" width="110" align="right" prop="qtyStockOut" />
                   <el-table-column label="现存量" width="100" align="right" prop="qtyRepertory" />
@@ -927,94 +908,13 @@
                 <DetailListPanelEmpty v-else size="low" />
               </div>
               <div v-show="soItemLinePanel.activeTab === 'outNotify'" class="so-aggregate-table-wrap">
-                <el-table
-                  v-if="(lineTabAggregates?.stockOutRequests?.length ?? 0) > 0"
-                  :data="lineTabAggregates?.stockOutRequests ?? []"
-                  size="small"
-                  stripe
-                >
-                  <el-table-column type="index" width="50" label="#" />
-                  <el-table-column prop="requestCode" label="通知单号" min-width="160" show-overflow-tooltip />
-                  <el-table-column prop="materialCode" label="型号" min-width="140" show-overflow-tooltip />
-                  <el-table-column label="数量" width="100" align="right" prop="quantity" />
-                  <el-table-column label="状态" width="100" prop="status">
-                    <template #default="{ row }">{{ outReqStatusLabel(row?.status) }}</template>
-                  </el-table-column>
-                  <el-table-column label="申请日期" width="160" prop="requestDate">
-                    <template #default="{ row }">{{ formatDateTime(row?.requestDate) }}</template>
-                  </el-table-column>
-                  <el-table-column
-                    label="操作"
-                    :width="soOutNotifyOpColWidth"
-                    :min-width="soOutNotifyOpColMinWidth"
-                    fixed="right"
-                    align="center"
-                    class-name="op-col"
-                    label-class-name="op-col"
-                  >
-                    <template #header>
-                      <div class="list-op-col-header--icon-only">
-            <button
-              type="button"
-              class="op-col-toggle-btn list-op-col-toggle"
-              :aria-label="soOutNotifyOpColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
-              @click.stop="toggleSoOutNotifyOpCol"
-            >
-              {{ soOutNotifyOpColExpanded ? '>' : '<' }}
-            </button>
-          </div>
-                    </template>
-                    <template #default="{ row }">
-                      <div @click.stop @dblclick.stop>
-                        <template v-if="Number(row.status) !== STOCK_OUT_REQUEST_STATUS.StockedOut && Number(row.status) !== STOCK_OUT_REQUEST_STATUS.Cancelled">
-                          <div v-if="soOutNotifyOpColExpanded">
-                            <router-link
-                              class="so-tab-link so-tab-link--sm"
-                              :to="`/inventory/stock-out/create?requestId=${encodeURIComponent(String(row.id))}`"
-                            >
-                              {{ t('salesOrderDetailView.goExecute') }}
-                            </router-link>
-                          </div>
-                          <el-dropdown v-else trigger="click" placement="bottom-end">
-                            <div class="op-more-dropdown-trigger">
-                              <button type="button" class="op-more-trigger">...</button>
-                            </div>
-                            <template #dropdown>
-                              <el-dropdown-menu>
-                                <el-dropdown-item @click.stop="goStockOutCreateFromNotify(row)">
-                                  <span class="op-more-item op-more-item--primary">{{ t('salesOrderDetailView.goExecute') }}</span>
-                                </el-dropdown-item>
-                              </el-dropdown-menu>
-                            </template>
-                          </el-dropdown>
-                        </template>
-                        <span v-else class="cell-muted">—</span>
-                      </div>
-                    </template>
-                  </el-table-column>
-                </el-table>
-                <DetailListPanelEmpty v-else size="low" />
+                <SellOrderItemStockOutNotifyTabTable :items="lineTabAggregates?.stockOutRequests ?? []" />
+              </div>
+              <div v-show="soItemLinePanel.activeTab === 'packing'" class="so-aggregate-table-wrap">
+                <SellOrderItemPackingTabTable :items="lineTabAggregates?.packings ?? []" />
               </div>
               <div v-show="soItemLinePanel.activeTab === 'stockOut'" class="so-aggregate-table-wrap">
-                <el-table v-if="(lineTabAggregates?.stockOuts?.length ?? 0) > 0" :data="lineTabAggregates?.stockOuts ?? []" size="small" stripe>
-                  <el-table-column type="index" width="50" label="#" />
-                  <el-table-column min-width="180" label="出库单号">
-                    <template #default="{ row }">
-                      <router-link class="so-tab-link" :to="`/inventory/stock-out/${row.id}`">{{ row.stockOutCode }}</router-link>
-                    </template>
-                  </el-table-column>
-                  <el-table-column label="状态" width="100" prop="status">
-                    <template #default="{ row }">{{ stockOutStatusLabel(row?.status) }}</template>
-                  </el-table-column>
-                  <el-table-column label="总数量" width="100" align="right" prop="totalQuantity" />
-                  <el-table-column label="出库日期" width="160" prop="stockOutDate">
-                    <template #default="{ row }">{{ formatDateTime(row?.stockOutDate) }}</template>
-                  </el-table-column>
-                  <el-table-column label="创建时间" width="160" prop="createTime">
-                    <template #default="{ row }">{{ formatDateTime(row?.createTime) }}</template>
-                  </el-table-column>
-                </el-table>
-                <DetailListPanelEmpty v-else size="low" />
+                <SellOrderItemStockOutTabTable :items="lineTabAggregates?.stockOuts ?? []" />
               </div>
               <div v-show="soItemLinePanel.activeTab === 'receipt'" class="so-aggregate-table-wrap">
                 <el-table v-if="(lineTabAggregates?.receiptWriteOffs?.length ?? 0) > 0" :data="lineTabAggregates?.receiptWriteOffs ?? []" size="small" stripe>
@@ -1058,8 +958,8 @@
                   <el-table-column v-if="showCustomerIdentityFields" :label="t('financeReceiptWriteOffLedger.columns.customer')" min-width="160" show-overflow-tooltip>
                     <template #default="{ row }">{{ formatReceiptWriteOffCustomerLabel(row) }}</template>
                   </el-table-column>
-                  <el-table-column :label="t('financeReceiptWriteOffLedger.columns.pn')" min-width="120" prop="pn" show-overflow-tooltip />
-                  <el-table-column :label="t('financeReceiptWriteOffLedger.columns.brand')" width="100" prop="brand" show-overflow-tooltip />
+                  <CrmCopyableTableColumn :label="t('financeReceiptWriteOffLedger.columns.pn')" min-width="120" prop="pn" />
+                  <CrmCopyableTableColumn :label="t('financeReceiptWriteOffLedger.columns.brand')" width="100" prop="brand" />
                   <el-table-column v-if="showSalesMoneyFields" :label="t('financeReceiptWriteOffLedger.columns.amount')" width="150" align="right">
                     <template #default="{ row }">
                       <span v-if="row.amount != null" class="amount-with-code">
@@ -1230,7 +1130,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch, nextTick, defineAsyncComponent } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick, inject, defineAsyncComponent } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
@@ -1277,7 +1177,6 @@ import { productionDateDisplayLabel, useMaterialProductionDateDict } from '@/com
 import ApplyStockOutDialog from '@/components/RFQ/ApplyStockOutDialog.vue'
 import QcImagesReadonlyGallery from '@/components/Logistics/QcImagesReadonlyGallery.vue'
 import { REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
-import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { quoteMainStatusI18nKey } from '@/utils/quoteMainStatus'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
@@ -1286,7 +1185,12 @@ import { formatCustomerNameReadonlyFromRow } from '@/utils/customerDisplayName'
 import { useSaleOrderWriteGate } from '@/composables/useDepartmentDataReadOnly'
 import ApplyStockOutDisabledHint from '@/components/RFQ/ApplyStockOutDisabledHint.vue'
 import DetailListPanelEmpty from '@/components/Common/DetailListPanelEmpty.vue'
-import { STOCK_OUT_REQUEST_STATUS } from '@/constants/stockOutRequestStatus'
+import SellOrderItemStockInTabTable from '@/components/RFQ/SellOrderItemStockInTabTable.vue'
+import SellOrderItemPackingTabTable from '@/components/RFQ/SellOrderItemPackingTabTable.vue'
+import SellOrderItemStockOutNotifyTabTable from '@/components/RFQ/SellOrderItemStockOutNotifyTabTable.vue'
+import SellOrderItemStockOutTabTable from '@/components/RFQ/SellOrderItemStockOutTabTable.vue'
+import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
+import { useSalesOrderItemOpsPanelStore } from '@/stores/salesOrderItemOpsPanel'
 
 const SalesOrderStockOutBatchPanel = defineAsyncComponent(
   () => import('@/components/Inventory/SalesOrderStockOutBatchPanel.vue')
@@ -1296,6 +1200,8 @@ const router = useRouter()
 const route = useRoute()
 const { t, locale } = useI18n()
 const authStore = useAuthStore()
+const workspaceLayout = inject(WorkspaceLayoutKey, null)
+const salesOrderItemOpsStore = useSalesOrderItemOpsPanelStore()
 const { options: materialPdOptions, ensureLoaded: ensureMaterialPdDict } = useMaterialProductionDateDict()
 function fmtSoItemDateCode(row: { dateCode?: string; DateCode?: string } | null | undefined) {
   if (!row) return '—'
@@ -1489,6 +1395,7 @@ async function submitPrApply() {
   if (!created) return
   prApplyDialogVisible.value = false
   await fetchOrder()
+  await reloadSoItemLinePanelAggregates()
 }
 
 function normId(s: unknown) {
@@ -1706,26 +1613,6 @@ function toggleSoDetailItemsOpCol() {
   soDetailItemsOpColExpanded.value = !soDetailItemsOpColExpanded.value
 }
 
-/** 《列表操作列规范》：明细面板「出库通知」聚合表 */
-const soOutNotifyOpColExpanded = ref(false)
-const SO_OUT_NOTIFY_OP_COL_COLLAPSED = 43
-const SO_OUT_NOTIFY_OP_COL_EXPANDED = 173
-const SO_OUT_NOTIFY_OP_COL_EXPANDED_MIN = 160
-const soOutNotifyOpColWidth = computed(() =>
-  soOutNotifyOpColExpanded.value ? SO_OUT_NOTIFY_OP_COL_EXPANDED : SO_OUT_NOTIFY_OP_COL_COLLAPSED
-)
-const soOutNotifyOpColMinWidth = computed(() =>
-  soOutNotifyOpColExpanded.value ? SO_OUT_NOTIFY_OP_COL_EXPANDED_MIN : SO_OUT_NOTIFY_OP_COL_COLLAPSED
-)
-function toggleSoOutNotifyOpCol() {
-  soOutNotifyOpColExpanded.value = !soOutNotifyOpColExpanded.value
-}
-function goStockOutCreateFromNotify(row: Record<string, unknown>) {
-  const id = String(row?.id ?? row?.Id ?? '').trim()
-  if (!id) return
-  router.push(`/inventory/stock-out/create?requestId=${encodeURIComponent(id)}`)
-}
-
 /** 双击订单明细行：底部「销售订单明细详情」面板数据（按销售明细主键） */
 const lineTabAggregates = ref<SalesOrderDetailTabAggregates | null>(null)
 
@@ -1738,6 +1625,7 @@ type SoItemLineTabKey =
   | 'stockIn'
   | 'stock'
   | 'outNotify'
+  | 'packing'
   | 'stockOut'
   | 'receipt'
   | 'sellInvoice'
@@ -1763,6 +1651,8 @@ function soItemLineTabRecordCount(tab: SoItemLineTabKey): number {
       return agg.stockItems?.length ?? 0
     case 'outNotify':
       return agg.stockOutRequests?.length ?? 0
+    case 'packing':
+      return agg.packings?.length ?? 0
     case 'stockOut':
       return agg.stockOuts?.length ?? 0
     case 'receipt':
@@ -1961,6 +1851,10 @@ async function reloadSoItemLinePanelAggregates() {
   if (!oid || !sellOrderItemId || !soItemLinePanel.visible) return
   try {
     lineTabAggregates.value = await salesOrderApi.getSellOrderItemDetailTabAggregates(oid, sellOrderItemId)
+    const row = order.value?.items?.find(
+      (line: Record<string, unknown>) => soItemRowKey(line) === sellOrderItemId
+    ) as Record<string, unknown> | undefined
+    if (row) syncOpsPanelFromLinePanel(row)
   } catch {
     /* 刷新失败时保留原列表 */
   }
@@ -1972,6 +1866,7 @@ async function selectSalesOrderItemRow(row: Record<string, unknown>) {
   const sellOrderItemId = soItemRowKey(row)
   const sellOrderItemCode = String(row?.sellOrderItemCode ?? '').trim()
   if (!orderId || !sellOrderItemId) return
+  workspaceLayout?.setRightActiveTab('r-ops')
   soItemLinePanel.sellOrderItemId = sellOrderItemId
   soItemLinePanel.sellOrderItemCode = sellOrderItemCode || sellOrderItemId
   soItemLinePanel.visible = true
@@ -1979,10 +1874,13 @@ async function selectSalesOrderItemRow(row: Record<string, unknown>) {
   soItemLinePanel.loading = true
   soItemLinePanel.loadError = ''
   lineTabAggregates.value = null
+  salesOrderItemOpsStore.syncRowAndAggregates(toOpsPanelRow(row), null)
   try {
     lineTabAggregates.value = await salesOrderApi.getSellOrderItemDetailTabAggregates(orderId, sellOrderItemId)
+    syncOpsPanelFromLinePanel(row)
   } catch (e: unknown) {
     soItemLinePanel.loadError = getApiErrorMessage(e, '加载明细关联数据失败')
+    syncOpsPanelFromLinePanel(row, soItemLinePanel.loadError)
   } finally {
     soItemLinePanel.loading = false
   }
@@ -2004,6 +1902,18 @@ function soItemRowKey(row: Record<string, unknown>) {
   return String(row?.sellOrderItemId ?? row?.id ?? row?.Id ?? '').trim()
 }
 
+function toOpsPanelRow(row: Record<string, unknown>): Record<string, unknown> {
+  const oid = String(route.params.id ?? '').trim()
+  return {
+    ...row,
+    sellOrderId: String(row.sellOrderId ?? oid).trim() || oid
+  }
+}
+
+function syncOpsPanelFromLinePanel(row: Record<string, unknown>, error = '') {
+  salesOrderItemOpsStore.syncRowAndAggregates(toOpsPanelRow(row), lineTabAggregates.value, { error })
+}
+
 function resolveDeepLinkSellOrderItemId() {
   const q = route.query.sellOrderItemId ?? route.query.itemId
   const raw = Array.isArray(q) ? q[0] : q
@@ -2011,21 +1921,50 @@ function resolveDeepLinkSellOrderItemId() {
 }
 
 function soItemRowClassName({ row }: { row: Record<string, unknown> }) {
-  if (!soItemLinePanel.visible) return ''
-  return soItemRowKey(row) === soItemLinePanel.sellOrderItemId ? 'so-item-row--active' : ''
+  const key = soItemRowKey(row)
+  const bottomActive = soItemLinePanel.visible && key === soItemLinePanel.sellOrderItemId
+  const opsActive =
+    !!salesOrderItemOpsStore.row &&
+    salesOrderItemOpsStore.rowKey(row) === salesOrderItemOpsStore.rowKey(salesOrderItemOpsStore.row)
+  return bottomActive || opsActive ? 'so-item-row--active' : ''
 }
 
 watch(maskSaleSensitiveFields, (m) => {
   if (m && (activeTab.value === 'documents' || activeTab.value === 'changeLog' || activeTab.value === 'deleteLog')) {
     activeTab.value = 'items'
   }
-  if (m) closeSoItemLinePanel()
+  if (m) {
+    closeSoItemLinePanel()
+    salesOrderItemOpsStore.clear()
+  }
 })
 
 watch(
   () => String(route.params.id ?? ''),
   () => {
     closeSoItemLinePanel()
+    salesOrderItemOpsStore.clear()
+  }
+)
+
+watch(
+  () => workspaceLayout?.rightPanelVisible.value,
+  (visible, wasVisible) => {
+    if (route.name !== 'SalesOrderDetail') return
+    if (!visible || wasVisible || !salesOrderItemOpsStore.row) return
+    const opsKey = salesOrderItemOpsStore.rowKey(salesOrderItemOpsStore.row)
+    if (
+      lineTabAggregates.value &&
+      soItemLinePanel.visible &&
+      soItemLinePanel.sellOrderItemId === opsKey
+    ) {
+      salesOrderItemOpsStore.syncRowAndAggregates(
+        salesOrderItemOpsStore.row,
+        lineTabAggregates.value
+      )
+      return
+    }
+    void salesOrderItemOpsStore.loadAggregates(t('salesOrderItemList.messages.loadLineFailed'))
   }
 )
 
@@ -2103,6 +2042,18 @@ async function handleDeleteOrder() {
 onMounted(() => {
   void ensureMaterialPdDict()
   fetchOrder()
+  salesOrderItemOpsStore.registerHandlers({
+    applyPurchase: (row) => {
+      void applyPurchaseOne(row)
+    },
+    applyStockOut: (row) => {
+      applyStockOutOne(row)
+    }
+  })
+})
+
+onBeforeUnmount(() => {
+  salesOrderItemOpsStore.unregisterHandlers()
 })
 
 watch(orderId, () => {
@@ -2519,23 +2470,6 @@ function formatPoLineCost(row: { cost?: unknown; currency?: unknown }) {
     cur === 2 ? 'USD' : cur === 3 ? 'EUR' : cur === 4 ? 'HKD' : cur === 1 ? 'RMB' : cur > 0 ? String(cur) : ''
   return curLabel ? `${cost.toFixed(4)} ${curLabel}` : cost.toFixed(4)
 }
-function stockInStatusLabel(v: unknown) {
-  const s = Number(v)
-  if (s === 0) return t('salesOrderDetailView.stockInSt0')
-  if (s === 1) return t('salesOrderDetailView.stockInSt1')
-  if (s === 2) return t('salesOrderDetailView.stockInSt2')
-  if (s === 3) return t('salesOrderDetailView.stockInSt3')
-  return `(${String(v)})`
-}
-function outReqStatusLabel(v: unknown) {
-  const s = Number(v)
-  if (s === STOCK_OUT_REQUEST_STATUS.PendingCustoms) return t('stockOutNotifyList.status.pendingCustoms')
-  if (s === STOCK_OUT_REQUEST_STATUS.PendingPacking) return t('stockOutNotifyList.status.pendingPacking')
-  if (s === STOCK_OUT_REQUEST_STATUS.Packed) return t('stockOutNotifyList.status.packed')
-  if (s === STOCK_OUT_REQUEST_STATUS.StockedOut) return t('stockOutNotifyList.status.stockedOut')
-  if (s === STOCK_OUT_REQUEST_STATUS.Cancelled) return t('stockOutNotifyList.status.cancelled')
-  return t('stockOutNotifyList.status.unknown')
-}
 function receiptWriteOffSourceLabel(source?: number) {
   if (source === 20) return t('financeReceiptWriteOffLedger.writeOffSource.advancePool')
   return t('financeReceiptWriteOffLedger.writeOffSource.receiptItem')
@@ -2546,15 +2480,6 @@ function formatReceiptWriteOffCustomerLabel(row: SalesOrderDetailTabAggregates['
     customerName: row.customerName,
     customerEnglishName: row.customerEnglishName
   })
-}
-
-function stockOutStatusLabel(v: unknown) {
-  const s = Number(v)
-  if (s === 0) return t('salesOrderDetailView.soSt0')
-  if (s === 1) return t('salesOrderDetailView.soSt1')
-  if (s === 2) return t('salesOrderDetailView.soSt2')
-  if (s === 3) return t('salesOrderDetailView.soSt3')
-  return `(${String(v)})`
 }
 
 function sellInvoiceStatusLabel(v: unknown) {

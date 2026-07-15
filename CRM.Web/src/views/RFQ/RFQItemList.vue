@@ -684,8 +684,10 @@
           <el-table :data="basketItems" max-height="70vh" size="small" border stripe>
             <el-table-column prop="rfqCode" label="需求编号" min-width="140" show-overflow-tooltip />
             <el-table-column v-if="canViewCustomerInRfq" prop="customerName" label="客户" min-width="120" show-overflow-tooltip />
-            <el-table-column label="物料型号" min-width="130" show-overflow-tooltip>
-              <template #default="{ row }">{{ row.materialModel || row.mpn || '—' }}</template>
+            <el-table-column label="物料型号" min-width="130">
+              <template #default="{ row }">
+                <CrmListCopyableTextCell :text="row.materialModel || row.mpn || ''" />
+              </template>
             </el-table-column>
             <el-table-column prop="quantity" label="数量" width="72" align="right" />
             <el-table-column

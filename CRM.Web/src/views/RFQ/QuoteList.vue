@@ -320,8 +320,10 @@
               min-width="120"
               show-overflow-tooltip
             />
-            <el-table-column :label="t('quoteList.columns.mpn')" min-width="130" show-overflow-tooltip>
-              <template #default="{ row }">{{ row.mpn || firstQuoteItemMpn(row) || '—' }}</template>
+            <el-table-column :label="t('quoteList.columns.mpn')" min-width="130">
+              <template #default="{ row }">
+                <CrmListCopyableTextCell :text="row.mpn || firstQuoteItemMpn(row) || ''" />
+              </template>
             </el-table-column>
             <el-table-column :label="t('quoteList.columns.status')" width="100" align="center">
               <template #default="{ row }">

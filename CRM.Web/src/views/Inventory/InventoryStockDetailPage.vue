@@ -51,8 +51,8 @@
         <el-table-column :label="t('inventoryStockDetail.columns.productionDate')" width="120">
           <template #default="{ row }">{{ formatDateOnly(row.productionDate) }}</template>
         </el-table-column>
-        <el-table-column prop="purchasePn" :label="t('inventoryStockDetail.columns.pn')" min-width="120" show-overflow-tooltip />
-        <el-table-column prop="purchaseBrand" :label="t('inventoryStockDetail.columns.brand')" min-width="100" show-overflow-tooltip />
+        <CrmCopyableTableColumn prop="purchasePn" :label="t('inventoryStockDetail.columns.pn')" min-width="120" />
+        <CrmCopyableTableColumn prop="purchaseBrand" :label="t('inventoryStockDetail.columns.brand')" min-width="100" />
         <el-table-column :label="t('inventoryStockDetail.columns.regionType')" width="88" align="center">
           <template #default="{ row }">
             <span class="region-type-chip" :class="`region-type-chip--${regionTypeKind(row)}`">

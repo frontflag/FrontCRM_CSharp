@@ -34,8 +34,8 @@
       <el-table-column prop="declarationCode" :label="t('customsPages.items.colDecCode')" width="130" />
       <el-table-column prop="customerName" :label="t('customsPages.items.colCustomer')" min-width="140" show-overflow-tooltip />
       <el-table-column prop="salesUserName" :label="t('customsPages.items.colSales')" width="100" />
-      <el-table-column prop="purchasePn" :label="t('customsPages.items.colPn')" min-width="120" />
-      <el-table-column prop="purchaseBrand" :label="t('customsPages.items.colBrand')" width="100" />
+      <CrmCopyableTableColumn prop="purchasePn" :label="t('customsPages.items.colPn')" min-width="120" />
+      <CrmCopyableTableColumn prop="purchaseBrand" :label="t('customsPages.items.colBrand')" width="100" />
       <el-table-column prop="declareQty" :label="t('customsPages.items.colQty')" width="90" align="right" />
       <el-table-column prop="declareUnitPrice" :label="t('customsPages.items.colUnitPrice')" width="110" align="right" />
       <el-table-column prop="dutyAmount" :label="t('customsPages.items.colDuty')" width="90" align="right" />

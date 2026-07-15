@@ -428,10 +428,10 @@
                   <template #default="{ $index }"><span class="cell-muted">{{ $index + 1 }}</span></template>
                 </el-table-column>
                 <el-table-column label="物料型号" min-width="160">
-                  <template #default="{ row }"><span class="cell-code">{{ row.materialModel || (row as any).mpn || '—' }}</span></template>
+                  <template #default="{ row }"><CrmListCopyableTextCell :text="pickCrmCopyableRowField(row, 'materialModel')" /></template>
                 </el-table-column>
                 <el-table-column label="品牌" width="130">
-                  <template #default="{ row }"><span class="cell-primary">{{ row.brand || '—' }}</span></template>
+                  <template #default="{ row }"><CrmListCopyableTextCell :text="pickCrmCopyableRowField(row, 'brand')" /></template>
                 </el-table-column>
                 <el-table-column label="客户物料型号" width="160">
                   <template #default="{ row }"><span class="cell-secondary">{{ row.customerMaterialModel || (row as any).customerMpn || '—' }}</span></template>
@@ -659,6 +659,7 @@ import {
   RFQ_ITEM_STATUS_I18N_KEYS,
 } from '@/utils/rfqItemLineStatus'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
+import { pickCrmCopyableRowField } from '@/utils/crmListCopyableField'
 import {
   rfqImportanceDisplayStars,
   RFQ_IMPORTANCE_RATE_COLORS,

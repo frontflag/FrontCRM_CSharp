@@ -32,16 +32,8 @@
         <el-form-item v-if="lineRows.length" label="明细行">
           <div class="table-wrap">
             <el-table :data="lineRows" border size="small" row-key="sellOrderItemId">
-              <el-table-column prop="pn" :label="t('purchaseRequisitionCreate.table.pn')" min-width="130" show-overflow-tooltip>
-                <template #default="{ row }">
-                  <el-link type="primary">{{ row.pn || '—' }}</el-link>
-                </template>
-              </el-table-column>
-              <el-table-column prop="brand" :label="t('purchaseRequisitionCreate.table.brand')" width="120" show-overflow-tooltip>
-                <template #default="{ row }">
-                  <el-link type="primary">{{ row.brand || '—' }}</el-link>
-                </template>
-              </el-table-column>
+              <CrmCopyableTableColumn prop="pn" :label="t('purchaseRequisitionCreate.table.pn')" min-width="130" />
+              <CrmCopyableTableColumn prop="brand" :label="t('purchaseRequisitionCreate.table.brand')" width="120" />
               <el-table-column prop="salesOrderQty" :label="t('purchaseRequisitionCreate.table.salesOrderQty')" width="120" align="right" />
               <el-table-column prop="purchasedQty" :label="t('purchaseRequisitionCreate.table.purchasedQty')" width="100" align="right" />
               <el-table-column prop="openPurchaseRequisitionQty" :label="t('purchaseRequisitionCreate.table.openPrQty')" width="110" align="right" />

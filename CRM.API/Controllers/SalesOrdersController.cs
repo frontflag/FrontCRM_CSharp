@@ -37,6 +37,9 @@ namespace CRM.API.Controllers
         private readonly IOperationLogQueryService _operationLogQuery;
         private readonly ILogOperationAppendService _logOperationAppend;
         private readonly IFinanceReceivableService _financeReceivableService;
+        private readonly IPackingService _packingService;
+        private readonly IStockOutService _stockOutService;
+        private readonly IStockInService _stockInService;
         private readonly ApplicationDbContext _db;
         private readonly ILogger<SalesOrdersController> _logger;
 
@@ -51,6 +54,9 @@ namespace CRM.API.Controllers
             IOperationLogQueryService operationLogQuery,
             ILogOperationAppendService logOperationAppend,
             IFinanceReceivableService financeReceivableService,
+            IPackingService packingService,
+            IStockOutService stockOutService,
+            IStockInService stockInService,
             ApplicationDbContext db,
             ILogger<SalesOrdersController> logger)
         {
@@ -64,6 +70,9 @@ namespace CRM.API.Controllers
             _operationLogQuery = operationLogQuery;
             _logOperationAppend = logOperationAppend;
             _financeReceivableService = financeReceivableService;
+            _packingService = packingService;
+            _stockOutService = stockOutService;
+            _stockInService = stockInService;
             _db = db;
             _logger = logger;
         }
@@ -614,29 +623,7 @@ namespace CRM.API.Controllers
                 })
                 .ToListAsync();
 
-            List<string> stockInIdList;
-            if (itemIds.Count == 0)
-                stockInIdList = new List<string>();
-            else
-                stockInIdList = await _db.StockInItemExtends.AsNoTracking()
-                    .Where(e => e.SellOrderItemId != null && itemIds.Contains(e.SellOrderItemId!))
-                    .Select(e => e.StockInId)
-                    .Distinct()
-                    .ToListAsync();
-
-            var stockInRows = await _db.StockIns.AsNoTracking()
-                .Where(si => stockInIdList.Contains(si.Id))
-                .OrderByDescending(si => si.CreateTime)
-                .Select(si => new
-                {
-                    id = si.Id,
-                    stockInCode = si.StockInCode,
-                    si.StockInType,
-                    si.Status,
-                    si.StockInDate,
-                    si.CreateTime
-                })
-                .ToListAsync();
+            var stockInRows = await BuildSellOrderTabStockInsAsync(itemIds, mask511);
 
             List<object> stockItemRows;
             if (itemIds.Count == 0)
@@ -763,45 +750,9 @@ namespace CRM.API.Controllers
                     .ToList();
             }
 
-            var outReqQuery = _db.StockOutRequests.AsNoTracking().Where(r => r.SalesOrderId == orderId);
-            if (sellOrderItemIdScope != null)
-                outReqQuery = outReqQuery.Where(r => r.SalesOrderItemId == sellOrderItemIdScope);
-            var outReqRows = await outReqQuery
-                .OrderByDescending(r => r.CreateTime)
-                .Select(r => new
-                {
-                    r.Id,
-                    r.RequestCode,
-                    r.MaterialCode,
-                    r.Quantity,
-                    r.Status,
-                    r.RequestDate,
-                    r.CreateTime
-                })
-                .ToListAsync();
+            var outReqRows = await BuildSellOrderTabStockOutRequestsAsync(itemIds, mask521);
 
-            List<object> stockOutRows;
-            if (itemIds.Count == 0)
-            {
-                stockOutRows = new List<object>();
-            }
-            else
-            {
-                stockOutRows = (await _db.StockOuts.AsNoTracking()
-                    .Where(so => so.SellOrderItemId != null && itemIds.Contains(so.SellOrderItemId!))
-                    .OrderByDescending(so => so.CreateTime)
-                    .Select(so => new
-                    {
-                        so.Id,
-                        stockOutCode = so.StockOutCode,
-                        so.Status,
-                        so.TotalQuantity,
-                        so.StockOutDate,
-                        so.SellOrderItemId,
-                        so.CreateTime
-                    })
-                    .ToListAsync()).Cast<object>().ToList();
-            }
+            var stockOutRows = await BuildSellOrderTabStockOutsAsync(itemIds, mask521);
 
             var receiptWriteOffEntities = itemIds.Count == 0
                 ? Array.Empty<FinanceReceivableWriteOffLedgerItem>()
@@ -1041,6 +992,12 @@ namespace CRM.API.Controllers
                     mask521);
             }
 
+            object? stockingUsage = null;
+            if (sellOrderItemIdScope != null)
+                stockingUsage = await BuildSellOrderStockingUsageAsync(sellOrderItemIdScope);
+
+            var packingRows = await BuildSellOrderTabPackingsAsync(itemIds, mask521);
+
             return new
             {
                 rfqItems = rfqItemRows,
@@ -1049,13 +1006,415 @@ namespace CRM.API.Controllers
                 purchaseOrderItems = purchaseOrderItemRows,
                 stockIns = stockInRows,
                 stockItems = stockItemRows,
+                packings = packingRows,
                 stockOutRequests = outReqRows,
                 stockOuts = stockOutRows,
                 receiptWriteOffs = receiptWriteOffRows,
                 sellInvoices = sellInvRows,
                 qcImages = qcImageRows,
-                lineOverview
+                lineOverview,
+                stockingUsage
             };
+        }
+
+        /// <summary>
+        /// 销售明细下游「入库」：经入库明细扩展 <c>sell_order_item_id</c> 反查入库单，字段与入库单列表（<see cref="StockInListItemDto"/>）一致。
+        /// </summary>
+        private async Task<List<object>> BuildSellOrderTabStockInsAsync(IReadOnlyList<string> itemIds, bool mask511)
+        {
+            if (itemIds.Count == 0)
+                return new List<object>();
+
+            var stockInIdList = await _db.StockInItemExtends.AsNoTracking()
+                .Where(e => e.SellOrderItemId != null && itemIds.Contains(e.SellOrderItemId!))
+                .Select(e => e.StockInId)
+                .Distinct()
+                .ToListAsync();
+
+            if (stockInIdList.Count == 0)
+                return new List<object>();
+
+            var orderedIds = await _db.StockIns.AsNoTracking()
+                .Where(si => stockInIdList.Contains(si.Id))
+                .OrderByDescending(si => si.CreateTime)
+                .ThenByDescending(si => si.Id)
+                .Select(si => si.Id)
+                .ToListAsync();
+
+            if (orderedIds.Count == 0)
+                return new List<object>();
+
+            var dtos = await _stockInService.GetStockInListItemsByIdsAsync(orderedIds);
+            if (mask511)
+                PurchaseSensitiveFieldMask511.ApplyStockInListItems(dtos, true);
+
+            return dtos.Select(d => (object)new
+            {
+                id = d.Id,
+                stockInCode = d.StockInCode,
+                stockInType = d.StockInType,
+                sourceDisplayNo = d.SourceDisplayNo,
+                warehouseId = d.WarehouseId,
+                vendorId = d.VendorId,
+                vendorName = d.VendorName,
+                vendorEnglishName = d.VendorEnglishName,
+                vendorCode = d.VendorCode,
+                purchaseOrderCode = d.PurchaseOrderCode,
+                freightForwarderOrderNo = d.FreightForwarderOrderNo,
+                salesOrderCode = d.SalesOrderCode,
+                materialModelSummary = d.MaterialModelSummary,
+                materialBrandSummary = d.MaterialBrandSummary,
+                stockInDate = d.StockInDate,
+                totalQuantity = d.TotalQuantity,
+                totalAmount = d.TotalAmount,
+                currencyCode = d.CurrencyCode,
+                status = d.Status,
+                remark = d.Remark,
+                createTime = d.CreateTime,
+                createUserName = d.CreateUserName,
+                hasBatchEntered = d.HasBatchEntered,
+                customsDeclarationId = d.CustomsDeclarationId,
+                customsDeclarationCode = d.CustomsDeclarationCode
+            }).ToList();
+        }
+
+        /// <summary>
+        /// 销售明细下游「出库通知」：按 <c>sales_order_item_id</c> 关联出库通知，字段与出库通知列表（<see cref="StockOutRequestListItemDto"/>）一致。
+        /// </summary>
+        private async Task<List<object>> BuildSellOrderTabStockOutRequestsAsync(IReadOnlyList<string> itemIds, bool mask521)
+        {
+            if (itemIds.Count == 0)
+                return new List<object>();
+
+            var orderedIds = await _db.StockOutRequests.AsNoTracking()
+                .Where(r => r.SalesOrderItemId != null && itemIds.Contains(r.SalesOrderItemId!))
+                .OrderByDescending(r => r.CreateTime)
+                .ThenByDescending(r => r.Id)
+                .Select(r => r.Id)
+                .ToListAsync();
+
+            if (orderedIds.Count == 0)
+                return new List<object>();
+
+            var dtos = await _stockOutService.GetStockOutRequestListItemsByIdsAsync(orderedIds);
+            if (mask521)
+            {
+                foreach (var d in dtos)
+                    SaleSensitiveFieldMask521.ApplyStockOutRequestListItem(d, true);
+            }
+
+            return dtos.Select(d => (object)new
+            {
+                id = d.Id,
+                requestCode = d.RequestCode,
+                salesOrderId = d.SalesOrderId,
+                salesOrderItemId = d.SalesOrderItemId,
+                salesOrderCode = d.SalesOrderCode,
+                materialModel = d.MaterialModel,
+                brand = d.Brand,
+                outQuantity = d.OutQuantity,
+                expectedStockOutDate = d.ExpectedStockOutDate,
+                salesUserName = d.SalesUserName,
+                customerId = d.CustomerId,
+                customerName = d.CustomerName,
+                requestUserId = d.RequestUserId,
+                requestUserName = d.RequestUserName,
+                requestDate = d.RequestDate,
+                status = d.Status,
+                customsStatus = d.CustomsStatus,
+                remark = d.Remark,
+                shipmentMethod = d.ShipmentMethod,
+                expressCompany = d.ExpressCompany,
+                packingId = d.PackingId,
+                packingCode = d.PackingCode,
+                regionType = d.RegionType,
+                stockOutType = d.StockOutType,
+                salesStockOutNotifyId = d.SalesStockOutNotifyId,
+                salesStockOutNotifyCode = d.SalesStockOutNotifyCode,
+                currency = d.Currency,
+                createTime = d.CreateTime,
+                customsDeclarationId = d.CustomsDeclarationId,
+                customsDeclarationCode = d.CustomsDeclarationCode,
+                customsBrokerName = d.CustomsBrokerName
+            }).ToList();
+        }
+
+        /// <summary>
+        /// 销售明细下游「出库」：按 <c>sell_order_item_id</c> 关联出库单，字段与出库单列表（<see cref="StockOutListItemDto"/>）一致。
+        /// </summary>
+        private async Task<List<object>> BuildSellOrderTabStockOutsAsync(IReadOnlyList<string> itemIds, bool mask521)
+        {
+            if (itemIds.Count == 0)
+                return new List<object>();
+
+            var orderedIds = await _db.StockOuts.AsNoTracking()
+                .Where(so => so.SellOrderItemId != null && itemIds.Contains(so.SellOrderItemId!))
+                .OrderByDescending(so => so.CreateTime)
+                .ThenByDescending(so => so.Id)
+                .Select(so => so.Id)
+                .ToListAsync();
+
+            if (orderedIds.Count == 0)
+                return new List<object>();
+
+            var dtos = await _stockOutService.GetStockOutListItemsByIdsAsync(orderedIds);
+            return dtos.Select(d => (object)new
+            {
+                id = d.Id,
+                stockOutCode = d.StockOutCode,
+                stockOutType = d.StockOutType,
+                sourceCode = d.SourceCode,
+                stockOutDate = d.StockOutDate,
+                expectedStockOutDate = d.ExpectedStockOutDate,
+                packingCount = d.PackingCount,
+                packingCodes = d.PackingCodes,
+                totalQuantity = d.TotalQuantity,
+                totalAmount = mask521 ? 0m : d.TotalAmount,
+                status = d.Status,
+                remark = d.Remark,
+                createTime = d.CreateTime,
+                createUserName = d.CreateUserName,
+                customerName = mask521 ? null : d.CustomerName,
+                customerEnglishName = mask521 ? null : d.CustomerEnglishName,
+                customerCode = mask521 ? null : d.CustomerCode,
+                salesUserName = mask521 ? null : d.SalesUserName,
+                sellOrderItemCode = d.SellOrderItemCode,
+                shipmentMethod = d.ShipmentMethod,
+                expressCompany = d.ExpressCompany,
+                courierTrackingNo = d.CourierTrackingNo,
+                freightForwarderOrderNo = d.FreightForwarderOrderNo,
+                salesStockOutNotifyId = d.SalesStockOutNotifyId,
+                salesStockOutNotifyCode = d.SalesStockOutNotifyCode,
+                customsDeclarationId = d.CustomsDeclarationId,
+                customsDeclarationCode = d.CustomsDeclarationCode
+            }).ToList();
+        }
+
+        /// <summary>
+        /// 销售明细下游「装箱单」：经装箱明细 <c>sell_order_item_id</c> 或关联出库通知反查装箱单主单（字段与装箱单列表一致）。
+        /// </summary>
+        private async Task<List<object>> BuildSellOrderTabPackingsAsync(IReadOnlyList<string> itemIds, bool mask521)
+        {
+            if (itemIds.Count == 0)
+                return new List<object>();
+
+            var notifyIds = await _db.StockOutRequests.AsNoTracking()
+                .Where(r => r.SalesOrderItemId != null && itemIds.Contains(r.SalesOrderItemId))
+                .Select(r => r.Id)
+                .ToListAsync();
+
+            var packingIds = await (
+                    from pi in _db.PackingItems.AsNoTracking()
+                    join pk in _db.Packings.AsNoTracking() on pi.PackingId equals pk.Id
+                    where !pi.IsDeleted
+                          && !pk.IsDeleted
+                          && ((pi.SellOrderItemId != null && itemIds.Contains(pi.SellOrderItemId))
+                              || (pi.StockOutNotifyId != null && notifyIds.Contains(pi.StockOutNotifyId)))
+                    select pk.Id)
+                .Distinct()
+                .ToListAsync();
+
+            if (packingIds.Count == 0)
+                return new List<object>();
+
+            var orderedIds = await _db.Packings.AsNoTracking()
+                .Where(p => packingIds.Contains(p.Id) && !p.IsDeleted)
+                .OrderByDescending(p => p.CreateTime)
+                .ThenByDescending(p => p.Id)
+                .Select(p => p.Id)
+                .ToListAsync();
+
+            var dtos = await _packingService.GetPackingListItemsByIdsAsync(orderedIds);
+            return dtos.Select(d => (object)new
+            {
+                id = d.Id,
+                code = d.Code,
+                status = d.Status,
+                stockOutType = d.StockOutType,
+                materialType = d.MaterialType,
+                customerId = mask521 ? null : d.CustomerId,
+                customerName = mask521 ? null : d.CustomerName,
+                salesId = mask521 ? null : d.SalesId,
+                salesUserName = mask521 ? null : d.SalesUserName,
+                storageId = d.StorageId,
+                warehouseName = d.WarehouseName,
+                itemRows = d.ItemRows,
+                comment = d.Comment,
+                scheduleShipDate = d.ScheduleShipDate,
+                requestDate = d.RequestDate,
+                shipmentMethod = d.ShipmentMethod,
+                expressCompany = d.ExpressCompany,
+                createTime = d.CreateTime,
+                createByUserId = d.CreateByUserId,
+                createUserName = d.CreateUserName,
+                customsDeclarationId = d.CustomsDeclarationId,
+                customsDeclarationCode = d.CustomsDeclarationCode
+            }).ToList();
+        }
+
+        /// <summary>
+        /// 销售明细「使用备货」：按采购主单汇总备货补充拣货 <c>PickedQty</c>（<c>IsStockingSupplement</c>）。
+        /// </summary>
+        private async Task<object> BuildSellOrderStockingUsageAsync(string sellOrderItemId)
+        {
+            var lineId = sellOrderItemId.Trim();
+
+            var notifyIds = await _db.StockOutRequests.AsNoTracking()
+                .Where(r => r.SalesOrderItemId == lineId)
+                .Select(r => r.Id)
+                .ToListAsync();
+
+            var packingItemIds = await _db.PackingItems.AsNoTracking()
+                .Where(pi => !pi.IsDeleted
+                             && ((pi.SellOrderItemId != null && pi.SellOrderItemId == lineId)
+                                 || (pi.StockOutNotifyId != null && notifyIds.Contains(pi.StockOutNotifyId))))
+                .Select(pi => pi.Id)
+                .ToListAsync();
+
+            if (packingItemIds.Count == 0)
+                return new { totalUsedQty = 0, items = Array.Empty<object>() };
+
+            var pickRows = await (
+                    from pti in _db.PickingTaskItems.AsNoTracking()
+                    join pt in _db.PickingTasks.AsNoTracking() on pti.PickingTaskId equals pt.Id
+                    where !pti.IsDeleted
+                          && !pt.IsDeleted
+                          && pti.IsStockingSupplement
+                          && pti.PickedQty > 0
+                          && pti.PackingItemId != null
+                          && packingItemIds.Contains(pti.PackingItemId!)
+                    select new
+                    {
+                        pti.PickedQty,
+                        pti.StockItemId
+                    })
+                .ToListAsync();
+
+            if (pickRows.Count == 0)
+                return new { totalUsedQty = 0, items = Array.Empty<object>() };
+
+            var stockIds = pickRows
+                .Select(x => x.StockItemId?.Trim())
+                .Where(x => !string.IsNullOrEmpty(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Cast<string>()
+                .ToList();
+
+            var stockPoLookup = new Dictionary<string, (string? PoId, string? PoCode, DateTime? PoCreate, string? UserName)>(
+                StringComparer.OrdinalIgnoreCase);
+
+            if (stockIds.Count > 0)
+            {
+                var layers = await _db.StockItems.AsNoTracking()
+                    .Where(si => stockIds.Contains(si.Id))
+                    .Select(si => new
+                    {
+                        si.Id,
+                        si.PurchaseOrderItemId,
+                        si.PurchaserName
+                    })
+                    .ToListAsync();
+
+                var poiIds = layers
+                    .Select(x => x.PurchaseOrderItemId?.Trim())
+                    .Where(x => !string.IsNullOrEmpty(x))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Cast<string>()
+                    .ToList();
+
+                var poByPoiId = poiIds.Count == 0
+                    ? new Dictionary<string, (string PoId, string PoCode, DateTime CreateTime, string? UserName)>(
+                        StringComparer.OrdinalIgnoreCase)
+                    : (await (
+                            from poi in _db.PurchaseOrderItems.AsNoTracking()
+                            join po in _db.PurchaseOrders.AsNoTracking() on poi.PurchaseOrderId equals po.Id
+                            where poiIds.Contains(poi.Id)
+                            select new
+                            {
+                                PoiId = poi.Id,
+                                PoId = po.Id,
+                                PoCode = po.PurchaseOrderCode,
+                                po.CreateTime,
+                                po.PurchaseUserName
+                            })
+                        .ToListAsync())
+                    .ToDictionary(
+                        x => x.PoiId.Trim(),
+                        x => (x.PoId, x.PoCode, x.CreateTime, UserName: x.PurchaseUserName),
+                        StringComparer.OrdinalIgnoreCase);
+
+                foreach (var layer in layers)
+                {
+                    var key = layer.Id.Trim();
+                    string? poId = null;
+                    string? poCode = null;
+                    DateTime? poCreate = null;
+                    var userName = layer.PurchaserName;
+                    var poiId = layer.PurchaseOrderItemId?.Trim();
+                    if (!string.IsNullOrEmpty(poiId) && poByPoiId.TryGetValue(poiId, out var po))
+                    {
+                        poId = po.PoId;
+                        poCode = po.PoCode;
+                        poCreate = po.CreateTime;
+                        userName = po.UserName ?? userName;
+                    }
+
+                    stockPoLookup[key] = (poId, poCode, poCreate, userName);
+                }
+            }
+
+            var grouped = new Dictionary<string, (string PoId, string PoCode, DateTime? PoCreate, string? UserName, int Qty)>(
+                StringComparer.OrdinalIgnoreCase);
+
+            foreach (var pick in pickRows)
+            {
+                var qty = Math.Max(0, pick.PickedQty);
+                if (qty <= 0)
+                    continue;
+
+                var sid = pick.StockItemId?.Trim() ?? string.Empty;
+                if (string.IsNullOrEmpty(sid)
+                    || !stockPoLookup.TryGetValue(sid, out var meta)
+                    || string.IsNullOrWhiteSpace(meta.PoId)
+                    || string.IsNullOrWhiteSpace(meta.PoCode))
+                    continue;
+
+                var groupKey = meta.PoId!.Trim();
+                if (grouped.TryGetValue(groupKey, out var existing))
+                {
+                    grouped[groupKey] = (
+                        existing.PoId,
+                        existing.PoCode,
+                        existing.PoCreate ?? meta.PoCreate,
+                        existing.UserName ?? meta.UserName,
+                        existing.Qty + qty);
+                }
+                else
+                {
+                    grouped[groupKey] = (
+                        meta.PoId!,
+                        meta.PoCode!,
+                        meta.PoCreate,
+                        meta.UserName,
+                        qty);
+                }
+            }
+
+            var items = grouped.Values
+                .Where(x => x.Qty > 0)
+                .OrderByDescending(x => x.PoCreate ?? DateTime.MinValue)
+                .Select(x => (object)new
+                {
+                    purchaseOrderId = x.PoId,
+                    purchaseOrderCode = x.PoCode,
+                    purchaseOrderCreateTime = x.PoCreate,
+                    purchaseUserName = x.UserName,
+                    usedQty = x.Qty
+                })
+                .ToList();
+
+            var totalUsedQty = grouped.Values.Sum(x => x.Qty);
+            return new { totalUsedQty, items };
         }
 
         private const short PrStatusCancelled = 3;

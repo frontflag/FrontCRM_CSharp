@@ -4252,6 +4252,11 @@ const enUS = {
       stockDomestic: 'Mainland warehouse',
       stockOverseas: 'Overseas warehouse',
       stockTotal: 'Total stock',
+      stockingUsageTitle: 'Stocking usage',
+      stockingUsagePoCode: 'PO number',
+      stockingUsagePoDate: 'Created date',
+      stockingUsagePurchaser: 'Purchaser',
+      stockingUsageQty: 'Used qty',
       purchaseTitle: 'Purchase requisition',
       stockOutTitle: 'Outbound notification',
       completed: 'Completed',
@@ -5488,6 +5493,27 @@ const enUS = {
     outboundDone: 'Complete',
     empty: 'No data'
   },
+  sellOrderItemPackingTab: {
+    empty: 'No packing lists'
+  },
+  sellOrderItemStockOutTab: {
+    empty: 'No stock-out orders'
+  },
+  sellOrderItemStockInTab: {
+    empty: 'No stock-in orders'
+  },
+  purchaseOrderItemStockInTab: {
+    empty: 'No stock-in orders'
+  },
+  purchaseOrderItemArrivalNoticeTab: {
+    empty: 'No arrival notices'
+  },
+  purchaseOrderItemStockTab: {
+    empty: 'No stock items'
+  },
+  sellOrderItemStockOutNotifyTab: {
+    empty: 'No stock-out notifications'
+  },
   inventoryList: {
     title: 'Inventory Center',
     count: '{count} records total',
@@ -6277,6 +6303,7 @@ const enUS = {
     },
     packing: {
       noSelection: 'Select at least one pending stock-out notice',
+      createPackingSelectFirst: 'Select stock-out notices first',
       onlyPendingSelectable: 'Only pending notices can be added to the basket',
       cannotCreateTitle: 'Cannot create packing list',
       cannotCreateIntro: 'The selected stock-out notices do not meet all requirements:',

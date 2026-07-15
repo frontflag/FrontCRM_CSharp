@@ -337,8 +337,8 @@
                 min-width="120"
                 show-overflow-tooltip
               />
-              <el-table-column prop="pn" :label="t('financeReceiptDetail.writeOffLabels.pn')" min-width="120" show-overflow-tooltip />
-              <el-table-column prop="brand" :label="t('financeReceiptDetail.writeOffLabels.brand')" width="100" show-overflow-tooltip />
+              <CrmCopyableTableColumn prop="pn" :label="t('financeReceiptDetail.writeOffLabels.pn')" min-width="120" />
+              <CrmCopyableTableColumn prop="brand" :label="t('financeReceiptDetail.writeOffLabels.brand')" width="100" />
               <el-table-column
                 :label="t('financeReceiptDetail.writeOffLabels.amount')"
                 width="150"
