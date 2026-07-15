@@ -492,7 +492,7 @@
                 <span v-else>—</span>
               </template>
               <template #col-profitOutRateBiz="{ row }">{{
-                row.profitOutRateBiz != null ? Number(row.profitOutRateBiz).toFixed(6) : '—'
+                formatProfitOutRateBizDisplay(row.profitOutBizUsd, row.profitOutRateBiz)
               }}</template>
               <template #col-createTime="{ row }">{{ soItemFormatDt(row.createTime || row.orderCreateTime) }}</template>
               <template #col-createUser="{ row }">{{
@@ -530,6 +530,7 @@ import { translateSalesOrderStatus, salesOrderStatusTagType } from '@/constants/
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import { formatCustomerNameReadonlyFromRow } from '@/utils/customerDisplayName'
+import { formatProfitOutRateBizDisplay } from '@/utils/profitOutRateDisplay'
 import { pickCrmCopyableRowField } from '@/utils/crmListCopyableField'
 import { formatTotalAmountNumber, formatUnitPriceNumber, listAmountCurrencyDockClass, listAmountCurrencyIso, splitUnitPriceDockParts, unitPriceDockHasValue } from '@/utils/moneyFormat'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'

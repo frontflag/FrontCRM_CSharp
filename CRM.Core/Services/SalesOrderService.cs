@@ -851,7 +851,9 @@ namespace CRM.Core.Services
                     row.InvoiceProgressStatus = ext.InvoiceProgressStatus;
                     row.SalesProfitExpected = ext.SalesProfitExpected;
                     row.ProfitOutBizUsd = ext.ProfitOutBizUsd;
-                    row.ProfitOutRateBiz = ext.ProfitOutRateBiz;
+                    row.ProfitOutRateBiz = SellOrderItemProfitDisplay.ResolveProfitOutRateBizForDisplay(
+                        ext.ProfitOutRateBiz,
+                        ext.ProfitOutBizUsd);
                     row.PurchasedStockAvailableQty = ext.PurchasedStock_AvailableQty;
                 }
             }

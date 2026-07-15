@@ -388,7 +388,7 @@
               </el-table-column>
               <el-table-column v-if="showSalesMoneyFields" :label="t('salesOrderItemList.columns.profitOutRateBiz')" align="right" width="120">
                 <template #default="{ row }">
-                  {{ row.profitOutRateBiz != null ? Number(row.profitOutRateBiz).toFixed(6) : '—' }}
+                  {{ formatProfitOutRateBizDisplay(row.profitOutBizUsd, row.profitOutRateBiz) }}
                 </template>
               </el-table-column>
               <el-table-column
@@ -1188,6 +1188,7 @@ import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiv
 import { formatVendorNameReadonly } from '@/utils/vendorDisplayName'
 import CustomerNameReadonlyText from '@/components/Customer/CustomerNameReadonlyText.vue'
 import { formatCustomerNameReadonlyFromRow } from '@/utils/customerDisplayName'
+import { formatProfitOutRateBizDisplay } from '@/utils/profitOutRateDisplay'
 import { useSaleOrderWriteGate } from '@/composables/useDepartmentDataReadOnly'
 import ApplyStockOutDisabledHint from '@/components/RFQ/ApplyStockOutDisabledHint.vue'
 import DetailListPanelEmpty from '@/components/Common/DetailListPanelEmpty.vue'

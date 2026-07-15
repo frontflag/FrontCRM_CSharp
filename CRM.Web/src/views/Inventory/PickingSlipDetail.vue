@@ -329,7 +329,7 @@
                     <span v-else>—</span>
                   </template>
                   <template #col-profitOutRateBiz="{ row }">{{
-                    row.profitOutRateBiz != null ? Number(row.profitOutRateBiz).toFixed(6) : '—'
+                    formatProfitOutRateBizDisplay(row.profitOutBizUsd, row.profitOutRateBiz)
                   }}</template>
                   <template #col-createTime="{ row }">{{ soItemFormatDt(row.createTime || row.orderCreateTime) }}</template>
                   <template #col-createUser="{ row }">{{
@@ -454,6 +454,7 @@ import { buildSalesOrderItemListColumns } from '@/composables/buildSalesOrderIte
 import { translateSalesOrderStatus, salesOrderStatusTagType } from '@/constants/salesOrderStatus'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import { formatTotalAmountNumber, formatUnitPriceNumber, listAmountCurrencyDockClass, listAmountCurrencyIso } from '@/utils/moneyFormat'
+import { formatProfitOutRateBizDisplay } from '@/utils/profitOutRateDisplay'
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import type { SalesOrderItemLineRow } from '@/stores/salesOrderItemListBasket'

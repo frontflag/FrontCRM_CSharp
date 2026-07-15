@@ -207,8 +207,8 @@ namespace CRM.Core.Interfaces
         /// <summary>扩展表：出库利润（业务 USD）</summary>
         public decimal ProfitOutBizUsd { get; set; }
 
-        /// <summary>扩展表：出库利润率（出库销售收入 USD / 出库成本 USD）</summary>
-        public decimal ProfitOutRateBiz { get; set; }
+        /// <summary>扩展表：出库利润率（出库销售收入 USD / 出库成本 USD）；成本为 0 时为 null（展示 —）</summary>
+        public decimal? ProfitOutRateBiz { get; set; }
     }
 
     /// <summary>申请出库采购门闸：阻塞中的关联采购单。</summary>

@@ -2575,8 +2575,10 @@ namespace CRM.API.Controllers
                         ProfitOutBizUsd = canViewSalesAmount
                             ? (decimal?)(ext?.ProfitOutBizUsd ?? 0m)
                             : null,
-                        ProfitOutRateBiz = canViewSalesAmount
-                            ? (decimal?)(ext?.ProfitOutRateBiz ?? 0m)
+                        ProfitOutRateBiz = canViewSalesAmount && ext != null
+                            ? SellOrderItemProfitDisplay.ResolveProfitOutRateBizForDisplay(
+                                ext.ProfitOutRateBiz,
+                                ext.ProfitOutBizUsd)
                             : null,
                         i.Currency,
                         i.DateCode,

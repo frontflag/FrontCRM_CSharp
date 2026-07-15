@@ -514,7 +514,7 @@
                   <span v-else>—</span>
                 </template>
                 <template #col-profitOutRateBiz="{ row }">{{
-                  row.profitOutRateBiz != null ? Number(row.profitOutRateBiz).toFixed(6) : '—'
+                  formatProfitOutRateBizDisplay(row.profitOutBizUsd, row.profitOutRateBiz)
                 }}</template>
                 <template #col-createTime="{ row }">{{ soItemFormatDt(row.createTime || row.orderCreateTime) }}</template>
                 <template #col-createUser="{ row }">{{
@@ -568,6 +568,7 @@ import {
   splitUnitPriceDockParts,
   unitPriceDockHasValue
 } from '@/utils/moneyFormat'
+import { formatProfitOutRateBizDisplay } from '@/utils/profitOutRateDisplay'
 
 const authStore = useAuthStore()
 
