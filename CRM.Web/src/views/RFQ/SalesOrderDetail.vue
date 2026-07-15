@@ -1036,6 +1036,13 @@
         </div>
       </div>
 
+      <SellOrderItemPerformancePanel
+        v-if="soItemLinePanel.visible && !maskSaleSensitiveFields"
+        :sell-order-item-code="soItemLinePanel.sellOrderItemCode"
+        :line-profit="lineTabAggregates?.lineProfit"
+        :loading="soItemLinePanel.loading"
+      />
+
       <SalesOrderStockOutBatchPanel
         v-if="!maskSaleSensitiveFields"
         :sales-order-id="String(order.id)"
@@ -1201,6 +1208,9 @@ import { useSalesOrderItemOpsPanelStore } from '@/stores/salesOrderItemOpsPanel'
 
 const SalesOrderStockOutBatchPanel = defineAsyncComponent(
   () => import('@/components/Inventory/SalesOrderStockOutBatchPanel.vue')
+)
+const SellOrderItemPerformancePanel = defineAsyncComponent(
+  () => import('@/components/RFQ/SellOrderItemPerformancePanel.vue')
 )
 
 const router = useRouter()

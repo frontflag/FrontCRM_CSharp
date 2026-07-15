@@ -4546,6 +4546,91 @@ const enUS = {
       colInvoice: 'Sales invoices',
       empty: 'No overview data'
     },
+    performance: {
+      title: 'Performance',
+      colProfit: 'Profit (USD)',
+      colRate: 'Margin (revenue ÷ cost)',
+      colGrossMargin: 'Gross margin',
+      layerQuote: 'Quote',
+      layerSalesExpected: 'Sales expected',
+      layerOutbound: 'Outbound',
+      grossMarginTooltip: 'Gross margin: {pct}%',
+      empty: 'No performance data',
+      variables: {
+        title: 'Formula variables',
+        groupSales: 'Sales',
+        groupQuote: 'Quote snapshot',
+        groupPurchase: 'Purchase cost',
+        groupOutbound: 'Outbound',
+        sellQty: 'Sales qty',
+        sellPriceLocal: 'Unit price (local)',
+        sellFxSnapshot: 'FX rate (sales, order snapshot)',
+        sellPriceUsd: 'Unit price (USD)',
+        sellLineAmountLocal: 'Line amount (local)',
+        revenueUsd: 'Revenue (USD)',
+        quotePriceLocal: 'Quote unit price (local)',
+        quoteFxSnapshot: 'FX rate (quote, order snapshot)',
+        quotePriceUsd: 'Quote unit price (USD)',
+        quoteCostUsd: 'Quote line cost (USD)',
+        quoteMissing: 'No quote cost snapshot',
+        poQtyTotal: 'Total PO qty',
+        poCostUsdTotal: 'Total PO cost (USD)',
+        poCostUsdConfirmed: 'Confirmed PO cost (USD)',
+        avgPoCostUsd: 'PO weighted avg (USD)',
+        qtyStockOutActual: 'Shipped qty',
+        outboundRevenueUsd: 'Outbound revenue (USD)',
+        outboundCostUsd: 'Outbound cost (USD)',
+        fxUsdNative: 'Native USD, rate 1',
+        fxUsdToLocal: '1 USD = {rate} {local}'
+      },
+      formulas: {
+        title: 'Formulas (values substituted)',
+        revenueUsd: 'Revenue (USD) = qty × convert price = {qty} × {convertPrice} = {result}',
+        quoteCostUsd: 'Quote cost (USD) = qty × quote convert cost = {qty} × {quoteConvertCost} = {result}',
+        reQuoteNote: 'Quote cost snapshot exists; profit and margin use ReQuote fields.',
+        quoteProfit: 'Quote profit (USD) = revenue − quote cost = {revenue} − {cost} = {result}',
+        quoteProfitFallback: 'Quote profit (USD) = extend snapshot = {result} (no quote cost to expand)',
+        quoteRate: 'Quote margin = revenue ÷ quote cost = {revenue} ÷ {cost} = {result}',
+        quoteRateUnavailable: 'Quote margin = revenue ÷ quote cost = {revenue} ÷ {cost} = — (zero cost)',
+        quoteCostMissing: 'Quote convert cost = 0; no quote cost snapshot.',
+        salesProfit: 'Sales expected profit (USD) = revenue − confirmed PO cost = {revenue} − {cost} = {result}',
+        salesProfitNoCost: 'Sales expected profit (USD) = revenue − confirmed PO cost = {revenue} − {cost} = {result}',
+        salesRate: 'Sales expected margin = revenue ÷ confirmed PO cost = {revenue} ÷ {cost} = {result}',
+        salesRateUnavailable:
+          'Sales expected margin = revenue ÷ confirmed PO cost = {revenue} ÷ {cost} = — (zero confirmed cost)',
+        avgPoCostUsd: 'PO weighted avg (USD) = total PO cost ÷ total PO qty = {poCostTotal} ÷ {poQty} = {result}',
+        avgPoCostMissing: 'PO weighted avg = 0 (no linked PO lines; outbound cost treated as 0).',
+        outboundRevenueUsd: 'Outbound revenue (USD) = shipped qty × convert price = {qty} × {convertPrice} = {result}',
+        outboundCostUsd: 'Outbound cost (USD) = shipped qty × PO weighted avg cost = {qty} × {avgCost} = {result}',
+        outboundProfit:
+          'Outbound profit (USD) = (convert price − PO weighted avg) × shipped qty = ({convertPrice} − {avgCost}) × {qty} = {result}',
+        outboundRate: 'Outbound margin = outbound revenue ÷ outbound cost = {revenue} ÷ {cost} = {result}',
+        outboundRateUnavailable:
+          'Outbound margin = outbound revenue ÷ outbound cost = {revenue} ÷ {cost} = — (zero outbound cost)',
+        grossMargin: 'Gross margin = profit ÷ revenue × 100% = {profit} ÷ {revenue} × 100% = {result}',
+        grossMarginOutbound:
+          'Gross margin = outbound profit ÷ outbound revenue × 100% = {profit} ÷ {revenue} × 100% = {result}'
+      },
+      hints: {
+        noQuoteCost: 'Quote layer: no quote cost snapshot; profit and margin cannot be computed on quote basis.',
+        quoteBreakEven: 'Quote layer: revenue equals quote cost (margin ≈ 1.00); quote profit is 0.',
+        noConfirmedPoCost:
+          'Sales expected: no confirmed PO cost (purchase status: {purchaseStatus}); expected profit and margin are not available on confirmed basis.',
+        salesBreakEven: 'Sales expected: revenue equals confirmed PO cost; expected profit is 0.',
+        salesBreakEvenParity:
+          'Sales expected: revenue equals confirmed PO cost (margin ≈ 1.00); expected profit is 0.',
+        unconfirmedPoCost:
+          'Sales expected: PO cost exists but is not fully confirmed (purchase status: {purchaseStatus}); full-PO profit exceeds confirmed basis.',
+        notShippedYet: 'Outbound: no actual shipment yet (stock-out status: {stockOutStatus}); outbound profit is 0.',
+        outboundBreakEven:
+          'Outbound: {qty} shipped; unit price equals weighted average PO cost (margin ≈ 1.00); outbound gross profit is 0.',
+        outboundZeroProfitShipped:
+          'Outbound: {qty} shipped; unit price equals or is very close to weighted average PO cost; outbound gross profit is 0.',
+        outboundNoCostBaseline:
+          'Outbound: positive profit but zero outbound purchase cost (purchase status: {purchaseStatus}); margin (revenue÷cost) cannot be shown.',
+        noRevenue: 'Revenue is zero or invalid; gross margin cannot be computed.'
+      }
+    },
     goExecute: 'Execute stock-out',
     prStatus0: 'New',
     prStatus1: 'Partial',

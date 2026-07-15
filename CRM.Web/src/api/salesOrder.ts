@@ -204,8 +204,45 @@ export interface SalesOrderDetailTabAggregates {
   qcImages: QcImageReadonlyRow[]
   /** 销售订单明细详情「概况」页签（仅单条明细 aggregates 接口返回） */
   lineOverview?: SellOrderLineOverview | null
+  /** 销售订单明细详情「绩效」面板（仅单条明细 aggregates 接口返回） */
+  lineProfit?: SellOrderLineProfit | null
   /** 使用备货（仅单条明细 aggregates 接口返回；按采购主单汇总备货补充拣货量） */
   stockingUsage?: SellOrderStockingUsage | null
+}
+
+export interface SellOrderLineProfitLayer {
+  profitUsd: number
+  profitRate?: number | null
+}
+
+/** GET detail-tab-aggregates → lineProfit */
+export interface SellOrderLineProfit {
+  qty: number
+  sellPrice: number
+  sellCurrency: number
+  convertPrice: number
+  quoteCost: number
+  quoteCurrency: number
+  quoteConvertCost: number
+  fxUsdToCnySnapshot: number
+  fxUsdToHkdSnapshot: number
+  fxUsdToEurSnapshot: number
+  useReQuote: boolean
+  revenueUsd: number
+  quoteCostUsd: number
+  poCostUsdTotal: number
+  poCostUsdConfirmed: number
+  purchaseProfitExpected: number
+  qtyStockOutActual: number
+  poQtyTotal: number
+  avgPoCostUsd: number
+  outboundRevenueUsd: number
+  outboundCostUsd: number
+  purchaseProgressStatus?: number
+  stockOutProgressStatus?: number
+  quote: SellOrderLineProfitLayer
+  salesExpected: SellOrderLineProfitLayer
+  outbound: SellOrderLineProfitLayer
 }
 
 export interface SellOrderStockingUsageItem {

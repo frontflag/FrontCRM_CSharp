@@ -4533,6 +4533,89 @@ const zhCN = {
       colInvoice: '销项发票',
       empty: '暂无概况数据'
     },
+    performance: {
+      title: '绩效',
+      colProfit: '利润（USD）',
+      colRate: '利润率（收入÷成本）',
+      colGrossMargin: '毛利率',
+      layerQuote: '报价',
+      layerSalesExpected: '预计销售',
+      layerOutbound: '出库',
+      grossMarginTooltip: '毛利率：{pct}%',
+      empty: '暂无绩效数据',
+      variables: {
+        title: '公式变量对照',
+        groupSales: '销售',
+        groupQuote: '报价快照',
+        groupPurchase: '采购成本',
+        groupOutbound: '出库',
+        sellQty: '销售数量',
+        sellPriceLocal: '销售单价（原币别）',
+        sellFxSnapshot: '折算汇率（销售·下单快照）',
+        sellPriceUsd: '销售单价（折算 USD）',
+        sellLineAmountLocal: '销售金额（原币别）',
+        revenueUsd: '销售收入（USD）',
+        quotePriceLocal: '报价单价（原币别）',
+        quoteFxSnapshot: '折算汇率（报价·下单快照）',
+        quotePriceUsd: '报价单价（折算 USD）',
+        quoteCostUsd: '报价成本合计（USD）',
+        quoteMissing: '无报价成本快照',
+        poQtyTotal: 'PO 数量合计',
+        poCostUsdTotal: 'PO 成本合计（USD）',
+        poCostUsdConfirmed: '已确认 PO 成本（USD）',
+        avgPoCostUsd: 'PO 加权均价（USD）',
+        qtyStockOutActual: '已出库数量',
+        outboundRevenueUsd: '出库销售收入（USD）',
+        outboundCostUsd: '出库采购成本（USD）',
+        fxUsdNative: '本币为 USD，汇率 1',
+        fxUsdToLocal: '1 USD = {rate} {local}'
+      },
+      formulas: {
+        title: '计算公式（变量已代入）',
+        revenueUsd: '销售收入(USD) = 销售数量 × 折算单价 = {qty} × {convertPrice} = {result}',
+        quoteCostUsd: '报价成本(USD) = 销售数量 × 报价折算成本 = {qty} × {quoteConvertCost} = {result}',
+        reQuoteNote: '已存在报价成本快照，利润与利润率取 ReQuote 字段。',
+        quoteProfit: '报价利润(USD) = 销售收入 − 报价成本 = {revenue} − {cost} = {result}',
+        quoteProfitFallback: '报价利润(USD) = 扩展表快照值 = {result}（无报价成本，无法展开减法）',
+        quoteRate: '报价利润率 = 销售收入 ÷ 报价成本 = {revenue} ÷ {cost} = {result}',
+        quoteRateUnavailable: '报价利润率 = 销售收入 ÷ 报价成本 = {revenue} ÷ {cost} = —（成本为 0，无法计算）',
+        quoteCostMissing: '报价折算成本 = 0，无报价成本快照。',
+        salesProfit: '预计销售利润(USD) = 销售收入 − 已确认采购成本 = {revenue} − {cost} = {result}',
+        salesProfitNoCost: '预计销售利润(USD) = 销售收入 − 已确认采购成本 = {revenue} − {cost} = {result}',
+        salesRate: '预计销售利润率 = 销售收入 ÷ 已确认采购成本 = {revenue} ÷ {cost} = {result}',
+        salesRateUnavailable: '预计销售利润率 = 销售收入 ÷ 已确认采购成本 = {revenue} ÷ {cost} = —（已确认成本为 0）',
+        avgPoCostUsd: 'PO加权均价(USD) = 全部PO成本合计 ÷ PO数量合计 = {poCostTotal} ÷ {poQty} = {result}',
+        avgPoCostMissing: 'PO加权均价 = 0（无关联采购订单明细，出库成本按 0 计）。',
+        outboundRevenueUsd: '出库销售收入(USD) = 已出库数量 × 折算单价 = {qty} × {convertPrice} = {result}',
+        outboundCostUsd: '出库采购成本(USD) = 已出库数量 × PO加权均价 = {qty} × {avgCost} = {result}',
+        outboundProfit:
+          '出库利润(USD) = (折算单价 − PO加权均价) × 已出库数量 = ({convertPrice} − {avgCost}) × {qty} = {result}',
+        outboundRate: '出库利润率 = 出库销售收入 ÷ 出库采购成本 = {revenue} ÷ {cost} = {result}',
+        outboundRateUnavailable:
+          '出库利润率 = 出库销售收入 ÷ 出库采购成本 = {revenue} ÷ {cost} = —（出库成本为 0）',
+        grossMargin: '毛利率 = 利润 ÷ 销售收入 × 100% = {profit} ÷ {revenue} × 100% = {result}',
+        grossMarginOutbound: '毛利率 = 出库利润 ÷ 出库销售收入 × 100% = {profit} ÷ {revenue} × 100% = {result}'
+      },
+      hints: {
+        noQuoteCost: '报价层：尚未记录报价成本快照，利润与利润率无法按报价口径计算。',
+        quoteBreakEven: '报价层：销售收入与报价成本持平（利润率约 1.00），报价利润为 0。',
+        noConfirmedPoCost:
+          '预计销售层：尚无已确认采购成本（当前采购状态：{purchaseStatus}），预计销售利润与利润率暂无法按已确认口径计算。',
+        salesBreakEven: '预计销售层：销售收入与已确认采购成本持平，预计销售利润为 0。',
+        salesBreakEvenParity:
+          '预计销售层：销售收入与已确认采购成本持平（利润率约 1.00），预计销售利润为 0。',
+        unconfirmedPoCost:
+          '预计销售层：存在已下单但未确认的采购成本（当前采购状态：{purchaseStatus}），全 PO 口径利润高于已确认口径。',
+        notShippedYet: '出库层：尚未发生实际出库（当前出库状态：{stockOutStatus}），出库利润为 0。',
+        outboundBreakEven:
+          '出库层：已出库 {qty}，销售单价与加权平均采购成本持平（利润率约 1.00），出库毛利为 0。',
+        outboundZeroProfitShipped:
+          '出库层：已出库 {qty}，销售单价与加权平均采购成本相同或极为接近，出库毛利为 0。',
+        outboundNoCostBaseline:
+          '出库层：出库利润为正但出库采购成本为 0（当前采购状态：{purchaseStatus}），利润率无法按收入÷成本计算。',
+        noRevenue: '销售收入为 0 或无效，各层毛利率无法计算。'
+      }
+    },
     goExecute: '去出库',
     prStatus0: '新建',
     prStatus1: '部分完成',

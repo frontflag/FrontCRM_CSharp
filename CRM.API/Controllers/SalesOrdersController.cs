@@ -984,12 +984,14 @@ namespace CRM.API.Controllers
             var quoteRows = await BuildQuoteTabRowsAsync(itemIds, mask521, mask511);
 
             object? lineOverview = null;
+            object? lineProfit = null;
             if (sellOrderItemIdScope != null)
             {
                 lineOverview = await BuildSellOrderLineOverviewAsync(
                     sellOrderItemIdScope,
                     prRows.Select(p => (p.Status, p.Qty)).ToList(),
                     mask521);
+                lineProfit = await BuildSellOrderLineProfitAsync(sellOrderItemIdScope, mask521);
             }
 
             object? stockingUsage = null;
@@ -1013,6 +1015,7 @@ namespace CRM.API.Controllers
                 sellInvoices = sellInvRows,
                 qcImages = qcImageRows,
                 lineOverview,
+                lineProfit,
                 stockingUsage
             };
         }
@@ -1536,6 +1539,119 @@ namespace CRM.API.Controllers
                 stockOut = QtyMetric(qtyLine, stockOutDone, stockOutPending),
                 receiptWriteOff = AmtMetric(receiptTotal, receiptDone, receiptPending, currency),
                 invoice = AmtMetric(invoiceTotal, invoiceDone, invoicePending, currency)
+            };
+        }
+
+        /// <summary>销售订单明细详情「绩效」面板：三层利润（报价 / 预计销售 / 出库），仅单条明细 scope 时返回。</summary>
+        private async Task<object?> BuildSellOrderLineProfitAsync(string lineId, bool mask521)
+        {
+            if (mask521)
+                return null;
+
+            var soItem = await _db.SellOrderItems.AsNoTracking()
+                .Where(i => i.Id == lineId)
+                .Select(i => new { i.Qty, i.Price, i.Currency, i.ConvertPrice })
+                .FirstOrDefaultAsync();
+            if (soItem == null)
+                return null;
+
+            var ext = await _db.SellOrderItemExtends.AsNoTracking()
+                .Where(e => e.Id == lineId)
+                .Select(e => new
+                {
+                    e.QuoteCost,
+                    e.QuoteCurrency,
+                    e.QuoteConvertCost,
+                    e.FxUsdToCnySnapshot,
+                    e.FxUsdToHkdSnapshot,
+                    e.FxUsdToEurSnapshot,
+                    e.QuoteProfitExpected,
+                    e.QuoteProfitRateExpected,
+                    e.ReQuoteProfitExpected,
+                    e.ReQuoteProfitRateExpected,
+                    e.PoCostUsdTotal,
+                    e.PoCostUsdConfirmed,
+                    e.PurchaseProfitExpected,
+                    e.SalesProfitExpected,
+                    e.ProfitOutBizUsd,
+                    e.ProfitOutRateBiz,
+                    e.QtyStockOutActual,
+                    e.PurchaseProgressStatus,
+                    e.StockOutProgressStatus
+                })
+                .FirstOrDefaultAsync();
+            if (ext == null)
+                return null;
+
+            var revenueUsd = Math.Round(soItem.Qty * soItem.ConvertPrice, 2, MidpointRounding.AwayFromZero);
+            var quoteCostUsd = Math.Round(soItem.Qty * ext.QuoteConvertCost, 2, MidpointRounding.AwayFromZero);
+            var useReQuote = ext.QuoteConvertCost > 0m;
+            var quoteProfit = useReQuote ? ext.ReQuoteProfitExpected : ext.QuoteProfitExpected;
+            var quoteRateStored = useReQuote ? ext.ReQuoteProfitRateExpected : ext.QuoteProfitRateExpected;
+            var quoteRate = SellOrderItemProfitDisplay.ResolveStoredRateForDisplay(
+                quoteRateStored,
+                quoteCostUsd,
+                quoteProfit);
+
+            var salesRate = SellOrderItemProfitDisplay.ResolveSalesExpectedRateForDisplay(
+                revenueUsd,
+                ext.PoCostUsdConfirmed);
+            var outboundRate = SellOrderItemProfitDisplay.ResolveProfitOutRateBizForDisplay(
+                ext.ProfitOutRateBiz,
+                ext.ProfitOutBizUsd);
+
+            var poItems = await _db.PurchaseOrderItems.AsNoTracking()
+                .Where(p => p.SellOrderItemId == lineId)
+                .Select(p => new { p.Qty, p.ConvertPrice })
+                .ToListAsync();
+            var poQtyTotal = poItems.Sum(p => p.Qty);
+            var avgPoCostUsd = poQtyTotal > 0m
+                ? Math.Round(poItems.Sum(p => p.Qty * p.ConvertPrice) / poQtyTotal, 6, MidpointRounding.AwayFromZero)
+                : 0m;
+            var outQty = ext.QtyStockOutActual;
+            var outboundRevenueUsd = Math.Round(outQty * soItem.ConvertPrice, 2, MidpointRounding.AwayFromZero);
+            var outboundCostUsd = Math.Round(outQty * avgPoCostUsd, 2, MidpointRounding.AwayFromZero);
+
+            return new
+            {
+                qty = soItem.Qty,
+                sellPrice = soItem.Price,
+                sellCurrency = soItem.Currency,
+                convertPrice = soItem.ConvertPrice,
+                quoteCost = ext.QuoteCost,
+                quoteCurrency = ext.QuoteCurrency,
+                quoteConvertCost = ext.QuoteConvertCost,
+                fxUsdToCnySnapshot = ext.FxUsdToCnySnapshot,
+                fxUsdToHkdSnapshot = ext.FxUsdToHkdSnapshot,
+                fxUsdToEurSnapshot = ext.FxUsdToEurSnapshot,
+                useReQuote,
+                revenueUsd,
+                quoteCostUsd,
+                poCostUsdTotal = ext.PoCostUsdTotal,
+                poCostUsdConfirmed = ext.PoCostUsdConfirmed,
+                purchaseProfitExpected = ext.PurchaseProfitExpected,
+                qtyStockOutActual = outQty,
+                poQtyTotal,
+                avgPoCostUsd,
+                outboundRevenueUsd,
+                outboundCostUsd,
+                purchaseProgressStatus = ext.PurchaseProgressStatus,
+                stockOutProgressStatus = ext.StockOutProgressStatus,
+                quote = new
+                {
+                    profitUsd = quoteProfit,
+                    profitRate = quoteRate
+                },
+                salesExpected = new
+                {
+                    profitUsd = ext.SalesProfitExpected,
+                    profitRate = salesRate
+                },
+                outbound = new
+                {
+                    profitUsd = ext.ProfitOutBizUsd,
+                    profitRate = outboundRate
+                }
             };
         }
 
