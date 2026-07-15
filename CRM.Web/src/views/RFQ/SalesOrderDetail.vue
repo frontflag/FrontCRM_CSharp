@@ -1038,9 +1038,10 @@
 
       <SellOrderItemPerformancePanel
         v-if="soItemLinePanel.visible && !maskSaleSensitiveFields"
+        :sales-order-id="String(route.params.id ?? '')"
+        :sell-order-item-id="soItemLinePanel.sellOrderItemId"
         :sell-order-item-code="soItemLinePanel.sellOrderItemCode"
-        :line-profit="lineTabAggregates?.lineProfit"
-        :loading="soItemLinePanel.loading"
+        :refresh-key="lineProfitRefreshKey"
       />
 
       <SalesOrderStockOutBatchPanel
@@ -1632,6 +1633,8 @@ function toggleSoDetailItemsOpCol() {
 
 /** 双击订单明细行：底部「销售订单明细详情」面板数据（按销售明细主键） */
 const lineTabAggregates = ref<SalesOrderDetailTabAggregates | null>(null)
+/** 明细关联数据刷新时递增，供绩效面板在展开状态下重新拉取 */
+const lineProfitRefreshKey = ref(0)
 
 type SoItemLineTabKey =
   | 'overview'
@@ -1868,6 +1871,7 @@ async function reloadSoItemLinePanelAggregates() {
   if (!oid || !sellOrderItemId || !soItemLinePanel.visible) return
   try {
     lineTabAggregates.value = await salesOrderApi.getSellOrderItemDetailTabAggregates(oid, sellOrderItemId)
+    lineProfitRefreshKey.value++
     const row = order.value?.items?.find(
       (line: Record<string, unknown>) => soItemRowKey(line) === sellOrderItemId
     ) as Record<string, unknown> | undefined

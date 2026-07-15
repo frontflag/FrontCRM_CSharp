@@ -591,6 +591,44 @@ namespace CRM.API.Controllers
             }
         }
 
+        /// <summary>销售订单「单条明细」绩效面板：三层利润（报价 / 预计销售 / 出库）；展开面板时按需加载。</summary>
+        [HttpGet("{id:guid}/sell-order-items/{sellOrderItemId:guid}/line-profit")]
+        public async Task<IActionResult> GetSellOrderItemLineProfit(string id, string sellOrderItemId)
+        {
+            try
+            {
+                var lineId = (sellOrderItemId ?? string.Empty).Trim();
+                if (string.IsNullOrEmpty(lineId))
+                    return BadRequest(new { success = false, message = "销售订单明细主键无效" });
+
+                var order = await _service.GetByIdAsync(id);
+                if (order == null) return NotFound(new { success = false, message = "销售订单不存在" });
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessSalesOrderAsync(userId, order))
+                    return StatusCode(403, new { success = false, message = "无权限访问该销售订单" });
+
+                var orderLineIds = (order.Items ?? new List<SellOrderItem>())
+                    .Select(i => i.Id)
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Select(x => x.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                if (!orderLineIds.Contains(lineId, StringComparer.OrdinalIgnoreCase))
+                    return NotFound(new { success = false, message = "销售订单明细不属于该订单" });
+
+                var summary = await GetPermissionSummaryAsync(userId);
+                var mask521 = SaleSensitiveFieldMask521.ShouldMask(summary);
+
+                var data = await BuildSellOrderLineProfitAsync(lineId, mask521);
+                return Ok(new { success = true, data });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取销售订单明细绩效失败: {OrderId} {ItemId}", id, sellOrderItemId);
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
         /// <param name="sellOrderItemIdScope">非 null 时：采购申请、采购订单明细、出库通知、收款核销仅保留该销售明细；在库/出库/销项发票链仅使用该明细。</param>
         private async Task<object> BuildSalesOrderDetailTabAggregatesPayloadAsync(
             string orderId,
@@ -984,14 +1022,12 @@ namespace CRM.API.Controllers
             var quoteRows = await BuildQuoteTabRowsAsync(itemIds, mask521, mask511);
 
             object? lineOverview = null;
-            object? lineProfit = null;
             if (sellOrderItemIdScope != null)
             {
                 lineOverview = await BuildSellOrderLineOverviewAsync(
                     sellOrderItemIdScope,
                     prRows.Select(p => (p.Status, p.Qty)).ToList(),
                     mask521);
-                lineProfit = await BuildSellOrderLineProfitAsync(sellOrderItemIdScope, mask521);
             }
 
             object? stockingUsage = null;
@@ -1015,7 +1051,6 @@ namespace CRM.API.Controllers
                 sellInvoices = sellInvRows,
                 qcImages = qcImageRows,
                 lineOverview,
-                lineProfit,
                 stockingUsage
             };
         }

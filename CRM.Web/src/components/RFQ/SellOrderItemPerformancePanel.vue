@@ -5,7 +5,7 @@
         type="button"
         class="so-item-line-performance-panel__toggle"
         :aria-expanded="!collapsed"
-        @click="collapsed = !collapsed"
+        @click="onToggleClick"
       >
         <span class="so-item-line-performance-panel__toggle-icon" :class="{ 'is-collapsed': collapsed }">▾</span>
         <span class="so-item-line-performance-panel__title">{{ t('salesOrderDetailView.performance.title') }}</span>
@@ -102,9 +102,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { SellOrderLineProfit } from '@/api/salesOrder'
+import { salesOrderApi, type SellOrderLineProfit } from '@/api/salesOrder'
 import DetailListPanelEmpty from '@/components/Common/DetailListPanelEmpty.vue'
 import {
   computeGrossMarginPercent,
@@ -117,31 +117,36 @@ import { buildSellOrderLineProfitLayerFormulas } from '@/utils/sellOrderLineProf
 import { buildSellOrderLineProfitVariableGroups } from '@/utils/sellOrderLineProfitVariables'
 
 const props = defineProps<{
+  salesOrderId?: string | null
+  sellOrderItemId?: string | null
   sellOrderItemCode?: string | null
-  lineProfit?: SellOrderLineProfit | null
-  loading?: boolean
+  /** 明细关联数据刷新时递增，用于在展开状态下重新拉取绩效 */
+  refreshKey?: number
 }>()
 
 const { t } = useI18n()
-const collapsed = ref(false)
+const collapsed = ref(true)
+const lineProfit = ref<SellOrderLineProfit | null>(null)
+const loading = ref(false)
+const loadedItemId = ref('')
 
-const hints = computed(() => buildSellOrderLineProfitHints(props.lineProfit, t))
+const hints = computed(() => buildSellOrderLineProfitHints(lineProfit.value, t))
 
 const variableGroups = computed(() => {
-  const p = props.lineProfit
+  const p = lineProfit.value
   if (!p) return []
   return buildSellOrderLineProfitVariableGroups(p, t)
 })
 
 const layerFormulas = computed(() => {
-  const p = props.lineProfit
+  const p = lineProfit.value
   if (!p) return new Map<string, ReturnType<typeof buildSellOrderLineProfitLayerFormulas>[number]['lines']>()
   const layers = buildSellOrderLineProfitLayerFormulas(p, t)
   return new Map(layers.map((layer) => [layer.key, layer.lines]))
 })
 
 const rows = computed(() => {
-  const p = props.lineProfit
+  const p = lineProfit.value
   if (!p) return []
   const revenue = p.revenueUsd
   const formulaMap = layerFormulas.value
@@ -189,6 +194,60 @@ const rows = computed(() => {
     )
   ]
 })
+
+function resetLineProfitCache() {
+  lineProfit.value = null
+  loadedItemId.value = ''
+}
+
+async function ensureLineProfitLoaded(force = false) {
+  const orderId = String(props.salesOrderId ?? '').trim()
+  const itemId = String(props.sellOrderItemId ?? '').trim()
+  if (!orderId || !itemId) {
+    resetLineProfitCache()
+    return
+  }
+  if (!force && loadedItemId.value === itemId && lineProfit.value) return
+
+  loading.value = true
+  try {
+    lineProfit.value = (await salesOrderApi.getSellOrderItemLineProfit(orderId, itemId)) ?? null
+    loadedItemId.value = itemId
+  } catch {
+    resetLineProfitCache()
+  } finally {
+    loading.value = false
+  }
+}
+
+function onToggleClick() {
+  const expanding = collapsed.value
+  collapsed.value = !collapsed.value
+  if (expanding) {
+    void ensureLineProfitLoaded()
+  }
+}
+
+watch(
+  () => props.sellOrderItemId,
+  (itemId, prevItemId) => {
+    if (itemId === prevItemId) return
+    resetLineProfitCache()
+    if (!collapsed.value && itemId) {
+      void ensureLineProfitLoaded()
+    }
+  }
+)
+
+watch(
+  () => props.refreshKey,
+  () => {
+    resetLineProfitCache()
+    if (!collapsed.value) {
+      void ensureLineProfitLoaded(true)
+    }
+  }
+)
 
 function formatGrossMargin(profitUsd: number, revenueUsd: number): string | null {
   const pct = computeGrossMarginPercent(profitUsd, revenueUsd)

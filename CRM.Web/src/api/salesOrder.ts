@@ -204,8 +204,6 @@ export interface SalesOrderDetailTabAggregates {
   qcImages: QcImageReadonlyRow[]
   /** 销售订单明细详情「概况」页签（仅单条明细 aggregates 接口返回） */
   lineOverview?: SellOrderLineOverview | null
-  /** 销售订单明细详情「绩效」面板（仅单条明细 aggregates 接口返回） */
-  lineProfit?: SellOrderLineProfit | null
   /** 使用备货（仅单条明细 aggregates 接口返回；按采购主单汇总备货补充拣货量） */
   stockingUsage?: SellOrderStockingUsage | null
 }
@@ -215,7 +213,7 @@ export interface SellOrderLineProfitLayer {
   profitRate?: number | null
 }
 
-/** GET detail-tab-aggregates → lineProfit */
+/** GET .../sell-order-items/{itemId}/line-profit */
 export interface SellOrderLineProfit {
   qty: number
   sellPrice: number
@@ -383,6 +381,15 @@ export const salesOrderApi = {
     const encI = encodeURIComponent(sellOrderItemId)
     return await apiClient.get<SalesOrderDetailTabAggregates>(
       `/api/v1/sales-orders/${encO}/sell-order-items/${encI}/detail-tab-aggregates`
+    )
+  },
+
+  /** 单条销售明细绩效（展开绩效面板时按需加载） */
+  async getSellOrderItemLineProfit(orderId: string, sellOrderItemId: string) {
+    const encO = encodeURIComponent(orderId)
+    const encI = encodeURIComponent(sellOrderItemId)
+    return await apiClient.get<SellOrderLineProfit | null>(
+      `/api/v1/sales-orders/${encO}/sell-order-items/${encI}/line-profit`
     )
   },
 
