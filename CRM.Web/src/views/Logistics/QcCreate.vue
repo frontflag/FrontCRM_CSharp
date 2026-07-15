@@ -341,11 +341,14 @@ import VendorNameReadonlyText from '@/components/Vendor/VendorNameReadonlyText.v
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDate } from '@/utils/displayDateTime'
+import { qcUploadFilesToBrowserItems } from '@/utils/imageBrowserItems'
+import { useImageBrowser } from '@/composables/useImageBrowser'
 
 type QcUploadFile = UploadFile & { documentId?: string; uploadFailReason?: string }
 
 const { t } = useI18n()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
+const { openImageBrowser } = useImageBrowser()
 const route = useRoute()
 const router = useRouter()
 const pageLoading = ref(false)
@@ -540,12 +543,14 @@ async function beforeRemoveQcImage(uploadFile: UploadFile) {
 }
 
 function onPreviewQcImage(uploadFile: UploadFile) {
-  const qf = uploadFile as QcUploadFile
-  if (qf.documentId) {
-    void documentApi.openPreviewInNewTab(qf.documentId)
-    return
-  }
-  if (uploadFile.url) window.open(uploadFile.url, '_blank', 'noopener,noreferrer')
+  const items = qcUploadFilesToBrowserItems(qcFileList.value)
+  if (items.length === 0) return
+  const idx = qcFileList.value.findIndex((f) => f.uid === uploadFile.uid)
+  openImageBrowser({
+    items,
+    initialIndex: idx >= 0 ? idx : 0,
+    title: t('qcDetail.sections.images')
+  })
 }
 
 const MAX_QC_IMAGES = 24

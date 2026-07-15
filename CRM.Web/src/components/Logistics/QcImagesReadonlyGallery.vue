@@ -32,8 +32,11 @@
 
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import apiClient from '@/api/client'
-import { documentApi, type QcImageReadonlyRow } from '@/api/document'
+import type { QcImageReadonlyRow } from '@/api/document'
+import { useImageBrowser } from '@/composables/useImageBrowser'
+import { qcReadonlyRowsToBrowserItems } from '@/utils/imageBrowserItems'
 
 export type { QcImageReadonlyRow }
 
@@ -41,12 +44,17 @@ const props = withDefaults(
   defineProps<{
     images: QcImageReadonlyRow[]
     emptyText?: string
+    /** 全屏浏览器标题；默认「质检图片」 */
+    browserTitle?: string
   }>(),
   {
     images: () => [],
     emptyText: '暂无质检图片',
   }
 )
+
+const { t } = useI18n()
+const { openImageBrowser } = useImageBrowser()
 
 type QcImageGroup = {
   qcId: string
@@ -74,6 +82,11 @@ const grouped = computed<QcImageGroup[]>(() => {
   }
   return [...map.values()]
 })
+
+/** 与网格展示顺序一致：按质检单分组后依次展平 */
+const flatImages = computed(() => grouped.value.flatMap((g) => g.images))
+
+const browserItems = computed(() => qcReadonlyRowsToBrowserItems(flatImages.value))
 
 const thumbUrlById = ref<Record<string, string>>({})
 const blobUrls: string[] = []
@@ -116,7 +129,14 @@ watch(
 )
 
 function onPreview(documentId: string) {
-  void documentApi.openPreviewInNewTab(documentId)
+  const items = browserItems.value
+  if (items.length === 0) return
+  const idx = flatImages.value.findIndex((x) => String(x.documentId) === String(documentId))
+  openImageBrowser({
+    items,
+    initialIndex: idx >= 0 ? idx : 0,
+    title: props.browserTitle?.trim() || t('imageBrowser.defaultTitleQc')
+  })
 }
 
 onUnmounted(() => {

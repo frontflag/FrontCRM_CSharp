@@ -5499,6 +5499,23 @@ const zhCN = {
   sellOrderItemStockOutNotifyTab: {
     empty: '暂无出库通知'
   },
+  imageBrowser: {
+    defaultTitle: '图片浏览',
+    defaultTitleQc: '质检图片',
+    prev: '上一张',
+    next: '下一张',
+    zoomIn: '放大',
+    zoomOut: '缩小',
+    view100: '100%',
+    viewFitWindow: '适应窗口',
+    viewFitWidth: '适应宽度',
+    close: '关闭',
+    loading: '加载中…',
+    retry: '重试',
+    loadFailed: '图片加载失败',
+    emptyFile: '文件为空或不存在',
+    missingSource: '无法获取图片地址'
+  },
   inventoryList: {
     title: '库存中心',
     count: '共 {count} 条',

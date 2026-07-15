@@ -1323,6 +1323,7 @@
     <!-- /.workspace-cols -->
     </div>
     <!-- /.app-layout-body -->
+    <CrmImageBrowser />
   </div>
 </template>
 
@@ -1356,6 +1357,8 @@ import SalesOrderRecentHistoryPanel from '@/components/SalesOrder/SalesOrderRece
 import PurchaseOrderFavoritePanel from '@/components/purchaseOrder/PurchaseOrderFavoritePanel.vue'
 import PurchaseOrderRecentHistoryPanel from '@/components/purchaseOrder/PurchaseOrderRecentHistoryPanel.vue'
 import HelpManualPanel from '@/components/workspace/HelpManualPanel.vue'
+import CrmImageBrowser from '@/components/Common/CrmImageBrowser.vue'
+import { useImageBrowserStore } from '@/stores/imageBrowser'
 import SalesOrderItemOpsPanel from '@/components/RFQ/SalesOrderItemOpsPanel.vue'
 import RfqItemMaterialPanel from '@/components/RFQ/RfqItemMaterialPanel.vue'
 import CustomerIntelPanel from '@/components/Customer/CustomerIntelPanel.vue'
@@ -1382,6 +1385,13 @@ import fallbackHeaderLogoUrl from '@/assets/brand/semicore-login-logo.png'
 
 const route = useRoute()
 const router = useRouter()
+const imageBrowserStore = useImageBrowserStore()
+watch(
+  () => route.fullPath,
+  () => {
+    if (imageBrowserStore.visible) imageBrowserStore.close()
+  }
+)
 const authStore = useAuthStore()
 const { simulationBanner } = storeToRefs(authStore)
 const simulationBannerEnabled = computed(() => simulationBanner.value.enabled)

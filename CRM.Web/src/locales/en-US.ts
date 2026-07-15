@@ -5514,6 +5514,23 @@ const enUS = {
   sellOrderItemStockOutNotifyTab: {
     empty: 'No stock-out notifications'
   },
+  imageBrowser: {
+    defaultTitle: 'Image viewer',
+    defaultTitleQc: 'QC images',
+    prev: 'Previous',
+    next: 'Next',
+    zoomIn: 'Zoom in',
+    zoomOut: 'Zoom out',
+    view100: '100%',
+    viewFitWindow: 'Fit window',
+    viewFitWidth: 'Fit width',
+    close: 'Close',
+    loading: 'Loading…',
+    retry: 'Retry',
+    loadFailed: 'Failed to load image',
+    emptyFile: 'File is empty or missing',
+    missingSource: 'Image source unavailable'
+  },
   inventoryList: {
     title: 'Inventory Center',
     count: '{count} records total',
