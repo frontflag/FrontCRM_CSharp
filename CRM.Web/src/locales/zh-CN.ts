@@ -4625,6 +4625,17 @@ const zhCN = {
         outboundCostFallbackWeighted:
           '出库：尚无出库批次成本快照，出库成本与利润暂按 PO 折算采购单价回退计算。',
         noRevenue: '销售收入为 0 或无效，各层毛利率无法计算。'
+      },
+      outboundCostDetails: {
+        title: '出库成本明细',
+        summary: '共 {stockOuts} 张出库单 · {rows} 行批次',
+        empty: '暂无出库批次成本明细',
+        colStockOut: '出库单',
+        colPoItem: 'PO 明细',
+        colPurchasePrice: '采购单价（USD）',
+        colQty: '出库数量',
+        colCost: '成本小计（USD）',
+        totalCost: '出库采购成本合计'
       }
     },
     goExecute: '去出库',

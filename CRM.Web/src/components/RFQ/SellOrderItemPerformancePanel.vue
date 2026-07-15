@@ -86,6 +86,11 @@
             </template>
           </tbody>
         </table>
+        <SellOrderOutboundCostDetailTable
+          v-if="showOutboundCostDetails"
+          :details="lineProfit.outboundCostDetails!"
+          :total-cost-usd="lineProfit.outboundCostUsd"
+        />
         <el-alert
           v-for="(hint, idx) in hints"
           :key="`${hint.level}-${idx}`"
@@ -115,6 +120,7 @@ import {
 import { buildSellOrderLineProfitHints } from '@/utils/sellOrderLineProfitHints'
 import { buildSellOrderLineProfitLayerFormulas } from '@/utils/sellOrderLineProfitFormulas'
 import { buildSellOrderLineProfitVariableGroups } from '@/utils/sellOrderLineProfitVariables'
+import SellOrderOutboundCostDetailTable from '@/components/RFQ/SellOrderOutboundCostDetailTable.vue'
 
 const props = defineProps<{
   salesOrderId?: string | null
@@ -131,6 +137,12 @@ const loading = ref(false)
 const loadedItemId = ref('')
 
 const hints = computed(() => buildSellOrderLineProfitHints(lineProfit.value, t))
+
+const showOutboundCostDetails = computed(() => {
+  const p = lineProfit.value
+  if (!p?.useActualOutboundCost) return false
+  return (p.outboundCostDetails?.length ?? 0) > 0
+})
 
 const variableGroups = computed(() => {
   const p = lineProfit.value

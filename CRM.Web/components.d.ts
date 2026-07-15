@@ -160,6 +160,7 @@ declare module 'vue' {
     SellOrderItemStockOutNotifyTabTable: typeof import('./src/components/RFQ/SellOrderItemStockOutNotifyTabTable.vue')['default']
     SellOrderItemStockOutTabTable: typeof import('./src/components/RFQ/SellOrderItemStockOutTabTable.vue')['default']
     SellOrderItemStockTabTable: typeof import('./src/components/RFQ/SellOrderItemStockTabTable.vue')['default']
+    SellOrderOutboundCostDetailTable: typeof import('./src/components/RFQ/SellOrderOutboundCostDetailTable.vue')['default']
     SettlementCurrencyAmountInput: typeof import('./src/components/SettlementCurrencyAmountInput.vue')['default']
     ShipmentExpressFields: typeof import('./src/components/Logistics/ShipmentExpressFields.vue')['default']
     StockBizTypeTag: typeof import('./src/components/Inventory/StockBizTypeTag.vue')['default']

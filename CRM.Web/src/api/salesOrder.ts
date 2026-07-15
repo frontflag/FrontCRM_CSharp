@@ -230,6 +230,18 @@ export interface SellOrderLineOutboundCostLine {
   profitOutBizUsd: number
 }
 
+/** line-profit：出库成本明细表（每条 stock_out_item_extend，含出库单维度） */
+export interface SellOrderLineOutboundCostDetail {
+  stockOutId?: string | null
+  stockOutCode?: string | null
+  stockOutItemId?: string | null
+  purchaseOrderItemId?: string | null
+  purchaseOrderItemCode?: string | null
+  purchasePriceUsd: number
+  qty: number
+  costUsd: number
+}
+
 /** GET .../sell-order-items/{itemId}/line-profit */
 export interface SellOrderLineProfit {
   qty: number
@@ -255,6 +267,7 @@ export interface SellOrderLineProfit {
   useActualOutboundCost?: boolean
   effectiveOutboundAvgCostUsd?: number
   outboundCostLines?: SellOrderLineOutboundCostLine[]
+  outboundCostDetails?: SellOrderLineOutboundCostDetail[]
   outboundRevenueUsd: number
   outboundCostUsd: number
   purchaseProgressStatus?: number

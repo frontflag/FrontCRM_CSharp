@@ -4640,6 +4640,17 @@ const enUS = {
         outboundCostFallbackWeighted:
           'Outbound: no outbound batch cost snapshot yet; cost and profit use PO convert unit cost fallback.',
         noRevenue: 'Revenue is zero or invalid; gross margin cannot be computed.'
+      },
+      outboundCostDetails: {
+        title: 'Outbound cost breakdown',
+        summary: '{stockOuts} stock-out(s) · {rows} batch line(s)',
+        empty: 'No outbound batch cost lines',
+        colStockOut: 'Stock-out',
+        colPoItem: 'PO line',
+        colPurchasePrice: 'Unit cost (USD)',
+        colQty: 'Shipped qty',
+        colCost: 'Line cost (USD)',
+        totalCost: 'Total outbound cost'
       }
     },
     goExecute: 'Execute stock-out',

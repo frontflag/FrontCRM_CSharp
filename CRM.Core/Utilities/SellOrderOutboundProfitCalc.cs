@@ -10,6 +10,19 @@ public sealed class SellOrderOutboundCostLine
     public decimal ProfitOutBizUsd { get; init; }
 }
 
+/// <summary>出库成本明细行（每条 stock_out_item_extend，含出库单维度，供绩效面板明细表）。</summary>
+public sealed class SellOrderOutboundCostDetailLine
+{
+    public string? StockOutId { get; init; }
+    public string? StockOutCode { get; init; }
+    public string? StockOutItemId { get; init; }
+    public string? PurchaseOrderItemId { get; init; }
+    public string? PurchaseOrderItemCode { get; init; }
+    public decimal PurchasePriceUsd { get; init; }
+    public int Qty { get; init; }
+    public decimal CostUsd { get; init; }
+}
+
 /// <summary>销售明细出库利润汇总（实际批次成本优先，无快照时回退 PO 加权均价）。</summary>
 public sealed class SellOrderOutboundProfitSnapshot
 {
@@ -115,6 +128,20 @@ public static class SellOrderOutboundProfitCalc
                 ProfitOutBizUsd = Math.Round(g.Sum(x => x.ProfitOutBizUsd), 2, MidpointRounding.AwayFromZero)
             })
             .OrderBy(l => l.PurchaseOrderItemCode ?? l.PurchaseOrderItemId ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(l => l.PurchasePriceUsd)
+            .ToList();
+    }
+
+    /// <summary>出库成本明细表排序（出库单 → PO 明细 → 采购单价）。</summary>
+    public static IReadOnlyList<SellOrderOutboundCostDetailLine> OrderCostDetailsForDisplay(
+        IReadOnlyList<SellOrderOutboundCostDetailLine> lines)
+    {
+        if (lines == null || lines.Count == 0)
+            return Array.Empty<SellOrderOutboundCostDetailLine>();
+
+        return lines
+            .OrderBy(l => l.StockOutCode ?? l.StockOutId ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(l => l.PurchaseOrderItemCode ?? l.PurchaseOrderItemId ?? string.Empty, StringComparer.OrdinalIgnoreCase)
             .ThenBy(l => l.PurchasePriceUsd)
             .ToList();
     }

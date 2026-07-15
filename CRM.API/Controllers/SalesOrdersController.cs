@@ -1666,6 +1666,10 @@ namespace CRM.API.Controllers
                 outQty,
                 outboundCostLineRows,
                 avgPoCostUsd);
+            var outboundCostDetailRows = outboundSnapshot.UseActualBatchCost
+                ? SellOrderOutboundProfitCalc.OrderCostDetailsForDisplay(
+                    await LoadSellOrderOutboundCostDetailsAsync(lineId))
+                : Array.Empty<SellOrderOutboundCostDetailLine>();
             var outboundCostUsd = outboundSnapshot.OutboundCostUsd;
             var effectiveOutboundAvgCostUsd = outboundSnapshot.EffectiveAvgCostUsd;
             var outboundProfitUsd = outboundSnapshot.ProfitOutBizUsd;
@@ -1706,6 +1710,17 @@ namespace CRM.API.Controllers
                     qty = l.Qty,
                     costUsd = Math.Round(l.Qty * l.PurchasePriceUsd, 2, MidpointRounding.AwayFromZero),
                     profitOutBizUsd = l.ProfitOutBizUsd
+                }),
+                outboundCostDetails = outboundCostDetailRows.Select(d => new
+                {
+                    stockOutId = d.StockOutId,
+                    stockOutCode = d.StockOutCode,
+                    stockOutItemId = d.StockOutItemId,
+                    purchaseOrderItemId = d.PurchaseOrderItemId,
+                    purchaseOrderItemCode = d.PurchaseOrderItemCode,
+                    purchasePriceUsd = d.PurchasePriceUsd,
+                    qty = d.Qty,
+                    costUsd = d.CostUsd
                 }),
                 outboundRevenueUsd,
                 outboundCostUsd,
@@ -1766,6 +1781,54 @@ namespace CRM.API.Controllers
                         PurchasePriceUsd = r.PurchasePriceUsd,
                         Qty = qty,
                         ProfitOutBizUsd = r.ProfitOutBizUsd
+                    };
+                })
+                .Where(l => l.Qty > 0)
+                .ToList();
+        }
+
+        private async Task<List<SellOrderOutboundCostDetailLine>> LoadSellOrderOutboundCostDetailsAsync(string sellOrderItemId)
+        {
+            var lineId = sellOrderItemId.Trim();
+            const short stockOutCompleted = 2;
+            const short stockOutFinished = 4;
+
+            var raw = await (
+                from so in _db.StockOuts.AsNoTracking()
+                join soi in _db.StockOutItems.AsNoTracking() on so.Id equals soi.StockOutId
+                join ext in _db.StockOutItemExtends.AsNoTracking() on soi.Id equals ext.Id
+                where !so.IsDeleted
+                      && !soi.IsDeleted
+                      && !ext.IsDeleted
+                      && (so.Status == stockOutCompleted || so.Status == stockOutFinished)
+                      && so.StockOutType == StockOutTypeCode.Sales
+                      && so.SellOrderItemId == lineId
+                select new
+                {
+                    so.Id,
+                    so.StockOutCode,
+                    StockOutItemId = soi.Id,
+                    ext.PurchaseOrderItemId,
+                    ext.PurchaseOrderItemCode,
+                    ext.PurchasePriceUsd,
+                    ext.QtyStockOut,
+                    QtyFallback = soi.ActualQty > 0 ? soi.ActualQty : soi.Quantity
+                }).ToListAsync();
+
+            return raw
+                .Select(r =>
+                {
+                    var qty = r.QtyStockOut > 0 ? r.QtyStockOut : r.QtyFallback;
+                    return new SellOrderOutboundCostDetailLine
+                    {
+                        StockOutId = r.Id,
+                        StockOutCode = r.StockOutCode,
+                        StockOutItemId = r.StockOutItemId,
+                        PurchaseOrderItemId = r.PurchaseOrderItemId,
+                        PurchaseOrderItemCode = r.PurchaseOrderItemCode,
+                        PurchasePriceUsd = r.PurchasePriceUsd,
+                        Qty = qty,
+                        CostUsd = Math.Round(qty * r.PurchasePriceUsd, 2, MidpointRounding.AwayFromZero)
                     };
                 })
                 .Where(l => l.Qty > 0)

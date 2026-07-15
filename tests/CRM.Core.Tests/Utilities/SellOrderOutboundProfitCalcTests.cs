@@ -55,4 +55,46 @@ public class SellOrderOutboundProfitCalcTests
         Assert.Equal(1.25m, snapshot.ProfitOutRateBiz);
         Assert.Equal(0.32m, snapshot.EffectiveAvgCostUsd);
     }
+
+    [Fact]
+    public void OrderCostDetailsForDisplay_SortsByStockOutThenPoThenPrice()
+    {
+        var lines = new[]
+        {
+            new SellOrderOutboundCostDetailLine
+            {
+                StockOutCode = "CK-B",
+                PurchaseOrderItemCode = "PO-2",
+                PurchasePriceUsd = 0.35m,
+                Qty = 10,
+                CostUsd = 3.5m
+            },
+            new SellOrderOutboundCostDetailLine
+            {
+                StockOutCode = "CK-A",
+                PurchaseOrderItemCode = "PO-2",
+                PurchasePriceUsd = 0.30m,
+                Qty = 20,
+                CostUsd = 6m
+            },
+            new SellOrderOutboundCostDetailLine
+            {
+                StockOutCode = "CK-A",
+                PurchaseOrderItemCode = "PO-1",
+                PurchasePriceUsd = 0.32m,
+                Qty = 5,
+                CostUsd = 1.6m
+            }
+        };
+
+        var ordered = SellOrderOutboundProfitCalc.OrderCostDetailsForDisplay(lines);
+
+        Assert.Equal(3, ordered.Count);
+        Assert.Equal("CK-A", ordered[0].StockOutCode);
+        Assert.Equal("PO-1", ordered[0].PurchaseOrderItemCode);
+        Assert.Equal("CK-A", ordered[1].StockOutCode);
+        Assert.Equal("PO-2", ordered[1].PurchaseOrderItemCode);
+        Assert.Equal(0.30m, ordered[1].PurchasePriceUsd);
+        Assert.Equal("CK-B", ordered[2].StockOutCode);
+    }
 }
