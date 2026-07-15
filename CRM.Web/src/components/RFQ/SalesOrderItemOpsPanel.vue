@@ -30,8 +30,13 @@
         </header>
         <div class="ops-card__body ops-card__body--overview">
           <div class="ops-overview-line ops-overview-line--hero">{{ lineCode }}</div>
-          <div class="ops-overview-line">{{ displayCustomerName }}</div>
-          <div v-if="showCustomerEnglishName" class="ops-overview-line">{{ displayCustomerEnglishName }}</div>
+          <div class="ops-overview-line">
+            <CustomerNameReadonlyText
+              :name-zh="customerNameZh"
+              :name-en="customerNameEn"
+              :masked="maskSensitive"
+            />
+          </div>
           <div class="ops-overview-line">{{ displayPn }}</div>
           <div class="ops-overview-line">{{ displayBrand }}</div>
           <div class="ops-overview-line">{{ displayUnitPriceWithCurrency }}</div>
@@ -235,6 +240,7 @@ import { useAuthStore } from '@/stores/auth'
 import type { SalesOrderDetailTabAggregates } from '@/api/salesOrder'
 import { salesOrderMainAllowsPurchaseAndStockOut, salesOrderLineApplyStockOutButtonDisabled } from '@/constants/salesOrderStatus'
 import { formatUnitPriceWithCurrencyCodeSuffix } from '@/utils/moneyFormat'
+import CustomerNameReadonlyText from '@/components/Customer/CustomerNameReadonlyText.vue'
 import { buildApplyPurchaseDisabledHintContent, applyPurchaseButtonDisabled } from '@/utils/applyPurchaseDisabledHint'
 import { buildApplyStockOutDisabledHintContent } from '@/utils/applyStockOutDisabledHint'
 import {
@@ -270,11 +276,16 @@ const authStore = useAuthStore()
 const canViewPurchaseOrder = computed(() => authStore.hasPermission('purchase-order.read'))
 
 const lineCode = computed(() => String(props.row?.sellOrderItemCode ?? '—') || '—')
-const displayCustomerName = computed(() => (props.maskSensitive ? '—' : String(props.row?.customerName ?? '—') || '—'))
-const displayCustomerEnglishName = computed(() =>
-  props.maskSensitive ? '' : String(props.row?.customerEnglishName ?? '').trim()
-)
-const showCustomerEnglishName = computed(() => displayCustomerEnglishName.value.length > 0)
+const customerNameZh = computed(() => {
+  const r = props.row
+  if (!r) return ''
+  return String(r.customerName ?? r.CustomerName ?? '').trim()
+})
+const customerNameEn = computed(() => {
+  const r = props.row
+  if (!r) return ''
+  return String(r.customerEnglishName ?? r.CustomerEnglishName ?? '').trim()
+})
 const displayPn = computed(() => String(props.row?.pn ?? '—') || '—')
 const displayBrand = computed(() => String(props.row?.brand ?? '—') || '—')
 const displayUnitPriceWithCurrency = computed(() =>

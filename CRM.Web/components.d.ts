@@ -41,6 +41,7 @@ declare module 'vue' {
     CustomerIntelPanel: typeof import('./src/components/Customer/CustomerIntelPanel.vue')['default']
     CustomerIntelResultPanel: typeof import('./src/components/Customer/CustomerIntelResultPanel.vue')['default']
     CustomerIntelSectionContent: typeof import('./src/components/Customer/CustomerIntelSectionContent.vue')['default']
+    CustomerNameReadonlyText: typeof import('./src/components/Customer/CustomerNameReadonlyText.vue')['default']
     CustomerRecentHistoryPanel: typeof import('./src/components/Customer/CustomerRecentHistoryPanel.vue')['default']
     CustomerSearchPanel: typeof import('./src/components/Customer/CustomerSearchPanel.vue')['default']
     CustomsDeclarationBusinessRecordsPanel: typeof import('./src/components/Customs/CustomsDeclarationBusinessRecordsPanel.vue')['default']

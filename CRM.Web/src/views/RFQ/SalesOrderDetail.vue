@@ -138,7 +138,12 @@
         <div class="info-grid info-grid--inline-labels info-grid--basic">
           <div v-if="showCustomerIdentityFields" class="info-item">
             <span class="info-label">{{ t('salesOrderCreate.fields.customer') }}</span>
-            <span class="info-value">{{ order.customerName || '—' }}</span>
+            <span class="info-value">
+              <CustomerNameReadonlyText
+                :name-zh="order.customerName"
+                :name-en="order.customerEnglishName"
+              />
+            </span>
           </div>
           <div v-if="showCustomerIdentityFields" class="info-item">
             <span class="info-label">{{ t('salesOrderCreate.fields.customerContact') }}</span>
@@ -1181,6 +1186,7 @@ import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMa
 import { quoteMainStatusI18nKey } from '@/utils/quoteMainStatus'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { formatVendorNameReadonly } from '@/utils/vendorDisplayName'
+import CustomerNameReadonlyText from '@/components/Customer/CustomerNameReadonlyText.vue'
 import { formatCustomerNameReadonlyFromRow } from '@/utils/customerDisplayName'
 import { useSaleOrderWriteGate } from '@/composables/useDepartmentDataReadOnly'
 import ApplyStockOutDisabledHint from '@/components/RFQ/ApplyStockOutDisabledHint.vue'
@@ -1874,7 +1880,8 @@ async function selectSalesOrderItemRow(row: Record<string, unknown>) {
   soItemLinePanel.loading = true
   soItemLinePanel.loadError = ''
   lineTabAggregates.value = null
-  salesOrderItemOpsStore.syncRowAndAggregates(toOpsPanelRow(row), null)
+  const opsRow = toOpsPanelRow(row)
+  if (opsRow) salesOrderItemOpsStore.syncRowAndAggregates(opsRow, null)
   try {
     lineTabAggregates.value = await salesOrderApi.getSellOrderItemDetailTabAggregates(orderId, sellOrderItemId)
     syncOpsPanelFromLinePanel(row)
@@ -1902,16 +1909,41 @@ function soItemRowKey(row: Record<string, unknown>) {
   return String(row?.sellOrderItemId ?? row?.id ?? row?.Id ?? '').trim()
 }
 
-function toOpsPanelRow(row: Record<string, unknown>): Record<string, unknown> {
+/** 将详情接口返回的明细行转为与「销售订单明细」列表行一致的结构，供右侧操作面板使用 */
+function soDetailLineToListShape(it: any) {
+  const o = order.value
+  if (!o) return null
+  const sellOrderItemId = String(it.sellOrderItemId ?? it.id ?? it.Id ?? '').trim()
+  return {
+    ...it,
+    sellOrderItemId,
+    sellOrderItemCode: String(it.sellOrderItemCode ?? it.SellOrderItemCode ?? sellOrderItemId).trim(),
+    sellOrderId: String(o.id),
+    sellOrderCode: o.sellOrderCode,
+    customerId: o.customerId,
+    customerName: o.customerName,
+    customerEnglishName: o.customerEnglishName,
+    orderStatus: Number(o.status ?? o.Status ?? 0)
+  }
+}
+
+function toOpsPanelRow(row: Record<string, unknown>): Record<string, unknown> | null {
+  const shaped = soDetailLineToListShape(row)
+  if (shaped) return shaped
   const oid = String(route.params.id ?? '').trim()
+  const sellOrderItemId = soItemRowKey(row)
+  if (!oid || !sellOrderItemId) return null
   return {
     ...row,
-    sellOrderId: String(row.sellOrderId ?? oid).trim() || oid
+    sellOrderId: String(row.sellOrderId ?? oid).trim() || oid,
+    sellOrderItemId
   }
 }
 
 function syncOpsPanelFromLinePanel(row: Record<string, unknown>, error = '') {
-  salesOrderItemOpsStore.syncRowAndAggregates(toOpsPanelRow(row), lineTabAggregates.value, { error })
+  const opsRow = toOpsPanelRow(row)
+  if (!opsRow) return
+  salesOrderItemOpsStore.syncRowAndAggregates(opsRow, lineTabAggregates.value, { error })
 }
 
 function resolveDeepLinkSellOrderItemId() {

@@ -30,8 +30,13 @@
         </header>
         <div class="ops-card__body ops-card__body--overview">
           <div class="ops-overview-line ops-overview-line--hero">{{ lineCode }}</div>
-          <div class="ops-overview-line">{{ displayVendorName }}</div>
-          <div v-if="showVendorEnglishName" class="ops-overview-line">{{ displayVendorEnglishName }}</div>
+          <div class="ops-overview-line">
+            <VendorNameReadonlyText
+              :name-zh="vendorNameZh"
+              :name-en="vendorNameEn"
+              :masked="maskSensitive"
+            />
+          </div>
           <div class="ops-overview-line">{{ displayPn }}</div>
           <div class="ops-overview-line">{{ displayBrand }}</div>
           <div class="ops-overview-line">{{ displayUnitPriceWithCurrency }}</div>
@@ -181,6 +186,7 @@ import { buildApplyArrivalDisabledHintContent, applyArrivalButtonDisabled } from
 import { buildApplyPaymentDisabledHintContent, applyPaymentButtonDisabled } from '@/utils/applyPaymentDisabledHint'
 import { calcProgressPercent, getArrivalMetrics, getPaymentMetrics, poStatusLabel, poStatusTagType, type PoItemStatusKind } from '@/utils/purchaseOrderItemOpsPanel'
 import { DEFAULT_SETTLEMENT_CURRENCY_CODE } from '@/constants/currency'
+import VendorNameReadonlyText from '@/components/Vendor/VendorNameReadonlyText.vue'
 
 const props = defineProps<{
   row: Record<string, unknown> | null
@@ -204,11 +210,16 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 const lineCode = computed(() => String(props.row?.purchaseOrderItemCode ?? '—') || '—')
-const displayVendorName = computed(() => (props.maskSensitive ? '—' : String(props.row?.vendorName ?? '—') || '—'))
-const displayVendorEnglishName = computed(() =>
-  props.maskSensitive ? '' : String(props.row?.vendorEnglishName ?? '').trim()
-)
-const showVendorEnglishName = computed(() => displayVendorEnglishName.value.length > 0)
+const vendorNameZh = computed(() => {
+  const r = props.row
+  if (!r) return ''
+  return String(r.vendorName ?? r.VendorName ?? '').trim()
+})
+const vendorNameEn = computed(() => {
+  const r = props.row
+  if (!r) return ''
+  return String(r.vendorEnglishName ?? r.VendorEnglishName ?? '').trim()
+})
 const displayPn = computed(() => String(props.row?.pn ?? '—') || '—')
 const displayBrand = computed(() => String(props.row?.brand ?? '—') || '—')
 const displayUnitPriceWithCurrency = computed(() =>
