@@ -6251,6 +6251,19 @@ const enUS = {
     customsNotifyTag: 'Customs',
     salesNotifyCodeTooltip: 'Original sales notice: {code}',
     salesNotifyCodeLink: 'Original sales notice',
+    auxTabs: {
+      customsDeclaration: 'Customs declaration'
+    },
+    customsTab: {
+      pickRow: 'Click a customs stock-out notice to view declaration info',
+      overviewTitle: 'Customs declaration',
+      declarationCode: 'Declaration no.',
+      customsBroker: 'Customs broker',
+      declareDate: 'Declaration date',
+      viewDeclaration: 'View declaration',
+      noDeclaration: 'Customs declaration has not been generated yet',
+      loadFailed: 'Failed to load customs declaration'
+    },
     workflow: {
       pendingPick: 'Pending pick',
       pickedPendingOut: 'Picked — pending ship',

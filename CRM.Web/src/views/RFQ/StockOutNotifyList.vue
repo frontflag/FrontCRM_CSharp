@@ -106,8 +106,10 @@
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
       :data="list"
       row-key="id"
+      :row-class-name="customsPanelRowClassName"
       v-loading="loading"
       @selection-change="onSelectionChange"
+      @row-click="onRowClick"
       @row-dblclick="goDetail"
     >
       <template #col-status="{ row }">
@@ -328,7 +330,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
+import { computed, inject, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -342,6 +344,8 @@ import { buildStockOutNotifyListColumns } from '@/composables/buildStockOutNotif
 import { useAuthStore } from '@/stores/auth'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { useStockOutNotifyListBasketStore } from '@/stores/stockOutNotifyListBasket'
+import { useStockOutNotifyCustomsPanelStore } from '@/stores/stockOutNotifyCustomsPanel'
+import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import { STOCK_OUT_REQUEST_STATUS } from '@/constants/stockOutRequestStatus'
 import { STOCK_OUT_NOTIFY_CUSTOMS_STATUS } from '@/constants/stockOutNotifyCustomsStatus'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
@@ -351,6 +355,8 @@ import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMa
 
 const router = useRouter()
 const { t, locale } = useI18n()
+const workspaceLayout = inject(WorkspaceLayoutKey, null)
+const stockOutNotifyCustomsPanelStore = useStockOutNotifyCustomsPanelStore()
 const { ensureLoaded: ensureLogisticsDict, shipmentArrivalOptions, expressOptions } = useLogisticsFormDict()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const authStore = useAuthStore()
@@ -464,6 +470,37 @@ function isCustomsNotify(row: StockOutRequestDto): boolean {
   return resolveNotifyStockOutType(row.stockOutType) === StockOutTypeCode.Customs
 }
 
+async function onRowClick(row: StockOutRequestDto) {
+  if (!isCustomsNotify(row)) {
+    stockOutNotifyCustomsPanelStore.clear()
+    return
+  }
+
+  await stockOutNotifyCustomsPanelStore.selectNotifyRow(
+    row,
+    t('stockOutNotifyList.customsTab.loadFailed')
+  )
+  workspaceLayout?.toggleRightPanel(true)
+  await nextTick()
+  workspaceLayout?.setRightActiveTab('r-stock-out-customs')
+}
+
+function customsPanelRowClassName({ row }: { row: StockOutRequestDto }) {
+  if (!stockOutNotifyCustomsPanelStore.notifyRow) return 'table-row-pointer'
+  return stockOutNotifyCustomsPanelStore.notifyRowKey(row) ===
+    stockOutNotifyCustomsPanelStore.notifyRowKey(stockOutNotifyCustomsPanelStore.notifyRow)
+    ? 'so-item-row--active'
+    : 'table-row-pointer'
+}
+
+async function refreshCustomsPanelIfOpen() {
+  if (!stockOutNotifyCustomsPanelStore.notifyRow) return
+  await stockOutNotifyCustomsPanelStore.refreshFromListRows(
+    list.value,
+    t('stockOutNotifyList.customsTab.loadFailed')
+  )
+}
+
 function salesNotifyTooltip(row: StockOutRequestDto): string {
   const code = String(row.salesStockOutNotifyCode ?? '').trim()
   if (!code) return ''
@@ -509,6 +546,7 @@ async function runNotifyFetch(resetPage: boolean) {
     list.value = reqPage.items
     listTotal.value = reqPage.total
     await restoreTableSelectionFromBasket()
+    await refreshCustomsPanelIfOpen()
   } catch (e) {
     console.error(e)
     ElMessage.error(t('stockOutNotifyList.messages.loadFailed'))

@@ -268,6 +268,8 @@ public class CustomsDeclarationsController : ControllerBase
             ToWarehouseId = row.ToWarehouseId,
             FromWarehouseCode = fromWh?.WarehouseCode,
             ToWarehouseCode = toWh?.WarehouseCode,
+            FromWarehouseName = fromWh?.WarehouseName,
+            ToWarehouseName = toWh?.WarehouseName,
             Remark = row.Remark,
             CreateTime = row.CreateTime,
             CreateByUserId = row.CreateByUserId,

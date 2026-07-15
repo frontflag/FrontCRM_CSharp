@@ -1294,6 +1294,16 @@
             @set-clearance="customsDeclarationOpsStore.runSetClearance()"
             @create-arrival="customsDeclarationOpsStore.runCreateArrival()"
           />
+          <StockOutNotifyCustomsTabPanel
+            v-show="showStockOutNotifyCustomsPanel"
+            class="aux-panel-tab-body"
+            :notify-row="stockOutNotifyCustomsPanelStore.notifyRow"
+            :detail="stockOutNotifyCustomsPanelStore.detail"
+            :loading="stockOutNotifyCustomsPanelStore.loading"
+            :load-error="stockOutNotifyCustomsPanelStore.loadError"
+            :no-declaration="stockOutNotifyCustomsPanelStore.noDeclaration"
+            :can-access-customs="showCustomsMenus"
+          />
           <RfqItemMaterialPanel
             v-show="showRfqItemMaterialPanel"
             class="aux-panel-tab-body"
@@ -1352,12 +1362,14 @@ import CustomerIntelPanel from '@/components/Customer/CustomerIntelPanel.vue'
 import VendorIntelPanel from '@/components/Vendor/VendorIntelPanel.vue'
 import PurchaseOrderItemOpsPanel from '@/components/RFQ/PurchaseOrderItemOpsPanel.vue'
 import CustomsDeclarationOpsPanel from '@/components/Customs/CustomsDeclarationOpsPanel.vue'
+import StockOutNotifyCustomsTabPanel from '@/components/Inventory/StockOutNotifyCustomsTabPanel.vue'
 import { useSalesOrderItemOpsPanelStore } from '@/stores/salesOrderItemOpsPanel'
 import { useMaterialIntelLookupStore } from '@/stores/materialIntelLookup'
 import { useCustomerIntelLookupStore } from '@/stores/customerIntelLookup'
 import { useVendorIntelLookupStore } from '@/stores/vendorIntelLookup'
 import { usePurchaseOrderItemOpsPanelStore } from '@/stores/purchaseOrderItemOpsPanel'
 import { useCustomsDeclarationOpsPanelStore } from '@/stores/customsDeclarationOpsPanel'
+import { useStockOutNotifyCustomsPanelStore } from '@/stores/stockOutNotifyCustomsPanel'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleOrderWriteGate, useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
@@ -1388,6 +1400,7 @@ const customerIntelLookupStore = useCustomerIntelLookupStore()
 const vendorIntelLookupStore = useVendorIntelLookupStore()
 const purchaseOrderItemOpsStore = usePurchaseOrderItemOpsPanelStore()
 const customsDeclarationOpsStore = useCustomsDeclarationOpsPanelStore()
+const stockOutNotifyCustomsPanelStore = useStockOutNotifyCustomsPanelStore()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { canWriteSo: canSalesOrderItemOpsWriteSo } = useSaleOrderWriteGate()
@@ -1633,6 +1646,9 @@ const isSalesOrderItemListRoute = computed(() => route.name === 'SalesOrderItemL
 const isPurchaseOrderItemListRoute = computed(() => route.name === 'PurchaseOrderItemList')
 const isRfqItemListRoute = computed(() => route.name === 'RFQItemList')
 const isCustomsDeclarationListRoute = computed(() => route.name === 'CustomsDeclarationList')
+const isStockOutNotifyListRoute = computed(
+  () => route.name === 'InventoryStockOutNotifyList' || route.name === 'StockOutNotifyList'
+)
 
 const showSalesOrderItemOpsPanel = computed(
   () => rightActiveTabId.value === 'r-ops' && isSalesOrderItemListRoute.value
@@ -1644,6 +1660,10 @@ const showPurchaseOrderItemOpsPanel = computed(
 
 const showCustomsDeclarationOpsPanel = computed(
   () => rightActiveTabId.value === 'r-ops' && isCustomsDeclarationListRoute.value
+)
+
+const showStockOutNotifyCustomsPanel = computed(
+  () => rightActiveTabId.value === 'r-stock-out-customs' && isStockOutNotifyListRoute.value
 )
 
 const showRfqItemMaterialPanel = computed(
@@ -1673,6 +1693,18 @@ const canPurchaseOrderItemOpsPayment = computed(
     authStore.hasPermission('finance-payment.write') || authStore.hasPermission('purchase-order.write')
 )
 
+function syncStockOutNotifyListRightTabs() {
+  if (!isStockOutNotifyListRoute.value) return
+  if (stockOutNotifyCustomsPanelStore.isCustomsSelection) {
+    rightTabs.value = [
+      { id: 'r-stock-out-customs', labelKey: 'stockOutNotifyList.auxTabs.customsDeclaration' },
+      { id: 'r4', labelKey: 'layout.auxTabs.help' }
+    ]
+    return
+  }
+  rightTabs.value = [{ id: 'r4', labelKey: 'layout.auxTabs.help' }]
+}
+
 watch(
   () => route.name,
   (name) => {
@@ -1684,6 +1716,7 @@ watch(
       if (name === 'SalesOrderItemList') purchaseOrderItemOpsStore.clear()
       if (name === 'PurchaseOrderItemList') salesOrderItemOpsStore.clear()
       customsDeclarationOpsStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       return
     }
@@ -1694,6 +1727,7 @@ watch(
       ]
       salesOrderItemOpsStore.clear()
       purchaseOrderItemOpsStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       return
     }
@@ -1704,6 +1738,7 @@ watch(
       ]
       salesOrderItemOpsStore.clear()
       purchaseOrderItemOpsStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
       customerIntelLookupStore.clearBound()
       vendorIntelLookupStore.clearBound()
       return
@@ -1716,6 +1751,7 @@ watch(
       salesOrderItemOpsStore.clear()
       purchaseOrderItemOpsStore.clear()
       customsDeclarationOpsStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       vendorIntelLookupStore.clearBound()
       if (rightActiveTabId.value !== 'r-customer-intel' && rightActiveTabId.value !== 'r4') {
@@ -1731,6 +1767,7 @@ watch(
       salesOrderItemOpsStore.clear()
       purchaseOrderItemOpsStore.clear()
       customsDeclarationOpsStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       customerIntelLookupStore.clearBound()
       if (rightActiveTabId.value !== 'r-vendor-intel' && rightActiveTabId.value !== 'r4') {
@@ -1738,16 +1775,35 @@ watch(
       }
       return
     }
+    if (name === 'InventoryStockOutNotifyList' || name === 'StockOutNotifyList') {
+      syncStockOutNotifyListRightTabs()
+      salesOrderItemOpsStore.clear()
+      purchaseOrderItemOpsStore.clear()
+      customsDeclarationOpsStore.clear()
+      materialIntelLookupStore.clearBound()
+      customerIntelLookupStore.clearBound()
+      vendorIntelLookupStore.clearBound()
+      return
+    }
     rightTabs.value = [{ id: 'r4', labelKey: 'layout.auxTabs.help' }]
     rightActiveTabId.value = 'r4'
     salesOrderItemOpsStore.clear()
     purchaseOrderItemOpsStore.clear()
     customsDeclarationOpsStore.clear()
+    stockOutNotifyCustomsPanelStore.clear()
     materialIntelLookupStore.clearBound()
     customerIntelLookupStore.clearBound()
     vendorIntelLookupStore.clearBound()
   },
   { immediate: true }
+)
+
+watch(
+  () => stockOutNotifyCustomsPanelStore.isCustomsSelection,
+  () => {
+    if (!isStockOutNotifyListRoute.value) return
+    syncStockOutNotifyListRightTabs()
+  }
 )
 
 /** 模板沿用 isCollapsed：仅「边条」模式隐藏菜单文字 */

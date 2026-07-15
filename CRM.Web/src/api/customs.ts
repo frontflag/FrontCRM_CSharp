@@ -190,6 +190,8 @@ export interface CustomsDeclarationDetailDto {
   toWarehouseId: string
   fromWarehouseCode?: string | null
   toWarehouseCode?: string | null
+  fromWarehouseName?: string | null
+  toWarehouseName?: string | null
   remark?: string | null
   createTime: string
   createByUserId?: string | null

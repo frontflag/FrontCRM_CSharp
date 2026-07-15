@@ -76,6 +76,8 @@ public sealed class CustomsDeclarationDetailViewDto
     public string ToWarehouseId { get; set; } = string.Empty;
     public string? FromWarehouseCode { get; set; }
     public string? ToWarehouseCode { get; set; }
+    public string? FromWarehouseName { get; set; }
+    public string? ToWarehouseName { get; set; }
     public string? Remark { get; set; }
     public DateTime CreateTime { get; set; }
     public string? CreateByUserId { get; set; }

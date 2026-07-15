@@ -247,8 +247,8 @@ const brokerDisplay = computed(() => {
 const warehouseRoute = computed(() => {
   const d = detail.value
   if (!d) return '—'
-  const from = (d.fromWarehouseCode ?? d.fromWarehouseId ?? '').trim()
-  const to = (d.toWarehouseCode ?? d.toWarehouseId ?? '').trim()
+  const from = (d.fromWarehouseName ?? d.fromWarehouseCode ?? d.fromWarehouseId ?? '').trim()
+  const to = (d.toWarehouseName ?? d.toWarehouseCode ?? d.toWarehouseId ?? '').trim()
   if (from && to) return `${from} → ${to}`
   return from || to || '—'
 })

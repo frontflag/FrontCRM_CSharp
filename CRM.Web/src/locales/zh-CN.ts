@@ -6240,6 +6240,19 @@ const zhCN = {
     customsNotifyTag: '报关',
     salesNotifyCodeTooltip: '原销售出库通知：{code}',
     salesNotifyCodeLink: '原销售出库通知',
+    auxTabs: {
+      customsDeclaration: '报关单'
+    },
+    customsTab: {
+      pickRow: '单击报关出库通知查看报关单信息',
+      overviewTitle: '报关单',
+      declarationCode: '报关单号',
+      customsBroker: '报关公司',
+      declareDate: '申报日期',
+      viewDeclaration: '查看报关单',
+      noDeclaration: '报关单尚未生成',
+      loadFailed: '加载报关单失败'
+    },
     workflow: {
       pendingPick: '待拣货',
       pickedPendingOut: '已拣货待出库',
