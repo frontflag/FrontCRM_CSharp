@@ -289,6 +289,8 @@ POST /api/v1/ai/entity-parse-logs/{id}/saved
 - **币别：** `price_currency` 1–4（RMB/USD/EUR/HKD）
 - **创建页：** `RFQCreate.vue`；支持草稿 `draftId` 与 `aiPrefill` 互斥优先逻辑
 - **客户匹配：** 确认弹窗可提示已有客户，创建页仍可手工选客户
+- **Excel 导入（扩展）：** 另见 [RFQ Excel导入-设计与实现](./RFQ Excel导入-设计与实现.md) — 场景 `entity.parse.rfq_excel_column_map` / `entity.parse.rfq_excel_brand_map`，行数据前端解析，不写 `ai_entity_parse_log`
+- **品牌学习映射：** 见 [智能学习品牌匹配-设计与实现](./智能学习品牌匹配-设计与实现.md) — `biz_brand_learned_mapping` 全公司共享，Excel/RFQCreate 路径读写
 
 ---
 

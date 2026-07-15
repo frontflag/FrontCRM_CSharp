@@ -386,6 +386,15 @@ function Test-BatchDeployPackages {
         $apiDll = Join-Path $packagePath "CRM.API/publish/CRM.API.dll"
         if (-not (Test-Path $indexHtml) -or -not (Test-Path $apiDll)) {
             $missing.Add($packageName) | Out-Null
+            continue
+        }
+
+        $verifyHelpScript = Join-Path $RootPath "scripts\verify-deploy-help.ps1"
+        if (Test-Path $verifyHelpScript) {
+            & $verifyHelpScript -DeployPackagePath $packagePath -RepoRoot $RootPath
+            if ($LASTEXITCODE -ne 0) {
+                $missing.Add("$packageName (help stale)") | Out-Null
+            }
         }
     }
 

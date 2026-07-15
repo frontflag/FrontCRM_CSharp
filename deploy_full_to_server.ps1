@@ -79,6 +79,25 @@ if ([string]::IsNullOrWhiteSpace($Tenant)) {
     $Tenant = 'semicore'
 }
 
+# -SkipBuild 时优先使用按租户批量构建的包（含完整 dist/help）；避免误用陈旧的 frontcrm_deploy。
+if ($DeployPackageName -eq 'frontcrm_deploy' -and $SkipBuild) {
+    $tenantPackage = switch ($Tenant) {
+        'semicore' { 'frontcrm_deploy_semicore' }
+        'idesemi' { 'frontcrm_deploy_idesemi' }
+        'ecoinf' { 'frontcrm_deploy_ecoinf' }
+        'fz' { 'frontcrm_deploy_semicore' }
+        default { $null }
+    }
+    if ($tenantPackage) {
+        $tenantPackagePath = Join-Path $RepoRoot $tenantPackage
+        $tenantIndex = Join-Path $tenantPackagePath 'CRM.Web/dist/index.html'
+        if (Test-Path $tenantIndex) {
+            Write-Host ">>> -SkipBuild: using tenant package $tenantPackage" -ForegroundColor Cyan
+            $DeployPackageName = $tenantPackage
+        }
+    }
+}
+
 $deployPackage = Join-Path $RepoRoot $DeployPackageName
 
 Write-Host ""
@@ -136,6 +155,22 @@ if (-not (Test-Path (Join-Path $deployPackage "CRM.Web/dist/index.html"))) {
 if (-not (Test-Path (Join-Path $deployPackage "CRM.API/publish/CRM.API.dll"))) {
     Write-Host "ERROR: backend publish missing: $DeployPackageName/CRM.API/publish/CRM.API.dll" -ForegroundColor Red
     exit 1
+}
+
+$verifyHelpScript = Join-Path $RepoRoot "scripts\verify-deploy-help.ps1"
+if (Test-Path $verifyHelpScript) {
+    Write-Host ">>> Verify help docs in deploy package..." -ForegroundColor Gray
+    & $verifyHelpScript -DeployPackagePath $deployPackage -RepoRoot $RepoRoot
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: deploy package help is stale or incomplete." -ForegroundColor Red
+        Write-Host "  Fix: cd CRM.Web; npm run build" -ForegroundColor Yellow
+        Write-Host "  Or: .\scripts\build-batch-tenants.ps1 then redeploy without stale -SkipBuild package." -ForegroundColor Yellow
+        exit $LASTEXITCODE
+    }
+    Write-Host ""
+}
+else {
+    Write-Host "WARN: verify-deploy-help.ps1 not found, skipping help check." -ForegroundColor DarkYellow
 }
 
 # PS 5.1：双引号内勿写 ${User}@${Host}（会误解析）；与路径用冒号拼接时用 $($x):$($y)
@@ -207,17 +242,31 @@ $localResolved = (Resolve-Path $deployPackage).Path
 $uploadSource = $localResolved
 $stagingDir = Join-Path $env:TEMP ("frontcrm_upload_" + [Guid]::NewGuid().ToString("N"))
 
-Write-Host "Preparing upload files (exclude .md)..." -ForegroundColor Yellow
+Write-Host "Preparing upload files..." -ForegroundColor Yellow
 New-Item -ItemType Directory -Path $stagingDir -Force | Out-Null
 
-# 使用 robocopy 保留目录结构并排除 .md
-& robocopy $localResolved $stagingDir /E /NFL /NDL /NJH /NJS /NP /XF *.md | Out-Null
+# 须包含 CRM.Web/dist/help/**/*.md（右侧帮助文档）；勿排除 *.md
+& robocopy $localResolved $stagingDir /E /NFL /NDL /NJH /NJS /NP | Out-Null
 $robocopyExitCode = $LASTEXITCODE
 if ($robocopyExitCode -gt 7) {
     Write-Host ('ERROR: failed to prepare upload files (robocopy exit {0})' -f $robocopyExitCode) -ForegroundColor Red
     Remove-Item -Path $stagingDir -Recurse -Force -ErrorAction SilentlyContinue
     exit 1
 }
+
+$stagingHelpPages = Join-Path $stagingDir "CRM.Web\dist\help\pages"
+if (-not (Test-Path $stagingHelpPages)) {
+    Write-Host "ERROR: upload staging missing CRM.Web/dist/help/pages" -ForegroundColor Red
+    Remove-Item -Path $stagingDir -Recurse -Force -ErrorAction SilentlyContinue
+    exit 1
+}
+$stagingHelpCount = (Get-ChildItem -Path $stagingHelpPages -File -ErrorAction SilentlyContinue | Measure-Object).Count
+if ($stagingHelpCount -lt 50) {
+    Write-Host "ERROR: upload staging has only $stagingHelpCount help pages (expected >= 50). .md files may have been excluded." -ForegroundColor Red
+    Remove-Item -Path $stagingDir -Recurse -Force -ErrorAction SilentlyContinue
+    exit 1
+}
+Write-Host "  help pages in staging: $stagingHelpCount" -ForegroundColor DarkGray
 
 $localDot = Join-Path $stagingDir "."
 
