@@ -1079,6 +1079,7 @@
           <StockOutSearchPanel v-else-if="showStockOutSearchPanel" />
           <PurchaseOrderFavoritePanel v-else-if="showPurchaseOrderFavoritePanel" />
           <PurchaseOrderRecentHistoryPanel v-else-if="showPurchaseOrderRecentHistoryPanel" />
+          <div v-else-if="showSalesOrderItemListEmptySearchPanel" class="aux-panel-empty" aria-hidden="true" />
           <template v-else>
             <p class="aux-placeholder">{{ t('layout.leftPanel') }} · {{ leftPanelTitle }}</p>
             <p class="aux-hint">子页面可 inject(WorkspaceLayoutKey)；或 window 派发 workspace:toggle-left / workspace:toggle-right</p>
@@ -1570,7 +1571,7 @@ const showRfqItemRecentHistoryPanel = computed(
   () => leftActiveTabId.value === 'l3' && isRfqItemListLeftAuxRoute.value
 )
 
-/** 销售订单列表/详情/新建/明细列表：左栏「检索 / 收藏 / 历史」 */
+/** 销售订单列表/详情/新建/明细列表：左栏「检索 / 收藏 / 历史」（明细列表无检索面板内容） */
 const isSalesOrderLeftAuxRoute = computed(() => {
   const n = route.name
   return (
@@ -1584,7 +1585,14 @@ const isSalesOrderLeftAuxRoute = computed(() => {
 })
 
 const showSalesOrderSearchPanel = computed(
-  () => leftActiveTabId.value === 'l1' && isSalesOrderLeftAuxRoute.value
+  () =>
+    leftActiveTabId.value === 'l1' &&
+    isSalesOrderLeftAuxRoute.value &&
+    route.name !== 'SalesOrderItemList'
+)
+
+const showSalesOrderItemListEmptySearchPanel = computed(
+  () => leftActiveTabId.value === 'l1' && route.name === 'SalesOrderItemList'
 )
 
 const showSalesOrderFavoritePanel = computed(
@@ -3537,6 +3545,11 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   overflow-x: hidden;
+}
+
+.aux-panel-empty {
+  flex: 1;
+  min-height: 0;
 }
 
 .aux-placeholder {

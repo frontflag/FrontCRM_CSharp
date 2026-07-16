@@ -4254,7 +4254,7 @@ const enUS = {
       stockTotal: 'Total stock',
       stockingUsageTitle: 'Stocking usage',
       stockingUsagePoCode: 'PO number',
-      stockingUsagePoDate: 'Created date',
+      stockingUsagePoDate: 'Purchase date',
       stockingUsagePurchaser: 'Purchaser',
       stockingUsageQty: 'Used qty',
       purchaseTitle: 'Purchase requisition',

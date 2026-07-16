@@ -4250,7 +4250,7 @@ const zhCN = {
       stockTotal: '总计库存',
       stockingUsageTitle: '使用备货',
       stockingUsagePoCode: '采购单号',
-      stockingUsagePoDate: '生成日期',
+      stockingUsagePoDate: '采购日期',
       stockingUsagePurchaser: '采购员',
       stockingUsageQty: '使用数量',
       purchaseTitle: '采购申请',
