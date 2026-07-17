@@ -256,6 +256,7 @@ import {
 } from '@/api/customs'
 import { useAuthStore } from '@/stores/auth'
 import { useCustomsDeclarationOpsPanelStore } from '@/stores/customsDeclarationOpsPanel'
+import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import { formatTotalAmountNumber } from '@/utils/moneyFormat'
@@ -415,17 +416,7 @@ async function load() {
   } finally {
     loading.value = false
   }
-  await refreshOpsPanelIfOpen()
-}
-
-async function refreshOpsPanelIfOpen() {
-  if (!customsDeclarationOpsStore.row) return
-  const panelVisible = workspaceLayout?.rightPanelVisible.value ?? false
-  await customsDeclarationOpsStore.refreshFromListRows(
-    allRows.value as unknown as Record<string, unknown>[],
-    t('customsPages.declarations.opsPanel.loadFailed'),
-    panelVisible
-  )
+  resetListRightPanelOnReload(customsDeclarationOpsStore)
 }
 
 function isRightPanelVisible() {

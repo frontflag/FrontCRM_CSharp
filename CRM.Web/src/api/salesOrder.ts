@@ -380,6 +380,8 @@ export const salesOrderApi = {
     stockOutProgressStatus?: number
     receiptProgressStatus?: number
     invoiceProgressStatus?: number
+    /** 左栏快捷检索（与 preset 对应；与六 progress 互斥） */
+    quickFilter?: string
     page?: number
     pageSize?: number
   }) {

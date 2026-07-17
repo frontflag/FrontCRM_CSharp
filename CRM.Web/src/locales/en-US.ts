@@ -4120,6 +4120,39 @@ const enUS = {
       boardView: 'Board',
       listView: 'List'
     },
+    searchPanel: {
+      title: 'Quick filters',
+      clearPreset: 'Clear quick filter',
+      advancedFilters: 'Advanced filters',
+      advancedDisabledHint: 'A left-panel quick filter is active; date and progress filters are disabled.',
+      groups: {
+        time: 'Order date',
+        todo: 'To-do',
+        business: 'Pipeline',
+        inventory: 'Inventory',
+        receipt: 'Receipt'
+      },
+      presets: {
+        order_today: 'Orders today',
+        order_today_yesterday: 'Today & yesterday',
+        order_last_7_days: 'Last 7 days',
+        order_last_30_days: 'Last 30 days',
+        order_this_week: 'This week',
+        order_this_month: 'This month',
+        pending_submit_audit: 'Pending submit / audit',
+        pending_submit_purchase_req: 'Pending purchase requisition',
+        pending_submit_stock_out_notify: 'Pending outbound request',
+        applied_pending_po: 'PR applied, no PO',
+        purchased_pending_stock_in: 'PO placed, pending inbound',
+        notify_pending_packing: 'Notify sent, pending boxing',
+        packed_pending_stock_out: 'Boxed, pending outbound',
+        in_stock_pending_out: 'In stock, pending outbound',
+        used_stocking: 'Used stocking',
+        stock_out_pending_receipt: 'Receivables',
+        receipt_partial: 'Partially received',
+        receipt_complete: 'Fully received'
+      }
+    },
     board: {
       hint: 'Stats match current filters; approved lines are order status ≥ approved and line not cancelled.',
       refresh: 'Refresh',
@@ -4271,6 +4304,7 @@ const enUS = {
         'Next: after existing POs or open PRs are processed, request again if order quantity remains.',
       stockOutNextAudit: 'Next: wait until the sales order header is approved before requesting stock-out.',
       stockOutNextDone: 'Next: outbound is complete for this line; no further notification is needed.',
+      stockOutNextNotifyDone: 'Next: outbound notify is complete for this line; no further notification is needed.',
       stockOutNextPurchaseGate:
         'Next: create linked PO lines and ensure related POs reach Supplier Confirmed or later.',
       stockOutNextPendingPurchase:
@@ -4340,11 +4374,13 @@ const enUS = {
       applyStockOutDisabledByProgress:
         'Stock-out cannot be requested when outbound is completed or procurement is still pending.',
       applyStockOutDisabledStockOutDone: 'Outbound progress is complete for this line; no further stock-out requests.',
+      applyStockOutDisabledNotifyDone: 'Outbound notify quantity is fully applied for this line.',
       applyStockOutDisabledPendingPurchase:
         'Procurement is still pending for this line. Exception: stocking available qty (same PN+brand) > 0.',
       applyStockOutHintAria: 'Why stock-out request is disabled',
       applyStockOutHintDetailTitle: 'Conditions not met:',
       applyStockOutHintDetailStockOutDone: 'Outbound progress is "{status}".',
+      applyStockOutHintDetailNotifyDone: 'Outbound notify progress is "{status}".',
       applyStockOutHintDetailNoPoItems: 'No linked purchase order line has been created yet.',
       applyStockOutHintDetailPoNotConfirmed:
         'Linked PO {code} is "{status}"; required status is "{requiredStatus}" or later.',

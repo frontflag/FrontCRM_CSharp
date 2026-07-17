@@ -97,6 +97,7 @@ export function buildApplyStockOutDisabledHintContent(
 
   const summaryMap = {
     stockOutDone: 'salesOrderItemList.messages.applyStockOutDisabledStockOutDone',
+    notifyDone: 'salesOrderItemList.messages.applyStockOutDisabledNotifyDone',
     needPurchaseGate: 'salesOrderItemList.messages.applyStockOutNeedPurchaseGate',
     pendingPurchase: 'salesOrderItemList.messages.applyStockOutDisabledPendingPurchase'
   } as const
@@ -109,9 +110,19 @@ export function buildApplyStockOutDisabledHintContent(
 
   const nextStepMap = {
     stockOutDone: 'salesOrderItemList.opsPanel.stockOutNextDone',
+    notifyDone: 'salesOrderItemList.opsPanel.stockOutNextNotifyDone',
     needPurchaseGate: 'salesOrderItemList.opsPanel.stockOutNextPurchaseGate',
     pendingPurchase: 'salesOrderItemList.opsPanel.stockOutNextPendingPurchase'
   } as const
+
+  const notifyProgress = Number(row.stockOutNotifyProgressStatus ?? row.StockOutNotifyProgressStatus)
+  if (notifyProgress === 2) {
+    details.push(
+      t('salesOrderItemList.messages.applyStockOutHintDetailNotifyDone', {
+        status: extendTriLabel(t, 'stockOutNotify', notifyProgress)
+      })
+    )
+  }
 
   if (stockOutProgress === 2) {
     details.push(

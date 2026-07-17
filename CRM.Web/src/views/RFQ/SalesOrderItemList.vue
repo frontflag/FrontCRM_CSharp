@@ -18,18 +18,14 @@
     </div>
 
     <div class="search-bar">
+      <div v-if="activePreset" class="search-preset-chip-row">
+        <span class="search-preset-chip">
+          {{ t(presetI18nKey(activePreset)) }}
+          <button type="button" class="search-preset-chip__clear" :title="t('salesOrderItemList.searchPanel.clearPreset')" @click="clearPresetChip">×</button>
+        </span>
+      </div>
+      <div class="search-bar__row">
       <div class="search-left">
-        <el-date-picker
-          v-model="dateRange"
-          type="daterange"
-          :range-separator="t('salesOrderItemList.filters.rangeTo')"
-          :start-placeholder="t('salesOrderItemList.filters.dateStart')"
-          :end-placeholder="t('salesOrderItemList.filters.dateEnd')"
-          value-format="YYYY-MM-DD"
-          class="filter-date-range so-date-range"
-          clearable
-          :teleported="false"
-        />
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
             <circle cx="11" cy="11" r="8" />
@@ -121,90 +117,6 @@
           </div>
         </template>
         <el-select
-          v-model="filters.purchaseProgressStatus"
-          clearable
-          :placeholder="t('salesOrderItemList.filters.purchaseProgressStatus')"
-          class="filter-select filter-select--progress"
-          :teleported="false"
-        >
-          <el-option
-            v-for="opt in progressFilterOptions('purchase')"
-            :key="`purchase-${opt.value}`"
-            :label="opt.label"
-            :value="opt.value"
-          />
-        </el-select>
-        <el-select
-          v-model="filters.stockInProgressStatus"
-          clearable
-          :placeholder="t('salesOrderItemList.filters.stockInProgressStatus')"
-          class="filter-select filter-select--progress"
-          :teleported="false"
-        >
-          <el-option
-            v-for="opt in progressFilterOptions('stockIn')"
-            :key="`stockIn-${opt.value}`"
-            :label="opt.label"
-            :value="opt.value"
-          />
-        </el-select>
-        <el-select
-          v-model="filters.stockOutNotifyProgressStatus"
-          clearable
-          :placeholder="t('salesOrderItemList.filters.stockOutNotifyProgressStatus')"
-          class="filter-select filter-select--progress"
-          :teleported="false"
-        >
-          <el-option
-            v-for="opt in progressFilterOptions('stockOutNotify')"
-            :key="`stockOutNotify-${opt.value}`"
-            :label="opt.label"
-            :value="opt.value"
-          />
-        </el-select>
-        <el-select
-          v-model="filters.stockOutProgressStatus"
-          clearable
-          :placeholder="t('salesOrderItemList.filters.stockOutProgressStatus')"
-          class="filter-select filter-select--progress"
-          :teleported="false"
-        >
-          <el-option
-            v-for="opt in progressFilterOptions('stockOut')"
-            :key="`stockOut-${opt.value}`"
-            :label="opt.label"
-            :value="opt.value"
-          />
-        </el-select>
-        <el-select
-          v-model="filters.receiptProgressStatus"
-          clearable
-          :placeholder="t('salesOrderItemList.filters.receiptProgressStatus')"
-          class="filter-select filter-select--progress"
-          :teleported="false"
-        >
-          <el-option
-            v-for="opt in progressFilterOptions('receipt')"
-            :key="`receipt-${opt.value}`"
-            :label="opt.label"
-            :value="opt.value"
-          />
-        </el-select>
-        <el-select
-          v-model="filters.invoiceProgressStatus"
-          clearable
-          :placeholder="t('salesOrderItemList.filters.invoiceProgressStatus')"
-          class="filter-select filter-select--progress"
-          :teleported="false"
-        >
-          <el-option
-            v-for="opt in progressFilterOptions('invoice')"
-            :key="`invoice-${opt.value}`"
-            :label="opt.label"
-            :value="opt.value"
-          />
-        </el-select>
-        <el-select
           v-model="filters.transactionCurrency"
           clearable
           :placeholder="t('salesOrderItemList.filters.transactionCurrency')"
@@ -223,6 +135,123 @@
         >
           {{ viewMode === 'board' ? t('salesOrderItemList.filters.listView') : t('salesOrderItemList.filters.boardView') }}
         </button>
+      </div>
+      <div class="search-advanced">
+        <button
+          type="button"
+          class="search-advanced__toggle"
+          :disabled="presetActive"
+          @click="advancedOpen = !advancedOpen"
+        >
+          {{ t('salesOrderItemList.searchPanel.advancedFilters') }}
+          <span class="search-advanced__chevron" :class="{ 'is-open': advancedOpen }">›</span>
+        </button>
+        <div v-show="advancedOpen" class="search-advanced__body" :class="{ 'is-disabled': presetActive }">
+          <el-date-picker
+            v-model="dateRange"
+            type="daterange"
+            :range-separator="t('salesOrderItemList.filters.rangeTo')"
+            :start-placeholder="t('salesOrderItemList.filters.dateStart')"
+            :end-placeholder="t('salesOrderItemList.filters.dateEnd')"
+            value-format="YYYY-MM-DD"
+            class="filter-date-range so-date-range"
+            clearable
+            :disabled="presetActive"
+            :teleported="false"
+          />
+          <el-select
+            v-model="filters.purchaseProgressStatus"
+            clearable
+            :placeholder="t('salesOrderItemList.filters.purchaseProgressStatus')"
+            class="filter-select filter-select--progress"
+            :disabled="presetActive"
+            :teleported="false"
+          >
+            <el-option
+              v-for="opt in progressFilterOptions('purchase')"
+              :key="`purchase-${opt.value}`"
+              :label="opt.label"
+              :value="opt.value"
+            />
+          </el-select>
+          <el-select
+            v-model="filters.stockInProgressStatus"
+            clearable
+            :placeholder="t('salesOrderItemList.filters.stockInProgressStatus')"
+            class="filter-select filter-select--progress"
+            :disabled="presetActive"
+            :teleported="false"
+          >
+            <el-option
+              v-for="opt in progressFilterOptions('stockIn')"
+              :key="`stockIn-${opt.value}`"
+              :label="opt.label"
+              :value="opt.value"
+            />
+          </el-select>
+          <el-select
+            v-model="filters.stockOutNotifyProgressStatus"
+            clearable
+            :placeholder="t('salesOrderItemList.filters.stockOutNotifyProgressStatus')"
+            class="filter-select filter-select--progress"
+            :disabled="presetActive"
+            :teleported="false"
+          >
+            <el-option
+              v-for="opt in progressFilterOptions('stockOutNotify')"
+              :key="`stockOutNotify-${opt.value}`"
+              :label="opt.label"
+              :value="opt.value"
+            />
+          </el-select>
+          <el-select
+            v-model="filters.stockOutProgressStatus"
+            clearable
+            :placeholder="t('salesOrderItemList.filters.stockOutProgressStatus')"
+            class="filter-select filter-select--progress"
+            :disabled="presetActive"
+            :teleported="false"
+          >
+            <el-option
+              v-for="opt in progressFilterOptions('stockOut')"
+              :key="`stockOut-${opt.value}`"
+              :label="opt.label"
+              :value="opt.value"
+            />
+          </el-select>
+          <el-select
+            v-model="filters.receiptProgressStatus"
+            clearable
+            :placeholder="t('salesOrderItemList.filters.receiptProgressStatus')"
+            class="filter-select filter-select--progress"
+            :disabled="presetActive"
+            :teleported="false"
+          >
+            <el-option
+              v-for="opt in progressFilterOptions('receipt')"
+              :key="`receipt-${opt.value}`"
+              :label="opt.label"
+              :value="opt.value"
+            />
+          </el-select>
+          <el-select
+            v-model="filters.invoiceProgressStatus"
+            clearable
+            :placeholder="t('salesOrderItemList.filters.invoiceProgressStatus')"
+            class="filter-select filter-select--progress"
+            :disabled="presetActive"
+            :teleported="false"
+          >
+            <el-option
+              v-for="opt in progressFilterOptions('invoice')"
+              :key="`invoice-${opt.value}`"
+              :label="opt.label"
+              :value="opt.value"
+            />
+          </el-select>
+        </div>
+        <p v-if="presetActive" class="search-advanced__hint">{{ t('salesOrderItemList.searchPanel.advancedDisabledHint') }}</p>
+      </div>
       </div>
     </div>
 
@@ -710,6 +739,15 @@ import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { buildSalesOrderItemListColumns } from '@/composables/buildSalesOrderItemListColumns'
 import { useSaleOrderWriteGate } from '@/composables/useDepartmentDataReadOnly'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
+import {
+  buildSoItemListRouteQuery,
+  isSoItemListPresetId,
+  isSoItemTimePresetId,
+  presetI18nKey,
+  resolveSoItemTimePresetDateRange,
+  type SoItemListPresetId
+} from '@/utils/salesOrderItemListPreset'
 
 const router = useRouter()
 const route = useRoute()
@@ -812,6 +850,7 @@ const salesOrderItemColumns = computed<CrmTableColumnDef[]>(() => {
 })
 
 const dateRange = ref<[string, string] | null>(null)
+const advancedOpen = ref(false)
 const stockOutPending = ref(false)
 const invoicePending = ref(false)
 const salesUserIdFilter = ref('')
@@ -833,10 +872,21 @@ const filters = reactive({
   invoiceProgressStatus: undefined as number | undefined
 })
 
+const activePreset = computed((): SoItemListPresetId | null => {
+  const p = route.query.preset
+  return typeof p === 'string' && isSoItemListPresetId(p) ? p : null
+})
+
+const presetActive = computed(() => !!activePreset.value)
+
 const boardFilters = computed((): SalesOrderItemListAnalyticsQuery => {
   const q: SalesOrderItemListAnalyticsQuery = {}
   if (dateRange.value?.[0]) q.orderCreateStart = dateRange.value[0]
   if (dateRange.value?.[1]) q.orderCreateEnd = dateRange.value[1]
+  const qf = route.query.quickFilter
+  if (typeof qf === 'string' && qf.trim() && activePreset.value) {
+    q.quickFilter = qf.trim()
+  }
   const soc = String(filters.sellOrderCode ?? '').trim()
   if (soc) q.sellOrderCode = soc
   if (listCustomerColumnOk.value) {
@@ -860,26 +910,28 @@ const boardFilters = computed((): SalesOrderItemListAnalyticsQuery => {
   const pua = String(filters.purchaseUserAccount ?? '').trim()
   if (pua) q.purchaseUserAccount = pua
   if (filters.transactionCurrency) q.transactionCurrency = filters.transactionCurrency
-  if (filters.purchaseProgressStatus !== undefined && filters.purchaseProgressStatus !== null) {
-    q.purchaseProgressStatus = filters.purchaseProgressStatus
+  if (!activePreset.value) {
+    if (filters.purchaseProgressStatus !== undefined && filters.purchaseProgressStatus !== null) {
+      q.purchaseProgressStatus = filters.purchaseProgressStatus
+    }
+    if (filters.stockInProgressStatus !== undefined && filters.stockInProgressStatus !== null) {
+      q.stockInProgressStatus = filters.stockInProgressStatus
+    }
+    if (filters.stockOutNotifyProgressStatus !== undefined && filters.stockOutNotifyProgressStatus !== null) {
+      q.stockOutNotifyProgressStatus = filters.stockOutNotifyProgressStatus
+    }
+    if (filters.stockOutProgressStatus !== undefined && filters.stockOutProgressStatus !== null) {
+      q.stockOutProgressStatus = filters.stockOutProgressStatus
+    }
+    if (filters.receiptProgressStatus !== undefined && filters.receiptProgressStatus !== null) {
+      q.receiptProgressStatus = filters.receiptProgressStatus
+    }
+    if (filters.invoiceProgressStatus !== undefined && filters.invoiceProgressStatus !== null) {
+      q.invoiceProgressStatus = filters.invoiceProgressStatus
+    }
+    if (stockOutPending.value) q.stockOutPending = true
+    if (invoicePending.value) q.invoicePending = true
   }
-  if (filters.stockInProgressStatus !== undefined && filters.stockInProgressStatus !== null) {
-    q.stockInProgressStatus = filters.stockInProgressStatus
-  }
-  if (filters.stockOutNotifyProgressStatus !== undefined && filters.stockOutNotifyProgressStatus !== null) {
-    q.stockOutNotifyProgressStatus = filters.stockOutNotifyProgressStatus
-  }
-  if (filters.stockOutProgressStatus !== undefined && filters.stockOutProgressStatus !== null) {
-    q.stockOutProgressStatus = filters.stockOutProgressStatus
-  }
-  if (filters.receiptProgressStatus !== undefined && filters.receiptProgressStatus !== null) {
-    q.receiptProgressStatus = filters.receiptProgressStatus
-  }
-  if (filters.invoiceProgressStatus !== undefined && filters.invoiceProgressStatus !== null) {
-    q.invoiceProgressStatus = filters.invoiceProgressStatus
-  }
-  if (stockOutPending.value) q.stockOutPending = true
-  if (invoicePending.value) q.invoicePending = true
   return q
 })
 
@@ -1127,7 +1179,62 @@ async function handleClearBasket() {
 
 function runSearch() {
   page.value = 1
-  void loadList()
+  router.replace({ name: 'SalesOrderItemList', query: buildRouteQueryFromFilters() })
+}
+
+function buildRouteQueryFromFilters(): Record<string, string> {
+  const keywords: Record<string, string> = {}
+  const soc = String(filters.sellOrderCode ?? '').trim()
+  if (soc) keywords.sellOrderCode = soc
+  if (listCustomerColumnOk.value) {
+    const cn = String(filters.customerName ?? '').trim()
+    if (cn) keywords.customerName = cn
+    const cso = String(filters.customerSo ?? '').trim()
+    if (cso) keywords.customerSo = cso
+    const cpn = String(filters.customerPn ?? '').trim()
+    if (cpn) keywords.customerPn = cpn
+  }
+  if (listSalesUserFilterOk.value) {
+    const sun = String(filters.salesUserName ?? '').trim()
+    if (sun) keywords.salesUserName = sun
+  }
+  const pnk = String(filters.pn ?? '').trim()
+  if (pnk) keywords.pn = pnk
+  const pua = String(filters.purchaseUserAccount ?? '').trim()
+  if (pua) keywords.purchaseUserAccount = pua
+  if (filters.transactionCurrency) keywords.transactionCurrency = filters.transactionCurrency
+
+  if (activePreset.value) {
+    return buildSoItemListRouteQuery({ preset: activePreset.value, keywords })
+  }
+
+  const advanced: Record<string, string> = {}
+  if (dateRange.value?.[0]) advanced.orderCreateStart = dateRange.value[0]
+  if (dateRange.value?.[1]) advanced.orderCreateEnd = dateRange.value[1]
+  if (filters.purchaseProgressStatus !== undefined && filters.purchaseProgressStatus !== null) {
+    advanced.purchaseProgressStatus = String(filters.purchaseProgressStatus)
+  }
+  if (filters.stockInProgressStatus !== undefined && filters.stockInProgressStatus !== null) {
+    advanced.stockInProgressStatus = String(filters.stockInProgressStatus)
+  }
+  if (filters.stockOutNotifyProgressStatus !== undefined && filters.stockOutNotifyProgressStatus !== null) {
+    advanced.stockOutNotifyProgressStatus = String(filters.stockOutNotifyProgressStatus)
+  }
+  if (filters.stockOutProgressStatus !== undefined && filters.stockOutProgressStatus !== null) {
+    advanced.stockOutProgressStatus = String(filters.stockOutProgressStatus)
+  }
+  if (filters.receiptProgressStatus !== undefined && filters.receiptProgressStatus !== null) {
+    advanced.receiptProgressStatus = String(filters.receiptProgressStatus)
+  }
+  if (filters.invoiceProgressStatus !== undefined && filters.invoiceProgressStatus !== null) {
+    advanced.invoiceProgressStatus = String(filters.invoiceProgressStatus)
+  }
+
+  return buildSoItemListRouteQuery({ keywords, advanced })
+}
+
+function clearPresetChip() {
+  router.replace({ name: 'SalesOrderItemList', query: {} })
 }
 
 function onPageChange() {
@@ -1168,26 +1275,31 @@ async function loadList() {
       if (cpn) params.customerPn = cpn
     }
     if (filters.transactionCurrency) params.transactionCurrency = filters.transactionCurrency
-    if (filters.purchaseProgressStatus !== undefined && filters.purchaseProgressStatus !== null) {
-      params.purchaseProgressStatus = filters.purchaseProgressStatus
+    const qf = route.query.quickFilter
+    if (typeof qf === 'string' && qf.trim() && activePreset.value) {
+      params.quickFilter = qf.trim()
+    } else if (!activePreset.value) {
+      if (filters.purchaseProgressStatus !== undefined && filters.purchaseProgressStatus !== null) {
+        params.purchaseProgressStatus = filters.purchaseProgressStatus
+      }
+      if (filters.stockInProgressStatus !== undefined && filters.stockInProgressStatus !== null) {
+        params.stockInProgressStatus = filters.stockInProgressStatus
+      }
+      if (filters.stockOutNotifyProgressStatus !== undefined && filters.stockOutNotifyProgressStatus !== null) {
+        params.stockOutNotifyProgressStatus = filters.stockOutNotifyProgressStatus
+      }
+      if (filters.stockOutProgressStatus !== undefined && filters.stockOutProgressStatus !== null) {
+        params.stockOutProgressStatus = filters.stockOutProgressStatus
+      }
+      if (filters.receiptProgressStatus !== undefined && filters.receiptProgressStatus !== null) {
+        params.receiptProgressStatus = filters.receiptProgressStatus
+      }
+      if (filters.invoiceProgressStatus !== undefined && filters.invoiceProgressStatus !== null) {
+        params.invoiceProgressStatus = filters.invoiceProgressStatus
+      }
+      if (stockOutPending.value) params.stockOutPending = true
+      if (invoicePending.value) params.invoicePending = true
     }
-    if (filters.stockInProgressStatus !== undefined && filters.stockInProgressStatus !== null) {
-      params.stockInProgressStatus = filters.stockInProgressStatus
-    }
-    if (filters.stockOutNotifyProgressStatus !== undefined && filters.stockOutNotifyProgressStatus !== null) {
-      params.stockOutNotifyProgressStatus = filters.stockOutNotifyProgressStatus
-    }
-    if (filters.stockOutProgressStatus !== undefined && filters.stockOutProgressStatus !== null) {
-      params.stockOutProgressStatus = filters.stockOutProgressStatus
-    }
-    if (filters.receiptProgressStatus !== undefined && filters.receiptProgressStatus !== null) {
-      params.receiptProgressStatus = filters.receiptProgressStatus
-    }
-    if (filters.invoiceProgressStatus !== undefined && filters.invoiceProgressStatus !== null) {
-      params.invoiceProgressStatus = filters.invoiceProgressStatus
-    }
-    if (stockOutPending.value) params.stockOutPending = true
-    if (invoicePending.value) params.invoicePending = true
     const suid = salesUserIdFilter.value.trim()
     if (suid) params.salesUserId = suid
     const cid = customerIdFilter.value.trim()
@@ -1217,37 +1329,18 @@ async function loadList() {
   }
   await nextTick()
   await restoreTableSelectionFromBasket()
-  await refreshOpsPanelIfOpen()
+  resetListRightPanelOnReload(salesOrderItemOpsStore)
 }
 
 function resetFilters() {
-  dateRange.value = null
-  stockOutPending.value = false
-  invoicePending.value = false
-  salesUserIdFilter.value = ''
-  customerIdFilter.value = ''
-  filters.sellOrderCode = ''
-  filters.customerName = ''
-  filters.salesUserName = ''
-  filters.purchaseUserAccount = ''
-  filters.pn = ''
-  filters.customerSo = ''
-  filters.customerPn = ''
-  filters.transactionCurrency = ''
-  filters.purchaseProgressStatus = undefined
-  filters.stockInProgressStatus = undefined
-  filters.stockOutNotifyProgressStatus = undefined
-  filters.stockOutProgressStatus = undefined
-  filters.receiptProgressStatus = undefined
-  filters.invoiceProgressStatus = undefined
   page.value = 1
   basketStore.clear()
   suppressBasketMerge.value = true
   dataTableRef.value?.clearSelection()
   void nextTick(() => {
     suppressBasketMerge.value = false
-    loadList()
   })
+  router.replace({ name: 'SalesOrderItemList', query: {} })
 }
 
 function goDetail(row: any) {
@@ -1260,16 +1353,6 @@ function onSalesOrderItemListRowDblClick(row: any, _column: unknown, event?: Mou
     onEdit: goEdit,
     onDefault: goDetail,
   })
-}
-
-async function refreshOpsPanelIfOpen() {
-  if (!salesOrderItemOpsStore.row) return
-  const panelVisible = workspaceLayout?.rightPanelVisible.value ?? false
-  await salesOrderItemOpsStore.refreshFromListRows(
-    list.value,
-    t('salesOrderItemList.messages.loadLineFailed'),
-    panelVisible
-  )
 }
 
 function isRightPanelVisible() {
@@ -1417,16 +1500,62 @@ function applyStockOutOne(row: Record<string, unknown>) {
   )
 }
 
+function parseProgressQuery(v: unknown): number | undefined {
+  if (v === undefined || v === null || v === '') return undefined
+  const n = Number(v)
+  return Number.isNaN(n) ? undefined : n
+}
+
 function syncFiltersFromRoute() {
   if (route.name !== 'SalesOrderItemList') return
   const q = route.query
-  const from = typeof q.orderCreateStart === 'string' ? q.orderCreateStart : typeof q.startDate === 'string' ? q.startDate : ''
-  const to = typeof q.orderCreateEnd === 'string' ? q.orderCreateEnd : typeof q.endDate === 'string' ? q.endDate : ''
-  dateRange.value = from && to ? [from, to] : null
-  stockOutPending.value = q.stockOutPending === '1' || q.stockOutPending === 'true'
-  invoicePending.value = q.invoicePending === '1' || q.invoicePending === 'true'
+  filters.sellOrderCode = typeof q.sellOrderCode === 'string' ? q.sellOrderCode : ''
+  filters.customerName = typeof q.customerName === 'string' ? q.customerName : ''
+  filters.salesUserName = typeof q.salesUserName === 'string' ? q.salesUserName : ''
+  filters.purchaseUserAccount = typeof q.purchaseUserAccount === 'string' ? q.purchaseUserAccount : ''
+  filters.pn = typeof q.pn === 'string' ? q.pn : ''
+  filters.customerSo = typeof q.customerSo === 'string' ? q.customerSo : ''
+  filters.customerPn = typeof q.customerPn === 'string' ? q.customerPn : ''
+  filters.transactionCurrency =
+    q.transactionCurrency === 'rmb' || q.transactionCurrency === 'foreign' ? q.transactionCurrency : ''
   salesUserIdFilter.value = typeof q.salesUserId === 'string' ? q.salesUserId : ''
   customerIdFilter.value = typeof q.customerId === 'string' ? q.customerId : ''
+  stockOutPending.value = q.stockOutPending === '1' || q.stockOutPending === 'true'
+  invoicePending.value = q.invoicePending === '1' || q.invoicePending === 'true'
+
+  const preset = activePreset.value
+  if (preset) {
+    filters.purchaseProgressStatus = undefined
+    filters.stockInProgressStatus = undefined
+    filters.stockOutNotifyProgressStatus = undefined
+    filters.stockOutProgressStatus = undefined
+    filters.receiptProgressStatus = undefined
+    filters.invoiceProgressStatus = undefined
+    stockOutPending.value = false
+    invoicePending.value = false
+    if (isSoItemTimePresetId(preset)) {
+      dateRange.value = resolveSoItemTimePresetDateRange(preset)
+    } else {
+      dateRange.value = null
+    }
+    return
+  }
+
+  const from =
+    typeof q.orderCreateStart === 'string'
+      ? q.orderCreateStart
+      : typeof q.startDate === 'string'
+        ? q.startDate
+        : ''
+  const to =
+    typeof q.orderCreateEnd === 'string' ? q.orderCreateEnd : typeof q.endDate === 'string' ? q.endDate : ''
+  dateRange.value = from && to ? [from, to] : null
+  filters.purchaseProgressStatus = parseProgressQuery(q.purchaseProgressStatus)
+  filters.stockInProgressStatus = parseProgressQuery(q.stockInProgressStatus)
+  filters.stockOutNotifyProgressStatus = parseProgressQuery(q.stockOutNotifyProgressStatus)
+  filters.stockOutProgressStatus = parseProgressQuery(q.stockOutProgressStatus)
+  filters.receiptProgressStatus = parseProgressQuery(q.receiptProgressStatus)
+  filters.invoiceProgressStatus = parseProgressQuery(q.invoiceProgressStatus)
 }
 
 watch(
@@ -1554,9 +1683,96 @@ watch(
 }
 .search-bar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 10px;
   margin-bottom: 12px;
+}
+.search-bar__row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.search-preset-chip-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.search-preset-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 4px 10px;
+  font-size: 12px;
+  color: $text-primary;
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.35);
+  border-radius: 20px;
+}
+.search-preset-chip__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: $text-muted;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  &:hover {
+    color: $text-primary;
+    background: rgba(255, 255, 255, 0.08);
+  }
+}
+.search-advanced {
+  flex-shrink: 0;
+  min-width: 120px;
+}
+.search-advanced__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 10px;
+  font-size: 12px;
+  color: $text-secondary;
+  background: $layer-2;
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  cursor: pointer;
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+.search-advanced__chevron {
+  display: inline-block;
+  transition: transform 0.15s;
+  transform: rotate(90deg);
+  &.is-open {
+    transform: rotate(-90deg);
+  }
+}
+.search-advanced__body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  &.is-disabled {
+    opacity: 0.55;
+    pointer-events: none;
+  }
+}
+.search-advanced__hint {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: $text-muted;
 }
 .search-left {
   display: flex;

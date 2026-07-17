@@ -771,6 +771,7 @@ import {
 } from '@/utils/rfqItemListRestore'
 import { resolveRfqItemMaterialPn } from '@/utils/materialPn'
 import { useMaterialIntelLookupStore } from '@/stores/materialIntelLookup'
+import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
 import { AI_PERMISSION_MATERIAL_INTEL_LOOKUP } from '@/api/ai'
 import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import {
@@ -1698,6 +1699,7 @@ async function loadData() {
   }
   await nextTick()
   await restoreTableSelectionFromBasket()
+  resetListRightPanelOnReload(materialIntelLookupStore)
 }
 
 function handleSearch() {

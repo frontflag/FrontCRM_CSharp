@@ -149,6 +149,7 @@ declare module 'vue' {
     SalesOpsAssistorSelect: typeof import('./src/components/SalesOpsAssistorSelect.vue')['default']
     SalesOrderFavoritePanel: typeof import('./src/components/SalesOrder/SalesOrderFavoritePanel.vue')['default']
     SalesOrderItemOpsPanel: typeof import('./src/components/RFQ/SalesOrderItemOpsPanel.vue')['default']
+    SalesOrderItemSearchPanel: typeof import('./src/components/RFQ/SalesOrderItemSearchPanel.vue')['default']
     SalesOrderRecentHistoryPanel: typeof import('./src/components/SalesOrder/SalesOrderRecentHistoryPanel.vue')['default']
     SalesOrderReportDocument: typeof import('./src/components/SalesOrder/SalesOrderReportDocument.vue')['default']
     SalesOrderSearchPanel: typeof import('./src/components/SalesOrder/SalesOrderSearchPanel.vue')['default']

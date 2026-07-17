@@ -743,6 +743,7 @@ import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiv
 import { usePurchaseOrderWriteGate } from '@/composables/useDepartmentDataReadOnly'
 import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick'
 import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
+import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
 import { usePurchaseOrderItemOpsPanelStore } from '@/stores/purchaseOrderItemOpsPanel'
 import { vendorBankApi } from '@/api/vendor'
 import { filterEnabledVendorBanks, resolveVendorDefaultBankId } from '@/utils/vendorFinancePaymentBank'
@@ -795,16 +796,6 @@ function goEdit(row: Record<string, unknown>) {
   const purchaseOrderId = String(row?.purchaseOrderId ?? '').trim()
   if (!purchaseOrderId) return
   router.push({ name: 'PurchaseOrderEdit', params: { id: purchaseOrderId } })
-}
-
-async function refreshOpsPanelIfOpen() {
-  if (!purchaseOrderItemOpsStore.row) return
-  const panelVisible = workspaceLayout?.rightPanelVisible.value ?? false
-  await purchaseOrderItemOpsStore.refreshFromListRows(
-    tableRows.value,
-    t('purchaseOrderItemList.messages.loadLineFailed'),
-    panelVisible
-  )
 }
 
 function isRightPanelVisible() {
@@ -1420,7 +1411,7 @@ async function loadList() {
     total.value = nTotal
     if (typeof data.page === 'number' && data.page >= 1) page.value = data.page
     clearTableSelection()
-    await refreshOpsPanelIfOpen()
+    resetListRightPanelOnReload(purchaseOrderItemOpsStore)
   } catch (e: any) {
     // eslint-disable-next-line no-console
     console.error(e)

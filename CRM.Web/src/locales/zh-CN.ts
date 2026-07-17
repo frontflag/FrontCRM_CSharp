@@ -4116,6 +4116,39 @@ const zhCN = {
       boardView: '看板',
       listView: '列表'
     },
+    searchPanel: {
+      title: '快捷检索',
+      clearPreset: '清除快捷检索',
+      advancedFilters: '高级筛选',
+      advancedDisabledHint: '已启用左栏快捷检索，日期与各进度筛选暂不可用',
+      groups: {
+        time: '下单时间',
+        todo: '待办',
+        business: '业务进度',
+        inventory: '库存',
+        receipt: '收款'
+      },
+      presets: {
+        order_today: '今日订单',
+        order_today_yesterday: '今昨订单',
+        order_last_7_days: '近 7 日订单',
+        order_last_30_days: '近 30 日订单',
+        order_this_week: '本周订单',
+        order_this_month: '本月订单',
+        pending_submit_audit: '待提交审核',
+        pending_submit_purchase_req: '待申请采购',
+        pending_submit_stock_out_notify: '待申请出库',
+        applied_pending_po: '已申请待采购',
+        purchased_pending_stock_in: '已采购待入库',
+        notify_pending_packing: '已通知待装箱',
+        packed_pending_stock_out: '已装箱待出库',
+        in_stock_pending_out: '在库待出',
+        used_stocking: '使用备货',
+        stock_out_pending_receipt: '应收款',
+        receipt_partial: '部分收款',
+        receipt_complete: '收款完成'
+      }
+    },
     board: {
       hint: '统计范围与当前筛选条件一致；成单口径为主单审核通过及以上且明细未取消。',
       refresh: '刷新',
@@ -4266,6 +4299,7 @@ const zhCN = {
       purchaseNextNoRemaining: '下一步：待已下采购或进行中采购申请完成后，若仍有剩余订单量，方可再次申请。',
       stockOutNextAudit: '下一步：等待销售订单主表审核通过后再申请出库。',
       stockOutNextDone: '下一步：本明细出库已完成，无需再申请出库通知。',
+      stockOutNextNotifyDone: '下一步：本明细出库通知已满，无需再申请出库通知。',
       stockOutNextPurchaseGate: '下一步：先生成采购订单明细，并确保关联采购单达到「供应商确认」及之后状态。',
       stockOutNextPendingPurchase: '下一步：推进采购进度，或确保同 PN+品牌备货可用量大于 0。'
     },
@@ -4331,11 +4365,13 @@ const zhCN = {
         '须已生成采购订单明细，且关联采购单均为「供应商确认」及之后状态，方可申请出库',
       applyStockOutDisabledByProgress: '出库已完成或采购状态为待采购时，不可申请出库',
       applyStockOutDisabledStockOutDone: '本明细出库进度已完成，不可再申请出库。',
+      applyStockOutDisabledNotifyDone: '本明细出库通知数量已满，不可再申请出库。',
       applyStockOutDisabledPendingPurchase:
         '采购进度为「待采购」，不可申请出库（同 PN+品牌备货可用量 > 0 时可例外）。',
       applyStockOutHintAria: '查看申请出库不可用原因',
       applyStockOutHintDetailTitle: '当前不满足的条件：',
       applyStockOutHintDetailStockOutDone: '出库进度为「{status}」。',
+      applyStockOutHintDetailNotifyDone: '出库通知进度为「{status}」。',
       applyStockOutHintDetailNoPoItems: '尚未生成关联的采购订单明细。',
       applyStockOutHintDetailPoNotConfirmed:
         '关联采购单 {code} 当前状态为「{status}」，未达到要求的「{requiredStatus}」及之后状态。',

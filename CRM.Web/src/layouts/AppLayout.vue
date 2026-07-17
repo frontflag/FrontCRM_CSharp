@@ -1079,7 +1079,7 @@
           <StockOutSearchPanel v-else-if="showStockOutSearchPanel" />
           <PurchaseOrderFavoritePanel v-else-if="showPurchaseOrderFavoritePanel" />
           <PurchaseOrderRecentHistoryPanel v-else-if="showPurchaseOrderRecentHistoryPanel" />
-          <div v-else-if="showSalesOrderItemListEmptySearchPanel" class="aux-panel-empty" aria-hidden="true" />
+          <SalesOrderItemSearchPanel v-else-if="showSalesOrderItemSearchPanel" />
           <template v-else>
             <p class="aux-placeholder">{{ t('layout.leftPanel') }} · {{ leftPanelTitle }}</p>
             <p class="aux-hint">子页面可 inject(WorkspaceLayoutKey)；或 window 派发 workspace:toggle-left / workspace:toggle-right</p>
@@ -1349,6 +1349,7 @@ import RFQItemSearchPanel from '@/components/RFQ/RFQItemSearchPanel.vue'
 import RFQFavoritePanel from '@/components/RFQ/RFQFavoritePanel.vue'
 import RFQRecentHistoryPanel from '@/components/RFQ/RFQRecentHistoryPanel.vue'
 import SalesOrderSearchPanel from '@/components/SalesOrder/SalesOrderSearchPanel.vue'
+import SalesOrderItemSearchPanel from '@/components/RFQ/SalesOrderItemSearchPanel.vue'
 import QcSearchPanel from '@/components/Logistics/QcSearchPanel.vue'
 import { canAccessCustomsModule } from '@/utils/departmentModuleGate'
 import StockInSearchPanel from '@/components/Inventory/StockInSearchPanel.vue'
@@ -1591,7 +1592,7 @@ const showSalesOrderSearchPanel = computed(
     route.name !== 'SalesOrderItemList'
 )
 
-const showSalesOrderItemListEmptySearchPanel = computed(
+const showSalesOrderItemSearchPanel = computed(
   () => leftActiveTabId.value === 'l1' && route.name === 'SalesOrderItemList'
 )
 

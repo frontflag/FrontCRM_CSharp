@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 namespace CRM.Infrastructure.SalesOrders;
 
 /// <summary>销售订单明细列表筛选条件（列表分页与看板共用）。</summary>
-internal static class SalesOrderItemLineListFilter
+internal static partial class SalesOrderItemLineListFilter
 {
     public static async Task<IQueryable<SellOrderItemLineJoin>> BuildFilteredJoinQueryAsync(
         ApplicationDbContext db,
@@ -88,99 +88,133 @@ internal static class SalesOrderItemLineListFilter
                 x.Item.CustomerPn.ToLower().Contains(k.ToLower()));
         }
 
-        if (request.PurchaseProgressStatus is >= 0 and <= 2)
-        {
-            var status = request.PurchaseProgressStatus.Value;
-            q = status == 0
-                ? q.Where(x =>
-                    !db.SellOrderItemExtends.Any(ext => ext.Id == x.Item.Id && !ext.IsDeleted)
-                    || db.SellOrderItemExtends.Any(ext =>
-                        ext.Id == x.Item.Id && !ext.IsDeleted && ext.PurchaseProgressStatus == 0))
-                : q.Where(x =>
-                    db.SellOrderItemExtends.Any(ext =>
-                        ext.Id == x.Item.Id && !ext.IsDeleted && ext.PurchaseProgressStatus == status));
-        }
+        var hasQuickFilter = !string.IsNullOrWhiteSpace(request.QuickFilter)
+            && SellOrderItemListQuickFilterCodes.IsKnown(request.QuickFilter);
 
-        if (request.StockInProgressStatus is >= 0 and <= 2)
+        if (!hasQuickFilter)
         {
-            var status = request.StockInProgressStatus.Value;
-            q = status == 0
-                ? q.Where(x =>
-                    !db.SellOrderItemExtends.Any(ext => ext.Id == x.Item.Id && !ext.IsDeleted)
-                    || db.SellOrderItemExtends.Any(ext =>
-                        ext.Id == x.Item.Id && !ext.IsDeleted && ext.StockInProgressStatus == 0))
-                : q.Where(x =>
-                    db.SellOrderItemExtends.Any(ext =>
-                        ext.Id == x.Item.Id && !ext.IsDeleted && ext.StockInProgressStatus == status));
-        }
-
-        if (request.StockOutProgressStatus is >= 0 and <= 2)
-        {
-            var status = request.StockOutProgressStatus.Value;
-            q = status == 0
-                ? q.Where(x =>
-                    !db.SellOrderItemExtends.Any(ext => ext.Id == x.Item.Id && !ext.IsDeleted)
-                    || db.SellOrderItemExtends.Any(ext =>
-                        ext.Id == x.Item.Id && !ext.IsDeleted && ext.StockOutProgressStatus == 0))
-                : q.Where(x =>
-                    db.SellOrderItemExtends.Any(ext =>
-                        ext.Id == x.Item.Id && !ext.IsDeleted && ext.StockOutProgressStatus == status));
-        }
-
-        if (request.ReceiptProgressStatus is >= 0 and <= 2)
-        {
-            var status = request.ReceiptProgressStatus.Value;
-            q = status == 0
-                ? q.Where(x =>
-                    !db.SellOrderItemExtends.Any(ext => ext.Id == x.Item.Id && !ext.IsDeleted)
-                    || db.SellOrderItemExtends.Any(ext =>
-                        ext.Id == x.Item.Id && !ext.IsDeleted && ext.ReceiptProgressStatus == 0))
-                : q.Where(x =>
-                    db.SellOrderItemExtends.Any(ext =>
-                        ext.Id == x.Item.Id && !ext.IsDeleted && ext.ReceiptProgressStatus == status));
-        }
-
-        if (request.InvoiceProgressStatus is >= 0 and <= 2)
-        {
-            var status = request.InvoiceProgressStatus.Value;
-            q = status == 0
-                ? q.Where(x =>
-                    !db.SellOrderItemExtends.Any(ext => ext.Id == x.Item.Id && !ext.IsDeleted)
-                    || db.SellOrderItemExtends.Any(ext =>
-                        ext.Id == x.Item.Id && !ext.IsDeleted && ext.InvoiceProgressStatus == 0))
-                : q.Where(x =>
-                    db.SellOrderItemExtends.Any(ext =>
-                        ext.Id == x.Item.Id && !ext.IsDeleted && ext.InvoiceProgressStatus == status));
-        }
-
-        if (request.StockOutNotifyProgressStatus is >= 0 and <= 2)
-        {
-            var notifyStatus = request.StockOutNotifyProgressStatus.Value;
-            if (notifyStatus == 0)
+            if (request.PurchaseProgressStatus is >= 0 and <= 2)
             {
-                q = q.Where(x =>
-                    !db.SellOrderItemExtends.Any(ext => ext.Id == x.Item.Id && !ext.IsDeleted)
-                    || db.SellOrderItemExtends.Any(ext =>
-                        ext.Id == x.Item.Id && !ext.IsDeleted && ext.QtyStockOutNotify <= 0m));
+                var status = request.PurchaseProgressStatus.Value;
+                q = status == 0
+                    ? q.Where(x =>
+                        !db.SellOrderItemExtends.Any(ext => ext.Id == x.Item.Id && !ext.IsDeleted)
+                        || db.SellOrderItemExtends.Any(ext =>
+                            ext.Id == x.Item.Id && !ext.IsDeleted && ext.PurchaseProgressStatus == 0))
+                    : q.Where(x =>
+                        db.SellOrderItemExtends.Any(ext =>
+                            ext.Id == x.Item.Id && !ext.IsDeleted && ext.PurchaseProgressStatus == status));
             }
-            else if (notifyStatus == 2)
+
+            if (request.StockInProgressStatus is >= 0 and <= 2)
+            {
+                var status = request.StockInProgressStatus.Value;
+                q = status == 0
+                    ? q.Where(x =>
+                        !db.SellOrderItemExtends.Any(ext => ext.Id == x.Item.Id && !ext.IsDeleted)
+                        || db.SellOrderItemExtends.Any(ext =>
+                            ext.Id == x.Item.Id && !ext.IsDeleted && ext.StockInProgressStatus == 0))
+                    : q.Where(x =>
+                        db.SellOrderItemExtends.Any(ext =>
+                            ext.Id == x.Item.Id && !ext.IsDeleted && ext.StockInProgressStatus == status));
+            }
+
+            if (request.StockOutProgressStatus is >= 0 and <= 2)
+            {
+                var status = request.StockOutProgressStatus.Value;
+                q = status == 0
+                    ? q.Where(x =>
+                        !db.SellOrderItemExtends.Any(ext => ext.Id == x.Item.Id && !ext.IsDeleted)
+                        || db.SellOrderItemExtends.Any(ext =>
+                            ext.Id == x.Item.Id && !ext.IsDeleted && ext.StockOutProgressStatus == 0))
+                    : q.Where(x =>
+                        db.SellOrderItemExtends.Any(ext =>
+                            ext.Id == x.Item.Id && !ext.IsDeleted && ext.StockOutProgressStatus == status));
+            }
+
+            if (request.ReceiptProgressStatus is >= 0 and <= 2)
+            {
+                var status = request.ReceiptProgressStatus.Value;
+                q = status == 0
+                    ? q.Where(x =>
+                        !db.SellOrderItemExtends.Any(ext => ext.Id == x.Item.Id && !ext.IsDeleted)
+                        || db.SellOrderItemExtends.Any(ext =>
+                            ext.Id == x.Item.Id && !ext.IsDeleted && ext.ReceiptProgressStatus == 0))
+                    : q.Where(x =>
+                        db.SellOrderItemExtends.Any(ext =>
+                            ext.Id == x.Item.Id && !ext.IsDeleted && ext.ReceiptProgressStatus == status));
+            }
+
+            if (request.InvoiceProgressStatus is >= 0 and <= 2)
+            {
+                var status = request.InvoiceProgressStatus.Value;
+                q = status == 0
+                    ? q.Where(x =>
+                        !db.SellOrderItemExtends.Any(ext => ext.Id == x.Item.Id && !ext.IsDeleted)
+                        || db.SellOrderItemExtends.Any(ext =>
+                            ext.Id == x.Item.Id && !ext.IsDeleted && ext.InvoiceProgressStatus == 0))
+                    : q.Where(x =>
+                        db.SellOrderItemExtends.Any(ext =>
+                            ext.Id == x.Item.Id && !ext.IsDeleted && ext.InvoiceProgressStatus == status));
+            }
+
+            if (request.StockOutNotifyProgressStatus is >= 0 and <= 2)
+            {
+                var notifyStatus = request.StockOutNotifyProgressStatus.Value;
+                if (notifyStatus == 0)
+                {
+                    q = q.Where(x =>
+                        !db.SellOrderItemExtends.Any(ext => ext.Id == x.Item.Id && !ext.IsDeleted)
+                        || db.SellOrderItemExtends.Any(ext =>
+                            ext.Id == x.Item.Id && !ext.IsDeleted && ext.QtyStockOutNotify <= 0m));
+                }
+                else if (notifyStatus == 2)
+                {
+                    q = q.Where(x =>
+                        db.SellOrderItemExtends.Any(ext =>
+                            ext.Id == x.Item.Id
+                            && !ext.IsDeleted
+                            && ext.QtyStockOutNotify > 0m
+                            && ext.QtyStockOutNotify + 0.0000000001m >= x.Item.Qty));
+                }
+                else
+                {
+                    q = q.Where(x =>
+                        db.SellOrderItemExtends.Any(ext =>
+                            ext.Id == x.Item.Id
+                            && !ext.IsDeleted
+                            && ext.QtyStockOutNotify > 0m
+                            && ext.QtyStockOutNotify + 0.0000000001m < x.Item.Qty));
+                }
+            }
+
+            if (request.StockOutPending)
             {
                 q = q.Where(x =>
-                    db.SellOrderItemExtends.Any(ext =>
+                    x.Item.Status == 0
+                    && x.So.Status != SellOrderMainStatus.Cancelled
+                    && x.So.Status != SellOrderMainStatus.AuditFailed
+                    && db.SellOrderItemExtends.Any(ext =>
                         ext.Id == x.Item.Id
                         && !ext.IsDeleted
-                        && ext.QtyStockOutNotify > 0m
-                        && ext.QtyStockOutNotify + 0.0000000001m >= x.Item.Qty));
+                        && (ext.StockOutProgressStatus == 0 || ext.StockOutProgressStatus == 1)));
             }
-            else
+
+            if (request.InvoicePending)
             {
                 q = q.Where(x =>
-                    db.SellOrderItemExtends.Any(ext =>
+                    x.Item.Status == 0
+                    && x.So.Status != SellOrderMainStatus.Cancelled
+                    && x.So.Status != SellOrderMainStatus.AuditFailed
+                    && db.SellOrderItemExtends.Any(ext =>
                         ext.Id == x.Item.Id
                         && !ext.IsDeleted
-                        && ext.QtyStockOutNotify > 0m
-                        && ext.QtyStockOutNotify + 0.0000000001m < x.Item.Qty));
+                        && (ext.InvoiceProgressStatus < 2 || ext.InvoiceAmountNot > 0)));
             }
+        }
+        else if (hasQuickFilter)
+        {
+            q = ApplyQuickFilter(db, q, request.QuickFilter);
         }
 
         if (!string.IsNullOrWhiteSpace(request.TransactionCurrency))
@@ -224,30 +258,6 @@ internal static class SalesOrderItemLineListFilter
         {
             var cid = request.CustomerId.Trim();
             q = q.Where(x => x.So.CustomerId == cid);
-        }
-
-        if (request.StockOutPending)
-        {
-            q = q.Where(x =>
-                x.Item.Status == 0
-                && x.So.Status != SellOrderMainStatus.Cancelled
-                && x.So.Status != SellOrderMainStatus.AuditFailed
-                && db.SellOrderItemExtends.Any(ext =>
-                    ext.Id == x.Item.Id
-                    && !ext.IsDeleted
-                    && (ext.StockOutProgressStatus == 0 || ext.StockOutProgressStatus == 1)));
-        }
-
-        if (request.InvoicePending)
-        {
-            q = q.Where(x =>
-                x.Item.Status == 0
-                && x.So.Status != SellOrderMainStatus.Cancelled
-                && x.So.Status != SellOrderMainStatus.AuditFailed
-                && db.SellOrderItemExtends.Any(ext =>
-                    ext.Id == x.Item.Id
-                    && !ext.IsDeleted
-                    && (ext.InvoiceProgressStatus < 2 || ext.InvoiceAmountNot > 0)));
         }
 
         return q;

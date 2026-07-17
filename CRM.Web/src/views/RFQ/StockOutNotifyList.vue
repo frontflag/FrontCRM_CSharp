@@ -355,6 +355,7 @@ import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOn
 import { useStockOutNotifyListBasketStore } from '@/stores/stockOutNotifyListBasket'
 import { useStockOutNotifyCustomsPanelStore } from '@/stores/stockOutNotifyCustomsPanel'
 import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
+import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
 import { STOCK_OUT_REQUEST_STATUS } from '@/constants/stockOutRequestStatus'
 import { STOCK_OUT_NOTIFY_CUSTOMS_STATUS } from '@/constants/stockOutNotifyCustomsStatus'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
@@ -502,14 +503,6 @@ function customsPanelRowClassName({ row }: { row: StockOutRequestDto }) {
     : 'table-row-pointer'
 }
 
-async function refreshCustomsPanelIfOpen() {
-  if (!stockOutNotifyCustomsPanelStore.notifyRow) return
-  await stockOutNotifyCustomsPanelStore.refreshFromListRows(
-    list.value,
-    t('stockOutNotifyList.customsTab.loadFailed')
-  )
-}
-
 function salesNotifyTooltip(row: StockOutRequestDto): string {
   const code = String(row.salesStockOutNotifyCode ?? '').trim()
   if (!code) return ''
@@ -555,7 +548,7 @@ async function runNotifyFetch(resetPage: boolean) {
     list.value = reqPage.items
     listTotal.value = reqPage.total
     await restoreTableSelectionFromBasket()
-    await refreshCustomsPanelIfOpen()
+    resetListRightPanelOnReload(stockOutNotifyCustomsPanelStore)
   } catch (e) {
     console.error(e)
     ElMessage.error(t('stockOutNotifyList.messages.loadFailed'))

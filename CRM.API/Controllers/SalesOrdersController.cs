@@ -262,13 +262,14 @@ namespace CRM.API.Controllers
             [FromQuery] short? stockOutProgressStatus = null,
             [FromQuery] short? receiptProgressStatus = null,
             [FromQuery] short? invoiceProgressStatus = null,
+            [FromQuery] string? quickFilter = null,
             CancellationToken cancellationToken = default)
         {
             var (request, maskAmounts) = await BuildItemListAnalyticsQueryRequestAsync(
                 orderCreateStart, orderCreateEnd, customerName, salesUserName, salesUserId, purchaseUserAccount, customerId,
                 sellOrderCode, pn, customerSo, customerPn, transactionCurrency, stockOutPending, invoicePending,
                 purchaseProgressStatus, stockInProgressStatus, stockOutNotifyProgressStatus, stockOutProgressStatus,
-                receiptProgressStatus, invoiceProgressStatus, cancellationToken);
+                receiptProgressStatus, invoiceProgressStatus, quickFilter, cancellationToken);
             var data = await _salesOrderItemLineListQuery.GetListAnalyticsDashboardAsync(request, maskAmounts, cancellationToken);
             return Ok(ApiResponse<SalesOrderItemListAnalyticsDashboardDto>.Ok(data));
         }
@@ -296,13 +297,14 @@ namespace CRM.API.Controllers
             [FromQuery] short? receiptProgressStatus = null,
             [FromQuery] short? invoiceProgressStatus = null,
             [FromQuery] string? groupBy = null,
+            [FromQuery] string? quickFilter = null,
             CancellationToken cancellationToken = default)
         {
             var (request, maskAmounts) = await BuildItemListAnalyticsQueryRequestAsync(
                 orderCreateStart, orderCreateEnd, customerName, salesUserName, salesUserId, purchaseUserAccount, customerId,
                 sellOrderCode, pn, customerSo, customerPn, transactionCurrency, stockOutPending, invoicePending,
                 purchaseProgressStatus, stockInProgressStatus, stockOutNotifyProgressStatus, stockOutProgressStatus,
-                receiptProgressStatus, invoiceProgressStatus, cancellationToken);
+                receiptProgressStatus, invoiceProgressStatus, quickFilter, cancellationToken);
             var data = await _salesOrderItemLineListQuery.GetListAnalyticsTrendsAsync(
                 request,
                 string.IsNullOrWhiteSpace(groupBy) ? "month" : groupBy.Trim(),
@@ -333,13 +335,14 @@ namespace CRM.API.Controllers
             [FromQuery] short? stockOutProgressStatus = null,
             [FromQuery] short? receiptProgressStatus = null,
             [FromQuery] short? invoiceProgressStatus = null,
+            [FromQuery] string? quickFilter = null,
             CancellationToken cancellationToken = default)
         {
             var (request, maskAmounts) = await BuildItemListAnalyticsQueryRequestAsync(
                 orderCreateStart, orderCreateEnd, customerName, salesUserName, salesUserId, purchaseUserAccount, customerId,
                 sellOrderCode, pn, customerSo, customerPn, transactionCurrency, stockOutPending, invoicePending,
                 purchaseProgressStatus, stockInProgressStatus, stockOutNotifyProgressStatus, stockOutProgressStatus,
-                receiptProgressStatus, invoiceProgressStatus, cancellationToken);
+                receiptProgressStatus, invoiceProgressStatus, quickFilter, cancellationToken);
             var data = await _salesOrderItemLineListQuery.GetListAnalyticsBreakdownsAsync(request, maskAmounts, cancellationToken);
             return Ok(ApiResponse<IReadOnlyList<SalesAnalyticsBreakdownGroupDto>>.Ok(data));
         }
@@ -366,13 +369,14 @@ namespace CRM.API.Controllers
             [FromQuery] short? stockOutProgressStatus = null,
             [FromQuery] short? receiptProgressStatus = null,
             [FromQuery] short? invoiceProgressStatus = null,
+            [FromQuery] string? quickFilter = null,
             CancellationToken cancellationToken = default)
         {
             var (request, maskAmounts) = await BuildItemListAnalyticsQueryRequestAsync(
                 orderCreateStart, orderCreateEnd, customerName, salesUserName, salesUserId, purchaseUserAccount, customerId,
                 sellOrderCode, pn, customerSo, customerPn, transactionCurrency, stockOutPending, invoicePending,
                 purchaseProgressStatus, stockInProgressStatus, stockOutNotifyProgressStatus, stockOutProgressStatus,
-                receiptProgressStatus, invoiceProgressStatus, cancellationToken);
+                receiptProgressStatus, invoiceProgressStatus, quickFilter, cancellationToken);
             var data = await _salesOrderItemLineListQuery.GetListAnalyticsRankingsAsync(request, maskAmounts, cancellationToken);
             return Ok(ApiResponse<SalesOrderItemListAnalyticsRankingsDto>.Ok(data));
         }
@@ -400,6 +404,7 @@ namespace CRM.API.Controllers
             [FromQuery] short? stockOutProgressStatus = null,
             [FromQuery] short? receiptProgressStatus = null,
             [FromQuery] short? invoiceProgressStatus = null,
+            [FromQuery] string? quickFilter = null,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20,
             CancellationToken cancellationToken = default)
@@ -436,6 +441,7 @@ namespace CRM.API.Controllers
                     StockOutProgressStatus = stockOutProgressStatus,
                     ReceiptProgressStatus = receiptProgressStatus,
                     InvoiceProgressStatus = invoiceProgressStatus,
+                    QuickFilter = quickFilter,
                     Page = page,
                     PageSize = pageSize,
                     CurrentUserId = userId
@@ -2495,6 +2501,7 @@ namespace CRM.API.Controllers
             short? stockOutProgressStatus,
             short? receiptProgressStatus,
             short? invoiceProgressStatus,
+            string? quickFilter,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -2532,6 +2539,7 @@ namespace CRM.API.Controllers
                 StockOutProgressStatus = stockOutProgressStatus,
                 ReceiptProgressStatus = receiptProgressStatus,
                 InvoiceProgressStatus = invoiceProgressStatus,
+                QuickFilter = quickFilter,
                 CurrentUserId = userId
             };
 

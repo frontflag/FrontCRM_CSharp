@@ -350,6 +350,7 @@ import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMa
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import { useCustomerIntelLookupStore } from '@/stores/customerIntelLookup'
+import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
 
 const router = useRouter();
 const route = useRoute();
@@ -476,6 +477,7 @@ const fetchCustomerList = async () => {
     if (favoriteOnly.value && favoriteIdsList.length === 0) {
       customerList.value = []
       totalCount.value = 0
+      resetListRightPanelOnReload(customerIntelLookupStore)
       return
     }
 
@@ -506,7 +508,7 @@ const fetchCustomerList = async () => {
     }))
     customerList.value = mapped
     totalCount.value = response.totalCount ?? response.total ?? 0
-    tryRestoreIntelSelection()
+    resetListRightPanelOnReload(customerIntelLookupStore)
   } catch (error: any) {
     // 仅在真实网络/服务器错误时提示，空数据不报错
     const isEmptyResult = !error?.response || error?.response?.status === 404;
@@ -637,14 +639,6 @@ function onCustomerRowClick(row: Customer) {
   if (!workspaceLayout?.rightPanelVisible.value) {
     workspaceLayout?.toggleRightPanel(true)
   }
-}
-
-function tryRestoreIntelSelection() {
-  const savedId = customerIntelLookupStore.readSessionSelectedId()
-  if (!savedId) return
-  const row = customerList.value.find((c) => c.id === savedId)
-  if (!row) return
-  customerIntelLookupStore.bindContext(buildCustomerIntelContext(row))
 }
 
 const handleView = (row: Customer) => router.push(`/customers/${row.id}`);

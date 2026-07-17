@@ -128,6 +128,8 @@ namespace CRM.Core.Interfaces
         public short? ReceiptProgressStatus { get; set; }
         /// <summary>开票进度 0/1/2（扩展表）。</summary>
         public short? InvoiceProgressStatus { get; set; }
+        /// <summary>左栏快捷检索（见 <see cref="SellOrderItemListQuickFilterCodes"/>）；与手动进度筛选互斥。</summary>
+        public string? QuickFilter { get; set; }
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 20;
         public string? CurrentUserId { get; set; }

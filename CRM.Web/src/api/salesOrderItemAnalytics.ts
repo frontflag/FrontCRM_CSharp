@@ -22,6 +22,8 @@ export interface SalesOrderItemListAnalyticsQuery {
   stockOutProgressStatus?: number
   receiptProgressStatus?: number
   invoiceProgressStatus?: number
+  /** 左栏快捷检索（与六 progress 互斥） */
+  quickFilter?: string
   groupBy?: 'day' | 'week' | 'month'
 }
 
@@ -113,6 +115,7 @@ function buildParams(q: SalesOrderItemListAnalyticsQuery): Record<string, string
   if (q.invoiceProgressStatus !== undefined && q.invoiceProgressStatus !== null) {
     p.invoiceProgressStatus = q.invoiceProgressStatus
   }
+  if (q.quickFilter) p.quickFilter = q.quickFilter
   if (q.groupBy) p.groupBy = q.groupBy
   return p
 }

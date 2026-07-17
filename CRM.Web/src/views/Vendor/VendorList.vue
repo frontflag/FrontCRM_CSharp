@@ -370,6 +370,7 @@ import { parseVendorListQuery, buildVendorListQuery } from '@/utils/vendorListQu
 import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick';
 import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import { useVendorIntelLookupStore } from '@/stores/vendorIntelLookup'
+import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const route = useRoute();
@@ -587,6 +588,7 @@ const fetchVendorList = async () => {
     if (favoriteOnly.value && favoriteIdsList.length === 0) {
       vendorList.value = [];
       totalCount.value = 0;
+      resetListRightPanelOnReload(vendorIntelLookupStore);
       return;
     }
 
@@ -613,7 +615,7 @@ const fetchVendorList = async () => {
     }));
     vendorList.value = mapped;
     totalCount.value = response.totalCount ?? response.total ?? 0;
-    tryRestoreIntelSelection();
+    resetListRightPanelOnReload(vendorIntelLookupStore);
   } catch (error: any) {
     // 仅在 404 时按“空结果”兜底；其余错误（如 401/403/500）应明确提示
     const httpStatus = error?.httpStatus ?? error?.response?.status;
@@ -659,14 +661,6 @@ function onVendorRowClick(row: Vendor) {
   if (!workspaceLayout?.rightPanelVisible.value) {
     workspaceLayout?.toggleRightPanel(true)
   }
-}
-
-function tryRestoreIntelSelection() {
-  const savedId = vendorIntelLookupStore.readSessionSelectedId()
-  if (!savedId) return
-  const row = vendorList.value.find((v) => v.id === savedId)
-  if (!row) return
-  vendorIntelLookupStore.bindContext(buildVendorIntelContext(row))
 }
 
 function onCreateDropdownCommand(cmd: string) {

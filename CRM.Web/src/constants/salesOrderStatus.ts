@@ -81,11 +81,14 @@ export function salesOrderLinePurchasedStockReliefOk(row: { purchasedStockAvaila
 export function salesOrderLineApplyStockOutButtonDisabled(row: {
   purchaseProgressStatus?: unknown
   stockOutProgressStatus?: unknown
+  stockOutNotifyProgressStatus?: unknown
   stockOutApplyPurchaseGateOk?: unknown
   purchasedStockAvailableQty?: unknown
 }): boolean {
   const so = row.stockOutProgressStatus
   if (so !== undefined && so !== null && Number(so) === 2) return true
+  const notify = row.stockOutNotifyProgressStatus
+  if (notify !== undefined && notify !== null && Number(notify) === 2) return true
   if (salesOrderLinePurchasedStockReliefOk(row)) return false
   return salesOrderLineApplyStockOutDisabled(row) || row.stockOutApplyPurchaseGateOk !== true
 }
@@ -93,18 +96,22 @@ export function salesOrderLineApplyStockOutButtonDisabled(row: {
 /** 申请出库置灰时的原因键（供列表浮窗提示；与 {@link salesOrderLineApplyStockOutButtonDisabled} 口径一致）。 */
 export type SalesOrderLineApplyStockOutDisabledReasonKey =
   | 'stockOutDone'
+  | 'notifyDone'
   | 'needPurchaseGate'
   | 'pendingPurchase'
 
 export function salesOrderLineApplyStockOutDisabledReasonKey(row: {
   purchaseProgressStatus?: unknown
   stockOutProgressStatus?: unknown
+  stockOutNotifyProgressStatus?: unknown
   stockOutApplyPurchaseGateOk?: unknown
   purchasedStockAvailableQty?: unknown
 }): SalesOrderLineApplyStockOutDisabledReasonKey | null {
   if (!salesOrderLineApplyStockOutButtonDisabled(row)) return null
   const so = row.stockOutProgressStatus
   if (so !== undefined && so !== null && Number(so) === 2) return 'stockOutDone'
+  const notify = row.stockOutNotifyProgressStatus
+  if (notify !== undefined && notify !== null && Number(notify) === 2) return 'notifyDone'
   if (salesOrderLinePurchasedStockReliefOk(row)) return null
   if (row.stockOutApplyPurchaseGateOk !== true) return 'needPurchaseGate'
   const po = row.purchaseProgressStatus
