@@ -215,6 +215,8 @@ export const purchaseOrderApi = {
     purchaseProgressStatus?: number
     stockInProgressStatus?: number
     invoiceProgressStatus?: number
+    /** 左栏快捷检索业务项 */
+    quickFilter?: string
   }) {
     return await apiClient.get('/api/v1/purchase-orders/items', { params })
   },

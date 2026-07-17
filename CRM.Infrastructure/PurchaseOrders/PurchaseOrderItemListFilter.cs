@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace CRM.Infrastructure.PurchaseOrders;
 
 /// <summary>采购订单明细列表筛选条件（列表分页与看板共用）。</summary>
-internal static class PurchaseOrderItemListFilter
+internal static partial class PurchaseOrderItemListFilter
 {
     public static async Task<IQueryable<PurchaseOrderItemLineJoin>> BuildFilteredJoinQueryAsync(
         ApplicationDbContext db,
@@ -92,38 +92,45 @@ internal static class PurchaseOrderItemListFilter
                 q = q.Where(x => x.Item.Currency != (short)CurrencyCode.RMB);
         }
 
-        if (request.PaymentProgressStatus is >= 0 and <= 2)
+        var hasQuickFilter = !string.IsNullOrWhiteSpace(request.QuickFilter)
+            && PurchaseOrderItemListQuickFilterCodes.IsKnown(request.QuickFilter);
+
+        if (!hasQuickFilter)
         {
-            var status = request.PaymentProgressStatus.Value;
-            q = status == 0
-                ? q.Where(x => x.Ext == null || x.Ext.PaymentProgressStatus == 0)
-                : q.Where(x => x.Ext != null && x.Ext.PaymentProgressStatus == status);
+            if (request.PaymentProgressStatus is >= 0 and <= 2)
+            {
+                var status = request.PaymentProgressStatus.Value;
+                q = status == 0
+                    ? q.Where(x => x.Ext == null || x.Ext.PaymentProgressStatus == 0)
+                    : q.Where(x => x.Ext != null && x.Ext.PaymentProgressStatus == status);
+            }
+
+            if (request.PurchaseProgressStatus is >= 0 and <= 2)
+            {
+                var status = request.PurchaseProgressStatus.Value;
+                q = status == 0
+                    ? q.Where(x => x.Ext == null || x.Ext.PurchaseProgressStatus == 0)
+                    : q.Where(x => x.Ext != null && x.Ext.PurchaseProgressStatus == status);
+            }
+
+            if (request.StockInProgressStatus is >= 0 and <= 2)
+            {
+                var status = request.StockInProgressStatus.Value;
+                q = status == 0
+                    ? q.Where(x => x.Ext == null || x.Ext.StockInProgressStatus == 0)
+                    : q.Where(x => x.Ext != null && x.Ext.StockInProgressStatus == status);
+            }
+
+            if (request.InvoiceProgressStatus is >= 0 and <= 2)
+            {
+                var status = request.InvoiceProgressStatus.Value;
+                q = status == 0
+                    ? q.Where(x => x.Ext == null || x.Ext.InvoiceProgressStatus == 0)
+                    : q.Where(x => x.Ext != null && x.Ext.InvoiceProgressStatus == status);
+            }
         }
 
-        if (request.PurchaseProgressStatus is >= 0 and <= 2)
-        {
-            var status = request.PurchaseProgressStatus.Value;
-            q = status == 0
-                ? q.Where(x => x.Ext == null || x.Ext.PurchaseProgressStatus == 0)
-                : q.Where(x => x.Ext != null && x.Ext.PurchaseProgressStatus == status);
-        }
-
-        if (request.StockInProgressStatus is >= 0 and <= 2)
-        {
-            var status = request.StockInProgressStatus.Value;
-            q = status == 0
-                ? q.Where(x => x.Ext == null || x.Ext.StockInProgressStatus == 0)
-                : q.Where(x => x.Ext != null && x.Ext.StockInProgressStatus == status);
-        }
-
-        if (request.InvoiceProgressStatus is >= 0 and <= 2)
-        {
-            var status = request.InvoiceProgressStatus.Value;
-            q = status == 0
-                ? q.Where(x => x.Ext == null || x.Ext.InvoiceProgressStatus == 0)
-                : q.Where(x => x.Ext != null && x.Ext.InvoiceProgressStatus == status);
-        }
-
+        q = ApplyQuickFilter(q, request.QuickFilter);
         return q;
     }
 

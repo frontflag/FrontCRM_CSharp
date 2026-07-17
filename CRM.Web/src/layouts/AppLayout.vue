@@ -1079,6 +1079,7 @@
           <StockOutSearchPanel v-else-if="showStockOutSearchPanel" />
           <PurchaseOrderFavoritePanel v-else-if="showPurchaseOrderFavoritePanel" />
           <PurchaseOrderRecentHistoryPanel v-else-if="showPurchaseOrderRecentHistoryPanel" />
+          <PurchaseOrderItemSearchPanel v-else-if="showPurchaseOrderItemSearchPanel" />
           <SalesOrderItemSearchPanel v-else-if="showSalesOrderItemSearchPanel" />
           <template v-else>
             <p class="aux-placeholder">{{ t('layout.leftPanel') }} · {{ leftPanelTitle }}</p>
@@ -1350,6 +1351,7 @@ import RFQFavoritePanel from '@/components/RFQ/RFQFavoritePanel.vue'
 import RFQRecentHistoryPanel from '@/components/RFQ/RFQRecentHistoryPanel.vue'
 import SalesOrderSearchPanel from '@/components/SalesOrder/SalesOrderSearchPanel.vue'
 import SalesOrderItemSearchPanel from '@/components/RFQ/SalesOrderItemSearchPanel.vue'
+import PurchaseOrderItemSearchPanel from '@/components/RFQ/PurchaseOrderItemSearchPanel.vue'
 import QcSearchPanel from '@/components/Logistics/QcSearchPanel.vue'
 import { canAccessCustomsModule } from '@/utils/departmentModuleGate'
 import StockInSearchPanel from '@/components/Inventory/StockInSearchPanel.vue'
@@ -1659,6 +1661,10 @@ const showPurchaseOrderFavoritePanel = computed(
 
 const showPurchaseOrderRecentHistoryPanel = computed(
   () => leftActiveTabId.value === 'l3' && isPurchaseOrderLeftAuxRoute.value
+)
+
+const showPurchaseOrderItemSearchPanel = computed(
+  () => leftActiveTabId.value === 'l1' && route.name === 'PurchaseOrderItemList'
 )
 
 const isSalesOrderItemListRoute = computed(() => route.name === 'SalesOrderItemList')

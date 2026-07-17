@@ -113,6 +113,8 @@ namespace CRM.Core.Interfaces
         public string? Comment { get; set; }
         /// <summary>内部备注</summary>
         public string? InnerComment { get; set; }
+        /// <summary>后付款（客户付款后再给供应商付款）；仅标记提醒</summary>
+        public bool IsPayLater { get; set; }
         /// <summary>明细行</summary>
         public List<CreatePurchaseOrderItemRequest> Items { get; set; } = new();
     }
@@ -165,6 +167,8 @@ namespace CRM.Core.Interfaces
         public string? DeliveryAddress { get; set; }
         public string? Comment { get; set; }
         public string? InnerComment { get; set; }
+        /// <summary>后付款（客户付款后再给供应商付款）；仅标记提醒</summary>
+        public bool? IsPayLater { get; set; }
         public List<CreatePurchaseOrderItemRequest>? Items { get; set; }
     }
 

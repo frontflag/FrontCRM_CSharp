@@ -109,6 +109,13 @@ namespace CRM.Core.Models.Purchase
         [Column("finance_status")]
         public short FinanceStatus { get; set; } = 0;
 
+        /// <summary>
+        /// 后付款：先欠供应商款，等客户付款后再给供应商结款。
+        /// 仅主单标记提醒，不拦截申请付款，与供应商账期无关。
+        /// </summary>
+        [Column("is_pay_later")]
+        public bool IsPayLater { get; set; }
+
         /// <summary>出库状态 0=未出库 1=部分出库 2=全部出库</summary>
         [Column("stock_out_status")]
         public short StockOutStatus { get; set; } = 0;

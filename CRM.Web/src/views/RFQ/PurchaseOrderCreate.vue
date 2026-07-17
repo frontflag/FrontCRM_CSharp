@@ -117,8 +117,6 @@
               </div>
             </el-form-item>
           </el-col>
-        </el-row>
-        <el-row :gutter="24">
           <el-col :span="12">
             <el-form-item v-if="showVendorPicker" label="供应商联系人">
               <el-select
@@ -142,6 +140,8 @@
               />
             </el-form-item>
           </el-col>
+        </el-row>
+        <el-row :gutter="24">
           <el-col :span="12">
             <el-form-item label="采购员">
               <el-select
@@ -170,8 +170,6 @@
               />
             </el-form-item>
           </el-col>
-        </el-row>
-        <el-row :gutter="24">
           <el-col :span="12">
             <el-form-item label="采购助理">
               <el-input
@@ -189,13 +187,23 @@
           </el-col>
         </el-row>
         <el-row :gutter="24">
-          <el-col :span="24">
+          <el-col :span="12">
             <el-form-item label="订单类型">
               <el-select v-model="formData.type" style="width: 100%" disabled>
                 <el-option :label="t('salesOrderCreate.orderTypes.normal')" :value="1" />
                 <el-option :label="t('salesOrderCreate.orderTypes.urgent')" :value="2" />
                 <el-option :label="t('salesOrderCreate.orderTypes.sample')" :value="3" />
               </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="付款约定">
+              <div class="po-pay-later-row" :class="{ 'is-checked': formData.isPayLater }">
+                <el-checkbox v-model="formData.isPayLater">后付款</el-checkbox>
+                <el-tooltip content="客户付款后再给供应商付款" placement="top">
+                  <el-icon class="po-pay-later-help" aria-label="后付款说明"><QuestionFilled /></el-icon>
+                </el-tooltip>
+              </div>
             </el-form-item>
           </el-col>
         </el-row>
@@ -359,6 +367,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import type { FormInstance } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { QuestionFilled } from '@element-plus/icons-vue'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
 import { purchaseRequisitionApi } from '@/api/purchaseRequisition'
 import { usePurchaseRequisitionPoBasketStore } from '@/stores/purchaseRequisitionPoBasket'
@@ -532,6 +541,7 @@ const formData = ref({
   deliveryAddress: '',
   comment: '',
   innerComment: '',
+  isPayLater: false,
   items: [] as any[]
 })
 
@@ -886,6 +896,7 @@ async function loadOrderForEdit(id: string) {
   formData.value.deliveryAddress = String(o.deliveryAddress ?? '')
   formData.value.comment = String(o.comment ?? '')
   formData.value.innerComment = String(o.innerComment ?? '')
+  formData.value.isPayLater = Boolean(o.isPayLater ?? o.IsPayLater)
   const items = ((o.items as Record<string, unknown>[] | undefined) || []).filter(
     (it) => !(it.isDeleted ?? it.IsDeleted)
   )
@@ -953,6 +964,7 @@ const handleSubmit = async () => {
           deliveryAddress: formData.value.deliveryAddress || undefined,
           comment: formData.value.comment || undefined,
           innerComment: formData.value.innerComment || undefined,
+          isPayLater: !!formData.value.isPayLater,
           items: buildItemsPayload()
         }
         if (import.meta.env.DEV) {
@@ -976,6 +988,7 @@ const handleSubmit = async () => {
         deliveryAddress: formData.value.deliveryAddress || undefined,
         comment: formData.value.comment || undefined,
         innerComment: formData.value.innerComment || undefined,
+        isPayLater: !!formData.value.isPayLater,
         items: buildItemsPayload()
       }
       if (import.meta.env.DEV) {
@@ -1247,6 +1260,32 @@ onMounted(async () => {
 .po-caption-meta-text {
   font-size: 13px;
   color: $text-muted;
+}
+
+.po-pay-later-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  transition: background 0.15s ease, border-color 0.15s ease;
+
+  &.is-checked {
+    background: rgba(234, 179, 8, 0.28);
+    border-color: rgba(234, 179, 8, 0.55);
+  }
+}
+
+.po-pay-later-help {
+  color: $text-muted;
+  cursor: help;
+  font-size: 15px;
+
+  &:hover {
+    color: $cyan-primary;
+  }
 }
 
 .po-stocking-tag {

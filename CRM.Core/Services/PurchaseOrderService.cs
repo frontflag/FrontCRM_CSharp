@@ -252,6 +252,7 @@ namespace CRM.Core.Services
                 DeliveryAddress = request.DeliveryAddress,
                 Comment = request.Comment,
                 InnerComment = request.InnerComment,
+                IsPayLater = request.IsPayLater,
                 Status = StatusNew,
                 ItemRows = request.Items.Count,
                 Total = total,
@@ -483,6 +484,7 @@ namespace CRM.Core.Services
             if (request.DeliveryAddress != null) order.DeliveryAddress = request.DeliveryAddress;
             if (request.Comment != null) order.Comment = request.Comment;
             if (request.InnerComment != null) order.InnerComment = request.InnerComment;
+            if (request.IsPayLater.HasValue) order.IsPayLater = request.IsPayLater.Value;
 
             var replacedItemCount = 0;
             List<PurchaseOrderItem>? insertedLines = null;
@@ -1157,6 +1159,7 @@ ORDER BY i.""ModifyTime"" DESC NULLS LAST, i.""CreateTime"" DESC";
             string? DeliveryAddress,
             string? Comment,
             string? InnerComment,
+            bool IsPayLater,
             decimal Total,
             decimal ConvertTotal,
             short Type);
@@ -1171,6 +1174,7 @@ ORDER BY i.""ModifyTime"" DESC NULLS LAST, i.""CreateTime"" DESC";
                 order.DeliveryAddress,
                 order.Comment,
                 order.InnerComment,
+                order.IsPayLater,
                 order.Total,
                 order.ConvertTotal,
                 order.Type);
@@ -1189,6 +1193,13 @@ ORDER BY i.""ModifyTime"" DESC NULLS LAST, i.""CreateTime"" DESC";
             await CompareAndLogPoHeaderFieldAsync(order, before.DeliveryAddress, after.DeliveryAddress, "deliveryAddress", "送货地址", actingUserId);
             await CompareAndLogPoHeaderFieldAsync(order, before.Comment, after.Comment, "comment", "备注", actingUserId);
             await CompareAndLogPoHeaderFieldAsync(order, before.InnerComment, after.InnerComment, "innerComment", "内部备注", actingUserId);
+            await CompareAndLogPoHeaderFieldAsync(
+                order,
+                before.IsPayLater ? "是" : "否",
+                after.IsPayLater ? "是" : "否",
+                "isPayLater",
+                "后付款",
+                actingUserId);
             await CompareAndLogPoHeaderFieldAsync(order, FormatDecimal2(before.Total), FormatDecimal2(after.Total), "total", "订单总额", actingUserId);
             await CompareAndLogPoHeaderFieldAsync(order, FormatDecimal2(before.ConvertTotal), FormatDecimal2(after.ConvertTotal), "convertTotal", "折算总额(USD)", actingUserId);
             await CompareAndLogPoHeaderFieldAsync(order, FormatPurchaseOrderType(before.Type), FormatPurchaseOrderType(after.Type), "type", "订单类型", actingUserId);

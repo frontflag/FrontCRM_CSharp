@@ -262,12 +262,13 @@ namespace CRM.API.Controllers
             [FromQuery] short? purchaseProgressStatus = null,
             [FromQuery] short? stockInProgressStatus = null,
             [FromQuery] short? invoiceProgressStatus = null,
+            [FromQuery] string? quickFilter = null,
             CancellationToken cancellationToken = default)
         {
             var (request, maskAmounts) = await BuildItemListAnalyticsQueryRequestAsync(
                 startDate, endDate, purchaseOrderCode, freightForwarderOrderNo, vendorName, purchaseUserName,
                 pn, orderType, transactionCurrency, paymentProgressStatus, purchaseProgressStatus,
-                stockInProgressStatus, invoiceProgressStatus, cancellationToken);
+                stockInProgressStatus, invoiceProgressStatus, quickFilter, cancellationToken);
             var data = await _purchaseOrderItemListQuery.GetListAnalyticsDashboardAsync(request, maskAmounts, cancellationToken);
             return Ok(ApiResponse<PurchaseOrderItemListAnalyticsDashboardDto>.Ok(data));
         }
@@ -288,12 +289,13 @@ namespace CRM.API.Controllers
             [FromQuery] short? stockInProgressStatus = null,
             [FromQuery] short? invoiceProgressStatus = null,
             [FromQuery] string? groupBy = null,
+            [FromQuery] string? quickFilter = null,
             CancellationToken cancellationToken = default)
         {
             var (request, maskAmounts) = await BuildItemListAnalyticsQueryRequestAsync(
                 startDate, endDate, purchaseOrderCode, freightForwarderOrderNo, vendorName, purchaseUserName,
                 pn, orderType, transactionCurrency, paymentProgressStatus, purchaseProgressStatus,
-                stockInProgressStatus, invoiceProgressStatus, cancellationToken);
+                stockInProgressStatus, invoiceProgressStatus, quickFilter, cancellationToken);
             var data = await _purchaseOrderItemListQuery.GetListAnalyticsTrendsAsync(
                 request,
                 string.IsNullOrWhiteSpace(groupBy) ? "month" : groupBy.Trim(),
@@ -317,12 +319,13 @@ namespace CRM.API.Controllers
             [FromQuery] short? purchaseProgressStatus = null,
             [FromQuery] short? stockInProgressStatus = null,
             [FromQuery] short? invoiceProgressStatus = null,
+            [FromQuery] string? quickFilter = null,
             CancellationToken cancellationToken = default)
         {
             var (request, maskAmounts) = await BuildItemListAnalyticsQueryRequestAsync(
                 startDate, endDate, purchaseOrderCode, freightForwarderOrderNo, vendorName, purchaseUserName,
                 pn, orderType, transactionCurrency, paymentProgressStatus, purchaseProgressStatus,
-                stockInProgressStatus, invoiceProgressStatus, cancellationToken);
+                stockInProgressStatus, invoiceProgressStatus, quickFilter, cancellationToken);
             var data = await _purchaseOrderItemListQuery.GetListAnalyticsBreakdownsAsync(request, maskAmounts, cancellationToken);
             return Ok(ApiResponse<IReadOnlyList<SalesAnalyticsBreakdownGroupDto>>.Ok(data));
         }
@@ -342,12 +345,13 @@ namespace CRM.API.Controllers
             [FromQuery] short? purchaseProgressStatus = null,
             [FromQuery] short? stockInProgressStatus = null,
             [FromQuery] short? invoiceProgressStatus = null,
+            [FromQuery] string? quickFilter = null,
             CancellationToken cancellationToken = default)
         {
             var (request, maskAmounts) = await BuildItemListAnalyticsQueryRequestAsync(
                 startDate, endDate, purchaseOrderCode, freightForwarderOrderNo, vendorName, purchaseUserName,
                 pn, orderType, transactionCurrency, paymentProgressStatus, purchaseProgressStatus,
-                stockInProgressStatus, invoiceProgressStatus, cancellationToken);
+                stockInProgressStatus, invoiceProgressStatus, quickFilter, cancellationToken);
             var data = await _purchaseOrderItemListQuery.GetListAnalyticsRankingsAsync(request, maskAmounts, cancellationToken);
             return Ok(ApiResponse<PurchaseOrderItemListAnalyticsRankingsDto>.Ok(data));
         }
@@ -368,6 +372,7 @@ namespace CRM.API.Controllers
             [FromQuery] short? purchaseProgressStatus = null,
             [FromQuery] short? stockInProgressStatus = null,
             [FromQuery] short? invoiceProgressStatus = null,
+            [FromQuery] string? quickFilter = null,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20,
             CancellationToken cancellationToken = default)
@@ -402,6 +407,7 @@ namespace CRM.API.Controllers
                     PurchaseProgressStatus = purchaseProgressStatus,
                     StockInProgressStatus = stockInProgressStatus,
                     InvoiceProgressStatus = invoiceProgressStatus,
+                    QuickFilter = quickFilter,
                     Page = page,
                     PageSize = pageSize
                 };
@@ -1811,6 +1817,7 @@ namespace CRM.API.Controllers
             short? purchaseProgressStatus,
             short? stockInProgressStatus,
             short? invoiceProgressStatus,
+            string? quickFilter,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -1844,7 +1851,8 @@ namespace CRM.API.Controllers
                 PaymentProgressStatus = paymentProgressStatus,
                 PurchaseProgressStatus = purchaseProgressStatus,
                 StockInProgressStatus = stockInProgressStatus,
-                InvoiceProgressStatus = invoiceProgressStatus
+                InvoiceProgressStatus = invoiceProgressStatus,
+                QuickFilter = quickFilter
             };
 
             return (request, maskAmounts);
@@ -2054,6 +2062,7 @@ namespace CRM.API.Controllers
                 order.DeliveryDate,
                 order.Comment,
                 order.InnerComment,
+                order.IsPayLater,
                 order.CreateTime,
                 order.ModifyTime,
                 order.CreateByUserId,

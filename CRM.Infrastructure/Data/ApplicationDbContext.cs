@@ -370,6 +370,9 @@ namespace CRM.Infrastructure.Data
                 entity.HasIndex(e => e.FreightForwarderOrderNo)
                     .IsUnique()
                     .HasFilter("freight_forwarder_order_no IS NOT NULL AND btrim(freight_forwarder_order_no) <> ''");
+                entity.Property(e => e.IsPayLater)
+                    .HasColumnName("is_pay_later")
+                    .HasDefaultValue(false);
                 entity.Property(e => e.Status).HasDefaultValue((short)0);
                 entity.HasMany(e => e.Items)
                       .WithOne(i => i.PurchaseOrder)

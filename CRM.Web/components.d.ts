@@ -129,6 +129,7 @@ declare module 'vue' {
     PurchaseOrderItemArrivalNoticeTabTable: typeof import('./src/components/RFQ/PurchaseOrderItemArrivalNoticeTabTable.vue')['default']
     PurchaseOrderItemLineDialogs: typeof import('./src/components/purchaseOrder/PurchaseOrderItemLineDialogs.vue')['default']
     PurchaseOrderItemOpsPanel: typeof import('./src/components/RFQ/PurchaseOrderItemOpsPanel.vue')['default']
+    PurchaseOrderItemSearchPanel: typeof import('./src/components/RFQ/PurchaseOrderItemSearchPanel.vue')['default']
     PurchaseOrderItemStockTabTable: typeof import('./src/components/RFQ/PurchaseOrderItemStockTabTable.vue')['default']
     PurchaseOrderRecentHistoryPanel: typeof import('./src/components/purchaseOrder/PurchaseOrderRecentHistoryPanel.vue')['default']
     PurchaseOrderReportDocument: typeof import('./src/components/purchaseOrder/PurchaseOrderReportDocument.vue')['default']

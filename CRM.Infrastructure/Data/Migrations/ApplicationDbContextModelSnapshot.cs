@@ -4075,6 +4075,12 @@ namespace CRM.Infrastructure.Data.Migrations
                         .HasColumnType("smallint")
                         .HasColumnName("invoice_status");
 
+                    b.Property<bool>("IsPayLater")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_pay_later");
+
                     b.Property<int>("ItemRows")
                         .HasColumnType("integer")
                         .HasColumnName("item_rows");

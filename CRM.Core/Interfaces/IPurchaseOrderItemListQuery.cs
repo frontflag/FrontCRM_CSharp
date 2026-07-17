@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Models.Analytics;
 
 namespace CRM.Core.Interfaces;
@@ -69,6 +70,9 @@ public sealed class PurchaseOrderItemListQueryRequest
 
     /// <summary>开票进度 0/1/2（扩展表）。</summary>
     public short? InvoiceProgressStatus { get; set; }
+
+    /// <summary>左栏快捷检索（见 <see cref="PurchaseOrderItemListQuickFilterCodes"/>）；与手动进度筛选互斥。</summary>
+    public string? QuickFilter { get; set; }
 
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 20;

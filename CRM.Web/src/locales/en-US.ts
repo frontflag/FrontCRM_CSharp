@@ -4779,6 +4779,36 @@ const enUS = {
       boardView: 'Board',
       listView: 'List'
     },
+    searchPanel: {
+      title: 'Quick search',
+      clearPreset: 'Clear quick search',
+      groups: {
+        time: 'Time',
+        todo: 'To-do',
+        payment: 'Payment',
+        stockIn: 'Stock-in'
+      },
+      presets: {
+        order_today: 'Orders today',
+        order_today_yesterday: 'Today & yesterday',
+        order_last_7_days: 'Last 7 days',
+        order_last_30_days: 'Last 30 days',
+        order_this_week: 'This week',
+        order_this_month: 'This month',
+        pending_submit_audit: 'Pending audit submit',
+        pending_vendor_confirm: 'Pending vendor confirm',
+        pending_submit_payment_request: 'Pending payment request',
+        pending_submit_arrival_notify: 'Pending arrival notice',
+        pay_later: 'Pay-later orders',
+        confirmed_unpaid: 'Confirmed, unpaid',
+        stocked_in_unpaid: 'Stocked in, unpaid',
+        payment_partial: 'Partial payment',
+        payment_complete: 'Payment complete',
+        confirmed_pending_stock_in: 'Confirmed, not stocked in',
+        paid_pending_stock_in: 'Paid, pending stock-in',
+        stocked_in: 'Stocked in'
+      }
+    },
     board: {
       hint: 'Stats match current filters; approved lines are order status ≥ approved and line not cancelled.',
       refresh: 'Refresh',

@@ -18,8 +18,20 @@
     </div>
 
     <div class="search-bar">
+      <div v-if="activePreset" class="search-preset-chip-row">
+        <span class="search-preset-chip">
+          {{ t(presetI18nKey(activePreset)) }}
+          <button
+            type="button"
+            class="search-preset-chip__clear"
+            :title="t('purchaseOrderItemList.searchPanel.clearPreset')"
+            @click="clearPresetChip"
+          >×</button>
+        </span>
+      </div>
       <div class="search-left">
         <el-date-picker
+          v-if="!presetActive"
           v-model="dateRange"
           type="daterange"
           :range-separator="t('purchaseOrderItemList.filters.rangeSeparator')"
@@ -120,62 +132,64 @@
           <el-option :label="t('purchaseOrderItemList.filters.orderTypeSample')" :value="3" />
         </el-select>
 
-        <el-select
-          v-model="filters.paymentProgressStatus"
-          clearable
-          :placeholder="t('purchaseOrderItemList.filters.paymentProgressStatus')"
-          class="filter-select filter-select--progress"
-          :teleported="false"
-        >
-          <el-option
-            v-for="opt in poProgressFilterOptions('payment')"
-            :key="`payment-${opt.value}`"
-            :label="opt.label"
-            :value="opt.value"
-          />
-        </el-select>
-        <el-select
-          v-model="filters.purchaseProgressStatus"
-          clearable
-          :placeholder="t('purchaseOrderItemList.filters.purchaseProgressStatus')"
-          class="filter-select filter-select--progress"
-          :teleported="false"
-        >
-          <el-option
-            v-for="opt in poProgressFilterOptions('purchase')"
-            :key="`purchase-${opt.value}`"
-            :label="opt.label"
-            :value="opt.value"
-          />
-        </el-select>
-        <el-select
-          v-model="filters.stockInProgressStatus"
-          clearable
-          :placeholder="t('purchaseOrderItemList.filters.stockInProgressStatus')"
-          class="filter-select filter-select--progress"
-          :teleported="false"
-        >
-          <el-option
-            v-for="opt in poProgressFilterOptions('stockIn')"
-            :key="`stockIn-${opt.value}`"
-            :label="opt.label"
-            :value="opt.value"
-          />
-        </el-select>
-        <el-select
-          v-model="filters.invoiceProgressStatus"
-          clearable
-          :placeholder="t('purchaseOrderItemList.filters.invoiceProgressStatus')"
-          class="filter-select filter-select--progress"
-          :teleported="false"
-        >
-          <el-option
-            v-for="opt in poProgressFilterOptions('invoice')"
-            :key="`invoice-${opt.value}`"
-            :label="opt.label"
-            :value="opt.value"
-          />
-        </el-select>
+        <template v-if="!presetActive">
+          <el-select
+            v-model="filters.paymentProgressStatus"
+            clearable
+            :placeholder="t('purchaseOrderItemList.filters.paymentProgressStatus')"
+            class="filter-select filter-select--progress"
+            :teleported="false"
+          >
+            <el-option
+              v-for="opt in poProgressFilterOptions('payment')"
+              :key="`payment-${opt.value}`"
+              :label="opt.label"
+              :value="opt.value"
+            />
+          </el-select>
+          <el-select
+            v-model="filters.purchaseProgressStatus"
+            clearable
+            :placeholder="t('purchaseOrderItemList.filters.purchaseProgressStatus')"
+            class="filter-select filter-select--progress"
+            :teleported="false"
+          >
+            <el-option
+              v-for="opt in poProgressFilterOptions('purchase')"
+              :key="`purchase-${opt.value}`"
+              :label="opt.label"
+              :value="opt.value"
+            />
+          </el-select>
+          <el-select
+            v-model="filters.stockInProgressStatus"
+            clearable
+            :placeholder="t('purchaseOrderItemList.filters.stockInProgressStatus')"
+            class="filter-select filter-select--progress"
+            :teleported="false"
+          >
+            <el-option
+              v-for="opt in poProgressFilterOptions('stockIn')"
+              :key="`stockIn-${opt.value}`"
+              :label="opt.label"
+              :value="opt.value"
+            />
+          </el-select>
+          <el-select
+            v-model="filters.invoiceProgressStatus"
+            clearable
+            :placeholder="t('purchaseOrderItemList.filters.invoiceProgressStatus')"
+            class="filter-select filter-select--progress"
+            :teleported="false"
+          >
+            <el-option
+              v-for="opt in poProgressFilterOptions('invoice')"
+              :key="`invoice-${opt.value}`"
+              :label="opt.label"
+              :value="opt.value"
+            />
+          </el-select>
+        </template>
 
         <button type="button" class="btn-primary btn-sm" :disabled="loading" @click="runSearch">
           {{ t('purchaseOrderItemList.filters.search') }}
@@ -719,6 +733,14 @@ import { Setting } from '@element-plus/icons-vue'
 import PurchaseOrderItemListBoard from './PurchaseOrderItemListBoard.vue'
 import type { PurchaseOrderItemListAnalyticsQuery } from '@/api/purchaseOrderItemAnalytics'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
+import {
+  buildPoItemListRouteQuery,
+  isPoItemListPresetId,
+  isPoItemTimePresetId,
+  presetI18nKey,
+  resolvePoItemTimePresetDateRange,
+  type PoItemListPresetId
+} from '@/utils/purchaseOrderItemListPreset'
 import { financePaymentApi } from '@/api/finance'
 import { logisticsApi } from '@/api/logistics'
 import { ElMessage } from 'element-plus'
@@ -965,10 +987,21 @@ const filters = reactive({
   invoiceProgressStatus: undefined as number | undefined
 })
 
+const activePreset = computed((): PoItemListPresetId | null => {
+  const p = route.query.preset
+  return typeof p === 'string' && isPoItemListPresetId(p) ? p : null
+})
+
+const presetActive = computed(() => !!activePreset.value)
+
 const boardFilters = computed((): PurchaseOrderItemListAnalyticsQuery => {
   const q: PurchaseOrderItemListAnalyticsQuery = {}
   if (dateRange.value?.[0]) q.startDate = dateRange.value[0]
   if (dateRange.value?.[1]) q.endDate = dateRange.value[1]
+  const qf = route.query.quickFilter
+  if (typeof qf === 'string' && qf.trim() && activePreset.value) {
+    q.quickFilter = qf.trim()
+  }
   const poc = String(filters.purchaseOrderCode ?? '').trim()
   if (poc) q.purchaseOrderCode = poc
   const ffo = String(filters.freightForwarderOrderNo ?? '').trim()
@@ -985,17 +1018,19 @@ const boardFilters = computed((): PurchaseOrderItemListAnalyticsQuery => {
   if (pnk) q.pn = pnk
   if (filters.orderType !== undefined && filters.orderType !== null) q.orderType = filters.orderType
   if (filters.transactionCurrency) q.transactionCurrency = filters.transactionCurrency
-  if (filters.paymentProgressStatus !== undefined && filters.paymentProgressStatus !== null) {
-    q.paymentProgressStatus = filters.paymentProgressStatus
-  }
-  if (filters.purchaseProgressStatus !== undefined && filters.purchaseProgressStatus !== null) {
-    q.purchaseProgressStatus = filters.purchaseProgressStatus
-  }
-  if (filters.stockInProgressStatus !== undefined && filters.stockInProgressStatus !== null) {
-    q.stockInProgressStatus = filters.stockInProgressStatus
-  }
-  if (filters.invoiceProgressStatus !== undefined && filters.invoiceProgressStatus !== null) {
-    q.invoiceProgressStatus = filters.invoiceProgressStatus
+  if (!activePreset.value) {
+    if (filters.paymentProgressStatus !== undefined && filters.paymentProgressStatus !== null) {
+      q.paymentProgressStatus = filters.paymentProgressStatus
+    }
+    if (filters.purchaseProgressStatus !== undefined && filters.purchaseProgressStatus !== null) {
+      q.purchaseProgressStatus = filters.purchaseProgressStatus
+    }
+    if (filters.stockInProgressStatus !== undefined && filters.stockInProgressStatus !== null) {
+      q.stockInProgressStatus = filters.stockInProgressStatus
+    }
+    if (filters.invoiceProgressStatus !== undefined && filters.invoiceProgressStatus !== null) {
+      q.invoiceProgressStatus = filters.invoiceProgressStatus
+    }
   }
   return q
 })
@@ -1029,14 +1064,105 @@ function clearTableSelection() {
 }
 
 function onOrderTypeFilterChange() {
-  page.value = 1
-  void loadList()
+  runSearch()
+}
+
+function collectKeywordQuery(): Record<string, string> {
+  const keywords: Record<string, string> = {}
+  const poc = String(filters.purchaseOrderCode ?? '').trim()
+  if (poc) keywords.purchaseOrderCode = poc
+  const ffo = String(filters.freightForwarderOrderNo ?? '').trim()
+  if (ffo) keywords.freightForwarderOrderNo = ffo
+  if (canViewVendor.value) {
+    const vn = String(filters.vendorName ?? '').trim()
+    if (vn) keywords.vendorName = vn
+  }
+  if (canViewPurchaseUser.value) {
+    const pun = String(filters.purchaseUserName ?? '').trim()
+    if (pun) keywords.purchaseUserName = pun
+  }
+  const pnk = String(filters.pn ?? '').trim()
+  if (pnk) keywords.pn = pnk
+  if (filters.transactionCurrency) keywords.transactionCurrency = filters.transactionCurrency
+  if (filters.orderType !== undefined && filters.orderType !== null) {
+    keywords.orderType = String(filters.orderType)
+  }
+  return keywords
+}
+
+function buildListRouteQueryFromUi(): Record<string, string> {
+  const keywords = collectKeywordQuery()
+  if (activePreset.value) {
+    return buildPoItemListRouteQuery({ preset: activePreset.value, keywords })
+  }
+  const advanced: Record<string, string> = {}
+  if (dateRange.value?.[0]) advanced.startDate = dateRange.value[0]
+  if (dateRange.value?.[1]) advanced.endDate = dateRange.value[1]
+  if (filters.paymentProgressStatus !== undefined && filters.paymentProgressStatus !== null) {
+    advanced.paymentProgressStatus = String(filters.paymentProgressStatus)
+  }
+  if (filters.purchaseProgressStatus !== undefined && filters.purchaseProgressStatus !== null) {
+    advanced.purchaseProgressStatus = String(filters.purchaseProgressStatus)
+  }
+  if (filters.stockInProgressStatus !== undefined && filters.stockInProgressStatus !== null) {
+    advanced.stockInProgressStatus = String(filters.stockInProgressStatus)
+  }
+  if (filters.invoiceProgressStatus !== undefined && filters.invoiceProgressStatus !== null) {
+    advanced.invoiceProgressStatus = String(filters.invoiceProgressStatus)
+  }
+  return buildPoItemListRouteQuery({ keywords, advanced })
 }
 
 /** 筛选条件变更后查询：回到第一页（与分页切换区分）。 */
 function runSearch() {
   page.value = 1
-  void loadList()
+  router.replace({ name: 'PurchaseOrderItemList', query: buildListRouteQueryFromUi() })
+}
+
+function clearPresetChip() {
+  router.replace({ name: 'PurchaseOrderItemList', query: {} })
+}
+
+function parseProgressQuery(v: unknown): number | undefined {
+  if (typeof v !== 'string' || !v.trim()) return undefined
+  const n = Number(v)
+  return n === 0 || n === 1 || n === 2 ? n : undefined
+}
+
+function syncFiltersFromRoute() {
+  if (route.name !== 'PurchaseOrderItemList') return
+  const q = route.query
+  filters.purchaseOrderCode = typeof q.purchaseOrderCode === 'string' ? q.purchaseOrderCode : ''
+  filters.freightForwarderOrderNo = typeof q.freightForwarderOrderNo === 'string' ? q.freightForwarderOrderNo : ''
+  filters.vendorName = typeof q.vendorName === 'string' ? q.vendorName : ''
+  filters.purchaseUserName = typeof q.purchaseUserName === 'string' ? q.purchaseUserName : ''
+  filters.pn = typeof q.pn === 'string' ? q.pn : ''
+  filters.transactionCurrency =
+    q.transactionCurrency === 'rmb' || q.transactionCurrency === 'foreign' ? q.transactionCurrency : ''
+  const ot = typeof q.orderType === 'string' ? Number(q.orderType) : NaN
+  filters.orderType = ot === 1 || ot === 2 || ot === 3 ? ot : undefined
+
+  const preset = activePreset.value
+  if (preset) {
+    filters.paymentProgressStatus = undefined
+    filters.purchaseProgressStatus = undefined
+    filters.stockInProgressStatus = undefined
+    filters.invoiceProgressStatus = undefined
+    if (isPoItemTimePresetId(preset)) {
+      dateRange.value = resolvePoItemTimePresetDateRange(preset)
+    } else {
+      dateRange.value = null
+    }
+    return
+  }
+
+  const from = typeof q.startDate === 'string' ? q.startDate : ''
+  const to = typeof q.endDate === 'string' ? q.endDate : ''
+  dateRange.value = from && to ? [from, to] : null
+  filters.paymentProgressStatus = parseProgressQuery(q.paymentProgressStatus)
+  filters.purchaseProgressStatus = parseProgressQuery(q.purchaseProgressStatus)
+  filters.stockInProgressStatus = parseProgressQuery(q.stockInProgressStatus)
+  filters.invoiceProgressStatus = parseProgressQuery(q.invoiceProgressStatus)
 }
 
 function statusText(s: number) {
@@ -1369,6 +1495,7 @@ async function loadList() {
       purchaseProgressStatus?: number
       stockInProgressStatus?: number
       invoiceProgressStatus?: number
+      quickFilter?: string
     } = {
       page: page.value,
       pageSize: pageSize.value
@@ -1382,17 +1509,22 @@ async function loadList() {
     if (filters.pn.trim()) params.pn = filters.pn.trim()
     if (filters.orderType !== undefined && filters.orderType !== null) params.orderType = filters.orderType
     if (filters.transactionCurrency) params.transactionCurrency = filters.transactionCurrency
-    if (filters.paymentProgressStatus !== undefined && filters.paymentProgressStatus !== null) {
-      params.paymentProgressStatus = filters.paymentProgressStatus
-    }
-    if (filters.purchaseProgressStatus !== undefined && filters.purchaseProgressStatus !== null) {
-      params.purchaseProgressStatus = filters.purchaseProgressStatus
-    }
-    if (filters.stockInProgressStatus !== undefined && filters.stockInProgressStatus !== null) {
-      params.stockInProgressStatus = filters.stockInProgressStatus
-    }
-    if (filters.invoiceProgressStatus !== undefined && filters.invoiceProgressStatus !== null) {
-      params.invoiceProgressStatus = filters.invoiceProgressStatus
+    const qf = route.query.quickFilter
+    if (typeof qf === 'string' && qf.trim() && activePreset.value) {
+      params.quickFilter = qf.trim()
+    } else if (!activePreset.value) {
+      if (filters.paymentProgressStatus !== undefined && filters.paymentProgressStatus !== null) {
+        params.paymentProgressStatus = filters.paymentProgressStatus
+      }
+      if (filters.purchaseProgressStatus !== undefined && filters.purchaseProgressStatus !== null) {
+        params.purchaseProgressStatus = filters.purchaseProgressStatus
+      }
+      if (filters.stockInProgressStatus !== undefined && filters.stockInProgressStatus !== null) {
+        params.stockInProgressStatus = filters.stockInProgressStatus
+      }
+      if (filters.invoiceProgressStatus !== undefined && filters.invoiceProgressStatus !== null) {
+        params.invoiceProgressStatus = filters.invoiceProgressStatus
+      }
     }
 
     const data = (await purchaseOrderApi.getItemLinesPage(params)) as {
@@ -1421,20 +1553,8 @@ async function loadList() {
 }
 
 function resetFilters() {
-  dateRange.value = null
-  filters.purchaseOrderCode = ''
-  filters.freightForwarderOrderNo = ''
-  filters.vendorName = ''
-  filters.purchaseUserName = ''
-  filters.pn = ''
-  filters.transactionCurrency = ''
-  filters.orderType = undefined
-  filters.paymentProgressStatus = undefined
-  filters.purchaseProgressStatus = undefined
-  filters.stockInProgressStatus = undefined
-  filters.invoiceProgressStatus = undefined
   page.value = 1
-  void loadList()
+  router.replace({ name: 'PurchaseOrderItemList', query: {} })
 }
 
 function onPageChange(nextPage: number) {
@@ -1461,12 +1581,19 @@ onMounted(() => {
       void openPaymentDialog(row)
     }
   })
-  const qpn = route.query.pn
-  if (typeof qpn === 'string' && qpn.trim()) {
-    filters.pn = qpn.trim()
-  }
-  void loadList()
 })
+
+watch(
+  () => [route.name, route.query] as const,
+  async () => {
+    syncFiltersFromRoute()
+    if (route.name === 'PurchaseOrderItemList') {
+      page.value = 1
+      await loadList()
+    }
+  },
+  { deep: true, immediate: true }
+)
 
 onBeforeUnmount(() => {
   purchaseOrderItemOpsStore.unregisterHandlers()
@@ -1584,9 +1711,46 @@ onBeforeUnmount(() => {
 }
 .search-bar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
   margin-bottom: 12px;
+}
+.search-preset-chip-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.search-preset-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 4px 10px;
+  font-size: 12px;
+  color: $text-primary;
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.35);
+  border-radius: 20px;
+}
+.search-preset-chip__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: $text-muted;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  &:hover {
+    color: $text-primary;
+    background: rgba(255, 255, 255, 0.08);
+  }
 }
 .search-left {
   display: flex;

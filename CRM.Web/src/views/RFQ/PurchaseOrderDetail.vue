@@ -68,6 +68,15 @@
                   备货
                 </el-tag>
               </el-tooltip>
+              <el-tooltip
+                v-if="isPayLaterPurchaseOrder"
+                content="客户付款后再给供应商付款"
+                placement="top"
+              >
+                <el-tag effect="dark" size="small" class="po-pay-later-tag" round>
+                  后付款
+                </el-tag>
+              </el-tooltip>
             </div>
           </div>
         </div>
@@ -1650,6 +1659,7 @@ function openPoLinePayment(row: any) {
 }
 
 const isStockingPurchaseOrder = computed(() => Number(order.value?.type) === 2)
+const isPayLaterPurchaseOrder = computed(() => Boolean(order.value?.isPayLater))
 
 const captionAvatarChar = computed(() => {
   const o = order.value
@@ -2113,6 +2123,14 @@ const handleEdit = () => {
 .po-stocking-tag {
   flex-shrink: 0;
   cursor: default;
+}
+
+.po-pay-later-tag {
+  flex-shrink: 0;
+  cursor: default;
+  --el-tag-bg-color: rgba(230, 126, 34, 0.92);
+  --el-tag-border-color: rgba(230, 126, 34, 0.95);
+  --el-tag-text-color: #fff;
 }
 
 .btn-secondary {

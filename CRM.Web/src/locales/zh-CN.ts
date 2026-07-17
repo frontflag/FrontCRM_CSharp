@@ -4764,6 +4764,36 @@ const zhCN = {
       boardView: '看板',
       listView: '列表'
     },
+    searchPanel: {
+      title: '快捷检索',
+      clearPreset: '清除快捷检索',
+      groups: {
+        time: '时间',
+        todo: '待办',
+        payment: '付款',
+        stockIn: '入库'
+      },
+      presets: {
+        order_today: '今日订单',
+        order_today_yesterday: '今昨订单',
+        order_last_7_days: '近 7 日订单',
+        order_last_30_days: '近 30 日订单',
+        order_this_week: '本周订单',
+        order_this_month: '本月订单',
+        pending_submit_audit: '待提交审核',
+        pending_vendor_confirm: '待供应商确认',
+        pending_submit_payment_request: '待提交付款申请',
+        pending_submit_arrival_notify: '待提交到货通知',
+        pay_later: '后付款订单',
+        confirmed_unpaid: '已确认，未付款',
+        stocked_in_unpaid: '已入库，未付款',
+        payment_partial: '部分付款',
+        payment_complete: '付款完成',
+        confirmed_pending_stock_in: '已确认，未入库',
+        paid_pending_stock_in: '已付款，待入库',
+        stocked_in: '已入库'
+      }
+    },
     board: {
       hint: '统计范围与当前筛选条件一致；成单口径为主单审核通过及以上且明细未取消。',
       refresh: '刷新',
