@@ -4120,6 +4120,16 @@ const enUS = {
       boardView: 'Board',
       listView: 'List'
     },
+    settingsMenu: {
+      aria: 'List filter settings',
+      closeTabs: 'Close tabs',
+      tabMode: 'Tab mode'
+    },
+    currencyTabs: {
+      all: 'All',
+      rmb: 'RMB',
+      foreign: 'Foreign'
+    },
     searchPanel: {
       title: 'Quick filters',
       clearPreset: 'Clear quick filter',
