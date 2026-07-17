@@ -277,7 +277,7 @@
               </div>
               <div v-show="settingsSubmenuOpen" class="so-item-list-settings-menu__flyout">
                 <button
-                  v-for="dim in tabModeMenuOptions"
+                  v-for="dim in visibleTabModeMenuOptions"
                   :key="dim"
                   type="button"
                   class="so-item-list-settings-menu__item"
@@ -865,8 +865,6 @@ const viewMode = ref<'list' | 'board'>('list')
 const tabModeDimension = ref<SoItemTabModeDimension>(readSoItemTabMode())
 const settingsMenuOpen = ref(false)
 const settingsSubmenuOpen = ref(false)
-const tabModeMenuOptions = SO_ITEM_TAB_MODE_OPTIONS
-
 const TAB_MODE_FILTER_I18N: Record<Exclude<SoItemTabModeDimension, 'off'>, string> = {
   currency: 'salesOrderItemList.filters.transactionCurrency',
   purchase: 'salesOrderItemList.filters.purchaseProgressStatus',
@@ -879,13 +877,6 @@ const TAB_MODE_FILTER_I18N: Record<Exclude<SoItemTabModeDimension, 'off'>, strin
 
 function tabModeDimensionLabel(dim: Exclude<SoItemTabModeDimension, 'off'>) {
   return t(TAB_MODE_FILTER_I18N[dim])
-}
-
-function enableFilterTabMode(dim: Exclude<SoItemTabModeDimension, 'off'>) {
-  tabModeDimension.value = dim
-  writeSoItemTabMode(dim)
-  settingsMenuOpen.value = false
-  settingsSubmenuOpen.value = false
 }
 
 function closeFilterTabMode() {
@@ -990,6 +981,21 @@ const activePreset = computed((): SoItemListPresetId | null => {
 })
 
 const presetActive = computed(() => !!activePreset.value)
+
+/** preset 打开时隐藏进度类页签模式项，仅保留币别 */
+const visibleTabModeMenuOptions = computed(() =>
+  presetActive.value
+    ? SO_ITEM_TAB_MODE_OPTIONS.filter((dim) => dim === 'currency')
+    : SO_ITEM_TAB_MODE_OPTIONS
+)
+
+function enableFilterTabMode(dim: Exclude<SoItemTabModeDimension, 'off'>) {
+  if (isProgressTabDimension(dim) && presetActive.value) return
+  tabModeDimension.value = dim
+  writeSoItemTabMode(dim)
+  settingsMenuOpen.value = false
+  settingsSubmenuOpen.value = false
+}
 
 const boardFilters = computed((): SalesOrderItemListAnalyticsQuery => {
   const q: SalesOrderItemListAnalyticsQuery = {}

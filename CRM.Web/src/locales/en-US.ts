@@ -4789,6 +4789,14 @@ const enUS = {
       boardView: 'Board',
       listView: 'List'
     },
+    settingsMenu: {
+      aria: 'List filter settings',
+      closeTabs: 'Close tabs',
+      tabMode: 'Tab mode'
+    },
+    filterTabs: {
+      all: 'All'
+    },
     searchPanel: {
       title: 'Quick search',
       clearPreset: 'Clear quick search',

@@ -109,6 +109,7 @@
         </div>
 
         <el-select
+          v-if="tabModeDimension !== 'currency'"
           v-model="filters.transactionCurrency"
           clearable
           :placeholder="t('purchaseOrderItemList.filters.transactionCurrency')"
@@ -120,6 +121,7 @@
         </el-select>
 
         <el-select
+          v-if="tabModeDimension !== 'orderType'"
           v-model="filters.orderType"
           :placeholder="t('purchaseOrderItemList.filters.allOrderTypes')"
           clearable
@@ -134,6 +136,7 @@
 
         <template v-if="!presetActive">
           <el-select
+            v-if="tabModeDimension !== 'payment'"
             v-model="filters.paymentProgressStatus"
             clearable
             :placeholder="t('purchaseOrderItemList.filters.paymentProgressStatus')"
@@ -148,6 +151,7 @@
             />
           </el-select>
           <el-select
+            v-if="tabModeDimension !== 'purchase'"
             v-model="filters.purchaseProgressStatus"
             clearable
             :placeholder="t('purchaseOrderItemList.filters.purchaseProgressStatus')"
@@ -162,6 +166,7 @@
             />
           </el-select>
           <el-select
+            v-if="tabModeDimension !== 'stockIn'"
             v-model="filters.stockInProgressStatus"
             clearable
             :placeholder="t('purchaseOrderItemList.filters.stockInProgressStatus')"
@@ -176,6 +181,7 @@
             />
           </el-select>
           <el-select
+            v-if="tabModeDimension !== 'invoice'"
             v-model="filters.invoiceProgressStatus"
             clearable
             :placeholder="t('purchaseOrderItemList.filters.invoiceProgressStatus')"
@@ -204,12 +210,84 @@
         >
           {{ viewMode === 'board' ? t('purchaseOrderItemList.filters.listView') : t('purchaseOrderItemList.filters.boardView') }}
         </button>
+        <el-popover
+          v-model:visible="settingsMenuOpen"
+          trigger="click"
+          placement="bottom-end"
+          :width="168"
+          :show-arrow="false"
+          popper-class="po-item-list-settings-popper"
+        >
+          <template #reference>
+            <button
+              type="button"
+              class="btn-ghost btn-sm btn-icon-only"
+              :title="t('purchaseOrderItemList.settingsMenu.aria')"
+              :aria-label="t('purchaseOrderItemList.settingsMenu.aria')"
+            >
+              <el-icon :size="14"><Setting /></el-icon>
+            </button>
+          </template>
+          <div class="po-item-list-settings-menu">
+            <button
+              type="button"
+              class="po-item-list-settings-menu__item"
+              :disabled="tabModeDimension === 'off'"
+              @click="closeFilterTabMode"
+            >
+              {{ t('purchaseOrderItemList.settingsMenu.closeTabs') }}
+            </button>
+            <div
+              class="po-item-list-settings-menu__submenu"
+              @mouseenter="settingsSubmenuOpen = true"
+              @mouseleave="settingsSubmenuOpen = false"
+            >
+              <div class="po-item-list-settings-menu__item po-item-list-settings-menu__item--parent">
+                <span>{{ t('purchaseOrderItemList.settingsMenu.tabMode') }}</span>
+                <el-icon class="po-item-list-settings-menu__caret"><ArrowRight /></el-icon>
+              </div>
+              <div v-show="settingsSubmenuOpen" class="po-item-list-settings-menu__flyout">
+                <button
+                  v-for="dim in visibleTabModeMenuOptions"
+                  :key="dim"
+                  type="button"
+                  class="po-item-list-settings-menu__item"
+                  :class="{ 'is-active': tabModeDimension === dim }"
+                  @click="enableFilterTabMode(dim)"
+                >
+                  {{ tabModeDimensionLabel(dim) }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </el-popover>
       </div>
+    </div>
+
+    <div class="po-main-panel" :class="{ 'po-main-panel--with-filter-tabs': filterTabStripVisible }">
+    <div
+      v-if="filterTabStripVisible"
+      class="po-filter-tabs"
+      role="tablist"
+      :aria-label="filterTabStripAriaLabel"
+    >
+      <button
+        v-for="tab in filterTabOptions"
+        :key="tab.id"
+        type="button"
+        role="tab"
+        class="po-filter-tabs__item"
+        :class="{ 'is-active': activeFilterTabId === tab.id }"
+        :aria-selected="activeFilterTabId === tab.id"
+        @click="onFilterTabClick(tab.id)"
+      >
+        {{ tab.label }}
+      </button>
     </div>
 
     <PurchaseOrderItemListBoard v-if="viewMode === 'board'" :filters="boardFilters" />
 
-    <div v-show="viewMode === 'list'">
+    <div v-show="viewMode === 'list'" class="po-list-body">
     <CrmDataTable
       ref="tableRef"
       class="quantum-table-block el-table-host"
@@ -378,6 +456,7 @@
         @current-change="onPageChange"
         @size-change="onPageSizeChange"
       />
+    </div>
     </div>
     </div>
 
@@ -729,7 +808,7 @@ import { computed, inject, onBeforeUnmount, onMounted, reactive, ref, watch } fr
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
-import { Setting } from '@element-plus/icons-vue'
+import { ArrowRight, Setting } from '@element-plus/icons-vue'
 import PurchaseOrderItemListBoard from './PurchaseOrderItemListBoard.vue'
 import type { PurchaseOrderItemListAnalyticsQuery } from '@/api/purchaseOrderItemAnalytics'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
@@ -741,6 +820,23 @@ import {
   resolvePoItemTimePresetDateRange,
   type PoItemListPresetId
 } from '@/utils/purchaseOrderItemListPreset'
+import {
+  currencyFilterToTab,
+  currencyTabToFilter,
+  isPoProgressTabDimension,
+  orderTypeFilterToTab,
+  orderTypeTabToFilter,
+  progressDimensionToFilterKey,
+  progressFilterToTab,
+  progressTabToFilter,
+  readPoItemTabMode,
+  writePoItemTabMode,
+  PO_ITEM_TAB_MODE_OPTIONS,
+  type PoItemCurrencyTabId,
+  type PoItemOrderTypeTabId,
+  type PoItemProgressTabId,
+  type PoItemTabModeDimension
+} from '@/utils/purchaseOrderItemListTabMode'
 import { financePaymentApi } from '@/api/finance'
 import { logisticsApi } from '@/api/logistics'
 import { ElMessage } from 'element-plus'
@@ -783,6 +879,34 @@ const { canWritePo } = usePurchaseOrderWriteGate()
 const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const purchaseOrderItemOpsStore = usePurchaseOrderItemOpsPanelStore()
 const viewMode = ref<'list' | 'board'>('list')
+const tabModeDimension = ref<PoItemTabModeDimension>(readPoItemTabMode())
+const settingsMenuOpen = ref(false)
+const settingsSubmenuOpen = ref(false)
+
+const TAB_MODE_FILTER_I18N: Record<Exclude<PoItemTabModeDimension, 'off'>, string> = {
+  currency: 'purchaseOrderItemList.filters.transactionCurrency',
+  orderType: 'purchaseOrderItemList.filters.orderType',
+  payment: 'purchaseOrderItemList.filters.paymentProgressStatus',
+  purchase: 'purchaseOrderItemList.filters.purchaseProgressStatus',
+  stockIn: 'purchaseOrderItemList.filters.stockInProgressStatus',
+  invoice: 'purchaseOrderItemList.filters.invoiceProgressStatus'
+}
+
+function tabModeDimensionLabel(dim: Exclude<PoItemTabModeDimension, 'off'>) {
+  return t(TAB_MODE_FILTER_I18N[dim])
+}
+
+function closeFilterTabMode() {
+  if (tabModeDimension.value === 'off') return
+  tabModeDimension.value = 'off'
+  writePoItemTabMode('off')
+  settingsMenuOpen.value = false
+  settingsSubmenuOpen.value = false
+}
+
+watch(settingsMenuOpen, (open) => {
+  if (!open) settingsSubmenuOpen.value = false
+})
 
 /** 与采购订单列表/详情一致：脱敏时不得展示供应商检索与列 */
 const canViewVendor = computed(
@@ -994,6 +1118,21 @@ const activePreset = computed((): PoItemListPresetId | null => {
 
 const presetActive = computed(() => !!activePreset.value)
 
+/** preset 打开时隐藏进度类页签模式项，保留币别与订单类型 */
+const visibleTabModeMenuOptions = computed(() =>
+  presetActive.value
+    ? PO_ITEM_TAB_MODE_OPTIONS.filter((dim) => dim === 'currency' || dim === 'orderType')
+    : PO_ITEM_TAB_MODE_OPTIONS
+)
+
+function enableFilterTabMode(dim: Exclude<PoItemTabModeDimension, 'off'>) {
+  if (isPoProgressTabDimension(dim) && presetActive.value) return
+  tabModeDimension.value = dim
+  writePoItemTabMode(dim)
+  settingsMenuOpen.value = false
+  settingsSubmenuOpen.value = false
+}
+
 const boardFilters = computed((): PurchaseOrderItemListAnalyticsQuery => {
   const q: PurchaseOrderItemListAnalyticsQuery = {}
   if (dateRange.value?.[0]) q.startDate = dateRange.value[0]
@@ -1052,6 +1191,85 @@ function poProgressFilterOptions(kind: PoProgressFilterKind) {
     value,
     label: t(`purchaseOrderItemList.extendProgress.${keyMap[kind][value]}`)
   }))
+}
+
+type FilterTabId = PoItemCurrencyTabId | PoItemOrderTypeTabId | PoItemProgressTabId
+
+/** 进度类页签在左栏 preset 打开时隐藏；币别 / 订单类型仍显示 */
+const filterTabStripVisible = computed(() => {
+  const dim = tabModeDimension.value
+  if (dim === 'off') return false
+  if (isPoProgressTabDimension(dim) && presetActive.value) return false
+  return true
+})
+
+const filterTabStripAriaLabel = computed(() => {
+  const dim = tabModeDimension.value
+  if (dim === 'off') return ''
+  return tabModeDimensionLabel(dim)
+})
+
+const filterTabOptions = computed(() => {
+  const dim = tabModeDimension.value
+  if (dim === 'off') return [] as Array<{ id: FilterTabId; label: string }>
+  if (dim === 'currency') {
+    return [
+      { id: 'all' as const, label: t('purchaseOrderItemList.filterTabs.all') },
+      { id: 'rmb' as const, label: t('purchaseOrderItemList.filters.transactionCurrencyRmb') },
+      { id: 'foreign' as const, label: t('purchaseOrderItemList.filters.transactionCurrencyForeign') }
+    ]
+  }
+  if (dim === 'orderType') {
+    return [
+      { id: 'all' as const, label: t('purchaseOrderItemList.filterTabs.all') },
+      { id: '1' as const, label: t('purchaseOrderItemList.filters.orderTypeCustomer') },
+      { id: '2' as const, label: t('purchaseOrderItemList.filters.orderTypeStocking') },
+      { id: '3' as const, label: t('purchaseOrderItemList.filters.orderTypeSample') }
+    ]
+  }
+  const kind = dim as PoProgressFilterKind
+  return [
+    { id: 'all' as const, label: t('purchaseOrderItemList.filterTabs.all') },
+    ...poProgressFilterOptions(kind).map((opt) => ({
+      id: String(opt.value) as PoItemProgressTabId,
+      label: opt.label
+    }))
+  ]
+})
+
+const activeFilterTabId = computed((): FilterTabId => {
+  const dim = tabModeDimension.value
+  if (dim === 'currency') return currencyFilterToTab(filters.transactionCurrency)
+  if (dim === 'orderType') return orderTypeFilterToTab(filters.orderType)
+  if (isPoProgressTabDimension(dim)) {
+    const key = progressDimensionToFilterKey(dim)
+    return progressFilterToTab(filters[key])
+  }
+  return 'all'
+})
+
+function onFilterTabClick(tab: FilterTabId) {
+  const dim = tabModeDimension.value
+  if (dim === 'currency') {
+    const next = currencyTabToFilter(tab as PoItemCurrencyTabId)
+    if (filters.transactionCurrency === next) return
+    filters.transactionCurrency = next
+    runSearch()
+    return
+  }
+  if (dim === 'orderType') {
+    const next = orderTypeTabToFilter(tab as PoItemOrderTypeTabId)
+    if (filters.orderType === next) return
+    filters.orderType = next
+    runSearch()
+    return
+  }
+  if (!isPoProgressTabDimension(dim)) return
+  const key = progressDimensionToFilterKey(dim)
+  const next = progressTabToFilter(tab as PoItemProgressTabId)
+  if (filters[key] === next) return
+  filters[key] = next
+  runSearch()
 }
 
 function isLineStockingPurchase(row: any) {
@@ -1709,6 +1927,90 @@ onBeforeUnmount(() => {
   color: #00d4ff;
   background: rgba(0, 212, 255, 0.08);
 }
+.btn-icon-only {
+  width: 32px;
+  padding-left: 0;
+  padding-right: 0;
+  justify-content: center;
+}
+.po-main-panel {
+  width: 100%;
+}
+.po-main-panel--with-filter-tabs {
+  .po-list-body,
+  :deep(.po-item-list-board) {
+    margin-top: 0;
+  }
+
+  :deep(.table-wrapper),
+  :deep(.crm-data-table-root),
+  .quantum-table-block {
+    margin-top: 0;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+
+  :deep(.el-table),
+  :deep(.el-table__inner-wrapper),
+  :deep(.el-table__header-wrapper) {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+
+  :deep(.po-item-list-board > .board-toolbar.card:first-child),
+  :deep(.po-item-list-board > .section:first-child) {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+}
+.po-filter-tabs {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  gap: 4px;
+}
+.po-filter-tabs__item {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 9px 12px;
+  border: 1px solid var(--crm-border-panel, #e2e8f0);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  background: #e8edf5;
+  color: var(--crm-text-primary);
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-weight: 500;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s, box-shadow 0.12s;
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--crm-cyan-primary) 45%, var(--crm-border-panel));
+    background: color-mix(in srgb, var(--crm-cyan-primary) 12%, var(--crm-layer-1));
+  }
+
+  &.is-active {
+    background: color-mix(in srgb, var(--crm-cyan-primary) 16%, var(--crm-layer-2, #fff));
+    border-color: color-mix(in srgb, var(--crm-cyan-primary) 55%, var(--crm-border-panel));
+    box-shadow: inset 0 2px 0 0 var(--crm-cyan-primary);
+    font-weight: 600;
+    z-index: 1;
+  }
+}
+
+html[data-theme='dark'] .po-filter-tabs__item:not(.is-active) {
+  background: var(--crm-layer-1);
+
+  &:hover {
+    background: color-mix(in srgb, var(--crm-cyan-primary) 12%, var(--crm-layer-1));
+  }
+}
+.po-list-body {
+  width: 100%;
+}
 .search-bar {
   display: flex;
   flex-direction: column;
@@ -2063,6 +2365,78 @@ onBeforeUnmount(() => {
   border-radius: 0;
   padding: 0;
   margin: 0;
+}
+</style>
+
+<style lang="scss">
+.po-item-list-settings-popper.el-popover.el-popper {
+  padding: 6px;
+  min-width: 160px;
+  overflow: visible;
+}
+
+.po-item-list-settings-menu {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.po-item-list-settings-menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--crm-text-secondary, rgba(224, 244, 255, 0.7));
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--crm-accent-008, rgba(0, 212, 255, 0.08));
+    color: var(--crm-text-primary, #e8f4ff);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  &.is-active {
+    color: var(--crm-cyan-primary, #00d4ff);
+  }
+
+  &--parent {
+    cursor: default;
+  }
+}
+
+.po-item-list-settings-menu__caret {
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--crm-text-muted, rgba(200, 216, 232, 0.55));
+}
+
+.po-item-list-settings-menu__submenu {
+  position: relative;
+}
+
+.po-item-list-settings-menu__flyout {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 4px);
+  min-width: 148px;
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid var(--crm-border-panel, rgba(0, 212, 255, 0.15));
+  background: var(--crm-layer-2, #0d1e35);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  z-index: 10;
 }
 </style>
 

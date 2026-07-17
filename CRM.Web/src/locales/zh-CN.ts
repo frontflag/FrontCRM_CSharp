@@ -4774,6 +4774,14 @@ const zhCN = {
       boardView: '看板',
       listView: '列表'
     },
+    settingsMenu: {
+      aria: '列表筛选设置',
+      closeTabs: '关闭页签',
+      tabMode: '页签模式'
+    },
+    filterTabs: {
+      all: '全部'
+    },
     searchPanel: {
       title: '快捷检索',
       clearPreset: '清除快捷检索',
