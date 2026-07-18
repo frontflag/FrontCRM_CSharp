@@ -4,9 +4,34 @@
       <h2>{{ t('purchaseRequisitionList.title') }}</h2>
     </div>
 
-    <!-- 搜索栏：对齐客户列表 CustomerList -->
+    <!-- 搜索栏：对齐客户列表 CustomerList；状态在前，支持型号检索 -->
     <div class="search-bar">
       <div class="search-left">
+        <el-select
+          v-model="filterForm.status"
+          :placeholder="t('purchaseRequisitionList.filters.allStatus')"
+          clearable
+          class="status-select"
+          :teleported="false"
+          @change="handleSearch"
+        >
+          <el-option :value="0" :label="t('purchaseRequisitionList.status.new')" />
+          <el-option :value="1" :label="t('purchaseRequisitionList.status.partialDone')" />
+          <el-option :value="2" :label="t('purchaseRequisitionList.status.allDone')" />
+          <el-option :value="3" :label="t('purchaseRequisitionList.status.cancelled')" />
+        </el-select>
+        <div class="search-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            v-model="filterForm.pn"
+            class="search-input"
+            :placeholder="t('purchaseRequisitionList.filters.pnPlaceholder')"
+            @keyup.enter="handleSearch"
+          />
+        </div>
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
             <circle cx="11" cy="11" r="8" />
@@ -31,19 +56,6 @@
             @keyup.enter="handleSearch"
           />
         </div>
-        <el-select
-          v-model="filterForm.status"
-          :placeholder="t('purchaseRequisitionList.filters.allStatus')"
-          clearable
-          class="status-select"
-          :teleported="false"
-          @change="handleSearch"
-        >
-          <el-option :value="0" :label="t('purchaseRequisitionList.status.new')" />
-          <el-option :value="1" :label="t('purchaseRequisitionList.status.partialDone')" />
-          <el-option :value="2" :label="t('purchaseRequisitionList.status.allDone')" />
-          <el-option :value="3" :label="t('purchaseRequisitionList.status.cancelled')" />
-        </el-select>
         <button class="btn-primary btn-sm" type="button" :disabled="loading" @click="handleSearch">
           {{ t('purchaseRequisitionList.filters.search') }}
         </button>
@@ -56,7 +68,7 @@
     <el-card v-loading="loading" class="table-card" element-loading-background="rgba(10,22,40,0.65)">
       <CrmDataTable
         ref="dataTableRef"
-        column-layout-key="purchase-requisition-list-main"
+        column-layout-key="purchase-requisition-list-main-v2"
         :columns="purchaseReqColumns"
         :show-column-settings="false"
         :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -450,9 +462,10 @@ const purchaseReqColumns = computed<CrmTableColumnDef[]>(() => {
 })
 
 const filterForm = reactive({
+  status: undefined as number | undefined,
+  pn: '',
   billCode: '',
-  sellOrderCode: '',
-  status: undefined as number | undefined
+  sellOrderCode: ''
 })
 
 function resolvePrRowId(row: Record<string, unknown>): string {
@@ -495,6 +508,7 @@ async function loadList() {
     const data = await purchaseRequisitionApi.getList({
       keyword: filterForm.billCode.trim() || undefined,
       sellOrderCode: filterForm.sellOrderCode.trim() || undefined,
+      pn: filterForm.pn.trim() || undefined,
       status: filterForm.status,
       page: page.value,
       pageSize: pageSize.value
@@ -534,9 +548,10 @@ function handleSearch() {
 }
 
 function handleReset() {
+  filterForm.status = undefined
+  filterForm.pn = ''
   filterForm.billCode = ''
   filterForm.sellOrderCode = ''
-  filterForm.status = undefined
   page.value = 1
   loadList()
 }

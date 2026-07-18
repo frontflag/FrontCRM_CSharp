@@ -5,6 +5,7 @@ export const purchaseRequisitionApi = {
     keyword?: string
     sellOrderId?: string
     sellOrderCode?: string
+    pn?: string
     status?: number
     page?: number
     pageSize?: number

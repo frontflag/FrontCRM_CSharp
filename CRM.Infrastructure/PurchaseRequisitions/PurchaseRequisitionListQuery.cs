@@ -61,6 +61,12 @@ public sealed class PurchaseRequisitionListQuery : IPurchaseRequisitionListQuery
         if (request.Status.HasValue)
             q = q.Where(x => x.pr.Status == request.Status.Value);
 
+        if (!string.IsNullOrWhiteSpace(request.Pn))
+        {
+            var pn = request.Pn.Trim().ToLowerInvariant();
+            q = q.Where(x => x.pr.PN != null && x.pr.PN.ToLower().Contains(pn));
+        }
+
         if (!string.IsNullOrWhiteSpace(request.Keyword))
         {
             var kw = request.Keyword.Trim().ToLowerInvariant();
