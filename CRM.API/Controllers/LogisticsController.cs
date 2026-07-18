@@ -144,6 +144,40 @@ namespace CRM.API.Controllers
             }
         }
 
+        [HttpGet("arrival-notices/{id}/ops-aggregates")]
+        public async Task<ActionResult<ApiResponse<ArrivalNoticeOpsAggregates>>> GetArrivalNoticeOpsAggregates(
+            string id,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var data = await _service.GetArrivalNoticeOpsAggregatesAsync(id, cancellationToken);
+                if (await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User))
+                {
+                    if (data.Purchase != null)
+                    {
+                        data.Purchase.PurchaseOrderItemCode = string.Empty;
+                        data.Purchase.PurchaseUserName = null;
+                    }
+                }
+
+                return Ok(ApiResponse<ArrivalNoticeOpsAggregates>.Ok(data, "获取到货通知操作面板数据成功"));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(ApiResponse<ArrivalNoticeOpsAggregates>.Fail(ex.Message, 404));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<ArrivalNoticeOpsAggregates>.Fail(ex.Message, 400));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取到货通知操作面板数据失败 NoticeId={NoticeId}", id);
+                return StatusCode(500, ApiResponse<ArrivalNoticeOpsAggregates>.Fail(ex.Message, 500));
+            }
+        }
+
         [HttpDelete("arrival-notices/{id}")]
         public async Task<ActionResult<ApiResponse<object>>> DeleteArrivalNotice(string id)
         {

@@ -863,6 +863,7 @@ namespace CRM.IntegrationTests
                 logisticsLogger,
                 Substitute.For<IQcListQuery>(),
                 Substitute.For<IRepository<VendorInfo>>(),
+                Substitute.For<IRepository<WarehouseInfo>>(),
                 Substitute.For<ICustomsTraceQuery>());
 
             // 准备采购订单明细
@@ -1973,6 +1974,7 @@ namespace CRM.IntegrationTests
                 logisticsLogger2,
                 Substitute.For<IQcListQuery>(),
                 Substitute.For<IRepository<VendorInfo>>(),
+                Substitute.For<IRepository<WarehouseInfo>>(),
                 Substitute.For<ICustomsTraceQuery>());
 
             // 模拟到货通知仓储

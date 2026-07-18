@@ -121,14 +121,24 @@ export function useWorkspaceLayout() {
     sidebarMode.value = sidebarMode.value === 'full' ? 'narrow' : 'full'
   }
 
+  const preferLeftSearchTabOnExpand = () => {
+    if (leftTabs.value.some((t) => t.id === 'l1')) leftActiveTabId.value = 'l1'
+  }
+
+  const preferRightOpsTabOnExpand = () => {
+    if (rightTabs.value.some((t) => t.id === 'r-ops')) rightActiveTabId.value = 'r-ops'
+  }
+
   const toggleLeftPanel = (visible?: boolean) => {
-    if (typeof visible === 'boolean') leftPanelVisible.value = visible
-    else leftPanelVisible.value = !leftPanelVisible.value
+    const nextVisible = typeof visible === 'boolean' ? visible : !leftPanelVisible.value
+    if (nextVisible && !leftPanelVisible.value) preferLeftSearchTabOnExpand()
+    leftPanelVisible.value = nextVisible
   }
 
   const toggleRightPanel = (visible?: boolean) => {
-    if (typeof visible === 'boolean') rightPanelVisible.value = visible
-    else rightPanelVisible.value = !rightPanelVisible.value
+    const nextVisible = typeof visible === 'boolean' ? visible : !rightPanelVisible.value
+    if (nextVisible && !rightPanelVisible.value) preferRightOpsTabOnExpand()
+    rightPanelVisible.value = nextVisible
   }
 
   const toggleLeftFullscreen = (fullscreen?: boolean) => {
@@ -192,11 +202,15 @@ export function useWorkspaceLayout() {
     const e = ev as CustomEvent<{ visible?: boolean }>
     const d = e.detail
     if (ev.type === 'workspace:toggle-left') {
-      if (d && typeof d.visible === 'boolean') leftPanelVisible.value = d.visible
-      else toggleLeftPanel()
+      if (d && typeof d.visible === 'boolean') {
+        if (d.visible && !leftPanelVisible.value) preferLeftSearchTabOnExpand()
+        leftPanelVisible.value = d.visible
+      } else toggleLeftPanel()
     } else if (ev.type === 'workspace:toggle-right') {
-      if (d && typeof d.visible === 'boolean') rightPanelVisible.value = d.visible
-      else toggleRightPanel()
+      if (d && typeof d.visible === 'boolean') {
+        if (d.visible && !rightPanelVisible.value) preferRightOpsTabOnExpand()
+        rightPanelVisible.value = d.visible
+      } else toggleRightPanel()
     } else if (ev.type === 'workspace:toggle-center-fullscreen') {
       if (d && typeof d.visible === 'boolean') centerFullscreen.value = d.visible
       else toggleCenterFullscreen()

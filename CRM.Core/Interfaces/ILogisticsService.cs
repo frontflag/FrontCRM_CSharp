@@ -11,6 +11,11 @@ namespace CRM.Core.Interfaces
         Task<AutoGenerateArrivalNoticeResult> AutoGenerateArrivalNoticesAsync();
         Task UpdateArrivalNoticeStatusAsync(string id, short status);
 
+        /// <summary>到货通知列表右侧「操作」面板：采购行摘要 + 关联质检/入库。</summary>
+        Task<ArrivalNoticeOpsAggregates> GetArrivalNoticeOpsAggregatesAsync(
+            string noticeId,
+            CancellationToken cancellationToken = default);
+
         Task<IReadOnlyList<QCInfo>> GetQcsAsync(QcQueryRequest? request = null);
 
         /// <summary>质检列表：数据库分页后再做行展示填充与列表侧自愈（与 <see cref="GetQcsAsync"/> 展示口径一致）。</summary>
@@ -112,5 +117,44 @@ namespace CRM.Core.Interfaces
         public int PurchaseOrdersScanned { get; set; }
         public int CreatedCount { get; set; }
         public int ExistingCount { get; set; }
+    }
+
+    public class ArrivalNoticeOpsAggregates
+    {
+        public ArrivalNoticeOpsPurchaseLine? Purchase { get; set; }
+        public ArrivalNoticeOpsQc? Qc { get; set; }
+        public ArrivalNoticeOpsStockIn? StockIn { get; set; }
+    }
+
+    public class ArrivalNoticeOpsPurchaseLine
+    {
+        public string PurchaseOrderItemId { get; set; } = string.Empty;
+        public string PurchaseOrderItemCode { get; set; } = string.Empty;
+        public string PurchaseOrderId { get; set; } = string.Empty;
+        public string? PurchaseUserName { get; set; }
+        public DateTime? PurchaseOrderCreateTime { get; set; }
+        public decimal Qty { get; set; }
+    }
+
+    public class ArrivalNoticeOpsQc
+    {
+        public string Id { get; set; } = string.Empty;
+        public string QcCode { get; set; } = string.Empty;
+        public DateTime CreateTime { get; set; }
+        public string? CreateUserName { get; set; }
+        public decimal PassQty { get; set; }
+        public decimal RejectQty { get; set; }
+    }
+
+    public class ArrivalNoticeOpsStockIn
+    {
+        public string Id { get; set; } = string.Empty;
+        public string StockInCode { get; set; } = string.Empty;
+        public DateTime? StockInDate { get; set; }
+        public string? CreateUserName { get; set; }
+        public short Status { get; set; }
+        public short StockInType { get; set; }
+        public string? WarehouseName { get; set; }
+        public decimal TotalQuantity { get; set; }
     }
 }

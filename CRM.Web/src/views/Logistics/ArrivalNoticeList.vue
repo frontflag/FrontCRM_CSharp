@@ -89,7 +89,9 @@
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
       :data="list"
+      :row-class-name="opsPanelRowClassName"
       v-loading="loading"
+      @row-click="onRowClick"
     >
       <template #col-status="{ row }">
         <el-tag effect="dark" :type="statusType(row.status)">{{ statusText(row.status) }}</el-tag>
@@ -295,7 +297,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, inject, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
@@ -311,9 +313,15 @@ import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { StockInTypeCode, STOCK_IN_TYPE_FILTER_VALUES } from '@/constants/stockInType'
+import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
+import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
+import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
+import { useArrivalNoticeOpsPanelStore } from '@/stores/arrivalNoticeOpsPanel'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const authStore = useAuthStore()
+const arrivalNoticeOpsStore = useArrivalNoticeOpsPanelStore()
+const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const router = useRouter()
 const route = useRoute()
@@ -486,13 +494,53 @@ function applyArrivalList(resetPage: boolean) {
     .then(res => {
       list.value = res.items || []
       listTotal.value = res.total
+      void arrivalNoticeOpsStore.refreshFromListRows(
+        list.value,
+        t('arrivalNoticeList.opsPanel.loadFailed')
+      )
     })
     .finally(() => {
       loading.value = false
     })
 }
 
-const loadData = () => applyArrivalList(true)
+const { onOpsPanelRowClick } = useListRightOpsPanelInteraction({
+  workspaceLayout,
+  isActiveRoute: () => route.name === 'ArrivalNoticeList',
+  hasSelectedRow: () => !!arrivalNoticeOpsStore.row,
+  setRowOnly: (row) => arrivalNoticeOpsStore.setRowOnly(row),
+  selectRow: (row) =>
+    arrivalNoticeOpsStore.selectRow(row, t('arrivalNoticeList.opsPanel.loadFailed')),
+  loadSelected: () => {
+    void arrivalNoticeOpsStore.loadAggregates(t('arrivalNoticeList.opsPanel.loadFailed'))
+  },
+  shouldBlockRowClick: () => maskPurchaseSensitiveFields.value
+})
+
+async function onRowClick(row: StockInNotifyDto) {
+  await onOpsPanelRowClick(row as unknown as Record<string, unknown>)
+}
+
+function opsPanelRowClassName({ row }: { row: StockInNotifyDto }) {
+  if (!arrivalNoticeOpsStore.row) return 'table-row-pointer'
+  return arrivalNoticeOpsStore.rowKey(row as unknown as Record<string, unknown>) ===
+    arrivalNoticeOpsStore.rowKey(arrivalNoticeOpsStore.row)
+    ? 'so-item-row--active'
+    : 'table-row-pointer'
+}
+
+async function confirmArrivedFromOpsPanel(row: Record<string, unknown>) {
+  const id = arrivalNoticeOpsStore.rowKey(row)
+  if (!id) return
+  await logisticsApi.updateArrivalStatus(id, 20)
+  ElMessage.success(t('arrivalNoticeList.messages.arrivedSuccess'))
+  applyArrivalList(false)
+}
+
+const loadData = () => {
+  resetListRightPanelOnReload(arrivalNoticeOpsStore)
+  applyArrivalList(true)
+}
 const refreshArrivalList = () => applyArrivalList(false)
 
 const resetFilters = () => {
@@ -503,7 +551,7 @@ const resetFilters = () => {
     freightForwarderOrderNo: '',
     expectedArrivalDate: ''
   }
-  applyArrivalList(true)
+  loadData()
 }
 
 const markArrived = async (row: StockInNotifyDto) => {
@@ -565,11 +613,20 @@ watch(
 )
 
 onMounted(async () => {
+  arrivalNoticeOpsStore.registerHandlers({
+    confirmArrived: (row) => {
+      void confirmArrivedFromOpsPanel(row)
+    }
+  })
   try {
     await ensureLogisticsDict()
   } catch {
     /* 字典失败时仍回退显示原始码 */
   }
+})
+
+onBeforeUnmount(() => {
+  arrivalNoticeOpsStore.unregisterHandlers()
 })
 </script>
 

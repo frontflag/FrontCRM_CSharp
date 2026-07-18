@@ -251,6 +251,75 @@ public sealed class CustomsTraceQuery : ICustomsTraceQuery
     }
 
     /// <inheritdoc />
+    public async Task<CustomsOriginalPurchaseLinkDto?> ResolveOriginalPurchaseByArrivalNotifyAsync(
+        string? customsDeclarationItemId,
+        short stockInType,
+        CancellationToken cancellationToken = default)
+    {
+        if (StockInTypeCode.NormalizeForNotify(stockInType) != StockInTypeCode.Customs)
+            return null;
+
+        var cdiId = customsDeclarationItemId?.Trim();
+        if (string.IsNullOrEmpty(cdiId))
+            return null;
+
+        var sourceStockItemId = await _db.CustomsDeclarationItems.AsNoTracking()
+            .Where(i => i.Id == cdiId && !i.IsDeleted)
+            .Select(i => i.SourceStockItemId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (string.IsNullOrWhiteSpace(sourceStockItemId))
+            return null;
+
+        var layerId = sourceStockItemId.Trim();
+        var layer = await _db.StockItems.AsNoTracking()
+            .Where(si => si.Id == layerId && !si.IsDeleted)
+            .Select(si => new { si.PurchaseOrderItemId, si.StockInItemId })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (layer == null)
+            return null;
+
+        var poItemId = layer.PurchaseOrderItemId?.Trim();
+        if (string.IsNullOrEmpty(poItemId) && !string.IsNullOrWhiteSpace(layer.StockInItemId))
+        {
+            var extendId = layer.StockInItemId.Trim();
+            poItemId = await _db.StockInItemExtends.AsNoTracking()
+                .Where(e => e.Id == extendId && !e.IsDeleted && e.PurchaseOrderItemId != null)
+                .Select(e => e.PurchaseOrderItemId!)
+                .FirstOrDefaultAsync(cancellationToken);
+            poItemId = poItemId?.Trim();
+        }
+
+        if (string.IsNullOrEmpty(poItemId))
+            return null;
+
+        var poItem = await _db.PurchaseOrderItems.AsNoTracking()
+            .Where(p => p.Id == poItemId)
+            .Select(p => new { p.Id, p.PurchaseOrderItemCode, p.PurchaseOrderId, p.Qty })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (poItem == null)
+            return null;
+
+        var poId = poItem.PurchaseOrderId?.Trim();
+        if (string.IsNullOrEmpty(poId))
+            return null;
+
+        var po = await _db.PurchaseOrders.AsNoTracking()
+            .Where(p => p.Id == poId)
+            .Select(p => new { p.CreateTime, p.PurchaseUserName })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return new CustomsOriginalPurchaseLinkDto
+        {
+            PurchaseOrderItemId = poItem.Id.Trim(),
+            PurchaseOrderItemCode = (poItem.PurchaseOrderItemCode ?? string.Empty).Trim(),
+            PurchaseOrderId = poId,
+            PurchaseUserName = po?.PurchaseUserName?.Trim(),
+            PurchaseOrderCreateTime = po?.CreateTime,
+            Qty = poItem.Qty
+        };
+    }
+
+    /// <inheritdoc />
     public async Task EnrichStockOutRequestListItemsAsync(
         IReadOnlyList<StockOutRequestListItemDto> rows,
         CancellationToken cancellationToken = default)

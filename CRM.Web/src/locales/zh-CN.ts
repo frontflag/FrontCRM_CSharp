@@ -5190,6 +5190,34 @@ const zhCN = {
     },
     messages: {
       arrivedSuccess: '已确认到货，等待质检'
+    },
+    opsPanel: {
+      pickRow: '请在「操作」页签下单击列表行，查看本行采购、质检与入库摘要。',
+      loadFailed: '加载操作面板失败',
+      overviewTitle: '到货概况',
+      confirmArrivedTitle: '确认到货',
+      completed: '已完成',
+      purchaseTitle: '采购',
+      purchaseItemCode: '采购明细单号',
+      purchaseUser: '采购员',
+      purchaseDate: '采购日期',
+      purchaseQty: '采购明细数量',
+      qcTitle: '质检',
+      qcCode: '质检单号',
+      qcDate: '质检日期',
+      qcUser: '质检人',
+      qcPassQty: '质检合格数量',
+      qcRejectQty: '质检不合格数量',
+      noQc: '尚未生成质检记录',
+      stockInTitle: '入库',
+      stockInCode: '入库单号',
+      stockInDate: '入库日期',
+      stockInUser: '操作人',
+      stockInStatus: '入库状态',
+      stockInType: '入库类型',
+      stockInWarehouse: '仓库',
+      stockInQty: '入库数量',
+      noStockIn: '尚未生成入库记录'
     }
   },
   qcDetail: {

@@ -1341,6 +1341,19 @@
             @set-clearance="customsDeclarationOpsStore.runSetClearance()"
             @create-arrival="customsDeclarationOpsStore.runCreateArrival()"
           />
+          <ArrivalNoticeOpsPanel
+            v-show="showArrivalNoticeOpsPanel"
+            embedded
+            :row="arrivalNoticeOpsStore.row"
+            :aggregates="arrivalNoticeOpsStore.aggregates"
+            :loading="arrivalNoticeOpsStore.loading"
+            :load-error="arrivalNoticeOpsStore.loadError"
+            :action-loading="arrivalNoticeOpsStore.actionLoading"
+            :can-write-logistics="canWriteLogisticsData"
+            :mask-sensitive="maskPurchaseSensitiveFields"
+            class="aux-panel-tab-body"
+            @confirm-arrived="arrivalNoticeOpsStore.runConfirmArrived()"
+          />
           <StockOutNotifyCustomsTabPanel
             v-show="showStockOutNotifyCustomsPanel"
             class="aux-panel-tab-body"
@@ -1414,6 +1427,7 @@ import CustomerIntelPanel from '@/components/Customer/CustomerIntelPanel.vue'
 import VendorIntelPanel from '@/components/Vendor/VendorIntelPanel.vue'
 import PurchaseOrderItemOpsPanel from '@/components/RFQ/PurchaseOrderItemOpsPanel.vue'
 import CustomsDeclarationOpsPanel from '@/components/Customs/CustomsDeclarationOpsPanel.vue'
+import ArrivalNoticeOpsPanel from '@/components/Logistics/ArrivalNoticeOpsPanel.vue'
 import StockOutNotifyCustomsTabPanel from '@/components/Inventory/StockOutNotifyCustomsTabPanel.vue'
 import { useSalesOrderItemOpsPanelStore } from '@/stores/salesOrderItemOpsPanel'
 import { useMaterialIntelLookupStore } from '@/stores/materialIntelLookup'
@@ -1421,6 +1435,7 @@ import { useCustomerIntelLookupStore } from '@/stores/customerIntelLookup'
 import { useVendorIntelLookupStore } from '@/stores/vendorIntelLookup'
 import { usePurchaseOrderItemOpsPanelStore } from '@/stores/purchaseOrderItemOpsPanel'
 import { useCustomsDeclarationOpsPanelStore } from '@/stores/customsDeclarationOpsPanel'
+import { useArrivalNoticeOpsPanelStore } from '@/stores/arrivalNoticeOpsPanel'
 import { useStockOutNotifyCustomsPanelStore } from '@/stores/stockOutNotifyCustomsPanel'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleOrderWriteGate, useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
@@ -1460,6 +1475,7 @@ const customerIntelLookupStore = useCustomerIntelLookupStore()
 const vendorIntelLookupStore = useVendorIntelLookupStore()
 const purchaseOrderItemOpsStore = usePurchaseOrderItemOpsPanelStore()
 const customsDeclarationOpsStore = useCustomsDeclarationOpsPanelStore()
+const arrivalNoticeOpsStore = useArrivalNoticeOpsPanelStore()
 const stockOutNotifyCustomsPanelStore = useStockOutNotifyCustomsPanelStore()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
@@ -1726,6 +1742,7 @@ const isPurchaseOrderItemOpsRoute = computed(
 )
 const isRfqItemListRoute = computed(() => route.name === 'RFQItemList')
 const isCustomsDeclarationListRoute = computed(() => route.name === 'CustomsDeclarationList')
+const isArrivalNoticeListRoute = computed(() => route.name === 'ArrivalNoticeList')
 const isStockOutNotifyListRoute = computed(
   () => route.name === 'InventoryStockOutNotifyList' || route.name === 'StockOutNotifyList'
 )
@@ -1740,6 +1757,10 @@ const showPurchaseOrderItemOpsPanel = computed(
 
 const showCustomsDeclarationOpsPanel = computed(
   () => rightActiveTabId.value === 'r-ops' && isCustomsDeclarationListRoute.value
+)
+
+const showArrivalNoticeOpsPanel = computed(
+  () => rightActiveTabId.value === 'r-ops' && isArrivalNoticeListRoute.value
 )
 
 const showStockOutNotifyCustomsPanel = computed(
@@ -1795,6 +1816,7 @@ watch(
       ]
       purchaseOrderItemOpsStore.clear()
       customsDeclarationOpsStore.clear()
+      arrivalNoticeOpsStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       if (rightActiveTabId.value !== 'r-ops' && rightActiveTabId.value !== 'r4') {
@@ -1809,6 +1831,7 @@ watch(
       ]
       salesOrderItemOpsStore.clear()
       customsDeclarationOpsStore.clear()
+      arrivalNoticeOpsStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       if (rightActiveTabId.value !== 'r-ops' && rightActiveTabId.value !== 'r4') {
@@ -1823,8 +1846,26 @@ watch(
       ]
       salesOrderItemOpsStore.clear()
       purchaseOrderItemOpsStore.clear()
+      arrivalNoticeOpsStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
+      return
+    }
+    if (name === 'ArrivalNoticeList') {
+      rightTabs.value = [
+        { id: 'r-ops', labelKey: 'layout.auxTabs.ops' },
+        { id: 'r4', labelKey: 'layout.auxTabs.help' }
+      ]
+      salesOrderItemOpsStore.clear()
+      purchaseOrderItemOpsStore.clear()
+      customsDeclarationOpsStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
+      materialIntelLookupStore.clearBound()
+      customerIntelLookupStore.clearBound()
+      vendorIntelLookupStore.clearBound()
+      if (rightActiveTabId.value !== 'r-ops' && rightActiveTabId.value !== 'r4') {
+        rightActiveTabId.value = 'r-ops'
+      }
       return
     }
     if (name === 'RFQItemList') {
@@ -1834,6 +1875,8 @@ watch(
       ]
       salesOrderItemOpsStore.clear()
       purchaseOrderItemOpsStore.clear()
+      customsDeclarationOpsStore.clear()
+      arrivalNoticeOpsStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       customerIntelLookupStore.clearBound()
       vendorIntelLookupStore.clearBound()
@@ -1847,6 +1890,7 @@ watch(
       salesOrderItemOpsStore.clear()
       purchaseOrderItemOpsStore.clear()
       customsDeclarationOpsStore.clear()
+      arrivalNoticeOpsStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       vendorIntelLookupStore.clearBound()
@@ -1863,6 +1907,7 @@ watch(
       salesOrderItemOpsStore.clear()
       purchaseOrderItemOpsStore.clear()
       customsDeclarationOpsStore.clear()
+      arrivalNoticeOpsStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       customerIntelLookupStore.clearBound()
@@ -1876,6 +1921,7 @@ watch(
       salesOrderItemOpsStore.clear()
       purchaseOrderItemOpsStore.clear()
       customsDeclarationOpsStore.clear()
+      arrivalNoticeOpsStore.clear()
       materialIntelLookupStore.clearBound()
       customerIntelLookupStore.clearBound()
       vendorIntelLookupStore.clearBound()
@@ -1886,6 +1932,7 @@ watch(
     salesOrderItemOpsStore.clear()
     purchaseOrderItemOpsStore.clear()
     customsDeclarationOpsStore.clear()
+    arrivalNoticeOpsStore.clear()
     stockOutNotifyCustomsPanelStore.clear()
     materialIntelLookupStore.clearBound()
     customerIntelLookupStore.clearBound()

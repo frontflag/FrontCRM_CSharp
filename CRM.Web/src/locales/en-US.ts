@@ -5206,6 +5206,34 @@ const enUS = {
     },
     messages: {
       arrivedSuccess: 'Receipt confirmed; awaiting QC.'
+    },
+    opsPanel: {
+      pickRow: 'Select a row on the Operations tab to view purchase, QC, and stock-in summary.',
+      loadFailed: 'Failed to load operations panel',
+      overviewTitle: 'Arrival overview',
+      confirmArrivedTitle: 'Confirm receipt',
+      completed: 'Done',
+      purchaseTitle: 'Purchase',
+      purchaseItemCode: 'PO line no.',
+      purchaseUser: 'Buyer',
+      purchaseDate: 'PO created',
+      purchaseQty: 'PO line qty',
+      qcTitle: 'QC',
+      qcCode: 'QC no.',
+      qcDate: 'QC created',
+      qcUser: 'QC by',
+      qcPassQty: 'Passed qty',
+      qcRejectQty: 'Rejected qty',
+      noQc: 'No QC record yet',
+      stockInTitle: 'Stock-in',
+      stockInCode: 'Stock-in no.',
+      stockInDate: 'Stock-in date',
+      stockInUser: 'Operator',
+      stockInStatus: 'Status',
+      stockInType: 'Type',
+      stockInWarehouse: 'Warehouse',
+      stockInQty: 'Qty',
+      noStockIn: 'No stock-in record yet'
     }
   },
   qcDetail: {

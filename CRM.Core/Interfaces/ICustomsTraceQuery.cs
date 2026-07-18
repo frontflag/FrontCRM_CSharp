@@ -45,6 +45,14 @@ public interface ICustomsTraceQuery
     Task<StockOutCustomsSummaryDto?> ResolveCustomsSummaryByDeclarationIdAsync(
         string? declarationId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 报关到货通知：沿 <c>customs_declaration_item.source_stock_item_id</c> → 在库行解析原始采购明细（展示用）。
+    /// </summary>
+    Task<CustomsOriginalPurchaseLinkDto?> ResolveOriginalPurchaseByArrivalNotifyAsync(
+        string? customsDeclarationItemId,
+        short stockInType,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class CustomsTraceLinkDto
@@ -56,6 +64,17 @@ public sealed class CustomsTraceLinkDto
     public string? CustomsBrokerId { get; set; }
     public string? CustomsBrokerName { get; set; }
     public short? CustomsClearanceStatus { get; set; }
+}
+
+/// <summary>报关到货通知操作面板：原始采购明细摘要（沿在库层溯源）。</summary>
+public sealed class CustomsOriginalPurchaseLinkDto
+{
+    public string PurchaseOrderItemId { get; set; } = string.Empty;
+    public string PurchaseOrderItemCode { get; set; } = string.Empty;
+    public string PurchaseOrderId { get; set; } = string.Empty;
+    public string? PurchaseUserName { get; set; }
+    public DateTime? PurchaseOrderCreateTime { get; set; }
+    public decimal Qty { get; set; }
 }
 
 /// <summary>报关出库侧详情页轻量摘要（Hub 跳转 + 报关公司名）。</summary>

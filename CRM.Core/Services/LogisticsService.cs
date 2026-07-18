@@ -32,6 +32,7 @@ namespace CRM.Core.Services
         private readonly ILogger<LogisticsService> _logger;
         private readonly IQcListQuery _qcListQuery;
         private readonly IRepository<VendorInfo> _vendorRepo;
+        private readonly IRepository<WarehouseInfo> _warehouseRepo;
         private readonly ICustomsTraceQuery _customsTraceQuery;
 
         public LogisticsService(
@@ -53,6 +54,7 @@ namespace CRM.Core.Services
             ILogger<LogisticsService> logger,
             IQcListQuery qcListQuery,
             IRepository<VendorInfo> vendorRepo,
+            IRepository<WarehouseInfo> warehouseRepo,
             ICustomsTraceQuery customsTraceQuery)
         {
             _notifyRepo = notifyRepo;
@@ -73,6 +75,7 @@ namespace CRM.Core.Services
             _logger = logger;
             _qcListQuery = qcListQuery;
             _vendorRepo = vendorRepo;
+            _warehouseRepo = warehouseRepo;
             _customsTraceQuery = customsTraceQuery;
         }
 
@@ -411,6 +414,144 @@ namespace CRM.Core.Services
             row.ModifyTime = DateTime.UtcNow;
             await _notifyRepo.UpdateAsync(row);
             await _unitOfWork.SaveChangesAsync();
+        }
+
+        /// <inheritdoc />
+        public async Task<ArrivalNoticeOpsAggregates> GetArrivalNoticeOpsAggregatesAsync(
+            string noticeId,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(noticeId))
+                throw new ArgumentException("到货通知ID不能为空", nameof(noticeId));
+
+            cancellationToken.ThrowIfCancellationRequested();
+            var id = noticeId.Trim();
+            var notice = await _notifyRepo.GetByIdAsync(id) ?? throw new InvalidOperationException("到货通知不存在");
+
+            var result = new ArrivalNoticeOpsAggregates();
+
+            if (!string.IsNullOrWhiteSpace(notice.PurchaseOrderItemId))
+            {
+                var poItem = await _poItemRepo.GetByIdAsync(notice.PurchaseOrderItemId.Trim());
+                PurchaseOrder? po = null;
+                var poId = !string.IsNullOrWhiteSpace(notice.PurchaseOrderId)
+                    ? notice.PurchaseOrderId.Trim()
+                    : poItem?.PurchaseOrderId?.Trim();
+                if (!string.IsNullOrWhiteSpace(poId))
+                    po = await _poRepo.GetByIdAsync(poId);
+
+                if (poItem != null)
+                {
+                    result.Purchase = new ArrivalNoticeOpsPurchaseLine
+                    {
+                        PurchaseOrderItemId = poItem.Id,
+                        PurchaseOrderItemCode = poItem.PurchaseOrderItemCode?.Trim() ?? string.Empty,
+                        PurchaseOrderId = poId ?? string.Empty,
+                        PurchaseUserName = !string.IsNullOrWhiteSpace(notice.PurchaseUserName)
+                            ? notice.PurchaseUserName.Trim()
+                            : po?.PurchaseUserName?.Trim(),
+                        PurchaseOrderCreateTime = po?.CreateTime,
+                        Qty = poItem.Qty
+                    };
+                }
+            }
+            else
+            {
+                var originalPurchase = await _customsTraceQuery.ResolveOriginalPurchaseByArrivalNotifyAsync(
+                    notice.CustomsDeclarationItemId,
+                    notice.StockInType,
+                    cancellationToken);
+                if (originalPurchase != null)
+                {
+                    result.Purchase = new ArrivalNoticeOpsPurchaseLine
+                    {
+                        PurchaseOrderItemId = originalPurchase.PurchaseOrderItemId,
+                        PurchaseOrderItemCode = originalPurchase.PurchaseOrderItemCode,
+                        PurchaseOrderId = originalPurchase.PurchaseOrderId,
+                        PurchaseUserName = originalPurchase.PurchaseUserName,
+                        PurchaseOrderCreateTime = originalPurchase.PurchaseOrderCreateTime,
+                        Qty = originalPurchase.Qty
+                    };
+                }
+            }
+
+            var qc = (await _qcRepo.FindAsync(x => x.StockInNotifyId == id)).FirstOrDefault();
+            if (qc != null)
+            {
+                string? qcUserName = null;
+                if (!string.IsNullOrWhiteSpace(qc.CreateByUserId))
+                {
+                    var u = await _userService.GetByIdAsync(qc.CreateByUserId.Trim());
+                    qcUserName = EntityLookupService.FormatUserLoginName(u);
+                }
+
+                result.Qc = new ArrivalNoticeOpsQc
+                {
+                    Id = qc.Id,
+                    QcCode = qc.QcCode?.Trim() ?? string.Empty,
+                    CreateTime = qc.CreateTime,
+                    CreateUserName = qcUserName,
+                    PassQty = qc.PassQty,
+                    RejectQty = qc.RejectQty
+                };
+            }
+
+            StockIn? stockIn = null;
+            if (qc != null && !string.IsNullOrWhiteSpace(qc.StockInId))
+                stockIn = await _stockInRepo.GetByIdAsync(qc.StockInId.Trim());
+            if (stockIn == null)
+            {
+                // 勿在 FindAsync 谓词中使用 string.Equals(..., StringComparison) / Trim()，EF 无法翻译到 PostgreSQL
+                var candidates = new List<StockIn>();
+                candidates.AddRange(await _stockInRepo.FindAsync(si => si.SourceId != null && si.SourceId == id));
+                if (qc != null && !string.IsNullOrWhiteSpace(qc.Id))
+                {
+                    var qcId = qc.Id.Trim();
+                    foreach (var si in await _stockInRepo.FindAsync(si => si.QcId != null && si.QcId == qcId))
+                    {
+                        if (candidates.All(x => !string.Equals(x.Id, si.Id, StringComparison.OrdinalIgnoreCase)))
+                            candidates.Add(si);
+                    }
+                }
+
+                stockIn = candidates
+                    .OrderByDescending(x => x.Status == StockInHeaderStatusCode.Posted ? 1 : 0)
+                    .ThenByDescending(x => x.CreateTime)
+                    .FirstOrDefault();
+            }
+
+            if (stockIn != null)
+            {
+                string? whName = null;
+                if (!string.IsNullOrWhiteSpace(stockIn.WarehouseId))
+                {
+                    var wh = await _warehouseRepo.GetByIdAsync(stockIn.WarehouseId.Trim());
+                    whName = wh?.WarehouseName?.Trim();
+                    if (string.IsNullOrWhiteSpace(whName))
+                        whName = wh?.WarehouseCode?.Trim();
+                }
+
+                string? siUserName = null;
+                if (!string.IsNullOrWhiteSpace(stockIn.CreatedBy))
+                {
+                    var u = await _userService.GetByIdAsync(stockIn.CreatedBy.Trim());
+                    siUserName = EntityLookupService.FormatUserLoginName(u);
+                }
+
+                result.StockIn = new ArrivalNoticeOpsStockIn
+                {
+                    Id = stockIn.Id,
+                    StockInCode = stockIn.StockInCode?.Trim() ?? string.Empty,
+                    StockInDate = stockIn.StockInDate,
+                    CreateUserName = siUserName,
+                    Status = stockIn.Status,
+                    StockInType = stockIn.StockInType,
+                    WarehouseName = whName,
+                    TotalQuantity = stockIn.TotalQuantity
+                };
+            }
+
+            return result;
         }
 
         public async Task<IReadOnlyList<QCInfo>> GetQcsAsync(QcQueryRequest? request = null)

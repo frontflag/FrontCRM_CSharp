@@ -147,6 +147,88 @@ export interface QcInfoDto {
   CreateUserName?: string | null
 }
 
+export interface ArrivalNoticeOpsPurchaseLineDto {
+  purchaseOrderItemId: string
+  purchaseOrderItemCode: string
+  purchaseOrderId: string
+  purchaseUserName?: string | null
+  purchaseOrderCreateTime?: string | null
+  qty: number
+}
+
+export interface ArrivalNoticeOpsQcDto {
+  id: string
+  qcCode: string
+  createTime: string
+  createUserName?: string | null
+  passQty: number
+  rejectQty: number
+}
+
+export interface ArrivalNoticeOpsStockInDto {
+  id: string
+  stockInCode: string
+  stockInDate?: string | null
+  createUserName?: string | null
+  status: number
+  stockInType: number
+  warehouseName?: string | null
+  totalQuantity: number
+}
+
+export interface ArrivalNoticeOpsAggregatesDto {
+  purchase?: ArrivalNoticeOpsPurchaseLineDto | null
+  qc?: ArrivalNoticeOpsQcDto | null
+  stockIn?: ArrivalNoticeOpsStockInDto | null
+}
+
+function normalizeArrivalNoticeOpsAggregates(row: unknown): ArrivalNoticeOpsAggregatesDto {
+  const r = (row ?? {}) as Record<string, unknown>
+  const purchaseRaw = (r.purchase ?? r.Purchase) as Record<string, unknown> | null | undefined
+  const qcRaw = (r.qc ?? r.Qc) as Record<string, unknown> | null | undefined
+  const stockInRaw = (r.stockIn ?? r.StockIn) as Record<string, unknown> | null | undefined
+  return {
+    purchase: purchaseRaw
+      ? {
+          purchaseOrderItemId: String(purchaseRaw.purchaseOrderItemId ?? purchaseRaw.PurchaseOrderItemId ?? ''),
+          purchaseOrderItemCode: String(
+            purchaseRaw.purchaseOrderItemCode ?? purchaseRaw.PurchaseOrderItemCode ?? ''
+          ),
+          purchaseOrderId: String(purchaseRaw.purchaseOrderId ?? purchaseRaw.PurchaseOrderId ?? ''),
+          purchaseUserName: (purchaseRaw.purchaseUserName ?? purchaseRaw.PurchaseUserName) as
+            | string
+            | null
+            | undefined,
+          purchaseOrderCreateTime: (purchaseRaw.purchaseOrderCreateTime ??
+            purchaseRaw.PurchaseOrderCreateTime) as string | null | undefined,
+          qty: Number(purchaseRaw.qty ?? purchaseRaw.Qty ?? 0)
+        }
+      : null,
+    qc: qcRaw
+      ? {
+          id: String(qcRaw.id ?? qcRaw.Id ?? ''),
+          qcCode: String(qcRaw.qcCode ?? qcRaw.QcCode ?? ''),
+          createTime: String(qcRaw.createTime ?? qcRaw.CreateTime ?? ''),
+          createUserName: (qcRaw.createUserName ?? qcRaw.CreateUserName) as string | null | undefined,
+          passQty: Number(qcRaw.passQty ?? qcRaw.PassQty ?? 0),
+          rejectQty: Number(qcRaw.rejectQty ?? qcRaw.RejectQty ?? 0)
+        }
+      : null,
+    stockIn: stockInRaw
+      ? {
+          id: String(stockInRaw.id ?? stockInRaw.Id ?? ''),
+          stockInCode: String(stockInRaw.stockInCode ?? stockInRaw.StockInCode ?? ''),
+          stockInDate: (stockInRaw.stockInDate ?? stockInRaw.StockInDate) as string | null | undefined,
+          createUserName: (stockInRaw.createUserName ?? stockInRaw.CreateUserName) as string | null | undefined,
+          status: Number(stockInRaw.status ?? stockInRaw.Status ?? 0),
+          stockInType: Number(stockInRaw.stockInType ?? stockInRaw.StockInType ?? 0),
+          warehouseName: (stockInRaw.warehouseName ?? stockInRaw.WarehouseName) as string | null | undefined,
+          totalQuantity: Number(stockInRaw.totalQuantity ?? stockInRaw.TotalQuantity ?? 0)
+        }
+      : null
+  }
+}
+
 const unwrap = <T>(res: any): T => (res?.data ?? res) as T
 
 /** 与《翻页查询规范》一致：<code>data.items</code> / <code>data.total</code> / <code>data.page</code> / <code>data.pageSize</code> */
@@ -205,6 +287,12 @@ export const logisticsApi = {
     await apiClient.post(`/api/v1/logistics/arrival-notices/${encodeURIComponent(id)}/force-delete`, {
       confirmBillCode: confirmBillCode.trim()
     })
+  },
+  async getArrivalNoticeOpsAggregates(id: string): Promise<ArrivalNoticeOpsAggregatesDto> {
+    const res = await apiClient.get<any>(
+      `/api/v1/logistics/arrival-notices/${encodeURIComponent(id)}/ops-aggregates`
+    )
+    return normalizeArrivalNoticeOpsAggregates(unwrap(res))
   },
   async getQcs(params?: {
     qcId?: string

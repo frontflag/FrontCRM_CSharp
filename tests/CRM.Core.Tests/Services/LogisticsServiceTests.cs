@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Linq.Expressions;
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
 using CRM.Core.Models.Inventory;
@@ -79,11 +80,72 @@ public class LogisticsServiceTests
             log,
             Substitute.For<IQcListQuery>(),
             Substitute.For<IRepository<VendorInfo>>(),
+            Substitute.For<IRepository<WarehouseInfo>>(),
             Substitute.For<ICustomsTraceQuery>());
 
         var result = await svc.GetQcsAsync(new QcQueryRequest { Model = "UG-MPN-455565" });
 
         Assert.Single(result);
         Assert.Contains("UG-MPN-455565", result[0].Model ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task GetArrivalNoticeOpsAggregatesAsync_CustomsNotify_ShouldResolveOriginalPurchaseFromTrace()
+    {
+        var noticeId = "notice-customs-1";
+        var notifyRepo = Substitute.For<IRepository<StockInNotify>>();
+        var stockInRepo = Substitute.For<IRepository<StockIn>>();
+        var qcRepo = Substitute.For<IRepository<QCInfo>>();
+        var qcItemRepo = Substitute.For<IRepository<QCItem>>();
+        var poRepo = Substitute.For<IRepository<PurchaseOrder>>();
+        var poItemRepo = Substitute.For<IRepository<PurchaseOrderItem>>();
+        var poItemExtendRepo = Substitute.For<IRepository<PurchaseOrderItemExtend>>();
+        var sellOrderItemRepo = Substitute.For<IRepository<SellOrderItem>>();
+        var sellOrderRepo = Substitute.For<IRepository<SellOrder>>();
+        var serial = Substitute.For<ISerialNumberService>();
+        var uow = Substitute.For<IUnitOfWork>();
+        var customsTrace = Substitute.For<ICustomsTraceQuery>();
+
+        notifyRepo.GetByIdAsync(noticeId).Returns(new StockInNotify
+        {
+            Id = noticeId,
+            StockInType = StockInTypeCode.Customs,
+            CustomsDeclarationItemId = "cdi-1",
+            PurchaseOrderItemId = string.Empty
+        });
+        qcRepo.FindAsync(Arg.Any<Expression<Func<QCInfo, bool>>>())
+            .Returns(Task.FromResult(Enumerable.Empty<QCInfo>()));
+        stockInRepo.FindAsync(Arg.Any<Expression<Func<StockIn, bool>>>())
+            .Returns(Task.FromResult(Enumerable.Empty<StockIn>()));
+
+        customsTrace.ResolveOriginalPurchaseByArrivalNotifyAsync("cdi-1", StockInTypeCode.Customs, Arg.Any<CancellationToken>())
+            .Returns(new CustomsOriginalPurchaseLinkDto
+            {
+                PurchaseOrderItemId = "poi-orig-1",
+                PurchaseOrderItemCode = "POI0009",
+                PurchaseOrderId = "po-orig-1",
+                PurchaseUserName = "buyer-a",
+                PurchaseOrderCreateTime = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                Qty = 500m
+            });
+
+        var svc = new LogisticsService(
+            notifyRepo, stockInRepo, Substitute.For<IRepository<StockInItemExtend>>(), qcRepo, qcItemRepo, poRepo, poItemRepo, poItemExtendRepo,
+            sellOrderItemRepo, sellOrderRepo, serial, Substitute.For<IPurchaseOrderItemExtendSyncService>(), uow,
+            Substitute.For<IUserService>(),
+            Substitute.For<ILogOperationAppendService>(),
+            Substitute.For<ILogger<LogisticsService>>(),
+            Substitute.For<IQcListQuery>(),
+            Substitute.For<IRepository<VendorInfo>>(),
+            Substitute.For<IRepository<WarehouseInfo>>(),
+            customsTrace);
+
+        var result = await svc.GetArrivalNoticeOpsAggregatesAsync(noticeId);
+
+        Assert.NotNull(result.Purchase);
+        Assert.Equal("POI0009", result.Purchase!.PurchaseOrderItemCode);
+        Assert.Equal("po-orig-1", result.Purchase.PurchaseOrderId);
+        Assert.Equal("buyer-a", result.Purchase.PurchaseUserName);
+        Assert.Equal(500m, result.Purchase.Qty);
     }
 }
