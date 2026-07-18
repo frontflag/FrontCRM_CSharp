@@ -1,0 +1,81 @@
+---
+title: FrontCRM Help Center
+description: Official FrontCRM documentation for customer, sales, purchasing, inventory, logistics, and finance.
+template: splash
+tableOfContents: false
+editUrl: false
+---
+
+import { LinkCard, CardGrid } from '@astrojs/starlight/components';
+
+<section class="help-hero">
+  <div class="help-hero__bg" aria-hidden="true"></div>
+  <div class="help-hero__inner">
+    <p class="help-hero__brand">FrontCRM</p>
+    <h1 class="help-hero__title">Official Help Center</h1>
+    <div class="help-hero__lead">
+      Product docs for business and implementation teams—from customers and quoting through purchasing, inventory, logistics, and finance.
+    </div>
+    <div class="help-hero__actions">
+      <a class="help-btn help-btn--primary" href="/en/customer">Browse modules</a>
+      <a class="help-btn help-btn--ghost" href="/en/release-notes">Release notes</a>
+    </div>
+  </div>
+</section>
+
+<div class="help-band">
+  <section class="help-section">
+    <header class="help-section__head">
+      <h2>Core business</h2>
+      <p>Customers, vendors, and quoting—the start of the order path.</p>
+    </header>
+    <CardGrid>
+      <LinkCard title="Dashboard" href="/en/dashboard" description="Tasks, key metrics, and shortcuts." />
+      <LinkCard title="Customer management" href="/en/customer" description="Profiles, contacts, and deal history." />
+      <LinkCard title="Vendor management" href="/en/vendor" description="Vendor data, terms, and purchasing." />
+      <LinkCard title="RFQ & Quote" href="/en/rfq-quote" description="Inquiries and formal quotations." />
+    </CardGrid>
+  </section>
+
+  <section class="help-section">
+    <header class="help-section__head">
+      <h2>Fulfillment & supply chain</h2>
+      <p>Sales and purchase orders with inventory, logistics, and customs.</p>
+    </header>
+    <CardGrid>
+      <LinkCard title="Sales order" href="/en/sales-order" description="Orders, production, and shipping." />
+      <LinkCard title="Purchase order" href="/en/purchase-order" description="Ordering, receiving, and payment progress." />
+      <LinkCard title="Inventory" href="/en/inventory" description="Stock, inbound/outbound, and transfers." />
+      <LinkCard title="Logistics" href="/en/logistics" description="Shipments, waybills, and status." />
+      <LinkCard title="Customs" href="/en/customs" description="Import/export declarations and files." />
+    </CardGrid>
+  </section>
+
+  <section class="help-section">
+    <header class="help-section__head">
+      <h2>Finance & system</h2>
+      <p>Payments and reporting, plus account, permissions, and releases.</p>
+    </header>
+    <CardGrid>
+      <LinkCard title="Finance" href="/en/finance" description="Invoices, receipts, and reports." />
+      <LinkCard title="Accumulated" href="/en/accumulated" description="Cross-module totals and history." />
+      <LinkCard title="Profile" href="/en/profile" description="Account details and preferences." />
+      <LinkCard title="System settings" href="/en/system" description="Users, roles, permissions, and setup." />
+    </CardGrid>
+  </section>
+
+  <section class="help-foot">
+    <div class="help-foot__panel">
+      <div class="help-foot__copy">
+        <h2>Ready to go deeper?</h2>
+        <div class="help-foot__lead">
+          Start with customer management for the main flow, or check release notes for recent capabilities. For tenant-specific issues, contact your system administrator.
+        </div>
+      </div>
+      <div class="help-foot__actions">
+        <a class="help-btn help-btn--outline" href="/en/customer">Start with customers</a>
+        <a class="help-btn help-btn--outline" href="/en/release-notes">Release notes</a>
+      </div>
+    </div>
+  </section>
+</div>

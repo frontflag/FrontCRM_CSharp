@@ -112,6 +112,7 @@ declare module 'vue' {
     FinancePaymentBankSelect: typeof import('./src/components/Finance/FinancePaymentBankSelect.vue')['default']
     FinancePaymentPayDialog: typeof import('./src/components/Finance/FinancePaymentPayDialog.vue')['default']
     FinancePaymentRequestEditDialog: typeof import('./src/components/Finance/FinancePaymentRequestEditDialog.vue')['default']
+    HelpLink: typeof import('./src/components/Common/HelpLink.vue')['default']
     HelpManualPanel: typeof import('./src/components/workspace/HelpManualPanel.vue')['default']
     IndustryNewsItemView: typeof import('./src/components/RFQ/enhancers/IndustryNewsItemView.vue')['default']
     JsonBlockPanel: typeof import('./src/components/RFQ/enhancers/JsonBlockPanel.vue')['default']

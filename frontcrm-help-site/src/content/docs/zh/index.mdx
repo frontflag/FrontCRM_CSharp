@@ -1,0 +1,81 @@
+---
+title: FrontCRM 帮助中心
+description: FrontCRM 官方帮助文档，覆盖客户、销售、采购、库存、物流与财务等核心模块。
+template: splash
+tableOfContents: false
+editUrl: false
+---
+
+import { LinkCard, CardGrid } from '@astrojs/starlight/components';
+
+<section class="help-hero">
+  <div class="help-hero__bg" aria-hidden="true"></div>
+  <div class="help-hero__inner">
+    <p class="help-hero__brand">FrontCRM</p>
+    <h1 class="help-hero__title">官方帮助中心</h1>
+    <div class="help-hero__lead">
+      面向业务与实施团队的产品文档：从客户与询价，到采购、库存、物流与财务，一步查清怎么做。
+    </div>
+    <div class="help-hero__actions">
+      <a class="help-btn help-btn--primary" href="/zh/customer">浏览模块文档</a>
+      <a class="help-btn help-btn--ghost" href="/zh/release-notes">查看版本更新</a>
+    </div>
+  </div>
+</section>
+
+<div class="help-band">
+  <section class="help-section">
+    <header class="help-section__head">
+      <h2>核心业务</h2>
+      <p>客户、供应商与询报价——日常成单链路的起点。</p>
+    </header>
+    <CardGrid>
+      <LinkCard title="工作台" href="/zh/dashboard" description="待办、关键指标与快捷入口。" />
+      <LinkCard title="客户管理" href="/zh/customer" description="客户档案、联系人与交易跟踪。" />
+      <LinkCard title="供应商管理" href="/zh/vendor" description="供应商信息、条件与采购往来。" />
+      <LinkCard title="询价与报价" href="/zh/rfq-quote" description="客户询价处理与正式报价。" />
+    </CardGrid>
+  </section>
+
+  <section class="help-section">
+    <header class="help-section__head">
+      <h2>履约与供应链</h2>
+      <p>销售与采购订单，以及库存、物流与报关协同。</p>
+    </header>
+    <CardGrid>
+      <LinkCard title="销售订单" href="/zh/sales-order" description="订单管理、生产与发货跟踪。" />
+      <LinkCard title="采购订单" href="/zh/purchase-order" description="下单、收货与付款进度。" />
+      <LinkCard title="库存" href="/zh/inventory" description="库存查询、出入库与调拨。" />
+      <LinkCard title="物流" href="/zh/logistics" description="发货单、运单与物流状态。" />
+      <LinkCard title="报关" href="/zh/customs" description="进出口报关与相关文件。" />
+    </CardGrid>
+  </section>
+
+  <section class="help-section">
+    <header class="help-section__head">
+      <h2>财务与系统</h2>
+      <p>收付款与报表，以及账户、权限与版本说明。</p>
+    </header>
+    <CardGrid>
+      <LinkCard title="财务" href="/zh/finance" description="发票、收付款与财务报表。" />
+      <LinkCard title="累计" href="/zh/accumulated" description="跨模块汇总与历史数据。" />
+      <LinkCard title="个人中心" href="/zh/profile" description="账户资料与个人偏好。" />
+      <LinkCard title="系统设置" href="/zh/system" description="用户、角色、权限与基础配置。" />
+    </CardGrid>
+  </section>
+
+  <section class="help-foot">
+    <div class="help-foot__panel">
+      <div class="help-foot__copy">
+        <h2>准备好深入某一模块了吗？</h2>
+        <div class="help-foot__lead">
+          从客户管理开始了解主流程，或直接查看版本更新了解近期能力变化。内部问题请联系贵司系统管理员。
+        </div>
+      </div>
+      <div class="help-foot__actions">
+        <a class="help-btn help-btn--outline" href="/zh/customer">从客户管理开始</a>
+        <a class="help-btn help-btn--outline" href="/zh/release-notes">版本更新日志</a>
+      </div>
+    </div>
+  </section>
+</div>

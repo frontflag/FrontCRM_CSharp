@@ -1,13 +1,17 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
+
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { marked } from 'marked'
+
 import {
   helpAssetUrl,
   helpCatalogRelativePath,
   helpDocRelativePathForRoute,
   resolveHelpLinkHref
 } from '@/utils/helpDocPath'
+import { getExternalHelpUrl } from '@/utils/externalHelpUrl'
 
 marked.setOptions({ gfm: true, breaks: true })
 
@@ -30,11 +34,15 @@ function isInvalidHelpFetchBody(raw: string, contentType: string | null): boolea
 }
 
 const route = useRoute()
+const { locale: i18nLocale } = useI18n()
 const loading = ref(false)
 const html = ref('')
 const missing = ref(false)
 /** 相对 /help/ 根的当前文档路径（如 pages/xxx.md 或 帮助文档目录.md） */
 const activeRel = ref(helpCatalogRelativePath())
+const externalHelpUrl = computed(() =>
+  getExternalHelpUrl(route.name as string | undefined, undefined, i18nLocale.value)
+)
 
 async function loadDoc() {
   const url = helpAssetUrl(activeRel.value)
@@ -91,6 +99,20 @@ watch(
 
 <template>
   <div class="help-manual-panel" v-loading="loading" @click.capture="onPanelClick">
+    <a
+      :href="externalHelpUrl"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="help-manual-panel__external-link"
+      title="在帮助中心查看完整说明"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
+        <polyline points="15 3 21 3 21 9"/>
+        <line x1="10" y1="14" x2="21" y2="3"/>
+      </svg>
+      打开完整帮助
+    </a>
     <div v-if="missing && !loading" class="help-manual-panel__empty">暂无帮助</div>
     <div v-else-if="!loading && html" class="help-manual-panel__body help-md" v-html="html" />
   </div>
@@ -103,6 +125,29 @@ watch(
   min-height: 120px;
   font-size: 12px;
   color: $text-secondary;
+}
+
+.help-manual-panel__external-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 8px 2px 0;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--el-color-primary);
+  text-decoration: none;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: var(--el-color-primary-light-9);
+    text-decoration: underline;
+  }
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
 }
 
 .help-manual-panel__empty {

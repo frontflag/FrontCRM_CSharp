@@ -49,6 +49,22 @@
               </el-icon>
             </span>
           </button>
+          <a
+            :href="externalHelpUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="global-help-btn"
+            :title="t('layout.helpCenter')"
+            :aria-label="t('layout.helpCenter')"
+          >
+            <span class="global-help-icon-wrap" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/>
+                <line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+            </span>
+          </a>
           <button
             type="button"
             class="global-notify-btn"
@@ -81,6 +97,20 @@
                   </div>
                 </div>
                 <div class="dropdown-divider"></div>
+                <a
+                  :href="externalHelpUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="dropdown-item"
+                  @click="closeDropdown"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                  </svg>
+                  {{ t('layout.helpCenter') }}
+                </a>
                 <router-link to="/profile" class="dropdown-item" @click="closeDropdown">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                     <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
@@ -1248,6 +1278,21 @@
             </button>
           </div>
           <div class="aux-panel-actions">
+            <a
+              v-if="rightActiveTabId === 'r4'"
+              :href="externalHelpUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="aux-icon-btn aux-help-link"
+              :title="t('layout.openFullHelp')"
+              :aria-label="t('layout.openFullHelp')"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
+                <polyline points="15 3 21 3 21 9"/>
+                <line x1="10" y1="14" x2="21" y2="3"/>
+              </svg>
+            </a>
             <button type="button" class="aux-icon-btn" :title="t('layout.fullscreen')" @click="toggleRightFullscreen()">⛶</button>
             <button type="button" class="aux-icon-btn" :title="t('layout.hideRightPanel')" @click="toggleRightPanel(false)">✕</button>
           </div>
@@ -1380,6 +1425,7 @@ import { useStockOutNotifyCustomsPanelStore } from '@/stores/stockOutNotifyCusto
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleOrderWriteGate, useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import { getExternalHelpUrl } from '@/utils/externalHelpUrl'
 import { Sunny, Moon } from '@element-plus/icons-vue'
 import { useUiTheme } from '@/composables/useUiTheme'
 import { setAppLocale, type AppLocale } from '@/plugins/i18n'
@@ -1427,6 +1473,7 @@ const canSalesOrderItemOpsPurchase = computed(
 )
 const brandFullText = computed(() => appBrandTitle(t('layout.brandFull')))
 const currentLocale = ref<AppLocale>(locale.value as AppLocale)
+const externalHelpUrl = computed(() => getExternalHelpUrl(route.name as string | undefined, undefined, currentLocale.value))
 
 /** 顶栏图标：与登录页同源（公司信息 Logo），接口/文件缺失时回退内置图 */
 const headerLogoUseFallback = ref(false)
@@ -2892,7 +2939,29 @@ onBeforeUnmount(() => {
   }
 }
 
-.global-notify-icon-wrap {
+.global-help-btn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--crm-notify-border);
+  border-radius: 8px;
+  background: var(--crm-notify-bg);
+  color: var(--crm-notify-color);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+  &:hover {
+    background: var(--crm-notify-hover-bg);
+    border-color: var(--crm-notify-hover-border);
+    color: var(--crm-notify-hover-color);
+  }
+}
+
+.global-help-icon-wrap {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3526,6 +3595,17 @@ onBeforeUnmount(() => {
   &:hover {
     background: var(--crm-accent-012);
     color: var(--crm-cyan-primary);
+  }
+}
+
+a.aux-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  svg {
+    width: 16px;
+    height: 16px;
   }
 }
 

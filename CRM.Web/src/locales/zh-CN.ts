@@ -569,6 +569,8 @@ const zhCN = {
     switchToLight: '切换为浅色主题',
     switchToDark: '切换为深色主题',
     notifications: '消息通知',
+    helpCenter: '帮助中心',
+    openFullHelp: '打开完整帮助',
     profile: '个人设置',
     logout: '退出系统',
     logoutTitle: '退出登录',
@@ -5340,6 +5342,8 @@ const zhCN = {
     filters: {
       billCode: '采购申请号',
       billCodePlaceholder: '请输入采购申请号',
+      pn: '型号',
+      pnPlaceholder: '请输入物料型号',
       sellOrder: '销售订单',
       sellOrderPlaceholder: '请输入销售订单号',
       allStatus: '全部状态',

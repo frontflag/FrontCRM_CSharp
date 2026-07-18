@@ -570,6 +570,8 @@ const enUS = {
     switchToLight: 'Switch to light theme',
     switchToDark: 'Switch to dark theme',
     notifications: 'Notifications',
+    helpCenter: 'Help Center',
+    openFullHelp: 'Open Full Help',
     profile: 'Profile',
     logout: 'Sign Out',
     logoutTitle: 'Sign Out',
@@ -5357,6 +5359,8 @@ const enUS = {
     filters: {
       billCode: 'Requisition no.',
       billCodePlaceholder: 'Enter requisition no.',
+      pn: 'MPN',
+      pnPlaceholder: 'Enter material / MPN',
       sellOrder: 'Sales order',
       sellOrderPlaceholder: 'Sales order no.',
       allStatus: 'All statuses',
