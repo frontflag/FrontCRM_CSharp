@@ -224,6 +224,94 @@ public class SellOrderItemExtendSyncServiceTests
     }
 
     [Fact]
+    public async Task RecalculateAsync_UsesItemLevelQty_ForMultiLineSalesStockOutHeader()
+    {
+        var lineA = Guid.NewGuid().ToString();
+        var lineB = Guid.NewGuid().ToString();
+        var stockOutId = Guid.NewGuid().ToString();
+        var itemA = Guid.NewGuid().ToString();
+        var itemB = Guid.NewGuid().ToString();
+
+        var soItemRepo = new MemoryRepository<SellOrderItem>();
+        var extendRepo = new MemoryRepository<SellOrderItemExtend>();
+        var stockOutRepo = new MemoryRepository<StockOut>();
+        var stockOutItemRepo = new MemoryRepository<StockOutItem>();
+        var stockOutItemExtendRepo = new MemoryRepository<StockOutItemExtend>();
+
+        await soItemRepo.AddAsync(new SellOrderItem
+        {
+            Id = lineA,
+            SellOrderId = Guid.NewGuid().ToString(),
+            Qty = 800m,
+            Price = 1m,
+            ConvertPrice = 1m
+        });
+        await extendRepo.AddAsync(new SellOrderItemExtend { Id = lineA });
+
+        // 头表 SellOrderItemId 误挂 lineA，TotalQuantity 为多行合计 3450
+        await stockOutRepo.AddAsync(new StockOut
+        {
+            Id = stockOutId,
+            StockOutCode = "STO-MULTI",
+            StockOutType = StockOutTypeCode.Sales,
+            Status = 4,
+            SellOrderItemId = lineA,
+            TotalQuantity = 3450,
+            WarehouseId = Guid.NewGuid().ToString()
+        });
+        await stockOutItemRepo.AddAsync(new StockOutItem
+        {
+            Id = itemA,
+            StockOutId = stockOutId,
+            MaterialId = Guid.NewGuid().ToString(),
+            Quantity = 800,
+            ActualQty = 800
+        });
+        await stockOutItemRepo.AddAsync(new StockOutItem
+        {
+            Id = itemB,
+            StockOutId = stockOutId,
+            MaterialId = Guid.NewGuid().ToString(),
+            Quantity = 2650,
+            ActualQty = 2650
+        });
+        await stockOutItemExtendRepo.AddAsync(new StockOutItemExtend
+        {
+            Id = itemA,
+            SellOrderItemId = lineA,
+            QtyStockOut = 800
+        });
+        await stockOutItemExtendRepo.AddAsync(new StockOutItemExtend
+        {
+            Id = itemB,
+            SellOrderItemId = lineB,
+            QtyStockOut = 2650
+        });
+
+        var service = new SellOrderItemExtendSyncService(
+            soItemRepo,
+            extendRepo,
+            new MemoryRepository<PurchaseOrderItem>(),
+            new MemoryRepository<StockIn>(),
+            new MemoryRepository<StockInItemExtend>(),
+            new MemoryRepository<StockInItem>(),
+            new MemoryRepository<StockOutRequest>(),
+            stockOutRepo,
+            stockOutItemRepo,
+            stockOutItemExtendRepo,
+            new MemoryRepository<FinanceReceivable>(),
+            NoOpMainStatusSync(),
+            NullLogger<SellOrderItemExtendSyncService>.Instance);
+
+        await service.RecalculateAsync(lineA);
+
+        var updated = await extendRepo.GetByIdAsync(lineA);
+        Assert.NotNull(updated);
+        Assert.Equal(800m, updated!.QtyStockOutActual);
+        Assert.Equal(2, updated.StockOutProgressStatus);
+    }
+
+    [Fact]
     public async Task RecalculateAsync_IgnoresCustomsStockOutNotify_WhenSummingSalesLineNotifyQty()
     {
         var lineId = Guid.NewGuid().ToString();

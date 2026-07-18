@@ -14,7 +14,6 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
 {
     private const short PoItemStatusConfirmed = 30;
     private const short StockInCompleted = 2;
-    private const short SalesStockOutType = StockOutTypeCode.Sales;
     /// <summary>已出库</summary>
     private const short StockOutCompleted = 2;
     /// <summary>已完成（列表「标记完成」）</summary>
@@ -112,14 +111,8 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
         ext.InvoiceAmount = lineAmountTotal;
         ext.PaymentAmountToBe = lineAmountTotal;
 
-        // 实出数量 / 出库进度：stockout 头表 SellOrderItemId = 本销售明细、销售出库，状态为已出库(2) 或已完成(4)，累计 TotalQuantity 与销售明细数量比（与入库口径对称）
-        var completedStockOuts = (await _stockOutRepo.FindAsync(o =>
-                (o.Status == StockOutCompleted || o.Status == StockOutFinished)
-                && o.StockOutType == SalesStockOutType
-                && o.SellOrderItemId != null
-                && o.SellOrderItemId == id))
-            .ToList();
-        var sumStockOut = completedStockOuts.Sum(o => o.TotalQuantity);
+        // 实出数量 / 出库进度：按出库明细扩展表 sell_order_item_id 归属本行累计（多行出库单不可用头表 TotalQuantity）
+        var (sumStockOut, completedStockOuts) = await SumCompletedSalesStockOutQtyForLineAsync(id);
         ext.QtyStockOutActual = sumStockOut;
 
         // --- 销售数量变更后：校验；单条有效出库通知仅收缩超量，不将部分通知扩成整单（多条仅校验）---
@@ -309,6 +302,66 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
         ext.ProfitOutRateFin = ext.ProfitOutRateBiz;
     }
 
+    /// <summary>
+    /// 已完成销售出库数量：按明细扩展 <c>sell_order_item_id</c> 归属累计。
+    /// 多行出库单头 <c>TotalQuantity</c> / 头表 <c>SellOrderItemId</c> 不能代表单行实出。
+    /// </summary>
+    private async Task<(decimal SumQty, List<StockOut> Headers)> SumCompletedSalesStockOutQtyForLineAsync(
+        string sellOrderItemId)
+    {
+        var lineExtends = (await _stockOutItemExtendRepo.FindAsync(e =>
+                !e.IsDeleted
+                && e.SellOrderItemId != null
+                && e.SellOrderItemId == sellOrderItemId))
+            .ToList();
+        if (lineExtends.Count == 0)
+            return (0m, new List<StockOut>());
+
+        var extendByItemId = lineExtends
+            .Where(e => !string.IsNullOrWhiteSpace(e.Id))
+            .GroupBy(e => e.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+        var itemIds = extendByItemId.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var outItems = (await _stockOutItemRepo.FindAsync(i =>
+                !i.IsDeleted && itemIds.Contains(i.Id)))
+            .ToList();
+        if (outItems.Count == 0)
+            return (0m, new List<StockOut>());
+
+        var stockOutIds = outItems
+            .Select(i => i.StockOutId)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var completedHeaders = (await _stockOutRepo.FindAsync(o =>
+                stockOutIds.Contains(o.Id)
+                && (o.Status == StockOutCompleted || o.Status == StockOutFinished)
+                && StockOutTypeCode.IsSalesStockOut(o.StockOutType)))
+            .ToList();
+        var completedIdSet = completedHeaders
+            .Select(o => o.Id.Trim())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        decimal sum = 0m;
+        foreach (var item in outItems)
+        {
+            if (!completedIdSet.Contains(item.StockOutId.Trim()))
+                continue;
+            if (!extendByItemId.TryGetValue(item.Id.Trim(), out var extRow))
+                continue;
+            var qty = extRow.QtyStockOut > 0
+                ? extRow.QtyStockOut
+                : (item.ActualQty > 0 ? item.ActualQty : item.Quantity);
+            if (qty > 0)
+                sum += qty;
+        }
+
+        return (sum, completedHeaders);
+    }
+
     private async Task<List<SellOrderOutboundCostLine>> LoadOutboundCostLinesAsync(
         string sellOrderItemId,
         IReadOnlyList<StockOut> completedStockOuts)
@@ -334,8 +387,12 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
             i => i.ActualQty > 0 ? i.ActualQty : i.Quantity,
             StringComparer.OrdinalIgnoreCase);
         var itemIds = qtyByItemId.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var lineId = sellOrderItemId.Trim();
         var extends = (await _stockOutItemExtendRepo.FindAsync(e =>
-                !e.IsDeleted && itemIds.Contains(e.Id)))
+                !e.IsDeleted
+                && itemIds.Contains(e.Id)
+                && e.SellOrderItemId != null
+                && e.SellOrderItemId == lineId))
             .ToList();
 
         var lines = new List<SellOrderOutboundCostLine>(extends.Count);

@@ -33,7 +33,7 @@ namespace CRM.Core.Models.Sales
         [Column(TypeName = "numeric(18,4)")]
         public decimal QtyStockOutNotifyNot { get; set; }
 
-        /// <summary>已实际出库数量：已完成的销售出库单（StockOutType=销售）头表 <c>SellOrderItemId</c> 等于本行时，按单头 <c>TotalQuantity</c> 累计。</summary>
+        /// <summary>已实际出库数量：已完成销售出库单中，明细扩展 <c>sell_order_item_id</c> 归属本行的数量合计（多行出库单不可用头表 <c>TotalQuantity</c>）。</summary>
         [Column(TypeName = "numeric(18,4)")]
         public decimal QtyStockOutActual { get; set; }
 
