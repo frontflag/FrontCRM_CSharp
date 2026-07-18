@@ -176,6 +176,14 @@ const enUS = {
       filterCode: 'Declaration no.',
       filterSor: 'Stock-out request id',
       filterDeclareDate: 'Declare date',
+      settingsMenu: {
+        aria: 'List filter settings',
+        closeTabs: 'Close tabs',
+        tabMode: 'Tab mode'
+      },
+      filterTabs: {
+        all: 'All'
+      },
       typeImport: 'Import',
       typeExport: 'Export',
       internalPending: 'Pending',
@@ -2217,6 +2225,7 @@ const enUS = {
       materialPlaceholder: 'MPN / customer part',
       rfqCodePlaceholder: 'RFQ code',
       allItemStatuses: 'All item statuses',
+      itemStatus: 'Item status',
       allSalesUsers: 'All sales reps',
       allPurchasers: 'All purchasers',
       hasQuotes: 'Has quotes',
@@ -2224,6 +2233,44 @@ const enUS = {
       reset: 'Reset',
       boardView: 'Board',
       listView: 'List'
+    },
+    settingsMenu: {
+      aria: 'List filter settings',
+      closeTabs: 'Close tabs',
+      tabMode: 'Tab mode'
+    },
+    filterTabs: {
+      all: 'All'
+    },
+    searchPanel: {
+      title: 'Quick search',
+      clearPreset: 'Clear quick search',
+      groups: {
+        demand: 'RFQ lines',
+        demandStatus: 'RFQ status',
+        quote: 'Quotes',
+        quoteStatus: 'Quote status'
+      },
+      presets: {
+        item_last_10m: 'Lines in 10 minutes',
+        item_last_30m: 'Lines in 30 minutes',
+        item_last_1h: 'Lines in 1 hour',
+        item_today: 'Lines today',
+        item_today_yesterday: 'Lines today & yesterday',
+        item_last_3_days: 'Lines in 3 days',
+        item_last_7_days: 'Lines in 1 week',
+        important: 'Important RFQs',
+        converted: 'Converted lines',
+        quote_last_10m: 'Quotes in 10 minutes',
+        quote_last_30m: 'Quotes in 30 minutes',
+        quote_last_1h: 'Quotes in 1 hour',
+        quote_today: 'Quotes today',
+        quote_today_yesterday: 'Quotes today & yesterday',
+        quote_last_3_days: 'Quotes in 3 days',
+        quote_last_7_days: 'Quotes in 1 week',
+        no_quote: 'No quote found',
+        multi_quote: 'Multiple quotes'
+      }
     },
     board: {
       hint: 'Stats match current filters; converted lines use approved+ sales orders linked via quotes; conversion rate excludes no-quote-found lines.',
@@ -5537,6 +5584,15 @@ const enUS = {
       search: 'Search',
       reset: 'Reset'
     },
+    settingsMenu: {
+      aria: 'List filter settings',
+      closeTabs: 'Close tabs',
+      tabMode: 'Tab mode',
+      warehouseTabDisabled: 'Use the dropdown when warehouses exceed {max}'
+    },
+    filterTabs: {
+      all: 'All'
+    },
     columns: {
       outboundStatus: 'Outbound',
       stockItemCode: 'Inventory item code',
@@ -5740,6 +5796,15 @@ const enUS = {
       allRegions: 'All regions',
       search: 'Search',
       reset: 'Reset'
+    },
+    settingsMenu: {
+      aria: 'List filter settings',
+      closeTabs: 'Close tabs',
+      tabMode: 'Tab mode',
+      warehouseTabDisabled: 'Use the dropdown when warehouses exceed {max}'
+    },
+    filterTabs: {
+      all: 'All'
     },
     stats: {
       capitalOccupied: 'Capital Occupied',
@@ -6174,9 +6239,18 @@ const enUS = {
       stockOutDateTo: 'To',
       stockOutDateSep: 'to',
       stockOutTypePlaceholder: 'Stock-out type',
+      stockOutType: 'Stock-out type',
       search: 'Search',
       reset: 'Reset',
       refresh: 'Refresh'
+    },
+    settingsMenu: {
+      aria: 'List filter settings',
+      closeTabs: 'Close tabs',
+      tabMode: 'Tab mode'
+    },
+    filterTabs: {
+      all: 'All'
     },
     leftPanel: {
       title: 'Stock-out search',
@@ -6418,7 +6492,9 @@ const enUS = {
     },
     filters: {
       statusPlaceholder: 'Status',
+      status: 'Status',
       regionPlaceholder: 'Region',
+      regionType: 'Region',
       customerPlaceholder: 'Customer',
       salesUserPlaceholder: 'Sales rep',
       materialModelPlaceholder: 'Material / MPN',
@@ -6426,6 +6502,7 @@ const enUS = {
       dateEnd: 'Expected ship to',
       dateTo: 'to',
       stockOutTypePlaceholder: 'Stock-out type',
+      stockOutType: 'Stock-out type',
       stockOutTypeAll: 'All types',
       workflowPlaceholder: 'Workflow',
       workflowAll: 'All',
@@ -6437,6 +6514,14 @@ const enUS = {
       search: 'Search',
       reset: 'Reset',
       refresh: 'Refresh'
+    },
+    settingsMenu: {
+      aria: 'List filter settings',
+      closeTabs: 'Close tabs',
+      tabMode: 'Tab mode'
+    },
+    filterTabs: {
+      all: 'All'
     },
     columns: {
       requestCode: 'Notice No.',
@@ -6578,10 +6663,13 @@ const enUS = {
       keywordPlaceholder: 'Packing no. / customer / sales rep',
       packingCodePlaceholder: 'Packing no.',
       statusPlaceholder: 'Status',
+      status: 'Status',
       statusAll: 'All statuses',
       stockOutTypePlaceholder: 'Stock-out type',
+      stockOutType: 'Stock-out type',
       stockOutTypeAll: 'All stock-out types',
       materialTypePlaceholder: 'Material type',
+      materialType: 'Material type',
       materialTypeAll: 'All material types',
       customerNamePlaceholder: 'Customer name',
       salesUserNamePlaceholder: 'Sales rep',
@@ -6592,6 +6680,14 @@ const enUS = {
       search: 'Search',
       reset: 'Reset',
       refresh: 'Refresh'
+    },
+    settingsMenu: {
+      aria: 'List filter settings',
+      closeTabs: 'Close tabs',
+      tabMode: 'Tab mode'
+    },
+    filterTabs: {
+      all: 'All'
     },
     columns: {
       packingCode: 'Packing no.',
@@ -7340,6 +7436,14 @@ const enUS = {
       endDate: 'Payment date to',
       search: 'Search'
     },
+    settingsMenu: {
+      aria: 'List filter settings',
+      closeTabs: 'Close tabs',
+      tabMode: 'Tab mode'
+    },
+    filterTabs: {
+      all: 'All'
+    },
     columns: {
       freightForwarderOrderNo: 'Freight forwarder no.',
       code: 'Payment code',
@@ -7511,10 +7615,19 @@ const enUS = {
     filters: {
       keyword: 'Receipt code / customer',
       status: 'Status',
+      purpose: 'Purpose',
       to: 'to',
       startDate: 'Start date',
       endDate: 'End date',
       search: 'Search'
+    },
+    settingsMenu: {
+      aria: 'List filter settings',
+      closeTabs: 'Close tabs',
+      tabMode: 'Tab mode'
+    },
+    filterTabs: {
+      all: 'All'
     },
     create: 'New receipt',
     goWriteOff: 'Receipt write-off',

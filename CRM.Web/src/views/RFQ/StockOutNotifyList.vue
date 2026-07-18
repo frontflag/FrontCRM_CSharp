@@ -18,6 +18,7 @@
     <div class="search-bar">
       <div class="search-left">
         <el-select
+          v-if="tabModeDimension !== 'status'"
           v-model="filterForm.status"
           :placeholder="t('stockOutNotifyList.filters.statusPlaceholder')"
           clearable
@@ -32,6 +33,7 @@
           />
         </el-select>
         <el-select
+          v-if="tabModeDimension !== 'regionType'"
           v-model="filterForm.regionType"
           :placeholder="t('stockOutNotifyList.filters.regionPlaceholder')"
           clearable
@@ -42,6 +44,7 @@
           <el-option :label="t('inventoryList.warehouse.regionOverseas')" :value="REGION_TYPE_OVERSEAS" />
         </el-select>
         <el-select
+          v-if="tabModeDimension !== 'stockOutType'"
           v-model="filterForm.stockOutType"
           :placeholder="t('stockOutNotifyList.filters.stockOutTypePlaceholder')"
           clearable
@@ -95,7 +98,79 @@
         />
         <button type="button" class="btn-primary btn-sm" @click="handleSearch">{{ t('stockOutNotifyList.filters.search') }}</button>
         <button type="button" class="btn-ghost btn-sm" @click="handleReset">{{ t('stockOutNotifyList.filters.reset') }}</button>
+        <el-popover
+          v-model:visible="settingsMenuOpen"
+          trigger="click"
+          placement="bottom-end"
+          :width="168"
+          :show-arrow="false"
+          popper-class="son-list-settings-popper"
+        >
+          <template #reference>
+            <button
+              type="button"
+              class="btn-ghost btn-sm btn-icon-only"
+              :title="t('stockOutNotifyList.settingsMenu.aria')"
+              :aria-label="t('stockOutNotifyList.settingsMenu.aria')"
+            >
+              <el-icon :size="14"><Setting /></el-icon>
+            </button>
+          </template>
+          <div class="son-list-settings-menu">
+            <button
+              type="button"
+              class="son-list-settings-menu__item"
+              :disabled="tabModeDimension === 'off'"
+              @click="closeFilterTabMode"
+            >
+              {{ t('stockOutNotifyList.settingsMenu.closeTabs') }}
+            </button>
+            <div
+              class="son-list-settings-menu__submenu"
+              @mouseenter="settingsSubmenuOpen = true"
+              @mouseleave="settingsSubmenuOpen = false"
+            >
+              <div class="son-list-settings-menu__item son-list-settings-menu__item--parent">
+                <span>{{ t('stockOutNotifyList.settingsMenu.tabMode') }}</span>
+                <el-icon class="son-list-settings-menu__caret"><ArrowRight /></el-icon>
+              </div>
+              <div v-show="settingsSubmenuOpen" class="son-list-settings-menu__flyout">
+                <button
+                  v-for="dim in SON_LIST_TAB_MODE_OPTIONS"
+                  :key="dim"
+                  type="button"
+                  class="son-list-settings-menu__item"
+                  :class="{ 'is-active': tabModeDimension === dim }"
+                  @click="enableFilterTabMode(dim)"
+                >
+                  {{ tabModeDimensionLabel(dim) }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </el-popover>
       </div>
+    </div>
+
+    <div class="son-main-panel" :class="{ 'son-main-panel--with-filter-tabs': filterTabStripVisible }">
+    <div
+      v-if="filterTabStripVisible"
+      class="son-filter-tabs"
+      role="tablist"
+      :aria-label="filterTabStripAriaLabel"
+    >
+      <button
+        v-for="tab in filterTabOptions"
+        :key="tab.id"
+        type="button"
+        role="tab"
+        class="son-filter-tabs__item"
+        :class="{ 'is-active': activeFilterTabId === tab.id }"
+        :aria-selected="activeFilterTabId === tab.id"
+        @click="onFilterTabClick(tab.id)"
+      >
+        {{ tab.label }}
+      </button>
     </div>
 
     <CrmDataTable
@@ -277,6 +352,7 @@
         @size-change="onNotifyPageSizeChange"
       />
     </div>
+    </div>
 
     <el-drawer
       v-model="basketDrawerVisible"
@@ -343,7 +419,24 @@ import { computed, inject, nextTick, onMounted, reactive, ref, watch } from 'vue
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Setting } from '@element-plus/icons-vue'
+import { ArrowRight, Setting } from '@element-plus/icons-vue'
+import {
+  SON_LIST_TAB_MODE_OPTIONS,
+  SON_STATUS_TAB_VALUES,
+  SON_STOCK_OUT_TYPE_TAB_VALUES,
+  readSonListTabMode,
+  writeSonListTabMode,
+  statusFilterToTab,
+  statusTabToFilter,
+  regionFilterToTab,
+  regionTabToFilter,
+  stockOutTypeFilterToTab,
+  stockOutTypeTabToFilter,
+  type SonListTabModeDimension,
+  type SonStatusTabId,
+  type SonRegionTabId,
+  type SonStockOutTypeTabId
+} from '@/utils/stockOutNotifyListTabMode'
 import { storeToRefs } from 'pinia'
 import { stockOutApi, type StockOutRequestDto } from '@/api/stockOut'
 import { normalizeRegionType, REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS } from '@/constants/regionType'
@@ -373,6 +466,108 @@ const authStore = useAuthStore()
 const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const loading = ref(false)
+const tabModeDimension = ref<SonListTabModeDimension>(readSonListTabMode())
+const settingsMenuOpen = ref(false)
+const settingsSubmenuOpen = ref(false)
+
+const TAB_MODE_FILTER_I18N: Record<Exclude<SonListTabModeDimension, 'off'>, string> = {
+  status: 'stockOutNotifyList.filters.status',
+  regionType: 'stockOutNotifyList.filters.regionType',
+  stockOutType: 'stockOutNotifyList.filters.stockOutType'
+}
+
+function tabModeDimensionLabel(dim: Exclude<SonListTabModeDimension, 'off'>) {
+  return t(TAB_MODE_FILTER_I18N[dim])
+}
+
+function closeFilterTabMode() {
+  if (tabModeDimension.value === 'off') return
+  tabModeDimension.value = 'off'
+  writeSonListTabMode('off')
+  settingsMenuOpen.value = false
+  settingsSubmenuOpen.value = false
+}
+
+function enableFilterTabMode(dim: Exclude<SonListTabModeDimension, 'off'>) {
+  tabModeDimension.value = dim
+  writeSonListTabMode(dim)
+  settingsMenuOpen.value = false
+  settingsSubmenuOpen.value = false
+}
+
+watch(settingsMenuOpen, (open) => {
+  if (!open) settingsSubmenuOpen.value = false
+})
+
+const filterTabStripVisible = computed(() => tabModeDimension.value !== 'off')
+
+const filterTabStripAriaLabel = computed(() => {
+  if (tabModeDimension.value === 'off') return ''
+  return tabModeDimensionLabel(tabModeDimension.value)
+})
+
+type SonFilterTabId = SonStatusTabId | SonRegionTabId | SonStockOutTypeTabId
+
+const filterTabOptions = computed(() => {
+  const dim = tabModeDimension.value
+  if (dim === 'off') return [] as Array<{ id: SonFilterTabId; label: string }>
+  if (dim === 'status') {
+    return [
+      { id: 'all' as const, label: t('stockOutNotifyList.filterTabs.all') },
+      ...SON_STATUS_TAB_VALUES.map((value) => ({
+        id: String(value) as SonStatusTabId,
+        label: statusFilterOptions.value.find((o) => o.value === value)?.label ?? String(value)
+      }))
+    ]
+  }
+  if (dim === 'regionType') {
+    return [
+      { id: 'all' as const, label: t('stockOutNotifyList.filterTabs.all') },
+      { id: '10' as const, label: t('inventoryList.warehouse.regionDomestic') },
+      { id: '20' as const, label: t('inventoryList.warehouse.regionOverseas') }
+    ]
+  }
+  return [
+    { id: 'all' as const, label: t('stockOutNotifyList.filterTabs.all') },
+    ...SON_STOCK_OUT_TYPE_TAB_VALUES.map((value) => ({
+      id: String(value) as SonStockOutTypeTabId,
+      label: notifyStockOutTypeLabel(value)
+    }))
+  ]
+})
+
+const activeFilterTabId = computed((): SonFilterTabId => {
+  const dim = tabModeDimension.value
+  if (dim === 'status') return statusFilterToTab(filterForm.status)
+  if (dim === 'regionType') return regionFilterToTab(filterForm.regionType)
+  if (dim === 'stockOutType') return stockOutTypeFilterToTab(filterForm.stockOutType)
+  return 'all'
+})
+
+function onFilterTabClick(tab: SonFilterTabId) {
+  const dim = tabModeDimension.value
+  if (dim === 'status') {
+    const next = statusTabToFilter(tab as SonStatusTabId)
+    if (filterForm.status === next) return
+    filterForm.status = next
+    handleSearch()
+    return
+  }
+  if (dim === 'regionType') {
+    const next = regionTabToFilter(tab as SonRegionTabId)
+    if (filterForm.regionType === next) return
+    filterForm.regionType = next
+    handleSearch()
+    return
+  }
+  if (dim === 'stockOutType') {
+    const next = stockOutTypeTabToFilter(tab as SonStockOutTypeTabId)
+    if (filterForm.stockOutType === next) return
+    filterForm.stockOutType = next
+    handleSearch()
+  }
+}
+
 const filterForm = reactive({
   status: undefined as number | undefined,
   regionType: undefined as number | undefined,
@@ -853,6 +1048,78 @@ onMounted(() => {
   margin-bottom: 12px;
 }
 
+.btn-icon-only {
+  width: 32px;
+  padding-left: 0;
+  padding-right: 0;
+  justify-content: center;
+}
+
+.son-main-panel {
+  width: 100%;
+}
+
+.son-main-panel--with-filter-tabs {
+  :deep(.crm-data-table-root) {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+
+  :deep(.el-table),
+  :deep(.el-table__inner-wrapper),
+  :deep(.el-table__header-wrapper) {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+}
+
+.son-filter-tabs {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  gap: 4px;
+}
+
+.son-filter-tabs__item {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 9px 8px;
+  border: 1px solid var(--crm-border-panel, #e2e8f0);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  background: #e8edf5;
+  color: var(--crm-text-primary);
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-weight: 500;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s, box-shadow 0.12s;
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--crm-cyan-primary) 45%, var(--crm-border-panel));
+    background: color-mix(in srgb, var(--crm-cyan-primary) 12%, var(--crm-layer-1));
+  }
+
+  &.is-active {
+    background: color-mix(in srgb, var(--crm-cyan-primary) 16%, var(--crm-layer-2, #fff));
+    border-color: color-mix(in srgb, var(--crm-cyan-primary) 55%, var(--crm-border-panel));
+    box-shadow: inset 0 2px 0 0 var(--crm-cyan-primary);
+    font-weight: 600;
+    z-index: 1;
+  }
+}
+
+html[data-theme='dark'] .son-filter-tabs__item:not(.is-active) {
+  background: var(--crm-layer-1);
+
+  &:hover {
+    background: color-mix(in srgb, var(--crm-cyan-primary) 12%, var(--crm-layer-1));
+  }
+}
+
 .search-left {
   display: flex;
   align-items: center;
@@ -1159,6 +1426,76 @@ onMounted(() => {
 
 <style lang="scss">
 @import '@/assets/styles/variables.scss';
+
+.son-list-settings-popper.el-popover.el-popper {
+  padding: 6px;
+  min-width: 160px;
+  overflow: visible;
+}
+
+.son-list-settings-menu {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.son-list-settings-menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--crm-text-secondary, rgba(224, 244, 255, 0.7));
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--crm-accent-008, rgba(0, 212, 255, 0.08));
+    color: var(--crm-text-primary, #e8f4ff);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  &.is-active {
+    color: var(--crm-cyan-primary, #00d4ff);
+  }
+
+  &--parent {
+    cursor: default;
+  }
+}
+
+.son-list-settings-menu__caret {
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--crm-text-muted, rgba(200, 216, 232, 0.55));
+}
+
+.son-list-settings-menu__submenu {
+  position: relative;
+}
+
+.son-list-settings-menu__flyout {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 4px);
+  min-width: 148px;
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid var(--crm-border-panel, rgba(0, 212, 255, 0.15));
+  background: var(--crm-layer-2, #0d1e35);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  z-index: 10;
+}
 
 .stock-out-notify-basket-drawer {
   .basket-drawer-hint {

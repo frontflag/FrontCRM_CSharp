@@ -23,6 +23,7 @@ export interface WorkspaceLayoutApi {
   toggleRightFullscreen: (fullscreen?: boolean) => void
   toggleCenterFullscreen: (fullscreen?: boolean) => void
   cycleSidebarMode: () => void
+  rightActiveTabId: Ref<string>
   setRightActiveTab: (tabId: string) => void
 }
 
@@ -236,6 +237,7 @@ export function useWorkspaceLayout() {
     toggleRightFullscreen,
     toggleCenterFullscreen,
     cycleSidebarMode,
+    rightActiveTabId,
     setRightActiveTab
   }
 

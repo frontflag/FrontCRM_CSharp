@@ -1887,7 +1887,7 @@ async function selectSalesOrderItemRow(row: Record<string, unknown>) {
   const sellOrderItemId = soItemRowKey(row)
   const sellOrderItemCode = String(row?.sellOrderItemCode ?? '').trim()
   if (!orderId || !sellOrderItemId) return
-  workspaceLayout?.setRightActiveTab('r-ops')
+  // 不强制切换右侧「操作」页签；底部明细面板照常打开。右栏仅在已展开且为「操作」时展示同步数据
   soItemLinePanel.sellOrderItemId = sellOrderItemId
   soItemLinePanel.sellOrderItemCode = sellOrderItemCode || sellOrderItemId
   soItemLinePanel.visible = true

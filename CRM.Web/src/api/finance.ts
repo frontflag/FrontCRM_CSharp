@@ -379,6 +379,8 @@ export interface PageQuery {
   vendorName?: string
   remark?: string
   status?: number
+  /** 收款用途：10 普通 / 20 预收 */
+  receiptPurpose?: number
   startDate?: string
   endDate?: string
 }

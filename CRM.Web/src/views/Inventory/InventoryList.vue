@@ -56,6 +56,7 @@
     <div class="search-bar">
       <div class="search-left">
         <el-select
+          v-if="tabModeDimension !== 'stockType'"
           v-model="stockTypeFilter"
           :placeholder="t('inventoryList.filters.allOrderTypes')"
           clearable
@@ -69,6 +70,7 @@
           <el-option :label="t('inventoryList.stockTypes.sample')" :value="3" />
         </el-select>
         <el-select
+          v-if="!warehouseTabStripActive"
           v-model="warehouseFilter"
           :placeholder="t('inventoryList.filters.allInventoryCodes')"
           clearable
@@ -104,7 +106,91 @@
         <button type="button" class="btn-ghost btn-sm" @click="resetInventorySearch">
           {{ t('inventoryList.filters.reset') }}
         </button>
+        <el-popover
+          v-model:visible="settingsMenuOpen"
+          trigger="click"
+          placement="bottom-end"
+          :width="168"
+          :show-arrow="false"
+          popper-class="inv-list-settings-popper"
+        >
+          <template #reference>
+            <button
+              type="button"
+              class="btn-ghost btn-sm btn-icon-only"
+              :title="t('inventoryList.settingsMenu.aria')"
+              :aria-label="t('inventoryList.settingsMenu.aria')"
+            >
+              <el-icon :size="14"><Setting /></el-icon>
+            </button>
+          </template>
+          <div class="inv-list-settings-menu">
+            <button
+              type="button"
+              class="inv-list-settings-menu__item"
+              :disabled="tabModeDimension === 'off'"
+              @click="closeFilterTabMode"
+            >
+              {{ t('inventoryList.settingsMenu.closeTabs') }}
+            </button>
+            <div
+              class="inv-list-settings-menu__submenu"
+              @mouseenter="settingsSubmenuOpen = true"
+              @mouseleave="settingsSubmenuOpen = false"
+            >
+              <div class="inv-list-settings-menu__item inv-list-settings-menu__item--parent">
+                <span>{{ t('inventoryList.settingsMenu.tabMode') }}</span>
+                <el-icon class="inv-list-settings-menu__caret"><ArrowRight /></el-icon>
+              </div>
+              <div v-show="settingsSubmenuOpen" class="inv-list-settings-menu__flyout">
+                <button
+                  v-for="dim in INVENTORY_LIST_TAB_MODE_OPTIONS"
+                  :key="dim"
+                  type="button"
+                  class="inv-list-settings-menu__item"
+                  :class="{
+                    'is-active': tabModeDimension === dim,
+                    'is-disabled': dim === 'warehouse' && !warehouseTabModeAllowed
+                  }"
+                  :disabled="dim === 'warehouse' && !warehouseTabModeAllowed"
+                  :title="
+                    dim === 'warehouse' && !warehouseTabModeAllowed
+                      ? t('inventoryList.settingsMenu.warehouseTabDisabled', {
+                          max: INVENTORY_WAREHOUSE_TAB_MAX
+                        })
+                      : undefined
+                  "
+                  @click="enableFilterTabMode(dim)"
+                >
+                  {{ tabModeDimensionLabel(dim) }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </el-popover>
       </div>
+    </div>
+
+    <div class="inv-main-panel" :class="{ 'inv-main-panel--with-filter-tabs': filterTabStripVisible }">
+    <div
+      v-if="filterTabStripVisible"
+      class="inv-filter-tabs"
+      role="tablist"
+      :aria-label="filterTabStripAriaLabel"
+    >
+      <button
+        v-for="tab in filterTabOptions"
+        :key="tab.id"
+        type="button"
+        role="tab"
+        class="inv-filter-tabs__item"
+        :class="{ 'is-active': activeFilterTabId === tab.id }"
+        :aria-selected="activeFilterTabId === tab.id"
+        :title="tab.label"
+        @click="onFilterTabClick(tab.id)"
+      >
+        {{ tab.label }}
+      </button>
     </div>
 
     <CrmDataTable
@@ -206,6 +292,7 @@
         @current-change="onInventoryPageChange"
       />
     </div>
+    </div>
   </div>
 </template>
 
@@ -214,8 +301,23 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { Box, Setting } from '@element-plus/icons-vue'
+import { ArrowRight, Box, Setting } from '@element-plus/icons-vue'
 import { inventoryCenterApi, type FinanceSummary, type InventoryOverview, type WarehouseInfo } from '@/api/inventoryCenter'
+import {
+  INVENTORY_LIST_TAB_MODE_OPTIONS,
+  INVENTORY_WAREHOUSE_TAB_MAX,
+  INV_STOCK_TYPE_TAB_VALUES,
+  readInventoryListTabMode,
+  writeInventoryListTabMode,
+  invStockTypeFilterToTab,
+  invStockTypeTabToFilter,
+  invWarehouseFilterToTab,
+  invWarehouseTabToFilter,
+  isWarehouseTabModeAllowed,
+  type InventoryListTabModeDimension,
+  type InvStockTypeTabId,
+  type InvWarehouseTabId
+} from '@/utils/inventoryListTabMode'
 import { REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 import { getApiErrorMessage } from '@/utils/apiError'
@@ -227,6 +329,9 @@ const router = useRouter()
 const { t } = useI18n()
 const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 const loading = ref(false)
+const tabModeDimension = ref<InventoryListTabModeDimension>(readInventoryListTabMode())
+const settingsMenuOpen = ref(false)
+const settingsSubmenuOpen = ref(false)
 const list = ref<InventoryOverview[]>([])
 const listTotal = ref(0)
 const listPage = ref(1)
@@ -241,6 +346,40 @@ const materialModelFilter = ref('')
 const stockCodeFilter = ref('')
 const finance = ref<FinanceSummary | null>(null)
 const warehouses = ref<WarehouseInfo[]>([])
+
+const TAB_MODE_FILTER_I18N: Record<Exclude<InventoryListTabModeDimension, 'off'>, string> = {
+  stockType: 'inventoryList.filters.stockType',
+  warehouse: 'inventoryList.filters.warehouse'
+}
+
+function tabModeDimensionLabel(dim: Exclude<InventoryListTabModeDimension, 'off'>) {
+  return t(TAB_MODE_FILTER_I18N[dim])
+}
+
+function closeFilterTabMode() {
+  if (tabModeDimension.value === 'off') return
+  tabModeDimension.value = 'off'
+  writeInventoryListTabMode('off')
+  settingsMenuOpen.value = false
+  settingsSubmenuOpen.value = false
+}
+
+function enableFilterTabMode(dim: Exclude<InventoryListTabModeDimension, 'off'>) {
+  if (dim === 'warehouse' && !warehouseTabModeAllowed.value) {
+    ElMessage.warning(
+      t('inventoryList.settingsMenu.warehouseTabDisabled', { max: INVENTORY_WAREHOUSE_TAB_MAX })
+    )
+    return
+  }
+  tabModeDimension.value = dim
+  writeInventoryListTabMode(dim)
+  settingsMenuOpen.value = false
+  settingsSubmenuOpen.value = false
+}
+
+watch(settingsMenuOpen, (open) => {
+  if (!open) settingsSubmenuOpen.value = false
+})
 
 const inventoryTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'stockType', label: t('inventoryList.columns.stockType'), width: 138, showOverflowTooltip: true },
@@ -292,6 +431,83 @@ const warehouseSelectOptions = computed(() => {
   }
   return [...byVal.values()].sort((a, b) => a.label.localeCompare(b.label, 'zh-CN'))
 })
+
+const warehouseTabModeAllowed = computed(() =>
+  isWarehouseTabModeAllowed(warehouseSelectOptions.value.length)
+)
+
+/** 偏好为仓库且仓数 ≤10 时才用页签条；>10 强制回退下拉（偏好可保留） */
+const warehouseTabStripActive = computed(
+  () => tabModeDimension.value === 'warehouse' && warehouseTabModeAllowed.value
+)
+
+const filterTabStripVisible = computed(
+  () =>
+    tabModeDimension.value === 'stockType' ||
+    (tabModeDimension.value === 'warehouse' && warehouseTabModeAllowed.value)
+)
+
+const filterTabStripAriaLabel = computed(() => {
+  if (tabModeDimension.value === 'off') return ''
+  if (tabModeDimension.value === 'warehouse' && !warehouseTabModeAllowed.value) return ''
+  return tabModeDimensionLabel(tabModeDimension.value)
+})
+
+function stockTypeFilterLabel(n: number) {
+  if (n === 2) return t('inventoryList.stockTypes.stocking')
+  if (n === 3) return t('inventoryList.stockTypes.sample')
+  if (n === 1) return t('inventoryList.stockTypes.customer')
+  return t('inventoryList.stockTypes.unknown')
+}
+
+type InvFilterTabId = InvStockTypeTabId | InvWarehouseTabId
+
+const filterTabOptions = computed(() => {
+  const dim = tabModeDimension.value
+  if (dim === 'stockType') {
+    return [
+      { id: 'all' as const, label: t('inventoryList.filterTabs.all') },
+      ...INV_STOCK_TYPE_TAB_VALUES.map((value) => ({
+        id: String(value) as InvStockTypeTabId,
+        label: stockTypeFilterLabel(value)
+      }))
+    ]
+  }
+  if (dim === 'warehouse' && warehouseTabModeAllowed.value) {
+    return [
+      { id: 'all' as const, label: t('inventoryList.filterTabs.all') },
+      ...warehouseSelectOptions.value.map((opt) => ({
+        id: opt.value as InvWarehouseTabId,
+        label: opt.label
+      }))
+    ]
+  }
+  return [] as Array<{ id: InvFilterTabId; label: string }>
+})
+
+const activeFilterTabId = computed((): InvFilterTabId => {
+  const dim = tabModeDimension.value
+  if (dim === 'stockType') return invStockTypeFilterToTab(stockTypeFilter.value)
+  if (dim === 'warehouse') return invWarehouseFilterToTab(warehouseFilter.value)
+  return 'all'
+})
+
+function onFilterTabClick(tab: InvFilterTabId) {
+  const dim = tabModeDimension.value
+  if (dim === 'stockType') {
+    const next = invStockTypeTabToFilter(tab as InvStockTypeTabId)
+    if (stockTypeFilter.value === next) return
+    stockTypeFilter.value = next
+    void fetchList()
+    return
+  }
+  if (dim === 'warehouse' && warehouseTabModeAllowed.value) {
+    const next = invWarehouseTabToFilter(tab as InvWarehouseTabId)
+    if ((warehouseFilter.value ?? undefined) === next) return
+    warehouseFilter.value = next
+    void fetchList()
+  }
+}
 
 function rowStockTypeNum(row: InventoryOverview): number {
   const r = row as unknown as Record<string, unknown>
@@ -924,4 +1140,152 @@ html[data-theme='dark'] .inv-list-amt-frac {
   flex: 0 0 26px;
 }
 
+.btn-icon-only {
+  width: 32px;
+  padding-left: 0;
+  padding-right: 0;
+  justify-content: center;
+}
+
+.inv-main-panel {
+  width: 100%;
+}
+
+.inv-main-panel--with-filter-tabs {
+  :deep(.crm-data-table-root) {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+
+  :deep(.el-table),
+  :deep(.el-table__inner-wrapper),
+  :deep(.el-table__header-wrapper) {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+}
+
+.inv-filter-tabs {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  gap: 4px;
+}
+
+.inv-filter-tabs__item {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 9px 8px;
+  border: 1px solid var(--crm-border-panel, #e2e8f0);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  background: #e8edf5;
+  color: var(--crm-text-primary);
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-weight: 500;
+  text-align: center;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: background 0.12s, border-color 0.12s, color 0.12s, box-shadow 0.12s;
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--crm-cyan-primary) 45%, var(--crm-border-panel));
+    background: color-mix(in srgb, var(--crm-cyan-primary) 12%, var(--crm-layer-1));
+  }
+
+  &.is-active {
+    background: color-mix(in srgb, var(--crm-cyan-primary) 16%, var(--crm-layer-2, #fff));
+    border-color: color-mix(in srgb, var(--crm-cyan-primary) 55%, var(--crm-border-panel));
+    box-shadow: inset 0 2px 0 0 var(--crm-cyan-primary);
+    font-weight: 600;
+    z-index: 1;
+  }
+}
+
+html[data-theme='dark'] .inv-filter-tabs__item:not(.is-active) {
+  background: var(--crm-layer-1);
+
+  &:hover {
+    background: color-mix(in srgb, var(--crm-cyan-primary) 12%, var(--crm-layer-1));
+  }
+}
+
+</style>
+
+<style lang="scss">
+.inv-list-settings-popper.el-popover.el-popper {
+  padding: 6px;
+  min-width: 160px;
+  overflow: visible;
+}
+
+.inv-list-settings-menu {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.inv-list-settings-menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--crm-text-secondary, rgba(224, 244, 255, 0.7));
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--crm-accent-008, rgba(0, 212, 255, 0.08));
+    color: var(--crm-text-primary, #e8f4ff);
+  }
+
+  &:disabled,
+  &.is-disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  &.is-active {
+    color: var(--crm-cyan-primary, #00d4ff);
+  }
+
+  &--parent {
+    cursor: default;
+  }
+}
+
+.inv-list-settings-menu__caret {
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--crm-text-muted, rgba(200, 216, 232, 0.55));
+}
+
+.inv-list-settings-menu__submenu {
+  position: relative;
+}
+
+.inv-list-settings-menu__flyout {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 4px);
+  min-width: 148px;
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid var(--crm-border-panel, rgba(0, 212, 255, 0.15));
+  background: var(--crm-layer-2, #0d1e35);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  z-index: 10;
+}
 </style>

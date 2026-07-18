@@ -210,6 +210,14 @@ namespace CRM.Core.Interfaces
         /// <summary>按主表创建时间（需求创建）筛选，含当日</summary>
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
+        /// <summary>按明细行创建时间筛选（含起点、不含终点；UTC）</summary>
+        public DateTime? ItemCreateStartUtc { get; set; }
+        public DateTime? ItemCreateEndExclusiveUtc { get; set; }
+        /// <summary>明细下存在报价创建时间落在此窗口（含起点、不含终点；UTC）</summary>
+        public DateTime? QuoteCreateStartUtc { get; set; }
+        public DateTime? QuoteCreateEndExclusiveUtc { get; set; }
+        /// <summary>左栏业务快捷检索码，见 <c>RfqItemListQuickFilterCodes</c></summary>
+        public string? QuickFilter { get; set; }
         public string? CustomerKeyword { get; set; }
         public string? MaterialModel { get; set; }
         /// <summary>按主表业务员用户 ID 精确筛选（与前端下拉一致）</summary>

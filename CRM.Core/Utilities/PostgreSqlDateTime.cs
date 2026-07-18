@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace CRM.Core.Utilities
 {
     /// <summary>
@@ -28,5 +30,20 @@ namespace CRM.Core.Utilities
             if (string.IsNullOrWhiteSpace(text)) return null;
             return DateTime.TryParse(text, out var d) ? ToUtc(d.Date) : null;
         }
+
+        /// <summary>解析查询字符串中的瞬时时间（ISO-8601 / round-trip），归一为 UTC。</summary>
+        public static DateTime? ParseDateTimeUtc(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return null;
+            if (!DateTime.TryParse(
+                    text,
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.RoundtripKind,
+                    out var d)
+                && !DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out d))
+                return null;
+            return ToUtc(d);
+        }
     }
 }
+

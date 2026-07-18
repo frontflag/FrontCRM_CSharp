@@ -1,178 +1,112 @@
 <script setup lang="ts">
-import { reactive, ref, watch, onMounted } from 'vue'
+import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { authApi, type PurchaseUserSelectOption, type SalesUserSelectOption } from '@/api/auth'
 import { useI18n } from 'vue-i18n'
+import {
+  RFQ_ITEM_DEMAND_TIME_PRESET_IDS,
+  RFQ_ITEM_QUOTE_TIME_PRESET_IDS,
+  type RfqItemListPresetId,
+  buildRfqItemListRouteQuery,
+  isRfqItemListPresetId,
+  pickRfqItemKeywordQuery,
+  presetI18nKey
+} from '@/utils/rfqItemListPreset'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 
-const salesUsers = ref<SalesUserSelectOption[]>([])
-const purchaseUsers = ref<PurchaseUserSelectOption[]>([])
-const dateRange = ref<[string, string] | null>(null)
-
-const form = reactive({
-  customerKeyword: '',
-  materialModel: '',
-  salesUserId: undefined as string | undefined,
-  purchaserUserId: undefined as string | undefined,
-  hasQuotesOnly: false
+const activePreset = computed(() => {
+  const p = route.query.preset
+  return typeof p === 'string' && isRfqItemListPresetId(p) ? p : null
 })
 
-function salesUserLabel(u: SalesUserSelectOption) {
-  const name = u.realName || u.label || u.userName
-  return u.userName && name !== u.userName ? `${name}(${u.userName})` : name
-}
+const demandTimePresets = RFQ_ITEM_DEMAND_TIME_PRESET_IDS
+const demandStatusPresets = ['important', 'converted'] as const satisfies readonly RfqItemListPresetId[]
+const quoteTimePresets = RFQ_ITEM_QUOTE_TIME_PRESET_IDS
+const quoteStatusPresets = ['no_quote', 'multi_quote'] as const satisfies readonly RfqItemListPresetId[]
 
-function purchaseUserLabel(u: PurchaseUserSelectOption) {
-  const name = u.realName || u.label || u.userName
-  return u.userName && name !== u.userName ? `${name}(${u.userName})` : name
-}
-
-function syncFromRoute() {
+function onPresetClick(id: RfqItemListPresetId) {
   if (route.name !== 'RFQItemList') return
-  const q = route.query
-  const s = q.startDate
-  const e = q.endDate
-  if (typeof s === 'string' && typeof e === 'string' && s && e) {
-    dateRange.value = [s, e]
-  } else {
-    dateRange.value = null
+  if (activePreset.value === id) {
+    router.replace({ name: 'RFQItemList', query: {} })
+    return
   }
-  form.customerKeyword = typeof q.customerKeyword === 'string' ? q.customerKeyword : ''
-  form.materialModel = typeof q.materialModel === 'string' ? q.materialModel : ''
-  const sid = q.salesUserId
-  form.salesUserId = typeof sid === 'string' && sid !== '' ? sid : undefined
-  const pid = q.purchaserUserId
-  form.purchaserUserId = typeof pid === 'string' && pid !== '' ? pid : undefined
-  const hq = q.hasQuotesOnly
-  const hqRaw = Array.isArray(hq) ? hq[0] : hq
-  const hqStr = hqRaw != null && typeof hqRaw !== 'object' ? String(hqRaw).trim().toLowerCase() : ''
-  form.hasQuotesOnly = hqStr === '1' || hqStr === 'true' || hqStr === 'yes'
+  const keywords = pickRfqItemKeywordQuery(route.query as Record<string, unknown>)
+  router.replace({
+    name: 'RFQItemList',
+    query: buildRfqItemListRouteQuery({ preset: id, keywords })
+  })
 }
-
-watch(
-  () => [route.name, route.query] as const,
-  () => syncFromRoute(),
-  { deep: true, immediate: true }
-)
-
-function handleReset() {
-  router.replace({ name: 'RFQItemList', query: {} })
-}
-
-function handleSearch() {
-  const query: Record<string, string> = {}
-  if (dateRange.value?.[0] && dateRange.value[1]) {
-    query.startDate = dateRange.value[0]
-    query.endDate = dateRange.value[1]
-  }
-  const ck = form.customerKeyword.trim()
-  if (ck) query.customerKeyword = ck
-  const mm = form.materialModel.trim()
-  if (mm) query.materialModel = mm
-  if (form.salesUserId) query.salesUserId = form.salesUserId
-  if (form.purchaserUserId) query.purchaserUserId = form.purchaserUserId
-  if (form.hasQuotesOnly) query.hasQuotesOnly = '1'
-  router.replace({ name: 'RFQItemList', query })
-}
-
-onMounted(async () => {
-  try {
-    salesUsers.value = await authApi.getSalesUsersForSelect()
-  } catch {
-    salesUsers.value = []
-  }
-  try {
-    purchaseUsers.value = await authApi.getPurchaseUsersForSelect()
-  } catch {
-    purchaseUsers.value = []
-  }
-})
 </script>
 
 <template>
   <div class="rfq-item-search-panel">
-    <div class="rfq-item-search-panel__head">{{ t('leftPanel.rfqItemSearchTitle') }}</div>
+    <div class="rfq-item-search-panel__head">{{ t('rfqItemList.searchPanel.title') }}</div>
 
-    <div class="rfq-item-search-panel__fields">
-      <div class="field-col">
-        <label class="field-label">{{ t('rfqItemList.filters.createDate') }}</label>
-        <el-date-picker
-          v-model="dateRange"
-          type="daterange"
-          :range-separator="t('rfqItemList.filters.to')"
-          :start-placeholder="t('rfqItemList.filters.startDate')"
-          :end-placeholder="t('rfqItemList.filters.endDate')"
-          value-format="YYYY-MM-DD"
-          clearable
-          class="field-date-range"
-          :teleported="false"
-        />
-      </div>
+    <section class="rfq-item-search-panel__group">
+      <h4 class="rfq-item-search-panel__group-title">{{ t('rfqItemList.searchPanel.groups.demand') }}</h4>
+      <ul class="rfq-item-search-panel__list">
+        <li v-for="id in demandTimePresets" :key="id">
+          <button
+            type="button"
+            class="rfq-item-search-panel__item"
+            :class="{ 'is-active': activePreset === id }"
+            @click="onPresetClick(id)"
+          >
+            {{ t(presetI18nKey(id)) }}
+          </button>
+        </li>
+      </ul>
+    </section>
 
-      <div class="field-col">
-        <label class="field-label">{{ t('rfqItemList.columns.customer') }}</label>
-        <input
-          v-model="form.customerKeyword"
-          type="text"
-          class="field-input"
-          :placeholder="t('rfqItemList.filters.customerPlaceholder')"
-          @keyup.enter="handleSearch"
-        />
-      </div>
+    <section class="rfq-item-search-panel__group">
+      <h4 class="rfq-item-search-panel__group-title">{{ t('rfqItemList.searchPanel.groups.demandStatus') }}</h4>
+      <ul class="rfq-item-search-panel__list">
+        <li v-for="id in demandStatusPresets" :key="id">
+          <button
+            type="button"
+            class="rfq-item-search-panel__item"
+            :class="{ 'is-active': activePreset === id }"
+            @click="onPresetClick(id)"
+          >
+            {{ t(presetI18nKey(id)) }}
+          </button>
+        </li>
+      </ul>
+    </section>
 
-      <div class="field-col">
-        <label class="field-label">{{ t('rfqItemList.columns.materialModel') }}</label>
-        <input
-          v-model="form.materialModel"
-          type="text"
-          class="field-input"
-          :placeholder="t('rfqItemList.filters.materialPlaceholder')"
-          @keyup.enter="handleSearch"
-        />
-      </div>
+    <section class="rfq-item-search-panel__group">
+      <h4 class="rfq-item-search-panel__group-title">{{ t('rfqItemList.searchPanel.groups.quote') }}</h4>
+      <ul class="rfq-item-search-panel__list">
+        <li v-for="id in quoteTimePresets" :key="id">
+          <button
+            type="button"
+            class="rfq-item-search-panel__item"
+            :class="{ 'is-active': activePreset === id }"
+            @click="onPresetClick(id)"
+          >
+            {{ t(presetI18nKey(id)) }}
+          </button>
+        </li>
+      </ul>
+    </section>
 
-      <div class="field-col">
-        <label class="field-label">{{ t('rfqItemList.columns.salesUser') }}</label>
-        <el-select
-          v-model="form.salesUserId"
-          :placeholder="t('rfqItemList.filters.allSalesUsers')"
-          clearable
-          filterable
-          class="field-select"
-          :teleported="false"
-        >
-          <el-option v-for="u in salesUsers" :key="u.id" :label="salesUserLabel(u)" :value="u.id" />
-        </el-select>
-      </div>
-
-      <div class="field-col">
-        <label class="field-label">{{ t('rfqItemList.columns.purchaser') }}</label>
-        <el-select
-          v-model="form.purchaserUserId"
-          :placeholder="t('rfqItemList.filters.allPurchasers')"
-          clearable
-          filterable
-          class="field-select"
-          :teleported="false"
-        >
-          <el-option v-for="u in purchaseUsers" :key="u.id" :label="purchaseUserLabel(u)" :value="u.id" />
-        </el-select>
-      </div>
-
-      <div class="field-col field-col--checkbox">
-        <el-checkbox v-model="form.hasQuotesOnly" class="field-checkbox-has-quotes" @change="handleSearch">
-          {{ t('rfqItemList.filters.hasQuotes') }}
-        </el-checkbox>
-      </div>
-    </div>
-
-    <div class="rfq-item-search-panel__actions">
-      <button type="button" class="btn-search" @click="handleSearch">{{ t('rfqItemList.filters.query') }}</button>
-      <button type="button" class="btn-reset" @click="handleReset">{{ t('rfqItemList.filters.reset') }}</button>
-    </div>
+    <section class="rfq-item-search-panel__group">
+      <h4 class="rfq-item-search-panel__group-title">{{ t('rfqItemList.searchPanel.groups.quoteStatus') }}</h4>
+      <ul class="rfq-item-search-panel__list">
+        <li v-for="id in quoteStatusPresets" :key="id">
+          <button
+            type="button"
+            class="rfq-item-search-panel__item"
+            :class="{ 'is-active': activePreset === id }"
+            @click="onPresetClick(id)"
+          >
+            {{ t(presetI18nKey(id)) }}
+          </button>
+        </li>
+      </ul>
+    </section>
   </div>
 </template>
 
@@ -192,105 +126,49 @@ onMounted(async () => {
   font-size: 13px;
 }
 
-.rfq-item-search-panel__fields {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.rfq-item-search-panel__group {
+  margin-bottom: 14px;
 }
 
-.field-col {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.field-label {
+.rfq-item-search-panel__group-title {
+  margin: 0 0 6px;
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
   color: $text-muted;
 }
 
-.field-input {
+.rfq-item-search-panel__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rfq-item-search-panel__item {
   width: 100%;
-  box-sizing: border-box;
+  text-align: left;
   padding: 7px 10px;
   font-size: 12px;
-  color: $text-primary;
-  background: $layer-3;
-  border: 1px solid $border-panel;
-  border-radius: 6px;
-  outline: none;
-
-  &::placeholder {
-    color: $text-placeholder;
-  }
-
-  &:focus {
-    border-color: var(--crm-accent-06);
-  }
-}
-
-.field-select {
-  width: 100%;
-}
-
-.field-date-range {
-  width: 100%;
-}
-
-.field-col--checkbox {
-  flex-direction: row;
-  align-items: center;
-  padding-top: 4px;
-}
-
-.field-checkbox-has-quotes {
-  :deep(.el-checkbox__label) {
-    font-size: 12px;
-    color: $text-secondary;
-  }
-}
-
-.rfq-item-search-panel__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid $border-panel;
-}
-
-.btn-search {
-  flex: 1;
-  min-width: 72px;
-  padding: 8px 12px;
-  font-size: 12px;
-  font-weight: 500;
-  color: #fff;
-  background: linear-gradient(135deg, $blue-primary, $cyan-primary);
-  border: 1px solid var(--crm-action-primary-border);
-  border-radius: 6px;
-  cursor: pointer;
-  transition: box-shadow 0.15s, transform 0.12s;
-
-  &:hover {
-    box-shadow: var(--crm-shadow-glow);
-    transform: translateY(-1px);
-  }
-}
-
-.btn-reset {
-  padding: 8px 12px;
-  font-size: 12px;
   color: $text-secondary;
-  background: $layer-3;
-  border: 1px solid $border-panel;
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: 6px;
   cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
 
   &:hover {
     background: var(--crm-accent-008);
     border-color: var(--crm-accent-018);
+    color: $text-primary;
+  }
+
+  &.is-active {
+    background: var(--crm-accent-012);
+    border-color: var(--crm-accent-04);
+    color: $text-primary;
+    font-weight: 500;
   }
 }
 </style>

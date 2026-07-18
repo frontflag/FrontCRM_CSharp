@@ -24,7 +24,14 @@
     <!-- 搜索栏 -->
     <div class="search-bar">
       <div class="search-left">
-        <el-select v-model="query.status" :placeholder="t('financePaymentList.filters.status')" clearable class="filter-select" @change="loadData">
+        <el-select
+          v-if="tabModeDimension !== 'status'"
+          v-model="query.status"
+          :placeholder="t('financePaymentList.filters.status')"
+          clearable
+          class="filter-select"
+          @change="loadData"
+        >
           <el-option
             v-for="k in paymentStatusSelectKeys"
             :key="k"
@@ -57,6 +64,7 @@
           @clear="loadData"
         />
         <el-select
+          v-if="tabModeDimension !== 'paymentMode'"
           v-model="query.paymentMode"
           :placeholder="t('financePaymentList.filters.paymentMode')"
           clearable
@@ -100,7 +108,78 @@
         <el-button type="primary" @click="loadData">
           <el-icon><Search /></el-icon> {{ t('financePaymentList.filters.search') }}
         </el-button>
+        <el-popover
+          v-model:visible="settingsMenuOpen"
+          trigger="click"
+          placement="bottom-end"
+          :width="168"
+          :show-arrow="false"
+          popper-class="fp-list-settings-popper"
+        >
+          <template #reference>
+            <el-button
+              class="fp-settings-gear-btn"
+              :title="t('financePaymentList.settingsMenu.aria')"
+              :aria-label="t('financePaymentList.settingsMenu.aria')"
+            >
+              <el-icon :size="14"><Setting /></el-icon>
+            </el-button>
+          </template>
+          <div class="fp-list-settings-menu">
+            <button
+              type="button"
+              class="fp-list-settings-menu__item"
+              :disabled="tabModeDimension === 'off'"
+              @click="closeFilterTabMode"
+            >
+              {{ t('financePaymentList.settingsMenu.closeTabs') }}
+            </button>
+            <div
+              class="fp-list-settings-menu__submenu"
+              @mouseenter="settingsSubmenuOpen = true"
+              @mouseleave="settingsSubmenuOpen = false"
+            >
+              <div class="fp-list-settings-menu__item fp-list-settings-menu__item--parent">
+                <span>{{ t('financePaymentList.settingsMenu.tabMode') }}</span>
+                <el-icon class="fp-list-settings-menu__caret"><ArrowRight /></el-icon>
+              </div>
+              <div v-show="settingsSubmenuOpen" class="fp-list-settings-menu__flyout">
+                <button
+                  v-for="dim in FINANCE_PAYMENT_LIST_TAB_MODE_OPTIONS"
+                  :key="dim"
+                  type="button"
+                  class="fp-list-settings-menu__item"
+                  :class="{ 'is-active': tabModeDimension === dim }"
+                  @click="enableFilterTabMode(dim)"
+                >
+                  {{ tabModeDimensionLabel(dim) }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </el-popover>
       </div>
+    </div>
+
+    <div class="fp-main-panel" :class="{ 'fp-main-panel--with-filter-tabs': filterTabStripVisible }">
+    <div
+      v-if="filterTabStripVisible"
+      class="fp-filter-tabs"
+      role="tablist"
+      :aria-label="filterTabStripAriaLabel"
+    >
+      <button
+        v-for="tab in filterTabOptions"
+        :key="tab.id"
+        type="button"
+        role="tab"
+        class="fp-filter-tabs__item"
+        :class="{ 'is-active': activeFilterTabId === tab.id }"
+        :aria-selected="activeFilterTabId === tab.id"
+        @click="onFilterTabClick(tab.id)"
+      >
+        {{ tab.label }}
+      </button>
     </div>
 
     <!-- 数据表格 -->
@@ -290,26 +369,27 @@
         </div>
       </template>
     </CrmDataTable>
-      <div class="pagination-wrap">
-        <div class="list-footer-left">
-          <el-tooltip :content="t('financePaymentList.columnSettings')" placement="top" :hide-after="0">
-            <el-button class="list-settings-btn" link type="primary" :aria-label="t('financePaymentList.columnSettings')" @click="dataTableRef?.openColumnSettings?.()">
-              <el-icon><Setting /></el-icon>
-            </el-button>
-          </el-tooltip>
-          <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
-          <div class="list-footer-spacer" aria-hidden="true"></div>
-        </div>
-        <el-pagination
-          v-model:current-page="query.page"
-          v-model:page-size="query.pageSize"
-          :total="total"
-          :page-sizes="[20, 50, 100]"
-          layout="total, sizes, prev, pager, next"
-          @size-change="loadData"
-          @current-change="loadData"
-        />
+    <div class="pagination-wrap">
+      <div class="list-footer-left">
+        <el-tooltip :content="t('financePaymentList.columnSettings')" placement="top" :hide-after="0">
+          <el-button class="list-settings-btn" link type="primary" :aria-label="t('financePaymentList.columnSettings')" @click="dataTableRef?.openColumnSettings?.()">
+            <el-icon><Setting /></el-icon>
+          </el-button>
+        </el-tooltip>
+        <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
+        <div class="list-footer-spacer" aria-hidden="true"></div>
       </div>
+      <el-pagination
+        v-model:current-page="query.page"
+        v-model:page-size="query.pageSize"
+        :total="total"
+        :page-sizes="[20, 50, 100]"
+        layout="total, sizes, prev, pager, next"
+        @size-change="loadData"
+        @current-change="loadData"
+      />
+    </div>
+    </div>
 
     <FinancePaymentRequestEditDialog
       v-model="editDialogVisible"
@@ -325,11 +405,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, reactive, onMounted } from 'vue'
+import { computed, ref, reactive, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useFinanceEnumLabels } from '@/composables/useFinanceEnumLabels'
-import { Search, Setting } from '@element-plus/icons-vue'
+import { ArrowRight, Search, Setting } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   financePaymentApi,
@@ -339,6 +419,20 @@ import {
   type FinancePayment,
   type PageQuery,
 } from '@/api/finance'
+import {
+  FINANCE_PAYMENT_LIST_TAB_MODE_OPTIONS,
+  FP_STATUS_TAB_VALUES,
+  FP_PAYMENT_MODE_TAB_VALUES,
+  readFinancePaymentListTabMode,
+  writeFinancePaymentListTabMode,
+  fpStatusFilterToTab,
+  fpStatusTabToFilter,
+  fpPaymentModeFilterToTab,
+  fpPaymentModeTabToFilter,
+  type FinancePaymentListTabModeDimension,
+  type FpStatusTabId,
+  type FpPaymentModeTabId
+} from '@/utils/financePaymentListTabMode'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useAuthStore } from '@/stores/auth'
@@ -417,9 +511,94 @@ const query = reactive<PageQuery & { page: number; pageSize: number }>({
 const dateRange = ref<[string, string] | null>(null)
 const total = ref(0)
 const loading = ref(false)
+const tabModeDimension = ref<FinancePaymentListTabModeDimension>(readFinancePaymentListTabMode())
+const settingsMenuOpen = ref(false)
+const settingsSubmenuOpen = ref(false)
 const tableData = ref<FinancePayment[]>([])
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
+
+const TAB_MODE_FILTER_I18N: Record<Exclude<FinancePaymentListTabModeDimension, 'off'>, string> = {
+  status: 'financePaymentList.filters.status',
+  paymentMode: 'financePaymentList.filters.paymentMode'
+}
+
+function tabModeDimensionLabel(dim: Exclude<FinancePaymentListTabModeDimension, 'off'>) {
+  return t(TAB_MODE_FILTER_I18N[dim])
+}
+
+function closeFilterTabMode() {
+  if (tabModeDimension.value === 'off') return
+  tabModeDimension.value = 'off'
+  writeFinancePaymentListTabMode('off')
+  settingsMenuOpen.value = false
+  settingsSubmenuOpen.value = false
+}
+
+function enableFilterTabMode(dim: Exclude<FinancePaymentListTabModeDimension, 'off'>) {
+  tabModeDimension.value = dim
+  writeFinancePaymentListTabMode(dim)
+  settingsMenuOpen.value = false
+  settingsSubmenuOpen.value = false
+}
+
+watch(settingsMenuOpen, (open) => {
+  if (!open) settingsSubmenuOpen.value = false
+})
+
+const filterTabStripVisible = computed(() => tabModeDimension.value !== 'off')
+
+const filterTabStripAriaLabel = computed(() => {
+  if (tabModeDimension.value === 'off') return ''
+  return tabModeDimensionLabel(tabModeDimension.value)
+})
+
+type FpFilterTabId = FpStatusTabId | FpPaymentModeTabId
+
+const filterTabOptions = computed(() => {
+  const dim = tabModeDimension.value
+  if (dim === 'off') return [] as Array<{ id: FpFilterTabId; label: string }>
+  if (dim === 'status') {
+    return [
+      { id: 'all' as const, label: t('financePaymentList.filterTabs.all') },
+      ...FP_STATUS_TAB_VALUES.map((value) => ({
+        id: String(value) as FpStatusTabId,
+        label: paymentStatusLabel(value)
+      }))
+    ]
+  }
+  return [
+    { id: 'all' as const, label: t('financePaymentList.filterTabs.all') },
+    ...FP_PAYMENT_MODE_TAB_VALUES.map((value) => ({
+      id: String(value) as FpPaymentModeTabId,
+      label: paymentModeLabel(value)
+    }))
+  ]
+})
+
+const activeFilterTabId = computed((): FpFilterTabId => {
+  const dim = tabModeDimension.value
+  if (dim === 'status') return fpStatusFilterToTab(query.status)
+  if (dim === 'paymentMode') return fpPaymentModeFilterToTab(query.paymentMode)
+  return 'all'
+})
+
+function onFilterTabClick(tab: FpFilterTabId) {
+  const dim = tabModeDimension.value
+  if (dim === 'status') {
+    const next = fpStatusTabToFilter(tab as FpStatusTabId)
+    if (query.status === next) return
+    query.status = next
+    void loadData()
+    return
+  }
+  if (dim === 'paymentMode') {
+    const next = fpPaymentModeTabToFilter(tab as FpPaymentModeTabId)
+    if (query.paymentMode === next) return
+    query.paymentMode = next
+    void loadData()
+  }
+}
 
 // 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
@@ -788,4 +967,145 @@ onMounted(loadData)
   font-weight: 600;
 }
 
+.fp-settings-gear-btn {
+  padding: 8px 10px;
+}
+
+.fp-main-panel {
+  width: 100%;
+}
+
+.fp-main-panel--with-filter-tabs {
+  :deep(.crm-data-table-root) {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+
+  :deep(.el-table),
+  :deep(.el-table__inner-wrapper),
+  :deep(.el-table__header-wrapper) {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+}
+
+.fp-filter-tabs {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  gap: 4px;
+}
+
+.fp-filter-tabs__item {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 9px 8px;
+  border: 1px solid var(--crm-border-panel, #e2e8f0);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  background: #e8edf5;
+  color: var(--crm-text-primary);
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-weight: 500;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s, box-shadow 0.12s;
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--crm-cyan-primary) 45%, var(--crm-border-panel));
+    background: color-mix(in srgb, var(--crm-cyan-primary) 12%, var(--crm-layer-1));
+  }
+
+  &.is-active {
+    background: color-mix(in srgb, var(--crm-cyan-primary) 16%, var(--crm-layer-2, #fff));
+    border-color: color-mix(in srgb, var(--crm-cyan-primary) 55%, var(--crm-border-panel));
+    box-shadow: inset 0 2px 0 0 var(--crm-cyan-primary);
+    font-weight: 600;
+    z-index: 1;
+  }
+}
+
+html[data-theme='dark'] .fp-filter-tabs__item:not(.is-active) {
+  background: var(--crm-layer-1);
+
+  &:hover {
+    background: color-mix(in srgb, var(--crm-cyan-primary) 12%, var(--crm-layer-1));
+  }
+}
+
+</style>
+
+<style lang="scss">
+.fp-list-settings-popper.el-popover.el-popper {
+  padding: 6px;
+  min-width: 160px;
+  overflow: visible;
+}
+
+.fp-list-settings-menu {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fp-list-settings-menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--crm-text-secondary, rgba(224, 244, 255, 0.7));
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--crm-accent-008, rgba(0, 212, 255, 0.08));
+    color: var(--crm-text-primary, #e8f4ff);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  &.is-active {
+    color: var(--crm-cyan-primary, #00d4ff);
+  }
+
+  &--parent {
+    cursor: default;
+  }
+}
+
+.fp-list-settings-menu__caret {
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--crm-text-muted, rgba(200, 216, 232, 0.55));
+}
+
+.fp-list-settings-menu__submenu {
+  position: relative;
+}
+
+.fp-list-settings-menu__flyout {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 4px);
+  min-width: 148px;
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid var(--crm-border-panel, rgba(0, 212, 255, 0.15));
+  background: var(--crm-layer-2, #0d1e35);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  z-index: 10;
+}
 </style>

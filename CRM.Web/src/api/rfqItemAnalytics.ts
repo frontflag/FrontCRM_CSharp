@@ -5,6 +5,11 @@ import type { SalesAnalyticsBreakdownGroup } from './analytics/sales'
 export interface RfqItemListAnalyticsQuery {
   startDate?: string
   endDate?: string
+  itemCreateStart?: string
+  itemCreateEndExclusive?: string
+  quoteCreateStart?: string
+  quoteCreateEndExclusive?: string
+  quickFilter?: string
   customerKeyword?: string
   materialModel?: string
   salesUserId?: string
@@ -34,6 +39,11 @@ function buildParams(q: RfqItemListAnalyticsQuery): Record<string, string | numb
   const p: Record<string, string | number | boolean> = {}
   if (q.startDate) p.startDate = q.startDate
   if (q.endDate) p.endDate = q.endDate
+  if (q.itemCreateStart) p.itemCreateStart = q.itemCreateStart
+  if (q.itemCreateEndExclusive) p.itemCreateEndExclusive = q.itemCreateEndExclusive
+  if (q.quoteCreateStart) p.quoteCreateStart = q.quoteCreateStart
+  if (q.quoteCreateEndExclusive) p.quoteCreateEndExclusive = q.quoteCreateEndExclusive
+  if (q.quickFilter) p.quickFilter = q.quickFilter
   if (q.customerKeyword) p.customerKeyword = q.customerKeyword
   if (q.materialModel) p.materialModel = q.materialModel
   if (q.salesUserId) p.salesUserId = q.salesUserId

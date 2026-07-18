@@ -299,6 +299,14 @@ export interface RFQItemSearchRequest {
   rfqCode?: string
   startDate?: string
   endDate?: string
+  /** 明细创建时间窗（ISO UTC） */
+  itemCreateStart?: string
+  itemCreateEndExclusive?: string
+  /** 报价创建时间窗（ISO UTC） */
+  quoteCreateStart?: string
+  quoteCreateEndExclusive?: string
+  /** 左栏业务快捷检索 */
+  quickFilter?: string
 }
 
 export interface RFQItemSearchResponse {

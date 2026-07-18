@@ -790,6 +790,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useSalesOrderItemListBasketStore } from '@/stores/salesOrderItemListBasket'
 import { useSalesOrderItemOpsPanelStore } from '@/stores/salesOrderItemOpsPanel'
 import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
+import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import salesOrderApi from '@/api/salesOrder'
 import purchaseRequisitionApi from '@/api/purchaseRequisition'
@@ -1536,21 +1537,21 @@ function onSalesOrderItemListRowDblClick(row: any, _column: unknown, event?: Mou
   })
 }
 
-function isRightPanelVisible() {
-  return workspaceLayout?.rightPanelVisible.value ?? false
-}
+const { onOpsPanelRowClick } = useListRightOpsPanelInteraction({
+  workspaceLayout,
+  isActiveRoute: () => route.name === 'SalesOrderItemList',
+  hasSelectedRow: () => !!salesOrderItemOpsStore.row,
+  setRowOnly: (row) => salesOrderItemOpsStore.setRowOnly(row),
+  selectRow: (row) =>
+    salesOrderItemOpsStore.selectRow(row, t('salesOrderItemList.messages.loadLineFailed')),
+  loadSelected: () => {
+    void salesOrderItemOpsStore.loadAggregates(t('salesOrderItemList.messages.loadLineFailed'))
+  },
+  shouldBlockRowClick: () => maskSaleSensitiveFields.value
+})
 
 async function onRowClick(row: Record<string, unknown>) {
-  if (maskSaleSensitiveFields.value) return
-  workspaceLayout?.setRightActiveTab('r-ops')
-
-  if (isRightPanelVisible()) {
-    await salesOrderItemOpsStore.selectRow(row, t('salesOrderItemList.messages.loadLineFailed'))
-    return
-  }
-
-  salesOrderItemOpsStore.setRowOnly(row)
-  workspaceLayout?.toggleRightPanel(true)
+  await onOpsPanelRowClick(row)
 }
 
 function opsPanelRowClassName({ row }: { row: Record<string, unknown> }) {
@@ -1563,15 +1564,6 @@ function opsPanelRowClassName({ row }: { row: Record<string, unknown> }) {
 watch(maskSaleSensitiveFields, (masked) => {
   if (masked) salesOrderItemOpsStore.clear()
 })
-
-watch(
-  () => workspaceLayout?.rightPanelVisible.value,
-  (visible, wasVisible) => {
-    if (route.name !== 'SalesOrderItemList') return
-    if (!visible || wasVisible || !salesOrderItemOpsStore.row) return
-    void salesOrderItemOpsStore.loadAggregates(t('salesOrderItemList.messages.loadLineFailed'))
-  }
-)
 
 onMounted(() => {
   salesOrderItemOpsStore.registerHandlers({

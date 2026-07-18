@@ -176,6 +176,14 @@ const zhCN = {
       filterCode: '报关单号',
       filterSor: '出库通知单号',
       filterDeclareDate: '申报日期',
+      settingsMenu: {
+        aria: '列表筛选设置',
+        closeTabs: '关闭页签',
+        tabMode: '页签模式'
+      },
+      filterTabs: {
+        all: '全部'
+      },
       typeImport: '进口',
       typeExport: '出口',
       internalPending: '待处理',
@@ -2193,6 +2201,7 @@ const zhCN = {
       materialPlaceholder: 'MPN / 客户料号',
       rfqCodePlaceholder: '需求编号',
       allItemStatuses: '全部明细状态',
+      itemStatus: '明细状态',
       allSalesUsers: '全部业务员',
       allPurchasers: '全部采购员',
       hasQuotes: '有报价',
@@ -2200,6 +2209,44 @@ const zhCN = {
       reset: '重置',
       boardView: '看板',
       listView: '列表'
+    },
+    settingsMenu: {
+      aria: '列表筛选设置',
+      closeTabs: '关闭页签',
+      tabMode: '页签模式'
+    },
+    filterTabs: {
+      all: '全部'
+    },
+    searchPanel: {
+      title: '快捷检索',
+      clearPreset: '清除快捷检索',
+      groups: {
+        demand: '需求',
+        demandStatus: '需求状态',
+        quote: '报价',
+        quoteStatus: '报价状态'
+      },
+      presets: {
+        item_last_10m: '10分钟内需求',
+        item_last_30m: '30分钟内需求',
+        item_last_1h: '1小时内需求',
+        item_today: '今日需求',
+        item_today_yesterday: '今昨需求',
+        item_last_3_days: '3天内需求',
+        item_last_7_days: '1周内需求',
+        important: '重要需求',
+        converted: '成单需求',
+        quote_last_10m: '10分钟内报价',
+        quote_last_30m: '30分钟内报价',
+        quote_last_1h: '1小时内报价',
+        quote_today: '今日报价',
+        quote_today_yesterday: '今昨报价',
+        quote_last_3_days: '3天内报价',
+        quote_last_7_days: '1周内报价',
+        no_quote: '查无报价',
+        multi_quote: '多条报价'
+      }
     },
     board: {
       hint: '统计范围与当前筛选条件一致；成单口径为审核通过及以上销售订单关联的需求明细；成单率分母排除查无报价。',
@@ -5520,6 +5567,15 @@ const zhCN = {
       search: '查询',
       reset: '重置'
     },
+    settingsMenu: {
+      aria: '列表筛选设置',
+      closeTabs: '关闭页签',
+      tabMode: '页签模式',
+      warehouseTabDisabled: '仓库超过 {max} 个时使用下拉筛选'
+    },
+    filterTabs: {
+      all: '全部'
+    },
     columns: {
       outboundStatus: '出库状态',
       stockItemCode: '库存明细编号',
@@ -5726,6 +5782,15 @@ const zhCN = {
       allRegions: '全部地域',
       search: '搜索',
       reset: '重置'
+    },
+    settingsMenu: {
+      aria: '列表筛选设置',
+      closeTabs: '关闭页签',
+      tabMode: '页签模式',
+      warehouseTabDisabled: '仓库超过 {max} 个时使用下拉筛选'
+    },
+    filterTabs: {
+      all: '全部'
     },
     stats: {
       capitalOccupied: '在库资金占用',
@@ -6161,9 +6226,18 @@ const zhCN = {
       stockOutDateTo: '结束',
       stockOutDateSep: '至',
       stockOutTypePlaceholder: '出库类型',
+      stockOutType: '出库类型',
       search: '搜索',
       reset: '重置',
       refresh: '刷新'
+    },
+    settingsMenu: {
+      aria: '列表筛选设置',
+      closeTabs: '关闭页签',
+      tabMode: '页签模式'
+    },
+    filterTabs: {
+      all: '全部'
     },
     leftPanel: {
       title: '出库单检索',
@@ -6405,7 +6479,9 @@ const zhCN = {
     },
     filters: {
       statusPlaceholder: '状态',
+      status: '状态',
       regionPlaceholder: '地域',
+      regionType: '地域',
       customerPlaceholder: '公司',
       salesUserPlaceholder: '业务员',
       materialModelPlaceholder: '物料型号',
@@ -6413,6 +6489,7 @@ const zhCN = {
       dateEnd: '预计出库止',
       dateTo: '至',
       stockOutTypePlaceholder: '出库类型',
+      stockOutType: '出库类型',
       stockOutTypeAll: '全部类型',
       workflowPlaceholder: '流程筛选',
       workflowAll: '全部',
@@ -6424,6 +6501,14 @@ const zhCN = {
       search: '搜索',
       reset: '重置',
       refresh: '刷新'
+    },
+    settingsMenu: {
+      aria: '列表筛选设置',
+      closeTabs: '关闭页签',
+      tabMode: '页签模式'
+    },
+    filterTabs: {
+      all: '全部'
     },
     columns: {
       requestCode: '通知单号',
@@ -6565,10 +6650,13 @@ const zhCN = {
       keywordPlaceholder: '装箱单号 / 客户 / 业务员',
       packingCodePlaceholder: '装箱单号',
       statusPlaceholder: '状态',
+      status: '状态',
       statusAll: '全部状态',
       stockOutTypePlaceholder: '出库类型',
+      stockOutType: '出库类型',
       stockOutTypeAll: '全部出库类型',
       materialTypePlaceholder: '物料类型',
+      materialType: '物料类型',
       materialTypeAll: '全部物料类型',
       customerNamePlaceholder: '客户名称',
       salesUserNamePlaceholder: '业务员',
@@ -6579,6 +6667,14 @@ const zhCN = {
       search: '搜索',
       reset: '重置',
       refresh: '刷新'
+    },
+    settingsMenu: {
+      aria: '列表筛选设置',
+      closeTabs: '关闭页签',
+      tabMode: '页签模式'
+    },
+    filterTabs: {
+      all: '全部'
     },
     columns: {
       packingCode: '装箱单号',
@@ -7329,6 +7425,14 @@ const zhCN = {
       endDate: '付款日期止',
       search: '查询'
     },
+    settingsMenu: {
+      aria: '列表筛选设置',
+      closeTabs: '关闭页签',
+      tabMode: '页签模式'
+    },
+    filterTabs: {
+      all: '全部'
+    },
     columns: {
       freightForwarderOrderNo: '货代单号',
       code: '付款单号',
@@ -7500,10 +7604,19 @@ const zhCN = {
     filters: {
       keyword: '搜索收款单号/客户',
       status: '状态',
+      purpose: '收款用途',
       to: '至',
       startDate: '开始日期',
       endDate: '结束日期',
       search: '查询'
+    },
+    settingsMenu: {
+      aria: '列表筛选设置',
+      closeTabs: '关闭页签',
+      tabMode: '页签模式'
+    },
+    filterTabs: {
+      all: '全部'
     },
     create: '新建收款单',
     goWriteOff: '收款核销',

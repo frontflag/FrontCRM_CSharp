@@ -44,6 +44,9 @@ public sealed class FinanceReceiptListQuery : IFinanceReceiptListQuery
         if (request.Status.HasValue)
             q = q.Where(r => r.Status == request.Status.Value);
 
+        if (request.ReceiptPurpose.HasValue)
+            q = q.Where(r => r.ReceiptPurpose == request.ReceiptPurpose.Value);
+
         if (request.StartDate.HasValue)
             q = q.Where(r => r.CreateTime >= request.StartDate.Value);
 

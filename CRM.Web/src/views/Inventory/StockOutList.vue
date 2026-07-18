@@ -17,6 +17,7 @@
     <div class="search-bar">
       <div class="search-left">
         <el-select
+          v-if="tabModeDimension !== 'status'"
           v-model="filterForm.status"
           :placeholder="t('stockOutList.filters.status')"
           clearable
@@ -31,6 +32,7 @@
           />
         </el-select>
         <el-select
+          v-if="tabModeDimension !== 'stockOutType'"
           v-model="filterForm.stockOutType"
           :placeholder="t('stockOutList.filters.stockOutTypePlaceholder')"
           clearable
@@ -111,7 +113,79 @@
         />
         <button type="button" class="btn-primary btn-sm" @click="handleSearch">{{ t('stockOutList.filters.search') }}</button>
         <button type="button" class="btn-ghost btn-sm" @click="handleReset">{{ t('stockOutList.filters.reset') }}</button>
+        <el-popover
+          v-model:visible="settingsMenuOpen"
+          trigger="click"
+          placement="bottom-end"
+          :width="168"
+          :show-arrow="false"
+          popper-class="stock-out-list-settings-popper"
+        >
+          <template #reference>
+            <button
+              type="button"
+              class="btn-ghost btn-sm btn-icon-only"
+              :title="t('stockOutList.settingsMenu.aria')"
+              :aria-label="t('stockOutList.settingsMenu.aria')"
+            >
+              <el-icon :size="14"><Setting /></el-icon>
+            </button>
+          </template>
+          <div class="stock-out-list-settings-menu">
+            <button
+              type="button"
+              class="stock-out-list-settings-menu__item"
+              :disabled="tabModeDimension === 'off'"
+              @click="closeFilterTabMode"
+            >
+              {{ t('stockOutList.settingsMenu.closeTabs') }}
+            </button>
+            <div
+              class="stock-out-list-settings-menu__submenu"
+              @mouseenter="settingsSubmenuOpen = true"
+              @mouseleave="settingsSubmenuOpen = false"
+            >
+              <div class="stock-out-list-settings-menu__item stock-out-list-settings-menu__item--parent">
+                <span>{{ t('stockOutList.settingsMenu.tabMode') }}</span>
+                <el-icon class="stock-out-list-settings-menu__caret"><ArrowRight /></el-icon>
+              </div>
+              <div v-show="settingsSubmenuOpen" class="stock-out-list-settings-menu__flyout">
+                <button
+                  v-for="dim in STOCK_OUT_LIST_TAB_MODE_OPTIONS"
+                  :key="dim"
+                  type="button"
+                  class="stock-out-list-settings-menu__item"
+                  :class="{ 'is-active': tabModeDimension === dim }"
+                  @click="enableFilterTabMode(dim)"
+                >
+                  {{ tabModeDimensionLabel(dim) }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </el-popover>
       </div>
+    </div>
+
+    <div class="sol-main-panel" :class="{ 'sol-main-panel--with-filter-tabs': filterTabStripVisible }">
+    <div
+      v-if="filterTabStripVisible"
+      class="sol-filter-tabs"
+      role="tablist"
+      :aria-label="filterTabStripAriaLabel"
+    >
+      <button
+        v-for="tab in filterTabOptions"
+        :key="tab.id"
+        type="button"
+        role="tab"
+        class="sol-filter-tabs__item"
+        :class="{ 'is-active': activeFilterTabId === tab.id }"
+        :aria-selected="activeFilterTabId === tab.id"
+        @click="onFilterTabClick(tab.id)"
+      >
+        {{ tab.label }}
+      </button>
     </div>
 
     <!-- 结构与 StockOutNotifyList / StockInList 一致：无 row-key、无额外包裹 -->
@@ -264,6 +338,7 @@
         @size-change="onStockOutListPageSizeChange"
       />
     </div>
+    </div>
 
     <el-dialog
       v-model="markFinishDialogVisible"
@@ -398,8 +473,22 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { Setting } from '@element-plus/icons-vue'
+import { ArrowRight, Setting } from '@element-plus/icons-vue'
 import { stockOutApi, type StockOutDto, type StockOutListQuery, type StockOutMarkFinishContext } from '@/api/stockOut'
+import {
+  STOCK_OUT_LIST_TAB_MODE_OPTIONS,
+  STOCK_OUT_STATUS_TAB_VALUES,
+  STOCK_OUT_TYPE_TAB_VALUES,
+  readStockOutListTabMode,
+  writeStockOutListTabMode,
+  stockOutStatusFilterToTab,
+  stockOutStatusTabToFilter,
+  stockOutTypeFilterToTab,
+  stockOutTypeTabToFilter,
+  type StockOutListTabModeDimension,
+  type StockOutStatusTabId,
+  type StockOutTypeTabId
+} from '@/utils/stockOutListTabMode'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import { buildStockOutListColumns } from '@/composables/buildStockOutListColumns'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
@@ -440,6 +529,9 @@ const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 const { ensureLoaded: ensureLogisticsDict, shipmentArrivalOptions, expressOptions } = useLogisticsFormDict()
 const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const loading = ref(false)
+const tabModeDimension = ref<StockOutListTabModeDimension>(readStockOutListTabMode())
+const settingsMenuOpen = ref(false)
+const settingsSubmenuOpen = ref(false)
 const list = ref<StockOutDto[]>([])
 const listTotal = ref(0)
 const listPage = ref(1)
@@ -463,6 +555,89 @@ const statusFilterOptions = computed(() => [
   { value: 3, label: t('stockOutList.status.cancelled') },
   { value: 4, label: t('stockOutList.status.finished') }
 ])
+
+const TAB_MODE_FILTER_I18N: Record<Exclude<StockOutListTabModeDimension, 'off'>, string> = {
+  status: 'stockOutList.filters.status',
+  stockOutType: 'stockOutList.filters.stockOutType'
+}
+
+function tabModeDimensionLabel(dim: Exclude<StockOutListTabModeDimension, 'off'>) {
+  return t(TAB_MODE_FILTER_I18N[dim])
+}
+
+function closeFilterTabMode() {
+  if (tabModeDimension.value === 'off') return
+  tabModeDimension.value = 'off'
+  writeStockOutListTabMode('off')
+  settingsMenuOpen.value = false
+  settingsSubmenuOpen.value = false
+}
+
+function enableFilterTabMode(dim: Exclude<StockOutListTabModeDimension, 'off'>) {
+  tabModeDimension.value = dim
+  writeStockOutListTabMode(dim)
+  settingsMenuOpen.value = false
+  settingsSubmenuOpen.value = false
+}
+
+watch(settingsMenuOpen, (open) => {
+  if (!open) settingsSubmenuOpen.value = false
+})
+
+const filterTabStripVisible = computed(() => tabModeDimension.value !== 'off')
+
+const filterTabStripAriaLabel = computed(() => {
+  if (tabModeDimension.value === 'off') return ''
+  return tabModeDimensionLabel(tabModeDimension.value)
+})
+
+type StockOutFilterTabId = StockOutStatusTabId | StockOutTypeTabId
+
+const filterTabOptions = computed(() => {
+  const dim = tabModeDimension.value
+  if (dim === 'off') return [] as Array<{ id: StockOutFilterTabId; label: string }>
+  if (dim === 'status') {
+    const labelByValue = new Map(statusFilterOptions.value.map((o) => [o.value, o.label]))
+    return [
+      { id: 'all' as const, label: t('stockOutList.filterTabs.all') },
+      ...STOCK_OUT_STATUS_TAB_VALUES.map((value) => ({
+        id: String(value) as StockOutStatusTabId,
+        label: labelByValue.get(value) ?? String(value)
+      }))
+    ]
+  }
+  return [
+    { id: 'all' as const, label: t('stockOutList.filterTabs.all') },
+    ...STOCK_OUT_TYPE_TAB_VALUES.map((value) => ({
+      id: String(value) as StockOutTypeTabId,
+      label: listStockOutTypeLabel(value)
+    }))
+  ]
+})
+
+const activeFilterTabId = computed((): StockOutFilterTabId => {
+  const dim = tabModeDimension.value
+  if (dim === 'status') return stockOutStatusFilterToTab(filterForm.status)
+  if (dim === 'stockOutType') return stockOutTypeFilterToTab(filterForm.stockOutType)
+  return 'all'
+})
+
+function onFilterTabClick(tab: StockOutFilterTabId) {
+  const dim = tabModeDimension.value
+  if (dim === 'status') {
+    const next = stockOutStatusTabToFilter(tab as StockOutStatusTabId)
+    if (filterForm.status === next) return
+    filterForm.status = next
+    handleSearch()
+    return
+  }
+  if (dim === 'stockOutType') {
+    const next = stockOutTypeTabToFilter(tab as StockOutTypeTabId)
+    if (filterForm.stockOutType === next) return
+    filterForm.stockOutType = next
+    handleSearch()
+  }
+}
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 
@@ -985,6 +1160,78 @@ const handleForceDeleteRow = async (row: StockOutDto) => {
   background: transparent;
   border: 1px solid $border-panel;
   color: $text-secondary;
+
+  &.btn-icon-only {
+    width: 32px;
+    padding-left: 0;
+    padding-right: 0;
+    justify-content: center;
+  }
+}
+
+.sol-main-panel {
+  width: 100%;
+}
+
+.sol-main-panel--with-filter-tabs {
+  :deep(.crm-data-table-root) {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+
+  :deep(.el-table),
+  :deep(.el-table__inner-wrapper),
+  :deep(.el-table__header-wrapper) {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+}
+
+.sol-filter-tabs {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  gap: 4px;
+}
+
+.sol-filter-tabs__item {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 9px 8px;
+  border: 1px solid var(--crm-border-panel, #e2e8f0);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  background: #e8edf5;
+  color: var(--crm-text-primary);
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-weight: 500;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s, box-shadow 0.12s;
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--crm-cyan-primary) 45%, var(--crm-border-panel));
+    background: color-mix(in srgb, var(--crm-cyan-primary) 12%, var(--crm-layer-1));
+  }
+
+  &.is-active {
+    background: color-mix(in srgb, var(--crm-cyan-primary) 16%, var(--crm-layer-2, #fff));
+    border-color: color-mix(in srgb, var(--crm-cyan-primary) 55%, var(--crm-border-panel));
+    box-shadow: inset 0 2px 0 0 var(--crm-cyan-primary);
+    font-weight: 600;
+    z-index: 1;
+  }
+}
+
+html[data-theme='dark'] .sol-filter-tabs__item:not(.is-active) {
+  background: var(--crm-layer-1);
+
+  &:hover {
+    background: color-mix(in srgb, var(--crm-cyan-primary) 12%, var(--crm-layer-1));
+  }
 }
 
 .mono-cell {
@@ -1221,4 +1468,76 @@ const handleForceDeleteRow = async (row: StockOutDto) => {
   overflow: visible;
 }
 
+</style>
+
+<style lang="scss">
+.stock-out-list-settings-popper.el-popover.el-popper {
+  padding: 6px;
+  min-width: 160px;
+  overflow: visible;
+}
+
+.stock-out-list-settings-menu {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stock-out-list-settings-menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--crm-text-secondary, rgba(224, 244, 255, 0.7));
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--crm-accent-008, rgba(0, 212, 255, 0.08));
+    color: var(--crm-text-primary, #e8f4ff);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  &.is-active {
+    color: var(--crm-cyan-primary, #00d4ff);
+  }
+
+  &--parent {
+    cursor: default;
+  }
+}
+
+.stock-out-list-settings-menu__caret {
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--crm-text-muted, rgba(200, 216, 232, 0.55));
+}
+
+.stock-out-list-settings-menu__submenu {
+  position: relative;
+}
+
+.stock-out-list-settings-menu__flyout {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 4px);
+  min-width: 148px;
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid var(--crm-border-panel, rgba(0, 212, 255, 0.15));
+  background: var(--crm-layer-2, #0d1e35);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  z-index: 10;
+}
 </style>

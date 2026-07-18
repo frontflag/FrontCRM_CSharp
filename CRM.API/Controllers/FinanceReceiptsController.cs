@@ -39,6 +39,7 @@ namespace CRM.API.Controllers
         public async Task<IActionResult> GetAll(
             [FromQuery] string? keyword,
             [FromQuery] short? status,
+            [FromQuery] short? receiptPurpose,
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
             [FromQuery] int page = 1,
@@ -50,6 +51,7 @@ namespace CRM.API.Controllers
                 {
                     Keyword = keyword,
                     Status = status,
+                    ReceiptPurpose = receiptPurpose,
                     StartDate = DateTime.TryParse(startDate, out var start) ? start : null,
                     EndDate = DateTime.TryParse(endDate, out var end) ? end : null,
                     Page = page,

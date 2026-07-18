@@ -172,6 +172,11 @@ namespace CRM.API.Controllers
             [FromQuery] int pageSize = 20,
             [FromQuery] string? startDate = null,
             [FromQuery] string? endDate = null,
+            [FromQuery] string? itemCreateStart = null,
+            [FromQuery] string? itemCreateEndExclusive = null,
+            [FromQuery] string? quoteCreateStart = null,
+            [FromQuery] string? quoteCreateEndExclusive = null,
+            [FromQuery] string? quickFilter = null,
             [FromQuery] string? customerKeyword = null,
             [FromQuery] string? materialModel = null,
             [FromQuery] string? salesUserId = null,
@@ -190,6 +195,11 @@ namespace CRM.API.Controllers
                     PageSize = pageSize,
                     StartDate = PostgreSqlDateTime.ParseDateOnly(startDate),
                     EndDate = PostgreSqlDateTime.ParseDateOnly(endDate),
+                    ItemCreateStartUtc = PostgreSqlDateTime.ParseDateTimeUtc(itemCreateStart),
+                    ItemCreateEndExclusiveUtc = PostgreSqlDateTime.ParseDateTimeUtc(itemCreateEndExclusive),
+                    QuoteCreateStartUtc = PostgreSqlDateTime.ParseDateTimeUtc(quoteCreateStart),
+                    QuoteCreateEndExclusiveUtc = PostgreSqlDateTime.ParseDateTimeUtc(quoteCreateEndExclusive),
+                    QuickFilter = string.IsNullOrWhiteSpace(quickFilter) ? null : quickFilter.Trim(),
                     CustomerKeyword = customerKeyword,
                     MaterialModel = materialModel,
                     SalesUserId = salesUserId,
@@ -224,6 +234,11 @@ namespace CRM.API.Controllers
         public async Task<IActionResult> GetItemListAnalyticsDashboard(
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
+            [FromQuery] string? itemCreateStart,
+            [FromQuery] string? itemCreateEndExclusive,
+            [FromQuery] string? quoteCreateStart,
+            [FromQuery] string? quoteCreateEndExclusive,
+            [FromQuery] string? quickFilter,
             [FromQuery] string? customerKeyword,
             [FromQuery] string? materialModel,
             [FromQuery] string? salesUserId,
@@ -235,7 +250,8 @@ namespace CRM.API.Controllers
             CancellationToken cancellationToken = default)
         {
             var (request, maskCustomerNames) = await BuildItemListAnalyticsQueryRequestAsync(
-                startDate, endDate, customerKeyword, materialModel, salesUserId, salesUserKeyword,
+                startDate, endDate, itemCreateStart, itemCreateEndExclusive, quoteCreateStart, quoteCreateEndExclusive,
+                quickFilter, customerKeyword, materialModel, salesUserId, salesUserKeyword,
                 purchaserUserId, hasQuotesOnly, status, rfqCode, cancellationToken);
             var data = await _rfqItemListQuery.GetListAnalyticsDashboardAsync(request, maskCustomerNames, cancellationToken);
             return Ok(ApiResponse<RfqListAnalyticsDashboardDto>.Ok(data));
@@ -246,6 +262,11 @@ namespace CRM.API.Controllers
         public async Task<IActionResult> GetItemListAnalyticsTrends(
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
+            [FromQuery] string? itemCreateStart,
+            [FromQuery] string? itemCreateEndExclusive,
+            [FromQuery] string? quoteCreateStart,
+            [FromQuery] string? quoteCreateEndExclusive,
+            [FromQuery] string? quickFilter,
             [FromQuery] string? customerKeyword,
             [FromQuery] string? materialModel,
             [FromQuery] string? salesUserId,
@@ -258,7 +279,8 @@ namespace CRM.API.Controllers
             CancellationToken cancellationToken = default)
         {
             var (request, _) = await BuildItemListAnalyticsQueryRequestAsync(
-                startDate, endDate, customerKeyword, materialModel, salesUserId, salesUserKeyword,
+                startDate, endDate, itemCreateStart, itemCreateEndExclusive, quoteCreateStart, quoteCreateEndExclusive,
+                quickFilter, customerKeyword, materialModel, salesUserId, salesUserKeyword,
                 purchaserUserId, hasQuotesOnly, status, rfqCode, cancellationToken);
             var data = await _rfqItemListQuery.GetListAnalyticsTrendsAsync(
                 request,
@@ -272,6 +294,11 @@ namespace CRM.API.Controllers
         public async Task<IActionResult> GetItemListAnalyticsBreakdowns(
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
+            [FromQuery] string? itemCreateStart,
+            [FromQuery] string? itemCreateEndExclusive,
+            [FromQuery] string? quoteCreateStart,
+            [FromQuery] string? quoteCreateEndExclusive,
+            [FromQuery] string? quickFilter,
             [FromQuery] string? customerKeyword,
             [FromQuery] string? materialModel,
             [FromQuery] string? salesUserId,
@@ -283,7 +310,8 @@ namespace CRM.API.Controllers
             CancellationToken cancellationToken = default)
         {
             var (request, _) = await BuildItemListAnalyticsQueryRequestAsync(
-                startDate, endDate, customerKeyword, materialModel, salesUserId, salesUserKeyword,
+                startDate, endDate, itemCreateStart, itemCreateEndExclusive, quoteCreateStart, quoteCreateEndExclusive,
+                quickFilter, customerKeyword, materialModel, salesUserId, salesUserKeyword,
                 purchaserUserId, hasQuotesOnly, status, rfqCode, cancellationToken);
             var data = await _rfqItemListQuery.GetListAnalyticsBreakdownsAsync(request, cancellationToken);
             return Ok(ApiResponse<IReadOnlyList<SalesAnalyticsBreakdownGroupDto>>.Ok(data));
@@ -294,6 +322,11 @@ namespace CRM.API.Controllers
         public async Task<IActionResult> GetItemListAnalyticsRankings(
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
+            [FromQuery] string? itemCreateStart,
+            [FromQuery] string? itemCreateEndExclusive,
+            [FromQuery] string? quoteCreateStart,
+            [FromQuery] string? quoteCreateEndExclusive,
+            [FromQuery] string? quickFilter,
             [FromQuery] string? customerKeyword,
             [FromQuery] string? materialModel,
             [FromQuery] string? salesUserId,
@@ -305,7 +338,8 @@ namespace CRM.API.Controllers
             CancellationToken cancellationToken = default)
         {
             var (request, maskCustomerNames) = await BuildItemListAnalyticsQueryRequestAsync(
-                startDate, endDate, customerKeyword, materialModel, salesUserId, salesUserKeyword,
+                startDate, endDate, itemCreateStart, itemCreateEndExclusive, quoteCreateStart, quoteCreateEndExclusive,
+                quickFilter, customerKeyword, materialModel, salesUserId, salesUserKeyword,
                 purchaserUserId, hasQuotesOnly, status, rfqCode, cancellationToken);
             var data = await _rfqItemListQuery.GetListAnalyticsRankingsAsync(request, maskCustomerNames, cancellationToken);
             return Ok(ApiResponse<RfqItemListAnalyticsRankingsDto>.Ok(data));
@@ -652,6 +686,11 @@ namespace CRM.API.Controllers
         private async Task<(RFQItemQueryRequest Request, bool MaskCustomerNames)> BuildItemListAnalyticsQueryRequestAsync(
             string? startDate,
             string? endDate,
+            string? itemCreateStart,
+            string? itemCreateEndExclusive,
+            string? quoteCreateStart,
+            string? quoteCreateEndExclusive,
+            string? quickFilter,
             string? customerKeyword,
             string? materialModel,
             string? salesUserId,
@@ -676,6 +715,11 @@ namespace CRM.API.Controllers
             {
                 StartDate = PostgreSqlDateTime.ParseDateOnly(startDate),
                 EndDate = PostgreSqlDateTime.ParseDateOnly(endDate),
+                ItemCreateStartUtc = PostgreSqlDateTime.ParseDateTimeUtc(itemCreateStart),
+                ItemCreateEndExclusiveUtc = PostgreSqlDateTime.ParseDateTimeUtc(itemCreateEndExclusive),
+                QuoteCreateStartUtc = PostgreSqlDateTime.ParseDateTimeUtc(quoteCreateStart),
+                QuoteCreateEndExclusiveUtc = PostgreSqlDateTime.ParseDateTimeUtc(quoteCreateEndExclusive),
+                QuickFilter = string.IsNullOrWhiteSpace(quickFilter) ? null : quickFilter.Trim(),
                 CustomerKeyword = canViewCustomer && !string.IsNullOrWhiteSpace(customerKeyword)
                     ? customerKeyword.Trim()
                     : null,

@@ -78,6 +78,8 @@ namespace CRM.Core.Interfaces
     {
         public string? Keyword { get; set; }
         public short? Status { get; set; }
+        /// <summary>收款用途：10 普通 / 20 预收（筛主表 ReceiptPurpose）。</summary>
+        public short? ReceiptPurpose { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
         public int Page { get; set; } = 1;

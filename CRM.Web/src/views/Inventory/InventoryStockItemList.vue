@@ -21,6 +21,7 @@
     <div class="search-bar">
       <div class="search-left">
         <el-select
+          v-if="tabModeDimension !== 'outboundStatus'"
           v-model="filters.outboundStatus"
           clearable
           :placeholder="t('inventoryStockItemList.filters.outboundStatusAll')"
@@ -33,6 +34,7 @@
           <el-option :label="t('inventoryStockItemList.filters.outboundDone')" :value="3" />
         </el-select>
         <el-select
+          v-if="tabModeDimension !== 'stockPresence'"
           v-model="filters.stockPresence"
           class="status-select status-select--stock-presence"
           :teleported="false"
@@ -95,6 +97,7 @@
           />
         </div>
         <el-select
+          v-if="!warehouseTabStripActive"
           v-model="filters.warehouseId"
           clearable
           :placeholder="t('inventoryStockItemList.filters.warehouse')"
@@ -163,7 +166,91 @@
         </el-select>
         <button type="button" class="btn-primary btn-sm" @click="fetchList">{{ t('inventoryStockItemList.filters.search') }}</button>
         <button type="button" class="btn-ghost btn-sm" @click="resetFilters">{{ t('inventoryStockItemList.filters.reset') }}</button>
+        <el-popover
+          v-model:visible="settingsMenuOpen"
+          trigger="click"
+          placement="bottom-end"
+          :width="168"
+          :show-arrow="false"
+          popper-class="isi-list-settings-popper"
+        >
+          <template #reference>
+            <button
+              type="button"
+              class="btn-ghost btn-sm btn-icon-only"
+              :title="t('inventoryStockItemList.settingsMenu.aria')"
+              :aria-label="t('inventoryStockItemList.settingsMenu.aria')"
+            >
+              <el-icon :size="14"><Setting /></el-icon>
+            </button>
+          </template>
+          <div class="isi-list-settings-menu">
+            <button
+              type="button"
+              class="isi-list-settings-menu__item"
+              :disabled="tabModeDimension === 'off'"
+              @click="closeFilterTabMode"
+            >
+              {{ t('inventoryStockItemList.settingsMenu.closeTabs') }}
+            </button>
+            <div
+              class="isi-list-settings-menu__submenu"
+              @mouseenter="settingsSubmenuOpen = true"
+              @mouseleave="settingsSubmenuOpen = false"
+            >
+              <div class="isi-list-settings-menu__item isi-list-settings-menu__item--parent">
+                <span>{{ t('inventoryStockItemList.settingsMenu.tabMode') }}</span>
+                <el-icon class="isi-list-settings-menu__caret"><ArrowRight /></el-icon>
+              </div>
+              <div v-show="settingsSubmenuOpen" class="isi-list-settings-menu__flyout">
+                <button
+                  v-for="dim in INVENTORY_STOCK_ITEM_LIST_TAB_MODE_OPTIONS"
+                  :key="dim"
+                  type="button"
+                  class="isi-list-settings-menu__item"
+                  :class="{
+                    'is-active': tabModeDimension === dim,
+                    'is-disabled': dim === 'warehouse' && !warehouseTabModeAllowed
+                  }"
+                  :disabled="dim === 'warehouse' && !warehouseTabModeAllowed"
+                  :title="
+                    dim === 'warehouse' && !warehouseTabModeAllowed
+                      ? t('inventoryStockItemList.settingsMenu.warehouseTabDisabled', {
+                          max: INVENTORY_WAREHOUSE_TAB_MAX
+                        })
+                      : undefined
+                  "
+                  @click="enableFilterTabMode(dim)"
+                >
+                  {{ tabModeDimensionLabel(dim) }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </el-popover>
       </div>
+    </div>
+
+    <div class="isi-main-panel" :class="{ 'isi-main-panel--with-filter-tabs': filterTabStripVisible }">
+    <div
+      v-if="filterTabStripVisible"
+      class="isi-filter-tabs"
+      role="tablist"
+      :aria-label="filterTabStripAriaLabel"
+    >
+      <button
+        v-for="tab in filterTabOptions"
+        :key="tab.id"
+        type="button"
+        role="tab"
+        class="isi-filter-tabs__item"
+        :class="{ 'is-active': activeFilterTabId === tab.id }"
+        :aria-selected="activeFilterTabId === tab.id"
+        :title="tab.label"
+        @click="onFilterTabClick(tab.id)"
+      >
+        {{ tab.label }}
+      </button>
     </div>
 
     <!-- 主表：列设置齿轮 + 行高密度锚点见《业务列表规范》§1.2、§2.3；双击行见《列表双击进入详情规范》 -->
@@ -326,6 +413,7 @@
         @current-change="onStockItemPageChange"
       />
     </div>
+    </div>
   </div>
 </template>
 
@@ -334,7 +422,25 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Box, Setting } from '@element-plus/icons-vue'
+import { ArrowRight, Box, Setting } from '@element-plus/icons-vue'
+import {
+  INVENTORY_STOCK_ITEM_LIST_TAB_MODE_OPTIONS,
+  INVENTORY_WAREHOUSE_TAB_MAX,
+  ISI_OUTBOUND_STATUS_TAB_VALUES,
+  readInventoryStockItemListTabMode,
+  writeInventoryStockItemListTabMode,
+  isiOutboundStatusFilterToTab,
+  isiOutboundStatusTabToFilter,
+  isiStockPresenceFilterToTab,
+  isiStockPresenceTabToFilter,
+  isiWarehouseFilterToTab,
+  isiWarehouseTabToFilter,
+  isWarehouseTabModeAllowed,
+  type InventoryStockItemListTabModeDimension,
+  type IsiOutboundStatusTabId,
+  type IsiStockPresenceTabId,
+  type IsiWarehouseTabId
+} from '@/utils/inventoryStockItemListTabMode'
 import { authApi, type PurchaseUserSelectOption, type SalesUserSelectOption } from '@/api/auth'
 import { inventoryCenterApi, type StockItemListQuery, type StockItemListRow, type WarehouseInfo } from '@/api/inventoryCenter'
 import { normalizeRegionType, REGION_TYPE_OVERSEAS } from '@/constants/regionType'
@@ -512,6 +618,75 @@ const purchaseUsers = ref<PurchaseUserSelectOption[]>([])
 const warehouses = ref<WarehouseInfo[]>([])
 const warehouseOptions = computed(() => warehouses.value.filter((w) => !!(w.id && String(w.id).trim())))
 
+const tabModeDimension = ref<InventoryStockItemListTabModeDimension>(
+  readInventoryStockItemListTabMode()
+)
+const settingsMenuOpen = ref(false)
+const settingsSubmenuOpen = ref(false)
+
+const TAB_MODE_FILTER_I18N: Record<
+  Exclude<InventoryStockItemListTabModeDimension, 'off'>,
+  string
+> = {
+  outboundStatus: 'inventoryStockItemList.filters.outboundStatus',
+  stockPresence: 'inventoryStockItemList.filters.stockPresenceField',
+  warehouse: 'inventoryStockItemList.filters.warehouse'
+}
+
+function tabModeDimensionLabel(dim: Exclude<InventoryStockItemListTabModeDimension, 'off'>) {
+  return t(TAB_MODE_FILTER_I18N[dim])
+}
+
+function closeFilterTabMode() {
+  if (tabModeDimension.value === 'off') return
+  tabModeDimension.value = 'off'
+  writeInventoryStockItemListTabMode('off')
+  settingsMenuOpen.value = false
+  settingsSubmenuOpen.value = false
+}
+
+function enableFilterTabMode(dim: Exclude<InventoryStockItemListTabModeDimension, 'off'>) {
+  if (dim === 'warehouse' && !warehouseTabModeAllowed.value) {
+    ElMessage.warning(
+      t('inventoryStockItemList.settingsMenu.warehouseTabDisabled', {
+        max: INVENTORY_WAREHOUSE_TAB_MAX
+      })
+    )
+    return
+  }
+  tabModeDimension.value = dim
+  writeInventoryStockItemListTabMode(dim)
+  settingsMenuOpen.value = false
+  settingsSubmenuOpen.value = false
+}
+
+watch(settingsMenuOpen, (open) => {
+  if (!open) settingsSubmenuOpen.value = false
+})
+
+const warehouseTabModeAllowed = computed(() =>
+  isWarehouseTabModeAllowed(warehouseOptions.value.length)
+)
+
+const warehouseTabStripActive = computed(
+  () => tabModeDimension.value === 'warehouse' && warehouseTabModeAllowed.value
+)
+
+const filterTabStripVisible = computed(
+  () =>
+    tabModeDimension.value === 'outboundStatus' ||
+    tabModeDimension.value === 'stockPresence' ||
+    (tabModeDimension.value === 'warehouse' && warehouseTabModeAllowed.value)
+)
+
+const filterTabStripAriaLabel = computed(() => {
+  if (tabModeDimension.value === 'off') return ''
+  if (tabModeDimension.value === 'warehouse' && !warehouseTabModeAllowed.value) return ''
+  return tabModeDimensionLabel(tabModeDimension.value)
+})
+
+type IsiFilterTabId = IsiOutboundStatusTabId | IsiStockPresenceTabId | IsiWarehouseTabId
+
 const filters = reactive({
   stockInCode: '',
   stockItemCode: '',
@@ -527,6 +702,81 @@ const filters = reactive({
   salespersonUserId: undefined as string | undefined,
   purchaserUserId: undefined as string | undefined
 })
+
+function outboundStatusFilterLabel(n: number) {
+  if (n === 1) return t('inventoryStockItemList.filters.outboundNone')
+  if (n === 2) return t('inventoryStockItemList.filters.outboundPartial')
+  if (n === 3) return t('inventoryStockItemList.filters.outboundDone')
+  return String(n)
+}
+
+const filterTabOptions = computed(() => {
+  const dim = tabModeDimension.value
+  if (dim === 'outboundStatus') {
+    return [
+      { id: 'all' as const, label: t('inventoryStockItemList.filterTabs.all') },
+      ...ISI_OUTBOUND_STATUS_TAB_VALUES.map((value) => ({
+        id: String(value) as IsiOutboundStatusTabId,
+        label: outboundStatusFilterLabel(value)
+      }))
+    ]
+  }
+  if (dim === 'stockPresence') {
+    return [
+      { id: 'all' as const, label: t('inventoryStockItemList.filterTabs.all') },
+      {
+        id: 'has' as const,
+        label: t('inventoryStockItemList.filters.stockPresenceHas')
+      },
+      {
+        id: 'none' as const,
+        label: t('inventoryStockItemList.filters.stockPresenceNone')
+      }
+    ]
+  }
+  if (dim === 'warehouse' && warehouseTabModeAllowed.value) {
+    return [
+      { id: 'all' as const, label: t('inventoryStockItemList.filterTabs.all') },
+      ...warehouseOptions.value.map((w) => ({
+        id: String(w.id) as IsiWarehouseTabId,
+        label: warehouseOptionLabel(w)
+      }))
+    ]
+  }
+  return [] as Array<{ id: IsiFilterTabId; label: string }>
+})
+
+const activeFilterTabId = computed((): IsiFilterTabId => {
+  const dim = tabModeDimension.value
+  if (dim === 'outboundStatus') return isiOutboundStatusFilterToTab(filters.outboundStatus)
+  if (dim === 'stockPresence') return isiStockPresenceFilterToTab(filters.stockPresence)
+  if (dim === 'warehouse') return isiWarehouseFilterToTab(filters.warehouseId)
+  return 'all'
+})
+
+function onFilterTabClick(tab: IsiFilterTabId) {
+  const dim = tabModeDimension.value
+  if (dim === 'outboundStatus') {
+    const next = isiOutboundStatusTabToFilter(tab as IsiOutboundStatusTabId)
+    if (filters.outboundStatus === next) return
+    filters.outboundStatus = next
+    fetchList()
+    return
+  }
+  if (dim === 'stockPresence') {
+    const next = isiStockPresenceTabToFilter(tab as IsiStockPresenceTabId)
+    if (filters.stockPresence === next) return
+    filters.stockPresence = next
+    fetchList()
+    return
+  }
+  if (dim === 'warehouse' && warehouseTabModeAllowed.value) {
+    const next = isiWarehouseTabToFilter(tab as IsiWarehouseTabId)
+    if (filters.warehouseId === next) return
+    filters.warehouseId = next
+    fetchList()
+  }
+}
 
 function salesUserLabel(u: SalesUserSelectOption) {
   const name = u.realName || u.label || u.userName
@@ -1066,6 +1316,83 @@ html[data-theme='dark'] .inv-list-amt-frac {
   border: 1px solid transparent;
 }
 
+.btn-icon-only {
+  width: 32px;
+  padding-left: 0;
+  padding-right: 0;
+  justify-content: center;
+  display: inline-flex;
+  align-items: center;
+}
+
+.isi-main-panel {
+  width: 100%;
+}
+
+.isi-main-panel--with-filter-tabs {
+  :deep(.crm-data-table-root) {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+
+  :deep(.el-table),
+  :deep(.el-table__inner-wrapper),
+  :deep(.el-table__header-wrapper) {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+}
+
+.isi-filter-tabs {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  gap: 4px;
+}
+
+.isi-filter-tabs__item {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 9px 8px;
+  border: 1px solid var(--crm-border-panel, #e2e8f0);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  background: #e8edf5;
+  color: var(--crm-text-primary);
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-weight: 500;
+  text-align: center;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: background 0.12s, border-color 0.12s, color 0.12s, box-shadow 0.12s;
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--crm-cyan-primary) 45%, var(--crm-border-panel));
+    background: color-mix(in srgb, var(--crm-cyan-primary) 12%, var(--crm-layer-1));
+  }
+
+  &.is-active {
+    background: color-mix(in srgb, var(--crm-cyan-primary) 16%, var(--crm-layer-2, #fff));
+    border-color: color-mix(in srgb, var(--crm-cyan-primary) 55%, var(--crm-border-panel));
+    box-shadow: inset 0 2px 0 0 var(--crm-cyan-primary);
+    font-weight: 600;
+    z-index: 1;
+  }
+}
+
+html[data-theme='dark'] .isi-filter-tabs__item:not(.is-active) {
+  background: var(--crm-layer-1);
+
+  &:hover {
+    background: color-mix(in srgb, var(--crm-cyan-primary) 12%, var(--crm-layer-1));
+  }
+}
+
 .btn-primary {
   background: $primary-color;
   color: #fff;
@@ -1144,5 +1471,78 @@ html[data-theme='dark'] .inv-list-amt-frac {
     text-overflow: clip;
     white-space: nowrap;
   }
+}
+</style>
+
+<style lang="scss">
+.isi-list-settings-popper.el-popover.el-popper {
+  padding: 6px;
+  min-width: 160px;
+  overflow: visible;
+}
+
+.isi-list-settings-menu {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.isi-list-settings-menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--crm-text-secondary, rgba(224, 244, 255, 0.7));
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--crm-accent-008, rgba(0, 212, 255, 0.08));
+    color: var(--crm-text-primary, #e8f4ff);
+  }
+
+  &:disabled,
+  &.is-disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  &.is-active {
+    color: var(--crm-cyan-primary, #00d4ff);
+  }
+
+  &--parent {
+    cursor: default;
+  }
+}
+
+.isi-list-settings-menu__caret {
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--crm-text-muted, rgba(200, 216, 232, 0.55));
+}
+
+.isi-list-settings-menu__submenu {
+  position: relative;
+}
+
+.isi-list-settings-menu__flyout {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 4px);
+  min-width: 168px;
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid var(--crm-border-panel, rgba(0, 212, 255, 0.15));
+  background: var(--crm-layer-2, #0d1e35);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  z-index: 10;
 }
 </style>

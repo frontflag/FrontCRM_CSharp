@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.RFQ;
 using CRM.Core.Utilities;
@@ -7,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace CRM.Infrastructure.RfqListQueries;
 
 /// <summary>需求明细列表筛选（列表分页与看板共用）。</summary>
-internal static class RfqItemListFilter
+internal static partial class RfqItemListFilter
 {
     public static async Task<IQueryable<RfqItemListJoin>> BuildFilteredJoinQueryAsync(
         ApplicationDbContext db,
@@ -110,6 +111,34 @@ internal static class RfqItemListFilter
             q = q.Where(x => x.Rfq.CreateTime < endExclusive);
         }
 
+        if (request.ItemCreateStartUtc.HasValue)
+        {
+            var start = PostgreSqlDateTime.ToUtc(request.ItemCreateStartUtc.Value);
+            q = q.Where(x => x.Item.CreateTime >= start);
+        }
+
+        if (request.ItemCreateEndExclusiveUtc.HasValue)
+        {
+            var endExclusive = PostgreSqlDateTime.ToUtc(request.ItemCreateEndExclusiveUtc.Value);
+            q = q.Where(x => x.Item.CreateTime < endExclusive);
+        }
+
+        if (request.QuoteCreateStartUtc.HasValue || request.QuoteCreateEndExclusiveUtc.HasValue)
+        {
+            var qStart = request.QuoteCreateStartUtc.HasValue
+                ? PostgreSqlDateTime.ToUtc(request.QuoteCreateStartUtc.Value)
+                : (DateTime?)null;
+            var qEnd = request.QuoteCreateEndExclusiveUtc.HasValue
+                ? PostgreSqlDateTime.ToUtc(request.QuoteCreateEndExclusiveUtc.Value)
+                : (DateTime?)null;
+            q = q.Where(x =>
+                db.Quotes.AsNoTracking().Any(quote =>
+                    quote.RFQItemId != null
+                    && quote.RFQItemId == x.Item.Id
+                    && (qStart == null || quote.CreateTime >= qStart)
+                    && (qEnd == null || quote.CreateTime < qEnd)));
+        }
+
         if (!string.IsNullOrWhiteSpace(request.CustomerKeyword))
         {
             var kw = request.CustomerKeyword.Trim().ToLowerInvariant();
@@ -158,7 +187,9 @@ internal static class RfqItemListFilter
                 x.Item.AssignedPurchaserUserId2 == pid);
         }
 
-        if (request.HasQuotesOnly == true)
+        var quickKnown = RfqItemListQuickFilterCodes.IsKnown(request.QuickFilter);
+
+        if (!quickKnown && request.HasQuotesOnly == true)
         {
             q = q.Where(x =>
                 db.Quotes.AsNoTracking().Any(quote =>
@@ -172,7 +203,7 @@ internal static class RfqItemListFilter
             q = q.Where(x => x.Rfq.RfqCode.ToLower().Contains(rfqKw));
         }
 
-        if (request.Status.HasValue)
+        if (!quickKnown && request.Status.HasValue)
         {
             var st = request.Status.Value;
             if (st == 0)
@@ -197,6 +228,8 @@ internal static class RfqItemListFilter
                 q = q.Where(x => x.Item.Status == st);
             }
         }
+
+        q = ApplyQuickFilter(db, q, request.QuickFilter);
 
         return q;
     }

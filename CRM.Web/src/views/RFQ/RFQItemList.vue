@@ -12,8 +12,22 @@
 
     <!-- 搜索栏：与客户列表 CustomerList 同款布局与控件皮肤 -->
     <div class="search-bar">
+      <div v-if="activePreset" class="search-preset-chip-row">
+        <span class="search-preset-chip">
+          {{ t(presetI18nKey(activePreset)) }}
+          <button
+            type="button"
+            class="search-preset-chip__clear"
+            :title="t('rfqItemList.searchPanel.clearPreset')"
+            @click="clearPresetChip"
+          >
+            ×
+          </button>
+        </span>
+      </div>
       <div class="search-left">
         <el-date-picker
+          v-if="!presetActive"
           v-model="dateRange"
           type="daterange"
           :range-separator="t('rfqItemList.filters.to')"
@@ -37,6 +51,7 @@
           />
         </div>
         <el-select
+          v-if="!presetActive && tabModeDimension !== 'itemStatus'"
           v-model="searchForm.itemStatus"
           :placeholder="t('rfqItemList.filters.allItemStatuses')"
           clearable
@@ -45,10 +60,10 @@
         >
           <el-option :label="t('rfqItemList.status.pending')" :value="0" />
           <el-option :label="t('rfqItemList.status.quoted')" :value="1" />
+          <el-option :label="t('rfqItemList.status.noQuote')" :value="5" />
           <el-option :label="t('rfqItemList.status.accepted')" :value="2" />
           <el-option :label="t('rfqItemList.status.rejected')" :value="3" />
           <el-option :label="t('rfqItemList.status.closed')" :value="4" />
-          <el-option :label="t('rfqItemList.status.noQuote')" :value="5" />
         </el-select>
         <template v-if="canViewCustomerInRfq">
           <div class="search-input-wrap">
@@ -99,6 +114,7 @@
           <el-option v-for="u in purchaseUsers" :key="u.id" :label="purchaseUserLabel(u)" :value="u.id" />
         </el-select>
         <el-checkbox
+          v-if="!presetActive"
           v-model="searchForm.hasQuotesOnly"
           class="filter-checkbox-has-quotes"
           border
@@ -115,7 +131,80 @@
         >
           {{ viewMode === 'board' ? t('rfqItemList.filters.listView') : t('rfqItemList.filters.boardView') }}
         </button>
+        <el-popover
+          v-model:visible="settingsMenuOpen"
+          trigger="click"
+          placement="bottom-end"
+          :width="168"
+          :show-arrow="false"
+          popper-class="rfq-item-list-settings-popper"
+        >
+          <template #reference>
+            <button
+              type="button"
+              class="btn-ghost btn-sm btn-icon-only"
+              :title="t('rfqItemList.settingsMenu.aria')"
+              :aria-label="t('rfqItemList.settingsMenu.aria')"
+            >
+              <el-icon :size="14"><Setting /></el-icon>
+            </button>
+          </template>
+          <div class="rfq-item-list-settings-menu">
+            <button
+              type="button"
+              class="rfq-item-list-settings-menu__item"
+              :disabled="tabModeDimension === 'off'"
+              @click="closeFilterTabMode"
+            >
+              {{ t('rfqItemList.settingsMenu.closeTabs') }}
+            </button>
+            <div
+              v-if="visibleTabModeMenuOptions.length"
+              class="rfq-item-list-settings-menu__submenu"
+              @mouseenter="settingsSubmenuOpen = true"
+              @mouseleave="settingsSubmenuOpen = false"
+            >
+              <div class="rfq-item-list-settings-menu__item rfq-item-list-settings-menu__item--parent">
+                <span>{{ t('rfqItemList.settingsMenu.tabMode') }}</span>
+                <el-icon class="rfq-item-list-settings-menu__caret"><ArrowRight /></el-icon>
+              </div>
+              <div v-show="settingsSubmenuOpen" class="rfq-item-list-settings-menu__flyout">
+                <button
+                  v-for="dim in visibleTabModeMenuOptions"
+                  :key="dim"
+                  type="button"
+                  class="rfq-item-list-settings-menu__item"
+                  :class="{ 'is-active': tabModeDimension === dim }"
+                  @click="enableFilterTabMode(dim)"
+                >
+                  {{ tabModeDimensionLabel(dim) }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </el-popover>
       </div>
+    </div>
+
+    <div class="rfq-main-panel" :class="{ 'rfq-main-panel--with-filter-tabs': filterTabStripVisible }">
+    <div
+      v-if="filterTabStripVisible"
+      class="rfq-filter-tabs"
+      role="tablist"
+      :aria-label="filterTabStripAriaLabel"
+    >
+      <button
+        v-for="tab in filterTabOptions"
+        :key="tab.id"
+        type="button"
+        role="tab"
+        class="rfq-filter-tabs__item"
+        :class="{ 'is-active': activeFilterTabId === tab.id }"
+        :aria-selected="activeFilterTabId === tab.id"
+        @click="onFilterTabClick(tab.id)"
+      >
+        {{ tab.label }}
+      </button>
     </div>
 
     <div v-if="viewMode === 'board'" class="rfq-item-board-scroll">
@@ -658,6 +747,7 @@
       </div>
     </div>
     </div>
+    </div>
 
     <el-drawer
       v-model="basketDrawerVisible"
@@ -791,7 +881,25 @@ import {
 import { quoteMainStatusI18nKey, quoteMainStatusTagType, isQuoteReadOnly } from '@/utils/quoteMainStatus'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick'
-import { Setting } from '@element-plus/icons-vue'
+import { ArrowRight, Setting } from '@element-plus/icons-vue'
+import {
+  RFQ_ITEM_TAB_MODE_OPTIONS,
+  RFQ_ITEM_STATUS_TAB_VALUES,
+  readRfqItemTabMode,
+  writeRfqItemTabMode,
+  itemStatusFilterToTab,
+  itemStatusTabToFilter,
+  type RfqItemTabModeDimension,
+  type RfqItemStatusTabId
+} from '@/utils/rfqItemListTabMode'
+import {
+  buildRfqItemListRouteQuery,
+  isRfqItemListPresetId,
+  pickRfqItemKeywordQuery,
+  presetI18nKey,
+  resolveRfqItemPresetApiParams,
+  type RfqItemListPresetId
+} from '@/utils/rfqItemListPreset'
 
 const router = useRouter()
 const route = useRoute()
@@ -848,6 +956,81 @@ const { count: basketCount, items: basketItems } = storeToRefs(basketStore)
 
 const loading = ref(false)
 const viewMode = ref<'list' | 'board'>('list')
+const tabModeDimension = ref<RfqItemTabModeDimension>(readRfqItemTabMode())
+const settingsMenuOpen = ref(false)
+const settingsSubmenuOpen = ref(false)
+
+const activePreset = computed((): RfqItemListPresetId | null => {
+  const p = route.query.preset
+  return typeof p === 'string' && isRfqItemListPresetId(p) ? p : null
+})
+const presetActive = computed(() => !!activePreset.value)
+
+/** preset 打开时隐藏明细状态页签模式入口（与销售进度类互斥同理） */
+const visibleTabModeMenuOptions = computed(() =>
+  presetActive.value ? [] : RFQ_ITEM_TAB_MODE_OPTIONS
+)
+
+function clearPresetChip() {
+  router.replace({ name: 'RFQItemList', query: {} })
+}
+
+function tabModeDimensionLabel(_dim: Exclude<RfqItemTabModeDimension, 'off'>) {
+  return t('rfqItemList.filters.itemStatus')
+}
+
+function closeFilterTabMode() {
+  if (tabModeDimension.value === 'off') return
+  tabModeDimension.value = 'off'
+  writeRfqItemTabMode('off')
+  settingsMenuOpen.value = false
+  settingsSubmenuOpen.value = false
+}
+
+function enableFilterTabMode(dim: Exclude<RfqItemTabModeDimension, 'off'>) {
+  if (presetActive.value) return
+  tabModeDimension.value = dim
+  writeRfqItemTabMode(dim)
+  settingsMenuOpen.value = false
+  settingsSubmenuOpen.value = false
+}
+
+watch(settingsMenuOpen, (open) => {
+  if (!open) settingsSubmenuOpen.value = false
+})
+
+const filterTabStripVisible = computed(
+  () => tabModeDimension.value !== 'off' && !presetActive.value
+)
+
+const filterTabStripAriaLabel = computed(() => {
+  if (tabModeDimension.value === 'off') return ''
+  return tabModeDimensionLabel(tabModeDimension.value)
+})
+
+const filterTabOptions = computed(() => {
+  if (tabModeDimension.value !== 'itemStatus') return [] as Array<{ id: RfqItemStatusTabId; label: string }>
+  return [
+    { id: 'all' as const, label: t('rfqItemList.filterTabs.all') },
+    ...RFQ_ITEM_STATUS_TAB_VALUES.map((value) => ({
+      id: String(value) as RfqItemStatusTabId,
+      label: itemStatusText(value)
+    }))
+  ]
+})
+
+const activeFilterTabId = computed((): RfqItemStatusTabId => {
+  if (tabModeDimension.value !== 'itemStatus') return 'all'
+  return itemStatusFilterToTab(searchForm.itemStatus)
+})
+
+function onFilterTabClick(tab: RfqItemStatusTabId) {
+  if (tabModeDimension.value !== 'itemStatus') return
+  const next = itemStatusTabToFilter(tab)
+  if (searchForm.itemStatus === next) return
+  searchForm.itemStatus = next
+  handleSearch()
+}
 const tableData = ref<RFQItem[]>([])
 const totalCount = ref(0)
 
@@ -1183,22 +1366,38 @@ const searchForm = reactive({
   hasQuotesOnly: false
 })
 
-const boardFilters = computed((): RfqItemListAnalyticsQuery => {
-  const q: RfqItemListAnalyticsQuery = {}
-  if (dateRange.value?.[0]) q.startDate = dateRange.value[0]
-  if (dateRange.value?.[1]) q.endDate = dateRange.value[1]
+function appendRfqItemListFilterParams(
+  q: RfqItemListAnalyticsQuery | Record<string, unknown>
+): void {
+  const preset = activePreset.value
+  if (preset) {
+    const api = resolveRfqItemPresetApiParams(preset)
+    if (api.itemCreateStart) q.itemCreateStart = api.itemCreateStart
+    if (api.itemCreateEndExclusive) q.itemCreateEndExclusive = api.itemCreateEndExclusive
+    if (api.quoteCreateStart) q.quoteCreateStart = api.quoteCreateStart
+    if (api.quoteCreateEndExclusive) q.quoteCreateEndExclusive = api.quoteCreateEndExclusive
+    if (api.quickFilter) q.quickFilter = api.quickFilter
+  } else {
+    if (dateRange.value?.[0]) q.startDate = dateRange.value[0]
+    if (dateRange.value?.[1]) q.endDate = dateRange.value[1]
+    if (searchForm.itemStatus !== undefined && searchForm.itemStatus !== null) {
+      q.status = searchForm.itemStatus
+    }
+    if (searchForm.hasQuotesOnly) q.hasQuotesOnly = true
+  }
   const ck = searchForm.customerKeyword.trim()
   if (ck) q.customerKeyword = ck
   const mm = searchForm.materialModel.trim()
   if (mm) q.materialModel = mm
   const rc = searchForm.rfqCode.trim()
   if (rc) q.rfqCode = rc
-  if (searchForm.itemStatus !== undefined && searchForm.itemStatus !== null) {
-    q.status = searchForm.itemStatus
-  }
   if (searchForm.salesUserId) q.salesUserId = searchForm.salesUserId
   if (searchForm.purchaserUserId) q.purchaserUserId = searchForm.purchaserUserId
-  if (searchForm.hasQuotesOnly) q.hasQuotesOnly = true
+}
+
+const boardFilters = computed((): RfqItemListAnalyticsQuery => {
+  const q: RfqItemListAnalyticsQuery = {}
+  appendRfqItemListFilterParams(q)
   return q
 })
 
@@ -1637,20 +1836,27 @@ function applyRouteQueryToFilters() {
 async function loadData() {
   loading.value = true
   try {
+    const filterBag: RfqItemListAnalyticsQuery = {}
+    appendRfqItemListFilterParams(filterBag)
     const res = await rfqApi.searchRFQItems({
       pageNumber: pageInfo.page,
       pageSize: pageInfo.pageSize,
-      startDate: dateRange.value?.[0],
-      endDate: dateRange.value?.[1],
-      customerKeyword: searchForm.customerKeyword.trim() || undefined,
-      materialModel: searchForm.materialModel.trim() || undefined,
-      rfqCode: searchForm.rfqCode.trim() || undefined,
-      ...(searchForm.itemStatus !== undefined && searchForm.itemStatus !== null
-        ? { status: searchForm.itemStatus as RFQItemStatus }
+      startDate: filterBag.startDate,
+      endDate: filterBag.endDate,
+      itemCreateStart: filterBag.itemCreateStart,
+      itemCreateEndExclusive: filterBag.itemCreateEndExclusive,
+      quoteCreateStart: filterBag.quoteCreateStart,
+      quoteCreateEndExclusive: filterBag.quoteCreateEndExclusive,
+      quickFilter: filterBag.quickFilter,
+      customerKeyword: filterBag.customerKeyword,
+      materialModel: filterBag.materialModel,
+      rfqCode: filterBag.rfqCode,
+      ...(filterBag.status !== undefined && filterBag.status !== null
+        ? { status: filterBag.status as RFQItemStatus }
         : {}),
-      salesUserId: searchForm.salesUserId || undefined,
-      purchaserUserId: searchForm.purchaserUserId || undefined,
-      ...(searchForm.hasQuotesOnly ? { hasQuotesOnly: true } : {})
+      salesUserId: filterBag.salesUserId,
+      purchaserUserId: filterBag.purchaserUserId,
+      ...(filterBag.hasQuotesOnly ? { hasQuotesOnly: true } : {})
     })
     const rawItems = (res.items || []) as { id?: string }[]
     const idList = rawItems.map((r) => String(r.id ?? '').trim()).filter(Boolean)
@@ -1704,24 +1910,35 @@ async function loadData() {
 
 function handleSearch() {
   pageInfo.page = 1
-  const query: Record<string, string> = {}
-  if (dateRange.value?.[0] && dateRange.value[1]) {
-    query.startDate = dateRange.value[0]
-    query.endDate = dateRange.value[1]
+  const keywords = pickRfqItemKeywordQuery({
+    rfqCode: searchForm.rfqCode.trim(),
+    customerKeyword: searchForm.customerKeyword.trim(),
+    materialModel: searchForm.materialModel.trim(),
+    salesUserId: searchForm.salesUserId ?? '',
+    purchaserUserId: searchForm.purchaserUserId ?? ''
+  })
+  if (activePreset.value) {
+    router.replace({
+      name: 'RFQItemList',
+      query: buildRfqItemListRouteQuery({ preset: activePreset.value, keywords })
+    })
+    return
   }
-  const ck = searchForm.customerKeyword.trim()
-  if (ck) query.customerKeyword = ck
-  const mm = searchForm.materialModel.trim()
-  if (mm) query.materialModel = mm
-  const rc = searchForm.rfqCode.trim()
-  if (rc) query.rfqCode = rc
-  if (searchForm.itemStatus !== undefined && searchForm.itemStatus !== null) {
-    query.itemStatus = String(searchForm.itemStatus)
-  }
-  if (searchForm.salesUserId) query.salesUserId = searchForm.salesUserId
-  if (searchForm.purchaserUserId) query.purchaserUserId = searchForm.purchaserUserId
-  if (searchForm.hasQuotesOnly) query.hasQuotesOnly = '1'
-  router.replace({ name: 'RFQItemList', query })
+  router.replace({
+    name: 'RFQItemList',
+    query: buildRfqItemListRouteQuery({
+      keywords,
+      advanced: {
+        startDate: dateRange.value?.[0],
+        endDate: dateRange.value?.[1],
+        itemStatus:
+          searchForm.itemStatus !== undefined && searchForm.itemStatus !== null
+            ? String(searchForm.itemStatus)
+            : undefined,
+        hasQuotesOnly: searchForm.hasQuotesOnly
+      }
+    })
+  })
 }
 
 function handleReset() {
@@ -2107,6 +2324,95 @@ onUnmounted(() => {
   overflow: hidden;
   background: $layer-1;
   font-family: 'Noto Sans SC', sans-serif;
+}
+
+.btn-icon-only {
+  width: 32px;
+  padding-left: 0;
+  padding-right: 0;
+  justify-content: center;
+}
+
+.rfq-main-panel {
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.rfq-main-panel--with-filter-tabs {
+  .rfq-items-split-root,
+  .rfq-item-board-scroll {
+    margin-top: 0;
+  }
+
+  :deep(.crm-data-table-root),
+  :deep(.table-card-scroll) {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+
+  :deep(.el-table),
+  :deep(.el-table__inner-wrapper),
+  :deep(.el-table__header-wrapper) {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+
+  :deep(.rfq-item-list-board > .board-toolbar.card:first-child),
+  :deep(.rfq-item-list-board > .section:first-child) {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+}
+
+.rfq-filter-tabs {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.rfq-filter-tabs__item {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 9px 8px;
+  border: 1px solid var(--crm-border-panel, #e2e8f0);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  background: #e8edf5;
+  color: var(--crm-text-primary);
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-weight: 500;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s, box-shadow 0.12s;
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--crm-cyan-primary) 45%, var(--crm-border-panel));
+    background: color-mix(in srgb, var(--crm-cyan-primary) 12%, var(--crm-layer-1));
+  }
+
+  &.is-active {
+    background: color-mix(in srgb, var(--crm-cyan-primary) 16%, var(--crm-layer-2, #fff));
+    border-color: color-mix(in srgb, var(--crm-cyan-primary) 55%, var(--crm-border-panel));
+    box-shadow: inset 0 2px 0 0 var(--crm-cyan-primary);
+    font-weight: 600;
+    z-index: 1;
+  }
+}
+
+html[data-theme='dark'] .rfq-filter-tabs__item:not(.is-active) {
+  background: var(--crm-layer-1);
+
+  &:hover {
+    background: color-mix(in srgb, var(--crm-cyan-primary) 12%, var(--crm-layer-1));
+  }
 }
 
 .rfq-items-split-root {
@@ -2500,10 +2806,52 @@ onUnmounted(() => {
 // ---- 搜索栏（与客户列表 CustomerList 对齐）----
 .search-bar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
   margin-bottom: 12px;
   flex-shrink: 0;
+}
+
+.search-preset-chip-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.search-preset-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--crm-text-primary);
+  background: color-mix(in srgb, var(--crm-cyan-primary) 14%, var(--crm-layer-2, #fff));
+  border: 1px solid color-mix(in srgb, var(--crm-cyan-primary) 40%, var(--crm-border-panel));
+  border-radius: 999px;
+}
+
+.search-preset-chip__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--crm-text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+
+  &:hover {
+    color: var(--crm-text-primary);
+    background: var(--crm-accent-008, rgba(0, 212, 255, 0.08));
+  }
 }
 
 .search-left {
@@ -2887,9 +3235,79 @@ onUnmounted(() => {
 }
 </style>
 
-<!-- 抽屉挂载在 body，需单独样式块 -->
+<!-- 抽屉 / 齿轮菜单挂载在 body，需单独样式块 -->
 <style lang="scss">
 @import '@/assets/styles/variables.scss';
+
+.rfq-item-list-settings-popper.el-popover.el-popper {
+  padding: 6px;
+  min-width: 160px;
+  overflow: visible;
+}
+
+.rfq-item-list-settings-menu {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rfq-item-list-settings-menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--crm-text-secondary, rgba(224, 244, 255, 0.7));
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--crm-accent-008, rgba(0, 212, 255, 0.08));
+    color: var(--crm-text-primary, #e8f4ff);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  &.is-active {
+    color: var(--crm-cyan-primary, #00d4ff);
+  }
+
+  &--parent {
+    cursor: default;
+  }
+}
+
+.rfq-item-list-settings-menu__caret {
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--crm-text-muted, rgba(200, 216, 232, 0.55));
+}
+
+.rfq-item-list-settings-menu__submenu {
+  position: relative;
+}
+
+.rfq-item-list-settings-menu__flyout {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 4px);
+  min-width: 148px;
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid var(--crm-border-panel, rgba(0, 212, 255, 0.15));
+  background: var(--crm-layer-2, #0d1e35);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  z-index: 10;
+}
 
 .rfq-basket-drawer {
   .basket-drawer-hint {

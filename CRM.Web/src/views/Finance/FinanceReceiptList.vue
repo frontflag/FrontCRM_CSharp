@@ -34,12 +34,34 @@
         >
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
-        <el-select v-model="query.status" :placeholder="t('financeReceiptList.filters.status')" clearable class="filter-select" @change="loadData">
+        <el-select
+          v-if="tabModeDimension !== 'status'"
+          v-model="query.status"
+          :placeholder="t('financeReceiptList.filters.status')"
+          clearable
+          class="filter-select"
+          @change="loadData"
+        >
           <el-option
             v-for="k in receiptStatusSelectKeys"
             :key="k"
             :label="receiptStatusLabel(k)"
             :value="k"
+          />
+        </el-select>
+        <el-select
+          v-if="tabModeDimension !== 'receiptPurpose'"
+          v-model="query.receiptPurpose"
+          :placeholder="t('financeReceiptList.filters.purpose')"
+          clearable
+          class="filter-select"
+          @change="loadData"
+        >
+          <el-option
+            v-for="v in FR_PURPOSE_TAB_VALUES"
+            :key="v"
+            :label="receiptPurposeLabel(v)"
+            :value="v"
           />
         </el-select>
         <el-date-picker
@@ -56,6 +78,56 @@
         <el-button type="primary" @click="loadData">
           <el-icon><Search /></el-icon> {{ t('financeReceiptList.filters.search') }}
         </el-button>
+        <el-popover
+          v-model:visible="settingsMenuOpen"
+          trigger="click"
+          placement="bottom-end"
+          :width="168"
+          :show-arrow="false"
+          popper-class="fr-list-settings-popper"
+        >
+          <template #reference>
+            <el-button
+              class="fr-settings-gear-btn"
+              :title="t('financeReceiptList.settingsMenu.aria')"
+              :aria-label="t('financeReceiptList.settingsMenu.aria')"
+            >
+              <el-icon :size="14"><Setting /></el-icon>
+            </el-button>
+          </template>
+          <div class="fr-list-settings-menu">
+            <button
+              type="button"
+              class="fr-list-settings-menu__item"
+              :disabled="tabModeDimension === 'off'"
+              @click="closeFilterTabMode"
+            >
+              {{ t('financeReceiptList.settingsMenu.closeTabs') }}
+            </button>
+            <div
+              class="fr-list-settings-menu__submenu"
+              @mouseenter="settingsSubmenuOpen = true"
+              @mouseleave="settingsSubmenuOpen = false"
+            >
+              <div class="fr-list-settings-menu__item fr-list-settings-menu__item--parent">
+                <span>{{ t('financeReceiptList.settingsMenu.tabMode') }}</span>
+                <el-icon class="fr-list-settings-menu__caret"><ArrowRight /></el-icon>
+              </div>
+              <div v-show="settingsSubmenuOpen" class="fr-list-settings-menu__flyout">
+                <button
+                  v-for="dim in FINANCE_RECEIPT_LIST_TAB_MODE_OPTIONS"
+                  :key="dim"
+                  type="button"
+                  class="fr-list-settings-menu__item"
+                  :class="{ 'is-active': tabModeDimension === dim }"
+                  @click="enableFilterTabMode(dim)"
+                >
+                  {{ tabModeDimensionLabel(dim) }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </el-popover>
       </div>
       <div class="search-right">
         <el-button @click="goWriteOff">{{ t('financeReceiptList.goWriteOff') }}</el-button>
@@ -63,6 +135,27 @@
           <el-icon><Plus /></el-icon> {{ t('financeReceiptList.create') }}
         </el-button>
       </div>
+    </div>
+
+    <div class="fr-main-panel" :class="{ 'fr-main-panel--with-filter-tabs': filterTabStripVisible }">
+    <div
+      v-if="filterTabStripVisible"
+      class="fr-filter-tabs"
+      role="tablist"
+      :aria-label="filterTabStripAriaLabel"
+    >
+      <button
+        v-for="tab in filterTabOptions"
+        :key="tab.id"
+        type="button"
+        role="tab"
+        class="fr-filter-tabs__item"
+        :class="{ 'is-active': activeFilterTabId === tab.id }"
+        :aria-selected="activeFilterTabId === tab.id"
+        @click="onFilterTabClick(tab.id)"
+      >
+        {{ tab.label }}
+      </button>
     </div>
 
     <!-- 数据表格 -->
@@ -198,26 +291,27 @@
         </div>
       </template>
     </CrmDataTable>
-      <div class="pagination-wrap">
-        <div class="list-footer-left">
-          <el-tooltip :content="t('financeReceiptList.columnSettings')" placement="top" :hide-after="0">
-            <el-button class="list-settings-btn" link type="primary" :aria-label="t('financeReceiptList.columnSettings')" @click="dataTableRef?.openColumnSettings?.()">
-              <el-icon><Setting /></el-icon>
-            </el-button>
-          </el-tooltip>
-          <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
-          <div class="list-footer-spacer" aria-hidden="true"></div>
-        </div>
-        <el-pagination
-          v-model:current-page="query.page"
-          v-model:page-size="query.pageSize"
-          :total="total"
-          :page-sizes="[20, 50, 100]"
-          layout="total, sizes, prev, pager, next"
-          @size-change="loadData"
-          @current-change="loadData"
-        />
+    <div class="pagination-wrap">
+      <div class="list-footer-left">
+        <el-tooltip :content="t('financeReceiptList.columnSettings')" placement="top" :hide-after="0">
+          <el-button class="list-settings-btn" link type="primary" :aria-label="t('financeReceiptList.columnSettings')" @click="dataTableRef?.openColumnSettings?.()">
+            <el-icon><Setting /></el-icon>
+          </el-button>
+        </el-tooltip>
+        <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
+        <div class="list-footer-spacer" aria-hidden="true"></div>
       </div>
+      <el-pagination
+        v-model:current-page="query.page"
+        v-model:page-size="query.pageSize"
+        :total="total"
+        :page-sizes="[20, 50, 100]"
+        layout="total, sizes, prev, pager, next"
+        @size-change="loadData"
+        @current-change="loadData"
+      />
+    </div>
+    </div>
 
     <!-- 新建/编辑弹窗 -->
     <el-dialog
@@ -422,11 +516,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, reactive, onMounted } from 'vue'
+import { computed, ref, reactive, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useFinanceEnumLabels } from '@/composables/useFinanceEnumLabels'
-import { Search, Plus, Setting } from '@element-plus/icons-vue'
+import { ArrowRight, Search, Plus, Setting } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { documentApi, type UploadDocumentDto } from '@/api/document'
 import {
@@ -437,6 +531,20 @@ import {
   type FinanceReceipt,
   type PageQuery,
 } from '@/api/finance'
+import {
+  FINANCE_RECEIPT_LIST_TAB_MODE_OPTIONS,
+  FR_STATUS_TAB_VALUES,
+  FR_PURPOSE_TAB_VALUES,
+  readFinanceReceiptListTabMode,
+  writeFinanceReceiptListTabMode,
+  frStatusFilterToTab,
+  frStatusTabToFilter,
+  frPurposeFilterToTab,
+  frPurposeTabToFilter,
+  type FinanceReceiptListTabModeDimension,
+  type FrStatusTabId,
+  type FrPurposeTabId
+} from '@/utils/financeReceiptListTabMode'
 import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import { customerApi } from '@/api/customer'
@@ -532,15 +640,105 @@ function onCustomerChange(val: string | undefined) {
 }
 
 const query = reactive<PageQuery & { page: number; pageSize: number }>({
-  page: 1, pageSize: 20, keyword: '', status: undefined,
-  startDate: undefined, endDate: undefined,
+  page: 1,
+  pageSize: 20,
+  keyword: '',
+  status: undefined,
+  receiptPurpose: undefined,
+  startDate: undefined,
+  endDate: undefined
 })
 const dateRange = ref<[string, string] | null>(null)
 const total = ref(0)
 const loading = ref(false)
+const tabModeDimension = ref<FinanceReceiptListTabModeDimension>(readFinanceReceiptListTabMode())
+const settingsMenuOpen = ref(false)
+const settingsSubmenuOpen = ref(false)
 const tableData = ref<FinanceReceipt[]>([])
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
+
+const TAB_MODE_FILTER_I18N: Record<Exclude<FinanceReceiptListTabModeDimension, 'off'>, string> = {
+  status: 'financeReceiptList.filters.status',
+  receiptPurpose: 'financeReceiptList.filters.purpose'
+}
+
+function tabModeDimensionLabel(dim: Exclude<FinanceReceiptListTabModeDimension, 'off'>) {
+  return t(TAB_MODE_FILTER_I18N[dim])
+}
+
+function closeFilterTabMode() {
+  if (tabModeDimension.value === 'off') return
+  tabModeDimension.value = 'off'
+  writeFinanceReceiptListTabMode('off')
+  settingsMenuOpen.value = false
+  settingsSubmenuOpen.value = false
+}
+
+function enableFilterTabMode(dim: Exclude<FinanceReceiptListTabModeDimension, 'off'>) {
+  tabModeDimension.value = dim
+  writeFinanceReceiptListTabMode(dim)
+  settingsMenuOpen.value = false
+  settingsSubmenuOpen.value = false
+}
+
+watch(settingsMenuOpen, (open) => {
+  if (!open) settingsSubmenuOpen.value = false
+})
+
+const filterTabStripVisible = computed(() => tabModeDimension.value !== 'off')
+
+const filterTabStripAriaLabel = computed(() => {
+  if (tabModeDimension.value === 'off') return ''
+  return tabModeDimensionLabel(tabModeDimension.value)
+})
+
+type FrFilterTabId = FrStatusTabId | FrPurposeTabId
+
+const filterTabOptions = computed(() => {
+  const dim = tabModeDimension.value
+  if (dim === 'off') return [] as Array<{ id: FrFilterTabId; label: string }>
+  if (dim === 'status') {
+    return [
+      { id: 'all' as const, label: t('financeReceiptList.filterTabs.all') },
+      ...FR_STATUS_TAB_VALUES.map((value) => ({
+        id: String(value) as FrStatusTabId,
+        label: receiptStatusLabel(value)
+      }))
+    ]
+  }
+  return [
+    { id: 'all' as const, label: t('financeReceiptList.filterTabs.all') },
+    ...FR_PURPOSE_TAB_VALUES.map((value) => ({
+      id: String(value) as FrPurposeTabId,
+      label: receiptPurposeLabel(value)
+    }))
+  ]
+})
+
+const activeFilterTabId = computed((): FrFilterTabId => {
+  const dim = tabModeDimension.value
+  if (dim === 'status') return frStatusFilterToTab(query.status)
+  if (dim === 'receiptPurpose') return frPurposeFilterToTab(query.receiptPurpose)
+  return 'all'
+})
+
+function onFilterTabClick(tab: FrFilterTabId) {
+  const dim = tabModeDimension.value
+  if (dim === 'status') {
+    const next = frStatusTabToFilter(tab as FrStatusTabId)
+    if (query.status === next) return
+    query.status = next
+    void loadData()
+    return
+  }
+  if (dim === 'receiptPurpose') {
+    const next = frPurposeTabToFilter(tab as FrPurposeTabId)
+    if (query.receiptPurpose === next) return
+    query.receiptPurpose = next
+    void loadData()
+  }
+}
 
 // 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
@@ -1053,5 +1251,146 @@ onMounted(async () => {
   font-size: 12px;
   color: var(--el-text-color-secondary);
   line-height: 1.45;
+}
+
+.fr-settings-gear-btn {
+  padding: 8px 10px;
+}
+
+.fr-main-panel {
+  width: 100%;
+}
+
+.fr-main-panel--with-filter-tabs {
+  :deep(.crm-data-table-root) {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+
+  :deep(.el-table),
+  :deep(.el-table__inner-wrapper),
+  :deep(.el-table__header-wrapper) {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+}
+
+.fr-filter-tabs {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  gap: 4px;
+}
+
+.fr-filter-tabs__item {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 9px 8px;
+  border: 1px solid var(--crm-border-panel, #e2e8f0);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  background: #e8edf5;
+  color: var(--crm-text-primary);
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-weight: 500;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s, box-shadow 0.12s;
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--crm-cyan-primary) 45%, var(--crm-border-panel));
+    background: color-mix(in srgb, var(--crm-cyan-primary) 12%, var(--crm-layer-1));
+  }
+
+  &.is-active {
+    background: color-mix(in srgb, var(--crm-cyan-primary) 16%, var(--crm-layer-2, #fff));
+    border-color: color-mix(in srgb, var(--crm-cyan-primary) 55%, var(--crm-border-panel));
+    box-shadow: inset 0 2px 0 0 var(--crm-cyan-primary);
+    font-weight: 600;
+    z-index: 1;
+  }
+}
+
+html[data-theme='dark'] .fr-filter-tabs__item:not(.is-active) {
+  background: var(--crm-layer-1);
+
+  &:hover {
+    background: color-mix(in srgb, var(--crm-cyan-primary) 12%, var(--crm-layer-1));
+  }
+}
+</style>
+
+<style lang="scss">
+.fr-list-settings-popper.el-popover.el-popper {
+  padding: 6px;
+  min-width: 160px;
+  overflow: visible;
+}
+
+.fr-list-settings-menu {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fr-list-settings-menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--crm-text-secondary, rgba(224, 244, 255, 0.7));
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--crm-accent-008, rgba(0, 212, 255, 0.08));
+    color: var(--crm-text-primary, #e8f4ff);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  &.is-active {
+    color: var(--crm-cyan-primary, #00d4ff);
+  }
+
+  &--parent {
+    cursor: default;
+  }
+}
+
+.fr-list-settings-menu__caret {
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--crm-text-muted, rgba(200, 216, 232, 0.55));
+}
+
+.fr-list-settings-menu__submenu {
+  position: relative;
+}
+
+.fr-list-settings-menu__flyout {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 4px);
+  min-width: 148px;
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid var(--crm-border-panel, rgba(0, 212, 255, 0.15));
+  background: var(--crm-layer-2, #0d1e35);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  z-index: 10;
 }
 </style>

@@ -7,6 +7,7 @@
     <div class="search-bar">
       <div class="search-left">
         <el-select
+          v-if="tabModeDimension !== 'declarationType'"
           v-model="filters.declarationType"
           clearable
           :placeholder="t('customsPages.declarations.filterDeclarationType')"
@@ -18,6 +19,7 @@
           <el-option :label="t('customsPages.declarations.typeExport')" :value="2" />
         </el-select>
         <el-select
+          v-if="tabModeDimension !== 'internalStatus'"
           v-model="filters.internalStatus"
           clearable
           :placeholder="t('customsPages.declarations.filterInternal')"
@@ -31,6 +33,7 @@
           <el-option :label="t('customsPages.declarations.internalVoid')" :value="-1" />
         </el-select>
         <el-select
+          v-if="tabModeDimension !== 'customsClearanceStatus'"
           v-model="filters.customsClearanceStatus"
           clearable
           :placeholder="t('customsPages.declarations.filterClearance')"
@@ -71,7 +74,78 @@
         />
         <el-button type="primary" @click="handleSearch">{{ t('customsPages.declarations.search') }}</el-button>
         <el-button @click="resetFilters">{{ t('customsPages.declarations.reset') }}</el-button>
+        <el-popover
+          v-model:visible="settingsMenuOpen"
+          trigger="click"
+          placement="bottom-end"
+          :width="168"
+          :show-arrow="false"
+          popper-class="cdl-list-settings-popper"
+        >
+          <template #reference>
+            <el-button
+              class="cdl-settings-gear-btn"
+              :title="t('customsPages.declarations.settingsMenu.aria')"
+              :aria-label="t('customsPages.declarations.settingsMenu.aria')"
+            >
+              <el-icon :size="14"><Setting /></el-icon>
+            </el-button>
+          </template>
+          <div class="cdl-list-settings-menu">
+            <button
+              type="button"
+              class="cdl-list-settings-menu__item"
+              :disabled="tabModeDimension === 'off'"
+              @click="closeFilterTabMode"
+            >
+              {{ t('customsPages.declarations.settingsMenu.closeTabs') }}
+            </button>
+            <div
+              class="cdl-list-settings-menu__submenu"
+              @mouseenter="settingsSubmenuOpen = true"
+              @mouseleave="settingsSubmenuOpen = false"
+            >
+              <div class="cdl-list-settings-menu__item cdl-list-settings-menu__item--parent">
+                <span>{{ t('customsPages.declarations.settingsMenu.tabMode') }}</span>
+                <el-icon class="cdl-list-settings-menu__caret"><ArrowRight /></el-icon>
+              </div>
+              <div v-show="settingsSubmenuOpen" class="cdl-list-settings-menu__flyout">
+                <button
+                  v-for="dim in CUSTOMS_DECLARATION_LIST_TAB_MODE_OPTIONS"
+                  :key="dim"
+                  type="button"
+                  class="cdl-list-settings-menu__item"
+                  :class="{ 'is-active': tabModeDimension === dim }"
+                  @click="enableFilterTabMode(dim)"
+                >
+                  {{ tabModeDimensionLabel(dim) }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </el-popover>
       </div>
+    </div>
+
+    <div class="cdl-main-panel" :class="{ 'cdl-main-panel--with-filter-tabs': filterTabStripVisible }">
+    <div
+      v-if="filterTabStripVisible"
+      class="cdl-filter-tabs"
+      role="tablist"
+      :aria-label="filterTabStripAriaLabel"
+    >
+      <button
+        v-for="tab in filterTabOptions"
+        :key="tab.id"
+        type="button"
+        role="tab"
+        class="cdl-filter-tabs__item"
+        :class="{ 'is-active': activeFilterTabId === tab.id }"
+        :aria-selected="activeFilterTabId === tab.id"
+        @click="onFilterTabClick(tab.id)"
+      >
+        {{ tab.label }}
+      </button>
     </div>
 
     <CrmDataTable
@@ -216,6 +290,7 @@
         @current-change="clampPage"
       />
     </div>
+    </div>
 
     <el-dialog
       v-model="clearanceVisible"
@@ -242,8 +317,26 @@ import { computed, inject, onBeforeUnmount, onMounted, reactive, ref, watch } fr
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Setting } from '@element-plus/icons-vue'
+import { ArrowRight, Setting } from '@element-plus/icons-vue'
 import CrmDataTable from '@/components/CrmDataTable.vue'
+import {
+  CUSTOMS_DECLARATION_LIST_TAB_MODE_OPTIONS,
+  CDL_INTERNAL_STATUS_TAB_VALUES,
+  CDL_DECLARATION_TYPE_TAB_VALUES,
+  CDL_CLEARANCE_STATUS_TAB_VALUES,
+  readCustomsDeclarationListTabMode,
+  writeCustomsDeclarationListTabMode,
+  cdlInternalStatusFilterToTab,
+  cdlInternalStatusTabToFilter,
+  cdlDeclarationTypeFilterToTab,
+  cdlDeclarationTypeTabToFilter,
+  cdlClearanceStatusFilterToTab,
+  cdlClearanceStatusTabToFilter,
+  type CustomsDeclarationListTabModeDimension,
+  type CdlInternalStatusTabId,
+  type CdlDeclarationTypeTabId,
+  type CdlClearanceStatusTabId
+} from '@/utils/customsDeclarationListTabMode'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import {
@@ -256,6 +349,7 @@ import {
 } from '@/api/customs'
 import { useAuthStore } from '@/stores/auth'
 import { useCustomsDeclarationOpsPanelStore } from '@/stores/customsDeclarationOpsPanel'
+import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
 import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
@@ -271,6 +365,11 @@ const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 const isSysAdmin = authStore.user?.isSysAdmin === true
 
 const loading = ref(false)
+const tabModeDimension = ref<CustomsDeclarationListTabModeDimension>(
+  readCustomsDeclarationListTabMode()
+)
+const settingsMenuOpen = ref(false)
+const settingsSubmenuOpen = ref(false)
 const allRows = ref<CustomsDeclarationListItemDto[]>([])
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
@@ -287,6 +386,115 @@ const filters = reactive<{
   stockOutRequestId: '',
   declareRange: null
 })
+
+const TAB_MODE_FILTER_I18N: Record<Exclude<CustomsDeclarationListTabModeDimension, 'off'>, string> =
+  {
+    internalStatus: 'customsPages.declarations.filterInternal',
+    declarationType: 'customsPages.declarations.filterDeclarationType',
+    customsClearanceStatus: 'customsPages.declarations.filterClearance'
+  }
+
+function tabModeDimensionLabel(dim: Exclude<CustomsDeclarationListTabModeDimension, 'off'>) {
+  return t(TAB_MODE_FILTER_I18N[dim])
+}
+
+function closeFilterTabMode() {
+  if (tabModeDimension.value === 'off') return
+  tabModeDimension.value = 'off'
+  writeCustomsDeclarationListTabMode('off')
+  settingsMenuOpen.value = false
+  settingsSubmenuOpen.value = false
+}
+
+function enableFilterTabMode(dim: Exclude<CustomsDeclarationListTabModeDimension, 'off'>) {
+  tabModeDimension.value = dim
+  writeCustomsDeclarationListTabMode(dim)
+  settingsMenuOpen.value = false
+  settingsSubmenuOpen.value = false
+}
+
+watch(settingsMenuOpen, (open) => {
+  if (!open) settingsSubmenuOpen.value = false
+})
+
+const filterTabStripVisible = computed(() => tabModeDimension.value !== 'off')
+
+const filterTabStripAriaLabel = computed(() => {
+  if (tabModeDimension.value === 'off') return ''
+  return tabModeDimensionLabel(tabModeDimension.value)
+})
+
+type CdlFilterTabId = CdlInternalStatusTabId | CdlDeclarationTypeTabId | CdlClearanceStatusTabId
+
+function declarationTypeLabel(v: number) {
+  if (v === 1) return t('customsPages.declarations.typeImport')
+  if (v === 2) return t('customsPages.declarations.typeExport')
+  return String(v)
+}
+
+const filterTabOptions = computed(() => {
+  const dim = tabModeDimension.value
+  if (dim === 'off') return [] as Array<{ id: CdlFilterTabId; label: string }>
+  if (dim === 'internalStatus') {
+    return [
+      { id: 'all' as const, label: t('customsPages.declarations.filterTabs.all') },
+      ...CDL_INTERNAL_STATUS_TAB_VALUES.map((value) => ({
+        id: String(value) as CdlInternalStatusTabId,
+        label: internalLabel(value)
+      }))
+    ]
+  }
+  if (dim === 'declarationType') {
+    return [
+      { id: 'all' as const, label: t('customsPages.declarations.filterTabs.all') },
+      ...CDL_DECLARATION_TYPE_TAB_VALUES.map((value) => ({
+        id: String(value) as CdlDeclarationTypeTabId,
+        label: declarationTypeLabel(value)
+      }))
+    ]
+  }
+  return [
+    { id: 'all' as const, label: t('customsPages.declarations.filterTabs.all') },
+    ...CDL_CLEARANCE_STATUS_TAB_VALUES.map((value) => ({
+      id: String(value) as CdlClearanceStatusTabId,
+      label: clearanceLabel(value)
+    }))
+  ]
+})
+
+const activeFilterTabId = computed((): CdlFilterTabId => {
+  const dim = tabModeDimension.value
+  if (dim === 'internalStatus') return cdlInternalStatusFilterToTab(filters.internalStatus)
+  if (dim === 'declarationType') return cdlDeclarationTypeFilterToTab(filters.declarationType)
+  if (dim === 'customsClearanceStatus') {
+    return cdlClearanceStatusFilterToTab(filters.customsClearanceStatus)
+  }
+  return 'all'
+})
+
+function onFilterTabClick(tab: CdlFilterTabId) {
+  const dim = tabModeDimension.value
+  if (dim === 'internalStatus') {
+    const next = cdlInternalStatusTabToFilter(tab as CdlInternalStatusTabId)
+    if (filters.internalStatus === next) return
+    filters.internalStatus = next
+    handleSearch()
+    return
+  }
+  if (dim === 'declarationType') {
+    const next = cdlDeclarationTypeTabToFilter(tab as CdlDeclarationTypeTabId)
+    if (filters.declarationType === next) return
+    filters.declarationType = next
+    handleSearch()
+    return
+  }
+  if (dim === 'customsClearanceStatus') {
+    const next = cdlClearanceStatusTabToFilter(tab as CdlClearanceStatusTabId)
+    if (filters.customsClearanceStatus === next) return
+    filters.customsClearanceStatus = next
+    handleSearch()
+  }
+}
 
 const query = reactive({ page: 1, pageSize: 20 })
 
@@ -419,23 +627,20 @@ async function load() {
   resetListRightPanelOnReload(customsDeclarationOpsStore)
 }
 
-function isRightPanelVisible() {
-  return workspaceLayout?.rightPanelVisible.value ?? false
-}
+const { onOpsPanelRowClick } = useListRightOpsPanelInteraction({
+  workspaceLayout,
+  isActiveRoute: () => route.name === 'CustomsDeclarationList',
+  hasSelectedRow: () => !!customsDeclarationOpsStore.row,
+  setRowOnly: (row) => customsDeclarationOpsStore.setRowOnly(row),
+  selectRow: (row) =>
+    customsDeclarationOpsStore.selectRow(row, t('customsPages.declarations.opsPanel.loadFailed')),
+  loadSelected: () => {
+    void customsDeclarationOpsStore.loadDetail(t('customsPages.declarations.opsPanel.loadFailed'))
+  }
+})
 
 async function onRowClick(row: CustomsDeclarationListItemDto) {
-  workspaceLayout?.setRightActiveTab('r-ops')
-
-  if (isRightPanelVisible()) {
-    await customsDeclarationOpsStore.selectRow(
-      row as unknown as Record<string, unknown>,
-      t('customsPages.declarations.opsPanel.loadFailed')
-    )
-    return
-  }
-
-  customsDeclarationOpsStore.setRowOnly(row as unknown as Record<string, unknown>)
-  workspaceLayout?.toggleRightPanel(true)
+  await onOpsPanelRowClick(row as unknown as Record<string, unknown>)
 }
 
 function opsPanelRowClassName({ row }: { row: CustomsDeclarationListItemDto }) {
@@ -445,15 +650,6 @@ function opsPanelRowClassName({ row }: { row: CustomsDeclarationListItemDto }) {
     ? 'so-item-row--active'
     : 'table-row-pointer'
 }
-
-watch(
-  () => workspaceLayout?.rightPanelVisible.value,
-  (visible, wasVisible) => {
-    if (route.name !== 'CustomsDeclarationList') return
-    if (!visible || wasVisible || !customsDeclarationOpsStore.row) return
-    void customsDeclarationOpsStore.loadDetail(t('customsPages.declarations.opsPanel.loadFailed'))
-  }
-)
 
 function openClearance(row: CustomsDeclarationListItemDto) {
   clearanceRow.value = row
@@ -627,5 +823,146 @@ onBeforeUnmount(() => {
   &:hover {
     text-decoration: underline;
   }
+}
+
+.cdl-settings-gear-btn {
+  padding: 8px 10px;
+}
+
+.cdl-main-panel {
+  width: 100%;
+}
+
+.cdl-main-panel--with-filter-tabs {
+  :deep(.crm-data-table-root) {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+
+  :deep(.el-table),
+  :deep(.el-table__inner-wrapper),
+  :deep(.el-table__header-wrapper) {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+}
+
+.cdl-filter-tabs {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  gap: 4px;
+}
+
+.cdl-filter-tabs__item {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 9px 8px;
+  border: 1px solid var(--crm-border-panel, #e2e8f0);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  background: #e8edf5;
+  color: var(--crm-text-primary);
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-weight: 500;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s, box-shadow 0.12s;
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--crm-cyan-primary) 45%, var(--crm-border-panel));
+    background: color-mix(in srgb, var(--crm-cyan-primary) 12%, var(--crm-layer-1));
+  }
+
+  &.is-active {
+    background: color-mix(in srgb, var(--crm-cyan-primary) 16%, var(--crm-layer-2, #fff));
+    border-color: color-mix(in srgb, var(--crm-cyan-primary) 55%, var(--crm-border-panel));
+    box-shadow: inset 0 2px 0 0 var(--crm-cyan-primary);
+    font-weight: 600;
+    z-index: 1;
+  }
+}
+
+html[data-theme='dark'] .cdl-filter-tabs__item:not(.is-active) {
+  background: var(--crm-layer-1);
+
+  &:hover {
+    background: color-mix(in srgb, var(--crm-cyan-primary) 12%, var(--crm-layer-1));
+  }
+}
+</style>
+
+<style lang="scss">
+.cdl-list-settings-popper.el-popover.el-popper {
+  padding: 6px;
+  min-width: 160px;
+  overflow: visible;
+}
+
+.cdl-list-settings-menu {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cdl-list-settings-menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--crm-text-secondary, rgba(224, 244, 255, 0.7));
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--crm-accent-008, rgba(0, 212, 255, 0.08));
+    color: var(--crm-text-primary, #e8f4ff);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  &.is-active {
+    color: var(--crm-cyan-primary, #00d4ff);
+  }
+
+  &--parent {
+    cursor: default;
+  }
+}
+
+.cdl-list-settings-menu__caret {
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--crm-text-muted, rgba(200, 216, 232, 0.55));
+}
+
+.cdl-list-settings-menu__submenu {
+  position: relative;
+}
+
+.cdl-list-settings-menu__flyout {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 4px);
+  min-width: 168px;
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid var(--crm-border-panel, rgba(0, 212, 255, 0.15));
+  background: var(--crm-layer-2, #0d1e35);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  z-index: 10;
 }
 </style>

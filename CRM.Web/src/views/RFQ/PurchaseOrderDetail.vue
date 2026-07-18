@@ -1422,7 +1422,7 @@ async function selectPurchaseOrderItemRow(row: Record<string, unknown>) {
   ).trim()
   const purchaseOrderItemCode = String(row?.purchaseOrderItemCode ?? '').trim()
   if (!oid || !purchaseOrderItemId) return
-  workspaceLayout?.setRightActiveTab('r-ops')
+  // 不强制切换右侧「操作」页签；底部明细面板照常打开。右栏仅在已展开且为「操作」时展示同步数据
   poItemLinePanel.purchaseOrderItemId = purchaseOrderItemId
   poItemLinePanel.purchaseOrderItemCode = purchaseOrderItemCode || purchaseOrderItemId
   poItemLinePanel.visible = true

@@ -40,7 +40,7 @@ export const usePurchaseOrderItemOpsPanelStore = defineStore('purchaseOrderItemO
     loadSeq += 1
   }
 
-  /** 仅记录列表选中行，不请求聚合接口（右侧面板收起时使用） */
+  /** 仅记录列表选中行，不请求聚合接口（右栏非「操作」页签单击时；切到「操作」后再 loadAggregates） */
   function setRowOnly(target: RowRecord) {
     const key = rowKey(target)
     if (!key) return

@@ -861,6 +861,7 @@ import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiv
 import { usePurchaseOrderWriteGate } from '@/composables/useDepartmentDataReadOnly'
 import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick'
 import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
+import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
 import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
 import { usePurchaseOrderItemOpsPanelStore } from '@/stores/purchaseOrderItemOpsPanel'
 import { vendorBankApi } from '@/api/vendor'
@@ -944,21 +945,21 @@ function goEdit(row: Record<string, unknown>) {
   router.push({ name: 'PurchaseOrderEdit', params: { id: purchaseOrderId } })
 }
 
-function isRightPanelVisible() {
-  return workspaceLayout?.rightPanelVisible.value ?? false
-}
+const { onOpsPanelRowClick } = useListRightOpsPanelInteraction({
+  workspaceLayout,
+  isActiveRoute: () => route.name === 'PurchaseOrderItemList',
+  hasSelectedRow: () => !!purchaseOrderItemOpsStore.row,
+  setRowOnly: (row) => purchaseOrderItemOpsStore.setRowOnly(row),
+  selectRow: (row) =>
+    purchaseOrderItemOpsStore.selectRow(row, t('purchaseOrderItemList.messages.loadLineFailed')),
+  loadSelected: () => {
+    void purchaseOrderItemOpsStore.loadAggregates(t('purchaseOrderItemList.messages.loadLineFailed'))
+  },
+  shouldBlockRowClick: () => maskPurchaseSensitiveFields.value
+})
 
 async function onRowClick(row: Record<string, unknown>) {
-  if (maskPurchaseSensitiveFields.value) return
-  workspaceLayout?.setRightActiveTab('r-ops')
-
-  if (isRightPanelVisible()) {
-    await purchaseOrderItemOpsStore.selectRow(row, t('purchaseOrderItemList.messages.loadLineFailed'))
-    return
-  }
-
-  purchaseOrderItemOpsStore.setRowOnly(row)
-  workspaceLayout?.toggleRightPanel(true)
+  await onOpsPanelRowClick(row)
 }
 
 function opsPanelRowClassName({ row }: { row: Record<string, unknown> }) {
@@ -971,15 +972,6 @@ function opsPanelRowClassName({ row }: { row: Record<string, unknown> }) {
 watch(maskPurchaseSensitiveFields, (masked) => {
   if (masked) purchaseOrderItemOpsStore.clear()
 })
-
-watch(
-  () => workspaceLayout?.rightPanelVisible.value,
-  (visible, wasVisible) => {
-    if (route.name !== 'PurchaseOrderItemList') return
-    if (!visible || wasVisible || !purchaseOrderItemOpsStore.row) return
-    void purchaseOrderItemOpsStore.loadAggregates(t('purchaseOrderItemList.messages.loadLineFailed'))
-  }
-)
 
 const canViewPurchaseUser = computed(() => authStore.hasPermission('purchase.user.read') || authStore.hasPermission('purchase-order.read'))
 const canViewAmount = computed(
