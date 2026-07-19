@@ -515,6 +515,8 @@ namespace CRM.Core.Interfaces
         public short? Level { get; set; }
         /// <summary>行业关键字（包含匹配）</summary>
         public string? Industry { get; set; }
+        /// <summary>结算币别（TradeCurrency；null 视为 RMB=1）</summary>
+        public short? Currency { get; set; }
         /// <summary>身份（vendorinfo.Credit，VendorIdentityCode）</summary>
         public short? Credit { get; set; }
         /// <summary>供应商归属：1 专属 2 公海（AscriptionType）</summary>

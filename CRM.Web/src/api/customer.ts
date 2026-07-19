@@ -322,6 +322,9 @@ export const customerApi = {
       queryParams.append('customerLevel', String(lv));
     }
     if (params.industry) queryParams.append('industry', industryCellToStorageLabel(params.industry));
+    if (params.currency !== undefined && params.currency !== null && !Number.isNaN(Number(params.currency))) {
+      queryParams.append('currency', String(params.currency));
+    }
     if (params.region) queryParams.append('region', params.region);
     if (params.salesPersonId) queryParams.append('salesUserId', params.salesPersonId);
     if (params.createdFrom) queryParams.append('createdFrom', params.createdFrom);
@@ -335,6 +338,7 @@ export const customerApi = {
     if (params.sortDescending !== undefined) queryParams.append('sortDescending', params.sortDescending.toString());
     if (params.favoriteOnly) queryParams.append('favoriteOnly', 'true');
     if (params.favoriteIds) queryParams.append('favoriteIds', params.favoriteIds);
+    if (params.quickFilter?.trim()) queryParams.append('quickFilter', params.quickFilter.trim());
 
     const response = await apiClient.get<any>(`/api/v1/customers?${queryParams.toString()}`);
     const data = response || { items: [], totalCount: 0 };

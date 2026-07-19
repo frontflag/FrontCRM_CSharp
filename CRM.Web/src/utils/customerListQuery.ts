@@ -8,6 +8,8 @@ export interface CustomerListFilterQuery {
   /** 等级：D / C / B / BPO / VIP / VPO */
   customerLevel?: string
   industry?: string
+  /** 结算币别（后端 query: currency；TradeCurrency） */
+  currency?: number
   /** 工作流状态，与列表「状态」列一致 */
   status?: number
   /** 业务员用户 ID */
@@ -34,6 +36,12 @@ export function parseCustomerListQuery(query: LocationQuery): CustomerListFilter
     customerType = Number.isFinite(n) ? n : undefined
   }
   const industry = normalizeIndustryQueryParam(firstParam(query, 'industry'))
+  const curRaw = firstParam(query, 'currency')
+  let currency: number | undefined
+  if (curRaw !== undefined && curRaw !== '') {
+    const n = Number(curRaw)
+    currency = Number.isFinite(n) ? n : undefined
+  }
   const customerLevel = firstParam(query, 'customerLevel') || undefined
   const salesUserId = firstParam(query, 'salesUserId') || undefined
   const createdFrom = firstParam(query, 'createdFrom') || undefined
@@ -51,6 +59,7 @@ export function parseCustomerListQuery(query: LocationQuery): CustomerListFilter
     customerType,
     customerLevel,
     industry,
+    currency,
     status,
     salesUserId,
     createdFrom,
@@ -66,6 +75,7 @@ export function buildCustomerListQuery(f: CustomerListFilterQuery): Record<strin
   if (f.customerType != null && !Number.isNaN(f.customerType)) q.customerType = String(f.customerType)
   if (f.customerLevel) q.customerLevel = f.customerLevel
   if (f.industry) q.industry = f.industry
+  if (f.currency != null && !Number.isNaN(f.currency)) q.currency = String(f.currency)
   if (f.status !== undefined && f.status !== null && !Number.isNaN(f.status)) q.status = String(f.status)
   if (f.salesUserId) q.salesUserId = f.salesUserId
   if (f.createdFrom) q.createdFrom = f.createdFrom

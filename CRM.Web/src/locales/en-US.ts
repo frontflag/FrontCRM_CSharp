@@ -717,6 +717,35 @@ const enUS = {
     keywordCode: 'Keyword (Code)',
     createdDate: 'Created Date',
     createdDateRange: 'Created Date Range',
+    groups: {
+      time: 'Time',
+      attention: 'Attention',
+      todo: 'To-do',
+      demand: 'Demand',
+      deal: 'Deal',
+      business: 'Business'
+    },
+    chips: {
+      today: 'Created today',
+      last7Days: 'Created last 7 days',
+      last30Days: 'Created last 30 days',
+      favorite: 'Favorite customers',
+      vip: 'VIP customers',
+      pendingSubmit: 'Pending submit',
+      pendingAudit: 'Pending audit',
+      hasDemand: 'Customers with demand',
+      demandLast7Days: 'Demand last 7 days',
+      demandLast30Days: 'Demand last 30 days',
+      demandHalfYear: 'Demand over 6 months ago',
+      demandOneYear: 'Demand over 1 year ago',
+      hasDeal: 'Customers with deal',
+      dealLast7Days: 'Deal last 7 days',
+      dealLast30Days: 'Deal last 30 days',
+      dealHalfYear: 'Deal over 6 months ago',
+      dealOneYear: 'Deal over 1 year ago',
+      pendingShipment: 'Pending shipment',
+      hasReceivable: 'Has receivable'
+    },
     customerSearchTitle: 'Customer Search',
     vendorSearchTitle: 'Vendor Search',
     rfqSearchTitle: 'RFQ Search',
@@ -2995,12 +3024,57 @@ const enUS = {
       allLevel: 'All levels',
       allType: 'All types',
       allIndustry: 'All industries',
+      allSettlementCurrency: 'All settlement currencies',
       allSalesUsers: 'All sales reps',
       to: 'to',
       startDate: 'Start',
       endDate: 'End',
       search: 'Search',
       reset: 'Reset'
+    },
+    settingsMenu: {
+      aria: 'List filter settings',
+      closeTabs: 'Close tabs',
+      tabMode: 'Tab mode'
+    },
+    tabModeDimensions: {
+      settlementCurrency: 'Settlement currency'
+    },
+    filterTabs: {
+      all: 'All'
+    },
+    searchPanel: {
+      title: 'Customer search',
+      clearPreset: 'Clear quick filter',
+      groups: {
+        time: 'Time',
+        attention: 'Attention',
+        todo: 'To-do',
+        demand: 'Demand',
+        deal: 'Deal',
+        business: 'Business'
+      },
+      presets: {
+        created_today: 'Created today',
+        created_last_7_days: 'Created in last 7 days',
+        created_last_30_days: 'Created in last 30 days',
+        favorite: 'Favorite customers',
+        vip: 'VIP customers',
+        pending_submit: 'Pending submit',
+        pending_audit: 'Pending audit',
+        has_demand: 'Customers with demand',
+        demand_last_7_days: 'Demand in last 7 days',
+        demand_last_30_days: 'Demand in last 30 days',
+        demand_stale_6m: 'Demand over 6 months ago',
+        demand_stale_1y: 'Demand over 1 year ago',
+        has_deal: 'Customers with deal',
+        deal_last_7_days: 'Deal in last 7 days',
+        deal_last_30_days: 'Deal in last 30 days',
+        deal_stale_6m: 'Deal over 6 months ago',
+        deal_stale_1y: 'Deal over 1 year ago',
+        pending_shipment: 'Pending shipment',
+        has_receivable: 'Has receivable'
+      }
     },
     columns: {
       customerCode: 'Customer Code',
@@ -3223,6 +3297,7 @@ const enUS = {
       allIdentity: 'All identities',
       allType: 'All types',
       allIndustry: 'All industries',
+      allSettlementCurrency: 'All settlement currencies',
       allPurchasers: 'All purchasers',
       to: 'to',
       startDate: 'Start',

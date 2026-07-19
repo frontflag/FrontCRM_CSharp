@@ -740,6 +740,8 @@ namespace CRM.Core.Interfaces
         public string? SalesUserId { get; set; }
         /// <summary>行业（与 Industry 字段精确匹配，英文键如 FinanceEquipment、Telecom；旧值如 Manufacturing 仍有效）</summary>
         public string? Industry { get; set; }
+        /// <summary>结算币别（TradeCurrency；null 视为 RMB=1）</summary>
+        public short? Currency { get; set; }
         /// <summary>地区关键词（匹配省/市包含）</summary>
         public string? Region { get; set; }
         /// <summary>创建时间起（含当日 00:00:00 UTC 起算，由 API 解析）</summary>
@@ -748,6 +750,8 @@ namespace CRM.Core.Interfaces
         public DateTime? CreatedTo { get; set; }
         /// <summary>工作流状态：1 新建、2 待审核、10 已审核、12 待财务审核、20 财务建档、-1 审核失败等</summary>
         public short? Status { get; set; }
+        /// <summary>左栏快捷检索（<see cref="CRM.Core.Constants.CustomerListQuickFilterCodes"/>）</summary>
+        public string? QuickFilter { get; set; }
         public string? CurrentUserId { get; set; }
 
         /// <summary>

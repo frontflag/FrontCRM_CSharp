@@ -92,6 +92,7 @@ namespace CRM.API.Controllers
             [FromQuery] short? status = null,
             [FromQuery] short? level = null,
             [FromQuery] string? industry = null,
+            [FromQuery] short? currency = null,
             /// <summary>身份（vendorinfo.Credit）</summary>
             [FromQuery] short? credit = null,
             [FromQuery] short? ascriptionType = null,
@@ -124,6 +125,7 @@ namespace CRM.API.Controllers
                     Status = status,
                     Level = level,
                     Industry = industry,
+                    Currency = currency,
                     Credit = credit,
                     AscriptionType = ascriptionType,
                     PurchaseUserId = purchaseUserId,

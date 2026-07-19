@@ -52,8 +52,22 @@
       </div>
     </div>
 
-    <!-- 搜索栏：关键词 → 状态 → 级别 → 类型 → 行业 → 业务员 → 创建日期区间 -->
+    <!-- 搜索栏：关键词 → 状态 → 级别 → 类型 → 行业 → 结算币别 → 业务员 → 创建日期区间 -->
     <div class="search-bar">
+      <div v-if="activePreset" class="search-preset-chip-row">
+        <span class="search-preset-chip">
+          {{ t(presetI18nKey(activePreset)) }}
+          <button
+            type="button"
+            class="search-preset-chip__clear"
+            :title="t('customerList.searchPanel.clearPreset')"
+            @click="clearPresetChip"
+          >
+            ×
+          </button>
+        </span>
+      </div>
+      <div class="search-bar__row">
       <div class="search-left">
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
@@ -66,7 +80,7 @@
             @keyup.enter="handleSearch"
           />
         </div>
-        <el-select v-model="searchForm.status" :placeholder="t('customerList.filters.allStatus')" clearable class="status-select" :teleported="false" @change="handleSearch">
+        <el-select v-if="!presetActive" v-model="searchForm.status" :placeholder="t('customerList.filters.allStatus')" clearable class="status-select" :teleported="false" @change="handleSearch">
           <el-option
             v-for="opt in workflowStatusOptions"
             :key="opt.value"
@@ -74,7 +88,7 @@
             :value="opt.value"
           />
         </el-select>
-        <el-select v-model="searchForm.customerLevel" :placeholder="t('customerList.filters.allLevel')" clearable class="status-select" :teleported="false" @change="handleSearch">
+        <el-select v-if="!presetActive" v-model="searchForm.customerLevel" :placeholder="t('customerList.filters.allLevel')" clearable class="status-select" :teleported="false" @change="handleSearch">
           <el-option
             v-for="opt in customerDict.levelStringOptions"
             :key="opt.value"
@@ -99,6 +113,22 @@
           />
         </el-select>
         <el-select
+          v-if="tabModeDimension !== 'settlementCurrency'"
+          v-model="searchForm.currency"
+          :placeholder="t('customerList.filters.allSettlementCurrency')"
+          clearable
+          class="status-select"
+          :teleported="false"
+          @change="handleSearch"
+        >
+          <el-option
+            v-for="opt in SETTLEMENT_CURRENCY_OPTIONS"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          />
+        </el-select>
+        <el-select
           v-model="searchForm.salesPersonId"
           :placeholder="t('customerList.filters.allSalesUsers')"
           clearable
@@ -115,6 +145,7 @@
           />
         </el-select>
         <el-date-picker
+          v-if="!presetActive"
           v-model="createdDateRange"
           type="daterange"
           :range-separator="t('customerList.filters.to')"
@@ -128,8 +159,81 @@
         />
         <button class="btn-primary btn-sm" @click="handleSearch">{{ t('customerList.filters.search') }}</button>
         <button class="btn-ghost btn-sm" @click="handleReset">{{ t('customerList.filters.reset') }}</button>
+        <el-popover
+          v-model:visible="settingsMenuOpen"
+          trigger="click"
+          placement="bottom-end"
+          :width="168"
+          :show-arrow="false"
+          popper-class="customer-list-settings-popper"
+        >
+          <template #reference>
+            <button
+              type="button"
+              class="btn-ghost btn-sm btn-icon-only"
+              :title="t('customerList.settingsMenu.aria')"
+              :aria-label="t('customerList.settingsMenu.aria')"
+            >
+              <el-icon :size="14"><Setting /></el-icon>
+            </button>
+          </template>
+          <div class="customer-list-settings-menu">
+            <button
+              type="button"
+              class="customer-list-settings-menu__item"
+              :disabled="tabModeDimension === 'off'"
+              @click="closeFilterTabMode"
+            >
+              {{ t('customerList.settingsMenu.closeTabs') }}
+            </button>
+            <div
+              class="customer-list-settings-menu__submenu"
+              @mouseenter="settingsSubmenuOpen = true"
+              @mouseleave="settingsSubmenuOpen = false"
+            >
+              <div class="customer-list-settings-menu__item customer-list-settings-menu__item--parent">
+                <span>{{ t('customerList.settingsMenu.tabMode') }}</span>
+                <el-icon class="customer-list-settings-menu__caret"><ArrowRight /></el-icon>
+              </div>
+              <div v-show="settingsSubmenuOpen" class="customer-list-settings-menu__flyout">
+                <button
+                  v-for="dim in CUSTOMER_LIST_TAB_MODE_OPTIONS"
+                  :key="dim"
+                  type="button"
+                  class="customer-list-settings-menu__item"
+                  :class="{ 'is-active': tabModeDimension === dim }"
+                  @click="enableFilterTabMode(dim)"
+                >
+                  {{ tabModeDimensionLabel(dim) }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </el-popover>
+      </div>
       </div>
     </div>
+
+    <div class="customer-main-panel" :class="{ 'customer-main-panel--with-filter-tabs': filterTabStripVisible }">
+      <div
+        v-if="filterTabStripVisible"
+        class="cu-filter-tabs"
+        role="tablist"
+        :aria-label="filterTabStripAriaLabel"
+      >
+        <button
+          v-for="tab in filterTabOptions"
+          :key="tab.id"
+          type="button"
+          role="tab"
+          class="cu-filter-tabs__item"
+          :class="{ 'is-active': activeFilterTabId === tab.id }"
+          :aria-selected="activeFilterTabId === tab.id"
+          @click="onFilterTabClick(tab.id)"
+        >
+          {{ tab.label }}
+        </button>
+      </div>
 
     <!-- 表格列表 -->
     <div class="table-wrapper" v-loading="loading">
@@ -286,6 +390,7 @@
         <button v-else-if="canWriteSaleData" type="button" class="btn-success" @click="handleCreate">{{ t('customerList.create') }}</button>
       </div>
     </div>
+    </div>
 
     <!-- 分页 -->
     <div class="pagination-wrapper" v-if="totalCount > 0">
@@ -329,7 +434,7 @@ import { ref, reactive, onMounted, watch, nextTick, computed, inject } from 'vue
 import { useRouter, useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n'
 import { ElNotification, ElMessageBox } from 'element-plus';
-import { Setting } from '@element-plus/icons-vue'
+import { ArrowRight, Setting } from '@element-plus/icons-vue'
 import { customerApi } from '@/api/customer';
 import { authApi } from '@/api/auth';
 import { favoriteApi } from '@/api/favorite';
@@ -343,14 +448,35 @@ import AiEntityCreateHost from '@/components/AiCreate/AiEntityCreateHost.vue';
 import AiBusinessCardCreateHost from '@/components/AiCreate/AiBusinessCardCreateHost.vue';
 import { AI_PERMISSION_ENTITY_PARSE_CUSTOMER, AI_PERMISSION_ENTITY_PARSE_CUSTOMER_BUSINESS_CARD } from '@/api/ai';
 import CrmDataTable from '@/components/CrmDataTable.vue'
-import { buildCustomerListQuery, parseCustomerListQuery } from '@/utils/customerListQuery';
+import { parseCustomerListQuery } from '@/utils/customerListQuery';
+import {
+  buildCustomerListRouteQuery,
+  isCustomerListPresetId,
+  isCustomerQuickFilterPresetId,
+  isCustomerTimePresetId,
+  pickCustomerKeywordQuery,
+  presetI18nKey,
+  resolveCustomerPresetExpandedQuery,
+  resolveCustomerTimePresetDateRange,
+  type CustomerListPresetId
+} from '@/utils/customerListPreset';
 import { CUSTOMER_WORKFLOW_STATUS_OPTIONS } from '@/constants/customerWorkflowStatus';
+import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency';
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import { useCustomerIntelLookupStore } from '@/stores/customerIntelLookup'
 import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
+import {
+  CUSTOMER_LIST_TAB_MODE_OPTIONS,
+  readCustomerListTabMode,
+  writeCustomerListTabMode,
+  settlementCurrencyFilterToTab,
+  settlementCurrencyTabToFilter,
+  type CustomerListTabModeDimension,
+  type CustomerSettlementCurrencyTabId
+} from '@/utils/customerListTabMode'
 
 const router = useRouter();
 const route = useRoute();
@@ -400,7 +526,76 @@ const favoriteOnly = ref(false);
 /** 列表内 replace 查询串时避免 watch 与手动 fetch 重复请求 */
 const skipQueryRouteFetch = ref(false);
 
+const activePreset = computed((): CustomerListPresetId | null => {
+  const p = route.query.preset
+  return typeof p === 'string' && isCustomerListPresetId(p) ? p : null
+})
+const presetActive = computed(() => !!activePreset.value)
+
 const workflowStatusOptions = CUSTOMER_WORKFLOW_STATUS_OPTIONS;
+
+const tabModeDimension = ref<CustomerListTabModeDimension>(readCustomerListTabMode())
+const settingsMenuOpen = ref(false)
+const settingsSubmenuOpen = ref(false)
+
+function tabModeDimensionLabel(_dim: Exclude<CustomerListTabModeDimension, 'off'>) {
+  return t('customerList.tabModeDimensions.settlementCurrency')
+}
+
+function closeFilterTabMode() {
+  if (tabModeDimension.value === 'off') return
+  tabModeDimension.value = 'off'
+  writeCustomerListTabMode('off')
+  settingsMenuOpen.value = false
+  settingsSubmenuOpen.value = false
+}
+
+function enableFilterTabMode(dim: Exclude<CustomerListTabModeDimension, 'off'>) {
+  tabModeDimension.value = dim
+  writeCustomerListTabMode(dim)
+  settingsMenuOpen.value = false
+  settingsSubmenuOpen.value = false
+}
+
+watch(settingsMenuOpen, (open) => {
+  if (!open) settingsSubmenuOpen.value = false
+})
+
+const filterTabStripVisible = computed(() => tabModeDimension.value !== 'off')
+
+const filterTabStripAriaLabel = computed(() => {
+  const dim = tabModeDimension.value
+  if (dim === 'off') return ''
+  return tabModeDimensionLabel(dim)
+})
+
+type CustomerFilterTabId = CustomerSettlementCurrencyTabId
+
+const filterTabOptions = computed(() => {
+  if (tabModeDimension.value === 'off') return [] as Array<{ id: CustomerFilterTabId; label: string }>
+  return [
+    { id: 'all' as const, label: t('customerList.filterTabs.all') },
+    ...SETTLEMENT_CURRENCY_OPTIONS.map((opt) => ({
+      id: String(opt.value) as CustomerSettlementCurrencyTabId,
+      label: opt.label
+    }))
+  ]
+})
+
+const activeFilterTabId = computed((): CustomerFilterTabId => {
+  if (tabModeDimension.value === 'settlementCurrency') {
+    return settlementCurrencyFilterToTab(searchForm.currency)
+  }
+  return 'all'
+})
+
+function onFilterTabClick(tab: CustomerFilterTabId) {
+  if (tabModeDimension.value !== 'settlementCurrency') return
+  const next = settlementCurrencyTabToFilter(tab)
+  if (searchForm.currency === next) return
+  searchForm.currency = next
+  handleSearch()
+}
 
 type SalesUserOption = { id: string; userName: string; realName?: string; label?: string };
 
@@ -414,6 +609,7 @@ const searchForm = reactive<CustomerSearchRequest>({
   customerType: undefined,
   customerLevel: undefined,
   industry: undefined,
+  currency: undefined,
   region: undefined,
   salesPersonId: undefined,
   createdFrom: undefined,
@@ -489,6 +685,16 @@ const fetchCustomerList = async () => {
       favoriteOnly: favoriteOnly.value ? true : undefined,
       favoriteIds: favoriteOnly.value ? favoriteIdsList.join(',') : undefined
     }
+    const preset = activePreset.value
+    if (preset && isCustomerQuickFilterPresetId(preset)) {
+      params.quickFilter = preset
+      params.status = undefined
+      params.customerLevel = undefined
+      params.createdFrom = undefined
+      params.createdTo = undefined
+      params.favoriteOnly = undefined
+      params.favoriteIds = undefined
+    }
     const response = await customerApi.searchCustomers(params)
     const mapped = response.items.map((item: any) => ({
       ...item,
@@ -528,10 +734,37 @@ function syncSearchFromRouteQuery() {
   const p = parseCustomerListQuery(route.query);
   searchForm.searchTerm = p.searchTerm;
   searchForm.customerType = p.customerType;
-  searchForm.customerLevel = p.customerLevel;
   searchForm.industry = p.industry;
-  searchForm.status = p.status;
+  searchForm.currency = p.currency;
   searchForm.salesPersonId = p.salesUserId;
+
+  const preset = activePreset.value;
+  if (preset) {
+    if (isCustomerQuickFilterPresetId(preset)) {
+      searchForm.status = undefined;
+      searchForm.customerLevel = undefined;
+      searchForm.createdFrom = undefined;
+      searchForm.createdTo = undefined;
+      favoriteOnly.value = false;
+      createdDateRange.value = null;
+      return;
+    }
+    const expanded = resolveCustomerPresetExpandedQuery(preset);
+    searchForm.status = expanded.status;
+    searchForm.customerLevel = expanded.customerLevel;
+    searchForm.createdFrom = expanded.createdFrom;
+    searchForm.createdTo = expanded.createdTo;
+    favoriteOnly.value = expanded.favoriteOnly ?? false;
+    if (isCustomerTimePresetId(preset)) {
+      createdDateRange.value = resolveCustomerTimePresetDateRange(preset);
+    } else {
+      createdDateRange.value = null;
+    }
+    return;
+  }
+
+  searchForm.customerLevel = p.customerLevel;
+  searchForm.status = p.status;
   searchForm.createdFrom = p.createdFrom;
   searchForm.createdTo = p.createdTo;
   createdDateRange.value =
@@ -539,22 +772,44 @@ function syncSearchFromRouteQuery() {
   favoriteOnly.value = p.favoriteOnly;
 }
 
+function buildRouteQueryFromForm(): Record<string, string> {
+  const keywords = pickCustomerKeywordQuery({
+    searchTerm: searchForm.searchTerm,
+    customerType: searchForm.customerType,
+    industry: searchForm.industry,
+    salesUserId: searchForm.salesPersonId,
+    currency: searchForm.currency
+  })
+  if (activePreset.value) {
+    return buildCustomerListRouteQuery({ preset: activePreset.value, keywords })
+  }
+  return buildCustomerListRouteQuery({
+    keywords,
+    advanced: {
+      searchTerm: searchForm.searchTerm,
+      customerType: searchForm.customerType,
+      customerLevel: searchForm.customerLevel,
+      industry: searchForm.industry,
+      currency: searchForm.currency,
+      status: searchForm.status,
+      salesUserId: searchForm.salesPersonId,
+      createdFrom: searchForm.createdFrom,
+      createdTo: searchForm.createdTo,
+      favoriteOnly: favoriteOnly.value
+    }
+  })
+}
+
+function clearPresetChip() {
+  router.replace({ name: 'CustomerList', query: {} })
+}
+
 function replaceRouteQueryAndFetch() {
   skipQueryRouteFetch.value = true;
   router
     .replace({
       name: 'CustomerList',
-      query: buildCustomerListQuery({
-        searchTerm: searchForm.searchTerm || '',
-        customerType: searchForm.customerType,
-        customerLevel: searchForm.customerLevel,
-        industry: searchForm.industry,
-        status: searchForm.status,
-        salesUserId: searchForm.salesPersonId,
-        createdFrom: searchForm.createdFrom,
-        createdTo: searchForm.createdTo,
-        favoriteOnly: favoriteOnly.value
-      })
+      query: buildRouteQueryFromForm()
     })
     .finally(() => {
       nextTick(() => {
@@ -575,6 +830,7 @@ const handleReset = () => {
     customerType: undefined,
     customerLevel: undefined,
     industry: undefined,
+    currency: undefined,
     region: undefined,
     salesPersonId: undefined,
     createdFrom: undefined,
@@ -890,12 +1146,137 @@ onMounted(async () => {
   }
 }
 
+.btn-icon-only {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  padding-inline: 8px;
+}
+
+.customer-main-panel {
+  display: flex;
+  flex-direction: column;
+
+  &--with-filter-tabs {
+    :deep(.crm-data-table-root),
+    :deep(.table-card-scroll),
+    .table-wrapper {
+      border-top-left-radius: 0;
+      border-top-right-radius: 0;
+    }
+
+    :deep(.el-table),
+    :deep(.el-table__inner-wrapper),
+    :deep(.el-table__header-wrapper) {
+      border-top-left-radius: 0;
+      border-top-right-radius: 0;
+    }
+  }
+}
+
+.cu-filter-tabs {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.cu-filter-tabs__item {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 9px 8px;
+  border: 1px solid var(--crm-border-panel, #e2e8f0);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  background: #e8edf5;
+  color: var(--crm-text-primary);
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-weight: 500;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s, box-shadow 0.12s;
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--crm-cyan-primary) 45%, var(--crm-border-panel));
+    background: color-mix(in srgb, var(--crm-cyan-primary) 12%, var(--crm-layer-1));
+  }
+
+  &.is-active {
+    background: color-mix(in srgb, var(--crm-cyan-primary) 16%, var(--crm-layer-2, #fff));
+    border-color: color-mix(in srgb, var(--crm-cyan-primary) 55%, var(--crm-border-panel));
+    box-shadow: inset 0 2px 0 0 var(--crm-cyan-primary);
+    font-weight: 600;
+    z-index: 1;
+  }
+}
+
+html[data-theme='dark'] .cu-filter-tabs__item:not(.is-active) {
+  background: var(--crm-layer-1);
+
+  &:hover {
+    background: color-mix(in srgb, var(--crm-cyan-primary) 12%, var(--crm-layer-1));
+  }
+}
+
 // ---- 搜索栏 ----
 .search-bar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 8px;
   margin-bottom: 12px;
+}
+
+.search-bar__row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.search-preset-chip-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.search-preset-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 4px 10px;
+  font-size: 12px;
+  color: $text-primary;
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.35);
+  border-radius: 20px;
+}
+
+.search-preset-chip__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: $text-muted;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+
+  &:hover {
+    color: $text-primary;
+    background: rgba(255, 255, 255, 0.08);
+  }
 }
 
 .search-left {
@@ -1406,5 +1787,77 @@ onMounted(async () => {
   :deep(.el-pager li) { background: $layer-2; border: 1px solid $border-panel; color: $text-secondary; border-radius: 6px; margin: 0 2px; }
   :deep(.el-pager li.is-active) { background: rgba(0,212,255,0.15); border-color: rgba(0,212,255,0.4); color: $cyan-primary; }
   :deep(.btn-prev), :deep(.btn-next) { background: $layer-2 !important; border: 1px solid $border-panel !important; color: $text-secondary !important; border-radius: 6px !important; }
+}
+</style>
+
+<style lang="scss">
+.customer-list-settings-popper.el-popover.el-popper {
+  padding: 6px;
+  min-width: 160px;
+  overflow: visible;
+}
+
+.customer-list-settings-menu {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.customer-list-settings-menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--crm-text-secondary, rgba(224, 244, 255, 0.7));
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--crm-accent-008, rgba(0, 212, 255, 0.08));
+    color: var(--crm-text-primary, #e8f4ff);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  &.is-active {
+    color: var(--crm-cyan-primary, #00d4ff);
+  }
+
+  &--parent {
+    cursor: default;
+  }
+}
+
+.customer-list-settings-menu__caret {
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--crm-text-muted, rgba(200, 216, 232, 0.55));
+}
+
+.customer-list-settings-menu__submenu {
+  position: relative;
+}
+
+.customer-list-settings-menu__flyout {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 4px);
+  min-width: 148px;
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid var(--crm-border-panel, rgba(0, 212, 255, 0.15));
+  background: var(--crm-layer-2, #0d1e35);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  z-index: 10;
 }
 </style>

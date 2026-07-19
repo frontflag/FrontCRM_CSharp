@@ -716,6 +716,35 @@ const zhCN = {
     keywordCode: '关键词（编号）',
     createdDate: '创建日期',
     createdDateRange: '创建日期区间',
+    groups: {
+      time: '时间',
+      attention: '关注',
+      todo: '待办',
+      demand: '需求',
+      deal: '成单',
+      business: '业务'
+    },
+    chips: {
+      today: '今日创建',
+      last7Days: '近7日创建',
+      last30Days: '近30日创建',
+      favorite: '收藏的客户',
+      vip: 'VIP客户',
+      pendingSubmit: '待提交客户',
+      pendingAudit: '待审核客户',
+      hasDemand: '有需求的客户',
+      demandLast7Days: '近7日发需求',
+      demandLast30Days: '近30日发需求',
+      demandHalfYear: '半年前发需求',
+      demandOneYear: '1年前发需求',
+      hasDeal: '已成单的客户',
+      dealLast7Days: '近7日成单',
+      dealLast30Days: '近30日成单',
+      dealHalfYear: '半年前成单',
+      dealOneYear: '1年前成单',
+      pendingShipment: '待发货的客户',
+      hasReceivable: '应收款的客户'
+    },
     customerSearchTitle: '客户检索',
     vendorSearchTitle: '供应商检索',
     rfqSearchTitle: '需求检索',
@@ -2984,12 +3013,57 @@ const zhCN = {
       allLevel: '全部级别',
       allType: '全部类型',
       allIndustry: '全部行业',
+      allSettlementCurrency: '全部结算币别',
       allSalesUsers: '全部业务员',
       to: '至',
       startDate: '创建起',
       endDate: '创建止',
       search: '搜索',
       reset: '重置'
+    },
+    settingsMenu: {
+      aria: '列表筛选设置',
+      closeTabs: '关闭页签',
+      tabMode: '页签模式'
+    },
+    tabModeDimensions: {
+      settlementCurrency: '结算币别'
+    },
+    filterTabs: {
+      all: '全部'
+    },
+    searchPanel: {
+      title: '客户检索',
+      clearPreset: '清除快捷检索',
+      groups: {
+        time: '时间',
+        attention: '关注',
+        todo: '待办',
+        demand: '需求',
+        deal: '成单',
+        business: '业务'
+      },
+      presets: {
+        created_today: '今日创建的客户',
+        created_last_7_days: '近7日创建的客户',
+        created_last_30_days: '近30日创建的客户',
+        favorite: '收藏的客户',
+        vip: 'VIP客户',
+        pending_submit: '待提交客户',
+        pending_audit: '待审核客户',
+        has_demand: '有需求的客户',
+        demand_last_7_days: '近7日发需求的客户',
+        demand_last_30_days: '近30日发需求的客户',
+        demand_stale_6m: '半年前发需求的客户',
+        demand_stale_1y: '1年前发需求的客户',
+        has_deal: '已成单的客户',
+        deal_last_7_days: '近7日成单的客户',
+        deal_last_30_days: '近30日成单的客户',
+        deal_stale_6m: '半年前成单的客户',
+        deal_stale_1y: '1年前成单的客户',
+        pending_shipment: '待发货的客户',
+        has_receivable: '应收款的客户'
+      }
     },
     columns: {
       customerCode: '客户编号',
@@ -3212,6 +3286,7 @@ const zhCN = {
       allIdentity: '全部身份',
       allType: '全部类型',
       allIndustry: '全部行业',
+      allSettlementCurrency: '全部结算币别',
       allPurchasers: '全部采购员',
       to: '至',
       startDate: '创建起',

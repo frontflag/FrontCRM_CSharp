@@ -373,6 +373,8 @@ export interface CustomerSearchRequest {
   /** 等级字母：D/C/B/BPO/VIP/VPO 等，请求前会映射为后端 level 数字 */
   customerLevel?: string
   industry?: string
+  /** 结算币别（后端 query: currency） */
+  currency?: number
   region?: string
   /** 业务员用户 ID（后端 query: salesUserId） */
   salesPersonId?: string
@@ -388,6 +390,8 @@ export interface CustomerSearchRequest {
   /** 仅收藏：须同时传 favoriteIds（逗号分隔客户主键） */
   favoriteOnly?: boolean
   favoriteIds?: string
+  /** 左栏业务 preset（第二、三阶段；与 URL quickFilter 一致） */
+  quickFilter?: string
 }
 
 // 客户搜索响应

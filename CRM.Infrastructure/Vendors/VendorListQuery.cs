@@ -63,6 +63,15 @@ public sealed class VendorListQuery : IVendorListQuery
             q = q.Where(e => e.Industry != null && e.Industry.Contains(ind));
         }
 
+        if (request.Currency.HasValue)
+        {
+            var cur = request.Currency.Value;
+            // TradeCurrency 为空时业务默认 RMB(1)
+            q = cur == 1
+                ? q.Where(e => e.TradeCurrency == null || e.TradeCurrency == 1)
+                : q.Where(e => e.TradeCurrency == cur);
+        }
+
         if (request.Credit.HasValue)
             q = q.Where(e => e.Credit == request.Credit.Value);
 

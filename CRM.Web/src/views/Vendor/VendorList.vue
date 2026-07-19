@@ -127,6 +127,21 @@
           />
         </el-select>
         <el-select
+          v-model="searchForm.currency"
+          :placeholder="t('vendorList.filters.allSettlementCurrency')"
+          clearable
+          class="status-select"
+          :teleported="false"
+          @change="handleSearch"
+        >
+          <el-option
+            v-for="opt in SETTLEMENT_CURRENCY_OPTIONS"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          />
+        </el-select>
+        <el-select
           v-model="searchForm.purchaseUserId"
           :placeholder="t('vendorList.filters.allPurchasers')"
           clearable
@@ -367,6 +382,7 @@ import AiBusinessCardCreateHost from '@/components/AiCreate/AiBusinessCardCreate
 import { AI_PERMISSION_ENTITY_PARSE_VENDOR, AI_PERMISSION_ENTITY_PARSE_VENDOR_BUSINESS_CARD } from '@/api/ai';
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import { parseVendorListQuery, buildVendorListQuery } from '@/utils/vendorListQuery';
+import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency';
 import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick';
 import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import { useVendorIntelLookupStore } from '@/stores/vendorIntelLookup'
@@ -425,6 +441,7 @@ const searchForm = reactive({
   credit: undefined as number | undefined,
   ascriptionType: undefined as number | undefined,
   industry: undefined as string | undefined,
+  currency: undefined as number | undefined,
   purchaseUserId: undefined as string | undefined,
   createdFrom: undefined as string | undefined,
   createdTo: undefined as string | undefined
@@ -443,6 +460,7 @@ function applyVendorListQueryFromRoute() {
   searchForm.credit = p.credit;
   searchForm.ascriptionType = p.ascriptionType;
   searchForm.industry = p.industry;
+  searchForm.currency = p.currency;
   searchForm.purchaseUserId = p.purchaseUserId;
   searchForm.createdFrom = p.createdFrom;
   searchForm.createdTo = p.createdTo;
@@ -462,6 +480,7 @@ function replaceRouteQueryAndFetch() {
         credit: searchForm.credit,
         ascriptionType: searchForm.ascriptionType,
         industry: searchForm.industry,
+        currency: searchForm.currency,
         purchaseUserId: searchForm.purchaseUserId,
         createdFrom: searchForm.createdFrom,
         createdTo: searchForm.createdTo,
@@ -488,6 +507,7 @@ const handleReset = () => {
   searchForm.credit = undefined;
   searchForm.ascriptionType = undefined;
   searchForm.industry = undefined;
+  searchForm.currency = undefined;
   searchForm.purchaseUserId = undefined;
   searchForm.createdFrom = undefined;
   searchForm.createdTo = undefined;
@@ -599,6 +619,7 @@ const fetchVendorList = async () => {
       credit: searchForm.credit,
       ascriptionType: searchForm.ascriptionType,
       industry: searchForm.industry,
+      currency: searchForm.currency,
       purchaseUserId: searchForm.purchaseUserId,
       createdFrom: searchForm.createdFrom,
       createdTo: searchForm.createdTo,

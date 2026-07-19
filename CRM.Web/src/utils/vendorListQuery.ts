@@ -12,6 +12,8 @@ export interface VendorListFilterQuery {
   /** 类型：1 专属 2 公海（AscriptionType） */
   ascriptionType?: number
   industry?: string
+  /** 结算币别（后端 query: currency；TradeCurrency） */
+  currency?: number
   purchaseUserId?: string
   createdFrom?: string
   createdTo?: string
@@ -40,6 +42,12 @@ export function parseVendorListQuery(query: LocationQuery): VendorListFilterQuer
     const n = Number(stRaw)
     status = Number.isFinite(n) ? n : undefined
   }
+  const curRaw = firstParam(query, 'currency')
+  let currency: number | undefined
+  if (curRaw !== undefined && curRaw !== '') {
+    const n = Number(curRaw)
+    currency = Number.isFinite(n) ? n : undefined
+  }
   const fav = firstParam(query, 'favoriteOnly')
   const favoriteOnly = fav === '1' || fav === 'true'
   return {
@@ -49,6 +57,7 @@ export function parseVendorListQuery(query: LocationQuery): VendorListFilterQuer
     credit: parseOptionalNumber(firstParam(query, 'credit')),
     ascriptionType: parseOptionalNumber(firstParam(query, 'ascriptionType')),
     industry: firstParam(query, 'industry')?.trim() || undefined,
+    currency,
     purchaseUserId: firstParam(query, 'purchaseUserId')?.trim() || undefined,
     createdFrom: firstParam(query, 'createdFrom')?.trim() || undefined,
     createdTo: firstParam(query, 'createdTo')?.trim() || undefined,
@@ -73,6 +82,7 @@ export function buildVendorListQuery(f: VendorListFilterQuery): Record<string, s
     q.ascriptionType = String(f.ascriptionType)
   }
   if (f.industry?.trim()) q.industry = f.industry.trim()
+  if (f.currency != null && !Number.isNaN(f.currency)) q.currency = String(f.currency)
   if (f.purchaseUserId?.trim()) q.purchaseUserId = f.purchaseUserId.trim()
   if (f.createdFrom?.trim()) q.createdFrom = f.createdFrom.trim()
   if (f.createdTo?.trim()) q.createdTo = f.createdTo.trim()

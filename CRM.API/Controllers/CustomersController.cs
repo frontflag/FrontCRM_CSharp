@@ -58,6 +58,7 @@ namespace CRM.API.Controllers
             [FromQuery] short? customerType = null,
             [FromQuery] short? customerLevel = null,
             [FromQuery] string? industry = null,
+            [FromQuery] short? currency = null,
             [FromQuery] string? region = null,
             [FromQuery] string? salesUserId = null,
             [FromQuery] DateTime? createdFrom = null,
@@ -68,7 +69,8 @@ namespace CRM.API.Controllers
             [FromQuery] string? sortBy = null,
             [FromQuery] bool? sortDescending = null,
             [FromQuery] bool favoriteOnly = false,
-            [FromQuery] string? favoriteIds = null)
+            [FromQuery] string? favoriteIds = null,
+            [FromQuery] string? quickFilter = null)
         {
             try
             {
@@ -98,11 +100,13 @@ namespace CRM.API.Controllers
                     Type = customerType,
                     Level = customerLevel,
                     Industry = industry,
+                    Currency = currency,
                     Region = region,
                     SalesUserId = salesUserId,
                     CreatedFrom = createdFrom,
                     CreatedTo = createdTo,
                     Status = statusFilter,
+                    QuickFilter = quickFilter,
                     CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
                     FavoriteCustomerIds = favoriteIdList
                 };

@@ -125,6 +125,8 @@ export interface VendorSearchRequest {
   status?: number
   level?: number
   industry?: string
+  /** 结算币别（TradeCurrency） */
+  currency?: number
   /** 身份（vendorinfo.Credit） */
   credit?: number
   /** 1 专属 2 公海 */

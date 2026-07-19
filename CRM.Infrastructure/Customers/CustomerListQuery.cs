@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Customer;
 using CRM.Core.Services;
@@ -7,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace CRM.Infrastructure.Customers;
 
 /// <summary>客户列表：EF 侧 Count + Skip/Take，与《翻页查询规范》主表列表约定一致。</summary>
-public sealed class CustomerListQuery : ICustomerListQuery
+public sealed partial class CustomerListQuery : ICustomerListQuery
 {
     public const int MaxPageSize = 2000;
 
@@ -52,16 +53,48 @@ public sealed class CustomerListQuery : ICustomerListQuery
                 (c.Industry != null && c.Industry.ToLower().Contains(k)));
         }
 
-        if (request.Level.HasValue)
-            q = q.Where(c => c.Level == request.Level.Value);
-
         if (request.Type.HasValue)
             q = q.Where(c => c.Type == request.Type.Value);
+
+        var quickKnown = CustomerListQuickFilterCodes.IsKnown(request.QuickFilter);
+        if (quickKnown)
+        {
+            q = CustomerListQueryQuickFilter.Apply(_db, q, request.QuickFilter);
+        }
+        else
+        {
+            if (request.Level.HasValue)
+                q = q.Where(c => c.Level == request.Level.Value);
+
+            if (request.CreatedFrom.HasValue)
+            {
+                var from = request.CreatedFrom.Value.Date;
+                q = q.Where(c => c.CreateTime >= from);
+            }
+
+            if (request.CreatedTo.HasValue)
+            {
+                var toExclusive = request.CreatedTo.Value.Date.AddDays(1);
+                q = q.Where(c => c.CreateTime < toExclusive);
+            }
+
+            if (request.Status.HasValue)
+                q = q.Where(c => c.Status == request.Status.Value);
+        }
 
         if (!string.IsNullOrWhiteSpace(request.Industry))
         {
             var ind = request.Industry.Trim();
             q = q.Where(c => c.Industry == ind);
+        }
+
+        if (request.Currency.HasValue)
+        {
+            var cur = request.Currency.Value;
+            // TradeCurrency 为空时业务默认 RMB(1)，与 CustomerInfo.Currency getter 一致
+            q = cur == 1
+                ? q.Where(c => c.TradeCurrency == null || c.TradeCurrency == 1)
+                : q.Where(c => c.TradeCurrency == cur);
         }
 
         if (!string.IsNullOrWhiteSpace(request.Region))
@@ -72,23 +105,8 @@ public sealed class CustomerListQuery : ICustomerListQuery
                 (c.Province != null && c.Province.Contains(r)));
         }
 
-        if (request.CreatedFrom.HasValue)
-        {
-            var from = request.CreatedFrom.Value.Date;
-            q = q.Where(c => c.CreateTime >= from);
-        }
-
-        if (request.CreatedTo.HasValue)
-        {
-            var toExclusive = request.CreatedTo.Value.Date.AddDays(1);
-            q = q.Where(c => c.CreateTime < toExclusive);
-        }
-
         if (!string.IsNullOrWhiteSpace(request.SalesUserId))
             q = q.Where(c => c.SalesUserId == request.SalesUserId);
-
-        if (request.Status.HasValue)
-            q = q.Where(c => c.Status == request.Status.Value);
 
         if (request.FavoriteCustomerIds is { Count: > 0 } fav)
         {

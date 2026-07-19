@@ -63,6 +63,7 @@ export const vendorApi = {
     if (kw) queryParams.append('searchTerm', kw);
     if (params.level != null) queryParams.append('level', String(params.level));
     if (params.industry) queryParams.append('industry', params.industry);
+    if (params.currency != null) queryParams.append('currency', String(params.currency));
     if (params.status != null) queryParams.append('status', params.status.toString());
     if (params.credit != null) queryParams.append('credit', String(params.credit));
     if (params.ascriptionType != null) queryParams.append('ascriptionType', String(params.ascriptionType));
