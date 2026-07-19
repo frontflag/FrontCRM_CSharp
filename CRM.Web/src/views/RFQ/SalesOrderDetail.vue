@@ -77,14 +77,38 @@
           </svg>
           {{ t('salesOrderDetailView.cancelOrder') }}
         </button>
-        <button class="btn-secondary" type="button" :disabled="refreshingExtends" @click="handleRefreshItemExtends">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="23 4 23 10 17 10" />
-            <polyline points="1 20 1 14 7 14" />
-            <path d="M3.51 9a9 9 0 0 1 14.13-3.36L23 10M1 14l5.36 4.36A9 9 0 0 0 20.49 15" />
-          </svg>
-          {{ refreshingExtends ? t('salesOrderDetailView.refreshing') : t('salesOrderDetailView.refresh') }}
-        </button>
+        <div class="so-header-refresh-group">
+          <button class="btn-secondary" type="button" :disabled="refreshingExtends || syncingDownstreamCustomer" @click="handleRefreshItemExtends">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="23 4 23 10 17 10" />
+              <polyline points="1 20 1 14 7 14" />
+              <path d="M3.51 9a9 9 0 0 1 14.13-3.36L23 10M1 14l5.36 4.36A9 9 0 0 0 20.49 15" />
+            </svg>
+            {{ refreshingExtends ? t('salesOrderDetailView.refreshing') : t('salesOrderDetailView.refresh') }}
+          </button>
+          <el-dropdown
+            v-if="canWriteSo"
+            trigger="click"
+            placement="bottom-end"
+            :disabled="refreshingExtends || syncingDownstreamCustomer"
+            popper-class="so-detail-header-more-popper"
+            @command="handleRefreshMenuCommand"
+          >
+            <button
+              type="button"
+              class="btn-secondary so-header-refresh-caret"
+              :disabled="refreshingExtends || syncingDownstreamCustomer"
+              :aria-label="t('salesOrderDetailView.refreshMenu')"
+            >
+              ▾
+            </button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="customer">{{ t('salesOrderDetailView.refreshCustomer') }}</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
         <button v-if="canWriteSo" class="btn-primary" type="button" @click="handleEdit">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -1148,6 +1172,8 @@ import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import salesOrderApi, {
+  type SalesOrderCustomerDownstreamSyncPreview,
+  type SalesOrderCustomerDownstreamSyncPreviewItem,
   type SalesOrderItemExtendRefreshResult,
   type SalesOrderDetailTabAggregates,
   type SalesOrderFieldChangeLogRow,
@@ -1508,6 +1534,7 @@ async function handleOpenApplyPurchase(row: any) {
 
 const loading = ref(false)
 const refreshingExtends = ref(false)
+const syncingDownstreamCustomer = ref(false)
 const order = ref<any>(null)
 const customerAdvanceText = ref('')
 /** 加载失败时展示具体原因（权限/网络/库表等），避免一律显示「订单不存在」 */
@@ -2347,6 +2374,153 @@ async function handleRefreshItemExtends() {
   }
 }
 
+function buildCustomerSyncPreviewHtml(preview: SalesOrderCustomerDownstreamSyncPreview) {
+  const escapeHtml = (value: string) =>
+    value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+
+  const formatCustomerLabel = (item: SalesOrderCustomerDownstreamSyncPreviewItem) => {
+    const name = item.customerName?.trim() || item.customerId?.trim() || '—'
+    const escaped = escapeHtml(name)
+    if (item.isMismatch) {
+      return `<span class="so-customer-sync-preview__mismatch">${escaped}</span>`
+    }
+    return escaped
+  }
+
+  const unitLabel = (category: SalesOrderCustomerDownstreamSyncPreviewItem['category']) =>
+    category === 'packingItemExtend' ? '行' : category === 'stockOutNotify' ? '条' : '张'
+
+  const renderGroup = (
+    label: string,
+    category: SalesOrderCustomerDownstreamSyncPreviewItem['category'],
+    count: number
+  ) => {
+    const items = (preview.syncItems ?? []).filter((x) => x.category === category)
+    if (items.length === 0 && count <= 0) return ''
+    const itemCount = items.length || count
+    const unit = unitLabel(category)
+    const lines: string[] = []
+
+    if (items.length === 1) {
+      lines.push(
+        `<div class="so-customer-sync-preview__line">${label} ${itemCount} ${unit}：${escapeHtml(items[0].documentCode)} → ${formatCustomerLabel(items[0])}</div>`
+      )
+    } else if (items.length > 1) {
+      lines.push(`<div class="so-customer-sync-preview__line">${label} ${itemCount} ${unit}：</div>`)
+      for (const item of items) {
+        lines.push(
+          `<div class="so-customer-sync-preview__line so-customer-sync-preview__line--item">${escapeHtml(item.documentCode)} → ${formatCustomerLabel(item)}</div>`
+        )
+      }
+    } else {
+      lines.push(`<div class="so-customer-sync-preview__line">${label} ${itemCount} ${unit}：</div>`)
+    }
+
+    return `<div class="so-customer-sync-preview__group">${lines.join('')}</div>`
+  }
+
+  const sections = [
+    `<div class="so-customer-sync-preview__target">目标客户：${escapeHtml(preview.customerName?.trim() || preview.customerId?.trim() || '—')}</div>`,
+    renderGroup('出库通知', 'stockOutNotify', preview.stockOutNotifiesToSync),
+    renderGroup('装箱单', 'packing', preview.packingsToSync),
+    renderGroup('装箱明细扩展', 'packingItemExtend', preview.packingItemExtendsToSync),
+    renderGroup('未完结出库单', 'stockOut', preview.stockOutsToSync)
+  ].filter(Boolean)
+
+  if (preview.blockingDocuments?.length) {
+    sections.push(
+      '<div class="so-customer-sync-preview__block-title">阻断原因：</div>',
+      ...preview.blockingDocuments.map(
+        (x) => `<div class="so-customer-sync-preview__line">- ${escapeHtml(x)}</div>`
+      )
+    )
+  }
+
+  return `<div class="so-customer-sync-preview">${sections.join('')}</div>`
+}
+
+const customerSyncMessageBoxOptions = {
+  dangerouslyUseHTMLString: true,
+  customClass: 'so-customer-sync-message-box'
+} as const
+
+function handleRefreshMenuCommand(command: string | number | object) {
+  if (command === 'customer') {
+    void handleSyncDownstreamCustomer()
+  }
+}
+
+async function handleSyncDownstreamCustomer() {
+  if (!order.value?.id || syncingDownstreamCustomer.value) return
+
+  syncingDownstreamCustomer.value = true
+  let preview: SalesOrderCustomerDownstreamSyncPreview | null = null
+  try {
+    preview = await salesOrderApi.previewSyncDownstreamCustomer(order.value.id)
+  } catch (e) {
+    await ElMessageBox.alert(getApiErrorMessage(e, '预检失败，请稍后重试'), '刷新客户', {
+      confirmButtonText: '知道了'
+    })
+    return
+  } finally {
+    syncingDownstreamCustomer.value = false
+  }
+
+  if (!preview) return
+
+  if (!preview.canSync) {
+    await ElMessageBox.alert(buildCustomerSyncPreviewHtml(preview), '无法同步客户', {
+      ...customerSyncMessageBoxOptions,
+      confirmButtonText: '知道了'
+    })
+    return
+  }
+
+  if (preview.noOp) {
+    await ElMessageBox.alert('下游客户信息已与销售订单一致，无需同步。', '刷新客户', {
+      confirmButtonText: '知道了'
+    })
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      buildCustomerSyncPreviewHtml(preview),
+      `确认将销售订单 ${order.value.sellOrderCode} 的未完结下游客户同步为当前客户吗？`,
+      {
+        ...customerSyncMessageBoxOptions,
+        type: 'warning',
+        confirmButtonText: '同步',
+        cancelButtonText: '取消'
+      }
+    )
+  } catch {
+    return
+  }
+
+  syncingDownstreamCustomer.value = true
+  try {
+    const result = await salesOrderApi.syncDownstreamCustomer(order.value.id)
+    await fetchOrder()
+    await reloadSoItemLinePanelAggregates()
+    const p = result.preview
+    await ElMessageBox.alert(
+      `已同步：出库通知 ${p.stockOutNotifiesToSync} 条，装箱单 ${p.packingsToSync} 张，装箱明细扩展 ${p.packingItemExtendsToSync} 行，出库单 ${p.stockOutsToSync} 张。`,
+      '刷新客户完成',
+      { confirmButtonText: '知道了' }
+    )
+  } catch (e) {
+    await ElMessageBox.alert(getApiErrorMessage(e, '同步失败，请稍后重试'), '刷新客户失败', {
+      confirmButtonText: '知道了'
+    })
+  } finally {
+    syncingDownstreamCustomer.value = false
+  }
+}
+
 const formatDateTime = (v?: string | null | number) =>
   v != null && String(v).length > 0 ? formatDisplayDateTime(String(v)) : '--'
 
@@ -2579,6 +2753,26 @@ const handleEdit = () => {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.so-header-refresh-group {
+  display: inline-flex;
+  align-items: stretch;
+}
+
+.so-header-refresh-group > .btn-secondary:first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.so-header-refresh-caret {
+  min-width: 28px;
+  padding: 0 8px;
+  border-left: none;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  font-size: 12px;
+  line-height: 1;
 }
 
 .btn-back {
@@ -3455,23 +3649,87 @@ const handleEdit = () => {
 }
 
 .so-detail-header-more-popper .el-dropdown-menu__item {
-  color: rgba(200, 220, 240, 0.92) !important;
+  color: $text-primary !important;
   font-size: 13px;
 
   &:hover,
   &:focus {
-    background: rgba(0, 212, 255, 0.1) !important;
-    color: #e8f4ff !important;
+    background: var(--crm-accent-01) !important;
+    color: $text-primary !important;
   }
 }
 
 .so-detail-header-more-popper .detail-more-item--danger {
-  color: rgba(245, 108, 108, 0.95) !important;
+  color: $danger-color !important;
   &:hover,
   &:focus {
     background: rgba(245, 108, 108, 0.12) !important;
-    color: #ff9a9a !important;
+    color: $danger-color !important;
   }
+}
+
+.so-customer-sync-message-box.el-message-box {
+  width: min(760px, calc(100vw - 32px));
+  max-width: min(760px, calc(100vw - 32px));
+}
+
+.so-customer-sync-message-box .el-message-box__container {
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.so-customer-sync-message-box .el-message-box__status {
+  width: 31px !important;
+  height: 31px !important;
+  font-size: 31px !important;
+  flex-shrink: 0;
+
+  svg {
+    width: 31px !important;
+    height: 31px !important;
+  }
+}
+
+.so-customer-sync-message-box .el-message-box__content {
+  padding-right: 20px;
+}
+
+.so-customer-sync-message-box .el-message-box__message {
+  width: 100%;
+  padding-left: 0 !important;
+}
+
+.so-customer-sync-preview {
+  line-height: 1.7;
+  overflow-x: auto;
+}
+
+.so-customer-sync-preview__target {
+  margin-bottom: 8px;
+  white-space: nowrap;
+}
+
+.so-customer-sync-preview__group + .so-customer-sync-preview__group {
+  margin-top: 4px;
+}
+
+.so-customer-sync-preview__line {
+  white-space: nowrap;
+}
+
+.so-customer-sync-preview__line--item {
+  padding-left: 1.5em;
+}
+
+.so-customer-sync-preview__mismatch {
+  color: var(--crm-danger-color, #dc2626);
+  font-weight: 500;
+}
+
+.so-customer-sync-preview__block-title {
+  margin-top: 10px;
+  margin-bottom: 4px;
+  white-space: nowrap;
 }
 
 </style>

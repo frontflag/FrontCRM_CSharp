@@ -30,6 +30,35 @@ export interface SalesOrderItemExtendRefreshResult {
   changes: SalesOrderItemExtendChangeDto[]
 }
 
+export interface SalesOrderCustomerDownstreamSyncPreviewItem {
+  category: 'stockOutNotify' | 'packing' | 'packingItemExtend' | 'stockOut' | string
+  documentCode: string
+  customerId?: string | null
+  customerName?: string | null
+  isMismatch: boolean
+}
+
+export interface SalesOrderCustomerDownstreamSyncPreview {
+  salesOrderId: string
+  sellOrderCode?: string | null
+  customerId?: string | null
+  customerName?: string | null
+  canSync: boolean
+  noOp: boolean
+  blockReason?: string | null
+  blockingDocuments: string[]
+  stockOutNotifiesToSync: number
+  packingsToSync: number
+  packingItemExtendsToSync: number
+  stockOutsToSync: number
+  syncItems: SalesOrderCustomerDownstreamSyncPreviewItem[]
+}
+
+export interface SalesOrderCustomerDownstreamSyncApplyResult {
+  preview: SalesOrderCustomerDownstreamSyncPreview
+  applied: boolean
+}
+
 export interface SalesOrderFieldChangeLogRow {
   id: string
   sellOrderId: string
@@ -489,6 +518,19 @@ export const salesOrderApi = {
   // 刷新销售订单明细扩展字段（读取下游数据重算）
   async refreshItemExtends(id: string) {
     return await apiClient.post<SalesOrderItemExtendRefreshResult>(`/api/v1/sales-orders/${id}/refresh-item-extends`, {})
+  },
+
+  async previewSyncDownstreamCustomer(id: string) {
+    return await apiClient.get<SalesOrderCustomerDownstreamSyncPreview>(
+      `/api/v1/sales-orders/${id}/sync-downstream-customer/preview`
+    )
+  },
+
+  async syncDownstreamCustomer(id: string) {
+    return await apiClient.post<SalesOrderCustomerDownstreamSyncApplyResult>(
+      `/api/v1/sales-orders/${id}/sync-downstream-customer`,
+      {}
+    )
   },
 
   async logBatchExport(salesOrderId: string, exportedCount: number): Promise<void> {

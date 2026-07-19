@@ -40,6 +40,7 @@ namespace CRM.API.Controllers
         private readonly IPackingService _packingService;
         private readonly IStockOutService _stockOutService;
         private readonly IStockInService _stockInService;
+        private readonly ISalesOrderCustomerDownstreamSyncService _customerDownstreamSyncService;
         private readonly ApplicationDbContext _db;
         private readonly ILogger<SalesOrdersController> _logger;
 
@@ -57,6 +58,7 @@ namespace CRM.API.Controllers
             IPackingService packingService,
             IStockOutService stockOutService,
             IStockInService stockInService,
+            ISalesOrderCustomerDownstreamSyncService customerDownstreamSyncService,
             ApplicationDbContext db,
             ILogger<SalesOrdersController> logger)
         {
@@ -73,6 +75,7 @@ namespace CRM.API.Controllers
             _packingService = packingService;
             _stockOutService = stockOutService;
             _stockInService = stockInService;
+            _customerDownstreamSyncService = customerDownstreamSyncService;
             _db = db;
             _logger = logger;
         }
@@ -2347,6 +2350,56 @@ namespace CRM.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "刷新销售订单明细扩展失败: {Id}", id);
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpGet("{id:guid}/sync-downstream-customer/preview")]
+        [RequirePermission("sales-order.write")]
+        public async Task<IActionResult> PreviewSyncDownstreamCustomer(string id, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var order = await _service.GetByIdAsync(id);
+                if (order == null) return NotFound(new { success = false, message = "销售订单不存在" });
+
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessSalesOrderAsync(userId, order))
+                    return StatusCode(403, new { success = false, message = "无权限访问该销售订单" });
+
+                var preview = await _customerDownstreamSyncService.PreviewAsync(id, cancellationToken);
+                return Ok(new { success = true, data = preview });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "预检销售订单下游客户同步失败: {Id}", id);
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpPost("{id:guid}/sync-downstream-customer")]
+        [RequirePermission("sales-order.write")]
+        public async Task<IActionResult> SyncDownstreamCustomer(string id, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var order = await _service.GetByIdAsync(id);
+                if (order == null) return NotFound(new { success = false, message = "销售订单不存在" });
+
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessSalesOrderAsync(userId, order))
+                    return StatusCode(403, new { success = false, message = "无权限访问该销售订单" });
+
+                var result = await _customerDownstreamSyncService.ApplyAsync(order, userId, cancellationToken);
+                return Ok(new { success = true, data = result });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "同步销售订单下游客户失败: {Id}", id);
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
