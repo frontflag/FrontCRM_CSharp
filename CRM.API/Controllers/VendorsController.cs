@@ -100,7 +100,8 @@ namespace CRM.API.Controllers
             [FromQuery] DateTime? createdFrom = null,
             [FromQuery] DateTime? createdTo = null,
             [FromQuery] bool favoriteOnly = false,
-            [FromQuery] string? favoriteIds = null)
+            [FromQuery] string? favoriteIds = null,
+            [FromQuery] string? quickFilter = null)
         {
             try
             {
@@ -131,6 +132,7 @@ namespace CRM.API.Controllers
                     PurchaseUserId = purchaseUserId,
                     CreatedFrom = createdFrom,
                     CreatedTo = createdTo,
+                    QuickFilter = quickFilter,
                     CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
                     FavoriteVendorIds = favoriteIdList
                 };

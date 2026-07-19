@@ -136,6 +136,8 @@ export interface VendorSearchRequest {
   createdTo?: string
   favoriteOnly?: boolean
   favoriteIds?: string
+  /** 左栏业务 preset；与 URL quickFilter 一致 */
+  quickFilter?: string
 }
 
 // 供应商列表响应（与后端分页结果对应）

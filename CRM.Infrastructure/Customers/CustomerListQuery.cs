@@ -2,6 +2,7 @@ using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Customer;
 using CRM.Core.Services;
+using CRM.Core.Utilities;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -68,13 +69,13 @@ public sealed partial class CustomerListQuery : ICustomerListQuery
 
             if (request.CreatedFrom.HasValue)
             {
-                var from = request.CreatedFrom.Value.Date;
+                var from = SalesAnalyticsDateFilter.ToUtcDateStart(request.CreatedFrom.Value);
                 q = q.Where(c => c.CreateTime >= from);
             }
 
             if (request.CreatedTo.HasValue)
             {
-                var toExclusive = request.CreatedTo.Value.Date.AddDays(1);
+                var toExclusive = SalesAnalyticsDateFilter.ToUtcDateEndExclusive(request.CreatedTo.Value);
                 q = q.Where(c => c.CreateTime < toExclusive);
             }
 

@@ -1,13 +1,208 @@
 <script setup lang="ts">
-/** 供应商列表左栏「检索」页签：内容已移除，筛选请使用主栏。 */
+import { computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import {
+  VENDOR_ATTENTION_PRESET_IDS,
+  VENDOR_BUSINESS_PRESET_IDS,
+  VENDOR_PURCHASE_PRESET_IDS,
+  VENDOR_QUOTE_PRESET_IDS,
+  VENDOR_TIME_PRESET_IDS,
+  VENDOR_TODO_PRESET_IDS,
+  type VendorListPresetId,
+  buildVendorListRouteQuery,
+  isVendorListPresetId,
+  pickVendorKeywordQuery,
+  presetI18nKey
+} from '@/utils/vendorListPreset'
+
+const route = useRoute()
+const router = useRouter()
+const { t } = useI18n()
+
+const activePreset = computed(() => {
+  const p = route.query.preset
+  return typeof p === 'string' && isVendorListPresetId(p) ? p : null
+})
+
+function onPresetClick(id: VendorListPresetId) {
+  const keywords = pickVendorKeywordQuery(route.query as Record<string, unknown>)
+
+  if (route.name === 'VendorList' && activePreset.value === id) {
+    router.replace({ name: 'VendorList', query: {} })
+    return
+  }
+
+  const query = buildVendorListRouteQuery({ preset: id, keywords })
+  if (route.name === 'VendorList') {
+    router.replace({ name: 'VendorList', query })
+  } else {
+    router.push({ name: 'VendorList', query })
+  }
+}
 </script>
 
 <template>
-  <div class="vendor-search-panel" />
+  <div class="vendor-search-panel">
+    <div class="vendor-search-panel__head">{{ t('vendorList.searchPanel.title') }}</div>
+
+    <section class="vendor-search-panel__group">
+      <h4 class="vendor-search-panel__group-title">{{ t('vendorList.searchPanel.groups.time') }}</h4>
+      <ul class="vendor-search-panel__list">
+        <li v-for="id in VENDOR_TIME_PRESET_IDS" :key="id">
+          <button
+            type="button"
+            class="vendor-search-panel__item"
+            :class="{ 'is-active': activePreset === id }"
+            @click="onPresetClick(id)"
+          >
+            {{ t(presetI18nKey(id)) }}
+          </button>
+        </li>
+      </ul>
+    </section>
+
+    <section class="vendor-search-panel__group">
+      <h4 class="vendor-search-panel__group-title">{{ t('vendorList.searchPanel.groups.attention') }}</h4>
+      <ul class="vendor-search-panel__list">
+        <li v-for="id in VENDOR_ATTENTION_PRESET_IDS" :key="id">
+          <button
+            type="button"
+            class="vendor-search-panel__item"
+            :class="{ 'is-active': activePreset === id }"
+            @click="onPresetClick(id)"
+          >
+            {{ t(presetI18nKey(id)) }}
+          </button>
+        </li>
+      </ul>
+    </section>
+
+    <section class="vendor-search-panel__group">
+      <h4 class="vendor-search-panel__group-title">{{ t('vendorList.searchPanel.groups.todo') }}</h4>
+      <ul class="vendor-search-panel__list">
+        <li v-for="id in VENDOR_TODO_PRESET_IDS" :key="id">
+          <button
+            type="button"
+            class="vendor-search-panel__item"
+            :class="{ 'is-active': activePreset === id }"
+            @click="onPresetClick(id)"
+          >
+            {{ t(presetI18nKey(id)) }}
+          </button>
+        </li>
+      </ul>
+    </section>
+
+    <section class="vendor-search-panel__group">
+      <h4 class="vendor-search-panel__group-title">{{ t('vendorList.searchPanel.groups.demand') }}</h4>
+      <ul class="vendor-search-panel__list">
+        <li v-for="id in VENDOR_QUOTE_PRESET_IDS" :key="id">
+          <button
+            type="button"
+            class="vendor-search-panel__item"
+            :class="{ 'is-active': activePreset === id }"
+            @click="onPresetClick(id)"
+          >
+            {{ t(presetI18nKey(id)) }}
+          </button>
+        </li>
+      </ul>
+    </section>
+
+    <section class="vendor-search-panel__group">
+      <h4 class="vendor-search-panel__group-title">{{ t('vendorList.searchPanel.groups.deal') }}</h4>
+      <ul class="vendor-search-panel__list">
+        <li v-for="id in VENDOR_PURCHASE_PRESET_IDS" :key="id">
+          <button
+            type="button"
+            class="vendor-search-panel__item"
+            :class="{ 'is-active': activePreset === id }"
+            @click="onPresetClick(id)"
+          >
+            {{ t(presetI18nKey(id)) }}
+          </button>
+        </li>
+      </ul>
+    </section>
+
+    <section class="vendor-search-panel__group">
+      <h4 class="vendor-search-panel__group-title">{{ t('vendorList.searchPanel.groups.business') }}</h4>
+      <ul class="vendor-search-panel__list">
+        <li v-for="id in VENDOR_BUSINESS_PRESET_IDS" :key="id">
+          <button
+            type="button"
+            class="vendor-search-panel__item"
+            :class="{ 'is-active': activePreset === id }"
+            @click="onPresetClick(id)"
+          >
+            {{ t(presetI18nKey(id)) }}
+          </button>
+        </li>
+      </ul>
+    </section>
+  </div>
 </template>
 
 <style scoped lang="scss">
+@import '@/assets/styles/variables.scss';
+
 .vendor-search-panel {
-  min-height: 0;
+  min-height: 80px;
+  font-size: 12px;
+  color: $text-secondary;
+}
+
+.vendor-search-panel__head {
+  font-weight: 600;
+  color: $text-primary;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.vendor-search-panel__group {
+  margin-bottom: 14px;
+}
+
+.vendor-search-panel__group-title {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: $text-muted;
+}
+
+.vendor-search-panel__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vendor-search-panel__item {
+  width: 100%;
+  text-align: left;
+  padding: 7px 10px;
+  font-size: 12px;
+  color: $text-secondary;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+
+  &:hover {
+    background: var(--crm-accent-008);
+    border-color: var(--crm-accent-018);
+    color: $text-primary;
+  }
+
+  &.is-active {
+    background: var(--crm-accent-012);
+    border-color: var(--crm-accent-04);
+    color: $text-primary;
+    font-weight: 500;
+  }
 }
 </style>

@@ -524,6 +524,8 @@ namespace CRM.Core.Interfaces
         public string? PurchaseUserId { get; set; }
         public DateTime? CreatedFrom { get; set; }
         public DateTime? CreatedTo { get; set; }
+        /// <summary>左栏快捷检索（<see cref="CRM.Core.Constants.VendorListQuickFilterCodes"/>）</summary>
+        public string? QuickFilter { get; set; }
         public string? CurrentUserId { get; set; }
 
         /// <summary>

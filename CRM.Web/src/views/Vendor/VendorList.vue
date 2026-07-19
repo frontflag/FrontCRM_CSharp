@@ -49,8 +49,22 @@
       </div>
     </div>
 
-    <!-- 搜索栏：关键词 → 状态 → 等级 → 身份 → 类型 → 行业 → 采购员 → 创建日期区间 -->
+    <!-- 搜索栏：关键词 → 状态 → 等级 → 身份 → 类型 → 行业 → 结算币别 → 采购员 → 创建日期区间 -->
     <div class="search-bar">
+      <div v-if="activePreset" class="search-preset-chip-row">
+        <span class="search-preset-chip">
+          {{ t(presetI18nKey(activePreset)) }}
+          <button
+            type="button"
+            class="search-preset-chip__clear"
+            :title="t('vendorList.searchPanel.clearPreset')"
+            @click="clearPresetChip"
+          >
+            ×
+          </button>
+        </span>
+      </div>
+      <div class="search-bar__row">
       <div class="search-left">
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
@@ -65,6 +79,7 @@
           />
         </div>
         <el-select
+          v-if="!presetActive"
           v-model="searchForm.status"
           :placeholder="t('vendorList.filters.allStatus')"
           clearable
@@ -127,6 +142,7 @@
           />
         </el-select>
         <el-select
+          v-if="tabModeDimension !== 'settlementCurrency'"
           v-model="searchForm.currency"
           :placeholder="t('vendorList.filters.allSettlementCurrency')"
           clearable
@@ -153,6 +169,7 @@
           <el-option v-for="u in purchaseUsers" :key="u.id" :label="purchaserUserLabel(u)" :value="u.id" />
         </el-select>
         <el-date-picker
+          v-if="!presetActive"
           v-model="createdDateRange"
           type="daterange"
           :range-separator="t('vendorList.filters.to')"
@@ -166,8 +183,81 @@
         />
         <button type="button" class="btn-primary btn-sm" @click="handleSearch">{{ t('vendorList.filters.search') }}</button>
         <button type="button" class="btn-ghost btn-sm" @click="handleReset">{{ t('vendorList.filters.reset') }}</button>
+        <el-popover
+          v-model:visible="settingsMenuOpen"
+          trigger="click"
+          placement="bottom-end"
+          :width="168"
+          :show-arrow="false"
+          popper-class="vendor-list-settings-popper"
+        >
+          <template #reference>
+            <button
+              type="button"
+              class="btn-ghost btn-sm btn-icon-only"
+              :title="t('vendorList.settingsMenu.aria')"
+              :aria-label="t('vendorList.settingsMenu.aria')"
+            >
+              <el-icon :size="14"><Setting /></el-icon>
+            </button>
+          </template>
+          <div class="vendor-list-settings-menu">
+            <button
+              type="button"
+              class="vendor-list-settings-menu__item"
+              :disabled="tabModeDimension === 'off'"
+              @click="closeFilterTabMode"
+            >
+              {{ t('vendorList.settingsMenu.closeTabs') }}
+            </button>
+            <div
+              class="vendor-list-settings-menu__submenu"
+              @mouseenter="settingsSubmenuOpen = true"
+              @mouseleave="settingsSubmenuOpen = false"
+            >
+              <div class="vendor-list-settings-menu__item vendor-list-settings-menu__item--parent">
+                <span>{{ t('vendorList.settingsMenu.tabMode') }}</span>
+                <el-icon class="vendor-list-settings-menu__caret"><ArrowRight /></el-icon>
+              </div>
+              <div v-show="settingsSubmenuOpen" class="vendor-list-settings-menu__flyout">
+                <button
+                  v-for="dim in VENDOR_LIST_TAB_MODE_OPTIONS"
+                  :key="dim"
+                  type="button"
+                  class="vendor-list-settings-menu__item"
+                  :class="{ 'is-active': tabModeDimension === dim }"
+                  @click="enableFilterTabMode(dim)"
+                >
+                  {{ tabModeDimensionLabel(dim) }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </el-popover>
+      </div>
       </div>
     </div>
+
+    <div class="vendor-main-panel" :class="{ 'vendor-main-panel--with-filter-tabs': filterTabStripVisible }">
+      <div
+        v-if="filterTabStripVisible"
+        class="vd-filter-tabs"
+        role="tablist"
+        :aria-label="filterTabStripAriaLabel"
+      >
+        <button
+          v-for="tab in filterTabOptions"
+          :key="tab.id"
+          type="button"
+          role="tab"
+          class="vd-filter-tabs__item"
+          :class="{ 'is-active': activeFilterTabId === tab.id }"
+          :aria-selected="activeFilterTabId === tab.id"
+          @click="onFilterTabClick(tab.id)"
+        >
+          {{ tab.label }}
+        </button>
+      </div>
 
     <!-- 表格列表 -->
     <div class="table-wrapper" v-loading="loading">
@@ -347,6 +437,8 @@
       />
     </div>
 
+    </div>
+
     <VendorImportDialog v-model="importDialogVisible" @success="fetchVendorList" />
     <AiEntityCreateHost
       ref="aiCreateHostRef"
@@ -366,7 +458,7 @@ import { ref, reactive, onMounted, watch, nextTick, computed, inject } from 'vue
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Setting } from '@element-plus/icons-vue'
+import { Setting, ArrowRight } from '@element-plus/icons-vue'
 import { vendorApi } from '@/api/vendor';
 import { favoriteApi } from '@/api/favorite';
 import { authApi, type PurchaseUserSelectOption } from '@/api/auth';
@@ -381,8 +473,28 @@ import AiEntityCreateHost from '@/components/AiCreate/AiEntityCreateHost.vue';
 import AiBusinessCardCreateHost from '@/components/AiCreate/AiBusinessCardCreateHost.vue';
 import { AI_PERMISSION_ENTITY_PARSE_VENDOR, AI_PERMISSION_ENTITY_PARSE_VENDOR_BUSINESS_CARD } from '@/api/ai';
 import CrmDataTable from '@/components/CrmDataTable.vue'
-import { parseVendorListQuery, buildVendorListQuery } from '@/utils/vendorListQuery';
+import { parseVendorListQuery } from '@/utils/vendorListQuery';
+import {
+  buildVendorListRouteQuery,
+  isVendorListPresetId,
+  isVendorQuickFilterPresetId,
+  isVendorTimePresetId,
+  pickVendorKeywordQuery,
+  presetI18nKey,
+  resolveVendorPresetExpandedQuery,
+  resolveVendorTimePresetDateRange,
+  type VendorListPresetId
+} from '@/utils/vendorListPreset';
 import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency';
+import {
+  VENDOR_LIST_TAB_MODE_OPTIONS,
+  readVendorListTabMode,
+  writeVendorListTabMode,
+  settlementCurrencyFilterToTab,
+  settlementCurrencyTabToFilter,
+  type VendorListTabModeDimension,
+  type VendorSettlementCurrencyTabId
+} from '@/utils/vendorListTabMode';
 import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick';
 import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import { useVendorIntelLookupStore } from '@/stores/vendorIntelLookup'
@@ -430,6 +542,75 @@ const totalCount = ref(0);
 const favoriteOnly = ref(false);
 const skipQueryRouteFetch = ref(false);
 
+const activePreset = computed((): VendorListPresetId | null => {
+  const p = route.query.preset
+  return typeof p === 'string' && isVendorListPresetId(p) ? p : null
+})
+const presetActive = computed(() => !!activePreset.value)
+
+const tabModeDimension = ref<VendorListTabModeDimension>(readVendorListTabMode())
+const settingsMenuOpen = ref(false)
+const settingsSubmenuOpen = ref(false)
+
+function tabModeDimensionLabel(_dim: Exclude<VendorListTabModeDimension, 'off'>) {
+  return t('vendorList.tabModeDimensions.settlementCurrency')
+}
+
+function closeFilterTabMode() {
+  if (tabModeDimension.value === 'off') return
+  tabModeDimension.value = 'off'
+  writeVendorListTabMode('off')
+  settingsMenuOpen.value = false
+  settingsSubmenuOpen.value = false
+}
+
+function enableFilterTabMode(dim: Exclude<VendorListTabModeDimension, 'off'>) {
+  tabModeDimension.value = dim
+  writeVendorListTabMode(dim)
+  settingsMenuOpen.value = false
+  settingsSubmenuOpen.value = false
+}
+
+watch(settingsMenuOpen, (open) => {
+  if (!open) settingsSubmenuOpen.value = false
+})
+
+const filterTabStripVisible = computed(() => tabModeDimension.value !== 'off')
+
+const filterTabStripAriaLabel = computed(() => {
+  const dim = tabModeDimension.value
+  if (dim === 'off') return ''
+  return tabModeDimensionLabel(dim)
+})
+
+type VendorFilterTabId = VendorSettlementCurrencyTabId
+
+const filterTabOptions = computed(() => {
+  if (tabModeDimension.value === 'off') return [] as Array<{ id: VendorFilterTabId; label: string }>
+  return [
+    { id: 'all' as const, label: t('vendorList.filterTabs.all') },
+    ...SETTLEMENT_CURRENCY_OPTIONS.map((opt) => ({
+      id: String(opt.value) as VendorSettlementCurrencyTabId,
+      label: opt.label
+    }))
+  ]
+})
+
+const activeFilterTabId = computed((): VendorFilterTabId => {
+  if (tabModeDimension.value === 'settlementCurrency') {
+    return settlementCurrencyFilterToTab(searchForm.currency)
+  }
+  return 'all'
+})
+
+function onFilterTabClick(tab: VendorFilterTabId) {
+  if (tabModeDimension.value !== 'settlementCurrency') return
+  const next = settlementCurrencyTabToFilter(tab)
+  if (searchForm.currency === next) return
+  searchForm.currency = next
+  handleSearch()
+}
+
 const purchaseUsers = ref<PurchaseUserSelectOption[]>([]);
 const createdDateRange = ref<[string, string] | null>(null);
 
@@ -455,17 +636,76 @@ function purchaserUserLabel(u: PurchaseUserSelectOption) {
 function applyVendorListQueryFromRoute() {
   const p = parseVendorListQuery(route.query);
   searchForm.searchTerm = p.searchTerm;
-  searchForm.status = p.status;
   searchForm.level = p.level;
   searchForm.credit = p.credit;
   searchForm.ascriptionType = p.ascriptionType;
   searchForm.industry = p.industry;
   searchForm.currency = p.currency;
   searchForm.purchaseUserId = p.purchaseUserId;
+
+  const preset = activePreset.value;
+  if (preset) {
+    if (isVendorQuickFilterPresetId(preset)) {
+      searchForm.status = undefined;
+      searchForm.createdFrom = undefined;
+      searchForm.createdTo = undefined;
+      favoriteOnly.value = false;
+      createdDateRange.value = null;
+      return;
+    }
+    const expanded = resolveVendorPresetExpandedQuery(preset);
+    searchForm.status = expanded.status;
+    searchForm.createdFrom = expanded.createdFrom;
+    searchForm.createdTo = expanded.createdTo;
+    favoriteOnly.value = expanded.favoriteOnly ?? false;
+    if (isVendorTimePresetId(preset)) {
+      createdDateRange.value = resolveVendorTimePresetDateRange(preset);
+    } else {
+      createdDateRange.value = null;
+    }
+    return;
+  }
+
+  searchForm.status = p.status;
   searchForm.createdFrom = p.createdFrom;
   searchForm.createdTo = p.createdTo;
-  createdDateRange.value = p.createdFrom && p.createdTo ? [p.createdFrom, p.createdTo] : null;
+  createdDateRange.value =
+    p.createdFrom && p.createdTo ? [p.createdFrom, p.createdTo] : null;
   favoriteOnly.value = p.favoriteOnly;
+}
+
+function buildRouteQueryFromForm(): Record<string, string> {
+  const keywords = pickVendorKeywordQuery({
+    searchTerm: searchForm.searchTerm,
+    credit: searchForm.credit,
+    ascriptionType: searchForm.ascriptionType,
+    industry: searchForm.industry,
+    purchaseUserId: searchForm.purchaseUserId,
+    currency: searchForm.currency
+  })
+  if (activePreset.value) {
+    return buildVendorListRouteQuery({ preset: activePreset.value, keywords })
+  }
+  return buildVendorListRouteQuery({
+    keywords,
+    advanced: {
+      searchTerm: searchForm.searchTerm,
+      status: searchForm.status,
+      level: searchForm.level,
+      credit: searchForm.credit,
+      ascriptionType: searchForm.ascriptionType,
+      industry: searchForm.industry,
+      currency: searchForm.currency,
+      purchaseUserId: searchForm.purchaseUserId,
+      createdFrom: searchForm.createdFrom,
+      createdTo: searchForm.createdTo,
+      favoriteOnly: favoriteOnly.value
+    }
+  })
+}
+
+function clearPresetChip() {
+  router.replace({ name: 'VendorList', query: {} })
 }
 
 function replaceRouteQueryAndFetch() {
@@ -473,19 +713,7 @@ function replaceRouteQueryAndFetch() {
   router
     .replace({
       name: 'VendorList',
-      query: buildVendorListQuery({
-        searchTerm: searchForm.searchTerm || '',
-        status: searchForm.status,
-        level: searchForm.level,
-        credit: searchForm.credit,
-        ascriptionType: searchForm.ascriptionType,
-        industry: searchForm.industry,
-        currency: searchForm.currency,
-        purchaseUserId: searchForm.purchaseUserId,
-        createdFrom: searchForm.createdFrom,
-        createdTo: searchForm.createdTo,
-        favoriteOnly: favoriteOnly.value
-      })
+      query: buildRouteQueryFromForm()
     })
     .finally(() => {
       nextTick(() => {
@@ -628,7 +856,16 @@ const fetchVendorList = async () => {
       pageSize: pagination.pageSize,
       favoriteOnly: favoriteOnly.value ? true : undefined,
       favoriteIds: favoriteOnly.value ? favoriteIdsList.join(',') : undefined
-    };
+    }
+    const preset = activePreset.value
+    if (preset && isVendorQuickFilterPresetId(preset)) {
+      params.quickFilter = preset
+      params.status = undefined
+      params.createdFrom = undefined
+      params.createdTo = undefined
+      params.favoriteOnly = undefined
+      params.favoriteIds = undefined
+    }
     const response = await vendorApi.searchVendors(params);
     const mapped = (response.items || []).map((item: any) => ({
       ...item,
@@ -925,9 +1162,57 @@ onMounted(async () => {
 // ---- 搜索栏（与客户列表对齐） ----
 .search-bar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 8px;
   margin-bottom: 12px;
+}
+
+.search-bar__row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.search-preset-chip-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.search-preset-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 4px 10px;
+  font-size: 12px;
+  color: $text-primary;
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.35);
+  border-radius: 20px;
+}
+
+.search-preset-chip__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: $text-secondary;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(0, 212, 255, 0.15);
+    color: $text-primary;
+  }
 }
 
 .search-left {
@@ -1375,6 +1660,155 @@ onMounted(async () => {
   :deep(.el-pager li) { background: $layer-2; border: 1px solid $border-panel; color: $text-secondary; border-radius: 6px; margin: 0 2px; }
   :deep(.el-pager li.is-active) { background: rgba(0,212,255,0.15); border-color: rgba(0,212,255,0.4); color: $cyan-primary; }
   :deep(.btn-prev), :deep(.btn-next) { background: $layer-2 !important; border: 1px solid $border-panel !important; color: $text-secondary !important; border-radius: 6px !important; }
+}
+
+.btn-icon-only {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  padding-inline: 8px;
+}
+
+.vendor-main-panel {
+  display: flex;
+  flex-direction: column;
+
+  &--with-filter-tabs {
+    :deep(.crm-data-table-root),
+    :deep(.table-card-scroll),
+    .table-wrapper {
+      border-top-left-radius: 0;
+      border-top-right-radius: 0;
+    }
+
+    :deep(.el-table),
+    :deep(.el-table__inner-wrapper),
+    :deep(.el-table__header-wrapper) {
+      border-top-left-radius: 0;
+      border-top-right-radius: 0;
+    }
+  }
+}
+
+.vd-filter-tabs {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.vd-filter-tabs__item {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 9px 8px;
+  border: 1px solid var(--crm-border-panel, #e2e8f0);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  background: #e8edf5;
+  color: var(--crm-text-primary);
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-weight: 500;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s, box-shadow 0.12s;
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--crm-cyan-primary) 45%, var(--crm-border-panel));
+    background: color-mix(in srgb, var(--crm-cyan-primary) 12%, var(--crm-layer-1));
+  }
+
+  &.is-active {
+    background: color-mix(in srgb, var(--crm-cyan-primary) 16%, var(--crm-layer-2, #fff));
+    border-color: color-mix(in srgb, var(--crm-cyan-primary) 55%, var(--crm-border-panel));
+    box-shadow: inset 0 2px 0 0 var(--crm-cyan-primary);
+    font-weight: 600;
+    z-index: 1;
+  }
+}
+
+html[data-theme='dark'] .vd-filter-tabs__item:not(.is-active) {
+  background: var(--crm-layer-1);
+
+  &:hover {
+    background: color-mix(in srgb, var(--crm-cyan-primary) 12%, var(--crm-layer-1));
+  }
+}
+</style>
+
+<style lang="scss">
+.vendor-list-settings-popper.el-popover.el-popper {
+  padding: 6px;
+  min-width: 160px;
+  overflow: visible;
+}
+
+.vendor-list-settings-menu {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.vendor-list-settings-menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--crm-text-secondary, rgba(224, 244, 255, 0.7));
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--crm-accent-008, rgba(0, 212, 255, 0.08));
+    color: var(--crm-text-primary, #e8f4ff);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  &.is-active {
+    color: var(--crm-cyan-primary, #00d4ff);
+  }
+
+  &--parent {
+    cursor: default;
+  }
+}
+
+.vendor-list-settings-menu__caret {
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--crm-text-muted, rgba(200, 216, 232, 0.55));
+}
+
+.vendor-list-settings-menu__submenu {
+  position: relative;
+}
+
+.vendor-list-settings-menu__flyout {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 4px);
+  min-width: 148px;
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid var(--crm-border-panel, rgba(0, 212, 255, 0.15));
+  background: var(--crm-layer-2, #0d1e35);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  z-index: 10;
 }
 </style>
 

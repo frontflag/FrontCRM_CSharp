@@ -72,6 +72,7 @@ export const vendorApi = {
     if (params.createdTo) queryParams.append('createdTo', params.createdTo);
     if (params.favoriteOnly) queryParams.append('favoriteOnly', 'true');
     if (params.favoriteIds) queryParams.append('favoriteIds', params.favoriteIds);
+    if (params.quickFilter?.trim()) queryParams.append('quickFilter', params.quickFilter.trim());
 
     const response = await apiClient.get<any>(`/api/v1/vendors?${queryParams.toString()}`);
     if (response && typeof response === 'object' && 'data' in response && response.data)

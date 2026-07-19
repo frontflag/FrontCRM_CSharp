@@ -26,16 +26,19 @@ const activePreset = computed(() => {
 })
 
 function onPresetClick(id: CustomerListPresetId) {
-  if (route.name !== 'CustomerList') return
-  if (activePreset.value === id) {
+  const keywords = pickCustomerKeywordQuery(route.query as Record<string, unknown>)
+
+  if (route.name === 'CustomerList' && activePreset.value === id) {
     router.replace({ name: 'CustomerList', query: {} })
     return
   }
-  const keywords = pickCustomerKeywordQuery(route.query as Record<string, unknown>)
-  router.replace({
-    name: 'CustomerList',
-    query: buildCustomerListRouteQuery({ preset: id, keywords })
-  })
+
+  const query = buildCustomerListRouteQuery({ preset: id, keywords })
+  if (route.name === 'CustomerList') {
+    router.replace({ name: 'CustomerList', query })
+  } else {
+    router.push({ name: 'CustomerList', query })
+  }
 }
 </script>
 

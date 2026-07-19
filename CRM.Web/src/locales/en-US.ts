@@ -3305,6 +3305,49 @@ const enUS = {
       search: 'Search',
       reset: 'Reset'
     },
+    settingsMenu: {
+      aria: 'List filter settings',
+      closeTabs: 'Close tabs',
+      tabMode: 'Tab mode'
+    },
+    tabModeDimensions: {
+      settlementCurrency: 'Settlement currency'
+    },
+    filterTabs: {
+      all: 'All'
+    },
+    searchPanel: {
+      title: 'Vendor search',
+      clearPreset: 'Clear quick filter',
+      groups: {
+        time: 'Time',
+        attention: 'Attention',
+        todo: 'To-do',
+        demand: 'Demand',
+        deal: 'Deal',
+        business: 'Business'
+      },
+      presets: {
+        created_today: 'Created today',
+        created_last_7_days: 'Created in last 7 days',
+        created_last_30_days: 'Created in last 30 days',
+        favorite: 'Favorite vendors',
+        pending_submit: 'Pending submit',
+        pending_audit: 'Pending audit',
+        has_quote: 'Vendors with quote',
+        quote_last_7_days: 'Quote in last 7 days',
+        quote_last_30_days: 'Quote in last 30 days',
+        quote_stale_6m: 'Quote over 6 months ago',
+        quote_stale_1y: 'Quote over 1 year ago',
+        has_purchase: 'Vendors with purchase',
+        purchase_last_7_days: 'Purchase in last 7 days',
+        purchase_last_30_days: 'Purchase in last 30 days',
+        purchase_stale_6m: 'Purchase over 6 months ago',
+        purchase_stale_1y: 'Purchase over 1 year ago',
+        pending_inbound: 'Pending inbound',
+        has_payable: 'Has payable'
+      }
+    },
     columns: {
       code: 'Vendor Code',
       status: 'Status',

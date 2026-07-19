@@ -1,13 +1,15 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Vendor;
 using CRM.Core.Services;
+using CRM.Core.Utilities;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace CRM.Infrastructure.Vendors;
 
 /// <summary>供应商列表：EF 侧 Count + Skip/Take。</summary>
-public sealed class VendorListQuery : IVendorListQuery
+public sealed partial class VendorListQuery : IVendorListQuery
 {
     public const int MaxPageSize = 2000;
 
@@ -51,8 +53,28 @@ public sealed class VendorListQuery : IVendorListQuery
                 (e.EnglishOfficialName != null && e.EnglishOfficialName.ToLower().Contains(keyword)));
         }
 
-        if (request.Status.HasValue)
-            q = q.Where(e => e.Status == request.Status.Value);
+        var quickKnown = VendorListQuickFilterCodes.IsKnown(request.QuickFilter);
+        if (quickKnown)
+        {
+            q = VendorListQueryQuickFilter.Apply(_db, q, request.QuickFilter);
+        }
+        else
+        {
+            if (request.Status.HasValue)
+                q = q.Where(e => e.Status == request.Status.Value);
+
+            if (request.CreatedFrom.HasValue)
+            {
+                var from = SalesAnalyticsDateFilter.ToUtcDateStart(request.CreatedFrom.Value);
+                q = q.Where(e => e.CreateTime >= from);
+            }
+
+            if (request.CreatedTo.HasValue)
+            {
+                var toExclusive = SalesAnalyticsDateFilter.ToUtcDateEndExclusive(request.CreatedTo.Value);
+                q = q.Where(e => e.CreateTime < toExclusive);
+            }
+        }
 
         if (request.Level.HasValue)
             q = q.Where(e => e.Level == request.Level.Value);
@@ -82,18 +104,6 @@ public sealed class VendorListQuery : IVendorListQuery
         {
             var pid = request.PurchaseUserId.Trim();
             q = q.Where(e => e.PurchaseUserId == pid);
-        }
-
-        if (request.CreatedFrom.HasValue)
-        {
-            var from = request.CreatedFrom.Value.Date;
-            q = q.Where(e => e.CreateTime >= from);
-        }
-
-        if (request.CreatedTo.HasValue)
-        {
-            var toExclusive = request.CreatedTo.Value.Date.AddDays(1);
-            q = q.Where(e => e.CreateTime < toExclusive);
         }
 
         if (request.FavoriteVendorIds is { Count: > 0 } fav)

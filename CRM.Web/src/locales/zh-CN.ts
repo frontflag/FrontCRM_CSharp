@@ -3294,6 +3294,49 @@ const zhCN = {
       search: '搜索',
       reset: '重置'
     },
+    settingsMenu: {
+      aria: '列表筛选设置',
+      closeTabs: '关闭页签',
+      tabMode: '页签模式'
+    },
+    tabModeDimensions: {
+      settlementCurrency: '结算币别'
+    },
+    filterTabs: {
+      all: '全部'
+    },
+    searchPanel: {
+      title: '供应商检索',
+      clearPreset: '清除快捷检索',
+      groups: {
+        time: '时间',
+        attention: '关注',
+        todo: '待办',
+        demand: '需求',
+        deal: '成单',
+        business: '业务'
+      },
+      presets: {
+        created_today: '今日创建的供应商',
+        created_last_7_days: '近7日创建的供应商',
+        created_last_30_days: '近30日创建的供应商',
+        favorite: '收藏的供应商',
+        pending_submit: '待提交供应商',
+        pending_audit: '待审核供应商',
+        has_quote: '有报价的供应商',
+        quote_last_7_days: '近7日发报价的供应商',
+        quote_last_30_days: '近30日发报价的供应商',
+        quote_stale_6m: '半年前发报价的供应商',
+        quote_stale_1y: '1年前发报价的供应商',
+        has_purchase: '有采购的供应商',
+        purchase_last_7_days: '近7日采购的供应商',
+        purchase_last_30_days: '近30日采购的供应商',
+        purchase_stale_6m: '半年前采购的供应商',
+        purchase_stale_1y: '1年前采购的供应商',
+        pending_inbound: '待入库的供应商',
+        has_payable: '应付款的供应商'
+      }
+    },
     columns: {
       code: '供应商编号',
       status: '状态',
