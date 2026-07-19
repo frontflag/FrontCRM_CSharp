@@ -39,10 +39,21 @@ public sealed class QcListQuery : IQcListQuery
 
         if (request != null)
         {
+            if (!string.IsNullOrWhiteSpace(request.Preset) && QcListQuickFilterCodes.IsKnown(request.Preset))
+            {
+                qcQuery = QcListQuickFilter.Apply(_db, qcQuery, request.Preset.Trim());
+            }
+
             if (!string.IsNullOrWhiteSpace(request.QcId))
             {
                 var qid = request.QcId.Trim();
                 qcQuery = qcQuery.Where(q => q.Id == qid);
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.QcCode))
+            {
+                var k = request.QcCode.Trim().ToLowerInvariant();
+                qcQuery = qcQuery.Where(q => q.QcCode != null && q.QcCode.ToLower().Contains(k));
             }
 
             if (request.StockInType.HasValue)

@@ -139,6 +139,7 @@ declare module 'vue' {
     PurchaseOrderStockInBatchPanel: typeof import('./src/components/Inventory/PurchaseOrderStockInBatchPanel.vue')['default']
     PurchaserCascader: typeof import('./src/components/PurchaserCascader.vue')['default']
     QcImagesReadonlyGallery: typeof import('./src/components/Logistics/QcImagesReadonlyGallery.vue')['default']
+    QcOpsPanel: typeof import('./src/components/Logistics/QcOpsPanel.vue')['default']
     QcSearchPanel: typeof import('./src/components/Logistics/QcSearchPanel.vue')['default']
     RecentHistoryList: typeof import('./src/components/workspace/RecentHistoryList.vue')['default']
     RegionCascaderWithQuickPick: typeof import('./src/components/RegionCascaderWithQuickPick.vue')['default']

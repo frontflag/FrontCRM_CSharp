@@ -5464,6 +5464,8 @@ const enUS = {
     title: 'Quality inspection',
     refresh: 'Refresh',
     filters: {
+      qcCode: 'QC no.',
+      qcCodePlaceholder: 'QC number',
       model: 'Material / MPN',
       modelPlaceholder: 'MPN',
       vendor: 'Vendor',
@@ -5487,6 +5489,26 @@ const enUS = {
       salesOrderPlaceholder: 'Sales order number',
       search: 'Search',
       reset: 'Reset'
+    },
+    searchPanel: {
+      title: 'Quick filters',
+      clearPreset: 'Clear quick filter',
+      groups: {
+        time: 'Time',
+        status: 'Status'
+      },
+      presets: {
+        qc_today: 'QC today',
+        qc_today_yesterday: 'QC today & yesterday',
+        qc_within_3_days: 'QC last 3 days',
+        qc_within_7_days: 'QC last 7 days',
+        qc_within_30_days: 'QC last 30 days',
+        status_passed: 'Passed',
+        status_partial: 'Partially passed',
+        status_rejected: 'Rejected',
+        has_qc_images: 'With QC images',
+        no_qc_images: 'Without QC images'
+      }
     },
     columns: {
       qcCode: 'QC no.',
@@ -5520,6 +5542,49 @@ const enUS = {
     actions: {
       view: 'View',
       createStockIn: 'Create stock-in'
+    },
+    opsPanel: {
+      pickRow: 'Select a row on the Operations tab to view purchase, arrival and stock-in summary.',
+      loadFailed: 'Failed to load operations panel',
+      overviewTitle: 'QC summary',
+      passQty: 'Passed qty',
+      rejectQty: 'Rejected qty',
+      createStockInTitle: 'QC stock-in',
+      qcTitle: 'QC',
+      completed: 'Completed',
+      qcResult: 'QC result',
+      qcImages: 'QC images',
+      qcImageCount: '{count}',
+      sampleQty: 'Sample qty',
+      stockInEligibleQty: 'Stock-in qty',
+      createStockInHintNoPermission: 'You do not have logistics write access; stock-in cannot be created.',
+      createStockInNextNoPermission:
+        'Next: ask an administrator for access, or have a colleague with permission create the stock-in.',
+      createStockInHintRejected: 'QC failed; stock-in cannot be created.',
+      createStockInNextRejected: 'Next: open the QC record to re-evaluate, or handle rejected material per process.',
+      createStockInHintNoPassQty: 'No passed quantity available for stock-in.',
+      createStockInNextNoPassQty: 'Next: confirm QC results; no stock-in is needed when passed qty is 0.',
+      purchaseTitle: 'Purchase order',
+      purchaseItemCode: 'PO line no.',
+      purchaseUser: 'Buyer',
+      purchaseDate: 'PO date',
+      purchaseQty: 'PO line qty',
+      noPurchase: 'No linked purchase line',
+      arrivalTitle: 'Arrival notice',
+      arrivalNoticeCode: 'Arrival notice no.',
+      arrivalType: 'Arrival type',
+      arrivalDate: 'Arrival date',
+      arrivalQty: 'Arrival qty',
+      noArrival: 'No linked arrival notice',
+      stockInTitle: 'Stock-in',
+      stockInCode: 'Stock-in no.',
+      stockInDate: 'Stock-in date',
+      stockInUser: 'Operator',
+      stockInStatus: 'Stock-in status',
+      stockInType: 'Stock-in type',
+      stockInWarehouse: 'Warehouse',
+      stockInQty: 'Stock-in qty',
+      noStockIn: 'No stock-in record yet'
     },
     columnSettings: 'Column settings',
     messages: {

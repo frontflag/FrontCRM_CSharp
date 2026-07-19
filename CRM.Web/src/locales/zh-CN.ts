@@ -5448,6 +5448,8 @@ const zhCN = {
     title: '质检',
     refresh: '刷新',
     filters: {
+      qcCode: '质检单号',
+      qcCodePlaceholder: '质检单号',
       model: '物料型号',
       modelPlaceholder: '物料型号(PN)',
       vendor: '供应商',
@@ -5471,6 +5473,26 @@ const zhCN = {
       salesOrderPlaceholder: '销售订单号',
       search: '搜索',
       reset: '重置'
+    },
+    searchPanel: {
+      title: '快捷检索',
+      clearPreset: '清除快捷检索',
+      groups: {
+        time: '时间',
+        status: '状态'
+      },
+      presets: {
+        qc_today: '今日质检',
+        qc_today_yesterday: '今昨质检',
+        qc_within_3_days: '近3日质检',
+        qc_within_7_days: '近7日质检',
+        qc_within_30_days: '近30日质检',
+        status_passed: '已通过',
+        status_partial: '部分通过',
+        status_rejected: '拒绝',
+        has_qc_images: '有质检图片',
+        no_qc_images: '无质检图片'
+      }
     },
     columns: {
       qcCode: '质检单号',
@@ -5504,6 +5526,48 @@ const zhCN = {
     actions: {
       view: '查看',
       createStockIn: '生成入库'
+    },
+    opsPanel: {
+      pickRow: '请在「操作」页签下单击列表行，查看本行采购、到货与入库摘要。',
+      loadFailed: '加载操作面板失败',
+      overviewTitle: '质检摘要',
+      passQty: '通过数量',
+      rejectQty: '拒收数量',
+      createStockInTitle: '质检入库',
+      qcTitle: '质检',
+      completed: '已完成',
+      qcResult: '质检结果',
+      qcImages: '质检图片',
+      qcImageCount: '{count} 张',
+      sampleQty: '抽检数量',
+      stockInEligibleQty: '可入库数量',
+      createStockInHintNoPermission: '当前账号无物流写权限，无法生成入库。',
+      createStockInNextNoPermission: '下一步：联系管理员开通物流写权限，或交由有权限同事操作。',
+      createStockInHintRejected: '质检未通过，无法生成入库。',
+      createStockInNextRejected: '下一步：打开质检详情重新判定，或按拒收流程处理物料。',
+      createStockInHintNoPassQty: '无可入库的合格数量。',
+      createStockInNextNoPassQty: '下一步：确认质检结果；合格数量为 0 时无需生成入库。',
+      purchaseTitle: '采购订单',
+      purchaseItemCode: '采购明细单号',
+      purchaseUser: '采购员',
+      purchaseDate: '采购日期',
+      purchaseQty: '采购明细数量',
+      noPurchase: '暂无关联采购明细',
+      arrivalTitle: '到货通知',
+      arrivalNoticeCode: '到货通知单号',
+      arrivalType: '到货类型',
+      arrivalDate: '到货日期',
+      arrivalQty: '到货数量',
+      noArrival: '暂无关联到货通知',
+      stockInTitle: '入库',
+      stockInCode: '入库单号',
+      stockInDate: '入库日期',
+      stockInUser: '操作人',
+      stockInStatus: '入库状态',
+      stockInType: '入库类型',
+      stockInWarehouse: '仓库',
+      stockInQty: '入库数量',
+      noStockIn: '尚未生成入库记录'
     },
     columnSettings: '列设置',
     messages: {

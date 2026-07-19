@@ -1,115 +1,75 @@
 <script setup lang="ts">
-import { reactive, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-
-const { t } = useI18n()
+import { useI18n } from 'vue-i18n'
+import {
+  QC_STATUS_PRESET_IDS,
+  QC_TIME_PRESET_IDS,
+  type QcListPresetId,
+  buildQcListRouteQuery,
+  isQcListPresetId,
+  pickQcKeywordQuery,
+  presetI18nKey
+} from '@/utils/qcListPreset'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
-const form = reactive({
-  model: '',
-  vendorName: '',
-  purchaseOrderCode: '',
-  salesOrderCode: ''
+const activePreset = computed(() => {
+  const p = route.query.preset
+  return typeof p === 'string' && isQcListPresetId(p) ? p : null
 })
 
-function syncFromRoute() {
+function onPresetClick(id: QcListPresetId) {
   if (route.name !== 'QcList') return
-  const q = route.query
-  form.model = typeof q.model === 'string' ? q.model : ''
-  form.vendorName = typeof q.vendorName === 'string' ? q.vendorName : ''
-  form.purchaseOrderCode = typeof q.purchaseOrderCode === 'string' ? q.purchaseOrderCode : ''
-  form.salesOrderCode = typeof q.salesOrderCode === 'string' ? q.salesOrderCode : ''
-}
-
-watch(
-  () => [route.name, route.query] as const,
-  () => syncFromRoute(),
-  { deep: true, immediate: true }
-)
-
-function handleReset() {
-  router.push({ name: 'QcList', query: {} })
-}
-
-function handleSearch() {
-  const query: Record<string, string> = {}
-  const m = form.model.trim()
-  if (m) query.model = m
-  const v = form.vendorName.trim()
-  if (v) query.vendorName = v
-  const p = form.purchaseOrderCode.trim()
-  if (p) query.purchaseOrderCode = p
-  const s = form.salesOrderCode.trim()
-  if (s) query.salesOrderCode = s
-  router.push({ name: 'QcList', query })
+  if (activePreset.value === id) {
+    router.replace({ name: 'QcList', query: pickQcKeywordQuery(route.query as Record<string, unknown>) })
+    return
+  }
+  const keywords = pickQcKeywordQuery(route.query as Record<string, unknown>)
+  router.replace({
+    name: 'QcList',
+    query: buildQcListRouteQuery({ preset: id, keywords })
+  })
 }
 </script>
 
 <template>
   <div class="qc-search-panel">
-    <div class="qc-search-panel__head">{{ t('qcList.leftPanel.title') }}</div>
+    <div class="qc-search-panel__head">{{ t('qcList.searchPanel.title') }}</div>
 
-    <div class="qc-search-panel__fields">
-      <div class="field-col">
-        <label class="field-label">{{ t('qcList.leftPanel.modelPn') }}</label>
-        <div class="field-control">
-          <input
-            v-model="form.model"
-            type="text"
-            class="field-input"
-            :placeholder="t('qcList.leftPanel.modelPlaceholder')"
-            @keyup.enter="handleSearch"
-          />
-        </div>
-      </div>
+    <section class="qc-search-panel__group">
+      <h4 class="qc-search-panel__group-title">{{ t('qcList.searchPanel.groups.time') }}</h4>
+      <ul class="qc-search-panel__list">
+        <li v-for="id in QC_TIME_PRESET_IDS" :key="id">
+          <button
+            type="button"
+            class="qc-search-panel__item"
+            :class="{ 'is-active': activePreset === id }"
+            @click="onPresetClick(id)"
+          >
+            {{ t(presetI18nKey(id)) }}
+          </button>
+        </li>
+      </ul>
+    </section>
 
-      <div class="field-col">
-        <label class="field-label">{{ t('qcList.leftPanel.vendorName') }}</label>
-        <div class="field-control">
-          <input
-            v-model="form.vendorName"
-            type="text"
-            class="field-input"
-            :placeholder="t('qcList.leftPanel.vendorPlaceholder')"
-            @keyup.enter="handleSearch"
-          />
-        </div>
-      </div>
-
-      <div class="field-col">
-        <label class="field-label">{{ t('qcList.leftPanel.purchaseOrderCode') }}</label>
-        <div class="field-control">
-          <input
-            v-model="form.purchaseOrderCode"
-            type="text"
-            class="field-input"
-            :placeholder="t('qcList.leftPanel.purchaseOrderPlaceholder')"
-            @keyup.enter="handleSearch"
-          />
-        </div>
-      </div>
-
-      <div class="field-col">
-        <label class="field-label">{{ t('qcList.leftPanel.salesOrderCode') }}</label>
-        <div class="field-control">
-          <input
-            v-model="form.salesOrderCode"
-            type="text"
-            class="field-input"
-            :placeholder="t('qcList.leftPanel.salesOrderPlaceholder')"
-            @keyup.enter="handleSearch"
-          />
-        </div>
-      </div>
-    </div>
-
-    <div class="qc-search-panel__actions">
-      <button type="button" class="btn-search" @click="handleSearch">{{ t('qcList.leftPanel.search') }}</button>
-      <button type="button" class="btn-reset" @click="handleReset">{{ t('qcList.leftPanel.reset') }}</button>
-    </div>
+    <section class="qc-search-panel__group">
+      <h4 class="qc-search-panel__group-title">{{ t('qcList.searchPanel.groups.status') }}</h4>
+      <ul class="qc-search-panel__list">
+        <li v-for="id in QC_STATUS_PRESET_IDS" :key="id">
+          <button
+            type="button"
+            class="qc-search-panel__item"
+            :class="{ 'is-active': activePreset === id }"
+            @click="onPresetClick(id)"
+          >
+            {{ t(presetI18nKey(id)) }}
+          </button>
+        </li>
+      </ul>
+    </section>
   </div>
 </template>
 
@@ -129,88 +89,49 @@ function handleSearch() {
   font-size: 13px;
 }
 
-.qc-search-panel__fields {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.qc-search-panel__group {
+  margin-bottom: 14px;
 }
 
-.field-col {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.field-label {
+.qc-search-panel__group-title {
+  margin: 0 0 6px;
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
   color: $text-muted;
 }
 
-.field-control {
-  width: 100%;
+.qc-search-panel__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.field-input {
+.qc-search-panel__item {
   width: 100%;
-  box-sizing: border-box;
+  text-align: left;
   padding: 7px 10px;
   font-size: 12px;
-  color: $text-primary;
-  background: $layer-3;
-  border: 1px solid $border-panel;
-  border-radius: 6px;
-  outline: none;
-
-  &::placeholder {
-    color: $text-placeholder;
-  }
-
-  &:focus {
-    border-color: var(--crm-accent-06);
-  }
-}
-
-.qc-search-panel__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid $border-panel;
-}
-
-.btn-search {
-  flex: 1;
-  min-width: 72px;
-  padding: 8px 12px;
-  font-size: 12px;
-  font-weight: 500;
-  color: #fff;
-  background: linear-gradient(135deg, $blue-primary, $cyan-primary);
-  border: 1px solid var(--crm-action-primary-border);
-  border-radius: 6px;
-  cursor: pointer;
-  transition: box-shadow 0.15s, transform 0.12s;
-
-  &:hover {
-    box-shadow: var(--crm-shadow-glow);
-    transform: translateY(-1px);
-  }
-}
-
-.btn-reset {
-  padding: 8px 12px;
-  font-size: 12px;
   color: $text-secondary;
-  background: $layer-3;
-  border: 1px solid $border-panel;
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: 6px;
   cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
 
   &:hover {
     background: var(--crm-accent-008);
     border-color: var(--crm-accent-018);
+    color: $text-primary;
+  }
+
+  &.is-active {
+    background: var(--crm-accent-012);
+    border-color: var(--crm-accent-04);
+    color: $text-primary;
+    font-weight: 500;
   }
 }
 </style>

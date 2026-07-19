@@ -16,6 +16,11 @@ namespace CRM.Core.Interfaces
             string noticeId,
             CancellationToken cancellationToken = default);
 
+        /// <summary>质检列表右侧「操作」面板：采购 + 到货通知 + 入库摘要。</summary>
+        Task<QcOpsAggregates> GetQcOpsAggregatesAsync(
+            string qcId,
+            CancellationToken cancellationToken = default);
+
         Task<IReadOnlyList<QCInfo>> GetQcsAsync(QcQueryRequest? request = null);
 
         /// <summary>质检列表：数据库分页后再做行展示填充与列表侧自愈（与 <see cref="GetQcsAsync"/> 展示口径一致）。</summary>
@@ -99,6 +104,9 @@ namespace CRM.Core.Interfaces
         /// <summary>按质检主键精确筛选（编辑页等场景）。</summary>
         public string? QcId { get; set; }
 
+        /// <summary>质检单号（模糊匹配）。</summary>
+        public string? QcCode { get; set; }
+
         public string? Model { get; set; }
         public string? VendorName { get; set; }
         public string? PurchaseOrderCode { get; set; }
@@ -110,6 +118,9 @@ namespace CRM.Core.Interfaces
 
         /// <summary>到货类型（<see cref="StockInTypeCode"/>：10 采购 / 20 报关 / 30 退货 / 40 报废）。</summary>
         public short? StockInType { get; set; }
+
+        /// <summary>左栏快捷检索 preset（见 <see cref="CRM.Core.Constants.QcListQuickFilterCodes"/>）。</summary>
+        public string? Preset { get; set; }
 
         /// <summary>当前用户 Id（服务端注入，用于采购数据范围过滤）。</summary>
         public string? CurrentUserId { get; set; }
@@ -127,6 +138,23 @@ namespace CRM.Core.Interfaces
         public ArrivalNoticeOpsPurchaseLine? Purchase { get; set; }
         public ArrivalNoticeOpsQc? Qc { get; set; }
         public ArrivalNoticeOpsStockIn? StockIn { get; set; }
+    }
+
+    public class QcOpsAggregates
+    {
+        public ArrivalNoticeOpsPurchaseLine? Purchase { get; set; }
+        public QcOpsArrivalNotice? ArrivalNotice { get; set; }
+        public ArrivalNoticeOpsStockIn? StockIn { get; set; }
+    }
+
+    public class QcOpsArrivalNotice
+    {
+        public string Id { get; set; } = string.Empty;
+        public string NoticeCode { get; set; } = string.Empty;
+        public short StockInType { get; set; }
+        public DateTime? ActualArrivalDate { get; set; }
+        public DateTime? ExpectedArrivalDate { get; set; }
+        public decimal ExpectQty { get; set; }
     }
 
     public class ArrivalNoticeOpsPurchaseLine

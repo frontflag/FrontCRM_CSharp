@@ -185,6 +185,74 @@ export interface ArrivalNoticeOpsAggregatesDto {
   stockIn?: ArrivalNoticeOpsStockInDto | null
 }
 
+export interface QcOpsArrivalNoticeDto {
+  id: string
+  noticeCode: string
+  stockInType: number
+  actualArrivalDate?: string | null
+  expectedArrivalDate?: string | null
+  expectQty: number
+}
+
+export interface QcOpsAggregatesDto {
+  purchase?: ArrivalNoticeOpsPurchaseLineDto | null
+  arrivalNotice?: QcOpsArrivalNoticeDto | null
+  stockIn?: ArrivalNoticeOpsStockInDto | null
+}
+
+function normalizeQcOpsAggregates(row: unknown): QcOpsAggregatesDto {
+  const r = (row ?? {}) as Record<string, unknown>
+  const purchaseRaw = (r.purchase ?? r.Purchase) as Record<string, unknown> | null | undefined
+  const arrivalRaw = (r.arrivalNotice ?? r.ArrivalNotice) as Record<string, unknown> | null | undefined
+  const stockInRaw = (r.stockIn ?? r.StockIn) as Record<string, unknown> | null | undefined
+  return {
+    purchase: purchaseRaw
+      ? {
+          purchaseOrderItemId: String(purchaseRaw.purchaseOrderItemId ?? purchaseRaw.PurchaseOrderItemId ?? ''),
+          purchaseOrderItemCode: String(
+            purchaseRaw.purchaseOrderItemCode ?? purchaseRaw.PurchaseOrderItemCode ?? ''
+          ),
+          purchaseOrderId: String(purchaseRaw.purchaseOrderId ?? purchaseRaw.PurchaseOrderId ?? ''),
+          purchaseUserName: (purchaseRaw.purchaseUserName ?? purchaseRaw.PurchaseUserName) as
+            | string
+            | null
+            | undefined,
+          purchaseOrderCreateTime: (purchaseRaw.purchaseOrderCreateTime ??
+            purchaseRaw.PurchaseOrderCreateTime) as string | null | undefined,
+          qty: Number(purchaseRaw.qty ?? purchaseRaw.Qty ?? 0)
+        }
+      : null,
+    arrivalNotice: arrivalRaw
+      ? {
+          id: String(arrivalRaw.id ?? arrivalRaw.Id ?? ''),
+          noticeCode: String(arrivalRaw.noticeCode ?? arrivalRaw.NoticeCode ?? ''),
+          stockInType: Number(arrivalRaw.stockInType ?? arrivalRaw.StockInType ?? 10),
+          actualArrivalDate: (arrivalRaw.actualArrivalDate ?? arrivalRaw.ActualArrivalDate) as
+            | string
+            | null
+            | undefined,
+          expectedArrivalDate: (arrivalRaw.expectedArrivalDate ?? arrivalRaw.ExpectedArrivalDate) as
+            | string
+            | null
+            | undefined,
+          expectQty: Number(arrivalRaw.expectQty ?? arrivalRaw.ExpectQty ?? 0)
+        }
+      : null,
+    stockIn: stockInRaw
+      ? {
+          id: String(stockInRaw.id ?? stockInRaw.Id ?? ''),
+          stockInCode: String(stockInRaw.stockInCode ?? stockInRaw.StockInCode ?? ''),
+          stockInDate: (stockInRaw.stockInDate ?? stockInRaw.StockInDate) as string | null | undefined,
+          createUserName: (stockInRaw.createUserName ?? stockInRaw.CreateUserName) as string | null | undefined,
+          status: Number(stockInRaw.status ?? stockInRaw.Status ?? 0),
+          stockInType: Number(stockInRaw.stockInType ?? stockInRaw.StockInType ?? 0),
+          warehouseName: (stockInRaw.warehouseName ?? stockInRaw.WarehouseName) as string | null | undefined,
+          totalQuantity: Number(stockInRaw.totalQuantity ?? stockInRaw.TotalQuantity ?? 0)
+        }
+      : null
+  }
+}
+
 function normalizeArrivalNoticeOpsAggregates(row: unknown): ArrivalNoticeOpsAggregatesDto {
   const r = (row ?? {}) as Record<string, unknown>
   const purchaseRaw = (r.purchase ?? r.Purchase) as Record<string, unknown> | null | undefined
@@ -299,13 +367,20 @@ export const logisticsApi = {
     )
     return normalizeArrivalNoticeOpsAggregates(unwrap(res))
   },
+  async getQcOpsAggregates(id: string): Promise<QcOpsAggregatesDto> {
+    const res = await apiClient.get<any>(`/api/v1/logistics/qcs/${encodeURIComponent(id)}/ops-aggregates`)
+    return normalizeQcOpsAggregates(unwrap(res))
+  },
   async getQcs(params?: {
     qcId?: string
+    qcCode?: string
     model?: string
     vendorName?: string
     purchaseOrderCode?: string
     freightForwarderOrderNo?: string
     salesOrderCode?: string
+    /** 左栏 preset（与 QcListQuickFilterCodes 一致） */
+    preset?: string
     /** 到货类型（StockInType：10 采购 / 20 报关 / 30 退货 / 40 报废） */
     stockInType?: number
     page?: number

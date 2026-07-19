@@ -335,7 +335,13 @@ import { purchaseOrderApi } from '@/api/purchaseOrder'
 import { useRoute, useRouter } from 'vue-router'
 import { Plus } from '@element-plus/icons-vue'
 import apiClient from '@/api/client'
-import { documentApi, DOCUMENT_BIZ_TYPE_QC, type UploadDocumentDto } from '@/api/document'
+import { documentApi, DOCUMENT_BIZ_TYPE_QC } from '@/api/document'
+import {
+  QC_IMAGE_UPLOAD_PLACEHOLDER_URL,
+  fetchQcDocumentPreviewBlob,
+  filterQcImageDocuments,
+  resolveUploadDocumentId
+} from '@/utils/qcImageDocument'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import VendorNameReadonlyText from '@/components/Vendor/VendorNameReadonlyText.vue'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
@@ -472,12 +478,6 @@ async function loadLogisticsUsers() {
   }
 }
 
-function isImageDocumentDto(d: UploadDocumentDto): boolean {
-  const mime = (d.mimeType || '').toLowerCase()
-  const ext = (d.fileExtension || '').toLowerCase()
-  return /^image\//.test(mime) || ['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)
-}
-
 function revokeQcPreviewUrls() {
   qcPreviewBlobUrls.forEach((u) => URL.revokeObjectURL(u))
   qcPreviewBlobUrls.length = 0
@@ -489,23 +489,27 @@ async function loadQcDocuments(qcId: string) {
   if (!qcId) return
   try {
     const docs = await documentApi.getDocuments(DOCUMENT_BIZ_TYPE_QC, qcId)
-    const imageDocs = docs.filter(isImageDocumentDto)
+    const imageDocs = filterQcImageDocuments(docs)
     const list: QcUploadFile[] = []
     let seq = 0
     for (const d of imageDocs) {
-      const blob = (await apiClient.get(`/api/v1/documents/${encodeURIComponent(d.id)}/preview?thumbnail=true`, {
-        responseType: 'blob'
-      })) as unknown as Blob
-      if (!(blob instanceof Blob) || blob.size === 0) continue
-      const url = URL.createObjectURL(blob)
-      qcPreviewBlobUrls.push(url)
+      const documentId = resolveUploadDocumentId(d)
+      if (!documentId) continue
+      const blob = await fetchQcDocumentPreviewBlob(documentId, (url) =>
+        apiClient.getBlob(url)
+      )
+      let url = QC_IMAGE_UPLOAD_PLACEHOLDER_URL
+      if (blob) {
+        url = URL.createObjectURL(blob)
+        qcPreviewBlobUrls.push(url)
+      }
       seq += 1
       list.push({
         name: d.originalFileName || `image-${seq}`,
         url,
         uid: Date.now() + seq,
         status: 'success',
-        documentId: d.id
+        documentId
       })
     }
     qcFileList.value = list

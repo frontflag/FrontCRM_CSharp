@@ -1104,7 +1104,9 @@
           <SalesOrderSearchPanel v-else-if="showSalesOrderSearchPanel" />
           <SalesOrderFavoritePanel v-else-if="showSalesOrderFavoritePanel" />
           <SalesOrderRecentHistoryPanel v-else-if="showSalesOrderRecentHistoryPanel" />
-          <QcSearchPanel v-else-if="showQcSearchPanel" />
+          <div v-else-if="showQcSearchPanel" class="aux-panel-tab-body">
+            <QcSearchPanel />
+          </div>
           <ArrivalNoticeSearchPanel v-else-if="showArrivalNoticeSearchPanel" />
           <StockInSearchPanel v-else-if="showStockInSearchPanel" />
           <StockOutSearchPanel v-else-if="showStockOutSearchPanel" />
@@ -1355,6 +1357,20 @@
             class="aux-panel-tab-body"
             @confirm-arrived="arrivalNoticeOpsStore.runConfirmArrived()"
           />
+          <QcOpsPanel
+            v-show="showQcOpsPanel"
+            embedded
+            :row="qcOpsStore.row"
+            :aggregates="qcOpsStore.aggregates"
+            :loading="qcOpsStore.loading"
+            :load-error="qcOpsStore.loadError"
+            :action-loading="qcOpsStore.actionLoading"
+            :can-write-logistics="canWriteLogisticsData"
+            :mask-sensitive="maskPurchaseSensitiveFields"
+            :qc-image-count="qcOpsStore.qcImageCount"
+            class="aux-panel-tab-body"
+            @create-stock-in="qcOpsStore.runCreateStockIn()"
+          />
           <StockOutNotifyCustomsTabPanel
             v-show="showStockOutNotifyCustomsPanel"
             class="aux-panel-tab-body"
@@ -1411,8 +1427,8 @@ import RFQRecentHistoryPanel from '@/components/RFQ/RFQRecentHistoryPanel.vue'
 import SalesOrderSearchPanel from '@/components/SalesOrder/SalesOrderSearchPanel.vue'
 import SalesOrderItemSearchPanel from '@/components/RFQ/SalesOrderItemSearchPanel.vue'
 import PurchaseOrderItemSearchPanel from '@/components/RFQ/PurchaseOrderItemSearchPanel.vue'
-import QcSearchPanel from '@/components/Logistics/QcSearchPanel.vue'
 import ArrivalNoticeSearchPanel from '@/components/Logistics/ArrivalNoticeSearchPanel.vue'
+import QcSearchPanel from '@/components/Logistics/QcSearchPanel.vue'
 import { canAccessCustomsModule } from '@/utils/departmentModuleGate'
 import StockInSearchPanel from '@/components/Inventory/StockInSearchPanel.vue'
 import StockOutSearchPanel from '@/components/Inventory/StockOutSearchPanel.vue'
@@ -1430,6 +1446,7 @@ import VendorIntelPanel from '@/components/Vendor/VendorIntelPanel.vue'
 import PurchaseOrderItemOpsPanel from '@/components/RFQ/PurchaseOrderItemOpsPanel.vue'
 import CustomsDeclarationOpsPanel from '@/components/Customs/CustomsDeclarationOpsPanel.vue'
 import ArrivalNoticeOpsPanel from '@/components/Logistics/ArrivalNoticeOpsPanel.vue'
+import QcOpsPanel from '@/components/Logistics/QcOpsPanel.vue'
 import StockOutNotifyCustomsTabPanel from '@/components/Inventory/StockOutNotifyCustomsTabPanel.vue'
 import { useSalesOrderItemOpsPanelStore } from '@/stores/salesOrderItemOpsPanel'
 import { useMaterialIntelLookupStore } from '@/stores/materialIntelLookup'
@@ -1438,6 +1455,7 @@ import { useVendorIntelLookupStore } from '@/stores/vendorIntelLookup'
 import { usePurchaseOrderItemOpsPanelStore } from '@/stores/purchaseOrderItemOpsPanel'
 import { useCustomsDeclarationOpsPanelStore } from '@/stores/customsDeclarationOpsPanel'
 import { useArrivalNoticeOpsPanelStore } from '@/stores/arrivalNoticeOpsPanel'
+import { useQcOpsPanelStore } from '@/stores/qcOpsPanel'
 import { useStockOutNotifyCustomsPanelStore } from '@/stores/stockOutNotifyCustomsPanel'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleOrderWriteGate, useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
@@ -1478,6 +1496,7 @@ const vendorIntelLookupStore = useVendorIntelLookupStore()
 const purchaseOrderItemOpsStore = usePurchaseOrderItemOpsPanelStore()
 const customsDeclarationOpsStore = useCustomsDeclarationOpsPanelStore()
 const arrivalNoticeOpsStore = useArrivalNoticeOpsPanelStore()
+const qcOpsStore = useQcOpsPanelStore()
 const stockOutNotifyCustomsPanelStore = useStockOutNotifyCustomsPanelStore()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
@@ -1671,7 +1690,7 @@ const showSalesOrderRecentHistoryPanel = computed(
   () => leftActiveTabId.value === 'l3' && isSalesOrderLeftAuxRoute.value
 )
 
-/** 质检列表/新建：左栏「检索」 */
+/** 质检列表/新建：左栏「检索」页签（列表页 preset 快捷检索） */
 const isQcLeftAuxRoute = computed(() => route.name === 'QcList' || route.name === 'QcCreate')
 
 const showQcSearchPanel = computed(
@@ -1749,6 +1768,7 @@ const isPurchaseOrderItemOpsRoute = computed(
 const isRfqItemListRoute = computed(() => route.name === 'RFQItemList')
 const isCustomsDeclarationListRoute = computed(() => route.name === 'CustomsDeclarationList')
 const isArrivalNoticeListRoute = computed(() => route.name === 'ArrivalNoticeList')
+const isQcListRoute = computed(() => route.name === 'QcList')
 const isStockOutNotifyListRoute = computed(
   () => route.name === 'InventoryStockOutNotifyList' || route.name === 'StockOutNotifyList'
 )
@@ -1768,6 +1788,8 @@ const showCustomsDeclarationOpsPanel = computed(
 const showArrivalNoticeOpsPanel = computed(
   () => rightActiveTabId.value === 'r-ops' && isArrivalNoticeListRoute.value
 )
+
+const showQcOpsPanel = computed(() => rightActiveTabId.value === 'r-ops' && isQcListRoute.value)
 
 const showStockOutNotifyCustomsPanel = computed(
   () => rightActiveTabId.value === 'r-stock-out-customs' && isStockOutNotifyListRoute.value
@@ -1823,6 +1845,7 @@ watch(
       purchaseOrderItemOpsStore.clear()
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       if (rightActiveTabId.value !== 'r-ops' && rightActiveTabId.value !== 'r4') {
@@ -1838,6 +1861,7 @@ watch(
       salesOrderItemOpsStore.clear()
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       if (rightActiveTabId.value !== 'r-ops' && rightActiveTabId.value !== 'r4') {
@@ -1853,6 +1877,7 @@ watch(
       salesOrderItemOpsStore.clear()
       purchaseOrderItemOpsStore.clear()
       arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       return
@@ -1865,6 +1890,25 @@ watch(
       salesOrderItemOpsStore.clear()
       purchaseOrderItemOpsStore.clear()
       customsDeclarationOpsStore.clear()
+      qcOpsStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
+      materialIntelLookupStore.clearBound()
+      customerIntelLookupStore.clearBound()
+      vendorIntelLookupStore.clearBound()
+      if (rightActiveTabId.value !== 'r-ops' && rightActiveTabId.value !== 'r4') {
+        rightActiveTabId.value = 'r-ops'
+      }
+      return
+    }
+    if (name === 'QcList') {
+      rightTabs.value = [
+        { id: 'r-ops', labelKey: 'layout.auxTabs.ops' },
+        { id: 'r4', labelKey: 'layout.auxTabs.help' }
+      ]
+      salesOrderItemOpsStore.clear()
+      purchaseOrderItemOpsStore.clear()
+      customsDeclarationOpsStore.clear()
+      arrivalNoticeOpsStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       customerIntelLookupStore.clearBound()
@@ -1883,6 +1927,7 @@ watch(
       purchaseOrderItemOpsStore.clear()
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       customerIntelLookupStore.clearBound()
       vendorIntelLookupStore.clearBound()
@@ -1897,6 +1942,7 @@ watch(
       purchaseOrderItemOpsStore.clear()
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       vendorIntelLookupStore.clearBound()
@@ -1914,6 +1960,7 @@ watch(
       purchaseOrderItemOpsStore.clear()
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       customerIntelLookupStore.clearBound()
@@ -1928,6 +1975,7 @@ watch(
       purchaseOrderItemOpsStore.clear()
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
       materialIntelLookupStore.clearBound()
       customerIntelLookupStore.clearBound()
       vendorIntelLookupStore.clearBound()
@@ -1939,6 +1987,7 @@ watch(
     purchaseOrderItemOpsStore.clear()
     customsDeclarationOpsStore.clear()
     arrivalNoticeOpsStore.clear()
+    qcOpsStore.clear()
     stockOutNotifyCustomsPanelStore.clear()
     materialIntelLookupStore.clearBound()
     customerIntelLookupStore.clearBound()

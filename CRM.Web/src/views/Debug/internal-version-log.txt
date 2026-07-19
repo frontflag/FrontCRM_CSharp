@@ -1,3 +1,4 @@
+2026-07-19 21:41:41 | feat(logistics): 质检列表左栏检索 preset 与右侧操作面板
 2026-07-19 19:14:37 | fix(approvals): 审核窗口「查看完整业务详情」改为新标签页打开
 2026-07-19 18:25:37 | feat(vendor,customer): 供应商左栏检索 preset 与列表日期 UTC 修复
 2026-07-19 17:49:13 | feat(customer,vendor): 客户列表左栏检索 preset 与结算币别筛选

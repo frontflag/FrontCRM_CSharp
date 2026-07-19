@@ -30,7 +30,7 @@ import ShipmentExpressFields from '@/components/Logistics/ShipmentExpressFields.
 同项目已有参考：
 
 ```ts
-import QcSearchPanel from '@/components/Logistics/QcSearchPanel.vue'
+import ArrivalNoticeSearchPanel from '@/components/Logistics/ArrivalNoticeSearchPanel.vue'
 ```
 
 ### ❌ 错误

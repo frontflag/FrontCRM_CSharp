@@ -551,6 +551,40 @@ namespace CRM.Core.Services
             return result;
         }
 
+        /// <inheritdoc />
+        public async Task<QcOpsAggregates> GetQcOpsAggregatesAsync(
+            string qcId,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(qcId))
+                throw new ArgumentException("质检单ID不能为空", nameof(qcId));
+
+            cancellationToken.ThrowIfCancellationRequested();
+            var id = qcId.Trim();
+            var qc = await _qcRepo.GetByIdAsync(id) ?? throw new InvalidOperationException("质检单不存在");
+            if (string.IsNullOrWhiteSpace(qc.StockInNotifyId))
+                throw new InvalidOperationException("质检单未关联到货通知");
+
+            var noticeId = qc.StockInNotifyId.Trim();
+            var notice = await _notifyRepo.GetByIdAsync(noticeId) ?? throw new InvalidOperationException("到货通知不存在");
+            var fromNotice = await GetArrivalNoticeOpsAggregatesAsync(noticeId, cancellationToken);
+
+            return new QcOpsAggregates
+            {
+                Purchase = fromNotice.Purchase,
+                ArrivalNotice = new QcOpsArrivalNotice
+                {
+                    Id = notice.Id,
+                    NoticeCode = notice.NoticeCode?.Trim() ?? string.Empty,
+                    StockInType = StockInTypeCode.NormalizeForNotify(notice.StockInType),
+                    ActualArrivalDate = notice.ActualArrivalDate,
+                    ExpectedArrivalDate = notice.ExpectedArrivalDate,
+                    ExpectQty = notice.ExpectQty
+                },
+                StockIn = fromNotice.StockIn
+            };
+        }
+
         public async Task<IReadOnlyList<QCInfo>> GetQcsAsync(QcQueryRequest? request = null)
         {
             var list = (await _qcRepo.GetAllAsync()).OrderByDescending(x => x.CreateTime).ToList();
@@ -672,10 +706,12 @@ namespace CRM.Core.Services
             var vendorKeyword = request?.VendorName?.Trim();
             var poCodeKeyword = request?.PurchaseOrderCode?.Trim();
             var soCodeKeyword = request?.SalesOrderCode?.Trim();
+            var qcCodeKeyword = request?.QcCode?.Trim();
             var hasFilters = !string.IsNullOrWhiteSpace(modelKeyword)
                              || !string.IsNullOrWhiteSpace(vendorKeyword)
                              || !string.IsNullOrWhiteSpace(poCodeKeyword)
-                             || !string.IsNullOrWhiteSpace(soCodeKeyword);
+                             || !string.IsNullOrWhiteSpace(soCodeKeyword)
+                             || !string.IsNullOrWhiteSpace(qcCodeKeyword);
             if (!hasFilters)
             {
                 return list;
@@ -729,6 +765,10 @@ namespace CRM.Core.Services
             return list.Where(qc =>
             {
                 noticeMap.TryGetValue(qc.StockInNotifyId, out var notice);
+
+                if (!string.IsNullOrWhiteSpace(qcCodeKeyword)
+                    && !(qc.QcCode?.Contains(qcCodeKeyword, StringComparison.OrdinalIgnoreCase) ?? false))
+                    return false;
 
                 if (!string.IsNullOrWhiteSpace(vendorKeyword)
                     && !(notice?.VendorName?.Contains(vendorKeyword, StringComparison.OrdinalIgnoreCase) ?? false))

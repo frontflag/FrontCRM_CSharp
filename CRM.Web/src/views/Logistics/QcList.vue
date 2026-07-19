@@ -9,6 +9,17 @@
 
     <!-- 搜索栏：与 CustomerList / ArrivalNoticeList 同款布局与控件皮肤 -->
     <div class="search-bar">
+      <div v-if="activePreset" class="search-preset-chip-row">
+        <span class="search-preset-chip">
+          {{ t(presetI18nKey(activePreset)) }}
+          <button
+            type="button"
+            class="search-preset-chip__clear"
+            :title="t('qcList.searchPanel.clearPreset')"
+            @click="clearPresetChip"
+          >×</button>
+        </span>
+      </div>
       <div class="search-left">
         <el-select
           v-model="filters.stockInType"
@@ -25,6 +36,14 @@
             :value="v"
           />
         </el-select>
+        <div class="search-input-wrap">
+          <input
+            v-model="filters.qcCode"
+            class="search-input--plain"
+            :placeholder="t('qcList.filters.qcCodePlaceholder')"
+            @keyup.enter="handleSearch"
+          />
+        </div>
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
             <circle cx="11" cy="11" r="8" />
@@ -88,6 +107,8 @@
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
       :data="list"
       v-loading="loading"
+      :row-class-name="opsPanelRowClassName"
+      @row-click="onRowClick"
       @row-dblclick="goView"
     >
       <template #col-status="{ row }">
@@ -219,7 +240,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, inject, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
@@ -236,11 +257,23 @@ import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiv
 import VendorNameReadonlyText from '@/components/Vendor/VendorNameReadonlyText.vue'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { StockInTypeCode, STOCK_IN_TYPE_FILTER_VALUES } from '@/constants/stockInType'
+import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
+import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
+import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
+import { useQcOpsPanelStore } from '@/stores/qcOpsPanel'
+import {
+  buildQcListRouteQuery,
+  isQcListPresetId,
+  presetI18nKey,
+  type QcListPresetId
+} from '@/utils/qcListPreset'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const workspaceLayout = inject(WorkspaceLayoutKey, null)
+const qcOpsStore = useQcOpsPanelStore()
 const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const { t, locale } = useI18n()
 const loading = ref(false)
@@ -335,6 +368,7 @@ const qcTableColumns = computed<CrmTableColumnDef[]>(() => {
 
 const filters = ref({
   stockInType: undefined as number | undefined,
+  qcCode: '',
   model: '',
   vendorName: '',
   purchaseOrderCode: '',
@@ -411,9 +445,48 @@ const displayStockInStatus = (row: QcInfoDto) => {
 }
 const formatTime = (v?: string) => formatDisplayDateTime2DigitYear(v)
 
+const activePreset = computed((): QcListPresetId | null => {
+  const p = route.query.preset
+  return typeof p === 'string' && isQcListPresetId(p) ? p : null
+})
+
+function collectKeywordQuery(): Record<string, string> {
+  const query: Record<string, string> = {}
+  const qc = filters.value.qcCode.trim()
+  if (qc) query.qcCode = qc
+  const m = filters.value.model.trim()
+  if (m) query.model = m
+  const v = filters.value.vendorName.trim()
+  if (v) query.vendorName = v
+  const p = filters.value.purchaseOrderCode.trim()
+  if (p) query.purchaseOrderCode = p
+  const ff = filters.value.freightForwarderOrderNo.trim()
+  if (ff) query.freightForwarderOrderNo = ff
+  const s = filters.value.salesOrderCode.trim()
+  if (s) query.salesOrderCode = s
+  if (filters.value.stockInType != null && !Number.isNaN(Number(filters.value.stockInType))) {
+    query.stockInType = String(filters.value.stockInType)
+  }
+  return query
+}
+
+function buildListRouteQueryFromUi(): Record<string, string> {
+  const keywords = collectKeywordQuery()
+  if (activePreset.value) {
+    return buildQcListRouteQuery({ preset: activePreset.value, keywords })
+  }
+  return keywords
+}
+
+function clearPresetChip() {
+  resetListRightPanelOnReload(qcOpsStore)
+  router.replace({ name: 'QcList', query: collectKeywordQuery() })
+}
+
 function syncFiltersFromRoute() {
   if (route.name !== 'QcList') return
   const q = route.query
+  filters.value.qcCode = typeof q.qcCode === 'string' ? q.qcCode : ''
   filters.value.model = typeof q.model === 'string' ? q.model : ''
   filters.value.vendorName = typeof q.vendorName === 'string' ? q.vendorName : ''
   filters.value.purchaseOrderCode = typeof q.purchaseOrderCode === 'string' ? q.purchaseOrderCode : ''
@@ -432,22 +505,28 @@ function onQcPageSizeChange() {
 }
 
 function applyQcList(resetPage: boolean) {
-  if (resetPage) listPage.value = 1
+  if (resetPage) {
+    listPage.value = 1
+    resetListRightPanelOnReload(qcOpsStore)
+  }
   loading.value = true
   logisticsApi
     .getQcs({
+      qcCode: filters.value.qcCode.trim() || undefined,
       model: filters.value.model || undefined,
       vendorName: filters.value.vendorName || undefined,
       purchaseOrderCode: filters.value.purchaseOrderCode || undefined,
       freightForwarderOrderNo: filters.value.freightForwarderOrderNo.trim() || undefined,
       salesOrderCode: filters.value.salesOrderCode || undefined,
       stockInType: filters.value.stockInType,
+      preset: activePreset.value ?? undefined,
       page: listPage.value,
       pageSize: listPageSize.value
     })
     .then(res => {
       list.value = res.items || []
       listTotal.value = res.total
+      void qcOpsStore.refreshFromListRows(list.value, t('qcList.opsPanel.loadFailed'))
     })
     .catch((e: unknown) => {
       console.error(e)
@@ -471,28 +550,40 @@ watch(
   { deep: true, immediate: true }
 )
 
-/** 与左侧检索面板共用 URL query */
+const { onOpsPanelRowClick } = useListRightOpsPanelInteraction({
+  workspaceLayout,
+  isActiveRoute: () => route.name === 'QcList',
+  hasSelectedRow: () => !!qcOpsStore.row,
+  setRowOnly: row => qcOpsStore.setRowOnly(row),
+  selectRow: row => qcOpsStore.selectRow(row, t('qcList.opsPanel.loadFailed')),
+  loadSelected: () => {
+    void qcOpsStore.loadAggregates(t('qcList.opsPanel.loadFailed'))
+  },
+  shouldBlockRowClick: () => maskPurchaseSensitiveFields.value
+})
+
+async function onRowClick(row: QcInfoDto) {
+  await onOpsPanelRowClick(row as unknown as Record<string, unknown>)
+}
+
+function opsPanelRowClassName({ row }: { row: QcInfoDto }) {
+  if (!qcOpsStore.row) return 'table-row-pointer'
+  return qcOpsStore.rowKey(row as unknown as Record<string, unknown>) === qcOpsStore.rowKey(qcOpsStore.row)
+    ? 'so-item-row--active'
+    : 'table-row-pointer'
+}
+
+/** 列表主栏 search-bar 与 URL query 同步 */
 const handleSearch = () => {
-  const query: Record<string, string> = {}
-  const m = filters.value.model.trim()
-  if (m) query.model = m
-  const v = filters.value.vendorName.trim()
-  if (v) query.vendorName = v
-  const p = filters.value.purchaseOrderCode.trim()
-  if (p) query.purchaseOrderCode = p
-  const ff = filters.value.freightForwarderOrderNo.trim()
-  if (ff) query.freightForwarderOrderNo = ff
-  const s = filters.value.salesOrderCode.trim()
-  if (s) query.salesOrderCode = s
-  if (filters.value.stockInType != null && !Number.isNaN(Number(filters.value.stockInType))) {
-    query.stockInType = String(filters.value.stockInType)
-  }
-  router.replace({ name: 'QcList', query })
+  resetListRightPanelOnReload(qcOpsStore)
+  router.replace({ name: 'QcList', query: buildListRouteQueryFromUi() })
 }
 
 const resetFilters = () => {
+  resetListRightPanelOnReload(qcOpsStore)
   filters.value = {
     stockInType: undefined,
+    qcCode: '',
     model: '',
     vendorName: '',
     purchaseOrderCode: '',
@@ -713,6 +804,18 @@ const createStockIn = async (row: QcInfoDto) => {
   }
 }
 
+onMounted(() => {
+  qcOpsStore.registerHandlers({
+    createStockIn: row => {
+      void createStockIn(row as unknown as QcInfoDto)
+    }
+  })
+})
+
+onBeforeUnmount(() => {
+  qcOpsStore.unregisterHandlers()
+})
+
 </script>
 
 <style scoped lang="scss">
@@ -747,9 +850,50 @@ const createStockIn = async (row: QcInfoDto) => {
 // ---- 搜索栏（与 CustomerList / ArrivalNoticeList 一致）----
 .search-bar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
   margin-bottom: 12px;
+}
+
+.search-preset-chip-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.search-preset-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 4px 10px;
+  font-size: 12px;
+  color: $text-primary;
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.35);
+  border-radius: 20px;
+}
+
+.search-preset-chip__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: $text-muted;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+
+  &:hover {
+    color: $text-primary;
+    background: rgba(255, 255, 255, 0.08);
+  }
 }
 
 .search-left {
