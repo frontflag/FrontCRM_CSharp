@@ -305,7 +305,7 @@
           </div>
 
           <div class="detail-jump">
-            <el-button type="primary" plain @click="handleView(auditRow)">{{ t('pendingApprovals.viewFullDetail') }}</el-button>
+            <el-button type="primary" plain @click="handleViewInNewTab(auditRow)">{{ t('pendingApprovals.viewFullDetail') }}</el-button>
           </div>
 
           <div class="audit-history">
@@ -601,30 +601,43 @@ const refreshSummaryOnly = async () => {
   }
 }
 
-const handleView = (row: PendingApprovalItem) => {
+const getDetailRoute = (row: PendingApprovalItem) => {
   const id = row.businessId
   switch (row.bizType) {
     case 'SALES_ORDER':
-      router.push({ name: 'SalesOrderDetail', params: { id } })
-      break
+      return { name: 'SalesOrderDetail', params: { id } }
     case 'VENDOR':
-      router.push({ name: 'VendorDetail', params: { id } })
-      break
+      return { name: 'VendorDetail', params: { id } }
     case 'CUSTOMER':
-      router.push({ name: 'CustomerDetail', params: { id } })
-      break
+      return { name: 'CustomerDetail', params: { id } }
     case 'FINANCE_RECEIPT':
-      router.push({ name: 'FinanceReceiptDetail', params: { id } })
-      break
+      return { name: 'FinanceReceiptDetail', params: { id } }
     case 'FINANCE_PAYMENT':
-      router.push({ name: 'FinancePaymentDetail', params: { id } })
-      break
+      return { name: 'FinancePaymentDetail', params: { id } }
     case 'PURCHASE_ORDER':
-      router.push({ name: 'PurchaseOrderDetail', params: { id } })
-      break
+      return { name: 'PurchaseOrderDetail', params: { id } }
     default:
-      ElMessage.warning(t('pendingApprovals.messages.jumpNotSupported'))
+      return null
   }
+}
+
+const handleView = (row: PendingApprovalItem) => {
+  const route = getDetailRoute(row)
+  if (!route) {
+    ElMessage.warning(t('pendingApprovals.messages.jumpNotSupported'))
+    return
+  }
+  router.push(route)
+}
+
+const handleViewInNewTab = (row: PendingApprovalItem) => {
+  const route = getDetailRoute(row)
+  if (!route) {
+    ElMessage.warning(t('pendingApprovals.messages.jumpNotSupported'))
+    return
+  }
+  const resolved = router.resolve(route)
+  window.open(resolved.href, '_blank', 'noopener,noreferrer')
 }
 
 const openAuditDialog = (row: PendingApprovalItem) => {
