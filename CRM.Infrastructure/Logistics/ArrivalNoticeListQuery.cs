@@ -33,6 +33,7 @@ public sealed class ArrivalNoticeListQuery : IArrivalNoticeListQuery
         DateTime? expectedArrivalDate,
         string? noticeId,
         short? stockInType,
+        string? preset,
         int page,
         int pageSize,
         string? currentUserId = null,
@@ -51,13 +52,29 @@ public sealed class ArrivalNoticeListQuery : IArrivalNoticeListQuery
             q = q.Where(x => x.Id == nid);
         }
 
-        if (status.HasValue)
-            q = q.Where(x => x.Status == status.Value);
-
-        if (stockInType.HasValue)
+        if (!string.IsNullOrWhiteSpace(preset) && ArrivalNoticeListQuickFilterCodes.IsKnown(preset))
         {
-            var type = StockInTypeCode.NormalizeForNotify(stockInType.Value);
-            q = q.Where(x => x.StockInType == type);
+            q = ArrivalNoticeListQuickFilter.Apply(_db, q, preset.Trim());
+        }
+        else
+        {
+            if (status.HasValue)
+                q = q.Where(x => x.Status == status.Value);
+
+            if (stockInType.HasValue)
+            {
+                var type = StockInTypeCode.NormalizeForNotify(stockInType.Value);
+                q = q.Where(x => x.StockInType == type);
+            }
+
+            if (expectedArrivalDate.HasValue)
+            {
+                var d = expectedArrivalDate.Value.Date;
+                var next = d.AddDays(1);
+                q = q.Where(x => x.ExpectedArrivalDate.HasValue
+                                 && x.ExpectedArrivalDate.Value >= d
+                                 && x.ExpectedArrivalDate.Value < next);
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(purchaseOrderCode))
@@ -75,15 +92,6 @@ public sealed class ArrivalNoticeListQuery : IArrivalNoticeListQuery
                 po.Id == x.PurchaseOrderId &&
                 po.FreightForwarderOrderNo != null &&
                 po.FreightForwarderOrderNo.ToLower().Contains(k)));
-        }
-
-        if (expectedArrivalDate.HasValue)
-        {
-            var d = expectedArrivalDate.Value.Date;
-            var next = d.AddDays(1);
-            q = q.Where(x => x.ExpectedArrivalDate.HasValue
-                             && x.ExpectedArrivalDate.Value >= d
-                             && x.ExpectedArrivalDate.Value < next);
         }
 
         var total = await q.CountAsync(cancellationToken);

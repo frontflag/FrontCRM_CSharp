@@ -409,7 +409,7 @@ function rowClassName({ row }: { row: CustomsDeclarationDetailItemViewDto }) {
       />
 
       <div class="fees-header-grid info-grid info-grid--inline-labels">
-        <div class="info-item">
+        <div class="info-item info-item--field-highlight">
           <span class="info-label">{{ t('customsPages.fees.exchangeRate') }}</span>
           <span class="info-value fees-exchange-rate-value">
             <el-input-number
@@ -419,7 +419,7 @@ function rowClassName({ row }: { row: CustomsDeclarationDetailItemViewDto }) {
               :precision="6"
               :step="0.0001"
               controls-position="right"
-              class="fees-input-number"
+              class="fees-input-number fees-field-highlight"
             />
             <span v-else>{{ maskPurchase ? '—' : headerExchangeRate > 0 ? headerExchangeRate.toFixed(6) : '—' }}</span>
             <el-button
@@ -494,7 +494,7 @@ function rowClassName({ row }: { row: CustomsDeclarationDetailItemViewDto }) {
                 v-model="rowDraft(row).hsCode"
                 size="small"
                 maxlength="32"
-                class="fees-hs-input"
+                class="fees-hs-input fees-field-highlight"
               />
               <span v-else>{{ row.hsCode || '—' }}</span>
             </template>
@@ -509,7 +509,7 @@ function rowClassName({ row }: { row: CustomsDeclarationDetailItemViewDto }) {
                 :precision="6"
                 :step="0.01"
                 :controls="false"
-                class="fees-input-number fees-input-number--plain"
+                class="fees-input-number fees-input-number--plain fees-field-highlight"
               />
               <span v-else>{{ Number(row.dutyRate ?? 0).toFixed(6) }}</span>
             </template>
@@ -524,7 +524,7 @@ function rowClassName({ row }: { row: CustomsDeclarationDetailItemViewDto }) {
                 :precision="6"
                 :step="0.01"
                 :controls="false"
-                class="fees-input-number fees-input-number--plain"
+                class="fees-input-number fees-input-number--plain fees-field-highlight"
               />
               <span v-else>{{ Number(row.vatRate ?? 0.13).toFixed(6) }}</span>
             </template>
@@ -599,6 +599,8 @@ function rowClassName({ row }: { row: CustomsDeclarationDetailItemViewDto }) {
 
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
+
+$fees-highlight-text: #78350f;
 
 .customs-fees-panel {
   background: $layer-2;
@@ -697,6 +699,10 @@ function rowClassName({ row }: { row: CustomsDeclarationDetailItemViewDto }) {
   }
 }
 
+.info-item--field-highlight .info-label {
+  color: $fees-highlight-text;
+}
+
 .info-value {
   font-size: 13px;
   color: $text-secondary;
@@ -749,6 +755,28 @@ function rowClassName({ row }: { row: CustomsDeclarationDetailItemViewDto }) {
 .fees-input-number {
   width: 100%;
   max-width: 120px;
+}
+
+.fees-field-highlight {
+  :deep(.el-input__wrapper) {
+    background-color: #fffbeb !important;
+    border-color: #fde68a !important;
+    box-shadow: none !important;
+  }
+
+  :deep(.el-input__wrapper:hover) {
+    border-color: #fbbf24 !important;
+  }
+
+  :deep(.el-input__wrapper.is-focus) {
+    background-color: #fffbeb !important;
+    border-color: #f59e0b !important;
+    box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.28) !important;
+  }
+
+  :deep(.el-input__inner) {
+    color: $fees-highlight-text !important;
+  }
 }
 
 .fees-input-number--spin {

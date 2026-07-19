@@ -5151,6 +5151,48 @@ const enUS = {
       search: 'Search',
       reset: 'Reset'
     },
+    settingsMenu: {
+      aria: 'List filter settings',
+      closeTabs: 'Close tabs',
+      tabMode: 'Tab mode'
+    },
+    filterTabs: {
+      all: 'All'
+    },
+    searchPanel: {
+      title: 'Quick filters',
+      clearPreset: 'Clear quick filter',
+      groups: {
+        overdue: 'Overdue',
+        expected: 'Expected',
+        arrived: 'Arrival',
+        type: 'Type',
+        todo: 'To-do',
+        status: 'Status'
+      },
+      presets: {
+        overdue_all: 'All overdue',
+        overdue_1_day: 'Overdue 1 day',
+        overdue_3_days: 'Overdue 3 days',
+        overdue_1_week: 'Overdue 1 week',
+        expected_today: 'Expected today',
+        expected_tomorrow: 'Expected tomorrow',
+        expected_within_3_days: 'Expected within 3 days',
+        expected_within_7_days: 'Expected within 1 week',
+        not_arrived: 'Not arrived',
+        arrived_today: 'Arrived today',
+        arrived_today_yesterday: 'Arrived today/yesterday',
+        arrived_within_3_days: 'Arrived within 3 days',
+        arrived_within_7_days: 'Arrived within 1 week',
+        arrived_within_30_days: 'Arrived within 1 month',
+        type_purchase: 'Purchase stock-in',
+        type_customs: 'Customs stock-in',
+        todo_pending_qc: 'Pending QC',
+        todo_pending_stock_in: 'Pending stock-in',
+        status_qc_done: 'QC done',
+        status_stocked_in: 'Stocked in'
+      }
+    },
     status: {
       new: 'New',
       notArrived: 'Not arrived',
@@ -5170,6 +5212,7 @@ const enUS = {
       pn: 'MPN',
       brand: 'Brand',
       expectedArrivalDate: 'Expected arrival',
+      actualArrivalDate: 'Actual arrival',
       expectedArrivalMethod: 'Expected arrival method',
       expectedArrivalExpressNo: 'Expected arrival tracking no.',
       regionType: 'Region',

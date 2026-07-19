@@ -312,6 +312,8 @@ namespace CRM.Core.Interfaces
 
     public class UpdateSalesOrderRequest
     {
+        /// <summary>更换客户时须同时提交；服务端按客户主数据同步 <see cref="CustomerName"/> 快照。</summary>
+        public string? CustomerId { get; set; }
         public string? CustomerName { get; set; }
         /// <summary>业务员用户 ID</summary>
         public string? SalesUserId { get; set; }

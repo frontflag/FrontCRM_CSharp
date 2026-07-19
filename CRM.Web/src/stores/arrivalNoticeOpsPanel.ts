@@ -70,6 +70,12 @@ export const useArrivalNoticeOpsPanelStore = defineStore('arrivalNoticeOpsPanel'
       if (seq !== loadSeq || !row.value || rowKey(row.value) !== id) return
       aggregates.value = data
       aggregatesRowKey.value = id
+      if (data.stockIn?.status === 2 && row.value) {
+        const currentStatus = Number(row.value.status ?? row.value.Status ?? 0)
+        if (currentStatus !== 100) {
+          row.value = { ...row.value, status: 100, Status: 100 }
+        }
+      }
     } catch (e: unknown) {
       if (seq !== loadSeq || !row.value || rowKey(row.value) !== id) return
       loadError.value = getApiErrorMessage(e, loadFailedText)

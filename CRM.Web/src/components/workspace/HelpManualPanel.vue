@@ -296,4 +296,11 @@ watch(
   font-weight: 700;
   color: $text-primary;
 }
+
+/* 操作说明 Key:Value — Key 琥珀色 */
+.help-md :deep(.help-kv-key) {
+  font-size: 13px;
+  font-weight: 700;
+  color: $color-amber;
+}
 </style>

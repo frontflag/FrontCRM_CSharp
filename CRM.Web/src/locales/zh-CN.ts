@@ -5135,6 +5135,48 @@ const zhCN = {
       search: '搜索',
       reset: '重置'
     },
+    settingsMenu: {
+      aria: '列表筛选设置',
+      closeTabs: '关闭页签',
+      tabMode: '页签模式'
+    },
+    filterTabs: {
+      all: '全部'
+    },
+    searchPanel: {
+      title: '快捷检索',
+      clearPreset: '清除快捷检索',
+      groups: {
+        overdue: '逾期',
+        expected: '预计',
+        arrived: '到货',
+        type: '类型',
+        todo: '待办',
+        status: '状态'
+      },
+      presets: {
+        overdue_all: '所有逾期',
+        overdue_1_day: '逾期1天',
+        overdue_3_days: '逾期3天',
+        overdue_1_week: '逾期1周',
+        expected_today: '预计今日',
+        expected_tomorrow: '预计明天',
+        expected_within_3_days: '预计3天内',
+        expected_within_7_days: '预计1周内',
+        not_arrived: '未到货',
+        arrived_today: '今日到货',
+        arrived_today_yesterday: '今昨到货',
+        arrived_within_3_days: '3日内到货',
+        arrived_within_7_days: '1周内到货',
+        arrived_within_30_days: '1月内到货',
+        type_purchase: '采购入库',
+        type_customs: '报关入库',
+        todo_pending_qc: '待质检',
+        todo_pending_stock_in: '待入库',
+        status_qc_done: '已质检',
+        status_stocked_in: '已入库'
+      }
+    },
     status: {
       new: '新建',
       notArrived: '未到货',
@@ -5154,6 +5196,7 @@ const zhCN = {
       pn: '型号',
       brand: '品牌',
       expectedArrivalDate: '预计到货日期',
+      actualArrivalDate: '实到日',
       expectedArrivalMethod: '预计到货方式',
       expectedArrivalExpressNo: '预计到货快递单号',
       regionType: '地域',

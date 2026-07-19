@@ -1409,6 +1409,13 @@ namespace CRM.API.Controllers
                     && !await _dataPermissionService.CanAccessPurchaseOrderAsync(actorId, existing))
                     return StatusCode(403, new { success = false, message = "无权限编辑该采购订单" });
 
+                if (!string.IsNullOrWhiteSpace(request.VendorId))
+                {
+                    var summary = await GetPermissionSummaryAsync(actorId);
+                    if (!PurchaseOrderVendorChangeAccessRules.CanChangeVendor(summary))
+                        return StatusCode(403, new { success = false, message = "无权限更换采购订单供应商" });
+                }
+
                 _logger.LogInformation(
                     "PurchaseOrders Update 入口: Id={Id} ItemCount={ItemCount} ActorId={ActorId}",
                     id, request.Items?.Count ?? 0, actorId ?? "(null)");
@@ -1417,8 +1424,13 @@ namespace CRM.API.Controllers
             }
             catch (InvalidOperationException ex)
             {
-                _logger.LogWarning(ex, "PurchaseOrders Update 未找到: {Message}", ex.Message);
-                return NotFound(new { success = false, message = ex.Message });
+                if (ex.Message.Contains("不存在", StringComparison.Ordinal))
+                {
+                    _logger.LogWarning(ex, "PurchaseOrders Update 未找到: {Message}", ex.Message);
+                    return NotFound(new { success = false, message = ex.Message });
+                }
+                _logger.LogWarning(ex, "PurchaseOrders Update 业务拒绝: {Message}", ex.Message);
+                return BadRequest(new { success = false, message = ex.Message });
             }
             catch (Exception ex)
             {
@@ -1538,6 +1550,52 @@ namespace CRM.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "刷新采购订单明细扩展失败: {Id}", id);
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpGet("{id:guid}/change-vendor/preview")]
+        [RequirePermission("purchase-order.write")]
+        public async Task<IActionResult> PreviewVendorChange(
+            string id,
+            [FromQuery] string newVendorId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(newVendorId))
+                    return BadRequest(new { success = false, message = "请指定新供应商" });
+
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrWhiteSpace(userId))
+                    return StatusCode(403, new { success = false, message = "未登录或身份无效" });
+
+                var summary = await GetPermissionSummaryAsync(userId.Trim());
+                if (!PurchaseOrderVendorChangeAccessRules.CanChangeVendor(summary))
+                    return StatusCode(403, new { success = false, message = "无权限更换采购订单供应商" });
+
+                var order = await _service.GetByIdAsync(id);
+                if (order == null)
+                    return NotFound(new { success = false, message = "采购订单不存在" });
+
+                if (!await _dataPermissionService.CanAccessPurchaseOrderAsync(userId.Trim(), order))
+                    return StatusCode(403, new { success = false, message = "无权限访问该采购订单" });
+
+                cancellationToken.ThrowIfCancellationRequested();
+                var preview = await _service.PreviewVendorChangeAsync(id, newVendorId.Trim(), cancellationToken);
+                return Ok(new { success = true, data = preview });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "预检采购订单换供应商失败: {Id}", id);
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }

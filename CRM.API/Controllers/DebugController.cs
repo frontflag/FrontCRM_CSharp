@@ -39,6 +39,7 @@ namespace CRM.API.Controllers
         private readonly ISalesOrderService _salesOrderService;
         private readonly IPurchaseOrderService _purchaseOrderService;
         private readonly ISellOrderItemExtendSyncService _sellOrderItemExtendSync;
+        private readonly IPurchaseOrderItemExtendSyncService _poItemExtendSync;
         private const short PoStatusInProgress = 50;
         private const short PoStatusCompleted = 100;
         private const short PoStatusAuditFailed = -1;
@@ -62,7 +63,8 @@ namespace CRM.API.Controllers
             IAiOrchestrator aiOrchestrator,
             ISalesOrderService salesOrderService,
             IPurchaseOrderService purchaseOrderService,
-            ISellOrderItemExtendSyncService sellOrderItemExtendSync)
+            ISellOrderItemExtendSyncService sellOrderItemExtendSync,
+            IPurchaseOrderItemExtendSyncService poItemExtendSync)
         {
             _context = context;
             _configuration = configuration;
@@ -77,6 +79,7 @@ namespace CRM.API.Controllers
             _salesOrderService = salesOrderService;
             _purchaseOrderService = purchaseOrderService;
             _sellOrderItemExtendSync = sellOrderItemExtendSync;
+            _poItemExtendSync = poItemExtendSync;
         }
 
         public class DebugItemDto
@@ -139,6 +142,15 @@ namespace CRM.API.Controllers
             public int ChangedItems { get; set; }
             public int FailedCount { get; set; }
             public List<string> FailedMessages { get; set; } = new();
+        }
+
+        /// <summary>Debug：批量重算到货通知 Status（与采购扩展重算内到货状态回写同源）。</summary>
+        public class RefreshArrivalNoticeStatusesResultDto
+        {
+            public int TotalNotices { get; set; }
+            public int ChangedCount { get; set; }
+            public int ToStockedInCount { get; set; }
+            public List<string> ChangedNoticeCodes { get; set; } = new();
         }
 
         public class RefreshSellOrderMainStatusResultDto
@@ -1037,6 +1049,38 @@ namespace CRM.API.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, ApiResponse<RefreshPurchaseOrderMainStatusResultDto>.Fail($"刷新采购订单状态失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>
+        /// 临时调试工具：批量重算全部到货通知 Status（10/20/30/100），修正「已过账入库仍显示已质检」等历史不同步。
+        /// </summary>
+        [Authorize]
+        [HttpPost("refresh-arrival-notice-statuses")]
+        public async Task<ActionResult<ApiResponse<RefreshArrivalNoticeStatusesResultDto>>> RefreshArrivalNoticeStatuses(
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var batch = await _poItemExtendSync.RecalculateAllArrivalNoticeStatusesAsync(cancellationToken);
+                var result = new RefreshArrivalNoticeStatusesResultDto
+                {
+                    TotalNotices = batch.TotalNotices,
+                    ChangedCount = batch.ChangedCount,
+                    ToStockedInCount = batch.ToStockedInCount,
+                    ChangedNoticeCodes = batch.ChangedNoticeCodes
+                };
+                return Ok(ApiResponse<RefreshArrivalNoticeStatusesResultDto>.Ok(
+                    result,
+                    batch.ChangedCount > 0
+                        ? $"到货通知状态刷新完成：变更 {batch.ChangedCount} 条（其中已入库 {batch.ToStockedInCount} 条）"
+                        : "到货通知状态已是最新，无需变更"));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(
+                    500,
+                    ApiResponse<RefreshArrivalNoticeStatusesResultDto>.Fail($"刷新到货通知状态失败: {ex.Message}", 500));
             }
         }
 

@@ -59,6 +59,7 @@ namespace CRM.API.Controllers
             [FromQuery] DateTime? expectedArrivalDate,
             [FromQuery] string? id,
             [FromQuery] short? stockInType,
+            [FromQuery] string? preset,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20,
             CancellationToken cancellationToken = default)
@@ -73,6 +74,7 @@ namespace CRM.API.Controllers
                     expectedArrivalDate,
                     string.IsNullOrWhiteSpace(id) ? null : id.Trim(),
                     stockInType,
+                    string.IsNullOrWhiteSpace(preset) ? null : preset.Trim(),
                     page,
                     pageSize,
                     userId,

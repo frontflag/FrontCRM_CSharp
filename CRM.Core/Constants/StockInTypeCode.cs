@@ -51,5 +51,13 @@ public static class StockInTypeCode
     /// <summary>入库通知 <c>stockin_notify.StockInType</c>；非法或未传时默认采购入库。</summary>
     public static short NormalizeForNotify(short value) => Normalize(value);
 
+    /// <summary>
+    /// 已过账入库单类型是否与到货通知类型一致（含历史 <c>stock_in.StockInType</c> 1→10 等；排除移库 3）。
+    /// </summary>
+    public static bool MatchesNoticeStockInType(short stockInType, short notifyStockInType)
+    {
+        if (stockInType == Transfer) return false;
+        return Normalize(stockInType) == NormalizeForNotify(notifyStockInType);
+    }
 }
 

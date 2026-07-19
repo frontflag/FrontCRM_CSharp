@@ -1215,6 +1215,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.PurchaseUserName).HasMaxLength(64);
                 entity.Property(e => e.Status).HasDefaultValue((short)10);
                 entity.Property(e => e.ExpectedArrivalDate);
+                entity.Property(e => e.ActualArrivalDate);
                 entity.Property(e => e.RegionType).HasColumnName("RegionType").HasDefaultValue((short)10);
                 entity.Property(e => e.StockInType).HasColumnName("StockInType").HasDefaultValue(StockInTypeCode.Purchase);
                 entity.Property(e => e.Pn).HasMaxLength(128);

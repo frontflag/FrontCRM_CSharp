@@ -120,6 +120,9 @@
         <el-button type="primary" :loading="refreshingPurchaseOrderMainStatus" @click="onRefreshPurchaseOrderMainStatus">
           刷新采购订单状态
         </el-button>
+        <el-button type="success" :loading="refreshingArrivalNoticeStatuses" @click="onRefreshArrivalNoticeStatuses">
+          刷新到货通知状态
+        </el-button>
         <el-button type="warning" :loading="refreshingSellOrderItemCustomerPn" @click="onRefreshSellOrderItemCustomerPn">
           刷新sellorderitem
         </el-button>
@@ -208,6 +211,18 @@
         </div>
       </div>
       <div class="refresh-hint refresh-hint--second">
+        「刷新到货通知状态」：遍历全部未软删到货通知，按已过账采购入库单 / 质检 / 收货量重算
+        <span class="mono">stockin_notify.Status</span>（10/20/30/100）。用于修正「已有入库仍显示已质检」等历史不同步；与采购扩展重算内到货状态逻辑同源，不刷新采购扩展表。仅调试使用。
+      </div>
+      <div v-if="arrivalNoticeStatusRefreshResult" class="simulate-result">
+        <div>扫描到货通知：{{ arrivalNoticeStatusRefreshResult.totalNotices }} 条</div>
+        <div>状态变更：{{ arrivalNoticeStatusRefreshResult.changedCount }} 条</div>
+        <div>修正为已入库(100)：{{ arrivalNoticeStatusRefreshResult.toStockedInCount }} 条</div>
+        <div v-if="arrivalNoticeStatusRefreshResult.changedNoticeCodes.length">
+          变更单号（最多 50 条）：{{ arrivalNoticeStatusRefreshResult.changedNoticeCodes.join('，') }}
+        </div>
+      </div>
+      <div class="refresh-hint refresh-hint--second">
         「刷新sellorderitem」：从 <span class="mono">sellorderitem.comment</span> 首行「客户物料型号：」等前缀解析，写入
         <span class="mono">customer_pn</span>（仅 <span class="mono">customer_pn</span> 为空时写入；不改 comment；含软删行）。
       </div>
@@ -287,6 +302,7 @@ import {
   refreshSellOrderMainStatus,
   refreshSellOrderItemExtendOutboundProfit,
   refreshPurchaseOrderMainStatus,
+  refreshArrivalNoticeStatuses,
   refreshSellOrderItemCustomerPnFromComment,
   refreshFinancePaymentRemarkFromLegacy,
   refreshFinanceReceivablesFromStockOuts,
@@ -301,6 +317,7 @@ import {
   type RefreshSellOrderMainStatusResult,
   type RefreshSellOrderItemExtendOutboundProfitResult,
   type RefreshPurchaseOrderMainStatusResult,
+  type RefreshArrivalNoticeStatusesResult,
   type RefreshSellOrderItemCustomerPnFromCommentResult,
   type RefreshFinancePaymentLegacyRemarkResult,
   type RefreshFinanceReceivablesFromStockOutsResult,
@@ -461,6 +478,8 @@ const refreshingSellOrderItemExtendOutboundProfit = ref(false)
 const sellOrderItemExtendOutboundProfitResult = ref<RefreshSellOrderItemExtendOutboundProfitResult | null>(null)
 const refreshingPurchaseOrderMainStatus = ref(false)
 const purchaseOrderMainStatusResult = ref<RefreshPurchaseOrderMainStatusResult | null>(null)
+const refreshingArrivalNoticeStatuses = ref(false)
+const arrivalNoticeStatusRefreshResult = ref<RefreshArrivalNoticeStatusesResult | null>(null)
 const refreshingSellOrderItemCustomerPn = ref(false)
 const sellOrderItemCustomerPnResult = ref<RefreshSellOrderItemCustomerPnFromCommentResult | null>(null)
 const refreshingFinancePaymentRemark = ref(false)
@@ -697,6 +716,33 @@ const onRefreshPurchaseOrderMainStatus = async () => {
     ElMessage.error(getApiErrorMessage(e, '刷新采购订单状态失败'))
   } finally {
     refreshingPurchaseOrderMainStatus.value = false
+  }
+}
+
+const onRefreshArrivalNoticeStatuses = async () => {
+  if (refreshingArrivalNoticeStatuses.value) return
+  try {
+    await ElMessageBox.confirm(
+      '将遍历全部到货通知，按已过账采购入库 / 质检 / 收货量重算 Status（修正「已入库仍显示已质检」等）。是否继续？',
+      '确认刷新到货通知状态',
+      { type: 'warning', confirmButtonText: '继续', cancelButtonText: '取消' }
+    )
+  } catch {
+    return
+  }
+  refreshingArrivalNoticeStatuses.value = true
+  try {
+    const result = await refreshArrivalNoticeStatuses()
+    arrivalNoticeStatusRefreshResult.value = result
+    ElMessage.success(
+      result.changedCount > 0
+        ? `刷新完成：扫描 ${result.totalNotices} 条，变更 ${result.changedCount} 条（已入库 ${result.toStockedInCount} 条）`
+        : `扫描 ${result.totalNotices} 条，状态已是最新，无需变更`
+    )
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '刷新到货通知状态失败'))
+  } finally {
+    refreshingArrivalNoticeStatuses.value = false
   }
 }
 

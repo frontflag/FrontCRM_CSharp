@@ -66,6 +66,9 @@ namespace CRM.Core.Models.Inventory
         /// <summary>预计到货日期；创建时默认取采购明细或采购主单交货日。</summary>
         public DateTime? ExpectedArrivalDate { get; set; }
 
+        /// <summary>实际到货日（确认到货或首次 status≥20 时写入；回滚至未到货时清空）。</summary>
+        public DateTime? ActualArrivalDate { get; set; }
+
         /// <summary>地域类型，见 <see cref="RegionTypeCode"/>：10=境内，20=境外。</summary>
         [Column("RegionType")]
         [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]

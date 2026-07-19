@@ -30,3 +30,15 @@ public class PurchaseOrderItemExtendFieldChangeDto
     public string After { get; set; } = string.Empty;
 }
 
+/// <summary>
+/// 批量重算到货通知 <c>stockin_notify.Status</c>（与扩展重算内 <c>RecalculateArrivalNoticeStatusesForPoLineAsync</c> 同源）。
+/// </summary>
+public class ArrivalNoticeStatusBatchRecalculateResult
+{
+    public int TotalNotices { get; set; }
+    public int ChangedCount { get; set; }
+    /// <summary>其中修正为已入库(100) 的条数（含自 30 升级等）。</summary>
+    public int ToStockedInCount { get; set; }
+    public List<string> ChangedNoticeCodes { get; set; } = new();
+}
+

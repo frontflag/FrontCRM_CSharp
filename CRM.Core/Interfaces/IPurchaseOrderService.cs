@@ -29,6 +29,12 @@ namespace CRM.Core.Interfaces
         /// <summary>按主表 <c>vendor_id</c> 从供应商主数据刷新冗余 <c>vendor_name</c>（仅系统管理员）。</summary>
         Task<PurchaseOrderVendorNameRefreshResult> RefreshVendorNameAsync(string purchaseOrderId, string? actingUserId = null);
 
+        /// <summary>预检更换供应商（未完结下游同步计数 / 已完结阻断原因）。</summary>
+        Task<PurchaseOrderVendorChangePreviewResult> PreviewVendorChangeAsync(
+            string purchaseOrderId,
+            string newVendorId,
+            CancellationToken cancellationToken = default);
+
         /// <summary>采购订单主表字段变更日志（<c>log_change_fldval</c>，BizType=<see cref="Constants.BusinessLogTypes.PurchaseOrder"/>）。</summary>
         Task<IReadOnlyList<PurchaseOrderFieldChangeLogDto>> GetFieldChangeLogsAsync(string purchaseOrderId);
 
@@ -157,6 +163,8 @@ namespace CRM.Core.Interfaces
 
     public class UpdatePurchaseOrderRequest
     {
+        /// <summary>更换供应商时须同时提交；须具备 <c>purchase-order.change-vendor</c> 或采购总监权限。</summary>
+        public string? VendorId { get; set; }
         public string? VendorName { get; set; }
         public string? PurchaseUserId { get; set; }
         public string? PurchaseUserName { get; set; }

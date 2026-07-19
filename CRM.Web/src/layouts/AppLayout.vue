@@ -1105,6 +1105,7 @@
           <SalesOrderFavoritePanel v-else-if="showSalesOrderFavoritePanel" />
           <SalesOrderRecentHistoryPanel v-else-if="showSalesOrderRecentHistoryPanel" />
           <QcSearchPanel v-else-if="showQcSearchPanel" />
+          <ArrivalNoticeSearchPanel v-else-if="showArrivalNoticeSearchPanel" />
           <StockInSearchPanel v-else-if="showStockInSearchPanel" />
           <StockOutSearchPanel v-else-if="showStockOutSearchPanel" />
           <PurchaseOrderFavoritePanel v-else-if="showPurchaseOrderFavoritePanel" />
@@ -1411,6 +1412,7 @@ import SalesOrderSearchPanel from '@/components/SalesOrder/SalesOrderSearchPanel
 import SalesOrderItemSearchPanel from '@/components/RFQ/SalesOrderItemSearchPanel.vue'
 import PurchaseOrderItemSearchPanel from '@/components/RFQ/PurchaseOrderItemSearchPanel.vue'
 import QcSearchPanel from '@/components/Logistics/QcSearchPanel.vue'
+import ArrivalNoticeSearchPanel from '@/components/Logistics/ArrivalNoticeSearchPanel.vue'
 import { canAccessCustomsModule } from '@/utils/departmentModuleGate'
 import StockInSearchPanel from '@/components/Inventory/StockInSearchPanel.vue'
 import StockOutSearchPanel from '@/components/Inventory/StockOutSearchPanel.vue'
@@ -1674,6 +1676,10 @@ const isQcLeftAuxRoute = computed(() => route.name === 'QcList' || route.name ==
 
 const showQcSearchPanel = computed(
   () => leftActiveTabId.value === 'l1' && isQcLeftAuxRoute.value
+)
+
+const showArrivalNoticeSearchPanel = computed(
+  () => leftActiveTabId.value === 'l1' && route.name === 'ArrivalNoticeList'
 )
 
 /** 入库单列表/新建/详情：左栏「检索」 */

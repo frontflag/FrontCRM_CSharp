@@ -36,6 +36,24 @@ export interface PurchaseOrderVendorNameRefreshResult {
   changed: boolean
 }
 
+export interface PurchaseOrderVendorChangePreviewResult {
+  purchaseOrderId: string
+  purchaseOrderCode?: string | null
+  oldVendorId?: string | null
+  oldVendorName?: string | null
+  newVendorId: string
+  newVendorName?: string | null
+  canChange: boolean
+  noOp?: boolean
+  blockReason?: string | null
+  blockingDocuments?: string[]
+  poItemsToSync: number
+  arrivalNoticesToSync: number
+  stockInsToSync: number
+  paymentsToSync: number
+  purchaseInvoicesToSync: number
+}
+
 export interface PurchaseOrderFieldChangeLogRow {
   id: string
   purchaseOrderId: string
@@ -320,6 +338,15 @@ export const purchaseOrderApi = {
   async refreshVendorName(id: string) {
     const enc = encodeURIComponent(id)
     return await apiClient.post<PurchaseOrderVendorNameRefreshResult>(`/api/v1/purchase-orders/${enc}/refresh-vendor-name`, {})
+  },
+
+  /** 更换供应商预检（管理员/采购总监） */
+  async previewVendorChange(id: string, newVendorId: string) {
+    const enc = encodeURIComponent(id)
+    return await apiClient.get<PurchaseOrderVendorChangePreviewResult>(
+      `/api/v1/purchase-orders/${enc}/change-vendor/preview`,
+      { params: { newVendorId: newVendorId.trim() } }
+    )
   },
 
   /** 录入/修改/清空货代单号（物流写权限） */

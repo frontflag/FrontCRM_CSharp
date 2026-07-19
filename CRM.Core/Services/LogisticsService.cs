@@ -410,10 +410,19 @@ namespace CRM.Core.Services
         public async Task UpdateArrivalNoticeStatusAsync(string id, short status)
         {
             var row = await _notifyRepo.GetByIdAsync(id) ?? throw new InvalidOperationException("到货通知不存在");
-            row.Status = status;
-            row.ModifyTime = DateTime.UtcNow;
+            ApplyNoticeStatus(row, status);
             await _notifyRepo.UpdateAsync(row);
             await _unitOfWork.SaveChangesAsync();
+        }
+
+        internal static void ApplyNoticeStatus(StockInNotify row, short status)
+        {
+            row.Status = status;
+            if (status <= 10)
+                row.ActualArrivalDate = null;
+            else if (status >= 20 && row.ActualArrivalDate == null)
+                row.ActualArrivalDate = DateTime.UtcNow;
+            row.ModifyTime = DateTime.UtcNow;
         }
 
         /// <inheritdoc />
@@ -475,7 +484,8 @@ namespace CRM.Core.Services
                 }
             }
 
-            var qc = (await _qcRepo.FindAsync(x => x.StockInNotifyId == id)).FirstOrDefault();
+            var qcs = (await _qcRepo.FindAsync(x => x.StockInNotifyId == id)).ToList();
+            var qc = qcs.FirstOrDefault();
             if (qc != null)
             {
                 string? qcUserName = null;
@@ -496,29 +506,14 @@ namespace CRM.Core.Services
                 };
             }
 
-            StockIn? stockIn = null;
-            if (qc != null && !string.IsNullOrWhiteSpace(qc.StockInId))
-                stockIn = await _stockInRepo.GetByIdAsync(qc.StockInId.Trim());
-            if (stockIn == null)
-            {
-                // 勿在 FindAsync 谓词中使用 string.Equals(..., StringComparison) / Trim()，EF 无法翻译到 PostgreSQL
-                var candidates = new List<StockIn>();
-                candidates.AddRange(await _stockInRepo.FindAsync(si => si.SourceId != null && si.SourceId == id));
-                if (qc != null && !string.IsNullOrWhiteSpace(qc.Id))
-                {
-                    var qcId = qc.Id.Trim();
-                    foreach (var si in await _stockInRepo.FindAsync(si => si.QcId != null && si.QcId == qcId))
-                    {
-                        if (candidates.All(x => !string.Equals(x.Id, si.Id, StringComparison.OrdinalIgnoreCase)))
-                            candidates.Add(si);
-                    }
-                }
-
-                stockIn = candidates
-                    .OrderByDescending(x => x.Status == StockInHeaderStatusCode.Posted ? 1 : 0)
-                    .ThenByDescending(x => x.CreateTime)
-                    .FirstOrDefault();
-            }
+            var stockInCandidates = await CollectStockInCandidatesForNoticeAsync(
+                id,
+                notice.NoticeCode,
+                qcs);
+            var stockIn = stockInCandidates
+                .OrderByDescending(x => x.Status == StockInHeaderStatusCode.Posted ? 1 : 0)
+                .ThenByDescending(x => x.CreateTime)
+                .FirstOrDefault();
 
             if (stockIn != null)
             {
@@ -550,6 +545,8 @@ namespace CRM.Core.Services
                     TotalQuantity = stockIn.TotalQuantity
                 };
             }
+
+            await TrySyncArrivalNoticeStatusAsync(notice, qcs, stockInCandidates, cancellationToken);
 
             return result;
         }
@@ -801,8 +798,7 @@ namespace CRM.Core.Services
                 CreateTime = DateTime.UtcNow
             });
 
-            notice.Status = 30;
-            notice.ModifyTime = DateTime.UtcNow;
+            ApplyNoticeStatus(notice, 30);
             await _notifyRepo.UpdateAsync(notice);
 
             await _unitOfWork.SaveChangesAsync();
@@ -852,7 +848,7 @@ namespace CRM.Core.Services
                 notice.PassedQty = items.Sum(x => x.PassedQty);
                 notice.ReceiveQty = notice.PassedQty;
                 notice.ReceiveTotal = Math.Round(notice.ReceiveQty * notice.Cost, 2, MidpointRounding.AwayFromZero);
-                notice.ModifyTime = DateTime.UtcNow;
+                ApplyNoticeStatus(notice, 30);
                 await _notifyRepo.UpdateAsync(notice);
 
                 if (!string.IsNullOrWhiteSpace(notice.PurchaseOrderItemId))
@@ -880,8 +876,7 @@ namespace CRM.Core.Services
             var stockIn = await _stockInRepo.GetByIdAsync(stockInId);
             if (notice != null && stockIn != null && stockIn.Status == StockInHeaderStatusCode.Posted)
             {
-                notice.Status = 100;
-                notice.ModifyTime = DateTime.UtcNow;
+                ApplyNoticeStatus(notice, 100);
                 await _notifyRepo.UpdateAsync(notice);
             }
 
@@ -947,12 +942,18 @@ namespace CRM.Core.Services
                 if (notice == null) continue;
                 if (notice.Status != 100)
                 {
-                    notice.Status = 100;
-                    notice.ModifyTime = DateTime.UtcNow;
+                    ApplyNoticeStatus(notice, 100);
                     await _notifyRepo.UpdateAsync(notice);
                     hasChanges = true;
                 }
                 relatedNotices.Add(notice);
+            }
+
+            if (stockIn != null
+                && stockIn.Status == StockInHeaderStatusCode.Posted
+                && relatedNotices.Count == 0)
+            {
+                hasChanges = await TryPromoteNoticeToStockedViaStockInSourceAsync(stockIn, relatedNotices) || hasChanges;
             }
 
             var poIds = relatedNotices.Select(x => x.PurchaseOrderId).Where(x => !string.IsNullOrWhiteSpace(x))
@@ -1391,8 +1392,7 @@ namespace CRM.Core.Services
             if (notice.Status == targetStatus)
                 return (false, notice.Status, targetStatus, notice.Id, string.IsNullOrWhiteSpace(notice.NoticeCode) ? null : notice.NoticeCode.Trim());
             var fromStatus = notice.Status;
-            notice.Status = targetStatus;
-            notice.ModifyTime = DateTime.UtcNow;
+            ApplyNoticeStatus(notice, targetStatus);
             await _notifyRepo.UpdateAsync(notice);
             return (true, fromStatus, targetStatus, notice.Id, string.IsNullOrWhiteSpace(notice.NoticeCode) ? null : notice.NoticeCode.Trim());
         }
@@ -1406,5 +1406,97 @@ namespace CRM.Core.Services
             100 => "已入库",
             _ => "未知"
         };
+
+        private async Task<List<StockIn>> CollectStockInCandidatesForNoticeAsync(
+            string noticeId,
+            string? noticeCode,
+            IReadOnlyList<QCInfo> qcs)
+        {
+            var candidates = new List<StockIn>();
+            foreach (var qc in qcs)
+            {
+                if (string.IsNullOrWhiteSpace(qc.StockInId)) continue;
+                var si = await _stockInRepo.GetByIdAsync(qc.StockInId.Trim());
+                if (si != null && candidates.All(x => !string.Equals(x.Id, si.Id, StringComparison.OrdinalIgnoreCase)))
+                    candidates.Add(si);
+            }
+
+            foreach (var si in await _stockInRepo.FindAsync(x => x.SourceId != null && x.SourceId == noticeId))
+            {
+                if (candidates.All(x => !string.Equals(x.Id, si.Id, StringComparison.OrdinalIgnoreCase)))
+                    candidates.Add(si);
+            }
+
+            if (!string.IsNullOrWhiteSpace(noticeCode))
+            {
+                var code = noticeCode.Trim();
+                foreach (var si in await _stockInRepo.FindAsync(x => x.SourceCode != null && x.SourceCode == code))
+                {
+                    if (candidates.All(x => !string.Equals(x.Id, si.Id, StringComparison.OrdinalIgnoreCase)))
+                        candidates.Add(si);
+                }
+
+                foreach (var si in await _stockInRepo.FindAsync(x => x.SourceId != null && x.SourceId == code))
+                {
+                    if (candidates.All(x => !string.Equals(x.Id, si.Id, StringComparison.OrdinalIgnoreCase)))
+                        candidates.Add(si);
+                }
+            }
+
+            foreach (var qc in qcs)
+            {
+                if (string.IsNullOrWhiteSpace(qc.Id)) continue;
+                var qcId = qc.Id.Trim();
+                foreach (var si in await _stockInRepo.FindAsync(x => x.QcId != null && x.QcId == qcId))
+                {
+                    if (candidates.All(x => !string.Equals(x.Id, si.Id, StringComparison.OrdinalIgnoreCase)))
+                        candidates.Add(si);
+                }
+            }
+
+            return candidates;
+        }
+
+        private async Task TrySyncArrivalNoticeStatusAsync(
+            StockInNotify notice,
+            IReadOnlyList<QCInfo> qcs,
+            IReadOnlyList<StockIn> candidates,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var target = ArrivalNoticeStatusCalculator.ComputeTargetStatus(notice, qcs, candidates);
+            if (notice.Status == target) return;
+
+            ApplyNoticeStatus(notice, target);
+            await _notifyRepo.UpdateAsync(notice);
+            await _unitOfWork.SaveChangesAsync();
+
+            if (!string.IsNullOrWhiteSpace(notice.PurchaseOrderItemId))
+                await _poItemExtendSync.RecalculateAsync(notice.PurchaseOrderItemId, cancellationToken);
+        }
+
+        private async Task<bool> TryPromoteNoticeToStockedViaStockInSourceAsync(
+            StockIn stockIn,
+            List<StockInNotify> relatedNotices)
+        {
+            StockInNotify? notice = null;
+            if (!string.IsNullOrWhiteSpace(stockIn.SourceId))
+                notice = await _notifyRepo.GetByIdAsync(stockIn.SourceId.Trim());
+
+            if (notice == null && !string.IsNullOrWhiteSpace(stockIn.SourceCode))
+            {
+                notice = (await _notifyRepo.FindAsync(n =>
+                        n.NoticeCode != null && n.NoticeCode == stockIn.SourceCode!.Trim()))
+                    .FirstOrDefault();
+            }
+
+            if (notice == null || notice.Status == ArrivalNoticeStatusCalculator.StatusStockedIn)
+                return false;
+
+            ApplyNoticeStatus(notice, ArrivalNoticeStatusCalculator.StatusStockedIn);
+            await _notifyRepo.UpdateAsync(notice);
+            relatedNotices.Add(notice);
+            return true;
+        }
     }
 }

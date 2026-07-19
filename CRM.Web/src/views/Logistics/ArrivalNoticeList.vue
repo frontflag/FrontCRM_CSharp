@@ -9,14 +9,25 @@
 
     <!-- 搜索栏：与客户列表 CustomerList 同款布局与控件皮肤 -->
     <div class="search-bar">
+      <div v-if="activePreset" class="search-preset-chip-row">
+        <span class="search-preset-chip">
+          {{ t(presetI18nKey(activePreset)) }}
+          <button
+            type="button"
+            class="search-preset-chip__clear"
+            :title="t('arrivalNoticeList.searchPanel.clearPreset')"
+            @click="clearPresetChip"
+          >×</button>
+        </span>
+      </div>
       <div class="search-left">
         <el-select
+          v-if="tabModeDimension !== 'status' && !presetConflictsStatus"
           v-model="filters.status"
           :placeholder="t('arrivalNoticeList.filters.allStatus')"
           clearable
           class="status-select"
           :teleported="false"
-          @change="loadData"
         >
           <el-option :label="t('arrivalNoticeList.status.new')" :value="1" />
           <el-option :label="t('arrivalNoticeList.status.notArrived')" :value="10" />
@@ -25,12 +36,12 @@
           <el-option :label="t('arrivalNoticeList.status.stocked')" :value="100" />
         </el-select>
         <el-select
+          v-if="tabModeDimension !== 'stockInType' && !presetConflictsStockInType"
           v-model="filters.stockInType"
           clearable
           :placeholder="t('arrivalNoticeList.filters.arrivalTypePlaceholder')"
           class="arrival-type-select"
           :teleported="false"
-          @change="loadData"
         >
           <el-option
             v-for="v in STOCK_IN_TYPE_FILTER_VALUES"
@@ -48,7 +59,7 @@
             v-model="filters.purchaseOrderCode"
             class="search-input"
             :placeholder="t('arrivalNoticeList.filters.poCodePlaceholder')"
-            @keyup.enter="loadData"
+            @keyup.enter="runSearch"
           />
         </div>
         <div class="search-input-wrap">
@@ -60,10 +71,11 @@
             v-model="filters.freightForwarderOrderNo"
             class="search-input"
             :placeholder="t('common.freightForwarderOrderNoPlaceholder')"
-            @keyup.enter="loadData"
+            @keyup.enter="runSearch"
           />
         </div>
         <el-date-picker
+          v-if="!presetHidesExpectedDate"
           v-model="filters.expectedArrivalDate"
           type="date"
           value-format="YYYY-MM-DD"
@@ -71,15 +83,86 @@
           clearable
           class="filter-date-single"
           :teleported="false"
-          @change="loadData"
         />
-        <button type="button" class="btn-primary btn-sm" :disabled="loading" @click="loadData">
+        <button type="button" class="btn-primary btn-sm" :disabled="loading" @click="runSearch">
           {{ t('arrivalNoticeList.filters.search') }}
         </button>
         <button type="button" class="btn-ghost btn-sm" :disabled="loading" @click="resetFilters">
           {{ t('arrivalNoticeList.filters.reset') }}
         </button>
+        <el-popover
+          v-model:visible="settingsMenuOpen"
+          trigger="click"
+          placement="bottom-end"
+          :width="168"
+          :show-arrow="false"
+          popper-class="arrival-notice-list-settings-popper"
+        >
+          <template #reference>
+            <button
+              type="button"
+              class="btn-ghost btn-sm btn-icon-only"
+              :title="t('arrivalNoticeList.settingsMenu.aria')"
+              :aria-label="t('arrivalNoticeList.settingsMenu.aria')"
+            >
+              <el-icon :size="14"><Setting /></el-icon>
+            </button>
+          </template>
+          <div class="arrival-notice-list-settings-menu">
+            <button
+              type="button"
+              class="arrival-notice-list-settings-menu__item"
+              :disabled="tabModeDimension === 'off'"
+              @click="closeFilterTabMode"
+            >
+              {{ t('arrivalNoticeList.settingsMenu.closeTabs') }}
+            </button>
+            <div
+              class="arrival-notice-list-settings-menu__submenu"
+              @mouseenter="settingsSubmenuOpen = true"
+              @mouseleave="settingsSubmenuOpen = false"
+            >
+              <div class="arrival-notice-list-settings-menu__item arrival-notice-list-settings-menu__item--parent">
+                <span>{{ t('arrivalNoticeList.settingsMenu.tabMode') }}</span>
+                <el-icon class="arrival-notice-list-settings-menu__caret"><ArrowRight /></el-icon>
+              </div>
+              <div v-show="settingsSubmenuOpen" class="arrival-notice-list-settings-menu__flyout">
+                <button
+                  v-for="dim in visibleTabModeMenuOptions"
+                  :key="dim"
+                  type="button"
+                  class="arrival-notice-list-settings-menu__item"
+                  :class="{ 'is-active': tabModeDimension === dim }"
+                  @click="enableFilterTabMode(dim)"
+                >
+                  {{ tabModeDimensionLabel(dim) }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </el-popover>
       </div>
+    </div>
+
+    <div class="sol-main-panel" :class="{ 'sol-main-panel--with-filter-tabs': filterTabStripVisible }">
+    <div
+      v-if="filterTabStripVisible"
+      class="sol-filter-tabs"
+      role="tablist"
+      :aria-label="filterTabStripAriaLabel"
+    >
+      <button
+        v-for="tab in filterTabOptions"
+        :key="tab.id"
+        type="button"
+        role="tab"
+        class="sol-filter-tabs__item"
+        :class="{ 'is-active': activeFilterTabId === tab.id }"
+        :aria-selected="activeFilterTabId === tab.id"
+        @click="onFilterTabClick(tab.id)"
+      >
+        {{ tab.label }}
+      </button>
     </div>
 
     <CrmDataTable
@@ -111,6 +194,7 @@
         <CrmListCopyableTextCell :text="rawBrand(row)" />
       </template>
       <template #col-expectedArrivalDate="{ row }">{{ formatExpected(row.expectedArrivalDate) }}</template>
+      <template #col-actualArrivalDate="{ row }">{{ formatExpected(row.actualArrivalDate) }}</template>
       <template #col-shipmentMethod="{ row }">{{ shipmentMethodDisplay(pickShipmentMethod(row)) }}</template>
       <template #col-courierTrackingNo="{ row }">{{ displayCourierTrackingNo(row) }}</template>
       <template #col-regionType="{ row }">{{ regionTypeLabel(row) }}</template>
@@ -232,6 +316,7 @@
         @size-change="onArrivalPageSizeChange"
       />
     </div>
+    </div>
 
     <el-dialog
       v-model="itemsVisible"
@@ -300,7 +385,7 @@
 import { computed, inject, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { Setting } from '@element-plus/icons-vue'
+import { Setting, ArrowRight } from '@element-plus/icons-vue'
 import { logisticsApi, type StockInNotifyDto, type StockInNotifyItemDto } from '@/api/logistics'
 import { normalizeRegionType, REGION_TYPE_OVERSEAS } from '@/constants/regionType'
 import { useRouter, useRoute } from 'vue-router'
@@ -317,6 +402,31 @@ import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
 import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
 import { useArrivalNoticeOpsPanelStore } from '@/stores/arrivalNoticeOpsPanel'
+import {
+  ARRIVAL_NOTICE_LIST_TAB_MODE_OPTIONS,
+  ARRIVAL_NOTICE_STATUS_TAB_VALUES,
+  ARRIVAL_NOTICE_STOCK_IN_TYPE_TAB_VALUES,
+  arrivalNoticeStatusFilterToTab,
+  arrivalNoticeStatusTabToFilter,
+  arrivalNoticeStockInTypeFilterToTab,
+  arrivalNoticeStockInTypeTabToFilter,
+  readArrivalNoticeListTabMode,
+  writeArrivalNoticeListTabMode,
+  type ArrivalNoticeListTabModeDimension,
+  type ArrivalNoticeStatusTabId,
+  type ArrivalNoticeStockInTypeTabId
+} from '@/utils/arrivalNoticeListTabMode'
+import {
+  buildArrivalNoticeListRouteQuery,
+  isArrivalNoticeListPresetId,
+  presetConflictsStatusField,
+  presetConflictsStatusTab,
+  presetConflictsStockInTypeField,
+  presetConflictsStockInTypeTab,
+  presetHidesExpectedDateField,
+  presetI18nKey,
+  type ArrivalNoticeListPresetId
+} from '@/utils/arrivalNoticeListPreset'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const authStore = useAuthStore()
@@ -328,6 +438,9 @@ const route = useRoute()
 const { t, locale } = useI18n()
 const { ensureLoaded: ensureLogisticsDict, shipmentArrivalOptions } = useLogisticsFormDict()
 const loading = ref(false)
+const tabModeDimension = ref<ArrivalNoticeListTabModeDimension>(readArrivalNoticeListTabMode())
+const settingsMenuOpen = ref(false)
+const settingsSubmenuOpen = ref(false)
 const list = ref<StockInNotifyDto[]>([])
 const listPage = ref(1)
 const listPageSize = ref(20)
@@ -378,6 +491,139 @@ const filters = ref<{
   freightForwarderOrderNo: '',
   expectedArrivalDate: ''
 })
+
+const activePreset = computed((): ArrivalNoticeListPresetId | null => {
+  const p = route.query.preset
+  return typeof p === 'string' && isArrivalNoticeListPresetId(p) ? p : null
+})
+
+const presetActive = computed(() => !!activePreset.value)
+
+const presetConflictsStatus = computed(() => {
+  const p = activePreset.value
+  return p ? presetConflictsStatusField(p) : false
+})
+
+const presetConflictsStockInType = computed(() => {
+  const p = activePreset.value
+  return p ? presetConflictsStockInTypeField(p) : false
+})
+
+const presetHidesExpectedDate = computed(() => {
+  const p = activePreset.value
+  return p ? presetHidesExpectedDateField(p) : false
+})
+
+const visibleTabModeMenuOptions = computed(() =>
+  ARRIVAL_NOTICE_LIST_TAB_MODE_OPTIONS.filter((dim) => {
+    if (presetActive.value && presetConflictsStatusTab(activePreset.value!) && dim === 'status') return false
+    if (presetActive.value && presetConflictsStockInTypeTab(activePreset.value!) && dim === 'stockInType') {
+      return false
+    }
+    return true
+  })
+)
+
+const statusFilterOptions = computed(() => [
+  { value: 1, label: t('arrivalNoticeList.status.new') },
+  { value: 10, label: t('arrivalNoticeList.status.notArrived') },
+  { value: 20, label: t('arrivalNoticeList.status.pendingQc') },
+  { value: 30, label: t('arrivalNoticeList.status.qcDone') },
+  { value: 100, label: t('arrivalNoticeList.status.stocked') }
+])
+
+const TAB_MODE_FILTER_I18N: Record<Exclude<ArrivalNoticeListTabModeDimension, 'off'>, string> = {
+  status: 'arrivalNoticeList.filters.allStatus',
+  stockInType: 'arrivalNoticeList.filters.arrivalTypePlaceholder'
+}
+
+function tabModeDimensionLabel(dim: Exclude<ArrivalNoticeListTabModeDimension, 'off'>) {
+  return t(TAB_MODE_FILTER_I18N[dim])
+}
+
+function closeFilterTabMode() {
+  if (tabModeDimension.value === 'off') return
+  tabModeDimension.value = 'off'
+  writeArrivalNoticeListTabMode('off')
+  settingsMenuOpen.value = false
+  settingsSubmenuOpen.value = false
+}
+
+function enableFilterTabMode(dim: Exclude<ArrivalNoticeListTabModeDimension, 'off'>) {
+  if (presetActive.value && presetConflictsStatusTab(activePreset.value!) && dim === 'status') return
+  if (presetActive.value && presetConflictsStockInTypeTab(activePreset.value!) && dim === 'stockInType') return
+  tabModeDimension.value = dim
+  writeArrivalNoticeListTabMode(dim)
+  settingsMenuOpen.value = false
+  settingsSubmenuOpen.value = false
+}
+
+watch(settingsMenuOpen, (open) => {
+  if (!open) settingsSubmenuOpen.value = false
+})
+
+const filterTabStripVisible = computed(() => {
+  const dim = tabModeDimension.value
+  if (dim === 'off') return false
+  if (dim === 'status' && presetActive.value && presetConflictsStatusTab(activePreset.value!)) return false
+  if (dim === 'stockInType' && presetActive.value && presetConflictsStockInTypeTab(activePreset.value!)) {
+    return false
+  }
+  return true
+})
+
+const filterTabStripAriaLabel = computed(() => {
+  if (tabModeDimension.value === 'off') return ''
+  return tabModeDimensionLabel(tabModeDimension.value)
+})
+
+type ArrivalNoticeFilterTabId = ArrivalNoticeStatusTabId | ArrivalNoticeStockInTypeTabId
+
+const filterTabOptions = computed(() => {
+  const dim = tabModeDimension.value
+  if (dim === 'off') return [] as Array<{ id: ArrivalNoticeFilterTabId; label: string }>
+  if (dim === 'status') {
+    const labelByValue = new Map(statusFilterOptions.value.map((o) => [o.value, o.label]))
+    return [
+      { id: 'all' as const, label: t('arrivalNoticeList.filterTabs.all') },
+      ...ARRIVAL_NOTICE_STATUS_TAB_VALUES.map((value) => ({
+        id: String(value) as ArrivalNoticeStatusTabId,
+        label: labelByValue.get(value) ?? String(value)
+      }))
+    ]
+  }
+  return [
+    { id: 'all' as const, label: t('arrivalNoticeList.filterTabs.all') },
+    ...ARRIVAL_NOTICE_STOCK_IN_TYPE_TAB_VALUES.map((value) => ({
+      id: String(value) as ArrivalNoticeStockInTypeTabId,
+      label: arrivalTypeLabel(value)
+    }))
+  ]
+})
+
+const activeFilterTabId = computed((): ArrivalNoticeFilterTabId => {
+  const dim = tabModeDimension.value
+  if (dim === 'status') return arrivalNoticeStatusFilterToTab(filters.value.status)
+  if (dim === 'stockInType') return arrivalNoticeStockInTypeFilterToTab(filters.value.stockInType)
+  return 'all'
+})
+
+function onFilterTabClick(tab: ArrivalNoticeFilterTabId) {
+  const dim = tabModeDimension.value
+  if (dim === 'status') {
+    const next = arrivalNoticeStatusTabToFilter(tab as ArrivalNoticeStatusTabId)
+    if (filters.value.status === next) return
+    filters.value.status = next
+    runSearch()
+    return
+  }
+  if (dim === 'stockInType') {
+    const next = arrivalNoticeStockInTypeTabToFilter(tab as ArrivalNoticeStockInTypeTabId)
+    if (filters.value.stockInType === next) return
+    filters.value.stockInType = next
+    runSearch()
+  }
+}
 
 function arrivalTypeLabel(type: number): string {
   if (type === StockInTypeCode.Customs) return t('stockInList.stockInTypeLabels.customs')
@@ -476,21 +722,88 @@ function onArrivalPageSizeChange() {
   void applyArrivalList(false)
 }
 
+function collectKeywordQuery(): Record<string, string> {
+  const keywords: Record<string, string> = {}
+  const poc = filters.value.purchaseOrderCode.trim()
+  if (poc) keywords.purchaseOrderCode = poc
+  const ffo = filters.value.freightForwarderOrderNo.trim()
+  if (ffo) keywords.freightForwarderOrderNo = ffo
+  return keywords
+}
+
+function buildListRouteQueryFromUi(): Record<string, string> {
+  const keywords = collectKeywordQuery()
+  if (activePreset.value) {
+    return buildArrivalNoticeListRouteQuery({ preset: activePreset.value, keywords })
+  }
+  const advanced: Record<string, string> = {}
+  if (filters.value.status !== undefined && filters.value.status !== null) {
+    advanced.status = String(filters.value.status)
+  }
+  if (filters.value.stockInType !== undefined && filters.value.stockInType !== null) {
+    advanced.stockInType = String(filters.value.stockInType)
+  }
+  if (filters.value.expectedArrivalDate) {
+    advanced.expectedArrivalDate = filters.value.expectedArrivalDate
+  }
+  const noticeId = String(route.query.noticeId ?? '').trim()
+  if (noticeId) advanced.noticeId = noticeId
+  return buildArrivalNoticeListRouteQuery({ keywords, advanced })
+}
+
+function syncFiltersFromRoute() {
+  if (route.name !== 'ArrivalNoticeList') return
+  const q = route.query
+  filters.value.purchaseOrderCode = typeof q.purchaseOrderCode === 'string' ? q.purchaseOrderCode : ''
+  filters.value.freightForwarderOrderNo =
+    typeof q.freightForwarderOrderNo === 'string' ? q.freightForwarderOrderNo : ''
+
+  const preset = activePreset.value
+  if (preset) {
+    filters.value.status = undefined
+    filters.value.stockInType = undefined
+    filters.value.expectedArrivalDate = ''
+    return
+  }
+
+  const st = typeof q.status === 'string' ? Number(q.status) : NaN
+  filters.value.status = st === 1 || st === 10 || st === 20 || st === 30 || st === 100 ? st : undefined
+  const sit = typeof q.stockInType === 'string' ? Number(q.stockInType) : NaN
+  filters.value.stockInType = (STOCK_IN_TYPE_FILTER_VALUES as readonly number[]).includes(sit) ? sit : undefined
+  filters.value.expectedArrivalDate = typeof q.expectedArrivalDate === 'string' ? q.expectedArrivalDate : ''
+}
+
+function runSearch() {
+  resetListRightPanelOnReload(arrivalNoticeOpsStore)
+  listPage.value = 1
+  router.replace({ name: 'ArrivalNoticeList', query: buildListRouteQueryFromUi() })
+}
+
+function clearPresetChip() {
+  router.replace({ name: 'ArrivalNoticeList', query: {} })
+}
+
 function applyArrivalList(resetPage: boolean) {
   if (resetPage) listPage.value = 1
   loading.value = true
   const noticeIdFromRoute = String(route.query.noticeId ?? '').trim() || undefined
+  const preset = activePreset.value ?? undefined
+  const params: Parameters<typeof logisticsApi.getArrivalNotices>[0] = {
+    purchaseOrderCode: filters.value.purchaseOrderCode.trim() || undefined,
+    freightForwarderOrderNo: filters.value.freightForwarderOrderNo.trim() || undefined,
+    id: noticeIdFromRoute,
+    page: listPage.value,
+    pageSize: listPageSize.value
+  }
+  if (preset) {
+    params.preset = preset
+  } else {
+    params.status = filters.value.status
+    params.stockInType = filters.value.stockInType
+    params.expectedArrivalDate = filters.value.expectedArrivalDate || undefined
+  }
   logisticsApi
-    .getArrivalNotices({
-      status: filters.value.status,
-      stockInType: filters.value.stockInType,
-      purchaseOrderCode: filters.value.purchaseOrderCode.trim() || undefined,
-      freightForwarderOrderNo: filters.value.freightForwarderOrderNo.trim() || undefined,
-      expectedArrivalDate: filters.value.expectedArrivalDate || undefined,
-      id: noticeIdFromRoute,
-      page: listPage.value,
-      pageSize: listPageSize.value
-    })
+    .getArrivalNotices(params)
     .then(res => {
       list.value = res.items || []
       listTotal.value = res.total
@@ -537,21 +850,11 @@ async function confirmArrivedFromOpsPanel(row: Record<string, unknown>) {
   applyArrivalList(false)
 }
 
-const loadData = () => {
-  resetListRightPanelOnReload(arrivalNoticeOpsStore)
-  applyArrivalList(true)
-}
 const refreshArrivalList = () => applyArrivalList(false)
 
 const resetFilters = () => {
-  filters.value = {
-    status: undefined,
-    stockInType: undefined,
-    purchaseOrderCode: '',
-    freightForwarderOrderNo: '',
-    expectedArrivalDate: ''
-  }
-  loadData()
+  listPage.value = 1
+  router.replace({ name: 'ArrivalNoticeList', query: {} })
 }
 
 const markArrived = async (row: StockInNotifyDto) => {
@@ -603,13 +906,15 @@ const onDetailClosed = () => {
   detailNotice.value = null
 }
 
-loadData()
-
 watch(
-  () => route.query.noticeId,
+  () => [route.name, route.query] as const,
   () => {
-    applyArrivalList(true)
-  }
+    syncFiltersFromRoute()
+    if (route.name === 'ArrivalNoticeList') {
+      applyArrivalList(true)
+    }
+  },
+  { deep: true, immediate: true }
 )
 
 onMounted(async () => {
@@ -677,9 +982,50 @@ html[data-theme='dark'] .inv-list-qty {
 // ---- 搜索栏（与 CustomerList / PurchaseRequisitionListPage 一致）----
 .search-bar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
   margin-bottom: 12px;
+}
+
+.search-preset-chip-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.search-preset-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 4px 10px;
+  font-size: 12px;
+  color: $text-primary;
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.35);
+  border-radius: 20px;
+}
+
+.search-preset-chip__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: $text-muted;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+
+  &:hover {
+    color: $text-primary;
+    background: rgba(255, 255, 255, 0.08);
+  }
 }
 
 .search-left {
@@ -820,6 +1166,78 @@ html[data-theme='dark'] .inv-list-qty {
     opacity: 0.55;
     cursor: not-allowed;
   }
+
+  &.btn-sm.btn-icon-only {
+    width: 32px;
+    padding-left: 0;
+    padding-right: 0;
+    justify-content: center;
+  }
+}
+
+.sol-main-panel {
+  width: 100%;
+}
+
+.sol-main-panel--with-filter-tabs {
+  :deep(.crm-data-table-root) {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+
+  :deep(.el-table),
+  :deep(.el-table__inner-wrapper),
+  :deep(.el-table__header-wrapper) {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+}
+
+.sol-filter-tabs {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  gap: 4px;
+}
+
+.sol-filter-tabs__item {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 9px 8px;
+  border: 1px solid var(--crm-border-panel, #e2e8f0);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  background: #e8edf5;
+  color: var(--crm-text-primary);
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-weight: 500;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s, box-shadow 0.12s;
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--crm-cyan-primary) 45%, var(--crm-border-panel));
+    background: color-mix(in srgb, var(--crm-cyan-primary) 12%, var(--crm-layer-1));
+  }
+
+  &.is-active {
+    background: color-mix(in srgb, var(--crm-cyan-primary) 16%, var(--crm-layer-2, #fff));
+    border-color: color-mix(in srgb, var(--crm-cyan-primary) 55%, var(--crm-border-panel));
+    box-shadow: inset 0 2px 0 0 var(--crm-cyan-primary);
+    font-weight: 600;
+    z-index: 1;
+  }
+}
+
+html[data-theme='dark'] .sol-filter-tabs__item:not(.is-active) {
+  background: var(--crm-layer-1);
+
+  &:hover {
+    background: color-mix(in srgb, var(--crm-cyan-primary) 12%, var(--crm-layer-1));
+  }
 }
 
 .arrival-detail-dialog {
@@ -870,5 +1288,77 @@ html[data-theme='dark'] .inv-list-qty {
 
 :deep(.stock-in-type-col .cell) {
   overflow: visible;
+}
+</style>
+
+<style lang="scss">
+.arrival-notice-list-settings-popper.el-popover.el-popper {
+  padding: 6px;
+  min-width: 160px;
+  overflow: visible;
+}
+
+.arrival-notice-list-settings-menu {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.arrival-notice-list-settings-menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--crm-text-secondary, rgba(224, 244, 255, 0.7));
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--crm-accent-008, rgba(0, 212, 255, 0.08));
+    color: var(--crm-text-primary, #e8f4ff);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  &.is-active {
+    color: var(--crm-cyan-primary, #00d4ff);
+  }
+
+  &--parent {
+    cursor: default;
+  }
+}
+
+.arrival-notice-list-settings-menu__caret {
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--crm-text-muted, rgba(200, 216, 232, 0.55));
+}
+
+.arrival-notice-list-settings-menu__submenu {
+  position: relative;
+}
+
+.arrival-notice-list-settings-menu__flyout {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 4px);
+  min-width: 148px;
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid var(--crm-border-panel, rgba(0, 212, 255, 0.15));
+  background: var(--crm-layer-2, #0d1e35);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  z-index: 10;
 }
 </style>

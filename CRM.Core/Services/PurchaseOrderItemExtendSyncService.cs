@@ -254,6 +254,45 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
                 $"采购数量不能小于已到货通知的已收与在途数量之和（已收 {sumReceiveNotify}，在途 {inTransit}）");
     }
 
+    /// <inheritdoc />
+    public async Task<ArrivalNoticeStatusBatchRecalculateResult> RecalculateAllArrivalNoticeStatusesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var result = new ArrivalNoticeStatusBatchRecalculateResult();
+        var notices = (await _notifyRepo.GetAllAsync()).ToList();
+        result.TotalNotices = notices.Count;
+        if (notices.Count == 0) return result;
+
+        var qcs = (await _qcRepo.GetAllAsync()).ToList();
+        var qcByNotice = qcs
+            .GroupBy(x => x.StockInNotifyId?.Trim() ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Key.Length > 0)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<QCInfo>)g.ToList(), StringComparer.OrdinalIgnoreCase);
+        var stockIns = (await _stockInRepo.GetAllAsync()).ToList();
+
+        foreach (var notice in notices)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var noticeKey = notice.Id.Trim();
+            qcByNotice.TryGetValue(noticeKey, out var qcRows);
+            var targetStatus = ComputeArrivalNoticeTargetStatus(notice, qcRows, stockIns);
+            if (notice.Status == targetStatus) continue;
+
+            notice.Status = targetStatus;
+            notice.ModifyTime = DateTime.UtcNow;
+            await _notifyRepo.UpdateAsync(notice);
+
+            result.ChangedCount++;
+            if (targetStatus == 100) result.ToStockedInCount++;
+            if (result.ChangedNoticeCodes.Count < 50)
+                result.ChangedNoticeCodes.Add(
+                    string.IsNullOrWhiteSpace(notice.NoticeCode) ? notice.Id : notice.NoticeCode.Trim());
+        }
+
+        if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+        return result;
+    }
+
     private async Task RecalculateArrivalNoticeStatusesForPoLineAsync(
         string purchaseOrderItemId,
         CancellationToken cancellationToken)
@@ -266,40 +305,33 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
         var qcs = (await _qcRepo.FindAsync(x => noticeIds.Contains(x.StockInNotifyId))).ToList();
         var qcByNotice = qcs
             .GroupBy(x => x.StockInNotifyId, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<QCInfo>)g.ToList(), StringComparer.OrdinalIgnoreCase);
         var stockIns = (await _stockInRepo.GetAllAsync()).ToList();
 
         foreach (var notice in notices)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var noticeKey = notice.Id.Trim();
-            var hasQc = qcByNotice.TryGetValue(noticeKey, out var qcRows) && qcRows.Count > 0;
-            // 仅匹配「本到货通知」关联的入库单；勿用同采购行其它通知的质检单 Id（分批到货会误标已入库）
-            var hasPostedStockIn = stockIns.Any(si =>
-                si.Status == StockInCompleted &&
-                si.StockInType == StockInTypeCode.Purchase &&
-                (
-                    (!string.IsNullOrWhiteSpace(si.SourceId) &&
-                     string.Equals(si.SourceId.Trim(), noticeKey, StringComparison.OrdinalIgnoreCase))
-                    || (qcRows != null && qcRows.Any(q =>
-                        (!string.IsNullOrWhiteSpace(si.QcId) &&
-                         string.Equals(si.QcId.Trim(), q.Id.Trim(), StringComparison.OrdinalIgnoreCase))
-                        || (!string.IsNullOrWhiteSpace(q.StockInId) &&
-                            string.Equals(q.StockInId.Trim(), si.Id.Trim(), StringComparison.OrdinalIgnoreCase))))
-                ));
-
-            var targetStatus =
-                hasPostedStockIn ? (short)100 :
-                hasQc ? (short)30 :
-                notice.ReceiveQty > 0 ? (short)20 :
-                (short)10;
-
+            qcByNotice.TryGetValue(noticeKey, out var qcRows);
+            var targetStatus = ComputeArrivalNoticeTargetStatus(notice, qcRows, stockIns);
             if (notice.Status == targetStatus) continue;
             notice.Status = targetStatus;
             notice.ModifyTime = DateTime.UtcNow;
             await _notifyRepo.UpdateAsync(notice);
         }
     }
+
+    private static bool IsPostedStockInLinkedToNotice(
+        StockIn si,
+        StockInNotify notice,
+        IReadOnlyList<QCInfo>? qcRows) =>
+        ArrivalNoticeStatusCalculator.IsPostedStockInLinkedToNotice(si, notice, qcRows);
+
+    private static short ComputeArrivalNoticeTargetStatus(
+        StockInNotify notice,
+        IReadOnlyList<QCInfo>? qcRows,
+        IReadOnlyList<StockIn> stockIns) =>
+        ArrivalNoticeStatusCalculator.ComputeTargetStatus(notice, qcRows, stockIns);
 
     /// <inheritdoc />
     public async Task RecalculateForFinancePurchaseInvoiceAsync(string financePurchaseInvoiceId,

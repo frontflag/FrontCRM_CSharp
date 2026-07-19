@@ -494,3 +494,24 @@
   color: #9ca3af;
   opacity: 1;
 }
+
+/* 信息面板单号跳转：默认正文色，悬停才呈现链接态（对齐《列表跳单号链接样式规范 PRD》） */
+.link-text {
+  color: inherit;
+  text-decoration: none;
+  cursor: default;
+
+  &:hover {
+    color: var(--el-color-primary);
+    text-decoration: underline;
+    cursor: pointer;
+  }
+}
+
+.so-item-ops-root--embedded .link-text {
+  color: inherit;
+
+  &:hover {
+    color: var(--el-color-primary);
+  }
+}

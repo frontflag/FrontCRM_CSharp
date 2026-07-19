@@ -1035,6 +1035,7 @@ FROM (
       ('sales-order.write', '编辑销售订单'),
       ('purchase-order.read', '查看采购订单'),
       ('purchase-order.write', '编辑采购订单'),
+      ('purchase-order.change-vendor', '更换采购订单供应商'),
       ('finance-receipt.read', '查看收款单'),
       ('finance-receipt.write', '编辑收款单'),
       ('finance-payment.read', '查看付款单'),

@@ -1269,6 +1269,7 @@ const handleSubmit = async () => {
       afterValidate: () => validateSoItemsCustomerOrderLinks(),
       task: async () => {
         await salesOrderApi.update(editId.value, {
+          customerId: formData.value.customerId || undefined,
           customerName: formData.value.customerName || undefined,
           salesUserId: resolveSubmitSalesUserId(),
           salesUserName: formData.value.salesUserName || undefined,

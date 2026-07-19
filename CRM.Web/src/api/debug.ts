@@ -173,6 +173,13 @@ export type RefreshPurchaseOrderMainStatusResult = {
   failedMessages: string[]
 }
 
+export type RefreshArrivalNoticeStatusesResult = {
+  totalNotices: number
+  changedCount: number
+  toStockedInCount: number
+  changedNoticeCodes: string[]
+}
+
 export type RefreshSellOrderMainStatusResult = {
   totalOrders: number
   changedOrders: number
@@ -289,6 +296,24 @@ export async function refreshPurchaseOrderMainStatus(): Promise<RefreshPurchaseO
     changedItems: Number(inner?.changedItems ?? inner?.ChangedItems ?? 0),
     failedCount: Number(inner?.failedCount ?? inner?.FailedCount ?? 0),
     failedMessages: normalizeStringList(inner?.failedMessages ?? inner?.FailedMessages)
+  }
+}
+
+/** POST /api/v1/debug/refresh-arrival-notice-statuses — 批量重算到货通知 Status */
+export async function refreshArrivalNoticeStatuses(): Promise<RefreshArrivalNoticeStatusesResult> {
+  const raw = await apiClient.post<any>(
+    '/api/v1/debug/refresh-arrival-notice-statuses',
+    {},
+    { timeout: 3_600_000 }
+  )
+  const outer = (raw?.data ?? raw?.Data ?? raw) as Record<string, any>
+  const inner = (outer?.data ?? outer?.Data ?? outer) as Record<string, any>
+  const codesRaw = inner?.changedNoticeCodes ?? inner?.ChangedNoticeCodes
+  return {
+    totalNotices: Number(inner?.totalNotices ?? inner?.TotalNotices ?? 0),
+    changedCount: Number(inner?.changedCount ?? inner?.ChangedCount ?? 0),
+    toStockedInCount: Number(inner?.toStockedInCount ?? inner?.ToStockedInCount ?? 0),
+    changedNoticeCodes: Array.isArray(codesRaw) ? codesRaw.map((x: unknown) => String(x)) : []
   }
 }
 

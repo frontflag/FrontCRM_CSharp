@@ -456,14 +456,29 @@ namespace CRM.Core.Services
                 if (string.IsNullOrWhiteSpace(o.CustomerId)) continue;
                 if (!byId.TryGetValue(o.CustomerId.Trim(), out var cust)) continue;
 
-                var nameZh = string.IsNullOrWhiteSpace(cust.OfficialName) ? cust.CustomerName : cust.OfficialName;
+                var nameZh = ResolveCustomerDisplayName(cust);
                 if (!string.IsNullOrWhiteSpace(nameZh))
-                    o.CustomerName = nameZh.Trim();
+                    o.CustomerName = nameZh;
                 if (!string.IsNullOrWhiteSpace(cust.EnglishOfficialName))
                     o.CustomerEnglishName = cust.EnglishOfficialName.Trim();
                 if (!string.IsNullOrWhiteSpace(cust.CustomerCode))
                     o.CustomerCode = cust.CustomerCode.Trim();
             }
+        }
+
+        private static string? ResolveCustomerDisplayName(CustomerInfo cust)
+        {
+            var nameZh = string.IsNullOrWhiteSpace(cust.OfficialName) ? cust.CustomerName : cust.OfficialName;
+            return string.IsNullOrWhiteSpace(nameZh) ? null : nameZh.Trim();
+        }
+
+        private async Task ApplyCustomerHeaderFromMasterAsync(SellOrder order, string customerId)
+        {
+            var id = customerId.Trim();
+            var cust = await _customerRepo.GetByIdAsync(id)
+                ?? throw new InvalidOperationException($"客户 {id} 不存在");
+            order.CustomerId = id;
+            order.CustomerName = ResolveCustomerDisplayName(cust);
         }
 
         private async Task HydrateSellOrderLineListCustomerEnglishAsync(List<SellOrderItemLineDto> rows)
@@ -528,7 +543,19 @@ namespace CRM.Core.Services
             if (HeaderRemarksTouched(request))
                 PatchSalesOrderHeaderRemarksFromRequest(order, request);
 
-            if (request.CustomerName != null) order.CustomerName = request.CustomerName;
+            if (!string.IsNullOrWhiteSpace(request.CustomerId))
+            {
+                var newCustomerId = request.CustomerId.Trim();
+                if (!string.Equals(order.CustomerId?.Trim(), newCustomerId, StringComparison.OrdinalIgnoreCase))
+                    await ApplyCustomerHeaderFromMasterAsync(order, newCustomerId);
+                else if (request.CustomerName != null)
+                    order.CustomerName = request.CustomerName.Trim();
+            }
+            else if (request.CustomerName != null)
+            {
+                order.CustomerName = request.CustomerName;
+            }
+
             if (request.SalesUserId != null) order.SalesUserId = request.SalesUserId;
             if (request.SalesUserName != null) order.SalesUserName = request.SalesUserName;
             if (request.Assistor != null) order.Assistor = NormalizeOptionalUserId(request.Assistor);

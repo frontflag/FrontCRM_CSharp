@@ -164,6 +164,36 @@ namespace CRM.Core.Tests.Services
         }
 
         [Fact]
+        public async Task UpdateAsync_ChangeCustomerId_ShouldSyncCustomerNameFromMaster()
+        {
+            var orderId = "SO-123";
+            var existingOrder = new SellOrder
+            {
+                Id = orderId,
+                SellOrderCode = "SO-2024-001",
+                CustomerId = "CUST-OLD",
+                CustomerName = "旧客户"
+            };
+            _orderRepository.GetByIdAsync(orderId).Returns(existingOrder);
+            _orderRepository.UpdateAsync(Arg.Any<SellOrder>()).Returns(Task.CompletedTask);
+            _customerRepository.GetByIdAsync("CUST-NEW").Returns(new CustomerInfo
+            {
+                Id = "CUST-NEW",
+                OfficialName = "新客户有限公司",
+                CustomerCode = "CUS-NEW"
+            });
+
+            var result = await _orderService.UpdateAsync(orderId, new UpdateSalesOrderRequest
+            {
+                CustomerId = "CUST-NEW",
+                CustomerName = "表单里旧标签"
+            });
+
+            Assert.Equal("CUST-NEW", result.CustomerId);
+            Assert.Equal("新客户有限公司", result.CustomerName);
+        }
+
+        [Fact]
         public async Task UpdateStatusAsync_ConfirmOrder_ShouldSetConfirmedStatus()
         {
             // Arrange

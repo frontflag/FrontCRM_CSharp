@@ -48,6 +48,7 @@ namespace CRM.Core.Services
         private readonly ILogger<PurchaseOrderService> _logger;
         private readonly IPurchaseOrderListQuery _purchaseOrderListQuery;
         private readonly IRepository<VendorInfo>? _vendorRepo;
+        private readonly IPurchaseOrderVendorChangeService? _vendorChangeService;
 
         public PurchaseOrderService(
             IRepository<PurchaseOrder> poRepo,
@@ -71,7 +72,8 @@ namespace CRM.Core.Services
             IUserService? userService = null,
             ILogOperationAppendService? logOperationAppend = null,
             IUnitOfWork? unitOfWork = null,
-            IRepository<VendorInfo>? vendorRepo = null)
+            IRepository<VendorInfo>? vendorRepo = null,
+            IPurchaseOrderVendorChangeService? vendorChangeService = null)
         {
             _poRepo = poRepo;
             _poItemRepo = poItemRepo;
@@ -95,6 +97,7 @@ namespace CRM.Core.Services
             _logger = logger;
             _unitOfWork = unitOfWork;
             _vendorRepo = vendorRepo;
+            _vendorChangeService = vendorChangeService;
         }
 
         // 兼容旧调用方（单测/临时构造）：不注入采购申请回写依赖时，状态回写能力自动降级为 no-op。
@@ -475,7 +478,13 @@ namespace CRM.Core.Services
                 ?? throw new InvalidOperationException($"采购订单 {id} 不存在");
 
             var headerBefore = CapturePurchaseOrderHeaderSnapshot(order);
-            if (request.VendorName != null) order.VendorName = request.VendorName;
+            if (!string.IsNullOrWhiteSpace(request.VendorId))
+            {
+                if (_vendorChangeService == null)
+                    throw new InvalidOperationException("换供应商服务未配置");
+                await _vendorChangeService.ApplyAsync(order, request.VendorId.Trim(), actingUserId);
+            }
+
             if (request.PurchaseUserId != null) order.PurchaseUserId = request.PurchaseUserId;
             if (request.PurchaseUserName != null) order.PurchaseUserName = request.PurchaseUserName;
             if (request.Assistor != null) order.Assistor = NormalizeOptionalUserId(request.Assistor);
@@ -740,6 +749,17 @@ namespace CRM.Core.Services
                 orderId, order.PurchaseOrderCode, result.TotalItems, result.ChangedItems, result.ChangedFieldsCount);
 
             return result;
+        }
+
+        /// <inheritdoc />
+        public Task<PurchaseOrderVendorChangePreviewResult> PreviewVendorChangeAsync(
+            string purchaseOrderId,
+            string newVendorId,
+            CancellationToken cancellationToken = default)
+        {
+            if (_vendorChangeService == null)
+                throw new InvalidOperationException("换供应商服务未配置");
+            return _vendorChangeService.PreviewAsync(purchaseOrderId, newVendorId, cancellationToken);
         }
 
         public async Task<PurchaseOrderVendorNameRefreshResult> RefreshVendorNameAsync(string purchaseOrderId, string? actingUserId = null)
@@ -1485,7 +1505,7 @@ VALUES (gen_random_uuid()::text, '{BusinessLogTypes.PurchaseOrderItem}', '{SqlQ(
         {
             target.SellOrderItemId = NormalizeStoredSellOrderItemId(item.SellOrderItemId);
             target.PurchaseRequisitionId = NormalizeStoredPurchaseRequisitionId(item.PurchaseRequisitionId);
-            target.VendorId = !string.IsNullOrWhiteSpace(item.VendorId) ? item.VendorId.Trim() : order.VendorId;
+            target.VendorId = order.VendorId;
             target.ProductId = item.ProductId;
             target.PN = item.PN;
             target.Brand = item.Brand;

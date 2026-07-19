@@ -116,7 +116,7 @@
                   <router-link
                     v-if="entry.purchaseOrderId && canViewPurchaseOrder"
                     :to="{ name: 'PurchaseOrderDetail', params: { id: entry.purchaseOrderId } }"
-                    class="cell-link"
+                    class="link-text"
                   >
                     {{ entry.purchaseOrderCode || '—' }}
                   </router-link>

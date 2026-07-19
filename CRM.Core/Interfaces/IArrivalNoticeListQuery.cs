@@ -12,6 +12,7 @@ public interface IArrivalNoticeListQuery
         DateTime? expectedArrivalDate,
         string? noticeId,
         short? stockInType,
+        string? preset,
         int page,
         int pageSize,
         string? currentUserId = null,

@@ -31,6 +31,12 @@ export function buildArrivalNoticeListColumns(p: BuildArrivalNoticeListColumnsPa
       align: 'center'
     },
     {
+      key: 'actualArrivalDate',
+      label: p.t('arrivalNoticeList.columns.actualArrivalDate'),
+      width: 120,
+      align: 'center'
+    },
+    {
       key: 'shipmentMethod',
       label: p.t('arrivalNoticeList.columns.expectedArrivalMethod'),
       width: 136,

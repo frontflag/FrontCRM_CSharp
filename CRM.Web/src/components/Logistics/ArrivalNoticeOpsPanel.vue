@@ -89,7 +89,7 @@
                 <router-link
                   v-if="purchaseLink && !maskSensitive"
                   :to="purchaseLink"
-                  class="cell-link"
+                  class="link-text"
                 >
                   {{ purchaseItemCode }}
                 </router-link>
@@ -131,7 +131,7 @@
                   <router-link
                     v-if="qcLink"
                     :to="qcLink"
-                    class="cell-link"
+                    class="link-text"
                   >
                     {{ qc.qcCode || '—' }}
                   </router-link>
@@ -182,7 +182,7 @@
                   <router-link
                     v-if="stockInLink"
                     :to="stockInLink"
-                    class="cell-link"
+                    class="link-text"
                   >
                     {{ stockIn.stockInCode || '—' }}
                   </router-link>
@@ -290,6 +290,11 @@ const expectedArrivalDateText = computed(() => {
 
 const noticeStatus = computed(() => Number(props.row?.status ?? props.row?.Status ?? 0))
 
+const displayNoticeStatus = computed(() => {
+  if (stockIn.value?.status === 2 && noticeStatus.value < 100) return 100
+  return noticeStatus.value
+})
+
 const statusLabel = computed(() => {
   const keyMap: Record<number, 'new' | 'notArrived' | 'pendingQc' | 'qcDone' | 'stocked'> = {
     1: 'new',
@@ -298,12 +303,12 @@ const statusLabel = computed(() => {
     30: 'qcDone',
     100: 'stocked'
   }
-  const k = keyMap[noticeStatus.value]
+  const k = keyMap[displayNoticeStatus.value]
   return k ? t(`arrivalNoticeList.status.${k}`) : t('arrivalNoticeList.statusUnknown')
 })
 
 const statusTagType = computed((): '' | 'success' | 'warning' | 'info' | 'danger' => {
-  const s = noticeStatus.value
+  const s = displayNoticeStatus.value
   if (s === 100 || s === 30) return 'success'
   if (s === 20) return 'info'
   if (s === 10) return 'warning'

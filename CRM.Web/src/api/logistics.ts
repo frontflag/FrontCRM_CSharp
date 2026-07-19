@@ -28,6 +28,8 @@ export interface StockInNotifyDto {
   status: number
   /** 预计到货日期 */
   expectedArrivalDate?: string | null
+  /** 实际到货日 */
+  actualArrivalDate?: string | null
   /** RegionType：10=境内 20=境外（与仓库档案共用） */
   regionType?: number
   /** 到货类型（StockInType：10 采购 / 20 报关 / 30 退货 / 40 报废） */
@@ -88,6 +90,7 @@ export function normalizeStockInNotifyRow(row: unknown): StockInNotifyDto {
     purchaseUserName: (r.purchaseUserName ?? r.PurchaseUserName) as string | undefined,
     status: Number(r.status ?? r.Status ?? 0),
     expectedArrivalDate: (r.expectedArrivalDate ?? r.ExpectedArrivalDate) as string | null | undefined,
+    actualArrivalDate: (r.actualArrivalDate ?? r.ActualArrivalDate) as string | null | undefined,
     regionType: r.regionType != null || r.RegionType != null ? Number(r.regionType ?? r.RegionType) : undefined,
     stockInType:
       r.stockInType != null || r.StockInType != null ? Number(r.stockInType ?? r.StockInType) : undefined,
@@ -254,6 +257,8 @@ export const logisticsApi = {
     purchaseOrderCode?: string
     freightForwarderOrderNo?: string
     expectedArrivalDate?: string
+    /** 左栏 preset（与 ArrivalNoticeListQuickFilterCodes 一致） */
+    preset?: string
     /** 到货类型（StockInType：10 采购 / 20 报关 / 30 退货 / 40 报废） */
     stockInType?: number
     /** 按到货通知主键精确查（编辑/联动场景） */

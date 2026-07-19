@@ -368,7 +368,7 @@ import { useRoute, useRouter } from 'vue-router'
 import type { FormInstance } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { QuestionFilled } from '@element-plus/icons-vue'
-import { purchaseOrderApi } from '@/api/purchaseOrder'
+import { purchaseOrderApi, type PurchaseOrderVendorChangePreviewResult } from '@/api/purchaseOrder'
 import { purchaseRequisitionApi } from '@/api/purchaseRequisition'
 import { usePurchaseRequisitionPoBasketStore } from '@/stores/purchaseRequisitionPoBasket'
 import {
@@ -397,6 +397,7 @@ import PurchaserCascader from '@/components/PurchaserCascader.vue'
 import PurchaseOpsAssistorSelect from '@/components/PurchaseOpsAssistorSelect.vue'
 import { authApi, type PurchaseDeptStaffUserOption } from '@/api/auth'
 import {
+  canChangePurchaseOrderVendor,
   canPickPurchaseOrderStaffFreely,
   isPurchaseOrderAssistorLockedMode
 } from '@/utils/purchaseOrderStaffPickRules'
@@ -456,10 +457,8 @@ const genLoading = ref(false)
 const staffPickLocked = computed(() => isPurchaseOrderAssistorLockedMode(authStore.user))
 const staffPickFree = computed(() => canPickPurchaseOrderStaffFreely(authStore.user))
 const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
-const showRefreshVendorNameBtn = computed(
-  () => editId.value && isSysAdmin.value && !maskPurchaseSensitiveFields.value
-)
 const refreshVendorNameLoading = ref(false)
+const originalVendorId = ref('')
 const assistorReadonlyLabel = ref('')
 const purchaseUserSelectOptions = ref<PurchaseDeptStaffUserOption[]>([])
 const purchaseUserOptionsLoading = ref(false)
@@ -491,9 +490,26 @@ const canRemovePoItem = computed(
 
 /** 无采购申请链路的纯新建：允许搜索选择供应商/联系人（含备货采购?type=2） */
 const allowManualVendorPick = computed(() => !editId.value && !hasRequisitionPrefill.value)
+const canChangePoVendor = computed(() =>
+  canChangePurchaseOrderVendor({
+    isSysAdmin: authStore.user?.isSysAdmin,
+    identityType: authStore.user?.identityType,
+    roleCodes: authStore.user?.roleCodes,
+    hasPermission: (c) => authStore.hasPermission(c)
+  })
+)
 /** 销售等需脱敏身份时禁止供应商搜索，避免下拉暴露名称 */
-const showVendorPicker = computed(
-  () => allowManualVendorPick.value && !maskPurchaseSensitiveFields.value
+const showVendorPicker = computed(() => {
+  if (maskPurchaseSensitiveFields.value) return false
+  if (allowManualVendorPick.value) return true
+  return !!editId.value && canChangePoVendor.value
+})
+const showRefreshVendorNameBtn = computed(
+  () =>
+    editId.value &&
+    isSysAdmin.value &&
+    !maskPurchaseSensitiveFields.value &&
+    !showVendorPicker.value
 )
 
 const canSubmitPurchaseOrder = computed(() => {
@@ -883,8 +899,15 @@ async function loadOrderForEdit(id: string) {
   formData.value.vendorName = String(o.vendorName ?? '')
   formData.value.vendorEnglishName = String(o.vendorEnglishName ?? o.VendorEnglishName ?? '')
   formData.value.vendorId = String(o.vendorId ?? '')
+  originalVendorId.value = formData.value.vendorId
   formData.value.vendorContactId = String(o.vendorContactId ?? '')
   formData.value.vendorContactName = String((o as { vendorContactName?: string }).vendorContactName ?? '')
+  if (formData.value.vendorId && formData.value.vendorName) {
+    vendorOptions.value = [{ value: formData.value.vendorId, label: formData.value.vendorName }]
+  }
+  if (formData.value.vendorId) {
+    await loadVendorContacts(formData.value.vendorId)
+  }
   formData.value.purchaseUserId = String(o.purchaseUserId ?? '')
   formData.value.purchaseUserName = String(o.purchaseUserName ?? '')
   formData.value.assistor = String(o.assistor ?? '')
@@ -932,6 +955,47 @@ async function loadOrderForEdit(id: string) {
   await resolveBrandIdsForItems(formData.value.items, { silent: true })
 }
 
+function buildVendorChangeConfirmMessage(preview: PurchaseOrderVendorChangePreviewResult) {
+  const lines = [
+    `将把供应商由「${preview.oldVendorName || preview.oldVendorId || '—'}」更换为「${preview.newVendorName || preview.newVendorId}」。`,
+    `同步 ${preview.poItemsToSync} 条采购明细。`
+  ]
+  if (preview.arrivalNoticesToSync > 0) lines.push(`同步 ${preview.arrivalNoticesToSync} 条未到货完成的到货通知。`)
+  if (preview.stockInsToSync > 0) lines.push(`同步 ${preview.stockInsToSync} 张未过账入库单。`)
+  if (preview.paymentsToSync > 0) lines.push(`同步 ${preview.paymentsToSync} 张未完成付款单。`)
+  if (preview.purchaseInvoicesToSync > 0) lines.push(`同步 ${preview.purchaseInvoicesToSync} 张未完成进项发票。`)
+  lines.push('若原供应商联系人不属于新供应商，将自动清空。')
+  return lines.join('\n')
+}
+
+async function confirmVendorChangeIfNeeded(): Promise<boolean> {
+  if (!editId.value || !canChangePoVendor.value) return true
+  const newVid = formData.value.vendorId?.trim()
+  if (!newVid || newVid === originalVendorId.value.trim()) return true
+
+  try {
+    const preview = await purchaseOrderApi.previewVendorChange(editId.value, newVid)
+    if (!preview.canChange) {
+      await ElMessageBox.alert(preview.blockReason || '无法更换供应商', '更换供应商', {
+        confirmButtonText: '知道了',
+        type: 'warning'
+      })
+      return false
+    }
+    if (preview.noOp) return true
+    await ElMessageBox.confirm(buildVendorChangeConfirmMessage(preview), '更换供应商确认', {
+      type: 'warning',
+      confirmButtonText: '确认更换',
+      cancelButtonText: '取消'
+    })
+    return true
+  } catch (e) {
+    if (e === 'cancel') return false
+    ElMessage.error(getApiErrorMessage(e, '预检更换供应商失败'))
+    return false
+  }
+}
+
 const handleSubmit = async () => {
   if (!canSubmitPurchaseOrder.value) {
     ElMessage.warning(
@@ -947,6 +1011,7 @@ const handleSubmit = async () => {
   }
   if (!validateItemsBrand()) return
   if (!validatePoItemsCustomerOrderLinks()) return
+  if (!(await confirmVendorChangeIfNeeded())) return
   await runSaveTask({
     loading: submitLoading,
     successMessage: editId.value ? '采购订单已保存' : '采购订单创建成功',
@@ -954,7 +1019,9 @@ const handleSubmit = async () => {
       const uid = resolveSubmitPurchaseUserId()
       const uname = resolveSubmitPurchaseUserName()
       if (editId.value) {
-        const updateBody = {
+        const newVid = formData.value.vendorId?.trim()
+        const vendorChanged = !!newVid && newVid !== originalVendorId.value.trim()
+        const updateBody: Record<string, unknown> = {
           purchaseUserId: uid,
           purchaseUserName: uname,
           assistor: formData.value.assistor?.trim() || null,
@@ -967,6 +1034,7 @@ const handleSubmit = async () => {
           isPayLater: !!formData.value.isPayLater,
           items: buildItemsPayload()
         }
+        if (vendorChanged) updateBody.vendorId = newVid
         if (import.meta.env.DEV) {
           // eslint-disable-next-line no-console
           console.info('[PurchaseOrderCreate] PUT purchase-orders', editId.value, JSON.parse(JSON.stringify(updateBody)))
@@ -1266,8 +1334,8 @@ onMounted(async () => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 32px;
-  padding: 4px 12px;
+  min-height: 24px;
+  padding: 3px 12px;
   border-radius: 6px;
   border: 1px solid transparent;
   transition: background 0.15s ease, border-color 0.15s ease;
@@ -1275,6 +1343,10 @@ onMounted(async () => {
   &.is-checked {
     background: rgba(234, 179, 8, 0.28);
     border-color: rgba(234, 179, 8, 0.55);
+  }
+
+  :deep(.el-checkbox) {
+    height: 24px;
   }
 }
 

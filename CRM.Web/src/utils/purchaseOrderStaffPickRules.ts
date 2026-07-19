@@ -36,3 +36,16 @@ export function canPickPurchaseOrderStaffFreely(user: {
   const it = user.identityType ?? 0
   return it === 2 || it === 3
 }
+
+/** 采购订单更换供应商：管理员、采购侧总监，或 purchase-order.change-vendor */
+export function canChangePurchaseOrderVendor(user: {
+  isSysAdmin?: boolean
+  identityType?: number
+  roleCodes?: string[]
+  hasPermission?: (code: string) => boolean
+} | null | undefined): boolean {
+  if (!user) return false
+  if (user.isSysAdmin) return true
+  if (user.hasPermission?.('purchase-order.change-vendor')) return true
+  return canPickPurchaseOrderStaffFreely(user)
+}
