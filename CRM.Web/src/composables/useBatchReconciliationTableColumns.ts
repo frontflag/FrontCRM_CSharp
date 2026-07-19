@@ -32,7 +32,8 @@ export function useBatchReconciliationTableColumns() {
     { key: 'stockOutDate', label: t('batchReconciliation.columns.stockOutDate'), prop: 'stockOutDate', width: 110 },
     { key: 'outQty', label: t('batchReconciliation.columns.outQty'), prop: 'outQty', width: 112, minWidth: 108, align: 'right' },
     { key: 'totalOutQty', label: t('batchReconciliation.columns.totalOutQty'), prop: 'totalOutQty', width: 130, minWidth: 120, align: 'right' },
-    { key: 'remainingQty', label: t('batchReconciliation.columns.remainingQty'), prop: 'remainingQty', width: 112, minWidth: 108, align: 'right' }
+    { key: 'remainingQty', label: t('batchReconciliation.columns.remainingQty'), prop: 'remainingQty', width: 112, minWidth: 108, align: 'right' },
+    { key: 'batchRemark', label: t('batchReconciliation.columns.batchRemark'), prop: 'batchRemark', minWidth: 140, showOverflowTooltip: true }
   ])
 
   return { tableColumns }

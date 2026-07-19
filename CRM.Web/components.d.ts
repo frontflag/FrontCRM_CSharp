@@ -161,6 +161,7 @@ declare module 'vue' {
     SalesUserCascader: typeof import('./src/components/SalesUserCascader.vue')['default']
     SellOrderItemPackingTabTable: typeof import('./src/components/RFQ/SellOrderItemPackingTabTable.vue')['default']
     SellOrderItemPerformancePanel: typeof import('./src/components/RFQ/SellOrderItemPerformancePanel.vue')['default']
+    SellOrderItemQcTabTable: typeof import('./src/components/RFQ/SellOrderItemQcTabTable.vue')['default']
     SellOrderItemStockInTabTable: typeof import('./src/components/RFQ/SellOrderItemStockInTabTable.vue')['default']
     SellOrderItemStockOutNotifyTabTable: typeof import('./src/components/RFQ/SellOrderItemStockOutNotifyTabTable.vue')['default']
     SellOrderItemStockOutTabTable: typeof import('./src/components/RFQ/SellOrderItemStockOutTabTable.vue')['default']

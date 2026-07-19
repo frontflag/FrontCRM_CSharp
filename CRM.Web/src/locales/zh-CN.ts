@@ -5810,6 +5810,9 @@ const zhCN = {
   sellOrderItemStockInTab: {
     empty: '暂无入库单'
   },
+  sellOrderItemQcTab: {
+    empty: '暂无质检单'
+  },
   purchaseOrderItemStockInTab: {
     empty: '暂无入库单'
   },
@@ -6010,6 +6013,7 @@ const zhCN = {
       lot: 'LOT',
       serialNumber: 'SN',
       partCode: 'PARTCODE',
+      batchRemark: '备注',
       packingCode: '装箱单号',
       customerName: '客户',
       stockOutDate: '出库日期',

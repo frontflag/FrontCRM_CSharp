@@ -105,6 +105,9 @@ namespace CRM.Core.Interfaces
         public string? FreightForwarderOrderNo { get; set; }
         public string? SalesOrderCode { get; set; }
 
+        /// <summary>按销售订单明细主键精确筛选（销售明细详情面板等）。</summary>
+        public List<string>? SellOrderItemIds { get; set; }
+
         /// <summary>到货类型（<see cref="StockInTypeCode"/>：10 采购 / 20 报关 / 30 退货 / 40 报废）。</summary>
         public short? StockInType { get; set; }
 

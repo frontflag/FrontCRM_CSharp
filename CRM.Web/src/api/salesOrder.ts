@@ -88,6 +88,7 @@ export interface SalesOrderDeletedItemRow {
   deletedByUserName?: string | null
 }
 
+import type { QcInfoDto } from './logistics'
 import type { PackingListItem } from './packing'
 import type { StockInListItemDto } from './stockIn'
 import type { StockOutDto, StockOutRequestDto } from './stockOut'
@@ -164,6 +165,7 @@ export interface SalesOrderDetailTabAggregates {
     purchaseUserName?: string | null
     createTime: string
   }>
+  qcs: QcInfoDto[]
   stockIns: StockInListItemDto[]
   stockItems: Array<{
     id: string
@@ -347,6 +349,7 @@ export interface SellOrderLineOverview {
 /** 销售订单明细详情 / 参考面板「库存」Tab 行 */
 export type SellOrderItemStockTabRow = SalesOrderDetailTabAggregates['stockItems'][number]
 export type SellOrderItemStockInTabRow = SalesOrderDetailTabAggregates['stockIns'][number]
+export type SellOrderItemQcTabRow = SalesOrderDetailTabAggregates['qcs'][number]
 export type SellOrderItemPackingTabRow = SalesOrderDetailTabAggregates['packings'][number]
 export type SellOrderItemStockOutNotifyTabRow = SalesOrderDetailTabAggregates['stockOutRequests'][number]
 export type SellOrderItemStockOutTabRow = SalesOrderDetailTabAggregates['stockOuts'][number]

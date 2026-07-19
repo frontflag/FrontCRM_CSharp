@@ -45,7 +45,7 @@
         <div class="detail-items-table-wrap">
           <CrmDataTable
             ref="listTableRef"
-            column-layout-key="stock-in-detail-batch-panel-v1"
+            column-layout-key="stock-in-detail-batch-panel-v3"
             :columns="listTableColumns"
             :show-column-settings="false"
             :show-row-density-toggle="false"

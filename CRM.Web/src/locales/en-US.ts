@@ -5827,6 +5827,9 @@ const enUS = {
   sellOrderItemStockInTab: {
     empty: 'No stock-in orders'
   },
+  sellOrderItemQcTab: {
+    empty: 'No QC records'
+  },
   purchaseOrderItemStockInTab: {
     empty: 'No stock-in orders'
   },
@@ -6023,6 +6026,7 @@ const enUS = {
       lot: 'LOT',
       serialNumber: 'SN',
       partCode: 'PARTCODE',
+      batchRemark: 'Remark',
       packingCode: 'Packing code',
       customerName: 'Customer',
       stockOutDate: 'Stock-out date',

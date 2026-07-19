@@ -14,6 +14,7 @@ using CRM.API.Models.DTOs;
 using CRM.API.Services;
 using CRM.API.Services.Interfaces;
 using CRM.Infrastructure.Data;
+using CRM.Infrastructure.Logistics;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -40,6 +41,7 @@ namespace CRM.API.Controllers
         private readonly IPackingService _packingService;
         private readonly IStockOutService _stockOutService;
         private readonly IStockInService _stockInService;
+        private readonly ILogisticsService _logisticsService;
         private readonly ISalesOrderCustomerDownstreamSyncService _customerDownstreamSyncService;
         private readonly ApplicationDbContext _db;
         private readonly ILogger<SalesOrdersController> _logger;
@@ -58,6 +60,7 @@ namespace CRM.API.Controllers
             IPackingService packingService,
             IStockOutService stockOutService,
             IStockInService stockInService,
+            ILogisticsService logisticsService,
             ISalesOrderCustomerDownstreamSyncService customerDownstreamSyncService,
             ApplicationDbContext db,
             ILogger<SalesOrdersController> logger)
@@ -75,6 +78,7 @@ namespace CRM.API.Controllers
             _packingService = packingService;
             _stockOutService = stockOutService;
             _stockInService = stockInService;
+            _logisticsService = logisticsService;
             _customerDownstreamSyncService = customerDownstreamSyncService;
             _db = db;
             _logger = logger;
@@ -671,6 +675,7 @@ namespace CRM.API.Controllers
                 .ToListAsync();
 
             var stockInRows = await BuildSellOrderTabStockInsAsync(itemIds, mask511);
+            var qcRows = await BuildSellOrderTabQcsAsync(itemIds, mask511, currentUserId);
 
             List<object> stockItemRows;
             if (itemIds.Count == 0)
@@ -1051,6 +1056,7 @@ namespace CRM.API.Controllers
                 quotes = quoteRows,
                 purchaseRequisitions = prRows,
                 purchaseOrderItems = purchaseOrderItemRows,
+                qcs = qcRows,
                 stockIns = stockInRows,
                 stockItems = stockItemRows,
                 packings = packingRows,
@@ -1123,6 +1129,30 @@ namespace CRM.API.Controllers
                 customsDeclarationId = d.CustomsDeclarationId,
                 customsDeclarationCode = d.CustomsDeclarationCode
             }).ToList();
+        }
+
+        /// <summary>
+        /// 销售明细下游「质检」：按销售明细关联到货通知 / 采购明细 / 质检明细反查，字段与质检列表（<see cref="QCInfo"/>）一致。
+        /// </summary>
+        private async Task<List<object>> BuildSellOrderTabQcsAsync(
+            IReadOnlyList<string> itemIds,
+            bool mask511,
+            string? currentUserId)
+        {
+            if (itemIds.Count == 0)
+                return new List<object>();
+
+            var request = new QcQueryRequest
+            {
+                SellOrderItemIds = itemIds.ToList(),
+                CurrentUserId = currentUserId
+            };
+            var paged = await _logisticsService.GetQcsPagedAsync(1, QcListQuery.MaxPageSize, request);
+            var items = paged.Items.ToList();
+            if (mask511)
+                PurchaseSensitiveFieldMask511.ApplyQcInfos(items, true);
+
+            return items.Select(q => (object)q).ToList();
         }
 
         /// <summary>

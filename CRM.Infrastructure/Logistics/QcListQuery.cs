@@ -98,6 +98,40 @@ public sealed class QcListQuery : IQcListQuery
                                     so.SellOrderCode.ToLower().Contains(k))))));
             }
 
+            if (request.SellOrderItemIds is { Count: > 0 })
+            {
+                var itemIds = request.SellOrderItemIds
+                    .Select(id => id.Trim())
+                    .Where(id => id.Length > 0)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                if (itemIds.Count > 0)
+                {
+                    qcQuery = qcQuery.Where(q =>
+                        _db.StockInNotifies.Any(n =>
+                            n.Id == q.StockInNotifyId &&
+                            !n.IsDeleted &&
+                            n.SellOrderItemId != null &&
+                            itemIds.Contains(n.SellOrderItemId)) ||
+                        _db.QCItems.Any(qi =>
+                            qi.QcInfoId == q.Id &&
+                            !qi.IsDeleted &&
+                            _db.StockInNotifies.Any(n2 =>
+                                n2.Id == qi.ArrivalStockInNotifyId &&
+                                !n2.IsDeleted &&
+                                n2.SellOrderItemId != null &&
+                                itemIds.Contains(n2.SellOrderItemId))) ||
+                        _db.StockInNotifies.Any(n =>
+                            n.Id == q.StockInNotifyId &&
+                            !n.IsDeleted &&
+                            n.PurchaseOrderItemId != null &&
+                            _db.PurchaseOrderItems.Any(poi =>
+                                poi.Id == n.PurchaseOrderItemId &&
+                                poi.SellOrderItemId != null &&
+                                itemIds.Contains(poi.SellOrderItemId))));
+                }
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Model))
             {
                 var k = request.Model.Trim().ToLowerInvariant();

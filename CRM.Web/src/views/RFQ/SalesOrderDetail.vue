@@ -621,6 +621,12 @@
               <button type="button" class="tab-btn" :class="{ 'tab-btn--active': soItemLinePanel.activeTab === 'po' }" @click="soItemLinePanel.activeTab = 'po'">
                 {{ formatSoItemLineTabLabel('采购订单明细', 'po') }}
               </button>
+              <button type="button" class="tab-btn" :class="{ 'tab-btn--active': soItemLinePanel.activeTab === 'qc' }" @click="soItemLinePanel.activeTab = 'qc'">
+                {{ formatSoItemLineTabLabel('质检', 'qc') }}
+              </button>
+              <button type="button" class="tab-btn" :class="{ 'tab-btn--active': soItemLinePanel.activeTab === 'qcImages' }" @click="soItemLinePanel.activeTab = 'qcImages'">
+                {{ formatSoItemLineTabLabel(t('salesOrderDetailView.tabs.qcImages'), 'qcImages') }}
+              </button>
               <button type="button" class="tab-btn" :class="{ 'tab-btn--active': soItemLinePanel.activeTab === 'stockIn' }" @click="soItemLinePanel.activeTab = 'stockIn'">
                 {{ formatSoItemLineTabLabel('入库', 'stockIn') }}
               </button>
@@ -641,9 +647,6 @@
               </button>
               <button type="button" class="tab-btn" :class="{ 'tab-btn--active': soItemLinePanel.activeTab === 'sellInvoice' }" @click="soItemLinePanel.activeTab = 'sellInvoice'">
                 {{ formatSoItemLineTabLabel('销项发票', 'sellInvoice') }}
-              </button>
-              <button type="button" class="tab-btn" :class="{ 'tab-btn--active': soItemLinePanel.activeTab === 'qcImages' }" @click="soItemLinePanel.activeTab = 'qcImages'">
-                {{ formatSoItemLineTabLabel(t('salesOrderDetailView.tabs.qcImages'), 'qcImages') }}
               </button>
             </div>
             <div class="tabs-body">
@@ -883,6 +886,15 @@
                 </el-table>
                 <DetailListPanelEmpty v-else size="low" />
               </div>
+              <div v-show="soItemLinePanel.activeTab === 'qc'" class="so-aggregate-table-wrap">
+                <SellOrderItemQcTabTable :items="lineTabAggregates?.qcs ?? []" />
+              </div>
+              <div v-show="soItemLinePanel.activeTab === 'qcImages'" class="so-aggregate-table-wrap so-qc-images-wrap">
+                <QcImagesReadonlyGallery
+                  :images="lineTabAggregates?.qcImages ?? []"
+                  :empty-text="t('salesOrderDetailView.emptyQcImages')"
+                />
+              </div>
               <div v-show="soItemLinePanel.activeTab === 'stockIn'" class="so-aggregate-table-wrap">
                 <SellOrderItemStockInTabTable :items="lineTabAggregates?.stockIns ?? []" />
               </div>
@@ -1048,12 +1060,6 @@
                   </el-table-column>
                 </el-table>
                 <DetailListPanelEmpty v-else size="low" />
-              </div>
-              <div v-show="soItemLinePanel.activeTab === 'qcImages'" class="so-aggregate-table-wrap so-qc-images-wrap">
-                <QcImagesReadonlyGallery
-                  :images="lineTabAggregates?.qcImages ?? []"
-                  :empty-text="t('salesOrderDetailView.emptyQcImages')"
-                />
               </div>
             </div>
           </div>
@@ -1227,6 +1233,7 @@ import { useSaleOrderWriteGate } from '@/composables/useDepartmentDataReadOnly'
 import ApplyStockOutDisabledHint from '@/components/RFQ/ApplyStockOutDisabledHint.vue'
 import DetailListPanelEmpty from '@/components/Common/DetailListPanelEmpty.vue'
 import SellOrderItemStockInTabTable from '@/components/RFQ/SellOrderItemStockInTabTable.vue'
+import SellOrderItemQcTabTable from '@/components/RFQ/SellOrderItemQcTabTable.vue'
 import SellOrderItemPackingTabTable from '@/components/RFQ/SellOrderItemPackingTabTable.vue'
 import SellOrderItemStockOutNotifyTabTable from '@/components/RFQ/SellOrderItemStockOutNotifyTabTable.vue'
 import SellOrderItemStockOutTabTable from '@/components/RFQ/SellOrderItemStockOutTabTable.vue'
@@ -1669,6 +1676,8 @@ type SoItemLineTabKey =
   | 'quotes'
   | 'pr'
   | 'po'
+  | 'qc'
+  | 'qcImages'
   | 'stockIn'
   | 'stock'
   | 'outNotify'
@@ -1676,7 +1685,6 @@ type SoItemLineTabKey =
   | 'stockOut'
   | 'receipt'
   | 'sellInvoice'
-  | 'qcImages'
 
 function soItemLineTabRecordCount(tab: SoItemLineTabKey): number {
   const agg = lineTabAggregates.value
@@ -1692,6 +1700,10 @@ function soItemLineTabRecordCount(tab: SoItemLineTabKey): number {
       return agg.purchaseRequisitions?.length ?? 0
     case 'po':
       return agg.purchaseOrderItems?.length ?? 0
+    case 'qc':
+      return agg.qcs?.length ?? 0
+    case 'qcImages':
+      return agg.qcImages?.length ?? 0
     case 'stockIn':
       return agg.stockIns?.length ?? 0
     case 'stock':
@@ -1706,8 +1718,6 @@ function soItemLineTabRecordCount(tab: SoItemLineTabKey): number {
       return agg.receiptWriteOffs?.length ?? 0
     case 'sellInvoice':
       return agg.sellInvoices?.length ?? 0
-    case 'qcImages':
-      return agg.qcImages?.length ?? 0
     default:
       return 0
   }
