@@ -78,6 +78,7 @@ public sealed class MemoryRfqItemListQuery : IRfqItemListQuery
                 continue;
 
             users.TryGetValue(rfq.SalesUserId ?? "", out var salesUser);
+            users.TryGetValue(rfq.CreateByUserId ?? "", out var createUser);
             users.TryGetValue(item.AssignedPurchaserUserId1 ?? "", out var pu1);
             users.TryGetValue(item.AssignedPurchaserUserId2 ?? "", out var pu2);
             var customerName = rfq.CustomerId != null && customers.TryGetValue(rfq.CustomerId, out var cn)
@@ -106,6 +107,8 @@ public sealed class MemoryRfqItemListQuery : IRfqItemListQuery
                 CustomerName = customerName,
                 SalesUserId = rfq.SalesUserId,
                 SalesUserName = EntityLookupService.FormatUserLoginName(salesUser),
+                CreateByUserId = rfq.CreateByUserId,
+                CreateUserName = EntityLookupService.FormatUserLoginName(createUser),
                 AssignedPurchaserUserId1 = item.AssignedPurchaserUserId1,
                 AssignedPurchaserUserId2 = item.AssignedPurchaserUserId2,
                 AssignedPurchaserName1 = EntityLookupService.FormatUserLoginName(pu1),

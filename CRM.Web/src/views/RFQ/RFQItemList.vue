@@ -287,8 +287,8 @@
         <template #col-createUser="{ row }">
           {{
             row.createUserName ||
+              row.CreateUserName ||
               row.createdBy ||
-              (!maskSaleSensitiveFields ? row.salesUserName : '') ||
               '—'
           }}
         </template>

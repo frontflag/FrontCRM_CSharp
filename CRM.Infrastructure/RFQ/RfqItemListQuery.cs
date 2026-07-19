@@ -69,6 +69,17 @@ public sealed partial class RfqItemListQuery : IRfqItemListQuery
             .Where(u => puIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, u => u, StringComparer.OrdinalIgnoreCase, cancellationToken);
 
+        var createByIds = slice
+            .Select(x => x.Rfq.CreateByUserId)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Distinct()
+            .ToList();
+        var createUsers = createByIds.Count == 0
+            ? new Dictionary<string, User>(StringComparer.OrdinalIgnoreCase)
+            : await _db.Users.AsNoTracking()
+                .Where(u => createByIds.Contains(u.Id))
+                .ToDictionaryAsync(u => u.Id, u => u, StringComparer.OrdinalIgnoreCase, cancellationToken);
+
         var rows = new List<RFQItemListItem>(slice.Count);
         foreach (var x in slice)
         {
@@ -82,6 +93,7 @@ public sealed partial class RfqItemListQuery : IRfqItemListQuery
 
             puUsers.TryGetValue(x.Item.AssignedPurchaserUserId1 ?? "", out var pu1);
             puUsers.TryGetValue(x.Item.AssignedPurchaserUserId2 ?? "", out var pu2);
+            createUsers.TryGetValue(x.Rfq.CreateByUserId ?? "", out var createUser);
 
             rows.Add(new RFQItemListItem
             {
@@ -101,6 +113,8 @@ public sealed partial class RfqItemListQuery : IRfqItemListQuery
                 CustomerName = string.IsNullOrWhiteSpace(customerName) ? null : customerName,
                 SalesUserId = x.Rfq.SalesUserId,
                 SalesUserName = EntityLookupService.FormatUserLoginName(x.SalesUser),
+                CreateByUserId = x.Rfq.CreateByUserId,
+                CreateUserName = EntityLookupService.FormatUserLoginName(createUser),
                 AssignedPurchaserUserId1 = x.Item.AssignedPurchaserUserId1,
                 AssignedPurchaserUserId2 = x.Item.AssignedPurchaserUserId2,
                 AssignedPurchaserName1 = EntityLookupService.FormatUserLoginName(pu1),

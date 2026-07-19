@@ -156,6 +156,12 @@ export interface RFQItem {
   rfqCode?: string
   rfqCreateTime?: string
   customerName?: string
+  /** 主表业务员（列表展示） */
+  salesUserId?: string
+  salesUserName?: string
+  /** 主表创建人（列表展示） */
+  createByUserId?: string
+  createUserName?: string
 
   // 物料信息
   customerMaterialModel?: string     // 客户物料型号

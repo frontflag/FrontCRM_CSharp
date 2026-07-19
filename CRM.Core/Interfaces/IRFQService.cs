@@ -260,6 +260,10 @@ namespace CRM.Core.Interfaces
         public string? SalesUserId { get; set; }
         /// <summary>业务员登录账号（明细分页列表）</summary>
         public string? SalesUserName { get; set; }
+        /// <summary>创建人用户 ID（主表 create_by_user_id）</summary>
+        public string? CreateByUserId { get; set; }
+        /// <summary>创建人登录账号（列表组装；前端 createUserName）</summary>
+        public string? CreateUserName { get; set; }
 
         /// <summary>轮询分配的询价采购员1</summary>
         public string? AssignedPurchaserUserId1 { get; set; }
