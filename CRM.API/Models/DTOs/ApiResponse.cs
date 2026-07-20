@@ -7,6 +7,9 @@ namespace CRM.API.Models.DTOs
         public T? Data { get; set; }
         public int ErrorCode { get; set; }
 
+        /// <summary>系统错误编号，如 E-123；与 sys_error_log 对应。</summary>
+        public string? ErrorId { get; set; }
+
         public static ApiResponse<T> Ok(T? data, string message = "操作成功")
         {
             return new ApiResponse<T>
@@ -18,13 +21,14 @@ namespace CRM.API.Models.DTOs
             };
         }
 
-        public static ApiResponse<T> Fail(string message, int errorCode = 1)
+        public static ApiResponse<T> Fail(string message, int errorCode = 1, string? errorId = null)
         {
             return new ApiResponse<T>
             {
                 Success = false,
                 Message = message,
-                ErrorCode = errorCode
+                ErrorCode = errorCode,
+                ErrorId = errorId
             };
         }
     }

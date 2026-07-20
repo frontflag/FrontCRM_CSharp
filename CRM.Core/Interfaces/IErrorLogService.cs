@@ -8,9 +8,9 @@ namespace CRM.Core.Interfaces
     public interface IErrorLogService
     {
         /// <summary>
-        /// 记录错误日志
+        /// 记录错误日志。成功返回日志 Id；写入失败返回 null（不抛异常）。
         /// </summary>
-        Task LogAsync(
+        Task<long?> LogAsync(
             string moduleName,
             string errorMessage,
             Exception? exception = null,
@@ -32,8 +32,11 @@ namespace CRM.Core.Interfaces
             string? moduleName = null,
             string? keyword = null,
             DateTime? startDate = null,
-            DateTime? endDate = null
+            DateTime? endDate = null,
+            string? status = null
         );
+
+        Task<SysErrorLog?> GetByIdAsync(long id);
 
         /// <summary>
         /// 标记错误为已处理

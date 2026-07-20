@@ -22,6 +22,7 @@ using Microsoft.Extensions.DependencyInjection;
 using CRM.Infrastructure.Repositories;
 using CRM.Infrastructure.Services;
 using CRM.Infrastructure.Ai;
+using CRM.Infrastructure.AiAssistant;
 using CRM.Infrastructure.RfqAssignment;
 
 namespace CRM.Infrastructure.Extensions
@@ -30,11 +31,14 @@ namespace CRM.Infrastructure.Extensions
     {
         public static IServiceCollection AddInfrastructure(this IServiceCollection services, string connectionString)
         {
+            services.AddSingleton<PersistenceFailureErrorLogInterceptor>();
+
             // 使用 PostgreSQL 数据库
-            services.AddDbContext<ApplicationDbContext>(options =>
+            services.AddDbContext<ApplicationDbContext>((sp, options) =>
             {
                 options.UseNpgsql(connectionString);
                 options.AddInterceptors(StockItemStockOutStatusMaterializationInterceptor.Instance);
+                options.AddInterceptors(sp.GetRequiredService<PersistenceFailureErrorLogInterceptor>());
                 // 开发场景：数据库可能已经手动创建/对齐，但 EF 迁移快照与模型暂时不完全一致
                 // PendingModelChangesWarning 会导致 Program.cs 里的 Database.Migrate() 直接抛异常终止进程。
                 // 这里先忽略该警告，确保服务能正常启动进行业务验证。
@@ -94,6 +98,7 @@ namespace CRM.Infrastructure.Extensions
             services.AddScoped<IStockExtendLineSeqService, StockExtendLineSeqService>();
             services.AddScoped<IPackingItemLineSeqService, PackingItemLineSeqService>();
             services.AddScoped<IErrorLogService, ErrorLogService>();
+            services.AddScoped<ITelemetryService, TelemetryService>();
 
             // 注册物料数据服务（当前使用 Mock 实现，待 Nexar API 就绪后替换为 NexarComponentDataService）
             // 替换方式：将下面一行改为 services.AddScoped<IComponentDataService, NexarComponentDataService>();
@@ -106,6 +111,8 @@ namespace CRM.Infrastructure.Extensions
             services.AddScoped<IAiOrchestrator, AiOrchestrator>();
             services.AddScoped<IAiAdminService, AiAdminService>();
             services.AddScoped<IAiEntityParseLogService, AiEntityParseLogService>();
+            services.AddScoped<IAiAssistantService, AiAssistantService>();
+            services.AddScoped<IUserFeedbackAdminService, UserFeedbackAdminService>();
             services.AddScoped<IRfqMpnPurchaserAffinityLookup, RfqMpnPurchaserAffinityLookup>();
 
             return services;

@@ -7,6 +7,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AiAssistantDrawer: typeof import('./src/components/AiAssistant/AiAssistantDrawer.vue')['default']
     AiBusinessCardConfirmDialog: typeof import('./src/components/AiCreate/AiBusinessCardConfirmDialog.vue')['default']
     AiBusinessCardCreateHost: typeof import('./src/components/AiCreate/AiBusinessCardCreateHost.vue')['default']
     AiBusinessCardUploadDialog: typeof import('./src/components/AiCreate/AiBusinessCardUploadDialog.vue')['default']

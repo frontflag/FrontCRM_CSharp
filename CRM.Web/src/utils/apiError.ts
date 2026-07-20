@@ -45,7 +45,17 @@ export function getApiErrorMessage(error: unknown, fallback = '操作失败，�
 
   if (data && typeof data === 'object') {
     const d = data as Record<string, unknown>
-    if (typeof d.message === 'string' && d.message.trim()) return sanitizeUserFacingMessage(d.message)
+    const errorId =
+      (typeof d.errorId === 'string' && d.errorId.trim()) ||
+      (typeof d.ErrorId === 'string' && d.ErrorId.trim()) ||
+      ''
+    if (typeof d.message === 'string' && d.message.trim()) {
+      const msg = sanitizeUserFacingMessage(d.message)
+      if (errorId && !msg.includes(errorId) && !msg.includes('错误编号')) {
+        return `${msg}（错误编号 ${errorId}）`
+      }
+      return msg
+    }
 
     const errors = d.errors
     if (errors && typeof errors === 'object') {

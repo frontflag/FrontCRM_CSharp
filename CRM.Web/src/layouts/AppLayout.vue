@@ -66,6 +66,20 @@
             </span>
           </a>
           <button
+            v-if="hasPermission('biz.feedback.submit')"
+            type="button"
+            class="global-notify-btn"
+            :title="t('layout.aiAssistant')"
+            :aria-label="t('layout.aiAssistant')"
+            @click="aiAssistantOpen = true"
+          >
+            <span class="global-notify-icon-wrap" aria-hidden="true">
+              <el-icon :size="20">
+                <ChatDotRound />
+              </el-icon>
+            </span>
+          </button>
+          <button
             type="button"
             class="global-notify-btn"
             :title="t('layout.notifications')"
@@ -866,6 +880,71 @@
           </router-link>
         </SidebarMenuTooltipWrap>
 
+        <!-- 运维 -->
+        <div
+          class="menu-section-label"
+          v-if="!isCollapsed && (hasPermission('biz.feedback.admin') || hasPermission('sys.errorlog.read') || hasPermission('biz.telemetry.analytics'))"
+        >{{ t('layout.sections.ops') }}</div>
+        <SidebarMenuGroupFlyout
+          v-if="hasPermission('biz.feedback.admin') || hasPermission('sys.errorlog.read') || hasPermission('biz.telemetry.analytics')"
+          :collapsed="isCollapsed"
+          :expanded="openGroups.ops"
+          @toggle="toggleGroup('ops')"
+        >
+          <template #icon>
+            <span class="menu-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+            </span>
+          </template>
+          <template #label>
+            <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.ops') }}</span>
+          </template>
+          <template #chevron>
+            <svg
+              v-if="!isCollapsed"
+              class="chevron"
+              :class="{ rotated: openGroups.ops }"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </template>
+          <template #submenu>
+            <router-link
+              v-if="hasPermission('biz.feedback.admin')"
+              to="/ops/user-feedback"
+              class="submenu-item"
+              active-class="active"
+              data-track="menu.ops.user_feedback"
+            >
+              {{ t('layout.menu.userFeedback') }}
+            </router-link>
+            <router-link
+              v-if="hasPermission('sys.errorlog.read')"
+              to="/ops/system-errors"
+              class="submenu-item"
+              active-class="active"
+              data-track="menu.ops.system_errors"
+            >
+              {{ t('layout.menu.systemErrors') }}
+            </router-link>
+            <router-link
+              v-if="hasPermission('biz.telemetry.analytics')"
+              to="/ops/telemetry-analytics"
+              class="submenu-item"
+              active-class="active"
+              data-track="menu.ops.telemetry_analytics"
+            >
+              {{ t('layout.menu.telemetryAnalytics') }}
+            </router-link>
+          </template>
+        </SidebarMenuGroupFlyout>
+
         <!-- 组织管理（可展开菜单组） -->
         <div class="menu-section-label" v-if="!isCollapsed">{{ t('layout.sections.systemManagement') }}</div>
         <SidebarMenuGroupFlyout
@@ -1401,6 +1480,7 @@
     </div>
     <!-- /.app-layout-body -->
     <CrmImageBrowser />
+    <AiAssistantDrawer v-model="aiAssistantOpen" />
   </div>
 </template>
 
@@ -1438,6 +1518,7 @@ import PurchaseOrderFavoritePanel from '@/components/purchaseOrder/PurchaseOrder
 import PurchaseOrderRecentHistoryPanel from '@/components/purchaseOrder/PurchaseOrderRecentHistoryPanel.vue'
 import HelpManualPanel from '@/components/workspace/HelpManualPanel.vue'
 import CrmImageBrowser from '@/components/Common/CrmImageBrowser.vue'
+import AiAssistantDrawer from '@/components/AiAssistant/AiAssistantDrawer.vue'
 import { useImageBrowserStore } from '@/stores/imageBrowser'
 import SalesOrderItemOpsPanel from '@/components/RFQ/SalesOrderItemOpsPanel.vue'
 import RfqItemMaterialPanel from '@/components/RFQ/RfqItemMaterialPanel.vue'
@@ -1461,7 +1542,7 @@ import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiv
 import { useSaleOrderWriteGate, useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { getExternalHelpUrl } from '@/utils/externalHelpUrl'
-import { Sunny, Moon } from '@element-plus/icons-vue'
+import { Sunny, Moon, ChatDotRound } from '@element-plus/icons-vue'
 import { useUiTheme } from '@/composables/useUiTheme'
 import { setAppLocale, type AppLocale } from '@/plugins/i18n'
 import { COMPANY_LOGIN_LOGO_URL } from '@/api/companyProfile'
@@ -2027,6 +2108,7 @@ const openGroups = ref({
   financePayments: false,
   financeReceipts: false,
   financeInventoryReports: false,
+  ops: false,
   systemManagement: false,
   paramManagement: false,
   systemLogs: false
@@ -2049,6 +2131,7 @@ const expandAllGroups = () => {
     financePayments: true,
     financeReceipts: true,
     financeInventoryReports: true,
+    ops: true,
     systemManagement: true,
     paramManagement: true,
     systemLogs: true
@@ -2058,11 +2141,13 @@ const expandAllGroups = () => {
 const toggleCollapse = () => {
   cycleSidebarMode()
   if (sidebarMode.value === 'narrow') {
-    openGroups.value = { purchase: false, sales: false, inventory: false, stockInManagement: false, customs: false, stockOutManagement: false, customers: false, vendors: false, rfqs: false, quotes: false, finance: false, financePayments: false, financeReceipts: false, financeInventoryReports: false, systemManagement: false, paramManagement: false, systemLogs: false }
+    openGroups.value = { purchase: false, sales: false, inventory: false, stockInManagement: false, customs: false, stockOutManagement: false, customers: false, vendors: false, rfqs: false, quotes: false, finance: false, financePayments: false, financeReceipts: false, financeInventoryReports: false, ops: false, systemManagement: false, paramManagement: false, systemLogs: false }
   } else if (sidebarMode.value === 'full' && isSysAdmin.value) {
     expandAllGroups()
   }
 }
+
+const aiAssistantOpen = ref(false)
 
 const toggleGroup = (group: keyof typeof openGroups.value) => {
   openGroups.value[group] = !openGroups.value[group]
@@ -2102,6 +2187,9 @@ const pageTitleMap: Record<string, string> = {
   '/system/company-info': 'layout.menu.companyInfo',
   '/system/dict-items': 'layout.menu.dictItems',
   '/system/ai-config': 'layout.menu.aiConfig',
+  '/ops/user-feedback': 'layout.menu.userFeedback',
+  '/ops/system-errors': 'layout.menu.systemErrors',
+  '/ops/telemetry-analytics': 'layout.menu.telemetryAnalytics',
   '/system/finance-params/exchange-rates': 'layout.menu.financeParams',
   '/system/finance-params/purchase-cost-params': 'financeParams.purchaseCostParamsNav',
   '/system/finance-params/payment-banks': 'financeParams.paymentBanksNav',
@@ -2467,6 +2555,9 @@ watch(
       p.startsWith('/inventory/picking-list/')
     ) {
       openGroups.value.stockOutManagement = true
+    }
+    if (p.startsWith('/ops/')) {
+      openGroups.value.ops = true
     }
     if (p.startsWith('/system/')) {
       openGroups.value.systemManagement = true
@@ -3063,7 +3154,8 @@ onBeforeUnmount(() => {
   }
 }
 
-.global-help-icon-wrap {
+.global-help-icon-wrap,
+.global-notify-icon-wrap {
   display: flex;
   align-items: center;
   justify-content: center;

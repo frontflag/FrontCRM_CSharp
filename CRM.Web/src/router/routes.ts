@@ -929,6 +929,24 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/System/AiConfigPage.vue'),
         meta: { requiresAuth: true, title: 'AI 配置', permission: 'biz.ai.admin' }
       },
+      {
+        path: 'ops/user-feedback',
+        name: 'UserFeedbackList',
+        component: () => import('@/views/Ops/UserFeedbackList.vue'),
+        meta: { requiresAuth: true, title: '用户反馈', permission: 'biz.feedback.admin' }
+      },
+      {
+        path: 'ops/system-errors',
+        name: 'SystemErrorList',
+        component: () => import('@/views/Ops/SystemErrorList.vue'),
+        meta: { requiresAuth: true, title: '系统错误', permission: 'sys.errorlog.read' }
+      },
+      {
+        path: 'ops/telemetry-analytics',
+        name: 'TelemetryAnalytics',
+        component: () => import('@/views/Ops/TelemetryAnalyticsPage.vue'),
+        meta: { requiresAuth: true, title: '埋点分析', permission: 'biz.telemetry.analytics' }
+      },
       // 财务模块（meta.permission 与 RbacService 按主部门剥离一致，防止直链 URL）
       {
         path: 'finance/payments',

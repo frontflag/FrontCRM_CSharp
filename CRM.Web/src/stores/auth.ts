@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { authApi, type LoginRequest, type RegisterRequest } from '@/api'
 import { getSimulationBanner, type SimulationBanner } from '@/api/debug'
 import { normalizeAuthUserId } from '@/utils/authUserId'
+import { onTelemetryLogin, onTelemetryLogout } from '@/telemetry/index'
 
 interface User {
   id: string
@@ -140,6 +141,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
     localStorage.setItem('user', JSON.stringify(user.value))
     await loadSimulationBanner()
+    onTelemetryLogin()
     return true
   }
 
@@ -226,6 +228,7 @@ export const useAuthStore = defineStore('auth', () => {
     const prevId = (user.value?.id || '').trim()
     if (prevId) removeWorkspaceTabStorageForUser(prevId)
     removeBrokenGlobalWorkspaceTabKeys()
+    onTelemetryLogout()
     token.value = null
     user.value = null
     simulationBanner.value = emptySimulationBanner()

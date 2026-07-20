@@ -264,6 +264,8 @@ namespace CRM.API.Extensions
                 });
             });
 
+            services.AddHostedService<CRM.API.Services.TelemetryCleanupHostedService>();
+
             return services;
         }
     }

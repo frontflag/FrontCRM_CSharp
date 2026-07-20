@@ -1,6 +1,7 @@
 import axios from 'axios'
-import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
+import type { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { trackApiTelemetry } from '@/telemetry/apiTiming'
 
 const API_BASE_URL = ''  // 使用相对路径，走Vite代理
 
@@ -31,10 +32,13 @@ class ApiClient {
   private setupInterceptors(): void {
     // Request interceptor
     this.instance.interceptors.request.use(
-      (config) => {
+      (config: InternalAxiosRequestConfig) => {
         const token = localStorage.getItem('token')
         if (token) {
           config.headers.Authorization = `Bearer ${token}`
+        }
+        ;(config as InternalAxiosRequestConfig & { metadata?: { start: number } }).metadata = {
+          start: Date.now()
         }
         return config
       },
@@ -42,6 +46,30 @@ class ApiClient {
         return Promise.reject(error)
       }
     )
+
+    const reportTiming = (
+      config: InternalAxiosRequestConfig | undefined,
+      status: number,
+      errorId?: string | null,
+      message?: string | null
+    ) => {
+      try {
+        const start = (config as InternalAxiosRequestConfig & { metadata?: { start: number } })?.metadata
+          ?.start
+        const durationMs = start != null ? Date.now() - start : 0
+        const url = `${config?.baseURL || ''}${config?.url || ''}` || config?.url || ''
+        trackApiTelemetry({
+          method: config?.method || 'get',
+          url,
+          status,
+          durationMs,
+          errorId,
+          message
+        })
+      } catch {
+        /* never break API */
+      }
+    }
 
     // Response interceptor
     // 后端统一返回格式: { success: bool, data: T, message: string, errorCode: number }
@@ -66,6 +94,7 @@ class ApiClient {
 
         if (hasEnvelope) {
           if (ok) {
+            reportTiming(response.config, response.status)
             const payload =
               apiResponse.data !== undefined ? apiResponse.data : apiResponse.Data
             if (payload !== undefined) {
@@ -74,13 +103,43 @@ class ApiClient {
             return apiResponse
           }
           if (fail) {
-            const msg = apiResponse.message ?? apiResponse.Message ?? '请求失败'
+            let msg = apiResponse.message ?? apiResponse.Message ?? '请求失败'
+            const errorId = apiResponse.errorId ?? apiResponse.ErrorId
+            if (
+              typeof errorId === 'string' &&
+              errorId.trim() &&
+              !String(msg).includes(errorId) &&
+              !String(msg).includes('错误编号')
+            ) {
+              msg = `${msg}（错误编号 ${errorId}）`
+            }
+            reportTiming(
+              response.config,
+              response.status >= 400 ? response.status : 400,
+              typeof errorId === 'string' ? errorId : null,
+              String(msg)
+            )
             return rejectWithHttpStatus(msg, response.status)
           }
         }
+        reportTiming(response.config, response.status)
         return apiResponse
       },
       (error) => {
+        const status = error.response?.status ?? 0
+        const responseData = error.response?.data
+        const errorId =
+          responseData && typeof responseData === 'object'
+            ? (responseData as { errorId?: string; ErrorId?: string }).errorId ||
+              (responseData as { ErrorId?: string }).ErrorId
+            : undefined
+        reportTiming(
+          error.config,
+          status,
+          errorId,
+          getApiErrorMessage(error, '请求失败')
+        )
+
         if (error.response?.status === 401) {
           localStorage.removeItem('token')
           localStorage.removeItem('user')
@@ -93,7 +152,6 @@ class ApiClient {
           window.location.href = '/login'
           return Promise.reject(error)
         }
-        const responseData = error.response?.data
         if (
           responseData &&
           (responseData.success !== undefined || responseData.Success !== undefined)

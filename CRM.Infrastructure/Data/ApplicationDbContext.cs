@@ -21,6 +21,7 @@ using CRM.Core.Models.Tag;
 using CRM.Core.Models.Vendor;
 using CRM.Core.Models.Customs;
 using CRM.Core.Models.Ai;
+using CRM.Core.Models.AiAssistant;
 using Microsoft.EntityFrameworkCore;
 
 namespace CRM.Infrastructure.Data
@@ -52,6 +53,10 @@ namespace CRM.Infrastructure.Data
         // ===== 新增系统表 =====
         public DbSet<SysSerialNumber> SerialNumbers { get; set; } = null!;
         public DbSet<SysErrorLog> ErrorLogs { get; set; } = null!;
+        public DbSet<TelemetryEvent> TelemetryEvents { get; set; } = null!;
+        public DbSet<TelemetryDailyPage> TelemetryDailyPages { get; set; } = null!;
+        public DbSet<TelemetryDailyAction> TelemetryDailyActions { get; set; } = null!;
+        public DbSet<TelemetryDailyApi> TelemetryDailyApis { get; set; } = null!;
         public DbSet<DebugRecord> DebugRecords { get; set; } = null!;
 
         // ===== 物料缓存表 =====
@@ -133,6 +138,9 @@ namespace CRM.Infrastructure.Data
         public DbSet<AiInvocationCache> AiInvocationCaches { get; set; } = null!;
         public DbSet<AiInvocationLog> AiInvocationLogs { get; set; } = null!;
         public DbSet<AiEntityParseLog> AiEntityParseLogs { get; set; } = null!;
+        public DbSet<AiAssistantSession> AiAssistantSessions { get; set; } = null!;
+        public DbSet<AiAssistantMessage> AiAssistantMessages { get; set; } = null!;
+        public DbSet<UserFeedback> UserFeedbacks { get; set; } = null!;
         public DbSet<StockTransfer> StockTransfers { get; set; } = null!;
         public DbSet<StockTransferItem> StockTransferItems { get; set; } = null!;
         public DbSet<StockTransferManual> StockTransferManuals { get; set; } = null!;
@@ -703,6 +711,37 @@ namespace CRM.Infrastructure.Data
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.ModuleName).IsRequired().HasMaxLength(100);
                 entity.Property(e => e.ErrorMessage).IsRequired().HasMaxLength(500);
+            });
+
+            modelBuilder.Entity<TelemetryEvent>(entity =>
+            {
+                entity.ToTable("telemetry_event");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.EventId).IsUnique().HasDatabaseName("ux_telemetry_event_event_id");
+                entity.HasIndex(e => e.OccurredAt).HasDatabaseName("ix_telemetry_event_occurred");
+            });
+
+            modelBuilder.Entity<TelemetryDailyPage>(entity =>
+            {
+                entity.ToTable("telemetry_daily_page");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.StatDate, e.PageKey }).IsUnique().HasDatabaseName("ux_telemetry_daily_page");
+            });
+
+            modelBuilder.Entity<TelemetryDailyAction>(entity =>
+            {
+                entity.ToTable("telemetry_daily_action");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.StatDate, e.PageKey, e.ActionId }).IsUnique()
+                    .HasDatabaseName("ux_telemetry_daily_action");
+            });
+
+            modelBuilder.Entity<TelemetryDailyApi>(entity =>
+            {
+                entity.ToTable("telemetry_daily_api");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.StatDate, e.Method, e.PathTemplate }).IsUnique()
+                    .HasDatabaseName("ux_telemetry_daily_api");
             });
 
             // ===== Debug 调试表（无认证调试用）=====
@@ -2437,6 +2476,77 @@ namespace CRM.Infrastructure.Data
                 entity.HasIndex(e => new { e.ScenarioCode, e.CreatedAt }).HasDatabaseName("IX_ai_entity_parse_log_scenario_created");
                 entity.HasIndex(e => new { e.UserId, e.CreatedAt }).HasDatabaseName("IX_ai_entity_parse_log_user_created");
                 entity.HasIndex(e => new { e.Outcome, e.CreatedAt }).HasDatabaseName("IX_ai_entity_parse_log_outcome_created");
+            });
+
+            modelBuilder.Entity<AiAssistantSession>(entity =>
+            {
+                entity.ToTable("ai_assistant_session");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(36);
+                entity.Property(e => e.UserId).HasColumnName("user_id").HasMaxLength(36);
+                entity.Property(e => e.ActiveSkill).HasColumnName("active_skill").HasMaxLength(32);
+                entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(20);
+                entity.Property(e => e.PreferredCategory).HasColumnName("preferred_category").HasMaxLength(20);
+                entity.Property(e => e.PageUrl).HasColumnName("page_url").HasMaxLength(500);
+                entity.Property(e => e.RouteName).HasColumnName("route_name").HasMaxLength(100);
+                entity.Property(e => e.RouteParamsJson).HasColumnName("route_params_json");
+                entity.Property(e => e.RouteQueryJson).HasColumnName("route_query_json");
+                entity.Property(e => e.UserAgent).HasColumnName("user_agent").HasMaxLength(500);
+                entity.Property(e => e.ConsecutiveOffTopicCount).HasColumnName("consecutive_off_topic_count");
+                entity.Property(e => e.UserTurnCount).HasColumnName("user_turn_count");
+                entity.Property(e => e.InferredBizRef).HasColumnName("inferred_biz_ref").HasMaxLength(200);
+                entity.Property(e => e.CreateTime).HasColumnName("CreateTime");
+                entity.Property(e => e.ModifyTime).HasColumnName("ModifyTime");
+                entity.Property(e => e.CreateUserId).HasColumnName("CreateUserId");
+                entity.Property(e => e.ModifyUserId).HasColumnName("ModifyUserId");
+                entity.HasIndex(e => new { e.UserId, e.CreateTime }).HasDatabaseName("ix_ai_assistant_session_user_time");
+                entity.HasIndex(e => e.Status).HasDatabaseName("ix_ai_assistant_session_status");
+            });
+
+            modelBuilder.Entity<AiAssistantMessage>(entity =>
+            {
+                entity.ToTable("ai_assistant_message");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(36);
+                entity.Property(e => e.SessionId).HasColumnName("session_id").HasMaxLength(36);
+                entity.Property(e => e.Role).HasColumnName("role").HasMaxLength(20);
+                entity.Property(e => e.Content).HasColumnName("content");
+                entity.Property(e => e.AttachmentDocumentId).HasColumnName("attachment_document_id").HasMaxLength(36);
+                entity.Property(e => e.CreateTime).HasColumnName("CreateTime");
+                entity.Property(e => e.ModifyTime).HasColumnName("ModifyTime");
+                entity.Property(e => e.CreateUserId).HasColumnName("CreateUserId");
+                entity.Property(e => e.ModifyUserId).HasColumnName("ModifyUserId");
+                entity.HasIndex(e => new { e.SessionId, e.CreateTime }).HasDatabaseName("ix_ai_assistant_message_session_time");
+            });
+
+            modelBuilder.Entity<UserFeedback>(entity =>
+            {
+                entity.ToTable("user_feedback");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(36);
+                entity.Property(e => e.SessionId).HasColumnName("session_id").HasMaxLength(36);
+                entity.Property(e => e.Category).HasColumnName("category").HasMaxLength(20);
+                entity.Property(e => e.Title).HasColumnName("title").HasMaxLength(200);
+                entity.Property(e => e.Summary).HasColumnName("summary");
+                entity.Property(e => e.BizRef).HasColumnName("biz_ref").HasMaxLength(200);
+                entity.Property(e => e.ReproSteps).HasColumnName("repro_steps");
+                entity.Property(e => e.PageUrl).HasColumnName("page_url").HasMaxLength(500);
+                entity.Property(e => e.RouteName).HasColumnName("route_name").HasMaxLength(100);
+                entity.Property(e => e.RouteParamsJson).HasColumnName("route_params_json");
+                entity.Property(e => e.RouteQueryJson).HasColumnName("route_query_json");
+                entity.Property(e => e.SubmitUserId).HasColumnName("submit_user_id").HasMaxLength(36);
+                entity.Property(e => e.NeedsHandling).HasColumnName("needs_handling");
+                entity.Property(e => e.IsHandled).HasColumnName("is_handled");
+                entity.Property(e => e.CompletedDate).HasColumnName("completed_date").HasColumnType("date");
+                entity.Property(e => e.HandleRemark).HasColumnName("handle_remark").HasMaxLength(2000);
+                entity.Property(e => e.ModifyByUserId).HasColumnName("modify_by_user_id").HasMaxLength(36);
+                entity.Property(e => e.CreateTime).HasColumnName("CreateTime");
+                entity.Property(e => e.ModifyTime).HasColumnName("ModifyTime");
+                entity.Property(e => e.CreateUserId).HasColumnName("CreateUserId");
+                entity.Property(e => e.ModifyUserId).HasColumnName("ModifyUserId");
+                entity.HasIndex(e => e.CreateTime).HasDatabaseName("ix_user_feedback_create_time");
+                entity.HasIndex(e => new { e.NeedsHandling, e.IsHandled }).HasDatabaseName("ix_user_feedback_handling");
+                entity.HasIndex(e => e.SubmitUserId).HasDatabaseName("ix_user_feedback_submit_user");
             });
         }
     }

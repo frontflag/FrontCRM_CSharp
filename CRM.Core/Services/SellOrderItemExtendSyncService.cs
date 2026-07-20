@@ -336,10 +336,12 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+        // 勿在 IQueryable/FindAsync 中调用 IsSalesStockOut（EF 无法翻译自定义方法）
         var completedHeaders = (await _stockOutRepo.FindAsync(o =>
                 stockOutIds.Contains(o.Id)
                 && (o.Status == StockOutCompleted || o.Status == StockOutFinished)
-                && StockOutTypeCode.IsSalesStockOut(o.StockOutType)))
+                && (o.StockOutType == StockOutTypeCode.Sales
+                    || o.StockOutType == StockOutTypeCode.LegacySales)))
             .ToList();
         var completedIdSet = completedHeaders
             .Select(o => o.Id.Trim())

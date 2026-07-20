@@ -24,6 +24,26 @@ public sealed class MockAiLlmProvider : IAiLlmProvider
         var systemMsg = request.Messages.FirstOrDefault(m => m.Role == "system")?.Content ?? string.Empty;
         var userMsg = request.Messages.LastOrDefault(m => m.Role == "user")?.Content ?? string.Empty;
 
+        if (systemMsg.Contains("FrontCRM 反馈助手", StringComparison.Ordinal)
+            || systemMsg.Contains("系统反馈助手", StringComparison.Ordinal))
+        {
+            // 由 AiAssistantService 启发式兜底更稳；此处返回可解析 JSON 便于联调真实 Provider 路径
+            var json = """
+                       {
+                         "assistantMessage": "请再补充一下具体现象或期望；方便的话也可以贴张截图。",
+                         "intent": "feedback",
+                         "conversationAction": "ask",
+                         "slots": { "category": null, "title": null, "summary": null, "bizRef": null, "reproSteps": null },
+                         "missingSlots": ["summary"]
+                       }
+                       """;
+            return Task.FromResult(new AiChatCompletionResult
+            {
+                Content = json,
+                Usage = new AiTokenUsageDto { PromptTokens = 100, CompletionTokens = 80, TotalTokens = 180 }
+            });
+        }
+
         if (systemMsg.Contains("客户主档解析", StringComparison.Ordinal))
         {
             var json = """

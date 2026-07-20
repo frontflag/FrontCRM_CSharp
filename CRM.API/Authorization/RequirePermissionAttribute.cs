@@ -31,20 +31,34 @@ namespace CRM.API.Authorization
             var rbacService = context.HttpContext.RequestServices.GetService<IRbacService>();
             if (rbacService == null)
             {
-                context.Result = new StatusCodeResult(500);
+                context.Result = new ObjectResult(ApiResponse<object>.Fail("权限服务未就绪", 500))
+                {
+                    StatusCode = 500
+                };
                 return;
             }
 
-            var summary = await rbacService.GetUserPermissionSummaryAsync(userId);
-            var ok = summary.IsSysAdmin || summary.PermissionCodes.Any(c =>
-                string.Equals(c, _permissionCode, StringComparison.OrdinalIgnoreCase));
-            if (ok)
-                return;
-
-            context.Result = new ObjectResult(ApiResponse<object>.Fail($"无权限访问: {_permissionCode}", 403))
+            try
             {
-                StatusCode = 403
-            };
+                var summary = await rbacService.GetUserPermissionSummaryAsync(userId);
+                var ok = summary.IsSysAdmin || summary.PermissionCodes.Any(c =>
+                    string.Equals(c, _permissionCode, StringComparison.OrdinalIgnoreCase));
+                if (ok)
+                    return;
+
+                context.Result = new ObjectResult(ApiResponse<object>.Fail($"无权限访问: {_permissionCode}", 403))
+                {
+                    StatusCode = 403
+                };
+            }
+            catch (Exception ex)
+            {
+                context.Result = new ObjectResult(
+                    ApiResponse<object>.Fail($"权限校验失败: {ex.Message}", 500))
+                {
+                    StatusCode = 500
+                };
+            }
         }
     }
 }

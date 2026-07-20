@@ -19,7 +19,7 @@ public static class StockOutTypeCode
     public static bool IsDefined(short value) =>
         value is Sales or Customs or Return or Scrap or Transfer or LegacySales;
 
-    /// <summary>是否为销售出库（含历史类型 1）。</summary>
+    /// <summary>是否为销售出库（含历史类型 1）。仅用于内存判断；EF/FindAsync 谓词请内联比较 <see cref="Sales"/> / <see cref="LegacySales"/>。</summary>
     public static bool IsSalesStockOut(short value) =>
         value is Sales or LegacySales;
 

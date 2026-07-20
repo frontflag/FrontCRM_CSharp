@@ -8,6 +8,7 @@ import App from './App.vue'
 import router from './router'
 import './assets/styles/main.scss'
 import i18n from './plugins/i18n'
+import { initTelemetry } from './telemetry'
 
 const app = createApp(App)
 
@@ -20,5 +21,11 @@ app.use(createPinia())
 app.use(router)
 app.use(ElementPlus)
 app.use(i18n)
+
+try {
+  initTelemetry(router)
+} catch (err) {
+  console.error('[telemetry] init failed', err)
+}
 
 app.mount('#app')

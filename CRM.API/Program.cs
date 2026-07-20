@@ -1,5 +1,6 @@
 using System.Net.Sockets;
 using System.Reflection;
+using System.Security.Claims;
 using CRM.API.Extensions;
 using CRM.API.Middlewares;
 using CRM.Core.Document;
@@ -31,7 +32,10 @@ try
         options.KnownProxies.Clear();
     });
 
-    builder.Services.AddControllers()
+    builder.Services.AddControllers(options =>
+        {
+            options.Filters.Add<CRM.API.Filters.SysErrorIdResultFilter>();
+        })
         .AddJsonOptions(options =>
         {
             // 支持 camelCase 属性名映射
@@ -58,6 +62,7 @@ try
 
     app.UseForwardedHeaders();
 
+    app.UseMiddleware<SysErrorRequestContextMiddleware>();
     app.UseMiddleware<ErrorHandlingMiddleware>();
 
     app.UseCors("AllowAll");
@@ -78,6 +83,17 @@ try
     app.UseAuthentication();
     app.UseMiddleware<RequireActiveUserMiddleware>();
     app.UseAuthorization();
+    app.Use(async (context, next) =>
+    {
+        // 供 SaveChanges 失败拦截器写入 sys_error_log 时带上用户与路径
+        CRM.Core.Utilities.SysErrorRequestContext.RequestPath = context.Request.Path.Value;
+        CRM.Core.Utilities.SysErrorRequestContext.UserId =
+            context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        CRM.Core.Utilities.SysErrorRequestContext.UserName =
+            context.User.FindFirstValue(ClaimTypes.Name)
+            ?? context.User.Identity?.Name;
+        await next();
+    });
 
     app.MapControllers();
 
