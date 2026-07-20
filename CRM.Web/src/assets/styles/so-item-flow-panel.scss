@@ -1,0 +1,187 @@
+@import '@/assets/styles/variables.scss';
+
+// 「进行中」圆圈与状态文字共用色
+$flow-status-active: #00a0dc;
+$flow-status-done: #67c23a;
+
+.so-item-flow-root {
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  font-family: 'Noto Sans SC', sans-serif;
+  color: $text-primary;
+}
+
+.so-item-flow-root--embedded {
+  padding: 0;
+}
+
+.so-item-flow-root__empty,
+.so-item-flow-root__error {
+  padding: 16px 14px;
+  font-size: 13px;
+  color: $text-muted;
+  line-height: 1.5;
+}
+
+.so-item-flow-root__error {
+  color: var(--el-color-danger);
+}
+
+.so-item-flow-root__content {
+  padding: 12px 10px 20px;
+}
+
+.so-item-flow-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.so-item-flow-station {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  column-gap: 10px;
+  position: relative;
+  padding-bottom: 14px;
+
+  &:last-child {
+    padding-bottom: 0;
+
+    .so-item-flow-station__rail::after {
+      display: none;
+    }
+  }
+}
+
+.so-item-flow-station__rail {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  padding-top: 4px;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 18px;
+    bottom: -14px;
+    left: 50%;
+    width: 2px;
+    transform: translateX(-50%);
+    background: rgba(148, 163, 184, 0.35);
+  }
+}
+
+.so-item-flow-station__dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid rgba(148, 163, 184, 0.7);
+  background: transparent;
+  z-index: 1;
+  box-sizing: border-box;
+
+  &--empty {
+    border-color: rgba(148, 163, 184, 0.55);
+    background: transparent;
+  }
+
+  &--active {
+    border-color: $flow-status-active;
+    background: $flow-status-active;
+  }
+
+  &--done {
+    border-color: $flow-status-done;
+    background: $flow-status-done;
+  }
+}
+
+.so-item-flow-station__body {
+  min-width: 0;
+}
+
+.so-item-flow-station__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.so-item-flow-station__title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: $text-primary;
+}
+
+.so-item-flow-station__badge {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: $text-muted;
+
+  &--active {
+    color: $flow-status-active;
+  }
+
+  &--done {
+    color: $flow-status-done;
+  }
+
+  &--empty {
+    color: $text-muted;
+  }
+}
+
+.so-item-flow-station__empty-hint {
+  font-size: 12px;
+  color: $text-muted;
+  padding: 4px 0 2px;
+}
+
+.so-item-flow-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.so-item-flow-card {
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 8px 10px;
+}
+
+.so-item-flow-kv {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 10px;
+}
+
+.so-item-flow-kv__cell {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  font-size: 12px;
+  line-height: 1.45;
+
+  &--full {
+    grid-column: 1 / -1;
+  }
+}
+
+.so-item-flow-kv__label {
+  flex: 0 0 auto;
+  color: $text-muted;
+  white-space: nowrap;
+}
+
+.so-item-flow-kv__value {
+  min-width: 0;
+  color: $text-primary;
+  word-break: break-word;
+}

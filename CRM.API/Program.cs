@@ -59,10 +59,10 @@ try
     });
 
     var app = builder.Build();
+    app.UseMiddleware<SysErrorRequestContextMiddleware>();
 
     app.UseForwardedHeaders();
 
-    app.UseMiddleware<SysErrorRequestContextMiddleware>();
     app.UseMiddleware<ErrorHandlingMiddleware>();
 
     app.UseCors("AllowAll");
@@ -80,9 +80,6 @@ try
     if (!app.Environment.IsDevelopment())
         app.UseHttpsRedirection();
 
-    app.UseAuthentication();
-    app.UseMiddleware<RequireActiveUserMiddleware>();
-    app.UseAuthorization();
     app.Use(async (context, next) =>
     {
         // 供 SaveChanges 失败拦截器写入 sys_error_log 时带上用户与路径
@@ -94,6 +91,9 @@ try
             ?? context.User.Identity?.Name;
         await next();
     });
+    app.UseAuthentication();
+    app.UseMiddleware<RequireActiveUserMiddleware>();
+    app.UseAuthorization();
 
     app.MapControllers();
 

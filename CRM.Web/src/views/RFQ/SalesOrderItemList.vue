@@ -1547,7 +1547,8 @@ const { onOpsPanelRowClick } = useListRightOpsPanelInteraction({
   loadSelected: () => {
     void salesOrderItemOpsStore.loadAggregates(t('salesOrderItemList.messages.loadLineFailed'))
   },
-  shouldBlockRowClick: () => maskSaleSensitiveFields.value
+  shouldBlockRowClick: () => maskSaleSensitiveFields.value,
+  dataTabIds: ['r-ops', 'r-flow']
 })
 
 async function onRowClick(row: Record<string, unknown>) {

@@ -1395,6 +1395,15 @@
             @apply-purchase="salesOrderItemOpsStore.runApplyPurchase()"
             @apply-stock-out="salesOrderItemOpsStore.runApplyStockOut()"
           />
+          <SalesOrderItemFlowPanel
+            v-show="showSalesOrderItemFlowPanel"
+            :row="salesOrderItemOpsStore.row"
+            :aggregates="salesOrderItemOpsStore.aggregates"
+            :loading="salesOrderItemOpsStore.loading"
+            :load-error="salesOrderItemOpsStore.loadError"
+            :mask-sensitive="maskSaleSensitiveFields"
+            class="aux-panel-tab-body"
+          />
           <PurchaseOrderItemOpsPanel
             v-show="showPurchaseOrderItemOpsPanel"
             embedded
@@ -1521,6 +1530,7 @@ import CrmImageBrowser from '@/components/Common/CrmImageBrowser.vue'
 import AiAssistantDrawer from '@/components/AiAssistant/AiAssistantDrawer.vue'
 import { useImageBrowserStore } from '@/stores/imageBrowser'
 import SalesOrderItemOpsPanel from '@/components/RFQ/SalesOrderItemOpsPanel.vue'
+import SalesOrderItemFlowPanel from '@/components/RFQ/SalesOrderItemFlowPanel.vue'
 import RfqItemMaterialPanel from '@/components/RFQ/RfqItemMaterialPanel.vue'
 import CustomerIntelPanel from '@/components/Customer/CustomerIntelPanel.vue'
 import VendorIntelPanel from '@/components/Vendor/VendorIntelPanel.vue'
@@ -1858,6 +1868,10 @@ const showSalesOrderItemOpsPanel = computed(
   () => rightActiveTabId.value === 'r-ops' && isSalesOrderItemOpsRoute.value
 )
 
+const showSalesOrderItemFlowPanel = computed(
+  () => rightActiveTabId.value === 'r-flow' && isSalesOrderItemListRoute.value
+)
+
 const showPurchaseOrderItemOpsPanel = computed(
   () => rightActiveTabId.value === 'r-ops' && isPurchaseOrderItemOpsRoute.value
 )
@@ -1918,7 +1932,28 @@ function syncStockOutNotifyListRightTabs() {
 watch(
   () => route.name,
   (name) => {
-    if (name === 'SalesOrderItemList' || name === 'SalesOrderDetail') {
+    if (name === 'SalesOrderItemList') {
+      rightTabs.value = [
+        { id: 'r-ops', labelKey: 'layout.auxTabs.ops' },
+        { id: 'r-flow', labelKey: 'layout.auxTabs.flow' },
+        { id: 'r4', labelKey: 'layout.auxTabs.help' }
+      ]
+      purchaseOrderItemOpsStore.clear()
+      customsDeclarationOpsStore.clear()
+      arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
+      materialIntelLookupStore.clearBound()
+      if (
+        rightActiveTabId.value !== 'r-ops' &&
+        rightActiveTabId.value !== 'r-flow' &&
+        rightActiveTabId.value !== 'r4'
+      ) {
+        rightActiveTabId.value = 'r-ops'
+      }
+      return
+    }
+    if (name === 'SalesOrderDetail') {
       rightTabs.value = [
         { id: 'r-ops', labelKey: 'layout.auxTabs.ops' },
         { id: 'r4', labelKey: 'layout.auxTabs.help' }

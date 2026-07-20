@@ -40,7 +40,7 @@ export const useSalesOrderItemOpsPanelStore = defineStore('salesOrderItemOpsPane
     loadSeq += 1
   }
 
-  /** 仅记录列表选中行，不请求聚合接口（右栏非「操作」页签单击行时使用；切到「操作」后再 loadAggregates） */
+  /** 仅记录列表选中行，不请求聚合接口（右栏非操作/流程等数据页签单击行时使用；切到数据页签后再 loadAggregates） */
   function setRowOnly(target: RowRecord) {
     const key = rowKey(target)
     if (!key) return

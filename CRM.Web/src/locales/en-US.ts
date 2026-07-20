@@ -708,6 +708,7 @@ const enUS = {
       favorites: 'Favorites',
       history: 'History',
       ops: 'Actions',
+      flow: 'Flow',
       material: 'Material',
       customerIntel: 'Intel',
       vendorIntel: 'Intel',
@@ -4600,6 +4601,46 @@ const enUS = {
         'Next: create linked PO lines and ensure related POs reach Supplier Confirmed or later.',
       stockOutNextPendingPurchase:
         'Next: advance purchase progress, or ensure stocking available qty for the same PN+brand is greater than 0.'
+    },
+    flowPanel: {
+      pickRow: 'On the Flow tab, click a list row to view the end-to-end process timeline',
+      emptyStation: 'Not started',
+      stationEmpty: 'Not started',
+      stationActive: 'In progress',
+      stationDone: 'Completed',
+      stockingUsageStatus: 'Used',
+      writeOffStatus: 'Written off',
+      stations: {
+        sellOrderItem: 'Sales order line',
+        purchaseRequisition: 'Purchase requisition',
+        purchaseOrderItem: 'PO line',
+        qc: 'QC',
+        stockIn: 'Stock in',
+        stockOutNotify: 'Stock-out notify',
+        stockingUsage: 'Stocking usage',
+        packing: 'Packing',
+        stockOut: 'Stock out',
+        receiptWriteOff: 'Receipt write-off',
+        invoice: 'Invoice'
+      },
+      role: {
+        salesUser: 'Salesperson',
+        purchaser: 'Purchaser',
+        creator: 'Created by',
+        requester: 'Requester',
+        operator: 'Operator'
+      },
+      fields: {
+        docNo: 'Doc No.',
+        status: 'Status',
+        createdAt: 'Created',
+        customerName: 'Customer',
+        customerCode: 'Customer code',
+        unitPrice: 'Unit price · currency',
+        amount: 'Amount · currency',
+        qty: 'Qty',
+        description: 'Description'
+      }
     },
     columnSettings: 'Column settings',
     basket: {

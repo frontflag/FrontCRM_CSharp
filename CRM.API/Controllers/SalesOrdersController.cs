@@ -2724,6 +2724,7 @@ namespace CRM.API.Controllers
                 r.OrderCreateTime,
                 CustomerId = canViewCustomer ? r.CustomerId : null,
                 CustomerName = canViewCustomer ? r.CustomerName : null,
+                CustomerCode = canViewCustomer ? r.CustomerCode : null,
                 CustomerEnglishName = canViewCustomer ? r.CustomerEnglishName : null,
                 SalesUserName = mask521 ? null : r.SalesUserName,
                 r.PurchaseUserAccountDisplay,

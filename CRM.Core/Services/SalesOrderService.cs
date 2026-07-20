@@ -505,6 +505,8 @@ namespace CRM.Core.Services
                 if (!byId.TryGetValue(row.CustomerId.Trim(), out var cust)) continue;
                 if (!string.IsNullOrWhiteSpace(cust.EnglishOfficialName))
                     row.CustomerEnglishName = cust.EnglishOfficialName.Trim();
+                if (string.IsNullOrWhiteSpace(row.CustomerCode) && !string.IsNullOrWhiteSpace(cust.CustomerCode))
+                    row.CustomerCode = cust.CustomerCode.Trim();
             }
         }
 

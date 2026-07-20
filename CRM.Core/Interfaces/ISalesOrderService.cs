@@ -147,6 +147,8 @@ namespace CRM.Core.Interfaces
         public DateTime OrderCreateTime { get; set; }
         public string? CustomerId { get; set; }
         public string? CustomerName { get; set; }
+        /// <summary>客户编号（主单快照 <c>sell_order.customer_code</c>；空时可由客户主数据补齐）。</summary>
+        public string? CustomerCode { get; set; }
         /// <summary>客户英文全称（<c>CustomerInfo.EnglishOfficialName</c>）。</summary>
         public string? CustomerEnglishName { get; set; }
         public string? SalesUserName { get; set; }

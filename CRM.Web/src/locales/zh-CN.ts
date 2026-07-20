@@ -707,6 +707,7 @@ const zhCN = {
       favorites: '收藏',
       history: '历史',
       ops: '操作',
+      flow: '流程',
       material: '物料',
       customerIntel: '调查',
       vendorIntel: '调查',
@@ -4593,6 +4594,46 @@ const zhCN = {
       stockOutNextNotifyDone: '下一步：本明细出库通知已满，无需再申请出库通知。',
       stockOutNextPurchaseGate: '下一步：先生成采购订单明细，并确保关联采购单达到「供应商确认」及之后状态。',
       stockOutNextPendingPurchase: '下一步：推进采购进度，或确保同 PN+品牌备货可用量大于 0。'
+    },
+    flowPanel: {
+      pickRow: '在「流程」页签下单击列表行，查看从建立到收款/开票的业务链路',
+      emptyStation: '未开始',
+      stationEmpty: '未开始',
+      stationActive: '进行中',
+      stationDone: '已完成',
+      stockingUsageStatus: '已使用',
+      writeOffStatus: '已核销',
+      stations: {
+        sellOrderItem: '销售订单明细',
+        purchaseRequisition: '采购申请',
+        purchaseOrderItem: '采购明细',
+        qc: '质检',
+        stockIn: '入库',
+        stockOutNotify: '出库通知',
+        stockingUsage: '使用备货',
+        packing: '装箱',
+        stockOut: '出库',
+        receiptWriteOff: '收款核销',
+        invoice: '发票'
+      },
+      role: {
+        salesUser: '业务员',
+        purchaser: '采购员',
+        creator: '创建人',
+        requester: '申请人',
+        operator: '操作人'
+      },
+      fields: {
+        docNo: '单号',
+        status: '状态',
+        createdAt: '创建日期',
+        customerName: '客户名称',
+        customerCode: '客户编号',
+        unitPrice: '单价·币别',
+        amount: '金额·币别',
+        qty: '数量',
+        description: '描述'
+      }
     },
     columnSettings: '列设置',
     basket: {
