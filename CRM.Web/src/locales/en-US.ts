@@ -5311,6 +5311,39 @@ const enUS = {
       paymentNoRemaining: 'Payment request amount is fully allocated; nothing left to request.',
       paymentNextNoRemaining: 'Next: payment requests are complete; no further request is needed.'
     },
+    flowPanel: {
+      pickRow: 'On the Flow tab, click a list row to view the path from create to payment/invoice',
+      emptyStation: 'Not started',
+      stationEmpty: 'Not started',
+      stationActive: 'In progress',
+      stationDone: 'Completed',
+      stations: {
+        purchaseRequisition: 'Purchase requisition',
+        purchaseOrderItem: 'PO line',
+        paymentRequest: 'Payment request',
+        payment: 'Payment',
+        arrivalNotice: 'Arrival notice',
+        qc: 'QC',
+        stockIn: 'Stock-in',
+        purchaseInvoice: 'Purchase invoice'
+      },
+      role: {
+        purchaser: 'Buyer',
+        creator: 'Created by',
+        requester: 'Requester'
+      },
+      fields: {
+        docNo: 'Doc no.',
+        status: 'Status',
+        createdAt: 'Created',
+        vendorName: 'Vendor name',
+        vendorCode: 'Vendor code',
+        unitPrice: 'Unit price · currency',
+        amount: 'Amount · currency',
+        qty: 'Qty',
+        description: 'Description'
+      }
+    },
     columnSettings: 'Column settings',
     paymentDialog: {
       title: 'Request payment',

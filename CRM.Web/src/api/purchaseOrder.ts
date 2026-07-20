@@ -134,6 +134,8 @@ export interface PurchaseOrderDetailTabAggregates {
     paymentAmount: number
     paymentCurrency: number
     paymentDate?: string | null
+    createByUserId?: string | null
+    createUserName?: string | null
     createTime: string
   }>
   arrivalNotices: StockInNotifyDto[]
@@ -147,6 +149,21 @@ export interface PurchaseOrderDetailTabAggregates {
     invoiceDate?: string | null
     confirmStatus: number
     redInvoiceStatus: number
+    createTime: string
+  }>
+  /** 采购明细关联质检单（流程页签 / 下游列表） */
+  qcs?: Array<{
+    id: string
+    qcCode: string
+    stockInNotifyId: string
+    stockInNotifyCode?: string | null
+    status: number
+    stockInStatus?: number
+    passQty: number
+    rejectQty: number
+    stockInId?: string | null
+    createByUserId?: string | null
+    createUserName?: string | null
     createTime: string
   }>
   /** 采购明细关联质检单上的图片文档（只读展示） */
@@ -190,6 +207,7 @@ export interface PurchaseOrderItemListLineRow {
   purchaseOrderType?: number
   vendorId?: string | null
   vendorName?: string | null
+  vendorCode?: string | null
   vendorEnglishName?: string | null
   itemStatus?: number
   purchaseProgressStatus?: number

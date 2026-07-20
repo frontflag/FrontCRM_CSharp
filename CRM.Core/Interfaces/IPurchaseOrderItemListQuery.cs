@@ -93,6 +93,7 @@ public sealed class PurchaseOrderItemListLineRaw
     public string? CreateByUserId { get; set; }
     public string VendorId { get; set; } = string.Empty;
     public string? VendorName { get; set; }
+    public string? VendorCode { get; set; }
     public string? Pn { get; set; }
     public string? Brand { get; set; }
     public short ItemStatus { get; set; }
@@ -124,6 +125,7 @@ public sealed class PurchaseOrderItemListLineDto
     public short PurchaseOrderType { get; set; }
     public string VendorId { get; set; } = string.Empty;
     public string? VendorName { get; set; }
+    public string? VendorCode { get; set; }
     public string? VendorEnglishName { get; set; }
     public short ItemStatus { get; set; }
     public short PurchaseProgressStatus { get; set; }

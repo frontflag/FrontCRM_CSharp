@@ -5296,6 +5296,39 @@ const zhCN = {
       paymentNoRemaining: '本明细请款金额已满，无可申请余量。',
       paymentNextNoRemaining: '下一步：请款申请已全部完成，无需再申请付款。'
     },
+    flowPanel: {
+      pickRow: '在「流程」页签下单击列表行，查看从建立到付款/开票的业务链路',
+      emptyStation: '未开始',
+      stationEmpty: '未开始',
+      stationActive: '进行中',
+      stationDone: '已完成',
+      stations: {
+        purchaseRequisition: '采购申请',
+        purchaseOrderItem: '采购订单明细',
+        paymentRequest: '申请付款',
+        payment: '付款',
+        arrivalNotice: '到货通知',
+        qc: '质检',
+        stockIn: '入库',
+        purchaseInvoice: '进项发票'
+      },
+      role: {
+        purchaser: '采购员',
+        creator: '创建人',
+        requester: '申请人'
+      },
+      fields: {
+        docNo: '单号',
+        status: '状态',
+        createdAt: '创建日期',
+        vendorName: '供应商名称',
+        vendorCode: '供应商编号',
+        unitPrice: '单价·币别',
+        amount: '金额·币别',
+        qty: '数量',
+        description: '描述'
+      }
+    },
     columnSettings: '列设置',
     paymentDialog: {
       title: '申请付款窗口',

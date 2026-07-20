@@ -103,6 +103,7 @@ public sealed partial class PurchaseOrderItemListQuery : IPurchaseOrderItemListQ
             CreateByUserId = x.Po.CreateByUserId,
             VendorId = x.Item.VendorId,
             VendorName = x.Po.VendorName,
+            VendorCode = x.Po.VendorCode,
             Pn = x.Item.PN,
             Brand = x.Item.Brand,
             ItemStatus = x.Item.Status,

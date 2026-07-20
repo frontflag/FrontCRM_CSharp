@@ -418,7 +418,10 @@ namespace CRM.API.Controllers
                 IReadOnlyDictionary<string, string> vendorEnglishMap = canViewVendorInfo
                     ? await LoadVendorEnglishNameMapForPoLinesAsync(result.Items, cancellationToken)
                     : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                var items = MapPurchaseOrderItemListLines(result.Items, summary, loginMap, paymentRequestFlags, vendorEnglishMap);
+                IReadOnlyDictionary<string, string> vendorCodeMap = canViewVendorInfo
+                    ? await LoadVendorCodeMapForPoLinesAsync(result.Items, cancellationToken)
+                    : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                var items = MapPurchaseOrderItemListLines(result.Items, summary, loginMap, paymentRequestFlags, vendorEnglishMap, vendorCodeMap);
                 return Ok(new
                 {
                     success = true,
@@ -636,7 +639,7 @@ namespace CRM.API.Controllers
                     .ToListAsync();
             }
 
-            var paymentRows = await _db.FinancePayments.AsNoTracking()
+            var paymentRaw = await _db.FinancePayments.AsNoTracking()
                 .Where(x => payHeaderIds.Contains(x.Id))
                 .OrderByDescending(x => x.CreateTime)
                 .Select(x => new
@@ -653,6 +656,42 @@ namespace CRM.API.Controllers
                     x.CreateTime
                 })
                 .ToListAsync();
+
+            var payCreatorIds = paymentRaw
+                .Select(x => x.createByUserId)
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(s => s!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var payCreatorNameMap = payCreatorIds.Count == 0
+                ? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+                : (await _db.Users.AsNoTracking()
+                        .Where(u => payCreatorIds.Contains(u.Id))
+                        .Select(u => new { u.Id, u.UserName })
+                        .ToListAsync())
+                    .ToDictionary(x => x.Id, x => (string?)x.UserName, StringComparer.OrdinalIgnoreCase);
+
+            var paymentRows = paymentRaw.Select(x =>
+            {
+                string? createUserName = null;
+                var creatorKey = (x.createByUserId ?? string.Empty).Trim();
+                if (!string.IsNullOrEmpty(creatorKey) && payCreatorNameMap.TryGetValue(creatorKey, out var login))
+                    createUserName = login;
+                return (object)new
+                {
+                    x.id,
+                    x.financePaymentCode,
+                    x.vendorName,
+                    x.Status,
+                    x.paymentAmountToBe,
+                    x.paymentAmount,
+                    x.PaymentCurrency,
+                    x.PaymentDate,
+                    createByUserId = x.createByUserId,
+                    createUserName,
+                    x.CreateTime
+                };
+            }).ToList();
 
             var noticeRows = await BuildPurchaseOrderTabArrivalNoticesAsync(poItemIds, mask511, currentUserId);
 
@@ -691,9 +730,11 @@ namespace CRM.API.Controllers
                 })
                 .ToListAsync();
 
+            List<object> qcRows;
             List<object> qcImageRows;
             if (poItemIds.Count == 0)
             {
+                qcRows = new List<object>();
                 qcImageRows = new List<object>();
             }
             else
@@ -705,15 +746,66 @@ namespace CRM.API.Controllers
 
                 if (notifyIds.Count == 0)
                 {
+                    qcRows = new List<object>();
                     qcImageRows = new List<object>();
                 }
                 else
                 {
                     var qcList = await _db.QCInfos.AsNoTracking()
-                        .Where(q => notifyIds.Contains(q.StockInNotifyId))
+                        .Where(q => !q.IsDeleted && notifyIds.Contains(q.StockInNotifyId))
                         .OrderByDescending(q => q.CreateTime)
-                        .Select(q => new { q.Id, q.QcCode, q.StockInNotifyCode })
+                        .Select(q => new
+                        {
+                            q.Id,
+                            q.QcCode,
+                            q.StockInNotifyId,
+                            q.StockInNotifyCode,
+                            q.Status,
+                            q.StockInStatus,
+                            q.PassQty,
+                            q.RejectQty,
+                            q.StockInId,
+                            q.CreateByUserId,
+                            q.CreateTime
+                        })
                         .ToListAsync();
+
+                    var qcCreatorIds = qcList
+                        .Select(q => q.CreateByUserId)
+                        .Where(s => !string.IsNullOrWhiteSpace(s))
+                        .Select(s => s!.Trim())
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                    var qcCreatorNameMap = qcCreatorIds.Count == 0
+                        ? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+                        : (await _db.Users.AsNoTracking()
+                                .Where(u => qcCreatorIds.Contains(u.Id))
+                                .Select(u => new { u.Id, u.UserName })
+                                .ToListAsync())
+                            .ToDictionary(x => x.Id, x => (string?)x.UserName, StringComparer.OrdinalIgnoreCase);
+
+                    qcRows = qcList.Select(q =>
+                    {
+                        string? createUserName = null;
+                        var creatorKey = (q.CreateByUserId ?? string.Empty).Trim();
+                        if (!string.IsNullOrEmpty(creatorKey) && qcCreatorNameMap.TryGetValue(creatorKey, out var login))
+                            createUserName = login;
+                        return (object)new
+                        {
+                            id = q.Id,
+                            qcCode = q.QcCode,
+                            stockInNotifyId = q.StockInNotifyId,
+                            stockInNotifyCode = q.StockInNotifyCode,
+                            status = q.Status,
+                            stockInStatus = q.StockInStatus,
+                            passQty = q.PassQty,
+                            rejectQty = q.RejectQty,
+                            stockInId = q.StockInId,
+                            createByUserId = q.CreateByUserId,
+                            createUserName,
+                            createTime = q.CreateTime
+                        };
+                    }).ToList();
 
                     var qcIds = qcList.Select(q => q.Id).ToList();
                     var qcMeta = qcList.ToDictionary(q => q.Id, StringComparer.OrdinalIgnoreCase);
@@ -780,6 +872,7 @@ namespace CRM.API.Controllers
                 stockIns = stockInRows,
                 stockItems = stockItemRows,
                 purchaseInvoices = invoiceRows,
+                qcs = qcRows,
                 qcImages = qcImageRows,
                 lineOverview
             };
@@ -1783,12 +1876,36 @@ namespace CRM.API.Controllers
                     cancellationToken);
         }
 
+        private async Task<IReadOnlyDictionary<string, string>> LoadVendorCodeMapForPoLinesAsync(
+            IEnumerable<PurchaseOrderItemListLineRaw> lines,
+            CancellationToken cancellationToken)
+        {
+            var ids = lines
+                .Select(r => r.VendorId)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Select(id => id.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (ids.Count == 0)
+                return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            return await _db.Vendors.AsNoTracking()
+                .Where(v => ids.Contains(v.Id) && v.Code != null && v.Code != "")
+                .Select(v => new { v.Id, v.Code })
+                .ToDictionaryAsync(
+                    x => x.Id,
+                    x => x.Code!.Trim(),
+                    StringComparer.OrdinalIgnoreCase,
+                    cancellationToken);
+        }
+
         private static List<object> MapPurchaseOrderItemListLines(
             IEnumerable<PurchaseOrderItemListLineRaw> lines,
             UserPermissionSummaryDto? summary,
             IReadOnlyDictionary<string, string?> createUserLoginByUserId,
             IReadOnlySet<string> poItemIdsWithActivePaymentRequest,
-            IReadOnlyDictionary<string, string> vendorEnglishMap)
+            IReadOnlyDictionary<string, string> vendorEnglishMap,
+            IReadOnlyDictionary<string, string> vendorCodeMap)
         {
             var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
             var canViewVendorInfo = !mask511 && (summary?.IsSysAdmin == true
@@ -1818,6 +1935,16 @@ namespace CRM.API.Controllers
                 if (!string.IsNullOrEmpty(createKey) && createUserLoginByUserId.TryGetValue(createKey, out var login))
                     createUserName = login;
 
+                string? vendorCode = null;
+                if (canViewVendorInfo)
+                {
+                    if (!string.IsNullOrWhiteSpace(r.VendorId)
+                        && vendorCodeMap.TryGetValue(r.VendorId.Trim(), out var fromMaster))
+                        vendorCode = fromMaster;
+                    else if (!string.IsNullOrWhiteSpace(r.VendorCode))
+                        vendorCode = r.VendorCode.Trim();
+                }
+
                 list.Add(new
                 {
                     purchaseOrderItemId = r.PurchaseOrderItemId,
@@ -1828,6 +1955,7 @@ namespace CRM.API.Controllers
                     purchaseOrderType = r.PurchaseOrderType,
                     vendorId = canViewVendorInfo ? r.VendorId : null,
                     vendorName = canViewVendorInfo ? r.VendorName : null,
+                    vendorCode,
                     vendorEnglishName = canViewVendorInfo && !string.IsNullOrWhiteSpace(r.VendorId)
                         && vendorEnglishMap.TryGetValue(r.VendorId.Trim(), out var ven)
                         ? ven

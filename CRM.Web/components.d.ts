@@ -131,6 +131,7 @@ declare module 'vue' {
     PurchaseOpsAssistorSelect: typeof import('./src/components/PurchaseOpsAssistorSelect.vue')['default']
     PurchaseOrderFavoritePanel: typeof import('./src/components/purchaseOrder/PurchaseOrderFavoritePanel.vue')['default']
     PurchaseOrderItemArrivalNoticeTabTable: typeof import('./src/components/RFQ/PurchaseOrderItemArrivalNoticeTabTable.vue')['default']
+    PurchaseOrderItemFlowPanel: typeof import('./src/components/RFQ/PurchaseOrderItemFlowPanel.vue')['default']
     PurchaseOrderItemLineDialogs: typeof import('./src/components/purchaseOrder/PurchaseOrderItemLineDialogs.vue')['default']
     PurchaseOrderItemOpsPanel: typeof import('./src/components/RFQ/PurchaseOrderItemOpsPanel.vue')['default']
     PurchaseOrderItemSearchPanel: typeof import('./src/components/RFQ/PurchaseOrderItemSearchPanel.vue')['default']

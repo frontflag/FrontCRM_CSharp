@@ -1419,6 +1419,15 @@
             @apply-arrival="purchaseOrderItemOpsStore.runApplyArrival()"
             @apply-payment="purchaseOrderItemOpsStore.runApplyPayment()"
           />
+          <PurchaseOrderItemFlowPanel
+            v-show="showPurchaseOrderItemFlowPanel"
+            :row="purchaseOrderItemOpsStore.row"
+            :aggregates="purchaseOrderItemOpsStore.aggregates"
+            :loading="purchaseOrderItemOpsStore.loading"
+            :load-error="purchaseOrderItemOpsStore.loadError"
+            :mask-sensitive="maskPurchaseSensitiveFields"
+            class="aux-panel-tab-body"
+          />
           <CustomsDeclarationOpsPanel
             v-show="showCustomsDeclarationOpsPanel"
             embedded
@@ -1535,6 +1544,7 @@ import RfqItemMaterialPanel from '@/components/RFQ/RfqItemMaterialPanel.vue'
 import CustomerIntelPanel from '@/components/Customer/CustomerIntelPanel.vue'
 import VendorIntelPanel from '@/components/Vendor/VendorIntelPanel.vue'
 import PurchaseOrderItemOpsPanel from '@/components/RFQ/PurchaseOrderItemOpsPanel.vue'
+import PurchaseOrderItemFlowPanel from '@/components/RFQ/PurchaseOrderItemFlowPanel.vue'
 import CustomsDeclarationOpsPanel from '@/components/Customs/CustomsDeclarationOpsPanel.vue'
 import ArrivalNoticeOpsPanel from '@/components/Logistics/ArrivalNoticeOpsPanel.vue'
 import QcOpsPanel from '@/components/Logistics/QcOpsPanel.vue'
@@ -1875,6 +1885,9 @@ const showSalesOrderItemFlowPanel = computed(
 const showPurchaseOrderItemOpsPanel = computed(
   () => rightActiveTabId.value === 'r-ops' && isPurchaseOrderItemOpsRoute.value
 )
+const showPurchaseOrderItemFlowPanel = computed(
+  () => rightActiveTabId.value === 'r-flow' && isPurchaseOrderItemListRoute.value
+)
 
 const showCustomsDeclarationOpsPanel = computed(
   () => rightActiveTabId.value === 'r-ops' && isCustomsDeclarationListRoute.value
@@ -1969,7 +1982,28 @@ watch(
       }
       return
     }
-    if (name === 'PurchaseOrderItemList' || name === 'PurchaseOrderDetail') {
+    if (name === 'PurchaseOrderItemList') {
+      rightTabs.value = [
+        { id: 'r-ops', labelKey: 'layout.auxTabs.ops' },
+        { id: 'r-flow', labelKey: 'layout.auxTabs.flow' },
+        { id: 'r4', labelKey: 'layout.auxTabs.help' }
+      ]
+      salesOrderItemOpsStore.clear()
+      customsDeclarationOpsStore.clear()
+      arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
+      materialIntelLookupStore.clearBound()
+      if (
+        rightActiveTabId.value !== 'r-ops' &&
+        rightActiveTabId.value !== 'r-flow' &&
+        rightActiveTabId.value !== 'r4'
+      ) {
+        rightActiveTabId.value = 'r-ops'
+      }
+      return
+    }
+    if (name === 'PurchaseOrderDetail') {
       rightTabs.value = [
         { id: 'r-ops', labelKey: 'layout.auxTabs.ops' },
         { id: 'r4', labelKey: 'layout.auxTabs.help' }
