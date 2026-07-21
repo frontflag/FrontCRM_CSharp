@@ -41,6 +41,8 @@ public class SalesOrderCustomerDownstreamSyncServiceTests
         _customerRepo = Substitute.For<IRepository<CustomerInfo>>();
         _unitOfWork = Substitute.For<IUnitOfWork>();
         _unitOfWork.SaveChangesAsync().Returns(1);
+        var salesParams = Substitute.For<ISalesParamsService>();
+        salesParams.GetAllowRefreshCompletedBizNodesAsync(Arg.Any<CancellationToken>()).Returns(false);
         _service = new SalesOrderCustomerDownstreamSyncService(
             _soRepo,
             _soItemRepo,
@@ -54,6 +56,7 @@ public class SalesOrderCustomerDownstreamSyncServiceTests
             _stockOutItemRepo,
             _customerRepo,
             _unitOfWork,
+            salesParams,
             NullLogger<SalesOrderCustomerDownstreamSyncService>.Instance);
     }
 

@@ -45,6 +45,21 @@ export const purchaseParamsApi = {
     return res.assignMethod
   },
 
+  async getAllowRefreshCompletedBizNodes(): Promise<boolean> {
+    const res = await apiClient.get<{ allow: boolean }>(
+      '/api/v1/purchase-params/allow-refresh-completed-biz-nodes'
+    )
+    return !!res.allow
+  },
+
+  async setAllowRefreshCompletedBizNodes(allow: boolean): Promise<boolean> {
+    const res = await apiClient.put<{ allow: boolean }>(
+      '/api/v1/purchase-params/allow-refresh-completed-biz-nodes',
+      { allow }
+    )
+    return !!res.allow
+  },
+
   async getQuoterPool(filter: 'all' | 'selected' = 'all'): Promise<PurchaseQuoterPoolListResponse> {
     return apiClient.get<PurchaseQuoterPoolListResponse>('/api/v1/purchase-params/quoter-pool', {
       params: { filter }

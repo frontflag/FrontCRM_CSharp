@@ -29,6 +29,7 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
     private readonly IRepository<FinancePaymentItem> _paymentItemRepo;
     private readonly IRepository<FinancePurchaseInvoice> _purchaseInvoiceRepo;
     private readonly IRepository<FinancePurchaseInvoiceItem> _purchaseInvoiceItemRepo;
+    private readonly IPurchaseQuoterPoolService _purchaseParams;
     private readonly ILogger<PurchaseOrderVendorChangeService> _logger;
 
     public PurchaseOrderVendorChangeService(
@@ -42,6 +43,7 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
         IRepository<FinancePaymentItem> paymentItemRepo,
         IRepository<FinancePurchaseInvoice> purchaseInvoiceRepo,
         IRepository<FinancePurchaseInvoiceItem> purchaseInvoiceItemRepo,
+        IPurchaseQuoterPoolService purchaseParams,
         ILogger<PurchaseOrderVendorChangeService> logger)
     {
         _poRepo = poRepo;
@@ -54,6 +56,7 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
         _paymentItemRepo = paymentItemRepo;
         _purchaseInvoiceRepo = purchaseInvoiceRepo;
         _purchaseInvoiceItemRepo = purchaseInvoiceItemRepo;
+        _purchaseParams = purchaseParams;
         _logger = logger;
     }
 
@@ -183,7 +186,8 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
         var needRefreshHeaderName = !NamesMatch(order.VendorName, targetName)
             || !NamesMatch(order.VendorCode, targetCode);
 
-        ClassifyDownstream(bundle, newVendorId, targetName);
+        var allowRefreshCompleted = await _purchaseParams.GetAllowRefreshCompletedBizNodesAsync(cancellationToken);
+        ClassifyDownstream(bundle, newVendorId, targetName, allowRefreshCompleted);
 
         var itemsToSync = bundle.Items
             .Where(i => !VendorIdsMatch(newVendorId, i.VendorId))
@@ -243,7 +247,8 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
     private static void ClassifyDownstream(
         VendorChangeBundle bundle,
         string targetVendorId,
-        string targetVendorName)
+        string targetVendorName,
+        bool allowRefreshCompleted)
     {
         bundle.SyncNotices.Clear();
         bundle.SyncStockIns.Clear();
@@ -259,7 +264,12 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
             if (notice.Status >= ArrivalNoticeStatusStockedIn)
             {
                 if (!idMatch)
-                    bundle.BlockingDocuments.Add($"到货通知 {notice.NoticeCode} 已入库");
+                {
+                    if (allowRefreshCompleted)
+                        bundle.SyncNotices.Add(notice);
+                    else
+                        bundle.BlockingDocuments.Add($"到货通知 {notice.NoticeCode} 已入库");
+                }
                 continue;
             }
 
@@ -274,7 +284,12 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
             if (stockIn.Status == StockInHeaderStatusCode.Posted)
             {
                 if (!idMatch)
-                    bundle.BlockingDocuments.Add($"入库单 {stockIn.StockInCode} 已过账");
+                {
+                    if (allowRefreshCompleted)
+                        bundle.SyncStockIns.Add(stockIn);
+                    else
+                        bundle.BlockingDocuments.Add($"入库单 {stockIn.StockInCode} 已过账");
+                }
                 continue;
             }
 
@@ -293,7 +308,12 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
             if (payment.Status == FinancePaymentStatusCompleted)
             {
                 if (!idMatch)
-                    bundle.BlockingDocuments.Add($"付款单 {payment.FinancePaymentCode} 已付款");
+                {
+                    if (allowRefreshCompleted)
+                        bundle.SyncPayments.Add(payment);
+                    else
+                        bundle.BlockingDocuments.Add($"付款单 {payment.FinancePaymentCode} 已付款");
+                }
                 continue;
             }
 
@@ -312,14 +332,24 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
             if (invoice.ConfirmStatus >= PurchaseInvoiceConfirmStatusDone)
             {
                 if (!idMatch)
-                    bundle.BlockingDocuments.Add($"进项发票 {invoice.InvoiceNo ?? invoice.Id} 已认证");
+                {
+                    if (allowRefreshCompleted)
+                        bundle.SyncPurchaseInvoices.Add(invoice);
+                    else
+                        bundle.BlockingDocuments.Add($"进项发票 {invoice.InvoiceNo ?? invoice.Id} 已认证");
+                }
                 continue;
             }
 
             if (invoice.RedInvoiceStatus >= PurchaseInvoiceRedStatusDone)
             {
                 if (!idMatch)
-                    bundle.BlockingDocuments.Add($"进项发票 {invoice.InvoiceNo ?? invoice.Id} 已冲红");
+                {
+                    if (allowRefreshCompleted)
+                        bundle.SyncPurchaseInvoices.Add(invoice);
+                    else
+                        bundle.BlockingDocuments.Add($"进项发票 {invoice.InvoiceNo ?? invoice.Id} 已冲红");
+                }
                 continue;
             }
 

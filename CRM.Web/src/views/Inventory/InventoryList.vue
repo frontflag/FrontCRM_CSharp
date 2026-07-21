@@ -15,8 +15,8 @@
         <div class="count-badge">{{ t('inventoryList.count', { count: listTotal }) }}</div>
       </div>
       <div class="header-right">
-        <button v-if="canWriteLogisticsData" class="btn-primary" type="button" @click="goWarehouseManage">
-          {{ t('inventoryList.actions.warehouseManagement') }}
+        <button type="button" class="btn-export" :disabled="exporting" @click="() => void handleExport()">
+          {{ t('inventoryList.filters.export') }}
         </button>
       </div>
     </div>
@@ -300,7 +300,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowRight, Box, Setting } from '@element-plus/icons-vue'
 import { inventoryCenterApi, type FinanceSummary, type InventoryOverview, type WarehouseInfo } from '@/api/inventoryCenter'
 import {
@@ -322,13 +322,13 @@ import { REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionTyp
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
+import { withExportTimestamp } from '@/utils/exportFileName'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
-import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 
 const router = useRouter()
 const { t } = useI18n()
-const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 const loading = ref(false)
+const exporting = ref(false)
 const tabModeDimension = ref<InventoryListTabModeDimension>(readInventoryListTabMode())
 const settingsMenuOpen = ref(false)
 const settingsSubmenuOpen = ref(false)
@@ -544,6 +544,38 @@ function resetInventorySearch() {
   void fetchList()
 }
 
+async function handleExport() {
+  try {
+    await ElMessageBox.confirm(
+      t('inventoryList.messages.exportConfirmMessage'),
+      t('inventoryList.messages.exportConfirmTitle'),
+      { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
+    )
+  } catch {
+    return
+  }
+  exporting.value = true
+  try {
+    const blob = await inventoryCenterApi.exportOverview({
+      warehouseId: warehouseFilter.value?.trim() || undefined,
+      materialModel: materialModelFilter.value?.trim() || undefined,
+      stockCode: stockCodeFilter.value?.trim() || undefined,
+      stockType: stockTypeFilter.value
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = withExportTimestamp('库存中心列表.csv')
+    a.click()
+    URL.revokeObjectURL(url)
+    ElMessage.success(t('inventoryList.messages.exportSuccess'))
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : t('inventoryList.messages.exportFailed'))
+  } finally {
+    exporting.value = false
+  }
+}
+
 const formatMoney = (v: number) =>
   v == null
     ? '—'
@@ -730,10 +762,6 @@ const onRowClick = (row: InventoryOverview) => {
   openStockDetail(row)
 }
 
-const goWarehouseManage = () => {
-  router.push({ name: 'WarehouseManage' })
-}
-
 onMounted(() => void fetchList())
 </script>
 
@@ -756,6 +784,7 @@ onMounted(() => void fetchList())
   .header-right {
     display: flex;
     align-items: center;
+    gap: 10px;
     flex-shrink: 0;
   }
 }
@@ -989,6 +1018,43 @@ html[data-theme='dark'] .inv-list-amt-frac {
   background: rgba(255, 255, 255, 0.05);
   border-color: $border-panel;
   color: $text-secondary;
+
+  &:hover:not(:disabled) {
+    border-color: rgba(0, 212, 255, 0.35);
+    color: $text-primary;
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+.btn-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: $border-radius-md;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  border: 1px solid rgba(230, 162, 60, 0.35);
+  background: rgba(230, 162, 60, 0.16);
+  color: #c9902e;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  transition: all 0.2s;
+
+  &:hover:not(:disabled) {
+    background: rgba(230, 162, 60, 0.24);
+    border-color: rgba(230, 162, 60, 0.5);
+    color: #b8821f;
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
 }
 .action-btn {
   background: transparent;

@@ -29,5 +29,15 @@ namespace CRM.Core.Constants
 
         /// <summary>新建需求时分配方式默认值（2 条目轮询 / 3 品牌轮询 / 5 采报优先）</summary>
         public const string RfqDefaultAssignMethod = "System.RFQ.DefaultAssignMethod";
+
+        /// <summary>
+        /// 销售「刷新客户」是否允许同步已完成业务节点（出库通知已出库、装箱已完成、出库单已出库等）。Boolean，默认 false。
+        /// </summary>
+        public const string SalesAllowRefreshCompletedBizNodes = "System.Sales.AllowRefreshCompletedBizNodes";
+
+        /// <summary>
+        /// 采购「刷新供应商」是否允许同步已完成业务节点（到货已入库、入库已过账、付款已完成、进项已认证/冲红等）。Boolean，默认 false。
+        /// </summary>
+        public const string PurchaseAllowRefreshCompletedBizNodes = "System.Purchase.AllowRefreshCompletedBizNodes";
     }
 }

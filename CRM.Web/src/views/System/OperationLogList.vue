@@ -61,7 +61,7 @@
         v-show="loading || rows.length > 0"
         ref="dataTableRef"
         row-key="id"
-        column-layout-key="operation-log-list-main"
+        column-layout-key="operation-log-list-main-v2"
         :columns="tableColumns"
         :show-column-settings="false"
         :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -72,6 +72,9 @@
         </template>
         <template #col-bizType="{ row }">
           {{ operationBizTypeLabel(row.bizType) }}
+        </template>
+        <template #col-filterSummary="{ row }">
+          {{ filterSummaryText(row) }}
         </template>
       </CrmDataTable>
 
@@ -134,7 +137,24 @@ const bizTypeOptions = [
   BusinessLogTypes.Vendor,
   BusinessLogTypes.VendorContact,
   BusinessLogTypes.SalesOrder,
-  BusinessLogTypes.PurchaseOrder
+  BusinessLogTypes.PurchaseOrder,
+  BusinessLogTypes.StockIn,
+  BusinessLogTypes.StockOut,
+  BusinessLogTypes.InventoryStock,
+  BusinessLogTypes.InventoryStockItem,
+  BusinessLogTypes.Packing,
+  BusinessLogTypes.BatchReconciliation,
+  BusinessLogTypes.StockInBatch,
+  BusinessLogTypes.StockOutBatch,
+  BusinessLogTypes.PickingTask,
+  BusinessLogTypes.QcInspection,
+  BusinessLogTypes.CustomsDeclaration,
+  BusinessLogTypes.FinancePayment,
+  BusinessLogTypes.FinanceReceipt,
+  BusinessLogTypes.Quote,
+  BusinessLogTypes.Rfq,
+  BusinessLogTypes.PurchaseRequisition,
+  BusinessLogTypes.Document
 ]
 
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
@@ -164,12 +184,24 @@ const tableColumns = computed<CrmTableColumnDef[]>(() => {
     { key: 'recordCode', label: t('operationLog.colRecordCode'), prop: 'recordCode', minWidth: 120, showOverflowTooltip: true },
     { key: 'operatorUserName', label: t('operationLog.colOperator'), prop: 'operatorUserName', width: 110, showOverflowTooltip: true },
     { key: 'reason', label: t('operationLog.colReason'), prop: 'reason', minWidth: 140, showOverflowTooltip: true },
-    { key: 'operationDesc', label: t('operationLog.colOperationDesc'), prop: 'operationDesc', minWidth: 220, showOverflowTooltip: true }
+    { key: 'operationDesc', label: t('operationLog.colOperationDesc'), prop: 'operationDesc', minWidth: 200, showOverflowTooltip: true },
+    {
+      key: 'filterSummary',
+      label: t('operationLog.colFilterSummary'),
+      prop: 'filterSummary',
+      minWidth: 220,
+      showOverflowTooltip: true
+    }
   ]
 })
 
 function formatOpTime(v?: string | null) {
   return v ? formatDisplayDateTime(v) : '—'
+}
+
+function filterSummaryText(row: OperationLogRow) {
+  const s = String(row.filterSummary ?? '').trim()
+  return s || '—'
 }
 
 function buildParams() {

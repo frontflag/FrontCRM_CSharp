@@ -17,7 +17,28 @@ export function operationBizTypeLabel(bizType?: string | null): string {
     Rfq: '需求',
     RfqItem: '需求明细',
     SalesOrder: '销售订单',
+    SellOrderItem: '销售订单明细',
     PurchaseOrder: '采购订单',
+    PurchaseOrderItem: '采购订单明细',
+    PurchaseRequisition: '采购申请',
+    InventoryStock: '库存中心',
+    InventoryStockItem: '库存明细',
+    PickingTask: '拣货单',
+    StockIn: '入库单',
+    StockInBatch: '入库批次',
+    StockOutBatch: '出库批次',
+    StockOut: '出库单',
+    Packing: '装箱单',
+    BatchReconciliation: '批次核销',
+    QcInspection: '质检',
+    CustomsDeclaration: '报关单',
+    CustomsBroker: '报关行',
+    FreightForwarderCompany: '货代公司',
+    FinancePayment: '付款单',
+    FinanceReceipt: '收款单',
+    FinanceSellInvoice: '销项发票',
+    FinancePurchaseInvoice: '进项发票',
+    Document: '文档'
   };
   return m[bizType] ?? bizType;
 }

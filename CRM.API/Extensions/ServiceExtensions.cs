@@ -95,6 +95,7 @@ namespace CRM.API.Extensions
             services.AddScoped<IFavoriteService, FavoriteService>();
             services.AddScoped<ILogRecentService, LogRecentService>();
             services.AddScoped<ILogOperationAppendService, LogOperationAppendService>();
+            services.AddScoped<IExportOperationLogService, ExportOperationLogService>();
             services.AddScoped<ILoginLogService, LoginLogService>();
 
             var xdbRel = configuration["Ip2Region:Ipv4XdbPath"] ?? "../data/ip2region/ip2region_v4.xdb";
@@ -109,6 +110,7 @@ namespace CRM.API.Extensions
             services.AddScoped<IRbacService, RbacService>();
             services.AddScoped<ISysRelationMapService, CRM.Infrastructure.RelationMaps.SysRelationMapService>();
             services.AddScoped<IPurchaseQuoterPoolService, CRM.Infrastructure.PurchaseParams.PurchaseQuoterPoolService>();
+            services.AddScoped<ISalesParamsService, CRM.Infrastructure.SalesParams.SalesParamsService>();
             services.AddScoped<IDataPermissionService, DataPermissionService>();
             services.AddScoped<IApprovalRecordService, ApprovalRecordService>();
             services.AddScoped<IOrderJourneyLogService, OrderJourneyLogService>();

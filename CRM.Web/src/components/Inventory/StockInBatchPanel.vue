@@ -29,10 +29,10 @@
         </div>
 
         <div v-if="canWrite && activeInnerTab === 'list'" class="batch-panel-toolbar">
-          <button type="button" class="btn-secondary" @click="() => void openImportFlow()">
+          <button type="button" class="btn-export" @click="() => void openImportFlow()">
             {{ t('stockInDetail.batchPanel.actions.import') }}
           </button>
-          <button type="button" class="btn-secondary" :disabled="exporting" @click="() => void exportBatches()">
+          <button type="button" class="btn-export" :disabled="exporting" @click="() => void exportBatches()">
             {{ t('stockInDetail.batchPanel.actions.export') }}
           </button>
           <button type="button" class="btn-secondary btn-secondary--danger" @click="() => void openBulkDeleteFlow()">
@@ -257,6 +257,7 @@ import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiv
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
+import { withExportTimestamp } from '@/utils/exportFileName'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 type ListRow = BatchReconciliationRow & { rowKey: string }
@@ -342,7 +343,8 @@ const logTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'skippedSummary', label: t('stockInDetail.batchPanel.logs.columns.skippedSummary'), prop: 'skippedSummary', minWidth: 140, showOverflowTooltip: true },
   { key: 'reason', label: t('stockInDetail.batchPanel.logs.columns.reason'), prop: 'reason', minWidth: 120, showOverflowTooltip: true },
   { key: 'operatorUserName', label: t('stockInDetail.batchPanel.logs.columns.operator'), prop: 'operatorUserName', width: 100, showOverflowTooltip: true },
-  { key: 'operationDesc', label: t('stockInDetail.batchPanel.logs.columns.operationDesc'), prop: 'operationDesc', minWidth: 180, showOverflowTooltip: true }
+  { key: 'operationDesc', label: t('stockInDetail.batchPanel.logs.columns.operationDesc'), prop: 'operationDesc', minWidth: 180, showOverflowTooltip: true },
+  { key: 'filterSummary', label: t('stockInDetail.batchPanel.logs.columns.filterSummary'), prop: 'filterSummary', minWidth: 200, showOverflowTooltip: true }
 ])
 
 function formatDateTimeParts(v: string | null | undefined) {
@@ -461,8 +463,7 @@ function downloadBlob(blob: Blob, filename: string) {
 
 async function exportBatches() {
   const code = (props.stockInCode ?? '').trim()
-  const sid = (props.stockInId ?? '').trim()
-  if (!code || !sid) return
+  if (!code) return
   try {
     await ElMessageBox.confirm(
       t('stockInDetail.batchPanel.messages.exportConfirmMessage', {
@@ -481,14 +482,8 @@ async function exportBatches() {
   }
   exporting.value = true
   try {
-    const blob = await batchReconciliationApi.exportInBatches({ stockInCode: code })
-    downloadBlob(blob, `stock-in-batches-${code}.csv`)
-    const count = listTotalServer.value
-    try {
-      await stockInBatchApi.logExport(sid, count)
-    } catch {
-      /* export file already downloaded; log failure is non-blocking */
-    }
+    const blob = await batchReconciliationApi.exportInBatches({ stockInCode: code, exportSource: 'stockIn' })
+    downloadBlob(blob, withExportTimestamp(`stock-in-batches-${code}.csv`))
     ElMessage.success(t('stockInDetail.batchPanel.messages.exportSuccess'))
     void fetchLogs(false)
   } catch (e) {

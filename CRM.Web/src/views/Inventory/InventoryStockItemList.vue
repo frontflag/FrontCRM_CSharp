@@ -15,7 +15,11 @@
         </div>
         <div class="count-badge">{{ t('inventoryStockItemList.count', { count: listTotal }) }}</div>
       </div>
-      <div class="header-right" aria-hidden="true" />
+      <div class="header-right">
+        <button type="button" class="btn-export" :disabled="exporting" @click="() => void handleExport()">
+          {{ t('inventoryStockItemList.filters.export') }}
+        </button>
+      </div>
     </div>
 
     <div class="search-bar">
@@ -446,6 +450,7 @@ import { inventoryCenterApi, type StockItemListQuery, type StockItemListRow, typ
 import { normalizeRegionType, REGION_TYPE_OVERSEAS } from '@/constants/regionType'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
+import { withExportTimestamp } from '@/utils/exportFileName'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
@@ -482,6 +487,7 @@ const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const loading = ref(false)
+const exporting = ref(false)
 const list = ref<StockItemListRow[]>([])
 const listPage = ref(1)
 const listPageSize = ref(20)
@@ -852,6 +858,33 @@ const resetFilters = () => {
   void fetchList()
 }
 
+async function handleExport() {
+  try {
+    await ElMessageBox.confirm(
+      t('inventoryStockItemList.messages.exportConfirmMessage'),
+      t('inventoryStockItemList.messages.exportConfirmTitle'),
+      { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
+    )
+  } catch {
+    return
+  }
+  exporting.value = true
+  try {
+    const blob = await inventoryCenterApi.exportStockItems(buildQuery())
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = withExportTimestamp('库存明细列表.csv')
+    a.click()
+    URL.revokeObjectURL(url)
+    ElMessage.success(t('inventoryStockItemList.messages.exportSuccess'))
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : t('inventoryStockItemList.messages.exportFailed'))
+  } finally {
+    exporting.value = false
+  }
+}
+
 /** 仅日期（无时区时刻）时入库日常为 00:00，不重复展示时分 */
 function isTimeMidnightOnly(time: string) {
   const t0 = (time || '').trim()
@@ -1024,6 +1057,34 @@ onMounted(async () => {
 .header-right {
   flex-shrink: 0;
   min-height: 1px;
+}
+
+.btn-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: $border-radius-md;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  border: 1px solid rgba(230, 162, 60, 0.35);
+  background: rgba(230, 162, 60, 0.16);
+  color: #c9902e;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  transition: all 0.2s;
+
+  &:hover:not(:disabled) {
+    background: rgba(230, 162, 60, 0.24);
+    border-color: rgba(230, 162, 60, 0.5);
+    color: #b8821f;
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
 }
 
 .page-title-group {

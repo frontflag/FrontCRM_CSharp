@@ -675,6 +675,18 @@ export const stockOutApi = {
     return unwrapPagedStockOuts(res)
   },
 
+  /** 按当前筛选导出出库单列表 CSV（服务端写审计日志） */
+  async exportList(params?: StockOutListQuery): Promise<Blob> {
+    const qs = new URLSearchParams()
+    Object.entries(params ?? {}).forEach(([k, v]) => {
+      if (v === undefined || v === null || v === '') return
+      if (k === 'page' || k === 'pageSize') return
+      qs.set(k, String(v))
+    })
+    const q = qs.toString()
+    return apiClient.getBlob(q ? `/api/v1/stock-out/export?${q}` : '/api/v1/stock-out/export')
+  },
+
   /** @deprecated 请使用 {@link stockOutApi.getListPaged}；保留兼容时拉一页大页 */
   async getAll(): Promise<StockOutDto[]> {
     const p = await stockOutApi.getListPaged({ page: 1, pageSize: 2000 })

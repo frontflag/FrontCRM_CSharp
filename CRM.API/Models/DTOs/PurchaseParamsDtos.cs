@@ -30,6 +30,16 @@ public class SetPurchaseParamsDefaultAssignMethodRequest
     public short AssignMethod { get; set; }
 }
 
+public class PurchaseParamsAllowRefreshCompletedBizNodesDto
+{
+    public bool Allow { get; set; }
+}
+
+public class SetPurchaseParamsAllowRefreshCompletedBizNodesRequest
+{
+    public bool Allow { get; set; }
+}
+
 public class PurchaseQuoterPoolMemberResponse
 {
     public string UserId { get; set; } = string.Empty;

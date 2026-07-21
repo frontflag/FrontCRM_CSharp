@@ -1,8 +1,8 @@
 using System.Globalization;
-using System.Security.Claims;
 using System.Text;
 using CRM.API.Utilities;
 using CRM.Core.Interfaces;
+using CRM.Core.Services;
 using CRM.Core.Utilities;
 using CRM.Infrastructure.BatchReconciliation;
 using Microsoft.AspNetCore.Mvc;
@@ -15,15 +15,30 @@ public class BatchReconciliationController : ControllerBase
 {
     private readonly IBatchReconciliationListQuery _query;
     private readonly IRbacService _rbacService;
+    private readonly IExportOperationLogService _exportLog;
+    private readonly IStockInService _stockInService;
+    private readonly IPackingService _packingService;
+    private readonly IPurchaseOrderService _purchaseOrderService;
+    private readonly ISalesOrderService _salesOrderService;
     private readonly ILogger<BatchReconciliationController> _logger;
 
     public BatchReconciliationController(
         IBatchReconciliationListQuery query,
         IRbacService rbacService,
+        IExportOperationLogService exportLog,
+        IStockInService stockInService,
+        IPackingService packingService,
+        IPurchaseOrderService purchaseOrderService,
+        ISalesOrderService salesOrderService,
         ILogger<BatchReconciliationController> logger)
     {
         _query = query;
         _rbacService = rbacService;
+        _exportLog = exportLog;
+        _stockInService = stockInService;
+        _packingService = packingService;
+        _purchaseOrderService = purchaseOrderService;
+        _salesOrderService = salesOrderService;
         _logger = logger;
     }
 
@@ -37,7 +52,7 @@ public class BatchReconciliationController : ControllerBase
         try
         {
             request ??= new BatchReconciliationQueryRequest();
-            request.CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            request.CurrentUserId = InventoryExportHttp.UserId(User);
             var result = await _query.GetPagedAsync(request, page, pageSize, cancellationToken);
             var mask511 = await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User);
             var mask521 = await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User);
@@ -73,7 +88,7 @@ public class BatchReconciliationController : ControllerBase
     {
         try
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userId = InventoryExportHttp.UserId(User);
             var rows = await _query.GetConsumptionByGlobalBatchNoAsync(globalBatchNo, userId, cancellationToken);
             if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
                 SaleSensitiveFieldMask521.ApplyBatchReconciliationConsumptionRows(rows, true);
@@ -92,19 +107,25 @@ public class BatchReconciliationController : ControllerBase
         }
     }
 
+    /// <param name="exportSource">list|stockIn|packing|purchaseOrder|salesOrder；缺省时按筛选推断。</param>
     [HttpGet("export/in-batches")]
     public async Task<IActionResult> ExportInBatches(
         [FromQuery] BatchReconciliationQueryRequest request,
+        [FromQuery] string? exportSource = null,
         CancellationToken cancellationToken = default)
     {
         try
         {
             request ??= new BatchReconciliationQueryRequest();
-            request.CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var rows = await _query.ListForInBatchExportAsync(
-                request,
-                BatchReconciliationListQuery.MaxExportRows,
-                cancellationToken);
+            request.CurrentUserId = InventoryExportHttp.UserId(User);
+            var mask511 = await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User);
+            var mask521 = await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User);
+            if (mask511) request.VendorName = null;
+            if (mask521) request.CustomerName = null;
+
+            var maxRows = BatchReconciliationListQuery.MaxExportRows;
+            var rows = await _query.ListForInBatchExportAsync(request, maxRows, cancellationToken);
+            var truncated = rows.Count >= maxRows;
 
             var sb = new StringBuilder();
             sb.AppendLine(string.Join(',',
@@ -115,29 +136,44 @@ public class BatchReconciliationController : ControllerBase
             foreach (var r in rows)
             {
                 sb.AppendLine(string.Join(',',
-                    CsvCell(r.GlobalBatchNo),
-                    CsvCell(r.BatchDimension),
-                    CsvCell(r.BatchUnit),
-                    CsvCell(r.UnitNo),
-                    CsvCell(r.BatchQty.ToString(CultureInfo.InvariantCulture)),
-                    CsvCell(r.Dc),
-                    CsvCell(r.PackageOrigin),
-                    CsvCell(r.WaferOrigin),
-                    CsvCell(r.Lot),
-                    CsvCell(r.SerialNumber),
-                    CsvCell(r.FirmwareVersion),
-                    CsvCell(r.PartCode),
-                    CsvCell(r.BatchRemark),
-                    CsvCell(r.StockInCode),
-                    CsvCell(FormatDate(r.StockInDate)),
-                    CsvCell(r.MaterialModel),
-                    CsvCell(r.MaterialBrand),
-                    CsvCell(r.WarehouseName),
-                    CsvCell(r.TotalOutQty.ToString(CultureInfo.InvariantCulture)),
-                    CsvCell(r.RemainingQty.ToString(CultureInfo.InvariantCulture))));
+                    InventoryExportHttp.CsvCell(r.GlobalBatchNo),
+                    InventoryExportHttp.CsvCell(r.BatchDimension),
+                    InventoryExportHttp.CsvCell(r.BatchUnit),
+                    InventoryExportHttp.CsvCell(r.UnitNo),
+                    InventoryExportHttp.CsvCell(r.BatchQty.ToString(CultureInfo.InvariantCulture)),
+                    InventoryExportHttp.CsvCell(r.Dc),
+                    InventoryExportHttp.CsvCell(r.PackageOrigin),
+                    InventoryExportHttp.CsvCell(r.WaferOrigin),
+                    InventoryExportHttp.CsvCell(r.Lot),
+                    InventoryExportHttp.CsvCell(r.SerialNumber),
+                    InventoryExportHttp.CsvCell(r.FirmwareVersion),
+                    InventoryExportHttp.CsvCell(r.PartCode),
+                    InventoryExportHttp.CsvCell(r.BatchRemark),
+                    InventoryExportHttp.CsvCell(r.StockInCode),
+                    InventoryExportHttp.CsvCell(InventoryExportHttp.FormatDate(r.StockInDate)),
+                    InventoryExportHttp.CsvCell(r.MaterialModel),
+                    InventoryExportHttp.CsvCell(r.MaterialBrand),
+                    InventoryExportHttp.CsvCell(r.WarehouseName),
+                    InventoryExportHttp.CsvCell(r.TotalOutQty.ToString(CultureInfo.InvariantCulture)),
+                    InventoryExportHttp.CsvCell(r.RemainingQty.ToString(CultureInfo.InvariantCulture))));
             }
 
-            return CsvFile(sb.ToString(), "stock-in-batches.csv");
+            await InventoryExportHttp.AppendBatchExportLogAsync(
+                _exportLog,
+                _stockInService,
+                _packingService,
+                _purchaseOrderService,
+                _salesOrderService,
+                request,
+                exportSource,
+                isInBatches: true,
+                exportedCount: rows.Count,
+                truncated,
+                filtersMasked: mask511 || mask521,
+                User,
+                cancellationToken);
+
+            return InventoryExportHttp.CsvFile(sb.ToString(), "stock-in-batches.csv");
         }
         catch (Exception ex)
         {
@@ -149,16 +185,21 @@ public class BatchReconciliationController : ControllerBase
     [HttpGet("export/out-batches")]
     public async Task<IActionResult> ExportOutBatches(
         [FromQuery] BatchReconciliationQueryRequest request,
+        [FromQuery] string? exportSource = null,
         CancellationToken cancellationToken = default)
     {
         try
         {
             request ??= new BatchReconciliationQueryRequest();
-            request.CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var rows = await _query.ListForOutBatchExportAsync(
-                request,
-                BatchReconciliationListQuery.MaxExportRows,
-                cancellationToken);
+            request.CurrentUserId = InventoryExportHttp.UserId(User);
+            var mask511 = await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User);
+            var mask521 = await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User);
+            if (mask511) request.VendorName = null;
+            if (mask521) request.CustomerName = null;
+
+            var maxRows = BatchReconciliationListQuery.MaxExportRows;
+            var rows = await _query.ListForOutBatchExportAsync(request, maxRows, cancellationToken);
+            var truncated = rows.Count >= maxRows;
 
             var sb = new StringBuilder();
             sb.AppendLine(string.Join(',', "批次全局编号", "批次出库数量", "装箱单号", "出库日期", "物料型号", "LOT"));
@@ -166,15 +207,30 @@ public class BatchReconciliationController : ControllerBase
             foreach (var r in rows)
             {
                 sb.AppendLine(string.Join(',',
-                    CsvCell(r.GlobalBatchNo),
-                    CsvCell(r.OutQty.ToString(CultureInfo.InvariantCulture)),
-                    CsvCell(r.PackingCode),
-                    CsvCell(FormatDateNullable(r.StockOutDate)),
-                    CsvCell(r.MaterialModel),
-                    CsvCell(r.Lot)));
+                    InventoryExportHttp.CsvCell(r.GlobalBatchNo),
+                    InventoryExportHttp.CsvCell(r.OutQty.ToString(CultureInfo.InvariantCulture)),
+                    InventoryExportHttp.CsvCell(r.PackingCode),
+                    InventoryExportHttp.CsvCell(InventoryExportHttp.FormatDate(r.StockOutDate)),
+                    InventoryExportHttp.CsvCell(r.MaterialModel),
+                    InventoryExportHttp.CsvCell(r.Lot)));
             }
 
-            return CsvFile(sb.ToString(), "stock-out-batches.csv");
+            await InventoryExportHttp.AppendBatchExportLogAsync(
+                _exportLog,
+                _stockInService,
+                _packingService,
+                _purchaseOrderService,
+                _salesOrderService,
+                request,
+                exportSource,
+                isInBatches: false,
+                exportedCount: rows.Count,
+                truncated,
+                filtersMasked: mask511 || mask521,
+                User,
+                cancellationToken);
+
+            return InventoryExportHttp.CsvFile(sb.ToString(), "stock-out-batches.csv");
         }
         catch (Exception ex)
         {
@@ -182,27 +238,4 @@ public class BatchReconciliationController : ControllerBase
             return StatusCode(500, new { success = false, message = $"导出出库批次失败: {ex.Message}" });
         }
     }
-
-    private static FileContentResult CsvFile(string content, string fileName)
-    {
-        var bytes = Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(content)).ToArray();
-        return new FileContentResult(bytes, "text/csv; charset=utf-8")
-        {
-            FileDownloadName = fileName
-        };
-    }
-
-    private static string CsvCell(string? value)
-    {
-        if (string.IsNullOrEmpty(value)) return string.Empty;
-        if (value.Contains('"') || value.Contains(',') || value.Contains('\n') || value.Contains('\r'))
-            return "\"" + value.Replace("\"", "\"\"") + "\"";
-        return value;
-    }
-
-    private static string FormatDate(DateTime dt) =>
-        dt.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-
-    private static string FormatDateNullable(DateTime? dt) =>
-        dt.HasValue ? FormatDate(dt.Value) : string.Empty;
 }

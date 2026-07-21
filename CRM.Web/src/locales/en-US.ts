@@ -562,7 +562,36 @@ const enUS = {
     unsavedLeaveTitle: 'Unsaved changes',
     unsavedLeaveConfirm: 'Quoter pool selections are not saved. Leave anyway?',
     leaveBtn: 'Leave',
-    cancelBtn: 'Cancel'
+    cancelBtn: 'Cancel',
+    refreshVendorNav: 'Refresh vendor',
+    refreshVendorTitle: 'Refresh vendor',
+    refreshVendorHint:
+      'Controls whether purchase-order “Refresh vendor” may process completed downstream documents.',
+    allowRefreshCompletedLabel: 'Allow refresh of completed nodes:',
+    allowRefreshCompletedNote:
+      'Off (default): stocked-in arrival notices, posted stock-ins, completed payments, and confirmed/red-inked purchase invoices block refresh when vendor ID differs. On: those completed documents can still sync vendor.',
+    allow: 'Allow',
+    disallow: 'Disallow',
+    refreshVendorLoadFailed: 'Failed to load refresh-vendor parameters'
+  },
+  salesParams: {
+    pageTitle: 'Sales parameters',
+    pageSubtitle: 'Configure sales-order related system parameters.',
+    navTitle: 'Categories',
+    refreshCustomerNav: 'Refresh customer',
+    refreshCustomerTitle: 'Refresh customer',
+    refreshCustomerHint:
+      'Controls whether sales-order “Refresh customer” may process completed downstream documents.',
+    allowRefreshCompletedLabel: 'Allow refresh of completed nodes:',
+    allowRefreshCompletedNote:
+      'Off (default): stocked-out notices, finished packings, completed stock-outs, verified receivables, and invoiced sales invoices block refresh. On: notices/packings/stock-outs can still sync customer even when completed; verified receivables and invoiced sales invoices no longer block, but this version does not rewrite their customer fields.',
+    allow: 'Allow',
+    disallow: 'Disallow',
+    saveBtn: 'Save',
+    refreshBtn: 'Refresh',
+    saveSuccess: 'Saved',
+    saveFailed: 'Save failed',
+    loadFailed: 'Failed to load sales parameters'
   },
   layout: {
     brandFull: 'Semicore Ai Intelligent System',
@@ -677,6 +706,7 @@ const enUS = {
       dictItems: 'Dictionary Items',
       aiConfig: 'AI Configuration',
       purchaseParams: 'Purchase parameters',
+      salesParams: 'Sales parameters',
       financeParams: 'Finance parameters',
       systemSettings: 'System Settings',
       ops: 'Operations',
@@ -1551,7 +1581,8 @@ const enUS = {
     colRecordId: 'Record ID',
     colOperator: 'Operator',
     colReason: 'Reason',
-    colOperationDesc: 'Description'
+    colOperationDesc: 'Description',
+    colFilterSummary: 'Export filters'
   },
   dashboardSettings: {
     title: 'System Settings',
@@ -5069,7 +5100,8 @@ const enUS = {
           operationTime: 'Time',
           operator: 'Operator',
           exportedCount: 'Rows exported',
-          operationDesc: 'Description'
+          operationDesc: 'Description',
+          filterSummary: 'Filter summary'
         }
       },
       messages: {
@@ -6031,7 +6063,8 @@ const enUS = {
       salespersonUser: 'Sales rep',
       purchaserUser: 'Purchaser',
       search: 'Search',
-      reset: 'Reset'
+      reset: 'Reset',
+      export: 'Export'
     },
     settingsMenu: {
       aria: 'List filter settings',
@@ -6066,7 +6099,11 @@ const enUS = {
     },
     messages: {
       loadFailed: 'Failed to load stock items',
-      missingAggregateId: 'Missing stock aggregate id'
+      missingAggregateId: 'Missing stock aggregate id',
+      exportConfirmTitle: 'Confirm export',
+      exportConfirmMessage: 'Export stock items with the current filters (up to 50,000 rows). Continue?',
+      exportSuccess: 'Export succeeded',
+      exportFailed: 'Export failed'
     }
   },
   inventoryStockDetail: {
@@ -6247,7 +6284,8 @@ const enUS = {
       stockCodePlaceholder: 'Stock code',
       allRegions: 'All regions',
       search: 'Search',
-      reset: 'Reset'
+      reset: 'Reset',
+      export: 'Export'
     },
     settingsMenu: {
       aria: 'List filter settings',
@@ -6315,7 +6353,11 @@ const enUS = {
       loadCenterFailed: 'Failed to load inventory center data',
       loadWarehouseFailed: 'Failed to load warehouse list',
       saveWarehouseSuccess: 'Warehouse saved successfully',
-      saveWarehouseFailed: 'Failed to save warehouse'
+      saveWarehouseFailed: 'Failed to save warehouse',
+      exportConfirmTitle: 'Export confirmation',
+      exportConfirmMessage: 'Export inventory overview with current filters (max 50,000 rows). Continue?',
+      exportSuccess: 'Export succeeded',
+      exportFailed: 'Export failed'
     }
   },
   stockInBatchList: {
@@ -6446,7 +6488,8 @@ const enUS = {
       salesOrderCode: 'SO Code',
       stockInTypePlaceholder: 'Stock-in type',
       search: 'Search',
-      reset: 'Reset'
+      reset: 'Reset',
+      export: 'Export'
     },
     leftPanel: {
       title: 'Stock-in search',
@@ -6501,7 +6544,11 @@ const enUS = {
       remarkUpdated: 'Remark updated',
       remarkUpdateFailed: 'Failed to update remark',
       markDoneSuccess: 'Marked as stocked in',
-      updateStatusFailed: 'Failed to update status'
+      updateStatusFailed: 'Failed to update status',
+      exportConfirmTitle: 'Export confirmation',
+      exportConfirmMessage: 'Export stock-in list with current filters (max 50,000 rows). Continue?',
+      exportSuccess: 'Export succeeded',
+      exportFailed: 'Export failed'
     }
   },
   stockInDetail: {
@@ -6646,7 +6693,8 @@ const enUS = {
           skippedSummary: 'Skipped',
           reason: 'Reason',
           operator: 'Operator',
-          operationDesc: 'Description'
+          operationDesc: 'Description',
+          filterSummary: 'Filter summary'
         },
         affectedSummary: '{count} record(s)',
         skippedSummary: 'Skipped {count} (outbound)',
@@ -6695,7 +6743,8 @@ const enUS = {
       stockOutType: 'Stock-out type',
       search: 'Search',
       reset: 'Reset',
-      refresh: 'Refresh'
+      refresh: 'Refresh',
+      export: 'Export'
     },
     settingsMenu: {
       aria: 'List filter settings',
@@ -6770,7 +6819,11 @@ const enUS = {
     messages: {
       loadFailed: 'Failed to load stock-out list',
       markFinishedSuccess: 'Marked as finished',
-      updateStatusFailed: 'Failed to update status'
+      updateStatusFailed: 'Failed to update status',
+      exportConfirmTitle: 'Export confirmation',
+      exportConfirmMessage: 'Export stock-out list with current filters (max 50,000 rows). Continue?',
+      exportSuccess: 'Export succeeded',
+      exportFailed: 'Export failed'
     }
   },
   stockOutItemList: {
@@ -7369,7 +7422,8 @@ const enUS = {
           operationTime: 'Time',
           operator: 'Operator',
           exportedCount: 'Exported rows',
-          operationDesc: 'Description'
+          operationDesc: 'Description',
+          filterSummary: 'Filter summary'
         }
       },
       messages: {
@@ -7500,7 +7554,8 @@ const enUS = {
           skippedSummary: 'Skipped',
           reason: 'Reason',
           operator: 'Operator',
-          operationDesc: 'Description'
+          operationDesc: 'Description',
+          filterSummary: 'Filter summary'
         },
         affectedSummary: '{count} row(s)',
         skippedSummary: 'Skipped {count}',

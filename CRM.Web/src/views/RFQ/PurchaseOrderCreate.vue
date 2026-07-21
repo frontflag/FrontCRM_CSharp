@@ -1073,20 +1073,36 @@ async function refreshVendorChangeTipPreview() {
 }
 
 function buildVendorChangeConfirmMessage(preview: PurchaseOrderVendorChangePreviewResult) {
+  const oldName = escapeHtml(preview.oldVendorName || preview.oldVendorId || '—')
+  const newName = escapeHtml(preview.newVendorName || preview.newVendorId || '—')
   const lines = [
     preview.sameVendorId
-      ? `将按供应商「${preview.newVendorName || preview.newVendorId}」刷新名称快照并同步未完结下游。`
-      : `将把供应商由「${preview.oldVendorName || preview.oldVendorId || '—'}」更换为「${preview.newVendorName || preview.newVendorId}」。`,
-    '确认后将一次保存订单供应商，并同步未完结下游。'
+      ? `将按供应商「${newName}」刷新名称快照并同步未完结下游。`
+      : `将把供应商由「<span style="color:#F56C6C">${oldName}</span>」更换为「${newName}」。`,
+    escapeHtml('确认后将一次保存订单供应商，并同步未完结下游。')
   ]
-  if ((preview.poVendorNameToSync ?? 0) > 0) lines.push('同步采购订单供应商名称快照。')
-  if (preview.poItemsToSync > 0) lines.push(`同步 ${preview.poItemsToSync} 条采购明细。`)
-  if (preview.arrivalNoticesToSync > 0) lines.push(`同步 ${preview.arrivalNoticesToSync} 条未到货完成的到货通知。`)
-  if (preview.stockInsToSync > 0) lines.push(`同步 ${preview.stockInsToSync} 张未过账入库单。`)
-  if (preview.paymentsToSync > 0) lines.push(`同步 ${preview.paymentsToSync} 张未完成付款单。`)
-  if (preview.purchaseInvoicesToSync > 0) lines.push(`同步 ${preview.purchaseInvoicesToSync} 张未完成进项发票。`)
-  if (!preview.sameVendorId) lines.push('若原供应商联系人不属于新供应商，将自动清空。')
-  return lines.join('\n')
+  if ((preview.poVendorNameToSync ?? 0) > 0) {
+    lines.push(escapeHtml('同步采购订单供应商名称快照。'))
+  }
+  if (preview.poItemsToSync > 0) {
+    lines.push(escapeHtml(`同步 ${preview.poItemsToSync} 条采购明细。`))
+  }
+  if (preview.arrivalNoticesToSync > 0) {
+    lines.push(escapeHtml(`同步 ${preview.arrivalNoticesToSync} 条未到货完成的到货通知。`))
+  }
+  if (preview.stockInsToSync > 0) {
+    lines.push(escapeHtml(`同步 ${preview.stockInsToSync} 张未过账入库单。`))
+  }
+  if (preview.paymentsToSync > 0) {
+    lines.push(escapeHtml(`同步 ${preview.paymentsToSync} 张未完成付款单。`))
+  }
+  if (preview.purchaseInvoicesToSync > 0) {
+    lines.push(escapeHtml(`同步 ${preview.purchaseInvoicesToSync} 张未完成进项发票。`))
+  }
+  if (!preview.sameVendorId) {
+    lines.push(escapeHtml('若原供应商联系人不属于新供应商，将自动清空。'))
+  }
+  return lines.join('<br/>')
 }
 
 async function confirmVendorChangeIfNeeded(): Promise<boolean> {
@@ -1129,7 +1145,8 @@ async function confirmVendorChangeIfNeeded(): Promise<boolean> {
     await ElMessageBox.confirm(buildVendorChangeConfirmMessage(preview), '更换供应商确认', {
       type: 'warning',
       confirmButtonText: '刷新并保存',
-      cancelButtonText: '取消'
+      cancelButtonText: '取消',
+      dangerouslyUseHTMLString: true
     })
     return true
   } catch (e) {

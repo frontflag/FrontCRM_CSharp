@@ -12,6 +12,11 @@
         </div>
         <div class="count-badge">{{ t('stockOutList.count', { count: listTotal }) }}</div>
       </div>
+      <div class="header-right">
+        <button type="button" class="btn-export" :disabled="exporting" @click="() => void handleExport()">
+          {{ t('stockOutList.filters.export') }}
+        </button>
+      </div>
     </div>
 
     <div class="search-bar">
@@ -472,7 +477,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowRight, Setting } from '@element-plus/icons-vue'
 import { stockOutApi, type StockOutDto, type StockOutListQuery, type StockOutMarkFinishContext } from '@/api/stockOut'
 import {
@@ -490,6 +495,7 @@ import {
   type StockOutTypeTabId
 } from '@/utils/stockOutListTabMode'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import { withExportTimestamp } from '@/utils/exportFileName'
 import { buildStockOutListColumns } from '@/composables/buildStockOutListColumns'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
@@ -529,6 +535,7 @@ const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 const { ensureLoaded: ensureLogisticsDict, shipmentArrivalOptions, expressOptions } = useLogisticsFormDict()
 const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const loading = ref(false)
+const exporting = ref(false)
 const tabModeDimension = ref<StockOutListTabModeDimension>(readStockOutListTabMode())
 const settingsMenuOpen = ref(false)
 const settingsSubmenuOpen = ref(false)
@@ -781,9 +788,9 @@ function buildListQuery(): StockOutListQuery {
   const ship = filterForm.shipmentMethod.trim()
   if (ship) q.shipmentMethod = ship
   const cust = filterForm.customerName.trim()
-  if (cust) q.customerName = cust
+  if (cust && !maskSaleSensitiveFields.value) q.customerName = cust
   const sales = filterForm.salesUserName.trim()
-  if (sales) q.salesUserName = sales
+  if (sales && !maskSaleSensitiveFields.value) q.salesUserName = sales
   const remark = filterForm.remark.trim()
   if (remark) q.remark = remark
   if (filterForm.stockOutDateRange?.length === 2) {
@@ -917,6 +924,36 @@ function onStockOutListPageSizeChange() {
 
 const handleSearch = () => {
   router.replace({ name: 'StockOutList', query: buildRouteQuery() })
+}
+
+async function handleExport() {
+  try {
+    await ElMessageBox.confirm(
+      t('stockOutList.messages.exportConfirmMessage'),
+      t('stockOutList.messages.exportConfirmTitle'),
+      { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
+    )
+  } catch {
+    return
+  }
+  exporting.value = true
+  try {
+    const q = buildListQuery()
+    delete (q as { page?: number }).page
+    delete (q as { pageSize?: number }).pageSize
+    const blob = await stockOutApi.exportList(q)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = withExportTimestamp('出库单列表.csv')
+    a.click()
+    URL.revokeObjectURL(url)
+    ElMessage.success(t('stockOutList.messages.exportSuccess'))
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : t('stockOutList.messages.exportFailed'))
+  } finally {
+    exporting.value = false
+  }
 }
 
 function handleReset() {
@@ -1091,6 +1128,12 @@ const handleForceDeleteRow = async (row: StockOutDto) => {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 .search-bar {
@@ -1269,13 +1312,55 @@ html[data-theme='dark'] .sol-filter-tabs__item:not(.is-active) {
   padding: 3px 10px;
 }
 .btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 8px 14px;
   border-radius: $border-radius-md;
   border: 1px solid $border-panel;
   color: $text-secondary;
   font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
   background: rgba(255, 255, 255, 0.05);
   cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover:not(:disabled) {
+    border-color: rgba(0, 212, 255, 0.35);
+    color: $text-primary;
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+.btn-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: $border-radius-md;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  border: 1px solid rgba(230, 162, 60, 0.35);
+  background: rgba(230, 162, 60, 0.16);
+  color: #c9902e;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  transition: all 0.2s;
+
+  &:hover:not(:disabled) {
+    background: rgba(230, 162, 60, 0.24);
+    border-color: rgba(230, 162, 60, 0.5);
+    color: #b8821f;
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
 }
 .text-secondary {
   color: $text-muted;

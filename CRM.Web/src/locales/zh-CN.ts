@@ -560,7 +560,34 @@ const zhCN = {
     unsavedLeaveTitle: '未保存的更改',
     unsavedLeaveConfirm: '报价员池有未保存的勾选，确定离开吗？',
     leaveBtn: '离开',
-    cancelBtn: '取消'
+    cancelBtn: '取消',
+    refreshVendorNav: '刷新供应商',
+    refreshVendorTitle: '刷新供应商',
+    refreshVendorHint: '控制采购订单「刷新供应商」同步下游时，是否允许处理已完成的业务节点。',
+    allowRefreshCompletedLabel: '允许刷新已完成业务节点：',
+    allowRefreshCompletedNote:
+      '关闭（默认）：已入库到货通知、已过账入库单、已付款付款单、已认证/冲红进项发票在供应商不一致时将阻止刷新。开启后：上述已完成单据也可同步供应商。',
+    allow: '允许',
+    disallow: '不允许',
+    refreshVendorLoadFailed: '加载刷新供应商参数失败'
+  },
+  salesParams: {
+    pageTitle: '销售参数',
+    pageSubtitle: '配置销售订单相关系统参数。',
+    navTitle: '参数分类',
+    refreshCustomerNav: '刷新客户',
+    refreshCustomerTitle: '刷新客户',
+    refreshCustomerHint: '控制销售订单「刷新客户」同步下游时，是否允许处理已完成的业务节点。',
+    allowRefreshCompletedLabel: '允许刷新已完成业务节点：',
+    allowRefreshCompletedNote:
+      '关闭（默认）：已出库的出库通知、已出库完成的装箱单、已出库的出库单，以及已核销应收、已开票销项发票将阻止刷新。开启后：出库通知/装箱/出库单即使已完成也可同步客户；已核销应收与已开票销项不再阻断，但本版不改写其客户字段。',
+    allow: '允许',
+    disallow: '不允许',
+    saveBtn: '保存',
+    refreshBtn: '刷新',
+    saveSuccess: '保存成功',
+    saveFailed: '保存失败',
+    loadFailed: '加载销售参数失败'
   },
   layout: {
     /** 顶栏 Logo 旁完整品牌文案（与产品对外名称一致） */
@@ -676,6 +703,7 @@ const zhCN = {
       dictItems: '数据字典',
       aiConfig: 'AI 配置',
       purchaseParams: '采购参数',
+      salesParams: '销售参数',
       financeParams: '财务参数',
       systemSettings: '系统设置',
       ops: '运维',
@@ -1546,7 +1574,8 @@ const zhCN = {
     colRecordId: '记录ID',
     colOperator: '操作人',
     colReason: '原因',
-    colOperationDesc: '操作说明'
+    colOperationDesc: '操作说明',
+    colFilterSummary: '导出条件'
   },
   dashboardSettings: {
     title: '系统设置',
@@ -5054,7 +5083,8 @@ const zhCN = {
           operationTime: '操作时间',
           operator: '操作人',
           exportedCount: '导出条数',
-          operationDesc: '说明'
+          operationDesc: '说明',
+          filterSummary: '条件摘要'
         }
       },
       messages: {
@@ -6013,7 +6043,8 @@ const zhCN = {
       salespersonUser: '业务员',
       purchaserUser: '采购员',
       search: '查询',
-      reset: '重置'
+      reset: '重置',
+      export: '导出'
     },
     settingsMenu: {
       aria: '列表筛选设置',
@@ -6048,7 +6079,11 @@ const zhCN = {
     },
     messages: {
       loadFailed: '加载库存明细列表失败',
-      missingAggregateId: '缺少汇总库存 ID，无法打开分桶明细'
+      missingAggregateId: '缺少汇总库存 ID，无法打开分桶明细',
+      exportConfirmTitle: '导出确认',
+      exportConfirmMessage: '将按当前筛选条件导出库存明细，最多 50000 条，是否继续？',
+      exportSuccess: '导出成功',
+      exportFailed: '导出失败'
     }
   },
   inventoryStockDetail: {
@@ -6232,7 +6267,8 @@ const zhCN = {
       /** 物料列表等按 stock 地域筛选 */
       allRegions: '全部地域',
       search: '搜索',
-      reset: '重置'
+      reset: '重置',
+      export: '导出'
     },
     settingsMenu: {
       aria: '列表筛选设置',
@@ -6301,7 +6337,11 @@ const zhCN = {
       loadCenterFailed: '加载库存中心数据失败',
       loadWarehouseFailed: '加载仓库列表失败',
       saveWarehouseSuccess: '仓库保存成功',
-      saveWarehouseFailed: '仓库保存失败'
+      saveWarehouseFailed: '仓库保存失败',
+      exportConfirmTitle: '导出确认',
+      exportConfirmMessage: '将按当前筛选条件导出库存中心列表，最多 50000 条，是否继续？',
+      exportSuccess: '导出成功',
+      exportFailed: '导出失败'
     }
   },
   stockInBatchList: {
@@ -6432,7 +6472,8 @@ const zhCN = {
       salesOrderCode: '销售订单号',
       stockInTypePlaceholder: '入库类型',
       search: '搜索',
-      reset: '重置'
+      reset: '重置',
+      export: '导出'
     },
     leftPanel: {
       title: '入库单检索',
@@ -6487,7 +6528,11 @@ const zhCN = {
       remarkUpdated: '备注已更新',
       remarkUpdateFailed: '更新备注失败',
       markDoneSuccess: '已标记为已入库',
-      updateStatusFailed: '更新状态失败'
+      updateStatusFailed: '更新状态失败',
+      exportConfirmTitle: '导出确认',
+      exportConfirmMessage: '将按当前筛选条件导出入库单，最多 50000 条，是否继续？',
+      exportSuccess: '导出成功',
+      exportFailed: '导出失败'
     }
   },
   stockInDetail: {
@@ -6632,7 +6677,8 @@ const zhCN = {
           skippedSummary: '跳过',
           reason: '删除原因',
           operator: '操作人',
-          operationDesc: '说明'
+          operationDesc: '说明',
+          filterSummary: '条件摘要'
         },
         affectedSummary: '{count} 条',
         skippedSummary: '跳过 {count} 条（已出库）',
@@ -6681,7 +6727,8 @@ const zhCN = {
       stockOutType: '出库类型',
       search: '搜索',
       reset: '重置',
-      refresh: '刷新'
+      refresh: '刷新',
+      export: '导出'
     },
     settingsMenu: {
       aria: '列表筛选设置',
@@ -6756,7 +6803,11 @@ const zhCN = {
     messages: {
       loadFailed: '加载出库单失败',
       markFinishedSuccess: '已标记为完成',
-      updateStatusFailed: '更新状态失败'
+      updateStatusFailed: '更新状态失败',
+      exportConfirmTitle: '导出确认',
+      exportConfirmMessage: '将按当前筛选条件导出出库单，最多 50000 条，是否继续？',
+      exportSuccess: '导出成功',
+      exportFailed: '导出失败'
     }
   },
   stockOutItemList: {
@@ -7357,7 +7408,8 @@ const zhCN = {
           operationTime: '操作时间',
           operator: '操作人',
           exportedCount: '导出条数',
-          operationDesc: '说明'
+          operationDesc: '说明',
+          filterSummary: '条件摘要'
         }
       },
       messages: {
@@ -7488,7 +7540,8 @@ const zhCN = {
           skippedSummary: '跳过',
           reason: '删除原因',
           operator: '操作人',
-          operationDesc: '说明'
+          operationDesc: '说明',
+          filterSummary: '条件摘要'
         },
         affectedSummary: '{count} 条',
         skippedSummary: '跳过 {count} 条',

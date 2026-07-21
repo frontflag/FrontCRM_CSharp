@@ -42,6 +42,14 @@
           <el-icon class="nav-icon"><Timer /></el-icon>
           <span>{{ t('purchaseParams.demandProtectionNav') }}</span>
         </router-link>
+        <router-link
+          to="/system/purchase-params/refresh-vendor"
+          class="nav-item"
+          active-class="active"
+        >
+          <el-icon class="nav-icon"><RefreshRight /></el-icon>
+          <span>{{ t('purchaseParams.refreshVendorNav') }}</span>
+        </router-link>
       </div>
 
       <div class="settings-content">
@@ -53,7 +61,7 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import { User, List, Timer, Operation } from '@element-plus/icons-vue'
+import { User, List, Timer, Operation, RefreshRight } from '@element-plus/icons-vue'
 
 const { t } = useI18n()
 </script>

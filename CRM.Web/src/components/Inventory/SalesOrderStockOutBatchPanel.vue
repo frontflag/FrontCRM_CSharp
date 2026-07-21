@@ -29,7 +29,7 @@
         </div>
 
         <div v-if="activeInnerTab === 'list'" class="batch-panel-toolbar">
-          <button type="button" class="btn-secondary" :disabled="exporting" @click="() => void exportBatches()">
+          <button type="button" class="btn-export" :disabled="exporting" @click="() => void exportBatches()">
             {{ t('salesOrderDetailView.batchPanel.actions.export') }}
           </button>
         </div>
@@ -199,6 +199,7 @@ import { useBatchReconciliationTableColumns } from '@/composables/useBatchReconc
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
+import { withExportTimestamp } from '@/utils/exportFileName'
 import { getApiErrorMessage } from '@/utils/apiError'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
@@ -250,6 +251,13 @@ const logTableColumns = computed<CrmTableColumnDef[]>(() => [
     prop: 'exportedCount',
     width: 100,
     align: 'right'
+  },
+  {
+    key: 'filterSummary',
+    label: t('salesOrderDetailView.batchPanel.exportLogs.columns.filterSummary'),
+    prop: 'filterSummary',
+    minWidth: 200,
+    showOverflowTooltip: true
   },
   {
     key: 'operationDesc',
@@ -378,15 +386,9 @@ async function exportBatches() {
   }
   exporting.value = true
   try {
-    const blob = await batchReconciliationApi.exportOutBatches({ sellOrderId: id })
-    const filename = code ? `${code}-out-batches.csv` : 'sales-order-out-batches.csv'
+    const blob = await batchReconciliationApi.exportOutBatches({ sellOrderId: id, exportSource: 'salesOrder' })
+    const filename = withExportTimestamp(code ? `${code}-out-batches.csv` : 'sales-order-out-batches.csv')
     downloadBlob(blob, filename)
-    const count = listTotalServer.value
-    try {
-      await salesOrderApi.logBatchExport(id, count)
-    } catch {
-      /* export file already downloaded; log failure is non-blocking */
-    }
     ElMessage.success(t('salesOrderDetailView.batchPanel.messages.exportSuccess'))
     void fetchLogs(false)
   } catch (e) {

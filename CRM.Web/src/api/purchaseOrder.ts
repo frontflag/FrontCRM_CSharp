@@ -92,6 +92,7 @@ export interface PurchaseOrderBatchExportLogRow {
   operatorUserName?: string | null
   exportedCount?: number | null
   operationDesc?: string | null
+  filterSummary?: string | null
 }
 
 export type PurchaseOrderBatchExportLogPaged = {
@@ -106,7 +107,8 @@ function parsePoBatchExportLogExtra(raw: string | null | undefined): Partial<Pur
   try {
     const o = JSON.parse(raw) as Record<string, unknown>
     return {
-      exportedCount: o.exportedCount != null ? Number(o.exportedCount) : null
+      exportedCount: o.exportedCount != null ? Number(o.exportedCount) : o.affectedCount != null ? Number(o.affectedCount) : null,
+      filterSummary: (o.filterSummary as string) ?? null
     }
   } catch {
     return {}

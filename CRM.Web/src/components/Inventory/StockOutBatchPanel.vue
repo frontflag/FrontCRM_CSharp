@@ -29,10 +29,10 @@
         </div>
 
         <div v-if="canWrite && activeInnerTab === 'list'" class="batch-panel-toolbar">
-          <button type="button" class="btn-secondary" @click="importVisible = true">
+          <button type="button" class="btn-export" @click="importVisible = true">
             {{ t('packingDetail.batchPanel.actions.import') }}
           </button>
-          <button type="button" class="btn-secondary" :disabled="exporting" @click="() => void exportBatches()">
+          <button type="button" class="btn-export" :disabled="exporting" @click="() => void exportBatches()">
             {{ t('packingDetail.batchPanel.actions.export') }}
           </button>
           <button type="button" class="btn-secondary btn-secondary--danger" @click="() => void openBulkDeleteFlow()">
@@ -235,6 +235,7 @@ import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMa
 import { getApiErrorMessage } from '@/utils/apiError'
 import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick'
 import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
+import { withExportTimestamp } from '@/utils/exportFileName'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 type ListRow = BatchReconciliationRow & { rowKey: string }
@@ -292,7 +293,8 @@ const logTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'skippedSummary', label: t('packingDetail.batchPanel.logs.columns.skippedSummary'), prop: 'skippedSummary', minWidth: 140, showOverflowTooltip: true },
   { key: 'reason', label: t('packingDetail.batchPanel.logs.columns.reason'), prop: 'reason', minWidth: 120, showOverflowTooltip: true },
   { key: 'operatorUserName', label: t('packingDetail.batchPanel.logs.columns.operator'), prop: 'operatorUserName', width: 100, showOverflowTooltip: true },
-  { key: 'operationDesc', label: t('packingDetail.batchPanel.logs.columns.operationDesc'), prop: 'operationDesc', minWidth: 180, showOverflowTooltip: true }
+  { key: 'operationDesc', label: t('packingDetail.batchPanel.logs.columns.operationDesc'), prop: 'operationDesc', minWidth: 180, showOverflowTooltip: true },
+  { key: 'filterSummary', label: t('packingDetail.batchPanel.logs.columns.filterSummary'), prop: 'filterSummary', minWidth: 200, showOverflowTooltip: true }
 ])
 
 function formatDateTimeParts(v: string | null | undefined) {
@@ -431,15 +433,10 @@ async function exportBatches() {
   try {
     const blob = await batchReconciliationApi.exportOutBatches({
       packingId: pid,
-      packingCode: code
+      packingCode: code,
+      exportSource: 'packing'
     })
-    downloadBlob(blob, `stock-out-batches-${code}.csv`)
-    const count = listTotalServer.value
-    try {
-      await stockOutBatchApi.logExport(pid, count)
-    } catch {
-      /* export file already downloaded; log failure is non-blocking */
-    }
+    downloadBlob(blob, withExportTimestamp(`stock-out-batches-${code}.csv`))
     ElMessage.success(t('packingDetail.batchPanel.messages.exportSuccess'))
     void fetchLogs(false)
   } catch (e) {

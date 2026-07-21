@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text;
 using System.Threading;
 using CRM.API.Models.DTOs;
 using CRM.API.Services;
@@ -6,6 +7,7 @@ using CRM.API.Utilities;
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
+using CRM.Core.Services;
 using CRM.Core.Utilities;
 using CRM.Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
@@ -27,6 +29,7 @@ namespace CRM.API.Controllers
         private readonly IRbacService _rbacService;
         private readonly IForceDeleteGuardService _forceDeleteGuard;
         private readonly ICustomsPendlistService _customsPendlistService;
+        private readonly IExportOperationLogService _exportLog;
         private readonly ILogger<StockOutController> _logger;
 
         public StockOutController(
@@ -40,6 +43,7 @@ namespace CRM.API.Controllers
             IRbacService rbacService,
             IForceDeleteGuardService forceDeleteGuard,
             ICustomsPendlistService customsPendlistService,
+            IExportOperationLogService exportLog,
             ILogger<StockOutController> logger)
         {
             _service = service;
@@ -52,6 +56,7 @@ namespace CRM.API.Controllers
             _rbacService = rbacService;
             _forceDeleteGuard = forceDeleteGuard;
             _customsPendlistService = customsPendlistService;
+            _exportLog = exportLog;
             _logger = logger;
         }
 
@@ -100,6 +105,105 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "获取出库单列表失败");
                 return StatusCode(500, new { success = false, message = $"获取出库单列表失败: {ex.Message}" });
+            }
+        }
+
+        /// <summary>按当前筛选导出出库单列表 CSV，并写入操作审计。</summary>
+        [HttpGet("export")]
+        public async Task<IActionResult> ExportList(
+            [FromQuery] StockOutListQueryRequest? filter,
+            [FromQuery] string? keyword,
+            [FromQuery] string? sourceCode,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                filter ??= new StockOutListQueryRequest();
+                filter.CurrentUserId = InventoryExportHttp.UserId(User);
+                if (!string.IsNullOrWhiteSpace(keyword) && string.IsNullOrWhiteSpace(filter.Keyword))
+                    filter.Keyword = keyword;
+                if (!string.IsNullOrWhiteSpace(sourceCode) && string.IsNullOrWhiteSpace(filter.SourceCode))
+                    filter.SourceCode = sourceCode;
+
+                var mask521 = await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User);
+                if (mask521)
+                {
+                    filter.CustomerName = null;
+                    filter.SalesUserName = null;
+                }
+
+                var (items, truncated, _) = await InventoryExportHttp.CollectForExportAsync(
+                    (page, pageSize, ct) => _service.GetStockOutListPagedAsync(filter, page, pageSize, ct),
+                    cancellationToken: cancellationToken);
+
+                if (mask521)
+                    SaleSensitiveFieldMask521.ApplyStockOutListItems(items, true);
+
+                var sb = new StringBuilder();
+                sb.AppendLine(string.Join(',',
+                    "状态", "出库类型", "出库单号", "来源单号", "装箱单号", "客户", "业务员", "出库日期",
+                    "数量", "金额", "出货方式", "货代单号", "备注", "创建时间", "创建人"));
+
+                foreach (var r in items)
+                {
+                    sb.AppendLine(string.Join(',',
+                        InventoryExportHttp.CsvCell(r.Status.ToString()),
+                        InventoryExportHttp.CsvCell(r.StockOutType.ToString()),
+                        InventoryExportHttp.CsvCell(r.StockOutCode),
+                        InventoryExportHttp.CsvCell(r.SourceCode),
+                        InventoryExportHttp.CsvCell(r.PackingCodes),
+                        InventoryExportHttp.CsvCell(mask521 ? "***" : r.CustomerName),
+                        InventoryExportHttp.CsvCell(mask521 ? "***" : r.SalesUserName),
+                        InventoryExportHttp.CsvCell(InventoryExportHttp.FormatDate(r.StockOutDate)),
+                        InventoryExportHttp.CsvCell(InventoryExportHttp.FormatDecimal(r.TotalQuantity)),
+                        InventoryExportHttp.CsvCell(mask521 ? string.Empty : InventoryExportHttp.FormatDecimal(r.TotalAmount)),
+                        InventoryExportHttp.CsvCell(r.ShipmentMethod),
+                        InventoryExportHttp.CsvCell(r.FreightForwarderOrderNo),
+                        InventoryExportHttp.CsvCell(r.Remark),
+                        InventoryExportHttp.CsvCell(InventoryExportHttp.FormatDateTime(r.CreateTime)),
+                        InventoryExportHttp.CsvCell(r.CreateUserName)));
+                }
+
+                var filters = ExportOperationAudit.NormalizeFilters(new Dictionary<string, object?>
+                {
+                    ["keyword"] = filter.Keyword,
+                    ["sourceCode"] = filter.SourceCode,
+                    ["status"] = filter.Status,
+                    ["stockOutCode"] = filter.StockOutCode,
+                    ["packingCode"] = filter.PackingCode,
+                    ["shipmentMethod"] = filter.ShipmentMethod,
+                    ["customerName"] = filter.CustomerName,
+                    ["salesUserName"] = filter.SalesUserName,
+                    ["remark"] = filter.Remark,
+                    ["stockOutType"] = filter.StockOutType,
+                    ["stockOutDateFrom"] = filter.StockOutDateFrom,
+                    ["stockOutDateTo"] = filter.StockOutDateTo,
+                    ["freightForwarderOrderNo"] = filter.FreightForwarderOrderNo
+                });
+
+                var truncNote = truncated ? "（已截断）" : string.Empty;
+                await _exportLog.AppendAsync(new ExportOperationLogRequest
+                {
+                    BizType = BusinessLogTypes.StockOut,
+                    RecordId = ExportOperationAudit.ListRecordId,
+                    RecordCode = ExportOperationAudit.StockOutListRecordCode,
+                    ActionType = InventoryExportActionTypes.StockOutListExport,
+                    ExportKind = ExportAuditKinds.StockOutList,
+                    OperationDesc = $"导出出库单列表 {items.Count} 条{truncNote}",
+                    ExportedCount = items.Count,
+                    Truncated = truncated,
+                    Filters = filters,
+                    FiltersMasked = mask521,
+                    OperatorUserId = InventoryExportHttp.UserId(User),
+                    OperatorUserName = InventoryExportHttp.UserName(User)
+                }, cancellationToken);
+
+                return InventoryExportHttp.CsvFile(sb.ToString(), "出库单列表.csv");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "导出出库单列表失败");
+                return StatusCode(500, new { success = false, message = $"导出出库单列表失败: {ex.Message}" });
             }
         }
 

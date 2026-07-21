@@ -261,6 +261,59 @@ public class PurchaseQuoterPoolService : IPurchaseQuoterPoolService
         await _db.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<bool> GetAllowRefreshCompletedBizNodesAsync(CancellationToken cancellationToken = default)
+    {
+        var row = await _db.SysParams.AsNoTracking()
+            .FirstOrDefaultAsync(
+                p => p.ParamCode == SysParamCodes.PurchaseAllowRefreshCompletedBizNodes && p.Status == 1,
+                cancellationToken);
+        if (row == null)
+            return false;
+
+        return row.GetBoolValue();
+    }
+
+    public async Task SetAllowRefreshCompletedBizNodesAsync(bool allow, CancellationToken cancellationToken = default)
+    {
+        var row = await _db.SysParams
+            .FirstOrDefaultAsync(
+                p => p.ParamCode == SysParamCodes.PurchaseAllowRefreshCompletedBizNodes,
+                cancellationToken);
+
+        if (row == null)
+        {
+            var groupFrom = await _db.SysParams.AsNoTracking()
+                .FirstOrDefaultAsync(p => p.ParamCode == SysParamCodes.RfqDefaultAssignMethod, cancellationToken);
+            row = new SysParam
+            {
+                Id = Guid.NewGuid().ToString(),
+                ParamCode = SysParamCodes.PurchaseAllowRefreshCompletedBizNodes,
+                ParamName = "刷新供应商-允许已完成业务节点",
+                GroupId = groupFrom?.GroupId,
+                DataType = ParamDataType.Boolean,
+                DefaultValue = "false",
+                Description =
+                    "采购订单「刷新供应商」时，是否允许同步已入库/已过账/已付款/已认证等下游单据。默认不允许。",
+                IsSystem = true,
+                IsEditable = true,
+                IsVisible = true,
+                SortOrder = 15,
+                Status = 1,
+                CreateTime = DateTime.UtcNow
+            };
+            row.SetBoolValue(allow);
+            await _db.SysParams.AddAsync(row, cancellationToken);
+        }
+        else
+        {
+            row.SetBoolValue(allow);
+            row.ModifyTime = DateTime.UtcNow;
+            _db.SysParams.Update(row);
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
     private async Task<HashSet<string>> LoadPoolUserIdSetAsync(CancellationToken cancellationToken)
     {
         var ids = await _db.SysPurchaseQuoterPools.AsNoTracking()

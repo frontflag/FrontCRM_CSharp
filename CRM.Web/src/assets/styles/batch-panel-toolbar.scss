@@ -49,6 +49,36 @@
       }
     }
   }
+
+  .btn-export {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: $border-radius-md;
+    font-size: 12px;
+    line-height: 1.4;
+    font-family: 'Noto Sans SC', sans-serif;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    border: 1px solid rgba(230, 162, 60, 0.35);
+    background: rgba(230, 162, 60, 0.16);
+    color: #c9902e;
+    font-weight: 500;
+
+    &:hover:not(:disabled) {
+      background: rgba(230, 162, 60, 0.24);
+      border-color: rgba(230, 162, 60, 0.5);
+      color: #b8821f;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
 }
 
 .batch-panel-pagination {

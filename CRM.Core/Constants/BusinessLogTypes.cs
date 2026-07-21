@@ -30,6 +30,9 @@ public static class BusinessLogTypes
     /// <summary>库存聚合（库存中心 stock）</summary>
     public const string InventoryStock = "InventoryStock";
 
+    /// <summary>库存明细（stockitem 全库列表）</summary>
+    public const string InventoryStockItem = "InventoryStockItem";
+
     /// <summary>拣货单（库存中心 picking_task）</summary>
     public const string PickingTask = "PickingTask";
 
@@ -38,6 +41,9 @@ public static class BusinessLogTypes
     public const string StockOutBatch = "StockOutBatch";
     public const string StockOut = "StockOut";
     public const string Packing = "Packing";
+
+    /// <summary>批次核销列表（无单号挂靠时的导出审计）。</summary>
+    public const string BatchReconciliation = "BatchReconciliation";
     public const string QcInspection = "QcInspection";
     public const string CustomsDeclaration = "CustomsDeclaration";
     public const string CustomsBroker = "CustomsBroker";

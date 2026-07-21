@@ -51,6 +51,7 @@ export interface StockOutBatchOperationLogRow {
   batchNosSummary?: string | null
   skippedCount?: number | null
   skippedBatchNosSummary?: string | null
+  filterSummary?: string | null
 }
 
 export type StockOutBatchOperationLogPaged = {
@@ -66,10 +67,11 @@ function parseBatchLogExtra(raw: string | null | undefined): Partial<StockOutBat
     const o = JSON.parse(raw) as Record<string, unknown>
     return {
       packingCode: (o.packingCode as string) ?? null,
-      affectedCount: o.affectedCount != null ? Number(o.affectedCount) : null,
+      affectedCount: o.affectedCount != null ? Number(o.affectedCount) : o.exportedCount != null ? Number(o.exportedCount) : null,
       batchNosSummary: (o.batchNosSummary as string) ?? null,
       skippedCount: o.skippedCount != null ? Number(o.skippedCount) : null,
-      skippedBatchNosSummary: (o.skippedBatchNosSummary as string) ?? null
+      skippedBatchNosSummary: (o.skippedBatchNosSummary as string) ?? null,
+      filterSummary: (o.filterSummary as string) ?? null
     }
   } catch {
     return {}

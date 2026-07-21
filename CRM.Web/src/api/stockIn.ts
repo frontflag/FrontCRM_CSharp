@@ -276,6 +276,32 @@ export const stockInApi = {
     return { items: [], total: 0, page: 1, pageSize: 20 }
   },
 
+  /** 按当前筛选导出入库单列表 CSV（服务端写审计日志） */
+  async exportList(
+    params?: {
+      model?: string
+      vendorName?: string
+      purchaseOrderCode?: string
+      freightForwarderOrderNo?: string
+      salesOrderCode?: string
+      stockInCode?: string
+      sourceDisplayNo?: string
+      warehouseId?: string
+      stockInDateStart?: string
+      stockInDateEnd?: string
+      remark?: string
+      stockInType?: number
+    }
+  ): Promise<Blob> {
+    const qs = new URLSearchParams()
+    Object.entries(params ?? {}).forEach(([k, v]) => {
+      if (v === undefined || v === null || v === '') return
+      qs.set(k, String(v))
+    })
+    const q = qs.toString()
+    return apiClient.getBlob(q ? `/api/v1/stock-in/export?${q}` : '/api/v1/stock-in/export')
+  },
+
   async getById(id: string): Promise<StockInDto | null> {
     const res = await apiClient.get<any>(`/api/v1/stock-in/${encodeURIComponent(id)}`)
     if (res == null || typeof res !== 'object') return null

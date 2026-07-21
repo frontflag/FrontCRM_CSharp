@@ -15,10 +15,10 @@
         <div class="count-badge">{{ t('batchReconciliation.count', { count: listTotalServer }) }}</div>
       </div>
       <div class="header-right">
-        <button type="button" class="btn-ghost btn-sm" :disabled="exporting" @click="() => void exportIn()">
+        <button type="button" class="btn-export btn-sm" :disabled="exporting" @click="() => void exportIn()">
           {{ t('batchReconciliation.actions.exportIn') }}
         </button>
-        <button type="button" class="btn-ghost btn-sm" :disabled="exporting" @click="() => void exportOut()">
+        <button type="button" class="btn-export btn-sm" :disabled="exporting" @click="() => void exportOut()">
           {{ t('batchReconciliation.actions.exportOut') }}
         </button>
       </div>
@@ -246,6 +246,7 @@ import {
 } from '@/api/batchReconciliation'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
+import { withExportTimestamp } from '@/utils/exportFileName'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import VendorNameReadonlyText from '@/components/Vendor/VendorNameReadonlyText.vue'
@@ -315,7 +316,8 @@ function buildQuery(): BatchReconciliationQuery {
     serialNumber: filters.serialNumber.trim() || undefined,
     vendorName: maskPurchaseSensitiveFields.value ? undefined : filters.vendorName.trim() || undefined,
     customerName: maskSaleSensitiveFields.value ? undefined : filters.customerName.trim() || undefined,
-    remark: filters.remark.trim() || undefined
+    remark: filters.remark.trim() || undefined,
+    exportSource: 'list'
   }
 }
 
@@ -435,7 +437,7 @@ async function exportIn() {
   exporting.value = true
   try {
     const blob = await batchReconciliationApi.exportInBatches(buildQuery())
-    downloadBlob(blob, 'stock-in-batches.csv')
+    downloadBlob(blob, withExportTimestamp('stock-in-batches.csv'))
     ElMessage.success(t('batchReconciliation.messages.exportSuccess'))
   } catch (e) {
     ElMessage.error(getApiErrorMessage(e, t('batchReconciliation.messages.exportFailed')))
@@ -448,7 +450,7 @@ async function exportOut() {
   exporting.value = true
   try {
     const blob = await batchReconciliationApi.exportOutBatches(buildQuery())
-    downloadBlob(blob, 'stock-out-batches.csv')
+    downloadBlob(blob, withExportTimestamp('stock-out-batches.csv'))
     ElMessage.success(t('batchReconciliation.messages.exportSuccess'))
   } catch (e) {
     ElMessage.error(getApiErrorMessage(e, t('batchReconciliation.messages.exportFailed')))
@@ -609,6 +611,39 @@ onMounted(() => {
 
   &:disabled {
     opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
+
+.btn-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: $border-radius-md;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  border: 1px solid rgba(230, 162, 60, 0.35);
+  background: rgba(230, 162, 60, 0.16);
+  color: #c9902e;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  transition: all 0.2s;
+
+  &:hover:not(:disabled) {
+    background: rgba(230, 162, 60, 0.24);
+    border-color: rgba(230, 162, 60, 0.5);
+    color: #b8821f;
+  }
+
+  &:disabled {
+    opacity: 0.55;
     cursor: not-allowed;
   }
 

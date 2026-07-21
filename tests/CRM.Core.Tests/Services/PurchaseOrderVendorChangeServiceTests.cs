@@ -38,6 +38,8 @@ public class PurchaseOrderVendorChangeServiceTests
         _paymentItemRepo = Substitute.For<IRepository<FinancePaymentItem>>();
         _purchaseInvoiceRepo = Substitute.For<IRepository<FinancePurchaseInvoice>>();
         _purchaseInvoiceItemRepo = Substitute.For<IRepository<FinancePurchaseInvoiceItem>>();
+        var purchaseParams = Substitute.For<IPurchaseQuoterPoolService>();
+        purchaseParams.GetAllowRefreshCompletedBizNodesAsync(Arg.Any<CancellationToken>()).Returns(false);
         _service = new PurchaseOrderVendorChangeService(
             _poRepo,
             _poItemRepo,
@@ -49,6 +51,7 @@ public class PurchaseOrderVendorChangeServiceTests
             _paymentItemRepo,
             _purchaseInvoiceRepo,
             _purchaseInvoiceItemRepo,
+            purchaseParams,
             NullLogger<PurchaseOrderVendorChangeService>.Instance);
     }
 

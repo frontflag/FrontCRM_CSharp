@@ -14,6 +14,11 @@
         </div>
         <div class="count-badge">{{ t('stockInList.count', { count: listTotalServer }) }}</div>
       </div>
+      <div class="header-right">
+        <button type="button" class="btn-export" :disabled="exporting" @click="() => void handleExport()">
+          {{ t('stockInList.filters.export') }}
+        </button>
+      </div>
     </div>
 
     <!-- 查询栏（与客户列表一致的结构与样式） -->
@@ -277,6 +282,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
+import { withExportTimestamp } from '@/utils/exportFileName'
 import { stockInApi, type StockInListItemDto } from '@/api/stockIn'
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 import { inventoryCenterApi, type WarehouseInfo } from '@/api/inventoryCenter'
@@ -317,6 +323,7 @@ const { t } = useI18n()
 const authStore = useAuthStore()
 const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const loading = ref(false)
+const exporting = ref(false)
 const list = ref<StockInListItemDto[]>([])
 const listTotalServer = ref(0)
 const listPage = ref(1)
@@ -546,6 +553,46 @@ function onStockInPageSizeChange() {
   void fetchList(false)
 }
 
+async function handleExport() {
+  try {
+    await ElMessageBox.confirm(
+      t('stockInList.messages.exportConfirmMessage'),
+      t('stockInList.messages.exportConfirmTitle'),
+      { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
+    )
+  } catch {
+    return
+  }
+  exporting.value = true
+  try {
+    const blob = await stockInApi.exportList({
+      sourceDisplayNo: filters.sourceDisplayNo || undefined,
+      warehouseId: filters.warehouseId || undefined,
+      stockInDateStart: filters.stockInDateRange[0] || undefined,
+      stockInDateEnd: filters.stockInDateRange[1] || undefined,
+      remark: filters.remark || undefined,
+      model: filters.model || undefined,
+      vendorName: maskPurchaseSensitiveFields.value ? undefined : filters.vendorName || undefined,
+      purchaseOrderCode: filters.purchaseOrderCode || undefined,
+      freightForwarderOrderNo: filters.freightForwarderOrderNo.trim() || undefined,
+      salesOrderCode: filters.salesOrderCode || undefined,
+      stockInCode: filters.stockInCode || undefined,
+      stockInType: filters.stockInType
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = withExportTimestamp('入库单列表.csv')
+    a.click()
+    URL.revokeObjectURL(url)
+    ElMessage.success(t('stockInList.messages.exportSuccess'))
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : t('stockInList.messages.exportFailed'))
+  } finally {
+    exporting.value = false
+  }
+}
+
 watch(
   () => [route.name, route.query] as const,
   () => {
@@ -698,6 +745,12 @@ const handleForceDeleteRow = async (row: StockInListItemDto) => {
   justify-content: space-between;
   margin-bottom: 20px;
   .header-left { display: flex; align-items: center; gap: 12px; }
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
 }
 .page-title-group {
   display: flex;
@@ -826,6 +879,43 @@ const handleForceDeleteRow = async (row: StockInListItemDto) => {
   background: rgba(255, 255, 255, 0.05);
   border-color: $border-panel;
   color: $text-secondary;
+
+  &:hover:not(:disabled) {
+    border-color: rgba(0, 212, 255, 0.35);
+    color: $text-primary;
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+.btn-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: $border-radius-md;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  border: 1px solid rgba(230, 162, 60, 0.35);
+  background: rgba(230, 162, 60, 0.16);
+  color: #c9902e;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  transition: all 0.2s;
+
+  &:hover:not(:disabled) {
+    background: rgba(230, 162, 60, 0.24);
+    border-color: rgba(230, 162, 60, 0.5);
+    color: #b8821f;
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
 }
 .btn-ghost {
   display: inline-flex;

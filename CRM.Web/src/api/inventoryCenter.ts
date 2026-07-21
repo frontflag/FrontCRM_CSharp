@@ -397,6 +397,32 @@ export const inventoryCenterApi = {
     const qs = params.toString()
     return unwrap<PagedList<InventoryOverview>>(await apiClient.get(`/api/v1/inventory-center/overview/paged?${qs}`))
   },
+
+  /** 按当前筛选导出库存中心列表 CSV（服务端写审计日志） */
+  async exportOverview(query?: {
+    warehouseId?: string
+    materialModel?: string
+    stockCode?: string
+    stockType?: number
+  }): Promise<Blob> {
+    const params = new URLSearchParams()
+    const add = (key: string, v: string | number | undefined) => {
+      if (v === undefined || v === null) return
+      const s = typeof v === 'string' ? v.trim() : String(v)
+      if (s === '') return
+      params.set(key, s)
+    }
+    add('warehouseId', query?.warehouseId)
+    add('materialModel', query?.materialModel)
+    add('stockCode', query?.stockCode)
+    if (query?.stockType != null && query.stockType >= 1 && query.stockType <= 3) {
+      params.set('stockType', String(query.stockType))
+    }
+    const qs = params.toString()
+    return apiClient.getBlob(
+      qs ? `/api/v1/inventory-center/overview/export?${qs}` : '/api/v1/inventory-center/overview/export'
+    )
+  },
   async getMaterialTrace(materialId: string): Promise<MaterialTrace[]> {
     return unwrap<MaterialTrace[]>(await apiClient.get(`/api/v1/inventory-center/materials/${encodeURIComponent(materialId)}/traces`))
   },
@@ -441,6 +467,41 @@ export const inventoryCenterApi = {
     params.set('pageSize', String(ps))
     const qs = params.toString()
     return unwrap<PagedList<StockItemListRow>>(await apiClient.get(`/api/v1/inventory-center/stock-items?${qs}`))
+  },
+
+  /** 按当前筛选导出库存明细列表 CSV（服务端写审计日志） */
+  async exportStockItems(query?: StockItemListQuery): Promise<Blob> {
+    const params = new URLSearchParams()
+    const q = query || {}
+    const add = (key: string, v: string | number | undefined | null) => {
+      if (v === undefined || v === null) return
+      const s = typeof v === 'string' ? v.trim() : String(v)
+      if (s === '') return
+      params.set(key, s)
+    }
+    add('stockInCode', q.stockInCode)
+    add('stockItemCode', q.stockItemCode)
+    add('stockInDateFrom', q.stockInDateFrom)
+    add('stockInDateTo', q.stockInDateTo)
+    add('warehouseId', q.warehouseId)
+    add('purchasePn', q.purchasePn)
+    add('purchaseBrand', q.purchaseBrand)
+    add('freightForwarderOrderNo', q.freightForwarderOrderNo)
+    if (q.outboundStatus != null && q.outboundStatus >= 1 && q.outboundStatus <= 3) {
+      params.set('outboundStatus', String(q.outboundStatus))
+    }
+    add('customerName', q.customerName)
+    add('vendorName', q.vendorName)
+    add('salespersonName', q.salespersonName)
+    add('purchaserName', q.purchaserName)
+    add('salespersonUserId', q.salespersonUserId)
+    add('purchaserUserId', q.purchaserUserId)
+    if (q.repertoryHasStock === true) params.set('repertoryHasStock', 'true')
+    if (q.repertoryHasStock === false) params.set('repertoryHasStock', 'false')
+    const qs = params.toString()
+    return apiClient.getBlob(
+      qs ? `/api/v1/inventory-center/stock-items/export?${qs}` : '/api/v1/inventory-center/stock-items/export'
+    )
   },
   async getFinanceSummary(query?: {
     stagnantDays?: number

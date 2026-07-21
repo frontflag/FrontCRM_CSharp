@@ -132,6 +132,8 @@ public static class TelemetryCatalog
             ["PurchaseDemandProtection"] = "采购参数-需求保护",
             ["PurchaseQuoterPool"] = "采购参数-报价人池",
             ["PurchaseDefaultAssignMethod"] = "采购参数-默认分配方式",
+            ["PurchaseRefreshVendor"] = "采购参数-刷新供应商",
+            ["SalesRefreshCustomer"] = "销售参数-刷新客户",
             ["FinanceExchangeRates"] = "财务参数-汇率",
             ["FinancePurchaseCostParams"] = "财务参数-采购成本",
             ["FinancePaymentBanks"] = "财务参数-付款银行",

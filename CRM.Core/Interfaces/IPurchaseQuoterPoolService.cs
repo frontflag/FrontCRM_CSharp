@@ -39,4 +39,11 @@ public interface IPurchaseQuoterPoolService
     Task<short> GetDefaultAssignMethodAsync(CancellationToken cancellationToken = default);
 
     Task SetDefaultAssignMethodAsync(short assignMethod, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 刷新供应商时是否允许同步已完成业务节点。默认 false。
+    /// </summary>
+    Task<bool> GetAllowRefreshCompletedBizNodesAsync(CancellationToken cancellationToken = default);
+
+    Task SetAllowRefreshCompletedBizNodesAsync(bool allow, CancellationToken cancellationToken = default);
 }

@@ -815,10 +815,10 @@ const customerChangeTipVisible = computed(
       !!customerChangeTipPreview.value)
 )
 
-const customerChangeTipType = computed<'info' | 'warning' | 'error'>(() => {
+/** 与采购换供应商 tip 一致：使用 warning 浅黄/橙底（非 Element info 灰底） */
+const customerChangeTipType = computed<'warning' | 'error'>(() => {
   if (customerChangeTipError.value) return 'error'
-  if (customerChangeTipPreview.value && !customerChangeTipPreview.value.canSync) return 'warning'
-  return 'info'
+  return 'warning'
 })
 
 const customerChangeTipTitle = computed(() => {
@@ -925,19 +925,36 @@ async function refreshCustomerChangeTipPreview() {
   }
 }
 
+function escapeMessageBoxHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
 function buildCustomerChangeConfirmMessage(preview: SalesOrderCustomerDownstreamSyncPreview) {
+  const oldName = escapeMessageBoxHtml(preview.oldCustomerName || preview.oldCustomerId || '—')
+  const newName = escapeMessageBoxHtml(preview.customerName || preview.customerId || '—')
   const lines = [
-    `将把客户由「${preview.oldCustomerName || preview.oldCustomerId || '—'}」更换为「${preview.customerName || preview.customerId || '—'}」。`,
-    '确认后将一次保存订单客户，并同步未完结下游客户信息。'
+    `将把客户由「<span style="color:#F56C6C">${oldName}</span>」更换为「${newName}」。`,
+    escapeMessageBoxHtml('确认后将一次保存订单客户，并同步未完结下游客户信息。')
   ]
-  if ((preview.sellOrderCustomerNameToSync ?? 0) > 0) lines.push('同步销售订单客户名称快照。')
-  if (preview.stockOutNotifiesToSync > 0) lines.push(`同步 ${preview.stockOutNotifiesToSync} 条出库通知。`)
-  if (preview.packingsToSync > 0) lines.push(`同步 ${preview.packingsToSync} 张装箱单。`)
-  if (preview.packingItemExtendsToSync > 0) {
-    lines.push(`同步 ${preview.packingItemExtendsToSync} 行装箱明细扩展。`)
+  if ((preview.sellOrderCustomerNameToSync ?? 0) > 0) {
+    lines.push(escapeMessageBoxHtml('同步销售订单客户名称快照。'))
   }
-  if (preview.stockOutsToSync > 0) lines.push(`同步 ${preview.stockOutsToSync} 张未完结出库单。`)
-  return lines.join('\n')
+  if (preview.stockOutNotifiesToSync > 0) {
+    lines.push(escapeMessageBoxHtml(`同步 ${preview.stockOutNotifiesToSync} 条出库通知。`))
+  }
+  if (preview.packingsToSync > 0) {
+    lines.push(escapeMessageBoxHtml(`同步 ${preview.packingsToSync} 张装箱单。`))
+  }
+  if (preview.packingItemExtendsToSync > 0) {
+    lines.push(escapeMessageBoxHtml(`同步 ${preview.packingItemExtendsToSync} 行装箱明细扩展。`))
+  }
+  if (preview.stockOutsToSync > 0) {
+    lines.push(escapeMessageBoxHtml(`同步 ${preview.stockOutsToSync} 张未完结出库单。`))
+  }
+  return lines.join('<br/>')
 }
 
 /** 编辑换客户：保存前预检；取消则不保存。确认「刷新并保存」后由后端一次提交头+下游。 */
@@ -986,7 +1003,8 @@ async function confirmCustomerChangeIfNeeded(): Promise<boolean> {
     await ElMessageBox.confirm(buildCustomerChangeConfirmMessage(preview), '更换客户确认', {
       type: 'warning',
       confirmButtonText: '刷新并保存',
-      cancelButtonText: '取消'
+      cancelButtonText: '取消',
+      dangerouslyUseHTMLString: true
     })
     return true
   } catch (e) {

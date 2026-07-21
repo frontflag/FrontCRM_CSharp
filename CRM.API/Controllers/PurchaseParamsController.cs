@@ -151,6 +151,48 @@ public class PurchaseParamsController : ControllerBase
         }
     }
 
+    [HttpGet("allow-refresh-completed-biz-nodes")]
+    [RequirePermission("rbac.manage")]
+    public async Task<ActionResult<ApiResponse<PurchaseParamsAllowRefreshCompletedBizNodesDto>>> GetAllowRefreshCompletedBizNodes(
+        CancellationToken ct)
+    {
+        try
+        {
+            var allow = await _service.GetAllowRefreshCompletedBizNodesAsync(ct);
+            return Ok(ApiResponse<PurchaseParamsAllowRefreshCompletedBizNodesDto>.Ok(
+                new PurchaseParamsAllowRefreshCompletedBizNodesDto { Allow = allow },
+                "ok"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "读取「允许刷新已完成业务节点」失败");
+            return StatusCode(500, ApiResponse<PurchaseParamsAllowRefreshCompletedBizNodesDto>.Fail("读取失败", 500));
+        }
+    }
+
+    [HttpPut("allow-refresh-completed-biz-nodes")]
+    [RequirePermission("rbac.manage")]
+    public async Task<ActionResult<ApiResponse<PurchaseParamsAllowRefreshCompletedBizNodesDto>>> SetAllowRefreshCompletedBizNodes(
+        [FromBody] SetPurchaseParamsAllowRefreshCompletedBizNodesRequest? body,
+        CancellationToken ct)
+    {
+        if (body == null)
+            return BadRequest(ApiResponse<PurchaseParamsAllowRefreshCompletedBizNodesDto>.Fail("请求体为空", 400));
+
+        try
+        {
+            await _service.SetAllowRefreshCompletedBizNodesAsync(body.Allow, ct);
+            return Ok(ApiResponse<PurchaseParamsAllowRefreshCompletedBizNodesDto>.Ok(
+                new PurchaseParamsAllowRefreshCompletedBizNodesDto { Allow = body.Allow },
+                "已保存"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "保存「允许刷新已完成业务节点」失败");
+            return StatusCode(500, ApiResponse<PurchaseParamsAllowRefreshCompletedBizNodesDto>.Fail("保存失败", 500));
+        }
+    }
+
     [HttpGet("quoter-pool")]
     [RequirePermission("rbac.manage")]
     public async Task<ActionResult<ApiResponse<PurchaseQuoterPoolListResponse>>> GetQuoterPool(

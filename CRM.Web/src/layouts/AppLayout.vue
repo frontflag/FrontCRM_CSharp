@@ -1049,6 +1049,13 @@
             >{{ t('layout.menu.aiConfig') }}</router-link>
             <router-link
               v-if="hasPermission('rbac.manage')"
+              to="/system/sales-params/refresh-customer"
+              class="submenu-item"
+              active-class="active"
+              exact
+            >{{ t('layout.menu.salesParams') }}</router-link>
+            <router-link
+              v-if="hasPermission('rbac.manage')"
               to="/system/purchase-params/assignee-count"
               class="submenu-item"
               active-class="active"
@@ -2343,10 +2350,12 @@ const pageTitleMap: Record<string, string> = {
   '/system/finance-params/exchange-rates': 'layout.menu.financeParams',
   '/system/finance-params/purchase-cost-params': 'financeParams.purchaseCostParamsNav',
   '/system/finance-params/payment-banks': 'financeParams.paymentBanksNav',
+  '/system/sales-params/refresh-customer': 'layout.menu.salesParams',
   '/system/purchase-params/assignee-count': 'layout.menu.purchaseParams',
   '/system/purchase-params/quoter-pool': 'purchaseParams.quoterPoolNav',
   '/system/purchase-params/default-assign-method': 'purchaseParams.defaultAssignMethodNav',
   '/system/purchase-params/demand-protection': 'purchaseParams.demandProtectionNav',
+  '/system/purchase-params/refresh-vendor': 'purchaseParams.refreshVendorNav',
   '/system/login-logs': 'layout.menu.loginLog',
   '/system/operation-logs': 'layout.menu.operationLog',
   '/inventory/list': 'layout.menu.inventoryCenter',
@@ -2712,7 +2721,7 @@ watch(
     if (p.startsWith('/system/')) {
       openGroups.value.systemManagement = true
     }
-    if (p === '/system/company-info' || p === '/system/dict-items' || p === '/system/ai-config' || p.startsWith('/system/purchase-params') || p.startsWith('/system/finance-params')) {
+    if (p === '/system/company-info' || p === '/system/dict-items' || p === '/system/ai-config' || p.startsWith('/system/sales-params') || p.startsWith('/system/purchase-params') || p.startsWith('/system/finance-params')) {
       openGroups.value.paramManagement = true
     }
     if (p === '/system/login-logs' || p === '/system/operation-logs') {

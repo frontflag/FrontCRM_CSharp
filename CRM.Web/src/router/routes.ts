@@ -854,6 +854,20 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '数据字典', permission: 'rbac.manage' }
       },
       {
+        path: 'system/sales-params',
+        component: () => import('@/views/System/SalesParamsLayout.vue'),
+        meta: { requiresAuth: true, title: '销售参数', permission: 'rbac.manage' },
+        children: [
+          { path: '', redirect: '/system/sales-params/refresh-customer' },
+          {
+            path: 'refresh-customer',
+            name: 'SalesRefreshCustomer',
+            component: () => import('@/views/System/SalesRefreshCustomerSettings.vue'),
+            meta: { requiresAuth: true, title: '销售参数', permission: 'rbac.manage' }
+          }
+        ]
+      },
+      {
         path: 'system/purchase-params',
         component: () => import('@/views/System/PurchaseParamsLayout.vue'),
         meta: { requiresAuth: true, title: '采购参数', permission: 'rbac.manage' },
@@ -881,6 +895,12 @@ const routes: RouteRecordRaw[] = [
             path: 'default-assign-method',
             name: 'PurchaseDefaultAssignMethod',
             component: () => import('@/views/System/PurchaseDefaultAssignMethodSettings.vue'),
+            meta: { requiresAuth: true, title: '采购参数', permission: 'rbac.manage' }
+          },
+          {
+            path: 'refresh-vendor',
+            name: 'PurchaseRefreshVendor',
+            component: () => import('@/views/System/PurchaseRefreshVendorSettings.vue'),
             meta: { requiresAuth: true, title: '采购参数', permission: 'rbac.manage' }
           }
         ]

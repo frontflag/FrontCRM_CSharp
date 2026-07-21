@@ -14,6 +14,8 @@ export interface BatchReconciliationQuery {
   vendorName?: string
   customerName?: string
   remark?: string
+  /** list|stockIn|packing|purchaseOrder|salesOrder — 服务端导出审计挂靠 */
+  exportSource?: string
 }
 
 export interface BatchReconciliationRow {

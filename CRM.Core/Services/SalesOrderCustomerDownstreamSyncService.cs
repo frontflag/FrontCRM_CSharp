@@ -27,6 +27,7 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
     private readonly IRepository<StockOutItem> _stockOutItemRepo;
     private readonly IRepository<CustomerInfo> _customerRepo;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ISalesParamsService _salesParams;
     private readonly ILogger<SalesOrderCustomerDownstreamSyncService> _logger;
 
     public SalesOrderCustomerDownstreamSyncService(
@@ -42,6 +43,7 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
         IRepository<StockOutItem> stockOutItemRepo,
         IRepository<CustomerInfo> customerRepo,
         IUnitOfWork unitOfWork,
+        ISalesParamsService salesParams,
         ILogger<SalesOrderCustomerDownstreamSyncService> logger)
     {
         _soRepo = soRepo;
@@ -56,6 +58,7 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
         _stockOutItemRepo = stockOutItemRepo;
         _customerRepo = customerRepo;
         _unitOfWork = unitOfWork;
+        _salesParams = salesParams;
         _logger = logger;
     }
 
@@ -66,7 +69,7 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
         CancellationToken cancellationToken = default)
     {
         var bundle = await LoadBundleAsync(salesOrderId, proposedCustomerId, cancellationToken);
-        var preview = BuildPreview(bundle);
+        var preview = await BuildPreviewAsync(bundle, cancellationToken);
         await EnrichPreviewItemsAsync(bundle, preview, cancellationToken);
         return preview;
     }
@@ -83,7 +86,7 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
 
         var bundle = await LoadBundleAsync(order.Id, proposedCustomerId, cancellationToken);
         bundle.Order = order;
-        var preview = BuildPreview(bundle);
+        var preview = await BuildPreviewAsync(bundle, cancellationToken);
         await EnrichPreviewItemsAsync(bundle, preview, cancellationToken);
 
         if (preview.NoOp)
@@ -163,12 +166,15 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
         return new SalesOrderCustomerDownstreamSyncApplyResult { Preview = preview, Applied = true };
     }
 
-    private SalesOrderCustomerDownstreamSyncPreviewResult BuildPreview(CustomerSyncBundle bundle)
+    private async Task<SalesOrderCustomerDownstreamSyncPreviewResult> BuildPreviewAsync(
+        CustomerSyncBundle bundle,
+        CancellationToken cancellationToken)
     {
         var order = bundle.Order
             ?? throw new InvalidOperationException("销售订单不存在");
 
-        Classify(bundle);
+        var allowRefreshCompleted = await _salesParams.GetAllowRefreshCompletedBizNodesAsync(cancellationToken);
+        Classify(bundle, allowRefreshCompleted);
 
         var preview = new SalesOrderCustomerDownstreamSyncPreviewResult
         {
@@ -407,7 +413,7 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
         return nameMap.TryGetValue(customerId.Trim(), out var name) ? name : customerId.Trim();
     }
 
-    private static void Classify(CustomerSyncBundle bundle)
+    private static void Classify(CustomerSyncBundle bundle, bool allowRefreshCompleted)
     {
         bundle.SyncNotifies.Clear();
         bundle.SyncPackings.Clear();
@@ -424,7 +430,10 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
 
             if (notify.Status >= StockOutRequestStatusCode.StockedOut)
             {
-                bundle.BlockingDocuments.Add($"出库通知 {notify.RequestCode} 已出库");
+                if (allowRefreshCompleted)
+                    bundle.SyncNotifies.Add(notify);
+                else
+                    bundle.BlockingDocuments.Add($"出库通知 {notify.RequestCode} 已出库");
                 continue;
             }
 
@@ -441,7 +450,10 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
 
             if (packing.Status >= PackingStatusCode.StockOutFinished)
             {
-                bundle.BlockingDocuments.Add($"装箱单 {packing.Code} 已出库完成");
+                if (allowRefreshCompleted)
+                    bundle.SyncPackings.Add(packing);
+                else
+                    bundle.BlockingDocuments.Add($"装箱单 {packing.Code} 已出库完成");
                 continue;
             }
 
@@ -467,7 +479,10 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
 
             if (stockOut.Status == StockOutStatusCompleted)
             {
-                bundle.BlockingDocuments.Add($"出库单 {stockOut.StockOutCode} 已出库");
+                if (allowRefreshCompleted)
+                    bundle.SyncStockOuts.Add(stockOut);
+                else
+                    bundle.BlockingDocuments.Add($"出库单 {stockOut.StockOutCode} 已出库");
                 continue;
             }
 
@@ -485,8 +500,11 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
             if (receivable.VerifiedDone > 0m
                 || receivable.VerificationStatus > FinanceVerificationStatusCode.Pending)
             {
-                bundle.BlockingDocuments.Add(
-                    $"应收 {receivable.ReceivableCode ?? receivable.Id} 已有核销记录");
+                if (!allowRefreshCompleted)
+                {
+                    bundle.BlockingDocuments.Add(
+                        $"应收 {receivable.ReceivableCode ?? receivable.Id} 已有核销记录");
+                }
             }
         }
 
@@ -494,8 +512,11 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
         {
             if (invoice.InvoiceStatus >= SellInvoiceStatusInvoiced)
             {
-                bundle.BlockingDocuments.Add(
-                    $"销项发票 {invoice.InvoiceCode ?? invoice.InvoiceNo ?? invoice.Id} 已开票");
+                if (!allowRefreshCompleted)
+                {
+                    bundle.BlockingDocuments.Add(
+                        $"销项发票 {invoice.InvoiceCode ?? invoice.InvoiceNo ?? invoice.Id} 已开票");
+                }
             }
         }
     }
