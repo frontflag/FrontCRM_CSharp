@@ -2386,7 +2386,10 @@ namespace CRM.API.Controllers
 
         [HttpGet("{id:guid}/sync-downstream-customer/preview")]
         [RequirePermission("sales-order.write")]
-        public async Task<IActionResult> PreviewSyncDownstreamCustomer(string id, CancellationToken cancellationToken)
+        public async Task<IActionResult> PreviewSyncDownstreamCustomer(
+            string id,
+            [FromQuery] string? proposedCustomerId,
+            CancellationToken cancellationToken)
         {
             try
             {
@@ -2397,7 +2400,10 @@ namespace CRM.API.Controllers
                 if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessSalesOrderAsync(userId, order))
                     return StatusCode(403, new { success = false, message = "无权限访问该销售订单" });
 
-                var preview = await _customerDownstreamSyncService.PreviewAsync(id, cancellationToken);
+                var preview = await _customerDownstreamSyncService.PreviewAsync(
+                    id,
+                    proposedCustomerId,
+                    cancellationToken);
                 return Ok(new { success = true, data = preview });
             }
             catch (Exception ex)
@@ -2420,7 +2426,10 @@ namespace CRM.API.Controllers
                 if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessSalesOrderAsync(userId, order))
                     return StatusCode(403, new { success = false, message = "无权限访问该销售订单" });
 
-                var result = await _customerDownstreamSyncService.ApplyAsync(order, userId, cancellationToken);
+                var result = await _customerDownstreamSyncService.ApplyAsync(
+                    order,
+                    userId,
+                    cancellationToken: cancellationToken);
                 return Ok(new { success = true, data = result });
             }
             catch (InvalidOperationException ex)
@@ -2506,7 +2515,14 @@ namespace CRM.API.Controllers
             }
             catch (InvalidOperationException ex)
             {
-                return NotFound(new { success = false, message = ex.Message });
+                if (ex.Message.Contains("不存在", StringComparison.Ordinal))
+                {
+                    _logger.LogWarning(ex, "SalesOrders Update 未找到: {Message}", ex.Message);
+                    return NotFound(new { success = false, message = ex.Message });
+                }
+
+                _logger.LogWarning(ex, "SalesOrders Update 业务冲突: {Message}", ex.Message);
+                return BadRequest(new { success = false, message = ex.Message });
             }
             catch (Exception ex)
             {

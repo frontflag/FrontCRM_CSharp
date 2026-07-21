@@ -54,6 +54,23 @@
       </div>
     </div>
 
+    <el-alert
+      v-if="vendorChangeTipVisible"
+      :title="vendorChangeTipTitle"
+      :type="vendorChangeTipType"
+      :closable="false"
+      show-icon
+      class="po-vendor-change-hint"
+    >
+      <div
+        v-for="(line, idx) in vendorChangeTipLines"
+        :key="idx"
+        class="po-vendor-change-hint__line"
+      >
+        {{ line }}
+      </div>
+    </el-alert>
+
     <div
       class="po-upsert-content"
       v-loading="genLoading || submitLoading"
@@ -97,24 +114,13 @@
               </el-select>
             </el-form-item>
             <el-form-item v-else label="供应商">
-              <div class="po-vendor-name-row">
-                <vendor-name-readonly-field
-                  :name-zh="formData.vendorName"
-                  :name-en="formData.vendorEnglishName"
-                  :masked="maskPurchaseSensitiveFields"
-                  mode="compact"
-                  class="po-vendor-name-input"
-                />
-                <el-button
-                  v-if="showRefreshVendorNameBtn"
-                  type="primary"
-                  link
-                  :loading="refreshVendorNameLoading"
-                  @click="handleRefreshVendorName"
-                >
-                  刷新
-                </el-button>
-              </div>
+              <vendor-name-readonly-field
+                :name-zh="formData.vendorName"
+                :name-en="formData.vendorEnglishName"
+                :masked="maskPurchaseSensitiveFields"
+                mode="compact"
+                class="po-vendor-name-input"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -362,7 +368,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import type { FormInstance } from 'element-plus'
@@ -456,8 +462,6 @@ const genLoading = ref(false)
 
 const staffPickLocked = computed(() => isPurchaseOrderAssistorLockedMode(authStore.user))
 const staffPickFree = computed(() => canPickPurchaseOrderStaffFreely(authStore.user))
-const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
-const refreshVendorNameLoading = ref(false)
 const originalVendorId = ref('')
 const assistorReadonlyLabel = ref('')
 const purchaseUserSelectOptions = ref<PurchaseDeptStaffUserOption[]>([])
@@ -504,14 +508,6 @@ const showVendorPicker = computed(() => {
   if (allowManualVendorPick.value) return true
   return !!editId.value && canChangePoVendor.value
 })
-const showRefreshVendorNameBtn = computed(
-  () =>
-    editId.value &&
-    isSysAdmin.value &&
-    !maskPurchaseSensitiveFields.value &&
-    !showVendorPicker.value
-)
-
 const canSubmitPurchaseOrder = computed(() => {
   if (editId.value) return authStore.hasPermission('purchase-order.write')
   return canSubmitPurchaseOrderCreate({
@@ -758,12 +754,14 @@ function onVendorChange(val: string | null | undefined) {
     formData.value.items.forEach((it) => {
       it.vendorId = undefined
     })
+    clearVendorChangeTip()
     return
   }
   const found = vendorOptions.value.find((x) => x.value === val)
   if (found) formData.value.vendorName = found.label
   syncLineVendorIds()
   void loadVendorContacts(val)
+  scheduleVendorChangeTipPreview()
 }
 
 async function loadVendorContacts(vendorId: string) {
@@ -792,24 +790,6 @@ function onVendorContactChange(id: string | null | undefined) {
   }
   const row = vendorContactOptions.value.find((c) => c.value === id)
   formData.value.vendorContactName = row?.label?.split(' / ')[0]?.trim() || ''
-}
-
-async function handleRefreshVendorName() {
-  if (!editId.value) return
-  refreshVendorNameLoading.value = true
-  try {
-    const result = await purchaseOrderApi.refreshVendorName(editId.value)
-    if (result.newVendorName) formData.value.vendorName = result.newVendorName
-    if (result.changed) {
-      ElMessage.success('供应商名称已刷新')
-    } else {
-      ElMessage.info('供应商名称与主数据一致，无需更新')
-    }
-  } catch (e) {
-    ElMessage.error(getApiErrorMessage(e, '刷新供应商名称失败'))
-  } finally {
-    refreshVendorNameLoading.value = false
-  }
 }
 
 const addItem = () => {
@@ -900,6 +880,7 @@ async function loadOrderForEdit(id: string) {
   formData.value.vendorEnglishName = String(o.vendorEnglishName ?? o.VendorEnglishName ?? '')
   formData.value.vendorId = String(o.vendorId ?? '')
   originalVendorId.value = formData.value.vendorId
+  clearVendorChangeTip()
   formData.value.vendorContactId = String(o.vendorContactId ?? '')
   formData.value.vendorContactName = String((o as { vendorContactName?: string }).vendorContactName ?? '')
   if (formData.value.vendorId && formData.value.vendorName) {
@@ -955,16 +936,156 @@ async function loadOrderForEdit(id: string) {
   await resolveBrandIdsForItems(formData.value.items, { silent: true })
 }
 
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+function resolveVendorChangeBlockDetails(p: PurchaseOrderVendorChangePreviewResult) {
+  const raw = p as PurchaseOrderVendorChangePreviewResult & {
+    BlockReason?: string | null
+    BlockingDocuments?: string[] | null
+  }
+  const blockReason = (p.blockReason ?? raw.BlockReason ?? '').trim()
+  const docs = (p.blockingDocuments ?? raw.BlockingDocuments ?? [])
+    .map((d) => String(d || '').trim())
+    .filter(Boolean)
+  return { blockReason, docs }
+}
+
+const vendorChangeTipPreview = ref<PurchaseOrderVendorChangePreviewResult | null>(null)
+const vendorChangeTipLoading = ref(false)
+const vendorChangeTipError = ref('')
+let vendorChangeTipTimer: ReturnType<typeof setTimeout> | null = null
+let vendorChangeTipSeq = 0
+
+const vendorChangedFromOriginal = computed(() => {
+  if (!isEditMode.value || !canChangePoVendor.value) return false
+  const cur = (formData.value.vendorId || '').trim()
+  const orig = originalVendorId.value.trim()
+  return !!cur && !!orig && cur.toLowerCase() !== orig.toLowerCase()
+})
+
+const vendorChangeTipVisible = computed(
+  () =>
+    isEditMode.value &&
+    vendorChangedFromOriginal.value &&
+    (vendorChangeTipLoading.value || !!vendorChangeTipError.value || !!vendorChangeTipPreview.value)
+)
+
+/** 与销售订单换客户 tip 一致：使用 warning 橙底（非 Element info 灰底） */
+const vendorChangeTipType = computed<'warning' | 'error'>(() => {
+  if (vendorChangeTipError.value) return 'error'
+  return 'warning'
+})
+
+const vendorChangeTipTitle = computed(() => {
+  if (vendorChangeTipLoading.value) return '正在检查下游供应商影响…'
+  if (vendorChangeTipError.value) return '下游供应商预检失败'
+  const p = vendorChangeTipPreview.value
+  if (!p) return ''
+  if (!p.canChange) return '当前供应商变更被阻断，当前无法保存供应商资料（仅提醒，尚未保存）'
+  if (p.noOp) return '下游供应商已与目标一致，保存时仅更新订单供应商'
+  return '更换供应商后，保存时将同步以下未完结下游（仅提醒，尚未保存）'
+})
+
+const vendorChangeTipLines = computed(() => {
+  if (vendorChangeTipError.value) return [vendorChangeTipError.value]
+  const p = vendorChangeTipPreview.value
+  if (!p || vendorChangeTipLoading.value) return []
+  if (!p.canChange) {
+    const { blockReason, docs } = resolveVendorChangeBlockDetails(p)
+    const lines: string[] = ['当前无法保存供应商资料。', '阻断原因：']
+    if (docs.length > 0) {
+      for (const d of docs) lines.push(`· ${d}`)
+      if (blockReason && !docs.some((d) => blockReason.includes(d))) {
+        lines.push(`· ${blockReason}`)
+      }
+    } else {
+      lines.push(`· ${blockReason || '存在已完结下游单据，无法更换供应商'}`)
+    }
+    return lines
+  }
+  if (p.noOp) {
+    return [
+      `目标供应商：${p.newVendorName?.trim() || p.newVendorId || '—'}（原：${p.oldVendorName?.trim() || p.oldVendorId || '—'}）`
+    ]
+  }
+  const lines = [
+    `将由「${p.oldVendorName || p.oldVendorId || '—'}」更换为「${p.newVendorName || p.newVendorId || '—'}」`
+  ]
+  if ((p.poVendorNameToSync ?? 0) > 0) lines.push('· 采购订单供应商名称快照')
+  if (p.poItemsToSync > 0) lines.push(`· 采购明细 ${p.poItemsToSync} 条`)
+  if (p.arrivalNoticesToSync > 0) lines.push(`· 到货通知 ${p.arrivalNoticesToSync} 条`)
+  if (p.stockInsToSync > 0) lines.push(`· 未过账入库单 ${p.stockInsToSync} 张`)
+  if (p.paymentsToSync > 0) lines.push(`· 未完成付款单 ${p.paymentsToSync} 张`)
+  if (p.purchaseInvoicesToSync > 0) lines.push(`· 未完成进项发票 ${p.purchaseInvoicesToSync} 张`)
+  return lines
+})
+
+function clearVendorChangeTip() {
+  vendorChangeTipPreview.value = null
+  vendorChangeTipError.value = ''
+  vendorChangeTipLoading.value = false
+}
+
+function scheduleVendorChangeTipPreview() {
+  if (!isEditMode.value || !editId.value || !canChangePoVendor.value) {
+    clearVendorChangeTip()
+    return
+  }
+  if (!vendorChangedFromOriginal.value) {
+    if (vendorChangeTipTimer) {
+      clearTimeout(vendorChangeTipTimer)
+      vendorChangeTipTimer = null
+    }
+    clearVendorChangeTip()
+    return
+  }
+  if (vendorChangeTipTimer) clearTimeout(vendorChangeTipTimer)
+  vendorChangeTipTimer = setTimeout(() => {
+    void refreshVendorChangeTipPreview()
+  }, 350)
+}
+
+async function refreshVendorChangeTipPreview() {
+  if (!editId.value || !vendorChangedFromOriginal.value) {
+    clearVendorChangeTip()
+    return
+  }
+  const seq = ++vendorChangeTipSeq
+  const proposedId = formData.value.vendorId?.trim() || ''
+  vendorChangeTipLoading.value = true
+  vendorChangeTipError.value = ''
+  try {
+    const preview = await purchaseOrderApi.previewVendorChange(editId.value, proposedId)
+    if (seq !== vendorChangeTipSeq) return
+    vendorChangeTipPreview.value = preview
+  } catch (e) {
+    if (seq !== vendorChangeTipSeq) return
+    vendorChangeTipPreview.value = null
+    vendorChangeTipError.value = getApiErrorMessage(e, '预检失败，请稍后重试')
+  } finally {
+    if (seq === vendorChangeTipSeq) vendorChangeTipLoading.value = false
+  }
+}
+
 function buildVendorChangeConfirmMessage(preview: PurchaseOrderVendorChangePreviewResult) {
   const lines = [
-    `将把供应商由「${preview.oldVendorName || preview.oldVendorId || '—'}」更换为「${preview.newVendorName || preview.newVendorId}」。`,
-    `同步 ${preview.poItemsToSync} 条采购明细。`
+    preview.sameVendorId
+      ? `将按供应商「${preview.newVendorName || preview.newVendorId}」刷新名称快照并同步未完结下游。`
+      : `将把供应商由「${preview.oldVendorName || preview.oldVendorId || '—'}」更换为「${preview.newVendorName || preview.newVendorId}」。`,
+    '确认后将一次保存订单供应商，并同步未完结下游。'
   ]
+  if ((preview.poVendorNameToSync ?? 0) > 0) lines.push('同步采购订单供应商名称快照。')
+  if (preview.poItemsToSync > 0) lines.push(`同步 ${preview.poItemsToSync} 条采购明细。`)
   if (preview.arrivalNoticesToSync > 0) lines.push(`同步 ${preview.arrivalNoticesToSync} 条未到货完成的到货通知。`)
   if (preview.stockInsToSync > 0) lines.push(`同步 ${preview.stockInsToSync} 张未过账入库单。`)
   if (preview.paymentsToSync > 0) lines.push(`同步 ${preview.paymentsToSync} 张未完成付款单。`)
   if (preview.purchaseInvoicesToSync > 0) lines.push(`同步 ${preview.purchaseInvoicesToSync} 张未完成进项发票。`)
-  lines.push('若原供应商联系人不属于新供应商，将自动清空。')
+  if (!preview.sameVendorId) lines.push('若原供应商联系人不属于新供应商，将自动清空。')
   return lines.join('\n')
 }
 
@@ -975,17 +1096,39 @@ async function confirmVendorChangeIfNeeded(): Promise<boolean> {
 
   try {
     const preview = await purchaseOrderApi.previewVendorChange(editId.value, newVid)
+    vendorChangeTipPreview.value = preview
     if (!preview.canChange) {
-      await ElMessageBox.alert(preview.blockReason || '无法更换供应商', '更换供应商', {
-        confirmButtonText: '知道了',
-        type: 'warning'
-      })
+      const { blockReason, docs } = resolveVendorChangeBlockDetails(preview)
+      const detail =
+        docs.length > 0
+          ? docs.map((d) => `· ${escapeHtml(d)}`).join('<br/>')
+          : escapeHtml(blockReason || '存在已完结下游单据，无法更换供应商')
+      await ElMessageBox.alert(
+        `当前无法保存供应商资料。<br/><br/>阻断原因：<br/>${detail}`,
+        '更换供应商',
+        {
+          confirmButtonText: '知道了',
+          type: 'warning',
+          dangerouslyUseHTMLString: true
+        }
+      )
       return false
     }
-    if (preview.noOp) return true
+    if (preview.noOp) {
+      await ElMessageBox.confirm(
+        `将把供应商更换为「${preview.newVendorName || preview.newVendorId}」。下游无需同步，是否保存？`,
+        '更换供应商确认',
+        {
+          type: 'warning',
+          confirmButtonText: '保存',
+          cancelButtonText: '取消'
+        }
+      )
+      return true
+    }
     await ElMessageBox.confirm(buildVendorChangeConfirmMessage(preview), '更换供应商确认', {
       type: 'warning',
-      confirmButtonText: '确认更换',
+      confirmButtonText: '刷新并保存',
       cancelButtonText: '取消'
     })
     return true
@@ -1168,6 +1311,13 @@ async function handleGenerateFromRequisitions(ids: string[]) {
   }
 }
 
+onBeforeUnmount(() => {
+  if (vendorChangeTipTimer) {
+    clearTimeout(vendorChangeTipTimer)
+    vendorChangeTipTimer = null
+  }
+})
+
 onMounted(async () => {
   await ensureMaterialPdDict()
   try {
@@ -1215,6 +1365,43 @@ onMounted(async () => {
   min-height: 100%;
   background: $layer-1;
   font-family: 'Noto Sans SC', sans-serif;
+}
+
+.po-vendor-change-hint {
+  margin: 0 0 16px;
+  align-items: flex-start;
+
+  &__line {
+    line-height: 1.55;
+    font-size: 13px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  :deep(.el-alert__icon) {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    margin-top: 2px;
+
+    svg {
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  :deep(.el-alert__title) {
+    font-size: 14px;
+    line-height: 16px;
+  }
+
+  :deep(.el-alert__content) {
+    width: 100%;
+  }
+
+  :deep(.el-alert__description) {
+    margin-top: 4px;
+  }
 }
 
 .po-upsert-content {

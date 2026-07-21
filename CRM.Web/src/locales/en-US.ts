@@ -7263,6 +7263,12 @@ const enUS = {
       clearBasketOk: 'Clear',
       clearBasketCancel: 'Cancel',
       basketCleared: 'Selection cleared'
+    },
+    flowPanel: {
+      pickPacking: 'Click a packing list row to view its process flow',
+      noItems: 'This packing list has no lines',
+      itemSwitcher: 'Packing line numbers',
+      loadFailed: 'Failed to load packing process flow'
     }
   },
   pickCreate: {
@@ -7525,7 +7531,19 @@ const enUS = {
     },
     notFound: 'Packing list not found',
     loadFailed: 'Failed to load packing detail',
-    missingId: 'Missing packing list ID'
+    missingId: 'Missing packing list ID',
+    flowPanel: {
+      noSelection: 'Select a packing line',
+      missingSellLink:
+        'This packing line is not linked to a sales order line. The sales-line station is empty; other stations still follow this packing.',
+      stations: {
+        sellOrderItem: 'Sales order line',
+        stockOutNotify: 'Stock-out notice',
+        packing: 'Packing',
+        picking: 'Picking',
+        stockOut: 'Stock-out'
+      }
+    }
   },
   packingItemList: {
     title: 'Packing lines',

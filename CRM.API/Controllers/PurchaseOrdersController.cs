@@ -1703,9 +1703,9 @@ namespace CRM.API.Controllers
                 if (string.IsNullOrWhiteSpace(userId))
                     return StatusCode(403, new { success = false, message = "未登录或身份无效" });
 
-                var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
-                if (summary?.IsSysAdmin != true)
-                    return StatusCode(403, new { success = false, message = "仅系统管理员可刷新供应商名称" });
+                var summary = await GetPermissionSummaryAsync(userId.Trim());
+                if (!PurchaseOrderVendorChangeAccessRules.CanChangeVendor(summary))
+                    return StatusCode(403, new { success = false, message = "无权限刷新采购订单供应商信息" });
 
                 var order = await _service.GetByIdAsync(id);
                 if (order == null) return NotFound(new { success = false, message = "采购订单不存在" });

@@ -1404,6 +1404,22 @@
             :mask-sensitive="maskSaleSensitiveFields"
             class="aux-panel-tab-body"
           />
+          <PackingItemFlowPanel
+            v-show="showPackingDetailFlowPanel"
+            :row="packingDetailFlowStore.flowRow"
+            :aggregates="packingDetailFlowStore.aggregates"
+            :extras="packingDetailFlowStore.flowExtras"
+            :loading="packingDetailFlowStore.loading"
+            :load-error="packingDetailFlowStore.loadError"
+            :missing-sell-link="packingDetailFlowStore.missingSellLink"
+            :mask-sensitive="maskSaleSensitiveFields"
+            class="aux-panel-tab-body"
+          />
+          <PackingListFlowPanel
+            v-show="showPackingListFlowPanel"
+            :mask-sensitive="maskSaleSensitiveFields"
+            class="aux-panel-tab-body"
+          />
           <PurchaseOrderItemOpsPanel
             v-show="showPurchaseOrderItemOpsPanel"
             embedded
@@ -1540,6 +1556,8 @@ import AiAssistantDrawer from '@/components/AiAssistant/AiAssistantDrawer.vue'
 import { useImageBrowserStore } from '@/stores/imageBrowser'
 import SalesOrderItemOpsPanel from '@/components/RFQ/SalesOrderItemOpsPanel.vue'
 import SalesOrderItemFlowPanel from '@/components/RFQ/SalesOrderItemFlowPanel.vue'
+import PackingItemFlowPanel from '@/components/Inventory/PackingItemFlowPanel.vue'
+import PackingListFlowPanel from '@/components/Inventory/PackingListFlowPanel.vue'
 import RfqItemMaterialPanel from '@/components/RFQ/RfqItemMaterialPanel.vue'
 import CustomerIntelPanel from '@/components/Customer/CustomerIntelPanel.vue'
 import VendorIntelPanel from '@/components/Vendor/VendorIntelPanel.vue'
@@ -1550,6 +1568,7 @@ import ArrivalNoticeOpsPanel from '@/components/Logistics/ArrivalNoticeOpsPanel.
 import QcOpsPanel from '@/components/Logistics/QcOpsPanel.vue'
 import StockOutNotifyCustomsTabPanel from '@/components/Inventory/StockOutNotifyCustomsTabPanel.vue'
 import { useSalesOrderItemOpsPanelStore } from '@/stores/salesOrderItemOpsPanel'
+import { usePackingDetailFlowPanelStore } from '@/stores/packingDetailFlowPanel'
 import { useMaterialIntelLookupStore } from '@/stores/materialIntelLookup'
 import { useCustomerIntelLookupStore } from '@/stores/customerIntelLookup'
 import { useVendorIntelLookupStore } from '@/stores/vendorIntelLookup'
@@ -1591,6 +1610,7 @@ const simulationTopBarStyle = computed(() => {
 const { isDark, toggleTheme } = useUiTheme()
 const { t, locale } = useI18n()
 const salesOrderItemOpsStore = useSalesOrderItemOpsPanelStore()
+const packingDetailFlowStore = usePackingDetailFlowPanelStore()
 const materialIntelLookupStore = useMaterialIntelLookupStore()
 const customerIntelLookupStore = useCustomerIntelLookupStore()
 const vendorIntelLookupStore = useVendorIntelLookupStore()
@@ -1857,6 +1877,8 @@ const showPurchaseOrderItemSearchPanel = computed(
 )
 
 const isSalesOrderItemListRoute = computed(() => route.name === 'SalesOrderItemList')
+const isPackingDetailRoute = computed(() => route.name === 'PackingDetail')
+const isPackingListRoute = computed(() => route.name === 'PackingList')
 const isSalesOrderDetailRoute = computed(() => route.name === 'SalesOrderDetail')
 const isSalesOrderItemOpsRoute = computed(
   () => isSalesOrderItemListRoute.value || isSalesOrderDetailRoute.value
@@ -1880,6 +1902,14 @@ const showSalesOrderItemOpsPanel = computed(
 
 const showSalesOrderItemFlowPanel = computed(
   () => rightActiveTabId.value === 'r-flow' && isSalesOrderItemListRoute.value
+)
+
+const showPackingDetailFlowPanel = computed(
+  () => rightActiveTabId.value === 'r-flow' && isPackingDetailRoute.value
+)
+
+const showPackingListFlowPanel = computed(
+  () => rightActiveTabId.value === 'r-flow' && isPackingListRoute.value
 )
 
 const showPurchaseOrderItemOpsPanel = computed(
@@ -1952,6 +1982,7 @@ watch(
         { id: 'r4', labelKey: 'layout.auxTabs.help' }
       ]
       purchaseOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
@@ -1972,6 +2003,7 @@ watch(
         { id: 'r4', labelKey: 'layout.auxTabs.help' }
       ]
       purchaseOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
@@ -1989,6 +2021,7 @@ watch(
         { id: 'r4', labelKey: 'layout.auxTabs.help' }
       ]
       salesOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
@@ -2009,6 +2042,7 @@ watch(
         { id: 'r4', labelKey: 'layout.auxTabs.help' }
       ]
       salesOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
@@ -2026,6 +2060,7 @@ watch(
       ]
       salesOrderItemOpsStore.clear()
       purchaseOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
@@ -2039,6 +2074,7 @@ watch(
       ]
       salesOrderItemOpsStore.clear()
       purchaseOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
       qcOpsStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
@@ -2057,6 +2093,7 @@ watch(
       ]
       salesOrderItemOpsStore.clear()
       purchaseOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
@@ -2075,6 +2112,7 @@ watch(
       ]
       salesOrderItemOpsStore.clear()
       purchaseOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
@@ -2090,6 +2128,7 @@ watch(
       ]
       salesOrderItemOpsStore.clear()
       purchaseOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
@@ -2108,6 +2147,7 @@ watch(
       ]
       salesOrderItemOpsStore.clear()
       purchaseOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
@@ -2123,6 +2163,7 @@ watch(
       syncStockOutNotifyListRightTabs()
       salesOrderItemOpsStore.clear()
       purchaseOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
@@ -2131,10 +2172,50 @@ watch(
       vendorIntelLookupStore.clearBound()
       return
     }
+    if (name === 'PackingDetail') {
+      rightTabs.value = [
+        { id: 'r-flow', labelKey: 'layout.auxTabs.flow' },
+        { id: 'r4', labelKey: 'layout.auxTabs.help' }
+      ]
+      salesOrderItemOpsStore.clear()
+      purchaseOrderItemOpsStore.clear()
+      customsDeclarationOpsStore.clear()
+      arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
+      materialIntelLookupStore.clearBound()
+      customerIntelLookupStore.clearBound()
+      vendorIntelLookupStore.clearBound()
+      if (rightActiveTabId.value !== 'r-flow' && rightActiveTabId.value !== 'r4') {
+        rightActiveTabId.value = 'r-flow'
+      }
+      return
+    }
+    if (name === 'PackingList') {
+      rightTabs.value = [
+        { id: 'r-flow', labelKey: 'layout.auxTabs.flow' },
+        { id: 'r4', labelKey: 'layout.auxTabs.help' }
+      ]
+      salesOrderItemOpsStore.clear()
+      purchaseOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
+      customsDeclarationOpsStore.clear()
+      arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
+      materialIntelLookupStore.clearBound()
+      customerIntelLookupStore.clearBound()
+      vendorIntelLookupStore.clearBound()
+      if (rightActiveTabId.value !== 'r-flow' && rightActiveTabId.value !== 'r4') {
+        rightActiveTabId.value = 'r-flow'
+      }
+      return
+    }
     rightTabs.value = [{ id: 'r4', labelKey: 'layout.auxTabs.help' }]
     rightActiveTabId.value = 'r4'
     salesOrderItemOpsStore.clear()
     purchaseOrderItemOpsStore.clear()
+    packingDetailFlowStore.clear()
     customsDeclarationOpsStore.clear()
     arrivalNoticeOpsStore.clear()
     qcOpsStore.clear()

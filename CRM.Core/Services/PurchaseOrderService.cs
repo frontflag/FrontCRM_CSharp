@@ -766,8 +766,6 @@ namespace CRM.Core.Services
         {
             if (string.IsNullOrWhiteSpace(purchaseOrderId))
                 throw new ArgumentException("采购订单ID不能为空", nameof(purchaseOrderId));
-            if (_vendorRepo == null)
-                throw new InvalidOperationException("供应商仓储未配置，无法刷新供应商名称");
 
             var orderId = purchaseOrderId.Trim();
             var order = await _poRepo.GetByIdAsync(orderId)
@@ -779,6 +777,35 @@ namespace CRM.Core.Services
                 || vendorId.Equals(MANUAL_VENDOR_PLACEHOLDER_ID, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("采购订单供应商无效，无法刷新名称");
 
+            var oldName = order.VendorName;
+            var headerBefore = CapturePurchaseOrderHeaderSnapshot(order);
+
+            // 对齐 SO「刷新客户」：按 VendorId 刷头名称，并同步未完结下游名称/ID
+            if (_vendorChangeService != null)
+            {
+                var apply = await _vendorChangeService.ApplyAsync(order, vendorId, actingUserId);
+                order.ModifyByUserId = NormalizeActingUserId(actingUserId);
+                await _poRepo.UpdateAsync(order);
+                if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+                await LogPurchaseOrderHeaderChangesAsync(order, headerBefore, actingUserId);
+
+                return new PurchaseOrderVendorNameRefreshResult
+                {
+                    PurchaseOrderId = orderId,
+                    VendorId = vendorId,
+                    OldVendorName = oldName,
+                    NewVendorName = order.VendorName,
+                    Changed = apply.Applied
+                        || !string.Equals(
+                            string.IsNullOrWhiteSpace(oldName) ? null : oldName.Trim(),
+                            order.VendorName?.Trim(),
+                            StringComparison.Ordinal)
+                };
+            }
+
+            if (_vendorRepo == null)
+                throw new InvalidOperationException("供应商仓储未配置，无法刷新供应商名称");
+
             var vendor = await _vendorRepo.GetByIdAsync(vendorId);
             if (vendor == null)
                 throw new InvalidOperationException($"供应商 {vendorId} 不存在");
@@ -787,8 +814,6 @@ namespace CRM.Core.Services
             if (string.IsNullOrWhiteSpace(newName))
                 throw new InvalidOperationException("供应商主数据无可用名称");
 
-            var oldName = order.VendorName;
-            var headerBefore = CapturePurchaseOrderHeaderSnapshot(order);
             order.VendorName = newName;
             order.ModifyTime = DateTime.UtcNow;
             order.ModifyByUserId = NormalizeActingUserId(actingUserId);

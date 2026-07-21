@@ -93,14 +93,43 @@
           </svg>
           取消订单
         </button>
-        <button class="btn-secondary" type="button" :disabled="refreshingExtends" @click="handleRefreshItemExtends">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="23 4 23 10 17 10" />
-            <polyline points="1 20 1 14 7 14" />
-            <path d="M3.51 9a9 9 0 0 1 14.13-3.36L23 10M1 14l5.36 4.36A9 9 0 0 0 20.49 15" />
-          </svg>
-          {{ refreshingExtends ? '刷新中...' : '刷新' }}
-        </button>
+        <div class="po-header-refresh-group">
+          <button
+            class="btn-secondary"
+            type="button"
+            :disabled="refreshingExtends || syncingVendor"
+            @click="handleRefreshItemExtends"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="23 4 23 10 17 10" />
+              <polyline points="1 20 1 14 7 14" />
+              <path d="M3.51 9a9 9 0 0 1 14.13-3.36L23 10M1 14l5.36 4.36A9 9 0 0 0 20.49 15" />
+            </svg>
+            {{ refreshingExtends ? '刷新中...' : '刷新' }}
+          </button>
+          <el-dropdown
+            v-if="canRefreshPoVendor"
+            trigger="click"
+            placement="bottom-end"
+            :disabled="refreshingExtends || syncingVendor"
+            popper-class="po-detail-header-more-popper"
+            @command="handleRefreshMenuCommand"
+          >
+            <button
+              type="button"
+              class="btn-secondary po-header-refresh-caret"
+              :disabled="refreshingExtends || syncingVendor"
+              aria-label="刷新菜单"
+            >
+              ▾
+            </button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="vendor">刷新供应商</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
         <button
           v-if="order && purchaseOrderReportAllowed(normalizePurchaseOrderMainStatus(order))"
           class="btn-secondary"
@@ -851,7 +880,8 @@ import {
   type PurchaseOrderFieldChangeLogRow,
   type PurchaseOrderDeletedItemRow,
   type PurchaseOrderLineOverviewAmountMetric,
-  type PurchaseOrderLineOverviewQtyMetric
+  type PurchaseOrderLineOverviewQtyMetric,
+  type PurchaseOrderVendorChangePreviewResult
 } from '@/api/purchaseOrder'
 import { favoriteApi } from '@/api/favorite'
 import {
@@ -866,6 +896,7 @@ import { tagApi, type TagDefinitionDto } from '@/api/tag'
 import { useAuthStore } from '@/stores/auth'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { usePurchaseOrderWriteGate, useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
+import { canChangePurchaseOrderVendor } from '@/utils/purchaseOrderStaffPickRules'
 import TagListDisplay from '@/components/Tag/TagListDisplay.vue'
 import ApplyTagsDialog from '@/components/Tag/ApplyTagsDialog.vue'
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue'
@@ -906,6 +937,18 @@ const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { canWritePo } = usePurchaseOrderWriteGate()
 const { canWriteFinancePayment: canFinancePaymentWrite } = useFinanceWriteGate()
 const { canWriteLogisticsData } = useDepartmentDataReadOnly()
+
+/** 与销售详情「刷新客户」对称：有换供应商权限且未脱敏时可刷新供应商 */
+const canRefreshPoVendor = computed(
+  () =>
+    !maskPurchaseSensitiveFields.value &&
+    canChangePurchaseOrderVendor({
+      isSysAdmin: authStore.user?.isSysAdmin,
+      identityType: authStore.user?.identityType,
+      roleCodes: authStore.user?.roleCodes,
+      hasPermission: (c) => authStore.hasPermission(c)
+    })
+)
 
 const FF_EDITABLE_PO_STATUSES = new Set([10, 20, 30, 50, 100])
 const showHeaderMoreMenu = computed(() => canWritePo.value)
@@ -960,6 +1003,7 @@ const canCreateArrivalNotice = computed(() => authStore.hasPermission('purchase-
 
 const loading = ref(false)
 const refreshingExtends = ref(false)
+const syncingVendor = ref(false)
 const order = ref<any>(null)
 
 /** 与原列表「取消订单」一致：审核通过(10)前可标记取消(-2)；已为取消不可再点 */
@@ -1817,6 +1861,131 @@ async function handleRefreshItemExtends() {
   }
 }
 
+function escapeVendorSyncHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+function buildVendorSyncPreviewHtml(preview: PurchaseOrderVendorChangePreviewResult) {
+  const lines: string[] = [
+    `<div>目标供应商：${escapeVendorSyncHtml(preview.newVendorName?.trim() || preview.newVendorId || '—')}</div>`
+  ]
+  if ((preview.poVendorNameToSync ?? 0) > 0) {
+    lines.push(
+      `<div>采购订单名称快照：${escapeVendorSyncHtml(preview.oldVendorName || '—')} → ${escapeVendorSyncHtml(preview.newVendorName || '—')}</div>`
+    )
+  }
+  if (preview.poItemsToSync > 0) lines.push(`<div>采购明细 ${preview.poItemsToSync} 条</div>`)
+  if (preview.arrivalNoticesToSync > 0) lines.push(`<div>到货通知 ${preview.arrivalNoticesToSync} 条</div>`)
+  if (preview.stockInsToSync > 0) lines.push(`<div>未过账入库单 ${preview.stockInsToSync} 张</div>`)
+  if (preview.paymentsToSync > 0) lines.push(`<div>未完成付款单 ${preview.paymentsToSync} 张</div>`)
+  if (preview.purchaseInvoicesToSync > 0) {
+    lines.push(`<div>未完成进项发票 ${preview.purchaseInvoicesToSync} 张</div>`)
+  }
+  if (preview.blockingDocuments?.length) {
+    lines.push('<div style="margin-top:8px;">阻断原因：</div>')
+    for (const d of preview.blockingDocuments) {
+      lines.push(`<div>· ${escapeVendorSyncHtml(d)}</div>`)
+    }
+  } else if (preview.blockReason) {
+    lines.push(`<div style="margin-top:8px;">${escapeVendorSyncHtml(preview.blockReason)}</div>`)
+  }
+  return `<div style="line-height:1.7;">${lines.join('')}</div>`
+}
+
+const vendorSyncMessageBoxOptions = {
+  dangerouslyUseHTMLString: true
+} as const
+
+function handleRefreshMenuCommand(command: string | number | object) {
+  if (command === 'vendor') {
+    void handleRefreshVendor()
+  }
+}
+
+/** 对齐销售详情「刷新客户」：按已落库 VendorId 刷头名称 + 未完结下游 */
+async function handleRefreshVendor() {
+  if (!order.value?.id || syncingVendor.value) return
+  const vendorId = String(order.value.vendorId ?? '').trim()
+  if (!vendorId) {
+    await ElMessageBox.alert('采购订单未设置有效供应商，无法刷新。', '刷新供应商', {
+      confirmButtonText: '知道了'
+    })
+    return
+  }
+
+  syncingVendor.value = true
+  let preview: PurchaseOrderVendorChangePreviewResult | null = null
+  try {
+    preview = await purchaseOrderApi.previewVendorChange(order.value.id, vendorId)
+  } catch (e) {
+    await ElMessageBox.alert(getApiErrorMessage(e, '预检失败，请稍后重试'), '刷新供应商', {
+      confirmButtonText: '知道了'
+    })
+    return
+  } finally {
+    syncingVendor.value = false
+  }
+
+  if (!preview) return
+
+  if (!preview.canChange) {
+    await ElMessageBox.alert(buildVendorSyncPreviewHtml(preview), '无法同步供应商', {
+      ...vendorSyncMessageBoxOptions,
+      confirmButtonText: '知道了'
+    })
+    return
+  }
+
+  if (preview.noOp) {
+    await ElMessageBox.alert(
+      '采购订单供应商名称快照与未完结下游供应商信息已与当前 VendorId 主数据一致，无需同步。',
+      '刷新供应商',
+      { confirmButtonText: '知道了' }
+    )
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      buildVendorSyncPreviewHtml(preview),
+      `确认按采购订单 ${order.value.purchaseOrderCode} 的 VendorId 刷新名称快照，并同步未完结下游供应商吗？`,
+      {
+        ...vendorSyncMessageBoxOptions,
+        type: 'warning',
+        confirmButtonText: '同步',
+        cancelButtonText: '取消'
+      }
+    )
+  } catch {
+    return
+  }
+
+  syncingVendor.value = true
+  try {
+    const result = await purchaseOrderApi.refreshVendorName(order.value.id)
+    await fetchOrder()
+    await reloadPoItemLinePanelAggregates()
+    const p = preview
+    const headerPart = (p.poVendorNameToSync ?? 0) > 0 ? '采购订单名称快照 1 张，' : ''
+    await ElMessageBox.alert(
+      result.changed
+        ? `已同步：${headerPart}采购明细 ${p.poItemsToSync} 条，到货通知 ${p.arrivalNoticesToSync} 条，入库单 ${p.stockInsToSync} 张，付款单 ${p.paymentsToSync} 张，进项发票 ${p.purchaseInvoicesToSync} 张。`
+        : '供应商信息与主数据一致，无需更新。',
+      '刷新供应商完成',
+      { confirmButtonText: '知道了' }
+    )
+  } catch (e) {
+    await ElMessageBox.alert(getApiErrorMessage(e, '同步失败，请稍后重试'), '刷新供应商失败', {
+      confirmButtonText: '知道了'
+    })
+  } finally {
+    syncingVendor.value = false
+  }
+}
+
 onMounted(() => {
   fetchOrder()
   purchaseOrderItemOpsStore.registerHandlers({
@@ -2009,6 +2178,26 @@ const handleEdit = () => {
   flex-shrink: 0;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.po-header-refresh-group {
+  display: inline-flex;
+  align-items: stretch;
+}
+
+.po-header-refresh-group > .btn-secondary:first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.po-header-refresh-caret {
+  min-width: 28px;
+  padding: 0 8px;
+  border-left: none;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  font-size: 12px;
+  line-height: 1;
 }
 
 .btn-back {

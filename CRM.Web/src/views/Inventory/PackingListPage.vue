@@ -190,7 +190,9 @@
       :data="list"
       row-key="id"
       v-loading="loading"
+      :row-class-name="flowPanelRowClassName"
       @selection-change="onSelectionChange"
+      @row-click="onRowClick"
       @row-dblclick="onRowDblClick"
     >
       <template #col-packingCode="{ row }">
@@ -542,7 +544,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { storeToRefs } from 'pinia'
@@ -589,6 +591,7 @@ import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { isPackingEligibleForStockOut, usePackingListBasketStore } from '@/stores/packingListBasket'
+import { usePackingDetailFlowPanelStore } from '@/stores/packingDetailFlowPanel'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import StockOutBatchImportDialog from '@/components/Inventory/StockOutBatchImportDialog.vue'
 
@@ -599,6 +602,7 @@ const { t, locale } = useI18n()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 const { ensureLoaded: ensureLogisticsDict, shipmentArrivalOptions, expressOptions } = useLogisticsFormDict()
+const packingFlowStore = usePackingDetailFlowPanelStore()
 
 const loading = ref(false)
 const tabModeDimension = ref<PackingListTabModeDimension>(readPackingListTabMode())
@@ -1115,8 +1119,24 @@ async function goPick(row: PackingListItem) {
   }
 }
 
+function onRowClick(row: PackingListItem) {
+  if (maskSaleSensitiveFields.value) {
+    packingFlowStore.clear()
+    return
+  }
+  const id = resolvePackingId(row)
+  if (!id) return
+  void packingFlowStore.bindPackingFromList(id, t('packingList.flowPanel.loadFailed'))
+}
+
 function onRowDblClick(row: PackingListItem) {
   goDetail(row)
+}
+
+function flowPanelRowClassName({ row }: { row: PackingListItem }) {
+  const id = resolvePackingId(row)
+  if (!id || !packingFlowStore.selectedPackingId) return ''
+  return id === packingFlowStore.selectedPackingId ? 'so-item-row--active' : ''
 }
 
 function resolvePackingId(row: PackingListItem): string {
@@ -1320,9 +1340,17 @@ function onPackingPrintCommand(row: PackingListItem, cmd: string) {
   else if (cmd === 'without') void goPackingReport(row, false)
 }
 
+watch(maskSaleSensitiveFields, (masked) => {
+  if (masked) packingFlowStore.clear()
+})
+
 onMounted(() => {
   void ensureLogisticsDict()
   void fetchList(true)
+})
+
+onUnmounted(() => {
+  packingFlowStore.clear()
 })
 </script>
 
@@ -1893,5 +1921,9 @@ html[data-theme='dark'] .pk-filter-tabs__item:not(.is-active) {
   background: var(--crm-layer-2, #0d1e35);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
   z-index: 10;
+}
+
+:deep(.el-table__body tr.el-table__row.so-item-row--active > td.el-table__cell) {
+  background: rgba(0, 160, 220, 0.1) !important;
 }
 </style>

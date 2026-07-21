@@ -62,9 +62,10 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
     /// <inheritdoc />
     public async Task<SalesOrderCustomerDownstreamSyncPreviewResult> PreviewAsync(
         string salesOrderId,
+        string? proposedCustomerId = null,
         CancellationToken cancellationToken = default)
     {
-        var bundle = await LoadBundleAsync(salesOrderId, cancellationToken);
+        var bundle = await LoadBundleAsync(salesOrderId, proposedCustomerId, cancellationToken);
         var preview = BuildPreview(bundle);
         await EnrichPreviewItemsAsync(bundle, preview, cancellationToken);
         return preview;
@@ -74,11 +75,13 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
     public async Task<SalesOrderCustomerDownstreamSyncApplyResult> ApplyAsync(
         SellOrder order,
         string? actingUserId = null,
+        string? proposedCustomerId = null,
+        bool saveChanges = true,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(order);
 
-        var bundle = await LoadBundleAsync(order.Id, cancellationToken);
+        var bundle = await LoadBundleAsync(order.Id, proposedCustomerId, cancellationToken);
         bundle.Order = order;
         var preview = BuildPreview(bundle);
         await EnrichPreviewItemsAsync(bundle, preview, cancellationToken);
@@ -91,6 +94,15 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
 
         var targetCustomerId = bundle.TargetCustomerId!;
         var now = DateTime.UtcNow;
+        var orderEntity = bundle.Order!;
+
+        if (bundle.NeedRefreshSellOrderCustomerName || bundle.CustomerIdChanging)
+        {
+            orderEntity.CustomerId = targetCustomerId;
+            orderEntity.CustomerName = bundle.TargetCustomerName;
+            orderEntity.ModifyTime = now;
+            await _soRepo.UpdateAsync(orderEntity);
+        }
 
         foreach (var notify in bundle.SyncNotifies)
         {
@@ -133,13 +145,15 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
             }
         }
 
-        await _unitOfWork.SaveChangesAsync();
+        if (saveChanges)
+            await _unitOfWork.SaveChangesAsync();
 
         _logger.LogInformation(
-            "SO同步下游客户: SalesOrderId={SalesOrderId} Code={Code} CustomerId={CustomerId} Notifies={Notifies} Packings={Packings} Extends={Extends} StockOuts={StockOuts} Actor={Actor}",
-            order.Id,
-            order.SellOrderCode,
+            "SO同步客户: SalesOrderId={SalesOrderId} Code={Code} CustomerId={CustomerId} HeaderName={HeaderName} Notifies={Notifies} Packings={Packings} Extends={Extends} StockOuts={StockOuts} Actor={Actor}",
+            orderEntity.Id,
+            orderEntity.SellOrderCode,
             targetCustomerId,
+            bundle.NeedRefreshSellOrderCustomerName || bundle.CustomerIdChanging ? 1 : 0,
             bundle.SyncNotifies.Count,
             bundle.SyncPackings.Count,
             bundle.PackingItemIdsForExtendSync.Count,
@@ -162,11 +176,21 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
             SellOrderCode = order.SellOrderCode,
             CustomerId = bundle.TargetCustomerId,
             CustomerName = bundle.TargetCustomerName,
+            OldCustomerId = order.CustomerId?.Trim(),
+            OldCustomerName = order.CustomerName?.Trim(),
+            SellOrderCustomerNameToSync = bundle.NeedRefreshSellOrderCustomerName || bundle.CustomerIdChanging ? 1 : 0,
             StockOutNotifiesToSync = bundle.SyncNotifies.Count,
             PackingsToSync = bundle.SyncPackings.Count,
             PackingItemExtendsToSync = bundle.PackingItemIdsForExtendSync.Count,
             StockOutsToSync = bundle.SyncStockOuts.Count
         };
+
+        if (!string.IsNullOrWhiteSpace(bundle.ProposedCustomerMissingReason))
+        {
+            preview.CanSync = false;
+            preview.BlockReason = bundle.ProposedCustomerMissingReason;
+            return preview;
+        }
 
         if (string.IsNullOrWhiteSpace(bundle.TargetCustomerId))
         {
@@ -183,7 +207,8 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
             return preview;
         }
 
-        var hasWork = preview.StockOutNotifiesToSync > 0
+        var hasWork = preview.SellOrderCustomerNameToSync > 0
+            || preview.StockOutNotifiesToSync > 0
             || preview.PackingsToSync > 0
             || preview.PackingItemExtendsToSync > 0
             || preview.StockOutsToSync > 0;
@@ -208,6 +233,19 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
         var targetId = bundle.TargetCustomerId?.Trim() ?? string.Empty;
         var items = new List<SalesOrderCustomerDownstreamSyncPreviewItem>();
         var customerIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if ((bundle.NeedRefreshSellOrderCustomerName || bundle.CustomerIdChanging) && bundle.Order != null)
+        {
+            AddCustomerId(customerIds, bundle.Order.CustomerId);
+            items.Add(new SalesOrderCustomerDownstreamSyncPreviewItem
+            {
+                Category = "sellOrder",
+                DocumentCode = bundle.Order.SellOrderCode,
+                CustomerId = bundle.Order.CustomerId?.Trim(),
+                CustomerName = bundle.Order.CustomerName?.Trim(),
+                IsMismatch = true
+            });
+        }
 
         foreach (var notify in bundle.SyncNotifies)
         {
@@ -293,6 +331,10 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
         var nameMap = await LoadCustomerNameMapAsync(customerIds, cancellationToken);
         foreach (var item in items)
         {
+            // 销售订单行展示「当前快照名」；其余展示单据上的客户名
+            if (string.Equals(item.Category, "sellOrder", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(item.CustomerName))
+                continue;
             item.CustomerName = ResolveCustomerName(item.CustomerId, nameMap);
         }
 
@@ -458,7 +500,10 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
         }
     }
 
-    private async Task<CustomerSyncBundle> LoadBundleAsync(string salesOrderId, CancellationToken cancellationToken)
+    private async Task<CustomerSyncBundle> LoadBundleAsync(
+        string salesOrderId,
+        string? proposedCustomerId,
+        CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var orderId = salesOrderId.Trim();
@@ -466,18 +511,39 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
         var order = await _soRepo.GetByIdAsync(orderId)
             ?? throw new InvalidOperationException($"销售订单 {orderId} 不存在");
 
-        var targetCustomerId = order.CustomerId?.Trim();
-        var targetCustomerName = order.CustomerName;
+        string? proposedCustomerMissingReason = null;
+        var proposedTrimmed = string.IsNullOrWhiteSpace(proposedCustomerId) ? null : proposedCustomerId.Trim();
+        var customerIdChanging = !string.IsNullOrWhiteSpace(proposedTrimmed)
+            && !CustomerIdsMatch(order.CustomerId, proposedTrimmed);
+
+        var targetCustomerId = !string.IsNullOrWhiteSpace(proposedTrimmed)
+            ? proposedTrimmed
+            : order.CustomerId?.Trim();
+
+        string? targetCustomerName = null;
         if (!string.IsNullOrWhiteSpace(targetCustomerId))
         {
             var cust = await _customerRepo.GetByIdAsync(targetCustomerId);
-            if (cust != null)
+            if (cust == null && !string.IsNullOrWhiteSpace(proposedTrimmed))
             {
-                targetCustomerName = string.IsNullOrWhiteSpace(cust.OfficialName)
-                    ? cust.CustomerName
-                    : cust.OfficialName;
+                proposedCustomerMissingReason = $"客户 {targetCustomerId} 不存在";
+            }
+            else
+            {
+                targetCustomerName = ResolveMasterCustomerDisplayName(cust);
+                if (string.IsNullOrWhiteSpace(targetCustomerName))
+                    targetCustomerName = order.CustomerName?.Trim();
             }
         }
+        else
+        {
+            targetCustomerName = order.CustomerName?.Trim();
+        }
+
+        var needRefreshHeaderName = customerIdChanging
+            || (!string.IsNullOrWhiteSpace(targetCustomerId)
+                && !string.IsNullOrWhiteSpace(targetCustomerName)
+                && !NamesMatch(order.CustomerName, targetCustomerName));
 
         var lineIds = (await _soItemRepo.FindAsync(i => i.SellOrderId == orderId && !i.IsDeleted))
             .Select(i => i.Id.Trim())
@@ -520,6 +586,9 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
             Order = order,
             TargetCustomerId = targetCustomerId,
             TargetCustomerName = targetCustomerName,
+            CustomerIdChanging = customerIdChanging,
+            NeedRefreshSellOrderCustomerName = needRefreshHeaderName,
+            ProposedCustomerMissingReason = proposedCustomerMissingReason,
             Notifies = notifies,
             PackingItems = packingItems,
             Packings = packings,
@@ -578,11 +647,29 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
         return string.Equals(expected.Trim(), actual?.Trim(), StringComparison.OrdinalIgnoreCase);
     }
 
+    private static bool NamesMatch(string? left, string? right)
+    {
+        var a = left?.Trim() ?? string.Empty;
+        var b = right?.Trim() ?? string.Empty;
+        return string.Equals(a, b, StringComparison.Ordinal);
+    }
+
+    private static string? ResolveMasterCustomerDisplayName(CustomerInfo? cust)
+    {
+        if (cust == null)
+            return null;
+        var zh = string.IsNullOrWhiteSpace(cust.OfficialName) ? cust.CustomerName : cust.OfficialName;
+        return string.IsNullOrWhiteSpace(zh) ? null : zh.Trim();
+    }
+
     private sealed class CustomerSyncBundle
     {
         public SellOrder? Order { get; set; }
         public string? TargetCustomerId { get; set; }
         public string? TargetCustomerName { get; set; }
+        public bool CustomerIdChanging { get; set; }
+        public bool NeedRefreshSellOrderCustomerName { get; set; }
+        public string? ProposedCustomerMissingReason { get; set; }
         public List<StockOutRequest> Notifies { get; set; } = new();
         public List<PackingItem> PackingItems { get; set; } = new();
         public List<Packing> Packings { get; set; } = new();

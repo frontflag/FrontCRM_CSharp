@@ -31,7 +31,7 @@ export interface SalesOrderItemExtendRefreshResult {
 }
 
 export interface SalesOrderCustomerDownstreamSyncPreviewItem {
-  category: 'stockOutNotify' | 'packing' | 'packingItemExtend' | 'stockOut' | string
+  category: 'sellOrder' | 'stockOutNotify' | 'packing' | 'packingItemExtend' | 'stockOut' | string
   documentCode: string
   customerId?: string | null
   customerName?: string | null
@@ -43,10 +43,14 @@ export interface SalesOrderCustomerDownstreamSyncPreview {
   sellOrderCode?: string | null
   customerId?: string | null
   customerName?: string | null
+  oldCustomerId?: string | null
+  oldCustomerName?: string | null
   canSync: boolean
   noOp: boolean
   blockReason?: string | null
   blockingDocuments: string[]
+  /** 销售订单头客户名称快照是否需按主数据刷新（0/1） */
+  sellOrderCustomerNameToSync: number
   stockOutNotifiesToSync: number
   packingsToSync: number
   packingItemExtendsToSync: number
@@ -523,9 +527,13 @@ export const salesOrderApi = {
     return await apiClient.post<SalesOrderItemExtendRefreshResult>(`/api/v1/sales-orders/${id}/refresh-item-extends`, {})
   },
 
-  async previewSyncDownstreamCustomer(id: string) {
+  async previewSyncDownstreamCustomer(id: string, proposedCustomerId?: string) {
+    const q =
+      proposedCustomerId && proposedCustomerId.trim()
+        ? `?proposedCustomerId=${encodeURIComponent(proposedCustomerId.trim())}`
+        : ''
     return await apiClient.get<SalesOrderCustomerDownstreamSyncPreview>(
-      `/api/v1/sales-orders/${id}/sync-downstream-customer/preview`
+      `/api/v1/sales-orders/${id}/sync-downstream-customer/preview${q}`
     )
   },
 

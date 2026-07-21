@@ -469,7 +469,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
@@ -497,6 +497,7 @@ import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOn
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import StockOutCustomsSummaryPanel from '@/components/Customs/StockOutCustomsSummaryPanel.vue'
 import PackingCascadeItemSummary from '@/components/Inventory/PackingCascadeItemSummary.vue'
+import { usePackingDetailFlowPanelStore } from '@/stores/packingDetailFlowPanel'
 
 const StockOutBatchPanel = defineAsyncComponent(
   () => import('@/components/Inventory/StockOutBatchPanel.vue')
@@ -508,6 +509,7 @@ const { t } = useI18n()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 const { ensureLoaded: ensureLogisticsDict, shipmentArrivalOptions, expressOptions } = useLogisticsFormDict()
+const packingFlowStore = usePackingDetailFlowPanelStore()
 
 function shipmentMethodDisplay(code?: string | null): string {
   const c = String(code ?? '').trim()
@@ -764,9 +766,32 @@ watch(
   }
 )
 
+watch(
+  [detail, selectedPackingItemId, pickPage],
+  () => {
+    const d = detail.value
+    const itemId = selectedPackingItemId.value?.trim()
+    if (!d || !itemId) {
+      packingFlowStore.clear()
+      return
+    }
+    const line = d.items.find((x) => x.id === itemId)
+    if (!line) {
+      packingFlowStore.clear()
+      return
+    }
+    void packingFlowStore.selectPackingItem(d, line, pickPage.value)
+  },
+  { immediate: true }
+)
+
 onMounted(() => {
   void ensureLogisticsDict()
   void loadDetail()
+})
+
+onUnmounted(() => {
+  packingFlowStore.clear()
 })
 </script>
 

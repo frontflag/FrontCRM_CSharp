@@ -93,23 +93,26 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
         var vendor = await ResolveTargetVendorAsync(newVendorId, cancellationToken);
         var displayName = FormatVendorDisplayName(vendor)!;
         var vendorCode = string.IsNullOrWhiteSpace(vendor.Code) ? null : vendor.Code.Trim();
-
+        var targetId = vendor.Id.Trim();
         var oldVendorId = order.VendorId?.Trim();
-        order.VendorId = vendor.Id.Trim();
+        var vendorIdChanging = !VendorIdsMatch(oldVendorId, targetId);
+
+        order.VendorId = targetId;
         order.VendorName = displayName;
         order.VendorCode = vendorCode;
-        await ClearVendorContactIfMismatchAsync(order, vendor.Id, cancellationToken);
+        if (vendorIdChanging)
+            await ClearVendorContactIfMismatchAsync(order, targetId, cancellationToken);
 
-        foreach (var item in bundle.Items)
+        foreach (var item in bundle.SyncItems)
         {
-            item.VendorId = vendor.Id.Trim();
+            item.VendorId = targetId;
             item.ModifyTime = DateTime.UtcNow;
             await _poItemRepo.UpdateAsync(item);
         }
 
         foreach (var notice in bundle.SyncNotices)
         {
-            notice.VendorId = vendor.Id.Trim();
+            notice.VendorId = targetId;
             notice.VendorName = displayName;
             notice.ModifyTime = DateTime.UtcNow;
             await _notifyRepo.UpdateAsync(notice);
@@ -117,23 +120,24 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
 
         foreach (var stockIn in bundle.SyncStockIns)
         {
-            stockIn.VendorId = vendor.Id.Trim();
+            stockIn.VendorId = targetId;
             stockIn.ModifyTime = DateTime.UtcNow;
             await _stockInRepo.UpdateAsync(stockIn);
         }
 
         foreach (var payment in bundle.SyncPayments)
         {
-            payment.VendorId = vendor.Id.Trim();
+            payment.VendorId = targetId;
             payment.VendorName = displayName;
             payment.ModifyTime = DateTime.UtcNow;
-            payment.VendorBankId = null;
+            if (vendorIdChanging)
+                payment.VendorBankId = null;
             await _paymentRepo.UpdateAsync(payment);
         }
 
         foreach (var invoice in bundle.SyncPurchaseInvoices)
         {
-            invoice.VendorId = vendor.Id.Trim();
+            invoice.VendorId = targetId;
             invoice.VendorName = displayName;
             invoice.ModifyTime = DateTime.UtcNow;
             await _purchaseInvoiceRepo.UpdateAsync(invoice);
@@ -142,12 +146,13 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
         order.ModifyTime = DateTime.UtcNow;
 
         _logger.LogInformation(
-            "PO换供应商: PurchaseOrderId={PurchaseOrderId} Code={Code} OldVendorId={OldVendorId} NewVendorId={NewVendorId} Items={Items} Notices={Notices} StockIns={StockIns} Payments={Payments} Invoices={Invoices} Actor={Actor}",
+            "PO同步供应商: PurchaseOrderId={PurchaseOrderId} Code={Code} OldVendorId={OldVendorId} NewVendorId={NewVendorId} HeaderName={HeaderName} Items={Items} Notices={Notices} StockIns={StockIns} Payments={Payments} Invoices={Invoices} Actor={Actor}",
             order.Id,
             order.PurchaseOrderCode,
             oldVendorId ?? "(null)",
-            vendor.Id,
-            bundle.Items.Count,
+            targetId,
+            preview.PoVendorNameToSync,
+            bundle.SyncItems.Count,
             bundle.SyncNotices.Count,
             bundle.SyncStockIns.Count,
             bundle.SyncPayments.Count,
@@ -170,6 +175,22 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
 
         ValidateNewVendorIdAllowed(newVendorId);
 
+        var sameVendorId = VendorIdsMatch(order.VendorId, newVendorId);
+        var vendor = await ResolveTargetVendorAsync(newVendorId, cancellationToken);
+        var targetName = FormatVendorDisplayName(vendor)!;
+        var targetCode = string.IsNullOrWhiteSpace(vendor.Code) ? null : vendor.Code.Trim();
+
+        var needRefreshHeaderName = !NamesMatch(order.VendorName, targetName)
+            || !NamesMatch(order.VendorCode, targetCode);
+
+        ClassifyDownstream(bundle, newVendorId, targetName);
+
+        var itemsToSync = bundle.Items
+            .Where(i => !VendorIdsMatch(newVendorId, i.VendorId))
+            .ToList();
+        bundle.SyncItems.Clear();
+        bundle.SyncItems.AddRange(itemsToSync);
+
         var preview = new PurchaseOrderVendorChangePreviewResult
         {
             PurchaseOrderId = order.Id,
@@ -177,32 +198,37 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
             OldVendorId = order.VendorId,
             OldVendorName = order.VendorName,
             NewVendorId = newVendorId,
-            PoItemsToSync = bundle.Items.Count
+            NewVendorName = targetName,
+            SameVendorId = sameVendorId,
+            PoVendorNameToSync = needRefreshHeaderName ? 1 : 0,
+            PoItemsToSync = bundle.SyncItems.Count,
+            ArrivalNoticesToSync = bundle.SyncNotices.Count,
+            StockInsToSync = bundle.SyncStockIns.Count,
+            PaymentsToSync = bundle.SyncPayments.Count,
+            PurchaseInvoicesToSync = bundle.SyncPurchaseInvoices.Count
         };
-
-        if (string.Equals(order.VendorId?.Trim(), newVendorId, StringComparison.OrdinalIgnoreCase))
-        {
-            preview.NoOp = true;
-            preview.CanChange = true;
-            preview.NewVendorName = order.VendorName;
-            return preview;
-        }
-
-        var vendor = await ResolveTargetVendorAsync(newVendorId, cancellationToken);
-        preview.NewVendorName = FormatVendorDisplayName(vendor);
-
-        ClassifyDownstream(bundle);
-
-        preview.ArrivalNoticesToSync = bundle.SyncNotices.Count;
-        preview.StockInsToSync = bundle.SyncStockIns.Count;
-        preview.PaymentsToSync = bundle.SyncPayments.Count;
-        preview.PurchaseInvoicesToSync = bundle.SyncPurchaseInvoices.Count;
 
         if (bundle.BlockingDocuments.Count > 0)
         {
             preview.CanChange = false;
-            preview.BlockReason = "存在已完结下游单据，无法更换供应商：" + string.Join("；", bundle.BlockingDocuments);
+            preview.BlockReason = sameVendorId
+                ? "存在已完结下游单据且供应商不一致，无法刷新供应商信息：" + string.Join("；", bundle.BlockingDocuments)
+                : "存在已完结下游单据，无法更换供应商：" + string.Join("；", bundle.BlockingDocuments);
             preview.BlockingDocuments = bundle.BlockingDocuments.ToList();
+            return preview;
+        }
+
+        var hasWork = preview.PoVendorNameToSync > 0
+            || preview.PoItemsToSync > 0
+            || preview.ArrivalNoticesToSync > 0
+            || preview.StockInsToSync > 0
+            || preview.PaymentsToSync > 0
+            || preview.PurchaseInvoicesToSync > 0;
+
+        if (!hasWork)
+        {
+            preview.NoOp = true;
+            preview.CanChange = true;
             return preview;
         }
 
@@ -210,7 +236,14 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
         return preview;
     }
 
-    private static void ClassifyDownstream(VendorChangeBundle bundle)
+    /// <summary>
+    /// 仅当下游供应商 ID 与目标不一致时，已完结才阻断；未完结则同步 ID/名称。
+    /// 未完结且 ID 已一致但名称快照过期时，仍纳入同步（对齐 SO 头快照刷新语义）。
+    /// </summary>
+    private static void ClassifyDownstream(
+        VendorChangeBundle bundle,
+        string targetVendorId,
+        string targetVendorName)
     {
         bundle.SyncNotices.Clear();
         bundle.SyncStockIns.Clear();
@@ -220,58 +253,78 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
 
         foreach (var notice in bundle.Notices)
         {
+            var idMatch = VendorIdsMatch(targetVendorId, notice.VendorId);
+            var nameMatch = NamesMatch(targetVendorName, notice.VendorName);
+
             if (notice.Status >= ArrivalNoticeStatusStockedIn)
             {
-                bundle.BlockingDocuments.Add($"到货通知 {notice.NoticeCode} 已入库");
+                if (!idMatch)
+                    bundle.BlockingDocuments.Add($"到货通知 {notice.NoticeCode} 已入库");
                 continue;
             }
 
-            bundle.SyncNotices.Add(notice);
+            if (!idMatch || !nameMatch)
+                bundle.SyncNotices.Add(notice);
         }
 
         foreach (var stockIn in bundle.StockIns)
         {
+            var idMatch = VendorIdsMatch(targetVendorId, stockIn.VendorId);
+
             if (stockIn.Status == StockInHeaderStatusCode.Posted)
             {
-                bundle.BlockingDocuments.Add($"入库单 {stockIn.StockInCode} 已过账");
+                if (!idMatch)
+                    bundle.BlockingDocuments.Add($"入库单 {stockIn.StockInCode} 已过账");
                 continue;
             }
 
             if (stockIn.Status == StockInHeaderStatusCode.Cancelled)
                 continue;
 
-            bundle.SyncStockIns.Add(stockIn);
+            if (!idMatch)
+                bundle.SyncStockIns.Add(stockIn);
         }
 
         foreach (var payment in bundle.Payments)
         {
+            var idMatch = VendorIdsMatch(targetVendorId, payment.VendorId);
+            var nameMatch = NamesMatch(targetVendorName, payment.VendorName);
+
             if (payment.Status == FinancePaymentStatusCompleted)
             {
-                bundle.BlockingDocuments.Add($"付款单 {payment.FinancePaymentCode} 已付款");
+                if (!idMatch)
+                    bundle.BlockingDocuments.Add($"付款单 {payment.FinancePaymentCode} 已付款");
                 continue;
             }
 
             if (payment.Status == FinancePaymentStatusCancelled)
                 continue;
 
-            bundle.SyncPayments.Add(payment);
+            if (!idMatch || !nameMatch)
+                bundle.SyncPayments.Add(payment);
         }
 
         foreach (var invoice in bundle.PurchaseInvoices)
         {
+            var idMatch = VendorIdsMatch(targetVendorId, invoice.VendorId);
+            var nameMatch = NamesMatch(targetVendorName, invoice.VendorName);
+
             if (invoice.ConfirmStatus >= PurchaseInvoiceConfirmStatusDone)
             {
-                bundle.BlockingDocuments.Add($"进项发票 {invoice.InvoiceNo ?? invoice.Id} 已认证");
+                if (!idMatch)
+                    bundle.BlockingDocuments.Add($"进项发票 {invoice.InvoiceNo ?? invoice.Id} 已认证");
                 continue;
             }
 
             if (invoice.RedInvoiceStatus >= PurchaseInvoiceRedStatusDone)
             {
-                bundle.BlockingDocuments.Add($"进项发票 {invoice.InvoiceNo ?? invoice.Id} 已冲红");
+                if (!idMatch)
+                    bundle.BlockingDocuments.Add($"进项发票 {invoice.InvoiceNo ?? invoice.Id} 已冲红");
                 continue;
             }
 
-            bundle.SyncPurchaseInvoices.Add(invoice);
+            if (!idMatch || !nameMatch)
+                bundle.SyncPurchaseInvoices.Add(invoice);
         }
     }
 
@@ -403,6 +456,20 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
             throw new InvalidOperationException("不能选择无效的供应商");
     }
 
+    private static bool VendorIdsMatch(string? expected, string? actual)
+    {
+        if (string.IsNullOrWhiteSpace(expected))
+            return string.IsNullOrWhiteSpace(actual);
+        return string.Equals(expected.Trim(), actual?.Trim(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool NamesMatch(string? left, string? right)
+    {
+        var a = left?.Trim() ?? string.Empty;
+        var b = right?.Trim() ?? string.Empty;
+        return string.Equals(a, b, StringComparison.Ordinal);
+    }
+
     private static string? FormatVendorDisplayName(VendorInfo vendor)
     {
         if (!string.IsNullOrWhiteSpace(vendor.OfficialName)) return vendor.OfficialName.Trim();
@@ -432,6 +499,7 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
     {
         public PurchaseOrder? Order { get; set; }
         public List<PurchaseOrderItem> Items { get; set; } = new();
+        public List<PurchaseOrderItem> SyncItems { get; } = new();
         public List<StockInNotify> Notices { get; set; } = new();
         public List<StockInNotify> SyncNotices { get; } = new();
         public List<StockIn> StockIns { get; set; } = new();

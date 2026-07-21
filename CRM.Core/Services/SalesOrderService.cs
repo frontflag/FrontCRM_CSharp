@@ -37,6 +37,7 @@ namespace CRM.Core.Services
         private readonly ILogOperationAppendService _logOperationAppend;
         private readonly ILogger<SalesOrderService> _logger;
         private readonly IQuoteStatusSyncService _quoteStatusSync;
+        private readonly ISalesOrderCustomerDownstreamSyncService? _customerDownstreamSyncService;
 
         public SalesOrderService(
             IRepository<SellOrder> soRepo,
@@ -61,7 +62,8 @@ namespace CRM.Core.Services
             ILogOperationAppendService logOperationAppend,
             IUnitOfWork unitOfWork,
             ILogger<SalesOrderService> logger,
-            IQuoteStatusSyncService quoteStatusSync)
+            IQuoteStatusSyncService quoteStatusSync,
+            ISalesOrderCustomerDownstreamSyncService? customerDownstreamSyncService = null)
         {
             _soRepo = soRepo;
             _soItemRepo = soItemRepo;
@@ -86,6 +88,7 @@ namespace CRM.Core.Services
             _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
             _logger = logger;
             _quoteStatusSync = quoteStatusSync ?? throw new ArgumentNullException(nameof(quoteStatusSync));
+            _customerDownstreamSyncService = customerDownstreamSyncService;
         }
 
         private static IEnumerable<string?> CollectQuoteIds(IEnumerable<SellOrderItem> items) =>
@@ -549,7 +552,21 @@ namespace CRM.Core.Services
             {
                 var newCustomerId = request.CustomerId.Trim();
                 if (!string.Equals(order.CustomerId?.Trim(), newCustomerId, StringComparison.OrdinalIgnoreCase))
-                    await ApplyCustomerHeaderFromMasterAsync(order, newCustomerId);
+                {
+                    // 方案 A：换客户时头+未完结下游同一次 SaveChanges；阻断则整单失败
+                    if (_customerDownstreamSyncService != null)
+                    {
+                        await _customerDownstreamSyncService.ApplyAsync(
+                            order,
+                            actingUserId,
+                            newCustomerId,
+                            saveChanges: false);
+                    }
+                    else
+                    {
+                        await ApplyCustomerHeaderFromMasterAsync(order, newCustomerId);
+                    }
+                }
                 else if (request.CustomerName != null)
                     order.CustomerName = request.CustomerName.Trim();
             }

@@ -214,6 +214,39 @@ public class PackingService : IPackingService
 
         var notifySummaryByPackingId = await LoadNotifySummaryByPackingIdsAsync(idSet, cancellationToken);
 
+        // 装箱明细关联销售订单 → 头客户名优先用订单快照（与出库通知一致）
+        var itemSoLinks = await _db.PackingItems.AsNoTracking()
+            .Where(i =>
+                idSet.Contains(i.PackingId)
+                && !i.IsDeleted
+                && i.SellOrderId != null
+                && i.SellOrderId != "")
+            .Select(i => new { i.PackingId, SellOrderId = i.SellOrderId! })
+            .ToListAsync(cancellationToken);
+        var linkedSoIds = itemSoLinks
+            .Select(x => x.SellOrderId.Trim())
+            .Where(x => x.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var linkedSellOrders = linkedSoIds.Count == 0
+            ? new Dictionary<string, SellOrder>(StringComparer.OrdinalIgnoreCase)
+            : (await _sellOrderRepository.FindAsync(so => linkedSoIds.Contains(so.Id)))
+                .ToDictionary(so => so.Id.Trim(), so => so, StringComparer.OrdinalIgnoreCase);
+        var soCustomerNameByPackingId = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var g in itemSoLinks.GroupBy(x => x.PackingId.Trim(), StringComparer.OrdinalIgnoreCase))
+        {
+            foreach (var link in g)
+            {
+                if (!linkedSellOrders.TryGetValue(link.SellOrderId.Trim(), out var so))
+                    continue;
+                var name = so.CustomerName?.Trim();
+                if (string.IsNullOrEmpty(name))
+                    continue;
+                soCustomerNameByPackingId[g.Key] = name;
+                break;
+            }
+        }
+
         var decIds = packings
             .Where(p => StockOutTypeCode.NormalizeForNotify(p.StockOutType) == StockOutTypeCode.Customs)
             .Select(p => p.CustomsDeclarationId?.Trim())
@@ -281,6 +314,7 @@ public class PackingService : IPackingService
                     decCodeById.TryGetValue(customsDeclarationId, out customsDeclarationCode);
             }
 
+            soCustomerNameByPackingId.TryGetValue(pk.Id.Trim(), out var soCustomerName);
             items.Add(new PackingListItemDto
             {
                 Id = pk.Id,
@@ -289,7 +323,9 @@ public class PackingService : IPackingService
                 StockOutType = pk.StockOutType,
                 MaterialType = pk.MaterialType,
                 CustomerId = pk.CustomerId,
-                CustomerName = cust?.OfficialName ?? cust?.NickName,
+                CustomerName = !string.IsNullOrEmpty(soCustomerName)
+                    ? soCustomerName
+                    : FormatCustomerDisplayName(cust),
                 SalesId = pk.SalesId,
                 SalesUserName = FormatUserName(salesUser),
                 StorageId = pk.StorageId,
@@ -538,6 +574,19 @@ public class PackingService : IPackingService
             customsDeclarationCode = customsSummary?.DeclarationCode;
         }
 
+        SellOrder? headerSellOrder = null;
+        foreach (var line in lines)
+        {
+            if (string.IsNullOrWhiteSpace(line.SellOrderId))
+                continue;
+            if (!sellOrders.TryGetValue(line.SellOrderId.Trim(), out var so))
+                continue;
+            if (string.IsNullOrWhiteSpace(so.CustomerName))
+                continue;
+            headerSellOrder = so;
+            break;
+        }
+
         return new PackingDetailDto
         {
             Id = pk.Id,
@@ -546,7 +595,7 @@ public class PackingService : IPackingService
             StockOutType = pk.StockOutType,
             MaterialType = pk.MaterialType,
             CustomerId = pk.CustomerId,
-            CustomerName = cust?.OfficialName ?? cust?.NickName,
+            CustomerName = ResolvePackingHeaderCustomerName(cust, headerSellOrder),
             SalesId = pk.SalesId,
             SalesUserName = salesUser == null
                 ? null
@@ -946,6 +995,17 @@ public class PackingService : IPackingService
 
     private static string? FormatCustomerDisplayName(CustomerInfo? customer) =>
         customer == null ? null : customer.OfficialName ?? customer.NickName;
+
+    /// <summary>
+    /// 装箱单头客户名：优先关联销售订单快照（与出库通知一致），否则回退客户主数据。
+    /// </summary>
+    private static string? ResolvePackingHeaderCustomerName(CustomerInfo? customer, SellOrder? sellOrder)
+    {
+        var fromSo = sellOrder?.CustomerName?.Trim();
+        if (!string.IsNullOrEmpty(fromSo))
+            return fromSo;
+        return FormatCustomerDisplayName(customer);
+    }
 
     /// <summary>装箱单列表：按关联出库通知汇总计划出货日期与出货方式（首条通知，按 RequestCode 排序）。</summary>
     private async Task<Dictionary<string, (DateTime? RequestDate, string? ShipmentMethod, string? ExpressCompany)>> LoadNotifySummaryByPackingIdsAsync(
@@ -2264,7 +2324,7 @@ public class PackingService : IPackingService
         return new PackingDraftFromStockOutRequestsDto
         {
             CustomerId = bundle.CustomerId,
-            CustomerName = cust?.OfficialName ?? cust?.NickName,
+            CustomerName = ResolvePackingHeaderCustomerName(cust, bundle.FirstSellOrder),
             SalesId = bundle.FirstSellOrder?.SalesUserId,
             SalesUserName = FormatUserName(salesUser),
             StockOutType = StockOutTypeCode.NormalizeForNotify(bundle.Requests[0].StockOutType),

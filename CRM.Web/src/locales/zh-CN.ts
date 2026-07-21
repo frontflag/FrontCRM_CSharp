@@ -7250,6 +7250,12 @@ const zhCN = {
       clearBasketOk: '清空',
       clearBasketCancel: '取消',
       basketCleared: '已清空已选'
+    },
+    flowPanel: {
+      pickPacking: '请单击列表中的装箱单，查看流程',
+      noItems: '该装箱单暂无明细',
+      itemSwitcher: '装箱明细单号',
+      loadFailed: '加载装箱单流程失败'
     }
   },
   pickCreate: {
@@ -7513,7 +7519,18 @@ const zhCN = {
     },
     notFound: '未找到装箱单',
     loadFailed: '加载装箱单详情失败',
-    missingId: '缺少装箱单 ID'
+    missingId: '缺少装箱单 ID',
+    flowPanel: {
+      noSelection: '请选择一条装箱明细',
+      missingSellLink: '当前装箱明细未关联销售订单明细，销售明细站为空；其余节点仍按本箱展示',
+      stations: {
+        sellOrderItem: '销售订单明细',
+        stockOutNotify: '出库通知',
+        packing: '装箱',
+        picking: '拣货',
+        stockOut: '出库'
+      }
+    }
   },
   packingItemList: {
     title: '装箱单明细',

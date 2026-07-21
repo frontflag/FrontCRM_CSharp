@@ -2401,7 +2401,13 @@ function buildCustomerSyncPreviewHtml(preview: SalesOrderCustomerDownstreamSyncP
   }
 
   const unitLabel = (category: SalesOrderCustomerDownstreamSyncPreviewItem['category']) =>
-    category === 'packingItemExtend' ? '行' : category === 'stockOutNotify' ? '条' : '张'
+    category === 'sellOrder'
+      ? '张'
+      : category === 'packingItemExtend'
+        ? '行'
+        : category === 'stockOutNotify'
+          ? '条'
+          : '张'
 
   const renderGroup = (
     label: string,
@@ -2415,8 +2421,12 @@ function buildCustomerSyncPreviewHtml(preview: SalesOrderCustomerDownstreamSyncP
     const lines: string[] = []
 
     if (items.length === 1) {
+      const arrow =
+        category === 'sellOrder'
+          ? `当前快照 ${formatCustomerLabel(items[0])} → 目标 ${escapeHtml(preview.customerName?.trim() || preview.customerId?.trim() || '—')}`
+          : `${escapeHtml(items[0].documentCode)} → ${formatCustomerLabel(items[0])}`
       lines.push(
-        `<div class="so-customer-sync-preview__line">${label} ${itemCount} ${unit}：${escapeHtml(items[0].documentCode)} → ${formatCustomerLabel(items[0])}</div>`
+        `<div class="so-customer-sync-preview__line">${label} ${itemCount} ${unit}：${arrow}</div>`
       )
     } else if (items.length > 1) {
       lines.push(`<div class="so-customer-sync-preview__line">${label} ${itemCount} ${unit}：</div>`)
@@ -2433,7 +2443,8 @@ function buildCustomerSyncPreviewHtml(preview: SalesOrderCustomerDownstreamSyncP
   }
 
   const sections = [
-    `<div class="so-customer-sync-preview__target">目标客户：${escapeHtml(preview.customerName?.trim() || preview.customerId?.trim() || '—')}</div>`,
+    `<div class="so-customer-sync-preview__target">目标客户（以订单 CustomerId 主数据为准）：${escapeHtml(preview.customerName?.trim() || preview.customerId?.trim() || '—')}</div>`,
+    renderGroup('销售订单名称快照', 'sellOrder', preview.sellOrderCustomerNameToSync ?? 0),
     renderGroup('出库通知', 'stockOutNotify', preview.stockOutNotifiesToSync),
     renderGroup('装箱单', 'packing', preview.packingsToSync),
     renderGroup('装箱明细扩展', 'packingItemExtend', preview.packingItemExtendsToSync),
@@ -2490,16 +2501,18 @@ async function handleSyncDownstreamCustomer() {
   }
 
   if (preview.noOp) {
-    await ElMessageBox.alert('下游客户信息已与销售订单一致，无需同步。', '刷新客户', {
-      confirmButtonText: '知道了'
-    })
+    await ElMessageBox.alert(
+      '销售订单客户名称快照与未完结下游客户信息已与当前 CustomerId 主数据一致，无需同步。',
+      '刷新客户',
+      { confirmButtonText: '知道了' }
+    )
     return
   }
 
   try {
     await ElMessageBox.confirm(
       buildCustomerSyncPreviewHtml(preview),
-      `确认将销售订单 ${order.value.sellOrderCode} 的未完结下游客户同步为当前客户吗？`,
+      `确认按销售订单 ${order.value.sellOrderCode} 的 CustomerId 刷新名称快照，并同步未完结下游客户吗？`,
       {
         ...customerSyncMessageBoxOptions,
         type: 'warning',
@@ -2517,8 +2530,10 @@ async function handleSyncDownstreamCustomer() {
     await fetchOrder()
     await reloadSoItemLinePanelAggregates()
     const p = result.preview
+    const headerPart =
+      (p.sellOrderCustomerNameToSync ?? 0) > 0 ? '销售订单名称快照 1 张，' : ''
     await ElMessageBox.alert(
-      `已同步：出库通知 ${p.stockOutNotifiesToSync} 条，装箱单 ${p.packingsToSync} 张，装箱明细扩展 ${p.packingItemExtendsToSync} 行，出库单 ${p.stockOutsToSync} 张。`,
+      `已同步：${headerPart}出库通知 ${p.stockOutNotifiesToSync} 条，装箱单 ${p.packingsToSync} 张，装箱明细扩展 ${p.packingItemExtendsToSync} 行，出库单 ${p.stockOutsToSync} 张。`,
       '刷新客户完成',
       { confirmButtonText: '知道了' }
     )

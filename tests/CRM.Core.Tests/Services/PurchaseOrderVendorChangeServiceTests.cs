@@ -83,7 +83,12 @@ public class PurchaseOrderVendorChangeServiceTests
             Id = poId,
             PurchaseOrderCode = "PO00001",
             VendorId = vendorId,
-            VendorName = "旧供应商"
+            VendorName = "正确供应商"
+        });
+        _vendorRepo.GetByIdAsync(vendorId).Returns(new VendorInfo
+        {
+            Id = vendorId,
+            OfficialName = "正确供应商"
         });
         _poItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<PurchaseOrderItem, bool>>>())
             .Returns(new List<PurchaseOrderItem>());
@@ -96,6 +101,133 @@ public class PurchaseOrderVendorChangeServiceTests
 
         Assert.True(preview.NoOp);
         Assert.True(preview.CanChange);
+        Assert.True(preview.SameVendorId);
+        Assert.Equal(0, preview.PoVendorNameToSync);
+    }
+
+    [Fact]
+    public async Task PreviewAsync_SameVendor_StaleName_ShouldNeedRefresh()
+    {
+        const string poId = "po-1";
+        const string vendorId = "v-ok";
+        _poRepo.GetByIdAsync(poId).Returns(new PurchaseOrder
+        {
+            Id = poId,
+            PurchaseOrderCode = "PO00009",
+            VendorId = vendorId,
+            VendorName = "过期快照名"
+        });
+        _vendorRepo.GetByIdAsync(vendorId).Returns(new VendorInfo
+        {
+            Id = vendorId,
+            OfficialName = "主数据正式名"
+        });
+        _poItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<PurchaseOrderItem, bool>>>())
+            .Returns(new List<PurchaseOrderItem>());
+        _notifyRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<StockInNotify, bool>>>())
+            .Returns(new List<StockInNotify>());
+        _paymentItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<FinancePaymentItem, bool>>>())
+            .Returns(new List<FinancePaymentItem>());
+
+        var preview = await _service.PreviewAsync(poId, vendorId);
+
+        Assert.True(preview.CanChange);
+        Assert.False(preview.NoOp);
+        Assert.True(preview.SameVendorId);
+        Assert.Equal(1, preview.PoVendorNameToSync);
+        Assert.Equal("主数据正式名", preview.NewVendorName);
+    }
+
+    [Fact]
+    public async Task ApplyAsync_SameVendor_StaleName_ShouldRefreshHeaderName()
+    {
+        const string poId = "po-1";
+        const string vendorId = "v-ok";
+        var order = new PurchaseOrder
+        {
+            Id = poId,
+            PurchaseOrderCode = "PO00010",
+            VendorId = vendorId,
+            VendorName = "过期快照名"
+        };
+        _poRepo.GetByIdAsync(poId).Returns(order);
+        _vendorRepo.GetByIdAsync(vendorId).Returns(new VendorInfo
+        {
+            Id = vendorId,
+            OfficialName = "主数据正式名",
+            Code = "VOK"
+        });
+        _poItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<PurchaseOrderItem, bool>>>())
+            .Returns(new List<PurchaseOrderItem>());
+        _notifyRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<StockInNotify, bool>>>())
+            .Returns(new List<StockInNotify>());
+        _paymentItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<FinancePaymentItem, bool>>>())
+            .Returns(new List<FinancePaymentItem>());
+
+        var result = await _service.ApplyAsync(order, vendorId);
+
+        Assert.True(result.Applied);
+        Assert.Equal(vendorId, order.VendorId);
+        Assert.Equal("主数据正式名", order.VendorName);
+        Assert.Equal("VOK", order.VendorCode);
+    }
+
+    [Fact]
+    public async Task PreviewAsync_PostedStockIn_SameVendor_ShouldNotBlockNameRefresh()
+    {
+        const string poId = "po-1";
+        const string vendorId = "v-ok";
+        const string notifyId = "n-1";
+        _poRepo.GetByIdAsync(poId).Returns(new PurchaseOrder
+        {
+            Id = poId,
+            PurchaseOrderCode = "PO00011",
+            VendorId = vendorId,
+            VendorName = "过期快照名"
+        });
+        _vendorRepo.GetByIdAsync(vendorId).Returns(new VendorInfo
+        {
+            Id = vendorId,
+            OfficialName = "主数据正式名"
+        });
+        _poItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<PurchaseOrderItem, bool>>>())
+            .Returns(new List<PurchaseOrderItem>());
+        _notifyRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<StockInNotify, bool>>>())
+            .Returns(new List<StockInNotify>
+            {
+                new()
+                {
+                    Id = notifyId,
+                    NoticeCode = "STIR00001",
+                    PurchaseOrderId = poId,
+                    VendorId = vendorId,
+                    VendorName = "过期快照名",
+                    Status = 100,
+                    IsDeleted = false
+                }
+            });
+        _stockInRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<StockIn, bool>>>())
+            .Returns(new List<StockIn>
+            {
+                new()
+                {
+                    Id = "si-1",
+                    StockInCode = "STI00001",
+                    SourceId = notifyId,
+                    VendorId = vendorId,
+                    Status = StockInHeaderStatusCode.Posted,
+                    IsDeleted = false
+                }
+            });
+        _paymentItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<FinancePaymentItem, bool>>>())
+            .Returns(new List<FinancePaymentItem>());
+
+        var preview = await _service.PreviewAsync(poId, vendorId);
+
+        Assert.True(preview.CanChange);
+        Assert.False(preview.NoOp);
+        Assert.Equal(1, preview.PoVendorNameToSync);
+        Assert.Empty(preview.BlockingDocuments);
     }
 
     [Fact]

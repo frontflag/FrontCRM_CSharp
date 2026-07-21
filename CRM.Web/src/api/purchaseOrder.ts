@@ -45,8 +45,11 @@ export interface PurchaseOrderVendorChangePreviewResult {
   newVendorName?: string | null
   canChange: boolean
   noOp?: boolean
+  sameVendorId?: boolean
   blockReason?: string | null
   blockingDocuments?: string[]
+  /** 采购订单头供应商名称快照是否需刷新（0/1） */
+  poVendorNameToSync?: number
   poItemsToSync: number
   arrivalNoticesToSync: number
   stockInsToSync: number
@@ -352,7 +355,7 @@ export const purchaseOrderApi = {
     return await apiClient.post<PurchaseOrderItemExtendRefreshResult>(`/api/v1/purchase-orders/${id}/refresh-item-extends`, {})
   },
 
-  /** 按 vendor_id 从供应商主数据刷新 vendor_name（仅系统管理员） */
+  /** 按 vendor_id 刷新头名称快照并同步未完结下游（换供应商权限） */
   async refreshVendorName(id: string) {
     const enc = encodeURIComponent(id)
     return await apiClient.post<PurchaseOrderVendorNameRefreshResult>(`/api/v1/purchase-orders/${enc}/refresh-vendor-name`, {})

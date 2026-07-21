@@ -21,6 +21,23 @@
       </div>
     </div>
 
+    <el-alert
+      v-if="customerChangeTipVisible"
+      :title="customerChangeTipTitle"
+      :type="customerChangeTipType"
+      :closable="false"
+      show-icon
+      class="customer-change-downstream-hint"
+    >
+      <div
+        v-for="(line, idx) in customerChangeTipLines"
+        :key="idx"
+        class="customer-change-downstream-hint__line"
+      >
+        {{ line }}
+      </div>
+    </el-alert>
+
     <el-form ref="formRef" :model="formData" :rules="formRules" label-width="108px" class="create-form">
       <el-collapse v-model="collapseActive" class="so-collapse">
         <el-collapse-item name="order" class="collapse-item-order">
@@ -373,13 +390,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ArrowLeft, Check, Delete, Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormRules } from 'element-plus'
-import { salesOrderApi } from '@/api/salesOrder'
+import { salesOrderApi, type SalesOrderCustomerDownstreamSyncPreview } from '@/api/salesOrder'
 import { quoteApi } from '@/api/quote'
 import { rfqApi } from '@/api/rfq'
 import { customerApi } from '@/api/customer'
@@ -772,6 +789,211 @@ function onCustomerChange(val: string) {
   formData.value.customerContactId = ''
   formData.value.customerContactName = ''
   void loadCustomerDetail(val)
+  scheduleCustomerChangeTipPreview()
+}
+
+const originalCustomerId = ref('')
+const customerChangeTipPreview = ref<SalesOrderCustomerDownstreamSyncPreview | null>(null)
+const customerChangeTipLoading = ref(false)
+const customerChangeTipError = ref('')
+let customerChangeTipTimer: ReturnType<typeof setTimeout> | null = null
+let customerChangeTipSeq = 0
+
+const customerChangedFromOriginal = computed(() => {
+  if (!isEditMode.value) return false
+  const cur = (formData.value.customerId || '').trim()
+  const orig = originalCustomerId.value.trim()
+  return !!cur && !!orig && cur.toLowerCase() !== orig.toLowerCase()
+})
+
+const customerChangeTipVisible = computed(
+  () =>
+    isEditMode.value &&
+    customerChangedFromOriginal.value &&
+    (customerChangeTipLoading.value ||
+      !!customerChangeTipError.value ||
+      !!customerChangeTipPreview.value)
+)
+
+const customerChangeTipType = computed<'info' | 'warning' | 'error'>(() => {
+  if (customerChangeTipError.value) return 'error'
+  if (customerChangeTipPreview.value && !customerChangeTipPreview.value.canSync) return 'warning'
+  return 'info'
+})
+
+const customerChangeTipTitle = computed(() => {
+  if (customerChangeTipLoading.value) return '正在检查下游客户影响…'
+  if (customerChangeTipError.value) return '下游客户预检失败'
+  const p = customerChangeTipPreview.value
+  if (!p) return ''
+  if (!p.canSync) return '当前客户变更被阻断，当前无法保存客户资料（仅提醒，尚未保存）'
+  if (p.noOp) return '下游客户已与目标客户一致，保存时仅更新订单客户'
+  return '更换客户后，保存时将同步以下未完结下游（仅提醒，尚未保存）'
+})
+
+/** 解析预检阻断原因（兼容 camelCase / PascalCase） */
+function resolveCustomerChangeBlockDetails(p: SalesOrderCustomerDownstreamSyncPreview) {
+  const raw = p as SalesOrderCustomerDownstreamSyncPreview & {
+    BlockReason?: string | null
+    BlockingDocuments?: string[] | null
+  }
+  const blockReason = (p.blockReason ?? raw.BlockReason ?? '').trim()
+  const docs = (p.blockingDocuments ?? raw.BlockingDocuments ?? [])
+    .map((d) => String(d || '').trim())
+    .filter(Boolean)
+  return { blockReason, docs }
+}
+
+const customerChangeTipLines = computed(() => {
+  if (customerChangeTipError.value) return [customerChangeTipError.value]
+  const p = customerChangeTipPreview.value
+  if (!p || customerChangeTipLoading.value) return []
+  if (!p.canSync) {
+    const { blockReason, docs } = resolveCustomerChangeBlockDetails(p)
+    const lines: string[] = ['当前无法保存客户资料。', '阻断原因：']
+    if (docs.length > 0) {
+      for (const d of docs) lines.push(`· ${d}`)
+      // blockReason 常为「存在已完结…：单据A；单据B」，有明细列表时不再整段重复
+      if (blockReason && !docs.some((d) => blockReason.includes(d))) {
+        lines.push(`· ${blockReason}`)
+      }
+    } else {
+      lines.push(`· ${blockReason || '存在已完结下游单据，无法更换客户'}`)
+    }
+    return lines
+  }
+  if (p.noOp) {
+    return [
+      `目标客户：${p.customerName?.trim() || p.customerId || '—'}（原：${p.oldCustomerName?.trim() || p.oldCustomerId || '—'}）`
+    ]
+  }
+  const lines = [
+    `将由「${p.oldCustomerName || p.oldCustomerId || '—'}」更换为「${p.customerName || p.customerId || '—'}」`
+  ]
+  if ((p.sellOrderCustomerNameToSync ?? 0) > 0) lines.push('· 销售订单客户名称快照')
+  if (p.stockOutNotifiesToSync > 0) lines.push(`· 出库通知 ${p.stockOutNotifiesToSync} 条`)
+  if (p.packingsToSync > 0) lines.push(`· 装箱单 ${p.packingsToSync} 张`)
+  if (p.packingItemExtendsToSync > 0) lines.push(`· 装箱明细扩展 ${p.packingItemExtendsToSync} 行`)
+  if (p.stockOutsToSync > 0) lines.push(`· 未完结出库单 ${p.stockOutsToSync} 张`)
+  return lines
+})
+
+function clearCustomerChangeTip() {
+  customerChangeTipPreview.value = null
+  customerChangeTipError.value = ''
+  customerChangeTipLoading.value = false
+}
+
+function scheduleCustomerChangeTipPreview() {
+  if (!isEditMode.value || !editId.value) {
+    clearCustomerChangeTip()
+    return
+  }
+  if (!customerChangedFromOriginal.value) {
+    if (customerChangeTipTimer) {
+      clearTimeout(customerChangeTipTimer)
+      customerChangeTipTimer = null
+    }
+    clearCustomerChangeTip()
+    return
+  }
+  if (customerChangeTipTimer) clearTimeout(customerChangeTipTimer)
+  customerChangeTipTimer = setTimeout(() => {
+    void refreshCustomerChangeTipPreview()
+  }, 350)
+}
+
+async function refreshCustomerChangeTipPreview() {
+  if (!editId.value || !customerChangedFromOriginal.value) {
+    clearCustomerChangeTip()
+    return
+  }
+  const seq = ++customerChangeTipSeq
+  const proposedId = formData.value.customerId?.trim() || ''
+  customerChangeTipLoading.value = true
+  customerChangeTipError.value = ''
+  try {
+    const preview = await salesOrderApi.previewSyncDownstreamCustomer(editId.value, proposedId)
+    if (seq !== customerChangeTipSeq) return
+    customerChangeTipPreview.value = preview
+  } catch (e) {
+    if (seq !== customerChangeTipSeq) return
+    customerChangeTipPreview.value = null
+    customerChangeTipError.value = getApiErrorMessage(e, '预检失败，请稍后重试')
+  } finally {
+    if (seq === customerChangeTipSeq) customerChangeTipLoading.value = false
+  }
+}
+
+function buildCustomerChangeConfirmMessage(preview: SalesOrderCustomerDownstreamSyncPreview) {
+  const lines = [
+    `将把客户由「${preview.oldCustomerName || preview.oldCustomerId || '—'}」更换为「${preview.customerName || preview.customerId || '—'}」。`,
+    '确认后将一次保存订单客户，并同步未完结下游客户信息。'
+  ]
+  if ((preview.sellOrderCustomerNameToSync ?? 0) > 0) lines.push('同步销售订单客户名称快照。')
+  if (preview.stockOutNotifiesToSync > 0) lines.push(`同步 ${preview.stockOutNotifiesToSync} 条出库通知。`)
+  if (preview.packingsToSync > 0) lines.push(`同步 ${preview.packingsToSync} 张装箱单。`)
+  if (preview.packingItemExtendsToSync > 0) {
+    lines.push(`同步 ${preview.packingItemExtendsToSync} 行装箱明细扩展。`)
+  }
+  if (preview.stockOutsToSync > 0) lines.push(`同步 ${preview.stockOutsToSync} 张未完结出库单。`)
+  return lines.join('\n')
+}
+
+/** 编辑换客户：保存前预检；取消则不保存。确认「刷新并保存」后由后端一次提交头+下游。 */
+async function confirmCustomerChangeIfNeeded(): Promise<boolean> {
+  if (!editId.value || !customerChangedFromOriginal.value) return true
+  const newCid = formData.value.customerId?.trim()
+  if (!newCid) return true
+
+  try {
+    const preview = await salesOrderApi.previewSyncDownstreamCustomer(editId.value, newCid)
+    customerChangeTipPreview.value = preview
+    if (!preview.canSync) {
+      const { blockReason, docs } = resolveCustomerChangeBlockDetails(preview)
+      const escapeHtml = (value: string) =>
+        value
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+      const detailHtml =
+        docs.length > 0
+          ? docs.map((d) => `· ${escapeHtml(d)}`).join('<br/>')
+          : escapeHtml(blockReason || '存在已完结下游单据，无法更换客户')
+      await ElMessageBox.alert(
+        `当前无法保存客户资料。<br/><br/>阻断原因：<br/>${detailHtml}`,
+        '更换客户',
+        {
+          confirmButtonText: '知道了',
+          type: 'warning',
+          dangerouslyUseHTMLString: true
+        }
+      )
+      return false
+    }
+    if (preview.noOp) {
+      await ElMessageBox.confirm(
+        `将把客户更换为「${preview.customerName || preview.customerId}」。下游无需同步，是否保存？`,
+        '更换客户确认',
+        {
+          type: 'warning',
+          confirmButtonText: '保存',
+          cancelButtonText: '取消'
+        }
+      )
+      return true
+    }
+    await ElMessageBox.confirm(buildCustomerChangeConfirmMessage(preview), '更换客户确认', {
+      type: 'warning',
+      confirmButtonText: '刷新并保存',
+      cancelButtonText: '取消'
+    })
+    return true
+  } catch (e) {
+    if (e === 'cancel') return false
+    ElMessage.error(getApiErrorMessage(e, '预检更换客户失败'))
+    return false
+  }
 }
 
 function onContactChange(id: string) {
@@ -985,6 +1207,8 @@ async function loadOrderForEdit(id: string) {
 
   prefillCustomerId.value = formData.value.customerId || undefined
   prefillSalesUserId.value = formData.value.salesUserId || undefined
+  originalCustomerId.value = formData.value.customerId || ''
+  clearCustomerChangeTip()
 
   await initStaffPickFields(order)
 
@@ -1087,6 +1311,13 @@ function purchaseQuoteLabelFromRow(first: Record<string, unknown> | undefined): 
   const code = currencyCode(cur)
   return `${t('salesOrderCreate.purchaseQuotePrefix')}：${formatUnitPriceNumber(p)} ${code}`
 }
+
+onBeforeUnmount(() => {
+  if (customerChangeTipTimer) {
+    clearTimeout(customerChangeTipTimer)
+    customerChangeTipTimer = null
+  }
+})
 
 onMounted(async () => {
   await ensureMaterialPdDict()
@@ -1266,7 +1497,10 @@ const handleSubmit = async () => {
     await runValidatedFormSave(formRef, {
       loading: submitLoading,
       successMessage: t('salesOrderCreate.messages.updateSuccess'),
-      afterValidate: () => validateSoItemsCustomerOrderLinks(),
+      afterValidate: async () => {
+        if (!validateSoItemsCustomerOrderLinks()) return false
+        return await confirmCustomerChangeIfNeeded()
+      },
       task: async () => {
         await salesOrderApi.update(editId.value, {
           customerId: formData.value.customerId || undefined,
@@ -1333,6 +1567,43 @@ const handleSubmit = async () => {
 
 .customer-order-quote-hint {
   margin-bottom: 12px;
+}
+
+.customer-change-downstream-hint {
+  margin: 0 0 16px;
+  align-items: flex-start;
+
+  &__line {
+    line-height: 1.55;
+    font-size: 13px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  :deep(.el-alert__icon) {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    margin-top: 2px;
+
+    svg {
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  :deep(.el-alert__title) {
+    font-size: 14px;
+    line-height: 16px;
+  }
+
+  :deep(.el-alert__content) {
+    width: 100%;
+  }
+
+  :deep(.el-alert__description) {
+    margin-top: 4px;
+  }
 }
 
 .create-page {
