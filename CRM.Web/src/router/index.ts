@@ -55,14 +55,27 @@ router.beforeEach((to, _from, next) => {
   const isPublicPage =
     isDebugList ||
     to.name === 'ReleaseNotes' ||
-    to.path === '/release-notes'
+    to.name === 'NotFound' ||
+    to.path === '/release-notes' ||
+    to.path === '/404'
+
+  // /debug/super 等隐蔽页：未登录 / 非 SA → 404（不跳登录、不跳 dashboard）
+  if (to.meta.denyAs404 === true) {
+    const allowed =
+      authStore.isAuthenticated &&
+      (to.meta.sysAdminOnly !== true || authStore.user?.isSysAdmin === true)
+    if (!allowed) {
+      next({ name: 'NotFound', replace: true })
+      return
+    }
+  }
 
   if (previewMode || isPublicPage) {
     next()
   } else if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next('/login')
   } else if (to.meta.requiresAuth && to.meta.sysAdminOnly === true && authStore.user?.isSysAdmin !== true) {
-    next('/dashboard')
+    next(to.meta.denyAs404 === true ? { name: 'NotFound', replace: true } : '/dashboard')
   } else if (to.meta.requiresAuth && to.meta.purchaseOrderCreateAccess === true) {
     const ok = canAccessPurchaseOrderCreatePage({
       isSysAdmin: authStore.user?.isSysAdmin,

@@ -656,7 +656,7 @@ namespace CRM.API.Controllers
             }
         }
 
-        /// <summary>管理员为员工重置登录密码。SuperAdmin 目标禁止（仅 SQL）。</summary>
+        /// <summary>管理员为员工重置登录密码。SuperAdmin 目标禁止（改密请用 /debug/super 自助或 SQL）。</summary>
         [HttpPost("admin/users/{userId}/reset-password")]
         public async Task<ActionResult<ApiResponse<object>>> ResetAdminUserPassword(string userId, [FromBody] ResetAdminUserPasswordRequest? request)
         {
@@ -681,7 +681,7 @@ namespace CRM.API.Controllers
                 if (target == null)
                     return NotFound(ApiResponse<object>.Fail("用户不存在", 404));
                 if (ManagementRoleCodes.TargetIsSuperAdmin(target.RoleCodes))
-                    return StatusCode(403, ApiResponse<object>.Fail("SuperAdmin 密码仅可通过数据库 SQL 修改", 403));
+                    return StatusCode(403, ApiResponse<object>.Fail("SuperAdmin 密码请通过 /debug/super 自助修改或数据库 SQL", 403));
                 if (!ManagementAccountPolicy.CanMaintainTarget(actor, target.RoleCodes))
                     return StatusCode(403, ApiResponse<object>.Fail("无权维护该账号", 403));
 

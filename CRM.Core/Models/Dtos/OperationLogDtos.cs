@@ -16,6 +16,11 @@ public sealed class OperationLogQuery
     public string? RecordId { get; set; }
     /// <summary>ActionType 前缀匹配（如 StockInBatch）。</summary>
     public string? ActionTypePrefix { get; set; }
+    /// <summary>
+    /// 为 true 时允许查询 BizType=super_admin（仅 /debug/super 使用）。
+    /// 默认 false：系统操作日志强制排除该类记录。
+    /// </summary>
+    public bool AllowSuperAdminBizType { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 20;
 }

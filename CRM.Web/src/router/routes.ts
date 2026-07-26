@@ -22,6 +22,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/ReleaseNotes/ReleaseNotesPage.vue'),
     meta: { requiresAuth: false, title: '版本更新日志' }
   },
+  {
+    path: '/404',
+    name: 'NotFound',
+    component: () => import('@/views/NotFound.vue'),
+    meta: { requiresAuth: false, title: '404' }
+  },
   // 常见误输 /ldebug -> /debug
   {
     path: '/ldebug',
@@ -1107,6 +1113,17 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '文档模块演示' }
       },
       {
+        path: 'debug/super',
+        name: 'DebugSuper',
+        component: () => import('@/views/Debug/DebugSuper.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'SuperAdmin 运维',
+          sysAdminOnly: true,
+          denyAs404: true
+        }
+      },
+      {
         path: 'debug/internal-version-log',
         name: 'DebugInternalVersionLog',
         component: () => import('@/views/Debug/DebugInternalVersionLog.vue'),
@@ -1159,6 +1176,10 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: false, title: 'Debug' }
       }
     ]
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    redirect: { name: 'NotFound' }
   }
 ]
 

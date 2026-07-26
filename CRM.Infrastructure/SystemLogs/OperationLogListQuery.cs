@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Dtos;
 using CRM.Core.Models.System;
@@ -29,9 +30,26 @@ public sealed class OperationLogListQuery : IOperationLogQueryService
 
         var q = _db.OperationLogs.AsNoTracking();
 
+        // SuperAdmin 敏感日志默认对系统操作日志隐藏（含 SA 本人）；仅 AllowSuperAdminBizType 时可见
+        if (!query.AllowSuperAdminBizType)
+        {
+            q = q.Where(o => o.BizType != SuperAdminOperationLogCodes.BizType);
+        }
+
         if (!string.IsNullOrWhiteSpace(query.BizType))
         {
             var b = query.BizType.Trim();
+            if (!query.AllowSuperAdminBizType
+                && string.Equals(b, SuperAdminOperationLogCodes.BizType, StringComparison.OrdinalIgnoreCase))
+            {
+                return new OperationLogPagedResult
+                {
+                    Total = 0,
+                    Page = page,
+                    PageSize = pageSize,
+                    Items = Array.Empty<OperationLogListItemDto>()
+                };
+            }
             q = q.Where(o => o.BizType == b);
         }
 
