@@ -1336,7 +1336,19 @@ const zhCN = {
     fillRoleName: '请填写角色名称',
     permissionFilterPlaceholder: '搜索权限编码、名称或资源',
     permissionFilterEmpty: '没有匹配的权限',
-    permissionSelectedCount: '已选 {count} 项'
+    permissionSelectedCount: '已选 {count} 项',
+    permKindLegend: '标签说明：',
+    permKindMenu: '侧栏菜单',
+    permKindSub: '页内子项',
+    permKindFeature: '功能/接口',
+    permKindMenuHint: '控制左侧系统管理菜单是否出现',
+    permKindSubHint: '控制参数页左侧子导航；约定 system.params.销售|采购|财务.子项.read/write',
+    permKindFeatureHint: '业务功能或写接口，一般不单独对应一条侧栏菜单',
+    permKindFilterAll: '全部类型',
+    permTabAll: '全部',
+    permTabMenu: '主菜单入口',
+    permTabSub: '页内菜单项',
+    permMenuHintPrefix: '菜单：'
   },
   systemPermission: {
     title: '权限管理',

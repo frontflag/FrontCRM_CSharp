@@ -19,7 +19,7 @@ public class SalesParamsController : ControllerBase
     }
 
     [HttpGet("allow-refresh-completed-biz-nodes")]
-    [RequirePermission("rbac.manage")]
+    [RequirePermission("system.params.sales.refresh-customer.read")]
     public async Task<ActionResult<ApiResponse<SalesParamsAllowRefreshCompletedBizNodesDto>>> GetAllowRefreshCompletedBizNodes(
         CancellationToken ct)
     {
@@ -38,7 +38,7 @@ public class SalesParamsController : ControllerBase
     }
 
     [HttpPut("allow-refresh-completed-biz-nodes")]
-    [RequirePermission("rbac.manage")]
+    [RequirePermission("system.params.sales.refresh-customer.write")]
     public async Task<ActionResult<ApiResponse<SalesParamsAllowRefreshCompletedBizNodesDto>>> SetAllowRefreshCompletedBizNodes(
         [FromBody] SetSalesParamsAllowRefreshCompletedBizNodesRequest? body,
         CancellationToken ct)

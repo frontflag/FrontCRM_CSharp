@@ -11,7 +11,7 @@ public static class SalesAnalyticsScopeValidator
 
     public static bool CanAccessPage(UserPermissionSummaryDto summary)
     {
-        if (summary.IsSysAdmin) return true;
+        if (summary.HasBizDataBypass) return true;
         if (BusinessDepartmentRules.UseSellOrderAssistorOnlyScope(summary)) return true;
         if (summary.SaleDataScope == 4) return false;
         return true;
@@ -19,7 +19,7 @@ public static class SalesAnalyticsScopeValidator
 
     public static IReadOnlyList<string> GetAllowedViewLevels(UserPermissionSummaryDto summary)
     {
-        if (summary.IsSysAdmin || summary.SaleDataScope == 0)
+        if (summary.HasBizDataBypass || summary.SaleDataScope == 0)
             return new[] { SalesAnalyticsViewLevels.Company, SalesAnalyticsViewLevels.Department, SalesAnalyticsViewLevels.Personal };
 
         if (BusinessDepartmentRules.UseSellOrderAssistorOnlyScope(summary))
@@ -38,7 +38,7 @@ public static class SalesAnalyticsScopeValidator
     {
         var allowed = GetAllowedViewLevels(summary);
         if (allowed.Count == 0) return SalesAnalyticsViewLevels.Personal;
-        if (summary.IsSysAdmin || summary.SaleDataScope == 0) return SalesAnalyticsViewLevels.Company;
+        if (summary.HasBizDataBypass || summary.SaleDataScope == 0) return SalesAnalyticsViewLevels.Company;
         if (summary.SaleDataScope == 3) return SalesAnalyticsViewLevels.Department;
         if (summary.SaleDataScope == 2) return SalesAnalyticsViewLevels.Department;
         return SalesAnalyticsViewLevels.Personal;
@@ -49,7 +49,7 @@ public static class SalesAnalyticsScopeValidator
         string? primaryDepartmentName,
         bool companyTabVisible)
     {
-        if (summary.IsSysAdmin || summary.SaleDataScope == 0)
+        if (summary.HasBizDataBypass || summary.SaleDataScope == 0)
             return companyTabVisible ? "全公司" : "可见范围";
 
         if (BusinessDepartmentRules.UseSellOrderAssistorOnlyScope(summary))
@@ -121,7 +121,7 @@ public static class SalesAnalyticsScopeValidator
                     return new ValidationResult { Ok = false, Error = "无权查看该部门数据" };
                 resolvedDept = did;
             }
-            else if (summary.SaleDataScope == 3 || summary.IsSysAdmin || summary.SaleDataScope == 0)
+            else if (summary.SaleDataScope == 3 || summary.HasBizDataBypass || summary.SaleDataScope == 0)
                 resolvedDept = summary.PrimaryDepartmentId;
             else
                 resolvedDept = summary.PrimaryDepartmentId;
@@ -140,7 +140,7 @@ public static class SalesAnalyticsScopeValidator
         UserPermissionSummaryDto summary,
         IReadOnlyList<RbacDepartment> departments)
     {
-        if (summary.IsSysAdmin || summary.SaleDataScope == 0)
+        if (summary.HasBizDataBypass || summary.SaleDataScope == 0)
         {
             return departments
                 .Where(d => d.Status == 1)
@@ -174,9 +174,9 @@ public static class SalesAnalyticsScopeValidator
         IReadOnlyList<RbacDepartment> departments)
     {
         if (string.Equals(departmentId, UnassignedDepartmentId, StringComparison.OrdinalIgnoreCase))
-            return summary.IsSysAdmin || summary.SaleDataScope is 0 or 3;
+            return summary.HasBizDataBypass || summary.SaleDataScope is 0 or 3;
 
-        if (summary.IsSysAdmin || summary.SaleDataScope == 0)
+        if (summary.HasBizDataBypass || summary.SaleDataScope == 0)
             return departments.Any(d => d.Id == departmentId && d.Status == 1);
 
         if (summary.SaleDataScope == 3 && !string.IsNullOrWhiteSpace(summary.PrimaryDepartmentId))
@@ -199,7 +199,7 @@ public static class SalesAnalyticsScopeValidator
         UserPermissionSummaryDto summary,
         CancellationToken cancellationToken = default)
     {
-        if (summary.IsSysAdmin || summary.SaleDataScope == 0)
+        if (summary.HasBizDataBypass || summary.SaleDataScope == 0)
             return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         if (summary.SaleDataScope == 1 || BusinessDepartmentRules.UseSellOrderAssistorOnlyScope(summary))

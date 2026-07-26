@@ -11,6 +11,7 @@
       <div class="settings-nav" aria-label="purchase-params-nav">
         <div class="nav-group-label">{{ t('purchaseParams.navTitle') }}</div>
         <router-link
+          v-if="canAccessSystemPermission('system.params.purchase.assignee-count.read')"
           to="/system/purchase-params/assignee-count"
           class="nav-item"
           active-class="active"
@@ -19,6 +20,7 @@
           <span>{{ t('purchaseParams.assigneeCountNav') }}</span>
         </router-link>
         <router-link
+          v-if="canAccessSystemPermission('system.params.purchase.quoter-pool.read')"
           to="/system/purchase-params/quoter-pool"
           class="nav-item"
           active-class="active"
@@ -27,6 +29,7 @@
           <span>{{ t('purchaseParams.quoterPoolNav') }}</span>
         </router-link>
         <router-link
+          v-if="canAccessSystemPermission('system.params.purchase.default-assign-method.read')"
           to="/system/purchase-params/default-assign-method"
           class="nav-item"
           active-class="active"
@@ -35,6 +38,7 @@
           <span>{{ t('purchaseParams.defaultAssignMethodNav') }}</span>
         </router-link>
         <router-link
+          v-if="canAccessSystemPermission('system.params.purchase.demand-protection.read')"
           to="/system/purchase-params/demand-protection"
           class="nav-item"
           active-class="active"
@@ -43,6 +47,7 @@
           <span>{{ t('purchaseParams.demandProtectionNav') }}</span>
         </router-link>
         <router-link
+          v-if="canAccessSystemPermission('system.params.purchase.refresh-vendor.read')"
           to="/system/purchase-params/refresh-vendor"
           class="nav-item"
           active-class="active"
@@ -62,8 +67,11 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { User, List, Timer, Operation, RefreshRight } from '@element-plus/icons-vue'
+import { useAuthStore } from '@/stores'
 
 const { t } = useI18n()
+const authStore = useAuthStore()
+const canAccessSystemPermission = authStore.canAccessSystemPermission
 </script>
 
 <style scoped lang="scss">

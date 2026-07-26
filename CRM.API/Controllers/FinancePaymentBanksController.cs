@@ -41,7 +41,7 @@ namespace CRM.API.Controllers
         }
 
         [HttpGet]
-        [RequirePermission("rbac.manage")]
+        [RequirePermission("system.params.finance.payment-banks.read")]
         public async Task<ActionResult<ApiResponse<List<FinancePaymentBankDto>>>> List(CancellationToken ct)
         {
             try
@@ -57,7 +57,7 @@ namespace CRM.API.Controllers
         }
 
         [HttpPost]
-        [RequirePermission("rbac.manage")]
+        [RequirePermission("system.params.finance.payment-banks.write")]
         public async Task<ActionResult<ApiResponse<FinancePaymentBankDto>>> Create(
             [FromBody] CreateFinancePaymentBankRequest? body,
             CancellationToken ct)
@@ -87,7 +87,7 @@ namespace CRM.API.Controllers
         }
 
         [HttpPut("{id}")]
-        [RequirePermission("rbac.manage")]
+        [RequirePermission("system.params.finance.payment-banks.write")]
         public async Task<ActionResult<ApiResponse<FinancePaymentBankDto>>> Update(
             [FromRoute] string id,
             [FromBody] UpdateFinancePaymentBankRequest? body,

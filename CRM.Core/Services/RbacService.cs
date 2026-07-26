@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Rbac;
 
@@ -41,15 +42,16 @@ namespace CRM.Core.Services
             var roles = (await _roleRepo.GetAllAsync()).Where(r => roleIds.Contains(r.Id)).ToList();
             var roleCodes = roles.Select(r => r.RoleCode).Distinct().ToList();
 
-            var rolePermissions = (await _rolePermissionRepo.GetAllAsync())
+            var rolePermissionLinks = (await _rolePermissionRepo.GetAllAsync())
                 .Where(x => roleIds.Contains(x.RoleId))
-                .Select(x => x.PermissionId)
-                .Distinct()
                 .ToList();
-            var permissionCodes = (await _permissionRepo.GetAllAsync())
-                .Where(p => rolePermissions.Contains(p.Id) && p.Status == 1)
-                .Select(p => p.PermissionCode)
-                .Distinct()
+            var allPermissions = (await _permissionRepo.GetAllAsync()).ToList();
+            var permissionById = allPermissions.ToDictionary(p => p.Id, StringComparer.OrdinalIgnoreCase);
+            var permissionCodes = rolePermissionLinks
+                .Select(x => permissionById.TryGetValue(x.PermissionId, out var p) ? p : null)
+                .Where(p => p != null && p.Status == 1)
+                .Select(p => p!.PermissionCode)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
             var userDepartments = (await _userDepartmentRepo.FindAsync(x => x.UserId == userId)).ToList();
@@ -294,10 +296,46 @@ namespace CRM.Core.Services
                 AddPermissionCodeIfMissing(permissionCodes, "biz.ai.material_intel.lookup");
             }
 
+            var isSysAdmin = ManagementRoleCodes.IsSuperAdmin(roleCodes);
+            var isSysManager = ManagementRoleCodes.IsAdminRole(roleCodes);
+            var isBizManager = ManagementRoleCodes.IsBizManagerRole(roleCodes);
+            var hasManagementAccess = isSysAdmin || isSysManager || isBizManager;
+            var hasBizDataBypass = hasManagementAccess;
+
+            // 无管理身份时剥离 system.* / 遗留 rbac.manage，防止误配后前端展示与 API 绕过
+            if (!hasManagementAccess)
+            {
+                permissionCodes.RemoveAll(c => SystemPermissionCodes.IsSystemPermission(c));
+            }
+            else if (!isSysAdmin)
+            {
+                // Admin/Manager：系统管理菜单（含 AI 配置入口）仅以管理角色赋权为准，
+                // 避免 biz_all 等业务扩展角色把「参数管理/AI配置」等再次撑开。
+                var managementRoleIds = roles
+                    .Where(r => ManagementRoleCodes.IsManagementRoleCode(r.RoleCode))
+                    .Select(r => r.Id)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var managementMenuCodes = rolePermissionLinks
+                    .Where(x => managementRoleIds.Contains(x.RoleId))
+                    .Select(x => permissionById.TryGetValue(x.PermissionId, out var p) ? p : null)
+                    .Where(p => p != null && p.Status == 1)
+                    .Select(p => p!.PermissionCode)
+                    .Where(IsManagementMenuPermission)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                permissionCodes.RemoveAll(IsManagementMenuPermission);
+                foreach (var code in managementMenuCodes)
+                    AddPermissionCodeIfMissing(permissionCodes, code);
+            }
+
             return new UserPermissionSummaryDto
             {
                 UserId = userId,
-                IsSysAdmin = roleCodes.Contains("SYS_ADMIN"),
+                IsSysAdmin = isSysAdmin,
+                IsSysManager = isSysManager,
+                IsBizManager = isBizManager,
+                HasManagementAccess = hasManagementAccess,
+                HasBizDataBypass = hasBizDataBypass,
                 RoleCodes = roleCodes,
                 PermissionCodes = permissionCodes,
                 DepartmentIds = departmentIds,
@@ -316,6 +354,11 @@ namespace CRM.Core.Services
                 BelongsToPurchaseDept = belongsToPurchaseDept
             };
         }
+
+        /// <summary>系统管理侧栏/参数入口：由 Admin/Manager 管理角色配置，不与业务角色并集。</summary>
+        private static bool IsManagementMenuPermission(string? code) =>
+            SystemPermissionCodes.IsSystemPermission(code)
+            || string.Equals(code, AiPermissionCodes.Admin, StringComparison.OrdinalIgnoreCase);
 
         private static void AddPermissionCodeIfMissing(List<string> codes, string code)
         {

@@ -19,7 +19,7 @@ public class PurchaseParamsController : ControllerBase
     }
 
     [HttpGet("assignee-count")]
-    [RequirePermission("rbac.manage")]
+    [RequirePermission("system.params.purchase.assignee-count.read")]
     public async Task<ActionResult<ApiResponse<PurchaseParamsAssigneeCountDto>>> GetAssigneeCount(CancellationToken ct)
     {
         try
@@ -31,25 +31,25 @@ public class PurchaseParamsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "读取报价人数失败");
-            return StatusCode(500, ApiResponse<PurchaseParamsAssigneeCountDto>.Fail("读取失败", 500));
+            _logger.LogError(ex, "????????");
+            return StatusCode(500, ApiResponse<PurchaseParamsAssigneeCountDto>.Fail("????", 500));
         }
     }
 
     [HttpPut("assignee-count")]
-    [RequirePermission("rbac.manage")]
+    [RequirePermission("system.params.purchase.assignee-count.write")]
     public async Task<ActionResult<ApiResponse<PurchaseParamsAssigneeCountDto>>> SetAssigneeCount(
         [FromBody] SetPurchaseParamsAssigneeCountRequest? body,
         CancellationToken ct)
     {
         if (body == null)
-            return BadRequest(ApiResponse<PurchaseParamsAssigneeCountDto>.Fail("请求体为空", 400));
+            return BadRequest(ApiResponse<PurchaseParamsAssigneeCountDto>.Fail("?????", 400));
         try
         {
             await _service.SetAssigneeCountAsync(body.Count, ct);
             return Ok(ApiResponse<PurchaseParamsAssigneeCountDto>.Ok(
                 new PurchaseParamsAssigneeCountDto { Count = body.Count },
-                "已保存"));
+                "???"));
         }
         catch (ArgumentException ex)
         {
@@ -57,13 +57,13 @@ public class PurchaseParamsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "保存报价人数失败");
-            return StatusCode(500, ApiResponse<PurchaseParamsAssigneeCountDto>.Fail("保存失败", 500));
+            _logger.LogError(ex, "????????");
+            return StatusCode(500, ApiResponse<PurchaseParamsAssigneeCountDto>.Fail("????", 500));
         }
     }
 
     [HttpGet("demand-protection-minutes")]
-    [RequirePermission("rbac.manage")]
+    [RequirePermission("system.params.purchase.demand-protection.read")]
     public async Task<ActionResult<ApiResponse<PurchaseParamsDemandProtectionMinutesDto>>> GetDemandProtectionMinutes(CancellationToken ct)
     {
         try
@@ -75,25 +75,25 @@ public class PurchaseParamsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "读取需求保护时长失败");
-            return StatusCode(500, ApiResponse<PurchaseParamsDemandProtectionMinutesDto>.Fail("读取失败", 500));
+            _logger.LogError(ex, "??????????");
+            return StatusCode(500, ApiResponse<PurchaseParamsDemandProtectionMinutesDto>.Fail("????", 500));
         }
     }
 
     [HttpPut("demand-protection-minutes")]
-    [RequirePermission("rbac.manage")]
+    [RequirePermission("system.params.purchase.demand-protection.write")]
     public async Task<ActionResult<ApiResponse<PurchaseParamsDemandProtectionMinutesDto>>> SetDemandProtectionMinutes(
         [FromBody] SetPurchaseParamsDemandProtectionMinutesRequest? body,
         CancellationToken ct)
     {
         if (body == null)
-            return BadRequest(ApiResponse<PurchaseParamsDemandProtectionMinutesDto>.Fail("请求体为空", 400));
+            return BadRequest(ApiResponse<PurchaseParamsDemandProtectionMinutesDto>.Fail("?????", 400));
         try
         {
             await _service.SetDemandProtectionMinutesAsync(body.Minutes, ct);
             return Ok(ApiResponse<PurchaseParamsDemandProtectionMinutesDto>.Ok(
                 new PurchaseParamsDemandProtectionMinutesDto { Minutes = body.Minutes },
-                "已保存"));
+                "???"));
         }
         catch (ArgumentException ex)
         {
@@ -101,13 +101,13 @@ public class PurchaseParamsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "保存需求保护时长失败");
-            return StatusCode(500, ApiResponse<PurchaseParamsDemandProtectionMinutesDto>.Fail("保存失败", 500));
+            _logger.LogError(ex, "??????????");
+            return StatusCode(500, ApiResponse<PurchaseParamsDemandProtectionMinutesDto>.Fail("????", 500));
         }
     }
 
     [HttpGet("default-assign-method")]
-    [RequirePermission("rbac.manage")]
+    [RequirePermission("system.params.purchase.default-assign-method.read")]
     public async Task<ActionResult<ApiResponse<PurchaseParamsDefaultAssignMethodDto>>> GetDefaultAssignMethod(CancellationToken ct)
     {
         try
@@ -119,26 +119,26 @@ public class PurchaseParamsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "读取默认分配方式失败");
-            return StatusCode(500, ApiResponse<PurchaseParamsDefaultAssignMethodDto>.Fail("读取失败", 500));
+            _logger.LogError(ex, "??????????");
+            return StatusCode(500, ApiResponse<PurchaseParamsDefaultAssignMethodDto>.Fail("????", 500));
         }
     }
 
     [HttpPut("default-assign-method")]
-    [RequirePermission("rbac.manage")]
+    [RequirePermission("system.params.purchase.default-assign-method.write")]
     public async Task<ActionResult<ApiResponse<PurchaseParamsDefaultAssignMethodDto>>> SetDefaultAssignMethod(
         [FromBody] SetPurchaseParamsDefaultAssignMethodRequest? body,
         CancellationToken ct)
     {
         if (body == null)
-            return BadRequest(ApiResponse<PurchaseParamsDefaultAssignMethodDto>.Fail("请求体为空", 400));
+            return BadRequest(ApiResponse<PurchaseParamsDefaultAssignMethodDto>.Fail("?????", 400));
         try
         {
             await _service.SetDefaultAssignMethodAsync(body.AssignMethod, ct);
             var assignMethod = await _service.GetDefaultAssignMethodAsync(ct);
             return Ok(ApiResponse<PurchaseParamsDefaultAssignMethodDto>.Ok(
                 new PurchaseParamsDefaultAssignMethodDto { AssignMethod = assignMethod },
-                "已保存"));
+                "???"));
         }
         catch (ArgumentException ex)
         {
@@ -146,13 +146,13 @@ public class PurchaseParamsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "保存默认分配方式失败");
-            return StatusCode(500, ApiResponse<PurchaseParamsDefaultAssignMethodDto>.Fail("保存失败", 500));
+            _logger.LogError(ex, "??????????");
+            return StatusCode(500, ApiResponse<PurchaseParamsDefaultAssignMethodDto>.Fail("????", 500));
         }
     }
 
     [HttpGet("allow-refresh-completed-biz-nodes")]
-    [RequirePermission("rbac.manage")]
+    [RequirePermission("system.params.purchase.refresh-vendor.read")]
     public async Task<ActionResult<ApiResponse<PurchaseParamsAllowRefreshCompletedBizNodesDto>>> GetAllowRefreshCompletedBizNodes(
         CancellationToken ct)
     {
@@ -165,36 +165,36 @@ public class PurchaseParamsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "读取「允许刷新已完成业务节点」失败");
-            return StatusCode(500, ApiResponse<PurchaseParamsAllowRefreshCompletedBizNodesDto>.Fail("读取失败", 500));
+            _logger.LogError(ex, "?????????????????");
+            return StatusCode(500, ApiResponse<PurchaseParamsAllowRefreshCompletedBizNodesDto>.Fail("????", 500));
         }
     }
 
     [HttpPut("allow-refresh-completed-biz-nodes")]
-    [RequirePermission("rbac.manage")]
+    [RequirePermission("system.params.purchase.refresh-vendor.write")]
     public async Task<ActionResult<ApiResponse<PurchaseParamsAllowRefreshCompletedBizNodesDto>>> SetAllowRefreshCompletedBizNodes(
         [FromBody] SetPurchaseParamsAllowRefreshCompletedBizNodesRequest? body,
         CancellationToken ct)
     {
         if (body == null)
-            return BadRequest(ApiResponse<PurchaseParamsAllowRefreshCompletedBizNodesDto>.Fail("请求体为空", 400));
+            return BadRequest(ApiResponse<PurchaseParamsAllowRefreshCompletedBizNodesDto>.Fail("?????", 400));
 
         try
         {
             await _service.SetAllowRefreshCompletedBizNodesAsync(body.Allow, ct);
             return Ok(ApiResponse<PurchaseParamsAllowRefreshCompletedBizNodesDto>.Ok(
                 new PurchaseParamsAllowRefreshCompletedBizNodesDto { Allow = body.Allow },
-                "已保存"));
+                "???"));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "保存「允许刷新已完成业务节点」失败");
-            return StatusCode(500, ApiResponse<PurchaseParamsAllowRefreshCompletedBizNodesDto>.Fail("保存失败", 500));
+            _logger.LogError(ex, "?????????????????");
+            return StatusCode(500, ApiResponse<PurchaseParamsAllowRefreshCompletedBizNodesDto>.Fail("????", 500));
         }
     }
 
     [HttpGet("quoter-pool")]
-    [RequirePermission("rbac.manage")]
+    [RequirePermission("system.params.purchase.quoter-pool.read")]
     public async Task<ActionResult<ApiResponse<PurchaseQuoterPoolListResponse>>> GetQuoterPool(
         [FromQuery] string? filter,
         CancellationToken ct)
@@ -206,23 +206,23 @@ public class PurchaseParamsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "读取报价员池失败");
-            return StatusCode(500, ApiResponse<PurchaseQuoterPoolListResponse>.Fail("读取失败", 500));
+            _logger.LogError(ex, "????????");
+            return StatusCode(500, ApiResponse<PurchaseQuoterPoolListResponse>.Fail("????", 500));
         }
     }
 
     [HttpPut("quoter-pool")]
-    [RequirePermission("rbac.manage")]
+    [RequirePermission("system.params.purchase.quoter-pool.write")]
     public async Task<ActionResult<ApiResponse<PurchaseQuoterPoolListResponse>>> SaveQuoterPool(
         [FromBody] SavePurchaseQuoterPoolRequest? body,
         CancellationToken ct)
     {
         if (body == null)
-            return BadRequest(ApiResponse<PurchaseQuoterPoolListResponse>.Fail("请求体为空", 400));
+            return BadRequest(ApiResponse<PurchaseQuoterPoolListResponse>.Fail("?????", 400));
         try
         {
             var result = await _service.SavePoolAsync(body.UserIds ?? [], ct);
-            return Ok(ApiResponse<PurchaseQuoterPoolListResponse>.Ok(MapPool(result), "已保存"));
+            return Ok(ApiResponse<PurchaseQuoterPoolListResponse>.Ok(MapPool(result), "???"));
         }
         catch (ArgumentException ex)
         {
@@ -230,8 +230,8 @@ public class PurchaseParamsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "保存报价员池失败");
-            return StatusCode(500, ApiResponse<PurchaseQuoterPoolListResponse>.Fail("保存失败", 500));
+            _logger.LogError(ex, "????????");
+            return StatusCode(500, ApiResponse<PurchaseQuoterPoolListResponse>.Fail("????", 500));
         }
     }
 

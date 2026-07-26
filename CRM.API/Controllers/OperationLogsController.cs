@@ -23,7 +23,7 @@ public class OperationLogsController : ControllerBase
 
     /// <summary>分页查询 log_operation。</summary>
     [HttpGet]
-    [RequirePermission("rbac.manage")]
+    [RequirePermission("system.logs.operation.read")]
     public async Task<ActionResult<ApiResponse<OperationLogPagedResult>>> List(
         [FromQuery] string? bizType,
         [FromQuery] string? actionType,

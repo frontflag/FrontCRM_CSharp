@@ -28,7 +28,7 @@ namespace CRM.API.Controllers
         }
 
         [HttpGet("categories")]
-        [RequirePermission("rbac.manage")]
+        [RequirePermission("system.params.dict.write")]
         public async Task<ActionResult<ApiResponse<IReadOnlyList<string>>>> GetCategories(CancellationToken ct)
         {
             try
@@ -44,7 +44,7 @@ namespace CRM.API.Controllers
         }
 
         [HttpGet("items")]
-        [RequirePermission("rbac.manage")]
+        [RequirePermission("system.params.dict.write")]
         public async Task<ActionResult<ApiResponse<SysDictItemAdminPagedDto>>> List(
             [FromQuery] string? bizSegment,
             [FromQuery] string? category,
@@ -78,7 +78,7 @@ namespace CRM.API.Controllers
         /// <summary>预取下一选项编码；同时注册 admin/next-item-code 与 items/next-item-code，避免网关仅转发 items 列表路径时 404。</summary>
         [HttpGet("next-item-code")]
         [HttpGet("items/next-item-code")]
-        [RequirePermission("rbac.manage")]
+        [RequirePermission("system.params.dict.write")]
         public async Task<ActionResult<ApiResponse<string>>> GetNextItemCode([FromQuery] string category,
             CancellationToken ct)
         {
@@ -97,7 +97,7 @@ namespace CRM.API.Controllers
         }
 
         [HttpGet("items/{id:guid}")]
-        [RequirePermission("rbac.manage")]
+        [RequirePermission("system.params.dict.write")]
         public async Task<ActionResult<ApiResponse<SysDictItemAdminRowDto>>> GetById(Guid id, CancellationToken ct)
         {
             var row = await _adminService.GetByIdAsync(id.ToString(), ct);
@@ -106,7 +106,7 @@ namespace CRM.API.Controllers
         }
 
         [HttpPost("items")]
-        [RequirePermission("rbac.manage")]
+        [RequirePermission("system.params.dict.write")]
         public async Task<ActionResult<ApiResponse<object>>> Create([FromBody] CreateSysDictItemDto dto,
             CancellationToken ct)
         {
@@ -116,7 +116,7 @@ namespace CRM.API.Controllers
         }
 
         [HttpPut("items/{id:guid}")]
-        [RequirePermission("rbac.manage")]
+        [RequirePermission("system.params.dict.write")]
         public async Task<ActionResult<ApiResponse<object>>> Update(Guid id, [FromBody] UpdateSysDictItemDto dto,
             CancellationToken ct)
         {
@@ -136,7 +136,7 @@ namespace CRM.API.Controllers
         /// </summary>
         [HttpPut("reorder")]
         [HttpPut("items/reorder")]
-        [RequirePermission("rbac.manage")]
+        [RequirePermission("system.params.dict.write")]
         public async Task<ActionResult<ApiResponse<object>>> Reorder([FromBody] ReorderSysDictItemsDto dto,
             CancellationToken ct)
         {

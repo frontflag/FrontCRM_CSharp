@@ -1343,7 +1343,19 @@ const enUS = {
     fillRoleName: 'Please enter role name',
     permissionFilterPlaceholder: 'Search by code, name, or resource',
     permissionFilterEmpty: 'No matching permissions',
-    permissionSelectedCount: '{count} selected'
+    permissionSelectedCount: '{count} selected',
+    permKindLegend: 'Legend:',
+    permKindMenu: 'Sidebar menu',
+    permKindSub: 'In-page nav',
+    permKindFeature: 'Feature / API',
+    permKindMenuHint: 'Controls system sidebar menu visibility',
+    permKindSubHint: 'Param-page left nav; convention system.params.sales|purchase|finance.feature.read/write',
+    permKindFeatureHint: 'Business features or write APIs; usually not a sidebar item',
+    permKindFilterAll: 'All kinds',
+    permTabAll: 'All',
+    permTabMenu: 'Main menu',
+    permTabSub: 'In-page menu',
+    permMenuHintPrefix: 'Menu: '
   },
   systemPermission: {
     title: 'Permission Management',

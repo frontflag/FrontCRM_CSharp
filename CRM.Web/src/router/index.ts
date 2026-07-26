@@ -21,21 +21,24 @@ router.onError((err) => {
   console.error('[router] 路由或异步组件加载失败:', err)
 })
 
-/** meta.permission 或 meta.permissions（任一满足且未被身份拦截） */
+/** meta.permission / meta.permissions / meta.paramsModule */
 function routePermissionAllowed(authStore: ReturnType<typeof useAuthStore>, to: RouteLocationNormalized): boolean {
+  const check = (p: string) => {
+    const ok = p.startsWith('system.') || p === 'rbac.manage' || p === 'biz.ai.admin'
+      ? authStore.canAccessSystemPermission(p)
+      : authStore.hasPermission(p)
+    return ok && !authStore.isIdentityBlockedForPermission(p)
+  }
+  const paramsModule = to.meta.paramsModule as 'sales' | 'purchase' | 'finance' | undefined
+  if (paramsModule && !authStore.canAccessParamsModule(paramsModule)) return false
   const multi = to.meta.permissions
   if (Array.isArray(multi) && multi.length > 0) {
-    return multi.some(
-      (p) =>
-        typeof p === 'string' &&
-        authStore.hasPermission(p) &&
-        !authStore.isIdentityBlockedForPermission(p)
-    )
+    return multi.some((p) => typeof p === 'string' && check(p))
   }
   const one = to.meta.permission as string | undefined
-  if (one) {
-    return authStore.hasPermission(one) && !authStore.isIdentityBlockedForPermission(one)
-  }
+  if (one) return check(one)
+  // 仅 paramsModule、无 permission：模块入口通过即可
+  if (paramsModule) return true
   return true
 }
 

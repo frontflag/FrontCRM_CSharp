@@ -22,7 +22,7 @@ public class LoginLogsController : ControllerBase
     }
 
     [HttpGet]
-    [RequirePermission("rbac.manage")]
+    [RequirePermission("system.logs.login.read")]
     public async Task<ActionResult<ApiResponse<LoginLogPagedResult>>> List(
         [FromQuery] DateTime? loginAtFrom,
         [FromQuery] DateTime? loginAtTo,

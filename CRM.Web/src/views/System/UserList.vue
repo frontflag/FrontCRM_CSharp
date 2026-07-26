@@ -501,7 +501,10 @@ const load = async () => {
     ])
     allUsers.value = userList
     departmentOptions.value = [...depts].filter((d) => d.status === 1).sort((a, b) => a.departmentName.localeCompare(b.departmentName))
-    roleOptions.value = [...roles].filter((r) => r.status === 1).sort((a, b) => a.roleName.localeCompare(b.roleName))
+    roleOptions.value = [...roles]
+      .filter((r) => r.status === 1)
+      .filter((r) => authStore.user?.isSysAdmin === true || r.roleCode !== 'SYS_ADMIN')
+      .sort((a, b) => a.roleName.localeCompare(b.roleName))
   } catch (e: any) {
     ElMessage.error(e?.message || t('systemUser.loadFailed'))
   } finally {

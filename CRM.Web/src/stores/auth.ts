@@ -15,6 +15,10 @@ interface User {
   /** 主部门优先，多部门顿号分隔 */
   department?: string
   isSysAdmin?: boolean
+  isSysManager?: boolean
+  isBizManager?: boolean
+  hasManagementAccess?: boolean
+  hasBizDataBypass?: boolean
   roleCodes?: string[]
   permissionCodes?: string[]
   departmentIds?: string[]
@@ -77,6 +81,40 @@ const emptySimulationBanner = (): SimulationBanner => ({
   caption: ''
 })
 
+function applySummaryFields(target: User, summary: any, prevIsSysAdmin: boolean): User {
+  return {
+    ...target,
+    isSysAdmin: prevIsSysAdmin || !!summary?.isSysAdmin,
+    isSysManager: !!summary?.isSysManager,
+    isBizManager: !!summary?.isBizManager,
+    hasManagementAccess:
+      !!summary?.hasManagementAccess ||
+      !!summary?.isSysAdmin ||
+      !!summary?.isSysManager ||
+      !!summary?.isBizManager,
+    hasBizDataBypass:
+      !!summary?.hasBizDataBypass ||
+      !!summary?.isSysAdmin ||
+      !!summary?.isSysManager ||
+      !!summary?.isBizManager,
+    roleCodes: summary?.roleCodes || [],
+    permissionCodes: summary?.permissionCodes || [],
+    departmentIds: summary?.departmentIds || [],
+    identityType: Number(summary?.identityType ?? 0),
+    saleDataScope: Number(summary?.saleDataScope ?? 1),
+    saleDataAccess: Number(summary?.saleDataAccess ?? 0),
+    hideCustomerManagement: !!summary?.hideCustomerManagement,
+    purchaseDataScope: Number(summary?.purchaseDataScope ?? 1),
+    purchaseDataAccess: Number(summary?.purchaseDataAccess ?? 0),
+    hideVendorManagement: !!summary?.hideVendorManagement,
+    logisticsDataScope: Number(summary?.logisticsDataScope ?? 0),
+    logisticsDataAccess: Number(summary?.logisticsDataAccess ?? 0),
+    financeDataScope: Number(summary?.financeDataScope ?? 0),
+    financeDataAccess: Number(summary?.financeDataAccess ?? 0),
+    belongsToPurchaseDept: !!summary?.belongsToPurchaseDept
+  }
+}
+
 export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(localStorage.getItem('token'))
   const user = ref<User | null>(readUserFromStorage())
@@ -117,25 +155,7 @@ export const useAuthStore = defineStore('auth', () => {
     const summary = await authApi.getPermissionSummary().catch(() => null) as any
     if (summary) {
       const prevIsSysAdmin = user.value.isSysAdmin === true
-      user.value = {
-        ...user.value,
-        isSysAdmin: prevIsSysAdmin || !!summary?.isSysAdmin,
-        roleCodes: summary?.roleCodes || [],
-        permissionCodes: summary?.permissionCodes || [],
-        departmentIds: summary?.departmentIds || [],
-        identityType: Number(summary?.identityType ?? 0),
-        saleDataScope: Number(summary?.saleDataScope ?? 1),
-        saleDataAccess: Number(summary?.saleDataAccess ?? 0),
-        hideCustomerManagement: !!summary?.hideCustomerManagement,
-        purchaseDataScope: Number(summary?.purchaseDataScope ?? 1),
-        purchaseDataAccess: Number(summary?.purchaseDataAccess ?? 0),
-        hideVendorManagement: !!summary?.hideVendorManagement,
-        logisticsDataScope: Number(summary?.logisticsDataScope ?? 0),
-        logisticsDataAccess: Number(summary?.logisticsDataAccess ?? 0),
-        financeDataScope: Number(summary?.financeDataScope ?? 0),
-        financeDataAccess: Number(summary?.financeDataAccess ?? 0),
-        belongsToPurchaseDept: !!summary?.belongsToPurchaseDept
-      }
+      user.value = applySummaryFields(user.value, summary, prevIsSysAdmin)
     } else {
       user.value.identityType = user.value.identityType ?? 0
     }
@@ -194,27 +214,14 @@ export const useAuthStore = defineStore('auth', () => {
         const prevIsSysAdmin = user.value?.isSysAdmin === true
         const mergedId =
           normalizeAuthUserId(userData, token.value) || (user.value?.id ?? '').trim()
-        user.value = {
-          ...userData,
-          id: mergedId,
-          // 避免 permission-summary 覆盖掉原本的 SYS_ADMIN 标识
-          isSysAdmin: prevIsSysAdmin || !!summary?.isSysAdmin,
-          roleCodes: summary?.roleCodes || [],
-          permissionCodes: summary?.permissionCodes || [],
-          departmentIds: summary?.departmentIds || [],
-          identityType: Number(summary?.identityType ?? 0),
-          saleDataScope: Number(summary?.saleDataScope ?? 1),
-          saleDataAccess: Number(summary?.saleDataAccess ?? 0),
-          hideCustomerManagement: !!summary?.hideCustomerManagement,
-          purchaseDataScope: Number(summary?.purchaseDataScope ?? 1),
-          purchaseDataAccess: Number(summary?.purchaseDataAccess ?? 0),
-          hideVendorManagement: !!summary?.hideVendorManagement,
-          logisticsDataScope: Number(summary?.logisticsDataScope ?? 0),
-          logisticsDataAccess: Number(summary?.logisticsDataAccess ?? 0),
-          financeDataScope: Number(summary?.financeDataScope ?? 0),
-          financeDataAccess: Number(summary?.financeDataAccess ?? 0),
-          belongsToPurchaseDept: !!summary?.belongsToPurchaseDept
-        }
+        user.value = applySummaryFields(
+          {
+            ...userData,
+            id: mergedId
+          },
+          summary,
+          prevIsSysAdmin
+        )
         localStorage.setItem('user', JSON.stringify(user.value))
       }
       await loadSimulationBanner()
@@ -240,12 +247,55 @@ export const useAuthStore = defineStore('auth', () => {
     if (!permissionCode) return true
     if (!user.value) return false
     if (user.value.isSysAdmin) return true
-    return (user.value.permissionCodes || []).includes(permissionCode)
+    const codes = user.value.permissionCodes || []
+    if (codes.includes(permissionCode)) return true
+    // 遗留 rbac.manage 可访问 system.*
+    if (
+      (permissionCode.startsWith('system.') || permissionCode === 'rbac.manage') &&
+      codes.includes('rbac.manage')
+    ) {
+      return true
+    }
+    return false
+  }
+
+  /** 系统管理双重门槛：须 hasManagementAccess + 权限码；biz.ai.admin 同属参数管理入口 */
+  function canAccessSystemPermission(permissionCode?: string): boolean {
+    if (!permissionCode) return true
+    if (!user.value) return false
+    if (user.value.isSysAdmin) return true
+    const isManagementMenu =
+      permissionCode.startsWith('system.') ||
+      permissionCode === 'rbac.manage' ||
+      permissionCode === 'biz.ai.admin'
+    // 无管理身份时：system.* 拒绝；AI 配置仍允许业务角色（如 biz_all）持有
+    if (isManagementMenu && permissionCode !== 'biz.ai.admin' && !user.value.hasManagementAccess) {
+      return false
+    }
+    return hasPermission(permissionCode)
+  }
+
+  /**
+   * 销售/采购/财务参数模块入口：侧栏 .read，或任一页内子项权限（含未来新增子项）。
+   * 约定：system.params.{area}.{feature}.(read|write)
+   */
+  function canAccessParamsModule(area: 'sales' | 'purchase' | 'finance'): boolean {
+    if (!user.value) return false
+    if (user.value.isSysAdmin) return true
+    if (canAccessSystemPermission(`system.params.${area}.read`)) return true
+    const prefix = `system.params.${area}.`
+    const codes = user.value.permissionCodes || []
+    return codes.some((c) => {
+      if (!c.toLowerCase().startsWith(prefix)) return false
+      const parts = c.split('.')
+      // system.params.area.feature.read → ≥5 段
+      return parts.length >= 5
+    })
   }
 
   /** 主部门销售数据只读（与 SaleDataScope 独立；仍可有 sales-order.read） */
   function isSaleDataReadOnly(): boolean {
-    return !user.value?.isSysAdmin && (user.value?.saleDataAccess ?? 0) === 1
+    return !user.value?.hasBizDataBypass && !user.value?.isSysAdmin && (user.value?.saleDataAccess ?? 0) === 1
   }
 
   /** 主部门采购数据只读 */
@@ -340,6 +390,8 @@ export const useAuthStore = defineStore('auth', () => {
     fetchCurrentUser,
     loadSimulationBanner,
     hasPermission,
+    canAccessSystemPermission,
+    canAccessParamsModule,
     isIdentityBlockedForPermission,
     isSaleDataReadOnly,
     isPurchaseDataReadOnly,

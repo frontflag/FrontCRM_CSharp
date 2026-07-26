@@ -761,173 +761,173 @@ const routes: RouteRecordRaw[] = [
         path: 'system/users',
         name: 'UserList',
         component: () => import('@/views/System/UserList.vue'),
-        meta: { requiresAuth: true, title: '员工管理', permission: 'rbac.manage' }
+        meta: { requiresAuth: true, title: '员工管理', permission: 'system.org.users.read' }
       },
       {
         path: 'system/users/create',
         name: 'UserCreate',
         component: () => import('@/views/System/UserEdit.vue'),
-        meta: { requiresAuth: true, title: '新增员工', permission: 'rbac.manage' }
+        meta: { requiresAuth: true, title: '新增员工', permission: 'system.org.users.write' }
       },
       {
         path: 'system/users/:id/edit',
         name: 'UserEdit',
         component: () => import('@/views/System/UserEdit.vue'),
-        meta: { requiresAuth: true, title: '编辑员工', permission: 'rbac.manage' }
+        meta: { requiresAuth: true, title: '编辑员工', permission: 'system.org.users.write' }
       },
       {
         path: 'system/roles',
         name: 'RoleList',
         component: () => import('@/views/System/RoleList.vue'),
-        meta: { requiresAuth: true, title: '角色管理', permission: 'rbac.manage' }
+        meta: { requiresAuth: true, title: '角色管理', permission: 'system.rbac.roles.read' }
       },
       {
         path: 'system/roles/create',
         name: 'RoleCreate',
         component: () => import('@/views/System/RoleEdit.vue'),
-        meta: { requiresAuth: true, title: '新增角色', permission: 'rbac.manage' }
+        meta: { requiresAuth: true, title: '新增角色', permission: 'system.rbac.roles.write' }
       },
       {
         path: 'system/roles/:id/edit',
         name: 'RoleEdit',
         component: () => import('@/views/System/RoleEdit.vue'),
-        meta: { requiresAuth: true, title: '编辑角色', permission: 'rbac.manage' }
+        meta: { requiresAuth: true, title: '编辑角色', permission: 'system.rbac.roles.write' }
       },
       {
         path: 'system/permissions',
         name: 'PermissionList',
         component: () => import('@/views/System/PermissionList.vue'),
-        meta: { requiresAuth: true, title: '权限管理', permission: 'rbac.manage' }
+        meta: { requiresAuth: true, title: '权限管理', permission: 'system.rbac.permissions.read' }
       },
       {
         path: 'system/permissions/create',
         name: 'PermissionCreate',
         component: () => import('@/views/System/PermissionEdit.vue'),
-        meta: { requiresAuth: true, title: '新增权限', permission: 'rbac.manage' }
+        meta: { requiresAuth: true, title: '新增权限', permission: 'system.rbac.permissions.write' }
       },
       {
         path: 'system/permissions/:id/edit',
         name: 'PermissionEdit',
         component: () => import('@/views/System/PermissionEdit.vue'),
-        meta: { requiresAuth: true, title: '编辑权限', permission: 'rbac.manage' }
+        meta: { requiresAuth: true, title: '编辑权限', permission: 'system.rbac.permissions.write' }
       },
       {
         path: 'system/user-config',
         name: 'UserConfig',
         component: () => import('@/views/System/UserConfigView.vue'),
-        meta: { requiresAuth: true, title: '用户配置', permission: 'rbac.manage' }
+        meta: { requiresAuth: true, title: '用户配置', permission: 'system.org.user-config.read' }
       },
       {
         path: 'system/departments',
         name: 'DepartmentList',
         component: () => import('@/views/System/DepartmentList.vue'),
-        meta: { requiresAuth: true, title: '部门管理', permission: 'rbac.manage' }
+        meta: { requiresAuth: true, title: '部门管理', permission: 'system.org.departments.read' }
       },
       {
         path: 'system/departments/create',
         name: 'DepartmentCreate',
         component: () => import('@/views/System/DepartmentEdit.vue'),
-        meta: { requiresAuth: true, title: '新增部门', permission: 'rbac.manage' }
+        meta: { requiresAuth: true, title: '新增部门', permission: 'system.org.departments.write' }
       },
       {
         path: 'system/departments/:id/edit',
         name: 'DepartmentEdit',
         component: () => import('@/views/System/DepartmentEdit.vue'),
-        meta: { requiresAuth: true, title: '编辑部门', permission: 'rbac.manage' }
+        meta: { requiresAuth: true, title: '编辑部门', permission: 'system.org.departments.write' }
       },
       {
         path: 'system/departments/:id',
         name: 'DepartmentDetail',
         component: () => import('@/views/System/DepartmentDetail.vue'),
-        meta: { requiresAuth: true, title: '部门详情', permission: 'rbac.manage' }
+        meta: { requiresAuth: true, title: '部门详情', permission: 'system.org.departments.read' }
       },
       {
         path: 'system/company-info',
         name: 'CompanyInfo',
         component: () => import('@/views/System/CompanyInfoView.vue'),
-        meta: { requiresAuth: true, title: '公司信息', permission: 'rbac.manage' }
+        meta: { requiresAuth: true, title: '公司信息', permission: 'system.params.company.read' }
       },
       {
         path: 'system/dict-items',
         name: 'DictItemList',
         component: () => import('@/views/System/DictItemList.vue'),
-        meta: { requiresAuth: true, title: '数据字典', permission: 'rbac.manage' }
+        meta: { requiresAuth: true, title: '数据字典', permission: 'system.params.dict.read' }
       },
       {
         path: 'system/sales-params',
         component: () => import('@/views/System/SalesParamsLayout.vue'),
-        meta: { requiresAuth: true, title: '销售参数', permission: 'rbac.manage' },
+        meta: { requiresAuth: true, title: '销售参数', paramsModule: 'sales' },
         children: [
           { path: '', redirect: '/system/sales-params/refresh-customer' },
           {
             path: 'refresh-customer',
             name: 'SalesRefreshCustomer',
             component: () => import('@/views/System/SalesRefreshCustomerSettings.vue'),
-            meta: { requiresAuth: true, title: '销售参数', permission: 'rbac.manage' }
+            meta: { requiresAuth: true, title: '销售参数', permission: 'system.params.sales.refresh-customer.read' }
           }
         ]
       },
       {
         path: 'system/purchase-params',
         component: () => import('@/views/System/PurchaseParamsLayout.vue'),
-        meta: { requiresAuth: true, title: '采购参数', permission: 'rbac.manage' },
+        meta: { requiresAuth: true, title: '采购参数', paramsModule: 'purchase' },
         children: [
           { path: '', redirect: '/system/purchase-params/assignee-count' },
           {
             path: 'assignee-count',
             name: 'PurchaseAssigneeCount',
             component: () => import('@/views/System/PurchaseAssigneeCountSettings.vue'),
-            meta: { requiresAuth: true, title: '采购参数', permission: 'rbac.manage' }
+            meta: { requiresAuth: true, title: '采购参数', permission: 'system.params.purchase.assignee-count.read' }
           },
           {
             path: 'demand-protection',
             name: 'PurchaseDemandProtection',
             component: () => import('@/views/System/PurchaseDemandProtectionSettings.vue'),
-            meta: { requiresAuth: true, title: '采购参数', permission: 'rbac.manage' }
+            meta: { requiresAuth: true, title: '采购参数', permission: 'system.params.purchase.demand-protection.read' }
           },
           {
             path: 'quoter-pool',
             name: 'PurchaseQuoterPool',
             component: () => import('@/views/System/PurchaseQuoterPoolSettings.vue'),
-            meta: { requiresAuth: true, title: '采购参数', permission: 'rbac.manage' }
+            meta: { requiresAuth: true, title: '采购参数', permission: 'system.params.purchase.quoter-pool.read' }
           },
           {
             path: 'default-assign-method',
             name: 'PurchaseDefaultAssignMethod',
             component: () => import('@/views/System/PurchaseDefaultAssignMethodSettings.vue'),
-            meta: { requiresAuth: true, title: '采购参数', permission: 'rbac.manage' }
+            meta: { requiresAuth: true, title: '采购参数', permission: 'system.params.purchase.default-assign-method.read' }
           },
           {
             path: 'refresh-vendor',
             name: 'PurchaseRefreshVendor',
             component: () => import('@/views/System/PurchaseRefreshVendorSettings.vue'),
-            meta: { requiresAuth: true, title: '采购参数', permission: 'rbac.manage' }
+            meta: { requiresAuth: true, title: '采购参数', permission: 'system.params.purchase.refresh-vendor.read' }
           }
         ]
       },
       {
         path: 'system/finance-params',
         component: () => import('@/views/System/FinanceParamsLayout.vue'),
-        meta: { requiresAuth: true, title: '财务参数', permission: 'rbac.manage' },
+        meta: { requiresAuth: true, title: '财务参数', paramsModule: 'finance' },
         children: [
           { path: '', redirect: '/system/finance-params/exchange-rates' },
           {
             path: 'exchange-rates',
             name: 'FinanceExchangeRates',
             component: () => import('@/views/System/FinanceExchangeRateSettings.vue'),
-            meta: { requiresAuth: true, title: '财务参数', permission: 'rbac.manage' }
+            meta: { requiresAuth: true, title: '财务参数', permission: 'system.params.finance.exchange-rates.read' }
           },
           {
             path: 'purchase-cost-params',
             name: 'FinancePurchaseCostParams',
             component: () => import('@/views/System/PurchaseCostParamSettings.vue'),
-            meta: { requiresAuth: true, title: '财务参数', permission: 'rbac.manage' }
+            meta: { requiresAuth: true, title: '财务参数', permission: 'system.params.finance.purchase-cost-params.read' }
           },
           {
             path: 'payment-banks',
             name: 'FinancePaymentBanks',
             component: () => import('@/views/System/FinancePaymentBankSettings.vue'),
-            meta: { requiresAuth: true, title: '财务参数', permission: 'rbac.manage' }
+            meta: { requiresAuth: true, title: '财务参数', permission: 'system.params.finance.payment-banks.read' }
           }
         ]
       },
@@ -935,13 +935,13 @@ const routes: RouteRecordRaw[] = [
         path: 'system/login-logs',
         name: 'LoginLogList',
         component: () => import('@/views/System/LoginLogList.vue'),
-        meta: { requiresAuth: true, title: '登录日志', permission: 'rbac.manage' }
+        meta: { requiresAuth: true, title: '登录日志', permission: 'system.logs.login.read' }
       },
       {
         path: 'system/operation-logs',
         name: 'OperationLogList',
         component: () => import('@/views/System/OperationLogList.vue'),
-        meta: { requiresAuth: true, title: '操作日志', permission: 'rbac.manage' }
+        meta: { requiresAuth: true, title: '操作日志', permission: 'system.logs.operation.read' }
       },
       {
         path: 'system/ai-config',

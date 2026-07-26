@@ -948,7 +948,7 @@
         <!-- 组织管理（可展开菜单组） -->
         <div class="menu-section-label" v-if="!isCollapsed">{{ t('layout.sections.systemManagement') }}</div>
         <SidebarMenuGroupFlyout
-          v-if="hasPermission('rbac.manage')"
+          v-if="canAccessSystemPermission('system.org.users.read') || canAccessSystemPermission('system.org.departments.read') || canAccessSystemPermission('system.rbac.roles.read') || canAccessSystemPermission('system.rbac.permissions.read') || canAccessSystemPermission('system.org.user-config.read')"
           :collapsed="isCollapsed"
           :expanded="openGroups.systemManagement"
           @toggle="toggleGroup('systemManagement')"
@@ -980,16 +980,16 @@
             </svg>
           </template>
           <template #submenu>
-            <router-link to="/system/users" class="submenu-item" active-class="active" exact>{{ t('layout.menu.userManagement') }}</router-link>
-            <router-link to="/system/departments" class="submenu-item" active-class="active" exact>{{ t('layout.menu.departmentManagement') }}</router-link>
-            <router-link to="/system/roles" class="submenu-item" active-class="active" exact>{{ t('layout.menu.roleManagement') }}</router-link>
-            <router-link to="/system/permissions" class="submenu-item" active-class="active" exact>{{ t('layout.menu.permissionManagement') }}</router-link>
-            <router-link to="/system/user-config" class="submenu-item" active-class="active" exact>{{ t('layout.menu.userConfig') }}</router-link>
+            <router-link v-if="canAccessSystemPermission('system.org.users.read')" to="/system/users" class="submenu-item" active-class="active" exact>{{ t('layout.menu.userManagement') }}</router-link>
+            <router-link v-if="canAccessSystemPermission('system.org.departments.read')" to="/system/departments" class="submenu-item" active-class="active" exact>{{ t('layout.menu.departmentManagement') }}</router-link>
+            <router-link v-if="canAccessSystemPermission('system.rbac.roles.read')" to="/system/roles" class="submenu-item" active-class="active" exact>{{ t('layout.menu.roleManagement') }}</router-link>
+            <router-link v-if="canAccessSystemPermission('system.rbac.permissions.read')" to="/system/permissions" class="submenu-item" active-class="active" exact>{{ t('layout.menu.permissionManagement') }}</router-link>
+            <router-link v-if="canAccessSystemPermission('system.org.user-config.read')" to="/system/user-config" class="submenu-item" active-class="active" exact>{{ t('layout.menu.userConfig') }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
 
         <SidebarMenuGroupFlyout
-          v-if="hasPermission('rbac.manage') || hasPermission('biz.ai.admin')"
+          v-if="canAccessSystemPermission('system.params.company.read') || canAccessSystemPermission('system.params.dict.read') || canAccessParamsModule('sales') || canAccessParamsModule('purchase') || canAccessParamsModule('finance') || canAccessSystemPermission('biz.ai.admin')"
           :collapsed="isCollapsed"
           :expanded="openGroups.paramManagement"
           @toggle="toggleGroup('paramManagement')"
@@ -1027,42 +1027,42 @@
           </template>
           <template #submenu>
             <router-link
-              v-if="hasPermission('rbac.manage')"
+              v-if="canAccessSystemPermission('system.params.company.read')"
               to="/system/company-info"
               class="submenu-item"
               active-class="active"
               exact
             >{{ t('layout.menu.companyInfo') }}</router-link>
             <router-link
-              v-if="hasPermission('rbac.manage')"
+              v-if="canAccessSystemPermission('system.params.dict.read')"
               to="/system/dict-items"
               class="submenu-item"
               active-class="active"
               exact
             >{{ t('layout.menu.dictItems') }}</router-link>
             <router-link
-              v-if="hasPermission('biz.ai.admin')"
+              v-if="canAccessSystemPermission('biz.ai.admin')"
               to="/system/ai-config"
               class="submenu-item"
               active-class="active"
               exact
             >{{ t('layout.menu.aiConfig') }}</router-link>
             <router-link
-              v-if="hasPermission('rbac.manage')"
+              v-if="canAccessParamsModule('sales')"
               to="/system/sales-params/refresh-customer"
               class="submenu-item"
               active-class="active"
               exact
             >{{ t('layout.menu.salesParams') }}</router-link>
             <router-link
-              v-if="hasPermission('rbac.manage')"
+              v-if="canAccessParamsModule('purchase')"
               to="/system/purchase-params/assignee-count"
               class="submenu-item"
               active-class="active"
               exact
             >{{ t('layout.menu.purchaseParams') }}</router-link>
             <router-link
-              v-if="hasPermission('rbac.manage')"
+              v-if="canAccessParamsModule('finance')"
               to="/system/finance-params/exchange-rates"
               class="submenu-item"
               active-class="active"
@@ -1072,7 +1072,7 @@
         </SidebarMenuGroupFlyout>
 
         <SidebarMenuGroupFlyout
-          v-if="hasPermission('rbac.manage')"
+          v-if="canAccessSystemPermission('system.logs.login.read') || canAccessSystemPermission('system.logs.operation.read')"
           :collapsed="isCollapsed"
           :expanded="openGroups.systemLogs"
           @toggle="toggleGroup('systemLogs')"
@@ -1105,8 +1105,8 @@
             </svg>
           </template>
           <template #submenu>
-            <router-link to="/system/login-logs" class="submenu-item" active-class="active" exact>{{ t('layout.menu.loginLog') }}</router-link>
-            <router-link to="/system/operation-logs" class="submenu-item" active-class="active" exact>{{ t('layout.menu.operationLog') }}</router-link>
+            <router-link v-if="canAccessSystemPermission('system.logs.login.read')" to="/system/login-logs" class="submenu-item" active-class="active" exact>{{ t('layout.menu.loginLog') }}</router-link>
+            <router-link v-if="canAccessSystemPermission('system.logs.operation.read')" to="/system/operation-logs" class="submenu-item" active-class="active" exact>{{ t('layout.menu.operationLog') }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
 
@@ -1605,6 +1605,8 @@ watch(
   }
 )
 const authStore = useAuthStore()
+const canAccessSystemPermission = authStore.canAccessSystemPermission
+const canAccessParamsModule = authStore.canAccessParamsModule
 const { simulationBanner } = storeToRefs(authStore)
 const simulationBannerEnabled = computed(() => simulationBanner.value.enabled)
 const simulationCaption = computed(() => simulationBanner.value.caption)

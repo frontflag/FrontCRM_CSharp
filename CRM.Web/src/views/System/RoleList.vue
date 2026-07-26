@@ -86,6 +86,7 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import { rbacAdminApi, type RbacRole } from '@/api/rbacAdmin'
+import { useAuthStore } from '@/stores/auth'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
@@ -134,7 +135,9 @@ const roleTableColumns = computed<CrmTableColumnDef[]>(() => [
 const load = async () => {
   loading.value = true
   try {
-    roles.value = await rbacAdminApi.getRoles()
+    const list = await rbacAdminApi.getRoles()
+    const isSa = useAuthStore().user?.isSysAdmin === true
+    roles.value = isSa ? list : list.filter((r) => r.roleCode !== 'SYS_ADMIN')
   } catch (e: any) {
     ElMessage.error(e?.message || t('systemRole.loadFailed'))
   } finally {

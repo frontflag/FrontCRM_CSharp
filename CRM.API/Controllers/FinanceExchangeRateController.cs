@@ -43,7 +43,7 @@ namespace CRM.API.Controllers
         }
 
         [HttpPut("current")]
-        [RequirePermission("rbac.manage")]
+        [RequirePermission("system.params.finance.exchange-rates.write")]
         public async Task<ActionResult<ApiResponse<FinanceExchangeRateDto>>> PutCurrent(
             [FromBody] UpdateFinanceExchangeRateRequest body,
             CancellationToken ct)
@@ -76,7 +76,7 @@ namespace CRM.API.Controllers
         }
 
         [HttpGet("change-log")]
-        [RequirePermission("rbac.manage")]
+        [RequirePermission("system.params.finance.exchange-rates.read")]
         public async Task<ActionResult<ApiResponse<FinanceExchangeRateChangeLogPageDto>>> GetChangeLog(
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20,

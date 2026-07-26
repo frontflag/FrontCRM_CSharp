@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using CRM.API.Models.DTOs;
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
@@ -41,8 +42,30 @@ namespace CRM.API.Authorization
             try
             {
                 var summary = await rbacService.GetUserPermissionSummaryAsync(userId);
-                var ok = summary.IsSysAdmin || summary.PermissionCodes.Any(c =>
+                if (summary.IsSysAdmin)
+                    return;
+
+                var needsSystemGate = SystemPermissionCodes.IsSystemPermission(_permissionCode);
+                if (needsSystemGate && !summary.HasManagementAccess)
+                {
+                    context.Result = new ObjectResult(ApiResponse<object>.Fail($"无权限访问: {_permissionCode}", 403))
+                    {
+                        StatusCode = 403
+                    };
+                    return;
+                }
+
+                var ok = summary.PermissionCodes.Any(c =>
                     string.Equals(c, _permissionCode, StringComparison.OrdinalIgnoreCase));
+
+                // 遗留 rbac.manage：持有者可访问任一 system.*（兼容迁移期）
+                if (!ok && needsSystemGate &&
+                    summary.PermissionCodes.Any(c =>
+                        string.Equals(c, SystemPermissionCodes.LegacyRbacManage, StringComparison.OrdinalIgnoreCase)))
+                {
+                    ok = true;
+                }
+
                 if (ok)
                     return;
 

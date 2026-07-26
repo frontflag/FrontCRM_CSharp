@@ -11,6 +11,7 @@
       <div class="settings-nav" aria-label="sales-params-nav">
         <div class="nav-group-label">{{ t('salesParams.navTitle') }}</div>
         <router-link
+          v-if="canAccessSystemPermission('system.params.sales.refresh-customer.read')"
           to="/system/sales-params/refresh-customer"
           class="nav-item"
           active-class="active"
@@ -30,8 +31,11 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { RefreshRight } from '@element-plus/icons-vue'
+import { useAuthStore } from '@/stores'
 
 const { t } = useI18n()
+const authStore = useAuthStore()
+const canAccessSystemPermission = authStore.canAccessSystemPermission
 </script>
 
 <style scoped lang="scss">

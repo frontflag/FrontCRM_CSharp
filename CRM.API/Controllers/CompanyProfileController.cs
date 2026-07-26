@@ -40,7 +40,7 @@ namespace CRM.API.Controllers
         }
 
         [HttpGet]
-        [RequirePermission("rbac.manage")]
+        [RequirePermission("system.params.company.write")]
         public async Task<ActionResult<ApiResponse<CompanyProfileBundleDto>>> Get(CancellationToken ct)
         {
             try
@@ -126,7 +126,7 @@ namespace CRM.API.Controllers
 
         /// <summary>删除公司银行账户前检查：是否已被付款单引用。</summary>
         [HttpGet("bank/{bankId}/can-delete")]
-        [RequirePermission("rbac.manage")]
+        [RequirePermission("system.params.company.write")]
         public async Task<ActionResult<ApiResponse<CompanyBankDeleteCheckDto>>> CanDeleteBank(string bankId, CancellationToken ct)
         {
             var id = (bankId ?? string.Empty).Trim();
@@ -152,7 +152,7 @@ namespace CRM.API.Controllers
         }
 
         [HttpPut]
-        [RequirePermission("rbac.manage")]
+        [RequirePermission("system.params.company.write")]
         public async Task<ActionResult<ApiResponse<object>>> Put([FromBody] CompanyProfileBundleDto body, CancellationToken ct)
         {
             if (body == null)

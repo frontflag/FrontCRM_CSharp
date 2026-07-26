@@ -11,6 +11,7 @@
       <div class="settings-nav" aria-label="finance-params-nav">
         <div class="nav-group-label">{{ t('financeParams.navTitle') }}</div>
         <router-link
+          v-if="canAccessSystemPermission('system.params.finance.exchange-rates.read')"
           to="/system/finance-params/exchange-rates"
           class="nav-item"
           active-class="active"
@@ -19,6 +20,7 @@
           <span>{{ t('financeParams.exchangeRatesNav') }}</span>
         </router-link>
         <router-link
+          v-if="canAccessSystemPermission('system.params.finance.purchase-cost-params.read')"
           to="/system/finance-params/purchase-cost-params"
           class="nav-item"
           active-class="active"
@@ -27,6 +29,7 @@
           <span>{{ t('financeParams.purchaseCostParamsNav') }}</span>
         </router-link>
         <router-link
+          v-if="canAccessSystemPermission('system.params.finance.payment-banks.read')"
           to="/system/finance-params/payment-banks"
           class="nav-item"
           active-class="active"
@@ -46,8 +49,11 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { TrendCharts, Histogram, Wallet } from '@element-plus/icons-vue'
+import { useAuthStore } from '@/stores'
 
 const { t } = useI18n()
+const authStore = useAuthStore()
+const canAccessSystemPermission = authStore.canAccessSystemPermission
 </script>
 
 <style scoped lang="scss">

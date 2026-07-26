@@ -45,9 +45,19 @@
           <div class="field-hint">每个账号在部门维度仅分配一种组织角色，编码固定为 DEPT_DIRECTOR / DEPT_MANAGER / DEPT_EMPLOYEE。系统最高权限由下方「系统管理员」单独授予（角色 SYS_ADMIN），不出现在本下拉里。</div>
         </el-form-item>
 
-        <el-form-item v-if="canGrantSysAdmin && sysAdminRoleId" label="系统管理员">
-          <el-checkbox v-model="grantSysAdmin">授予系统管理员权限（SYS_ADMIN）</el-checkbox>
-          <div class="field-hint">与部门角色可同时存在：仍须选择一种部门组织角色。仅当前登录账号为系统管理员时显示此项。</div>
+        <el-form-item v-if="canGrantSysAdmin && sysAdminRoleId" label="SuperAdmin">
+          <el-checkbox v-model="grantSysAdmin">授予 SuperAdmin（SYS_ADMIN）</el-checkbox>
+          <div class="field-hint">仅当前登录为 SuperAdmin 时可授予。改密须通过数据库 SQL。</div>
+        </el-form-item>
+
+        <el-form-item v-if="canGrantBizManager && bizManagerRoleId" label="Manager">
+          <el-checkbox v-model="grantBizManager">授予 Manager（SYS_BIZ_MANAGER）</el-checkbox>
+          <div class="field-hint">Admin / SuperAdmin 可新建 Manager；Manager 本人不能创建其他 Manager。</div>
+        </el-form-item>
+
+        <el-form-item v-if="canGrantSysManager && sysManagerRoleId" label="Admin">
+          <el-checkbox v-model="grantSysManager">授予 Admin（SYS_MANAGER）</el-checkbox>
+          <div class="field-hint">仅 SuperAdmin 可授予 Admin。</div>
         </el-form-item>
 
         <el-form-item label="业务扩展角色">
@@ -121,6 +131,10 @@ const authStore = useAuthStore()
 const { t } = useI18n()
 
 const canGrantSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
+const canGrantSysManager = computed(() => authStore.user?.isSysAdmin === true)
+const canGrantBizManager = computed(
+  () => authStore.user?.isSysAdmin === true || authStore.user?.isSysManager === true
+)
 
 const userId = route.params.id as string | undefined
 const isEdit = !!userId
@@ -149,6 +163,8 @@ const departments = ref<RbacDepartment[]>([])
 const preservedNonOrgRoleIds = ref<string[]>([])
 /** 是否授予 SYS_ADMIN（需当前登录用户也是系统管理员） */
 const grantSysAdmin = ref(false)
+const grantSysManager = ref(false)
+const grantBizManager = ref(false)
 
 const formData = ref({
   userName: '',
@@ -189,6 +205,10 @@ const selectedBusinessRoleIds = computed({
 })
 
 const sysAdminRoleId = computed(() => roles.value.find(r => r.roleCode === 'SYS_ADMIN')?.id ?? '')
+const sysManagerRoleId = computed(() => roles.value.find(r => r.roleCode === 'SYS_MANAGER')?.id ?? '')
+const bizManagerRoleId = computed(() => roles.value.find(r => r.roleCode === 'SYS_BIZ_MANAGER')?.id ?? '')
+
+const MANAGEMENT_ROLE_CODES = new Set(['SYS_ADMIN', 'SYS_MANAGER', 'SYS_BIZ_MANAGER'])
 
 const orgRoleIdSet = computed(() => new Set(departmentRoles.value.map(r => r.id)))
 
@@ -203,16 +223,26 @@ const selectedDeptRoleId = computed({
   }
 })
 
+function stripManagedRoleIds(ids: string[]): string[] {
+  const strip = new Set<string>()
+  if (canGrantSysAdmin.value && sysAdminRoleId.value) strip.add(sysAdminRoleId.value)
+  if (canGrantSysManager.value && sysManagerRoleId.value) strip.add(sysManagerRoleId.value)
+  if (canGrantBizManager.value && bizManagerRoleId.value) strip.add(bizManagerRoleId.value)
+  return ids.filter(id => !strip.has(id))
+}
+
 function buildRoleIdsForSubmit(): string[] {
   const deptId = selectedDeptRoleId.value
-  const sid = sysAdminRoleId.value
-  let merged: string[]
-  if (canGrantSysAdmin.value) {
-    merged = [...preservedNonOrgRoleIds.value.filter(id => !sid || id !== sid)]
-    if (grantSysAdmin.value && sid) merged.push(sid)
-  } else {
-    // 无「授予系统管理员」能力时保留库里已有的非部门角色（含 SYS_ADMIN），避免误删
-    merged = [...preservedNonOrgRoleIds.value]
+  let merged = stripManagedRoleIds([...preservedNonOrgRoleIds.value])
+  if (canGrantSysAdmin.value && grantSysAdmin.value && sysAdminRoleId.value) merged.push(sysAdminRoleId.value)
+  if (canGrantSysManager.value && grantSysManager.value && sysManagerRoleId.value) merged.push(sysManagerRoleId.value)
+  if (canGrantBizManager.value && grantBizManager.value && bizManagerRoleId.value) merged.push(bizManagerRoleId.value)
+  if (!canGrantSysAdmin.value && !canGrantSysManager.value && !canGrantBizManager.value) {
+    // Manager 等：仅保留非管理角色
+    merged = preservedNonOrgRoleIds.value.filter(id => {
+      const code = roles.value.find(r => r.id === id)?.roleCode
+      return code != null && !MANAGEMENT_ROLE_CODES.has(code)
+    })
   }
   if (deptId) merged.push(deptId)
   return [...new Set(merged)]
@@ -251,11 +281,12 @@ const load = async () => {
       preservedNonOrgRoleIds.value = allIds.filter(id => !orgSet.has(id))
       formData.value.roleIds = allIds.filter(id => orgSet.has(id) || preservedNonOrgRoleIds.value.includes(id))
 
+      // 管理角色由下方勾选框单独控制，不算「未识别扩展角色」
       const unknown = preservedNonOrgRoleIds.value.filter(id => {
         const r = roles.value.find(x => x.id === id)
         if (!r) return true
         const code = r.roleCode
-        if (code === 'SYS_ADMIN') return false
+        if (MANAGEMENT_ROLE_CODES.has(code)) return false
         return !PRESERVABLE_BUSINESS_ROLE_CODES.has(code)
       })
       if (unknown.length) {
@@ -265,13 +296,20 @@ const load = async () => {
         preservedNonOrgRoleIds.value = preservedNonOrgRoleIds.value.filter(id => {
           const r = roles.value.find(x => x.id === id)
           const code = r?.roleCode
-          return code === 'SYS_ADMIN' || (code != null && PRESERVABLE_BUSINESS_ROLE_CODES.has(code))
+          return (
+            code != null &&
+            (MANAGEMENT_ROLE_CODES.has(code) || PRESERVABLE_BUSINESS_ROLE_CODES.has(code))
+          )
         })
         formData.value.roleIds = [...preservedNonOrgRoleIds.value, ...allIds.filter(id => orgSet.has(id))]
       }
 
       const sId = sysAdminRoleId.value
       grantSysAdmin.value = !!(sId && (dto.roleIds || []).includes(sId))
+      const mId = sysManagerRoleId.value
+      grantSysManager.value = !!(mId && (dto.roleIds || []).includes(mId))
+      const bId = bizManagerRoleId.value
+      grantBizManager.value = !!(bId && (dto.roleIds || []).includes(bId))
 
       formData.value.departmentIds = dto.departmentIds || []
       formData.value.primaryDepartmentId = dto.primaryDepartmentId || ''

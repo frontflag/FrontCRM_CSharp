@@ -1,17 +1,18 @@
 using CRM.API.Models.DTOs;
 using CRM.API.Authorization;
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
 using CRM.Core.Models.Rbac;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace CRM.API.Controllers
 {
     [ApiController]
     [Authorize]
     [Route("api/v1/[controller]")]
-    [RequirePermission("rbac.manage")]
     public class RbacController : ControllerBase
     {
         private readonly IRbacService _rbacService;
@@ -24,26 +25,6 @@ namespace CRM.API.Controllers
         private readonly IRepository<RbacUserDepartment> _userDepartmentRepo;
         private readonly IRepository<RbacRolePermission> _rolePermissionRepo;
         private readonly IUnitOfWork _unitOfWork;
-
-        /// <summary>
-        /// 员工/部门账号可分配角色（与前端「员工编辑」一致）。
-        /// 含 SYS_ADMIN；含种子中的业务扩展角色（可与部门三角色并存，如采购员 purchase_buyer）。
-        /// </summary>
-        private static readonly HashSet<string> AssignableUserRoleCodes = new(StringComparer.OrdinalIgnoreCase)
-        {
-            "DEPT_DIRECTOR",
-            "DEPT_MANAGER",
-            "DEPT_EMPLOYEE",
-            "SYS_ADMIN",
-            "purchase_buyer",
-            "biz_all",
-            "sales_operator",
-            "purchase_operator",
-            "commerce_operator",
-            "purchase_ops_operator",
-            "logistics_operator",
-            "finance_operator"
-        };
 
         public RbacController(
             IRbacService rbacService,
@@ -69,7 +50,29 @@ namespace CRM.API.Controllers
             _unitOfWork = unitOfWork;
         }
 
-        private async Task<ActionResult<ApiResponse<object>>?> ValidateUserRoleIdsAsync(IReadOnlyList<string>? roleIds)
+        private async Task<UserPermissionSummaryDto?> GetActorSummaryAsync()
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrWhiteSpace(userId)) return null;
+            return await _rbacService.GetUserPermissionSummaryAsync(userId);
+        }
+
+        private ActionResult<ApiResponse<object>> ForbidPerm(string code) =>
+            StatusCode(403, ApiResponse<object>.Fail($"无权限访问: {code}", 403));
+
+        private async Task<ActionResult<ApiResponse<object>>?> RequireActorPermAsync(string code)
+        {
+            var actor = await GetActorSummaryAsync();
+            if (actor == null)
+                return Unauthorized(ApiResponse<object>.Fail("未登录", 401));
+            if (!actor.HasPermissionCode(code))
+                return ForbidPerm(code);
+            return null;
+        }
+
+        private async Task<ActionResult<ApiResponse<object>>?> ValidateUserRoleIdsAsync(
+            UserPermissionSummaryDto actor,
+            IReadOnlyList<string>? roleIds)
         {
             if (roleIds == null || roleIds.Count == 0) return null;
             var distinctIds = roleIds
@@ -85,27 +88,59 @@ namespace CRM.API.Controllers
             foreach (var r in found)
             {
                 var code = r.RoleCode ?? string.Empty;
-                if (!AssignableUserRoleCodes.Contains(code))
+                if (!ManagementAccountPolicy.CanAssignRoleCode(actor, code))
                 {
-                    return BadRequest(ApiResponse<object>.Fail(
-                        $"不允许分配的角色: {code}。请使用部门角色 DEPT_*、系统管理员 SYS_ADMIN，或业务扩展角色（如 purchase_buyer、finance_operator 等）。",
-                        400));
+                    return StatusCode(403, ApiResponse<object>.Fail(
+                        $"不允许分配的角色: {code}",
+                        403));
                 }
             }
 
             return null;
         }
 
+        private async Task<(AdminUserDto? dto, IReadOnlyList<string> roleCodes)> LoadUserWithRolesAsync(string userId)
+        {
+            var dto = await BuildAdminUserDtoAsync(userId);
+            if (dto == null) return (null, Array.Empty<string>());
+            return (dto, dto.RoleCodes ?? new List<string>());
+        }
+
         [HttpGet("roles")]
         public async Task<ActionResult<ApiResponse<object>>> GetRoles()
         {
-            var roles = await _rbacService.GetRolesAsync();
+            var actor = await GetActorSummaryAsync();
+            if (actor == null) return Unauthorized(ApiResponse<object>.Fail("未登录", 401));
+            if (!actor.IsSysAdmin
+                && !actor.HasPermissionCode(SystemPermissionCodes.RbacRolesRead)
+                && !actor.HasPermissionCode(SystemPermissionCodes.OrgUsersRead)
+                && !actor.HasPermissionCode(SystemPermissionCodes.LegacyRbacManage))
+                return ForbidPerm(SystemPermissionCodes.RbacRolesRead);
+
+            var roles = (await _rbacService.GetRolesAsync()).ToList();
+            if (!actor.IsSysAdmin)
+                roles = roles.Where(r => !string.Equals(r.RoleCode, ManagementRoleCodes.SuperAdmin, StringComparison.OrdinalIgnoreCase)).ToList();
+
+            // 无角色管理权限时仅返回可赋角色（员工编辑下拉）
+            if (!actor.IsSysAdmin && !actor.HasPermissionCode(SystemPermissionCodes.RbacRolesRead))
+            {
+                var assignable = ManagementAccountPolicy.GetAssignableRoleCodes(actor);
+                roles = roles.Where(r => assignable.Contains(r.RoleCode ?? string.Empty)).ToList();
+            }
+
             return Ok(ApiResponse<object>.Ok(roles, "获取角色列表成功"));
         }
 
         [HttpGet("permissions")]
         public async Task<ActionResult<ApiResponse<object>>> GetPermissions()
         {
+            var gate = await RequireActorPermAsync(SystemPermissionCodes.RbacPermissionsRead);
+            if (gate != null)
+            {
+                var actor0 = await GetActorSummaryAsync();
+                if (actor0 == null || !actor0.HasPermissionCode(SystemPermissionCodes.LegacyRbacManage))
+                    return gate!;
+            }
             var permissions = await _rbacService.GetPermissionsAsync();
             return Ok(ApiResponse<object>.Ok(permissions, "获取权限列表成功"));
         }
@@ -113,6 +148,14 @@ namespace CRM.API.Controllers
         [HttpGet("departments")]
         public async Task<ActionResult<ApiResponse<object>>> GetDepartments()
         {
+            var actor = await GetActorSummaryAsync();
+            if (actor == null) return Unauthorized(ApiResponse<object>.Fail("未登录", 401));
+            if (!actor.HasPermissionCode(SystemPermissionCodes.OrgDepartmentsRead)
+                && !actor.HasPermissionCode(SystemPermissionCodes.OrgUsersRead)
+                && !actor.HasPermissionCode(SystemPermissionCodes.LegacyRbacManage)
+                && !actor.IsSysAdmin)
+                return ForbidPerm(SystemPermissionCodes.OrgDepartmentsRead);
+
             var departments = await _rbacService.GetDepartmentsAsync();
             return Ok(ApiResponse<object>.Ok(departments, "获取部门列表成功"));
         }
@@ -125,6 +168,14 @@ namespace CRM.API.Controllers
         {
             try
             {
+                var actor = await GetActorSummaryAsync();
+                if (actor == null) return Unauthorized(ApiResponse<object>.Fail("未登录", 401));
+                if (!actor.HasPermissionCode(SystemPermissionCodes.OrgDepartmentsRead)
+                    && !actor.HasPermissionCode(SystemPermissionCodes.OrgUsersRead)
+                    && !actor.HasPermissionCode(SystemPermissionCodes.LegacyRbacManage)
+                    && !actor.IsSysAdmin)
+                    return ForbidPerm(SystemPermissionCodes.OrgUsersRead);
+
                 if (string.IsNullOrWhiteSpace(departmentId))
                     return BadRequest(ApiResponse<object>.Fail("departmentId 不能为空", 400));
 
@@ -147,8 +198,10 @@ namespace CRM.API.Controllers
                 foreach (var userId in userIds)
                 {
                     var dto = await BuildAdminUserDtoAsync(userId);
-                    if (dto != null)
-                        dtos.Add(dto);
+                    if (dto == null) continue;
+                    if (!ManagementAccountPolicy.CanMaintainTarget(actor, dto.RoleCodes))
+                        continue;
+                    dtos.Add(dto);
                 }
 
                 dtos = dtos
@@ -193,6 +246,9 @@ namespace CRM.API.Controllers
         {
             try
             {
+                var gate = await RequireActorPermAsync(SystemPermissionCodes.OrgDepartmentsWrite);
+                if (gate != null) return gate!;
+
                 if (request == null)
                     return BadRequest(ApiResponse<object>.Fail("请求体不能为空", 400));
                 if (string.IsNullOrWhiteSpace(request.DepartmentName))
@@ -238,6 +294,9 @@ namespace CRM.API.Controllers
         {
             try
             {
+                var gate = await RequireActorPermAsync(SystemPermissionCodes.OrgDepartmentsWrite);
+                if (gate != null) return gate!;
+
                 if (string.IsNullOrWhiteSpace(departmentId))
                     return BadRequest(ApiResponse<object>.Fail("departmentId 不能为空", 400));
                 if (request == null)
@@ -380,6 +439,13 @@ namespace CRM.API.Controllers
         {
             try
             {
+                var actor = await GetActorSummaryAsync();
+                if (actor == null) return Unauthorized(ApiResponse<object>.Fail("未登录", 401));
+                if (!actor.HasPermissionCode(SystemPermissionCodes.OrgUsersRead)
+                    && !actor.HasPermissionCode(SystemPermissionCodes.LegacyRbacManage)
+                    && !actor.IsSysAdmin)
+                    return ForbidPerm(SystemPermissionCodes.OrgUsersRead);
+
                 var users = (await _userService.GetAllForAdminAsync()).ToList();
                 var userIds = users.Select(u => u.Id).ToList();
 
@@ -429,7 +495,9 @@ namespace CRM.API.Controllers
                         PrimaryDepartmentName = primaryDeptEntity?.DepartmentName,
                         PrimaryDepartmentPath = primaryDeptEntity?.Path
                     };
-                }).ToList();
+                })
+                .Where(dto => ManagementAccountPolicy.CanMaintainTarget(actor, dto.RoleCodes))
+                .ToList();
 
                 return Ok(ApiResponse<object>.Ok(result, "获取用户列表成功"));
             }
@@ -445,10 +513,19 @@ namespace CRM.API.Controllers
         {
             try
             {
+                var actor = await GetActorSummaryAsync();
+                if (actor == null) return Unauthorized(ApiResponse<object>.Fail("未登录", 401));
+                if (!actor.HasPermissionCode(SystemPermissionCodes.OrgUsersRead)
+                    && !actor.HasPermissionCode(SystemPermissionCodes.LegacyRbacManage)
+                    && !actor.IsSysAdmin)
+                    return ForbidPerm(SystemPermissionCodes.OrgUsersRead);
+
                 if (string.IsNullOrWhiteSpace(userId))
                     return BadRequest(ApiResponse<object>.Fail("userId 不能为空", 400));
                 var dto = await BuildAdminUserDtoAsync(userId);
                 if (dto == null)
+                    return NotFound(ApiResponse<object>.Fail("用户不存在", 404));
+                if (!ManagementAccountPolicy.CanMaintainTarget(actor, dto.RoleCodes))
                     return NotFound(ApiResponse<object>.Fail("用户不存在", 404));
 
                 return Ok(ApiResponse<object>.Ok(dto, "获取用户详情成功"));
@@ -465,6 +542,13 @@ namespace CRM.API.Controllers
         {
             try
             {
+                var actor = await GetActorSummaryAsync();
+                if (actor == null) return Unauthorized(ApiResponse<object>.Fail("未登录", 401));
+                if (!actor.HasPermissionCode(SystemPermissionCodes.OrgUsersWrite)
+                    && !actor.HasPermissionCode(SystemPermissionCodes.LegacyRbacManage)
+                    && !actor.IsSysAdmin)
+                    return ForbidPerm(SystemPermissionCodes.OrgUsersWrite);
+
                 if (request == null)
                     return BadRequest(ApiResponse<object>.Fail("请求体不能为空", 400));
                 if (string.IsNullOrWhiteSpace(request.UserName))
@@ -472,7 +556,7 @@ namespace CRM.API.Controllers
                 if (string.IsNullOrWhiteSpace(request.Password))
                     return BadRequest(ApiResponse<object>.Fail("Password 不能为空", 400));
 
-                var roleCheck = await ValidateUserRoleIdsAsync(request.RoleIds);
+                var roleCheck = await ValidateUserRoleIdsAsync(actor, request.RoleIds);
                 if (roleCheck != null) return roleCheck;
 
                 var roleId = request.RoleIds?.FirstOrDefault();
@@ -515,10 +599,23 @@ namespace CRM.API.Controllers
         {
             try
             {
+                var actor = await GetActorSummaryAsync();
+                if (actor == null) return Unauthorized(ApiResponse<object>.Fail("未登录", 401));
+                if (!actor.HasPermissionCode(SystemPermissionCodes.OrgUsersWrite)
+                    && !actor.HasPermissionCode(SystemPermissionCodes.LegacyRbacManage)
+                    && !actor.IsSysAdmin)
+                    return ForbidPerm(SystemPermissionCodes.OrgUsersWrite);
+
                 if (string.IsNullOrWhiteSpace(userId))
                     return BadRequest(ApiResponse<object>.Fail("userId 不能为空", 400));
                 if (request == null)
                     return BadRequest(ApiResponse<object>.Fail("请求体不能为空", 400));
+
+                var existing = await BuildAdminUserDtoAsync(userId);
+                if (existing == null)
+                    return NotFound(ApiResponse<object>.Fail("用户不存在", 404));
+                if (!ManagementAccountPolicy.CanMaintainTarget(actor, existing.RoleCodes))
+                    return StatusCode(403, ApiResponse<object>.Fail("无权维护该账号", 403));
 
                 await _userService.UpdateAsync(userId, new UpdateUserRequest
                 {
@@ -537,7 +634,7 @@ namespace CRM.API.Controllers
 
                 if (request.RoleIds != null)
                 {
-                    var roleCheck = await ValidateUserRoleIdsAsync(request.RoleIds);
+                    var roleCheck = await ValidateUserRoleIdsAsync(actor, request.RoleIds);
                     if (roleCheck != null) return roleCheck;
                     await _rbacService.AssignUserRolesAsync(userId, request.RoleIds);
                 }
@@ -559,18 +656,34 @@ namespace CRM.API.Controllers
             }
         }
 
-        /// <summary>管理员为员工重置登录密码（需 rbac.manage）。</summary>
+        /// <summary>管理员为员工重置登录密码。SuperAdmin 目标禁止（仅 SQL）。</summary>
         [HttpPost("admin/users/{userId}/reset-password")]
         public async Task<ActionResult<ApiResponse<object>>> ResetAdminUserPassword(string userId, [FromBody] ResetAdminUserPasswordRequest? request)
         {
             try
             {
+                var actor = await GetActorSummaryAsync();
+                if (actor == null) return Unauthorized(ApiResponse<object>.Fail("未登录", 401));
+                if (!actor.HasPermissionCode(SystemPermissionCodes.OrgUsersResetPassword)
+                    && !actor.HasPermissionCode(SystemPermissionCodes.OrgUsersWrite)
+                    && !actor.HasPermissionCode(SystemPermissionCodes.LegacyRbacManage)
+                    && !actor.IsSysAdmin)
+                    return ForbidPerm(SystemPermissionCodes.OrgUsersResetPassword);
+
                 if (string.IsNullOrWhiteSpace(userId))
                     return BadRequest(ApiResponse<object>.Fail("userId 不能为空", 400));
                 if (request == null || string.IsNullOrWhiteSpace(request.NewPassword))
                     return BadRequest(ApiResponse<object>.Fail("NewPassword 不能为空", 400));
                 if (request.NewPassword.Length < 6)
                     return BadRequest(ApiResponse<object>.Fail("新密码长度至少 6 位", 400));
+
+                var target = await BuildAdminUserDtoAsync(userId);
+                if (target == null)
+                    return NotFound(ApiResponse<object>.Fail("用户不存在", 404));
+                if (ManagementRoleCodes.TargetIsSuperAdmin(target.RoleCodes))
+                    return StatusCode(403, ApiResponse<object>.Fail("SuperAdmin 密码仅可通过数据库 SQL 修改", 403));
+                if (!ManagementAccountPolicy.CanMaintainTarget(actor, target.RoleCodes))
+                    return StatusCode(403, ApiResponse<object>.Fail("无权维护该账号", 403));
 
                 await _userService.ResetPasswordAsync(userId, request.NewPassword);
                 await _unitOfWork.SaveChangesAsync();
@@ -596,12 +709,24 @@ namespace CRM.API.Controllers
         {
             try
             {
+                var actor = await GetActorSummaryAsync();
+                if (actor == null) return Unauthorized(ApiResponse<object>.Fail("未登录", 401));
+                if (!actor.HasPermissionCode(SystemPermissionCodes.OrgUsersWrite)
+                    && !actor.HasPermissionCode(SystemPermissionCodes.LegacyRbacManage)
+                    && !actor.IsSysAdmin)
+                    return ForbidPerm(SystemPermissionCodes.OrgUsersWrite);
+
                 if (string.IsNullOrWhiteSpace(userId))
                     return BadRequest(ApiResponse<object>.Fail("userId 不能为空", 400));
-                var operatorUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                var operatorUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (!string.IsNullOrWhiteSpace(operatorUserId) &&
                     string.Equals(operatorUserId.Trim(), userId.Trim(), StringComparison.OrdinalIgnoreCase))
                     return BadRequest(ApiResponse<object>.Fail("不能冻结当前登录账号", 400));
+
+                var target = await BuildAdminUserDtoAsync(userId);
+                if (target == null) return NotFound(ApiResponse<object>.Fail("用户不存在", 404));
+                if (!ManagementAccountPolicy.CanMaintainTarget(actor, target.RoleCodes))
+                    return StatusCode(403, ApiResponse<object>.Fail("无权维护该账号", 403));
 
                 await _userService.FreezeUserAsync(userId);
                 await _unitOfWork.SaveChangesAsync();
@@ -623,8 +748,20 @@ namespace CRM.API.Controllers
         {
             try
             {
+                var actor = await GetActorSummaryAsync();
+                if (actor == null) return Unauthorized(ApiResponse<object>.Fail("未登录", 401));
+                if (!actor.HasPermissionCode(SystemPermissionCodes.OrgUsersWrite)
+                    && !actor.HasPermissionCode(SystemPermissionCodes.LegacyRbacManage)
+                    && !actor.IsSysAdmin)
+                    return ForbidPerm(SystemPermissionCodes.OrgUsersWrite);
+
                 if (string.IsNullOrWhiteSpace(userId))
                     return BadRequest(ApiResponse<object>.Fail("userId 不能为空", 400));
+
+                var target = await BuildAdminUserDtoAsync(userId);
+                if (target == null) return NotFound(ApiResponse<object>.Fail("用户不存在", 404));
+                if (!ManagementAccountPolicy.CanMaintainTarget(actor, target.RoleCodes))
+                    return StatusCode(403, ApiResponse<object>.Fail("无权维护该账号", 403));
 
                 await _userService.UnfreezeUserAsync(userId);
                 await _unitOfWork.SaveChangesAsync();
@@ -650,10 +787,22 @@ namespace CRM.API.Controllers
         {
             try
             {
+                var actor = await GetActorSummaryAsync();
+                if (actor == null) return Unauthorized(ApiResponse<object>.Fail("未登录", 401));
+                if (!actor.HasPermissionCode(SystemPermissionCodes.OrgUsersWrite)
+                    && !actor.HasPermissionCode(SystemPermissionCodes.LegacyRbacManage)
+                    && !actor.IsSysAdmin)
+                    return ForbidPerm(SystemPermissionCodes.OrgUsersWrite);
+
                 if (string.IsNullOrWhiteSpace(userId))
                     return BadRequest(ApiResponse<object>.Fail("userId 不能为空", 400));
 
-                var operatorUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                var target = await BuildAdminUserDtoAsync(userId);
+                if (target == null) return NotFound(ApiResponse<object>.Fail("用户不存在", 404));
+                if (!ManagementAccountPolicy.CanMaintainTarget(actor, target.RoleCodes))
+                    return StatusCode(403, ApiResponse<object>.Fail("无权维护该账号", 403));
+
+                var operatorUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 _logger.LogInformation("DeleteAdminUser start: targetUserId={TargetUserId}, operatorUserId={OperatorUserId}", userId, operatorUserId);
 
                 // 先清理用户与角色/部门的关联，避免出现孤儿关联
@@ -709,6 +858,9 @@ namespace CRM.API.Controllers
         {
             try
             {
+                var gate = await RequireActorPermAsync(SystemPermissionCodes.RbacRolesWrite);
+                if (gate != null) return gate!;
+
                 if (request == null)
                     return BadRequest(ApiResponse<object>.Fail("请求体不能为空", 400));
                 if (string.IsNullOrWhiteSpace(request.RoleCode))
@@ -737,6 +889,7 @@ namespace CRM.API.Controllers
         }
 
         [HttpPut("admin/roles/{roleId}")]
+        [RequirePermission("system.rbac.roles.write")]
         public async Task<ActionResult<ApiResponse<object>>> UpdateAdminRole(string roleId, [FromBody] UpdateAdminRoleRequest request)
         {
             try
@@ -768,6 +921,7 @@ namespace CRM.API.Controllers
         }
 
         [HttpDelete("admin/roles/{roleId}")]
+        [RequirePermission("system.rbac.roles.write")]
         public async Task<ActionResult<ApiResponse<object>>> DeleteAdminRole(string roleId)
         {
             try
@@ -797,6 +951,7 @@ namespace CRM.API.Controllers
         }
 
         [HttpGet("admin/roles/{roleId}/permissions")]
+        [RequirePermission("system.rbac.roles.read")]
         public async Task<ActionResult<ApiResponse<object>>> GetRolePermissionIds(string roleId)
         {
             try
@@ -838,6 +993,7 @@ namespace CRM.API.Controllers
         }
 
         [HttpPost("admin/permissions")]
+        [RequirePermission("system.rbac.permissions.write")]
         public async Task<ActionResult<ApiResponse<object>>> CreateAdminPermission([FromBody] CreateAdminPermissionRequest request)
         {
             try
@@ -872,6 +1028,7 @@ namespace CRM.API.Controllers
         }
 
         [HttpPut("admin/permissions/{permissionId}")]
+        [RequirePermission("system.rbac.permissions.write")]
         public async Task<ActionResult<ApiResponse<object>>> UpdateAdminPermission(string permissionId, [FromBody] UpdateAdminPermissionRequest request)
         {
             try
@@ -905,6 +1062,7 @@ namespace CRM.API.Controllers
         }
 
         [HttpDelete("admin/permissions/{permissionId}")]
+        [RequirePermission("system.rbac.permissions.write")]
         public async Task<ActionResult<ApiResponse<object>>> DeleteAdminPermission(string permissionId)
         {
             try
@@ -934,6 +1092,21 @@ namespace CRM.API.Controllers
         {
             try
             {
+                var actor = await GetActorSummaryAsync();
+                if (actor == null) return Unauthorized(ApiResponse<object>.Fail("未登录", 401));
+                if (!actor.HasPermissionCode(SystemPermissionCodes.OrgUsersWrite)
+                    && !actor.HasPermissionCode(SystemPermissionCodes.LegacyRbacManage)
+                    && !actor.IsSysAdmin)
+                    return ForbidPerm(SystemPermissionCodes.OrgUsersWrite);
+
+                var target = await BuildAdminUserDtoAsync(userId);
+                if (target == null) return NotFound(ApiResponse<object>.Fail("用户不存在", 404));
+                if (!ManagementAccountPolicy.CanMaintainTarget(actor, target.RoleCodes))
+                    return StatusCode(403, ApiResponse<object>.Fail("无权维护该账号", 403));
+
+                var roleCheck = await ValidateUserRoleIdsAsync(actor, request.Ids);
+                if (roleCheck != null) return roleCheck;
+
                 await _rbacService.AssignUserRolesAsync(userId, request.Ids ?? Array.Empty<string>());
                 return Ok(ApiResponse<object>.Ok(null, "分配用户角色成功"));
             }
@@ -949,6 +1122,18 @@ namespace CRM.API.Controllers
         {
             try
             {
+                var actor = await GetActorSummaryAsync();
+                if (actor == null) return Unauthorized(ApiResponse<object>.Fail("未登录", 401));
+                if (!actor.HasPermissionCode(SystemPermissionCodes.OrgUsersWrite)
+                    && !actor.HasPermissionCode(SystemPermissionCodes.LegacyRbacManage)
+                    && !actor.IsSysAdmin)
+                    return ForbidPerm(SystemPermissionCodes.OrgUsersWrite);
+
+                var target = await BuildAdminUserDtoAsync(userId);
+                if (target == null) return NotFound(ApiResponse<object>.Fail("用户不存在", 404));
+                if (!ManagementAccountPolicy.CanMaintainTarget(actor, target.RoleCodes))
+                    return StatusCode(403, ApiResponse<object>.Fail("无权维护该账号", 403));
+
                 await _rbacService.AssignUserDepartmentsAsync(userId, request.DepartmentIds ?? Array.Empty<string>(), request.PrimaryDepartmentId);
                 return Ok(ApiResponse<object>.Ok(null, "分配用户部门成功"));
             }
@@ -960,6 +1145,7 @@ namespace CRM.API.Controllers
         }
 
         [HttpPost("roles/{roleId}/permissions")]
+        [RequirePermission("system.rbac.roles.write")]
         public async Task<ActionResult<ApiResponse<object>>> AssignRolePermissions(string roleId, [FromBody] AssignIdsRequest request)
         {
             try

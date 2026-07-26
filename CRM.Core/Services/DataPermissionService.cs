@@ -53,8 +53,8 @@ namespace CRM.Core.Services
         public async Task<IReadOnlyList<CustomerInfo>> FilterCustomersAsync(string userId, IEnumerable<CustomerInfo> source)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            // 财务部录入收款/销项发票等需选用客户，不按销售数据范围屏蔽主数据（与 FilterFinanceReceiptsAsync 一致）
-            if (summary.IsSysAdmin || summary.SaleDataScope == 0 || IsFinanceDepartmentIdentity(summary.IdentityType))
+            // 财务部录入收�?销项发票等需选用客户，不按销售数据范围屏蔽主数据（与 FilterFinanceReceiptsAsync 一致）
+            if (summary.HasBizDataBypass || summary.SaleDataScope == 0 || IsFinanceDepartmentIdentity(summary.IdentityType))
                 return source.ToList();
             if (summary.SaleDataScope == 4) return Array.Empty<CustomerInfo>();
 
@@ -76,7 +76,7 @@ namespace CRM.Core.Services
                 return query;
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin || summary.SaleDataScope == 0 || IsFinanceDepartmentIdentity(summary.IdentityType))
+            if (summary.HasBizDataBypass || summary.SaleDataScope == 0 || IsFinanceDepartmentIdentity(summary.IdentityType))
                 return query;
             if (summary.SaleDataScope == 4)
                 return query.Where(_ => false);
@@ -93,14 +93,14 @@ namespace CRM.Core.Services
         public async Task<IReadOnlyList<VendorInfo>> FilterVendorsAsync(string userId, IEnumerable<VendorInfo> source)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            // 财务部录入付款/进项发票等需选用供应商，不按采购数据范围屏蔽主数据（与 FilterFinancePaymentsAsync 一致）
-            if (summary.IsSysAdmin || summary.PurchaseDataScope == 0 || IsFinanceDepartmentIdentity(summary.IdentityType))
+            // 财务部录入付�?进项发票等需选用供应商，不按采购数据范围屏蔽主数据（�?FilterFinancePaymentsAsync 一致）
+            if (summary.HasBizDataBypass || summary.PurchaseDataScope == 0 || IsFinanceDepartmentIdentity(summary.IdentityType))
                 return source.ToList();
             if (summary.PurchaseDataScope == 4)
                 return Array.Empty<VendorInfo>();
 
-            // 不按责任采购员缩小供应商可见范围：采购员（及报价等场景）均可查看/选用全部供应商。
-            // 专属供应商：后续在 VendorInfo 增加标识后，于此处排除非授权用户可见项。
+            // 不按责任采购员缩小供应商可见范围：采购员（及报价等场景）均可查看/选用全部供应商�?
+            // 专属供应商：后续�?VendorInfo 增加标识后，于此处排除非授权用户可见项�?
             return ApplyVendorExclusiveVisibilityFilter(source);
         }
 
@@ -117,19 +117,19 @@ namespace CRM.Core.Services
                 return query;
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin || summary.PurchaseDataScope == 0 || IsFinanceDepartmentIdentity(summary.IdentityType))
+            if (summary.HasBizDataBypass || summary.PurchaseDataScope == 0 || IsFinanceDepartmentIdentity(summary.IdentityType))
                 return query;
             if (summary.PurchaseDataScope == 4)
                 return query.Where(_ => false);
 
-            // 与 FilterVendorsAsync 一致：当前不按采购员收窄；专属供应商逻辑落地后在此扩展表达式。
+            // �?FilterVendorsAsync 一致：当前不按采购员收窄；专属供应商逻辑落地后在此扩展表达式�?
             return query;
         }
 
         public async Task<IReadOnlyList<RFQListItem>> FilterRFQsAsync(string userId, IEnumerable<RFQListItem> source)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin) return source.ToList();
+            if (summary.HasBizDataBypass) return source.ToList();
 
             var list = source.ToList();
             var ids = list.Select(x => x.Id).Distinct().ToList();
@@ -188,7 +188,7 @@ namespace CRM.Core.Services
         public async Task<IReadOnlyList<SellOrder>> FilterSalesOrdersAsync(string userId, IEnumerable<SellOrder> source)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin || summary.SaleDataScope == 0)
+            if (summary.HasBizDataBypass || summary.SaleDataScope == 0)
                 return source.ToList();
             if (BusinessDepartmentRules.UseSellOrderAssistorOnlyScope(summary))
                 return source.Where(x => IsSellOrderAssistor(x, userId)).ToList();
@@ -205,7 +205,7 @@ namespace CRM.Core.Services
         public async Task<IReadOnlyList<PurchaseOrder>> FilterPurchaseOrdersAsync(string userId, IEnumerable<PurchaseOrder> source)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin || summary.PurchaseDataScope == 0 || summary.LogisticsDataScope == 0)
+            if (summary.HasBizDataBypass || summary.PurchaseDataScope == 0 || summary.LogisticsDataScope == 0)
                 return source.ToList();
             if (summary.PurchaseDataScope == 4) return Array.Empty<PurchaseOrder>();
 
@@ -231,7 +231,7 @@ namespace CRM.Core.Services
                 return query;
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin || summary.PurchaseDataScope == 0)
+            if (summary.HasBizDataBypass || summary.PurchaseDataScope == 0)
                 return query;
             if (summary.LogisticsDataScope == 0)
                 return query;
@@ -281,7 +281,7 @@ namespace CRM.Core.Services
                 return financeScoped;
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.PurchaseDataScope == 0)
+            if (summary.HasBizDataBypass || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.PurchaseDataScope == 0)
                 return payments;
             if (summary.PurchaseDataScope == 4)
                 return payments.Where(_ => false);
@@ -318,7 +318,7 @@ namespace CRM.Core.Services
                 return financeScoped;
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.PurchaseDataScope == 0)
+            if (summary.HasBizDataBypass || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.PurchaseDataScope == 0)
                 return invoices;
             if (summary.PurchaseDataScope == 4)
                 return invoices.Where(_ => false);
@@ -354,7 +354,7 @@ namespace CRM.Core.Services
                 return financeScoped;
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.SaleDataScope == 0)
+            if (summary.HasBizDataBypass || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.SaleDataScope == 0)
                 return receipts;
             if (summary.SaleDataScope == 4)
                 return receipts.Where(_ => false);
@@ -383,7 +383,7 @@ namespace CRM.Core.Services
                 return financeScoped;
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.SaleDataScope == 0)
+            if (summary.HasBizDataBypass || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.SaleDataScope == 0)
                 return receivables;
             if (summary.SaleDataScope == 4)
                 return receivables.Where(_ => false);
@@ -412,7 +412,7 @@ namespace CRM.Core.Services
                 return financeScoped;
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.SaleDataScope == 0)
+            if (summary.HasBizDataBypass || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.SaleDataScope == 0)
                 return advances;
             if (summary.SaleDataScope == 4)
                 return advances.Where(_ => false);
@@ -442,7 +442,7 @@ namespace CRM.Core.Services
                 return financeScoped;
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.SaleDataScope == 0)
+            if (summary.HasBizDataBypass || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.SaleDataScope == 0)
                 return invoices;
             if (summary.SaleDataScope == 4)
                 return invoices.Where(_ => false);
@@ -473,7 +473,7 @@ namespace CRM.Core.Services
                 return query;
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin || summary.SaleDataScope == 0)
+            if (summary.HasBizDataBypass || summary.SaleDataScope == 0)
                 return query;
             if (BusinessDepartmentRules.UseSellOrderAssistorOnlyScope(summary))
                 return query.Where(x => x.Assistor == userId);
@@ -517,7 +517,7 @@ namespace CRM.Core.Services
                 return query;
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin)
+            if (summary.HasBizDataBypass)
                 return query;
 
             if (summary.SaleDataScope == 0 || summary.PurchaseDataScope == 0)
@@ -589,7 +589,7 @@ namespace CRM.Core.Services
                 return quotes;
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin)
+            if (summary.HasBizDataBypass)
                 return quotes;
 
             if (summary.SaleDataScope == 0 || summary.PurchaseDataScope == 0)
@@ -661,7 +661,7 @@ namespace CRM.Core.Services
                 return query;
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin)
+            if (summary.HasBizDataBypass)
                 return query;
 
             var saleOpen = summary.SaleDataScope == 0;
@@ -704,7 +704,7 @@ namespace CRM.Core.Services
             if (!string.IsNullOrWhiteSpace(userId))
             {
                 var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-                if (summary.IsSysAdmin || summary.LogisticsDataScope == 0 || summary.SaleDataScope == 0)
+                if (summary.HasBizDataBypass || summary.LogisticsDataScope == 0 || summary.SaleDataScope == 0)
                     return query;
             }
 
@@ -725,7 +725,7 @@ namespace CRM.Core.Services
                 return query;
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin || summary.SaleDataScope == 0)
+            if (summary.HasBizDataBypass || summary.SaleDataScope == 0)
                 return query;
             if (summary.LogisticsDataScope == 0)
                 return query;
@@ -760,7 +760,7 @@ namespace CRM.Core.Services
                 return query;
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin)
+            if (summary.HasBizDataBypass)
                 return query;
 
             if (summary.LogisticsDataScope == 0)
@@ -793,7 +793,7 @@ namespace CRM.Core.Services
                         .ToList();
             }
 
-            // EF 无法翻译表达式内对 IQueryable 的 null 判断；用空集回退代替。
+            // EF 无法翻译表达式内�?IQueryable �?null 判断；用空集回退代替�?
             var scopedOrdersQuery = scopedOrders ?? sellOrders.Where(_ => false);
             var scopedPoQuery = scopedPo ?? purchaseOrders.Where(_ => false);
 
@@ -855,7 +855,7 @@ namespace CRM.Core.Services
                 return query;
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin || summary.SaleDataScope == 0)
+            if (summary.HasBizDataBypass || summary.SaleDataScope == 0)
                 return query;
             if (summary.LogisticsDataScope == 0)
                 return query;
@@ -892,10 +892,10 @@ namespace CRM.Core.Services
                 return query;
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin)
+            if (summary.HasBizDataBypass)
                 return query;
 
-            // 物流数据范围「全部」：库存板块不按销采范围收窄
+            // 物流数据范围「全部」：库存板块不按销采范围收�?
             if (summary.LogisticsDataScope == 0)
                 return query;
 
@@ -1123,7 +1123,7 @@ namespace CRM.Core.Services
                 return query;
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin)
+            if (summary.HasBizDataBypass)
                 return query;
 
             if (summary.LogisticsDataScope == 0)
@@ -1151,13 +1151,13 @@ namespace CRM.Core.Services
         public async Task<IReadOnlyList<FinanceReceipt>> FilterFinanceReceiptsAsync(string userId, IEnumerable<FinanceReceipt> source)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (!summary.IsSysAdmin && summary.FinanceDataScope == 4)
+            if (!summary.HasBizDataBypass && summary.FinanceDataScope == 4)
                 return Array.Empty<FinanceReceipt>();
-            if (!summary.IsSysAdmin && summary.FinanceDataScope is >= 1 and <= 3)
+            if (!summary.HasBizDataBypass && summary.FinanceDataScope is >= 1 and <= 3)
                 return await FilterByFinanceCreatorAsync(userId, source, r => r.CreateByUserId, summary);
 
-            // 财务部（IdentityType=5）：不按客户业务员做销售数据范围过滤，同部门财务可互相查看收款单
-            if (summary.IsSysAdmin || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.SaleDataScope == 0)
+            // 财务部（IdentityType=5）：不按客户业务员做销售数据范围过滤，同部门财务可互相查看收款�?
+            if (summary.HasBizDataBypass || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.SaleDataScope == 0)
                 return source.ToList();
             if (summary.SaleDataScope == 4) return Array.Empty<FinanceReceipt>();
 
@@ -1172,13 +1172,13 @@ namespace CRM.Core.Services
         public async Task<IReadOnlyList<FinancePayment>> FilterFinancePaymentsAsync(string userId, IEnumerable<FinancePayment> source)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (!summary.IsSysAdmin && summary.FinanceDataScope == 4)
+            if (!summary.HasBizDataBypass && summary.FinanceDataScope == 4)
                 return Array.Empty<FinancePayment>();
-            if (!summary.IsSysAdmin && summary.FinanceDataScope is >= 1 and <= 3)
+            if (!summary.HasBizDataBypass && summary.FinanceDataScope is >= 1 and <= 3)
                 return await FilterByFinanceCreatorAsync(userId, source, p => p.CreateByUserId, summary);
 
-            // 财务部：不按供应商采购员做采购数据范围过滤，同部门财务可互相查看付款单
-            if (summary.IsSysAdmin || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.PurchaseDataScope == 0)
+            // 财务部：不按供应商采购员做采购数据范围过滤，同部门财务可互相查看付款�?
+            if (summary.HasBizDataBypass || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.PurchaseDataScope == 0)
                 return source.ToList();
             if (summary.PurchaseDataScope == 4) return Array.Empty<FinancePayment>();
 
@@ -1203,12 +1203,12 @@ namespace CRM.Core.Services
         public async Task<IReadOnlyList<FinanceSellInvoice>> FilterFinanceSellInvoicesAsync(string userId, IEnumerable<FinanceSellInvoice> source)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (!summary.IsSysAdmin && summary.FinanceDataScope == 4)
+            if (!summary.HasBizDataBypass && summary.FinanceDataScope == 4)
                 return Array.Empty<FinanceSellInvoice>();
-            if (!summary.IsSysAdmin && summary.FinanceDataScope is >= 1 and <= 3)
+            if (!summary.HasBizDataBypass && summary.FinanceDataScope is >= 1 and <= 3)
                 return await FilterByFinanceCreatorAsync(userId, source, inv => inv.CreateByUserId, summary);
 
-            if (summary.IsSysAdmin || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.SaleDataScope == 0)
+            if (summary.HasBizDataBypass || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.SaleDataScope == 0)
                 return source.ToList();
             if (summary.SaleDataScope == 4) return Array.Empty<FinanceSellInvoice>();
 
@@ -1233,12 +1233,12 @@ namespace CRM.Core.Services
         public async Task<IReadOnlyList<FinancePurchaseInvoice>> FilterFinancePurchaseInvoicesAsync(string userId, IEnumerable<FinancePurchaseInvoice> source)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (!summary.IsSysAdmin && summary.FinanceDataScope == 4)
+            if (!summary.HasBizDataBypass && summary.FinanceDataScope == 4)
                 return Array.Empty<FinancePurchaseInvoice>();
-            if (!summary.IsSysAdmin && summary.FinanceDataScope is >= 1 and <= 3)
+            if (!summary.HasBizDataBypass && summary.FinanceDataScope is >= 1 and <= 3)
                 return await FilterByFinanceCreatorAsync(userId, source, inv => inv.CreateByUserId, summary);
 
-            if (summary.IsSysAdmin || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.PurchaseDataScope == 0)
+            if (summary.HasBizDataBypass || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.PurchaseDataScope == 0)
                 return source.ToList();
             if (summary.PurchaseDataScope == 4) return Array.Empty<FinancePurchaseInvoice>();
 
@@ -1272,7 +1272,7 @@ namespace CRM.Core.Services
                 return query;
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin || summary.LogisticsDataScope == 0)
+            if (summary.HasBizDataBypass || summary.LogisticsDataScope == 0)
                 return query;
             if (summary.LogisticsDataScope == 4)
                 return query.Where(_ => false);
@@ -1300,7 +1300,7 @@ namespace CRM.Core.Services
                 return query;
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin || summary.FinanceDataScope == 0)
+            if (summary.HasBizDataBypass || summary.FinanceDataScope == 0)
                 return query;
             if (summary.FinanceDataScope == 4)
                 return query.Where(_ => false);
@@ -1323,7 +1323,7 @@ namespace CRM.Core.Services
             CancellationToken cancellationToken)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin)
+            if (summary.HasBizDataBypass)
                 return (false, query);
             if (summary.FinanceDataScope == 4)
                 return (true, query.Where(_ => false));
@@ -1390,7 +1390,7 @@ namespace CRM.Core.Services
         public async Task<bool> CanAccessRFQAsync(string userId, RFQ rfq)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin) return true;
+            if (summary.HasBizDataBypass) return true;
             if (await PassesSaleAccessToRfqAsync(userId, rfq, summary)) return true;
             return await PassesPurchaseAccessToRfqAsync(userId, rfq, summary);
         }
@@ -1398,7 +1398,7 @@ namespace CRM.Core.Services
         public async Task<Func<RFQ, RFQItem, bool>> GetRfqItemLineVisibilityPredicateAsync(string userId)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin)
+            if (summary.HasBizDataBypass)
                 return (_, __) => true;
 
             var protectionMinutes = await _purchaseQuoterPoolService.GetDemandProtectionMinutesAsync();
@@ -1486,7 +1486,7 @@ namespace CRM.Core.Services
             if (string.IsNullOrWhiteSpace(userId)) return false;
             var uid = userId.Trim();
             var summary = await _rbacService.GetUserPermissionSummaryAsync(uid);
-            if (summary.IsSysAdmin) return true;
+            if (summary.HasBizDataBypass) return true;
             if (!string.IsNullOrWhiteSpace(createByUserId)
                 && string.Equals(createByUserId.Trim(), uid, StringComparison.OrdinalIgnoreCase))
                 return true;
@@ -1502,7 +1502,7 @@ namespace CRM.Core.Services
             if (string.IsNullOrWhiteSpace(userId)) return false;
             var uid = userId.Trim();
             var summary = await _rbacService.GetUserPermissionSummaryAsync(uid);
-            if (summary.IsSysAdmin) return false;
+            if (summary.HasBizDataBypass) return false;
             if (!string.IsNullOrWhiteSpace(createByUserId)
                 && string.Equals(createByUserId.Trim(), uid, StringComparison.OrdinalIgnoreCase))
                 return true;
@@ -1550,7 +1550,7 @@ namespace CRM.Core.Services
                 return true;
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
-            return summary.IsSysAdmin || summary.LogisticsDataScope == 0;
+            return summary.HasBizDataBypass || summary.LogisticsDataScope == 0;
         }
 
         public async Task<bool> CanAccessFinanceReceiptAsync(string userId, FinanceReceipt receipt)
@@ -1606,11 +1606,11 @@ namespace CRM.Core.Services
                 .Where(x => allowedDepartmentIds.Contains(x.DepartmentId))
                 .ToList();
 
-            // 组织层级规则：
+            // 组织层级规则�?
             // - 总监：可看下属经理和员工
-            // - 经理：可看下属员工
+            // - 经理：可看下属员�?
             // - 员工：仅自己
-            // 仅当用户角色可识别为总监/经理/员工时生效；否则回退到原数据范围逻辑。
+            // 仅当用户角色可识别为总监/经理/员工时生效；否则回退到原数据范围逻辑�?
             var currentOrgLevel = ResolveOrgRoleLevel(summary.RoleCodes, Array.Empty<string>());
             if (currentOrgLevel <= 0)
             {
@@ -1651,8 +1651,8 @@ namespace CRM.Core.Services
 
                 var canSee = currentOrgLevel switch
                 {
-                    3 => targetLevel <= 2, // 总监看经理+员工
-                    2 => targetLevel <= 1, // 经理看员工
+                    3 => targetLevel <= 2, // 总监看经�?员工
+                    2 => targetLevel <= 1, // 经理看员�?
                     _ => false
                 };
 
@@ -1716,15 +1716,15 @@ namespace CRM.Core.Services
             return targetDept.Path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
         }
 
-        /// <summary>与 <see cref="RbacDepartment.IdentityType"/> 约定一致：5=Finance（财务部）。</summary>
+        /// <summary>�?<see cref="RbacDepartment.IdentityType"/> 约定一致：5=Finance（财务部）�?/summary>
         private static bool IsFinanceDepartmentIdentity(short identityType) => identityType == 5;
 
         /// <summary>
-        /// 3=总监，2=经理，1=员工，0=未知
+        /// 3=总监�?=经理�?=员工�?=未知
         /// </summary>
         private static int ResolveOrgRoleLevel(IEnumerable<string> roleCodes, IEnumerable<string> roleNames)
         {
-            // 标准编码优先（避免「销售经理」等业务角色名误匹配部门层级）
+            // 标准编码优先（避免「销售经理」等业务角色名误匹配部门层级�?
             foreach (var code in roleCodes.Where(x => !string.IsNullOrWhiteSpace(x)))
             {
                 var c = code.Trim().ToUpperInvariant();

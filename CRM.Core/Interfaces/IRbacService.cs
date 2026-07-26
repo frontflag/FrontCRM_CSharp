@@ -51,7 +51,16 @@ namespace CRM.Core.Interfaces
     public class UserPermissionSummaryDto
     {
         public string UserId { get; set; } = string.Empty;
+        /// <summary>产品 SuperAdmin（RoleCode=SYS_ADMIN）</summary>
         public bool IsSysAdmin { get; set; }
+        /// <summary>产品 Admin（RoleCode=SYS_MANAGER）</summary>
+        public bool IsSysManager { get; set; }
+        /// <summary>产品 Manager（RoleCode=SYS_BIZ_MANAGER）</summary>
+        public bool IsBizManager { get; set; }
+        /// <summary>可访问系统管理门禁（SuperAdmin / Admin / Manager）</summary>
+        public bool HasManagementAccess { get; set; }
+        /// <summary>业务数据行级全量 bypass</summary>
+        public bool HasBizDataBypass { get; set; }
         public IReadOnlyList<string> RoleCodes { get; set; } = Array.Empty<string>();
         public IReadOnlyList<string> PermissionCodes { get; set; } = Array.Empty<string>();
         public IReadOnlyList<string> DepartmentIds { get; set; } = Array.Empty<string>();

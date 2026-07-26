@@ -39,7 +39,9 @@ public class PurchaseCostParamsController : ControllerBase
             {
                 var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
                 canManage = summary.IsSysAdmin || summary.PermissionCodes.Any(c =>
-                    string.Equals(c, "rbac.manage", StringComparison.OrdinalIgnoreCase));
+                    string.Equals(c, "system.params.finance.purchase-cost-params.read", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(c, "system.params.finance.read", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(c, "rbac.manage", StringComparison.OrdinalIgnoreCase));
             }
 
             if (!canCustoms && !canManage)
@@ -60,7 +62,7 @@ public class PurchaseCostParamsController : ControllerBase
     }
 
     [HttpGet]
-    [RequirePermission("rbac.manage")]
+    [RequirePermission("system.params.finance.purchase-cost-params.read")]
     public async Task<ActionResult<ApiResponse<PurchaseCostParamPageDto>>> List(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
@@ -92,7 +94,7 @@ public class PurchaseCostParamsController : ControllerBase
     }
 
     [HttpPost]
-    [RequirePermission("rbac.manage")]
+    [RequirePermission("system.params.finance.purchase-cost-params.write")]
     public async Task<ActionResult<ApiResponse<PurchaseCostParamDto>>> Create(
         [FromBody] CreatePurchaseCostParamRequest body,
         CancellationToken ct)
@@ -121,7 +123,7 @@ public class PurchaseCostParamsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [RequirePermission("rbac.manage")]
+    [RequirePermission("system.params.finance.purchase-cost-params.write")]
     public async Task<ActionResult<ApiResponse<object>>> Delete(string id, CancellationToken ct)
     {
         try
@@ -145,7 +147,7 @@ public class PurchaseCostParamsController : ControllerBase
     }
 
     [HttpGet("change-log")]
-    [RequirePermission("rbac.manage")]
+    [RequirePermission("system.params.finance.purchase-cost-params.read")]
     public async Task<ActionResult<ApiResponse<PurchaseCostParamChangeLogPageDto>>> GetChangeLog(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
