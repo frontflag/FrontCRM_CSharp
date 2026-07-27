@@ -2501,6 +2501,7 @@ const zhCN = {
     columns: {
       itemStatus: '明细状态',
       rfqCode: '需求编号',
+      remark: '需求明细备注',
       quoteCount: '报价条目',
       customer: '客户',
       customerPart: '客户料号',
@@ -2537,6 +2538,7 @@ const zhCN = {
       status: '状态',
       purchaser: '采购员',
       createTime: '创建时间',
+      remark: '备注',
       actions: '操作',
       edit: '编辑',
       genSalesOrder: '生成销售订单',

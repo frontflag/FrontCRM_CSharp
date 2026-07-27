@@ -142,9 +142,13 @@
           <el-select
             v-if="tabModeDimension !== 'purchase'"
             v-model="filters.purchaseProgressStatus"
+            multiple
+            collapse-tags
+            collapse-tags-tooltip
             clearable
             :placeholder="t('salesOrderItemList.filters.purchaseProgressStatus')"
             class="filter-select filter-select--progress"
+            popper-class="progress-multi-select-dropdown"
             :teleported="false"
           >
             <el-option
@@ -152,14 +156,23 @@
               :key="`purchase-${opt.value}`"
               :label="opt.label"
               :value="opt.value"
-            />
+            >
+              <ProgressMultiSelectOption
+                :label="opt.label"
+                :checked="filters.purchaseProgressStatus.includes(opt.value)"
+              />
+            </el-option>
           </el-select>
           <el-select
             v-if="tabModeDimension !== 'stockIn'"
             v-model="filters.stockInProgressStatus"
+            multiple
+            collapse-tags
+            collapse-tags-tooltip
             clearable
             :placeholder="t('salesOrderItemList.filters.stockInProgressStatus')"
             class="filter-select filter-select--progress"
+            popper-class="progress-multi-select-dropdown"
             :teleported="false"
           >
             <el-option
@@ -167,14 +180,23 @@
               :key="`stockIn-${opt.value}`"
               :label="opt.label"
               :value="opt.value"
-            />
+            >
+              <ProgressMultiSelectOption
+                :label="opt.label"
+                :checked="filters.stockInProgressStatus.includes(opt.value)"
+              />
+            </el-option>
           </el-select>
           <el-select
             v-if="tabModeDimension !== 'stockOutNotify'"
             v-model="filters.stockOutNotifyProgressStatus"
+            multiple
+            collapse-tags
+            collapse-tags-tooltip
             clearable
             :placeholder="t('salesOrderItemList.filters.stockOutNotifyProgressStatus')"
             class="filter-select filter-select--progress"
+            popper-class="progress-multi-select-dropdown"
             :teleported="false"
           >
             <el-option
@@ -182,14 +204,23 @@
               :key="`stockOutNotify-${opt.value}`"
               :label="opt.label"
               :value="opt.value"
-            />
+            >
+              <ProgressMultiSelectOption
+                :label="opt.label"
+                :checked="filters.stockOutNotifyProgressStatus.includes(opt.value)"
+              />
+            </el-option>
           </el-select>
           <el-select
             v-if="tabModeDimension !== 'stockOut'"
             v-model="filters.stockOutProgressStatus"
+            multiple
+            collapse-tags
+            collapse-tags-tooltip
             clearable
             :placeholder="t('salesOrderItemList.filters.stockOutProgressStatus')"
             class="filter-select filter-select--progress"
+            popper-class="progress-multi-select-dropdown"
             :teleported="false"
           >
             <el-option
@@ -197,14 +228,23 @@
               :key="`stockOut-${opt.value}`"
               :label="opt.label"
               :value="opt.value"
-            />
+            >
+              <ProgressMultiSelectOption
+                :label="opt.label"
+                :checked="filters.stockOutProgressStatus.includes(opt.value)"
+              />
+            </el-option>
           </el-select>
           <el-select
             v-if="tabModeDimension !== 'receipt'"
             v-model="filters.receiptProgressStatus"
+            multiple
+            collapse-tags
+            collapse-tags-tooltip
             clearable
             :placeholder="t('salesOrderItemList.filters.receiptProgressStatus')"
             class="filter-select filter-select--progress"
+            popper-class="progress-multi-select-dropdown"
             :teleported="false"
           >
             <el-option
@@ -212,14 +252,23 @@
               :key="`receipt-${opt.value}`"
               :label="opt.label"
               :value="opt.value"
-            />
+            >
+              <ProgressMultiSelectOption
+                :label="opt.label"
+                :checked="filters.receiptProgressStatus.includes(opt.value)"
+              />
+            </el-option>
           </el-select>
           <el-select
             v-if="tabModeDimension !== 'invoice'"
             v-model="filters.invoiceProgressStatus"
+            multiple
+            collapse-tags
+            collapse-tags-tooltip
             clearable
             :placeholder="t('salesOrderItemList.filters.invoiceProgressStatus')"
             class="filter-select filter-select--progress"
+            popper-class="progress-multi-select-dropdown"
             :teleported="false"
           >
             <el-option
@@ -227,7 +276,12 @@
               :key="`invoice-${opt.value}`"
               :label="opt.label"
               :value="opt.value"
-            />
+            >
+              <ProgressMultiSelectOption
+                :label="opt.label"
+                :checked="filters.invoiceProgressStatus.includes(opt.value)"
+              />
+            </el-option>
           </el-select>
         </template>
         <button type="button" class="btn-primary btn-sm" :disabled="loading" @click="runSearch">{{ t('salesOrderItemList.filters.query') }}</button>
@@ -781,6 +835,11 @@ import {
   type SoItemProgressTabId,
   type SoItemTabModeDimension
 } from '@/utils/salesOrderItemListTabMode'
+import {
+  formatProgressStatusesForRoute,
+  normalizeProgressStatuses
+} from '@/utils/progressStatusQuery'
+import ProgressMultiSelectOption from '@/components/common/ProgressMultiSelectOption.vue'
 import ApplyStockOutDisabledHint from '@/components/RFQ/ApplyStockOutDisabledHint.vue'
 import ApplyStockOutDialog from '@/components/RFQ/ApplyStockOutDialog.vue'
 import SalesOrderItemListBoard from './SalesOrderItemListBoard.vue'
@@ -968,12 +1027,12 @@ const filters = reactive({
   customerSo: '',
   customerPn: '',
   transactionCurrency: '' as '' | 'rmb' | 'foreign',
-  purchaseProgressStatus: undefined as number | undefined,
-  stockInProgressStatus: undefined as number | undefined,
-  stockOutNotifyProgressStatus: undefined as number | undefined,
-  stockOutProgressStatus: undefined as number | undefined,
-  receiptProgressStatus: undefined as number | undefined,
-  invoiceProgressStatus: undefined as number | undefined
+  purchaseProgressStatus: [] as number[],
+  stockInProgressStatus: [] as number[],
+  stockOutNotifyProgressStatus: [] as number[],
+  stockOutProgressStatus: [] as number[],
+  receiptProgressStatus: [] as number[],
+  invoiceProgressStatus: [] as number[]
 })
 
 const activePreset = computed((): SoItemListPresetId | null => {
@@ -1030,23 +1089,23 @@ const boardFilters = computed((): SalesOrderItemListAnalyticsQuery => {
   if (pua) q.purchaseUserAccount = pua
   if (filters.transactionCurrency) q.transactionCurrency = filters.transactionCurrency
   if (!activePreset.value) {
-    if (filters.purchaseProgressStatus !== undefined && filters.purchaseProgressStatus !== null) {
-      q.purchaseProgressStatus = filters.purchaseProgressStatus
+    if (filters.purchaseProgressStatus.length) {
+      q.purchaseProgressStatus = [...filters.purchaseProgressStatus]
     }
-    if (filters.stockInProgressStatus !== undefined && filters.stockInProgressStatus !== null) {
-      q.stockInProgressStatus = filters.stockInProgressStatus
+    if (filters.stockInProgressStatus.length) {
+      q.stockInProgressStatus = [...filters.stockInProgressStatus]
     }
-    if (filters.stockOutNotifyProgressStatus !== undefined && filters.stockOutNotifyProgressStatus !== null) {
-      q.stockOutNotifyProgressStatus = filters.stockOutNotifyProgressStatus
+    if (filters.stockOutNotifyProgressStatus.length) {
+      q.stockOutNotifyProgressStatus = [...filters.stockOutNotifyProgressStatus]
     }
-    if (filters.stockOutProgressStatus !== undefined && filters.stockOutProgressStatus !== null) {
-      q.stockOutProgressStatus = filters.stockOutProgressStatus
+    if (filters.stockOutProgressStatus.length) {
+      q.stockOutProgressStatus = [...filters.stockOutProgressStatus]
     }
-    if (filters.receiptProgressStatus !== undefined && filters.receiptProgressStatus !== null) {
-      q.receiptProgressStatus = filters.receiptProgressStatus
+    if (filters.receiptProgressStatus.length) {
+      q.receiptProgressStatus = [...filters.receiptProgressStatus]
     }
-    if (filters.invoiceProgressStatus !== undefined && filters.invoiceProgressStatus !== null) {
-      q.invoiceProgressStatus = filters.invoiceProgressStatus
+    if (filters.invoiceProgressStatus.length) {
+      q.invoiceProgressStatus = [...filters.invoiceProgressStatus]
     }
     if (stockOutPending.value) q.stockOutPending = true
     if (invoicePending.value) q.invoicePending = true
@@ -1130,7 +1189,8 @@ function onFilterTabClick(tab: FilterTabId) {
   if (!isProgressTabDimension(dim)) return
   const key = progressDimensionToFilterKey(dim)
   const next = progressTabToFilter(tab as SoItemProgressTabId)
-  if (filters[key] === next) return
+  const cur = filters[key]
+  if (cur.length === next.length && cur.every((v, i) => v === next[i])) return
   filters[key] = next
   runSearch()
 }
@@ -1393,24 +1453,18 @@ function buildRouteQueryFromFilters(): Record<string, string> {
   const advanced: Record<string, string> = {}
   if (dateRange.value?.[0]) advanced.orderCreateStart = dateRange.value[0]
   if (dateRange.value?.[1]) advanced.orderCreateEnd = dateRange.value[1]
-  if (filters.purchaseProgressStatus !== undefined && filters.purchaseProgressStatus !== null) {
-    advanced.purchaseProgressStatus = String(filters.purchaseProgressStatus)
-  }
-  if (filters.stockInProgressStatus !== undefined && filters.stockInProgressStatus !== null) {
-    advanced.stockInProgressStatus = String(filters.stockInProgressStatus)
-  }
-  if (filters.stockOutNotifyProgressStatus !== undefined && filters.stockOutNotifyProgressStatus !== null) {
-    advanced.stockOutNotifyProgressStatus = String(filters.stockOutNotifyProgressStatus)
-  }
-  if (filters.stockOutProgressStatus !== undefined && filters.stockOutProgressStatus !== null) {
-    advanced.stockOutProgressStatus = String(filters.stockOutProgressStatus)
-  }
-  if (filters.receiptProgressStatus !== undefined && filters.receiptProgressStatus !== null) {
-    advanced.receiptProgressStatus = String(filters.receiptProgressStatus)
-  }
-  if (filters.invoiceProgressStatus !== undefined && filters.invoiceProgressStatus !== null) {
-    advanced.invoiceProgressStatus = String(filters.invoiceProgressStatus)
-  }
+  const purchaseQ = formatProgressStatusesForRoute(filters.purchaseProgressStatus)
+  if (purchaseQ) advanced.purchaseProgressStatus = purchaseQ
+  const stockInQ = formatProgressStatusesForRoute(filters.stockInProgressStatus)
+  if (stockInQ) advanced.stockInProgressStatus = stockInQ
+  const notifyQ = formatProgressStatusesForRoute(filters.stockOutNotifyProgressStatus)
+  if (notifyQ) advanced.stockOutNotifyProgressStatus = notifyQ
+  const stockOutQ = formatProgressStatusesForRoute(filters.stockOutProgressStatus)
+  if (stockOutQ) advanced.stockOutProgressStatus = stockOutQ
+  const receiptQ = formatProgressStatusesForRoute(filters.receiptProgressStatus)
+  if (receiptQ) advanced.receiptProgressStatus = receiptQ
+  const invoiceQ = formatProgressStatusesForRoute(filters.invoiceProgressStatus)
+  if (invoiceQ) advanced.invoiceProgressStatus = invoiceQ
 
   return buildSoItemListRouteQuery({ keywords, advanced })
 }
@@ -1461,23 +1515,23 @@ async function loadList() {
     if (typeof qf === 'string' && qf.trim() && activePreset.value) {
       params.quickFilter = qf.trim()
     } else if (!activePreset.value) {
-      if (filters.purchaseProgressStatus !== undefined && filters.purchaseProgressStatus !== null) {
-        params.purchaseProgressStatus = filters.purchaseProgressStatus
+      if (filters.purchaseProgressStatus.length) {
+        params.purchaseProgressStatus = [...filters.purchaseProgressStatus]
       }
-      if (filters.stockInProgressStatus !== undefined && filters.stockInProgressStatus !== null) {
-        params.stockInProgressStatus = filters.stockInProgressStatus
+      if (filters.stockInProgressStatus.length) {
+        params.stockInProgressStatus = [...filters.stockInProgressStatus]
       }
-      if (filters.stockOutNotifyProgressStatus !== undefined && filters.stockOutNotifyProgressStatus !== null) {
-        params.stockOutNotifyProgressStatus = filters.stockOutNotifyProgressStatus
+      if (filters.stockOutNotifyProgressStatus.length) {
+        params.stockOutNotifyProgressStatus = [...filters.stockOutNotifyProgressStatus]
       }
-      if (filters.stockOutProgressStatus !== undefined && filters.stockOutProgressStatus !== null) {
-        params.stockOutProgressStatus = filters.stockOutProgressStatus
+      if (filters.stockOutProgressStatus.length) {
+        params.stockOutProgressStatus = [...filters.stockOutProgressStatus]
       }
-      if (filters.receiptProgressStatus !== undefined && filters.receiptProgressStatus !== null) {
-        params.receiptProgressStatus = filters.receiptProgressStatus
+      if (filters.receiptProgressStatus.length) {
+        params.receiptProgressStatus = [...filters.receiptProgressStatus]
       }
-      if (filters.invoiceProgressStatus !== undefined && filters.invoiceProgressStatus !== null) {
-        params.invoiceProgressStatus = filters.invoiceProgressStatus
+      if (filters.invoiceProgressStatus.length) {
+        params.invoiceProgressStatus = [...filters.invoiceProgressStatus]
       }
       if (stockOutPending.value) params.stockOutPending = true
       if (invoicePending.value) params.invoicePending = true
@@ -1674,10 +1728,8 @@ function applyStockOutOne(row: Record<string, unknown>) {
   )
 }
 
-function parseProgressQuery(v: unknown): number | undefined {
-  if (v === undefined || v === null || v === '') return undefined
-  const n = Number(v)
-  return Number.isNaN(n) ? undefined : n
+function parseProgressQuery(v: unknown): number[] {
+  return normalizeProgressStatuses(v)
 }
 
 function syncFiltersFromRoute() {
@@ -1699,12 +1751,12 @@ function syncFiltersFromRoute() {
 
   const preset = activePreset.value
   if (preset) {
-    filters.purchaseProgressStatus = undefined
-    filters.stockInProgressStatus = undefined
-    filters.stockOutNotifyProgressStatus = undefined
-    filters.stockOutProgressStatus = undefined
-    filters.receiptProgressStatus = undefined
-    filters.invoiceProgressStatus = undefined
+    filters.purchaseProgressStatus = []
+    filters.stockInProgressStatus = []
+    filters.stockOutNotifyProgressStatus = []
+    filters.stockOutProgressStatus = []
+    filters.receiptProgressStatus = []
+    filters.invoiceProgressStatus = []
     stockOutPending.value = false
     invoicePending.value = false
     if (isSoItemTimePresetId(preset)) {
@@ -2033,7 +2085,7 @@ html[data-theme='dark'] .so-filter-tabs__item:not(.is-active) {
 .filter-select {
   width: 130px;
   &.filter-select--progress {
-    width: 148px;
+    width: 168px;
   }
   :deep(.el-select__wrapper) {
     background: $layer-2 !important;

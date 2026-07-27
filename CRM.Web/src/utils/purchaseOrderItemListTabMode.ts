@@ -78,14 +78,21 @@ export function orderTypeTabToFilter(tab: PoItemOrderTypeTabId): number | undefi
 
 export type PoItemProgressTabId = 'all' | '0' | '1' | '2'
 
-export function progressFilterToTab(value: number | undefined | null): PoItemProgressTabId {
-  if (value === 0 || value === 1 || value === 2) return String(value) as PoItemProgressTabId
+export function progressFilterToTab(value: number | number[] | undefined | null): PoItemProgressTabId {
+  const arr = Array.isArray(value)
+    ? value
+    : value === 0 || value === 1 || value === 2
+      ? [value]
+      : []
+  if (arr.length === 1 && (arr[0] === 0 || arr[0] === 1 || arr[0] === 2)) {
+    return String(arr[0]) as PoItemProgressTabId
+  }
   return 'all'
 }
 
-export function progressTabToFilter(tab: PoItemProgressTabId): number | undefined {
-  if (tab === '0' || tab === '1' || tab === '2') return Number(tab)
-  return undefined
+export function progressTabToFilter(tab: PoItemProgressTabId): number[] {
+  if (tab === '0' || tab === '1' || tab === '2') return [Number(tab)]
+  return []
 }
 
 export type PoItemProgressFilterKey =

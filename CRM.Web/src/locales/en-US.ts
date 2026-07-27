@@ -2527,6 +2527,7 @@ const enUS = {
     columns: {
       itemStatus: 'Item Status',
       rfqCode: 'RFQ Code',
+      remark: 'Item Remark',
       quoteCount: 'Quote Items',
       customer: 'Customer',
       customerPart: 'Customer Part',
@@ -2563,6 +2564,7 @@ const enUS = {
       status: 'Status',
       purchaser: 'Purchaser',
       createTime: 'Created At',
+      remark: 'Remark',
       actions: 'Actions',
       edit: 'Edit',
       genSalesOrder: 'Generate Sales Order',

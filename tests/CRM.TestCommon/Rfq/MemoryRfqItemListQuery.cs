@@ -113,6 +113,7 @@ public sealed class MemoryRfqItemListQuery : IRfqItemListQuery
                 AssignedPurchaserUserId2 = item.AssignedPurchaserUserId2,
                 AssignedPurchaserName1 = EntityLookupService.FormatUserLoginName(pu1),
                 AssignedPurchaserName2 = EntityLookupService.FormatUserLoginName(pu2),
+                Remark = string.IsNullOrWhiteSpace(item.Remark) ? null : item.Remark.Trim(),
             });
         }
 

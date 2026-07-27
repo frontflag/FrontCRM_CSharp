@@ -272,6 +272,9 @@
         <template #col-purchasers="{ row }">
           {{ formatAssignedPurchasers(row) }}
         </template>
+        <template #col-remark="{ row }">
+          {{ row.remark?.trim() || '—' }}
+        </template>
         <template #col-createTime="{ row }">
           <template
             v-for="p in [formatDisplayDateTime2DigitYearParts(row.createTime || row.rfqCreateTime)]"
@@ -673,6 +676,9 @@
                   </span>
                   <span v-else>—</span>
                 </template>
+              </template>
+              <template #col-remark="{ row }">
+                {{ String((row as Record<string, unknown>).remark ?? '').trim() || '—' }}
               </template>
               <template #col-actions-header>
                 <div class="list-op-col-header--icon-only">
@@ -1181,6 +1187,14 @@ const rfqItemMainTableColumns = computed<CrmTableColumnDef[]>(() => {
     resizable: true
   },
   {
+    key: 'remark',
+    label: t('rfqItemList.columns.remark'),
+    prop: 'remark',
+    minWidth: 160,
+    showOverflowTooltip: true,
+    resizable: true
+  },
+  {
     key: 'rfqCode',
     label: t('rfqItemList.columns.rfqCode'),
     prop: 'rfqCode',
@@ -1336,6 +1350,14 @@ const dockQuoteTableColumns = computed((): CrmTableColumnDef[] => {
       key: 'createTime',
       label: t('rfqItemList.dockQuotes.createTime'),
       width: 160,
+      showOverflowTooltip: true,
+      resizable: true
+    },
+    {
+      key: 'remark',
+      label: t('rfqItemList.dockQuotes.remark'),
+      prop: 'remark',
+      minWidth: 160,
       showOverflowTooltip: true,
       resizable: true
     },

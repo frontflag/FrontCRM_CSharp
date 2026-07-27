@@ -146,7 +146,6 @@
   }
 
   .el-table__body-wrapper td.el-table__cell {
-    background: var(--crm-table-row-base) !important;
     border-bottom: 1px solid var(--crm-table-cell-line) !important;
     border-right: none !important;
     color: $text-primary;
@@ -154,25 +153,107 @@
     transition: background-color 0.18s ease;
   }
 
-  .el-table__body-wrapper .el-table__body tr.el-table__row:nth-child(even) td.el-table__cell:not(.op-col),
+  // 主表滚动格保持透明叠底；左/右固定列与操作列必须实色，否则横向滚动会透字
+  .el-table__body-wrapper td.el-table__cell:not(.el-table-fixed-column--left):not(.el-table-column--selection):not(.el-table-fixed-column--right):not(.op-col) {
+    background: var(--crm-table-row-base) !important;
+  }
+
+  .el-table__body-wrapper td.el-table__cell.el-table-fixed-column--left,
+  .el-table__body-wrapper td.el-table__cell.el-table-column--selection,
+  .el-table__header-wrapper th.el-table__cell.el-table-fixed-column--left,
+  .el-table__header-wrapper th.el-table__cell.el-table-column--selection {
+    background: $layer-2 !important;
+    background-color: $layer-2 !important;
+  }
+
+  .el-table__header-wrapper th.el-table__cell.el-table-fixed-column--left,
+  .el-table__header-wrapper th.el-table__cell.el-table-column--selection {
+    background: linear-gradient(0deg, var(--crm-table-header-bg), var(--crm-table-header-bg)), $layer-2 !important;
+    background-color: $layer-2 !important;
+  }
+
+  // 右侧固定操作列：不透明底，盖住横向滚动时透出的主表文字
+  .el-table__body-wrapper td.el-table__cell.el-table-fixed-column--right,
+  .el-table__body-wrapper td.el-table__cell.op-col,
+  .el-table__header-wrapper th.el-table__cell.el-table-fixed-column--right,
+  .el-table__header-wrapper th.el-table__cell.op-col {
+    background: $layer-2 !important;
+    background-color: $layer-2 !important;
+  }
+
+  .el-table__header-wrapper th.el-table__cell.el-table-fixed-column--right,
+  .el-table__header-wrapper th.el-table__cell.op-col {
+    background: linear-gradient(0deg, var(--crm-op-col-header-bg), var(--crm-op-col-header-bg)), $layer-2 !important;
+    background-color: var(--crm-op-col-header-bg) !important;
+  }
+
+  // 左侧固定列（勾选等）：不透明底，盖住横向滚动时透出的主表文字
+  .el-table__fixed td.el-table__cell,
+  .el-table__fixed-left td.el-table__cell,
+  .el-table__fixed th.el-table__cell,
+  .el-table__fixed-left th.el-table__cell {
+    background: $layer-2 !important;
+    background-color: $layer-2 !important;
+  }
+
+  .el-table__fixed th.el-table__cell,
+  .el-table__fixed-left th.el-table__cell {
+    background: linear-gradient(0deg, var(--crm-table-header-bg), var(--crm-table-header-bg)), $layer-2 !important;
+  }
+
+  .el-table__fixed,
+  .el-table__fixed-left,
+  .el-table__fixed-left-patch {
+    background: $layer-2 !important;
+    background-color: $layer-2 !important;
+  }
+
+  // 右侧固定列容器（旧 fixed 布局 + sticky 补丁）
+  .el-table__fixed-right td.el-table__cell,
+  .el-table__fixed-right th.el-table__cell,
+  .el-table__fixed-right-patch {
+    background: $layer-2 !important;
+    background-color: $layer-2 !important;
+  }
+
+  .el-table__fixed-right th.el-table__cell {
+    background: linear-gradient(0deg, var(--crm-op-col-header-bg), var(--crm-op-col-header-bg)), $layer-2 !important;
+    background-color: var(--crm-op-col-header-bg) !important;
+  }
+
+  .el-table__fixed-right {
+    background: $layer-2 !important;
+    background-color: $layer-2 !important;
+  }
+
+  .el-table__body-wrapper .el-table__body tr.el-table__row:nth-child(even) td.el-table__cell:not(.op-col):not(.el-table-fixed-column--left):not(.el-table-column--selection),
   .el-table__fixed-body-wrapper .el-table__body tr.el-table__row:nth-child(even) td.el-table__cell:not(.op-col) {
     background: var(--crm-table-row-stripe) !important;
   }
 
+  .el-table__body-wrapper .el-table__body tr.el-table__row:nth-child(even) td.el-table__cell.el-table-fixed-column--left:not(.op-col),
+  .el-table__body-wrapper .el-table__body tr.el-table__row:nth-child(even) td.el-table__cell.el-table-column--selection:not(.op-col) {
+    background: linear-gradient(0deg, var(--crm-table-row-stripe), var(--crm-table-row-stripe)), $layer-2 !important;
+    background-color: $layer-2 !important;
+  }
+
   .el-table__body-wrapper .el-table__body tr.el-table__row:nth-child(even) td.el-table__cell.op-col,
-  .el-table__fixed-body-wrapper .el-table__body tr.el-table__row:nth-child(even) td.el-table__cell.op-col {
+  .el-table__body-wrapper .el-table__body tr.el-table__row:nth-child(even) td.el-table__cell.el-table-fixed-column--right,
+  .el-table__fixed-body-wrapper .el-table__body tr.el-table__row:nth-child(even) td.el-table__cell.op-col,
+  .el-table__fixed-right .el-table__body tr.el-table__row:nth-child(even) td.el-table__cell {
     background: var(--crm-op-col-row-stripe) !important;
+    background-color: var(--crm-op-col-row-stripe) !important;
   }
 
   .el-table__fixed-right:not(:has(.op-col)) .el-table__body tr.el-table__row:nth-child(even) td.el-table__cell {
     background-color: var(--crm-table-fixed-right-stripe) !important;
   }
 
-  .el-table__body-wrapper .el-table__body tr.el-table__row:hover td.el-table__cell:not(.op-col),
+  .el-table__body-wrapper .el-table__body tr.el-table__row:hover td.el-table__cell:not(.op-col):not(.el-table-fixed-column--left):not(.el-table-column--selection):not(.el-table-fixed-column--right),
   .el-table__fixed-body-wrapper .el-table__body tr.el-table__row:hover td.el-table__cell:not(.op-col),
-  .el-table__body-wrapper .el-table__body tr.el-table__row.hover-row td.el-table__cell:not(.op-col),
+  .el-table__body-wrapper .el-table__body tr.el-table__row.hover-row td.el-table__cell:not(.op-col):not(.el-table-fixed-column--left):not(.el-table-column--selection):not(.el-table-fixed-column--right),
   .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.hover-row td.el-table__cell:not(.op-col),
-  .el-table__body-wrapper .el-table__body tr.el-table__row.current-row td.el-table__cell:not(.op-col),
+  .el-table__body-wrapper .el-table__body tr.el-table__row.current-row td.el-table__cell:not(.op-col):not(.el-table-fixed-column--left):not(.el-table-column--selection):not(.el-table-fixed-column--right),
   .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.current-row td.el-table__cell:not(.op-col) {
     background: var(--crm-table-row-hover) !important;
     border-right: none !important;
@@ -180,13 +261,33 @@
     box-shadow: none !important;
   }
 
-  .el-table__body-wrapper .el-table__body tr.el-table__row:hover td.el-table__cell.op-col,
-  .el-table__fixed-body-wrapper .el-table__body tr.el-table__row:hover td.el-table__cell.op-col,
-  .el-table__body-wrapper .el-table__body tr.el-table__row.hover-row td.el-table__cell.op-col,
-  .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.hover-row td.el-table__cell.op-col,
-  .el-table__body-wrapper .el-table__body tr.el-table__row.current-row td.el-table__cell.op-col,
-  .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.current-row td.el-table__cell.op-col {
+  .el-table__body-wrapper .el-table__body tr.el-table__row:hover td.el-table__cell.el-table-fixed-column--left,
+  .el-table__body-wrapper .el-table__body tr.el-table__row:hover td.el-table__cell.el-table-column--selection,
+  .el-table__body-wrapper .el-table__body tr.el-table__row.hover-row td.el-table__cell.el-table-fixed-column--left,
+  .el-table__body-wrapper .el-table__body tr.el-table__row.hover-row td.el-table__cell.el-table-column--selection,
+  .el-table__body-wrapper .el-table__body tr.el-table__row.current-row td.el-table__cell.el-table-fixed-column--left,
+  .el-table__body-wrapper .el-table__body tr.el-table__row.current-row td.el-table__cell.el-table-column--selection {
     background: linear-gradient(0deg, var(--crm-table-row-hover), var(--crm-table-row-hover)), $layer-2 !important;
+    background-color: $layer-2 !important;
+    border-right: none !important;
+    border-left: none !important;
+    box-shadow: none !important;
+  }
+
+  .el-table__body-wrapper .el-table__body tr.el-table__row:hover td.el-table__cell.op-col,
+  .el-table__body-wrapper .el-table__body tr.el-table__row:hover td.el-table__cell.el-table-fixed-column--right,
+  .el-table__fixed-body-wrapper .el-table__body tr.el-table__row:hover td.el-table__cell.op-col,
+  .el-table__fixed-right .el-table__body tr.el-table__row:hover td.el-table__cell,
+  .el-table__body-wrapper .el-table__body tr.el-table__row.hover-row td.el-table__cell.op-col,
+  .el-table__body-wrapper .el-table__body tr.el-table__row.hover-row td.el-table__cell.el-table-fixed-column--right,
+  .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.hover-row td.el-table__cell.op-col,
+  .el-table__fixed-right .el-table__body tr.el-table__row.hover-row td.el-table__cell,
+  .el-table__body-wrapper .el-table__body tr.el-table__row.current-row td.el-table__cell.op-col,
+  .el-table__body-wrapper .el-table__body tr.el-table__row.current-row td.el-table__cell.el-table-fixed-column--right,
+  .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.current-row td.el-table__cell.op-col,
+  .el-table__fixed-right .el-table__body tr.el-table__row.current-row td.el-table__cell {
+    background: linear-gradient(0deg, var(--crm-table-row-hover), var(--crm-table-row-hover)), $layer-2 !important;
+    background-color: $layer-2 !important;
     border-right: none !important;
     border-left: none !important;
     box-shadow: none !important;
@@ -217,10 +318,23 @@
     z-index: 2;
   }
 
-  tr:hover > td.el-table__cell,
-  tr.hover-row > td.el-table__cell,
-  tr.current-row > td.el-table__cell {
+  tr:hover > td.el-table__cell:not(.el-table-fixed-column--left):not(.el-table-column--selection),
+  tr.hover-row > td.el-table__cell:not(.el-table-fixed-column--left):not(.el-table-column--selection),
+  tr.current-row > td.el-table__cell:not(.el-table-fixed-column--left):not(.el-table-column--selection) {
     background: var(--crm-table-row-hover) !important;
+    border-right: none !important;
+    border-left: none !important;
+    box-shadow: none !important;
+  }
+
+  tr:hover > td.el-table__cell.el-table-fixed-column--left,
+  tr:hover > td.el-table__cell.el-table-column--selection,
+  tr.hover-row > td.el-table__cell.el-table-fixed-column--left,
+  tr.hover-row > td.el-table__cell.el-table-column--selection,
+  tr.current-row > td.el-table__cell.el-table-fixed-column--left,
+  tr.current-row > td.el-table__cell.el-table-column--selection {
+    background: linear-gradient(0deg, var(--crm-table-row-hover), var(--crm-table-row-hover)), $layer-2 !important;
+    background-color: $layer-2 !important;
     border-right: none !important;
     border-left: none !important;
     box-shadow: none !important;

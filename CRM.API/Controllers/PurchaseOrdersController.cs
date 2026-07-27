@@ -157,7 +157,7 @@ namespace CRM.API.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "获取采购订单列表失败");
+                _logger.LogError(ex, "??????????");
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
@@ -258,10 +258,10 @@ namespace CRM.API.Controllers
             [FromQuery] string? pn,
             [FromQuery] short? orderType,
             [FromQuery] string? transactionCurrency,
-            [FromQuery] short? paymentProgressStatus = null,
-            [FromQuery] short? purchaseProgressStatus = null,
-            [FromQuery] short? stockInProgressStatus = null,
-            [FromQuery] short? invoiceProgressStatus = null,
+            [FromQuery] List<short>? paymentProgressStatus = null,
+            [FromQuery] List<short>? purchaseProgressStatus = null,
+            [FromQuery] List<short>? stockInProgressStatus = null,
+            [FromQuery] List<short>? invoiceProgressStatus = null,
             [FromQuery] string? quickFilter = null,
             CancellationToken cancellationToken = default)
         {
@@ -284,10 +284,10 @@ namespace CRM.API.Controllers
             [FromQuery] string? pn,
             [FromQuery] short? orderType,
             [FromQuery] string? transactionCurrency,
-            [FromQuery] short? paymentProgressStatus = null,
-            [FromQuery] short? purchaseProgressStatus = null,
-            [FromQuery] short? stockInProgressStatus = null,
-            [FromQuery] short? invoiceProgressStatus = null,
+            [FromQuery] List<short>? paymentProgressStatus = null,
+            [FromQuery] List<short>? purchaseProgressStatus = null,
+            [FromQuery] List<short>? stockInProgressStatus = null,
+            [FromQuery] List<short>? invoiceProgressStatus = null,
             [FromQuery] string? groupBy = null,
             [FromQuery] string? quickFilter = null,
             CancellationToken cancellationToken = default)
@@ -315,10 +315,10 @@ namespace CRM.API.Controllers
             [FromQuery] string? pn,
             [FromQuery] short? orderType,
             [FromQuery] string? transactionCurrency,
-            [FromQuery] short? paymentProgressStatus = null,
-            [FromQuery] short? purchaseProgressStatus = null,
-            [FromQuery] short? stockInProgressStatus = null,
-            [FromQuery] short? invoiceProgressStatus = null,
+            [FromQuery] List<short>? paymentProgressStatus = null,
+            [FromQuery] List<short>? purchaseProgressStatus = null,
+            [FromQuery] List<short>? stockInProgressStatus = null,
+            [FromQuery] List<short>? invoiceProgressStatus = null,
             [FromQuery] string? quickFilter = null,
             CancellationToken cancellationToken = default)
         {
@@ -341,10 +341,10 @@ namespace CRM.API.Controllers
             [FromQuery] string? pn,
             [FromQuery] short? orderType,
             [FromQuery] string? transactionCurrency,
-            [FromQuery] short? paymentProgressStatus = null,
-            [FromQuery] short? purchaseProgressStatus = null,
-            [FromQuery] short? stockInProgressStatus = null,
-            [FromQuery] short? invoiceProgressStatus = null,
+            [FromQuery] List<short>? paymentProgressStatus = null,
+            [FromQuery] List<short>? purchaseProgressStatus = null,
+            [FromQuery] List<short>? stockInProgressStatus = null,
+            [FromQuery] List<short>? invoiceProgressStatus = null,
             [FromQuery] string? quickFilter = null,
             CancellationToken cancellationToken = default)
         {
@@ -356,7 +356,7 @@ namespace CRM.API.Controllers
             return Ok(ApiResponse<PurchaseOrderItemListAnalyticsRankingsDto>.Ok(data));
         }
 
-        /// <summary>采购订单明细行列表（数据库分页；与前端 <c>/purchase-order-items</c> 对齐）。</summary>
+        /// <summary>??????????????????? <c>/purchase-order-items</c> ????</summary>
         [HttpGet("items")]
         public async Task<IActionResult> GetPurchaseOrderItemLines(
             [FromQuery] string? startDate,
@@ -368,10 +368,10 @@ namespace CRM.API.Controllers
             [FromQuery] string? pn,
             [FromQuery] short? orderType,
             [FromQuery] string? transactionCurrency,
-            [FromQuery] short? paymentProgressStatus = null,
-            [FromQuery] short? purchaseProgressStatus = null,
-            [FromQuery] short? stockInProgressStatus = null,
-            [FromQuery] short? invoiceProgressStatus = null,
+            [FromQuery] List<short>? paymentProgressStatus = null,
+            [FromQuery] List<short>? purchaseProgressStatus = null,
+            [FromQuery] List<short>? stockInProgressStatus = null,
+            [FromQuery] List<short>? invoiceProgressStatus = null,
             [FromQuery] string? quickFilter = null,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20,
@@ -436,22 +436,22 @@ namespace CRM.API.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "获取采购订单明细行列表失败");
+                _logger.LogError(ex, "?????????????");
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
 
-        /// <summary>采购订单报表页：一次返回订单详情（含供应商扩展字段）与公司参数，避免单独请求 company-profile/report-bundle。</summary>
+        /// <summary>?????????????????????????????????????? company-profile/report-bundle?</summary>
         [HttpGet("{id:guid}/report-data")]
         public async Task<IActionResult> GetReportData(string id, CancellationToken cancellationToken)
         {
             try
             {
                 var order = await _service.GetByIdAsync(id);
-                if (order == null) return NotFound(new { success = false, message = "采购订单不存在" });
+                if (order == null) return NotFound(new { success = false, message = "???????" });
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessPurchaseOrderAsync(userId, order))
-                    return StatusCode(403, new { success = false, message = "无权限访问该采购订单" });
+                    return StatusCode(403, new { success = false, message = "??????????" });
                 var summary = await GetPermissionSummaryAsync(userId);
                 VendorContactInfo? contact = null;
                 VendorInfo? vendor = null;
@@ -490,17 +490,17 @@ namespace CRM.API.Controllers
             }
         }
 
-        /// <summary>采购订单详情页：底部页签下游列表（采购申请/付款/到货通知/入库/库存/进项发票）。</summary>
+        /// <summary>?????????????????????/??/????/??/??/??????</summary>
         [HttpGet("{id:guid}/detail-tab-aggregates")]
         public async Task<IActionResult> GetDetailTabAggregates(string id)
         {
             try
             {
                 var order = await _service.GetByIdAsync(id);
-                if (order == null) return NotFound(new { success = false, message = "采购订单不存在" });
+                if (order == null) return NotFound(new { success = false, message = "???????" });
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessPurchaseOrderAsync(userId, order))
-                    return StatusCode(403, new { success = false, message = "无权限访问该采购订单" });
+                    return StatusCode(403, new { success = false, message = "??????????" });
                 var summary = await GetPermissionSummaryAsync(userId);
                 var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
                 var mask521 = SaleSensitiveFieldMask521.ShouldMask(summary);
@@ -510,12 +510,12 @@ namespace CRM.API.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "获取采购订单页签数据失败: {Id}", id);
+                _logger.LogError(ex, "????????????: {Id}", id);
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
 
-        /// <summary>采购订单「单条明细」下游列表：与 <c>detail-tab-aggregates</c> 字段一致，按采购明细主键过滤。</summary>
+        /// <summary>???????????????? <c>detail-tab-aggregates</c> ???????????????</summary>
         [HttpGet("{id:guid}/purchase-order-items/{purchaseOrderItemId}/detail-tab-aggregates")]
         public async Task<IActionResult> GetPurchaseOrderItemDetailTabAggregates(string id, string purchaseOrderItemId)
         {
@@ -523,13 +523,13 @@ namespace CRM.API.Controllers
             {
                 var lineId = (purchaseOrderItemId ?? string.Empty).Trim();
                 if (string.IsNullOrEmpty(lineId))
-                    return BadRequest(new { success = false, message = "采购订单明细主键无效" });
+                    return BadRequest(new { success = false, message = "??????????" });
 
                 var order = await _service.GetByIdAsync(id);
-                if (order == null) return NotFound(new { success = false, message = "采购订单不存在" });
+                if (order == null) return NotFound(new { success = false, message = "???????" });
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessPurchaseOrderAsync(userId, order))
-                    return StatusCode(403, new { success = false, message = "无权限访问该采购订单" });
+                    return StatusCode(403, new { success = false, message = "??????????" });
 
                 var orderLineIds = (order.Items ?? new List<PurchaseOrderItem>())
                     .Select(i => i.Id)
@@ -538,7 +538,7 @@ namespace CRM.API.Controllers
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
                 if (!orderLineIds.Contains(lineId, StringComparer.OrdinalIgnoreCase))
-                    return NotFound(new { success = false, message = "采购订单明细不属于该订单" });
+                    return NotFound(new { success = false, message = "????????????" });
 
                 var summary = await GetPermissionSummaryAsync(userId);
                 var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
@@ -549,12 +549,12 @@ namespace CRM.API.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "获取采购订单明细页签数据失败: {OrderId} {ItemId}", id, purchaseOrderItemId);
+                _logger.LogError(ex, "??????????????: {OrderId} {ItemId}", id, purchaseOrderItemId);
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
 
-        /// <param name="purchaseOrderItemIdScope">非 null 时：采购申请仅保留该明细关联销售行；付款明细仅保留该行；到货通知按采购明细过滤；入库/库存/进项发票链仅使用该明细。</param>
+        /// <param name="purchaseOrderItemIdScope">? null ??????????????????????????????????????????/??/????????????</param>
         private async Task<object> BuildPurchaseOrderDetailTabAggregatesPayloadAsync(
             string purchaseOrderId,
             PurchaseOrder order,
@@ -574,7 +574,7 @@ namespace CRM.API.Controllers
                     !string.IsNullOrWhiteSpace(i.Id) &&
                     string.Equals(i.Id.Trim(), scope, StringComparison.OrdinalIgnoreCase));
                 if (line == null)
-                    throw new InvalidOperationException("采购订单明细不属于该订单");
+                    throw new InvalidOperationException("????????????");
 
                 poItemIds = new List<string> { scope };
                 var so = line.SellOrderItemId?.Trim();
@@ -879,7 +879,7 @@ namespace CRM.API.Controllers
         }
 
         /// <summary>
-        /// 采购明细下游「到货通知」：按 <c>purchase_order_item_id</c> 关联到货通知，字段与到货通知列表（<see cref="StockInNotify"/> 列表序列化）一致。
+        /// ?????????????? <c>purchase_order_item_id</c> ?????????????????<see cref="StockInNotify"/> ?????????
         /// </summary>
         private async Task<List<object>> BuildPurchaseOrderTabArrivalNoticesAsync(
             IReadOnlyList<string> poItemIds,
@@ -955,7 +955,7 @@ namespace CRM.API.Controllers
         }
 
         /// <summary>
-        /// 采购明细下游「入库」：经入库明细扩展 <c>purchase_order_item_id</c> 反查入库单，字段与入库单列表（<see cref="StockInListItemDto"/>）一致。
+        /// ?????????????????? <c>purchase_order_item_id</c> ???????????????<see cref="StockInListItemDto"/>????
         /// </summary>
         private async Task<List<object>> BuildPurchaseOrderTabStockInsAsync(IReadOnlyList<string> poItemIds, bool mask511)
         {
@@ -1016,7 +1016,7 @@ namespace CRM.API.Controllers
         }
 
         /// <summary>
-        /// 采购明细下游「库存」：按 <c>purchase_order_item_id</c> 关联库存明细，字段与全库库存明细列表（<see cref="InventoryStockItemListRowDto"/>）一致。
+        /// ???????????? <c>purchase_order_item_id</c> ???????????????????<see cref="InventoryStockItemListRowDto"/>????
         /// </summary>
         private async Task<List<object>> BuildPurchaseOrderTabStockItemsAsync(
             IReadOnlyList<string> poItemIds,
@@ -1106,7 +1106,7 @@ namespace CRM.API.Controllers
                 profitOutBizUsd = r.ProfitOutBizUsd
             };
 
-        /// <summary>采购订单明细详情「概况」页签：4×7 执行进度矩阵（仅单条明细 scope 时返回）。</summary>
+        /// <summary>???????????????4�7 ???????????? scope ?????</summary>
         private async Task<object?> BuildPurchaseOrderLineOverviewAsync(
             string lineId,
             bool mask511)
@@ -1186,49 +1186,49 @@ namespace CRM.API.Controllers
             };
         }
 
-        /// <summary>采购订单主表字段变更日志（log_change_fldval）。</summary>
+        /// <summary>?????????????log_change_fldval??</summary>
         [HttpGet("{id:guid}/change-logs")]
         public async Task<IActionResult> GetChangeLogs(string id)
         {
             try
             {
                 var order = await _service.GetByIdAsync(id);
-                if (order == null) return NotFound(new { success = false, message = "采购订单不存在" });
+                if (order == null) return NotFound(new { success = false, message = "???????" });
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessPurchaseOrderAsync(userId, order))
-                    return StatusCode(403, new { success = false, message = "无权限访问该采购订单" });
+                    return StatusCode(403, new { success = false, message = "??????????" });
                 var logs = await _service.GetFieldChangeLogsAsync(id);
                 return Ok(new { success = true, data = logs });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "获取采购订单变更日志失败: {Id}", id);
+                _logger.LogError(ex, "????????????: {Id}", id);
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
 
-        /// <summary>已软删除的采购订单明细行。</summary>
+        /// <summary>?????????????</summary>
         [HttpGet("{id:guid}/deleted-items")]
         public async Task<IActionResult> GetDeletedItems(string id)
         {
             try
             {
                 var order = await _service.GetByIdAsync(id);
-                if (order == null) return NotFound(new { success = false, message = "采购订单不存在" });
+                if (order == null) return NotFound(new { success = false, message = "???????" });
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessPurchaseOrderAsync(userId, order))
-                    return StatusCode(403, new { success = false, message = "无权限访问该采购订单" });
+                    return StatusCode(403, new { success = false, message = "??????????" });
                 var items = await _service.GetDeletedOrderItemsAsync(id);
                 return Ok(new { success = true, data = items });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "获取采购订单删除明细失败: {Id}", id);
+                _logger.LogError(ex, "????????????: {Id}", id);
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
 
-        /// <summary>采购订单详情「入库批次」面板导出记录（仅 PO 页发起的导出）。</summary>
+        /// <summary>???????????????????? PO ????????</summary>
         [HttpGet("{id:guid}/batch-export-logs")]
         public async Task<IActionResult> GetBatchExportLogs(
             string id,
@@ -1239,10 +1239,10 @@ namespace CRM.API.Controllers
             try
             {
                 var order = await _service.GetByIdAsync(id);
-                if (order == null) return NotFound(new { success = false, message = "采购订单不存在" });
+                if (order == null) return NotFound(new { success = false, message = "???????" });
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessPurchaseOrderAsync(userId, order))
-                    return StatusCode(403, new { success = false, message = "无权限访问该采购订单" });
+                    return StatusCode(403, new { success = false, message = "??????????" });
 
                 var data = await _operationLogQuery.QueryAsync(new OperationLogQuery
                 {
@@ -1257,12 +1257,12 @@ namespace CRM.API.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "获取采购订单入库批次导出记录失败 PurchaseOrderId={Id}", id);
-                return StatusCode(500, new { success = false, message = "获取导出记录失败" });
+                _logger.LogError(ex, "???????????????? PurchaseOrderId={Id}", id);
+                return StatusCode(500, new { success = false, message = "????????" });
             }
         }
 
-        /// <summary>记录采购订单详情页导出入库批次 CSV 的操作日志。</summary>
+        /// <summary>??????????????? CSV ??????</summary>
         [HttpPost("{id:guid}/batch-log-export")]
         public async Task<IActionResult> LogBatchExport(
             string id,
@@ -1272,16 +1272,16 @@ namespace CRM.API.Controllers
             try
             {
                 var order = await _service.GetByIdAsync(id);
-                if (order == null) return NotFound(new { success = false, message = "采购订单不存在" });
+                if (order == null) return NotFound(new { success = false, message = "???????" });
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessPurchaseOrderAsync(userId, order))
-                    return StatusCode(403, new { success = false, message = "无权限访问该采购订单" });
+                    return StatusCode(403, new { success = false, message = "??????????" });
 
                 var count = Math.Max(0, body?.ExportedCount ?? 0);
                 var code = (order.PurchaseOrderCode ?? string.Empty).Trim();
                 var desc = string.IsNullOrEmpty(code)
-                    ? $"导出采购订单入库批次 {count} 条"
-                    : $"导出采购订单 {code} 入库批次 {count} 条";
+                    ? $"?????????? {count} ?"
+                    : $"?????? {code} ???? {count} ?";
                 var extraInfo = JsonSerializer.Serialize(new { exportedCount = count });
 
                 await _logOperationAppend.AppendAsync(
@@ -1296,26 +1296,26 @@ namespace CRM.API.Controllers
                     extraInfo,
                     cancellationToken);
 
-                return Ok(new { success = true, data = (object?)null, message = "已记录导出日志" });
+                return Ok(new { success = true, data = (object?)null, message = "???????" });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "记录采购订单入库批次导出日志失败 PurchaseOrderId={Id}", id);
-                return StatusCode(500, new { success = false, message = "记录导出日志失败" });
+                _logger.LogError(ex, "???????????????? PurchaseOrderId={Id}", id);
+                return StatusCode(500, new { success = false, message = "????????" });
             }
         }
 
-        /// <summary>按主键获取采购订单详情；使用 <c>{id:guid}</c> 避免与字面路由 <c>items</c> 冲突。</summary>
+        /// <summary>?????????????? <c>{id:guid}</c> ??????? <c>items</c> ???</summary>
         [HttpGet("{id:guid}")]
         public async Task<IActionResult> GetById(string id, CancellationToken cancellationToken)
         {
             try
             {
                 var order = await _service.GetByIdAsync(id);
-                if (order == null) return NotFound(new { success = false, message = "采购订单不存在" });
+                if (order == null) return NotFound(new { success = false, message = "???????" });
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessPurchaseOrderAsync(userId, order))
-                    return StatusCode(403, new { success = false, message = "无权限访问该采购订单" });
+                    return StatusCode(403, new { success = false, message = "??????????" });
                 var summary = await GetPermissionSummaryAsync(userId);
                 VendorContactInfo? contact = null;
                 VendorInfo? vendor = null;
@@ -1349,22 +1349,22 @@ namespace CRM.API.Controllers
             }
         }
 
-        /// <summary>将当前预览的采购订单 PDF（Base64）作为附件发送至指定邮箱。</summary>
+        /// <summary>?????????? PDF?Base64?????????????</summary>
         [HttpPost("{id:guid}/report/send-email")]
         public async Task<IActionResult> SendReportEmail(string id, [FromBody] SendPurchaseOrderReportEmailRequest request, CancellationToken cancellationToken)
         {
             try
             {
                 if (request == null || string.IsNullOrWhiteSpace(request.To))
-                    return BadRequest(new { success = false, message = "收件人邮箱不能为空" });
+                    return BadRequest(new { success = false, message = "?????????" });
                 if (string.IsNullOrWhiteSpace(request.PdfBase64))
-                    return BadRequest(new { success = false, message = "PDF 内容不能为空" });
+                    return BadRequest(new { success = false, message = "PDF ??????" });
 
                 var order = await _service.GetByIdAsync(id);
-                if (order == null) return NotFound(new { success = false, message = "采购订单不存在" });
+                if (order == null) return NotFound(new { success = false, message = "???????" });
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessPurchaseOrderAsync(userId, order))
-                    return StatusCode(403, new { success = false, message = "无权限访问该采购订单" });
+                    return StatusCode(403, new { success = false, message = "??????????" });
 
                 var raw = request.PdfBase64.Trim();
                 var comma = raw.IndexOf(',');
@@ -1378,19 +1378,19 @@ namespace CRM.API.Controllers
                 }
                 catch (FormatException)
                 {
-                    return BadRequest(new { success = false, message = "PDF 数据格式无效" });
+                    return BadRequest(new { success = false, message = "PDF ??????" });
                 }
 
                 const int maxBytes = 25 * 1024 * 1024;
                 if (pdfBytes.Length > maxBytes)
-                    return BadRequest(new { success = false, message = "附件过大" });
+                    return BadRequest(new { success = false, message = "????" });
 
                 var fileName = string.IsNullOrWhiteSpace(request.FileName) ? $"{order.PurchaseOrderCode}.pdf" : request.FileName!.Trim();
                 if (!fileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
                     fileName += ".pdf";
 
                 var subject = string.IsNullOrWhiteSpace(request.Subject)
-                    ? $"采购订单 {order.PurchaseOrderCode}"
+                    ? $"???? {order.PurchaseOrderCode}"
                     : request.Subject!.Trim();
 
                 await _emailSender.SendWithAttachmentAsync(
@@ -1402,7 +1402,7 @@ namespace CRM.API.Controllers
                     "application/pdf",
                     cancellationToken);
 
-                return Ok(new { success = true, message = "邮件已发送" });
+                return Ok(new { success = true, message = "?????" });
             }
             catch (InvalidOperationException ex)
             {
@@ -1410,7 +1410,7 @@ namespace CRM.API.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "发送采购订单报表邮件失败");
+                _logger.LogError(ex, "????????????");
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
@@ -1446,7 +1446,7 @@ namespace CRM.API.Controllers
         {
             var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrWhiteSpace(actorId))
-                return Unauthorized(new { success = false, message = "未登录或登录态失效" });
+                return Unauthorized(new { success = false, message = "?????????" });
             var createSummary = await GetPermissionSummaryAsync(actorId);
             if (createSummary == null || !PurchaseOrderCreateGate.CanCreate(createSummary))
             {
@@ -1455,34 +1455,34 @@ namespace CRM.API.Controllers
                     {
                         success = false,
                         message =
-                            "无权限创建采购订单。请满足其一：purchase-order.write；或 purchase-requisition.write 且（主部门为采购/采购助理、或具备 purchase-order.read、或角色含 purchase_buyer / purchase_operator / purchase_ops_operator）。"
+                            "????????????????purchase-order.write?? purchase-requisition.write ????????/???????? purchase-order.read????? purchase_buyer / purchase_operator / purchase_ops_operator??"
                     });
             }
 
             try
             {
                 _logger.LogInformation(
-                    "PurchaseOrders Create 入口: Type={Type} ItemCount={ItemCount} VendorId={VendorId} PurchaseUserId={PurchaseUserId} ActorId={ActorId}",
+                    "PurchaseOrders Create ??: Type={Type} ItemCount={ItemCount} VendorId={VendorId} PurchaseUserId={PurchaseUserId} ActorId={ActorId}",
                     request.Type, request.Items?.Count ?? 0, request.VendorId, request.PurchaseUserId ?? "(null)", actorId ?? "(null)");
                 var order = await _service.CreateAsync(request, actorId);
-                _logger.LogInformation("PurchaseOrders Create 成功: Id={Id} Code={Code}", order.Id, order.PurchaseOrderCode);
+                _logger.LogInformation("PurchaseOrders Create ??: Id={Id} Code={Code}", order.Id, order.PurchaseOrderCode);
                 return CreatedAtAction(nameof(GetById), new { id = order.Id },
                     new { success = true, data = order });
             }
             catch (ArgumentException ex)
             {
-                _logger.LogWarning(ex, "PurchaseOrders Create 参数错误: {Message}", ex.Message);
+                _logger.LogWarning(ex, "PurchaseOrders Create ????: {Message}", ex.Message);
                 return BadRequest(new { success = false, message = ex.Message });
             }
             catch (InvalidOperationException ex)
             {
-                _logger.LogWarning(ex, "PurchaseOrders Create 冲突: {Message}", ex.Message);
+                _logger.LogWarning(ex, "PurchaseOrders Create ??: {Message}", ex.Message);
                 return Conflict(new { success = false, message = ex.Message });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex,
-                    "创建采购订单失败: {Message}; Inner={Inner}",
+                    "????????: {Message}; Inner={Inner}",
                     ex.Message, ex.InnerException?.Message);
                 return StatusCode(500, new { success = false, message = PersistErrorMessage(ex) });
             }
@@ -1497,37 +1497,37 @@ namespace CRM.API.Controllers
                 var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 var existing = await _service.GetByIdAsync(id);
                 if (existing == null)
-                    return NotFound(new { success = false, message = "采购订单不存在" });
+                    return NotFound(new { success = false, message = "???????" });
                 if (!string.IsNullOrWhiteSpace(actorId)
                     && !await _dataPermissionService.CanAccessPurchaseOrderAsync(actorId, existing))
-                    return StatusCode(403, new { success = false, message = "无权限编辑该采购订单" });
+                    return StatusCode(403, new { success = false, message = "??????????" });
 
                 if (!string.IsNullOrWhiteSpace(request.VendorId))
                 {
                     var summary = await GetPermissionSummaryAsync(actorId);
                     if (!PurchaseOrderVendorChangeAccessRules.CanChangeVendor(summary))
-                        return StatusCode(403, new { success = false, message = "无权限更换采购订单供应商" });
+                        return StatusCode(403, new { success = false, message = "????????????" });
                 }
 
                 _logger.LogInformation(
-                    "PurchaseOrders Update 入口: Id={Id} ItemCount={ItemCount} ActorId={ActorId}",
+                    "PurchaseOrders Update ??: Id={Id} ItemCount={ItemCount} ActorId={ActorId}",
                     id, request.Items?.Count ?? 0, actorId ?? "(null)");
                 var order = await _service.UpdateAsync(id, request, actorId);
                 return Ok(new { success = true, data = order });
             }
             catch (InvalidOperationException ex)
             {
-                if (ex.Message.Contains("不存在", StringComparison.Ordinal))
+                if (ex.Message.Contains("???", StringComparison.Ordinal))
                 {
-                    _logger.LogWarning(ex, "PurchaseOrders Update 未找到: {Message}", ex.Message);
+                    _logger.LogWarning(ex, "PurchaseOrders Update ???: {Message}", ex.Message);
                     return NotFound(new { success = false, message = ex.Message });
                 }
-                _logger.LogWarning(ex, "PurchaseOrders Update 业务拒绝: {Message}", ex.Message);
+                _logger.LogWarning(ex, "PurchaseOrders Update ????: {Message}", ex.Message);
                 return BadRequest(new { success = false, message = ex.Message });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "PurchaseOrders Update 失败: {Message}; Inner={Inner}", ex.Message, ex.InnerException?.Message);
+                _logger.LogError(ex, "PurchaseOrders Update ??: {Message}; Inner={Inner}", ex.Message, ex.InnerException?.Message);
                 return StatusCode(500, new { success = false, message = PersistErrorMessage(ex) });
             }
         }
@@ -1540,7 +1540,7 @@ namespace CRM.API.Controllers
             {
                 var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 await _service.DeleteAsync(id, actorId);
-                return Ok(new { success = true, message = "删除成功" });
+                return Ok(new { success = true, message = "????" });
             }
             catch (InvalidOperationException ex)
             {
@@ -1560,7 +1560,7 @@ namespace CRM.API.Controllers
             {
                 var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 await _service.UpdateStatusAsync(id, request.Status, actorId);
-                return Ok(new { success = true, message = "状态更新成功" });
+                return Ok(new { success = true, message = "??????" });
             }
             catch (InvalidOperationException ex)
             {
@@ -1577,7 +1577,7 @@ namespace CRM.API.Controllers
             public string? FreightForwarderOrderNo { get; set; }
         }
 
-        /// <summary>物流录入/修改/清空货代单号（审核通过后；系统内唯一）。</summary>
+        /// <summary>????/??/????????????????????</summary>
         [HttpPatch("{id:guid}/freight-forwarder-order-no")]
         public async Task<IActionResult> UpdateFreightForwarderOrderNo(
             string id,
@@ -1586,15 +1586,15 @@ namespace CRM.API.Controllers
             try
             {
                 if (!await LogisticsDataAccessHttp.CanWriteAsync(_rbacService, User))
-                    return StatusCode(403, new { success = false, message = "当前账号无物流写权限，无法录入货代单号" });
+                    return StatusCode(403, new { success = false, message = "???????????????????" });
 
                 var order = await _service.GetByIdAsync(id);
                 if (order == null)
-                    return NotFound(new { success = false, message = "采购订单不存在" });
+                    return NotFound(new { success = false, message = "???????" });
 
                 var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (!string.IsNullOrWhiteSpace(actorId) && !await _dataPermissionService.CanAccessPurchaseOrderAsync(actorId, order))
-                    return StatusCode(403, new { success = false, message = "无权限访问该采购订单" });
+                    return StatusCode(403, new { success = false, message = "??????????" });
 
                 var updated = await _service.UpdateFreightForwarderOrderNoAsync(
                     id,
@@ -1606,7 +1606,7 @@ namespace CRM.API.Controllers
                 {
                     success = true,
                     data = MaskPurchaseOrder(updated, summary, assistorUserName: ResolveAssistorDisplayName(updated.Assistor, assistorNameMap)),
-                    message = "货代单号已保存"
+                    message = "???????"
                 });
             }
             catch (ArgumentException ex)
@@ -1619,7 +1619,7 @@ namespace CRM.API.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "更新货代单号失败: {Id}", id);
+                _logger.LogError(ex, "????????: {Id}", id);
                 return StatusCode(500, new { success = false, message = PersistErrorMessage(ex) });
             }
         }
@@ -1631,18 +1631,18 @@ namespace CRM.API.Controllers
             try
             {
                 var order = await _service.GetByIdAsync(id);
-                if (order == null) return NotFound(new { success = false, message = "采购订单不存在" });
+                if (order == null) return NotFound(new { success = false, message = "???????" });
 
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessPurchaseOrderAsync(userId, order))
-                    return StatusCode(403, new { success = false, message = "无权限访问该采购订单" });
+                    return StatusCode(403, new { success = false, message = "??????????" });
 
                 var result = await _service.RefreshItemExtendsAsync(id, cancellationToken);
                 return Ok(new { success = true, data = result });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "刷新采购订单明细扩展失败: {Id}", id);
+                _logger.LogError(ex, "????????????: {Id}", id);
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
@@ -1657,22 +1657,22 @@ namespace CRM.API.Controllers
             try
             {
                 if (string.IsNullOrWhiteSpace(newVendorId))
-                    return BadRequest(new { success = false, message = "请指定新供应商" });
+                    return BadRequest(new { success = false, message = "???????" });
 
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrWhiteSpace(userId))
-                    return StatusCode(403, new { success = false, message = "未登录或身份无效" });
+                    return StatusCode(403, new { success = false, message = "????????" });
 
                 var summary = await GetPermissionSummaryAsync(userId.Trim());
                 if (!PurchaseOrderVendorChangeAccessRules.CanChangeVendor(summary))
-                    return StatusCode(403, new { success = false, message = "无权限更换采购订单供应商" });
+                    return StatusCode(403, new { success = false, message = "????????????" });
 
                 var order = await _service.GetByIdAsync(id);
                 if (order == null)
-                    return NotFound(new { success = false, message = "采购订单不存在" });
+                    return NotFound(new { success = false, message = "???????" });
 
                 if (!await _dataPermissionService.CanAccessPurchaseOrderAsync(userId.Trim(), order))
-                    return StatusCode(403, new { success = false, message = "无权限访问该采购订单" });
+                    return StatusCode(403, new { success = false, message = "??????????" });
 
                 cancellationToken.ThrowIfCancellationRequested();
                 var preview = await _service.PreviewVendorChangeAsync(id, newVendorId.Trim(), cancellationToken);
@@ -1688,7 +1688,7 @@ namespace CRM.API.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "预检采购订单换供应商失败: {Id}", id);
+                _logger.LogError(ex, "????????????: {Id}", id);
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
@@ -1701,17 +1701,17 @@ namespace CRM.API.Controllers
             {
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrWhiteSpace(userId))
-                    return StatusCode(403, new { success = false, message = "未登录或身份无效" });
+                    return StatusCode(403, new { success = false, message = "????????" });
 
                 var summary = await GetPermissionSummaryAsync(userId.Trim());
                 if (!PurchaseOrderVendorChangeAccessRules.CanChangeVendor(summary))
-                    return StatusCode(403, new { success = false, message = "无权限刷新采购订单供应商信息" });
+                    return StatusCode(403, new { success = false, message = "??????????????" });
 
                 var order = await _service.GetByIdAsync(id);
-                if (order == null) return NotFound(new { success = false, message = "采购订单不存在" });
+                if (order == null) return NotFound(new { success = false, message = "???????" });
 
                 if (!await _dataPermissionService.CanAccessPurchaseOrderAsync(userId.Trim(), order))
-                    return StatusCode(403, new { success = false, message = "无权限访问该采购订单" });
+                    return StatusCode(403, new { success = false, message = "??????????" });
 
                 cancellationToken.ThrowIfCancellationRequested();
                 var result = await _service.RefreshVendorNameAsync(id, userId.Trim());
@@ -1727,12 +1727,12 @@ namespace CRM.API.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "刷新采购订单供应商名称失败: {Id}", id);
+                _logger.LogError(ex, "?????????????: {Id}", id);
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
 
-        /// <summary>以销定采：根据销售订单自动生成采购订单</summary>
+        /// <summary>???????????????????</summary>
         [HttpPost("auto-generate/{sellOrderId}")]
         [RequirePermission("purchase-order.write")]
         public async Task<IActionResult> AutoGenerate(string sellOrderId)
@@ -1740,7 +1740,7 @@ namespace CRM.API.Controllers
             try
             {
                 var orders = await _service.AutoGenerateFromSellOrderAsync(sellOrderId);
-                return Ok(new { success = true, data = orders, message = $"成功生成 {orders.Count()} 张采购订单" });
+                return Ok(new { success = true, data = orders, message = $"???? {orders.Count()} ?????" });
             }
             catch (InvalidOperationException ex)
             {
@@ -1748,7 +1748,7 @@ namespace CRM.API.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "自动生成采购订单失败");
+                _logger.LogError(ex, "??????????");
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
@@ -1999,10 +1999,10 @@ namespace CRM.API.Controllers
             string? pn,
             short? orderType,
             string? transactionCurrency,
-            short? paymentProgressStatus,
-            short? purchaseProgressStatus,
-            short? stockInProgressStatus,
-            short? invoiceProgressStatus,
+            List<short>? paymentProgressStatus,
+            List<short>? purchaseProgressStatus,
+            List<short>? stockInProgressStatus,
+            List<short>? invoiceProgressStatus,
             string? quickFilter,
             CancellationToken cancellationToken)
         {
@@ -2093,8 +2093,8 @@ namespace CRM.API.Controllers
         }
 
         /// <summary>
-        /// 主单 <see cref="PurchaseOrder.Currency"/> 与明细 <see cref="PurchaseOrderItem.Currency"/> 不一致时，
-        /// 对外展示的总金额币别应与明细一致（未取消明细仅一种币别时采用该币别；无明细或多币别仍用主单）。
+        /// ?? <see cref="PurchaseOrder.Currency"/> ??? <see cref="PurchaseOrderItem.Currency"/> ?????
+        /// ???????????????????????????????????????????????
         /// </summary>
         private static short ResolvePurchaseOrderHeaderCurrency(
             CRM.Core.Models.Purchase.PurchaseOrder order,
@@ -2188,15 +2188,15 @@ namespace CRM.API.Controllers
             string? assistorUserName = null)
         {
             var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
-            // vendor.info.read：完整联系人/地址等；vendor.read 或采购订单权限：至少返回供应商主键与名称（申请付款依赖 VendorId）
-            // PRD §5.1.1：销售方向 + PurchaseDataScope==4 等条件下强制脱敏，不因 vendor.read / purchase-order.read 等放宽。
+            // vendor.info.read??????/????vendor.read ??????????????????????????? VendorId?
+            // PRD �5.1.1????? + PurchaseDataScope==4 ??????????? vendor.read / purchase-order.read ????
             var canViewVendorInfo = !mask511 && (summary?.IsSysAdmin == true
                 || SummaryHasPermission(summary, "vendor.info.read")
                 || SummaryHasPermission(summary, "vendor.read")
                 || SummaryHasPermission(summary, "purchase-order.read")
                 || SummaryHasPermission(summary, "purchase-order.write"));
             var canViewPurchaseAmount = !mask511 && (summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("purchase.amount.read") ?? false));
-            // 采购员常仅有 purchase-order.write；从采购明细「申请付款」需与 FinancePaymentsController Create/Patch 一致
+            // ?????? purchase-order.write?????????????? FinancePaymentsController Create/Patch ??
             var canInitiatePaymentFromPo = !mask511 && (summary?.IsSysAdmin == true
                 || SummaryHasPermission(summary, "finance-payment.write")
                 || SummaryHasPermission(summary, "purchase-order.write"));
@@ -2303,7 +2303,7 @@ namespace CRM.API.Controllers
                         qtyStockInNotifyExpectSum = ext?.QtyStockInNotifyExpectSum ?? 0m,
                         qtyStockInNotifyNot = ext?.QtyStockInNotifyNot ?? i.Qty,
                         invoiceProgressAmount = canViewPurchaseAmount ? (ext?.PurchaseInvoiceDone ?? 0m) : 0m,
-                        // 业务口径：主单已确认即可申请付款；兼容历史数据中“主单已确认但明细状态未同步到30”的情况
+                        // ???????????????????????????????????????30????
                         CanApplyPayment = canInitiatePaymentFromPo
                             && i.FinancePaymentStatus < 2
                             && (i.Status == 30 || order.Status == 30)
@@ -2312,7 +2312,7 @@ namespace CRM.API.Controllers
             };
         }
 
-        /// <summary>将 Npgsql/EF 底层原因合并进提示文案，避免界面仅显示「See the inner exception」。</summary>
+        /// <summary>? Npgsql/EF ????????????????????See the inner exception??</summary>
         private static string PersistErrorMessage(Exception ex)
         {
             for (var c = ex; c != null; c = c.InnerException!)
@@ -2325,7 +2325,7 @@ namespace CRM.API.Controllers
             {
                 var inner = db.InnerException?.Message;
                 if (!string.IsNullOrWhiteSpace(inner))
-                    return $"{db.Message.TrimEnd('.')}：{inner}";
+                    return $"{db.Message.TrimEnd('.')}?{inner}";
             }
 
             return ex.Message;

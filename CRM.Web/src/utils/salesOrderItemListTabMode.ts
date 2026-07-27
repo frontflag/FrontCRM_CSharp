@@ -75,14 +75,21 @@ export function currencyTabToFilter(tab: SoItemCurrencyTabId): '' | 'rmb' | 'for
 
 export type SoItemProgressTabId = 'all' | '0' | '1' | '2'
 
-export function progressFilterToTab(value: number | undefined | null): SoItemProgressTabId {
-  if (value === 0 || value === 1 || value === 2) return String(value) as SoItemProgressTabId
+export function progressFilterToTab(value: number | number[] | undefined | null): SoItemProgressTabId {
+  const arr = Array.isArray(value)
+    ? value
+    : value === 0 || value === 1 || value === 2
+      ? [value]
+      : []
+  if (arr.length === 1 && (arr[0] === 0 || arr[0] === 1 || arr[0] === 2)) {
+    return String(arr[0]) as SoItemProgressTabId
+  }
   return 'all'
 }
 
-export function progressTabToFilter(tab: SoItemProgressTabId): number | undefined {
-  if (tab === '0' || tab === '1' || tab === '2') return Number(tab)
-  return undefined
+export function progressTabToFilter(tab: SoItemProgressTabId): number[] {
+  if (tab === '0' || tab === '1' || tab === '2') return [Number(tab)]
+  return []
 }
 
 export type SoItemProgressFilterKey =

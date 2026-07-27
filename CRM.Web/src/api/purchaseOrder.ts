@@ -3,6 +3,7 @@ import type { QcImageReadonlyRow } from './document'
 import type { StockInListItemDto } from './stockIn'
 import type { StockInNotifyDto } from './logistics'
 import type { StockItemListRow } from './inventoryCenter'
+import { buildQueryString } from '@/utils/progressStatusQuery'
 
 export interface PurchaseOrderItemExtendFieldChangeDto {
   field: string
@@ -252,14 +253,15 @@ export const purchaseOrderApi = {
     orderType?: number
     /** 交易币别：rmb=人民币，foreign=外币 */
     transactionCurrency?: 'rmb' | 'foreign' | ''
-    paymentProgressStatus?: number
-    purchaseProgressStatus?: number
-    stockInProgressStatus?: number
-    invoiceProgressStatus?: number
+    paymentProgressStatus?: number | number[]
+    purchaseProgressStatus?: number | number[]
+    stockInProgressStatus?: number | number[]
+    invoiceProgressStatus?: number | number[]
     /** 左栏快捷检索业务项 */
     quickFilter?: string
   }) {
-    return await apiClient.get('/api/v1/purchase-orders/items', { params })
+    const q = buildQueryString(params as Record<string, unknown>)
+    return await apiClient.get(`/api/v1/purchase-orders/items?${q}`)
   },
 
   async getList(params?: {

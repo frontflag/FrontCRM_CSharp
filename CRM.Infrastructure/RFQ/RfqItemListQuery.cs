@@ -119,6 +119,7 @@ public sealed partial class RfqItemListQuery : IRfqItemListQuery
                 AssignedPurchaserUserId2 = x.Item.AssignedPurchaserUserId2,
                 AssignedPurchaserName1 = EntityLookupService.FormatUserLoginName(pu1),
                 AssignedPurchaserName2 = EntityLookupService.FormatUserLoginName(pu2),
+                Remark = string.IsNullOrWhiteSpace(x.Item.Remark) ? null : x.Item.Remark.Trim(),
             });
         }
 

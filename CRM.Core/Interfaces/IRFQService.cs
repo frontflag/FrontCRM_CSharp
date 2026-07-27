@@ -275,5 +275,8 @@ namespace CRM.Core.Interfaces
         public string? AssignedPurchaserName1 { get; set; }
         /// <summary>采购员登录账号（列表展示）</summary>
         public string? AssignedPurchaserName2 { get; set; }
+
+        /// <summary>需求明细备注（rfqitem.remark）</summary>
+        public string? Remark { get; set; }
     }
 }

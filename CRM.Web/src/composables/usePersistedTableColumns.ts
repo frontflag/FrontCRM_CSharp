@@ -54,10 +54,41 @@ function middleKeys(defs: CrmTableColumnDef[]) {
   return defs.filter((d) => !isPinnedStart(d) && !isPinnedEnd(d)).map((d) => d.key)
 }
 
+/** 新列按默认顺序插入到相邻已存在列之间，避免一律追加到末尾 */
+function mergeMiddleOrder(defaultKeys: string[], savedKeys: string[]): string[] {
+  const saved = savedKeys.filter((k) => defaultKeys.includes(k))
+  const missing = defaultKeys.filter((k) => !saved.includes(k))
+  if (missing.length === 0) return saved
+
+  const result = [...saved]
+  for (const key of missing) {
+    const defaultIdx = defaultKeys.indexOf(key)
+    let insertAt = result.length
+    for (let i = defaultIdx + 1; i < defaultKeys.length; i++) {
+      const pos = result.indexOf(defaultKeys[i]!)
+      if (pos !== -1) {
+        insertAt = pos
+        break
+      }
+    }
+    if (insertAt === result.length) {
+      for (let i = defaultIdx - 1; i >= 0; i--) {
+        const pos = result.indexOf(defaultKeys[i]!)
+        if (pos !== -1) {
+          insertAt = pos + 1
+          break
+        }
+      }
+    }
+    result.splice(insertAt, 0, key)
+  }
+  return result
+}
+
 function mergeLayout(defs: CrmTableColumnDef[], saved: Partial<PersistedTableLayout> | null): PersistedTableLayout {
   const mk = middleKeys(defs)
   const savedMid = (saved?.middleOrder ?? []).filter((k) => mk.includes(k))
-  const mergedMid = [...savedMid, ...mk.filter((k) => !savedMid.includes(k))]
+  const mergedMid = mergeMiddleOrder(mk, savedMid)
 
   const hideableKeys = new Set(defs.filter((d) => d.hideable !== false).map((d) => d.key))
   let rawHidden: Set<string>

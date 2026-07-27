@@ -1,6 +1,7 @@
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Utilities;
+using CRM.Infrastructure.Common;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -97,36 +98,44 @@ internal static partial class PurchaseOrderItemListFilter
 
         if (!hasQuickFilter)
         {
-            if (request.PaymentProgressStatus is >= 0 and <= 2)
+            var paymentStatuses = ProgressStatusFilterHelper.Normalize(request.PaymentProgressStatus);
+            if (paymentStatuses.Count > 0)
             {
-                var status = request.PaymentProgressStatus.Value;
-                q = status == 0
-                    ? q.Where(x => x.Ext == null || x.Ext.PaymentProgressStatus == 0)
-                    : q.Where(x => x.Ext != null && x.Ext.PaymentProgressStatus == status);
+                var includeZero = paymentStatuses.Contains((short)0);
+                var nonZero = paymentStatuses.Where(s => s != 0).ToList();
+                q = q.Where(x =>
+                    (includeZero && (x.Ext == null || x.Ext.PaymentProgressStatus == 0))
+                    || (nonZero.Count > 0 && x.Ext != null && nonZero.Contains(x.Ext.PaymentProgressStatus)));
             }
 
-            if (request.PurchaseProgressStatus is >= 0 and <= 2)
+            var purchaseStatuses = ProgressStatusFilterHelper.Normalize(request.PurchaseProgressStatus);
+            if (purchaseStatuses.Count > 0)
             {
-                var status = request.PurchaseProgressStatus.Value;
-                q = status == 0
-                    ? q.Where(x => x.Ext == null || x.Ext.PurchaseProgressStatus == 0)
-                    : q.Where(x => x.Ext != null && x.Ext.PurchaseProgressStatus == status);
+                var includeZero = purchaseStatuses.Contains((short)0);
+                var nonZero = purchaseStatuses.Where(s => s != 0).ToList();
+                q = q.Where(x =>
+                    (includeZero && (x.Ext == null || x.Ext.PurchaseProgressStatus == 0))
+                    || (nonZero.Count > 0 && x.Ext != null && nonZero.Contains(x.Ext.PurchaseProgressStatus)));
             }
 
-            if (request.StockInProgressStatus is >= 0 and <= 2)
+            var stockInStatuses = ProgressStatusFilterHelper.Normalize(request.StockInProgressStatus);
+            if (stockInStatuses.Count > 0)
             {
-                var status = request.StockInProgressStatus.Value;
-                q = status == 0
-                    ? q.Where(x => x.Ext == null || x.Ext.StockInProgressStatus == 0)
-                    : q.Where(x => x.Ext != null && x.Ext.StockInProgressStatus == status);
+                var includeZero = stockInStatuses.Contains((short)0);
+                var nonZero = stockInStatuses.Where(s => s != 0).ToList();
+                q = q.Where(x =>
+                    (includeZero && (x.Ext == null || x.Ext.StockInProgressStatus == 0))
+                    || (nonZero.Count > 0 && x.Ext != null && nonZero.Contains(x.Ext.StockInProgressStatus)));
             }
 
-            if (request.InvoiceProgressStatus is >= 0 and <= 2)
+            var invoiceStatuses = ProgressStatusFilterHelper.Normalize(request.InvoiceProgressStatus);
+            if (invoiceStatuses.Count > 0)
             {
-                var status = request.InvoiceProgressStatus.Value;
-                q = status == 0
-                    ? q.Where(x => x.Ext == null || x.Ext.InvoiceProgressStatus == 0)
-                    : q.Where(x => x.Ext != null && x.Ext.InvoiceProgressStatus == status);
+                var includeZero = invoiceStatuses.Contains((short)0);
+                var nonZero = invoiceStatuses.Where(s => s != 0).ToList();
+                q = q.Where(x =>
+                    (includeZero && (x.Ext == null || x.Ext.InvoiceProgressStatus == 0))
+                    || (nonZero.Count > 0 && x.Ext != null && nonZero.Contains(x.Ext.InvoiceProgressStatus)));
             }
         }
 

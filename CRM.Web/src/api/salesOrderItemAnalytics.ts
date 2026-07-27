@@ -1,5 +1,6 @@
 import apiClient from './client'
 import type { SalesAnalyticsBreakdownGroup } from './analytics/sales'
+import { buildQueryString } from '@/utils/progressStatusQuery'
 
 export interface SalesOrderItemListAnalyticsQuery {
   orderCreateStart?: string
@@ -16,12 +17,12 @@ export interface SalesOrderItemListAnalyticsQuery {
   transactionCurrency?: string
   stockOutPending?: boolean
   invoicePending?: boolean
-  purchaseProgressStatus?: number
-  stockInProgressStatus?: number
-  stockOutNotifyProgressStatus?: number
-  stockOutProgressStatus?: number
-  receiptProgressStatus?: number
-  invoiceProgressStatus?: number
+  purchaseProgressStatus?: number | number[]
+  stockInProgressStatus?: number | number[]
+  stockOutNotifyProgressStatus?: number | number[]
+  stockOutProgressStatus?: number | number[]
+  receiptProgressStatus?: number | number[]
+  invoiceProgressStatus?: number | number[]
   /** 左栏快捷检索（与六 progress 互斥） */
   quickFilter?: string
   groupBy?: 'day' | 'week' | 'month'
@@ -81,8 +82,8 @@ export interface SalesOrderItemListAnalyticsRankings {
   salesUserByAmount: SalesOrderItemListAnalyticsRankingRow[]
 }
 
-function buildParams(q: SalesOrderItemListAnalyticsQuery): Record<string, string | number | boolean> {
-  const p: Record<string, string | number | boolean> = {}
+function buildParams(q: SalesOrderItemListAnalyticsQuery): Record<string, unknown> {
+  const p: Record<string, unknown> = {}
   if (q.orderCreateStart) p.orderCreateStart = q.orderCreateStart
   if (q.orderCreateEnd) p.orderCreateEnd = q.orderCreateEnd
   if (q.customerName) p.customerName = q.customerName
@@ -120,28 +121,33 @@ function buildParams(q: SalesOrderItemListAnalyticsQuery): Record<string, string
   return p
 }
 
+function analyticsUrl(path: string, query: SalesOrderItemListAnalyticsQuery): string {
+  const qs = buildQueryString(buildParams(query))
+  return qs ? `${path}?${qs}` : path
+}
+
 export const salesOrderItemListAnalyticsApi = {
   getDashboard(query: SalesOrderItemListAnalyticsQuery): Promise<SalesOrderItemListAnalyticsDashboard> {
-    return apiClient.get<SalesOrderItemListAnalyticsDashboard>('/api/v1/sales-orders/items/analytics/dashboard', {
-      params: buildParams(query)
-    })
+    return apiClient.get<SalesOrderItemListAnalyticsDashboard>(
+      analyticsUrl('/api/v1/sales-orders/items/analytics/dashboard', query)
+    )
   },
 
   getTrends(query: SalesOrderItemListAnalyticsQuery): Promise<SalesOrderItemListAnalyticsTrendPoint[]> {
-    return apiClient.get<SalesOrderItemListAnalyticsTrendPoint[]>('/api/v1/sales-orders/items/analytics/trends', {
-      params: buildParams(query)
-    })
+    return apiClient.get<SalesOrderItemListAnalyticsTrendPoint[]>(
+      analyticsUrl('/api/v1/sales-orders/items/analytics/trends', query)
+    )
   },
 
   getBreakdowns(query: SalesOrderItemListAnalyticsQuery): Promise<SalesAnalyticsBreakdownGroup[]> {
-    return apiClient.get<SalesAnalyticsBreakdownGroup[]>('/api/v1/sales-orders/items/analytics/breakdowns', {
-      params: buildParams(query)
-    })
+    return apiClient.get<SalesAnalyticsBreakdownGroup[]>(
+      analyticsUrl('/api/v1/sales-orders/items/analytics/breakdowns', query)
+    )
   },
 
   getRankings(query: SalesOrderItemListAnalyticsQuery): Promise<SalesOrderItemListAnalyticsRankings> {
-    return apiClient.get<SalesOrderItemListAnalyticsRankings>('/api/v1/sales-orders/items/analytics/rankings', {
-      params: buildParams(query)
-    })
+    return apiClient.get<SalesOrderItemListAnalyticsRankings>(
+      analyticsUrl('/api/v1/sales-orders/items/analytics/rankings', query)
+    )
   }
 }

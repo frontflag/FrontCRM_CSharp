@@ -138,9 +138,13 @@
           <el-select
             v-if="tabModeDimension !== 'payment'"
             v-model="filters.paymentProgressStatus"
+            multiple
+            collapse-tags
+            collapse-tags-tooltip
             clearable
             :placeholder="t('purchaseOrderItemList.filters.paymentProgressStatus')"
             class="filter-select filter-select--progress"
+            popper-class="progress-multi-select-dropdown"
             :teleported="false"
           >
             <el-option
@@ -148,14 +152,23 @@
               :key="`payment-${opt.value}`"
               :label="opt.label"
               :value="opt.value"
-            />
+            >
+              <ProgressMultiSelectOption
+                :label="opt.label"
+                :checked="filters.paymentProgressStatus.includes(opt.value)"
+              />
+            </el-option>
           </el-select>
           <el-select
             v-if="tabModeDimension !== 'purchase'"
             v-model="filters.purchaseProgressStatus"
+            multiple
+            collapse-tags
+            collapse-tags-tooltip
             clearable
             :placeholder="t('purchaseOrderItemList.filters.purchaseProgressStatus')"
             class="filter-select filter-select--progress"
+            popper-class="progress-multi-select-dropdown"
             :teleported="false"
           >
             <el-option
@@ -163,14 +176,23 @@
               :key="`purchase-${opt.value}`"
               :label="opt.label"
               :value="opt.value"
-            />
+            >
+              <ProgressMultiSelectOption
+                :label="opt.label"
+                :checked="filters.purchaseProgressStatus.includes(opt.value)"
+              />
+            </el-option>
           </el-select>
           <el-select
             v-if="tabModeDimension !== 'stockIn'"
             v-model="filters.stockInProgressStatus"
+            multiple
+            collapse-tags
+            collapse-tags-tooltip
             clearable
             :placeholder="t('purchaseOrderItemList.filters.stockInProgressStatus')"
             class="filter-select filter-select--progress"
+            popper-class="progress-multi-select-dropdown"
             :teleported="false"
           >
             <el-option
@@ -178,14 +200,23 @@
               :key="`stockIn-${opt.value}`"
               :label="opt.label"
               :value="opt.value"
-            />
+            >
+              <ProgressMultiSelectOption
+                :label="opt.label"
+                :checked="filters.stockInProgressStatus.includes(opt.value)"
+              />
+            </el-option>
           </el-select>
           <el-select
             v-if="tabModeDimension !== 'invoice'"
             v-model="filters.invoiceProgressStatus"
+            multiple
+            collapse-tags
+            collapse-tags-tooltip
             clearable
             :placeholder="t('purchaseOrderItemList.filters.invoiceProgressStatus')"
             class="filter-select filter-select--progress"
+            popper-class="progress-multi-select-dropdown"
             :teleported="false"
           >
             <el-option
@@ -193,7 +224,12 @@
               :key="`invoice-${opt.value}`"
               :label="opt.label"
               :value="opt.value"
-            />
+            >
+              <ProgressMultiSelectOption
+                :label="opt.label"
+                :checked="filters.invoiceProgressStatus.includes(opt.value)"
+              />
+            </el-option>
           </el-select>
         </template>
 
@@ -837,6 +873,11 @@ import {
   type PoItemProgressTabId,
   type PoItemTabModeDimension
 } from '@/utils/purchaseOrderItemListTabMode'
+import {
+  formatProgressStatusesForRoute,
+  normalizeProgressStatuses
+} from '@/utils/progressStatusQuery'
+import ProgressMultiSelectOption from '@/components/common/ProgressMultiSelectOption.vue'
 import { financePaymentApi } from '@/api/finance'
 import { logisticsApi } from '@/api/logistics'
 import { ElMessage } from 'element-plus'
@@ -1098,10 +1139,10 @@ const filters = reactive({
   pn: '',
   transactionCurrency: '' as '' | 'rmb' | 'foreign',
   orderType: undefined as number | undefined,
-  paymentProgressStatus: undefined as number | undefined,
-  purchaseProgressStatus: undefined as number | undefined,
-  stockInProgressStatus: undefined as number | undefined,
-  invoiceProgressStatus: undefined as number | undefined
+  paymentProgressStatus: [] as number[],
+  purchaseProgressStatus: [] as number[],
+  stockInProgressStatus: [] as number[],
+  invoiceProgressStatus: [] as number[]
 })
 
 const activePreset = computed((): PoItemListPresetId | null => {
@@ -1151,17 +1192,17 @@ const boardFilters = computed((): PurchaseOrderItemListAnalyticsQuery => {
   if (filters.orderType !== undefined && filters.orderType !== null) q.orderType = filters.orderType
   if (filters.transactionCurrency) q.transactionCurrency = filters.transactionCurrency
   if (!activePreset.value) {
-    if (filters.paymentProgressStatus !== undefined && filters.paymentProgressStatus !== null) {
-      q.paymentProgressStatus = filters.paymentProgressStatus
+    if (filters.paymentProgressStatus.length) {
+      q.paymentProgressStatus = [...filters.paymentProgressStatus]
     }
-    if (filters.purchaseProgressStatus !== undefined && filters.purchaseProgressStatus !== null) {
-      q.purchaseProgressStatus = filters.purchaseProgressStatus
+    if (filters.purchaseProgressStatus.length) {
+      q.purchaseProgressStatus = [...filters.purchaseProgressStatus]
     }
-    if (filters.stockInProgressStatus !== undefined && filters.stockInProgressStatus !== null) {
-      q.stockInProgressStatus = filters.stockInProgressStatus
+    if (filters.stockInProgressStatus.length) {
+      q.stockInProgressStatus = [...filters.stockInProgressStatus]
     }
-    if (filters.invoiceProgressStatus !== undefined && filters.invoiceProgressStatus !== null) {
-      q.invoiceProgressStatus = filters.invoiceProgressStatus
+    if (filters.invoiceProgressStatus.length) {
+      q.invoiceProgressStatus = [...filters.invoiceProgressStatus]
     }
   }
   return q
@@ -1260,7 +1301,8 @@ function onFilterTabClick(tab: FilterTabId) {
   if (!isPoProgressTabDimension(dim)) return
   const key = progressDimensionToFilterKey(dim)
   const next = progressTabToFilter(tab as PoItemProgressTabId)
-  if (filters[key] === next) return
+  const cur = filters[key]
+  if (cur.length === next.length && cur.every((v, i) => v === next[i])) return
   filters[key] = next
   runSearch()
 }
@@ -1309,18 +1351,14 @@ function buildListRouteQueryFromUi(): Record<string, string> {
   const advanced: Record<string, string> = {}
   if (dateRange.value?.[0]) advanced.startDate = dateRange.value[0]
   if (dateRange.value?.[1]) advanced.endDate = dateRange.value[1]
-  if (filters.paymentProgressStatus !== undefined && filters.paymentProgressStatus !== null) {
-    advanced.paymentProgressStatus = String(filters.paymentProgressStatus)
-  }
-  if (filters.purchaseProgressStatus !== undefined && filters.purchaseProgressStatus !== null) {
-    advanced.purchaseProgressStatus = String(filters.purchaseProgressStatus)
-  }
-  if (filters.stockInProgressStatus !== undefined && filters.stockInProgressStatus !== null) {
-    advanced.stockInProgressStatus = String(filters.stockInProgressStatus)
-  }
-  if (filters.invoiceProgressStatus !== undefined && filters.invoiceProgressStatus !== null) {
-    advanced.invoiceProgressStatus = String(filters.invoiceProgressStatus)
-  }
+  const paymentQ = formatProgressStatusesForRoute(filters.paymentProgressStatus)
+  if (paymentQ) advanced.paymentProgressStatus = paymentQ
+  const purchaseQ = formatProgressStatusesForRoute(filters.purchaseProgressStatus)
+  if (purchaseQ) advanced.purchaseProgressStatus = purchaseQ
+  const stockInQ = formatProgressStatusesForRoute(filters.stockInProgressStatus)
+  if (stockInQ) advanced.stockInProgressStatus = stockInQ
+  const invoiceQ = formatProgressStatusesForRoute(filters.invoiceProgressStatus)
+  if (invoiceQ) advanced.invoiceProgressStatus = invoiceQ
   return buildPoItemListRouteQuery({ keywords, advanced })
 }
 
@@ -1334,10 +1372,8 @@ function clearPresetChip() {
   router.replace({ name: 'PurchaseOrderItemList', query: {} })
 }
 
-function parseProgressQuery(v: unknown): number | undefined {
-  if (typeof v !== 'string' || !v.trim()) return undefined
-  const n = Number(v)
-  return n === 0 || n === 1 || n === 2 ? n : undefined
+function parseProgressQuery(v: unknown): number[] {
+  return normalizeProgressStatuses(v)
 }
 
 function syncFiltersFromRoute() {
@@ -1355,10 +1391,10 @@ function syncFiltersFromRoute() {
 
   const preset = activePreset.value
   if (preset) {
-    filters.paymentProgressStatus = undefined
-    filters.purchaseProgressStatus = undefined
-    filters.stockInProgressStatus = undefined
-    filters.invoiceProgressStatus = undefined
+    filters.paymentProgressStatus = []
+    filters.purchaseProgressStatus = []
+    filters.stockInProgressStatus = []
+    filters.invoiceProgressStatus = []
     if (isPoItemTimePresetId(preset)) {
       dateRange.value = resolvePoItemTimePresetDateRange(preset)
     } else {
@@ -1702,10 +1738,10 @@ async function loadList() {
       pn?: string
       orderType?: number
       transactionCurrency?: 'rmb' | 'foreign'
-      paymentProgressStatus?: number
-      purchaseProgressStatus?: number
-      stockInProgressStatus?: number
-      invoiceProgressStatus?: number
+      paymentProgressStatus?: number | number[]
+      purchaseProgressStatus?: number | number[]
+      stockInProgressStatus?: number | number[]
+      invoiceProgressStatus?: number | number[]
       quickFilter?: string
     } = {
       page: page.value,
@@ -1724,17 +1760,17 @@ async function loadList() {
     if (typeof qf === 'string' && qf.trim() && activePreset.value) {
       params.quickFilter = qf.trim()
     } else if (!activePreset.value) {
-      if (filters.paymentProgressStatus !== undefined && filters.paymentProgressStatus !== null) {
-        params.paymentProgressStatus = filters.paymentProgressStatus
+      if (filters.paymentProgressStatus.length) {
+        params.paymentProgressStatus = [...filters.paymentProgressStatus]
       }
-      if (filters.purchaseProgressStatus !== undefined && filters.purchaseProgressStatus !== null) {
-        params.purchaseProgressStatus = filters.purchaseProgressStatus
+      if (filters.purchaseProgressStatus.length) {
+        params.purchaseProgressStatus = [...filters.purchaseProgressStatus]
       }
-      if (filters.stockInProgressStatus !== undefined && filters.stockInProgressStatus !== null) {
-        params.stockInProgressStatus = filters.stockInProgressStatus
+      if (filters.stockInProgressStatus.length) {
+        params.stockInProgressStatus = [...filters.stockInProgressStatus]
       }
-      if (filters.invoiceProgressStatus !== undefined && filters.invoiceProgressStatus !== null) {
-        params.invoiceProgressStatus = filters.invoiceProgressStatus
+      if (filters.invoiceProgressStatus.length) {
+        params.invoiceProgressStatus = [...filters.invoiceProgressStatus]
       }
     }
 
@@ -2105,7 +2141,7 @@ html[data-theme='dark'] .po-filter-tabs__item:not(.is-active) {
 .filter-select {
   width: 130px;
   &.filter-select--progress {
-    width: 132px;
+    width: 168px;
   }
   :deep(.el-select__wrapper) {
     background: $layer-2 !important;

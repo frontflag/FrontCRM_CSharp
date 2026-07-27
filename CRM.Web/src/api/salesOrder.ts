@@ -1,6 +1,7 @@
 import apiClient, { type ApiRejectedError } from './client'
 import { fetchCompanyProfileForReport, type CompanyProfileBundle } from './companyProfile'
 import type { QcImageReadonlyRow } from './document'
+import { buildQueryString } from '@/utils/progressStatusQuery'
 
 function httpStatusFromApiError(e: unknown): number | undefined {
   if (typeof e !== 'object' || e === null) return undefined
@@ -412,18 +413,19 @@ export const salesOrderApi = {
     customerPn?: string
     /** 交易币别：rmb=人民币，foreign=外币 */
     transactionCurrency?: 'rmb' | 'foreign' | ''
-    purchaseProgressStatus?: number
-    stockInProgressStatus?: number
-    stockOutNotifyProgressStatus?: number
-    stockOutProgressStatus?: number
-    receiptProgressStatus?: number
-    invoiceProgressStatus?: number
+    purchaseProgressStatus?: number | number[]
+    stockInProgressStatus?: number | number[]
+    stockOutNotifyProgressStatus?: number | number[]
+    stockOutProgressStatus?: number | number[]
+    receiptProgressStatus?: number | number[]
+    invoiceProgressStatus?: number | number[]
     /** 左栏快捷检索（与 preset 对应；与六 progress 互斥） */
     quickFilter?: string
     page?: number
     pageSize?: number
   }) {
-    return await apiClient.get('/api/v1/sales-orders/items', { params })
+    const q = buildQueryString((params ?? {}) as Record<string, unknown>)
+    return await apiClient.get(`/api/v1/sales-orders/items?${q}`)
   },
 
   // 获取销售订单详情

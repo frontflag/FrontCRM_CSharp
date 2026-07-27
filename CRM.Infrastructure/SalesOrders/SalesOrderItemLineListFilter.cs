@@ -4,6 +4,7 @@ using CRM.Core.Models;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
 using CRM.Core.Utilities;
+using CRM.Infrastructure.Common;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -93,99 +94,97 @@ internal static partial class SalesOrderItemLineListFilter
 
         if (!hasQuickFilter)
         {
-            if (request.PurchaseProgressStatus is >= 0 and <= 2)
+            var purchaseStatuses = ProgressStatusFilterHelper.Normalize(request.PurchaseProgressStatus);
+            if (purchaseStatuses.Count > 0)
             {
-                var status = request.PurchaseProgressStatus.Value;
-                q = status == 0
-                    ? q.Where(x =>
+                var includeZero = purchaseStatuses.Contains((short)0);
+                var nonZero = purchaseStatuses.Where(s => s != 0).ToList();
+                q = q.Where(x =>
+                    (includeZero && (
                         !db.SellOrderItemExtends.Any(ext => ext.Id == x.Item.Id && !ext.IsDeleted)
                         || db.SellOrderItemExtends.Any(ext =>
-                            ext.Id == x.Item.Id && !ext.IsDeleted && ext.PurchaseProgressStatus == 0))
-                    : q.Where(x =>
-                        db.SellOrderItemExtends.Any(ext =>
-                            ext.Id == x.Item.Id && !ext.IsDeleted && ext.PurchaseProgressStatus == status));
+                            ext.Id == x.Item.Id && !ext.IsDeleted && ext.PurchaseProgressStatus == 0)))
+                    || (nonZero.Count > 0 && db.SellOrderItemExtends.Any(ext =>
+                        ext.Id == x.Item.Id && !ext.IsDeleted && nonZero.Contains(ext.PurchaseProgressStatus))));
             }
 
-            if (request.StockInProgressStatus is >= 0 and <= 2)
+            var stockInStatuses = ProgressStatusFilterHelper.Normalize(request.StockInProgressStatus);
+            if (stockInStatuses.Count > 0)
             {
-                var status = request.StockInProgressStatus.Value;
-                q = status == 0
-                    ? q.Where(x =>
+                var includeZero = stockInStatuses.Contains((short)0);
+                var nonZero = stockInStatuses.Where(s => s != 0).ToList();
+                q = q.Where(x =>
+                    (includeZero && (
                         !db.SellOrderItemExtends.Any(ext => ext.Id == x.Item.Id && !ext.IsDeleted)
                         || db.SellOrderItemExtends.Any(ext =>
-                            ext.Id == x.Item.Id && !ext.IsDeleted && ext.StockInProgressStatus == 0))
-                    : q.Where(x =>
-                        db.SellOrderItemExtends.Any(ext =>
-                            ext.Id == x.Item.Id && !ext.IsDeleted && ext.StockInProgressStatus == status));
+                            ext.Id == x.Item.Id && !ext.IsDeleted && ext.StockInProgressStatus == 0)))
+                    || (nonZero.Count > 0 && db.SellOrderItemExtends.Any(ext =>
+                        ext.Id == x.Item.Id && !ext.IsDeleted && nonZero.Contains(ext.StockInProgressStatus))));
             }
 
-            if (request.StockOutProgressStatus is >= 0 and <= 2)
+            var stockOutStatuses = ProgressStatusFilterHelper.Normalize(request.StockOutProgressStatus);
+            if (stockOutStatuses.Count > 0)
             {
-                var status = request.StockOutProgressStatus.Value;
-                q = status == 0
-                    ? q.Where(x =>
+                var includeZero = stockOutStatuses.Contains((short)0);
+                var nonZero = stockOutStatuses.Where(s => s != 0).ToList();
+                q = q.Where(x =>
+                    (includeZero && (
                         !db.SellOrderItemExtends.Any(ext => ext.Id == x.Item.Id && !ext.IsDeleted)
                         || db.SellOrderItemExtends.Any(ext =>
-                            ext.Id == x.Item.Id && !ext.IsDeleted && ext.StockOutProgressStatus == 0))
-                    : q.Where(x =>
-                        db.SellOrderItemExtends.Any(ext =>
-                            ext.Id == x.Item.Id && !ext.IsDeleted && ext.StockOutProgressStatus == status));
+                            ext.Id == x.Item.Id && !ext.IsDeleted && ext.StockOutProgressStatus == 0)))
+                    || (nonZero.Count > 0 && db.SellOrderItemExtends.Any(ext =>
+                        ext.Id == x.Item.Id && !ext.IsDeleted && nonZero.Contains(ext.StockOutProgressStatus))));
             }
 
-            if (request.ReceiptProgressStatus is >= 0 and <= 2)
+            var receiptStatuses = ProgressStatusFilterHelper.Normalize(request.ReceiptProgressStatus);
+            if (receiptStatuses.Count > 0)
             {
-                var status = request.ReceiptProgressStatus.Value;
-                q = status == 0
-                    ? q.Where(x =>
+                var includeZero = receiptStatuses.Contains((short)0);
+                var nonZero = receiptStatuses.Where(s => s != 0).ToList();
+                q = q.Where(x =>
+                    (includeZero && (
                         !db.SellOrderItemExtends.Any(ext => ext.Id == x.Item.Id && !ext.IsDeleted)
                         || db.SellOrderItemExtends.Any(ext =>
-                            ext.Id == x.Item.Id && !ext.IsDeleted && ext.ReceiptProgressStatus == 0))
-                    : q.Where(x =>
-                        db.SellOrderItemExtends.Any(ext =>
-                            ext.Id == x.Item.Id && !ext.IsDeleted && ext.ReceiptProgressStatus == status));
+                            ext.Id == x.Item.Id && !ext.IsDeleted && ext.ReceiptProgressStatus == 0)))
+                    || (nonZero.Count > 0 && db.SellOrderItemExtends.Any(ext =>
+                        ext.Id == x.Item.Id && !ext.IsDeleted && nonZero.Contains(ext.ReceiptProgressStatus))));
             }
 
-            if (request.InvoiceProgressStatus is >= 0 and <= 2)
+            var invoiceStatuses = ProgressStatusFilterHelper.Normalize(request.InvoiceProgressStatus);
+            if (invoiceStatuses.Count > 0)
             {
-                var status = request.InvoiceProgressStatus.Value;
-                q = status == 0
-                    ? q.Where(x =>
+                var includeZero = invoiceStatuses.Contains((short)0);
+                var nonZero = invoiceStatuses.Where(s => s != 0).ToList();
+                q = q.Where(x =>
+                    (includeZero && (
                         !db.SellOrderItemExtends.Any(ext => ext.Id == x.Item.Id && !ext.IsDeleted)
                         || db.SellOrderItemExtends.Any(ext =>
-                            ext.Id == x.Item.Id && !ext.IsDeleted && ext.InvoiceProgressStatus == 0))
-                    : q.Where(x =>
-                        db.SellOrderItemExtends.Any(ext =>
-                            ext.Id == x.Item.Id && !ext.IsDeleted && ext.InvoiceProgressStatus == status));
+                            ext.Id == x.Item.Id && !ext.IsDeleted && ext.InvoiceProgressStatus == 0)))
+                    || (nonZero.Count > 0 && db.SellOrderItemExtends.Any(ext =>
+                        ext.Id == x.Item.Id && !ext.IsDeleted && nonZero.Contains(ext.InvoiceProgressStatus))));
             }
 
-            if (request.StockOutNotifyProgressStatus is >= 0 and <= 2)
+            var notifyStatuses = ProgressStatusFilterHelper.Normalize(request.StockOutNotifyProgressStatus);
+            if (notifyStatuses.Count > 0)
             {
-                var notifyStatus = request.StockOutNotifyProgressStatus.Value;
-                if (notifyStatus == 0)
-                {
-                    q = q.Where(x =>
+                var want0 = notifyStatuses.Contains((short)0);
+                var want1 = notifyStatuses.Contains((short)1);
+                var want2 = notifyStatuses.Contains((short)2);
+                q = q.Where(x =>
+                    (want0 && (
                         !db.SellOrderItemExtends.Any(ext => ext.Id == x.Item.Id && !ext.IsDeleted)
                         || db.SellOrderItemExtends.Any(ext =>
-                            ext.Id == x.Item.Id && !ext.IsDeleted && ext.QtyStockOutNotify <= 0m));
-                }
-                else if (notifyStatus == 2)
-                {
-                    q = q.Where(x =>
-                        db.SellOrderItemExtends.Any(ext =>
-                            ext.Id == x.Item.Id
-                            && !ext.IsDeleted
-                            && ext.QtyStockOutNotify > 0m
-                            && ext.QtyStockOutNotify + 0.0000000001m >= x.Item.Qty));
-                }
-                else
-                {
-                    q = q.Where(x =>
-                        db.SellOrderItemExtends.Any(ext =>
-                            ext.Id == x.Item.Id
-                            && !ext.IsDeleted
-                            && ext.QtyStockOutNotify > 0m
-                            && ext.QtyStockOutNotify + 0.0000000001m < x.Item.Qty));
-                }
+                            ext.Id == x.Item.Id && !ext.IsDeleted && ext.QtyStockOutNotify <= 0m)))
+                    || (want2 && db.SellOrderItemExtends.Any(ext =>
+                        ext.Id == x.Item.Id
+                        && !ext.IsDeleted
+                        && ext.QtyStockOutNotify > 0m
+                        && ext.QtyStockOutNotify + 0.0000000001m >= x.Item.Qty))
+                    || (want1 && db.SellOrderItemExtends.Any(ext =>
+                        ext.Id == x.Item.Id
+                        && !ext.IsDeleted
+                        && ext.QtyStockOutNotify > 0m
+                        && ext.QtyStockOutNotify + 0.0000000001m < x.Item.Qty)));
             }
 
             if (request.StockOutPending)

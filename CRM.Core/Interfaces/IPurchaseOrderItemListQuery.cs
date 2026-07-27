@@ -59,17 +59,17 @@ public sealed class PurchaseOrderItemListQueryRequest
     /// <summary>交易币别筛选：rmb=人民币，foreign=外币（非人民币）。</summary>
     public string? TransactionCurrency { get; set; }
 
-    /// <summary>付款进度 0/1/2（扩展表）。</summary>
-    public short? PaymentProgressStatus { get; set; }
+    /// <summary>付款进度 0/1/2（扩展表）；多选为 OR，查询串可重复同名参数。</summary>
+    public List<short>? PaymentProgressStatus { get; set; }
 
-    /// <summary>采购进度 0/1/2（扩展表）。</summary>
-    public short? PurchaseProgressStatus { get; set; }
+    /// <summary>采购进度 0/1/2（扩展表）；多选为 OR。</summary>
+    public List<short>? PurchaseProgressStatus { get; set; }
 
-    /// <summary>入库进度 0/1/2（扩展表）。</summary>
-    public short? StockInProgressStatus { get; set; }
+    /// <summary>入库进度 0/1/2（扩展表）；多选为 OR。</summary>
+    public List<short>? StockInProgressStatus { get; set; }
 
-    /// <summary>开票进度 0/1/2（扩展表）。</summary>
-    public short? InvoiceProgressStatus { get; set; }
+    /// <summary>开票进度 0/1/2（扩展表）；多选为 OR。</summary>
+    public List<short>? InvoiceProgressStatus { get; set; }
 
     /// <summary>左栏快捷检索（见 <see cref="PurchaseOrderItemListQuickFilterCodes"/>）；与手动进度筛选互斥。</summary>
     public string? QuickFilter { get; set; }
