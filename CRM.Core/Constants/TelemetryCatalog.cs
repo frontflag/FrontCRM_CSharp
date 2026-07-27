@@ -240,6 +240,9 @@ public static class TelemetryCatalog
         {
             ["GET /api/v1/rfqs"] = "需求列表/查询",
             ["GET /api/v1/rfqs/:id"] = "需求单详情",
+            ["GET /api/v1/rfqs/items"] = "需求明细列表",
+            ["GET /api/v1/rfqs/items/:id"] = "需求明细详情",
+            ["POST /api/v1/rfqs/items/:id/mark-no-quote"] = "需求明细标记查无报价",
             ["POST /api/v1/rfqs"] = "创建需求单",
             ["PUT /api/v1/rfqs/:id"] = "更新需求单",
             ["GET /api/v1/rfq-items"] = "需求明细查询",

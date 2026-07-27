@@ -618,7 +618,7 @@ const zhCN = {
       finance: '财务',
       analytics: '数据分析',
       businessManagement: '业务管理',
-      ops: '运维',
+      ops: '运维管理',
       systemManagement: '系统管理',
       system: '系统'
     },
@@ -706,7 +706,7 @@ const zhCN = {
       salesParams: '销售参数',
       financeParams: '财务参数',
       systemSettings: '系统设置',
-      ops: '运维',
+      ops: '运维管理',
       userFeedback: '用户反馈',
       systemErrors: '系统错误',
       telemetryAnalytics: '埋点分析',
@@ -1341,14 +1341,15 @@ const zhCN = {
     permKindMenu: '侧栏菜单',
     permKindSub: '页内子项',
     permKindFeature: '功能/接口',
-    permKindMenuHint: '控制左侧系统管理菜单是否出现',
+    permKindMenuHint: '控制左侧侧栏菜单是否出现（含数据分析、业务管理、运维管理、系统管理等）',
     permKindSubHint: '控制参数页左侧子导航；约定 system.params.销售|采购|财务.子项.read/write',
     permKindFeatureHint: '业务功能或写接口，一般不单独对应一条侧栏菜单',
     permKindFilterAll: '全部类型',
     permTabAll: '全部',
     permTabMenu: '主菜单入口',
     permTabSub: '页内菜单项',
-    permMenuHintPrefix: '菜单：'
+    permMenuHintPrefix: '菜单：',
+    permMissingInDb: '权限未入库，请执行 seed_sidebar_menu_entry_permissions.sql'
   },
   systemPermission: {
     title: '权限管理',

@@ -475,6 +475,39 @@ namespace CRM.Core.Services
             };
         }
 
+        /// <inheritdoc />
+        public async Task<RFQItem?> GetItemByIdAsync(string itemId, string? viewerUserId = null)
+        {
+            if (string.IsNullOrWhiteSpace(itemId)) return null;
+            var id = itemId.Trim();
+            var item = await _itemRepo.GetByIdAsync(id);
+            if (item == null || item.IsDeleted) return null;
+
+            var rfq = await _rfqRepo.GetByIdAsync(item.RfqId);
+            if (rfq == null) return null;
+
+            if (!string.IsNullOrWhiteSpace(viewerUserId))
+            {
+                var actorId = viewerUserId.Trim();
+                if (!await _dataPermissionService.CanAccessRFQAsync(actorId, rfq))
+                    throw new UnauthorizedAccessException("无权限访问该需求明细");
+            }
+
+            item.RfqCode = rfq.RfqCode;
+            item.AssignedPurchaserName1 = await _entityLookup.GetUserLoginNameAsync(item.AssignedPurchaserUserId1);
+            item.AssignedPurchaserName2 = await _entityLookup.GetUserLoginNameAsync(item.AssignedPurchaserUserId2);
+
+            var canViewCustomer = string.IsNullOrWhiteSpace(viewerUserId)
+                || await UserCanViewCustomerInRfqContextAsync(viewerUserId);
+            if (!canViewCustomer)
+            {
+                item.CustomerMpn = null;
+                item.CustomerBrand = string.Empty;
+            }
+
+            return item;
+        }
+
         // ─── Update ──────────────────────────────────────────────────────────────
         public async Task<RFQ> UpdateAsync(string id, UpdateRFQRequest request, string? actingUserId = null)
         {

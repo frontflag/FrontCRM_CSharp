@@ -45,19 +45,40 @@
           <div class="field-hint">每个账号在部门维度仅分配一种组织角色，编码固定为 DEPT_DIRECTOR / DEPT_MANAGER / DEPT_EMPLOYEE。系统最高权限由下方「系统管理员」单独授予（角色 SYS_ADMIN），不出现在本下拉里。</div>
         </el-form-item>
 
-        <el-form-item v-if="canGrantSysAdmin && sysAdminRoleId" label="SuperAdmin">
-          <el-checkbox v-model="grantSysAdmin">授予 SuperAdmin（SYS_ADMIN）</el-checkbox>
-          <div class="field-hint">仅当前登录为 SuperAdmin 时可授予。改密须通过数据库 SQL。</div>
+        <el-form-item v-if="canGrantSysAdmin" label="SuperAdmin">
+          <el-checkbox v-model="grantSysAdmin" :disabled="!sysAdminRoleId">
+            授予 SuperAdmin（SYS_ADMIN）
+          </el-checkbox>
+          <div v-if="!sysAdminRoleId" class="field-hint field-hint-warn">
+            库中无 SYS_ADMIN 角色，无法勾选。
+          </div>
+          <div v-else class="field-hint">
+            仅当前登录为 SuperAdmin 时可授予。改密请用 /debug/super 自助或数据库 SQL。
+          </div>
         </el-form-item>
 
-        <el-form-item v-if="canGrantBizManager && bizManagerRoleId" label="Manager">
-          <el-checkbox v-model="grantBizManager">授予 Manager（SYS_BIZ_MANAGER）</el-checkbox>
-          <div class="field-hint">Admin / SuperAdmin 可新建 Manager；Manager 本人不能创建其他 Manager。</div>
+        <el-form-item v-if="canGrantBizManager" label="Manager">
+          <el-checkbox v-model="grantBizManager" :disabled="!bizManagerRoleId">
+            授予 Manager（SYS_BIZ_MANAGER）
+          </el-checkbox>
+          <div v-if="!bizManagerRoleId" class="field-hint field-hint-warn">
+            库中无 SYS_BIZ_MANAGER 角色。请在生产库执行
+            <code>seed_management_roles_system_permissions.sql</code>（或对应 EF 迁移）后刷新本页。
+          </div>
+          <div v-else class="field-hint">
+            Admin / SuperAdmin 可新建 Manager；Manager 本人不能创建其他 Manager。
+          </div>
         </el-form-item>
 
-        <el-form-item v-if="canGrantSysManager && sysManagerRoleId" label="Admin">
-          <el-checkbox v-model="grantSysManager">授予 Admin（SYS_MANAGER）</el-checkbox>
-          <div class="field-hint">仅 SuperAdmin 可授予 Admin。</div>
+        <el-form-item v-if="canGrantSysManager" label="Admin">
+          <el-checkbox v-model="grantSysManager" :disabled="!sysManagerRoleId">
+            授予 Admin（SYS_MANAGER）
+          </el-checkbox>
+          <div v-if="!sysManagerRoleId" class="field-hint field-hint-warn">
+            库中无 SYS_MANAGER 角色。请在生产库执行
+            <code>seed_management_roles_system_permissions.sql</code>（或对应 EF 迁移）后刷新本页。
+          </div>
+          <div v-else class="field-hint">仅 SuperAdmin 可授予 Admin。</div>
         </el-form-item>
 
         <el-form-item label="业务扩展角色">
@@ -269,6 +290,15 @@ const load = async () => {
     roles.value = await rbacAdminApi.getRoles()
     departments.value = await rbacAdminApi.getDepartments()
 
+    if (
+      (canGrantSysManager.value && !sysManagerRoleId.value) ||
+      (canGrantBizManager.value && !bizManagerRoleId.value)
+    ) {
+      ElMessage.warning(
+        '库中缺少 SYS_MANAGER / SYS_BIZ_MANAGER 管理角色，请执行 seed_management_roles_system_permissions.sql 后刷新'
+      )
+    }
+
     if (isEdit && userId) {
       const dto: AdminUserDto = await rbacAdminApi.getUserById(userId)
       formData.value.userName = dto.userName
@@ -414,6 +444,12 @@ onMounted(load)
   font-size: 12px;
   color: var(--el-text-color-secondary);
   line-height: 1.45;
+}
+.field-hint-warn {
+  color: var(--el-color-warning-dark-2, #b88230);
+}
+.field-hint code {
+  font-size: 12px;
 }
 </style>
 

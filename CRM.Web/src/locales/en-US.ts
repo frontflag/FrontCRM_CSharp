@@ -621,7 +621,7 @@ const enUS = {
       finance: 'Finance',
       analytics: 'Analytics',
       businessManagement: 'Business Management',
-      ops: 'Operations',
+      ops: 'Ops Management',
       systemManagement: 'System Management',
       system: 'System'
     },
@@ -709,7 +709,7 @@ const enUS = {
       salesParams: 'Sales parameters',
       financeParams: 'Finance parameters',
       systemSettings: 'System Settings',
-      ops: 'Operations',
+      ops: 'Ops Management',
       userFeedback: 'User Feedback',
       systemErrors: 'System Errors',
       telemetryAnalytics: 'Telemetry Analytics',
@@ -1348,14 +1348,15 @@ const enUS = {
     permKindMenu: 'Sidebar menu',
     permKindSub: 'In-page nav',
     permKindFeature: 'Feature / API',
-    permKindMenuHint: 'Controls system sidebar menu visibility',
+    permKindMenuHint: 'Controls sidebar menu visibility (analytics, business, ops, system, etc.)',
     permKindSubHint: 'Param-page left nav; convention system.params.sales|purchase|finance.feature.read/write',
     permKindFeatureHint: 'Business features or write APIs; usually not a sidebar item',
     permKindFilterAll: 'All kinds',
     permTabAll: 'All',
     permTabMenu: 'Main menu',
     permTabSub: 'In-page menu',
-    permMenuHintPrefix: 'Menu: '
+    permMenuHintPrefix: 'Menu: ',
+    permMissingInDb: 'Permission not in DB — run seed_sidebar_menu_entry_permissions.sql'
   },
   systemPermission: {
     title: 'Permission Management',

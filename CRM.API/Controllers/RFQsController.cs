@@ -229,6 +229,31 @@ namespace CRM.API.Controllers
             }
         }
 
+        /// <summary>需求明细详情（须放在 {id} 之前；与前端 getRFQItemById 对齐）</summary>
+        // GET api/v1/rfqs/items/{itemId}
+        [HttpGet("items/{itemId}")]
+        [RequirePermission("rfq.read")]
+        public async Task<ActionResult<ApiResponse<object>>> GetRFQItem(string itemId)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var item = await _rfqService.GetItemByIdAsync(itemId, userId);
+                if (item == null)
+                    return NotFound(ApiResponse<object>.Fail("需求明细不存在", 404));
+                return Ok(ApiResponse<object>.Ok(item, "获取需求明细成功"));
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(403, ApiResponse<object>.Fail(ex.Message, 403));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取需求明细失败: {ItemId}", itemId);
+                return StatusCode(500, ApiResponse<object>.Fail($"获取需求明细失败: {ex.Message}", 500));
+            }
+        }
+
         [HttpGet("items/analytics/dashboard")]
         [RequirePermission("rfq.read")]
         public async Task<IActionResult> GetItemListAnalyticsDashboard(

@@ -276,6 +276,10 @@ namespace CRM.Core.Models.RFQ
         [NotMapped]
         public string? AssignedPurchaserName2 { get; set; }
 
+        /// <summary>展示用：需求单号（详情接口补充）</summary>
+        [NotMapped]
+        public string? RfqCode { get; set; }
+
         // 导航属性
         [ForeignKey("RfqId")]
         public virtual RFQ? RFQ { get; set; }

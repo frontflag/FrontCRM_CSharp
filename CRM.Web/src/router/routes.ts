@@ -760,7 +760,7 @@ const routes: RouteRecordRaw[] = [
         path: 'biz/brands',
         name: 'BrandList',
         component: () => import('@/views/Biz/BrandList.vue'),
-        meta: { requiresAuth: true, title: '品牌管理' }
+        meta: { requiresAuth: true, title: '品牌管理', permission: 'biz-brand.read' }
       },
       // 系统管理
       {

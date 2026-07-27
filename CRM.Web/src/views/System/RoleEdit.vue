@@ -60,8 +60,9 @@
                 <el-checkbox-group v-model="formData.permissionIds" class="role-perm-picker__group">
                   <el-checkbox
                     v-for="p in group.items"
-                    :key="p.id"
-                    :value="p.id"
+                    :key="p.id || p.permissionCode"
+                    :value="p.id || `__missing__:${p.permissionCode}`"
+                    :disabled="!p.id"
                     class="role-perm-picker__item"
                   >
                     <el-tag
@@ -76,6 +77,9 @@
                     <span class="role-perm-picker__name">{{ p.permissionName }}</span>
                     <span v-if="permMenuLabel(p.permissionCode)" class="role-perm-picker__menu-hint">
                       {{ t('systemRole.permMenuHintPrefix') }}{{ permMenuLabel(p.permissionCode) }}
+                    </span>
+                    <span v-if="!p.id" class="role-perm-picker__missing">
+                      {{ t('systemRole.permMissingInDb') }}
                     </span>
                   </el-checkbox>
                 </el-checkbox-group>
@@ -124,22 +128,81 @@ const formData = ref({
   permissionIds: [] as string[]
 })
 
-/** 侧栏菜单入口（read 码；对应 AppLayout / routes） */
-const MENU_ENTRY_LABELS: Record<string, string> = {
-  'system.org.users.read': '组织管理 / 员工管理',
-  'system.org.departments.read': '组织管理 / 部门管理',
-  'system.rbac.roles.read': '组织管理 / 角色管理',
-  'system.rbac.permissions.read': '组织管理 / 权限管理',
-  'system.org.user-config.read': '组织管理 / 用户配置',
-  'system.params.company.read': '参数管理 / 公司信息',
-  'system.params.dict.read': '参数管理 / 数据字典',
-  'system.params.sales.read': '参数管理 / 销售参数',
-  'system.params.purchase.read': '参数管理 / 采购参数',
-  'system.params.finance.read': '参数管理 / 财务参数',
-  'system.logs.login.read': '系统日志 / 登录日志',
-  'system.logs.operation.read': '系统日志 / 操作日志',
-  'biz.ai.admin': '参数管理 / AI 配置'
-}
+/** 与 AppLayout 侧栏一致：组顺序 + 组内项顺序；标题走同一套 i18n */
+type SidebarMenuItemDef = { code: string; titleKey: string }
+type SidebarMenuGroupDef = { key: string; titleKey: string; items: SidebarMenuItemDef[] }
+
+const SIDEBAR_MENU_GROUPS: SidebarMenuGroupDef[] = [
+  {
+    key: 'analytics',
+    titleKey: 'layout.sections.analytics',
+    items: [
+      { code: 'analytics-sales.read', titleKey: 'salesAnalytics.title' },
+      { code: 'analytics-purchase.read', titleKey: 'purchaseAnalytics.title' },
+      { code: 'analytics-logistics.read', titleKey: 'logisticsAnalytics.title' },
+      { code: 'analytics-finance.read', titleKey: 'financeAnalytics.title' }
+    ]
+  },
+  {
+    key: 'business',
+    titleKey: 'layout.sections.businessManagement',
+    items: [{ code: 'biz-brand.read', titleKey: 'layout.menu.brandManagement' }]
+  },
+  {
+    key: 'ops',
+    titleKey: 'layout.sections.ops',
+    items: [
+      { code: 'biz.feedback.admin', titleKey: 'layout.menu.userFeedback' },
+      { code: 'sys.errorlog.read', titleKey: 'layout.menu.systemErrors' },
+      { code: 'biz.telemetry.analytics', titleKey: 'layout.menu.telemetryAnalytics' }
+    ]
+  },
+  {
+    key: 'org',
+    titleKey: 'layout.menu.systemManagement',
+    items: [
+      { code: 'system.org.users.read', titleKey: 'layout.menu.userManagement' },
+      { code: 'system.org.departments.read', titleKey: 'layout.menu.departmentManagement' },
+      { code: 'system.rbac.roles.read', titleKey: 'layout.menu.roleManagement' },
+      { code: 'system.rbac.permissions.read', titleKey: 'layout.menu.permissionManagement' },
+      { code: 'system.org.user-config.read', titleKey: 'layout.menu.userConfig' }
+    ]
+  },
+  {
+    key: 'params',
+    titleKey: 'layout.menu.paramManagement',
+    items: [
+      { code: 'system.params.company.read', titleKey: 'layout.menu.companyInfo' },
+      { code: 'system.params.dict.read', titleKey: 'layout.menu.dictItems' },
+      { code: 'biz.ai.admin', titleKey: 'layout.menu.aiConfig' },
+      { code: 'system.params.sales.read', titleKey: 'layout.menu.salesParams' },
+      { code: 'system.params.purchase.read', titleKey: 'layout.menu.purchaseParams' },
+      { code: 'system.params.finance.read', titleKey: 'layout.menu.financeParams' }
+    ]
+  },
+  {
+    key: 'logs',
+    titleKey: 'layout.menu.systemLogs',
+    items: [
+      { code: 'system.logs.login.read', titleKey: 'layout.menu.loginLog' },
+      { code: 'system.logs.operation.read', titleKey: 'layout.menu.operationLog' }
+    ]
+  }
+]
+
+const MENU_ENTRY_BY_CODE = (() => {
+  const map = new Map<string, { groupKey: string; groupOrder: number; itemOrder: number; titleKey: string }>()
+  SIDEBAR_MENU_GROUPS.forEach((g, groupOrder) => {
+    g.items.forEach((item, itemOrder) => {
+      map.set(item.code, { groupKey: g.key, groupOrder, itemOrder, titleKey: item.titleKey })
+    })
+  })
+  return map
+})()
+
+const MENU_GROUP_TITLE_KEY = Object.fromEntries(
+  SIDEBAR_MENU_GROUPS.map((g) => [g.key, g.titleKey])
+) as Record<string, string>
 
 /** 参数页内部左侧子导航（非侧栏一级）；未来新增按 system.params.{area}.{feature}.read|write 命名即可自动识别 */
 const PAGE_SUB_LABELS: Record<string, string> = {
@@ -165,10 +228,6 @@ const PAGE_SUB_LABELS: Record<string, string> = {
 
 type PermKind = 'menu' | 'sub' | 'feature'
 
-function isParamsModuleMenu(code: string): boolean {
-  return /^system\.params\.(sales|purchase|finance)\.(read|write)$/i.test(code)
-}
-
 function isParamsPageSub(code: string): boolean {
   if (PAGE_SUB_LABELS[code]) return true
   // 约定：system.params.{area}.{feature…}.(read|write)，段数 ≥ 5
@@ -181,7 +240,7 @@ function isParamsPageSub(code: string): boolean {
 }
 
 function resolvePermKind(code: string): PermKind {
-  if (MENU_ENTRY_LABELS[code] || isParamsModuleMenu(code)) return 'menu'
+  if (MENU_ENTRY_BY_CODE.has(code)) return 'menu'
   if (isParamsPageSub(code)) return 'sub'
   return 'feature'
 }
@@ -201,15 +260,21 @@ function permKindTagType(code: string): 'primary' | 'warning' | 'info' {
 }
 
 function permMenuLabel(code: string): string {
-  if (MENU_ENTRY_LABELS[code] || PAGE_SUB_LABELS[code]) {
-    return MENU_ENTRY_LABELS[code] || PAGE_SUB_LABELS[code]
-  }
+  const menu = MENU_ENTRY_BY_CODE.get(code)
+  if (menu) return t(menu.titleKey)
+  if (PAGE_SUB_LABELS[code]) return PAGE_SUB_LABELS[code]
   if (isParamsPageSub(code)) {
     const parts = code.split('.')
     const area = parts[2]
     const feature = parts.slice(3, -1).join('.')
     const areaLabel =
-      area === 'sales' ? '销售参数' : area === 'purchase' ? '采购参数' : area === 'finance' ? '财务参数' : area
+      area === 'sales'
+        ? t('layout.menu.salesParams')
+        : area === 'purchase'
+          ? t('layout.menu.purchaseParams')
+          : area === 'finance'
+            ? t('layout.menu.financeParams')
+            : area
     return `${areaLabel} → ${feature}`
   }
   return ''
@@ -220,36 +285,96 @@ const legendTitle = computed(
     `${t('systemRole.permKindMenuHint')}；${t('systemRole.permKindSubHint')}；${t('systemRole.permKindFeatureHint')}`
 )
 
-function permissionGroupKey(p: RbacPermission): string {
+type GroupMeta = {
+  key: string
+  label: string
+  sort: number
+  itemSort: (code: string) => number
+}
+
+function resolveGroupMeta(p: RbacPermission): GroupMeta {
   const code = p.permissionCode ?? ''
-  if (code.startsWith('system.org.')) return 'system / 组织（侧栏菜单）'
-  if (code.startsWith('system.rbac.')) return 'system / 角色权限（侧栏菜单）'
+  const menu = MENU_ENTRY_BY_CODE.get(code)
+  if (menu) {
+    return {
+      key: `menu:${menu.groupKey}`,
+      label: t(MENU_GROUP_TITLE_KEY[menu.groupKey] || menu.groupKey),
+      sort: menu.groupOrder,
+      itemSort: (c) => MENU_ENTRY_BY_CODE.get(c)?.itemOrder ?? 999
+    }
+  }
   if (isParamsPageSub(code)) {
     const area = code.split('.')[2]
-    if (area === 'sales') return 'system / 销售参数 · 页内子项'
-    if (area === 'purchase') return 'system / 采购参数 · 页内子项'
-    if (area === 'finance') return 'system / 财务参数 · 页内子项'
-    return 'system / 参数 · 页内子项'
+    if (area === 'sales') {
+      return { key: 'sub:sales', label: `${t('layout.menu.salesParams')} · ${t('systemRole.permKindSub')}`, sort: 100, itemSort: () => 0 }
+    }
+    if (area === 'purchase') {
+      return { key: 'sub:purchase', label: `${t('layout.menu.purchaseParams')} · ${t('systemRole.permKindSub')}`, sort: 101, itemSort: () => 0 }
+    }
+    if (area === 'finance') {
+      return { key: 'sub:finance', label: `${t('layout.menu.financeParams')} · ${t('systemRole.permKindSub')}`, sort: 102, itemSort: () => 0 }
+    }
+    return { key: 'sub:params', label: `${t('layout.menu.paramManagement')} · ${t('systemRole.permKindSub')}`, sort: 103, itemSort: () => 0 }
   }
-  if (code.startsWith('system.params.purchase.')) return 'system / 采购参数（侧栏菜单）'
-  if (code.startsWith('system.params.sales.')) return 'system / 销售参数（侧栏菜单）'
-  if (code.startsWith('system.params.finance.')) return 'system / 财务参数（侧栏菜单）'
-  if (code.startsWith('system.params.company.')) return 'system / 公司信息（侧栏菜单）'
-  if (code.startsWith('system.params.dict.')) return 'system / 数据字典（侧栏菜单）'
-  if (code.startsWith('system.params.')) return 'system / 参数'
-  if (code.startsWith('system.logs.')) return 'system / 日志（侧栏菜单）'
-  if (code.startsWith('system.')) return 'system'
-  if (code === 'biz.ai.admin') return 'biz / AI 配置（侧栏菜单）'
-  if (code.startsWith('biz.ai.')) return 'biz / AI 功能（非侧栏菜单）'
+  if (code.startsWith('biz.ai.')) {
+    return { key: 'feat:ai', label: 'AI', sort: 200, itemSort: () => 0 }
+  }
+  if (code.startsWith('biz.feedback.') || code.startsWith('sys.errorlog.') || code.startsWith('biz.telemetry.')) {
+    return { key: 'feat:ops', label: `${t('layout.sections.ops')} · ${t('systemRole.permKindFeature')}`, sort: 201, itemSort: () => 0 }
+  }
+  if (code === 'biz-brand.write' || code.startsWith('biz-brand.')) {
+    return { key: 'feat:brand', label: `${t('layout.sections.businessManagement')} · ${t('systemRole.permKindFeature')}`, sort: 202, itemSort: () => 0 }
+  }
   const resource = (p.resource ?? '').trim()
-  if (resource) return resource
+  if (resource) {
+    return { key: `feat:res:${resource}`, label: resource, sort: 800, itemSort: () => 0 }
+  }
   const dot = code.indexOf('.')
-  return dot > 0 ? code.slice(0, dot) : code || 'other'
+  const prefix = dot > 0 ? code.slice(0, dot) : code || 'other'
+  return { key: `feat:${prefix}`, label: prefix, sort: 900, itemSort: () => 0 }
 }
 
 const permissionGroups = computed(() => {
   const q = permFilter.value.trim().toLowerCase()
   const kindFilter = permKindFilter.value
+  const byCode = new Map(
+    permissions.value.filter((p) => p.status === 1).map((p) => [p.permissionCode, p] as const)
+  )
+
+  // 主菜单入口：始终按侧栏结构完整展示（库中缺失时禁用并提示执行种子）
+  if (kindFilter === 'menu') {
+    return SIDEBAR_MENU_GROUPS.map((g, groupOrder) => {
+      const items = g.items
+        .map((item) => {
+          const existing = byCode.get(item.code)
+          const row: RbacPermission = existing ?? {
+            id: '',
+            permissionCode: item.code,
+            permissionName: t(item.titleKey),
+            permissionType: 'api',
+            status: 1
+          }
+          return row
+        })
+        .filter((p) => {
+          if (!q) return true
+          const menuHint = permMenuLabel(p.permissionCode).toLowerCase()
+          return (
+            p.permissionCode.toLowerCase().includes(q) ||
+            p.permissionName.toLowerCase().includes(q) ||
+            menuHint.includes(q)
+          )
+        })
+      if (items.length === 0) return null
+      return {
+        key: `menu:${g.key}`,
+        label: t(g.titleKey),
+        items,
+        sort: groupOrder
+      }
+    }).filter((g): g is NonNullable<typeof g> => g != null)
+  }
+
   const filtered = permissions.value.filter((p) => {
     if (p.status !== 1) return false
     const kind = resolvePermKind(p.permissionCode)
@@ -263,19 +388,23 @@ const permissionGroups = computed(() => {
       menuHint.includes(q)
     )
   })
-  const map = new Map<string, RbacPermission[]>()
+  const map = new Map<string, { meta: GroupMeta; items: RbacPermission[] }>()
   for (const p of filtered) {
-    const key = permissionGroupKey(p)
-    const bucket = map.get(key)
-    if (bucket) bucket.push(p)
-    else map.set(key, [p])
+    const meta = resolveGroupMeta(p)
+    const bucket = map.get(meta.key)
+    if (bucket) bucket.items.push(p)
+    else map.set(meta.key, { meta, items: [p] })
   }
-  return [...map.entries()]
-    .sort((a, b) => a[0].localeCompare(b[0], 'zh-CN'))
-    .map(([key, items]) => ({
-      key,
-      label: key,
-      items: [...items].sort((a, b) => a.permissionCode.localeCompare(b.permissionCode, 'zh-CN'))
+  return [...map.values()]
+    .sort((a, b) => a.meta.sort - b.meta.sort || a.meta.label.localeCompare(b.meta.label, 'zh-CN'))
+    .map(({ meta, items }) => ({
+      key: meta.key,
+      label: meta.label,
+      items: [...items].sort((a, b) => {
+        const byMenu = meta.itemSort(a.permissionCode) - meta.itemSort(b.permissionCode)
+        if (byMenu !== 0) return byMenu
+        return a.permissionCode.localeCompare(b.permissionCode, 'zh-CN')
+      })
     }))
 })
 
@@ -324,7 +453,7 @@ const handleSubmit = async () => {
         status: formData.value.status
       })
 
-      await rbacAdminApi.assignRolePermissions(roleId, formData.value.permissionIds)
+      await rbacAdminApi.assignRolePermissions(roleId, formData.value.permissionIds.filter((id) => !!id && !id.startsWith('__missing__:')))
       ElMessage.success(t('common.saveSuccess'))
     } else {
       const created = await rbacAdminApi.createRole({
@@ -333,7 +462,10 @@ const handleSubmit = async () => {
         description: formData.value.description || undefined,
         status: formData.value.status
       })
-      await rbacAdminApi.assignRolePermissions(created.id, formData.value.permissionIds)
+      await rbacAdminApi.assignRolePermissions(
+        created.id,
+        formData.value.permissionIds.filter((id) => !!id && !id.startsWith('__missing__:'))
+      )
       ElMessage.success(t('common.createSuccess'))
     }
 
@@ -495,6 +627,11 @@ onMounted(load)
 .role-perm-picker__menu-hint {
   font-size: 12px;
   color: var(--el-color-primary);
+}
+
+.role-perm-picker__missing {
+  font-size: 12px;
+  color: var(--el-color-warning-dark-2, #b88230);
 }
 </style>
 

@@ -864,8 +864,12 @@
         </SidebarMenuTooltipWrap>
 
         <!-- 业务管理 -->
-        <div class="menu-section-label" v-if="!isCollapsed">{{ t('layout.sections.businessManagement') }}</div>
+        <div
+          class="menu-section-label"
+          v-if="!isCollapsed && hasPermission('biz-brand.read')"
+        >{{ t('layout.sections.businessManagement') }}</div>
         <SidebarMenuTooltipWrap
+          v-if="hasPermission('biz-brand.read')"
           :collapsed="isCollapsed"
           :tooltip="t('layout.menu.brandManagement')"
         >
@@ -880,7 +884,7 @@
           </router-link>
         </SidebarMenuTooltipWrap>
 
-        <!-- 运维 -->
+        <!-- 运维管理 -->
         <div
           class="menu-section-label"
           v-if="!isCollapsed && (hasPermission('biz.feedback.admin') || hasPermission('sys.errorlog.read') || hasPermission('biz.telemetry.analytics'))"

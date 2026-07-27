@@ -12,14 +12,14 @@
 
 .crm-system-list-title {
   margin: 0;
-  color: #e8f4ff;
+  color: var(--el-text-color-primary, #303133);
   font-size: 20px;
   font-weight: 600;
 }
 
 .crm-system-list-card {
-  background: #0a1628;
-  border: 1px solid rgba(0, 212, 255, 0.1);
+  background: var(--el-bg-color, #fff);
+  border: 1px solid var(--el-border-color-lighter, #ebeef5);
 
   :deep(.el-card__body) {
     padding: 20px;

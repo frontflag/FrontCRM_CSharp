@@ -12,6 +12,9 @@ namespace CRM.Core.Interfaces
         Task<RFQListPagedResult> GetPagedAsync(RFQQueryRequest request);
         /// <summary>需求明细分页（联主表、客户、业务员，含数据权限）</summary>
         Task<PagedResult<RFQItemListItem>> GetPagedItemsAsync(RFQItemQueryRequest request);
+        /// <summary>按明细 ID 获取单条需求明细（含数据权限与客户字段脱敏）。</summary>
+        /// <param name="viewerUserId">当前查看者；无权限时抛 <see cref="UnauthorizedAccessException"/>。</param>
+        Task<RFQItem?> GetItemByIdAsync(string itemId, string? viewerUserId = null);
         /// <param name="actingUserId">当前登录用户 ID（写入 modify_by_user_id）</param>
         Task<RFQ> UpdateAsync(string id, UpdateRFQRequest request, string? actingUserId = null);
         Task DeleteAsync(string id);

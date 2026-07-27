@@ -63,7 +63,12 @@
 
         <el-tab-pane :label="t('telemetryAnalytics.topActions')" name="actions">
           <el-table :data="actions" size="small" stripe empty-text="—" height="100%">
-            <el-table-column prop="actionId" :label="t('telemetryAnalytics.colAction')" min-width="180" show-overflow-tooltip />
+            <el-table-column
+              prop="actionId"
+              :label="t('telemetryAnalytics.colAction')"
+              min-width="280"
+              class-name="col-action-full"
+            />
             <el-table-column :label="t('telemetryAnalytics.colDescription')" min-width="140" show-overflow-tooltip>
               <template #default="{ row }">{{ displayDesc(row.description) }}</template>
             </el-table-column>
@@ -258,5 +263,12 @@ onMounted(() => {
 }
 .btn-sm {
   font-size: 13px;
+}
+.analytics-tabs :deep(.col-action-full .cell) {
+  white-space: normal;
+  word-break: break-all;
+  line-height: 1.45;
+  overflow: visible;
+  text-overflow: clip;
 }
 </style>
