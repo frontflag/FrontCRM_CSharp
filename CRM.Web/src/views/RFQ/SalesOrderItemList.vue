@@ -839,7 +839,7 @@ import {
   formatProgressStatusesForRoute,
   normalizeProgressStatuses
 } from '@/utils/progressStatusQuery'
-import ProgressMultiSelectOption from '@/components/common/ProgressMultiSelectOption.vue'
+import ProgressMultiSelectOption from '@/components/Common/ProgressMultiSelectOption.vue'
 import ApplyStockOutDisabledHint from '@/components/RFQ/ApplyStockOutDisabledHint.vue'
 import ApplyStockOutDialog from '@/components/RFQ/ApplyStockOutDialog.vue'
 import SalesOrderItemListBoard from './SalesOrderItemListBoard.vue'

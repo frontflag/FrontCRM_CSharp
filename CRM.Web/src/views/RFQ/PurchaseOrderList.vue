@@ -444,7 +444,7 @@ import CrmDataTable from '@/components/CrmDataTable.vue'
 import VendorExtendColumnHeader from '@/components/list/VendorExtendColumnHeader.vue'
 import VendorExtendCell from '@/components/list/VendorExtendCell.vue'
 import PurchaseOrderListBoard from './PurchaseOrderListBoard.vue'
-import ProgressMultiSelectOption from '@/components/common/ProgressMultiSelectOption.vue'
+import ProgressMultiSelectOption from '@/components/Common/ProgressMultiSelectOption.vue'
 import {
   assignPurchaseOrderStatusesParam,
   normalizePurchaseOrderStatuses

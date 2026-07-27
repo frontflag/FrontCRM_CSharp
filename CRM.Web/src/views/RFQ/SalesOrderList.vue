@@ -319,7 +319,7 @@ import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOn
 import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick'
 import SalesOrderListBoard from './SalesOrderListBoard.vue'
 import type { SalesOrderListAnalyticsQuery } from '@/api/salesOrderAnalytics'
-import ProgressMultiSelectOption from '@/components/common/ProgressMultiSelectOption.vue'
+import ProgressMultiSelectOption from '@/components/Common/ProgressMultiSelectOption.vue'
 import {
   assignSalesOrderStatusesParam,
   formatSalesOrderStatusesForRoute,

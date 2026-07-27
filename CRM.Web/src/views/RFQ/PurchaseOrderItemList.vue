@@ -877,7 +877,7 @@ import {
   formatProgressStatusesForRoute,
   normalizeProgressStatuses
 } from '@/utils/progressStatusQuery'
-import ProgressMultiSelectOption from '@/components/common/ProgressMultiSelectOption.vue'
+import ProgressMultiSelectOption from '@/components/Common/ProgressMultiSelectOption.vue'
 import { financePaymentApi } from '@/api/finance'
 import { logisticsApi } from '@/api/logistics'
 import { ElMessage } from 'element-plus'
