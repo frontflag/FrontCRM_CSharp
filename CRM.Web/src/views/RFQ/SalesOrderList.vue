@@ -54,12 +54,21 @@
         <el-select
           v-model="filterForm.status"
           :placeholder="t('salesOrderList.filters.allStatus')"
+          multiple
+          collapse-tags
+          collapse-tags-tooltip
           clearable
-          class="status-select"
+          class="status-select filter-select--progress"
+          popper-class="progress-multi-select-dropdown"
           :teleported="false"
           @change="handleSearch"
         >
-          <el-option v-for="opt in statusFilterOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          <el-option v-for="opt in statusFilterOptions" :key="opt.value" :label="opt.label" :value="opt.value">
+            <ProgressMultiSelectOption
+              :label="opt.label"
+              :checked="filterForm.status.includes(opt.value)"
+            />
+          </el-option>
         </el-select>
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
@@ -310,6 +319,12 @@ import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOn
 import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick'
 import SalesOrderListBoard from './SalesOrderListBoard.vue'
 import type { SalesOrderListAnalyticsQuery } from '@/api/salesOrderAnalytics'
+import ProgressMultiSelectOption from '@/components/common/ProgressMultiSelectOption.vue'
+import {
+  assignSalesOrderStatusesParam,
+  formatSalesOrderStatusesForRoute,
+  normalizeSalesOrderStatuses
+} from '@/utils/salesOrderStatusQuery'
 
 const router = useRouter()
 const route = useRoute()
@@ -360,7 +375,7 @@ const filterForm = ref({
   salesUserName: '',
   comment: '',
   createDateRange: null as [string, string] | null,
-  status: undefined as number | undefined
+  status: [] as number[]
 })
 
 // 分页信息
@@ -486,9 +501,8 @@ const boardFilters = computed((): SalesOrderListAnalyticsQuery => {
   }
   const cm = filterForm.value.comment.trim()
   if (cm) q.comment = cm
-  if (filterForm.value.status !== undefined && filterForm.value.status !== null) {
-    q.status = filterForm.value.status
-  }
+  const statuses = normalizeSalesOrderStatuses(filterForm.value.status)
+  if (statuses.length) q.status = statuses
   if (filterForm.value.createDateRange?.[0]) q.startDate = filterForm.value.createDateRange[0]
   if (filterForm.value.createDateRange?.[1]) q.endDate = filterForm.value.createDateRange[1]
   return q
@@ -543,9 +557,7 @@ const loadData = async () => {
       const customer = filterForm.value.customer.trim()
       if (customer) params.customer = customer
     }
-    if (filterForm.value.status !== undefined && filterForm.value.status !== null) {
-      params.status = filterForm.value.status
-    }
+    assignSalesOrderStatusesParam(params, 'status', filterForm.value.status)
     if (!maskSaleSensitiveFields.value) {
       const salesUser = filterForm.value.salesUserName.trim()
       if (salesUser) params.salesUserName = salesUser
@@ -607,13 +619,7 @@ function syncFiltersFromRoute() {
   const from = typeof q.startDate === 'string' ? q.startDate : ''
   const to = typeof q.endDate === 'string' ? q.endDate : ''
   filterForm.value.createDateRange = from && to ? [from, to] : null
-  const st = q.status
-  if (st === undefined || st === null || st === '') {
-    filterForm.value.status = undefined
-  } else {
-    const n = Number(st)
-    filterForm.value.status = Number.isNaN(n) ? undefined : n
-  }
+  filterForm.value.status = normalizeSalesOrderStatuses(q.status)
 }
 
 watch(
@@ -638,9 +644,8 @@ const handleSearch = () => {
   if (cm) query.comment = cm
   if (filterForm.value.createDateRange?.[0]) query.startDate = filterForm.value.createDateRange[0]
   if (filterForm.value.createDateRange?.[1]) query.endDate = filterForm.value.createDateRange[1]
-  if (filterForm.value.status !== undefined && filterForm.value.status !== null) {
-    query.status = String(filterForm.value.status)
-  }
+  const statusQ = formatSalesOrderStatusesForRoute(filterForm.value.status)
+  if (statusQ) query.status = statusQ
   pageInfo.value.page = 1
   router.replace({ name: 'SalesOrderList', query })
 }
@@ -652,7 +657,7 @@ const handleReset = () => {
     salesUserName: '',
     comment: '',
     createDateRange: null,
-    status: undefined
+    status: []
   }
   pageInfo.value.page = 1
   router.replace({ name: 'SalesOrderList', query: {} })
@@ -887,7 +892,7 @@ const submitForAudit = async (row: any) => {
 }
 
 .status-select {
-  width: 160px;
+  width: 168px;
   :deep(.el-select__wrapper) {
     background: $layer-2 !important;
     box-shadow: none !important;

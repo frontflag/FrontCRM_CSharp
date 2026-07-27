@@ -25,11 +25,32 @@
           <el-option :label="t('financeReceivableList.verification.partial')" :value="1" />
           <el-option :label="t('financeReceivableList.verification.complete')" :value="2" />
         </el-select>
+        <el-date-picker
+          v-model="stockOutDateRange"
+          type="daterange"
+          value-format="YYYY-MM-DD"
+          unlink-panels
+          :range-separator="t('financeReceivableList.filters.dateSep')"
+          :start-placeholder="t('financeReceivableList.filters.stockOutDateFrom')"
+          :end-placeholder="t('financeReceivableList.filters.stockOutDateTo')"
+          class="filter-date-range"
+          @change="onStockOutDateChange"
+        />
         <el-checkbox v-model="query.onlyOpen" @change="loadData">
           {{ t('financeReceivableList.filters.onlyOpen') }}
         </el-checkbox>
         <el-button type="primary" @click="loadData">
           <el-icon><Search /></el-icon> {{ t('financeReceivableList.filters.search') }}
+        </el-button>
+        <el-button
+          class="btn-ghost btn-sm btn-board-active"
+          @click="toggleViewMode"
+        >
+          {{
+            viewMode === 'board'
+              ? t('financeReceivableList.filters.listView')
+              : t('financeReceivableList.filters.boardView')
+          }}
         </el-button>
       </div>
       <div class="search-right">
@@ -39,7 +60,10 @@
       </div>
     </div>
 
+    <FinanceReceivableListBoard v-if="viewMode === 'board'" :filters="boardFilters" />
+
     <CrmDataTable
+      v-show="viewMode === 'list'"
       column-layout-key="finance-receivable-list-main-v4"
       :columns="tableColumns"
       :show-column-settings="false"
@@ -130,7 +154,7 @@
       </template>
     </CrmDataTable>
 
-    <div class="pagination-wrap">
+    <div v-show="viewMode === 'list'" class="pagination-wrap">
       <el-pagination
         v-model:current-page="query.page"
         v-model:page-size="query.pageSize"
@@ -150,6 +174,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Search } from '@element-plus/icons-vue'
 import { financeReceivableApi, type FinanceReceivable } from '@/api/financeReceivable'
+import type { FinanceReceivableListAnalyticsQuery } from '@/api/financeReceivableAnalytics'
 import { CURRENCY_MAP } from '@/api/finance'
 import { useFinanceWriteGate } from '@/composables/useDepartmentDataReadOnly'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
@@ -157,6 +182,7 @@ import CustomerExtendColumnHeader from '@/components/list/CustomerExtendColumnHe
 import CustomerExtendCell from '@/components/list/CustomerExtendCell.vue'
 import { useCustomerExtendColumn, isCustomerExtendTableColumn } from '@/composables/useCustomerExtendColumn'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import FinanceReceivableListBoard from './FinanceReceivableListBoard.vue'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -194,14 +220,38 @@ function toggleOpCol() {
 const loading = ref(false)
 const tableData = ref<FinanceReceivable[]>([])
 const total = ref(0)
+const viewMode = ref<'list' | 'board'>('list')
+const stockOutDateRange = ref<[string, string] | null>(null)
 
 const query = reactive({
   keyword: '',
   verificationStatus: undefined as number | undefined,
   onlyOpen: true,
+  stockOutDateFrom: undefined as string | undefined,
+  stockOutDateTo: undefined as string | undefined,
   page: 1,
   pageSize: 20
 })
+
+const boardFilters = computed<FinanceReceivableListAnalyticsQuery>(() => ({
+  keyword: query.keyword?.trim() || undefined,
+  verificationStatus: query.verificationStatus,
+  onlyOpen: query.onlyOpen,
+  stockOutDateFrom: query.stockOutDateFrom,
+  stockOutDateTo: query.stockOutDateTo
+}))
+
+function toggleViewMode() {
+  viewMode.value = viewMode.value === 'list' ? 'board' : 'list'
+  if (viewMode.value === 'list') void loadData()
+}
+
+function onStockOutDateChange(val: [string, string] | null) {
+  query.stockOutDateFrom = val?.[0]
+  query.stockOutDateTo = val?.[1]
+  query.page = 1
+  void loadData()
+}
 
 const tableColumns = computed<CrmTableColumnDef[]>(() => {
   void customerExtendExpanded.value
@@ -294,10 +344,13 @@ function verificationTagType(status: number): 'success' | 'warning' | 'info' {
 async function loadData() {
   loading.value = true
   try {
+    if (viewMode.value === 'board') return
     const res = await financeReceivableApi.getPaged({
       keyword: query.keyword || undefined,
       verificationStatus: query.verificationStatus,
       onlyOpen: query.onlyOpen,
+      stockOutDateFrom: query.stockOutDateFrom,
+      stockOutDateTo: query.stockOutDateTo,
       page: query.page,
       pageSize: query.pageSize
     })
@@ -344,6 +397,21 @@ function openDetail(row: FinanceReceivable) {
   margin-top: 16px;
   display: flex;
   justify-content: flex-end;
+}
+
+.filter-date-range {
+  width: 260px;
+}
+
+.btn-board-active {
+  border-color: #13c2c2;
+  color: #13c2c2;
+}
+
+.btn-board-active:hover {
+  border-color: #36cfc9;
+  color: #36cfc9;
+  background: rgba(19, 194, 194, 0.08);
 }
 
 .link-text {

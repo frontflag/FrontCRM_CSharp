@@ -392,7 +392,8 @@ function parseSoBatchExportLogExtra(raw: string | null | undefined): Partial<Sal
 export const salesOrderApi = {
   // 获取销售订单列表
   async getList(params?: Record<string, unknown>) {
-    return await apiClient.get('/api/v1/sales-orders', { params })
+    const q = buildQueryString((params ?? {}) as Record<string, unknown>)
+    return await apiClient.get(`/api/v1/sales-orders${q ? `?${q}` : ''}`)
   },
 
   /** 销售订单明细分页（GET /api/v1/sales-orders/items） */

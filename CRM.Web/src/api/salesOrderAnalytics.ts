@@ -1,12 +1,15 @@
 import apiClient from './client'
 import type { SalesAnalyticsBreakdownGroup } from './analytics/sales'
+import { buildQueryString } from '@/utils/progressStatusQuery'
+import { assignSalesOrderStatusesParam } from '@/utils/salesOrderStatusQuery'
 
 export interface SalesOrderListAnalyticsQuery {
   code?: string
   customer?: string
   salesUserName?: string
   comment?: string
-  status?: number
+  /** 主状态多选；空/未传表示不限 */
+  status?: number[]
   startDate?: string
   endDate?: string
   groupBy?: 'day' | 'week' | 'month'
@@ -53,41 +56,45 @@ export interface SalesOrderListAnalyticsRankings {
   salesUserByAmount: SalesOrderListAnalyticsRankingRow[]
 }
 
-function buildParams(q: SalesOrderListAnalyticsQuery): Record<string, string | number> {
-  const p: Record<string, string | number> = {}
+function buildQuery(q: SalesOrderListAnalyticsQuery): string {
+  const p: Record<string, unknown> = {}
   if (q.code) p.code = q.code
   if (q.customer) p.customer = q.customer
   if (q.salesUserName) p.salesUserName = q.salesUserName
   if (q.comment) p.comment = q.comment
-  if (q.status !== undefined && q.status !== null) p.status = q.status
+  assignSalesOrderStatusesParam(p, 'status', q.status)
   if (q.startDate) p.startDate = q.startDate
   if (q.endDate) p.endDate = q.endDate
   if (q.groupBy) p.groupBy = q.groupBy
-  return p
+  return buildQueryString(p)
 }
 
 export const salesOrderListAnalyticsApi = {
   getDashboard(query: SalesOrderListAnalyticsQuery): Promise<SalesOrderListAnalyticsDashboard> {
-    return apiClient.get<SalesOrderListAnalyticsDashboard>('/api/v1/sales-orders/analytics/dashboard', {
-      params: buildParams(query)
-    })
+    const qs = buildQuery(query)
+    return apiClient.get<SalesOrderListAnalyticsDashboard>(
+      `/api/v1/sales-orders/analytics/dashboard${qs ? `?${qs}` : ''}`
+    )
   },
 
   getTrends(query: SalesOrderListAnalyticsQuery): Promise<SalesOrderListAnalyticsTrendPoint[]> {
-    return apiClient.get<SalesOrderListAnalyticsTrendPoint[]>('/api/v1/sales-orders/analytics/trends', {
-      params: buildParams(query)
-    })
+    const qs = buildQuery(query)
+    return apiClient.get<SalesOrderListAnalyticsTrendPoint[]>(
+      `/api/v1/sales-orders/analytics/trends${qs ? `?${qs}` : ''}`
+    )
   },
 
   getBreakdowns(query: SalesOrderListAnalyticsQuery): Promise<SalesAnalyticsBreakdownGroup[]> {
-    return apiClient.get<SalesAnalyticsBreakdownGroup[]>('/api/v1/sales-orders/analytics/breakdowns', {
-      params: buildParams(query)
-    })
+    const qs = buildQuery(query)
+    return apiClient.get<SalesAnalyticsBreakdownGroup[]>(
+      `/api/v1/sales-orders/analytics/breakdowns${qs ? `?${qs}` : ''}`
+    )
   },
 
   getRankings(query: SalesOrderListAnalyticsQuery): Promise<SalesOrderListAnalyticsRankings> {
-    return apiClient.get<SalesOrderListAnalyticsRankings>('/api/v1/sales-orders/analytics/rankings', {
-      params: buildParams(query)
-    })
+    const qs = buildQuery(query)
+    return apiClient.get<SalesOrderListAnalyticsRankings>(
+      `/api/v1/sales-orders/analytics/rankings${qs ? `?${qs}` : ''}`
+    )
   }
 }

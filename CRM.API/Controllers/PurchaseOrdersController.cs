@@ -90,7 +90,6 @@ namespace CRM.API.Controllers
             [FromQuery] string? purchaseUserName,
             [FromQuery] string? comment,
             [FromQuery] short? orderType,
-            [FromQuery] short? status,
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
             [FromQuery] int page = 1,
@@ -108,7 +107,7 @@ namespace CRM.API.Controllers
                     PurchaseUserNameFilter = string.IsNullOrWhiteSpace(purchaseUserName) ? null : purchaseUserName.Trim(),
                     CommentFilter = string.IsNullOrWhiteSpace(comment) ? null : comment.Trim(),
                     OrderType = orderType,
-                    Status = status,
+                    Status = QueryShortListParser.Parse(Request.Query["status"]),
                     StartDate = DateTime.TryParse(startDate, out var start) ? start : null,
                     EndDate = DateTime.TryParse(endDate, out var end) ? end : null,
                     Page = page,
@@ -171,13 +170,12 @@ namespace CRM.API.Controllers
             [FromQuery] string? purchaseUserName,
             [FromQuery] string? comment,
             [FromQuery] short? orderType,
-            [FromQuery] short? status,
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
             CancellationToken cancellationToken = default)
         {
             var (request, maskAmounts) = await BuildListAnalyticsQueryRequestAsync(
-                keyword, code, vendor, freightForwarderOrderNo, purchaseUserName, comment, orderType, status, startDate, endDate, cancellationToken);
+                keyword, code, vendor, freightForwarderOrderNo, purchaseUserName, comment, orderType, startDate, endDate, cancellationToken);
             var data = await _purchaseOrderListQuery.GetListAnalyticsDashboardAsync(request, maskAmounts, cancellationToken);
             return Ok(ApiResponse<PurchaseOrderListAnalyticsDashboardDto>.Ok(data));
         }
@@ -191,14 +189,13 @@ namespace CRM.API.Controllers
             [FromQuery] string? purchaseUserName,
             [FromQuery] string? comment,
             [FromQuery] short? orderType,
-            [FromQuery] short? status,
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
             [FromQuery] string? groupBy,
             CancellationToken cancellationToken = default)
         {
             var (request, maskAmounts) = await BuildListAnalyticsQueryRequestAsync(
-                keyword, code, vendor, freightForwarderOrderNo, purchaseUserName, comment, orderType, status, startDate, endDate, cancellationToken);
+                keyword, code, vendor, freightForwarderOrderNo, purchaseUserName, comment, orderType, startDate, endDate, cancellationToken);
             var data = await _purchaseOrderListQuery.GetListAnalyticsTrendsAsync(
                 request,
                 string.IsNullOrWhiteSpace(groupBy) ? "month" : groupBy.Trim(),
@@ -216,13 +213,12 @@ namespace CRM.API.Controllers
             [FromQuery] string? purchaseUserName,
             [FromQuery] string? comment,
             [FromQuery] short? orderType,
-            [FromQuery] short? status,
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
             CancellationToken cancellationToken = default)
         {
             var (request, maskAmounts) = await BuildListAnalyticsQueryRequestAsync(
-                keyword, code, vendor, freightForwarderOrderNo, purchaseUserName, comment, orderType, status, startDate, endDate, cancellationToken);
+                keyword, code, vendor, freightForwarderOrderNo, purchaseUserName, comment, orderType, startDate, endDate, cancellationToken);
             var data = await _purchaseOrderListQuery.GetListAnalyticsBreakdownsAsync(request, maskAmounts, cancellationToken);
             return Ok(ApiResponse<IReadOnlyList<SalesAnalyticsBreakdownGroupDto>>.Ok(data));
         }
@@ -236,13 +232,12 @@ namespace CRM.API.Controllers
             [FromQuery] string? purchaseUserName,
             [FromQuery] string? comment,
             [FromQuery] short? orderType,
-            [FromQuery] short? status,
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
             CancellationToken cancellationToken = default)
         {
             var (request, maskAmounts) = await BuildListAnalyticsQueryRequestAsync(
-                keyword, code, vendor, freightForwarderOrderNo, purchaseUserName, comment, orderType, status, startDate, endDate, cancellationToken);
+                keyword, code, vendor, freightForwarderOrderNo, purchaseUserName, comment, orderType, startDate, endDate, cancellationToken);
             var data = await _purchaseOrderListQuery.GetListAnalyticsRankingsAsync(request, maskAmounts, cancellationToken);
             return Ok(ApiResponse<PurchaseOrderListAnalyticsRankingsDto>.Ok(data));
         }
@@ -403,10 +398,10 @@ namespace CRM.API.Controllers
                     Pn = string.IsNullOrWhiteSpace(pn) ? null : pn.Trim(),
                     OrderType = orderType,
                     TransactionCurrency = transactionCurrency,
-                    PaymentProgressStatus = paymentProgressStatus,
-                    PurchaseProgressStatus = purchaseProgressStatus,
-                    StockInProgressStatus = stockInProgressStatus,
-                    InvoiceProgressStatus = invoiceProgressStatus,
+                    PaymentProgressStatus = QueryShortListParser.Parse(Request.Query["paymentProgressStatus"]) ?? paymentProgressStatus,
+                    PurchaseProgressStatus = QueryShortListParser.Parse(Request.Query["purchaseProgressStatus"]) ?? purchaseProgressStatus,
+                    StockInProgressStatus = QueryShortListParser.Parse(Request.Query["stockInProgressStatus"]) ?? stockInProgressStatus,
+                    InvoiceProgressStatus = QueryShortListParser.Parse(Request.Query["invoiceProgressStatus"]) ?? invoiceProgressStatus,
                     QuickFilter = quickFilter,
                     Page = page,
                     PageSize = pageSize
@@ -1106,7 +1101,7 @@ namespace CRM.API.Controllers
                 profitOutBizUsd = r.ProfitOutBizUsd
             };
 
-        /// <summary>???????????????4×7 ???????????? scope ?????</summary>
+        /// <summary>???????????????4?7 ???????????? scope ?????</summary>
         private async Task<object?> BuildPurchaseOrderLineOverviewAsync(
             string lineId,
             bool mask511)
@@ -2034,10 +2029,10 @@ namespace CRM.API.Controllers
                 Pn = string.IsNullOrWhiteSpace(pn) ? null : pn.Trim(),
                 OrderType = orderType,
                 TransactionCurrency = transactionCurrency,
-                PaymentProgressStatus = paymentProgressStatus,
-                PurchaseProgressStatus = purchaseProgressStatus,
-                StockInProgressStatus = stockInProgressStatus,
-                InvoiceProgressStatus = invoiceProgressStatus,
+                PaymentProgressStatus = QueryShortListParser.Parse(Request.Query["paymentProgressStatus"]) ?? paymentProgressStatus,
+                PurchaseProgressStatus = QueryShortListParser.Parse(Request.Query["purchaseProgressStatus"]) ?? purchaseProgressStatus,
+                StockInProgressStatus = QueryShortListParser.Parse(Request.Query["stockInProgressStatus"]) ?? stockInProgressStatus,
+                InvoiceProgressStatus = QueryShortListParser.Parse(Request.Query["invoiceProgressStatus"]) ?? invoiceProgressStatus,
                 QuickFilter = quickFilter
             };
 
@@ -2052,7 +2047,6 @@ namespace CRM.API.Controllers
             string? purchaseUserName,
             string? comment,
             short? orderType,
-            short? status,
             string? startDate,
             string? endDate,
             CancellationToken cancellationToken)
@@ -2077,7 +2071,7 @@ namespace CRM.API.Controllers
                 PurchaseUserNameFilter = canViewPurchaseUser && !string.IsNullOrWhiteSpace(purchaseUserName) ? purchaseUserName.Trim() : null,
                 CommentFilter = string.IsNullOrWhiteSpace(comment) ? null : comment.Trim(),
                 OrderType = orderType,
-                Status = status,
+                Status = QueryShortListParser.Parse(Request.Query["status"]),
                 StartDate = DateTime.TryParse(startDate, out var start) ? start : null,
                 EndDate = DateTime.TryParse(endDate, out var end) ? end : null,
                 CurrentUserId = userId
@@ -2189,7 +2183,7 @@ namespace CRM.API.Controllers
         {
             var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
             // vendor.info.read??????/????vendor.read ??????????????????????????? VendorId?
-            // PRD §5.1.1????? + PurchaseDataScope==4 ??????????? vendor.read / purchase-order.read ????
+            // PRD ?5.1.1????? + PurchaseDataScope==4 ??????????? vendor.read / purchase-order.read ????
             var canViewVendorInfo = !mask511 && (summary?.IsSysAdmin == true
                 || SummaryHasPermission(summary, "vendor.info.read")
                 || SummaryHasPermission(summary, "vendor.read")

@@ -1,6 +1,8 @@
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Analytics;
 using CRM.Core.Models.Finance;
 using CRM.API.Authorization;
+using CRM.API.Models.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
@@ -12,15 +14,100 @@ namespace CRM.API.Controllers;
 public class FinanceReceivablesController : ControllerBase
 {
     private readonly IFinanceReceivableService _service;
+    private readonly IFinanceReceivableListQuery _listQuery;
     private readonly ILogger<FinanceReceivablesController> _logger;
 
     public FinanceReceivablesController(
         IFinanceReceivableService service,
+        IFinanceReceivableListQuery listQuery,
         ILogger<FinanceReceivablesController> logger)
     {
         _service = service;
+        _listQuery = listQuery;
         _logger = logger;
     }
+
+    [HttpGet("analytics/dashboard")]
+    public async Task<IActionResult> GetListAnalyticsDashboard(
+        [FromQuery] string? keyword,
+        [FromQuery] string? customerId,
+        [FromQuery] short? verificationStatus,
+        [FromQuery] bool? onlyOpen,
+        [FromQuery] string? stockOutDateFrom,
+        [FromQuery] string? stockOutDateTo,
+        CancellationToken cancellationToken = default)
+    {
+        var request = BuildAnalyticsQueryRequest(keyword, customerId, verificationStatus, onlyOpen, stockOutDateFrom, stockOutDateTo);
+        var data = await _listQuery.GetListAnalyticsDashboardAsync(request, cancellationToken);
+        return Ok(ApiResponse<FinanceReceivableListAnalyticsDashboardDto>.Ok(data));
+    }
+
+    [HttpGet("analytics/trends")]
+    public async Task<IActionResult> GetListAnalyticsTrends(
+        [FromQuery] string? keyword,
+        [FromQuery] string? customerId,
+        [FromQuery] short? verificationStatus,
+        [FromQuery] bool? onlyOpen,
+        [FromQuery] string? stockOutDateFrom,
+        [FromQuery] string? stockOutDateTo,
+        [FromQuery] string? groupBy = null,
+        CancellationToken cancellationToken = default)
+    {
+        var request = BuildAnalyticsQueryRequest(keyword, customerId, verificationStatus, onlyOpen, stockOutDateFrom, stockOutDateTo);
+        var data = await _listQuery.GetListAnalyticsTrendsAsync(
+            request,
+            string.IsNullOrWhiteSpace(groupBy) ? "month" : groupBy.Trim(),
+            cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<FinanceReceivableListAnalyticsTrendPointDto>>.Ok(data));
+    }
+
+    [HttpGet("analytics/breakdowns")]
+    public async Task<IActionResult> GetListAnalyticsBreakdowns(
+        [FromQuery] string? keyword,
+        [FromQuery] string? customerId,
+        [FromQuery] short? verificationStatus,
+        [FromQuery] bool? onlyOpen,
+        [FromQuery] string? stockOutDateFrom,
+        [FromQuery] string? stockOutDateTo,
+        CancellationToken cancellationToken = default)
+    {
+        var request = BuildAnalyticsQueryRequest(keyword, customerId, verificationStatus, onlyOpen, stockOutDateFrom, stockOutDateTo);
+        var data = await _listQuery.GetListAnalyticsBreakdownsAsync(request, cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<FinanceReceivableListAnalyticsBreakdownGroupDto>>.Ok(data));
+    }
+
+    [HttpGet("analytics/rankings")]
+    public async Task<IActionResult> GetListAnalyticsRankings(
+        [FromQuery] string? keyword,
+        [FromQuery] string? customerId,
+        [FromQuery] short? verificationStatus,
+        [FromQuery] bool? onlyOpen,
+        [FromQuery] string? stockOutDateFrom,
+        [FromQuery] string? stockOutDateTo,
+        CancellationToken cancellationToken = default)
+    {
+        var request = BuildAnalyticsQueryRequest(keyword, customerId, verificationStatus, onlyOpen, stockOutDateFrom, stockOutDateTo);
+        var data = await _listQuery.GetListAnalyticsRankingsAsync(request, cancellationToken);
+        return Ok(ApiResponse<FinanceReceivableListAnalyticsRankingsDto>.Ok(data));
+    }
+
+    private FinanceReceivableQueryRequest BuildAnalyticsQueryRequest(
+        string? keyword,
+        string? customerId,
+        short? verificationStatus,
+        bool? onlyOpen,
+        string? stockOutDateFrom,
+        string? stockOutDateTo) =>
+        new()
+        {
+            Keyword = keyword,
+            CustomerId = customerId,
+            VerificationStatus = verificationStatus,
+            OnlyOpen = onlyOpen ?? true,
+            StockOutDateFrom = DateTime.TryParse(stockOutDateFrom, out var from) ? from : null,
+            StockOutDateTo = DateTime.TryParse(stockOutDateTo, out var to) ? to : null,
+            CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+        };
 
     [HttpGet]
     public async Task<IActionResult> GetPaged(

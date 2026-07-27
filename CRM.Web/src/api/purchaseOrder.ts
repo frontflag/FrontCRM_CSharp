@@ -279,13 +279,14 @@ export const purchaseOrderApi = {
     comment?: string
     /** 主表订单类型 1/2/3 */
     orderType?: number
-    status?: number
+    status?: number | number[]
     startDate?: string
     endDate?: string
     page?: number
     pageSize?: number
   }) {
-    return await apiClient.get('/api/v1/purchase-orders', { params })
+    const q = buildQueryString((params ?? {}) as Record<string, unknown>)
+    return await apiClient.get(`/api/v1/purchase-orders${q ? `?${q}` : ''}`)
   },
 
   // 获取采购订单详情

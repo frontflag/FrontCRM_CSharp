@@ -380,7 +380,7 @@ namespace CRM.API.Controllers
                     {
                         Page = 1,
                         PageSize = 5000,
-                        Status = targetStatus,
+                        Status = new List<short> { targetStatus },
                         CurrentUserId = userId
                     });
 
@@ -440,7 +440,7 @@ namespace CRM.API.Controllers
                     {
                         Page = 1,
                         PageSize = 5000,
-                        Status = targetStatus,
+                        Status = new List<short> { targetStatus },
                         CurrentUserId = userId
                     });
 

@@ -3,6 +3,7 @@ using CRM.Core.Interfaces;
 using CRM.Core.Models.Analytics;
 using CRM.Core.Models.Sales;
 using CRM.Core.Utilities;
+using CRM.Infrastructure.Common;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -101,8 +102,13 @@ public sealed class SalesOrderListQuery : ISalesOrderListQuery
             }
         }
 
-        if (request.Status.HasValue)
-            q = q.Where(o => (short)o.Status == request.Status.Value);
+        var statuses = SellOrderStatusFilterHelper.Normalize(request.Status);
+        if (statuses.Count > 0)
+        {
+            // 用枚举 Contains，确保 EF 译为 SQL IN（OR）
+            var statusEnums = statuses.Select(s => (SellOrderMainStatus)s).ToList();
+            q = q.Where(o => statusEnums.Contains(o.Status));
+        }
 
         if (request.StartDate.HasValue)
         {

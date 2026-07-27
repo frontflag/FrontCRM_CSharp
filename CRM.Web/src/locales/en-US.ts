@@ -8259,7 +8259,12 @@ const enUS = {
       keyword: 'Search code / stock-out / customer / PN',
       verificationStatus: 'Verification status',
       onlyOpen: 'Open only',
-      search: 'Search'
+      search: 'Search',
+      stockOutDateFrom: 'Stock-out from',
+      stockOutDateTo: 'Stock-out to',
+      dateSep: 'to',
+      boardView: 'Board',
+      listView: 'List'
     },
     verification: {
       pending: 'Pending',
@@ -8283,6 +8288,64 @@ const enUS = {
     },
     actions: {
       detail: 'Detail'
+    },
+    board: {
+      hint: 'Stats use the same filters as the list (including Open only). USD uses current finance FX rates.',
+      refresh: 'Refresh',
+      loadFailed: 'Failed to load receivables board',
+      amountMode: {
+        pending: 'Open',
+        total: 'Total'
+      },
+      groupBy: {
+        day: 'Day',
+        week: 'Week',
+        month: 'Month'
+      },
+      sections: {
+        kpi: 'Receivable KPIs',
+        trendCustomers: 'Customer trend',
+        trendLines: 'Stock-out line trend',
+        trendPendingAmount: 'Open amount trend (USD)',
+        trendTotalAmount: 'Total amount trend (USD)'
+      },
+      kpi: {
+        customers: 'Customers',
+        lines: 'Stock-out lines',
+        pendingAmount: 'Open amount (USD)',
+        totalAmount: 'Total amount (USD)',
+        maxAge: 'Max aging (days)',
+        usdCaption: 'USD',
+        originalCaption: 'Original'
+      },
+      trendUnit: {
+        customers: '',
+        lines: '',
+        moneyCaption: 'USD'
+      },
+      breakdown: {
+        verificationStatus: 'Status',
+        currency: 'Currency',
+        aging: 'Aging',
+        salesUser: 'Sales rep'
+      },
+      aging: {
+        '0-10': '0-10d',
+        '10-30': '10-30d',
+        '30-60': '30-60d',
+        '60-90': '60-90d',
+        '90-180': '90d-6m',
+        '180+': 'Longer'
+      },
+      rankings: {
+        amountMode: 'Ranking amount',
+        name: 'Name',
+        amount: 'Amount (USD)',
+        lineCount: 'Lines',
+        receivableByTotalAmount: 'Top10 single receivable (total)',
+        customerByAmount: 'Top10 customers',
+        salesUserByAmount: 'Top10 sales reps'
+      }
     }
   },
   financeReceivableDetail: {

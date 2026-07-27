@@ -1,4 +1,5 @@
 using CRM.Core.Models.Finance;
+using CRM.Core.Models.Analytics;
 
 namespace CRM.Core.Interfaces;
 
@@ -29,5 +30,22 @@ public interface IFinanceReceivableListQuery
 
     Task<PagedResult<FinanceReceivableWriteOffLedgerItem>> GetWriteOffLedgerPagedAsync(
         FinanceReceivableWriteOffLedgerQueryRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<FinanceReceivableListAnalyticsDashboardDto> GetListAnalyticsDashboardAsync(
+        FinanceReceivableQueryRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<FinanceReceivableListAnalyticsTrendPointDto>> GetListAnalyticsTrendsAsync(
+        FinanceReceivableQueryRequest request,
+        string groupBy,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<FinanceReceivableListAnalyticsBreakdownGroupDto>> GetListAnalyticsBreakdownsAsync(
+        FinanceReceivableQueryRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<FinanceReceivableListAnalyticsRankingsDto> GetListAnalyticsRankingsAsync(
+        FinanceReceivableQueryRequest request,
         CancellationToken cancellationToken = default);
 }

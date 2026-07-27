@@ -8244,7 +8244,12 @@ const zhCN = {
       keyword: '搜索应收单号/出库单号/客户/型号',
       verificationStatus: '核销状态',
       onlyOpen: '仅待核销',
-      search: '查询'
+      search: '查询',
+      stockOutDateFrom: '出库日起',
+      stockOutDateTo: '出库日止',
+      dateSep: '至',
+      boardView: '看板',
+      listView: '列表'
     },
     verification: {
       pending: '未核销',
@@ -8268,6 +8273,64 @@ const zhCN = {
     },
     actions: {
       detail: '详情'
+    },
+    board: {
+      hint: '统计范围与当前搜索条件一致（含「仅待核销」）。金额按查询日财务汇率折算美金。',
+      refresh: '刷新',
+      loadFailed: '加载应收款看板失败',
+      amountMode: {
+        pending: '待核销',
+        total: '总额'
+      },
+      groupBy: {
+        day: '按天',
+        week: '按周',
+        month: '按月'
+      },
+      sections: {
+        kpi: '应收款指标',
+        trendCustomers: '应收客户数趋势',
+        trendLines: '出库记录条目趋势',
+        trendPendingAmount: '待核销金额趋势（USD）',
+        trendTotalAmount: '应收总额趋势（USD）'
+      },
+      kpi: {
+        customers: '应收款客户数',
+        lines: '出库记录条目数',
+        pendingAmount: '待核销折算美金',
+        totalAmount: '应收总额折算美金',
+        maxAge: '最长账龄（天）',
+        usdCaption: '折算美金',
+        originalCaption: '原币'
+      },
+      trendUnit: {
+        customers: '家',
+        lines: '条',
+        moneyCaption: '折算美金'
+      },
+      breakdown: {
+        verificationStatus: '核销状态',
+        currency: '币别',
+        aging: '账期',
+        salesUser: '业务员'
+      },
+      aging: {
+        '0-10': '0-10天',
+        '10-30': '10-30天',
+        '30-60': '30-60天',
+        '60-90': '60-90天',
+        '90-180': '90天-半年',
+        '180+': '更长'
+      },
+      rankings: {
+        amountMode: '排行金额',
+        name: '名称',
+        amount: '金额（USD）',
+        lineCount: '条目数',
+        receivableByTotalAmount: 'Top10 单笔应收（总额）',
+        customerByAmount: 'Top10 客户',
+        salesUserByAmount: 'Top10 业务员'
+      }
     }
   },
   financeReceivableDetail: {

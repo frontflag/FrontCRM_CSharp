@@ -203,7 +203,8 @@ namespace CRM.Core.Interfaces
         /// <summary>主表订单类型 1/2/3。</summary>
         public short? OrderType { get; set; }
 
-        public short? Status { get; set; }
+        /// <summary>主状态多选（空/null 表示不限）。取值：0/1/2/10/20/30/50/100/-1/-2。</summary>
+        public List<short>? Status { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
         public int Page { get; set; } = 1;

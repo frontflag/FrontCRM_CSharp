@@ -61,21 +61,26 @@
         <el-select
           v-model="filterForm.status"
           :placeholder="t('purchaseOrderList.filters.allStatus')"
+          multiple
+          collapse-tags
+          collapse-tags-tooltip
           clearable
-          class="status-select status-select--po"
+          class="status-select status-select--po filter-select--progress"
+          popper-class="progress-multi-select-dropdown"
           :teleported="false"
           @change="handleSearch"
         >
-          <el-option :label="t('purchaseOrderList.status.draft')" :value="0" />
-          <el-option :label="t('purchaseOrderList.status.new')" :value="1" />
-          <el-option :label="t('purchaseOrderList.status.pendingReview')" :value="2" />
-          <el-option :label="t('purchaseOrderList.status.approved')" :value="10" />
-          <el-option :label="t('purchaseOrderList.status.pendingConfirm')" :value="20" />
-          <el-option :label="t('purchaseOrderList.status.confirmed')" :value="30" />
-          <el-option :label="t('purchaseOrderList.status.inProgress')" :value="50" />
-          <el-option :label="t('purchaseOrderList.status.completed')" :value="100" />
-          <el-option :label="t('purchaseOrderList.status.reviewFailed')" :value="-1" />
-          <el-option :label="t('purchaseOrderList.status.cancelled')" :value="-2" />
+          <el-option
+            v-for="opt in statusFilterOptions"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          >
+            <ProgressMultiSelectOption
+              :label="opt.label"
+              :checked="filterForm.status.includes(opt.value)"
+            />
+          </el-option>
         </el-select>
         <el-select
           v-model="filterForm.orderType"
@@ -439,13 +444,18 @@ import CrmDataTable from '@/components/CrmDataTable.vue'
 import VendorExtendColumnHeader from '@/components/list/VendorExtendColumnHeader.vue'
 import VendorExtendCell from '@/components/list/VendorExtendCell.vue'
 import PurchaseOrderListBoard from './PurchaseOrderListBoard.vue'
+import ProgressMultiSelectOption from '@/components/common/ProgressMultiSelectOption.vue'
+import {
+  assignPurchaseOrderStatusesParam,
+  normalizePurchaseOrderStatuses
+} from '@/utils/purchaseOrderStatusQuery'
 import { useVendorExtendColumn, isVendorExtendTableColumn } from '@/composables/useVendorExtendColumn'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick'
 
 const router = useRouter()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const {
   expanded: vendorExtendExpanded,
@@ -614,8 +624,24 @@ const filterForm = ref({
   purchaseUserName: '',
   comment: '',
   createDateRange: null as [string, string] | null,
-  status: undefined as number | undefined,
+  status: [] as number[],
   orderType: undefined as number | undefined
+})
+
+const statusFilterOptions = computed(() => {
+  void locale.value
+  return [
+    { label: t('purchaseOrderList.status.draft'), value: 0 },
+    { label: t('purchaseOrderList.status.new'), value: 1 },
+    { label: t('purchaseOrderList.status.pendingReview'), value: 2 },
+    { label: t('purchaseOrderList.status.approved'), value: 10 },
+    { label: t('purchaseOrderList.status.pendingConfirm'), value: 20 },
+    { label: t('purchaseOrderList.status.confirmed'), value: 30 },
+    { label: t('purchaseOrderList.status.inProgress'), value: 50 },
+    { label: t('purchaseOrderList.status.completed'), value: 100 },
+    { label: t('purchaseOrderList.status.reviewFailed'), value: -1 },
+    { label: t('purchaseOrderList.status.cancelled'), value: -2 }
+  ]
 })
 
 const boardFilters = computed((): PurchaseOrderListAnalyticsQuery => {
@@ -634,9 +660,8 @@ const boardFilters = computed((): PurchaseOrderListAnalyticsQuery => {
   }
   const cm = filterForm.value.comment.trim()
   if (cm) q.comment = cm
-  if (filterForm.value.status !== undefined && filterForm.value.status !== null) {
-    q.status = filterForm.value.status
-  }
+  const statuses = normalizePurchaseOrderStatuses(filterForm.value.status)
+  if (statuses.length) q.status = statuses
   if (filterForm.value.orderType !== undefined && filterForm.value.orderType !== null) {
     q.orderType = filterForm.value.orderType
   }
@@ -715,19 +740,7 @@ const getStatusText = (status: number) => {
 const loadData = async () => {
   loading.value = true
   try {
-    const params: {
-      page: number
-      pageSize: number
-      code?: string
-      freightForwarderOrderNo?: string
-      vendor?: string
-      purchaseUserName?: string
-      comment?: string
-      startDate?: string
-      endDate?: string
-      status?: number
-      orderType?: number
-    } = {
+    const params: Record<string, unknown> = {
       page: pageInfo.value.page,
       pageSize: pageInfo.value.pageSize
     }
@@ -743,7 +756,7 @@ const loadData = async () => {
     if (cm) params.comment = cm
     if (filterForm.value.createDateRange?.[0]) params.startDate = filterForm.value.createDateRange[0]
     if (filterForm.value.createDateRange?.[1]) params.endDate = filterForm.value.createDateRange[1]
-    if (filterForm.value.status !== undefined) params.status = filterForm.value.status
+    assignPurchaseOrderStatusesParam(params, 'status', filterForm.value.status)
     if (filterForm.value.orderType !== undefined) params.orderType = filterForm.value.orderType
 
     const res = (await purchaseOrderApi.getList(params)) as {
@@ -802,7 +815,7 @@ const handleReset = () => {
     purchaseUserName: '',
     comment: '',
     createDateRange: null,
-    status: undefined,
+    status: [],
     orderType: undefined
   }
   pageInfo.value.page = 1
@@ -1088,7 +1101,7 @@ onMounted(loadData)
 }
 
 .status-select--po {
-  width: 150px;
+  width: 168px;
 }
 
 .status-select--po-type {

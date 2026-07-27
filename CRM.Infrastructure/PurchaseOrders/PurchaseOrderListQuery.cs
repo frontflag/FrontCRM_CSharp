@@ -3,6 +3,7 @@ using CRM.Core.Interfaces;
 using CRM.Core.Models.Analytics;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Utilities;
+using CRM.Infrastructure.Common;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -387,8 +388,9 @@ public sealed class PurchaseOrderListQuery : IPurchaseOrderListQuery
             }
         }
 
-        if (request.Status.HasValue)
-            q = q.Where(o => o.Status == request.Status.Value);
+        var statuses = PurchaseOrderStatusFilterHelper.Normalize(request.Status);
+        if (statuses.Count > 0)
+            q = q.Where(o => statuses.Contains(o.Status));
 
         if (request.OrderType.HasValue)
             q = q.Where(o => o.Type == request.OrderType.Value);

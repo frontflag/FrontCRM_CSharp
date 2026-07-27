@@ -1,4 +1,4 @@
-using CRM.Core.Constants;
+using CRM.API.Utilities;
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
@@ -96,7 +96,6 @@ namespace CRM.API.Controllers
             [FromQuery] string? customer,
             [FromQuery] string? salesUserName,
             [FromQuery] string? comment,
-            [FromQuery] short? status,
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
             [FromQuery] int page = 1,
@@ -117,7 +116,7 @@ namespace CRM.API.Controllers
                     CustomerNameFilter = canViewCustomerInfo && !string.IsNullOrWhiteSpace(customer) ? customer.Trim() : null,
                     SalesUserNameFilter = !mask521 && !string.IsNullOrWhiteSpace(salesUserName) ? salesUserName.Trim() : null,
                     CommentFilter = string.IsNullOrWhiteSpace(comment) ? null : comment.Trim(),
-                    Status = status,
+                    Status = QueryShortListParser.Parse(Request.Query["status"]),
                     StartDate = DateTime.TryParse(startDate, out var start) ? start : null,
                     EndDate = DateTime.TryParse(endDate, out var end) ? end : null,
                     Page = page,
@@ -177,13 +176,12 @@ namespace CRM.API.Controllers
             [FromQuery] string? customer,
             [FromQuery] string? salesUserName,
             [FromQuery] string? comment,
-            [FromQuery] short? status,
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
             CancellationToken cancellationToken = default)
         {
             var (request, maskAmounts) = await BuildListAnalyticsQueryRequestAsync(
-                keyword, code, customer, salesUserName, comment, status, startDate, endDate, cancellationToken);
+                keyword, code, customer, salesUserName, comment, startDate, endDate, cancellationToken);
             var data = await _salesOrderListQuery.GetListAnalyticsDashboardAsync(request, maskAmounts, cancellationToken);
             return Ok(ApiResponse<SalesOrderListAnalyticsDashboardDto>.Ok(data));
         }
@@ -195,14 +193,13 @@ namespace CRM.API.Controllers
             [FromQuery] string? customer,
             [FromQuery] string? salesUserName,
             [FromQuery] string? comment,
-            [FromQuery] short? status,
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
             [FromQuery] string? groupBy,
             CancellationToken cancellationToken = default)
         {
             var (request, maskAmounts) = await BuildListAnalyticsQueryRequestAsync(
-                keyword, code, customer, salesUserName, comment, status, startDate, endDate, cancellationToken);
+                keyword, code, customer, salesUserName, comment, startDate, endDate, cancellationToken);
             var data = await _salesOrderListQuery.GetListAnalyticsTrendsAsync(
                 request,
                 string.IsNullOrWhiteSpace(groupBy) ? "month" : groupBy.Trim(),
@@ -218,13 +215,12 @@ namespace CRM.API.Controllers
             [FromQuery] string? customer,
             [FromQuery] string? salesUserName,
             [FromQuery] string? comment,
-            [FromQuery] short? status,
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
             CancellationToken cancellationToken = default)
         {
             var (request, maskAmounts) = await BuildListAnalyticsQueryRequestAsync(
-                keyword, code, customer, salesUserName, comment, status, startDate, endDate, cancellationToken);
+                keyword, code, customer, salesUserName, comment, startDate, endDate, cancellationToken);
             var data = await _salesOrderListQuery.GetListAnalyticsBreakdownsAsync(request, maskAmounts, cancellationToken);
             return Ok(ApiResponse<IReadOnlyList<SalesAnalyticsBreakdownGroupDto>>.Ok(data));
         }
@@ -236,13 +232,12 @@ namespace CRM.API.Controllers
             [FromQuery] string? customer,
             [FromQuery] string? salesUserName,
             [FromQuery] string? comment,
-            [FromQuery] short? status,
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
             CancellationToken cancellationToken = default)
         {
             var (request, maskAmounts) = await BuildListAnalyticsQueryRequestAsync(
-                keyword, code, customer, salesUserName, comment, status, startDate, endDate, cancellationToken);
+                keyword, code, customer, salesUserName, comment, startDate, endDate, cancellationToken);
             var data = await _salesOrderListQuery.GetListAnalyticsRankingsAsync(request, maskAmounts, cancellationToken);
             return Ok(ApiResponse<SalesOrderListAnalyticsRankingsDto>.Ok(data));
         }
@@ -440,19 +435,19 @@ namespace CRM.API.Controllers
                     CustomerSo = canViewCustomer && !string.IsNullOrWhiteSpace(customerSo) ? customerSo.Trim() : null,
                     CustomerPn = canViewCustomer && !string.IsNullOrWhiteSpace(customerPn) ? customerPn.Trim() : null,
                     TransactionCurrency = transactionCurrency,
-                    StockOutPending = stockOutPending,
-                    InvoicePending = invoicePending,
-                    PurchaseProgressStatus = purchaseProgressStatus,
-                    StockInProgressStatus = stockInProgressStatus,
-                    StockOutNotifyProgressStatus = stockOutNotifyProgressStatus,
-                    StockOutProgressStatus = stockOutProgressStatus,
-                    ReceiptProgressStatus = receiptProgressStatus,
-                    InvoiceProgressStatus = invoiceProgressStatus,
-                    QuickFilter = quickFilter,
-                    Page = page,
-                    PageSize = pageSize,
-                    CurrentUserId = userId
-                };
+                StockOutPending = stockOutPending,
+                InvoicePending = invoicePending,
+                PurchaseProgressStatus = QueryShortListParser.Parse(Request.Query["purchaseProgressStatus"]) ?? purchaseProgressStatus,
+                StockInProgressStatus = QueryShortListParser.Parse(Request.Query["stockInProgressStatus"]) ?? stockInProgressStatus,
+                StockOutNotifyProgressStatus = QueryShortListParser.Parse(Request.Query["stockOutNotifyProgressStatus"]) ?? stockOutNotifyProgressStatus,
+                StockOutProgressStatus = QueryShortListParser.Parse(Request.Query["stockOutProgressStatus"]) ?? stockOutProgressStatus,
+                ReceiptProgressStatus = QueryShortListParser.Parse(Request.Query["receiptProgressStatus"]) ?? receiptProgressStatus,
+                InvoiceProgressStatus = QueryShortListParser.Parse(Request.Query["invoiceProgressStatus"]) ?? invoiceProgressStatus,
+                QuickFilter = quickFilter,
+                Page = page,
+                PageSize = pageSize,
+                CurrentUserId = userId
+            };
                 var result = await _service.GetSellOrderItemLinesPagedAsync(request);
                 var canViewAmount = !mask521 && (summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("sales.amount.read") ?? false));
                 var items = result.Items.Select(r => MaskSellOrderLine(r, canViewCustomer, canViewAmount, mask521)).ToList();
@@ -1497,7 +1492,7 @@ namespace CRM.API.Controllers
         private const short PrStatusCancelled = 3;
         private const short StockInCompletedStatus = 2;
 
-        /// <summary>???????????????4×10 ???????????? scope ?????</summary>
+        /// <summary>???????????????4?10 ???????????? scope ?????</summary>
         private async Task<object?> BuildSellOrderLineOverviewAsync(
             string lineId,
             IReadOnlyList<(short Status, decimal Qty)> prEntries,
@@ -2632,12 +2627,12 @@ namespace CRM.API.Controllers
                 TransactionCurrency = transactionCurrency,
                 StockOutPending = stockOutPending,
                 InvoicePending = invoicePending,
-                PurchaseProgressStatus = purchaseProgressStatus,
-                StockInProgressStatus = stockInProgressStatus,
-                StockOutNotifyProgressStatus = stockOutNotifyProgressStatus,
-                StockOutProgressStatus = stockOutProgressStatus,
-                ReceiptProgressStatus = receiptProgressStatus,
-                InvoiceProgressStatus = invoiceProgressStatus,
+                PurchaseProgressStatus = QueryShortListParser.Parse(Request.Query["purchaseProgressStatus"]) ?? purchaseProgressStatus,
+                StockInProgressStatus = QueryShortListParser.Parse(Request.Query["stockInProgressStatus"]) ?? stockInProgressStatus,
+                StockOutNotifyProgressStatus = QueryShortListParser.Parse(Request.Query["stockOutNotifyProgressStatus"]) ?? stockOutNotifyProgressStatus,
+                StockOutProgressStatus = QueryShortListParser.Parse(Request.Query["stockOutProgressStatus"]) ?? stockOutProgressStatus,
+                ReceiptProgressStatus = QueryShortListParser.Parse(Request.Query["receiptProgressStatus"]) ?? receiptProgressStatus,
+                InvoiceProgressStatus = QueryShortListParser.Parse(Request.Query["invoiceProgressStatus"]) ?? invoiceProgressStatus,
                 QuickFilter = quickFilter,
                 CurrentUserId = userId
             };
@@ -2651,7 +2646,6 @@ namespace CRM.API.Controllers
             string? customer,
             string? salesUserName,
             string? comment,
-            short? status,
             string? startDate,
             string? endDate,
             CancellationToken cancellationToken)
@@ -2672,7 +2666,7 @@ namespace CRM.API.Controllers
                 CustomerNameFilter = canViewCustomerInfo && !string.IsNullOrWhiteSpace(customer) ? customer.Trim() : null,
                 SalesUserNameFilter = !mask521 && !string.IsNullOrWhiteSpace(salesUserName) ? salesUserName.Trim() : null,
                 CommentFilter = string.IsNullOrWhiteSpace(comment) ? null : comment.Trim(),
-                Status = status,
+                Status = QueryShortListParser.Parse(Request.Query["status"]),
                 StartDate = DateTime.TryParse(startDate, out var start) ? start : null,
                 EndDate = DateTime.TryParse(endDate, out var end) ? end : null,
                 CurrentUserId = userId
