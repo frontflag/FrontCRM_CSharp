@@ -1470,7 +1470,8 @@ const zhCN = {
     colMethod: '方法',
     colPath: '接口',
     colCalls: '调用',
-    colFails: '失败',
+    colFails: '系统失败',
+    colFailsHint: '仅超时/断网与 HTTP 5xx；业务 404/400 等不计入',
     colAvgMs: '平均ms',
     colMaxMs: '最长ms'
   },

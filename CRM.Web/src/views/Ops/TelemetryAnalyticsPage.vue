@@ -85,7 +85,13 @@
               <template #default="{ row }">{{ displayDesc(row.description) }}</template>
             </el-table-column>
             <el-table-column prop="callCount" :label="t('telemetryAnalytics.colCalls')" width="100" sortable />
-            <el-table-column prop="failCount" :label="t('telemetryAnalytics.colFails')" width="100" sortable />
+            <el-table-column prop="failCount" :label="t('telemetryAnalytics.colFails')" width="110" sortable>
+              <template #header>
+                <el-tooltip :content="t('telemetryAnalytics.colFailsHint')" placement="top">
+                  <span>{{ t('telemetryAnalytics.colFails') }}</span>
+                </el-tooltip>
+              </template>
+            </el-table-column>
             <el-table-column prop="avgDurationMs" :label="t('telemetryAnalytics.colAvgMs')" width="120" sortable />
             <el-table-column prop="maxDurationMs" :label="t('telemetryAnalytics.colMaxMs')" width="120" sortable />
           </el-table>

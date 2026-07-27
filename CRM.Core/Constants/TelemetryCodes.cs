@@ -23,3 +23,12 @@ public static class TelemetryLimits
     public const int EventRetentionDays = 90;
     public const int DailyRetentionDays = 400;
 }
+
+/// <summary>
+/// API 埋点失败口径：仅系统异常（超时/断网 status=0、HTTP 5xx）。
+/// 业务 4xx（如资源不存在 404、校验 400）不计入失败。
+/// </summary>
+public static class TelemetryApiFailure
+{
+    public static bool IsSystemFailure(int status) => status == 0 || status >= 500;
+}

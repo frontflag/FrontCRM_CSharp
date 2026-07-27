@@ -201,7 +201,8 @@ $SshOpts = @(
     "-o", "ConnectTimeout=30",
     "-o", "ServerAliveInterval=10",
     "-o", "ServerAliveCountMax=3",
-    "-o", "StrictHostKeyChecking=no",
+    "-o", "StrictHostKeyChecking=accept-new",
+    "-o", "LogLevel=ERROR",
     "-o", "GSSAPIAuthentication=no",
     "-o", "KbdInteractiveAuthentication=no"
 )
@@ -213,7 +214,8 @@ if (-not $AllowPasswordPrompt) {
 }
 $ScpOpts = @(
     "-o", "ConnectTimeout=30",
-    "-o", "StrictHostKeyChecking=no",
+    "-o", "StrictHostKeyChecking=accept-new",
+    "-o", "LogLevel=ERROR",
     "-o", "GSSAPIAuthentication=no",
     "-o", "KbdInteractiveAuthentication=no"
 )
@@ -272,14 +274,16 @@ $localDot = Join-Path $stagingDir "."
 
 Write-Host "Creating remote directory (SSH ConnectTimeout=30s)..." -ForegroundColor Yellow
 if (-not $AllowPasswordPrompt) {
-    Write-Host "  BatchMode (key-based): no SSH key for $SshTarget -> fail in ~30s." -ForegroundColor DarkGray
-    Write-Host "  For password upload: .\deploy_full_to_server.ps1 -SkipBuild -AllowPasswordPrompt" -ForegroundColor Cyan
-    Write-Host "  Or add your .pub to server ~/.ssh/authorized_keys, or use -SshKeyPath." -ForegroundColor DarkGray
+    Write-Host "  BatchMode (key-based): need SSH pubkey for $SshTarget, or use -AllowPasswordPrompt / -SshKeyPath." -ForegroundColor DarkGray
 }
 $mkdirJob = Start-Job -ScriptBlock {
     param($SshExe, $Opts, $Port, $Target, $RemotePath)
-    & $SshExe @Opts -p $Port $Target "mkdir -p '$RemotePath'"
-    return $LASTEXITCODE
+    # 勿让 ssh stderr（如 known_hosts Warning）变成 ErrorRecord，否则父进程 $ErrorActionPreference=Stop 会在 Receive-Job 处崩
+    $ErrorActionPreference = 'Continue'
+    $out = & $SshExe @Opts -p $Port $Target "mkdir -p '$RemotePath'" 2>&1
+    $code = $LASTEXITCODE
+    if ($null -eq $code) { $code = 1 }
+    return @{ ExitCode = [int]$code; Output = ($out | Out-String) }
 } -ArgumentList $sshPath.Source, $SshOpts, $SshPort, $SshTarget, $RemoteDeployPath
 $mkdirWait = Wait-Job -Job $mkdirJob -Timeout 60
 if (-not $mkdirWait -or $mkdirJob.State -eq 'Running') {
@@ -289,10 +293,25 @@ if (-not $mkdirWait -or $mkdirJob.State -eq 'Running') {
     Write-Host "  Tip: close hung ssh.exe in Task Manager, or run: Get-Process ssh | Stop-Process -Force" -ForegroundColor Yellow
     exit 1
 }
-[void]($mkdirExit = Receive-Job -Job $mkdirJob)
+$mkdirResult = $null
+try {
+    $mkdirResult = Receive-Job -Job $mkdirJob -ErrorAction SilentlyContinue
+} catch {
+    Write-Host ("WARNING: ssh mkdir job noise ignored: {0}" -f $_.Exception.Message) -ForegroundColor DarkYellow
+}
 Remove-Job -Job $mkdirJob -Force -ErrorAction SilentlyContinue
+$mkdirExit = 1
+if ($mkdirResult -is [hashtable] -and $mkdirResult.ContainsKey('ExitCode')) {
+    $mkdirExit = [int]$mkdirResult.ExitCode
+} elseif ($mkdirResult -is [int]) {
+    $mkdirExit = $mkdirResult
+}
 if ($mkdirExit -ne 0) {
-    Write-Host "ERROR: ssh mkdir failed. Check: network/firewall port 22; ssh key for $SshTarget; or use -AllowPasswordPrompt for password login." -ForegroundColor Red
+    Write-Host "ERROR: ssh mkdir failed (exit $mkdirExit). Check: network/firewall port 22; ssh key for $SshTarget; or:" -ForegroundColor Red
+    Write-Host "  .\deploy_full_to_server.ps1 -SkipBuild -AllowPasswordPrompt -ServerIP `"$ServerIP`"" -ForegroundColor Cyan
+    if ($mkdirResult -is [hashtable] -and $mkdirResult.Output) {
+        Write-Host ($mkdirResult.Output.Trim()) -ForegroundColor DarkGray
+    }
     exit 1
 }
 

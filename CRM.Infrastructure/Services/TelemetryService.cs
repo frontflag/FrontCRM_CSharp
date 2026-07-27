@@ -5,6 +5,7 @@ using CRM.Core.Models.System;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Npgsql;
 
 namespace CRM.Infrastructure.Services;
 
@@ -110,23 +111,79 @@ public sealed class TelemetryService : ITelemetryService
 
         if (toInsert.Count == 0) return result;
 
-        await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken);
+        // 事件先入库并提交，缩短持锁；日汇总单独 upsert（排序 + 死锁重试），避免拖垮整批上报
+        await using (var tx = await _db.Database.BeginTransactionAsync(cancellationToken))
+        {
+            try
+            {
+                _db.TelemetryEvents.AddRange(toInsert);
+                await _db.SaveChangesAsync(cancellationToken);
+                await tx.CommitAsync(cancellationToken);
+                result.Accepted = toInsert.Count;
+            }
+            catch (Exception ex)
+            {
+                await tx.RollbackAsync(cancellationToken);
+                if (IsDeadlock(ex))
+                {
+                    _logger.LogWarning(ex, "Telemetry event insert deadlock; client may retry");
+                }
+                else
+                {
+                    _logger.LogError(ex, "Telemetry ingest failed");
+                }
+                throw;
+            }
+        }
+
         try
         {
-            _db.TelemetryEvents.AddRange(toInsert);
-            await _db.SaveChangesAsync(cancellationToken);
-            await ApplyDailyAggregatesAsync(toInsert, cancellationToken);
-            await tx.CommitAsync(cancellationToken);
-            result.Accepted = toInsert.Count;
+            await ApplyDailyAggregatesWithRetryAsync(toInsert, cancellationToken);
         }
         catch (Exception ex)
         {
-            await tx.RollbackAsync(cancellationToken);
-            _logger.LogError(ex, "Telemetry ingest failed");
-            throw;
+            // 明细已入库；汇总失败只记日志，避免因日表死锁向客户端返回 500 引发重试风暴
+            _logger.LogWarning(ex, "Telemetry daily aggregate failed after events accepted ({Count})", toInsert.Count);
         }
 
         return result;
+    }
+
+    private async Task ApplyDailyAggregatesWithRetryAsync(
+        IReadOnlyList<TelemetryEvent> events,
+        CancellationToken cancellationToken)
+    {
+        const int maxAttempts = 5;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                await ApplyDailyAggregatesAsync(events, cancellationToken);
+                return;
+            }
+            catch (Exception ex) when (IsDeadlock(ex) && attempt < maxAttempts)
+            {
+                var delayMs = 20 * attempt * attempt;
+                _logger.LogWarning(
+                    "Telemetry aggregate deadlock (attempt {Attempt}/{Max}), retry in {Delay}ms",
+                    attempt, maxAttempts, delayMs);
+                await Task.Delay(delayMs, cancellationToken);
+            }
+        }
+    }
+
+    private static bool IsDeadlock(Exception ex)
+    {
+        for (var e = ex; e != null; e = e.InnerException!)
+        {
+            if (e is PostgresException pg && pg.SqlState == PostgresErrorCodes.DeadlockDetected)
+                return true;
+            var msg = e.Message ?? string.Empty;
+            if (msg.Contains("40P01", StringComparison.Ordinal)
+                || msg.Contains("deadlock detected", StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
     }
 
     private async Task ApplyDailyAggregatesAsync(
@@ -171,7 +228,7 @@ public sealed class TelemetryService : ITelemetryService
                 if (string.IsNullOrWhiteSpace(path)) continue;
                 var duration = (int)Math.Clamp(ReadLong(ev.PayloadJson, "durationMs"), 0, int.MaxValue);
                 var status = (int)ReadLong(ev.PayloadJson, "status");
-                var fail = status >= 400 || status == 0;
+                var fail = TelemetryApiFailure.IsSystemFailure(status);
                 var delta = GetApiDelta(apiDeltas, day, method, path);
                 delta.CallCount++;
                 if (fail) delta.FailCount++;
@@ -180,45 +237,69 @@ public sealed class TelemetryService : ITelemetryService
             }
         }
 
-        foreach (var (key, delta) in pageDeltas)
-        {
-            await _db.Database.ExecuteSqlAsync(
-                $"""
-                INSERT INTO telemetry_daily_page (stat_date, page_key, view_count, visible_ms_sum, active_ms_sum)
-                VALUES ({key.Day}, {key.PageKey}, {delta.ViewCount}, {delta.VisibleMsSum}, {delta.ActiveMsSum})
-                ON CONFLICT (stat_date, page_key) DO UPDATE SET
-                  view_count = telemetry_daily_page.view_count + EXCLUDED.view_count,
-                  visible_ms_sum = telemetry_daily_page.visible_ms_sum + EXCLUDED.visible_ms_sum,
-                  active_ms_sum = telemetry_daily_page.active_ms_sum + EXCLUDED.active_ms_sum
-                """,
-                cancellationToken);
-        }
+        if (pageDeltas.Count == 0 && actionDeltas.Count == 0 && apiDeltas.Count == 0)
+            return;
 
-        foreach (var (key, clickCount) in actionDeltas)
+        // 整批汇总同一事务：死锁回滚后可安全重试，避免部分 upsert 已提交导致双计
+        await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken);
+        try
         {
-            await _db.Database.ExecuteSqlAsync(
-                $"""
-                INSERT INTO telemetry_daily_action (stat_date, page_key, action_id, click_count)
-                VALUES ({key.Day}, {key.PageKey}, {key.ActionId}, {clickCount})
-                ON CONFLICT (stat_date, page_key, action_id) DO UPDATE SET
-                  click_count = telemetry_daily_action.click_count + EXCLUDED.click_count
-                """,
-                cancellationToken);
-        }
+            // 固定锁顺序，降低并发 ON CONFLICT 死锁概率
+            foreach (var (key, delta) in pageDeltas
+                         .OrderBy(x => x.Key.Day)
+                         .ThenBy(x => x.Key.PageKey, StringComparer.Ordinal))
+            {
+                await _db.Database.ExecuteSqlAsync(
+                    $"""
+                    INSERT INTO telemetry_daily_page (stat_date, page_key, view_count, visible_ms_sum, active_ms_sum)
+                    VALUES ({key.Day}, {key.PageKey}, {delta.ViewCount}, {delta.VisibleMsSum}, {delta.ActiveMsSum})
+                    ON CONFLICT (stat_date, page_key) DO UPDATE SET
+                      view_count = telemetry_daily_page.view_count + EXCLUDED.view_count,
+                      visible_ms_sum = telemetry_daily_page.visible_ms_sum + EXCLUDED.visible_ms_sum,
+                      active_ms_sum = telemetry_daily_page.active_ms_sum + EXCLUDED.active_ms_sum
+                    """,
+                    cancellationToken);
+            }
 
-        foreach (var (key, delta) in apiDeltas)
+            foreach (var (key, clickCount) in actionDeltas
+                         .OrderBy(x => x.Key.Day)
+                         .ThenBy(x => x.Key.PageKey, StringComparer.Ordinal)
+                         .ThenBy(x => x.Key.ActionId, StringComparer.Ordinal))
+            {
+                await _db.Database.ExecuteSqlAsync(
+                    $"""
+                    INSERT INTO telemetry_daily_action (stat_date, page_key, action_id, click_count)
+                    VALUES ({key.Day}, {key.PageKey}, {key.ActionId}, {clickCount})
+                    ON CONFLICT (stat_date, page_key, action_id) DO UPDATE SET
+                      click_count = telemetry_daily_action.click_count + EXCLUDED.click_count
+                    """,
+                    cancellationToken);
+            }
+
+            foreach (var (key, delta) in apiDeltas
+                         .OrderBy(x => x.Key.Day)
+                         .ThenBy(x => x.Key.Method, StringComparer.Ordinal)
+                         .ThenBy(x => x.Key.Path, StringComparer.Ordinal))
+            {
+                await _db.Database.ExecuteSqlAsync(
+                    $"""
+                    INSERT INTO telemetry_daily_api (stat_date, method, path_template, call_count, fail_count, duration_ms_sum, duration_ms_max)
+                    VALUES ({key.Day}, {key.Method}, {key.Path}, {delta.CallCount}, {delta.FailCount}, {delta.DurationMsSum}, {delta.DurationMsMax})
+                    ON CONFLICT (stat_date, method, path_template) DO UPDATE SET
+                      call_count = telemetry_daily_api.call_count + EXCLUDED.call_count,
+                      fail_count = telemetry_daily_api.fail_count + EXCLUDED.fail_count,
+                      duration_ms_sum = telemetry_daily_api.duration_ms_sum + EXCLUDED.duration_ms_sum,
+                      duration_ms_max = GREATEST(telemetry_daily_api.duration_ms_max, EXCLUDED.duration_ms_max)
+                    """,
+                    cancellationToken);
+            }
+
+            await tx.CommitAsync(cancellationToken);
+        }
+        catch
         {
-            await _db.Database.ExecuteSqlAsync(
-                $"""
-                INSERT INTO telemetry_daily_api (stat_date, method, path_template, call_count, fail_count, duration_ms_sum, duration_ms_max)
-                VALUES ({key.Day}, {key.Method}, {key.Path}, {delta.CallCount}, {delta.FailCount}, {delta.DurationMsSum}, {delta.DurationMsMax})
-                ON CONFLICT (stat_date, method, path_template) DO UPDATE SET
-                  call_count = telemetry_daily_api.call_count + EXCLUDED.call_count,
-                  fail_count = telemetry_daily_api.fail_count + EXCLUDED.fail_count,
-                  duration_ms_sum = telemetry_daily_api.duration_ms_sum + EXCLUDED.duration_ms_sum,
-                  duration_ms_max = GREATEST(telemetry_daily_api.duration_ms_max, EXCLUDED.duration_ms_max)
-                """,
-                cancellationToken);
+            await tx.RollbackAsync(cancellationToken);
+            throw;
         }
     }
 
@@ -441,7 +522,7 @@ public sealed class TelemetryService : ITelemetryService
                                ?? string.Empty;
                     var duration = (int)Math.Clamp(ReadLong(payload, "durationMs"), 0, int.MaxValue);
                     var status = (int)ReadLong(payload, "status");
-                    return new { method, path, duration, fail = status >= 400 || status == 0 };
+                    return new { method, path, duration, fail = TelemetryApiFailure.IsSystemFailure(status) };
                 })
                 .Where(x => x.path.Length > 0)
                 .GroupBy(x => new { x.method, x.path })

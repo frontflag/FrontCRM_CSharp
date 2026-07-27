@@ -1477,7 +1477,8 @@ const enUS = {
     colMethod: 'Method',
     colPath: 'Path',
     colCalls: 'Calls',
-    colFails: 'Fails',
+    colFails: 'System fails',
+    colFailsHint: 'Timeouts / network (status 0) and HTTP 5xx only; business 404/400 are excluded',
     colAvgMs: 'Avg ms',
     colMaxMs: 'Max ms'
   },

@@ -1,4 +1,5 @@
 import { isTelemetryApiExcluded, toPathTemplate } from './constants'
+import { isTelemetryApiSystemFailure } from './apiFailure'
 import { enqueueTelemetry } from './queue'
 import { getTelemetrySessionId } from './session'
 
@@ -32,7 +33,8 @@ export function trackApiTelemetry(opts: {
     }
   })
 
-  if (status >= 400 || status === 0) {
+  // 仅系统异常记 api_error：超时/断网(status=0)、5xx；业务 404/400 等不记
+  if (isTelemetryApiSystemFailure(status)) {
     enqueueTelemetry({
       eventType: 'error',
       eventName: 'api_error',
