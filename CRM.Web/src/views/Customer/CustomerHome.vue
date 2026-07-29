@@ -160,7 +160,13 @@
             <span class="customer-home__unit">{{ t('customerHome.moneyUnit') }}</span>
           </div>
           <div class="customer-home__row customer-home__row--2">
-            <div class="customer-home__card">
+            <div
+              class="customer-home__card customer-home__card--link"
+              role="button"
+              tabindex="0"
+              @click="goListPreset('has_receivable')"
+              @keydown.enter.prevent="goListPreset('has_receivable')"
+            >
               <div class="customer-home__icon customer-home__icon--blue" aria-hidden="true">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                   <line x1="12" y1="1" x2="12" y2="23" />
@@ -172,7 +178,13 @@
                 <div class="customer-home__label">{{ t('customerHome.cards.receivableGoodsAmount') }}</div>
               </div>
             </div>
-            <div class="customer-home__card">
+            <div
+              class="customer-home__card customer-home__card--link"
+              role="button"
+              tabindex="0"
+              @click="goListPreset('has_receivable')"
+              @keydown.enter.prevent="goListPreset('has_receivable')"
+            >
               <div class="customer-home__icon customer-home__icon--teal" aria-hidden="true">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                   <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -194,7 +206,13 @@
             <span class="customer-home__unit">{{ t('customerHome.moneyUnit') }}</span>
           </div>
           <div class="customer-home__row customer-home__row--2">
-            <div class="customer-home__card">
+            <div
+              class="customer-home__card customer-home__card--link"
+              role="button"
+              tabindex="0"
+              @click="goListPreset('pending_shipment')"
+              @keydown.enter.prevent="goListPreset('pending_shipment')"
+            >
               <div class="customer-home__icon customer-home__icon--mint" aria-hidden="true">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                   <rect x="1" y="3" width="15" height="13" rx="2" />
@@ -208,7 +226,13 @@
                 <div class="customer-home__label">{{ t('customerHome.cards.pendingOutboundAmount') }}</div>
               </div>
             </div>
-            <div class="customer-home__card">
+            <div
+              class="customer-home__card customer-home__card--link"
+              role="button"
+              tabindex="0"
+              @click="goListPreset('pending_shipment')"
+              @keydown.enter.prevent="goListPreset('pending_shipment')"
+            >
               <div class="customer-home__icon customer-home__icon--rose" aria-hidden="true">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                   <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -255,6 +279,10 @@ import CustomerIntelResultPanel from '@/components/Customer/CustomerIntelResultP
 import AiEntityCreateHost from '@/components/AiCreate/AiEntityCreateHost.vue'
 import AiBusinessCardCreateHost from '@/components/AiCreate/AiBusinessCardCreateHost.vue'
 import { buildCustomerListQuery } from '@/utils/customerListQuery'
+import {
+  buildCustomerListRouteQuery,
+  type CustomerBusinessPresetId
+} from '@/utils/customerListPreset'
 import { getApiErrorMessage } from '@/utils/apiError'
 import type { CustomerStatistics } from '@/types/customer'
 
@@ -358,6 +386,13 @@ function onSearchEnter() {
 
 function goListPlain() {
   router.push({ name: 'CustomerList', query: {} })
+}
+
+function goListPreset(preset: CustomerBusinessPresetId) {
+  router.push({
+    name: 'CustomerList',
+    query: buildCustomerListRouteQuery({ preset })
+  })
 }
 
 function goCreateCustomer() {
@@ -696,6 +731,15 @@ onUnmounted(() => {
   &:hover {
     border-color: var(--crm-accent-012);
     box-shadow: $shadow-md;
+  }
+
+  &--link {
+    cursor: pointer;
+
+    &:focus-visible {
+      outline: 2px solid var(--crm-accent-012);
+      outline-offset: 2px;
+    }
   }
 }
 

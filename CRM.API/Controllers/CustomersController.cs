@@ -6,6 +6,8 @@ using CRM.Core.Interfaces;
 using CRM.Core.Models.Customer;
 using CRM.Core.Models.Sales;
 using CRM.Core.Utilities;
+using CRM.Infrastructure.Customers;
+using CRM.Infrastructure.Data;
 using System.Security.Claims;
 
 namespace CRM.API.Controllers
@@ -21,6 +23,8 @@ namespace CRM.API.Controllers
         private readonly IApprovalRecordService _approvalRecordService;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IRepository<SellOrder> _sellOrderRepository;
+        private readonly IFinanceExchangeRateService _financeExchangeRateService;
+        private readonly ApplicationDbContext _db;
         private readonly IRbacService _rbacService;
         private readonly ILogger<CustomersController> _logger;
 
@@ -30,6 +34,8 @@ namespace CRM.API.Controllers
             IApprovalRecordService approvalRecordService,
             IDataPermissionService dataPermissionService,
             IRepository<SellOrder> sellOrderRepository,
+            IFinanceExchangeRateService financeExchangeRateService,
+            ApplicationDbContext db,
             IRbacService rbacService,
             ILogger<CustomersController> logger)
         {
@@ -38,6 +44,8 @@ namespace CRM.API.Controllers
             _approvalRecordService = approvalRecordService;
             _dataPermissionService = dataPermissionService;
             _sellOrderRepository = sellOrderRepository;
+            _financeExchangeRateService = financeExchangeRateService;
+            _db = db;
             _rbacService = rbacService;
             _logger = logger;
         }
@@ -165,21 +173,21 @@ namespace CRM.API.Controllers
                     .Distinct()
                     .Count();
 
-                var receivableOrders = commercial.Where(o => o.FinanceReceiptStatus < 2).ToList();
-                var receivableGoodsAmount = receivableOrders.Sum(o => o.ConvertTotal);
-                var receivableCustomerCount = receivableOrders
-                    .Select(o => o.CustomerId)
+                var allowedCustomerIds = customers
+                    .Select(c => c.Id)
                     .Where(id => !string.IsNullOrWhiteSpace(id))
-                    .Distinct()
-                    .Count();
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-                var pendingOutboundOrders = commercial.Where(o => o.StockOutStatus < 2).ToList();
-                var pendingOutboundAmount = pendingOutboundOrders.Sum(o => o.ConvertTotal);
-                var pendingOutboundCustomerCount = pendingOutboundOrders
-                    .Select(o => o.CustomerId)
-                    .Where(id => !string.IsNullOrWhiteSpace(id))
-                    .Distinct()
-                    .Count();
+                // 应收：finance_receivable.VerifiedToBe → USD（财务看板汇率）；在库：客单 QtyRepertory×SalesPriceUsd
+                var receivableKpi = await CustomerHomeKpiQuery.GetOpenReceivableAsync(
+                    _db, _financeExchangeRateService, allowedCustomerIds);
+                var inStockKpi = await CustomerHomeKpiQuery.GetCustomerOrderInStockAsync(
+                    _db, allowedCustomerIds);
+
+                var receivableGoodsAmount = receivableKpi.AmountUsd;
+                var receivableCustomerCount = receivableKpi.CustomerCount;
+                var pendingOutboundAmount = inStockKpi.AmountUsd;
+                var pendingOutboundCustomerCount = inStockKpi.CustomerCount;
 
                 var mask521 = await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User);
                 if (mask521)

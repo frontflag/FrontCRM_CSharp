@@ -777,7 +777,7 @@ const zhCN = {
       dealLast30Days: '近30日成单',
       dealHalfYear: '半年前成单',
       dealOneYear: '1年前成单',
-      pendingShipment: '待发货的客户',
+      pendingShipment: '有在库的客户',
       hasReceivable: '应收款的客户'
     },
     customerSearchTitle: '客户检索',
@@ -3221,7 +3221,7 @@ const zhCN = {
         deal_last_30_days: '近30日成单的客户',
         deal_stale_6m: '半年前成单的客户',
         deal_stale_1y: '1年前成单的客户',
-        pending_shipment: '待发货的客户',
+        pending_shipment: '有在库的客户',
         has_receivable: '应收款的客户'
       }
     },
@@ -4012,7 +4012,7 @@ const zhCN = {
     goList: '进入列表查询',
     create: '新建客户',
     loading: '加载概要数据…',
-    sections: { customer: '客户', receivable: '应收款', pendingOutbound: '待出库' },
+    sections: { customer: '客户', receivable: '应收款', pendingOutbound: '在库' },
     moneyUnit: '单位：美元（USD）',
     cards: {
       totalCustomers: '客户总数',
@@ -4021,8 +4021,8 @@ const zhCN = {
       newLast30Days: '30 天新增客户',
       receivableGoodsAmount: '应收货款',
       receivableCustomerCount: '应收客户',
-      pendingOutboundAmount: '待出货款',
-      pendingOutboundCustomerCount: '待出客户'
+      pendingOutboundAmount: '在库金额',
+      pendingOutboundCustomerCount: '在库客户'
     }
   },
   vendorHome: {

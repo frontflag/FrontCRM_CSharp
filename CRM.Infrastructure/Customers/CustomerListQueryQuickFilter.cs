@@ -43,21 +43,23 @@ internal static class CustomerListQueryQuickFilter
             CustomerListQuickFilterCodes.DealStale6m => ApplyDealStale(db, q, today.AddMonths(-6)),
             CustomerListQuickFilterCodes.DealStale1y => ApplyDealStale(db, q, today.AddYears(-1)),
 
+            // 客单在库（与客户首页「在库」KPI 同口径）：StockType=客单、QtyRepertory>0，挂 CustomerId 或销售明细客户
             CustomerListQuickFilterCodes.PendingShipment => q.Where(c =>
-                db.SellOrders.AsNoTracking().Any(so =>
-                    so.CustomerId == c.Id
-                    && so.Status >= SellOrderMainStatus.Approved
-                    && so.Status != SellOrderMainStatus.Cancelled
-                    && so.Status != SellOrderMainStatus.AuditFailed
-                    && so.StockOutStatus < 2)),
+                db.StockItems.AsNoTracking().Any(si =>
+                    si.QtyRepertory > 0
+                    && si.StockType == StockInventoryTypeCodes.CustomerOrder
+                    && (
+                        si.CustomerId == c.Id
+                        || (si.SellOrderItemId != null
+                            && db.SellOrderItems.AsNoTracking().Any(soi =>
+                                soi.Id == si.SellOrderItemId
+                                && db.SellOrders.AsNoTracking().Any(so =>
+                                    so.Id == soi.SellOrderId && so.CustomerId == c.Id)))))),
 
+            // 未结应收台账（与客户首页「应收」KPI 同口径）：VerifiedToBe > 0
             CustomerListQuickFilterCodes.HasReceivable => q.Where(c =>
-                db.SellOrders.AsNoTracking().Any(so =>
-                    so.CustomerId == c.Id
-                    && so.Status >= SellOrderMainStatus.Approved
-                    && so.Status != SellOrderMainStatus.Cancelled
-                    && so.Status != SellOrderMainStatus.AuditFailed
-                    && so.FinanceReceiptStatus < 2)),
+                db.FinanceReceivables.AsNoTracking().Any(r =>
+                    r.CustomerId == c.Id && r.VerifiedToBe > 0m)),
 
             _ => q
         };

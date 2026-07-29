@@ -780,7 +780,7 @@ const enUS = {
       dealLast30Days: 'Deal last 30 days',
       dealHalfYear: 'Deal over 6 months ago',
       dealOneYear: 'Deal over 1 year ago',
-      pendingShipment: 'Pending shipment',
+      pendingShipment: 'Customers with in-stock',
       hasReceivable: 'Has receivable'
     },
     customerSearchTitle: 'Customer Search',
@@ -3234,7 +3234,7 @@ const enUS = {
         deal_last_30_days: 'Deal in last 30 days',
         deal_stale_6m: 'Deal over 6 months ago',
         deal_stale_1y: 'Deal over 1 year ago',
-        pending_shipment: 'Pending shipment',
+        pending_shipment: 'Customers with in-stock',
         has_receivable: 'Has receivable'
       }
     },
@@ -4018,7 +4018,7 @@ const enUS = {
     goList: 'Open list query',
     create: 'New Customer',
     loading: 'Loading summary...',
-    sections: { customer: 'Customers', receivable: 'Receivables', pendingOutbound: 'Pending Outbound' },
+    sections: { customer: 'Customers', receivable: 'Receivables', pendingOutbound: 'In Stock' },
     moneyUnit: 'Unit: USD',
     cards: {
       totalCustomers: 'Total Customers',
@@ -4027,8 +4027,8 @@ const enUS = {
       newLast30Days: 'New in Last 30 Days',
       receivableGoodsAmount: 'Receivable Goods Amount',
       receivableCustomerCount: 'Customers with Receivables',
-      pendingOutboundAmount: 'Pending Shipment Amount',
-      pendingOutboundCustomerCount: 'Customers Pending Shipment'
+      pendingOutboundAmount: 'In-Stock Amount',
+      pendingOutboundCustomerCount: 'Customers with In-Stock'
     }
   },
   vendorHome: {

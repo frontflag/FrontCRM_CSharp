@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -24,6 +25,16 @@ public sealed class BatchGlobalNumberService : IBatchGlobalNumberService
     /// <inheritdoc/>
     public async Task<string> GenerateNextAsync(CancellationToken cancellationToken = default)
     {
+        var block = await GenerateNextBlockAsync(1, cancellationToken);
+        return block[0];
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<string>> GenerateNextBlockAsync(int count, CancellationToken cancellationToken = default)
+    {
+        if (count < 1)
+            throw new ArgumentOutOfRangeException(nameof(count), "预留编号数量须至少为 1。");
+
         await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
         try
         {
@@ -39,20 +50,25 @@ public sealed class BatchGlobalNumberService : IBatchGlobalNumberService
                     $"未找到业务模块 '{ModuleCodes.InventoryBatch}' 的流水号配置，请先初始化。");
             }
 
-            serial.CurrentSequence += 1;
-            if (serial.CurrentSequence > MaxSequence)
+            var start = serial.CurrentSequence;
+            var end = start + count;
+            if (end > MaxSequence)
             {
                 throw new InvalidOperationException(
                     $"批次全局编号已超出 {SequenceLength} 位十进制可表示范围（最大 {MaxSequence}）。");
             }
 
+            serial.CurrentSequence = end;
             serial.UpdateTime = DateTime.UtcNow;
             _context.SerialNumbers.Update(serial);
             await _context.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
-            var result = $"{DisplayPrefix}{serial.CurrentSequence:D8}";
-            _logger.LogDebug("生成批次全局编号：{GlobalBatchNo}", result);
+            var result = new string[count];
+            for (var i = 0; i < count; i++)
+                result[i] = $"{DisplayPrefix}{(start + i + 1):D8}";
+
+            _logger.LogDebug("批量生成批次全局编号 {Count} 条：{First} … {Last}", count, result[0], result[^1]);
             return result;
         }
         catch

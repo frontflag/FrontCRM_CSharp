@@ -148,7 +148,10 @@ export const stockInBatchApi = {
   },
 
   async importRows(body: StockInBatchImportRequest): Promise<StockInBatchImportResultDto> {
-    return await apiClient.post<StockInBatchImportResultDto>('/api/v1/stock-in/batches/import', body)
+    // 大批量 SN/批次导入可能超过默认 10s
+    return await apiClient.post<StockInBatchImportResultDto>('/api/v1/stock-in/batches/import', body, {
+      timeout: 180_000
+    })
   },
 
   async softDelete(id: string, reason: string): Promise<void> {

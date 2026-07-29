@@ -159,25 +159,34 @@ namespace CRM.Core.Services
 
             var stockInCtx = new StockInOperationContext(header, line, ItemCode(line));
 
-            var rows = request.Rows ?? new List<StockInBatchImportRowRequest>();
-            var entities = new List<StockInBatch>();
-            var globalBatchNos = new List<string>();
+            var rows = (request.Rows ?? new List<StockInBatchImportRowRequest>())
+                .Where(r => !IsImportRowEmpty(r))
+                .ToList();
+
+            if (rows.Count == 0)
+            {
+                throw new InvalidOperationException(
+                    "没有可导入的有效行：请确认第 1 行为表头、从第 2 行起填写数据，且批次数量大于 0。");
+            }
 
             foreach (var r in rows)
             {
-                if (IsImportRowEmpty(r))
-                    continue;
                 if (r.BatchQty <= 0)
                     throw new InvalidOperationException("批次数量须为正整数");
+            }
 
-                var globalNo = await _batchGlobalNumberService.GenerateNextAsync(cancellationToken);
-                globalBatchNos.Add(globalNo);
+            var globalBatchNos = (await _batchGlobalNumberService.GenerateNextBlockAsync(rows.Count, cancellationToken))
+                .ToList();
+            var entities = new List<StockInBatch>(rows.Count);
 
+            for (var i = 0; i < rows.Count; i++)
+            {
+                var r = rows[i];
                 entities.Add(new StockInBatch
                 {
                     Id = Guid.NewGuid().ToString(),
                     StockInItemId = stockInItemId,
-                    GlobalBatchNo = globalNo,
+                    GlobalBatchNo = globalBatchNos[i],
                     BatchDimension = NullIfWhiteSpace(r.BatchDimension),
                     BatchUnit = NullIfWhiteSpace(r.BatchUnit),
                     UnitNo = NullIfWhiteSpace(r.UnitNo),
@@ -191,12 +200,6 @@ namespace CRM.Core.Services
                     PartCode = NullIfWhiteSpace(r.PartCode),
                     Remark = NullIfWhiteSpace(r.Remark)
                 });
-            }
-
-            if (entities.Count == 0)
-            {
-                throw new InvalidOperationException(
-                    "没有可导入的有效行：请确认第 1 行为表头、从第 2 行起填写数据，且批次数量大于 0。");
             }
 
             foreach (var e in entities)

@@ -50,6 +50,7 @@ namespace CRM.API.Controllers
 
         /// <summary>Excel 解析后的批次行批量写入 <c>stock_in_batch</c>，每行自动生成全局编号。</summary>
         [HttpPost("import")]
+        [RequestSizeLimit(64 * 1024 * 1024)]
         public async Task<ActionResult<ApiResponse<StockInBatchImportResultDto>>> Import(
             [FromBody] StockInBatchImportRequest request,
             CancellationToken cancellationToken)

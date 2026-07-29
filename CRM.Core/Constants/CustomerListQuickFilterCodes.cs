@@ -15,7 +15,9 @@ public static class CustomerListQuickFilterCodes
     public const string DealStale6m = "deal_stale_6m";
     public const string DealStale1y = "deal_stale_1y";
 
+    /// <summary>客单在库（URL 码名历史保留；口径见 CustomerListQueryQuickFilter / 客户首页在库 KPI）。</summary>
     public const string PendingShipment = "pending_shipment";
+    /// <summary>未结应收台账 VerifiedToBe&gt;0（URL 码名历史保留）。</summary>
     public const string HasReceivable = "has_receivable";
 
     public static bool IsKnown(string? code)

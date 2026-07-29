@@ -35,6 +35,8 @@ try
     builder.Services.AddControllers(options =>
         {
             options.Filters.Add<CRM.API.Filters.SysErrorIdResultFilter>();
+            // 默认 1024：入库批次 Excel 导入 SN 等常超过千行，否则 FromBody 集合绑定直接失败
+            options.MaxModelBindingCollectionSize = 50_000;
         })
         .AddJsonOptions(options =>
         {

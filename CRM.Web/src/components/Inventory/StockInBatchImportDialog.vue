@@ -9,7 +9,7 @@
   >
     <div class="import-body">
       <p class="hint">
-        当前入库明细编号：<strong>{{ stockInItemCode || '—' }}</strong>。请先下载模板，按列填写后选择 Excel 导入；第 1 行为表头，从第 2 行起为数据。系统将自动生成批次全局编号（PC-xxxxxxxx）。正式环境请删除或覆盖模板中的示例行后再导入。
+        当前入库明细编号：<strong>{{ stockInItemCode || '—' }}</strong>。请先下载模板，按列填写后选择 Excel 导入；第 1 行为表头，从第 2 行起为数据。系统将自动生成批次全局编号（PC-xxxxxxxx）。单次最多约 5 万行（含 SN）。正式环境请删除或覆盖模板中的示例行后再导入。
       </p>
       <div class="actions-row">
         <button type="button" class="btn-template" @click="downloadTemplate">下载 Excel 模板</button>
@@ -325,12 +325,17 @@ async function confirmAndSubmit() {
       stockInItemId: iid,
       rows: parsedRows.value
     })
-    const nos = (result.globalBatchNos ?? []).join('、')
+    const count = result.importedCount ?? parsedRows.value.length
+    const nos = result.globalBatchNos ?? []
+    let msg = `成功写入 ${count} 条`
+    if (nos.length > 0 && nos.length <= 8) {
+      msg += `。编号：${nos.join('、')}`
+    } else if (nos.length > 8) {
+      msg += `。编号：${nos.slice(0, 5).join('、')} 等 ${nos.length} 条`
+    }
     ElNotification.success({
       title: '导入完成',
-      message: nos
-        ? `成功写入 ${result.importedCount} 条。编号：${nos}`
-        : `成功写入 ${result.importedCount} 条`
+      message: msg
     })
     visibleInner.value = false
     emit('success')
