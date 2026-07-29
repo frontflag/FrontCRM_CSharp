@@ -54,5 +54,5 @@
 | 变更类型 | 维护位置 |
 |----------|----------|
 | 内部版本号 / 提交日志 | 自动（`scripts/update-internal-version-log.mjs`）；勿手改除非修复异常 |
-| 对外版本说明 | `help/pages/版本更新日志_MENU_RELEASE_NOTES.md` |
+| 对外版本说明 | `help/pages/version/版本更新日志_MENU_RELEASE_NOTES.md` |
 | 路由 / 权限 | `CRM.Web/src/router/routes.ts`、`router/index.ts` + 同步 PRD 与设计文档 |

@@ -47,7 +47,18 @@ function cleanContent(text) {
   return out.join('\n')
 }
 
-const files = fs.readdirSync(pagesDir).filter((f) => f.endsWith('.md'))
+function listMarkdownFiles(dir, base = dir) {
+  const out = []
+  for (const name of fs.readdirSync(dir)) {
+    const fp = path.join(dir, name)
+    const st = fs.statSync(fp)
+    if (st.isDirectory()) out.push(...listMarkdownFiles(fp, base))
+    else if (name.endsWith('.md')) out.push(path.relative(base, fp).replace(/\\/g, '/'))
+  }
+  return out
+}
+
+const files = listMarkdownFiles(pagesDir)
 let changed = 0
 let removed = 0
 

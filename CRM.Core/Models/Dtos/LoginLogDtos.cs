@@ -7,6 +7,12 @@ public sealed class LoginLogQuery
     public string? UserId { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 20;
+
+    /// <summary>
+    /// 当前查看者是否为系统管理员（RoleCode=SYS_ADMIN）。
+    /// 非 SA 时排除所有当前持有 SYS_ADMIN 角色的用户登录记录。
+    /// </summary>
+    public bool ViewerIsSysAdmin { get; set; }
 }
 
 public sealed class LoginLogListItemDto

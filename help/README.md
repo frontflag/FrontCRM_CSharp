@@ -3,7 +3,7 @@
 ## 当前约定（菜单驱动）
 
 1. **注册表**：`menu-registry.json` 描述每个主菜单项的 `id`、`label`、路由名与路径前缀。
-2. **文档路径**：`pages/{菜单名称}_{菜单ID}.md`（例：`pages/销售订单_MENU_SALES_ORDERS.md`）。
+2. **文档路径**：默认 `pages/{菜单名称}_{菜单ID}.md`（例：`pages/销售订单_MENU_SALES_ORDERS.md`）；注册表可设 `docPath` 覆盖（例：版本更新日志 → `pages/version/版本更新日志_MENU_RELEASE_NOTES.md`）。
 3. **目录**：根目录 `帮助文档目录.md` 由 `scripts/sync-help.mjs` 根据注册表自动生成，仅展示菜单名称链接。
 4. **同步**：`npm run dev` / `npm run build` 前执行 `sync-help.mjs`，将 `help/` 复制到 `CRM.Web/public/help/`，并补全缺省占位页（不覆盖已有文件）。
 5. **前端解析**：`CRM.Web/src/utils/helpDocPath.ts` 按当前路由解析菜单项并 `fetch` 对应 `.md`；右栏「帮助」内点击 `.md` 链接仅在面板内切换，不跳转整页。

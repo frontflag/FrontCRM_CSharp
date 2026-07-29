@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Dtos;
 using CRM.Infrastructure.Data;
@@ -27,6 +28,17 @@ public sealed class LoginLogListQuery : ILoginLogQueryService
         var pageSize = query.PageSize < 1 ? 20 : Math.Min(query.PageSize, MaxPageSize);
 
         var q = _db.LoginLogs.AsNoTracking();
+
+        // 系统管理员登录记录仅 SYS_ADMIN 可见
+        if (!query.ViewerIsSysAdmin)
+        {
+            var sysAdminUserIds =
+                from ur in _db.RbacUserRoles.AsNoTracking()
+                join r in _db.RbacRoles.AsNoTracking() on ur.RoleId equals r.Id
+                where r.RoleCode == ManagementRoleCodes.SuperAdmin
+                select ur.UserId;
+            q = q.Where(l => !sysAdminUserIds.Contains(l.UserId));
+        }
 
         if (!string.IsNullOrWhiteSpace(query.UserId))
         {

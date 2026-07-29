@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using CRM.API.Authorization;
 using CRM.API.Models.DTOs;
 using CRM.Core.Interfaces;
@@ -13,11 +14,16 @@ namespace CRM.API.Controllers;
 public class LoginLogsController : ControllerBase
 {
     private readonly ILoginLogQueryService _queryService;
+    private readonly IRbacService _rbacService;
     private readonly ILogger<LoginLogsController> _logger;
 
-    public LoginLogsController(ILoginLogQueryService queryService, ILogger<LoginLogsController> logger)
+    public LoginLogsController(
+        ILoginLogQueryService queryService,
+        IRbacService rbacService,
+        ILogger<LoginLogsController> logger)
     {
         _queryService = queryService;
+        _rbacService = rbacService;
         _logger = logger;
     }
 
@@ -33,13 +39,19 @@ public class LoginLogsController : ControllerBase
     {
         try
         {
+            var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var summary = string.IsNullOrWhiteSpace(currentUserId)
+                ? null
+                : await _rbacService.GetUserPermissionSummaryAsync(currentUserId);
+
             var q = new LoginLogQuery
             {
                 LoginAtFrom = loginAtFrom,
                 LoginAtTo = loginAtTo,
                 UserId = userId,
                 Page = page,
-                PageSize = pageSize
+                PageSize = pageSize,
+                ViewerIsSysAdmin = summary?.IsSysAdmin == true
             };
             var data = await _queryService.QueryAsync(q, cancellationToken);
             return Ok(ApiResponse<LoginLogPagedResult>.Ok(data, "ok"));

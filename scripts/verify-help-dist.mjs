@@ -86,7 +86,10 @@ function main() {
     const registry = JSON.parse(readFileSync(regPath, 'utf8'))
     const pagesDir = registry.pagesDir || 'pages'
     for (const e of registry.entries || []) {
-      const rel = `${pagesDir}/${e.label}_${e.id}.md`
+      const rel =
+        typeof e.docPath === 'string' && e.docPath.trim()
+          ? e.docPath.replace(/^\/+/, '').trim()
+          : `${pagesDir}/${e.label}_${e.id}.md`
       if (!existsSync(join(distHelp, rel))) {
         registryIssues.push(rel)
       }

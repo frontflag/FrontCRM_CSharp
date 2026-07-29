@@ -6,6 +6,8 @@ export type HelpMenuEntry = {
   label: string
   routeNames?: string[]
   pathPrefixes?: string[]
+  /** 相对 help 根的文档路径；缺省为 pages/{label}_{id}.md */
+  docPath?: string
 }
 
 type RegistryFile = {
@@ -36,6 +38,9 @@ export function helpPagesDir(): string {
 }
 
 export function helpMenuEntryDocRelativePath(entry: HelpMenuEntry): string {
+  if (entry.docPath?.trim()) {
+    return entry.docPath.replace(/^\/+/, '').trim()
+  }
   const dir = helpPagesDir()
   return `${dir}/${entry.label}_${entry.id}.md`
 }

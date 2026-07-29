@@ -14,7 +14,7 @@ const repoRoot = join(__dirname, '..')
 const helpRoot = join(repoRoot, 'help')
 const dest = join(repoRoot, 'CRM.Web', 'public', 'help')
 
-const STUB = (label, catalogName) => `[${catalogName.replace(/\.md$/, '')}](../${catalogName})
+const STUB = (label, catalogHref, catalogTitle) => `[${catalogTitle}](${catalogHref})
 
 # ${label}
 
@@ -53,20 +53,29 @@ function main() {
 
   mkdirSync(pagesDir, { recursive: true })
 
+  const entryDocRel = (e) => {
+    if (typeof e.docPath === 'string' && e.docPath.trim()) {
+      return e.docPath.replace(/^\/+/, '').trim()
+    }
+    return `${pagesDirName}/${e.label}_${e.id}.md`
+  }
+
   const lines = ['# 帮助文档目录', '', '点击下列页面名称查看对应说明：', '']
   for (const e of entries) {
-    const fname = `${e.label}_${e.id}.md`
-    const relLink = `${pagesDirName}/${fname}`
-    lines.push(`- [${e.label}](${relLink})`)
+    lines.push(`- [${e.label}](${entryDocRel(e)})`)
   }
   lines.push('')
   writeFileSync(join(helpRoot, catalogFile), lines.join('\n'), 'utf-8')
 
   for (const e of entries) {
-    const fname = `${e.label}_${e.id}.md`
-    const fpath = join(pagesDir, fname)
+    const rel = entryDocRel(e)
+    const fpath = join(helpRoot, rel)
+    mkdirSync(dirname(fpath), { recursive: true })
     if (!existsSync(fpath)) {
-      writeFileSync(fpath, STUB(e.label, catalogFile), 'utf-8')
+      const depth = rel.split('/').length - 1
+      const catalogHref = `${'../'.repeat(Math.max(depth, 1))}${catalogFile}`
+      const catalogTitle = catalogFile.replace(/\.md$/, '')
+      writeFileSync(fpath, STUB(e.label, catalogHref, catalogTitle), 'utf-8')
       console.log('[sync-help] 新建占位:', fpath)
     }
   }

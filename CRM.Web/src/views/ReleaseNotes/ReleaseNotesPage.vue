@@ -5,7 +5,7 @@ import { helpAssetUrl } from '@/utils/helpDocPath'
 
 marked.setOptions({ gfm: true, breaks: true })
 
-const RELEASE_NOTES_REL = 'pages/版本更新日志_MENU_RELEASE_NOTES.md'
+const RELEASE_NOTES_REL = 'pages/version/版本更新日志_MENU_RELEASE_NOTES.md'
 
 type ReleaseNotePanel = {
   title: string
