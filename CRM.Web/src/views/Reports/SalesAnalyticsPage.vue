@@ -9,6 +9,9 @@ import AnalyticsKpiGrid from '@/components/Analytics/AnalyticsKpiGrid.vue'
 import AnalyticsTrendChart from '@/components/Analytics/AnalyticsTrendChart.vue'
 import AnalyticsBreakdownChart from '@/components/Analytics/AnalyticsBreakdownChart.vue'
 import AnalyticsBreakdownPieChart from '@/components/Analytics/AnalyticsBreakdownPieChart.vue'
+import SalesAnalyticsCustomerPanel from '@/components/Analytics/SalesAnalyticsCustomerPanel.vue'
+import SalesOrderItemListBoard from '@/views/RFQ/SalesOrderItemListBoard.vue'
+import RfqItemListBoard from '@/views/RFQ/RfqItemListBoard.vue'
 import {
   salesAnalyticsApi,
   type SalesAnalyticsBreakdownGroup,
@@ -17,7 +20,6 @@ import {
   type SalesAnalyticsViewLevel
 } from '@/api/analytics/sales'
 import {
-  buildCustomerRankingDrillRoute,
   buildSalesUserRankingDrillRoute,
   buildSnapshotDrillRoute,
   buildTodoDrillRoute,
@@ -32,6 +34,7 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const loading = ref(false)
+const contentTab = ref<'overview' | 'customer' | 'rfq' | 'order'>('overview')
 const viewLevel = ref<SalesAnalyticsViewLevel>('company')
 const departmentId = ref<string | undefined>()
 const salesUserId = ref<string | undefined>()
@@ -42,7 +45,7 @@ const dashboard = ref<SalesAnalyticsDashboard | null>(null)
 const trends = ref<SalesAnalyticsTrendPoint[]>([])
 const breakdowns = ref<SalesAnalyticsBreakdownGroup[]>([])
 
-const scopeContext = computed(() => dashboard.value?.scopeContext)
+const scopeContext = computed(() => dashboard.value?.scopeContext ?? null)
 
 const maskAmounts = computed(() => scopeContext.value?.maskAmounts === true)
 
@@ -234,13 +237,20 @@ const primaryRankingTitle = computed(() => {
   const lvl = viewLevel.value
   if (lvl === 'company') return t('salesAnalytics.rankings.departmentTop')
   if (lvl === 'department') return t('salesAnalytics.rankings.salesUserTop')
-  return t('salesAnalytics.rankings.customerTop')
+  return ''
 })
 
-const secondaryRankingTitle = computed(() => {
-  if (viewLevel.value === 'personal') return ''
-  return t('salesAnalytics.rankings.customerTop')
-})
+/** 方案 A：客户排行仅在「客户」Tab；个人层概况无排行 */
+const showOverviewRankings = computed(() => viewLevel.value === 'company' || viewLevel.value === 'department')
+
+const analyticsQuery = computed(() => ({
+  viewLevel: viewLevel.value,
+  departmentId: departmentId.value,
+  salesUserId: salesUserId.value,
+  dateFrom: dateRange.value[0],
+  dateTo: dateRange.value[1],
+  groupBy: groupBy.value
+}))
 
 const showDepartmentSelect = computed(() => {
   const ctx = scopeContext.value
@@ -314,10 +324,6 @@ async function loadData() {
 }
 
 function onRankingRowClick(row: { id: string; name: string }) {
-  if (viewLevel.value === 'personal') {
-    onCustomerRankingClick(row)
-    return
-  }
   if (viewLevel.value === 'company') {
     viewLevel.value = 'department'
     departmentId.value = row.id
@@ -337,14 +343,6 @@ function onRankingRowDblClick(row: { id: string; name: string }) {
   if (viewLevel.value === 'department') {
     void router.push(buildSalesUserRankingDrillRoute(row.id, row.name, drillScope()))
   }
-}
-
-function onCustomerRankingClick(row: { id: string; name: string }) {
-  if (!authStore.hasPermission('sales-order.read')) {
-    ElMessage.warning(t('salesAnalytics.drill.noPermission'))
-    return
-  }
-  void router.push(buildCustomerRankingDrillRoute(row.id, row.name, drillScope()))
 }
 
 function onTodoKpiClick(key: string) {
@@ -416,136 +414,146 @@ watch([viewLevel, departmentId, salesUserId, dateRange, groupBy], () => void loa
       <span class="muted">{{ t('salesAnalytics.drill.hint') }}</span>
     </div>
 
-    <section class="section">
-      <h3 class="section-title">{{ t('salesAnalytics.sections.todo') }}</h3>
-      <AnalyticsKpiGrid :items="todoKpis" @item-click="onTodoKpiClick" />
-    </section>
+    <el-tabs v-model="contentTab" class="content-tabs card">
+      <el-tab-pane :label="t('salesAnalytics.contentTabs.overview')" name="overview">
+        <section class="section">
+          <h3 class="section-title">{{ t('salesAnalytics.sections.todo') }}</h3>
+          <AnalyticsKpiGrid :items="todoKpis" @item-click="onTodoKpiClick" />
+        </section>
 
-    <section class="section">
-      <h3 class="section-title">{{ t('salesAnalytics.sections.snapshot') }}</h3>
-      <AnalyticsKpiGrid :items="snapshotKpis" @item-click="onSnapshotKpiClick" />
-    </section>
+        <section class="section">
+          <h3 class="section-title">{{ t('salesAnalytics.sections.snapshot') }}</h3>
+          <AnalyticsKpiGrid :items="snapshotKpis" @item-click="onSnapshotKpiClick" />
+        </section>
 
-    <div class="charts-row">
-      <div class="card chart-panel">
-        <h3 class="section-title">{{ t('salesAnalytics.sections.trendAmount') }}</h3>
-        <AnalyticsTrendChart
-          :points="trendAmountPoints"
-          value-format="money"
-          :unit-caption="t('salesAnalytics.trendUnit.moneyCaption')"
-        />
-      </div>
-      <div class="card chart-panel">
-        <h3 class="section-title">{{ t('salesAnalytics.sections.trendStockOut') }}</h3>
-        <AnalyticsTrendChart
-          :points="trendStockOutPoints"
-          value-format="money"
-          :unit-caption="t('salesAnalytics.trendUnit.moneyCaption')"
-        />
-      </div>
-      <div class="card chart-panel">
-        <h3 class="section-title">{{ t('salesAnalytics.sections.trendReceived') }}</h3>
-        <AnalyticsTrendChart
-          :points="trendReceivedPoints"
-          value-format="money"
-          :unit-caption="t('salesAnalytics.trendUnit.moneyCaption')"
-        />
-      </div>
-    </div>
+        <div class="charts-row">
+          <div class="card chart-panel">
+            <h3 class="section-title">{{ t('salesAnalytics.sections.trendAmount') }}</h3>
+            <AnalyticsTrendChart
+              :points="trendAmountPoints"
+              value-format="money"
+              :unit-caption="t('salesAnalytics.trendUnit.moneyCaption')"
+            />
+          </div>
+          <div class="card chart-panel">
+            <h3 class="section-title">{{ t('salesAnalytics.sections.trendStockOut') }}</h3>
+            <AnalyticsTrendChart
+              :points="trendStockOutPoints"
+              value-format="money"
+              :unit-caption="t('salesAnalytics.trendUnit.moneyCaption')"
+            />
+          </div>
+          <div class="card chart-panel">
+            <h3 class="section-title">{{ t('salesAnalytics.sections.trendReceived') }}</h3>
+            <AnalyticsTrendChart
+              :points="trendReceivedPoints"
+              value-format="money"
+              :unit-caption="t('salesAnalytics.trendUnit.moneyCaption')"
+            />
+          </div>
+        </div>
 
-    <div class="charts-row">
-      <div class="card chart-panel">
-        <h3 class="section-title">{{ t('salesAnalytics.sections.trendRfqCustomers') }}</h3>
-        <AnalyticsTrendChart
-          :points="trendRfqCustomerPoints"
-          :value-suffix="t('salesAnalytics.trendUnit.customer')"
-          :unit-caption="t('salesAnalytics.trendUnit.customerCaption')"
-        />
-      </div>
-      <div class="card chart-panel">
-        <h3 class="section-title">{{ t('salesAnalytics.sections.trendSalesCustomers') }}</h3>
-        <AnalyticsTrendChart
-          :points="trendSalesCustomerPoints"
-          :value-suffix="t('salesAnalytics.trendUnit.customer')"
-          :unit-caption="t('salesAnalytics.trendUnit.customerCaption')"
-        />
-      </div>
-    </div>
+        <div class="charts-row">
+          <div class="card chart-panel">
+            <h3 class="section-title">{{ t('salesAnalytics.sections.trendRfqCustomers') }}</h3>
+            <AnalyticsTrendChart
+              :points="trendRfqCustomerPoints"
+              :value-suffix="t('salesAnalytics.trendUnit.customer')"
+              :unit-caption="t('salesAnalytics.trendUnit.customerCaption')"
+            />
+          </div>
+          <div class="card chart-panel">
+            <h3 class="section-title">{{ t('salesAnalytics.sections.trendSalesCustomers') }}</h3>
+            <AnalyticsTrendChart
+              :points="trendSalesCustomerPoints"
+              :value-suffix="t('salesAnalytics.trendUnit.customer')"
+              :unit-caption="t('salesAnalytics.trendUnit.customerCaption')"
+            />
+          </div>
+        </div>
 
-    <div class="charts-row">
-      <div class="card chart-panel">
-        <h3 class="section-title">{{ t('salesAnalytics.sections.trendRfq') }}</h3>
-        <AnalyticsTrendChart :points="trendRfqPoints" />
-      </div>
-      <div class="card chart-panel">
-        <h3 class="section-title">{{ t('salesAnalytics.sections.trendItems') }}</h3>
-        <AnalyticsTrendChart :points="trendItemPoints" />
-      </div>
-      <div class="card chart-panel">
-        <h3 class="section-title">{{ t('salesAnalytics.sections.trendConversion') }}</h3>
-        <AnalyticsTrendChart
-          :points="trendConversionPoints"
-          value-format="percent"
-          :unit-caption="t('salesAnalytics.trendUnit.percentCaption')"
-        />
-      </div>
-      <div class="card chart-panel">
-        <h3 class="section-title">{{ t('salesAnalytics.sections.trendReceivable') }}</h3>
-        <AnalyticsTrendChart
-          :points="trendReceivablePoints"
-          value-format="money"
-          :unit-caption="t('salesAnalytics.trendUnit.receivableCaption')"
-        />
-      </div>
-    </div>
+        <div class="charts-row">
+          <div class="card chart-panel">
+            <h3 class="section-title">{{ t('salesAnalytics.sections.trendRfq') }}</h3>
+            <AnalyticsTrendChart :points="trendRfqPoints" />
+          </div>
+          <div class="card chart-panel">
+            <h3 class="section-title">{{ t('salesAnalytics.sections.trendItems') }}</h3>
+            <AnalyticsTrendChart :points="trendItemPoints" />
+          </div>
+          <div class="card chart-panel">
+            <h3 class="section-title">{{ t('salesAnalytics.sections.trendConversion') }}</h3>
+            <AnalyticsTrendChart
+              :points="trendConversionPoints"
+              value-format="percent"
+              :unit-caption="t('salesAnalytics.trendUnit.percentCaption')"
+            />
+          </div>
+          <div class="card chart-panel">
+            <h3 class="section-title">{{ t('salesAnalytics.sections.trendReceivable') }}</h3>
+            <AnalyticsTrendChart
+              :points="trendReceivablePoints"
+              value-format="money"
+              :unit-caption="t('salesAnalytics.trendUnit.receivableCaption')"
+            />
+          </div>
+        </div>
 
-    <div class="charts-row breakdown-row">
-      <div v-for="group in breakdowns" :key="group.groupKey" class="card chart-panel">
-        <AnalyticsBreakdownPieChart
-          v-if="isPieBreakdown(group.groupKey)"
-          :title="breakdownTitle(group)"
-          :items="group.items"
-          :value-format="breakdownValueFormat(group.groupKey)"
-        />
-        <AnalyticsBreakdownChart v-else :title="breakdownTitle(group)" :items="group.items" />
-      </div>
-    </div>
+        <div class="charts-row breakdown-row">
+          <div v-for="group in breakdowns" :key="group.groupKey" class="card chart-panel">
+            <AnalyticsBreakdownPieChart
+              v-if="isPieBreakdown(group.groupKey)"
+              :title="breakdownTitle(group)"
+              :items="group.items"
+              :value-format="breakdownValueFormat(group.groupKey)"
+            />
+            <AnalyticsBreakdownChart v-else :title="breakdownTitle(group)" :items="group.items" />
+          </div>
+        </div>
 
-    <div class="rankings-row">
-      <div class="card ranking-panel">
-        <h3 class="section-title">{{ primaryRankingTitle }}</h3>
-        <el-table
-          :data="dashboard?.rankings.primary ?? []"
-          size="small"
-          stripe
-          :class="viewLevel === 'personal' || viewLevel === 'department' ? 'ranking-table--drill' : ''"
-          @row-click="onRankingRowClick"
-          @row-dblclick="onRankingRowDblClick"
-        >
-          <el-table-column prop="name" :label="t('salesAnalytics.rankings.name')" />
-          <el-table-column prop="orderCount" :label="t('salesAnalytics.rankings.orderCount')" width="90" />
-          <el-table-column :label="t('salesAnalytics.rankings.amount')" width="140">
-            <template #default="{ row }">{{ formatMoney(row.amount) }}</template>
-          </el-table-column>
-        </el-table>
-      </div>
-      <div v-if="secondaryRankingTitle" class="card ranking-panel">
-        <h3 class="section-title">{{ secondaryRankingTitle }}</h3>
-        <el-table
-          :data="dashboard?.rankings.secondary ?? []"
-          size="small"
-          stripe
-          class="ranking-table--drill"
-          @row-click="onCustomerRankingClick"
-        >
-          <el-table-column prop="name" :label="t('salesAnalytics.rankings.name')" />
-          <el-table-column prop="orderCount" :label="t('salesAnalytics.rankings.orderCount')" width="90" />
-          <el-table-column :label="t('salesAnalytics.rankings.amount')" width="140">
-            <template #default="{ row }">{{ formatMoney(row.amount) }}</template>
-          </el-table-column>
-        </el-table>
-      </div>
-    </div>
+        <div v-if="showOverviewRankings" class="rankings-row">
+          <div class="card ranking-panel">
+            <h3 class="section-title">{{ primaryRankingTitle }}</h3>
+            <el-table
+              :data="dashboard?.rankings.primary ?? []"
+              size="small"
+              stripe
+              :class="'ranking-table--drill'"
+              @row-click="onRankingRowClick"
+              @row-dblclick="onRankingRowDblClick"
+            >
+              <el-table-column prop="name" :label="t('salesAnalytics.rankings.name')" />
+              <el-table-column prop="orderCount" :label="t('salesAnalytics.rankings.orderCount')" width="90" />
+              <el-table-column :label="t('salesAnalytics.rankings.amount')" width="140">
+                <template #default="{ row }">{{ formatMoney(row.amount) }}</template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </div>
+      </el-tab-pane>
+
+      <el-tab-pane :label="t('salesAnalytics.contentTabs.customer')" name="customer" lazy>
+        <SalesAnalyticsCustomerPanel
+          :query="analyticsQuery"
+          :scope-context="scopeContext"
+          :active="contentTab === 'customer'"
+        />
+      </el-tab-pane>
+      <el-tab-pane :label="t('salesAnalytics.contentTabs.rfq')" name="rfq" lazy>
+        <RfqItemListBoard
+          mode="report"
+          :report-query="analyticsQuery"
+          :active="contentTab === 'rfq'"
+        />
+      </el-tab-pane>
+      <el-tab-pane :label="t('salesAnalytics.contentTabs.order')" name="order" lazy>
+        <SalesOrderItemListBoard
+          mode="report"
+          :report-query="analyticsQuery"
+          :active="contentTab === 'order'"
+        />
+      </el-tab-pane>
+    </el-tabs>
   </div>
 </template>
 
@@ -602,6 +610,22 @@ watch([viewLevel, departmentId, salesUserId, dateRange, groupBy], () => void loa
 
 .scope-banner .muted {
   color: var(--el-text-color-secondary);
+}
+
+.content-tabs {
+  padding-top: 8px;
+
+  :deep(.el-tabs__header) {
+    margin-bottom: 16px;
+  }
+
+  :deep(.el-tabs__content) {
+    overflow: visible;
+  }
+
+  :deep(.el-tab-pane) {
+    outline: none;
+  }
 }
 
 .section {

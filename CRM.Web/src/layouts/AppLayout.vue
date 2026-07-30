@@ -366,7 +366,7 @@
 
         <!-- 销售管理：须销售订单权限，且主部门非采购/采购助理（与采购板块对销售部门隐藏对称） -->
         <SidebarMenuGroupFlyout
-          v-if="(isSysAdmin || (identityType !== 2 && identityType !== 3)) && hasPermission('sales-order.read')"
+          v-if="(isSysAdmin || hasBizDataBypass || (identityType !== 2 && identityType !== 3)) && hasPermission('sales-order.read')"
           :collapsed="isCollapsed"
           :expanded="openGroups.sales"
           @toggle="toggleGroup('sales')"
@@ -598,12 +598,12 @@
 
         <!-- 财务：按部门隔离维度拆分“付款管理/收款管理”
              红框（财务管理折叠按钮）已移除；这里以“付款管理/收款管理”作为二级菜单组（带图标与收起展开）。 -->
-        <div class="menu-section-label" v-if="!isCollapsed && showFinanceMenus && (isSysAdmin || identityType !== 6)">{{ t('layout.sections.finance') }}</div>
-        <div v-if="showFinanceMenus && (isSysAdmin || identityType !== 6)" class="sidebar-nav-inline-group">
+        <div class="menu-section-label" v-if="!isCollapsed && showFinanceMenus && (isSysAdmin || hasBizDataBypass || identityType !== 6)">{{ t('layout.sections.finance') }}</div>
+        <div v-if="showFinanceMenus && (isSysAdmin || hasBizDataBypass || identityType !== 6)" class="sidebar-nav-inline-group">
           <!-- 付款管理组：销售部门（identityType=1）不显示 -->
           <SidebarMenuGroupFlyout
             v-if="
-              (isSysAdmin || identityType !== 1) &&
+              (isSysAdmin || hasBizDataBypass || identityType !== 1) &&
               (hasPermission('finance-payment.read') || hasPermission('finance-purchase-invoice.read'))
             "
             :collapsed="isCollapsed"
@@ -654,7 +654,7 @@
           <!-- 收款管理组：采购 / 采购助理主部门不显示（与 RbacService 剥离收款、销项发票权限一致） -->
           <SidebarMenuGroupFlyout
             v-if="
-              (isSysAdmin || (identityType !== 2 && identityType !== 3)) &&
+              (isSysAdmin || hasBizDataBypass || (identityType !== 2 && identityType !== 3)) &&
               (hasPermission('finance-receipt.read') || hasPermission('finance-sell-invoice.read'))
             "
             :collapsed="isCollapsed"
@@ -731,7 +731,7 @@
           <SidebarMenuGroupFlyout
             v-if="
               showFinanceMenus &&
-              (isSysAdmin || identityType !== 6) &&
+              (isSysAdmin || hasBizDataBypass || identityType !== 6) &&
               hasPermission('finance-accumulated.read')
             "
             :collapsed="isCollapsed"
@@ -2592,10 +2592,12 @@ const handleUnimplemented = (name: string) => {
 const hasPermission = (code: string) => authStore.hasPermission(code)
 const identityType = computed(() => authStore.user?.identityType ?? 0)
 const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
+/** SuperAdmin / Admin / Manager：业务侧栏不受主部门身份藏菜单 */
+const hasBizDataBypass = computed(() => authStore.user?.hasBizDataBypass === true)
 
 /** 客户板块：采购(2)、采购助理(3)、物流(6) 不显示；主部门勾选「隐藏客户管理」时不显示 */
 const showCustomerMenuSection = computed(() => {
-  if (isSysAdmin.value) return true
+  if (isSysAdmin.value || hasBizDataBypass.value) return true
   if (authStore.isCustomerManagementHidden()) return false
   const t = identityType.value
   return t !== 2 && t !== 3 && t !== 6
@@ -2603,7 +2605,7 @@ const showCustomerMenuSection = computed(() => {
 
 /** 供应商板块：销售(1)、物流(6) 不显示；主部门勾选「隐藏供应商管理」时不显示 */
 const showVendorMenuSection = computed(() => {
-  if (isSysAdmin.value) return true
+  if (isSysAdmin.value || hasBizDataBypass.value) return true
   if (authStore.isVendorManagementHidden()) return false
   const t = identityType.value
   return t !== 1 && t !== 6
@@ -2611,7 +2613,7 @@ const showVendorMenuSection = computed(() => {
 
 /** 采购管理：采购员看 PR/PO；业务员有销售订单权限即显示（内仅采购申请，PO 子项仍靠 purchase-order.read） */
 const showPurchaseNavGroup = computed(() => {
-  if (isSysAdmin.value) return true
+  if (isSysAdmin.value || hasBizDataBypass.value) return true
   const pr =
     hasPermission('purchase-requisition.read') || hasPermission('purchase-requisition.write')
   const po = hasPermission('purchase-order.read')
@@ -2625,27 +2627,27 @@ const showPurchaseNavGroup = computed(() => {
 
 /** 入库/库存/出库/报关：主部门 LogisticsDataScope=4 时整组隐藏 */
 const showLogisticsMenus = computed(() => {
-  if (isSysAdmin.value) return true
+  if (isSysAdmin.value || hasBizDataBypass.value) return true
   return (authStore.user?.logisticsDataScope ?? 0) !== 4
 })
 
 /** 付款管理/收款管理：主部门 FinanceDataScope=4 时整组隐藏 */
 const showFinanceMenus = computed(() => {
-  if (isSysAdmin.value) return true
+  if (isSysAdmin.value || hasBizDataBypass.value) return true
   return (authStore.user?.financeDataScope ?? 0) !== 4
 })
 
 /** 出库管理：采购侧部门（belongsToPurchaseDept）隐藏 */
 const showStockOutMenus = computed(() => {
   if (!showLogisticsMenus.value) return false
-  if (isSysAdmin.value) return true
+  if (isSysAdmin.value || hasBizDataBypass.value) return true
   return authStore.user?.belongsToPurchaseDept !== true
 })
 
 /** 报关板块：仅系统管理员、财务部(IdentityType=5)、物流部(IdentityType=6) */
 const showCustomsMenus = computed(() =>
   canAccessCustomsModule({
-    isSysAdmin: isSysAdmin.value,
+    isSysAdmin: isSysAdmin.value || hasBizDataBypass.value,
     identityType: identityType.value
   })
 )

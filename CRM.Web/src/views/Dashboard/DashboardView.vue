@@ -1,6 +1,59 @@
 <template>
   <!-- 控制台内容区域（外层布局由 AppLayout.vue 提供，此处不含侧边菜单和顶部栏） -->
   <div class="dashboard-content">
+    <!-- 欢迎卡片（置顶） -->
+    <div class="welcome-card">
+      <div class="welcome-left">
+        <h2 class="welcome-title">
+          {{ t('dashboard.welcomeBack', { name: authStore.user?.userName || t('dashboard.fallbackName') }) }}
+        </h2>
+        <p class="welcome-sub">
+          {{ isPurchasePrimary ? t('dashboard.welcomeSubPurchase') : t('dashboard.welcomeSub') }}
+        </p>
+      </div>
+      <div class="welcome-right">
+        <div class="quick-links">
+          <router-link v-if="canUseCustomerUi" to="/custome" class="quick-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+            {{ t('dashboard.quickCustomerManagement') }}
+          </router-link>
+          <router-link v-if="canCreateCustomer" to="/customers/create" class="quick-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            {{ t('dashboard.quickNewCustomer') }}
+          </router-link>
+          <router-link v-if="canUseVendorUi" to="/vendorlist" class="quick-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+              <path d="M9 22V12h6v10" />
+            </svg>
+            {{ t('dashboard.quickVendorManagement') }}
+          </router-link>
+          <router-link v-if="canCreateVendor" to="/vendors/create" class="quick-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            {{ t('dashboard.quickNewVendor') }}
+          </router-link>
+          <router-link to="/dashboard/settings" class="quick-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <circle cx="12" cy="12" r="3" />
+              <path
+                d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"
+              />
+            </svg>
+            {{ t('dashboard.quickSystemSettings') }}
+          </router-link>
+        </div>
+      </div>
+    </div>
+
     <!-- 采购主部门：供应商统计 -->
     <div v-if="showPurchaseStats" class="stats-grid">
       <div class="stat-card">
@@ -119,59 +172,6 @@
         <div class="stat-info">
           <span class="stat-label">{{ t('dashboard.stats.pendingTasks') }}</span>
           <span class="stat-value">{{ stats.pendingTasks }}</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- 欢迎卡片 -->
-    <div class="welcome-card">
-      <div class="welcome-left">
-        <h2 class="welcome-title">
-          {{ t('dashboard.welcomeBack', { name: authStore.user?.userName || t('dashboard.fallbackName') }) }}
-        </h2>
-        <p class="welcome-sub">
-          {{ isPurchasePrimary ? t('dashboard.welcomeSubPurchase') : t('dashboard.welcomeSub') }}
-        </p>
-      </div>
-      <div class="welcome-right">
-        <div class="quick-links">
-          <router-link v-if="canUseCustomerUi" to="/custome" class="quick-link">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-              <circle cx="12" cy="7" r="4" />
-            </svg>
-            {{ t('dashboard.quickCustomerManagement') }}
-          </router-link>
-          <router-link v-if="canCreateCustomer" to="/customers/create" class="quick-link">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            {{ t('dashboard.quickNewCustomer') }}
-          </router-link>
-          <router-link v-if="canUseVendorUi" to="/vendorlist" class="quick-link">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-              <path d="M9 22V12h6v10" />
-            </svg>
-            {{ t('dashboard.quickVendorManagement') }}
-          </router-link>
-          <router-link v-if="canCreateVendor" to="/vendors/create" class="quick-link">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            {{ t('dashboard.quickNewVendor') }}
-          </router-link>
-          <router-link to="/dashboard/settings" class="quick-link">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <circle cx="12" cy="12" r="3" />
-              <path
-                d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"
-              />
-            </svg>
-            {{ t('dashboard.quickSystemSettings') }}
-          </router-link>
         </div>
       </div>
     </div>

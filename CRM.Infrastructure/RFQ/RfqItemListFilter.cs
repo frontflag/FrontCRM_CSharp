@@ -1,5 +1,6 @@
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Analytics;
 using CRM.Core.Models.RFQ;
 using CRM.Core.Utilities;
 using CRM.Infrastructure.Data;
@@ -230,6 +231,55 @@ internal static partial class RfqItemListFilter
         }
 
         q = ApplyQuickFilter(db, q, request.QuickFilter);
+
+        // 报表透镜 + 排除主单已取消
+        if (RfqItemAnalyticsDatasets.IsReportScope(request.AnalyticsDataset))
+        {
+            q = ApplyReportNotCancelled(q);
+            q = ApplyReportViewLens(db, q, request);
+        }
+
+        return q;
+    }
+
+    /// <summary>报表硬过滤：排除主单已取消。</summary>
+    public static IQueryable<RfqItemListJoin> ApplyReportNotCancelled(IQueryable<RfqItemListJoin> q) =>
+        q.Where(x => x.Rfq.Status != (short)RfqMainStatus.Cancelled);
+
+    private static IQueryable<RfqItemListJoin> ApplyReportViewLens(
+        ApplicationDbContext db,
+        IQueryable<RfqItemListJoin> q,
+        RFQItemQueryRequest request)
+    {
+        var viewLevel = (request.AnalyticsViewLevel ?? string.Empty).Trim().ToLowerInvariant();
+        if (viewLevel == SalesAnalyticsViewLevels.Personal
+            && !string.IsNullOrWhiteSpace(request.SalesUserId))
+        {
+            var uid = request.SalesUserId.Trim();
+            return q.Where(x => x.Rfq.SalesUserId == uid);
+        }
+
+        if (viewLevel == SalesAnalyticsViewLevels.Department)
+        {
+            var deptId = request.AnalyticsDepartmentId?.Trim();
+            if (string.IsNullOrWhiteSpace(deptId))
+                return q;
+
+            if (string.Equals(deptId, SalesAnalyticsScopeValidator.UnassignedDepartmentId, StringComparison.OrdinalIgnoreCase))
+            {
+                var withPrimary = db.RbacUserDepartments.AsNoTracking()
+                    .Where(ud => ud.IsPrimary)
+                    .Select(ud => ud.UserId);
+                return q.Where(x =>
+                    x.Rfq.SalesUserId == null
+                    || !withPrimary.Contains(x.Rfq.SalesUserId));
+            }
+
+            var userIdsInDept = db.RbacUserDepartments.AsNoTracking()
+                .Where(ud => ud.IsPrimary && ud.DepartmentId == deptId)
+                .Select(ud => ud.UserId);
+            return q.Where(x => x.Rfq.SalesUserId != null && userIdsInDept.Contains(x.Rfq.SalesUserId));
+        }
 
         return q;
     }

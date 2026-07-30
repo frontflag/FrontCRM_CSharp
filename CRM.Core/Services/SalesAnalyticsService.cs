@@ -118,6 +118,11 @@ public sealed class SalesAnalyticsService : ISalesAnalyticsService
         CancellationToken cancellationToken = default) =>
         _query.GetBreakdownsAsync(scope, cancellationToken);
 
+    public Task<SalesAnalyticsCustomerDto> GetCustomerAsync(
+        SalesAnalyticsResolvedScope scope,
+        CancellationToken cancellationToken = default) =>
+        _query.GetCustomerAsync(scope, cancellationToken);
+
     private static string NormalizeGroupBy(string? groupBy) =>
         groupBy?.Trim().ToLowerInvariant() switch
         {

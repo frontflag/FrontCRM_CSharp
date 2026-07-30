@@ -247,6 +247,14 @@ export const useAuthStore = defineStore('auth', () => {
     if (!permissionCode) return true
     if (!user.value) return false
     if (user.value.isSysAdmin) return true
+    // Admin / Manager：业务权限与 SuperAdmin 对齐；system.* / AI 配置仍看权限码（见 canAccessSystemPermission）
+    if (user.value.hasBizDataBypass) {
+      const isSystemMenu =
+        permissionCode.startsWith('system.') ||
+        permissionCode === 'rbac.manage' ||
+        permissionCode === 'biz.ai.admin'
+      if (!isSystemMenu) return true
+    }
     const codes = user.value.permissionCodes || []
     if (codes.includes(permissionCode)) return true
     // 遗留 rbac.manage 可访问 system.*
@@ -305,37 +313,37 @@ export const useAuthStore = defineStore('auth', () => {
 
   /** 主部门采购数据只读 */
   function isPurchaseDataReadOnly(): boolean {
-    return !user.value?.isSysAdmin && (user.value?.purchaseDataAccess ?? 0) === 1
+    return !user.value?.hasBizDataBypass && !user.value?.isSysAdmin && (user.value?.purchaseDataAccess ?? 0) === 1
   }
 
   /** 主部门物流数据范围禁止（隐藏入库/出库/库存/报关菜单） */
   function isLogisticsDataForbidden(): boolean {
-    return !user.value?.isSysAdmin && (user.value?.logisticsDataScope ?? 0) === 4
+    return !user.value?.hasBizDataBypass && !user.value?.isSysAdmin && (user.value?.logisticsDataScope ?? 0) === 4
   }
 
   /** 主部门物流数据只读 */
   function isLogisticsDataReadOnly(): boolean {
-    return !user.value?.isSysAdmin && (user.value?.logisticsDataAccess ?? 0) === 1
+    return !user.value?.hasBizDataBypass && !user.value?.isSysAdmin && (user.value?.logisticsDataAccess ?? 0) === 1
   }
 
   /** 主部门财务数据范围禁止（隐藏付款管理/收款管理菜单） */
   function isFinanceDataForbidden(): boolean {
-    return !user.value?.isSysAdmin && (user.value?.financeDataScope ?? 0) === 4
+    return !user.value?.hasBizDataBypass && !user.value?.isSysAdmin && (user.value?.financeDataScope ?? 0) === 4
   }
 
   /** 主部门财务数据只读 */
   function isFinanceDataReadOnly(): boolean {
-    return !user.value?.isSysAdmin && (user.value?.financeDataAccess ?? 0) === 1
+    return !user.value?.hasBizDataBypass && !user.value?.isSysAdmin && (user.value?.financeDataAccess ?? 0) === 1
   }
 
   /** 主部门隐藏客户管理（与 saleDataScope 独立） */
   function isCustomerManagementHidden(): boolean {
-    return !user.value?.isSysAdmin && user.value?.hideCustomerManagement === true
+    return !user.value?.hasBizDataBypass && !user.value?.isSysAdmin && user.value?.hideCustomerManagement === true
   }
 
   /** 主部门隐藏供应商管理（与 purchaseDataScope 独立） */
   function isVendorManagementHidden(): boolean {
-    return !user.value?.isSysAdmin && user.value?.hideVendorManagement === true
+    return !user.value?.hasBizDataBypass && !user.value?.isSysAdmin && user.value?.hideVendorManagement === true
   }
 
   /**
@@ -343,7 +351,7 @@ export const useAuthStore = defineStore('auth', () => {
    * IdentityType: 0 None, 1 Sales, 2 Purchaser, 3 PurchaseAssistant, 4 CustService, 5 Finance, 6 Logistics
    */
   function isIdentityBlockedForPermission(permissionCode: string): boolean {
-    if (!user.value || user.value.isSysAdmin) return false
+    if (!user.value || user.value.isSysAdmin || user.value.hasBizDataBypass) return false
     const t = user.value.identityType ?? 0
     if (permissionCode.startsWith('customer.')) {
       return t === 2 || t === 3 || t === 6

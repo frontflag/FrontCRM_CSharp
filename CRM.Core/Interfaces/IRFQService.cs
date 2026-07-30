@@ -236,6 +236,15 @@ namespace CRM.Core.Interfaces
         public string? RfqCode { get; set; }
         public string? CurrentUserId { get; set; }
 
+        /// <summary>
+        /// 分析数据集：<c>listFilter</c>（默认，跟列表筛选）或 <c>reportScope</c>（报表范围，排除主单已取消）。
+        /// </summary>
+        public string? AnalyticsDataset { get; set; }
+        /// <summary>报表透镜：company / department / personal（仅 reportScope）。</summary>
+        public string? AnalyticsViewLevel { get; set; }
+        /// <summary>报表部门透镜主键（仅 department）。</summary>
+        public string? AnalyticsDepartmentId { get; set; }
+
         /// <summary>具备 customer.info.read 等时由服务层置为 true；否则物料型号筛选不包含客户物料号。</summary>
         public bool CanViewCustomerInList { get; set; } = true;
     }

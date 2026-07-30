@@ -871,6 +871,156 @@ const enUS = {
       department: 'Department',
       personal: 'Personal'
     },
+    contentTabs: {
+      overview: 'Overview',
+      customer: 'Customers',
+      rfq: 'RFQ',
+      order: 'Orders'
+    },
+    customerTab: {
+      hint: 'Approved customers match Overview “Sales customers” (distinct in period). Repeat customer = ≥2 approved orders. Click a ranking row to open the order list.',
+      loadFailed: 'Failed to load customer analytics',
+      sections: {
+        kpi: 'Customer overview'
+      },
+      kpi: {
+        approvedCustomers: 'Approved customers',
+        repeatCustomers: 'Repeat customers'
+      },
+      breakdown: {
+        customerType: 'Customer type',
+        customerLevel: 'Customer level',
+        customerIndustry: 'Customer industry',
+        byCount: 'by order count'
+      },
+      rankings: {
+        byAmount: 'Customer Top10 (amount)',
+        byOrderCount: 'Customer Top10 (orders)',
+        byRepeat: 'Customer Top10 (repeat orders)',
+        repeatOrders: 'Repeat orders'
+      }
+    },
+    orderTab: {
+      datasetTag: 'Approved',
+      hint: 'Same implementation as the sales-order-items board; scope = company/department/personal + date range + approved (order ≥ approved and line active).',
+      refresh: 'Refresh',
+      loadFailed: 'Failed to load order analytics',
+      groupBy: { day: 'Daily', week: 'Weekly', month: 'Monthly' },
+      sections: {
+        orderKpi: 'Approved overview',
+        profitKpi: 'Profit',
+        inStockKpi: 'In stock',
+        receivableKpi: 'Receivables',
+        trendOrders: 'Approved order trend',
+        trendLines: 'Approved line trend',
+        trendAmount: 'Approved line amount trend (USD)'
+      },
+      kpi: {
+        approvedCustomers: 'Approved customers',
+        approvedOrders: 'Approved orders',
+        approvedLines: 'Approved lines',
+        approvedAmount: 'Approved amount',
+        usdCaption: 'USD equivalent',
+        originalCaption: 'Original currency',
+        purchaseProfit: 'Purchase profit',
+        outboundProfit: 'Outbound profit',
+        inStockCustomers: 'In-stock customers',
+        inStockLines: 'In-stock lines',
+        inStockAmount: 'In-stock amount (USD)',
+        maxStockAge: 'Max stock age (days)',
+        receivableCustomers: 'Receivable customers',
+        receivableLines: 'Receivable lines',
+        receivableAmount: 'Receivable amount',
+        maxReceivableAge: 'Max receivable age (days)'
+      },
+      trendUnit: {
+        orders: 'orders',
+        lines: 'lines',
+        moneyCaption: 'Amount in USD (convert_price)'
+      },
+      breakdown: {
+        itemStatus: 'Line status',
+        purchaseProgress: 'Purchase progress (approved)',
+        stockInProgress: 'Inbound progress (approved)',
+        stockOutNotifyProgress: 'Outbound notify progress (approved)',
+        receiptProgress: 'Receipt progress (approved)',
+        invoiceProgress: 'Invoice progress (approved)',
+        currency: 'Currency mix (approved)',
+        brandQty: 'Brand qty (approved)',
+        brandAmount: 'Brand amount (approved USD)',
+        dateCode: 'Date code / DC (approved)',
+        salesUser: 'Sales rep (approved USD)',
+        byCount: 'by line count'
+      },
+      itemStatus: {
+        normal: 'Active',
+        cancelled: 'Cancelled'
+      },
+      rankings: {
+        metricMode: 'Ranking metric',
+        customerByAmount: 'Top 10 customers (amount)',
+        pnByAmount: 'Top 10 MPN (amount)',
+        pnByQty: 'Top 10 MPN (qty)',
+        brandByAmount: 'Top 10 brands (amount)',
+        brandByQty: 'Top 10 brands (qty)',
+        salesUserByAmount: 'Top 10 sales reps (amount)',
+        name: 'Name',
+        lineCount: 'Lines',
+        qty: 'Qty',
+        amount: 'Amount (USD)'
+      }
+    },
+    rfqTab: {
+      datasetTag: 'Report',
+      hint: 'Same implementation as the rfq-items board; scope = company/department/personal + date range (RFQ create date) + exclude cancelled RFQs.',
+      refresh: 'Refresh',
+      loadFailed: 'Failed to load RFQ analytics',
+      groupBy: { day: 'Daily', week: 'Weekly', month: 'Monthly' },
+      sections: {
+        kpi: 'RFQ overview',
+        trendCustomers: 'Published customers trend',
+        trendRfqs: 'RFQ count trend',
+        trendItems: 'RFQ line trend'
+      },
+      kpi: {
+        publishedCustomers: 'Published customers',
+        repeatCustomers: 'Repeat-inquiry customers',
+        repeatRfqs: 'Repeat RFQs',
+        rfqCount: 'RFQs',
+        rfqItemCount: 'RFQ lines',
+        convertedLines: 'Converted lines',
+        conversionRate: 'RFQ conversion rate'
+      },
+      trendUnit: {
+        customers: 'customers',
+        rfqs: 'RFQs',
+        items: 'lines'
+      },
+      breakdown: {
+        rfqStatus: 'RFQ status',
+        rfqType: 'RFQ type',
+        targetType: 'Target type',
+        industry: 'Industry',
+        currency: 'Currency',
+        brand: 'Brand mix',
+        assignedPurchaser: 'Assigned purchaser',
+        quoteDistribution: 'Quote distribution',
+        unassignedPurchaser: 'Unassigned purchaser',
+        unset: 'Unset',
+        other: 'Other'
+      },
+      rankings: {
+        customerByLineCount: 'Customer Top10 (lines)',
+        salesUserByLineCount: 'Sales rep Top10 (lines)',
+        mpnByLineCount: 'MPN Top10 (lines)',
+        mpnByQty: 'MPN Top10 (qty)',
+        brandByLineCount: 'Brand Top10 (lines)',
+        brandByQty: 'Brand Top10 (qty)',
+        name: 'Name',
+        lineCount: 'Lines',
+        qty: 'Qty'
+      }
+    },
     dateFrom: 'From',
     dateTo: 'To',
     refresh: 'Query',
@@ -2464,7 +2614,8 @@ const enUS = {
       }
     },
     board: {
-      hint: 'Stats match current filters; converted lines use approved+ sales orders linked via quotes; conversion rate excludes no-quote-found lines.',
+      datasetTag: 'Filter',
+      hint: 'Stats match the current search filters (no extra hard filter). Converted lines still use approved+ sales orders; conversion rate excludes no-quote-found lines.',
       refresh: 'Refresh',
       loadFailed: 'Failed to load board data',
       groupBy: { day: 'Daily', week: 'Weekly', month: 'Monthly' },
@@ -4216,21 +4367,21 @@ const enUS = {
       listView: 'List'
     },
     board: {
-      hint: 'Stats follow current list filters; approved orders only.',
+      hint: 'Stats match the search filters exactly (including status; cancelled orders count toward amount when included).',
       refresh: 'Refresh',
       loadFailed: 'Failed to load board data',
       groupBy: { day: 'Daily', week: 'Weekly', month: 'Monthly' },
       sections: {
-        kpi: 'Approved overview',
-        trendOrders: 'Approved order trend',
-        trendAmount: 'Approved amount trend (USD)'
+        kpi: 'Order overview',
+        trendOrders: 'Order count trend',
+        trendAmount: 'Order amount trend (USD)'
       },
       kpi: {
-        approvedCustomers: 'Approved customers',
+        approvedCustomers: 'Customers',
         repeatCustomers: 'Repeat customers',
-        approvedOrders: 'Approved orders',
+        approvedOrders: 'Orders',
         repeatOrders: 'Repeat orders',
-        approvedAmount: 'Approved amount',
+        approvedAmount: 'Order amount',
         usdCaption: 'USD equivalent',
         originalCaption: 'Original currency'
       },
@@ -4240,11 +4391,11 @@ const enUS = {
       },
       breakdown: {
         orderStatus: 'Order status',
-        currency: 'Currency mix (approved)',
-        customerType: 'Customer type (approved USD)',
-        customerLevel: 'Customer level (approved USD)',
-        customerIndustry: 'Customer industry (approved USD)',
-        salesUser: 'Sales rep (approved USD)',
+        currency: 'Currency mix',
+        customerType: 'Customer type (USD)',
+        customerLevel: 'Customer level (USD)',
+        customerIndustry: 'Customer industry (USD)',
+        salesUser: 'Sales rep (USD)',
         byCount: 'by order count'
       },
       rankings: {
@@ -4493,24 +4644,25 @@ const enUS = {
       }
     },
     board: {
-      hint: 'Stats match current filters; approved lines are order status ≥ approved and line not cancelled.',
+      datasetTag: 'Filter',
+      hint: 'Stats match the current search filters (includes cancelled lines; no approved-only constraint). Amount masking follows list rules.',
       refresh: 'Refresh',
       loadFailed: 'Failed to load board data',
       groupBy: { day: 'Daily', week: 'Weekly', month: 'Monthly' },
       sections: {
-        orderKpi: 'Approved overview',
+        orderKpi: 'Order overview',
         profitKpi: 'Profit',
         inStockKpi: 'In stock',
         receivableKpi: 'Receivables',
-        trendOrders: 'Approved order trend',
-        trendLines: 'Approved line trend',
-        trendAmount: 'Approved line amount trend (USD)'
+        trendOrders: 'Order trend',
+        trendLines: 'Line trend',
+        trendAmount: 'Line amount trend (USD)'
       },
       kpi: {
-        approvedCustomers: 'Approved customers',
-        approvedOrders: 'Approved orders',
-        approvedLines: 'Approved lines',
-        approvedAmount: 'Approved amount',
+        approvedCustomers: 'Customers',
+        approvedOrders: 'Orders',
+        approvedLines: 'Lines',
+        approvedAmount: 'Amount',
         usdCaption: 'USD equivalent',
         originalCaption: 'Original currency',
         purchaseProfit: 'Purchase profit',
@@ -4531,16 +4683,16 @@ const enUS = {
       },
       breakdown: {
         itemStatus: 'Line status',
-        purchaseProgress: 'Purchase progress (approved)',
-        stockInProgress: 'Inbound progress (approved)',
-        stockOutNotifyProgress: 'Outbound notify progress (approved)',
-        receiptProgress: 'Receipt progress (approved)',
-        invoiceProgress: 'Invoice progress (approved)',
-        currency: 'Currency mix (approved)',
-        brandQty: 'Brand qty (approved)',
-        brandAmount: 'Brand amount (approved USD)',
-        dateCode: 'Date code / DC (approved)',
-        salesUser: 'Sales rep (approved USD)',
+        purchaseProgress: 'Purchase progress',
+        stockInProgress: 'Inbound progress',
+        stockOutNotifyProgress: 'Outbound notify progress',
+        receiptProgress: 'Receipt progress',
+        invoiceProgress: 'Invoice progress',
+        currency: 'Currency mix',
+        brandQty: 'Brand qty',
+        brandAmount: 'Brand amount (USD)',
+        dateCode: 'Date code / DC',
+        salesUser: 'Sales rep (USD)',
         byCount: 'by line count'
       },
       itemStatus: {

@@ -18,7 +18,7 @@ internal static class PurchaseOrderCreateGate
     public static bool CanCreate(UserPermissionSummaryDto summary)
     {
         ArgumentNullException.ThrowIfNull(summary);
-        if (summary.IsSysAdmin) return true;
+        if (summary.IsSysAdmin || summary.HasBizDataBypass) return true;
         var codes = summary.PermissionCodes;
         if (codes == null || codes.Count == 0) return false;
         if (Has(codes, "purchase-order.write")) return true;

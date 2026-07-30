@@ -20,34 +20,6 @@
       </div>
     </div>
 
-    <!-- 统计卡片（列表模式） -->
-    <el-row v-if="viewMode === 'list'" :gutter="20" class="stat-row">
-      <el-col :span="6">
-        <el-card class="stat-card">
-          <div class="stat-value">{{ statTotal }}</div>
-          <div class="stat-label">{{ t('salesOrderList.stats.total') }}</div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card class="stat-card stat-warning">
-          <div class="stat-value">{{ statPending }}</div>
-          <div class="stat-label">{{ t('salesOrderList.stats.pending') }}</div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card class="stat-card stat-success">
-          <div class="stat-value">{{ statApproved }}</div>
-          <div class="stat-label">{{ t('salesOrderList.stats.approvedPlus') }}</div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card class="stat-card stat-info">
-          <div class="stat-value">{{ maskSaleSensitiveFields ? '—' : canViewSalesAmount ? `$${statAmount.toLocaleString()}` : '--' }}</div>
-          <div class="stat-label">{{ t('salesOrderList.stats.totalAmount') }}</div>
-        </el-card>
-      </el-col>
-    </el-row>
-
     <!-- 搜索栏：状态 → 订单号 → 客户 → 业务员 → 备注 → 创建日期 -->
     <div class="search-bar">
       <div class="search-left">
@@ -461,15 +433,6 @@ const salesOrderTableColumns = computed((): CrmTableColumnDef[] => {
 })
 
 // 对话框控制
-/** 与当前筛选条件一致的全量汇总（来自后端 aggregates，非仅当前页） */
-const listAggregates = ref({
-  totalCount: 0,
-  pendingCount: 0,
-  approvedPlusCount: 0,
-  totalAmountSum: 0
-})
-
-const statTotal = computed(() => listAggregates.value.totalCount)
 const statusFilterOptions = computed(() => {
   void locale.value
   return [
@@ -482,10 +445,6 @@ const statusFilterOptions = computed(() => {
     { label: t('salesOrderList.status.cancelled'), value: -2 }
   ]
 })
-
-const statPending = computed(() => listAggregates.value.pendingCount)
-const statApproved = computed(() => listAggregates.value.approvedPlusCount)
-const statAmount = computed(() => listAggregates.value.totalAmountSum)
 
 const boardFilters = computed((): SalesOrderListAnalyticsQuery => {
   const q: SalesOrderListAnalyticsQuery = {}
@@ -572,12 +531,6 @@ const loadData = async () => {
       total?: number
       page?: number
       pageSize?: number
-      aggregates?: {
-        totalCount?: number
-        pendingCount?: number
-        approvedPlusCount?: number
-        totalAmountSum?: number | null
-      }
     }
     const items = res.items ?? []
     const nTotal = res.total ?? 0
@@ -590,17 +543,6 @@ const loadData = async () => {
     pageInfo.value.total = nTotal
     if (typeof res.page === 'number' && res.page >= 1) pageInfo.value.page = res.page
     if (typeof res.pageSize === 'number' && res.pageSize >= 1) pageInfo.value.pageSize = res.pageSize
-    const agg = res.aggregates
-    if (agg) {
-      listAggregates.value = {
-        totalCount: agg.totalCount ?? 0,
-        pendingCount: agg.pendingCount ?? 0,
-        approvedPlusCount: agg.approvedPlusCount ?? 0,
-        totalAmountSum: agg.totalAmountSum != null && Number.isFinite(Number(agg.totalAmountSum)) ? Number(agg.totalAmountSum) : 0
-      }
-    } else {
-      listAggregates.value = { totalCount: nTotal, pendingCount: 0, approvedPlusCount: 0, totalAmountSum: 0 }
-    }
     syncTableCurrentRowFromPage()
   } catch (error) {
     ElMessage.error(t('salesOrderList.loadFailed'))
@@ -792,38 +734,6 @@ const submitForAudit = async (row: any) => {
 
 .table-wrapper {
   min-height: 120px;
-}
-
-.stat-row {
-  margin-bottom: 20px;
-}
-
-.stat-card {
-  text-align: center;
-  background: $layer-3;
-  border: 1px solid $border-card;
-  :deep(.el-card__body) {
-    padding: 15px;
-  }
-  .stat-value {
-    font-size: 24px;
-    font-weight: bold;
-    color: $cyan-primary;
-    margin-bottom: 5px;
-  }
-  .stat-label {
-    font-size: 14px;
-    color: $text-muted;
-  }
-  &.stat-warning .stat-value {
-    color: $warning-color;
-  }
-  &.stat-success .stat-value {
-    color: $success-color;
-  }
-  &.stat-info .stat-value {
-    color: $info-color;
-  }
 }
 
 // ---- 搜索栏（与 CustomerList 一致）----

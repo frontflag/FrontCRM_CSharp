@@ -18,6 +18,8 @@ export interface RfqItemListAnalyticsQuery {
   status?: number
   rfqCode?: string
   groupBy?: 'day' | 'week' | 'month'
+  /** listFilter=跟列表筛选；reportScope=报表范围（排除主单已取消） */
+  dataset?: 'listFilter' | 'reportScope'
 }
 
 export interface RfqItemListAnalyticsRankingRow {
@@ -52,6 +54,7 @@ function buildParams(q: RfqItemListAnalyticsQuery): Record<string, string | numb
   if (q.status !== undefined && q.status !== null) p.status = q.status
   if (q.rfqCode) p.rfqCode = q.rfqCode
   if (q.groupBy) p.groupBy = q.groupBy
+  if (q.dataset) p.dataset = q.dataset
   return p
 }
 

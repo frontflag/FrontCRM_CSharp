@@ -6,25 +6,28 @@ public sealed class SalesOrderListAnalyticsContextDto
     public bool MaskAmounts { get; set; }
 }
 
-/// <summary>列表看板 KPI 快照（成单口径：status >= 审核通过）。</summary>
+/// <summary>
+/// 列表看板 KPI 快照。
+/// 订单集合 = 搜索栏筛选结果（不再强制 status≥审核通过）；字段名 Approved* 为历史命名。
+/// </summary>
 public sealed class SalesOrderListAnalyticsSnapshotDto
 {
-    /// <summary>成单客户数（去重）。</summary>
+    /// <summary>筛选结果客户数（去重）。</summary>
     public int ApprovedCustomerCount { get; set; }
 
-    /// <summary>复购客户数（成单数 ≥ 2 的客户）。</summary>
+    /// <summary>复购客户数（筛选结果中订单数 ≥ 2 的客户）。</summary>
     public int RepeatCustomerCount { get; set; }
 
-    /// <summary>成单订单数。</summary>
+    /// <summary>筛选结果订单数。</summary>
     public int ApprovedOrderCount { get; set; }
 
-    /// <summary>复购订单数：Σ max(0, 该客户成单数 - 1)。</summary>
+    /// <summary>复购订单数：Σ max(0, 该客户订单数 - 1)。</summary>
     public int RepeatOrderCount { get; set; }
 
-    /// <summary>成单金额（USD，convert_total 合计）。</summary>
+    /// <summary>筛选结果金额（USD，convert_total 合计）。</summary>
     public decimal? ApprovedAmountUsd { get; set; }
 
-    /// <summary>成单原币金额分档（按订单头 currency + total）。</summary>
+    /// <summary>原币金额分档（按订单头 currency + total）。</summary>
     public IReadOnlyList<SalesOrderListAnalyticsCurrencyLineDto> CurrencyLines { get; set; } =
         Array.Empty<SalesOrderListAnalyticsCurrencyLineDto>();
 }

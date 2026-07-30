@@ -19,19 +19,19 @@ public sealed partial class SalesOrderItemLineListQuery
         bool maskAmounts,
         CancellationToken cancellationToken = default)
     {
-        var approvedRows = await LoadApprovedLineRowsAsync(request, cancellationToken);
-        var inStock = await LoadInStockMetricsAsync(request, approvedRows, cancellationToken);
+        var metricRows = await LoadMetricLineRowsAsync(request, cancellationToken);
+        var inStock = await LoadInStockMetricsAsync(request, metricRows, cancellationToken);
         var outboundDates = await LoadEarliestOutboundDatesAsync(
-            approvedRows.Where(r => r.ReceiptAmountNot > 0m).Select(r => r.ItemId).ToList(),
+            metricRows.Where(r => r.ReceiptAmountNot > 0m).Select(r => r.ItemId).ToList(),
             cancellationToken);
 
         var today = DateTime.UtcNow.Date;
-        var receivableLines = approvedRows
+        var receivableLines = metricRows
             .Where(r => r.ReceiptAmountNot > 0m && outboundDates.ContainsKey(r.ItemId))
             .ToList();
 
         var currencyLines = BuildCurrencyLines(
-            approvedRows,
+            metricRows,
             r => CalcUsdLineTotal(r),
             maskAmounts);
 
@@ -58,20 +58,20 @@ public sealed partial class SalesOrderItemLineListQuery
             Context = new SalesOrderItemListAnalyticsContextDto { MaskAmounts = maskAmounts },
             Snapshot = new SalesOrderItemListAnalyticsSnapshotDto
             {
-                ApprovedCustomerCount = approvedRows
+                ApprovedCustomerCount = metricRows
                     .Where(r => !string.IsNullOrWhiteSpace(r.CustomerId))
                     .Select(r => r.CustomerId!)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .Count(),
-                ApprovedOrderCount = approvedRows
+                ApprovedOrderCount = metricRows
                     .Select(r => r.OrderId)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .Count(),
-                ApprovedLineCount = approvedRows.Count,
-                ApprovedAmountUsd = maskAmounts ? null : approvedRows.Sum(r => CalcUsdLineTotal(r) ?? 0m),
+                ApprovedLineCount = metricRows.Count,
+                ApprovedAmountUsd = maskAmounts ? null : metricRows.Sum(r => CalcUsdLineTotal(r) ?? 0m),
                 CurrencyLines = currencyLines,
-                PurchaseProfitUsd = maskAmounts ? null : approvedRows.Sum(r => r.SalesProfitExpected),
-                OutboundProfitUsd = maskAmounts ? null : approvedRows.Sum(r => r.ProfitOutBizUsd),
+                PurchaseProfitUsd = maskAmounts ? null : metricRows.Sum(r => r.SalesProfitExpected),
+                OutboundProfitUsd = maskAmounts ? null : metricRows.Sum(r => r.ProfitOutBizUsd),
                 InStockCustomerCount = inStock.CustomerCount,
                 InStockLineCount = inStock.LineCount,
                 InStockAmountUsd = maskAmounts ? null : inStock.AmountUsd,
@@ -96,7 +96,7 @@ public sealed partial class SalesOrderItemLineListQuery
         bool maskAmounts,
         CancellationToken cancellationToken = default)
     {
-        var rows = await LoadApprovedLineRowsAsync(request, cancellationToken);
+        var rows = await LoadMetricLineRowsAsync(request, cancellationToken);
         if (rows.Count == 0)
             return Array.Empty<SalesOrderItemListAnalyticsTrendPointDto>();
 
@@ -131,7 +131,10 @@ public sealed partial class SalesOrderItemLineListQuery
         CancellationToken cancellationToken = default)
     {
         var allRows = await LoadAllLineRowsAsync(request, cancellationToken);
-        var approvedRows = allRows.Where(IsApprovedRow).ToList();
+        // listFilter：全部图表跟筛选结果；reportApproved：成单集合（与 KPI 一致）
+        var metricRows = SalesOrderItemAnalyticsDatasets.IsReportApproved(request.AnalyticsDataset)
+            ? allRows.Where(IsApprovedRow).ToList()
+            : allRows;
 
         var statusItems = allRows
             .GroupBy(r => r.ItemStatus)
@@ -145,21 +148,37 @@ public sealed partial class SalesOrderItemLineListQuery
             .ToList();
         ApplyRatios(statusItems);
 
+        // report 模式下 itemStatus 也只用成单集合，避免与其它图口径不一致
+        if (SalesOrderItemAnalyticsDatasets.IsReportApproved(request.AnalyticsDataset))
+        {
+            statusItems = metricRows
+                .GroupBy(r => r.ItemStatus)
+                .Select(g => new SalesAnalyticsBreakdownItemDto
+                {
+                    Key = g.Key.ToString(),
+                    Label = FormatItemStatus(g.Key),
+                    Value = maskAmounts ? g.Count() : g.Sum(r => CalcUsdLineTotal(r) ?? 0m),
+                    Ratio = 0
+                })
+                .ToList();
+            ApplyRatios(statusItems);
+        }
+
         var currencyItems = BuildBreakdownFromRows(
-            approvedRows,
+            metricRows,
             r => r.Currency.ToString(),
             r => ((CurrencyCode)r.Currency).ToIsoText(),
             r => maskAmounts ? 1m : CalcUsdLineTotal(r) ?? 0m,
             maskAmounts);
 
-        var purchaseItems = BuildProgressBreakdown(approvedRows, r => r.PurchaseProgressStatus, "采购", maskAmounts);
-        var stockInItems = BuildProgressBreakdown(approvedRows, r => r.StockInProgressStatus, "入库", maskAmounts);
-        var notifyItems = BuildProgressBreakdown(approvedRows, r => r.StockOutNotifyProgressStatus, "出库通知", maskAmounts);
-        var receiptItems = BuildProgressBreakdown(approvedRows, r => r.ReceiptProgressStatus, "收款", maskAmounts);
-        var invoiceItems = BuildProgressBreakdown(approvedRows, r => r.InvoiceProgressStatus, "开票", maskAmounts);
+        var purchaseItems = BuildProgressBreakdown(metricRows, r => r.PurchaseProgressStatus, "采购", maskAmounts);
+        var stockInItems = BuildProgressBreakdown(metricRows, r => r.StockInProgressStatus, "入库", maskAmounts);
+        var notifyItems = BuildProgressBreakdown(metricRows, r => r.StockOutNotifyProgressStatus, "出库通知", maskAmounts);
+        var receiptItems = BuildProgressBreakdown(metricRows, r => r.ReceiptProgressStatus, "收款", maskAmounts);
+        var invoiceItems = BuildProgressBreakdown(metricRows, r => r.InvoiceProgressStatus, "开票", maskAmounts);
 
         var brandQtyItems = BuildBreakdownFromRows(
-            approvedRows,
+            metricRows,
             r => string.IsNullOrWhiteSpace(r.Brand) ? "_unset" : r.Brand!.Trim(),
             r => string.IsNullOrWhiteSpace(r.Brand) ? "未设置" : r.Brand!.Trim(),
             r => r.Qty,
@@ -167,14 +186,14 @@ public sealed partial class SalesOrderItemLineListQuery
             useSum: true);
 
         var brandAmountItems = BuildBreakdownFromRows(
-            approvedRows,
+            metricRows,
             r => string.IsNullOrWhiteSpace(r.Brand) ? "_unset" : r.Brand!.Trim(),
             r => string.IsNullOrWhiteSpace(r.Brand) ? "未设置" : r.Brand!.Trim(),
             r => maskAmounts ? 1m : CalcUsdLineTotal(r) ?? 0m,
             maskAmounts);
 
         var dateCodeItems = BuildBreakdownFromRows(
-            approvedRows,
+            metricRows,
             r => string.IsNullOrWhiteSpace(r.DateCode) ? "_unset" : r.DateCode!.Trim(),
             r => string.IsNullOrWhiteSpace(r.DateCode) ? "未设置" : r.DateCode!.Trim(),
             r => maskAmounts ? 1m : r.Qty,
@@ -182,25 +201,29 @@ public sealed partial class SalesOrderItemLineListQuery
             useSum: true);
 
         var salesUserItems = BuildBreakdownFromRows(
-            approvedRows,
+            metricRows,
             r => r.SalesUserId ?? "_unset",
             r => string.IsNullOrWhiteSpace(r.SalesUserName) ? "未分配销售员" : r.SalesUserName!,
             r => maskAmounts ? 1m : CalcUsdLineTotal(r) ?? 0m,
             maskAmounts);
 
+        var progressSuffix = SalesOrderItemAnalyticsDatasets.IsReportApproved(request.AnalyticsDataset)
+            ? "（成单）"
+            : string.Empty;
+
         return new List<SalesAnalyticsBreakdownGroupDto>
         {
             new() { GroupKey = "itemStatus", GroupLabel = "明细主状态", Items = statusItems },
-            new() { GroupKey = "purchaseProgress", GroupLabel = "采购进度（成单）", Items = purchaseItems },
-            new() { GroupKey = "stockInProgress", GroupLabel = "入库进度（成单）", Items = stockInItems },
-            new() { GroupKey = "stockOutNotifyProgress", GroupLabel = "出库通知进度（成单）", Items = notifyItems },
-            new() { GroupKey = "receiptProgress", GroupLabel = "收款进度（成单）", Items = receiptItems },
-            new() { GroupKey = "invoiceProgress", GroupLabel = "开票进度（成单）", Items = invoiceItems },
-            new() { GroupKey = "currency", GroupLabel = "币别构成（成单）", Items = currencyItems },
-            new() { GroupKey = "brandQty", GroupLabel = "品牌数量（成单 Qty）", Items = brandQtyItems },
-            new() { GroupKey = "brandAmount", GroupLabel = "品牌金额（成单 USD）", Items = brandAmountItems },
-            new() { GroupKey = "dateCode", GroupLabel = "生产日期/DC（成单）", Items = dateCodeItems },
-            new() { GroupKey = "salesUser", GroupLabel = "销售员（成单 USD）", Items = salesUserItems }
+            new() { GroupKey = "purchaseProgress", GroupLabel = "采购进度" + progressSuffix, Items = purchaseItems },
+            new() { GroupKey = "stockInProgress", GroupLabel = "入库进度" + progressSuffix, Items = stockInItems },
+            new() { GroupKey = "stockOutNotifyProgress", GroupLabel = "出库通知进度" + progressSuffix, Items = notifyItems },
+            new() { GroupKey = "receiptProgress", GroupLabel = "收款进度" + progressSuffix, Items = receiptItems },
+            new() { GroupKey = "invoiceProgress", GroupLabel = "开票进度" + progressSuffix, Items = invoiceItems },
+            new() { GroupKey = "currency", GroupLabel = "币别构成" + progressSuffix, Items = currencyItems },
+            new() { GroupKey = "brandQty", GroupLabel = "品牌数量" + (progressSuffix.Length > 0 ? "（成单 Qty）" : "（Qty）"), Items = brandQtyItems },
+            new() { GroupKey = "brandAmount", GroupLabel = "品牌金额" + (progressSuffix.Length > 0 ? "（成单 USD）" : "（USD）"), Items = brandAmountItems },
+            new() { GroupKey = "dateCode", GroupLabel = "生产日期/DC" + progressSuffix, Items = dateCodeItems },
+            new() { GroupKey = "salesUser", GroupLabel = "销售员" + (progressSuffix.Length > 0 ? "（成单 USD）" : "（USD）"), Items = salesUserItems }
         };
     }
 
@@ -211,7 +234,7 @@ public sealed partial class SalesOrderItemLineListQuery
         CancellationToken cancellationToken = default)
     {
         const int topN = 10;
-        var rows = await LoadApprovedLineRowsAsync(request, cancellationToken);
+        var rows = await LoadMetricLineRowsAsync(request, cancellationToken);
 
         var customerByAmount = rows
             .Where(r => !string.IsNullOrWhiteSpace(r.CustomerId))
@@ -318,13 +341,17 @@ public sealed partial class SalesOrderItemLineListQuery
         return await ProjectLineRowsAsync(filtered, cancellationToken);
     }
 
-    private async Task<List<ItemLineAnalyticsRow>> LoadApprovedLineRowsAsync(
+    /// <summary>
+    /// listFilter：筛选结果全量；reportApproved：筛选/报表范围后再加成单约束。
+    /// </summary>
+    private async Task<List<ItemLineAnalyticsRow>> LoadMetricLineRowsAsync(
         SellOrderItemLineQueryRequest request,
         CancellationToken cancellationToken)
     {
         var filtered = await SalesOrderItemLineListFilter.BuildFilteredJoinQueryAsync(
             _db, _dataPermission, request, cancellationToken);
-        filtered = SalesOrderItemLineListFilter.ApplyApprovedFilter(filtered);
+        if (SalesOrderItemAnalyticsDatasets.IsReportApproved(request.AnalyticsDataset))
+            filtered = SalesOrderItemLineListFilter.ApplyApprovedFilter(filtered);
         return await ProjectLineRowsAsync(filtered, cancellationToken);
     }
 

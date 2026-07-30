@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using CRM.API.Authorization;
 using CRM.API.Models.DTOs;
 using CRM.API.Utilities;
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Analytics;
 using CRM.Core.Utilities;
@@ -272,12 +273,13 @@ namespace CRM.API.Controllers
             [FromQuery] string? hasQuotesOnly,
             [FromQuery] short? status,
             [FromQuery] string? rfqCode,
+            [FromQuery] string? dataset = null,
             CancellationToken cancellationToken = default)
         {
             var (request, maskCustomerNames) = await BuildItemListAnalyticsQueryRequestAsync(
                 startDate, endDate, itemCreateStart, itemCreateEndExclusive, quoteCreateStart, quoteCreateEndExclusive,
                 quickFilter, customerKeyword, materialModel, salesUserId, salesUserKeyword,
-                purchaserUserId, hasQuotesOnly, status, rfqCode, cancellationToken);
+                purchaserUserId, hasQuotesOnly, status, rfqCode, dataset, cancellationToken);
             var data = await _rfqItemListQuery.GetListAnalyticsDashboardAsync(request, maskCustomerNames, cancellationToken);
             return Ok(ApiResponse<RfqListAnalyticsDashboardDto>.Ok(data));
         }
@@ -301,12 +303,13 @@ namespace CRM.API.Controllers
             [FromQuery] short? status,
             [FromQuery] string? rfqCode,
             [FromQuery] string? groupBy,
+            [FromQuery] string? dataset = null,
             CancellationToken cancellationToken = default)
         {
             var (request, _) = await BuildItemListAnalyticsQueryRequestAsync(
                 startDate, endDate, itemCreateStart, itemCreateEndExclusive, quoteCreateStart, quoteCreateEndExclusive,
                 quickFilter, customerKeyword, materialModel, salesUserId, salesUserKeyword,
-                purchaserUserId, hasQuotesOnly, status, rfqCode, cancellationToken);
+                purchaserUserId, hasQuotesOnly, status, rfqCode, dataset, cancellationToken);
             var data = await _rfqItemListQuery.GetListAnalyticsTrendsAsync(
                 request,
                 string.IsNullOrWhiteSpace(groupBy) ? "month" : groupBy.Trim(),
@@ -332,12 +335,13 @@ namespace CRM.API.Controllers
             [FromQuery] string? hasQuotesOnly,
             [FromQuery] short? status,
             [FromQuery] string? rfqCode,
+            [FromQuery] string? dataset = null,
             CancellationToken cancellationToken = default)
         {
             var (request, _) = await BuildItemListAnalyticsQueryRequestAsync(
                 startDate, endDate, itemCreateStart, itemCreateEndExclusive, quoteCreateStart, quoteCreateEndExclusive,
                 quickFilter, customerKeyword, materialModel, salesUserId, salesUserKeyword,
-                purchaserUserId, hasQuotesOnly, status, rfqCode, cancellationToken);
+                purchaserUserId, hasQuotesOnly, status, rfqCode, dataset, cancellationToken);
             var data = await _rfqItemListQuery.GetListAnalyticsBreakdownsAsync(request, cancellationToken);
             return Ok(ApiResponse<IReadOnlyList<SalesAnalyticsBreakdownGroupDto>>.Ok(data));
         }
@@ -360,12 +364,13 @@ namespace CRM.API.Controllers
             [FromQuery] string? hasQuotesOnly,
             [FromQuery] short? status,
             [FromQuery] string? rfqCode,
+            [FromQuery] string? dataset = null,
             CancellationToken cancellationToken = default)
         {
             var (request, maskCustomerNames) = await BuildItemListAnalyticsQueryRequestAsync(
                 startDate, endDate, itemCreateStart, itemCreateEndExclusive, quoteCreateStart, quoteCreateEndExclusive,
                 quickFilter, customerKeyword, materialModel, salesUserId, salesUserKeyword,
-                purchaserUserId, hasQuotesOnly, status, rfqCode, cancellationToken);
+                purchaserUserId, hasQuotesOnly, status, rfqCode, dataset, cancellationToken);
             var data = await _rfqItemListQuery.GetListAnalyticsRankingsAsync(request, maskCustomerNames, cancellationToken);
             return Ok(ApiResponse<RfqItemListAnalyticsRankingsDto>.Ok(data));
         }
@@ -724,6 +729,7 @@ namespace CRM.API.Controllers
             string? hasQuotesOnly,
             short? status,
             string? rfqCode,
+            string? dataset,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -757,6 +763,7 @@ namespace CRM.API.Controllers
                 HasQuotesOnly = ParseQueryBool(hasQuotesOnly),
                 Status = status,
                 RfqCode = !string.IsNullOrWhiteSpace(rfqCode) ? rfqCode.Trim() : null,
+                AnalyticsDataset = RfqItemAnalyticsDatasets.Normalize(dataset),
                 CurrentUserId = userId,
                 CanViewCustomerInList = canViewCustomer
             };

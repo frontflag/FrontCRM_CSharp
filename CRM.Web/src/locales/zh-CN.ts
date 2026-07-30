@@ -868,6 +868,156 @@ const zhCN = {
       department: '部门',
       personal: '个人'
     },
+    contentTabs: {
+      overview: '概况',
+      customer: '客户',
+      rfq: '需求',
+      order: '订单'
+    },
+    customerTab: {
+      hint: '成单客户数与概况「销售客户数」同口径（周期内成单去重）；复购客户 = 成单订单数 ≥ 2。点击客户排行可下钻订单列表。',
+      loadFailed: '加载客户看板失败',
+      sections: {
+        kpi: '客户概览'
+      },
+      kpi: {
+        approvedCustomers: '成单客户数',
+        repeatCustomers: '复购客户数'
+      },
+      breakdown: {
+        customerType: '客户类型',
+        customerLevel: '客户等级',
+        customerIndustry: '客户行业',
+        byCount: '按订单数占比'
+      },
+      rankings: {
+        byAmount: '客户 Top10（成单金额）',
+        byOrderCount: '客户 Top10（成单数）',
+        byRepeat: '客户 Top10（复购订单数）',
+        repeatOrders: '复购订单数'
+      }
+    },
+    orderTab: {
+      datasetTag: '成单',
+      hint: '与销售订单明细看板同实现；口径为报表公司/部门/个人透镜 + 日期范围 + 成单（主单审核通过及以上且明细有效）。',
+      refresh: '刷新',
+      loadFailed: '加载订单看板失败',
+      groupBy: { day: '按日', week: '按周', month: '按月' },
+      sections: {
+        orderKpi: '成单概览',
+        profitKpi: '利润',
+        inStockKpi: '在库',
+        receivableKpi: '应收款',
+        trendOrders: '成单订单数趋势',
+        trendLines: '成单明细数趋势',
+        trendAmount: '成单明细金额趋势（USD）'
+      },
+      kpi: {
+        approvedCustomers: '成单客户数',
+        approvedOrders: '成单订单数',
+        approvedLines: '成单明细数',
+        approvedAmount: '成单金额',
+        usdCaption: '折算 USD',
+        originalCaption: '原币',
+        purchaseProfit: '采购利润',
+        outboundProfit: '出库利润',
+        inStockCustomers: '在库客户数',
+        inStockLines: '在库明细数',
+        inStockAmount: '在库金额（USD）',
+        maxStockAge: '最长在库天数',
+        receivableCustomers: '应收客户数',
+        receivableLines: '应收明细数',
+        receivableAmount: '应收金额',
+        maxReceivableAge: '最长账龄（天）'
+      },
+      trendUnit: {
+        orders: '单',
+        lines: '行',
+        moneyCaption: '金额单位：美元（convert_price）'
+      },
+      breakdown: {
+        itemStatus: '明细主状态',
+        purchaseProgress: '采购进度（成单）',
+        stockInProgress: '入库进度（成单）',
+        stockOutNotifyProgress: '出库通知进度（成单）',
+        receiptProgress: '收款进度（成单）',
+        invoiceProgress: '开票进度（成单）',
+        currency: '币别构成（成单）',
+        brandQty: '品牌数量（成单 Qty）',
+        brandAmount: '品牌金额（成单 USD）',
+        dateCode: '生产日期/DC（成单）',
+        salesUser: '销售员（成单 USD）',
+        byCount: '按行数'
+      },
+      itemStatus: {
+        normal: '正常',
+        cancelled: '已取消'
+      },
+      rankings: {
+        metricMode: '排行指标',
+        customerByAmount: '客户 Top10（成单金额）',
+        pnByAmount: '物料 Top10（成单金额）',
+        pnByQty: '物料 Top10（数量）',
+        brandByAmount: '品牌 Top10（成单金额）',
+        brandByQty: '品牌 Top10（数量）',
+        salesUserByAmount: '销售员 Top10（成单金额）',
+        name: '名称',
+        lineCount: '明细数',
+        qty: '数量',
+        amount: '金额（USD）'
+      }
+    },
+    rfqTab: {
+      datasetTag: '报表',
+      hint: '与需求明细看板同实现；口径为报表公司/部门/个人透镜 + 日期范围（主单创建日）+ 排除主单已取消。',
+      refresh: '刷新',
+      loadFailed: '加载需求看板失败',
+      groupBy: { day: '按日', week: '按周', month: '按月' },
+      sections: {
+        kpi: '需求概览',
+        trendCustomers: '发布客户数趋势',
+        trendRfqs: '需求数趋势',
+        trendItems: '需求明细数趋势'
+      },
+      kpi: {
+        publishedCustomers: '发布需求客户数',
+        repeatCustomers: '复询需求客户数',
+        repeatRfqs: '复询需求数',
+        rfqCount: '需求数',
+        rfqItemCount: '需求明细数',
+        convertedLines: '成单明细数',
+        conversionRate: '需求成单率'
+      },
+      trendUnit: {
+        customers: '家',
+        rfqs: '单',
+        items: '条'
+      },
+      breakdown: {
+        rfqStatus: '需求主状态',
+        rfqType: '需求类型',
+        targetType: '目标类型',
+        industry: '行业',
+        currency: '币别',
+        brand: '品牌分布',
+        assignedPurchaser: '分配采购员',
+        quoteDistribution: '报价分布',
+        unassignedPurchaser: '未分配采购员',
+        unset: '未设置',
+        other: '其他'
+      },
+      rankings: {
+        customerByLineCount: '客户 Top10（需求明细数）',
+        salesUserByLineCount: '业务员 Top10（需求明细数）',
+        mpnByLineCount: 'MPN Top10（需求明细数）',
+        mpnByQty: 'MPN Top10（需求数量）',
+        brandByLineCount: '品牌 Top10（需求明细数）',
+        brandByQty: '品牌 Top10（需求数量）',
+        name: '名称',
+        lineCount: '明细数',
+        qty: '数量'
+      }
+    },
     dateFrom: '开始日期',
     dateTo: '结束日期',
     refresh: '查询',
@@ -2438,7 +2588,8 @@ const zhCN = {
       }
     },
     board: {
-      hint: '统计范围与当前筛选条件一致；成单口径为审核通过及以上销售订单关联的需求明细；成单率分母排除查无报价。',
+      datasetTag: '筛选',
+      hint: '统计范围与当前搜索栏筛选结果一致（无额外硬过滤）。成单明细/成单率仍按销售订单审核通过链路；成单率分母排除查无报价。',
       refresh: '刷新',
       loadFailed: '看板数据加载失败',
       groupBy: { day: '按日', week: '按周', month: '按月' },
@@ -4210,21 +4361,21 @@ const zhCN = {
       listView: '列表'
     },
     board: {
-      hint: '统计范围与当前筛选条件一致；成单口径为审核通过及以上。',
+      hint: '统计范围与当前搜索栏筛选条件完全一致（含状态、取消单金额等）。',
       refresh: '刷新',
       loadFailed: '看板数据加载失败',
       groupBy: { day: '按日', week: '按周', month: '按月' },
       sections: {
-        kpi: '成单概览',
-        trendOrders: '成单数趋势',
-        trendAmount: '成单金额趋势（USD）'
+        kpi: '订单概览',
+        trendOrders: '订单数趋势',
+        trendAmount: '订单金额趋势（USD）'
       },
       kpi: {
-        approvedCustomers: '成单客户数',
+        approvedCustomers: '客户数',
         repeatCustomers: '复购客户数',
-        approvedOrders: '成单订单数',
+        approvedOrders: '订单数',
         repeatOrders: '复购订单数',
-        approvedAmount: '成单金额',
+        approvedAmount: '订单金额',
         usdCaption: '折算 USD',
         originalCaption: '原币'
       },
@@ -4234,18 +4385,18 @@ const zhCN = {
       },
       breakdown: {
         orderStatus: '订单主状态',
-        currency: '币别构成（成单）',
-        customerType: '客户类型（成单 USD）',
-        customerLevel: '客户等级（成单 USD）',
-        customerIndustry: '客户行业（成单 USD）',
-        salesUser: '业务员（成单 USD）',
+        currency: '币别构成',
+        customerType: '客户类型（USD）',
+        customerLevel: '客户等级（USD）',
+        customerIndustry: '客户行业（USD）',
+        salesUser: '业务员（USD）',
         byCount: '按订单数'
       },
       rankings: {
-        customerByAmount: '客户 Top10（成单金额）',
-        customerByOrderCount: '客户 Top10（成单数）',
+        customerByAmount: '客户 Top10（金额）',
+        customerByOrderCount: '客户 Top10（订单数）',
         customerByRepeat: '客户 Top10（复购订单数）',
-        salesUserByAmount: '业务员 Top10（成单金额）',
+        salesUserByAmount: '业务员 Top10（金额）',
         name: '名称',
         orderCount: '订单数',
         repeatOrders: '复购订单数',
@@ -4487,24 +4638,25 @@ const zhCN = {
       }
     },
     board: {
-      hint: '统计范围与当前筛选条件一致；成单口径为主单审核通过及以上且明细未取消。',
+      datasetTag: '筛选',
+      hint: '统计范围与当前搜索栏筛选结果一致（含取消单等；不成单约束）。金额脱敏规则与列表一致。',
       refresh: '刷新',
       loadFailed: '看板数据加载失败',
       groupBy: { day: '按日', week: '按周', month: '按月' },
       sections: {
-        orderKpi: '成单概览',
+        orderKpi: '订单概览',
         profitKpi: '利润',
         inStockKpi: '在库',
         receivableKpi: '应收款',
-        trendOrders: '成单订单数趋势',
-        trendLines: '成单明细数趋势',
-        trendAmount: '成单明细金额趋势（USD）'
+        trendOrders: '订单数趋势',
+        trendLines: '明细数趋势',
+        trendAmount: '明细金额趋势（USD）'
       },
       kpi: {
-        approvedCustomers: '成单客户数',
-        approvedOrders: '成单订单数',
-        approvedLines: '成单明细数',
-        approvedAmount: '成单金额',
+        approvedCustomers: '客户数',
+        approvedOrders: '订单数',
+        approvedLines: '明细数',
+        approvedAmount: '金额',
         usdCaption: '折算 USD',
         originalCaption: '原币',
         purchaseProfit: '采购利润',
@@ -4525,16 +4677,16 @@ const zhCN = {
       },
       breakdown: {
         itemStatus: '明细主状态',
-        purchaseProgress: '采购进度（成单）',
-        stockInProgress: '入库进度（成单）',
-        stockOutNotifyProgress: '出库通知进度（成单）',
-        receiptProgress: '收款进度（成单）',
-        invoiceProgress: '开票进度（成单）',
-        currency: '币别构成（成单）',
-        brandQty: '品牌数量（成单 Qty）',
-        brandAmount: '品牌金额（成单 USD）',
-        dateCode: '生产日期/DC（成单）',
-        salesUser: '销售员（成单 USD）',
+        purchaseProgress: '采购进度',
+        stockInProgress: '入库进度',
+        stockOutNotifyProgress: '出库通知进度',
+        receiptProgress: '收款进度',
+        invoiceProgress: '开票进度',
+        currency: '币别构成',
+        brandQty: '品牌数量（Qty）',
+        brandAmount: '品牌金额（USD）',
+        dateCode: '生产日期/DC',
+        salesUser: '销售员（USD）',
         byCount: '按行数'
       },
       itemStatus: {
@@ -4543,12 +4695,12 @@ const zhCN = {
       },
       rankings: {
         metricMode: '排行指标',
-        customerByAmount: '客户 Top10（成单金额）',
-        pnByAmount: '物料 Top10（成单金额）',
+        customerByAmount: '客户 Top10（金额）',
+        pnByAmount: '物料 Top10（金额）',
         pnByQty: '物料 Top10（数量）',
-        brandByAmount: '品牌 Top10（成单金额）',
+        brandByAmount: '品牌 Top10（金额）',
         brandByQty: '品牌 Top10（数量）',
-        salesUserByAmount: '销售员 Top10（成单金额）',
+        salesUserByAmount: '销售员 Top10（金额）',
         name: '名称',
         lineCount: '明细数',
         qty: '数量',

@@ -123,6 +123,35 @@ public sealed class SalesAnalyticsBreakdownGroupDto
     public IReadOnlyList<SalesAnalyticsBreakdownItemDto> Items { get; set; } = Array.Empty<SalesAnalyticsBreakdownItemDto>();
 }
 
+/// <summary>
+/// 销售分析「客户」Tab：成单客户维 KPI / 类型等级行业分解 / 客户 Top10。
+/// 复购客户 = 成单订单数 ≥ 2 的去重客户。
+/// </summary>
+public sealed class SalesAnalyticsCustomerSnapshotDto
+{
+    /// <summary>成单客户数（周期内成单订单 customer_id 去重；与概况「销售客户数」同口径）。</summary>
+    public int ApprovedCustomerCount { get; set; }
+
+    /// <summary>复购客户数（成单订单数 ≥ 2）。</summary>
+    public int RepeatCustomerCount { get; set; }
+}
+
+public sealed class SalesAnalyticsCustomerRankingsDto
+{
+    public IReadOnlyList<SalesAnalyticsRankingRowDto> CustomerByAmount { get; set; } = Array.Empty<SalesAnalyticsRankingRowDto>();
+    public IReadOnlyList<SalesAnalyticsRankingRowDto> CustomerByOrderCount { get; set; } = Array.Empty<SalesAnalyticsRankingRowDto>();
+    /// <summary>OrderCount 为复购订单数 = max(0, 成单数 − 1)。</summary>
+    public IReadOnlyList<SalesAnalyticsRankingRowDto> CustomerByRepeatOrderCount { get; set; } = Array.Empty<SalesAnalyticsRankingRowDto>();
+}
+
+public sealed class SalesAnalyticsCustomerDto
+{
+    public SalesAnalyticsScopeContextDto ScopeContext { get; set; } = new();
+    public SalesAnalyticsCustomerSnapshotDto Snapshot { get; set; } = new();
+    public IReadOnlyList<SalesAnalyticsBreakdownGroupDto> Breakdowns { get; set; } = Array.Empty<SalesAnalyticsBreakdownGroupDto>();
+    public SalesAnalyticsCustomerRankingsDto Rankings { get; set; } = new();
+}
+
 public sealed class SalesAnalyticsResolvedScope
 {
     public UserPermissionSummaryDto Summary { get; set; } = null!;

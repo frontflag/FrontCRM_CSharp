@@ -12,21 +12,45 @@ import {
   type RfqItemListAnalyticsRankings
 } from '@/api/rfqItemAnalytics'
 import type { RfqListAnalyticsDashboard, RfqListAnalyticsTrendPoint } from '@/api/rfqAnalytics'
-import type { SalesAnalyticsBreakdownGroup } from '@/api/analytics/sales'
+import {
+  salesAnalyticsApi,
+  type SalesAnalyticsBreakdownGroup,
+  type SalesAnalyticsQuery
+} from '@/api/analytics/sales'
 import { formatRfqTypeLabel } from '@/constants/rfqFormEnums'
 
-const props = defineProps<{
-  filters: RfqItemListAnalyticsQuery
-}>()
+const props = withDefaults(
+  defineProps<{
+    filters?: RfqItemListAnalyticsQuery
+    reportQuery?: SalesAnalyticsQuery
+    mode?: 'list' | 'report'
+    active?: boolean
+  }>(),
+  {
+    mode: 'list',
+    active: true
+  }
+)
 
 const { t } = useI18n()
 
 const loading = ref(false)
 const groupBy = ref<'day' | 'week' | 'month'>('month')
+const loadedKey = ref('')
 const dashboard = ref<RfqListAnalyticsDashboard | null>(null)
 const trends = ref<RfqListAnalyticsTrendPoint[]>([])
 const breakdowns = ref<SalesAnalyticsBreakdownGroup[]>([])
 const rankings = ref<RfqItemListAnalyticsRankings | null>(null)
+
+const isReportMode = computed(() => props.mode === 'report')
+const showTrends = computed(() => isReportMode.value)
+const i18nPrefix = computed(() =>
+  isReportMode.value ? 'salesAnalytics.rfqTab' : 'rfqItemList.board'
+)
+
+function tt(path: string): string {
+  return t(`${i18nPrefix.value}.${path}`)
+}
 
 function formatRate(v?: number | null): string {
   if (v == null) return '—'
@@ -40,37 +64,37 @@ const kpiItems = computed(() => {
   return [
     {
       key: 'publishedCustomers',
-      label: t('rfqItemList.board.kpi.publishedCustomers'),
+      label: tt('kpi.publishedCustomers'),
       value: String(s.publishedCustomerCount)
     },
     {
       key: 'repeatCustomers',
-      label: t('rfqItemList.board.kpi.repeatCustomers'),
+      label: tt('kpi.repeatCustomers'),
       value: String(s.repeatInquiryCustomerCount)
     },
     {
       key: 'repeatRfqs',
-      label: t('rfqItemList.board.kpi.repeatRfqs'),
+      label: tt('kpi.repeatRfqs'),
       value: String(s.repeatInquiryRfqCount)
     },
     {
       key: 'rfqCount',
-      label: t('rfqItemList.board.kpi.rfqCount'),
+      label: tt('kpi.rfqCount'),
       value: String(s.rfqCount)
     },
     {
       key: 'rfqItemCount',
-      label: t('rfqItemList.board.kpi.rfqItemCount'),
+      label: tt('kpi.rfqItemCount'),
       value: String(s.rfqItemCount)
     },
     {
       key: 'convertedLines',
-      label: t('rfqItemList.board.kpi.convertedLines'),
+      label: tt('kpi.convertedLines'),
       value: String(s.convertedLineCount)
     },
     {
       key: 'conversionRate',
-      label: t('rfqItemList.board.kpi.conversionRate'),
+      label: tt('kpi.conversionRate'),
       value: formatRate(s.conversionRate)
     }
   ]
@@ -101,7 +125,7 @@ function isPieBreakdown(groupKey: string): boolean {
 }
 
 function breakdownTitle(group: SalesAnalyticsBreakdownGroup): string {
-  const key = `rfqItemList.board.breakdown.${group.groupKey}`
+  const key = `${i18nPrefix.value}.breakdown.${group.groupKey}`
   const translated = t(key)
   return translated !== key ? translated : group.groupLabel
 }
@@ -141,13 +165,13 @@ function breakdownItemLabel(groupKey: string, item: { key: string; label: string
     return label !== quoteKey ? label : item.label
   }
   if (groupKey === 'assignedPurchaser' && item.key === '_unset') {
-    return t('rfqItemList.board.breakdown.unassignedPurchaser')
+    return tt('breakdown.unassignedPurchaser')
   }
   if ((groupKey === 'industry' || groupKey === 'brand') && item.key === '_unset') {
-    return t('rfqItemList.board.breakdown.unset')
+    return tt('breakdown.unset')
   }
   if (groupKey === 'brand' && item.key === '_other') {
-    return t('rfqItemList.board.breakdown.other')
+    return tt('breakdown.other')
   }
   return item.label
 }
@@ -183,76 +207,127 @@ function localizedBreakdownItems(group: SalesAnalyticsBreakdownGroup) {
   }))
 }
 
-function buildQuery(): RfqItemListAnalyticsQuery {
-  return { ...props.filters, groupBy: groupBy.value }
+function reportQueryKey(q: SalesAnalyticsQuery): string {
+  return [
+    q.viewLevel ?? '',
+    q.departmentId ?? '',
+    q.salesUserId ?? '',
+    q.dateFrom ?? '',
+    q.dateTo ?? '',
+    q.groupBy ?? groupBy.value
+  ].join('|')
 }
 
-async function loadData() {
+async function loadData(force = false) {
+  if (!props.active) return
+  if (isReportMode.value) {
+    const q = { ...(props.reportQuery ?? {}), groupBy: groupBy.value }
+    const key = reportQueryKey(q)
+    if (!force && loadedKey.value === key && dashboard.value) return
+    loading.value = true
+    try {
+      const [dash, trendRows, breakdownRows, rankingRows] = await Promise.all([
+        salesAnalyticsApi.getRfqItemsDashboard(q),
+        salesAnalyticsApi.getRfqItemsTrends(q),
+        salesAnalyticsApi.getRfqItemsBreakdowns(q),
+        salesAnalyticsApi.getRfqItemsRankings(q)
+      ])
+      dashboard.value = dash
+      trends.value = trendRows
+      breakdowns.value = breakdownRows
+      rankings.value = rankingRows
+      loadedKey.value = key
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : tt('loadFailed')
+      ElMessage.error(msg)
+    } finally {
+      loading.value = false
+    }
+    return
+  }
+
   loading.value = true
   try {
-    const q = buildQuery()
-    const [dash, trendRows, breakdownRows, rankingRows] = await Promise.all([
+    const q: RfqItemListAnalyticsQuery = {
+      ...(props.filters ?? {}),
+      dataset: 'listFilter'
+    }
+    const [dash, breakdownRows, rankingRows] = await Promise.all([
       rfqItemListAnalyticsApi.getDashboard(q),
-      rfqItemListAnalyticsApi.getTrends(q),
       rfqItemListAnalyticsApi.getBreakdowns(q),
       rfqItemListAnalyticsApi.getRankings(q)
     ])
     dashboard.value = dash
-    trends.value = trendRows
+    trends.value = []
     breakdowns.value = breakdownRows
     rankings.value = rankingRows
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : t('rfqItemList.board.loadFailed')
+    const msg = e instanceof Error ? e.message : tt('loadFailed')
     ElMessage.error(msg)
   } finally {
     loading.value = false
   }
 }
 
-watch(() => ({ ...props.filters, groupBy: groupBy.value }), () => void loadData(), { deep: true })
-onMounted(() => void loadData())
+watch(
+  () => ({
+    mode: props.mode,
+    active: props.active,
+    filters: props.filters,
+    reportQuery: props.reportQuery,
+    groupBy: groupBy.value
+  }),
+  () => {
+    if (isReportMode.value) void loadData(false)
+    else void loadData(true)
+  },
+  { deep: true }
+)
+onMounted(() => void loadData(true))
 
-defineExpose({ reload: loadData })
+watch(
+  () => props.reportQuery?.groupBy,
+  (g) => {
+    if (g === 'day' || g === 'week' || g === 'month') groupBy.value = g
+  },
+  { immediate: true }
+)
+
+defineExpose({ reload: () => loadData(true) })
 </script>
 
 <template>
   <div class="rfq-item-list-board" v-loading="loading">
     <div class="board-toolbar card">
-      <span class="board-hint">{{ t('rfqItemList.board.hint') }}</span>
-      <el-select v-model="groupBy" style="width: 120px">
-        <el-option value="day" :label="t('rfqItemList.board.groupBy.day')" />
-        <el-option value="week" :label="t('rfqItemList.board.groupBy.week')" />
-        <el-option value="month" :label="t('rfqItemList.board.groupBy.month')" />
+      <el-tag size="small" :type="isReportMode ? 'success' : 'info'" effect="plain">
+        {{ tt('datasetTag') }}
+      </el-tag>
+      <span class="board-hint">{{ tt('hint') }}</span>
+      <el-select v-if="showTrends" v-model="groupBy" style="width: 120px">
+        <el-option value="day" :label="tt('groupBy.day')" />
+        <el-option value="week" :label="tt('groupBy.week')" />
+        <el-option value="month" :label="tt('groupBy.month')" />
       </el-select>
-      <el-button type="primary" @click="loadData">{{ t('rfqItemList.board.refresh') }}</el-button>
+      <el-button type="primary" @click="loadData(true)">{{ tt('refresh') }}</el-button>
     </div>
 
     <section class="section">
-      <h3 class="section-title">{{ t('rfqItemList.board.sections.kpi') }}</h3>
+      <h3 class="section-title">{{ tt('sections.kpi') }}</h3>
       <AnalyticsKpiGrid :items="kpiItems" />
     </section>
 
-    <div class="charts-row">
+    <div v-if="showTrends" class="charts-row">
       <div class="card chart-panel">
-        <h3 class="section-title">{{ t('rfqItemList.board.sections.trendCustomers') }}</h3>
-        <AnalyticsTrendChart
-          :points="trendCustomerPoints"
-          :value-suffix="t('rfqItemList.board.trendUnit.customers')"
-        />
+        <h3 class="section-title">{{ tt('sections.trendCustomers') }}</h3>
+        <AnalyticsTrendChart :points="trendCustomerPoints" :value-suffix="tt('trendUnit.customers')" />
       </div>
       <div class="card chart-panel">
-        <h3 class="section-title">{{ t('rfqItemList.board.sections.trendRfqs') }}</h3>
-        <AnalyticsTrendChart
-          :points="trendRfqPoints"
-          :value-suffix="t('rfqItemList.board.trendUnit.rfqs')"
-        />
+        <h3 class="section-title">{{ tt('sections.trendRfqs') }}</h3>
+        <AnalyticsTrendChart :points="trendRfqPoints" :value-suffix="tt('trendUnit.rfqs')" />
       </div>
       <div class="card chart-panel">
-        <h3 class="section-title">{{ t('rfqItemList.board.sections.trendItems') }}</h3>
-        <AnalyticsTrendChart
-          :points="trendItemPoints"
-          :value-suffix="t('rfqItemList.board.trendUnit.items')"
-        />
+        <h3 class="section-title">{{ tt('sections.trendItems') }}</h3>
+        <AnalyticsTrendChart :points="trendItemPoints" :value-suffix="tt('trendUnit.items')" />
       </div>
     </div>
 
@@ -274,45 +349,45 @@ defineExpose({ reload: loadData })
 
     <div class="rankings-row">
       <div class="card ranking-panel">
-        <h3 class="section-title">{{ t('rfqItemList.board.rankings.customerByLineCount') }}</h3>
+        <h3 class="section-title">{{ tt('rankings.customerByLineCount') }}</h3>
         <el-table :data="rankings?.customerByLineCount ?? []" size="small" stripe>
-          <el-table-column prop="name" :label="t('rfqItemList.board.rankings.name')" />
-          <el-table-column prop="orderCount" :label="t('rfqItemList.board.rankings.lineCount')" width="100" />
+          <el-table-column prop="name" :label="tt('rankings.name')" />
+          <el-table-column prop="orderCount" :label="tt('rankings.lineCount')" width="100" />
         </el-table>
       </div>
       <div class="card ranking-panel">
-        <h3 class="section-title">{{ t('rfqItemList.board.rankings.salesUserByLineCount') }}</h3>
+        <h3 class="section-title">{{ tt('rankings.salesUserByLineCount') }}</h3>
         <el-table :data="rankings?.salesUserByLineCount ?? []" size="small" stripe>
-          <el-table-column prop="name" :label="t('rfqItemList.board.rankings.name')" />
-          <el-table-column prop="orderCount" :label="t('rfqItemList.board.rankings.lineCount')" width="100" />
+          <el-table-column prop="name" :label="tt('rankings.name')" />
+          <el-table-column prop="orderCount" :label="tt('rankings.lineCount')" width="100" />
         </el-table>
       </div>
       <div class="card ranking-panel">
-        <h3 class="section-title">{{ t('rfqItemList.board.rankings.mpnByLineCount') }}</h3>
+        <h3 class="section-title">{{ tt('rankings.mpnByLineCount') }}</h3>
         <el-table :data="rankings?.mpnByLineCount ?? []" size="small" stripe>
-          <el-table-column prop="name" :label="t('rfqItemList.board.rankings.name')" />
-          <el-table-column prop="orderCount" :label="t('rfqItemList.board.rankings.lineCount')" width="100" />
+          <el-table-column prop="name" :label="tt('rankings.name')" />
+          <el-table-column prop="orderCount" :label="tt('rankings.lineCount')" width="100" />
         </el-table>
       </div>
       <div class="card ranking-panel">
-        <h3 class="section-title">{{ t('rfqItemList.board.rankings.mpnByQty') }}</h3>
+        <h3 class="section-title">{{ tt('rankings.mpnByQty') }}</h3>
         <el-table :data="rankings?.mpnByQty ?? []" size="small" stripe>
-          <el-table-column prop="name" :label="t('rfqItemList.board.rankings.name')" />
-          <el-table-column prop="orderCount" :label="t('rfqItemList.board.rankings.qty')" width="100" />
+          <el-table-column prop="name" :label="tt('rankings.name')" />
+          <el-table-column prop="orderCount" :label="tt('rankings.qty')" width="100" />
         </el-table>
       </div>
       <div class="card ranking-panel">
-        <h3 class="section-title">{{ t('rfqItemList.board.rankings.brandByLineCount') }}</h3>
+        <h3 class="section-title">{{ tt('rankings.brandByLineCount') }}</h3>
         <el-table :data="rankings?.brandByLineCount ?? []" size="small" stripe>
-          <el-table-column prop="name" :label="t('rfqItemList.board.rankings.name')" />
-          <el-table-column prop="orderCount" :label="t('rfqItemList.board.rankings.lineCount')" width="100" />
+          <el-table-column prop="name" :label="tt('rankings.name')" />
+          <el-table-column prop="orderCount" :label="tt('rankings.lineCount')" width="100" />
         </el-table>
       </div>
       <div class="card ranking-panel">
-        <h3 class="section-title">{{ t('rfqItemList.board.rankings.brandByQty') }}</h3>
+        <h3 class="section-title">{{ tt('rankings.brandByQty') }}</h3>
         <el-table :data="rankings?.brandByQty ?? []" size="small" stripe>
-          <el-table-column prop="name" :label="t('rfqItemList.board.rankings.name')" />
-          <el-table-column prop="orderCount" :label="t('rfqItemList.board.rankings.qty')" width="100" />
+          <el-table-column prop="name" :label="tt('rankings.name')" />
+          <el-table-column prop="orderCount" :label="tt('rankings.qty')" width="100" />
         </el-table>
       </div>
     </div>

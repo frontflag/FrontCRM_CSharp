@@ -26,6 +26,8 @@ export interface SalesOrderItemListAnalyticsQuery {
   /** 左栏快捷检索（与六 progress 互斥） */
   quickFilter?: string
   groupBy?: 'day' | 'week' | 'month'
+  /** listFilter=跟列表筛选；reportApproved=报表成单 */
+  dataset?: 'listFilter' | 'reportApproved'
 }
 
 export interface SalesOrderItemListAnalyticsCurrencyLine {
@@ -118,6 +120,7 @@ function buildParams(q: SalesOrderItemListAnalyticsQuery): Record<string, unknow
   }
   if (q.quickFilter) p.quickFilter = q.quickFilter
   if (q.groupBy) p.groupBy = q.groupBy
+  if (q.dataset) p.dataset = q.dataset
   return p
 }
 

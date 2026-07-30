@@ -46,6 +46,10 @@ namespace CRM.API.Authorization
                     return;
 
                 var needsSystemGate = SystemPermissionCodes.IsSystemPermission(_permissionCode);
+                // 管理角色业务权限与 SuperAdmin 对齐（system.* 仍走下方双重门槛）
+                if (!needsSystemGate && summary.HasBizDataBypass)
+                    return;
+
                 if (needsSystemGate && !summary.HasManagementAccess)
                 {
                     context.Result = new ObjectResult(ApiResponse<object>.Fail($"无权限访问: {_permissionCode}", 403))

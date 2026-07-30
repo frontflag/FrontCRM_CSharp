@@ -248,6 +248,149 @@ public sealed class SalesAnalyticsQuery : ISalesAnalyticsQuery
         };
     }
 
+    /// <inheritdoc />
+    public async Task<SalesAnalyticsCustomerDto> GetCustomerAsync(
+        SalesAnalyticsResolvedScope scope,
+        CancellationToken cancellationToken = default)
+    {
+        var userId = scope.Summary.UserId;
+        var dateFrom = SalesAnalyticsDateFilter.ToUtcDateStart(scope.DateFrom);
+        var dateEnd = SalesAnalyticsDateFilter.ToUtcDateEndExclusive(scope.DateTo);
+        var maskAmounts = scope.MaskAmounts;
+
+        var orders = await BuildSellOrderQueryAsync(userId, scope, cancellationToken);
+        var approved = orders.Where(o =>
+            o.CreateTime >= dateFrom && o.CreateTime < dateEnd
+            && o.Status >= SellOrderMainStatus.Approved);
+
+        var orderRows = await approved
+            .Select(o => new
+            {
+                o.CustomerId,
+                o.CustomerName,
+                o.ConvertTotal
+            })
+            .ToListAsync(cancellationToken);
+
+        var customerGroups = orderRows
+            .Where(o => !string.IsNullOrWhiteSpace(o.CustomerId))
+            .GroupBy(o => o.CustomerId!, StringComparer.OrdinalIgnoreCase)
+            .Select(g => new { Count = g.Count(), Amount = g.Sum(x => x.ConvertTotal), Name = g.First().CustomerName, Id = g.Key })
+            .ToList();
+
+        var snapshot = new SalesAnalyticsCustomerSnapshotDto
+        {
+            ApprovedCustomerCount = customerGroups.Count,
+            RepeatCustomerCount = customerGroups.Count(c => c.Count >= 2)
+        };
+
+        var customerDimRows = await (
+            from o in approved
+            join c in _db.Customers.AsNoTracking() on o.CustomerId equals c.Id into cj
+            from c in cj.DefaultIfEmpty()
+            select new
+            {
+                o.ConvertTotal,
+                CustomerType = c != null ? c.CustomerType : (short?)null,
+                CustomerLevel = c != null ? c.CustomerLevel : null,
+                Industry = c != null ? c.Industry : null
+            }
+        ).ToListAsync(cancellationToken);
+
+        var typeItems = BuildCustomerDimensionBreakdown(
+            customerDimRows,
+            r => r.CustomerType?.ToString() ?? "_unset",
+            r => r.CustomerType.HasValue ? $"类型 {r.CustomerType}" : "未设置",
+            r => r.ConvertTotal,
+            maskAmounts);
+        var levelItems = BuildCustomerDimensionBreakdown(
+            customerDimRows,
+            r => string.IsNullOrWhiteSpace(r.CustomerLevel) ? "_unset" : r.CustomerLevel!.Trim(),
+            r => string.IsNullOrWhiteSpace(r.CustomerLevel) ? "未设置" : r.CustomerLevel!.Trim(),
+            r => r.ConvertTotal,
+            maskAmounts);
+        var industryItems = BuildCustomerDimensionBreakdown(
+            customerDimRows,
+            r => string.IsNullOrWhiteSpace(r.Industry) ? "_unset" : r.Industry!.Trim(),
+            r => string.IsNullOrWhiteSpace(r.Industry) ? "未设置" : r.Industry!.Trim(),
+            r => r.ConvertTotal,
+            maskAmounts);
+
+        var breakdowns = new List<SalesAnalyticsBreakdownGroupDto>
+        {
+            new()
+            {
+                GroupKey = "customerType",
+                GroupLabel = maskAmounts ? "客户类型（成单数）" : "客户类型（成单 USD）",
+                Items = typeItems
+            },
+            new()
+            {
+                GroupKey = "customerLevel",
+                GroupLabel = maskAmounts ? "客户等级（成单数）" : "客户等级（成单 USD）",
+                Items = levelItems
+            },
+            new()
+            {
+                GroupKey = "customerIndustry",
+                GroupLabel = maskAmounts ? "客户行业（成单数）" : "客户行业（成单 USD）",
+                Items = industryItems
+            }
+        };
+
+        var customerByAmount = customerGroups
+            .Select(g => new SalesAnalyticsRankingRowDto
+            {
+                Id = g.Id,
+                Name = g.Name ?? g.Id,
+                Amount = maskAmounts ? null : g.Amount,
+                OrderCount = g.Count
+            })
+            .OrderByDescending(x => x.Amount ?? x.OrderCount)
+            .Take(RankingTopN)
+            .ToList();
+
+        var customerByOrderCount = customerGroups
+            .Select(g => new SalesAnalyticsRankingRowDto
+            {
+                Id = g.Id,
+                Name = g.Name ?? g.Id,
+                Amount = maskAmounts ? null : g.Amount,
+                OrderCount = g.Count
+            })
+            .OrderByDescending(x => x.OrderCount)
+            .ThenByDescending(x => x.Amount ?? 0m)
+            .Take(RankingTopN)
+            .ToList();
+
+        var customerByRepeat = customerGroups
+            .Select(g => new SalesAnalyticsRankingRowDto
+            {
+                Id = g.Id,
+                Name = g.Name ?? g.Id,
+                Amount = maskAmounts ? null : g.Amount,
+                OrderCount = Math.Max(0, g.Count - 1)
+            })
+            .Where(x => x.OrderCount > 0)
+            .OrderByDescending(x => x.OrderCount)
+            .ThenByDescending(x => x.Amount ?? 0m)
+            .Take(RankingTopN)
+            .ToList();
+
+        return new SalesAnalyticsCustomerDto
+        {
+            ScopeContext = scope.ScopeContext,
+            Snapshot = snapshot,
+            Breakdowns = breakdowns,
+            Rankings = new SalesAnalyticsCustomerRankingsDto
+            {
+                CustomerByAmount = customerByAmount,
+                CustomerByOrderCount = customerByOrderCount,
+                CustomerByRepeatOrderCount = customerByRepeat
+            }
+        };
+    }
+
     private async Task<SalesAnalyticsSnapshotDto> BuildSnapshotAsync(
         SalesAnalyticsResolvedScope scope,
         CancellationToken cancellationToken)
@@ -479,20 +622,11 @@ public sealed class SalesAnalyticsQuery : ISalesAnalyticsQuery
                 .Take(RankingTopN)
                 .ToList();
 
-            var customerGroups = orderRows
-                .GroupBy(o => o.CustomerId)
-                .Select(g => new SalesAnalyticsRankingRowDto
-                {
-                    Id = g.Key,
-                    Name = g.First().CustomerName ?? g.Key,
-                    Amount = scope.MaskAmounts ? null : g.Sum(x => x.ConvertTotal),
-                    OrderCount = g.Count()
-                })
-                .OrderByDescending(x => x.Amount ?? x.OrderCount)
-                .Take(RankingTopN)
-                .ToList();
-
-            return new SalesAnalyticsRankingsDto { Primary = deptGroups, Secondary = customerGroups };
+            return new SalesAnalyticsRankingsDto
+            {
+                Primary = deptGroups,
+                Secondary = Array.Empty<SalesAnalyticsRankingRowDto>()
+            };
         }
 
         if (scope.ViewLevel == SalesAnalyticsViewLevels.Department)
@@ -512,41 +646,19 @@ public sealed class SalesAnalyticsQuery : ISalesAnalyticsQuery
                 .Take(RankingTopN)
                 .ToList();
 
-            var customerGroups = orderRows
-                .GroupBy(o => o.CustomerId)
-                .Select(g => new SalesAnalyticsRankingRowDto
-                {
-                    Id = g.Key,
-                    Name = g.First().CustomerName ?? g.Key,
-                    Amount = scope.MaskAmounts ? null : g.Sum(x => x.ConvertTotal),
-                    OrderCount = g.Count()
-                })
-                .OrderByDescending(x => x.Amount ?? x.OrderCount)
-                .Take(RankingTopN)
-                .ToList();
-
-            return new SalesAnalyticsRankingsDto { Primary = userGroups, Secondary = customerGroups };
+            return new SalesAnalyticsRankingsDto
+            {
+                Primary = userGroups,
+                Secondary = Array.Empty<SalesAnalyticsRankingRowDto>()
+            };
         }
 
-        var targetUser = scope.SalesUserId ?? scope.Summary.UserId;
-        var personalOrders = orderRows
-            .Where(o => string.Equals(o.SalesUserId, targetUser, StringComparison.OrdinalIgnoreCase))
-            .ToList();
-
-        var customers = personalOrders
-            .GroupBy(o => o.CustomerId)
-            .Select(g => new SalesAnalyticsRankingRowDto
-            {
-                Id = g.Key,
-                Name = g.First().CustomerName ?? g.Key,
-                Amount = scope.MaskAmounts ? null : g.Sum(x => x.ConvertTotal),
-                OrderCount = g.Count()
-            })
-            .OrderByDescending(x => x.Amount ?? x.OrderCount)
-            .Take(RankingTopN)
-            .ToList();
-
-        return new SalesAnalyticsRankingsDto { Primary = customers, Secondary = Array.Empty<SalesAnalyticsRankingRowDto>() };
+        // 个人层：客户排行已迁至「客户」Tab，概况不再返回客户 Top。
+        return new SalesAnalyticsRankingsDto
+        {
+            Primary = Array.Empty<SalesAnalyticsRankingRowDto>(),
+            Secondary = Array.Empty<SalesAnalyticsRankingRowDto>()
+        };
     }
 
     private async Task<IQueryable<SellOrder>> BuildSellOrderQueryAsync(
@@ -660,6 +772,32 @@ public sealed class SalesAnalyticsQuery : ISalesAnalyticsQuery
         }
 
         return q.Select(x => new RfqItemJoinRow { Item = x.item, Rfq = x.rfq });
+    }
+
+    private static List<SalesAnalyticsBreakdownItemDto> BuildCustomerDimensionBreakdown<T>(
+        IEnumerable<T> rows,
+        Func<T, string> keySelector,
+        Func<T, string> labelSelector,
+        Func<T, decimal> amountSelector,
+        bool maskAmounts)
+    {
+        var items = rows
+            .GroupBy(keySelector, StringComparer.OrdinalIgnoreCase)
+            .Select(g =>
+            {
+                var sample = g.First();
+                return new SalesAnalyticsBreakdownItemDto
+                {
+                    Key = g.Key,
+                    Label = labelSelector(sample),
+                    Value = maskAmounts ? g.Count() : g.Sum(amountSelector),
+                    Ratio = 0
+                };
+            })
+            .ToList();
+
+        ApplyRatios(items);
+        return items;
     }
 
     private static void ApplyRatios(List<SalesAnalyticsBreakdownItemDto> items)

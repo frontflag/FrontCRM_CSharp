@@ -1,4 +1,11 @@
 import apiClient from '../client'
+import type {
+  SalesOrderItemListAnalyticsDashboard,
+  SalesOrderItemListAnalyticsRankings,
+  SalesOrderItemListAnalyticsTrendPoint
+} from '../salesOrderItemAnalytics'
+import type { RfqListAnalyticsDashboard, RfqListAnalyticsTrendPoint } from '../rfqAnalytics'
+import type { RfqItemListAnalyticsRankings } from '../rfqItemAnalytics'
 
 export type SalesAnalyticsViewLevel = 'company' | 'department' | 'personal'
 
@@ -86,6 +93,24 @@ export interface SalesAnalyticsBreakdownGroup {
   items: SalesAnalyticsBreakdownItem[]
 }
 
+export interface SalesAnalyticsCustomerSnapshot {
+  approvedCustomerCount: number
+  repeatCustomerCount: number
+}
+
+export interface SalesAnalyticsCustomerRankings {
+  customerByAmount: SalesAnalyticsRankingRow[]
+  customerByOrderCount: SalesAnalyticsRankingRow[]
+  customerByRepeatOrderCount: SalesAnalyticsRankingRow[]
+}
+
+export interface SalesAnalyticsCustomer {
+  scopeContext: SalesAnalyticsScopeContext
+  snapshot: SalesAnalyticsCustomerSnapshot
+  breakdowns: SalesAnalyticsBreakdownGroup[]
+  rankings: SalesAnalyticsCustomerRankings
+}
+
 function buildParams(q: SalesAnalyticsQuery): Record<string, string> {
   const p: Record<string, string> = {}
   if (q.viewLevel) p.viewLevel = q.viewLevel
@@ -112,6 +137,66 @@ export const salesAnalyticsApi = {
 
   getBreakdowns(query: SalesAnalyticsQuery): Promise<SalesAnalyticsBreakdownGroup[]> {
     return apiClient.get<SalesAnalyticsBreakdownGroup[]>('/api/v1/analytics/sales/breakdowns', {
+      params: buildParams(query)
+    })
+  },
+
+  getCustomer(query: SalesAnalyticsQuery): Promise<SalesAnalyticsCustomer> {
+    return apiClient.get<SalesAnalyticsCustomer>('/api/v1/analytics/sales/customer', {
+      params: buildParams(query)
+    })
+  },
+
+  /** 订单明细维（成单口径；与 /sales-orders/items/analytics 同实现） */
+  getOrderItemsDashboard(query: SalesAnalyticsQuery): Promise<SalesOrderItemListAnalyticsDashboard> {
+    return apiClient.get<SalesOrderItemListAnalyticsDashboard>(
+      '/api/v1/analytics/sales/order-items/dashboard',
+      { params: buildParams(query) }
+    )
+  },
+
+  getOrderItemsTrends(query: SalesAnalyticsQuery): Promise<SalesOrderItemListAnalyticsTrendPoint[]> {
+    return apiClient.get<SalesOrderItemListAnalyticsTrendPoint[]>(
+      '/api/v1/analytics/sales/order-items/trends',
+      { params: buildParams(query) }
+    )
+  },
+
+  getOrderItemsBreakdowns(query: SalesAnalyticsQuery): Promise<SalesAnalyticsBreakdownGroup[]> {
+    return apiClient.get<SalesAnalyticsBreakdownGroup[]>(
+      '/api/v1/analytics/sales/order-items/breakdowns',
+      { params: buildParams(query) }
+    )
+  },
+
+  getOrderItemsRankings(query: SalesAnalyticsQuery): Promise<SalesOrderItemListAnalyticsRankings> {
+    return apiClient.get<SalesOrderItemListAnalyticsRankings>(
+      '/api/v1/analytics/sales/order-items/rankings',
+      { params: buildParams(query) }
+    )
+  },
+
+  /** 需求明细维（reportScope；与 /rfqs/items/analytics 同实现） */
+  getRfqItemsDashboard(query: SalesAnalyticsQuery): Promise<RfqListAnalyticsDashboard> {
+    return apiClient.get<RfqListAnalyticsDashboard>('/api/v1/analytics/sales/rfq-items/dashboard', {
+      params: buildParams(query)
+    })
+  },
+
+  getRfqItemsTrends(query: SalesAnalyticsQuery): Promise<RfqListAnalyticsTrendPoint[]> {
+    return apiClient.get<RfqListAnalyticsTrendPoint[]>('/api/v1/analytics/sales/rfq-items/trends', {
+      params: buildParams(query)
+    })
+  },
+
+  getRfqItemsBreakdowns(query: SalesAnalyticsQuery): Promise<SalesAnalyticsBreakdownGroup[]> {
+    return apiClient.get<SalesAnalyticsBreakdownGroup[]>('/api/v1/analytics/sales/rfq-items/breakdowns', {
+      params: buildParams(query)
+    })
+  },
+
+  getRfqItemsRankings(query: SalesAnalyticsQuery): Promise<RfqItemListAnalyticsRankings> {
+    return apiClient.get<RfqItemListAnalyticsRankings>('/api/v1/analytics/sales/rfq-items/rankings', {
       params: buildParams(query)
     })
   }

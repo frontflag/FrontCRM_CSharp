@@ -14,21 +14,45 @@ import {
   type SalesOrderItemListAnalyticsRankings,
   type SalesOrderItemListAnalyticsTrendPoint
 } from '@/api/salesOrderItemAnalytics'
-import type { SalesAnalyticsBreakdownGroup } from '@/api/analytics/sales'
+import {
+  salesAnalyticsApi,
+  type SalesAnalyticsBreakdownGroup,
+  type SalesAnalyticsQuery
+} from '@/api/analytics/sales'
 
-const props = defineProps<{
-  filters: SalesOrderItemListAnalyticsQuery
-}>()
+const props = withDefaults(
+  defineProps<{
+    /** 列表页筛选（mode=list） */
+    filters?: SalesOrderItemListAnalyticsQuery
+    /** 报表 Scope 查询（mode=report） */
+    reportQuery?: SalesAnalyticsQuery
+    /** list=明细列表看板；report=报表订单 Tab */
+    mode?: 'list' | 'report'
+    /** 报表 Tab lazy：仅 active 时加载 */
+    active?: boolean
+  }>(),
+  {
+    mode: 'list',
+    active: true
+  }
+)
 
 const { t } = useI18n()
 
 const loading = ref(false)
 const groupBy = ref<'day' | 'week' | 'month'>('month')
+const loadedKey = ref('')
 const dashboard = ref<SalesOrderItemListAnalyticsDashboard | null>(null)
 const trends = ref<SalesOrderItemListAnalyticsTrendPoint[]>([])
 const breakdowns = ref<SalesAnalyticsBreakdownGroup[]>([])
 const rankings = ref<SalesOrderItemListAnalyticsRankings | null>(null)
 const rankingMetricMode = ref<'amount' | 'count'>('amount')
+
+const isReportMode = computed(() => props.mode === 'report')
+const showTrends = computed(() => isReportMode.value)
+const i18nPrefix = computed(() =>
+  isReportMode.value ? 'salesAnalytics.orderTab' : 'salesOrderItemList.board'
+)
 
 type RankingCountKind = 'line' | 'qty'
 
@@ -54,21 +78,21 @@ const effectiveRankingMetricMode = computed<'amount' | 'count'>(() =>
   maskAmounts.value ? 'count' : rankingMetricMode.value
 )
 
+function tt(path: string): string {
+  return t(`${i18nPrefix.value}.${path}`)
+}
+
 function rankingRowsFor(config: RankingTableConfig): SalesOrderItemListAnalyticsRankingRow[] {
   const data = rankings.value?.[config.dataKey]
   return Array.isArray(data) ? data : []
 }
 
 function rankingCountLabel(kind: RankingCountKind): string {
-  return kind === 'qty'
-    ? t('salesOrderItemList.board.rankings.qty')
-    : t('salesOrderItemList.board.rankings.lineCount')
+  return kind === 'qty' ? tt('rankings.qty') : tt('rankings.lineCount')
 }
 
 function rankingMetricHeaderLabel(kind: RankingCountKind): string {
-  return effectiveRankingMetricMode.value === 'amount'
-    ? t('salesOrderItemList.board.rankings.amount')
-    : rankingCountLabel(kind)
+  return effectiveRankingMetricMode.value === 'amount' ? tt('rankings.amount') : rankingCountLabel(kind)
 }
 
 function formatRankingMetric(row: SalesOrderItemListAnalyticsRankingRow): string {
@@ -110,27 +134,27 @@ const orderKpiItems = computed(() => {
   return [
     {
       key: 'approvedCustomers',
-      label: t('salesOrderItemList.board.kpi.approvedCustomers'),
+      label: tt('kpi.approvedCustomers'),
       value: String(s.approvedCustomerCount)
     },
     {
       key: 'approvedOrders',
-      label: t('salesOrderItemList.board.kpi.approvedOrders'),
+      label: tt('kpi.approvedOrders'),
       value: String(s.approvedOrderCount)
     },
     {
       key: 'approvedLines',
-      label: t('salesOrderItemList.board.kpi.approvedLines'),
+      label: tt('kpi.approvedLines'),
       value: String(s.approvedLineCount)
     },
     {
       key: 'approvedAmount',
-      label: t('salesOrderItemList.board.kpi.approvedAmount'),
+      label: tt('kpi.approvedAmount'),
       value: maskAmounts.value ? '—' : formatMoney(s.approvedAmountUsd),
       valueFormat: 'money' as const,
       layout: 'split' as const,
-      valueCaption: maskAmounts.value ? undefined : t('salesOrderItemList.board.kpi.usdCaption'),
-      currencyCaption: currencyItems.length ? t('salesOrderItemList.board.kpi.originalCaption') : undefined,
+      valueCaption: maskAmounts.value ? undefined : tt('kpi.usdCaption'),
+      currencyCaption: currencyItems.length ? tt('kpi.originalCaption') : undefined,
       currencyItems: currencyItems.length ? currencyItems : undefined
     }
   ]
@@ -142,13 +166,13 @@ const profitKpiItems = computed(() => {
   return [
     {
       key: 'purchaseProfit',
-      label: t('salesOrderItemList.board.kpi.purchaseProfit'),
+      label: tt('kpi.purchaseProfit'),
       value: maskAmounts.value ? '—' : formatMoney(s.purchaseProfitUsd),
       valueFormat: 'money' as const
     },
     {
       key: 'outboundProfit',
-      label: t('salesOrderItemList.board.kpi.outboundProfit'),
+      label: tt('kpi.outboundProfit'),
       value: maskAmounts.value ? '—' : formatMoney(s.outboundProfitUsd),
       valueFormat: 'money' as const
     }
@@ -161,23 +185,23 @@ const inStockKpiItems = computed(() => {
   return [
     {
       key: 'inStockCustomers',
-      label: t('salesOrderItemList.board.kpi.inStockCustomers'),
+      label: tt('kpi.inStockCustomers'),
       value: String(s.inStockCustomerCount)
     },
     {
       key: 'inStockLines',
-      label: t('salesOrderItemList.board.kpi.inStockLines'),
+      label: tt('kpi.inStockLines'),
       value: String(s.inStockLineCount)
     },
     {
       key: 'inStockAmount',
-      label: t('salesOrderItemList.board.kpi.inStockAmount'),
+      label: tt('kpi.inStockAmount'),
       value: maskAmounts.value ? '—' : formatMoney(s.inStockAmountUsd),
       valueFormat: 'money' as const
     },
     {
       key: 'maxStockAge',
-      label: t('salesOrderItemList.board.kpi.maxStockAge'),
+      label: tt('kpi.maxStockAge'),
       value: formatDays(s.maxStockAgeDays)
     }
   ]
@@ -197,27 +221,27 @@ const receivableKpiItems = computed(() => {
   return [
     {
       key: 'receivableCustomers',
-      label: t('salesOrderItemList.board.kpi.receivableCustomers'),
+      label: tt('kpi.receivableCustomers'),
       value: String(s.receivableCustomerCount)
     },
     {
       key: 'receivableLines',
-      label: t('salesOrderItemList.board.kpi.receivableLines'),
+      label: tt('kpi.receivableLines'),
       value: String(s.receivableLineCount)
     },
     {
       key: 'receivableAmount',
-      label: t('salesOrderItemList.board.kpi.receivableAmount'),
+      label: tt('kpi.receivableAmount'),
       value: maskAmounts.value ? '—' : formatMoney(s.receivableAmountUsd),
       valueFormat: 'money' as const,
       layout: currencyItems.length ? ('split' as const) : undefined,
-      valueCaption: maskAmounts.value ? undefined : t('salesOrderItemList.board.kpi.usdCaption'),
-      currencyCaption: currencyItems.length ? t('salesOrderItemList.board.kpi.originalCaption') : undefined,
+      valueCaption: maskAmounts.value ? undefined : tt('kpi.usdCaption'),
+      currencyCaption: currencyItems.length ? tt('kpi.originalCaption') : undefined,
       currencyItems: currencyItems.length ? currencyItems : undefined
     },
     {
       key: 'maxReceivableAge',
-      label: t('salesOrderItemList.board.kpi.maxReceivableAge'),
+      label: tt('kpi.maxReceivableAge'),
       value: formatDays(s.maxReceivableAgeDays)
     }
   ]
@@ -270,11 +294,16 @@ function breakdownValueFormat(groupKey: string): 'money' | 'number' {
 }
 
 function breakdownTitle(group: SalesAnalyticsBreakdownGroup): string {
-  const key = `salesOrderItemList.board.breakdown.${group.groupKey}`
+  const key = `${i18nPrefix.value}.breakdown.${group.groupKey}`
   const translated = t(key)
   const base = translated !== key ? translated : group.groupLabel
-  if (maskAmounts.value && group.groupKey !== 'itemStatus' && group.groupKey !== 'brandQty' && group.groupKey !== 'dateCode') {
-    return `${base}（${t('salesOrderItemList.board.breakdown.byCount')}）`
+  if (
+    maskAmounts.value &&
+    group.groupKey !== 'itemStatus' &&
+    group.groupKey !== 'brandQty' &&
+    group.groupKey !== 'dateCode'
+  ) {
+    return `${base}（${tt('breakdown.byCount')}）`
   }
   return base
 }
@@ -282,8 +311,8 @@ function breakdownTitle(group: SalesAnalyticsBreakdownGroup): string {
 function breakdownItemLabel(groupKey: string, item: { key: string; label: string }): string {
   if (groupKey === 'itemStatus') {
     const statusNum = Number(item.key)
-    if (statusNum === 0) return t('salesOrderItemList.board.itemStatus.normal')
-    if (statusNum === 1) return t('salesOrderItemList.board.itemStatus.cancelled')
+    if (statusNum === 0) return tt('itemStatus.normal')
+    if (statusNum === 1) return tt('itemStatus.cancelled')
   }
   const progressMap: Record<string, string> = {
     purchaseProgress: 'purchase',
@@ -309,91 +338,148 @@ function localizedBreakdownItems(group: SalesAnalyticsBreakdownGroup) {
   }))
 }
 
-function buildQuery(): SalesOrderItemListAnalyticsQuery {
-  return { ...props.filters, groupBy: groupBy.value }
+function reportQueryKey(q: SalesAnalyticsQuery): string {
+  return [
+    q.viewLevel ?? '',
+    q.departmentId ?? '',
+    q.salesUserId ?? '',
+    q.dateFrom ?? '',
+    q.dateTo ?? '',
+    q.groupBy ?? groupBy.value
+  ].join('|')
 }
 
-async function loadData() {
+async function loadData(force = false) {
+  if (!props.active) return
+  if (isReportMode.value) {
+    const q = { ...(props.reportQuery ?? {}), groupBy: groupBy.value }
+    const key = reportQueryKey(q)
+    if (!force && loadedKey.value === key && dashboard.value) return
+    loading.value = true
+    try {
+      const [dash, trendRows, breakdownRows, rankingRows] = await Promise.all([
+        salesAnalyticsApi.getOrderItemsDashboard(q),
+        salesAnalyticsApi.getOrderItemsTrends(q),
+        salesAnalyticsApi.getOrderItemsBreakdowns(q),
+        salesAnalyticsApi.getOrderItemsRankings(q)
+      ])
+      dashboard.value = dash
+      trends.value = trendRows
+      breakdowns.value = breakdownRows
+      rankings.value = rankingRows
+      loadedKey.value = key
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : tt('loadFailed')
+      ElMessage.error(msg)
+    } finally {
+      loading.value = false
+    }
+    return
+  }
+
   loading.value = true
   try {
-    const q = buildQuery()
-    const [dash, trendRows, breakdownRows, rankingRows] = await Promise.all([
+    const q: SalesOrderItemListAnalyticsQuery = {
+      ...(props.filters ?? {}),
+      dataset: 'listFilter'
+    }
+    const [dash, breakdownRows, rankingRows] = await Promise.all([
       salesOrderItemListAnalyticsApi.getDashboard(q),
-      salesOrderItemListAnalyticsApi.getTrends(q),
       salesOrderItemListAnalyticsApi.getBreakdowns(q),
       salesOrderItemListAnalyticsApi.getRankings(q)
     ])
     dashboard.value = dash
-    trends.value = trendRows
+    trends.value = []
     breakdowns.value = breakdownRows
     rankings.value = rankingRows
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : t('salesOrderItemList.board.loadFailed')
+    const msg = e instanceof Error ? e.message : tt('loadFailed')
     ElMessage.error(msg)
   } finally {
     loading.value = false
   }
 }
 
-watch(() => ({ ...props.filters, groupBy: groupBy.value }), () => void loadData(), { deep: true })
-onMounted(() => void loadData())
+watch(
+  () => ({
+    mode: props.mode,
+    active: props.active,
+    filters: props.filters,
+    reportQuery: props.reportQuery,
+    groupBy: groupBy.value
+  }),
+  () => {
+    if (isReportMode.value) {
+      void loadData(false)
+    } else {
+      void loadData(true)
+    }
+  },
+  { deep: true }
+)
+onMounted(() => void loadData(true))
 
-defineExpose({ reload: loadData })
+watch(
+  () => props.reportQuery?.groupBy,
+  (g) => {
+    if (g === 'day' || g === 'week' || g === 'month') groupBy.value = g
+  },
+  { immediate: true }
+)
+
+defineExpose({ reload: () => loadData(true) })
 </script>
 
 <template>
   <div class="so-item-list-board" v-loading="loading">
     <div class="board-toolbar card">
-      <span class="board-hint">{{ t('salesOrderItemList.board.hint') }}</span>
-      <el-select v-model="groupBy" style="width: 120px">
-        <el-option value="day" :label="t('salesOrderItemList.board.groupBy.day')" />
-        <el-option value="week" :label="t('salesOrderItemList.board.groupBy.week')" />
-        <el-option value="month" :label="t('salesOrderItemList.board.groupBy.month')" />
+      <el-tag size="small" :type="isReportMode ? 'success' : 'info'" effect="plain">
+        {{ tt('datasetTag') }}
+      </el-tag>
+      <span class="board-hint">{{ tt('hint') }}</span>
+      <el-select v-if="showTrends" v-model="groupBy" style="width: 120px">
+        <el-option value="day" :label="tt('groupBy.day')" />
+        <el-option value="week" :label="tt('groupBy.week')" />
+        <el-option value="month" :label="tt('groupBy.month')" />
       </el-select>
-      <el-button type="primary" @click="loadData">{{ t('salesOrderItemList.board.refresh') }}</el-button>
+      <el-button type="primary" @click="loadData(true)">{{ tt('refresh') }}</el-button>
     </div>
 
     <section class="section">
-      <h3 class="section-title">{{ t('salesOrderItemList.board.sections.orderKpi') }}</h3>
+      <h3 class="section-title">{{ tt('sections.orderKpi') }}</h3>
       <AnalyticsKpiGrid :items="orderKpiItems" />
     </section>
 
     <section class="section">
-      <h3 class="section-title">{{ t('salesOrderItemList.board.sections.profitKpi') }}</h3>
+      <h3 class="section-title">{{ tt('sections.profitKpi') }}</h3>
       <AnalyticsKpiGrid :items="profitKpiItems" />
     </section>
 
     <section class="section">
-      <h3 class="section-title">{{ t('salesOrderItemList.board.sections.inStockKpi') }}</h3>
+      <h3 class="section-title">{{ tt('sections.inStockKpi') }}</h3>
       <AnalyticsKpiGrid :items="inStockKpiItems" />
     </section>
 
     <section class="section">
-      <h3 class="section-title">{{ t('salesOrderItemList.board.sections.receivableKpi') }}</h3>
+      <h3 class="section-title">{{ tt('sections.receivableKpi') }}</h3>
       <AnalyticsKpiGrid :items="receivableKpiItems" />
     </section>
 
-    <div class="charts-row">
+    <div v-if="showTrends" class="charts-row">
       <div class="card chart-panel">
-        <h3 class="section-title">{{ t('salesOrderItemList.board.sections.trendOrders') }}</h3>
-        <AnalyticsTrendChart
-          :points="trendOrderPoints"
-          :value-suffix="t('salesOrderItemList.board.trendUnit.orders')"
-        />
+        <h3 class="section-title">{{ tt('sections.trendOrders') }}</h3>
+        <AnalyticsTrendChart :points="trendOrderPoints" :value-suffix="tt('trendUnit.orders')" />
       </div>
       <div class="card chart-panel">
-        <h3 class="section-title">{{ t('salesOrderItemList.board.sections.trendLines') }}</h3>
-        <AnalyticsTrendChart
-          :points="trendLinePoints"
-          :value-suffix="t('salesOrderItemList.board.trendUnit.lines')"
-        />
+        <h3 class="section-title">{{ tt('sections.trendLines') }}</h3>
+        <AnalyticsTrendChart :points="trendLinePoints" :value-suffix="tt('trendUnit.lines')" />
       </div>
       <div class="card chart-panel">
-        <h3 class="section-title">{{ t('salesOrderItemList.board.sections.trendAmount') }}</h3>
+        <h3 class="section-title">{{ tt('sections.trendAmount') }}</h3>
         <AnalyticsTrendChart
           :points="trendAmountPoints"
           value-format="money"
-          :unit-caption="t('salesOrderItemList.board.trendUnit.moneyCaption')"
+          :unit-caption="tt('trendUnit.moneyCaption')"
         />
       </div>
     </div>
@@ -416,20 +502,20 @@ defineExpose({ reload: loadData })
 
     <div class="rankings-section">
       <div v-if="!maskAmounts" class="rankings-toolbar">
-        <span class="rankings-toolbar-label">{{ t('salesOrderItemList.board.rankings.metricMode') }}</span>
+        <span class="rankings-toolbar-label">{{ tt('rankings.metricMode') }}</span>
         <el-radio-group v-model="rankingMetricMode" size="small">
-          <el-radio-button value="amount">{{ t('salesOrderItemList.board.rankings.amount') }}</el-radio-button>
-          <el-radio-button value="count">{{ t('salesOrderItemList.board.rankings.lineCount') }}</el-radio-button>
+          <el-radio-button value="amount">{{ tt('rankings.amount') }}</el-radio-button>
+          <el-radio-button value="count">{{ tt('rankings.lineCount') }}</el-radio-button>
         </el-radio-group>
       </div>
 
       <div class="rankings-row">
         <div v-for="table in rankingTables" :key="table.key" class="card ranking-panel">
-          <h3 class="section-title">{{ t(`salesOrderItemList.board.rankings.${table.titleKey}`) }}</h3>
+          <h3 class="section-title">{{ tt(`rankings.${table.titleKey}`) }}</h3>
           <el-table :data="rankingRowsFor(table)" size="small" stripe class="ranking-table">
             <el-table-column
               prop="name"
-              :label="t('salesOrderItemList.board.rankings.name')"
+              :label="tt('rankings.name')"
               min-width="200"
               class-name="ranking-name-col"
             >

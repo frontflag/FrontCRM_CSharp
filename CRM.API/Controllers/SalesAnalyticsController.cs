@@ -1,5 +1,6 @@
 using CRM.API.Authorization;
 using CRM.API.Models.DTOs;
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Analytics;
 using CRM.Core.Utilities;
@@ -15,15 +16,21 @@ public class SalesAnalyticsController : ControllerBase
 {
     private readonly ISalesAnalyticsService _service;
     private readonly ISalesAnalyticsReconciliationService _reconciliation;
+    private readonly ISalesOrderItemLineListQuery _orderItemLineListQuery;
+    private readonly IRfqItemListQuery _rfqItemListQuery;
     private readonly IRbacService _rbacService;
 
     public SalesAnalyticsController(
         ISalesAnalyticsService service,
         ISalesAnalyticsReconciliationService reconciliation,
+        ISalesOrderItemLineListQuery orderItemLineListQuery,
+        IRfqItemListQuery rfqItemListQuery,
         IRbacService rbacService)
     {
         _service = service;
         _reconciliation = reconciliation;
+        _orderItemLineListQuery = orderItemLineListQuery;
+        _rfqItemListQuery = rfqItemListQuery;
         _rbacService = rbacService;
     }
 
@@ -79,6 +86,176 @@ public class SalesAnalyticsController : ControllerBase
         return Ok(ApiResponse<IReadOnlyList<SalesAnalyticsBreakdownGroupDto>>.Ok(data));
     }
 
+    /// <summary>客户维看板（成单/复购客户、类型等级行业、客户 Top10）。</summary>
+    [HttpGet("customer")]
+    public async Task<IActionResult> GetCustomer(
+        [FromQuery] string? viewLevel,
+        [FromQuery] string? departmentId,
+        [FromQuery] string? salesUserId,
+        [FromQuery] string? dateFrom,
+        [FromQuery] string? dateTo,
+        CancellationToken cancellationToken = default)
+    {
+        var (ok, error, scope) = await ResolveAsync(viewLevel, departmentId, salesUserId, dateFrom, dateTo, null, cancellationToken);
+        if (!ok)
+            return Forbidden(error);
+
+        var data = await _service.GetCustomerAsync(scope!, cancellationToken);
+        return Ok(ApiResponse<SalesAnalyticsCustomerDto>.Ok(data));
+    }
+
+    /// <summary>订单明细维看板（与明细列表看板同实现；dataset=reportApproved 成单口径）。</summary>
+    [HttpGet("order-items/dashboard")]
+    public async Task<IActionResult> GetOrderItemsDashboard(
+        [FromQuery] string? viewLevel,
+        [FromQuery] string? departmentId,
+        [FromQuery] string? salesUserId,
+        [FromQuery] string? dateFrom,
+        [FromQuery] string? dateTo,
+        CancellationToken cancellationToken = default)
+    {
+        var (ok, error, scope) = await ResolveAsync(viewLevel, departmentId, salesUserId, dateFrom, dateTo, null, cancellationToken);
+        if (!ok)
+            return Forbidden(error);
+
+        var request = BuildOrderItemsRequest(scope!);
+        var data = await _orderItemLineListQuery.GetListAnalyticsDashboardAsync(request, scope!.MaskAmounts, cancellationToken);
+        return Ok(ApiResponse<SalesOrderItemListAnalyticsDashboardDto>.Ok(data));
+    }
+
+    [HttpGet("order-items/trends")]
+    public async Task<IActionResult> GetOrderItemsTrends(
+        [FromQuery] string? viewLevel,
+        [FromQuery] string? departmentId,
+        [FromQuery] string? salesUserId,
+        [FromQuery] string? dateFrom,
+        [FromQuery] string? dateTo,
+        [FromQuery] string? groupBy,
+        CancellationToken cancellationToken = default)
+    {
+        var (ok, error, scope) = await ResolveAsync(viewLevel, departmentId, salesUserId, dateFrom, dateTo, groupBy, cancellationToken);
+        if (!ok)
+            return Forbidden(error);
+
+        var request = BuildOrderItemsRequest(scope!);
+        var data = await _orderItemLineListQuery.GetListAnalyticsTrendsAsync(
+            request,
+            scope!.GroupBy,
+            scope.MaskAmounts,
+            cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<SalesOrderItemListAnalyticsTrendPointDto>>.Ok(data));
+    }
+
+    [HttpGet("order-items/breakdowns")]
+    public async Task<IActionResult> GetOrderItemsBreakdowns(
+        [FromQuery] string? viewLevel,
+        [FromQuery] string? departmentId,
+        [FromQuery] string? salesUserId,
+        [FromQuery] string? dateFrom,
+        [FromQuery] string? dateTo,
+        CancellationToken cancellationToken = default)
+    {
+        var (ok, error, scope) = await ResolveAsync(viewLevel, departmentId, salesUserId, dateFrom, dateTo, null, cancellationToken);
+        if (!ok)
+            return Forbidden(error);
+
+        var request = BuildOrderItemsRequest(scope!);
+        var data = await _orderItemLineListQuery.GetListAnalyticsBreakdownsAsync(request, scope!.MaskAmounts, cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<SalesAnalyticsBreakdownGroupDto>>.Ok(data));
+    }
+
+    [HttpGet("order-items/rankings")]
+    public async Task<IActionResult> GetOrderItemsRankings(
+        [FromQuery] string? viewLevel,
+        [FromQuery] string? departmentId,
+        [FromQuery] string? salesUserId,
+        [FromQuery] string? dateFrom,
+        [FromQuery] string? dateTo,
+        CancellationToken cancellationToken = default)
+    {
+        var (ok, error, scope) = await ResolveAsync(viewLevel, departmentId, salesUserId, dateFrom, dateTo, null, cancellationToken);
+        if (!ok)
+            return Forbidden(error);
+
+        var request = BuildOrderItemsRequest(scope!);
+        var data = await _orderItemLineListQuery.GetListAnalyticsRankingsAsync(request, scope!.MaskAmounts, cancellationToken);
+        return Ok(ApiResponse<SalesOrderItemListAnalyticsRankingsDto>.Ok(data));
+    }
+
+    /// <summary>需求明细维看板（与明细列表看板同实现；dataset=reportScope，排除主单已取消）。</summary>
+    [HttpGet("rfq-items/dashboard")]
+    public async Task<IActionResult> GetRfqItemsDashboard(
+        [FromQuery] string? viewLevel,
+        [FromQuery] string? departmentId,
+        [FromQuery] string? salesUserId,
+        [FromQuery] string? dateFrom,
+        [FromQuery] string? dateTo,
+        CancellationToken cancellationToken = default)
+    {
+        var (ok, error, scope) = await ResolveAsync(viewLevel, departmentId, salesUserId, dateFrom, dateTo, null, cancellationToken);
+        if (!ok)
+            return Forbidden(error);
+
+        var (request, maskCustomerNames) = BuildRfqItemsRequest(scope!);
+        var data = await _rfqItemListQuery.GetListAnalyticsDashboardAsync(request, maskCustomerNames, cancellationToken);
+        return Ok(ApiResponse<RfqListAnalyticsDashboardDto>.Ok(data));
+    }
+
+    [HttpGet("rfq-items/trends")]
+    public async Task<IActionResult> GetRfqItemsTrends(
+        [FromQuery] string? viewLevel,
+        [FromQuery] string? departmentId,
+        [FromQuery] string? salesUserId,
+        [FromQuery] string? dateFrom,
+        [FromQuery] string? dateTo,
+        [FromQuery] string? groupBy,
+        CancellationToken cancellationToken = default)
+    {
+        var (ok, error, scope) = await ResolveAsync(viewLevel, departmentId, salesUserId, dateFrom, dateTo, groupBy, cancellationToken);
+        if (!ok)
+            return Forbidden(error);
+
+        var (request, _) = BuildRfqItemsRequest(scope!);
+        var data = await _rfqItemListQuery.GetListAnalyticsTrendsAsync(request, scope!.GroupBy, cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<RfqListAnalyticsTrendPointDto>>.Ok(data));
+    }
+
+    [HttpGet("rfq-items/breakdowns")]
+    public async Task<IActionResult> GetRfqItemsBreakdowns(
+        [FromQuery] string? viewLevel,
+        [FromQuery] string? departmentId,
+        [FromQuery] string? salesUserId,
+        [FromQuery] string? dateFrom,
+        [FromQuery] string? dateTo,
+        CancellationToken cancellationToken = default)
+    {
+        var (ok, error, scope) = await ResolveAsync(viewLevel, departmentId, salesUserId, dateFrom, dateTo, null, cancellationToken);
+        if (!ok)
+            return Forbidden(error);
+
+        var (request, _) = BuildRfqItemsRequest(scope!);
+        var data = await _rfqItemListQuery.GetListAnalyticsBreakdownsAsync(request, cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<SalesAnalyticsBreakdownGroupDto>>.Ok(data));
+    }
+
+    [HttpGet("rfq-items/rankings")]
+    public async Task<IActionResult> GetRfqItemsRankings(
+        [FromQuery] string? viewLevel,
+        [FromQuery] string? departmentId,
+        [FromQuery] string? salesUserId,
+        [FromQuery] string? dateFrom,
+        [FromQuery] string? dateTo,
+        CancellationToken cancellationToken = default)
+    {
+        var (ok, error, scope) = await ResolveAsync(viewLevel, departmentId, salesUserId, dateFrom, dateTo, null, cancellationToken);
+        if (!ok)
+            return Forbidden(error);
+
+        var (request, maskCustomerNames) = BuildRfqItemsRequest(scope!);
+        var data = await _rfqItemListQuery.GetListAnalyticsRankingsAsync(request, maskCustomerNames, cancellationToken);
+        return Ok(ApiResponse<RfqItemListAnalyticsRankingsDto>.Ok(data));
+    }
+
     private async Task<(bool Ok, string? Error, SalesAnalyticsResolvedScope? Scope)> ResolveAsync(
         string? viewLevel,
         string? departmentId,
@@ -103,6 +280,44 @@ public class SalesAnalyticsController : ControllerBase
         };
 
         return await _service.ResolveScopeAsync(userId, query, cancellationToken);
+    }
+
+    private static SellOrderItemLineQueryRequest BuildOrderItemsRequest(SalesAnalyticsResolvedScope scope)
+    {
+        var viewLevel = scope.ViewLevel?.Trim().ToLowerInvariant() ?? SalesAnalyticsViewLevels.Company;
+        return new SellOrderItemLineQueryRequest
+        {
+            OrderCreateStart = scope.DateFrom,
+            OrderCreateEnd = scope.DateTo,
+            AnalyticsDataset = SalesOrderItemAnalyticsDatasets.ReportApproved,
+            AnalyticsViewLevel = viewLevel,
+            AnalyticsDepartmentId = viewLevel == SalesAnalyticsViewLevels.Department ? scope.DepartmentId : null,
+            SalesUserId = viewLevel == SalesAnalyticsViewLevels.Personal ? scope.SalesUserId : null,
+            CurrentUserId = scope.Summary.UserId
+        };
+    }
+
+    private static (RFQItemQueryRequest Request, bool MaskCustomerNames) BuildRfqItemsRequest(
+        SalesAnalyticsResolvedScope scope)
+    {
+        var viewLevel = scope.ViewLevel?.Trim().ToLowerInvariant() ?? SalesAnalyticsViewLevels.Company;
+        var mask521 = SaleSensitiveFieldMask521.ShouldMask(scope.Summary);
+        var canViewCustomer = !mask521 && (scope.Summary.IsSysAdmin
+            || (scope.Summary.PermissionCodes?.Contains("customer.info.read") ?? false));
+
+        var request = new RFQItemQueryRequest
+        {
+            StartDate = scope.DateFrom,
+            EndDate = scope.DateTo,
+            AnalyticsDataset = RfqItemAnalyticsDatasets.ReportScope,
+            AnalyticsViewLevel = viewLevel,
+            AnalyticsDepartmentId = viewLevel == SalesAnalyticsViewLevels.Department ? scope.DepartmentId : null,
+            SalesUserId = viewLevel == SalesAnalyticsViewLevels.Personal ? scope.SalesUserId : null,
+            CurrentUserId = scope.Summary.UserId,
+            CanViewCustomerInList = canViewCustomer
+        };
+
+        return (request, !canViewCustomer);
     }
 
     /// <summary>看板指标与列表基线对账（SYS_ADMIN 或联调账号自用）。</summary>

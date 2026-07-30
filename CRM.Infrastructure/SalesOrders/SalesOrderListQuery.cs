@@ -173,8 +173,9 @@ public sealed class SalesOrderListQuery : ISalesOrderListQuery
         bool maskAmounts,
         CancellationToken cancellationToken = default)
     {
-        var approved = await BuildApprovedOrderQueryAsync(request, cancellationToken);
-        var rows = await approved
+        // 列表看板口径：与搜索栏筛选结果一致，不再强制 status≥审核通过。
+        var filtered = await BuildFilteredQueryAsync(request, cancellationToken);
+        var rows = await filtered
             .Select(o => new OrderAnalyticsRow
             {
                 CustomerId = o.CustomerId,
@@ -192,7 +193,7 @@ public sealed class SalesOrderListQuery : ISalesOrderListQuery
 
         var repeatCustomers = customerGroups.Count(c => c >= 2);
         var repeatOrders = customerGroups.Sum(c => Math.Max(0, c - 1));
-        var approvedAmount = rows.Sum(o => o.ConvertTotal);
+        var amountUsd = rows.Sum(o => o.ConvertTotal);
 
         var currencyLines = rows
             .GroupBy(o => o.Currency)
@@ -215,7 +216,7 @@ public sealed class SalesOrderListQuery : ISalesOrderListQuery
                 RepeatCustomerCount = repeatCustomers,
                 ApprovedOrderCount = rows.Count,
                 RepeatOrderCount = repeatOrders,
-                ApprovedAmountUsd = maskAmounts ? null : approvedAmount,
+                ApprovedAmountUsd = maskAmounts ? null : amountUsd,
                 CurrencyLines = currencyLines
             }
         };
@@ -228,8 +229,8 @@ public sealed class SalesOrderListQuery : ISalesOrderListQuery
         bool maskAmounts,
         CancellationToken cancellationToken = default)
     {
-        var approved = await BuildApprovedOrderQueryAsync(request, cancellationToken);
-        var orderRows = await approved
+        var filtered = await BuildFilteredQueryAsync(request, cancellationToken);
+        var orderRows = await filtered
             .Select(o => new { o.CreateTime, o.ConvertTotal })
             .ToListAsync(cancellationToken);
 
@@ -263,7 +264,6 @@ public sealed class SalesOrderListQuery : ISalesOrderListQuery
         CancellationToken cancellationToken = default)
     {
         var filtered = await BuildFilteredQueryAsync(request, cancellationToken);
-        var approved = filtered.Where(o => o.Status >= SellOrderMainStatus.Approved);
 
         var statusRows = await filtered
             .GroupBy(o => o.Status)
@@ -279,7 +279,7 @@ public sealed class SalesOrderListQuery : ISalesOrderListQuery
         }).ToList();
         ApplyRatios(statusItems);
 
-        var currencyRows = await approved
+        var currencyRows = await filtered
             .GroupBy(o => o.Currency)
             .Select(g => new { Currency = g.Key, Amount = g.Sum(x => x.ConvertTotal), Count = g.Count() })
             .ToListAsync(cancellationToken);
@@ -294,7 +294,7 @@ public sealed class SalesOrderListQuery : ISalesOrderListQuery
         ApplyRatios(currencyItems);
 
         var customerDimRows = await (
-            from o in approved
+            from o in filtered
             join c in _db.Customers.AsNoTracking() on o.CustomerId equals c.Id into cj
             from c in cj.DefaultIfEmpty()
             select new
@@ -325,7 +325,7 @@ public sealed class SalesOrderListQuery : ISalesOrderListQuery
             r => maskAmounts ? 1m : r.ConvertTotal,
             maskAmounts);
 
-        var salesUserRows = await approved
+        var salesUserRows = await filtered
             .GroupBy(o => new { o.SalesUserId, o.SalesUserName })
             .Select(g => new
             {
@@ -348,11 +348,11 @@ public sealed class SalesOrderListQuery : ISalesOrderListQuery
         return new List<SalesAnalyticsBreakdownGroupDto>
         {
             new() { GroupKey = "orderStatus", GroupLabel = "订单主状态", Items = statusItems },
-            new() { GroupKey = "currency", GroupLabel = "币别金额（成单）", Items = currencyItems },
-            new() { GroupKey = "customerType", GroupLabel = "客户类型（成单 USD）", Items = typeItems },
-            new() { GroupKey = "customerLevel", GroupLabel = "客户等级（成单 USD）", Items = levelItems },
-            new() { GroupKey = "customerIndustry", GroupLabel = "客户行业（成单 USD）", Items = industryItems },
-            new() { GroupKey = "salesUser", GroupLabel = "业务员（成单 USD）", Items = salesUserItems }
+            new() { GroupKey = "currency", GroupLabel = "币别构成", Items = currencyItems },
+            new() { GroupKey = "customerType", GroupLabel = "客户类型（USD）", Items = typeItems },
+            new() { GroupKey = "customerLevel", GroupLabel = "客户等级（USD）", Items = levelItems },
+            new() { GroupKey = "customerIndustry", GroupLabel = "客户行业（USD）", Items = industryItems },
+            new() { GroupKey = "salesUser", GroupLabel = "业务员（USD）", Items = salesUserItems }
         };
     }
 
@@ -363,8 +363,8 @@ public sealed class SalesOrderListQuery : ISalesOrderListQuery
         CancellationToken cancellationToken = default)
     {
         const int topN = 10;
-        var approved = await BuildApprovedOrderQueryAsync(request, cancellationToken);
-        var orderRows = await approved
+        var filtered = await BuildFilteredQueryAsync(request, cancellationToken);
+        var orderRows = await filtered
             .Select(o => new
             {
                 o.CustomerId,
@@ -442,14 +442,6 @@ public sealed class SalesOrderListQuery : ISalesOrderListQuery
             CustomerByRepeatOrderCount = customerByRepeat,
             SalesUserByAmount = salesUserByAmount
         };
-    }
-
-    private async Task<IQueryable<SellOrder>> BuildApprovedOrderQueryAsync(
-        SalesOrderQueryRequest request,
-        CancellationToken cancellationToken)
-    {
-        var q = await BuildFilteredQueryAsync(request, cancellationToken);
-        return q.Where(o => o.Status >= SellOrderMainStatus.Approved);
     }
 
     private static (DateTime From, DateTime ToInclusive) ResolveTrendDateBounds(

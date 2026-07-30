@@ -1,6 +1,7 @@
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
+using CRM.Core.Models.Analytics;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
 using CRM.Core.Utilities;
@@ -257,6 +258,50 @@ internal static partial class SalesOrderItemLineListFilter
         {
             var cid = request.CustomerId.Trim();
             q = q.Where(x => x.So.CustomerId == cid);
+        }
+
+        // 报表成单透镜：部门 / 个人（公司层仅数据权限）
+        if (SalesOrderItemAnalyticsDatasets.IsReportApproved(request.AnalyticsDataset))
+        {
+            q = ApplyReportViewLens(db, q, request);
+        }
+
+        return q;
+    }
+
+    private static IQueryable<SellOrderItemLineJoin> ApplyReportViewLens(
+        ApplicationDbContext db,
+        IQueryable<SellOrderItemLineJoin> q,
+        SellOrderItemLineQueryRequest request)
+    {
+        var viewLevel = (request.AnalyticsViewLevel ?? string.Empty).Trim().ToLowerInvariant();
+        if (viewLevel == SalesAnalyticsViewLevels.Personal
+            && !string.IsNullOrWhiteSpace(request.SalesUserId))
+        {
+            var uid = request.SalesUserId.Trim();
+            return q.Where(x => x.So.SalesUserId == uid);
+        }
+
+        if (viewLevel == SalesAnalyticsViewLevels.Department)
+        {
+            var deptId = request.AnalyticsDepartmentId?.Trim();
+            if (string.IsNullOrWhiteSpace(deptId))
+                return q;
+
+            if (string.Equals(deptId, SalesAnalyticsScopeValidator.UnassignedDepartmentId, StringComparison.OrdinalIgnoreCase))
+            {
+                var withPrimary = db.RbacUserDepartments.AsNoTracking()
+                    .Where(ud => ud.IsPrimary)
+                    .Select(ud => ud.UserId);
+                return q.Where(x =>
+                    x.So.SalesUserId == null
+                    || !withPrimary.Contains(x.So.SalesUserId));
+            }
+
+            var userIdsInDept = db.RbacUserDepartments.AsNoTracking()
+                .Where(ud => ud.IsPrimary && ud.DepartmentId == deptId)
+                .Select(ud => ud.UserId);
+            return q.Where(x => x.So.SalesUserId != null && userIdsInDept.Contains(x.So.SalesUserId));
         }
 
         return q;

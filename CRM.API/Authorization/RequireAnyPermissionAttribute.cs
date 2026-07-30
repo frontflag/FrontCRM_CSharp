@@ -40,6 +40,9 @@ public sealed class RequireAnyPermissionAttribute : Attribute, IAsyncAuthorizati
         var summary = await rbacService.GetUserPermissionSummaryAsync(userId);
         if (summary.IsSysAdmin)
             return;
+        // 业务权限：管理角色与 SuperAdmin 对齐（本特性用于业务码组合，无 system.*）
+        if (summary.HasBizDataBypass)
+            return;
 
         var ok = codes.Any(code =>
             summary.PermissionCodes.Any(c => string.Equals(c, code, StringComparison.OrdinalIgnoreCase)));

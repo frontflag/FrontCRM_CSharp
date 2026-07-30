@@ -20,4 +20,8 @@ public interface ISalesAnalyticsService
     Task<IReadOnlyList<SalesAnalyticsBreakdownGroupDto>> GetBreakdownsAsync(
         SalesAnalyticsResolvedScope scope,
         CancellationToken cancellationToken = default);
+
+    Task<SalesAnalyticsCustomerDto> GetCustomerAsync(
+        SalesAnalyticsResolvedScope scope,
+        CancellationToken cancellationToken = default);
 }

@@ -134,10 +134,16 @@ namespace CRM.Core.Services
                 }
             }
 
+            // 管理角色（SuperAdmin / Admin / Manager）业务菜单与 SuperAdmin 对齐：不因主部门身份剥离 SO/PO。
+            var isSysAdminEarly = ManagementRoleCodes.IsSuperAdmin(roleCodes);
+            var isSysManagerEarly = ManagementRoleCodes.IsAdminRole(roleCodes);
+            var isBizManagerEarly = ManagementRoleCodes.IsBizManagerRole(roleCodes);
+            var hasManagementAccessEarly = isSysAdminEarly || isSysManagerEarly || isBizManagerEarly;
+
             // 隶属采购侧部门时：不授予销售订单与「销售侧财务」（与采购菜单、数据范围一致）。
             // DEPT_EMPLOYEE 种子可能仍含 finance-receipt / sales-order，此处统一剥离。
             // 采购主部门（含总监/经理绑 biz_all）：不允许「新建需求」——剥离 rfq.create（保留 rfq.write 供分配等维护）。
-            if (belongsToPurchaseDept)
+            if (belongsToPurchaseDept && !hasManagementAccessEarly)
             {
                 RemovePermissionCodes(permissionCodes,
                     "sales-order.read", "sales-order.write", "sales.amount.read",
@@ -148,7 +154,7 @@ namespace CRM.Core.Services
 
             // 主部门为销售（1）时：不授予采购订单与采购侧财务（与采购主部门不持有销售订单对称）。
             // 采购申请保留：销售员可提采购申请，与菜单/路由一致。
-            if (identityType == 1)
+            if (identityType == 1 && !hasManagementAccessEarly)
             {
                 RemovePermissionCodes(permissionCodes,
                     "finance-payment.read", "finance-payment.write",
@@ -158,7 +164,7 @@ namespace CRM.Core.Services
             }
 
             // 商务部（IdentityType=4）：不授予供应商/采购订单/草稿只读/进项发票只读（DEPT_EMPLOYEE 种子为全员共用，此处按主部门剥离）。
-            if (identityType == 4)
+            if (identityType == 4 && !hasManagementAccessEarly)
             {
                 RemovePermissionCodes(permissionCodes,
                     "vendor.read", "vendor.info.read",
@@ -296,10 +302,10 @@ namespace CRM.Core.Services
                 AddPermissionCodeIfMissing(permissionCodes, "biz.ai.material_intel.lookup");
             }
 
-            var isSysAdmin = ManagementRoleCodes.IsSuperAdmin(roleCodes);
-            var isSysManager = ManagementRoleCodes.IsAdminRole(roleCodes);
-            var isBizManager = ManagementRoleCodes.IsBizManagerRole(roleCodes);
-            var hasManagementAccess = isSysAdmin || isSysManager || isBizManager;
+            var isSysAdmin = isSysAdminEarly;
+            var isSysManager = isSysManagerEarly;
+            var isBizManager = isBizManagerEarly;
+            var hasManagementAccess = hasManagementAccessEarly;
             var hasBizDataBypass = hasManagementAccess;
 
             // 无管理身份时剥离 system.* / 遗留 rbac.manage，防止误配后前端展示与 API 绕过
