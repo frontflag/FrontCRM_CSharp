@@ -51,6 +51,7 @@ namespace CRM.Core.Services
         private readonly ISellOrderItemPurchasedStockAvailableSyncService _purchasedStockAvailableSync;
         private readonly IForceDeleteGuardService _forceDeleteGuard;
         private readonly ILogOperationAppendService _logOperationAppend;
+        private readonly IPackingStatusReconcileService _packingStatusReconcile;
         private readonly ILogger<StockOutService> _logger;
         private readonly IStockOutListQuery _stockOutListQuery;
         private readonly IStockOutRequestListQuery _stockOutRequestListQuery;
@@ -90,6 +91,7 @@ namespace CRM.Core.Services
             IUnitOfWork unitOfWork,
             IForceDeleteGuardService forceDeleteGuard,
             ILogOperationAppendService logOperationAppend,
+            IPackingStatusReconcileService packingStatusReconcile,
             ILogger<StockOutService> logger,
             IStockOutListQuery stockOutListQuery,
             IStockOutRequestListQuery stockOutRequestListQuery,
@@ -128,6 +130,7 @@ namespace CRM.Core.Services
             _unitOfWork = unitOfWork;
             _forceDeleteGuard = forceDeleteGuard;
             _logOperationAppend = logOperationAppend;
+            _packingStatusReconcile = packingStatusReconcile;
             _logger = logger;
             _stockOutListQuery = stockOutListQuery;
             _stockOutRequestListQuery = stockOutRequestListQuery;
@@ -2670,6 +2673,12 @@ namespace CRM.Core.Services
                 ?? throw new InvalidOperationException($"出库单 {id} 不存在");
 
             var lineItems = (await _stockOutItemRepository.FindAsync(x => x.StockOutId == stockOut.Id)).ToList();
+            var linkedPackingIds = lineItems
+                .Select(x => x.PackingId?.Trim())
+                .Where(x => !string.IsNullOrEmpty(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Cast<string>()
+                .ToList();
             var itemIds = lineItems
                 .Select(x => x.Id)
                 .Where(x => !string.IsNullOrWhiteSpace(x))
@@ -2815,6 +2824,16 @@ namespace CRM.Core.Services
             if (changedLayers.Count > 0)
             {
                 await _purchasedStockAvailableSync.TryRecalculateFromChangedStockItemsAsync(changedLayers);
+            }
+
+            // 出库强制删除后按事实回写关联装箱状态（如 100 → 40）
+            if (linkedPackingIds.Count > 0)
+            {
+                await _packingStatusReconcile.ReconcileManyAsync(
+                    linkedPackingIds,
+                    actingUserId,
+                    excludingStockOutId: stockOut.Id,
+                    saveChanges: false);
             }
 
             await _unitOfWork.SaveChangesAsync();

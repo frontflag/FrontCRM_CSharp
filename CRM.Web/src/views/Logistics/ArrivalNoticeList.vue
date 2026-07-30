@@ -259,7 +259,7 @@
               {{ t('arrivalNoticeList.actions.detail') }}
             </button>
             <button type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteRow(row)">删除</button>
-            <button v-if="isSysAdmin" type="button" class="action-btn action-btn--danger" @click.stop="handleForceDeleteRow(row)">强制删除</button>
+            <button v-if="canForceDelete" type="button" class="action-btn action-btn--danger" @click.stop="handleForceDeleteRow(row)">强制删除</button>
           </div>
 
           <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -280,7 +280,7 @@
                 <el-dropdown-item divided @click.stop="handleDeleteRow(row)">
                   <span class="op-more-item op-more-item--danger">删除</span>
                 </el-dropdown-item>
-                <el-dropdown-item v-if="isSysAdmin" @click.stop="handleForceDeleteRow(row)">
+                <el-dropdown-item v-if="canForceDelete" @click.stop="handleForceDeleteRow(row)">
                   <span class="op-more-item op-more-item--danger">强制删除</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
@@ -432,7 +432,7 @@ const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const authStore = useAuthStore()
 const arrivalNoticeOpsStore = useArrivalNoticeOpsPanelStore()
 const workspaceLayout = inject(WorkspaceLayoutKey, null)
-const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
+const canForceDelete = computed(() => authStore.canForceDelete())
 const router = useRouter()
 const route = useRoute()
 const { t, locale } = useI18n()

@@ -328,7 +328,7 @@
               {{ t('packingList.actions.delete') }}
             </button>
             <button
-              v-if="isSysAdmin"
+              v-if="canForceDelete"
               type="button"
               class="action-btn action-btn--danger"
               @click.stop="() => void forceDeletePacking(row)"
@@ -378,7 +378,7 @@
                     :class="canDeletePacking(row) ? 'op-more-item--danger' : 'op-more-item--muted'"
                   >{{ t('packingList.actions.delete') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item v-if="isSysAdmin" @click.stop="() => void forceDeletePacking(row)">
+                <el-dropdown-item v-if="canForceDelete" @click.stop="() => void forceDeletePacking(row)">
                   <span class="op-more-item op-more-item--danger">{{ t('packingList.actions.forceDelete') }}</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
@@ -597,7 +597,7 @@ import StockOutBatchImportDialog from '@/components/Inventory/StockOutBatchImpor
 
 const router = useRouter()
 const authStore = useAuthStore()
-const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
+const canForceDelete = computed(() => authStore.canForceDelete())
 const { t, locale } = useI18n()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const { canWriteLogisticsData } = useDepartmentDataReadOnly()

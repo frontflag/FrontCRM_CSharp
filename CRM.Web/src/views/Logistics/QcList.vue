@@ -161,7 +161,7 @@
               {{ t('qcList.actions.createStockIn') }}
             </el-button>
             <el-button link type="danger" @click.stop="handleDeleteQc(row)">删除</el-button>
-            <el-button v-if="isSysAdmin" link type="danger" @click.stop="handleForceDeleteQc(row)">强制删除</el-button>
+            <el-button v-if="canForceDelete" link type="danger" @click.stop="handleForceDeleteQc(row)">强制删除</el-button>
           </div>
 
           <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -179,7 +179,7 @@
                 <el-dropdown-item divided @click.stop="handleDeleteQc(row)">
                   <span class="op-more-item op-more-item--danger">删除</span>
                 </el-dropdown-item>
-                <el-dropdown-item v-if="isSysAdmin" @click.stop="handleForceDeleteQc(row)">
+                <el-dropdown-item v-if="canForceDelete" @click.stop="handleForceDeleteQc(row)">
                   <span class="op-more-item op-more-item--danger">强制删除</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
@@ -274,7 +274,7 @@ const route = useRoute()
 const authStore = useAuthStore()
 const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const qcOpsStore = useQcOpsPanelStore()
-const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
+const canForceDelete = computed(() => authStore.canForceDelete())
 const { t, locale } = useI18n()
 const loading = ref(false)
 const list = ref<QcInfoDto[]>([])

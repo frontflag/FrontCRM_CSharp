@@ -69,4 +69,8 @@ public static class ManagementAccountPolicy
 
     public static bool CanAssignRoleCode(UserPermissionSummaryDto actor, string roleCode) =>
         GetAssignableRoleCodes(actor).Contains(roleCode);
+
+    /// <summary>强制删除：SuperAdmin（SYS_ADMIN）或产品 Admin（SYS_MANAGER）。</summary>
+    public static bool CanForceDelete(UserPermissionSummaryDto? actor) =>
+        actor != null && actor.CanForceDelete;
 }

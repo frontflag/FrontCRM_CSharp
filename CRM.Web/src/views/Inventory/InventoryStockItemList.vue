@@ -370,7 +370,7 @@
         <div @click.stop @dblclick.stop>
           <div v-if="opColExpanded" class="action-btns">
             <button v-if="canWriteLogisticsData" type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteStockItem(row)">删除</button>
-            <button v-if="isSysAdmin" type="button" class="action-btn action-btn--danger" @click.stop="handleForceDeleteStockItem(row)">强制删除</button>
+            <button v-if="canForceDelete" type="button" class="action-btn action-btn--danger" @click.stop="handleForceDeleteStockItem(row)">强制删除</button>
           </div>
           <el-dropdown v-else trigger="click" placement="bottom-end">
             <div class="op-more-dropdown-trigger">
@@ -381,7 +381,7 @@
                 <el-dropdown-item v-if="canWriteLogisticsData" @click.stop="handleDeleteStockItem(row)">
                   <span class="op-more-item op-more-item--danger">删除</span>
                 </el-dropdown-item>
-                <el-dropdown-item v-if="isSysAdmin" divided @click.stop="handleForceDeleteStockItem(row)">
+                <el-dropdown-item v-if="canForceDelete" divided @click.stop="handleForceDeleteStockItem(row)">
                   <span class="op-more-item op-more-item--danger">强制删除</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
@@ -483,7 +483,7 @@ const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
 const { canWriteLogisticsData } = useDepartmentDataReadOnly()
-const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
+const canForceDelete = computed(() => authStore.canForceDelete())
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const loading = ref(false)

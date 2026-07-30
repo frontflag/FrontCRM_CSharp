@@ -363,7 +363,7 @@ const canPrSoftDelete = computed(
     authStore.hasPermission('purchase-requisition.write') || authStore.hasPermission('sales-order.write')
 )
 
-const canPrForceDelete = computed(() => authStore.user?.isSysAdmin === true)
+const canPrForceDelete = computed(() => authStore.canForceDelete())
 
 const loading = ref(false)
 const list = ref<any[]>([])

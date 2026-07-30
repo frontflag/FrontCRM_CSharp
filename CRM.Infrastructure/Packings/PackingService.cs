@@ -35,6 +35,7 @@ public class PackingService : IPackingService
     private readonly IForceDeleteGuardService _forceDeleteGuard;
     private readonly IInventoryCenterService _inventoryCenterService;
     private readonly ILogOperationAppendService _logOperationAppend;
+    private readonly IPackingStatusReconcileService _packingStatusReconcile;
 
     public PackingService(
         ApplicationDbContext db,
@@ -54,7 +55,8 @@ public class PackingService : IPackingService
         ICustomsTraceQuery customsTraceQuery,
         IForceDeleteGuardService forceDeleteGuard,
         IInventoryCenterService inventoryCenterService,
-        ILogOperationAppendService logOperationAppend)
+        ILogOperationAppendService logOperationAppend,
+        IPackingStatusReconcileService packingStatusReconcile)
     {
         _db = db;
         _packingListQuery = packingListQuery;
@@ -74,6 +76,7 @@ public class PackingService : IPackingService
         _forceDeleteGuard = forceDeleteGuard;
         _inventoryCenterService = inventoryCenterService;
         _logOperationAppend = logOperationAppend;
+        _packingStatusReconcile = packingStatusReconcile;
     }
 
     public async Task<PagedResult<PackingListItemDto>> GetPackingListPagedAsync(
@@ -1487,6 +1490,28 @@ public class PackingService : IPackingService
             OperationDescOverride =
                 $"强制删除装箱单 PackingId={packing.Id}，确认单号={recordCode}，删除时状态={deletedStatus}"
         }, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<PackingStatusReconcileResult> RefreshStatusAsync(
+        string packingId,
+        string? actingUserId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var id = packingId?.Trim();
+        if (string.IsNullOrEmpty(id))
+            throw new ArgumentException("装箱单 ID 无效", nameof(packingId));
+
+        var packing = await _packingRepository.GetByIdAsync(id);
+        if (packing == null || packing.IsDeleted)
+            throw new InvalidOperationException("装箱单不存在或已删除");
+
+        return await _packingStatusReconcile.ReconcileAsync(
+            id,
+            actingUserId,
+            excludingStockOutId: null,
+            saveChanges: true,
+            cancellationToken);
     }
 
     private async Task DeletePackingCoreAsync(

@@ -122,7 +122,7 @@
             <el-button size="small" text type="warning" @click.stop="applyInvoice(row)" v-if="canWriteFinanceSellInvoice && row.invoiceStatus === 1">{{ t('financeSellInvoiceList.actions.apply') }}</el-button>
             <el-button size="small" text type="danger" @click.stop="voidInvoice(row)" v-if="canWriteFinanceSellInvoice && row.invoiceStatus === 100">{{ t('financeSellInvoiceList.actions.void') }}</el-button>
             <el-button v-if="canWriteFinanceSellInvoice" size="small" text type="danger" @click.stop="handleDeleteRow(row)">删除</el-button>
-            <el-button v-if="isSysAdmin" size="small" text type="danger" @click.stop="handleForceDeleteRow(row)">强制删除</el-button>
+            <el-button v-if="canForceDelete" size="small" text type="danger" @click.stop="handleForceDeleteRow(row)">强制删除</el-button>
           </div>
 
           <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -146,7 +146,7 @@
                 <el-dropdown-item v-if="canWriteFinanceSellInvoice" divided @click.stop="handleDeleteRow(row)">
                   <span class="op-more-item op-more-item--danger">删除</span>
                 </el-dropdown-item>
-                <el-dropdown-item v-if="isSysAdmin" @click.stop="handleForceDeleteRow(row)">
+                <el-dropdown-item v-if="canForceDelete" @click.stop="handleForceDeleteRow(row)">
                   <span class="op-more-item op-more-item--danger">强制删除</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
@@ -303,7 +303,7 @@ const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const { t } = useI18n()
 const authStore = useAuthStore()
 const { canWriteFinanceSellInvoice } = useFinanceWriteGate()
-const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
+const canForceDelete = computed(() => authStore.canForceDelete())
 const {
   invoiceStatusLabel,
   invoiceStatusTag,

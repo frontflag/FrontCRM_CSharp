@@ -94,12 +94,21 @@ public interface IPackingService
         string? actingUserId = null,
         CancellationToken cancellationToken = default);
 
-    /// <summary>强制删除装箱单（SYS_ADMIN）：任意状态可删；释放关联拣货任务后软删并回滚出库通知。</summary>
+    /// <summary>强制删除装箱单（SYS_ADMIN / SYS_MANAGER）：任意状态可删；释放关联拣货任务后软删并回滚出库通知。</summary>
     Task ForceDeletePackingAsync(
         string packingId,
         string confirmBillCode,
         string actingUserId,
         string? actingUserName,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 按有效出库事实刷新装箱单主状态（可上行至出库完成、下行至已备货）。
+    /// 权限由 API 层限制为 SuperAdmin / SYS_MANAGER。
+    /// </summary>
+    Task<PackingStatusReconcileResult> RefreshStatusAsync(
+        string packingId,
+        string? actingUserId = null,
         CancellationToken cancellationToken = default);
 }
 

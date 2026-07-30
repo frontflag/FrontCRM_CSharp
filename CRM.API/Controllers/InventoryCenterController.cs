@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Security.Claims;
+using CRM.API.Authorization;
 using System.Text;
 using System.Threading;
 using CRM.API.Models.DTOs;
@@ -846,8 +847,8 @@ namespace CRM.API.Controllers
                     return StatusCode(403, ApiResponse<object>.Fail("未登录或身份无效", 403));
 
                 var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
-                if (summary?.IsSysAdmin != true)
-                    return StatusCode(403, ApiResponse<object>.Fail("仅系统管理员可执行强制删除", 403));
+                if (!ManagementAccountPolicy.CanForceDelete(summary))
+                    return StatusCode(403, ApiResponse<object>.Fail("仅系统管理员或平台管理员可执行强制删除", 403));
 
                 if (body == null || string.IsNullOrWhiteSpace(body.ConfirmBillCode))
                     return BadRequest(ApiResponse<object>.Fail("请填写 confirmBillCode", 400));
@@ -908,8 +909,8 @@ namespace CRM.API.Controllers
                     return StatusCode(403, ApiResponse<object>.Fail("未登录或身份无效", 403));
 
                 var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
-                if (summary?.IsSysAdmin != true)
-                    return StatusCode(403, ApiResponse<object>.Fail("仅系统管理员可执行强制删除", 403));
+                if (!ManagementAccountPolicy.CanForceDelete(summary))
+                    return StatusCode(403, ApiResponse<object>.Fail("仅系统管理员或平台管理员可执行强制删除", 403));
 
                 if (body == null || string.IsNullOrWhiteSpace(body.ConfirmBillCode))
                     return BadRequest(ApiResponse<object>.Fail("请填写 confirmBillCode", 400));

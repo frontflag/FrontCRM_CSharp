@@ -66,6 +66,7 @@ namespace CRM.API.Extensions
             services.AddScoped<IBizBrandService, CRM.Infrastructure.Biz.BizBrandService>();
             services.AddScoped<IStockOutService, StockOutService>();
             services.AddScoped<IPackingService, CRM.Infrastructure.Packings.PackingService>();
+            services.AddScoped<IPackingStatusReconcileService, CRM.Infrastructure.Packings.PackingStatusReconcileService>();
             services.AddScoped<IRepository<CRM.Core.Models.Inventory.Packing>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Inventory.Packing>>();
             services.AddScoped<IRepository<CRM.Core.Models.Inventory.PackingItem>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Inventory.PackingItem>>();
             services.AddScoped<ICustomsBrokerService, CustomsBrokerService>();

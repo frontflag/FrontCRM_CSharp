@@ -478,8 +478,8 @@ namespace CRM.API.Controllers
             try
             {
                 var summary = await TryGetPermissionSummaryAsync();
-                if (summary?.IsSysAdmin != true)
-                    return StatusCode(403, new { success = false, message = "仅系统管理员可执行强制删除。" });
+                if (!ManagementAccountPolicy.CanForceDelete(summary))
+                    return StatusCode(403, new { success = false, message = "仅系统管理员或平台管理员可执行强制删除。" });
 
                 if (body == null || string.IsNullOrWhiteSpace(body.ConfirmBillCode))
                     return BadRequest(new { success = false, message = "请在请求体中提供 confirmBillCode，且与采购申请单号完全一致。" });

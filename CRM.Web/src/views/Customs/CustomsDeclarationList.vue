@@ -232,7 +232,7 @@
             <el-button v-if="canWriteLogisticsData" link type="danger" size="small" @click.stop="handleDelete(row)">
               {{ t('customsPages.declarations.delete') }}
             </el-button>
-            <el-button v-if="isSysAdmin" link type="danger" size="small" @click.stop="handleForceDelete(row)">
+            <el-button v-if="canForceDelete" link type="danger" size="small" @click.stop="handleForceDelete(row)">
               {{ t('customsPages.declarations.forceDelete') }}
             </el-button>
           </div>
@@ -254,7 +254,7 @@
                 <el-dropdown-item v-if="canWriteLogisticsData" divided @click.stop="handleDelete(row)">
                   <span class="op-more-item op-more-item--danger">{{ t('customsPages.declarations.delete') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item v-if="isSysAdmin" @click.stop="handleForceDelete(row)">
+                <el-dropdown-item v-if="canForceDelete" @click.stop="handleForceDelete(row)">
                   <span class="op-more-item op-more-item--danger">{{ t('customsPages.declarations.forceDelete') }}</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
@@ -362,7 +362,7 @@ const authStore = useAuthStore()
 const customsDeclarationOpsStore = useCustomsDeclarationOpsPanelStore()
 const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const { canWriteLogisticsData } = useDepartmentDataReadOnly()
-const isSysAdmin = authStore.user?.isSysAdmin === true
+const canForceDelete = computed(() => authStore.canForceDelete())
 
 const loading = ref(false)
 const tabModeDimension = ref<CustomsDeclarationListTabModeDimension>(

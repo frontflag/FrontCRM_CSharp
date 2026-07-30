@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using CRM.API.Authorization;
 using CRM.API.Models.DTOs;
 using CRM.API.Services;
 using CRM.API.Utilities;
@@ -526,12 +527,49 @@ public class PackingController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// 按有效出库事实刷新装箱单主状态（SuperAdmin / SYS_MANAGER）。
+    /// 无有效已完成出库时可下行 100→40；有则可上行至 100。
+    /// </summary>
+    [HttpPost("{id:guid}/refresh-status")]
+    public async Task<ActionResult<ApiResponse<object>>> RefreshStatus(
+        string id,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrWhiteSpace(userId))
+                return StatusCode(403, ApiResponse<object>.Fail("未登录或身份无效", 403));
+
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
+            if (!ManagementAccountPolicy.CanForceDelete(summary))
+                return StatusCode(403, ApiResponse<object>.Fail("仅系统管理员或平台管理员可刷新装箱状态", 403));
+
+            var result = await _packingService.RefreshStatusAsync(id, userId.Trim(), cancellationToken);
+            return Ok(ApiResponse<object>.Ok(result, result.Changed ? "装箱状态已更新" : "装箱状态无变化"));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "刷新装箱状态失败 id={Id}", id);
+            return StatusCode(500, ApiResponse<object>.Fail($"刷新失败: {ex.Message}", 500));
+        }
+    }
+
     public class ForceDeletePackingRequest
     {
         public string? ConfirmBillCode { get; set; }
     }
 
-    /// <summary>强制删除装箱单（仅 SYS_ADMIN）；释放关联拣货任务后软删并回滚出库通知。</summary>
+    /// <summary>强制删除装箱单（SYS_ADMIN / SYS_MANAGER）；释放关联拣货任务后软删并回滚出库通知。</summary>
     [HttpPost("{id:guid}/force-delete")]
     public async Task<ActionResult<ApiResponse<object>>> ForceDelete(
         string id,
@@ -545,8 +583,8 @@ public class PackingController : ControllerBase
                 return StatusCode(403, ApiResponse<object>.Fail("未登录或身份无效", 403));
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
-            if (summary?.IsSysAdmin != true)
-                return StatusCode(403, ApiResponse<object>.Fail("仅系统管理员可执行强制删除", 403));
+            if (!ManagementAccountPolicy.CanForceDelete(summary))
+                return StatusCode(403, ApiResponse<object>.Fail("仅系统管理员或平台管理员可执行强制删除", 403));
 
             if (body == null || string.IsNullOrWhiteSpace(body.ConfirmBillCode))
                 return BadRequest(ApiResponse<object>.Fail("请填写 confirmBillCode", 400));

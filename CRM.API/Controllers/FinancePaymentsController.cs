@@ -476,7 +476,7 @@ namespace CRM.API.Controllers
             }
         }
 
-        /// <summary>强制删除付款单（仅系统管理员）</summary>
+        /// <summary>强制删除付款单（SYS_ADMIN / SYS_MANAGER）</summary>
         [HttpPost("{id}/force-delete")]
         [RequirePermission("finance-payment.write")]
         public async Task<IActionResult> ForceDelete(string id, [FromBody] ForceDeleteFinancePaymentRequest? body)
@@ -491,8 +491,8 @@ namespace CRM.API.Controllers
                     return StatusCode(403, new { success = false, message = "未登录或身份无效" });
 
                 var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
-                if (summary?.IsSysAdmin != true)
-                    return StatusCode(403, new { success = false, message = "仅系统管理员可执行强制删除" });
+                if (!ManagementAccountPolicy.CanForceDelete(summary))
+                    return StatusCode(403, new { success = false, message = "仅系统管理员或平台管理员可执行强制删除" });
 
                 if (body == null || string.IsNullOrWhiteSpace(body.ConfirmBillCode))
                     return BadRequest(new { success = false, message = "请填写 confirmBillCode" });

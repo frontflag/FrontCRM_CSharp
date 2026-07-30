@@ -420,7 +420,7 @@ const canPrSoftDelete = computed(
   () =>
     authStore.hasPermission('purchase-requisition.write') || authStore.hasPermission('sales-order.write')
 )
-const canPrForceDelete = computed(() => authStore.user?.isSysAdmin === true)
+const canPrForceDelete = computed(() => authStore.canForceDelete())
 const showHeaderMoreMenu = computed(() => canPrSoftDelete.value || canPrForceDelete.value)
 
 const prCaptionAvatarChar = computed(() => {

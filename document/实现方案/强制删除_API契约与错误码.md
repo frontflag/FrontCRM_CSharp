@@ -7,7 +7,7 @@
 | 项 | 说明 |
 | --- | --- |
 | 鉴权 | 均需有效 JWT（`Authorization: Bearer …`），具体权限以各控制器 `RequirePermission` 为准。 |
-| 系统管理员 | 凡标注「仅 SYS_ADMIN」的接口，服务端以 RBAC `IsSysAdmin == true` 为准；否则返回 **403**。 |
+| 强制删除权限 | 服务端以 `IsSysAdmin || IsSysManager`（`UserPermissionSummaryDto.CanForceDelete` / `ManagementAccountPolicy.CanForceDelete`）为准；否则返回 **403**。文档中历史「仅 SYS_ADMIN」表述均按此口径。 |
 | 请求体 | JSON；确认字段统一为 **`confirmBillCode`**（camelCase，与 ASP.NET Core 默认序列化一致），须与下表「确认比对字段」**完全一致**（Ordinal 字符串比较，一般区分大小写）。 |
 | 幂等与副作用 | 成功则执行硬删或业务约定的删除路径；失败不删。无独立业务错误码枚举，以 HTTP 状态 + `message` 为准。 |
 

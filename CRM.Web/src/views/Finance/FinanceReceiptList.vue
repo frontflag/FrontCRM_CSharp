@@ -252,7 +252,7 @@
             >
               {{ t('financeReceiptList.actions.reverseVerification') }}
             </el-button>
-            <el-button v-if="isSysAdmin" size="small" text type="danger" @click.stop="handleForceDeleteRow(row)">强制删除</el-button>
+            <el-button v-if="canForceDelete" size="small" text type="danger" @click.stop="handleForceDeleteRow(row)">强制删除</el-button>
           </div>
 
           <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -282,7 +282,7 @@
                 <el-dropdown-item v-if="canReverseVerification(row)" @click.stop="handleReverseVerificationRow(row)">
                   <span class="op-more-item op-more-item--warning">{{ t('financeReceiptList.actions.reverseVerification') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item v-if="isSysAdmin" @click.stop="handleForceDeleteRow(row)">
+                <el-dropdown-item v-if="canForceDelete" @click.stop="handleForceDeleteRow(row)">
                   <span class="op-more-item op-more-item--danger">强制删除</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
@@ -581,7 +581,7 @@ function onReceiptTableHeaderDragEnd(
 const { t } = useI18n()
 const authStore = useAuthStore()
 const { canWriteFinanceReceipt } = useFinanceWriteGate()
-const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
+const canForceDelete = computed(() => authStore.canForceDelete())
 const { receiptStatusLabel, receiptStatusTag, paymentModeLabel } = useFinanceEnumLabels()
 
 function receiptPurposeLabel(purpose?: number) {

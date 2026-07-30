@@ -7603,6 +7603,16 @@ const enUS = {
     notFound: 'Packing list not found',
     loadFailed: 'Failed to load packing detail',
     missingId: 'Missing packing list ID',
+    refresh: 'Refresh',
+    refreshing: 'Refreshing…',
+    refreshConfirmTitle: 'Confirm refresh',
+    refreshConfirm:
+      'Refresh status of packing {code} from live stock-out records? (Can roll back from Stocked out to Ready when no live stock-out remains.)',
+    refreshResultTitle: 'Refresh result',
+    refreshNoChange: 'Packing status unchanged',
+    refreshChanged: 'Status updated: {from} → {to}',
+    refreshFailed: 'Refresh failed. Please try again.',
+    refreshFailedTitle: 'Refresh failed',
     flowPanel: {
       noSelection: 'Select a packing line',
       missingSellLink:

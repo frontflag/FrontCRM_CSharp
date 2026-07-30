@@ -324,7 +324,7 @@
             >
               {{ t('financePaymentList.actions.reverseVerification') }}
             </el-button>
-            <el-button size="small" text type="danger" @click.stop="handleForceDeleteRow(row)" v-if="canFinancePaymentWrite && isSysAdmin">强制删除</el-button>
+            <el-button size="small" text type="danger" @click.stop="handleForceDeleteRow(row)" v-if="canFinancePaymentWrite && canForceDelete">强制删除</el-button>
           </div>
 
           <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -360,7 +360,7 @@
                 <el-dropdown-item v-if="canReverseVerification(row)" @click.stop="handleReverseVerificationRow(row)">
                   <span class="op-more-item op-more-item--warning">{{ t('financePaymentList.actions.reverseVerification') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item v-if="canFinancePaymentWrite && isSysAdmin" @click.stop="handleForceDeleteRow(row)">
+                <el-dropdown-item v-if="canFinancePaymentWrite && canForceDelete" @click.stop="handleForceDeleteRow(row)">
                   <span class="op-more-item op-more-item--danger">强制删除</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
@@ -488,7 +488,7 @@ function onPaymentTableHeaderDragEnd(
 /** 付款保存/完成/提交审核等：RBAC write + 主部门财务非只读 */
 const { canWriteFinancePayment: canFinancePaymentWrite } = useFinanceWriteGate()
 const { canWritePo } = usePurchaseOrderWriteGate()
-const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
+const canForceDelete = computed(() => authStore.canForceDelete())
 const { paymentStatusLabel, paymentStatusTag, paymentModeLabel } = useFinanceEnumLabels()
 
 const paymentStatusSelectKeys = Object.keys(PAYMENT_STATUS_MAP).map(k => Number(k))

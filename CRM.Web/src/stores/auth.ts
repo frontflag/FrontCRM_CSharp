@@ -259,6 +259,11 @@ export const useAuthStore = defineStore('auth', () => {
     return false
   }
 
+  /** 强制删除：SuperAdmin（SYS_ADMIN）或产品 Admin（SYS_MANAGER） */
+  function canForceDelete(): boolean {
+    return user.value?.isSysAdmin === true || user.value?.isSysManager === true
+  }
+
   /** 系统管理双重门槛：须 hasManagementAccess + 权限码；biz.ai.admin 同属参数管理入口 */
   function canAccessSystemPermission(permissionCode?: string): boolean {
     if (!permissionCode) return true
@@ -390,6 +395,7 @@ export const useAuthStore = defineStore('auth', () => {
     fetchCurrentUser,
     loadSimulationBanner,
     hasPermission,
+    canForceDelete,
     canAccessSystemPermission,
     canAccessParamsModule,
     isIdentityBlockedForPermission,

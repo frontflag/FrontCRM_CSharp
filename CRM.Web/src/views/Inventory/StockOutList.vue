@@ -293,7 +293,7 @@
               {{ t('stockOutList.actions.markFinished') }}
             </button>
             <button v-if="canWriteLogisticsData" type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteRow(row)">删除</button>
-            <button v-if="isSysAdmin" type="button" class="action-btn action-btn--danger" @click.stop="handleForceDeleteRow(row)">强制删除</button>
+            <button v-if="canForceDelete" type="button" class="action-btn action-btn--danger" @click.stop="handleForceDeleteRow(row)">强制删除</button>
           </div>
           <el-dropdown v-else trigger="click" placement="bottom-end">
             <div class="op-more-dropdown-trigger">
@@ -313,7 +313,7 @@
                 <el-dropdown-item v-if="canWriteLogisticsData" divided @click.stop="handleDeleteRow(row)">
                   <span class="op-more-item op-more-item--danger">删除</span>
                 </el-dropdown-item>
-                <el-dropdown-item v-if="isSysAdmin" @click.stop="handleForceDeleteRow(row)">
+                <el-dropdown-item v-if="canForceDelete" @click.stop="handleForceDeleteRow(row)">
                   <span class="op-more-item op-more-item--danger">强制删除</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
@@ -533,7 +533,7 @@ const { t } = useI18n()
 const authStore = useAuthStore()
 const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 const { ensureLoaded: ensureLogisticsDict, shipmentArrivalOptions, expressOptions } = useLogisticsFormDict()
-const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
+const canForceDelete = computed(() => authStore.canForceDelete())
 const loading = ref(false)
 const exporting = ref(false)
 const tabModeDimension = ref<StockOutListTabModeDimension>(readStockOutListTabMode())

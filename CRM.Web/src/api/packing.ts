@@ -233,6 +233,15 @@ export interface PackingDetail {
 
 export type PackingListPaged = { items: PackingListItem[]; total: number; page: number; pageSize: number }
 
+export interface PackingStatusRefreshResult {
+  packingId: string
+  packingCode?: string | null
+  previousStatus: number
+  currentStatus: number
+  changed: boolean
+  hasLiveCompletedStockOut: boolean
+}
+
 export interface PackingListQuery {
   packingCode?: string
   status?: number
@@ -676,7 +685,33 @@ export const packingApi = {
     }
   },
 
-  /** 强制删除装箱单（仅 SYS_ADMIN）；须传入装箱单号确认 */
+  /**
+   * 按有效出库事实刷新装箱主状态（SuperAdmin / SYS_MANAGER）。
+   * 无有效已完成出库时可 100→40；有则可上行至 100。
+   */
+  async refreshStatus(id: string): Promise<PackingStatusRefreshResult> {
+    const rid = String(id || '').trim()
+    if (!rid) throw new Error('缺少装箱单 ID')
+    try {
+      const data = (await apiClient.post<Record<string, unknown>>(
+        `/api/v1/packing/${encodeURIComponent(rid)}/refresh-status`
+      )) as Record<string, unknown> | null
+      return {
+        packingId: String(data?.packingId ?? data?.PackingId ?? rid),
+        packingCode: (data?.packingCode ?? data?.PackingCode ?? null) as string | null,
+        previousStatus: Number(data?.previousStatus ?? data?.PreviousStatus ?? 0),
+        currentStatus: Number(data?.currentStatus ?? data?.CurrentStatus ?? 0),
+        changed: Boolean(data?.changed ?? data?.Changed),
+        hasLiveCompletedStockOut: Boolean(
+          data?.hasLiveCompletedStockOut ?? data?.HasLiveCompletedStockOut
+        )
+      }
+    } catch (e) {
+      throw new Error(parseApiError(e, '刷新装箱状态失败'))
+    }
+  },
+
+  /** 强制删除装箱单（SYS_ADMIN / SYS_MANAGER）；须传入装箱单号确认 */
   async forceDelete(id: string, confirmBillCode: string): Promise<void> {
     const rid = String(id || '').trim()
     if (!rid) throw new Error('缺少装箱单 ID')

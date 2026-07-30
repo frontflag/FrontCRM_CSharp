@@ -36,6 +36,21 @@
           </div>
         </div>
       </div>
+      <div v-if="detail && canRefreshPackingStatus" class="header-right">
+        <button
+          class="btn-secondary"
+          type="button"
+          :disabled="refreshingStatus"
+          @click="handleRefreshStatus"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 4 23 10 17 10" />
+            <polyline points="1 20 1 14 7 14" />
+            <path d="M3.51 9a9 9 0 0 1 14.13-3.36L23 10M1 14l5.36 4.36A9 9 0 0 0 20.49 15" />
+          </svg>
+          {{ refreshingStatus ? t('packingDetail.refreshing') : t('packingDetail.refresh') }}
+        </button>
+      </div>
     </div>
 
     <div class="detail-content">
@@ -472,7 +487,7 @@
 import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   packingApi,
   packingMaterialTypeLabel,
@@ -483,6 +498,8 @@ import {
   type PackingDetailLine,
   type PackingStockOutNotifyRow
 } from '@/api/packing'
+import { useAuthStore } from '@/stores/auth'
+import { getApiErrorMessage } from '@/utils/apiError'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import {
   inventoryCenterApi,
@@ -506,10 +523,16 @@ const StockOutBatchPanel = defineAsyncComponent(
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const authStore = useAuthStore()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 const { ensureLoaded: ensureLogisticsDict, shipmentArrivalOptions, expressOptions } = useLogisticsFormDict()
 const packingFlowStore = usePackingDetailFlowPanelStore()
+
+const canRefreshPackingStatus = computed(
+  () => authStore.user?.isSysAdmin === true || authStore.user?.isSysManager === true
+)
+const refreshingStatus = ref(false)
 
 function shipmentMethodDisplay(code?: string | null): string {
   const c = String(code ?? '').trim()
@@ -759,6 +782,48 @@ async function loadDetail() {
   }
 }
 
+async function handleRefreshStatus() {
+  if (!detail.value?.id || refreshingStatus.value || !canRefreshPackingStatus.value) return
+  const code = detail.value.code || detail.value.id
+  try {
+    await ElMessageBox.confirm(
+      t('packingDetail.refreshConfirm', { code }),
+      t('packingDetail.refreshConfirmTitle'),
+      { type: 'warning', confirmButtonText: t('packingDetail.refresh'), cancelButtonText: t('common.cancel') }
+    )
+  } catch {
+    return
+  }
+
+  refreshingStatus.value = true
+  try {
+    const result = await packingApi.refreshStatus(detail.value.id)
+    await loadDetail()
+    if (!result.changed) {
+      await ElMessageBox.alert(t('packingDetail.refreshNoChange'), t('packingDetail.refreshResultTitle'), {
+        confirmButtonText: t('common.confirm')
+      })
+      return
+    }
+    await ElMessageBox.alert(
+      t('packingDetail.refreshChanged', {
+        from: packingStatusLabel(result.previousStatus),
+        to: packingStatusLabel(result.currentStatus)
+      }),
+      t('packingDetail.refreshResultTitle'),
+      { confirmButtonText: t('common.confirm') }
+    )
+  } catch (e) {
+    await ElMessageBox.alert(
+      getApiErrorMessage(e, t('packingDetail.refreshFailed')),
+      t('packingDetail.refreshFailedTitle'),
+      { confirmButtonText: t('common.confirm') }
+    )
+  } finally {
+    refreshingStatus.value = false
+  }
+}
+
 watch(
   () => route.params.id,
   () => {
@@ -832,6 +897,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 20px;
+  gap: 12px;
 }
 
 .header-left {
@@ -839,6 +905,39 @@ onUnmounted(() => {
   align-items: center;
   gap: 10px;
   min-width: 0;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-secondary;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.07);
+    color: $text-primary;
+    border-color: rgba(0, 212, 255, 0.2);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
 }
 
 .packing-caption-title-group {

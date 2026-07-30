@@ -57,6 +57,8 @@ namespace CRM.Core.Interfaces
         public bool IsSysManager { get; set; }
         /// <summary>产品 Manager（RoleCode=SYS_BIZ_MANAGER）</summary>
         public bool IsBizManager { get; set; }
+        /// <summary>强制删除：SuperAdmin 或产品 Admin（SYS_MANAGER）。</summary>
+        public bool CanForceDelete => IsSysAdmin || IsSysManager;
         /// <summary>可访问系统管理门禁（SuperAdmin / Admin / Manager）</summary>
         public bool HasManagementAccess { get; set; }
         /// <summary>业务数据行级全量 bypass</summary>
