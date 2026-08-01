@@ -159,6 +159,13 @@
         />
         <button class="btn-primary btn-sm" @click="handleSearch">{{ t('customerList.filters.search') }}</button>
         <button class="btn-ghost btn-sm" @click="handleReset">{{ t('customerList.filters.reset') }}</button>
+        <button
+          type="button"
+          class="btn-ghost btn-sm btn-board-active"
+          @click="toggleViewMode"
+        >
+          {{ viewMode === 'board' ? t('customerList.filters.listView') : t('customerList.filters.boardView') }}
+        </button>
         <el-popover
           v-model:visible="settingsMenuOpen"
           trigger="click"
@@ -214,7 +221,15 @@
       </div>
     </div>
 
-    <div class="customer-main-panel" :class="{ 'customer-main-panel--with-filter-tabs': filterTabStripVisible }">
+    <div v-if="viewMode === 'board'" class="customer-board-scroll">
+      <CustomerListBoard :filters="boardFilters" />
+    </div>
+
+    <div
+      v-show="viewMode === 'list'"
+      class="customer-main-panel"
+      :class="{ 'customer-main-panel--with-filter-tabs': filterTabStripVisible }"
+    >
       <div
         v-if="filterTabStripVisible"
         class="cu-filter-tabs"
@@ -393,7 +408,7 @@
     </div>
 
     <!-- 分页 -->
-    <div class="pagination-wrapper" v-if="totalCount > 0">
+    <div class="pagination-wrapper" v-if="viewMode === 'list' && totalCount > 0">
       <div class="list-footer-left">
         <el-tooltip :content="t('systemUser.colSetting')" placement="top" :hide-after="0">
           <el-button class="list-settings-btn" link type="primary" :aria-label="t('systemUser.colSetting')" @click="dataTableRef?.openColumnSettings?.()">
@@ -448,6 +463,7 @@ import AiEntityCreateHost from '@/components/AiCreate/AiEntityCreateHost.vue';
 import AiBusinessCardCreateHost from '@/components/AiCreate/AiBusinessCardCreateHost.vue';
 import { AI_PERMISSION_ENTITY_PARSE_CUSTOMER, AI_PERMISSION_ENTITY_PARSE_CUSTOMER_BUSINESS_CARD } from '@/api/ai';
 import CrmDataTable from '@/components/CrmDataTable.vue'
+import CustomerListBoard from './CustomerListBoard.vue'
 import { parseCustomerListQuery } from '@/utils/customerListQuery';
 import {
   buildCustomerListRouteQuery,
@@ -468,6 +484,8 @@ import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOn
 import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import { useCustomerIntelLookupStore } from '@/stores/customerIntelLookup'
 import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
+import { useListBoardHelpOverride } from '@/composables/useHelpDocOverride'
+import type { CustomerListAnalyticsQuery } from '@/api/customerListAnalytics'
 import {
   CUSTOMER_LIST_TAB_MODE_OPTIONS,
   readCustomerListTabMode,
@@ -523,6 +541,8 @@ const loading = ref(false);
 const customerList = ref<Customer[]>([]);
 const totalCount = ref(0);
 const favoriteOnly = ref(false);
+const viewMode = ref<'list' | 'board'>('list')
+useListBoardHelpOverride('pages/客户列表看板_MENU_CUSTOMER_HOME_BOARD.md', viewMode)
 /** 列表内 replace 查询串时避免 watch 与手动 fetch 重复请求 */
 const skipQueryRouteFetch = ref(false);
 
@@ -619,6 +639,33 @@ const searchForm = reactive<CustomerSearchRequest>({
   sortBy: 'CreatedAt',
   sortDescending: true
 });
+
+const boardFilters = computed((): CustomerListAnalyticsQuery => {
+  const preset = activePreset.value
+  const q: CustomerListAnalyticsQuery = {
+    searchTerm: searchForm.searchTerm || undefined,
+    customerType: searchForm.customerType,
+    industry: searchForm.industry || undefined,
+    currency: searchForm.currency,
+    region: searchForm.region || undefined,
+    salesUserId: searchForm.salesPersonId || undefined
+  }
+  if (preset && isCustomerQuickFilterPresetId(preset)) {
+    q.quickFilter = preset
+    return q
+  }
+  q.customerLevel = searchForm.customerLevel
+  q.status = searchForm.status
+  q.createdFrom = searchForm.createdFrom || undefined
+  q.createdTo = searchForm.createdTo || undefined
+  if (favoriteOnly.value) q.favoriteOnly = true
+  return q
+})
+
+function toggleViewMode() {
+  viewMode.value = viewMode.value === 'list' ? 'board' : 'list'
+  if (viewMode.value === 'list') void fetchCustomerList()
+}
 
 const pagination = reactive({ pageNumber: 1, pageSize: 20 });
 
@@ -816,7 +863,7 @@ function replaceRouteQueryAndFetch() {
         skipQueryRouteFetch.value = false;
       });
     });
-  fetchCustomerList();
+  if (viewMode.value === 'list') fetchCustomerList();
 }
 
 const handleSearch = () => {
@@ -847,7 +894,7 @@ const handleReset = () => {
       skipQueryRouteFetch.value = false;
     });
   });
-  fetchCustomerList();
+  if (viewMode.value === 'list') fetchCustomerList();
 };
 
 function onCreatedRangeChange(val: [string, string] | null | undefined) {
@@ -975,7 +1022,7 @@ watch(
     if (skipQueryRouteFetch.value) return;
     syncSearchFromRouteQuery();
     pagination.pageNumber = 1;
-    fetchCustomerList();
+    if (viewMode.value === 'list') fetchCustomerList();
   },
   { deep: true }
 );
@@ -988,7 +1035,7 @@ onMounted(async () => {
   } catch {
     salesUsers.value = [];
   }
-  fetchCustomerList();
+  if (viewMode.value === 'list') fetchCustomerList();
 });
 </script>
 
@@ -1144,6 +1191,18 @@ onMounted(async () => {
     border-color: rgba(0, 212, 255, 0.3);
     color: $text-secondary;
   }
+}
+
+.btn-ghost.btn-board-active {
+  border-color: rgba(0, 212, 255, 0.45);
+  color: $text-primary;
+}
+
+.customer-board-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 4px;
 }
 
 .btn-icon-only {

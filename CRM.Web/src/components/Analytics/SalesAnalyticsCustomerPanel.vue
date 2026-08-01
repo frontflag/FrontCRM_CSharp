@@ -12,16 +12,32 @@ import {
   type SalesAnalyticsQuery,
   type SalesAnalyticsScopeContext
 } from '@/api/analytics/sales'
+import {
+  customerListAnalyticsApi,
+  type CustomerListAnalyticsQuery
+} from '@/api/customerListAnalytics'
+import { favoriteApi } from '@/api/favorite'
 import { useAuthStore } from '@/stores/auth'
 import { useCustomerDictStore } from '@/stores/customerDict'
 import { buildCustomerRankingDrillRoute } from '@/utils/salesAnalyticsDrill'
 
-const props = defineProps<{
-  query: SalesAnalyticsQuery
-  /** 父页已解析的 scope（用于下钻与 Mask；接口也会再返回一份） */
-  scopeContext: SalesAnalyticsScopeContext | null
-  active: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    /** list=客户列表看板；report=销售分析客户 Tab */
+    mode?: 'list' | 'report'
+    query?: SalesAnalyticsQuery
+    /** 父页已解析的 scope（用于下钻与 Mask；接口也会再返回一份） */
+    scopeContext?: SalesAnalyticsScopeContext | null
+    /** 列表看板筛选（mode=list） */
+    filters?: CustomerListAnalyticsQuery
+    active?: boolean
+  }>(),
+  {
+    mode: 'report',
+    active: true,
+    scopeContext: null
+  }
+)
 
 const { t } = useI18n()
 const router = useRouter()
@@ -31,6 +47,8 @@ const customerDict = useCustomerDictStore()
 const loading = ref(false)
 const loadedKey = ref('')
 const data = ref<SalesAnalyticsCustomer | null>(null)
+
+const isListMode = computed(() => props.mode === 'list')
 
 const maskAmounts = computed(
   () => data.value?.scopeContext.maskAmounts === true || props.scopeContext?.maskAmounts === true
@@ -58,7 +76,8 @@ const kpiItems = computed(() => {
   ]
 })
 
-function queryKey(q: SalesAnalyticsQuery): string {
+function reportQueryKey(q: SalesAnalyticsQuery | undefined): string {
+  if (!q) return ''
   return [
     q.viewLevel ?? '',
     q.departmentId ?? '',
@@ -66,6 +85,31 @@ function queryKey(q: SalesAnalyticsQuery): string {
     q.dateFrom ?? '',
     q.dateTo ?? ''
   ].join('|')
+}
+
+function listFiltersKey(f: CustomerListAnalyticsQuery | undefined): string {
+  if (!f) return ''
+  return [
+    f.searchTerm ?? '',
+    f.customerType ?? '',
+    f.customerLevel ?? '',
+    f.industry ?? '',
+    f.currency ?? '',
+    f.region ?? '',
+    f.salesUserId ?? '',
+    f.createdFrom ?? '',
+    f.createdTo ?? '',
+    f.status ?? '',
+    f.favoriteOnly ? '1' : '0',
+    f.favoriteIds ?? '',
+    f.quickFilter ?? ''
+  ].join('|')
+}
+
+function currentKey(): string {
+  return isListMode.value
+    ? `list|${listFiltersKey(props.filters)}`
+    : `report|${reportQueryKey(props.query)}`
 }
 
 function breakdownTitle(group: SalesAnalyticsBreakdownGroup): string {
@@ -98,10 +142,15 @@ function localizedItems(group: SalesAnalyticsBreakdownGroup) {
 }
 
 function drillScope() {
+  if (isListMode.value) {
+    return {
+      scopeContext: data.value?.scopeContext ?? props.scopeContext
+    }
+  }
   return {
-    dateFrom: props.query.dateFrom,
-    dateTo: props.query.dateTo,
-    salesUserId: props.query.salesUserId,
+    dateFrom: props.query?.dateFrom,
+    dateTo: props.query?.dateTo,
+    salesUserId: props.query?.salesUserId,
     scopeContext: data.value?.scopeContext ?? props.scopeContext
   }
 }
@@ -114,16 +163,37 @@ function onCustomerRankingClick(row: { id: string; name: string }) {
   void router.push(buildCustomerRankingDrillRoute(row.id, row.name, drillScope()))
 }
 
+async function resolveListQuery(): Promise<CustomerListAnalyticsQuery> {
+  const base = { ...(props.filters ?? {}) }
+  if (!base.favoriteOnly) return base
+  const ids = await favoriteApi.getFavoriteEntityIds('CUSTOMER')
+  if (ids.length === 0) {
+    base.favoriteIds = ''
+    return base
+  }
+  base.favoriteIds = ids.join(',')
+  return base
+}
+
 async function loadData() {
   if (!props.active) return
-  const key = queryKey(props.query)
+  const key = currentKey()
   loading.value = true
   try {
     await customerDict.ensureLoaded()
-    data.value = await salesAnalyticsApi.getCustomer(props.query)
+    if (isListMode.value) {
+      const q = await resolveListQuery()
+      data.value = await customerListAnalyticsApi.getCustomer(q)
+    } else {
+      data.value = await salesAnalyticsApi.getCustomer(props.query ?? {})
+    }
     loadedKey.value = key
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : t('salesAnalytics.customerTab.loadFailed')
+    const msg = e instanceof Error
+      ? e.message
+      : isListMode.value
+        ? t('customerList.board.loadFailed')
+        : t('salesAnalytics.customerTab.loadFailed')
     ElMessage.error(msg)
   } finally {
     loading.value = false
@@ -131,7 +201,7 @@ async function loadData() {
 }
 
 watch(
-  () => [props.active, queryKey(props.query)] as const,
+  () => [props.active, currentKey()] as const,
   ([active, key]) => {
     if (!active) return
     if (key === loadedKey.value && data.value) return
@@ -145,7 +215,9 @@ defineExpose({ reload: loadData })
 
 <template>
   <div class="sales-analytics-customer" v-loading="loading">
-    <p class="metric-hint">{{ t('salesAnalytics.customerTab.hint') }}</p>
+    <p class="metric-hint">
+      {{ isListMode ? t('customerList.board.hint') : t('salesAnalytics.customerTab.hint') }}
+    </p>
 
     <section class="section">
       <h3 class="section-title">{{ t('salesAnalytics.customerTab.sections.kpi') }}</h3>

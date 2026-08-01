@@ -41,6 +41,32 @@ public sealed partial class VendorListQuery : IVendorListQuery
             };
         }
 
+        var q = await BuildFilteredVendorQueryAsync(request, cancellationToken);
+
+        var total = await q.CountAsync(cancellationToken);
+        var items = await q
+            .OrderByDescending(e => e.CreateTime)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        await HydrateContactsAsync(items, cancellationToken);
+        await HydrateUserDisplayNamesAsync(items, cancellationToken);
+
+        return new PagedResult<VendorInfo>
+        {
+            Items = items,
+            TotalCount = total,
+            PageIndex = page,
+            PageSize = pageSize
+        };
+    }
+
+    /// <summary>与列表同源的筛选 + 供应商数据权限（不含分页）。</summary>
+    private async Task<IQueryable<VendorInfo>> BuildFilteredVendorQueryAsync(
+        VendorQueryRequest request,
+        CancellationToken cancellationToken)
+    {
         var q = _db.Vendors.AsNoTracking();
 
         if (!string.IsNullOrWhiteSpace(request.Keyword))
@@ -112,25 +138,7 @@ public sealed partial class VendorListQuery : IVendorListQuery
             q = q.Where(e => favList.Contains(e.Id));
         }
 
-        q = await _dataPermission.ApplyVendorListDataScopeAsync(request.CurrentUserId, q, cancellationToken);
-
-        var total = await q.CountAsync(cancellationToken);
-        var items = await q
-            .OrderByDescending(e => e.CreateTime)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
-
-        await HydrateContactsAsync(items, cancellationToken);
-        await HydrateUserDisplayNamesAsync(items, cancellationToken);
-
-        return new PagedResult<VendorInfo>
-        {
-            Items = items,
-            TotalCount = total,
-            PageIndex = page,
-            PageSize = pageSize
-        };
+        return await _dataPermission.ApplyVendorListDataScopeAsync(request.CurrentUserId, q, cancellationToken);
     }
 
     /// <inheritdoc />

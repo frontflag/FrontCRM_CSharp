@@ -183,6 +183,13 @@
         />
         <button type="button" class="btn-primary btn-sm" @click="handleSearch">{{ t('vendorList.filters.search') }}</button>
         <button type="button" class="btn-ghost btn-sm" @click="handleReset">{{ t('vendorList.filters.reset') }}</button>
+        <button
+          type="button"
+          class="btn-ghost btn-sm btn-board-active"
+          @click="toggleViewMode"
+        >
+          {{ viewMode === 'board' ? t('vendorList.filters.listView') : t('vendorList.filters.boardView') }}
+        </button>
         <el-popover
           v-model:visible="settingsMenuOpen"
           trigger="click"
@@ -238,7 +245,15 @@
       </div>
     </div>
 
-    <div class="vendor-main-panel" :class="{ 'vendor-main-panel--with-filter-tabs': filterTabStripVisible }">
+    <div v-if="viewMode === 'board'" class="vendor-board-scroll">
+      <VendorListBoard :filters="boardFilters" />
+    </div>
+
+    <div
+      v-show="viewMode === 'list'"
+      class="vendor-main-panel"
+      :class="{ 'vendor-main-panel--with-filter-tabs': filterTabStripVisible }"
+    >
       <div
         v-if="filterTabStripVisible"
         class="vd-filter-tabs"
@@ -415,7 +430,7 @@
     </div>
 
     <!-- 分页 -->
-    <div class="pagination-wrapper" v-if="totalCount > 0">
+    <div class="pagination-wrapper" v-if="viewMode === 'list' && totalCount > 0">
       <div class="list-footer-left">
         <el-tooltip :content="t('systemUser.colSetting')" placement="top" :hide-after="0">
           <el-button class="list-settings-btn" link type="primary" :aria-label="t('systemUser.colSetting')" @click="dataTableRef?.openColumnSettings?.()">
@@ -473,6 +488,7 @@ import AiEntityCreateHost from '@/components/AiCreate/AiEntityCreateHost.vue';
 import AiBusinessCardCreateHost from '@/components/AiCreate/AiBusinessCardCreateHost.vue';
 import { AI_PERMISSION_ENTITY_PARSE_VENDOR, AI_PERMISSION_ENTITY_PARSE_VENDOR_BUSINESS_CARD } from '@/api/ai';
 import CrmDataTable from '@/components/CrmDataTable.vue'
+import VendorListBoard from './VendorListBoard.vue'
 import { parseVendorListQuery } from '@/utils/vendorListQuery';
 import {
   buildVendorListRouteQuery,
@@ -499,6 +515,8 @@ import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick';
 import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import { useVendorIntelLookupStore } from '@/stores/vendorIntelLookup'
 import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
+import { useListBoardHelpOverride } from '@/composables/useHelpDocOverride'
+import type { VendorListAnalyticsQuery } from '@/api/vendorListAnalytics'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const route = useRoute();
@@ -540,6 +558,8 @@ const loading = ref(false);
 const vendorList = ref<Vendor[]>([]);
 const totalCount = ref(0);
 const favoriteOnly = ref(false);
+const viewMode = ref<'list' | 'board'>('list')
+useListBoardHelpOverride('pages/供应商列表看板_MENU_VENDOR_HOME_BOARD.md', viewMode)
 const skipQueryRouteFetch = ref(false);
 
 const activePreset = computed((): VendorListPresetId | null => {
@@ -627,6 +647,33 @@ const searchForm = reactive({
   createdFrom: undefined as string | undefined,
   createdTo: undefined as string | undefined
 });
+
+const boardFilters = computed((): VendorListAnalyticsQuery => {
+  const preset = activePreset.value
+  const q: VendorListAnalyticsQuery = {
+    searchTerm: searchForm.searchTerm || undefined,
+    level: searchForm.level,
+    credit: searchForm.credit,
+    ascriptionType: searchForm.ascriptionType,
+    industry: searchForm.industry || undefined,
+    currency: searchForm.currency,
+    purchaseUserId: searchForm.purchaseUserId || undefined
+  }
+  if (preset && isVendorQuickFilterPresetId(preset)) {
+    q.quickFilter = preset
+    return q
+  }
+  q.status = searchForm.status
+  q.createdFrom = searchForm.createdFrom || undefined
+  q.createdTo = searchForm.createdTo || undefined
+  if (favoriteOnly.value) q.favoriteOnly = true
+  return q
+})
+
+function toggleViewMode() {
+  viewMode.value = viewMode.value === 'list' ? 'board' : 'list'
+  if (viewMode.value === 'list') void fetchVendorList()
+}
 
 function purchaserUserLabel(u: PurchaseUserSelectOption) {
   const name = u.realName || u.label || u.userName;
@@ -720,7 +767,7 @@ function replaceRouteQueryAndFetch() {
         skipQueryRouteFetch.value = false;
       });
     });
-  void fetchVendorList();
+  if (viewMode.value === 'list') void fetchVendorList();
 }
 
 const handleSearch = () => {
@@ -748,7 +795,7 @@ const handleReset = () => {
       skipQueryRouteFetch.value = false;
     });
   });
-  void fetchVendorList();
+  if (viewMode.value === 'list') void fetchVendorList();
 };
 
 function onCreatedRangeChange(val: [string, string] | null | undefined) {
@@ -976,7 +1023,7 @@ watch(
     if (skipQueryRouteFetch.value) return;
     applyVendorListQueryFromRoute();
     pagination.pageNumber = 1;
-    void fetchVendorList();
+    if (viewMode.value === 'list') void fetchVendorList();
   },
   { deep: true }
 );
@@ -989,7 +1036,7 @@ onMounted(async () => {
   } catch {
     purchaseUsers.value = [];
   }
-  void fetchVendorList();
+  if (viewMode.value === 'list') void fetchVendorList();
 });
 </script>
 
@@ -1157,6 +1204,18 @@ onMounted(async () => {
     padding: 6px 12px;
     font-size: 12px;
   }
+}
+
+.btn-ghost.btn-board-active {
+  border-color: rgba(0, 212, 255, 0.45);
+  color: $text-primary;
+}
+
+.vendor-board-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 4px;
 }
 
 // ---- 搜索栏（与客户列表对齐） ----

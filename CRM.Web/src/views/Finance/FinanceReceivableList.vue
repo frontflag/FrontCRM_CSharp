@@ -182,6 +182,7 @@ import CustomerExtendColumnHeader from '@/components/list/CustomerExtendColumnHe
 import CustomerExtendCell from '@/components/list/CustomerExtendCell.vue'
 import { useCustomerExtendColumn, isCustomerExtendTableColumn } from '@/composables/useCustomerExtendColumn'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import { useListBoardHelpOverride } from '@/composables/useHelpDocOverride'
 import FinanceReceivableListBoard from './FinanceReceivableListBoard.vue'
 
 const { t } = useI18n()
@@ -221,6 +222,7 @@ const loading = ref(false)
 const tableData = ref<FinanceReceivable[]>([])
 const total = ref(0)
 const viewMode = ref<'list' | 'board'>('list')
+useListBoardHelpOverride('pages/应收款看板_MENU_FINANCE_RECEIVABLE_BOARD.md', viewMode)
 const stockOutDateRange = ref<[string, string] | null>(null)
 
 const query = reactive({

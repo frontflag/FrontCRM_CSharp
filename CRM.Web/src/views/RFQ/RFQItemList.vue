@@ -868,6 +868,7 @@ import {
 import { resolveRfqItemMaterialPn } from '@/utils/materialPn'
 import { useMaterialIntelLookupStore } from '@/stores/materialIntelLookup'
 import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
+import { useListBoardHelpOverride } from '@/composables/useHelpDocOverride'
 import { AI_PERMISSION_MATERIAL_INTEL_LOOKUP } from '@/api/ai'
 import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import {
@@ -962,6 +963,7 @@ const { count: basketCount, items: basketItems } = storeToRefs(basketStore)
 
 const loading = ref(false)
 const viewMode = ref<'list' | 'board'>('list')
+useListBoardHelpOverride('pages/需求明细看板_MENU_RFQ_ITEMS_BOARD.md', viewMode)
 const tabModeDimension = ref<RfqItemTabModeDimension>(readRfqItemTabMode())
 const settingsMenuOpen = ref(false)
 const settingsSubmenuOpen = ref(false)

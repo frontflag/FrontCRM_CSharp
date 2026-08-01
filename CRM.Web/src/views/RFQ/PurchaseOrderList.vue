@@ -443,6 +443,7 @@ import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import VendorExtendColumnHeader from '@/components/list/VendorExtendColumnHeader.vue'
 import VendorExtendCell from '@/components/list/VendorExtendCell.vue'
+import { useListBoardHelpOverride } from '@/composables/useHelpDocOverride'
 import PurchaseOrderListBoard from './PurchaseOrderListBoard.vue'
 import ProgressMultiSelectOption from '@/components/Common/ProgressMultiSelectOption.vue'
 import {
@@ -477,6 +478,7 @@ function onPurchaseOrderTableHeaderDragEnd(
 
 const loading = ref(false)
 const viewMode = ref<'list' | 'board'>('list')
+useListBoardHelpOverride('pages/采购订单看板_MENU_PURCHASE_ORDERS_BOARD.md', viewMode)
 const orderList = ref<any[]>([])
 const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)

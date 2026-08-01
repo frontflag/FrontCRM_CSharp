@@ -875,6 +875,7 @@ import { buildSalesOrderItemListColumns } from '@/composables/buildSalesOrderIte
 import { useSaleOrderWriteGate } from '@/composables/useDepartmentDataReadOnly'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
+import { useListBoardHelpOverride } from '@/composables/useHelpDocOverride'
 import {
   buildSoItemListRouteQuery,
   isSoItemListPresetId,
@@ -921,6 +922,7 @@ const listSalesUserFilterOk = computed(() => !maskSaleSensitiveFields.value)
 const listShowAmountColumns = computed(() => canViewAmount.value && !maskSaleSensitiveFields.value)
 const { canWriteSo } = useSaleOrderWriteGate()
 const viewMode = ref<'list' | 'board'>('list')
+useListBoardHelpOverride('pages/销售订单明细看板_MENU_SALES_ORDER_ITEMS_BOARD.md', viewMode)
 
 const tabModeDimension = ref<SoItemTabModeDimension>(readSoItemTabMode())
 const settingsMenuOpen = ref(false)

@@ -845,6 +845,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { ArrowRight, Setting } from '@element-plus/icons-vue'
+import { useListBoardHelpOverride } from '@/composables/useHelpDocOverride'
 import PurchaseOrderItemListBoard from './PurchaseOrderItemListBoard.vue'
 import type { PurchaseOrderItemListAnalyticsQuery } from '@/api/purchaseOrderItemAnalytics'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
@@ -921,6 +922,7 @@ const { canWritePo } = usePurchaseOrderWriteGate()
 const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const purchaseOrderItemOpsStore = usePurchaseOrderItemOpsPanelStore()
 const viewMode = ref<'list' | 'board'>('list')
+useListBoardHelpOverride('pages/采购订单明细看板_MENU_PURCHASE_ORDER_ITEMS_BOARD.md', viewMode)
 const tabModeDimension = ref<PoItemTabModeDimension>(readPoItemTabMode())
 const settingsMenuOpen = ref(false)
 const settingsSubmenuOpen = ref(false)

@@ -1,3 +1,4 @@
+using CRM.Core.Models.Analytics;
 using CRM.Core.Models.Customer;
 
 namespace CRM.Core.Interfaces;
@@ -6,6 +7,14 @@ namespace CRM.Core.Interfaces;
 public interface ICustomerListQuery
 {
     Task<PagedResult<CustomerInfo>> GetCustomersPagedAsync(CustomerQueryRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 客户列表看板：与列表同源 listFilter；在筛选客户集合内统计全部已审核销售订单（不限订单日期）。
+    /// </summary>
+    Task<SalesAnalyticsCustomerDto> GetListAnalyticsCustomerAsync(
+        CustomerQueryRequest request,
+        bool maskAmounts,
+        CancellationToken cancellationToken = default);
 
     Task<PagedResult<CustomerInfo>> GetDeletedCustomersPagedAsync(
         int page,

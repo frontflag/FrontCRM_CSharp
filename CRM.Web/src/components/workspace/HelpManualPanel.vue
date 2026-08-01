@@ -11,6 +11,7 @@ import {
   helpDocRelativePathForRoute,
   resolveHelpLinkHref
 } from '@/utils/helpDocPath'
+import { useHelpDocOverride } from '@/composables/useHelpDocOverride'
 import { getExternalHelpUrl } from '@/utils/externalHelpUrl'
 
 marked.setOptions({ gfm: true, breaks: true })
@@ -35,6 +36,8 @@ function isInvalidHelpFetchBody(raw: string, contentType: string | null): boolea
 
 const route = useRoute()
 const { locale: i18nLocale } = useI18n()
+const helpDocOverrideRel = useHelpDocOverride()
+const panelRoot = ref<HTMLElement | null>(null)
 const loading = ref(false)
 const html = ref('')
 const missing = ref(false)
@@ -43,6 +46,10 @@ const activeRel = ref(helpCatalogRelativePath())
 const externalHelpUrl = computed(() =>
   getExternalHelpUrl(route.name as string | undefined, undefined, i18nLocale.value)
 )
+
+function resolveActiveHelpRel(): string {
+  return helpDocOverrideRel.value ?? helpDocRelativePathForRoute(route) ?? helpCatalogRelativePath()
+}
 
 async function loadDoc() {
   const url = helpAssetUrl(activeRel.value)
@@ -74,11 +81,24 @@ async function loadDoc() {
   }
 }
 
+function scrollToHelpAnchor(hash: string) {
+  const id = decodeURIComponent(hash.replace(/^#/, '')).trim()
+  if (!id || !panelRoot.value) return
+  const el = panelRoot.value.querySelector(`#${CSS.escape(id)}`) as HTMLElement | null
+  el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
 function onPanelClick(ev: MouseEvent) {
   const a = (ev.target as HTMLElement | null)?.closest?.('a') as HTMLAnchorElement | null
   if (!a) return
   const href = a.getAttribute('href')
   if (!href) return
+  if (href.startsWith('#')) {
+    ev.preventDefault()
+    ev.stopPropagation()
+    scrollToHelpAnchor(href)
+    return
+  }
   const rel = resolveHelpLinkHref(href, activeRel.value)
   if (!rel) return
   ev.preventDefault()
@@ -88,9 +108,9 @@ function onPanelClick(ev: MouseEvent) {
 }
 
 watch(
-  () => [route.path, route.name, route.fullPath] as const,
+  () => [route.path, route.name, route.fullPath, helpDocOverrideRel.value] as const,
   () => {
-    activeRel.value = helpDocRelativePathForRoute(route) ?? helpCatalogRelativePath()
+    activeRel.value = resolveActiveHelpRel()
     void loadDoc()
   },
   { immediate: true }
@@ -98,7 +118,7 @@ watch(
 </script>
 
 <template>
-  <div class="help-manual-panel" v-loading="loading" @click.capture="onPanelClick">
+  <div ref="panelRoot" class="help-manual-panel" v-loading="loading" @click.capture="onPanelClick">
     <a
       :href="externalHelpUrl"
       target="_blank"
@@ -183,6 +203,12 @@ watch(
   margin: 14px 0 8px;
 }
 
+/* 带锚点 id 的章节标题（报表/看板速览目标）与顶部导航同色 */
+.help-md :deep(h2[id^='help-']) {
+  font-weight: 600;
+  color: var(--el-color-primary);
+}
+
 .help-md :deep(h3) {
   font-size: 14px;
   font-weight: 600;
@@ -238,6 +264,43 @@ watch(
   text-decoration: underline;
   text-underline-offset: 2px;
   cursor: pointer;
+}
+
+/* 页内速览导航（如销售分析四 Tab） */
+.help-md :deep(.help-toc-nav) {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 4px;
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid $border-panel;
+  background: $layer-3;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.12);
+}
+
+.help-md :deep(.help-toc-nav a) {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--el-color-primary);
+  text-decoration: none;
+}
+
+.help-md :deep(.help-toc-nav a:hover) {
+  background-color: var(--el-color-primary-light-9);
+  text-decoration: underline;
+}
+
+.help-md :deep(.help-toc-nav .help-toc-sep) {
+  color: $text-muted;
+  user-select: none;
 }
 
 .help-md :deep(blockquote) {

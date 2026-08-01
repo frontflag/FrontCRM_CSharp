@@ -3492,7 +3492,13 @@ const enUS = {
       startDate: 'Start',
       endDate: 'End',
       search: 'Search',
-      reset: 'Reset'
+      reset: 'Reset',
+      boardView: 'Board',
+      listView: 'List'
+    },
+    board: {
+      hint: 'Uses the same customer set as the search bar; counts all approved sales orders for those customers (no order date limit). Repeat customers = 2+ approved orders. Click a ranking row to open the order list.',
+      loadFailed: 'Failed to load customer list board'
     },
     settingsMenu: {
       aria: 'List filter settings',
@@ -3765,7 +3771,13 @@ const enUS = {
       startDate: 'Start',
       endDate: 'End',
       search: 'Search',
-      reset: 'Reset'
+      reset: 'Reset',
+      boardView: 'Board',
+      listView: 'List'
+    },
+    board: {
+      hint: 'Uses the same vendor set as the search bar; counts all approved purchase orders for those vendors (no order date limit). Repeat vendors = 2+ approved orders. Click a ranking row to open the purchase order list.',
+      loadFailed: 'Failed to load vendor list board'
     },
     settingsMenu: {
       aria: 'List filter settings',

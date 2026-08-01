@@ -49,6 +49,7 @@
 
     { "id": "MENU_FINANCE_PAYMENT", "label": "付款记录", "routeNames": ["FinancePaymentList", "FinancePaymentDetail"], "pathPrefixes": ["/finance/payments"] },
     { "id": "MENU_FINANCE_PURCHASE_INV", "label": "进项发票", "routeNames": ["FinancePurchaseInvoiceList", "FinancePurchaseInvoiceDetail"], "pathPrefixes": ["/finance/purchase-invoices"] },
+    { "id": "MENU_FINANCE_RECEIVABLE", "label": "应收款", "routeNames": ["FinanceReceivableList", "FinanceReceivableDetail"], "pathPrefixes": ["/finance/receivables"] },
     { "id": "MENU_FINANCE_RECEIPT", "label": "收款记录", "routeNames": ["FinanceReceiptList", "FinanceReceiptDetail"], "pathPrefixes": ["/finance/receipts"] },
     { "id": "MENU_FINANCE_RECEIPT_WRITE_OFF", "label": "收款核销", "routeNames": ["FinanceReceiptWriteOff", "FinanceReceiptWriteOffLedger"], "pathPrefixes": ["/finance/receipt-write-off"] },
     { "id": "MENU_FINANCE_FF_PAYABLE", "label": "货代付款", "routeNames": ["FinanceFreightForwarderPayableList", "FinanceFreightForwarderPayableDetail", "FreightForwarderCompanyManage"], "pathPrefixes": ["/finance/freight-forwarder-payables", "/finance/freight-forwarder-companies"] },
@@ -58,7 +59,11 @@
     { "id": "MENU_FINANCE_CUSTOMER_ACCUMULATED", "label": "客户滚存", "routeNames": ["FinanceCustomerAccumulatedList", "FinanceCustomerAccumulatedItemList"], "pathPrefixes": ["/finance/customer-accumulated"] },
     { "id": "MENU_FINANCE_VENDOR_ACCUMULATED", "label": "供应商滚存", "routeNames": ["FinanceVendorAccumulatedList", "FinanceVendorAccumulatedItemList"], "pathPrefixes": ["/finance/vendor-accumulated"] },
 
-    { "id": "MENU_REPORT_ANALYSIS", "label": "报表分析", "routeNames": [], "pathPrefixes": [] },
+    { "id": "MENU_REPORT_ANALYSIS", "label": "报表分析", "routeNames": [], "pathPrefixes": ["/reports"] },
+    { "id": "MENU_SALES_ANALYTICS", "label": "销售分析", "routeNames": ["SalesAnalytics"], "pathPrefixes": ["/reports/sales"] },
+    { "id": "MENU_PURCHASE_ANALYTICS", "label": "采购分析", "routeNames": ["PurchaseAnalytics"], "pathPrefixes": ["/reports/purchase"] },
+    { "id": "MENU_LOGISTICS_ANALYTICS", "label": "物流分析", "routeNames": ["LogisticsAnalytics"], "pathPrefixes": ["/reports/logistics"] },
+    { "id": "MENU_FINANCE_ANALYTICS", "label": "财务分析", "routeNames": ["FinanceAnalytics"], "pathPrefixes": ["/reports/finance"] },
 
     { "id": "MENU_SYS_USERS", "label": "员工管理", "routeNames": ["UserList", "UserCreate", "UserEdit"], "pathPrefixes": ["/system/users"] },
     { "id": "MENU_SYS_DEPTS", "label": "部门管理", "routeNames": ["DepartmentList", "DepartmentCreate", "DepartmentEdit", "DepartmentDetail"], "pathPrefixes": ["/system/departments"] },

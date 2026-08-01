@@ -406,6 +406,7 @@ import {
   useDockQuoteExtendColumn,
   isDockQuoteExtendTableColumn
 } from '@/composables/useDockQuoteExtendColumn'
+import { useListBoardHelpOverride } from '@/composables/useHelpDocOverride'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { productionDateDisplayLabel, useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
@@ -466,6 +467,7 @@ function toggleQuoteBasketOpCol() {
 const suppressBasketMerge = ref(false)
 const stats = ref({ total: 0, newCount: 0, wonCount: 0, closedCount: 0 })
 const viewMode = ref<'list' | 'board'>('list')
+useListBoardHelpOverride('pages/报价列表看板_MENU_QUOTE_LIST_BOARD.md', viewMode)
 const dateRange = ref<[string, string] | null>(null)
 
 // 搜索表单

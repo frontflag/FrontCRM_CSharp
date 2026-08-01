@@ -7,6 +7,7 @@
 3. **目录**：根目录 `帮助文档目录.md` 由 `scripts/sync-help.mjs` 根据注册表自动生成，仅展示菜单名称链接。
 4. **同步**：`npm run dev` / `npm run build` 前执行 `sync-help.mjs`，将 `help/` 复制到 `CRM.Web/public/help/`，并补全缺省占位页（不覆盖已有文件）。
 5. **前端解析**：`CRM.Web/src/utils/helpDocPath.ts` 按当前路由解析菜单项并 `fetch` 对应 `.md`；右栏「帮助」内点击 `.md` 链接仅在面板内切换，不跳转整页。
+6. **视图覆盖**：同一路由下「列表 / 看板」等视图可通过 `setHelpDocOverride`（`composables/useHelpDocOverride.ts`）临时指定另一份帮助；离开页面或切回列表须清除覆盖。
 
 ## 读者与正文要求（必读）
 

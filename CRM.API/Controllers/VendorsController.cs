@@ -3,6 +3,7 @@ using CRM.API.Authorization;
 using CRM.API.Models.DTOs;
 using CRM.API.Utilities;
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Analytics;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Vendor;
 using CRM.Core.Utilities;
@@ -16,6 +17,7 @@ namespace CRM.API.Controllers
     public class VendorsController : ControllerBase
     {
         private readonly IVendorService _vendorService;
+        private readonly IVendorListQuery _vendorListQuery;
         private readonly IApprovalRecordService _approvalRecordService;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IRepository<PurchaseOrder> _purchaseOrderRepository;
@@ -25,6 +27,7 @@ namespace CRM.API.Controllers
 
         public VendorsController(
             IVendorService vendorService,
+            IVendorListQuery vendorListQuery,
             IApprovalRecordService approvalRecordService,
             IDataPermissionService dataPermissionService,
             IRepository<PurchaseOrder> purchaseOrderRepository,
@@ -33,6 +36,7 @@ namespace CRM.API.Controllers
             ILogger<VendorsController> logger)
         {
             _vendorService = vendorService;
+            _vendorListQuery = vendorListQuery;
             _approvalRecordService = approvalRecordService;
             _dataPermissionService = dataPermissionService;
             _purchaseOrderRepository = purchaseOrderRepository;
@@ -155,6 +159,71 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "获取供应商列表失败");
                 return StatusCode(500, ApiResponse<object>.Fail($"获取供应商列表失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>
+        /// 供应商列表看板：与 GetVendors 同源 listFilter；
+        /// 在筛选供应商集合内统计全部已审核采购订单（不限订单日期）。
+        /// </summary>
+        [HttpGet("analytics/vendor")]
+        public async Task<ActionResult<ApiResponse<PurchaseAnalyticsVendorDto>>> GetListAnalyticsVendor(
+            [FromQuery] string? keyword = null,
+            [FromQuery] string? searchTerm = null,
+            [FromQuery] short? status = null,
+            [FromQuery] short? level = null,
+            [FromQuery] string? industry = null,
+            [FromQuery] short? currency = null,
+            [FromQuery] short? credit = null,
+            [FromQuery] short? ascriptionType = null,
+            [FromQuery] string? purchaseUserId = null,
+            [FromQuery] DateTime? createdFrom = null,
+            [FromQuery] DateTime? createdTo = null,
+            [FromQuery] bool favoriteOnly = false,
+            [FromQuery] string? favoriteIds = null,
+            [FromQuery] string? quickFilter = null,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var kw = !string.IsNullOrWhiteSpace(searchTerm) ? searchTerm : keyword;
+                IReadOnlyList<string>? favoriteIdList = null;
+                if (favoriteOnly)
+                {
+                    favoriteIdList = string.IsNullOrWhiteSpace(favoriteIds)
+                        ? Array.Empty<string>()
+                        : favoriteIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                            .Where(s => !string.IsNullOrWhiteSpace(s))
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .ToList();
+                }
+
+                var request = new VendorQueryRequest
+                {
+                    Keyword = kw,
+                    Status = status,
+                    Level = level,
+                    Industry = industry,
+                    Currency = currency,
+                    Credit = credit,
+                    AscriptionType = ascriptionType,
+                    PurchaseUserId = purchaseUserId,
+                    CreatedFrom = createdFrom,
+                    CreatedTo = createdTo,
+                    QuickFilter = quickFilter,
+                    CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
+                    FavoriteVendorIds = favoriteIdList
+                };
+
+                var maskAmounts = await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User);
+                var data = await _vendorListQuery.GetListAnalyticsVendorAsync(
+                    request, maskAmounts, cancellationToken);
+                return Ok(ApiResponse<PurchaseAnalyticsVendorDto>.Ok(data, "获取供应商列表看板成功"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取供应商列表看板失败");
+                return StatusCode(500, ApiResponse<PurchaseAnalyticsVendorDto>.Fail($"获取供应商列表看板失败: {ex.Message}", 500));
             }
         }
 

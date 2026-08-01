@@ -12,15 +12,30 @@ import {
   type PurchaseAnalyticsScopeContext,
   type PurchaseAnalyticsVendor
 } from '@/api/analytics/purchase'
+import {
+  vendorListAnalyticsApi,
+  type VendorListAnalyticsQuery
+} from '@/api/vendorListAnalytics'
+import { favoriteApi } from '@/api/favorite'
 import { useAuthStore } from '@/stores/auth'
 import { useVendorDictStore } from '@/stores/vendorDict'
 import { buildVendorRankingDrillRoute } from '@/utils/purchaseAnalyticsDrill'
 
-const props = defineProps<{
-  query: PurchaseAnalyticsQuery
-  scopeContext: PurchaseAnalyticsScopeContext | null
-  active: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    /** list=供应商列表看板；report=采购分析供应商 Tab */
+    mode?: 'list' | 'report'
+    query?: PurchaseAnalyticsQuery
+    scopeContext?: PurchaseAnalyticsScopeContext | null
+    filters?: VendorListAnalyticsQuery
+    active?: boolean
+  }>(),
+  {
+    mode: 'report',
+    active: true,
+    scopeContext: null
+  }
+)
 
 const { t } = useI18n()
 const router = useRouter()
@@ -30,6 +45,8 @@ const vendorDict = useVendorDictStore()
 const loading = ref(false)
 const loadedKey = ref('')
 const data = ref<PurchaseAnalyticsVendor | null>(null)
+
+const isListMode = computed(() => props.mode === 'list')
 
 const maskAmounts = computed(
   () => data.value?.scopeContext.maskAmounts === true || props.scopeContext?.maskAmounts === true
@@ -57,7 +74,8 @@ const kpiItems = computed(() => {
   ]
 })
 
-function queryKey(q: PurchaseAnalyticsQuery): string {
+function reportQueryKey(q: PurchaseAnalyticsQuery | undefined): string {
+  if (!q) return ''
   return [
     q.viewLevel ?? '',
     q.departmentId ?? '',
@@ -65,6 +83,31 @@ function queryKey(q: PurchaseAnalyticsQuery): string {
     q.dateFrom ?? '',
     q.dateTo ?? ''
   ].join('|')
+}
+
+function listFiltersKey(f: VendorListAnalyticsQuery | undefined): string {
+  if (!f) return ''
+  return [
+    f.searchTerm ?? '',
+    f.status ?? '',
+    f.level ?? '',
+    f.industry ?? '',
+    f.currency ?? '',
+    f.credit ?? '',
+    f.ascriptionType ?? '',
+    f.purchaseUserId ?? '',
+    f.createdFrom ?? '',
+    f.createdTo ?? '',
+    f.favoriteOnly ? '1' : '0',
+    f.favoriteIds ?? '',
+    f.quickFilter ?? ''
+  ].join('|')
+}
+
+function currentKey(): string {
+  return isListMode.value
+    ? `list|${listFiltersKey(props.filters)}`
+    : `report|${reportQueryKey(props.query)}`
 }
 
 function breakdownTitle(group: PurchaseAnalyticsBreakdownGroup): string {
@@ -98,10 +141,15 @@ function localizedItems(group: PurchaseAnalyticsBreakdownGroup) {
 }
 
 function drillScope() {
+  if (isListMode.value) {
+    return {
+      scopeContext: data.value?.scopeContext ?? props.scopeContext
+    }
+  }
   return {
-    dateFrom: props.query.dateFrom,
-    dateTo: props.query.dateTo,
-    purchaseUserId: props.query.purchaseUserId,
+    dateFrom: props.query?.dateFrom,
+    dateTo: props.query?.dateTo,
+    purchaseUserId: props.query?.purchaseUserId,
     scopeContext: data.value?.scopeContext ?? props.scopeContext
   }
 }
@@ -114,16 +162,37 @@ function onVendorRankingClick(row: { id: string; name: string }) {
   void router.push(buildVendorRankingDrillRoute(row.id, row.name, drillScope()))
 }
 
+async function resolveListQuery(): Promise<VendorListAnalyticsQuery> {
+  const base = { ...(props.filters ?? {}) }
+  if (!base.favoriteOnly) return base
+  const ids = await favoriteApi.getFavoriteEntityIds('VENDOR')
+  if (ids.length === 0) {
+    base.favoriteIds = ''
+    return base
+  }
+  base.favoriteIds = ids.join(',')
+  return base
+}
+
 async function loadData() {
   if (!props.active) return
-  const key = queryKey(props.query)
+  const key = currentKey()
   loading.value = true
   try {
     await vendorDict.ensureLoaded()
-    data.value = await purchaseAnalyticsApi.getVendor(props.query)
+    if (isListMode.value) {
+      const q = await resolveListQuery()
+      data.value = await vendorListAnalyticsApi.getVendor(q)
+    } else {
+      data.value = await purchaseAnalyticsApi.getVendor(props.query ?? {})
+    }
     loadedKey.value = key
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : t('purchaseAnalytics.vendorTab.loadFailed')
+    const msg = e instanceof Error
+      ? e.message
+      : isListMode.value
+        ? t('vendorList.board.loadFailed')
+        : t('purchaseAnalytics.vendorTab.loadFailed')
     ElMessage.error(msg)
   } finally {
     loading.value = false
@@ -131,7 +200,7 @@ async function loadData() {
 }
 
 watch(
-  () => [props.active, queryKey(props.query)] as const,
+  () => [props.active, currentKey()] as const,
   ([active, key]) => {
     if (!active) return
     if (key === loadedKey.value && data.value) return
@@ -145,7 +214,9 @@ defineExpose({ reload: loadData })
 
 <template>
   <div class="purchase-analytics-vendor" v-loading="loading">
-    <p class="metric-hint">{{ t('purchaseAnalytics.vendorTab.hint') }}</p>
+    <p class="metric-hint">
+      {{ isListMode ? t('vendorList.board.hint') : t('purchaseAnalytics.vendorTab.hint') }}
+    </p>
 
     <section class="section">
       <h3 class="section-title">{{ t('purchaseAnalytics.vendorTab.sections.kpi') }}</h3>

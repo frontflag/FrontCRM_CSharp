@@ -1,3 +1,4 @@
+using CRM.Core.Models.Analytics;
 using CRM.Core.Models.Vendor;
 
 namespace CRM.Core.Interfaces;
@@ -6,6 +7,14 @@ namespace CRM.Core.Interfaces;
 public interface IVendorListQuery
 {
     Task<PagedResult<VendorInfo>> GetVendorsPagedAsync(VendorQueryRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 供应商列表看板：与列表同源 listFilter；在筛选供应商集合内统计全部已审核采购订单（不限订单日期）。
+    /// </summary>
+    Task<PurchaseAnalyticsVendorDto> GetListAnalyticsVendorAsync(
+        VendorQueryRequest request,
+        bool maskAmounts,
+        CancellationToken cancellationToken = default);
 
     Task<PagedResult<VendorInfo>> GetDeletedVendorsPagedAsync(
         int page,

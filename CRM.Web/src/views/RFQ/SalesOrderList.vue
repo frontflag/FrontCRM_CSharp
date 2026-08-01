@@ -289,6 +289,7 @@ import { useCustomerExtendColumn, isCustomerExtendTableColumn } from '@/composab
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick'
+import { useListBoardHelpOverride } from '@/composables/useHelpDocOverride'
 import SalesOrderListBoard from './SalesOrderListBoard.vue'
 import type { SalesOrderListAnalyticsQuery } from '@/api/salesOrderAnalytics'
 import ProgressMultiSelectOption from '@/components/Common/ProgressMultiSelectOption.vue'
@@ -304,6 +305,7 @@ const { t, locale } = useI18n()
 
 const loading = ref(false)
 const viewMode = ref<'list' | 'board'>('list')
+useListBoardHelpOverride('pages/销售订单看板_MENU_SALES_ORDERS_BOARD.md', viewMode)
 const orderList = ref<any[]>([])
 const listTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)

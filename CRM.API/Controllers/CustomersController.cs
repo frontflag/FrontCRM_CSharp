@@ -3,6 +3,7 @@ using CRM.API.Authorization;
 using CRM.API.Models.DTOs;
 using CRM.API.Utilities;
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Analytics;
 using CRM.Core.Models.Customer;
 using CRM.Core.Models.Sales;
 using CRM.Core.Utilities;
@@ -19,6 +20,7 @@ namespace CRM.API.Controllers
     public class CustomersController : ControllerBase
     {
         private readonly ICustomerService _customerService;
+        private readonly ICustomerListQuery _customerListQuery;
         private readonly ICustomerIntelReportService _customerIntelReportService;
         private readonly IApprovalRecordService _approvalRecordService;
         private readonly IDataPermissionService _dataPermissionService;
@@ -30,6 +32,7 @@ namespace CRM.API.Controllers
 
         public CustomersController(
             ICustomerService customerService,
+            ICustomerListQuery customerListQuery,
             ICustomerIntelReportService customerIntelReportService,
             IApprovalRecordService approvalRecordService,
             IDataPermissionService dataPermissionService,
@@ -40,6 +43,7 @@ namespace CRM.API.Controllers
             ILogger<CustomersController> logger)
         {
             _customerService = customerService;
+            _customerListQuery = customerListQuery;
             _customerIntelReportService = customerIntelReportService;
             _approvalRecordService = approvalRecordService;
             _dataPermissionService = dataPermissionService;
@@ -139,6 +143,76 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "获取客户列表失败");
                 return StatusCode(500, ApiResponse<object>.Fail($"获取客户列表失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>
+        /// 客户列表看板：与 GetCustomers 同源 listFilter；
+        /// 在筛选客户集合内统计全部已审核销售订单（不限订单日期）。
+        /// </summary>
+        [HttpGet("analytics/customer")]
+        public async Task<ActionResult<ApiResponse<SalesAnalyticsCustomerDto>>> GetListAnalyticsCustomer(
+            [FromQuery] string? searchTerm = null,
+            [FromQuery] short? customerType = null,
+            [FromQuery] short? customerLevel = null,
+            [FromQuery] string? industry = null,
+            [FromQuery] short? currency = null,
+            [FromQuery] string? region = null,
+            [FromQuery] string? salesUserId = null,
+            [FromQuery] DateTime? createdFrom = null,
+            [FromQuery] DateTime? createdTo = null,
+            [FromQuery] bool? isActive = null,
+            [FromQuery] short? status = null,
+            [FromQuery] bool favoriteOnly = false,
+            [FromQuery] string? favoriteIds = null,
+            [FromQuery] string? quickFilter = null,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                short? statusFilter = null;
+                if (status.HasValue)
+                    statusFilter = status.Value;
+                else if (isActive.HasValue)
+                    statusFilter = isActive.Value ? (short)1 : (short)0;
+
+                IReadOnlyList<string>? favoriteIdList = null;
+                if (favoriteOnly)
+                {
+                    favoriteIdList = string.IsNullOrWhiteSpace(favoriteIds)
+                        ? Array.Empty<string>()
+                        : favoriteIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                            .Where(s => !string.IsNullOrWhiteSpace(s))
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .ToList();
+                }
+
+                var request = new CustomerQueryRequest
+                {
+                    Keyword = searchTerm,
+                    Type = customerType,
+                    Level = customerLevel,
+                    Industry = industry,
+                    Currency = currency,
+                    Region = region,
+                    SalesUserId = salesUserId,
+                    CreatedFrom = createdFrom,
+                    CreatedTo = createdTo,
+                    Status = statusFilter,
+                    QuickFilter = quickFilter,
+                    CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
+                    FavoriteCustomerIds = favoriteIdList
+                };
+
+                var maskAmounts = await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User);
+                var data = await _customerListQuery.GetListAnalyticsCustomerAsync(
+                    request, maskAmounts, cancellationToken);
+                return Ok(ApiResponse<SalesAnalyticsCustomerDto>.Ok(data, "获取客户列表看板成功"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取客户列表看板失败");
+                return StatusCode(500, ApiResponse<SalesAnalyticsCustomerDto>.Fail($"获取客户列表看板失败: {ex.Message}", 500));
             }
         }
 

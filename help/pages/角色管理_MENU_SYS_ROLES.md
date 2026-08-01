@@ -5,7 +5,7 @@
 ## 页面功能
 
 - 角色定义与权限勾选（含 `system.*` 系统管理细分权限）。
-- **SuperAdmin 角色（SYS_ADMIN）对非 SuperAdmin 不可见。**
+- **SuperAdmin 角色（系统管理员）对非 SuperAdmin 不可见。**
 - 编辑 Admin（SYS_MANAGER）角色时可配置其对系统菜单/参数子项的开放面（未勾选即对 Admin 隐藏）。
 
 ## 操作说明

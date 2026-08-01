@@ -3479,7 +3479,13 @@ const zhCN = {
       startDate: '创建起',
       endDate: '创建止',
       search: '搜索',
-      reset: '重置'
+      reset: '重置',
+      boardView: '看板',
+      listView: '列表'
+    },
+    board: {
+      hint: '统计集合与搜索栏结果一致；在筛选客户内统计全部已审核销售订单（不限订单日期）。复购客户 = 成单订单数 ≥ 2。点击客户排行可下钻订单列表。',
+      loadFailed: '加载客户列表看板失败'
     },
     settingsMenu: {
       aria: '列表筛选设置',
@@ -3752,7 +3758,13 @@ const zhCN = {
       startDate: '创建起',
       endDate: '创建止',
       search: '搜索',
-      reset: '重置'
+      reset: '重置',
+      boardView: '看板',
+      listView: '列表'
+    },
+    board: {
+      hint: '统计集合与搜索栏结果一致；在筛选供应商内统计全部已审核采购订单（不限订单日期）。复采供应商 = 成单订单数 ≥ 2。点击供应商排行可下钻采购订单列表。',
+      loadFailed: '加载供应商列表看板失败'
     },
     settingsMenu: {
       aria: '列表筛选设置',

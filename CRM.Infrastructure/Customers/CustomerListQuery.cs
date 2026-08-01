@@ -41,6 +41,32 @@ public sealed partial class CustomerListQuery : ICustomerListQuery
             };
         }
 
+        var q = await BuildFilteredCustomerQueryAsync(request, cancellationToken);
+
+        var total = await q.CountAsync(cancellationToken);
+        var items = await q
+            .OrderByDescending(c => c.CreateTime)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        await HydrateContactsAsync(items, cancellationToken);
+        await HydrateUserDisplayNamesAsync(items, cancellationToken);
+
+        return new PagedResult<CustomerInfo>
+        {
+            Items = items,
+            TotalCount = total,
+            PageIndex = page,
+            PageSize = pageSize
+        };
+    }
+
+    /// <summary>与列表同源的筛选 + 客户数据权限（不含分页）。</summary>
+    private async Task<IQueryable<CustomerInfo>> BuildFilteredCustomerQueryAsync(
+        CustomerQueryRequest request,
+        CancellationToken cancellationToken)
+    {
         var q = _db.Customers.AsNoTracking();
 
         if (!string.IsNullOrWhiteSpace(request.Keyword))
@@ -115,25 +141,7 @@ public sealed partial class CustomerListQuery : ICustomerListQuery
             q = q.Where(c => favList.Contains(c.Id));
         }
 
-        q = await _dataPermission.ApplyCustomerListDataScopeAsync(request.CurrentUserId, q, cancellationToken);
-
-        var total = await q.CountAsync(cancellationToken);
-        var items = await q
-            .OrderByDescending(c => c.CreateTime)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
-
-        await HydrateContactsAsync(items, cancellationToken);
-        await HydrateUserDisplayNamesAsync(items, cancellationToken);
-
-        return new PagedResult<CustomerInfo>
-        {
-            Items = items,
-            TotalCount = total,
-            PageIndex = page,
-            PageSize = pageSize
-        };
+        return await _dataPermission.ApplyCustomerListDataScopeAsync(request.CurrentUserId, q, cancellationToken);
     }
 
     /// <inheritdoc />
