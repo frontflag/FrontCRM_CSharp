@@ -258,12 +258,13 @@ namespace CRM.API.Controllers
             [FromQuery] List<short>? stockInProgressStatus = null,
             [FromQuery] List<short>? invoiceProgressStatus = null,
             [FromQuery] string? quickFilter = null,
+            [FromQuery] string? dataset = null,
             CancellationToken cancellationToken = default)
         {
             var (request, maskAmounts) = await BuildItemListAnalyticsQueryRequestAsync(
                 startDate, endDate, purchaseOrderCode, freightForwarderOrderNo, vendorName, purchaseUserName,
                 pn, orderType, transactionCurrency, paymentProgressStatus, purchaseProgressStatus,
-                stockInProgressStatus, invoiceProgressStatus, quickFilter, cancellationToken);
+                stockInProgressStatus, invoiceProgressStatus, quickFilter, dataset, cancellationToken);
             var data = await _purchaseOrderItemListQuery.GetListAnalyticsDashboardAsync(request, maskAmounts, cancellationToken);
             return Ok(ApiResponse<PurchaseOrderItemListAnalyticsDashboardDto>.Ok(data));
         }
@@ -285,12 +286,13 @@ namespace CRM.API.Controllers
             [FromQuery] List<short>? invoiceProgressStatus = null,
             [FromQuery] string? groupBy = null,
             [FromQuery] string? quickFilter = null,
+            [FromQuery] string? dataset = null,
             CancellationToken cancellationToken = default)
         {
             var (request, maskAmounts) = await BuildItemListAnalyticsQueryRequestAsync(
                 startDate, endDate, purchaseOrderCode, freightForwarderOrderNo, vendorName, purchaseUserName,
                 pn, orderType, transactionCurrency, paymentProgressStatus, purchaseProgressStatus,
-                stockInProgressStatus, invoiceProgressStatus, quickFilter, cancellationToken);
+                stockInProgressStatus, invoiceProgressStatus, quickFilter, dataset, cancellationToken);
             var data = await _purchaseOrderItemListQuery.GetListAnalyticsTrendsAsync(
                 request,
                 string.IsNullOrWhiteSpace(groupBy) ? "month" : groupBy.Trim(),
@@ -315,12 +317,13 @@ namespace CRM.API.Controllers
             [FromQuery] List<short>? stockInProgressStatus = null,
             [FromQuery] List<short>? invoiceProgressStatus = null,
             [FromQuery] string? quickFilter = null,
+            [FromQuery] string? dataset = null,
             CancellationToken cancellationToken = default)
         {
             var (request, maskAmounts) = await BuildItemListAnalyticsQueryRequestAsync(
                 startDate, endDate, purchaseOrderCode, freightForwarderOrderNo, vendorName, purchaseUserName,
                 pn, orderType, transactionCurrency, paymentProgressStatus, purchaseProgressStatus,
-                stockInProgressStatus, invoiceProgressStatus, quickFilter, cancellationToken);
+                stockInProgressStatus, invoiceProgressStatus, quickFilter, dataset, cancellationToken);
             var data = await _purchaseOrderItemListQuery.GetListAnalyticsBreakdownsAsync(request, maskAmounts, cancellationToken);
             return Ok(ApiResponse<IReadOnlyList<SalesAnalyticsBreakdownGroupDto>>.Ok(data));
         }
@@ -341,12 +344,13 @@ namespace CRM.API.Controllers
             [FromQuery] List<short>? stockInProgressStatus = null,
             [FromQuery] List<short>? invoiceProgressStatus = null,
             [FromQuery] string? quickFilter = null,
+            [FromQuery] string? dataset = null,
             CancellationToken cancellationToken = default)
         {
             var (request, maskAmounts) = await BuildItemListAnalyticsQueryRequestAsync(
                 startDate, endDate, purchaseOrderCode, freightForwarderOrderNo, vendorName, purchaseUserName,
                 pn, orderType, transactionCurrency, paymentProgressStatus, purchaseProgressStatus,
-                stockInProgressStatus, invoiceProgressStatus, quickFilter, cancellationToken);
+                stockInProgressStatus, invoiceProgressStatus, quickFilter, dataset, cancellationToken);
             var data = await _purchaseOrderItemListQuery.GetListAnalyticsRankingsAsync(request, maskAmounts, cancellationToken);
             return Ok(ApiResponse<PurchaseOrderItemListAnalyticsRankingsDto>.Ok(data));
         }
@@ -1999,6 +2003,7 @@ namespace CRM.API.Controllers
             List<short>? stockInProgressStatus,
             List<short>? invoiceProgressStatus,
             string? quickFilter,
+            string? dataset,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -2033,7 +2038,8 @@ namespace CRM.API.Controllers
                 PurchaseProgressStatus = QueryShortListParser.Parse(Request.Query["purchaseProgressStatus"]) ?? purchaseProgressStatus,
                 StockInProgressStatus = QueryShortListParser.Parse(Request.Query["stockInProgressStatus"]) ?? stockInProgressStatus,
                 InvoiceProgressStatus = QueryShortListParser.Parse(Request.Query["invoiceProgressStatus"]) ?? invoiceProgressStatus,
-                QuickFilter = quickFilter
+                QuickFilter = quickFilter,
+                AnalyticsDataset = PurchaseOrderItemAnalyticsDatasets.Normalize(dataset)
             };
 
             return (request, maskAmounts);

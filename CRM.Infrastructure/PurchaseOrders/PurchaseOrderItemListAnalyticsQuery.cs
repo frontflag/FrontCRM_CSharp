@@ -21,12 +21,12 @@ public sealed partial class PurchaseOrderItemListQuery
         bool maskAmounts,
         CancellationToken cancellationToken = default)
     {
-        var approvedRows = await LoadApprovedLineRowsAsync(request, cancellationToken);
-        var inStock = await LoadInStockMetricsAsync(request, approvedRows, cancellationToken);
-        var payableLines = approvedRows.Where(r => r.PaymentAmountNot > 0m).ToList();
+        var metricRows = await LoadMetricLineRowsAsync(request, cancellationToken);
+        var inStock = await LoadInStockMetricsAsync(request, metricRows, cancellationToken);
+        var payableLines = metricRows.Where(r => r.PaymentAmountNot > 0m).ToList();
 
         var currencyLines = BuildCurrencyLines(
-            approvedRows,
+            metricRows,
             r => CalcUsdLineTotal(r),
             maskAmounts);
 
@@ -40,17 +40,17 @@ public sealed partial class PurchaseOrderItemListQuery
             Context = new PurchaseOrderItemListAnalyticsContextDto { MaskAmounts = maskAmounts },
             Snapshot = new PurchaseOrderItemListAnalyticsSnapshotDto
             {
-                ApprovedVendorCount = approvedRows
+                ApprovedVendorCount = metricRows
                     .Where(r => !string.IsNullOrWhiteSpace(r.VendorId))
                     .Select(r => r.VendorId!)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .Count(),
-                ApprovedOrderCount = approvedRows
+                ApprovedOrderCount = metricRows
                     .Select(r => r.OrderId)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .Count(),
-                ApprovedLineCount = approvedRows.Count,
-                ApprovedAmountUsd = maskAmounts ? null : approvedRows.Sum(r => CalcUsdLineTotal(r) ?? 0m),
+                ApprovedLineCount = metricRows.Count,
+                ApprovedAmountUsd = maskAmounts ? null : metricRows.Sum(r => CalcUsdLineTotal(r) ?? 0m),
                 CurrencyLines = currencyLines,
                 InStockVendorCount = inStock.VendorCount,
                 InStockLineCount = inStock.LineCount,
@@ -75,7 +75,7 @@ public sealed partial class PurchaseOrderItemListQuery
         bool maskAmounts,
         CancellationToken cancellationToken = default)
     {
-        var rows = await LoadApprovedLineRowsAsync(request, cancellationToken);
+        var rows = await LoadMetricLineRowsAsync(request, cancellationToken);
         if (rows.Count == 0)
             return Array.Empty<PurchaseOrderItemListAnalyticsTrendPointDto>();
 
@@ -110,11 +110,17 @@ public sealed partial class PurchaseOrderItemListQuery
         CancellationToken cancellationToken = default)
     {
         var allRows = await LoadAllLineRowsAsync(request, cancellationToken);
-        var approvedRows = allRows.Where(IsApprovedRow).ToList();
+        var metricRows = PurchaseOrderItemAnalyticsDatasets.IsReportApproved(request.AnalyticsDataset)
+            ? allRows.Where(IsApprovedRow).ToList()
+            : allRows;
+
+        var paymentRequestRows = PurchaseOrderItemAnalyticsDatasets.IsReportApproved(request.AnalyticsDataset)
+            ? metricRows
+            : allRows.Where(IsApprovedRow).ToList();
         var paymentRequestIds = await LoadActivePaymentRequestItemIdsAsync(
-            approvedRows.Select(r => r.ItemId).ToList(),
+            paymentRequestRows.Select(r => r.ItemId).ToList(),
             cancellationToken);
-        foreach (var row in approvedRows)
+        foreach (var row in paymentRequestRows)
             row.HasActivePaymentRequest = paymentRequestIds.Contains(row.ItemId);
 
         var statusItems = allRows
@@ -129,27 +135,42 @@ public sealed partial class PurchaseOrderItemListQuery
             .ToList();
         ApplyRatios(statusItems);
 
+        if (PurchaseOrderItemAnalyticsDatasets.IsReportApproved(request.AnalyticsDataset))
+        {
+            statusItems = metricRows
+                .GroupBy(r => r.ItemStatus)
+                .Select(g => new SalesAnalyticsBreakdownItemDto
+                {
+                    Key = g.Key.ToString(),
+                    Label = FormatItemStatus(g.Key),
+                    Value = maskAmounts ? g.Count() : g.Sum(r => CalcUsdLineTotal(r) ?? 0m),
+                    Ratio = 0
+                })
+                .ToList();
+            ApplyRatios(statusItems);
+        }
+
         var paymentRequestItems = BuildBreakdownFromRows(
-            approvedRows,
+            paymentRequestRows,
             r => r.HasActivePaymentRequest ? "1" : "0",
             r => r.HasActivePaymentRequest ? "已申请" : "待申请",
             r => maskAmounts ? 1m : CalcUsdLineTotal(r) ?? 0m,
             maskAmounts);
 
-        var paymentItems = BuildProgressBreakdown(approvedRows, r => r.PaymentProgressStatus, "付款", maskAmounts);
-        var purchaseItems = BuildProgressBreakdown(approvedRows, r => r.PurchaseProgressStatus, "采购", maskAmounts);
-        var stockInItems = BuildProgressBreakdown(approvedRows, r => r.StockInProgressStatus, "入库", maskAmounts);
-        var invoiceItems = BuildProgressBreakdown(approvedRows, r => r.InvoiceProgressStatus, "开票", maskAmounts);
+        var paymentItems = BuildProgressBreakdown(metricRows, r => r.PaymentProgressStatus, "付款", maskAmounts);
+        var purchaseItems = BuildProgressBreakdown(metricRows, r => r.PurchaseProgressStatus, "采购", maskAmounts);
+        var stockInItems = BuildProgressBreakdown(metricRows, r => r.StockInProgressStatus, "入库", maskAmounts);
+        var invoiceItems = BuildProgressBreakdown(metricRows, r => r.InvoiceProgressStatus, "开票", maskAmounts);
 
         var currencyItems = BuildBreakdownFromRows(
-            approvedRows,
+            metricRows,
             r => r.Currency.ToString(),
             r => ((CurrencyCode)r.Currency).ToIsoText(),
             r => maskAmounts ? 1m : CalcUsdLineTotal(r) ?? 0m,
             maskAmounts);
 
         var brandQtyItems = BuildBreakdownFromRows(
-            approvedRows,
+            metricRows,
             r => string.IsNullOrWhiteSpace(r.Brand) ? "_unset" : r.Brand!.Trim(),
             r => string.IsNullOrWhiteSpace(r.Brand) ? "未设置" : r.Brand!.Trim(),
             r => r.Qty,
@@ -157,14 +178,14 @@ public sealed partial class PurchaseOrderItemListQuery
             useSum: true);
 
         var brandAmountItems = BuildBreakdownFromRows(
-            approvedRows,
+            metricRows,
             r => string.IsNullOrWhiteSpace(r.Brand) ? "_unset" : r.Brand!.Trim(),
             r => string.IsNullOrWhiteSpace(r.Brand) ? "未设置" : r.Brand!.Trim(),
             r => maskAmounts ? 1m : CalcUsdLineTotal(r) ?? 0m,
             maskAmounts);
 
         var dateCodeItems = BuildBreakdownFromRows(
-            approvedRows,
+            metricRows,
             r => string.IsNullOrWhiteSpace(r.DateCode) ? "_unset" : r.DateCode!.Trim(),
             r => string.IsNullOrWhiteSpace(r.DateCode) ? "未设置" : r.DateCode!.Trim(),
             r => r.Qty,
@@ -172,25 +193,32 @@ public sealed partial class PurchaseOrderItemListQuery
             useSum: true);
 
         var purchaseUserItems = BuildBreakdownFromRows(
-            approvedRows,
+            metricRows,
             r => r.PurchaseUserId ?? "_unset",
             r => string.IsNullOrWhiteSpace(r.PurchaseUserName) ? "未分配采购员" : r.PurchaseUserName!,
             r => maskAmounts ? 1m : CalcUsdLineTotal(r) ?? 0m,
             maskAmounts);
 
+        var progressSuffix = PurchaseOrderItemAnalyticsDatasets.IsReportApproved(request.AnalyticsDataset)
+            ? "（成单）"
+            : string.Empty;
+        var paymentRequestSuffix = PurchaseOrderItemAnalyticsDatasets.IsReportApproved(request.AnalyticsDataset)
+            ? "（成单）"
+            : string.Empty;
+
         return new List<SalesAnalyticsBreakdownGroupDto>
         {
             new() { GroupKey = "itemStatus", GroupLabel = "明细主状态", Items = statusItems },
-            new() { GroupKey = "paymentRequestProgress", GroupLabel = "申请付款状态（成单）", Items = paymentRequestItems },
-            new() { GroupKey = "paymentProgress", GroupLabel = "付款进度（成单）", Items = paymentItems },
-            new() { GroupKey = "purchaseProgress", GroupLabel = "采购进度（成单）", Items = purchaseItems },
-            new() { GroupKey = "stockInProgress", GroupLabel = "入库进度（成单）", Items = stockInItems },
-            new() { GroupKey = "invoiceProgress", GroupLabel = "开票进度（成单）", Items = invoiceItems },
-            new() { GroupKey = "currency", GroupLabel = "币别构成（成单）", Items = currencyItems },
-            new() { GroupKey = "brandQty", GroupLabel = "品牌数量（成单 Qty）", Items = brandQtyItems },
-            new() { GroupKey = "brandAmount", GroupLabel = "品牌金额（成单 USD）", Items = brandAmountItems },
-            new() { GroupKey = "dateCode", GroupLabel = "生产日期/DC（成单）", Items = dateCodeItems },
-            new() { GroupKey = "purchaseUser", GroupLabel = "采购员（成单 USD）", Items = purchaseUserItems }
+            new() { GroupKey = "paymentRequestProgress", GroupLabel = "申请付款状态" + paymentRequestSuffix, Items = paymentRequestItems },
+            new() { GroupKey = "paymentProgress", GroupLabel = "付款进度" + progressSuffix, Items = paymentItems },
+            new() { GroupKey = "purchaseProgress", GroupLabel = "采购进度" + progressSuffix, Items = purchaseItems },
+            new() { GroupKey = "stockInProgress", GroupLabel = "入库进度" + progressSuffix, Items = stockInItems },
+            new() { GroupKey = "invoiceProgress", GroupLabel = "开票进度" + progressSuffix, Items = invoiceItems },
+            new() { GroupKey = "currency", GroupLabel = "币别构成" + progressSuffix, Items = currencyItems },
+            new() { GroupKey = "brandQty", GroupLabel = "品牌数量" + (progressSuffix.Length > 0 ? "（成单 Qty）" : "（Qty）"), Items = brandQtyItems },
+            new() { GroupKey = "brandAmount", GroupLabel = "品牌金额" + (progressSuffix.Length > 0 ? "（成单 USD）" : "（USD）"), Items = brandAmountItems },
+            new() { GroupKey = "dateCode", GroupLabel = "生产日期/DC" + progressSuffix, Items = dateCodeItems },
+            new() { GroupKey = "purchaseUser", GroupLabel = "采购员" + (progressSuffix.Length > 0 ? "（成单 USD）" : "（USD）"), Items = purchaseUserItems }
         };
     }
 
@@ -201,7 +229,7 @@ public sealed partial class PurchaseOrderItemListQuery
         CancellationToken cancellationToken = default)
     {
         const int topN = 10;
-        var rows = await LoadApprovedLineRowsAsync(request, cancellationToken);
+        var rows = await LoadMetricLineRowsAsync(request, cancellationToken);
 
         var vendorByAmount = rows
             .Where(r => !string.IsNullOrWhiteSpace(r.VendorId))
@@ -308,13 +336,14 @@ public sealed partial class PurchaseOrderItemListQuery
         return await ProjectLineRowsAsync(filtered, cancellationToken);
     }
 
-    private async Task<List<ItemLineAnalyticsRow>> LoadApprovedLineRowsAsync(
+    private async Task<List<ItemLineAnalyticsRow>> LoadMetricLineRowsAsync(
         PurchaseOrderItemListQueryRequest request,
         CancellationToken cancellationToken)
     {
         var filtered = await PurchaseOrderItemListFilter.BuildFilteredJoinQueryAsync(
             _db, _dataPermission, request, cancellationToken);
-        filtered = PurchaseOrderItemListFilter.ApplyApprovedFilter(filtered);
+        if (PurchaseOrderItemAnalyticsDatasets.IsReportApproved(request.AnalyticsDataset))
+            filtered = PurchaseOrderItemListFilter.ApplyApprovedFilter(filtered);
         return await ProjectLineRowsAsync(filtered, cancellationToken);
     }
 

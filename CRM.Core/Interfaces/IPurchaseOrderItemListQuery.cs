@@ -74,6 +74,20 @@ public sealed class PurchaseOrderItemListQueryRequest
     /// <summary>左栏快捷检索（见 <see cref="PurchaseOrderItemListQuickFilterCodes"/>）；与手动进度筛选互斥。</summary>
     public string? QuickFilter { get; set; }
 
+    /// <summary>
+    /// 分析数据集：<c>listFilter</c>（默认，跟列表筛选）或 <c>reportApproved</c>（报表成单）。
+    /// </summary>
+    public string? AnalyticsDataset { get; set; }
+
+    /// <summary>报表透镜：company / department / personal（仅 reportApproved）。</summary>
+    public string? AnalyticsViewLevel { get; set; }
+
+    /// <summary>报表部门透镜主键（仅 department）。</summary>
+    public string? AnalyticsDepartmentId { get; set; }
+
+    /// <summary>报表个人层采购员（仅 personal）；亦可用作列表精确筛选。</summary>
+    public string? PurchaseUserId { get; set; }
+
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 20;
 }

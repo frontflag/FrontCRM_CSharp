@@ -66,8 +66,22 @@ public sealed class QuoteQueryRequest
     /// <summary>关联需求创建日起（<c>rfq.create_time</c>，含当日）。</summary>
     public DateTime? StartDate { get; set; }
 
-    /// <summary>关联需求创建日止（<c>rfq.create_time</c>，含当日）。</summary>
+    /// <summary>关联需求创建日止（<c>rfq.create_time</c>，含当日）。列表看板默认；reportScope 时改按报价创建日。</summary>
     public DateTime? EndDate { get; set; }
+
+    /// <summary>
+    /// 分析数据集：<c>listFilter</c>（默认）或 <c>reportScope</c>（报表透镜 + quote.create_time，不排除主状态）。
+    /// </summary>
+    public string? AnalyticsDataset { get; set; }
+
+    /// <summary>报表透镜：company / department / personal（仅 reportScope）。</summary>
+    public string? AnalyticsViewLevel { get; set; }
+
+    /// <summary>报表部门透镜主键（仅 department）。</summary>
+    public string? AnalyticsDepartmentId { get; set; }
+
+    /// <summary>报表个人层采购员（仅 personal）。</summary>
+    public string? PurchaseUserId { get; set; }
 }
 
 /// <summary>报价列表汇总（全量筛选结果，非仅当前页）。</summary>

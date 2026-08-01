@@ -8,24 +8,49 @@ import AnalyticsBreakdownChart from '@/components/Analytics/AnalyticsBreakdownCh
 import AnalyticsBreakdownPieChart from '@/components/Analytics/AnalyticsBreakdownPieChart.vue'
 import {
   quoteListAnalyticsApi,
+  type QuoteListAnalyticsDashboard,
   type QuoteListAnalyticsQuery,
-  type QuoteListAnalyticsRankings
+  type QuoteListAnalyticsRankings,
+  type QuoteListAnalyticsTrendPoint
 } from '@/api/quoteListAnalytics'
-import type { QuoteListAnalyticsDashboard, QuoteListAnalyticsTrendPoint } from '@/api/quoteListAnalytics'
-import type { SalesAnalyticsBreakdownGroup } from '@/api/analytics/sales'
+import {
+  purchaseAnalyticsApi,
+  type PurchaseAnalyticsBreakdownGroup,
+  type PurchaseAnalyticsQuery
+} from '@/api/analytics/purchase'
 
-const props = defineProps<{
-  filters: QuoteListAnalyticsQuery
-}>()
+const props = withDefaults(
+  defineProps<{
+    filters?: QuoteListAnalyticsQuery
+    reportQuery?: PurchaseAnalyticsQuery
+    mode?: 'list' | 'report'
+    active?: boolean
+  }>(),
+  {
+    mode: 'list',
+    active: true
+  }
+)
 
 const { t } = useI18n()
 
 const loading = ref(false)
 const groupBy = ref<'day' | 'week' | 'month'>('month')
+const loadedKey = ref('')
 const dashboard = ref<QuoteListAnalyticsDashboard | null>(null)
 const trends = ref<QuoteListAnalyticsTrendPoint[]>([])
-const breakdowns = ref<SalesAnalyticsBreakdownGroup[]>([])
+const breakdowns = ref<PurchaseAnalyticsBreakdownGroup[]>([])
 const rankings = ref<QuoteListAnalyticsRankings | null>(null)
+
+const isReportMode = computed(() => props.mode === 'report')
+const showTrends = computed(() => isReportMode.value)
+const i18nPrefix = computed(() =>
+  isReportMode.value ? 'purchaseAnalytics.quoteTab' : 'quoteList.board'
+)
+
+function tt(path: string): string {
+  return t(`${i18nPrefix.value}.${path}`)
+}
 
 function formatRate(v?: number | null): string {
   if (v == null) return '—'
@@ -34,7 +59,7 @@ function formatRate(v?: number | null): string {
 
 function formatMinutes(v?: number | null): string {
   if (v == null) return '—'
-  return `${v.toFixed(1)} ${t('quoteList.board.kpi.minutesUnit')}`
+  return `${v.toFixed(1)} ${tt('kpi.minutesUnit')}`
 }
 
 function formatAvgQuotes(v?: number | null): string {
@@ -49,42 +74,42 @@ const kpiItems = computed(() => {
   return [
     {
       key: 'quoteVendors',
-      label: t('quoteList.board.kpi.quoteVendors'),
+      label: tt('kpi.quoteVendors'),
       value: String(s.quoteVendorCount)
     },
     {
       key: 'validQuotes',
-      label: t('quoteList.board.kpi.validQuotes'),
+      label: tt('kpi.validQuotes'),
       value: String(s.validQuoteCount)
     },
     {
       key: 'noQuoteFound',
-      label: t('quoteList.board.kpi.noQuoteFound'),
+      label: tt('kpi.noQuoteFound'),
       value: String(s.noQuoteFoundItemCount)
     },
     {
       key: 'rfqQuoteRate',
-      label: t('quoteList.board.kpi.rfqQuoteRate'),
+      label: tt('kpi.rfqQuoteRate'),
       value: formatRate(s.rfqQuoteRate)
     },
     {
       key: 'avgResponse',
-      label: t('quoteList.board.kpi.avgResponse'),
+      label: tt('kpi.avgResponse'),
       value: formatMinutes(s.avgResponseMinutes)
     },
     {
       key: 'avgQuotesPerItem',
-      label: t('quoteList.board.kpi.avgQuotesPerItem'),
+      label: tt('kpi.avgQuotesPerItem'),
       value: formatAvgQuotes(s.avgQuotesPerRfqItem)
     },
     {
       key: 'convertedLines',
-      label: t('quoteList.board.kpi.convertedLines'),
+      label: tt('kpi.convertedLines'),
       value: String(s.convertedLineCount)
     },
     {
       key: 'quoteConversionRate',
-      label: t('quoteList.board.kpi.quoteConversionRate'),
+      label: tt('kpi.quoteConversionRate'),
       value: formatRate(s.quoteConversionRate)
     }
   ]
@@ -115,8 +140,8 @@ function isPieBreakdown(groupKey: string): boolean {
   return pieBreakdownKeys.has(groupKey)
 }
 
-function breakdownTitle(group: SalesAnalyticsBreakdownGroup): string {
-  const key = `quoteList.board.breakdown.${group.groupKey}`
+function breakdownTitle(group: PurchaseAnalyticsBreakdownGroup): string {
+  const key = `${i18nPrefix.value}.breakdown.${group.groupKey}`
   const translated = t(key)
   return translated !== key ? translated : group.groupLabel
 }
@@ -149,18 +174,18 @@ function breakdownItemLabel(groupKey: string, item: { key: string; label: string
     return label !== shipKey ? label : item.label
   }
   if ((groupKey === 'assignedPurchaser' || groupKey === 'quotePurchaser') && item.key === '_unset') {
-    return t('quoteList.board.breakdown.unassignedPurchaser')
+    return tt('breakdown.unassignedPurchaser')
   }
   if (groupKey === 'brand' && item.key === '_unset') {
-    return t('quoteList.board.breakdown.unset')
+    return tt('breakdown.unset')
   }
   if (groupKey === 'brand' && item.key === '_other') {
-    return t('quoteList.board.breakdown.other')
+    return tt('breakdown.other')
   }
   return item.label
 }
 
-function localizedBreakdownItems(group: SalesAnalyticsBreakdownGroup) {
+function localizedBreakdownItems(group: PurchaseAnalyticsBreakdownGroup) {
   return group.items.map((item) => ({
     ...item,
     label: breakdownItemLabel(group.groupKey, item)
@@ -172,76 +197,127 @@ function formatQuoteRate(row: { amount?: number | null; orderCount: number }): s
   return '—'
 }
 
-function buildQuery(): QuoteListAnalyticsQuery {
-  return { ...props.filters, groupBy: groupBy.value }
+function reportQueryKey(q: PurchaseAnalyticsQuery): string {
+  return [
+    q.viewLevel ?? '',
+    q.departmentId ?? '',
+    q.purchaseUserId ?? '',
+    q.dateFrom ?? '',
+    q.dateTo ?? '',
+    q.groupBy ?? groupBy.value
+  ].join('|')
 }
 
-async function loadData() {
+async function loadData(force = false) {
+  if (!props.active) return
+  if (isReportMode.value) {
+    const q = { ...(props.reportQuery ?? {}), groupBy: groupBy.value }
+    const key = reportQueryKey(q)
+    if (!force && loadedKey.value === key && dashboard.value) return
+    loading.value = true
+    try {
+      const [dash, trendRows, breakdownRows, rankingRows] = await Promise.all([
+        purchaseAnalyticsApi.getQuotesDashboard(q),
+        purchaseAnalyticsApi.getQuotesTrends(q),
+        purchaseAnalyticsApi.getQuotesBreakdowns(q),
+        purchaseAnalyticsApi.getQuotesRankings(q)
+      ])
+      dashboard.value = dash
+      trends.value = trendRows
+      breakdowns.value = breakdownRows
+      rankings.value = rankingRows
+      loadedKey.value = key
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : tt('loadFailed')
+      ElMessage.error(msg)
+    } finally {
+      loading.value = false
+    }
+    return
+  }
+
   loading.value = true
   try {
-    const q = buildQuery()
-    const [dash, trendRows, breakdownRows, rankingRows] = await Promise.all([
+    const q: QuoteListAnalyticsQuery = {
+      ...(props.filters ?? {}),
+      dataset: 'listFilter'
+    }
+    const [dash, breakdownRows, rankingRows] = await Promise.all([
       quoteListAnalyticsApi.getDashboard(q),
-      quoteListAnalyticsApi.getTrends(q),
       quoteListAnalyticsApi.getBreakdowns(q),
       quoteListAnalyticsApi.getRankings(q)
     ])
     dashboard.value = dash
-    trends.value = trendRows
+    trends.value = []
     breakdowns.value = breakdownRows
     rankings.value = rankingRows
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : t('quoteList.board.loadFailed')
+    const msg = e instanceof Error ? e.message : tt('loadFailed')
     ElMessage.error(msg)
   } finally {
     loading.value = false
   }
 }
 
-watch(() => ({ ...props.filters, groupBy: groupBy.value }), () => void loadData(), { deep: true })
-onMounted(() => void loadData())
+watch(
+  () => ({
+    mode: props.mode,
+    active: props.active,
+    filters: props.filters,
+    reportQuery: props.reportQuery,
+    groupBy: groupBy.value
+  }),
+  () => {
+    if (isReportMode.value) void loadData(false)
+    else void loadData(true)
+  },
+  { deep: true }
+)
+onMounted(() => void loadData(true))
 
-defineExpose({ reload: loadData })
+watch(
+  () => props.reportQuery?.groupBy,
+  (g) => {
+    if (g === 'day' || g === 'week' || g === 'month') groupBy.value = g
+  },
+  { immediate: true }
+)
+
+defineExpose({ reload: () => loadData(true) })
 </script>
 
 <template>
   <div class="quote-list-board" v-loading="loading">
     <div class="board-toolbar card">
-      <span class="board-hint">{{ t('quoteList.board.hint') }}</span>
-      <el-select v-model="groupBy" style="width: 120px">
-        <el-option value="day" :label="t('quoteList.board.groupBy.day')" />
-        <el-option value="week" :label="t('quoteList.board.groupBy.week')" />
-        <el-option value="month" :label="t('quoteList.board.groupBy.month')" />
+      <el-tag size="small" :type="isReportMode ? 'success' : 'info'" effect="plain">
+        {{ tt('datasetTag') }}
+      </el-tag>
+      <span class="board-hint">{{ tt('hint') }}</span>
+      <el-select v-if="showTrends" v-model="groupBy" style="width: 120px">
+        <el-option value="day" :label="tt('groupBy.day')" />
+        <el-option value="week" :label="tt('groupBy.week')" />
+        <el-option value="month" :label="tt('groupBy.month')" />
       </el-select>
-      <el-button type="primary" @click="loadData">{{ t('quoteList.board.refresh') }}</el-button>
+      <el-button type="primary" @click="loadData(true)">{{ tt('refresh') }}</el-button>
     </div>
 
     <section class="section">
-      <h3 class="section-title">{{ t('quoteList.board.sections.kpi') }}</h3>
+      <h3 class="section-title">{{ tt('sections.kpi') }}</h3>
       <AnalyticsKpiGrid :items="kpiItems" />
     </section>
 
-    <div class="charts-row">
+    <div v-if="showTrends" class="charts-row">
       <div class="card chart-panel">
-        <h3 class="section-title">{{ t('quoteList.board.sections.trendVendors') }}</h3>
-        <AnalyticsTrendChart
-          :points="trendVendorPoints"
-          :value-suffix="t('quoteList.board.trendUnit.vendors')"
-        />
+        <h3 class="section-title">{{ tt('sections.trendVendors') }}</h3>
+        <AnalyticsTrendChart :points="trendVendorPoints" :value-suffix="tt('trendUnit.vendors')" />
       </div>
       <div class="card chart-panel">
-        <h3 class="section-title">{{ t('quoteList.board.sections.trendItems') }}</h3>
-        <AnalyticsTrendChart
-          :points="trendItemPoints"
-          :value-suffix="t('quoteList.board.trendUnit.items')"
-        />
+        <h3 class="section-title">{{ tt('sections.trendItems') }}</h3>
+        <AnalyticsTrendChart :points="trendItemPoints" :value-suffix="tt('trendUnit.items')" />
       </div>
       <div class="card chart-panel">
-        <h3 class="section-title">{{ t('quoteList.board.sections.trendValidQuotes') }}</h3>
-        <AnalyticsTrendChart
-          :points="trendValidQuotePoints"
-          :value-suffix="t('quoteList.board.trendUnit.quotes')"
-        />
+        <h3 class="section-title">{{ tt('sections.trendValidQuotes') }}</h3>
+        <AnalyticsTrendChart :points="trendValidQuotePoints" :value-suffix="tt('trendUnit.quotes')" />
       </div>
     </div>
 
@@ -263,55 +339,55 @@ defineExpose({ reload: loadData })
 
     <div class="rankings-row">
       <div class="card ranking-panel">
-        <h3 class="section-title">{{ t('quoteList.board.rankings.vendorByRfqItemCount') }}</h3>
+        <h3 class="section-title">{{ tt('rankings.vendorByRfqItemCount') }}</h3>
         <el-table :data="rankings?.vendorByRfqItemCount ?? []" size="small" stripe>
-          <el-table-column prop="name" :label="t('quoteList.board.rankings.name')" />
-          <el-table-column prop="orderCount" :label="t('quoteList.board.rankings.rfqItemCount')" width="110" />
+          <el-table-column prop="name" :label="tt('rankings.name')" />
+          <el-table-column prop="orderCount" :label="tt('rankings.rfqItemCount')" width="110" />
         </el-table>
       </div>
       <div class="card ranking-panel">
-        <h3 class="section-title">{{ t('quoteList.board.rankings.purchaserByQuoteCount') }}</h3>
+        <h3 class="section-title">{{ tt('rankings.purchaserByQuoteCount') }}</h3>
         <el-table :data="rankings?.purchaserByQuoteCount ?? []" size="small" stripe>
-          <el-table-column prop="name" :label="t('quoteList.board.rankings.name')" />
-          <el-table-column prop="orderCount" :label="t('quoteList.board.rankings.quoteCount')" width="100" />
+          <el-table-column prop="name" :label="tt('rankings.name')" />
+          <el-table-column prop="orderCount" :label="tt('rankings.quoteCount')" width="100" />
         </el-table>
       </div>
       <div class="card ranking-panel">
-        <h3 class="section-title">{{ t('quoteList.board.rankings.purchaserByQuoteRate') }}</h3>
+        <h3 class="section-title">{{ tt('rankings.purchaserByQuoteRate') }}</h3>
         <el-table :data="rankings?.purchaserByQuoteRate ?? []" size="small" stripe>
-          <el-table-column prop="name" :label="t('quoteList.board.rankings.name')" />
-          <el-table-column prop="orderCount" :label="t('quoteList.board.rankings.quoteCount')" width="90" />
-          <el-table-column :label="t('quoteList.board.rankings.quoteRate')" width="90">
+          <el-table-column prop="name" :label="tt('rankings.name')" />
+          <el-table-column prop="orderCount" :label="tt('rankings.quoteCount')" width="90" />
+          <el-table-column :label="tt('rankings.quoteRate')" width="90">
             <template #default="{ row }">{{ formatQuoteRate(row) }}</template>
           </el-table-column>
         </el-table>
       </div>
       <div class="card ranking-panel">
-        <h3 class="section-title">{{ t('quoteList.board.rankings.mpnByQuoteCount') }}</h3>
+        <h3 class="section-title">{{ tt('rankings.mpnByQuoteCount') }}</h3>
         <el-table :data="rankings?.mpnByQuoteCount ?? []" size="small" stripe>
-          <el-table-column prop="name" :label="t('quoteList.board.rankings.name')" />
-          <el-table-column prop="orderCount" :label="t('quoteList.board.rankings.quoteCount')" width="100" />
+          <el-table-column prop="name" :label="tt('rankings.name')" />
+          <el-table-column prop="orderCount" :label="tt('rankings.quoteCount')" width="100" />
         </el-table>
       </div>
       <div class="card ranking-panel">
-        <h3 class="section-title">{{ t('quoteList.board.rankings.mpnByQty') }}</h3>
+        <h3 class="section-title">{{ tt('rankings.mpnByQty') }}</h3>
         <el-table :data="rankings?.mpnByQty ?? []" size="small" stripe>
-          <el-table-column prop="name" :label="t('quoteList.board.rankings.name')" />
-          <el-table-column prop="orderCount" :label="t('quoteList.board.rankings.qty')" width="100" />
+          <el-table-column prop="name" :label="tt('rankings.name')" />
+          <el-table-column prop="orderCount" :label="tt('rankings.qty')" width="100" />
         </el-table>
       </div>
       <div class="card ranking-panel">
-        <h3 class="section-title">{{ t('quoteList.board.rankings.brandByQuoteCount') }}</h3>
+        <h3 class="section-title">{{ tt('rankings.brandByQuoteCount') }}</h3>
         <el-table :data="rankings?.brandByQuoteCount ?? []" size="small" stripe>
-          <el-table-column prop="name" :label="t('quoteList.board.rankings.name')" />
-          <el-table-column prop="orderCount" :label="t('quoteList.board.rankings.quoteCount')" width="100" />
+          <el-table-column prop="name" :label="tt('rankings.name')" />
+          <el-table-column prop="orderCount" :label="tt('rankings.quoteCount')" width="100" />
         </el-table>
       </div>
       <div class="card ranking-panel">
-        <h3 class="section-title">{{ t('quoteList.board.rankings.brandByQty') }}</h3>
+        <h3 class="section-title">{{ tt('rankings.brandByQty') }}</h3>
         <el-table :data="rankings?.brandByQty ?? []" size="small" stripe>
-          <el-table-column prop="name" :label="t('quoteList.board.rankings.name')" />
-          <el-table-column prop="orderCount" :label="t('quoteList.board.rankings.qty')" width="100" />
+          <el-table-column prop="name" :label="tt('rankings.name')" />
+          <el-table-column prop="orderCount" :label="tt('rankings.qty')" width="100" />
         </el-table>
       </div>
     </div>

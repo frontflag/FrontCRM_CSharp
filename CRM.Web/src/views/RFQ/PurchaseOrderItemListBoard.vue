@@ -14,21 +14,41 @@ import {
   type PurchaseOrderItemListAnalyticsRankings,
   type PurchaseOrderItemListAnalyticsTrendPoint
 } from '@/api/purchaseOrderItemAnalytics'
-import type { SalesAnalyticsBreakdownGroup } from '@/api/analytics/sales'
+import {
+  purchaseAnalyticsApi,
+  type PurchaseAnalyticsBreakdownGroup,
+  type PurchaseAnalyticsQuery
+} from '@/api/analytics/purchase'
 
-const props = defineProps<{
-  filters: PurchaseOrderItemListAnalyticsQuery
-}>()
+const props = withDefaults(
+  defineProps<{
+    filters?: PurchaseOrderItemListAnalyticsQuery
+    reportQuery?: PurchaseAnalyticsQuery
+    mode?: 'list' | 'report'
+    active?: boolean
+  }>(),
+  {
+    mode: 'list',
+    active: true
+  }
+)
 
 const { t } = useI18n()
 
 const loading = ref(false)
 const groupBy = ref<'day' | 'week' | 'month'>('month')
+const loadedKey = ref('')
 const dashboard = ref<PurchaseOrderItemListAnalyticsDashboard | null>(null)
 const trends = ref<PurchaseOrderItemListAnalyticsTrendPoint[]>([])
-const breakdowns = ref<SalesAnalyticsBreakdownGroup[]>([])
+const breakdowns = ref<PurchaseAnalyticsBreakdownGroup[]>([])
 const rankings = ref<PurchaseOrderItemListAnalyticsRankings | null>(null)
 const rankingMetricMode = ref<'amount' | 'count'>('amount')
+
+const isReportMode = computed(() => props.mode === 'report')
+const showTrends = computed(() => isReportMode.value)
+const i18nPrefix = computed(() =>
+  isReportMode.value ? 'purchaseAnalytics.orderTab' : 'purchaseOrderItemList.board'
+)
 
 type RankingCountKind = 'line' | 'qty'
 
@@ -68,21 +88,21 @@ const effectiveRankingMetricMode = computed<'amount' | 'count'>(() =>
   maskAmounts.value ? 'count' : rankingMetricMode.value
 )
 
+function tt(path: string): string {
+  return t(`${i18nPrefix.value}.${path}`)
+}
+
 function rankingRowsFor(config: RankingTableConfig): PurchaseOrderItemListAnalyticsRankingRow[] {
   const data = rankings.value?.[config.dataKey]
   return Array.isArray(data) ? data : []
 }
 
 function rankingCountLabel(kind: RankingCountKind): string {
-  return kind === 'qty'
-    ? t('purchaseOrderItemList.board.rankings.qty')
-    : t('purchaseOrderItemList.board.rankings.lineCount')
+  return kind === 'qty' ? tt('rankings.qty') : tt('rankings.lineCount')
 }
 
 function rankingMetricHeaderLabel(kind: RankingCountKind): string {
-  return effectiveRankingMetricMode.value === 'amount'
-    ? t('purchaseOrderItemList.board.rankings.amount')
-    : rankingCountLabel(kind)
+  return effectiveRankingMetricMode.value === 'amount' ? tt('rankings.amount') : rankingCountLabel(kind)
 }
 
 function formatRankingMetric(row: PurchaseOrderItemListAnalyticsRankingRow): string {
@@ -124,27 +144,27 @@ const orderKpiItems = computed(() => {
   return [
     {
       key: 'approvedVendors',
-      label: t('purchaseOrderItemList.board.kpi.approvedVendors'),
+      label: tt('kpi.approvedVendors'),
       value: String(s.approvedVendorCount)
     },
     {
       key: 'approvedOrders',
-      label: t('purchaseOrderItemList.board.kpi.approvedOrders'),
+      label: tt('kpi.approvedOrders'),
       value: String(s.approvedOrderCount)
     },
     {
       key: 'approvedLines',
-      label: t('purchaseOrderItemList.board.kpi.approvedLines'),
+      label: tt('kpi.approvedLines'),
       value: String(s.approvedLineCount)
     },
     {
       key: 'approvedAmount',
-      label: t('purchaseOrderItemList.board.kpi.approvedAmount'),
+      label: tt('kpi.approvedAmount'),
       value: maskAmounts.value ? '—' : formatMoney(s.approvedAmountUsd),
       valueFormat: 'money' as const,
       layout: 'split' as const,
-      valueCaption: maskAmounts.value ? undefined : t('purchaseOrderItemList.board.kpi.usdCaption'),
-      currencyCaption: currencyItems.length ? t('purchaseOrderItemList.board.kpi.originalCaption') : undefined,
+      valueCaption: maskAmounts.value ? undefined : tt('kpi.usdCaption'),
+      currencyCaption: currencyItems.length ? tt('kpi.originalCaption') : undefined,
       currencyItems: currencyItems.length ? currencyItems : undefined
     }
   ]
@@ -156,23 +176,23 @@ const inStockKpiItems = computed(() => {
   return [
     {
       key: 'inStockVendors',
-      label: t('purchaseOrderItemList.board.kpi.inStockVendors'),
+      label: tt('kpi.inStockVendors'),
       value: String(s.inStockVendorCount)
     },
     {
       key: 'inStockLines',
-      label: t('purchaseOrderItemList.board.kpi.inStockLines'),
+      label: tt('kpi.inStockLines'),
       value: String(s.inStockLineCount)
     },
     {
       key: 'inStockAmount',
-      label: t('purchaseOrderItemList.board.kpi.inStockAmount'),
+      label: tt('kpi.inStockAmount'),
       value: maskAmounts.value ? '—' : formatMoney(s.inStockAmountUsd),
       valueFormat: 'money' as const
     },
     {
       key: 'maxStockAge',
-      label: t('purchaseOrderItemList.board.kpi.maxStockAge'),
+      label: tt('kpi.maxStockAge'),
       value: formatDays(s.maxStockAgeDays)
     }
   ]
@@ -192,22 +212,22 @@ const payableKpiItems = computed(() => {
   return [
     {
       key: 'payableVendors',
-      label: t('purchaseOrderItemList.board.kpi.payableVendors'),
+      label: tt('kpi.payableVendors'),
       value: String(s.payableVendorCount)
     },
     {
       key: 'payableLines',
-      label: t('purchaseOrderItemList.board.kpi.payableLines'),
+      label: tt('kpi.payableLines'),
       value: String(s.payableLineCount)
     },
     {
       key: 'payableAmount',
-      label: t('purchaseOrderItemList.board.kpi.payableAmount'),
+      label: tt('kpi.payableAmount'),
       value: maskAmounts.value ? '—' : formatMoney(s.payableAmountUsd),
       valueFormat: 'money' as const,
       layout: currencyItems.length ? ('split' as const) : undefined,
-      valueCaption: maskAmounts.value ? undefined : t('purchaseOrderItemList.board.kpi.usdCaption'),
-      currencyCaption: currencyItems.length ? t('purchaseOrderItemList.board.kpi.originalCaption') : undefined,
+      valueCaption: maskAmounts.value ? undefined : tt('kpi.usdCaption'),
+      currencyCaption: currencyItems.length ? tt('kpi.originalCaption') : undefined,
       currencyItems: currencyItems.length ? currencyItems : undefined
     }
   ]
@@ -259,12 +279,12 @@ function breakdownValueFormat(groupKey: string): 'money' | 'number' {
   return 'number'
 }
 
-function breakdownTitle(group: SalesAnalyticsBreakdownGroup): string {
-  const key = `purchaseOrderItemList.board.breakdown.${group.groupKey}`
+function breakdownTitle(group: PurchaseAnalyticsBreakdownGroup): string {
+  const key = `${i18nPrefix.value}.breakdown.${group.groupKey}`
   const translated = t(key)
   const base = translated !== key ? translated : group.groupLabel
   if (maskAmounts.value && group.groupKey !== 'itemStatus' && group.groupKey !== 'brandQty' && group.groupKey !== 'dateCode') {
-    return `${base}（${t('purchaseOrderItemList.board.breakdown.byCount')}）`
+    return `${base}（${tt('breakdown.byCount')}）`
   }
   return base
 }
@@ -295,93 +315,147 @@ function breakdownItemLabel(groupKey: string, item: { key: string; label: string
   return item.label
 }
 
-function localizedBreakdownItems(group: SalesAnalyticsBreakdownGroup) {
+function localizedBreakdownItems(group: PurchaseAnalyticsBreakdownGroup) {
   return group.items.map((item) => ({
     ...item,
     label: breakdownItemLabel(group.groupKey, item)
   }))
 }
 
-function buildQuery(): PurchaseOrderItemListAnalyticsQuery {
-  return { ...props.filters, groupBy: groupBy.value }
+function reportQueryKey(q: PurchaseAnalyticsQuery): string {
+  return [
+    q.viewLevel ?? '',
+    q.departmentId ?? '',
+    q.purchaseUserId ?? '',
+    q.dateFrom ?? '',
+    q.dateTo ?? '',
+    q.groupBy ?? groupBy.value
+  ].join('|')
 }
 
-async function loadData() {
+async function loadData(force = false) {
+  if (!props.active) return
+  if (isReportMode.value) {
+    const q = { ...(props.reportQuery ?? {}), groupBy: groupBy.value }
+    const key = reportQueryKey(q)
+    if (!force && loadedKey.value === key && dashboard.value) return
+    loading.value = true
+    try {
+      const [dash, trendRows, breakdownRows, rankingRows] = await Promise.all([
+        purchaseAnalyticsApi.getOrderItemsDashboard(q),
+        purchaseAnalyticsApi.getOrderItemsTrends(q),
+        purchaseAnalyticsApi.getOrderItemsBreakdowns(q),
+        purchaseAnalyticsApi.getOrderItemsRankings(q)
+      ])
+      dashboard.value = dash
+      trends.value = trendRows
+      breakdowns.value = breakdownRows
+      rankings.value = rankingRows
+      loadedKey.value = key
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : tt('loadFailed')
+      ElMessage.error(msg)
+    } finally {
+      loading.value = false
+    }
+    return
+  }
+
   loading.value = true
   try {
-    const q = buildQuery()
-    const [dash, trendRows, breakdownRows, rankingRows] = await Promise.all([
+    const q: PurchaseOrderItemListAnalyticsQuery = {
+      ...(props.filters ?? {}),
+      dataset: 'listFilter'
+    }
+    const [dash, breakdownRows, rankingRows] = await Promise.all([
       purchaseOrderItemListAnalyticsApi.getDashboard(q),
-      purchaseOrderItemListAnalyticsApi.getTrends(q),
       purchaseOrderItemListAnalyticsApi.getBreakdowns(q),
       purchaseOrderItemListAnalyticsApi.getRankings(q)
     ])
     dashboard.value = dash
-    trends.value = trendRows
+    trends.value = []
     breakdowns.value = breakdownRows
     rankings.value = rankingRows
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : t('purchaseOrderItemList.board.loadFailed')
+    const msg = e instanceof Error ? e.message : tt('loadFailed')
     ElMessage.error(msg)
   } finally {
     loading.value = false
   }
 }
 
-watch(() => ({ ...props.filters, groupBy: groupBy.value }), () => void loadData(), { deep: true })
-onMounted(() => void loadData())
+watch(
+  () => ({
+    mode: props.mode,
+    active: props.active,
+    filters: props.filters,
+    reportQuery: props.reportQuery,
+    groupBy: groupBy.value
+  }),
+  () => {
+    if (isReportMode.value) void loadData(false)
+    else void loadData(true)
+  },
+  { deep: true }
+)
+onMounted(() => void loadData(true))
 
-defineExpose({ reload: loadData })
+watch(
+  () => props.reportQuery?.groupBy,
+  (g) => {
+    if (g === 'day' || g === 'week' || g === 'month') groupBy.value = g
+  },
+  { immediate: true }
+)
+
+defineExpose({ reload: () => loadData(true) })
 </script>
 
 <template>
   <div class="po-item-list-board" v-loading="loading">
     <div class="board-toolbar card">
-      <span class="board-hint">{{ t('purchaseOrderItemList.board.hint') }}</span>
-      <el-select v-model="groupBy" style="width: 120px">
-        <el-option value="day" :label="t('purchaseOrderItemList.board.groupBy.day')" />
-        <el-option value="week" :label="t('purchaseOrderItemList.board.groupBy.week')" />
-        <el-option value="month" :label="t('purchaseOrderItemList.board.groupBy.month')" />
+      <el-tag size="small" :type="isReportMode ? 'success' : 'info'" effect="plain">
+        {{ tt('datasetTag') }}
+      </el-tag>
+      <span class="board-hint">{{ tt('hint') }}</span>
+      <el-select v-if="showTrends" v-model="groupBy" style="width: 120px">
+        <el-option value="day" :label="tt('groupBy.day')" />
+        <el-option value="week" :label="tt('groupBy.week')" />
+        <el-option value="month" :label="tt('groupBy.month')" />
       </el-select>
-      <el-button type="primary" @click="loadData">{{ t('purchaseOrderItemList.board.refresh') }}</el-button>
+      <el-button type="primary" @click="loadData(true)">{{ tt('refresh') }}</el-button>
     </div>
 
     <section class="section">
-      <h3 class="section-title">{{ t('purchaseOrderItemList.board.sections.orderKpi') }}</h3>
+      <h3 class="section-title">{{ tt('sections.orderKpi') }}</h3>
       <AnalyticsKpiGrid :items="orderKpiItems" />
     </section>
 
     <section class="section">
-      <h3 class="section-title">{{ t('purchaseOrderItemList.board.sections.inStockKpi') }}</h3>
+      <h3 class="section-title">{{ tt('sections.inStockKpi') }}</h3>
       <AnalyticsKpiGrid :items="inStockKpiItems" />
     </section>
 
     <section class="section">
-      <h3 class="section-title">{{ t('purchaseOrderItemList.board.sections.payableKpi') }}</h3>
+      <h3 class="section-title">{{ tt('sections.payableKpi') }}</h3>
       <AnalyticsKpiGrid :items="payableKpiItems" />
     </section>
 
-    <div class="charts-row">
+    <div v-if="showTrends" class="charts-row">
       <div class="card chart-panel">
-        <h3 class="section-title">{{ t('purchaseOrderItemList.board.sections.trendOrders') }}</h3>
-        <AnalyticsTrendChart
-          :points="trendOrderPoints"
-          :value-suffix="t('purchaseOrderItemList.board.trendUnit.orders')"
-        />
+        <h3 class="section-title">{{ tt('sections.trendOrders') }}</h3>
+        <AnalyticsTrendChart :points="trendOrderPoints" :value-suffix="tt('trendUnit.orders')" />
       </div>
       <div class="card chart-panel">
-        <h3 class="section-title">{{ t('purchaseOrderItemList.board.sections.trendLines') }}</h3>
-        <AnalyticsTrendChart
-          :points="trendLinePoints"
-          :value-suffix="t('purchaseOrderItemList.board.trendUnit.lines')"
-        />
+        <h3 class="section-title">{{ tt('sections.trendLines') }}</h3>
+        <AnalyticsTrendChart :points="trendLinePoints" :value-suffix="tt('trendUnit.lines')" />
       </div>
       <div class="card chart-panel">
-        <h3 class="section-title">{{ t('purchaseOrderItemList.board.sections.trendAmount') }}</h3>
+        <h3 class="section-title">{{ tt('sections.trendAmount') }}</h3>
         <AnalyticsTrendChart
           :points="trendAmountPoints"
           value-format="money"
-          :unit-caption="t('purchaseOrderItemList.board.trendUnit.moneyCaption')"
+          :unit-caption="tt('trendUnit.moneyCaption')"
         />
       </div>
     </div>
@@ -404,20 +478,20 @@ defineExpose({ reload: loadData })
 
     <div class="rankings-section">
       <div v-if="!maskAmounts" class="rankings-toolbar">
-        <span class="rankings-toolbar-label">{{ t('purchaseOrderItemList.board.rankings.metricMode') }}</span>
+        <span class="rankings-toolbar-label">{{ tt('rankings.metricMode') }}</span>
         <el-radio-group v-model="rankingMetricMode" size="small">
-          <el-radio-button value="amount">{{ t('purchaseOrderItemList.board.rankings.amount') }}</el-radio-button>
-          <el-radio-button value="count">{{ t('purchaseOrderItemList.board.rankings.lineCount') }}</el-radio-button>
+          <el-radio-button value="amount">{{ tt('rankings.amount') }}</el-radio-button>
+          <el-radio-button value="count">{{ tt('rankings.lineCount') }}</el-radio-button>
         </el-radio-group>
       </div>
 
       <div class="rankings-row">
         <div v-for="table in rankingTables" :key="table.key" class="card ranking-panel">
-          <h3 class="section-title">{{ t(`purchaseOrderItemList.board.rankings.${table.titleKey}`) }}</h3>
+          <h3 class="section-title">{{ tt(`rankings.${table.titleKey}`) }}</h3>
           <el-table :data="rankingRowsFor(table)" size="small" stripe class="ranking-table">
             <el-table-column
               prop="name"
-              :label="t('purchaseOrderItemList.board.rankings.name')"
+              :label="tt('rankings.name')"
               min-width="200"
               class-name="ranking-name-col"
             >

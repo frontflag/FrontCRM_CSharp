@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Analytics;
 using CRM.Core.Models.Quote;
@@ -39,19 +40,68 @@ public sealed partial class QuoteListQuery
         CancellationToken cancellationToken = default)
     {
         var bundle = await LoadQuoteAnalyticsBundleAsync(request, cancellationToken);
+        var useQuoteCreateTime = QuoteAnalyticsDatasets.IsReportScope(request.AnalyticsDataset);
+
+        if (useQuoteCreateTime)
+        {
+            if (bundle.FilteredQuotes.Count == 0)
+                return Array.Empty<QuoteListAnalyticsTrendPointDto>();
+
+            var minTime = bundle.FilteredQuotes.Min(q => q.CreateTime);
+            var maxTime = bundle.FilteredQuotes.Max(q => q.CreateTime);
+            var (dateFrom, dateToInclusive) = ResolveQuoteTrendDateBounds(request, minTime, maxTime);
+            var normalizedGroupBy = NormalizeGroupBy(groupBy);
+            var periods = BuildPeriodKeys(dateFrom, dateToInclusive, normalizedGroupBy);
+            var result = new List<QuoteListAnalyticsTrendPointDto>();
+
+            foreach (var period in periods)
+            {
+                var (start, end) = ParsePeriodRange(period, normalizedGroupBy);
+                var quotesInBucket = bundle.FilteredQuotes
+                    .Where(q => q.CreateTime >= start && q.CreateTime < end)
+                    .ToList();
+                var quoteIdSet = quotesInBucket
+                    .Select(q => q.Id)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var itemIdSet = quotesInBucket
+                    .Where(q => !string.IsNullOrWhiteSpace(q.RfqItemId))
+                    .Select(q => q.RfqItemId!)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                var vendorIds = bundle.QuoteItemRows
+                    .Where(qi =>
+                        !string.IsNullOrWhiteSpace(qi.VendorId) &&
+                        quoteIdSet.Contains(qi.QuoteId))
+                    .Select(qi => qi.VendorId!)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Count();
+
+                result.Add(new QuoteListAnalyticsTrendPointDto
+                {
+                    Period = period,
+                    QuoteVendorCount = vendorIds,
+                    RfqItemCount = itemIdSet.Count,
+                    TotalDemandCount = itemIdSet.Count,
+                    ValidQuoteCount = quotesInBucket.Count
+                });
+            }
+
+            return result;
+        }
+
         if (bundle.DemandItems.Count == 0)
             return Array.Empty<QuoteListAnalyticsTrendPointDto>();
 
-        var minTime = bundle.DemandItems.Min(i => i.RfqCreateTime);
-        var maxTime = bundle.DemandItems.Max(i => i.RfqCreateTime);
-        var (dateFrom, dateToInclusive) = ResolveQuoteTrendDateBounds(request, minTime, maxTime);
-        var normalizedGroupBy = NormalizeGroupBy(groupBy);
-        var periods = BuildPeriodKeys(dateFrom, dateToInclusive, normalizedGroupBy);
-        var result = new List<QuoteListAnalyticsTrendPointDto>();
+        var minRfqTime = bundle.DemandItems.Min(i => i.RfqCreateTime);
+        var maxRfqTime = bundle.DemandItems.Max(i => i.RfqCreateTime);
+        var (listFrom, listToInclusive) = ResolveQuoteTrendDateBounds(request, minRfqTime, maxRfqTime);
+        var listGroupBy = NormalizeGroupBy(groupBy);
+        var listPeriods = BuildPeriodKeys(listFrom, listToInclusive, listGroupBy);
+        var listResult = new List<QuoteListAnalyticsTrendPointDto>();
 
-        foreach (var period in periods)
+        foreach (var period in listPeriods)
         {
-            var (start, end) = ParsePeriodRange(period, normalizedGroupBy);
+            var (start, end) = ParsePeriodRange(period, listGroupBy);
             var itemsInBucket = bundle.DemandItems
                 .Where(i => i.RfqCreateTime >= start && i.RfqCreateTime < end)
                 .ToList();
@@ -70,7 +120,7 @@ public sealed partial class QuoteListQuery
             var validQuotesInBucket = bundle.FilteredQuotes
                 .Count(q => q.RfqItemId != null && itemIdSet.Contains(q.RfqItemId));
 
-            result.Add(new QuoteListAnalyticsTrendPointDto
+            listResult.Add(new QuoteListAnalyticsTrendPointDto
             {
                 Period = period,
                 QuoteVendorCount = vendorIds,
@@ -80,7 +130,7 @@ public sealed partial class QuoteListQuery
             });
         }
 
-        return result;
+        return listResult;
     }
 
     /// <inheritdoc />
@@ -516,7 +566,11 @@ public sealed partial class QuoteListQuery
             RfqItemId = request.RfqItemId,
             CurrentUserId = request.CurrentUserId,
             StartDate = request.StartDate,
-            EndDate = request.EndDate
+            EndDate = request.EndDate,
+            AnalyticsDataset = request.AnalyticsDataset,
+            AnalyticsViewLevel = request.AnalyticsViewLevel,
+            AnalyticsDepartmentId = request.AnalyticsDepartmentId,
+            PurchaseUserId = request.PurchaseUserId
         };
 
     private static List<SalesAnalyticsBreakdownItemDto> BuildQuoteBreakdown(

@@ -1083,6 +1083,154 @@ const zhCN = {
       department: '部门',
       personal: '个人'
     },
+    contentTabs: {
+      overview: '概况',
+      vendor: '供应商',
+      quote: '报价',
+      order: '订单'
+    },
+    vendorTab: {
+      hint: '成单供应商数与概况「采购供应商数」同口径（周期内成单去重）；复采供应商 = 成单订单数 ≥ 2。点击供应商排行可下钻订单列表。',
+      loadFailed: '加载供应商看板失败',
+      sections: {
+        kpi: '供应商概览'
+      },
+      kpi: {
+        approvedVendors: '成单供应商数',
+        repeatVendors: '复采供应商数'
+      },
+      breakdown: {
+        vendorCredit: '供应商身份',
+        vendorLevel: '供应商等级',
+        vendorIndustry: '供应商行业',
+        byCount: '按订单数占比'
+      },
+      rankings: {
+        byAmount: '供应商 Top10（成单金额）',
+        byOrderCount: '供应商 Top10（成单数）',
+        byRepeat: '供应商 Top10（复采订单数）',
+        repeatOrders: '复采订单数'
+      }
+    },
+    orderTab: {
+      datasetTag: '成单',
+      hint: '与采购订单明细看板同实现；口径为报表公司/部门/个人透镜 + 日期范围 + 成单（主单审核通过及以上且明细有效）。',
+      refresh: '刷新',
+      loadFailed: '加载订单看板失败',
+      groupBy: { day: '按日', week: '按周', month: '按月' },
+      sections: {
+        orderKpi: '成单概览',
+        inStockKpi: '在库',
+        payableKpi: '应付款',
+        trendOrders: '成单订单数趋势',
+        trendLines: '成单明细数趋势',
+        trendAmount: '成单明细金额趋势（USD）'
+      },
+      kpi: {
+        approvedVendors: '成单供应商数',
+        approvedOrders: '成单订单数',
+        approvedLines: '成单明细数',
+        approvedAmount: '成单金额',
+        usdCaption: '折算 USD',
+        originalCaption: '原币',
+        inStockVendors: '在库供应商数',
+        inStockLines: '在库明细数',
+        inStockAmount: '在库金额（USD）',
+        maxStockAge: '最长在库天数',
+        payableVendors: '应付款供应商数',
+        payableLines: '应付款明细数',
+        payableAmount: '应付款金额'
+      },
+      trendUnit: {
+        orders: '单',
+        lines: '行',
+        moneyCaption: '金额单位：美元（convert_price）'
+      },
+      breakdown: {
+        itemStatus: '明细主状态',
+        paymentRequestProgress: '申请付款状态（成单）',
+        paymentProgress: '付款进度（成单）',
+        purchaseProgress: '采购进度（成单）',
+        stockInProgress: '入库进度（成单）',
+        invoiceProgress: '开票进度（成单）',
+        currency: '币别构成（成单）',
+        brandQty: '品牌数量（成单 Qty）',
+        brandAmount: '品牌金额（成单 USD）',
+        dateCode: '生产日期/DC（成单）',
+        purchaseUser: '采购员（成单 USD）',
+        byCount: '按行数'
+      },
+      rankings: {
+        metricMode: '排行指标',
+        vendorByAmount: '供应商 Top10（成单金额）',
+        pnByAmount: '物料 Top10（成单金额）',
+        pnByQty: '物料 Top10（数量）',
+        brandByAmount: '品牌 Top10（成单金额）',
+        brandByQty: '品牌 Top10（数量）',
+        purchaseUserByAmount: '采购员 Top10（成单金额）',
+        name: '名称',
+        lineCount: '明细数',
+        qty: '数量',
+        amount: '金额（USD）'
+      }
+    },
+    quoteTab: {
+      datasetTag: '报表',
+      hint: '与报价列表看板同实现；口径为报表公司/部门/个人透镜 + 日期范围（需求创建日）+ 排除主单已取消。',
+      refresh: '刷新',
+      loadFailed: '加载报价看板失败',
+      groupBy: { day: '按日', week: '按周', month: '按月' },
+      sections: {
+        kpi: '报价概览',
+        trendVendors: '报价供应商数趋势',
+        trendItems: '需求明细数趋势',
+        trendValidQuotes: '有效报价数趋势'
+      },
+      kpi: {
+        quoteVendors: '提供报价的供应商数',
+        validQuotes: '有效报价条目数',
+        noQuoteFound: '查无报价条目数',
+        rfqQuoteRate: '需求报价率',
+        avgResponse: '报价平均响应时间',
+        avgQuotesPerItem: '报价平均数',
+        convertedLines: '成单数',
+        quoteConversionRate: '报价成单率',
+        minutesUnit: '分钟'
+      },
+      trendUnit: {
+        vendors: '家',
+        items: '条',
+        quotes: '条'
+      },
+      breakdown: {
+        quoteStatus: '报价主状态',
+        quoteDistribution: '报价分布',
+        labelType: '涂标',
+        waferOrigin: '晶圆产地',
+        packageOrigin: '封装产地',
+        freeShipping: '包邮',
+        brand: '品牌分布',
+        assignedPurchaser: '分配采购员',
+        quotePurchaser: '报价采购员',
+        unassignedPurchaser: '未分配采购员',
+        unset: '未设置',
+        other: '其他'
+      },
+      rankings: {
+        vendorByRfqItemCount: '供应商 Top10（需求明细数）',
+        purchaserByQuoteCount: '报价采购员 Top10（条目数）',
+        purchaserByQuoteRate: '报价采购员 Top10（报价率）',
+        mpnByQuoteCount: 'MPN Top10（报价条数）',
+        mpnByQty: 'MPN Top10（需求数量）',
+        brandByQuoteCount: '品牌 Top10（报价条数）',
+        brandByQty: '品牌 Top10（需求数量）',
+        name: '名称',
+        rfqItemCount: '需求明细数',
+        quoteCount: '报价条数',
+        quoteRate: '报价率',
+        qty: '数量'
+      }
+    },
     dateFrom: '开始日期',
     dateTo: '结束日期',
     selectPurchaseUser: '选择采购员',
@@ -2383,7 +2531,8 @@ const zhCN = {
     loadFailed: '加载数据失败',
     na: '—',
     board: {
-      hint: '统计范围与当前筛选条件一致；status 仅过滤报价主表；成单口径为审核通过及以上销售订单关联的需求明细。',
+      datasetTag: '筛选',
+      hint: '统计范围与当前搜索栏筛选结果一致（无额外成单硬过滤；含取消单等）。金额脱敏规则与列表一致。',
       refresh: '刷新',
       loadFailed: '看板数据加载失败',
       groupBy: { day: '按日', week: '按周', month: '按月' },
@@ -5336,7 +5485,8 @@ const zhCN = {
       }
     },
     board: {
-      hint: '统计范围与当前筛选条件一致；成单口径为主单审核通过及以上且明细未取消。',
+      datasetTag: '筛选',
+      hint: '统计范围与当前搜索栏筛选结果一致（无额外成单硬过滤；含取消单等）。金额脱敏规则与列表一致。',
       refresh: '刷新',
       loadFailed: '看板数据加载失败',
       groupBy: { day: '按日', week: '按周', month: '按月' },

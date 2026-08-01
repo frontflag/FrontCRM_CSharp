@@ -9,6 +9,9 @@ import AnalyticsKpiGrid from '@/components/Analytics/AnalyticsKpiGrid.vue'
 import AnalyticsTrendChart from '@/components/Analytics/AnalyticsTrendChart.vue'
 import AnalyticsBreakdownChart from '@/components/Analytics/AnalyticsBreakdownChart.vue'
 import AnalyticsBreakdownPieChart from '@/components/Analytics/AnalyticsBreakdownPieChart.vue'
+import PurchaseAnalyticsVendorPanel from '@/components/Analytics/PurchaseAnalyticsVendorPanel.vue'
+import QuoteListBoard from '@/views/RFQ/QuoteListBoard.vue'
+import PurchaseOrderItemListBoard from '@/views/RFQ/PurchaseOrderItemListBoard.vue'
 import {
   purchaseAnalyticsApi,
   type PurchaseAnalyticsBreakdownGroup,
@@ -17,7 +20,6 @@ import {
   type PurchaseAnalyticsViewLevel
 } from '@/api/analytics/purchase'
 import {
-  buildVendorRankingDrillRoute,
   buildPurchaseUserRankingDrillRoute,
   buildSnapshotDrillRoute,
   buildTodoDrillRoute,
@@ -32,6 +34,7 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const loading = ref(false)
+const contentTab = ref<'overview' | 'vendor' | 'quote' | 'order'>('overview')
 const viewLevel = ref<PurchaseAnalyticsViewLevel>('company')
 const departmentId = ref<string | undefined>()
 const purchaseUserId = ref<string | undefined>()
@@ -226,13 +229,20 @@ const primaryRankingTitle = computed(() => {
   const lvl = viewLevel.value
   if (lvl === 'company') return t('purchaseAnalytics.rankings.departmentTop')
   if (lvl === 'department') return t('purchaseAnalytics.rankings.purchaseUserTop')
-  return t('purchaseAnalytics.rankings.vendorTop')
+  return ''
 })
 
-const secondaryRankingTitle = computed(() => {
-  if (viewLevel.value === 'personal') return ''
-  return t('purchaseAnalytics.rankings.vendorTop')
-})
+/** 方案 A：供应商排行仅在「供应商」Tab；个人层概况无排行 */
+const showOverviewRankings = computed(() => viewLevel.value === 'company' || viewLevel.value === 'department')
+
+const analyticsQuery = computed(() => ({
+  viewLevel: viewLevel.value,
+  departmentId: departmentId.value,
+  purchaseUserId: purchaseUserId.value,
+  dateFrom: dateRange.value[0],
+  dateTo: dateRange.value[1],
+  groupBy: groupBy.value
+}))
 
 const showDepartmentSelect = computed(() => {
   const ctx = scopeContext.value
@@ -311,10 +321,6 @@ async function loadData() {
 }
 
 function onRankingRowClick(row: { id: string; name: string }) {
-  if (viewLevel.value === 'personal') {
-    onVendorRankingClick(row)
-    return
-  }
   if (viewLevel.value === 'company') {
     viewLevel.value = 'department'
     departmentId.value = row.id
@@ -334,14 +340,6 @@ function onRankingRowDblClick(row: { id: string; name: string }) {
   if (viewLevel.value === 'department') {
     void router.push(buildPurchaseUserRankingDrillRoute(row.id, row.name, drillScope()))
   }
-}
-
-function onVendorRankingClick(row: { id: string; name: string }) {
-  if (!authStore.hasPermission('purchase-order.read')) {
-    ElMessage.warning(t('purchaseAnalytics.drill.noPermission'))
-    return
-  }
-  void router.push(buildVendorRankingDrillRoute(row.id, row.name, drillScope()))
 }
 
 function onTodoKpiClick(key: string) {
@@ -421,136 +419,146 @@ watch([viewLevel, departmentId, purchaseUserId, dateRange, groupBy], () => void 
       <span class="muted">{{ t('purchaseAnalytics.drill.hint') }}</span>
     </div>
 
-    <section class="section">
-      <h3 class="section-title">{{ t('purchaseAnalytics.sections.todo') }}</h3>
-      <AnalyticsKpiGrid :items="todoKpis" @item-click="onTodoKpiClick" />
-    </section>
+    <el-tabs v-model="contentTab" class="content-tabs card">
+      <el-tab-pane :label="t('purchaseAnalytics.contentTabs.overview')" name="overview">
+        <section class="section">
+          <h3 class="section-title">{{ t('purchaseAnalytics.sections.todo') }}</h3>
+          <AnalyticsKpiGrid :items="todoKpis" @item-click="onTodoKpiClick" />
+        </section>
 
-    <section class="section">
-      <h3 class="section-title">{{ t('purchaseAnalytics.sections.snapshot') }}</h3>
-      <AnalyticsKpiGrid :items="snapshotKpis" @item-click="onSnapshotKpiClick" />
-    </section>
+        <section class="section">
+          <h3 class="section-title">{{ t('purchaseAnalytics.sections.snapshot') }}</h3>
+          <AnalyticsKpiGrid :items="snapshotKpis" @item-click="onSnapshotKpiClick" />
+        </section>
 
-    <div class="charts-row">
-      <div class="card chart-panel">
-        <h3 class="section-title">{{ t('purchaseAnalytics.sections.trendAmount') }}</h3>
-        <AnalyticsTrendChart
-          :points="trendAmountPoints"
-          value-format="money"
-          :unit-caption="t('purchaseAnalytics.trendUnit.moneyCaption')"
-        />
-      </div>
-      <div class="card chart-panel">
-        <h3 class="section-title">{{ t('purchaseAnalytics.sections.trendStockIn') }}</h3>
-        <AnalyticsTrendChart
-          :points="trendStockInPoints"
-          value-format="money"
-          :unit-caption="t('purchaseAnalytics.trendUnit.moneyCaption')"
-        />
-      </div>
-      <div class="card chart-panel">
-        <h3 class="section-title">{{ t('purchaseAnalytics.sections.trendPaid') }}</h3>
-        <AnalyticsTrendChart
-          :points="trendPaidPoints"
-          value-format="money"
-          :unit-caption="t('purchaseAnalytics.trendUnit.moneyCaption')"
-        />
-      </div>
-    </div>
+        <div class="charts-row">
+          <div class="card chart-panel">
+            <h3 class="section-title">{{ t('purchaseAnalytics.sections.trendAmount') }}</h3>
+            <AnalyticsTrendChart
+              :points="trendAmountPoints"
+              value-format="money"
+              :unit-caption="t('purchaseAnalytics.trendUnit.moneyCaption')"
+            />
+          </div>
+          <div class="card chart-panel">
+            <h3 class="section-title">{{ t('purchaseAnalytics.sections.trendStockIn') }}</h3>
+            <AnalyticsTrendChart
+              :points="trendStockInPoints"
+              value-format="money"
+              :unit-caption="t('purchaseAnalytics.trendUnit.moneyCaption')"
+            />
+          </div>
+          <div class="card chart-panel">
+            <h3 class="section-title">{{ t('purchaseAnalytics.sections.trendPaid') }}</h3>
+            <AnalyticsTrendChart
+              :points="trendPaidPoints"
+              value-format="money"
+              :unit-caption="t('purchaseAnalytics.trendUnit.moneyCaption')"
+            />
+          </div>
+        </div>
 
-    <div class="charts-row">
-      <div class="card chart-panel">
-        <h3 class="section-title">{{ t('purchaseAnalytics.sections.trendQuoteVendors') }}</h3>
-        <AnalyticsTrendChart
-          :points="trendQuoteVendorPoints"
-          :value-suffix="t('purchaseAnalytics.trendUnit.vendor')"
-          :unit-caption="t('purchaseAnalytics.trendUnit.vendorCaption')"
-        />
-      </div>
-      <div class="card chart-panel">
-        <h3 class="section-title">{{ t('purchaseAnalytics.sections.trendPoVendors') }}</h3>
-        <AnalyticsTrendChart
-          :points="trendPoVendorPoints"
-          :value-suffix="t('purchaseAnalytics.trendUnit.vendor')"
-          :unit-caption="t('purchaseAnalytics.trendUnit.vendorCaption')"
-        />
-      </div>
-    </div>
+        <div class="charts-row">
+          <div class="card chart-panel">
+            <h3 class="section-title">{{ t('purchaseAnalytics.sections.trendQuoteVendors') }}</h3>
+            <AnalyticsTrendChart
+              :points="trendQuoteVendorPoints"
+              :value-suffix="t('purchaseAnalytics.trendUnit.vendor')"
+              :unit-caption="t('purchaseAnalytics.trendUnit.vendorCaption')"
+            />
+          </div>
+          <div class="card chart-panel">
+            <h3 class="section-title">{{ t('purchaseAnalytics.sections.trendPoVendors') }}</h3>
+            <AnalyticsTrendChart
+              :points="trendPoVendorPoints"
+              :value-suffix="t('purchaseAnalytics.trendUnit.vendor')"
+              :unit-caption="t('purchaseAnalytics.trendUnit.vendorCaption')"
+            />
+          </div>
+        </div>
 
-    <div class="charts-row">
-      <div class="card chart-panel">
-        <h3 class="section-title">{{ t('purchaseAnalytics.sections.trendQuote') }}</h3>
-        <AnalyticsTrendChart :points="trendQuotePoints" />
-      </div>
-      <div class="card chart-panel">
-        <h3 class="section-title">{{ t('purchaseAnalytics.sections.trendItems') }}</h3>
-        <AnalyticsTrendChart :points="trendItemPoints" />
-      </div>
-      <div class="card chart-panel">
-        <h3 class="section-title">{{ t('purchaseAnalytics.sections.trendConversion') }}</h3>
-        <AnalyticsTrendChart
-          :points="trendConversionPoints"
-          value-format="percent"
-          :unit-caption="t('purchaseAnalytics.trendUnit.percentCaption')"
-        />
-      </div>
-      <div class="card chart-panel">
-        <h3 class="section-title">{{ t('purchaseAnalytics.sections.trendPayable') }}</h3>
-        <AnalyticsTrendChart
-          :points="trendPayablePoints"
-          value-format="money"
-          :unit-caption="t('purchaseAnalytics.trendUnit.payableCaption')"
-        />
-      </div>
-    </div>
+        <div class="charts-row">
+          <div class="card chart-panel">
+            <h3 class="section-title">{{ t('purchaseAnalytics.sections.trendQuote') }}</h3>
+            <AnalyticsTrendChart :points="trendQuotePoints" />
+          </div>
+          <div class="card chart-panel">
+            <h3 class="section-title">{{ t('purchaseAnalytics.sections.trendItems') }}</h3>
+            <AnalyticsTrendChart :points="trendItemPoints" />
+          </div>
+          <div class="card chart-panel">
+            <h3 class="section-title">{{ t('purchaseAnalytics.sections.trendConversion') }}</h3>
+            <AnalyticsTrendChart
+              :points="trendConversionPoints"
+              value-format="percent"
+              :unit-caption="t('purchaseAnalytics.trendUnit.percentCaption')"
+            />
+          </div>
+          <div class="card chart-panel">
+            <h3 class="section-title">{{ t('purchaseAnalytics.sections.trendPayable') }}</h3>
+            <AnalyticsTrendChart
+              :points="trendPayablePoints"
+              value-format="money"
+              :unit-caption="t('purchaseAnalytics.trendUnit.payableCaption')"
+            />
+          </div>
+        </div>
 
-    <div class="charts-row breakdown-row">
-      <div v-for="group in breakdowns" :key="group.groupKey" class="card chart-panel">
-        <AnalyticsBreakdownPieChart
-          v-if="isPieBreakdown(group.groupKey)"
-          :title="breakdownTitle(group)"
-          :items="group.items"
-          :value-format="breakdownValueFormat(group.groupKey)"
-        />
-        <AnalyticsBreakdownChart v-else :title="breakdownTitle(group)" :items="group.items" />
-      </div>
-    </div>
+        <div class="charts-row breakdown-row">
+          <div v-for="group in breakdowns" :key="group.groupKey" class="card chart-panel">
+            <AnalyticsBreakdownPieChart
+              v-if="isPieBreakdown(group.groupKey)"
+              :title="breakdownTitle(group)"
+              :items="group.items"
+              :value-format="breakdownValueFormat(group.groupKey)"
+            />
+            <AnalyticsBreakdownChart v-else :title="breakdownTitle(group)" :items="group.items" />
+          </div>
+        </div>
 
-    <div class="rankings-row">
-      <div class="card ranking-panel">
-        <h3 class="section-title">{{ primaryRankingTitle }}</h3>
-        <el-table
-          :data="dashboard?.rankings.primary ?? []"
-          size="small"
-          stripe
-          :class="viewLevel === 'personal' || viewLevel === 'department' ? 'ranking-table--drill' : ''"
-          @row-click="onRankingRowClick"
-          @row-dblclick="onRankingRowDblClick"
-        >
-          <el-table-column prop="name" :label="t('purchaseAnalytics.rankings.name')" />
-          <el-table-column prop="orderCount" :label="t('purchaseAnalytics.rankings.orderCount')" width="90" />
-          <el-table-column :label="t('purchaseAnalytics.rankings.amount')" width="140">
-            <template #default="{ row }">{{ formatMoney(row.amount) }}</template>
-          </el-table-column>
-        </el-table>
-      </div>
-      <div v-if="secondaryRankingTitle" class="card ranking-panel">
-        <h3 class="section-title">{{ secondaryRankingTitle }}</h3>
-        <el-table
-          :data="dashboard?.rankings.secondary ?? []"
-          size="small"
-          stripe
-          class="ranking-table--drill"
-          @row-click="onVendorRankingClick"
-        >
-          <el-table-column prop="name" :label="t('purchaseAnalytics.rankings.name')" />
-          <el-table-column prop="orderCount" :label="t('purchaseAnalytics.rankings.orderCount')" width="90" />
-          <el-table-column :label="t('purchaseAnalytics.rankings.amount')" width="140">
-            <template #default="{ row }">{{ formatMoney(row.amount) }}</template>
-          </el-table-column>
-        </el-table>
-      </div>
-    </div>
+        <div v-if="showOverviewRankings" class="rankings-row">
+          <div class="card ranking-panel">
+            <h3 class="section-title">{{ primaryRankingTitle }}</h3>
+            <el-table
+              :data="dashboard?.rankings.primary ?? []"
+              size="small"
+              stripe
+              :class="viewLevel === 'department' ? 'ranking-table--drill' : ''"
+              @row-click="onRankingRowClick"
+              @row-dblclick="onRankingRowDblClick"
+            >
+              <el-table-column prop="name" :label="t('purchaseAnalytics.rankings.name')" />
+              <el-table-column prop="orderCount" :label="t('purchaseAnalytics.rankings.orderCount')" width="90" />
+              <el-table-column :label="t('purchaseAnalytics.rankings.amount')" width="140">
+                <template #default="{ row }">{{ formatMoney(row.amount) }}</template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </div>
+      </el-tab-pane>
+
+      <el-tab-pane :label="t('purchaseAnalytics.contentTabs.vendor')" name="vendor" lazy>
+        <PurchaseAnalyticsVendorPanel
+          :query="analyticsQuery"
+          :scope-context="scopeContext ?? null"
+          :active="contentTab === 'vendor'"
+        />
+      </el-tab-pane>
+      <el-tab-pane :label="t('purchaseAnalytics.contentTabs.quote')" name="quote" lazy>
+        <QuoteListBoard
+          mode="report"
+          :report-query="analyticsQuery"
+          :active="contentTab === 'quote'"
+        />
+      </el-tab-pane>
+      <el-tab-pane :label="t('purchaseAnalytics.contentTabs.order')" name="order" lazy>
+        <PurchaseOrderItemListBoard
+          mode="report"
+          :report-query="analyticsQuery"
+          :active="contentTab === 'order'"
+        />
+      </el-tab-pane>
+    </el-tabs>
   </div>
 </template>
 
@@ -607,6 +615,22 @@ watch([viewLevel, departmentId, purchaseUserId, dateRange, groupBy], () => void 
 
 .scope-banner .muted {
   color: var(--el-text-color-secondary);
+}
+
+.content-tabs {
+  padding-top: 8px;
+
+  :deep(.el-tabs__header) {
+    margin-bottom: 16px;
+  }
+
+  :deep(.el-tabs__content) {
+    overflow: visible;
+  }
+
+  :deep(.el-tab-pane) {
+    outline: none;
+  }
 }
 
 .section {

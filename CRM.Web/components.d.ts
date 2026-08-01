@@ -121,6 +121,7 @@ declare module 'vue' {
     PaymentFeeSection: typeof import('./src/components/Finance/PaymentFeeSection.vue')['default']
     PaymentRequestVendorBankSection: typeof import('./src/components/Vendor/PaymentRequestVendorBankSection.vue')['default']
     ProgressMultiSelectOption: typeof import('./src/components/Common/ProgressMultiSelectOption.vue')['default']
+    PurchaseAnalyticsVendorPanel: typeof import('./src/components/Analytics/PurchaseAnalyticsVendorPanel.vue')['default']
     PurchaseOpsAssistorSelect: typeof import('./src/components/PurchaseOpsAssistorSelect.vue')['default']
     PurchaseOrderFavoritePanel: typeof import('./src/components/purchaseOrder/PurchaseOrderFavoritePanel.vue')['default']
     PurchaseOrderItemArrivalNoticeTabTable: typeof import('./src/components/RFQ/PurchaseOrderItemArrivalNoticeTabTable.vue')['default']

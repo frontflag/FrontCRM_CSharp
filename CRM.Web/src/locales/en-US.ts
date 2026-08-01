@@ -1086,6 +1086,154 @@ const enUS = {
       department: 'Department',
       personal: 'Personal'
     },
+    contentTabs: {
+      overview: 'Overview',
+      vendor: 'Vendors',
+      quote: 'Quotes',
+      order: 'Orders'
+    },
+    vendorTab: {
+      hint: 'Approved vendors match Overview “PO vendors” (distinct in period). Repeat vendor = ≥2 approved orders. Click a ranking row to open the PO list.',
+      loadFailed: 'Failed to load vendor analytics',
+      sections: {
+        kpi: 'Vendor overview'
+      },
+      kpi: {
+        approvedVendors: 'Approved vendors',
+        repeatVendors: 'Repeat vendors'
+      },
+      breakdown: {
+        vendorCredit: 'Vendor identity',
+        vendorLevel: 'Vendor level',
+        vendorIndustry: 'Vendor industry',
+        byCount: 'by order count'
+      },
+      rankings: {
+        byAmount: 'Vendor Top10 (amount)',
+        byOrderCount: 'Vendor Top10 (orders)',
+        byRepeat: 'Vendor Top10 (repeat orders)',
+        repeatOrders: 'Repeat orders'
+      }
+    },
+    orderTab: {
+      datasetTag: 'Approved',
+      hint: 'Same implementation as the purchase-order-items board; scope = company/department/personal + date range + approved (order ≥ approved and line active).',
+      refresh: 'Refresh',
+      loadFailed: 'Failed to load order analytics',
+      groupBy: { day: 'Daily', week: 'Weekly', month: 'Monthly' },
+      sections: {
+        orderKpi: 'Approved overview',
+        inStockKpi: 'In stock',
+        payableKpi: 'Payables',
+        trendOrders: 'Approved order trend',
+        trendLines: 'Approved line trend',
+        trendAmount: 'Approved line amount trend (USD)'
+      },
+      kpi: {
+        approvedVendors: 'Approved vendors',
+        approvedOrders: 'Approved orders',
+        approvedLines: 'Approved lines',
+        approvedAmount: 'Approved amount',
+        usdCaption: 'USD equivalent',
+        originalCaption: 'Original currency',
+        inStockVendors: 'In-stock vendors',
+        inStockLines: 'In-stock lines',
+        inStockAmount: 'In-stock amount (USD)',
+        maxStockAge: 'Max stock age (days)',
+        payableVendors: 'Payable vendors',
+        payableLines: 'Payable lines',
+        payableAmount: 'Payable amount'
+      },
+      trendUnit: {
+        orders: 'orders',
+        lines: 'lines',
+        moneyCaption: 'Amount in USD (convert_price)'
+      },
+      breakdown: {
+        itemStatus: 'Line status',
+        paymentRequestProgress: 'Payment request (approved)',
+        paymentProgress: 'Payment progress (approved)',
+        purchaseProgress: 'Purchase progress (approved)',
+        stockInProgress: 'Inbound progress (approved)',
+        invoiceProgress: 'Invoice progress (approved)',
+        currency: 'Currency mix (approved)',
+        brandQty: 'Brand qty (approved)',
+        brandAmount: 'Brand amount (approved USD)',
+        dateCode: 'Date code / DC (approved)',
+        purchaseUser: 'Buyer (approved USD)',
+        byCount: 'by line count'
+      },
+      rankings: {
+        metricMode: 'Ranking metric',
+        vendorByAmount: 'Top 10 vendors (amount)',
+        pnByAmount: 'Top 10 MPN (amount)',
+        pnByQty: 'Top 10 MPN (qty)',
+        brandByAmount: 'Top 10 brands (amount)',
+        brandByQty: 'Top 10 brands (qty)',
+        purchaseUserByAmount: 'Top 10 buyers (amount)',
+        name: 'Name',
+        lineCount: 'Lines',
+        qty: 'Qty',
+        amount: 'Amount (USD)'
+      }
+    },
+    quoteTab: {
+      datasetTag: 'Report',
+      hint: 'Same implementation as the quote list board; scope = company/department/personal + date range (RFQ create date) + exclude cancelled RFQs.',
+      refresh: 'Refresh',
+      loadFailed: 'Failed to load quote analytics',
+      groupBy: { day: 'Daily', week: 'Weekly', month: 'Monthly' },
+      sections: {
+        kpi: 'Quote overview',
+        trendVendors: 'Quote vendor trend',
+        trendItems: 'RFQ line trend',
+        trendValidQuotes: 'Valid quote trend'
+      },
+      kpi: {
+        quoteVendors: 'Quoting vendors',
+        validQuotes: 'Valid quote lines',
+        noQuoteFound: 'No-quote-found lines',
+        rfqQuoteRate: 'RFQ quote rate',
+        avgResponse: 'Avg response time',
+        avgQuotesPerItem: 'Avg quotes per line',
+        convertedLines: 'Converted lines',
+        quoteConversionRate: 'Quote conversion rate',
+        minutesUnit: 'min'
+      },
+      trendUnit: {
+        vendors: 'vendors',
+        items: 'lines',
+        quotes: 'quotes'
+      },
+      breakdown: {
+        quoteStatus: 'Quote status',
+        quoteDistribution: 'Quote distribution',
+        labelType: 'Label type',
+        waferOrigin: 'Wafer origin',
+        packageOrigin: 'Package origin',
+        freeShipping: 'Free shipping',
+        brand: 'Brand mix',
+        assignedPurchaser: 'Assigned buyer',
+        quotePurchaser: 'Quote buyer',
+        unassignedPurchaser: 'Unassigned buyer',
+        unset: 'Unset',
+        other: 'Other'
+      },
+      rankings: {
+        vendorByRfqItemCount: 'Top 10 vendors (RFQ lines)',
+        purchaserByQuoteCount: 'Top 10 buyers (quote count)',
+        purchaserByQuoteRate: 'Top 10 buyers (quote rate)',
+        mpnByQuoteCount: 'Top 10 MPN (quote count)',
+        mpnByQty: 'Top 10 MPN (qty)',
+        brandByQuoteCount: 'Top 10 brands (quote count)',
+        brandByQty: 'Top 10 brands (qty)',
+        name: 'Name',
+        rfqItemCount: 'RFQ lines',
+        quoteCount: 'Quotes',
+        quoteRate: 'Quote rate',
+        qty: 'Qty'
+      }
+    },
     dateFrom: 'From',
     dateTo: 'To',
     selectPurchaseUser: 'Select buyer',
@@ -2409,7 +2557,8 @@ const enUS = {
     loadFailed: 'Failed to load data',
     na: '—',
     board: {
-      hint: 'Stats match current filters; status applies to quote rows only; converted lines use approved+ sales orders.',
+      datasetTag: 'Filter',
+      hint: 'Stats match the current search filters (no extra approved-only constraint; includes cancelled lines). Amount masking follows list rules.',
       refresh: 'Refresh',
       loadFailed: 'Failed to load board data',
       groupBy: { day: 'Daily', week: 'Weekly', month: 'Monthly' },
@@ -5353,7 +5502,8 @@ const enUS = {
       }
     },
     board: {
-      hint: 'Stats match current filters; approved lines are order status ≥ approved and line not cancelled.',
+      datasetTag: 'Filter',
+      hint: 'Stats match the current search filters (no extra approved-only constraint; includes cancelled lines). Amount masking follows list rules.',
       refresh: 'Refresh',
       loadFailed: 'Failed to load board data',
       groupBy: { day: 'Daily', week: 'Weekly', month: 'Monthly' },

@@ -8,6 +8,7 @@ export interface QuoteListAnalyticsQuery {
   startDate?: string
   endDate?: string
   groupBy?: 'day' | 'week' | 'month'
+  dataset?: 'listFilter' | 'reportScope'
 }
 
 export interface QuoteListAnalyticsContext {
@@ -64,6 +65,7 @@ function buildParams(q: QuoteListAnalyticsQuery): Record<string, string | number
   if (q.startDate) p.startDate = q.startDate
   if (q.endDate) p.endDate = q.endDate
   if (q.groupBy) p.groupBy = q.groupBy
+  if (q.dataset) p.dataset = q.dataset
   return p
 }
 

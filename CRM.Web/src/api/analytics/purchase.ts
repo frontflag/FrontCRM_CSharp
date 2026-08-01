@@ -1,4 +1,14 @@
 import apiClient from '../client'
+import type {
+  PurchaseOrderItemListAnalyticsDashboard,
+  PurchaseOrderItemListAnalyticsRankings,
+  PurchaseOrderItemListAnalyticsTrendPoint
+} from '../purchaseOrderItemAnalytics'
+import type {
+  QuoteListAnalyticsDashboard,
+  QuoteListAnalyticsRankings,
+  QuoteListAnalyticsTrendPoint
+} from '../quoteListAnalytics'
 
 export type PurchaseAnalyticsViewLevel = 'company' | 'department' | 'personal'
 
@@ -86,6 +96,24 @@ export interface PurchaseAnalyticsBreakdownGroup {
   items: PurchaseAnalyticsBreakdownItem[]
 }
 
+export interface PurchaseAnalyticsVendorSnapshot {
+  approvedVendorCount: number
+  repeatVendorCount: number
+}
+
+export interface PurchaseAnalyticsVendorRankings {
+  vendorByAmount: PurchaseAnalyticsRankingRow[]
+  vendorByOrderCount: PurchaseAnalyticsRankingRow[]
+  vendorByRepeatOrderCount: PurchaseAnalyticsRankingRow[]
+}
+
+export interface PurchaseAnalyticsVendor {
+  scopeContext: PurchaseAnalyticsScopeContext
+  snapshot: PurchaseAnalyticsVendorSnapshot
+  breakdowns: PurchaseAnalyticsBreakdownGroup[]
+  rankings: PurchaseAnalyticsVendorRankings
+}
+
 function buildParams(q: PurchaseAnalyticsQuery): Record<string, string> {
   const p: Record<string, string> = {}
   if (q.viewLevel) p.viewLevel = q.viewLevel
@@ -112,6 +140,66 @@ export const purchaseAnalyticsApi = {
 
   getBreakdowns(query: PurchaseAnalyticsQuery): Promise<PurchaseAnalyticsBreakdownGroup[]> {
     return apiClient.get<PurchaseAnalyticsBreakdownGroup[]>('/api/v1/analytics/purchase/breakdowns', {
+      params: buildParams(query)
+    })
+  },
+
+  getVendor(query: PurchaseAnalyticsQuery): Promise<PurchaseAnalyticsVendor> {
+    return apiClient.get<PurchaseAnalyticsVendor>('/api/v1/analytics/purchase/vendor', {
+      params: buildParams(query)
+    })
+  },
+
+  /** 采购订单明细维（成单口径；与 /purchase-orders/items/analytics 同实现） */
+  getOrderItemsDashboard(query: PurchaseAnalyticsQuery): Promise<PurchaseOrderItemListAnalyticsDashboard> {
+    return apiClient.get<PurchaseOrderItemListAnalyticsDashboard>(
+      '/api/v1/analytics/purchase/order-items/dashboard',
+      { params: buildParams(query) }
+    )
+  },
+
+  getOrderItemsTrends(query: PurchaseAnalyticsQuery): Promise<PurchaseOrderItemListAnalyticsTrendPoint[]> {
+    return apiClient.get<PurchaseOrderItemListAnalyticsTrendPoint[]>(
+      '/api/v1/analytics/purchase/order-items/trends',
+      { params: buildParams(query) }
+    )
+  },
+
+  getOrderItemsBreakdowns(query: PurchaseAnalyticsQuery): Promise<PurchaseAnalyticsBreakdownGroup[]> {
+    return apiClient.get<PurchaseAnalyticsBreakdownGroup[]>(
+      '/api/v1/analytics/purchase/order-items/breakdowns',
+      { params: buildParams(query) }
+    )
+  },
+
+  getOrderItemsRankings(query: PurchaseAnalyticsQuery): Promise<PurchaseOrderItemListAnalyticsRankings> {
+    return apiClient.get<PurchaseOrderItemListAnalyticsRankings>(
+      '/api/v1/analytics/purchase/order-items/rankings',
+      { params: buildParams(query) }
+    )
+  },
+
+  /** 报价列表维（reportScope；与 /quotes/analytics 同实现） */
+  getQuotesDashboard(query: PurchaseAnalyticsQuery): Promise<QuoteListAnalyticsDashboard> {
+    return apiClient.get<QuoteListAnalyticsDashboard>('/api/v1/analytics/purchase/quotes/dashboard', {
+      params: buildParams(query)
+    })
+  },
+
+  getQuotesTrends(query: PurchaseAnalyticsQuery): Promise<QuoteListAnalyticsTrendPoint[]> {
+    return apiClient.get<QuoteListAnalyticsTrendPoint[]>('/api/v1/analytics/purchase/quotes/trends', {
+      params: buildParams(query)
+    })
+  },
+
+  getQuotesBreakdowns(query: PurchaseAnalyticsQuery): Promise<PurchaseAnalyticsBreakdownGroup[]> {
+    return apiClient.get<PurchaseAnalyticsBreakdownGroup[]>('/api/v1/analytics/purchase/quotes/breakdowns', {
+      params: buildParams(query)
+    })
+  },
+
+  getQuotesRankings(query: PurchaseAnalyticsQuery): Promise<QuoteListAnalyticsRankings> {
+    return apiClient.get<QuoteListAnalyticsRankings>('/api/v1/analytics/purchase/quotes/rankings', {
       params: buildParams(query)
     })
   }

@@ -119,6 +119,11 @@ public sealed class PurchaseAnalyticsService : IPurchaseAnalyticsService
         CancellationToken cancellationToken = default) =>
         _query.GetBreakdownsAsync(scope, cancellationToken);
 
+    public Task<PurchaseAnalyticsVendorDto> GetVendorAsync(
+        PurchaseAnalyticsResolvedScope scope,
+        CancellationToken cancellationToken = default) =>
+        _query.GetVendorAsync(scope, cancellationToken);
+
     private static string NormalizeGroupBy(string? groupBy) =>
         groupBy?.Trim().ToLowerInvariant() switch
         {

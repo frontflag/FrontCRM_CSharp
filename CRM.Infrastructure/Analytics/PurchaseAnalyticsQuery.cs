@@ -241,6 +241,149 @@ public sealed class PurchaseAnalyticsQuery : IPurchaseAnalyticsQuery
         };
     }
 
+    /// <inheritdoc />
+    public async Task<PurchaseAnalyticsVendorDto> GetVendorAsync(
+        PurchaseAnalyticsResolvedScope scope,
+        CancellationToken cancellationToken = default)
+    {
+        var userId = scope.Summary.UserId;
+        var dateFrom = PurchaseAnalyticsDateFilter.ToUtcDateStart(scope.DateFrom);
+        var dateEnd = PurchaseAnalyticsDateFilter.ToUtcDateEndExclusive(scope.DateTo);
+        var maskAmounts = scope.MaskAmounts;
+
+        var orders = await BuildPurchaseOrderQueryAsync(userId, scope, cancellationToken);
+        var approved = orders.Where(o =>
+            o.CreateTime >= dateFrom && o.CreateTime < dateEnd
+            && o.Status >= PoApproved);
+
+        var orderRows = await approved
+            .Select(o => new
+            {
+                o.VendorId,
+                o.VendorName,
+                o.ConvertTotal
+            })
+            .ToListAsync(cancellationToken);
+
+        var vendorGroups = orderRows
+            .Where(o => !string.IsNullOrWhiteSpace(o.VendorId))
+            .GroupBy(o => o.VendorId!, StringComparer.OrdinalIgnoreCase)
+            .Select(g => new { Count = g.Count(), Amount = g.Sum(x => x.ConvertTotal), Name = g.First().VendorName, Id = g.Key })
+            .ToList();
+
+        var snapshot = new PurchaseAnalyticsVendorSnapshotDto
+        {
+            ApprovedVendorCount = vendorGroups.Count,
+            RepeatVendorCount = vendorGroups.Count(v => v.Count >= 2)
+        };
+
+        var vendorDimRows = await (
+            from o in approved
+            join v in _db.Vendors.AsNoTracking() on o.VendorId equals v.Id into vj
+            from v in vj.DefaultIfEmpty()
+            select new
+            {
+                o.ConvertTotal,
+                VendorCredit = v != null ? v.Credit : (short?)null,
+                VendorLevel = v != null ? v.Level : (short?)null,
+                Industry = v != null ? v.Industry : null
+            }
+        ).ToListAsync(cancellationToken);
+
+        var creditItems = BuildVendorDimensionBreakdown(
+            vendorDimRows,
+            r => r.VendorCredit?.ToString() ?? "_unset",
+            r => r.VendorCredit.HasValue ? $"身份 {r.VendorCredit}" : "未设置",
+            r => r.ConvertTotal,
+            maskAmounts);
+        var levelItems = BuildVendorDimensionBreakdown(
+            vendorDimRows,
+            r => r.VendorLevel?.ToString() ?? "_unset",
+            r => r.VendorLevel.HasValue ? $"等级 {r.VendorLevel}" : "未设置",
+            r => r.ConvertTotal,
+            maskAmounts);
+        var industryItems = BuildVendorDimensionBreakdown(
+            vendorDimRows,
+            r => string.IsNullOrWhiteSpace(r.Industry) ? "_unset" : r.Industry!.Trim(),
+            r => string.IsNullOrWhiteSpace(r.Industry) ? "未设置" : r.Industry!.Trim(),
+            r => r.ConvertTotal,
+            maskAmounts);
+
+        var breakdowns = new List<SalesAnalyticsBreakdownGroupDto>
+        {
+            new()
+            {
+                GroupKey = "vendorCredit",
+                GroupLabel = maskAmounts ? "供应商身份（成单数）" : "供应商身份（成单 USD）",
+                Items = creditItems
+            },
+            new()
+            {
+                GroupKey = "vendorLevel",
+                GroupLabel = maskAmounts ? "供应商等级（成单数）" : "供应商等级（成单 USD）",
+                Items = levelItems
+            },
+            new()
+            {
+                GroupKey = "vendorIndustry",
+                GroupLabel = maskAmounts ? "供应商行业（成单数）" : "供应商行业（成单 USD）",
+                Items = industryItems
+            }
+        };
+
+        var vendorByAmount = vendorGroups
+            .Select(g => new SalesAnalyticsRankingRowDto
+            {
+                Id = g.Id,
+                Name = g.Name ?? g.Id,
+                Amount = maskAmounts ? null : g.Amount,
+                OrderCount = g.Count
+            })
+            .OrderByDescending(x => x.Amount ?? x.OrderCount)
+            .Take(RankingTopN)
+            .ToList();
+
+        var vendorByOrderCount = vendorGroups
+            .Select(g => new SalesAnalyticsRankingRowDto
+            {
+                Id = g.Id,
+                Name = g.Name ?? g.Id,
+                Amount = maskAmounts ? null : g.Amount,
+                OrderCount = g.Count
+            })
+            .OrderByDescending(x => x.OrderCount)
+            .ThenByDescending(x => x.Amount ?? 0m)
+            .Take(RankingTopN)
+            .ToList();
+
+        var vendorByRepeat = vendorGroups
+            .Select(g => new SalesAnalyticsRankingRowDto
+            {
+                Id = g.Id,
+                Name = g.Name ?? g.Id,
+                Amount = maskAmounts ? null : g.Amount,
+                OrderCount = Math.Max(0, g.Count - 1)
+            })
+            .Where(x => x.OrderCount > 0)
+            .OrderByDescending(x => x.OrderCount)
+            .ThenByDescending(x => x.Amount ?? 0m)
+            .Take(RankingTopN)
+            .ToList();
+
+        return new PurchaseAnalyticsVendorDto
+        {
+            ScopeContext = scope.ScopeContext,
+            Snapshot = snapshot,
+            Breakdowns = breakdowns,
+            Rankings = new PurchaseAnalyticsVendorRankingsDto
+            {
+                VendorByAmount = vendorByAmount,
+                VendorByOrderCount = vendorByOrderCount,
+                VendorByRepeatOrderCount = vendorByRepeat
+            }
+        };
+    }
+
     private async Task<PurchaseAnalyticsSnapshotDto> BuildSnapshotAsync(
         PurchaseAnalyticsResolvedScope scope,
         CancellationToken cancellationToken)
@@ -462,20 +605,11 @@ public sealed class PurchaseAnalyticsQuery : IPurchaseAnalyticsQuery
                 .Take(RankingTopN)
                 .ToList();
 
-            var vendorGroups = orderRows
-                .GroupBy(o => o.VendorId)
-                .Select(g => new SalesAnalyticsRankingRowDto
-                {
-                    Id = g.Key,
-                    Name = g.First().VendorName ?? g.Key,
-                    Amount = scope.MaskAmounts ? null : g.Sum(x => x.ConvertTotal),
-                    OrderCount = g.Count()
-                })
-                .OrderByDescending(x => x.Amount ?? x.OrderCount)
-                .Take(RankingTopN)
-                .ToList();
-
-            return new SalesAnalyticsRankingsDto { Primary = deptGroups, Secondary = vendorGroups };
+            return new SalesAnalyticsRankingsDto
+            {
+                Primary = deptGroups,
+                Secondary = Array.Empty<SalesAnalyticsRankingRowDto>()
+            };
         }
 
         if (scope.ViewLevel == SalesAnalyticsViewLevels.Department)
@@ -495,41 +629,18 @@ public sealed class PurchaseAnalyticsQuery : IPurchaseAnalyticsQuery
                 .Take(RankingTopN)
                 .ToList();
 
-            var vendorGroups = orderRows
-                .GroupBy(o => o.VendorId)
-                .Select(g => new SalesAnalyticsRankingRowDto
-                {
-                    Id = g.Key,
-                    Name = g.First().VendorName ?? g.Key,
-                    Amount = scope.MaskAmounts ? null : g.Sum(x => x.ConvertTotal),
-                    OrderCount = g.Count()
-                })
-                .OrderByDescending(x => x.Amount ?? x.OrderCount)
-                .Take(RankingTopN)
-                .ToList();
-
-            return new SalesAnalyticsRankingsDto { Primary = userGroups, Secondary = vendorGroups };
+            return new SalesAnalyticsRankingsDto
+            {
+                Primary = userGroups,
+                Secondary = Array.Empty<SalesAnalyticsRankingRowDto>()
+            };
         }
 
-        var targetUser = scope.PurchaseUserId ?? scope.Summary.UserId;
-        var personalOrders = orderRows
-            .Where(o => string.Equals(o.PurchaseUserId, targetUser, StringComparison.OrdinalIgnoreCase))
-            .ToList();
-
-        var vendors = personalOrders
-            .GroupBy(o => o.VendorId)
-            .Select(g => new SalesAnalyticsRankingRowDto
-            {
-                Id = g.Key,
-                Name = g.First().VendorName ?? g.Key,
-                Amount = scope.MaskAmounts ? null : g.Sum(x => x.ConvertTotal),
-                OrderCount = g.Count()
-            })
-            .OrderByDescending(x => x.Amount ?? x.OrderCount)
-            .Take(RankingTopN)
-            .ToList();
-
-        return new SalesAnalyticsRankingsDto { Primary = vendors, Secondary = Array.Empty<SalesAnalyticsRankingRowDto>() };
+        return new SalesAnalyticsRankingsDto
+        {
+            Primary = Array.Empty<SalesAnalyticsRankingRowDto>(),
+            Secondary = Array.Empty<SalesAnalyticsRankingRowDto>()
+        };
     }
 
     private async Task<IQueryable<PurchaseOrder>> BuildPurchaseOrderQueryAsync(
@@ -673,6 +784,32 @@ public sealed class PurchaseAnalyticsQuery : IPurchaseAnalyticsQuery
         join poi in _db.PurchaseOrderItems.AsNoTracking() on ext.Id equals poi.SellOrderItemId
         where !poi.IsDeleted && poi.SellOrderItemId != null && ext.QuoteItemId != null
         select ext.QuoteItemId!;
+
+    private static List<SalesAnalyticsBreakdownItemDto> BuildVendorDimensionBreakdown<T>(
+        IEnumerable<T> rows,
+        Func<T, string> keySelector,
+        Func<T, string> labelSelector,
+        Func<T, decimal> amountSelector,
+        bool maskAmounts)
+    {
+        var items = rows
+            .GroupBy(keySelector, StringComparer.OrdinalIgnoreCase)
+            .Select(g =>
+            {
+                var sample = g.First();
+                return new SalesAnalyticsBreakdownItemDto
+                {
+                    Key = g.Key,
+                    Label = labelSelector(sample),
+                    Value = maskAmounts ? g.Count() : g.Sum(amountSelector),
+                    Ratio = 0
+                };
+            })
+            .ToList();
+
+        ApplyRatios(items);
+        return items;
+    }
 
     private static void ApplyRatios(List<SalesAnalyticsBreakdownItemDto> items)
     {

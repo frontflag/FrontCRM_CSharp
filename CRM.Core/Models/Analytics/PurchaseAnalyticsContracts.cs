@@ -56,6 +56,32 @@ public sealed class PurchaseAnalyticsTodoDto
     public int PendingStockInItemCount { get; set; }
 }
 
+/// <summary>采购分析「供应商」Tab：成单供应商维 KPI / 身份等级行业分解 / 供应商 Top10。</summary>
+public sealed class PurchaseAnalyticsVendorSnapshotDto
+{
+    /// <summary>成单供应商数（周期内成单订单 vendor_id 去重；与概况「采购供应商数」同口径）。</summary>
+    public int ApprovedVendorCount { get; set; }
+
+    /// <summary>复采供应商数（成单订单数 ≥ 2）。</summary>
+    public int RepeatVendorCount { get; set; }
+}
+
+public sealed class PurchaseAnalyticsVendorRankingsDto
+{
+    public IReadOnlyList<SalesAnalyticsRankingRowDto> VendorByAmount { get; set; } = Array.Empty<SalesAnalyticsRankingRowDto>();
+    public IReadOnlyList<SalesAnalyticsRankingRowDto> VendorByOrderCount { get; set; } = Array.Empty<SalesAnalyticsRankingRowDto>();
+    /// <summary>OrderCount 为复采订单数 = max(0, 成单数 − 1)。</summary>
+    public IReadOnlyList<SalesAnalyticsRankingRowDto> VendorByRepeatOrderCount { get; set; } = Array.Empty<SalesAnalyticsRankingRowDto>();
+}
+
+public sealed class PurchaseAnalyticsVendorDto
+{
+    public PurchaseAnalyticsScopeContextDto ScopeContext { get; set; } = new();
+    public PurchaseAnalyticsVendorSnapshotDto Snapshot { get; set; } = new();
+    public IReadOnlyList<SalesAnalyticsBreakdownGroupDto> Breakdowns { get; set; } = Array.Empty<SalesAnalyticsBreakdownGroupDto>();
+    public PurchaseAnalyticsVendorRankingsDto Rankings { get; set; } = new();
+}
+
 public sealed class PurchaseAnalyticsDashboardDto
 {
     public PurchaseAnalyticsScopeContextDto ScopeContext { get; set; } = new();

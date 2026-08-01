@@ -1,6 +1,7 @@
 using CRM.API.Authorization;
 using CRM.API.Models.DTOs;
 using CRM.API.Utilities;
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Analytics;
 using CRM.Core.Utilities;
@@ -115,10 +116,11 @@ namespace CRM.API.Controllers
             [FromQuery] string? rfqItemId,
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
+            [FromQuery] string? dataset = null,
             CancellationToken cancellationToken = default)
         {
             var (request, maskCustomerNames, maskVendorNames) = await BuildListAnalyticsQueryRequestAsync(
-                keyword, status, rfqItemId, startDate, endDate, cancellationToken);
+                keyword, status, rfqItemId, startDate, endDate, dataset, cancellationToken);
             var data = await _quoteListQuery.GetListAnalyticsDashboardAsync(
                 request, maskCustomerNames, maskVendorNames, cancellationToken);
             return Ok(ApiResponse<QuoteListAnalyticsDashboardDto>.Ok(data));
@@ -133,10 +135,11 @@ namespace CRM.API.Controllers
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
             [FromQuery] string? groupBy,
+            [FromQuery] string? dataset = null,
             CancellationToken cancellationToken = default)
         {
             var (request, _, _) = await BuildListAnalyticsQueryRequestAsync(
-                keyword, status, rfqItemId, startDate, endDate, cancellationToken);
+                keyword, status, rfqItemId, startDate, endDate, dataset, cancellationToken);
             var data = await _quoteListQuery.GetListAnalyticsTrendsAsync(
                 request,
                 string.IsNullOrWhiteSpace(groupBy) ? "month" : groupBy.Trim(),
@@ -152,10 +155,11 @@ namespace CRM.API.Controllers
             [FromQuery] string? rfqItemId,
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
+            [FromQuery] string? dataset = null,
             CancellationToken cancellationToken = default)
         {
             var (request, _, _) = await BuildListAnalyticsQueryRequestAsync(
-                keyword, status, rfqItemId, startDate, endDate, cancellationToken);
+                keyword, status, rfqItemId, startDate, endDate, dataset, cancellationToken);
             var data = await _quoteListQuery.GetListAnalyticsBreakdownsAsync(request, cancellationToken);
             return Ok(ApiResponse<IReadOnlyList<SalesAnalyticsBreakdownGroupDto>>.Ok(data));
         }
@@ -168,10 +172,11 @@ namespace CRM.API.Controllers
             [FromQuery] string? rfqItemId,
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
+            [FromQuery] string? dataset = null,
             CancellationToken cancellationToken = default)
         {
             var (request, maskCustomerNames, maskVendorNames) = await BuildListAnalyticsQueryRequestAsync(
-                keyword, status, rfqItemId, startDate, endDate, cancellationToken);
+                keyword, status, rfqItemId, startDate, endDate, dataset, cancellationToken);
             var data = await _quoteListQuery.GetListAnalyticsRankingsAsync(
                 request, maskCustomerNames, maskVendorNames, cancellationToken);
             return Ok(ApiResponse<QuoteListAnalyticsRankingsDto>.Ok(data));
@@ -184,6 +189,7 @@ namespace CRM.API.Controllers
                 string? rfqItemId,
                 string? startDate,
                 string? endDate,
+                string? dataset,
                 CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -204,6 +210,7 @@ namespace CRM.API.Controllers
                 RfqItemId = !string.IsNullOrWhiteSpace(rfqItemId) ? rfqItemId.Trim() : null,
                 StartDate = PostgreSqlDateTime.ParseDateOnly(startDate),
                 EndDate = PostgreSqlDateTime.ParseDateOnly(endDate),
+                AnalyticsDataset = QuoteAnalyticsDatasets.Normalize(dataset),
                 CurrentUserId = userId
             };
 

@@ -1,5 +1,6 @@
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Analytics;
 using CRM.Core.Utilities;
 using CRM.Infrastructure.Common;
 using CRM.Infrastructure.Data;
@@ -140,6 +141,48 @@ internal static partial class PurchaseOrderItemListFilter
         }
 
         q = ApplyQuickFilter(q, request.QuickFilter);
+
+        if (PurchaseOrderItemAnalyticsDatasets.IsReportApproved(request.AnalyticsDataset))
+            q = ApplyReportViewLens(db, q, request);
+
+        return q;
+    }
+
+    private static IQueryable<PurchaseOrderItemLineJoin> ApplyReportViewLens(
+        ApplicationDbContext db,
+        IQueryable<PurchaseOrderItemLineJoin> q,
+        PurchaseOrderItemListQueryRequest request)
+    {
+        var viewLevel = (request.AnalyticsViewLevel ?? string.Empty).Trim().ToLowerInvariant();
+        if (viewLevel == SalesAnalyticsViewLevels.Personal
+            && !string.IsNullOrWhiteSpace(request.PurchaseUserId))
+        {
+            var uid = request.PurchaseUserId.Trim();
+            return q.Where(x => x.Po.PurchaseUserId == uid);
+        }
+
+        if (viewLevel == SalesAnalyticsViewLevels.Department)
+        {
+            var deptId = request.AnalyticsDepartmentId?.Trim();
+            if (string.IsNullOrWhiteSpace(deptId))
+                return q;
+
+            if (string.Equals(deptId, PurchaseAnalyticsScopeValidator.UnassignedDepartmentId, StringComparison.OrdinalIgnoreCase))
+            {
+                var withPrimary = db.RbacUserDepartments.AsNoTracking()
+                    .Where(ud => ud.IsPrimary)
+                    .Select(ud => ud.UserId);
+                return q.Where(x =>
+                    x.Po.PurchaseUserId == null
+                    || !withPrimary.Contains(x.Po.PurchaseUserId));
+            }
+
+            var userIdsInDept = db.RbacUserDepartments.AsNoTracking()
+                .Where(ud => ud.IsPrimary && ud.DepartmentId == deptId)
+                .Select(ud => ud.UserId);
+            return q.Where(x => x.Po.PurchaseUserId != null && userIdsInDept.Contains(x.Po.PurchaseUserId));
+        }
+
         return q;
     }
 

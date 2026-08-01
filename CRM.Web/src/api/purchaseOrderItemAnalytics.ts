@@ -20,6 +20,7 @@ export interface PurchaseOrderItemListAnalyticsQuery {
   /** 左栏快捷检索业务项 */
   quickFilter?: string
   groupBy?: 'day' | 'week' | 'month'
+  dataset?: 'listFilter' | 'reportApproved'
 }
 
 export interface PurchaseOrderItemListAnalyticsSnapshot {
@@ -91,6 +92,7 @@ function buildParams(q: PurchaseOrderItemListAnalyticsQuery): Record<string, unk
   }
   if (q.quickFilter) p.quickFilter = q.quickFilter
   if (q.groupBy) p.groupBy = q.groupBy
+  if (q.dataset) p.dataset = q.dataset
   return p
 }
 

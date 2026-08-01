@@ -1,5 +1,7 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
+using CRM.Core.Models.Analytics;
 using CRM.Core.Models.Customer;
 using CRM.Core.Models.Quote;
 using CRM.Core.Models.RFQ;
@@ -36,7 +38,16 @@ internal static class QuoteListFilter
         }
 
         q = ApplyKeywordToQuotes(db, q, request.Keyword);
-        q = ApplyRfqCreateDateToQuotes(db, q, request.StartDate, request.EndDate);
+
+        if (QuoteAnalyticsDatasets.IsReportScope(request.AnalyticsDataset))
+        {
+            q = ApplyQuoteCreateDate(q, request.StartDate, request.EndDate);
+            q = ApplyReportViewLens(db, q, request);
+        }
+        else
+        {
+            q = ApplyRfqCreateDateToQuotes(db, q, request.StartDate, request.EndDate);
+        }
 
         return q;
     }
@@ -68,7 +79,11 @@ internal static class QuoteListFilter
 
         q = await ApplyDemandDataScopeAsync(db, rbacService, dataPermission, purchaseQuoterPoolService, request, q, cancellationToken);
         q = ApplyKeywordToDemand(db, q, request.Keyword);
-        q = ApplyRfqCreateDateToDemand(q, request.StartDate, request.EndDate);
+
+        if (QuoteAnalyticsDatasets.IsReportScope(request.AnalyticsDataset))
+            q = ApplyReportScopeDemandFilter(db, q, request);
+        else
+            q = ApplyRfqCreateDateToDemand(q, request.StartDate, request.EndDate);
 
         return q;
     }
@@ -145,6 +160,103 @@ internal static class QuoteListFilter
         }
 
         return q;
+    }
+
+    private static IQueryable<Quote> ApplyQuoteCreateDate(
+        IQueryable<Quote> q,
+        DateTime? startDate,
+        DateTime? endDate)
+    {
+        if (startDate.HasValue)
+        {
+            var start = SalesAnalyticsDateFilter.ToUtcDateStart(startDate.Value);
+            q = q.Where(quote => quote.CreateTime >= start);
+        }
+
+        if (endDate.HasValue)
+        {
+            var endExclusive = SalesAnalyticsDateFilter.ToUtcDateEndExclusive(endDate.Value);
+            q = q.Where(quote => quote.CreateTime < endExclusive);
+        }
+
+        return q;
+    }
+
+    private static IQueryable<Quote> ApplyReportViewLens(
+        ApplicationDbContext db,
+        IQueryable<Quote> q,
+        QuoteQueryRequest request)
+    {
+        var viewLevel = (request.AnalyticsViewLevel ?? string.Empty).Trim().ToLowerInvariant();
+        if (viewLevel == SalesAnalyticsViewLevels.Personal
+            && !string.IsNullOrWhiteSpace(request.PurchaseUserId))
+        {
+            var uid = request.PurchaseUserId.Trim();
+            return q.Where(quote => quote.PurchaseUserId == uid);
+        }
+
+        if (viewLevel == SalesAnalyticsViewLevels.Department)
+        {
+            var deptId = request.AnalyticsDepartmentId?.Trim();
+            if (string.IsNullOrWhiteSpace(deptId))
+                return q;
+
+            if (string.Equals(deptId, PurchaseAnalyticsScopeValidator.UnassignedDepartmentId, StringComparison.OrdinalIgnoreCase))
+            {
+                var withPrimary = db.RbacUserDepartments.AsNoTracking()
+                    .Where(ud => ud.IsPrimary)
+                    .Select(ud => ud.UserId);
+                return q.Where(quote =>
+                    quote.PurchaseUserId == null
+                    || !withPrimary.Contains(quote.PurchaseUserId));
+            }
+
+            var userIdsInDept = db.RbacUserDepartments.AsNoTracking()
+                .Where(ud => ud.IsPrimary && ud.DepartmentId == deptId)
+                .Select(ud => ud.UserId);
+            return q.Where(quote => quote.PurchaseUserId != null && userIdsInDept.Contains(quote.PurchaseUserId));
+        }
+
+        return q;
+    }
+
+    /// <summary>reportScope：并联需求仅保留在报价创建日 + 采购员透镜范围内有报价的需求行。</summary>
+    private static IQueryable<QuoteDemandJoin> ApplyReportScopeDemandFilter(
+        ApplicationDbContext db,
+        IQueryable<QuoteDemandJoin> q,
+        QuoteQueryRequest request)
+    {
+        DateTime? start = null;
+        DateTime? endExclusive = null;
+        if (request.StartDate.HasValue)
+            start = SalesAnalyticsDateFilter.ToUtcDateStart(request.StartDate.Value);
+        if (request.EndDate.HasValue)
+            endExclusive = SalesAnalyticsDateFilter.ToUtcDateEndExclusive(request.EndDate.Value);
+
+        var viewLevel = (request.AnalyticsViewLevel ?? string.Empty).Trim().ToLowerInvariant();
+        var personalUserId = request.PurchaseUserId?.Trim();
+        var deptId = request.AnalyticsDepartmentId?.Trim();
+
+        return q.Where(x => db.Quotes.Any(quote =>
+            !quote.IsDeleted
+            && quote.RFQItemId == x.Item.Id
+            && (!start.HasValue || quote.CreateTime >= start.Value)
+            && (!endExclusive.HasValue || quote.CreateTime < endExclusive.Value)
+            && (
+                viewLevel != SalesAnalyticsViewLevels.Personal
+                || string.IsNullOrWhiteSpace(personalUserId)
+                || quote.PurchaseUserId == personalUserId)
+            && (
+                viewLevel != SalesAnalyticsViewLevels.Department
+                || string.IsNullOrWhiteSpace(deptId)
+                || (
+                    string.Equals(deptId, PurchaseAnalyticsScopeValidator.UnassignedDepartmentId, StringComparison.OrdinalIgnoreCase)
+                        ? quote.PurchaseUserId == null
+                          || !db.RbacUserDepartments.Any(ud =>
+                              ud.IsPrimary && ud.UserId == quote.PurchaseUserId)
+                        : quote.PurchaseUserId != null
+                          && db.RbacUserDepartments.Any(ud =>
+                              ud.IsPrimary && ud.DepartmentId == deptId && ud.UserId == quote.PurchaseUserId)))));
     }
 
     private static IQueryable<QuoteDemandJoin> ApplyKeywordToDemand(
