@@ -998,7 +998,6 @@ const { onOpsPanelRowClick } = useListRightOpsPanelInteraction({
   loadSelected: () => {
     void purchaseOrderItemOpsStore.loadAggregates(t('purchaseOrderItemList.messages.loadLineFailed'))
   },
-  shouldBlockRowClick: () => maskPurchaseSensitiveFields.value,
   dataTabIds: ['r-ops', 'r-flow']
 })
 
@@ -1012,10 +1011,6 @@ function opsPanelRowClassName({ row }: { row: Record<string, unknown> }) {
     ? 'so-item-row--active'
     : ''
 }
-
-watch(maskPurchaseSensitiveFields, (masked) => {
-  if (masked) purchaseOrderItemOpsStore.clear()
-})
 
 const canViewPurchaseUser = computed(() => authStore.hasPermission('purchase.user.read') || authStore.hasPermission('purchase-order.read'))
 const canViewAmount = computed(

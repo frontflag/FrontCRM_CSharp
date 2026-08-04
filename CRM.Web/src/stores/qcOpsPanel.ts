@@ -1,12 +1,17 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import { logisticsApi, type QcInfoDto, type QcOpsAggregatesDto } from '@/api/logistics'
-import { documentApi, DOCUMENT_BIZ_TYPE_QC } from '@/api/document'
-import { countQcImageDocuments } from '@/utils/qcImageDocument'
 import { getApiErrorMessage } from '@/utils/apiError'
 
 type RowRecord = Record<string, unknown>
 type RowHandler = (row: RowRecord) => void | Promise<void>
+
+function resolveQcImageCount(target: RowRecord | null | undefined): number {
+  if (!target) return 0
+  const n = Number(target.qcImageCount ?? target.QcImageCount ?? 0)
+  if (!Number.isFinite(n) || n <= 0) return 0
+  return Math.floor(n)
+}
 
 export const useQcOpsPanelStore = defineStore('qcOpsPanel', () => {
   const row = ref<RowRecord | null>(null)
@@ -15,6 +20,7 @@ export const useQcOpsPanelStore = defineStore('qcOpsPanel', () => {
   const loadError = ref('')
   const aggregatesRowKey = ref('')
   const actionLoading = ref(false)
+  /** 复用列表行 qcImageCount，选中时不再为计数请求文档 */
   const qcImageCount = ref(0)
 
   let createStockInHandler: RowHandler | null = null
@@ -47,11 +53,11 @@ export const useQcOpsPanelStore = defineStore('qcOpsPanel', () => {
     const key = rowKey(target)
     if (!key) return
     row.value = target
+    qcImageCount.value = resolveQcImageCount(target)
     if (aggregatesRowKey.value !== key) {
       aggregates.value = null
       loadError.value = ''
       loading.value = false
-      qcImageCount.value = 0
     }
   }
 
@@ -73,20 +79,16 @@ export const useQcOpsPanelStore = defineStore('qcOpsPanel', () => {
     loadError.value = ''
 
     try {
-      const [data, docs] = await Promise.all([
-        logisticsApi.getQcOpsAggregates(id),
-        documentApi.getDocuments(DOCUMENT_BIZ_TYPE_QC, id).catch(() => [])
-      ])
+      const data = await logisticsApi.getQcOpsAggregates(id)
       if (seq !== loadSeq || !row.value || rowKey(row.value) !== id) return
       aggregates.value = data
       aggregatesRowKey.value = id
-      qcImageCount.value = countQcImageDocuments(Array.isArray(docs) ? docs : [])
+      qcImageCount.value = resolveQcImageCount(row.value)
     } catch (e: unknown) {
       if (seq !== loadSeq || !row.value || rowKey(row.value) !== id) return
       loadError.value = getApiErrorMessage(e, loadFailedText)
       aggregates.value = null
       aggregatesRowKey.value = ''
-      qcImageCount.value = 0
     } finally {
       if (seq === loadSeq) loading.value = false
     }

@@ -248,6 +248,10 @@ namespace CRM.Core.Services
             await ReconcileQcBoundStockInStatusForPostedAsync(ordered);
             await NormalizeUnboundQcStockInDisplayStatusAsync(ordered);
 
+            var imageCounts = await _qcListQuery.GetQcImageCountsAsync(idList, cancellationToken);
+            foreach (var qc in ordered)
+                qc.QcImageCount = imageCounts.TryGetValue(qc.Id, out var n) ? n : 0;
+
             return new PagedResult<QCInfo>
             {
                 Items = ordered,

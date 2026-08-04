@@ -24,6 +24,10 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
+function isLevelAllowed(level: SalesAnalyticsViewLevel): boolean {
+  return (props.allowedLevels ?? []).some((l) => String(l).toLowerCase() === level)
+}
+
 const tabs = computed(() => {
   const all: { key: SalesAnalyticsViewLevel; label: string; disabled: boolean }[] = [
     {
@@ -32,17 +36,17 @@ const tabs = computed(() => {
         effectiveDataScope.value === 0
           ? t(`${props.i18nPrefix}.tabs.company`)
           : t(`${props.i18nPrefix}.tabs.visibleScope`),
-      disabled: !props.allowedLevels.includes('company')
+      disabled: !isLevelAllowed('company')
     },
     {
       key: 'department',
       label: t(`${props.i18nPrefix}.tabs.department`),
-      disabled: !props.allowedLevels.includes('department')
+      disabled: !isLevelAllowed('department')
     },
     {
       key: 'personal',
       label: t(`${props.i18nPrefix}.tabs.personal`),
-      disabled: !props.allowedLevels.includes('personal')
+      disabled: !isLevelAllowed('personal')
     }
   ]
   return all

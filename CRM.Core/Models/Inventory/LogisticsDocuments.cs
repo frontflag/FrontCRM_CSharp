@@ -232,6 +232,10 @@ namespace CRM.Core.Models.Inventory
         [NotMapped]
         public string? CreateUserName { get; set; }
 
+        /// <summary>列表展示：本单质检图片附件数量（upload_document BizType=QC，口径同左栏有图预设）。</summary>
+        [NotMapped]
+        public int QcImageCount { get; set; }
+
         [StringLength(36)]
         [Column("modify_by_user_id")]
         public string? ModifyByUserId { get; set; }

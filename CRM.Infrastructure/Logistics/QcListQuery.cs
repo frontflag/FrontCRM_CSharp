@@ -197,4 +197,12 @@ public sealed class QcListQuery : IQcListQuery
             PageSize = ps
         };
     }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyDictionary<string, int>> GetQcImageCountsAsync(
+        IReadOnlyCollection<string> qcIds,
+        CancellationToken cancellationToken = default)
+    {
+        return await QcListQuickFilter.CountQcImagesByBizIdsAsync(_db, qcIds, cancellationToken);
+    }
 }

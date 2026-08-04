@@ -245,7 +245,8 @@ export interface SalesOrderDetailTabAggregates {
 }
 
 export interface SellOrderLineProfitLayer {
-  profitUsd: number
+  /** 无可用成本来源时为 null，界面显示「-」 */
+  profitUsd?: number | null
   profitRate?: number | null
 }
 
@@ -278,6 +279,8 @@ export interface SellOrderLineOutboundCostDetail {
   costUsd: number
 }
 
+export type SellOrderSalesExpectedCostSource = 'po' | 'stocking' | 'quote' | 'none'
+
 /** GET .../sell-order-items/{itemId}/line-profit */
 export interface SellOrderLineProfit {
   qty: number
@@ -308,6 +311,10 @@ export interface SellOrderLineProfit {
   outboundCostUsd: number
   purchaseProgressStatus?: number
   stockOutProgressStatus?: number
+  /** 预计销售成本来源：po | stocking | quote | none */
+  salesExpectedCostSource?: SellOrderSalesExpectedCostSource
+  /** 预计销售所用成本基数 USD */
+  salesExpectedCostUsd?: number
   quote: SellOrderLineProfitLayer
   salesExpected: SellOrderLineProfitLayer
   outbound: SellOrderLineProfitLayer

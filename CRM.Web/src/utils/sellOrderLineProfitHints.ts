@@ -12,8 +12,10 @@ type HintTranslator = (key: string, params?: Record<string, unknown>) => string
 const EPS = 0.005
 const RATE_ONE_EPS = 0.000001
 
-function isNearZero(n: number): boolean {
-  return Math.abs(n) < EPS
+function isNearZero(n: number | null | undefined): boolean {
+  const v = Number(n ?? 0)
+  if (!Number.isFinite(v)) return false
+  return Math.abs(v) < EPS
 }
 
 function isNearRateOne(rate?: number | null): boolean {
@@ -42,16 +44,17 @@ export function buildSellOrderLineProfitHints(
     quoteCostUsd,
     poCostUsdTotal,
     poCostUsdConfirmed,
-    purchaseProfitExpected,
     qtyStockOutActual,
     purchaseProgressStatus,
     stockOutProgressStatus,
     useActualOutboundCost = false,
+    salesExpectedCostSource,
     quote,
     salesExpected,
     outbound
   } = lineProfit
 
+  const costSource = salesExpectedCostSource ?? 'none'
   const purchaseStatus = progressLabel(t, 'purchase', purchaseProgressStatus)
   const stockOutStatus = progressLabel(t, 'stockOut', stockOutProgressStatus)
 
@@ -69,13 +72,13 @@ export function buildSellOrderLineProfitHints(
     })
   }
 
-  if (poCostUsdConfirmed <= 0) {
+  if (costSource === 'none' || salesExpected.profitUsd == null) {
     hints.push({
       level: 'salesExpected',
       type: 'info',
       message: t('salesOrderDetailView.performance.hints.noConfirmedPoCost', { purchaseStatus })
     })
-  } else if (isNearZero(salesExpected.profitUsd)) {
+  } else if (isNearZero(Number(salesExpected.profitUsd))) {
     hints.push({
       level: 'salesExpected',
       type: 'info',
@@ -85,10 +88,19 @@ export function buildSellOrderLineProfitHints(
     })
   }
 
-  if (
-    poCostUsdTotal > poCostUsdConfirmed + EPS &&
-    purchaseProfitExpected > salesExpected.profitUsd + EPS
-  ) {
+  if (costSource === 'stocking') {
+    hints.push({
+      level: 'salesExpected',
+      type: 'info',
+      message: t('salesOrderDetailView.performance.hints.salesUsingStockingCost')
+    })
+  } else if (costSource === 'quote') {
+    hints.push({
+      level: 'salesExpected',
+      type: 'info',
+      message: t('salesOrderDetailView.performance.hints.salesUsingQuoteCost')
+    })
+  } else if (costSource === 'po' && poCostUsdTotal > poCostUsdConfirmed + EPS) {
     hints.push({
       level: 'salesExpected',
       type: 'info',
@@ -130,7 +142,7 @@ export function buildSellOrderLineProfitHints(
     })
   }
 
-  if (outbound.profitRate == null && outbound.profitUsd > EPS) {
+  if (outbound.profitRate == null && (outbound.profitUsd ?? 0) > EPS) {
     hints.push({
       level: 'outbound',
       type: 'warning',

@@ -8,4 +8,9 @@ public interface IQcListQuery
         int page,
         int pageSize,
         CancellationToken cancellationToken = default);
+
+    /// <summary>按质检单 Id 批量统计质检图片数量（口径与有/无质检图片预设一致）。</summary>
+    Task<IReadOnlyDictionary<string, int>> GetQcImageCountsAsync(
+        IReadOnlyCollection<string> qcIds,
+        CancellationToken cancellationToken = default);
 }

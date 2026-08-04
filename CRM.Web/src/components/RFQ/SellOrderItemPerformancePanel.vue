@@ -164,7 +164,7 @@ const rows = computed(() => {
   const buildRow = (
     key: 'quote' | 'salesExpected' | 'outbound',
     label: string,
-    profitUsd: number,
+    profitUsd: number | null | undefined,
     profitRate: number | null | undefined,
     grossRevenue: number
   ) => {
@@ -259,7 +259,8 @@ watch(
   }
 )
 
-function formatGrossMargin(profitUsd: number, revenueUsd: number): string | null {
+function formatGrossMargin(profitUsd: number | null | undefined, revenueUsd: number): string | null {
+  if (profitUsd == null) return null
   const pct = computeGrossMarginPercent(profitUsd, revenueUsd)
   if (pct == null) return null
   return pct.toFixed(2)

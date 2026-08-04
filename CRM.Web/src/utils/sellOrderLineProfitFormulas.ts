@@ -33,7 +33,8 @@ function fmtRate(value?: number | null): string {
   return formatProfitRateMultiplierDisplay(0, value)
 }
 
-function fmtGrossMargin(profitUsd: number, revenueUsd: number): string {
+function fmtGrossMargin(profitUsd: number | null | undefined, revenueUsd: number): string {
+  if (profitUsd == null) return '—'
   const pct = computeGrossMarginPercent(profitUsd, revenueUsd)
   if (pct == null) return '—'
   return `${pct.toFixed(2)}%`
@@ -140,6 +141,17 @@ export function buildSellOrderLineProfitLayerFormulas(
   }
 
   const salesRevenueBasis = revenueText
+  const costSource = lineProfit.salesExpectedCostSource ?? 'none'
+  const salesCostUsd = lineProfit.salesExpectedCostUsd ?? poCostUsdConfirmed
+  const costLabelKey =
+    costSource === 'po'
+      ? 'salesOrderDetailView.performance.formulas.salesCostLabelPo'
+      : costSource === 'stocking'
+        ? 'salesOrderDetailView.performance.formulas.salesCostLabelStocking'
+        : costSource === 'quote'
+          ? 'salesOrderDetailView.performance.formulas.salesCostLabelQuote'
+          : 'salesOrderDetailView.performance.formulas.salesCostLabelNone'
+  const costLabel = t(costLabelKey)
   const salesLines: SellOrderLineProfitFormulaLine[] = [
     {
       key: 'revenue',
@@ -148,45 +160,69 @@ export function buildSellOrderLineProfitLayerFormulas(
         convertPrice: convertPriceText,
         result: revenueText
       })
-    },
-    {
-      key: 'profit',
-      text:
-        poCostUsdConfirmed <= 0
-          ? t('salesOrderDetailView.performance.formulas.salesProfitNoCost', {
-              revenue: salesRevenueBasis,
-              cost: fmtUsd2(poCostUsdConfirmed),
-              result: formatUsdProfitAmount(salesExpected.profitUsd)
-            })
-          : t('salesOrderDetailView.performance.formulas.salesProfit', {
-              revenue: salesRevenueBasis,
-              cost: fmtUsd2(poCostUsdConfirmed),
-              result: formatUsdProfitAmount(salesExpected.profitUsd)
-            })
-    },
-    {
-      key: 'rate',
-      text:
-        salesExpected.profitRate == null
-          ? t('salesOrderDetailView.performance.formulas.salesRateUnavailable', {
-              revenue: salesRevenueBasis,
-              cost: fmtUsd2(poCostUsdConfirmed)
-            })
-          : t('salesOrderDetailView.performance.formulas.salesRate', {
-              revenue: salesRevenueBasis,
-              cost: fmtUsd2(poCostUsdConfirmed),
-              result: fmtRate(salesExpected.profitRate)
-            })
-    },
-    {
-      key: 'grossMargin',
-      text: t('salesOrderDetailView.performance.formulas.grossMargin', {
-        profit: formatUsdProfitAmount(salesExpected.profitUsd),
-        revenue: salesRevenueBasis,
-        result: fmtGrossMargin(salesExpected.profitUsd, revenueUsd)
-      })
     }
   ]
+
+  if (costSource === 'none' || salesExpected.profitUsd == null) {
+    salesLines.push(
+      {
+        key: 'profit',
+        text: t('salesOrderDetailView.performance.formulas.salesProfitUnavailable')
+      },
+      {
+        key: 'rate',
+        text: t('salesOrderDetailView.performance.formulas.salesRateUnavailable', {
+          revenue: salesRevenueBasis,
+          cost: fmtUsd2(salesCostUsd),
+          costLabel
+        })
+      },
+      {
+        key: 'grossMargin',
+        text: t('salesOrderDetailView.performance.formulas.grossMargin', {
+          profit: '—',
+          revenue: salesRevenueBasis,
+          result: '—'
+        })
+      }
+    )
+  } else {
+    salesLines.push(
+      {
+        key: 'profit',
+        text: t('salesOrderDetailView.performance.formulas.salesProfit', {
+          revenue: salesRevenueBasis,
+          cost: fmtUsd2(salesCostUsd),
+          costLabel,
+          result: formatUsdProfitAmount(salesExpected.profitUsd)
+        })
+      },
+      {
+        key: 'rate',
+        text:
+          salesExpected.profitRate == null
+            ? t('salesOrderDetailView.performance.formulas.salesRateUnavailable', {
+                revenue: salesRevenueBasis,
+                cost: fmtUsd2(salesCostUsd),
+                costLabel
+              })
+            : t('salesOrderDetailView.performance.formulas.salesRate', {
+                revenue: salesRevenueBasis,
+                cost: fmtUsd2(salesCostUsd),
+                costLabel,
+                result: fmtRate(salesExpected.profitRate)
+              })
+      },
+      {
+        key: 'grossMargin',
+        text: t('salesOrderDetailView.performance.formulas.grossMargin', {
+          profit: formatUsdProfitAmount(salesExpected.profitUsd),
+          revenue: salesRevenueBasis,
+          result: fmtGrossMargin(salesExpected.profitUsd, revenueUsd)
+        })
+      }
+    )
+  }
 
   const outQtyText = fmtQty(qtyStockOutActual)
   const outboundLines: SellOrderLineProfitFormulaLine[] = []

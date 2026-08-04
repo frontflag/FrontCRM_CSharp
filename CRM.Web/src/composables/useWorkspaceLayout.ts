@@ -1,6 +1,11 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount, provide, type InjectionKey, type Ref } from 'vue'
 
 const STORAGE_KEY = 'frontcrm_workspace_layout_v1'
+/** 各路由上次激活的左右扩展栏页签（与布局宽高分离，便于独立迁移） */
+const AUX_TABS_STORAGE_KEY = 'frontcrm_aux_tabs_by_route_v1'
+
+type AuxTabsMemoryEntry = { left?: string; right?: string }
+type AuxTabsMemoryMap = Record<string, AuxTabsMemoryEntry>
 
 export type SidebarMode = 'full' | 'narrow'
 
@@ -33,6 +38,11 @@ function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n))
 }
 
+function routeKey(routeName: string | symbol | null | undefined): string {
+  if (routeName == null || routeName === '') return ''
+  return String(routeName)
+}
+
 export function useWorkspaceLayout() {
   const sidebarMode = ref<SidebarMode>('full')
   const sidebarWidthPx = ref(240)
@@ -54,10 +64,102 @@ export function useWorkspaceLayout() {
   const rightTabs = ref<WorkspaceTabItem[]>([{ id: 'r4', labelKey: 'layout.auxTabs.help' }])
   const leftActiveTabId = ref('l1')
   const rightActiveTabId = ref('r4')
+  /** 当前路由名；用于按页记忆左右页签 */
+  const auxTabsRouteKey = ref('')
+  let auxTabsByRoute: AuxTabsMemoryMap = {}
+  let auxTabsPersistPaused = false
 
   const dragging = ref<null | 'sidebar' | 'left' | 'right'>(null)
   let dragStartX = 0
   let dragStartWidth = 0
+
+  const loadAuxTabsMemory = () => {
+    try {
+      const raw = localStorage.getItem(AUX_TABS_STORAGE_KEY)
+      if (!raw) {
+        auxTabsByRoute = {}
+        return
+      }
+      const o = JSON.parse(raw) as unknown
+      if (!o || typeof o !== 'object' || Array.isArray(o)) {
+        auxTabsByRoute = {}
+        return
+      }
+      const next: AuxTabsMemoryMap = {}
+      for (const [k, v] of Object.entries(o as Record<string, unknown>)) {
+        if (!k || !v || typeof v !== 'object' || Array.isArray(v)) continue
+        const entry = v as Record<string, unknown>
+        const left = typeof entry.left === 'string' ? entry.left : undefined
+        const right = typeof entry.right === 'string' ? entry.right : undefined
+        if (left || right) next[k] = { left, right }
+      }
+      auxTabsByRoute = next
+    } catch {
+      auxTabsByRoute = {}
+    }
+  }
+
+  const persistAuxTabsMemory = () => {
+    try {
+      localStorage.setItem(AUX_TABS_STORAGE_KEY, JSON.stringify(auxTabsByRoute))
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const rememberAuxTabsForRoute = (routeName: string | symbol | null | undefined) => {
+    const key = routeKey(routeName)
+    if (!key) return
+    const leftIds = new Set(leftTabs.value.map((t) => t.id))
+    const rightIds = new Set(rightTabs.value.map((t) => t.id))
+    const left = leftIds.has(leftActiveTabId.value) ? leftActiveTabId.value : undefined
+    const right = rightIds.has(rightActiveTabId.value) ? rightActiveTabId.value : undefined
+    if (!left && !right) return
+    auxTabsByRoute[key] = {
+      left: left ?? auxTabsByRoute[key]?.left,
+      right: right ?? auxTabsByRoute[key]?.right
+    }
+    persistAuxTabsMemory()
+  }
+
+  /**
+   * 进入某路由并完成 rightTabs 注册后调用：优先恢复上次页签，否则用 defaults，再否则首个可用页签。
+   * 收起→展开仍走 prefer*OnExpand，不受本函数影响。
+   */
+  const restoreAuxTabsForRoute = (
+    routeName: string | symbol | null | undefined,
+    defaults?: { left?: string; right?: string }
+  ) => {
+    auxTabsPersistPaused = true
+    try {
+      const key = routeKey(routeName)
+      auxTabsRouteKey.value = key
+      const saved = key ? auxTabsByRoute[key] : undefined
+      const leftIds = new Set(leftTabs.value.map((t) => t.id))
+      const rightIds = new Set(rightTabs.value.map((t) => t.id))
+
+      let left =
+        saved?.left && leftIds.has(saved.left)
+          ? saved.left
+          : defaults?.left && leftIds.has(defaults.left)
+            ? defaults.left
+            : undefined
+      if (!left) left = leftIds.has('l1') ? 'l1' : leftTabs.value[0]?.id
+
+      let right =
+        saved?.right && rightIds.has(saved.right)
+          ? saved.right
+          : defaults?.right && rightIds.has(defaults.right)
+            ? defaults.right
+            : undefined
+      if (!right) right = rightTabs.value[0]?.id
+
+      if (left) leftActiveTabId.value = left
+      if (right) rightActiveTabId.value = right
+    } finally {
+      auxTabsPersistPaused = false
+    }
+  }
 
   const load = () => {
     try {
@@ -79,6 +181,9 @@ export function useWorkspaceLayout() {
       /* ignore */
     }
   }
+
+  // 须在 AppLayout immediate 路由 watch 之前可读；不能只放在 onMounted
+  loadAuxTabsMemory()
 
   const save = () => {
     try {
@@ -113,6 +218,12 @@ export function useWorkspaceLayout() {
     },
     { immediate: true }
   )
+
+  /** 用户切换页签时写入当前路由记忆 */
+  watch([leftActiveTabId, rightActiveTabId], () => {
+    if (auxTabsPersistPaused || !auxTabsRouteKey.value) return
+    rememberAuxTabsForRoute(auxTabsRouteKey.value)
+  })
 
   /** 与历史模板一致：仅边条时视为 collapsed */
   const isSidebarCollapsed = computed(() => sidebarMode.value === 'narrow')
@@ -279,6 +390,8 @@ export function useWorkspaceLayout() {
     toggleLeftFullscreen,
     toggleRightFullscreen,
     toggleCenterFullscreen,
+    rememberAuxTabsForRoute,
+    restoreAuxTabsForRoute,
     api
   }
 }

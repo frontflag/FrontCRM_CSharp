@@ -1,6 +1,8 @@
 using CRM.Core.Constants;
+using CRM.Core.Models.Document;
 using CRM.Core.Models.Inventory;
 using CRM.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace CRM.Infrastructure.Logistics;
 
@@ -37,8 +39,8 @@ internal static class QcListQuickFilter
         };
     }
 
-    /// <summary>可翻译为 SQL 的质检图片 BizId 集合（mime / 扩展名 / 文件名后缀，与前端 qcImageDocument 口径一致）。</summary>
-    private static IQueryable<string> QcImageDocumentBizIds(ApplicationDbContext db) =>
+    /// <summary>可翻译为 SQL 的质检图片文档查询（mime / 扩展名 / 文件名后缀，与前端 qcImageDocument 口径一致）。</summary>
+    private static IQueryable<UploadDocument> QcImageDocuments(ApplicationDbContext db) =>
         db.UploadDocuments
             .Where(d => d.BizType == QcDocumentBizType
                         && (
@@ -56,9 +58,42 @@ internal static class QcListQuickFilter
                                 || d.OriginalFileName.ToLower().EndsWith(".png")
                                 || d.OriginalFileName.ToLower().EndsWith(".gif")
                                 || d.OriginalFileName.ToLower().EndsWith(".webp")
-                                || d.OriginalFileName.ToLower().EndsWith(".bmp")))))
-            .Select(d => d.BizId)
-            .Distinct();
+                                || d.OriginalFileName.ToLower().EndsWith(".bmp")))));
+
+    /// <summary>可翻译为 SQL 的质检图片 BizId 集合。</summary>
+    private static IQueryable<string> QcImageDocumentBizIds(ApplicationDbContext db) =>
+        QcImageDocuments(db).Select(d => d.BizId).Distinct();
+
+    /// <summary>对本页质检 Id 批量 GROUP BY 图片数量；无图 Id 不在字典中（调用方视为 0）。</summary>
+    public static async Task<Dictionary<string, int>> CountQcImagesByBizIdsAsync(
+        ApplicationDbContext db,
+        IReadOnlyCollection<string> qcIds,
+        CancellationToken cancellationToken = default)
+    {
+        var result = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        if (qcIds == null || qcIds.Count == 0) return result;
+
+        var idSet = qcIds
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (idSet.Count == 0) return result;
+
+        var rows = await QcImageDocuments(db)
+            .Where(d => idSet.Contains(d.BizId))
+            .GroupBy(d => d.BizId)
+            .Select(g => new { BizId = g.Key, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+
+        foreach (var row in rows)
+        {
+            if (string.IsNullOrWhiteSpace(row.BizId)) continue;
+            result[row.BizId] = row.Count;
+        }
+
+        return result;
+    }
 
     private static IQueryable<QCInfo> WhereHasQcImages(ApplicationDbContext db, IQueryable<QCInfo> q)
     {

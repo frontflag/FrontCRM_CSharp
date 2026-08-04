@@ -129,6 +129,9 @@ export interface QcInfoDto {
   stockInStatus: number
   passQty: number
   rejectQty: number
+  /** 本单质检图片附件数量（列表服务端聚合） */
+  qcImageCount?: number
+  QcImageCount?: number
   stockInId?: string
   /** 入库类型：10采购 20报关 30退货 40报废 */
   stockInType?: number

@@ -1603,7 +1603,6 @@ const { onOpsPanelRowClick } = useListRightOpsPanelInteraction({
   loadSelected: () => {
     void salesOrderItemOpsStore.loadAggregates(t('salesOrderItemList.messages.loadLineFailed'))
   },
-  shouldBlockRowClick: () => maskSaleSensitiveFields.value,
   dataTabIds: ['r-ops', 'r-flow']
 })
 
@@ -1617,10 +1616,6 @@ function opsPanelRowClassName({ row }: { row: Record<string, unknown> }) {
     ? 'so-item-row--active'
     : ''
 }
-
-watch(maskSaleSensitiveFields, (masked) => {
-  if (masked) salesOrderItemOpsStore.clear()
-})
 
 onMounted(() => {
   salesOrderItemOpsStore.registerHandlers({

@@ -18,7 +18,8 @@ public static class SaleSensitiveFieldMask521
 {
     public static bool ShouldMask(UserPermissionSummaryDto? s)
     {
-        if (s == null || s.IsSysAdmin) return false;
+        // SuperAdmin / Admin / Manager（HasBizDataBypass）不套用 521
+        if (s == null || s.IsSysAdmin || s.HasBizDataBypass) return false;
         if (s.SaleDataScope != 4) return false;
         if (s.BelongsToPurchaseDept) return true;
         return s.IdentityType is 2 or 3;

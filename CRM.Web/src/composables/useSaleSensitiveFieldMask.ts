@@ -14,7 +14,8 @@ export function useSaleSensitiveFieldMask() {
 
   const maskSaleSensitiveFields = computed(() => {
     const u = authStore.user
-    if (!u || u.isSysAdmin === true) return false
+    // SuperAdmin / Admin / Manager：与后端 HasBizDataBypass 对齐
+    if (!u || u.isSysAdmin || u.hasBizDataBypass) return false
     if (Number(u.saleDataScope) !== 4) return false
     if (u.belongsToPurchaseDept === true) return true
     const it = Number(u.identityType)

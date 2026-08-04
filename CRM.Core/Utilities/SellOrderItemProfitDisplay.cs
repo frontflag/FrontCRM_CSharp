@@ -14,12 +14,12 @@ public static class SellOrderItemProfitDisplay
         return storedRate;
     }
 
-    /// <summary>预计销售利润率：收入 ÷ 已确认采购成本；已确认成本为 0 时返回 null。</summary>
-    public static decimal? ResolveSalesExpectedRateForDisplay(decimal revenueUsd, decimal poCostUsdConfirmed)
+    /// <summary>预计销售利润率：收入 ÷ 成本基数；成本 ≤ 0 时返回 null。</summary>
+    public static decimal? ResolveSalesExpectedRateForDisplay(decimal revenueUsd, decimal costUsd)
     {
-        if (poCostUsdConfirmed <= 0m)
+        if (costUsd <= 0m)
             return null;
-        return Math.Round(revenueUsd / poCostUsdConfirmed, 6, MidpointRounding.AwayFromZero);
+        return Math.Round(revenueUsd / costUsd, 6, MidpointRounding.AwayFromZero);
     }
 
     /// <summary>报价/通用利润率：成本为 0 且利润 ≥ 0 时返回 null。</summary>

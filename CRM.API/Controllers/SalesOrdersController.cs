@@ -1666,14 +1666,12 @@ namespace CRM.API.Controllers
                 quoteCostUsd,
                 quoteProfit);
 
-            var salesRate = SellOrderItemProfitDisplay.ResolveSalesExpectedRateForDisplay(
-                revenueUsd,
-                ext.PoCostUsdConfirmed);
             var poItems = await _db.PurchaseOrderItems.AsNoTracking()
                 .Where(p => p.SellOrderItemId == lineId)
                 .Select(p => new { p.Id, p.PurchaseOrderItemCode, p.Qty, p.ConvertPrice })
                 .ToListAsync();
             var poQtyTotal = poItems.Sum(p => p.Qty);
+            var poCostUsdTotalLive = Math.Round(poItems.Sum(p => p.Qty * p.ConvertPrice), 2, MidpointRounding.AwayFromZero);
             var avgPoCostUsd = poQtyTotal > 0m
                 ? Math.Round(poItems.Sum(p => p.Qty * p.ConvertPrice) / poQtyTotal, 6, MidpointRounding.AwayFromZero)
                 : 0m;
@@ -1715,6 +1713,27 @@ namespace CRM.API.Controllers
             var outboundRate = SellOrderItemProfitDisplay.ResolveProfitOutRateBizForDisplay(
                 outboundRateStored,
                 outboundProfitUsd);
+
+            var outboundBatchQty = outboundCostLineRows.Sum(l => (decimal)l.Qty);
+            var outboundBatchCostUsd = Math.Round(
+                outboundCostLineRows.Sum(l => l.Qty * l.PurchasePriceUsd),
+                2,
+                MidpointRounding.AwayFromZero);
+            var (stockingUsedQty, stockingPickCostUsd) = await LoadSellOrderStockingPickCostAsync(lineId);
+            var (stockingCovered, stockingUnit) = SellOrderSalesExpectedProfitCalc.ResolveStockingUnitCost(
+                soItem.Qty,
+                outboundBatchQty,
+                outboundBatchCostUsd,
+                stockingUsedQty,
+                stockingPickCostUsd);
+            var salesExpectedCalc = SellOrderSalesExpectedProfitCalc.Compute(
+                revenueUsd,
+                soItem.Qty,
+                hasPoItems: poItems.Count > 0,
+                poCostUsdTotal: poCostUsdTotalLive,
+                stockingCovered: stockingCovered,
+                stockingUnitCostUsd: stockingUnit,
+                quoteConvertCost: ext.QuoteConvertCost);
 
             return new
             {
@@ -1764,6 +1783,8 @@ namespace CRM.API.Controllers
                 outboundCostUsd,
                 purchaseProgressStatus = ext.PurchaseProgressStatus,
                 stockOutProgressStatus = ext.StockOutProgressStatus,
+                salesExpectedCostSource = salesExpectedCalc.CostSource,
+                salesExpectedCostUsd = salesExpectedCalc.CostUsd,
                 quote = new
                 {
                     profitUsd = quoteProfit,
@@ -1771,8 +1792,8 @@ namespace CRM.API.Controllers
                 },
                 salesExpected = new
                 {
-                    profitUsd = ext.SalesProfitExpected,
-                    profitRate = salesRate
+                    profitUsd = salesExpectedCalc.ProfitUsd,
+                    profitRate = salesExpectedCalc.ProfitRate
                 },
                 outbound = new
                 {
@@ -1780,6 +1801,64 @@ namespace CRM.API.Controllers
                     profitRate = outboundRate
                 }
             };
+        }
+
+        /// <summary>备货拣货用量与成本（与操作面板 stockingUsage / SyncService 同源）。</summary>
+        private async Task<(decimal UsedQty, decimal CostUsd)> LoadSellOrderStockingPickCostAsync(string lineId)
+        {
+            var notifyIds = await _db.StockOutRequests.AsNoTracking()
+                .Where(r => r.SalesOrderItemId == lineId)
+                .Select(r => r.Id)
+                .ToListAsync();
+
+            var packingItemIds = await _db.PackingItems.AsNoTracking()
+                .Where(pi => !pi.IsDeleted
+                             && ((pi.SellOrderItemId != null && pi.SellOrderItemId == lineId)
+                                 || (pi.StockOutNotifyId != null && notifyIds.Contains(pi.StockOutNotifyId))))
+                .Select(pi => pi.Id)
+                .ToListAsync();
+            if (packingItemIds.Count == 0)
+                return (0m, 0m);
+
+            var pickRows = await (
+                    from pti in _db.PickingTaskItems.AsNoTracking()
+                    join pt in _db.PickingTasks.AsNoTracking() on pti.PickingTaskId equals pt.Id
+                    where !pti.IsDeleted
+                          && !pt.IsDeleted
+                          && pti.IsStockingSupplement
+                          && pti.PickedQty > 0
+                          && pti.PackingItemId != null
+                          && packingItemIds.Contains(pti.PackingItemId!)
+                    select new { pti.PickedQty, pti.StockItemId })
+                .ToListAsync();
+            if (pickRows.Count == 0)
+                return (0m, 0m);
+
+            var stockIds = pickRows
+                .Select(x => x.StockItemId?.Trim())
+                .Where(x => !string.IsNullOrEmpty(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Cast<string>()
+                .ToList();
+            var priceById = stockIds.Count == 0
+                ? new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase)
+                : await _db.StockItems.AsNoTracking()
+                    .Where(si => stockIds.Contains(si.Id))
+                    .ToDictionaryAsync(si => si.Id.Trim(), si => si.PurchasePriceUsd, StringComparer.OrdinalIgnoreCase);
+
+            decimal used = 0m;
+            decimal cost = 0m;
+            foreach (var pick in pickRows)
+            {
+                var qty = Math.Max(0, pick.PickedQty);
+                if (qty <= 0) continue;
+                used += qty;
+                var sid = pick.StockItemId?.Trim() ?? string.Empty;
+                if (priceById.TryGetValue(sid, out var unit))
+                    cost += qty * unit;
+            }
+
+            return (used, Math.Round(cost, 2, MidpointRounding.AwayFromZero));
         }
 
         private async Task<List<SellOrderOutboundCostLine>> LoadSellOrderOutboundCostLinesAsync(string sellOrderItemId)

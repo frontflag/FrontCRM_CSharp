@@ -303,8 +303,17 @@ async function loadData() {
     trends.value = trendRows
     breakdowns.value = breakdownRows
 
-    if (dash.scopeContext.allowedViewLevels.length && !dash.scopeContext.allowedViewLevels.includes(viewLevel.value)) {
-      viewLevel.value = dash.scopeContext.viewLevel
+    // 后端可能将非法 company 回落到默认层；同步 Tab，避免 UI 仍显示「公司」
+    const resolvedLevel = dash.scopeContext.viewLevel as PurchaseAnalyticsViewLevel | undefined
+    if (resolvedLevel && resolvedLevel !== viewLevel.value) {
+      viewLevel.value = resolvedLevel
+    } else if (
+      dash.scopeContext.allowedViewLevels.length &&
+      !dash.scopeContext.allowedViewLevels.some(
+        (l) => String(l).toLowerCase() === String(viewLevel.value).toLowerCase()
+      )
+    ) {
+      viewLevel.value = dash.scopeContext.viewLevel as PurchaseAnalyticsViewLevel
     }
     if (!departmentId.value && dash.scopeContext.resolvedDepartmentId) {
       departmentId.value = dash.scopeContext.resolvedDepartmentId ?? undefined

@@ -22,14 +22,20 @@ public static class PurchaseAnalyticsScopeValidator
         if (summary.IsSysAdmin || summary.PurchaseDataScope == 0)
             return new[] { SalesAnalyticsViewLevels.Company, SalesAnalyticsViewLevels.Department, SalesAnalyticsViewLevels.Personal };
 
+        // 跟单助理：数据池仅为 assistor=自己，只开放个人透镜。
         if (BusinessDepartmentRules.UsePurchaseOrderAssistorOnlyScope(summary))
             return new[] { SalesAnalyticsViewLevels.Personal };
 
+        // Scope 1/2/3：三层透镜均可切换；数据仍由 ApplyPurchaseOrderDataScopeAsync 封顶。
+        // Scope≠0 时公司 Tab 文案为「可见范围」（权限内汇总，非全集团）。
         return summary.PurchaseDataScope switch
         {
-            3 => new[] { SalesAnalyticsViewLevels.Company, SalesAnalyticsViewLevels.Department, SalesAnalyticsViewLevels.Personal },
-            2 => new[] { SalesAnalyticsViewLevels.Department, SalesAnalyticsViewLevels.Personal },
-            1 => new[] { SalesAnalyticsViewLevels.Personal },
+            1 or 2 or 3 => new[]
+            {
+                SalesAnalyticsViewLevels.Company,
+                SalesAnalyticsViewLevels.Department,
+                SalesAnalyticsViewLevels.Personal
+            },
             _ => Array.Empty<string>()
         };
     }
@@ -87,12 +93,17 @@ public static class PurchaseAnalyticsScopeValidator
         if (allowedLevels.Count == 0)
             return new ValidationResult { Ok = false, Error = "当前账号无采购数据范围" };
 
+        // 前端默认常传 company；无公司视角时回落到账号默认层，避免首屏报错。
         var level = string.IsNullOrWhiteSpace(viewLevel)
             ? GetDefaultViewLevel(summary)
             : viewLevel.Trim().ToLowerInvariant();
 
         if (!allowedLevels.Contains(level, StringComparer.OrdinalIgnoreCase))
-            return new ValidationResult { Ok = false, Error = $"viewLevel={level} 超出当前数据范围" };
+        {
+            level = GetDefaultViewLevel(summary);
+            if (!allowedLevels.Contains(level, StringComparer.OrdinalIgnoreCase))
+                return new ValidationResult { Ok = false, Error = $"viewLevel={level} 超出当前数据范围" };
+        }
 
         string? resolvedDept = null;
         string? resolvedUser = null;

@@ -1,3 +1,4 @@
+2026-08-04 08:39:09 | feat(sales,logistics): 预计销售利润瀑布成本并修复备货出库落库与质检面板
 2026-08-01 22:00:51 | feat(customer,vendor): 客户与供应商列表看板及列表/报表帮助覆盖
 2026-08-01 18:59:11 | feat(analytics): 采购报表供应商/报价/订单 Tab 与列表看板双口径复用
 2026-07-30 23:26:15 | chore(gitignore): 忽略本地 frontcrm_deploy_* 部署产物目录

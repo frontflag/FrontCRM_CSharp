@@ -826,8 +826,7 @@ const { onOpsPanelRowClick } = useListRightOpsPanelInteraction({
     arrivalNoticeOpsStore.selectRow(row, t('arrivalNoticeList.opsPanel.loadFailed')),
   loadSelected: () => {
     void arrivalNoticeOpsStore.loadAggregates(t('arrivalNoticeList.opsPanel.loadFailed'))
-  },
-  shouldBlockRowClick: () => maskPurchaseSensitiveFields.value
+  }
 })
 
 async function onRowClick(row: StockInNotifyDto) {

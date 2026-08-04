@@ -4,9 +4,10 @@ import type { WorkspaceLayoutApi } from '@/composables/useWorkspaceLayout'
 /**
  * 列表页右侧「操作」等数据页签交互门控（与销售订单明细列表 §2.4 一致）：
  * - 右栏收起：单击忽略
- * - 展开但非数据页签：仅 setRowOnly，不请求
- * - 展开且为数据页签（默认 r-ops；销售明细含 r-flow）：selectRow / 加载
+ * - 展开但非数据页签：仅 setRowOnly，不请求（切到「操作」后再加载）
+ * - 展开且为数据页签（默认 r-ops；销售明细含 r-flow）：selectRow / 加载（与列表同源，不因 511/521 脱敏拦截）
  * - 切到数据页签或展开右栏且已在数据页签：有选中行则 loadSelected
+ * - 面板内按钮与敏感字段展示仍由角色权限 / 脱敏 composable 控制
  */
 export function useListRightOpsPanelInteraction(options: {
   workspaceLayout: WorkspaceLayoutApi | null | undefined

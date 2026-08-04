@@ -1120,10 +1120,7 @@ async function goPick(row: PackingListItem) {
 }
 
 function onRowClick(row: PackingListItem) {
-  if (maskSaleSensitiveFields.value) {
-    packingFlowStore.clear()
-    return
-  }
+  // 流程面板与列表同源：脱敏不拦截加载；敏感字段在面板内按角色过滤
   const id = resolvePackingId(row)
   if (!id) return
   void packingFlowStore.bindPackingFromList(id, t('packingList.flowPanel.loadFailed'))
@@ -1339,10 +1336,6 @@ function onPackingPrintCommand(row: PackingListItem, cmd: string) {
   if (cmd === 'with') void goPackingReport(row, true)
   else if (cmd === 'without') void goPackingReport(row, false)
 }
-
-watch(maskSaleSensitiveFields, (masked) => {
-  if (masked) packingFlowStore.clear()
-})
 
 onMounted(() => {
   void ensureLogisticsDict()

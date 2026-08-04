@@ -16,7 +16,8 @@ public static class PurchaseSensitiveFieldMask511
 {
     public static bool ShouldMask(UserPermissionSummaryDto? s)
     {
-        if (s == null || s.IsSysAdmin) return false;
+        // SuperAdmin / Admin / Manager（HasBizDataBypass）不套用 511，避免操作面板行点击被误拦
+        if (s == null || s.IsSysAdmin || s.HasBizDataBypass) return false;
         if (s.PurchaseDataScope != 4) return false;
         if (s.BelongsToPurchaseDept) return false;
         var it = s.IdentityType;

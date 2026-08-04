@@ -17,7 +17,7 @@ function hasSalesOrderPermission(permissionCodes: string[] | undefined): boolean
  * RFQ 报价：销售员可看<strong>询价单价</strong>；报价行上的<strong>供应商名称/编码/联系人</strong>仍应脱敏（与后端 `ApplyQuoteVendorIdentityOnly` 一致）。
  *
  * 条件概要：
- * - `purchaseDataScope === 4`、非系统管理员；
+ * - `purchaseDataScope === 4`；非 SuperAdmin / 非 `hasBizDataBypass`（Admin/Manager）；
  * - 非采购侧部门（`belongsToPurchaseDept` 为真时不脱敏，避免采购兼岗被误伤）；
  * - **销售方向**：`identityType === 1`，或与后端 `RbacService` 一致——**主部门 `IdentityType` 未维护为 1 但已合并销售订单权限**（`identityType === 0` 且具备 `sales-order.read/write`）的业务员，仍视为销售侧需脱敏；
  * - PRD 写明客服/物流/财务等**默认不套用**本表：`identityType` 为 4 / 5 / 6 时不自动脱敏。
@@ -27,7 +27,8 @@ export function usePurchaseSensitiveFieldMask() {
 
   const maskPurchaseSensitiveFields = computed(() => {
     const u = authStore.user
-    if (!u || u.isSysAdmin === true) return false
+    // SuperAdmin / Admin / Manager：与后端 HasBizDataBypass 对齐，不脱敏、不拦截操作面板行点击
+    if (!u || u.isSysAdmin || u.hasBizDataBypass) return false
     if (Number(u.purchaseDataScope) !== 4) return false
     if (u.belongsToPurchaseDept === true) return false
 

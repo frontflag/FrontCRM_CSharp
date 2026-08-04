@@ -47,12 +47,49 @@
               <span class="ops-kv__sep" aria-hidden="true">：</span>
               <span class="ops-kv__value">{{ formatQty(stockInEligibleQty) }}</span>
             </div>
-            <div class="ops-stock-region-cell">
-              <span class="ops-kv__label">{{ t('qcList.opsPanel.qcImages') }}</span>
-              <span class="ops-kv__sep" aria-hidden="true">：</span>
-              <span class="ops-kv__value">{{ qcImageCountText }}</span>
-            </div>
           </div>
+        </div>
+      </section>
+
+      <section class="ops-card">
+        <header class="ops-card__head">
+          <h3 class="ops-card__title">{{ t('qcList.opsPanel.qcImagesTitle') }}</h3>
+        </header>
+        <div class="ops-card__body">
+          <p v-if="qcImageCountNum <= 0" class="ops-status ops-status--info">
+            {{ t('qcList.opsPanel.qcImagesEmpty') }}
+          </p>
+          <template v-else>
+            <div class="ops-stock-region-row ops-qc-images-row">
+              <div class="ops-stock-region-cell">
+                <span class="ops-kv__label">{{ t('qcList.opsPanel.qcImages') }}</span>
+                <span class="ops-kv__sep" aria-hidden="true">：</span>
+                <span class="ops-kv__value">{{ qcImageCountText }}</span>
+              </div>
+              <el-button
+                link
+                type="primary"
+                class="ops-qc-images-preview-btn"
+                :disabled="previewLoading"
+                @click="onTogglePreview"
+              >
+                {{
+                  previewExpanded
+                    ? t('qcList.opsPanel.qcImagesCollapse')
+                    : t('qcList.opsPanel.qcImagesPreview')
+                }}
+              </el-button>
+            </div>
+            <p v-if="previewError" class="ops-status ops-status--warn">{{ previewError }}</p>
+            <div v-if="previewExpanded" v-loading="previewLoading" class="ops-qc-images-gallery">
+              <QcImagesReadonlyGallery
+                v-if="!previewLoading"
+                :images="previewImages"
+                :empty-text="t('qcList.opsPanel.qcImagesEmpty')"
+                :browser-title="t('qcList.opsPanel.qcImagesTitle')"
+              />
+            </div>
+          </template>
         </div>
       </section>
 
@@ -243,13 +280,21 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { CircleCheck } from '@element-plus/icons-vue'
 import type { QcOpsAggregatesDto } from '@/api/logistics'
+import {
+  documentApi,
+  DOCUMENT_BIZ_TYPE_QC,
+  type QcImageReadonlyRow
+} from '@/api/document'
 import { formatDisplayDate } from '@/utils/displayDateTime'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
+import QcImagesReadonlyGallery from '@/components/Logistics/QcImagesReadonlyGallery.vue'
 import { StockInTypeCode } from '@/constants/stockInType'
+import { filterQcImageDocuments, resolveUploadDocumentId } from '@/utils/qcImageDocument'
+import { getApiErrorMessage } from '@/utils/apiError'
 import {
   buildQcCreateStockInDisabledHintContent,
   qcCreateStockInButtonDisabled,
@@ -273,6 +318,27 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+
+const previewExpanded = ref(false)
+const previewLoading = ref(false)
+const previewError = ref('')
+const previewImages = ref<QcImageReadonlyRow[]>([])
+let previewSeq = 0
+
+function resetPreview() {
+  previewSeq += 1
+  previewExpanded.value = false
+  previewLoading.value = false
+  previewError.value = ''
+  previewImages.value = []
+}
+
+watch(
+  () => String(props.row?.id ?? props.row?.Id ?? ''),
+  () => {
+    resetPreview()
+  }
+)
 
 const qcCode = computed(() => String(props.row?.qcCode ?? props.row?.QcCode ?? '—') || '—')
 const qcStatus = computed(() => Number(props.row?.status ?? props.row?.Status ?? 0))
@@ -329,9 +395,58 @@ const createStockInBtnDisabled = computed(() => {
 
 const stockInEligibleQty = computed(() => passQty.value)
 
+const qcImageCountNum = computed(() => {
+  const fromProp = Number(props.qcImageCount)
+  if (Number.isFinite(fromProp) && fromProp >= 0) return Math.floor(fromProp)
+  const fromRow = Number(props.row?.qcImageCount ?? props.row?.QcImageCount ?? 0)
+  if (Number.isFinite(fromRow) && fromRow >= 0) return Math.floor(fromRow)
+  return 0
+})
+
 const qcImageCountText = computed(() =>
-  t('qcList.opsPanel.qcImageCount', { count: Math.max(0, Number(props.qcImageCount ?? 0)) })
+  t('qcList.opsPanel.qcImageCount', { count: qcImageCountNum.value })
 )
+
+async function onTogglePreview() {
+  if (qcImageCountNum.value <= 0) return
+  if (previewExpanded.value) {
+    previewExpanded.value = false
+    return
+  }
+
+  const id = String(props.row?.id ?? props.row?.Id ?? '').trim()
+  if (!id) return
+
+  const seq = ++previewSeq
+  previewExpanded.value = true
+  previewLoading.value = true
+  previewError.value = ''
+  previewImages.value = []
+
+  try {
+    const docs = await documentApi.getDocuments(DOCUMENT_BIZ_TYPE_QC, id)
+    if (seq !== previewSeq) return
+    const images = filterQcImageDocuments(Array.isArray(docs) ? docs : [])
+    const qcCodeVal = String(props.row?.qcCode ?? props.row?.QcCode ?? '').trim()
+    const notifyCode = String(props.row?.stockInNotifyCode ?? props.row?.StockInNotifyCode ?? '').trim()
+    previewImages.value = images.map((d) => ({
+      documentId: resolveUploadDocumentId(d),
+      qcId: id,
+      qcCode: qcCodeVal || null,
+      stockInNotifyCode: notifyCode || null,
+      originalFileName: d.originalFileName ?? null,
+      mimeType: d.mimeType ?? null,
+      fileExtension: d.fileExtension ?? null,
+      createTime: d.createTime ?? ''
+    }))
+  } catch (e: unknown) {
+    if (seq !== previewSeq) return
+    previewError.value = getApiErrorMessage(e, t('qcList.opsPanel.qcImagesLoadFailed'))
+    previewImages.value = []
+  } finally {
+    if (seq === previewSeq) previewLoading.value = false
+  }
+}
 
 const qcLink = computed(() => {
   const id = String(props.row?.id ?? props.row?.Id ?? '').trim()
@@ -426,4 +541,39 @@ function formatQty(v: unknown) {
 
 <style scoped lang="scss">
 @import '@/assets/styles/so-item-ops-panel.scss';
+
+.ops-qc-images-row {
+  align-items: center;
+}
+
+.ops-qc-images-row .ops-stock-region-cell {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ops-qc-images-preview-btn {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 0;
+  height: auto;
+  font-size: 13px;
+}
+
+.ops-qc-images-gallery {
+  margin-top: 10px;
+  min-height: 48px;
+}
+
+.ops-qc-images-gallery :deep(.qc-images-readonly) {
+  padding: 4px 0 0;
+}
+
+.ops-qc-images-gallery :deep(.qc-images-readonly__group-head) {
+  display: none;
+}
+
+.ops-qc-images-gallery :deep(.qc-images-readonly__thumb) {
+  width: 72px;
+  height: 72px;
+}
 </style>

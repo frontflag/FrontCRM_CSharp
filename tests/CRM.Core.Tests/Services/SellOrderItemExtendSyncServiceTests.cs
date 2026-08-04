@@ -311,6 +311,91 @@ public class SellOrderItemExtendSyncServiceTests
         Assert.Equal(2, updated.StockOutProgressStatus);
     }
 
+    /// <summary>
+    /// 备货层出库时扩展行曾误写库存原绑定销售行；头表已挂客单行时，刷新应把实出与出库状态归到客单行。
+    /// </summary>
+    [Fact]
+    public async Task RecalculateAsync_AttributesStockingOutbound_WhenExtendSellLinePointsToStockingLine()
+    {
+        var customerLine = Guid.NewGuid().ToString();
+        var stockingLine = Guid.NewGuid().ToString();
+        var stockOutId = Guid.NewGuid().ToString();
+        var itemId = Guid.NewGuid().ToString();
+
+        var soItemRepo = new MemoryRepository<SellOrderItem>();
+        var extendRepo = new MemoryRepository<SellOrderItemExtend>();
+        var stockOutRepo = new MemoryRepository<StockOut>();
+        var stockOutItemRepo = new MemoryRepository<StockOutItem>();
+        var stockOutItemExtendRepo = new MemoryRepository<StockOutItemExtend>();
+
+        await soItemRepo.AddAsync(new SellOrderItem
+        {
+            Id = customerLine,
+            SellOrderId = Guid.NewGuid().ToString(),
+            Qty = 17500m,
+            Price = 1m,
+            ConvertPrice = 1m
+        });
+        await extendRepo.AddAsync(new SellOrderItemExtend
+        {
+            Id = customerLine,
+            QtyStockOutActual = 0m,
+            StockOutProgressStatus = 0
+        });
+
+        await stockOutRepo.AddAsync(new StockOut
+        {
+            Id = stockOutId,
+            StockOutCode = "STO-STOCKING",
+            StockOutType = StockOutTypeCode.Sales,
+            Status = 4,
+            SellOrderItemId = customerLine,
+            TotalQuantity = 17500,
+            WarehouseId = Guid.NewGuid().ToString()
+        });
+        await stockOutItemRepo.AddAsync(new StockOutItem
+        {
+            Id = itemId,
+            StockOutId = stockOutId,
+            MaterialId = Guid.NewGuid().ToString(),
+            Quantity = 17500,
+            ActualQty = 17500
+        });
+        await stockOutItemExtendRepo.AddAsync(new StockOutItemExtend
+        {
+            Id = itemId,
+            SellOrderItemId = stockingLine,
+            StockType = 2,
+            QtyStockOut = 17500,
+            PurchasePriceUsd = 0.9m
+        });
+
+        var service = new SellOrderItemExtendSyncService(
+            soItemRepo,
+            extendRepo,
+            new MemoryRepository<PurchaseOrderItem>(),
+            new MemoryRepository<StockIn>(),
+            new MemoryRepository<StockInItemExtend>(),
+            new MemoryRepository<StockInItem>(),
+            new MemoryRepository<StockOutRequest>(),
+            stockOutRepo,
+            stockOutItemRepo,
+            stockOutItemExtendRepo,
+            new MemoryRepository<FinanceReceivable>(),
+            NoOpMainStatusSync(),
+            NullLogger<SellOrderItemExtendSyncService>.Instance);
+
+        await service.RecalculateAsync(customerLine);
+
+        var updated = await extendRepo.GetByIdAsync(customerLine);
+        Assert.NotNull(updated);
+        Assert.Equal(17500m, updated!.QtyStockOutActual);
+        Assert.Equal(2, updated.StockOutProgressStatus);
+        // 无本行 PO：备货出库批次覆盖整行 → 预计销售利润 = 收入 − 备货采购成本
+        // 17500×1 − 17500×0.9 = 1750（旧逻辑仅按扩展 SellOrderItemId 匹配时成本=0，会误写成整行收入）
+        Assert.Equal(1750m, updated.SalesProfitExpected);
+    }
+
     [Fact]
     public async Task RecalculateAsync_IgnoresCustomsStockOutNotify_WhenSummingSalesLineNotifyQty()
     {

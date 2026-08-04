@@ -69,6 +69,9 @@ namespace CRM.API.Extensions
             services.AddScoped<IPackingStatusReconcileService, CRM.Infrastructure.Packings.PackingStatusReconcileService>();
             services.AddScoped<IRepository<CRM.Core.Models.Inventory.Packing>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Inventory.Packing>>();
             services.AddScoped<IRepository<CRM.Core.Models.Inventory.PackingItem>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Inventory.PackingItem>>();
+            services.AddScoped<IRepository<CRM.Core.Models.Inventory.PickingTask>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Inventory.PickingTask>>();
+            services.AddScoped<IRepository<CRM.Core.Models.Inventory.PickingTaskItem>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Inventory.PickingTaskItem>>();
+            services.AddScoped<IRepository<CRM.Core.Models.Inventory.StockItem>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Inventory.StockItem>>();
             services.AddScoped<ICustomsBrokerService, CustomsBrokerService>();
             services.AddScoped<ICustomsDeclarationService, CustomsDeclarationService>();
             services.AddScoped<ICustomsPendlistService, CustomsPendlistService>();

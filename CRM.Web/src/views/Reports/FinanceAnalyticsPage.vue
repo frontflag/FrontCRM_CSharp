@@ -258,7 +258,13 @@ async function loadData() {
     trends.value = trendRows
     breakdowns.value = breakdownRows
 
-    if (dash.scopeContext.allowedViewLevels.length && !dash.scopeContext.allowedViewLevels.includes(viewLevel.value)) {
+    const resolvedLevel = dash.scopeContext.viewLevel as FinanceAnalyticsViewLevel | undefined
+    if (resolvedLevel && resolvedLevel !== viewLevel.value) {
+      viewLevel.value = resolvedLevel
+    } else if (
+      dash.scopeContext.allowedViewLevels.length &&
+      !dash.scopeContext.allowedViewLevels.includes(viewLevel.value)
+    ) {
       viewLevel.value = dash.scopeContext.viewLevel
     }
     if (!departmentId.value && dash.scopeContext.resolvedDepartmentId) {

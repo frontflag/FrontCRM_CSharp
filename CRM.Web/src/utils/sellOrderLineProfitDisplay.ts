@@ -29,6 +29,7 @@ export function formatUsdProfitAmount(value?: unknown | null): string {
 
 /** 毛利率 % 展示；收入 ≤ 0 时显示 — */
 export function formatGrossMarginDisplay(profitUsd?: unknown, revenueUsd?: unknown): string {
+  if (profitUsd == null) return '—'
   const pct = computeGrossMarginPercent(profitUsd, revenueUsd)
   if (pct == null) return '—'
   return `${pct.toFixed(2)}%`

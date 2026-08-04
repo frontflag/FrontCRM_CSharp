@@ -132,6 +132,9 @@
           :masked="maskPurchaseSensitiveFields"
         />
       </template>
+      <template #col-qcImageCount="{ row }">{{
+        Math.max(0, Number(row.qcImageCount ?? row.QcImageCount ?? 0) || 0)
+      }}</template>
       <template #col-createTime="{ row }">{{ formatTime(row.createTime) }}</template>
       <template #col-createUser="{ row }">{{
         row.createUserName || row.CreateUserName || row.createdBy || '--'
@@ -318,6 +321,13 @@ const qcTableColumns = computed<CrmTableColumnDef[]>(() => {
     { key: 'vendorName', label: t('qcList.columns.vendorName'), prop: 'vendorName', minWidth: 160, showOverflowTooltip: true },
     { key: 'passQty', label: t('qcList.columns.passQty'), prop: 'passQty', width: 110, align: 'right' },
     { key: 'rejectQty', label: t('qcList.columns.rejectQty'), prop: 'rejectQty', width: 110, align: 'right' },
+    {
+      key: 'qcImageCount',
+      label: t('qcList.columns.qcImageCount'),
+      prop: 'qcImageCount',
+      width: 100,
+      align: 'right'
+    },
     { key: 'stockInStatus', label: t('qcList.columns.stockInStatus'), width: 120, align: 'center' },
     { key: 'qcCode', label: t('qcList.columns.qcCode'), prop: 'qcCode', width: 160, minWidth: 160 },
     {
@@ -558,8 +568,7 @@ const { onOpsPanelRowClick } = useListRightOpsPanelInteraction({
   selectRow: row => qcOpsStore.selectRow(row, t('qcList.opsPanel.loadFailed')),
   loadSelected: () => {
     void qcOpsStore.loadAggregates(t('qcList.opsPanel.loadFailed'))
-  },
-  shouldBlockRowClick: () => maskPurchaseSensitiveFields.value
+  }
 })
 
 async function onRowClick(row: QcInfoDto) {

@@ -36,6 +36,10 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
     private readonly IRepository<StockOutItem> _stockOutItemRepo;
     private readonly IRepository<StockOutItemExtend> _stockOutItemExtendRepo;
     private readonly IRepository<FinanceReceivable> _receivableRepo;
+    private readonly IRepository<PackingItem>? _packingItemRepo;
+    private readonly IRepository<PickingTaskItem>? _pickingTaskItemRepo;
+    private readonly IRepository<PickingTask>? _pickingTaskRepo;
+    private readonly IRepository<StockItem>? _stockItemRepo;
     private readonly ISellOrderMainStatusSyncService _mainStatusSync;
     private readonly ILogger<SellOrderItemExtendSyncService> _logger;
 
@@ -52,7 +56,11 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
         IRepository<StockOutItemExtend> stockOutItemExtendRepo,
         IRepository<FinanceReceivable> receivableRepo,
         ISellOrderMainStatusSyncService mainStatusSync,
-        ILogger<SellOrderItemExtendSyncService> logger)
+        ILogger<SellOrderItemExtendSyncService> logger,
+        IRepository<PackingItem>? packingItemRepo = null,
+        IRepository<PickingTaskItem>? pickingTaskItemRepo = null,
+        IRepository<PickingTask>? pickingTaskRepo = null,
+        IRepository<StockItem>? stockItemRepo = null)
     {
         _soItemRepo = soItemRepo;
         _extendRepo = extendRepo;
@@ -67,6 +75,10 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
         _receivableRepo = receivableRepo;
         _mainStatusSync = mainStatusSync;
         _logger = logger;
+        _packingItemRepo = packingItemRepo;
+        _pickingTaskItemRepo = pickingTaskItemRepo;
+        _pickingTaskRepo = pickingTaskRepo;
+        _stockItemRepo = stockItemRepo;
     }
 
     /// <inheritdoc />
@@ -204,7 +216,8 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
             ext.InvoiceProgressStatus = ProgressPartial;
 
         var outboundCostLines = await LoadOutboundCostLinesAsync(id, completedStockOuts);
-        ApplyProfitFields(soItem, ext, poItems, outboundCostLines);
+        var (stockingUsedQty, stockingPickCostUsd) = await LoadStockingPickCostAsync(id, cancellationToken);
+        ApplyProfitFields(soItem, ext, poItems, outboundCostLines, stockingUsedQty, stockingPickCostUsd);
 
         ext.ModifyTime = DateTime.UtcNow;
         await _extendRepo.UpdateAsync(ext);
@@ -259,7 +272,9 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
         SellOrderItem soItem,
         SellOrderItemExtend ext,
         List<PurchaseOrderItem> poItems,
-        IReadOnlyList<SellOrderOutboundCostLine> outboundCostLines)
+        IReadOnlyList<SellOrderOutboundCostLine> outboundCostLines,
+        decimal stockingUsedQty = 0m,
+        decimal stockingPickCostUsd = 0m)
     {
         var revUsdNow = Math.Round(soItem.Qty * soItem.ConvertPrice, 2, MidpointRounding.AwayFromZero);
         var quoteCostUsdLine = Math.Round(soItem.Qty * ext.QuoteConvertCost, 2, MidpointRounding.AwayFromZero);
@@ -286,7 +301,27 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
         var confirmedItems = poItems.Where(p => p.Status >= PoItemStatusConfirmed).ToList();
         var poCostConfirmed = Math.Round(confirmedItems.Sum(p => p.Qty * p.ConvertPrice), 2, MidpointRounding.AwayFromZero);
         ext.PoCostUsdConfirmed = poCostConfirmed;
-        ext.SalesProfitExpected = Math.Round(revUsdNow - poCostConfirmed, 2, MidpointRounding.AwayFromZero);
+
+        var outboundCostUsd = Math.Round(
+            outboundCostLines.Sum(l => l.Qty * l.PurchasePriceUsd),
+            2,
+            MidpointRounding.AwayFromZero);
+        var outboundQty = outboundCostLines.Sum(l => (decimal)l.Qty);
+        var (stockingCovered, stockingUnit) = SellOrderSalesExpectedProfitCalc.ResolveStockingUnitCost(
+            soItem.Qty,
+            outboundQty,
+            outboundCostUsd,
+            stockingUsedQty,
+            stockingPickCostUsd);
+        var salesExpected = SellOrderSalesExpectedProfitCalc.Compute(
+            revUsdNow,
+            soItem.Qty,
+            hasPoItems: poItems.Count > 0,
+            poCostUsdTotal: poCostTotal,
+            stockingCovered: stockingCovered,
+            stockingUnitCostUsd: stockingUnit,
+            quoteConvertCost: ext.QuoteConvertCost);
+        ext.SalesProfitExpected = salesExpected.ProfitUsdForStorage;
 
         var sumPoQty = poItems.Sum(p => p.Qty);
         var avgCostUsd = sumPoQty > 0m
@@ -304,25 +339,85 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
 
     /// <summary>
     /// 已完成销售出库数量：按明细扩展 <c>sell_order_item_id</c> 归属累计。
-    /// 多行出库单头 <c>TotalQuantity</c> / 头表 <c>SellOrderItemId</c> 不能代表单行实出。
+    /// 多行出库单头 <c>TotalQuantity</c> 不能代表单行实出。
+    /// 兼容历史脏数据：扩展行误写了备货/样品库存原绑定行时，若出库单头 <c>SellOrderItemId</c> 为本行，
+    /// 且扩展为空绑定或库存类型为备货(2)/样品(3)，仍计入本行。
     /// </summary>
     private async Task<(decimal SumQty, List<StockOut> Headers)> SumCompletedSalesStockOutQtyForLineAsync(
         string sellOrderItemId)
     {
+        const short stockTypeStocking = 2;
+        const short stockTypeSample = 3;
+
+        var lineId = sellOrderItemId.Trim();
+
+        // A) 扩展行明确归属本销售明细
         var lineExtends = (await _stockOutItemExtendRepo.FindAsync(e =>
                 !e.IsDeleted
                 && e.SellOrderItemId != null
-                && e.SellOrderItemId == sellOrderItemId))
+                && e.SellOrderItemId == lineId))
             .ToList();
-        if (lineExtends.Count == 0)
+
+        // B) 头表归属本行，但扩展行 SellOrderItemId 空/误挂备货原行（刷新可修复历史出库状态）
+        var headerMatched = (await _stockOutRepo.FindAsync(o =>
+                o.SellOrderItemId != null
+                && o.SellOrderItemId == lineId
+                && (o.Status == StockOutCompleted || o.Status == StockOutFinished)
+                && (o.StockOutType == StockOutTypeCode.Sales
+                    || o.StockOutType == StockOutTypeCode.LegacySales)))
+            .ToList();
+        var headerIdSet = headerMatched
+            .Select(o => o.Id.Trim())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        List<StockOutItem> headerItems = new();
+        if (headerIdSet.Count > 0)
+        {
+            headerItems = (await _stockOutItemRepo.FindAsync(i =>
+                    !i.IsDeleted && headerIdSet.Contains(i.StockOutId)))
+                .ToList();
+        }
+
+        var headerItemIds = headerItems
+            .Select(i => i.Id.Trim())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var headerItemExtends = headerItemIds.Count == 0
+            ? new List<StockOutItemExtend>()
+            : (await _stockOutItemExtendRepo.FindAsync(e =>
+                    !e.IsDeleted && headerItemIds.Contains(e.Id)))
+                .ToList();
+
+        var attributedExtends = new Dictionary<string, StockOutItemExtend>(StringComparer.OrdinalIgnoreCase);
+        foreach (var e in lineExtends)
+        {
+            if (!string.IsNullOrWhiteSpace(e.Id))
+                attributedExtends[e.Id.Trim()] = e;
+        }
+
+        foreach (var e in headerItemExtends)
+        {
+            if (string.IsNullOrWhiteSpace(e.Id))
+                continue;
+            var itemId = e.Id.Trim();
+            if (attributedExtends.ContainsKey(itemId))
+                continue;
+
+            var extLine = e.SellOrderItemId?.Trim();
+            var isOrphanOrPool =
+                string.IsNullOrWhiteSpace(extLine)
+                || e.StockType == stockTypeStocking
+                || e.StockType == stockTypeSample;
+            // 客单层且扩展已指向其它销售行：留给那一行的 A 路径，避免多行出库单重复累计
+            if (!isOrphanOrPool && !string.Equals(extLine, lineId, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            attributedExtends[itemId] = e;
+        }
+
+        if (attributedExtends.Count == 0)
             return (0m, new List<StockOut>());
 
-        var extendByItemId = lineExtends
-            .Where(e => !string.IsNullOrWhiteSpace(e.Id))
-            .GroupBy(e => e.Id.Trim(), StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-        var itemIds = extendByItemId.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
-
+        var itemIds = attributedExtends.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
         var outItems = (await _stockOutItemRepo.FindAsync(i =>
                 !i.IsDeleted && itemIds.Contains(i.Id)))
             .ToList();
@@ -352,7 +447,7 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
         {
             if (!completedIdSet.Contains(item.StockOutId.Trim()))
                 continue;
-            if (!extendByItemId.TryGetValue(item.Id.Trim(), out var extRow))
+            if (!attributedExtends.TryGetValue(item.Id.Trim(), out var extRow))
                 continue;
             var qty = extRow.QtyStockOut > 0
                 ? extRow.QtyStockOut
@@ -390,11 +485,32 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
             StringComparer.OrdinalIgnoreCase);
         var itemIds = qtyByItemId.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
         var lineId = sellOrderItemId.Trim();
+        var headerLineIds = completedStockOuts
+            .Where(o => !string.IsNullOrWhiteSpace(o.SellOrderItemId)
+                        && string.Equals(o.SellOrderItemId.Trim(), lineId, StringComparison.OrdinalIgnoreCase))
+            .Select(o => o.Id.Trim())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        // 与 SumCompleted 归属一致：扩展行挂本行，或头表挂本行且扩展为空/备货/样品（历史脏数据）
+        const short stockTypeStocking = 2;
+        const short stockTypeSample = 3;
         var extends = (await _stockOutItemExtendRepo.FindAsync(e =>
-                !e.IsDeleted
-                && itemIds.Contains(e.Id)
-                && e.SellOrderItemId != null
-                && e.SellOrderItemId == lineId))
+                !e.IsDeleted && itemIds.Contains(e.Id)))
+            .Where(e =>
+            {
+                var extLine = e.SellOrderItemId?.Trim();
+                if (string.Equals(extLine, lineId, StringComparison.OrdinalIgnoreCase))
+                    return true;
+                var itemId = e.Id.Trim();
+                var stockOutId = outItems
+                    .FirstOrDefault(i => string.Equals(i.Id.Trim(), itemId, StringComparison.OrdinalIgnoreCase))
+                    ?.StockOutId?.Trim();
+                if (string.IsNullOrEmpty(stockOutId) || !headerLineIds.Contains(stockOutId))
+                    return false;
+                return string.IsNullOrWhiteSpace(extLine)
+                       || e.StockType == stockTypeStocking
+                       || e.StockType == stockTypeSample;
+            })
             .ToList();
 
         var lines = new List<SellOrderOutboundCostLine>(extends.Count);
@@ -416,5 +532,88 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
         }
 
         return lines;
+    }
+
+    /// <summary>
+    /// 备货拣货用量与成本：与操作面板 stockingUsage 同源（装箱明细 + IsStockingSupplement 拣货），
+    /// 成本取在库层 <c>PurchasePriceUsd × PickedQty</c>。
+    /// </summary>
+    private async Task<(decimal UsedQty, decimal CostUsd)> LoadStockingPickCostAsync(
+        string sellOrderItemId,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (_packingItemRepo == null || _pickingTaskItemRepo == null || _stockItemRepo == null)
+            return (0m, 0m);
+
+        var lineId = sellOrderItemId.Trim();
+        var notifyIds = (await _stockOutRequestRepo.FindAsync(r => r.SalesOrderItemId == lineId))
+            .Select(r => r.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var packingItems = (await _packingItemRepo.FindAsync(pi =>
+                !pi.IsDeleted
+                && ((pi.SellOrderItemId != null && pi.SellOrderItemId == lineId)
+                    || (pi.StockOutNotifyId != null && notifyIds.Contains(pi.StockOutNotifyId)))))
+            .ToList();
+        if (packingItems.Count == 0)
+            return (0m, 0m);
+
+        var packingItemIds = packingItems
+            .Select(pi => pi.Id.Trim())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var pickItems = (await _pickingTaskItemRepo.FindAsync(pti =>
+                !pti.IsDeleted
+                && pti.IsStockingSupplement
+                && pti.PickedQty > 0
+                && pti.PackingItemId != null
+                && packingItemIds.Contains(pti.PackingItemId)))
+            .ToList();
+
+        if (_pickingTaskRepo != null && pickItems.Count > 0)
+        {
+            var taskIds = pickItems
+                .Select(p => p.PickingTaskId.Trim())
+                .Where(x => !string.IsNullOrEmpty(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var activeTaskIds = (await _pickingTaskRepo.FindAsync(t =>
+                    taskIds.Contains(t.Id) && !t.IsDeleted))
+                .Select(t => t.Id.Trim())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            pickItems = pickItems
+                .Where(p => activeTaskIds.Contains(p.PickingTaskId.Trim()))
+                .ToList();
+        }
+
+        if (pickItems.Count == 0)
+            return (0m, 0m);
+
+        var stockIds = pickItems
+            .Select(p => p.StockItemId?.Trim())
+            .Where(x => !string.IsNullOrEmpty(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Cast<string>()
+            .ToList();
+        var priceByStockId = stockIds.Count == 0
+            ? new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase)
+            : (await _stockItemRepo.FindAsync(si => stockIds.Contains(si.Id)))
+                .ToDictionary(si => si.Id.Trim(), si => si.PurchasePriceUsd, StringComparer.OrdinalIgnoreCase);
+
+        decimal usedQty = 0m;
+        decimal costUsd = 0m;
+        foreach (var pick in pickItems)
+        {
+            var qty = Math.Max(0, pick.PickedQty);
+            if (qty <= 0)
+                continue;
+            usedQty += qty;
+            var sid = pick.StockItemId?.Trim() ?? string.Empty;
+            if (priceByStockId.TryGetValue(sid, out var unit))
+                costUsd += qty * unit;
+        }
+
+        return (usedQty, Math.Round(costUsd, 2, MidpointRounding.AwayFromZero));
     }
 }

@@ -1685,7 +1685,9 @@ const {
   toggleRightPanel,
   toggleLeftFullscreen,
   toggleRightFullscreen,
-  toggleCenterFullscreen
+  toggleCenterFullscreen,
+  rememberAuxTabsForRoute,
+  restoreAuxTabsForRoute
 } = useWorkspaceLayout()
 
 /** 中间/左/右任一侧工作区全屏时，Teleport 到 body 的 Element Plus 浮层需高于全屏层（9997–9998），否则操作列「...」等下拉无法点击 */
@@ -1987,7 +1989,9 @@ function syncStockOutNotifyListRightTabs() {
 
 watch(
   () => route.name,
-  (name) => {
+  (name, oldName) => {
+    if (oldName != null && oldName !== name) rememberAuxTabsForRoute(oldName)
+
     if (name === 'SalesOrderItemList') {
       rightTabs.value = [
         { id: 'r-ops', labelKey: 'layout.auxTabs.ops' },
@@ -2001,13 +2005,7 @@ watch(
       qcOpsStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
-      if (
-        rightActiveTabId.value !== 'r-ops' &&
-        rightActiveTabId.value !== 'r-flow' &&
-        rightActiveTabId.value !== 'r4'
-      ) {
-        rightActiveTabId.value = 'r-ops'
-      }
+      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-ops' })
       return
     }
     if (name === 'SalesOrderDetail') {
@@ -2022,9 +2020,7 @@ watch(
       qcOpsStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
-      if (rightActiveTabId.value !== 'r-ops' && rightActiveTabId.value !== 'r4') {
-        rightActiveTabId.value = 'r-ops'
-      }
+      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-ops' })
       return
     }
     if (name === 'PurchaseOrderItemList') {
@@ -2040,13 +2036,7 @@ watch(
       qcOpsStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
-      if (
-        rightActiveTabId.value !== 'r-ops' &&
-        rightActiveTabId.value !== 'r-flow' &&
-        rightActiveTabId.value !== 'r4'
-      ) {
-        rightActiveTabId.value = 'r-ops'
-      }
+      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-ops' })
       return
     }
     if (name === 'PurchaseOrderDetail') {
@@ -2061,9 +2051,7 @@ watch(
       qcOpsStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
-      if (rightActiveTabId.value !== 'r-ops' && rightActiveTabId.value !== 'r4') {
-        rightActiveTabId.value = 'r-ops'
-      }
+      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-ops' })
       return
     }
     if (name === 'CustomsDeclarationList') {
@@ -2078,6 +2066,7 @@ watch(
       qcOpsStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
+      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-ops' })
       return
     }
     if (name === 'ArrivalNoticeList') {
@@ -2094,9 +2083,7 @@ watch(
       materialIntelLookupStore.clearBound()
       customerIntelLookupStore.clearBound()
       vendorIntelLookupStore.clearBound()
-      if (rightActiveTabId.value !== 'r-ops' && rightActiveTabId.value !== 'r4') {
-        rightActiveTabId.value = 'r-ops'
-      }
+      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-ops' })
       return
     }
     if (name === 'QcList') {
@@ -2113,9 +2100,7 @@ watch(
       materialIntelLookupStore.clearBound()
       customerIntelLookupStore.clearBound()
       vendorIntelLookupStore.clearBound()
-      if (rightActiveTabId.value !== 'r-ops' && rightActiveTabId.value !== 'r4') {
-        rightActiveTabId.value = 'r-ops'
-      }
+      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-ops' })
       return
     }
     if (name === 'RFQItemList') {
@@ -2132,6 +2117,7 @@ watch(
       stockOutNotifyCustomsPanelStore.clear()
       customerIntelLookupStore.clearBound()
       vendorIntelLookupStore.clearBound()
+      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-material' })
       return
     }
     if (name === 'CustomerList' || name === 'CustomerDetail') {
@@ -2148,9 +2134,7 @@ watch(
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       vendorIntelLookupStore.clearBound()
-      if (rightActiveTabId.value !== 'r-customer-intel' && rightActiveTabId.value !== 'r4') {
-        rightActiveTabId.value = 'r-customer-intel'
-      }
+      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-customer-intel' })
       return
     }
     if (name === 'VendorList' || name === 'VendorDetail') {
@@ -2167,9 +2151,7 @@ watch(
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       customerIntelLookupStore.clearBound()
-      if (rightActiveTabId.value !== 'r-vendor-intel' && rightActiveTabId.value !== 'r4') {
-        rightActiveTabId.value = 'r-vendor-intel'
-      }
+      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-vendor-intel' })
       return
     }
     if (name === 'InventoryStockOutNotifyList' || name === 'StockOutNotifyList') {
@@ -2183,6 +2165,10 @@ watch(
       materialIntelLookupStore.clearBound()
       customerIntelLookupStore.clearBound()
       vendorIntelLookupStore.clearBound()
+      restoreAuxTabsForRoute(name, {
+        left: 'l1',
+        right: stockOutNotifyCustomsPanelStore.isCustomsSelection ? 'r-stock-out-customs' : 'r4'
+      })
       return
     }
     if (name === 'PackingDetail') {
@@ -2199,9 +2185,7 @@ watch(
       materialIntelLookupStore.clearBound()
       customerIntelLookupStore.clearBound()
       vendorIntelLookupStore.clearBound()
-      if (rightActiveTabId.value !== 'r-flow' && rightActiveTabId.value !== 'r4') {
-        rightActiveTabId.value = 'r-flow'
-      }
+      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-flow' })
       return
     }
     if (name === 'PackingList') {
@@ -2219,13 +2203,10 @@ watch(
       materialIntelLookupStore.clearBound()
       customerIntelLookupStore.clearBound()
       vendorIntelLookupStore.clearBound()
-      if (rightActiveTabId.value !== 'r-flow' && rightActiveTabId.value !== 'r4') {
-        rightActiveTabId.value = 'r-flow'
-      }
+      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-flow' })
       return
     }
     rightTabs.value = [{ id: 'r4', labelKey: 'layout.auxTabs.help' }]
-    rightActiveTabId.value = 'r4'
     salesOrderItemOpsStore.clear()
     purchaseOrderItemOpsStore.clear()
     packingDetailFlowStore.clear()
@@ -2236,6 +2217,7 @@ watch(
     materialIntelLookupStore.clearBound()
     customerIntelLookupStore.clearBound()
     vendorIntelLookupStore.clearBound()
+    restoreAuxTabsForRoute(name, { left: 'l1', right: 'r4' })
   },
   { immediate: true }
 )
@@ -2245,6 +2227,10 @@ watch(
   () => {
     if (!isStockOutNotifyListRoute.value) return
     syncStockOutNotifyListRightTabs()
+    restoreAuxTabsForRoute(route.name, {
+      left: 'l1',
+      right: stockOutNotifyCustomsPanelStore.isCustomsSelection ? 'r-stock-out-customs' : 'r4'
+    })
   }
 )
 

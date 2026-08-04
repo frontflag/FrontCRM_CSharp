@@ -87,12 +87,17 @@ public static class SalesAnalyticsScopeValidator
         if (allowedLevels.Count == 0)
             return new ValidationResult { Ok = false, Error = "当前账号无销售数据范围" };
 
+        // 前端默认常传 company；无公司视角时回落到账号默认层，避免首屏报错。
         var level = string.IsNullOrWhiteSpace(viewLevel)
             ? GetDefaultViewLevel(summary)
             : viewLevel.Trim().ToLowerInvariant();
 
         if (!allowedLevels.Contains(level, StringComparer.OrdinalIgnoreCase))
-            return new ValidationResult { Ok = false, Error = $"viewLevel={level} 超出当前数据范围" };
+        {
+            level = GetDefaultViewLevel(summary);
+            if (!allowedLevels.Contains(level, StringComparer.OrdinalIgnoreCase))
+                return new ValidationResult { Ok = false, Error = $"viewLevel={level} 超出当前数据范围" };
+        }
 
         string? resolvedDept = null;
         string? resolvedUser = null;

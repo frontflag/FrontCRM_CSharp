@@ -158,6 +158,10 @@ namespace CRM.Core.Models.Sales
         [Column(TypeName = "numeric(18,2)")]
         public decimal PoCostUsdConfirmed { get; set; }
 
+        /// <summary>
+        /// P2：预计销售利润（USD）= 销售收入 − 成本瀑布结果。
+        /// 有本行 PO 明细时用全部 PO 折成本；否则整行备货采购成本；否则报价成本；皆无则存 0（界面「-」）。
+        /// </summary>
         [Column(TypeName = "numeric(18,2)")]
         public decimal SalesProfitExpected { get; set; }
 

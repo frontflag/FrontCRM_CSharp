@@ -1058,6 +1058,10 @@ namespace CRM.Core.Services
             }
 
             var sellLineId = stockOutRequest.SalesOrderItemId.Trim();
+            var sellLine = await _sellOrderItemRepository.GetByIdAsync(sellLineId);
+            var sellLineCode = string.IsNullOrWhiteSpace(sellLine?.SellOrderItemCode)
+                ? null
+                : sellLine!.SellOrderItemCode.Trim();
 
             var isCustomsOut = StockOutTypeCode.NormalizeForNotify(stockOutRequest.StockOutType) == StockOutTypeCode.Customs;
             if (isCustomsOut)
@@ -1255,7 +1259,7 @@ namespace CRM.Core.Services
                     CreateTime = DateTime.UtcNow
                 };
                 await _stockOutItemRepository.AddAsync(outLine);
-                var ext = BuildStockOutItemExtend(outLine, layer, stock, takeQty);
+                var ext = BuildStockOutItemExtend(outLine, layer, stock, takeQty, sellLineId, sellLineCode);
                 if (isCustomsOut)
                 {
                     _customsV2FlowService.ApplyCustomsStockOutExtend(
@@ -1326,7 +1330,7 @@ namespace CRM.Core.Services
                     };
                     await _stockOutItemRepository.AddAsync(outLine);
                     await _stockOutItemExtendRepository.AddAsync(
-                        BuildStockOutItemExtend(outLine, layer, stock, takeQty));
+                        BuildStockOutItemExtend(outLine, layer, stock, takeQty, sellLineId, sellLineCode));
 
                     totalQty += takeQty;
                     needQty -= takeQty;
@@ -3036,12 +3040,19 @@ namespace CRM.Core.Services
 
         /// <summary>每条出库明细对应一条扩展行（主键与 <see cref="StockOutItem.Id"/> 相同）。</summary>
         /// <param name="lineQty">本条出库数量（与明细 <c>ActualQty</c>/<c>Quantity</c> 一致，本笔为 takeQty）。</param>
+        /// <param name="fulfilledSellOrderItemId">
+        /// 本笔出库通知对应的<strong>销售明细</strong>（非库存层原绑定行）。备货/样品层出库时层上 SellOrderItemId 可能是备货单行，
+        /// 必须写入通知行，否则销售明细扩展无法按行累计实出/出库状态。
+        /// </param>
+        /// <param name="fulfilledSellOrderItemCode">与 <paramref name="fulfilledSellOrderItemId"/> 对应的明细编号。</param>
         /// <param name="aggregatePricingLayer">仅汇总层出库时：用于价快照的在库明细（采/销折 USD 与扩展行利润计算同源）。</param>
         private static StockOutItemExtend BuildStockOutItemExtend(
             StockOutItem outLine,
             StockItem? layer,
             StockInfo stock,
             int lineQty,
+            string fulfilledSellOrderItemId,
+            string? fulfilledSellOrderItemCode,
             StockItem? aggregatePricingLayer = null)
         {
             var ext = new StockOutItemExtend
@@ -3054,25 +3065,34 @@ namespace CRM.Core.Services
             if (layer != null)
             {
                 FillStockOutItemExtendPricingFromLayer(ext, layer, lineQty);
-                return ext;
             }
-
-            ext.StockType = stock.StockType;
-            ext.SellOrderItemId = string.IsNullOrWhiteSpace(stock.SellOrderItemId) ? null : stock.SellOrderItemId.Trim();
-            ext.SellOrderItemCode = string.IsNullOrWhiteSpace(stock.SellOrderItemCode) ? null : stock.SellOrderItemCode.Trim();
-            ext.PurchaseOrderItemId = string.IsNullOrWhiteSpace(stock.PurchaseOrderItemId) ? null : stock.PurchaseOrderItemId.Trim();
-            ext.PurchaseOrderItemCode = string.IsNullOrWhiteSpace(stock.PurchaseOrderItemCode) ? null : stock.PurchaseOrderItemCode.Trim();
-            if (aggregatePricingLayer != null)
-                FillStockOutItemExtendPricingFromLayer(ext, aggregatePricingLayer, lineQty);
             else
             {
-                ext.PurchasePrice = 0m;
-                ext.PurchaseCurrency = (short)CurrencyCode.RMB;
-                ext.PurchasePriceUsd = 0m;
-                ext.SalesPrice = null;
-                ext.SalesCurrency = null;
-                ext.SalesPriceUsd = null;
-                ext.ProfitOutBizUsd = 0m;
+                ext.StockType = stock.StockType;
+                ext.PurchaseOrderItemId = string.IsNullOrWhiteSpace(stock.PurchaseOrderItemId) ? null : stock.PurchaseOrderItemId.Trim();
+                ext.PurchaseOrderItemCode = string.IsNullOrWhiteSpace(stock.PurchaseOrderItemCode) ? null : stock.PurchaseOrderItemCode.Trim();
+                if (aggregatePricingLayer != null)
+                    FillStockOutItemExtendPricingFromLayer(ext, aggregatePricingLayer, lineQty);
+                else
+                {
+                    ext.PurchasePrice = 0m;
+                    ext.PurchaseCurrency = (short)CurrencyCode.RMB;
+                    ext.PurchasePriceUsd = 0m;
+                    ext.SalesPrice = null;
+                    ext.SalesCurrency = null;
+                    ext.SalesPriceUsd = null;
+                    ext.ProfitOutBizUsd = 0m;
+                }
+            }
+
+            // 归属以出库通知销售行为准（覆盖库存层上的备货/样品原绑定行）
+            var fulfilledId = fulfilledSellOrderItemId.Trim();
+            if (!string.IsNullOrEmpty(fulfilledId))
+            {
+                ext.SellOrderItemId = fulfilledId;
+                ext.SellOrderItemCode = string.IsNullOrWhiteSpace(fulfilledSellOrderItemCode)
+                    ? null
+                    : fulfilledSellOrderItemCode.Trim();
             }
 
             return ext;
@@ -3081,14 +3101,13 @@ namespace CRM.Core.Services
         /// <summary>
         /// 扩展行利润与 <see cref="StockItem.ComputeProfitOutBizUsd"/> 公式一致（数量用本条出库量；<see cref="StockItem.ProfitOutBizUsd"/> 为入库 × <c>QtyInbound</c> 快照），
         /// 数量参数为<strong>本条出库明细的出库数量</strong> <paramref name="lineQty"/>（非层上累计 <c>QtyStockOut</c>）。
+        /// 不写 <see cref="StockOutItemExtend.SellOrderItemId"/>：由 <see cref="BuildStockOutItemExtend"/> 用出库通知销售行覆盖。
         /// </summary>
         private static void FillStockOutItemExtendPricingFromLayer(StockOutItemExtend ext, StockItem layer, int lineQty)
         {
             ext.StockType = layer.StockType;
             ext.StockInItemId = string.IsNullOrWhiteSpace(layer.StockInItemId) ? null : layer.StockInItemId.Trim();
             ext.StockInItemCode = string.IsNullOrWhiteSpace(layer.StockInItemCode) ? null : layer.StockInItemCode.Trim();
-            ext.SellOrderItemId = string.IsNullOrWhiteSpace(layer.SellOrderItemId) ? null : layer.SellOrderItemId.Trim();
-            ext.SellOrderItemCode = string.IsNullOrWhiteSpace(layer.SellOrderItemCode) ? null : layer.SellOrderItemCode.Trim();
             ext.PurchaseOrderItemId = string.IsNullOrWhiteSpace(layer.PurchaseOrderItemId) ? null : layer.PurchaseOrderItemId.Trim();
             ext.PurchaseOrderItemCode = string.IsNullOrWhiteSpace(layer.PurchaseOrderItemCode) ? null : layer.PurchaseOrderItemCode.Trim();
             ext.PurchasePrice = layer.PurchasePrice;
