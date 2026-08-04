@@ -20,7 +20,7 @@
     <div v-loading="loading" class="preview-wrap">
       <div v-if="errorMsg" class="err">{{ errorMsg }}</div>
       <div v-else-if="ready" class="print-root">
-        <StockOutPackingReportDocument v-bind="docBind" />
+        <component :is="packingReportSkin" v-bind="docBind" />
       </div>
     </div>
   </div>
@@ -42,9 +42,9 @@ import {
 } from '@/api/companyProfile'
 import apiClient from '@/api/client'
 import { formatDisplayDate } from '@/utils/displayDateTime'
-import StockOutPackingReportDocument, {
-  type StockOutPackingLineVm
-} from '@/components/stockOut/StockOutPackingReportDocument.vue'
+import type { StockOutPackingLineVm } from '@/components/stockOut/packingReport/types'
+import { resolvePackingReportSkin } from '@/components/stockOut/packingReport/resolvePackingReportSkin'
+import { LOGIN_TENANT_ID } from '@/config/loginTenant'
 import { renderPdfBlobFirstPageToPngDataUrl } from '@/utils/pdfSealToPng'
 import { getApiErrorMessage } from '@/utils/apiError'
 import type { PackingReportAddressPanel, StockOutDetailDto, PackingReportLine } from '@/api/stockOut'
@@ -54,6 +54,8 @@ import {
 } from '@/components/stockOut/packingReportLabels'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { normalizePackingAddrLines } from '@/utils/packingReportAddressLines'
+
+const packingReportSkin = resolvePackingReportSkin(LOGIN_TENANT_ID)
 
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 

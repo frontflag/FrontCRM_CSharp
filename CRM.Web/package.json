@@ -7,6 +7,8 @@
     "prebuild": "node ../scripts/sync-help.mjs",
     "postbuild": "node ../scripts/verify-help-dist.mjs",
     "dev": "vite",
+    "dev:semicore": "vite --mode development.semicore",
+    "dev:idesemi": "vite --mode development.idesemi",
     "dev:ecoinf": "vite --mode development.ecoinf",
     "typecheck": "vue-tsc --noEmit",
     "build": "vue-tsc && vite build",

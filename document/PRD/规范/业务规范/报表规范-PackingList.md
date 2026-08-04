@@ -6,15 +6,18 @@
 | --- | --- |
 | 规范名称 | 报表规范-PackingList |
 | 适用对象 | 装箱单 Packing List 打印 / 预览页 |
-| 模版基准 | SEMICORE GROUP LIMITED 装箱单模版 |
+| 模版基准 | **三租户皮肤**（`semicore` / `idesemi` / `ecoinf`）；Semicore 沿用原橙表 SEMICORE GROUP 版式 |
 | 关联总规范 | [Web 业务报表打印与导出规范](./Web业务报表打印与导出规范.md) |
-| 当前实现 | 2026-05 起前端 `StockOutPackingReportDocument.vue` |
+| 实现说明 | [装箱单 PackingList 打印-三租户皮肤-设计与实现](../../../System/物流/装箱单PackingList打印-三租户皮肤-设计与实现.md) |
+| 当前实现 | 页面 `StockOutPackingReportPage.vue` + `packingReport/skins/*`（按 `VITE_TENANT_ID` 选择） |
 
 **原则**
 
-- 报表 **caption / label 固定英文**，不随系统 UI 语言（zh-CN / en-US）切换。
+- 报表 caption / label 由工具栏「中文/英文」切换（见 `getPackingReportLabels`）；**不**随系统 UI 语言自动切换。
 - 业务数据（客户名、地址、物料、备注正文等）保持源数据语言。
-- 版式、列宽、双行单元格、空值规则以本文档为准；修改实现时须同步更新本文档。
+- **数据字段与区块顺序**三租户一致；**视觉版式**按租户分叉，须像三家不同公司的单据。
+- Logo / 公司名 / 印章 / 备注正文仍来自公司档案（部署数据），与皮肤选择无关。
+- 修改实现时须同步更新本文档与 System 设计说明。
 
 ---
 
@@ -35,14 +38,31 @@
 
 | 文件 | 职责 |
 | --- | --- |
-| `CRM.Web/src/views/Inventory/StockOutPackingReportPage.vue` | 拉数、工具栏（返回 / 打印 / 印章开关）、数据映射 |
-| `CRM.Web/src/components/stockOut/StockOutPackingReportDocument.vue` | 纯展示版式（`.po-doc`） |
-| `CRM.Web/src/components/stockOut/packingReportLabels.ts` | 固定英文 label 常量 |
-| `CRM.Web/src/assets/styles/print-purchase-order.scss` | 打印时隐藏壳层（body 类 `po-order-report-print`） |
+| `CRM.Web/src/views/Inventory/StockOutPackingReportPage.vue` | 拉数、工具栏、数据映射；`<component :is="packingReportSkin">` |
+| `CRM.Web/src/components/stockOut/packingReport/resolvePackingReportSkin.ts` | `LOGIN_TENANT_ID` → 皮肤组件 |
+| `CRM.Web/src/components/stockOut/packingReport/types.ts` | 三皮肤共用 props |
+| `CRM.Web/src/components/stockOut/packingReport/skins/PackingReportSkinSemicore.vue` | Semicore 橙表 |
+| `CRM.Web/src/components/stockOut/packingReport/skins/PackingReportSkinIdesemi.vue` | IdeSemi 深紫/琥珀 |
+| `CRM.Web/src/components/stockOut/packingReport/skins/PackingReportSkinEcoinf.vue` | EcoInf 工业极简 |
+| `CRM.Web/src/components/stockOut/StockOutPackingReportDocument.vue` | 兼容入口（转发 Semicore） |
+| `CRM.Web/src/components/stockOut/packingReportLabels.ts` | 中/英 label |
+| `CRM.Web/src/assets/styles/print-purchase-order.scss` | 打印隐藏壳层 + `print-color-adjust` |
+
+### 2.3 三租户皮肤要点
+
+| 租户 | 根 class | 视觉要点 |
+| --- | --- | --- |
+| `semicore` | `.po-doc--semicore` | 橙 `#e5913e` 表头/分区条；Logo 左 + 公司/标题居中（§3–§4 详述） |
+| `idesemi` | `.po-doc--idesemi` | 深紫顶栏 + 琥珀细线；Meta 右侧卡片；表头深紫底琥珀底边；地址栏左竖条无色块 |
+| `ecoinf` | `.po-doc--ecoinf` | 大标题左上追踪字距、Logo 右上；荧光绿 section 竖条；无色块表头 + 斑马纹；QC 清单式 checkbox |
+
+字段列（No / PN / Brand / Qty / Carton / Remark）与 QC 五项文案三皮肤共用。
 
 ---
 
-## 3. 纸张与全局版式
+## 3. 纸张与全局版式（Semicore 基准）
+
+以下为 **Semicore** 皮肤规范；IdeSemi / EcoInf 见 §2.3 与 System 设计文档，纸张仍为 A4。
 
 | 项 | 规范值 |
 | --- | --- |
@@ -60,7 +80,7 @@
 
 ---
 
-## 4. 页眉（Masthead）
+## 4. 页眉（Masthead · Semicore）
 
 ### 4.1 布局
 

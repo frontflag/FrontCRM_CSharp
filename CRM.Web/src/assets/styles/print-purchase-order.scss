@@ -96,7 +96,20 @@
 
   body.po-order-report-print .po-doc th,
   body.po-order-report-print .po-doc .po-doc__tri th,
-  body.po-order-report-print .po-doc .po-doc__addon-bar {
+  body.po-order-report-print .po-doc .po-doc__addon-bar,
+  body.po-order-report-print .po-doc .po-doc__brand-bar,
+  body.po-order-report-print .po-doc .po-doc__amber-line,
+  body.po-order-report-print .po-doc .po-doc__meta-card,
+  body.po-order-report-print .po-doc .po-doc__masthead-meta,
+  body.po-order-report-print .po-doc .po-doc__title-rule,
+  body.po-order-report-print .po-doc .po-doc__masthead-logo-wrap,
+  body.po-order-report-print .po-doc .po-doc__addr-hd,
+  body.po-order-report-print .po-doc .po-doc__qc-dot,
+  body.po-order-report-print .po-doc .po-doc__section-label::before,
+  body.po-order-report-print .po-doc .po-doc__sum-row td,
+  body.po-order-report-print .po-doc .po-doc__sign-col,
+  body.po-order-report-print .po-doc tbody tr:nth-child(even) td,
+  body.po-order-report-print .po-doc tbody tr:nth-child(odd) td {
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
