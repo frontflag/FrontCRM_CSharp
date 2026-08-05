@@ -45,6 +45,7 @@ import { renderElementToPdfBlob } from '@/utils/poReportPdf'
 import { renderPdfBlobFirstPageToPngDataUrl } from '@/utils/pdfSealToPng'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import { salesOrderReportAllowed } from '@/constants/salesOrderStatus'
 
 const salesOrderReportSkin = resolveSalesOrderReportSkin(LOGIN_TENANT_ID)
 
@@ -331,6 +332,12 @@ async function load() {
       }
     }
     order.value = data.order as any
+    const st = Number((data.order as any)?.status ?? (data.order as any)?.Status)
+    if (!salesOrderReportAllowed(st)) {
+      errorMsg.value = t('salesOrderList.reportNotAllowed')
+      order.value = null
+      return
+    }
     const profile = data.companyProfile as typeof data.companyProfile & { Seals?: CompanySealRow[] }
     const logos =
       profile?.logos ??

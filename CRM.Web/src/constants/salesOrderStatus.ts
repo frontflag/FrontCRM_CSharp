@@ -53,6 +53,15 @@ export function salesOrderMainAllowsPurchaseAndStockOut(status: number): boolean
 }
 
 /**
+ * 销售订单报表 / 订单质保书打印门控：
+ * status ≥ 10（审核通过、进行中、完成）；驳回/取消等不可打。
+ */
+export function salesOrderReportAllowed(status: number): boolean {
+  const s = Number(status)
+  return Number.isFinite(s) && s >= 10
+}
+
+/**
  * 销售明细「申请出库」置灰（与列表/详情 extend 三态一致：0=待 1=部分 2=完成）
  * - 出库状态=完成(2)
  * - 或 采购状态=待采购(0)

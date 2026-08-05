@@ -52,6 +52,10 @@ namespace CRM.Core.Models.Sales
         [Column("sales_user_name")]
         public string? SalesUserName { get; set; }
 
+        /// <summary>业务员中文名（详情 API 按 SalesUserId 填充，不落库）</summary>
+        [NotMapped]
+        public string? SalesUserRealName { get; set; }
+
         /// <summary>销售助理用户 ID（<c>user.UserId</c>），商务部负责跟进本销售订单。</summary>
         [StringLength(36)]
         [Column("assistor")]

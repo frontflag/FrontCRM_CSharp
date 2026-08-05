@@ -4600,12 +4600,36 @@ const enUS = {
       unknown: 'Unknown'
     },
     purchaseStatus: { none: 'Not Purchased', partial: 'Purchasing', all: 'Fully Purchased' },
-    actions: { detail: 'Detail', edit: 'Edit', submitAudit: 'Submit for Review', printReport: 'Print sales order' },
+    actions: {
+      detail: 'Detail',
+      edit: 'Edit',
+      submitAudit: 'Submit for Review',
+      printReport: 'Print sales order',
+      printWarranty: 'Print warranty',
+      warrantyZh: 'Warranty (Chinese)',
+      warrantyEn: 'Warranty (English)'
+    },
     submit: 'Submit',
     loadFailed: 'Failed to load data',
+    reportNotAllowed: 'Reports/warranty can only be printed after the sales order is approved',
     submitAuditConfirm: 'Submit sales order {code} for review? It will be handled in Pending Approvals.',
     submitAuditSuccess: 'Submitted for review',
     submitAuditFailed: 'Submit failed'
+  },
+  salesOrderWarrantyReport: {
+    back: 'Back',
+    sealOnReport: 'Include seal',
+    sealHint: 'When off, preview, print, and PDF export omit the seal image',
+    print: 'Print',
+    exportPdf: 'Export PDF',
+    loadFailed: 'Load failed',
+    missingId: 'Missing order ID',
+    badLang: 'Invalid language',
+    reportNotAllowed: 'Warranty can only be printed after the sales order is approved',
+    pdfNoDom: 'Report content not found. Please try again.',
+    exportOk: 'PDF exported',
+    exportFailed: 'Export failed',
+    pageTitle: 'Sales order warranty'
   },
   salesOrderReport: {
     back: 'Back',

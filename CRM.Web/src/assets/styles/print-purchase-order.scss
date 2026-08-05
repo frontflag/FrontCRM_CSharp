@@ -109,7 +109,12 @@
   body.po-order-report-print .po-doc .po-doc__sum-row td,
   body.po-order-report-print .po-doc .po-doc__sign-col,
   body.po-order-report-print .po-doc tbody tr:nth-child(even) td,
-  body.po-order-report-print .po-doc tbody tr:nth-child(odd) td {
+  body.po-order-report-print .po-doc tbody tr:nth-child(odd) td,
+  body.po-order-report-print .wty-doc th,
+  body.po-order-report-print .wty-doc .wty-doc__brand-bar,
+  body.po-order-report-print .wty-doc .wty-doc__accent-line,
+  body.po-order-report-print .wty-doc .wty-doc__sign-col,
+  body.po-order-report-print .wty-doc tbody tr:nth-child(odd) td {
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }

@@ -202,9 +202,30 @@
             <div v-if="opColExpanded" class="action-btns">
               <button type="button" class="action-btn action-btn--primary" @click.stop="handleView(row)">{{ t('salesOrderList.actions.detail') }}</button>
               <button v-if="canWriteSaleData" type="button" class="action-btn action-btn--primary" @click.stop="handleEdit(row)">{{ t('salesOrderList.actions.edit') }}</button>
-              <button type="button" class="action-btn action-btn--primary" @click.stop="handlePrintReport(row)">
+              <button
+                v-if="salesOrderReportAllowed(row.status)"
+                type="button"
+                class="action-btn action-btn--primary"
+                @click.stop="handlePrintReport(row)"
+              >
                 {{ t('salesOrderList.actions.printReport') }}
               </button>
+              <el-dropdown
+                v-if="salesOrderReportAllowed(row.status)"
+                trigger="click"
+                @command="(cmd: string) => handleWarrantyCommand(row, cmd)"
+              >
+                <button type="button" class="action-btn action-btn--primary action-btn--dropdown">
+                  {{ t('salesOrderList.actions.printWarranty') }}
+                  <span class="action-btn__caret" aria-hidden="true">▾</span>
+                </button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item command="zh">{{ t('salesOrderList.actions.warrantyZh') }}</el-dropdown-item>
+                    <el-dropdown-item command="en">{{ t('salesOrderList.actions.warrantyEn') }}</el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
               <button
                 v-if="canWriteSaleData && row.status === 1 && canSubmitSalesOrderAudit"
                 type="button"
@@ -227,8 +248,29 @@
                   <el-dropdown-item v-if="canWriteSaleData" @click.stop="handleEdit(row)">
                     <span class="op-more-item op-more-item--primary">{{ t('salesOrderList.actions.edit') }}</span>
                   </el-dropdown-item>
-                  <el-dropdown-item @click.stop="handlePrintReport(row)">
+                  <el-dropdown-item v-if="salesOrderReportAllowed(row.status)" @click.stop="handlePrintReport(row)">
                     <span class="op-more-item op-more-item--primary">{{ t('salesOrderList.actions.printReport') }}</span>
+                  </el-dropdown-item>
+                  <el-dropdown-item
+                    v-if="salesOrderReportAllowed(row.status)"
+                    disabled
+                    class="so-warranty-menu-heading"
+                  >
+                    {{ t('salesOrderList.actions.printWarranty') }}
+                  </el-dropdown-item>
+                  <el-dropdown-item
+                    v-if="salesOrderReportAllowed(row.status)"
+                    class="so-warranty-submenu"
+                    @click.stop="goSalesOrderWarrantyReport(row, 'zh')"
+                  >
+                    {{ t('salesOrderList.actions.warrantyZh') }}
+                  </el-dropdown-item>
+                  <el-dropdown-item
+                    v-if="salesOrderReportAllowed(row.status)"
+                    class="so-warranty-submenu"
+                    @click.stop="goSalesOrderWarrantyReport(row, 'en')"
+                  >
+                    {{ t('salesOrderList.actions.warrantyEn') }}
                   </el-dropdown-item>
                   <el-dropdown-item v-if="canWriteSaleData && row.status === 1 && canSubmitSalesOrderAudit" @click.stop="submitForAudit(row)">
                     <span class="op-more-item op-more-item--warning">{{ t('salesOrderList.actions.submitAudit') }}</span>
@@ -272,7 +314,11 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import { salesOrderApi } from '@/api/salesOrder'
-import { translateSalesOrderStatus, salesOrderStatusTagType } from '@/constants/salesOrderStatus'
+import {
+  translateSalesOrderStatus,
+  salesOrderStatusTagType,
+  salesOrderReportAllowed
+} from '@/constants/salesOrderStatus'
 import { useAuthStore } from '@/stores/auth'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import {
@@ -646,9 +692,26 @@ function onSalesOrderRowDblClick(row: { id?: string }, _column: unknown, event?:
   })
 }
 
-const handlePrintReport = (row: { id?: string }) => {
+const handlePrintReport = (row: { id?: string; status?: number }) => {
   if (!row?.id) return
+  if (!salesOrderReportAllowed(Number(row.status))) {
+    ElMessage.warning(t('salesOrderList.reportNotAllowed'))
+    return
+  }
   router.push({ name: 'SalesOrderReport', params: { id: String(row.id) } })
+}
+
+function goSalesOrderWarrantyReport(row: { id?: string; status?: number }, lang: 'zh' | 'en') {
+  if (!row?.id) return
+  if (!salesOrderReportAllowed(Number(row.status))) {
+    ElMessage.warning(t('salesOrderList.reportNotAllowed'))
+    return
+  }
+  router.push({ name: 'SalesOrderWarrantyReport', params: { id: String(row.id), lang } })
+}
+
+function handleWarrantyCommand(row: { id?: string; status?: number }, cmd: string) {
+  if (cmd === 'zh' || cmd === 'en') goSalesOrderWarrantyReport(row, cmd)
 }
 
 /** 新建(1) → 待审核(2) */
@@ -946,5 +1009,25 @@ const submitForAudit = async (row: any) => {
   :deep(.el-tabs__content) {
     min-height: 200px;
   }
+}
+
+.action-btn--dropdown {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.action-btn__caret {
+  font-size: 10px;
+  opacity: 0.85;
+}
+
+.so-warranty-menu-heading {
+  font-size: 12px;
+  color: $text-muted;
+}
+
+.so-warranty-submenu {
+  padding-left: 20px !important;
 }
 </style>

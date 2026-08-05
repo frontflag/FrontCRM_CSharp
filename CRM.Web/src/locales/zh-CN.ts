@@ -4594,12 +4594,36 @@ const zhCN = {
       unknown: '未知'
     },
     purchaseStatus: { none: '未采购', partial: '采购中', all: '全部采购' },
-    actions: { detail: '详情', edit: '编辑', submitAudit: '提交审核', printReport: '打印销售订单' },
+    actions: {
+      detail: '详情',
+      edit: '编辑',
+      submitAudit: '提交审核',
+      printReport: '打印销售订单',
+      printWarranty: '打印质保书',
+      warrantyZh: '质保书（中文）',
+      warrantyEn: '质保书（英文）'
+    },
     submit: '提交',
     loadFailed: '加载数据失败',
+    reportNotAllowed: '仅审核通过及之后状态的销售订单可打印报表/质保书',
     submitAuditConfirm: '确定将销售订单 {code} 提交审核吗？提交后上级可在「待审批」中处理。',
     submitAuditSuccess: '已提交审核',
     submitAuditFailed: '提交失败'
+  },
+  salesOrderWarrantyReport: {
+    back: '返回',
+    sealOnReport: '报表含印章',
+    sealHint: '关闭后预览、打印、导出 PDF 均不包含电子印章图',
+    print: '打印',
+    exportPdf: '导出 PDF',
+    loadFailed: '加载失败',
+    missingId: '缺少订单 ID',
+    badLang: '无效的语言参数',
+    reportNotAllowed: '仅审核通过及之后状态的销售订单可打印质保书',
+    pdfNoDom: '未找到报表内容，请稍后重试',
+    exportOk: '已导出 PDF',
+    exportFailed: '导出失败',
+    pageTitle: '销售订单质保书'
   },
   salesOrderReport: {
     back: '返回',

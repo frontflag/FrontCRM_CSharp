@@ -394,7 +394,18 @@ namespace CRM.Core.Services
 
             var items = await _soItemRepo.FindAsync(i => i.SellOrderId == id);
             order.Items = items.Where(i => !i.IsDeleted).ToList();
+            await HydrateSellOrderSalesUserRealNameAsync(order);
             return order;
+        }
+
+        /// <summary>详情：填充业务员中文名（质保书等打印用，不落库）。</summary>
+        private async Task HydrateSellOrderSalesUserRealNameAsync(SellOrder order)
+        {
+            if (string.IsNullOrWhiteSpace(order.SalesUserId)) return;
+            var user = await _userService.GetByIdAsync(order.SalesUserId.Trim());
+            var real = user?.RealName?.Trim();
+            if (!string.IsNullOrWhiteSpace(real))
+                order.SalesUserRealName = real;
         }
 
         public async Task<IEnumerable<SellOrder>> GetAllAsync()
