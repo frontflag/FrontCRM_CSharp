@@ -16,7 +16,7 @@
     <div v-loading="loading" class="preview-wrap">
       <div v-if="errorMsg" class="err">{{ errorMsg }}</div>
       <div v-else-if="ready" id="so-report-print-root" ref="reportRoot" class="print-root">
-        <SalesOrderReportDocument v-bind="docBind" />
+        <component :is="salesOrderReportSkin" v-bind="docBind" />
       </div>
     </div>
   </div>
@@ -39,11 +39,14 @@ import { useAuthStore } from '@/stores/auth'
 import { formatDisplayDate } from '@/utils/displayDateTime'
 import { SALES_ORDER_SERVICE_TERMS } from '@/constants/salesOrderReportTerms'
 import { CURRENCY_CODE_TO_TEXT, settlementVatRateDecimal } from '@/constants/currency'
-import SalesOrderReportDocument from '@/components/SalesOrder/SalesOrderReportDocument.vue'
+import { resolveSalesOrderReportSkin } from '@/components/SalesOrder/salesOrderReport/resolveSalesOrderReportSkin'
+import { LOGIN_TENANT_ID } from '@/config/loginTenant'
 import { renderElementToPdfBlob } from '@/utils/poReportPdf'
 import { renderPdfBlobFirstPageToPngDataUrl } from '@/utils/pdfSealToPng'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+
+const salesOrderReportSkin = resolveSalesOrderReportSkin(LOGIN_TENANT_ID)
 
 const route = useRoute()
 const router = useRouter()
