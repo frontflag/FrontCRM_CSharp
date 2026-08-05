@@ -444,11 +444,12 @@ namespace CRM.API.Controllers
                 var before = customer.Status;
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 await _customerService.UpdateCustomerStatusAsync(id, 2, auditRemark: null, actingUserId: userId);
+                var salesLogin = customer.SalesPersonName ?? customer.SalesUserId ?? "—";
                 await _approvalRecordService.RecordSubmitAsync(
                     "CUSTOMER",
                     customer.Id,
                     customer.CustomerCode,
-                    $"客户：{(customer.OfficialName ?? customer.NickName ?? customer.CustomerCode)}；业务员：{(customer.SalesUserId ?? "—")}；信用额度：{customer.CreditLine}",
+                    $"客户：{(customer.OfficialName ?? customer.NickName ?? customer.CustomerCode)}；业务员：{salesLogin}；信用额度：{customer.CreditLine}",
                     before,
                     2,
                     null,

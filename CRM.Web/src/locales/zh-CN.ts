@@ -8086,7 +8086,22 @@ const zhCN = {
   pendingApprovals: {
     title: '审批管理',
     stats: { pending: '待审核数量', approved: '已通过', rejected: '已拒绝' },
-    filters: { bizType: '业务类型', all: '全部' },
+    filters: {
+      bizType: '业务类型',
+      all: '全部',
+      submittedRange: '提交日期',
+      to: '至',
+      startDate: '开始日期',
+      endDate: '结束日期',
+      documentCode: '单据编号',
+      documentCodePlaceholder: '单据编号',
+      submitter: '提交人',
+      submitterPlaceholder: '提交人',
+      approver: '审批人',
+      approverPlaceholder: '审批人',
+      search: '搜索',
+      reset: '重置'
+    },
     bizType: {
       CUSTOMER: '客户',
       VENDOR: '供应商',
@@ -8110,6 +8125,8 @@ const zhCN = {
       amount: '金额',
       submittedAt: '提交时间',
       submitter: '提交人',
+      approvedAt: '审批日期',
+      approver: '审批人',
       actions: '操作'
     },
     actions: { audit: '审核', detail: '详情', viewOnly: '查看' },
@@ -8159,29 +8176,39 @@ const zhCN = {
     vendor: {
       nameLabel: '供应商名称：',
       codeLabel: '供应商编码：',
+      tradeCurrency: '交易币别：',
+      identity: '供应商身份：',
       paymentMethod: '付款方式：',
-      paymentTerm: '账期：',
-      blacklist: '黑名单：',
+      paymentTermType: '账期类型：',
+      paymentTerm: '账期天数：',
+      paymentTermCash: '现结',
+      paymentTermCredit: '账期',
+      purchaser: '采购员：',
       yes: '是',
       no: '否'
     },
     customer: {
       nameLabel: '客户名称：',
       codeLabel: '客户编码：',
-      region: '区域：',
+      customerType: '客户类型：',
+      settlementCurrency: '结算币别：',
       creditLimit: '信用额度：',
+      paymentTermType: '账期类型：',
+      paymentDays: '账期天数：',
+      paymentTermCash: '现结',
+      paymentTermCredit: '账期',
       salesPerson: '业务员：'
     },
     salesOrder: {
-      orderNo: '订单号：',
-      customer: '客户：',
+      orderNo: '销售订单号：',
+      customer: '客户名称：',
       orderAmount: '订单金额：',
       deliveryDate: '交付日期：',
       salesUser: '销售员：'
     },
     purchaseOrder: {
       poNo: '采购单号：',
-      vendor: '供应商：',
+      vendor: '供应商名称：',
       orderAmount: '订单金额：',
       deliveryDate: '交货日期：',
       buyer: '采购员：'
@@ -8193,8 +8220,8 @@ const zhCN = {
       mode: '收款方式：'
     },
     payment: {
-      code: '单号：',
-      vendor: '供应商：',
+      code: '付款单号：',
+      vendor: '供应商名称：',
       amount: '付款金额：',
       mode: '付款方式：'
     },

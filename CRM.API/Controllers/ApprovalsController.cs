@@ -9,6 +9,7 @@ using CRM.Core.Models.Purchase;
 using CRM.Core.Utilities;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using System.Text.RegularExpressions;
 
 namespace CRM.API.Controllers
 {
@@ -199,35 +200,206 @@ namespace CRM.API.Controllers
             return s is "approved" or "rejected" ? s : "pending";
         }
 
-        private async Task FillSubmitterFromHistoryAsync(List<PendingApprovalItemDto> items)
+        private async Task FillSubmitterAndApproverFromHistoryAsync(List<PendingApprovalItemDto> items)
         {
             foreach (var item in items)
             {
+                var history = await _approvalRecordService.GetHistoryAsync(item.BizType, item.BusinessId);
+
+                // 列表「提交人 / 审批人」统一展示登录账号（UserName），不展示 RealName。
                 if (!string.IsNullOrWhiteSpace(item.Submitter))
                 {
-                    item.Submitter = await _entityLookupService.GetUserDisplayNameAsync(item.Submitter) ?? item.Submitter;
-                    continue;
-                }
-
-                var history = await _approvalRecordService.GetHistoryAsync(item.BizType, item.BusinessId);
-                var submit = history.FirstOrDefault(h => string.Equals(h.ActionType, "submit", StringComparison.OrdinalIgnoreCase));
-                var fromHistory = submit?.SubmitterUserName ?? submit?.SubmitterUserId;
-                if (!string.IsNullOrWhiteSpace(submit?.SubmitterUserId))
-                {
-                    item.Submitter = await _entityLookupService.GetUserDisplayNameAsync(submit!.SubmitterUserId) ?? fromHistory;
+                    item.Submitter = await _entityLookupService.GetUserLoginNameAsync(item.Submitter) ?? item.Submitter;
                 }
                 else
                 {
-                    item.Submitter = fromHistory;
+                    var submit = history.FirstOrDefault(h =>
+                        string.Equals(h.ActionType, "submit", StringComparison.OrdinalIgnoreCase));
+                    if (!string.IsNullOrWhiteSpace(submit?.SubmitterUserId))
+                    {
+                        item.Submitter = await _entityLookupService.GetUserLoginNameAsync(submit!.SubmitterUserId)
+                            ?? submit.SubmitterUserName
+                            ?? submit.SubmitterUserId;
+                    }
+                    else
+                    {
+                        item.Submitter = await _entityLookupService.GetUserLoginNameAsync(submit?.SubmitterUserName)
+                            ?? submit?.SubmitterUserName;
+                    }
+                }
+
+                var decision = history
+                    .Where(h =>
+                        string.Equals(h.ActionType, "approve", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(h.ActionType, "reject", StringComparison.OrdinalIgnoreCase))
+                    .OrderByDescending(h => h.ActionTime)
+                    .FirstOrDefault();
+                if (decision == null)
+                {
+                    item.Approver = null;
+                    item.ApprovedAt = null;
+                    continue;
+                }
+
+                item.ApprovedAt = decision.ActionTime;
+                if (!string.IsNullOrWhiteSpace(decision.ApproverUserId))
+                {
+                    item.Approver = await _entityLookupService.GetUserLoginNameAsync(decision.ApproverUserId)
+                        ?? decision.ApproverUserName
+                        ?? decision.ApproverUserId;
+                }
+                else
+                {
+                    item.Approver = await _entityLookupService.GetUserLoginNameAsync(decision.ApproverUserName)
+                        ?? decision.ApproverUserName;
                 }
             }
         }
 
+        private static List<PendingApprovalItemDto> ApplyPendingApprovalsFilters(
+            IEnumerable<PendingApprovalItemDto> items,
+            PendingApprovalsQueryRequest request)
+        {
+            var q = items;
+
+            if (request.SubmittedFrom is { } fromDate)
+            {
+                var fromUtc = DateTime.SpecifyKind(fromDate.Date, DateTimeKind.Utc);
+                q = q.Where(i => i.CreatedAt >= fromUtc);
+            }
+
+            if (request.SubmittedTo is { } toDate)
+            {
+                var toExclusive = DateTime.SpecifyKind(toDate.Date.AddDays(1), DateTimeKind.Utc);
+                q = q.Where(i => i.CreatedAt < toExclusive);
+            }
+
+            var doc = request.DocumentCode?.Trim();
+            if (!string.IsNullOrEmpty(doc))
+            {
+                q = q.Where(i =>
+                    !string.IsNullOrWhiteSpace(i.DocumentCode)
+                    && i.DocumentCode.Contains(doc, StringComparison.OrdinalIgnoreCase));
+            }
+
+            var submitter = request.Submitter?.Trim();
+            if (!string.IsNullOrEmpty(submitter))
+            {
+                q = q.Where(i =>
+                    !string.IsNullOrWhiteSpace(i.Submitter)
+                    && i.Submitter.Contains(submitter, StringComparison.OrdinalIgnoreCase));
+            }
+
+            var approver = request.Approver?.Trim();
+            if (!string.IsNullOrEmpty(approver))
+            {
+                q = q.Where(i =>
+                    !string.IsNullOrWhiteSpace(i.Approver)
+                    && i.Approver.Contains(approver, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return q.ToList();
+        }
+
+        /// <summary>submittedAt / createdAt → 提交时间；approvedAt → 审批日期。默认提交时间降序。</summary>
+        private static string NormalizePendingApprovalsSortBy(string? sortBy)
+        {
+            var key = (sortBy ?? string.Empty).Trim();
+            if (key.Equals("approvedAt", StringComparison.OrdinalIgnoreCase))
+                return "approvedAt";
+            return "submittedAt";
+        }
+
+        private static bool ResolvePendingApprovalsSortAscending(PendingApprovalsQueryRequest request)
+        {
+            var dir = request.SortDir?.Trim();
+            if (!string.IsNullOrEmpty(dir))
+            {
+                if (dir.Equals("asc", StringComparison.OrdinalIgnoreCase)
+                    || dir.Equals("ascending", StringComparison.OrdinalIgnoreCase))
+                    return true;
+                if (dir.Equals("desc", StringComparison.OrdinalIgnoreCase)
+                    || dir.Equals("descending", StringComparison.OrdinalIgnoreCase))
+                    return false;
+            }
+
+            return request.SortAsc == true;
+        }
+
+        /// <summary>统一为 UTC ticks；无审批时间用哨兵，保证空值始终在列表末尾。</summary>
+        private static long ApprovalSortTicks(DateTime? dt, bool ascending)
+        {
+            if (dt is not { } v || v == default)
+                return ascending ? long.MaxValue : long.MinValue;
+
+            var utc = v.Kind switch
+            {
+                DateTimeKind.Utc => v,
+                DateTimeKind.Local => v.ToUniversalTime(),
+                _ => DateTime.SpecifyKind(v, DateTimeKind.Utc)
+            };
+            return utc.Ticks;
+        }
+
+        private static List<PendingApprovalItemDto> ApplyPendingApprovalsSort(
+            IEnumerable<PendingApprovalItemDto> items,
+            string sortBy,
+            bool ascending)
+        {
+            if (string.Equals(sortBy, "approvedAt", StringComparison.OrdinalIgnoreCase))
+            {
+                var keyed = items.Select(i => new
+                {
+                    Item = i,
+                    Key = ApprovalSortTicks(i.ApprovedAt, ascending),
+                    Created = ApprovalSortTicks(i.CreatedAt, ascending: false)
+                });
+                return ascending
+                    ? keyed.OrderBy(x => x.Key).ThenByDescending(x => x.Created).Select(x => x.Item).ToList()
+                    : keyed.OrderByDescending(x => x.Key).ThenByDescending(x => x.Created).Select(x => x.Item).ToList();
+            }
+
+            var submitted = items.Select(i => new
+            {
+                Item = i,
+                Key = ApprovalSortTicks((DateTime?)i.CreatedAt, ascending)
+            });
+            return ascending
+                ? submitted.OrderBy(x => x.Key).Select(x => x.Item).ToList()
+                : submitted.OrderByDescending(x => x.Key).Select(x => x.Item).ToList();
+        }
+
         private static string BuildVendorSummary(VendorInfo v)
-            => $"供应商：{(v.OfficialName ?? v.NickName ?? v.Code)}；采购员：{(v.PurchaseUserId ?? "—")}；付款方式：{(v.PaymentMethod ?? "—")}";
+            => $"供应商：{(v.OfficialName ?? v.NickName ?? v.Code)}；采购员：{(v.PurchaseUserName ?? v.PurchaseUserId ?? "—")}；付款方式：{(v.PaymentMethod ?? "—")}";
 
         private static string BuildCustomerSummary(CustomerInfo c)
-            => $"客户：{(c.OfficialName ?? c.NickName ?? c.CustomerCode)}；业务员：{(c.SalesUserId ?? "—")}；信用额度：{c.CreditLine}";
+            => $"客户：{(c.OfficialName ?? c.NickName ?? c.CustomerCode)}；业务员：{(c.SalesPersonName ?? c.SalesUserId ?? "—")}；信用额度：{c.CreditLine}";
+
+        private static readonly Regex ApprovalDescUserIdRegex = new(
+            @"(业务员|采购员)：([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})",
+            RegexOptions.Compiled);
+
+        /// <summary>历史事项描述中若仍为用户 GUID，回显时替换为登录账号。</summary>
+        private async Task<string?> EnrichApprovalItemDescriptionAsync(string? itemDescription)
+        {
+            if (string.IsNullOrWhiteSpace(itemDescription))
+                return itemDescription;
+
+            var matches = ApprovalDescUserIdRegex.Matches(itemDescription);
+            if (matches.Count == 0)
+                return itemDescription;
+
+            var result = itemDescription;
+            foreach (Match m in matches)
+            {
+                var userId = m.Groups[2].Value;
+                var login = await _entityLookupService.GetUserLoginNameAsync(userId);
+                if (string.IsNullOrWhiteSpace(login))
+                    continue;
+                result = result.Replace(m.Value, $"{m.Groups[1].Value}：{login}", StringComparison.Ordinal);
+            }
+            return result;
+        }
 
         private static string BuildSalesOrderSummary(SellOrder o)
             => $"销售订单：{o.SellOrderCode}；客户：{(o.CustomerName ?? o.CustomerId ?? "—")}；金额：{o.Total}";
@@ -599,11 +771,48 @@ namespace CRM.API.Controllers
 
                 var allItems = await QueryApprovalItemsByStateAsync(userId, summary, configs, state);
 
+                // 日期/单号先收窄；提交人/审批人筛选需先填审批历史。
+                var needPersonFilter = !string.IsNullOrWhiteSpace(request.Submitter)
+                    || !string.IsNullOrWhiteSpace(request.Approver);
+                var preFiltered = ApplyPendingApprovalsFilters(
+                    allItems,
+                    new PendingApprovalsQueryRequest
+                    {
+                        SubmittedFrom = request.SubmittedFrom,
+                        SubmittedTo = request.SubmittedTo,
+                        DocumentCode = request.DocumentCode
+                    });
+
+                var sortBy = NormalizePendingApprovalsSortBy(request.SortBy);
+                var sortAsc = ResolvePendingApprovalsSortAscending(request);
+                // 按审批日期排序前须填充 ApprovedAt；人员筛选同理。
+                // 「已通过/已拒绝」页也预填，避免空审批时间与排序键不一致。
+                var needHistoryFillAll = needPersonFilter
+                    || string.Equals(sortBy, "approvedAt", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(state, "approved", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(state, "rejected", StringComparison.OrdinalIgnoreCase);
+
+                List<PendingApprovalItemDto> filtered;
+                if (needHistoryFillAll)
+                {
+                    await FillSubmitterAndApproverFromHistoryAsync(preFiltered);
+                    filtered = needPersonFilter
+                        ? ApplyPendingApprovalsFilters(preFiltered, request)
+                        : preFiltered;
+                }
+                else
+                {
+                    filtered = preFiltered;
+                }
+
+                filtered = ApplyPendingApprovalsSort(filtered, sortBy, sortAsc);
+
                 var page = request.Page < 1 ? 1 : request.Page;
                 var pageSize = request.PageSize < 1 ? 20 : request.PageSize;
-                var total = allItems.Count;
-                var pagedItems = allItems.Skip((page - 1) * pageSize).Take(pageSize).ToList();
-                await FillSubmitterFromHistoryAsync(pagedItems);
+                var total = filtered.Count;
+                var pagedItems = filtered.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+                if (!needHistoryFillAll)
+                    await FillSubmitterAndApproverFromHistoryAsync(pagedItems);
 
                 return Ok(new
                 {
@@ -669,16 +878,16 @@ namespace CRM.API.Controllers
                 if (string.IsNullOrWhiteSpace(bizType) || string.IsNullOrWhiteSpace(businessId))
                     return BadRequest(new { success = false, message = "bizType/businessId 不能为空", errorCode = 400 });
                 var items = await _approvalRecordService.GetHistoryAsync(bizType.Trim(), businessId.Trim());
-                return Ok(new
+                var data = new List<object>(items.Count);
+                foreach (var x in items)
                 {
-                    success = true,
-                    data = items.Select(x => new
+                    data.Add(new
                     {
                         x.Id,
                         x.BizType,
                         x.BusinessId,
                         x.DocumentCode,
-                        x.ItemDescription,
+                        ItemDescription = await EnrichApprovalItemDescriptionAsync(x.ItemDescription),
                         x.ActionType,
                         x.FromStatus,
                         x.ToStatus,
@@ -689,7 +898,12 @@ namespace CRM.API.Controllers
                         x.ApproverUserId,
                         x.ApproverUserName,
                         x.ActionTime
-                    }).ToList()
+                    });
+                }
+                return Ok(new
+                {
+                    success = true,
+                    data
                 });
             }
             catch (Exception ex)

@@ -242,6 +242,14 @@ namespace CRM.Core.Services
             var banks = await _bankRepository.FindAsync(b => b.CustomerId == canonicalId);
             customer.BankAccounts = banks.ToList();
 
+            // 业务员展示用登录账号（与客户列表一致）
+            if (!string.IsNullOrWhiteSpace(customer.SalesUserId))
+            {
+                var salesUser = await _userService.GetByIdAsync(customer.SalesUserId.Trim());
+                customer.SalesPersonName = EntityLookupService.FormatUserLoginName(salesUser)
+                    ?? EntityLookupService.FormatUserDisplayName(salesUser);
+            }
+
             return customer;
         }
 

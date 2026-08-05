@@ -1172,12 +1172,59 @@ namespace CRM.Core.Services
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .Cast<string>()
                 .ToList();
-            var packingItemById = pickPackingItemIds.Count == 0
-                ? new Dictionary<string, PackingItem>(StringComparer.OrdinalIgnoreCase)
-                : (await _packingItemRepository.FindAsync(pi => pickPackingItemIds.Contains(pi.Id)))
-                    .Where(pi => !pi.IsDeleted)
-                    .GroupBy(pi => pi.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+            // 按箱出库：预加载整箱装箱明细，便于按明细归属销售行（一箱多通知/多销售行）。
+            List<PackingItem> packingItemsForResolve;
+            if (isPackingBatch && !string.IsNullOrEmpty(defaultPackingId))
+            {
+                packingItemsForResolve = (await _packingItemRepository.FindAsync(pi =>
+                        !pi.IsDeleted && pi.PackingId == defaultPackingId))
+                    .ToList();
+            }
+            else
+            {
+                packingItemsForResolve = pickPackingItemIds.Count == 0
+                    ? new List<PackingItem>()
+                    : (await _packingItemRepository.FindAsync(pi => pickPackingItemIds.Contains(pi.Id)))
+                        .Where(pi => !pi.IsDeleted)
+                        .ToList();
+            }
+
+            var packingItemById = packingItemsForResolve
+                .GroupBy(pi => pi.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            var packingNotifyIds = packingItemsForResolve
+                .Select(pi => pi.StockOutNotifyId?.Trim())
+                .Where(x => !string.IsNullOrEmpty(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Cast<string>()
+                .ToList();
+            var packingNotifyById = packingNotifyIds.Count == 0
+                ? new Dictionary<string, StockOutRequest>(StringComparer.OrdinalIgnoreCase)
+                : (await _stockOutRequestRepository.FindAsync(r => packingNotifyIds.Contains(r.Id) && !r.IsDeleted))
+                    .GroupBy(r => r.Id.Trim(), StringComparer.OrdinalIgnoreCase)
                     .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            var packingSellLineIds = packingItemsForResolve
+                .Select(pi => pi.SellOrderItemId?.Trim())
+                .Concat(packingNotifyById.Values.Select(r => r.SalesOrderItemId?.Trim()))
+                .Where(x => !string.IsNullOrEmpty(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Cast<string>()
+                .ToList();
+            if (!string.IsNullOrWhiteSpace(sellLineId) && !packingSellLineIds.Contains(sellLineId, StringComparer.OrdinalIgnoreCase))
+                packingSellLineIds.Add(sellLineId);
+            var sellLineById = packingSellLineIds.Count == 0
+                ? new Dictionary<string, SellOrderItem>(StringComparer.OrdinalIgnoreCase)
+                : (await _sellOrderItemRepository.FindAsync(i => packingSellLineIds.Contains(i.Id)))
+                    .GroupBy(i => i.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            Packing? executePacking = null;
+            if (isPackingBatch && !string.IsNullOrEmpty(defaultPackingId))
+            {
+                executePacking = await _packingRepository.GetByIdAsync(defaultPackingId);
+            }
 
             IReadOnlyDictionary<string, CustomsDeclarationItem> decItemByPackingItemId =
                 new Dictionary<string, CustomsDeclarationItem>(StringComparer.OrdinalIgnoreCase);
@@ -1186,6 +1233,8 @@ namespace CRM.Core.Services
                 decItemByPackingItemId =
                     await _customsV2FlowService.GetDeclarationItemsMapForCustomsStockOutAsync(requestId);
             }
+
+            var fulfilledSellLineIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var pickItem in pickItems)
             {
@@ -1228,12 +1277,23 @@ namespace CRM.Core.Services
 
                 var linePackingId = defaultPackingId;
                 var pickPiId = pickItem.PackingItemId?.Trim();
+                PackingItem? pickPackingItem = null;
                 if (!string.IsNullOrEmpty(pickPiId)
-                    && packingItemById.TryGetValue(pickPiId, out var pickPackingItem)
+                    && packingItemById.TryGetValue(pickPiId, out pickPackingItem)
                     && !string.IsNullOrWhiteSpace(pickPackingItem.PackingId))
                 {
                     linePackingId = pickPackingItem.PackingId.Trim();
                 }
+
+                var (lineSellId, lineSellCode, lineOrderQty) = ResolveFulfilledSellLineForPick(
+                    pickPackingItem,
+                    packingNotifyById,
+                    sellLineById,
+                    sellLineId,
+                    sellLineCode,
+                    stockOutRequest.Quantity);
+                if (!string.IsNullOrWhiteSpace(lineSellId))
+                    fulfilledSellLineIds.Add(lineSellId);
 
                 var outLine = new StockOutItem
                 {
@@ -1243,7 +1303,7 @@ namespace CRM.Core.Services
                     PurchasePn = string.IsNullOrWhiteSpace(layer.PurchasePn) ? null : layer.PurchasePn.Trim(),
                     PurchaseBrand = string.IsNullOrWhiteSpace(layer.PurchaseBrand) ? null : layer.PurchaseBrand.Trim(),
                     Quantity = takeQty,
-                    OrderQty = stockOutRequest.Quantity,
+                    OrderQty = lineOrderQty,
                     PlanQty = takeQty,
                     PickQty = takeQty,
                     ActualQty = takeQty,
@@ -1259,7 +1319,7 @@ namespace CRM.Core.Services
                     CreateTime = DateTime.UtcNow
                 };
                 await _stockOutItemRepository.AddAsync(outLine);
-                var ext = BuildStockOutItemExtend(outLine, layer, stock, takeQty, sellLineId, sellLineCode);
+                var ext = BuildStockOutItemExtend(outLine, layer, stock, takeQty, lineSellId, lineSellCode);
                 if (isCustomsOut)
                 {
                     _customsV2FlowService.ApplyCustomsStockOutExtend(
@@ -1270,6 +1330,9 @@ namespace CRM.Core.Services
 
                 totalQty += takeQty;
             }
+
+            if (isPackingBatch && totalQty <= 0)
+                throw new InvalidOperationException("装箱单无有效拣货数量，无法执行出库");
 
             // 批量出库不做 FIFO 扣库存（无拣货明细时应先补拣货/重新生成拣货单）。
             if (!isPackingBatch && pickItems.Count == 0)
@@ -1351,12 +1414,34 @@ namespace CRM.Core.Services
                 await _stockItemRepository.UpdateAsync(layer);
             }
 
-            // SourceCode 字段最大 32 字符，不能写入 36 位 GUID；完整出库通知 ID 放在 SourceId
-            var requestCode = stockOutRequest.RequestCode?.Trim() ?? string.Empty;
-            if (requestCode.Length > 32)
-                requestCode = requestCode.Substring(0, 32);
+            // SourceCode 最大 32：按箱出库用来源装箱单号；其它路径用出库通知单号。完整 GUID 放 SourceId。
+            string? sourceCode;
+            string sourceId;
+            if (isPackingBatch && !string.IsNullOrEmpty(defaultPackingId))
+            {
+                sourceId = defaultPackingId;
+                var packingCode = executePacking?.Code?.Trim() ?? string.Empty;
+                sourceCode = packingCode.Length > 32 ? packingCode.Substring(0, 32) : (string.IsNullOrEmpty(packingCode) ? null : packingCode);
+            }
+            else
+            {
+                sourceId = requestId;
+                var requestCode = stockOutRequest.RequestCode?.Trim() ?? string.Empty;
+                sourceCode = requestCode.Length > 32
+                    ? requestCode.Substring(0, 32)
+                    : (string.IsNullOrEmpty(requestCode) ? null : requestCode);
+            }
 
             var stockOutHeaderType = await ResolveStockOutTypeFromPackingAsync(defaultPackingId);
+
+            // 按箱出库：一单多销售行，头表不挂单一 SellOrderItemId；销售行真源在明细扩展。
+            string? headerSellOrderItemId = isPackingBatch ? null : sellLineId;
+            var headerCustomerId = !string.IsNullOrWhiteSpace(executePacking?.CustomerId)
+                ? executePacking!.CustomerId!.Trim()
+                : (string.IsNullOrWhiteSpace(stockOutRequest.CustomerId) ? null : stockOutRequest.CustomerId.Trim());
+            var headerShipment = string.IsNullOrWhiteSpace(stockOutRequest.ShipmentMethod)
+                ? null
+                : stockOutRequest.ShipmentMethod.Trim();
 
             var stockOut = new StockOut
             {
@@ -1364,11 +1449,11 @@ namespace CRM.Core.Services
                 StockOutCode = stockOutCode,
                 StockOutType = stockOutHeaderType,
                 RegionType = stockOutHeaderRegionType,
-                SourceCode = string.IsNullOrEmpty(requestCode) ? null : requestCode,
-                SourceId = requestId,
+                SourceCode = sourceCode,
+                SourceId = sourceId,
                 PickingTaskId = completedTask?.Id,
-                SellOrderItemId = sellLineId,
-                CustomerId = string.IsNullOrWhiteSpace(stockOutRequest.CustomerId) ? null : stockOutRequest.CustomerId.Trim(),
+                SellOrderItemId = headerSellOrderItemId,
+                CustomerId = headerCustomerId,
                 WarehouseId = request.WarehouseId,
                 StockOutDate = request.StockOutDate is { } stockOutDate && stockOutDate != default
                     ? PostgreSqlDateTime.ToUtc(stockOutDate)
@@ -1379,9 +1464,7 @@ namespace CRM.Core.Services
                 TotalQuantity = totalQty,
                 TotalAmount = totalAmount,
                 Remark = request.Remark,
-                ShipmentMethod = string.IsNullOrWhiteSpace(stockOutRequest.ShipmentMethod)
-                    ? null
-                    : stockOutRequest.ShipmentMethod.Trim(),
+                ShipmentMethod = headerShipment,
                 Status = 2,
                 ConfirmedBy = request.OperatorId,
                 ConfirmedTime = DateTime.UtcNow,
@@ -1392,25 +1475,59 @@ namespace CRM.Core.Services
             await _stockOutRepository.AddAsync(stockOut);
             var saveStockOut = await _unitOfWork.SaveChangesAsync();
             _logger.LogInformation(
-                "[SellLineStockOutSync] ExecuteStockOut persisted header StockOutId={StockOutId} StockOutCode={StockOutCode} SellOrderItemId={SellOrderItemId} Status={Status} TotalQuantity={TotalQty} SaveChanges={Rows}",
-                stockOut.Id, stockOut.StockOutCode, stockOut.SellOrderItemId, stockOut.Status, stockOut.TotalQuantity, saveStockOut);
+                "[SellLineStockOutSync] ExecuteStockOut persisted header StockOutId={StockOutId} StockOutCode={StockOutCode} SellOrderItemId={SellOrderItemId} Status={Status} TotalQuantity={TotalQty} PackingBatch={IsPackingBatch} FulfilledLines={LineCount} SaveChanges={Rows}",
+                stockOut.Id, stockOut.StockOutCode, stockOut.SellOrderItemId, stockOut.Status, stockOut.TotalQuantity, isPackingBatch, fulfilledSellLineIds.Count, saveStockOut);
 
             await _inventoryCenterService.RecordStockOutAsync(stockOut.Id);
             _logger.LogInformation("[SellLineStockOutSync] ExecuteStockOut RecordStockOutAsync done StockOutId={StockOutId}", stockOut.Id);
 
-            stockOutRequest.Status = StockOutRequestStatusCode.StockedOut;
-            stockOutRequest.ModifyTime = DateTime.UtcNow;
-            stockOutRequest.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId ?? request.OperatorId);
-            await _stockOutRequestRepository.UpdateAsync(stockOutRequest);
+            var actorForNotify = ActingUserIdNormalizer.Normalize(actingUserId ?? request.OperatorId);
+            var nowUtc = DateTime.UtcNow;
+            if (isPackingBatch)
+            {
+                // 一箱一单：箱下全部关联通知标已出库（不只锚定的那一条）。
+                foreach (var notify in packingNotifyById.Values)
+                {
+                    if (notify.Status == StockOutRequestStatusCode.Cancelled)
+                        continue;
+                    notify.Status = StockOutRequestStatusCode.StockedOut;
+                    notify.ModifyTime = nowUtc;
+                    notify.ModifyByUserId = actorForNotify;
+                    await _stockOutRequestRepository.UpdateAsync(notify);
+                }
+
+                if (packingNotifyById.Count == 0)
+                {
+                    stockOutRequest.Status = StockOutRequestStatusCode.StockedOut;
+                    stockOutRequest.ModifyTime = nowUtc;
+                    stockOutRequest.ModifyByUserId = actorForNotify;
+                    await _stockOutRequestRepository.UpdateAsync(stockOutRequest);
+                }
+            }
+            else
+            {
+                stockOutRequest.Status = StockOutRequestStatusCode.StockedOut;
+                stockOutRequest.ModifyTime = nowUtc;
+                stockOutRequest.ModifyByUserId = actorForNotify;
+                await _stockOutRequestRepository.UpdateAsync(stockOutRequest);
+            }
+
             var saveRequest = await _unitOfWork.SaveChangesAsync();
             _logger.LogInformation(
-                "[SellLineStockOutSync] ExecuteStockOut request marked executed StockOutRequestId={RequestId} SaveChanges={Rows}",
-                requestId, saveRequest);
+                "[SellLineStockOutSync] ExecuteStockOut request(s) marked executed AnchorRequestId={RequestId} PackingBatch={IsPackingBatch} NotifyCount={NotifyCount} SaveChanges={Rows}",
+                requestId, isPackingBatch, isPackingBatch ? packingNotifyById.Count : 1, saveRequest);
 
-            _logger.LogInformation(
-                "[SellLineStockOutSync] ExecuteStockOut calling RecalculateAsync SellOrderItemId={SellOrderItemId}",
-                sellLineId);
-            await _sellOrderItemExtendSync.RecalculateAsync(sellLineId);
+            if (fulfilledSellLineIds.Count == 0 && !string.IsNullOrWhiteSpace(sellLineId))
+                fulfilledSellLineIds.Add(sellLineId);
+
+            foreach (var lineId in fulfilledSellLineIds)
+            {
+                _logger.LogInformation(
+                    "[SellLineStockOutSync] ExecuteStockOut calling RecalculateAsync SellOrderItemId={SellOrderItemId}",
+                    lineId);
+                await _sellOrderItemExtendSync.RecalculateAsync(lineId);
+            }
+
             try
             {
                 await _purchasedStockAvailableSync.TryRecalculateFromChangedStockInfosAsync(changedStocks);
@@ -1420,14 +1537,14 @@ namespace CRM.Core.Services
             catch (Exception ex)
             {
                 _logger.LogWarning(ex,
-                    "[PurchasedStockAvail] TryRecalculateFromChangedStockInfos failed after ExecuteStockOut SellOrderItemId={SellOrderItemId}",
-                    sellLineId);
+                    "[PurchasedStockAvail] TryRecalculateFromChangedStockInfos failed after ExecuteStockOut FulfilledLines={LineCount}",
+                    fulfilledSellLineIds.Count);
             }
 
             var saveExtend = await _unitOfWork.SaveChangesAsync();
             _logger.LogInformation(
-                "[SellLineStockOutSync] ExecuteStockOut after Recalculate SellOrderItemId={SellOrderItemId} SaveChanges={Rows}",
-                sellLineId, saveExtend);
+                "[SellLineStockOutSync] ExecuteStockOut after Recalculate FulfilledLines={LineCount} SaveChanges={Rows}",
+                fulfilledSellLineIds.Count, saveExtend);
 
             return stockOut;
         }
@@ -2690,6 +2807,16 @@ namespace CRM.Core.Services
             var exts = (await _stockOutItemExtendRepository.GetAllAsync())
                 .Where(x => itemIds.Contains(x.Id))
                 .ToList();
+            // 删除明细前收集销售行，供回写 Recalculate（按箱出库头表可能无 SellOrderItemId）。
+            var sellLineIdsToRecalc = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (!string.IsNullOrWhiteSpace(stockOut.SellOrderItemId))
+                sellLineIdsToRecalc.Add(stockOut.SellOrderItemId.Trim());
+            foreach (var ext in exts)
+            {
+                var sid = ext.SellOrderItemId?.Trim();
+                if (!string.IsNullOrEmpty(sid))
+                    sellLineIdsToRecalc.Add(sid);
+            }
             var originalOutLedgers = (await _ledgerRepository.FindAsync(x =>
                     x.BizType == "STOCK_OUT"
                     && x.BizId == stockOut.Id
@@ -2795,6 +2922,7 @@ namespace CRM.Core.Services
                 await _stockOutItemRepository.DeleteAsync(item.Id);
             await _stockOutRepository.DeleteAsync(stockOut.Id);
 
+            // 历史：SourceId=出库通知；按箱出库：SourceId=装箱单，需按装箱明细回写箱下通知。
             if (!string.IsNullOrWhiteSpace(stockOut.SourceId))
             {
                 var sourceId = stockOut.SourceId.Trim();
@@ -2814,13 +2942,55 @@ namespace CRM.Core.Services
                 }
             }
 
-            var lineId = !string.IsNullOrWhiteSpace(stockOut.SellOrderItemId)
-                ? stockOut.SellOrderItemId.Trim()
-                : null;
-            if (!string.IsNullOrWhiteSpace(lineId))
+            if (linkedPackingIds.Count > 0)
             {
-                await _sellOrderItemExtendSync.RecalculateAsync(lineId);
+                var otherItemStockOutIds = (await _stockOutItemRepository.FindAsync(i =>
+                        !i.IsDeleted
+                        && i.PackingId != null
+                        && linkedPackingIds.Contains(i.PackingId)
+                        && i.StockOutId != stockOut.Id))
+                    .Select(i => i.StockOutId.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                var packingStillHasDoneStockOut = false;
+                if (otherItemStockOutIds.Count > 0)
+                {
+                    // 勿在 IQueryable 中调用 IsOutboundDoneStatus（EF 无法翻译）
+                    packingStillHasDoneStockOut = (await _stockOutRepository.FindAsync(o =>
+                            otherItemStockOutIds.Contains(o.Id)
+                            && (o.Status == 2 || o.Status == 4)))
+                        .Any();
+                }
+
+                if (!packingStillHasDoneStockOut)
+                {
+                    var packingNotifyIds = (await _packingItemRepository.FindAsync(pi =>
+                            !pi.IsDeleted && linkedPackingIds.Contains(pi.PackingId)))
+                        .Select(pi => pi.StockOutNotifyId?.Trim())
+                        .Where(x => !string.IsNullOrEmpty(x))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .Cast<string>()
+                        .ToList();
+                    if (packingNotifyIds.Count > 0)
+                    {
+                        var packingNotifies = (await _stockOutRequestRepository.FindAsync(r =>
+                                packingNotifyIds.Contains(r.Id) && !r.IsDeleted))
+                            .ToList();
+                        foreach (var req in packingNotifies)
+                        {
+                            if (req.Status != StockOutRequestStatusCode.StockedOut)
+                                continue;
+                            req.Status = StockOutRequestStatusCode.Packed;
+                            req.ModifyTime = DateTime.UtcNow;
+                            req.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
+                            await _stockOutRequestRepository.UpdateAsync(req);
+                        }
+                    }
+                }
             }
+
+            foreach (var lineId in sellLineIdsToRecalc)
+                await _sellOrderItemExtendSync.RecalculateAsync(lineId);
             if (changedStocks.Count > 0)
             {
                 await _purchasedStockAvailableSync.TryRecalculateFromChangedStockInfosAsync(changedStocks);
@@ -2982,9 +3152,13 @@ namespace CRM.Core.Services
             else if (status != stockOutFinished && previousStatus == stockOutFinished)
                 await _financeReceivableService.TrySoftDeleteForStockOutAsync(stockOut.Id, actingUserId);
 
+            // SourceId：历史单多为出库通知 Id；按箱出库为装箱单 Id（不可当通知查）。
             StockOutRequest? sorForLine = null;
-            if (!string.IsNullOrWhiteSpace(stockOut.SourceId))
+            if (!string.IsNullOrWhiteSpace(stockOut.SourceId)
+                && !string.IsNullOrWhiteSpace(stockOut.SellOrderItemId))
+            {
                 sorForLine = await _stockOutRequestRepository.GetByIdAsync(stockOut.SourceId.Trim());
+            }
 
             if (IsOutboundDone(status) && !IsOutboundDone(previousStatus))
             {
@@ -3004,13 +3178,11 @@ namespace CRM.Core.Services
                 }
             }
 
-            var soLineId = !string.IsNullOrWhiteSpace(stockOut.SellOrderItemId)
-                ? stockOut.SellOrderItemId.Trim()
-                : sorForLine?.SalesOrderItemId?.Trim();
-            if (string.IsNullOrWhiteSpace(soLineId))
+            var soLineIds = await ResolveSellOrderItemIdsForStockOutAsync(stockOut);
+            if (soLineIds.Count == 0)
             {
                 _logger.LogWarning(
-                    "[SellLineStockOutSync] UpdateStatus cannot resolve SellOrderItemId (header null and no request line) StockOutId={StockOutId} SourceId={SourceId}",
+                    "[SellLineStockOutSync] UpdateStatus cannot resolve SellOrderItemId (header/extend empty) StockOutId={StockOutId} SourceId={SourceId}",
                     stockOut.Id,
                     stockOut.SourceId ?? "(null)");
                 return;
@@ -3027,15 +3199,56 @@ namespace CRM.Core.Services
                 return;
             }
 
-            _logger.LogInformation(
-                "[SellLineStockOutSync] UpdateStatus calling RecalculateAsync SellOrderItemId={SellOrderItemId}",
-                soLineId);
-            await _sellOrderItemExtendSync.RecalculateAsync(soLineId);
+            foreach (var soLineId in soLineIds)
+            {
+                _logger.LogInformation(
+                    "[SellLineStockOutSync] UpdateStatus calling RecalculateAsync SellOrderItemId={SellOrderItemId}",
+                    soLineId);
+                await _sellOrderItemExtendSync.RecalculateAsync(soLineId);
+            }
+
             var saveExtend = await _unitOfWork.SaveChangesAsync();
             _logger.LogInformation(
-                "[SellLineStockOutSync] UpdateStatus after Recalculate SellOrderItemId={SellOrderItemId} SaveChanges={Rows}",
-                soLineId,
+                "[SellLineStockOutSync] UpdateStatus after Recalculate LineCount={LineCount} SaveChanges={Rows}",
+                soLineIds.Count,
                 saveExtend);
+        }
+
+        /// <summary>出库单涉及的销售明细：头表（历史）+ 明细扩展（按箱多行）。</summary>
+        private async Task<List<string>> ResolveSellOrderItemIdsForStockOutAsync(StockOut stockOut)
+        {
+            var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (!string.IsNullOrWhiteSpace(stockOut.SellOrderItemId))
+                ids.Add(stockOut.SellOrderItemId.Trim());
+
+            var items = (await _stockOutItemRepository.FindAsync(i =>
+                    !i.IsDeleted && i.StockOutId == stockOut.Id))
+                .ToList();
+            if (items.Count > 0)
+            {
+                var itemIds = items.Select(i => i.Id.Trim()).ToList();
+                var extends = (await _stockOutItemExtendRepository.FindAsync(e =>
+                        !e.IsDeleted && itemIds.Contains(e.Id)))
+                    .ToList();
+                foreach (var e in extends)
+                {
+                    var lineId = e.SellOrderItemId?.Trim();
+                    if (!string.IsNullOrEmpty(lineId))
+                        ids.Add(lineId);
+                }
+            }
+
+            if (ids.Count == 0
+                && !string.IsNullOrWhiteSpace(stockOut.SourceId)
+                && !string.IsNullOrWhiteSpace(stockOut.SellOrderItemId))
+            {
+                var sor = await _stockOutRequestRepository.GetByIdAsync(stockOut.SourceId.Trim());
+                var fromNotify = sor?.SalesOrderItemId?.Trim();
+                if (!string.IsNullOrEmpty(fromNotify))
+                    ids.Add(fromNotify);
+            }
+
+            return ids.ToList();
         }
 
         /// <summary>每条出库明细对应一条扩展行（主键与 <see cref="StockOutItem.Id"/> 相同）。</summary>
@@ -3127,6 +3340,50 @@ namespace CRM.Core.Services
         /// 装箱单出库：仅保留与当前出库通知绑定的装箱明细行上的拣货行（避免整单拣货合计与单条通知数量校验冲突）。
         /// 无装箱范围或未匹配到装箱行时返回原列表。
         /// </summary>
+        /// <summary>
+        /// 按箱出库时从装箱明细/通知解析本拣货行归属的销售明细；非批量路径回退到锚定通知销售行。
+        /// </summary>
+        private static (string SellOrderItemId, string? SellOrderItemCode, int OrderQty) ResolveFulfilledSellLineForPick(
+            PackingItem? packingItem,
+            IReadOnlyDictionary<string, StockOutRequest> notifyById,
+            IReadOnlyDictionary<string, SellOrderItem> sellLineById,
+            string fallbackSellLineId,
+            string? fallbackSellLineCode,
+            int fallbackOrderQty)
+        {
+            string? lineId = packingItem?.SellOrderItemId?.Trim();
+            int orderQty = packingItem is { Qty: > 0 } ? packingItem.Qty : fallbackOrderQty;
+
+            var notifyId = packingItem?.StockOutNotifyId?.Trim();
+            if (!string.IsNullOrEmpty(notifyId)
+                && notifyById.TryGetValue(notifyId, out var notify))
+            {
+                if (string.IsNullOrWhiteSpace(lineId))
+                    lineId = notify.SalesOrderItemId?.Trim();
+                if (notify.Quantity > 0)
+                    orderQty = notify.Quantity;
+            }
+
+            if (string.IsNullOrWhiteSpace(lineId))
+                lineId = fallbackSellLineId?.Trim();
+
+            if (string.IsNullOrWhiteSpace(lineId))
+                throw new InvalidOperationException("拣货行无法归属销售明细（装箱明细/出库通知缺少销售行）");
+
+            string? lineCode = null;
+            if (sellLineById.TryGetValue(lineId, out var soLine)
+                && !string.IsNullOrWhiteSpace(soLine.SellOrderItemCode))
+            {
+                lineCode = soLine.SellOrderItemCode.Trim();
+            }
+            else if (string.Equals(lineId, fallbackSellLineId?.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                lineCode = fallbackSellLineCode;
+            }
+
+            return (lineId, lineCode, orderQty);
+        }
+
         private async Task<List<PickingTaskItem>> ScopePickItemsToStockOutRequestAsync(
             List<PickingTaskItem> pickItems,
             string stockOutRequestId,

@@ -1823,6 +1823,7 @@ public class PackingService : IPackingService
             .ToListAsync(cancellationToken);
 
         var packingById = packings.ToDictionary(p => p.Id.Trim(), p => p, StringComparer.OrdinalIgnoreCase);
+        // 锚定通知：ExecuteStockOut 仍需一条 StockOutRequestId；一箱一单时销售行以装箱明细为准，不按通知拆单。
         var linkByPackingId = BuildStockOutLinksPerPacking(ids, packingItems, requests)
             .GroupBy(l => l.PackingId.Trim(), StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
@@ -1877,11 +1878,12 @@ public class PackingService : IPackingService
             packing.ModifyByUserId = actor;
             await _packingRepository.UpdateAsync(packing);
 
+            // 箱下全部出库通知标已出库（与 ExecuteStockOut 按箱回写一致；勿只传锚定通知）。
             await SyncStockOutNotifyStatusForPackingAsync(
                 pid,
                 StockOutRequestStatusCode.StockedOut,
                 actor,
-                new[] { requestId },
+                stockOutNotifyIds: null,
                 cancellationToken);
 
             lines.Add(new PackingBatchStockOutLineDto

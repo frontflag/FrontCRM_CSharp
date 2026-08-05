@@ -8101,7 +8101,22 @@ const enUS = {
   pendingApprovals: {
     title: 'Approvals',
     stats: { pending: 'Pending', approved: 'Approved', rejected: 'Rejected' },
-    filters: { bizType: 'Business type', all: 'All' },
+    filters: {
+      bizType: 'Business type',
+      all: 'All',
+      submittedRange: 'Submitted date',
+      to: 'to',
+      startDate: 'Start',
+      endDate: 'End',
+      documentCode: 'Document no.',
+      documentCodePlaceholder: 'Document no.',
+      submitter: 'Submitter',
+      submitterPlaceholder: 'Submitter',
+      approver: 'Approver',
+      approverPlaceholder: 'Approver',
+      search: 'Search',
+      reset: 'Reset'
+    },
     bizType: {
       CUSTOMER: 'Customer',
       VENDOR: 'Vendor',
@@ -8125,6 +8140,8 @@ const enUS = {
       amount: 'Amount',
       submittedAt: 'Submitted at',
       submitter: 'Submitted by',
+      approvedAt: 'Approved at',
+      approver: 'Approver',
       actions: 'Actions'
     },
     actions: { audit: 'Review', detail: 'Details', viewOnly: 'View' },
@@ -8174,29 +8191,39 @@ const enUS = {
     vendor: {
       nameLabel: 'Vendor name:',
       codeLabel: 'Vendor code:',
+      tradeCurrency: 'Trade currency:',
+      identity: 'Vendor identity:',
       paymentMethod: 'Payment method:',
-      paymentTerm: 'Terms:',
-      blacklist: 'Blacklist:',
+      paymentTermType: 'Payment term type:',
+      paymentTerm: 'Payment days:',
+      paymentTermCash: 'Cash',
+      paymentTermCredit: 'Credit',
+      purchaser: 'Buyer:',
       yes: 'Yes',
       no: 'No'
     },
     customer: {
       nameLabel: 'Customer name:',
       codeLabel: 'Customer code:',
-      region: 'Region:',
+      customerType: 'Customer type:',
+      settlementCurrency: 'Settlement currency:',
       creditLimit: 'Credit limit:',
+      paymentTermType: 'Payment term type:',
+      paymentDays: 'Payment days:',
+      paymentTermCash: 'Cash',
+      paymentTermCredit: 'Credit',
       salesPerson: 'Sales owner:'
     },
     salesOrder: {
-      orderNo: 'Order no.:',
-      customer: 'Customer:',
+      orderNo: 'Sales order no.:',
+      customer: 'Customer name:',
       orderAmount: 'Order amount:',
       deliveryDate: 'Delivery date:',
       salesUser: 'Sales user:'
     },
     purchaseOrder: {
       poNo: 'PO no.:',
-      vendor: 'Vendor:',
+      vendor: 'Vendor name:',
       orderAmount: 'Order amount:',
       deliveryDate: 'Delivery date:',
       buyer: 'Buyer:'
@@ -8208,8 +8235,8 @@ const enUS = {
       mode: 'Method:'
     },
     payment: {
-      code: 'No.:',
-      vendor: 'Vendor:',
+      code: 'Payment no.:',
+      vendor: 'Vendor name:',
       amount: 'Payment amount:',
       mode: 'Method:'
     },

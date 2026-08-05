@@ -98,62 +98,81 @@ public class FinanceReceivableService : IFinanceReceivableService
         if (stockOut.Status != StockOutFinished)
             return;
 
-        var existing = (await _receivableRepo.FindAsync(r =>
-            r.StockOutId == stockOut.Id && !r.IsDeleted)).FirstOrDefault();
-        if (existing != null)
-        {
+        var existingList = (await _receivableRepo.FindAsync(r =>
+            r.StockOutId == stockOut.Id && !r.IsDeleted)).ToList();
+        foreach (var existing in existingList)
             await TrySyncReceivableStockOutDateAsync(existing, stockOut, actingUserId);
+
+        var existingLineIds = existingList
+            .Select(r => r.SellOrderItemId?.Trim())
+            .Where(x => !string.IsNullOrEmpty(x))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var lineQty = await ResolveReceivableLineQuantitiesAsync(stockOut);
+        if (lineQty.Count == 0)
             return;
+
+        var touchedLines = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (sellLineId, outboundQty) in lineQty)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (existingLineIds.Contains(sellLineId))
+                continue;
+            if (outboundQty <= 0)
+                continue;
+
+            var soItem = await _sellOrderItemRepo.GetByIdAsync(sellLineId);
+            if (soItem == null)
+                continue;
+
+            var sellOrder = await _sellOrderRepo.GetByIdAsync(soItem.SellOrderId);
+            if (sellOrder == null)
+                continue;
+
+            var amount = Math.Round(outboundQty * soItem.Price, 2, MidpointRounding.AwayFromZero);
+            if (amount <= 0m)
+                continue;
+
+            var code = await _serialNumberService.GenerateNextAsync(ModuleCodes.FinanceReceivable);
+            var receivable = new FinanceReceivable
+            {
+                Id = Guid.NewGuid().ToString(),
+                ReceivableCode = code,
+                StockOutId = stockOut.Id,
+                StockOutCode = stockOut.StockOutCode,
+                SellOrderId = sellOrder.Id,
+                SellOrderCode = sellOrder.SellOrderCode,
+                SellOrderItemId = soItem.Id,
+                CustomerId = !string.IsNullOrWhiteSpace(stockOut.CustomerId)
+                    ? stockOut.CustomerId.Trim()
+                    : sellOrder.CustomerId,
+                CustomerName = sellOrder.CustomerName,
+                SalesUserId = sellOrder.SalesUserId,
+                PN = soItem.PN,
+                Brand = soItem.Brand,
+                OutboundQty = outboundQty,
+                UnitPrice = soItem.Price,
+                Currency = sellOrder.Currency,
+                Amount = amount,
+                VerifiedDone = 0m,
+                VerifiedToBe = amount,
+                VerificationStatus = FinanceVerificationStatusCode.Pending,
+                StockOutDate = ResolveReceivableStockOutDate(stockOut),
+                CreateTime = DateTime.UtcNow,
+                CreateByUserId = ActingUserIdNormalizer.Normalize(actingUserId)
+            };
+            await _receivableRepo.AddAsync(receivable);
+            touchedLines.Add(soItem.Id);
         }
 
-        if (string.IsNullOrWhiteSpace(stockOut.SellOrderItemId))
+        if (touchedLines.Count == 0)
             return;
 
-        var soItem = await _sellOrderItemRepo.GetByIdAsync(stockOut.SellOrderItemId.Trim());
-        if (soItem == null)
-            return;
-
-        var sellOrder = await _sellOrderRepo.GetByIdAsync(soItem.SellOrderId);
-        if (sellOrder == null)
-            return;
-
-        var amount = ResolveReceivableAmount(stockOut, soItem);
-        if (amount <= 0m)
-            return;
-
-        var code = await _serialNumberService.GenerateNextAsync(ModuleCodes.FinanceReceivable);
-        var receivable = new FinanceReceivable
-        {
-            Id = Guid.NewGuid().ToString(),
-            ReceivableCode = code,
-            StockOutId = stockOut.Id,
-            StockOutCode = stockOut.StockOutCode,
-            SellOrderId = sellOrder.Id,
-            SellOrderCode = sellOrder.SellOrderCode,
-            SellOrderItemId = soItem.Id,
-            CustomerId = !string.IsNullOrWhiteSpace(stockOut.CustomerId)
-                ? stockOut.CustomerId.Trim()
-                : sellOrder.CustomerId,
-            CustomerName = sellOrder.CustomerName,
-            SalesUserId = sellOrder.SalesUserId,
-            PN = soItem.PN,
-            Brand = soItem.Brand,
-            OutboundQty = stockOut.TotalQuantity,
-            UnitPrice = soItem.Price,
-            Currency = sellOrder.Currency,
-            Amount = amount,
-            VerifiedDone = 0m,
-            VerifiedToBe = amount,
-            VerificationStatus = FinanceVerificationStatusCode.Pending,
-            StockOutDate = ResolveReceivableStockOutDate(stockOut),
-            CreateTime = DateTime.UtcNow,
-            CreateByUserId = ActingUserIdNormalizer.Normalize(actingUserId)
-        };
-        await _receivableRepo.AddAsync(receivable);
         if (_unitOfWork != null)
             await _unitOfWork.SaveChangesAsync();
 
-        await _sellOrderItemExtendSync.RecalculateAsync(soItem.Id);
+        foreach (var lineId in touchedLines)
+            await _sellOrderItemExtendSync.RecalculateAsync(lineId);
         if (_unitOfWork != null)
             await _unitOfWork.SaveChangesAsync();
     }
@@ -164,21 +183,32 @@ public class FinanceReceivableService : IFinanceReceivableService
         if (string.IsNullOrWhiteSpace(stockOutId))
             return;
 
-        var receivable = (await _receivableRepo.FindAsync(r =>
-            r.StockOutId == stockOutId.Trim() && !r.IsDeleted)).FirstOrDefault();
-        if (receivable == null)
+        var receivables = (await _receivableRepo.FindAsync(r =>
+            r.StockOutId == stockOutId.Trim() && !r.IsDeleted)).ToList();
+        if (receivables.Count == 0)
             return;
 
-        AssertStockOutCanVoid(receivable);
+        foreach (var receivable in receivables)
+            AssertStockOutCanVoid(receivable);
 
-        receivable.IsDeleted = true;
-        receivable.ModifyTime = DateTime.UtcNow;
-        receivable.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
-        await _receivableRepo.UpdateAsync(receivable);
+        var actor = ActingUserIdNormalizer.Normalize(actingUserId);
+        var now = DateTime.UtcNow;
+        var touchedLines = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var receivable in receivables)
+        {
+            receivable.IsDeleted = true;
+            receivable.ModifyTime = now;
+            receivable.ModifyByUserId = actor;
+            await _receivableRepo.UpdateAsync(receivable);
+            if (!string.IsNullOrWhiteSpace(receivable.SellOrderItemId))
+                touchedLines.Add(receivable.SellOrderItemId.Trim());
+        }
+
         if (_unitOfWork != null)
             await _unitOfWork.SaveChangesAsync();
 
-        await _sellOrderItemExtendSync.RecalculateAsync(receivable.SellOrderItemId);
+        foreach (var lineId in touchedLines)
+            await _sellOrderItemExtendSync.RecalculateAsync(lineId);
         if (_unitOfWork != null)
             await _unitOfWork.SaveChangesAsync();
     }
@@ -1471,6 +1501,56 @@ public class FinanceReceivableService : IFinanceReceivableService
         if (stockOut.TotalAmount > 0m)
             return Math.Round(stockOut.TotalAmount, 2, MidpointRounding.AwayFromZero);
         return Math.Round(stockOut.TotalQuantity * soItem.Price, 2, MidpointRounding.AwayFromZero);
+    }
+
+    /// <summary>
+    /// 按销售行汇总本出库单应收数量：优先明细扩展；无扩展销售行时回退头表单一销售行（历史单）。
+    /// </summary>
+    private async Task<Dictionary<string, int>> ResolveReceivableLineQuantitiesAsync(StockOut stockOut)
+    {
+        var result = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var items = (await _stockOutItemRepo.FindAsync(i =>
+                !i.IsDeleted && i.StockOutId == stockOut.Id))
+            .ToList();
+        if (items.Count == 0)
+        {
+            if (!string.IsNullOrWhiteSpace(stockOut.SellOrderItemId) && stockOut.TotalQuantity > 0)
+                result[stockOut.SellOrderItemId.Trim()] = stockOut.TotalQuantity;
+            return result;
+        }
+
+        var itemIds = items.Select(i => i.Id.Trim()).ToList();
+        var extends = (await _stockOutItemExtendRepo.FindAsync(e =>
+                !e.IsDeleted && itemIds.Contains(e.Id)))
+            .ToList();
+        var extByItemId = extends
+            .GroupBy(e => e.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        foreach (var item in items)
+        {
+            if (!extByItemId.TryGetValue(item.Id.Trim(), out var ext))
+                continue;
+            var lineId = ext.SellOrderItemId?.Trim();
+            if (string.IsNullOrEmpty(lineId))
+                continue;
+            var qty = ext.QtyStockOut > 0
+                ? ext.QtyStockOut
+                : (item.ActualQty > 0 ? item.ActualQty : item.Quantity);
+            if (qty <= 0)
+                continue;
+            result.TryGetValue(lineId, out var prev);
+            result[lineId] = prev + qty;
+        }
+
+        if (result.Count == 0
+            && !string.IsNullOrWhiteSpace(stockOut.SellOrderItemId)
+            && stockOut.TotalQuantity > 0)
+        {
+            result[stockOut.SellOrderItemId.Trim()] = stockOut.TotalQuantity;
+        }
+
+        return result;
     }
 
     /// <inheritdoc />

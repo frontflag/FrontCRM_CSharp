@@ -16,6 +16,12 @@ namespace CRM.API.Models.DTOs
 
         public string? Submitter { get; set; } // submitter user id/name
 
+        /// <summary>最近一次通过/驳回的审批人显示名。</summary>
+        public string? Approver { get; set; }
+
+        /// <summary>最近一次通过/驳回的审批时间（UTC）。</summary>
+        public DateTime? ApprovedAt { get; set; }
+
         public short Status { get; set; } // current status
         public DateTime CreatedAt { get; set; }
 
@@ -38,6 +44,30 @@ namespace CRM.API.Models.DTOs
 
         // pending | approved | rejected
         public string? State { get; set; } = "pending";
+
+        /// <summary>提交日期起（含，按日）。</summary>
+        public DateTime? SubmittedFrom { get; set; }
+
+        /// <summary>提交日期止（含，按日）。</summary>
+        public DateTime? SubmittedTo { get; set; }
+
+        /// <summary>单据编号（模糊）。</summary>
+        public string? DocumentCode { get; set; }
+
+        /// <summary>提交人（显示名/用户名模糊）。</summary>
+        public string? Submitter { get; set; }
+
+        /// <summary>审批人（显示名/用户名模糊）。</summary>
+        public string? Approver { get; set; }
+
+        /// <summary>排序字段：submittedAt / createdAt（提交时间，默认）| approvedAt（审批日期）。</summary>
+        public string? SortBy { get; set; }
+
+        /// <summary>是否升序；默认 false（降序，新的在前）。</summary>
+        public bool? SortAsc { get; set; }
+
+        /// <summary>排序方向：asc | desc（优先于 <see cref="SortAsc"/>，避免 query 布尔绑定歧义）。</summary>
+        public string? SortDir { get; set; }
 
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 20;

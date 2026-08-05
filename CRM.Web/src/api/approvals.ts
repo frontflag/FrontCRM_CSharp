@@ -18,10 +18,31 @@ export interface PendingApprovalItem {
   amount?: number | null
   currency?: number | null
   submitter?: string | null
+  /** 最近一次通过/驳回审批人 */
+  approver?: string | null
+  /** 最近一次通过/驳回时间 */
+  approvedAt?: string | null
   status: number
   createdAt: string
   /** 后端：是否可执行通过/驳回；缺省 true 兼容旧接口 */
   canDecide?: boolean
+}
+
+export interface PendingApprovalsQueryParams {
+  bizType?: string
+  state?: 'pending' | 'approved' | 'rejected'
+  submittedFrom?: string
+  submittedTo?: string
+  documentCode?: string
+  submitter?: string
+  approver?: string
+  /** submittedAt | approvedAt */
+  sortBy?: 'submittedAt' | 'approvedAt'
+  /** asc | desc（优先，避免布尔 query 绑定问题） */
+  sortDir?: 'asc' | 'desc'
+  sortAsc?: boolean
+  page: number
+  pageSize: number
 }
 
 export interface PageResult<T> {
@@ -56,7 +77,7 @@ export interface ApprovalHistoryItem {
 }
 
 export const approvalsApi = {
-  getApprovalItems: (params: { bizType?: string; state?: 'pending' | 'approved' | 'rejected'; page: number; pageSize: number }) =>
+  getApprovalItems: (params: PendingApprovalsQueryParams) =>
     apiClient.get<PageResult<PendingApprovalItem>>('/api/v1/approvals/items', { params }),
 
   getApprovalSummary: (params: { bizType?: string }) =>
@@ -65,7 +86,7 @@ export const approvalsApi = {
   getApprovalHistory: (params: { bizType: string; businessId: string }) =>
     apiClient.get<ApprovalHistoryItem[]>('/api/v1/approvals/history', { params }),
 
-  getPendingApprovals: (params: { bizType?: string; page: number; pageSize: number }) =>
+  getPendingApprovals: (params: Omit<PendingApprovalsQueryParams, 'state'>) =>
     apiClient.get<PageResult<PendingApprovalItem>>('/api/v1/approvals/pending', { params }),
 
   decidePendingApproval: (payload: {
