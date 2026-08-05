@@ -490,6 +490,28 @@
             </template>
           </div>
 
+          <div
+            v-if="auditRow.bizType === 'SALES_ORDER' || auditRow.bizType === 'PURCHASE_ORDER'"
+            class="order-files-panel"
+          >
+            <div class="extra-title">{{ t('pendingApprovals.orderFilesSection') }}</div>
+            <div v-if="isAuditAttachmentsRestricted(auditRow)" class="order-files-panel__restricted">
+              {{ t('pendingApprovals.dialog.attachmentsRestrictedByRbac') }}
+            </div>
+            <DocumentListPanel
+              v-else-if="auditOrderFilesBizType && auditOrderFilesBizId"
+              :biz-type="auditOrderFilesBizType"
+              :biz-id="auditOrderFilesBizId"
+              view-mode="list"
+              readonly
+              hide-toolbar
+              :empty-text="t('pendingApprovals.orderFilesEmpty')"
+            />
+            <div v-else class="order-files-panel__restricted">
+              {{ t('pendingApprovals.orderFilesEmpty') }}
+            </div>
+          </div>
+
           <div class="detail-jump">
             <el-button type="primary" plain @click="handleViewInNewTab(auditRow)">{{ t('pendingApprovals.viewFullDetail') }}</el-button>
           </div>
@@ -509,7 +531,10 @@
               />
             </el-form-item>
           </el-form>
-          <div class="audit-attachments">
+          <div
+            v-if="auditRow?.bizType !== 'SALES_ORDER' && auditRow?.bizType !== 'PURCHASE_ORDER'"
+            class="audit-attachments"
+          >
             <div class="attach-header">
               <span>{{ t('pendingApprovals.dialog.attachmentPreview') }}</span>
             </div>
@@ -578,6 +603,7 @@ import salesOrderApi from '@/api/salesOrder'
 import { financePaymentApi, financeReceiptApi } from '@/api/finance'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
 import { documentApi, type UploadDocumentDto } from '@/api/document'
+import DocumentListPanel from '@/components/Document/DocumentListPanel.vue'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { formatVendorNameReadonly } from '@/utils/vendorDisplayName'
 import { formatCustomerNameReadonly } from '@/utils/customerDisplayName'
@@ -604,6 +630,21 @@ function isAuditAttachmentsRestricted(row: PendingApprovalItem) {
   if (maskPurchaseSensitiveFields.value && (bt === 'PURCHASE_ORDER' || bt === 'FINANCE_PAYMENT')) return true
   return false
 }
+
+/** 审核窗左侧「订单文件」：与业务详情「文档」页签同源（SO / PO 均用自身 bizType + businessId） */
+const auditOrderFilesBizType = computed(() => {
+  const bt = auditRow.value?.bizType
+  if (bt === 'SALES_ORDER' || bt === 'PURCHASE_ORDER') return bt
+  return ''
+})
+
+const auditOrderFilesBizId = computed(() => {
+  const bt = auditRow.value?.bizType
+  if (bt === 'SALES_ORDER' || bt === 'PURCHASE_ORDER') {
+    return String(auditRow.value?.businessId || '').trim()
+  }
+  return ''
+})
 const router = useRouter()
 const { t, te } = useI18n()
 
@@ -1831,6 +1872,45 @@ onMounted(() => {
 
   .amount-with-code__num {
     font-weight: 700;
+  }
+
+  .order-files-panel {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: rgba(245, 248, 252, 0.95);
+    border: 1px solid rgba(64, 128, 200, 0.18);
+
+    .extra-title {
+      margin-bottom: 8px;
+    }
+
+    &__restricted {
+      padding: 10px 4px;
+      font-size: 13px;
+      color: $text-muted;
+      text-align: center;
+    }
+
+    :deep(.document-list-panel) {
+      max-height: 180px;
+      overflow: auto;
+    }
+
+    :deep(.document-list-panel .list.list) {
+      flex-direction: column;
+      flex-wrap: nowrap;
+      gap: 6px;
+    }
+
+    :deep(.document-list-panel .doc-card--list) {
+      width: 100%;
+      max-width: 100%;
+    }
+
+    :deep(.document-list-panel .doc-name) {
+      max-width: min(280px, 45vw);
+    }
   }
 
   .detail-jump {

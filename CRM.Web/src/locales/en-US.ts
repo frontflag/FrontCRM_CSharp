@@ -8207,6 +8207,8 @@ const enUS = {
     vendorSection: 'Vendor details',
     customerSection: 'Customer details',
     salesOrderSection: 'Sales order details',
+    orderFilesSection: 'Order files',
+    orderFilesEmpty: 'No order files uploaded',
     purchaseOrderSection: 'Purchase order details',
     receiptSection: 'Receipt details',
     paymentSection: 'Payment details',

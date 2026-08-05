@@ -1,16 +1,23 @@
 <template>
-  <div class="document-list-panel">
-    <div class="toolbar">
+  <div class="document-list-panel" :class="{ 'document-list-panel--compact': hideToolbar }">
+    <div v-if="!hideToolbar" class="toolbar">
       <span class="title">关联文档</span>
       <button type="button" class="btn-ghost btn-sm" @click="fetchList" :disabled="loading">刷新</button>
     </div>
     <div v-if="loading" class="loading">加载中...</div>
-    <div v-else-if="!list.length" class="empty">暂无文档</div>
+    <div v-else-if="!list.length" class="empty">{{ emptyText }}</div>
     <div v-else class="list" :class="viewMode">
       <div v-for="doc in list" :key="doc.id" class="doc-card" :class="{ 'doc-card--list': isListView }">
         <template v-if="isListView">
           <div class="doc-main-row">
-            <div class="doc-name" :title="doc.originalFileName">{{ doc.originalFileName }}</div>
+            <button
+              type="button"
+              class="doc-name doc-name--link"
+              :title="doc.originalFileName"
+              @click="preview(doc)"
+            >
+              {{ doc.originalFileName }}
+            </button>
             <div class="doc-date">{{ formatDate(doc.createTime) }}</div>
             <div class="doc-bytes">{{ formatFileBytes(doc.fileSize) }}</div>
             <div class="actions">
@@ -27,7 +34,14 @@
             <span v-else class="file-icon">{{ fileIcon(doc) }}</span>
           </div>
           <div class="info">
-            <div class="name" :title="doc.originalFileName">{{ doc.originalFileName }}</div>
+            <button
+              type="button"
+              class="name name--link"
+              :title="doc.originalFileName"
+              @click="preview(doc)"
+            >
+              {{ doc.originalFileName }}
+            </button>
             <div class="meta">{{ formatDate(doc.createTime) }} · {{ formatSize(doc.fileSize) }}</div>
             <div v-if="doc.remark" class="remark">{{ doc.remark }}</div>
           </div>
@@ -57,8 +71,12 @@ const props = withDefaults(
     viewMode?: 'grid' | 'list'
     /** 只读：仅预览/下载，不可删除 */
     readonly?: boolean
+    /** 隐藏「关联文档 / 刷新」工具条 */
+    hideToolbar?: boolean
+    /** 无文档时文案 */
+    emptyText?: string
   }>(),
-  { readonly: false }
+  { readonly: false, hideToolbar: false, emptyText: '暂无文档' }
 )
 
 /** 非 grid 时按列表行展示（横向：文件名、日期、字节、操作） */
@@ -170,6 +188,13 @@ defineExpose({ refresh: fetchList })
   }
   .btn-ghost { padding: 4px 10px; font-size: 12px; background: transparent; border: 1px solid $border-panel; border-radius: 6px; color: $text-muted; cursor: pointer; &:disabled { opacity: 0.5; } }
   .loading, .empty { padding: 24px; text-align: center; color: $text-muted; font-size: 13px; }
+
+  &--compact {
+    .loading,
+    .empty {
+      padding: 12px 8px;
+    }
+  }
   .list {
     display: flex;
     gap: 12px;
@@ -198,7 +223,28 @@ defineExpose({ refresh: fetchList })
       img { max-width: 100%; max-height: 100%; object-fit: contain; }
       .file-icon { font-size: 32px; }
     }
-    .info { .name { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .meta { font-size: 11px; color: $text-muted; } .remark { font-size: 11px; color: $text-secondary; margin-top: 2px; } }
+    .info {
+      .name {
+        font-size: 12px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .name--link {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        padding: 0;
+        border: none;
+        background: none;
+        text-align: left;
+        color: $cyan-primary;
+        cursor: pointer;
+        &:hover { text-decoration: underline; }
+      }
+      .meta { font-size: 11px; color: $text-muted; }
+      .remark { font-size: 11px; color: $text-secondary; margin-top: 2px; }
+    }
     .actions { display: flex; gap: 8px; flex-shrink: 0; .link { background: none; border: none; padding: 0; font-size: 12px; color: $cyan-primary; cursor: pointer; text-decoration: none; &.danger { color: #C95745; } } }
   }
 
@@ -232,6 +278,17 @@ defineExpose({ refresh: fetchList })
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .doc-name--link {
+    padding: 0;
+    border: none;
+    background: none;
+    text-align: left;
+    color: $cyan-primary;
+    cursor: pointer;
+    font: inherit;
+    &:hover { text-decoration: underline; }
   }
 
   .doc-date,

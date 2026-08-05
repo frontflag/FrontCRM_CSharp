@@ -8192,6 +8192,8 @@ const zhCN = {
     vendorSection: '供应商专属信息',
     customerSection: '客户专属信息',
     salesOrderSection: '销售订单专属信息',
+    orderFilesSection: '订单文件',
+    orderFilesEmpty: '无上传订单文件',
     purchaseOrderSection: '采购订单专属信息',
     receiptSection: '收款单专属信息',
     paymentSection: '付款单专属信息',
