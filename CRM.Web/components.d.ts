@@ -221,6 +221,10 @@ declare module 'vue' {
     VendorRecentHistoryPanel: typeof import('./src/components/Vendor/VendorRecentHistoryPanel.vue')['default']
     VendorSearchPanel: typeof import('./src/components/Vendor/VendorSearchPanel.vue')['default']
     VendorWarrantyReportDocument: typeof import('./src/components/Vendor/VendorWarrantyReportDocument.vue')['default']
+    WarrantyLetterReportBody: typeof import('./src/components/warrantyLetterReport/WarrantyLetterReportBody.vue')['default']
+    WarrantyLetterReportSkinEcoinf: typeof import('./src/components/warrantyLetterReport/skins/WarrantyLetterReportSkinEcoinf.vue')['default']
+    WarrantyLetterReportSkinIdesemi: typeof import('./src/components/warrantyLetterReport/skins/WarrantyLetterReportSkinIdesemi.vue')['default']
+    WarrantyLetterReportSkinSemicore: typeof import('./src/components/warrantyLetterReport/skins/WarrantyLetterReportSkinSemicore.vue')['default']
     WriteOffReceiptDateExtendCell: typeof import('./src/components/list/WriteOffReceiptDateExtendCell.vue')['default']
     WriteOffReceiptDateExtendColumnHeader: typeof import('./src/components/list/WriteOffReceiptDateExtendColumnHeader.vue')['default']
   }

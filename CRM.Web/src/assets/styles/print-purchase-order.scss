@@ -114,6 +114,9 @@
   body.po-order-report-print .wty-doc .wty-doc__brand-bar,
   body.po-order-report-print .wty-doc .wty-doc__accent-line,
   body.po-order-report-print .wty-doc .wty-doc__sign-col,
+  body.po-order-report-print .wty-doc .wty-doc__sign,
+  body.po-order-report-print .wty-doc .wty-doc__to,
+  body.po-order-report-print .wty-doc .wty-doc__lbl::before,
   body.po-order-report-print .wty-doc tbody tr:nth-child(odd) td {
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;

@@ -16,7 +16,7 @@
     <div v-loading="loading" class="preview-wrap">
       <div v-if="errorMsg" class="err">{{ errorMsg }}</div>
       <div v-else-if="ready" ref="reportRoot" class="print-root">
-        <VendorWarrantyReportDocument v-bind="docBind" />
+        <component :is="warrantySkin" v-bind="docBind" />
       </div>
     </div>
   </div>
@@ -35,7 +35,8 @@ import apiClient from '@/api/client'
 import { formatDisplayDate } from '@/utils/displayDateTime'
 import { VENDOR_WARRANTY_PARAGRAPHS_ZH } from '@/constants/vendorWarrantyReportZh'
 import { VENDOR_WARRANTY_PARAGRAPHS_EN } from '@/constants/vendorWarrantyReportEn'
-import VendorWarrantyReportDocument from '@/components/Vendor/VendorWarrantyReportDocument.vue'
+import { resolveWarrantyLetterReportSkin } from '@/components/warrantyLetterReport/resolveWarrantyLetterReportSkin'
+import { LOGIN_TENANT_ID } from '@/config/loginTenant'
 import { renderElementToPdfBlob } from '@/utils/poReportPdf'
 import { renderPdfBlobFirstPageToPngDataUrl } from '@/utils/pdfSealToPng'
 import { getApiErrorMessage } from '@/utils/apiError'
@@ -43,6 +44,7 @@ import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiv
 
 const PO_REPORT_PRINT_BODY_CLASS = 'po-order-report-print'
 const DEFAULT_LOGO = '/purchase-order-template/logo.svg'
+const warrantySkin = resolveWarrantyLetterReportSkin(LOGIN_TENANT_ID)
 
 const route = useRoute()
 const router = useRouter()
