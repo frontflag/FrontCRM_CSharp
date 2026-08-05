@@ -557,7 +557,7 @@ function onPreviewQcImage(uploadFile: UploadFile) {
   })
 }
 
-const MAX_QC_IMAGES = 24
+const MAX_QC_IMAGES = 50
 const MAX_QC_IMAGE_SIZE_MB = 8
 
 type QcImageUploadFailure = { item: QcUploadFile; reason: string }

@@ -6028,7 +6028,7 @@ const enUS = {
     qcUserPlaceholder: 'Select logistics staff',
     stockInPlanDatePlaceholder: 'For stock-in creation',
     uploadHintCreate:
-      'New: no QC number yet. The first Save creates the document; selected images upload with that save. Max 8 MB per image, up to 24 images.',
+      'New: no QC number yet. The first Save creates the document; selected images upload with that save. Max 8 MB per image, up to 50 images.',
     uploadHintEdit:
       'Edit: add images anytime; new selections upload on Save. Removing a saved thumbnail deletes the server document. Re-open from the QC list to view history.',
     messages: {
