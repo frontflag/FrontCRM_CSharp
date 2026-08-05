@@ -1,3 +1,4 @@
+2026-08-05 22:43:21 | feat(purchase-order): 采购订单报表对齐三租户 Packing 皮肤
 2026-08-05 22:30:37 | feat(sales-order): 销售订单报表对齐三租户 Packing 皮肤
 2026-08-05 22:19:43 | feat(invoice): Commercial Invoice 打印对齐三租户 Packing 皮肤
 2026-08-05 22:07:02 | docs(ui): 新增租户主题色规范并微调 ecoinf 橙表主色

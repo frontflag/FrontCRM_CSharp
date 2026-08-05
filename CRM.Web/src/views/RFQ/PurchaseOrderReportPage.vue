@@ -15,7 +15,7 @@
     <div v-loading="loading" class="preview-wrap">
       <div v-if="errorMsg" class="err">{{ errorMsg }}</div>
       <div v-else-if="ready" id="po-report-print-root" ref="reportRoot" class="print-root">
-        <PurchaseOrderReportDocument v-bind="docBind" />
+        <component :is="purchaseOrderReportSkin" v-bind="docBind" />
       </div>
     </div>
 
@@ -60,10 +60,13 @@ import {
   purchaseOrderReportAllowed,
   normalizePurchaseOrderMainStatus
 } from '@/constants/purchaseOrderStatus'
-import PurchaseOrderReportDocument from '@/components/purchaseOrder/PurchaseOrderReportDocument.vue'
+import { resolvePurchaseOrderReportSkin } from '@/components/purchaseOrder/purchaseOrderReport/resolvePurchaseOrderReportSkin'
+import { LOGIN_TENANT_ID } from '@/config/loginTenant'
 import { renderElementToPdfBlob, blobToDataUrl } from '@/utils/poReportPdf'
 import { renderPdfBlobFirstPageToPngDataUrl } from '@/utils/pdfSealToPng'
 import { getApiErrorMessage } from '@/utils/apiError'
+
+const purchaseOrderReportSkin = resolvePurchaseOrderReportSkin(LOGIN_TENANT_ID)
 
 const route = useRoute()
 const router = useRouter()
