@@ -49,6 +49,9 @@
 - [金额与币别代码显示范式](./金额与币别代码显示范式.md)
   - 目标：统一「数值 + 空格 + 三位币别字母」展示；约定 RMB/USD/EUR/HKD 及扩展币别的颜色与枚举映射；全局样式 `CRM.Web/src/assets/styles/crm-quote-tier-dock.scss`，逻辑与模板参考 `RFQItemList.vue` 采购报价区。
 
+- [租户主题色规范](./租户主题色规范.md)
+  - 目标：定稿三租户（`semicore` / `idesemi` / `ecoinf`）主色、背景色、强调色色板；报表皮肤与品牌 UI 取色以此为准。
+
 - [列表搜索栏规范](./列表搜索栏规范.md)
   - 目标：列表页 `.search-bar` 布局、原生关键词框、`status-select` / `filter-select` 下拉、日期区间与搜索/重置按钮；**§9** 专述 **交易币别**（人民币/外币）二元筛选；**§10** 专述 **筛选页签模式**（下拉 ↔ 单维度页签、齿轮菜单、preset 互斥与明暗主题），参考 `/sales-order-items`、`/purchase-order-items`。
 

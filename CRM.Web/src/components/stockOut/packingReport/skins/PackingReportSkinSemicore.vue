@@ -151,7 +151,7 @@ const fillerRowCount = computed(() => packingReportFillerRowCount(props.lines.le
 
 <style scoped lang="scss">
 /* 分区/表头底色 + 黑框；公司名深色 */
-$po-orange: #88c048; /* Bill/Ship、明细表头、QC/Remarks 条 */
+$po-orange: #a8d070; /* Bill/Ship、明细表头、QC/Remarks 条 */
 $po-border: #222;
 $po-head-fg: #111;
 $po-company: #101010;
@@ -470,7 +470,7 @@ $po-radius: 6px;
 }
 
 .po-doc__qc-grid thead th {
-  background: #d1e5b9;
+  background: #e5f5d3;
   font-weight: 700;
   text-align: center;
   border-top: none;
