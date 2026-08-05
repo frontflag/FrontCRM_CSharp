@@ -11,7 +11,7 @@
 
 三租户构建产物（`semicore` / `idesemi` / `ecoinf`）打印 Packing List 时，除公司档案中的 Logo / 公司名外，**版式语言**须明显不同，避免「换 Logo 的同一张单」。
 
-非目标：装箱业务列表页皮肤；Invoice / PO 报表（可复用同一注册表模式后续跟）。
+非目标：装箱业务列表页皮肤；PO 报表皮肤。Invoice 已按同一注册表模式落地，见 [CommercialInvoice打印-三租户皮肤-设计与实现](./CommercialInvoice打印-三租户皮肤-设计与实现.md)。
 
 ---
 
