@@ -1,3 +1,4 @@
+2026-08-05 21:54:26 | feat(packing): 调整三租户 Packing List 皮肤映射与品牌色
 2026-08-05 20:38:25 | feat(approvals,stock-out): 完善审批列表与审核窗口，并修复装箱批量出库
 2026-08-04 12:40:15 | feat(packing): Packing List 打印报表三租户皮肤与本地开发脚本
 2026-08-04 08:39:09 | feat(sales,logistics): 预计销售利润瀑布成本并修复备货出库落库与质检面板

@@ -156,8 +156,10 @@ const fillerRowCount = computed(() => packingReportFillerRowCount(props.lines.le
 <style scoped lang="scss">
 $ide-purple: #2d1b4e;
 $ide-purple-deep: #1a0a2e;
-$ide-amber: #f59e0b;
-$ide-amber-soft: #fbbf24;
+$ide-header-bg: #0d1f35; /* 顶栏 / 表头底色 */
+$ide-accent: #020612; /* 分隔线 / 分区竖条 / QC 序号 */
+$ide-amber: $ide-accent;
+$ide-amber-soft: #0a1628;
 $ide-border: #c4b5d4;
 $ide-text: #1f1235;
 
@@ -177,7 +179,7 @@ $ide-text: #1f1235;
 .po-doc__brand-bar {
   margin: -8mm -11mm 4mm;
   padding: 5mm 11mm 0;
-  background: linear-gradient(120deg, $ide-purple-deep 0%, $ide-purple 55%, #3b2760 100%);
+  background: $ide-header-bg;
   color: #fff;
 }
 
@@ -328,13 +330,13 @@ $ide-text: #1f1235;
 }
 
 .po-doc__grid thead th {
-  background: $ide-purple;
+  background: $ide-header-bg;
   color: #fff;
   font-weight: 700;
   text-align: center;
   font-size: 8.6pt;
   padding: 7px 3px;
-  border-bottom: 2.5px solid $ide-amber;
+  border-bottom: 2.5px solid $ide-accent;
 }
 
 .w-pk-idx {
@@ -443,8 +445,8 @@ $ide-text: #1f1235;
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: $ide-amber;
-  color: $ide-purple-deep;
+  background: $ide-accent;
+  color: #fff;
   font-size: 8.5pt;
   font-weight: 700;
 }
@@ -454,8 +456,8 @@ $ide-text: #1f1235;
     -45deg,
     transparent,
     transparent 3px,
-    rgba(245, 158, 11, 0.06) 3px,
-    rgba(245, 158, 11, 0.06) 6px
+    rgba(2, 6, 18, 0.06) 3px,
+    rgba(2, 6, 18, 0.06) 6px
   );
 }
 

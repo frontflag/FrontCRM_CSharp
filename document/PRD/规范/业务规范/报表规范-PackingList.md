@@ -6,7 +6,7 @@
 | --- | --- |
 | 规范名称 | 报表规范-PackingList |
 | 适用对象 | 装箱单 Packing List 打印 / 预览页 |
-| 模版基准 | **三租户皮肤**（`semicore` / `idesemi` / `ecoinf`）；Semicore 沿用原橙表 SEMICORE GROUP 版式 |
+| 模版基准 | **三租户皮肤**（`semicore` / `idesemi` / `ecoinf`）；版式组件可对调，见 §2.3 |
 | 关联总规范 | [Web 业务报表打印与导出规范](./Web业务报表打印与导出规范.md) |
 | 实现说明 | [装箱单 PackingList 打印-三租户皮肤-设计与实现](../../../System/物流/装箱单PackingList打印-三租户皮肤-设计与实现.md) |
 | 当前实现 | 页面 `StockOutPackingReportPage.vue` + `packingReport/skins/*`（按 `VITE_TENANT_ID` 选择） |
@@ -41,9 +41,9 @@
 | `CRM.Web/src/views/Inventory/StockOutPackingReportPage.vue` | 拉数、工具栏、数据映射；`<component :is="packingReportSkin">` |
 | `CRM.Web/src/components/stockOut/packingReport/resolvePackingReportSkin.ts` | `LOGIN_TENANT_ID` → 皮肤组件 |
 | `CRM.Web/src/components/stockOut/packingReport/types.ts` | 三皮肤共用 props |
-| `CRM.Web/src/components/stockOut/packingReport/skins/PackingReportSkinSemicore.vue` | Semicore 橙表 |
-| `CRM.Web/src/components/stockOut/packingReport/skins/PackingReportSkinIdesemi.vue` | IdeSemi 深紫/琥珀 |
-| `CRM.Web/src/components/stockOut/packingReport/skins/PackingReportSkinEcoinf.vue` | EcoInf 工业极简 |
+| `CRM.Web/src/components/stockOut/packingReport/skins/PackingReportSkinSemicore.vue` | 橙表版式（挂到 ecoinf 租户） |
+| `CRM.Web/src/components/stockOut/packingReport/skins/PackingReportSkinIdesemi.vue` | 深紫/琥珀（挂到 semicore 租户） |
+| `CRM.Web/src/components/stockOut/packingReport/skins/PackingReportSkinEcoinf.vue` | 工业极简（挂到 idesemi 租户） |
 | `CRM.Web/src/components/stockOut/StockOutPackingReportDocument.vue` | 兼容入口（转发 Semicore） |
 | `CRM.Web/src/components/stockOut/packingReportLabels.ts` | 中/英 label |
 | `CRM.Web/src/assets/styles/print-purchase-order.scss` | 打印隐藏壳层 + `print-color-adjust` |
@@ -52,17 +52,17 @@
 
 | 租户 | 根 class | 视觉要点 |
 | --- | --- | --- |
-| `semicore` | `.po-doc--semicore` | 橙 `#e5913e` 表头/分区条；Logo 左 + 公司/标题居中（§3–§4 详述） |
-| `idesemi` | `.po-doc--idesemi` | 深紫顶栏 + 琥珀细线；Meta 右侧卡片；表头深紫底琥珀底边；地址栏左竖条无色块 |
-| `ecoinf` | `.po-doc--ecoinf` | 大标题左上追踪字距、Logo 右上；荧光绿 section 竖条；无色块表头 + 斑马纹；QC 清单式 checkbox |
+| `semicore` | `.po-doc--idesemi`（组件 `PackingReportSkinIdesemi`） | 深紫顶栏 + 琥珀细线；Meta 右侧卡片；表头深紫底琥珀底边；地址栏左竖条无色块 |
+| `idesemi` | `.po-doc--ecoinf`（组件 `PackingReportSkinEcoinf`） | 大标题左上追踪字距、Logo 右上；青 `#6DC5F6` section 竖条；无色块表头 + 斑马纹；QC 清单式 checkbox |
+| `ecoinf` | `.po-doc--semicore`（组件 `PackingReportSkinSemicore`） | 橙 `#e5913e` 表头/分区条；Logo 左 + 公司/标题居中（§3–§4 详述原橙表规范） |
 
 字段列（No / PN / Brand / Qty / Carton / Remark）与 QC 五项文案三皮肤共用。
 
 ---
 
-## 3. 纸张与全局版式（Semicore 基准）
+## 3. 纸张与全局版式（橙表 / Semicore 组件基准）
 
-以下为 **Semicore** 皮肤规范；IdeSemi / EcoInf 见 §2.3 与 System 设计文档，纸张仍为 A4。
+以下为 **橙表组件**（`PackingReportSkinSemicore`，当前挂到 `ecoinf`）版式规范；另两套见 §2.3 与 System 设计文档，纸张仍为 A4。
 
 | 项 | 规范值 |
 | --- | --- |

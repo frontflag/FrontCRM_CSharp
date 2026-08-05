@@ -38,21 +38,23 @@ StockOutPackingReportPage
 |------|------|
 | `CRM.Web/src/components/stockOut/packingReport/types.ts` | props / 补空行工具 |
 | `CRM.Web/src/components/stockOut/packingReport/resolvePackingReportSkin.ts` | 租户 → 组件 |
-| `.../skins/PackingReportSkinSemicore.vue` | 橙表经典 |
-| `.../skins/PackingReportSkinIdesemi.vue` | 深紫 + 琥珀 |
-| `.../skins/PackingReportSkinEcoinf.vue` | 工业极简 + 荧光绿 |
+| `.../skins/PackingReportSkinSemicore.vue` | 橙表经典（当前挂到 `ecoinf` 租户） |
+| `.../skins/PackingReportSkinIdesemi.vue` | 深紫 + 琥珀（当前挂到 `semicore` 租户） |
+| `.../skins/PackingReportSkinEcoinf.vue` | 工业极简 + 青点缀（当前挂到 `idesemi` 租户） |
 | `CRM.Web/src/views/Inventory/StockOutPackingReportPage.vue` | `<component :is>` |
 | `CRM.Web/src/assets/styles/print-purchase-order.scss` | 打印壳层 + 多皮肤 `print-color-adjust` |
+
+> 租户映射：`semicore` ↔ `ecoinf` 皮肤已对调；`idesemi` 使用 Eco 工业极简组件（见 `resolvePackingReportSkin.ts`）。组件文件名仍保留原命名。
 
 ---
 
 ## 4. 皮肤差异摘要
 
-| 租户 | 主色 | 页眉 | 表头 / 分区 |
-|------|------|------|-------------|
-| semicore | `#e5913e` | Logo 左、公司/标题居中 | 橙色填充表头与 addon 条 |
-| idesemi | `#2d1b4e` + `#f59e0b` | 深紫顶栏 + 琥珀线；Meta 右卡片 | 深紫表头琥珀底边；地址左竖条 |
-| ecoinf | `#84cc16` 点缀 | 大标题左、Logo 右；底边双线 | 无色块表头 + 斑马纹；QC 清单 checkbox |
+| 租户 | 实际皮肤组件 | 主色 | 页眉 | 表头 / 分区 |
+|------|--------------|------|------|-------------|
+| semicore | Idesemi | `#2d1b4e` + `#f59e0b` | 深紫顶栏 + 琥珀线；Meta 右卡片 | 深紫表头琥珀底边；地址左竖条 |
+| idesemi | Ecoinf | `#6DC5F6` / `#11161F` 点缀 | 大标题左、Logo 右；底边双线 | 无色块表头 + 斑马纹；QC 清单 checkbox |
+| ecoinf | Semicore | `#e5913e` | Logo 左、公司/标题居中 | 橙色填充表头与 addon 条 |
 
 区块顺序一致：页眉 → Bill/Ship → 明细 → 可选 QC → Remarks → 签字。
 

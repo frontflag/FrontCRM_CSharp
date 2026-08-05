@@ -138,7 +138,8 @@ const fillerRowCount = computed(() => packingReportFillerRowCount(props.lines.le
 </script>
 
 <style scoped lang="scss">
-$eco-lime: #84cc16;
+$eco-accent: #6dc5f6; /* 分区竖条 / QC 勾选框 */
+$eco-title: #11161f; /* PACKING LIST 标题 */
 $eco-ink: #111;
 $eco-muted: #525252;
 $eco-line: #d4d4d4;
@@ -183,6 +184,7 @@ $eco-zebra: #f5f5f5;
   text-indent: 0.08em;
   text-transform: uppercase;
   line-height: 1.15;
+  color: $eco-title;
 }
 
 .po-doc__masthead-company {
@@ -255,7 +257,7 @@ $eco-zebra: #f5f5f5;
   content: '';
   width: 3px;
   height: 11px;
-  background: $eco-lime;
+  background: $eco-accent;
   flex-shrink: 0;
 }
 
@@ -420,7 +422,7 @@ $eco-zebra: #f5f5f5;
   height: 10px;
   margin-top: 3px;
   border: 1.5px solid $eco-ink;
-  box-shadow: inset 0 0 0 1px $eco-lime;
+  box-shadow: inset 0 0 0 1px $eco-accent;
 }
 
 .po-doc__qc-idx {

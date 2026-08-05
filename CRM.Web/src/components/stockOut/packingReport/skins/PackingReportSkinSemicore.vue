@@ -150,10 +150,11 @@ const fillerRowCount = computed(() => packingReportFillerRowCount(props.lines.le
 </script>
 
 <style scoped lang="scss">
-/* 对齐参考图：经典橙表 + 黑框，表头橙底深色字 */
-$po-orange: #f89c48;
+/* 分区/表头底色 + 黑框；公司名深色 */
+$po-orange: #88c048; /* Bill/Ship、明细表头、QC/Remarks 条 */
 $po-border: #222;
 $po-head-fg: #111;
+$po-company: #101010;
 $po-radius: 6px;
 
 .po-doc {
@@ -223,6 +224,7 @@ $po-radius: 6px;
   font-size: 16pt;
   font-weight: 700;
   letter-spacing: 0.02em;
+  color: $po-company;
 }
 
 .po-doc__masthead-warehouse-addr {
@@ -468,7 +470,7 @@ $po-radius: 6px;
 }
 
 .po-doc__qc-grid thead th {
-  background: rgba(248, 156, 72, 0.35);
+  background: #d1e5b9;
   font-weight: 700;
   text-align: center;
   border-top: none;
