@@ -2,8 +2,9 @@
   <div class="pending-approvals-page">
     <div class="page-header">
       <h2 class="page-title">{{ t('pendingApprovals.title') }}</h2>
-      <button type="button" class="btn-primary btn-sm" @click="openApprovalDesktop">
-        {{ t('pendingApprovals.openApprovalDesktop') }}
+      <button type="button" class="btn-approval-desktop" @click="openApprovalDesktop">
+        <span>{{ t('pendingApprovals.openApprovalDesktop') }}</span>
+        <el-icon class="btn-approval-desktop__arrow"><ArrowRight /></el-icon>
       </button>
     </div>
 
@@ -260,29 +261,6 @@
       />
     </div>
 
-    <el-dialog v-model="auditDialogVisible" width="980px" destroy-on-close class="audit-approval-dialog">
-      <template #header>
-        <div class="audit-dialog-title">
-          <span class="audit-dialog-title__text">{{ auditDialogTitle }}</span>
-          <el-tag
-            v-if="auditRow"
-            size="small"
-            effect="dark"
-            :type="getBizTypeTagType(auditRow.bizType)"
-          >
-            {{ auditRow.bizTypeName || getBizTypeText(auditRow.bizType) }}
-          </el-tag>
-        </div>
-      </template>
-      <ApprovalAuditWorkspace
-        v-if="auditRow"
-        :row="auditRow"
-        :read-only="auditReadOnly"
-        :embedded="false"
-        @decided="onAuditDecided"
-        @close="auditDialogVisible = false"
-      />
-    </el-dialog>
   </div>
 </template>
 
@@ -291,9 +269,9 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
+import { ArrowRight } from '@element-plus/icons-vue'
 import { approvalsApi, type BizType, type PendingApprovalItem } from '@/api/approvals'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
-import ApprovalAuditWorkspace from '@/components/Approvals/ApprovalAuditWorkspace.vue'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import {
@@ -321,13 +299,6 @@ function toggleOpCol() {
 }
 
 const loading = ref(false)
-const auditDialogVisible = ref(false)
-const auditReadOnly = ref(false)
-const auditRow = ref<PendingApprovalItem | null>(null)
-
-const auditDialogTitle = computed(() =>
-  auditReadOnly.value ? t('pendingApprovals.dialog.titleViewOnly') : t('pendingApprovals.dialog.title')
-)
 
 const rowCanDecide = (row: PendingApprovalItem) => row.canDecide !== false
 
@@ -550,17 +521,6 @@ const switchState = (state: 'pending' | 'approved' | 'rejected') => {
   handleSearch()
 }
 
-const refreshSummaryOnly = async () => {
-  try {
-    const summary = await loadApprovalSummaryCompat()
-    pendingCount.value = Number(summary.pendingCount ?? 0)
-    approvedCount.value = Number(summary.approvedCount ?? 0)
-    rejectedCount.value = Number(summary.rejectedCount ?? 0)
-  } catch {
-    // 忽略汇总错误，不影响主列表
-  }
-}
-
 const getDetailRoute = (row: PendingApprovalItem) => {
   const id = row.businessId
   switch (row.bizType) {
@@ -590,16 +550,15 @@ const handleView = (row: PendingApprovalItem) => {
   router.push(route)
 }
 
+/** 待审「审核 / 仅查看」：进入审批桌面并定位该条 */
 const openAuditDialog = (row: PendingApprovalItem) => {
-  auditRow.value = row
-  auditReadOnly.value = !rowCanDecide(row)
-  auditDialogVisible.value = true
-}
-
-const onAuditDecided = async () => {
-  auditDialogVisible.value = false
-  await refreshSummaryOnly()
-  await handleSearch()
+  router.push({
+    name: 'ApprovalDesktop',
+    query: {
+      bizType: row.bizType,
+      businessId: row.businessId
+    }
+  })
 }
 
 const statusText = (status: number) => {
@@ -624,6 +583,36 @@ onMounted(() => {
 .pending-approvals-page {
   padding: 20px 24px;
   min-height: 100%;
+}
+
+.btn-approval-desktop {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px 8px 18px;
+  border: none;
+  border-radius: 10px;
+  background: #eaf5ff;
+  color: #1a2332;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: 'Noto Sans SC', sans-serif;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+
+  &:hover {
+    background: #ddefff;
+    color: #0f172a;
+  }
+
+  &:active {
+    background: #d0e8ff;
+  }
+
+  &__arrow {
+    font-size: 14px;
+  }
 }
 
 .page-header {
@@ -864,18 +853,4 @@ onMounted(() => {
   }
 }
 
-.audit-dialog-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  padding-right: 28px;
-}
-
-.audit-dialog-title__text {
-  font-size: 16px;
-  font-weight: 600;
-  color: $text-primary;
-  line-height: 1.2;
-}
 </style>

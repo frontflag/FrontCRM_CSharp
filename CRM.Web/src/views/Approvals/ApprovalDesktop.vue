@@ -45,6 +45,7 @@
 
 <script setup lang="ts">
 import { computed, inject, onMounted, onUnmounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
@@ -64,6 +65,8 @@ import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMa
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const { t, te } = useI18n()
+const route = useRoute()
+const router = useRouter()
 const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const queueStore = useApprovalDesktopQueueStore()
 const customerIntelLookupStore = useCustomerIntelLookupStore()
@@ -196,23 +199,59 @@ watch(
   }
 )
 
+async function applyRouteFocusOrDefaultSelection() {
+  const focusBiz = typeof route.query.bizType === 'string' ? route.query.bizType.trim() : ''
+  const focusId = typeof route.query.businessId === 'string' ? route.query.businessId.trim() : ''
+  if (focusBiz && focusId) {
+    const ok = queueStore.focusItem(focusBiz, focusId)
+    if (!ok) queueStore.pickSelectionAfterFilter()
+    if (route.query.bizType != null || route.query.businessId != null) {
+      await router.replace({ name: 'ApprovalDesktop', query: {} })
+    }
+    return
+  }
+
+  const hadSelection = !!queueStore.selected
+  if (!hadSelection || !queueStore.selected) {
+    queueStore.pickSelectionAfterFilter()
+    queueStore.requestScrollToSelected()
+    return
+  }
+  const key = approvalItemKey(queueStore.selected)
+  const still = queueStore.filteredList.find((x) => approvalItemKey(x) === key)
+  queueStore.selectItem(still ?? queueStore.filteredList[0] ?? null)
+  queueStore.requestScrollToSelected()
+}
+
 onMounted(async () => {
   workspaceLayout?.toggleLeftPanel(true)
   workspaceLayout?.toggleRightPanel(true)
   try {
-    const hadSelection = !!queueStore.selected
     await queueStore.refreshAll()
-    if (!hadSelection || !queueStore.selected) {
-      queueStore.pickSelectionAfterFilter()
-    } else {
-      const key = approvalItemKey(queueStore.selected)
-      const still = queueStore.filteredList.find((x) => approvalItemKey(x) === key)
-      queueStore.selectItem(still ?? queueStore.filteredList[0] ?? null)
-    }
+    await applyRouteFocusOrDefaultSelection()
   } catch {
     ElMessage.error(t('pendingApprovals.messages.loadFailed'))
   }
 })
+
+watch(
+  () => `${String(route.query.bizType ?? '')}:${String(route.query.businessId ?? '')}`,
+  async (next, prev) => {
+    if (!next || next === ':' || next === prev) return
+    const focusBiz = typeof route.query.bizType === 'string' ? route.query.bizType.trim() : ''
+    const focusId = typeof route.query.businessId === 'string' ? route.query.businessId.trim() : ''
+    if (!focusBiz || !focusId) return
+    if (!queueStore.pendingList.length) {
+      try {
+        await queueStore.refreshAll()
+      } catch {
+        return
+      }
+    }
+    queueStore.focusItem(focusBiz, focusId)
+    await router.replace({ name: 'ApprovalDesktop', query: {} })
+  }
+)
 
 onUnmounted(() => {
   clearIntelBindings()

@@ -8182,7 +8182,7 @@ const zhCN = {
   },
   pendingApprovals: {
     title: '审批管理',
-    openApprovalDesktop: '审核桌面',
+    openApprovalDesktop: '进入审批桌面',
     stats: { pending: '待审核数量', approved: '已通过', rejected: '已拒绝' },
     filters: {
       bizType: '业务类型',

@@ -17,13 +17,14 @@
         <el-option :label="t('pendingApprovals.bizType.FINANCE_RECEIPT')" value="FINANCE_RECEIPT" />
       </el-select>
     </div>
-    <div class="approval-desktop-queue-panel__list" v-loading="loading">
+    <div ref="listEl" class="approval-desktop-queue-panel__list" v-loading="loading">
       <button
         v-for="item in filteredList"
         :key="approvalItemKey(item)"
         type="button"
         class="ad-queue-item"
         :class="{ 'is-selected': selectedKey === approvalItemKey(item) }"
+        :data-ad-key="approvalItemKey(item)"
         @click="onSelect(item)"
       >
         <div class="ad-queue-item__head">
@@ -45,7 +46,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { nextTick, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import type { BizType, PendingApprovalItem } from '@/api/approvals'
@@ -59,14 +60,32 @@ import { formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const { t, te } = useI18n()
 const queueStore = useApprovalDesktopQueueStore()
-const { loading, filteredList, selectedKey, bizTypeFilter } = storeToRefs(queueStore)
+const { loading, filteredList, selectedKey, bizTypeFilter, scrollToSelectedNonce } =
+  storeToRefs(queueStore)
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
+const listEl = ref<HTMLElement | null>(null)
+
+async function scrollSelectedIntoView() {
+  await nextTick()
+  const key = selectedKey.value
+  if (!key || !listEl.value) return
+  const el = listEl.value.querySelector(`[data-ad-key="${CSS.escape(key)}"]`) as HTMLElement | null
+  el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+}
+
+watch(
+  () => `${selectedKey.value}:${scrollToSelectedNonce.value}`,
+  () => {
+    void scrollSelectedIntoView()
+  }
+)
 
 onMounted(() => {
   void queueStore.refreshAll().catch(() => {
     /* 主区会提示加载失败；左栏静默 */
   })
+  void scrollSelectedIntoView()
 })
 
 function onFilterChange(v: '' | BizType | null | undefined) {

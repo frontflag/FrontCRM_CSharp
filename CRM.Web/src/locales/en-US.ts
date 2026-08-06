@@ -8198,7 +8198,7 @@ const enUS = {
   },
   pendingApprovals: {
     title: 'Approvals',
-    openApprovalDesktop: 'Approval Desktop',
+    openApprovalDesktop: 'Enter Approval Desktop',
     stats: { pending: 'Pending', approved: 'Approved', rejected: 'Rejected' },
     filters: {
       bizType: 'Business type',

@@ -86,6 +86,9 @@ export const useApprovalDesktopQueueStore = defineStore('approvalDesktopQueue', 
     () => selectedIndex.value >= 0 && selectedIndex.value < filteredList.value.length - 1
   )
 
+  /** 左栏队列滚到选中项（变更时递增，供面板 watch） */
+  const scrollToSelectedNonce = ref(0)
+
   function selectItem(item: PendingApprovalItem | null) {
     const prevKey = selected.value ? approvalItemKey(selected.value) : ''
     const nextKey = item ? approvalItemKey(item) : ''
@@ -93,6 +96,26 @@ export const useApprovalDesktopQueueStore = defineStore('approvalDesktopQueue', 
     if (prevKey !== nextKey) {
       partyContext.value = null
     }
+  }
+
+  function requestScrollToSelected() {
+    scrollToSelectedNonce.value += 1
+  }
+
+  /** 按业务键定位待审项；会清空类型筛选以确保左栏可见，并触发滚动 */
+  function focusItem(bizType: string, businessId: string): boolean {
+    const bt = String(bizType || '').trim()
+    const id = String(businessId || '').trim()
+    if (!bt || !id) return false
+    const key = `${bt}:${id}`
+    const hit = pendingList.value.find((x) => approvalItemKey(x) === key)
+    if (!hit) return false
+    if (bizTypeFilter.value && bizTypeFilter.value !== hit.bizType) {
+      bizTypeFilter.value = ''
+    }
+    selectItem(hit)
+    requestScrollToSelected()
+    return true
   }
 
   function setPartyContext(ctx: ApprovalDesktopPartyContext | null) {
@@ -248,9 +271,12 @@ export const useApprovalDesktopQueueStore = defineStore('approvalDesktopQueue', 
     filteredList,
     selectedKey,
     selectedIndex,
+    scrollToSelectedNonce,
     canPrev,
     canNext,
     selectItem,
+    focusItem,
+    requestScrollToSelected,
     setPartyContext,
     goPrev,
     goNext,
