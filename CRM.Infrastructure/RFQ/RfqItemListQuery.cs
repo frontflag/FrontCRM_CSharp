@@ -47,6 +47,24 @@ public sealed partial class RfqItemListQuery : IRfqItemListQuery
             .OrderByDescending(x => x.Rfq.CreateTime)
             .ThenBy(x => x.Item.LineNo);
 
+        if (!string.IsNullOrWhiteSpace(request.PreferItemId) && total > 0)
+        {
+            var preferId = request.PreferItemId.Trim();
+            var preferRow = await q
+                .Where(x => x.Item.Id == preferId)
+                .Select(x => new { x.Rfq.CreateTime, x.Item.LineNo })
+                .FirstOrDefaultAsync(cancellationToken);
+            if (preferRow != null)
+            {
+                var before = await q.CountAsync(
+                    x =>
+                        x.Rfq.CreateTime > preferRow.CreateTime ||
+                        (x.Rfq.CreateTime == preferRow.CreateTime && x.Item.LineNo < preferRow.LineNo),
+                    cancellationToken);
+                page = before / pageSize + 1;
+            }
+        }
+
         var slice = await ordered
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
@@ -101,6 +119,7 @@ public sealed partial class RfqItemListQuery : IRfqItemListQuery
                 RfqId = x.Item.RfqId,
                 RfqCode = x.Rfq.RfqCode,
                 RfqCreateTime = x.Rfq.CreateTime,
+                ItemCreateTime = x.Item.CreateTime,
                 LineNo = x.Item.LineNo,
                 Mpn = x.Item.Mpn,
                 CustomerMpn = x.Item.CustomerMpn,

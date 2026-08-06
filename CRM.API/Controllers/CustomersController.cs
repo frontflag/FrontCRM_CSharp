@@ -23,6 +23,7 @@ namespace CRM.API.Controllers
         private readonly ICustomerListQuery _customerListQuery;
         private readonly ICustomerIntelReportService _customerIntelReportService;
         private readonly IApprovalRecordService _approvalRecordService;
+        private readonly IApprovalPartyIntelWarmupService _approvalPartyIntelWarmup;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IRepository<SellOrder> _sellOrderRepository;
         private readonly IFinanceExchangeRateService _financeExchangeRateService;
@@ -35,6 +36,7 @@ namespace CRM.API.Controllers
             ICustomerListQuery customerListQuery,
             ICustomerIntelReportService customerIntelReportService,
             IApprovalRecordService approvalRecordService,
+            IApprovalPartyIntelWarmupService approvalPartyIntelWarmup,
             IDataPermissionService dataPermissionService,
             IRepository<SellOrder> sellOrderRepository,
             IFinanceExchangeRateService financeExchangeRateService,
@@ -46,6 +48,7 @@ namespace CRM.API.Controllers
             _customerListQuery = customerListQuery;
             _customerIntelReportService = customerIntelReportService;
             _approvalRecordService = approvalRecordService;
+            _approvalPartyIntelWarmup = approvalPartyIntelWarmup;
             _dataPermissionService = dataPermissionService;
             _sellOrderRepository = sellOrderRepository;
             _financeExchangeRateService = financeExchangeRateService;
@@ -455,6 +458,7 @@ namespace CRM.API.Controllers
                     null,
                     userId,
                     User.Identity?.Name);
+                _approvalPartyIntelWarmup.ScheduleAfterSubmit("CUSTOMER", customer.Id, userId);
                 return Ok(ApiResponse<object>.Ok(null, "提交审核成功"));
             }
             catch (Exception ex)

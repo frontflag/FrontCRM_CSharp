@@ -1207,6 +1207,9 @@
           <div v-else-if="showApprovalDesktopQueuePanel" class="aux-panel-tab-body">
             <ApprovalDesktopQueuePanel />
           </div>
+          <div v-else-if="showQuoteDesktopQueuePanel" class="aux-panel-tab-body">
+            <QuoteDesktopQueuePanel />
+          </div>
           <template v-else>
             <p class="aux-placeholder">{{ t('layout.leftPanel') }} · {{ leftPanelTitle }}</p>
             <p class="aux-hint">子页面可 inject(WorkspaceLayoutKey)；或 window 派发 workspace:toggle-left / workspace:toggle-right</p>
@@ -1534,6 +1537,12 @@
               :items="approvalDesktopOrderItems"
             />
           </div>
+          <QuoteHistoryPanel
+            v-show="showQuoteHistoryPanel"
+            class="aux-panel-tab-body"
+            :mpn="quoteHistoryContextMpn"
+            :brand="quoteHistoryContextBrand"
+          />
           <HelpManualPanel v-show="rightActiveTabId === 'r4'" class="aux-panel-tab-body" />
         </div>
       </aside>
@@ -1581,6 +1590,10 @@ import PurchaseOrderRecentHistoryPanel from '@/components/purchaseOrder/Purchase
 import ApprovalDesktopQueuePanel from '@/components/Approvals/ApprovalDesktopQueuePanel.vue'
 import ApprovalOrderLineCards from '@/components/Approvals/ApprovalOrderLineCards.vue'
 import { useApprovalDesktopQueueStore } from '@/stores/approvalDesktopQueue'
+import QuoteDesktopQueuePanel from '@/components/RFQ/QuoteDesktopQueuePanel.vue'
+import QuoteHistoryPanel from '@/components/RFQ/QuoteHistoryPanel.vue'
+import { useQuoteDesktopQueueStore } from '@/stores/quoteDesktopQueue'
+import { useQuoteHistoryContextStore } from '@/stores/quoteHistoryContext'
 import HelpManualPanel from '@/components/workspace/HelpManualPanel.vue'
 import CrmImageBrowser from '@/components/Common/CrmImageBrowser.vue'
 import AiAssistantDrawer from '@/components/AiAssistant/AiAssistantDrawer.vue'
@@ -1653,6 +1666,29 @@ const arrivalNoticeOpsStore = useArrivalNoticeOpsPanelStore()
 const qcOpsStore = useQcOpsPanelStore()
 const stockOutNotifyCustomsPanelStore = useStockOutNotifyCustomsPanelStore()
 const approvalDesktopQueueStore = useApprovalDesktopQueueStore()
+const quoteDesktopQueueStore = useQuoteDesktopQueueStore()
+const quoteHistoryContextStore = useQuoteHistoryContextStore()
+const isQuoteHistoryRoute = computed(
+  () =>
+    route.name === 'QuoteDesktop' ||
+    route.name === 'QuoteCreate' ||
+    route.name === 'QuoteEdit'
+)
+const showQuoteHistoryPanel = computed(
+  () => rightActiveTabId.value === 'r-quote-history' && isQuoteHistoryRoute.value
+)
+const quoteHistoryContextMpn = computed(() => {
+  if (route.name === 'QuoteDesktop') {
+    return quoteDesktopQueueStore.selected?.mpn || quoteHistoryContextStore.mpn
+  }
+  return quoteHistoryContextStore.mpn
+})
+const quoteHistoryContextBrand = computed(() => {
+  if (route.name === 'QuoteDesktop') {
+    return quoteDesktopQueueStore.selected?.brand || quoteHistoryContextStore.brand
+  }
+  return quoteHistoryContextStore.brand
+})
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { canWriteSo: canSalesOrderItemOpsWriteSo } = useSaleOrderWriteGate()
@@ -1917,6 +1953,11 @@ const showApprovalDesktopQueuePanel = computed(
   () => leftActiveTabId.value === 'l1' && route.name === 'ApprovalDesktop'
 )
 
+/** 报价桌面：左栏「待报价」队列 */
+const showQuoteDesktopQueuePanel = computed(
+  () => leftActiveTabId.value === 'l1' && route.name === 'QuoteDesktop'
+)
+
 const DEFAULT_LEFT_AUX_TABS = [
   { id: 'l1', labelKey: 'layout.auxTabs.search' },
   { id: 'l2', labelKey: 'layout.auxTabs.favorites' },
@@ -1981,7 +2022,12 @@ const showStockOutNotifyCustomsPanel = computed(
 )
 
 const showRfqItemMaterialPanel = computed(
-  () => rightActiveTabId.value === 'r-material' && isRfqItemListRoute.value
+  () =>
+    rightActiveTabId.value === 'r-material' &&
+    (isRfqItemListRoute.value ||
+      route.name === 'QuoteDesktop' ||
+      route.name === 'QuoteCreate' ||
+      route.name === 'QuoteEdit')
 )
 
 const isCustomerIntelRoute = computed(
@@ -2130,6 +2176,48 @@ watch(
       })
       // 进入页按当前审核类型默认页签，不被历史记忆覆盖到帮助等
       syncApprovalDesktopRightTabs({ forceDefault: true })
+      return
+    }
+
+    if (name === 'QuoteDesktop') {
+      leftTabs.value = [{ id: 'l1', labelKey: 'quoteDesktop.leftTab' }]
+      salesOrderItemOpsStore.clear()
+      purchaseOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
+      customsDeclarationOpsStore.clear()
+      arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
+      customerIntelLookupStore.clearBound()
+      vendorIntelLookupStore.clearBound()
+      rightTabs.value = [
+        { id: 'r-quote-history', labelKey: 'quoteDesktop.tabs.history' },
+        { id: 'r-material', labelKey: 'layout.auxTabs.material' },
+        { id: 'r4', labelKey: 'layout.auxTabs.help' }
+      ]
+      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-quote-history' })
+      rightActiveTabId.value = 'r-quote-history'
+      return
+    }
+
+    if (name === 'QuoteCreate' || name === 'QuoteEdit') {
+      leftTabs.value = DEFAULT_LEFT_AUX_TABS
+      salesOrderItemOpsStore.clear()
+      purchaseOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
+      customsDeclarationOpsStore.clear()
+      arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
+      customerIntelLookupStore.clearBound()
+      vendorIntelLookupStore.clearBound()
+      rightTabs.value = [
+        { id: 'r-quote-history', labelKey: 'quoteDesktop.tabs.history' },
+        { id: 'r-material', labelKey: 'layout.auxTabs.material' },
+        { id: 'r4', labelKey: 'layout.auxTabs.help' }
+      ]
+      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-quote-history' })
+      rightActiveTabId.value = 'r-quote-history'
       return
     }
 
@@ -2464,6 +2552,7 @@ const pageTitleMap: Record<string, string> = {
   '/dashboard': 'layout.menu.dashboard',
   '/pending-approvals': 'layout.menu.pendingApprovals',
   '/approval-desktop': 'approvalDesktop.title',
+  '/quote-desktop': 'quoteDesktop.title',
   '/custome': 'layout.menu.customers',
   '/customerlist': 'layout.menu.customers',
   '/customers/create': 'layout.menu.customers',

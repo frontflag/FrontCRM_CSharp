@@ -27,6 +27,7 @@ export type RfqItemQuoteTimePresetId = (typeof RFQ_ITEM_QUOTE_TIME_PRESET_IDS)[n
 export const RFQ_ITEM_QUICK_FILTER_PRESET_IDS = [
   'important',
   'converted',
+  'pending_quote',
   'no_quote',
   'multi_quote'
 ] as const

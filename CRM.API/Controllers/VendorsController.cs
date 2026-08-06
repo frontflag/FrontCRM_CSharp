@@ -23,6 +23,7 @@ namespace CRM.API.Controllers
         private readonly IRepository<PurchaseOrder> _purchaseOrderRepository;
         private readonly IRbacService _rbacService;
         private readonly IVendorIntelReportService _vendorIntelReportService;
+        private readonly IApprovalPartyIntelWarmupService _approvalPartyIntelWarmup;
         private readonly ILogger<VendorsController> _logger;
 
         public VendorsController(
@@ -33,6 +34,7 @@ namespace CRM.API.Controllers
             IRepository<PurchaseOrder> purchaseOrderRepository,
             IRbacService rbacService,
             IVendorIntelReportService vendorIntelReportService,
+            IApprovalPartyIntelWarmupService approvalPartyIntelWarmup,
             ILogger<VendorsController> logger)
         {
             _vendorService = vendorService;
@@ -42,6 +44,7 @@ namespace CRM.API.Controllers
             _purchaseOrderRepository = purchaseOrderRepository;
             _rbacService = rbacService;
             _vendorIntelReportService = vendorIntelReportService;
+            _approvalPartyIntelWarmup = approvalPartyIntelWarmup;
             _logger = logger;
         }
 
@@ -594,6 +597,7 @@ namespace CRM.API.Controllers
                 if (vendor == null)
                     return NotFound(ApiResponse<object>.Fail("供应商不存在", 404));
                 var before = vendor.Status;
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 await _vendorService.UpdateStatusAsync(id, 2);
                 await _approvalRecordService.RecordSubmitAsync(
                     "VENDOR",
@@ -603,8 +607,9 @@ namespace CRM.API.Controllers
                     before,
                     2,
                     null,
-                    User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
+                    userId,
                     User.Identity?.Name);
+                _approvalPartyIntelWarmup.ScheduleAfterSubmit("VENDOR", vendor.Id, userId);
                 return Ok(ApiResponse<object>.Ok(null, "提交审核成功"));
             }
             catch (Exception ex)

@@ -313,6 +313,10 @@ export interface RFQItemSearchRequest {
   quoteCreateEndExclusive?: string
   /** 左栏业务快捷检索 */
   quickFilter?: string
+  /** 仅当前用户可报价的明细（报价桌面） */
+  quotableByMe?: boolean
+  /** 定位包含该明细的页（报价桌面深链） */
+  preferItemId?: string
 }
 
 export interface RFQItemSearchResponse {

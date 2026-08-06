@@ -41,6 +41,7 @@ namespace CRM.API.Controllers
         private readonly IStockInService _stockInService;
         private readonly IArrivalNoticeListQuery _arrivalNoticeListQuery;
         private readonly IInventoryStockItemListQuery _inventoryStockItemListQuery;
+        private readonly IApprovalPartyIntelWarmupService _approvalPartyIntelWarmup;
         private readonly ApplicationDbContext _db;
         private readonly ILogger<PurchaseOrdersController> _logger;
 
@@ -57,6 +58,7 @@ namespace CRM.API.Controllers
             IStockInService stockInService,
             IArrivalNoticeListQuery arrivalNoticeListQuery,
             IInventoryStockItemListQuery inventoryStockItemListQuery,
+            IApprovalPartyIntelWarmupService approvalPartyIntelWarmup,
             ApplicationDbContext db,
             ILogger<PurchaseOrdersController> logger)
         {
@@ -72,6 +74,7 @@ namespace CRM.API.Controllers
             _stockInService = stockInService;
             _arrivalNoticeListQuery = arrivalNoticeListQuery;
             _inventoryStockItemListQuery = inventoryStockItemListQuery;
+            _approvalPartyIntelWarmup = approvalPartyIntelWarmup;
             _db = db;
             _logger = logger;
         }
@@ -1567,6 +1570,9 @@ namespace CRM.API.Controllers
             {
                 var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 await _service.UpdateStatusAsync(id, request.Status, actorId);
+                // 采购单待审核 Status=2：预热供应商调查
+                if (request.Status == 2)
+                    _approvalPartyIntelWarmup.ScheduleAfterSubmit("PURCHASE_ORDER", id, actorId);
                 return Ok(new { success = true, message = "??????" });
             }
             catch (InvalidOperationException ex)

@@ -17,17 +17,20 @@ namespace CRM.API.Controllers
         private readonly IFinancePaymentService _service;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IRbacService _rbacService;
+        private readonly IApprovalPartyIntelWarmupService _approvalPartyIntelWarmup;
         private readonly ILogger<FinancePaymentsController> _logger;
 
         public FinancePaymentsController(
             IFinancePaymentService service,
             IDataPermissionService dataPermissionService,
             IRbacService rbacService,
+            IApprovalPartyIntelWarmupService approvalPartyIntelWarmup,
             ILogger<FinancePaymentsController> logger)
         {
             _service = service;
             _dataPermissionService = dataPermissionService;
             _rbacService = rbacService;
+            _approvalPartyIntelWarmup = approvalPartyIntelWarmup;
             _logger = logger;
         }
 
@@ -292,6 +295,7 @@ namespace CRM.API.Controllers
 
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 await _service.UpdateStatusAsync(id, 2, remark: null, actingUserId: userId);
+                _approvalPartyIntelWarmup.ScheduleAfterSubmit("FINANCE_PAYMENT", id, userId);
                 return Ok(new { success = true, message = "提交审核成功" });
             }
             catch (InvalidOperationException ex)

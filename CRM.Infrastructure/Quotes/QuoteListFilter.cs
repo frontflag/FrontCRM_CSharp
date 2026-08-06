@@ -39,6 +39,12 @@ internal static class QuoteListFilter
 
         q = ApplyKeywordToQuotes(db, q, request.Keyword);
 
+        if (!string.IsNullOrWhiteSpace(request.ExactMpn))
+        {
+            var mpnKey = request.ExactMpn.Trim().ToLowerInvariant();
+            q = q.Where(quote => quote.Mpn != null && quote.Mpn.ToLower() == mpnKey);
+        }
+
         if (QuoteAnalyticsDatasets.IsReportScope(request.AnalyticsDataset))
         {
             q = ApplyQuoteCreateDate(q, request.StartDate, request.EndDate);

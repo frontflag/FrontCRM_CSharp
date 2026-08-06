@@ -185,7 +185,9 @@ namespace CRM.API.Controllers
             [FromQuery] string? purchaserUserId = null,
             [FromQuery] string? hasQuotesOnly = null,
             [FromQuery] short? status = null,
-            [FromQuery] string? rfqCode = null)
+            [FromQuery] string? rfqCode = null,
+            [FromQuery] string? quotableByMe = null,
+            [FromQuery] string? preferItemId = null)
         {
             try
             {
@@ -209,6 +211,8 @@ namespace CRM.API.Controllers
                     HasQuotesOnly = ParseQueryBool(hasQuotesOnly),
                     Status = status,
                     RfqCode = rfqCode,
+                    QuotableByMeOnly = ParseQueryBool(quotableByMe) == true,
+                    PreferItemId = string.IsNullOrWhiteSpace(preferItemId) ? null : preferItemId.Trim(),
                     CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
                 };
                 var result = await _rfqService.GetPagedItemsAsync(request);

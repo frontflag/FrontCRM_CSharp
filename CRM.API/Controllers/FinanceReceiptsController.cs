@@ -18,6 +18,7 @@ namespace CRM.API.Controllers
         private readonly IFinanceReceivableService _receivableService;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IRbacService _rbacService;
+        private readonly IApprovalPartyIntelWarmupService _approvalPartyIntelWarmup;
         private readonly ILogger<FinanceReceiptsController> _logger;
 
         public FinanceReceiptsController(
@@ -25,12 +26,14 @@ namespace CRM.API.Controllers
             IFinanceReceivableService receivableService,
             IDataPermissionService dataPermissionService,
             IRbacService rbacService,
+            IApprovalPartyIntelWarmupService approvalPartyIntelWarmup,
             ILogger<FinanceReceiptsController> logger)
         {
             _service = service;
             _receivableService = receivableService;
             _dataPermissionService = dataPermissionService;
             _rbacService = rbacService;
+            _approvalPartyIntelWarmup = approvalPartyIntelWarmup;
             _logger = logger;
         }
 
@@ -223,6 +226,7 @@ namespace CRM.API.Controllers
 
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 await _service.UpdateStatusAsync(id, 1, userId);
+                _approvalPartyIntelWarmup.ScheduleAfterSubmit("FINANCE_RECEIPT", id, userId);
                 return Ok(new { success = true, message = "提交审核成功" });
             }
             catch (InvalidOperationException ex)

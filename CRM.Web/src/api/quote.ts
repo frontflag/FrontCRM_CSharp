@@ -176,6 +176,7 @@ export const quoteApi = {
     page?: number
     pageSize?: number
     keyword?: string
+    exactMpn?: string
     status?: number
     rfqItemId?: string | null
     startDate?: string | null
@@ -189,6 +190,8 @@ export const quoteApi = {
     q.set('page', String(page))
     q.set('pageSize', String(pageSize))
     if (params?.keyword != null && String(params.keyword).trim() !== '') q.set('keyword', String(params.keyword).trim())
+    if (params?.exactMpn != null && String(params.exactMpn).trim() !== '')
+      q.set('exactMpn', String(params.exactMpn).trim())
     if (params?.status !== undefined && params?.status !== null) q.set('status', String(params.status))
     if (params?.rfqItemId != null && String(params.rfqItemId).trim() !== '')
       q.set('rfqItemId', String(params.rfqItemId).trim())

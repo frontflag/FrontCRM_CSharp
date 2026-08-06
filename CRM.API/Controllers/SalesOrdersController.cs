@@ -43,6 +43,7 @@ namespace CRM.API.Controllers
         private readonly IStockInService _stockInService;
         private readonly ILogisticsService _logisticsService;
         private readonly ISalesOrderCustomerDownstreamSyncService _customerDownstreamSyncService;
+        private readonly IApprovalPartyIntelWarmupService _approvalPartyIntelWarmup;
         private readonly ApplicationDbContext _db;
         private readonly ILogger<SalesOrdersController> _logger;
 
@@ -62,6 +63,7 @@ namespace CRM.API.Controllers
             IStockInService stockInService,
             ILogisticsService logisticsService,
             ISalesOrderCustomerDownstreamSyncService customerDownstreamSyncService,
+            IApprovalPartyIntelWarmupService approvalPartyIntelWarmup,
             ApplicationDbContext db,
             ILogger<SalesOrdersController> logger)
         {
@@ -80,6 +82,7 @@ namespace CRM.API.Controllers
             _stockInService = stockInService;
             _logisticsService = logisticsService;
             _customerDownstreamSyncService = customerDownstreamSyncService;
+            _approvalPartyIntelWarmup = approvalPartyIntelWarmup;
             _db = db;
             _logger = logger;
         }
@@ -2643,6 +2646,8 @@ namespace CRM.API.Controllers
                     return BadRequest(new { success = false, message = "????/??????????????" });
                 var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 await _service.UpdateStatusAsync(id, status, null, actorId);
+                if (status == SellOrderMainStatus.PendingAudit)
+                    _approvalPartyIntelWarmup.ScheduleAfterSubmit("SALES_ORDER", id, actorId);
                 return Ok(new { success = true, message = "??????" });
             }
             catch (InvalidOperationException ex)

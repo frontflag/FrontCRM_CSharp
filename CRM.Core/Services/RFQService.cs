@@ -451,6 +451,8 @@ namespace CRM.Core.Services
                 HasQuotesOnly = request.HasQuotesOnly,
                 Status = request.Status,
                 RfqCode = request.RfqCode,
+                QuotableByMeOnly = request.QuotableByMeOnly,
+                PreferItemId = request.PreferItemId,
                 CurrentUserId = request.CurrentUserId,
                 CanViewCustomerInList = canViewCustomerInList
             };

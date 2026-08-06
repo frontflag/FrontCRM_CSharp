@@ -1,8 +1,8 @@
 <template>
-  <div class="quote-upsert-page">
+  <div class="quote-upsert-page" :class="{ 'quote-upsert-page--embedded': embedded }">
     <div class="page-header">
       <div class="header-left">
-        <button class="btn-back" type="button" @click="handleBack">
+        <button v-if="!embedded" class="btn-back" type="button" @click="handleBack">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="15 18 9 12 15 6" />
           </svg>
@@ -44,7 +44,23 @@
         </div>
       </div>
       <div class="header-right">
-        <el-button @click="handleBack">取消</el-button>
+        <button
+          v-if="!embedded && !isEditMode"
+          type="button"
+          class="btn-quote-desktop"
+          @click="openQuoteDesktop"
+        >
+          <span>{{ t('quoteDesktop.openFromCreate') }}</span>
+          <el-icon class="btn-quote-desktop__arrow"><ArrowRight /></el-icon>
+        </button>
+        <el-button
+          v-if="embedded && canMarkNoQuote"
+          :loading="markNoQuoteLoading"
+          @click="handleMarkNoQuote"
+        >
+          {{ t('quoteDesktop.actions.markNoQuote') }}
+        </el-button>
+        <el-button v-if="!embedded" @click="handleBack">取消</el-button>
         <el-button type="primary" :loading="submitLoading" @click="handleSubmit">
           <el-icon><Check /></el-icon> 保存
         </el-button>
@@ -73,7 +89,7 @@
               </template>
             </span>
             <span class="la-pre">{{ linkAlertSep8Ideo }}</span>
-            <span class="la-block-detail"><span class="la-muted">物料号</span><span class="la-pre">{{ linkAlertGap2 }}</span><span class="la-value-green">{{ formData.mpn || '—' }}</span><span class="la-pre">{{ linkAlertSep4Ideo }}</span><span class="la-muted">品牌</span><span class="la-pre">{{ linkAlertGap2 }}</span><span class="la-value-green">{{ formData.brand || '—' }}</span><span class="la-pre">{{ linkAlertSep4Ideo }}</span><span class="la-muted">数量</span><span class="la-pre">{{ linkAlertGap2 }}</span><span class="la-value-green">{{ formatNumber(formData.quantity) }}</span><span class="la-pre">{{ linkAlertSep4Ideo }}</span><span class="la-muted">目标价</span><span class="la-pre">{{ linkAlertGap2 }}</span><span class="la-value-green">{{ targetPriceText }}</span></span>
+            <span class="la-block-detail"><span class="la-muted">物料号</span><span class="la-pre">{{ linkAlertGap2 }}</span><span class="la-value-brown">{{ formData.mpn || '—' }}</span><span class="la-pre">{{ linkAlertSep4Ideo }}</span><span class="la-muted">品牌</span><span class="la-pre">{{ linkAlertGap2 }}</span><span class="la-value-brown">{{ formData.brand || '—' }}</span><span class="la-pre">{{ linkAlertSep4Ideo }}</span><span class="la-muted">数量</span><span class="la-pre">{{ linkAlertGap2 }}</span><span class="la-value-brown">{{ formatNumber(formData.quantity) }}</span><span class="la-pre">{{ linkAlertSep4Ideo }}</span><span class="la-muted">目标价</span><span class="la-pre">{{ linkAlertGap2 }}</span><span class="la-value-brown">{{ targetPriceText }}</span></span>
           </div>
         </template>
       </el-alert>
@@ -577,11 +593,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, inject } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Check, Plus, Minus } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { ArrowRight, Check, Plus, Minus } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { quoteApi, type QuoteFieldChangeLogRow } from '@/api/quote'
 import { vendorApi, vendorContactApi } from '@/api/vendor'
 import { rfqApi } from '@/api/rfq'
@@ -595,6 +611,11 @@ import {
   fetchLinkedRfqItemRecord
 } from '@/utils/rfqLinkedItemSummary'
 import { useAuthStore } from '@/stores/auth'
+import { useQuoteHistoryContextStore } from '@/stores/quoteHistoryContext'
+import { useMaterialIntelLookupStore } from '@/stores/materialIntelLookup'
+import { AI_PERMISSION_MATERIAL_INTEL_LOOKUP } from '@/api/ai'
+import { resolveRfqItemMaterialPn } from '@/utils/materialPn'
+import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import SalesUserCascader from '@/components/SalesUserCascader.vue'
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
 import MaterialProductionDateSelect from '@/components/MaterialProductionDateSelect.vue'
@@ -619,10 +640,35 @@ import {
   normalizeQuoteMainStatus
 } from '@/utils/quoteMainStatus'
 
+const props = withDefaults(
+  defineProps<{
+    embedded?: boolean
+    embedRfqId?: string | null
+    embedRfqItemId?: string | null
+    embedRfqCode?: string | null
+  }>(),
+  {
+    embedded: false,
+    embedRfqId: null,
+    embedRfqItemId: null,
+    embedRfqCode: null
+  }
+)
+
+const emit = defineEmits<{
+  success: []
+  'mark-no-quote': []
+}>()
+
+const embedded = computed(() => !!props.embedded)
+
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
+const quoteHistoryContextStore = useQuoteHistoryContextStore()
+const materialIntelLookupStore = useMaterialIntelLookupStore()
+const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const { ensureLoaded: ensureMaterialPdDict, coerceProductionDateToCode: coercePd } = useMaterialProductionDateDict()
@@ -713,6 +759,12 @@ watch(editPanelTab, (tab) => {
 })
 
 const rfqLink = computed(() => {
+  if (embedded.value) {
+    const rfqId = (props.embedRfqId || '').trim() || undefined
+    const rfqCode = (props.embedRfqCode || '').trim() || undefined
+    const rfqItemId = (props.embedRfqItemId || '').trim() || undefined
+    return { rfqId, rfqCode, rfqItemId, rfqItemIds: [] as string[] }
+  }
   const rfqId = route.query.rfqId as string | undefined
   const rfqCode = route.query.rfqCode as string | undefined
   const rfqItemId = route.query.rfqItemId as string | undefined
@@ -720,6 +772,18 @@ const rfqLink = computed(() => {
   const rfqItemIds = raw ? raw.split(',').map((s) => s.trim()).filter(Boolean) : []
   return { rfqId, rfqCode, rfqItemId, rfqItemIds }
 })
+
+const markNoQuoteLoading = ref(false)
+const canMarkNoQuote = computed(
+  () => embedded.value && !isEditMode.value && !!String(rfqLink.value.rfqItemId || '').trim()
+)
+
+function openQuoteDesktop() {
+  const q: Record<string, string> = {}
+  const itemId = String(rfqLink.value.rfqItemId || '').trim()
+  if (itemId) q.rfqItemId = itemId
+  router.push({ name: 'QuoteDesktop', query: q })
+}
 
 /** 顶部提示：不展示明细 ID，仅报价需求编号 + 物料号/品牌/数量/目标价（单行） */
 const hasRfqLinkAlert = computed(() => !!rfqLink.value.rfqId)
@@ -1028,9 +1092,12 @@ async function loadLinkedRfqItem() {
 }
 
 watch(
-  () => `${route.query.rfqId || ''}|${route.query.rfqItemId || ''}|${route.query.rfqItemIds || ''}`,
+  () =>
+    embedded.value
+      ? `${props.embedRfqId || ''}|${props.embedRfqItemId || ''}`
+      : `${route.query.rfqId || ''}|${route.query.rfqItemId || ''}|${route.query.rfqItemIds || ''}`,
   () => {
-    if (route.name === 'QuoteEdit') return
+    if (!embedded.value && route.name === 'QuoteEdit') return
     void loadLinkedRfqItem()
   },
   { immediate: true }
@@ -1369,7 +1436,29 @@ function removePriceRow(index: number) {
   formData.value.quotePriceRows.splice(index, 1)
 }
 
+function syncMaterialIntelFromForm() {
+  // 嵌入报价桌面时由 QuoteDesktop 按队列行绑定，避免与表单竞态
+  if (embedded.value) return
+  const pn = resolveRfqItemMaterialPn({ mpn: formData.value.mpn })
+  materialIntelLookupStore.bindPn(pn)
+  if (pn && authStore.hasPermission(AI_PERMISSION_MATERIAL_INTEL_LOOKUP)) {
+    void materialIntelLookupStore.ensureLookup(pn, { triggerType: 'auto' })
+  }
+}
+
+watch(
+  () => [formData.value.mpn, formData.value.brand] as const,
+  ([mpn, brand]) => {
+    quoteHistoryContextStore.bind({ mpn, brand })
+    syncMaterialIntelFromForm()
+  },
+  { immediate: true }
+)
+
 onMounted(async () => {
+  workspaceLayout?.toggleRightPanel(true)
+  quoteHistoryContextStore.bind({ mpn: formData.value.mpn, brand: formData.value.brand })
+  syncMaterialIntelFromForm()
   await refreshExchangeRatesFromApi()
   await ensureMaterialPdDict()
   await loadPurchaseUserSelectOptions()
@@ -1377,6 +1466,8 @@ onMounted(async () => {
     await loadQuoteForEdit()
     reconcileQuotePurchaseUserWithSelectOptions(true)
     recalcAllConvertedPrices()
+    quoteHistoryContextStore.bind({ mpn: formData.value.mpn, brand: formData.value.brand })
+    syncMaterialIntelFromForm()
     return
   }
   const u = authStore.user
@@ -1387,6 +1478,14 @@ onMounted(async () => {
     formData.value.salesUserName = u.userName
   }
   recalcAllConvertedPrices()
+})
+
+onUnmounted(() => {
+  // 嵌入报价桌面时由队列 selected 提供 MPN，避免切换明细时右栏闪空
+  if (!embedded.value) {
+    quoteHistoryContextStore.clear()
+    materialIntelLookupStore.clearBound()
+  }
 })
 
 const handleSubmit = async () => {
@@ -1432,6 +1531,11 @@ const handleSubmit = async () => {
       return { kind: 'create' as const, id, back: parseReturnTo() }
     },
     onSuccess: (r) => {
+      if (embedded.value) {
+        ElMessage.success(t('quoteDesktop.messages.saved'))
+        emit('success')
+        return
+      }
       if (r.kind === 'edit') {
         router.push({ name: 'QuoteList' })
         return
@@ -1446,6 +1550,33 @@ const handleSubmit = async () => {
     errorMessage: (e) => getApiErrorMessage(e, '保存失败')
   })
 }
+
+async function handleMarkNoQuote() {
+  const itemId = (rfqLink.value.rfqItemId || formData.value.rfqItemId || '').trim()
+  if (!itemId) {
+    ElMessage.warning(t('quoteDesktop.messages.noRfqItem'))
+    return
+  }
+  try {
+    await ElMessageBox.confirm(
+      t('quoteDesktop.messages.markNoQuoteConfirm'),
+      t('quoteDesktop.actions.markNoQuote'),
+      { type: 'warning' }
+    )
+  } catch {
+    return
+  }
+  markNoQuoteLoading.value = true
+  try {
+    await rfqApi.markNoQuote(itemId)
+    ElMessage.success(t('quoteDesktop.messages.markNoQuoteOk'))
+    emit('mark-no-quote')
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, t('quoteDesktop.messages.markNoQuoteFail')))
+  } finally {
+    markNoQuoteLoading.value = false
+  }
+}
 </script>
 
 <style scoped lang="scss">
@@ -1453,6 +1584,36 @@ const handleSubmit = async () => {
 
 .quote-upsert-page {
   padding: 20px;
+
+  &--embedded {
+    padding: 0 4px 12px;
+  }
+}
+
+.btn-quote-desktop {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px 8px 18px;
+  margin-right: 8px;
+  border: none;
+  border-radius: 10px;
+  background: #eaf5ff;
+  color: #1a2332;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+
+  &:hover {
+    background: #ddefff;
+    color: #0f172a;
+  }
+
+  &__arrow {
+    font-size: 14px;
+  }
 }
 
 .quote-upsert-content {
@@ -1614,9 +1775,9 @@ const handleSubmit = async () => {
     font-family: inherit;
   }
 
-  /* 物料号/品牌/数量/目标价 的数值；标题与「报价需求」同为 .la-muted */
-  .la-value-green {
-    color: #0a6439;
+  /* 物料号/品牌/数量/目标价 的数值；与 /rfq-items 采购报价条一致（$color-amber） */
+  .la-value-brown {
+    color: $color-amber;
     font-size: inherit;
     font-weight: 600;
     font-family: inherit;

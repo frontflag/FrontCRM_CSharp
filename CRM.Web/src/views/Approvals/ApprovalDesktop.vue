@@ -156,6 +156,8 @@ function applyPartyContext(ctx: ApprovalAuditPartyContext | null) {
       region: null,
       salesPersonName: null
     })
+    // 审批桌面含「客户调查」且无记录时自动发起调查
+    void customerIntelLookupStore.ensureLookup()
   } else {
     customerIntelLookupStore.clearBound()
   }
@@ -168,6 +170,8 @@ function applyPartyContext(ctx: ApprovalAuditPartyContext | null) {
       region: null,
       purchaserName: null
     })
+    // 审批桌面含「供应商调查」且无记录时自动发起调查
+    void vendorIntelLookupStore.ensureLookup()
   } else {
     vendorIntelLookupStore.clearBound()
   }

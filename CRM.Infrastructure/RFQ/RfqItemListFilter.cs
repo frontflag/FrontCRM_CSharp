@@ -239,6 +239,25 @@ internal static partial class RfqItemListFilter
             q = ApplyReportViewLens(db, q, request);
         }
 
+        if (request.QuotableByMeOnly && !string.IsNullOrWhiteSpace(request.CurrentUserId))
+        {
+            var actorId = request.CurrentUserId.Trim();
+            var quoteSummary = await rbacService.GetUserPermissionSummaryAsync(actorId);
+            if (!quoteSummary.IsSysAdmin && !RfqItemQuoteAccessRules.IsPurchaseDepartmentDirector(quoteSummary))
+            {
+                var protectionMinutes = await purchaseQuoterPoolService.GetDemandProtectionMinutesAsync(cancellationToken);
+                var protectionCutoffUtc = RfqDemandProtectionRules.ProtectionCutoffUtc(
+                    protectionMinutes,
+                    DateTime.UtcNow);
+                var protectionPoolEnabled = RfqDemandProtectionRules.CanParticipateInProtectionPool(quoteSummary);
+                q = q.Where(x =>
+                    x.Item.AssignedPurchaserUserId1 == actorId ||
+                    x.Item.AssignedPurchaserUserId2 == actorId ||
+                    (protectionPoolEnabled &&
+                     (protectionMinutes <= 0 || x.Item.CreateTime <= protectionCutoffUtc)));
+            }
+        }
+
         return q;
     }
 

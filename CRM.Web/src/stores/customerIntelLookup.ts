@@ -234,6 +234,27 @@ export const useCustomerIntelLookupStore = defineStore('customerIntelLookup', ()
     return task
   }
 
+  function hasUsableReport(report: CustomerIntelReportDetail | null | undefined): boolean {
+    const data = report?.report
+    if (data == null || typeof data !== 'object') return false
+    return Object.keys(data as object).length > 0
+  }
+
+  /** 无最新调查报告时自动发起调查（不强制刷新；失败静默） */
+  async function ensureLookup(): Promise<void> {
+    const id = boundCustomerId.value
+    const companyName = boundContext.value?.companyName?.trim()
+    if (!id || !companyName) return
+    if (isCustomerInvestigating(id)) return
+    try {
+      await loadLatest(id)
+      if (hasUsableReport(getSlot(id).currentReport)) return
+      await investigate({ force: false })
+    } catch {
+      /* 自动调查不阻断审批桌面 */
+    }
+  }
+
   return {
     boundContext,
     boundCustomerId,
@@ -253,6 +274,7 @@ export const useCustomerIntelLookupStore = defineStore('customerIntelLookup', ()
     loadLatest,
     loadHistory,
     selectReportById,
-    investigate
+    investigate,
+    ensureLookup
   }
 })

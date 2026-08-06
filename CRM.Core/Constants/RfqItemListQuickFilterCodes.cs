@@ -5,6 +5,7 @@ public static class RfqItemListQuickFilterCodes
 {
     public const string Important = "important";
     public const string Converted = "converted";
+    public const string PendingQuote = "pending_quote";
     public const string NoQuote = "no_quote";
     public const string MultiQuote = "multi_quote";
 
@@ -12,6 +13,6 @@ public static class RfqItemListQuickFilterCodes
     {
         if (string.IsNullOrWhiteSpace(code)) return false;
         var c = code.Trim();
-        return c is Important or Converted or NoQuote or MultiQuote;
+        return c is Important or Converted or PendingQuote or NoQuote or MultiQuote;
     }
 }

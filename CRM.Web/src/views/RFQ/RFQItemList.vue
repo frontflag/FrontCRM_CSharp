@@ -8,6 +8,10 @@
         </div>
         <div class="count-badge">{{ t('rfqItemList.count', { count: totalCount }) }}</div>
       </div>
+      <button type="button" class="btn-quote-desktop" @click="openQuoteDesktop">
+        <span>{{ t('quoteDesktop.openFromList') }}</span>
+        <el-icon class="btn-quote-desktop__arrow"><ArrowRight /></el-icon>
+      </button>
     </div>
 
     <!-- 搜索栏：与客户列表 CustomerList 同款布局与控件皮肤 -->
@@ -911,6 +915,10 @@ import {
 const router = useRouter()
 const route = useRoute()
 const { t, locale } = useI18n()
+
+function openQuoteDesktop() {
+  router.push({ name: 'QuoteDesktop' })
+}
 const authStore = useAuthStore()
 const canEditRfq = computed(() => authStore.hasPermission('rfq.write'))
 const workspaceLayout = inject(WorkspaceLayoutKey, null)
@@ -2763,6 +2771,37 @@ html[data-theme='dark'] .rfq-filter-tabs__item:not(.is-active) {
   min-height: 0;
 }
 
+/* 与 /pending-approvals「进入审批桌面」同款 */
+.btn-quote-desktop {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px 8px 18px;
+  border: none;
+  border-radius: 10px;
+  background: #eaf5ff;
+  color: #1a2332;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: 'Noto Sans SC', sans-serif;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+
+  &:hover {
+    background: #ddefff;
+    color: #0f172a;
+  }
+
+  &:active {
+    background: #d0e8ff;
+  }
+
+  &__arrow {
+    font-size: 14px;
+  }
+}
+
 /* 采购报价阶梯表（数量 / 金额 / 币别）样式见 assets/styles/crm-quote-tier-dock.scss */
 
 .page-header {
@@ -2770,6 +2809,7 @@ html[data-theme='dark'] .rfq-filter-tabs__item:not(.is-active) {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
   margin-bottom: 20px;
 
   .header-left {

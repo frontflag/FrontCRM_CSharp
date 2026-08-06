@@ -2758,6 +2758,7 @@ const enUS = {
         quote_today_yesterday: 'Quotes today & yesterday',
         quote_last_3_days: 'Quotes in 3 days',
         quote_last_7_days: 'Quotes in 1 week',
+        pending_quote: 'Pending quote',
         no_quote: 'No quote found',
         multi_quote: 'Multiple quotes'
       }
@@ -8143,14 +8144,14 @@ const enUS = {
       totalPrefix: 'All pending ',
       totalSuffix: '',
       partsWrap: ' ( {parts} )',
-      partSep: ', ',
+      partSep: '  ',
       part: {
-        customer: 'Customer: {n}',
-        vendor: 'Vendor: {n}',
-        salesOrder: 'Sales order: {n}',
-        purchaseOrder: 'Purchase order: {n}',
-        payment: 'Payment: {n}',
-        receipt: 'Receipt: {n}'
+        customer: 'Customer:{n}',
+        vendor: 'Vendor:{n}',
+        salesOrder: 'Sales order:{n}',
+        purchaseOrder: 'Purchase order:{n}',
+        payment: 'Payment:{n}',
+        receipt: 'Receipt:{n}'
       }
     },
     empty: {
@@ -8194,6 +8195,58 @@ const enUS = {
         'Missing linked sell/purchase unit price; cannot compute (sell − purchase) × qty.',
       emptyOrder: 'Missing order id; cannot load',
       emptyItems: 'No order lines'
+    }
+  },
+  quoteDesktop: {
+    title: 'Quote Desktop',
+    leftTab: 'Pending quotes',
+    openFromCreate: 'Quote Desktop',
+    openFromList: 'Quote Desktop',
+    nav: {
+      prev: 'Previous',
+      next: 'Next'
+    },
+    stats: {
+      total: 'Pending quote lines: {n}'
+    },
+    dateFilter: {
+      all: 'All',
+      today: 'Today',
+      yesterday: 'Yesterday',
+      dayBefore: 'Day before',
+      before3: '3+ days ago'
+    },
+    empty: {
+      queue: 'No pending quote lines',
+      workspace: 'No pending quote lines',
+      history: 'No quote history'
+    },
+    tabs: {
+      history: 'Quote history'
+    },
+    history: {
+      materialTitle: 'Material',
+      listTitle: 'History',
+      mpn: 'PN',
+      brand: 'Brand',
+      quoteCode: 'Quote no.',
+      quoteDate: 'Quote date',
+      quoter: 'Quoter',
+      priceLabel: 'Price: ',
+      qtyLabel: 'Qty: '
+    },
+    actions: {
+      markNoQuote: 'No quote found'
+    },
+    messages: {
+      loadFailed: 'Failed to load pending quote queue',
+      refreshFailed: 'Failed to refresh queue',
+      focusMissed: 'Line not found in pending queue; selected the first item',
+      saved: 'Saved',
+      noRfqItem: 'Missing RFQ line',
+      markNoQuoteConfirm: 'Mark this RFQ line as no quote found?',
+      markNoQuoteOk: 'Marked as no quote found',
+      markNoQuoteFail: 'Failed to mark'
     }
   },
   pendingApprovals: {

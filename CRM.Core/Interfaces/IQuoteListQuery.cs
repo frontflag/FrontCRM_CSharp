@@ -45,6 +45,9 @@ public sealed class QuoteQueryRequest
     /// <summary>综合关键字：报价单号、MPN、备注、需求编号、客户展示名、业务员/采购员登录名、明细品牌/料号等（OR）。</summary>
     public string? Keyword { get; set; }
 
+    /// <summary>物料型号精确匹配（Trim + 忽略大小写；报价桌面历史用）。</summary>
+    public string? ExactMpn { get; set; }
+
     public short? Status { get; set; }
 
     /// <summary>需求明细行 ID；与列表筛选一致。</summary>

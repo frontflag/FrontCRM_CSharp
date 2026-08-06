@@ -24,7 +24,11 @@ const activePreset = computed(() => {
 const demandTimePresets = RFQ_ITEM_DEMAND_TIME_PRESET_IDS
 const demandStatusPresets = ['important', 'converted'] as const satisfies readonly RfqItemListPresetId[]
 const quoteTimePresets = RFQ_ITEM_QUOTE_TIME_PRESET_IDS
-const quoteStatusPresets = ['no_quote', 'multi_quote'] as const satisfies readonly RfqItemListPresetId[]
+const quoteStatusPresets = [
+  'pending_quote',
+  'no_quote',
+  'multi_quote'
+] as const satisfies readonly RfqItemListPresetId[]
 
 function onPresetClick(id: RfqItemListPresetId) {
   if (route.name !== 'RFQItemList') return

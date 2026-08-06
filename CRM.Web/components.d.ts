@@ -155,6 +155,8 @@ declare module 'vue' {
     QcImagesReadonlyGallery: typeof import('./src/components/Logistics/QcImagesReadonlyGallery.vue')['default']
     QcOpsPanel: typeof import('./src/components/Logistics/QcOpsPanel.vue')['default']
     QcSearchPanel: typeof import('./src/components/Logistics/QcSearchPanel.vue')['default']
+    QuoteDesktopQueuePanel: typeof import('./src/components/RFQ/QuoteDesktopQueuePanel.vue')['default']
+    QuoteHistoryPanel: typeof import('./src/components/RFQ/QuoteHistoryPanel.vue')['default']
     RecentHistoryList: typeof import('./src/components/workspace/RecentHistoryList.vue')['default']
     RegionCascaderWithQuickPick: typeof import('./src/components/RegionCascaderWithQuickPick.vue')['default']
     RfqExcelImportHost: typeof import('./src/components/AiCreate/RfqExcelImportHost.vue')['default']

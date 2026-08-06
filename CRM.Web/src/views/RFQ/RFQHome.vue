@@ -512,19 +512,23 @@ onUnmounted(() => {
 }
 
 .rfq-home__pill-wrap {
-  width: 100%;
-  max-width: calc(100% * 2 / 3);
+  /* 按内容收窄面板，不再拉满整行 */
+  width: fit-content;
+  max-width: 100%;
   min-width: 0;
 }
 
 .rfq-home__pill {
   display: flex;
   align-items: stretch;
-  flex-wrap: wrap;
-  width: 100%;
+  flex-wrap: nowrap;
+  width: auto;
+  max-width: 100%;
   min-height: 52px;
-  padding: 4px 6px 4px 4px;
+  /* 右侧留白，避免末项贴边 */
+  padding: 4px 18px 4px 4px;
   gap: 4px;
+  box-sizing: border-box;
   background: $layer-2;
   border: 1px solid $border-panel;
   border-radius: 999px;
@@ -532,10 +536,13 @@ onUnmounted(() => {
 }
 
 .rfq-home__pill-field {
-  flex: 1 1 160px;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
-  min-width: 0;
+  /* 输入约 20 个字母宽度 */
+  width: calc(20ch + 48px);
+  min-width: calc(20ch + 48px);
+  max-width: calc(20ch + 48px);
   padding-left: 14px;
   padding-right: 8px;
 }
@@ -549,6 +556,7 @@ onUnmounted(() => {
 .rfq-home__pill-input {
   flex: 1;
   min-width: 0;
+  width: 100%;
   border: none;
   background: transparent;
   color: $text-primary;
@@ -629,7 +637,7 @@ onUnmounted(() => {
 .rfq-home__pill-link {
   flex-shrink: 0;
   align-self: center;
-  margin: 0 10px 0 4px;
+  margin: 0 4px;
   padding: 8px 4px;
   border: none;
   background: none;

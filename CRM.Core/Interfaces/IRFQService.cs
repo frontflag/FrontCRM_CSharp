@@ -247,6 +247,17 @@ namespace CRM.Core.Interfaces
 
         /// <summary>具备 customer.info.read 等时由服务层置为 true；否则物料型号筛选不包含客户物料号。</summary>
         public bool CanViewCustomerInList { get; set; } = true;
+
+        /// <summary>
+        /// 为 true 时仅返回当前用户可报价的明细（系统管理员 / 采购总监 / 分配报价员 / 保护期后采购池），
+        /// 与前端 <c>canQuoteRfqItem</c> 对齐。
+        /// </summary>
+        public bool QuotableByMeOnly { get; set; }
+
+        /// <summary>
+        /// 若指定且该明细落在当前筛选结果中，则将页码调整为包含该明细的页（报价桌面深链定位）。
+        /// </summary>
+        public string? PreferItemId { get; set; }
     }
 
     /// <summary>需求明细列表行（主表扩展字段供前端展示）</summary>
@@ -257,6 +268,8 @@ namespace CRM.Core.Interfaces
         public string? RfqCode { get; set; }
         /// <summary>主表创建时间（需求创建）</summary>
         public DateTime RfqCreateTime { get; set; }
+        /// <summary>明细行创建时间</summary>
+        public DateTime ItemCreateTime { get; set; }
         public int LineNo { get; set; }
         public string Mpn { get; set; } = string.Empty;
         public string? CustomerMpn { get; set; }

@@ -22,6 +22,7 @@ internal static partial class RfqItemListFilter
         {
             RfqItemListQuickFilterCodes.Important => q.Where(x => x.Rfq.Importance == ImportantImportanceValue),
             RfqItemListQuickFilterCodes.Converted => ApplyConverted(db, q),
+            RfqItemListQuickFilterCodes.PendingQuote => q.Where(x => x.Item.Status == 0),
             RfqItemListQuickFilterCodes.NoQuote => q.Where(x => x.Item.Status == 5),
             RfqItemListQuickFilterCodes.MultiQuote => ApplyMultiQuote(db, q),
             _ => q

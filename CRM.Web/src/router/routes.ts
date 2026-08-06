@@ -572,6 +572,12 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '新建报价' }
       },
       {
+        path: 'quote-desktop',
+        name: 'QuoteDesktop',
+        component: () => import('@/views/RFQ/QuoteDesktop.vue'),
+        meta: { requiresAuth: true, title: '报价桌面' }
+      },
+      {
         path: 'quotes/:id/edit',
         name: 'QuoteEdit',
         component: () => import('@/views/RFQ/QuoteCreate.vue'),

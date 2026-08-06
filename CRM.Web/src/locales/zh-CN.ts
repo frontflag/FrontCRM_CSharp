@@ -2732,6 +2732,7 @@ const zhCN = {
         quote_today_yesterday: '今昨报价',
         quote_last_3_days: '3天内报价',
         quote_last_7_days: '1周内报价',
+        pending_quote: '待报价',
         no_quote: '查无报价',
         multi_quote: '多条报价'
       }
@@ -8128,14 +8129,14 @@ const zhCN = {
       totalPrefix: '全部待审批共 ',
       totalSuffix: ' 条',
       partsWrap: ' （ {parts} ）',
-      partSep: ' ，',
+      partSep: '  ',
       part: {
-        customer: '客户：{n}',
-        vendor: '供应商：{n}',
-        salesOrder: '销售订单：{n}',
-        purchaseOrder: '采购订单：{n}',
-        payment: '付款：{n}',
-        receipt: '收款：{n}'
+        customer: '客户:{n}',
+        vendor: '供应商:{n}',
+        salesOrder: '销售订单:{n}',
+        purchaseOrder: '采购订单:{n}',
+        payment: '付款:{n}',
+        receipt: '收款:{n}'
       }
     },
     empty: {
@@ -8178,6 +8179,58 @@ const zhCN = {
       purchaseProfitTipNoCost: '无关联销售/采购单价，无法按（销售单价 − 采购单价）× 采购数量计算。',
       emptyOrder: '缺少订单编号，无法加载',
       emptyItems: '暂无订单明细'
+    }
+  },
+  quoteDesktop: {
+    title: '报价桌面',
+    leftTab: '待报价',
+    openFromCreate: '报价桌面',
+    openFromList: '报价桌面',
+    nav: {
+      prev: '上一条',
+      next: '下一条'
+    },
+    stats: {
+      total: '全部待报价需求明细 {n}条'
+    },
+    dateFilter: {
+      all: '全部',
+      today: '今日需求',
+      yesterday: '昨日需求',
+      dayBefore: '前天需求',
+      before3: '3日前需求'
+    },
+    empty: {
+      queue: '暂无待报价需求明细',
+      workspace: '暂无待报价需求明细',
+      history: '暂无报价历史'
+    },
+    tabs: {
+      history: '历史报价'
+    },
+    history: {
+      materialTitle: '物料',
+      listTitle: '历史报价',
+      mpn: '物料型号',
+      brand: '品牌',
+      quoteCode: '报价单号',
+      quoteDate: '报价日期',
+      quoter: '报价员',
+      priceLabel: '报价：',
+      qtyLabel: '数量：'
+    },
+    actions: {
+      markNoQuote: '查无报价'
+    },
+    messages: {
+      loadFailed: '加载待报价队列失败',
+      refreshFailed: '刷新队列失败',
+      focusMissed: '未找到该待报价明细，已选中第一条',
+      saved: '保存成功',
+      noRfqItem: '缺少需求明细',
+      markNoQuoteConfirm: '确认将当前需求明细标记为查无报价？',
+      markNoQuoteOk: '已标记为查无报价',
+      markNoQuoteFail: '标记失败'
     }
   },
   pendingApprovals: {
