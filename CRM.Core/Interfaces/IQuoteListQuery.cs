@@ -48,6 +48,9 @@ public sealed class QuoteQueryRequest
     /// <summary>物料型号精确匹配（Trim + 忽略大小写；报价桌面历史用）。</summary>
     public string? ExactMpn { get; set; }
 
+    /// <summary>品牌精确匹配（Trim + 忽略大小写；命中任一未删 quoteitem.brand；与 ExactMpn 组合用于历史报价）。</summary>
+    public string? ExactBrand { get; set; }
+
     public short? Status { get; set; }
 
     /// <summary>需求明细行 ID；与列表筛选一致。</summary>

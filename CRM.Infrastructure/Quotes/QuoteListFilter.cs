@@ -45,6 +45,17 @@ internal static class QuoteListFilter
             q = q.Where(quote => quote.Mpn != null && quote.Mpn.ToLower() == mpnKey);
         }
 
+        if (!string.IsNullOrWhiteSpace(request.ExactBrand))
+        {
+            var brandKey = request.ExactBrand.Trim().ToLowerInvariant();
+            q = q.Where(quote =>
+                db.QuoteItems.AsNoTracking().Any(qi =>
+                    !qi.IsDeleted
+                    && qi.QuoteId == quote.Id
+                    && qi.Brand != null
+                    && qi.Brand.ToLower() == brandKey));
+        }
+
         if (QuoteAnalyticsDatasets.IsReportScope(request.AnalyticsDataset))
         {
             q = ApplyQuoteCreateDate(q, request.StartDate, request.EndDate);

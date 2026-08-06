@@ -8,13 +8,13 @@
       </div>
       <div class="qh-kv">
         <span class="qh-kv__label">{{ t('quoteDesktop.history.brand') }}</span>
-        <span class="qh-kv__value">{{ brand || '—' }}</span>
+        <span class="qh-kv__value qh-kv__value--brand">{{ brand || '—' }}</span>
       </div>
     </section>
 
     <section class="qh-block">
       <h4 class="qh-block__title">{{ t('quoteDesktop.history.listTitle') }}</h4>
-      <div v-if="!mpn" class="qh-empty">{{ t('quoteDesktop.empty.history') }}</div>
+      <div v-if="!mpn || !brand" class="qh-empty">{{ t('quoteDesktop.empty.history') }}</div>
       <div v-else-if="!rows.length && !loading" class="qh-empty">{{ t('quoteDesktop.empty.history') }}</div>
       <template v-else>
         <article v-for="row in rows" :key="row.id" class="qh-card">
@@ -128,10 +128,15 @@ function mapTiers(quote: Record<string, unknown>): Tier[] {
   }))
 }
 
-async function loadHistory(mpn: string) {
+async function loadHistory(mpn: string, brand: string) {
   loading.value = true
   try {
-    const res = await quoteApi.getList({ exactMpn: mpn, page: 1, pageSize: 10 })
+    const res = await quoteApi.getList({
+      exactMpn: mpn,
+      exactBrand: brand,
+      page: 1,
+      pageSize: 10
+    })
     rows.value = (res.data || []).map((raw) => {
       const q = raw as Record<string, unknown>
       const quoterName = String(
@@ -160,13 +165,14 @@ async function loadHistory(mpn: string) {
 }
 
 watch(
-  () => String(props.mpn || '').trim(),
-  (mpn) => {
-    if (!mpn) {
+  () => [String(props.mpn || '').trim(), String(props.brand || '').trim()] as const,
+  ([mpn, brand]) => {
+    // 历史报价按「物料型号 + 品牌」精确匹配；缺一不查
+    if (!mpn || !brand) {
       rows.value = []
       return
     }
-    void loadHistory(mpn)
+    void loadHistory(mpn, brand)
   },
   { immediate: true }
 )
@@ -207,9 +213,9 @@ watch(
   &__value {
     word-break: break-all;
 
-    &--mpn {
+    &--mpn,
+    &--brand {
       color: $color-amber;
-      font-weight: 600;
     }
   }
 }
