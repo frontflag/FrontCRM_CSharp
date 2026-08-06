@@ -304,6 +304,7 @@
           </div>
           <el-upload
             class="qc-upload"
+            :class="{ 'qc-upload--collapsed': qcImagesCollapsed }"
             action="#"
             list-type="picture-card"
             :auto-upload="false"
@@ -318,6 +319,24 @@
           >
             <el-icon><Plus /></el-icon>
           </el-upload>
+          <div v-if="qcHiddenImageCount > 0 || qcImagesExpanded" class="qc-upload-more">
+            <el-button
+              v-if="!qcImagesExpanded && qcHiddenImageCount > 0"
+              link
+              type="primary"
+              @click="qcImagesExpanded = true"
+            >
+              {{ t('qcDetail.imagesShowMore', { n: qcHiddenImageCount }) }}
+            </el-button>
+            <el-button
+              v-else-if="qcImagesExpanded && qcFileList.length > QC_IMAGES_INITIAL_VISIBLE"
+              link
+              type="primary"
+              @click="qcImagesExpanded = false"
+            >
+              {{ t('qcDetail.imagesCollapse') }}
+            </el-button>
+          </div>
         </div>
       </div>
     </div>
@@ -325,7 +344,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { UploadFile, UploadRawFile } from 'element-plus'
@@ -557,8 +576,24 @@ function onPreviewQcImage(uploadFile: UploadFile) {
   })
 }
 
-const MAX_QC_IMAGES = 50
+const MAX_QC_IMAGES = 100
 const MAX_QC_IMAGE_SIZE_MB = 8
+/** 详情图片区默认展示张数，超出后「查看剩余 / 收起」 */
+const QC_IMAGES_INITIAL_VISIBLE = 10
+const qcImagesExpanded = ref(false)
+const qcHiddenImageCount = computed(() =>
+  Math.max(0, qcFileList.value.length - QC_IMAGES_INITIAL_VISIBLE)
+)
+const qcImagesCollapsed = computed(
+  () => !qcImagesExpanded.value && qcFileList.value.length > QC_IMAGES_INITIAL_VISIBLE
+)
+
+watch(
+  () => qcFileList.value.length,
+  (n) => {
+    if (n <= QC_IMAGES_INITIAL_VISIBLE) qcImagesExpanded.value = false
+  }
+)
 
 type QcImageUploadFailure = { item: QcUploadFile; reason: string }
 type QcImageUploadBatchResult = { successCount: number; failed: QcImageUploadFailure[] }
@@ -1154,7 +1189,18 @@ onUnmounted(() => {
   line-height: 1.55;
 }
 
+.qc-upload-more {
+  margin-top: 10px;
+}
+
 .qc-upload {
+  /* 折叠：仅隐藏第 11 张及以后的已选缩略图，保留「+」上传入口 */
+  &--collapsed {
+    :deep(.el-upload-list--picture-card > .el-upload-list__item:nth-child(n + 11)) {
+      display: none;
+    }
+  }
+
   :deep(.el-upload-list--picture-card .el-upload-list__item-actions) {
     position: absolute;
     inset: 0;

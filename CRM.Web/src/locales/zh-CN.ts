@@ -6011,9 +6011,11 @@ const zhCN = {
     qcUserPlaceholder: '请选择物流部员工',
     stockInPlanDatePlaceholder: '生成入库单用',
     uploadHintCreate:
-      '新建：当前尚无质检单号，首次点击「保存质检」会创建单据；保存前已选好的图片会随本次保存一并上传。单张图片上限 8MB，最多 50 张。',
+      '新建：当前尚无质检单号，首次点击「保存质检」会创建单据；保存前已选好的图片会随本次保存一并上传。单张图片上限 8MB，最多 100 张。',
     uploadHintEdit:
       '编辑：可随时添加图片，点击「保存质检」后新选择的图片会上传并关联本单；删除已保存缩略图会同步删除服务端文档。通过「质检列表」再次进入本页可查看历史图片。',
+    imagesShowMore: '查看剩余 {n} 张照片',
+    imagesCollapse: '收起',
     messages: {
       noticeMissing: '缺少到货通知ID',
       saveSuccess: '质检已保存',

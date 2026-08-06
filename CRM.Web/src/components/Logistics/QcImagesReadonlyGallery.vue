@@ -1,10 +1,12 @@
 <template>
   <div class="qc-images-readonly">
     <template v-if="grouped.length > 0">
-      <section v-for="group in grouped" :key="group.qcId" class="qc-images-readonly__group">
+      <section v-for="group in visibleGrouped" :key="group.qcId" class="qc-images-readonly__group">
         <div v-if="group.qcCode || group.stockInNotifyCode" class="qc-images-readonly__group-head">
           <span v-if="group.qcCode" class="qc-images-readonly__qc-code">{{ group.qcCode }}</span>
-          <span v-if="group.stockInNotifyCode" class="qc-images-readonly__notify-code">{{ group.stockInNotifyCode }}</span>
+          <span v-if="group.stockInNotifyCode" class="qc-images-readonly__notify-code">{{
+            group.stockInNotifyCode
+          }}</span>
         </div>
         <div class="qc-images-readonly__grid">
           <button
@@ -25,6 +27,14 @@
           </button>
         </div>
       </section>
+      <div v-if="hiddenCount > 0 || expanded" class="qc-images-readonly__more">
+        <el-button v-if="!expanded && hiddenCount > 0" link type="primary" @click="expanded = true">
+          {{ t('qcDetail.imagesShowMore', { n: hiddenCount }) }}
+        </el-button>
+        <el-button v-else-if="expanded && totalCount > initialVisible" link type="primary" @click="expanded = false">
+          {{ t('qcDetail.imagesCollapse') }}
+        </el-button>
+      </div>
     </template>
     <el-empty v-else :description="emptyText" :image-size="64" />
   </div>
@@ -40,16 +50,21 @@ import { qcReadonlyRowsToBrowserItems } from '@/utils/imageBrowserItems'
 
 export type { QcImageReadonlyRow }
 
+const DEFAULT_INITIAL_VISIBLE = 10
+
 const props = withDefaults(
   defineProps<{
     images: QcImageReadonlyRow[]
     emptyText?: string
     /** 全屏浏览器标题；默认「质检图片」 */
     browserTitle?: string
+    /** 折叠时默认展示张数 */
+    initialVisible?: number
   }>(),
   {
     images: () => [],
     emptyText: '暂无质检图片',
+    initialVisible: DEFAULT_INITIAL_VISIBLE
   }
 )
 
@@ -63,6 +78,8 @@ type QcImageGroup = {
   images: QcImageReadonlyRow[]
 }
 
+const expanded = ref(false)
+
 const grouped = computed<QcImageGroup[]>(() => {
   const map = new Map<string, QcImageGroup>()
   for (const img of props.images) {
@@ -74,7 +91,7 @@ const grouped = computed<QcImageGroup[]>(() => {
         qcId,
         qcCode: img.qcCode,
         stockInNotifyCode: img.stockInNotifyCode,
-        images: [],
+        images: []
       }
       map.set(qcId, g)
     }
@@ -86,33 +103,54 @@ const grouped = computed<QcImageGroup[]>(() => {
 /** 与网格展示顺序一致：按质检单分组后依次展平 */
 const flatImages = computed(() => grouped.value.flatMap((g) => g.images))
 
+const totalCount = computed(() => flatImages.value.length)
+const initialVisible = computed(() => Math.max(1, Number(props.initialVisible) || DEFAULT_INITIAL_VISIBLE))
+const hiddenCount = computed(() => Math.max(0, totalCount.value - initialVisible.value))
+
+const visibleFlat = computed(() => {
+  if (expanded.value || totalCount.value <= initialVisible.value) return flatImages.value
+  return flatImages.value.slice(0, initialVisible.value)
+})
+
+/** 按可见切片重建分组（保持组头，仅含可见图） */
+const visibleGrouped = computed<QcImageGroup[]>(() => {
+  const allow = new Set(visibleFlat.value.map((x) => String(x.documentId)))
+  const out: QcImageGroup[] = []
+  for (const g of grouped.value) {
+    const images = g.images.filter((img) => allow.has(String(img.documentId)))
+    if (images.length === 0) continue
+    out.push({ ...g, images })
+  }
+  return out
+})
+
 const browserItems = computed(() => qcReadonlyRowsToBrowserItems(flatImages.value))
 
 const thumbUrlById = ref<Record<string, string>>({})
 const blobUrls: string[] = []
+const loadedThumbIds = new Set<string>()
 
 function revokeBlobUrls() {
   blobUrls.forEach((u) => URL.revokeObjectURL(u))
   blobUrls.length = 0
+  loadedThumbIds.clear()
   thumbUrlById.value = {}
 }
 
 async function loadThumbnails(images: QcImageReadonlyRow[]) {
-  revokeBlobUrls()
-  const next: Record<string, string> = {}
-  let seq = 0
+  const next = { ...thumbUrlById.value }
   for (const img of images) {
     const id = String(img.documentId || '').trim()
-    if (!id || next[id]) continue
+    if (!id || loadedThumbIds.has(id) || next[id]) continue
     try {
       const blob = (await apiClient.get(`/api/v1/documents/${encodeURIComponent(id)}/preview?thumbnail=true`, {
-        responseType: 'blob',
+        responseType: 'blob'
       })) as unknown as Blob
       if (!(blob instanceof Blob) || blob.size === 0) continue
       const url = URL.createObjectURL(blob)
       blobUrls.push(url)
       next[id] = url
-      seq += 1
+      loadedThumbIds.add(id)
     } catch {
       /* skip broken thumb */
     }
@@ -122,11 +160,17 @@ async function loadThumbnails(images: QcImageReadonlyRow[]) {
 
 watch(
   () => props.images,
-  (imgs) => {
-    void loadThumbnails(imgs ?? [])
+  () => {
+    expanded.value = false
+    revokeBlobUrls()
+    void loadThumbnails(visibleFlat.value)
   },
   { immediate: true, deep: true }
 )
+
+watch(visibleFlat, (imgs) => {
+  void loadThumbnails(imgs ?? [])
+})
 
 function onPreview(documentId: string) {
   const items = browserItems.value
@@ -200,5 +244,9 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
   background: var(--el-fill-color);
+}
+
+.qc-images-readonly__more {
+  margin-top: 10px;
 }
 </style>
