@@ -8184,14 +8184,14 @@ const zhCN = {
   quoteDesktop: {
     title: '报价桌面',
     leftTab: '待报价',
-    openFromCreate: '报价桌面',
-    openFromList: '报价桌面',
+    openFromList: '进入报价桌面',
     nav: {
       prev: '上一条',
       next: '下一条'
     },
     stats: {
-      total: '全部待报价需求明细 {n}条'
+      totalPrefix: '全部待报价需求明细 ',
+      totalSuffix: ' 条'
     },
     dateFilter: {
       all: '全部',

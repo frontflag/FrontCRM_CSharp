@@ -8200,14 +8200,14 @@ const enUS = {
   quoteDesktop: {
     title: 'Quote Desktop',
     leftTab: 'Pending quotes',
-    openFromCreate: 'Quote Desktop',
-    openFromList: 'Quote Desktop',
+    openFromList: 'Enter Quote Desktop',
     nav: {
       prev: 'Previous',
       next: 'Next'
     },
     stats: {
-      total: 'Pending quote lines: {n}'
+      totalPrefix: 'Pending quote lines: ',
+      totalSuffix: ''
     },
     dateFilter: {
       all: 'All',

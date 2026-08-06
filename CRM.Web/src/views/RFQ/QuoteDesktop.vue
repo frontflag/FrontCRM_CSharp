@@ -5,7 +5,9 @@
         {{ t('quoteDesktop.nav.prev') }}
       </el-button>
       <div class="qd-nav__stats">
-        {{ t('quoteDesktop.stats.total', { n: total }) }}
+        <span>{{ t('quoteDesktop.stats.totalPrefix') }}</span>
+        <span class="qd-nav__stats-total">{{ total }}</span>
+        <span>{{ t('quoteDesktop.stats.totalSuffix') }}</span>
       </div>
       <el-button size="small" :disabled="!canNext" @click="onNext">
         {{ t('quoteDesktop.nav.next') }}
@@ -166,6 +168,11 @@ onUnmounted(() => {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  &__stats-total {
+    font-weight: 400;
+    color: #d97706;
   }
 }
 

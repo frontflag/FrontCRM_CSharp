@@ -44,15 +44,6 @@
         </div>
       </div>
       <div class="header-right">
-        <button
-          v-if="!embedded && !isEditMode"
-          type="button"
-          class="btn-quote-desktop"
-          @click="openQuoteDesktop"
-        >
-          <span>{{ t('quoteDesktop.openFromCreate') }}</span>
-          <el-icon class="btn-quote-desktop__arrow"><ArrowRight /></el-icon>
-        </button>
         <el-button
           v-if="embedded && canMarkNoQuote"
           :loading="markNoQuoteLoading"
@@ -596,7 +587,7 @@
 import { ref, computed, watch, onMounted, onUnmounted, inject } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ArrowRight, Check, Plus, Minus } from '@element-plus/icons-vue'
+import { Check, Plus, Minus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { quoteApi, type QuoteFieldChangeLogRow } from '@/api/quote'
 import { vendorApi, vendorContactApi } from '@/api/vendor'
@@ -777,13 +768,6 @@ const markNoQuoteLoading = ref(false)
 const canMarkNoQuote = computed(
   () => embedded.value && !isEditMode.value && !!String(rfqLink.value.rfqItemId || '').trim()
 )
-
-function openQuoteDesktop() {
-  const q: Record<string, string> = {}
-  const itemId = String(rfqLink.value.rfqItemId || '').trim()
-  if (itemId) q.rfqItemId = itemId
-  router.push({ name: 'QuoteDesktop', query: q })
-}
 
 /** 顶部提示：不展示明细 ID，仅报价需求编号 + 物料号/品牌/数量/目标价（单行） */
 const hasRfqLinkAlert = computed(() => !!rfqLink.value.rfqId)
@@ -1587,32 +1571,6 @@ async function handleMarkNoQuote() {
 
   &--embedded {
     padding: 0 4px 12px;
-  }
-}
-
-.btn-quote-desktop {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 16px 8px 18px;
-  margin-right: 8px;
-  border: none;
-  border-radius: 10px;
-  background: #eaf5ff;
-  color: #1a2332;
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1.2;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-
-  &:hover {
-    background: #ddefff;
-    color: #0f172a;
-  }
-
-  &__arrow {
-    font-size: 14px;
   }
 }
 
