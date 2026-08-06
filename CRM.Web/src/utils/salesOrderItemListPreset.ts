@@ -111,6 +111,7 @@ export const SO_ITEM_KEYWORD_QUERY_KEYS = [
   'salesUserName',
   'purchaseUserAccount',
   'pn',
+  'purchaseOrderItemCode',
   'customerSo',
   'customerPn',
   'transactionCurrency'

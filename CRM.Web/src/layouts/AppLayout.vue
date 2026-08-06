@@ -1204,6 +1204,9 @@
           <PurchaseOrderRecentHistoryPanel v-else-if="showPurchaseOrderRecentHistoryPanel" />
           <PurchaseOrderItemSearchPanel v-else-if="showPurchaseOrderItemSearchPanel" />
           <SalesOrderItemSearchPanel v-else-if="showSalesOrderItemSearchPanel" />
+          <div v-else-if="showApprovalDesktopQueuePanel" class="aux-panel-tab-body">
+            <ApprovalDesktopQueuePanel />
+          </div>
           <template v-else>
             <p class="aux-placeholder">{{ t('layout.leftPanel') }} · {{ leftPanelTitle }}</p>
             <p class="aux-hint">子页面可 inject(WorkspaceLayoutKey)；或 window 派发 workspace:toggle-left / workspace:toggle-right</p>
@@ -1510,13 +1513,27 @@
             class="aux-panel-tab-body"
           />
           <CustomerIntelPanel
-            v-show="showCustomerIntelPanel"
+            v-show="showCustomerIntelPanel || showApprovalCustomerIntelPanel"
             class="aux-panel-tab-body"
           />
           <VendorIntelPanel
-            v-show="showVendorIntelPanel"
+            v-show="showVendorIntelPanel || showApprovalVendorIntelPanel"
             class="aux-panel-tab-body"
           />
+          <div v-show="showApprovalSalesLinesPanel" class="aux-panel-tab-body">
+            <ApprovalOrderLineCards
+              mode="sales"
+              :order-id="approvalDesktopOrderId"
+              :items="approvalDesktopOrderItems"
+            />
+          </div>
+          <div v-show="showApprovalPurchaseLinesPanel" class="aux-panel-tab-body">
+            <ApprovalOrderLineCards
+              mode="purchase"
+              :order-id="approvalDesktopOrderId"
+              :items="approvalDesktopOrderItems"
+            />
+          </div>
           <HelpManualPanel v-show="rightActiveTabId === 'r4'" class="aux-panel-tab-body" />
         </div>
       </aside>
@@ -1561,6 +1578,9 @@ import SalesOrderFavoritePanel from '@/components/SalesOrder/SalesOrderFavoriteP
 import SalesOrderRecentHistoryPanel from '@/components/SalesOrder/SalesOrderRecentHistoryPanel.vue'
 import PurchaseOrderFavoritePanel from '@/components/purchaseOrder/PurchaseOrderFavoritePanel.vue'
 import PurchaseOrderRecentHistoryPanel from '@/components/purchaseOrder/PurchaseOrderRecentHistoryPanel.vue'
+import ApprovalDesktopQueuePanel from '@/components/Approvals/ApprovalDesktopQueuePanel.vue'
+import ApprovalOrderLineCards from '@/components/Approvals/ApprovalOrderLineCards.vue'
+import { useApprovalDesktopQueueStore } from '@/stores/approvalDesktopQueue'
 import HelpManualPanel from '@/components/workspace/HelpManualPanel.vue'
 import CrmImageBrowser from '@/components/Common/CrmImageBrowser.vue'
 import AiAssistantDrawer from '@/components/AiAssistant/AiAssistantDrawer.vue'
@@ -1632,6 +1652,7 @@ const customsDeclarationOpsStore = useCustomsDeclarationOpsPanelStore()
 const arrivalNoticeOpsStore = useArrivalNoticeOpsPanelStore()
 const qcOpsStore = useQcOpsPanelStore()
 const stockOutNotifyCustomsPanelStore = useStockOutNotifyCustomsPanelStore()
+const approvalDesktopQueueStore = useApprovalDesktopQueueStore()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { canWriteSo: canSalesOrderItemOpsWriteSo } = useSaleOrderWriteGate()
@@ -1891,6 +1912,17 @@ const showPurchaseOrderItemSearchPanel = computed(
   () => leftActiveTabId.value === 'l1' && route.name === 'PurchaseOrderItemList'
 )
 
+/** 审核桌面：左栏「待审」页签（待审队列）；待审批列表页不注册此内容 */
+const showApprovalDesktopQueuePanel = computed(
+  () => leftActiveTabId.value === 'l1' && route.name === 'ApprovalDesktop'
+)
+
+const DEFAULT_LEFT_AUX_TABS = [
+  { id: 'l1', labelKey: 'layout.auxTabs.search' },
+  { id: 'l2', labelKey: 'layout.auxTabs.favorites' },
+  { id: 'l3', labelKey: 'layout.auxTabs.history' }
+]
+
 const isSalesOrderItemListRoute = computed(() => route.name === 'SalesOrderItemList')
 const isPackingDetailRoute = computed(() => route.name === 'PackingDetail')
 const isPackingListRoute = computed(() => route.name === 'PackingList')
@@ -1968,6 +2000,95 @@ const showVendorIntelPanel = computed(
   () => rightActiveTabId.value === 'r-vendor-intel' && isVendorIntelRoute.value
 )
 
+const isApprovalDesktopRoute = computed(() => route.name === 'ApprovalDesktop')
+
+const approvalDesktopBizType = computed(() => approvalDesktopQueueStore.selected?.bizType ?? null)
+
+const showApprovalCustomerIntelPanel = computed(
+  () =>
+    isApprovalDesktopRoute.value &&
+    rightActiveTabId.value === 'r-customer-intel' &&
+    (approvalDesktopBizType.value === 'CUSTOMER' ||
+      approvalDesktopBizType.value === 'SALES_ORDER' ||
+      approvalDesktopBizType.value === 'FINANCE_RECEIPT')
+)
+
+const showApprovalVendorIntelPanel = computed(
+  () =>
+    isApprovalDesktopRoute.value &&
+    rightActiveTabId.value === 'r-vendor-intel' &&
+    (approvalDesktopBizType.value === 'VENDOR' ||
+      approvalDesktopBizType.value === 'PURCHASE_ORDER' ||
+      approvalDesktopBizType.value === 'FINANCE_PAYMENT')
+)
+
+const showApprovalSalesLinesPanel = computed(
+  () =>
+    isApprovalDesktopRoute.value &&
+    rightActiveTabId.value === 'r-approval-sales-lines' &&
+    approvalDesktopBizType.value === 'SALES_ORDER'
+)
+
+const showApprovalPurchaseLinesPanel = computed(
+  () =>
+    isApprovalDesktopRoute.value &&
+    rightActiveTabId.value === 'r-approval-purchase-lines' &&
+    approvalDesktopBizType.value === 'PURCHASE_ORDER'
+)
+
+const approvalDesktopOrderId = computed(() =>
+  String(approvalDesktopQueueStore.selected?.businessId || '').trim()
+)
+
+const approvalDesktopOrderItems = computed(
+  () => approvalDesktopQueueStore.partyContext?.orderItems ?? null
+)
+
+/** 审核桌面右栏：按审核类型默认激活的页签 */
+function preferredApprovalDesktopRightTab(bt: string | null | undefined): string {
+  switch (bt) {
+    case 'CUSTOMER':
+    case 'FINANCE_RECEIPT':
+      return 'r-customer-intel'
+    case 'VENDOR':
+    case 'FINANCE_PAYMENT':
+      return 'r-vendor-intel'
+    case 'SALES_ORDER':
+      return 'r-approval-sales-lines'
+    case 'PURCHASE_ORDER':
+      return 'r-approval-purchase-lines'
+    default:
+      return 'r4'
+  }
+}
+
+function syncApprovalDesktopRightTabs(opts?: { forceDefault?: boolean }) {
+  if (!isApprovalDesktopRoute.value) return
+  const bt = approvalDesktopBizType.value
+  const tabs: { id: string; labelKey: string }[] = []
+  if (bt === 'CUSTOMER' || bt === 'SALES_ORDER' || bt === 'FINANCE_RECEIPT') {
+    tabs.push({ id: 'r-customer-intel', labelKey: 'approvalDesktop.tabs.customer' })
+  }
+  if (bt === 'VENDOR' || bt === 'PURCHASE_ORDER' || bt === 'FINANCE_PAYMENT') {
+    tabs.push({ id: 'r-vendor-intel', labelKey: 'approvalDesktop.tabs.vendor' })
+  }
+  if (bt === 'SALES_ORDER') {
+    tabs.push({ id: 'r-approval-sales-lines', labelKey: 'approvalDesktop.tabs.salesLines' })
+  }
+  if (bt === 'PURCHASE_ORDER') {
+    tabs.push({ id: 'r-approval-purchase-lines', labelKey: 'approvalDesktop.tabs.purchaseLines' })
+  }
+  tabs.push({ id: 'r4', labelKey: 'layout.auxTabs.help' })
+  rightTabs.value = tabs
+
+  const preferred = preferredApprovalDesktopRightTab(bt)
+  const preferredOk = tabs.some((x) => x.id === preferred)
+  const currentOk = tabs.some((x) => x.id === rightActiveTabId.value)
+  if (opts?.forceDefault || !currentOk) {
+    rightActiveTabId.value = preferredOk ? preferred : tabs[0]?.id || 'r4'
+  }
+}
+
 const canPurchaseOrderItemOpsArrival = computed(() => authStore.hasPermission('purchase-order.read'))
 
 const canPurchaseOrderItemOpsPayment = computed(
@@ -1991,6 +2112,28 @@ watch(
   () => route.name,
   (name, oldName) => {
     if (oldName != null && oldName !== name) rememberAuxTabsForRoute(oldName)
+
+    if (name === 'ApprovalDesktop') {
+      leftTabs.value = [{ id: 'l1', labelKey: 'approvalDesktop.leftTab' }]
+      salesOrderItemOpsStore.clear()
+      purchaseOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
+      customsDeclarationOpsStore.clear()
+      arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
+      materialIntelLookupStore.clearBound()
+      syncApprovalDesktopRightTabs({ forceDefault: true })
+      restoreAuxTabsForRoute(name, {
+        left: 'l1',
+        right: preferredApprovalDesktopRightTab(approvalDesktopBizType.value)
+      })
+      // 进入页按当前审核类型默认页签，不被历史记忆覆盖到帮助等
+      syncApprovalDesktopRightTabs({ forceDefault: true })
+      return
+    }
+
+    leftTabs.value = DEFAULT_LEFT_AUX_TABS
 
     if (name === 'SalesOrderItemList') {
       rightTabs.value = [
@@ -2234,6 +2377,14 @@ watch(
   }
 )
 
+watch(
+  () => [route.name, approvalDesktopQueueStore.selected?.bizType, approvalDesktopQueueStore.selected?.businessId] as const,
+  () => {
+    if (route.name !== 'ApprovalDesktop') return
+    syncApprovalDesktopRightTabs({ forceDefault: true })
+  }
+)
+
 /** 模板沿用 isCollapsed：仅「边条」模式隐藏菜单文字 */
 const isCollapsed = isSidebarCollapsed
 
@@ -2312,6 +2463,7 @@ const headerNotifyCount = ref(1)
 const pageTitleMap: Record<string, string> = {
   '/dashboard': 'layout.menu.dashboard',
   '/pending-approvals': 'layout.menu.pendingApprovals',
+  '/approval-desktop': 'approvalDesktop.title',
   '/custome': 'layout.menu.customers',
   '/customerlist': 'layout.menu.customers',
   '/customers/create': 'layout.menu.customers',

@@ -761,6 +761,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/Approvals/PendingApprovals.vue'),
         meta: { requiresAuth: true, title: '待审批' }
       },
+      {
+        path: 'approval-desktop',
+        name: 'ApprovalDesktop',
+        component: () => import('@/views/Approvals/ApprovalDesktop.vue'),
+        meta: { requiresAuth: true, title: '审核桌面' }
+      },
       // 业务管理
       {
         path: 'biz/brands',

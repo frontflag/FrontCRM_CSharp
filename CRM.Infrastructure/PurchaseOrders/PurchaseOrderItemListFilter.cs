@@ -82,6 +82,17 @@ internal static partial class PurchaseOrderItemListFilter
                 x.Item.PN.ToLower().Contains(pn.ToLower()));
         }
 
+        if (!string.IsNullOrWhiteSpace(request.SellOrderItemCode))
+        {
+            var soc = request.SellOrderItemCode.Trim().ToLower();
+            q = q.Where(x =>
+                x.Item.SellOrderItemId != null
+                && db.SellOrderItems.Any(soi =>
+                    soi.Id == x.Item.SellOrderItemId
+                    && soi.SellOrderItemCode != null
+                    && soi.SellOrderItemCode.ToLower().Contains(soc)));
+        }
+
         if (request.OrderType.HasValue)
             q = q.Where(x => x.Po.Type == request.OrderType.Value);
 

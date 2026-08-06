@@ -55,6 +55,8 @@ public sealed class PurchaseOrderItemListQueryRequest
     public string? VendorName { get; set; }
     public string? PurchaseUserName { get; set; }
     public string? Pn { get; set; }
+    /// <summary>关联销售订单明细单号（模糊匹配 <c>sellorderitem.sell_order_item_code</c>）。</summary>
+    public string? SellOrderItemCode { get; set; }
     public short? OrderType { get; set; }
     /// <summary>交易币别筛选：rmb=人民币，foreign=外币（非人民币）。</summary>
     public string? TransactionCurrency { get; set; }

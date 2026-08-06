@@ -90,6 +90,18 @@
             @keyup.enter="runSearch"
           />
         </div>
+        <div class="search-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            v-model="filters.purchaseOrderItemCode"
+            class="search-input"
+            :placeholder="t('salesOrderItemList.filters.purchaseOrderItemCode')"
+            @keyup.enter="runSearch"
+          />
+        </div>
         <template v-if="listCustomerColumnOk">
           <div class="search-input-wrap">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
@@ -1026,6 +1038,7 @@ const filters = reactive({
   salesUserName: '',
   purchaseUserAccount: '',
   pn: '',
+  purchaseOrderItemCode: '',
   customerSo: '',
   customerPn: '',
   transactionCurrency: '' as '' | 'rmb' | 'foreign',
@@ -1087,6 +1100,8 @@ const boardFilters = computed((): SalesOrderItemListAnalyticsQuery => {
   }
   const pnk = String(filters.pn ?? '').trim()
   if (pnk) q.pn = pnk
+  const poic = String(filters.purchaseOrderItemCode ?? '').trim()
+  if (poic) q.purchaseOrderItemCode = poic
   const pua = String(filters.purchaseUserAccount ?? '').trim()
   if (pua) q.purchaseUserAccount = pua
   if (filters.transactionCurrency) q.transactionCurrency = filters.transactionCurrency
@@ -1444,6 +1459,8 @@ function buildRouteQueryFromFilters(): Record<string, string> {
   }
   const pnk = String(filters.pn ?? '').trim()
   if (pnk) keywords.pn = pnk
+  const poic = String(filters.purchaseOrderItemCode ?? '').trim()
+  if (poic) keywords.purchaseOrderItemCode = poic
   const pua = String(filters.purchaseUserAccount ?? '').trim()
   if (pua) keywords.purchaseUserAccount = pua
   if (filters.transactionCurrency) keywords.transactionCurrency = filters.transactionCurrency
@@ -1504,6 +1521,8 @@ async function loadList() {
     }
     const pnk = String(filters.pn ?? '').trim()
     if (pnk) params.pn = pnk
+    const poic = String(filters.purchaseOrderItemCode ?? '').trim()
+    if (poic) params.purchaseOrderItemCode = poic
     const pua = String(filters.purchaseUserAccount ?? '').trim()
     if (pua) params.purchaseUserAccount = pua
     if (listCustomerColumnOk.value) {
@@ -1737,6 +1756,7 @@ function syncFiltersFromRoute() {
   filters.salesUserName = typeof q.salesUserName === 'string' ? q.salesUserName : ''
   filters.purchaseUserAccount = typeof q.purchaseUserAccount === 'string' ? q.purchaseUserAccount : ''
   filters.pn = typeof q.pn === 'string' ? q.pn : ''
+  filters.purchaseOrderItemCode = typeof q.purchaseOrderItemCode === 'string' ? q.purchaseOrderItemCode : ''
   filters.customerSo = typeof q.customerSo === 'string' ? q.customerSo : ''
   filters.customerPn = typeof q.customerPn === 'string' ? q.customerPn : ''
   filters.transactionCurrency =

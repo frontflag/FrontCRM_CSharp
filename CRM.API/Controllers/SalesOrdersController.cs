@@ -401,6 +401,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? pn,
             [FromQuery] string? customerSo,
             [FromQuery] string? customerPn,
+            [FromQuery] string? purchaseOrderItemCode,
             [FromQuery] string? transactionCurrency,
             [FromQuery] bool stockOutPending = false,
             [FromQuery] bool invoicePending = false,
@@ -438,6 +439,7 @@ namespace CRM.API.Controllers
                     Pn = pn,
                     CustomerSo = canViewCustomer && !string.IsNullOrWhiteSpace(customerSo) ? customerSo.Trim() : null,
                     CustomerPn = canViewCustomer && !string.IsNullOrWhiteSpace(customerPn) ? customerPn.Trim() : null,
+                    PurchaseOrderItemCode = string.IsNullOrWhiteSpace(purchaseOrderItemCode) ? null : purchaseOrderItemCode.Trim(),
                     TransactionCurrency = transactionCurrency,
                 StockOutPending = stockOutPending,
                 InvoicePending = invoicePending,
@@ -2708,6 +2710,9 @@ namespace CRM.API.Controllers
                 Pn = pn,
                 CustomerSo = canViewCustomer && !string.IsNullOrWhiteSpace(customerSo) ? customerSo.Trim() : null,
                 CustomerPn = canViewCustomer && !string.IsNullOrWhiteSpace(customerPn) ? customerPn.Trim() : null,
+                PurchaseOrderItemCode = string.IsNullOrWhiteSpace(Request.Query["purchaseOrderItemCode"])
+                    ? null
+                    : Request.Query["purchaseOrderItemCode"].ToString().Trim(),
                 TransactionCurrency = transactionCurrency,
                 StockOutPending = stockOutPending,
                 InvoicePending = invoicePending,

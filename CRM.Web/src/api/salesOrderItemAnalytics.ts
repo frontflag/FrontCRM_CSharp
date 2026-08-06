@@ -14,6 +14,7 @@ export interface SalesOrderItemListAnalyticsQuery {
   pn?: string
   customerSo?: string
   customerPn?: string
+  purchaseOrderItemCode?: string
   transactionCurrency?: string
   stockOutPending?: boolean
   invoicePending?: boolean
@@ -97,6 +98,7 @@ function buildParams(q: SalesOrderItemListAnalyticsQuery): Record<string, unknow
   if (q.pn) p.pn = q.pn
   if (q.customerSo) p.customerSo = q.customerSo
   if (q.customerPn) p.customerPn = q.customerPn
+  if (q.purchaseOrderItemCode) p.purchaseOrderItemCode = q.purchaseOrderItemCode
   if (q.transactionCurrency) p.transactionCurrency = q.transactionCurrency
   if (q.stockOutPending) p.stockOutPending = true
   if (q.invoicePending) p.invoicePending = true

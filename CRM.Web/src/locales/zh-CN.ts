@@ -4762,6 +4762,7 @@ const zhCN = {
       salesUserName: '销售员名称',
       purchaseUserAccount: '采购员',
       pn: '物料型号',
+      purchaseOrderItemCode: '采购订单明细单号',
       customerSo: '客户订单号',
       customerPn: '客户型号',
       transactionCurrency: '交易币别',
@@ -5469,6 +5470,7 @@ const zhCN = {
       vendorPlaceholder: '供应商名称',
       purchaserPlaceholder: '采购员名称',
       pnPlaceholder: '物料型号',
+      sellOrderItemCodePlaceholder: '销售订单明细单号',
       transactionCurrency: '交易币别',
       transactionCurrencyRmb: '人民币',
       transactionCurrencyForeign: '外币',
@@ -8111,8 +8113,76 @@ const zhCN = {
       deleteFailed: '删除草稿失败'
     }
   },
+  approvalDesktop: {
+    title: '审核桌面',
+    leftTab: '待审核',
+    filters: {
+      bizType: '业务类型',
+      all: '全部'
+    },
+    nav: {
+      prev: '上一条',
+      next: '下一条'
+    },
+    stats: {
+      totalPrefix: '全部待审批共 ',
+      totalSuffix: ' 条',
+      partsWrap: ' （ {parts} ）',
+      partSep: ' ，',
+      part: {
+        customer: '客户：{n}',
+        vendor: '供应商：{n}',
+        salesOrder: '销售订单：{n}',
+        purchaseOrder: '采购订单：{n}',
+        payment: '付款：{n}',
+        receipt: '收款：{n}'
+      }
+    },
+    empty: {
+      queue: '当前筛选下暂无待审批',
+      workspace: '请从左侧选择待审批单据',
+      reference: '选择单据后显示参考信息'
+    },
+    tabs: {
+      customer: '客户调查',
+      vendor: '供应商调查',
+      salesLines: '销售订单',
+      purchaseLines: '采购订单'
+    },
+    orderRef: {
+      overviewTitle: '订单概况',
+      linesTitle: '订单明细',
+      salesOrderCode: '销售订单编号',
+      purchaseOrderCode: '采购订单编号',
+      customerName: '客户名称',
+      vendorName: '供应商名称',
+      createTime: '创建日期',
+      salesUserAccount: '销售员账号',
+      itemCode: '订单明细编号',
+      pn: '物料型号',
+      brand: '品牌',
+      sellUnitPrice: '销售单价',
+      purchaseUnitPrice: '采购单价',
+      qty: '数量',
+      quoteProfit: '报价利润',
+      purchaseProfit: '采购利润',
+      quoteProfitTipTitle: '报价利润计算过程',
+      quoteProfitTipAria: '查看报价利润计算公式',
+      quoteProfitTipFormula:
+        '报价利润(USD) = (销售单价 − 报价) × 销售数量 = ({sellUnitPrice} − {quotePrice}) × {qty} = {result}',
+      quoteProfitTipNoCost: '无报价成本，无法按（销售单价 − 报价）× 销售数量计算。',
+      purchaseProfitTipTitle: '采购利润计算过程',
+      purchaseProfitTipAria: '查看采购利润计算公式',
+      purchaseProfitTipFormula:
+        '采购利润(USD) = (销售单价 − 采购单价) × 采购数量 = ({sellUnitPrice} − {purchaseUnitPrice}) × {qty} = {result}',
+      purchaseProfitTipNoCost: '无关联销售/采购单价，无法按（销售单价 − 采购单价）× 采购数量计算。',
+      emptyOrder: '缺少订单编号，无法加载',
+      emptyItems: '暂无订单明细'
+    }
+  },
   pendingApprovals: {
     title: '审批管理',
+    openApprovalDesktop: '审核桌面',
     stats: { pending: '待审核数量', approved: '已通过', rejected: '已拒绝' },
     filters: {
       bizType: '业务类型',

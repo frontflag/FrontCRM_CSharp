@@ -90,6 +90,18 @@ internal static partial class SalesOrderItemLineListFilter
                 x.Item.CustomerPn.ToLower().Contains(k.ToLower()));
         }
 
+        if (!string.IsNullOrWhiteSpace(request.PurchaseOrderItemCode))
+        {
+            var poc = request.PurchaseOrderItemCode.Trim().ToLower();
+            q = q.Where(x =>
+                db.PurchaseOrderItems.Any(poi =>
+                    poi.SellOrderItemId == x.Item.Id
+                    && poi.Status != -1
+                    && poi.Status != -2
+                    && poi.PurchaseOrderItemCode != null
+                    && poi.PurchaseOrderItemCode.ToLower().Contains(poc)));
+        }
+
         var hasQuickFilter = !string.IsNullOrWhiteSpace(request.QuickFilter)
             && SellOrderItemListQuickFilterCodes.IsKnown(request.QuickFilter);
 

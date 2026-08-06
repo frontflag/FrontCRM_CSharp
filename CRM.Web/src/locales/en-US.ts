@@ -4768,6 +4768,7 @@ const enUS = {
       salesUserName: 'Sales rep name',
       purchaseUserAccount: 'Purchaser',
       pn: 'Material / MPN',
+      purchaseOrderItemCode: 'PO line no.',
       transactionCurrency: 'Transaction currency',
       transactionCurrencyRmb: 'RMB',
       transactionCurrencyForeign: 'Foreign currency',
@@ -5485,6 +5486,7 @@ const enUS = {
       vendorPlaceholder: 'Vendor name',
       purchaserPlaceholder: 'Buyer name',
       pnPlaceholder: 'Material / MPN',
+      sellOrderItemCodePlaceholder: 'Sales order line no.',
       transactionCurrency: 'Transaction currency',
       transactionCurrencyRmb: 'RMB',
       transactionCurrencyForeign: 'Foreign currency',
@@ -8126,8 +8128,77 @@ const enUS = {
       deleteFailed: 'Failed to delete draft'
     }
   },
+  approvalDesktop: {
+    title: 'Approval Desktop',
+    leftTab: 'Pending review',
+    filters: {
+      bizType: 'Business type',
+      all: 'All'
+    },
+    nav: {
+      prev: 'Previous',
+      next: 'Next'
+    },
+    stats: {
+      totalPrefix: 'All pending ',
+      totalSuffix: '',
+      partsWrap: ' ( {parts} )',
+      partSep: ', ',
+      part: {
+        customer: 'Customer: {n}',
+        vendor: 'Vendor: {n}',
+        salesOrder: 'Sales order: {n}',
+        purchaseOrder: 'Purchase order: {n}',
+        payment: 'Payment: {n}',
+        receipt: 'Receipt: {n}'
+      }
+    },
+    empty: {
+      queue: 'No pending items for this filter',
+      workspace: 'Select a pending item on the left',
+      reference: 'Reference panels appear after you select an item'
+    },
+    tabs: {
+      customer: 'Customer intel',
+      vendor: 'Vendor intel',
+      salesLines: 'Sales order',
+      purchaseLines: 'Purchase order'
+    },
+    orderRef: {
+      overviewTitle: 'Order overview',
+      linesTitle: 'Order lines',
+      salesOrderCode: 'Sales order no.',
+      purchaseOrderCode: 'Purchase order no.',
+      customerName: 'Customer',
+      vendorName: 'Vendor',
+      createTime: 'Created at',
+      salesUserAccount: 'Sales account',
+      itemCode: 'Line no.',
+      pn: 'PN',
+      brand: 'Brand',
+      sellUnitPrice: 'Sell unit price',
+      purchaseUnitPrice: 'Purchase unit price',
+      qty: 'Qty',
+      quoteProfit: 'Quote profit',
+      purchaseProfit: 'Purchase profit',
+      quoteProfitTipTitle: 'Quote profit calculation',
+      quoteProfitTipAria: 'View quote profit formula',
+      quoteProfitTipFormula:
+        'Quote profit (USD) = (Sell unit price − Quote) × Qty = ({sellUnitPrice} − {quotePrice}) × {qty} = {result}',
+      quoteProfitTipNoCost: 'No quote cost; cannot compute (sell unit price − quote) × qty.',
+      purchaseProfitTipTitle: 'Purchase profit calculation',
+      purchaseProfitTipAria: 'View purchase profit formula',
+      purchaseProfitTipFormula:
+        'Purchase profit (USD) = (Sell unit price − Purchase unit price) × Qty = ({sellUnitPrice} − {purchaseUnitPrice}) × {qty} = {result}',
+      purchaseProfitTipNoCost:
+        'Missing linked sell/purchase unit price; cannot compute (sell − purchase) × qty.',
+      emptyOrder: 'Missing order id; cannot load',
+      emptyItems: 'No order lines'
+    }
+  },
   pendingApprovals: {
     title: 'Approvals',
+    openApprovalDesktop: 'Approval Desktop',
     stats: { pending: 'Pending', approved: 'Approved', rejected: 'Rejected' },
     filters: {
       bizType: 'Business type',

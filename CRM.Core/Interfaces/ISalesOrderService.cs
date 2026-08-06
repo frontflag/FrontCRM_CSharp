@@ -116,6 +116,8 @@ namespace CRM.Core.Interfaces
         public string? CustomerSo { get; set; }
         /// <summary>客户型号（模糊匹配 <c>customer_pn</c>）。</summary>
         public string? CustomerPn { get; set; }
+        /// <summary>关联采购订单明细单号（模糊匹配 <c>purchaseorderitem.purchase_order_item_code</c>）。</summary>
+        public string? PurchaseOrderItemCode { get; set; }
         /// <summary>采购进度 0/1/2（扩展表）；多选为 OR，查询串可重复同名参数。</summary>
         public List<short>? PurchaseProgressStatus { get; set; }
         /// <summary>入库进度 0/1/2（扩展表）；多选为 OR。</summary>

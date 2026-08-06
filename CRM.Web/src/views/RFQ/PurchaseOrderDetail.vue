@@ -1027,7 +1027,7 @@ const poBasicCreateDateText = computed(() => {
 const poBasicCreateUserText = computed(() => {
   const o = order.value as Record<string, unknown> | null | undefined
   if (!o) return '—'
-  const name = o.createUserName ?? o.CreateUserName ?? o.createdBy ?? o.purchaseUserName
+  const name = o.createUserName ?? o.CreateUserName ?? o.createdBy
   const s = name != null ? String(name).trim() : ''
   return s || '—'
 })

@@ -249,6 +249,8 @@ export const purchaseOrderApi = {
     vendorName?: string
     purchaseUserName?: string
     pn?: string
+    /** 关联销售订单明细单号（模糊） */
+    sellOrderItemCode?: string
     freightForwarderOrderNo?: string
     orderType?: number
     /** 交易币别：rmb=人民币，foreign=外币 */

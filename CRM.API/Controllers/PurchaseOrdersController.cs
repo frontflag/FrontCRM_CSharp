@@ -116,7 +116,8 @@ namespace CRM.API.Controllers
                 };
                 var result = await _service.GetPagedAsync(request);
                 var summary = await GetPermissionSummaryAsync(request.CurrentUserId);
-                var assistorNameMap = await BuildUserDisplayNameMapAsync(result.Items.Select(x => x.Assistor));
+                var userNameMap = await BuildUserDisplayNameMapAsync(
+                    result.Items.Select(x => x.Assistor).Concat(result.Items.Select(x => x.CreateByUserId)));
                 var vendorMap = await LoadVendorMapForPurchaseOrdersAsync(result.Items, cancellationToken);
                 var items = result.Items
                     .Select(x =>
@@ -129,7 +130,8 @@ namespace CRM.API.Controllers
                             x,
                             summary,
                             vendor: vendor,
-                            assistorUserName: ResolveAssistorDisplayName(x.Assistor, assistorNameMap));
+                            assistorUserName: ResolveAssistorDisplayName(x.Assistor, userNameMap),
+                            createUserName: ResolveAssistorDisplayName(x.CreateByUserId, userNameMap));
                     })
                     .ToList();
                 var aggregates = await _purchaseOrderListQuery.GetAggregatesAsync(request, cancellationToken);
@@ -365,6 +367,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? vendorName,
             [FromQuery] string? purchaseUserName,
             [FromQuery] string? pn,
+            [FromQuery] string? sellOrderItemCode,
             [FromQuery] short? orderType,
             [FromQuery] string? transactionCurrency,
             [FromQuery] List<short>? paymentProgressStatus = null,
@@ -400,6 +403,7 @@ namespace CRM.API.Controllers
                     VendorName = canViewVendorInfo && !string.IsNullOrWhiteSpace(vendorName) ? vendorName.Trim() : null,
                     PurchaseUserName = canViewPurchaseUser && !string.IsNullOrWhiteSpace(purchaseUserName) ? purchaseUserName.Trim() : null,
                     Pn = string.IsNullOrWhiteSpace(pn) ? null : pn.Trim(),
+                    SellOrderItemCode = string.IsNullOrWhiteSpace(sellOrderItemCode) ? null : sellOrderItemCode.Trim(),
                     OrderType = orderType,
                     TransactionCurrency = transactionCurrency,
                     PaymentProgressStatus = QueryShortListParser.Parse(Request.Query["paymentProgressStatus"]) ?? paymentProgressStatus,
@@ -465,7 +469,7 @@ namespace CRM.API.Controllers
                 var companyProfile = await CompanyProfileBundleLoader.LoadAsync(_db, _logger, cancellationToken);
                 var reportItemExtends = await LoadPoItemExtendsAsync(order.Items, cancellationToken);
                 var sellOrderItemCodes = await LoadSellOrderItemCodesAsync(order.Items, cancellationToken);
-                var assistorNameMap = await BuildUserDisplayNameMapAsync(new[] { order.Assistor });
+                var userNameMap = await BuildUserDisplayNameMapAsync(new[] { order.Assistor, order.CreateByUserId });
                 return Ok(new
                 {
                     success = true,
@@ -478,7 +482,8 @@ namespace CRM.API.Controllers
                             vendor,
                             reportItemExtends,
                             sellOrderItemCodes,
-                            ResolveAssistorDisplayName(order.Assistor, assistorNameMap)),
+                            ResolveAssistorDisplayName(order.Assistor, userNameMap),
+                            createUserName: ResolveAssistorDisplayName(order.CreateByUserId, userNameMap)),
                         companyProfile
                     }
                 });
@@ -1328,7 +1333,7 @@ namespace CRM.API.Controllers
                 }
                 var detailItemExtends = await LoadPoItemExtendsAsync(order.Items, cancellationToken);
                 var sellOrderItemCodes = await LoadSellOrderItemCodesAsync(order.Items, cancellationToken);
-                var assistorNameMap = await BuildUserDisplayNameMapAsync(new[] { order.Assistor });
+                var userNameMap = await BuildUserDisplayNameMapAsync(new[] { order.Assistor, order.CreateByUserId });
                 return Ok(new
                 {
                     success = true,
@@ -1339,7 +1344,8 @@ namespace CRM.API.Controllers
                         vendor,
                         detailItemExtends,
                         sellOrderItemCodes,
-                        ResolveAssistorDisplayName(order.Assistor, assistorNameMap))
+                        ResolveAssistorDisplayName(order.Assistor, userNameMap),
+                        createUserName: ResolveAssistorDisplayName(order.CreateByUserId, userNameMap))
                 });
             }
             catch (Exception ex)
@@ -1422,7 +1428,8 @@ namespace CRM.API.Controllers
                 var orders = (await _service.GetBySellOrderCodeAsync(sellOrderCode)).ToList();
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 var summary = await GetPermissionSummaryAsync(userId);
-                var assistorNameMap = await BuildUserDisplayNameMapAsync(orders.Select(x => x.Assistor));
+                var userNameMap = await BuildUserDisplayNameMapAsync(
+                    orders.Select(x => x.Assistor).Concat(orders.Select(x => x.CreateByUserId)));
                 return Ok(new
                 {
                     success = true,
@@ -1430,7 +1437,8 @@ namespace CRM.API.Controllers
                         .Select(x => MaskPurchaseOrder(
                             x,
                             summary,
-                            assistorUserName: ResolveAssistorDisplayName(x.Assistor, assistorNameMap)))
+                            assistorUserName: ResolveAssistorDisplayName(x.Assistor, userNameMap),
+                            createUserName: ResolveAssistorDisplayName(x.CreateByUserId, userNameMap)))
                         .ToList()
                 });
             }
@@ -1600,11 +1608,15 @@ namespace CRM.API.Controllers
                     request?.FreightForwarderOrderNo,
                     actorId);
                 var summary = await GetPermissionSummaryAsync(actorId);
-                var assistorNameMap = await BuildUserDisplayNameMapAsync(new[] { updated.Assistor });
+                var userNameMap = await BuildUserDisplayNameMapAsync(new[] { updated.Assistor, updated.CreateByUserId });
                 return Ok(new
                 {
                     success = true,
-                    data = MaskPurchaseOrder(updated, summary, assistorUserName: ResolveAssistorDisplayName(updated.Assistor, assistorNameMap)),
+                    data = MaskPurchaseOrder(
+                        updated,
+                        summary,
+                        assistorUserName: ResolveAssistorDisplayName(updated.Assistor, userNameMap),
+                        createUserName: ResolveAssistorDisplayName(updated.CreateByUserId, userNameMap)),
                     message = "???????"
                 });
             }
@@ -1771,12 +1783,14 @@ namespace CRM.API.Controllers
             return rows.ToDictionary(e => e.Id, e => e, StringComparer.OrdinalIgnoreCase);
         }
 
-        private async Task<IReadOnlyDictionary<string, string>> LoadSellOrderItemCodesAsync(
+        private sealed record SellOrderItemLinkInfo(string Code, string? SellOrderId);
+
+        private async Task<IReadOnlyDictionary<string, SellOrderItemLinkInfo>> LoadSellOrderItemCodesAsync(
             ICollection<PurchaseOrderItem>? items,
             CancellationToken cancellationToken = default)
         {
             if (items == null || items.Count == 0)
-                return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                return new Dictionary<string, SellOrderItemLinkInfo>(StringComparer.OrdinalIgnoreCase);
 
             var ids = items
                 .Select(i => i.SellOrderItemId?.Trim())
@@ -1784,16 +1798,16 @@ namespace CRM.API.Controllers
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
             if (ids.Count == 0)
-                return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                return new Dictionary<string, SellOrderItemLinkInfo>(StringComparer.OrdinalIgnoreCase);
 
             var rows = await _db.SellOrderItems.AsNoTracking()
                 .Where(x => ids.Contains(x.Id))
-                .Select(x => new { x.Id, x.SellOrderItemCode })
+                .Select(x => new { x.Id, x.SellOrderItemCode, x.SellOrderId })
                 .ToListAsync(cancellationToken);
 
             return rows.ToDictionary(
                 x => x.Id,
-                x => x.SellOrderItemCode ?? string.Empty,
+                x => new SellOrderItemLinkInfo(x.SellOrderItemCode ?? string.Empty, x.SellOrderId),
                 StringComparer.OrdinalIgnoreCase);
         }
 
@@ -2032,6 +2046,9 @@ namespace CRM.API.Controllers
                 VendorName = canViewVendorInfo && !string.IsNullOrWhiteSpace(vendorName) ? vendorName.Trim() : null,
                 PurchaseUserName = canViewPurchaseUser && !string.IsNullOrWhiteSpace(purchaseUserName) ? purchaseUserName.Trim() : null,
                 Pn = string.IsNullOrWhiteSpace(pn) ? null : pn.Trim(),
+                SellOrderItemCode = string.IsNullOrWhiteSpace(Request.Query["sellOrderItemCode"])
+                    ? null
+                    : Request.Query["sellOrderItemCode"].ToString().Trim(),
                 OrderType = orderType,
                 TransactionCurrency = transactionCurrency,
                 PaymentProgressStatus = QueryShortListParser.Parse(Request.Query["paymentProgressStatus"]) ?? paymentProgressStatus,
@@ -2184,8 +2201,9 @@ namespace CRM.API.Controllers
             VendorContactInfo? vendorContact = null,
             VendorInfo? vendor = null,
             IReadOnlyDictionary<string, PurchaseOrderItemExtend>? itemExtends = null,
-            IReadOnlyDictionary<string, string>? sellOrderItemCodes = null,
-            string? assistorUserName = null)
+            IReadOnlyDictionary<string, SellOrderItemLinkInfo>? sellOrderItemCodes = null,
+            string? assistorUserName = null,
+            string? createUserName = null)
         {
             var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
             // vendor.info.read??????/????vendor.read ??????????????????????????? VendorId?
@@ -2252,6 +2270,7 @@ namespace CRM.API.Controllers
                 order.CreateTime,
                 order.ModifyTime,
                 order.CreateByUserId,
+                CreateUserName = createUserName,
                 order.ModifyByUserId,
                 Items = itemList.Select(i =>
                 {
@@ -2261,17 +2280,17 @@ namespace CRM.API.Controllers
                     var sellLineSum = poOrderCanceled || string.IsNullOrEmpty(soKey)
                         ? 0m
                         : sellLinePurchaseSum.GetValueOrDefault(soKey);
+                    SellOrderItemLinkInfo? soLink = null;
+                    if (!string.IsNullOrWhiteSpace(soKey) && sellOrderItemCodes != null)
+                        sellOrderItemCodes.TryGetValue(soKey, out soLink);
                     return new
                     {
                         i.Id,
                         i.PurchaseOrderId,
                         i.PurchaseOrderItemCode,
                         i.SellOrderItemId,
-                        SellOrderItemCode = !string.IsNullOrWhiteSpace(i.SellOrderItemId)
-                            && sellOrderItemCodes != null
-                            && sellOrderItemCodes.TryGetValue(i.SellOrderItemId.Trim(), out var soCode)
-                            ? soCode
-                            : null,
+                        SellOrderItemCode = soLink?.Code,
+                        SellOrderId = soLink?.SellOrderId,
                         VendorId = canViewVendorInfo ? i.VendorId : null,
                         i.ProductId,
                         i.PN,

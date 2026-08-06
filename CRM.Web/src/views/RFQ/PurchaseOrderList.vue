@@ -300,7 +300,7 @@
           {{ formatDisplayDateTime(row.createTime) }}
         </template>
         <template #col-createUser="{ row }">
-          {{ row.createUserName || row.createdBy || row.purchaseUserName || '—' }}
+          {{ row.createUserName || row.createdBy || '—' }}
         </template>
         <template #col-actions-header>
           <div class="list-op-col-header--icon-only">

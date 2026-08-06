@@ -419,6 +419,8 @@ export const salesOrderApi = {
     pn?: string
     customerSo?: string
     customerPn?: string
+    /** 关联采购订单明细单号（模糊） */
+    purchaseOrderItemCode?: string
     /** 交易币别：rmb=人民币，foreign=外币 */
     transactionCurrency?: 'rmb' | 'foreign' | ''
     purchaseProgressStatus?: number | number[]

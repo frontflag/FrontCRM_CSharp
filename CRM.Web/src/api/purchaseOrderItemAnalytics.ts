@@ -11,6 +11,7 @@ export interface PurchaseOrderItemListAnalyticsQuery {
   vendorName?: string
   purchaseUserName?: string
   pn?: string
+  sellOrderItemCode?: string
   orderType?: number
   transactionCurrency?: string
   paymentProgressStatus?: number | number[]
@@ -76,6 +77,7 @@ function buildParams(q: PurchaseOrderItemListAnalyticsQuery): Record<string, unk
   if (q.vendorName) p.vendorName = q.vendorName
   if (q.purchaseUserName) p.purchaseUserName = q.purchaseUserName
   if (q.pn) p.pn = q.pn
+  if (q.sellOrderItemCode) p.sellOrderItemCode = q.sellOrderItemCode
   if (q.orderType !== undefined && q.orderType !== null) p.orderType = q.orderType
   if (q.transactionCurrency) p.transactionCurrency = q.transactionCurrency
   if (q.paymentProgressStatus !== undefined && q.paymentProgressStatus !== null) {
