@@ -9,6 +9,7 @@ obj/
 **/Properties/launchSettings.json
 ## Logs
 logs/
+Logs/
 *.log
 ## Node
 node_modules/

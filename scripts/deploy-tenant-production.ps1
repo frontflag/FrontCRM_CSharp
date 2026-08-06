@@ -482,7 +482,8 @@ if ($Tenant -eq 'all') {
         Write-Host "Using SSH key: $effectiveSshKeyPath" -ForegroundColor Gray
         Write-Host ""
 
-        $logRoot = Join-Path $env:TEMP ("frontcrm_parallel_deploy_" + (Get-Date -Format 'yyyyMMdd_HHmmss'))
+        $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
+        $logRoot = Join-Path $RepoRoot ("Logs\deploy\parallel_" + $stamp)
         New-Item -ItemType Directory -Path $logRoot -Force | Out-Null
         Write-Host "Parallel deploy logs: $logRoot" -ForegroundColor DarkGray
         Write-Host "Progress updates every 15s. Press Ctrl+C to cancel." -ForegroundColor DarkGray
@@ -518,6 +519,7 @@ if ($Tenant -eq 'all') {
                 ElapsedMinutes = $result.ElapsedMinutes
                 ExitCode       = $result.ExitCode
                 Package        = [string]$result.Package
+                Attempt        = 'parallel'
             }) | Out-Null
 
             if ($result.Succeeded) {
@@ -543,12 +545,60 @@ if ($Tenant -eq 'all') {
                 ElapsedMinutes = $result.ElapsedMinutes
                 ExitCode       = $result.ExitCode
                 Package        = [string]$result.Package
+                Attempt        = 'sequential'
             }) | Out-Null
 
             if ($result.Succeeded) {
                 $succeededTenants.Add([string]$result.Tenant) | Out-Null
             } else {
                 $failedTenants.Add([string]$result.Tenant) | Out-Null
+            }
+        }
+    }
+
+    # 并行/串行首轮失败时，对失败租户再串行重试一次（semicore 香港机在并行 scp 时偶发失败）
+    if ($failedTenants.Count -gt 0) {
+        $retryIds = @($failedTenants.ToArray())
+        Write-Host ""
+        Write-Host ">>> Retry failed tenants sequentially (once): $($retryIds -join ', ')" -ForegroundColor Yellow
+        Write-Host ""
+
+        $retryResults = Invoke-SequentialTenantDeploy `
+            -DeployScriptPath $deployScript `
+            -TenantsConfig $allTenants `
+            -TenantIds $retryIds `
+            -EffectiveSshKeyPath $effectiveSshKeyPath
+
+        foreach ($result in (Get-DeployResultItems $retryResults)) {
+            if (-not (Test-DeployResultRow $result)) { continue }
+            $tid = [string]$result.Tenant
+
+            for ($i = $tenantResults.Count - 1; $i -ge 0; $i--) {
+                if ([string]$tenantResults[$i].Tenant -eq $tid) {
+                    $tenantResults.RemoveAt($i)
+                    break
+                }
+            }
+
+            $tenantResults.Add([PSCustomObject]@{
+                Tenant         = $tid
+                Succeeded      = [bool]$result.Succeeded
+                StartedAt      = $result.StartedAt
+                FinishedAt     = $result.FinishedAt
+                ElapsedMinutes = $result.ElapsedMinutes
+                ExitCode       = $result.ExitCode
+                Package        = [string]$result.Package
+                Attempt        = 'retry-sequential'
+            }) | Out-Null
+
+            if ($result.Succeeded) {
+                [void]$failedTenants.Remove($tid)
+                if (-not $succeededTenants.Contains($tid)) {
+                    $succeededTenants.Add($tid) | Out-Null
+                }
+                Write-Host "Retry OK: $tid" -ForegroundColor Green
+            } else {
+                Write-Host "Retry FAILED: $tid (exit $($result.ExitCode))" -ForegroundColor Red
             }
         }
     }
@@ -575,7 +625,8 @@ if ($Tenant -eq 'all') {
         $tenantName = if (-not [string]::IsNullOrWhiteSpace($result.Tenant)) { [string]$result.Tenant } else { '-' }
         $packageName = if (-not [string]::IsNullOrWhiteSpace($result.Package)) { [string]$result.Package } else { '-' }
         $elapsed = if ($null -ne $result.ElapsedMinutes) { $result.ElapsedMinutes } else { '-' }
-        Write-Host ("[{0}] {1,-8} {2} -> {3}  ({4} min)  [{5}]" -f $statusLabel, $tenantName, $startedText, $finishedText, $elapsed, $packageName) -ForegroundColor $statusColor
+        $attempt = if ($result.PSObject.Properties['Attempt'] -and -not [string]::IsNullOrWhiteSpace([string]$result.Attempt)) { "  ($($result.Attempt))" } else { '' }
+        Write-Host ("[{0}] {1,-8} {2} -> {3}  ({4} min)  [{5}]{6}" -f $statusLabel, $tenantName, $startedText, $finishedText, $elapsed, $packageName, $attempt) -ForegroundColor $statusColor
     }
     Write-Host ""
     Write-Host "Succeeded: $successCount tenant(s)" -ForegroundColor Green
@@ -585,6 +636,7 @@ if ($Tenant -eq 'all') {
     Write-Host "Failed: $failCount tenant(s)" -ForegroundColor $(if ($failCount -gt 0) { 'Red' } else { 'Gray' })
     if ($failCount -gt 0) {
         Write-Host "  Tenants: $($failedTenants -join ', ')" -ForegroundColor Red
+        Write-Host "  Tip: re-run only failed: .\scripts\deploy-tenant-production.ps1 -Tenant <id> -SkipBuild" -ForegroundColor Yellow
         exit 1
     }
 

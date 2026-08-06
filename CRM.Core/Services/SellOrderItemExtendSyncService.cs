@@ -82,7 +82,10 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
     }
 
     /// <inheritdoc />
-    public async Task RecalculateAsync(string sellOrderItemId, CancellationToken cancellationToken = default)
+    public async Task RecalculateAsync(
+        string sellOrderItemId,
+        CancellationToken cancellationToken = default,
+        bool enforceLineQtyOutboundGuards = true)
     {
         if (string.IsNullOrWhiteSpace(sellOrderItemId))
         {
@@ -91,7 +94,10 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
         }
 
         var id = sellOrderItemId.Trim();
-        _logger.LogInformation("[SellLineStockOutSync] Recalculate begin SellOrderItemId={SellOrderItemId}", id);
+        _logger.LogInformation(
+            "[SellLineStockOutSync] Recalculate begin SellOrderItemId={SellOrderItemId} EnforceGuards={EnforceGuards}",
+            id,
+            enforceLineQtyOutboundGuards);
 
         var soItem = await _soItemRepo.GetByIdAsync(id);
         if (soItem == null)
@@ -128,7 +134,12 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
         ext.QtyStockOutActual = sumStockOut;
 
         // --- 销售数量变更后：校验；单条有效出库通知仅收缩超量，不将部分通知扩成整单（多条仅校验）---
-        await AlignStockOutRequestsWithSoLineQtyAsync(soItem, sumStockOut, cancellationToken);
+        // 出库强制删除等场景传 enforceLineQtyOutboundGuards=false，仍可收缩单条超量通知，但不抛「不能小于已实出」
+        await AlignStockOutRequestsWithSoLineQtyAsync(
+            soItem,
+            sumStockOut,
+            enforceLineQtyOutboundGuards,
+            cancellationToken);
 
         var requests = (await _stockOutRequestRepo.FindAsync(r => r.SalesOrderItemId == id))
             .ToList();
@@ -233,6 +244,7 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
     private async Task AlignStockOutRequestsWithSoLineQtyAsync(
         SellOrderItem soItem,
         decimal sumStockOutActual,
+        bool enforceLineQtyOutboundGuards,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -257,6 +269,21 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
                     await _stockOutRequestRepo.UpdateAsync(request);
                 }
             }
+        }
+
+        if (!enforceLineQtyOutboundGuards)
+        {
+            if (soItem.Qty + 1e-9m < sumStockOutActual
+                || soItem.Qty + 1e-9m < active.Sum(r => (decimal)r.Quantity))
+            {
+                _logger.LogWarning(
+                    "[SellLineStockOutSync] Skip line-qty outbound guards SellOrderItemId={SellOrderItemId} LineQty={LineQty} ActualOut={ActualOut} NotifySum={NotifySum}",
+                    soItem.Id,
+                    soItem.Qty,
+                    sumStockOutActual,
+                    active.Sum(r => (decimal)r.Quantity));
+            }
+            return;
         }
 
         var activeNotifySum = active.Sum(r => (decimal)r.Quantity);

@@ -9,6 +9,7 @@ namespace CRM.Infrastructure.Packings;
 
 /// <summary>
 /// 装箱状态对账：有未删除且已完成的关联出库 → 100；否则若当前为 50/100 → 回退到 40。
+/// 关联口径：明细 packing_id，或出库头 SourceId=装箱单（按箱出库）。
 /// </summary>
 public sealed class PackingStatusReconcileService : IPackingStatusReconcileService
 {
@@ -66,7 +67,8 @@ public sealed class PackingStatusReconcileService : IPackingStatusReconcileServi
         var packingById = packings.ToDictionary(p => p.Id, StringComparer.OrdinalIgnoreCase);
 
         // 有效已完成出库：明细 packing_id 命中，且出库主单未删除、状态为已出库(2)/完成类(4)
-        var donePackingIdSet = await (
+        // excludeSo 在内存按 OrdinalIgnoreCase 过滤，避免 SQL 字符串大小写导致漏排
+        var doneItemRows = await (
             from item in _db.StockOutItems
             join so in _db.StockOuts on item.StockOutId equals so.Id
             where !item.IsDeleted
@@ -74,11 +76,27 @@ public sealed class PackingStatusReconcileService : IPackingStatusReconcileServi
                   && item.PackingId != null
                   && ids.Contains(item.PackingId)
                   && (so.Status == 2 || so.Status == 4)
-                  && (excludeSo == null || so.Id != excludeSo)
-            select item.PackingId!
-        ).Distinct().ToListAsync(cancellationToken);
+            select new { PackingId = item.PackingId!, StockOutId = so.Id }
+        ).ToListAsync(cancellationToken);
 
-        var hasDone = new HashSet<string>(donePackingIdSet, StringComparer.OrdinalIgnoreCase);
+        // 按箱出库头 SourceId=装箱单主键（明细可能未写 packing_id）
+        var doneSourceRows = await _db.StockOuts
+            .Where(so =>
+                !so.IsDeleted
+                && so.SourceId != null
+                && ids.Contains(so.SourceId)
+                && (so.Status == 2 || so.Status == 4))
+            .Select(so => new { PackingId = so.SourceId!, StockOutId = so.Id })
+            .ToListAsync(cancellationToken);
+
+        var hasDone = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in doneItemRows.Concat(doneSourceRows))
+        {
+            if (!string.IsNullOrEmpty(excludeSo)
+                && string.Equals(row.StockOutId, excludeSo, StringComparison.OrdinalIgnoreCase))
+                continue;
+            hasDone.Add(row.PackingId.Trim());
+        }
 
         foreach (var pid in ids)
         {
@@ -120,7 +138,7 @@ public sealed class PackingStatusReconcileService : IPackingStatusReconcileServi
     /// <summary>
     /// 有有效已完成出库 → 100；无则仅从 50/100 回退到 40；其它状态保持。
     /// </summary>
-    internal static short DeriveStatus(short current, bool hasLiveCompletedStockOut)
+    public static short DeriveStatus(short current, bool hasLiveCompletedStockOut)
     {
         if (hasLiveCompletedStockOut)
             return PackingStatusCode.StockOutFinished;

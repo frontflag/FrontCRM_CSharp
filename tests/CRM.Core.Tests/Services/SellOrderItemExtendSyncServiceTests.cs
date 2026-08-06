@@ -224,6 +224,72 @@ public class SellOrderItemExtendSyncServiceTests
     }
 
     [Fact]
+    public async Task RecalculateAsync_SkipsOutboundGuards_WhenEnforceFalse()
+    {
+        var lineId = Guid.NewGuid().ToString();
+        var soItemRepo = new MemoryRepository<SellOrderItem>();
+        var extendRepo = new MemoryRepository<SellOrderItemExtend>();
+        var stockOutRepo = new MemoryRepository<StockOut>();
+        var stockOutItemRepo = new MemoryRepository<StockOutItem>();
+        var stockOutItemExtendRepo = new MemoryRepository<StockOutItemExtend>();
+        var soItem = new SellOrderItem
+        {
+            Id = lineId,
+            SellOrderId = Guid.NewGuid().ToString(),
+            Qty = 100m,
+            Price = 10m,
+            ConvertPrice = 1m
+        };
+        await soItemRepo.AddAsync(soItem);
+        await extendRepo.AddAsync(new SellOrderItemExtend { Id = lineId });
+
+        var stockOutId = Guid.NewGuid().ToString();
+        var itemId = Guid.NewGuid().ToString();
+        await stockOutRepo.AddAsync(new StockOut
+        {
+            Id = stockOutId,
+            StockOutCode = "STO-TEST",
+            SellOrderItemId = lineId,
+            Status = 2,
+            StockOutType = 1,
+            TotalQuantity = 4773
+        });
+        await stockOutItemRepo.AddAsync(new StockOutItem
+        {
+            Id = itemId,
+            StockOutId = stockOutId,
+            Quantity = 4773,
+            ActualQty = 4773
+        });
+        await stockOutItemExtendRepo.AddAsync(new StockOutItemExtend
+        {
+            Id = itemId,
+            SellOrderItemId = lineId
+        });
+
+        var service = new SellOrderItemExtendSyncService(
+            soItemRepo,
+            extendRepo,
+            new MemoryRepository<PurchaseOrderItem>(),
+            new MemoryRepository<StockIn>(),
+            new MemoryRepository<StockInItemExtend>(),
+            new MemoryRepository<StockInItem>(),
+            new MemoryRepository<StockOutRequest>(),
+            stockOutRepo,
+            stockOutItemRepo,
+            stockOutItemExtendRepo,
+            new MemoryRepository<FinanceReceivable>(),
+            NoOpMainStatusSync(),
+            NullLogger<SellOrderItemExtendSyncService>.Instance);
+
+        await service.RecalculateAsync(lineId, enforceLineQtyOutboundGuards: false);
+
+        var ext = await extendRepo.GetByIdAsync(lineId);
+        Assert.NotNull(ext);
+        Assert.Equal(4773m, ext!.QtyStockOutActual);
+    }
+
+    [Fact]
     public async Task RecalculateAsync_UsesItemLevelQty_ForMultiLineSalesStockOutHeader()
     {
         var lineA = Guid.NewGuid().ToString();

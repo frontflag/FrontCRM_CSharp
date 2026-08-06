@@ -2794,12 +2794,23 @@ namespace CRM.Core.Services
                 ?? throw new InvalidOperationException($"出库单 {id} 不存在");
 
             var lineItems = (await _stockOutItemRepository.FindAsync(x => x.StockOutId == stockOut.Id)).ToList();
-            var linkedPackingIds = lineItems
-                .Select(x => x.PackingId?.Trim())
-                .Where(x => !string.IsNullOrEmpty(x))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Cast<string>()
-                .ToList();
+            var linkedPackingIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var pid in lineItems
+                         .Select(x => x.PackingId?.Trim())
+                         .Where(x => !string.IsNullOrEmpty(x))
+                         .Cast<string>())
+            {
+                linkedPackingIds.Add(pid);
+            }
+
+            // 按箱出库：SourceId=装箱单主键（历史路径可能仅头表有关联、明细 packing_id 为空）
+            var packingSourceId = stockOut.SourceId?.Trim();
+            if (!string.IsNullOrEmpty(packingSourceId))
+            {
+                var packingBySource = await _packingRepository.GetByIdAsync(packingSourceId);
+                if (packingBySource != null && !packingBySource.IsDeleted)
+                    linkedPackingIds.Add(packingBySource.Id.Trim());
+            }
             var itemIds = lineItems
                 .Select(x => x.Id)
                 .Where(x => !string.IsNullOrWhiteSpace(x))
@@ -2989,8 +3000,22 @@ namespace CRM.Core.Services
                 }
             }
 
+            // 强制删除回写：勿因历史「销售数量 < 已实出」脏数据阻断删除；单行失败不阻断出库软删落库
             foreach (var lineId in sellLineIdsToRecalc)
-                await _sellOrderItemExtendSync.RecalculateAsync(lineId);
+            {
+                try
+                {
+                    await _sellOrderItemExtendSync.RecalculateAsync(lineId, enforceLineQtyOutboundGuards: false);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(
+                        ex,
+                        "强制删除出库后回写销售行扩展失败 StockOutId={StockOutId} SellOrderItemId={SellOrderItemId}",
+                        stockOut.Id,
+                        lineId);
+                }
+            }
             if (changedStocks.Count > 0)
             {
                 await _purchasedStockAvailableSync.TryRecalculateFromChangedStockInfosAsync(changedStocks);
@@ -3000,17 +3025,18 @@ namespace CRM.Core.Services
                 await _purchasedStockAvailableSync.TryRecalculateFromChangedStockItemsAsync(changedLayers);
             }
 
-            // 出库强制删除后按事实回写关联装箱状态（如 100 → 40）
+            // 先落库软删：对账若在 SaveChanges 前查库，未提交的 is_deleted 仍为 false，会误判「仍有有效出库」导致装箱停在 100
+            await _unitOfWork.SaveChangesAsync();
+
+            // 出库软删已落库后再对账装箱（如 100 → 40）
             if (linkedPackingIds.Count > 0)
             {
                 await _packingStatusReconcile.ReconcileManyAsync(
-                    linkedPackingIds,
+                    linkedPackingIds.ToList(),
                     actingUserId,
-                    excludingStockOutId: stockOut.Id,
-                    saveChanges: false);
+                    excludingStockOutId: null,
+                    saveChanges: true);
             }
-
-            await _unitOfWork.SaveChangesAsync();
         }
 
         /// <inheritdoc />

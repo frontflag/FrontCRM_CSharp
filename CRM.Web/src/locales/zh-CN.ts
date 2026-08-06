@@ -7945,6 +7945,8 @@ const zhCN = {
     refreshConfirm: '确认按有效出库事实刷新装箱单 {code} 的状态吗？（无有效出库时可从「出库完成」回退为「已备货」）',
     refreshResultTitle: '刷新结果',
     refreshNoChange: '装箱状态无变化',
+    refreshNoChangeStillHasStockOut:
+      '仍存在未删除且状态为「准备出库/出库完成」的关联出库单，装箱状态保持「出库完成」。请先强制删除这些出库单后再刷新。',
     refreshChanged: '状态已更新：{from} → {to}',
     refreshFailed: '刷新失败，请稍后重试',
     refreshFailedTitle: '刷新失败',

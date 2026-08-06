@@ -3,7 +3,7 @@
 #
 # 流程：
 #   1) 调用 build_with_temp_path.ps1：npm build + dotnet publish，生成 frontcrm_deploy（含 CRM.Web/dist、CRM.API/publish、docker-compose 等）
-#   2) 将 frontcrm_deploy 目录「内容」同步到服务器（与 deploy_to_server.ps1 相同）
+#   2) 打包为 tar.gz 后 scp 单文件上传（带百分比进度），远端解压到部署目录
 #
 # 若已本地构建好 frontcrm_deploy，可传 -SkipBuild 只上传。
 #
@@ -197,10 +197,11 @@ if (-not $sshPath) {
 
 # 避免「Creating remote directory...」后长时间无输出：TCP 超时 + 禁止静默等密码（BatchMode）
 # 无密钥时 BatchMode 会失败；若未加 -AllowPasswordPrompt 却长时间卡住，多为在尝试键盘交互/GSSAPI，故 BatchMode 下限定公钥并快速失败。
+# ServerAlive 勿过紧：Non-Docker 同步大目录时远端 I/O 可能短暂无回包，10s×3 易 Connection reset
 $SshOpts = @(
     "-o", "ConnectTimeout=30",
-    "-o", "ServerAliveInterval=10",
-    "-o", "ServerAliveCountMax=3",
+    "-o", "ServerAliveInterval=30",
+    "-o", "ServerAliveCountMax=20",
     "-o", "StrictHostKeyChecking=accept-new",
     "-o", "LogLevel=ERROR",
     "-o", "GSSAPIAuthentication=no",
@@ -214,6 +215,8 @@ if (-not $AllowPasswordPrompt) {
 }
 $ScpOpts = @(
     "-o", "ConnectTimeout=30",
+    "-o", "ServerAliveInterval=30",
+    "-o", "ServerAliveCountMax=20",
     "-o", "StrictHostKeyChecking=accept-new",
     "-o", "LogLevel=ERROR",
     "-o", "GSSAPIAuthentication=no",
@@ -241,7 +244,6 @@ $SudoCmd = if ($RequestTtyForSudo) { "sudo" } else { "sudo -n" }
 $SshTty = if ($RequestTtyForSudo) { @("-t") } else { @() }
 
 $localResolved = (Resolve-Path $deployPackage).Path
-$uploadSource = $localResolved
 $stagingDir = Join-Path $env:TEMP ("frontcrm_upload_" + [Guid]::NewGuid().ToString("N"))
 
 Write-Host "Preparing upload files..." -ForegroundColor Yellow
@@ -269,8 +271,6 @@ if ($stagingHelpCount -lt 50) {
     exit 1
 }
 Write-Host "  help pages in staging: $stagingHelpCount" -ForegroundColor DarkGray
-
-$localDot = Join-Path $stagingDir "."
 
 Write-Host "Creating remote directory (SSH ConnectTimeout=30s)..." -ForegroundColor Yellow
 if (-not $AllowPasswordPrompt) {
@@ -315,18 +315,65 @@ if ($mkdirExit -ne 0) {
     exit 1
 }
 
-Write-Host "Uploading $DeployPackageName/* -> $RemoteDeployPath/ ..." -ForegroundColor Yellow
-Write-Host "  (scp has no progress bar; ~$([Math]::Round($packageSize, 0)) MB may take several minutes on slow uplink)" -ForegroundColor DarkGray
-Write-Host "NOTE: 仓库 data/ 不在部署包内；scp 不会删除远程仅有、本地没有的目录。生产 data/ip2region 请在服务器单独维护。" -ForegroundColor DarkGray
-& scp @ScpOpts -r -P $SshPort "$localDot" "$($SshTarget):$($RemoteDeployPath)/"
-
+# 先清远端 Vite/publish 旧树，再传单文件归档（scp 对单文件有百分比进度；-r 目录上传无总进度且易残留旧 hash）
+Write-Host "Cleaning remote stale frontend/backend build trees before upload..." -ForegroundColor Yellow
+$rCleanStale = "rm -rf '$RemoteDeployPath/CRM.Web/dist' '$RemoteDeployPath/CRM.API/publish'"
+& ssh @SshOpts -p $SshPort "$SshTarget" $rCleanStale
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "ERROR: scp upload failed." -ForegroundColor Red
+    Write-Host "ERROR: failed to clean remote dist/publish before upload." -ForegroundColor Red
     Remove-Item -Path $stagingDir -Recurse -Force -ErrorAction SilentlyContinue
     exit 1
 }
 
+$tarPath = Get-Command tar -ErrorAction SilentlyContinue
+if (-not $tarPath) {
+    Write-Host "ERROR: tar not found (Windows 10+ provides tar.exe). Cannot pack upload archive." -ForegroundColor Red
+    Remove-Item -Path $stagingDir -Recurse -Force -ErrorAction SilentlyContinue
+    exit 1
+}
+
+$archiveName = "frontcrm_upload_" + [Guid]::NewGuid().ToString("N") + ".tar.gz"
+$archiveLocal = Join-Path $env:TEMP $archiveName
+$archiveRemote = "/tmp/$archiveName"
+
+Write-Host "Packing upload archive (tar.gz)..." -ForegroundColor Yellow
+# bsdtar/Windows tar：-C staging 后打 .，远端 GNU tar 可解压
+& tar -czf $archiveLocal -C $stagingDir .
+if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $archiveLocal)) {
+    Write-Host "ERROR: failed to create upload archive." -ForegroundColor Red
+    Remove-Item -Path $stagingDir -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path $archiveLocal -Force -ErrorAction SilentlyContinue
+    exit 1
+}
+$archiveMb = [Math]::Round((Get-Item -LiteralPath $archiveLocal).Length / 1MB, 2)
+Write-Host ("  Archive size: {0} MB (source package ~{1} MB)" -f $archiveMb, [Math]::Round($packageSize, 0)) -ForegroundColor DarkGray
+
+# staging 已打进归档，可先删以省磁盘
 Remove-Item -Path $stagingDir -Recurse -Force -ErrorAction SilentlyContinue
+
+Write-Host ("Uploading archive with progress -> {0}:{1}" -f $SshTarget, $archiveRemote) -ForegroundColor Yellow
+Write-Host "NOTE: 仓库 data/ 不在部署包内；解压不会删除远程仅有、本地没有的目录。生产 data/ip2region 请在服务器单独维护。" -ForegroundColor DarkGray
+# 单文件 scp 会在控制台打印 name / % / 速度 / ETA（勿重定向输出，否则看不到进度）
+& scp @ScpOpts -P $SshPort $archiveLocal "${SshTarget}:${archiveRemote}"
+$scpExit = $LASTEXITCODE
+if ($scpExit -ne 0) {
+    Write-Host "ERROR: scp upload failed." -ForegroundColor Red
+    Remove-Item -Path $archiveLocal -Force -ErrorAction SilentlyContinue
+    & ssh @SshOpts -p $SshPort "$SshTarget" "rm -f '$archiveRemote'" 2>$null | Out-Null
+    exit 1
+}
+
+Write-Host "Extracting archive on server -> $RemoteDeployPath/ ..." -ForegroundColor Yellow
+$rExtract = "mkdir -p '$RemoteDeployPath' && tar -xzf '$archiveRemote' -C '$RemoteDeployPath' && rm -f '$archiveRemote'"
+& ssh @SshOpts -p $SshPort "$SshTarget" $rExtract
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "ERROR: remote extract failed." -ForegroundColor Red
+    Remove-Item -Path $archiveLocal -Force -ErrorAction SilentlyContinue
+    & ssh @SshOpts -p $SshPort "$SshTarget" "rm -f '$archiveRemote'" 2>$null | Out-Null
+    exit 1
+}
+
+Remove-Item -Path $archiveLocal -Force -ErrorAction SilentlyContinue
 
 Write-Host ""
 Write-Host "Upload completed." -ForegroundColor Green
@@ -413,16 +460,16 @@ else {
             $SudoCmd + ' rm -rf /tmp/frontcrm_tenant_bak; fi'
         )
     }
+    # chmod -R 远快于 find -exec（万级文件时后者易拖死 SSH）
     $rSyncFrontParts += $SudoCmd + ' chown -R ' + $ServerUser + ':' + $ServerUser + ' ' + $NonDockerFrontendRoot
-    $rSyncFrontParts += $SudoCmd + ' find ' + $NonDockerFrontendRoot + ' -type d -exec chmod 755 {} \;'
-    $rSyncFrontParts += $SudoCmd + ' find ' + $NonDockerFrontendRoot + ' -type f -exec chmod 644 {} \;'
+    $rSyncFrontParts += $SudoCmd + ' chmod -R u=rwX,go=rX ' + $NonDockerFrontendRoot
     $rSyncFront = ($rSyncFrontParts -join '; ')
     & ssh @SshTty @SshOpts -p $SshPort "$SshTarget" "$rSyncFront"
     if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: sync frontend failed." -ForegroundColor Red; exit 1 }
 
     # 2) 覆盖后端 publish
     Write-Host ('>>> Non-Docker: sync backend publish ({0} -> {1})' -f $srcBack, $NonDockerBackendRoot) -ForegroundColor Gray
-    $rSyncBack = $SudoCmd + ' rm -rf ' + $NonDockerBackendRoot + '/*; ' + $SudoCmd + ' cp -r ' + $srcBack + '/* ' + $NonDockerBackendRoot + '/; ' + $SudoCmd + ' chown -R ' + $ServerUser + ':' + $ServerUser + ' ' + $NonDockerBackendRoot + '; ' + $SudoCmd + ' find ' + $NonDockerBackendRoot + ' -type d -exec chmod 755 {} \;; ' + $SudoCmd + ' find ' + $NonDockerBackendRoot + ' -type f -exec chmod 644 {} \;'
+    $rSyncBack = $SudoCmd + ' rm -rf ' + $NonDockerBackendRoot + '/*; ' + $SudoCmd + ' cp -r ' + $srcBack + '/* ' + $NonDockerBackendRoot + '/; ' + $SudoCmd + ' chown -R ' + $ServerUser + ':' + $ServerUser + ' ' + $NonDockerBackendRoot + '; ' + $SudoCmd + ' chmod -R u=rwX,go=rX ' + $NonDockerBackendRoot
     & ssh @SshTty @SshOpts -p $SshPort "$SshTarget" $rSyncBack
     if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: sync backend failed." -ForegroundColor Red; exit 1 }
 

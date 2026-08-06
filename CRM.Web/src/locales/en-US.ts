@@ -7959,6 +7959,8 @@ const enUS = {
       'Refresh status of packing {code} from live stock-out records? (Can roll back from Stocked out to Ready when no live stock-out remains.)',
     refreshResultTitle: 'Refresh result',
     refreshNoChange: 'Packing status unchanged',
+    refreshNoChangeStillHasStockOut:
+      'A linked stock-out still exists (status shipped/completed). Packing stays “Outbound complete”. Force-delete those stock-outs, then refresh again.',
     refreshChanged: 'Status updated: {from} → {to}',
     refreshFailed: 'Refresh failed. Please try again.',
     refreshFailedTitle: 'Refresh failed',

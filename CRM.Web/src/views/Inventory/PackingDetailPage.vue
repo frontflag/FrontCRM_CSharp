@@ -800,7 +800,10 @@ async function handleRefreshStatus() {
     const result = await packingApi.refreshStatus(detail.value.id)
     await loadDetail()
     if (!result.changed) {
-      await ElMessageBox.alert(t('packingDetail.refreshNoChange'), t('packingDetail.refreshResultTitle'), {
+      const noChangeMsg = result.hasLiveCompletedStockOut
+        ? t('packingDetail.refreshNoChangeStillHasStockOut')
+        : t('packingDetail.refreshNoChange')
+      await ElMessageBox.alert(noChangeMsg, t('packingDetail.refreshResultTitle'), {
         confirmButtonText: t('common.confirm')
       })
       return
