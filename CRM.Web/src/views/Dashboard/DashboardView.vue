@@ -241,7 +241,7 @@ function formatMoneyAmount(n: number) {
 
 async function loadDashboardStats() {
   try {
-    const summary = await approvalsApi.getApprovalSummary({})
+    const summary = await approvalsApi.getApprovalSummary({ pendingOnly: true })
     stats.pendingTasks = summary?.pendingCount ?? 0
   } catch {
     stats.pendingTasks = 0

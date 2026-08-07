@@ -834,8 +834,14 @@ namespace CRM.API.Controllers
             }
         }
 
+        /// <summary>
+        /// 待审/已审/驳回计数。优先用列表 TotalCount（PageSize=1），避免拼装 5000 条 DTO。
+        /// <paramref name="pendingOnly"/> 为 true 时只计 pending（控制台/轻量调用）。
+        /// </summary>
         [HttpGet("summary")]
-        public async Task<IActionResult> GetSummary([FromQuery] PendingApprovalsQueryRequest request)
+        public async Task<IActionResult> GetSummary(
+            [FromQuery] PendingApprovalsQueryRequest request,
+            [FromQuery] bool pendingOnly = false)
         {
             try
             {
@@ -851,18 +857,42 @@ namespace CRM.API.Controllers
                     .Where(c => HasApprovePermission(summary, c) || HasSubmitterViewPermission(summary, c))
                     .ToList();
 
-                var pendingCount = (await QueryApprovalItemsByStateAsync(userId, summary, configs, "pending")).Count;
-                var approvedCount = (await QueryApprovalItemsByStateAsync(userId, summary, configs, "approved")).Count;
-                var rejectedCount = (await QueryApprovalItemsByStateAsync(userId, summary, configs, "rejected")).Count;
+                var byBizType = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+                var pendingTotal = 0;
+                var approvedTotal = 0;
+                var rejectedTotal = 0;
+
+                foreach (var cfg in configs)
+                {
+                    var pending = await CountVisibleApprovalItemsAsync(userId, summary, cfg, "pending");
+                    pendingTotal += pending;
+
+                    int approved = 0, rejected = 0;
+                    if (!pendingOnly)
+                    {
+                        approved = await CountVisibleApprovalItemsAsync(userId, summary, cfg, "approved");
+                        rejected = await CountVisibleApprovalItemsAsync(userId, summary, cfg, "rejected");
+                        approvedTotal += approved;
+                        rejectedTotal += rejected;
+                    }
+
+                    byBizType[cfg.BizType] = new
+                    {
+                        pendingCount = pending,
+                        approvedCount = approved,
+                        rejectedCount = rejected
+                    };
+                }
 
                 return Ok(new
                 {
                     success = true,
                     data = new
                     {
-                        pendingCount,
-                        approvedCount,
-                        rejectedCount
+                        pendingCount = pendingTotal,
+                        approvedCount = approvedTotal,
+                        rejectedCount = rejectedTotal,
+                        byBizType
                     }
                 });
             }
@@ -870,6 +900,114 @@ namespace CRM.API.Controllers
             {
                 return StatusCode(500, new { success = false, message = ex.Message, errorCode = 500 });
             }
+        }
+
+        /// <summary>
+        /// 有审批权：用业务列表 TotalCount（PageSize=1）；仅本人查看或客户（含逐行 CanAccess）：回退为单类型拼装计数。
+        /// </summary>
+        private async Task<int> CountVisibleApprovalItemsAsync(
+            string userId,
+            CRM.Core.Interfaces.UserPermissionSummaryDto summary,
+            BizTypeConfig cfg,
+            string state)
+        {
+            var canApprove = HasApprovePermission(summary, cfg);
+            var canViewOwn = HasSubmitterViewPermission(summary, cfg);
+            if (!canApprove && !canViewOwn)
+                return 0;
+
+            var targetStatus = ResolveStatusByState(cfg, state);
+
+            // 客户列表 TotalCount 与逐行 CanAccess 不完全一致；无审批权仅看本人时也不能用全量 TotalCount
+            var mustEnumerate =
+                !canApprove
+                || cfg.BizType.Equals("CUSTOMER", StringComparison.OrdinalIgnoreCase);
+
+            if (mustEnumerate)
+            {
+                var items = await QueryApprovalItemsByStateAsync(
+                    userId, summary, new List<BizTypeConfig> { cfg }, state);
+                return items.Count;
+            }
+
+            return await GetBizTypeListTotalCountAsync(cfg, userId, targetStatus);
+        }
+
+        private async Task<int> GetBizTypeListTotalCountAsync(BizTypeConfig cfg, string userId, short targetStatus)
+        {
+            if (cfg.BizType.Equals("VENDOR", StringComparison.OrdinalIgnoreCase))
+            {
+                var pr = await _vendorService.GetPagedAsync(new CRM.Core.Interfaces.VendorQueryRequest
+                {
+                    PageIndex = 1,
+                    PageSize = 1,
+                    Status = targetStatus,
+                    CurrentUserId = userId
+                });
+                return pr.TotalCount;
+            }
+
+            if (cfg.BizType.Equals("SALES_ORDER", StringComparison.OrdinalIgnoreCase))
+            {
+                var pr = await _salesOrderService.GetPagedAsync(new CRM.Core.Interfaces.SalesOrderQueryRequest
+                {
+                    Page = 1,
+                    PageSize = 1,
+                    Status = new List<short> { targetStatus },
+                    CurrentUserId = userId
+                });
+                return pr.TotalCount;
+            }
+
+            if (cfg.BizType.Equals("PURCHASE_ORDER", StringComparison.OrdinalIgnoreCase))
+            {
+                var pr = await _purchaseOrderService.GetPagedAsync(new CRM.Core.Interfaces.PurchaseOrderQueryRequest
+                {
+                    Page = 1,
+                    PageSize = 1,
+                    Status = new List<short> { targetStatus },
+                    CurrentUserId = userId
+                });
+                return pr.TotalCount;
+            }
+
+            if (cfg.BizType.Equals("FINANCE_RECEIPT", StringComparison.OrdinalIgnoreCase))
+            {
+                var pr = await _financeReceiptService.GetPagedAsync(new CRM.Core.Interfaces.FinanceReceiptQueryRequest
+                {
+                    Page = 1,
+                    PageSize = 1,
+                    Status = targetStatus,
+                    CurrentUserId = userId
+                });
+                return pr.TotalCount;
+            }
+
+            if (cfg.BizType.Equals("FINANCE_PAYMENT", StringComparison.OrdinalIgnoreCase))
+            {
+                var pr = await _financePaymentService.GetPagedAsync(new CRM.Core.Interfaces.FinancePaymentQueryRequest
+                {
+                    Page = 1,
+                    PageSize = 1,
+                    Status = targetStatus,
+                    CurrentUserId = userId
+                });
+                return pr.TotalCount;
+            }
+
+            if (cfg.BizType.Equals("CUSTOMER", StringComparison.OrdinalIgnoreCase))
+            {
+                var pr = await _customerService.GetCustomersPagedAsync(new CRM.Core.Interfaces.CustomerQueryRequest
+                {
+                    PageIndex = 1,
+                    PageSize = 1,
+                    Status = targetStatus,
+                    CurrentUserId = userId
+                });
+                return pr.TotalCount;
+            }
+
+            return 0;
         }
 
         [HttpGet("history")]

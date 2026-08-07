@@ -54,10 +54,18 @@ export interface PageResult<T> {
   pageSize: number
 }
 
+export interface ApprovalSummaryBizTypeCount {
+  pendingCount: number
+  approvedCount: number
+  rejectedCount: number
+}
+
 export interface ApprovalSummary {
   pendingCount: number
   approvedCount: number
   rejectedCount: number
+  /** B1：一次返回各业务类型计数，避免前端打 7 次 summary */
+  byBizType?: Partial<Record<BizType, ApprovalSummaryBizTypeCount>>
 }
 
 export interface ApprovalHistoryItem {
@@ -82,8 +90,8 @@ export const approvalsApi = {
   getApprovalItems: (params: PendingApprovalsQueryParams) =>
     apiClient.get<PageResult<PendingApprovalItem>>('/api/v1/approvals/items', { params }),
 
-  getApprovalSummary: (params: { bizType?: string }) =>
-    apiClient.get<ApprovalSummary>('/api/v1/approvals/summary', { params }),
+  getApprovalSummary: (params?: { bizType?: string; pendingOnly?: boolean }) =>
+    apiClient.get<ApprovalSummary>('/api/v1/approvals/summary', { params: params ?? {} }),
 
   getApprovalHistory: (params: { bizType: string; businessId: string }) =>
     apiClient.get<ApprovalHistoryItem[]>('/api/v1/approvals/history', { params }),

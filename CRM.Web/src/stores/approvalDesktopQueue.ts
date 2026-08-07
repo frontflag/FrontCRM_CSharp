@@ -1,6 +1,11 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { approvalsApi, type BizType, type PendingApprovalItem } from '@/api/approvals'
+import {
+  approvalsApi,
+  type ApprovalSummary,
+  type BizType,
+  type PendingApprovalItem
+} from '@/api/approvals'
 
 /** 与 ApprovalAuditWorkspace 发出的 context 对齐（避免 store 依赖 .vue） */
 export type ApprovalDesktopPartyContext = {
@@ -193,14 +198,15 @@ export const useApprovalDesktopQueueStore = defineStore('approvalDesktopQueue', 
     stats.value = next
   }
 
-  async function loadGlobalStats() {
-    const [totalRes, ...typeRes] = await Promise.all([
-      approvalsApi.getApprovalSummary({}),
-      ...BIZ_TYPES.map((bizType) => approvalsApi.getApprovalSummary({ bizType }))
-    ])
-
+  /**
+   * 可选：一次 COUNT summary（pendingOnly）校正顶栏；失败则保持队列回填。
+   * 审核桌面默认不再依赖 7 次 summary。
+   */
+  async function loadGlobalStatsFromSummary() {
+    const res = (await approvalsApi.getApprovalSummary({ pendingOnly: true })) as ApprovalSummary &
+      Record<string, unknown>
     const next = {
-      total: Number(totalRes?.pendingCount ?? 0),
+      total: Number(res?.pendingCount ?? res?.PendingCount ?? 0),
       CUSTOMER: 0,
       VENDOR: 0,
       SALES_ORDER: 0,
@@ -208,24 +214,31 @@ export const useApprovalDesktopQueueStore = defineStore('approvalDesktopQueue', 
       FINANCE_PAYMENT: 0,
       FINANCE_RECEIPT: 0
     }
-    BIZ_TYPES.forEach((bt, i) => {
-      next[bt] = Number(typeRes[i]?.pendingCount ?? 0)
-    })
+    const byRaw = (res?.byBizType ?? res?.ByBizType ?? {}) as Record<string, Record<string, unknown>>
+    for (const bt of BIZ_TYPES) {
+      const row = byRaw[bt] ?? byRaw[bt.toLowerCase()] ?? {}
+      next[bt] = Number(row.pendingCount ?? row.PendingCount ?? 0)
+    }
+    if (next.total <= 0 && BIZ_TYPES.some((bt) => next[bt] > 0)) {
+      next.total = BIZ_TYPES.reduce((s, bt) => s + next[bt], 0)
+    }
     stats.value = next
   }
 
   async function refreshAll() {
     loading.value = true
     try {
-      // 先队列后统计：统计接口重且易超时；失败时不阻断桌面（用队列回填条数）
+      // A：队列加载完即结束转圈并用队列回填统计（不再打 7×summary）
       await loadPendingQueue()
-      try {
-        await loadGlobalStats()
-      } catch {
-        syncStatsFromPendingList()
-      }
+      syncStatsFromPendingList()
     } finally {
       loading.value = false
+    }
+    // B1：后台一次 pendingOnly COUNT 校正顶栏（失败则保持队列回填，不挡左栏）
+    try {
+      await loadGlobalStatsFromSummary()
+    } catch {
+      /* ignore */
     }
   }
 
