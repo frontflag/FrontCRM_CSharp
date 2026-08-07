@@ -27,6 +27,9 @@ namespace CRM.API.Models.DTOs
 
         /// <summary>当前用户是否可对该条执行通过/驳回（仅有读权限、仅查看本人提交时为 false）。</summary>
         public bool CanDecide { get; set; }
+
+        /// <summary>采购订单类型：1=客单 2=备货 3=样品；非采购单为 null。</summary>
+        public short? PurchaseOrderType { get; set; }
     }
 
     public class PendingApprovalsPageDto

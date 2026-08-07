@@ -194,6 +194,7 @@ internal static partial class RfqItemListFilter
         {
             q = q.Where(x =>
                 db.Quotes.AsNoTracking().Any(quote =>
+                    !quote.IsDeleted &&
                     quote.RFQItemId != null &&
                     quote.RFQItemId == x.Item.Id));
         }
@@ -209,9 +210,11 @@ internal static partial class RfqItemListFilter
             var st = request.Status.Value;
             if (st == 0)
             {
+                // 与报价条数统计一致：仅计未软删报价
                 q = q.Where(x =>
                     x.Item.Status == 0 &&
                     !db.Quotes.AsNoTracking().Any(quote =>
+                        !quote.IsDeleted &&
                         quote.RFQItemId != null &&
                         quote.RFQItemId == x.Item.Id));
             }
@@ -221,6 +224,7 @@ internal static partial class RfqItemListFilter
                     x.Item.Status == 1 ||
                     (x.Item.Status == 0 &&
                      db.Quotes.AsNoTracking().Any(quote =>
+                         !quote.IsDeleted &&
                          quote.RFQItemId != null &&
                          quote.RFQItemId == x.Item.Id)));
             }

@@ -32,6 +32,16 @@
             {{ item.bizTypeName || getBizTypeText(item.bizType) }}
           </el-tag>
           <span class="ad-queue-item__code" :title="item.documentCode">{{ item.documentCode || '—' }}</span>
+          <el-tag
+            v-if="isStockingPurchaseOrder(item)"
+            type="warning"
+            effect="plain"
+            size="small"
+            round
+            class="ad-queue-item__stocking"
+          >
+            {{ t('approvalDesktop.tags.stocking') }}
+          </el-tag>
         </div>
         <div class="ad-queue-item__party" :title="displayCounterpartyName(item)">
           {{ displayCounterpartyName(item) }}
@@ -57,6 +67,7 @@ import {
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import { PO_TYPE_STOCKING } from '@/utils/purchaseOrderItemLinkRules'
 
 const { t, te } = useI18n()
 const queueStore = useApprovalDesktopQueueStore()
@@ -82,9 +93,7 @@ watch(
 )
 
 onMounted(() => {
-  void queueStore.refreshAll().catch(() => {
-    /* 主区会提示加载失败；左栏静默 */
-  })
+  // 队列由 ApprovalDesktop 统一 refreshAll，避免与主区并发打满 summary
   void scrollSelectedIntoView()
 })
 
@@ -94,6 +103,12 @@ function onFilterChange(v: '' | BizType | null | undefined) {
 
 function onSelect(item: PendingApprovalItem) {
   queueStore.selectItem(item)
+}
+
+function isStockingPurchaseOrder(item: PendingApprovalItem): boolean {
+  return (
+    item.bizType === 'PURCHASE_ORDER' && Number(item.purchaseOrderType) === PO_TYPE_STOCKING
+  )
 }
 
 function displayCounterpartyName(row: PendingApprovalItem): string {
@@ -203,6 +218,11 @@ const formatDate = (dateStr: string) => formatDisplayDateTime(dateStr)
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  &__stocking {
+    flex-shrink: 0;
+    margin-left: auto;
   }
 
   &__party {

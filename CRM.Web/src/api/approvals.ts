@@ -26,6 +26,8 @@ export interface PendingApprovalItem {
   createdAt: string
   /** 后端：是否可执行通过/驳回；缺省 true 兼容旧接口 */
   canDecide?: boolean
+  /** 采购订单类型：1=客单 2=备货 3=样品；非采购单无 */
+  purchaseOrderType?: number | null
 }
 
 export interface PendingApprovalsQueryParams {

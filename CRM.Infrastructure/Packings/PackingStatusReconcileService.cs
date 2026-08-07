@@ -1,6 +1,5 @@
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
-using CRM.Core.Models.Inventory;
 using CRM.Core.Utilities;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -76,7 +75,7 @@ public sealed class PackingStatusReconcileService : IPackingStatusReconcileServi
                   && item.PackingId != null
                   && ids.Contains(item.PackingId)
                   && (so.Status == 2 || so.Status == 4)
-            select new { PackingId = item.PackingId!, StockOutId = so.Id }
+            select new { PackingId = item.PackingId!, StockOutId = so.Id, so.StockOutCode }
         ).ToListAsync(cancellationToken);
 
         // 按箱出库头 SourceId=装箱单主键（明细可能未写 packing_id）
@@ -86,16 +85,28 @@ public sealed class PackingStatusReconcileService : IPackingStatusReconcileServi
                 && so.SourceId != null
                 && ids.Contains(so.SourceId)
                 && (so.Status == 2 || so.Status == 4))
-            .Select(so => new { PackingId = so.SourceId!, StockOutId = so.Id })
+            .Select(so => new { PackingId = so.SourceId!, StockOutId = so.Id, so.StockOutCode })
             .ToListAsync(cancellationToken);
 
-        var hasDone = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var blockingByPacking = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
         foreach (var row in doneItemRows.Concat(doneSourceRows))
         {
             if (!string.IsNullOrEmpty(excludeSo)
                 && string.Equals(row.StockOutId, excludeSo, StringComparison.OrdinalIgnoreCase))
                 continue;
-            hasDone.Add(row.PackingId.Trim());
+
+            var pid = row.PackingId.Trim();
+            if (!blockingByPacking.TryGetValue(pid, out var codes))
+            {
+                codes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                blockingByPacking[pid] = codes;
+            }
+
+            var code = row.StockOutCode?.Trim();
+            if (!string.IsNullOrEmpty(code))
+                codes.Add(code);
+            else
+                codes.Add(row.StockOutId.Trim());
         }
 
         foreach (var pid in ids)
@@ -107,7 +118,10 @@ public sealed class PackingStatusReconcileService : IPackingStatusReconcileServi
             }
 
             var previous = packing.Status;
-            var liveDone = hasDone.Contains(pid);
+            var blockingCodes = blockingByPacking.TryGetValue(pid, out var set)
+                ? set.OrderBy(c => c, StringComparer.OrdinalIgnoreCase).ToList()
+                : new List<string>();
+            var liveDone = blockingCodes.Count > 0;
             var next = DeriveStatus(previous, liveDone);
 
             var result = new PackingStatusReconcileResult
@@ -116,7 +130,8 @@ public sealed class PackingStatusReconcileService : IPackingStatusReconcileServi
                 PackingCode = packing.Code,
                 PreviousStatus = previous,
                 CurrentStatus = next,
-                HasLiveCompletedStockOut = liveDone
+                HasLiveCompletedStockOut = liveDone,
+                BlockingStockOutCodes = blockingCodes
             };
 
             if (next != previous)

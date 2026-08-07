@@ -1228,8 +1228,35 @@ namespace CRM.API.Controllers
             if (itemIds.Count == 0)
                 return new List<object>();
 
-            var orderedIds = await _db.StockOuts.AsNoTracking()
+            // 历史单：头表 SellOrderItemId；按箱出库：头表为空，销售行在 stock_out_item_extend
+            var fromHeader = await _db.StockOuts.AsNoTracking()
                 .Where(so => so.SellOrderItemId != null && itemIds.Contains(so.SellOrderItemId!))
+                .Select(so => so.Id)
+                .ToListAsync();
+
+            var fromExtend = await (
+                from ext in _db.StockOutItemExtends.AsNoTracking()
+                join item in _db.StockOutItems.AsNoTracking() on ext.Id equals item.Id
+                where !ext.IsDeleted
+                      && !item.IsDeleted
+                      && ext.SellOrderItemId != null
+                      && itemIds.Contains(ext.SellOrderItemId!)
+                select item.StockOutId
+            ).Distinct().ToListAsync();
+
+            var idSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var id in fromHeader.Concat(fromExtend))
+            {
+                var t = id?.Trim();
+                if (!string.IsNullOrEmpty(t))
+                    idSet.Add(t);
+            }
+
+            if (idSet.Count == 0)
+                return new List<object>();
+
+            var orderedIds = await _db.StockOuts.AsNoTracking()
+                .Where(so => idSet.Contains(so.Id))
                 .OrderByDescending(so => so.CreateTime)
                 .ThenByDescending(so => so.Id)
                 .Select(so => so.Id)

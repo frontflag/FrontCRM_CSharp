@@ -8,7 +8,12 @@
         </div>
         <div class="count-badge">{{ t('rfqItemList.count', { count: totalCount }) }}</div>
       </div>
-      <button type="button" class="btn-quote-desktop" @click="openQuoteDesktop">
+      <button
+        v-if="canOpenQuoteDesktop"
+        type="button"
+        class="btn-quote-desktop"
+        @click="openQuoteDesktop"
+      >
         <span>{{ t('quoteDesktop.openFromList') }}</span>
         <el-icon class="btn-quote-desktop__arrow"><ArrowRight /></el-icon>
       </button>
@@ -862,7 +867,7 @@ import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiv
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { productionDateDisplayLabel, useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
 import { useRfqItemListBasketStore } from '@/stores/rfqItemListBasket'
-import { canQuoteRfqItem } from '@/utils/rfqItemQuoteAccessRules'
+import { canAccessQuoteDesktop, canQuoteRfqItem } from '@/utils/rfqItemQuoteAccessRules'
 import { copyQuoteSummaryToClipboard } from '@/utils/quoteSummaryCopy'
 import { copyTextToClipboard } from '@/utils/clipboard'
 import {
@@ -920,6 +925,8 @@ function openQuoteDesktop() {
   router.push({ name: 'QuoteDesktop' })
 }
 const authStore = useAuthStore()
+/** 无权报价账号不展示入口（与行内「报价」/后端 CanQuote 账号侧能力一致） */
+const canOpenQuoteDesktop = computed(() => canAccessQuoteDesktop(authStore.user))
 const canEditRfq = computed(() => authStore.hasPermission('rfq.write'))
 const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const materialIntelLookupStore = useMaterialIntelLookupStore()

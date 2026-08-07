@@ -3,7 +3,8 @@ import { defineStore } from 'pinia'
 import { rfqApi } from '@/api/rfq'
 import type { RFQItem } from '@/types/rfq'
 
-export type QuoteDesktopDateFilter = '' | 'today' | 'yesterday' | 'dayBefore' | 'before3'
+/** 全部用 all（勿用空串：Element Plus Select 会显示「请选择」） */
+export type QuoteDesktopDateFilter = 'all' | 'today' | 'yesterday' | 'dayBefore' | 'before3'
 
 export type QuoteDesktopQueueItem = {
   id: string
@@ -34,7 +35,7 @@ function addLocalDays(d: Date, days: number): Date {
 export function resolveQuoteDesktopDateWindow(
   filter: QuoteDesktopDateFilter
 ): { itemCreateStart?: string; itemCreateEndExclusive?: string } {
-  if (!filter) return {}
+  if (!filter || filter === 'all') return {}
   const todayStart = localDayStart(new Date())
   const tomorrow = addLocalDays(todayStart, 1)
   if (filter === 'today') {
@@ -112,7 +113,7 @@ export const useQuoteDesktopQueueStore = defineStore('quoteDesktopQueue', () => 
   const total = ref(0)
   const page = ref(1)
   const pageSize = ref(PAGE_SIZE)
-  const dateFilter = ref<QuoteDesktopDateFilter>('')
+  const dateFilter = ref<QuoteDesktopDateFilter>('all')
   const selected = ref<QuoteDesktopQueueItem | null>(null)
   const scrollToSelectedNonce = ref(0)
 
@@ -146,11 +147,11 @@ export const useQuoteDesktopQueueStore = defineStore('quoteDesktopQueue', () => 
     try {
       const nextPage = opts?.page != null && opts.page >= 1 ? opts.page : page.value
       const window = resolveQuoteDesktopDateWindow(dateFilter.value)
+      // 与 /rfq-items「待报价」一致：pending_quote + 数据权限；可报价校验在提交报价时做
       const res = await rfqApi.searchRFQItems({
         pageNumber: nextPage,
         pageSize: pageSize.value,
-        status: 0,
-        quotableByMe: true,
+        quickFilter: 'pending_quote',
         preferItemId: opts?.preferItemId || undefined,
         itemCreateStart: window.itemCreateStart,
         itemCreateEndExclusive: window.itemCreateEndExclusive
@@ -196,7 +197,7 @@ export const useQuoteDesktopQueueStore = defineStore('quoteDesktopQueue', () => 
   async function focusItem(rfqItemId: string): Promise<boolean> {
     const id = String(rfqItemId || '').trim()
     if (!id) return false
-    dateFilter.value = ''
+    dateFilter.value = 'all'
     const extracted = await loadPage({ page: 1, preferItemId: id })
     const hit = extracted.items.find((x) => x.id === id)
     if (!hit) {
@@ -285,7 +286,7 @@ export const useQuoteDesktopQueueStore = defineStore('quoteDesktopQueue', () => 
   }
 
   async function setDateFilter(filter: QuoteDesktopDateFilter) {
-    dateFilter.value = filter
+    dateFilter.value = filter || 'all'
     await loadPage({ page: 1 })
     selectItem(items.value[0] ?? null)
     if (selected.value) requestScrollToSelected()
@@ -302,7 +303,7 @@ export const useQuoteDesktopQueueStore = defineStore('quoteDesktopQueue', () => 
     total.value = 0
     page.value = 1
     selected.value = null
-    dateFilter.value = ''
+    dateFilter.value = 'all'
   }
 
   return {

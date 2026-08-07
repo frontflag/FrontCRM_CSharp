@@ -240,6 +240,8 @@ export interface PackingStatusRefreshResult {
   currentStatus: number
   changed: boolean
   hasLiveCompletedStockOut: boolean
+  /** 仍阻挡回退的出库单号 */
+  blockingStockOutCodes?: string[]
 }
 
 export interface PackingListQuery {
@@ -696,6 +698,11 @@ export const packingApi = {
       const data = (await apiClient.post<Record<string, unknown>>(
         `/api/v1/packing/${encodeURIComponent(rid)}/refresh-status`
       )) as Record<string, unknown> | null
+      const blockingRaw =
+        data?.blockingStockOutCodes ?? data?.BlockingStockOutCodes ?? []
+      const blockingStockOutCodes = Array.isArray(blockingRaw)
+        ? blockingRaw.map((x) => String(x ?? '').trim()).filter(Boolean)
+        : []
       return {
         packingId: String(data?.packingId ?? data?.PackingId ?? rid),
         packingCode: (data?.packingCode ?? data?.PackingCode ?? null) as string | null,
@@ -704,7 +711,8 @@ export const packingApi = {
         changed: Boolean(data?.changed ?? data?.Changed),
         hasLiveCompletedStockOut: Boolean(
           data?.hasLiveCompletedStockOut ?? data?.HasLiveCompletedStockOut
-        )
+        ),
+        blockingStockOutCodes
       }
     } catch (e) {
       throw new Error(parseApiError(e, '刷新装箱状态失败'))

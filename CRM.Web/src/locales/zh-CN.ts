@@ -7952,6 +7952,8 @@ const zhCN = {
     refreshNoChange: '装箱状态无变化',
     refreshNoChangeStillHasStockOut:
       '仍存在未删除且状态为「准备出库/出库完成」的关联出库单，装箱状态保持「出库完成」。请先强制删除这些出库单后再刷新。',
+    refreshNoChangeStillHasStockOutWithCodes:
+      '仍存在未删除且状态为「准备出库/出库完成」的关联出库单：{codes}。装箱状态保持「出库完成」。请先强制删除后再刷新。（按箱出库单头表可能无销售行，需在出库列表用装箱单号筛选。）',
     refreshChanged: '状态已更新：{from} → {to}',
     refreshFailed: '刷新失败，请稍后重试',
     refreshFailedTitle: '刷新失败',
@@ -8144,6 +8146,9 @@ const zhCN = {
       workspace: '请从左侧选择待审批单据',
       reference: '选择单据后显示参考信息'
     },
+    tags: {
+      stocking: '备货'
+    },
     tabs: {
       customer: '客户调查',
       vendor: '供应商调查',
@@ -8201,8 +8206,8 @@ const zhCN = {
       before3: '3日前需求'
     },
     empty: {
-      queue: '暂无待报价需求明细',
-      workspace: '暂无待报价需求明细',
+      queue: '暂无待报价明细',
+      workspace: '暂无待报价明细',
       history: '暂无报价历史'
     },
     tabs: {

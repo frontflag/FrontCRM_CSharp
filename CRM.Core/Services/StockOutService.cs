@@ -2127,6 +2127,32 @@ namespace CRM.Core.Services
                 packingIdsByStockOut[grp.Key] = packingIds;
             }
 
+            // 按箱出库：头表 SourceId=装箱单主键（明细可能未写 packing_id 时仍需展示装箱单号）
+            var headers = (await _stockOutRepository.FindAsync(so => idSet.Contains(so.Id)))
+                .Where(so => !string.IsNullOrWhiteSpace(so.SourceId))
+                .ToList();
+            var sourceIds = headers
+                .Select(so => so.SourceId!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var packingIdBySource = sourceIds.Count == 0
+                ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                : (await _packingRepository.FindAsync(p => sourceIds.Contains(p.Id) && !p.IsDeleted))
+                    .GroupBy(p => p.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.Key, StringComparer.OrdinalIgnoreCase);
+            foreach (var so in headers)
+            {
+                var sid = so.SourceId!.Trim();
+                if (!packingIdBySource.ContainsKey(sid))
+                    continue;
+                if (!packingIdsByStockOut.TryGetValue(so.Id, out var set))
+                {
+                    set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    packingIdsByStockOut[so.Id] = set;
+                }
+                set.Add(sid);
+            }
+
             var allPackingIds = packingIdsByStockOut.Values
                 .SelectMany(x => x)
                 .Distinct(StringComparer.OrdinalIgnoreCase)

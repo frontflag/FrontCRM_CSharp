@@ -7,7 +7,7 @@
         class="qd-queue-filters__select"
         @update:model-value="onDateFilter"
       >
-        <el-option :label="t('quoteDesktop.dateFilter.all')" value="" />
+        <el-option :label="t('quoteDesktop.dateFilter.all')" value="all" />
         <el-option :label="t('quoteDesktop.dateFilter.today')" value="today" />
         <el-option :label="t('quoteDesktop.dateFilter.yesterday')" value="yesterday" />
         <el-option :label="t('quoteDesktop.dateFilter.dayBefore')" value="dayBefore" />
@@ -83,7 +83,7 @@ function onSelect(item: QuoteDesktopQueueItem) {
 }
 
 async function onDateFilter(v: QuoteDesktopDateFilter | string) {
-  await queueStore.setDateFilter((v || '') as QuoteDesktopDateFilter)
+  await queueStore.setDateFilter((v || 'all') as QuoteDesktopDateFilter)
 }
 
 async function onPageChange(p: number) {
@@ -106,9 +106,7 @@ watch(
 )
 
 onMounted(() => {
-  void queueStore.refreshAll().catch(() => {
-    /* 主区提示 */
-  })
+  // 队列由 QuoteDesktop 统一 refresh，避免并发重复请求
   void scrollSelectedIntoView()
 })
 </script>

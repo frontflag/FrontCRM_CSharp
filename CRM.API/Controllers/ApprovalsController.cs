@@ -640,7 +640,8 @@ namespace CRM.API.Controllers
                                 Submitter = o.PurchaseUserId ?? o.CreateByUserId,
                                 Status = o.Status,
                                 CreatedAt = o.CreateTime,
-                                CanDecide = !selfPending
+                                CanDecide = !selfPending,
+                                PurchaseOrderType = o.Type
                             });
                         }
                         else if (canViewOwn && own)
@@ -658,7 +659,8 @@ namespace CRM.API.Controllers
                                 Submitter = o.PurchaseUserId ?? o.CreateByUserId,
                                 Status = o.Status,
                                 CreatedAt = o.CreateTime,
-                                CanDecide = false
+                                CanDecide = false,
+                                PurchaseOrderType = o.Type
                             });
                         }
                     }

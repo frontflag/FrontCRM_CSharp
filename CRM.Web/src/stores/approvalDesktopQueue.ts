@@ -175,6 +175,24 @@ export const useApprovalDesktopQueueStore = defineStore('approvalDesktopQueue', 
     pendingList.value = all
   }
 
+  /** summary 失败时，用已加载队列回填导航统计，避免「有列表却显示 0 条」 */
+  function syncStatsFromPendingList() {
+    const next = {
+      total: pendingList.value.length,
+      CUSTOMER: 0,
+      VENDOR: 0,
+      SALES_ORDER: 0,
+      PURCHASE_ORDER: 0,
+      FINANCE_PAYMENT: 0,
+      FINANCE_RECEIPT: 0
+    }
+    for (const item of pendingList.value) {
+      const bt = item.bizType as BizType
+      if (BIZ_TYPES.includes(bt)) next[bt] += 1
+    }
+    stats.value = next
+  }
+
   async function loadGlobalStats() {
     const [totalRes, ...typeRes] = await Promise.all([
       approvalsApi.getApprovalSummary({}),
@@ -199,7 +217,13 @@ export const useApprovalDesktopQueueStore = defineStore('approvalDesktopQueue', 
   async function refreshAll() {
     loading.value = true
     try {
-      await Promise.all([loadPendingQueue(), loadGlobalStats()])
+      // 先队列后统计：统计接口重且易超时；失败时不阻断桌面（用队列回填条数）
+      await loadPendingQueue()
+      try {
+        await loadGlobalStats()
+      } catch {
+        syncStatsFromPendingList()
+      }
     } finally {
       loading.value = false
     }

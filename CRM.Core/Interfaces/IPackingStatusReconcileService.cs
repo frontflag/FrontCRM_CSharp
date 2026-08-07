@@ -34,4 +34,9 @@ public sealed class PackingStatusReconcileResult
     public short CurrentStatus { get; set; }
     public bool Changed => PreviousStatus != CurrentStatus;
     public bool HasLiveCompletedStockOut { get; set; }
+
+    /// <summary>
+    /// 仍计入「有效已完成出库」的出库单号（便于刷新失败时定位；按箱出库头表可能无销售行 Id）。
+    /// </summary>
+    public IReadOnlyList<string> BlockingStockOutCodes { get; set; } = Array.Empty<string>();
 }

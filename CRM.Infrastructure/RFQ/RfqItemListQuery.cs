@@ -72,7 +72,10 @@ public sealed partial class RfqItemListQuery : IRfqItemListQuery
 
         var itemIds = slice.Select(x => x.Item.Id).Where(id => !string.IsNullOrWhiteSpace(id)).Distinct().ToList();
         var quotedIds = await _db.Quotes.AsNoTracking()
-            .Where(quote => quote.RFQItemId != null && itemIds.Contains(quote.RFQItemId!))
+            .Where(quote =>
+                !quote.IsDeleted &&
+                quote.RFQItemId != null &&
+                itemIds.Contains(quote.RFQItemId!))
             .Select(quote => quote.RFQItemId!)
             .Distinct()
             .ToListAsync(cancellationToken);

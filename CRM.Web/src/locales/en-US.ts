@@ -7966,6 +7966,8 @@ const enUS = {
     refreshNoChange: 'Packing status unchanged',
     refreshNoChangeStillHasStockOut:
       'A linked stock-out still exists (status shipped/completed). Packing stays “Outbound complete”. Force-delete those stock-outs, then refresh again.',
+    refreshNoChangeStillHasStockOutWithCodes:
+      'Linked stock-outs still exist (status shipped/completed): {codes}. Packing stays “Outbound complete”. Force-delete them, then refresh. (Packing-batch stock-outs may have no sales-line header; filter stock-out list by packing code.)',
     refreshChanged: 'Status updated: {from} → {to}',
     refreshFailed: 'Refresh failed. Please try again.',
     refreshFailedTitle: 'Refresh failed',
@@ -8158,6 +8160,9 @@ const enUS = {
       queue: 'No pending items for this filter',
       workspace: 'Select a pending item on the left',
       reference: 'Reference panels appear after you select an item'
+    },
+    tags: {
+      stocking: 'Stocking'
     },
     tabs: {
       customer: 'Customer intel',

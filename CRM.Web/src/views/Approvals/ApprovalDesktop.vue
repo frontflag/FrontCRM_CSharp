@@ -21,6 +21,16 @@
       <span class="ad-current-item__code" :title="selected.documentCode">
         {{ selected.documentCode || '—' }}
       </span>
+      <el-tag
+        v-if="isStockingPurchaseOrder(selected)"
+        type="warning"
+        effect="plain"
+        size="small"
+        round
+        class="ad-current-item__stocking"
+      >
+        {{ t('approvalDesktop.tags.stocking') }}
+      </el-tag>
       <span class="ad-current-item__party" :title="displayCounterpartyName(selected)">
         {{ displayCounterpartyName(selected) }}
       </span>
@@ -63,6 +73,7 @@ import { useVendorIntelLookupStore } from '@/stores/vendorIntelLookup'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import { PO_TYPE_STOCKING } from '@/utils/purchaseOrderItemLinkRules'
 
 const { t, te } = useI18n()
 const route = useRoute()
@@ -85,6 +96,12 @@ function displayCounterpartyName(row: PendingApprovalItem): string {
     return '—'
   }
   return row.counterpartyName || '—'
+}
+
+function isStockingPurchaseOrder(row: PendingApprovalItem): boolean {
+  return (
+    row.bizType === 'PURCHASE_ORDER' && Number(row.purchaseOrderType) === PO_TYPE_STOCKING
+  )
 }
 
 const getBizTypeText = (type: string) => {
@@ -319,6 +336,10 @@ onUnmounted(() => {
     font-size: 14px;
     font-weight: 600;
     color: $text-primary;
+    flex-shrink: 0;
+  }
+
+  &__stocking {
     flex-shrink: 0;
   }
 
