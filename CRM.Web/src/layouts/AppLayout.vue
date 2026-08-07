@@ -2002,7 +2002,7 @@ const showSalesOrderItemOpsPanel = computed(
 )
 
 const showSalesOrderItemFlowPanel = computed(
-  () => rightActiveTabId.value === 'r-flow' && isSalesOrderItemListRoute.value
+  () => rightActiveTabId.value === 'r-flow' && isSalesOrderItemOpsRoute.value
 )
 
 const showPackingDetailFlowPanel = computed(
@@ -2021,7 +2021,7 @@ const showPurchaseOrderItemOpsPanel = computed(
   () => rightActiveTabId.value === 'r-ops' && isPurchaseOrderItemOpsRoute.value
 )
 const showPurchaseOrderItemFlowPanel = computed(
-  () => rightActiveTabId.value === 'r-flow' && isPurchaseOrderItemListRoute.value
+  () => rightActiveTabId.value === 'r-flow' && isPurchaseOrderItemOpsRoute.value
 )
 
 const showCustomsDeclarationOpsPanel = computed(
@@ -2259,6 +2259,7 @@ watch(
     if (name === 'SalesOrderDetail') {
       rightTabs.value = [
         { id: 'r-ops', labelKey: 'layout.auxTabs.ops' },
+        { id: 'r-flow', labelKey: 'layout.auxTabs.flow' },
         { id: 'r4', labelKey: 'layout.auxTabs.help' }
       ]
       purchaseOrderItemOpsStore.clear()
@@ -2290,6 +2291,7 @@ watch(
     if (name === 'PurchaseOrderDetail') {
       rightTabs.value = [
         { id: 'r-ops', labelKey: 'layout.auxTabs.ops' },
+        { id: 'r-flow', labelKey: 'layout.auxTabs.flow' },
         { id: 'r4', labelKey: 'layout.auxTabs.help' }
       ]
       salesOrderItemOpsStore.clear()

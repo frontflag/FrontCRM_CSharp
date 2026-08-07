@@ -11,7 +11,12 @@
       <p v-if="loadError" class="so-item-flow-root__error">{{ loadError }}</p>
 
       <ol class="so-item-flow-timeline">
-        <li v-for="station in stations" :key="station.key" class="so-item-flow-station">
+        <li
+          v-for="station in stations"
+          :key="station.key"
+          class="so-item-flow-station"
+          :class="{ 'is-main': station.key === 'sellOrderItem' }"
+        >
           <div class="so-item-flow-station__rail">
             <span
               class="so-item-flow-station__dot"
@@ -20,7 +25,10 @@
           </div>
           <div class="so-item-flow-station__body">
             <div class="so-item-flow-station__head">
-              <h3 class="so-item-flow-station__title">{{ t(station.titleKey) }}</h3>
+              <h3 class="so-item-flow-station__title">
+                {{ t(station.titleKey) }}
+                <FlowYouAreHereMark v-if="station.key === 'sellOrderItem'" />
+              </h3>
               <span
                 v-if="station.stationStatus !== 'empty'"
                 class="so-item-flow-station__badge"
@@ -101,6 +109,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { SalesOrderDetailTabAggregates } from '@/api/salesOrder'
+import FlowYouAreHereMark from '@/components/Common/FlowYouAreHereMark.vue'
 import {
   buildSellOrderItemFlowStations,
   formatFlowCardDate,

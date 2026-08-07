@@ -24,13 +24,7 @@
             <div class="so-item-flow-station__head">
               <h3 class="so-item-flow-station__title">
                 {{ t(station.titleKey) }}
-                <img
-                  v-if="station.key === 'pendlist'"
-                  class="so-item-flow-here-mark"
-                  :src="youAreHereHandUrl"
-                  :alt="t('customsPages.pendlists.flowPanel.youAreHere')"
-                  :title="t('customsPages.pendlists.flowPanel.youAreHere')"
-                />
+                <FlowYouAreHereMark v-if="station.key === 'pendlist'" />
               </h3>
               <span
                 v-if="station.stationStatus !== 'empty'"
@@ -134,10 +128,10 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { CustomsPendlistFlowAggregatesDto, CustomsPendlistListItemDto } from '@/api/customs'
+import FlowYouAreHereMark from '@/components/Common/FlowYouAreHereMark.vue'
 import { buildCustomsPendlistFlowStations } from '@/utils/customsPendlistFlowPanel'
 import type { FlowDocRoute, FlowStationStatus } from '@/utils/sellOrderItemFlowPanel'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
-import youAreHereHandUrl from '@/assets/icons/flow-you-are-here-hand.png'
 import '@/assets/styles/so-item-flow-panel.scss'
 
 const props = defineProps<{
@@ -173,25 +167,6 @@ function toRouteLocation(route: FlowDocRoute) {
 </script>
 
 <style scoped lang="scss">
-.so-item-flow-station.is-main .so-item-flow-station__title {
-  font-weight: 700;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-
-/* 透明底 + 橙色 + 指向左；放大突出「我在此」 */
-.so-item-flow-here-mark {
-  display: inline-block;
-  width: 28px;
-  height: 22px;
-  object-fit: contain;
-  flex-shrink: 0;
-  vertical-align: middle;
-  margin-left: 2px;
-}
-
 .so-item-flow-kv__mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12px;

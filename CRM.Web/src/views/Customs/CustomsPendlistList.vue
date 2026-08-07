@@ -193,10 +193,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, h, inject, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElButton, ElMessage, ElMessageBox } from 'element-plus'
+import { DocumentCopy } from '@element-plus/icons-vue'
 import {
   CUSTOMS_PENDLIST_STATUS,
   createCustomsOutNotifyFromPendlist,
@@ -208,6 +209,7 @@ import { salesOrderApi, type SellOrderItemStockTabRow } from '@/api/salesOrder'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { copyTextToClipboard } from '@/utils/clipboard'
 import SellOrderItemStockTabTable from '@/components/RFQ/SellOrderItemStockTabTable.vue'
 import { useCrmListClickedRow } from '@/utils/crmListClickedRow'
 import { useAuthStore } from '@/stores/auth'
@@ -353,13 +355,38 @@ async function handleForceDelete(row: CustomsPendlistListItemDto) {
   let entered = ''
   try {
     const ret = await ElMessageBox.prompt(
-      t('customsPages.pendlists.forceDeletePrompt', { id }),
+      h('div', { class: 'pendlist-force-delete-msg' }, [
+        h('p', { class: 'pendlist-force-delete-msg__text' }, t('customsPages.pendlists.forceDeletePrompt')),
+        h('div', { class: 'pendlist-force-delete-msg__id-row' }, [
+          h('code', { class: 'pendlist-force-delete-msg__id' }, id),
+          h(
+            ElButton,
+            {
+              size: 'small',
+              type: 'primary',
+              link: true,
+              icon: DocumentCopy,
+              onClick: (e: MouseEvent) => {
+                e.preventDefault()
+                e.stopPropagation()
+                if (copyTextToClipboard(id)) {
+                  ElMessage.success(t('common.copySuccess'))
+                } else {
+                  ElMessage.error(t('common.copyFailed'))
+                }
+              }
+            },
+            () => t('common.copy')
+          )
+        ])
+      ]),
       t('customsPages.pendlists.forceDeleteTitle'),
       {
         inputPlaceholder: id,
         confirmButtonText: t('common.confirm'),
         cancelButtonText: t('common.cancel'),
-        type: 'warning'
+        type: 'warning',
+        customClass: 'pendlist-force-delete-box'
       }
     )
     entered = String(ret.value || '').trim()
@@ -578,5 +605,31 @@ onUnmounted(() => {
   border-radius: 0;
   padding: 0;
   margin: 0;
+}
+</style>
+
+<style lang="scss">
+/* MessageBox 挂到 body，不可 scoped */
+.pendlist-force-delete-msg {
+  text-align: left;
+}
+
+.pendlist-force-delete-msg__text {
+  margin: 0 0 10px;
+  line-height: 1.5;
+}
+
+.pendlist-force-delete-msg__id-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.pendlist-force-delete-msg__id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  word-break: break-all;
+  user-select: all;
 }
 </style>

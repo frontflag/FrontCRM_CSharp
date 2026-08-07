@@ -161,8 +161,7 @@ const zhCN = {
       onlyOpenCanCreate: '仅「待处理」状态可生成报关出库通知',
       forceDelete: '强制删除',
       forceDeleteTitle: '强制删除待报关记录',
-      forceDeletePrompt:
-        '将软删除该待报关记录。确认请输入下方完整 ID（可复制）：\n{id}',
+      forceDeletePrompt: '将软删除该待报关记录。确认请输入下方完整 ID：',
       forceDeleteMismatch: '确认 ID 不匹配，已取消删除',
       forceDeleteSuccess: '强制删除成功',
       forceDeleteFailed: '强制删除失败',
@@ -174,8 +173,7 @@ const zhCN = {
       flowPanel: {
         pickRow: '在「流程」页签下单击列表行，查看待报关上下游业务链路',
         loadFailed: '加载待报关流程失败',
-        pendlistId: 'pendlist Id',
-        youAreHere: '我在此'
+        pendlistId: 'pendlist Id'
       },
       flowStations: {
         sellOrderItem: '销售订单明细',
@@ -773,6 +771,9 @@ const zhCN = {
       customerIntel: '调查',
       vendorIntel: '调查',
       help: '帮助'
+    },
+    flowPanel: {
+      youAreHere: '当前业务节点'
     }
   },
   leftPanel: {

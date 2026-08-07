@@ -28,7 +28,10 @@
           </div>
           <div class="so-item-flow-station__body">
             <div class="so-item-flow-station__head">
-              <h3 class="so-item-flow-station__title">{{ t(station.titleKey) }}</h3>
+              <h3 class="so-item-flow-station__title">
+                {{ t(station.titleKey) }}
+                <FlowYouAreHereMark v-if="station.key === 'packing'" />
+              </h3>
               <span
                 v-if="station.stationStatus !== 'empty'"
                 class="so-item-flow-station__badge"
@@ -123,6 +126,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { SalesOrderDetailTabAggregates } from '@/api/salesOrder'
+import FlowYouAreHereMark from '@/components/Common/FlowYouAreHereMark.vue'
 import {
   buildPackingItemFlowStations,
   formatFlowCardDate,
@@ -192,9 +196,5 @@ function hasDescription(v?: string | null) {
   font-size: 12px;
   line-height: 1.5;
   color: var(--el-color-warning);
-}
-
-.so-item-flow-station.is-main .so-item-flow-station__title {
-  font-weight: 700;
 }
 </style>

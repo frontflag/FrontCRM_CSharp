@@ -118,6 +118,15 @@ $flow-status-done: #67c23a;
   color: $text-primary;
 }
 
+/* 当前业务节点：标题加粗（指示图标见 FlowYouAreHereMark） */
+.so-item-flow-station.is-main .so-item-flow-station__title {
+  font-weight: 700;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
 .so-item-flow-station__badge {
   flex: 0 0 auto;
   font-size: 11px;

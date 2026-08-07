@@ -162,7 +162,7 @@ const enUS = {
       forceDelete: 'Force delete',
       forceDeleteTitle: 'Force delete pending customs row',
       forceDeletePrompt:
-        'This will soft-delete the pending customs row. Enter the full ID below to confirm:\n{id}',
+        'This will soft-delete the pending customs row. Enter the full ID below to confirm:',
       forceDeleteMismatch: 'ID mismatch; delete cancelled',
       forceDeleteSuccess: 'Force delete succeeded',
       forceDeleteFailed: 'Force delete failed',
@@ -174,8 +174,7 @@ const enUS = {
       flowPanel: {
         pickRow: 'With the Flow tab open, click a row to view upstream/downstream chain',
         loadFailed: 'Failed to load customs pending flow',
-        pendlistId: 'pendlist Id',
-        youAreHere: 'You are here'
+        pendlistId: 'pendlist Id'
       },
       flowStations: {
         sellOrderItem: 'Sales order line',
@@ -776,6 +775,9 @@ const enUS = {
       customerIntel: 'Intel',
       vendorIntel: 'Intel',
       help: 'Help'
+    },
+    flowPanel: {
+      youAreHere: 'Current business node'
     }
   },
   leftPanel: {
