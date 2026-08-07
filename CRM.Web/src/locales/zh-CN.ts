@@ -159,11 +159,44 @@ const zhCN = {
       createOk: '已生成报关出库通知 {code}',
       createFailed: '生成报关出库通知失败',
       onlyOpenCanCreate: '仅「待处理」状态可生成报关出库通知',
+      forceDelete: '强制删除',
+      forceDeleteTitle: '强制删除待报关记录',
+      forceDeletePrompt:
+        '将软删除该待报关记录。确认请输入下方完整 ID（可复制）：\n{id}',
+      forceDeleteMismatch: '确认 ID 不匹配，已取消删除',
+      forceDeleteSuccess: '强制删除成功',
+      forceDeleteFailed: '强制删除失败',
       refPanelTitle: '参考信息',
       refPanelClose: '收起',
       refPanelTabStock: '库存',
       refPanelLoadFailed: '加载库存参考信息失败',
-      refPanelMissingSo: '缺少销售订单信息，无法加载库存'
+      refPanelMissingSo: '缺少销售订单信息，无法加载库存',
+      flowPanel: {
+        pickRow: '在「流程」页签下单击列表行，查看待报关上下游业务链路',
+        loadFailed: '加载待报关流程失败',
+        pendlistId: 'pendlist Id',
+        youAreHere: '我在此'
+      },
+      flowStations: {
+        sellOrderItem: '销售订单明细',
+        salesStockOutNotify: '出库通知',
+        pendlist: '待报关列表',
+        customsStockOutNotify: '报关出库通知',
+        packing: '装箱',
+        picking: '拣货',
+        stockOut: '出库',
+        declaration: '报关',
+        arrival: '到货',
+        qc: '质检',
+        stockIn: '报关入库'
+      },
+      flowStatus: {
+        pendingCustoms: '待报关',
+        pendingPacking: '待装箱',
+        packed: '已装箱',
+        stockedOut: '已出库',
+        cancelled: '已取消'
+      }
     },
     declarations: {
       title: '报关单',

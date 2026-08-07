@@ -40,6 +40,7 @@ public static class DeleteLogEntityNames
     public const string FinancePurchaseInvoice = "进项发票";
 
     public const string CustomsDeclaration = "报关单";
+    public const string CustomsPendlist = "待报关记录";
     public const string CustomsBroker = "报关公司";
     public const string FreightForwarderCompany = "货代公司";
     public const string Document = "附件文档";

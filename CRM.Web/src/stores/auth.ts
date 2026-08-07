@@ -82,10 +82,13 @@ const emptySimulationBanner = (): SimulationBanner => ({
 })
 
 function applySummaryFields(target: User, summary: any, prevIsSysAdmin: boolean): User {
+  const roleCodes: string[] = summary?.roleCodes || target.roleCodes || []
+  const roleIsSysAdmin = roleCodes.some((r) => String(r).toUpperCase() === 'SYS_ADMIN')
+  const roleIsSysManager = roleCodes.some((r) => String(r).toUpperCase() === 'SYS_MANAGER')
   return {
     ...target,
-    isSysAdmin: prevIsSysAdmin || !!summary?.isSysAdmin,
-    isSysManager: !!summary?.isSysManager,
+    isSysAdmin: prevIsSysAdmin || !!target.isSysAdmin || !!summary?.isSysAdmin || roleIsSysAdmin,
+    isSysManager: !!summary?.isSysManager || !!target.isSysManager || roleIsSysManager,
     isBizManager: !!summary?.isBizManager,
     hasManagementAccess:
       !!summary?.hasManagementAccess ||
@@ -96,9 +99,11 @@ function applySummaryFields(target: User, summary: any, prevIsSysAdmin: boolean)
       !!summary?.hasBizDataBypass ||
       !!summary?.isSysAdmin ||
       !!summary?.isSysManager ||
-      !!summary?.isBizManager,
-    roleCodes: summary?.roleCodes || [],
-    permissionCodes: summary?.permissionCodes || [],
+      !!summary?.isBizManager ||
+      roleIsSysAdmin ||
+      roleIsSysManager,
+    roleCodes,
+    permissionCodes: summary?.permissionCodes || target.permissionCodes || [],
     departmentIds: summary?.departmentIds || [],
     identityType: Number(summary?.identityType ?? 0),
     saleDataScope: Number(summary?.saleDataScope ?? 1),
@@ -269,7 +274,13 @@ export const useAuthStore = defineStore('auth', () => {
 
   /** 强制删除：SuperAdmin（SYS_ADMIN）或产品 Admin（SYS_MANAGER） */
   function canForceDelete(): boolean {
-    return user.value?.isSysAdmin === true || user.value?.isSysManager === true
+    if (user.value?.isSysAdmin === true || user.value?.isSysManager === true) return true
+    // 兜底：部分会话 isSysAdmin 未写入时仍以角色码判定
+    const roles = user.value?.roleCodes ?? []
+    return roles.some(
+      (r) =>
+        String(r).toUpperCase() === 'SYS_ADMIN' || String(r).toUpperCase() === 'SYS_MANAGER'
+    )
   }
 
   /** 系统管理双重门槛：须 hasManagementAccess + 权限码；biz.ai.admin 同属参数管理入口 */

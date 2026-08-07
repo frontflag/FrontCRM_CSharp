@@ -23,6 +23,12 @@ export type FlowStationKey =
   | 'stockOut'
   | 'receiptWriteOff'
   | 'invoice'
+  | 'pendlist'
+  | 'customsStockOutNotify'
+  | 'picking'
+  | 'customsDeclaration'
+  | 'arrivalNotify'
+  | 'customsStockIn'
 
 export interface FlowDocRoute {
   name: string
@@ -45,6 +51,8 @@ export interface FlowCard {
   unitPriceText?: string | null
   qtyText?: string | null
   description?: string | null
+  /** 报关出库通知小卡：关联待报关 Id（溯源展示） */
+  pendlistId?: string | null
 }
 
 export interface FlowStation {

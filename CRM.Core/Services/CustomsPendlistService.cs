@@ -18,8 +18,11 @@ public class CustomsPendlistService : ICustomsPendlistService
     private readonly IRepository<SellOrderItem> _sellOrderItemRepo;
     private readonly IRepository<WarehouseInfo> _warehouseRepo;
     private readonly IRepository<User> _userRepo;
+    private readonly IRepository<PackingItem> _packingItemRepo;
+    private readonly IRepository<CustomsDeclarationItem> _declarationItemRepo;
     private readonly ISerialNumberService _serialNumberService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogOperationAppendService _logOperationAppend;
 
     public CustomsPendlistService(
         IRepository<CustomsPendlist> pendlistRepo,
@@ -29,8 +32,11 @@ public class CustomsPendlistService : ICustomsPendlistService
         IRepository<SellOrderItem> sellOrderItemRepo,
         IRepository<WarehouseInfo> warehouseRepo,
         IRepository<User> userRepo,
+        IRepository<PackingItem> packingItemRepo,
+        IRepository<CustomsDeclarationItem> declarationItemRepo,
         ISerialNumberService serialNumberService,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ILogOperationAppendService logOperationAppend)
     {
         _pendlistRepo = pendlistRepo;
         _stockOutRequestRepo = stockOutRequestRepo;
@@ -39,8 +45,11 @@ public class CustomsPendlistService : ICustomsPendlistService
         _sellOrderItemRepo = sellOrderItemRepo;
         _warehouseRepo = warehouseRepo;
         _userRepo = userRepo;
+        _packingItemRepo = packingItemRepo;
+        _declarationItemRepo = declarationItemRepo;
         _serialNumberService = serialNumberService;
         _unitOfWork = unitOfWork;
+        _logOperationAppend = logOperationAppend;
     }
 
     public async Task<IReadOnlyList<CustomsPendlistListItemDto>> GetListAsync(
@@ -237,13 +246,93 @@ public class CustomsPendlistService : ICustomsPendlistService
         var actor = ActingUserIdNormalizer.Normalize(actingUserId);
         foreach (var row in rows)
         {
-            if (row.Status == CustomsPendlistStatusCode.Cancelled)
-                continue;
+            // 上游销售出库通知已删：取消并软删，避免待报关列表残留孤儿行
             row.Status = CustomsPendlistStatusCode.Cancelled;
+            row.CustomsStockOutNotifyId = null;
+            row.IsDeleted = true;
             row.ModifyTime = now;
             row.ModifyByUserId = actor;
             await _pendlistRepo.UpdateAsync(row);
         }
+    }
+
+    public async Task ForceDeleteAsync(
+        string id,
+        string confirmPendlistId,
+        string actingUserId,
+        string? actingUserName)
+    {
+        if (string.IsNullOrWhiteSpace(confirmPendlistId))
+            throw new ArgumentException("请填写 confirmPendlistId", nameof(confirmPendlistId));
+        if (string.IsNullOrWhiteSpace(actingUserId))
+            throw new ArgumentException("操作人不能为空", nameof(actingUserId));
+
+        var key = id?.Trim() ?? string.Empty;
+        if (string.IsNullOrEmpty(key))
+            throw new ArgumentException("ID不能为空", nameof(id));
+
+        var row = await _pendlistRepo.GetByIdAsync(key)
+                  ?? throw new InvalidOperationException("待报关记录不存在");
+        if (!string.Equals(confirmPendlistId.Trim(), row.Id.Trim(), StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("确认 ID 不匹配，已拒绝删除");
+
+        if (!string.IsNullOrWhiteSpace(row.CustomsStockOutNotifyId))
+        {
+            var customsSor = await _stockOutRequestRepo.GetByIdAsync(row.CustomsStockOutNotifyId.Trim());
+            if (customsSor != null && !customsSor.IsDeleted)
+                throw new InvalidOperationException(
+                    $"存在下游业务节点：报关出库通知；下游数据单号：{customsSor.RequestCode}");
+        }
+
+        var linkedCustomsSor = (await _stockOutRequestRepo.FindAsync(r =>
+                r.CustomsPendlistId == key
+                && r.StockOutType == StockOutTypeCode.Customs
+                && !r.IsDeleted))
+            .FirstOrDefault();
+        if (linkedCustomsSor != null)
+            throw new InvalidOperationException(
+                $"存在下游业务节点：报关出库通知；下游数据单号：{linkedCustomsSor.RequestCode}");
+
+        var packingItems = (await _packingItemRepo.FindAsync(pi =>
+                pi.CustomsPendlistId == key && !pi.IsDeleted))
+            .ToList();
+        if (packingItems.Count > 0)
+        {
+            var codes = packingItems
+                .Select(pi => string.IsNullOrWhiteSpace(pi.ItemCode) ? pi.Id : pi.ItemCode.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(5)
+                .ToArray();
+            throw new InvalidOperationException(
+                $"存在下游业务节点：装箱明细；下游数据单号：{string.Join("、", codes)}");
+        }
+
+        var declarationItems = (await _declarationItemRepo.FindAsync(i =>
+                i.CustomsPendlistId == key && !i.IsDeleted))
+            .ToList();
+        if (declarationItems.Count > 0)
+            throw new InvalidOperationException("存在下游业务节点：报关明细，须先删除报关单后再删除待报关记录");
+
+        row.Status = CustomsPendlistStatusCode.Cancelled;
+        row.CustomsStockOutNotifyId = null;
+        row.IsDeleted = true;
+        row.ModifyTime = DateTime.UtcNow;
+        row.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
+        await _pendlistRepo.UpdateAsync(row);
+        await _unitOfWork.SaveChangesAsync();
+
+        await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
+        {
+            BizType = BusinessLogTypes.CustomsPendlist,
+            RecordId = row.Id,
+            RecordCode = row.Id,
+            EntityDisplayName = DeleteLogEntityNames.CustomsPendlist,
+            IsForceDelete = true,
+            ForceConfirmBillCode = confirmPendlistId.Trim(),
+            OperatorUserId = actingUserId.Trim(),
+            OperatorUserName = actingUserName?.Trim(),
+            OperationDescOverride = $"强制删除待报关记录 PendlistId={row.Id}"
+        });
     }
 
     public async Task RevertPendlistOnCustomsOutNotifyDeleteAsync(string customsStockOutNotifyId, string? actingUserId)

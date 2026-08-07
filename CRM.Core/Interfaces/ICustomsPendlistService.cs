@@ -22,6 +22,16 @@ public interface ICustomsPendlistService
 
     /// <summary>报关出库通知删除后：回退 pendlist 至待处理并解除关联。</summary>
     Task RevertPendlistOnCustomsOutNotifyDeleteAsync(string customsStockOutNotifyId, string? actingUserId);
+
+    /// <summary>
+    /// 强制删除待报关记录。确认码为 pendlist Guid。
+    /// 存在报关出库通知 / 装箱 / 报关明细等下游时拒绝。
+    /// </summary>
+    Task ForceDeleteAsync(
+        string id,
+        string confirmPendlistId,
+        string actingUserId,
+        string? actingUserName);
 }
 
 public sealed class CustomsPendlistListItemDto

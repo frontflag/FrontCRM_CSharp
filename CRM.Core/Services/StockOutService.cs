@@ -3090,6 +3090,11 @@ namespace CRM.Core.Services
                     entity.Id,
                     actingUserId);
             }
+            else
+            {
+                // 与普通删除一致：强制删除销售出库通知时同步取消关联待报关（并软删）
+                await _customsPendlistService.CancelBySalesStockOutNotifyAsync(entity.Id, actingUserId);
+            }
 
             await _stockOutRequestRepository.DeleteAsync(entity.Id);
             await _unitOfWork.SaveChangesAsync();

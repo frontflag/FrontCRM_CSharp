@@ -159,11 +159,44 @@ const enUS = {
       createOk: 'Created customs out notice {code}',
       createFailed: 'Failed to create customs out notice',
       onlyOpenCanCreate: 'Only open rows can create a customs out notice',
+      forceDelete: 'Force delete',
+      forceDeleteTitle: 'Force delete pending customs row',
+      forceDeletePrompt:
+        'This will soft-delete the pending customs row. Enter the full ID below to confirm:\n{id}',
+      forceDeleteMismatch: 'ID mismatch; delete cancelled',
+      forceDeleteSuccess: 'Force delete succeeded',
+      forceDeleteFailed: 'Force delete failed',
       refPanelTitle: 'Reference',
       refPanelClose: 'Collapse',
       refPanelTabStock: 'Inventory',
       refPanelLoadFailed: 'Failed to load inventory reference',
-      refPanelMissingSo: 'Missing sales order; cannot load inventory'
+      refPanelMissingSo: 'Missing sales order; cannot load inventory',
+      flowPanel: {
+        pickRow: 'With the Flow tab open, click a row to view upstream/downstream chain',
+        loadFailed: 'Failed to load customs pending flow',
+        pendlistId: 'pendlist Id',
+        youAreHere: 'You are here'
+      },
+      flowStations: {
+        sellOrderItem: 'Sales order line',
+        salesStockOutNotify: 'Stock-out notice',
+        pendlist: 'Pending customs',
+        customsStockOutNotify: 'Customs stock-out notice',
+        packing: 'Packing',
+        picking: 'Picking',
+        stockOut: 'Stock-out',
+        declaration: 'Declaration',
+        arrival: 'Arrival',
+        qc: 'QC',
+        stockIn: 'Customs stock-in'
+      },
+      flowStatus: {
+        pendingCustoms: 'Pending customs',
+        pendingPacking: 'Pending packing',
+        packed: 'Packed',
+        stockedOut: 'Stocked out',
+        cancelled: 'Cancelled'
+      }
     },
     declarations: {
       title: 'Customs declarations',

@@ -1437,6 +1437,15 @@
             :mask-sensitive="maskSaleSensitiveFields"
             class="aux-panel-tab-body"
           />
+          <CustomsPendlistFlowPanel
+            v-show="showCustomsPendlistFlowPanel"
+            :row="customsPendlistFlowStore.row"
+            :aggregates="customsPendlistFlowStore.aggregates"
+            :loading="customsPendlistFlowStore.loading"
+            :load-error="customsPendlistFlowStore.loadError"
+            :mask-sensitive="maskSaleSensitiveFields"
+            class="aux-panel-tab-body"
+          />
           <PurchaseOrderItemOpsPanel
             v-show="showPurchaseOrderItemOpsPanel"
             embedded
@@ -1608,11 +1617,13 @@ import VendorIntelPanel from '@/components/Vendor/VendorIntelPanel.vue'
 import PurchaseOrderItemOpsPanel from '@/components/RFQ/PurchaseOrderItemOpsPanel.vue'
 import PurchaseOrderItemFlowPanel from '@/components/RFQ/PurchaseOrderItemFlowPanel.vue'
 import CustomsDeclarationOpsPanel from '@/components/Customs/CustomsDeclarationOpsPanel.vue'
+import CustomsPendlistFlowPanel from '@/components/Customs/CustomsPendlistFlowPanel.vue'
 import ArrivalNoticeOpsPanel from '@/components/Logistics/ArrivalNoticeOpsPanel.vue'
 import QcOpsPanel from '@/components/Logistics/QcOpsPanel.vue'
 import StockOutNotifyCustomsTabPanel from '@/components/Inventory/StockOutNotifyCustomsTabPanel.vue'
 import { useSalesOrderItemOpsPanelStore } from '@/stores/salesOrderItemOpsPanel'
 import { usePackingDetailFlowPanelStore } from '@/stores/packingDetailFlowPanel'
+import { useCustomsPendlistFlowPanelStore } from '@/stores/customsPendlistFlowPanel'
 import { useMaterialIntelLookupStore } from '@/stores/materialIntelLookup'
 import { useCustomerIntelLookupStore } from '@/stores/customerIntelLookup'
 import { useVendorIntelLookupStore } from '@/stores/vendorIntelLookup'
@@ -1657,6 +1668,7 @@ const { isDark, toggleTheme } = useUiTheme()
 const { t, locale } = useI18n()
 const salesOrderItemOpsStore = useSalesOrderItemOpsPanelStore()
 const packingDetailFlowStore = usePackingDetailFlowPanelStore()
+const customsPendlistFlowStore = useCustomsPendlistFlowPanelStore()
 const materialIntelLookupStore = useMaterialIntelLookupStore()
 const customerIntelLookupStore = useCustomerIntelLookupStore()
 const vendorIntelLookupStore = useVendorIntelLookupStore()
@@ -1978,6 +1990,7 @@ const isPurchaseOrderItemOpsRoute = computed(
 )
 const isRfqItemListRoute = computed(() => route.name === 'RFQItemList')
 const isCustomsDeclarationListRoute = computed(() => route.name === 'CustomsDeclarationList')
+const isCustomsPendlistListRoute = computed(() => route.name === 'CustomsPendlistList')
 const isArrivalNoticeListRoute = computed(() => route.name === 'ArrivalNoticeList')
 const isQcListRoute = computed(() => route.name === 'QcList')
 const isStockOutNotifyListRoute = computed(
@@ -1998,6 +2011,10 @@ const showPackingDetailFlowPanel = computed(
 
 const showPackingListFlowPanel = computed(
   () => rightActiveTabId.value === 'r-flow' && isPackingListRoute.value
+)
+
+const showCustomsPendlistFlowPanel = computed(
+  () => rightActiveTabId.value === 'r-flow' && isCustomsPendlistListRoute.value
 )
 
 const showPurchaseOrderItemOpsPanel = computed(
@@ -2285,6 +2302,24 @@ watch(
       restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-ops' })
       return
     }
+    if (name === 'CustomsPendlistList') {
+      rightTabs.value = [
+        { id: 'r-flow', labelKey: 'layout.auxTabs.flow' },
+        { id: 'r4', labelKey: 'layout.auxTabs.help' }
+      ]
+      salesOrderItemOpsStore.clear()
+      purchaseOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
+      customsDeclarationOpsStore.clear()
+      arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
+      materialIntelLookupStore.clearBound()
+      customerIntelLookupStore.clearBound()
+      vendorIntelLookupStore.clearBound()
+      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-flow' })
+      return
+    }
     if (name === 'CustomsDeclarationList') {
       rightTabs.value = [
         { id: 'r-ops', labelKey: 'layout.auxTabs.ops' },
@@ -2293,6 +2328,7 @@ watch(
       salesOrderItemOpsStore.clear()
       purchaseOrderItemOpsStore.clear()
       packingDetailFlowStore.clear()
+      customsPendlistFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
@@ -2441,6 +2477,7 @@ watch(
     salesOrderItemOpsStore.clear()
     purchaseOrderItemOpsStore.clear()
     packingDetailFlowStore.clear()
+    customsPendlistFlowStore.clear()
     customsDeclarationOpsStore.clear()
     arrivalNoticeOpsStore.clear()
     qcOpsStore.clear()

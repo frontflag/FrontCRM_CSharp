@@ -80,17 +80,75 @@
         <template #default="{ row }">{{ formatDate(row.createTime) }}</template>
       </el-table-column>
       <el-table-column prop="createUserDisplay" :label="t('customsPages.pendlists.colCreator')" width="100" />
-      <el-table-column :label="t('customsPages.pendlists.colActions')" width="180" fixed="right">
+      <el-table-column
+        :label="t('customsPages.pendlists.colActions')"
+        :width="opColWidth"
+        :min-width="opColMinWidth"
+        fixed="right"
+        align="center"
+        class-name="op-col"
+        label-class-name="op-col"
+        :resizable="false"
+      >
+        <template #header>
+          <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="opColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleOpCol"
+            >
+              {{ opColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+        </template>
         <template #default="{ row }">
-          <el-button
-            v-if="canWriteLogisticsData && row.status === CUSTOMS_PENDLIST_STATUS.Open"
-            link
-            type="primary"
-            :loading="creatingId === row.id"
-            @click.stop="onCreateCustomsOutNotify(row)"
-          >
-            {{ t('customsPages.pendlists.createCustomsOutNotify') }}
-          </el-button>
+          <div @click.stop @dblclick.stop>
+            <div v-if="opColExpanded" class="action-btns">
+              <button
+                v-if="canForceDelete"
+                type="button"
+                class="action-btn action-btn--danger"
+                @click.stop="handleForceDelete(row)"
+              >
+                {{ t('customsPages.pendlists.forceDelete') }}
+              </button>
+              <button
+                v-if="canWriteLogisticsData && row.status === CUSTOMS_PENDLIST_STATUS.Open"
+                type="button"
+                class="action-btn action-btn--primary"
+                :disabled="creatingId === row.id"
+                @click.stop="onCreateCustomsOutNotify(row)"
+              >
+                {{ t('customsPages.pendlists.createCustomsOutNotify') }}
+              </button>
+            </div>
+            <el-dropdown v-else trigger="click" placement="bottom-end">
+              <div class="op-more-dropdown-trigger">
+                <button type="button" class="op-more-trigger">...</button>
+              </div>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item
+                    v-if="canForceDelete"
+                    @click.stop="handleForceDelete(row)"
+                  >
+                    <span class="op-more-item op-more-item--danger">
+                      {{ t('customsPages.pendlists.forceDelete') }}
+                    </span>
+                  </el-dropdown-item>
+                  <el-dropdown-item
+                    v-if="canWriteLogisticsData && row.status === CUSTOMS_PENDLIST_STATUS.Open"
+                    @click.stop="onCreateCustomsOutNotify(row)"
+                  >
+                    <span class="op-more-item op-more-item--primary">
+                      {{ t('customsPages.pendlists.createCustomsOutNotify') }}
+                    </span>
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -135,30 +193,81 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, inject, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   CUSTOMS_PENDLIST_STATUS,
   createCustomsOutNotifyFromPendlist,
   fetchCustomsPendlists,
+  forceDeleteCustomsPendlist,
   type CustomsPendlistListItemDto
 } from '@/api/customs'
 import { salesOrderApi, type SellOrderItemStockTabRow } from '@/api/salesOrder'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
+import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
 import { getApiErrorMessage } from '@/utils/apiError'
 import SellOrderItemStockTabTable from '@/components/RFQ/SellOrderItemStockTabTable.vue'
 import { useCrmListClickedRow } from '@/utils/crmListClickedRow'
+import { useAuthStore } from '@/stores/auth'
+import { useCustomsPendlistFlowPanelStore } from '@/stores/customsPendlistFlowPanel'
+import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 
 const { t } = useI18n()
+const route = useRoute()
+const authStore = useAuthStore()
+const workspaceLayout = inject(WorkspaceLayoutKey, null)
+const flowStore = useCustomsPendlistFlowPanelStore()
 const { canWriteLogisticsData } = useDepartmentDataReadOnly()
+const canForceDelete = computed(() => authStore.canForceDelete())
 const loading = ref(false)
 const creatingId = ref('')
 const list = ref<CustomsPendlistListItemDto[]>([])
-const { markClickedRow, clickedRowClassName: pendlistRowClassName, clearClickedRow } = useCrmListClickedRow(
+
+/** 《列表操作列规范》：默认收起；列头仅 `<`/`>` */
+const OP_COL_EXPANDED_WIDTH = 168
+const OP_COL_EXPANDED_MIN_WIDTH = 156
+const OP_COL_COLLAPSED_WIDTH = 48
+const opColExpanded = ref(false)
+const opColWidth = computed(() =>
+  opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH
+)
+const opColMinWidth = computed(() =>
+  opColExpanded.value ? OP_COL_EXPANDED_MIN_WIDTH : OP_COL_COLLAPSED_WIDTH
+)
+function toggleOpCol() {
+  opColExpanded.value = !opColExpanded.value
+}
+const { markClickedRow, clickedRowClassName: pendlistClickedClass, clearClickedRow } = useCrmListClickedRow(
   list,
   'id'
 )
+
+function pendlistRowClassName({ row }: { row: CustomsPendlistListItemDto }) {
+  const clicked = pendlistClickedClass({ row: row as unknown as Record<string, unknown> })
+  const flowActive =
+    flowStore.row && flowStore.rowKey(flowStore.row) === flowStore.rowKey(row)
+      ? 'so-item-row--active'
+      : ''
+  return [clicked, flowActive, 'table-row-pointer'].filter(Boolean).join(' ')
+}
+
+const { onOpsPanelRowClick } = useListRightOpsPanelInteraction({
+  workspaceLayout,
+  isActiveRoute: () => route.name === 'CustomsPendlistList',
+  hasSelectedRow: () => !!flowStore.row,
+  setRowOnly: (row) => flowStore.setRowOnly(row as unknown as CustomsPendlistListItemDto),
+  selectRow: (row) =>
+    flowStore.selectRow(
+      row as unknown as CustomsPendlistListItemDto,
+      t('customsPages.pendlists.flowPanel.loadFailed')
+    ),
+  loadSelected: () => {
+    void flowStore.loadSelected(t('customsPages.pendlists.flowPanel.loadFailed'))
+  },
+  dataTabIds: ['r-flow']
+})
 const stockItems = ref<SellOrderItemStockTabRow[]>([])
 const filters = reactive<{ status?: number; keyword: string }>({
   status: CUSTOMS_PENDLIST_STATUS.Open,
@@ -231,7 +340,45 @@ async function onPendlistRowClick(row: CustomsPendlistListItemDto) {
   refPanel.sellOrderItemId = String(row.sellOrderItemId ?? '').trim()
   refPanel.salesStockOutNotifyCode = String(row.salesStockOutNotifyCode ?? row.salesStockOutNotifyId ?? '').trim()
   refPanel.activeTab = 'stock'
-  await loadRefPanelStock(row)
+  await Promise.all([
+    loadRefPanelStock(row),
+    onOpsPanelRowClick(row as unknown as Record<string, unknown>)
+  ])
+}
+
+async function handleForceDelete(row: CustomsPendlistListItemDto) {
+  if (!canForceDelete.value) return
+  const id = String(row.id || '').trim()
+  if (!id) return
+  let entered = ''
+  try {
+    const ret = await ElMessageBox.prompt(
+      t('customsPages.pendlists.forceDeletePrompt', { id }),
+      t('customsPages.pendlists.forceDeleteTitle'),
+      {
+        inputPlaceholder: id,
+        confirmButtonText: t('common.confirm'),
+        cancelButtonText: t('common.cancel'),
+        type: 'warning'
+      }
+    )
+    entered = String(ret.value || '').trim()
+  } catch {
+    return
+  }
+  if (entered.toLowerCase() !== id.toLowerCase()) {
+    ElMessage.error(t('customsPages.pendlists.forceDeleteMismatch'))
+    return
+  }
+  try {
+    await forceDeleteCustomsPendlist(id, entered)
+    ElMessage.success(t('customsPages.pendlists.forceDeleteSuccess'))
+    if (flowStore.row && flowStore.rowKey(flowStore.row) === id) flowStore.clear()
+    if (refPanel.pendlistId === id) closeRefPanel()
+    await loadList()
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, t('customsPages.pendlists.forceDeleteFailed')))
+  }
 }
 
 async function loadList() {
@@ -290,6 +437,10 @@ async function onCreateCustomsOutNotify(row: CustomsPendlistListItemDto) {
 
 onMounted(() => {
   void loadList()
+})
+
+onUnmounted(() => {
+  flowStore.clear()
 })
 </script>
 

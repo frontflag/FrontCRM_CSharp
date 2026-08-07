@@ -1,0 +1,200 @@
+<template>
+  <div class="so-item-flow-root so-item-flow-root--embedded" aria-label="customs-pendlist-flow-panel">
+    <div v-if="!row" class="so-item-flow-root__empty">
+      {{ t('customsPages.pendlists.flowPanel.pickRow') }}
+    </div>
+
+    <div v-else v-loading="loading" class="so-item-flow-root__content">
+      <p v-if="loadError" class="so-item-flow-root__error">{{ loadError }}</p>
+
+      <ol class="so-item-flow-timeline">
+        <li
+          v-for="station in stations"
+          :key="station.key"
+          class="so-item-flow-station"
+          :class="{ 'is-main': station.key === 'pendlist' }"
+        >
+          <div class="so-item-flow-station__rail">
+            <span
+              class="so-item-flow-station__dot"
+              :class="`so-item-flow-station__dot--${station.stationStatus}`"
+            />
+          </div>
+          <div class="so-item-flow-station__body">
+            <div class="so-item-flow-station__head">
+              <h3 class="so-item-flow-station__title">
+                {{ t(station.titleKey) }}
+                <img
+                  v-if="station.key === 'pendlist'"
+                  class="so-item-flow-here-mark"
+                  :src="youAreHereHandUrl"
+                  :alt="t('customsPages.pendlists.flowPanel.youAreHere')"
+                  :title="t('customsPages.pendlists.flowPanel.youAreHere')"
+                />
+              </h3>
+              <span
+                v-if="station.stationStatus !== 'empty'"
+                class="so-item-flow-station__badge"
+                :class="`so-item-flow-station__badge--${station.stationStatus}`"
+              >
+                {{ stationStatusLabel(station.stationStatus) }}
+              </span>
+            </div>
+
+            <div v-if="station.cards.length === 0" class="so-item-flow-station__empty-hint">
+              {{ t('salesOrderItemList.flowPanel.emptyStation') }}
+            </div>
+
+            <div v-else class="so-item-flow-cards">
+              <article v-for="card in station.cards" :key="card.id" class="so-item-flow-card">
+                <div class="so-item-flow-kv">
+                  <div class="so-item-flow-kv__cell">
+                    <span class="so-item-flow-kv__label">
+                      {{ t('salesOrderItemList.flowPanel.fields.docNo') }}：
+                    </span>
+                    <span class="so-item-flow-kv__value">
+                      <router-link
+                        v-if="card.docRoute && !maskSensitive"
+                        class="link-text"
+                        :to="toRouteLocation(card.docRoute)"
+                      >
+                        {{ card.docNo }}
+                      </router-link>
+                      <template v-else>{{ card.docNo }}</template>
+                    </span>
+                  </div>
+                  <div class="so-item-flow-kv__cell">
+                    <span class="so-item-flow-kv__label">
+                      {{ t('salesOrderItemList.flowPanel.fields.status') }}：
+                    </span>
+                    <span class="so-item-flow-kv__value">{{ card.statusText || '—' }}</span>
+                  </div>
+                  <div class="so-item-flow-kv__cell">
+                    <span class="so-item-flow-kv__label">
+                      {{ t('salesOrderItemList.flowPanel.fields.createdAt') }}：
+                    </span>
+                    <span class="so-item-flow-kv__value">{{ formatFlowCardDate(card.createdAt) }}</span>
+                  </div>
+                  <div class="so-item-flow-kv__cell">
+                    <span class="so-item-flow-kv__label">{{ t(card.personRoleKey) }}：</span>
+                    <span class="so-item-flow-kv__value">{{ card.personName || '—' }}</span>
+                  </div>
+                  <template v-if="card.showCustomer">
+                    <div class="so-item-flow-kv__cell">
+                      <span class="so-item-flow-kv__label">
+                        {{ t('salesOrderItemList.flowPanel.fields.customerName') }}：
+                      </span>
+                      <span class="so-item-flow-kv__value">{{ card.customerName || '—' }}</span>
+                    </div>
+                    <div class="so-item-flow-kv__cell">
+                      <span class="so-item-flow-kv__label">
+                        {{ t('salesOrderItemList.flowPanel.fields.customerCode') }}：
+                      </span>
+                      <span class="so-item-flow-kv__value">{{ card.customerCode || '—' }}</span>
+                    </div>
+                  </template>
+                  <div v-if="card.unitPriceText" class="so-item-flow-kv__cell">
+                    <span class="so-item-flow-kv__label">
+                      {{ t('salesOrderItemList.flowPanel.fields.unitPrice') }}：
+                    </span>
+                    <span class="so-item-flow-kv__value">{{ card.unitPriceText }}</span>
+                  </div>
+                  <div v-if="card.qtyText" class="so-item-flow-kv__cell">
+                    <span class="so-item-flow-kv__label">
+                      {{ t('salesOrderItemList.flowPanel.fields.qty') }}：
+                    </span>
+                    <span class="so-item-flow-kv__value">{{ card.qtyText }}</span>
+                  </div>
+                  <div
+                    v-if="card.pendlistId"
+                    class="so-item-flow-kv__cell so-item-flow-kv__cell--full"
+                  >
+                    <span class="so-item-flow-kv__label">
+                      {{ t('customsPages.pendlists.flowPanel.pendlistId') }}：
+                    </span>
+                    <span class="so-item-flow-kv__value so-item-flow-kv__mono">{{ card.pendlistId }}</span>
+                  </div>
+                  <div class="so-item-flow-kv__cell so-item-flow-kv__cell--full">
+                    <span class="so-item-flow-kv__label">
+                      {{ t('salesOrderItemList.flowPanel.fields.description') }}：
+                    </span>
+                    <span class="so-item-flow-kv__value">—</span>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </div>
+        </li>
+      </ol>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+import type { CustomsPendlistFlowAggregatesDto, CustomsPendlistListItemDto } from '@/api/customs'
+import { buildCustomsPendlistFlowStations } from '@/utils/customsPendlistFlowPanel'
+import type { FlowDocRoute, FlowStationStatus } from '@/utils/sellOrderItemFlowPanel'
+import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import youAreHereHandUrl from '@/assets/icons/flow-you-are-here-hand.png'
+import '@/assets/styles/so-item-flow-panel.scss'
+
+const props = defineProps<{
+  row: CustomsPendlistListItemDto | null
+  aggregates: CustomsPendlistFlowAggregatesDto | null
+  loading?: boolean
+  loadError?: string
+  maskSensitive?: boolean
+}>()
+
+const { t } = useI18n()
+
+const stations = computed(() => buildCustomsPendlistFlowStations(props.aggregates, t as any))
+
+function stationStatusLabel(status: FlowStationStatus) {
+  if (status === 'active') return t('salesOrderItemList.flowPanel.stationActive')
+  if (status === 'done') return t('salesOrderItemList.flowPanel.stationDone')
+  return t('salesOrderItemList.flowPanel.stationEmpty')
+}
+
+function formatFlowCardDate(v?: string | null) {
+  if (!v) return '—'
+  return formatDisplayDateTime(v) || '—'
+}
+
+function toRouteLocation(route: FlowDocRoute) {
+  return {
+    name: route.name,
+    params: route.params,
+    query: route.query
+  }
+}
+</script>
+
+<style scoped lang="scss">
+.so-item-flow-station.is-main .so-item-flow-station__title {
+  font-weight: 700;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 透明底 + 橙色 + 指向左；放大突出「我在此」 */
+.so-item-flow-here-mark {
+  display: inline-block;
+  width: 28px;
+  height: 22px;
+  object-fit: contain;
+  flex-shrink: 0;
+  vertical-align: middle;
+  margin-left: 2px;
+}
+
+.so-item-flow-kv__mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  word-break: break-all;
+}
+</style>

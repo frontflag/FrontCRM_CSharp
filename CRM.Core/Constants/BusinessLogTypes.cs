@@ -46,6 +46,7 @@ public static class BusinessLogTypes
     public const string BatchReconciliation = "BatchReconciliation";
     public const string QcInspection = "QcInspection";
     public const string CustomsDeclaration = "CustomsDeclaration";
+    public const string CustomsPendlist = "CustomsPendlist";
     public const string CustomsBroker = "CustomsBroker";
     public const string FreightForwarderCompany = "FreightForwarderCompany";
 

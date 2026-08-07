@@ -225,6 +225,55 @@ export async function createCustomsOutNotifyFromPendlist(
   )
 }
 
+export interface CustomsPendlistFlowDocDto {
+  id: string
+  docCode?: string | null
+  status?: number | null
+  createTime?: string | null
+  customerId?: string | null
+  customerName?: string | null
+  customerCode?: string | null
+  personName?: string | null
+  unitPrice?: number | null
+  currency?: number | null
+  qty?: number | null
+  isDeleted?: boolean
+  pendlistId?: string | null
+  salesOrderId?: string | null
+}
+
+export interface CustomsPendlistFlowAggregatesDto {
+  pendlistId: string
+  sellOrderItem?: CustomsPendlistFlowDocDto | null
+  salesStockOutNotify?: CustomsPendlistFlowDocDto | null
+  pendlist: CustomsPendlistFlowDocDto
+  customsStockOutNotifies?: CustomsPendlistFlowDocDto[]
+  packings?: CustomsPendlistFlowDocDto[]
+  pickings?: CustomsPendlistFlowDocDto[]
+  stockOuts?: CustomsPendlistFlowDocDto[]
+  declarations?: CustomsPendlistFlowDocDto[]
+  arrivals?: CustomsPendlistFlowDocDto[]
+  qcs?: CustomsPendlistFlowDocDto[]
+  stockIns?: CustomsPendlistFlowDocDto[]
+}
+
+export async function fetchCustomsPendlistFlowAggregates(
+  pendlistId: string
+): Promise<CustomsPendlistFlowAggregatesDto> {
+  return apiClient.get<CustomsPendlistFlowAggregatesDto>(
+    `/api/v1/customs-pendlists/${encodeURIComponent(pendlistId)}/flow-aggregates`
+  )
+}
+
+export async function forceDeleteCustomsPendlist(
+  id: string,
+  confirmPendlistId: string
+): Promise<void> {
+  await apiClient.post(`/api/v1/customs-pendlists/${encodeURIComponent(id)}/force-delete`, {
+    confirmPendlistId
+  })
+}
+
 export async function createCustomsBroker(body: {
   cname: string
   ename?: string | null

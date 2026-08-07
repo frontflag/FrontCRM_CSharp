@@ -55,6 +55,7 @@ declare module 'vue' {
     CustomsDeclarationIconLink: typeof import('./src/components/Customs/CustomsDeclarationIconLink.vue')['default']
     CustomsDeclarationLink: typeof import('./src/components/Customs/CustomsDeclarationLink.vue')['default']
     CustomsDeclarationOpsPanel: typeof import('./src/components/Customs/CustomsDeclarationOpsPanel.vue')['default']
+    CustomsPendlistFlowPanel: typeof import('./src/components/Customs/CustomsPendlistFlowPanel.vue')['default']
     DetailListPanelEmpty: typeof import('./src/components/Common/DetailListPanelEmpty.vue')['default']
     DockQuoteExtendCell: typeof import('./src/components/list/DockQuoteExtendCell.vue')['default']
     DockQuoteExtendColumnHeader: typeof import('./src/components/list/DockQuoteExtendColumnHeader.vue')['default']
