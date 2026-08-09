@@ -163,6 +163,7 @@ namespace CRM.API.Controllers
             try
             {
                 var err = ValidateDefaults(body.BasicInfos, "公司基础信息")
+                    ?? ValidateBasicCurrencyDefaults(body.BasicInfos)
                     ?? ValidateBankDefaults(body.BankInfos)
                     ?? ValidateDefaults(body.Logos, "公司Logo")
                     ?? ValidateDefaults(body.Seals, "公司印章")
@@ -200,6 +201,21 @@ namespace CRM.API.Controllers
             var n = list.Count(r => r.IsDefault);
             if (n > 1)
                 return $"{sectionName}：「默认」仅能选择一组。";
+            return null;
+        }
+
+        /// <summary>
+        /// 公司基础信息：人民币抬头 / 外币抬头各自最多一组，且同组不可同时勾选；可不勾。
+        /// </summary>
+        private static string? ValidateBasicCurrencyDefaults(List<CompanyBasicInfoRowDto>? list)
+        {
+            list ??= new List<CompanyBasicInfoRowDto>();
+            if (list.Any(r => r.IsDefaultRmb && r.IsDefaultForeign))
+                return "公司基础信息：同一组不可同时勾选「人民币抬头」与「外币抬头」。";
+            if (list.Count(r => r.IsDefaultRmb) > 1)
+                return "公司基础信息：「人民币抬头」仅能选择一组。";
+            if (list.Count(r => r.IsDefaultForeign) > 1)
+                return "公司基础信息：「外币抬头」仅能选择一组。";
             return null;
         }
 

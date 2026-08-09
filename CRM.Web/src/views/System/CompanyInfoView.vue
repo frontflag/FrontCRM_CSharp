@@ -42,6 +42,18 @@
                 >
                   {{ t('companyInfo.common.default') }}
                 </el-checkbox>
+                <el-checkbox
+                  :model-value="!!row.isDefaultRmb"
+                  @update:model-value="(on: boolean) => toggleBasicCurrencyDefault(row, 'rmb', on)"
+                >
+                  {{ t('companyInfo.basic.defaultRmb') }}
+                </el-checkbox>
+                <el-checkbox
+                  :model-value="!!row.isDefaultForeign"
+                  @update:model-value="(on: boolean) => toggleBasicCurrencyDefault(row, 'foreign', on)"
+                >
+                  {{ t('companyInfo.basic.defaultForeign') }}
+                </el-checkbox>
                 <span class="switch-label">{{ t('companyInfo.common.enabled') }}</span>
                 <el-switch v-model="row.enabled" />
               </div>
@@ -890,6 +902,8 @@ function emptyBasic(): CompanyBasicRow {
   return {
     id: newId(),
     isDefault: false,
+    isDefaultRmb: false,
+    isDefaultForeign: false,
     enabled: true,
     companyName: '',
     taxId: '',
@@ -1178,6 +1192,53 @@ function toggleDefault<T extends { id: string; isDefault: boolean }>(list: T[], 
   else row.isDefault = false
 }
 
+/**
+ * 人民币抬头 / 外币抬头：各自全列表最多一组；同组两者互斥；可不勾。
+ * 与全局「默认」并存，互不影响。
+ */
+function toggleBasicCurrencyDefault(
+  row: CompanyBasicRow,
+  kind: 'rmb' | 'foreign',
+  on: boolean
+) {
+  if (!on) {
+    if (kind === 'rmb') row.isDefaultRmb = false
+    else row.isDefaultForeign = false
+    return
+  }
+  for (const r of basicInfos.value) {
+    if (kind === 'rmb') {
+      r.isDefaultRmb = r.id === row.id
+      if (r.id === row.id) r.isDefaultForeign = false
+    } else {
+      r.isDefaultForeign = r.id === row.id
+      if (r.id === row.id) r.isDefaultRmb = false
+    }
+  }
+}
+
+/** 加载后规范币别默认：同组互斥、各维度最多一组（兼容旧 JSON 无字段）。 */
+function normalizeBasicCurrencyDefaults(rows: CompanyBasicRow[]) {
+  let keptRmb = false
+  let keptFx = false
+  for (const r of rows) {
+    r.isDefaultRmb = !!r.isDefaultRmb
+    r.isDefaultForeign = !!r.isDefaultForeign
+    if (r.isDefaultRmb && r.isDefaultForeign) {
+      // 脏数据：优先保留人民币抬头
+      r.isDefaultForeign = false
+    }
+    if (r.isDefaultRmb) {
+      if (keptRmb) r.isDefaultRmb = false
+      else keptRmb = true
+    }
+    if (r.isDefaultForeign) {
+      if (keptFx) r.isDefaultForeign = false
+      else keptFx = true
+    }
+  }
+}
+
 /** 无数据时返回一组空记录（并设为默认）。 */
 function normalizeGroups<T extends { id: string; isDefault: boolean }>(
   rows: T[] | undefined | null,
@@ -1368,6 +1429,7 @@ async function load() {
     ])
     profileWarehousesSnapshot = data.warehouses ?? []
     basicInfos.value = normalizeGroups(data.basicInfos, emptyBasic)
+    normalizeBasicCurrencyDefaults(basicInfos.value)
     bankInfos.value = normalizeBankInfos(data.bankInfos)
     logos.value = normalizeGroups(data.logos, emptyLogo)
     seals.value = normalizeGroups(data.seals, emptySeal)

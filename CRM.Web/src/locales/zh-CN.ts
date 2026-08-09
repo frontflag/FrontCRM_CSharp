@@ -2099,8 +2099,11 @@ const zhCN = {
     },
     basic: {
       sectionTitle: '公司基础信息',
-      sectionHint: '可维护多组；「默认」整站仅一组；禁用的组不参与默认业务引用。',
+      sectionHint:
+        '可维护多组；「默认」整站仅一组。另可分别设置「人民币抬头」「外币抬头」（各最多一组，同组二者互斥，可不勾）；禁用的组不参与默认业务引用。',
       groupTitle: '公司资料 {n}',
+      defaultRmb: '人民币抬头',
+      defaultForeign: '外币抬头',
       companyName: '公司名称',
       phCompanyName: '公司名称',
       taxId: '纳税人识别号',

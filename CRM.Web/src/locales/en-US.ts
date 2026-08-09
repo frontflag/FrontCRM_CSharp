@@ -2120,8 +2120,10 @@ const enUS = {
     basic: {
       sectionTitle: 'Company profile',
       sectionHint:
-        'Multiple sets allowed; only one may be the site default. Disabled sets are not used as defaults in business logic.',
+        'Multiple sets allowed; only one site-wide Default. Optionally mark RMB letterhead and Foreign letterhead (at most one each; mutually exclusive on the same set; both optional). Disabled sets are not used as defaults in business logic.',
       groupTitle: 'Company profile {n}',
+      defaultRmb: 'RMB letterhead',
+      defaultForeign: 'Foreign letterhead',
       companyName: 'Company name',
       phCompanyName: 'Company name',
       taxId: 'Tax ID',

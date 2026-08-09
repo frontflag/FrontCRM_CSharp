@@ -4,6 +4,10 @@ import { REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionTyp
 export interface CompanyBasicRow {
   id: string
   isDefault: boolean
+  /** 人民币抬头；与 isDefaultForeign 互斥；全列表最多一组 */
+  isDefaultRmb?: boolean
+  /** 外币抬头；与 isDefaultRmb 互斥；全列表最多一组 */
+  isDefaultForeign?: boolean
   enabled: boolean
   companyName: string
   taxId: string
