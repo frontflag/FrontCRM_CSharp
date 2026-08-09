@@ -55,9 +55,9 @@ namespace CRM.API.Models.DTOs
     {
         public string Id { get; set; } = string.Empty;
         public bool IsDefault { get; set; }
-        /// <summary>人民币抬头公司资料；与 <see cref="IsDefaultForeign"/> 互斥；全列表最多一组。</summary>
+        /// <summary>默认含税公司抬头；与 <see cref="IsDefaultForeign"/> 互斥；全列表最多一组。</summary>
         public bool IsDefaultRmb { get; set; }
-        /// <summary>外币抬头公司资料；与 <see cref="IsDefaultRmb"/> 互斥；全列表最多一组。</summary>
+        /// <summary>默认外币公司抬头；与 <see cref="IsDefaultRmb"/> 互斥；全列表最多一组。</summary>
         public bool IsDefaultForeign { get; set; }
         public bool Enabled { get; set; } = true;
         public string CompanyName { get; set; } = string.Empty;
@@ -109,6 +109,10 @@ namespace CRM.API.Models.DTOs
     {
         public string Id { get; set; } = string.Empty;
         public bool IsDefault { get; set; }
+        /// <summary>默认含税印章；与 <see cref="IsDefaultForeign"/> 互斥；全列表最多一组。</summary>
+        public bool IsDefaultRmb { get; set; }
+        /// <summary>默认外币印章；与 <see cref="IsDefaultRmb"/> 互斥；全列表最多一组。</summary>
+        public bool IsDefaultForeign { get; set; }
         public bool Enabled { get; set; } = true;
         public string SealName { get; set; } = string.Empty;
         public string UseScene { get; set; } = string.Empty;

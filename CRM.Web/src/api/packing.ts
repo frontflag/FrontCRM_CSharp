@@ -12,7 +12,8 @@ export function packingDetailItemsToReportLines(items: PackingDetailLine[] | und
     customerBrand: item.customerBrand ?? null,
     qty: Number(item.qty) || 0,
     carton: null,
-    remark: item.comment ?? null
+    remark: item.comment ?? null,
+    priceCurrency: item.priceCurrency != null ? Number(item.priceCurrency) : null
   }))
 }
 

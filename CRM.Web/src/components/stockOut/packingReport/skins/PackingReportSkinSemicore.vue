@@ -77,9 +77,6 @@
           <tr v-if="lines.length === 0">
             <td colspan="6" class="po-doc__empty">{{ labels.noItems }}</td>
           </tr>
-          <tr v-else class="po-doc__hint-row">
-            <td colspan="6" class="po-doc__hint">{{ labels.blankBelow }}</td>
-          </tr>
           <tr v-if="lines.length > 0" class="po-doc__sum-row">
             <td>{{ labels.total }}</td>
             <td colspan="2"></td>
@@ -325,7 +322,8 @@ $po-radius: 6px;
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  margin-bottom: 6px;
+  /* 明细表与下方区块间距 */
+  margin-bottom: 15px;
   table-layout: fixed;
   border-radius: $po-radius;
   overflow: hidden;

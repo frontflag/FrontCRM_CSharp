@@ -2,6 +2,11 @@
   <div class="po-report-page">
     <div class="toolbar no-print">
       <el-button @click="router.back()">{{ t('salesOrderWarrantyReport.back') }}</el-button>
+      <ReportLetterheadSelect
+        v-model="selectedBasicId"
+        :options="letterheadOptions"
+        :disabled="!ready"
+      />
       <div class="toolbar__sp" />
       <div class="toolbar__opt" :title="t('salesOrderWarrantyReport.sealHint')">
         <span class="toolbar__opt-lbl">{{ t('salesOrderWarrantyReport.sealOnReport') }}</span>
@@ -35,6 +40,15 @@ import {
   type CompanySealRow,
   fetchCompanyProfileForReport
 } from '@/api/companyProfile'
+import ReportLetterheadSelect from '@/components/Common/ReportLetterheadSelect.vue'
+import {
+  firstLineTradeCurrency,
+  letterheadKindOf,
+  pickReportLogoRow,
+  pickReportSealRow,
+  resolveLetterheadSelection,
+  tradeCurrencyToLetterheadPrefer
+} from '@/utils/reportLetterhead'
 import apiClient from '@/api/client'
 import { resolveSalesOrderWarrantyReportSkin } from '@/components/SalesOrder/salesOrderWarrantyReport/resolveSalesOrderWarrantyReportSkin'
 import { LOGIN_TENANT_ID } from '@/config/loginTenant'
@@ -75,6 +89,10 @@ const errorMsg = ref('')
 const order = ref<Record<string, any> | null>(null)
 const customer = ref<Record<string, any> | null>(null)
 const basicDefault = ref<CompanyBasicRow | null>(null)
+const profileBasics = ref<CompanyBasicRow[]>([])
+const profileSeals = ref<CompanySealRow[]>([])
+const selectedBasicId = ref('')
+const letterheadOptions = ref<{ value: string; label: string }[]>([])
 const sealUrl = ref<string | null>(null)
 const companyLogoObjectUrl = ref<string | null>(null)
 const reportRoot = ref<HTMLElement | null>(null)
@@ -89,27 +107,26 @@ const lang = computed<SalesOrderWarrantyLang | null>(() => {
 })
 const ready = computed(() => !!order.value && !!lang.value && !errorMsg.value && !loading.value)
 
-function pickDefault<T extends { isDefault?: boolean; enabled?: boolean }>(rows: T[] | undefined | null): T | undefined {
-  if (!rows?.length) return undefined
-  const d = rows.find((r) => r.isDefault && r.enabled !== false)
-  return d ?? rows[0]
+function letterheadLabels() {
+  return {
+    defaultSuffix: t('reportLetterhead.defaultSuffix'),
+    fallbackRmb: t('reportLetterhead.fallbackRmb'),
+    fallbackForeign: t('reportLetterhead.fallbackForeign'),
+    fallbackDefault: t('reportLetterhead.fallbackDefault')
+  }
 }
 
-function pickReportLogoRow(rows: CompanyLogoRow[] | undefined | null): CompanyLogoRow | undefined {
-  if (!rows?.length) return undefined
-  const hasDoc = (r: CompanyLogoRow) => typeof r.documentId === 'string' && r.documentId.trim().length > 0
-  return rows.find((r) => r.isDefault && hasDoc(r)) ?? rows.find((r) => hasDoc(r))
+function applyLetterheadSelection(preferCode: number | string | null | undefined) {
+  const prefer = tradeCurrencyToLetterheadPrefer(preferCode)
+  const resolved = resolveLetterheadSelection(profileBasics.value, prefer, letterheadLabels())
+  letterheadOptions.value = resolved.options
+  selectedBasicId.value = resolved.selectedId
+  basicDefault.value =
+    profileBasics.value.find((r) => r.id === resolved.selectedId) ?? resolved.auto ?? null
 }
 
-function pickReportSealRow(rows: CompanySealRow[] | undefined | null): CompanySealRow | undefined {
-  if (!rows?.length) return undefined
-  const hasDoc = (r: CompanySealRow) => typeof r.documentId === 'string' && r.documentId.trim().length > 0
-  return (
-    rows.find((r) => r.isDefault && r.enabled !== false && hasDoc(r)) ??
-    rows.find((r) => hasDoc(r)) ??
-    rows.find((r) => r.isDefault) ??
-    rows[0]
-  )
+function sealForCurrentLetterhead(): CompanySealRow | undefined {
+  return pickReportSealRow(profileSeals.value, letterheadKindOf(basicDefault.value))
 }
 
 function dash(v: unknown): string {
@@ -292,8 +309,11 @@ async function load() {
     }
 
     const profile = await fetchCompanyProfileForReport()
-    basicDefault.value = pickDefault(profile.basicInfos) ?? null
-    await loadSealBlobUrl(pickReportSealRow(profile.seals))
+    profileBasics.value = profile.basicInfos ?? []
+    profileSeals.value = profile.seals ?? []
+    const items = (o?.items ?? o?.Items ?? []) as Array<{ currency?: number | string | null }>
+    applyLetterheadSelection(firstLineTradeCurrency(items, o?.currency ?? o?.Currency))
+    await loadSealBlobUrl(sealForCurrentLetterhead())
     await loadCompanyLogoBlobUrl(pickReportLogoRow(profile.logos))
   } catch (e) {
     errorMsg.value = getApiErrorMessage(e, t('salesOrderWarrantyReport.loadFailed'))
@@ -302,6 +322,14 @@ async function load() {
     loading.value = false
   }
 }
+
+watch(selectedBasicId, (id) => {
+  if (!profileBasics.value.length) return
+  const next = profileBasics.value.find((r) => r.id === id) ?? null
+  if (next?.id === basicDefault.value?.id) return
+  basicDefault.value = next
+  void loadSealBlobUrl(sealForCurrentLetterhead())
+})
 
 function doPrint() {
   window.print()

@@ -43,6 +43,9 @@ namespace CRM.API.Models.DTOs
         public int Qty { get; set; }
         public string? Carton { get; set; }
         public string? Remark { get; set; }
+
+        /// <summary>关联 SO 行交易币别（short 编码，与结算币别一致）；用于报表按币别选抬头。</summary>
+        public short? PriceCurrency { get; set; }
     }
 
     /// <summary>Packing 报表 Bill To / Ship To 四行：客户名称、地址、联系人、电话。</summary>

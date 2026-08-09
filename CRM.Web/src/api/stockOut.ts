@@ -229,6 +229,8 @@ export interface PackingReportLine {
   qty: number
   carton?: string | null
   remark?: string | null
+  /** 关联 SO 行交易币别（结算币别 short） */
+  priceCurrency?: number | null
 }
 
 export function parseInvoiceBundlePayload(res: unknown): StockOutInvoiceReportBundle | null {
@@ -346,7 +348,13 @@ function parsePackingLines(o: Record<string, unknown>): PackingReportLine[] {
             : null,
       qty: Number(r.qty ?? r.Qty ?? 0) || 0,
       carton: r.carton != null ? String(r.carton) : r.Carton != null ? String(r.Carton) : null,
-      remark: r.remark != null ? String(r.remark) : r.Remark != null ? String(r.Remark) : null
+      remark: r.remark != null ? String(r.remark) : r.Remark != null ? String(r.Remark) : null,
+      priceCurrency: (() => {
+        const rawCur = r.priceCurrency ?? r.PriceCurrency
+        if (rawCur == null || rawCur === '') return null
+        const n = Number(rawCur)
+        return Number.isFinite(n) ? n : null
+      })()
     }
   })
 }

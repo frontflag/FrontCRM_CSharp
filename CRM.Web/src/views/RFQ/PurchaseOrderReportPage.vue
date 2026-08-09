@@ -2,6 +2,11 @@
   <div class="po-report-page">
     <div class="toolbar no-print">
       <el-button @click="router.back()">返回</el-button>
+      <ReportLetterheadSelect
+        v-model="selectedBasicId"
+        :options="letterheadOptions"
+        :disabled="!ready"
+      />
       <div class="toolbar__sp" />
       <div class="toolbar__opt" title="关闭后预览、打印、导出 PDF、发邮件均不包含买方电子印章图">
         <span class="toolbar__opt-lbl">报表含印章</span>
@@ -39,6 +44,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
 import type {
@@ -47,6 +53,16 @@ import type {
   CompanySealRow,
   CompanyWarehouseRow
 } from '@/api/companyProfile'
+import ReportLetterheadSelect from '@/components/Common/ReportLetterheadSelect.vue'
+import {
+  firstLineTradeCurrency,
+  letterheadKindOf,
+  pickEnabledDefault,
+  pickReportLogoRow,
+  pickReportSealRow,
+  resolveLetterheadSelection,
+  tradeCurrencyToLetterheadPrefer
+} from '@/utils/reportLetterhead'
 import apiClient from '@/api/client'
 import { sendPurchaseOrderReportEmail } from '@/api/purchaseOrderReport'
 import { useAuthStore } from '@/stores/auth'
@@ -70,6 +86,7 @@ const purchaseOrderReportSkin = resolvePurchaseOrderReportSkin(LOGIN_TENANT_ID)
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const authStore = useAuthStore()
 
 /** 与 print-purchase-order.scss 配合；勿改名，须与样式中 body 类名一致 */
@@ -82,6 +99,10 @@ const loading = ref(true)
 const errorMsg = ref('')
 const order = ref<Record<string, any> | null>(null)
 const basicDefault = ref<CompanyBasicRow | null>(null)
+const profileBasics = ref<CompanyBasicRow[]>([])
+const profileSeals = ref<CompanySealRow[]>([])
+const selectedBasicId = ref('')
+const letterheadOptions = ref<{ value: string; label: string }[]>([])
 const warehouseDefault = ref<CompanyWarehouseRow | null>(null)
 const sealUrl = ref<string | null>(null)
 const companyLogoObjectUrl = ref<string | null>(null)
@@ -102,36 +123,26 @@ const poId = computed(() => String(route.params.id || ''))
 
 const ready = computed(() => !!order.value && !errorMsg.value && !loading.value)
 
-function pickDefault<T extends { isDefault?: boolean; enabled?: boolean }>(rows: T[] | undefined | null): T | undefined {
-  if (!rows?.length) return undefined
-  const d = rows.find((r) => r.isDefault && r.enabled !== false)
-  return d ?? rows[0]
+function letterheadLabels() {
+  return {
+    defaultSuffix: t('reportLetterhead.defaultSuffix'),
+    fallbackRmb: t('reportLetterhead.fallbackRmb'),
+    fallbackForeign: t('reportLetterhead.fallbackForeign'),
+    fallbackDefault: t('reportLetterhead.fallbackDefault')
+  }
 }
 
-/** 报表 Logo：与公司信息页「默认组可用于报表」一致，只要默认行已保存 documentId 即用，不因「启用」关闭而退回到无文件的第一组。 */
-function pickReportLogoRow(rows: CompanyLogoRow[] | undefined | null): CompanyLogoRow | undefined {
-  if (!rows?.length) return undefined
-  const hasDoc = (r: CompanyLogoRow) => {
-    const id = r.documentId
-    return typeof id === 'string' && id.trim().length > 0
-  }
-  const defWithDoc = rows.find((r) => r.isDefault && hasDoc(r))
-  if (defWithDoc) return defWithDoc
-  return rows.find((r) => hasDoc(r))
+function applyLetterheadSelection(preferCode: number | string | null | undefined) {
+  const prefer = tradeCurrencyToLetterheadPrefer(preferCode)
+  const resolved = resolveLetterheadSelection(profileBasics.value, prefer, letterheadLabels())
+  letterheadOptions.value = resolved.options
+  selectedBasicId.value = resolved.selectedId
+  basicDefault.value =
+    profileBasics.value.find((r) => r.id === resolved.selectedId) ?? resolved.auto ?? null
 }
 
-/** 与 Logo 一致：优先「默认且已上传文件」的印章；避免生产库中默认行无 documentId 而另一行有文件时整页无印章 */
-function pickReportSealRow(rows: CompanySealRow[] | undefined | null): CompanySealRow | undefined {
-  if (!rows?.length) return undefined
-  const hasDoc = (r: CompanySealRow) => {
-    const id = r.documentId
-    return typeof id === 'string' && id.trim().length > 0
-  }
-  const defWithDoc = rows.find((r) => r.isDefault && r.enabled !== false && hasDoc(r))
-  if (defWithDoc) return defWithDoc
-  const anyWithDoc = rows.find((r) => hasDoc(r))
-  if (anyWithDoc) return anyWithDoc
-  return rows.find((r) => r.isDefault) ?? rows[0]
+function sealForCurrentLetterhead(): CompanySealRow | undefined {
+  return pickReportSealRow(profileSeals.value, letterheadKindOf(basicDefault.value))
 }
 
 function currencyCode(v: number | undefined | null): string {
@@ -377,14 +388,13 @@ async function load() {
       profile?.logos ??
       (profile as { Logos?: CompanyLogoRow[] } | undefined)?.Logos ??
       []
-    const seals =
-      profile?.seals ??
-      profile?.Seals ??
-      []
-    basicDefault.value = pickDefault(profile.basicInfos) ?? null
-    warehouseDefault.value = pickDefault(profile.warehouses) ?? null
-    const seal = pickReportSealRow(seals)
-    await loadSealBlobUrl(seal)
+    profileSeals.value = profile?.seals ?? profile?.Seals ?? []
+    profileBasics.value = profile?.basicInfos ?? []
+    const o = data.order as Record<string, any>
+    const items = (o?.items ?? o?.Items ?? []) as Array<{ currency?: number | string | null }>
+    applyLetterheadSelection(firstLineTradeCurrency(items, o?.currency ?? o?.Currency))
+    warehouseDefault.value = pickEnabledDefault(profile.warehouses) ?? null
+    await loadSealBlobUrl(sealForCurrentLetterhead())
     const logo = pickReportLogoRow(logos)
     await loadCompanyLogoBlobUrl(logo)
 
@@ -397,6 +407,14 @@ async function load() {
     loading.value = false
   }
 }
+
+watch(selectedBasicId, (id) => {
+  if (!profileBasics.value.length) return
+  const next = profileBasics.value.find((r) => r.id === id) ?? null
+  if (next?.id === basicDefault.value?.id) return
+  basicDefault.value = next
+  void loadSealBlobUrl(sealForCurrentLetterhead())
+})
 
 function doPrint() {
   window.print()

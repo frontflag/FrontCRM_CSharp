@@ -32,6 +32,11 @@
             <el-button type="primary" class="save-all-btn" :loading="saving" @click="saveAll">{{ t('companyInfo.saveAll') }}</el-button>
           </div>
 
+          <div class="basic-letterhead-summary">
+            <div>{{ t('companyInfo.basic.summaryTaxIncluded', { name: defaultTaxIncludedCompanyName }) }}</div>
+            <div>{{ t('companyInfo.basic.summaryForeign', { name: defaultForeignCompanyName }) }}</div>
+          </div>
+
           <div v-for="(row, idx) in basicInfos" :key="row.id" class="group-card">
             <div class="group-card__head">
               <span class="group-card__title">{{ t('companyInfo.basic.groupTitle', { n: idx + 1 }) }}</span>
@@ -40,7 +45,7 @@
                   :model-value="row.isDefault"
                   @update:model-value="(on: boolean) => toggleDefault(basicInfos, row, on)"
                 >
-                  {{ t('companyInfo.common.default') }}
+                  {{ t('companyInfo.basic.totalDefault') }}
                 </el-checkbox>
                 <el-checkbox
                   :model-value="!!row.isDefaultRmb"
@@ -383,6 +388,11 @@
             <el-button type="primary" class="save-all-btn" :loading="saving" @click="saveAll">{{ t('companyInfo.saveAll') }}</el-button>
           </div>
 
+          <div class="basic-letterhead-summary">
+            <div>{{ t('companyInfo.seal.summaryTaxIncluded', { name: defaultTaxIncludedSealName }) }}</div>
+            <div>{{ t('companyInfo.seal.summaryForeign', { name: defaultForeignSealName }) }}</div>
+          </div>
+
           <div v-for="(row, idx) in seals" :key="row.id" class="group-card">
             <div class="group-card__head">
               <span class="group-card__title">{{ t('companyInfo.seal.groupTitle', { n: idx + 1 }) }}</span>
@@ -391,7 +401,19 @@
                   :model-value="row.isDefault"
                   @update:model-value="(on: boolean) => toggleDefault(seals, row, on)"
                 >
-                  {{ t('companyInfo.common.default') }}
+                  {{ t('companyInfo.seal.totalDefault') }}
+                </el-checkbox>
+                <el-checkbox
+                  :model-value="!!row.isDefaultRmb"
+                  @update:model-value="(on: boolean) => toggleSealCurrencyDefault(row, 'rmb', on)"
+                >
+                  {{ t('companyInfo.seal.defaultRmb') }}
+                </el-checkbox>
+                <el-checkbox
+                  :model-value="!!row.isDefaultForeign"
+                  @update:model-value="(on: boolean) => toggleSealCurrencyDefault(row, 'foreign', on)"
+                >
+                  {{ t('companyInfo.seal.defaultForeign') }}
                 </el-checkbox>
                 <span class="switch-label">{{ t('companyInfo.common.enabled') }}</span>
                 <el-switch v-model="row.enabled" />
@@ -782,6 +804,30 @@ const logos = ref<CompanyLogoRow[]>([])
 const seals = ref<CompanySealRow[]>([])
 const warehouses = ref<WarehouseRowVm[]>([])
 
+function letterheadCompanyDisplayName(row: CompanyBasicRow | undefined): string {
+  const name = (row?.companyName || '').trim()
+  return name || '—'
+}
+
+const defaultTaxIncludedCompanyName = computed(() =>
+  letterheadCompanyDisplayName(basicInfos.value.find((r) => r.isDefaultRmb))
+)
+const defaultForeignCompanyName = computed(() =>
+  letterheadCompanyDisplayName(basicInfos.value.find((r) => r.isDefaultForeign))
+)
+
+function sealDisplayName(row: CompanySealRow | undefined): string {
+  const name = (row?.sealName || '').trim()
+  return name || '—'
+}
+
+const defaultTaxIncludedSealName = computed(() =>
+  sealDisplayName(seals.value.find((r) => r.isDefaultRmb))
+)
+const defaultForeignSealName = computed(() =>
+  sealDisplayName(seals.value.find((r) => r.isDefaultForeign))
+)
+
 const previewByDocId = ref<Record<string, AssetPreview>>({})
 
 function revokeAllAssetPreviews() {
@@ -1097,6 +1143,8 @@ function emptySeal(): CompanySealRow {
   return {
     id: newId(),
     isDefault: false,
+    isDefaultRmb: false,
+    isDefaultForeign: false,
     enabled: true,
     sealName: '',
     useScene: '',
@@ -1193,8 +1241,8 @@ function toggleDefault<T extends { id: string; isDefault: boolean }>(list: T[], 
 }
 
 /**
- * 人民币抬头 / 外币抬头：各自全列表最多一组；同组两者互斥；可不勾。
- * 与全局「默认」并存，互不影响。
+ * 默认含税 / 默认外币：各自全列表最多一组；同组两者互斥；可不勾。
+ * 与「总默认」并存，互不影响。
  */
 function toggleBasicCurrencyDefault(
   row: CompanyBasicRow,
@@ -1226,6 +1274,51 @@ function normalizeBasicCurrencyDefaults(rows: CompanyBasicRow[]) {
     r.isDefaultForeign = !!r.isDefaultForeign
     if (r.isDefaultRmb && r.isDefaultForeign) {
       // 脏数据：优先保留人民币抬头
+      r.isDefaultForeign = false
+    }
+    if (r.isDefaultRmb) {
+      if (keptRmb) r.isDefaultRmb = false
+      else keptRmb = true
+    }
+    if (r.isDefaultForeign) {
+      if (keptFx) r.isDefaultForeign = false
+      else keptFx = true
+    }
+  }
+}
+
+/**
+ * 默认含税 / 默认外币：各自全列表最多一组；同组两者互斥；可不勾（同基础信息）。
+ * 与「总默认」并存；换报表抬头时按币别跟抬头走。
+ */
+function toggleSealCurrencyDefault(
+  row: CompanySealRow,
+  kind: 'rmb' | 'foreign',
+  on: boolean
+) {
+  if (!on) {
+    if (kind === 'rmb') row.isDefaultRmb = false
+    else row.isDefaultForeign = false
+    return
+  }
+  for (const r of seals.value) {
+    if (kind === 'rmb') {
+      r.isDefaultRmb = r.id === row.id
+      if (r.id === row.id) r.isDefaultForeign = false
+    } else {
+      r.isDefaultForeign = r.id === row.id
+      if (r.id === row.id) r.isDefaultRmb = false
+    }
+  }
+}
+
+function normalizeSealCurrencyDefaults(rows: CompanySealRow[]) {
+  let keptRmb = false
+  let keptFx = false
+  for (const r of rows) {
+    r.isDefaultRmb = !!r.isDefaultRmb
+    r.isDefaultForeign = !!r.isDefaultForeign
+    if (r.isDefaultRmb && r.isDefaultForeign) {
       r.isDefaultForeign = false
     }
     if (r.isDefaultRmb) {
@@ -1433,6 +1526,7 @@ async function load() {
     bankInfos.value = normalizeBankInfos(data.bankInfos)
     logos.value = normalizeGroups(data.logos, emptyLogo)
     seals.value = normalizeGroups(data.seals, emptySeal)
+    normalizeSealCurrencyDefaults(seals.value)
     warehouses.value = normalizeWarehouseList(warehouseList)
     const se = data.smtpEmail
     const pwdSet = !!(se && se.passwordSet)
@@ -1816,6 +1910,17 @@ onUnmounted(() => {
   color: $text-muted;
   margin: 0;
   line-height: 1.5;
+}
+
+.basic-letterhead-summary {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  font-size: 13px;
+  line-height: 1.7;
 }
 
 .group-card {

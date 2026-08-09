@@ -210,9 +210,9 @@ Tel: 13800138000
 
 | 区块 | 规则 |
 | --- | --- |
-| 空白填充行 | 明细少于 5 行时，补空行至共 5 行数据行（仅空格，无边框内容） |
-| 「以下空白」行 | 有明细时显示一行 **`Blank below`**，跨 6 列居中 |
-| 无明细 | 显示 **`No items`**，不显示 Blank below / Total |
+| 空白填充行 | **不显示**（不再补齐至 5 行） |
+| 「以下空白」行 | **不显示**（已去除） |
+| 无明细 | 显示 **`No items`**，不显示 Total |
 | 合计行 | 首列 **`Total`**，Qty 列合计；加粗 |
 
 ---
@@ -318,9 +318,9 @@ GET /api/v1/stock-out/{id}/packing-report-bundle?withInspection={bool}
 
 | 用途 | 来源 |
 | --- | --- |
-| 页眉公司名 | `companyProfile.basicInfos` 默认项 |
-| Logo | 默认且含文档的 logo 记录 |
-| 印章 | 默认且含文档的 seal 记录 |
+| 页眉公司名 | 按装箱明细第 1 条关联 SO 行币别选 `isDefaultRmb` / `isDefaultForeign`，否则全局 `isDefault`；工具栏可手动换抬头（不落库） |
+| Logo | 始终全局默认且含文档的 logo（换抬头不变） |
+| 印章 | 跟已选抬头币别（人民币/外币印章标记），否则全局默认有文件印章 |
 | 页脚备注 | `companyProfile.reportInfo.packingList.remarkEn` |
 
 ---

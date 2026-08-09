@@ -4,9 +4,9 @@ import { REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionTyp
 export interface CompanyBasicRow {
   id: string
   isDefault: boolean
-  /** 人民币抬头；与 isDefaultForeign 互斥；全列表最多一组 */
+  /** 默认含税；与 isDefaultForeign 互斥；全列表最多一组 */
   isDefaultRmb?: boolean
-  /** 外币抬头；与 isDefaultRmb 互斥；全列表最多一组 */
+  /** 默认外币；与 isDefaultRmb 互斥；全列表最多一组 */
   isDefaultForeign?: boolean
   enabled: boolean
   companyName: string
@@ -51,6 +51,10 @@ export interface CompanyLogoRow {
 export interface CompanySealRow {
   id: string
   isDefault: boolean
+  /** 默认含税印章；与 isDefaultForeign 互斥；全列表最多一组 */
+  isDefaultRmb?: boolean
+  /** 默认外币印章；与 isDefaultRmb 互斥；全列表最多一组 */
+  isDefaultForeign?: boolean
   enabled: boolean
   sealName: string
   useScene: string

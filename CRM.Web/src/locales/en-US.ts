@@ -2094,6 +2094,13 @@ const enUS = {
       LogisticsExpressMethod: 'Courier / carrier'
     }
   },
+  reportLetterhead: {
+    label: 'Letterhead',
+    defaultSuffix: ' (default)',
+    fallbackRmb: 'Default tax-included',
+    fallbackForeign: 'Default foreign',
+    fallbackDefault: 'Default'
+  },
   companyInfo: {
     pageTitle: 'Company information',
     pageSubtitle:
@@ -2120,10 +2127,13 @@ const enUS = {
     basic: {
       sectionTitle: 'Company profile',
       sectionHint:
-        'Multiple sets allowed; only one site-wide Default. Optionally mark RMB letterhead and Foreign letterhead (at most one each; mutually exclusive on the same set; both optional). Disabled sets are not used as defaults in business logic.',
+        'Multiple sets allowed; only one site-wide Overall default. Optionally mark Default tax-included and Default foreign (at most one each; mutually exclusive on the same set; both optional). Disabled sets are not used as defaults in business logic.',
       groupTitle: 'Company profile {n}',
-      defaultRmb: 'RMB letterhead',
-      defaultForeign: 'Foreign letterhead',
+      totalDefault: 'Overall default',
+      defaultRmb: 'Default tax-included',
+      defaultForeign: 'Default foreign',
+      summaryTaxIncluded: 'Default tax-included letterhead: {name}',
+      summaryForeign: 'Default foreign letterhead: {name}',
       companyName: 'Company name',
       phCompanyName: 'Company name',
       taxId: 'Tax ID',
@@ -2199,8 +2209,14 @@ const enUS = {
     },
     seal: {
       sectionTitle: 'Company seal',
-      sectionHint: 'Multiple seals; save after upload.',
+      sectionHint:
+        'Multiple seals; only one site-wide Overall default. Optionally mark Default tax-included and Default foreign (at most one each; mutually exclusive on the same set; both optional). When switching report letterhead, the seal follows currency; the logo stays on the global default.',
       groupTitle: 'Seal {n}',
+      totalDefault: 'Overall default',
+      defaultRmb: 'Default tax-included',
+      defaultForeign: 'Default foreign',
+      summaryTaxIncluded: 'Default tax-included seal: {name}',
+      summaryForeign: 'Default foreign seal: {name}',
       sealName: 'Seal name',
       useScene: 'Usage',
       sealFile: 'Seal file',

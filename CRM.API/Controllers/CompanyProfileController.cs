@@ -167,6 +167,7 @@ namespace CRM.API.Controllers
                     ?? ValidateBankDefaults(body.BankInfos)
                     ?? ValidateDefaults(body.Logos, "公司Logo")
                     ?? ValidateDefaults(body.Seals, "公司印章")
+                    ?? ValidateSealCurrencyDefaults(body.Seals)
                     ?? ValidateDefaults(body.Warehouses, "公司仓库信息")
                     ?? ValidateSmtp(body.SmtpEmail);
                 if (err != null)
@@ -211,11 +212,26 @@ namespace CRM.API.Controllers
         {
             list ??= new List<CompanyBasicInfoRowDto>();
             if (list.Any(r => r.IsDefaultRmb && r.IsDefaultForeign))
-                return "公司基础信息：同一组不可同时勾选「人民币抬头」与「外币抬头」。";
+                return "公司基础信息：同一组不可同时勾选「默认含税」与「默认外币」。";
             if (list.Count(r => r.IsDefaultRmb) > 1)
-                return "公司基础信息：「人民币抬头」仅能选择一组。";
+                return "公司基础信息：「默认含税」仅能选择一组。";
             if (list.Count(r => r.IsDefaultForeign) > 1)
-                return "公司基础信息：「外币抬头」仅能选择一组。";
+                return "公司基础信息：「默认外币」仅能选择一组。";
+            return null;
+        }
+
+        /// <summary>
+        /// 公司印章：人民币印章 / 外币印章各自最多一组，且同组不可同时勾选；可不勾。
+        /// </summary>
+        private static string? ValidateSealCurrencyDefaults(List<CompanySealRowDto>? list)
+        {
+            list ??= new List<CompanySealRowDto>();
+            if (list.Any(r => r.IsDefaultRmb && r.IsDefaultForeign))
+                return "公司印章：同一组不可同时勾选「默认含税」与「默认外币」。";
+            if (list.Count(r => r.IsDefaultRmb) > 1)
+                return "公司印章：「默认含税」仅能选择一组。";
+            if (list.Count(r => r.IsDefaultForeign) > 1)
+                return "公司印章：「默认外币」仅能选择一组。";
             return null;
         }
 

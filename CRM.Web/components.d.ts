@@ -161,6 +161,7 @@ declare module 'vue' {
     QuoteHistoryPanel: typeof import('./src/components/RFQ/QuoteHistoryPanel.vue')['default']
     RecentHistoryList: typeof import('./src/components/workspace/RecentHistoryList.vue')['default']
     RegionCascaderWithQuickPick: typeof import('./src/components/RegionCascaderWithQuickPick.vue')['default']
+    ReportLetterheadSelect: typeof import('./src/components/Common/ReportLetterheadSelect.vue')['default']
     RfqExcelImportHost: typeof import('./src/components/AiCreate/RfqExcelImportHost.vue')['default']
     RFQFavoritePanel: typeof import('./src/components/RFQ/RFQFavoritePanel.vue')['default']
     RfqItemMaterialPanel: typeof import('./src/components/RFQ/RfqItemMaterialPanel.vue')['default']

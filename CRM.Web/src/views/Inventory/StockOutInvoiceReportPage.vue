@@ -2,6 +2,11 @@
   <div class="po-report-page">
     <div class="toolbar no-print">
       <el-button @click="router.back()">{{ t('stockOutInvoiceReport.back') }}</el-button>
+      <ReportLetterheadSelect
+        v-model="selectedBasicId"
+        :options="letterheadOptions"
+        :disabled="!ready"
+      />
       <div class="toolbar__sp" />
       <div class="toolbar__opt">
         <el-radio-group v-model="reportLang" size="small" class="toolbar__lang">
@@ -39,6 +44,15 @@ import {
   type CompanyWarehouseRow,
   pickDefaultBankByRegion
 } from '@/api/companyProfile'
+import ReportLetterheadSelect from '@/components/Common/ReportLetterheadSelect.vue'
+import {
+  letterheadKindOf,
+  pickEnabledDefault,
+  pickReportLogoRow,
+  pickReportSealRow,
+  resolveLetterheadSelection,
+  tradeCurrencyToLetterheadPrefer
+} from '@/utils/reportLetterhead'
 import apiClient from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import { formatDisplayDate } from '@/utils/displayDateTime'
@@ -76,6 +90,10 @@ const packingCode = ref<string | null>(null)
 const packingLines = ref<PackingReportLine[]>([])
 const warehouseInfoAddress = ref('')
 const basicDefault = ref<CompanyBasicRow | null>(null)
+const profileBasics = ref<CompanyBasicRow[]>([])
+const profileSeals = ref<CompanySealRow[]>([])
+const selectedBasicId = ref('')
+const letterheadOptions = ref<{ value: string; label: string }[]>([])
 const warehouseRow = ref<CompanyWarehouseRow | null>(null)
 const bankDefault = ref<CompanyBankRow | null>(null)
 const sealUrl = ref<string | null>(null)
@@ -96,34 +114,26 @@ const stockOutId = computed(() => String(route.params.id || ''))
 const packingId = computed(() => String(route.params.packingId || ''))
 const ready = computed(() => !!stockOut.value && !errorMsg.value && !loading.value)
 
-function pickDefault<T extends { isDefault?: boolean; enabled?: boolean }>(rows: T[] | undefined | null): T | undefined {
-  if (!rows?.length) return undefined
-  const d = rows.find((r) => r.isDefault && r.enabled !== false)
-  return d ?? rows[0]
+function letterheadLabels() {
+  return {
+    defaultSuffix: t('reportLetterhead.defaultSuffix'),
+    fallbackRmb: t('reportLetterhead.fallbackRmb'),
+    fallbackForeign: t('reportLetterhead.fallbackForeign'),
+    fallbackDefault: t('reportLetterhead.fallbackDefault')
+  }
 }
 
-function pickReportLogoRow(rows: CompanyLogoRow[] | undefined | null): CompanyLogoRow | undefined {
-  if (!rows?.length) return undefined
-  const hasDoc = (r: CompanyLogoRow) => {
-    const id = r.documentId
-    return typeof id === 'string' && id.trim().length > 0
-  }
-  const defWithDoc = rows.find((r) => r.isDefault && hasDoc(r))
-  if (defWithDoc) return defWithDoc
-  return rows.find((r) => hasDoc(r))
+function applyLetterheadSelection(preferCode: number | string | null | undefined) {
+  const prefer = tradeCurrencyToLetterheadPrefer(preferCode)
+  const resolved = resolveLetterheadSelection(profileBasics.value, prefer, letterheadLabels())
+  letterheadOptions.value = resolved.options
+  selectedBasicId.value = resolved.selectedId
+  basicDefault.value =
+    profileBasics.value.find((r) => r.id === resolved.selectedId) ?? resolved.auto ?? null
 }
 
-function pickReportSealRow(rows: CompanySealRow[] | undefined | null): CompanySealRow | undefined {
-  if (!rows?.length) return undefined
-  const hasDoc = (r: CompanySealRow) => {
-    const id = r.documentId
-    return typeof id === 'string' && id.trim().length > 0
-  }
-  const defWithDoc = rows.find((r) => r.isDefault && r.enabled !== false && hasDoc(r))
-  if (defWithDoc) return defWithDoc
-  const anyWithDoc = rows.find((r) => hasDoc(r))
-  if (anyWithDoc) return anyWithDoc
-  return rows.find((r) => r.isDefault) ?? rows[0]
+function sealForCurrentLetterhead(): CompanySealRow | undefined {
+  return pickReportSealRow(profileSeals.value, letterheadKindOf(basicDefault.value))
 }
 
 function pickWarehouseForStockOut(
@@ -136,7 +146,7 @@ function pickWarehouseForStockOut(
     const hit = rows.find((r) => String(r.id) === id)
     if (hit) return hit
   }
-  return pickDefault(rows)
+  return pickEnabledDefault(rows)
 }
 
 function formatReportQty(n: number): string {
@@ -380,12 +390,13 @@ async function load() {
     packingLines.value = lines
     const cp = bundle.companyProfile
     const logos = cp.logos ?? []
-    const seals = cp.seals ?? []
-    basicDefault.value = pickDefault(cp.basicInfos) ?? null
+    profileBasics.value = cp.basicInfos ?? []
+    profileSeals.value = cp.seals ?? []
+    const firstLineCurrency = lines.find((r) => r.priceCurrency != null)?.priceCurrency ?? null
+    applyLetterheadSelection(firstLineCurrency)
     bankDefault.value = pickDefaultBankByRegion(cp.bankInfos, bundle.warehouseRegionType) ?? null
     warehouseRow.value = pickWarehouseForStockOut(cp.warehouses, bundle.stockOut.warehouseId) ?? null
-    const seal = pickReportSealRow(seals)
-    await loadSealBlobUrl(seal)
+    await loadSealBlobUrl(sealForCurrentLetterhead())
     const logo = pickReportLogoRow(logos)
     await loadCompanyLogoBlobUrl(logo)
   } catch (e) {
@@ -399,6 +410,14 @@ async function load() {
     loading.value = false
   }
 }
+
+watch(selectedBasicId, (id) => {
+  if (!profileBasics.value.length) return
+  const next = profileBasics.value.find((r) => r.id === id) ?? null
+  if (next?.id === basicDefault.value?.id) return
+  basicDefault.value = next
+  void loadSealBlobUrl(sealForCurrentLetterhead())
+})
 
 function doPrint() {
   window.print()

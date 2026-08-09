@@ -43,8 +43,7 @@ export const packingReportDocumentPropDefaults = {
   signDate: ''
 }
 
-/** 明细不足时补空行，使表格视觉高度更稳 */
-export function packingReportFillerRowCount(lineCount: number, target = 5): number {
-  if (lineCount === 0) return 0
-  return Math.max(0, target - lineCount)
+/** 不再补空白行；保留函数以免皮肤调用处改动过大 */
+export function packingReportFillerRowCount(_lineCount: number, _target = 5): number {
+  return 0
 }

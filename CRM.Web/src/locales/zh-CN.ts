@@ -2075,6 +2075,13 @@ const zhCN = {
       LogisticsExpressMethod: '快递方式'
     }
   },
+  reportLetterhead: {
+    label: '公司抬头',
+    defaultSuffix: '（默认）',
+    fallbackRmb: '默认含税',
+    fallbackForeign: '默认外币',
+    fallbackDefault: '默认'
+  },
   companyInfo: {
     pageTitle: '公司信息',
     pageSubtitle: '维护公司主体、银行、Logo、印章、仓库及系统发信（SMTP）参数；多组资料可设默认与启用状态。',
@@ -2100,10 +2107,13 @@ const zhCN = {
     basic: {
       sectionTitle: '公司基础信息',
       sectionHint:
-        '可维护多组；「默认」整站仅一组。另可分别设置「人民币抬头」「外币抬头」（各最多一组，同组二者互斥，可不勾）；禁用的组不参与默认业务引用。',
+        '可维护多组；「总默认」整站仅一组。另可分别勾选「默认含税」「默认外币」（各最多一组，同组二者互斥，可不勾）；禁用的组不参与默认业务引用。',
       groupTitle: '公司资料 {n}',
-      defaultRmb: '人民币抬头',
-      defaultForeign: '外币抬头',
+      totalDefault: '总默认',
+      defaultRmb: '默认含税',
+      defaultForeign: '默认外币',
+      summaryTaxIncluded: '默认含税抬头：{name}',
+      summaryForeign: '默认外币抬头：{name}',
       companyName: '公司名称',
       phCompanyName: '公司名称',
       taxId: '纳税人识别号',
@@ -2178,8 +2188,14 @@ const zhCN = {
     },
     seal: {
       sectionTitle: '公司印章',
-      sectionHint: '可维护多组印章；上传文件后请先保存。',
+      sectionHint:
+        '可维护多组印章；「总默认」整站仅一组。另可分别勾选「默认含税」「默认外币」（各最多一组，同组二者互斥，可不勾）；报表换抬头时印章按币别跟抬头走，Logo 仍用全局默认。',
       groupTitle: '印章 {n}',
+      totalDefault: '总默认',
+      defaultRmb: '默认含税',
+      defaultForeign: '默认外币',
+      summaryTaxIncluded: '默认含税印章：{name}',
+      summaryForeign: '默认外币印章：{name}',
       sealName: '印章名称',
       useScene: '使用场景',
       sealFile: '印章文件',

@@ -223,7 +223,8 @@ public static class PackingReportBundleLoader
             CustomerBrand = item.CustomerBrand,
             Qty = item.Qty,
             Carton = null,
-            Remark = item.Comment
+            Remark = item.Comment,
+            PriceCurrency = item.PriceCurrency
         }).ToList();
     }
 }

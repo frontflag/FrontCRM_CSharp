@@ -71,9 +71,6 @@
           <tr v-if="lines.length === 0">
             <td colspan="6" class="po-doc__empty">{{ labels.noItems }}</td>
           </tr>
-          <tr v-else class="po-doc__hint-row">
-            <td colspan="6" class="po-doc__hint">{{ labels.blankBelow }}</td>
-          </tr>
           <tr v-if="lines.length > 0" class="po-doc__sum-row">
             <td>{{ labels.total }}</td>
             <td colspan="2"></td>
@@ -292,7 +289,8 @@ $eco-zebra: #f5f5f5;
 .po-doc__grid {
   width: 100%;
   border-collapse: collapse;
-  margin-bottom: 6mm;
+  /* 明细表与下方区块间距 */
+  margin-bottom: 15px;
   table-layout: fixed;
 }
 
