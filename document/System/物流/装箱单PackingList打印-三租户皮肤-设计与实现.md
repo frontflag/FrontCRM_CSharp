@@ -20,15 +20,19 @@
 | 层 | 说明 |
 |----|------|
 | 租户来源 | 构建时 `VITE_TENANT_ID` → `LOGIN_TENANT_ID`（`loginTenant.ts`） |
-| 皮肤选择 | `resolvePackingReportSkin(tenantId)` |
-| 数据 | 共用 `packing-report-bundle` + 公司档案；`docBind` 不变 |
-| 版式 | 三套 Vue 皮肤，共享 `PackingReportDocumentProps` |
+| 方向 | 工具栏竖/横；默认横版；`localStorage` 键 `frontcrm.packingReport.orientation` |
+| 皮肤选择 | `resolvePackingReportView(orientation, tenantId)` |
+| 数据 | 共用 `packing-report-bundle`；竖版 / 横版各自 `docBind` 行模型 |
+| 版式 | 竖版三套皮肤；横版单组件 + `theme`（映射与竖版租户一致） |
 
 ```
 StockOutPackingReportPage
-  → resolvePackingReportSkin(LOGIN_TENANT_ID)
-  → PackingReportSkin{Semicore|Idesemi|Ecoinf}
+  → resolvePackingReportView(orientation, LOGIN_TENANT_ID)
+  → portrait: PackingReportSkin{Semicore|Idesemi|Ecoinf}
+  → landscape: PackingReportLandscapeDocument (theme)
 ```
+
+横版行字段扩展：`CustomerPo`、`Dc`、`Co`（`packing_item.CO`）、`Cod`、`Size`/`Nw`/`Gw`（本期可空）、`Carton`。DC/COD 由 `PackingReportBundleLoader.EnrichPackingLineBatchFieldsAsync` 从拣货→库存→批次聚合（多值 `, ` 拼接）。
 
 ---
 
@@ -36,15 +40,17 @@ StockOutPackingReportPage
 
 | 路径 | 职责 |
 |------|------|
-| `CRM.Web/src/components/stockOut/packingReport/types.ts` | props / 补空行工具 |
-| `CRM.Web/src/components/stockOut/packingReport/resolvePackingReportSkin.ts` | 租户 → 组件 |
-| `.../skins/PackingReportSkinSemicore.vue` | 橙表经典（当前挂到 `ecoinf` 租户） |
-| `.../skins/PackingReportSkinIdesemi.vue` | 深紫 + 琥珀（当前挂到 `semicore` 租户） |
-| `.../skins/PackingReportSkinEcoinf.vue` | 工业极简 + 青点缀（当前挂到 `idesemi` 租户） |
-| `CRM.Web/src/views/Inventory/StockOutPackingReportPage.vue` | `<component :is>` |
-| `CRM.Web/src/assets/styles/print-purchase-order.scss` | 打印壳层 + 多皮肤 `print-color-adjust` |
+| `CRM.Web/src/components/stockOut/packingReport/types.ts` | 竖/横 props、方向读写 |
+| `CRM.Web/src/components/stockOut/packingReport/resolvePackingReportSkin.ts` | 租户 → 竖版组件 / 横版主题 |
+| `.../PackingReportLandscapeDocument.vue` | A4 横版 14 列明细 |
+| `.../skins/PackingReportSkinSemicore.vue` | 竖版橙表经典（当前挂到 `ecoinf` 租户） |
+| `.../skins/PackingReportSkinIdesemi.vue` | 竖版深紫 + 琥珀（当前挂到 `semicore` 租户） |
+| `.../skins/PackingReportSkinEcoinf.vue` | 竖版工业极简 + 青点缀（当前挂到 `idesemi` 租户） |
+| `CRM.Web/src/views/Inventory/StockOutPackingReportPage.vue` | `<component :is>` + 方向切换 |
+| `CRM.API/Services/PackingReportBundleLoader.cs` | 行字段映射 + DC/COD  enrichment |
+| `CRM.Web/src/assets/styles/print-purchase-order.scss` | 打印壳层；`@page packing-landscape` |
 
-> 租户映射：`semicore` ↔ `ecoinf` 皮肤已对调；`idesemi` 使用 Eco 工业极简组件（见 `resolvePackingReportSkin.ts`）。组件文件名仍保留原命名。
+> 租户映射：`semicore` ↔ `ecoinf` 皮肤已对调；`idesemi` 使用 Eco 工业极简组件（见 `resolvePackingReportSkin.ts`）。组件文件名仍保留原命名。横版 `theme` 使用同一映射。
 
 ---
 
@@ -62,7 +68,9 @@ StockOutPackingReportPage
 
 ## 5. 验证要点
 
-- 分别以 `production.semicore` / `idesemi` / `ecoinf` 构建或本地 `--mode` 打开同一装箱单报表，三套观感明显不同。
+- 分别以 `production.semicore` / `idesemi` / `ecoinf` 构建或本地 `--mode` 打开同一装箱单报表，三套观感明显不同（竖版与横版主题均核对）。
+- 默认进入为横版；切换竖版后刷新仍记住；打印预览纸张方向正确。
+- 横版 CO 列：`packing_item.CO` 有值则显示，无值留空；DC/COD 多批次逗号拼接。
 - 打印预览：壳层隐藏，色块/顶栏保留。
-- with / without inspection、中英文、印章开关三皮肤均可用。
-- Semicore 与历史橙表观感一致（无回归）。
+- with / without inspection、中英文、印章开关竖/横均可用。
+- Semicore 竖版与历史橙表观感一致（无回归）。

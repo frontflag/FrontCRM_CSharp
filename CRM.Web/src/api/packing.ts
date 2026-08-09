@@ -6,13 +6,21 @@ import { parsePackingBundlePayload, parseInvoiceBundlePayload, type StockOutPack
 export function packingDetailItemsToReportLines(items: PackingDetailLine[] | undefined | null): PackingReportLine[] {
   if (!items?.length) return []
   return items.map((item) => ({
+    packingItemId: item.id ?? null,
     pn: item.pn ?? null,
     customerPn: item.customerPn ?? null,
     brand: item.brand ?? null,
     customerBrand: item.customerBrand ?? null,
+    customerPo: item.customerSo ?? null,
     qty: Number(item.qty) || 0,
     carton: null,
     remark: item.comment ?? null,
+    dc: null,
+    co: item.co ?? null,
+    cod: null,
+    size: null,
+    nw: null,
+    gw: null,
     priceCurrency: item.priceCurrency != null ? Number(item.priceCurrency) : null
   }))
 }
@@ -187,6 +195,8 @@ export interface PackingDetailLine {
   customerSo?: string | null
   customerPn?: string | null
   customerBrand?: string | null
+  /** 封装产地 */
+  co?: string | null
   price?: number | null
   priceCurrency?: number | null
   comment?: string | null
@@ -347,6 +357,7 @@ function unwrapDetail(res: unknown): PackingDetail | null {
           customerSo: (r.customerSo ?? r.CustomerSo) as string | null | undefined,
           customerPn: (r.customerPn ?? r.CustomerPn) as string | null | undefined,
           customerBrand: (r.customerBrand ?? r.CustomerBrand) as string | null | undefined,
+          co: (r.co ?? r.Co) as string | null | undefined,
           price: r.price != null || r.Price != null ? Number(r.price ?? r.Price) : null,
           priceCurrency:
             r.priceCurrency != null || r.PriceCurrency != null

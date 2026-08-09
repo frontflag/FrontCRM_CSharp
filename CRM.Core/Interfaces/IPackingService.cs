@@ -377,9 +377,12 @@ public class PackingDetailLineDto
     public string? SellOrderItemCode { get; set; }
     public string? ItemCode { get; set; }
     public string? StockOutNotifyId { get; set; }
+    public string? StockItemId { get; set; }
     public string? CustomerSo { get; set; }
     public string? CustomerPn { get; set; }
     public string? CustomerBrand { get; set; }
+    /// <summary>封装产地 packing_item.CO。</summary>
+    public string? Co { get; set; }
     public decimal? Price { get; set; }
     public short? PriceCurrency { get; set; }
     public string? Comment { get; set; }

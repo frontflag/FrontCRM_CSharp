@@ -7325,6 +7325,8 @@ const enUS = {
   stockOutPackingReport: {
     back: 'Back',
     print: 'Print',
+    orientLandscape: 'Landscape',
+    orientPortrait: 'Portrait',
     langZh: '中文',
     langEn: 'English',
     showSeal: 'Include seal on report',

@@ -222,13 +222,22 @@ export interface StockOutPackingReportBundle extends StockOutInvoiceReportBundle
 }
 
 export interface PackingReportLine {
+  packingItemId?: string | null
   pn?: string | null
   customerPn?: string | null
   brand?: string | null
   customerBrand?: string | null
+  /** 客户订单号 */
+  customerPo?: string | null
   qty: number
   carton?: string | null
   remark?: string | null
+  dc?: string | null
+  co?: string | null
+  cod?: string | null
+  size?: string | null
+  nw?: number | null
+  gw?: number | null
   /** 关联 SO 行交易币别（结算币别 short） */
   priceCurrency?: number | null
 }
@@ -335,26 +344,36 @@ function parsePackingLines(o: Record<string, unknown>): PackingReportLine[] {
   if (!Array.isArray(raw)) return []
   return raw.map((row) => {
     const r = (row && typeof row === 'object' ? row : {}) as Record<string, unknown>
+    const numOrNull = (raw: unknown): number | null => {
+      if (raw == null || raw === '') return null
+      const n = Number(raw)
+      return Number.isFinite(n) ? n : null
+    }
+    const strOrNull = (...cands: unknown[]): string | null => {
+      for (const c of cands) {
+        if (c == null) continue
+        const s = String(c).trim()
+        if (s) return s
+      }
+      return null
+    }
     return {
-      pn: r.pn != null ? String(r.pn) : r.Pn != null ? String(r.Pn) : null,
-      customerPn:
-        r.customerPn != null ? String(r.customerPn) : r.CustomerPn != null ? String(r.CustomerPn) : null,
-      brand: r.brand != null ? String(r.brand) : r.Brand != null ? String(r.Brand) : null,
-      customerBrand:
-        r.customerBrand != null
-          ? String(r.customerBrand)
-          : r.CustomerBrand != null
-            ? String(r.CustomerBrand)
-            : null,
+      packingItemId: strOrNull(r.packingItemId, r.PackingItemId),
+      pn: strOrNull(r.pn, r.Pn),
+      customerPn: strOrNull(r.customerPn, r.CustomerPn),
+      brand: strOrNull(r.brand, r.Brand),
+      customerBrand: strOrNull(r.customerBrand, r.CustomerBrand),
+      customerPo: strOrNull(r.customerPo, r.CustomerPo),
       qty: Number(r.qty ?? r.Qty ?? 0) || 0,
-      carton: r.carton != null ? String(r.carton) : r.Carton != null ? String(r.Carton) : null,
-      remark: r.remark != null ? String(r.remark) : r.Remark != null ? String(r.Remark) : null,
-      priceCurrency: (() => {
-        const rawCur = r.priceCurrency ?? r.PriceCurrency
-        if (rawCur == null || rawCur === '') return null
-        const n = Number(rawCur)
-        return Number.isFinite(n) ? n : null
-      })()
+      carton: strOrNull(r.carton, r.Carton),
+      remark: strOrNull(r.remark, r.Remark),
+      dc: strOrNull(r.dc, r.Dc),
+      co: strOrNull(r.co, r.Co),
+      cod: strOrNull(r.cod, r.Cod),
+      size: strOrNull(r.size, r.Size),
+      nw: numOrNull(r.nw ?? r.Nw),
+      gw: numOrNull(r.gw ?? r.Gw),
+      priceCurrency: numOrNull(r.priceCurrency ?? r.PriceCurrency)
     }
   })
 }

@@ -10,6 +10,12 @@
       <div class="toolbar__sp" />
       <span v-if="ready" class="toolbar__tag">{{ variantTitle }}</span>
       <div class="toolbar__opt">
+        <el-radio-group v-model="pageOrientation" size="small" class="toolbar__lang">
+          <el-radio-button label="landscape">{{ t('stockOutPackingReport.orientLandscape') }}</el-radio-button>
+          <el-radio-button label="portrait">{{ t('stockOutPackingReport.orientPortrait') }}</el-radio-button>
+        </el-radio-group>
+      </div>
+      <div class="toolbar__opt">
         <el-radio-group v-model="reportLang" size="small" class="toolbar__lang">
           <el-radio-button label="zh">{{ t('stockOutPackingReport.langZh') }}</el-radio-button>
           <el-radio-button label="en">{{ t('stockOutPackingReport.langEn') }}</el-radio-button>
@@ -24,8 +30,8 @@
 
     <div v-loading="loading" class="preview-wrap">
       <div v-if="errorMsg" class="err">{{ errorMsg }}</div>
-      <div v-else-if="ready" class="print-root">
-        <component :is="packingReportSkin" v-bind="docBind" />
+      <div v-else-if="ready" class="print-root" :class="{ 'print-root--landscape': pageOrientation === 'landscape' }">
+        <component :is="reportView.component" v-bind="docBind" />
       </div>
     </div>
   </div>
@@ -56,8 +62,16 @@ import {
 } from '@/utils/reportLetterhead'
 import apiClient from '@/api/client'
 import { formatDisplayDate } from '@/utils/displayDateTime'
-import type { StockOutPackingLineVm } from '@/components/stockOut/packingReport/types'
-import { resolvePackingReportSkin } from '@/components/stockOut/packingReport/resolvePackingReportSkin'
+import type {
+  PackingReportOrientation,
+  StockOutPackingLandscapeLineVm,
+  StockOutPackingLineVm
+} from '@/components/stockOut/packingReport/types'
+import {
+  readPackingReportOrientation,
+  writePackingReportOrientation
+} from '@/components/stockOut/packingReport/types'
+import { resolvePackingReportView } from '@/components/stockOut/packingReport/resolvePackingReportSkin'
 import { LOGIN_TENANT_ID } from '@/config/loginTenant'
 import { renderPdfBlobFirstPageToPngDataUrl } from '@/utils/pdfSealToPng'
 import { getApiErrorMessage } from '@/utils/apiError'
@@ -69,11 +83,10 @@ import {
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { normalizePackingAddrLines } from '@/utils/packingReportAddressLines'
 
-const packingReportSkin = resolvePackingReportSkin(LOGIN_TENANT_ID)
-
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 
 const PO_REPORT_PRINT_BODY_CLASS = 'po-order-report-print'
+const PO_REPORT_PRINT_LANDSCAPE_CLASS = 'po-order-report-print-landscape'
 const DEFAULT_REPORT_LOGO = '/purchase-order-template/logo.svg'
 
 const route = useRoute()
@@ -102,8 +115,10 @@ const sealUrl = ref<string | null>(null)
 const companyLogoObjectUrl = ref<string | null>(null)
 const showSealOnReport = ref(true)
 const reportLang = ref<InvoiceReportLang>('en')
+const pageOrientation = ref<PackingReportOrientation>(readPackingReportOrientation())
 
 const packingLabels = computed(() => getPackingReportLabels(reportLang.value))
+const reportView = computed(() => resolvePackingReportView(pageOrientation.value, LOGIN_TENANT_ID))
 
 let loadSeq = 0
 
@@ -205,6 +220,36 @@ function mapPackingReportLines(rows: PackingReportLine[]): StockOutPackingLineVm
   }))
 }
 
+function mapLandscapeLines(rows: PackingReportLine[]): StockOutPackingLandscapeLineVm[] {
+  return rows.map((row, idx) => {
+    const qtyNum = Number(row.qty) || 0
+    const nwNum = row.nw != null && Number.isFinite(Number(row.nw)) ? Number(row.nw) : null
+    const gwNum = row.gw != null && Number.isFinite(Number(row.gw)) ? Number(row.gw) : null
+    const cartonRaw = (row.carton ?? '').trim()
+    const cartonNum = cartonRaw && Number.isFinite(Number(cartonRaw)) ? Number(cartonRaw) : null
+    return {
+      index: idx + 1,
+      customerPo: blankIfEmpty(row.customerPo),
+      partNumber: blankIfEmpty(row.pn),
+      customerPn: blankIfEmpty(row.customerPn),
+      brand: blankIfEmpty(row.brand),
+      qty: formatReportQty(qtyNum),
+      dc: blankIfEmpty(row.dc),
+      co: blankIfEmpty(row.co),
+      cod: blankIfEmpty(row.cod),
+      size: blankIfEmpty(row.size),
+      nw: nwNum != null ? formatReportQty(nwNum) : '',
+      gw: gwNum != null ? formatReportQty(gwNum) : '',
+      carton: blankIfEmpty(row.carton),
+      remark: blankIfEmpty(row.remark),
+      qtyNum,
+      nwNum,
+      gwNum,
+      cartonNum
+    }
+  })
+}
+
 function buildFallbackReportLines(so: StockOutDetailDto): StockOutPackingLineVm[] {
   const qty = Number(so.totalQuantity) || 0
   return [
@@ -239,40 +284,41 @@ const docBind = computed(() => {
   const basic = basicDefault.value
   const wqc = withShipmentInspection.value
   const L = packingLabels.value
+  const isLandscape = pageOrientation.value === 'landscape'
+  const theme = reportView.value.landscapeTheme
+
+  const baseEmpty = {
+    labels: L,
+    headerCompanyName: '',
+    headerWarehouseAddress: '',
+    docTitle: L.docTitle,
+    docSubtitle: '',
+    docNo: '',
+    docDate: '',
+    shipmentMethodDisplay: '—',
+    billToLines: normalizePackingAddrLines(undefined, undefined, L),
+    shipToLines: normalizePackingAddrLines(undefined, undefined, L),
+    notes: packingRemarks.value,
+    withShipmentInspection: wqc,
+    sealUrl: null as string | null,
+    logoUrl: companyLogoObjectUrl.value ?? DEFAULT_REPORT_LOGO,
+    showSeal: showSealOnReport.value,
+    signDate: ''
+  }
 
   if (!so) {
-    return {
-      labels: L,
-      headerCompanyName: '',
-      headerWarehouseAddress: '',
-      docTitle: L.docTitle,
-      docSubtitle: '',
-      docNo: '',
-      docDate: '',
-      shipmentMethodDisplay: '—',
-      billToLines: normalizePackingAddrLines(undefined, undefined, L),
-      shipToLines: normalizePackingAddrLines(undefined, undefined, L),
-      lines: [],
-      totalQty: '0',
-      notes: packingRemarks.value,
-      withShipmentInspection: wqc,
-      sealUrl: null as string | null,
-      logoUrl: companyLogoObjectUrl.value ?? DEFAULT_REPORT_LOGO,
-      showSeal: showSealOnReport.value,
-      signDate: ''
-    }
+    return isLandscape
+      ? { ...baseEmpty, theme, lines: [] as StockOutPackingLandscapeLineVm[] }
+      : { ...baseEmpty, lines: [] as StockOutPackingLineVm[], totalQty: '0' }
   }
 
   const addr = packingAddresses.value
   const customerLine = maskSaleSensitiveFields.value ? '—' : (so.customerName || '').trim() || '—'
   const billToLines = normalizePackingAddrLines(addr?.billToLines, customerLine, L)
   const shipToLines = normalizePackingAddrLines(addr?.shipToLines, customerLine, L)
-
   const shipperName = (basic?.companyName || '').trim() || '—'
   const shipMethodDisplay = resolveShipMethodDisplay(so, packingShipmentMethod.value, packingDeliveryMethod.value)
-  const lines = reportLinesForDoc(so)
-
-  return {
+  const common = {
     labels: L,
     headerCompanyName: shipperName,
     headerWarehouseAddress: warehouseInfoAddress.value.trim(),
@@ -283,8 +329,6 @@ const docBind = computed(() => {
     shipmentMethodDisplay: shipMethodDisplay,
     billToLines,
     shipToLines,
-    lines,
-    totalQty: reportTotalQty(lines),
     notes: packingRemarks.value,
     withShipmentInspection: wqc,
     sealUrl: sealUrl.value,
@@ -292,6 +336,38 @@ const docBind = computed(() => {
     showSeal: showSealOnReport.value,
     signDate: formatDisplayDate(so.stockOutDate) || '—'
   }
+
+  if (isLandscape) {
+    const lines =
+      packingLines.value.length > 0
+        ? mapLandscapeLines(packingLines.value)
+        : ([
+            {
+              index: 1,
+              customerPo: '',
+              partNumber: blankIfEmpty(so.sourceCode || so.sellOrderItemCode),
+              customerPn: '',
+              brand: '',
+              qty: formatReportQty(Number(so.totalQuantity) || 0),
+              dc: '',
+              co: '',
+              cod: '',
+              size: '',
+              nw: '',
+              gw: '',
+              carton: '',
+              remark: blankIfEmpty(so.remark),
+              qtyNum: Number(so.totalQuantity) || 0,
+              nwNum: null,
+              gwNum: null,
+              cartonNum: null
+            }
+          ] as StockOutPackingLandscapeLineVm[])
+    return { ...common, theme, lines }
+  }
+
+  const lines = reportLinesForDoc(so)
+  return { ...common, lines, totalQty: reportTotalQty(lines) }
 })
 
 function revokeSealUrlIfBlob() {
@@ -451,8 +527,18 @@ watch(selectedBasicId, (id) => {
   void loadSealBlobUrl(sealForCurrentLetterhead())
 })
 
+function syncPrintOrientationClass() {
+  document.body.classList.toggle(PO_REPORT_PRINT_LANDSCAPE_CLASS, pageOrientation.value === 'landscape')
+}
+
+watch(pageOrientation, (v) => {
+  writePackingReportOrientation(v)
+  syncPrintOrientationClass()
+})
+
 onMounted(() => {
   document.body.classList.add(PO_REPORT_PRINT_BODY_CLASS)
+  syncPrintOrientationClass()
   void ensureLogisticsDict()
   load()
 })
@@ -460,6 +546,7 @@ watch([packingId, packingInspection], () => load())
 
 onBeforeUnmount(() => {
   document.body.classList.remove(PO_REPORT_PRINT_BODY_CLASS)
+  document.body.classList.remove(PO_REPORT_PRINT_LANDSCAPE_CLASS)
 })
 
 onUnmounted(() => {
@@ -527,6 +614,11 @@ onUnmounted(() => {
   padding: 24px 16px 48px;
   border-radius: 8px;
   overflow: auto;
+}
+
+.print-root--landscape {
+  display: flex;
+  justify-content: center;
 }
 
 .err {

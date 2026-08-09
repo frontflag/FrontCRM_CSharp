@@ -153,6 +153,19 @@ export interface PackingReportLabels {
   qty: string
   carton: string
   remark: string
+  /** 横版宽表列 */
+  sNo: string
+  customerPo: string
+  partNumber: string
+  customerPn: string
+  qtyPcs: string
+  dc: string
+  co: string
+  cod: string
+  size: string
+  nwKg: string
+  gwKg: string
+  cartonCount: string
   noItems: string
   blankBelow: string
   total: string
@@ -182,6 +195,18 @@ export const PACKING_LIST_REPORT_LABELS_EN: PackingReportLabels = {
   qty: PACKING_REPORT_LABELS.qty,
   carton: 'Carton',
   remark: PACKING_REPORT_LABELS.remark,
+  sNo: 'S/No.',
+  customerPo: 'CUSTOMER PO',
+  partNumber: 'PART NUMBER',
+  customerPn: 'CUSTOMER PN',
+  qtyPcs: 'QTY (PCS)',
+  dc: 'DC',
+  co: 'CO',
+  cod: 'COD',
+  size: 'SIZE',
+  nwKg: 'NW (KG)',
+  gwKg: 'GW (KG)',
+  cartonCount: 'CARTON',
   noItems: PACKING_REPORT_LABELS.noItems,
   blankBelow: PACKING_REPORT_LABELS.blankBelow,
   total: PACKING_REPORT_LABELS.total,
@@ -211,6 +236,18 @@ export const PACKING_LIST_REPORT_LABELS_ZH: PackingReportLabels = {
   qty: '数量',
   carton: '箱号',
   remark: '备注',
+  sNo: '序号',
+  customerPo: '客户订单号',
+  partNumber: '原厂型号',
+  customerPn: '客户型号',
+  qtyPcs: '数量',
+  dc: '生产日期',
+  co: '封装产地',
+  cod: '晶圆产地',
+  size: '尺寸',
+  nwKg: '净重',
+  gwKg: '毛重',
+  cartonCount: '箱数',
   noItems: '无明细',
   blankBelow: '以下为空白',
   total: '合计',

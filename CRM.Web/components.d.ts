@@ -130,6 +130,7 @@ declare module 'vue' {
     PackingCascadeItemSummary: typeof import('./src/components/Inventory/PackingCascadeItemSummary.vue')['default']
     PackingItemFlowPanel: typeof import('./src/components/Inventory/PackingItemFlowPanel.vue')['default']
     PackingListFlowPanel: typeof import('./src/components/Inventory/PackingListFlowPanel.vue')['default']
+    PackingReportLandscapeDocument: typeof import('./src/components/stockOut/packingReport/PackingReportLandscapeDocument.vue')['default']
     PackingReportSkinEcoinf: typeof import('./src/components/stockOut/packingReport/skins/PackingReportSkinEcoinf.vue')['default']
     PackingReportSkinIdesemi: typeof import('./src/components/stockOut/packingReport/skins/PackingReportSkinIdesemi.vue')['default']
     PackingReportSkinSemicore: typeof import('./src/components/stockOut/packingReport/skins/PackingReportSkinSemicore.vue')['default']

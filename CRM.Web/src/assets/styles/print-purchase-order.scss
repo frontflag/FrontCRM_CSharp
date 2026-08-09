@@ -8,8 +8,18 @@
     size: A4 portrait;
   }
 
+  /* Packing List 横版：文档根设置 page: packing-landscape */
+  @page packing-landscape {
+    margin: 8mm;
+    size: A4 landscape;
+  }
+
   body.po-order-report-print {
     background: #fff !important;
+  }
+
+  body.po-order-report-print.po-order-report-print-landscape .po-doc--landscape {
+    page: packing-landscape;
   }
 
   body.po-order-report-print #app,

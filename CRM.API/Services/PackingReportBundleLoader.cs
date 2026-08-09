@@ -170,7 +170,7 @@ public static class PackingReportBundleLoader
 #pragma warning disable CS0618
             DeliveryMethod = packing.DeliveryMethod,
 #pragma warning restore CS0618
-            PackingLines = MapPackingLines(packing)
+            PackingLines = await MapPackingLinesAsync(packing, db, cancellationToken)
         };
     }
 
@@ -210,6 +210,16 @@ public static class PackingReportBundleLoader
         };
     }
 
+    public static async Task<List<PackingReportLineDto>> MapPackingLinesAsync(
+        PackingDetailDto packing,
+        ApplicationDbContext db,
+        CancellationToken cancellationToken = default)
+    {
+        var lines = MapPackingLines(packing);
+        await EnrichPackingLineBatchFieldsAsync(db, lines, cancellationToken);
+        return lines;
+    }
+
     public static List<PackingReportLineDto> MapPackingLines(PackingDetailDto packing)
     {
         if (packing.Items == null || packing.Items.Count == 0)
@@ -217,14 +227,107 @@ public static class PackingReportBundleLoader
 
         return packing.Items.Select(item => new PackingReportLineDto
         {
+            PackingItemId = item.Id,
             Pn = item.Pn,
             CustomerPn = item.CustomerPn,
             Brand = item.Brand,
             CustomerBrand = item.CustomerBrand,
+            CustomerPo = string.IsNullOrWhiteSpace(item.CustomerSo) ? null : item.CustomerSo.Trim(),
             Qty = item.Qty,
             Carton = null,
             Remark = item.Comment,
+            Co = string.IsNullOrWhiteSpace(item.Co) ? null : item.Co.Trim(),
             PriceCurrency = item.PriceCurrency
         }).ToList();
     }
+
+    /// <summary>
+    /// 按装箱行关联拣货层 → 在库明细 → 入库批次，聚合 DC / COD（多值逗号拼接）。
+    /// 无拣货时回退 packing_item.stock_item_id。
+    /// </summary>
+    public static async Task EnrichPackingLineBatchFieldsAsync(
+        ApplicationDbContext db,
+        List<PackingReportLineDto> lines,
+        CancellationToken cancellationToken = default)
+    {
+        if (lines.Count == 0) return;
+
+        var itemIds = lines
+            .Select(l => l.PackingItemId)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (itemIds.Count == 0) return;
+
+        var picked = await (
+            from pti in db.PickingTaskItems.AsNoTracking()
+            where pti.PackingItemId != null
+                  && itemIds.Contains(pti.PackingItemId)
+                  && !pti.IsDeleted
+                  && pti.StockItemId != null
+                  && pti.StockItemId != ""
+            join si in db.StockItems.AsNoTracking() on pti.StockItemId equals si.Id
+            where !si.IsDeleted
+            join ib in db.StockInBatches.AsNoTracking() on si.StockInItemId equals ib.StockInItemId
+            where !ib.IsDeleted
+            select new { PackingItemId = pti.PackingItemId!, ib.Dc, ib.WaferOrigin }
+        ).ToListAsync(cancellationToken);
+
+        var byItem = new Dictionary<string, (List<string> Dcs, List<string> Cods)>(StringComparer.OrdinalIgnoreCase);
+        void Add(string packingItemId, string? dc, string? cod)
+        {
+            if (!byItem.TryGetValue(packingItemId, out var bag))
+            {
+                bag = (new List<string>(), new List<string>());
+                byItem[packingItemId] = bag;
+            }
+            AppendDistinct(bag.Dcs, dc);
+            AppendDistinct(bag.Cods, cod);
+        }
+
+        foreach (var row in picked)
+            Add(row.PackingItemId, row.Dc, row.WaferOrigin);
+
+        var missingIds = itemIds.Where(id => !byItem.ContainsKey(id)).ToList();
+        if (missingIds.Count > 0)
+        {
+            var fallback = await (
+                from pi in db.PackingItems.AsNoTracking()
+                where missingIds.Contains(pi.Id)
+                      && !pi.IsDeleted
+                      && pi.StockItemId != null
+                      && pi.StockItemId != ""
+                join si in db.StockItems.AsNoTracking() on pi.StockItemId equals si.Id
+                where !si.IsDeleted
+                join ib in db.StockInBatches.AsNoTracking() on si.StockInItemId equals ib.StockInItemId
+                where !ib.IsDeleted
+                select new { PackingItemId = pi.Id, ib.Dc, ib.WaferOrigin }
+            ).ToListAsync(cancellationToken);
+
+            foreach (var row in fallback)
+                Add(row.PackingItemId, row.Dc, row.WaferOrigin);
+        }
+
+        foreach (var line in lines)
+        {
+            var id = line.PackingItemId?.Trim();
+            if (string.IsNullOrEmpty(id) || !byItem.TryGetValue(id, out var bag))
+                continue;
+            line.Dc = JoinComma(bag.Dcs);
+            line.Cod = JoinComma(bag.Cods);
+        }
+    }
+
+    private static void AppendDistinct(List<string> list, string? value)
+    {
+        var v = value?.Trim();
+        if (string.IsNullOrEmpty(v)) return;
+        if (list.Any(x => string.Equals(x, v, StringComparison.OrdinalIgnoreCase)))
+            return;
+        list.Add(v);
+    }
+
+    private static string? JoinComma(List<string> values)
+        => values.Count == 0 ? null : string.Join(", ", values);
 }

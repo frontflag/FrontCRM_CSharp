@@ -7310,6 +7310,8 @@ const zhCN = {
   stockOutPackingReport: {
     back: '返回',
     print: '打印',
+    orientLandscape: '横版',
+    orientPortrait: '竖版',
     langZh: '中文',
     langEn: '英文',
     showSeal: '报表含印章',

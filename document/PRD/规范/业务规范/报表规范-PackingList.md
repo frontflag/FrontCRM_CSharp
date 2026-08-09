@@ -9,7 +9,7 @@
 | 模版基准 | **三租户皮肤**（`semicore` / `idesemi` / `ecoinf`）；版式组件可对调，见 §2.3 |
 | 关联总规范 | [Web 业务报表打印与导出规范](./Web业务报表打印与导出规范.md) |
 | 实现说明 | [装箱单 PackingList 打印-三租户皮肤-设计与实现](../../../System/物流/装箱单PackingList打印-三租户皮肤-设计与实现.md) |
-| 当前实现 | 页面 `StockOutPackingReportPage.vue` + `packingReport/skins/*`（按 `VITE_TENANT_ID` 选择） |
+| 当前实现 | 页面 `StockOutPackingReportPage.vue` + 竖版 `packingReport/skins/*` + 横版 `PackingReportLandscapeDocument.vue`（按 `VITE_TENANT_ID` 选主题） |
 
 **原则**
 
@@ -17,6 +17,7 @@
 - 业务数据（客户名、地址、物料、备注正文等）保持源数据语言。
 - **数据字段与区块顺序**三租户一致；**视觉版式**按租户分叉，须像三家不同公司的单据。
 - Logo / 公司名 / 印章 / 备注正文仍来自公司档案（部署数据），与皮肤选择无关。
+- **默认纸张方向为横版**（A4 landscape）；工具栏可切换竖/横，偏好写入 `localStorage` 键 `frontcrm.packingReport.orientation`。
 - 修改实现时须同步更新本文档与 System 设计说明。
 
 ---
@@ -38,15 +39,16 @@
 
 | 文件 | 职责 |
 | --- | --- |
-| `CRM.Web/src/views/Inventory/StockOutPackingReportPage.vue` | 拉数、工具栏、数据映射；`<component :is="packingReportSkin">` |
-| `CRM.Web/src/components/stockOut/packingReport/resolvePackingReportSkin.ts` | `LOGIN_TENANT_ID` → 皮肤组件 |
-| `CRM.Web/src/components/stockOut/packingReport/types.ts` | 三皮肤共用 props |
-| `CRM.Web/src/components/stockOut/packingReport/skins/PackingReportSkinSemicore.vue` | 橙表版式（挂到 ecoinf 租户） |
-| `CRM.Web/src/components/stockOut/packingReport/skins/PackingReportSkinIdesemi.vue` | 深紫/琥珀（挂到 semicore 租户） |
-| `CRM.Web/src/components/stockOut/packingReport/skins/PackingReportSkinEcoinf.vue` | 工业极简（挂到 idesemi 租户） |
+| `CRM.Web/src/views/Inventory/StockOutPackingReportPage.vue` | 拉数、工具栏（竖/横 + 中/英）、数据映射；`<component :is="reportView.component">` |
+| `CRM.Web/src/components/stockOut/packingReport/resolvePackingReportSkin.ts` | 方向 + `LOGIN_TENANT_ID` → 竖版组件 / 横版主题 |
+| `CRM.Web/src/components/stockOut/packingReport/types.ts` | 竖/横 props、方向 localStorage |
+| `CRM.Web/src/components/stockOut/packingReport/PackingReportLandscapeDocument.vue` | A4 横版文档（三主题 class） |
+| `CRM.Web/src/components/stockOut/packingReport/skins/PackingReportSkinSemicore.vue` | 竖版橙表（挂到 ecoinf 租户） |
+| `CRM.Web/src/components/stockOut/packingReport/skins/PackingReportSkinIdesemi.vue` | 竖版深紫/琥珀（挂到 semicore 租户） |
+| `CRM.Web/src/components/stockOut/packingReport/skins/PackingReportSkinEcoinf.vue` | 竖版工业极简（挂到 idesemi 租户） |
 | `CRM.Web/src/components/stockOut/StockOutPackingReportDocument.vue` | 兼容入口（转发 Semicore） |
-| `CRM.Web/src/components/stockOut/packingReportLabels.ts` | 中/英 label |
-| `CRM.Web/src/assets/styles/print-purchase-order.scss` | 打印隐藏壳层 + `print-color-adjust` |
+| `CRM.Web/src/components/stockOut/packingReportLabels.ts` | 中/英 label（含横版列名） |
+| `CRM.Web/src/assets/styles/print-purchase-order.scss` | 打印隐藏壳层；横版命名页 `@page packing-landscape` |
 
 ### 2.3 三租户皮肤要点
 
@@ -56,17 +58,27 @@
 | `idesemi` | `.po-doc--ecoinf`（组件 `PackingReportSkinEcoinf`） | 大标题左上追踪字距、Logo 右上；青 `#6DC5F6` section 竖条；无色块表头 + 斑马纹；QC 清单式 checkbox |
 | `ecoinf` | `.po-doc--semicore`（组件 `PackingReportSkinSemicore`） | 橙 `#e5913e` 表头/分区条；Logo 左 + 公司/标题居中（§3–§4 详述原橙表规范） |
 
-字段列（No / PN / Brand / Qty / Carton / Remark）与 QC 五项文案三皮肤共用。
+字段列（竖版：No / PN / Brand / Qty / Carton / Remark；横版见 §6.5）与 QC 五项文案三皮肤共用。横版主题映射与竖版租户映射一致（semicore→idesemi 观感，idesemi→ecoinf，ecoinf→semicore）。**横版页眉 / 地址块 / QC / 备注 / 签章须复用对应竖版皮肤的色系与结构**（仅明细改为 14 列宽表）。
+
+### 2.4 竖版 / 横版切换
+
+| 项 | 规范 |
+| --- | --- |
+| 默认 | **横版**（首次进入或 localStorage 无值） |
+| 记忆 | `localStorage`：`frontcrm.packingReport.orientation` = `landscape` \| `portrait` |
+| 工具栏 | 「横版 / 竖版」单选；与中英文、印章开关并列 |
+| 含检验 | 竖/横均支持 `with-inspection` / `without-inspection` |
+| 打印 | 竖版 `@page` A4 portrait；横版文档 `page: packing-landscape` → A4 landscape |
 
 ---
 
 ## 3. 纸张与全局版式（橙表 / Semicore 组件基准）
 
-以下为 **橙表组件**（`PackingReportSkinSemicore`，当前挂到 `ecoinf`）版式规范；另两套见 §2.3 与 System 设计文档，纸张仍为 A4。
+以下为 **竖版橙表组件**（`PackingReportSkinSemicore`，当前挂到 `ecoinf`）版式规范；另两套见 §2.3 与 System 设计文档。横版见 §6.5。
 
 | 项 | 规范值 |
 | --- | --- |
-| 纸张 | A4 竖版 |
+| 纸张 | A4 竖版（横版见 §6.5） |
 | 文档根 `.po-doc` 宽度 | `210mm` |
 | 最小高度 | `297mm` |
 | 页边距（屏幕预览） | 上 `10mm`、左右 `12mm`、下 `14mm` |
@@ -214,6 +226,35 @@ Tel: 13800138000
 | 「以下空白」行 | **不显示**（已去除） |
 | 无明细 | 显示 **`No items`**，不显示 Total |
 | 合计行 | 首列 **`Total`**，Qty 列合计；加粗 |
+
+### 6.5 横版明细表（A4 Landscape）
+
+| 项 | 规范值 |
+| --- | --- |
+| 纸张 | A4 横版（297×210mm） |
+| 文档根 | `.po-doc.po-doc--landscape`，宽 `297mm`，最小高 `210mm` |
+| 组件 | `PackingReportLandscapeDocument.vue`（`theme`: semicore / idesemi / ecoinf） |
+
+**列顺序（14 列）**
+
+| 列 | 表头 | 数据来源 | 无值 |
+| --- | --- | --- | --- |
+| S/No | `S/No` | 行号 | — |
+| CUSTOMER PO | `CUSTOMER PO` | `packing_item` 客户订单号（`CustomerSo` → DTO `CustomerPo`） | 留空 |
+| PART NUMBER | `PART NUMBER` | `packing_item.PN` | 留空 |
+| CUSTOMER PN | `CUSTOMER PN` | extend / 销售明细客户型号 | 留空 |
+| BRAND | `BRAND` | `packing_item.Brand` | 留空 |
+| QTY (PCS) | `QTY (PCS)` | `packing_item.qty` | `0` |
+| DC | `DC` | 拣货/库存批次 `StockInBatch.Dc`；多值逗号拼接 | 留空 |
+| CO | `CO` | **`packing_item.CO`**；有值才显示 | 留空 |
+| COD | `COD` | 批次 `WaferOrigin`（产地）；多值逗号拼接 | 留空 |
+| SIZE | `SIZE` | 本期无行级来源 | 留空 |
+| NW | `NW` | 本期无行级来源（头表箱规 NW 不摊到行） | 留空 |
+| GW | `GW` | 同上 | 留空 |
+| CARTON | `CARTON` | 行级 carton；有值显示（通常仍为空） | 留空 |
+| REMARK | `REMARK` | `packing_item.comment` | 留空 |
+
+合计行：前 5 列合并为 `Total`；合计 QTY / NW / GW / CARTON（有数值才累加）。
 
 ---
 
