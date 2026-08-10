@@ -108,13 +108,14 @@ function isPieBreakdown(groupKey: string): boolean {
 }
 
 function breakdownValueFormat(groupKey: string): 'money' | 'number' {
-  if (groupKey === 'currency' && !maskAmounts.value) return 'money'
+  if (maskAmounts.value) return 'number'
   if (
-    (groupKey === 'vendorIdentity' ||
-      groupKey === 'vendorLevel' ||
-      groupKey === 'vendorIndustry' ||
-      groupKey === 'purchaseUser') &&
-    !maskAmounts.value
+    groupKey === 'orderStatus' ||
+    groupKey === 'currency' ||
+    groupKey === 'vendorIdentity' ||
+    groupKey === 'vendorLevel' ||
+    groupKey === 'vendorIndustry' ||
+    groupKey === 'purchaseUser'
   ) {
     return 'money'
   }
@@ -259,11 +260,22 @@ defineExpose({ reload: loadData })
           :title="breakdownTitle(group)"
           :items="localizedBreakdownItems(group)"
           :value-format="breakdownValueFormat(group.groupKey)"
+          :unit-caption="
+            breakdownValueFormat(group.groupKey) === 'money'
+              ? t('purchaseOrderList.board.trendUnit.moneyCaption')
+              : undefined
+          "
         />
         <AnalyticsBreakdownChart
           v-else
           :title="breakdownTitle(group)"
           :items="localizedBreakdownItems(group)"
+          :value-format="breakdownValueFormat(group.groupKey)"
+          :unit-caption="
+            breakdownValueFormat(group.groupKey) === 'money'
+              ? t('purchaseOrderList.board.trendUnit.moneyCaption')
+              : undefined
+          "
         />
       </div>
     </div>
@@ -274,7 +286,7 @@ defineExpose({ reload: loadData })
         <el-table :data="rankings?.vendorByAmount ?? []" size="small" stripe>
           <el-table-column prop="name" :label="t('purchaseOrderList.board.rankings.name')" />
           <el-table-column prop="orderCount" :label="t('purchaseOrderList.board.rankings.orderCount')" width="90" />
-          <el-table-column :label="t('purchaseOrderList.board.rankings.amount')" width="140">
+          <el-table-column :label="t('purchaseOrderList.board.rankings.amount')" width="160">
             <template #default="{ row }">{{ formatMoney(row.amount) }}</template>
           </el-table-column>
         </el-table>
@@ -284,7 +296,7 @@ defineExpose({ reload: loadData })
         <el-table :data="rankings?.vendorByOrderCount ?? []" size="small" stripe>
           <el-table-column prop="name" :label="t('purchaseOrderList.board.rankings.name')" />
           <el-table-column prop="orderCount" :label="t('purchaseOrderList.board.rankings.orderCount')" width="90" />
-          <el-table-column :label="t('purchaseOrderList.board.rankings.amount')" width="140">
+          <el-table-column :label="t('purchaseOrderList.board.rankings.amount')" width="160">
             <template #default="{ row }">{{ formatMoney(row.amount) }}</template>
           </el-table-column>
         </el-table>
@@ -294,7 +306,7 @@ defineExpose({ reload: loadData })
         <el-table :data="rankings?.vendorByRepeatOrderCount ?? []" size="small" stripe>
           <el-table-column prop="name" :label="t('purchaseOrderList.board.rankings.name')" />
           <el-table-column prop="orderCount" :label="t('purchaseOrderList.board.rankings.repeatOrders')" width="100" />
-          <el-table-column :label="t('purchaseOrderList.board.rankings.amount')" width="140">
+          <el-table-column :label="t('purchaseOrderList.board.rankings.amount')" width="160">
             <template #default="{ row }">{{ formatMoney(row.amount) }}</template>
           </el-table-column>
         </el-table>
@@ -304,7 +316,7 @@ defineExpose({ reload: loadData })
         <el-table :data="rankings?.purchaseUserByAmount ?? []" size="small" stripe>
           <el-table-column prop="name" :label="t('purchaseOrderList.board.rankings.name')" />
           <el-table-column prop="orderCount" :label="t('purchaseOrderList.board.rankings.orderCount')" width="90" />
-          <el-table-column :label="t('purchaseOrderList.board.rankings.amount')" width="140">
+          <el-table-column :label="t('purchaseOrderList.board.rankings.amount')" width="160">
             <template #default="{ row }">{{ formatMoney(row.amount) }}</template>
           </el-table-column>
         </el-table>

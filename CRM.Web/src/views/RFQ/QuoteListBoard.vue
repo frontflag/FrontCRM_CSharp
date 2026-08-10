@@ -140,6 +140,14 @@ function isPieBreakdown(groupKey: string): boolean {
   return pieBreakdownKeys.has(groupKey)
 }
 
+/** 报价主状态等按报价主单计数；报价分布/分配采购员按需求明细计数 */
+function breakdownUnitCaption(groupKey: string): string {
+  if (groupKey === 'quoteDistribution' || groupKey === 'assignedPurchaser') {
+    return tt('trendUnit.itemsCaption')
+  }
+  return tt('trendUnit.quotesCaption')
+}
+
 function breakdownTitle(group: PurchaseAnalyticsBreakdownGroup): string {
   const key = `${i18nPrefix.value}.breakdown.${group.groupKey}`
   const translated = t(key)
@@ -328,11 +336,13 @@ defineExpose({ reload: () => loadData(true) })
           :title="breakdownTitle(group)"
           :items="localizedBreakdownItems(group)"
           value-format="number"
+          :unit-caption="breakdownUnitCaption(group.groupKey)"
         />
         <AnalyticsBreakdownChart
           v-else
           :title="breakdownTitle(group)"
           :items="localizedBreakdownItems(group)"
+          :unit-caption="breakdownUnitCaption(group.groupKey)"
         />
       </div>
     </div>

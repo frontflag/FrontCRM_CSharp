@@ -974,7 +974,7 @@ const enUS = {
       trendUnit: {
         orders: 'orders',
         lines: 'lines',
-        moneyCaption: 'Amount in USD (convert_price)'
+        moneyCaption: 'Unit: converted USD'
       },
       breakdown: {
         itemStatus: 'Line status',
@@ -1005,7 +1005,7 @@ const enUS = {
         name: 'Name',
         lineCount: 'Lines',
         qty: 'Qty',
-        amount: 'Amount (USD)'
+        amount: 'Amount (converted USD)'
       }
     },
     rfqTab: {
@@ -1175,7 +1175,7 @@ const enUS = {
       customerTop: 'Customer Top 10',
       name: 'Name',
       orderCount: 'Orders',
-      amount: 'Amount'
+      amount: 'Amount (converted USD)'
     }
   },
   purchaseAnalytics: {
@@ -1248,7 +1248,7 @@ const enUS = {
       trendUnit: {
         orders: 'orders',
         lines: 'lines',
-        moneyCaption: 'Amount in USD (convert_price)'
+        moneyCaption: 'Unit: converted USD'
       },
       breakdown: {
         itemStatus: 'Line status',
@@ -1275,7 +1275,7 @@ const enUS = {
         name: 'Name',
         lineCount: 'Lines',
         qty: 'Qty',
-        amount: 'Amount (USD)'
+        amount: 'Amount (converted USD)'
       }
     },
     quoteTab: {
@@ -1304,7 +1304,9 @@ const enUS = {
       trendUnit: {
         vendors: 'vendors',
         items: 'lines',
-        quotes: 'quotes'
+        quotes: 'quotes',
+        quotesCaption: 'Unit: quotes',
+        itemsCaption: 'Unit: lines'
       },
       breakdown: {
         quoteStatus: 'Quote status',
@@ -1392,7 +1394,7 @@ const enUS = {
       vendorTop: 'Vendor Top 10',
       name: 'Name',
       orderCount: 'Orders',
-      amount: 'Amount'
+      amount: 'Amount (converted USD)'
     }
   },
   logisticsAnalytics: {
@@ -2786,7 +2788,9 @@ const enUS = {
       trendUnit: {
         vendors: '',
         items: '',
-        quotes: ''
+        quotes: '',
+        quotesCaption: 'Unit: quotes',
+        itemsCaption: 'Unit: lines'
       },
       breakdown: {
         quoteStatus: 'Quote status',
@@ -4753,7 +4757,7 @@ const enUS = {
       },
       trendUnit: {
         orders: 'orders',
-        moneyCaption: 'Amount in USD (convert_total)'
+        moneyCaption: 'Unit: converted USD'
       },
       breakdown: {
         orderStatus: 'Order status',
@@ -4772,7 +4776,7 @@ const enUS = {
         name: 'Name',
         orderCount: 'Orders',
         repeatOrders: 'Repeat orders',
-        amount: 'Amount (USD)'
+        amount: 'Amount (converted USD)'
       }
     },
     searchPanel: {
@@ -5070,7 +5074,7 @@ const enUS = {
       trendUnit: {
         orders: 'orders',
         lines: 'lines',
-        moneyCaption: 'Amount in USD (convert_price)'
+        moneyCaption: 'Unit: converted USD'
       },
       breakdown: {
         itemStatus: 'Line status',
@@ -5101,7 +5105,7 @@ const enUS = {
         name: 'Name',
         lineCount: 'Lines',
         qty: 'Qty',
-        amount: 'Amount (USD)'
+        amount: 'Amount (converted USD)'
       }
     },
     columns: {
@@ -5389,7 +5393,7 @@ const enUS = {
       },
       trendUnit: {
         orders: 'orders',
-        moneyCaption: 'Amount in USD (convert_total)'
+        moneyCaption: 'Unit: converted USD'
       },
       breakdown: {
         orderStatus: 'Order status',
@@ -5408,7 +5412,7 @@ const enUS = {
         name: 'Name',
         orderCount: 'Orders',
         repeatOrders: 'Repeat orders',
-        amount: 'Amount (USD)'
+        amount: 'Amount (converted USD)'
       }
     },
     columns: {
@@ -5780,7 +5784,7 @@ const enUS = {
       trendUnit: {
         orders: 'orders',
         lines: 'lines',
-        moneyCaption: 'Amount in USD (convert_price)'
+        moneyCaption: 'Unit: converted USD'
       },
       breakdown: {
         itemStatus: 'Line status',
@@ -5807,7 +5811,7 @@ const enUS = {
         name: 'Name',
         lineCount: 'Lines',
         qty: 'Qty',
-        amount: 'Amount (USD)'
+        amount: 'Amount (converted USD)'
       }
     },
     columns: {
@@ -9098,7 +9102,7 @@ const enUS = {
       trendUnit: {
         customers: '',
         lines: '',
-        moneyCaption: 'USD'
+        moneyCaption: 'Unit: converted USD'
       },
       breakdown: {
         verificationStatus: 'Status',
@@ -9117,7 +9121,7 @@ const enUS = {
       rankings: {
         amountMode: 'Ranking amount',
         name: 'Name',
-        amount: 'Amount (USD)',
+        amount: 'Amount (converted USD)',
         lineCount: 'Lines',
         receivableByTotalAmount: 'Top10 single receivable (total)',
         customerByAmount: 'Top10 customers',

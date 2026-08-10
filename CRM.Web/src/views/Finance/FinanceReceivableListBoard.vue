@@ -306,6 +306,7 @@ defineExpose({ reload: loadData })
           :title="breakdownTitle(group)"
           :items="mapBreakdownItems(group)"
           value-format="money"
+          :unit-caption="t('financeReceivableList.board.trendUnit.moneyCaption')"
         />
       </div>
     </div>
@@ -340,7 +341,7 @@ defineExpose({ reload: loadData })
             </el-table-column>
             <el-table-column
               :label="t('financeReceivableList.board.rankings.amount')"
-              width="130"
+              width="160"
               align="right"
             >
               <template #default="{ row }">

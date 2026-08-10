@@ -556,7 +556,7 @@ watch([viewLevel, departmentId, purchaseUserId, dateRange, groupBy], () => void 
             >
               <el-table-column prop="name" :label="t('purchaseAnalytics.rankings.name')" />
               <el-table-column prop="orderCount" :label="t('purchaseAnalytics.rankings.orderCount')" width="90" />
-              <el-table-column :label="t('purchaseAnalytics.rankings.amount')" width="140">
+              <el-table-column :label="t('purchaseAnalytics.rankings.amount')" width="160">
                 <template #default="{ row }">{{ formatMoney(row.amount) }}</template>
               </el-table-column>
             </el-table>

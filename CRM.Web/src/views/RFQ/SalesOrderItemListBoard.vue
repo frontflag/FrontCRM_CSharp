@@ -277,16 +277,17 @@ function isPieBreakdown(groupKey: string): boolean {
 }
 
 function breakdownValueFormat(groupKey: string): 'money' | 'number' {
-  if (groupKey === 'currency' && !maskAmounts.value) return 'money'
-  if (groupKey === 'brandAmount' && !maskAmounts.value) return 'money'
-  if (groupKey === 'salesUser' && !maskAmounts.value) return 'money'
+  if (maskAmounts.value) return 'number'
   if (
-    (groupKey === 'purchaseProgress' ||
-      groupKey === 'stockInProgress' ||
-      groupKey === 'stockOutNotifyProgress' ||
-      groupKey === 'receiptProgress' ||
-      groupKey === 'invoiceProgress') &&
-    !maskAmounts.value
+    groupKey === 'itemStatus' ||
+    groupKey === 'currency' ||
+    groupKey === 'brandAmount' ||
+    groupKey === 'salesUser' ||
+    groupKey === 'purchaseProgress' ||
+    groupKey === 'stockInProgress' ||
+    groupKey === 'stockOutNotifyProgress' ||
+    groupKey === 'receiptProgress' ||
+    groupKey === 'invoiceProgress'
   ) {
     return 'money'
   }
@@ -491,11 +492,22 @@ defineExpose({ reload: () => loadData(true) })
           :title="breakdownTitle(group)"
           :items="localizedBreakdownItems(group)"
           :value-format="breakdownValueFormat(group.groupKey)"
+          :unit-caption="
+            breakdownValueFormat(group.groupKey) === 'money'
+              ? tt('trendUnit.moneyCaption')
+              : undefined
+          "
         />
         <AnalyticsBreakdownChart
           v-else
           :title="breakdownTitle(group)"
           :items="localizedBreakdownItems(group)"
+          :value-format="breakdownValueFormat(group.groupKey)"
+          :unit-caption="
+            breakdownValueFormat(group.groupKey) === 'money'
+              ? tt('trendUnit.moneyCaption')
+              : undefined
+          "
         />
       </div>
     </div>
@@ -523,7 +535,7 @@ defineExpose({ reload: () => loadData(true) })
                 <span class="ranking-name-cell">{{ row.name }}</span>
               </template>
             </el-table-column>
-            <el-table-column width="130" align="right" class-name="ranking-metric-col">
+            <el-table-column width="168" align="right" class-name="ranking-metric-col">
               <template #header>
                 <button
                   type="button"
@@ -679,5 +691,7 @@ defineExpose({ reload: () => loadData(true) })
 
 :deep(.ranking-metric-col .cell) {
   white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
 }
 </style>

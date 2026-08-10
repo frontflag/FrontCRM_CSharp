@@ -970,7 +970,7 @@ const zhCN = {
       trendUnit: {
         orders: '单',
         lines: '行',
-        moneyCaption: '金额单位：美元（convert_price）'
+        moneyCaption: '单位：折算美元（USD）'
       },
       breakdown: {
         itemStatus: '明细主状态',
@@ -1001,7 +1001,7 @@ const zhCN = {
         name: '名称',
         lineCount: '明细数',
         qty: '数量',
-        amount: '金额（USD）'
+        amount: '金额（折算USD）'
       }
     },
     rfqTab: {
@@ -1171,7 +1171,7 @@ const zhCN = {
       customerTop: '客户贡献 Top10',
       name: '名称',
       orderCount: '订单数',
-      amount: '金额'
+      amount: '金额（折算USD）'
     }
   },
   purchaseAnalytics: {
@@ -1244,7 +1244,7 @@ const zhCN = {
       trendUnit: {
         orders: '单',
         lines: '行',
-        moneyCaption: '金额单位：美元（convert_price）'
+        moneyCaption: '单位：折算美元（USD）'
       },
       breakdown: {
         itemStatus: '明细主状态',
@@ -1271,7 +1271,7 @@ const zhCN = {
         name: '名称',
         lineCount: '明细数',
         qty: '数量',
-        amount: '金额（USD）'
+        amount: '金额（折算USD）'
       }
     },
     quoteTab: {
@@ -1300,7 +1300,9 @@ const zhCN = {
       trendUnit: {
         vendors: '家',
         items: '条',
-        quotes: '条'
+        quotes: '条',
+        quotesCaption: '单位：单',
+        itemsCaption: '单位：条'
       },
       breakdown: {
         quoteStatus: '报价主状态',
@@ -1388,7 +1390,7 @@ const zhCN = {
       vendorTop: '供应商贡献 Top10',
       name: '名称',
       orderCount: '订单数',
-      amount: '金额'
+      amount: '金额（折算USD）'
     }
   },
   logisticsAnalytics: {
@@ -2760,7 +2762,9 @@ const zhCN = {
       trendUnit: {
         vendors: '家',
         items: '条',
-        quotes: '条'
+        quotes: '条',
+        quotesCaption: '单位：单',
+        itemsCaption: '单位：条'
       },
       breakdown: {
         quoteStatus: '报价主状态',
@@ -4747,7 +4751,7 @@ const zhCN = {
       },
       trendUnit: {
         orders: '单',
-        moneyCaption: '金额单位：美元（convert_total）'
+        moneyCaption: '单位：折算美元（USD）'
       },
       breakdown: {
         orderStatus: '订单主状态',
@@ -4766,7 +4770,7 @@ const zhCN = {
         name: '名称',
         orderCount: '订单数',
         repeatOrders: '复购订单数',
-        amount: '金额（USD）'
+        amount: '金额（折算USD）'
       }
     },
     searchPanel: {
@@ -5064,7 +5068,7 @@ const zhCN = {
       trendUnit: {
         orders: '单',
         lines: '行',
-        moneyCaption: '金额单位：美元（convert_price）'
+        moneyCaption: '单位：折算美元（USD）'
       },
       breakdown: {
         itemStatus: '明细主状态',
@@ -5095,7 +5099,7 @@ const zhCN = {
         name: '名称',
         lineCount: '明细数',
         qty: '数量',
-        amount: '金额（USD）'
+        amount: '金额（折算USD）'
       }
     },
     columns: {
@@ -5374,7 +5378,7 @@ const zhCN = {
       },
       trendUnit: {
         orders: '单',
-        moneyCaption: '金额单位：美元（convert_total）'
+        moneyCaption: '单位：折算美元（USD）'
       },
       breakdown: {
         orderStatus: '订单主状态',
@@ -5393,7 +5397,7 @@ const zhCN = {
         name: '名称',
         orderCount: '订单数',
         repeatOrders: '复采订单数',
-        amount: '金额（USD）'
+        amount: '金额（折算USD）'
       }
     },
     columns: {
@@ -5764,7 +5768,7 @@ const zhCN = {
       trendUnit: {
         orders: '单',
         lines: '行',
-        moneyCaption: '金额单位：美元（convert_price）'
+        moneyCaption: '单位：折算美元（USD）'
       },
       breakdown: {
         itemStatus: '明细主状态',
@@ -5791,7 +5795,7 @@ const zhCN = {
         name: '名称',
         lineCount: '明细数',
         qty: '数量',
-        amount: '金额（USD）'
+        amount: '金额（折算USD）'
       }
     },
     columns: {
@@ -9082,7 +9086,7 @@ const zhCN = {
       trendUnit: {
         customers: '家',
         lines: '条',
-        moneyCaption: '折算美金'
+        moneyCaption: '单位：折算美元（USD）'
       },
       breakdown: {
         verificationStatus: '核销状态',
@@ -9101,7 +9105,7 @@ const zhCN = {
       rankings: {
         amountMode: '排行金额',
         name: '名称',
-        amount: '金额（USD）',
+        amount: '金额（折算USD）',
         lineCount: '条目数',
         receivableByTotalAmount: 'Top10 单笔应收（总额）',
         customerByAmount: 'Top10 客户',

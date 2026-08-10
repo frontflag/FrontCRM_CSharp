@@ -253,7 +253,7 @@ defineExpose({ reload: loadData })
         >
           <el-table-column prop="name" :label="t('purchaseAnalytics.rankings.name')" />
           <el-table-column prop="orderCount" :label="t('purchaseAnalytics.rankings.orderCount')" width="90" />
-          <el-table-column v-if="!maskAmounts" :label="t('purchaseAnalytics.rankings.amount')" width="140">
+          <el-table-column v-if="!maskAmounts" :label="t('purchaseAnalytics.rankings.amount')" width="160">
             <template #default="{ row }">{{ formatMoney(row.amount) }}</template>
           </el-table-column>
         </el-table>
@@ -272,7 +272,7 @@ defineExpose({ reload: loadData })
         >
           <el-table-column prop="name" :label="t('purchaseAnalytics.rankings.name')" />
           <el-table-column prop="orderCount" :label="t('purchaseAnalytics.rankings.orderCount')" width="90" />
-          <el-table-column v-if="!maskAmounts" :label="t('purchaseAnalytics.rankings.amount')" width="140">
+          <el-table-column v-if="!maskAmounts" :label="t('purchaseAnalytics.rankings.amount')" width="160">
             <template #default="{ row }">{{ formatMoney(row.amount) }}</template>
           </el-table-column>
         </el-table>
@@ -295,7 +295,7 @@ defineExpose({ reload: loadData })
             :label="t('purchaseAnalytics.vendorTab.rankings.repeatOrders')"
             width="110"
           />
-          <el-table-column v-if="!maskAmounts" :label="t('purchaseAnalytics.rankings.amount')" width="140">
+          <el-table-column v-if="!maskAmounts" :label="t('purchaseAnalytics.rankings.amount')" width="160">
             <template #default="{ row }">{{ formatMoney(row.amount) }}</template>
           </el-table-column>
         </el-table>

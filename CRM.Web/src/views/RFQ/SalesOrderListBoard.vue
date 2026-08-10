@@ -86,8 +86,10 @@ function isPieBreakdown(groupKey: string): boolean {
 }
 
 function breakdownValueFormat(groupKey: string): 'money' | 'number' {
-  if (groupKey === 'currency' && !maskAmounts.value) return 'money'
-  if (groupKey === 'salesUser' && !maskAmounts.value) return 'money'
+  if (maskAmounts.value) return 'number'
+  if (groupKey === 'orderStatus' || groupKey === 'currency' || groupKey === 'salesUser') {
+    return 'money'
+  }
   return 'number'
 }
 
@@ -185,11 +187,22 @@ defineExpose({ reload: loadData })
           :title="breakdownTitle(group)"
           :items="localizedBreakdownItems(group)"
           :value-format="breakdownValueFormat(group.groupKey)"
+          :unit-caption="
+            breakdownValueFormat(group.groupKey) === 'money'
+              ? t('salesOrderList.board.trendUnit.moneyCaption')
+              : undefined
+          "
         />
         <AnalyticsBreakdownChart
           v-else
           :title="breakdownTitle(group)"
           :items="localizedBreakdownItems(group)"
+          :value-format="breakdownValueFormat(group.groupKey)"
+          :unit-caption="
+            breakdownValueFormat(group.groupKey) === 'money'
+              ? t('salesOrderList.board.trendUnit.moneyCaption')
+              : undefined
+          "
         />
       </div>
     </div>
@@ -208,7 +221,7 @@ defineExpose({ reload: loadData })
           />
           <el-table-column
             :label="t('salesOrderList.board.rankings.amount')"
-            width="140"
+            width="160"
             align="right"
             header-align="right"
           >
