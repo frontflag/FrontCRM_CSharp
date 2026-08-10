@@ -1065,11 +1065,27 @@ const zhCN = {
       hint: '可点击 KPI 或排行进入业务列表；部门层排行双击可查看业务员订单',
       noPermission: '无权限访问目标列表'
     },
+    definitionTip: {
+      button: '口径',
+      chart: '图',
+      dataSource: '数据源',
+      definition: '口径说明'
+    },
+    stockOutProgressDefinition: {
+      chart: '出库进度',
+      dataSource: '销售订单明细',
+      text: '区间内有效明细按「待出库 / 部分出库 / 出库完成」计行数（不限是否已审核）。'
+    },
     stockOutProgressDetail: {
       detail: '详情',
       title: '出库进度（明细行）详情',
       loadFailed: '加载出库进度详情失败',
       count: '{count} 条',
+      scopeViewLevel: '视角',
+      scopeDateRange: '统计区间',
+      scopeDateOpenStart: '起不限',
+      scopeDateOpenEnd: '止不限',
+      scopeDateHint: '按销售订单创建日期；与页面顶部筛选一致',
       tabs: {
         all: '全部',
         pending: '待出库',

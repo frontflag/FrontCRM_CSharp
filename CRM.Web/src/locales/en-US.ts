@@ -1069,11 +1069,27 @@ const enUS = {
       hint: 'Click KPIs or rankings to open lists; double-click salesperson row at department level',
       noPermission: 'No permission to open the target list'
     },
+    definitionTip: {
+      button: 'Definition',
+      chart: 'Chart',
+      dataSource: 'Source',
+      definition: 'Logic'
+    },
+    stockOutProgressDefinition: {
+      chart: 'Stock-out progress',
+      dataSource: 'Sales order items',
+      text: 'Count of valid lines in the period by Pending / Partial / Complete stock-out (approved or not).'
+    },
     stockOutProgressDetail: {
       detail: 'Details',
       title: 'Stock-out progress (lines) details',
       loadFailed: 'Failed to load stock-out progress details',
       count: '{count} lines',
+      scopeViewLevel: 'View',
+      scopeDateRange: 'Period',
+      scopeDateOpenStart: 'No start',
+      scopeDateOpenEnd: 'No end',
+      scopeDateHint: 'By sales order create date; same as the page filter',
       tabs: {
         all: 'All',
         pending: 'Pending',

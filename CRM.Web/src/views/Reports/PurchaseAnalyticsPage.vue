@@ -268,7 +268,7 @@ function isPieBreakdown(groupKey: string): boolean {
 }
 
 function breakdownValueFormat(groupKey: string): 'money' | 'number' {
-  if (groupKey === 'currency' && !maskAmounts.value) return 'money'
+  if ((groupKey === 'currency' || groupKey === 'orderStatus') && !maskAmounts.value) return 'money'
   return 'number'
 }
 
@@ -521,7 +521,12 @@ watch([viewLevel, departmentId, purchaseUserId, dateRange, groupBy], () => void 
               :items="group.items"
               :value-format="breakdownValueFormat(group.groupKey)"
             />
-            <AnalyticsBreakdownChart v-else :title="breakdownTitle(group)" :items="group.items" />
+            <AnalyticsBreakdownChart
+              v-else
+              :title="breakdownTitle(group)"
+              :items="group.items"
+              :value-format="breakdownValueFormat(group.groupKey)"
+            />
           </div>
         </div>
 

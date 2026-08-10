@@ -273,7 +273,7 @@ function isPieBreakdown(groupKey: string): boolean {
 }
 
 function breakdownValueFormat(groupKey: string): 'money' | 'number' {
-  if (groupKey === 'currency' && !maskAmounts.value) return 'money'
+  if ((groupKey === 'currency' || groupKey === 'orderStatus') && !maskAmounts.value) return 'money'
   return 'number'
 }
 
@@ -520,6 +520,12 @@ watch([viewLevel, departmentId, salesUserId, dateRange, groupBy], () => void loa
               v-else
               :title="breakdownTitle(group)"
               :items="group.items"
+              :value-format="breakdownValueFormat(group.groupKey)"
+              :show-definition="group.groupKey === 'stockOutProgress'"
+              :definition-label="t('salesAnalytics.definitionTip.button')"
+              :definition-chart="t('salesAnalytics.stockOutProgressDefinition.chart')"
+              :definition-data-source="t('salesAnalytics.stockOutProgressDefinition.dataSource')"
+              :definition-text="t('salesAnalytics.stockOutProgressDefinition.text')"
               :show-detail="group.groupKey === 'stockOutProgress'"
               :detail-label="t('salesAnalytics.stockOutProgressDetail.detail')"
               @detail="stockOutDetailVisible = true"

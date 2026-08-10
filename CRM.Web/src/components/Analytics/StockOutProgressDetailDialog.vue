@@ -77,6 +77,22 @@ function formatQty(v: number | null | undefined) {
   return Number.isInteger(n) ? String(n) : String(n)
 }
 
+const viewLevelLabel = computed(() => {
+  const level = props.query.viewLevel
+  if (level === 'company') return t('salesAnalytics.tabs.company')
+  if (level === 'department') return t('salesAnalytics.tabs.department')
+  if (level === 'personal') return t('salesAnalytics.tabs.personal')
+  return '—'
+})
+
+const dateRangeText = computed(() => {
+  const from = String(props.query.dateFrom ?? '').trim()
+  const to = String(props.query.dateTo ?? '').trim()
+  const left = from || t('salesAnalytics.stockOutProgressDetail.scopeDateOpenStart')
+  const right = to || t('salesAnalytics.stockOutProgressDetail.scopeDateOpenEnd')
+  return `${left} ～ ${right}`
+})
+
 function statusFilter(): number | undefined {
   if (activeTab.value === 'all') return undefined
   const n = Number(activeTab.value)
@@ -153,6 +169,21 @@ watch(open, (isOpen) => {
   >
     <div v-loading="loading" class="sop-detail">
       <div class="sop-detail__top">
+        <div class="scope-banner" role="status">
+          <div class="scope-banner__main">
+            <span>
+              {{ t('salesAnalytics.stockOutProgressDetail.scopeViewLevel') }}：{{ viewLevelLabel }}
+            </span>
+            <span class="scope-banner__sep" aria-hidden="true">|</span>
+            <span>
+              {{ t('salesAnalytics.stockOutProgressDetail.scopeDateRange') }}：{{ dateRangeText }}
+            </span>
+          </div>
+          <div class="scope-banner__hint">
+            {{ t('salesAnalytics.stockOutProgressDetail.scopeDateHint') }}
+          </div>
+        </div>
+
         <div class="summary">
           <div v-for="row in summary" :key="row.status" class="summary-item">
             <div class="summary-label">{{ row.label }}</div>
@@ -365,6 +396,36 @@ watch(open, (isOpen) => {
 
 .sop-detail__top {
   flex: 0 0 auto;
+}
+
+.scope-banner {
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--el-color-info-light-9);
+  border: 1px solid var(--el-color-info-light-7);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--el-text-color-primary);
+}
+
+.scope-banner__main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.scope-banner__sep {
+  color: var(--el-text-color-secondary);
+}
+
+.scope-banner__hint {
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--el-text-color-secondary);
 }
 
 .summary {

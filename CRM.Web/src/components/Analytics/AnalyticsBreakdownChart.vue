@@ -1,33 +1,86 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import type { SalesAnalyticsBreakdownItem } from '@/api/analytics/sales'
 
-defineProps<{
-  title: string
-  items: SalesAnalyticsBreakdownItem[]
-  /** 标题右侧显示「详情」按钮（仅出库进度等需要时开启） */
-  showDetail?: boolean
-  detailLabel?: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    title: string
+    items: SalesAnalyticsBreakdownItem[]
+    /** money：金额；number：计数/行数（默认，与全链路环节图例一致） */
+    valueFormat?: 'money' | 'number'
+    /** 标题右侧显示「详情」按钮（仅出库进度等需要时开启） */
+    showDetail?: boolean
+    detailLabel?: string
+    /** 标题右侧显示「口径」按钮（popover） */
+    showDefinition?: boolean
+    definitionLabel?: string
+    definitionChart?: string
+    definitionDataSource?: string
+    definitionText?: string
+  }>(),
+  { valueFormat: 'number' }
+)
 
 const emit = defineEmits<{
   detail: []
 }>()
+
+const { t } = useI18n()
+
+function formatValue(v: number): string {
+  if (props.valueFormat === 'money') {
+    return `¥ ${v.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  }
+  return Number.isInteger(v) ? String(v) : v.toLocaleString('zh-CN', { maximumFractionDigits: 2 })
+}
+
+function formatRatio(ratio: number): string {
+  return `${Number(ratio).toFixed(2)}%`
+}
 </script>
 
 <template>
   <div class="breakdown">
     <div class="title-row">
       <h4 class="title">{{ title }}</h4>
-      <el-button
-        v-if="showDetail"
-        link
-        type="primary"
-        size="small"
-        class="detail-btn"
-        @click="emit('detail')"
-      >
-        {{ detailLabel || '详情' }}
-      </el-button>
+      <div v-if="showDefinition || showDetail" class="title-actions">
+        <el-popover
+          v-if="showDefinition"
+          placement="bottom-end"
+          :width="360"
+          trigger="click"
+        >
+          <template #reference>
+            <el-button link type="primary" size="small" class="action-btn">
+              {{ definitionLabel || '口径' }}
+            </el-button>
+          </template>
+          <div class="definition-tip">
+            <div v-if="definitionChart" class="definition-tip__row">
+              <span class="definition-tip__label">{{ t('salesAnalytics.definitionTip.chart') }}</span>
+              <span>{{ definitionChart }}</span>
+            </div>
+            <div v-if="definitionDataSource" class="definition-tip__row">
+              <span class="definition-tip__label">{{ t('salesAnalytics.definitionTip.dataSource') }}</span>
+              <span>{{ definitionDataSource }}</span>
+            </div>
+            <div v-if="definitionText" class="definition-tip__row">
+              <span class="definition-tip__label">{{ t('salesAnalytics.definitionTip.definition') }}</span>
+              <span>{{ definitionText }}</span>
+            </div>
+          </div>
+        </el-popover>
+        <el-button
+          v-if="showDetail"
+          link
+          type="primary"
+          size="small"
+          class="action-btn"
+          @click="emit('detail')"
+        >
+          {{ detailLabel || '详情' }}
+        </el-button>
+      </div>
     </div>
     <div v-if="items.length === 0" class="empty">—</div>
     <div v-for="item in items" :key="item.key" class="row">
@@ -35,7 +88,8 @@ const emit = defineEmits<{
       <div class="bar-track">
         <div class="bar-fill" :style="{ width: `${item.ratio}%` }" />
       </div>
-      <span class="ratio">{{ item.ratio }}%</span>
+      <span class="value">{{ formatValue(item.value) }}</span>
+      <span class="ratio">{{ formatRatio(item.ratio) }}</span>
     </div>
   </div>
 </template>
@@ -59,13 +113,42 @@ const emit = defineEmits<{
   font-weight: 600;
 }
 
-.detail-btn {
+.title-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.action-btn {
+  flex-shrink: 0;
+}
+
+.definition-tip {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--el-text-color-primary);
+}
+
+.definition-tip__row {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 8px;
+  margin-bottom: 8px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.definition-tip__label {
+  color: var(--el-text-color-secondary);
   flex-shrink: 0;
 }
 
 .row {
   display: grid;
-  grid-template-columns: 100px 1fr 48px;
+  grid-template-columns: 100px 1fr auto auto;
   gap: 8px;
   align-items: center;
   margin-bottom: 8px;
@@ -90,9 +173,17 @@ const emit = defineEmits<{
   border-radius: 4px;
 }
 
+.value {
+  color: var(--el-text-color-regular);
+  text-align: right;
+  white-space: nowrap;
+}
+
 .ratio {
   text-align: right;
   color: var(--el-text-color-secondary);
+  white-space: nowrap;
+  min-width: 52px;
 }
 
 .empty {
