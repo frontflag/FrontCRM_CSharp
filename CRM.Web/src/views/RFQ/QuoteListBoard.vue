@@ -6,6 +6,8 @@ import AnalyticsKpiGrid from '@/components/Analytics/AnalyticsKpiGrid.vue'
 import AnalyticsTrendChart from '@/components/Analytics/AnalyticsTrendChart.vue'
 import AnalyticsBreakdownChart from '@/components/Analytics/AnalyticsBreakdownChart.vue'
 import AnalyticsBreakdownPieChart from '@/components/Analytics/AnalyticsBreakdownPieChart.vue'
+import AnalyticsPanelHeader from '@/components/Analytics/AnalyticsPanelHeader.vue'
+import { useAnalyticsDefinition } from '@/composables/useAnalyticsDefinition'
 import {
   quoteListAnalyticsApi,
   type QuoteListAnalyticsDashboard,
@@ -33,6 +35,7 @@ const props = withDefaults(
 )
 
 const { t } = useI18n()
+const { def } = useAnalyticsDefinition('quoteList.board')
 
 const loading = ref(false)
 const groupBy = ref<'day' | 'week' | 'month'>('month')
@@ -75,42 +78,50 @@ const kpiItems = computed(() => {
     {
       key: 'quoteVendors',
       label: tt('kpi.quoteVendors'),
-      value: String(s.quoteVendorCount)
+      value: String(s.quoteVendorCount),
+      ...def('kpi.quoteVendors')
     },
     {
       key: 'validQuotes',
       label: tt('kpi.validQuotes'),
-      value: String(s.validQuoteCount)
+      value: String(s.validQuoteCount),
+      ...def('kpi.validQuotes')
     },
     {
       key: 'noQuoteFound',
       label: tt('kpi.noQuoteFound'),
-      value: String(s.noQuoteFoundItemCount)
+      value: String(s.noQuoteFoundItemCount),
+      ...def('kpi.noQuoteFound')
     },
     {
       key: 'rfqQuoteRate',
       label: tt('kpi.rfqQuoteRate'),
-      value: formatRate(s.rfqQuoteRate)
+      value: formatRate(s.rfqQuoteRate),
+      ...def('kpi.rfqQuoteRate')
     },
     {
       key: 'avgResponse',
       label: tt('kpi.avgResponse'),
-      value: formatMinutes(s.avgResponseMinutes)
+      value: formatMinutes(s.avgResponseMinutes),
+      ...def('kpi.avgResponse')
     },
     {
       key: 'avgQuotesPerItem',
       label: tt('kpi.avgQuotesPerItem'),
-      value: formatAvgQuotes(s.avgQuotesPerRfqItem)
+      value: formatAvgQuotes(s.avgQuotesPerRfqItem),
+      ...def('kpi.avgQuotesPerItem')
     },
     {
       key: 'convertedLines',
       label: tt('kpi.convertedLines'),
-      value: String(s.convertedLineCount)
+      value: String(s.convertedLineCount),
+      ...def('kpi.convertedLines')
     },
     {
       key: 'quoteConversionRate',
       label: tt('kpi.quoteConversionRate'),
-      value: formatRate(s.quoteConversionRate)
+      value: formatRate(s.quoteConversionRate),
+      ...def('kpi.quoteConversionRate')
     }
   ]
 })
@@ -316,15 +327,18 @@ defineExpose({ reload: () => loadData(true) })
 
     <div v-if="showTrends" class="charts-row">
       <div class="card chart-panel">
-        <h3 class="section-title">{{ tt('sections.trendVendors') }}</h3>
+        <AnalyticsPanelHeader :title="tt('sections.trendVendors')" v-bind="def('trend.vendors')" />
         <AnalyticsTrendChart :points="trendVendorPoints" :value-suffix="tt('trendUnit.vendors')" />
       </div>
       <div class="card chart-panel">
-        <h3 class="section-title">{{ tt('sections.trendItems') }}</h3>
+        <AnalyticsPanelHeader :title="tt('sections.trendItems')" v-bind="def('trend.items')" />
         <AnalyticsTrendChart :points="trendItemPoints" :value-suffix="tt('trendUnit.items')" />
       </div>
       <div class="card chart-panel">
-        <h3 class="section-title">{{ tt('sections.trendValidQuotes') }}</h3>
+        <AnalyticsPanelHeader
+          :title="tt('sections.trendValidQuotes')"
+          v-bind="def('trend.validQuotes')"
+        />
         <AnalyticsTrendChart :points="trendValidQuotePoints" :value-suffix="tt('trendUnit.quotes')" />
       </div>
     </div>
@@ -337,33 +351,44 @@ defineExpose({ reload: () => loadData(true) })
           :items="localizedBreakdownItems(group)"
           value-format="number"
           :unit-caption="breakdownUnitCaption(group.groupKey)"
+          v-bind="def(`breakdown.${group.groupKey}`)"
         />
         <AnalyticsBreakdownChart
           v-else
           :title="breakdownTitle(group)"
           :items="localizedBreakdownItems(group)"
           :unit-caption="breakdownUnitCaption(group.groupKey)"
+          v-bind="def(`breakdown.${group.groupKey}`)"
         />
       </div>
     </div>
 
     <div class="rankings-row">
       <div class="card ranking-panel">
-        <h3 class="section-title">{{ tt('rankings.vendorByRfqItemCount') }}</h3>
+        <AnalyticsPanelHeader
+          :title="tt('rankings.vendorByRfqItemCount')"
+          v-bind="def('rankings.vendorByRfqItemCount')"
+        />
         <el-table :data="rankings?.vendorByRfqItemCount ?? []" size="small" stripe>
           <el-table-column prop="name" :label="tt('rankings.name')" />
           <el-table-column prop="orderCount" :label="tt('rankings.rfqItemCount')" width="110" />
         </el-table>
       </div>
       <div class="card ranking-panel">
-        <h3 class="section-title">{{ tt('rankings.purchaserByQuoteCount') }}</h3>
+        <AnalyticsPanelHeader
+          :title="tt('rankings.purchaserByQuoteCount')"
+          v-bind="def('rankings.purchaserByQuoteCount')"
+        />
         <el-table :data="rankings?.purchaserByQuoteCount ?? []" size="small" stripe>
           <el-table-column prop="name" :label="tt('rankings.name')" />
           <el-table-column prop="orderCount" :label="tt('rankings.quoteCount')" width="100" />
         </el-table>
       </div>
       <div class="card ranking-panel">
-        <h3 class="section-title">{{ tt('rankings.purchaserByQuoteRate') }}</h3>
+        <AnalyticsPanelHeader
+          :title="tt('rankings.purchaserByQuoteRate')"
+          v-bind="def('rankings.purchaserByQuoteRate')"
+        />
         <el-table :data="rankings?.purchaserByQuoteRate ?? []" size="small" stripe>
           <el-table-column prop="name" :label="tt('rankings.name')" />
           <el-table-column prop="orderCount" :label="tt('rankings.quoteCount')" width="90" />
@@ -373,28 +398,34 @@ defineExpose({ reload: () => loadData(true) })
         </el-table>
       </div>
       <div class="card ranking-panel">
-        <h3 class="section-title">{{ tt('rankings.mpnByQuoteCount') }}</h3>
+        <AnalyticsPanelHeader
+          :title="tt('rankings.mpnByQuoteCount')"
+          v-bind="def('rankings.mpnByQuoteCount')"
+        />
         <el-table :data="rankings?.mpnByQuoteCount ?? []" size="small" stripe>
           <el-table-column prop="name" :label="tt('rankings.name')" />
           <el-table-column prop="orderCount" :label="tt('rankings.quoteCount')" width="100" />
         </el-table>
       </div>
       <div class="card ranking-panel">
-        <h3 class="section-title">{{ tt('rankings.mpnByQty') }}</h3>
+        <AnalyticsPanelHeader :title="tt('rankings.mpnByQty')" v-bind="def('rankings.mpnByQty')" />
         <el-table :data="rankings?.mpnByQty ?? []" size="small" stripe>
           <el-table-column prop="name" :label="tt('rankings.name')" />
           <el-table-column prop="orderCount" :label="tt('rankings.qty')" width="100" />
         </el-table>
       </div>
       <div class="card ranking-panel">
-        <h3 class="section-title">{{ tt('rankings.brandByQuoteCount') }}</h3>
+        <AnalyticsPanelHeader
+          :title="tt('rankings.brandByQuoteCount')"
+          v-bind="def('rankings.brandByQuoteCount')"
+        />
         <el-table :data="rankings?.brandByQuoteCount ?? []" size="small" stripe>
           <el-table-column prop="name" :label="tt('rankings.name')" />
           <el-table-column prop="orderCount" :label="tt('rankings.quoteCount')" width="100" />
         </el-table>
       </div>
       <div class="card ranking-panel">
-        <h3 class="section-title">{{ tt('rankings.brandByQty') }}</h3>
+        <AnalyticsPanelHeader :title="tt('rankings.brandByQty')" v-bind="def('rankings.brandByQty')" />
         <el-table :data="rankings?.brandByQty ?? []" size="small" stripe>
           <el-table-column prop="name" :label="tt('rankings.name')" />
           <el-table-column prop="orderCount" :label="tt('rankings.qty')" width="100" />

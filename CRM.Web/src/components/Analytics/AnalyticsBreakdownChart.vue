@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
 import type { SalesAnalyticsBreakdownItem } from '@/api/analytics/sales'
+import AnalyticsDefinitionButton from './AnalyticsDefinitionButton.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -27,8 +27,6 @@ const emit = defineEmits<{
   detail: []
 }>()
 
-const { t } = useI18n()
-
 function formatValue(v: number): string {
   if (props.valueFormat === 'money') {
     // 看板金额分解值为折算美金（如 convert_total），与趋势图 money 一致
@@ -49,32 +47,13 @@ function formatRatio(ratio: number): string {
       <div v-if="unitCaption || showDefinition || showDetail" class="title-right">
         <span v-if="unitCaption" class="unit-caption">{{ unitCaption }}</span>
         <div v-if="showDefinition || showDetail" class="title-actions">
-          <el-popover
+          <AnalyticsDefinitionButton
             v-if="showDefinition"
-            placement="bottom-end"
-            :width="360"
-            trigger="click"
-          >
-            <template #reference>
-              <el-button link type="primary" size="small" class="action-btn">
-                {{ definitionLabel || '口径' }}
-              </el-button>
-            </template>
-            <div class="definition-tip">
-              <div v-if="definitionChart" class="definition-tip__row">
-                <span class="definition-tip__label">{{ t('salesAnalytics.definitionTip.chart') }}</span>
-                <span>{{ definitionChart }}</span>
-              </div>
-              <div v-if="definitionDataSource" class="definition-tip__row">
-                <span class="definition-tip__label">{{ t('salesAnalytics.definitionTip.dataSource') }}</span>
-                <span>{{ definitionDataSource }}</span>
-              </div>
-              <div v-if="definitionText" class="definition-tip__row">
-                <span class="definition-tip__label">{{ t('salesAnalytics.definitionTip.definition') }}</span>
-                <span>{{ definitionText }}</span>
-              </div>
-            </div>
-          </el-popover>
+            :label="definitionLabel"
+            :chart="definitionChart"
+            :data-source="definitionDataSource"
+            :text="definitionText"
+          />
           <el-button
             v-if="showDetail"
             link

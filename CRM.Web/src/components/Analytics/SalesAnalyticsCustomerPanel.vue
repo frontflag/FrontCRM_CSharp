@@ -5,6 +5,8 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import AnalyticsKpiGrid from '@/components/Analytics/AnalyticsKpiGrid.vue'
 import AnalyticsBreakdownPieChart from '@/components/Analytics/AnalyticsBreakdownPieChart.vue'
+import AnalyticsPanelHeader from '@/components/Analytics/AnalyticsPanelHeader.vue'
+import { useAnalyticsDefinition } from '@/composables/useAnalyticsDefinition'
 import {
   salesAnalyticsApi,
   type SalesAnalyticsBreakdownGroup,
@@ -40,6 +42,7 @@ const props = withDefaults(
 )
 
 const { t } = useI18n()
+const { def } = useAnalyticsDefinition('salesAnalytics')
 const router = useRouter()
 const authStore = useAuthStore()
 const customerDict = useCustomerDictStore()
@@ -66,12 +69,14 @@ const kpiItems = computed(() => {
     {
       key: 'approvedCustomers',
       label: t('salesAnalytics.customerTab.kpi.approvedCustomers'),
-      value: String(s.approvedCustomerCount)
+      value: String(s.approvedCustomerCount),
+      ...def('customer.approvedCustomers')
     },
     {
       key: 'repeatCustomers',
       label: t('salesAnalytics.customerTab.kpi.repeatCustomers'),
-      value: String(s.repeatCustomerCount)
+      value: String(s.repeatCustomerCount),
+      ...def('customer.repeatCustomers')
     }
   ]
 })
@@ -124,6 +129,10 @@ function breakdownTitle(group: SalesAnalyticsBreakdownGroup): string {
 
 function breakdownValueFormat(): 'money' | 'number' {
   return maskAmounts.value ? 'number' : 'money'
+}
+
+function breakdownDefinition(groupKey: string) {
+  return def(`customer.${groupKey}`)
 }
 
 function localizedItems(group: SalesAnalyticsBreakdownGroup) {
@@ -235,16 +244,18 @@ defineExpose({ reload: loadData })
               ? t('salesAnalytics.trendUnit.moneyCaption')
               : undefined
           "
+          v-bind="breakdownDefinition(group.groupKey)"
         />
       </div>
     </div>
 
     <div class="rankings-row">
       <div class="card ranking-panel">
-        <div class="section-title-row">
-          <h3 class="section-title">{{ t('salesAnalytics.customerTab.rankings.byAmount') }}</h3>
-          <span v-if="!maskAmounts" class="unit-caption">{{ t('salesAnalytics.trendUnit.moneyCaption') }}</span>
-        </div>
+        <AnalyticsPanelHeader
+          :title="t('salesAnalytics.customerTab.rankings.byAmount')"
+          :unit-caption="maskAmounts ? undefined : t('salesAnalytics.trendUnit.moneyCaption')"
+          v-bind="def('customer.byAmount')"
+        />
         <el-table
           :data="data?.rankings.customerByAmount ?? []"
           size="small"
@@ -260,10 +271,11 @@ defineExpose({ reload: loadData })
         </el-table>
       </div>
       <div class="card ranking-panel">
-        <div class="section-title-row">
-          <h3 class="section-title">{{ t('salesAnalytics.customerTab.rankings.byOrderCount') }}</h3>
-          <span v-if="!maskAmounts" class="unit-caption">{{ t('salesAnalytics.trendUnit.moneyCaption') }}</span>
-        </div>
+        <AnalyticsPanelHeader
+          :title="t('salesAnalytics.customerTab.rankings.byOrderCount')"
+          :unit-caption="maskAmounts ? undefined : t('salesAnalytics.trendUnit.moneyCaption')"
+          v-bind="def('customer.byOrderCount')"
+        />
         <el-table
           :data="data?.rankings.customerByOrderCount ?? []"
           size="small"
@@ -279,10 +291,11 @@ defineExpose({ reload: loadData })
         </el-table>
       </div>
       <div class="card ranking-panel">
-        <div class="section-title-row">
-          <h3 class="section-title">{{ t('salesAnalytics.customerTab.rankings.byRepeat') }}</h3>
-          <span v-if="!maskAmounts" class="unit-caption">{{ t('salesAnalytics.trendUnit.moneyCaption') }}</span>
-        </div>
+        <AnalyticsPanelHeader
+          :title="t('salesAnalytics.customerTab.rankings.byRepeat')"
+          :unit-caption="maskAmounts ? undefined : t('salesAnalytics.trendUnit.moneyCaption')"
+          v-bind="def('customer.byRepeat')"
+        />
         <el-table
           :data="data?.rankings.customerByRepeatOrderCount ?? []"
           size="small"

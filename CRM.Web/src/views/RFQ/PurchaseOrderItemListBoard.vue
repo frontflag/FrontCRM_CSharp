@@ -6,6 +6,8 @@ import AnalyticsKpiGrid from '@/components/Analytics/AnalyticsKpiGrid.vue'
 import AnalyticsTrendChart from '@/components/Analytics/AnalyticsTrendChart.vue'
 import AnalyticsBreakdownChart from '@/components/Analytics/AnalyticsBreakdownChart.vue'
 import AnalyticsBreakdownPieChart from '@/components/Analytics/AnalyticsBreakdownPieChart.vue'
+import AnalyticsPanelHeader from '@/components/Analytics/AnalyticsPanelHeader.vue'
+import { useAnalyticsDefinition } from '@/composables/useAnalyticsDefinition'
 import {
   purchaseOrderItemListAnalyticsApi,
   type PurchaseOrderItemListAnalyticsDashboard,
@@ -34,6 +36,7 @@ const props = withDefaults(
 )
 
 const { t } = useI18n()
+const { def } = useAnalyticsDefinition('purchaseOrderItemList.board')
 
 const loading = ref(false)
 const groupBy = ref<'day' | 'week' | 'month'>('month')
@@ -145,17 +148,20 @@ const orderKpiItems = computed(() => {
     {
       key: 'approvedVendors',
       label: tt('kpi.approvedVendors'),
-      value: String(s.approvedVendorCount)
+      value: String(s.approvedVendorCount),
+      ...def('kpi.approvedVendors')
     },
     {
       key: 'approvedOrders',
       label: tt('kpi.approvedOrders'),
-      value: String(s.approvedOrderCount)
+      value: String(s.approvedOrderCount),
+      ...def('kpi.approvedOrders')
     },
     {
       key: 'approvedLines',
       label: tt('kpi.approvedLines'),
-      value: String(s.approvedLineCount)
+      value: String(s.approvedLineCount),
+      ...def('kpi.approvedLines')
     },
     {
       key: 'approvedAmount',
@@ -165,7 +171,8 @@ const orderKpiItems = computed(() => {
       layout: 'split' as const,
       valueCaption: maskAmounts.value ? undefined : tt('kpi.usdCaption'),
       currencyCaption: currencyItems.length ? tt('kpi.originalCaption') : undefined,
-      currencyItems: currencyItems.length ? currencyItems : undefined
+      currencyItems: currencyItems.length ? currencyItems : undefined,
+      ...def('kpi.approvedAmount')
     }
   ]
 })
@@ -177,23 +184,27 @@ const inStockKpiItems = computed(() => {
     {
       key: 'inStockVendors',
       label: tt('kpi.inStockVendors'),
-      value: String(s.inStockVendorCount)
+      value: String(s.inStockVendorCount),
+      ...def('kpi.inStockVendors')
     },
     {
       key: 'inStockLines',
       label: tt('kpi.inStockLines'),
-      value: String(s.inStockLineCount)
+      value: String(s.inStockLineCount),
+      ...def('kpi.inStockLines')
     },
     {
       key: 'inStockAmount',
       label: tt('kpi.inStockAmount'),
       value: maskAmounts.value ? '—' : formatMoney(s.inStockAmountUsd),
-      valueFormat: 'money' as const
+      valueFormat: 'money' as const,
+      ...def('kpi.inStockAmount')
     },
     {
       key: 'maxStockAge',
       label: tt('kpi.maxStockAge'),
-      value: formatDays(s.maxStockAgeDays)
+      value: formatDays(s.maxStockAgeDays),
+      ...def('kpi.maxStockAge')
     }
   ]
 })
@@ -213,12 +224,14 @@ const payableKpiItems = computed(() => {
     {
       key: 'payableVendors',
       label: tt('kpi.payableVendors'),
-      value: String(s.payableVendorCount)
+      value: String(s.payableVendorCount),
+      ...def('kpi.payableVendors')
     },
     {
       key: 'payableLines',
       label: tt('kpi.payableLines'),
-      value: String(s.payableLineCount)
+      value: String(s.payableLineCount),
+      ...def('kpi.payableLines')
     },
     {
       key: 'payableAmount',
@@ -228,7 +241,8 @@ const payableKpiItems = computed(() => {
       layout: currencyItems.length ? ('split' as const) : undefined,
       valueCaption: maskAmounts.value ? undefined : tt('kpi.usdCaption'),
       currencyCaption: currencyItems.length ? tt('kpi.originalCaption') : undefined,
-      currencyItems: currencyItems.length ? currencyItems : undefined
+      currencyItems: currencyItems.length ? currencyItems : undefined,
+      ...def('kpi.payableAmount')
     }
   ]
 })
@@ -444,20 +458,20 @@ defineExpose({ reload: () => loadData(true) })
 
     <div v-if="showTrends" class="charts-row">
       <div class="card chart-panel">
-        <h3 class="section-title">{{ tt('sections.trendOrders') }}</h3>
+        <AnalyticsPanelHeader :title="tt('sections.trendOrders')" v-bind="def('trend.orders')" />
         <AnalyticsTrendChart :points="trendOrderPoints" :value-suffix="tt('trendUnit.orders')" />
       </div>
       <div class="card chart-panel">
-        <h3 class="section-title">{{ tt('sections.trendLines') }}</h3>
+        <AnalyticsPanelHeader :title="tt('sections.trendLines')" v-bind="def('trend.lines')" />
         <AnalyticsTrendChart :points="trendLinePoints" :value-suffix="tt('trendUnit.lines')" />
       </div>
       <div class="card chart-panel">
-        <h3 class="section-title">{{ tt('sections.trendAmount') }}</h3>
-        <AnalyticsTrendChart
-          :points="trendAmountPoints"
-          value-format="money"
+        <AnalyticsPanelHeader
+          :title="tt('sections.trendAmount')"
           :unit-caption="tt('trendUnit.moneyCaption')"
+          v-bind="def('trend.amount')"
         />
+        <AnalyticsTrendChart :points="trendAmountPoints" value-format="money" />
       </div>
     </div>
 
@@ -473,6 +487,7 @@ defineExpose({ reload: () => loadData(true) })
               ? tt('trendUnit.moneyCaption')
               : undefined
           "
+          v-bind="def(`breakdown.${group.groupKey}`)"
         />
         <AnalyticsBreakdownChart
           v-else
@@ -484,6 +499,7 @@ defineExpose({ reload: () => loadData(true) })
               ? tt('trendUnit.moneyCaption')
               : undefined
           "
+          v-bind="def(`breakdown.${group.groupKey}`)"
         />
       </div>
     </div>
@@ -499,7 +515,10 @@ defineExpose({ reload: () => loadData(true) })
 
       <div class="rankings-row">
         <div v-for="table in rankingTables" :key="table.key" class="card ranking-panel">
-          <h3 class="section-title">{{ tt(`rankings.${table.titleKey}`) }}</h3>
+          <AnalyticsPanelHeader
+            :title="tt(`rankings.${table.titleKey}`)"
+            v-bind="def(`rankings.${table.titleKey}`)"
+          />
           <el-table :data="rankingRowsFor(table)" size="small" stripe class="ranking-table">
             <el-table-column
               prop="name"

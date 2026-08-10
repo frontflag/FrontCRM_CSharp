@@ -6,6 +6,8 @@ import AnalyticsKpiGrid from '@/components/Analytics/AnalyticsKpiGrid.vue'
 import AnalyticsTrendChart from '@/components/Analytics/AnalyticsTrendChart.vue'
 import AnalyticsBreakdownChart from '@/components/Analytics/AnalyticsBreakdownChart.vue'
 import AnalyticsBreakdownPieChart from '@/components/Analytics/AnalyticsBreakdownPieChart.vue'
+import AnalyticsPanelHeader from '@/components/Analytics/AnalyticsPanelHeader.vue'
+import { useAnalyticsDefinition } from '@/composables/useAnalyticsDefinition'
 import {
   rfqItemListAnalyticsApi,
   type RfqItemListAnalyticsQuery,
@@ -33,6 +35,7 @@ const props = withDefaults(
 )
 
 const { t } = useI18n()
+const { def } = useAnalyticsDefinition('rfqItemList.board')
 
 const loading = ref(false)
 const groupBy = ref<'day' | 'week' | 'month'>('month')
@@ -65,37 +68,44 @@ const kpiItems = computed(() => {
     {
       key: 'publishedCustomers',
       label: tt('kpi.publishedCustomers'),
-      value: String(s.publishedCustomerCount)
+      value: String(s.publishedCustomerCount),
+      ...def('kpi.publishedCustomers')
     },
     {
       key: 'repeatCustomers',
       label: tt('kpi.repeatCustomers'),
-      value: String(s.repeatInquiryCustomerCount)
+      value: String(s.repeatInquiryCustomerCount),
+      ...def('kpi.repeatCustomers')
     },
     {
       key: 'repeatRfqs',
       label: tt('kpi.repeatRfqs'),
-      value: String(s.repeatInquiryRfqCount)
+      value: String(s.repeatInquiryRfqCount),
+      ...def('kpi.repeatRfqs')
     },
     {
       key: 'rfqCount',
       label: tt('kpi.rfqCount'),
-      value: String(s.rfqCount)
+      value: String(s.rfqCount),
+      ...def('kpi.rfqCount')
     },
     {
       key: 'rfqItemCount',
       label: tt('kpi.rfqItemCount'),
-      value: String(s.rfqItemCount)
+      value: String(s.rfqItemCount),
+      ...def('kpi.rfqItemCount')
     },
     {
       key: 'convertedLines',
       label: tt('kpi.convertedLines'),
-      value: String(s.convertedLineCount)
+      value: String(s.convertedLineCount),
+      ...def('kpi.convertedLines')
     },
     {
       key: 'conversionRate',
       label: tt('kpi.conversionRate'),
-      value: formatRate(s.conversionRate)
+      value: formatRate(s.conversionRate),
+      ...def('kpi.conversionRate')
     }
   ]
 })
@@ -318,15 +328,15 @@ defineExpose({ reload: () => loadData(true) })
 
     <div v-if="showTrends" class="charts-row">
       <div class="card chart-panel">
-        <h3 class="section-title">{{ tt('sections.trendCustomers') }}</h3>
+        <AnalyticsPanelHeader :title="tt('sections.trendCustomers')" v-bind="def('trend.customers')" />
         <AnalyticsTrendChart :points="trendCustomerPoints" :value-suffix="tt('trendUnit.customers')" />
       </div>
       <div class="card chart-panel">
-        <h3 class="section-title">{{ tt('sections.trendRfqs') }}</h3>
+        <AnalyticsPanelHeader :title="tt('sections.trendRfqs')" v-bind="def('trend.rfqs')" />
         <AnalyticsTrendChart :points="trendRfqPoints" :value-suffix="tt('trendUnit.rfqs')" />
       </div>
       <div class="card chart-panel">
-        <h3 class="section-title">{{ tt('sections.trendItems') }}</h3>
+        <AnalyticsPanelHeader :title="tt('sections.trendItems')" v-bind="def('trend.items')" />
         <AnalyticsTrendChart :points="trendItemPoints" :value-suffix="tt('trendUnit.items')" />
       </div>
     </div>
@@ -338,53 +348,67 @@ defineExpose({ reload: () => loadData(true) })
           :title="breakdownTitle(group)"
           :items="localizedBreakdownItems(group)"
           value-format="number"
+          v-bind="def(`breakdown.${group.groupKey}`)"
         />
         <AnalyticsBreakdownChart
           v-else
           :title="breakdownTitle(group)"
           :items="localizedBreakdownItems(group)"
+          v-bind="def(`breakdown.${group.groupKey}`)"
         />
       </div>
     </div>
 
     <div class="rankings-row">
       <div class="card ranking-panel">
-        <h3 class="section-title">{{ tt('rankings.customerByLineCount') }}</h3>
+        <AnalyticsPanelHeader
+          :title="tt('rankings.customerByLineCount')"
+          v-bind="def('rankings.customerByLineCount')"
+        />
         <el-table :data="rankings?.customerByLineCount ?? []" size="small" stripe>
           <el-table-column prop="name" :label="tt('rankings.name')" />
           <el-table-column prop="orderCount" :label="tt('rankings.lineCount')" width="100" />
         </el-table>
       </div>
       <div class="card ranking-panel">
-        <h3 class="section-title">{{ tt('rankings.salesUserByLineCount') }}</h3>
+        <AnalyticsPanelHeader
+          :title="tt('rankings.salesUserByLineCount')"
+          v-bind="def('rankings.salesUserByLineCount')"
+        />
         <el-table :data="rankings?.salesUserByLineCount ?? []" size="small" stripe>
           <el-table-column prop="name" :label="tt('rankings.name')" />
           <el-table-column prop="orderCount" :label="tt('rankings.lineCount')" width="100" />
         </el-table>
       </div>
       <div class="card ranking-panel">
-        <h3 class="section-title">{{ tt('rankings.mpnByLineCount') }}</h3>
+        <AnalyticsPanelHeader
+          :title="tt('rankings.mpnByLineCount')"
+          v-bind="def('rankings.mpnByLineCount')"
+        />
         <el-table :data="rankings?.mpnByLineCount ?? []" size="small" stripe>
           <el-table-column prop="name" :label="tt('rankings.name')" />
           <el-table-column prop="orderCount" :label="tt('rankings.lineCount')" width="100" />
         </el-table>
       </div>
       <div class="card ranking-panel">
-        <h3 class="section-title">{{ tt('rankings.mpnByQty') }}</h3>
+        <AnalyticsPanelHeader :title="tt('rankings.mpnByQty')" v-bind="def('rankings.mpnByQty')" />
         <el-table :data="rankings?.mpnByQty ?? []" size="small" stripe>
           <el-table-column prop="name" :label="tt('rankings.name')" />
           <el-table-column prop="orderCount" :label="tt('rankings.qty')" width="100" />
         </el-table>
       </div>
       <div class="card ranking-panel">
-        <h3 class="section-title">{{ tt('rankings.brandByLineCount') }}</h3>
+        <AnalyticsPanelHeader
+          :title="tt('rankings.brandByLineCount')"
+          v-bind="def('rankings.brandByLineCount')"
+        />
         <el-table :data="rankings?.brandByLineCount ?? []" size="small" stripe>
           <el-table-column prop="name" :label="tt('rankings.name')" />
           <el-table-column prop="orderCount" :label="tt('rankings.lineCount')" width="100" />
         </el-table>
       </div>
       <div class="card ranking-panel">
-        <h3 class="section-title">{{ tt('rankings.brandByQty') }}</h3>
+        <AnalyticsPanelHeader :title="tt('rankings.brandByQty')" v-bind="def('rankings.brandByQty')" />
         <el-table :data="rankings?.brandByQty ?? []" size="small" stripe>
           <el-table-column prop="name" :label="tt('rankings.name')" />
           <el-table-column prop="orderCount" :label="tt('rankings.qty')" width="100" />

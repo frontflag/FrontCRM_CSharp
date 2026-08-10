@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import type { SalesAnalyticsBreakdownItem } from '@/api/analytics/sales'
 import { listAmountCurrencyDockClass } from '@/utils/moneyFormat'
+import AnalyticsDefinitionButton from './AnalyticsDefinitionButton.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -15,8 +16,13 @@ const props = withDefaults(
     valueFormat?: 'money' | 'number' | 'originalCurrency'
     /** 标题行右侧单位说明 */
     unitCaption?: string
+    showDefinition?: boolean
+    definitionLabel?: string
+    definitionChart?: string
+    definitionDataSource?: string
+    definitionText?: string
   }>(),
-  { valueFormat: 'number' }
+  { valueFormat: 'number', showDefinition: false }
 )
 
 const palette = [
@@ -88,7 +94,16 @@ const pieStyle = computed(() => {
   <div class="pie-chart">
     <div class="title-row">
       <h4 class="title">{{ title }}</h4>
-      <span v-if="unitCaption" class="unit-caption">{{ unitCaption }}</span>
+      <div v-if="unitCaption || showDefinition" class="title-right">
+        <span v-if="unitCaption" class="unit-caption">{{ unitCaption }}</span>
+        <AnalyticsDefinitionButton
+          v-if="showDefinition"
+          :label="definitionLabel"
+          :chart="definitionChart"
+          :data-source="definitionDataSource"
+          :text="definitionText"
+        />
+      </div>
     </div>
     <div v-if="sortedItems.length === 0" class="empty">—</div>
     <div v-else class="body">
@@ -129,6 +144,13 @@ const pieStyle = computed(() => {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
+}
+
+.title-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .unit-caption {

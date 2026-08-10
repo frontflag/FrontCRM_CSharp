@@ -8,6 +8,9 @@ import AnalyticsScopeTabs from '@/components/Analytics/AnalyticsScopeTabs.vue'
 import AnalyticsKpiGrid from '@/components/Analytics/AnalyticsKpiGrid.vue'
 import AnalyticsTrendChart from '@/components/Analytics/AnalyticsTrendChart.vue'
 import AnalyticsBreakdownPieChart from '@/components/Analytics/AnalyticsBreakdownPieChart.vue'
+import AnalyticsDefinitionButton from '@/components/Analytics/AnalyticsDefinitionButton.vue'
+import AnalyticsPanelHeader from '@/components/Analytics/AnalyticsPanelHeader.vue'
+import { useAnalyticsDefinition } from '@/composables/useAnalyticsDefinition'
 import {
   financeAnalyticsApi,
   type FinanceAnalyticsBreakdownGroup,
@@ -26,8 +29,10 @@ import {
 } from '@/utils/financeAnalyticsDrill'
 
 const { t } = useI18n()
+const { def } = useAnalyticsDefinition('financeAnalytics')
 const router = useRouter()
 const authStore = useAuthStore()
+const currencyBreakdownDef = computed(() => def('breakdown.currency'))
 
 const loading = ref(false)
 const viewLevel = ref<FinanceAnalyticsViewLevel>('company')
@@ -154,7 +159,8 @@ const todoKpis = computed(() => {
       ...moneyKpiFields(todo.payableAmount),
       valueFormat: 'money' as const,
       tone: 'todo' as const,
-      drillable: isTodoDrillable('payable', maskAmounts.value) && authStore.hasPermission('finance-payment.read')
+      drillable: isTodoDrillable('payable', maskAmounts.value) && authStore.hasPermission('finance-payment.read'),
+      ...def('todo.payable')
     },
     {
       key: 'receivable',
@@ -162,7 +168,8 @@ const todoKpis = computed(() => {
       ...moneyKpiFields(todo.receivableAmount),
       valueFormat: 'money' as const,
       tone: 'todo' as const,
-      drillable: isTodoDrillable('receivable', maskAmounts.value) && authStore.hasPermission('finance-receipt.read')
+      drillable: isTodoDrillable('receivable', maskAmounts.value) && authStore.hasPermission('finance-receipt.read'),
+      ...def('todo.receivable')
     },
     {
       key: 'pendingPurchaseInvoice',
@@ -172,7 +179,8 @@ const todoKpis = computed(() => {
       tone: 'todo' as const,
       drillable:
         isTodoDrillable('pendingPurchaseInvoice', maskAmounts.value) &&
-        authStore.hasPermission('finance-purchase-invoice.read')
+        authStore.hasPermission('finance-purchase-invoice.read'),
+      ...def('todo.pendingPurchaseInvoice')
     },
     {
       key: 'pendingSellInvoice',
@@ -182,7 +190,8 @@ const todoKpis = computed(() => {
       tone: 'todo' as const,
       drillable:
         isTodoDrillable('pendingSellInvoice', maskAmounts.value) &&
-        authStore.hasPermission('finance-sell-invoice.read')
+        authStore.hasPermission('finance-sell-invoice.read'),
+      ...def('todo.pendingSellInvoice')
     }
   ]
 })
@@ -196,14 +205,16 @@ const completedKpis = computed(() => {
       label: t('financeAnalytics.kpi.paidAmount'),
       ...moneyKpiFields(c.paidAmount),
       valueFormat: 'money' as const,
-      drillable: isCompletedDrillable('paid', maskAmounts.value) && authStore.hasPermission('finance-payment.read')
+      drillable: isCompletedDrillable('paid', maskAmounts.value) && authStore.hasPermission('finance-payment.read'),
+      ...def('completed.paid')
     },
     {
       key: 'received',
       label: t('financeAnalytics.kpi.receivedAmount'),
       ...moneyKpiFields(c.receivedAmount),
       valueFormat: 'money' as const,
-      drillable: isCompletedDrillable('received', maskAmounts.value) && authStore.hasPermission('finance-receipt.read')
+      drillable: isCompletedDrillable('received', maskAmounts.value) && authStore.hasPermission('finance-receipt.read'),
+      ...def('completed.received')
     },
     {
       key: 'issuedPurchaseInvoice',
@@ -212,7 +223,8 @@ const completedKpis = computed(() => {
       valueFormat: 'money' as const,
       drillable:
         isCompletedDrillable('issuedPurchaseInvoice', maskAmounts.value) &&
-        authStore.hasPermission('finance-purchase-invoice.read')
+        authStore.hasPermission('finance-purchase-invoice.read'),
+      ...def('completed.issuedPurchaseInvoice')
     },
     {
       key: 'issuedSellInvoice',
@@ -221,7 +233,8 @@ const completedKpis = computed(() => {
       valueFormat: 'money' as const,
       drillable:
         isCompletedDrillable('issuedSellInvoice', maskAmounts.value) &&
-        authStore.hasPermission('finance-sell-invoice.read')
+        authStore.hasPermission('finance-sell-invoice.read'),
+      ...def('completed.issuedSellInvoice')
     }
   ]
 })
@@ -364,20 +377,20 @@ watch([viewLevel, departmentId, ownerUserId, asOfDate, trendDateRange, groupBy],
 
     <div class="charts-row">
       <div class="card chart-panel">
-        <h3 class="section-title">{{ t('financeAnalytics.sections.trendPaid') }}</h3>
-        <AnalyticsTrendChart
-          :points="trendPaidPoints"
-          value-format="money"
+        <AnalyticsPanelHeader
+          :title="t('financeAnalytics.sections.trendPaid')"
           :unit-caption="t('financeAnalytics.trendUnit.moneyCaption')"
+          v-bind="def('trend.paid')"
         />
+        <AnalyticsTrendChart :points="trendPaidPoints" value-format="money" />
       </div>
       <div class="card chart-panel">
-        <h3 class="section-title">{{ t('financeAnalytics.sections.trendReceived') }}</h3>
-        <AnalyticsTrendChart
-          :points="trendReceivedPoints"
-          value-format="money"
+        <AnalyticsPanelHeader
+          :title="t('financeAnalytics.sections.trendReceived')"
           :unit-caption="t('financeAnalytics.trendUnit.moneyCaption')"
+          v-bind="def('trend.received')"
         />
+        <AnalyticsTrendChart :points="trendReceivedPoints" value-format="money" />
       </div>
     </div>
 
@@ -385,14 +398,22 @@ watch([viewLevel, departmentId, ownerUserId, asOfDate, trendDateRange, groupBy],
       <div class="card chart-panel breakdown-panel">
         <div class="breakdown-header">
           <h3 class="section-title">{{ t('financeAnalytics.sections.currencyBreakdown') }}</h3>
-          <el-select v-model="breakdownMetric" style="width: 220px">
-            <el-option
-              v-for="opt in breakdownMetricOptions"
-              :key="opt.value"
-              :label="opt.label"
-              :value="opt.value"
+          <div class="breakdown-header-right">
+            <el-select v-model="breakdownMetric" style="width: 220px">
+              <el-option
+                v-for="opt in breakdownMetricOptions"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
+              />
+            </el-select>
+            <AnalyticsDefinitionButton
+              tip-kind="chart"
+              :chart="currencyBreakdownDef.definitionChart"
+              :data-source="currencyBreakdownDef.definitionDataSource"
+              :text="currencyBreakdownDef.definitionText"
             />
-          </el-select>
+          </div>
         </div>
         <AnalyticsBreakdownPieChart
           v-if="activeBreakdown && activeBreakdown.items.length"
@@ -505,6 +526,13 @@ watch([viewLevel, departmentId, ownerUserId, asOfDate, trendDateRange, groupBy],
   .section-title {
     margin-bottom: 0;
   }
+}
+
+.breakdown-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .empty-hint {

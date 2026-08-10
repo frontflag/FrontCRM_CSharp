@@ -5,6 +5,8 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import AnalyticsKpiGrid from '@/components/Analytics/AnalyticsKpiGrid.vue'
 import AnalyticsBreakdownPieChart from '@/components/Analytics/AnalyticsBreakdownPieChart.vue'
+import AnalyticsPanelHeader from '@/components/Analytics/AnalyticsPanelHeader.vue'
+import { useAnalyticsDefinition } from '@/composables/useAnalyticsDefinition'
 import {
   purchaseAnalyticsApi,
   type PurchaseAnalyticsBreakdownGroup,
@@ -38,6 +40,7 @@ const props = withDefaults(
 )
 
 const { t } = useI18n()
+const { def } = useAnalyticsDefinition('purchaseAnalytics')
 const router = useRouter()
 const authStore = useAuthStore()
 const vendorDict = useVendorDictStore()
@@ -64,12 +67,14 @@ const kpiItems = computed(() => {
     {
       key: 'approvedVendors',
       label: t('purchaseAnalytics.vendorTab.kpi.approvedVendors'),
-      value: String(s.approvedVendorCount)
+      value: String(s.approvedVendorCount),
+      ...def('vendor.approvedVendors')
     },
     {
       key: 'repeatVendors',
       label: t('purchaseAnalytics.vendorTab.kpi.repeatVendors'),
-      value: String(s.repeatVendorCount)
+      value: String(s.repeatVendorCount),
+      ...def('vendor.repeatVendors')
     }
   ]
 })
@@ -122,6 +127,10 @@ function breakdownTitle(group: PurchaseAnalyticsBreakdownGroup): string {
 
 function breakdownValueFormat(): 'money' | 'number' {
   return maskAmounts.value ? 'number' : 'money'
+}
+
+function breakdownDefinition(groupKey: string) {
+  return def(`vendor.${groupKey}`)
 }
 
 function localizedItems(group: PurchaseAnalyticsBreakdownGroup) {
@@ -234,16 +243,18 @@ defineExpose({ reload: loadData })
               ? t('purchaseAnalytics.trendUnit.moneyCaption')
               : undefined
           "
+          v-bind="breakdownDefinition(group.groupKey)"
         />
       </div>
     </div>
 
     <div class="rankings-row">
       <div class="card ranking-panel">
-        <div class="section-title-row">
-          <h3 class="section-title">{{ t('purchaseAnalytics.vendorTab.rankings.byAmount') }}</h3>
-          <span v-if="!maskAmounts" class="unit-caption">{{ t('purchaseAnalytics.trendUnit.moneyCaption') }}</span>
-        </div>
+        <AnalyticsPanelHeader
+          :title="t('purchaseAnalytics.vendorTab.rankings.byAmount')"
+          :unit-caption="maskAmounts ? undefined : t('purchaseAnalytics.trendUnit.moneyCaption')"
+          v-bind="def('vendor.byAmount')"
+        />
         <el-table
           :data="data?.rankings.vendorByAmount ?? []"
           size="small"
@@ -259,10 +270,11 @@ defineExpose({ reload: loadData })
         </el-table>
       </div>
       <div class="card ranking-panel">
-        <div class="section-title-row">
-          <h3 class="section-title">{{ t('purchaseAnalytics.vendorTab.rankings.byOrderCount') }}</h3>
-          <span v-if="!maskAmounts" class="unit-caption">{{ t('purchaseAnalytics.trendUnit.moneyCaption') }}</span>
-        </div>
+        <AnalyticsPanelHeader
+          :title="t('purchaseAnalytics.vendorTab.rankings.byOrderCount')"
+          :unit-caption="maskAmounts ? undefined : t('purchaseAnalytics.trendUnit.moneyCaption')"
+          v-bind="def('vendor.byOrderCount')"
+        />
         <el-table
           :data="data?.rankings.vendorByOrderCount ?? []"
           size="small"
@@ -278,10 +290,11 @@ defineExpose({ reload: loadData })
         </el-table>
       </div>
       <div class="card ranking-panel">
-        <div class="section-title-row">
-          <h3 class="section-title">{{ t('purchaseAnalytics.vendorTab.rankings.byRepeat') }}</h3>
-          <span v-if="!maskAmounts" class="unit-caption">{{ t('purchaseAnalytics.trendUnit.moneyCaption') }}</span>
-        </div>
+        <AnalyticsPanelHeader
+          :title="t('purchaseAnalytics.vendorTab.rankings.byRepeat')"
+          :unit-caption="maskAmounts ? undefined : t('purchaseAnalytics.trendUnit.moneyCaption')"
+          v-bind="def('vendor.byRepeat')"
+        />
         <el-table
           :data="data?.rankings.vendorByRepeatOrderCount ?? []"
           size="small"

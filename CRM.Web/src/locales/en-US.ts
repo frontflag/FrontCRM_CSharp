@@ -1,3 +1,12 @@
+import { salesAnalyticsDefsEn } from './fragments/salesAnalyticsDefs.en-US'
+import { purchaseAnalyticsDefsEn } from './fragments/purchaseAnalyticsDefs.en-US'
+import { logisticsAnalyticsDefsEn } from './fragments/logisticsAnalyticsDefs.en-US'
+import { financeAnalyticsDefsEn } from './fragments/financeAnalyticsDefs.en-US'
+import { rfqItemListBoardDefsEn } from './fragments/rfqItemListBoardDefs.en-US'
+import { salesOrderItemListBoardDefsEn } from './fragments/salesOrderItemListBoardDefs.en-US'
+import { quoteListBoardDefsEn } from './fragments/quoteListBoardDefs.en-US'
+import { purchaseOrderItemListBoardDefsEn } from './fragments/purchaseOrderItemListBoardDefs.en-US'
+
 const enUS = {
   common: {
     chinese: '简体中文',
@@ -1078,6 +1087,7 @@ const enUS = {
       dataSource: 'Source',
       definition: 'Logic'
     },
+    defs: salesAnalyticsDefsEn,
     stockOutProgressDefinition: {
       chart: 'Stock-out progress',
       dataSource: 'Sales order items',
@@ -1348,6 +1358,7 @@ const enUS = {
       hint: 'Click KPIs or rankings to open lists; double-click buyer row at department level',
       noPermission: 'No permission to open the target list'
     },
+    defs: purchaseAnalyticsDefsEn,
     breakdown: {
       currencyByCount: 'Amounts hidden; share by order count'
     },
@@ -1426,6 +1437,7 @@ const enUS = {
     scopeBanner: 'Visible scope: {label}',
     metricHint: 'On-hand KPIs are point-in-time as of date; trends use stock-in date',
     salesPurchaseOnlyHint: 'Filtered by sales/purchase ownership (salesperson or purchaser)',
+    defs: logisticsAnalyticsDefsEn,
     groupBy: { day: 'Daily', week: 'Weekly', month: 'Monthly' },
     unit: {
       days: 'days',
@@ -1609,6 +1621,7 @@ const enUS = {
     receivableHint: 'Receivable todo = shipped ledger balance; differs from sales extend todo',
     completedHint: 'Completed metrics sum activity in the selected date range',
     noBreakdownData: 'No currency breakdown data',
+    defs: financeAnalyticsDefsEn,
     tabs: {
       company: 'Company',
       visibleScope: 'Visible scope',
@@ -2838,7 +2851,8 @@ const enUS = {
         quoteCount: 'Quotes',
         quoteRate: 'Rate',
         qty: 'Qty'
-      }
+      },
+      defs: quoteListBoardDefsEn
     }
   },
   quoteDetail: {
@@ -3031,7 +3045,8 @@ const enUS = {
         name: 'Name',
         lineCount: 'Lines',
         qty: 'Qty'
-      }
+      },
+      defs: rfqItemListBoardDefsEn
     },
     columns: {
       itemStatus: 'Item Status',
@@ -5106,7 +5121,8 @@ const enUS = {
         lineCount: 'Lines',
         qty: 'Qty',
         amount: 'Amount (converted USD)'
-      }
+      },
+      defs: salesOrderItemListBoardDefsEn
     },
     columns: {
       sellOrderItemCode: 'Sales line code',
@@ -5812,7 +5828,8 @@ const enUS = {
         lineCount: 'Lines',
         qty: 'Qty',
         amount: 'Amount (converted USD)'
-      }
+      },
+      defs: purchaseOrderItemListBoardDefsEn
     },
     columns: {
       purchaseOrderItemCode: 'PO line code',

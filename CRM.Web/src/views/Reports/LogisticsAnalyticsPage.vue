@@ -8,6 +8,8 @@ import AnalyticsScopeTabs from '@/components/Analytics/AnalyticsScopeTabs.vue'
 import AnalyticsKpiGrid from '@/components/Analytics/AnalyticsKpiGrid.vue'
 import AnalyticsTrendChart from '@/components/Analytics/AnalyticsTrendChart.vue'
 import AnalyticsBreakdownPieChart from '@/components/Analytics/AnalyticsBreakdownPieChart.vue'
+import AnalyticsPanelHeader from '@/components/Analytics/AnalyticsPanelHeader.vue'
+import { useAnalyticsDefinition } from '@/composables/useAnalyticsDefinition'
 import {
   logisticsAnalyticsApi,
   type LogisticsAnalyticsBreakdownGroup,
@@ -21,6 +23,7 @@ import {
 import { buildPendingStockInDrillRoute, buildStockItemListDrillRoute } from '@/utils/logisticsAnalyticsDrill'
 
 const { t } = useI18n()
+const { def } = useAnalyticsDefinition('logisticsAnalytics')
 const router = useRouter()
 const authStore = useAuthStore()
 
@@ -99,7 +102,8 @@ const todoKpis = computed(() => {
       label: t('logisticsAnalytics.kpi.pendingStockInQty'),
       value: String(todo.pendingStockInQty ?? 0),
       tone: 'todo' as const,
-      drillable: authStore.hasPermission('purchase-order.read')
+      drillable: authStore.hasPermission('purchase-order.read'),
+      ...def('todo.pendingStockInQty')
     }
   ]
 })
@@ -113,7 +117,8 @@ const snapshotKpis = computed(() => {
       key: 'onHandQty',
       label: t('logisticsAnalytics.kpi.onHandQty'),
       value: String(s.onHandQty),
-      drillable: authStore.hasPermission('inventory.read')
+      drillable: authStore.hasPermission('inventory.read'),
+      ...def('snapshot.onHandQty')
     },
     {
       key: 'onHandAmount',
@@ -121,37 +126,44 @@ const snapshotKpis = computed(() => {
       value: formatMoney(s.onHandAmountUsd),
       valueFormat: 'money' as const,
       valueSuffix: t('logisticsAnalytics.kpi.convertedUsdSuffix'),
-      drillable: !maskAmounts.value && authStore.hasPermission('inventory.read')
+      drillable: !maskAmounts.value && authStore.hasPermission('inventory.read'),
+      ...def('snapshot.onHandAmountUsd')
     },
     {
       key: 'avgAge',
       label: t('logisticsAnalytics.kpi.weightedAvgAgeDays'),
-      value: formatAge(s.weightedAvgAgeDays)
+      value: formatAge(s.weightedAvgAgeDays),
+      ...def('snapshot.weightedAvgAgeDays')
     },
     {
       key: 'customerCount',
       label: t('logisticsAnalytics.kpi.customerCount'),
-      value: String(c.customer)
+      value: String(c.customer),
+      ...def('snapshot.customerCount')
     },
     {
       key: 'salespersonCount',
       label: t('logisticsAnalytics.kpi.salespersonCount'),
-      value: String(c.salesperson)
+      value: String(c.salesperson),
+      ...def('snapshot.salespersonCount')
     },
     {
       key: 'vendorCount',
       label: t('logisticsAnalytics.kpi.vendorCount'),
-      value: String(c.vendor)
+      value: String(c.vendor),
+      ...def('snapshot.vendorCount')
     },
     {
       key: 'purchaserCount',
       label: t('logisticsAnalytics.kpi.purchaserCount'),
-      value: String(c.purchaser)
+      value: String(c.purchaser),
+      ...def('snapshot.purchaserCount')
     },
     {
       key: 'brandCount',
       label: t('logisticsAnalytics.kpi.brandCount'),
-      value: String(c.brand)
+      value: String(c.brand),
+      ...def('snapshot.brandCount')
     }
   ]
 })
@@ -378,17 +390,24 @@ watch(matrixSubject, () => void loadMatrix())
           :title="ageBreakdown.groupLabel"
           :items="ageBreakdown.items"
           value-format="number"
+          v-bind="def('breakdown.ageBucket')"
         />
       </div>
       <div class="card chart-panel">
-        <h3 class="section-title">{{ t('logisticsAnalytics.sections.trendStockIn') }}</h3>
+        <AnalyticsPanelHeader
+          :title="t('logisticsAnalytics.sections.trendStockIn')"
+          v-bind="def('trend.stockInQty')"
+        />
         <AnalyticsTrendChart :points="trendStockInPoints" />
       </div>
     </div>
 
     <section class="section card matrix-section" v-loading="matrixLoading">
       <div class="matrix-header">
-        <h3 class="section-title">{{ t('logisticsAnalytics.sections.customerMatrix') }}</h3>
+        <AnalyticsPanelHeader
+          :title="t('logisticsAnalytics.sections.customerMatrix')"
+          v-bind="def('matrix.customer')"
+        />
         <el-radio-group v-model="matrixSubject" size="small">
           <el-radio-button v-for="opt in matrixSubjectOptions" :key="opt.value" :value="opt.value">
             {{ t(opt.labelKey) }}
@@ -445,10 +464,11 @@ watch(matrixSubject, () => void loadMatrix())
 
     <div class="rankings-row">
       <div class="card ranking-panel">
-        <div class="section-title-row">
-          <h3 class="section-title">{{ primaryRankingTitle }}</h3>
-          <span v-if="!maskAmounts" class="unit-caption">{{ t('logisticsAnalytics.unit.moneyCaption') }}</span>
-        </div>
+        <AnalyticsPanelHeader
+          :title="primaryRankingTitle"
+          :unit-caption="maskAmounts ? undefined : t('logisticsAnalytics.unit.moneyCaption')"
+          v-bind="def('rankings.primary')"
+        />
         <el-table
           :data="dashboard?.rankings.primary ?? []"
           size="small"
@@ -573,6 +593,12 @@ watch(matrixSubject, () => void loadMatrix())
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 12px;
+
+  :deep(.panel-header) {
+    margin-bottom: 0;
+    flex: 1;
+    min-width: 200px;
+  }
 }
 
 .matrix-section :deep(th.matrix-col-qty-header .cell) {

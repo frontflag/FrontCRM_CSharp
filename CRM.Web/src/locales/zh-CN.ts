@@ -1,3 +1,12 @@
+import { salesAnalyticsDefsZh } from './fragments/salesAnalyticsDefs.zh-CN'
+import { purchaseAnalyticsDefsZh } from './fragments/purchaseAnalyticsDefs.zh-CN'
+import { logisticsAnalyticsDefsZh } from './fragments/logisticsAnalyticsDefs.zh-CN'
+import { financeAnalyticsDefsZh } from './fragments/financeAnalyticsDefs.zh-CN'
+import { rfqItemListBoardDefsZh } from './fragments/rfqItemListBoardDefs.zh-CN'
+import { salesOrderItemListBoardDefsZh } from './fragments/salesOrderItemListBoardDefs.zh-CN'
+import { quoteListBoardDefsZh } from './fragments/quoteListBoardDefs.zh-CN'
+import { purchaseOrderItemListBoardDefsZh } from './fragments/purchaseOrderItemListBoardDefs.zh-CN'
+
 const zhCN = {
   common: {
     chinese: '简体中文',
@@ -1074,6 +1083,7 @@ const zhCN = {
       dataSource: '数据源',
       definition: '口径说明'
     },
+    defs: salesAnalyticsDefsZh,
     stockOutProgressDefinition: {
       chart: '出库进度',
       dataSource: '销售订单明细',
@@ -1344,6 +1354,7 @@ const zhCN = {
       hint: '可点击 KPI 或排行进入业务列表；部门层排行双击可查看采购员订单',
       noPermission: '无权限访问目标列表'
     },
+    defs: purchaseAnalyticsDefsZh,
     breakdown: {
       currencyByCount: '金额已隐藏，按订单数占比'
     },
@@ -1422,6 +1433,7 @@ const zhCN = {
     scopeBanner: '当前可见：{label}',
     metricHint: '在库 KPI 为截至日的时点存量；趋势按入库日统计流入',
     salesPurchaseOnlyHint: '当前按销/采归属（销售员或采购员）过滤，无公司汇总',
+    defs: logisticsAnalyticsDefsZh,
     groupBy: { day: '按日', week: '按周', month: '按月' },
     unit: {
       days: '天',
@@ -1605,6 +1617,7 @@ const zhCN = {
     receivableHint: '应收 todo 为已出库账上余额，与销售看板 extend 口径不同',
     completedHint: '已完成指标按所选区间内发生额统计',
     noBreakdownData: '暂无币别构成数据',
+    defs: financeAnalyticsDefsZh,
     tabs: {
       company: '公司',
       visibleScope: '可见范围',
@@ -2812,7 +2825,8 @@ const zhCN = {
         quoteCount: '报价条数',
         quoteRate: '报价率',
         qty: '数量'
-      }
+      },
+      defs: quoteListBoardDefsZh
     }
   },
   quoteDetail: {
@@ -3005,7 +3019,8 @@ const zhCN = {
         name: '名称',
         lineCount: '明细数',
         qty: '数量'
-      }
+      },
+      defs: rfqItemListBoardDefsZh
     },
     columns: {
       itemStatus: '明细状态',
@@ -5100,7 +5115,8 @@ const zhCN = {
         lineCount: '明细数',
         qty: '数量',
         amount: '金额（折算USD）'
-      }
+      },
+      defs: salesOrderItemListBoardDefsZh
     },
     columns: {
       sellOrderItemCode: '销售明细编号',
@@ -5796,7 +5812,8 @@ const zhCN = {
         lineCount: '明细数',
         qty: '数量',
         amount: '金额（折算USD）'
-      }
+      },
+      defs: purchaseOrderItemListBoardDefsZh
     },
     columns: {
       purchaseOrderItemCode: '采购明细编号',

@@ -9,7 +9,9 @@ import AnalyticsKpiGrid from '@/components/Analytics/AnalyticsKpiGrid.vue'
 import AnalyticsTrendChart from '@/components/Analytics/AnalyticsTrendChart.vue'
 import AnalyticsBreakdownChart from '@/components/Analytics/AnalyticsBreakdownChart.vue'
 import AnalyticsBreakdownPieChart from '@/components/Analytics/AnalyticsBreakdownPieChart.vue'
+import AnalyticsPanelHeader from '@/components/Analytics/AnalyticsPanelHeader.vue'
 import StockOutProgressDetailDialog from '@/components/Analytics/StockOutProgressDetailDialog.vue'
+import { useAnalyticsDefinition } from '@/composables/useAnalyticsDefinition'
 import SalesAnalyticsCustomerPanel from '@/components/Analytics/SalesAnalyticsCustomerPanel.vue'
 import SalesOrderItemListBoard from '@/views/RFQ/SalesOrderItemListBoard.vue'
 import RfqItemListBoard from '@/views/RFQ/RfqItemListBoard.vue'
@@ -31,6 +33,7 @@ import {
 } from '@/utils/salesAnalyticsDrill'
 
 const { t } = useI18n()
+const { def } = useAnalyticsDefinition('salesAnalytics')
 const router = useRouter()
 const authStore = useAuthStore()
 
@@ -196,30 +199,35 @@ const snapshotKpis = computed(() => {
       key: 'rfqItems',
       label: t('salesAnalytics.kpi.rfqItemCount'),
       value: String(s.rfqItemCount),
-      drillable: isSnapshotDrillable('rfqItems', maskAmounts.value) && authStore.hasPermission('rfq.read')
+      drillable: isSnapshotDrillable('rfqItems', maskAmounts.value) && authStore.hasPermission('rfq.read'),
+      ...def('snapshot.rfqItems')
     },
     {
       key: 'rfqCustomers',
       label: t('salesAnalytics.kpi.rfqCustomerCount'),
       value: String(s.rfqCustomerCount),
-      drillable: isSnapshotDrillable('rfqCustomers', maskAmounts.value) && authStore.hasPermission('rfq.read')
+      drillable: isSnapshotDrillable('rfqCustomers', maskAmounts.value) && authStore.hasPermission('rfq.read'),
+      ...def('snapshot.rfqCustomers')
     },
     {
       key: 'conversion',
       label: t('salesAnalytics.kpi.rfqToSalesConversionRate'),
-      value: formatRate(s.rfqToSalesConversionRate)
+      value: formatRate(s.rfqToSalesConversionRate),
+      ...def('snapshot.conversion')
     },
     {
       key: 'soItems',
       label: t('salesAnalytics.kpi.salesOrderItemCount'),
       value: String(s.salesOrderItemCount),
-      drillable: isSnapshotDrillable('soItems', maskAmounts.value) && authStore.hasPermission('sales-order.read')
+      drillable: isSnapshotDrillable('soItems', maskAmounts.value) && authStore.hasPermission('sales-order.read'),
+      ...def('snapshot.soItems')
     },
     {
       key: 'soCustomers',
       label: t('salesAnalytics.kpi.salesOrderCustomerCount'),
       value: String(s.salesOrderCustomerCount),
-      drillable: isSnapshotDrillable('soCustomers', maskAmounts.value) && authStore.hasPermission('sales-order.read')
+      drillable: isSnapshotDrillable('soCustomers', maskAmounts.value) && authStore.hasPermission('sales-order.read'),
+      ...def('snapshot.soCustomers')
     },
     {
       key: 'amount',
@@ -229,19 +237,22 @@ const snapshotKpis = computed(() => {
         s.salesAmountApproved == null ? undefined : `（${t('salesAnalytics.kpi.usdCaption')}）`,
       valueFormat: 'money' as const,
       forceNewRow: true,
-      drillable: isSnapshotDrillable('amount', maskAmounts.value) && authStore.hasPermission('sales-order.read')
+      drillable: isSnapshotDrillable('amount', maskAmounts.value) && authStore.hasPermission('sales-order.read'),
+      ...def('snapshot.amount')
     },
     {
       key: 'stockOut',
       label: t('salesAnalytics.kpi.salesAmountStockOut'),
       ...snapshotMoneyKpiFields(s.salesAmountStockOut),
-      drillable: isSnapshotDrillable('stockOut', maskAmounts.value) && authStore.hasPermission('sales-order.read')
+      drillable: isSnapshotDrillable('stockOut', maskAmounts.value) && authStore.hasPermission('sales-order.read'),
+      ...def('snapshot.stockOut')
     },
     {
       key: 'received',
       label: t('salesAnalytics.kpi.salesAmountReceived'),
       ...snapshotMoneyKpiFields(s.salesAmountReceived),
-      drillable: isSnapshotDrillable('received', maskAmounts.value) && authStore.hasPermission('sales-order.read')
+      drillable: isSnapshotDrillable('received', maskAmounts.value) && authStore.hasPermission('sales-order.read'),
+      ...def('snapshot.received')
     }
   ]
 })
@@ -356,6 +367,10 @@ function breakdownTitle(group: SalesAnalyticsBreakdownGroup): string {
     return `${group.groupLabel}（${t('salesAnalytics.breakdown.currencyByCount')}）`
   }
   return group.groupLabel
+}
+
+function breakdownDefinition(groupKey: string) {
+  return def(`breakdown.${groupKey}`)
 }
 
 function buildQuery() {
@@ -517,74 +532,80 @@ watch([viewLevel, departmentId, salesUserId, dateRange, groupBy], () => void loa
 
         <div class="charts-row">
           <div class="card chart-panel">
-            <h3 class="section-title">{{ t('salesAnalytics.sections.trendAmount') }}</h3>
-            <AnalyticsTrendChart
-              :points="trendAmountPoints"
-              value-format="money"
+            <AnalyticsPanelHeader
+              :title="t('salesAnalytics.sections.trendAmount')"
               :unit-caption="t('salesAnalytics.trendUnit.moneyCaption')"
+              v-bind="def('trend.amount')"
             />
+            <AnalyticsTrendChart :points="trendAmountPoints" value-format="money" />
           </div>
           <div class="card chart-panel">
-            <h3 class="section-title">{{ t('salesAnalytics.sections.trendStockOut') }}</h3>
-            <AnalyticsTrendChart
-              :points="trendStockOutPoints"
-              value-format="money"
+            <AnalyticsPanelHeader
+              :title="t('salesAnalytics.sections.trendStockOut')"
               :unit-caption="t('salesAnalytics.trendUnit.moneyCaption')"
+              v-bind="def('trend.stockOut')"
             />
+            <AnalyticsTrendChart :points="trendStockOutPoints" value-format="money" />
           </div>
           <div class="card chart-panel">
-            <h3 class="section-title">{{ t('salesAnalytics.sections.trendReceived') }}</h3>
-            <AnalyticsTrendChart
-              :points="trendReceivedPoints"
-              value-format="money"
+            <AnalyticsPanelHeader
+              :title="t('salesAnalytics.sections.trendReceived')"
               :unit-caption="t('salesAnalytics.trendUnit.moneyCaption')"
+              v-bind="def('trend.received')"
             />
+            <AnalyticsTrendChart :points="trendReceivedPoints" value-format="money" />
           </div>
         </div>
 
         <div class="charts-row">
           <div class="card chart-panel">
-            <h3 class="section-title">{{ t('salesAnalytics.sections.trendRfqCustomers') }}</h3>
+            <AnalyticsPanelHeader
+              :title="t('salesAnalytics.sections.trendRfqCustomers')"
+              :unit-caption="t('salesAnalytics.trendUnit.customerCaption')"
+              v-bind="def('trend.rfqCustomers')"
+            />
             <AnalyticsTrendChart
               :points="trendRfqCustomerPoints"
               :value-suffix="t('salesAnalytics.trendUnit.customer')"
-              :unit-caption="t('salesAnalytics.trendUnit.customerCaption')"
             />
           </div>
           <div class="card chart-panel">
-            <h3 class="section-title">{{ t('salesAnalytics.sections.trendSalesCustomers') }}</h3>
+            <AnalyticsPanelHeader
+              :title="t('salesAnalytics.sections.trendSalesCustomers')"
+              :unit-caption="t('salesAnalytics.trendUnit.customerCaption')"
+              v-bind="def('trend.salesCustomers')"
+            />
             <AnalyticsTrendChart
               :points="trendSalesCustomerPoints"
               :value-suffix="t('salesAnalytics.trendUnit.customer')"
-              :unit-caption="t('salesAnalytics.trendUnit.customerCaption')"
             />
           </div>
         </div>
 
         <div class="charts-row">
           <div class="card chart-panel">
-            <h3 class="section-title">{{ t('salesAnalytics.sections.trendRfq') }}</h3>
+            <AnalyticsPanelHeader :title="t('salesAnalytics.sections.trendRfq')" v-bind="def('trend.rfq')" />
             <AnalyticsTrendChart :points="trendRfqPoints" />
           </div>
           <div class="card chart-panel">
-            <h3 class="section-title">{{ t('salesAnalytics.sections.trendItems') }}</h3>
+            <AnalyticsPanelHeader :title="t('salesAnalytics.sections.trendItems')" v-bind="def('trend.items')" />
             <AnalyticsTrendChart :points="trendItemPoints" />
           </div>
           <div class="card chart-panel">
-            <h3 class="section-title">{{ t('salesAnalytics.sections.trendConversion') }}</h3>
-            <AnalyticsTrendChart
-              :points="trendConversionPoints"
-              value-format="percent"
+            <AnalyticsPanelHeader
+              :title="t('salesAnalytics.sections.trendConversion')"
               :unit-caption="t('salesAnalytics.trendUnit.percentCaption')"
+              v-bind="def('trend.conversion')"
             />
+            <AnalyticsTrendChart :points="trendConversionPoints" value-format="percent" />
           </div>
           <div class="card chart-panel">
-            <h3 class="section-title">{{ t('salesAnalytics.sections.trendReceivable') }}</h3>
-            <AnalyticsTrendChart
-              :points="trendReceivablePoints"
-              value-format="money"
+            <AnalyticsPanelHeader
+              :title="t('salesAnalytics.sections.trendReceivable')"
               :unit-caption="t('salesAnalytics.trendUnit.moneyCaption')"
+              v-bind="def('trend.receivable')"
             />
+            <AnalyticsTrendChart :points="trendReceivablePoints" value-format="money" />
           </div>
         </div>
 
@@ -600,6 +621,7 @@ watch([viewLevel, departmentId, salesUserId, dateRange, groupBy], () => void loa
                   ? t('salesAnalytics.trendUnit.moneyCaption')
                   : undefined
               "
+              v-bind="breakdownDefinition(group.groupKey)"
             />
             <AnalyticsBreakdownChart
               v-else
@@ -611,11 +633,7 @@ watch([viewLevel, departmentId, salesUserId, dateRange, groupBy], () => void loa
                   ? t('salesAnalytics.trendUnit.moneyCaption')
                   : undefined
               "
-              :show-definition="group.groupKey === 'stockOutProgress'"
-              :definition-label="t('salesAnalytics.definitionTip.button')"
-              :definition-chart="t('salesAnalytics.stockOutProgressDefinition.chart')"
-              :definition-data-source="t('salesAnalytics.stockOutProgressDefinition.dataSource')"
-              :definition-text="t('salesAnalytics.stockOutProgressDefinition.text')"
+              v-bind="breakdownDefinition(group.groupKey)"
               :show-detail="group.groupKey === 'stockOutProgress'"
               :detail-label="t('salesAnalytics.stockOutProgressDetail.detail')"
               @detail="stockOutDetailVisible = true"
@@ -627,10 +645,11 @@ watch([viewLevel, departmentId, salesUserId, dateRange, groupBy], () => void loa
 
         <div v-if="showOverviewRankings" class="rankings-row">
           <div class="card ranking-panel">
-            <div class="section-title-row">
-              <h3 class="section-title">{{ primaryRankingTitle }}</h3>
-              <span v-if="!maskAmounts" class="unit-caption">{{ t('salesAnalytics.trendUnit.moneyCaption') }}</span>
-            </div>
+            <AnalyticsPanelHeader
+              :title="primaryRankingTitle"
+              :unit-caption="maskAmounts ? undefined : t('salesAnalytics.trendUnit.moneyCaption')"
+              v-bind="def('rankings.primary')"
+            />
             <el-table
               :data="dashboard?.rankings.primary ?? []"
               size="small"
