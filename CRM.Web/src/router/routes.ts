@@ -997,6 +997,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/Ops/TelemetryAnalyticsPage.vue'),
         meta: { requiresAuth: true, title: '埋点分析', permission: 'biz.telemetry.analytics' }
       },
+      {
+        path: 'ops/system-announcements',
+        name: 'SystemAnnouncementList',
+        component: () => import('@/views/Ops/SystemAnnouncementList.vue'),
+        meta: { requiresAuth: true, title: '系统公告', sysAdminOnly: true }
+      },
       // 财务模块（meta.permission 与 RbacService 按主部门剥离一致，防止直链 URL）
       {
         path: 'finance/payments',

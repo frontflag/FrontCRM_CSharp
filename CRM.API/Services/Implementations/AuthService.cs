@@ -171,7 +171,11 @@ namespace CRM.API.Services.Implementations
                 target.Id,
                 target.UserName);
 
-            var token = GenerateJwtToken(target.Email ?? target.UserName, target.UserName, target.Id);
+            var token = GenerateJwtToken(
+                target.Email ?? target.UserName,
+                target.UserName,
+                target.Id,
+                impersonatorUserId: actorUserId);
             var summary = await _rbacService.GetUserPermissionSummaryAsync(target.Id);
             return ApiResponse<AuthResponse>.Ok(new AuthResponse
             {
@@ -180,23 +184,29 @@ namespace CRM.API.Services.Implementations
                 Email = target.Email ?? "",
                 UserId = target.Id,
                 IsSysAdmin = summary.IsSysAdmin,
+                IsImpersonating = true,
                 RoleCodes = summary.RoleCodes,
                 PermissionCodes = summary.PermissionCodes,
                 DepartmentIds = summary.DepartmentIds
             }, "模拟登录成功");
         }
 
-        public string GenerateJwtToken(string email, string userName, string userId)
+        public string GenerateJwtToken(string email, string userName, string userId) =>
+            GenerateJwtToken(email, userName, userId, impersonatorUserId: null);
+
+        public string GenerateJwtToken(string email, string userName, string userId, string? impersonatorUserId)
         {
             var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtSettings.SecretKey));
             var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
-            var claims = new[]
+            var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.Email, email),
                 new Claim(ClaimTypes.Name, userName),
                 new Claim(ClaimTypes.NameIdentifier, userId.ToString())
             };
+            if (!string.IsNullOrWhiteSpace(impersonatorUserId))
+                claims.Add(new Claim(ImpersonationClaimTypes.Impersonator, impersonatorUserId.Trim()));
 
             var token = new JwtSecurityToken(
                 issuer: JwtSettings.Issuer,

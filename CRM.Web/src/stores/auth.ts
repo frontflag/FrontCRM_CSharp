@@ -15,6 +15,8 @@ interface User {
   /** 主部门优先，多部门顿号分隔 */
   department?: string
   isSysAdmin?: boolean
+  /** 管理员模拟登录会话：不弹系统公告、不记已读 */
+  isImpersonating?: boolean
   isSysManager?: boolean
   isBizManager?: boolean
   hasManagementAccess?: boolean
@@ -152,6 +154,7 @@ export const useAuthStore = defineStore('auth', () => {
       userName: authData.userName,
       id: resolvedId,
       isSysAdmin: !!authData.isSysAdmin,
+      isImpersonating: !!authData.isImpersonating,
       roleCodes: authData.roleCodes || [],
       permissionCodes: authData.permissionCodes || [],
       departmentIds: authData.departmentIds || []
@@ -222,7 +225,8 @@ export const useAuthStore = defineStore('auth', () => {
         user.value = applySummaryFields(
           {
             ...userData,
-            id: mergedId
+            id: mergedId,
+            isImpersonating: userData.isImpersonating === true
           },
           summary,
           prevIsSysAdmin

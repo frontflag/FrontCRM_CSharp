@@ -179,6 +179,9 @@ namespace CRM.API.Controllers
                 department = names.Count == 0 ? null : string.Join("、", names);
             }
 
+            var isImpersonating = !string.IsNullOrWhiteSpace(
+                User.FindFirst(CRM.Core.Constants.ImpersonationClaimTypes.Impersonator)?.Value);
+
             return Ok(ApiResponse<object>.Ok(new
             {
                 id = user.Id,
@@ -186,7 +189,8 @@ namespace CRM.API.Controllers
                 email = user.Email ?? string.Empty,
                 realName = user.RealName,
                 mobile = user.Mobile ?? string.Empty,
-                department
+                department,
+                isImpersonating
             }, "获取用户信息成功"));
         }
 

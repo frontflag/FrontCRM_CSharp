@@ -53,6 +53,8 @@ namespace CRM.Infrastructure.Data
         // ===== 新增系统表 =====
         public DbSet<SysSerialNumber> SerialNumbers { get; set; } = null!;
         public DbSet<SysErrorLog> ErrorLogs { get; set; } = null!;
+        public DbSet<SysAnnouncement> SysAnnouncements { get; set; } = null!;
+        public DbSet<SysAnnouncementRead> SysAnnouncementReads { get; set; } = null!;
         public DbSet<TelemetryEvent> TelemetryEvents { get; set; } = null!;
         public DbSet<TelemetryDailyPage> TelemetryDailyPages { get; set; } = null!;
         public DbSet<TelemetryDailyAction> TelemetryDailyActions { get; set; } = null!;
@@ -2548,6 +2550,39 @@ namespace CRM.Infrastructure.Data
                 entity.HasIndex(e => e.CreateTime).HasDatabaseName("ix_user_feedback_create_time");
                 entity.HasIndex(e => new { e.NeedsHandling, e.IsHandled }).HasDatabaseName("ix_user_feedback_handling");
                 entity.HasIndex(e => e.SubmitUserId).HasDatabaseName("ix_user_feedback_submit_user");
+            });
+
+            modelBuilder.Entity<SysAnnouncement>(entity =>
+            {
+                entity.ToTable("sys_announcement");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(36);
+                entity.Property(e => e.Title).HasColumnName("title").HasMaxLength(100);
+                entity.Property(e => e.Type).HasColumnName("type").HasMaxLength(32);
+                entity.Property(e => e.BodyMd).HasColumnName("body_md");
+                entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(16);
+                entity.Property(e => e.PublishedAt).HasColumnName("published_at");
+                entity.Property(e => e.PublishedBy).HasColumnName("published_by").HasMaxLength(36);
+                entity.Property(e => e.CreateTime).HasColumnName("create_time");
+                entity.Property(e => e.CreateBy).HasColumnName("create_by").HasMaxLength(36);
+                entity.Property(e => e.ModifyTime).HasColumnName("modify_time");
+                entity.Property(e => e.ModifyBy).HasColumnName("modify_by").HasMaxLength(36);
+                entity.HasIndex(e => new { e.Status, e.PublishedAt })
+                    .HasDatabaseName("ix_sys_announcement_status_published_at");
+            });
+
+            modelBuilder.Entity<SysAnnouncementRead>(entity =>
+            {
+                entity.ToTable("sys_announcement_read");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(36);
+                entity.Property(e => e.AnnouncementId).HasColumnName("announcement_id").HasMaxLength(36);
+                entity.Property(e => e.UserId).HasColumnName("user_id").HasMaxLength(36);
+                entity.Property(e => e.ReadAt).HasColumnName("read_at");
+                entity.HasIndex(e => new { e.AnnouncementId, e.UserId })
+                    .IsUnique()
+                    .HasDatabaseName("ux_sys_announcement_read_ann_user");
+                entity.HasIndex(e => e.UserId).HasDatabaseName("ix_sys_announcement_read_user_id");
             });
         }
     }

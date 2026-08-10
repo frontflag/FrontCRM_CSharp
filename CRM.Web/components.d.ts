@@ -223,6 +223,8 @@ declare module 'vue' {
     StockOutNotifyDetailTabs: typeof import('./src/components/Inventory/StockOutNotifyDetailTabs.vue')['default']
     StockOutPackingReportDocument: typeof import('./src/components/stockOut/StockOutPackingReportDocument.vue')['default']
     StockOutSearchPanel: typeof import('./src/components/Inventory/StockOutSearchPanel.vue')['default']
+    SystemAnnouncementModal: typeof import('./src/components/SystemAnnouncement/SystemAnnouncementModal.vue')['default']
+    SystemMessageDrawer: typeof import('./src/components/SystemAnnouncement/SystemMessageDrawer.vue')['default']
     TagListDisplay: typeof import('./src/components/Tag/TagListDisplay.vue')['default']
     VendorBankInfoPanel: typeof import('./src/components/Vendor/VendorBankInfoPanel.vue')['default']
     VendorBankSelect: typeof import('./src/components/Vendor/VendorBankSelect.vue')['default']

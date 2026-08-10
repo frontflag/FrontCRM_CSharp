@@ -83,7 +83,7 @@
             type="button"
             class="global-notify-btn"
             :title="t('layout.notifications')"
-            @click="handleUnimplemented(t('layout.notifications'))"
+            @click="openSystemMessages"
           >
             <span class="global-notify-icon-wrap" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -887,10 +887,10 @@
         <!-- 运维管理 -->
         <div
           class="menu-section-label"
-          v-if="!isCollapsed && (hasPermission('biz.feedback.admin') || hasPermission('sys.errorlog.read') || hasPermission('biz.telemetry.analytics'))"
+          v-if="!isCollapsed && (isSysAdmin || hasPermission('biz.feedback.admin') || hasPermission('sys.errorlog.read') || hasPermission('biz.telemetry.analytics'))"
         >{{ t('layout.sections.ops') }}</div>
         <SidebarMenuGroupFlyout
-          v-if="hasPermission('biz.feedback.admin') || hasPermission('sys.errorlog.read') || hasPermission('biz.telemetry.analytics')"
+          v-if="isSysAdmin || hasPermission('biz.feedback.admin') || hasPermission('sys.errorlog.read') || hasPermission('biz.telemetry.analytics')"
           :collapsed="isCollapsed"
           :expanded="openGroups.ops"
           @toggle="toggleGroup('ops')"
@@ -945,6 +945,15 @@
               data-track="menu.ops.telemetry_analytics"
             >
               {{ t('layout.menu.telemetryAnalytics') }}
+            </router-link>
+            <router-link
+              v-if="isSysAdmin"
+              to="/ops/system-announcements"
+              class="submenu-item"
+              active-class="active"
+              data-track="menu.ops.system_announcements"
+            >
+              {{ t('layout.menu.systemAnnouncements') }}
             </router-link>
           </template>
         </SidebarMenuGroupFlyout>
@@ -1561,6 +1570,15 @@
     <!-- /.app-layout-body -->
     <CrmImageBrowser />
     <AiAssistantDrawer v-model="aiAssistantOpen" />
+    <SystemMessageDrawer />
+    <SystemAnnouncementModal
+      v-model="forceAnnouncementOpen"
+      mode="force"
+      :items="forceAnnouncementItems"
+      :total-unread="forceAnnouncementTotalUnread"
+      @closed="onForceAnnouncementClosed"
+      @read="refreshAnnouncementUnreadBadge"
+    />
   </div>
 </template>
 
@@ -1570,7 +1588,7 @@ import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores'
-import { ElMessageBox, ElNotification } from 'element-plus'
+import { ElMessageBox } from 'element-plus'
 import { useWorkspaceLayout } from '@/composables/useWorkspaceLayout'
 import SidebarMenuGroupFlyout from '@/layouts/components/SidebarMenuGroupFlyout.vue'
 import SidebarMenuTooltipWrap from '@/layouts/components/SidebarMenuTooltipWrap.vue'
@@ -1606,6 +1624,10 @@ import { useQuoteHistoryContextStore } from '@/stores/quoteHistoryContext'
 import HelpManualPanel from '@/components/workspace/HelpManualPanel.vue'
 import CrmImageBrowser from '@/components/Common/CrmImageBrowser.vue'
 import AiAssistantDrawer from '@/components/AiAssistant/AiAssistantDrawer.vue'
+import SystemMessageDrawer from '@/components/SystemAnnouncement/SystemMessageDrawer.vue'
+import SystemAnnouncementModal from '@/components/SystemAnnouncement/SystemAnnouncementModal.vue'
+import { sysAnnouncementsApi, type AnnouncementDetail } from '@/api/sysAnnouncements'
+import { useSystemAnnouncementUi } from '@/composables/useSystemAnnouncementUi'
 import { useImageBrowserStore } from '@/stores/imageBrowser'
 import SalesOrderItemOpsPanel from '@/components/RFQ/SalesOrderItemOpsPanel.vue'
 import SalesOrderItemFlowPanel from '@/components/RFQ/SalesOrderItemFlowPanel.vue'
@@ -2576,6 +2598,66 @@ const toggleCollapse = () => {
 
 const aiAssistantOpen = ref(false)
 
+const {
+  unreadCount: announcementUnreadCount,
+  forceModalToken,
+  openMessageDrawer,
+  setUnreadCount: setAnnouncementUnreadCount
+} = useSystemAnnouncementUi()
+
+const forceAnnouncementOpen = ref(false)
+const forceAnnouncementItems = ref<AnnouncementDetail[]>([])
+const forceAnnouncementTotalUnread = ref(0)
+let forceAnnouncementChecked = false
+
+const headerNotifyCount = computed(() => announcementUnreadCount.value)
+
+function openSystemMessages() {
+  openMessageDrawer('announcements')
+}
+
+async function refreshAnnouncementUnreadBadge() {
+  if (!authStore.isAuthenticated || authStore.user?.isImpersonating) {
+    setAnnouncementUnreadCount(0)
+    return
+  }
+  try {
+    const s = await sysAnnouncementsApi.unreadSummary()
+    setAnnouncementUnreadCount(Number(s?.totalUnread || 0))
+  } catch {
+    /* 角标失败不打断主流程 */
+  }
+}
+
+async function checkForceAnnouncements() {
+  if (!authStore.isAuthenticated || authStore.user?.isImpersonating) {
+    forceAnnouncementOpen.value = false
+    forceAnnouncementItems.value = []
+    setAnnouncementUnreadCount(0)
+    return
+  }
+  try {
+    const preview = await sysAnnouncementsApi.unreadPreview(5)
+    forceAnnouncementTotalUnread.value = Number(preview?.totalUnread || 0)
+    setAnnouncementUnreadCount(forceAnnouncementTotalUnread.value)
+    const items = preview?.items || []
+    if (items.length > 0) {
+      forceAnnouncementItems.value = items
+      forceAnnouncementOpen.value = true
+    }
+  } catch {
+    /* 忽略 */
+  }
+}
+
+function onForceAnnouncementClosed() {
+  void refreshAnnouncementUnreadBadge()
+}
+
+watch(forceModalToken, () => {
+  void checkForceAnnouncements()
+})
+
 const toggleGroup = (group: keyof typeof openGroups.value) => {
   openGroups.value[group] = !openGroups.value[group]
 }
@@ -2583,9 +2665,6 @@ const toggleGroup = (group: keyof typeof openGroups.value) => {
 const userName = computed(() => authStore.user?.userName || '管理员')
 const userEmail = computed(() => authStore.user?.email || '')
 const userInitial = computed(() => (authStore.user?.userName || '管')[0].toUpperCase())
-
-/** 顶栏通知角标数量（后续可对接未读接口） */
-const headerNotifyCount = ref(1)
 
 const pageTitleMap: Record<string, string> = {
   '/dashboard': 'layout.menu.dashboard',
@@ -2619,6 +2698,7 @@ const pageTitleMap: Record<string, string> = {
   '/ops/user-feedback': 'layout.menu.userFeedback',
   '/ops/system-errors': 'layout.menu.systemErrors',
   '/ops/telemetry-analytics': 'layout.menu.telemetryAnalytics',
+  '/ops/system-announcements': 'layout.menu.systemAnnouncements',
   '/system/finance-params/exchange-rates': 'layout.menu.financeParams',
   '/system/finance-params/purchase-cost-params': 'financeParams.purchaseCostParamsNav',
   '/system/finance-params/payment-banks': 'financeParams.paymentBanksNav',
@@ -2851,10 +2931,6 @@ const handleLogout = async () => {
   } catch {
     // 取消操作
   }
-}
-
-const handleUnimplemented = (name: string) => {
-  ElNotification.info({ title: t('layout.underDevelopmentTitle'), message: t('layout.underDevelopmentMessage', { name }) })
 }
 
 const hasPermission = (code: string) => authStore.hasPermission(code)
@@ -3333,7 +3409,26 @@ onMounted(() => {
     tabBarResizeObserver = new ResizeObserver(() => recalcTabOverflow())
     tabBarResizeObserver.observe(tabBarRef.value)
   }
+  if (!forceAnnouncementChecked) {
+    forceAnnouncementChecked = true
+    void checkForceAnnouncements()
+  }
 })
+
+watch(
+  () => [authStore.isAuthenticated, authStore.user?.id, authStore.user?.isImpersonating] as const,
+  ([ok]) => {
+    if (!ok) {
+      forceAnnouncementChecked = false
+      forceAnnouncementOpen.value = false
+      setAnnouncementUnreadCount(0)
+      return
+    }
+    // 登录/模拟切换后重新检查
+    forceAnnouncementChecked = true
+    void checkForceAnnouncements()
+  }
+)
 
 onBeforeUnmount(() => {
   tabBarResizeObserver?.disconnect()

@@ -113,6 +113,7 @@ namespace CRM.Infrastructure.Extensions
             services.AddScoped<IAiEntityParseLogService, AiEntityParseLogService>();
             services.AddScoped<IAiAssistantService, AiAssistantService>();
             services.AddScoped<IUserFeedbackAdminService, UserFeedbackAdminService>();
+            services.AddScoped<ISysAnnouncementService, SysAnnouncementService>();
             services.AddScoped<IRfqMpnPurchaserAffinityLookup, RfqMpnPurchaserAffinityLookup>();
 
             return services;
