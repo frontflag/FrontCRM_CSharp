@@ -890,6 +890,7 @@ import {
 } from '@/constants/purchaseOrderFavorites'
 import {
   purchaseOrderReportAllowed,
+  purchaseOrderAllowsArrivalNotice,
   normalizePurchaseOrderMainStatus
 } from '@/constants/purchaseOrderStatus'
 import { tagApi, type TagDefinitionDto } from '@/api/tag'
@@ -1637,6 +1638,7 @@ function poDetailLineToListShape(it: any) {
     vendorEnglishName: o.vendorEnglishName,
     purchaseUserName: o.purchaseUserName,
     itemStatus: Number(it.status ?? it.Status ?? 0),
+    orderStatus: Number(o.status ?? o.Status ?? 0),
     pn: it.pn ?? it.PN,
     brand: it.brand ?? it.Brand,
     qty,
@@ -1674,7 +1676,7 @@ function syncOpsPanelFromLinePanel(row: Record<string, unknown>, error = '') {
 
 function poLineShowArrival(row: any) {
   const line = poDetailLineToListShape(row)
-  return !!(line && canWritePo.value && canCreateArrivalNotice.value && line.itemStatus === 30)
+  return !!(line && canWritePo.value && canCreateArrivalNotice.value && purchaseOrderAllowsArrivalNotice(line))
 }
 
 function poLineShowPayment(row: any) {

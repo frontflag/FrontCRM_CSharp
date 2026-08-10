@@ -3084,6 +3084,22 @@ namespace CRM.Core.Services
             if (!guard.CanDelete)
                 throw new ArgumentException(guard.Message);
 
+            // 软删前收集销售行，供扩展重算（装箱关联行可能仅挂在 packingitem 上）
+            var sellLineIdsToRecalc = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (!string.IsNullOrWhiteSpace(entity.SalesOrderItemId))
+                sellLineIdsToRecalc.Add(entity.SalesOrderItemId.Trim());
+            var packingLines = (await _packingItemRepository.FindAsync(pi =>
+                    !pi.IsDeleted
+                    && pi.StockOutNotifyId != null
+                    && pi.StockOutNotifyId == entity.Id))
+                .ToList();
+            foreach (var pi in packingLines)
+            {
+                var sid = pi.SellOrderItemId?.Trim();
+                if (!string.IsNullOrEmpty(sid))
+                    sellLineIdsToRecalc.Add(sid);
+            }
+
             if (StockOutTypeCode.NormalizeForNotify(entity.StockOutType) == StockOutTypeCode.Customs)
             {
                 await _customsPendlistService.RevertPendlistOnCustomsOutNotifyDeleteAsync(
@@ -3098,6 +3114,25 @@ namespace CRM.Core.Services
 
             await _stockOutRequestRepository.DeleteAsync(entity.Id);
             await _unitOfWork.SaveChangesAsync();
+
+            // 与创建出库通知对称：软删后重算销售行扩展，避免通知进度卡在「完成」无法再次申请
+            foreach (var lineId in sellLineIdsToRecalc)
+            {
+                try
+                {
+                    await _sellOrderItemExtendSync.RecalculateAsync(lineId, enforceLineQtyOutboundGuards: false);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(
+                        ex,
+                        "强制删除出库通知后回写销售行扩展失败 RequestId={RequestId} SellOrderItemId={SellOrderItemId}",
+                        entity.Id,
+                        lineId);
+                }
+            }
+            if (sellLineIdsToRecalc.Count > 0)
+                await _unitOfWork.SaveChangesAsync();
 
             var recordCode = string.IsNullOrWhiteSpace(entity.RequestCode) ? null : entity.RequestCode.Trim();
             await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry

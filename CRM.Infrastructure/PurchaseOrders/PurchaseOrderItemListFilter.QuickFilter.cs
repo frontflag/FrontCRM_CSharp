@@ -47,17 +47,17 @@ internal static partial class PurchaseOrderItemListFilter
     private static IQueryable<PurchaseOrderItemLineJoin> ApplyPendingVendorConfirm(IQueryable<PurchaseOrderItemLineJoin> q) =>
         ApplyExcludeCancelled(q).Where(x => x.Po.Status == 20);
 
-    /// <summary>与列表 <c>canApplyPayment</c> 同口径（忽略权限）：主单已确认、财务付款未完成、行应付余额 &gt; 0。</summary>
+    /// <summary>与列表 <c>canApplyPayment</c> 同口径（忽略权限）：主单已确认及之后、财务付款未完成、行应付余额 &gt; 0。</summary>
     private static IQueryable<PurchaseOrderItemLineJoin> ApplyPendingSubmitPaymentRequest(IQueryable<PurchaseOrderItemLineJoin> q) =>
         ApplyExcludeCancelled(q).Where(x =>
-            x.Po.Status == PoConfirmed
+            x.Po.Status >= PoConfirmed
             && x.Item.FinancePaymentStatus < 2
-            && (x.Item.Status == PoConfirmed || x.Po.Status == PoConfirmed)
+            && (x.Item.Status >= PoConfirmed || x.Po.Status >= PoConfirmed)
             && (x.Item.Qty * x.Item.Cost - (x.Ext != null ? x.Ext.PaymentAmountRequested : 0m)) > 0m);
 
     private static IQueryable<PurchaseOrderItemLineJoin> ApplyPendingSubmitArrivalNotify(IQueryable<PurchaseOrderItemLineJoin> q) =>
         ApplyExcludeCancelled(q).Where(x =>
-            x.Po.Status == PoConfirmed
+            x.Po.Status >= PoConfirmed
             && (x.Ext != null ? x.Ext.QtyStockInNotifyNot > 0m : x.Item.Qty > 0m));
 
     private static IQueryable<PurchaseOrderItemLineJoin> ApplyPayLater(IQueryable<PurchaseOrderItemLineJoin> q) =>
@@ -65,7 +65,7 @@ internal static partial class PurchaseOrderItemListFilter
 
     private static IQueryable<PurchaseOrderItemLineJoin> ApplyConfirmedUnpaid(IQueryable<PurchaseOrderItemLineJoin> q) =>
         ApplyExcludeCancelled(q).Where(x =>
-            x.Po.Status == PoConfirmed
+            x.Po.Status >= PoConfirmed
             && (x.Ext == null || x.Ext.PaymentProgressStatus == 0));
 
     private static IQueryable<PurchaseOrderItemLineJoin> ApplyStockedInUnpaid(IQueryable<PurchaseOrderItemLineJoin> q) =>
@@ -84,7 +84,7 @@ internal static partial class PurchaseOrderItemListFilter
 
     private static IQueryable<PurchaseOrderItemLineJoin> ApplyConfirmedPendingStockIn(IQueryable<PurchaseOrderItemLineJoin> q) =>
         ApplyExcludeCancelled(q).Where(x =>
-            x.Po.Status == PoConfirmed
+            x.Po.Status >= PoConfirmed
             && (x.Ext == null || x.Ext.StockInProgressStatus == 0));
 
     private static IQueryable<PurchaseOrderItemLineJoin> ApplyPaidPendingStockIn(IQueryable<PurchaseOrderItemLineJoin> q) =>

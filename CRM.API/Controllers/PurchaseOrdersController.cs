@@ -1954,9 +1954,10 @@ namespace CRM.API.Controllers
                 var costOut = canViewPurchaseAmount ? r.Cost : 0m;
                 var qty = r.Qty;
                 var lineTotal = canViewPurchaseAmount ? qty * r.Cost : 0m;
+                // 与到货通知一致：已确认(30)及之后（进行中 50 / 完成 100）仍可分批请款
                 var canApply = canInitiatePaymentFromPo
                     && r.FinancePaymentStatus < 2
-                    && (r.ItemStatus == 30 || r.OrderStatus == 30);
+                    && (r.ItemStatus >= 30 || r.OrderStatus >= 30);
                 var createKey = (r.CreateByUserId ?? string.Empty).Trim();
                 string? createUserName = null;
                 if (!string.IsNullOrEmpty(createKey) && createUserLoginByUserId.TryGetValue(createKey, out var login))
@@ -2336,10 +2337,10 @@ namespace CRM.API.Controllers
                         qtyStockInNotifyExpectSum = ext?.QtyStockInNotifyExpectSum ?? 0m,
                         qtyStockInNotifyNot = ext?.QtyStockInNotifyNot ?? i.Qty,
                         invoiceProgressAmount = canViewPurchaseAmount ? (ext?.PurchaseInvoiceDone ?? 0m) : 0m,
-                        // ???????????????????????????????????????30????
+                        // 已确认(30)及之后仍可分批请款（主单升至进行中 50 后不得锁死）
                         CanApplyPayment = canInitiatePaymentFromPo
                             && i.FinancePaymentStatus < 2
-                            && (i.Status == 30 || order.Status == 30)
+                            && (i.Status >= 30 || order.Status >= 30)
                     };
                 }).ToList()
             };

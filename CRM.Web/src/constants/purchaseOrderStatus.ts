@@ -27,6 +27,56 @@ export function purchaseOrderReportAllowed(status: unknown): boolean {
   return Number.isFinite(s) && s >= PO_STATUS_VENDOR_CONFIRMED
 }
 
+function isCancelledOrAuditFailed(status: number): boolean {
+  return status === -1 || status === -2
+}
+
+/**
+ * 是否允许创建到货通知（与后端 CreateArrivalNoticeAsync 对齐）。
+ * - 优先看采购主单 status ≥ 30（已确认及之后：30/50/100）
+ * - 无主单字段时，回退明细里程碑 status ≥ 30（含已付款 40 / 已发货 50 / 已入库 60）
+ * - 明细或主单为审核失败/取消则不允许
+ */
+export function purchaseOrderAllowsArrivalNotice(source: unknown): boolean {
+  if (source == null || typeof source !== 'object') return false
+  const row = source as Record<string, unknown>
+
+  const itemStatus = Number(row.itemStatus ?? row.ItemStatus)
+  if (Number.isFinite(itemStatus) && isCancelledOrAuditFailed(itemStatus)) return false
+
+  const orderStatus = Number(
+    row.orderStatus ?? row.OrderStatus ?? row.purchaseOrderStatus ?? row.PurchaseOrderStatus
+  )
+  if (Number.isFinite(orderStatus)) {
+    if (isCancelledOrAuditFailed(orderStatus)) return false
+    return orderStatus >= PO_STATUS_VENDOR_CONFIRMED
+  }
+
+  if (!Number.isFinite(itemStatus)) return false
+  return itemStatus >= PO_STATUS_VENDOR_CONFIRMED
+}
+
+/**
+ * 是否满足申请付款的状态门槛（与后端 canApplyPayment 状态段对齐，不含权限/余额）。
+ * 主单或明细任一 ≥ 已确认(30) 即可（进行中 50 / 完成 100 仍可分批请款）。
+ */
+export function purchaseOrderAllowsApplyPayment(source: unknown): boolean {
+  if (source == null || typeof source !== 'object') return false
+  const row = source as Record<string, unknown>
+
+  const itemStatus = Number(row.itemStatus ?? row.ItemStatus)
+  if (Number.isFinite(itemStatus) && isCancelledOrAuditFailed(itemStatus)) return false
+
+  const orderStatus = Number(
+    row.orderStatus ?? row.OrderStatus ?? row.purchaseOrderStatus ?? row.PurchaseOrderStatus
+  )
+  if (Number.isFinite(orderStatus) && isCancelledOrAuditFailed(orderStatus)) return false
+
+  const itemOk = Number.isFinite(itemStatus) && itemStatus >= PO_STATUS_VENDOR_CONFIRMED
+  const orderOk = Number.isFinite(orderStatus) && orderStatus >= PO_STATUS_VENDOR_CONFIRMED
+  return itemOk || orderOk
+}
+
 const PO_MAIN_STATUS_I18N_KEY: Record<number, string> = {
   0: 'purchaseOrderList.status.draft',
   1: 'purchaseOrderList.status.new',

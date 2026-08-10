@@ -434,7 +434,7 @@
               {{ t('purchaseOrderItemList.actions.detail') }}
             </el-button>
             <el-button
-              v-if="row.itemStatus === 30 && canCreateArrivalNotice"
+              v-if="canCreateArrivalNotice && purchaseOrderAllowsArrivalNotice(row)"
               link
               type="warning"
               size="small"
@@ -463,7 +463,7 @@
                   <span class="op-more-item op-more-item--primary">{{ t('purchaseOrderItemList.actions.detail') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item
-                  v-if="row.itemStatus === 30 && canCreateArrivalNotice"
+                  v-if="canCreateArrivalNotice && purchaseOrderAllowsArrivalNotice(row)"
                   @click.stop="openArrivalDialog(row)"
                 >
                   <span class="op-more-item op-more-item--warning">{{ t('purchaseOrderItemList.actions.notifyArrival') }}</span>
@@ -910,6 +910,7 @@ import PaymentRequestVendorBankSection from '@/components/Vendor/PaymentRequestV
 import VendorNameReadonlyField from '@/components/Vendor/VendorNameReadonlyField.vue'
 import ShipmentExpressFields from '@/components/Logistics/ShipmentExpressFields.vue'
 import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
+import { purchaseOrderAllowsArrivalNotice } from '@/constants/purchaseOrderStatus'
 import { CurrencyCode, DEFAULT_SETTLEMENT_CURRENCY_CODE } from '@/constants/currency'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { usePurchaseOrderWriteGate } from '@/composables/useDepartmentDataReadOnly'

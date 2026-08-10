@@ -1,4 +1,4 @@
-import { PO_STATUS_VENDOR_CONFIRMED } from '@/constants/purchaseOrderStatus'
+import { purchaseOrderAllowsApplyPayment } from '@/constants/purchaseOrderStatus'
 import { getPaymentMetrics } from '@/utils/purchaseOrderItemOpsPanel'
 
 export interface ApplyPaymentDisabledHintContent {
@@ -25,10 +25,8 @@ export function buildApplyPaymentDisabledHintContent(
 ): ApplyPaymentDisabledHintContent | null {
   if (!applyPaymentButtonDisabled(row)) return null
 
-  const itemStatus = Number(row.itemStatus ?? row.ItemStatus)
-
   if (!canApplyPayment(row)) {
-    if (itemStatus !== PO_STATUS_VENDOR_CONFIRMED) {
+    if (!purchaseOrderAllowsApplyPayment(row)) {
       return {
         summary: t('purchaseOrderItemList.opsPanel.paymentNeedConfirmed'),
         details: [],

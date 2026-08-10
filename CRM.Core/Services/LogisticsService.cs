@@ -1320,8 +1320,16 @@ namespace CRM.Core.Services
                     : $"存在下游业务节点：入库单；下游数据单号：{string.Join("、", stockInCodes)}");
             }
 
+            var poItemId = notice.PurchaseOrderItemId?.Trim();
             await _notifyRepo.DeleteAsync(notice.Id);
             await _unitOfWork.SaveChangesAsync();
+
+            // 软删后重算采购明细到货余量，避免「已通知数量」卡住导致无法再通知
+            if (!string.IsNullOrWhiteSpace(poItemId))
+            {
+                await _poItemExtendSync.RecalculateAsync(poItemId);
+                await _unitOfWork.SaveChangesAsync();
+            }
 
             var recordCode = string.IsNullOrWhiteSpace(notice.NoticeCode) ? null : notice.NoticeCode.Trim();
             await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
