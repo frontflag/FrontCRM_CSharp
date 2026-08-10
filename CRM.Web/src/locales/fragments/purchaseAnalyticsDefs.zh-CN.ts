@@ -16,17 +16,17 @@ export const purchaseAnalyticsDefsZh = {
     quoteItems: {
       chart: '报价条目数',
       dataSource: '报价列表',
-      text: '日期区间内创建的报价明细行数量。'
+      text: '与「报价」页签「有效报价条目数」同口径：报价创建日落在区间内的报价主单数（reportScope）。'
     },
     quoteVendors: {
       chart: '报价供应商数',
       dataSource: '报价列表',
-      text: '上述报价涉及的去重供应商数。'
+      text: '上述报价主单下明细涉及的去重供应商数（与报价页签一致）。'
     },
     conversion: {
       chart: '报价→采购转化率',
       dataSource: '报价列表',
-      text: '区间内已关联到采购订单明细的报价明细数 ÷ 报价条目数 × 100%。按明细行计。'
+      text: '上述报价主单下的明细中，已关联到采购订单明细的行数 ÷ 明细行数 × 100%。'
     },
     poItems: {
       chart: '采购订单条目数',

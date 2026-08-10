@@ -5,6 +5,7 @@ using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Quote;
 using CRM.Core.Utilities;
 using CRM.Infrastructure.Data;
+using CRM.Infrastructure.Quotes;
 using Microsoft.EntityFrameworkCore;
 
 namespace CRM.Infrastructure.Analytics;
@@ -18,15 +19,18 @@ public sealed class PurchaseAnalyticsQuery : IPurchaseAnalyticsQuery
     private readonly ApplicationDbContext _db;
     private readonly IDataPermissionService _dataPermission;
     private readonly IFinanceExchangeRateService _exchangeRateService;
+    private readonly IQuoteListQuery _quoteListQuery;
 
     public PurchaseAnalyticsQuery(
         ApplicationDbContext db,
         IDataPermissionService dataPermission,
-        IFinanceExchangeRateService exchangeRateService)
+        IFinanceExchangeRateService exchangeRateService,
+        IQuoteListQuery quoteListQuery)
     {
         _db = db;
         _dataPermission = dataPermission;
         _exchangeRateService = exchangeRateService;
+        _quoteListQuery = quoteListQuery;
     }
 
     public async Task<PurchaseAnalyticsDashboardDto> GetDashboardAsync(
@@ -54,8 +58,11 @@ public sealed class PurchaseAnalyticsQuery : IPurchaseAnalyticsQuery
         var dateFrom = PurchaseAnalyticsDateFilter.ToUtcDateStart(scope.DateFrom);
         var dateEnd = PurchaseAnalyticsDateFilter.ToUtcDateEndExclusive(scope.DateTo);
 
-        var quoteItems = await BuildScopedQuoteItemQueryAsync(userId, scope, cancellationToken);
-        var quotesInPeriod = FilterQuoteItemsByPeriod(quoteItems, dateFrom, dateEnd);
+        // 报价趋势与报价页签同一 API
+        var quoteTrendPoints = await _quoteListQuery.GetListAnalyticsTrendsAsync(
+            BuildReportQuoteRequest(scope), scope.GroupBy, cancellationToken);
+        var quoteTrendByPeriod = quoteTrendPoints.ToDictionary(
+            p => p.Period, p => p, StringComparer.OrdinalIgnoreCase);
 
         var orders = await BuildPurchaseOrderQueryAsync(userId, scope, cancellationToken);
         var ordersInPeriod = orders.Where(o => o.CreateTime >= dateFrom && o.CreateTime < dateEnd);
@@ -64,15 +71,6 @@ public sealed class PurchaseAnalyticsQuery : IPurchaseAnalyticsQuery
                          join o in ordersInPeriod on oi.PurchaseOrderId equals o.Id
                          where !oi.IsDeleted && oi.Status != PoItemCancelled
                          select new { oi, o };
-
-        var convertedQuoteItemIds = BuildConvertedQuoteItemIdsQuery();
-
-        var quoteRows = await quotesInPeriod
-            .Select(i => new { Id = i.Id, CreateTime = i.CreateTime, VendorId = i.VendorId })
-            .ToListAsync(cancellationToken);
-
-        var convertedSet = await convertedQuoteItemIds.Distinct().ToListAsync(cancellationToken);
-        var convertedHash = convertedSet.ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var orderRows = await ordersInPeriod
             .Select(o => new { o.Id, o.CreateTime, o.VendorId, o.VendorName, o.ConvertTotal, o.Status })
@@ -109,15 +107,9 @@ public sealed class PurchaseAnalyticsQuery : IPurchaseAnalyticsQuery
         foreach (var period in periods)
         {
             var (start, end) = ParsePeriodRange(period, scope.GroupBy);
-            var quotesInBucket = quoteRows.Where(r => r.CreateTime >= start && r.CreateTime < end).ToList();
-            var quoteCount = quotesInBucket.Count;
-            var quoteVendorCount = quotesInBucket
-                .Where(r => !string.IsNullOrWhiteSpace(r.VendorId))
-                .Select(r => r.VendorId!)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Count();
-            var convertedInBucket = quotesInBucket.Count(r => convertedHash.Contains(r.Id));
-            var rate = quoteCount == 0 ? (decimal?)null : Math.Round((decimal)convertedInBucket / quoteCount * 100m, 2);
+            quoteTrendByPeriod.TryGetValue(period, out var quoteBucket);
+            var quoteCount = quoteBucket?.ValidQuoteCount ?? 0;
+            var quoteVendorCount = quoteBucket?.QuoteVendorCount ?? 0;
 
             var itemsInBucket = itemRows.Count(r => r.CreateTime >= start && r.CreateTime < end);
             var ordersInBucket = orderRows.Where(r => r.CreateTime >= start && r.CreateTime < end).ToList();
@@ -153,7 +145,8 @@ public sealed class PurchaseAnalyticsQuery : IPurchaseAnalyticsQuery
                 PurchaseAmountStockIn = scope.MaskAmounts ? null : stockInAmount,
                 PurchaseAmountPaid = paidAmount,
                 PayableAmount = payableAmount,
-                QuoteToPurchaseConversionRate = rate
+                // 转化率趋势仍按概况快照口径在前端/帮助说明；时段转化与页签一致时暂不重算明细链
+                QuoteToPurchaseConversionRate = null
             });
         }
 
@@ -411,29 +404,19 @@ public sealed class PurchaseAnalyticsQuery : IPurchaseAnalyticsQuery
         var dateFrom = PurchaseAnalyticsDateFilter.ToUtcDateStart(scope.DateFrom);
         var dateEnd = PurchaseAnalyticsDateFilter.ToUtcDateEndExclusive(scope.DateTo);
 
+        // 报价 KPI 始终与「报价」页签共用 QuoteListFilter/reportScope（勿再写死为 0；
+        // 旧逻辑在 PurchaseDataScope=4 时把报价清零，但页签仍能出数，造成概况/页签不一致）。
+        var (quoteItemCount, quoteVendorCount, quoteToPoRate) =
+            await LoadQuoteSnapshotMetricsAsync(scope, cancellationToken);
+
         if (BusinessDepartmentRules.UsePurchaseOrderAssistorOnlyScope(scope.Summary))
         {
-            return await BuildSnapshotForAssistorOnlyAsync(scope, dateFrom, dateEnd, cancellationToken);
-        }
-
-        var quoteItems = await BuildScopedQuoteItemQueryAsync(userId, scope, cancellationToken);
-        var quotesInPeriod = FilterQuoteItemsByPeriod(quoteItems, dateFrom, dateEnd);
-
-        var quoteItemCount = await quotesInPeriod.CountAsync(cancellationToken);
-        var quoteVendorCount = await quotesInPeriod
-            .Where(i => i.VendorId != null)
-            .Select(i => i.VendorId!)
-            .Distinct()
-            .CountAsync(cancellationToken);
-
-        var quoteItemIds = await quotesInPeriod.Select(i => i.Id).ToListAsync(cancellationToken);
-        var convertedCount = 0;
-        if (quoteItemIds.Count > 0)
-        {
-            convertedCount = await BuildConvertedQuoteItemIdsQuery()
-                .Where(id => quoteItemIds.Contains(id))
-                .Distinct()
-                .CountAsync(cancellationToken);
+            var assistorSnap = await BuildSnapshotForAssistorOnlyAsync(
+                scope, dateFrom, dateEnd, cancellationToken);
+            assistorSnap.QuoteItemCount = quoteItemCount;
+            assistorSnap.QuoteVendorCount = quoteVendorCount;
+            assistorSnap.QuoteToPurchaseConversionRate = quoteToPoRate;
+            return assistorSnap;
         }
 
         var orders = await BuildPurchaseOrderQueryAsync(userId, scope, cancellationToken);
@@ -460,15 +443,11 @@ public sealed class PurchaseAnalyticsQuery : IPurchaseAnalyticsQuery
             scope.MaskAmounts,
             cancellationToken);
 
-        decimal? rate = quoteItemCount == 0
-            ? null
-            : Math.Round((decimal)convertedCount / quoteItemCount * 100m, 2);
-
         return new PurchaseAnalyticsSnapshotDto
         {
             QuoteItemCount = quoteItemCount,
             QuoteVendorCount = quoteVendorCount,
-            QuoteToPurchaseConversionRate = rate,
+            QuoteToPurchaseConversionRate = quoteToPoRate,
             PurchaseOrderItemCount = purchaseOrderItemCount,
             PurchaseOrderVendorCount = purchaseOrderVendorCount,
             PurchaseAmountApproved = scope.MaskAmounts ? null : purchaseAmountApproved,
@@ -749,86 +728,62 @@ public sealed class PurchaseAnalyticsQuery : IPurchaseAnalyticsQuery
         return Task.FromResult(q.Where(o => o.PurchaseUserId != null && userIdsInDept.Contains(o.PurchaseUserId)));
     }
 
-    private async Task<IQueryable<QuoteItem>> BuildScopedQuoteItemQueryAsync(
-        string userId,
+    private static QuoteQueryRequest BuildReportQuoteRequest(PurchaseAnalyticsResolvedScope scope)
+    {
+        var viewLevel = scope.ViewLevel?.Trim().ToLowerInvariant() ?? SalesAnalyticsViewLevels.Company;
+        return new QuoteQueryRequest
+        {
+            StartDate = scope.DateFrom,
+            EndDate = scope.DateTo,
+            AnalyticsDataset = QuoteAnalyticsDatasets.ReportScope,
+            AnalyticsViewLevel = viewLevel,
+            AnalyticsDepartmentId = viewLevel == SalesAnalyticsViewLevels.Department ? scope.DepartmentId : null,
+            PurchaseUserId = viewLevel == SalesAnalyticsViewLevels.Personal ? scope.PurchaseUserId : null,
+            CurrentUserId = scope.Summary.UserId
+        };
+    }
+
+    /// <summary>
+    /// 概况报价 KPI：与报价页签共用 <see cref="QuoteListFilter"/> reportScope。
+    /// 「报价条目数」对齐页签「有效报价条目数」（报价主单数）；供应商数取明细去重；
+    /// 转化率仍按明细行关联采购订单计算。
+    /// </summary>
+    private async Task<(int QuoteCount, int VendorCount, decimal? QuoteToPoRate)> LoadQuoteSnapshotMetricsAsync(
         PurchaseAnalyticsResolvedScope scope,
         CancellationToken cancellationToken)
     {
-        if (BusinessDepartmentRules.UsePurchaseOrderAssistorOnlyScope(scope.Summary))
-            return _db.QuoteItems.Where(_ => false);
+        var request = BuildReportQuoteRequest(scope);
+        var quoteQuery = await QuoteListFilter.BuildFilteredQuotesQueryAsync(
+            _db, _dataPermission, request, cancellationToken);
+        var quoteIds = await quoteQuery.Select(q => q.Id).ToListAsync(cancellationToken);
+        var quoteCount = quoteIds.Count;
+        if (quoteCount == 0)
+            return (0, 0, null);
 
-        var scopedQuoteIdList = await (await _dataPermission.ApplyQuoteListDataScopeAsync(
-            userId,
-            _db.Quotes.AsNoTracking(),
-            _db.RFQs.AsNoTracking(),
-            _db.RFQItems.AsNoTracking(),
-            cancellationToken)).Select(q => q.Id).ToListAsync(cancellationToken);
+        var itemRows = await _db.QuoteItems.AsNoTracking()
+            .Where(qi => quoteIds.Contains(qi.QuoteId))
+            .Select(qi => new { qi.Id, qi.VendorId })
+            .ToListAsync(cancellationToken);
 
-        if (scopedQuoteIdList.Count == 0)
-            return _db.QuoteItems.Where(_ => false);
+        var vendorCount = itemRows
+            .Where(i => !string.IsNullOrWhiteSpace(i.VendorId))
+            .Select(i => i.VendorId!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Count();
 
-        var q =
-            from item in _db.QuoteItems.AsNoTracking()
-            join quote in _db.Quotes.AsNoTracking() on item.QuoteId equals quote.Id
-            where !item.IsDeleted && !quote.IsDeleted && item.Status != 1
-                  && scopedQuoteIdList.Contains(item.QuoteId)
-            select new { item, quote };
-
-        if (scope.ViewLevel == SalesAnalyticsViewLevels.Personal && !string.IsNullOrWhiteSpace(scope.PurchaseUserId))
+        decimal? rate = null;
+        if (itemRows.Count > 0)
         {
-            var uid = scope.PurchaseUserId.Trim();
-            q = q.Where(x =>
-                (x.quote.PurchaseUserId != null && x.quote.PurchaseUserId == uid)
-                || (x.quote.RFQItemId != null
-                    && _db.RFQItems.AsNoTracking().Any(i =>
-                        i.Id == x.quote.RFQItemId
-                        && (i.AssignedPurchaserUserId1 == uid || i.AssignedPurchaserUserId2 == uid))));
+            var itemIds = itemRows.Select(i => i.Id).ToList();
+            var convertedCount = await BuildConvertedQuoteItemIdsQuery()
+                .Where(id => itemIds.Contains(id))
+                .Distinct()
+                .CountAsync(cancellationToken);
+            rate = Math.Round((decimal)convertedCount / itemRows.Count * 100m, 2);
         }
 
-        if (scope.ViewLevel == SalesAnalyticsViewLevels.Department)
-        {
-            var deptId = scope.DepartmentId ?? scope.Summary.PrimaryDepartmentId;
-            if (!string.IsNullOrWhiteSpace(deptId))
-            {
-                if (string.Equals(deptId, PurchaseAnalyticsScopeValidator.UnassignedDepartmentId, StringComparison.OrdinalIgnoreCase))
-                {
-                    var withPrimary = _db.RbacUserDepartments.AsNoTracking()
-                        .Where(ud => ud.IsPrimary)
-                        .Select(ud => ud.UserId);
-                    q = q.Where(x =>
-                        x.quote.PurchaseUserId == null
-                        || !withPrimary.Contains(x.quote.PurchaseUserId));
-                }
-                else
-                {
-                    var userIdsInDept = _db.RbacUserDepartments.AsNoTracking()
-                        .Where(ud => ud.IsPrimary && ud.DepartmentId == deptId)
-                        .Select(ud => ud.UserId);
-                    q = q.Where(x =>
-                        (x.quote.PurchaseUserId != null && userIdsInDept.Contains(x.quote.PurchaseUserId))
-                        || (x.quote.RFQItemId != null
-                            && _db.RFQItems.AsNoTracking().Any(i =>
-                                i.Id == x.quote.RFQItemId
-                                && ((i.AssignedPurchaserUserId1 != null && userIdsInDept.Contains(i.AssignedPurchaserUserId1))
-                                    || (i.AssignedPurchaserUserId2 != null && userIdsInDept.Contains(i.AssignedPurchaserUserId2))))));
-                }
-            }
-        }
-
-        return q.Select(x => x.item);
+        return (quoteCount, vendorCount, rate);
     }
-
-    /// <summary>按报价明细 CreateTime；若明细时间缺失则回退 QuoteDate / Quote.CreateTime。</summary>
-    private IQueryable<QuoteItem> FilterQuoteItemsByPeriod(
-        IQueryable<QuoteItem> items,
-        DateTime dateFrom,
-        DateTime dateEnd) =>
-        items.Where(i =>
-            (i.CreateTime >= dateFrom && i.CreateTime < dateEnd)
-            || _db.Quotes.AsNoTracking().Any(q =>
-                q.Id == i.QuoteId
-                && ((q.QuoteDate >= dateFrom && q.QuoteDate < dateEnd)
-                    || (q.CreateTime >= dateFrom && q.CreateTime < dateEnd))));
 
     /// <summary>报价明细已生成采购订单明细（经销单行 extend.quote_item_id 关联）。</summary>
     private IQueryable<string> BuildConvertedQuoteItemIdsQuery() =>

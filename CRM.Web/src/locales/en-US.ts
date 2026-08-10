@@ -1290,7 +1290,7 @@ const enUS = {
     },
     quoteTab: {
       datasetTag: 'Report',
-      hint: 'Same implementation as the quote list board; scope = company/department/personal + date range (RFQ create date) + exclude cancelled RFQs.',
+      hint: 'Same implementation as the quote list board; scope = company/department/personal + date range (quote create date) + exclude deleted.',
       refresh: 'Refresh',
       loadFailed: 'Failed to load quote analytics',
       groupBy: { day: 'Daily', week: 'Weekly', month: 'Monthly' },

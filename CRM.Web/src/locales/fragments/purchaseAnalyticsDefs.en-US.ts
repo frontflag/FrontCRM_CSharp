@@ -15,17 +15,17 @@ export const purchaseAnalyticsDefsEn = {
     quoteItems: {
       chart: 'Quote lines',
       dataSource: 'Quotes',
-      text: 'Quote line items created in the date range.'
+      text: 'Same as Quotes tab “valid quote entries”: quote headers whose CreateTime falls in the range (reportScope).'
     },
     quoteVendors: {
       chart: 'Quote vendors',
       dataSource: 'Quotes',
-      text: 'Distinct vendors on those quotes.'
+      text: 'Distinct vendors on lines under those quotes (same as Quotes tab).'
     },
     conversion: {
       chart: 'Quote→PO conversion',
       dataSource: 'Quotes',
-      text: 'Quote lines linked to a PO line ÷ quote lines × 100%.'
+      text: 'Among lines under those quotes, lines linked to a PO line ÷ line count × 100%.'
     },
     poItems: {
       chart: 'PO lines',
