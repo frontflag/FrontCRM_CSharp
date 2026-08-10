@@ -86,6 +86,28 @@ public class SalesAnalyticsController : ControllerBase
         return Ok(ApiResponse<IReadOnlyList<SalesAnalyticsBreakdownGroupDto>>.Ok(data));
     }
 
+    /// <summary>出库进度（明细行）详情：三档统计 + 分页列表（与 breakdowns.stockOutProgress 同口径）。</summary>
+    [HttpGet("breakdowns/stock-out-progress/detail")]
+    public async Task<IActionResult> GetStockOutProgressDetail(
+        [FromQuery] string? viewLevel,
+        [FromQuery] string? departmentId,
+        [FromQuery] string? salesUserId,
+        [FromQuery] string? dateFrom,
+        [FromQuery] string? dateTo,
+        [FromQuery] short? stockOutProgressStatus,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var (ok, error, scope) = await ResolveAsync(viewLevel, departmentId, salesUserId, dateFrom, dateTo, null, cancellationToken);
+        if (!ok)
+            return Forbidden(error);
+
+        var data = await _service.GetStockOutProgressDetailAsync(
+            scope!, stockOutProgressStatus, page, pageSize, cancellationToken);
+        return Ok(ApiResponse<SalesAnalyticsStockOutProgressDetailDto>.Ok(data));
+    }
+
     /// <summary>客户维看板（成单/复购客户、类型等级行业、客户 Top10）。</summary>
     [HttpGet("customer")]
     public async Task<IActionResult> GetCustomer(

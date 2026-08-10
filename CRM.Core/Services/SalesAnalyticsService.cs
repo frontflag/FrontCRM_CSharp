@@ -123,6 +123,14 @@ public sealed class SalesAnalyticsService : ISalesAnalyticsService
         CancellationToken cancellationToken = default) =>
         _query.GetCustomerAsync(scope, cancellationToken);
 
+    public Task<SalesAnalyticsStockOutProgressDetailDto> GetStockOutProgressDetailAsync(
+        SalesAnalyticsResolvedScope scope,
+        short? stockOutProgressStatus,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default) =>
+        _query.GetStockOutProgressDetailAsync(scope, stockOutProgressStatus, page, pageSize, cancellationToken);
+
     private static string NormalizeGroupBy(string? groupBy) =>
         groupBy?.Trim().ToLowerInvariant() switch
         {

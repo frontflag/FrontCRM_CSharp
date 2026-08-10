@@ -71,7 +71,10 @@ public static class CompanyProfileBundleLoader
             return null;
         try
         {
-            return JsonSerializer.Deserialize<CompanySmtpEmailSettingsDto>(p.ValueJson, JsonOpts);
+            var dto = JsonSerializer.Deserialize<CompanySmtpEmailSettingsDto>(p.ValueJson, JsonOpts);
+            if (dto != null)
+                NormalizeImapFromLegacyPop(dto);
+            return dto;
         }
         catch (Exception ex)
         {
@@ -98,6 +101,20 @@ public static class CompanyProfileBundleLoader
             logger.LogWarning(ex, "反序列化参数 {Code} 失败，返回空列表", paramCode);
             return new List<T>();
         }
+    }
+
+    /// <summary>旧配置仅有 POP 时，填充 IMAP 字段供校验/同步/公司页使用。</summary>
+    private static void NormalizeImapFromLegacyPop(CompanySmtpEmailSettingsDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.ImapHost) && !string.IsNullOrWhiteSpace(dto.PopHost))
+            dto.ImapHost = dto.PopHost;
+        if (dto.ImapPort is < 1 or > 65535)
+            dto.ImapPort = dto.PopPort is >= 1 and <= 65535 ? dto.PopPort : 993;
+        if (string.IsNullOrWhiteSpace(dto.ImapHost))
+            return;
+        // 若从未写过 ImapUseSsl，与 UseSsl / PopUseSsl 对齐
+        if (!dto.ImapUseSsl && dto.UseSsl)
+            dto.ImapUseSsl = true;
     }
 
     /// <summary>读取单值字符串参数（ValueString 或 ValueJson 存长文本）。</summary>

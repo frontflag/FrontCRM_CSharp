@@ -122,19 +122,19 @@
           />
           <p class="field-hint">{{ t('profilePage.mailbox.displayNameHint') }}</p>
         </el-form-item>
-        <el-form-item v-if="row.kind === 'personal'" :label="t('profilePage.mailbox.popHost')">
+        <el-form-item v-if="row.kind === 'personal'" :label="t('profilePage.mailbox.imapHost')">
           <div class="pop-row">
-            <el-input v-model="draft[row.id].popHost" class="mailbox-control" clearable />
-            <span class="pop-inline-label">{{ t('profilePage.mailbox.popPort') }}</span>
+            <el-input v-model="draft[row.id].imapHost" class="mailbox-control" clearable />
+            <span class="pop-inline-label">{{ t('profilePage.mailbox.imapPort') }}</span>
             <el-input-number
-              v-model="draft[row.id].popPort"
+              v-model="draft[row.id].imapPort"
               class="pop-port"
               :min="1"
               :max="65535"
               controls-position="right"
             />
-            <span class="pop-inline-label">{{ t('profilePage.mailbox.popSsl') }}</span>
-            <el-switch v-model="draft[row.id].popUseSsl" />
+            <span class="pop-inline-label">{{ t('profilePage.mailbox.imapSsl') }}</span>
+            <el-switch v-model="draft[row.id].imapUseSsl" />
           </div>
         </el-form-item>
       </el-form>
@@ -189,14 +189,14 @@
           <p class="field-hint">{{ t('profilePage.mailbox.displayNameHint') }}</p>
         </el-form-item>
         <template v-if="createKind === 'personal'">
-          <el-form-item :label="t('profilePage.mailbox.popHost')">
-            <el-input v-model="createForm.popHost" clearable />
+          <el-form-item :label="t('profilePage.mailbox.imapHost')">
+            <el-input v-model="createForm.imapHost" clearable />
           </el-form-item>
-          <el-form-item :label="t('profilePage.mailbox.popPort')">
-            <el-input-number v-model="createForm.popPort" :min="1" :max="65535" controls-position="right" />
+          <el-form-item :label="t('profilePage.mailbox.imapPort')">
+            <el-input-number v-model="createForm.imapPort" :min="1" :max="65535" controls-position="right" />
           </el-form-item>
-          <el-form-item :label="t('profilePage.mailbox.popSsl')">
-            <el-switch v-model="createForm.popUseSsl" />
+          <el-form-item :label="t('profilePage.mailbox.imapSsl')">
+            <el-switch v-model="createForm.imapUseSsl" />
           </el-form-item>
         </template>
       </el-form>
@@ -231,9 +231,9 @@ type DraftRow = {
   displayName: string
   localPart: string
   address: string
-  popHost: string
-  popPort: number
-  popUseSsl: boolean
+  imapHost: string
+  imapPort: number
+  imapUseSsl: boolean
 }
 
 const { t } = useI18n()
@@ -259,9 +259,9 @@ const createForm = reactive({
   localPart: '',
   address: '',
   password: '',
-  popHost: '',
-  popPort: 995,
-  popUseSsl: true
+  imapHost: '',
+  imapPort: 993,
+  imapUseSsl: true
 })
 
 /** 创建平台邮箱因未配后缀失败后提示；列表含平台行时清除 */
@@ -314,9 +314,9 @@ function syncDraftFromRows(list: UserMailbox[]) {
       displayName: row.displayName || '',
       localPart: (row.localPart || localFromAddress(row.address) || '').trim(),
       address: row.address || '',
-      popHost: row.popHost || '',
-      popPort: row.popPort && row.popPort >= 1 ? row.popPort : 995,
-      popUseSsl: row.popUseSsl !== false
+      imapHost: row.imapHost || '',
+      imapPort: row.imapPort && row.imapPort >= 1 ? row.imapPort : 993,
+      imapUseSsl: row.imapUseSsl !== false
     }
     draftPassword[row.id] = ''
   }
@@ -348,9 +348,9 @@ function resetCreate() {
   createForm.localPart = ''
   createForm.address = ''
   createForm.password = ''
-  createForm.popHost = ''
-  createForm.popPort = 995
-  createForm.popUseSsl = true
+  createForm.imapHost = ''
+  createForm.imapPort = 993
+  createForm.imapUseSsl = true
 }
 
 async function submitCreate() {
@@ -365,9 +365,9 @@ async function submitCreate() {
       body.localPart = createForm.localPart.trim().replace(/^@+/, '').split('@')[0]
     } else {
       body.address = createForm.address
-      body.popHost = createForm.popHost
-      body.popPort = createForm.popPort
-      body.popUseSsl = createForm.popUseSsl
+      body.imapHost = createForm.imapHost
+      body.imapPort = createForm.imapPort
+      body.imapUseSsl = createForm.imapUseSsl
     }
     await createMyMailbox(body)
     ElMessage.success(t('profilePage.mailbox.saved'))
@@ -398,9 +398,9 @@ function buildWrite(row: UserMailbox): UserMailboxWrite {
     body.localPart = (d.localPart || '').trim().replace(/^@+/, '').split('@')[0]
   } else {
     body.address = d.address
-    body.popHost = d.popHost
-    body.popPort = d.popPort
-    body.popUseSsl = d.popUseSsl
+    body.imapHost = d.imapHost
+    body.imapPort = d.imapPort
+    body.imapUseSsl = d.imapUseSsl
   }
   return body
 }
@@ -432,10 +432,10 @@ async function onVerify(row: UserMailbox) {
   try {
     const result = await verifyMyMailbox(row.id)
     // 分步弹消息：先 POP，再 SMTP（平台）
-    if (result.popOk) {
-      ElMessage.success(result.popMessage || 'POP 收信验证成功')
+    if (result.imapOk ?? result.popOk) {
+      ElMessage.success((result.imapMessage ?? result.popMessage) || 'IMAP 收信验证成功')
     } else {
-      ElMessage.error(result.popMessage || 'POP 收信验证失败')
+      ElMessage.error((result.imapMessage ?? result.popMessage) || 'IMAP 收信验证失败')
     }
     if (result.smtpOk != null) {
       if (result.smtpOk) {

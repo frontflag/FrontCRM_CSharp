@@ -447,21 +447,31 @@ namespace CRM.API.Controllers
                 previous = JsonSerializer.Deserialize<CompanySmtpEmailSettingsDto>(existing.ValueJson, JsonOpts);
 
             var port = incoming.SmtpPort is >= 1 and <= 65535 ? incoming.SmtpPort : 587;
-            var popPort = incoming.PopPort is >= 1 and <= 65535 ? incoming.PopPort : 995;
+            var imapHost = !string.IsNullOrWhiteSpace(incoming.ImapHost)
+                ? incoming.ImapHost.Trim()
+                : (string.IsNullOrWhiteSpace(incoming.PopHost) ? null : incoming.PopHost.Trim());
+            var imapPort = incoming.ImapPort is >= 1 and <= 65535
+                ? incoming.ImapPort
+                : (incoming.PopPort is >= 1 and <= 65535 ? incoming.PopPort : 993);
+            var popPort = incoming.PopPort is >= 1 and <= 65535 ? incoming.PopPort : imapPort;
             var newSuffix = MailboxAddressHelper.NormalizeSuffix(incoming.PlatformEmailSuffix);
             var oldSuffix = MailboxAddressHelper.NormalizeSuffix(previous?.PlatformEmailSuffix);
+            var earliest = incoming.MailSyncEarliestDate?.Date;
             var merged = new CompanySmtpEmailSettingsDto
             {
                 Enabled = incoming.Enabled,
                 SmtpHost = incoming.SmtpHost?.Trim() ?? string.Empty,
                 SmtpPort = port,
-                // UI 单一 SSL：SMTP / POP 加密开关保持一致
                 UseSsl = incoming.UseSsl,
                 PlatformEmailSuffix = newSuffix,
-                PopHost = string.IsNullOrWhiteSpace(incoming.PopHost) ? null : incoming.PopHost.Trim(),
+                ImapHost = imapHost,
+                ImapPort = imapPort,
+                ImapUseSsl = incoming.UseSsl,
+                MailSyncEarliestDate = earliest,
+                // 历史 POP 字段与 IMAP 对齐，便于旧 JSON 兼容
+                PopHost = imapHost,
                 PopPort = popPort,
                 PopUseSsl = incoming.UseSsl,
-                // 旧系统账号字段：原样保留，业务不再读写
                 User = previous?.User,
                 Password = previous?.Password,
                 FromAddress = previous?.FromAddress,

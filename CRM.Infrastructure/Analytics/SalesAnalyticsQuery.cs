@@ -249,6 +249,105 @@ public sealed class SalesAnalyticsQuery : ISalesAnalyticsQuery
     }
 
     /// <inheritdoc />
+    public async Task<SalesAnalyticsStockOutProgressDetailDto> GetStockOutProgressDetailAsync(
+        SalesAnalyticsResolvedScope scope,
+        short? stockOutProgressStatus,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 20;
+        if (pageSize > 100) pageSize = 100;
+
+        var userId = scope.Summary.UserId;
+        var dateFrom = SalesAnalyticsDateFilter.ToUtcDateStart(scope.DateFrom);
+        var dateEnd = SalesAnalyticsDateFilter.ToUtcDateEndExclusive(scope.DateTo);
+
+        var orders = await BuildSellOrderQueryAsync(userId, scope, cancellationToken);
+        var ordersInPeriod = orders.Where(o => o.CreateTime >= dateFrom && o.CreateTime < dateEnd);
+
+        var mask521 = SaleSensitiveFieldMask521.ShouldMask(scope.Summary);
+        var canViewCustomer = !mask521 && (scope.Summary.IsSysAdmin
+            || (scope.Summary.PermissionCodes?.Contains("customer.info.read", StringComparer.OrdinalIgnoreCase) ?? false));
+
+        var baseLines =
+            from ext in _db.SellOrderItemExtends.AsNoTracking()
+            join oi in _db.SellOrderItems.AsNoTracking() on ext.Id equals oi.Id
+            join o in ordersInPeriod on oi.SellOrderId equals o.Id
+            where !oi.IsDeleted && !ext.IsDeleted && oi.Status == 0
+            select new
+            {
+                oi.Id,
+                oi.SellOrderItemCode,
+                o.CreateTime,
+                o.CustomerName,
+                o.SalesUserName,
+                oi.PN,
+                oi.Brand,
+                oi.Qty,
+                ext.StockOutProgressStatus
+            };
+
+        var countRows = await baseLines
+            .GroupBy(x => x.StockOutProgressStatus)
+            .Select(g => new { Status = g.Key, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+
+        var countMap = countRows.ToDictionary(x => x.Status, x => x.Count);
+        short[] statuses = { 0, 1, 2 };
+        var totalAll = statuses.Sum(s => countMap.GetValueOrDefault(s));
+        var summary = statuses.Select(s =>
+        {
+            var count = countMap.GetValueOrDefault(s);
+            var ratio = totalAll <= 0 ? 0m : Math.Round((decimal)count / totalAll * 100m, 2);
+            return new SalesAnalyticsStockOutProgressSummaryItemDto
+            {
+                Status = s,
+                Label = FormatStockOutProgress(s),
+                Count = count,
+                Ratio = ratio
+            };
+        }).ToList();
+
+        var listQuery = baseLines.AsQueryable();
+        if (stockOutProgressStatus is >= 0 and <= 2)
+            listQuery = listQuery.Where(x => x.StockOutProgressStatus == stockOutProgressStatus.Value);
+
+        var total = await listQuery.CountAsync(cancellationToken);
+        var rows = await listQuery
+            .OrderByDescending(x => x.CreateTime)
+            .ThenBy(x => x.SellOrderItemCode)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        var items = rows.Select(r => new SalesAnalyticsStockOutProgressDetailItemDto
+        {
+            SellOrderItemId = r.Id,
+            SellOrderItemCode = r.SellOrderItemCode ?? string.Empty,
+            OrderCreateTime = r.CreateTime,
+            CustomerName = canViewCustomer ? r.CustomerName : null,
+            SalesUserName = r.SalesUserName,
+            Pn = r.PN,
+            Brand = r.Brand,
+            Qty = r.Qty,
+            StockOutProgressStatus = r.StockOutProgressStatus,
+            StockOutProgressLabel = FormatStockOutProgress(r.StockOutProgressStatus)
+        }).ToList();
+
+        return new SalesAnalyticsStockOutProgressDetailDto
+        {
+            Summary = summary,
+            Items = items,
+            CanViewCustomer = canViewCustomer,
+            Total = total,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+
+    /// <inheritdoc />
     public async Task<SalesAnalyticsCustomerDto> GetCustomerAsync(
         SalesAnalyticsResolvedScope scope,
         CancellationToken cancellationToken = default)

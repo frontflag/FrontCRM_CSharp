@@ -429,12 +429,21 @@ else {
     if (-not $RequestTtyForSudo) {
         Write-Host ('    Using {0} (non-interactive sudo; use -RequestTtyForSudo to type sudo password).' -f $SudoCmd) -ForegroundColor DarkGray
     }
-    $rPrepareDirs = $SudoCmd + ' mkdir -p ' + $NonDockerFrontendRoot + ' ' + $NonDockerBackendRoot + ' && ' + $SudoCmd + ' chown -R ' + $ServerUser + ':' + $ServerUser + ' ' + $NonDockerFrontendRoot + ' ' + $NonDockerBackendRoot
-    & ssh @SshTty @SshOpts -p $SshPort "$SshTarget" $rPrepareDirs
+    # 远程命令必须整串加引号；并加 timeout，避免 SSH 会话僵死时看起来「卡死」
+    $rPrepareDirs = (
+        'echo prepare-dirs:start; ' +
+        'timeout 90 sh -c ''' +
+        $SudoCmd + ' mkdir -p ' + $NonDockerFrontendRoot + ' ' + $NonDockerBackendRoot + ' && ' +
+        $SudoCmd + ' chown -R ' + $ServerUser + ':' + $ServerUser + ' ' + $NonDockerFrontendRoot + ' ' + $NonDockerBackendRoot +
+        '''; echo prepare-dirs:done'
+    )
+    Write-Host '    SSH: mkdir/chown under /opt/frontcrm (timeout 90s)...' -ForegroundColor DarkGray
+    & ssh @SshTty @SshOpts -p $SshPort "$SshTarget" "$rPrepareDirs"
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "ERROR: prepare directories failed (remote sudo needs password or NOPASSWD)." -ForegroundColor Red
+        Write-Host "ERROR: prepare directories failed (remote sudo needs password or NOPASSWD, or SSH timed out)." -ForegroundColor Red
         Write-Host "  Fix A: on server, grant NOPASSWD for $ServerUser for deploy commands under /opt/frontcrm" -ForegroundColor Yellow
         Write-Host "  Fix B: re-run with -RequestTtyForSudo and enter sudo password when prompted" -ForegroundColor Yellow
+        Write-Host "  Fix C: Ctrl+C, then kill hung ssh (Get-Process ssh) and retry with -SkipBuild" -ForegroundColor Yellow
         exit 1
     }
 

@@ -24,4 +24,11 @@ public interface ISalesAnalyticsService
     Task<SalesAnalyticsCustomerDto> GetCustomerAsync(
         SalesAnalyticsResolvedScope scope,
         CancellationToken cancellationToken = default);
+
+    Task<SalesAnalyticsStockOutProgressDetailDto> GetStockOutProgressDetailAsync(
+        SalesAnalyticsResolvedScope scope,
+        short? stockOutProgressStatus,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
 }

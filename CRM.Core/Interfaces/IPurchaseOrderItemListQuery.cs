@@ -50,12 +50,13 @@ public sealed class PurchaseOrderItemListQueryRequest
     /// <summary>主单创建时间止（与主单列表一致：含当日时按 +1 天边界在查询层处理）。</summary>
     public DateTime? EndDate { get; set; }
 
+    /// <summary>采购订单/明细号：主单号或明细编号任一模糊匹配（OR）。</summary>
     public string? PurchaseOrderCode { get; set; }
     public string? FreightForwarderOrderNo { get; set; }
     public string? VendorName { get; set; }
     public string? PurchaseUserName { get; set; }
     public string? Pn { get; set; }
-    /// <summary>关联销售订单明细单号（模糊匹配 <c>sellorderitem.sell_order_item_code</c>）。</summary>
+    /// <summary>关联销售订单明细单号（API 兼容；列表 UI 已移除该筛选项）。</summary>
     public string? SellOrderItemCode { get; set; }
     public short? OrderType { get; set; }
     /// <summary>交易币别筛选：rmb=人民币，foreign=外币（非人民币）。</summary>

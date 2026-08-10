@@ -93,6 +93,41 @@ export interface SalesAnalyticsBreakdownGroup {
   items: SalesAnalyticsBreakdownItem[]
 }
 
+export interface SalesAnalyticsStockOutProgressSummaryItem {
+  status: number
+  label: string
+  count: number
+  ratio: number
+}
+
+export interface SalesAnalyticsStockOutProgressDetailItem {
+  sellOrderItemId: string
+  sellOrderItemCode: string
+  orderCreateTime: string
+  customerName?: string | null
+  salesUserName?: string | null
+  pn?: string | null
+  brand?: string | null
+  qty: number
+  stockOutProgressStatus: number
+  stockOutProgressLabel: string
+}
+
+export interface SalesAnalyticsStockOutProgressDetail {
+  summary: SalesAnalyticsStockOutProgressSummaryItem[]
+  items: SalesAnalyticsStockOutProgressDetailItem[]
+  canViewCustomer: boolean
+  total: number
+  page: number
+  pageSize: number
+}
+
+export interface SalesAnalyticsStockOutProgressDetailQuery extends SalesAnalyticsQuery {
+  stockOutProgressStatus?: number
+  page?: number
+  pageSize?: number
+}
+
 export interface SalesAnalyticsCustomerSnapshot {
   approvedCustomerCount: number
   repeatCustomerCount: number
@@ -139,6 +174,21 @@ export const salesAnalyticsApi = {
     return apiClient.get<SalesAnalyticsBreakdownGroup[]>('/api/v1/analytics/sales/breakdowns', {
       params: buildParams(query)
     })
+  },
+
+  getStockOutProgressDetail(
+    query: SalesAnalyticsStockOutProgressDetailQuery
+  ): Promise<SalesAnalyticsStockOutProgressDetail> {
+    const params = buildParams(query)
+    if (query.stockOutProgressStatus !== undefined && query.stockOutProgressStatus !== null) {
+      params.stockOutProgressStatus = String(query.stockOutProgressStatus)
+    }
+    if (query.page != null) params.page = String(query.page)
+    if (query.pageSize != null) params.pageSize = String(query.pageSize)
+    return apiClient.get<SalesAnalyticsStockOutProgressDetail>(
+      '/api/v1/analytics/sales/breakdowns/stock-out-progress/detail',
+      { params }
+    )
   },
 
   getCustomer(query: SalesAnalyticsQuery): Promise<SalesAnalyticsCustomer> {

@@ -11,6 +11,7 @@ export interface SalesOrderItemListAnalyticsQuery {
   purchaseUserAccount?: string
   customerId?: string
   sellOrderCode?: string
+  sellOrderItemCode?: string
   pn?: string
   customerSo?: string
   customerPn?: string
@@ -95,6 +96,7 @@ function buildParams(q: SalesOrderItemListAnalyticsQuery): Record<string, unknow
   if (q.purchaseUserAccount) p.purchaseUserAccount = q.purchaseUserAccount
   if (q.customerId) p.customerId = q.customerId
   if (q.sellOrderCode) p.sellOrderCode = q.sellOrderCode
+  if (q.sellOrderItemCode) p.sellOrderItemCode = q.sellOrderItemCode
   if (q.pn) p.pn = q.pn
   if (q.customerSo) p.customerSo = q.customerSo
   if (q.customerPn) p.customerPn = q.customerPn

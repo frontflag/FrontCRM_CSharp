@@ -9,6 +9,7 @@ import AnalyticsKpiGrid from '@/components/Analytics/AnalyticsKpiGrid.vue'
 import AnalyticsTrendChart from '@/components/Analytics/AnalyticsTrendChart.vue'
 import AnalyticsBreakdownChart from '@/components/Analytics/AnalyticsBreakdownChart.vue'
 import AnalyticsBreakdownPieChart from '@/components/Analytics/AnalyticsBreakdownPieChart.vue'
+import StockOutProgressDetailDialog from '@/components/Analytics/StockOutProgressDetailDialog.vue'
 import SalesAnalyticsCustomerPanel from '@/components/Analytics/SalesAnalyticsCustomerPanel.vue'
 import SalesOrderItemListBoard from '@/views/RFQ/SalesOrderItemListBoard.vue'
 import RfqItemListBoard from '@/views/RFQ/RfqItemListBoard.vue'
@@ -44,6 +45,7 @@ const groupBy = ref<'day' | 'week' | 'month'>('month')
 const dashboard = ref<SalesAnalyticsDashboard | null>(null)
 const trends = ref<SalesAnalyticsTrendPoint[]>([])
 const breakdowns = ref<SalesAnalyticsBreakdownGroup[]>([])
+const stockOutDetailVisible = ref(false)
 
 const scopeContext = computed(() => dashboard.value?.scopeContext ?? null)
 
@@ -514,9 +516,18 @@ watch([viewLevel, departmentId, salesUserId, dateRange, groupBy], () => void loa
               :items="group.items"
               :value-format="breakdownValueFormat(group.groupKey)"
             />
-            <AnalyticsBreakdownChart v-else :title="breakdownTitle(group)" :items="group.items" />
+            <AnalyticsBreakdownChart
+              v-else
+              :title="breakdownTitle(group)"
+              :items="group.items"
+              :show-detail="group.groupKey === 'stockOutProgress'"
+              :detail-label="t('salesAnalytics.stockOutProgressDetail.detail')"
+              @detail="stockOutDetailVisible = true"
+            />
           </div>
         </div>
+
+        <StockOutProgressDetailDialog v-model="stockOutDetailVisible" :query="buildQuery()" />
 
         <div v-if="showOverviewRankings" class="rankings-row">
           <div class="card ranking-panel">

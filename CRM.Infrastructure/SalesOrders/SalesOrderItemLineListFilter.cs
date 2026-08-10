@@ -58,12 +58,15 @@ internal static partial class SalesOrderItemLineListFilter
                 x.So.SalesUserName.ToLower().Contains(sk.ToLower()));
         }
 
-        if (!string.IsNullOrWhiteSpace(request.SellOrderCode))
+        // 「销售订单/明细号」：主单号或明细号任一模糊命中（OR）。
+        // sellOrderItemCode 为旧深链兼容，与 sellOrderCode 合并为同一关键字，避免两条件 AND 互相掐死。
+        var orderOrItemCode = FirstNonEmptyTrim(request.SellOrderCode, request.SellOrderItemCode);
+        if (orderOrItemCode != null)
         {
-            var c = request.SellOrderCode.Trim();
+            var c = orderOrItemCode.ToLowerInvariant();
             q = q.Where(x =>
-                x.So.SellOrderCode != null &&
-                x.So.SellOrderCode.ToLower().Contains(c.ToLower()));
+                (x.So.SellOrderCode != null && x.So.SellOrderCode.ToLower().Contains(c))
+                || (x.Item.SellOrderItemCode != null && x.Item.SellOrderItemCode.ToLower().Contains(c)));
         }
 
         if (!string.IsNullOrWhiteSpace(request.Pn))
@@ -324,4 +327,15 @@ internal static partial class SalesOrderItemLineListFilter
             (short)x.So.Status >= (short)SellOrderMainStatus.Approved
             && x.Item.Status == 0
             && !x.Item.IsDeleted);
+
+    private static string? FirstNonEmptyTrim(params string?[] values)
+    {
+        foreach (var v in values)
+        {
+            if (!string.IsNullOrWhiteSpace(v))
+                return v.Trim();
+        }
+
+        return null;
+    }
 }

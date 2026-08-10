@@ -22,6 +22,9 @@ export interface UserMailbox {
   popHost?: string | null
   popPort?: number | null
   popUseSsl: boolean
+  imapHost?: string | null
+  imapPort?: number | null
+  imapUseSsl?: boolean
   verifyStatus: MailboxVerifyStatus
   verifyMessage?: string | null
   verifiedAt?: string | null
@@ -36,6 +39,9 @@ export interface UserMailboxWrite {
   popHost?: string
   popPort?: number
   popUseSsl?: boolean
+  imapHost?: string
+  imapPort?: number
+  imapUseSsl?: boolean
 }
 
 export interface MailboxSendReady {
@@ -92,6 +98,8 @@ export async function deleteMyMailbox(id: string): Promise<void> {
 export interface MailboxVerifyResult {
   mailbox: UserMailbox
   success: boolean
+  imapOk?: boolean
+  imapMessage?: string
   popOk: boolean
   popMessage: string
   smtpOk?: boolean | null
@@ -108,8 +116,10 @@ export async function verifyMyMailbox(id: string): Promise<MailboxVerifyResult> 
   return {
     mailbox: res.mailbox,
     success: !!res.success,
-    popOk: !!res.popOk,
-    popMessage: res.popMessage || '',
+    imapOk: !!(res.imapOk ?? res.popOk),
+    imapMessage: res.imapMessage || res.popMessage || '',
+    popOk: !!(res.imapOk ?? res.popOk),
+    popMessage: res.imapMessage || res.popMessage || '',
     smtpOk: res.smtpOk,
     smtpMessage: res.smtpMessage
   }

@@ -193,6 +193,9 @@ namespace CRM.Infrastructure.Data
         public DbSet<SysParamGroup> SysParamGroups { get; set; } = null!;
         public DbSet<SysParam> SysParams { get; set; } = null!;
         public DbSet<UserMailbox> UserMailboxes { get; set; } = null!;
+        public DbSet<UserMailMessage> UserMailMessages { get; set; } = null!;
+        public DbSet<UserMailboxSyncState> UserMailboxSyncStates { get; set; } = null!;
+        public DbSet<MailSyncDailyRun> MailSyncDailyRuns { get; set; } = null!;
         public DbSet<CompanyBankInfo> CompanyBankInfos { get; set; } = null!;
         public DbSet<SysDictItem> SysDictItems { get; set; } = null!;
         public DbSet<SysRelationMap> SysRelationMaps { get; set; } = null!;

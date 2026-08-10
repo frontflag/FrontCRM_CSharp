@@ -51,24 +51,24 @@
                 </el-form-item>
               </el-col>
               <el-col :span="12">
-                <el-form-item :label="t('companyInfo.smtp.popHost')">
+                <el-form-item :label="t('companyInfo.smtp.imapHost')">
                   <el-input
-                    :model-value="model.popHost ?? ''"
-                    :placeholder="t('companyInfo.smtp.phPopHost')"
+                    :model-value="model.imapHost ?? ''"
+                    :placeholder="t('companyInfo.smtp.phImapHost')"
                     clearable
-                    @update:model-value="setPopHost"
+                    @update:model-value="setImapHost"
                   />
                 </el-form-item>
               </el-col>
               <el-col :span="12">
-                <el-form-item :label="t('companyInfo.smtp.popPort')">
+                <el-form-item :label="t('companyInfo.smtp.imapPort')">
                   <el-input-number
-                    :model-value="model.popPort ?? 995"
+                    :model-value="model.imapPort ?? 993"
                     :min="1"
                     :max="65535"
                     controls-position="right"
                     style="width: 100%"
-                    @update:model-value="setPopPort"
+                    @update:model-value="setImapPort"
                   />
                 </el-form-item>
               </el-col>
@@ -76,6 +76,19 @@
                 <el-form-item :label="t('companyInfo.smtp.useSsl')">
                   <el-switch :model-value="sslEnabled" @update:model-value="setSsl" />
                   <span class="form-item-hint">{{ t('companyInfo.smtp.sslHint') }}</span>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item :label="t('companyInfo.smtp.mailSyncEarliestDate')">
+                  <el-date-picker
+                    :model-value="earliestDateModel"
+                    type="date"
+                    value-format="YYYY-MM-DD"
+                    style="width: 100%"
+                    clearable
+                    :placeholder="t('companyInfo.smtp.phMailSyncEarliestDate')"
+                    @update:model-value="setEarliestDate"
+                  />
                 </el-form-item>
               </el-col>
             </el-row>
@@ -174,20 +187,32 @@ function setSuffixDomain(v: string) {
     .replace(/^@+/, '')
   model.value.platformEmailSuffix = domain ? `@${domain}` : ''
 }
-function setPopHost(v: string) {
+function setImapHost(v: string) {
+  model.value.imapHost = v
   model.value.popHost = v
 }
-function setPopPort(v: number | undefined) {
-  model.value.popPort = typeof v === 'number' && v >= 1 ? v : 995
+function setImapPort(v: number | undefined) {
+  const n = typeof v === 'number' && v >= 1 ? v : 993
+  model.value.imapPort = n
+  model.value.popPort = n
 }
 
-/** 单一 SSL：同时驱动 SMTP useSsl 与 POP popUseSsl */
-const sslEnabled = computed(() => model.value.useSsl !== false && model.value.popUseSsl !== false)
+const sslEnabled = computed(() => model.value.useSsl !== false && model.value.imapUseSsl !== false)
 
 function setSsl(v: string | number | boolean) {
   const on = !!v
   model.value.useSsl = on
+  model.value.imapUseSsl = on
   model.value.popUseSsl = on
+}
+
+const earliestDateModel = computed(() => {
+  const v = model.value.mailSyncEarliestDate
+  if (!v) return undefined
+  return String(v).slice(0, 10)
+})
+function setEarliestDate(v: string | null | undefined) {
+  model.value.mailSyncEarliestDate = v ? String(v).slice(0, 10) : null
 }
 
 const verifiedRows = ref<VerifiedUserMailboxRow[]>([])

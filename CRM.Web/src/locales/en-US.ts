@@ -643,7 +643,7 @@ const enUS = {
     underDevelopmentMessage: '"{name}" is under development.',
     language: 'Language',
     sections: {
-      mainMenu: 'Main Menu',
+      mainMenu: 'My Menu',
       todo: 'To-Do',
       masterData: 'Master Data',
       rfq: 'RFQ',
@@ -658,7 +658,9 @@ const enUS = {
       system: 'System'
     },
     menu: {
-      dashboard: 'Dashboard',
+      mine: 'My',
+      dashboard: 'My Desktop',
+      myMails: 'My Mail',
       pendingApprovals: 'Pending Approvals',
       drafts: 'Drafts',
       customerManagement: 'Customer',
@@ -1066,6 +1068,28 @@ const enUS = {
     drill: {
       hint: 'Click KPIs or rankings to open lists; double-click salesperson row at department level',
       noPermission: 'No permission to open the target list'
+    },
+    stockOutProgressDetail: {
+      detail: 'Details',
+      title: 'Stock-out progress (lines) details',
+      loadFailed: 'Failed to load stock-out progress details',
+      count: '{count} lines',
+      tabs: {
+        all: 'All',
+        pending: 'Pending',
+        partial: 'Partial',
+        complete: 'Complete'
+      },
+      columns: {
+        itemCode: 'SO line',
+        orderCreateTime: 'Order created',
+        customer: 'Customer',
+        salesUser: 'Salesperson',
+        pn: 'PN',
+        brand: 'Brand',
+        qty: 'Qty',
+        status: 'Stock-out status'
+      }
     },
     breakdown: {
       currencyByCount: 'Amounts hidden; share by order count'
@@ -2248,6 +2272,11 @@ const enUS = {
       // @ is linked-message syntax in vue-i18n; escape literal with {'@'}
       phPlatformSuffix: 'e.g. xxx.com',
       popHost: 'POP server',
+      imapHost: 'IMAP host',
+      imapPort: 'IMAP port',
+      phImapHost: 'e.g. imap.exmail.qq.com',
+      mailSyncEarliestDate: 'Earliest sync date',
+      phMailSyncEarliestDate: 'Do not fetch mail before this date',
       phPopHost: 'e.g. pop.example.com',
       popPort: 'POP port',
       popUseSsl: 'POP use SSL',
@@ -2393,6 +2422,9 @@ const enUS = {
       fullAddress: 'Email address',
       password: 'Mailbox password',
       popHost: 'POP server',
+      imapHost: 'IMAP host',
+      imapPort: 'Port',
+      imapSsl: 'SSL',
       popPort: 'POP port',
       popSsl: 'POP SSL',
       kindPlatform: 'Platform',
@@ -4886,7 +4918,7 @@ const enUS = {
       dateStart: 'Order created from',
       dateEnd: 'Order created to',
       rangeTo: 'to',
-      sellOrderCode: 'Sales order no.',
+      sellOrderCode: 'SO / line no.',
       customerName: 'Customer name',
       salesUserName: 'Sales rep name',
       purchaseUserAccount: 'Purchaser',
@@ -5605,11 +5637,10 @@ const enUS = {
       orderCreatedFrom: 'Order created from',
       orderCreatedTo: 'Order created to',
       rangeSeparator: 'to',
-      poCodePlaceholder: 'PO number',
+      poCodePlaceholder: 'PO / line no.',
       vendorPlaceholder: 'Vendor name',
       purchaserPlaceholder: 'Buyer name',
       pnPlaceholder: 'Material / MPN',
-      sellOrderItemCodePlaceholder: 'Sales order line no.',
       transactionCurrency: 'Transaction currency',
       transactionCurrencyRmb: 'RMB',
       transactionCurrencyForeign: 'Foreign currency',
@@ -8203,6 +8234,47 @@ const enUS = {
       loadFailed: 'Failed to load picking slips',
       loadDetailFailed: 'Failed to load picking slip detail',
       loadRelatedFailed: 'Failed to load related business data'
+    }
+  },
+  myMails: {
+    title: 'My Mail',
+    count: '{count} messages',
+    noMailboxTitle: 'No verified mailbox',
+    noMailboxHint: 'Add and verify an IMAP mailbox under My Mailboxes before syncing.',
+    goMailboxSettings: 'Configure my mailboxes',
+    stats: { total: 'All mail', unread: 'Unread' },
+    filters: {
+      mailbox: 'Mailbox',
+      mailboxAll: 'All verified mailboxes',
+      subject: 'Subject',
+      from: 'From',
+      body: 'Body',
+      receivedRange: 'Received',
+      fromDate: 'From',
+      toDate: 'To',
+      search: 'Search',
+      readMails: 'Fetch mail'
+    },
+    columns: {
+      receivedAt: 'Date',
+      subject: 'Subject',
+      snippet: 'Snippet',
+      from: 'From',
+      mailbox: 'Mailbox',
+      actions: 'Actions'
+    },
+    actions: { view: 'View' },
+    syncDialog: {
+      title: 'Fetch mail',
+      mailbox: 'Mailbox',
+      all: 'All verified mailboxes',
+      confirm: 'Start'
+    },
+    detail: { title: 'Message' },
+    messages: {
+      loadFailed: 'Failed to load',
+      syncDone: 'Sync done: fetched {fetched}, saved {upserted}',
+      syncFailed: 'Fetch failed'
     }
   },
   draftList: {

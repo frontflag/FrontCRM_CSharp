@@ -401,6 +401,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? purchaseUserAccount,
             [FromQuery] string? customerId,
             [FromQuery] string? sellOrderCode,
+            [FromQuery] string? sellOrderItemCode,
             [FromQuery] string? pn,
             [FromQuery] string? customerSo,
             [FromQuery] string? customerPn,
@@ -439,6 +440,7 @@ namespace CRM.API.Controllers
                     PurchaseUserAccount = !string.IsNullOrWhiteSpace(purchaseUserAccount) ? purchaseUserAccount.Trim() : null,
                     CustomerId = canViewCustomer && !string.IsNullOrWhiteSpace(customerId) ? customerId.Trim() : null,
                     SellOrderCode = sellOrderCode,
+                    SellOrderItemCode = FirstNonEmptyQuery(sellOrderItemCode, Request.Query["sellOrderItemCode"]),
                     Pn = pn,
                     CustomerSo = canViewCustomer && !string.IsNullOrWhiteSpace(customerSo) ? customerSo.Trim() : null,
                     CustomerPn = canViewCustomer && !string.IsNullOrWhiteSpace(customerPn) ? customerPn.Trim() : null,
@@ -2739,6 +2741,9 @@ namespace CRM.API.Controllers
                 PurchaseUserAccount = !string.IsNullOrWhiteSpace(purchaseUserAccount) ? purchaseUserAccount.Trim() : null,
                 CustomerId = canViewCustomer && !string.IsNullOrWhiteSpace(customerId) ? customerId.Trim() : null,
                 SellOrderCode = sellOrderCode,
+                SellOrderItemCode = string.IsNullOrWhiteSpace(Request.Query["sellOrderItemCode"])
+                    ? null
+                    : Request.Query["sellOrderItemCode"].ToString().Trim(),
                 Pn = pn,
                 CustomerSo = canViewCustomer && !string.IsNullOrWhiteSpace(customerSo) ? customerSo.Trim() : null,
                 CustomerPn = canViewCustomer && !string.IsNullOrWhiteSpace(customerPn) ? customerPn.Trim() : null,
@@ -3154,6 +3159,14 @@ namespace CRM.API.Controllers
             }
 
             return keys;
+        }
+
+        private static string? FirstNonEmptyQuery(string? fromParam, Microsoft.Extensions.Primitives.StringValues fromQuery)
+        {
+            if (!string.IsNullOrWhiteSpace(fromParam))
+                return fromParam.Trim();
+            var q = fromQuery.ToString();
+            return string.IsNullOrWhiteSpace(q) ? null : q.Trim();
         }
 
         private static string NormPnBrandKey(string? pn, string? brand)

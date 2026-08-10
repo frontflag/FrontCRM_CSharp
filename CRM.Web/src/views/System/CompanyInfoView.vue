@@ -826,7 +826,11 @@ function emptySmtp(): CompanySmtpEmailSettings {
     platformEmailSuffix: '',
     popHost: '',
     popPort: 995,
-    popUseSsl: true
+    popUseSsl: true,
+    imapHost: '',
+    imapPort: 993,
+    imapUseSsl: true,
+    mailSyncEarliestDate: null
   }
 }
 
@@ -1430,12 +1434,18 @@ function bundle() {
       smtpPort: smtpEmail.value.smtpPort,
       useSsl: smtpEmail.value.useSsl,
       platformEmailSuffix: smtpEmail.value.platformEmailSuffix ?? '',
-      popHost: smtpEmail.value.popHost ?? '',
+      imapHost: smtpEmail.value.imapHost ?? smtpEmail.value.popHost ?? '',
+      imapPort:
+        typeof smtpEmail.value.imapPort === 'number' && smtpEmail.value.imapPort >= 1
+          ? smtpEmail.value.imapPort
+          : 993,
+      imapUseSsl: smtpEmail.value.useSsl !== false,
+      mailSyncEarliestDate: smtpEmail.value.mailSyncEarliestDate ?? null,
+      popHost: smtpEmail.value.imapHost ?? smtpEmail.value.popHost ?? '',
       popPort:
-        typeof smtpEmail.value.popPort === 'number' && smtpEmail.value.popPort >= 1
-          ? smtpEmail.value.popPort
-          : 995,
-      // 与 useSsl 同步（UI 单一 SSL）
+        typeof smtpEmail.value.imapPort === 'number' && smtpEmail.value.imapPort >= 1
+          ? smtpEmail.value.imapPort
+          : 993,
       popUseSsl: smtpEmail.value.useSsl !== false
     }
   }
@@ -1471,8 +1481,12 @@ async function load() {
       // 加载时以 SMTP useSsl 为准，对齐 POP
       useSsl: se?.useSsl !== false,
       popUseSsl: se?.useSsl !== false,
+      imapUseSsl: se?.useSsl !== false,
       platformEmailSuffix: se?.platformEmailSuffix ?? '',
-      popHost: se?.popHost ?? ''
+      popHost: se?.imapHost ?? se?.popHost ?? '',
+      imapHost: se?.imapHost ?? se?.popHost ?? '',
+      imapPort: typeof se?.imapPort === 'number' && se.imapPort >= 1 ? se.imapPort : (typeof se?.popPort === 'number' && se.popPort >= 1 ? se.popPort : 993),
+      mailSyncEarliestDate: se?.mailSyncEarliestDate ? String(se.mailSyncEarliestDate).slice(0, 10) : null
     }
     reportInfo.value = normalizeReportInfo(data.reportInfo ?? undefined)
     await refreshAssetPreviews()

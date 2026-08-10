@@ -46,6 +46,14 @@ namespace CRM.API.Models.DTOs
         public int PopPort { get; set; } = 995;
         public bool PopUseSsl { get; set; } = true;
 
+        /// <summary>租户平台邮箱 IMAP（一期收信协议）。</summary>
+        public string? ImapHost { get; set; }
+        public int ImapPort { get; set; } = 993;
+        public bool ImapUseSsl { get; set; } = true;
+
+        /// <summary>全租户最早同步邮件日期（日历日，语义 Asia/Shanghai 当日 00:00 起）。</summary>
+        public DateTime? MailSyncEarliestDate { get; set; }
+
         // 二期起业务不再使用；Upsert 仅从旧 JSON 原样保留，GET 时清空不回传
         public string? User { get; set; }
         public string? Password { get; set; }
@@ -67,6 +75,9 @@ namespace CRM.API.Models.DTOs
         public string? PopHost { get; set; }
         public int? PopPort { get; set; }
         public bool PopUseSsl { get; set; } = true;
+        public string? ImapHost { get; set; }
+        public int? ImapPort { get; set; }
+        public bool ImapUseSsl { get; set; } = true;
         /// <summary>none | ok | fail</summary>
         public string VerifyStatus { get; set; } = "none";
         public string? VerifyMessage { get; set; }
@@ -85,6 +96,9 @@ namespace CRM.API.Models.DTOs
     {
         public UserMailboxDto Mailbox { get; set; } = new();
         public bool Success { get; set; }
+        public bool ImapOk { get; set; }
+        public string ImapMessage { get; set; } = string.Empty;
+        /// <summary>兼容旧字段，等同 ImapOk。</summary>
         public bool PopOk { get; set; }
         public string PopMessage { get; set; } = string.Empty;
         public bool? SmtpOk { get; set; }
@@ -103,6 +117,9 @@ namespace CRM.API.Models.DTOs
         public string? PopHost { get; set; }
         public int? PopPort { get; set; }
         public bool? PopUseSsl { get; set; }
+        public string? ImapHost { get; set; }
+        public int? ImapPort { get; set; }
+        public bool? ImapUseSsl { get; set; }
     }
 
     public class VerifiedUserMailboxRowDto

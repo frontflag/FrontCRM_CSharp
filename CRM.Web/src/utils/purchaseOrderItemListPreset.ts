@@ -109,7 +109,6 @@ export const PO_ITEM_KEYWORD_QUERY_KEYS = [
   'vendorName',
   'purchaseUserName',
   'pn',
-  'sellOrderItemCode',
   'transactionCurrency',
   'orderType'
 ] as const

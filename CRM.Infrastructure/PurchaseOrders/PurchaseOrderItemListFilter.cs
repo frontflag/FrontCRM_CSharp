@@ -42,12 +42,13 @@ internal static partial class PurchaseOrderItemListFilter
             q = q.Where(x => x.Po.CreateTime < e);
         }
 
+        // 「采购订单/明细号」：主单号或明细号任一模糊命中（OR）
         if (!string.IsNullOrWhiteSpace(request.PurchaseOrderCode))
         {
-            var c = request.PurchaseOrderCode.Trim();
+            var c = request.PurchaseOrderCode.Trim().ToLowerInvariant();
             q = q.Where(x =>
-                x.Po.PurchaseOrderCode != null &&
-                x.Po.PurchaseOrderCode.ToLower().Contains(c.ToLower()));
+                (x.Po.PurchaseOrderCode != null && x.Po.PurchaseOrderCode.ToLower().Contains(c))
+                || (x.Item.PurchaseOrderItemCode != null && x.Item.PurchaseOrderItemCode.ToLower().Contains(c)));
         }
 
         if (!string.IsNullOrWhiteSpace(request.FreightForwarderOrderNo))

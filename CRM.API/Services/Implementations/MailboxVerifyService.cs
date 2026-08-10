@@ -2,7 +2,7 @@ using CRM.API.Models.DTOs;
 using CRM.API.Services.Interfaces;
 using CRM.Core.Models.System;
 using CRM.Infrastructure.Data;
-using MailKit.Net.Pop3;
+using MailKit.Net.Imap;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using Microsoft.EntityFrameworkCore;
@@ -55,56 +55,46 @@ public sealed class MailboxVerifyService : IMailboxVerifyService
         var tenant = await CompanyProfileBundleLoader.LoadSmtpEmailRawAsync(_db, cancellationToken)
                      ?? new CompanySmtpEmailSettingsDto();
 
-        string popHost;
-        int popPort;
-        bool popSsl;
-        if (box.Kind == UserMailboxKind.Platform)
-        {
-            if (string.IsNullOrWhiteSpace(tenant.PopHost))
-                return EarlyFail("管理员尚未配置租户 POP 服务器");
-            popHost = tenant.PopHost.Trim();
-            popPort = tenant.PopPort is >= 1 and <= 65535 ? tenant.PopPort : 995;
-            popSsl = tenant.PopUseSsl;
-        }
-        else
-        {
-            if (string.IsNullOrWhiteSpace(box.PopHost))
-                return EarlyFail("请填写 POP 服务器地址");
-            popHost = box.PopHost.Trim();
-            popPort = box.PopPort is >= 1 and <= 65535 ? box.PopPort.Value : 995;
-            popSsl = box.PopUseSsl;
-        }
+        var (imapHost, imapPort, imapSsl, resolveError) = ResolveImapEndpoint(box, tenant);
+        if (resolveError != null)
+            return EarlyFail(resolveError);
 
         var address = box.Address.Trim();
         var result = new MailboxVerifyResultDto();
 
-        // 1) 先验 POP
+        // 1) 先验 IMAP
         try
         {
-            using var pop = new Pop3Client();
-            var secure = popSsl ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.Auto;
-            await pop.ConnectAsync(popHost, popPort, secure, cancellationToken);
-            await pop.AuthenticateAsync(address, password, cancellationToken);
-            _ = pop.Count;
-            await pop.DisconnectAsync(true, cancellationToken);
+            using var imap = new ImapClient();
+            var secure = imapSsl ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.Auto;
+            await imap.ConnectAsync(imapHost, imapPort, secure, cancellationToken);
+            await imap.AuthenticateAsync(address, password, cancellationToken);
+            var inbox = imap.Inbox;
+            await inbox.OpenAsync(MailKit.FolderAccess.ReadOnly, cancellationToken);
+            _ = inbox.Count;
+            await imap.DisconnectAsync(true, cancellationToken);
+            result.ImapOk = true;
+            result.ImapMessage = "IMAP 收信验证成功";
             result.PopOk = true;
-            result.PopMessage = "POP 收信验证成功";
+            result.PopMessage = result.ImapMessage;
         }
         catch (Exception ex)
         {
-            _logger.LogInformation(ex, "POP 验证失败 mailboxId={Id}", mailboxId);
+            _logger.LogInformation(ex, "IMAP 验证失败 mailboxId={Id}", mailboxId);
+            result.ImapOk = false;
+            result.ImapMessage = ShortMsg("IMAP 收信验证失败", ex);
             result.PopOk = false;
-            result.PopMessage = ShortMsg("POP 收信验证失败", ex);
+            result.PopMessage = result.ImapMessage;
             result.Success = false;
-            result.Message = result.PopMessage;
+            result.Message = result.ImapMessage;
             return result;
         }
 
-        // 2) 平台再验 SMTP；其他邮箱仅 POP
+        // 2) 平台再验 SMTP；其他邮箱仅 IMAP
         if (box.Kind != UserMailboxKind.Platform)
         {
             result.Success = true;
-            result.Message = result.PopMessage;
+            result.Message = result.ImapMessage;
             return result;
         }
 
@@ -113,7 +103,7 @@ public sealed class MailboxVerifyService : IMailboxVerifyService
             result.SmtpOk = false;
             result.SmtpMessage = "SMTP 发信验证失败：管理员尚未配置租户 SMTP 服务器";
             result.Success = false;
-            result.Message = $"{result.PopMessage}；{result.SmtpMessage}";
+            result.Message = $"{result.ImapMessage}；{result.SmtpMessage}";
             return result;
         }
 
@@ -138,7 +128,7 @@ public sealed class MailboxVerifyService : IMailboxVerifyService
             result.SmtpOk = true;
             result.SmtpMessage = "SMTP 发信验证成功";
             result.Success = true;
-            result.Message = $"{result.PopMessage}；{result.SmtpMessage}";
+            result.Message = $"{result.ImapMessage}；{result.SmtpMessage}";
             return result;
         }
         catch (Exception ex)
@@ -147,15 +137,48 @@ public sealed class MailboxVerifyService : IMailboxVerifyService
             result.SmtpOk = false;
             result.SmtpMessage = ShortMsg("SMTP 发信验证失败", ex);
             result.Success = false;
-            result.Message = $"{result.PopMessage}；{result.SmtpMessage}";
+            result.Message = $"{result.ImapMessage}；{result.SmtpMessage}";
             return result;
         }
+    }
+
+    /// <summary>解析 IMAP 端点：平台用公司设置；个人用行上配置。Imap 空时回退历史 Pop 字段。</summary>
+    public static (string Host, int Port, bool Ssl, string? Error) ResolveImapEndpoint(
+        UserMailbox box,
+        CompanySmtpEmailSettingsDto tenant)
+    {
+        if (box.Kind == UserMailboxKind.Platform)
+        {
+            var host = FirstNonEmpty(tenant.ImapHost, tenant.PopHost);
+            if (string.IsNullOrWhiteSpace(host))
+                return ("", 0, true, "管理员尚未配置租户 IMAP 服务器");
+            var port = tenant.ImapPort is >= 1 and <= 65535
+                ? tenant.ImapPort
+                : (tenant.PopPort is >= 1 and <= 65535 ? tenant.PopPort : 993);
+            var ssl = !string.IsNullOrWhiteSpace(tenant.ImapHost) ? tenant.ImapUseSsl : tenant.PopUseSsl;
+            return (host.Trim(), port, ssl, null);
+        }
+
+        var personalHost = FirstNonEmpty(box.ImapHost, box.PopHost);
+        if (string.IsNullOrWhiteSpace(personalHost))
+            return ("", 0, true, "请填写 IMAP 服务器地址");
+        var personalPort = box.ImapPort is >= 1 and <= 65535
+            ? box.ImapPort.Value
+            : (box.PopPort is >= 1 and <= 65535 ? box.PopPort.Value : 993);
+        var personalSsl = !string.IsNullOrWhiteSpace(box.ImapHost) ? box.ImapUseSsl : box.PopUseSsl;
+        return (personalHost.Trim(), personalPort, personalSsl, null);
+    }
+
+    private static string? FirstNonEmpty(string? a, string? b)
+    {
+        if (!string.IsNullOrWhiteSpace(a)) return a;
+        if (!string.IsNullOrWhiteSpace(b)) return b;
+        return null;
     }
 
     private static SecureSocketOptions ResolveSmtpSecure(int port, bool useSsl)
     {
         if (!useSsl) return SecureSocketOptions.Auto;
-        // 465 多为隐式 SSL；587 多为 STARTTLS
         if (port == 465) return SecureSocketOptions.SslOnConnect;
         return SecureSocketOptions.StartTls;
     }
@@ -164,6 +187,8 @@ public sealed class MailboxVerifyService : IMailboxVerifyService
     {
         Success = false,
         Message = message,
+        ImapOk = false,
+        ImapMessage = message,
         PopOk = false,
         PopMessage = message
     };

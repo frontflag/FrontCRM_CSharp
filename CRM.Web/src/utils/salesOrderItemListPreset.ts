@@ -107,6 +107,8 @@ export function resolveSoItemPresetApiParams(preset: SoItemListPresetId): SoItem
 /** keyword 区 query 键（可与 preset 叠加；取消 preset 时一并清除） */
 export const SO_ITEM_KEYWORD_QUERY_KEYS = [
   'sellOrderCode',
+  /** @deprecated 列表已并入 sellOrderCode；保留以便旧深链 pick 时不丢参 */
+  'sellOrderItemCode',
   'customerName',
   'salesUserName',
   'purchaseUserAccount',

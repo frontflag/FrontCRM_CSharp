@@ -218,8 +218,10 @@ public class MeMailboxesController : ControllerBase
         {
             Mailbox = ToDto(entity),
             Success = result.Success,
-            PopOk = result.PopOk,
-            PopMessage = result.PopMessage,
+            ImapOk = result.ImapOk,
+            ImapMessage = result.ImapMessage,
+            PopOk = result.ImapOk,
+            PopMessage = result.ImapMessage,
             SmtpOk = result.SmtpOk,
             SmtpMessage = result.SmtpMessage
         };
@@ -281,10 +283,12 @@ public class MeMailboxesController : ControllerBase
         {
             address = (body.Address ?? string.Empty).Trim();
             if (!MailboxAddressHelper.IsValidEmail(address)) return "请填写有效的邮箱地址";
-            if (string.IsNullOrWhiteSpace(body.PopHost) && existing == null)
-                return "其他邮箱须填写 POP 服务器";
-            if (string.IsNullOrWhiteSpace(body.PopHost) && existing != null && string.IsNullOrWhiteSpace(existing.PopHost))
-                return "其他邮箱须填写 POP 服务器";
+            var imapHostIn = (body.ImapHost ?? body.PopHost ?? "").Trim();
+            var existingImap = (existing?.ImapHost ?? existing?.PopHost ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(imapHostIn) && existing == null)
+                return "请为其他邮箱填写 IMAP 服务器";
+            if (string.IsNullOrWhiteSpace(imapHostIn) && existing != null && string.IsNullOrWhiteSpace(existingImap))
+                return "请为其他邮箱填写 IMAP 服务器";
         }
 
         var dup = await _db.UserMailboxes.AnyAsync(
@@ -327,9 +331,9 @@ public class MeMailboxesController : ControllerBase
     {
         var kind = ParseKind(body.Kind) ?? entity.Kind;
         var prevAddress = entity.Address;
-        var prevPopHost = entity.PopHost;
-        var prevPopPort = entity.PopPort;
-        var prevPopSsl = entity.PopUseSsl;
+        var prevImapHost = entity.ImapHost;
+        var prevImapPort = entity.ImapPort;
+        var prevImapSsl = entity.ImapUseSsl;
         var passwordChanged = !string.IsNullOrWhiteSpace(body.Password);
 
         entity.Kind = kind;
@@ -344,19 +348,27 @@ public class MeMailboxesController : ControllerBase
             entity.PopHost = null;
             entity.PopPort = null;
             entity.PopUseSsl = true;
+            entity.ImapHost = null;
+            entity.ImapPort = null;
+            entity.ImapUseSsl = true;
         }
         else
         {
             entity.LocalPart = null;
             entity.Address = (body.Address ?? entity.Address).Trim();
-            if (!string.IsNullOrWhiteSpace(body.PopHost))
-                entity.PopHost = body.PopHost.Trim();
-            if (body.PopPort.HasValue)
-                entity.PopPort = body.PopPort;
-            else if (entity.PopPort == null)
-                entity.PopPort = 995;
-            if (body.PopUseSsl.HasValue)
-                entity.PopUseSsl = body.PopUseSsl.Value;
+            var imapHost = body.ImapHost ?? body.PopHost;
+            if (!string.IsNullOrWhiteSpace(imapHost))
+                entity.ImapHost = imapHost.Trim();
+            if (body.ImapPort.HasValue)
+                entity.ImapPort = body.ImapPort;
+            else if (body.PopPort.HasValue)
+                entity.ImapPort = body.PopPort;
+            else if (entity.ImapPort == null)
+                entity.ImapPort = 993;
+            if (body.ImapUseSsl.HasValue)
+                entity.ImapUseSsl = body.ImapUseSsl.Value;
+            else if (body.PopUseSsl.HasValue)
+                entity.ImapUseSsl = body.PopUseSsl.Value;
             entity.IsDefaultSend = false;
         }
 
@@ -374,9 +386,9 @@ public class MeMailboxesController : ControllerBase
             var sensitive =
                 passwordChanged
                 || !string.Equals(prevAddress, entity.Address, StringComparison.OrdinalIgnoreCase)
-                || !string.Equals(prevPopHost ?? "", entity.PopHost ?? "", StringComparison.OrdinalIgnoreCase)
-                || prevPopPort != entity.PopPort
-                || prevPopSsl != entity.PopUseSsl;
+                || !string.Equals(prevImapHost ?? "", entity.ImapHost ?? "", StringComparison.OrdinalIgnoreCase)
+                || prevImapPort != entity.ImapPort
+                || prevImapSsl != entity.ImapUseSsl;
             if (sensitive)
             {
                 entity.VerifyStatus = UserMailboxVerifyStatus.None;
@@ -409,6 +421,9 @@ public class MeMailboxesController : ControllerBase
         PopHost = x.PopHost,
         PopPort = x.PopPort,
         PopUseSsl = x.PopUseSsl,
+        ImapHost = x.ImapHost,
+        ImapPort = x.ImapPort,
+        ImapUseSsl = x.ImapUseSsl,
         VerifyStatus = x.VerifyStatus switch
         {
             UserMailboxVerifyStatus.Ok => "ok",

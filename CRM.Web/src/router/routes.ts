@@ -43,7 +43,13 @@ const routes: RouteRecordRaw[] = [
         path: 'dashboard',
         name: 'Dashboard',
         component: () => import('@/views/Dashboard/DashboardView.vue'),
-        meta: { requiresAuth: true, title: '控制台' }
+        meta: { requiresAuth: true, title: '我的桌面' }
+      },
+      {
+        path: 'my/mails',
+        name: 'MyMails',
+        component: () => import('@/views/My/MyMailsPage.vue'),
+        meta: { requiresAuth: true, title: '我的邮件' }
       },
       {
         path: 'reports',

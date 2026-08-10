@@ -84,6 +84,11 @@ export interface CompanySmtpEmailSettings {
   popHost?: string
   popPort?: number
   popUseSsl?: boolean
+  imapHost?: string
+  imapPort?: number
+  imapUseSsl?: boolean
+  /** 全租户最早同步邮件日期 yyyy-MM-dd */
+  mailSyncEarliestDate?: string | null
 }
 
 export interface CompanyReportRemarks {

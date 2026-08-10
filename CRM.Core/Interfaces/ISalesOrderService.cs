@@ -97,8 +97,10 @@ namespace CRM.Core.Interfaces
         public DateTime? OrderCreateEnd { get; set; }
         public string? CustomerName { get; set; }
         public string? SalesUserName { get; set; }
-        /// <summary>销售订单号（模糊匹配）</summary>
+        /// <summary>销售订单/明细号：主单号或明细编号任一模糊匹配（OR）。</summary>
         public string? SellOrderCode { get; set; }
+        /// <summary>销售订单明细编号（兼容旧深链；列表 UI 已并入 <see cref="SellOrderCode"/>）。</summary>
+        public string? SellOrderItemCode { get; set; }
         public string? Pn { get; set; }
         /// <summary>交易币别筛选：rmb=人民币，foreign=外币（非人民币）。</summary>
         public string? TransactionCurrency { get; set; }

@@ -639,7 +639,7 @@ const zhCN = {
     underDevelopmentMessage: '「{name}」功能正在开发中，敬请期待',
     language: '语言',
     sections: {
-      mainMenu: '主菜单',
+      mainMenu: '我的菜单',
       todo: '待办',
       masterData: '基础资料',
       rfq: '询价',
@@ -654,7 +654,9 @@ const zhCN = {
       system: '系统'
     },
     menu: {
-      dashboard: '控制台',
+      mine: '我的',
+      dashboard: '我的桌面',
+      myMails: '我的邮件',
       pendingApprovals: '待审批',
       drafts: '草稿箱',
       customerManagement: '客户管理',
@@ -1062,6 +1064,28 @@ const zhCN = {
     drill: {
       hint: '可点击 KPI 或排行进入业务列表；部门层排行双击可查看业务员订单',
       noPermission: '无权限访问目标列表'
+    },
+    stockOutProgressDetail: {
+      detail: '详情',
+      title: '出库进度（明细行）详情',
+      loadFailed: '加载出库进度详情失败',
+      count: '{count} 条',
+      tabs: {
+        all: '全部',
+        pending: '待出库',
+        partial: '部分出库',
+        complete: '出库完成'
+      },
+      columns: {
+        itemCode: '销售订单明细',
+        orderCreateTime: '订单创建日期',
+        customer: '客户',
+        salesUser: '业务员',
+        pn: '物料型号',
+        brand: '品牌',
+        qty: '订单数量',
+        status: '订单明细出库状态'
+      }
     },
     breakdown: {
       currencyByCount: '金额已隐藏，按订单数占比'
@@ -2227,6 +2251,11 @@ const zhCN = {
       // @ 在 vue-i18n 中为链接语法，字面量须写成 {'@'}
       phPlatformSuffix: '如 xxx.com',
       popHost: 'POP 服务器',
+      imapHost: 'IMAP 主机',
+      imapPort: 'IMAP 端口',
+      phImapHost: '如 imap.exmail.qq.com',
+      mailSyncEarliestDate: '最早同步邮件日期',
+      phMailSyncEarliestDate: '不拉取此日期之前的邮件',
       phPopHost: '如 pop.example.com',
       popPort: 'POP 端口',
       popUseSsl: 'POP 使用 SSL',
@@ -2369,6 +2398,9 @@ const zhCN = {
       fullAddress: '邮箱地址',
       password: '邮箱密码',
       popHost: 'POP 服务器',
+      imapHost: 'IMAP 主机',
+      imapPort: '端口',
+      imapSsl: 'SSL',
       popPort: 'POP 端口',
       popSsl: 'POP SSL',
       kindPlatform: '平台',
@@ -4880,7 +4912,7 @@ const zhCN = {
       dateStart: '订单生成起',
       dateEnd: '订单生成止',
       rangeTo: '至',
-      sellOrderCode: '销售订单号',
+      sellOrderCode: '销售订单/明细号',
       customerName: '客户名称',
       salesUserName: '销售员名称',
       purchaseUserAccount: '采购员',
@@ -5589,11 +5621,10 @@ const zhCN = {
       orderCreatedFrom: '订单生成起',
       orderCreatedTo: '订单生成止',
       rangeSeparator: '至',
-      poCodePlaceholder: '采购订单号',
+      poCodePlaceholder: '采购订单/明细号',
       vendorPlaceholder: '供应商名称',
       purchaserPlaceholder: '采购员名称',
       pnPlaceholder: '物料型号',
-      sellOrderItemCodePlaceholder: '销售订单明细单号',
       transactionCurrency: '交易币别',
       transactionCurrencyRmb: '人民币',
       transactionCurrencyForeign: '外币',
@@ -8188,6 +8219,47 @@ const zhCN = {
       loadFailed: '加载拣货单列表失败',
       loadDetailFailed: '加载拣货单详情失败',
       loadRelatedFailed: '加载关联业务数据失败'
+    }
+  },
+  myMails: {
+    title: '我的邮件',
+    count: '共 {count} 条',
+    noMailboxTitle: '尚未配置已验证邮箱',
+    noMailboxHint: '请先在「我的邮箱」中添加并完成 IMAP 验证，才能读取邮件。',
+    goMailboxSettings: '去配置我的邮箱',
+    stats: { total: '全部邮件', unread: '未读邮件' },
+    filters: {
+      mailbox: '邮箱',
+      mailboxAll: '全部已验证邮箱',
+      subject: '标题',
+      from: '发件人',
+      body: '正文',
+      receivedRange: '收件日期',
+      fromDate: '开始',
+      toDate: '结束',
+      search: '查询',
+      readMails: '读取邮件'
+    },
+    columns: {
+      receivedAt: '邮件日期',
+      subject: '邮件标题',
+      snippet: '正文摘要',
+      from: '发件人',
+      mailbox: '邮箱',
+      actions: '操作'
+    },
+    actions: { view: '查看' },
+    syncDialog: {
+      title: '读取邮件',
+      mailbox: '选择邮箱',
+      all: '全部已验证邮箱',
+      confirm: '开始读取'
+    },
+    detail: { title: '邮件详情' },
+    messages: {
+      loadFailed: '加载失败',
+      syncDone: '同步完成：拉取 {fetched}，写入 {upserted}',
+      syncFailed: '读取邮件失败'
     }
   },
   draftList: {

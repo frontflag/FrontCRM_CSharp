@@ -1511,7 +1511,12 @@ async function loadList() {
     }
     if (dateRange.value?.[0]) params.orderCreateStart = dateRange.value[0]
     if (dateRange.value?.[1]) params.orderCreateEnd = dateRange.value[1]
-    const soc = String(filters.sellOrderCode ?? '').trim()
+    // 优先路由：兼容旧深链 sellOrderItemCode，统一走「销售订单/明细号」OR 检索
+    const socFromRoute =
+      typeof route.query.sellOrderCode === 'string' ? route.query.sellOrderCode.trim() : ''
+    const soicFromRoute =
+      typeof route.query.sellOrderItemCode === 'string' ? route.query.sellOrderItemCode.trim() : ''
+    const soc = String(filters.sellOrderCode ?? '').trim() || socFromRoute || soicFromRoute
     if (soc) params.sellOrderCode = soc
     if (!maskSaleSensitiveFields.value) {
       const cn = String(filters.customerName ?? '').trim()
@@ -1751,7 +1756,10 @@ function parseProgressQuery(v: unknown): number[] {
 function syncFiltersFromRoute() {
   if (route.name !== 'SalesOrderItemList') return
   const q = route.query
-  filters.sellOrderCode = typeof q.sellOrderCode === 'string' ? q.sellOrderCode : ''
+  // 旧深链 ?sellOrderItemCode= 合并进「销售订单/明细号」输入框
+  const soc = typeof q.sellOrderCode === 'string' ? q.sellOrderCode : ''
+  const soic = typeof q.sellOrderItemCode === 'string' ? q.sellOrderItemCode : ''
+  filters.sellOrderCode = soc || soic
   filters.customerName = typeof q.customerName === 'string' ? q.customerName : ''
   filters.salesUserName = typeof q.salesUserName === 'string' ? q.salesUserName : ''
   filters.purchaseUserAccount = typeof q.purchaseUserAccount === 'string' ? q.purchaseUserAccount : ''

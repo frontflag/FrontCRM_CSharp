@@ -7,12 +7,16 @@ public interface IMailboxVerifyService
 
 public sealed class MailboxVerifyResultDto
 {
-    /// <summary>整体是否通过（平台需 POP+SMTP 皆成功；其他仅 POP）。</summary>
+    /// <summary>整体是否通过：平台需 IMAP+SMTP 均成功；其他仅 IMAP。</summary>
     public bool Success { get; set; }
 
     /// <summary>汇总文案（写入 verify_message）。</summary>
     public string Message { get; set; } = string.Empty;
 
+    public bool ImapOk { get; set; }
+    public string ImapMessage { get; set; } = string.Empty;
+
+    /// <summary>兼容旧字段，等同 <see cref="ImapOk"/>。</summary>
     public bool PopOk { get; set; }
     public string PopMessage { get; set; } = string.Empty;
 

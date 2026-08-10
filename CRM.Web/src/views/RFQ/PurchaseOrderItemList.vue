@@ -107,18 +107,6 @@
             @keyup.enter="runSearch"
           />
         </div>
-        <div class="search-input-wrap">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <input
-            v-model="filters.sellOrderItemCode"
-            class="search-input"
-            :placeholder="t('purchaseOrderItemList.filters.sellOrderItemCodePlaceholder')"
-            @keyup.enter="runSearch"
-          />
-        </div>
 
         <el-select
           v-if="tabModeDimension !== 'currency'"
@@ -1147,7 +1135,6 @@ const filters = reactive({
   vendorName: '',
   purchaseUserName: '',
   pn: '',
-  sellOrderItemCode: '',
   transactionCurrency: '' as '' | 'rmb' | 'foreign',
   orderType: undefined as number | undefined,
   paymentProgressStatus: [] as number[],
@@ -1200,8 +1187,6 @@ const boardFilters = computed((): PurchaseOrderItemListAnalyticsQuery => {
   }
   const pnk = String(filters.pn ?? '').trim()
   if (pnk) q.pn = pnk
-  const soic = String(filters.sellOrderItemCode ?? '').trim()
-  if (soic) q.sellOrderItemCode = soic
   if (filters.orderType !== undefined && filters.orderType !== null) q.orderType = filters.orderType
   if (filters.transactionCurrency) q.transactionCurrency = filters.transactionCurrency
   if (!activePreset.value) {
@@ -1349,8 +1334,6 @@ function collectKeywordQuery(): Record<string, string> {
   }
   const pnk = String(filters.pn ?? '').trim()
   if (pnk) keywords.pn = pnk
-  const soic = String(filters.sellOrderItemCode ?? '').trim()
-  if (soic) keywords.sellOrderItemCode = soic
   if (filters.transactionCurrency) keywords.transactionCurrency = filters.transactionCurrency
   if (filters.orderType !== undefined && filters.orderType !== null) {
     keywords.orderType = String(filters.orderType)
@@ -1399,7 +1382,6 @@ function syncFiltersFromRoute() {
   filters.vendorName = typeof q.vendorName === 'string' ? q.vendorName : ''
   filters.purchaseUserName = typeof q.purchaseUserName === 'string' ? q.purchaseUserName : ''
   filters.pn = typeof q.pn === 'string' ? q.pn : ''
-  filters.sellOrderItemCode = typeof q.sellOrderItemCode === 'string' ? q.sellOrderItemCode : ''
   filters.transactionCurrency =
     q.transactionCurrency === 'rmb' || q.transactionCurrency === 'foreign' ? q.transactionCurrency : ''
   const ot = typeof q.orderType === 'string' ? Number(q.orderType) : NaN
@@ -1752,7 +1734,6 @@ async function loadList() {
       vendorName?: string
       purchaseUserName?: string
       pn?: string
-      sellOrderItemCode?: string
       orderType?: number
       transactionCurrency?: 'rmb' | 'foreign'
       paymentProgressStatus?: number | number[]
@@ -1771,7 +1752,6 @@ async function loadList() {
     if (canViewVendor.value && filters.vendorName.trim()) params.vendorName = filters.vendorName.trim()
     if (canViewPurchaseUser.value && filters.purchaseUserName.trim()) params.purchaseUserName = filters.purchaseUserName.trim()
     if (filters.pn.trim()) params.pn = filters.pn.trim()
-    if (filters.sellOrderItemCode.trim()) params.sellOrderItemCode = filters.sellOrderItemCode.trim()
     if (filters.orderType !== undefined && filters.orderType !== null) params.orderType = filters.orderType
     if (filters.transactionCurrency) params.transactionCurrency = filters.transactionCurrency
     const qf = route.query.quickFilter

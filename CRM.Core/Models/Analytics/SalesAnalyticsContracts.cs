@@ -123,6 +123,49 @@ public sealed class SalesAnalyticsBreakdownGroupDto
     public IReadOnlyList<SalesAnalyticsBreakdownItemDto> Items { get; set; } = Array.Empty<SalesAnalyticsBreakdownItemDto>();
 }
 
+/// <summary>出库进度（明细行）详情：三档汇总。</summary>
+public sealed class SalesAnalyticsStockOutProgressSummaryItemDto
+{
+    public short Status { get; set; }
+    public string Label { get; set; } = string.Empty;
+    public int Count { get; set; }
+    public decimal Ratio { get; set; }
+}
+
+/// <summary>出库进度（明细行）详情：列表行。</summary>
+public sealed class SalesAnalyticsStockOutProgressDetailItemDto
+{
+    public string SellOrderItemId { get; set; } = string.Empty;
+    /// <summary>销售订单明细编号。</summary>
+    public string SellOrderItemCode { get; set; } = string.Empty;
+    public DateTime OrderCreateTime { get; set; }
+    /// <summary>客户名称；无 <c>customer.info.read</c>（或 5.2.1 脱敏）时为 null。</summary>
+    public string? CustomerName { get; set; }
+    public string? SalesUserName { get; set; }
+    public string? Pn { get; set; }
+    public string? Brand { get; set; }
+    public decimal Qty { get; set; }
+    public short StockOutProgressStatus { get; set; }
+    public string StockOutProgressLabel { get; set; } = string.Empty;
+}
+
+/// <summary>出库进度（明细行）详情弹窗数据。</summary>
+public sealed class SalesAnalyticsStockOutProgressDetailDto
+{
+    public IReadOnlyList<SalesAnalyticsStockOutProgressSummaryItemDto> Summary { get; set; } =
+        Array.Empty<SalesAnalyticsStockOutProgressSummaryItemDto>();
+
+    public IReadOnlyList<SalesAnalyticsStockOutProgressDetailItemDto> Items { get; set; } =
+        Array.Empty<SalesAnalyticsStockOutProgressDetailItemDto>();
+
+    /// <summary>当前用户是否可查看客户名称列。</summary>
+    public bool CanViewCustomer { get; set; }
+
+    public int Total { get; set; }
+    public int Page { get; set; }
+    public int PageSize { get; set; }
+}
+
 /// <summary>
 /// 销售分析「客户」Tab：成单客户维 KPI / 类型等级行业分解 / 客户 Top10。
 /// 复购客户 = 成单订单数 ≥ 2 的去重客户。

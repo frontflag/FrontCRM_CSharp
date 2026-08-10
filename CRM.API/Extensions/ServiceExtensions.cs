@@ -200,6 +200,7 @@ namespace CRM.API.Extensions
             services.AddSingleton<IMailboxPasswordCipher, MailboxPasswordCipher>();
             services.AddScoped<IMailboxVerifyService, MailboxVerifyService>();
             services.AddScoped<IMailboxSendService, MailboxSendService>();
+            services.AddScoped<IUserMailSyncService, UserMailSyncService>();
 
             services.AddCors(options =>
             {
@@ -276,6 +277,7 @@ namespace CRM.API.Extensions
             });
 
             services.AddHostedService<CRM.API.Services.TelemetryCleanupHostedService>();
+            services.AddHostedService<CRM.API.Services.MailSyncHostedService>();
 
             return services;
         }

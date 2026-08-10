@@ -160,9 +160,13 @@
         <!-- 主菜单标签 -->
         <div class="menu-section-label" v-if="!isCollapsed">{{ t('layout.sections.mainMenu') }}</div>
 
-        <!-- 控制台：展开时不包 el-tooltip，避免触发器层把菜单项挤成纵向 -->
-        <SidebarMenuTooltipWrap :collapsed="isCollapsed" :tooltip="t('layout.menu.dashboard')">
-          <router-link to="/dashboard" class="menu-item" active-class="active" exact>
+        <!-- 我的（主菜单第一项） -->
+        <SidebarMenuGroupFlyout
+          :collapsed="isCollapsed"
+          :expanded="openGroups.mine"
+          @toggle="toggleGroup('mine')"
+        >
+          <template #icon>
             <span class="menu-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                 <rect x="3" y="3" width="7" height="7" rx="1"/>
@@ -171,10 +175,20 @@
                 <rect x="14" y="14" width="7" height="7" rx="1"/>
               </svg>
             </span>
-            <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.dashboard') }}</span>
-            <span class="active-dot" v-if="!isCollapsed"></span>
-          </router-link>
-        </SidebarMenuTooltipWrap>
+          </template>
+          <template #label>
+            <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.mine') }}</span>
+          </template>
+          <template #chevron>
+            <svg v-if="!isCollapsed" class="chevron" :class="{ rotated: openGroups.mine }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </template>
+          <template #submenu>
+            <router-link to="/dashboard" class="submenu-item" active-class="active" exact>{{ t('layout.menu.dashboard') }}</router-link>
+            <router-link to="/my/mails" class="submenu-item" active-class="active">{{ t('layout.menu.myMails') }}</router-link>
+          </template>
+        </SidebarMenuGroupFlyout>
 
         <!-- 待办 -->
         <div class="menu-section-label" v-if="!isCollapsed">{{ t('layout.sections.todo') }}</div>
@@ -2543,6 +2557,7 @@ const leftPanelTitle = computed(() => {
   return item ? t(item.labelKey) : ''
 })
 const openGroups = ref({
+  mine: true,
   purchase: false,
   sales: false,
   inventory: false,
@@ -2566,6 +2581,7 @@ const openGroups = ref({
 const expandAllGroups = () => {
   // SYS_ADMIN 需要“看见所有菜单项”，因此默认把所有分组都展开
   openGroups.value = {
+    mine: true,
     purchase: true,
     sales: true,
     inventory: true,
@@ -2590,7 +2606,7 @@ const expandAllGroups = () => {
 const toggleCollapse = () => {
   cycleSidebarMode()
   if (sidebarMode.value === 'narrow') {
-    openGroups.value = { purchase: false, sales: false, inventory: false, stockInManagement: false, customs: false, stockOutManagement: false, customers: false, vendors: false, rfqs: false, quotes: false, finance: false, financePayments: false, financeReceipts: false, financeInventoryReports: false, ops: false, systemManagement: false, paramManagement: false, systemLogs: false }
+    openGroups.value = { mine: false, purchase: false, sales: false, inventory: false, stockInManagement: false, customs: false, stockOutManagement: false, customers: false, vendors: false, rfqs: false, quotes: false, finance: false, financePayments: false, financeReceipts: false, financeInventoryReports: false, ops: false, systemManagement: false, paramManagement: false, systemLogs: false }
   } else if (sidebarMode.value === 'full' && isSysAdmin.value) {
     expandAllGroups()
   }
@@ -2668,6 +2684,7 @@ const userInitial = computed(() => (authStore.user?.userName || '管')[0].toUppe
 
 const pageTitleMap: Record<string, string> = {
   '/dashboard': 'layout.menu.dashboard',
+  '/my/mails': 'layout.menu.myMails',
   '/pending-approvals': 'layout.menu.pendingApprovals',
   '/approval-desktop': 'approvalDesktop.title',
   '/quote-desktop': 'quoteDesktop.title',
@@ -2772,6 +2789,8 @@ const pageTitleMap: Record<string, string> = {
 
 const routeMetaTitleKeyMap: Record<string, string> = {
   '控制台': 'layout.menu.dashboard',
+  '我的桌面': 'layout.menu.dashboard',
+  '我的邮件': 'layout.menu.myMails',
   '客户首页': 'customerHome.search',
   '客户': 'layout.menu.customers',
   '新增客户': 'customerList.create',
@@ -3023,6 +3042,9 @@ const hasAnyApprovalPermission = computed(() => {
 watch(
   () => route.path,
   (p) => {
+    if (p === '/dashboard' || p.startsWith('/dashboard/') || p === '/my/mails' || p.startsWith('/my/mails')) {
+      openGroups.value.mine = true
+    }
     if (
       p === '/rfq' ||
       p === '/rfqlist' ||

@@ -50,6 +50,16 @@ public class UserMailbox
     [Column("pop_use_ssl")]
     public bool PopUseSsl { get; set; } = true;
 
+    [StringLength(256)]
+    [Column("imap_host")]
+    public string? ImapHost { get; set; }
+
+    [Column("imap_port")]
+    public int? ImapPort { get; set; }
+
+    [Column("imap_use_ssl")]
+    public bool ImapUseSsl { get; set; } = true;
+
     /// <summary>0=未验证，1=成功，2=失败</summary>
     [Column("verify_status")]
     public short VerifyStatus { get; set; }

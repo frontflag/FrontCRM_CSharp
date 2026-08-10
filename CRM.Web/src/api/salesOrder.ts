@@ -416,6 +416,8 @@ export const salesOrderApi = {
     invoicePending?: boolean | string
     /** 销售订单号（模糊） */
     sellOrderCode?: string
+    /** 销售订单明细编号（模糊） */
+    sellOrderItemCode?: string
     pn?: string
     customerSo?: string
     customerPn?: string
