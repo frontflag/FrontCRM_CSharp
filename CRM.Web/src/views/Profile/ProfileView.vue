@@ -1,5 +1,14 @@
 <template>
   <div class="profile-page">
+    <div v-if="returnToPath" class="profile-return-bar">
+      <button type="button" class="profile-return-btn" @click="goBackToSource">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+          <path d="M19 12H5M12 19l-7-7 7-7" />
+        </svg>
+        <span>{{ t('profilePage.returnToSource') }}</span>
+      </button>
+    </div>
+
     <div class="profile-header">
       <div class="profile-avatar-wrap">
         <div class="profile-avatar">{{ userInitial }}</div>
@@ -24,7 +33,7 @@
           :key="tab.key"
           class="nav-item"
           :class="{ active: activeTab === tab.key }"
-          @click="activeTab = tab.key"
+          @click="selectTab(tab.key)"
         >
           <span class="nav-icon" v-html="tab.icon"></span>
           <span>{{ tab.label }}</span>
@@ -272,7 +281,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -280,8 +289,13 @@ import { ChatDotRound } from '@element-plus/icons-vue'
 import { getWechatBindInfo, unbindWechat } from '@/api/wechatAuth'
 import { formatDate } from '@/utils/date'
 import ProfileMailboxPanel from '@/components/Profile/ProfileMailboxPanel.vue'
+import {
+  PROFILE_MAILBOX_PATH,
+  resolveSafeReturnPath
+} from '@/utils/profileMailboxLink'
 
 const authStore = useAuthStore()
+const route = useRoute()
 const router = useRouter()
 const { t, locale } = useI18n()
 
@@ -292,6 +306,57 @@ const roleLabel = computed(() =>
 )
 
 const activeTab = ref('basic')
+
+function isMailboxRoute() {
+  return route.name === 'ProfileMailbox' || route.path === PROFILE_MAILBOX_PATH
+}
+
+const returnToPath = computed(() => {
+  if (!isMailboxRoute()) return null
+  return resolveSafeReturnPath(route.query.from)
+})
+
+function goBackToSource() {
+  const target = returnToPath.value
+  if (target) router.push(target)
+}
+
+function selectTab(key: string) {
+  if (key === 'mailbox') {
+    activeTab.value = 'mailbox'
+    const from = resolveSafeReturnPath(route.query.from)
+    router.replace({
+      path: PROFILE_MAILBOX_PATH,
+      query: from ? { from } : {}
+    })
+    return
+  }
+  activeTab.value = key
+  if (isMailboxRoute()) {
+    router.replace({ path: '/profile' })
+  }
+}
+
+watch(
+  () => [route.name, route.path, route.query.tab] as const,
+  () => {
+    // 兼容旧链接 /profile?tab=mailbox
+    if (route.name === 'Profile' && String(route.query.tab || '') === 'mailbox') {
+      const from = resolveSafeReturnPath(route.query.from)
+      router.replace({
+        path: PROFILE_MAILBOX_PATH,
+        query: from ? { from } : {}
+      })
+      return
+    }
+    if (isMailboxRoute()) {
+      activeTab.value = 'mailbox'
+    } else if (route.name === 'Profile' && activeTab.value === 'mailbox') {
+      activeTab.value = 'basic'
+    }
+  },
+  { immediate: true }
+)
 
 const tabList = computed(() => {
   void locale.value
@@ -497,6 +562,28 @@ onMounted(async () => {
   max-width: 1100px;
   margin: 0 auto;
   padding: 24px;
+}
+
+.profile-return-bar {
+  margin-bottom: 12px;
+}
+
+.profile-return-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: vars.$cyan-primary;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: rgba(0, 212, 255, 0.08);
+  }
 }
 
 .settings-body {

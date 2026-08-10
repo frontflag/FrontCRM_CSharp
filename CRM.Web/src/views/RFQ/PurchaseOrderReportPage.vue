@@ -29,6 +29,14 @@
           </el-button>
         </span>
       </el-tooltip>
+      <el-button
+        v-if="ready && !mailSendReady"
+        link
+        type="primary"
+        @click="goConfigureMailbox"
+      >
+        {{ t('profilePage.mailboxSend.goConfigure') }}
+      </el-button>
     </div>
 
     <div v-loading="loading" class="preview-wrap">
@@ -80,6 +88,7 @@ import {
 import apiClient from '@/api/client'
 import { sendPurchaseOrderReportEmail } from '@/api/purchaseOrderReport'
 import { fetchMailboxSendReady, type MailboxSendBlockReason } from '@/api/userMailboxes'
+import { profileMailboxLocation } from '@/utils/profileMailboxLink'
 import { useAuthStore } from '@/stores/auth'
 import { formatDisplayDate } from '@/utils/displayDateTime'
 import { PURCHASE_ORDER_SERVICE_TERMS } from '@/constants/purchaseOrderReportTerms'
@@ -138,6 +147,10 @@ const mailSendBlockTip = computed(() => {
   const msg = t(key)
   return msg === key ? t('profilePage.mailboxSend.NoDefaultMailbox') : msg
 })
+
+function goConfigureMailbox() {
+  router.push(profileMailboxLocation(route.fullPath))
+}
 
 /** 买方签章区是否叠加印章图（打印/导出/邮件与预览一致） */
 const showSealOnReport = ref(true)

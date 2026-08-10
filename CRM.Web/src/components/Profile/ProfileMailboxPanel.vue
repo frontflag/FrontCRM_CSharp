@@ -122,29 +122,21 @@
           />
           <p class="field-hint">{{ t('profilePage.mailbox.displayNameHint') }}</p>
         </el-form-item>
-        <el-row v-if="row.kind === 'personal'" :gutter="12">
-          <el-col :span="12">
-            <el-form-item :label="t('profilePage.mailbox.popHost')">
-              <el-input v-model="draft[row.id].popHost" clearable />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item :label="t('profilePage.mailbox.popPort')">
-              <el-input-number
-                v-model="draft[row.id].popPort"
-                :min="1"
-                :max="65535"
-                controls-position="right"
-                style="width: 100%"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="4">
-            <el-form-item :label="t('profilePage.mailbox.popSsl')">
-              <el-switch v-model="draft[row.id].popUseSsl" />
-            </el-form-item>
-          </el-col>
-        </el-row>
+        <el-form-item v-if="row.kind === 'personal'" :label="t('profilePage.mailbox.popHost')">
+          <div class="pop-row">
+            <el-input v-model="draft[row.id].popHost" class="mailbox-control" clearable />
+            <span class="pop-inline-label">{{ t('profilePage.mailbox.popPort') }}</span>
+            <el-input-number
+              v-model="draft[row.id].popPort"
+              class="pop-port"
+              :min="1"
+              :max="65535"
+              controls-position="right"
+            />
+            <span class="pop-inline-label">{{ t('profilePage.mailbox.popSsl') }}</span>
+            <el-switch v-model="draft[row.id].popUseSsl" />
+          </div>
+        </el-form-item>
       </el-form>
 
       <div class="mailbox-card__foot">
@@ -171,7 +163,7 @@
       @closed="resetCreate"
     >
       <el-form label-width="110px">
-        <el-form-item v-if="createKind === 'platform'" :label="t('profilePage.mailbox.fullAddress')">
+        <el-form-item v-if="createKind === 'platform'" :label="t('profilePage.mailbox.address')">
           <div class="mailbox-address-edit mailbox-address-edit--dialog">
             <el-input
               v-model="createForm.localPart"
@@ -182,7 +174,7 @@
             <span class="mailbox-suffix">{{ createPlatformSuffix || '—' }}</span>
           </div>
         </el-form-item>
-        <el-form-item v-else :label="t('profilePage.mailbox.fullAddress')">
+        <el-form-item v-else :label="t('profilePage.mailbox.address')">
           <el-input v-model="createForm.address" clearable />
         </el-form-item>
         <el-form-item :label="t('profilePage.mailbox.password')">
@@ -610,6 +602,27 @@ $mailbox-control-width: 280px;
 .mailbox-control {
   width: $mailbox-control-width;
   max-width: 100%;
+}
+
+.pop-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  min-width: 0;
+  width: 100%;
+}
+
+.pop-inline-label {
+  flex-shrink: 0;
+  font-size: 13px;
+  color: vars.$text-primary;
+  white-space: nowrap;
+}
+
+.pop-port {
+  width: 120px;
+  flex-shrink: 0;
 }
 
 .mailbox-address-edit {

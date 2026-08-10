@@ -2353,6 +2353,7 @@ const zhCN = {
       security: '安全设置',
       mailbox: '我的邮箱'
     },
+    returnToSource: '返回来源页面',
     mailbox: {
       sectionTitle: '我的邮箱',
       sectionHint: '可添加多条平台邮箱与其他邮箱；平台邮箱验证收信与发信，其他邮箱仅验证收信。',
@@ -2364,7 +2365,7 @@ const zhCN = {
         '显示名称会出现在发出邮件的发件人（From）栏，收件人看到的是「显示名称 <邮箱地址>」。',
       localPart: '本地部分',
       address: '邮箱地址',
-      fullAddress: '完整地址',
+      fullAddress: '邮箱地址',
       password: '邮箱密码',
       popHost: 'POP 服务器',
       popPort: 'POP 端口',
@@ -2397,9 +2398,10 @@ const zhCN = {
     mailboxSend: {
       SmtpDisabled: '管理员未启用 SMTP 发信',
       SmtpHostMissing: '管理员未配置 SMTP 服务器',
-      NoDefaultMailbox: '请先在个人设置 → 我的邮箱中完成平台邮箱验证。',
-      DefaultNotVerified: '请先在个人设置 → 我的邮箱中完成平台邮箱验证。',
-      SmtpRejected: '邮件服务器拒绝发送'
+      NoDefaultMailbox: '请先在「我的邮箱」完成平台邮箱验证。',
+      DefaultNotVerified: '请先在「我的邮箱」完成平台邮箱验证。',
+      SmtpRejected: '邮件服务器拒绝发送',
+      goConfigure: '去配置我的邮箱'
     },
     basic: {
       sectionTitle: '基本信息',

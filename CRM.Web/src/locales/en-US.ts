@@ -2377,6 +2377,7 @@ const enUS = {
       security: 'Security',
       mailbox: 'My mailboxes'
     },
+    returnToSource: 'Back to previous page',
     mailbox: {
       sectionTitle: 'My mailboxes',
       sectionHint:
@@ -2388,7 +2389,7 @@ const enUS = {
       displayNameHint: 'Shown in the From header as “Display name <email>”.',
       localPart: 'Local part',
       address: 'Email address',
-      fullAddress: 'Full address',
+      fullAddress: 'Email address',
       password: 'Mailbox password',
       popHost: 'POP server',
       popPort: 'POP port',
@@ -2421,9 +2422,10 @@ const enUS = {
     mailboxSend: {
       SmtpDisabled: 'SMTP sending is disabled by admin',
       SmtpHostMissing: 'SMTP server is not configured by admin',
-      NoDefaultMailbox: 'Please verify a platform mailbox under Profile → My mailboxes first.',
-      DefaultNotVerified: 'Please verify a platform mailbox under Profile → My mailboxes first.',
-      SmtpRejected: 'Mail server rejected the message'
+      NoDefaultMailbox: 'Please verify a platform mailbox under My mailboxes first.',
+      DefaultNotVerified: 'Please verify a platform mailbox under My mailboxes first.',
+      SmtpRejected: 'Mail server rejected the message',
+      goConfigure: 'Configure my mailbox'
     },
     basic: {
       sectionTitle: 'Basic information',

@@ -749,6 +749,12 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '个人设置' }
       },
       {
+        path: 'profile/mailbox',
+        name: 'ProfileMailbox',
+        component: () => import('@/views/Profile/ProfileView.vue'),
+        meta: { requiresAuth: true, title: '我的邮箱' }
+      },
+      {
         path: 'profile/wechat-bind',
         name: 'WechatBinding',
         component: () => import('@/views/Profile/WechatBinding.vue'),
