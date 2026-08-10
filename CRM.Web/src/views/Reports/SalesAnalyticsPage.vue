@@ -80,37 +80,110 @@ function formatMoney(v?: number | null): string {
   return `$\u00a0${v.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
+function formatAmountNumber(amount: number | null | undefined): string {
+  if (amount == null) return '—'
+  return amount.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function formatOriginalMoney(amount: number | null | undefined, currencyLabel: string): string {
+  if (amount == null) return '—'
+  return `${formatAmountNumber(amount)} ${currencyLabel}`
+}
+
 function formatRate(v?: number | null): string {
   if (v == null) return '—'
   return `${v.toFixed(2)}%`
 }
 
+function mapMoneyCurrencyItems(
+  money: { byCurrency?: { currency: number; currencyLabel: string; amount: number }[] } | null | undefined
+) {
+  return (money?.byCurrency ?? []).map((line) => ({
+    currencyLabel: line.currencyLabel,
+    originalText: formatOriginalMoney(line.amount, line.currencyLabel),
+    amountText: formatAmountNumber(line.amount),
+    currency: line.currency,
+    usdText: ''
+  }))
+}
+
+function todoMoneyKpiFields(money: { totalUsd?: number | null; byCurrency?: { currency: number; currencyLabel: string; amount: number }[] } | null | undefined) {
+  const currencyItems = mapMoneyCurrencyItems(money)
+  return {
+    value: formatMoney(money?.totalUsd),
+    valueFormat: 'money' as const,
+    layout: 'split' as const,
+    valueCaption: t('salesAnalytics.kpi.usdCaption'),
+    currencyCaption: currencyItems.length ? t('salesAnalytics.kpi.originalCaption') : undefined,
+    currencyItems: currencyItems.length ? currencyItems : undefined
+  }
+}
+
+/** 概况已出库/已收款：与成单金额同款，原币进「查看本币」Tip */
+function snapshotMoneyKpiFields(money: { totalUsd?: number | null; byCurrency?: { currency: number; currencyLabel: string; amount: number }[] } | null | undefined) {
+  const currencyItems = mapMoneyCurrencyItems(money)
+  const hasUsd = money?.totalUsd != null
+  return {
+    value: formatMoney(money?.totalUsd),
+    valueFormat: 'money' as const,
+    valueSuffix: hasUsd ? `（${t('salesAnalytics.kpi.usdCaption')}）` : undefined,
+    currencyCaption: t('salesAnalytics.kpi.originalCaption'),
+    currencyItems,
+    showCurrencyTip: hasUsd,
+    currencyTipLabel: t('salesAnalytics.kpi.viewLocalCurrency')
+  }
+}
+
+function canOpenTodoDetail(key: SalesAnalyticsTodoDrillKey): boolean {
+  if (!isTodoDrillable(key, maskAmounts.value)) return false
+  if (key === 'receivable') return authStore.hasPermission('finance-receipt.read')
+  return authStore.hasPermission('sales-order.read')
+}
+
 const todoKpis = computed(() => {
   const todo = dashboard.value?.todo
   if (!todo) return []
+  const defLabel = t('salesAnalytics.definitionTip.button')
+  const detailLabel = t('salesAnalytics.stockOutProgressDetail.detail')
   return [
     {
       key: 'receivable',
       label: t('salesAnalytics.kpi.receivableAmount'),
-      value: formatMoney(todo.receivableAmount),
-      valueFormat: 'money' as const,
+      ...todoMoneyKpiFields(todo.receivableAmount),
       tone: 'todo' as const,
-      drillable: isTodoDrillable('receivable', maskAmounts.value) && authStore.hasPermission('finance-receipt.read')
+      showDefinition: true,
+      definitionLabel: defLabel,
+      definitionChart: t('salesAnalytics.todoReceivableDefinition.chart'),
+      definitionDataSource: t('salesAnalytics.todoReceivableDefinition.dataSource'),
+      definitionText: t('salesAnalytics.todoReceivableDefinition.text'),
+      showDetail: canOpenTodoDetail('receivable'),
+      detailLabel
     },
     {
       key: 'pendingStockOut',
       label: t('salesAnalytics.kpi.pendingStockOutItemCount'),
       value: String(todo.pendingStockOutItemCount ?? 0),
       tone: 'todo' as const,
-      drillable: isTodoDrillable('pendingStockOut', maskAmounts.value) && authStore.hasPermission('sales-order.read')
+      showDefinition: true,
+      definitionLabel: defLabel,
+      definitionChart: t('salesAnalytics.todoPendingStockOutDefinition.chart'),
+      definitionDataSource: t('salesAnalytics.todoPendingStockOutDefinition.dataSource'),
+      definitionText: t('salesAnalytics.todoPendingStockOutDefinition.text'),
+      showDetail: canOpenTodoDetail('pendingStockOut'),
+      detailLabel
     },
     {
       key: 'pendingInvoice',
       label: t('salesAnalytics.kpi.pendingInvoiceAmount'),
-      value: formatMoney(todo.pendingInvoiceAmount),
-      valueFormat: 'money' as const,
+      ...todoMoneyKpiFields(todo.pendingInvoiceAmount),
       tone: 'todo' as const,
-      drillable: isTodoDrillable('pendingInvoice', maskAmounts.value) && authStore.hasPermission('sales-order.read')
+      showDefinition: true,
+      definitionLabel: defLabel,
+      definitionChart: t('salesAnalytics.todoPendingInvoiceDefinition.chart'),
+      definitionDataSource: t('salesAnalytics.todoPendingInvoiceDefinition.dataSource'),
+      definitionText: t('salesAnalytics.todoPendingInvoiceDefinition.text'),
+      showDetail: canOpenTodoDetail('pendingInvoice'),
+      detailLabel
     }
   ]
 })
@@ -152,21 +225,22 @@ const snapshotKpis = computed(() => {
       key: 'amount',
       label: t('salesAnalytics.kpi.salesAmountApproved'),
       value: formatMoney(s.salesAmountApproved),
+      valueSuffix:
+        s.salesAmountApproved == null ? undefined : `（${t('salesAnalytics.kpi.usdCaption')}）`,
       valueFormat: 'money' as const,
+      forceNewRow: true,
       drillable: isSnapshotDrillable('amount', maskAmounts.value) && authStore.hasPermission('sales-order.read')
     },
     {
       key: 'stockOut',
       label: t('salesAnalytics.kpi.salesAmountStockOut'),
-      value: formatMoney(s.salesAmountStockOut),
-      valueFormat: 'money' as const,
+      ...snapshotMoneyKpiFields(s.salesAmountStockOut),
       drillable: isSnapshotDrillable('stockOut', maskAmounts.value) && authStore.hasPermission('sales-order.read')
     },
     {
       key: 'received',
       label: t('salesAnalytics.kpi.salesAmountReceived'),
-      value: formatMoney(s.salesAmountReceived),
-      valueFormat: 'money' as const,
+      ...snapshotMoneyKpiFields(s.salesAmountReceived),
       drillable: isSnapshotDrillable('received', maskAmounts.value) && authStore.hasPermission('sales-order.read')
     }
   ]
@@ -354,10 +428,16 @@ function onRankingRowDblClick(row: { id: string; name: string }) {
   }
 }
 
-function onTodoKpiClick(key: string) {
-  const route = buildTodoDrillRoute(key as SalesAnalyticsTodoDrillKey, drillScope())
+function onTodoKpiDetail(key: string) {
+  const drillKey = key as SalesAnalyticsTodoDrillKey
+  if (!canOpenTodoDetail(drillKey)) {
+    ElMessage.warning(t('salesAnalytics.drill.noPermission'))
+    return
+  }
+  const route = buildTodoDrillRoute(drillKey, drillScope())
   if (!route) return
-  void router.push(route)
+  const href = router.resolve(route).href
+  window.open(href, '_blank', 'noopener,noreferrer')
 }
 
 function onSnapshotKpiClick(key: string) {
@@ -427,7 +507,7 @@ watch([viewLevel, departmentId, salesUserId, dateRange, groupBy], () => void loa
       <el-tab-pane :label="t('salesAnalytics.contentTabs.overview')" name="overview">
         <section class="section">
           <h3 class="section-title">{{ t('salesAnalytics.sections.todo') }}</h3>
-          <AnalyticsKpiGrid :items="todoKpis" @item-click="onTodoKpiClick" />
+          <AnalyticsKpiGrid :items="todoKpis" @detail="onTodoKpiDetail" />
         </section>
 
         <section class="section">
@@ -503,7 +583,7 @@ watch([viewLevel, departmentId, salesUserId, dateRange, groupBy], () => void loa
             <AnalyticsTrendChart
               :points="trendReceivablePoints"
               value-format="money"
-              :unit-caption="t('salesAnalytics.trendUnit.receivableCaption')"
+              :unit-caption="t('salesAnalytics.trendUnit.moneyCaption')"
             />
           </div>
         </div>
@@ -515,12 +595,22 @@ watch([viewLevel, departmentId, salesUserId, dateRange, groupBy], () => void loa
               :title="breakdownTitle(group)"
               :items="group.items"
               :value-format="breakdownValueFormat(group.groupKey)"
+              :unit-caption="
+                breakdownValueFormat(group.groupKey) === 'money'
+                  ? t('salesAnalytics.trendUnit.moneyCaption')
+                  : undefined
+              "
             />
             <AnalyticsBreakdownChart
               v-else
               :title="breakdownTitle(group)"
               :items="group.items"
               :value-format="breakdownValueFormat(group.groupKey)"
+              :unit-caption="
+                breakdownValueFormat(group.groupKey) === 'money'
+                  ? t('salesAnalytics.trendUnit.moneyCaption')
+                  : undefined
+              "
               :show-definition="group.groupKey === 'stockOutProgress'"
               :definition-label="t('salesAnalytics.definitionTip.button')"
               :definition-chart="t('salesAnalytics.stockOutProgressDefinition.chart')"
@@ -537,7 +627,10 @@ watch([viewLevel, departmentId, salesUserId, dateRange, groupBy], () => void loa
 
         <div v-if="showOverviewRankings" class="rankings-row">
           <div class="card ranking-panel">
-            <h3 class="section-title">{{ primaryRankingTitle }}</h3>
+            <div class="section-title-row">
+              <h3 class="section-title">{{ primaryRankingTitle }}</h3>
+              <span v-if="!maskAmounts" class="unit-caption">{{ t('salesAnalytics.trendUnit.moneyCaption') }}</span>
+            </div>
             <el-table
               :data="dashboard?.rankings.primary ?? []"
               size="small"
@@ -660,6 +753,26 @@ watch([viewLevel, departmentId, salesUserId, dateRange, groupBy], () => void loa
   margin: 0 0 12px;
   font-size: 15px;
   font-weight: 600;
+}
+
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+
+  .section-title {
+    margin: 0;
+  }
+}
+
+.unit-caption {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--el-text-color-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .charts-row,

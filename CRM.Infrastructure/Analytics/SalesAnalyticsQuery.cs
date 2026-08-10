@@ -16,11 +16,16 @@ public sealed class SalesAnalyticsQuery : ISalesAnalyticsQuery
 
     private readonly ApplicationDbContext _db;
     private readonly IDataPermissionService _dataPermission;
+    private readonly IFinanceExchangeRateService _exchangeRateService;
 
-    public SalesAnalyticsQuery(ApplicationDbContext db, IDataPermissionService dataPermission)
+    public SalesAnalyticsQuery(
+        ApplicationDbContext db,
+        IDataPermissionService dataPermission,
+        IFinanceExchangeRateService exchangeRateService)
     {
         _db = db;
         _dataPermission = dataPermission;
+        _exchangeRateService = exchangeRateService;
     }
 
     public async Task<SalesAnalyticsDashboardDto> GetDashboardAsync(
@@ -88,11 +93,18 @@ public sealed class SalesAnalyticsQuery : ISalesAnalyticsQuery
             select new
             {
                 o.CreateTime,
-                StockOutAmount = ext.QtyStockOutActual * oi.ConvertPrice,
+                Currency = oi.Currency != 0 ? oi.Currency : o.Currency,
+                oi.Price,
+                oi.ConvertPrice,
+                ext.QtyStockOutActual,
                 ext.ReceiptAmountFinish,
                 ext.ReceiptAmountNot
             }
         ).ToListAsync(cancellationToken);
+
+        var rates = scope.MaskAmounts
+            ? new FinanceExchangeRateDto()
+            : await _exchangeRateService.GetCurrentAsync(cancellationToken);
 
         var periods = BuildPeriodKeys(dateFrom, scope.DateTo, scope.GroupBy);
         var result = new List<SalesAnalyticsTrendPointDto>();
@@ -122,9 +134,19 @@ public sealed class SalesAnalyticsQuery : ISalesAnalyticsQuery
                 .Sum(o => o.ConvertTotal);
 
             var linesInBucket = lineMetricRows.Where(r => r.CreateTime >= start && r.CreateTime < end).ToList();
-            var stockOutAmount = linesInBucket.Sum(r => r.StockOutAmount);
-            var receivedAmount = linesInBucket.Sum(r => r.ReceiptAmountFinish);
-            var receivableAmount = linesInBucket.Sum(r => r.ReceiptAmountNot);
+            var stockOutUsd = SalesAnalyticsTodoMoney.BuildStockOut(
+                linesInBucket.Select(r => (r.QtyStockOutActual, r.Price, r.ConvertPrice, r.Currency)),
+                rates,
+                scope.MaskAmounts).TotalUsd;
+            var receivedUsd = SalesAnalyticsTodoMoney.Build(
+                linesInBucket.Select(r => (r.ReceiptAmountFinish, r.Currency, r.Price, r.ConvertPrice)),
+                rates,
+                scope.MaskAmounts).TotalUsd;
+            // 与已收款趋势同折算路径：原币 receipt_amount_not → TotalUsd（禁止跨币种硬加）
+            var receivableAmount = SalesAnalyticsTodoMoney.Build(
+                linesInBucket.Select(r => (r.ReceiptAmountNot, r.Currency, r.Price, r.ConvertPrice)),
+                rates,
+                scope.MaskAmounts).TotalUsd;
 
             result.Add(new SalesAnalyticsTrendPointDto
             {
@@ -134,9 +156,9 @@ public sealed class SalesAnalyticsQuery : ISalesAnalyticsQuery
                 SalesOrderItemCount = itemsInBucket,
                 SalesOrderCustomerCount = salesOrderCustomerCount,
                 SalesAmountApproved = scope.MaskAmounts ? null : approvedAmount,
-                SalesAmountStockOut = scope.MaskAmounts ? null : stockOutAmount,
-                SalesAmountReceived = scope.MaskAmounts ? null : receivedAmount,
-                ReceivableAmount = scope.MaskAmounts ? null : receivableAmount,
+                SalesAmountStockOut = stockOutUsd,
+                SalesAmountReceived = receivedUsd,
+                ReceivableAmount = receivableAmount,
                 RfqToSalesConversionRate = rate
             });
         }
@@ -546,6 +568,7 @@ public sealed class SalesAnalyticsQuery : ISalesAnalyticsQuery
 
         var (salesAmountStockOut, salesAmountReceived) = await SumApprovedLineAmountsAsync(
             ordersInPeriod,
+            scope.MaskAmounts,
             cancellationToken);
 
         decimal? rate = rfqItemCount == 0
@@ -560,34 +583,46 @@ public sealed class SalesAnalyticsQuery : ISalesAnalyticsQuery
             SalesOrderItemCount = salesOrderItemCount,
             SalesOrderCustomerCount = salesOrderCustomerCount,
             SalesAmountApproved = scope.MaskAmounts ? null : salesAmountApproved,
-            SalesAmountStockOut = scope.MaskAmounts ? null : salesAmountStockOut,
-            SalesAmountReceived = scope.MaskAmounts ? null : salesAmountReceived
+            SalesAmountStockOut = salesAmountStockOut,
+            SalesAmountReceived = salesAmountReceived
         };
     }
 
-    private async Task<(decimal StockOutAmount, decimal ReceivedAmount)> SumApprovedLineAmountsAsync(
+    private async Task<(SalesAnalyticsMoneyDto StockOut, SalesAnalyticsMoneyDto Received)> SumApprovedLineAmountsAsync(
         IQueryable<SellOrder> ordersInPeriod,
+        bool maskAmounts,
         CancellationToken cancellationToken)
     {
+        if (maskAmounts)
+            return (SalesAnalyticsTodoMoney.Empty(true), SalesAnalyticsTodoMoney.Empty(true));
+
         var approvedOrders = ordersInPeriod.Where(o => o.Status >= SellOrderMainStatus.Approved);
 
-        var stockOutAmount = await (
+        var rows = await (
             from ext in _db.SellOrderItemExtends.AsNoTracking()
             join oi in _db.SellOrderItems.AsNoTracking() on ext.Id equals oi.Id
             join o in approvedOrders on oi.SellOrderId equals o.Id
             where !oi.IsDeleted && !ext.IsDeleted && oi.Status == 0
-            select ext.QtyStockOutActual * oi.ConvertPrice
-        ).SumAsync(cancellationToken);
+            select new
+            {
+                Currency = oi.Currency != 0 ? oi.Currency : o.Currency,
+                oi.Price,
+                oi.ConvertPrice,
+                ext.QtyStockOutActual,
+                ext.ReceiptAmountFinish
+            }
+        ).ToListAsync(cancellationToken);
 
-        var receivedAmount = await (
-            from ext in _db.SellOrderItemExtends.AsNoTracking()
-            join oi in _db.SellOrderItems.AsNoTracking() on ext.Id equals oi.Id
-            join o in approvedOrders on oi.SellOrderId equals o.Id
-            where !oi.IsDeleted && !ext.IsDeleted && oi.Status == 0
-            select ext.ReceiptAmountFinish
-        ).SumAsync(cancellationToken);
-
-        return (stockOutAmount, receivedAmount);
+        var rates = await _exchangeRateService.GetCurrentAsync(cancellationToken);
+        var stockOut = SalesAnalyticsTodoMoney.BuildStockOut(
+            rows.Select(r => (r.QtyStockOutActual, r.Price, r.ConvertPrice, r.Currency)),
+            rates,
+            maskAmounts: false);
+        var received = SalesAnalyticsTodoMoney.Build(
+            rows.Select(r => (r.ReceiptAmountFinish, r.Currency, r.Price, r.ConvertPrice)),
+            rates,
+            maskAmounts: false);
+        return (stockOut, received);
     }
 
     private async Task<SalesAnalyticsSnapshotDto> BuildSnapshotForAssistorOnlyAsync(
@@ -613,6 +648,7 @@ public sealed class SalesAnalyticsQuery : ISalesAnalyticsQuery
 
         var (salesAmountStockOut, salesAmountReceived) = await SumApprovedLineAmountsAsync(
             ordersInPeriod,
+            scope.MaskAmounts,
             cancellationToken);
 
         return new SalesAnalyticsSnapshotDto
@@ -623,8 +659,8 @@ public sealed class SalesAnalyticsQuery : ISalesAnalyticsQuery
             SalesOrderItemCount = salesOrderItemCount,
             SalesOrderCustomerCount = salesOrderCustomerCount,
             SalesAmountApproved = scope.MaskAmounts ? null : salesAmountApproved,
-            SalesAmountStockOut = scope.MaskAmounts ? null : salesAmountStockOut,
-            SalesAmountReceived = scope.MaskAmounts ? null : salesAmountReceived
+            SalesAmountStockOut = salesAmountStockOut,
+            SalesAmountReceived = salesAmountReceived
         };
     }
 
@@ -637,36 +673,41 @@ public sealed class SalesAnalyticsQuery : ISalesAnalyticsQuery
         var activeOrders = orders.Where(o =>
             o.Status != SellOrderMainStatus.Cancelled && o.Status != SellOrderMainStatus.AuditFailed);
 
-        var receivable = await (
+        var lineRows = await (
             from ext in _db.SellOrderItemExtends.AsNoTracking()
             join oi in _db.SellOrderItems.AsNoTracking() on ext.Id equals oi.Id
             join o in activeOrders on oi.SellOrderId equals o.Id
             where !oi.IsDeleted && !ext.IsDeleted && oi.Status == 0
-            select ext.ReceiptAmountNot
-        ).SumAsync(cancellationToken);
+            select new
+            {
+                oi.Id,
+                o.Currency,
+                oi.Price,
+                oi.ConvertPrice,
+                ext.ReceiptAmountNot,
+                ext.InvoiceAmountNot,
+                ext.StockOutProgressStatus
+            }
+        ).ToListAsync(cancellationToken);
 
-        var pendingStockOut = await (
-            from ext in _db.SellOrderItemExtends.AsNoTracking()
-            join oi in _db.SellOrderItems.AsNoTracking() on ext.Id equals oi.Id
-            join o in activeOrders on oi.SellOrderId equals o.Id
-            where !oi.IsDeleted && !ext.IsDeleted && oi.Status == 0
-                  && (ext.StockOutProgressStatus == 0 || ext.StockOutProgressStatus == 1)
-            select oi.Id
-        ).CountAsync(cancellationToken);
+        var pendingStockOut = lineRows.Count(r =>
+            r.StockOutProgressStatus == 0 || r.StockOutProgressStatus == 1);
 
-        var pendingInvoice = await (
-            from ext in _db.SellOrderItemExtends.AsNoTracking()
-            join oi in _db.SellOrderItems.AsNoTracking() on ext.Id equals oi.Id
-            join o in activeOrders on oi.SellOrderId equals o.Id
-            where !oi.IsDeleted && !ext.IsDeleted && oi.Status == 0
-            select ext.InvoiceAmountNot
-        ).SumAsync(cancellationToken);
+        var rates = scope.MaskAmounts
+            ? new FinanceExchangeRateDto()
+            : await _exchangeRateService.GetCurrentAsync(cancellationToken);
+
+        var receivableAmount = await SalesAnalyticsTodoReceivable.BuildAsync(
+            _db, _dataPermission, _exchangeRateService, scope, cancellationToken);
 
         return new SalesAnalyticsTodoDto
         {
-            ReceivableAmount = scope.MaskAmounts ? null : receivable,
+            ReceivableAmount = receivableAmount,
             PendingStockOutItemCount = pendingStockOut,
-            PendingInvoiceAmount = scope.MaskAmounts ? null : pendingInvoice
+            PendingInvoiceAmount = SalesAnalyticsTodoMoney.Build(
+                lineRows.Select(r => (r.InvoiceAmountNot, r.Currency, r.Price, r.ConvertPrice)),
+                rates,
+                scope.MaskAmounts)
         };
     }
 

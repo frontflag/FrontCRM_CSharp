@@ -33,6 +33,18 @@ export interface SalesAnalyticsScopeContext {
   resolvedDepartmentId?: string | null
 }
 
+export interface SalesAnalyticsCurrencyAmount {
+  currency: number
+  currencyLabel: string
+  amount: number
+}
+
+/** 原币分档 + 折算 USD（待办应收/待开票/已出库/已收款） */
+export interface SalesAnalyticsMoney {
+  totalUsd?: number | null
+  byCurrency: SalesAnalyticsCurrencyAmount[]
+}
+
 export interface SalesAnalyticsSnapshot {
   rfqItemCount: number
   rfqCustomerCount: number
@@ -40,14 +52,14 @@ export interface SalesAnalyticsSnapshot {
   salesOrderItemCount: number
   salesOrderCustomerCount: number
   salesAmountApproved?: number | null
-  salesAmountStockOut?: number | null
-  salesAmountReceived?: number | null
+  salesAmountStockOut: SalesAnalyticsMoney
+  salesAmountReceived: SalesAnalyticsMoney
 }
 
 export interface SalesAnalyticsTodo {
-  receivableAmount?: number | null
+  receivableAmount: SalesAnalyticsMoney
   pendingStockOutItemCount: number
-  pendingInvoiceAmount?: number | null
+  pendingInvoiceAmount: SalesAnalyticsMoney
 }
 
 export interface SalesAnalyticsRankingRow {

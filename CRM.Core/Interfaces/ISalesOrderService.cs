@@ -106,6 +106,8 @@ namespace CRM.Core.Interfaces
         public string? TransactionCurrency { get; set; }
         /// <summary>仅待出库/部分出库明细（与看板待办口径一致）。</summary>
         public bool StockOutPending { get; set; }
+        /// <summary>已出库未收款（receipt_amount_not &gt; 0 且存在已完成销售出库；与销售分析待办/明细看板应收同源）。</summary>
+        public bool ReceiptPending { get; set; }
         /// <summary>仅待开票明细（invoice_amount_not &gt; 0 或开票进度未完成）。</summary>
         public bool InvoicePending { get; set; }
         /// <summary>销售订单业务员主键（精确匹配）。</summary>

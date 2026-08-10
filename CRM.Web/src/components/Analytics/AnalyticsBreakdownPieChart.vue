@@ -1,13 +1,20 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { SalesAnalyticsBreakdownItem } from '@/api/analytics/sales'
+import { listAmountCurrencyDockClass } from '@/utils/moneyFormat'
 
 const props = withDefaults(
   defineProps<{
     title: string
     items: SalesAnalyticsBreakdownItem[]
-    /** money：金额轴；number：计数轴（默认） */
-    valueFormat?: 'money' | 'number'
+    /**
+     * money：折算美金（$）；
+     * originalCurrency：原币金额 + 右侧系统色币别（label/key 为币别）；
+     * number：计数轴（默认）
+     */
+    valueFormat?: 'money' | 'number' | 'originalCurrency'
+    /** 标题行右侧单位说明 */
+    unitCaption?: string
   }>(),
   { valueFormat: 'number' }
 )
@@ -26,9 +33,13 @@ const sortedItems = computed(() =>
   [...props.items].sort((a, b) => b.value - a.value || a.label.localeCompare(b.label))
 )
 
+function formatAmountNumber(v: number): string {
+  return v.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
 function formatValue(v: number): string {
   if (props.valueFormat === 'money') {
-    return `¥ ${v.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    return `$ ${formatAmountNumber(v)}`
   }
   return Number.isInteger(v) ? String(v) : v.toLocaleString('zh-CN', { maximumFractionDigits: 2 })
 }
@@ -42,12 +53,24 @@ const segments = computed(() => {
     const pct = (item.value / total) * 100
     const start = cursor
     cursor += pct
+    const currencyCode = Number(item.key)
     return {
       ...item,
       color: palette[index % palette.length],
       start,
       end: cursor,
-      displayValue: formatValue(item.value)
+      displayValue: formatValue(item.value),
+      originalParts:
+        props.valueFormat === 'originalCurrency'
+          ? {
+              amountText: formatAmountNumber(item.value),
+              currencyLabel: item.label,
+              currency: Number.isFinite(currencyCode) ? currencyCode : undefined,
+              dockClass: listAmountCurrencyDockClass(
+                Number.isFinite(currencyCode) ? currencyCode : undefined
+              )
+            }
+          : null
     }
   })
 })
@@ -63,7 +86,10 @@ const pieStyle = computed(() => {
 
 <template>
   <div class="pie-chart">
-    <h4 class="title">{{ title }}</h4>
+    <div class="title-row">
+      <h4 class="title">{{ title }}</h4>
+      <span v-if="unitCaption" class="unit-caption">{{ unitCaption }}</span>
+    </div>
     <div v-if="sortedItems.length === 0" class="empty">—</div>
     <div v-else class="body">
       <div class="pie" :style="pieStyle" />
@@ -71,7 +97,14 @@ const pieStyle = computed(() => {
         <li v-for="(item, index) in segments" :key="item.key">
           <span class="dot" :style="{ background: palette[index % palette.length] }" />
           <span class="label">{{ item.label }}</span>
-          <span class="value">{{ item.displayValue }}</span>
+          <span v-if="item.originalParts" class="value value--original">
+            <span>{{ item.originalParts.amountText }}</span>
+            <span class="dock-tier-ccy-gap">&nbsp;</span>
+            <span :class="['dock-tier-ccy', item.originalParts.dockClass]">
+              {{ item.originalParts.currencyLabel }}
+            </span>
+          </span>
+          <span v-else class="value">{{ item.displayValue }}</span>
           <span class="ratio">{{ item.ratio.toFixed(2) }}%</span>
         </li>
       </ul>
@@ -84,10 +117,26 @@ const pieStyle = computed(() => {
   min-height: 200px;
 }
 
+.title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
 .title {
-  margin: 0 0 12px;
+  margin: 0;
   font-size: 14px;
   font-weight: 600;
+}
+
+.unit-caption {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--el-text-color-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .body {
@@ -114,11 +163,11 @@ const pieStyle = computed(() => {
 
 .legend li {
   display: grid;
-  grid-template-columns: 10px 1fr auto auto;
+  grid-template-columns: 10px minmax(64px, 1fr) auto auto;
   gap: 8px;
   align-items: center;
-  margin-bottom: 6px;
   font-size: 12px;
+  margin-bottom: 6px;
 }
 
 .dot {
@@ -128,21 +177,30 @@ const pieStyle = computed(() => {
 }
 
 .label {
+  color: var(--el-text-color-regular);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .value {
-  color: var(--el-text-color-regular);
+  font-variant-numeric: tabular-nums;
+  color: var(--el-text-color-primary);
+  white-space: nowrap;
+}
+
+.value--original {
+  font-weight: 500;
 }
 
 .ratio {
   color: var(--el-text-color-secondary);
+  min-width: 52px;
   text-align: right;
 }
 
 .empty {
-  color: var(--el-text-color-placeholder);
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
 }
 </style>

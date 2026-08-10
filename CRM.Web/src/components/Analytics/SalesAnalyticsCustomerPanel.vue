@@ -230,13 +230,21 @@ defineExpose({ reload: loadData })
           :title="breakdownTitle(group)"
           :items="localizedItems(group)"
           :value-format="breakdownValueFormat()"
+          :unit-caption="
+            breakdownValueFormat() === 'money'
+              ? t('salesAnalytics.trendUnit.moneyCaption')
+              : undefined
+          "
         />
       </div>
     </div>
 
     <div class="rankings-row">
       <div class="card ranking-panel">
-        <h3 class="section-title">{{ t('salesAnalytics.customerTab.rankings.byAmount') }}</h3>
+        <div class="section-title-row">
+          <h3 class="section-title">{{ t('salesAnalytics.customerTab.rankings.byAmount') }}</h3>
+          <span v-if="!maskAmounts" class="unit-caption">{{ t('salesAnalytics.trendUnit.moneyCaption') }}</span>
+        </div>
         <el-table
           :data="data?.rankings.customerByAmount ?? []"
           size="small"
@@ -252,7 +260,10 @@ defineExpose({ reload: loadData })
         </el-table>
       </div>
       <div class="card ranking-panel">
-        <h3 class="section-title">{{ t('salesAnalytics.customerTab.rankings.byOrderCount') }}</h3>
+        <div class="section-title-row">
+          <h3 class="section-title">{{ t('salesAnalytics.customerTab.rankings.byOrderCount') }}</h3>
+          <span v-if="!maskAmounts" class="unit-caption">{{ t('salesAnalytics.trendUnit.moneyCaption') }}</span>
+        </div>
         <el-table
           :data="data?.rankings.customerByOrderCount ?? []"
           size="small"
@@ -268,7 +279,10 @@ defineExpose({ reload: loadData })
         </el-table>
       </div>
       <div class="card ranking-panel">
-        <h3 class="section-title">{{ t('salesAnalytics.customerTab.rankings.byRepeat') }}</h3>
+        <div class="section-title-row">
+          <h3 class="section-title">{{ t('salesAnalytics.customerTab.rankings.byRepeat') }}</h3>
+          <span v-if="!maskAmounts" class="unit-caption">{{ t('salesAnalytics.trendUnit.moneyCaption') }}</span>
+        </div>
         <el-table
           :data="data?.rankings.customerByRepeatOrderCount ?? []"
           size="small"
@@ -302,10 +316,32 @@ defineExpose({ reload: loadData })
   margin-bottom: 16px;
 }
 
-.section-title {
+.section > .section-title {
   margin: 0 0 12px;
   font-size: 15px;
   font-weight: 600;
+}
+
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.section-title-row .section-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.unit-caption {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--el-text-color-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .card {

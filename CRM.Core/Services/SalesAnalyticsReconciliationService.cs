@@ -49,11 +49,27 @@ public sealed class SalesAnalyticsReconciliationService : ISalesAnalyticsReconci
             CompareInt("rfqItemCount", "需求条目数", dashboard.Snapshot.RfqItemCount, baselineSnapshot.RfqItemCount),
             CompareInt("rfqCustomerCount", "需求客户数", dashboard.Snapshot.RfqCustomerCount, baselineSnapshot.RfqCustomerCount),
             CompareRate("rfqToSalesConversionRate", "需求→销售转化率", dashboard.Snapshot.RfqToSalesConversionRate, baselineSnapshot.RfqToSalesConversionRate),
-            CompareDecimal("receivableAmount", "应收款金额", dashboard.Todo.ReceivableAmount, baselineTodo.ReceivableAmount),
+            CompareDecimal(
+                "receivableAmount",
+                "待核销应收款(折算USD)",
+                dashboard.Todo.ReceivableAmount.TotalUsd,
+                baselineTodo.ReceivableAmount.TotalUsd),
             CompareInt("pendingStockOutItemCount", "待出库明细数", dashboard.Todo.PendingStockOutItemCount, baselineTodo.PendingStockOutItemCount),
-            CompareDecimal("pendingInvoiceAmount", "待开票金额", dashboard.Todo.PendingInvoiceAmount, baselineTodo.PendingInvoiceAmount),
-            CompareDecimal("salesAmountStockOut", "已出库金额", dashboard.Snapshot.SalesAmountStockOut, baselineSnapshot.SalesAmountStockOut),
-            CompareDecimal("salesAmountReceived", "已收款金额", dashboard.Snapshot.SalesAmountReceived, baselineSnapshot.SalesAmountReceived)
+            CompareDecimal(
+                "pendingInvoiceAmount",
+                "待开票金额(折算USD)",
+                dashboard.Todo.PendingInvoiceAmount.TotalUsd,
+                baselineTodo.PendingInvoiceAmount.TotalUsd),
+            CompareDecimal(
+                "salesAmountStockOut",
+                "已出库金额(折算USD)",
+                dashboard.Snapshot.SalesAmountStockOut.TotalUsd,
+                baselineSnapshot.SalesAmountStockOut.TotalUsd),
+            CompareDecimal(
+                "salesAmountReceived",
+                "已收款金额(折算USD)",
+                dashboard.Snapshot.SalesAmountReceived.TotalUsd,
+                baselineSnapshot.SalesAmountReceived.TotalUsd)
         };
 
         bool? listPathMatched = null;

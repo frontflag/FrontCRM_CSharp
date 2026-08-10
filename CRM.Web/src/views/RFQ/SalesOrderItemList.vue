@@ -1029,6 +1029,7 @@ const salesOrderItemColumns = computed<CrmTableColumnDef[]>(() => {
 
 const dateRange = ref<[string, string] | null>(null)
 const stockOutPending = ref(false)
+const receiptPending = ref(false)
 const invoicePending = ref(false)
 const salesUserIdFilter = ref('')
 const customerIdFilter = ref('')
@@ -1125,6 +1126,7 @@ const boardFilters = computed((): SalesOrderItemListAnalyticsQuery => {
       q.invoiceProgressStatus = [...filters.invoiceProgressStatus]
     }
     if (stockOutPending.value) q.stockOutPending = true
+    if (receiptPending.value) q.receiptPending = true
     if (invoicePending.value) q.invoicePending = true
   }
   return q
@@ -1560,6 +1562,7 @@ async function loadList() {
         params.invoiceProgressStatus = [...filters.invoiceProgressStatus]
       }
       if (stockOutPending.value) params.stockOutPending = true
+      if (receiptPending.value) params.receiptPending = true
       if (invoicePending.value) params.invoicePending = true
     }
     const suid = salesUserIdFilter.value.trim()
@@ -1772,6 +1775,7 @@ function syncFiltersFromRoute() {
   salesUserIdFilter.value = typeof q.salesUserId === 'string' ? q.salesUserId : ''
   customerIdFilter.value = typeof q.customerId === 'string' ? q.customerId : ''
   stockOutPending.value = q.stockOutPending === '1' || q.stockOutPending === 'true'
+  receiptPending.value = q.receiptPending === '1' || q.receiptPending === 'true'
   invoicePending.value = q.invoicePending === '1' || q.invoicePending === 'true'
 
   const preset = activePreset.value
@@ -1783,6 +1787,7 @@ function syncFiltersFromRoute() {
     filters.receiptProgressStatus = []
     filters.invoiceProgressStatus = []
     stockOutPending.value = false
+    receiptPending.value = false
     invoicePending.value = false
     if (isSoItemTimePresetId(preset)) {
       dateRange.value = resolveSoItemTimePresetDateRange(preset)

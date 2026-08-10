@@ -413,6 +413,8 @@ export const salesOrderApi = {
     purchaseUserAccount?: string
     customerId?: string
     stockOutPending?: boolean | string
+    /** 已出库未收款（receipt_amount_not &gt; 0 且有已完成销售出库） */
+    receiptPending?: boolean | string
     invoicePending?: boolean | string
     /** 销售订单号（模糊） */
     sellOrderCode?: string

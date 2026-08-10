@@ -17,11 +17,16 @@ public sealed class PurchaseAnalyticsQuery : IPurchaseAnalyticsQuery
 
     private readonly ApplicationDbContext _db;
     private readonly IDataPermissionService _dataPermission;
+    private readonly IFinanceExchangeRateService _exchangeRateService;
 
-    public PurchaseAnalyticsQuery(ApplicationDbContext db, IDataPermissionService dataPermission)
+    public PurchaseAnalyticsQuery(
+        ApplicationDbContext db,
+        IDataPermissionService dataPermission,
+        IFinanceExchangeRateService exchangeRateService)
     {
         _db = db;
         _dataPermission = dataPermission;
+        _exchangeRateService = exchangeRateService;
     }
 
     public async Task<PurchaseAnalyticsDashboardDto> GetDashboardAsync(
@@ -85,11 +90,18 @@ public sealed class PurchaseAnalyticsQuery : IPurchaseAnalyticsQuery
             select new
             {
                 o.CreateTime,
+                Currency = oi.Currency != 0 ? oi.Currency : o.Currency,
+                oi.Cost,
+                oi.ConvertPrice,
                 StockInAmount = ext.QtyReceiveTotal * oi.ConvertPrice,
                 ext.PaymentAmountFinish,
                 ext.PaymentAmountNot
             }
         ).ToListAsync(cancellationToken);
+
+        var rates = scope.MaskAmounts
+            ? new FinanceExchangeRateDto()
+            : await _exchangeRateService.GetCurrentAsync(cancellationToken);
 
         var periods = BuildPeriodKeys(dateFrom, scope.DateTo, scope.GroupBy);
         var result = new List<PurchaseAnalyticsTrendPointDto>();
@@ -120,8 +132,15 @@ public sealed class PurchaseAnalyticsQuery : IPurchaseAnalyticsQuery
 
             var linesInBucket = lineMetricRows.Where(r => r.CreateTime >= start && r.CreateTime < end).ToList();
             var stockInAmount = linesInBucket.Sum(r => r.StockInAmount);
-            var paidAmount = linesInBucket.Sum(r => r.PaymentAmountFinish);
-            var payableAmount = linesInBucket.Sum(r => r.PaymentAmountNot);
+            // 与销售已收款/应收趋势同路径：原币 payment_* → TotalUsd（禁止跨币种硬加）
+            var paidAmount = SalesAnalyticsTodoMoney.Build(
+                linesInBucket.Select(r => (r.PaymentAmountFinish, r.Currency, r.Cost, r.ConvertPrice)),
+                rates,
+                scope.MaskAmounts).TotalUsd;
+            var payableAmount = SalesAnalyticsTodoMoney.Build(
+                linesInBucket.Select(r => (r.PaymentAmountNot, r.Currency, r.Cost, r.ConvertPrice)),
+                rates,
+                scope.MaskAmounts).TotalUsd;
 
             result.Add(new PurchaseAnalyticsTrendPointDto
             {
@@ -132,8 +151,8 @@ public sealed class PurchaseAnalyticsQuery : IPurchaseAnalyticsQuery
                 PurchaseOrderVendorCount = purchaseOrderVendorCount,
                 PurchaseAmountApproved = scope.MaskAmounts ? null : approvedAmount,
                 PurchaseAmountStockIn = scope.MaskAmounts ? null : stockInAmount,
-                PurchaseAmountPaid = scope.MaskAmounts ? null : paidAmount,
-                PayableAmount = scope.MaskAmounts ? null : payableAmount,
+                PurchaseAmountPaid = paidAmount,
+                PayableAmount = payableAmount,
                 QuoteToPurchaseConversionRate = rate
             });
         }
@@ -438,6 +457,7 @@ public sealed class PurchaseAnalyticsQuery : IPurchaseAnalyticsQuery
 
         var (purchaseAmountStockIn, purchaseAmountPaid) = await SumApprovedLineAmountsAsync(
             ordersInPeriod,
+            scope.MaskAmounts,
             cancellationToken);
 
         decimal? rate = quoteItemCount == 0
@@ -452,13 +472,14 @@ public sealed class PurchaseAnalyticsQuery : IPurchaseAnalyticsQuery
             PurchaseOrderItemCount = purchaseOrderItemCount,
             PurchaseOrderVendorCount = purchaseOrderVendorCount,
             PurchaseAmountApproved = scope.MaskAmounts ? null : purchaseAmountApproved,
-            PurchaseAmountStockIn = scope.MaskAmounts ? null : purchaseAmountStockIn,
-            PurchaseAmountPaid = scope.MaskAmounts ? null : purchaseAmountPaid
+            PurchaseAmountStockIn = purchaseAmountStockIn,
+            PurchaseAmountPaid = purchaseAmountPaid
         };
     }
 
-    private async Task<(decimal StockInAmount, decimal PaidAmount)> SumApprovedLineAmountsAsync(
+    private async Task<(decimal? StockInAmount, decimal? PaidAmount)> SumApprovedLineAmountsAsync(
         IQueryable<PurchaseOrder> ordersInPeriod,
+        bool maskAmounts,
         CancellationToken cancellationToken)
     {
         var approvedOrders = ordersInPeriod.Where(o => o.Status >= PoApproved);
@@ -471,15 +492,31 @@ public sealed class PurchaseAnalyticsQuery : IPurchaseAnalyticsQuery
             select ext.QtyReceiveTotal * oi.ConvertPrice
         ).SumAsync(cancellationToken);
 
-        var paidAmount = await (
+        var paidRows = await (
             from ext in _db.PurchaseOrderItemExtends.AsNoTracking()
             join oi in _db.PurchaseOrderItems.AsNoTracking() on ext.Id equals oi.Id
             join o in approvedOrders on oi.PurchaseOrderId equals o.Id
             where !oi.IsDeleted && !ext.IsDeleted && oi.Status != PoItemCancelled
-            select ext.PaymentAmountFinish
-        ).SumAsync(cancellationToken);
+            select new
+            {
+                Currency = oi.Currency != 0 ? oi.Currency : o.Currency,
+                oi.Cost,
+                oi.ConvertPrice,
+                ext.PaymentAmountFinish
+            }
+        ).ToListAsync(cancellationToken);
 
-        return (stockInAmount, paidAmount);
+        var rates = maskAmounts
+            ? new FinanceExchangeRateDto()
+            : await _exchangeRateService.GetCurrentAsync(cancellationToken);
+        var paidAmount = SalesAnalyticsTodoMoney.Build(
+            paidRows.Select(r => (r.PaymentAmountFinish, r.Currency, r.Cost, r.ConvertPrice)),
+            rates,
+            maskAmounts).TotalUsd;
+
+        return (
+            maskAmounts ? null : stockInAmount,
+            paidAmount);
     }
 
     private async Task<PurchaseAnalyticsSnapshotDto> BuildSnapshotForAssistorOnlyAsync(
@@ -505,6 +542,7 @@ public sealed class PurchaseAnalyticsQuery : IPurchaseAnalyticsQuery
 
         var (purchaseAmountStockIn, purchaseAmountPaid) = await SumApprovedLineAmountsAsync(
             ordersInPeriod,
+            scope.MaskAmounts,
             cancellationToken);
 
         return new PurchaseAnalyticsSnapshotDto
@@ -515,8 +553,8 @@ public sealed class PurchaseAnalyticsQuery : IPurchaseAnalyticsQuery
             PurchaseOrderItemCount = purchaseOrderItemCount,
             PurchaseOrderVendorCount = purchaseOrderVendorCount,
             PurchaseAmountApproved = scope.MaskAmounts ? null : purchaseAmountApproved,
-            PurchaseAmountStockIn = scope.MaskAmounts ? null : purchaseAmountStockIn,
-            PurchaseAmountPaid = scope.MaskAmounts ? null : purchaseAmountPaid
+            PurchaseAmountStockIn = purchaseAmountStockIn,
+            PurchaseAmountPaid = purchaseAmountPaid
         };
     }
 
@@ -530,13 +568,27 @@ public sealed class PurchaseAnalyticsQuery : IPurchaseAnalyticsQuery
         const short statusCancelled = -2;
         var activeOrders = orders.Where(o => o.Status != statusCancelled && o.Status != statusAuditFailed);
 
-        var payable = await (
+        var payableRows = await (
             from ext in _db.PurchaseOrderItemExtends.AsNoTracking()
             join oi in _db.PurchaseOrderItems.AsNoTracking() on ext.Id equals oi.Id
             join o in activeOrders on oi.PurchaseOrderId equals o.Id
             where !oi.IsDeleted && !ext.IsDeleted && oi.Status != PoItemCancelled
-            select ext.PaymentAmountNot
-        ).SumAsync(cancellationToken);
+            select new
+            {
+                Currency = oi.Currency != 0 ? oi.Currency : o.Currency,
+                oi.Cost,
+                oi.ConvertPrice,
+                ext.PaymentAmountNot
+            }
+        ).ToListAsync(cancellationToken);
+
+        var rates = scope.MaskAmounts
+            ? new FinanceExchangeRateDto()
+            : await _exchangeRateService.GetCurrentAsync(cancellationToken);
+        var payable = SalesAnalyticsTodoMoney.Build(
+            payableRows.Select(r => (r.PaymentAmountNot, r.Currency, r.Cost, r.ConvertPrice)),
+            rates,
+            scope.MaskAmounts).TotalUsd;
 
         var pendingStockIn = await (
             from ext in _db.PurchaseOrderItemExtends.AsNoTracking()
@@ -549,7 +601,7 @@ public sealed class PurchaseAnalyticsQuery : IPurchaseAnalyticsQuery
 
         return new PurchaseAnalyticsTodoDto
         {
-            PayableAmount = scope.MaskAmounts ? null : payable,
+            PayableAmount = payable,
             PendingStockInItemCount = pendingStockIn
         };
     }

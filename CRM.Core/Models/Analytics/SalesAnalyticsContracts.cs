@@ -56,18 +56,35 @@ public sealed class SalesAnalyticsSnapshotDto
     public int SalesOrderItemCount { get; set; }
     public int SalesOrderCustomerCount { get; set; }
     public decimal? SalesAmountApproved { get; set; }
-    /// <summary>已出库金额（本位币）：Σ qty_stock_out_actual × convert_price。</summary>
-    public decimal? SalesAmountStockOut { get; set; }
-    /// <summary>已收款金额（本位币）：Σ receipt_amount_finish。</summary>
-    public decimal? SalesAmountReceived { get; set; }
+    /// <summary>已出库：原币 Σ qty×price；折算美金 Σ qty×convert_price。</summary>
+    public SalesAnalyticsMoneyDto SalesAmountStockOut { get; set; } = new();
+    /// <summary>已收款：原币 Σ receipt_amount_finish；折算美金按明细价比/财务汇率。</summary>
+    public SalesAnalyticsMoneyDto SalesAmountReceived { get; set; } = new();
+}
+
+/// <summary>销售分析金额：原币分档 + 折算 USD（与财务看板 MoneyDto 同形）。</summary>
+public sealed class SalesAnalyticsMoneyDto
+{
+    public decimal? TotalUsd { get; set; }
+    public IReadOnlyList<SalesAnalyticsCurrencyAmountDto> ByCurrency { get; set; } =
+        Array.Empty<SalesAnalyticsCurrencyAmountDto>();
+}
+
+public sealed class SalesAnalyticsCurrencyAmountDto
+{
+    public short Currency { get; set; }
+    public string CurrencyLabel { get; set; } = string.Empty;
+    /// <summary>原币金额合计。</summary>
+    public decimal Amount { get; set; }
 }
 
 public sealed class SalesAnalyticsTodoDto
 {
-    public decimal? ReceivableAmount { get; set; }
+    /// <summary>待核销应收：finance_receivable Σ verified_to_be；查询日财务汇率折算 USD（对齐应收款列表看板「待核销应收款」）。</summary>
+    public SalesAnalyticsMoneyDto ReceivableAmount { get; set; } = new();
     public int PendingStockOutItemCount { get; set; }
-    /// <summary>待开票金额：Σ invoice_amount_not（活跃订单明细）。</summary>
-    public decimal? PendingInvoiceAmount { get; set; }
+    /// <summary>待开票：明细 invoice_amount_not，按订单币别分档并以财务汇率折算 USD。</summary>
+    public SalesAnalyticsMoneyDto PendingInvoiceAmount { get; set; } = new();
 }
 
 public sealed class SalesAnalyticsRankingRowDto
@@ -102,7 +119,9 @@ public sealed class SalesAnalyticsTrendPointDto
     /// <summary>销售客户数（周期内 sellorder.customer_id 去重）。</summary>
     public int SalesOrderCustomerCount { get; set; }
     public decimal? SalesAmountApproved { get; set; }
+    /// <summary>已出库金额趋势（折算 USD）。</summary>
     public decimal? SalesAmountStockOut { get; set; }
+    /// <summary>已收款金额趋势（折算 USD）。</summary>
     public decimal? SalesAmountReceived { get; set; }
     public decimal? ReceivableAmount { get; set; }
     public decimal? RfqToSalesConversionRate { get; set; }

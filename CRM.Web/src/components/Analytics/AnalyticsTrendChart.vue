@@ -9,8 +9,8 @@ const props = withDefaults(
     valueSuffix?: string
     /** 图表内单位说明 */
     unitCaption?: string
-    /** money：美元金额（convert_total / convert_price 口径） */
-    valueFormat?: 'money' | 'percent' | 'number'
+    /** money：美元；homeMoney：本位币（元） */
+    valueFormat?: 'money' | 'homeMoney' | 'percent' | 'number'
   }>(),
   { valueFormat: 'number' }
 )
@@ -18,13 +18,16 @@ const props = withDefaults(
 const max = computed(() => Math.max(...props.points.map((p) => p.value), 1))
 
 const valColumnClass = computed(() => {
-  if (props.valueFormat === 'money') return 'val val--money'
+  if (props.valueFormat === 'money' || props.valueFormat === 'homeMoney') return 'val val--money'
   return 'val'
 })
 
 function formatValue(v: number): string {
   if (props.valueFormat === 'money') {
     return `$ ${v.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  }
+  if (props.valueFormat === 'homeMoney') {
+    return `¥ ${v.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   }
   if (props.valueFormat === 'percent') {
     return `${v.toFixed(2)}%`

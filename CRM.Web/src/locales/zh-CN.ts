@@ -898,7 +898,7 @@ const zhCN = {
   },
   salesAnalytics: {
     title: '销售分析',
-    subtitle: '按订单创建日、美元下单额（convert_total）统计',
+    subtitle: '按订单创建日、折算美元（USD）下单额（convert_total）统计',
     tabs: {
       company: '公司',
       visibleScope: '可见范围',
@@ -1062,12 +1062,15 @@ const zhCN = {
     scopeBanner: '当前可见：{label}',
     metricHint: '口径：排除取消/审核失败订单；成单金额为审核通过及以上',
     drill: {
-      hint: '可点击 KPI 或排行进入业务列表；部门层排行双击可查看业务员订单',
+      hint: '待办请点「详情」打开列表；统计概览 KPI 与排行可点击进入列表；部门层排行双击可查看业务员订单',
       noPermission: '无权限访问目标列表'
     },
     definitionTip: {
       button: '口径',
+      /** 分解图 Tip 首行标签（对齐帮助「分解」表「图」列） */
       chart: '图',
+      /** KPI 口径 Tip 首行标签（对齐帮助「待办 / 统计概览」表「指标」列） */
+      metric: '指标',
       dataSource: '数据源',
       definition: '口径说明'
     },
@@ -1075,6 +1078,21 @@ const zhCN = {
       chart: '出库进度',
       dataSource: '销售订单明细',
       text: '区间内有效明细按「待出库 / 部分出库 / 出库完成」计行数（不限是否已审核）。'
+    },
+    todoReceivableDefinition: {
+      chart: '待核销应收款',
+      dataSource: '应收款',
+      text: '与应收款列表看板「待核销应收款」一致：财务应收台账上待核销余额合计，按原币分档并以查询日财务汇率折算美金。是对尚未 100% 核销的出库应收的待核销余额；与所选日期无关。'
+    },
+    todoPendingStockOutDefinition: {
+      chart: '待出库明细数',
+      dataSource: '销售订单明细',
+      text: '出库进度仍为「待出库」或「部分出库」的明细行数（不是订单张数）。与所选日期无关。'
+    },
+    todoPendingInvoiceDefinition: {
+      chart: '待开票金额',
+      dataSource: '销售订单明细',
+      text: '有效明细上「尚未开完票」的金额：按订单原币分档，并以查询日财务汇率折算美金合计。与所选日期无关。'
     },
     stockOutProgressDetail: {
       detail: '详情',
@@ -1110,9 +1128,11 @@ const zhCN = {
     trendUnit: {
       customer: '家',
       customerCaption: '单位：家（周期内去重客户数）',
-      moneyCaption: '单位：美元（USD）',
+      moneyCaption: '单位：折算美元（USD）',
+      homeMoneyCaption: '单位：元（本位币）',
       percentCaption: '单位：%（需求→销售转化率）',
-      receivableCaption: '单位：元（本位币，未收款金额）'
+      /** @deprecated 应收趋势已改用 moneyCaption（折算美金） */
+      receivableCaption: '单位：折算美元（USD）'
     },
     sections: {
       todo: '待办',
@@ -1128,9 +1148,14 @@ const zhCN = {
       trendReceivable: '应收趋势'
     },
     kpi: {
-      receivableAmount: '应收款金额',
+      receivableAmount: '待核销应收款',
       pendingStockOutItemCount: '待出库明细数',
       pendingInvoiceAmount: '待开票金额',
+      homeCurrencyCaption: '本币',
+      usdCaption: '折算美金',
+      originalCaption: '原币',
+      viewLocalCurrency: '查看本币',
+      viewLocalCurrencyEmpty: '暂无本币分档',
       rfqItemCount: '需求条目数',
       rfqCustomerCount: '需求客户数',
       rfqToSalesConversionRate: '需求→销售转化率',
@@ -1151,7 +1176,7 @@ const zhCN = {
   },
   purchaseAnalytics: {
     title: '采购分析',
-    subtitle: '按订单创建日、美元采购额（convert_total）统计',
+    subtitle: '按订单创建日、折算美元（USD）采购额（convert_total）统计',
     tabs: {
       company: '公司',
       visibleScope: '可见范围',
@@ -1324,9 +1349,13 @@ const zhCN = {
     trendUnit: {
       vendor: '家',
       vendorCaption: '单位：家（周期内去重供应商数）',
-      moneyCaption: '单位：美元（USD）',
+      /** 成单 / 已入库 / 已付款 / 应付：折算美金主数字 */
+      moneyCaption: '单位：折算美元（USD）',
+      /** @deprecated 已付款趋势已改用 moneyCaption */
+      paidCaption: '单位：折算美元（USD）',
       percentCaption: '单位：%（报价→采购转化率）',
-      payableCaption: '单位：美元（USD，未付款金额）'
+      /** @deprecated 应付趋势已改用 moneyCaption */
+      payableCaption: '单位：折算美元（USD）'
     },
     sections: {
       todo: '待办',
@@ -1364,7 +1393,7 @@ const zhCN = {
   },
   logisticsAnalytics: {
     title: '物流分析',
-    subtitle: '在库存量截至查询日；库龄按入库日；金额 USD 采购成本',
+    subtitle: '在库存量截至查询日；库龄按入库日；金额为折算美元（USD）采购成本',
     tabs: {
       company: '公司',
       visibleScope: '可见范围',
@@ -1392,7 +1421,10 @@ const zhCN = {
     metricHint: '在库 KPI 为截至日的时点存量；趋势按入库日统计流入',
     salesPurchaseOnlyHint: '当前按销/采归属（销售员或采购员）过滤，无公司汇总',
     groupBy: { day: '按日', week: '按周', month: '按月' },
-    unit: { days: '天' },
+    unit: {
+      days: '天',
+      moneyCaption: '单位：折算美元（USD）'
+    },
     sections: {
       todo: '待办',
       snapshot: '在库概览',
@@ -1402,6 +1434,7 @@ const zhCN = {
     kpi: {
       onHandQty: '在库商品数量',
       onHandAmountUsd: '在库商品金额',
+      convertedUsdSuffix: '（折算美元）',
       weightedAvgAgeDays: '加权平均库龄',
       customerCount: '客户数',
       salespersonCount: '销售员数',
@@ -1589,10 +1622,11 @@ const zhCN = {
       currencyBreakdown: '待办原币构成'
     },
     trendUnit: {
-      moneyCaption: 'USD 折算'
+      moneyCaption: '单位：折算美元（USD）',
+      originalCaption: '单位：原币'
     },
     kpi: {
-      usdEquivalent: '折算 USD',
+      usdEquivalent: '折算美元',
       localCurrency: '原币',
       payableAmount: '应付款',
       receivableAmount: '应收款',
@@ -9029,11 +9063,21 @@ const zhCN = {
       kpi: {
         customers: '应收款客户数',
         lines: '出库记录条目数',
-        pendingAmount: '待核销折算美金',
-        totalAmount: '应收总额折算美金',
+        pendingAmount: '待核销应收款',
+        totalAmount: '出库应收款',
         maxAge: '最长账龄（天）',
         usdCaption: '折算美金',
         originalCaption: '原币'
+      },
+      stockOutReceivableDefinition: {
+        chart: '出库应收款',
+        dataSource: '应收款',
+        text: '在其它搜索条件不变时，按「仅待核销」勾选状态分别理解：\n· 勾选「仅待核销」：只统计尚未 100% 核销的应收行，对这些行汇总应收总额（含行上已核销部分），折算美金并按原币分档。\n· 取消「仅待核销」：统计筛选结果中全部应收行（含已核销完成），汇总应收总额，折算美金并按原币分档。\n与「待核销应收款」的差额，为当前行集上已核销金额。'
+      },
+      pendingReceivableDefinition: {
+        chart: '待核销应收款',
+        dataSource: '应收款',
+        text: '与「出库应收款」同一批应收行上统计待核销余额（总额扣除已核销），折算美金并按原币分档。是对尚未 100% 核销的出库应收金额的待核销余额合计。无论是否勾选「仅待核销」，本卡数值不变化（已核销完成行余额为 0，不增加合计）。'
       },
       trendUnit: {
         customers: '家',

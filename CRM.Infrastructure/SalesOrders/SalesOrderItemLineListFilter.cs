@@ -215,6 +215,26 @@ internal static partial class SalesOrderItemLineListFilter
                         && (ext.StockOutProgressStatus == 0 || ext.StockOutProgressStatus == 1)));
             }
 
+            if (request.ReceiptPending)
+            {
+                // 与销售分析待办 / 明细看板「应收款」一致：未收款且已完成销售出库
+                const short stockOutCompleted = 2;
+                q = q.Where(x =>
+                    x.Item.Status == 0
+                    && x.So.Status != SellOrderMainStatus.Cancelled
+                    && x.So.Status != SellOrderMainStatus.AuditFailed
+                    && db.SellOrderItemExtends.Any(ext =>
+                        ext.Id == x.Item.Id
+                        && !ext.IsDeleted
+                        && ext.ReceiptAmountNot > 0m)
+                    && db.StockOuts.Any(so =>
+                        so.SellOrderItemId == x.Item.Id
+                        && so.StockOutDate != null
+                        && so.Status == stockOutCompleted
+                        && (so.StockOutType == StockOutTypeCode.Sales
+                            || so.StockOutType == StockOutTypeCode.LegacySales)));
+            }
+
             if (request.InvoicePending)
             {
                 q = q.Where(x =>

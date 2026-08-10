@@ -59,46 +59,52 @@ function formatDate(d: Date): string {
   return `${y}-${m}-${day}`
 }
 
-function formatFinanceMoneyDisplay(m?: FinanceAnalyticsMoney | null): {
-  value: string
-  valueCaption: string
-  currencyCaption?: string
-  currencyLines: string[]
-} {
+function formatAmountNumber(amount: number): string {
+  return amount.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function formatFinanceMoneyDisplay(m?: FinanceAnalyticsMoney | null) {
   const usdCaption = t('financeAnalytics.kpi.usdEquivalent')
   const localCaption = t('financeAnalytics.kpi.localCurrency')
 
   if (!m || m.totalUsd == null) {
-    return { value: '—', valueCaption: usdCaption, currencyLines: [] }
+    return {
+      value: '—',
+      valueCaption: usdCaption,
+      currencyCaption: undefined as string | undefined,
+      currencyItems: undefined as
+        | { currencyLabel: string; originalText: string; amountText: string; currency: number; usdText: string }[]
+        | undefined
+    }
   }
 
-  const value = `$\u00a0${m.totalUsd.toLocaleString('zh-CN', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  })}`
+  const value = `$\u00a0${formatAmountNumber(m.totalUsd)}`
 
-  const currencyLines = (m.byCurrency ?? [])
+  const currencyItems = (m.byCurrency ?? [])
     .filter((c) => Math.abs(c.amount) >= 0.005)
     .sort((a, b) => a.currency - b.currency)
-    .map(
-      (c) =>
-        `${c.currencyLabel}\u00a0${c.amount.toLocaleString('zh-CN', {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2
-        })}`
-    )
+    .map((c) => {
+      const amountText = formatAmountNumber(c.amount)
+      return {
+        currencyLabel: c.currencyLabel,
+        originalText: `${amountText} ${c.currencyLabel}`,
+        amountText,
+        currency: c.currency,
+        usdText: ''
+      }
+    })
 
   return {
     value,
     valueCaption: usdCaption,
-    currencyCaption: currencyLines.length > 0 ? localCaption : undefined,
-    currencyLines
+    currencyCaption: currencyItems.length > 0 ? localCaption : undefined,
+    currencyItems: currencyItems.length ? currencyItems : undefined
   }
 }
 
 function moneyKpiFields(m?: FinanceAnalyticsMoney | null) {
-  const { value, valueCaption, currencyLines } = formatFinanceMoneyDisplay(m)
-  return { value, valueCaption, currencyLines }
+  const { value, valueCaption, currencyCaption, currencyItems } = formatFinanceMoneyDisplay(m)
+  return { value, valueCaption, currencyCaption, currencyItems }
 }
 
 function buildBaseQuery() {
@@ -392,7 +398,8 @@ watch([viewLevel, departmentId, ownerUserId, asOfDate, trendDateRange, groupBy],
           v-if="activeBreakdown && activeBreakdown.items.length"
           :title="activeBreakdown.groupLabel"
           :items="activeBreakdown.items"
-          value-format="money"
+          value-format="originalCurrency"
+          :unit-caption="t('financeAnalytics.trendUnit.originalCaption')"
         />
         <p v-else class="empty-hint">{{ t('financeAnalytics.noBreakdownData') }}</p>
       </div>

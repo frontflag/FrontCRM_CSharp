@@ -260,6 +260,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? customerPn,
             [FromQuery] string? transactionCurrency,
             [FromQuery] bool stockOutPending = false,
+            [FromQuery] bool receiptPending = false,
             [FromQuery] bool invoicePending = false,
             [FromQuery] List<short>? purchaseProgressStatus = null,
             [FromQuery] List<short>? stockInProgressStatus = null,
@@ -273,7 +274,7 @@ namespace CRM.API.Controllers
         {
             var (request, maskAmounts) = await BuildItemListAnalyticsQueryRequestAsync(
                 orderCreateStart, orderCreateEnd, customerName, salesUserName, salesUserId, purchaseUserAccount, customerId,
-                sellOrderCode, pn, customerSo, customerPn, transactionCurrency, stockOutPending, invoicePending,
+                sellOrderCode, pn, customerSo, customerPn, transactionCurrency, stockOutPending, receiptPending, invoicePending,
                 purchaseProgressStatus, stockInProgressStatus, stockOutNotifyProgressStatus, stockOutProgressStatus,
                 receiptProgressStatus, invoiceProgressStatus, quickFilter, dataset, cancellationToken);
             var data = await _salesOrderItemLineListQuery.GetListAnalyticsDashboardAsync(request, maskAmounts, cancellationToken);
@@ -295,6 +296,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? customerPn,
             [FromQuery] string? transactionCurrency,
             [FromQuery] bool stockOutPending = false,
+            [FromQuery] bool receiptPending = false,
             [FromQuery] bool invoicePending = false,
             [FromQuery] List<short>? purchaseProgressStatus = null,
             [FromQuery] List<short>? stockInProgressStatus = null,
@@ -309,7 +311,7 @@ namespace CRM.API.Controllers
         {
             var (request, maskAmounts) = await BuildItemListAnalyticsQueryRequestAsync(
                 orderCreateStart, orderCreateEnd, customerName, salesUserName, salesUserId, purchaseUserAccount, customerId,
-                sellOrderCode, pn, customerSo, customerPn, transactionCurrency, stockOutPending, invoicePending,
+                sellOrderCode, pn, customerSo, customerPn, transactionCurrency, stockOutPending, receiptPending, invoicePending,
                 purchaseProgressStatus, stockInProgressStatus, stockOutNotifyProgressStatus, stockOutProgressStatus,
                 receiptProgressStatus, invoiceProgressStatus, quickFilter, dataset, cancellationToken);
             var data = await _salesOrderItemLineListQuery.GetListAnalyticsTrendsAsync(
@@ -335,6 +337,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? customerPn,
             [FromQuery] string? transactionCurrency,
             [FromQuery] bool stockOutPending = false,
+            [FromQuery] bool receiptPending = false,
             [FromQuery] bool invoicePending = false,
             [FromQuery] List<short>? purchaseProgressStatus = null,
             [FromQuery] List<short>? stockInProgressStatus = null,
@@ -348,7 +351,7 @@ namespace CRM.API.Controllers
         {
             var (request, maskAmounts) = await BuildItemListAnalyticsQueryRequestAsync(
                 orderCreateStart, orderCreateEnd, customerName, salesUserName, salesUserId, purchaseUserAccount, customerId,
-                sellOrderCode, pn, customerSo, customerPn, transactionCurrency, stockOutPending, invoicePending,
+                sellOrderCode, pn, customerSo, customerPn, transactionCurrency, stockOutPending, receiptPending, invoicePending,
                 purchaseProgressStatus, stockInProgressStatus, stockOutNotifyProgressStatus, stockOutProgressStatus,
                 receiptProgressStatus, invoiceProgressStatus, quickFilter, dataset, cancellationToken);
             var data = await _salesOrderItemLineListQuery.GetListAnalyticsBreakdownsAsync(request, maskAmounts, cancellationToken);
@@ -370,6 +373,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? customerPn,
             [FromQuery] string? transactionCurrency,
             [FromQuery] bool stockOutPending = false,
+            [FromQuery] bool receiptPending = false,
             [FromQuery] bool invoicePending = false,
             [FromQuery] List<short>? purchaseProgressStatus = null,
             [FromQuery] List<short>? stockInProgressStatus = null,
@@ -383,7 +387,7 @@ namespace CRM.API.Controllers
         {
             var (request, maskAmounts) = await BuildItemListAnalyticsQueryRequestAsync(
                 orderCreateStart, orderCreateEnd, customerName, salesUserName, salesUserId, purchaseUserAccount, customerId,
-                sellOrderCode, pn, customerSo, customerPn, transactionCurrency, stockOutPending, invoicePending,
+                sellOrderCode, pn, customerSo, customerPn, transactionCurrency, stockOutPending, receiptPending, invoicePending,
                 purchaseProgressStatus, stockInProgressStatus, stockOutNotifyProgressStatus, stockOutProgressStatus,
                 receiptProgressStatus, invoiceProgressStatus, quickFilter, dataset, cancellationToken);
             var data = await _salesOrderItemLineListQuery.GetListAnalyticsRankingsAsync(request, maskAmounts, cancellationToken);
@@ -408,6 +412,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? purchaseOrderItemCode,
             [FromQuery] string? transactionCurrency,
             [FromQuery] bool stockOutPending = false,
+            [FromQuery] bool receiptPending = false,
             [FromQuery] bool invoicePending = false,
             [FromQuery] List<short>? purchaseProgressStatus = null,
             [FromQuery] List<short>? stockInProgressStatus = null,
@@ -447,6 +452,7 @@ namespace CRM.API.Controllers
                     PurchaseOrderItemCode = string.IsNullOrWhiteSpace(purchaseOrderItemCode) ? null : purchaseOrderItemCode.Trim(),
                     TransactionCurrency = transactionCurrency,
                 StockOutPending = stockOutPending,
+                ReceiptPending = receiptPending,
                 InvoicePending = invoicePending,
                 PurchaseProgressStatus = QueryShortListParser.Parse(Request.Query["purchaseProgressStatus"]) ?? purchaseProgressStatus,
                 StockInProgressStatus = QueryShortListParser.Parse(Request.Query["stockInProgressStatus"]) ?? stockInProgressStatus,
@@ -2707,6 +2713,7 @@ namespace CRM.API.Controllers
             string? customerPn,
             string? transactionCurrency,
             bool stockOutPending,
+            bool receiptPending,
             bool invoicePending,
             List<short>? purchaseProgressStatus,
             List<short>? stockInProgressStatus,
@@ -2752,6 +2759,7 @@ namespace CRM.API.Controllers
                     : Request.Query["purchaseOrderItemCode"].ToString().Trim(),
                 TransactionCurrency = transactionCurrency,
                 StockOutPending = stockOutPending,
+                ReceiptPending = receiptPending,
                 InvoicePending = invoicePending,
                 PurchaseProgressStatus = QueryShortListParser.Parse(Request.Query["purchaseProgressStatus"]) ?? purchaseProgressStatus,
                 StockInProgressStatus = QueryShortListParser.Parse(Request.Query["stockInProgressStatus"]) ?? stockInProgressStatus,

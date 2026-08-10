@@ -508,7 +508,7 @@ watch([viewLevel, departmentId, purchaseUserId, dateRange, groupBy], () => void 
             <AnalyticsTrendChart
               :points="trendPayablePoints"
               value-format="money"
-              :unit-caption="t('purchaseAnalytics.trendUnit.payableCaption')"
+              :unit-caption="t('purchaseAnalytics.trendUnit.moneyCaption')"
             />
           </div>
         </div>
@@ -520,19 +520,32 @@ watch([viewLevel, departmentId, purchaseUserId, dateRange, groupBy], () => void 
               :title="breakdownTitle(group)"
               :items="group.items"
               :value-format="breakdownValueFormat(group.groupKey)"
+              :unit-caption="
+                breakdownValueFormat(group.groupKey) === 'money'
+                  ? t('purchaseAnalytics.trendUnit.moneyCaption')
+                  : undefined
+              "
             />
             <AnalyticsBreakdownChart
               v-else
               :title="breakdownTitle(group)"
               :items="group.items"
               :value-format="breakdownValueFormat(group.groupKey)"
+              :unit-caption="
+                breakdownValueFormat(group.groupKey) === 'money'
+                  ? t('purchaseAnalytics.trendUnit.moneyCaption')
+                  : undefined
+              "
             />
           </div>
         </div>
 
         <div v-if="showOverviewRankings" class="rankings-row">
           <div class="card ranking-panel">
-            <h3 class="section-title">{{ primaryRankingTitle }}</h3>
+            <div class="section-title-row">
+              <h3 class="section-title">{{ primaryRankingTitle }}</h3>
+              <span v-if="!maskAmounts" class="unit-caption">{{ t('purchaseAnalytics.trendUnit.moneyCaption') }}</span>
+            </div>
             <el-table
               :data="dashboard?.rankings.primary ?? []"
               size="small"
@@ -655,6 +668,26 @@ watch([viewLevel, departmentId, purchaseUserId, dateRange, groupBy], () => void 
   margin: 0 0 12px;
   font-size: 15px;
   font-weight: 600;
+}
+
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+
+  .section-title {
+    margin: 0;
+  }
+}
+
+.unit-caption {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--el-text-color-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .charts-row,

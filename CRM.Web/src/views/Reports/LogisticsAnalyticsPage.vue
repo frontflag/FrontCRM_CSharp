@@ -120,6 +120,7 @@ const snapshotKpis = computed(() => {
       label: t('logisticsAnalytics.kpi.onHandAmountUsd'),
       value: formatMoney(s.onHandAmountUsd),
       valueFormat: 'money' as const,
+      valueSuffix: t('logisticsAnalytics.kpi.convertedUsdSuffix'),
       drillable: !maskAmounts.value && authStore.hasPermission('inventory.read')
     },
     {
@@ -444,7 +445,10 @@ watch(matrixSubject, () => void loadMatrix())
 
     <div class="rankings-row">
       <div class="card ranking-panel">
-        <h3 class="section-title">{{ primaryRankingTitle }}</h3>
+        <div class="section-title-row">
+          <h3 class="section-title">{{ primaryRankingTitle }}</h3>
+          <span v-if="!maskAmounts" class="unit-caption">{{ t('logisticsAnalytics.unit.moneyCaption') }}</span>
+        </div>
         <el-table
           :data="dashboard?.rankings.primary ?? []"
           size="small"
@@ -526,6 +530,26 @@ watch(matrixSubject, () => void loadMatrix())
   margin: 0 0 12px;
   font-size: 15px;
   font-weight: 600;
+}
+
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+
+  .section-title {
+    margin: 0;
+  }
+}
+
+.unit-caption {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--el-text-color-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .charts-row,

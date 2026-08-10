@@ -56,9 +56,14 @@ function formatMoney(v?: number | null): string {
   return `$\u00a0${v.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
+function formatAmountNumber(amount: number | null | undefined): string {
+  if (amount == null) return '—'
+  return amount.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
 function formatOriginalMoney(amount: number | null | undefined, currencyLabel: string): string {
   if (amount == null) return '—'
-  return `${amount.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currencyLabel}`
+  return `${formatAmountNumber(amount)} ${currencyLabel}`
 }
 
 function formatDays(v?: number | null): string {
@@ -79,11 +84,15 @@ const kpiItems = computed(() => {
   const pendingCurrency = (s.pendingCurrencyLines ?? []).map((line) => ({
     currencyLabel: line.currencyLabel,
     originalText: formatOriginalMoney(line.originalAmount, line.currencyLabel),
+    amountText: formatAmountNumber(line.originalAmount),
+    currency: Number(line.currencyKey),
     usdText: ''
   }))
   const totalCurrency = (s.totalCurrencyLines ?? []).map((line) => ({
     currencyLabel: line.currencyLabel,
     originalText: formatOriginalMoney(line.originalAmount, line.currencyLabel),
+    amountText: formatAmountNumber(line.originalAmount),
+    currency: Number(line.currencyKey),
     usdText: ''
   }))
 
@@ -99,28 +108,40 @@ const kpiItems = computed(() => {
       value: String(s.lineCount)
     },
     {
-      key: 'pendingAmount',
-      label: t('financeReceivableList.board.kpi.pendingAmount'),
-      value: formatMoney(s.pendingAmountUsd),
-      valueFormat: 'money' as const,
-      layout: 'split' as const,
-      valueCaption: t('financeReceivableList.board.kpi.usdCaption'),
-      currencyCaption: pendingCurrency.length
-        ? t('financeReceivableList.board.kpi.originalCaption')
-        : undefined,
-      currencyItems: pendingCurrency.length ? pendingCurrency : undefined
-    },
-    {
       key: 'totalAmount',
       label: t('financeReceivableList.board.kpi.totalAmount'),
       value: formatMoney(s.totalAmountUsd),
       valueFormat: 'money' as const,
       layout: 'split' as const,
+      gridColumnSpan: 2,
       valueCaption: t('financeReceivableList.board.kpi.usdCaption'),
       currencyCaption: totalCurrency.length
         ? t('financeReceivableList.board.kpi.originalCaption')
         : undefined,
-      currencyItems: totalCurrency.length ? totalCurrency : undefined
+      currencyItems: totalCurrency.length ? totalCurrency : undefined,
+      showDefinition: true,
+      definitionLabel: t('salesAnalytics.definitionTip.button'),
+      definitionChart: t('financeReceivableList.board.stockOutReceivableDefinition.chart'),
+      definitionDataSource: t('financeReceivableList.board.stockOutReceivableDefinition.dataSource'),
+      definitionText: t('financeReceivableList.board.stockOutReceivableDefinition.text')
+    },
+    {
+      key: 'pendingAmount',
+      label: t('financeReceivableList.board.kpi.pendingAmount'),
+      value: formatMoney(s.pendingAmountUsd),
+      valueFormat: 'money' as const,
+      layout: 'split' as const,
+      gridColumnSpan: 2,
+      valueCaption: t('financeReceivableList.board.kpi.usdCaption'),
+      currencyCaption: pendingCurrency.length
+        ? t('financeReceivableList.board.kpi.originalCaption')
+        : undefined,
+      currencyItems: pendingCurrency.length ? pendingCurrency : undefined,
+      showDefinition: true,
+      definitionLabel: t('salesAnalytics.definitionTip.button'),
+      definitionChart: t('financeReceivableList.board.pendingReceivableDefinition.chart'),
+      definitionDataSource: t('financeReceivableList.board.pendingReceivableDefinition.dataSource'),
+      definitionText: t('financeReceivableList.board.pendingReceivableDefinition.text')
     },
     {
       key: 'maxAge',

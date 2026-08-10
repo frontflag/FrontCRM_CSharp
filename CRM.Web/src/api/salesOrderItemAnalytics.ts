@@ -18,6 +18,7 @@ export interface SalesOrderItemListAnalyticsQuery {
   purchaseOrderItemCode?: string
   transactionCurrency?: string
   stockOutPending?: boolean
+  receiptPending?: boolean
   invoicePending?: boolean
   purchaseProgressStatus?: number | number[]
   stockInProgressStatus?: number | number[]
@@ -103,6 +104,7 @@ function buildParams(q: SalesOrderItemListAnalyticsQuery): Record<string, unknow
   if (q.purchaseOrderItemCode) p.purchaseOrderItemCode = q.purchaseOrderItemCode
   if (q.transactionCurrency) p.transactionCurrency = q.transactionCurrency
   if (q.stockOutPending) p.stockOutPending = true
+  if (q.receiptPending) p.receiptPending = true
   if (q.invoicePending) p.invoicePending = true
   if (q.purchaseProgressStatus !== undefined && q.purchaseProgressStatus !== null) {
     p.purchaseProgressStatus = q.purchaseProgressStatus

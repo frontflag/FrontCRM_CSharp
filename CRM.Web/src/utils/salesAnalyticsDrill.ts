@@ -43,7 +43,7 @@ export function buildTodoDrillRoute(
     case 'receivable':
       return {
         name: 'FinanceReceivableList',
-        query: { onlyOpen: '1' }
+        query: { onlyOpen: '1', ...userQ }
       }
     case 'pendingStockOut':
       return {

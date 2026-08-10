@@ -902,7 +902,7 @@ const enUS = {
   },
   salesAnalytics: {
     title: 'Sales Analytics',
-    subtitle: 'By order create date; order amount in USD (convert_total)',
+    subtitle: 'By order create date; order amount in converted USD (convert_total)',
     tabs: {
       company: 'Company',
       visibleScope: 'Visible scope',
@@ -1066,12 +1066,15 @@ const enUS = {
     scopeBanner: 'Visible scope: {label}',
     metricHint: 'Excludes cancelled/failed orders; approved+ order amount',
     drill: {
-      hint: 'Click KPIs or rankings to open lists; double-click salesperson row at department level',
+      hint: 'Use Details on todo KPIs to open lists; click overview KPIs or rankings to drill; double-click salesperson row at department level',
       noPermission: 'No permission to open the target list'
     },
     definitionTip: {
       button: 'Definition',
+      /** Breakdown tip first-row label (help 「分解」 column 「图」) */
       chart: 'Chart',
+      /** KPI tip first-row label (help 「待办 / 统计概览」 column 「指标」) */
+      metric: 'Metric',
       dataSource: 'Source',
       definition: 'Logic'
     },
@@ -1079,6 +1082,21 @@ const enUS = {
       chart: 'Stock-out progress',
       dataSource: 'Sales order items',
       text: 'Count of valid lines in the period by Pending / Partial / Complete stock-out (approved or not).'
+    },
+    todoReceivableDefinition: {
+      chart: 'Open receivables',
+      dataSource: 'Accounts receivable',
+      text: 'Same as the Receivables list board “Open receivables”: sum of open balance (verified_to_be) on finance receivables, by original currency, converted to USD with the query-day finance FX rate. Open balance of stock-out receivables not yet fully written off. Not limited by the date range.'
+    },
+    todoPendingStockOutDefinition: {
+      chart: 'Pending stock-out lines',
+      dataSource: 'Sales order items',
+      text: 'Count of valid lines still Pending or Partial stock-out (not order headers). Not limited by the date range.'
+    },
+    todoPendingInvoiceDefinition: {
+      chart: 'Pending invoice amount',
+      dataSource: 'Sales order items',
+      text: 'Unfinished invoice amounts on valid sales lines: broken down by order currency, with a USD total using the query-day finance FX rate. Not limited by the date range.'
     },
     stockOutProgressDetail: {
       detail: 'Details',
@@ -1114,9 +1132,11 @@ const enUS = {
     trendUnit: {
       customer: 'customers',
       customerCaption: 'Unit: customers (distinct per period)',
-      moneyCaption: 'Unit: USD',
+      moneyCaption: 'Unit: converted USD',
+      homeMoneyCaption: 'Unit: CNY (base currency)',
       percentCaption: 'Unit: % (RFQ→SO conversion)',
-      receivableCaption: 'Unit: CNY (base currency, outstanding receivable)'
+      /** @deprecated receivable trend uses moneyCaption (converted USD) */
+      receivableCaption: 'Unit: converted USD'
     },
     sections: {
       todo: 'Backlog',
@@ -1132,9 +1152,14 @@ const enUS = {
       trendReceivable: 'Receivable trend'
     },
     kpi: {
-      receivableAmount: 'Receivable',
+      receivableAmount: 'Open receivables',
       pendingStockOutItemCount: 'Pending stock-out lines',
       pendingInvoiceAmount: 'Pending invoice amount',
+      homeCurrencyCaption: 'Base currency',
+      usdCaption: 'USD equivalent',
+      originalCaption: 'Original',
+      viewLocalCurrency: 'View local currency',
+      viewLocalCurrencyEmpty: 'No local-currency breakdown',
       rfqItemCount: 'RFQ lines',
       rfqCustomerCount: 'RFQ customers',
       rfqToSalesConversionRate: 'RFQ→SO conversion',
@@ -1155,7 +1180,7 @@ const enUS = {
   },
   purchaseAnalytics: {
     title: 'Purchase Analytics',
-    subtitle: 'By order create date; purchase amount in USD (convert_total)',
+    subtitle: 'By order create date; purchase amount in converted USD (convert_total)',
     tabs: {
       company: 'Company',
       visibleScope: 'Visible scope',
@@ -1328,9 +1353,13 @@ const enUS = {
     trendUnit: {
       vendor: 'vendors',
       vendorCaption: 'Unit: vendors (distinct per period)',
-      moneyCaption: 'Unit: USD',
+      /** Approved / stock-in / paid / payable: converted USD */
+      moneyCaption: 'Unit: converted USD',
+      /** @deprecated paid trend uses moneyCaption */
+      paidCaption: 'Unit: converted USD',
       percentCaption: 'Unit: % (quote→PO conversion)',
-      payableCaption: 'Unit: USD (outstanding payable)'
+      /** @deprecated payable trend uses moneyCaption */
+      payableCaption: 'Unit: converted USD'
     },
     sections: {
       todo: 'Backlog',
@@ -1368,7 +1397,7 @@ const enUS = {
   },
   logisticsAnalytics: {
     title: 'Logistics Analytics',
-    subtitle: 'On-hand as of date; age from stock-in date; USD purchase cost',
+    subtitle: 'On-hand as of date; age from stock-in date; amount in converted USD purchase cost',
     tabs: {
       company: 'Company',
       visibleScope: 'Visible scope',
@@ -1396,7 +1425,10 @@ const enUS = {
     metricHint: 'On-hand KPIs are point-in-time as of date; trends use stock-in date',
     salesPurchaseOnlyHint: 'Filtered by sales/purchase ownership (salesperson or purchaser)',
     groupBy: { day: 'Daily', week: 'Weekly', month: 'Monthly' },
-    unit: { days: 'days' },
+    unit: {
+      days: 'days',
+      moneyCaption: 'Unit: converted USD'
+    },
     sections: {
       todo: 'Backlog',
       snapshot: 'On-hand overview',
@@ -1406,6 +1438,7 @@ const enUS = {
     kpi: {
       onHandQty: 'On-hand qty',
       onHandAmountUsd: 'On-hand amount',
+      convertedUsdSuffix: '(converted USD)',
       weightedAvgAgeDays: 'Weighted avg age',
       customerCount: 'Customers',
       salespersonCount: 'Salespeople',
@@ -1593,10 +1626,11 @@ const enUS = {
       currencyBreakdown: 'Open items by currency'
     },
     trendUnit: {
-      moneyCaption: 'USD equivalent'
+      moneyCaption: 'Unit: converted USD',
+      originalCaption: 'Unit: original currency'
     },
     kpi: {
-      usdEquivalent: 'USD equivalent',
+      usdEquivalent: 'Converted USD',
       localCurrency: 'Local currency',
       payableAmount: 'Payable',
       receivableAmount: 'Receivable',
@@ -9045,11 +9079,21 @@ const enUS = {
       kpi: {
         customers: 'Customers',
         lines: 'Stock-out lines',
-        pendingAmount: 'Open amount (USD)',
-        totalAmount: 'Total amount (USD)',
+        pendingAmount: 'Open receivables',
+        totalAmount: 'Stock-out receivables',
         maxAge: 'Max aging (days)',
         usdCaption: 'USD',
         originalCaption: 'Original'
+      },
+      stockOutReceivableDefinition: {
+        chart: 'Stock-out receivables',
+        dataSource: 'Receivables',
+        text: 'With other filters unchanged, by the “Open only” checkbox:\n· Checked: only rows not fully written off; sum their total Amount (including already verified portions), convert to USD, break down by original currency.\n· Unchecked: all receivable rows in the filter (including fully written off); sum total Amount, convert to USD, break down by original currency.\nThe gap vs Open receivables is the verified amount on the current row set.'
+      },
+      pendingReceivableDefinition: {
+        chart: 'Open receivables',
+        dataSource: 'Receivables',
+        text: 'On the same receivable rows as Stock-out receivables, sum remaining open balance (total minus verified), convert to USD, break down by original currency. It is the open balance total of stock-out receivables not yet 100% written off. Toggling “Open only” does not change this card (fully written-off rows have zero open balance and add nothing).'
       },
       trendUnit: {
         customers: '',
