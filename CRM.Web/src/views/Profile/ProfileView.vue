@@ -17,20 +17,21 @@
       </div>
     </div>
 
-    <!-- Tab 导航 -->
-    <div class="profile-tabs">
-      <button
-        v-for="tab in tabList"
-        :key="tab.key"
-        class="profile-tab"
-        :class="{ active: activeTab === tab.key }"
-        @click="activeTab = tab.key"
-      >
-        <span class="tab-icon" v-html="tab.icon"></span>
-        {{ tab.label }}
-      </button>
-    </div>
+    <div class="settings-body">
+      <div class="settings-nav">
+        <div
+          v-for="tab in tabList"
+          :key="tab.key"
+          class="nav-item"
+          :class="{ active: activeTab === tab.key }"
+          @click="activeTab = tab.key"
+        >
+          <span class="nav-icon" v-html="tab.icon"></span>
+          <span>{{ tab.label }}</span>
+        </div>
+      </div>
 
+      <div class="settings-content">
     <!-- 基本信息 -->
     <div class="tab-content" v-if="activeTab === 'basic'">
       <div class="section-card">
@@ -257,6 +258,15 @@
         </div>
       </div>
     </div>
+
+    <!-- 我的邮箱 -->
+    <div class="tab-content" v-if="activeTab === 'mailbox'">
+      <div class="section-card section-card--mailbox">
+        <ProfileMailboxPanel />
+      </div>
+    </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -269,6 +279,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { ChatDotRound } from '@element-plus/icons-vue'
 import { getWechatBindInfo, unbindWechat } from '@/api/wechatAuth'
 import { formatDate } from '@/utils/date'
+import ProfileMailboxPanel from '@/components/Profile/ProfileMailboxPanel.vue'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -309,6 +320,11 @@ const tabList = computed(() => {
       key: 'security',
       label: t('profilePage.tabs.security'),
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>'
+    },
+    {
+      key: 'mailbox',
+      label: t('profilePage.tabs.mailbox'),
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>'
     }
   ]
 })
@@ -478,9 +494,57 @@ onMounted(async () => {
 @use '@/assets/styles/variables' as vars;
 
 .profile-page {
-  max-width: 800px;
+  max-width: 1100px;
   margin: 0 auto;
   padding: 24px;
+}
+
+.settings-body {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.settings-nav {
+  width: 200px;
+  flex-shrink: 0;
+  background: vars.$layer-2;
+  border: 1px solid vars.$border-card;
+  border-radius: 8px;
+  padding: 8px;
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: vars.$text-muted;
+    font-size: 13px;
+    transition: background 0.15s, color 0.15s;
+
+    .nav-icon {
+      display: flex;
+      align-items: center;
+      opacity: 0.85;
+    }
+
+    &:hover {
+      background: rgba(0, 212, 255, 0.06);
+      color: vars.$text-secondary;
+    }
+
+    &.active {
+      background: rgba(0, 212, 255, 0.12);
+      color: vars.$cyan-primary;
+    }
+  }
+}
+
+.settings-content {
+  flex: 1;
+  min-width: 0;
 }
 
 // 头部
@@ -565,53 +629,6 @@ onMounted(async () => {
   font-family: 'Noto Sans SC', sans-serif;
 }
 
-// Tab 导航
-.profile-tabs {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 16px;
-  background: vars.$layer-2;
-  border: 1px solid vars.$border-card;
-  border-radius: 10px;
-  padding: 6px;
-}
-
-.profile-tab {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1;
-  padding: 8px 12px;
-  border-radius: 7px;
-  border: none;
-  background: transparent;
-  color: vars.$text-secondary;
-  font-family: 'Noto Sans SC', sans-serif;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
-  justify-content: center;
-
-  .tab-icon {
-    display: flex;
-    align-items: center;
-    color: inherit;
-  }
-
-  &:hover {
-    background: var(--crm-accent-006);
-    color: vars.$text-primary;
-  }
-
-  &.active {
-    background: var(--crm-accent-012);
-    color: vars.$cyan-primary;
-    font-weight: 600;
-    box-shadow: inset 0 0 0 1px var(--crm-accent-022);
-  }
-}
-
 // 内容卡片
 .section-card {
   background: vars.$layer-2;
@@ -621,6 +638,10 @@ onMounted(async () => {
 
   &.mt-16 {
     margin-top: 16px;
+  }
+
+  &--mailbox {
+    padding: 20px 24px;
   }
 }
 

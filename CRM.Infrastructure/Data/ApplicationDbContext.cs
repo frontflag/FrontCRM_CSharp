@@ -190,6 +190,7 @@ namespace CRM.Infrastructure.Data
         // ===== 系统参数 =====
         public DbSet<SysParamGroup> SysParamGroups { get; set; } = null!;
         public DbSet<SysParam> SysParams { get; set; } = null!;
+        public DbSet<UserMailbox> UserMailboxes { get; set; } = null!;
         public DbSet<CompanyBankInfo> CompanyBankInfos { get; set; } = null!;
         public DbSet<SysDictItem> SysDictItems { get; set; } = null!;
         public DbSet<SysRelationMap> SysRelationMaps { get; set; } = null!;

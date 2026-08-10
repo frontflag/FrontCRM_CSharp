@@ -14,7 +14,21 @@
       </div>
       <el-button type="primary" :disabled="!ready" @click="doPrint">打印</el-button>
       <el-button type="primary" :disabled="!ready" :loading="exporting" @click="doExportPdf">导出 PDF</el-button>
-      <el-button type="primary" :disabled="!ready" @click="openEmailDialog">发送邮件</el-button>
+      <el-tooltip
+        :disabled="mailSendReady"
+        :content="mailSendBlockTip"
+        placement="bottom"
+      >
+        <span class="toolbar__mail-wrap">
+          <el-button
+            type="primary"
+            :disabled="!ready || !mailSendReady"
+            @click="openEmailDialog"
+          >
+            发送邮件
+          </el-button>
+        </span>
+      </el-tooltip>
     </div>
 
     <div v-loading="loading" class="preview-wrap">
@@ -65,6 +79,7 @@ import {
 } from '@/utils/reportLetterhead'
 import apiClient from '@/api/client'
 import { sendPurchaseOrderReportEmail } from '@/api/purchaseOrderReport'
+import { fetchMailboxSendReady, type MailboxSendBlockReason } from '@/api/userMailboxes'
 import { useAuthStore } from '@/stores/auth'
 import { formatDisplayDate } from '@/utils/displayDateTime'
 import { PURCHASE_ORDER_SERVICE_TERMS } from '@/constants/purchaseOrderReportTerms'
@@ -113,6 +128,16 @@ const emailVisible = ref(false)
 const emailTo = ref('')
 const emailSending = ref(false)
 const defaultVendorEmail = ref('')
+const mailSendReady = ref(false)
+const mailSendBlockReason = ref<MailboxSendBlockReason | null>(null)
+
+const mailSendBlockTip = computed(() => {
+  const code = mailSendBlockReason.value
+  if (!code) return t('profilePage.mailboxSend.NoDefaultMailbox')
+  const key = `profilePage.mailboxSend.${code}`
+  const msg = t(key)
+  return msg === key ? t('profilePage.mailboxSend.NoDefaultMailbox') : msg
+})
 
 /** 买方签章区是否叠加印章图（打印/导出/邮件与预览一致） */
 const showSealOnReport = ref(true)
@@ -400,6 +425,7 @@ async function load() {
 
     defaultVendorEmail.value = String((data.order as any)?.vendorContactEmail || '').trim()
     emailTo.value = defaultVendorEmail.value
+    await refreshMailSendReady()
   } catch (e) {
     errorMsg.value = getApiErrorMessage(e, '加载失败')
     order.value = null
@@ -451,7 +477,22 @@ async function doExportPdf() {
   }
 }
 
+async function refreshMailSendReady() {
+  try {
+    const r = await fetchMailboxSendReady()
+    mailSendReady.value = !!r.ready
+    mailSendBlockReason.value = r.blockReason ?? null
+  } catch {
+    mailSendReady.value = false
+    mailSendBlockReason.value = 'NoDefaultMailbox'
+  }
+}
+
 function openEmailDialog() {
+  if (!mailSendReady.value) {
+    ElMessage.warning(mailSendBlockTip.value)
+    return
+  }
   emailTo.value = defaultVendorEmail.value || emailTo.value
   emailVisible.value = true
 }
@@ -488,7 +529,23 @@ async function confirmSendEmail() {
     ElMessage.success('邮件已发送')
     emailVisible.value = false
   } catch (e) {
-    ElMessage.error(getApiErrorMessage(e, '发送失败'))
+    const ax = e as { response?: { data?: { code?: string; message?: string } } }
+    const code = ax.response?.data?.code
+    if (code) {
+      mailSendReady.value = code !== 'SmtpRejected' ? false : mailSendReady.value
+      mailSendBlockReason.value = code === 'SmtpRejected' ? mailSendBlockReason.value : code
+      const apiMsg = ax.response?.data?.message
+      if (code === 'SmtpRejected' && apiMsg) {
+        ElMessage.error(apiMsg)
+      } else {
+        const key = `profilePage.mailboxSend.${code}`
+        const mapped = t(key)
+        ElMessage.error(mapped !== key ? mapped : apiMsg || getApiErrorMessage(e, '发送失败'))
+      }
+      if (code !== 'SmtpRejected') await refreshMailSendReady()
+    } else {
+      ElMessage.error(getApiErrorMessage(e, '发送失败'))
+    }
   } finally {
     emailSending.value = false
   }
@@ -523,6 +580,10 @@ onUnmounted(() => {
   flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 16px;
+}
+
+.toolbar__mail-wrap {
+  display: inline-flex;
 }
 
 .toolbar__sp {

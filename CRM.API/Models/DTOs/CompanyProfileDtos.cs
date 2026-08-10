@@ -1,5 +1,3 @@
-using System.Text.Json.Serialization;
-
 namespace CRM.API.Models.DTOs
 {
     public interface ICompanyProfileRow
@@ -39,16 +37,90 @@ namespace CRM.API.Models.DTOs
         public bool Enabled { get; set; }
         public string SmtpHost { get; set; } = string.Empty;
         public int SmtpPort { get; set; } = 587;
-        public string? User { get; set; }
-        /// <summary>仅写入；读取 API 恒为空，改密码时填新值，留空表示保留原密码。</summary>
-        public string? Password { get; set; }
-        public string FromAddress { get; set; } = string.Empty;
-        public string FromName { get; set; } = "FrontCRM";
         public bool UseSsl { get; set; } = true;
 
-        /// <summary>GET 时由接口根据是否存有密码填充；PUT 可忽略；不写入 ValueJson。</summary>
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWriting)]
+        /// <summary>租户平台邮箱后缀，如 @xxx.com。</summary>
+        public string? PlatformEmailSuffix { get; set; }
+
+        public string? PopHost { get; set; }
+        public int PopPort { get; set; } = 995;
+        public bool PopUseSsl { get; set; } = true;
+
+        // 二期起业务不再使用；Upsert 仅从旧 JSON 原样保留，GET 时清空不回传
+        public string? User { get; set; }
+        public string? Password { get; set; }
+        public string? FromAddress { get; set; }
+        public string? FromName { get; set; }
         public bool PasswordSet { get; set; }
+    }
+
+    public class UserMailboxDto
+    {
+        public string Id { get; set; } = string.Empty;
+        /// <summary>platform | personal</summary>
+        public string Kind { get; set; } = "platform";
+        public string Address { get; set; } = string.Empty;
+        public string? LocalPart { get; set; }
+        public string? DisplayName { get; set; }
+        public bool PasswordSet { get; set; }
+        public bool IsDefaultSend { get; set; }
+        public string? PopHost { get; set; }
+        public int? PopPort { get; set; }
+        public bool PopUseSsl { get; set; } = true;
+        /// <summary>none | ok | fail</summary>
+        public string VerifyStatus { get; set; } = "none";
+        public string? VerifyMessage { get; set; }
+        public DateTime? VerifiedAt { get; set; }
+    }
+
+    public class MailboxSendReadyDto
+    {
+        public bool Ready { get; set; }
+        /// <summary>未就绪时为 <see cref="CRM.API.Services.MailboxSendErrorCodes"/> 之一。</summary>
+        public string? BlockReason { get; set; }
+    }
+
+    /// <summary>验证邮箱接口返回：邮箱行 + POP/SMTP 分步结果。</summary>
+    public class MailboxVerifyResponseDto
+    {
+        public UserMailboxDto Mailbox { get; set; } = new();
+        public bool Success { get; set; }
+        public bool PopOk { get; set; }
+        public string PopMessage { get; set; } = string.Empty;
+        public bool? SmtpOk { get; set; }
+        public string? SmtpMessage { get; set; }
+    }
+
+    public class UserMailboxWriteRequest
+    {
+        /// <summary>platform | personal</summary>
+        public string Kind { get; set; } = "platform";
+        public string? LocalPart { get; set; }
+        public string? Address { get; set; }
+        public string? DisplayName { get; set; }
+        /// <summary>新密码；空表示保留（更新时）。</summary>
+        public string? Password { get; set; }
+        public string? PopHost { get; set; }
+        public int? PopPort { get; set; }
+        public bool? PopUseSsl { get; set; }
+    }
+
+    public class VerifiedUserMailboxRowDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string UserId { get; set; } = string.Empty;
+        public string UserName { get; set; } = string.Empty;
+        public string? RealName { get; set; }
+        public string Kind { get; set; } = string.Empty;
+        public string Address { get; set; } = string.Empty;
+        public string? DisplayName { get; set; }
+        public bool PasswordSet { get; set; }
+        public DateTime? VerifiedAt { get; set; }
+    }
+
+    public class MailboxPasswordRevealDto
+    {
+        public string Password { get; set; } = string.Empty;
     }
 
     public class CompanyBasicInfoRowDto : ICompanyProfileRow

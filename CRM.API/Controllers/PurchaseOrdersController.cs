@@ -1401,7 +1401,11 @@ namespace CRM.API.Controllers
                     ? $"???? {order.PurchaseOrderCode}"
                     : request.Subject!.Trim();
 
+                if (string.IsNullOrWhiteSpace(userId))
+                    return Unauthorized(new { success = false, message = "未登录", code = "NoDefaultMailbox" });
+
                 await _emailSender.SendWithAttachmentAsync(
+                    userId,
                     request.To.Trim(),
                     subject,
                     request.Body,
@@ -1410,7 +1414,11 @@ namespace CRM.API.Controllers
                     "application/pdf",
                     cancellationToken);
 
-                return Ok(new { success = true, message = "?????" });
+                return Ok(new { success = true, message = "邮件已发送" });
+            }
+            catch (CRM.API.Services.EmailSendException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message, code = ex.Code });
             }
             catch (InvalidOperationException ex)
             {

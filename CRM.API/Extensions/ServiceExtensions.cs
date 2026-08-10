@@ -197,6 +197,9 @@ namespace CRM.API.Extensions
             services.AddHttpClient();
 
             services.AddScoped<IEmailSender, SmtpEmailSender>();
+            services.AddSingleton<IMailboxPasswordCipher, MailboxPasswordCipher>();
+            services.AddScoped<IMailboxVerifyService, MailboxVerifyService>();
+            services.AddScoped<IMailboxSendService, MailboxSendService>();
 
             services.AddCors(options =>
             {

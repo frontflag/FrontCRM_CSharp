@@ -577,85 +577,14 @@
           </div>
         </div>
 
-        <!-- 公司邮箱（SMTP 系统发信） -->
+        <!-- 公司邮箱（独立子组件，避免本页其它逻辑干扰渲染） -->
         <div v-show="activeNav === 'email'" class="form-section">
-          <div class="section-head">
-            <div class="section-head__left">
-              <div class="section-title"><span class="title-bar"></span>{{ t('companyInfo.smtp.sectionTitle') }}</div>
-              <p class="section-hint">
-                {{ t('companyInfo.smtp.sectionHint') }}
-              </p>
-            </div>
-            <el-button type="primary" class="save-all-btn" :loading="saving" @click="saveAll">{{ t('companyInfo.saveAll') }}</el-button>
-          </div>
-
-          <div class="group-card group-card--single">
-            <el-form label-width="140px" class="settings-form" :model="smtpEmail">
-              <el-row :gutter="16">
-                <el-col :span="24">
-                  <el-form-item :label="t('companyInfo.smtp.enableOutgoing')">
-                    <el-switch v-model="smtpEmail.enabled" />
-                  </el-form-item>
-                </el-col>
-                <el-col :span="12">
-                  <el-form-item :label="t('companyInfo.smtp.smtpHost')">
-                    <el-input v-model="smtpEmail.smtpHost" :placeholder="t('companyInfo.smtp.phSmtpHost')" clearable />
-                  </el-form-item>
-                </el-col>
-                <el-col :span="12">
-                  <el-form-item :label="t('companyInfo.smtp.smtpPort')">
-                    <el-input-number
-                      v-model="smtpEmail.smtpPort"
-                      :min="1"
-                      :max="65535"
-                      controls-position="right"
-                      style="width: 100%"
-                    />
-                  </el-form-item>
-                </el-col>
-                <el-col :span="12">
-                  <el-form-item :label="t('companyInfo.smtp.smtpUser')">
-                    <el-input v-model="smtpEmail.user" :placeholder="t('companyInfo.smtp.phOptional')" clearable />
-                  </el-form-item>
-                </el-col>
-                <el-col :span="12">
-                  <el-form-item :label="t('companyInfo.smtp.smtpPassword')">
-                    <el-input
-                      :model-value="smtpPasswordUi"
-                      :type="smtpPasswordMaskActive ? 'text' : 'password'"
-                      :show-password="!smtpPasswordMaskActive"
-                      :placeholder="t('companyInfo.smtp.phPasswordKeep')"
-                      :clearable="!smtpPasswordMaskActive"
-                      autocomplete="new-password"
-                      @update:model-value="onSmtpPasswordInput"
-                      @focus="onSmtpPasswordFocus"
-                    />
-                  </el-form-item>
-                </el-col>
-                <el-col v-if="smtpEmail.passwordSet" :span="24">
-                  <el-alert type="info" :closable="false" show-icon>
-                    {{ t('companyInfo.smtp.passwordHintAlert') }}
-                  </el-alert>
-                </el-col>
-                <el-col :span="12">
-                  <el-form-item :label="t('companyInfo.smtp.fromAddress')">
-                    <el-input v-model="smtpEmail.fromAddress" :placeholder="t('companyInfo.smtp.phFromAddress')" clearable />
-                  </el-form-item>
-                </el-col>
-                <el-col :span="12">
-                  <el-form-item :label="t('companyInfo.smtp.fromName')">
-                    <el-input v-model="smtpEmail.fromName" :placeholder="t('companyInfo.smtp.phFromName')" clearable />
-                  </el-form-item>
-                </el-col>
-                <el-col :span="24">
-                  <el-form-item :label="t('companyInfo.smtp.useTls')">
-                    <el-switch v-model="smtpEmail.useSsl" />
-                    <span class="form-item-hint">{{ t('companyInfo.smtp.tlsHint') }}</span>
-                  </el-form-item>
-                </el-col>
-              </el-row>
-            </el-form>
-          </div>
+          <CompanyEmailSettingsPanel
+            v-model="smtpEmail"
+            :saving="saving"
+            :active="activeNav === 'email'"
+            @save="saveAll"
+          />
         </div>
 
         <!-- 报表信息 -->
@@ -749,7 +678,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, type Ref } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { UploadRequestOptions } from 'element-plus'
@@ -776,6 +705,8 @@ import { getApiErrorMessage } from '@/utils/apiError'
 import { normalizeCompanyBankRow } from '@/utils/companyBank'
 import { DEFAULT_SETTLEMENT_CURRENCY_STRING } from '@/constants/currency'
 import CompanyBankAccountFields from '@/components/Company/CompanyBankAccountFields.vue'
+import CompanyEmailSettingsPanel from '@/components/Company/CompanyEmailSettingsPanel.vue'
+import { useAuthStore } from '@/stores'
 
 type AssetPreview = { url: string; kind: 'image' | 'pdf' | 'other' }
 type WarehouseRowVm = WarehouseInfo & { _key: string }
@@ -783,6 +714,14 @@ type WarehouseRowVm = WarehouseInfo & { _key: string }
 let profileWarehousesSnapshot: CompanyWarehouseRow[] = []
 
 const { t, locale } = useI18n()
+const authStore = useAuthStore()
+/** 公司邮箱页签：SuperAdmin（标志位或 SYS_ADMIN 角色码兜底） */
+const canManageCompanyEmail = computed(() => {
+  const u = authStore.user
+  if (!u) return false
+  if (u.isSysAdmin === true) return true
+  return (u.roleCodes ?? []).some((r) => String(r).toUpperCase() === 'SYS_ADMIN')
+})
 
 const activeNav = ref<'basic' | 'bank' | 'logo' | 'seal' | 'warehouse' | 'email' | 'report'>('basic')
 const reportActiveTab = ref<'invoice' | 'packing'>('invoice')
@@ -883,40 +822,20 @@ function emptySmtp(): CompanySmtpEmailSettings {
     enabled: false,
     smtpHost: '',
     smtpPort: 587,
-    user: '',
-    password: '',
-    fromAddress: '',
-    fromName: 'FrontCRM',
     useSsl: true,
-    passwordSet: false
+    platformEmailSuffix: '',
+    popHost: '',
+    popPort: 995,
+    popUseSsl: true
   }
 }
 
 const smtpEmail = ref<CompanySmtpEmailSettings>(emptySmtp())
 const reportInfo = ref<CompanyReportInfo>(emptyCompanyReportInfo())
-/** 已保存过密码时占位显示 ******，聚焦后进入真实编辑 */
-const smtpPasswordMaskActive = ref(false)
-
-const smtpPasswordUi = computed(() => {
-  if (smtpPasswordMaskActive.value) return '******'
-  return smtpEmail.value.password
-})
-
-function onSmtpPasswordFocus() {
-  if (smtpPasswordMaskActive.value) {
-    smtpPasswordMaskActive.value = false
-    smtpEmail.value.password = ''
-  }
-}
-
-function onSmtpPasswordInput(v: string) {
-  if (smtpPasswordMaskActive.value) return
-  smtpEmail.value.password = v
-}
 
 const navItems = computed(() => {
   void locale.value
-  return [
+  const items = [
     { key: 'basic' as const, label: t('companyInfo.nav.basic'), icon: OfficeBuilding },
     { key: 'bank' as const, label: t('companyInfo.nav.bank'), icon: Wallet },
     { key: 'logo' as const, label: t('companyInfo.nav.logo'), icon: Picture },
@@ -925,6 +844,11 @@ const navItems = computed(() => {
     { key: 'email' as const, label: t('companyInfo.nav.email'), icon: Promotion },
     { key: 'report' as const, label: t('companyInfo.nav.report'), icon: Document }
   ]
+  return canManageCompanyEmail.value ? items : items.filter((x) => x.key !== 'email')
+})
+
+watch(canManageCompanyEmail, (ok) => {
+  if (!ok && activeNav.value === 'email') activeNav.value = 'basic'
 })
 
 /** HTTP 非安全上下文中无 crypto.randomUUID（仅 HTTPS/localhost 可用），需降级。 */
@@ -1504,11 +1428,15 @@ function bundle() {
       enabled: smtpEmail.value.enabled,
       smtpHost: smtpEmail.value.smtpHost,
       smtpPort: smtpEmail.value.smtpPort,
-      user: smtpEmail.value.user,
-      password: smtpEmail.value.password,
-      fromAddress: smtpEmail.value.fromAddress,
-      fromName: smtpEmail.value.fromName,
-      useSsl: smtpEmail.value.useSsl
+      useSsl: smtpEmail.value.useSsl,
+      platformEmailSuffix: smtpEmail.value.platformEmailSuffix ?? '',
+      popHost: smtpEmail.value.popHost ?? '',
+      popPort:
+        typeof smtpEmail.value.popPort === 'number' && smtpEmail.value.popPort >= 1
+          ? smtpEmail.value.popPort
+          : 995,
+      // 与 useSsl 同步（UI 单一 SSL）
+      popUseSsl: smtpEmail.value.useSsl !== false
     }
   }
 }
@@ -1529,19 +1457,23 @@ async function load() {
     normalizeSealCurrencyDefaults(seals.value)
     warehouses.value = normalizeWarehouseList(warehouseList)
     const se = data.smtpEmail
-    const pwdSet = !!(se && se.passwordSet)
     smtpEmail.value = {
       ...emptySmtp(),
       ...(se || {}),
-      password: '',
       smtpPort:
         se && typeof se.smtpPort === 'number' && se.smtpPort >= 1 && se.smtpPort <= 65535
           ? se.smtpPort
           : 587,
-      fromName: se?.fromName?.trim() ? se.fromName : 'FrontCRM',
-      passwordSet: pwdSet
+      popPort:
+        se && typeof se.popPort === 'number' && se.popPort >= 1 && se.popPort <= 65535
+          ? se.popPort
+          : 995,
+      // 加载时以 SMTP useSsl 为准，对齐 POP
+      useSsl: se?.useSsl !== false,
+      popUseSsl: se?.useSsl !== false,
+      platformEmailSuffix: se?.platformEmailSuffix ?? '',
+      popHost: se?.popHost ?? ''
     }
-    smtpPasswordMaskActive.value = pwdSet
     reportInfo.value = normalizeReportInfo(data.reportInfo ?? undefined)
     await refreshAssetPreviews()
   } catch (e) {
@@ -1552,7 +1484,6 @@ async function load() {
     seals.value = normalizeGroups([], emptySeal)
     warehouses.value = normalizeWarehouseList([])
     smtpEmail.value = emptySmtp()
-    smtpPasswordMaskActive.value = false
     reportInfo.value = emptyCompanyReportInfo()
     revokeAllAssetPreviews()
   } finally {
@@ -1596,6 +1527,29 @@ onUnmounted(() => {
 
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
+
+.mb-12 {
+  margin-bottom: 12px;
+}
+
+.muted {
+  color: $text-muted;
+  font-size: 12px;
+}
+
+.pwd-reveal {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+}
+
+.empty-hint {
+  margin-top: 12px;
+  color: $text-muted;
+  font-size: 13px;
+}
 
 .report-info-tabs {
   :deep(.el-tabs__header) {
@@ -1753,7 +1707,8 @@ onUnmounted(() => {
 
 .company-info-page {
   padding: 20px;
-  min-height: 100%;
+  /* 勿用 min-height:100%：父级 flex+min-height:0 时百分比易算成 0 导致整页「空白」 */
+  min-height: 320px;
 }
 
 .page-header {

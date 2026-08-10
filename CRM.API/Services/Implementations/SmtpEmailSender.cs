@@ -1,6 +1,5 @@
 using CRM.API.Services;
 using CRM.API.Services.Interfaces;
-using CRM.Infrastructure.Data;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using MimeKit;
@@ -8,22 +7,21 @@ using MimeKit;
 namespace CRM.API.Services.Implementations;
 
 /// <summary>
-/// 仅从「系统 → 公司信息 → 公司邮箱」读取 SMTP，不使用 appsettings。
+/// 业务发信：公司 SMTP/POP 服务器参数 + 员工默认平台邮箱凭据。
 /// </summary>
 public sealed class SmtpEmailSender : IEmailSender
 {
-    private readonly ApplicationDbContext _db;
+    private readonly IMailboxSendService _send;
     private readonly ILogger<SmtpEmailSender> _logger;
 
-    private const string ConfigHint = "请在「系统 → 公司信息 → 公司邮箱」中配置并保存。";
-
-    public SmtpEmailSender(ApplicationDbContext db, ILogger<SmtpEmailSender> logger)
+    public SmtpEmailSender(IMailboxSendService send, ILogger<SmtpEmailSender> logger)
     {
-        _db = db;
+        _send = send;
         _logger = logger;
     }
 
     public async Task SendWithAttachmentAsync(
+        string senderUserId,
         string to,
         string subject,
         string? textBody,
@@ -32,36 +30,23 @@ public sealed class SmtpEmailSender : IEmailSender
         string attachmentMimeType,
         CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(senderUserId))
+            throw new EmailSendException(MailboxSendErrorCodes.NoDefaultMailbox, MailboxSendErrorCodes.DefaultUserHint);
         if (string.IsNullOrWhiteSpace(to))
             throw new ArgumentException("收件人邮箱不能为空", nameof(to));
 
-        var cfg = await CompanyProfileBundleLoader.LoadSmtpEmailRawAsync(_db, cancellationToken);
-        if (cfg == null)
-            throw new InvalidOperationException($"未读取到公司发信参数。{ConfigHint}");
-
-        if (!cfg.Enabled)
-            throw new InvalidOperationException($"系统发信未启用。{ConfigHint}需开启「启用系统发信」。");
-
-        if (string.IsNullOrWhiteSpace(cfg.SmtpHost))
-            throw new InvalidOperationException($"未配置 SMTP 服务器。{ConfigHint}");
-
-        if (string.IsNullOrWhiteSpace(cfg.FromAddress))
-            throw new InvalidOperationException($"未配置发件人邮箱。{ConfigHint}");
-
-        if (cfg.SmtpPort is < 1 or > 65535)
-            throw new InvalidOperationException($"SMTP 端口无效（1～65535）。{ConfigHint}");
-
-        if (!string.IsNullOrWhiteSpace(cfg.User) && string.IsNullOrWhiteSpace(cfg.Password))
-            throw new InvalidOperationException("已填写 SMTP 账号，请同时填写密码或授权码（或清空账号使用无认证服务器）。");
+        var (cfg, box, password) = await _send.ResolveSenderAsync(senderUserId, cancellationToken);
 
         var host = cfg.SmtpHost.Trim();
         var port = cfg.SmtpPort;
-        var fromAddress = cfg.FromAddress.Trim();
-        var fromName = string.IsNullOrWhiteSpace(cfg.FromName) ? "FrontCRM" : cfg.FromName.Trim();
+        var address = box.Address.Trim();
+        var fromName = string.IsNullOrWhiteSpace(box.DisplayName) ? null : box.DisplayName.Trim();
         var useSsl = cfg.UseSsl;
 
         var message = new MimeMessage();
-        message.From.Add(new MailboxAddress(fromName, fromAddress));
+        message.From.Add(string.IsNullOrEmpty(fromName)
+            ? new MailboxAddress(string.Empty, address)
+            : new MailboxAddress(fromName, address));
         message.To.Add(MailboxAddress.Parse(to.Trim()));
         message.Subject = subject;
 
@@ -72,15 +57,26 @@ public sealed class SmtpEmailSender : IEmailSender
         builder.Attachments.Add(attachmentFileName, attachmentBytes, ContentType.Parse(attachmentMimeType));
         message.Body = builder.ToMessageBody();
 
-        using var client = new SmtpClient();
-        var secure = useSsl ? SecureSocketOptions.StartTls : SecureSocketOptions.Auto;
-        await client.ConnectAsync(host, port, secure, cancellationToken);
-
-        if (!string.IsNullOrWhiteSpace(cfg.User))
-            await client.AuthenticateAsync(cfg.User.Trim(), cfg.Password ?? string.Empty, cancellationToken);
-
-        await client.SendAsync(message, cancellationToken);
-        await client.DisconnectAsync(true, cancellationToken);
-        _logger.LogInformation("已发送邮件至 {To}，主题 {Subject}", to, subject);
+        try
+        {
+            using var client = new SmtpClient();
+            var secure = useSsl ? SecureSocketOptions.StartTls : SecureSocketOptions.Auto;
+            await client.ConnectAsync(host, port, secure, cancellationToken);
+            await client.AuthenticateAsync(address, password, cancellationToken);
+            await client.SendAsync(message, cancellationToken);
+            await client.DisconnectAsync(true, cancellationToken);
+            _logger.LogInformation("已发送邮件至 {To}，发件人 {From}，主题 {Subject}", to, address, subject);
+        }
+        catch (EmailSendException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "SMTP 发信失败 from={From} to={To}", address, to);
+            var detail = string.IsNullOrWhiteSpace(ex.Message) ? "未知错误" : ex.Message.Trim();
+            if (detail.Length > 200) detail = detail[..200];
+            throw new EmailSendException(MailboxSendErrorCodes.SmtpRejected, $"邮件服务器拒绝发送：{detail}");
+        }
     }
 }

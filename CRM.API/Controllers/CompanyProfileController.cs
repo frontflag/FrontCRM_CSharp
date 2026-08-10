@@ -2,12 +2,15 @@ using CRM.API.Authorization;
 using CRM.API.Constants;
 using CRM.API.Models.DTOs;
 using CRM.API.Services;
+using CRM.API.Services.Interfaces;
 using CRM.Core.Document;
+using CRM.Core.Interfaces;
 using CRM.Core.Models.System;
 using CRM.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using System.Text.Json;
 
 namespace CRM.API.Controllers
@@ -19,6 +22,9 @@ namespace CRM.API.Controllers
         private readonly ApplicationDbContext _db;
         private readonly IDocumentService _documentService;
         private readonly IFileStorageService _fileStorage;
+        private readonly IRbacService _rbacService;
+        private readonly IMailboxPasswordCipher _mailboxCipher;
+        private readonly ILogOperationAppendService _logOperationAppend;
         private readonly ILogger<CompanyProfileController> _logger;
 
         private static readonly JsonSerializerOptions JsonOpts = new()
@@ -31,22 +37,41 @@ namespace CRM.API.Controllers
             ApplicationDbContext db,
             IDocumentService documentService,
             IFileStorageService fileStorage,
+            IRbacService rbacService,
+            IMailboxPasswordCipher mailboxCipher,
+            ILogOperationAppendService logOperationAppend,
             ILogger<CompanyProfileController> logger)
         {
             _db = db;
             _documentService = documentService;
             _fileStorage = fileStorage;
+            _rbacService = rbacService;
+            _mailboxCipher = mailboxCipher;
+            _logOperationAppend = logOperationAppend;
             _logger = logger;
         }
 
+        private string? CurrentUserId => User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        private async Task<bool> IsSuperAdminAsync(CancellationToken ct)
+        {
+            var uid = CurrentUserId;
+            if (string.IsNullOrWhiteSpace(uid)) return false;
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(uid);
+            return summary?.IsSysAdmin == true;
+        }
+
         [HttpGet]
-        [RequirePermission("system.params.company.write")]
+        [RequireAnyPermission("system.params.company.read", "system.params.company.write")]
         public async Task<ActionResult<ApiResponse<CompanyProfileBundleDto>>> Get(CancellationToken ct)
         {
             try
             {
                 var dto = await LoadBundleAsync(ct);
-                MaskSmtpForAdminResponse(dto);
+                if (await IsSuperAdminAsync(ct))
+                    MaskSmtpForAdminResponse(dto);
+                else
+                    CompanyProfileBundleLoader.StripSmtpEmail(dto);
                 return Ok(ApiResponse<CompanyProfileBundleDto>.Ok(dto, "ok"));
             }
             catch (Exception ex)
@@ -162,6 +187,7 @@ namespace CRM.API.Controllers
 
             try
             {
+                var isSa = await IsSuperAdminAsync(ct);
                 var err = ValidateDefaults(body.BasicInfos, "公司基础信息")
                     ?? ValidateBasicCurrencyDefaults(body.BasicInfos)
                     ?? ValidateBankDefaults(body.BankInfos)
@@ -169,7 +195,7 @@ namespace CRM.API.Controllers
                     ?? ValidateDefaults(body.Seals, "公司印章")
                     ?? ValidateSealCurrencyDefaults(body.Seals)
                     ?? ValidateDefaults(body.Warehouses, "公司仓库信息")
-                    ?? ValidateSmtp(body.SmtpEmail);
+                    ?? (isSa ? ValidateSmtp(body.SmtpEmail) : null);
                 if (err != null)
                     return BadRequest(ApiResponse<object>.Fail(err, 400));
 
@@ -182,7 +208,8 @@ namespace CRM.API.Controllers
                 await UpsertJsonAsync(CompanyProfileParamCodes.Logos, "公司Logo（多组）", body.Logos, ct);
                 await UpsertJsonAsync(CompanyProfileParamCodes.Seals, "公司印章（多组）", body.Seals, ct);
                 await UpsertJsonAsync(CompanyProfileParamCodes.Warehouses, "公司仓库信息（多组）", body.Warehouses, ct);
-                await UpsertSmtpEmailAsync(body.SmtpEmail, ct);
+                if (isSa)
+                    await UpsertSmtpEmailAsync(body.SmtpEmail, ct);
                 await UpsertReportInfoAsync(body.ReportInfo, ct);
                 await _db.SaveChangesAsync(ct);
                 return Ok(ApiResponse<object>.Ok(null, "保存成功"));
@@ -194,8 +221,111 @@ namespace CRM.API.Controllers
             }
         }
 
+        /// <summary>已验证成功的用户邮箱列表（仅 SuperAdmin）。</summary>
+        [HttpGet("verified-user-mailboxes")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<List<VerifiedUserMailboxRowDto>>>> ListVerifiedMailboxes(
+            CancellationToken ct)
+        {
+            if (!await IsSuperAdminAsync(ct))
+                return StatusCode(403, ApiResponse<List<VerifiedUserMailboxRowDto>>.Fail("仅 SuperAdmin 可查看", 403));
+
+            var q =
+                from m in _db.UserMailboxes.AsNoTracking()
+                join u in _db.Users.AsNoTracking() on m.UserId equals u.Id
+                where !m.IsDeleted && m.VerifyStatus == UserMailboxVerifyStatus.Ok
+                orderby u.UserName, m.Address
+                select new VerifiedUserMailboxRowDto
+                {
+                    Id = m.Id,
+                    UserId = m.UserId,
+                    UserName = u.UserName,
+                    RealName = u.RealName,
+                    Kind = m.Kind == UserMailboxKind.Personal ? "personal" : "platform",
+                    Address = m.Address,
+                    DisplayName = m.DisplayName,
+                    PasswordSet = m.PasswordCipher != null && m.PasswordCipher != "",
+                    VerifiedAt = m.VerifiedAt
+                };
+
+            var list = await q.ToListAsync(ct);
+            return Ok(ApiResponse<List<VerifiedUserMailboxRowDto>>.Ok(list));
+        }
+
+        /// <summary>揭示已验证邮箱明文密码（仅 SuperAdmin；记审计）。</summary>
+        [HttpGet("verified-user-mailboxes/{id}/password")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<MailboxPasswordRevealDto>>> RevealVerifiedMailboxPassword(
+            string id,
+            CancellationToken ct)
+        {
+            if (!await IsSuperAdminAsync(ct))
+                return StatusCode(403, ApiResponse<MailboxPasswordRevealDto>.Fail("仅 SuperAdmin 可查看", 403));
+
+            var m = await _db.UserMailboxes.AsNoTracking().FirstOrDefaultAsync(
+                x => x.Id == id && !x.IsDeleted && x.VerifyStatus == UserMailboxVerifyStatus.Ok, ct);
+            if (m == null)
+                return NotFound(ApiResponse<MailboxPasswordRevealDto>.Fail("邮箱不存在或未验证成功", 404));
+
+            var actorId = CurrentUserId;
+            var actorName = User.Identity?.Name;
+            try
+            {
+                await _logOperationAppend.AppendAsync(
+                    "user_mailbox",
+                    m.Id,
+                    m.Address,
+                    "reveal_password",
+                    actorId,
+                    actorName,
+                    "SuperAdmin 查看用户邮箱明文密码",
+                    cancellationToken: ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "写邮箱密码揭示审计失败");
+            }
+
+            if (string.IsNullOrWhiteSpace(m.PasswordCipher))
+                return Ok(ApiResponse<MailboxPasswordRevealDto>.Ok(new MailboxPasswordRevealDto()));
+
+            try
+            {
+                var plain = _mailboxCipher.Decrypt(m.PasswordCipher, m.CryptoVersion);
+                return Ok(ApiResponse<MailboxPasswordRevealDto>.Ok(new MailboxPasswordRevealDto { Password = plain }));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "解密已验证邮箱密码失败 id={Id}", id);
+                return StatusCode(500, ApiResponse<MailboxPasswordRevealDto>.Fail("解密失败", 500));
+            }
+        }
+
         private Task<CompanyProfileBundleDto> LoadBundleAsync(CancellationToken ct) =>
             CompanyProfileBundleLoader.LoadAsync(_db, _logger, ct);
+
+        private async Task CascadePlatformSuffixAsync(string newSuffix, CancellationToken ct)
+        {
+            var platforms = await _db.UserMailboxes
+                .Where(x => !x.IsDeleted && x.Kind == UserMailboxKind.Platform)
+                .ToListAsync(ct);
+            foreach (var m in platforms)
+            {
+                var local = string.IsNullOrWhiteSpace(m.LocalPart)
+                    ? MailboxAddressHelper.ExtractLocalPart(m.Address)
+                    : m.LocalPart.Trim();
+                m.LocalPart = local;
+                m.Address = MailboxAddressHelper.BuildPlatformAddress(local, newSuffix);
+                if (m.VerifyStatus == UserMailboxVerifyStatus.Ok)
+                {
+                    m.VerifyStatus = UserMailboxVerifyStatus.None;
+                    m.VerifyMessage = "后缀已变更，请重新验证";
+                    m.VerifiedAt = null;
+                    m.IsDefaultSend = false;
+                }
+                m.ModifyTime = DateTime.UtcNow;
+            }
+        }
 
         private static string? ValidateDefaults<T>(List<T> list, string sectionName) where T : ICompanyProfileRow
         {
@@ -286,9 +416,12 @@ namespace CRM.API.Controllers
                 return;
             }
 
-            var hadPwd = !string.IsNullOrWhiteSpace(dto.SmtpEmail.Password);
+            // 二期：不向客户端暴露已废弃的系统发件账号字段
+            dto.SmtpEmail.User = null;
             dto.SmtpEmail.Password = null;
-            dto.SmtpEmail.PasswordSet = hadPwd;
+            dto.SmtpEmail.FromAddress = null;
+            dto.SmtpEmail.FromName = null;
+            dto.SmtpEmail.PasswordSet = false;
         }
 
         private static string? ValidateSmtp(CompanySmtpEmailSettingsDto? s)
@@ -298,9 +431,7 @@ namespace CRM.API.Controllers
             if (!s.Enabled)
                 return null;
             if (string.IsNullOrWhiteSpace(s.SmtpHost))
-                return "启用系统发信时须填写 SMTP 服务器地址。";
-            if (string.IsNullOrWhiteSpace(s.FromAddress))
-                return "启用系统发信时须填写发件人邮箱。";
+                return "启用 SMTP 发信时须填写 SMTP 服务器地址。";
             if (s.SmtpPort is < 1 or > 65535)
                 return "SMTP 端口须在 1～65535 之间。";
             return null;
@@ -316,19 +447,32 @@ namespace CRM.API.Controllers
                 previous = JsonSerializer.Deserialize<CompanySmtpEmailSettingsDto>(existing.ValueJson, JsonOpts);
 
             var port = incoming.SmtpPort is >= 1 and <= 65535 ? incoming.SmtpPort : 587;
+            var popPort = incoming.PopPort is >= 1 and <= 65535 ? incoming.PopPort : 995;
+            var newSuffix = MailboxAddressHelper.NormalizeSuffix(incoming.PlatformEmailSuffix);
+            var oldSuffix = MailboxAddressHelper.NormalizeSuffix(previous?.PlatformEmailSuffix);
             var merged = new CompanySmtpEmailSettingsDto
             {
                 Enabled = incoming.Enabled,
                 SmtpHost = incoming.SmtpHost?.Trim() ?? string.Empty,
                 SmtpPort = port,
-                User = string.IsNullOrWhiteSpace(incoming.User) ? null : incoming.User.Trim(),
-                Password = string.IsNullOrWhiteSpace(incoming.Password)
-                    ? previous?.Password
-                    : incoming.Password,
-                FromAddress = incoming.FromAddress?.Trim() ?? string.Empty,
-                FromName = string.IsNullOrWhiteSpace(incoming.FromName) ? "FrontCRM" : incoming.FromName.Trim(),
-                UseSsl = incoming.UseSsl
+                // UI 单一 SSL：SMTP / POP 加密开关保持一致
+                UseSsl = incoming.UseSsl,
+                PlatformEmailSuffix = newSuffix,
+                PopHost = string.IsNullOrWhiteSpace(incoming.PopHost) ? null : incoming.PopHost.Trim(),
+                PopPort = popPort,
+                PopUseSsl = incoming.UseSsl,
+                // 旧系统账号字段：原样保留，业务不再读写
+                User = previous?.User,
+                Password = previous?.Password,
+                FromAddress = previous?.FromAddress,
+                FromName = previous?.FromName
             };
+
+            if (!string.Equals(oldSuffix, newSuffix, StringComparison.Ordinal)
+                && !string.IsNullOrEmpty(newSuffix))
+            {
+                await CascadePlatformSuffixAsync(newSuffix, ct);
+            }
 
             var json = JsonSerializer.Serialize(merged, JsonOpts);
             if (existing == null)

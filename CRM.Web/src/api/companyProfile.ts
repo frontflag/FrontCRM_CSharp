@@ -73,17 +73,17 @@ export interface CompanyWarehouseRow {
   workHours: string
 }
 
-/** 与后端 CompanySmtpEmailSettingsDto 一致；password 仅提交新值，留空表示保留；passwordSet 为 GET 时是否已存密码 */
+/** 公司 SMTP/POP 服务器参数（业务发信用员工默认邮箱，不再配系统发件账号） */
 export interface CompanySmtpEmailSettings {
   enabled: boolean
   smtpHost: string
   smtpPort: number
-  user: string
-  password: string
-  fromAddress: string
-  fromName: string
   useSsl: boolean
-  passwordSet?: boolean
+  /** 租户平台邮箱后缀，如 @xxx.com */
+  platformEmailSuffix?: string
+  popHost?: string
+  popPort?: number
+  popUseSsl?: boolean
 }
 
 export interface CompanyReportRemarks {
