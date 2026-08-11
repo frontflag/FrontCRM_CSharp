@@ -48,7 +48,7 @@ internal static class SalesAnalyticsTodoMoney
             rates,
             maskAmounts);
 
-    /// <summary>应收款台账等：按查询日财务汇率原币→USD（与应收款列表看板一致）。</summary>
+    /// <summary>原币→USD：仅查询日财务汇率（无订单行价比时用）。应收待核销优先走 <see cref="Build"/>。</summary>
     public static SalesAnalyticsMoneyDto BuildFromLocal(
         IEnumerable<(decimal Local, short Currency)> rows,
         FinanceExchangeRateDto rates,

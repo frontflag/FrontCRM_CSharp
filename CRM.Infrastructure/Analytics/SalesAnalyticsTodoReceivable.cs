@@ -8,7 +8,8 @@ using Microsoft.EntityFrameworkCore;
 namespace CRM.Infrastructure.Analytics;
 
 /// <summary>
-/// 销售分析待办「待核销应收款」：与应收款列表看板「待核销应收款」同源（Σ verified_to_be → 折算美金）。
+/// 销售分析待办「待核销应收款」：与应收款列表看板「待核销应收款」同源
+///（Σ verified_to_be；美金优先 SO 行 convert_price/price，否则查询日财务汇率）。
 /// </summary>
 internal static class SalesAnalyticsTodoReceivable
 {
@@ -29,13 +30,21 @@ internal static class SalesAnalyticsTodoReceivable
         q = await dataPermission.ApplyFinanceReceivableListDataScopeAsync(userId, q, cancellationToken);
         q = ApplyViewLens(db, q, scope);
 
-        var rows = await q
-            .Select(r => new { r.Currency, r.VerifiedToBe })
-            .ToListAsync(cancellationToken);
+        var rows = await (
+            from r in q
+            join oi in db.SellOrderItems.AsNoTracking() on r.SellOrderItemId equals oi.Id into oiJoin
+            from oi in oiJoin.DefaultIfEmpty()
+            select new
+            {
+                r.Currency,
+                r.VerifiedToBe,
+                Price = oi != null ? oi.Price : 0m,
+                ConvertPrice = oi != null ? oi.ConvertPrice : 0m
+            }).ToListAsync(cancellationToken);
 
         var rates = await exchangeRateService.GetCurrentAsync(cancellationToken);
-        return SalesAnalyticsTodoMoney.BuildFromLocal(
-            rows.Select(r => (r.VerifiedToBe, r.Currency)),
+        return SalesAnalyticsTodoMoney.Build(
+            rows.Select(r => (r.VerifiedToBe, r.Currency, r.Price, r.ConvertPrice)),
             rates,
             maskAmounts: false);
     }

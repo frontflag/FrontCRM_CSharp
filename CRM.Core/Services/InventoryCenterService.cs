@@ -414,8 +414,13 @@ namespace CRM.Core.Services
                 SellOrderItemCode = aggregateRow.SellOrderItemCode,
                 PurchasePrice = line.Price,
                 PurchaseCurrency = purchaseCurrency,
-                PurchasePriceUsd = ExchangeRateToUsdConverter.UnitLocalToUsd(
-                    line.Price, purchaseCurrency, fx.UsdToCny, fx.UsdToHkd, fx.UsdToEur),
+                // 优先采购订单行历史折算美金单价；缺省回落查询日财务汇率
+                PurchasePriceUsd = FinanceAnalyticsMoneyBuilder.ExtendAmountToUsd(
+                    line.Price,
+                    poiForPurchase?.Cost ?? 0m,
+                    poiForPurchase?.ConvertPrice ?? 0m,
+                    purchaseCurrency,
+                    fx.UsdToCny, fx.UsdToHkd, fx.UsdToEur),
                 PurchaseAmount = line.Amount,
                 QtyInbound = qty,
                 QtyStockOut = 0,
@@ -463,8 +468,10 @@ namespace CRM.Core.Services
                         layer.SellOrderItemCode = soItem.SellOrderItemCode.Trim();
                     layer.SalesPrice = soItem.Price;
                     layer.SalesCurrency = soItem.Currency;
-                    layer.SalesPriceUsd = ExchangeRateToUsdConverter.UnitLocalToUsd(
-                        soItem.Price, soItem.Currency, fx.UsdToCny, fx.UsdToHkd, fx.UsdToEur);
+                    // 优先销售订单行历史折算美金单价；缺省回落查询日财务汇率
+                    layer.SalesPriceUsd = FinanceAnalyticsMoneyBuilder.ExtendAmountToUsd(
+                        soItem.Price, soItem.Price, soItem.ConvertPrice, soItem.Currency,
+                        fx.UsdToCny, fx.UsdToHkd, fx.UsdToEur);
                     var so = await _sellOrderRepository.GetByIdAsync(soItem.SellOrderId);
                     if (so != null)
                     {

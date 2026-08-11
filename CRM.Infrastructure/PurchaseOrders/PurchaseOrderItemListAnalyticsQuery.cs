@@ -24,15 +24,18 @@ public sealed partial class PurchaseOrderItemListQuery
         var metricRows = await LoadMetricLineRowsAsync(request, cancellationToken);
         var inStock = await LoadInStockMetricsAsync(request, metricRows, cancellationToken);
         var payableLines = metricRows.Where(r => r.PaymentAmountNot > 0m).ToList();
+        var rates = maskAmounts
+            ? new FinanceExchangeRateDto()
+            : await _exchangeRateService.GetCurrentAsync(cancellationToken);
 
         var currencyLines = BuildCurrencyLines(
             metricRows,
-            r => CalcUsdLineTotal(r),
+            r => CalcUsdLineTotal(r, rates),
             maskAmounts);
 
         var payableCurrencyLines = BuildCurrencyLines(
             payableLines,
-            r => PaymentNotToUsd(r),
+            r => PaymentNotToUsd(r, rates),
             maskAmounts);
 
         return new PurchaseOrderItemListAnalyticsDashboardDto
@@ -50,7 +53,7 @@ public sealed partial class PurchaseOrderItemListQuery
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .Count(),
                 ApprovedLineCount = metricRows.Count,
-                ApprovedAmountUsd = maskAmounts ? null : metricRows.Sum(r => CalcUsdLineTotal(r) ?? 0m),
+                ApprovedAmountUsd = maskAmounts ? null : metricRows.Sum(r => CalcUsdLineTotal(r, rates) ?? 0m),
                 CurrencyLines = currencyLines,
                 InStockVendorCount = inStock.VendorCount,
                 InStockLineCount = inStock.LineCount,
@@ -62,7 +65,7 @@ public sealed partial class PurchaseOrderItemListQuery
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .Count(),
                 PayableLineCount = payableLines.Count,
-                PayableAmountUsd = maskAmounts ? null : payableLines.Sum(r => PaymentNotToUsd(r) ?? 0m),
+                PayableAmountUsd = maskAmounts ? null : payableLines.Sum(r => PaymentNotToUsd(r, rates) ?? 0m),
                 PayableCurrencyLines = payableCurrencyLines
             }
         };
@@ -79,6 +82,9 @@ public sealed partial class PurchaseOrderItemListQuery
         if (rows.Count == 0)
             return Array.Empty<PurchaseOrderItemListAnalyticsTrendPointDto>();
 
+        var rates = maskAmounts
+            ? new FinanceExchangeRateDto()
+            : await _exchangeRateService.GetCurrentAsync(cancellationToken);
         var (dateFrom, dateToInclusive) = ResolveTrendDateBounds(
             request,
             rows.Min(r => r.OrderCreateTime),
@@ -96,7 +102,7 @@ public sealed partial class PurchaseOrderItemListQuery
                 Period = period,
                 ApprovedOrderCount = inBucket.Select(r => r.OrderId).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
                 ApprovedLineCount = inBucket.Count,
-                ApprovedLineAmountUsd = maskAmounts ? null : inBucket.Sum(r => CalcUsdLineTotal(r) ?? 0m)
+                ApprovedLineAmountUsd = maskAmounts ? null : inBucket.Sum(r => CalcUsdLineTotal(r, rates) ?? 0m)
             });
         }
 
@@ -110,6 +116,9 @@ public sealed partial class PurchaseOrderItemListQuery
         CancellationToken cancellationToken = default)
     {
         var allRows = await LoadAllLineRowsAsync(request, cancellationToken);
+        var rates = maskAmounts
+            ? new FinanceExchangeRateDto()
+            : await _exchangeRateService.GetCurrentAsync(cancellationToken);
         var metricRows = PurchaseOrderItemAnalyticsDatasets.IsReportApproved(request.AnalyticsDataset)
             ? allRows.Where(IsApprovedRow).ToList()
             : allRows;
@@ -129,7 +138,7 @@ public sealed partial class PurchaseOrderItemListQuery
             {
                 Key = g.Key.ToString(),
                 Label = FormatItemStatus(g.Key),
-                Value = maskAmounts ? g.Count() : g.Sum(r => CalcUsdLineTotal(r) ?? 0m),
+                Value = maskAmounts ? g.Count() : g.Sum(r => CalcUsdLineTotal(r, rates) ?? 0m),
                 Ratio = 0
             })
             .ToList();
@@ -143,7 +152,7 @@ public sealed partial class PurchaseOrderItemListQuery
                 {
                     Key = g.Key.ToString(),
                     Label = FormatItemStatus(g.Key),
-                    Value = maskAmounts ? g.Count() : g.Sum(r => CalcUsdLineTotal(r) ?? 0m),
+                    Value = maskAmounts ? g.Count() : g.Sum(r => CalcUsdLineTotal(r, rates) ?? 0m),
                     Ratio = 0
                 })
                 .ToList();
@@ -154,19 +163,19 @@ public sealed partial class PurchaseOrderItemListQuery
             paymentRequestRows,
             r => r.HasActivePaymentRequest ? "1" : "0",
             r => r.HasActivePaymentRequest ? "已申请" : "待申请",
-            r => maskAmounts ? 1m : CalcUsdLineTotal(r) ?? 0m,
+            r => maskAmounts ? 1m : CalcUsdLineTotal(r, rates) ?? 0m,
             maskAmounts);
 
-        var paymentItems = BuildProgressBreakdown(metricRows, r => r.PaymentProgressStatus, "付款", maskAmounts);
-        var purchaseItems = BuildProgressBreakdown(metricRows, r => r.PurchaseProgressStatus, "采购", maskAmounts);
-        var stockInItems = BuildProgressBreakdown(metricRows, r => r.StockInProgressStatus, "入库", maskAmounts);
-        var invoiceItems = BuildProgressBreakdown(metricRows, r => r.InvoiceProgressStatus, "开票", maskAmounts);
+        var paymentItems = BuildProgressBreakdown(metricRows, r => r.PaymentProgressStatus, "付款", maskAmounts, rates);
+        var purchaseItems = BuildProgressBreakdown(metricRows, r => r.PurchaseProgressStatus, "采购", maskAmounts, rates);
+        var stockInItems = BuildProgressBreakdown(metricRows, r => r.StockInProgressStatus, "入库", maskAmounts, rates);
+        var invoiceItems = BuildProgressBreakdown(metricRows, r => r.InvoiceProgressStatus, "开票", maskAmounts, rates);
 
         var currencyItems = BuildBreakdownFromRows(
             metricRows,
             r => r.Currency.ToString(),
             r => ((CurrencyCode)r.Currency).ToIsoText(),
-            r => maskAmounts ? 1m : CalcUsdLineTotal(r) ?? 0m,
+            r => maskAmounts ? 1m : CalcUsdLineTotal(r, rates) ?? 0m,
             maskAmounts);
 
         var brandQtyItems = BuildBreakdownFromRows(
@@ -181,7 +190,7 @@ public sealed partial class PurchaseOrderItemListQuery
             metricRows,
             r => string.IsNullOrWhiteSpace(r.Brand) ? "_unset" : r.Brand!.Trim(),
             r => string.IsNullOrWhiteSpace(r.Brand) ? "未设置" : r.Brand!.Trim(),
-            r => maskAmounts ? 1m : CalcUsdLineTotal(r) ?? 0m,
+            r => maskAmounts ? 1m : CalcUsdLineTotal(r, rates) ?? 0m,
             maskAmounts);
 
         var dateCodeItems = BuildBreakdownFromRows(
@@ -196,7 +205,7 @@ public sealed partial class PurchaseOrderItemListQuery
             metricRows,
             r => r.PurchaseUserId ?? "_unset",
             r => string.IsNullOrWhiteSpace(r.PurchaseUserName) ? "未分配采购员" : r.PurchaseUserName!,
-            r => maskAmounts ? 1m : CalcUsdLineTotal(r) ?? 0m,
+            r => maskAmounts ? 1m : CalcUsdLineTotal(r, rates) ?? 0m,
             maskAmounts);
 
         var progressSuffix = PurchaseOrderItemAnalyticsDatasets.IsReportApproved(request.AnalyticsDataset)
@@ -230,6 +239,9 @@ public sealed partial class PurchaseOrderItemListQuery
     {
         const int topN = 10;
         var rows = await LoadMetricLineRowsAsync(request, cancellationToken);
+        var rates = maskAmounts
+            ? new FinanceExchangeRateDto()
+            : await _exchangeRateService.GetCurrentAsync(cancellationToken);
 
         var vendorByAmount = rows
             .Where(r => !string.IsNullOrWhiteSpace(r.VendorId))
@@ -238,7 +250,7 @@ public sealed partial class PurchaseOrderItemListQuery
             {
                 Id = g.Key,
                 Name = g.First().VendorName ?? g.Key,
-                Amount = maskAmounts ? null : g.Sum(r => CalcUsdLineTotal(r) ?? 0m),
+                Amount = maskAmounts ? null : g.Sum(r => CalcUsdLineTotal(r, rates) ?? 0m),
                 OrderCount = g.Count()
             })
             .OrderByDescending(x => x.Amount ?? x.OrderCount)
@@ -252,7 +264,7 @@ public sealed partial class PurchaseOrderItemListQuery
             {
                 Id = g.Key,
                 Name = g.First().Brand != null ? $"{g.Key} / {g.First().Brand}" : g.Key,
-                Amount = maskAmounts ? null : g.Sum(r => CalcUsdLineTotal(r) ?? 0m),
+                Amount = maskAmounts ? null : g.Sum(r => CalcUsdLineTotal(r, rates) ?? 0m),
                 OrderCount = g.Count()
             })
             .OrderByDescending(x => x.Amount ?? x.OrderCount)
@@ -266,7 +278,7 @@ public sealed partial class PurchaseOrderItemListQuery
             {
                 Id = g.Key,
                 Name = g.First().Brand != null ? $"{g.Key} / {g.First().Brand}" : g.Key,
-                Amount = maskAmounts ? null : g.Sum(r => CalcUsdLineTotal(r) ?? 0m),
+                Amount = maskAmounts ? null : g.Sum(r => CalcUsdLineTotal(r, rates) ?? 0m),
                 OrderCount = (int)Math.Round(g.Sum(r => r.Qty), MidpointRounding.AwayFromZero)
             })
             .OrderByDescending(x => x.OrderCount)
@@ -280,7 +292,7 @@ public sealed partial class PurchaseOrderItemListQuery
             {
                 Id = g.Key,
                 Name = g.Key,
-                Amount = maskAmounts ? null : g.Sum(r => CalcUsdLineTotal(r) ?? 0m),
+                Amount = maskAmounts ? null : g.Sum(r => CalcUsdLineTotal(r, rates) ?? 0m),
                 OrderCount = g.Count()
             })
             .OrderByDescending(x => x.Amount ?? x.OrderCount)
@@ -294,7 +306,7 @@ public sealed partial class PurchaseOrderItemListQuery
             {
                 Id = g.Key,
                 Name = g.Key,
-                Amount = maskAmounts ? null : g.Sum(r => CalcUsdLineTotal(r) ?? 0m),
+                Amount = maskAmounts ? null : g.Sum(r => CalcUsdLineTotal(r, rates) ?? 0m),
                 OrderCount = (int)Math.Round(g.Sum(r => r.Qty), MidpointRounding.AwayFromZero)
             })
             .OrderByDescending(x => x.OrderCount)
@@ -309,7 +321,7 @@ public sealed partial class PurchaseOrderItemListQuery
                 Name = g.Key == "_unset"
                     ? "未分配采购员"
                     : (g.First().PurchaseUserName ?? g.Key),
-                Amount = maskAmounts ? null : g.Sum(r => CalcUsdLineTotal(r) ?? 0m),
+                Amount = maskAmounts ? null : g.Sum(r => CalcUsdLineTotal(r, rates) ?? 0m),
                 OrderCount = g.Count()
             })
             .OrderByDescending(x => x.Amount ?? x.OrderCount)
@@ -398,6 +410,11 @@ public sealed partial class PurchaseOrderItemListQuery
             _db.Customers.AsNoTracking(),
             cancellationToken);
 
+        var convertByItem = approvedRows.ToDictionary(
+            r => r.ItemId,
+            r => r.ConvertPrice,
+            StringComparer.OrdinalIgnoreCase);
+
         var stockRows = await (
             from si in scopedStock
             join sin in _db.Set<StockIn>().AsNoTracking() on si.StockInId equals sin.Id
@@ -429,11 +446,19 @@ public sealed partial class PurchaseOrderItemListQuery
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Count();
 
+        // 优先 PO 行 convert_price；否则入库快照 PurchasePriceUsd
+        var amountUsd = stockRows.Sum(s =>
+        {
+            var cp = convertByItem.GetValueOrDefault(s.PurchaseOrderItemId!);
+            var unitUsd = cp > 0m ? cp : s.PurchasePriceUsd;
+            return s.QtyRepertory * unitUsd;
+        });
+
         return new InStockMetrics
         {
             VendorCount = vendors,
             LineCount = lineIds.Count,
-            AmountUsd = stockRows.Sum(s => s.QtyRepertory * s.PurchasePriceUsd),
+            AmountUsd = amountUsd,
             MaxAgeDays = stockRows.Max(s => (int)(today - s.StockInDate.Date).TotalDays)
         };
     }
@@ -468,17 +493,20 @@ public sealed partial class PurchaseOrderItemListQuery
     private static bool IsApprovedRow(ItemLineAnalyticsRow r) =>
         r.OrderStatus >= ApprovedStatusThreshold && r.ItemStatus != -2;
 
-    private static decimal? CalcUsdLineTotal(ItemLineAnalyticsRow r) =>
-        Math.Round(r.Qty * r.ConvertPrice, 2, MidpointRounding.AwayFromZero);
+    private static decimal? CalcUsdLineTotal(ItemLineAnalyticsRow r, FinanceExchangeRateDto rates)
+    {
+        var usd = FinanceAnalyticsMoneyBuilder.ExtendAmountToUsd(
+            r.Qty * r.Cost, r.Cost, r.ConvertPrice, r.Currency,
+            rates.UsdToCny, rates.UsdToHkd, rates.UsdToEur);
+        return usd == 0m && r.Qty * r.Cost == 0m ? null : usd;
+    }
 
-    private static decimal? PaymentNotToUsd(ItemLineAnalyticsRow r)
+    private static decimal? PaymentNotToUsd(ItemLineAnalyticsRow r, FinanceExchangeRateDto rates)
     {
         if (r.PaymentAmountNot <= 0m) return null;
-        if (r.Currency == (short)CurrencyCode.USD)
-            return r.PaymentAmountNot;
-        if (r.Cost != 0m && r.ConvertPrice != 0m)
-            return Math.Round(r.PaymentAmountNot * r.ConvertPrice / r.Cost, 2, MidpointRounding.AwayFromZero);
-        return null;
+        return FinanceAnalyticsMoneyBuilder.ExtendAmountToUsd(
+            r.PaymentAmountNot, r.Cost, r.ConvertPrice, r.Currency,
+            rates.UsdToCny, rates.UsdToHkd, rates.UsdToEur);
     }
 
     private static decimal OriginalLineAmount(ItemLineAnalyticsRow r) =>
@@ -508,7 +536,8 @@ public sealed partial class PurchaseOrderItemListQuery
         List<ItemLineAnalyticsRow> rows,
         Func<ItemLineAnalyticsRow, short> statusSelector,
         string labelPrefix,
-        bool maskAmounts)
+        bool maskAmounts,
+        FinanceExchangeRateDto rates)
     {
         var items = rows
             .GroupBy(r => statusSelector(r))
@@ -516,7 +545,7 @@ public sealed partial class PurchaseOrderItemListQuery
             {
                 Key = g.Key.ToString(),
                 Label = FormatProgressStatus(g.Key, labelPrefix),
-                Value = maskAmounts ? g.Count() : g.Sum(r => CalcUsdLineTotal(r) ?? 0m),
+                Value = maskAmounts ? g.Count() : g.Sum(r => CalcUsdLineTotal(r, rates) ?? 0m),
                 Ratio = 0
             })
             .ToList();

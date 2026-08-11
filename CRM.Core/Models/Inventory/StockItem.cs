@@ -116,7 +116,7 @@ namespace CRM.Core.Models.Inventory
         /// <summary>采购单价币别（与 <see cref="Constants.CurrencyCode"/> 一致）。</summary>
         public short PurchaseCurrency { get; set; } = (short)CurrencyCode.RMB;
 
-        /// <summary>采购单价折合 USD（入库过账时按财务基准汇率计算）。</summary>
+        /// <summary>采购单价折合 USD（入库过账：优先 PO 行 convert_price，缺省查询日财务汇率）。</summary>
         [Column(TypeName = "numeric(18,6)")]
         public decimal PurchasePriceUsd { get; set; }
 

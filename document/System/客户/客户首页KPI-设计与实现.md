@@ -12,14 +12,14 @@
 
 | 卡片（展示名） | 金额 | 客户数 |
 |----------------|------|--------|
-| 应收货款 / 应收客户 | 权限范围内客户的应收台账 `VerifiedToBe`，按**查询日财务参数汇率**折合 USD 后求和 | 有 `VerifiedToBe > 0` 台账的去重客户数 |
+| 应收货款 / 应收客户 | 权限范围内客户的应收台账 `VerifiedToBe`，经 `sell_order_item_id` 挂 SO 行按 **`convert_price/price`（`FromExtend`）** 折合 USD 后求和（与应收款看板一致；价比不可用时回落查询日财务汇率） | 有 `VerifiedToBe > 0` 台账的去重客户数 |
 | 在库金额 / 在库客户 | 客单在库行 `QtyRepertory × SalesPriceUsd`（USD，空价按 0）求和 | 能挂到客户的去重客户数 |
 
 ### 1.1 应收
 
 - 表：`finance_receivable`（EF 全局软删过滤）
 - 条件：`VerifiedToBe > 0`
-- 折算：与财务应收看板同一套 `ExchangeRateToUsdConverter` + `IFinanceExchangeRateService.GetCurrentAsync`
+- 折算：与财务应收看板同一套 `FromExtend`（SO 行 `convert_price`）；价比不可用时回落 `ExchangeRateToUsdConverter` + 查询日财务参数汇率
 - 数据范围：仅统计当前用户数据权限内的客户
 
 ### 1.2 在库（客单）
@@ -59,3 +59,11 @@
 ## 3. 测试对照
 
 见 [客户首页KPI-测试对照说明](../../QA/客户/客户首页KPI-测试对照说明.md)。
+
+---
+
+## 4. 修订记录
+
+| 日期 | 说明 |
+|------|------|
+| 2026-08-11 | 应收折 USD 改为挂 SO 行 `convert_price/price`（与应收款看板一致），不再以查询日财务汇率为主 |

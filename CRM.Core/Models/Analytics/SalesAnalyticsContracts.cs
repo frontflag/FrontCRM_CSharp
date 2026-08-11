@@ -80,7 +80,7 @@ public sealed class SalesAnalyticsCurrencyAmountDto
 
 public sealed class SalesAnalyticsTodoDto
 {
-    /// <summary>待核销应收：finance_receivable Σ verified_to_be；查询日财务汇率折算 USD（对齐应收款列表看板「待核销应收款」）。</summary>
+    /// <summary>待核销应收：finance_receivable Σ verified_to_be；美金优先 SO 行 convert_price/price，否则查询日财务汇率（对齐应收款列表看板「待核销应收款」）。</summary>
     public SalesAnalyticsMoneyDto ReceivableAmount { get; set; } = new();
     public int PendingStockOutItemCount { get; set; }
     /// <summary>待开票：明细 invoice_amount_not，按订单币别分档并以财务汇率折算 USD。</summary>

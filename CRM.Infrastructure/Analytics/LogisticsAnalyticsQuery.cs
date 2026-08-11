@@ -189,10 +189,15 @@ public sealed class LogisticsAnalyticsQuery : ILogisticsAnalyticsQuery
         var joined = from si in q
                      join sin in _db.StockIns.AsNoTracking() on si.StockInId equals sin.Id
                      where !sin.IsDeleted
+                     join oi in _db.PurchaseOrderItems.AsNoTracking() on si.PurchaseOrderItemId equals oi.Id into oiJoin
+                     from oi in oiJoin.DefaultIfEmpty()
                      select new StockAnalyticsRow
                      {
                          Qty = si.QtyRepertory,
-                         AmountUsd = si.QtyRepertory * si.PurchasePriceUsd,
+                         // 优先 PO 行 convert_price（历史成交）；否则用入库快照 PurchasePriceUsd
+                         AmountUsd = oi != null && oi.ConvertPrice > 0m
+                             ? si.QtyRepertory * oi.ConvertPrice
+                             : si.QtyRepertory * si.PurchasePriceUsd,
                          StockInDate = sin.StockInDate,
                          CustomerId = si.CustomerId,
                          CustomerName = si.CustomerName,

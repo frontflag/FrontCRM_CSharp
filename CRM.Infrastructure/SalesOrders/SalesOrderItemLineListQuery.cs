@@ -14,11 +14,16 @@ public sealed partial class SalesOrderItemLineListQuery : ISalesOrderItemLineLis
 
     private readonly ApplicationDbContext _db;
     private readonly IDataPermissionService _dataPermission;
+    private readonly IFinanceExchangeRateService _exchangeRateService;
 
-    public SalesOrderItemLineListQuery(ApplicationDbContext db, IDataPermissionService dataPermission)
+    public SalesOrderItemLineListQuery(
+        ApplicationDbContext db,
+        IDataPermissionService dataPermission,
+        IFinanceExchangeRateService exchangeRateService)
     {
         _db = db;
         _dataPermission = dataPermission;
+        _exchangeRateService = exchangeRateService;
     }
 
     /// <inheritdoc />

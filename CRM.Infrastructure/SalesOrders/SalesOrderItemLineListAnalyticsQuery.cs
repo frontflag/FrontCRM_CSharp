@@ -24,6 +24,9 @@ public sealed partial class SalesOrderItemLineListQuery
         var outboundDates = await LoadEarliestOutboundDatesAsync(
             metricRows.Where(r => r.ReceiptAmountNot > 0m).Select(r => r.ItemId).ToList(),
             cancellationToken);
+        var rates = maskAmounts
+            ? new FinanceExchangeRateDto()
+            : await _exchangeRateService.GetCurrentAsync(cancellationToken);
 
         var today = DateTime.UtcNow.Date;
         var receivableLines = metricRows
@@ -32,12 +35,12 @@ public sealed partial class SalesOrderItemLineListQuery
 
         var currencyLines = BuildCurrencyLines(
             metricRows,
-            r => CalcUsdLineTotal(r),
+            r => CalcUsdLineTotal(r, rates),
             maskAmounts);
 
         var receivableCurrencyLines = BuildCurrencyLines(
             receivableLines,
-            r => ReceiptNotToUsd(r),
+            r => ReceiptNotToUsd(r, rates),
             maskAmounts);
 
         int? maxReceivableAge = null;
@@ -68,7 +71,7 @@ public sealed partial class SalesOrderItemLineListQuery
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .Count(),
                 ApprovedLineCount = metricRows.Count,
-                ApprovedAmountUsd = maskAmounts ? null : metricRows.Sum(r => CalcUsdLineTotal(r) ?? 0m),
+                ApprovedAmountUsd = maskAmounts ? null : metricRows.Sum(r => CalcUsdLineTotal(r, rates) ?? 0m),
                 CurrencyLines = currencyLines,
                 PurchaseProfitUsd = maskAmounts ? null : metricRows.Sum(r => r.SalesProfitExpected),
                 OutboundProfitUsd = maskAmounts ? null : metricRows.Sum(r => r.ProfitOutBizUsd),
@@ -82,7 +85,7 @@ public sealed partial class SalesOrderItemLineListQuery
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .Count(),
                 ReceivableLineCount = receivableLines.Count,
-                ReceivableAmountUsd = maskAmounts ? null : receivableLines.Sum(r => ReceiptNotToUsd(r) ?? 0m),
+                ReceivableAmountUsd = maskAmounts ? null : receivableLines.Sum(r => ReceiptNotToUsd(r, rates) ?? 0m),
                 ReceivableCurrencyLines = receivableCurrencyLines,
                 MaxReceivableAgeDays = receivableLines.Count > 0 ? maxReceivableAge : null
             }
@@ -100,6 +103,9 @@ public sealed partial class SalesOrderItemLineListQuery
         if (rows.Count == 0)
             return Array.Empty<SalesOrderItemListAnalyticsTrendPointDto>();
 
+        var rates = maskAmounts
+            ? new FinanceExchangeRateDto()
+            : await _exchangeRateService.GetCurrentAsync(cancellationToken);
         var (dateFrom, dateToInclusive) = ResolveTrendDateBounds(
             request,
             rows.Min(r => r.OrderCreateTime),
@@ -117,7 +123,7 @@ public sealed partial class SalesOrderItemLineListQuery
                 Period = period,
                 ApprovedOrderCount = inBucket.Select(r => r.OrderId).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
                 ApprovedLineCount = inBucket.Count,
-                ApprovedLineAmountUsd = maskAmounts ? null : inBucket.Sum(r => CalcUsdLineTotal(r) ?? 0m)
+                ApprovedLineAmountUsd = maskAmounts ? null : inBucket.Sum(r => CalcUsdLineTotal(r, rates) ?? 0m)
             });
         }
 
@@ -131,6 +137,9 @@ public sealed partial class SalesOrderItemLineListQuery
         CancellationToken cancellationToken = default)
     {
         var allRows = await LoadAllLineRowsAsync(request, cancellationToken);
+        var rates = maskAmounts
+            ? new FinanceExchangeRateDto()
+            : await _exchangeRateService.GetCurrentAsync(cancellationToken);
         // listFilter：全部图表跟筛选结果；reportApproved：成单集合（与 KPI 一致）
         var metricRows = SalesOrderItemAnalyticsDatasets.IsReportApproved(request.AnalyticsDataset)
             ? allRows.Where(IsApprovedRow).ToList()
@@ -142,7 +151,7 @@ public sealed partial class SalesOrderItemLineListQuery
             {
                 Key = g.Key.ToString(),
                 Label = FormatItemStatus(g.Key),
-                Value = maskAmounts ? g.Count() : g.Sum(r => CalcUsdLineTotal(r) ?? 0m),
+                Value = maskAmounts ? g.Count() : g.Sum(r => CalcUsdLineTotal(r, rates) ?? 0m),
                 Ratio = 0
             })
             .ToList();
@@ -157,7 +166,7 @@ public sealed partial class SalesOrderItemLineListQuery
                 {
                     Key = g.Key.ToString(),
                     Label = FormatItemStatus(g.Key),
-                    Value = maskAmounts ? g.Count() : g.Sum(r => CalcUsdLineTotal(r) ?? 0m),
+                    Value = maskAmounts ? g.Count() : g.Sum(r => CalcUsdLineTotal(r, rates) ?? 0m),
                     Ratio = 0
                 })
                 .ToList();
@@ -168,14 +177,14 @@ public sealed partial class SalesOrderItemLineListQuery
             metricRows,
             r => r.Currency.ToString(),
             r => ((CurrencyCode)r.Currency).ToIsoText(),
-            r => maskAmounts ? 1m : CalcUsdLineTotal(r) ?? 0m,
+            r => maskAmounts ? 1m : CalcUsdLineTotal(r, rates) ?? 0m,
             maskAmounts);
 
-        var purchaseItems = BuildProgressBreakdown(metricRows, r => r.PurchaseProgressStatus, "采购", maskAmounts);
-        var stockInItems = BuildProgressBreakdown(metricRows, r => r.StockInProgressStatus, "入库", maskAmounts);
-        var notifyItems = BuildProgressBreakdown(metricRows, r => r.StockOutNotifyProgressStatus, "出库通知", maskAmounts);
-        var receiptItems = BuildProgressBreakdown(metricRows, r => r.ReceiptProgressStatus, "收款", maskAmounts);
-        var invoiceItems = BuildProgressBreakdown(metricRows, r => r.InvoiceProgressStatus, "开票", maskAmounts);
+        var purchaseItems = BuildProgressBreakdown(metricRows, r => r.PurchaseProgressStatus, "采购", maskAmounts, rates);
+        var stockInItems = BuildProgressBreakdown(metricRows, r => r.StockInProgressStatus, "入库", maskAmounts, rates);
+        var notifyItems = BuildProgressBreakdown(metricRows, r => r.StockOutNotifyProgressStatus, "出库通知", maskAmounts, rates);
+        var receiptItems = BuildProgressBreakdown(metricRows, r => r.ReceiptProgressStatus, "收款", maskAmounts, rates);
+        var invoiceItems = BuildProgressBreakdown(metricRows, r => r.InvoiceProgressStatus, "开票", maskAmounts, rates);
 
         var brandQtyItems = BuildBreakdownFromRows(
             metricRows,
@@ -189,7 +198,7 @@ public sealed partial class SalesOrderItemLineListQuery
             metricRows,
             r => string.IsNullOrWhiteSpace(r.Brand) ? "_unset" : r.Brand!.Trim(),
             r => string.IsNullOrWhiteSpace(r.Brand) ? "未设置" : r.Brand!.Trim(),
-            r => maskAmounts ? 1m : CalcUsdLineTotal(r) ?? 0m,
+            r => maskAmounts ? 1m : CalcUsdLineTotal(r, rates) ?? 0m,
             maskAmounts);
 
         var dateCodeItems = BuildBreakdownFromRows(
@@ -204,7 +213,7 @@ public sealed partial class SalesOrderItemLineListQuery
             metricRows,
             r => r.SalesUserId ?? "_unset",
             r => string.IsNullOrWhiteSpace(r.SalesUserName) ? "未分配销售员" : r.SalesUserName!,
-            r => maskAmounts ? 1m : CalcUsdLineTotal(r) ?? 0m,
+            r => maskAmounts ? 1m : CalcUsdLineTotal(r, rates) ?? 0m,
             maskAmounts);
 
         var progressSuffix = SalesOrderItemAnalyticsDatasets.IsReportApproved(request.AnalyticsDataset)
@@ -235,6 +244,9 @@ public sealed partial class SalesOrderItemLineListQuery
     {
         const int topN = 10;
         var rows = await LoadMetricLineRowsAsync(request, cancellationToken);
+        var rates = maskAmounts
+            ? new FinanceExchangeRateDto()
+            : await _exchangeRateService.GetCurrentAsync(cancellationToken);
 
         var customerByAmount = rows
             .Where(r => !string.IsNullOrWhiteSpace(r.CustomerId))
@@ -243,7 +255,7 @@ public sealed partial class SalesOrderItemLineListQuery
             {
                 Id = g.Key,
                 Name = g.First().CustomerName ?? g.Key,
-                Amount = maskAmounts ? null : g.Sum(r => CalcUsdLineTotal(r) ?? 0m),
+                Amount = maskAmounts ? null : g.Sum(r => CalcUsdLineTotal(r, rates) ?? 0m),
                 OrderCount = g.Count()
             })
             .OrderByDescending(x => x.Amount ?? x.OrderCount)
@@ -257,7 +269,7 @@ public sealed partial class SalesOrderItemLineListQuery
             {
                 Id = g.Key,
                 Name = g.First().Brand != null ? $"{g.Key} / {g.First().Brand}" : g.Key,
-                Amount = maskAmounts ? null : g.Sum(r => CalcUsdLineTotal(r) ?? 0m),
+                Amount = maskAmounts ? null : g.Sum(r => CalcUsdLineTotal(r, rates) ?? 0m),
                 OrderCount = g.Count()
             })
             .OrderByDescending(x => x.Amount ?? x.OrderCount)
@@ -271,7 +283,7 @@ public sealed partial class SalesOrderItemLineListQuery
             {
                 Id = g.Key,
                 Name = g.First().Brand != null ? $"{g.Key} / {g.First().Brand}" : g.Key,
-                Amount = maskAmounts ? null : g.Sum(r => CalcUsdLineTotal(r) ?? 0m),
+                Amount = maskAmounts ? null : g.Sum(r => CalcUsdLineTotal(r, rates) ?? 0m),
                 OrderCount = (int)Math.Round(g.Sum(r => r.Qty), MidpointRounding.AwayFromZero)
             })
             .OrderByDescending(x => x.OrderCount)
@@ -285,7 +297,7 @@ public sealed partial class SalesOrderItemLineListQuery
             {
                 Id = g.Key,
                 Name = g.Key,
-                Amount = maskAmounts ? null : g.Sum(r => CalcUsdLineTotal(r) ?? 0m),
+                Amount = maskAmounts ? null : g.Sum(r => CalcUsdLineTotal(r, rates) ?? 0m),
                 OrderCount = g.Count()
             })
             .OrderByDescending(x => x.Amount ?? x.OrderCount)
@@ -299,7 +311,7 @@ public sealed partial class SalesOrderItemLineListQuery
             {
                 Id = g.Key,
                 Name = g.Key,
-                Amount = maskAmounts ? null : g.Sum(r => CalcUsdLineTotal(r) ?? 0m),
+                Amount = maskAmounts ? null : g.Sum(r => CalcUsdLineTotal(r, rates) ?? 0m),
                 OrderCount = (int)Math.Round(g.Sum(r => r.Qty), MidpointRounding.AwayFromZero)
             })
             .OrderByDescending(x => x.OrderCount)
@@ -314,7 +326,7 @@ public sealed partial class SalesOrderItemLineListQuery
                 Name = g.Key == "_unset"
                     ? "未分配销售员"
                     : (g.First().SalesUserName ?? g.Key),
-                Amount = maskAmounts ? null : g.Sum(r => CalcUsdLineTotal(r) ?? 0m),
+                Amount = maskAmounts ? null : g.Sum(r => CalcUsdLineTotal(r, rates) ?? 0m),
                 OrderCount = g.Count()
             })
             .OrderByDescending(x => x.Amount ?? x.OrderCount)
@@ -419,6 +431,11 @@ public sealed partial class SalesOrderItemLineListQuery
             _db.Customers.AsNoTracking(),
             cancellationToken);
 
+        var convertByItem = approvedRows.ToDictionary(
+            r => r.ItemId,
+            r => r.ConvertPrice,
+            StringComparer.OrdinalIgnoreCase);
+
         var stockRows = await (
             from si in scopedStock
             join sin in _db.Set<StockIn>().AsNoTracking() on si.StockInId equals sin.Id
@@ -451,7 +468,13 @@ public sealed partial class SalesOrderItemLineListQuery
             .Count();
 
         var maxAge = stockRows.Max(s => (int)(today - s.StockInDate.Date).TotalDays);
-        var amount = stockRows.Sum(s => s.QtyRepertory * (s.SalesPriceUsd ?? 0m));
+        // 优先 SO 行 convert_price；否则入库快照 SalesPriceUsd
+        var amount = stockRows.Sum(s =>
+        {
+            var cp = convertByItem.GetValueOrDefault(s.SellOrderItemId!);
+            var unitUsd = cp > 0m ? cp : (s.SalesPriceUsd ?? 0m);
+            return s.QtyRepertory * unitUsd;
+        });
 
         return new InStockMetrics
         {
@@ -493,23 +516,20 @@ public sealed partial class SalesOrderItemLineListQuery
         return 1;
     }
 
-    private static decimal? CalcUsdLineTotal(ItemLineAnalyticsRow r)
+    private static decimal? CalcUsdLineTotal(ItemLineAnalyticsRow r, FinanceExchangeRateDto rates)
     {
-        if (r.Currency == (short)CurrencyCode.USD)
-            return Math.Round(r.Qty * r.ConvertPrice, 2, MidpointRounding.AwayFromZero);
-        if (r.ConvertPrice != 0m)
-            return Math.Round(r.Qty * r.ConvertPrice, 2, MidpointRounding.AwayFromZero);
-        return null;
+        var usd = FinanceAnalyticsMoneyBuilder.ExtendAmountToUsd(
+            r.Qty * r.Price, r.Price, r.ConvertPrice, r.Currency,
+            rates.UsdToCny, rates.UsdToHkd, rates.UsdToEur);
+        return usd == 0m && r.Qty * r.Price == 0m ? null : usd;
     }
 
-    private static decimal? ReceiptNotToUsd(ItemLineAnalyticsRow r)
+    private static decimal? ReceiptNotToUsd(ItemLineAnalyticsRow r, FinanceExchangeRateDto rates)
     {
         if (r.ReceiptAmountNot <= 0m) return null;
-        if (r.Currency == (short)CurrencyCode.USD)
-            return r.ReceiptAmountNot;
-        if (r.Price != 0m && r.ConvertPrice != 0m)
-            return Math.Round(r.ReceiptAmountNot * r.ConvertPrice / r.Price, 2, MidpointRounding.AwayFromZero);
-        return null;
+        return FinanceAnalyticsMoneyBuilder.ExtendAmountToUsd(
+            r.ReceiptAmountNot, r.Price, r.ConvertPrice, r.Currency,
+            rates.UsdToCny, rates.UsdToHkd, rates.UsdToEur);
     }
 
     private static decimal OriginalLineAmount(ItemLineAnalyticsRow r) =>
@@ -539,7 +559,8 @@ public sealed partial class SalesOrderItemLineListQuery
         List<ItemLineAnalyticsRow> rows,
         Func<ItemLineAnalyticsRow, short> statusSelector,
         string labelPrefix,
-        bool maskAmounts)
+        bool maskAmounts,
+        FinanceExchangeRateDto rates)
     {
         var items = rows
             .GroupBy(r => statusSelector(r))
@@ -547,7 +568,7 @@ public sealed partial class SalesOrderItemLineListQuery
             {
                 Key = g.Key.ToString(),
                 Label = FormatProgressStatus(g.Key, labelPrefix),
-                Value = maskAmounts ? g.Count() : g.Sum(r => CalcUsdLineTotal(r) ?? 0m),
+                Value = maskAmounts ? g.Count() : g.Sum(r => CalcUsdLineTotal(r, rates) ?? 0m),
                 Ratio = 0
             })
             .ToList();

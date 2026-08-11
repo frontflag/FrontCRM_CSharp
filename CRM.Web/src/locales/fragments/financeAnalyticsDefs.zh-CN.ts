@@ -8,7 +8,7 @@ export const financeAnalyticsDefsZh = {
     receivable: {
       chart: '应收款',
       dataSource: '应收款',
-      text: '财务应收台账上的待核销余额（通常对应已出库后形成的应收）。不是销售分析里「订单未收款」的全部口径。'
+      text: '财务应收台账上的待核销余额（通常对应已出库后形成的应收）；折算美金按关联销售订单行当时落库的折算单价。不是销售分析里「订单未收款」的全部口径。'
     },
     pendingPurchaseInvoice: {
       chart: '待开进项发票',

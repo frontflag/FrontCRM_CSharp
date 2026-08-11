@@ -15,7 +15,7 @@ public static class CustomerHomeKpiQuery
 
     /// <summary>
     /// 未结应收：<c>finance_receivable.VerifiedToBe &gt; 0</c>（全局软删过滤），
-    /// 金额按查询日财务参数汇率折 USD（与财务应收看板一致）。
+    /// 美金挂 SO 行 <c>convert_price/price</c>（与应收款看板一致；价比不可用时回落查询日财务汇率）。
     /// </summary>
     public static async Task<KpiAmount> GetOpenReceivableAsync(
         ApplicationDbContext db,
@@ -27,10 +27,19 @@ public static class CustomerHomeKpiQuery
             return new KpiAmount(0m, 0);
 
         var rates = await exchangeRateService.GetCurrentAsync(cancellationToken);
-        var rows = await db.FinanceReceivables.AsNoTracking()
-            .Where(r => r.VerifiedToBe > 0m)
-            .Select(r => new { r.CustomerId, r.VerifiedToBe, r.Currency })
-            .ToListAsync(cancellationToken);
+        var rows = await (
+            from r in db.FinanceReceivables.AsNoTracking()
+            where r.VerifiedToBe > 0m
+            join oi in db.SellOrderItems.AsNoTracking() on r.SellOrderItemId equals oi.Id into oiJoin
+            from oi in oiJoin.DefaultIfEmpty()
+            select new
+            {
+                r.CustomerId,
+                r.VerifiedToBe,
+                r.Currency,
+                Price = oi != null ? oi.Price : 0m,
+                ConvertPrice = oi != null ? oi.ConvertPrice : 0m
+            }).ToListAsync(cancellationToken);
 
         var scoped = rows
             .Where(r => !string.IsNullOrWhiteSpace(r.CustomerId)
@@ -40,7 +49,9 @@ public static class CustomerHomeKpiQuery
         if (scoped.Count == 0)
             return new KpiAmount(0m, 0);
 
-        var amount = scoped.Sum(r => ToUsd(r.VerifiedToBe, r.Currency, rates));
+        var amount = scoped.Sum(r => FinanceAnalyticsMoneyBuilder.ExtendAmountToUsd(
+            r.VerifiedToBe, r.Price, r.ConvertPrice, r.Currency,
+            rates.UsdToCny, rates.UsdToHkd, rates.UsdToEur));
         var customers = scoped
             .Select(r => r.CustomerId)
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -121,11 +132,4 @@ public static class CustomerHomeKpiQuery
 
         return new KpiAmount(Math.Round(amount, 2, MidpointRounding.AwayFromZero), customerIds.Count);
     }
-
-    private static decimal ToUsd(decimal local, short currency, FinanceExchangeRateDto rates) =>
-        Math.Round(
-            ExchangeRateToUsdConverter.UnitLocalToUsd(
-                local, currency, rates.UsdToCny, rates.UsdToHkd, rates.UsdToEur),
-            2,
-            MidpointRounding.AwayFromZero);
 }

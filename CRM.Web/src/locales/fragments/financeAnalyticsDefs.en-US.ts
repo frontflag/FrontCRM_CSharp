@@ -8,7 +8,7 @@ export const financeAnalyticsDefsEn = {
     receivable: {
       chart: 'Receivables',
       dataSource: 'Receivables',
-      text: 'Open balance on finance receivable ledger (typically after stock-out). Not the full sales-order open-receipt scope.'
+      text: 'Open balance on finance receivable ledger (typically after stock-out); USD uses the linked sales-order line convert price stored at order time. Not the full sales-order open-receipt scope.'
     },
     pendingPurchaseInvoice: {
       chart: 'Pending purchase invoices',

@@ -91,7 +91,7 @@ public sealed class PurchaseAnalyticsQuery : IPurchaseAnalyticsQuery
                 Currency = oi.Currency != 0 ? oi.Currency : o.Currency,
                 oi.Cost,
                 oi.ConvertPrice,
-                StockInAmount = ext.QtyReceiveTotal * oi.ConvertPrice,
+                ext.QtyReceiveTotal,
                 ext.PaymentAmountFinish,
                 ext.PaymentAmountNot
             }
@@ -123,7 +123,10 @@ public sealed class PurchaseAnalyticsQuery : IPurchaseAnalyticsQuery
                 .Sum(o => o.ConvertTotal);
 
             var linesInBucket = lineMetricRows.Where(r => r.CreateTime >= start && r.CreateTime < end).ToList();
-            var stockInAmount = linesInBucket.Sum(r => r.StockInAmount);
+            var stockInAmount = SalesAnalyticsTodoMoney.Build(
+                linesInBucket.Select(r => (r.QtyReceiveTotal * r.Cost, r.Currency, r.Cost, r.ConvertPrice)),
+                rates,
+                scope.MaskAmounts).TotalUsd;
             // 与销售已收款/应收趋势同路径：原币 payment_* → TotalUsd（禁止跨币种硬加）
             var paidAmount = SalesAnalyticsTodoMoney.Build(
                 linesInBucket.Select(r => (r.PaymentAmountFinish, r.Currency, r.Cost, r.ConvertPrice)),
@@ -463,15 +466,7 @@ public sealed class PurchaseAnalyticsQuery : IPurchaseAnalyticsQuery
     {
         var approvedOrders = ordersInPeriod.Where(o => o.Status >= PoApproved);
 
-        var stockInAmount = await (
-            from ext in _db.PurchaseOrderItemExtends.AsNoTracking()
-            join oi in _db.PurchaseOrderItems.AsNoTracking() on ext.Id equals oi.Id
-            join o in approvedOrders on oi.PurchaseOrderId equals o.Id
-            where !oi.IsDeleted && !ext.IsDeleted && oi.Status != PoItemCancelled
-            select ext.QtyReceiveTotal * oi.ConvertPrice
-        ).SumAsync(cancellationToken);
-
-        var paidRows = await (
+        var lineRows = await (
             from ext in _db.PurchaseOrderItemExtends.AsNoTracking()
             join oi in _db.PurchaseOrderItems.AsNoTracking() on ext.Id equals oi.Id
             join o in approvedOrders on oi.PurchaseOrderId equals o.Id
@@ -481,6 +476,7 @@ public sealed class PurchaseAnalyticsQuery : IPurchaseAnalyticsQuery
                 Currency = oi.Currency != 0 ? oi.Currency : o.Currency,
                 oi.Cost,
                 oi.ConvertPrice,
+                ext.QtyReceiveTotal,
                 ext.PaymentAmountFinish
             }
         ).ToListAsync(cancellationToken);
@@ -488,14 +484,17 @@ public sealed class PurchaseAnalyticsQuery : IPurchaseAnalyticsQuery
         var rates = maskAmounts
             ? new FinanceExchangeRateDto()
             : await _exchangeRateService.GetCurrentAsync(cancellationToken);
+        // 已入库：qty×convert_price；价比为 0 时按原币 qty×cost 回落查询日汇率
+        var stockInAmount = SalesAnalyticsTodoMoney.Build(
+            lineRows.Select(r => (r.QtyReceiveTotal * r.Cost, r.Currency, r.Cost, r.ConvertPrice)),
+            rates,
+            maskAmounts).TotalUsd;
         var paidAmount = SalesAnalyticsTodoMoney.Build(
-            paidRows.Select(r => (r.PaymentAmountFinish, r.Currency, r.Cost, r.ConvertPrice)),
+            lineRows.Select(r => (r.PaymentAmountFinish, r.Currency, r.Cost, r.ConvertPrice)),
             rates,
             maskAmounts).TotalUsd;
 
-        return (
-            maskAmounts ? null : stockInAmount,
-            paidAmount);
+        return (stockInAmount, paidAmount);
     }
 
     private async Task<PurchaseAnalyticsSnapshotDto> BuildSnapshotForAssistorOnlyAsync(

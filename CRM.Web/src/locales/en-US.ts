@@ -1096,7 +1096,7 @@ const enUS = {
     todoReceivableDefinition: {
       chart: 'Open receivables',
       dataSource: 'Accounts receivable',
-      text: 'Same as the Receivables list board “Open receivables”: sum of open balance (verified_to_be) on finance receivables, by original currency, converted to USD with the query-day finance FX rate. Open balance of stock-out receivables not yet fully written off. Not limited by the date range.'
+      text: 'Same as the Receivables list board “Open receivables”: sum of open balance (verified_to_be) on finance receivables, by original currency; USD uses the linked sales-order line convert_price stored at order time (historical FX, not the finance rate on the day you open the page). Open balance of stock-out receivables not yet fully written off. Not limited by the date range.'
     },
     todoPendingStockOutDefinition: {
       chart: 'Pending stock-out lines',
@@ -9078,7 +9078,7 @@ const enUS = {
       detail: 'Detail'
     },
     board: {
-      hint: 'Stats use the same filters as the list (including Open only). USD uses current finance FX rates.',
+      hint: 'Stats use the same filters as the list (including Open only). USD uses the linked sales-order line convert price stored at order time (historical FX).',
       refresh: 'Refresh',
       loadFailed: 'Failed to load receivables board',
       amountMode: {
@@ -9109,12 +9109,12 @@ const enUS = {
       stockOutReceivableDefinition: {
         chart: 'Stock-out receivables',
         dataSource: 'Receivables',
-        text: 'With other filters unchanged, by the “Open only” checkbox:\n· Checked: only rows not fully written off; sum their total Amount (including already verified portions), convert to USD, break down by original currency.\n· Unchecked: all receivable rows in the filter (including fully written off); sum total Amount, convert to USD, break down by original currency.\nThe gap vs Open receivables is the verified amount on the current row set.'
+        text: 'With other filters unchanged, by the “Open only” checkbox:\n· Checked: only rows not fully written off; sum their total Amount (including already verified portions), convert to USD via the linked sales-order line convert price stored at order time, break down by original currency.\n· Unchecked: all receivable rows in the filter (including fully written off); sum total Amount with the same historical USD conversion, break down by original currency.\nThe gap vs Open receivables is the verified amount on the current row set.'
       },
       pendingReceivableDefinition: {
         chart: 'Open receivables',
         dataSource: 'Receivables',
-        text: 'On the same receivable rows as Stock-out receivables, sum remaining open balance (total minus verified), convert to USD, break down by original currency. It is the open balance total of stock-out receivables not yet 100% written off. Toggling “Open only” does not change this card (fully written-off rows have zero open balance and add nothing).'
+        text: 'On the same receivable rows as Stock-out receivables, sum remaining open balance (total minus verified); USD uses the linked sales-order line convert price stored at order time, break down by original currency. It is the open balance total of stock-out receivables not yet 100% written off. Toggling “Open only” does not change this card (fully written-off rows have zero open balance and add nothing).'
       },
       trendUnit: {
         customers: '',

@@ -10,7 +10,7 @@ namespace CRM.Infrastructure.Finance;
 
 public sealed partial class FinanceReceivableListQuery
 {
-    private const string ExchangeRateHint = "美元折算按查询日财务参数汇率";
+    private const string ExchangeRateHint = "美元折算按销售订单行折算单价（convert_price，历史成交）；价比不可用时回落查询日财务参数汇率";
 
     /// <inheritdoc />
     public async Task<FinanceReceivableListAnalyticsDashboardDto> GetListAnalyticsDashboardAsync(
@@ -213,6 +213,8 @@ public sealed partial class FinanceReceivableListQuery
             from r in q
             join so in _db.SellOrders.AsNoTracking() on r.SellOrderId equals so.Id into soJoin
             from so in soJoin.DefaultIfEmpty()
+            join oi in _db.SellOrderItems.AsNoTracking() on r.SellOrderItemId equals oi.Id into oiJoin
+            from oi in oiJoin.DefaultIfEmpty()
             select new
             {
                 r.Id,
@@ -227,7 +229,9 @@ public sealed partial class FinanceReceivableListQuery
                 r.VerifiedToBe,
                 r.VerificationStatus,
                 r.StockOutDate,
-                r.CreateTime
+                r.CreateTime,
+                Price = oi != null ? oi.Price : 0m,
+                ConvertPrice = oi != null ? oi.ConvertPrice : 0m
             }).ToListAsync(cancellationToken);
 
         var ids = raw.Select(x => x.Id).ToList();
@@ -298,19 +302,17 @@ public sealed partial class FinanceReceivableListQuery
                 VerificationStatus = x.VerificationStatus,
                 BucketDate = stockOut,
                 AgeDays = ageDays,
-                PendingUsd = ToUsd(x.VerifiedToBe, x.Currency, rates),
-                TotalUsd = ToUsd(x.Amount, x.Currency, rates)
+                PendingUsd = FinanceAnalyticsMoneyBuilder.ExtendAmountToUsd(
+                    x.VerifiedToBe, x.Price, x.ConvertPrice, x.Currency,
+                    rates.UsdToCny, rates.UsdToHkd, rates.UsdToEur),
+                TotalUsd = FinanceAnalyticsMoneyBuilder.ExtendAmountToUsd(
+                    x.Amount, x.Price, x.ConvertPrice, x.Currency,
+                    rates.UsdToCny, rates.UsdToHkd, rates.UsdToEur)
             });
         }
 
         return (rows, rates);
     }
-
-    private static decimal ToUsd(decimal local, short currency, FinanceExchangeRateDto rates) =>
-        Math.Round(
-            ExchangeRateToUsdConverter.UnitLocalToUsd(local, currency, rates.UsdToCny, rates.UsdToHkd, rates.UsdToEur),
-            2,
-            MidpointRounding.AwayFromZero);
 
     private static IReadOnlyList<FinanceReceivableListAnalyticsCurrencyLineDto> BuildCurrencyLines(
         List<AnalyticsRow> rows,

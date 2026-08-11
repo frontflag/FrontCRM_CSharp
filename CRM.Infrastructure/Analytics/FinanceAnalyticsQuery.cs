@@ -3,6 +3,7 @@ using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Analytics;
 using CRM.Core.Models.Finance;
+using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
 using CRM.Core.Utilities;
@@ -116,8 +117,9 @@ public sealed class FinanceAnalyticsQuery : IFinanceAnalyticsQuery
             scope);
 
         var receivable = BuildMoney(
-            receivableRows.Select(r => FinanceAnalyticsMoneyBuilder.FromLocal(
-                r.VerifiedToBe, r.Currency, scope.UsdToCny, scope.UsdToHkd, scope.UsdToEur)),
+            receivableRows.Select(r => FinanceAnalyticsMoneyBuilder.FromExtend(
+                r.VerifiedToBe, r.Currency, r.Price, r.ConvertPrice,
+                scope.UsdToCny, scope.UsdToHkd, scope.UsdToEur)),
             scope);
 
         return new FinanceAnalyticsTodoDto
@@ -222,14 +224,18 @@ public sealed class FinanceAnalyticsQuery : IFinanceAnalyticsQuery
         q = await _dataPermission.ApplyFinanceReceivableListDataScopeAsync(userId, q, cancellationToken);
         q = ApplyReceivableViewLens(q, scope);
 
-        var rows = await q
-            .Select(r => new ReceivableRow
+        var rows = await (
+            from r in q
+            join oi in _db.SellOrderItems.AsNoTracking() on r.SellOrderItemId equals oi.Id into oiJoin
+            from oi in oiJoin.DefaultIfEmpty()
+            select new ReceivableRow
             {
                 SalesUserId = r.SalesUserId,
                 Currency = r.Currency,
-                VerifiedToBe = r.VerifiedToBe
-            })
-            .ToListAsync(cancellationToken);
+                VerifiedToBe = r.VerifiedToBe,
+                Price = oi != null ? oi.Price : 0m,
+                ConvertPrice = oi != null ? oi.ConvertPrice : 0m
+            }).ToListAsync(cancellationToken);
 
         return rows.Where(r => PassesSalesAttributionLens(scope, r.SalesUserId)).ToList();
     }
@@ -248,7 +254,14 @@ public sealed class FinanceAnalyticsQuery : IFinanceAnalyticsQuery
         q = q.Where(p => p.PaymentDate >= dateFrom && p.PaymentDate < dateEnd);
 
         var payments = await q
-            .Select(p => new { p.PaymentDate, Currency = (short)p.PaymentCurrency, p.PaymentAmount, p.VendorId, p.CreateByUserId })
+            .Select(p => new
+            {
+                p.Id,
+                p.PaymentDate,
+                Currency = (short)p.PaymentCurrency,
+                p.PaymentAmount,
+                p.VendorId
+            })
             .ToListAsync(cancellationToken);
 
         if (scope.AccessMode == FinanceAnalyticsAccessModes.SalesPurchaseOnly)
@@ -265,15 +278,57 @@ public sealed class FinanceAnalyticsQuery : IFinanceAnalyticsQuery
                 .ToList();
         }
 
-        return payments
-            .Where(p => p.PaymentDate.HasValue)
-            .Select(p => new FinanceDocRow
+        payments = payments.Where(p => p.PaymentDate.HasValue).ToList();
+        if (payments.Count == 0)
+            return new List<FinanceDocRow>();
+
+        var paymentIds = payments.Select(p => p.Id).ToList();
+        var items = await (
+            from item in _db.FinancePaymentItems.AsNoTracking()
+            where paymentIds.Contains(item.FinancePaymentId) && item.PaymentAmount != 0m
+            join oi in _db.PurchaseOrderItems.AsNoTracking() on item.PurchaseOrderItemId equals oi.Id into oiJoin
+            from oi in oiJoin.DefaultIfEmpty()
+            select new
             {
-                Date = p.PaymentDate!.Value,
-                Currency = p.Currency,
-                LocalAmount = p.PaymentAmount
-            })
-            .ToList();
+                item.FinancePaymentId,
+                item.PaymentAmount,
+                Price = oi != null ? oi.Cost : 0m,
+                ConvertPrice = oi != null ? oi.ConvertPrice : 0m
+            }).ToListAsync(cancellationToken);
+
+        var itemsByPayment = items
+            .GroupBy(i => i.FinancePaymentId, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+        var rows = new List<FinanceDocRow>();
+        foreach (var p in payments)
+        {
+            if (itemsByPayment.TryGetValue(p.Id, out var its) && its.Count > 0)
+            {
+                foreach (var it in its)
+                {
+                    rows.Add(new FinanceDocRow
+                    {
+                        Date = p.PaymentDate!.Value,
+                        Currency = p.Currency,
+                        LocalAmount = it.PaymentAmount,
+                        Price = it.Price,
+                        ConvertPrice = it.ConvertPrice
+                    });
+                }
+            }
+            else
+            {
+                rows.Add(new FinanceDocRow
+                {
+                    Date = p.PaymentDate!.Value,
+                    Currency = p.Currency,
+                    LocalAmount = p.PaymentAmount
+                });
+            }
+        }
+
+        return rows;
     }
 
     private async Task<List<FinanceDocRow>> LoadReceiptTrendRowsAsync(
@@ -289,18 +344,72 @@ public sealed class FinanceAnalyticsQuery : IFinanceAnalyticsQuery
         q = q.Where(r => r.ReceiptDate >= dateFrom && r.ReceiptDate < dateEnd);
 
         var receipts = await q
-            .Select(r => new { r.ReceiptDate, Currency = (short)r.ReceiptCurrency, r.ReceiptAmount, r.SalesUserId })
+            .Select(r => new
+            {
+                r.Id,
+                r.ReceiptDate,
+                Currency = (short)r.ReceiptCurrency,
+                r.ReceiptAmount,
+                r.SalesUserId
+            })
             .ToListAsync(cancellationToken);
 
-        return receipts
+        receipts = receipts
             .Where(r => r.ReceiptDate.HasValue && PassesSalesAttributionLens(scope, r.SalesUserId))
-            .Select(r => new FinanceDocRow
-            {
-                Date = r.ReceiptDate!.Value,
-                Currency = r.Currency,
-                LocalAmount = r.ReceiptAmount
-            })
             .ToList();
+        if (receipts.Count == 0)
+            return new List<FinanceDocRow>();
+
+        var receiptIds = receipts.Select(r => r.Id).ToList();
+        var items = await (
+            from item in _db.FinanceReceiptItems.AsNoTracking()
+            where receiptIds.Contains(item.FinanceReceiptId) && item.ReceiptAmount != 0m
+            join oi in _db.SellOrderItems.AsNoTracking() on item.SellOrderItemId equals oi.Id into oiJoin
+            from oi in oiJoin.DefaultIfEmpty()
+            select new
+            {
+                item.FinanceReceiptId,
+                item.ReceiptAmount,
+                item.ReceiptConvertAmount,
+                Price = oi != null ? oi.Price : 0m,
+                ConvertPrice = oi != null ? oi.ConvertPrice : 0m
+            }).ToListAsync(cancellationToken);
+
+        var itemsByReceipt = items
+            .GroupBy(i => i.FinanceReceiptId, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+        var rows = new List<FinanceDocRow>();
+        foreach (var r in receipts)
+        {
+            if (itemsByReceipt.TryGetValue(r.Id, out var its) && its.Count > 0)
+            {
+                foreach (var it in its)
+                {
+                    rows.Add(new FinanceDocRow
+                    {
+                        Date = r.ReceiptDate!.Value,
+                        Currency = r.Currency,
+                        LocalAmount = it.ReceiptAmount,
+                        Price = it.Price,
+                        ConvertPrice = it.ConvertPrice,
+                        // 收款明细已存折算美金时优先用（与财务统计 §4.2 一致）
+                        UsdOverride = it.ReceiptConvertAmount > 0m ? it.ReceiptConvertAmount : null
+                    });
+                }
+            }
+            else
+            {
+                rows.Add(new FinanceDocRow
+                {
+                    Date = r.ReceiptDate!.Value,
+                    Currency = r.Currency,
+                    LocalAmount = r.ReceiptAmount
+                });
+            }
+        }
+
+        return rows;
     }
 
     private async Task<List<FinanceDocRow>> LoadPurchaseInvoiceRowsAsync(
@@ -318,7 +427,7 @@ public sealed class FinanceAnalyticsQuery : IFinanceAnalyticsQuery
         q = q.Where(i => i.InvoiceDate >= dateFrom && i.InvoiceDate < dateEnd);
 
         var invoices = await q
-            .Select(i => new { i.InvoiceDate, i.InvoiceAmount, i.VendorId })
+            .Select(i => new { i.Id, i.InvoiceDate, i.InvoiceAmount, i.VendorId })
             .ToListAsync(cancellationToken);
 
         if (scope.AccessMode == FinanceAnalyticsAccessModes.SalesPurchaseOnly)
@@ -335,15 +444,95 @@ public sealed class FinanceAnalyticsQuery : IFinanceAnalyticsQuery
                 .ToList();
         }
 
-        return invoices
-            .Where(i => i.InvoiceDate.HasValue)
-            .Select(i => new FinanceDocRow
-            {
-                Date = i.InvoiceDate!.Value,
-                Currency = (short)CurrencyCode.RMB,
-                LocalAmount = i.InvoiceAmount
-            })
+        invoices = invoices.Where(i => i.InvoiceDate.HasValue).ToList();
+        if (invoices.Count == 0)
+            return new List<FinanceDocRow>();
+
+        var invoiceIds = invoices.Select(i => i.Id).ToList();
+        var invItems = await _db.FinancePurchaseInvoiceItems.AsNoTracking()
+            .Where(x => invoiceIds.Contains(x.FinancePurchaseInvoiceId) && x.BillAmount != 0m)
+            .Select(x => new { x.FinancePurchaseInvoiceId, x.BillAmount, x.StockInId })
+            .ToListAsync(cancellationToken);
+
+        var stockInIds = invItems
+            .Where(x => !string.IsNullOrWhiteSpace(x.StockInId))
+            .Select(x => x.StockInId!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+
+        var stockInToPoi = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (stockInIds.Count > 0)
+        {
+            var stockLinks = await _db.StockItems.AsNoTracking()
+                .Where(si => stockInIds.Contains(si.StockInId!)
+                             && si.PurchaseOrderItemId != null
+                             && si.PurchaseOrderItemId != "")
+                .Select(si => new { si.StockInId, si.PurchaseOrderItemId })
+                .ToListAsync(cancellationToken);
+            foreach (var link in stockLinks)
+            {
+                if (string.IsNullOrWhiteSpace(link.StockInId) || string.IsNullOrWhiteSpace(link.PurchaseOrderItemId))
+                    continue;
+                stockInToPoi.TryAdd(link.StockInId.Trim(), link.PurchaseOrderItemId.Trim());
+            }
+        }
+
+        var poiIds = stockInToPoi.Values.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var poiById = poiIds.Count == 0
+            ? new Dictionary<string, (decimal Cost, decimal ConvertPrice, short Currency)>(StringComparer.OrdinalIgnoreCase)
+            : await _db.PurchaseOrderItems.AsNoTracking()
+                .Where(oi => poiIds.Contains(oi.Id))
+                .Select(oi => new { oi.Id, oi.Cost, oi.ConvertPrice, oi.Currency })
+                .ToDictionaryAsync(
+                    x => x.Id,
+                    x => (x.Cost, x.ConvertPrice, x.Currency),
+                    StringComparer.OrdinalIgnoreCase,
+                    cancellationToken);
+
+        var itemsByInvoice = invItems
+            .GroupBy(x => x.FinancePurchaseInvoiceId, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+        var rows = new List<FinanceDocRow>();
+        foreach (var inv in invoices)
+        {
+            if (itemsByInvoice.TryGetValue(inv.Id, out var its) && its.Count > 0)
+            {
+                foreach (var it in its)
+                {
+                    decimal price = 0m, convertPrice = 0m;
+                    short currency = (short)CurrencyCode.RMB;
+                    if (!string.IsNullOrWhiteSpace(it.StockInId)
+                        && stockInToPoi.TryGetValue(it.StockInId.Trim(), out var poiId)
+                        && poiById.TryGetValue(poiId, out var poi))
+                    {
+                        price = poi.Cost;
+                        convertPrice = poi.ConvertPrice;
+                        if (poi.Currency != 0) currency = poi.Currency;
+                    }
+
+                    rows.Add(new FinanceDocRow
+                    {
+                        Date = inv.InvoiceDate!.Value,
+                        Currency = currency,
+                        LocalAmount = it.BillAmount,
+                        Price = price,
+                        ConvertPrice = convertPrice
+                    });
+                }
+            }
+            else
+            {
+                rows.Add(new FinanceDocRow
+                {
+                    Date = inv.InvoiceDate!.Value,
+                    Currency = (short)CurrencyCode.RMB,
+                    LocalAmount = inv.InvoiceAmount
+                });
+            }
+        }
+
+        return rows;
     }
 
     private async Task<List<FinanceDocRow>> LoadSellInvoiceRowsAsync(
@@ -363,23 +552,82 @@ public sealed class FinanceAnalyticsQuery : IFinanceAnalyticsQuery
             from inv in q
             join c in customers on inv.CustomerId equals c.Id into cj
             from c in cj.DefaultIfEmpty()
-            select new { inv.MakeInvoiceDate, inv.InvoiceTotal, SalesUserId = c != null ? c.SalesUserId : null }
+            select new
+            {
+                inv.Id,
+                inv.MakeInvoiceDate,
+                inv.InvoiceTotal,
+                Currency = (short)inv.Currency,
+                SalesUserId = c != null ? c.SalesUserId : null
+            }
         ).ToListAsync(cancellationToken);
 
-        return invoices
+        invoices = invoices
             .Where(i => i.MakeInvoiceDate.HasValue && PassesSalesAttributionLens(scope, i.SalesUserId))
-            .Select(i => new FinanceDocRow
-            {
-                Date = i.MakeInvoiceDate!.Value,
-                Currency = (short)CurrencyCode.RMB,
-                LocalAmount = i.InvoiceTotal
-            })
             .ToList();
+        if (invoices.Count == 0)
+            return new List<FinanceDocRow>();
+
+        var invoiceIds = invoices.Select(i => i.Id).ToList();
+        var items = await (
+            from item in _db.SellInvoiceItems.AsNoTracking()
+            where invoiceIds.Contains(item.FinanceSellInvoiceId) && item.InvoiceTotal != 0m
+            join ext in _db.StockOutItemExtends.AsNoTracking() on item.StockOutItemId equals ext.Id into extJoin
+            from ext in extJoin.DefaultIfEmpty()
+            join oi in _db.SellOrderItems.AsNoTracking() on ext.SellOrderItemId equals oi.Id into oiJoin
+            from oi in oiJoin.DefaultIfEmpty()
+            select new
+            {
+                item.FinanceSellInvoiceId,
+                item.InvoiceTotal,
+                ItemCurrency = (short)item.Currency,
+                Price = oi != null ? oi.Price : 0m,
+                ConvertPrice = oi != null ? oi.ConvertPrice : 0m,
+                SoCurrency = oi != null ? oi.Currency : (short)0
+            }).ToListAsync(cancellationToken);
+
+        var itemsByInvoice = items
+            .GroupBy(x => x.FinanceSellInvoiceId, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+        var rows = new List<FinanceDocRow>();
+        foreach (var inv in invoices)
+        {
+            if (itemsByInvoice.TryGetValue(inv.Id, out var its) && its.Count > 0)
+            {
+                foreach (var it in its)
+                {
+                    var currency = it.ItemCurrency != 0
+                        ? it.ItemCurrency
+                        : (it.SoCurrency != 0 ? it.SoCurrency : inv.Currency);
+                    if (currency == 0) currency = (short)CurrencyCode.RMB;
+
+                    rows.Add(new FinanceDocRow
+                    {
+                        Date = inv.MakeInvoiceDate!.Value,
+                        Currency = currency,
+                        LocalAmount = it.InvoiceTotal,
+                        Price = it.Price,
+                        ConvertPrice = it.ConvertPrice
+                    });
+                }
+            }
+            else
+            {
+                rows.Add(new FinanceDocRow
+                {
+                    Date = inv.MakeInvoiceDate!.Value,
+                    Currency = inv.Currency != 0 ? inv.Currency : (short)CurrencyCode.RMB,
+                    LocalAmount = inv.InvoiceTotal
+                });
+            }
+        }
+
+        return rows;
     }
 
     private FinanceAnalyticsMoneyDto BuildMoney(IEnumerable<FinanceDocRow> rows, FinanceAnalyticsResolvedScope scope) =>
-        BuildMoney(rows.Select(r => FinanceAnalyticsMoneyBuilder.FromLocal(
-            r.LocalAmount, r.Currency, scope.UsdToCny, scope.UsdToHkd, scope.UsdToEur)), scope);
+        BuildMoney(rows.Select(r => r.ToMoneyRow(scope)), scope);
 
     private async Task<IQueryable<PurchaseOrder>> BuildPurchaseOrderQueryAsync(
         string userId,
@@ -786,6 +1034,8 @@ public sealed class FinanceAnalyticsQuery : IFinanceAnalyticsQuery
         public string? SalesUserId { get; init; }
         public short Currency { get; init; }
         public decimal VerifiedToBe { get; init; }
+        public decimal Price { get; init; }
+        public decimal ConvertPrice { get; init; }
     }
 
     private sealed class FinanceDocRow
@@ -793,5 +1043,26 @@ public sealed class FinanceAnalyticsQuery : IFinanceAnalyticsQuery
         public DateTime Date { get; init; }
         public short Currency { get; init; }
         public decimal LocalAmount { get; init; }
+        public decimal Price { get; init; }
+        public decimal ConvertPrice { get; init; }
+        /// <summary>已有折算美金（如收款明细 ReceiptConvertAmount）时直接使用。</summary>
+        public decimal? UsdOverride { get; init; }
+
+        public FinanceAnalyticsMoneyBuilder.Row ToMoneyRow(FinanceAnalyticsResolvedScope scope)
+        {
+            if (UsdOverride.HasValue)
+            {
+                return new FinanceAnalyticsMoneyBuilder.Row
+                {
+                    Currency = Currency,
+                    LocalAmount = LocalAmount,
+                    UsdAmount = Math.Round(UsdOverride.Value, 2, MidpointRounding.AwayFromZero)
+                };
+            }
+
+            return FinanceAnalyticsMoneyBuilder.FromExtend(
+                LocalAmount, Currency, Price, ConvertPrice,
+                scope.UsdToCny, scope.UsdToHkd, scope.UsdToEur);
+        }
     }
 }

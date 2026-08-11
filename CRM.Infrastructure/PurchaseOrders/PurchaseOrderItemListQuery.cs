@@ -13,11 +13,16 @@ public sealed partial class PurchaseOrderItemListQuery : IPurchaseOrderItemListQ
 
     private readonly ApplicationDbContext _db;
     private readonly IDataPermissionService _dataPermission;
+    private readonly IFinanceExchangeRateService _exchangeRateService;
 
-    public PurchaseOrderItemListQuery(ApplicationDbContext db, IDataPermissionService dataPermission)
+    public PurchaseOrderItemListQuery(
+        ApplicationDbContext db,
+        IDataPermissionService dataPermission,
+        IFinanceExchangeRateService exchangeRateService)
     {
         _db = db;
         _dataPermission = dataPermission;
+        _exchangeRateService = exchangeRateService;
     }
 
     /// <inheritdoc />
