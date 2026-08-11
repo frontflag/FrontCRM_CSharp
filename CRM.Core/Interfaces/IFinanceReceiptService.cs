@@ -80,6 +80,8 @@ namespace CRM.Core.Interfaces
         public short? Status { get; set; }
         /// <summary>收款用途：10 普通 / 20 预收（筛主表 ReceiptPurpose）。</summary>
         public short? ReceiptPurpose { get; set; }
+        /// <summary>整单核销状态：0未核销 / 1部分核销 / 2核销完成（按明细 VerificationStatus 汇总）。</summary>
+        public short? VerificationStatus { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
         public int Page { get; set; } = 1;

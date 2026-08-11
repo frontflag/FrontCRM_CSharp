@@ -131,6 +131,8 @@ export interface FinanceReceipt {
   remark?: string
   /** 列表汇总：10普通 20预收 */
   receiptPurpose?: number
+  /** 列表汇总整单核销状态：0未核销 1部分核销 2核销完成 */
+  verificationStatus?: number
   isFreightForwarderPayment?: boolean
   freightForwarderCompanyId?: string | null
   freightForwarderCompanyName?: string | null
@@ -381,6 +383,8 @@ export interface PageQuery {
   status?: number
   /** 收款用途：10 普通 / 20 预收 */
   receiptPurpose?: number
+  /** 整单核销状态：0未核销 1部分核销 2核销完成 */
+  verificationStatus?: number
   startDate?: string
   endDate?: string
 }

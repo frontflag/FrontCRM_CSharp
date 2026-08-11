@@ -64,6 +64,21 @@
             :value="v"
           />
         </el-select>
+        <el-select
+          v-if="tabModeDimension !== 'verificationStatus'"
+          v-model="query.verificationStatus"
+          :placeholder="t('financeReceiptList.filters.verificationStatus')"
+          clearable
+          class="filter-select"
+          @change="loadData"
+        >
+          <el-option
+            v-for="v in FR_VERIFICATION_TAB_VALUES"
+            :key="v"
+            :label="verificationStatusLabel(v)"
+            :value="v"
+          />
+        </el-select>
         <el-date-picker
           v-model="dateRange"
           type="daterange"
@@ -177,6 +192,15 @@
       <template #col-status="{ row }">
         <el-tag effect="dark" :type="receiptStatusTag(row.status) as any" size="small">
           {{ receiptStatusLabel(row.status) }}
+        </el-tag>
+      </template>
+      <template #col-verificationStatus="{ row }">
+        <el-tag
+          effect="dark"
+          size="small"
+          :type="verificationStatusTagType(row.verificationStatus)"
+        >
+          {{ verificationStatusLabel(row.verificationStatus ?? 0) }}
         </el-tag>
       </template>
       <template #col-receiptPurpose="{ row }">
@@ -535,15 +559,19 @@ import {
   FINANCE_RECEIPT_LIST_TAB_MODE_OPTIONS,
   FR_STATUS_TAB_VALUES,
   FR_PURPOSE_TAB_VALUES,
+  FR_VERIFICATION_TAB_VALUES,
   readFinanceReceiptListTabMode,
   writeFinanceReceiptListTabMode,
   frStatusFilterToTab,
   frStatusTabToFilter,
   frPurposeFilterToTab,
   frPurposeTabToFilter,
+  frVerificationFilterToTab,
+  frVerificationTabToFilter,
   type FinanceReceiptListTabModeDimension,
   type FrStatusTabId,
-  type FrPurposeTabId
+  type FrPurposeTabId,
+  type FrVerificationTabId
 } from '@/utils/financeReceiptListTabMode'
 import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
@@ -582,12 +610,19 @@ const { t } = useI18n()
 const authStore = useAuthStore()
 const { canWriteFinanceReceipt } = useFinanceWriteGate()
 const canForceDelete = computed(() => authStore.canForceDelete())
-const { receiptStatusLabel, receiptStatusTag, paymentModeLabel } = useFinanceEnumLabels()
+const { receiptStatusLabel, receiptStatusTag, paymentModeLabel, verificationStatusLabel } =
+  useFinanceEnumLabels()
 
 function receiptPurposeLabel(purpose?: number) {
   return purpose === 20
     ? t('financeReceiptList.purposeAdvance')
     : t('financeReceiptList.purposeNormal')
+}
+
+function verificationStatusTagType(status?: number): 'info' | 'warning' | 'success' {
+  if (status === 2) return 'success'
+  if (status === 1) return 'warning'
+  return 'info'
 }
 
 const receiptStatusSelectKeys = Object.keys(RECEIPT_STATUS_MAP).map(k => Number(k))
@@ -645,6 +680,7 @@ const query = reactive<PageQuery & { page: number; pageSize: number }>({
   keyword: '',
   status: undefined,
   receiptPurpose: undefined,
+  verificationStatus: undefined,
   startDate: undefined,
   endDate: undefined
 })
@@ -660,7 +696,8 @@ const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 
 const TAB_MODE_FILTER_I18N: Record<Exclude<FinanceReceiptListTabModeDimension, 'off'>, string> = {
   status: 'financeReceiptList.filters.status',
-  receiptPurpose: 'financeReceiptList.filters.purpose'
+  receiptPurpose: 'financeReceiptList.filters.purpose',
+  verificationStatus: 'financeReceiptList.filters.verificationStatus'
 }
 
 function tabModeDimensionLabel(dim: Exclude<FinanceReceiptListTabModeDimension, 'off'>) {
@@ -693,7 +730,7 @@ const filterTabStripAriaLabel = computed(() => {
   return tabModeDimensionLabel(tabModeDimension.value)
 })
 
-type FrFilterTabId = FrStatusTabId | FrPurposeTabId
+type FrFilterTabId = FrStatusTabId | FrPurposeTabId | FrVerificationTabId
 
 const filterTabOptions = computed(() => {
   const dim = tabModeDimension.value
@@ -704,6 +741,15 @@ const filterTabOptions = computed(() => {
       ...FR_STATUS_TAB_VALUES.map((value) => ({
         id: String(value) as FrStatusTabId,
         label: receiptStatusLabel(value)
+      }))
+    ]
+  }
+  if (dim === 'verificationStatus') {
+    return [
+      { id: 'all' as const, label: t('financeReceiptList.filterTabs.all') },
+      ...FR_VERIFICATION_TAB_VALUES.map((value) => ({
+        id: String(value) as FrVerificationTabId,
+        label: verificationStatusLabel(value)
       }))
     ]
   }
@@ -720,6 +766,7 @@ const activeFilterTabId = computed((): FrFilterTabId => {
   const dim = tabModeDimension.value
   if (dim === 'status') return frStatusFilterToTab(query.status)
   if (dim === 'receiptPurpose') return frPurposeFilterToTab(query.receiptPurpose)
+  if (dim === 'verificationStatus') return frVerificationFilterToTab(query.verificationStatus)
   return 'all'
 })
 
@@ -729,6 +776,13 @@ function onFilterTabClick(tab: FrFilterTabId) {
     const next = frStatusTabToFilter(tab as FrStatusTabId)
     if (query.status === next) return
     query.status = next
+    void loadData()
+    return
+  }
+  if (dim === 'verificationStatus') {
+    const next = frVerificationTabToFilter(tab as FrVerificationTabId)
+    if (query.verificationStatus === next) return
+    query.verificationStatus = next
     void loadData()
     return
   }
@@ -756,6 +810,13 @@ const receiptTableColumns = computed<CrmTableColumnDef[]>(() => {
   void customerExtendColWidth.value
   return [
   { key: 'status', label: t('financeReceiptList.columns.status'), prop: 'status', width: 100, align: 'center' },
+  {
+    key: 'verificationStatus',
+    label: t('financeReceiptList.columns.verificationStatus'),
+    prop: 'verificationStatus',
+    width: 100,
+    align: 'center'
+  },
   { key: 'receiptPurpose', label: t('financeReceiptList.columns.purpose'), prop: 'receiptPurpose', width: 90, align: 'center' },
   {
     key: 'customer',

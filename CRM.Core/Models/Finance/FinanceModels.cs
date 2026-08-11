@@ -295,6 +295,13 @@ namespace CRM.Core.Models.Finance
         [NotMapped]
         public short ReceiptPurpose { get; set; } = FinanceReceiptPurposeCode.Normal;
 
+        /// <summary>
+        /// 列表汇总核销状态（不落库）：0未核销 1部分核销 2核销完成。
+        /// 无明细视为未核销；有明细时全部为 0/2 则为对应值，否则为部分核销。
+        /// </summary>
+        [NotMapped]
+        public short VerificationStatus { get; set; }
+
         /// <summary>是否货代付款收款（转付货代台账）</summary>
         [Column("is_freight_forwarder_payment")]
         public bool IsFreightForwarderPayment { get; set; }

@@ -8946,6 +8946,7 @@ const enUS = {
       keyword: 'Receipt code / customer',
       status: 'Status',
       purpose: 'Purpose',
+      verificationStatus: 'Write-off status',
       to: 'to',
       startDate: 'Start date',
       endDate: 'End date',
@@ -8972,6 +8973,7 @@ const enUS = {
     columns: {
       code: 'Receipt code',
       status: 'Status',
+      verificationStatus: 'Write-off status',
       purpose: 'Type',
       customer: 'Customer',
       amount: 'Amount',

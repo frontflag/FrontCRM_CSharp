@@ -2,13 +2,13 @@
 
 const TAB_MODE_KEY = 'crm.finance-receipt-list.tab-mode'
 
-export type FinanceReceiptListTabModeDimension = 'off' | 'status' | 'receiptPurpose'
+export type FinanceReceiptListTabModeDimension = 'off' | 'status' | 'receiptPurpose' | 'verificationStatus'
 
 /** 可在「页签模式」子菜单中选择的维度（不含 off） */
 export const FINANCE_RECEIPT_LIST_TAB_MODE_OPTIONS: Exclude<
   FinanceReceiptListTabModeDimension,
   'off'
->[] = ['status', 'receiptPurpose']
+>[] = ['status', 'receiptPurpose', 'verificationStatus']
 
 const TAB_MODE_SET = new Set<string>(['off', ...FINANCE_RECEIPT_LIST_TAB_MODE_OPTIONS])
 
@@ -67,5 +67,22 @@ export function frPurposeTabToFilter(tab: FrPurposeTabId): number | undefined {
   if (tab === 'all') return undefined
   const n = Number(tab)
   if (n === 10 || n === 20) return n
+  return undefined
+}
+
+/** 0 未核销 / 1 部分核销 / 2 核销完成（整单汇总） */
+export const FR_VERIFICATION_TAB_VALUES = [0, 1, 2] as const
+
+export type FrVerificationTabId = 'all' | '0' | '1' | '2'
+
+export function frVerificationFilterToTab(value: number | undefined | null): FrVerificationTabId {
+  if (value === 0 || value === 1 || value === 2) return String(value) as FrVerificationTabId
+  return 'all'
+}
+
+export function frVerificationTabToFilter(tab: FrVerificationTabId): number | undefined {
+  if (tab === 'all') return undefined
+  const n = Number(tab)
+  if (n === 0 || n === 1 || n === 2) return n
   return undefined
 }

@@ -8930,6 +8930,7 @@ const zhCN = {
       keyword: '搜索收款单号/客户',
       status: '状态',
       purpose: '收款用途',
+      verificationStatus: '核销状态',
       to: '至',
       startDate: '开始日期',
       endDate: '结束日期',
@@ -8956,6 +8957,7 @@ const zhCN = {
     columns: {
       code: '收款单号',
       status: '状态',
+      verificationStatus: '核销状态',
       purpose: '类型',
       customer: '客户',
       amount: '收款金额',
