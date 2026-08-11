@@ -171,6 +171,8 @@ declare module 'vue' {
     QcSearchPanel: typeof import('./src/components/Logistics/QcSearchPanel.vue')['default']
     QuoteDesktopQueuePanel: typeof import('./src/components/RFQ/QuoteDesktopQueuePanel.vue')['default']
     QuoteHistoryPanel: typeof import('./src/components/RFQ/QuoteHistoryPanel.vue')['default']
+    ReceiptWriteOffDesktopQueuePanel: typeof import('./src/components/Finance/ReceiptWriteOffDesktopQueuePanel.vue')['default']
+    ReceiptWriteOffStockOutPanel: typeof import('./src/components/Finance/ReceiptWriteOffStockOutPanel.vue')['default']
     RecentHistoryList: typeof import('./src/components/workspace/RecentHistoryList.vue')['default']
     RegionCascaderWithQuickPick: typeof import('./src/components/RegionCascaderWithQuickPick.vue')['default']
     ReportLetterheadSelect: typeof import('./src/components/Common/ReportLetterheadSelect.vue')['default']

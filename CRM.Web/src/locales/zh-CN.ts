@@ -8945,7 +8945,7 @@ const zhCN = {
       all: '全部'
     },
     create: '新建收款单',
-    goWriteOff: '收款核销',
+    goWriteOffDesktop: '收款核销桌面',
     purposeNormal: '普通',
     purposeAdvance: '预收',
     stats: {
@@ -9192,6 +9192,51 @@ const zhCN = {
       amount: '销售总额'
     }
   },
+  receiptWriteOffDesktop: {
+    title: '收款核销桌面',
+    leftTab: '待核销客户',
+    tabs: {
+      stockOut: '出库单'
+    },
+    stockOut: {
+      empty: '请在待核销应收列表中选择一行',
+      stockOutCode: '出库单号',
+      stockOutDate: '出库日期',
+      customerName: '客户中文名称',
+      customerEnglishName: '客户英文名称',
+      salesUser: '业务员',
+      outboundQty: '出库数量',
+      amount: '出库金额',
+      verifiedDone: '已核销金额',
+      verifiedToBe: '待核销金额'
+    },
+    nav: {
+      prev: '上一客户',
+      next: '下一客户'
+    },
+    stats: {
+      line: '共 {n} 条待核销客户，{m} 条待核销记录'
+    },
+    queue: {
+      searchPh: '客户中文名/英文名/编号/业务员',
+      search: '搜索',
+      salesUser: '业务员',
+      pendingTotal: '待核销总额',
+      receiptCount: '待核销收款 {n} 条',
+      sortEarliest: '最早收款日期',
+      sortLatest: '最近收款日期',
+      sortTip: '排序：{field}'
+    },
+    empty: {
+      queue: '暂无待核销客户（需同时有待核销收款与待核销应收）',
+      workspace: '请在左侧选择待核销客户'
+    },
+    messages: {
+      loadFailed: '加载待核销客户失败',
+      refreshFailed: '刷新待核销队列失败',
+      focusMissed: '未找到指定客户核销项'
+    }
+  },
   financeReceiptWriteOff: {
     pageTitle: '收款核销',
     openLedger: '收款核销流水',
@@ -9211,6 +9256,10 @@ const zhCN = {
     autoFillNoRows: '暂无待核销应收记录',
     dragLeftWidth: '拖拽调整客户栏宽度',
     dragCenterWidth: '拖拽调整收款栏宽度',
+    dragCenterHeight: '拖拽调整收款栏高度',
+    panelsLayoutGroup: '收款与应收排列',
+    panelsLayoutRow: '左右排列：待核销收款与待核销应收并排',
+    panelsLayoutColumn: '上下排列：待核销收款在上、待核销应收在下',
     customerSearchPh: '中文名 / 英文名 / 业务员账号',
     customerSearchBtn: '查找',
     customerSearchClear: '清除',

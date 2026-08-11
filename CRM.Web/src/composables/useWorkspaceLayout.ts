@@ -237,7 +237,14 @@ export function useWorkspaceLayout() {
   }
 
   const preferRightOpsTabOnExpand = () => {
-    if (rightTabs.value.some((t) => t.id === 'r-ops')) rightActiveTabId.value = 'r-ops'
+    if (rightTabs.value.some((t) => t.id === 'r-ops')) {
+      rightActiveTabId.value = 'r-ops'
+      return
+    }
+    // 收款核销桌面：展开右栏默认「出库单」
+    if (rightTabs.value.some((t) => t.id === 'r-rwo-stock-out')) {
+      rightActiveTabId.value = 'r-rwo-stock-out'
+    }
   }
 
   const toggleLeftPanel = (visible?: boolean) => {

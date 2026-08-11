@@ -70,6 +70,7 @@ public class FinanceReceivableWriteOffCandidateRow
     public string SellOrderItemId { get; set; } = string.Empty;
     public string CustomerId { get; set; } = string.Empty;
     public string? CustomerName { get; set; }
+    public string? CustomerEnglishName { get; set; }
     public string? SalesUserId { get; set; }
     public string? SalesUserName { get; set; }
     public string? PN { get; set; }

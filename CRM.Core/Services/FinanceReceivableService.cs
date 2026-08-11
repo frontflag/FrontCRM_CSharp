@@ -870,6 +870,7 @@ public class FinanceReceivableService : IFinanceReceivableService
             SellOrderItemId = receivable.SellOrderItemId,
             CustomerId = receivable.CustomerId,
             CustomerName = receivable.CustomerName,
+            CustomerEnglishName = receivable.CustomerEnglishName,
             SalesUserId = receivable.SalesUserId,
             PN = receivable.PN,
             Brand = receivable.Brand,

@@ -1,6 +1,12 @@
 <template>
   <div class="finance-page">
-    <h1 class="finance-list-page-title">{{ t('financeReceiptList.pageTitle') }}</h1>
+    <div class="fr-list-page-header">
+      <h1 class="finance-list-page-title">{{ t('financeReceiptList.pageTitle') }}</h1>
+      <button type="button" class="btn-write-off-desktop" @click="goWriteOffDesktop">
+        <span>{{ t('financeReceiptList.goWriteOffDesktop') }}</span>
+        <el-icon class="btn-write-off-desktop__arrow"><ArrowRight /></el-icon>
+      </button>
+    </div>
     <!-- 统计卡片（置顶：在筛选栏与表格之上） -->
     <div class="stat-cards">
       <div class="stat-card">
@@ -145,7 +151,6 @@
         </el-popover>
       </div>
       <div class="search-right">
-        <el-button @click="goWriteOff">{{ t('financeReceiptList.goWriteOff') }}</el-button>
         <el-button v-if="canWriteFinanceReceipt" type="primary" @click="openCreate">
           <el-icon><Plus /></el-icon> {{ t('financeReceiptList.create') }}
         </el-button>
@@ -949,8 +954,8 @@ async function searchSo(keyword: string) {
   }
 }
 
-function goWriteOff() {
-  router.push({ name: 'FinanceReceiptWriteOff' })
+function goWriteOffDesktop() {
+  router.push({ name: 'ReceiptWriteOffDesktop' })
 }
 
 const openCreate = () => {
@@ -1212,6 +1217,44 @@ onMounted(async () => {
 <style lang="scss" scoped>
 @use '@/assets/styles/variables' as vars;
 @import './finance-common.scss';
+
+.fr-list-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.btn-write-off-desktop {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px 8px 18px;
+  border: none;
+  border-radius: 10px;
+  background: #eaf5ff;
+  color: #1a2332;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: 'Noto Sans SC', sans-serif;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+
+  &:hover {
+    background: #ddefff;
+    color: #0f172a;
+  }
+
+  &:active {
+    background: #d0e8ff;
+  }
+
+  &__arrow {
+    font-size: 14px;
+  }
+}
 
 .select-hint {
   padding: 8px 12px;

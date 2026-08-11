@@ -154,6 +154,7 @@ public static class TelemetryCatalog
             ["FinanceFreightForwarderPayableDetail"] = "货代应付详情",
             ["FreightForwarderCompanyManage"] = "货代公司",
             ["FinanceReceiptWriteOff"] = "收款核销",
+            ["ReceiptWriteOffDesktop"] = "收款核销桌面",
             ["FinanceReceiptWriteOffLedger"] = "核销台账",
             ["FinancePurchaseInvoiceList"] = "采购发票",
             ["FinancePurchaseInvoiceDetail"] = "采购发票详情",

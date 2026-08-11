@@ -79,6 +79,7 @@ export interface FinanceReceivableWriteOffCandidateRow {
   sellOrderItemId: string
   customerId: string
   customerName?: string
+  customerEnglishName?: string
   salesUserId?: string
   salesUserName?: string
   pn?: string

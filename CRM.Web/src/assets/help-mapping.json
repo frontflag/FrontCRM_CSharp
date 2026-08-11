@@ -98,6 +98,7 @@
     { "routeName": "FinanceReceiptDetail", "pageId": "finance" },
     { "routeName": "FinanceReceiptWriteOff", "pageId": "finance" },
     { "routeName": "FinanceReceiptWriteOffLedger", "pageId": "finance" },
+    { "routeName": "ReceiptWriteOffDesktop", "pageId": "finance" },
     { "routeName": "FinanceFreightForwarderPayableList", "pageId": "finance" },
     { "routeName": "FinanceFreightForwarderPayableDetail", "pageId": "finance" },
     { "routeName": "FreightForwarderCompanyManage", "pageId": "finance" },

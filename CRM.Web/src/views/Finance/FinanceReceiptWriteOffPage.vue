@@ -1,6 +1,6 @@
 <template>
-  <div class="finance-page write-off-page">
-    <div class="write-off-page-header">
+  <div class="finance-page write-off-page" :class="{ 'write-off-page--embedded': embedded }">
+    <div v-if="!embedded" class="write-off-page-header">
       <h1 class="finance-list-page-title">{{ t('financeReceiptWriteOff.pageTitle') }}</h1>
       <el-button type="primary" plain @click="goWriteOffLedger">
         {{ t('financeReceiptWriteOff.openLedger') }}
@@ -14,8 +14,14 @@
       </el-tag>
     </div>
 
-    <div ref="layoutRef" class="write-off-layout" :class="{ 'is-resizing': !!dragging }" v-loading="loading">
+    <div
+      ref="layoutRef"
+      class="write-off-layout"
+      :class="{ 'is-resizing': !!dragging, 'write-off-layout--embedded': embedded }"
+      v-loading="loading"
+    >
       <aside
+        v-if="!embedded"
         class="info-section write-off-panel write-off-panel--left"
         :class="{ 'is-collapsed': leftPanelCollapsed }"
         :style="leftPanelStyle"
@@ -172,13 +178,20 @@
       </aside>
 
       <div
-        v-if="!leftPanelCollapsed"
+        v-if="!embedded && !leftPanelCollapsed"
         class="col-splitbar"
         :class="{ 'is-dragging': dragging === 'left' }"
         :title="t('financeReceiptWriteOff.dragLeftWidth')"
         @mousedown="onSplitStart('left', $event)"
       />
 
+      <div
+        ref="mainPairRef"
+        class="write-off-main-pair"
+        :class="
+          panelsLayout === 'column' ? 'write-off-main-pair--column' : 'write-off-main-pair--row'
+        "
+      >
       <section class="info-section write-off-panel write-off-panel--center" :style="centerPanelStyle">
         <div class="section-header">
           <div class="section-header__main">
@@ -187,6 +200,40 @@
             <span v-if="selectedCustomerId && filteredReceiptItems.length" class="section-count">
               {{ filteredReceiptItems.length }}
             </span>
+          </div>
+          <div class="section-header__layout" role="group" :aria-label="t('financeReceiptWriteOff.panelsLayoutGroup')">
+            <el-tooltip :content="t('financeReceiptWriteOff.panelsLayoutRow')" placement="top" :hide-after="0">
+              <el-button
+                class="panels-layout-btn"
+                :class="{ 'is-active': panelsLayout === 'row' }"
+                text
+                circle
+                size="small"
+                :aria-pressed="panelsLayout === 'row'"
+                @click="setPanelsLayout('row')"
+              >
+                <svg class="panels-layout-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                  <rect x="4" y="3" width="6" height="18" rx="1.2" fill="currentColor" />
+                  <rect x="14" y="3" width="6" height="18" rx="1.2" fill="currentColor" />
+                </svg>
+              </el-button>
+            </el-tooltip>
+            <el-tooltip :content="t('financeReceiptWriteOff.panelsLayoutColumn')" placement="top" :hide-after="0">
+              <el-button
+                class="panels-layout-btn"
+                :class="{ 'is-active': panelsLayout === 'column' }"
+                text
+                circle
+                size="small"
+                :aria-pressed="panelsLayout === 'column'"
+                @click="setPanelsLayout('column')"
+              >
+                <svg class="panels-layout-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                  <rect x="3" y="4" width="18" height="6" rx="1.2" fill="currentColor" />
+                  <rect x="3" y="14" width="18" height="6" rx="1.2" fill="currentColor" />
+                </svg>
+              </el-button>
+            </el-tooltip>
           </div>
         </div>
         <div class="detail-panel-section-body write-off-panel__body">
@@ -229,7 +276,7 @@
               height="100%"
               :row-class-name="receiptRowClassName"
               :row-key="receiptRowKey"
-              @row-dblclick="onReceiptRowDblClick"
+              @row-click="onReceiptRowSelect"
             >
             <el-table-column :label="t('financeReceiptWriteOff.colReceiptDate')" width="108">
               <template #default="{ row }">{{ formatDate(row.receiptDate) }}</template>
@@ -291,9 +338,17 @@
       </section>
 
       <div
-        class="col-splitbar"
-        :class="{ 'is-dragging': dragging === 'center' }"
-        :title="t('financeReceiptWriteOff.dragCenterWidth')"
+        class="pair-splitbar"
+        :class="{
+          'pair-splitbar--col': panelsLayout === 'row',
+          'pair-splitbar--row': panelsLayout === 'column',
+          'is-dragging': dragging === 'center'
+        }"
+        :title="
+          panelsLayout === 'column'
+            ? t('financeReceiptWriteOff.dragCenterHeight')
+            : t('financeReceiptWriteOff.dragCenterWidth')
+        "
         @mousedown="onSplitStart('center', $event)"
       />
 
@@ -331,7 +386,12 @@
               </el-button>
             </div>
           </div>
-          <div class="detail-items-table-wrap">
+          <div
+            class="receivable-main"
+            :class="{ 'is-overflow': receivableListOverflow }"
+          >
+          <div ref="receivableScrollRef" class="receivable-scroll">
+          <div class="detail-items-table-wrap detail-items-table-wrap--receivable">
             <DetailListPanelEmpty
               v-if="!selectedCustomerId"
               size="medium"
@@ -339,11 +399,15 @@
             />
             <el-table
               v-else
+              ref="receivableTableRef"
               :data="filteredReceivableRows"
               class="detail-panel-list-table receivable-panel-table"
               size="small"
               stripe
-              height="100%"
+              :highlight-current-row="embedded"
+              :row-class-name="receivableRowClassName"
+              @row-click="onReceivableRowClick"
+              @current-change="onReceivableCurrentChange"
             >
             <el-table-column
               prop="receivableCode"
@@ -415,23 +479,38 @@
             </el-table-column>
           </el-table>
           </div>
+          </div>
+          <div
+            v-if="selectedCustomerId && canWriteFinanceReceipt"
+            class="receivable-submit-bar"
+          >
+            <el-button
+              v-if="!embedded"
+              @click="router.push({ name: 'FinanceReceivableList' })"
+            >
+              {{ t('financeReceiptWriteOff.back') }}
+            </el-button>
+            <el-button type="primary" :loading="submitting" @click="submitWriteOff">
+              {{ t('financeReceiptWriteOff.submit') }}
+            </el-button>
+          </div>
+          </div>
         </div>
       </section>
-    </div>
-
-    <div v-if="selectedCustomerId && canWriteFinanceReceipt" class="footer-actions">
-      <el-button @click="router.push({ name: 'FinanceReceivableList' })">
-        {{ t('financeReceiptWriteOff.back') }}
-      </el-button>
-      <el-button type="primary" :loading="submitting" @click="submitWriteOff">
-        {{ t('financeReceiptWriteOff.submit') }}
-      </el-button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch
+} from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -458,14 +537,41 @@ import { useWriteOffReceiptDateExtendColumn } from '@/composables/useWriteOffRec
 import type { CustomerExtendRowSlice } from '@/constants/listCustomerExtendColumnSpec'
 import type { WriteOffReceiptDateRowSlice } from '@/constants/writeOffReceiptDateExtendColumnSpec'
 import { pickCrmCopyableRowField } from '@/utils/crmListCopyableField'
+import { useReceiptWriteOffDesktopQueueStore } from '@/stores/receiptWriteOffDesktopQueue'
+import {
+  readReceiptWriteOffPanelsLayout,
+  writeReceiptWriteOffPanelsLayout,
+  type ReceiptWriteOffPanelsLayout
+} from '@/utils/receiptWriteOffPanelsLayout'
 
 type ReceivableWriteOffRow = FinanceReceivableWriteOffCandidateRow & {
   writeOffAmount: number
   poolAmount: number
 }
 
+const props = withDefaults(
+  defineProps<{
+    /** 收款核销桌面嵌入：隐藏左栏客户列表与页头 */
+    embedded?: boolean
+    embedCustomerId?: string
+    embedCurrency?: number | null
+    embedSummary?: FinanceWriteOffCustomerSummary | null
+  }>(),
+  {
+    embedded: false,
+    embedCustomerId: '',
+    embedCurrency: null,
+    embedSummary: null
+  }
+)
+
+const emit = defineEmits<{
+  applied: []
+}>()
+
 const { t } = useI18n()
 const router = useRouter()
+const receiptWriteOffDesktopQueueStore = useReceiptWriteOffDesktopQueueStore()
 const { canWriteFinanceReceipt } = useFinanceWriteGate()
 const { paymentModeLabel } = useFinanceEnumLabels()
 const {
@@ -485,14 +591,18 @@ const {
 
 const leftPanelCollapsed = ref(false)
 const layoutRef = ref<HTMLElement | null>(null)
+const mainPairRef = ref<HTMLElement | null>(null)
 const customerTableRef = ref<{ doLayout?: () => void } | null>(null)
 const customerTableWrapRef = ref<HTMLElement | null>(null)
 const leftPanelWidthPx = ref(0)
-const centerPanelWidthPx = ref(0)
+/** 收款面板在分割轴上的尺寸：左右模式为宽度，上下模式为高度 */
+const centerPanelSizePx = ref(0)
 const dragging = ref<'left' | 'center' | null>(null)
+const panelsLayout = ref<ReceiptWriteOffPanelsLayout>(readReceiptWriteOffPanelsLayout())
 
 const SPLIT_BAR_WIDTH = 6
 const MIN_PANEL_WIDTH = 180
+const MIN_PANEL_HEIGHT = 140
 const COLLAPSED_LEFT_WIDTH = 44
 const DEFAULT_LEFT_RATIO = 0.5
 /** 左栏客户表：固定列宽 + 表格外边距，用于计算「客户」扩展列 */
@@ -535,6 +645,7 @@ const customerExtendDisplayWidth = computed(() => {
 })
 
 let dragStartX = 0
+let dragStartY = 0
 let dragStartLeft = 0
 let dragStartCenter = 0
 
@@ -542,35 +653,65 @@ function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n))
 }
 
-function splitBarCount() {
-  return leftPanelCollapsed.value ? 1 : 2
+function isColumnLayout() {
+  return panelsLayout.value === 'column'
+}
+
+/** 外层 layout 横向可用宽度（含左栏时的分割条） */
+function leftSplitBarCount() {
+  if (props.embedded) return 0
+  return leftPanelCollapsed.value ? 0 : 1
 }
 
 function usableLayoutWidth() {
   const total = layoutRef.value?.clientWidth ?? 0
-  return Math.max(0, total - SPLIT_BAR_WIDTH * splitBarCount())
+  return Math.max(0, total - SPLIT_BAR_WIDTH * leftSplitBarCount())
+}
+
+function usablePairSize() {
+  const pair = mainPairRef.value
+  if (!pair) return 0
+  if (isColumnLayout()) {
+    return Math.max(0, pair.clientHeight - SPLIT_BAR_WIDTH)
+  }
+  return Math.max(0, pair.clientWidth - SPLIT_BAR_WIDTH)
+}
+
+function centerMinSize() {
+  return isColumnLayout() ? MIN_PANEL_HEIGHT : MIN_PANEL_WIDTH
 }
 
 function initPanelWidths() {
-  const usable = usableLayoutWidth()
-  if (usable <= 0) return
-
-  if (leftPanelCollapsed.value) {
-    const half = Math.round(usable * DEFAULT_LEFT_RATIO)
-    centerPanelWidthPx.value = clamp(half, MIN_PANEL_WIDTH, usable - MIN_PANEL_WIDTH)
-    return
+  if (!props.embedded && !leftPanelCollapsed.value) {
+    const usable = usableLayoutWidth()
+    if (usable > 0) {
+      leftPanelWidthPx.value = clamp(
+        leftPanelWidthPx.value || Math.round(usable * DEFAULT_LEFT_RATIO),
+        MIN_PANEL_WIDTH,
+        Math.max(MIN_PANEL_WIDTH, usable - MIN_PANEL_WIDTH)
+      )
+    }
   }
 
-  leftPanelWidthPx.value = clamp(
-    Math.round(usable * DEFAULT_LEFT_RATIO),
-    MIN_PANEL_WIDTH,
-    usable - MIN_PANEL_WIDTH * 2
-  )
-  centerPanelWidthPx.value = clamp(
-    Math.round((usable - leftPanelWidthPx.value) * DEFAULT_LEFT_RATIO),
-    MIN_PANEL_WIDTH,
-    usable - leftPanelWidthPx.value - MIN_PANEL_WIDTH
-  )
+  void nextTick(() => {
+    const usablePair = usablePairSize()
+    if (usablePair <= 0) return
+    const min = centerMinSize()
+    const half = Math.round(usablePair * DEFAULT_LEFT_RATIO)
+    centerPanelSizePx.value = clamp(half, min, Math.max(min, usablePair - min))
+  })
+}
+
+function setPanelsLayout(layout: ReceiptWriteOffPanelsLayout) {
+  if (panelsLayout.value === layout) return
+  panelsLayout.value = layout
+  writeReceiptWriteOffPanelsLayout(layout)
+  centerPanelSizePx.value = 0
+  void nextTick(() => {
+    initPanelWidths()
+    setupReceivableScrollObserver()
+    updateReceivableListOverflow()
+  })
 }
 
 const leftPanelStyle = computed(() => {
@@ -585,33 +726,59 @@ const leftPanelStyle = computed(() => {
 })
 
 const centerPanelStyle = computed(() => {
-  const w = centerPanelWidthPx.value
-  return { width: `${w}px`, flex: `0 0 ${w}px` }
+  const size = centerPanelSizePx.value
+  if (isColumnLayout()) {
+    if (size <= 0) {
+      return { flex: '1 1 0', width: '100%', minHeight: `${MIN_PANEL_HEIGHT}px` }
+    }
+    return {
+      width: '100%',
+      height: `${size}px`,
+      flex: `0 0 ${size}px`,
+      minHeight: `${MIN_PANEL_HEIGHT}px`
+    }
+  }
+  if (size <= 0) {
+    return { flex: '1 1 0', width: 'auto', minWidth: `${MIN_PANEL_WIDTH}px` }
+  }
+  return { width: `${size}px`, flex: `0 0 ${size}px`, minWidth: `${MIN_PANEL_WIDTH}px` }
 })
 
 function onSplitStart(which: 'left' | 'center', e: MouseEvent) {
   e.preventDefault()
+  if (centerPanelSizePx.value <= 0) initPanelWidths()
   dragging.value = which
   dragStartX = e.clientX
+  dragStartY = e.clientY
   dragStartLeft = leftPanelWidthPx.value
-  dragStartCenter = centerPanelWidthPx.value
-  document.body.style.cursor = 'col-resize'
+  dragStartCenter = centerPanelSizePx.value
+  document.body.style.cursor = which === 'center' && isColumnLayout() ? 'row-resize' : 'col-resize'
   document.body.style.userSelect = 'none'
 }
 
 function onSplitMove(e: MouseEvent) {
   if (!dragging.value) return
-  const dx = e.clientX - dragStartX
-  const usable = usableLayoutWidth()
 
   if (dragging.value === 'left') {
-    const maxLeft = usable - dragStartCenter - MIN_PANEL_WIDTH
+    if (props.embedded) return
+    const dx = e.clientX - dragStartX
+    const usable = usableLayoutWidth()
+    const maxLeft = usable - MIN_PANEL_WIDTH
     leftPanelWidthPx.value = clamp(dragStartLeft + dx, MIN_PANEL_WIDTH, Math.max(MIN_PANEL_WIDTH, maxLeft))
-  } else {
-    const leftW = leftPanelCollapsed.value ? COLLAPSED_LEFT_WIDTH : leftPanelWidthPx.value
-    const maxCenter = usable - leftW - MIN_PANEL_WIDTH
-    centerPanelWidthPx.value = clamp(dragStartCenter + dx, MIN_PANEL_WIDTH, Math.max(MIN_PANEL_WIDTH, maxCenter))
+    return
   }
+
+  const min = centerMinSize()
+  const usablePair = usablePairSize()
+  const delta = isColumnLayout() ? e.clientY - dragStartY : e.clientX - dragStartX
+  const maxCenter = Math.max(min, usablePair - min)
+  // usablePairSize 已扣分割条；拖动时用当前 pair 总尺寸重算更稳
+  const pair = mainPairRef.value
+  const pairTotal = isColumnLayout()
+    ? (pair?.clientHeight ?? 0) - SPLIT_BAR_WIDTH
+    : (pair?.clientWidth ?? 0) - SPLIT_BAR_WIDTH
+  const max = Math.max(min, (pairTotal || usablePair) - min)
+  centerPanelSizePx.value = clamp(dragStartCenter + delta, min, max)
 }
 
 function onSplitEnd() {
@@ -620,6 +787,10 @@ function onSplitEnd() {
   document.body.style.cursor = ''
   document.body.style.userSelect = ''
   relayoutCustomerTable()
+  void nextTick(() => {
+    setupReceivableScrollObserver()
+    updateReceivableListOverflow()
+  })
 }
 
 function relayoutCustomerTable() {
@@ -645,11 +816,88 @@ const selectedCustomerSummary = ref<FinanceWriteOffCustomerSummary | null>(null)
 const selectedCurrency = ref<number | null>(null)
 const loading = ref(false)
 const submitting = ref(false)
+const receivableScrollRef = ref<HTMLElement | null>(null)
+const receivableTableRef = ref<{ setCurrentRow?: (row?: ReceivableWriteOffRow | null) => void } | null>(null)
+const receivableListOverflow = ref(false)
+let receivableScrollResizeObserver: ResizeObserver | null = null
+const focusedReceivableId = ref('')
 
 const receiptItems = ref<FinanceReceiptItemWriteOffCandidate[]>([])
 const receivableRows = ref<ReceivableWriteOffRow[]>([])
 const advanceBalances = ref<FinanceCustomerAdvanceBalance[]>([])
 const selectedReceiptItemId = ref('')
+
+function toFocusedReceivablePayload(row: ReceivableWriteOffRow): FinanceReceivableWriteOffCandidateRow {
+  const { writeOffAmount: _w, poolAmount: _p, ...rest } = row
+  return rest
+}
+
+function syncFocusedReceivableToDesktop(row: ReceivableWriteOffRow | null) {
+  if (!props.embedded) return
+  focusedReceivableId.value = row?.id || ''
+  receiptWriteOffDesktopQueueStore.setFocusedReceivable(row ? toFocusedReceivablePayload(row) : null)
+}
+
+function pickDefaultFocusedReceivable() {
+  if (!props.embedded) return
+  const rows = filteredReceivableRows.value
+  if (!rows.length) {
+    syncFocusedReceivableToDesktop(null)
+    void nextTick(() => receivableTableRef.value?.setCurrentRow?.(undefined))
+    return
+  }
+  const still = focusedReceivableId.value
+    ? rows.find((r) => r.id === focusedReceivableId.value)
+    : undefined
+  const next = still ?? rows[0]
+  syncFocusedReceivableToDesktop(next)
+  void nextTick(() => receivableTableRef.value?.setCurrentRow?.(next))
+}
+
+function onReceivableRowClick(row: ReceivableWriteOffRow) {
+  if (!props.embedded) return
+  syncFocusedReceivableToDesktop(row)
+}
+
+function onReceivableCurrentChange(row: ReceivableWriteOffRow | undefined) {
+  if (!props.embedded || !row) return
+  syncFocusedReceivableToDesktop(row)
+}
+
+function receivableRowClassName({ row }: { row: ReceivableWriteOffRow }) {
+  if (props.embedded && row.id && row.id === focusedReceivableId.value) {
+    return 'is-rwo-receivable-focused'
+  }
+  return ''
+}
+
+function updateReceivableListOverflow() {
+  const scroll = receivableScrollRef.value
+  const main = scroll?.parentElement
+  if (!scroll || !main) {
+    receivableListOverflow.value = false
+    return
+  }
+  const submit = main.querySelector('.receivable-submit-bar') as HTMLElement | null
+  const submitH = submit ? submit.offsetHeight + 10 : 0
+  const available = Math.max(0, main.clientHeight - submitH)
+  const contentH = scroll.scrollHeight
+  receivableListOverflow.value = contentH > available + 1
+}
+
+function setupReceivableScrollObserver() {
+  receivableScrollResizeObserver?.disconnect()
+  receivableScrollResizeObserver = null
+  const scroll = receivableScrollRef.value
+  const main = scroll?.parentElement
+  if (!scroll || typeof ResizeObserver === 'undefined') return
+  receivableScrollResizeObserver = new ResizeObserver(() => {
+    void nextTick(() => updateReceivableListOverflow())
+  })
+  receivableScrollResizeObserver.observe(scroll)
+  if (main) receivableScrollResizeObserver.observe(main)
+  void nextTick(() => updateReceivableListOverflow())
+}
 
 const filteredReceiptItems = computed(() => {
   if (selectedCurrency.value == null) return receiptItems.value
@@ -731,6 +979,7 @@ function clearCustomerSelection() {
   receivableRows.value = []
   advanceBalances.value = []
   selectedReceiptItemId.value = ''
+  syncFocusedReceivableToDesktop(null)
 }
 
 function customerExtendRowSlice(row: FinanceWriteOffCustomerSummary): CustomerExtendRowSlice {
@@ -846,11 +1095,18 @@ function onReceiptRowSelect(row: FinanceReceiptItemWriteOffCandidate) {
 
 async function loadCandidates(customerId: string, currency: number | null, resetReceiptSelection: boolean) {
   selectedCustomerId.value = customerId
-  const matchedSummary = findCustomerSummaryRow(customerId, currency)
+  const matchedSummary =
+    findCustomerSummaryRow(customerId, currency) ||
+    (props.embedSummary &&
+    props.embedSummary.customerId === customerId &&
+    (currency == null || props.embedSummary.currency === currency)
+      ? props.embedSummary
+      : null)
   if (matchedSummary) {
     selectedCustomerSummary.value = matchedSummary
   } else if (!selectedCustomerSummary.value || selectedCustomerSummary.value.customerId !== customerId) {
-    selectedCustomerSummary.value = findCustomerSummaryRow(customerId, currency) ?? selectedCustomerSummary.value
+    selectedCustomerSummary.value =
+      findCustomerSummaryRow(customerId, currency) ?? selectedCustomerSummary.value
   }
   selectedCurrency.value = currency
   loading.value = true
@@ -870,7 +1126,24 @@ async function loadCandidates(customerId: string, currency: number | null, reset
     }
   } finally {
     loading.value = false
+    void nextTick(() => {
+      pickDefaultFocusedReceivable()
+      setupReceivableScrollObserver()
+      updateReceivableListOverflow()
+    })
   }
+}
+
+async function syncEmbeddedSelection(resetReceiptSelection: boolean) {
+  const customerId = (props.embedCustomerId || '').trim()
+  if (!customerId) {
+    clearCustomerSelection()
+    return
+  }
+  if (props.embedSummary && props.embedSummary.customerId === customerId) {
+    selectedCustomerSummary.value = props.embedSummary
+  }
+  await loadCandidates(customerId, props.embedCurrency ?? null, resetReceiptSelection)
 }
 
 function buildPayload(confirmSoMismatch = false) {
@@ -1003,7 +1276,16 @@ async function submitWriteOff(confirmSoMismatch = false) {
       return
     }
     ElMessage.success(t('financeReceiptWriteOff.success'))
-    await loadCustomerSummaries()
+    if (props.embedded) {
+      emit('applied')
+      const customerId = selectedCustomerId.value
+      const currency = selectedCurrency.value
+      if (customerId) {
+        await loadCandidates(customerId, currency, false)
+      }
+    } else {
+      await loadCustomerSummaries()
+    }
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : t('financeReceiptWriteOff.failed')
     ElMessage.error(msg)
@@ -1015,32 +1297,79 @@ async function submitWriteOff(confirmSoMismatch = false) {
 function onWindowResize() {
   initPanelWidths()
   relayoutCustomerTable()
+  void nextTick(() => updateReceivableListOverflow())
 }
 
 function goWriteOffLedger() {
   router.push({ name: 'FinanceReceiptWriteOffLedger' })
 }
 
+watch(
+  () =>
+    [
+      props.embedded,
+      props.embedCustomerId,
+      props.embedCurrency,
+      props.embedSummary
+        ? `${props.embedSummary.customerId}::${props.embedSummary.currency ?? 0}`
+        : ''
+    ] as const,
+  () => {
+    if (!props.embedded) return
+    void syncEmbeddedSelection(true)
+  }
+)
+
 onMounted(() => {
   void nextTick(() => {
     initPanelWidths()
-    setupCustomerTableResizeObserver()
-    relayoutCustomerTable()
-    void loadCustomerSummaries()
+    setupReceivableScrollObserver()
+    if (!props.embedded) {
+      setupCustomerTableResizeObserver()
+      relayoutCustomerTable()
+      void loadCustomerSummaries()
+    } else {
+      void syncEmbeddedSelection(true)
+    }
   })
   window.addEventListener('mousemove', onSplitMove)
   window.addEventListener('mouseup', onSplitEnd)
   window.addEventListener('resize', onWindowResize)
 })
-
 onBeforeUnmount(() => {
   customerTableResizeObserver?.disconnect()
   customerTableResizeObserver = null
+  receivableScrollResizeObserver?.disconnect()
+  receivableScrollResizeObserver = null
+  if (props.embedded) {
+    receiptWriteOffDesktopQueueStore.setFocusedReceivable(null)
+  }
   window.removeEventListener('mousemove', onSplitMove)
   window.removeEventListener('mouseup', onSplitEnd)
   window.removeEventListener('resize', onWindowResize)
   onSplitEnd()
 })
+
+watch(
+  () => [filteredReceivableRows.value.length, selectedCustomerId.value, !!selectedReceiptItem.value] as const,
+  () => {
+    void nextTick(() => {
+      setupReceivableScrollObserver()
+      updateReceivableListOverflow()
+    })
+  }
+)
+
+watch(
+  () =>
+    props.embedded
+      ? filteredReceivableRows.value.map((r) => r.id).join('|')
+      : '',
+  () => {
+    if (!props.embedded) return
+    void nextTick(() => pickDefaultFocusedReceivable())
+  }
+)
 
 watch(leftPanelCollapsed, () => {
   void nextTick(() => {
@@ -1130,6 +1459,14 @@ watch(excludeNoReceivable, () => {
 }
 
 .write-off-page {
+  &.write-off-page--embedded {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+  }
+
   .write-off-page-header {
     display: flex;
     align-items: center;
@@ -1161,26 +1498,68 @@ watch(excludeNoReceivable, () => {
     max-height: 760px;
 
     &.is-resizing {
-      cursor: col-resize;
       user-select: none;
+    }
+
+    &.write-off-layout--embedded {
+      flex: 1;
+      min-height: 0;
+      height: auto;
+      max-height: none;
     }
   }
 
-  .col-splitbar {
-    flex: 0 0 6px;
-    width: 6px;
-    cursor: col-resize;
-    align-self: stretch;
+  .write-off-main-pair {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    align-items: stretch;
+
+    &--row {
+      flex-direction: row;
+    }
+
+    &--column {
+      flex-direction: column;
+
+      .write-off-panel--center,
+      .write-off-panel--right {
+        width: 100%;
+      }
+
+      .write-off-panel--right {
+        flex: 1 1 auto;
+        min-height: 0;
+      }
+    }
+
+    &--row .write-off-panel--right {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+  }
+
+  .col-splitbar,
+  .pair-splitbar {
     position: relative;
     z-index: 2;
     border-radius: 4px;
     background: transparent;
     transition: background 0.15s;
+    align-self: stretch;
 
     &:hover,
     &.is-dragging {
       background: var(--crm-splitter-hover, rgba(64, 158, 255, 0.18));
     }
+  }
+
+  .col-splitbar,
+  .pair-splitbar--col {
+    flex: 0 0 6px;
+    width: 6px;
+    cursor: col-resize;
 
     &::after {
       content: '';
@@ -1189,6 +1568,26 @@ watch(excludeNoReceivable, () => {
       left: 50%;
       width: 2px;
       height: 32px;
+      transform: translate(-50%, -50%);
+      border-radius: 1px;
+      background: $border-panel;
+      pointer-events: none;
+    }
+  }
+
+  .pair-splitbar--row {
+    flex: 0 0 6px;
+    height: 6px;
+    width: 100%;
+    cursor: row-resize;
+
+    &::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 32px;
+      height: 2px;
       transform: translate(-50%, -50%);
       border-radius: 1px;
       background: $border-panel;
@@ -1410,13 +1809,50 @@ watch(excludeNoReceivable, () => {
     }
 
     &--right {
-      flex: 1 1 auto;
       min-width: 180px;
 
+      .receivable-main {
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+      }
+
+      /* 行少：滚动区随内容高度，提交栏紧跟最后一行；行多：占满剩余空间并内部滚动 */
+      .receivable-scroll {
+        flex: 0 1 auto;
+        min-height: 0;
+        overflow: auto;
+      }
+
+      .receivable-main.is-overflow .receivable-scroll {
+        flex: 1 1 auto;
+      }
+
+      .detail-items-table-wrap--receivable {
+        flex: 0 0 auto;
+        min-height: 0;
+      }
+
       :deep(.receivable-panel-table) {
+        .el-table__body tr.is-rwo-receivable-focused > td.el-table__cell {
+          background: #fffaea !important;
+          background-color: #fffaea !important;
+        }
+
+        .el-table__body tr.is-rwo-receivable-focused:hover > td.el-table__cell {
+          background: #fffaea !important;
+          background-color: #fffaea !important;
+        }
+
         th.write-off-amount-col.el-table__cell {
           background: var(--crm-detail-panel-card-head-bg) !important;
           background-color: var(--crm-detail-panel-card-head-bg) !important;
+        }
+
+        th.write-off-amount-col.el-table__cell .cell {
+          font-weight: 700;
         }
 
         th.write-off-amount-col.el-table__cell .cell,
@@ -1437,8 +1873,8 @@ watch(excludeNoReceivable, () => {
   .section-header {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
-    gap: 16px;
+    justify-content: space-between;
+    gap: 12px;
     padding: 14px 20px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     background: var(--crm-detail-section-header-bg);
@@ -1457,6 +1893,25 @@ watch(excludeNoReceivable, () => {
     align-items: center;
     gap: 10px;
     min-width: 0;
+  }
+
+  .section-header__layout {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+
+  .panels-layout-btn {
+    color: var(--el-text-color-secondary);
+
+    &.is-active {
+      color: var(--el-color-primary);
+    }
+  }
+
+  .panels-layout-icon {
+    display: block;
   }
 
   .section-dot {
@@ -1682,8 +2137,8 @@ watch(excludeNoReceivable, () => {
     flex-shrink: 0;
 
     :deep(.el-input__wrapper) {
-      background-color: #fffaea !important;
-      box-shadow: 0 0 0 1px #f5e6a8 inset;
+      background-color: #fff !important;
+      box-shadow: 0 0 0 1px var(--el-border-color) inset;
       padding-left: 8px;
       padding-right: 10px;
     }
@@ -1692,26 +2147,34 @@ watch(excludeNoReceivable, () => {
       font-variant-numeric: tabular-nums;
       text-align: right;
       padding-right: 2px;
+      color: $text-primary !important;
+      -webkit-text-fill-color: $text-primary !important;
     }
 
     &--positive {
       :deep(.el-input) {
-        --el-input-text-color: var(--crm-success-color);
+        --el-input-text-color: #{$color-amber};
       }
 
       :deep(.el-input__inner) {
-        color: var(--crm-success-color) !important;
-        -webkit-text-fill-color: var(--crm-success-color) !important;
+        color: $color-amber !important;
+        -webkit-text-fill-color: $color-amber !important;
         font-weight: 700;
       }
     }
   }
 
-  .footer-actions {
-    margin-top: 4px;
+  .receivable-submit-bar {
+    flex: 0 0 auto;
     display: flex;
-    gap: 12px;
     justify-content: flex-end;
+    align-items: center;
+    gap: 12px;
+    margin-top: 10px;
+    padding: 10px 0 4px;
+    border-top: 1px solid var(--el-border-color-lighter);
+    background: #fff;
+    z-index: 3;
   }
 
   .link-text {

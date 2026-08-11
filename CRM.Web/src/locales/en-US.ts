@@ -8961,7 +8961,7 @@ const enUS = {
       all: 'All'
     },
     create: 'New receipt',
-    goWriteOff: 'Receipt write-off',
+    goWriteOffDesktop: 'Receipt write-off desk',
     purposeNormal: 'Normal',
     purposeAdvance: 'Advance',
     stats: {
@@ -9208,6 +9208,51 @@ const enUS = {
       amount: 'Total'
     }
   },
+  receiptWriteOffDesktop: {
+    title: 'Receipt write-off desk',
+    leftTab: 'Open customers',
+    tabs: {
+      stockOut: 'Stock out'
+    },
+    stockOut: {
+      empty: 'Select a receivable row in the open AR list',
+      stockOutCode: 'Stock-out No.',
+      stockOutDate: 'Stock-out date',
+      customerName: 'Customer (CN)',
+      customerEnglishName: 'Customer (EN)',
+      salesUser: 'Sales rep',
+      outboundQty: 'Qty',
+      amount: 'Amount',
+      verifiedDone: 'Written off',
+      verifiedToBe: 'Open amount'
+    },
+    nav: {
+      prev: 'Previous customer',
+      next: 'Next customer'
+    },
+    stats: {
+      line: '{n} open customers, {m} open write-off records'
+    },
+    queue: {
+      searchPh: 'Customer CN/EN / code / sales rep',
+      search: 'Search',
+      salesUser: 'Sales rep',
+      pendingTotal: 'Open receipt total',
+      receiptCount: '{n} open receipt lines',
+      sortEarliest: 'Earliest receipt date',
+      sortLatest: 'Latest receipt date',
+      sortTip: 'Sort by: {field}'
+    },
+    empty: {
+      queue: 'No customers with both open receipts and open receivables',
+      workspace: 'Select a customer on the left'
+    },
+    messages: {
+      loadFailed: 'Failed to load write-off customers',
+      refreshFailed: 'Failed to refresh write-off queue',
+      focusMissed: 'Customer write-off item not found'
+    }
+  },
   financeReceiptWriteOff: {
     pageTitle: 'Receipt write-off',
     openLedger: 'Write-off ledger',
@@ -9227,6 +9272,10 @@ const enUS = {
     autoFillNoRows: 'No open receivable rows',
     dragLeftWidth: 'Drag to resize customer panel',
     dragCenterWidth: 'Drag to resize receipt panel',
+    dragCenterHeight: 'Drag to resize receipt panel height',
+    panelsLayoutGroup: 'Receipt / receivable layout',
+    panelsLayoutRow: 'Side by side: receipts left, receivables right',
+    panelsLayoutColumn: 'Stacked: receipts on top, receivables below',
     customerSearchPh: 'Chinese / English name / salesperson',
     customerSearchBtn: 'Search',
     customerSearchClear: 'Clear',

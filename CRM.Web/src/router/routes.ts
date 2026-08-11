@@ -1077,6 +1077,16 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '收款核销', permission: 'finance-receipt.read' }
       },
       {
+        path: 'finance/receipt-write-off-desktop',
+        name: 'ReceiptWriteOffDesktop',
+        component: () => import('@/views/Finance/ReceiptWriteOffDesktop.vue'),
+        meta: { requiresAuth: true, title: '收款核销桌面', permission: 'finance-receipt.read' }
+      },
+      {
+        path: 'receipt-write-off-desktop',
+        redirect: { name: 'ReceiptWriteOffDesktop' }
+      },
+      {
         path: 'finance/receipt-write-off/ledger',
         name: 'FinanceReceiptWriteOffLedger',
         component: () => import('@/views/Finance/FinanceReceiptWriteOffLedgerPage.vue'),
