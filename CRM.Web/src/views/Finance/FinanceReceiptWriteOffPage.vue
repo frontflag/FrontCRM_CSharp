@@ -771,7 +771,6 @@ function onSplitMove(e: MouseEvent) {
   const min = centerMinSize()
   const usablePair = usablePairSize()
   const delta = isColumnLayout() ? e.clientY - dragStartY : e.clientX - dragStartX
-  const maxCenter = Math.max(min, usablePair - min)
   // usablePairSize 已扣分割条；拖动时用当前 pair 总尺寸重算更稳
   const pair = mainPairRef.value
   const pairTotal = isColumnLayout()
