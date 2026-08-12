@@ -902,7 +902,7 @@ const enUS = {
     loginButtonEcoinf: 'Sign In',
     contactAdmin: "Can't access? Contact system administrator",
     systemStatusOperational: 'SYSTEM STATUS: OPERATIONAL',
-    ecoinfSloganLine1: '链接核心，驱动未来',
+    ecoinfSloganLine1: 'Connect the core, drive the future',
     ecoinfSloganLine2: 'CONNECT THE CORE, DRIVE THE FUTURE',
     ecoinfDescription:
       'Advanced semiconductor logistics and industrial intelligence system. High-precision monitoring for the global electronics supply chain.',

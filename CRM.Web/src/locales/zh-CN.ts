@@ -903,7 +903,7 @@ const zhCN = {
     ecoinfDescription:
       'Advanced semiconductor logistics and industrial intelligence system. High-precision monitoring for the global electronics supply chain.',
     ecoinfWelcomeTitle: '欢迎回来',
-    ecoinfWelcomeSub: 'AUTHENTICATION REQUIRED',
+    ecoinfWelcomeSub: '需要身份验证',
     ecoinfCopyright: 'ECO-INF SYSTEMS | © 2026 eco-inf Systems. All rights reserved.'
   },
   salesAnalytics: {

@@ -145,21 +145,34 @@ let loginThemeLinkEl: HTMLLinkElement | null = null
 
 const router = useRouter()
 const authStore = useAuthStore()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 const formRef = ref<FormInstance>()
 const loading = ref(false)
 const errorMsg = ref('')
 const rememberMe = ref(false)
 
-const sloganLine1 = computed(() => loginTenantText('VITE_LOGIN_SLOGAN_LINE1', t('login.ecoinfSloganLine1')))
-const sloganLine2 = computed(() => loginTenantText('VITE_LOGIN_SLOGAN_LINE2', t('login.ecoinfSloganLine2')))
-const descriptionText = computed(() =>
-  (import.meta.env.VITE_LOGIN_DESCRIPTION?.trim() || t('login.ecoinfDescription'))
+const sloganLine1 = computed(() =>
+  loginTenantText('VITE_LOGIN_SLOGAN_LINE1', t('login.ecoinfSloganLine1'), locale.value)
 )
-const welcomeTitle = computed(() => loginTenantText('VITE_LOGIN_WELCOME_TITLE', t('login.ecoinfWelcomeTitle')))
-const welcomeSub = computed(() => loginTenantText('VITE_LOGIN_WELCOME_SUB', t('login.ecoinfWelcomeSub')))
-const copyrightText = computed(() => loginTenantText('VITE_LOGIN_COPYRIGHT', t('login.ecoinfCopyright')))
+const sloganLine2 = computed(() =>
+  loginTenantText('VITE_LOGIN_SLOGAN_LINE2', t('login.ecoinfSloganLine2'), locale.value)
+)
+const descriptionText = computed(() => {
+  if (!String(locale.value).toLowerCase().startsWith('zh')) {
+    return t('login.ecoinfDescription')
+  }
+  return import.meta.env.VITE_LOGIN_DESCRIPTION?.trim() || t('login.ecoinfDescription')
+})
+const welcomeTitle = computed(() =>
+  loginTenantText('VITE_LOGIN_WELCOME_TITLE', t('login.ecoinfWelcomeTitle'), locale.value)
+)
+const welcomeSub = computed(() =>
+  loginTenantText('VITE_LOGIN_WELCOME_SUB', t('login.ecoinfWelcomeSub'), locale.value)
+)
+const copyrightText = computed(() =>
+  loginTenantText('VITE_LOGIN_COPYRIGHT', t('login.ecoinfCopyright'), locale.value)
+)
 const accountPlaceholder = computed(() =>
   (import.meta.env.VITE_LOGIN_ACCOUNT_PLACEHOLDER?.trim() || 'user@ecoinf.com')
 )

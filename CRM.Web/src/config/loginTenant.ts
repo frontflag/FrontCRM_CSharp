@@ -15,6 +15,15 @@ export function loginThemeCssHref(tenantId = LOGIN_TENANT_ID): string {
   return `/tenant/${tenantId}/theme.css`
 }
 
+function isChineseLocale(locale?: string): boolean {
+  if (!locale) return true
+  return locale.toLowerCase().startsWith('zh')
+}
+
+/**
+ * 登录页租户文案：中文可用 .env 覆盖；非中文语言一律走 i18n fallback，
+ * 避免 VITE_LOGIN_* 中文硬编码在英文模式下仍显示。
+ */
 export function loginTenantText(
   envKey:
     | 'VITE_LOGIN_SLOGAN_LINE1'
@@ -25,8 +34,10 @@ export function loginTenantText(
     | 'VITE_LOGIN_FEATURE_1'
     | 'VITE_LOGIN_FEATURE_2'
     | 'VITE_LOGIN_FEATURE_3',
-  fallback: string
+  fallback: string,
+  locale?: string
 ): string {
+  if (!isChineseLocale(locale)) return fallback
   const v = import.meta.env[envKey]?.trim()
   return v || fallback
 }

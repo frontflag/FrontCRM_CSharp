@@ -171,7 +171,7 @@ public class FinancePurchaseInvoiceWriteOffService : IFinancePurchaseInvoiceWrit
             throw new InvalidOperationException("该进项发票已无待核销金额");
 
         var applyTotal = Math.Round(allocations.Sum(a => a.Amount), 2, MidpointRounding.AwayFromZero);
-        if (applyTotal + 0.0001m > invoice.VerifiedToBe)
+        if (applyTotal > invoice.VerifiedToBe + 0.0001m)
             throw new ArgumentException("本次核销合计超过发票待核销金额");
 
         var itemIds = allocations.Select(a => a.StockInItemId.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
@@ -203,7 +203,7 @@ public class FinancePurchaseInvoiceWriteOffService : IFinancePurchaseInvoiceWrit
             if (lineCurrency != invoice.Currency)
                 throw new ArgumentException($"入库明细币别与发票币别不一致：{item.StockInItemCode}");
             var amt = Math.Round(alloc.Amount, 2, MidpointRounding.AwayFromZero);
-            if (amt + 0.0001m > ext.InvoiceMatchToBe)
+            if (amt > ext.InvoiceMatchToBe + 0.0001m)
                 throw new ArgumentException($"本次核销超过明细待匹配金额：{item.StockInItemCode}");
         }
 

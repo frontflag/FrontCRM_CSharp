@@ -187,20 +187,36 @@ const loginTenantId = LOGIN_TENANT_ID
 const loginLayoutMode = loginPageLayout()
 let loginThemeLinkEl: HTMLLinkElement | null = null
 
-const sloganLine1 = computed(() => loginTenantText('VITE_LOGIN_SLOGAN_LINE1', t('login.sloganLine1')))
-const sloganLine2 = computed(() => loginTenantText('VITE_LOGIN_SLOGAN_LINE2', t('login.sloganLine2')))
-const featureTag1 = computed(() => loginTenantText('VITE_LOGIN_FEATURE_1', t('login.featureSync')))
-const featureTag2 = computed(() => loginTenantText('VITE_LOGIN_FEATURE_2', t('login.featureTrack')))
-const featureTag3 = computed(() => loginTenantText('VITE_LOGIN_FEATURE_3', t('login.featureReport')))
-const welcomeTitle = computed(() => loginTenantText('VITE_LOGIN_WELCOME_TITLE', t('login.welcomeTitle')))
-const welcomeSub = computed(() => loginTenantText('VITE_LOGIN_WELCOME_SUB', t('login.welcomeSub')))
-const copyrightText = computed(() => loginTenantText('VITE_LOGIN_COPYRIGHT', t('login.copyright')))
-
 const REMEMBER_USER_KEY = 'frontcrm_login_remember_user'
 
 const router = useRouter()
 const authStore = useAuthStore()
-const { t } = useI18n()
+const { t, locale } = useI18n()
+
+const sloganLine1 = computed(() =>
+  loginTenantText('VITE_LOGIN_SLOGAN_LINE1', t('login.sloganLine1'), locale.value)
+)
+const sloganLine2 = computed(() =>
+  loginTenantText('VITE_LOGIN_SLOGAN_LINE2', t('login.sloganLine2'), locale.value)
+)
+const featureTag1 = computed(() =>
+  loginTenantText('VITE_LOGIN_FEATURE_1', t('login.featureSync'), locale.value)
+)
+const featureTag2 = computed(() =>
+  loginTenantText('VITE_LOGIN_FEATURE_2', t('login.featureTrack'), locale.value)
+)
+const featureTag3 = computed(() =>
+  loginTenantText('VITE_LOGIN_FEATURE_3', t('login.featureReport'), locale.value)
+)
+const welcomeTitle = computed(() =>
+  loginTenantText('VITE_LOGIN_WELCOME_TITLE', t('login.welcomeTitle'), locale.value)
+)
+const welcomeSub = computed(() =>
+  loginTenantText('VITE_LOGIN_WELCOME_SUB', t('login.welcomeSub'), locale.value)
+)
+const copyrightText = computed(() =>
+  loginTenantText('VITE_LOGIN_COPYRIGHT', t('login.copyright'), locale.value)
+)
 
 const formRef = ref<FormInstance>()
 const loading = ref(false)
