@@ -18,9 +18,20 @@ Read and follow `document/System/文档生成规范.md` when creating or updatin
 | Type | Path |
 |------|------|
 | Design + implementation | `document/System/{domain}/` — `*-设计与实现.md` |
-| QA test对照 | `document/QA/` |
+| QA test对照 | `document/QA/`（总纲：`document/QA/测试规范总纲.md`） |
 | Analytics / dashboards | `document/IMP/` |
 | User help | `help/pages/` (business language only) |
+
+## QA 测试对照（强制）
+
+创建或更新 `document/QA/` 下测试对照/测试用例文档前：
+
+1. **先 Read** `document/QA/测试规范总纲.md`（全文）。
+2. 产出必须**实现总纲全部适用要求**；不适用项须在文中写明「本功能不适用」。
+3. 金额/核销/匹配类必须含 **足额成功** 与 **超额拒绝**（见总纲 §4.5）。
+4. 完成后按总纲 §6 自检清单核对。
+
+详见 always-applied 规则 `qa-test-spec.mdc`。
 
 Wrong: `document/EBS/.../库存滚存-设计与实现.md`  
 Right: `document/System/.../库存滚存-设计与实现.md` + link to EBS reference doc.
