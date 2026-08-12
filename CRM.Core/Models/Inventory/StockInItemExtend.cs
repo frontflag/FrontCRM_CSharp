@@ -39,6 +39,22 @@ public class StockInItemExtend : BaseGuidEntity, ISoftDeletable
     [Column("purchase_order_item_code")]
     public string? PurchaseOrderItemCode { get; set; }
 
+    /// <summary>已匹配进项金额</summary>
+    [Column("invoice_match_done", TypeName = "numeric(18,2)")]
+    public decimal InvoiceMatchDone { get; set; }
+
+    /// <summary>待匹配进项金额（基数为入库明细 Amount）</summary>
+    [Column("invoice_match_to_be", TypeName = "numeric(18,2)")]
+    public decimal InvoiceMatchToBe { get; set; }
+
+    /// <summary>进项匹配状态 0未匹配 1部分 2完成</summary>
+    [Column("invoice_match_status")]
+    public short InvoiceMatchStatus { get; set; }
+
+    /// <summary>匹配口径币别缓存</summary>
+    [Column("invoice_match_currency")]
+    public byte? InvoiceMatchCurrency { get; set; }
+
     /// <summary>入库明细（主键与 <see cref="Id"/> / <c>StockInItemId</c> 相同）。</summary>
     [JsonIgnore]
     public virtual StockInItem? StockInItem { get; set; }

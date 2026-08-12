@@ -246,9 +246,11 @@
             </template>
             <template v-else>
               <span class="panel-info-bar__customer">
-                <span class="panel-hint__value">{{ currentCustomerNameZh(selectedCustomerSummary) }}</span
-                ><span class="panel-hint__sep"> / </span
-                ><span class="panel-hint__value">{{ currentCustomerNameEn(selectedCustomerSummary) }}</span>
+                <span class="panel-hint__value">{{ currentCustomerNameZh(selectedCustomerSummary) }}</span>
+                <template v-if="currentCustomerNameEn(selectedCustomerSummary)">
+                  <span class="panel-hint__sep"> / </span>
+                  <span class="panel-hint__value">{{ currentCustomerNameEn(selectedCustomerSummary) }}</span>
+                </template>
               </span>
               <span class="panel-info-bar__currency">
                 （{{ currentCustomerCurrency(selectedCustomerSummary) }}）
@@ -963,7 +965,7 @@ function currentCustomerNameZh(row: FinanceWriteOffCustomerSummary) {
 }
 
 function currentCustomerNameEn(row: FinanceWriteOffCustomerSummary) {
-  return row.customerEnglishName?.trim() || '—'
+  return row.customerEnglishName?.trim() || ''
 }
 
 function currentCustomerCurrency(row: FinanceWriteOffCustomerSummary) {

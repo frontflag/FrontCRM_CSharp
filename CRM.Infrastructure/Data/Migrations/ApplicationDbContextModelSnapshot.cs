@@ -1637,6 +1637,10 @@ namespace CRM.Infrastructure.Data.Migrations
                     b.Property<decimal>("InvoiceAmount")
                         .HasColumnType("numeric(18,2)");
 
+                    b.Property<string>("InvoiceCode")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
                     b.Property<DateTime?>("InvoiceDate")
                         .HasColumnType("timestamp with time zone");
 

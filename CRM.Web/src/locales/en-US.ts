@@ -721,6 +721,7 @@ const enUS = {
       paymentManagement: 'Payment Buz',
       paymentRecords: 'Payment Records',
       purchaseInvoices: 'Purchase Invoices',
+      purchaseInvoiceWriteOff: 'Purchase Invoice Write-off',
       receiptManagement: 'Receipt Buz',
       receiptRecords: 'Receipt Records',
       receivables: 'Receivables',
@@ -9253,6 +9254,97 @@ const enUS = {
       focusMissed: 'Customer write-off item not found'
     }
   },
+  purchaseInvoiceWriteOffDesktop: {
+    title: 'Purchase invoice write-off desk',
+    leftTab: 'Open vendors',
+    tabs: {
+      stockIn: 'Stock-in'
+    },
+    stockIn: {
+      empty: 'Select a row in the open stock-in list',
+      stockInCode: 'Stock-in no.',
+      stockInDate: 'Stock-in date',
+      vendorName: 'Vendor (CN)',
+      vendorEnglishName: 'Vendor (EN)',
+      purchaseUser: 'Buyer',
+      inboundQty: 'Inbound qty',
+      amount: 'Stock-in amount',
+      invoiceMatchDone: 'Invoiced (matched)',
+      invoiceMatchToBe: 'Open invoice match',
+      freightForwarderOrderNo: 'Forwarder order no.',
+      purchaseOrderCodes: 'PO no.'
+    },
+    nav: {
+      prev: 'Previous vendor',
+      next: 'Next vendor'
+    },
+    stats: {
+      line: '{n} open vendors, {m} open invoice records'
+    },
+    queue: {
+      searchPh: 'Vendor CN/EN name',
+      search: 'Search',
+      pendingTotal: 'Open invoice total',
+      invoiceCount: '{n} open invoices',
+      sortEarliest: 'Earliest issue date',
+      sortLatest: 'Latest issue date',
+      sortTip: 'Sort by: {field}'
+    },
+    empty: {
+      queue: 'No vendors with both open invoices and open stock-in',
+      workspace: 'Select a vendor on the left'
+    },
+    messages: {
+      loadFailed: 'Failed to load open vendors',
+      refreshFailed: 'Failed to refresh write-off queue',
+      focusMissed: 'Vendor write-off item not found'
+    }
+  },
+  purchaseInvoiceWriteOffWorkspace: {
+    invoicePanelTitle: 'Open purchase invoices',
+    stockInPanelTitle: 'Open stock-in',
+    panelsLayoutGroup: 'Invoice / stock-in layout',
+    panelsLayoutRow: 'Side by side: invoices left, stock-in right',
+    panelsLayoutColumn: 'Stacked: invoices on top, stock-in below',
+    dragCenterWidth: 'Drag to resize invoice panel',
+    dragCenterHeight: 'Drag to resize invoice panel height',
+    currentVendorLabel: 'Current vendor: ',
+    currentVendorHint: '(select from the vendor list on the left)',
+    selectVendorHint: 'Select an open vendor on the left',
+    noInvoices: 'No open purchase invoices',
+    noStockIns: 'No open stock-in rows',
+    selectInvoiceHint: '(select from the invoice list)',
+    selectedInvoiceInfoBarPrefix: 'Invoice: {invoiceCode}, open amount: ',
+    writeOffTotalLabel: 'Write-off total: {total}',
+    autoFill: 'Auto-fill',
+    autoFillNoRemaining: 'Selected invoice has no remaining balance',
+    selectInvoiceFirst: 'Select an open purchase invoice first',
+    selectRow: 'Select',
+    colInvoiceCode: 'Invoice code',
+    colInvoiceDate: 'Issue date',
+    colInvoiceType: 'Invoice type',
+    colInvoiceAmount: 'Invoice amount',
+    colVerifiedDone: 'Written off',
+    colVerifiedToBe: 'Open amount',
+    colStockInCode: 'Stock-in no.',
+    colStockInDate: 'Stock-in date',
+    colItemCode: 'Line code',
+    colPurchaseOrderCode: 'PO no.',
+    colPurchaseUser: 'Buyer',
+    colFreightForwarder: 'Forwarder no.',
+    colItemAmount: 'Line amount',
+    colItemToBe: 'Open match',
+    colWriteOffAmount: 'Write-off',
+    expandItems: 'Expand {n} lines',
+    collapseItems: 'Collapse lines',
+    redInvoice: 'Red invoice',
+    noAmount: 'Enter a write-off amount',
+    exceedInvoiceRemaining: 'Total exceeds invoice open amount',
+    exceedStockInItem: 'Amount exceeds stock-in line open match',
+    submit: 'Apply write-off',
+    success: 'Write-off applied',
+    failed: 'Write-off failed'
+  },
   financeReceiptWriteOff: {
     pageTitle: 'Receipt write-off',
     openLedger: 'Write-off ledger',
@@ -9558,6 +9650,7 @@ const enUS = {
     download: 'Download'
   },
   financePurchaseInvoiceList: {
+    pageTitle: 'Purchase invoices',
     stats: {
       totalAmount: 'Invoice total',
       paidAmount: 'Paid amount',
@@ -9574,6 +9667,7 @@ const enUS = {
       search: 'Search'
     },
     create: 'New purchase invoice',
+    goWriteOffDesktop: 'Purchase invoice write-off desk',
     columns: {
       code: 'Invoice code',
       invoiceStatus: 'Issue status',
@@ -9612,6 +9706,7 @@ const enUS = {
     messages: {
       saveOk: 'Saved',
       saveOkDemo: 'Saved (demo)',
+      loadFailed: 'Failed to load purchase invoices',
       voidTitle: 'Red invoice',
       voidMsg: 'Red invoice {code}?',
       voided: 'Invoice red / voided'

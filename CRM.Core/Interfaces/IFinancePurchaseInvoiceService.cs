@@ -24,6 +24,8 @@ namespace CRM.Core.Interfaces
         public string VendorId { get; set; } = string.Empty;
         public string? VendorName { get; set; }
         public string? InvoiceNo { get; set; }
+        /// <summary>币别 1 RMB / 2 USD / 3 EUR</summary>
+        public byte Currency { get; set; } = 1;
         public decimal InvoiceAmount { get; set; }
         public decimal BillAmount { get; set; }
         public decimal TaxAmount { get; set; }
@@ -50,6 +52,7 @@ namespace CRM.Core.Interfaces
     public class UpdateFinancePurchaseInvoiceRequest
     {
         public string? InvoiceNo { get; set; }
+        public byte? Currency { get; set; }
         public decimal? InvoiceAmount { get; set; }
         public DateTime? InvoiceDate { get; set; }
         public string? Remark { get; set; }

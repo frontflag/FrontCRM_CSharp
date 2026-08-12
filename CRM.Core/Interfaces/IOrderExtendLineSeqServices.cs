@@ -19,6 +19,15 @@ namespace CRM.Core.Interfaces
     {
         /// <summary>预留连续 <paramref name="count"/> 个 Item 序号，返回本块第一个序号（含）。</summary>
         Task<int> ReserveNextSequenceBlockAsync(string stockInId, int count, CancellationToken cancellationToken = default);
+
+        /// <summary>刷新入库头扩展上的进项匹配汇总缓存（不单独 SaveChanges，由调用方 UoW 提交）。</summary>
+        Task UpsertInvoiceMatchCacheAsync(
+            string stockInId,
+            decimal invoiceMatchDone,
+            decimal invoiceMatchToBe,
+            short invoiceMatchStatus,
+            byte? invoiceMatchCurrency,
+            CancellationToken cancellationToken = default);
     }
 
     /// <summary>库存分桶扩展表 <c>stock_extend.last_item_line_seq</c> 的并发安全序号预留（Infrastructure 实现）。</summary>

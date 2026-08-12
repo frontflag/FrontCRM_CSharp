@@ -210,6 +210,9 @@ export interface FinancePurchaseInvoice {
   paymentDone: number
   paymentToBe: number
   currency: number
+  verifiedDone?: number
+  verifiedToBe?: number
+  verificationStatus?: number
   type: number          // 10:蓝字 20:红字
   invoiceStatus: number // 1未申请 2申请中 100已开票 101开票失败 -1已作废
   purchaseInvoiceType: number  // 100:增值税专用 200:增值税普通
@@ -305,10 +308,24 @@ export function normalizeFinancePurchaseInvoice(raw: unknown): FinancePurchaseIn
 
   const typeVal = pickNumFromRecord(r, ['type', 'Type'])
   const currencyVal = pickNumFromRecord(r, ['currency', 'Currency'])
+  const verifiedDone = pickNumFromRecord(r, ['verifiedDone', 'VerifiedDone'])
+  let verifiedToBe: number | undefined
+  if (hasDefinedProp(r, ['verifiedToBe', 'VerifiedToBe'])) {
+    verifiedToBe = pickNumFromRecord(r, ['verifiedToBe', 'VerifiedToBe'])
+  }
+  let verificationStatus: number | undefined
+  if (hasDefinedProp(r, ['verificationStatus', 'VerificationStatus'])) {
+    verificationStatus = pickNumFromRecord(r, ['verificationStatus', 'VerificationStatus'])
+  }
 
+  // 系统单号 InvoiceCode；勿回退到 Id（GUID），否则列表「发票单号」会显示成 GUID
   const code =
-    pickStrFromRecord(r, ['financePurchaseInvoiceCode', 'FinancePurchaseInvoiceCode', 'invoiceCode', 'InvoiceCode']) ||
-    id
+    pickStrFromRecord(r, [
+      'financePurchaseInvoiceCode',
+      'FinancePurchaseInvoiceCode',
+      'invoiceCode',
+      'InvoiceCode',
+    ]) ?? ''
 
   const itemsRaw = r.items ?? r.Items
   const items = Array.isArray(itemsRaw) ? (itemsRaw as FinancePurchaseInvoiceItem[]) : undefined
@@ -326,6 +343,9 @@ export function normalizeFinancePurchaseInvoice(raw: unknown): FinancePurchaseIn
     paymentDone,
     paymentToBe,
     currency: currencyVal > 0 ? currencyVal : 1,
+    verifiedDone: hasDefinedProp(r, ['verifiedDone', 'VerifiedDone']) ? verifiedDone : undefined,
+    verifiedToBe,
+    verificationStatus,
     type: typeVal > 0 ? typeVal : 10,
     invoiceStatus,
     purchaseInvoiceType,

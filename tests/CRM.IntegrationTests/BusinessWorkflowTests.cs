@@ -1178,9 +1178,12 @@ namespace CRM.IntegrationTests
             var sellSoItemExtendSync = Substitute.For<ISellOrderItemExtendSyncService>();
 
             // 创建同步服务
+            var purInvWriteOffRepo = Substitute.For<IRepository<FinancePurchaseInvoiceWriteOff>>();
+            purInvWriteOffRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<FinancePurchaseInvoiceWriteOff, bool>>>())
+                .Returns(Task.FromResult(Enumerable.Empty<FinancePurchaseInvoiceWriteOff>()));
             var service = new PurchaseOrderItemExtendSyncService(
                 poItemRepo, poRepo, extendRepo, notifyRepo, payItemRepo, paymentRepo,
-                purInvItemRepo, purInvRepo, stockInRepo, stockInItemRepo, stockInItemExtendRepo, qcRepo,
+                purInvItemRepo, purInvRepo, purInvWriteOffRepo, stockInRepo, stockInItemRepo, stockInItemExtendRepo, qcRepo,
                 sellSoItemExtendSync, Substitute.For<IPurchaseOrderMainStatusSyncService>());
 
             // 准备采购订单明细

@@ -30,7 +30,7 @@
         </div>
         <el-descriptions :column="2" border class="order-desc">
           <el-descriptions-item :label="t('financePurchaseInvoiceDetail.labels.code')">
-            <span class="order-code">{{ detail.financePurchaseInvoiceCode }}</span>
+            <span class="order-code">{{ detail.financePurchaseInvoiceCode || '-' }}</span>
           </el-descriptions-item>
           <el-descriptions-item :label="t('financePurchaseInvoiceDetail.labels.invoiceNo')">{{ detail.invoiceNo || '-' }}</el-descriptions-item>
           <el-descriptions-item :label="t('financePurchaseInvoiceDetail.labels.vendor')">

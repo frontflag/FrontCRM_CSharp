@@ -717,6 +717,7 @@ const zhCN = {
       paymentManagement: '付款管理',
       paymentRecords: '付款记录',
       purchaseInvoices: '进项发票',
+      purchaseInvoiceWriteOff: '进项发票核销',
       receiptManagement: '收款管理',
       receiptRecords: '收款记录',
       receivables: '应收款',
@@ -9237,6 +9238,97 @@ const zhCN = {
       focusMissed: '未找到指定客户核销项'
     }
   },
+  purchaseInvoiceWriteOffDesktop: {
+    title: '进项发票核销桌面',
+    leftTab: '待核销供应商',
+    tabs: {
+      stockIn: '入库单'
+    },
+    stockIn: {
+      empty: '请在待核销入库列表中选择一行',
+      stockInCode: '入库单号',
+      stockInDate: '入库日期',
+      vendorName: '供应商中文名称',
+      vendorEnglishName: '供应商英文名称',
+      purchaseUser: '采购员',
+      inboundQty: '入库数量',
+      amount: '入库金额',
+      invoiceMatchDone: '已核销发票金额',
+      invoiceMatchToBe: '待核销发票金额',
+      freightForwarderOrderNo: '货代单号',
+      purchaseOrderCodes: '采购订单号'
+    },
+    nav: {
+      prev: '上一供应商',
+      next: '下一供应商'
+    },
+    stats: {
+      line: '共 {n} 条待核销供应商，{m} 条待核销发票记录'
+    },
+    queue: {
+      searchPh: '供应商中文名/英文名',
+      search: '搜索',
+      pendingTotal: '待核销发票总额',
+      invoiceCount: '待核销发票 {n} 条',
+      sortEarliest: '最早开票日期',
+      sortLatest: '最近开票日期',
+      sortTip: '排序：{field}'
+    },
+    empty: {
+      queue: '暂无待核销供应商（需同时有待核销发票与待核销入库）',
+      workspace: '请在左侧选择待核销供应商'
+    },
+    messages: {
+      loadFailed: '加载待核销供应商失败',
+      refreshFailed: '刷新待核销队列失败',
+      focusMissed: '未找到指定供应商核销项'
+    }
+  },
+  purchaseInvoiceWriteOffWorkspace: {
+    invoicePanelTitle: '待核销进项发票',
+    stockInPanelTitle: '待核销入库',
+    panelsLayoutGroup: '发票与入库排列',
+    panelsLayoutRow: '左右排列：待核销进项发票与待核销入库并排',
+    panelsLayoutColumn: '上下排列：待核销进项发票在上、待核销入库在下',
+    dragCenterWidth: '拖拽调整发票栏宽度',
+    dragCenterHeight: '拖拽调整发票栏高度',
+    currentVendorLabel: '当前核销供应商：',
+    currentVendorHint: '（请在待核销供应商列表选择）',
+    selectVendorHint: '请在左侧选择待核销供应商',
+    noInvoices: '暂无待核销进项发票',
+    noStockIns: '暂无待核销入库',
+    selectInvoiceHint: '（请在待核销进项发票列表选择）',
+    selectedInvoiceInfoBarPrefix: '发票单号：{invoiceCode} ，待核销金额：',
+    writeOffTotalLabel: '本次核销合计：{total}',
+    autoFill: '自动填写',
+    autoFillNoRemaining: '选中发票无可核销余额',
+    selectInvoiceFirst: '请先选择待核销进项发票',
+    selectRow: '选中',
+    colInvoiceCode: '发票单号',
+    colInvoiceDate: '开票日期',
+    colInvoiceType: '发票类型',
+    colInvoiceAmount: '发票金额',
+    colVerifiedDone: '已核销',
+    colVerifiedToBe: '待核销',
+    colStockInCode: '入库单号',
+    colStockInDate: '入库日期',
+    colItemCode: '明细编号',
+    colPurchaseOrderCode: '采购订单号',
+    colPurchaseUser: '采购员',
+    colFreightForwarder: '货代单号',
+    colItemAmount: '明细金额',
+    colItemToBe: '待核销',
+    colWriteOffAmount: '本次核销',
+    expandItems: '展开 {n} 条明细',
+    collapseItems: '收起明细',
+    redInvoice: '红字发票',
+    noAmount: '请填写本次核销金额',
+    exceedInvoiceRemaining: '核销合计超过发票待核销金额',
+    exceedStockInItem: '核销金额超过入库明细待核销金额',
+    submit: '提交核销',
+    success: '核销成功',
+    failed: '核销失败'
+  },
   financeReceiptWriteOff: {
     pageTitle: '收款核销',
     openLedger: '收款核销流水',
@@ -9542,6 +9634,7 @@ const zhCN = {
     download: '下载'
   },
   financePurchaseInvoiceList: {
+    pageTitle: '进项发票',
     stats: {
       totalAmount: '发票总金额',
       paidAmount: '已付款金额',
@@ -9558,6 +9651,7 @@ const zhCN = {
       search: '查询'
     },
     create: '新建进项发票',
+    goWriteOffDesktop: '进项发票核销桌面',
     columns: {
       code: '发票单号',
       invoiceStatus: '开票状态',
@@ -9596,6 +9690,7 @@ const zhCN = {
     messages: {
       saveOk: '保存成功',
       saveOkDemo: '保存成功（演示模式）',
+      loadFailed: '加载进项发票列表失败',
       voidTitle: '冲红确认',
       voidMsg: '确认冲红发票 {code}？',
       voided: '发票已冲红'

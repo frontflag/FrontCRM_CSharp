@@ -16,6 +16,22 @@ public class StockInExtend : ISoftDeletable
     [Column("last_item_line_seq")]
     public int LastItemLineSeq { get; set; }
 
+    /// <summary>整单已匹配进项（Σ 明细）</summary>
+    [Column("invoice_match_done", TypeName = "numeric(18,2)")]
+    public decimal InvoiceMatchDone { get; set; }
+
+    /// <summary>整单待匹配进项（Σ 明细）</summary>
+    [Column("invoice_match_to_be", TypeName = "numeric(18,2)")]
+    public decimal InvoiceMatchToBe { get; set; }
+
+    /// <summary>整单进项匹配状态 0/1/2</summary>
+    [Column("invoice_match_status")]
+    public short InvoiceMatchStatus { get; set; }
+
+    /// <summary>整单匹配币别缓存</summary>
+    [Column("invoice_match_currency")]
+    public byte? InvoiceMatchCurrency { get; set; }
+
     [Column("CreateTime")]
     public DateTime CreateTime { get; set; }
 

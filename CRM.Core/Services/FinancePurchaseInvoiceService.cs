@@ -18,6 +18,7 @@ namespace CRM.Core.Services
         private readonly ILogOperationAppendService _logOperationAppend;
         private readonly IFinancePurchaseInvoiceListQuery _purchaseInvoiceListQuery;
         private readonly IRepository<VendorInfo> _vendorRepo;
+        private readonly ISerialNumberService _serialNumberService;
 
         public FinancePurchaseInvoiceService(
             IRepository<FinancePurchaseInvoice> invoiceRepo,
@@ -28,6 +29,7 @@ namespace CRM.Core.Services
             ILogOperationAppendService logOperationAppend,
             IFinancePurchaseInvoiceListQuery purchaseInvoiceListQuery,
             IRepository<VendorInfo> vendorRepo,
+            ISerialNumberService serialNumberService,
             IUnitOfWork? unitOfWork = null)
         {
             _invoiceRepo = invoiceRepo;
@@ -38,6 +40,7 @@ namespace CRM.Core.Services
             _logOperationAppend = logOperationAppend;
             _purchaseInvoiceListQuery = purchaseInvoiceListQuery;
             _vendorRepo = vendorRepo;
+            _serialNumberService = serialNumberService;
             _unitOfWork = unitOfWork;
         }
 
@@ -46,19 +49,28 @@ namespace CRM.Core.Services
             if (string.IsNullOrWhiteSpace(request.VendorId))
                 throw new ArgumentException("供应商ID不能为空", nameof(request.VendorId));
 
+            var invoiceCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.InputInvoice);
+
+            var currency = request.Currency is >= 1 and <= 3 ? request.Currency : (byte)1;
+            var invoiceAmount = request.InvoiceAmount;
             var invoice = new FinancePurchaseInvoice
             {
                 Id = Guid.NewGuid().ToString(),
                 VendorId = request.VendorId,
                 VendorName = request.VendorName,
+                InvoiceCode = invoiceCode,
                 InvoiceNo = request.InvoiceNo,
-                InvoiceAmount = request.InvoiceAmount,
+                Currency = currency,
+                InvoiceAmount = invoiceAmount,
                 BillAmount = request.BillAmount,
                 TaxAmount = request.TaxAmount,
                 ExcludTaxAmount = request.ExcludTaxAmount,
                 InvoiceDate = PostgreSqlDateTime.ToUtc(request.InvoiceDate),
                 ConfirmStatus = 0,
                 RedInvoiceStatus = 0,
+                VerifiedDone = 0m,
+                VerifiedToBe = Math.Max(0m, invoiceAmount),
+                VerificationStatus = 0,
                 Remark = request.Remark,
                 CreateTime = DateTime.UtcNow,
                 CreateByUserId = ActingUserIdNormalizer.Normalize(actingUserId)
@@ -119,7 +131,16 @@ namespace CRM.Core.Services
                 ?? throw new InvalidOperationException($"进项发票 {id} 不存在");
 
             if (request.InvoiceNo != null) invoice.InvoiceNo = request.InvoiceNo;
-            if (request.InvoiceAmount.HasValue) invoice.InvoiceAmount = request.InvoiceAmount.Value;
+            if (request.Currency is >= 1 and <= 3) invoice.Currency = request.Currency.Value;
+            if (request.InvoiceAmount.HasValue)
+            {
+                invoice.InvoiceAmount = request.InvoiceAmount.Value;
+                invoice.VerifiedToBe = Math.Max(0m, invoice.InvoiceAmount - invoice.VerifiedDone);
+                if (invoice.VerifiedDone <= 0m) invoice.VerificationStatus = 0;
+                else if (invoice.InvoiceAmount > 0m && invoice.VerifiedDone + 0.0001m >= invoice.InvoiceAmount)
+                    invoice.VerificationStatus = 2;
+                else invoice.VerificationStatus = 1;
+            }
             if (request.InvoiceDate.HasValue) invoice.InvoiceDate = PostgreSqlDateTime.ToUtc(request.InvoiceDate.Value);
             if (request.Remark != null) invoice.Remark = request.Remark;
             invoice.ModifyTime = DateTime.UtcNow;
@@ -139,7 +160,7 @@ namespace CRM.Core.Services
             {
                 BizType = BusinessLogTypes.FinancePurchaseInvoice,
                 RecordId = invoice.Id,
-                RecordCode = invoice.InvoiceNo,
+                RecordCode = invoice.InvoiceCode ?? invoice.InvoiceNo,
                 EntityDisplayName = DeleteLogEntityNames.FinancePurchaseInvoice
             });
         }
@@ -181,13 +202,13 @@ namespace CRM.Core.Services
             {
                 BizType = BusinessLogTypes.FinancePurchaseInvoice,
                 RecordId = entity.Id,
-                RecordCode = entity.InvoiceNo,
+                RecordCode = entity.InvoiceCode ?? entity.InvoiceNo,
                 EntityDisplayName = DeleteLogEntityNames.FinancePurchaseInvoice,
                 IsForceDelete = true,
                 ForceConfirmBillCode = confirmBillCode.Trim(),
                 OperatorUserId = actingUserId.Trim(),
                 OperatorUserName = actingUserName?.Trim(),
-                OperationDescOverride = $"强制删除进项发票：Id={entity.Id}，InvoiceNo={entity.InvoiceNo}"
+                OperationDescOverride = $"强制删除进项发票：Id={entity.Id}，InvoiceCode={entity.InvoiceCode}，InvoiceNo={entity.InvoiceNo}"
             });
         }
 

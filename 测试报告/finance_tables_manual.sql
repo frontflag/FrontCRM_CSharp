@@ -97,6 +97,7 @@ CREATE TABLE IF NOT EXISTS financepurchaseinvoice (
     "FinancePurchaseInvoiceId"   VARCHAR(36)    NOT NULL PRIMARY KEY,
     "VendorId"                   VARCHAR(36)    NOT NULL,
     "VendorName"                 VARCHAR(200),
+    "InvoiceCode"                VARCHAR(32),
     "InvoiceNo"                  VARCHAR(32),
     "InvoiceAmount"              NUMERIC(18,2)  NOT NULL DEFAULT 0,
     "BillAmount"                 NUMERIC(18,2)  NOT NULL DEFAULT 0,

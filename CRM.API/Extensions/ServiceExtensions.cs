@@ -177,8 +177,10 @@ namespace CRM.API.Extensions
             services.AddScoped<IRepository<CRM.Core.Models.Finance.FinanceCustomerAdvanceLedger>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FinanceCustomerAdvanceLedger>>();
             // 财务模块 - 进项发票
             services.AddScoped<IFinancePurchaseInvoiceService, FinancePurchaseInvoiceService>();
+            services.AddScoped<IFinancePurchaseInvoiceWriteOffService, FinancePurchaseInvoiceWriteOffService>();
             services.AddScoped<IRepository<CRM.Core.Models.Finance.FinancePurchaseInvoice>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FinancePurchaseInvoice>>();
             services.AddScoped<IRepository<CRM.Core.Models.Finance.FinancePurchaseInvoiceItem>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FinancePurchaseInvoiceItem>>();
+            services.AddScoped<IRepository<CRM.Core.Models.Finance.FinancePurchaseInvoiceWriteOff>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FinancePurchaseInvoiceWriteOff>>();
             // 财务模块 - 销项发票
             services.AddScoped<IFinanceSellInvoiceService, FinanceSellInvoiceService>();
             services.AddScoped<IRepository<CRM.Core.Models.Finance.FinanceSellInvoice>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FinanceSellInvoice>>();

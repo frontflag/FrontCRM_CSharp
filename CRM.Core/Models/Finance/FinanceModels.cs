@@ -429,9 +429,27 @@ namespace CRM.Core.Models.Finance
         [NotMapped]
         public string? VendorEnglishName { get; set; }
 
+        /// <summary>发票单号（系统编号，INVI…）</summary>
+        [StringLength(32)]
+        public string? InvoiceCode { get; set; }
+
         /// <summary>发票号码（纸质）</summary>
         [StringLength(32)]
         public string? InvoiceNo { get; set; }
+
+        /// <summary>币别 1:人民币 2:美元 3:欧元</summary>
+        public byte Currency { get; set; } = 1;
+
+        /// <summary>已核销到入库金额</summary>
+        [Column(TypeName = "numeric(18,2)")]
+        public decimal VerifiedDone { get; set; } = 0m;
+
+        /// <summary>待核销金额</summary>
+        [Column(TypeName = "numeric(18,2)")]
+        public decimal VerifiedToBe { get; set; } = 0m;
+
+        /// <summary>核销状态 0未核销 1部分 2完成</summary>
+        public short VerificationStatus { get; set; } = 0;
 
         /// <summary>发票金额（含税总额）</summary>
         [Column(TypeName = "numeric(18,2)")]

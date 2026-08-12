@@ -95,6 +95,7 @@ namespace CRM.Infrastructure.Data
         public DbSet<FinancePaymentItem> FinancePaymentItems { get; set; } = null!;
         public DbSet<FinancePurchaseInvoice> FinancePurchaseInvoices { get; set; } = null!;
         public DbSet<FinancePurchaseInvoiceItem> FinancePurchaseInvoiceItems { get; set; } = null!;
+        public DbSet<FinancePurchaseInvoiceWriteOff> FinancePurchaseInvoiceWriteOffs { get; set; } = null!;
         public DbSet<FinanceSellInvoice> FinanceSellInvoices { get; set; } = null!;
         public DbSet<SellInvoiceItem> SellInvoiceItems { get; set; } = null!;
         public DbSet<FinanceExchangeRateSetting> FinanceExchangeRateSettings { get; set; } = null!;
@@ -500,6 +501,7 @@ namespace CRM.Infrastructure.Data
             modelBuilder.Entity<FinanceCustomerAdvance>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<FinancePurchaseInvoice>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<FinancePurchaseInvoiceItem>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<FinancePurchaseInvoiceWriteOff>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<FinanceSellInvoice>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<SellInvoiceItem>().HasQueryFilter(e => !e.IsDeleted);
 
@@ -1928,6 +1930,20 @@ namespace CRM.Infrastructure.Data
                 entity.Ignore(e => e.ModifyUserId);
                 entity.HasIndex(e => e.FinanceReceivableId);
                 entity.HasIndex(e => e.FinanceReceiptItemId);
+            });
+
+            modelBuilder.Entity<FinancePurchaseInvoiceWriteOff>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("FinancePurchaseInvoiceWriteOffId");
+                entity.Property(e => e.Amount).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.Ignore(e => e.CreateUserId);
+                entity.Ignore(e => e.ModifyUserId);
+                entity.HasIndex(e => e.FinancePurchaseInvoiceId);
+                entity.HasIndex(e => e.StockInItemId);
+                entity.HasIndex(e => e.StockInId);
+                entity.HasIndex(e => e.PurchaseOrderItemId);
             });
 
             modelBuilder.Entity<FinanceCustomerAdvance>(entity =>

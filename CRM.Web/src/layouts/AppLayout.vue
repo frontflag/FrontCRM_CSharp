@@ -662,6 +662,12 @@
                 class="submenu-item"
                 active-class="active"
               >{{ t('layout.menu.purchaseInvoices') }}</router-link>
+              <router-link
+                v-if="hasPermission('finance-purchase-invoice.read')"
+                to="/finance/purchase-invoice-write-off-desktop"
+                class="submenu-item"
+                active-class="active"
+              >{{ t('layout.menu.purchaseInvoiceWriteOff') }}</router-link>
             </template>
           </SidebarMenuGroupFlyout>
 
@@ -1236,6 +1242,9 @@
           <div v-else-if="showReceiptWriteOffDesktopQueuePanel" class="aux-panel-tab-body">
             <ReceiptWriteOffDesktopQueuePanel />
           </div>
+          <div v-else-if="showPurchaseInvoiceWriteOffDesktopQueuePanel" class="aux-panel-tab-body">
+            <PurchaseInvoiceWriteOffDesktopQueuePanel />
+          </div>
           <template v-else>
             <p class="aux-placeholder">{{ t('layout.leftPanel') }} · {{ leftPanelTitle }}</p>
             <p class="aux-hint">子页面可 inject(WorkspaceLayoutKey)；或 window 派发 workspace:toggle-left / workspace:toggle-right</p>
@@ -1582,6 +1591,10 @@
             v-show="showReceiptWriteOffStockOutPanel"
             class="aux-panel-tab-body"
           />
+          <PurchaseInvoiceWriteOffStockInPanel
+            v-show="showPurchaseInvoiceWriteOffStockInPanel"
+            class="aux-panel-tab-body"
+          />
           <HelpManualPanel v-show="rightActiveTabId === 'r4'" class="aux-panel-tab-body" />
         </div>
       </aside>
@@ -1641,6 +1654,8 @@ import { useApprovalDesktopQueueStore } from '@/stores/approvalDesktopQueue'
 import QuoteDesktopQueuePanel from '@/components/RFQ/QuoteDesktopQueuePanel.vue'
 import ReceiptWriteOffDesktopQueuePanel from '@/components/Finance/ReceiptWriteOffDesktopQueuePanel.vue'
 import ReceiptWriteOffStockOutPanel from '@/components/Finance/ReceiptWriteOffStockOutPanel.vue'
+import PurchaseInvoiceWriteOffDesktopQueuePanel from '@/components/Finance/PurchaseInvoiceWriteOffDesktopQueuePanel.vue'
+import PurchaseInvoiceWriteOffStockInPanel from '@/components/Finance/PurchaseInvoiceWriteOffStockInPanel.vue'
 import QuoteHistoryPanel from '@/components/RFQ/QuoteHistoryPanel.vue'
 import { useQuoteDesktopQueueStore } from '@/stores/quoteDesktopQueue'
 import { useQuoteHistoryContextStore } from '@/stores/quoteHistoryContext'
@@ -2026,6 +2041,17 @@ const showReceiptWriteOffStockOutPanel = computed(
     rightActiveTabId.value === 'r-rwo-stock-out' && route.name === 'ReceiptWriteOffDesktop'
 )
 
+/** 进项发票核销桌面：左栏「待核销供应商」队列 */
+const showPurchaseInvoiceWriteOffDesktopQueuePanel = computed(
+  () => leftActiveTabId.value === 'l1' && route.name === 'PurchaseInvoiceWriteOffDesktop'
+)
+
+/** 进项发票核销桌面：右栏「入库单」 */
+const showPurchaseInvoiceWriteOffStockInPanel = computed(
+  () =>
+    rightActiveTabId.value === 'r-piwo-stock-in' && route.name === 'PurchaseInvoiceWriteOffDesktop'
+)
+
 const DEFAULT_LEFT_AUX_TABS = [
   { id: 'l1', labelKey: 'layout.auxTabs.search' },
   { id: 'l2', labelKey: 'layout.auxTabs.favorites' },
@@ -2291,6 +2317,27 @@ watch(
       ]
       restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-rwo-stock-out' })
       rightActiveTabId.value = 'r-rwo-stock-out'
+      return
+    }
+
+    if (name === 'PurchaseInvoiceWriteOffDesktop') {
+      leftTabs.value = [{ id: 'l1', labelKey: 'purchaseInvoiceWriteOffDesktop.leftTab' }]
+      salesOrderItemOpsStore.clear()
+      purchaseOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
+      customsDeclarationOpsStore.clear()
+      arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
+      customerIntelLookupStore.clearBound()
+      vendorIntelLookupStore.clearBound()
+      materialIntelLookupStore.clearBound()
+      rightTabs.value = [
+        { id: 'r-piwo-stock-in', labelKey: 'purchaseInvoiceWriteOffDesktop.tabs.stockIn' },
+        { id: 'r4', labelKey: 'layout.auxTabs.help' }
+      ]
+      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-piwo-stock-in' })
+      rightActiveTabId.value = 'r-piwo-stock-in'
       return
     }
 
@@ -2730,6 +2777,7 @@ const pageTitleMap: Record<string, string> = {
   '/approval-desktop': 'approvalDesktop.title',
   '/quote-desktop': 'quoteDesktop.title',
   '/finance/receipt-write-off-desktop': 'receiptWriteOffDesktop.title',
+  '/finance/purchase-invoice-write-off-desktop': 'purchaseInvoiceWriteOffDesktop.title',
   '/custome': 'layout.menu.customers',
   '/customerlist': 'layout.menu.customers',
   '/customers/create': 'layout.menu.customers',

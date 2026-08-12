@@ -1,5 +1,12 @@
 <template>
   <div class="finance-page">
+    <div class="fpi-list-page-header">
+      <h1 class="finance-list-page-title">{{ t('financePurchaseInvoiceList.pageTitle') }}</h1>
+      <button type="button" class="btn-write-off-desktop" @click="goWriteOffDesktop">
+        <span>{{ t('financePurchaseInvoiceList.goWriteOffDesktop') }}</span>
+        <el-icon class="btn-write-off-desktop__arrow"><ArrowRight /></el-icon>
+      </button>
+    </div>
     <!-- 统计卡片（置顶） -->
     <div class="stat-cards">
       <div class="stat-card">
@@ -73,7 +80,7 @@
       row-class-name="table-row-pointer"
     >
       <template #col-financePurchaseInvoiceCode="{ row }">
-        <span class="code-text">{{ row.financePurchaseInvoiceCode }}</span>
+        <span class="code-text">{{ row.financePurchaseInvoiceCode || '-' }}</span>
       </template>
       <template #col-invoiceStatus="{ row }">
         <el-tag effect="dark" :type="invoiceStatusTag(row.invoiceStatus) as any" size="small">
@@ -286,7 +293,7 @@ import { computed, ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useFinanceEnumLabels } from '@/composables/useFinanceEnumLabels'
-import { Search, Plus, Setting } from '@element-plus/icons-vue'
+import { Search, Plus, Setting, ArrowRight } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   financePurchaseInvoiceApi,
@@ -406,8 +413,9 @@ const loadData = async () => {
     tableData.value = (res.items || []).map(normalizeFinancePurchaseInvoice)
     total.value = res.total || 0
   } catch {
-    tableData.value = getMockData()
-    total.value = tableData.value.length
+    tableData.value = []
+    total.value = 0
+    ElMessage.error(t('financePurchaseInvoiceList.messages.loadFailed'))
   } finally {
     loading.value = false
     const safeNum = (v: number) => (Number.isFinite(v) ? v : 0)
@@ -417,14 +425,6 @@ const loadData = async () => {
     stats.invoicedCount = tableData.value.filter(r => r.invoiceStatus === 100).length
   }
 }
-
-const getMockData = (): FinancePurchaseInvoice[] => [
-  { id: '1', financePurchaseInvoiceCode: 'PIN-2026-0001', vendorId: 'v1', vendorName: '深圳华强电子', invoiceNo: '31200000000001', invoiceTotal: 128500, makeInvoiceDate: '2026-03-10', paymentStatus: 2, paymentDone: 128500, paymentToBe: 0, currency: 1, type: 10, invoiceStatus: 100, purchaseInvoiceType: 100, remark: '', createdAt: '2026-03-10' },
-  { id: '2', financePurchaseInvoiceCode: 'PIN-2026-0002', vendorId: 'v2', vendorName: '上海元器件贸易', invoiceNo: '31200000000002', invoiceTotal: 56800, makeInvoiceDate: '2026-03-12', paymentStatus: 1, paymentDone: 30000, paymentToBe: 26800, currency: 1, type: 10, invoiceStatus: 100, purchaseInvoiceType: 200, remark: '', createdAt: '2026-03-12' },
-  { id: '3', financePurchaseInvoiceCode: 'PIN-2026-0003', vendorId: 'v3', vendorName: '广州立创电子', invoiceNo: undefined, invoiceTotal: 89200, makeInvoiceDate: undefined, paymentStatus: 0, paymentDone: 0, paymentToBe: 89200, currency: 1, type: 10, invoiceStatus: 1, purchaseInvoiceType: 100, remark: '待开票', createdAt: '2026-03-14' },
-  { id: '4', financePurchaseInvoiceCode: 'PIN-2026-0004', vendorId: 'v4', vendorName: 'Arrow Electronics', invoiceNo: 'INV-AR-20260315', invoiceTotal: 23400, makeInvoiceDate: '2026-03-15', paymentStatus: 0, paymentDone: 0, paymentToBe: 23400, currency: 2, type: 10, invoiceStatus: 100, purchaseInvoiceType: 100, remark: '', createdAt: '2026-03-15' },
-  { id: '5', financePurchaseInvoiceCode: 'PIN-2026-0005', vendorId: 'v1', vendorName: '深圳华强电子', invoiceNo: '31200000000005', invoiceTotal: 15600, makeInvoiceDate: '2026-03-08', paymentStatus: 2, paymentDone: 15600, paymentToBe: 0, currency: 1, type: 20, invoiceStatus: -1, purchaseInvoiceType: 200, remark: '已作废', createdAt: '2026-03-08' },
-]
 
 const dialogVisible = ref(false)
 const editingId = ref<string | null>(null)
@@ -526,6 +526,7 @@ const saveForm = async () => {
         invoiceNo: form.invoiceNo,
         invoiceAmount: form.invoiceTotal,
         invoiceDate: form.makeInvoiceDate,
+        currency: form.currency,
         remark: form.remark
       } as Partial<FinancePurchaseInvoice>)
     } else {
@@ -539,6 +540,7 @@ const saveForm = async () => {
         taxAmount: 0,
         excludTaxAmount: amt,
         invoiceDate: form.makeInvoiceDate || undefined,
+        currency: form.currency,
         remark: form.remark || undefined,
         items: []
       } as unknown as Partial<FinancePurchaseInvoice>)
@@ -600,12 +602,55 @@ const formatAmount = (v: number | unknown) => {
   return n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+function goWriteOffDesktop() {
+  router.push({ name: 'PurchaseInvoiceWriteOffDesktop' })
+}
+
 onMounted(loadData)
 </script>
 
 <style lang="scss" scoped>
 @use '@/assets/styles/variables' as vars;
 @import './finance-common.scss';
+
+.fpi-list-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.btn-write-off-desktop {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px 8px 18px;
+  border: none;
+  border-radius: 10px;
+  background: #eaf5ff;
+  color: #1a2332;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: 'Noto Sans SC', sans-serif;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+
+  &:hover {
+    background: #ddefff;
+    color: #0f172a;
+  }
+
+  &:active {
+    background: #d0e8ff;
+  }
+
+  &__arrow {
+    font-size: 14px;
+    color: #64748b;
+  }
+}
 
 .pagination-wrap {
   display: flex;

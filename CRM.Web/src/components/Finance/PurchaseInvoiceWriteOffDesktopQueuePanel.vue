@@ -1,11 +1,11 @@
 <template>
-  <div class="rwo-desktop-queue-panel">
-    <div class="rwo-desktop-queue-panel__search">
+  <div class="piwo-desktop-queue-panel">
+    <div class="piwo-desktop-queue-panel__search">
       <el-input
         :model-value="keyword"
         size="small"
         clearable
-        :placeholder="t('receiptWriteOffDesktop.queue.searchPh')"
+        :placeholder="t('purchaseInvoiceWriteOffDesktop.queue.searchPh')"
         @update:model-value="onKeyword"
         @keyup.enter="onSearch"
       >
@@ -14,12 +14,12 @@
         </template>
       </el-input>
       <el-button type="primary" size="small" @click="onSearch">
-        {{ t('receiptWriteOffDesktop.queue.search') }}
+        {{ t('purchaseInvoiceWriteOffDesktop.queue.search') }}
       </el-button>
       <el-dropdown trigger="click" @command="onSortCommand">
         <el-button
           size="small"
-          class="rwo-desktop-queue-panel__sort-btn"
+          class="piwo-desktop-queue-panel__sort-btn"
           :title="sortButtonTip"
           :aria-label="sortButtonTip"
         >
@@ -28,55 +28,51 @@
         <template #dropdown>
           <el-dropdown-menu>
             <el-dropdown-item command="earliest" :class="{ 'is-active': sortBy === 'earliest' }">
-              {{ t('receiptWriteOffDesktop.queue.sortEarliest') }}
+              {{ t('purchaseInvoiceWriteOffDesktop.queue.sortEarliest') }}
             </el-dropdown-item>
             <el-dropdown-item command="latest" :class="{ 'is-active': sortBy === 'latest' }">
-              {{ t('receiptWriteOffDesktop.queue.sortLatest') }}
+              {{ t('purchaseInvoiceWriteOffDesktop.queue.sortLatest') }}
             </el-dropdown-item>
           </el-dropdown-menu>
         </template>
       </el-dropdown>
     </div>
 
-    <div ref="listEl" class="rwo-desktop-queue-panel__list" v-loading="loading">
+    <div ref="listEl" class="piwo-desktop-queue-panel__list" v-loading="loading">
       <button
         v-for="item in pagedList"
-        :key="receiptWriteOffCustomerKey(item)"
+        :key="purchaseInvoiceWriteOffVendorKey(item)"
         type="button"
-        class="rwo-queue-card"
-        :class="{ 'is-selected': selectedKey === receiptWriteOffCustomerKey(item) }"
-        :data-rwo-key="receiptWriteOffCustomerKey(item)"
+        class="piwo-queue-card"
+        :class="{ 'is-selected': selectedKey === purchaseInvoiceWriteOffVendorKey(item) }"
+        :data-piwo-key="purchaseInvoiceWriteOffVendorKey(item)"
         @click="onSelect(item)"
       >
-        <div class="rwo-queue-card__names">
-          <span class="rwo-queue-card__zh" :title="nameZh(item)">{{ nameZh(item) }}</span>
+        <div class="piwo-queue-card__names">
+          <span class="piwo-queue-card__zh" :title="nameZh(item)">{{ nameZh(item) }}</span>
           <span
             v-if="hasEnglishName(item)"
-            class="rwo-queue-card__en"
+            class="piwo-queue-card__en"
             :title="nameEn(item)"
           >{{ nameEn(item) }}</span>
         </div>
-        <div class="rwo-queue-card__row">
-          <span class="rwo-queue-card__label">{{ t('receiptWriteOffDesktop.queue.salesUser') }}</span>
-          <span :title="item.salesUserName || undefined">{{ item.salesUserName || '—' }}</span>
+        <div class="piwo-queue-card__row piwo-queue-card__row--amount">
+          <span class="piwo-queue-card__label">{{ t('purchaseInvoiceWriteOffDesktop.queue.pendingTotal') }}</span>
+          <span class="piwo-queue-card__amount">{{ formatPendingTotal(item) }}</span>
         </div>
-        <div class="rwo-queue-card__row rwo-queue-card__row--amount">
-          <span class="rwo-queue-card__label">{{ t('receiptWriteOffDesktop.queue.pendingTotal') }}</span>
-          <span class="rwo-queue-card__amount">{{ formatPendingTotal(item) }}</span>
-        </div>
-        <div class="rwo-queue-card__meta">
+        <div class="piwo-queue-card__meta">
           <span>
-            {{ t('receiptWriteOffDesktop.queue.receiptCount', { n: item.pendingReceiptItemCount ?? 0 }) }}
+            {{ t('purchaseInvoiceWriteOffDesktop.queue.invoiceCount', { n: item.pendingInvoiceCount ?? 0 }) }}
           </span>
-          <span :title="dateFieldLabel">{{ formatDate(displayReceiptDate(item)) }}</span>
+          <span :title="dateFieldLabel">{{ formatDate(displayInvoiceDate(item)) }}</span>
         </div>
       </button>
-      <div v-if="!loading && !filteredTotal" class="rwo-queue-empty">
-        {{ t('receiptWriteOffDesktop.empty.queue') }}
+      <div v-if="!loading && !filteredTotal" class="piwo-queue-empty">
+        {{ t('purchaseInvoiceWriteOffDesktop.empty.queue') }}
       </div>
     </div>
 
-    <div v-if="filteredTotal > 0" class="rwo-desktop-queue-panel__pager">
+    <div v-if="filteredTotal > 0" class="piwo-desktop-queue-panel__pager">
       <el-pagination
         small
         layout="prev, pager, next"
@@ -95,15 +91,15 @@ import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { Search, Sort } from '@element-plus/icons-vue'
 import { CURRENCY_MAP } from '@/api/finance'
-import type { FinanceWriteOffCustomerSummary } from '@/api/financeReceivable'
+import type { FinancePurchaseInvoiceWriteOffVendorSummary } from '@/api/financePurchaseInvoiceWriteOff'
 import {
-  receiptWriteOffCustomerKey,
-  useReceiptWriteOffDesktopQueueStore
-} from '@/stores/receiptWriteOffDesktopQueue'
-import type { ReceiptWriteOffQueueSort } from '@/utils/receiptWriteOffQueueSort'
+  purchaseInvoiceWriteOffVendorKey,
+  usePurchaseInvoiceWriteOffDesktopQueueStore
+} from '@/stores/purchaseInvoiceWriteOffDesktopQueue'
+import type { PurchaseInvoiceWriteOffQueueSort } from '@/utils/purchaseInvoiceWriteOffQueueSort'
 
 const { t } = useI18n()
-const queueStore = useReceiptWriteOffDesktopQueueStore()
+const queueStore = usePurchaseInvoiceWriteOffDesktopQueueStore()
 const {
   loading,
   keyword,
@@ -119,24 +115,24 @@ const listEl = ref<HTMLElement | null>(null)
 
 const dateFieldLabel = computed(() =>
   sortBy.value === 'latest'
-    ? t('receiptWriteOffDesktop.queue.sortLatest')
-    : t('receiptWriteOffDesktop.queue.sortEarliest')
+    ? t('purchaseInvoiceWriteOffDesktop.queue.sortLatest')
+    : t('purchaseInvoiceWriteOffDesktop.queue.sortEarliest')
 )
 
 const sortButtonTip = computed(() =>
-  t('receiptWriteOffDesktop.queue.sortTip', { field: dateFieldLabel.value })
+  t('purchaseInvoiceWriteOffDesktop.queue.sortTip', { field: dateFieldLabel.value })
 )
 
-function nameZh(row: FinanceWriteOffCustomerSummary) {
-  return row.customerName?.trim() || row.customerId || '—'
+function nameZh(row: FinancePurchaseInvoiceWriteOffVendorSummary) {
+  return row.vendorName?.trim() || row.vendorId || '—'
 }
 
-function nameEn(row: FinanceWriteOffCustomerSummary) {
-  return row.customerEnglishName?.trim() || ''
+function nameEn(row: FinancePurchaseInvoiceWriteOffVendorSummary) {
+  return row.vendorEnglishName?.trim() || ''
 }
 
-function hasEnglishName(row: FinanceWriteOffCustomerSummary) {
-  return !!row.customerEnglishName?.trim()
+function hasEnglishName(row: FinancePurchaseInvoiceWriteOffVendorSummary) {
+  return !!row.vendorEnglishName?.trim()
 }
 
 function currencyLabel(currency?: number | null) {
@@ -149,10 +145,9 @@ function formatAmount(v?: number) {
   return Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-function formatPendingTotal(row: FinanceWriteOffCustomerSummary) {
-  const amount = row.pendingWriteOffTotal ?? row.currencyTotals?.[0]?.amount
-  const currency = row.currency ?? row.currencyTotals?.[0]?.currency
-  const cur = currencyLabel(currency)
+function formatPendingTotal(row: FinancePurchaseInvoiceWriteOffVendorSummary) {
+  const amount = row.pendingWriteOffTotal
+  const cur = currencyLabel(row.currency)
   return cur ? `${formatAmount(amount)} ${cur}` : formatAmount(amount)
 }
 
@@ -161,11 +156,11 @@ function formatDate(v?: string | null) {
   return String(v).slice(0, 10)
 }
 
-function displayReceiptDate(row: FinanceWriteOffCustomerSummary) {
-  return sortBy.value === 'latest' ? row.latestReceiptDate : row.earliestReceiptDate
+function displayInvoiceDate(row: FinancePurchaseInvoiceWriteOffVendorSummary) {
+  return sortBy.value === 'latest' ? row.latestInvoiceDate : row.earliestInvoiceDate
 }
 
-function onSelect(item: FinanceWriteOffCustomerSummary) {
+function onSelect(item: FinancePurchaseInvoiceWriteOffVendorSummary) {
   queueStore.selectItem(item)
 }
 
@@ -179,7 +174,7 @@ function onSearch() {
 
 function onSortCommand(cmd: string | number) {
   if (cmd === 'earliest' || cmd === 'latest') {
-    queueStore.setSortBy(cmd as ReceiptWriteOffQueueSort)
+    queueStore.setSortBy(cmd as PurchaseInvoiceWriteOffQueueSort)
   }
 }
 
@@ -191,7 +186,7 @@ async function scrollSelectedIntoView() {
   await nextTick()
   const key = selectedKey.value
   if (!key || !listEl.value) return
-  const el = listEl.value.querySelector(`[data-rwo-key="${CSS.escape(key)}"]`) as HTMLElement | null
+  const el = listEl.value.querySelector(`[data-piwo-key="${CSS.escape(key)}"]`) as HTMLElement | null
   el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
 }
 
@@ -207,7 +202,7 @@ watch(selectedKey, () => {
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
 
-.rwo-desktop-queue-panel {
+.piwo-desktop-queue-panel {
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -217,25 +212,25 @@ watch(selectedKey, () => {
   box-sizing: border-box;
 }
 
-.rwo-desktop-queue-panel__search {
+.piwo-desktop-queue-panel__search {
   display: flex;
   gap: 6px;
   flex-shrink: 0;
   align-items: center;
 }
 
-.rwo-desktop-queue-panel__search .el-input {
+.piwo-desktop-queue-panel__search .el-input {
   flex: 1;
   min-width: 0;
 }
 
-.rwo-desktop-queue-panel__sort-btn {
+.piwo-desktop-queue-panel__sort-btn {
   flex-shrink: 0;
   padding-left: 8px;
   padding-right: 8px;
 }
 
-.rwo-desktop-queue-panel__list {
+.piwo-desktop-queue-panel__list {
   flex: 1;
   min-height: 0;
   overflow: auto;
@@ -244,7 +239,7 @@ watch(selectedKey, () => {
   gap: 8px;
 }
 
-.rwo-desktop-queue-panel__pager {
+.piwo-desktop-queue-panel__pager {
   flex-shrink: 0;
   display: flex;
   justify-content: center;
@@ -252,13 +247,13 @@ watch(selectedKey, () => {
   border-top: 1px solid var(--el-border-color-lighter);
 }
 
-.rwo-desktop-queue-panel__pager :deep(.el-pagination) {
+.piwo-desktop-queue-panel__pager :deep(.el-pagination) {
   flex-wrap: wrap;
   justify-content: center;
   --el-pagination-button-width: 28px;
 }
 
-.rwo-queue-card {
+.piwo-queue-card {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -273,23 +268,23 @@ watch(selectedKey, () => {
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.rwo-queue-card:hover {
+.piwo-queue-card:hover {
   background: rgba(0, 212, 255, 0.06);
 }
 
-.rwo-queue-card.is-selected {
+.piwo-queue-card.is-selected {
   border-color: rgba(0, 212, 255, 0.35);
   background: #e5fbff;
 }
 
-.rwo-queue-card__names {
+.piwo-queue-card__names {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
 }
 
-.rwo-queue-card__zh {
+.piwo-queue-card__zh {
   font-weight: 600;
   font-size: 13px;
   overflow: hidden;
@@ -297,12 +292,12 @@ watch(selectedKey, () => {
   white-space: nowrap;
 }
 
-.rwo-queue-card.is-selected .rwo-queue-card__zh,
-.rwo-queue-card.is-selected .rwo-queue-card__en {
+.piwo-queue-card.is-selected .piwo-queue-card__zh,
+.piwo-queue-card.is-selected .piwo-queue-card__en {
   color: $color-amber;
 }
 
-.rwo-queue-card__en {
+.piwo-queue-card__en {
   font-size: 12px;
   color: var(--el-text-color-secondary);
   overflow: hidden;
@@ -310,7 +305,7 @@ watch(selectedKey, () => {
   white-space: nowrap;
 }
 
-.rwo-queue-card__row {
+.piwo-queue-card__row {
   display: flex;
   justify-content: space-between;
   gap: 8px;
@@ -318,25 +313,25 @@ watch(selectedKey, () => {
   min-width: 0;
 }
 
-.rwo-queue-card__row > span:last-child {
+.piwo-queue-card__row > span:last-child {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   text-align: right;
 }
 
-.rwo-queue-card__label {
+.piwo-queue-card__label {
   color: var(--el-text-color-secondary);
   flex-shrink: 0;
 }
 
-.rwo-queue-card__amount {
+.piwo-queue-card__amount {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: $cyan-primary;
 }
 
-.rwo-queue-card__meta {
+.piwo-queue-card__meta {
   display: flex;
   justify-content: space-between;
   gap: 8px;
@@ -345,7 +340,7 @@ watch(selectedKey, () => {
   margin-top: 2px;
 }
 
-.rwo-queue-empty {
+.piwo-queue-empty {
   padding: 24px 8px;
   text-align: center;
   color: var(--el-text-color-secondary);

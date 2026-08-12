@@ -1105,6 +1105,16 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '进项发票详情', permission: 'finance-purchase-invoice.read' }
       },
       {
+        path: 'finance/purchase-invoice-write-off-desktop',
+        name: 'PurchaseInvoiceWriteOffDesktop',
+        component: () => import('@/views/Finance/PurchaseInvoiceWriteOffDesktop.vue'),
+        meta: { requiresAuth: true, title: '进项发票核销桌面', permission: 'finance-purchase-invoice.read' }
+      },
+      {
+        path: 'purchase-invoice-write-off-desktop',
+        redirect: { name: 'PurchaseInvoiceWriteOffDesktop' }
+      },
+      {
         path: 'finance/sell-invoices',
         name: 'FinanceSellInvoiceList',
         component: () => import('@/views/Finance/FinanceSellInvoiceList.vue'),

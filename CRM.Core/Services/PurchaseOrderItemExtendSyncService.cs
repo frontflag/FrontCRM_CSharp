@@ -32,6 +32,7 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
     private readonly IRepository<FinancePayment> _paymentRepo;
     private readonly IRepository<FinancePurchaseInvoiceItem> _purInvItemRepo;
     private readonly IRepository<FinancePurchaseInvoice> _purInvRepo;
+    private readonly IRepository<FinancePurchaseInvoiceWriteOff> _purInvWriteOffRepo;
     private readonly IRepository<StockIn> _stockInRepo;
     private readonly IRepository<StockInItem> _stockInItemRepo;
     private readonly IRepository<StockInItemExtend> _stockInItemExtendRepo;
@@ -49,6 +50,7 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
         IRepository<FinancePayment> paymentRepo,
         IRepository<FinancePurchaseInvoiceItem> purInvItemRepo,
         IRepository<FinancePurchaseInvoice> purInvRepo,
+        IRepository<FinancePurchaseInvoiceWriteOff> purInvWriteOffRepo,
         IRepository<StockIn> stockInRepo,
         IRepository<StockInItem> stockInItemRepo,
         IRepository<StockInItemExtend> stockInItemExtendRepo,
@@ -65,6 +67,7 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
         _paymentRepo = paymentRepo;
         _purInvItemRepo = purInvItemRepo;
         _purInvRepo = purInvRepo;
+        _purInvWriteOffRepo = purInvWriteOffRepo;
         _stockInRepo = stockInRepo;
         _stockInItemRepo = stockInItemRepo;
         _stockInItemExtendRepo = stockInItemExtendRepo;
@@ -187,8 +190,8 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
         else
             ext.PaymentProgressStatus = ProgressPartial;
 
-        // --- 进项发票：按入库单 + 质检/采购来源解析到本行 ---
-        var invDone = await SumPurchaseInvoiceBillAmountForPoLineAsync(poItem);
+        // --- 进项发票：优先核销流水（按 PO 明细）；无流水时回退建票 StockIn 关联汇总 ---
+        var invDone = await SumPurchaseInvoiceDoneForPoLineAsync(poItem);
         ext.PurchaseInvoiceDone = Math.Round(invDone, 2, MidpointRounding.AwayFromZero);
         ext.PurchaseInvoiceToBe = Math.Max(0m, Math.Round(ext.PurchaseInvoiceAmount - ext.PurchaseInvoiceDone, 2, MidpointRounding.AwayFromZero));
         if (ext.PurchaseInvoiceDone <= 0m)
@@ -347,6 +350,13 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
                 poItemIds.Add(pid);
         }
 
+        var writeOffs = (await _purInvWriteOffRepo.FindAsync(w => w.FinancePurchaseInvoiceId == invId)).ToList();
+        foreach (var w in writeOffs)
+        {
+            if (!string.IsNullOrWhiteSpace(w.PurchaseOrderItemId))
+                poItemIds.Add(w.PurchaseOrderItemId.Trim());
+        }
+
         foreach (var pid in poItemIds)
             await RecalculateAsync(pid, cancellationToken);
     }
@@ -395,6 +405,18 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
             .Select(s => s.Id)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         return items.Where(i => completedIds.Contains(i.StockInId)).Sum(i => (decimal)i.Quantity);
+    }
+
+    private async Task<decimal> SumPurchaseInvoiceDoneForPoLineAsync(PurchaseOrderItem poItem)
+    {
+        var poItemId = poItem.Id.Trim();
+        var writeOffSum = (await _purInvWriteOffRepo.FindAsync(w =>
+                w.PurchaseOrderItemId != null && w.PurchaseOrderItemId == poItemId))
+            .Sum(w => w.Amount);
+        if (writeOffSum > 0m)
+            return writeOffSum;
+
+        return await SumPurchaseInvoiceBillAmountForPoLineAsync(poItem);
     }
 
     private async Task<decimal> SumPurchaseInvoiceBillAmountForPoLineAsync(PurchaseOrderItem poItem)

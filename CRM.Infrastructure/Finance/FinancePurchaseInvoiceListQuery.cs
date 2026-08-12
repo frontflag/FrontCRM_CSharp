@@ -38,6 +38,7 @@ public sealed class FinancePurchaseInvoiceListQuery : IFinancePurchaseInvoiceLis
         {
             var k = request.Keyword.Trim().ToLowerInvariant();
             q = q.Where(inv =>
+                (inv.InvoiceCode != null && inv.InvoiceCode.ToLower().Contains(k)) ||
                 (inv.VendorName != null && inv.VendorName.ToLower().Contains(k)) ||
                 (inv.InvoiceNo != null && inv.InvoiceNo.ToLower().Contains(k)));
         }

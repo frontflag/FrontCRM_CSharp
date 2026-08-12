@@ -150,6 +150,8 @@ declare module 'vue' {
     ProfileMailboxPanel: typeof import('./src/components/Profile/ProfileMailboxPanel.vue')['default']
     ProgressMultiSelectOption: typeof import('./src/components/Common/ProgressMultiSelectOption.vue')['default']
     PurchaseAnalyticsVendorPanel: typeof import('./src/components/Analytics/PurchaseAnalyticsVendorPanel.vue')['default']
+    PurchaseInvoiceWriteOffDesktopQueuePanel: typeof import('./src/components/Finance/PurchaseInvoiceWriteOffDesktopQueuePanel.vue')['default']
+    PurchaseInvoiceWriteOffStockInPanel: typeof import('./src/components/Finance/PurchaseInvoiceWriteOffStockInPanel.vue')['default']
     PurchaseOpsAssistorSelect: typeof import('./src/components/PurchaseOpsAssistorSelect.vue')['default']
     PurchaseOrderFavoritePanel: typeof import('./src/components/purchaseOrder/PurchaseOrderFavoritePanel.vue')['default']
     PurchaseOrderItemArrivalNoticeTabTable: typeof import('./src/components/RFQ/PurchaseOrderItemArrivalNoticeTabTable.vue')['default']

@@ -255,6 +255,10 @@ namespace CRM.Core.Services
                             : poiForLine!.PurchaseOrderItemCode.Trim(),
                         SellOrderItemId = sellIdForExt,
                         SellOrderItemCode = sellCodeForExt,
+                        InvoiceMatchDone = 0m,
+                        InvoiceMatchToBe = amount,
+                        InvoiceMatchStatus = 0,
+                        InvoiceMatchCurrency = line.Currency is short c && c is > 0 and <= 3 ? (byte)c : null,
                         CreateTime = line.CreateTime
                     });
                 }

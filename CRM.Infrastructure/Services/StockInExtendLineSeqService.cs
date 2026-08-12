@@ -54,4 +54,41 @@ RETURNING last_item_line_seq - @cnt + 1;
                 await conn.CloseAsync();
         }
     }
+
+    public async Task UpsertInvoiceMatchCacheAsync(
+        string stockInId,
+        decimal invoiceMatchDone,
+        decimal invoiceMatchToBe,
+        short invoiceMatchStatus,
+        byte? invoiceMatchCurrency,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(stockInId))
+            throw new ArgumentException("入库单 ID 不能为空", nameof(stockInId));
+
+        var now = DateTime.UtcNow;
+        var row = await _db.StockInExtends.FirstOrDefaultAsync(x => x.StockInId == stockInId, cancellationToken);
+        if (row == null)
+        {
+            _db.StockInExtends.Add(new CRM.Core.Models.Inventory.StockInExtend
+            {
+                StockInId = stockInId.Trim(),
+                LastItemLineSeq = 0,
+                CreateTime = now,
+                ModifyTime = now,
+                InvoiceMatchDone = invoiceMatchDone,
+                InvoiceMatchToBe = invoiceMatchToBe,
+                InvoiceMatchStatus = invoiceMatchStatus,
+                InvoiceMatchCurrency = invoiceMatchCurrency
+            });
+        }
+        else
+        {
+            row.InvoiceMatchDone = invoiceMatchDone;
+            row.InvoiceMatchToBe = invoiceMatchToBe;
+            row.InvoiceMatchStatus = invoiceMatchStatus;
+            row.InvoiceMatchCurrency = invoiceMatchCurrency;
+            row.ModifyTime = now;
+        }
+    }
 }
