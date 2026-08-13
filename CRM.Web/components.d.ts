@@ -205,6 +205,8 @@ declare module 'vue' {
     SalesOrderWarrantyReportSkinIdesemi: typeof import('./src/components/SalesOrder/salesOrderWarrantyReport/skins/SalesOrderWarrantyReportSkinIdesemi.vue')['default']
     SalesOrderWarrantyReportSkinSemicore: typeof import('./src/components/SalesOrder/salesOrderWarrantyReport/skins/SalesOrderWarrantyReportSkinSemicore.vue')['default']
     SalesUserCascader: typeof import('./src/components/SalesUserCascader.vue')['default']
+    SellInvoiceWriteOffDesktopQueuePanel: typeof import('./src/components/Finance/SellInvoiceWriteOffDesktopQueuePanel.vue')['default']
+    SellInvoiceWriteOffStockOutPanel: typeof import('./src/components/Finance/SellInvoiceWriteOffStockOutPanel.vue')['default']
     SellOrderItemPackingTabTable: typeof import('./src/components/RFQ/SellOrderItemPackingTabTable.vue')['default']
     SellOrderItemPerformancePanel: typeof import('./src/components/RFQ/SellOrderItemPerformancePanel.vue')['default']
     SellOrderItemQcTabTable: typeof import('./src/components/RFQ/SellOrderItemQcTabTable.vue')['default']

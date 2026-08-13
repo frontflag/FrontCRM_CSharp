@@ -49,6 +49,9 @@ public sealed class FinanceSellInvoiceListQuery : IFinanceSellInvoiceListQuery
         if (request.ReceiveStatus.HasValue)
             q = q.Where(inv => inv.ReceiveStatus == request.ReceiveStatus.Value);
 
+        if (request.MatchStatus.HasValue)
+            q = q.Where(inv => inv.MatchStatus == request.MatchStatus.Value);
+
         if (request.StartDate.HasValue)
             q = q.Where(inv => inv.MakeInvoiceDate >= request.StartDate.Value);
 

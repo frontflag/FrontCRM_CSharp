@@ -50,6 +50,7 @@
     { "id": "MENU_FINANCE_PAYMENT", "label": "付款记录", "routeNames": ["FinancePaymentList", "FinancePaymentDetail"], "pathPrefixes": ["/finance/payments"] },
     { "id": "MENU_FINANCE_PURCHASE_INV", "label": "进项发票", "routeNames": ["FinancePurchaseInvoiceList", "FinancePurchaseInvoiceDetail"], "pathPrefixes": ["/finance/purchase-invoices"] },
     { "id": "MENU_FINANCE_PURCHASE_INV_WRITE_OFF", "label": "进项发票核销", "routeNames": ["PurchaseInvoiceWriteOffDesktop"], "pathPrefixes": ["/finance/purchase-invoice-write-off-desktop"] },
+    { "id": "MENU_FINANCE_SELL_INV_WRITE_OFF", "label": "销项发票核销", "routeNames": ["SellInvoiceWriteOffDesktop"], "pathPrefixes": ["/finance/sell-invoice-write-off-desktop"] },
     { "id": "MENU_FINANCE_RECEIVABLE", "label": "应收款", "routeNames": ["FinanceReceivableList", "FinanceReceivableDetail"], "pathPrefixes": ["/finance/receivables"] },
     { "id": "MENU_FINANCE_RECEIPT", "label": "收款记录", "routeNames": ["FinanceReceiptList", "FinanceReceiptDetail"], "pathPrefixes": ["/finance/receipts"] },
     { "id": "MENU_FINANCE_RECEIPT_WRITE_OFF", "label": "收款核销", "routeNames": ["FinanceReceiptWriteOff", "FinanceReceiptWriteOffLedger", "ReceiptWriteOffDesktop"], "pathPrefixes": ["/finance/receipt-write-off", "/finance/receipt-write-off-desktop"] },

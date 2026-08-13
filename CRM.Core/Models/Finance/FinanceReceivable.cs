@@ -84,6 +84,22 @@ public class FinanceReceivable : BaseGuidEntity, ISoftDeletable
     [Column("verification_status")]
     public short VerificationStatus { get; set; }
 
+    /// <summary>已匹配开票金额（票↔应收）</summary>
+    [Column("invoice_match_done", TypeName = "numeric(18,2)")]
+    public decimal InvoiceMatchDone { get; set; }
+
+    /// <summary>待匹配开票金额</summary>
+    [Column("invoice_match_to_be", TypeName = "numeric(18,2)")]
+    public decimal InvoiceMatchToBe { get; set; }
+
+    /// <summary>开票匹配状态 0未匹配 1部分 2完成</summary>
+    [Column("invoice_match_status")]
+    public short InvoiceMatchStatus { get; set; }
+
+    /// <summary>开票匹配币别（可选冗余）</summary>
+    [Column("invoice_match_currency")]
+    public short? InvoiceMatchCurrency { get; set; }
+
     [Column("stock_out_date")]
     public DateTime? StockOutDate { get; set; }
 

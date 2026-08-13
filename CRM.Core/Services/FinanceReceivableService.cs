@@ -36,6 +36,7 @@ public class FinanceReceivableService : IFinanceReceivableService
     private readonly IRepository<User> _userRepository;
     private readonly IRepository<CustomerInfo> _customerRepo;
     private readonly IRepository<FinanceCustomerAdvanceLedger> _advanceLedgerRepo;
+    private readonly IFinanceSellInvoiceWriteOffService? _sellInvoiceWriteOffService;
     private readonly IUnitOfWork? _unitOfWork;
 
     public FinanceReceivableService(
@@ -59,6 +60,7 @@ public class FinanceReceivableService : IFinanceReceivableService
         IRepository<FinanceCustomerAdvanceLedger> advanceLedgerRepo,
         IRepository<User> userRepository,
         IRepository<CustomerInfo> customerRepo,
+        IFinanceSellInvoiceWriteOffService? sellInvoiceWriteOffService = null,
         IUnitOfWork? unitOfWork = null)
     {
         _receivableRepo = receivableRepo;
@@ -81,6 +83,7 @@ public class FinanceReceivableService : IFinanceReceivableService
         _advanceLedgerRepo = advanceLedgerRepo;
         _userRepository = userRepository;
         _customerRepo = customerRepo;
+        _sellInvoiceWriteOffService = sellInvoiceWriteOffService;
         _unitOfWork = unitOfWork;
     }
 
@@ -157,6 +160,10 @@ public class FinanceReceivableService : IFinanceReceivableService
                 VerifiedDone = 0m,
                 VerifiedToBe = amount,
                 VerificationStatus = FinanceVerificationStatusCode.Pending,
+                InvoiceMatchDone = 0m,
+                InvoiceMatchToBe = amount,
+                InvoiceMatchStatus = 0,
+                InvoiceMatchCurrency = sellOrder.Currency,
                 StockOutDate = ResolveReceivableStockOutDate(stockOut),
                 CreateTime = DateTime.UtcNow,
                 CreateByUserId = ActingUserIdNormalizer.Normalize(actingUserId)
@@ -1407,6 +1414,9 @@ public class FinanceReceivableService : IFinanceReceivableService
         if (_unitOfWork != null)
             await _unitOfWork.SaveChangesAsync();
 
+        if (_sellInvoiceWriteOffService != null && receivableIds.Count > 0)
+            await _sellInvoiceWriteOffService.RecalculateReceiveProgressForReceivablesAsync(receivableIds, cancellationToken);
+
         result.Applied = true;
         result.SoMismatches = soMismatches;
         return result;
@@ -1688,6 +1698,16 @@ public class FinanceReceivableService : IFinanceReceivableService
 
         if (_unitOfWork != null)
             await _unitOfWork.SaveChangesAsync();
+
+        if (_sellInvoiceWriteOffService != null && writeOffs.Count > 0)
+        {
+            var touchedReceivableIds = writeOffs
+                .Select(w => w.FinanceReceivableId)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase);
+            await _sellInvoiceWriteOffService.RecalculateReceiveProgressForReceivablesAsync(
+                touchedReceivableIds, cancellationToken);
+        }
 
         return new FinanceReceiptReverseWriteOffResult
         {

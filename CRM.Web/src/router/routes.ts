@@ -1121,6 +1121,16 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '销项发票', permission: 'finance-sell-invoice.read' }
       },
       {
+        path: 'finance/sell-invoice-write-off-desktop',
+        name: 'SellInvoiceWriteOffDesktop',
+        component: () => import('@/views/Finance/SellInvoiceWriteOffDesktop.vue'),
+        meta: { requiresAuth: true, title: '销项发票核销桌面', permission: 'finance-sell-invoice.read' }
+      },
+      {
+        path: 'sell-invoice-write-off-desktop',
+        redirect: { name: 'SellInvoiceWriteOffDesktop' }
+      },
+      {
         path: 'finance/sell-invoices/:id',
         name: 'FinanceSellInvoiceDetail',
         component: () => import('@/views/Finance/FinanceSellInvoiceDetail.vue'),

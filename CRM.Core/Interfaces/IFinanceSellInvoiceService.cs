@@ -60,6 +60,8 @@ namespace CRM.Core.Interfaces
         public string? Keyword { get; set; }
         public short? InvoiceStatus { get; set; }
         public byte? ReceiveStatus { get; set; }
+        /// <summary>匹配/核销状态 0未核销 1部分核销 2核销完成</summary>
+        public short? MatchStatus { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
         public int Page { get; set; } = 1;

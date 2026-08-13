@@ -590,16 +590,27 @@ namespace CRM.Core.Models.Finance
         /// <summary>开票日期</summary>
         public DateTime? MakeInvoiceDate { get; set; }
 
-        /// <summary>收款状态 0未收款 1部分收款 2收款完成</summary>
+        /// <summary>收款状态 0未收款 1部分收款 2收款完成（派生缓存，相对 MatchDone）</summary>
         public byte ReceiveStatus { get; set; } = 0;
 
-        /// <summary>已收总额（已核销）</summary>
+        /// <summary>已收总额（派生缓存）</summary>
         [Column(TypeName = "numeric(18,2)")]
         public decimal ReceiveDone { get; set; } = 0m;
 
-        /// <summary>待收总额（待核销）</summary>
+        /// <summary>待收总额（派生缓存）</summary>
         [Column(TypeName = "numeric(18,2)")]
         public decimal ReceiveToBe { get; set; } = 0m;
+
+        /// <summary>已匹配开票金额（票↔应收）</summary>
+        [Column(TypeName = "numeric(18,2)")]
+        public decimal MatchDone { get; set; } = 0m;
+
+        /// <summary>待匹配开票金额</summary>
+        [Column(TypeName = "numeric(18,2)")]
+        public decimal MatchToBe { get; set; } = 0m;
+
+        /// <summary>匹配状态 0未匹配 1部分 2完成</summary>
+        public short MatchStatus { get; set; } = 0;
 
         /// <summary>币别 1:人民币 2:美元 3:欧元</summary>
         public byte Currency { get; set; } = 1;

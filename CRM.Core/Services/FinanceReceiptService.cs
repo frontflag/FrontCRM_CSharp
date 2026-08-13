@@ -488,32 +488,8 @@ namespace CRM.Core.Services
             if (amount <= 0m)
                 return;
 
-            if (!string.IsNullOrWhiteSpace(item.FinanceSellInvoiceId))
-            {
-                var invoice = await _sellInvoiceRepo.GetByIdAsync(item.FinanceSellInvoiceId);
-                if (invoice != null)
-                {
-                    invoice.ReceiveDone = Math.Max(0m, invoice.ReceiveDone - amount);
-                    invoice.ReceiveToBe += amount;
-                    if (invoice.ReceiveToBe <= 0)
-                        invoice.ReceiveStatus = 2;
-                    else if (invoice.ReceiveDone > 0)
-                        invoice.ReceiveStatus = 1;
-                    else
-                        invoice.ReceiveStatus = 0;
-                    invoice.ModifyTime = DateTime.UtcNow;
-                    invoice.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
-                    await _sellInvoiceRepo.UpdateAsync(invoice);
-
-                    var sellInvoiceItems = (await _sellInvoiceItemRepo.FindAsync(x => x.FinanceSellInvoiceId == invoice.Id)).ToList();
-                    foreach (var sellItem in sellInvoiceItems)
-                    {
-                        sellItem.ReceiveStatus = (short)invoice.ReceiveStatus;
-                        sellItem.ModifyTime = DateTime.UtcNow;
-                        await _sellInvoiceItemRepo.UpdateAsync(sellItem);
-                    }
-                }
-            }
+            // 销项发票 Receive* 改为匹配流水 + 应收 verified_* 派生，不再由收款明细直改。
+            _ = actingUserId;
 
             item.VerifiedAmount = 0m;
             item.VerificationStatus = 0;
@@ -578,35 +554,9 @@ namespace CRM.Core.Services
             item.ModifyTime = DateTime.UtcNow;
             await _itemRepo.UpdateAsync(item);
 
-            // 更新销项发票收款状态
-            var targetSellInvoiceId = !string.IsNullOrWhiteSpace(sellInvoiceId)
-                ? sellInvoiceId
-                : item.FinanceSellInvoiceId;
-            if (!string.IsNullOrWhiteSpace(targetSellInvoiceId))
-            {
-                var invoice = await _sellInvoiceRepo.GetByIdAsync(targetSellInvoiceId);
-                if (invoice != null)
-                {
-                    invoice.ReceiveDone += amount;
-                    invoice.ReceiveToBe -= amount;
-                    if (invoice.ReceiveToBe <= 0)
-                        invoice.ReceiveStatus = 2; // 收款完成
-                    else if (invoice.ReceiveDone > 0)
-                        invoice.ReceiveStatus = 1; // 部分收款
-                    invoice.ModifyTime = DateTime.UtcNow;
-                    invoice.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
-                    await _sellInvoiceRepo.UpdateAsync(invoice);
-
-                    // 同步销项发票明细的收款状态（当前按主单状态同步）
-                    var sellInvoiceItems = (await _sellInvoiceItemRepo.FindAsync(x => x.FinanceSellInvoiceId == invoice.Id)).ToList();
-                    foreach (var sellItem in sellInvoiceItems)
-                    {
-                        sellItem.ReceiveStatus = (short)invoice.ReceiveStatus;
-                        sellItem.ModifyTime = DateTime.UtcNow;
-                        await _sellInvoiceItemRepo.UpdateAsync(sellItem);
-                    }
-                }
-            }
+            // 销项发票 Receive* 由票↔应收匹配 + 应收收款核销派生，此处不再直改。
+            if (!string.IsNullOrWhiteSpace(sellInvoiceId) && string.IsNullOrWhiteSpace(item.FinanceSellInvoiceId))
+                item.FinanceSellInvoiceId = sellInvoiceId.Trim();
 
             await SyncSellOrderReceiptStatusAsync(item, actingUserId);
 

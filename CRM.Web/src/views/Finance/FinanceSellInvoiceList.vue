@@ -1,23 +1,81 @@
 <template>
   <div class="finance-page">
+    <div class="fsi-list-page-header">
+      <h1 class="finance-list-page-title">{{ t('financeSellInvoiceList.pageTitle') }}</h1>
+      <button type="button" class="btn-write-off-desktop" @click="goWriteOffDesktop">
+        <span>{{ t('financeSellInvoiceList.goWriteOffDesktop') }}</span>
+        <el-icon class="btn-write-off-desktop__arrow"><ArrowRight /></el-icon>
+      </button>
+    </div>
+
+    <!-- 统计卡片（置顶） -->
+    <div class="stat-cards">
+      <div class="stat-card">
+        <div class="stat-label">{{ t('financeSellInvoiceList.stats.totalAmount') }}</div>
+        <div class="stat-value">{{ maskSaleSensitiveFields ? '—' : formatTotalAmountNumber(stats.totalAmount) }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">{{ t('financeSellInvoiceList.stats.receivedAmount') }}</div>
+        <div class="stat-value success">{{ maskSaleSensitiveFields ? '—' : formatTotalAmountNumber(stats.receivedAmount) }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">{{ t('financeSellInvoiceList.stats.toReceiveAmount') }}</div>
+        <div class="stat-value warning">{{ maskSaleSensitiveFields ? '—' : formatTotalAmountNumber(stats.toReceiveAmount) }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">{{ t('financeSellInvoiceList.stats.invoicedCount') }}</div>
+        <div class="stat-value">{{ stats.invoicedCount }}</div>
+      </div>
+    </div>
+
     <!-- 搜索栏 -->
     <div class="search-bar">
       <div class="search-left">
-        <el-input
-          v-model="query.keyword"
-          :placeholder="t('financeSellInvoiceList.filters.keyword')"
+        <div class="search-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            v-model="query.keyword"
+            class="search-input"
+            :placeholder="t('financeSellInvoiceList.filters.keyword')"
+            @keyup.enter="handleSearch"
+          />
+        </div>
+        <el-select
+          v-model="query.status"
+          :placeholder="t('financeSellInvoiceList.filters.invoiceStatus')"
           clearable
-          class="search-input"
-          style="width:240px"
-          @keyup.enter="loadData"
-          @clear="loadData"
+          class="filter-select"
+          :teleported="false"
+          @change="handleSearch"
         >
-          <template #prefix><el-icon><Search /></el-icon></template>
-        </el-input>
-        <el-select v-model="query.status" :placeholder="t('financeSellInvoiceList.filters.invoiceStatus')" clearable class="filter-select" style="width:130px" @change="loadData">
           <el-option v-for="k in invoiceStatusSelectKeys" :key="k" :label="invoiceStatusLabel(k)" :value="k" />
         </el-select>
-        <el-select v-model="filterReceiveStatus" :placeholder="t('financeSellInvoiceList.filters.receiveStatus')" clearable class="filter-select" style="width:120px" @change="loadData">
+        <el-select
+          v-model="filterMatchStatus"
+          :placeholder="t('financeSellInvoiceList.filters.matchStatus')"
+          clearable
+          class="filter-select"
+          :teleported="false"
+          @change="handleSearch"
+        >
+          <el-option
+            v-for="k in matchStatusSelectKeys"
+            :key="k"
+            :label="sellInvoiceMatchStatusLabel(k)"
+            :value="k"
+          />
+        </el-select>
+        <el-select
+          v-model="filterReceiveStatus"
+          :placeholder="t('financeSellInvoiceList.filters.receiveStatus')"
+          clearable
+          class="filter-select"
+          :teleported="false"
+          @change="handleSearch"
+        >
           <el-option v-for="k in receiveStatusSelectKeys" :key="k" :label="receiveStatusLabel(k)" :value="k" />
         </el-select>
         <el-date-picker
@@ -26,50 +84,41 @@
           :range-separator="t('financeSellInvoiceList.filters.to')"
           :start-placeholder="t('financeSellInvoiceList.filters.start')"
           :end-placeholder="t('financeSellInvoiceList.filters.end')"
-          format="YYYY-MM-DD"
           value-format="YYYY-MM-DD"
-          class="date-picker"
-          @change="loadData"
+          clearable
+          class="filter-date-range"
+          :teleported="false"
+          @change="handleSearch"
         />
-        <el-button type="primary" @click="loadData"><el-icon><Search /></el-icon> {{ t('financeSellInvoiceList.filters.search') }}</el-button>
+        <button type="button" class="btn-primary btn-sm" :disabled="loading" @click="handleSearch">
+          {{ t('financeSellInvoiceList.filters.search') }}
+        </button>
+        <button type="button" class="btn-ghost btn-sm" :disabled="loading" @click="handleReset">
+          {{ t('financeSellInvoiceList.filters.reset') }}
+        </button>
       </div>
       <div class="search-right">
-        <el-button v-if="canWriteFinanceSellInvoice" type="primary" @click="openCreate">
+        <button
+          v-if="canWriteFinanceSellInvoice"
+          type="button"
+          class="btn-primary btn-sm"
+          @click="openCreate"
+        >
           <el-icon><Plus /></el-icon> {{ t('financeSellInvoiceList.create') }}
-        </el-button>
-      </div>
-    </div>
-
-    <!-- 统计卡片 -->
-    <div class="stat-cards">
-      <div class="stat-card">
-        <div class="stat-label">{{ t('financeSellInvoiceList.stats.totalAmount') }}</div>
-        <div class="stat-value">{{ maskSaleSensitiveFields ? '—' : `¥ ${formatAmount(stats.totalAmount)}` }}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">{{ t('financeSellInvoiceList.stats.receivedAmount') }}</div>
-        <div class="stat-value success">{{ maskSaleSensitiveFields ? '—' : `¥ ${formatAmount(stats.receivedAmount)}` }}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">{{ t('financeSellInvoiceList.stats.toReceiveAmount') }}</div>
-        <div class="stat-value warning">{{ maskSaleSensitiveFields ? '—' : `¥ ${formatAmount(stats.toReceiveAmount)}` }}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">{{ t('financeSellInvoiceList.stats.invoicedCount') }}</div>
-        <div class="stat-value">{{ stats.invoicedCount }}</div>
+        </button>
       </div>
     </div>
 
     <!-- 数据表格 -->
     <CrmDataTable
       ref="dataTableRef"
-      column-layout-key="finance-sell-invoice-list-main"
+      column-layout-key="finance-sell-invoice-list-main-v7"
       :columns="sellInvoiceTableColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
       :data="tableData"
       v-loading="loading"
-      @row-dblclick="openDetail"
+      @row-dblclick="onSellInvoiceRowDblClick"
       row-class-name="table-row-pointer"
     >
       <template #col-invoiceCode="{ row }"><span class="code-text">{{ row.invoiceCode || '-' }}</span></template>
@@ -78,19 +127,56 @@
           {{ invoiceStatusLabel(row.invoiceStatus) }}
         </el-tag>
       </template>
+      <template #col-matchStatus="{ row }">
+        <el-tag effect="dark" :type="sellInvoiceMatchStatusTag(row.matchStatus ?? 0) as any" size="small">
+          {{ sellInvoiceMatchStatusLabel(row.matchStatus ?? 0) }}
+        </el-tag>
+      </template>
+      <template #col-matchDone="{ row }">
+        <template v-if="maskSaleSensitiveFields || !listTotalAmountHasValue(row.matchDone)">
+          <span class="dock-tier-empty">—</span>
+        </template>
+        <div v-else class="dock-tier-price-line">
+          <template v-for="amt in [splitListMoneyParts(Number(row.matchDone))]" :key="'inv-match-' + row.id">
+            <span class="dock-tier-amt">
+              <span class="dock-tier-amt-int">{{ amt.intPart }}</span><span class="dock-tier-amt-frac">{{ amt.fracPart }}</span>
+            </span>
+          </template>
+          <span class="dock-tier-ccy-gap">&nbsp;</span>
+          <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]">{{ listAmountCurrencyIso(row.currency) }}</span>
+        </div>
+      </template>
       <template #col-invoiceNo="{ row }">{{ row.invoiceNo || '-' }}</template>
       <template #col-customerName="{ row }">
         <span>{{ maskSaleSensitiveFields ? '—' : (row.customerName || '—') }}</span>
       </template>
       <template #col-invoiceTotal="{ row }">
-        <span class="amount-text">{{
-          maskSaleSensitiveFields ? '—' : `${CURRENCY_MAP[row.currency]} ${formatAmount(row.invoiceTotal)}`
-        }}</span>
+        <template v-if="maskSaleSensitiveFields || !listTotalAmountHasValue(row.invoiceTotal)">
+          <span class="dock-tier-empty">—</span>
+        </template>
+        <div v-else class="dock-tier-price-line">
+          <template v-for="amt in [splitListMoneyParts(Number(row.invoiceTotal))]" :key="'inv-total-' + row.id">
+            <span class="dock-tier-amt">
+              <span class="dock-tier-amt-int">{{ amt.intPart }}</span><span class="dock-tier-amt-frac">{{ amt.fracPart }}</span>
+            </span>
+          </template>
+          <span class="dock-tier-ccy-gap">&nbsp;</span>
+          <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]">{{ listAmountCurrencyIso(row.currency) }}</span>
+        </div>
       </template>
       <template #col-receiveDone="{ row }">
-        <span class="amount-text">{{
-          maskSaleSensitiveFields ? '—' : `${CURRENCY_MAP[row.currency]} ${formatAmount(row.receiveDone)}`
-        }}</span>
+        <template v-if="maskSaleSensitiveFields || !listTotalAmountHasValue(row.receiveDone)">
+          <span class="dock-tier-empty">—</span>
+        </template>
+        <div v-else class="dock-tier-price-line">
+          <template v-for="amt in [splitListMoneyParts(Number(row.receiveDone))]" :key="'inv-recv-' + row.id">
+            <span class="dock-tier-amt">
+              <span class="dock-tier-amt-int">{{ amt.intPart }}</span><span class="dock-tier-amt-frac">{{ amt.fracPart }}</span>
+            </span>
+          </template>
+          <span class="dock-tier-ccy-gap">&nbsp;</span>
+          <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]">{{ listAmountCurrencyIso(row.currency) }}</span>
+        </div>
       </template>
       <template #col-receiveStatus="{ row }">
         <el-tag effect="dark" :type="receiveStatusTag(row.receiveStatus) as any" size="small">
@@ -98,8 +184,17 @@
         </el-tag>
       </template>
       <template #col-sellInvoiceType="{ row }">{{ sellInvoiceTypeLabel(row.sellInvoiceType) }}</template>
+      <template #col-remark="{ row }">{{ row.remark || '-' }}</template>
       <template #col-makeInvoiceDate="{ row }">{{ row.makeInvoiceDate ? formatDisplayDate(row.makeInvoiceDate) : '-' }}</template>
-      <template #col-createTime="{ row }">{{ row.createdAt ? formatDisplayDateTime(row.createdAt) : '-' }}</template>
+      <template #col-createTime="{ row }">
+        <template v-for="p in [formatDisplayDateTime2DigitYearParts(row.createdAt)]" :key="'ct-' + row.id">
+          <span v-if="p" class="crm-quote-create-time">
+            <span class="crm-quote-create-time__ymd">{{ p.date }}</span>
+            <span class="crm-quote-create-time__hm">{{ p.time }}</span>
+          </span>
+          <span v-else>-</span>
+        </template>
+      </template>
       <template #col-createUser="{ row }">{{ (row as any).createUserName || (row as any).createdBy || '-' }}</template>
       <template #col-actions-header>
           <div class="list-op-col-header--icon-only">
@@ -120,6 +215,8 @@
             <el-button size="small" text type="primary" @click.stop="openDetail(row)">{{ t('financeSellInvoiceList.actions.detail') }}</el-button>
             <el-button size="small" text type="primary" @click.stop="openEdit(row)" v-if="canWriteFinanceSellInvoice && row.invoiceStatus === 1">{{ t('financeSellInvoiceList.actions.edit') }}</el-button>
             <el-button size="small" text type="warning" @click.stop="applyInvoice(row)" v-if="canWriteFinanceSellInvoice && row.invoiceStatus === 1">{{ t('financeSellInvoiceList.actions.apply') }}</el-button>
+            <el-button size="small" text type="success" @click.stop="markIssued(row)" v-if="canWriteFinanceSellInvoice && row.invoiceStatus === 2">{{ t('financeSellInvoiceList.actions.markIssued') }}</el-button>
+            <el-button size="small" text type="warning" @click.stop="markIssueFailed(row)" v-if="canWriteFinanceSellInvoice && row.invoiceStatus === 2">{{ t('financeSellInvoiceList.actions.markIssueFailed') }}</el-button>
             <el-button size="small" text type="danger" @click.stop="voidInvoice(row)" v-if="canWriteFinanceSellInvoice && row.invoiceStatus === 100">{{ t('financeSellInvoiceList.actions.void') }}</el-button>
             <el-button v-if="canWriteFinanceSellInvoice" size="small" text type="danger" @click.stop="handleDeleteRow(row)">删除</el-button>
             <el-button v-if="canForceDelete" size="small" text type="danger" @click.stop="handleForceDeleteRow(row)">强制删除</el-button>
@@ -140,6 +237,12 @@
                 <el-dropdown-item v-if="canWriteFinanceSellInvoice && row.invoiceStatus === 1" @click.stop="applyInvoice(row)">
                   <span class="op-more-item op-more-item--warning">{{ t('financeSellInvoiceList.actions.apply') }}</span>
                 </el-dropdown-item>
+                <el-dropdown-item v-if="canWriteFinanceSellInvoice && row.invoiceStatus === 2" @click.stop="markIssued(row)">
+                  <span class="op-more-item op-more-item--success">{{ t('financeSellInvoiceList.actions.markIssued') }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="canWriteFinanceSellInvoice && row.invoiceStatus === 2" @click.stop="markIssueFailed(row)">
+                  <span class="op-more-item op-more-item--warning">{{ t('financeSellInvoiceList.actions.markIssueFailed') }}</span>
+                </el-dropdown-item>
                 <el-dropdown-item v-if="canWriteFinanceSellInvoice && row.invoiceStatus === 100" @click.stop="voidInvoice(row)">
                   <span class="op-more-item op-more-item--danger">{{ t('financeSellInvoiceList.actions.void') }}</span>
                 </el-dropdown-item>
@@ -155,26 +258,33 @@
         </div>
       </template>
     </CrmDataTable>
-      <div class="pagination-wrap">
-        <div class="list-footer-left">
-          <el-tooltip :content="t('financeSellInvoiceList.columnSettings')" placement="top" :hide-after="0">
-            <el-button class="list-settings-btn" link type="primary" :aria-label="t('financeSellInvoiceList.columnSettings')" @click="dataTableRef?.openColumnSettings?.()">
-              <el-icon><Setting /></el-icon>
-            </el-button>
-          </el-tooltip>
-          <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
-          <div class="list-footer-spacer" aria-hidden="true"></div>
-        </div>
-        <el-pagination
-          v-model:current-page="query.page"
-          v-model:page-size="query.pageSize"
-          :total="total"
-          :page-sizes="[20, 50, 100]"
-          layout="total, sizes, prev, pager, next"
-          @size-change="loadData"
-          @current-change="loadData"
-        />
+    <div class="pagination-wrapper">
+      <div class="list-footer-left">
+        <el-tooltip :content="t('financeSellInvoiceList.columnSettings')" placement="top" :hide-after="0">
+          <el-button
+            class="list-settings-btn"
+            link
+            type="primary"
+            :aria-label="t('financeSellInvoiceList.columnSettings')"
+            @click="dataTableRef?.openColumnSettings?.()"
+          >
+            <el-icon><Setting /></el-icon>
+          </el-button>
+        </el-tooltip>
+        <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
+        <div class="list-footer-spacer" aria-hidden="true"></div>
       </div>
+      <el-pagination
+        class="list-main-pagination"
+        v-model:current-page="query.page"
+        v-model:page-size="query.pageSize"
+        :total="total"
+        :page-sizes="[10, 20, 50, 100]"
+        layout="total, sizes, prev, pager, next, jumper"
+        @size-change="loadData"
+        @current-change="loadData"
+      />
+    </div>
 
     <!-- 新建/编辑弹窗 -->
     <el-dialog
@@ -278,20 +388,28 @@ import { computed, ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useFinanceEnumLabels } from '@/composables/useFinanceEnumLabels'
-import { Search, Plus, Setting } from '@element-plus/icons-vue'
+import { Plus, Setting, ArrowRight } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   financeSellInvoiceApi,
   INVOICE_STATUS_MAP,
   RECEIVE_STATUS_MAP,
+  SELL_INVOICE_MATCH_STATUS_MAP,
   SELL_INVOICE_TYPE_MAP,
   INVOICE_TYPE_MAP,
-  CURRENCY_MAP,
   type FinanceSellInvoice,
   type PageQuery,
 } from '@/api/finance'
 import { SETTLEMENT_CURRENCY_OPTIONS, DEFAULT_SETTLEMENT_CURRENCY_CODE } from '@/constants/currency'
-import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
+import { formatDisplayDate, formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
+import {
+  formatTotalAmountNumber,
+  listAmountCurrencyDockClass,
+  listAmountCurrencyIso,
+  listTotalAmountHasValue,
+  splitListMoneyParts,
+} from '@/utils/moneyFormat'
+import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick'
 import { customerApi } from '@/api/customer'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
@@ -309,12 +427,15 @@ const {
   invoiceStatusTag,
   receiveStatusLabel,
   receiveStatusTag,
+  sellInvoiceMatchStatusLabel,
+  sellInvoiceMatchStatusTag,
   sellInvoiceTypeLabel,
   invoiceTypeLabel,
 } = useFinanceEnumLabels()
 
 const invoiceStatusSelectKeys = Object.keys(INVOICE_STATUS_MAP).map(k => Number(k))
 const receiveStatusSelectKeys = Object.keys(RECEIVE_STATUS_MAP).map(k => Number(k))
+const matchStatusSelectKeys = Object.keys(SELL_INVOICE_MATCH_STATUS_MAP).map(k => Number(k))
 const sellInvoiceTypeKeys = Object.keys(SELL_INVOICE_TYPE_MAP).map(k => Number(k))
 const invoiceTypeKeys = Object.keys(INVOICE_TYPE_MAP).map(k => Number(k))
 
@@ -362,6 +483,7 @@ const query = reactive<PageQuery & { page: number; pageSize: number }>({
   startDate: undefined, endDate: undefined,
 })
 const dateRange = ref<[string, string] | null>(null)
+const filterMatchStatus = ref<number | undefined>(undefined)
 const filterReceiveStatus = ref<number | undefined>(undefined)
 const total = ref(0)
 const loading = ref(false)
@@ -389,10 +511,20 @@ const sellInvoiceTableColumns = computed<CrmTableColumnDef[]>(() => [
     minWidth: 132,
     align: 'center'
   },
+  { key: 'invoiceCode', label: t('financeSellInvoiceList.columns.code'), prop: 'invoiceCode', width: 160, minWidth: 160, showOverflowTooltip: true },
+  { key: 'makeInvoiceDate', label: t('financeSellInvoiceList.columns.makeDate'), prop: 'makeInvoiceDate', width: 120, minWidth: 120 },
   { key: 'customerName', label: t('financeSellInvoiceList.columns.customer'), prop: 'customerName', minWidth: 160, showOverflowTooltip: true },
   { key: 'invoiceNo', label: t('financeSellInvoiceList.columns.invoiceNo'), prop: 'invoiceNo', width: 140, showOverflowTooltip: true },
   { key: 'invoiceTotal', label: t('financeSellInvoiceList.columns.amount'), prop: 'invoiceTotal', width: 130, align: 'right' },
-  { key: 'receiveDone', label: t('financeSellInvoiceList.columns.received'), prop: 'receiveDone', width: 130, align: 'right' },
+  {
+    key: 'matchStatus',
+    label: t('financeSellInvoiceList.columns.matchStatus'),
+    prop: 'matchStatus',
+    width: 128,
+    minWidth: 128,
+    align: 'center'
+  },
+  { key: 'matchDone', label: t('financeSellInvoiceList.columns.matchDone'), prop: 'matchDone', width: 130, align: 'right' },
   {
     key: 'receiveStatus',
     label: t('financeSellInvoiceList.columns.receiveStatus'),
@@ -401,10 +533,10 @@ const sellInvoiceTableColumns = computed<CrmTableColumnDef[]>(() => [
     minWidth: 128,
     align: 'center'
   },
-  { key: 'sellInvoiceType', label: t('financeSellInvoiceList.columns.invoiceType'), prop: 'sellInvoiceType', width: 140 },
-  { key: 'makeInvoiceDate', label: t('financeSellInvoiceList.columns.makeDate'), prop: 'makeInvoiceDate', width: 120 },
-  { key: 'invoiceCode', label: t('financeSellInvoiceList.columns.code'), prop: 'invoiceCode', width: 160, minWidth: 160, showOverflowTooltip: true },
-  { key: 'createTime', label: t('financeSellInvoiceList.columns.createdAt'), width: 120 },
+  { key: 'receiveDone', label: t('financeSellInvoiceList.columns.received'), prop: 'receiveDone', width: 130, align: 'right' },
+  { key: 'remark', label: t('financeSellInvoiceList.columns.remark'), prop: 'remark', minWidth: 160, showOverflowTooltip: true },
+  { key: 'sellInvoiceType', label: t('financeSellInvoiceList.columns.invoiceType'), prop: 'sellInvoiceType', width: 140, minWidth: 140 },
+  { key: 'createTime', label: t('financeSellInvoiceList.columns.createdAt'), width: 140, minWidth: 140 },
   { key: 'createUser', label: t('financeSellInvoiceList.columns.createUser'), width: 120, showOverflowTooltip: true },
   {
     key: 'actions',
@@ -423,6 +555,23 @@ const sellInvoiceTableColumns = computed<CrmTableColumnDef[]>(() => [
 
 const stats = reactive({ totalAmount: 0, receivedAmount: 0, toReceiveAmount: 0, invoicedCount: 0 })
 
+const handleSearch = () => {
+  query.page = 1
+  void loadData()
+}
+
+const handleReset = () => {
+  query.keyword = ''
+  query.status = undefined
+  filterMatchStatus.value = undefined
+  filterReceiveStatus.value = undefined
+  dateRange.value = null
+  query.startDate = undefined
+  query.endDate = undefined
+  query.page = 1
+  void loadData()
+}
+
 const loadData = async () => {
   loading.value = true
   if (dateRange.value) {
@@ -433,7 +582,12 @@ const loadData = async () => {
     query.endDate = undefined
   }
   try {
-    const res = await financeSellInvoiceApi.getList(query)
+    const res = await financeSellInvoiceApi.getList({
+      ...query,
+      invoiceStatus: query.status,
+      matchStatus: filterMatchStatus.value,
+      receiveStatus: filterReceiveStatus.value,
+    } as PageQuery & { invoiceStatus?: number; matchStatus?: number; receiveStatus?: number })
     tableData.value = res.items || []
     total.value = res.total || 0
   } catch {
@@ -524,6 +678,14 @@ const openDetail = (row: FinanceSellInvoice) => {
   router.push({ name: 'FinanceSellInvoiceDetail', params: { id: row.id } })
 }
 
+function onSellInvoiceRowDblClick(row: FinanceSellInvoice, _column: unknown, event?: MouseEvent) {
+  onCrmDetailListRowDblClick(row, _column, event, {
+    canEdit: canWriteFinanceSellInvoice.value && row.invoiceStatus === 1,
+    onEdit: openEdit,
+    onDefault: openDetail,
+  })
+}
+
 const applyInvoice = async (row: FinanceSellInvoice) => {
   await ElMessageBox.confirm(
     t('financeSellInvoiceList.messages.applyMsg', { code: row.invoiceCode || '' }),
@@ -532,6 +694,28 @@ const applyInvoice = async (row: FinanceSellInvoice) => {
   )
   await financeSellInvoiceApi.submitApplication(row.id)
   ElMessage.success(t('financeSellInvoiceList.messages.applied'))
+  await loadData()
+}
+
+const markIssued = async (row: FinanceSellInvoice) => {
+  await ElMessageBox.confirm(
+    t('financeSellInvoiceList.messages.markIssuedMsg', { code: row.invoiceCode || '' }),
+    t('financeSellInvoiceList.messages.markIssuedTitle'),
+    { type: 'info' }
+  )
+  await financeSellInvoiceApi.markIssued(row.id)
+  ElMessage.success(t('financeSellInvoiceList.messages.markIssuedOk'))
+  await loadData()
+}
+
+const markIssueFailed = async (row: FinanceSellInvoice) => {
+  await ElMessageBox.confirm(
+    t('financeSellInvoiceList.messages.markIssueFailedMsg', { code: row.invoiceCode || '' }),
+    t('financeSellInvoiceList.messages.markIssueFailedTitle'),
+    { type: 'warning' }
+  )
+  await financeSellInvoiceApi.markIssueFailed(row.id)
+  ElMessage.success(t('financeSellInvoiceList.messages.markIssueFailedOk'))
   await loadData()
 }
 
@@ -575,14 +759,176 @@ const handleForceDeleteRow = async (row: FinanceSellInvoice) => {
   }
 }
 
-const formatAmount = (v: number) => v?.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'
-
 onMounted(loadData)
+
+function goWriteOffDesktop() {
+  router.push({ name: 'SellInvoiceWriteOffDesktop' })
+}
 </script>
 
 <style lang="scss" scoped>
 @use '@/assets/styles/variables' as vars;
 @import './finance-common.scss';
+
+.fsi-list-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.btn-write-off-desktop {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px 8px 18px;
+  border: none;
+  border-radius: 10px;
+  background: #eaf5ff;
+  color: #1a2332;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: 'Noto Sans SC', sans-serif;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+
+  &:hover {
+    background: #ddefff;
+    color: #0f172a;
+  }
+
+  &:active {
+    background: #d0e8ff;
+  }
+
+  &__arrow {
+    font-size: 14px;
+    color: #64748b;
+  }
+}
+
+.search-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  color: vars.$text-muted;
+  pointer-events: none;
+}
+
+.search-input {
+  width: 240px;
+  padding: 7px 12px 7px 32px;
+  background: vars.$layer-2;
+  border: 1px solid vars.$border-panel;
+  border-radius: vars.$border-radius-md;
+  color: vars.$text-primary;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  outline: none;
+  transition: border-color 0.2s;
+
+  &::placeholder {
+    color: vars.$text-muted;
+  }
+
+  &:focus {
+    border-color: rgba(0, 212, 255, 0.4);
+  }
+}
+
+.filter-select {
+  width: 130px;
+
+  :deep(.el-select__wrapper) {
+    background: vars.$layer-2 !important;
+    box-shadow: none !important;
+    border: 1px solid vars.$border-panel !important;
+    border-radius: vars.$border-radius-md !important;
+  }
+}
+
+.filter-date-range {
+  width: 260px;
+  flex-shrink: 0;
+
+  :deep(.el-input__wrapper) {
+    background: vars.$layer-2 !important;
+    box-shadow: none !important;
+    border: 1px solid vars.$border-panel !important;
+    border-radius: vars.$border-radius-md !important;
+  }
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.8), rgba(0, 212, 255, 0.7));
+  border: 1px solid rgba(0, 212, 255, 0.4);
+  border-radius: vars.$border-radius-md;
+  color: #fff;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.5px;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0, 212, 255, 0.25);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  &.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+    letter-spacing: 0;
+  }
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid vars.$border-panel;
+  border-radius: vars.$border-radius-md;
+  color: vars.$text-muted;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover:not(:disabled) {
+    border-color: rgba(0, 212, 255, 0.35);
+    color: vars.$text-primary;
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  &.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
 
 .select-hint {
   padding: 8px 12px;
@@ -590,10 +936,11 @@ onMounted(loadData)
   font-size: 12px;
 }
 
-.pagination-wrap {
+.pagination-wrapper {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
+  gap: 12px;
 }
 
 .list-footer-left {
@@ -617,5 +964,9 @@ onMounted(loadData)
 .list-footer-spacer {
   width: 26px;
   flex: 0 0 26px;
+}
+
+.list-main-pagination {
+  margin-left: auto;
 }
 </style>

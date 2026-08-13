@@ -725,6 +725,7 @@ const zhCN = {
       freightForwarderPayables: '货代付款',
       receiptWriteOff: '收款核销',
       sellInvoices: '销项发票',
+      sellInvoiceWriteOff: '销项发票核销',
       inventoryReports: '库存报表',
       stockAccumulated: '库存滚存',
       customerAccumulated: '客户滚存',
@@ -9329,6 +9330,96 @@ const zhCN = {
     success: '核销成功',
     failed: '核销失败'
   },
+  sellInvoiceWriteOffDesktop: {
+    title: '销项发票核销桌面',
+    leftTab: '待核销客户',
+    tabs: {
+      stockOut: '出库单'
+    },
+    stockOut: {
+      empty: '请在待核销应收列表中选择一行',
+      stockOutCode: '出库单号',
+      stockOutDate: '出库日期',
+      customerName: '客户中文名称',
+      customerEnglishName: '客户英文名称',
+      salesUser: '业务员',
+      outboundQty: '出库数量',
+      amount: '出库金额',
+      invoiceMatchDone: '已核销发票金额',
+      invoiceMatchToBe: '待核销发票金额',
+      freightForwarderOrderNo: '货代单号',
+      sellOrderCode: '销售订单号'
+    },
+    nav: {
+      prev: '上一客户',
+      next: '下一客户'
+    },
+    stats: {
+      line: '共 {n} 条待核销客户，{m} 条待核销发票记录'
+    },
+    queue: {
+      searchPh: '客户中文名/英文名/业务员',
+      search: '搜索',
+      salesUser: '业务员',
+      pendingTotal: '待核销发票总额',
+      invoiceCount: '待核销发票 {n} 条',
+      sortEarliest: '最早开票日期',
+      sortLatest: '最近开票日期',
+      sortTip: '排序：{field}'
+    },
+    empty: {
+      queue: '暂无待核销客户（需同时有待核销发票与待核销应收）',
+      workspace: '请在左侧选择待核销客户'
+    },
+    messages: {
+      loadFailed: '加载待核销客户失败',
+      refreshFailed: '刷新待核销队列失败',
+      focusMissed: '未找到指定客户核销项'
+    }
+  },
+  sellInvoiceWriteOffWorkspace: {
+    invoicePanelTitle: '待核销销项发票',
+    receivablePanelTitle: '待核销应收',
+    panelsLayoutGroup: '发票与应收排列',
+    panelsLayoutRow: '左右排列：待核销销项发票与待核销应收并排',
+    panelsLayoutColumn: '上下排列：待核销销项发票在上、待核销应收在下',
+    dragCenterWidth: '拖拽调整发票栏宽度',
+    dragCenterHeight: '拖拽调整发票栏高度',
+    currentCustomerLabel: '当前核销客户：',
+    currentCustomerHint: '（请在待核销客户列表选择）',
+    selectCustomerHint: '请在左侧选择待核销客户',
+    noInvoices: '暂无待核销销项发票',
+    noReceivables: '暂无待核销应收',
+    selectInvoiceHint: '（请在待核销销项发票列表选择）',
+    selectedInvoiceInfoBarPrefix: '发票单号：{invoiceCode} ，待核销发票金额：',
+    writeOffTotalLabel: '本次核销合计：{total}',
+    autoFill: '自动填写',
+    autoFillNoRemaining: '选中发票无可核销余额',
+    selectInvoiceFirst: '请先选择待核销销项发票',
+    selectRow: '选中',
+    colInvoiceCode: '发票单号',
+    colInvoiceDate: '开票日期',
+    colInvoiceType: '发票类型',
+    colInvoiceAmount: '发票金额',
+    colMatchDone: '已核销',
+    colMatchToBe: '待核销',
+    colReceivableCode: '应收单号',
+    colStockOutCode: '出库单号',
+    colStockOutDate: '出库日期',
+    colSellOrderCode: '销售订单号',
+    colSalesUser: '业务员',
+    colFreightForwarder: '货代单号',
+    colStockInCode: '入库单号',
+    colInvoiceMatchToBe: '待核销开票金额',
+    colWriteOffAmount: '本次核销',
+    redInvoice: '红字发票',
+    noAmount: '请填写本次核销金额',
+    exceedInvoiceRemaining: '核销合计超过发票待核销金额',
+    exceedReceivable: '核销金额超过应收待核销开票金额',
+    submit: '提交核销',
+    success: '核销成功',
+    failed: '核销失败'
+  },
   financeReceiptWriteOff: {
     pageTitle: '收款核销',
     openLedger: '收款核销流水',
@@ -9723,14 +9814,18 @@ const zhCN = {
     }
   },
   financeSellInvoiceList: {
+    pageTitle: '销项发票',
+    goWriteOffDesktop: '销项发票核销桌面',
     filters: {
       keyword: '搜索发票单号/客户/发票号',
       invoiceStatus: '开票状态',
+      matchStatus: '核销状态',
       receiveStatus: '收款状态',
       to: '至',
       start: '开票开始',
       end: '开票结束',
-      search: '查询'
+      search: '搜索',
+      reset: '重置'
     },
     create: '新建销项发票',
     stats: {
@@ -9742,18 +9837,28 @@ const zhCN = {
     columns: {
       code: '发票单号',
       invoiceStatus: '开票状态',
+      matchStatus: '核销状态',
       customer: '客户',
       invoiceNo: '发票号码',
       amount: '发票金额',
-      received: '已收金额',
+      matchDone: '核销金额',
+      received: '收款金额',
       receiveStatus: '收款状态',
       invoiceType: '发票类型',
       makeDate: '开票日期',
-      createdAt: '创建时间',
+      remark: '发票备注',
+      createdAt: '创建日期',
       createUser: '创建人',
       actions: '操作'
     },
-    actions: { detail: '详情', edit: '编辑', apply: '申请开票', void: '作废' },
+    actions: {
+      detail: '详情',
+      edit: '编辑',
+      apply: '申请开票',
+      markIssued: '确认开票',
+      markIssueFailed: '开票失败',
+      void: '作废'
+    },
     columnSettings: '列设置',
     dialogCreate: '新建销项发票',
     dialogEdit: '编辑销项发票',
@@ -9778,6 +9883,12 @@ const zhCN = {
       applyTitle: '申请开票',
       applyMsg: '确认申请开票 {code}？',
       applied: '已提交开票申请',
+      markIssuedTitle: '确认开票',
+      markIssuedMsg: '确认将 {code} 标记为已开票？',
+      markIssuedOk: '已标记为已开票',
+      markIssueFailedTitle: '开票失败',
+      markIssueFailedMsg: '确认将 {code} 标记为开票失败？',
+      markIssueFailedOk: '已标记为开票失败',
       voidTitle: '作废确认',
       voidMsg: '确认作废发票 {code}？此操作不可撤销。',
       voided: '发票已作废'

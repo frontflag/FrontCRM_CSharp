@@ -739,6 +739,12 @@
                 active-class="active"
               >{{ t('layout.menu.sellInvoices') }}</router-link>
               <router-link
+                v-if="hasPermission('finance-sell-invoice.read')"
+                to="/finance/sell-invoice-write-off-desktop"
+                class="submenu-item"
+                active-class="active"
+              >{{ t('layout.menu.sellInvoiceWriteOff') }}</router-link>
+              <router-link
                 v-if="hasPermission('finance-receipt.read')"
                 to="/finance/freight-forwarder-payables"
                 class="submenu-item"
@@ -1245,6 +1251,9 @@
           <div v-else-if="showPurchaseInvoiceWriteOffDesktopQueuePanel" class="aux-panel-tab-body">
             <PurchaseInvoiceWriteOffDesktopQueuePanel />
           </div>
+          <div v-else-if="showSellInvoiceWriteOffDesktopQueuePanel" class="aux-panel-tab-body">
+            <SellInvoiceWriteOffDesktopQueuePanel />
+          </div>
           <template v-else>
             <p class="aux-placeholder">{{ t('layout.leftPanel') }} · {{ leftPanelTitle }}</p>
             <p class="aux-hint">子页面可 inject(WorkspaceLayoutKey)；或 window 派发 workspace:toggle-left / workspace:toggle-right</p>
@@ -1595,6 +1604,10 @@
             v-show="showPurchaseInvoiceWriteOffStockInPanel"
             class="aux-panel-tab-body"
           />
+          <SellInvoiceWriteOffStockOutPanel
+            v-show="showSellInvoiceWriteOffStockOutPanel"
+            class="aux-panel-tab-body"
+          />
           <HelpManualPanel v-show="rightActiveTabId === 'r4'" class="aux-panel-tab-body" />
         </div>
       </aside>
@@ -1656,6 +1669,8 @@ import ReceiptWriteOffDesktopQueuePanel from '@/components/Finance/ReceiptWriteO
 import ReceiptWriteOffStockOutPanel from '@/components/Finance/ReceiptWriteOffStockOutPanel.vue'
 import PurchaseInvoiceWriteOffDesktopQueuePanel from '@/components/Finance/PurchaseInvoiceWriteOffDesktopQueuePanel.vue'
 import PurchaseInvoiceWriteOffStockInPanel from '@/components/Finance/PurchaseInvoiceWriteOffStockInPanel.vue'
+import SellInvoiceWriteOffDesktopQueuePanel from '@/components/Finance/SellInvoiceWriteOffDesktopQueuePanel.vue'
+import SellInvoiceWriteOffStockOutPanel from '@/components/Finance/SellInvoiceWriteOffStockOutPanel.vue'
 import QuoteHistoryPanel from '@/components/RFQ/QuoteHistoryPanel.vue'
 import { useQuoteDesktopQueueStore } from '@/stores/quoteDesktopQueue'
 import { useQuoteHistoryContextStore } from '@/stores/quoteHistoryContext'
@@ -2046,10 +2061,21 @@ const showPurchaseInvoiceWriteOffDesktopQueuePanel = computed(
   () => leftActiveTabId.value === 'l1' && route.name === 'PurchaseInvoiceWriteOffDesktop'
 )
 
+/** 销项发票核销桌面：左栏「待核销客户」队列 */
+const showSellInvoiceWriteOffDesktopQueuePanel = computed(
+  () => leftActiveTabId.value === 'l1' && route.name === 'SellInvoiceWriteOffDesktop'
+)
+
 /** 进项发票核销桌面：右栏「入库单」 */
 const showPurchaseInvoiceWriteOffStockInPanel = computed(
   () =>
     rightActiveTabId.value === 'r-piwo-stock-in' && route.name === 'PurchaseInvoiceWriteOffDesktop'
+)
+
+/** 销项发票核销桌面：右栏「出库单」 */
+const showSellInvoiceWriteOffStockOutPanel = computed(
+  () =>
+    rightActiveTabId.value === 'r-siwo-stock-out' && route.name === 'SellInvoiceWriteOffDesktop'
 )
 
 const DEFAULT_LEFT_AUX_TABS = [
@@ -2338,6 +2364,27 @@ watch(
       ]
       restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-piwo-stock-in' })
       rightActiveTabId.value = 'r-piwo-stock-in'
+      return
+    }
+
+    if (name === 'SellInvoiceWriteOffDesktop') {
+      leftTabs.value = [{ id: 'l1', labelKey: 'sellInvoiceWriteOffDesktop.leftTab' }]
+      salesOrderItemOpsStore.clear()
+      purchaseOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
+      customsDeclarationOpsStore.clear()
+      arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
+      customerIntelLookupStore.clearBound()
+      vendorIntelLookupStore.clearBound()
+      materialIntelLookupStore.clearBound()
+      rightTabs.value = [
+        { id: 'r-siwo-stock-out', labelKey: 'sellInvoiceWriteOffDesktop.tabs.stockOut' },
+        { id: 'r4', labelKey: 'layout.auxTabs.help' }
+      ]
+      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-siwo-stock-out' })
+      rightActiveTabId.value = 'r-siwo-stock-out'
       return
     }
 
@@ -2778,6 +2825,7 @@ const pageTitleMap: Record<string, string> = {
   '/quote-desktop': 'quoteDesktop.title',
   '/finance/receipt-write-off-desktop': 'receiptWriteOffDesktop.title',
   '/finance/purchase-invoice-write-off-desktop': 'purchaseInvoiceWriteOffDesktop.title',
+  '/finance/sell-invoice-write-off-desktop': 'sellInvoiceWriteOffDesktop.title',
   '/custome': 'layout.menu.customers',
   '/customerlist': 'layout.menu.customers',
   '/customers/create': 'layout.menu.customers',

@@ -729,6 +729,7 @@ const enUS = {
       freightForwarderPayables: 'Freight forwarder payments',
       receiptWriteOff: 'Receipt Write-off',
       sellInvoices: 'Sales Invoices',
+      sellInvoiceWriteOff: 'Sales Invoice Write-off',
       inventoryReports: 'Inventory Reports',
       stockAccumulated: 'Stock Accumulated',
       customerAccumulated: 'Customer Accumulated',
@@ -9345,6 +9346,96 @@ const enUS = {
     success: 'Write-off applied',
     failed: 'Write-off failed'
   },
+  sellInvoiceWriteOffDesktop: {
+    title: 'Sales invoice write-off desk',
+    leftTab: 'Open customers',
+    tabs: {
+      stockOut: 'Stock-out'
+    },
+    stockOut: {
+      empty: 'Select a row in the open receivable list',
+      stockOutCode: 'Stock-out no.',
+      stockOutDate: 'Stock-out date',
+      customerName: 'Customer (CN)',
+      customerEnglishName: 'Customer (EN)',
+      salesUser: 'Sales',
+      outboundQty: 'Outbound qty',
+      amount: 'Stock-out amount',
+      invoiceMatchDone: 'Invoiced (matched)',
+      invoiceMatchToBe: 'Open invoice match',
+      freightForwarderOrderNo: 'Forwarder order no.',
+      sellOrderCode: 'SO no.'
+    },
+    nav: {
+      prev: 'Previous customer',
+      next: 'Next customer'
+    },
+    stats: {
+      line: '{n} open customers, {m} open invoice records'
+    },
+    queue: {
+      searchPh: 'Customer CN/EN / sales',
+      search: 'Search',
+      salesUser: 'Sales',
+      pendingTotal: 'Open invoice total',
+      invoiceCount: '{n} open invoices',
+      sortEarliest: 'Earliest issue date',
+      sortLatest: 'Latest issue date',
+      sortTip: 'Sort by: {field}'
+    },
+    empty: {
+      queue: 'No customers with both open invoices and open receivables',
+      workspace: 'Select a customer on the left'
+    },
+    messages: {
+      loadFailed: 'Failed to load open customers',
+      refreshFailed: 'Failed to refresh write-off queue',
+      focusMissed: 'Customer write-off item not found'
+    }
+  },
+  sellInvoiceWriteOffWorkspace: {
+    invoicePanelTitle: 'Open sales invoices',
+    receivablePanelTitle: 'Open receivables',
+    panelsLayoutGroup: 'Invoice / receivable layout',
+    panelsLayoutRow: 'Side by side: invoices left, receivables right',
+    panelsLayoutColumn: 'Stacked: invoices on top, receivables below',
+    dragCenterWidth: 'Drag to resize invoice panel',
+    dragCenterHeight: 'Drag to resize invoice panel height',
+    currentCustomerLabel: 'Current customer: ',
+    currentCustomerHint: '(select from the customer list on the left)',
+    selectCustomerHint: 'Select an open customer on the left',
+    noInvoices: 'No open sales invoices',
+    noReceivables: 'No open receivables',
+    selectInvoiceHint: '(select from the invoice list)',
+    selectedInvoiceInfoBarPrefix: 'Invoice: {invoiceCode}, open match amount: ',
+    writeOffTotalLabel: 'Write-off total: {total}',
+    autoFill: 'Auto-fill',
+    autoFillNoRemaining: 'Selected invoice has no remaining balance',
+    selectInvoiceFirst: 'Select an open sales invoice first',
+    selectRow: 'Select',
+    colInvoiceCode: 'Invoice code',
+    colInvoiceDate: 'Issue date',
+    colInvoiceType: 'Invoice type',
+    colInvoiceAmount: 'Invoice amount',
+    colMatchDone: 'Matched',
+    colMatchToBe: 'Open match',
+    colReceivableCode: 'Receivable no.',
+    colStockOutCode: 'Stock-out no.',
+    colStockOutDate: 'Stock-out date',
+    colSellOrderCode: 'SO no.',
+    colSalesUser: 'Sales',
+    colFreightForwarder: 'Forwarder no.',
+    colStockInCode: 'Stock-in no.',
+    colInvoiceMatchToBe: 'Open invoice match',
+    colWriteOffAmount: 'Write-off',
+    redInvoice: 'Red invoice',
+    noAmount: 'Enter a write-off amount',
+    exceedInvoiceRemaining: 'Total exceeds invoice open match amount',
+    exceedReceivable: 'Amount exceeds receivable open invoice match',
+    submit: 'Apply write-off',
+    success: 'Write-off applied',
+    failed: 'Write-off failed'
+  },
   financeReceiptWriteOff: {
     pageTitle: 'Receipt write-off',
     openLedger: 'Write-off ledger',
@@ -9739,14 +9830,18 @@ const enUS = {
     }
   },
   financeSellInvoiceList: {
+    pageTitle: 'Sales invoices',
+    goWriteOffDesktop: 'Sales invoice write-off desk',
     filters: {
       keyword: 'Invoice / customer / invoice no.',
       invoiceStatus: 'Issue status',
+      matchStatus: 'Write-off status',
       receiveStatus: 'Receive status',
       to: 'to',
       start: 'Issue from',
       end: 'Issue to',
-      search: 'Search'
+      search: 'Search',
+      reset: 'Reset'
     },
     create: 'New sales invoice',
     stats: {
@@ -9758,18 +9853,28 @@ const enUS = {
     columns: {
       code: 'Invoice code',
       invoiceStatus: 'Issue status',
+      matchStatus: 'Write-off status',
       customer: 'Customer',
       invoiceNo: 'Invoice no.',
       amount: 'Amount',
-      received: 'Received',
+      matchDone: 'Write-off amount',
+      received: 'Received amount',
       receiveStatus: 'Receive status',
       invoiceType: 'Invoice type',
       makeDate: 'Issue date',
-      createdAt: 'Created at',
+      remark: 'Invoice remark',
+      createdAt: 'Created date',
       createUser: 'Created by',
       actions: 'Actions'
     },
-    actions: { detail: 'Detail', edit: 'Edit', apply: 'Apply for invoice', void: 'Void' },
+    actions: {
+      detail: 'Detail',
+      edit: 'Edit',
+      apply: 'Apply for invoice',
+      markIssued: 'Confirm issued',
+      markIssueFailed: 'Mark issue failed',
+      void: 'Void'
+    },
     columnSettings: 'Column settings',
     dialogCreate: 'New sales invoice',
     dialogEdit: 'Edit sales invoice',
@@ -9794,6 +9899,12 @@ const enUS = {
       applyTitle: 'Apply for invoice',
       applyMsg: 'Apply for invoice {code}?',
       applied: 'Application submitted',
+      markIssuedTitle: 'Confirm issued',
+      markIssuedMsg: 'Mark {code} as issued?',
+      markIssuedOk: 'Marked as issued',
+      markIssueFailedTitle: 'Issue failed',
+      markIssueFailedMsg: 'Mark {code} as issue failed?',
+      markIssueFailedOk: 'Marked as issue failed',
       voidTitle: 'Void invoice',
       voidMsg: 'Void invoice {code}? This cannot be undone.',
       voided: 'Invoice voided'

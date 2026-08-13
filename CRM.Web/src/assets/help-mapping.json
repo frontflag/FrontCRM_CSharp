@@ -95,6 +95,7 @@
     { "routeName": "FinancePurchaseInvoiceList", "pageId": "finance" },
     { "routeName": "FinancePurchaseInvoiceDetail", "pageId": "finance" },
     { "routeName": "PurchaseInvoiceWriteOffDesktop", "pageId": "finance" },
+    { "routeName": "SellInvoiceWriteOffDesktop", "pageId": "finance" },
     { "routeName": "FinanceReceiptList", "pageId": "finance" },
     { "routeName": "FinanceReceiptDetail", "pageId": "finance" },
     { "routeName": "FinanceReceiptWriteOff", "pageId": "finance" },

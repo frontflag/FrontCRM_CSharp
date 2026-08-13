@@ -5,6 +5,7 @@ import {
   INVOICE_STATUS_MAP,
   PAYMENT_DONE_STATUS_MAP,
   RECEIVE_STATUS_MAP,
+  SELL_INVOICE_MATCH_STATUS_MAP,
   PAYMENT_MODE_MAP,
   INVOICE_TYPE_MAP,
   PURCHASE_INVOICE_TYPE_MAP,
@@ -76,6 +77,11 @@ export function useFinanceEnumLabels() {
     paymentDoneStatusTag: (n: unknown) => tagFromMap(coercePaymentDoneKey(n), PAYMENT_DONE_STATUS_MAP),
     receiveStatusLabel: (n: number) => labelFromMap(t, te, 'receiveStatus', n, RECEIVE_STATUS_MAP),
     receiveStatusTag: (n: number) => tagFromMap(n, RECEIVE_STATUS_MAP),
+    /** 销项发票 MatchStatus：未核销 / 部分核销 / 核销完成 */
+    sellInvoiceMatchStatusLabel: (n: number) =>
+      labelFromMap(t, te, 'verificationStatus', Number.isFinite(Number(n)) ? Number(n) : 0, SELL_INVOICE_MATCH_STATUS_MAP),
+    sellInvoiceMatchStatusTag: (n: number) =>
+      tagFromMap(Number.isFinite(Number(n)) ? Number(n) : 0, SELL_INVOICE_MATCH_STATUS_MAP),
     paymentModeLabel: (n: number) => strFromMap(t, te, 'paymentMode', n, PAYMENT_MODE_MAP),
     invoiceTypeLabel: (n: number) => strFromMap(t, te, 'invoiceType', n, INVOICE_TYPE_MAP),
     purchaseInvoiceTypeLabel: (n: unknown) =>

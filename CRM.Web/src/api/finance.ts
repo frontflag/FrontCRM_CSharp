@@ -366,6 +366,10 @@ export interface FinanceSellInvoice {
   receiveStatus: number  // 0未收款 1部分收款 2收款完成
   receiveDone: number
   receiveToBe: number
+  /** 开票匹配/核销状态 0未核销 1部分核销 2核销完成 */
+  matchStatus?: number
+  matchDone?: number
+  matchToBe?: number
   currency: number
   type: number           // 10:蓝字 20:红字
   invoiceStatus: number  // 1未申请 2申请中 100已开票 101开票失败 -1已作废
@@ -596,6 +600,13 @@ export const RECEIVE_STATUS_MAP: Record<number, { label: string; type: string }>
   0: { label: '未收款', type: 'info' },
   1: { label: '部分收款', type: 'warning' },
   2: { label: '收款完成', type: 'success' },
+}
+
+/** 销项发票票↔应收核销（MatchStatus） */
+export const SELL_INVOICE_MATCH_STATUS_MAP: Record<number, { label: string; type: string }> = {
+  0: { label: '未核销', type: 'info' },
+  1: { label: '部分核销', type: 'warning' },
+  2: { label: '核销完成', type: 'success' },
 }
 
 export const PAYMENT_DONE_STATUS_MAP: Record<number, { label: string; type: string }> = {
