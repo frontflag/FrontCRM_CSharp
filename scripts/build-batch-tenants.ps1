@@ -16,6 +16,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'Copy-RepoToTempBuild.ps1')
 $tenantsFile = Join-Path $RepoRoot "deploy\tenants.json"
 if (-not (Test-Path $tenantsFile)) {
     throw "tenants.json not found: $tenantsFile"
@@ -64,12 +65,7 @@ Write-Host "Creating temporary build directory: $tempPath" -ForegroundColor Yell
 New-Item -ItemType Directory -Path $tempPath -Force | Out-Null
 
 Write-Host "Copying project to temporary directory..." -ForegroundColor Yellow
-foreach ($item in Get-ChildItem -LiteralPath $RepoRoot -Force) {
-    if ($item.Name -eq '.vs') { continue }
-    if ($item.Name -eq 'data') { continue }
-    if ($item.Name -like 'frontcrm_deploy*') { continue }
-    Copy-Item -LiteralPath $item.FullName -Destination (Join-Path $tempPath $item.Name) -Recurse -Force
-}
+Copy-RepoToTempBuild -SourceRoot $RepoRoot -DestinationRoot $tempPath
 
 Set-Location $tempPath
 

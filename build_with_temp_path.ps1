@@ -32,16 +32,11 @@ if (Test-Path $tempPath) {
 Write-Host "Creating temporary build directory: $tempPath" -ForegroundColor Yellow
 mkdir $tempPath -Force | Out-Null
 
-# Copy project to temp path（逐个子项复制，跳过 .vs：VS 会锁定 FileContentIndex/*.vsidx，整目录 Copy-Item 会失败）
+# Copy project to temp path（跳过 .git/_tmp_*/Uploads/bin/obj，避免 Copy-Item 在海量小文件上假死）
 Write-Host "Copying project to temporary directory..." -ForegroundColor Yellow
 $root = (Get-Location).Path
-foreach ($item in Get-ChildItem -LiteralPath $root -Force) {
-    if ($item.Name -eq '.vs') { continue }
-    # 本地/生产运行时数据（ip2region 等）：不复制进临时构建目录，也不进入 frontcrm_deploy，避免误打包与覆盖生产 data
-    if ($item.Name -eq 'data') { continue }
-    if ($item.Name -eq 'frontcrm_deploy' -or $item.Name -like 'frontcrm_deploy_*') { continue }
-    Copy-Item -LiteralPath $item.FullName -Destination (Join-Path $tempPath $item.Name) -Recurse -Force
-}
+. (Join-Path $root 'scripts\Copy-RepoToTempBuild.ps1')
+Copy-RepoToTempBuild -SourceRoot $root -DestinationRoot $tempPath
 
 # Navigate to temp directory
 cd $tempPath
