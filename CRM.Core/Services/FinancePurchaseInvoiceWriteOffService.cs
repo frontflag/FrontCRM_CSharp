@@ -24,6 +24,7 @@ public class FinancePurchaseInvoiceWriteOffService : IFinancePurchaseInvoiceWrit
     private readonly IDataPermissionService _dataPermission;
     private readonly IPurchaseOrderItemExtendSyncService _poItemExtendSync;
     private readonly IStockInExtendLineSeqService _stockInExtendLineSeq;
+    private readonly IFinancePurchaseInvoicePaymentSyncService _invoicePaymentSync;
     private readonly IUnitOfWork? _unitOfWork;
 
     public FinancePurchaseInvoiceWriteOffService(
@@ -39,6 +40,7 @@ public class FinancePurchaseInvoiceWriteOffService : IFinancePurchaseInvoiceWrit
         IDataPermissionService dataPermission,
         IPurchaseOrderItemExtendSyncService poItemExtendSync,
         IStockInExtendLineSeqService stockInExtendLineSeq,
+        IFinancePurchaseInvoicePaymentSyncService invoicePaymentSync,
         IUnitOfWork? unitOfWork = null)
     {
         _invoiceRepo = invoiceRepo;
@@ -53,6 +55,7 @@ public class FinancePurchaseInvoiceWriteOffService : IFinancePurchaseInvoiceWrit
         _dataPermission = dataPermission;
         _poItemExtendSync = poItemExtendSync;
         _stockInExtendLineSeq = stockInExtendLineSeq;
+        _invoicePaymentSync = invoicePaymentSync;
         _unitOfWork = unitOfWork;
     }
 
@@ -256,6 +259,8 @@ public class FinancePurchaseInvoiceWriteOffService : IFinancePurchaseInvoiceWrit
 
         foreach (var pid in poItemIds)
             await _poItemExtendSync.RecalculateAsync(pid, cancellationToken);
+
+        await _invoicePaymentSync.RecalculateForInvoiceAsync(invoice.Id, cancellationToken);
 
         return new FinancePurchaseInvoiceWriteOffResult
         {

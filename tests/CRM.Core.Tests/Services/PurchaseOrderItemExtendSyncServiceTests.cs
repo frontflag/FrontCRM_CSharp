@@ -33,7 +33,8 @@ public class PurchaseOrderItemExtendSyncServiceTests
             new MemoryRepository<StockInItemExtend>(),
             new MemoryRepository<QCInfo>(),
             Substitute.For<ISellOrderItemExtendSyncService>(),
-            Substitute.For<IPurchaseOrderMainStatusSyncService>());
+            Substitute.For<IPurchaseOrderMainStatusSyncService>(),
+            Substitute.For<IFinancePurchaseInvoicePaymentSyncService>());
     }
 
     [Fact]
@@ -185,7 +186,8 @@ public class PurchaseOrderItemExtendSyncServiceTests
             stockInItemExtendRepo,
             new MemoryRepository<QCInfo>(),
             Substitute.For<ISellOrderItemExtendSyncService>(),
-            Substitute.For<IPurchaseOrderMainStatusSyncService>());
+            Substitute.For<IPurchaseOrderMainStatusSyncService>(),
+            Substitute.For<IFinancePurchaseInvoicePaymentSyncService>());
 
         await service.RecalculateAsync(lineId);
 
@@ -269,7 +271,8 @@ public class PurchaseOrderItemExtendSyncServiceTests
             stockInItemExtendRepo,
             new MemoryRepository<QCInfo>(),
             Substitute.For<ISellOrderItemExtendSyncService>(),
-            Substitute.For<IPurchaseOrderMainStatusSyncService>());
+            Substitute.For<IPurchaseOrderMainStatusSyncService>(),
+            Substitute.For<IFinancePurchaseInvoicePaymentSyncService>());
 
         await service.RecalculateAsync(lineId);
 

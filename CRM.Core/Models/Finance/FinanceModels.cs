@@ -451,6 +451,17 @@ namespace CRM.Core.Models.Finance
         /// <summary>核销状态 0未核销 1部分 2完成</summary>
         public short VerificationStatus { get; set; } = 0;
 
+        /// <summary>已付款金额（派生缓存，相对 VerifiedDone）</summary>
+        [Column(TypeName = "numeric(18,2)")]
+        public decimal PaymentDone { get; set; } = 0m;
+
+        /// <summary>待付款金额（派生缓存 = VerifiedDone - PaymentDone）</summary>
+        [Column(TypeName = "numeric(18,2)")]
+        public decimal PaymentToBe { get; set; } = 0m;
+
+        /// <summary>付款状态 0未付款 1部分付款 2付款完成（派生缓存，相对 VerifiedDone）</summary>
+        public byte PaymentStatus { get; set; } = 0;
+
         /// <summary>发票金额（含税总额）</summary>
         [Column(TypeName = "numeric(18,2)")]
         public decimal InvoiceAmount { get; set; } = 0m;

@@ -24,6 +24,9 @@
           <el-tag effect="dark" :type="invoiceStatusTag(detail.invoiceStatus) as any" size="small" style="margin-left: 12px;">
             {{ invoiceStatusLabel(detail.invoiceStatus) }}
           </el-tag>
+          <el-tag effect="dark" :type="sellInvoiceMatchStatusTag(detail.verificationStatus ?? 0) as any" size="small" style="margin-left: 4px;">
+            {{ sellInvoiceMatchStatusLabel(detail.verificationStatus ?? 0) }}
+          </el-tag>
           <el-tag effect="dark" :type="paymentDoneStatusTag(detail.paymentStatus) as any" size="small" style="margin-left: 4px;">
             {{ paymentDoneStatusLabel(detail.paymentStatus) }}
           </el-tag>
@@ -43,6 +46,10 @@
           <el-descriptions-item :label="t('financePurchaseInvoiceDetail.labels.amount')">
             <span v-if="maskPurchaseSensitiveFields">—</span>
             <span v-else class="amount">¥ {{ formatAmount(detail.invoiceTotal) }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item :label="t('financePurchaseInvoiceDetail.labels.matchDone')">
+            <span v-if="maskPurchaseSensitiveFields">—</span>
+            <span v-else class="amount">¥ {{ formatAmount(detail.verifiedDone) }}</span>
           </el-descriptions-item>
           <el-descriptions-item :label="t('financePurchaseInvoiceDetail.labels.paid')">
             <span v-if="maskPurchaseSensitiveFields">—</span>
@@ -115,6 +122,8 @@ const {
   paymentDoneStatusTag,
   purchaseInvoiceTypeLabel,
   invoiceTypeLabel,
+  sellInvoiceMatchStatusLabel,
+  sellInvoiceMatchStatusTag,
 } = useFinanceEnumLabels()
 
 const loading = ref(false)

@@ -313,7 +313,7 @@ export function normalizeFinancePurchaseInvoice(raw: unknown): FinancePurchaseIn
   if (hasDefinedProp(r, ['verifiedToBe', 'VerifiedToBe'])) {
     verifiedToBe = pickNumFromRecord(r, ['verifiedToBe', 'VerifiedToBe'])
   }
-  let verificationStatus: number | undefined
+  let verificationStatus = 0
   if (hasDefinedProp(r, ['verificationStatus', 'VerificationStatus'])) {
     verificationStatus = pickNumFromRecord(r, ['verificationStatus', 'VerificationStatus'])
   }
@@ -405,6 +405,8 @@ export interface PageQuery {
   vendorName?: string
   remark?: string
   status?: number
+  invoiceStatus?: number
+  paymentStatus?: number
   /** 收款用途：10 普通 / 20 预收 */
   receiptPurpose?: number
   /** 整单核销状态：0未核销 1部分核销 2核销完成 */

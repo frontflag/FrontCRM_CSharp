@@ -49,6 +49,12 @@ public sealed class FinancePurchaseInvoiceListQuery : IFinancePurchaseInvoiceLis
         if (request.InvoiceStatus.HasValue)
             q = q.Where(inv => inv.RedInvoiceStatus == request.InvoiceStatus.Value);
 
+        if (request.VerificationStatus.HasValue)
+            q = q.Where(inv => inv.VerificationStatus == request.VerificationStatus.Value);
+
+        if (request.PaymentStatus.HasValue)
+            q = q.Where(inv => inv.PaymentStatus == request.PaymentStatus.Value);
+
         if (request.StartDate.HasValue)
             q = q.Where(inv => inv.InvoiceDate >= request.StartDate.Value);
 

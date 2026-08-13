@@ -44,6 +44,9 @@
         <el-select v-model="query.status" :placeholder="t('financePurchaseInvoiceList.filters.invoiceStatus')" clearable class="filter-select" style="width:130px" @change="loadData">
           <el-option v-for="k in invoiceStatusSelectKeys" :key="k" :label="invoiceStatusLabel(k)" :value="k" />
         </el-select>
+        <el-select v-model="filterVerificationStatus" :placeholder="t('financePurchaseInvoiceList.filters.matchStatus')" clearable class="filter-select" style="width:120px" @change="loadData">
+          <el-option v-for="k in matchStatusSelectKeys" :key="'v-' + k" :label="sellInvoiceMatchStatusLabel(k)" :value="k" />
+        </el-select>
         <el-select v-model="filterPayStatus" :placeholder="t('financePurchaseInvoiceList.filters.payStatus')" clearable class="filter-select" style="width:120px" @change="loadData">
           <el-option v-for="k in paymentDoneSelectKeys" :key="k" :label="paymentDoneStatusLabel(k)" :value="k" />
         </el-select>
@@ -70,7 +73,7 @@
     <!-- 数据表格 -->
     <CrmDataTable
       ref="dataTableRef"
-      column-layout-key="finance-purchase-invoice-list-main"
+      column-layout-key="finance-purchase-invoice-list-main-v2"
       :columns="purchaseInvoiceTableColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -99,6 +102,15 @@
         <span v-if="maskPurchaseSensitiveFields">—</span>
         <span v-else class="amount-text">¥ {{ formatAmount(row.invoiceTotal) }}</span>
       </template>
+      <template #col-verificationStatus="{ row }">
+        <el-tag effect="dark" :type="sellInvoiceMatchStatusTag(row.verificationStatus ?? 0) as any" size="small">
+          {{ sellInvoiceMatchStatusLabel(row.verificationStatus ?? 0) }}
+        </el-tag>
+      </template>
+      <template #col-verifiedDone="{ row }">
+        <span v-if="maskPurchaseSensitiveFields">—</span>
+        <span v-else class="amount-text">¥ {{ formatAmount(row.verifiedDone) }}</span>
+      </template>
       <template #col-paymentDone="{ row }">
         <span v-if="maskPurchaseSensitiveFields">—</span>
         <span v-else class="amount-text">¥ {{ formatAmount(row.paymentDone) }}</span>
@@ -108,6 +120,7 @@
           {{ paymentDoneStatusLabel(row.paymentStatus) }}
         </el-tag>
       </template>
+      <template #col-remark="{ row }">{{ row.remark || '-' }}</template>
       <template #col-purchaseInvoiceType="{ row }">{{ purchaseInvoiceTypeLabel(row.purchaseInvoiceType) }}</template>
       <template #col-makeInvoiceDate="{ row }">{{ row.makeInvoiceDate ? formatDisplayDate(row.makeInvoiceDate) : '-' }}</template>
       <template #col-createTime="{ row }">{{ row.createdAt ? formatDisplayDateTime(row.createdAt) : '-' }}</template>
@@ -302,6 +315,7 @@ import {
   PAYMENT_DONE_STATUS_MAP,
   PURCHASE_INVOICE_TYPE_MAP,
   INVOICE_TYPE_MAP,
+  SELL_INVOICE_MATCH_STATUS_MAP,
   type FinancePurchaseInvoice,
   type PageQuery,
 } from '@/api/finance'
@@ -328,10 +342,13 @@ const {
   paymentDoneStatusTag,
   purchaseInvoiceTypeLabel,
   invoiceTypeLabel,
+  sellInvoiceMatchStatusLabel,
+  sellInvoiceMatchStatusTag,
 } = useFinanceEnumLabels()
 
 const invoiceStatusSelectKeys = Object.keys(INVOICE_STATUS_MAP).map(k => Number(k))
 const paymentDoneSelectKeys = Object.keys(PAYMENT_DONE_STATUS_MAP).map(k => Number(k))
+const matchStatusSelectKeys = Object.keys(SELL_INVOICE_MATCH_STATUS_MAP).map(k => Number(k))
 const purchaseInvoiceTypeKeys = Object.keys(PURCHASE_INVOICE_TYPE_MAP).map(k => Number(k))
 const invoiceTypeKeys = Object.keys(INVOICE_TYPE_MAP).map(k => Number(k))
 
@@ -341,6 +358,7 @@ const query = reactive<PageQuery & { page: number; pageSize: number }>({
 })
 const dateRange = ref<[string, string] | null>(null)
 const filterPayStatus = ref<number | undefined>(undefined)
+const filterVerificationStatus = ref<number | undefined>(undefined)
 const total = ref(0)
 const loading = ref(false)
 const tableData = ref<FinancePurchaseInvoice[]>([])
@@ -366,10 +384,20 @@ const purchaseInvoiceTableColumns = computed<CrmTableColumnDef[]>(() => [
     minWidth: 132,
     align: 'center'
   },
+  { key: 'financePurchaseInvoiceCode', label: t('financePurchaseInvoiceList.columns.code'), prop: 'financePurchaseInvoiceCode', width: 160, minWidth: 160, showOverflowTooltip: true },
+  { key: 'makeInvoiceDate', label: t('financePurchaseInvoiceList.columns.makeDate'), prop: 'makeInvoiceDate', width: 120 },
   { key: 'vendorName', label: t('financePurchaseInvoiceList.columns.vendor'), prop: 'vendorName', minWidth: 160, showOverflowTooltip: true },
   { key: 'invoiceNo', label: t('financePurchaseInvoiceList.columns.invoiceNo'), prop: 'invoiceNo', width: 140, showOverflowTooltip: true },
   { key: 'invoiceTotal', label: t('financePurchaseInvoiceList.columns.amount'), prop: 'invoiceTotal', width: 130, align: 'right' },
-  { key: 'paymentDone', label: t('financePurchaseInvoiceList.columns.paid'), prop: 'paymentDone', width: 130, align: 'right' },
+  {
+    key: 'verificationStatus',
+    label: t('financePurchaseInvoiceList.columns.matchStatus'),
+    prop: 'verificationStatus',
+    width: 128,
+    minWidth: 128,
+    align: 'center'
+  },
+  { key: 'verifiedDone', label: t('financePurchaseInvoiceList.columns.matchDone'), prop: 'verifiedDone', width: 130, align: 'right' },
   {
     key: 'paymentStatus',
     label: t('financePurchaseInvoiceList.columns.payStatus'),
@@ -378,9 +406,9 @@ const purchaseInvoiceTableColumns = computed<CrmTableColumnDef[]>(() => [
     minWidth: 128,
     align: 'center'
   },
+  { key: 'paymentDone', label: t('financePurchaseInvoiceList.columns.paid'), prop: 'paymentDone', width: 130, align: 'right' },
+  { key: 'remark', label: t('financePurchaseInvoiceList.columns.remark'), prop: 'remark', minWidth: 160, showOverflowTooltip: true },
   { key: 'purchaseInvoiceType', label: t('financePurchaseInvoiceList.columns.invoiceType'), prop: 'purchaseInvoiceType', width: 140 },
-  { key: 'makeInvoiceDate', label: t('financePurchaseInvoiceList.columns.makeDate'), prop: 'makeInvoiceDate', width: 120 },
-  { key: 'financePurchaseInvoiceCode', label: t('financePurchaseInvoiceList.columns.code'), prop: 'financePurchaseInvoiceCode', width: 160, minWidth: 160, showOverflowTooltip: true },
   { key: 'createTime', label: t('financePurchaseInvoiceList.columns.createdAt'), width: 120 },
   { key: 'createUser', label: t('financePurchaseInvoiceList.columns.createUser'), width: 120, showOverflowTooltip: true },
   {
@@ -409,7 +437,12 @@ const loadData = async () => {
     query.endDate = undefined
   }
   try {
-    const res = await financePurchaseInvoiceApi.getList(query)
+    const res = await financePurchaseInvoiceApi.getList({
+      ...query,
+      invoiceStatus: query.status,
+      verificationStatus: filterVerificationStatus.value,
+      paymentStatus: filterPayStatus.value,
+    })
     tableData.value = (res.items || []).map(normalizeFinancePurchaseInvoice)
     total.value = res.total || 0
   } catch {

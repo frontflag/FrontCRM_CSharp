@@ -1184,7 +1184,8 @@ namespace CRM.IntegrationTests
             var service = new PurchaseOrderItemExtendSyncService(
                 poItemRepo, poRepo, extendRepo, notifyRepo, payItemRepo, paymentRepo,
                 purInvItemRepo, purInvRepo, purInvWriteOffRepo, stockInRepo, stockInItemRepo, stockInItemExtendRepo, qcRepo,
-                sellSoItemExtendSync, Substitute.For<IPurchaseOrderMainStatusSyncService>());
+                sellSoItemExtendSync, Substitute.For<IPurchaseOrderMainStatusSyncService>(),
+                Substitute.For<IFinancePurchaseInvoicePaymentSyncService>());
 
             // 准备采购订单明细
             var purchaseOrderItemId = Guid.NewGuid().ToString();

@@ -19,6 +19,7 @@ namespace CRM.Core.Services
         private readonly IFinancePurchaseInvoiceListQuery _purchaseInvoiceListQuery;
         private readonly IRepository<VendorInfo> _vendorRepo;
         private readonly ISerialNumberService _serialNumberService;
+        private readonly IFinancePurchaseInvoicePaymentSyncService _invoicePaymentSync;
 
         public FinancePurchaseInvoiceService(
             IRepository<FinancePurchaseInvoice> invoiceRepo,
@@ -30,6 +31,7 @@ namespace CRM.Core.Services
             IFinancePurchaseInvoiceListQuery purchaseInvoiceListQuery,
             IRepository<VendorInfo> vendorRepo,
             ISerialNumberService serialNumberService,
+            IFinancePurchaseInvoicePaymentSyncService invoicePaymentSync,
             IUnitOfWork? unitOfWork = null)
         {
             _invoiceRepo = invoiceRepo;
@@ -41,6 +43,7 @@ namespace CRM.Core.Services
             _purchaseInvoiceListQuery = purchaseInvoiceListQuery;
             _vendorRepo = vendorRepo;
             _serialNumberService = serialNumberService;
+            _invoicePaymentSync = invoicePaymentSync;
             _unitOfWork = unitOfWork;
         }
 
@@ -71,6 +74,9 @@ namespace CRM.Core.Services
                 VerifiedDone = 0m,
                 VerifiedToBe = Math.Max(0m, invoiceAmount),
                 VerificationStatus = 0,
+                PaymentDone = 0m,
+                PaymentToBe = 0m,
+                PaymentStatus = 0,
                 Remark = request.Remark,
                 CreateTime = DateTime.UtcNow,
                 CreateByUserId = ActingUserIdNormalizer.Normalize(actingUserId)
@@ -148,6 +154,8 @@ namespace CRM.Core.Services
 
             await _invoiceRepo.UpdateAsync(invoice);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+            if (request.InvoiceAmount.HasValue)
+                await _invoicePaymentSync.RecalculateForInvoiceAsync(invoice.Id);
             return invoice;
         }
 

@@ -40,6 +40,7 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
     private readonly IUnitOfWork? _unitOfWork;
     private readonly ISellOrderItemExtendSyncService _sellSoItemExtendSync;
     private readonly IPurchaseOrderMainStatusSyncService _poMainStatusSync;
+    private readonly IFinancePurchaseInvoicePaymentSyncService _invoicePaymentSync;
 
     public PurchaseOrderItemExtendSyncService(
         IRepository<PurchaseOrderItem> poItemRepo,
@@ -57,6 +58,7 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
         IRepository<QCInfo> qcRepo,
         ISellOrderItemExtendSyncService sellSoItemExtendSync,
         IPurchaseOrderMainStatusSyncService poMainStatusSync,
+        IFinancePurchaseInvoicePaymentSyncService invoicePaymentSync,
         IUnitOfWork? unitOfWork = null)
     {
         _poItemRepo = poItemRepo;
@@ -74,6 +76,7 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
         _qcRepo = qcRepo;
         _sellSoItemExtendSync = sellSoItemExtendSync;
         _poMainStatusSync = poMainStatusSync;
+        _invoicePaymentSync = invoicePaymentSync;
         _unitOfWork = unitOfWork;
     }
 
@@ -209,6 +212,8 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
 
         if (!string.IsNullOrWhiteSpace(poItem.PurchaseOrderId))
             await _poMainStatusSync.TrySyncOrderMainStatusAsync(poItem.PurchaseOrderId.Trim(), cancellationToken);
+
+        await _invoicePaymentSync.RecalculateForPurchaseOrderItemAsync(id, cancellationToken);
     }
 
     private async Task AlignArrivalNoticesWithPoLineQtyAsync(

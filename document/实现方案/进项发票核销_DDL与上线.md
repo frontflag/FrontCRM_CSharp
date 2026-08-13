@@ -9,11 +9,12 @@
 
 1. 新建 `finance_purchase_invoice_write_off`
 2. `financepurchaseinvoice` 增加 `Currency`, `VerifiedDone`, `VerifiedToBe`, `VerificationStatus`
-3. `stock_in_item_extend` 增加 `InvoiceMatchDone`, `InvoiceMatchToBe`, `InvoiceMatchStatus`, `InvoiceMatchCurrency`
-4. `stock_in_extend` 增加同上头缓存字段
-5. 初始化：已入库明细 `InvoiceMatchToBe = Amount`；发票侧新建时初始化（历史 Demo 用下方清理 SQL，不依赖币别回填）
+3. `financepurchaseinvoice` 增加 `PaymentDone`, `PaymentToBe`, `PaymentStatus`（相对已核销；迁移回填）
+4. `stock_in_item_extend` 增加 `InvoiceMatchDone`, `InvoiceMatchToBe`, `InvoiceMatchStatus`, `InvoiceMatchCurrency`
+5. `stock_in_extend` 增加同上头缓存字段
+6. 初始化：已入库明细 `InvoiceMatchToBe = Amount`；发票侧新建时初始化（历史 Demo 用下方清理 SQL，不依赖币别回填）
 
-以仓库内 EF 迁移 `CRM.Infrastructure/Migrations/*PurchaseInvoiceWriteOff*` 为准。
+以仓库内 EF 迁移 `CRM.Infrastructure/Migrations/*PurchaseInvoice*` 为准。
 
 ---
 

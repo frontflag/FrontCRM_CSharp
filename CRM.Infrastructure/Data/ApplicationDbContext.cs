@@ -2034,6 +2034,10 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.BillAmount).HasColumnType("numeric(18,2)");
                 entity.Property(e => e.TaxAmount).HasColumnType("numeric(18,2)");
                 entity.Property(e => e.ExcludTaxAmount).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.VerifiedDone).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.VerifiedToBe).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.PaymentDone).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.PaymentToBe).HasColumnType("numeric(18,2)");
                 entity.HasMany(e => e.Items)
                     .WithOne(i => i.PurchaseInvoice)
                     .HasForeignKey(i => i.FinancePurchaseInvoiceId)

@@ -253,6 +253,10 @@ public static class PurchaseSensitiveFieldMask511
         inv.BillAmount = 0m;
         inv.TaxAmount = 0m;
         inv.ExcludTaxAmount = 0m;
+        inv.VerifiedDone = 0m;
+        inv.VerifiedToBe = 0m;
+        inv.PaymentDone = 0m;
+        inv.PaymentToBe = 0m;
         if (inv.Items == null) return;
         foreach (var it in inv.Items)
         {

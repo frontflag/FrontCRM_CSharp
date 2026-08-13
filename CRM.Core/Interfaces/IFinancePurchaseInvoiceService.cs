@@ -63,6 +63,8 @@ namespace CRM.Core.Interfaces
         public string? Keyword { get; set; }
         public short? InvoiceStatus { get; set; }
         public byte? ConfirmStatus { get; set; }
+        public short? VerificationStatus { get; set; }
+        public byte? PaymentStatus { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
         public int Page { get; set; } = 1;
