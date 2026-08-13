@@ -142,23 +142,29 @@ namespace CRM.API.Controllers
 
                 var sb = new StringBuilder();
                 sb.AppendLine(string.Join(',',
-                    "状态", "出库类型", "出库单号", "来源单号", "装箱单号", "客户", "业务员", "出库日期",
-                    "数量", "金额", "出货方式", "货代单号", "备注", "创建时间", "创建人"));
+                    "状态", "出库类型", "出库单号", "来源单号", "装箱单号",
+                    "客户中文名称", "客户英文名称", "业务员", "出库日期",
+                    "数量", "销售单价", "销售单价币别", "金额", "金额币别",
+                    "出货方式", "货代单号", "备注", "创建时间", "创建人"));
 
                 foreach (var r in items)
                 {
                     sb.AppendLine(string.Join(',',
-                        InventoryExportHttp.CsvCell(r.Status.ToString()),
-                        InventoryExportHttp.CsvCell(r.StockOutType.ToString()),
+                        InventoryExportHttp.CsvCell(InventoryExportHttp.StockOutStatusLabel(r.Status)),
+                        InventoryExportHttp.CsvCell(InventoryExportHttp.StockOutTypeLabel(r.StockOutType)),
                         InventoryExportHttp.CsvCell(r.StockOutCode),
                         InventoryExportHttp.CsvCell(r.SourceCode),
                         InventoryExportHttp.CsvCell(r.PackingCodes),
-                        InventoryExportHttp.CsvCell(mask521 ? "***" : r.CustomerName),
+                        InventoryExportHttp.CsvCell(mask521 ? "***" : r.CustomerChineseName),
+                        InventoryExportHttp.CsvCell(mask521 ? "***" : r.CustomerEnglishName),
                         InventoryExportHttp.CsvCell(mask521 ? "***" : r.SalesUserName),
                         InventoryExportHttp.CsvCell(InventoryExportHttp.FormatDate(r.StockOutDate)),
                         InventoryExportHttp.CsvCell(InventoryExportHttp.FormatDecimal(r.TotalQuantity)),
+                        InventoryExportHttp.CsvCell(mask521 ? string.Empty : r.SalesUnitPriceSummary),
+                        InventoryExportHttp.CsvCell(mask521 ? string.Empty : InventoryExportHttp.CurrencyLabel(r.SalesUnitPriceCurrencyCode)),
                         InventoryExportHttp.CsvCell(mask521 ? string.Empty : InventoryExportHttp.FormatDecimal(r.TotalAmount)),
-                        InventoryExportHttp.CsvCell(r.ShipmentMethod),
+                        InventoryExportHttp.CsvCell(InventoryExportHttp.CurrencyLabel(r.CurrencyCode)),
+                        InventoryExportHttp.CsvCell(InventoryExportHttp.ShipmentMethodLabel(r.ShipmentMethod)),
                         InventoryExportHttp.CsvCell(r.FreightForwarderOrderNo),
                         InventoryExportHttp.CsvCell(r.Remark),
                         InventoryExportHttp.CsvCell(InventoryExportHttp.FormatDateTime(r.CreateTime)),

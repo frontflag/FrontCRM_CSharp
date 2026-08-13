@@ -8,6 +8,7 @@ using CRM.Core.Models.System;
 using CRM.Core.Models.Vendor;
 using CRM.Core.Utilities;
 using Microsoft.Extensions.Logging;
+using System.Globalization;
 using System.Threading;
 
 namespace CRM.Core.Services
@@ -952,6 +953,27 @@ namespace CRM.Core.Services
                         brandSummary = string.Join(", ", brands.Distinct(StringComparer.OrdinalIgnoreCase));
                 }
 
+                string? unitPriceSummary = null;
+                short? unitPriceCurrencyCode = null;
+                if (stockInItemsMap.TryGetValue(s.Id, out var silForPrice) && silForPrice.Count > 0)
+                {
+                    var prices = silForPrice
+                        .Select(line => line.Price)
+                        .Distinct()
+                        .ToList();
+                    if (prices.Count > 0)
+                        unitPriceSummary = string.Join(", ", prices.Select(p => p.ToString(CultureInfo.InvariantCulture)));
+
+                    var lineCurrencies = silForPrice
+                        .Select(line => line.Currency)
+                        .Where(c => c is >= 1 and <= 6)
+                        .Select(c => c!.Value)
+                        .Distinct()
+                        .ToList();
+                    if (lineCurrencies.Count >= 1)
+                        unitPriceCurrencyCode = lineCurrencies[0];
+                }
+
                 decimal displayTotalAmount = s.TotalAmount;
                 if (displayTotalAmount == 0m && stockInItemsMap.TryGetValue(s.Id, out var silAmt) && silAmt.Count > 0)
                 {
@@ -995,6 +1017,9 @@ namespace CRM.Core.Services
                     }
                 }
 
+                unitPriceCurrencyCode ??= currencyCode;
+                currencyCode ??= unitPriceCurrencyCode;
+
                 string? customsDeclarationId = null;
                 string? customsDeclarationCode = null;
                 if (s.StockInType == StockInTypeCode.Customs)
@@ -1030,6 +1055,8 @@ namespace CRM.Core.Services
                     TotalQuantity = s.TotalQuantity,
                     TotalAmount = displayTotalAmount,
                     CurrencyCode = currencyCode,
+                    UnitPriceSummary = unitPriceSummary,
+                    UnitPriceCurrencyCode = unitPriceCurrencyCode,
                     Status = s.Status,
                     Remark = s.Remark,
                     CreateTime = s.CreateTime,

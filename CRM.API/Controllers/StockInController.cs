@@ -148,22 +148,27 @@ namespace CRM.API.Controllers
 
                 var sb = new StringBuilder();
                 sb.AppendLine(string.Join(',',
-                    "状态", "入库类型", "物料型号", "品牌", "仓库Id", "供应商", "入库日期", "数量",
-                    "金额", "币别", "备注", "入库单号", "来源单号", "采购订单号", "销售订单号", "创建时间", "创建人"));
+                    "状态", "入库类型", "物料型号", "品牌", "仓库Id",
+                    "供应商中文名称", "供应商英文名称",
+                    "入库日期", "数量", "单价", "单价币别", "金额", "金额币别",
+                    "备注", "入库单号", "来源单号", "采购订单号", "销售订单号", "创建时间", "创建人"));
 
                 foreach (var r in items)
                 {
                     sb.AppendLine(string.Join(',',
-                        InventoryExportHttp.CsvCell(r.Status.ToString()),
-                        InventoryExportHttp.CsvCell(r.StockInType.ToString()),
+                        InventoryExportHttp.CsvCell(InventoryExportHttp.StockInStatusLabel(r.Status)),
+                        InventoryExportHttp.CsvCell(InventoryExportHttp.StockInTypeLabel(r.StockInType)),
                         InventoryExportHttp.CsvCell(r.MaterialModelSummary),
                         InventoryExportHttp.CsvCell(r.MaterialBrandSummary),
                         InventoryExportHttp.CsvCell(r.WarehouseId),
                         InventoryExportHttp.CsvCell(mask511 ? "***" : r.VendorName),
+                        InventoryExportHttp.CsvCell(mask511 ? "***" : r.VendorEnglishName),
                         InventoryExportHttp.CsvCell(InventoryExportHttp.FormatDate(r.StockInDate)),
                         InventoryExportHttp.CsvCell(InventoryExportHttp.FormatDecimal(r.TotalQuantity)),
+                        InventoryExportHttp.CsvCell(mask511 ? string.Empty : r.UnitPriceSummary),
+                        InventoryExportHttp.CsvCell(mask511 ? string.Empty : InventoryExportHttp.CurrencyLabel(r.UnitPriceCurrencyCode)),
                         InventoryExportHttp.CsvCell(mask511 ? string.Empty : InventoryExportHttp.FormatDecimal(r.TotalAmount)),
-                        InventoryExportHttp.CsvCell(r.CurrencyCode?.ToString()),
+                        InventoryExportHttp.CsvCell(InventoryExportHttp.CurrencyLabel(r.CurrencyCode)),
                         InventoryExportHttp.CsvCell(r.Remark),
                         InventoryExportHttp.CsvCell(r.StockInCode),
                         InventoryExportHttp.CsvCell(r.SourceDisplayNo),

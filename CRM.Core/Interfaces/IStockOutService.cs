@@ -182,12 +182,20 @@ namespace CRM.Core.Interfaces
         public string? PackingCodes { get; set; }
         public int TotalQuantity { get; set; }
         public decimal TotalAmount { get; set; }
+        /// <summary>明细销售单价汇总（多行去重后逗号分隔；优先扩展表销售价，否则销售订单行单价）</summary>
+        public string? SalesUnitPriceSummary { get; set; }
+        /// <summary>销售单价币别（明细销售币别去重；无则回退销售订单行币别）</summary>
+        public short? SalesUnitPriceCurrencyCode { get; set; }
+        /// <summary>金额币别（与销售单价币别一致）</summary>
+        public short? CurrencyCode { get; set; }
         public short Status { get; set; }
         public string? Remark { get; set; }
         public DateTime CreateTime { get; set; }
         public string? CreateByUserId { get; set; }
         public string? CreateUserName { get; set; }
         public string? CustomerName { get; set; }
+        /// <summary>客户中文名称（来自 customerinfo.OfficialName，空则回退 CustomerName）</summary>
+        public string? CustomerChineseName { get; set; }
         /// <summary>客户英文全称（来自 customerinfo.EnglishOfficialName）</summary>
         public string? CustomerEnglishName { get; set; }
         /// <summary>客户编号（来自 customerinfo.CustomerCode）</summary>

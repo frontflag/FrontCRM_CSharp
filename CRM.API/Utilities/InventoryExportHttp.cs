@@ -59,6 +59,76 @@ public static class InventoryExportHttp
     public static string FormatDecimal(int value) =>
         value.ToString(CultureInfo.InvariantCulture);
 
+    public static string StockInStatusLabel(short status) => status switch
+    {
+        0 => "草稿",
+        1 => "待入库",
+        2 => "已入库",
+        3 => "已取消",
+        _ => status.ToString(CultureInfo.InvariantCulture)
+    };
+
+    public static string StockInTypeLabel(short type)
+    {
+        var code = type switch
+        {
+            1 => StockInTypeCode.Purchase,
+            2 => StockInTypeCode.Return,
+            4 => StockInTypeCode.Scrap,
+            _ => type
+        };
+        return code switch
+        {
+            StockInTypeCode.Purchase => "采购入库",
+            StockInTypeCode.Customs => "报关入库",
+            StockInTypeCode.Return => "退货入库",
+            StockInTypeCode.Scrap => "报废入库",
+            StockInTypeCode.Transfer => "调拨入库",
+            _ => type.ToString(CultureInfo.InvariantCulture)
+        };
+    }
+
+    public static string CurrencyLabel(short? code)
+    {
+        if (!code.HasValue) return string.Empty;
+        return Enum.IsDefined(typeof(CurrencyCode), code.Value)
+            ? ((CurrencyCode)code.Value).ToIsoText()
+            : code.Value.ToString(CultureInfo.InvariantCulture);
+    }
+
+    public static string StockOutStatusLabel(short status) => status switch
+    {
+        0 => "草稿",
+        1 => "待出库",
+        2 => "准备出库",
+        3 => "已取消",
+        4 => "出库完成",
+        _ => status.ToString(CultureInfo.InvariantCulture)
+    };
+
+    public static string StockOutTypeLabel(short type) => type switch
+    {
+        StockOutTypeCode.Sales or StockOutTypeCode.LegacySales => "销售出库",
+        StockOutTypeCode.Customs => "报关出库",
+        StockOutTypeCode.Return => "退货出库",
+        StockOutTypeCode.Scrap => "报废出库",
+        StockOutTypeCode.Transfer => "调拨出库",
+        _ => type.ToString(CultureInfo.InvariantCulture)
+    };
+
+    public static string ShipmentMethodLabel(string? code)
+    {
+        var n = LogisticsShipmentMethodCode.Normalize(code);
+        if (string.IsNullOrEmpty(n)) return string.Empty;
+        return n switch
+        {
+            LogisticsShipmentMethodCode.Delivery => "送货",
+            LogisticsShipmentMethodCode.SelfPickup => "自提",
+            LogisticsShipmentMethodCode.Express => "快递",
+            _ => n
+        };
+    }
+
     public static Dictionary<string, object?> BatchFilters(BatchReconciliationQueryRequest request) =>
         ExportOperationAudit.NormalizeFilters(new Dictionary<string, object?>
         {

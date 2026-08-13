@@ -1856,6 +1856,55 @@ namespace CRM.Core.Services
             var packingSummaryById = await ResolvePackingSummaryByStockOutIdAsync(stockOutIds);
             var freightForwarderByStockOutId = await ResolveFreightForwarderOrderNoByStockOutIdAsync(stockOutIds);
 
+            var outItems = stockOutIds.Count == 0
+                ? new List<StockOutItem>()
+                : (await _stockOutItemRepository.FindAsync(x => stockOutIds.Contains(x.StockOutId)))
+                    .Where(x => !x.IsDeleted)
+                    .ToList();
+            var outItemIds = outItems
+                .Select(x => x.Id.Trim())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var extendByOutItemId = outItemIds.Count == 0
+                ? new Dictionary<string, StockOutItemExtend>(StringComparer.OrdinalIgnoreCase)
+                : (await _stockOutItemExtendRepository.FindAsync(e => outItemIds.Contains(e.Id)))
+                    .Where(e => !e.IsDeleted)
+                    .GroupBy(e => e.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+            var itemsByStockOutId = outItems
+                .GroupBy(x => x.StockOutId.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => (IReadOnlyList<StockOutItem>)g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+            var extraSellLineIds = extendByOutItemId.Values
+                .Select(e => e.SellOrderItemId?.Trim())
+                .Where(id => !string.IsNullOrEmpty(id) && !itemById.ContainsKey(id!))
+                .Cast<string>()
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (extraSellLineIds.Count > 0)
+            {
+                var extraItems = (await _sellOrderItemRepository.FindAsync(x => extraSellLineIds.Contains(x.Id))).ToList();
+                foreach (var it in extraItems)
+                {
+                    var key = it.Id.Trim();
+                    if (!itemById.ContainsKey(key))
+                        itemById[key] = it;
+                    if (!string.IsNullOrWhiteSpace(it.SellOrderId))
+                        orderIdSet.Add(it.SellOrderId.Trim());
+                }
+
+                var missingOrderIds = orderIdSet.Where(id => !orderById.ContainsKey(id)).ToList();
+                if (missingOrderIds.Count > 0)
+                {
+                    var extraOrders = (await _sellOrderRepository.FindAsync(o => missingOrderIds.Contains(o.Id))).ToList();
+                    foreach (var o in extraOrders)
+                    {
+                        var key = o.Id.Trim();
+                        if (!orderById.ContainsKey(key))
+                            orderById[key] = o;
+                    }
+                }
+            }
+
             var notifyIdSet = outs
                 .Select(x => x.SourceId?.Trim())
                 .Where(x => !string.IsNullOrEmpty(x))
@@ -1899,11 +1948,15 @@ namespace CRM.Core.Services
                     }
 
                     string? customerName = null;
+                    string? customerChineseName = null;
                     string? customerEnglishName = null;
                     string? customerCode = null;
                     if (cust != null)
                     {
                         customerName = string.IsNullOrWhiteSpace(cust.OfficialName) ? cust.CustomerName : cust.OfficialName;
+                        customerChineseName = string.IsNullOrWhiteSpace(cust.OfficialName)
+                            ? cust.CustomerName
+                            : cust.OfficialName.Trim();
                         customerEnglishName = string.IsNullOrWhiteSpace(cust.EnglishOfficialName)
                             ? null
                             : cust.EnglishOfficialName.Trim();
@@ -1912,7 +1965,18 @@ namespace CRM.Core.Services
                     else if (so != null)
                     {
                         customerName = so.CustomerName;
+                        customerChineseName = so.CustomerName;
                     }
+
+                    itemsByStockOutId.TryGetValue(x.Id.Trim(), out var linesForPrice);
+                    var (salesUnitPriceSummary, salesUnitPriceCurrencyCode, amountCurrencyCode, computedAmount) =
+                        BuildStockOutListSalesPriceExport(
+                            linesForPrice,
+                            extendByOutItemId,
+                            line,
+                            itemById,
+                            x.TotalQuantity);
+                    var displayAmount = x.TotalAmount != 0m ? x.TotalAmount : computedAmount;
 
                     var salesUserName = ResolveSellOrderSalesLogin(so, userLoginById);
                     var sellOrderItemCode = string.IsNullOrWhiteSpace(line?.SellOrderItemCode)
@@ -1968,13 +2032,17 @@ namespace CRM.Core.Services
                             ? packingSummaryForCodes.Codes
                             : null,
                         TotalQuantity = x.TotalQuantity,
-                        TotalAmount = x.TotalAmount,
+                        TotalAmount = displayAmount,
+                        SalesUnitPriceSummary = salesUnitPriceSummary,
+                        SalesUnitPriceCurrencyCode = salesUnitPriceCurrencyCode,
+                        CurrencyCode = amountCurrencyCode,
                         Status = x.Status,
                         Remark = x.Remark,
                         CreateTime = x.CreateTime,
                         CreateByUserId = x.CreateByUserId,
                         CreateUserName = createUserName,
                         CustomerName = customerName,
+                        CustomerChineseName = customerChineseName,
                         CustomerEnglishName = customerEnglishName,
                         CustomerCode = customerCode,
                         SalesUserName = salesUserName,
@@ -2703,6 +2771,64 @@ namespace CRM.Core.Services
             }
 
             return result;
+        }
+
+        private static (string? Summary, short? UnitPriceCurrency, short? AmountCurrency, decimal Amount) BuildStockOutListSalesPriceExport(
+            IReadOnlyList<StockOutItem>? lines,
+            IReadOnlyDictionary<string, StockOutItemExtend> extendByItemId,
+            SellOrderItem? headerSoLine,
+            IReadOnlyDictionary<string, SellOrderItem> soLineById,
+            int headerTotalQty)
+        {
+            var prices = new List<decimal>();
+            var currencies = new List<short>();
+            decimal amount = 0m;
+            if (lines != null)
+            {
+                foreach (var li in lines)
+                {
+                    extendByItemId.TryGetValue(li.Id.Trim(), out var ext);
+                    SellOrderItem? lineSo = headerSoLine;
+                    var extSellId = ext?.SellOrderItemId?.Trim();
+                    if (!string.IsNullOrEmpty(extSellId) && soLineById.TryGetValue(extSellId, out var fromExt))
+                        lineSo = fromExt;
+                    var (sp, sc) = ResolveStockOutItemListSalesPrice(ext, lineSo);
+                    var qty = li.ActualQty > 0 ? li.ActualQty : li.Quantity;
+                    if (sp is > 0)
+                    {
+                        prices.Add(sp.Value);
+                        amount += qty * sp.Value;
+                    }
+                    if (sc is > 0)
+                        currencies.Add(sc.Value);
+                }
+            }
+
+            if (prices.Count == 0 && headerSoLine != null && headerSoLine.Price > 0)
+            {
+                prices.Add(headerSoLine.Price);
+                if (headerSoLine.Currency > 0)
+                    currencies.Add(headerSoLine.Currency);
+                if (headerTotalQty > 0)
+                    amount = headerTotalQty * headerSoLine.Price;
+            }
+
+            string? summary = prices.Count == 0
+                ? null
+                : string.Join(", ", prices.Distinct().Select(p => p.ToString(CultureInfo.InvariantCulture)));
+
+            short? unitCur = null;
+            var distinctCur = currencies.Where(c => c > 0).Distinct().ToList();
+            if (distinctCur.Count >= 1)
+                unitCur = distinctCur[0];
+            if (unitCur == null && headerSoLine != null && headerSoLine.Currency > 0)
+                unitCur = headerSoLine.Currency;
+
+            short? amountCur = unitCur;
+            unitCur ??= amountCur;
+            amountCur ??= unitCur;
+            amount = Math.Round(amount, 2, MidpointRounding.AwayFromZero);
+            return (summary, unitCur, amountCur, amount);
         }
 
         private static (decimal? SalesPrice, short? SalesCurrency) ResolveStockOutItemListSalesPrice(

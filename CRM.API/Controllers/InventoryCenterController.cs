@@ -330,12 +330,15 @@ namespace CRM.API.Controllers
                 var sb = new StringBuilder();
                 sb.AppendLine(string.Join(',',
                     "出库状态", "库存明细编号", "入库单号", "入库日期", "仓库", "地域",
-                    "物料型号", "品牌", "入库量", "已出库", "在库",
-                    "供应商", "采购员", "采购明细编号", "货代单号",
+                    "物料型号", "品牌", "入库量", "已出库数量", "在库数量",
+                    "在库单价", "在库单价币别", "在库金额", "在库金额币别",
+                    "供应商中文名称", "供应商英文名称", "采购员",
+                    "采购明细编号", "采购单号", "货代单号",
                     "客户", "业务员", "销售明细编号", "批次", "库位", "入库毛利快照(USD)"));
 
                 foreach (var r in items)
                 {
+                    var onHandAmount = (decimal)r.QtyRepertory * r.PurchasePrice;
                     sb.AppendLine(string.Join(',',
                         InventoryExportHttp.CsvCell(OutboundStatusText(r.OutboundStatus)),
                         InventoryExportHttp.CsvCell(r.StockItemCode),
@@ -348,9 +351,15 @@ namespace CRM.API.Controllers
                         InventoryExportHttp.CsvCell(InventoryExportHttp.FormatDecimal(r.QtyInbound)),
                         InventoryExportHttp.CsvCell(InventoryExportHttp.FormatDecimal(r.QtyStockOut)),
                         InventoryExportHttp.CsvCell(InventoryExportHttp.FormatDecimal(r.QtyRepertory)),
-                        InventoryExportHttp.CsvCell(mask511 ? "***" : r.VendorName),
+                        InventoryExportHttp.CsvCell(mask511 ? string.Empty : InventoryExportHttp.FormatDecimal(r.PurchasePrice)),
+                        InventoryExportHttp.CsvCell(mask511 ? string.Empty : InventoryExportHttp.CurrencyLabel(r.PurchaseCurrency)),
+                        InventoryExportHttp.CsvCell(mask511 ? string.Empty : InventoryExportHttp.FormatDecimal(onHandAmount)),
+                        InventoryExportHttp.CsvCell(mask511 ? string.Empty : InventoryExportHttp.CurrencyLabel(r.PurchaseCurrency)),
+                        InventoryExportHttp.CsvCell(mask511 ? "***" : r.VendorChineseName),
+                        InventoryExportHttp.CsvCell(mask511 ? "***" : r.VendorEnglishName),
                         InventoryExportHttp.CsvCell(r.PurchaserName),
                         InventoryExportHttp.CsvCell(r.PurchaseOrderItemCode),
+                        InventoryExportHttp.CsvCell(r.PurchaseOrderCode),
                         InventoryExportHttp.CsvCell(r.FreightForwarderOrderNo),
                         InventoryExportHttp.CsvCell(mask521 ? "***" : r.CustomerName),
                         InventoryExportHttp.CsvCell(mask521 ? "***" : r.SalespersonName),

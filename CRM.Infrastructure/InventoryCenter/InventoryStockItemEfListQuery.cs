@@ -182,75 +182,7 @@ public sealed class InventoryStockItemEfListQuery : IInventoryStockItemListQuery
             })
             .ToListAsync(cancellationToken);
 
-        if (pageRows.Count > 0)
-        {
-            var vendorIds = pageRows
-                .Select(r => r.VendorId)
-                .Where(id => !string.IsNullOrWhiteSpace(id))
-                .Select(id => id!.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-            if (vendorIds.Count > 0)
-            {
-                var venDict = await _db.Vendors.AsNoTracking()
-                    .Where(v => vendorIds.Contains(v.Id))
-                    .ToDictionaryAsync(v => v.Id, v => v, cancellationToken);
-                foreach (var row in pageRows)
-                {
-                    if (string.IsNullOrWhiteSpace(row.VendorId) ||
-                        !venDict.TryGetValue(row.VendorId.Trim(), out var ven))
-                        continue;
-                    if (!string.IsNullOrWhiteSpace(ven.EnglishOfficialName))
-                        row.VendorEnglishName = ven.EnglishOfficialName.Trim();
-                    if (!string.IsNullOrWhiteSpace(ven.Code))
-                        row.VendorCode = ven.Code.Trim();
-                }
-            }
-
-            var stockItemIds = pageRows.Select(r => r.StockItemId).ToList();
-            var ffByStockItemId = await (
-                from si in _db.StockItems.AsNoTracking()
-                where stockItemIds.Contains(si.Id) && si.PurchaseOrderItemId != null
-                join poi in _db.PurchaseOrderItems.AsNoTracking() on si.PurchaseOrderItemId equals poi.Id
-                join po in _db.PurchaseOrders.AsNoTracking() on poi.PurchaseOrderId equals po.Id
-                select new { si.Id, po.FreightForwarderOrderNo }
-            ).ToDictionaryAsync(x => x.Id, x => x.FreightForwarderOrderNo, cancellationToken);
-            foreach (var row in pageRows)
-            {
-                if (ffByStockItemId.TryGetValue(row.StockItemId, out var ff))
-                    row.FreightForwarderOrderNo = string.IsNullOrWhiteSpace(ff) ? null : ff.Trim();
-            }
-        }
-
-        foreach (var row in pageRows)
-        {
-            row.RegionType = RegionTypeCode.Normalize(row.RegionType);
-            row.StockItemCode = string.IsNullOrWhiteSpace(row.StockItemCode) ? null : row.StockItemCode.Trim();
-            row.StockInItemCode = string.IsNullOrWhiteSpace(row.StockInItemCode) ? null : row.StockInItemCode.Trim();
-            row.StockInCode = string.IsNullOrWhiteSpace(row.StockInCode) ? null : row.StockInCode.Trim();
-            row.LocationId = string.IsNullOrWhiteSpace(row.LocationId) ? null : row.LocationId.Trim();
-            row.BatchNo = string.IsNullOrWhiteSpace(row.BatchNo) ? null : row.BatchNo.Trim();
-            row.PurchasePn = string.IsNullOrWhiteSpace(row.PurchasePn) ? null : row.PurchasePn.Trim();
-            row.PurchaseBrand = string.IsNullOrWhiteSpace(row.PurchaseBrand) ? null : row.PurchaseBrand.Trim();
-            row.PurchaseOrderItemCode = string.IsNullOrWhiteSpace(row.PurchaseOrderItemCode)
-                ? null
-                : row.PurchaseOrderItemCode.Trim();
-            row.SellOrderItemCode = string.IsNullOrWhiteSpace(row.SellOrderItemCode) ? null : row.SellOrderItemCode.Trim();
-            row.VendorId = string.IsNullOrWhiteSpace(row.VendorId) ? null : row.VendorId.Trim();
-            row.VendorName = string.IsNullOrWhiteSpace(row.VendorName) ? null : row.VendorName.Trim();
-            row.VendorEnglishName = string.IsNullOrWhiteSpace(row.VendorEnglishName) ? null : row.VendorEnglishName.Trim();
-            row.VendorCode = string.IsNullOrWhiteSpace(row.VendorCode) ? null : row.VendorCode.Trim();
-            row.CustomerId = string.IsNullOrWhiteSpace(row.CustomerId) ? null : row.CustomerId.Trim();
-            row.CustomerName = string.IsNullOrWhiteSpace(row.CustomerName) ? null : row.CustomerName.Trim();
-            row.CustomerPn = string.IsNullOrWhiteSpace(row.CustomerPn) ? null : row.CustomerPn.Trim();
-            row.CustomerBrand = string.IsNullOrWhiteSpace(row.CustomerBrand) ? null : row.CustomerBrand.Trim();
-            row.PurchaserName = string.IsNullOrWhiteSpace(row.PurchaserName) ? null : row.PurchaserName.Trim();
-            row.SalespersonName = string.IsNullOrWhiteSpace(row.SalespersonName) ? null : row.SalespersonName.Trim();
-            row.WarehouseId = row.WarehouseId?.Trim() ?? string.Empty;
-            row.StockAggregateId = row.StockAggregateId?.Trim() ?? string.Empty;
-            row.WarehouseCode = string.IsNullOrWhiteSpace(row.WarehouseCode) ? null : row.WarehouseCode.Trim();
-            row.WarehouseName = string.IsNullOrWhiteSpace(row.WarehouseName) ? null : row.WarehouseName.Trim();
-        }
+        await EnrichStockItemListDisplayAsync(pageRows, cancellationToken);
 
         return new PagedResult<InventoryStockItemListRowDto>
         {
@@ -350,44 +282,76 @@ public sealed class InventoryStockItemEfListQuery : IInventoryStockItemListQuery
                 ProfitOutBizUsd = si.ProfitOutBizUsd
             }).ToListAsync(cancellationToken);
 
-        if (rows.Count > 0)
-        {
-            var vendorIds = rows
-                .Select(r => r.VendorId)
-                .Where(id => !string.IsNullOrWhiteSpace(id))
-                .Select(id => id!.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-            if (vendorIds.Count > 0)
-            {
-                var venDict = await _db.Vendors.AsNoTracking()
-                    .Where(v => vendorIds.Contains(v.Id))
-                    .ToDictionaryAsync(v => v.Id, v => v, cancellationToken);
-                foreach (var row in rows)
-                {
-                    if (string.IsNullOrWhiteSpace(row.VendorId) ||
-                        !venDict.TryGetValue(row.VendorId.Trim(), out var ven))
-                        continue;
-                    if (!string.IsNullOrWhiteSpace(ven.EnglishOfficialName))
-                        row.VendorEnglishName = ven.EnglishOfficialName.Trim();
-                    if (!string.IsNullOrWhiteSpace(ven.Code))
-                        row.VendorCode = ven.Code.Trim();
-                }
-            }
+        await EnrichStockItemListDisplayAsync(rows, cancellationToken);
 
-            var stockItemIds = rows.Select(r => r.StockItemId).ToList();
-            var ffByStockItemId = await (
-                from si in _db.StockItems.AsNoTracking()
-                where stockItemIds.Contains(si.Id) && si.PurchaseOrderItemId != null
-                join poi in _db.PurchaseOrderItems.AsNoTracking() on si.PurchaseOrderItemId equals poi.Id
-                join po in _db.PurchaseOrders.AsNoTracking() on poi.PurchaseOrderId equals po.Id
-                select new { si.Id, po.FreightForwarderOrderNo }
-            ).ToDictionaryAsync(x => x.Id, x => x.FreightForwarderOrderNo, cancellationToken);
+        var rowById = rows.ToDictionary(r => r.StockItemId, StringComparer.OrdinalIgnoreCase);
+        var ordered = new List<InventoryStockItemListRowDto>(orderedStockItemIds.Count);
+        foreach (var id in orderedStockItemIds)
+        {
+            var key = id?.Trim();
+            if (string.IsNullOrEmpty(key) || !rowById.TryGetValue(key, out var row))
+                continue;
+            ordered.Add(row);
+        }
+
+        return ordered;
+    }
+
+    private async Task EnrichStockItemListDisplayAsync(
+        List<InventoryStockItemListRowDto> rows,
+        CancellationToken cancellationToken)
+    {
+        if (rows.Count == 0)
+            return;
+
+        var vendorIds = rows
+            .Select(r => r.VendorId)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (vendorIds.Count > 0)
+        {
+            var venDict = await _db.Vendors.AsNoTracking()
+                .Where(v => vendorIds.Contains(v.Id))
+                .ToDictionaryAsync(v => v.Id, v => v, cancellationToken);
             foreach (var row in rows)
             {
-                if (ffByStockItemId.TryGetValue(row.StockItemId, out var ff))
-                    row.FreightForwarderOrderNo = string.IsNullOrWhiteSpace(ff) ? null : ff.Trim();
+                if (string.IsNullOrWhiteSpace(row.VendorId) ||
+                    !venDict.TryGetValue(row.VendorId.Trim(), out var ven))
+                    continue;
+                if (!string.IsNullOrWhiteSpace(ven.OfficialName))
+                    row.VendorChineseName = ven.OfficialName.Trim();
+                else if (!string.IsNullOrWhiteSpace(ven.NickName))
+                    row.VendorChineseName = ven.NickName.Trim();
+                if (!string.IsNullOrWhiteSpace(ven.EnglishOfficialName))
+                    row.VendorEnglishName = ven.EnglishOfficialName.Trim();
+                if (!string.IsNullOrWhiteSpace(ven.Code))
+                    row.VendorCode = ven.Code.Trim();
             }
+        }
+
+        var stockItemIds = rows.Select(r => r.StockItemId).ToList();
+        var poRows = await (
+            from si in _db.StockItems.AsNoTracking()
+            where stockItemIds.Contains(si.Id) && si.PurchaseOrderItemId != null
+            join poi in _db.PurchaseOrderItems.AsNoTracking() on si.PurchaseOrderItemId equals poi.Id
+            join po in _db.PurchaseOrders.AsNoTracking() on poi.PurchaseOrderId equals po.Id
+            select new { si.Id, po.FreightForwarderOrderNo, po.PurchaseOrderCode }
+        ).ToListAsync(cancellationToken);
+        var poByStockItemId = poRows
+            .GroupBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+        foreach (var row in rows)
+        {
+            if (!poByStockItemId.TryGetValue(row.StockItemId, out var po))
+                continue;
+            row.FreightForwarderOrderNo = string.IsNullOrWhiteSpace(po.FreightForwarderOrderNo)
+                ? null
+                : po.FreightForwarderOrderNo.Trim();
+            row.PurchaseOrderCode = string.IsNullOrWhiteSpace(po.PurchaseOrderCode)
+                ? null
+                : po.PurchaseOrderCode.Trim();
         }
 
         foreach (var row in rows)
@@ -403,9 +367,13 @@ public sealed class InventoryStockItemEfListQuery : IInventoryStockItemListQuery
             row.PurchaseOrderItemCode = string.IsNullOrWhiteSpace(row.PurchaseOrderItemCode)
                 ? null
                 : row.PurchaseOrderItemCode.Trim();
+            row.PurchaseOrderCode = string.IsNullOrWhiteSpace(row.PurchaseOrderCode) ? null : row.PurchaseOrderCode.Trim();
             row.SellOrderItemCode = string.IsNullOrWhiteSpace(row.SellOrderItemCode) ? null : row.SellOrderItemCode.Trim();
             row.VendorId = string.IsNullOrWhiteSpace(row.VendorId) ? null : row.VendorId.Trim();
             row.VendorName = string.IsNullOrWhiteSpace(row.VendorName) ? null : row.VendorName.Trim();
+            row.VendorChineseName = string.IsNullOrWhiteSpace(row.VendorChineseName)
+                ? row.VendorName
+                : row.VendorChineseName.Trim();
             row.VendorEnglishName = string.IsNullOrWhiteSpace(row.VendorEnglishName) ? null : row.VendorEnglishName.Trim();
             row.VendorCode = string.IsNullOrWhiteSpace(row.VendorCode) ? null : row.VendorCode.Trim();
             row.CustomerId = string.IsNullOrWhiteSpace(row.CustomerId) ? null : row.CustomerId.Trim();
@@ -419,17 +387,5 @@ public sealed class InventoryStockItemEfListQuery : IInventoryStockItemListQuery
             row.WarehouseCode = string.IsNullOrWhiteSpace(row.WarehouseCode) ? null : row.WarehouseCode.Trim();
             row.WarehouseName = string.IsNullOrWhiteSpace(row.WarehouseName) ? null : row.WarehouseName.Trim();
         }
-
-        var rowById = rows.ToDictionary(r => r.StockItemId, StringComparer.OrdinalIgnoreCase);
-        var ordered = new List<InventoryStockItemListRowDto>(orderedStockItemIds.Count);
-        foreach (var id in orderedStockItemIds)
-        {
-            var key = id?.Trim();
-            if (string.IsNullOrEmpty(key) || !rowById.TryGetValue(key, out var row))
-                continue;
-            ordered.Add(row);
-        }
-
-        return ordered;
     }
 }

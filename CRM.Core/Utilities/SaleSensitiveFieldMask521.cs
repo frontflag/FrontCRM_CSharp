@@ -70,10 +70,14 @@ public static class SaleSensitiveFieldMask521
     {
         if (!mask || x == null) return;
         x.CustomerName = null;
+        x.CustomerChineseName = null;
         x.CustomerEnglishName = null;
         x.CustomerCode = null;
         x.SalesUserName = null;
         x.TotalAmount = 0m;
+        x.SalesUnitPriceSummary = null;
+        x.SalesUnitPriceCurrencyCode = null;
+        x.CurrencyCode = null;
     }
 
     public static void ApplyStockOutListItems(IEnumerable<StockOutListItemDto>? rows, bool mask)

@@ -34,6 +34,10 @@ namespace CRM.Core.Interfaces
         public decimal TotalAmount { get; set; }
         /// <summary>币别编码（与采购订单明细 <c>currency</c> 一致）；无法从来源解析时为 null</summary>
         public short? CurrencyCode { get; set; }
+        /// <summary>明细单价汇总（多行去重后逗号分隔）</summary>
+        public string? UnitPriceSummary { get; set; }
+        /// <summary>单价币别（明细 <c>currency</c> 去重；无则回退头表币别）</summary>
+        public short? UnitPriceCurrencyCode { get; set; }
         public short Status { get; set; }
         public string? Remark { get; set; }
         public DateTime CreateTime { get; set; }
