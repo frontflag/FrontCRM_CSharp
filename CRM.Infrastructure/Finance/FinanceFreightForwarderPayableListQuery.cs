@@ -123,6 +123,15 @@ public sealed class FinanceFreightForwarderPayableListQuery : IFinanceFreightFor
             .Take(pageSize)
             .ToList();
 
+        var nameMap = await FinanceCustomerDisplayEnrichment.LoadMapAsync(
+            _db, pageItems.Select(x => x.CustomerId), cancellationToken);
+        foreach (var row in pageItems)
+        {
+            if (!nameMap.TryGetValue(row.CustomerId, out var names)) continue;
+            if (!string.IsNullOrWhiteSpace(names.Zh)) row.CustomerName = names.Zh;
+            row.CustomerEnglishName = names.En;
+        }
+
         return new PagedResult<FinanceFreightForwarderPayableListItem>
         {
             Items = pageItems,

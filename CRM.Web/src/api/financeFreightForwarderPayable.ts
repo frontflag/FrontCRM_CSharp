@@ -1,5 +1,6 @@
 import apiClient from './client'
 import type { FinanceReceipt } from './finance'
+import { toExportQueryString } from '@/utils/exportFileName'
 
 export const FF_PAYABLE_STATUS = {
   Pending: 10,
@@ -13,6 +14,7 @@ export interface FfPayableListItem {
   receiptStatus: number
   customerId: string
   customerName?: string | null
+  customerEnglishName?: string | null
   freightForwarderCompanyId?: string | null
   freightForwarderCompanyName?: string | null
   receiptAmount: number
@@ -83,6 +85,14 @@ export interface FfPayableListResult {
 export const financeFreightForwarderPayableApi = {
   getList: (params: FfPayableListQuery = {}) =>
     apiClient.get<FfPayableListResult>('/api/v1/finance/freight-forwarder-payables', { params }),
+  exportList: (params?: FfPayableListQuery) => {
+    const q = toExportQueryString(params as Record<string, unknown>)
+    return apiClient.getBlob(
+      q
+        ? `/api/v1/finance/freight-forwarder-payables/export?${q}`
+        : '/api/v1/finance/freight-forwarder-payables/export'
+    )
+  },
   getDetail: (receiptId: string) =>
     apiClient.get<FfPayableDetail>(`/api/v1/finance/freight-forwarder-payables/${receiptId}`),
   createPayment: (receiptId: string, body: CreateFfPaymentBody) =>

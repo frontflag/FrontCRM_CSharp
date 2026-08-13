@@ -1,5 +1,7 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Finance;
+using CRM.Core.Services;
 using CRM.Core.Utilities;
 using CRM.API.Authorization;
 using CRM.API.Utilities;
@@ -19,6 +21,7 @@ namespace CRM.API.Controllers
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IRbacService _rbacService;
         private readonly IApprovalPartyIntelWarmupService _approvalPartyIntelWarmup;
+        private readonly IExportOperationLogService _exportLog;
         private readonly ILogger<FinanceReceiptsController> _logger;
 
         public FinanceReceiptsController(
@@ -27,6 +30,7 @@ namespace CRM.API.Controllers
             IDataPermissionService dataPermissionService,
             IRbacService rbacService,
             IApprovalPartyIntelWarmupService approvalPartyIntelWarmup,
+            IExportOperationLogService exportLog,
             ILogger<FinanceReceiptsController> logger)
         {
             _service = service;
@@ -34,6 +38,7 @@ namespace CRM.API.Controllers
             _dataPermissionService = dataPermissionService;
             _rbacService = rbacService;
             _approvalPartyIntelWarmup = approvalPartyIntelWarmup;
+            _exportLog = exportLog;
             _logger = logger;
         }
 
@@ -73,6 +78,72 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "获取收款单列表失败");
                 return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>按当前筛选导出收款记录 CSV，并写入操作审计。</summary>
+        [HttpGet("export")]
+        public async Task<IActionResult> ExportList(
+            [FromQuery] string? keyword,
+            [FromQuery] short? status,
+            [FromQuery] short? receiptPurpose,
+            [FromQuery] short? verificationStatus,
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var mask521 = await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User);
+                var request = new FinanceReceiptQueryRequest
+                {
+                    Keyword = keyword,
+                    Status = status,
+                    ReceiptPurpose = receiptPurpose,
+                    VerificationStatus = verificationStatus,
+                    StartDate = DateTime.TryParse(startDate, out var start) ? start : null,
+                    EndDate = DateTime.TryParse(endDate, out var end) ? end : null,
+                    CurrentUserId = InventoryExportHttp.UserId(User)
+                };
+                var (items, truncated, _) = await InventoryExportHttp.CollectForExportAsync(
+                    async (page, pageSize, _) =>
+                    {
+                        request.Page = page;
+                        request.PageSize = pageSize;
+                        return await _service.GetPagedAsync(request);
+                    },
+                    cancellationToken: cancellationToken);
+                if (mask521)
+                    SaleSensitiveFieldMask521.ApplyFinanceReceipts(items, true);
+
+                var filters = ExportOperationAudit.NormalizeFilters(new Dictionary<string, object?>
+                {
+                    ["keyword"] = keyword,
+                    ["status"] = status,
+                    ["receiptPurpose"] = receiptPurpose,
+                    ["verificationStatus"] = verificationStatus,
+                    ["startDate"] = startDate,
+                    ["endDate"] = endDate
+                });
+                await FinanceExportHttp.AppendListLogAsync(
+                    _exportLog,
+                    BusinessLogTypes.FinanceReceipt,
+                    ExportOperationAudit.FinanceReceiptListRecordCode,
+                    FinanceExportActionTypes.ReceiptListExport,
+                    ExportAuditKinds.FinanceReceiptList,
+                    "收款记录",
+                    items.Count,
+                    truncated,
+                    filters,
+                    mask521,
+                    User,
+                    cancellationToken);
+                return FinanceExportHttp.CsvFile(FinanceExportHttp.BuildReceiptCsv(items, mask521), "收款记录.csv");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "导出收款记录失败");
+                return StatusCode(500, new { success = false, message = $"导出收款记录失败: {ex.Message}" });
             }
         }
 

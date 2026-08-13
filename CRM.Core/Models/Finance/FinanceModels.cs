@@ -586,6 +586,10 @@ namespace CRM.Core.Models.Finance
         [StringLength(200)]
         public string? CustomerName { get; set; }
 
+        /// <summary>客户英文名称（列表/导出填充，不落库）</summary>
+        [NotMapped]
+        public string? CustomerEnglishName { get; set; }
+
         /// <summary>发票单号（系统编号）</summary>
         [StringLength(32)]
         public string? InvoiceCode { get; set; }

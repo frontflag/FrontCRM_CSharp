@@ -1,7 +1,9 @@
 using CRM.API.Authorization;
 using CRM.API.Models.DTOs;
 using CRM.API.Utilities;
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
+using CRM.Core.Services;
 using CRM.Core.Utilities;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -13,22 +15,25 @@ namespace CRM.API.Controllers;
 [Route("api/v1/finance/freight-forwarder-payables")]
 public class FinanceFreightForwarderPayablesController : ControllerBase
 {
-    private readonly IFinanceFreightForwarderPayableService _service;
-    private readonly IDataPermissionService _dataPermissionService;
-    private readonly IRbacService _rbacService;
-    private readonly ILogger<FinanceFreightForwarderPayablesController> _logger;
+        private readonly IFinanceFreightForwarderPayableService _service;
+        private readonly IDataPermissionService _dataPermissionService;
+        private readonly IRbacService _rbacService;
+        private readonly IExportOperationLogService _exportLog;
+        private readonly ILogger<FinanceFreightForwarderPayablesController> _logger;
 
-    public FinanceFreightForwarderPayablesController(
-        IFinanceFreightForwarderPayableService service,
-        IDataPermissionService dataPermissionService,
-        IRbacService rbacService,
-        ILogger<FinanceFreightForwarderPayablesController> logger)
-    {
-        _service = service;
-        _dataPermissionService = dataPermissionService;
-        _rbacService = rbacService;
-        _logger = logger;
-    }
+        public FinanceFreightForwarderPayablesController(
+            IFinanceFreightForwarderPayableService service,
+            IDataPermissionService dataPermissionService,
+            IRbacService rbacService,
+            IExportOperationLogService exportLog,
+            ILogger<FinanceFreightForwarderPayablesController> logger)
+        {
+            _service = service;
+            _dataPermissionService = dataPermissionService;
+            _rbacService = rbacService;
+            _exportLog = exportLog;
+            _logger = logger;
+        }
 
     [HttpGet]
     public async Task<IActionResult> GetList(
@@ -66,6 +71,65 @@ public class FinanceFreightForwarderPayablesController : ControllerBase
         {
             _logger.LogError(ex, "获取货代付款台账列表失败");
             return StatusCode(500, new { success = false, message = ex.Message });
+        }
+    }
+
+    [HttpGet("export")]
+    public async Task<IActionResult> ExportList(
+        [FromQuery] string? keyword,
+        [FromQuery] string? customerId,
+        [FromQuery] string? freightForwarderCompanyId,
+        [FromQuery] short? payableStatus,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var mask521 = await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User);
+            var request = new FinanceFreightForwarderPayableQueryRequest
+            {
+                Keyword = keyword,
+                CustomerId = mask521 ? null : customerId,
+                FreightForwarderCompanyId = freightForwarderCompanyId,
+                PayableStatus = payableStatus,
+                CurrentUserId = InventoryExportHttp.UserId(User)
+            };
+            var (items, truncated, _) = await InventoryExportHttp.CollectForExportAsync(
+                (page, pageSize, ct) =>
+                {
+                    request.Page = page;
+                    request.PageSize = pageSize;
+                    return _service.GetPagedAsync(request, ct);
+                },
+                cancellationToken: cancellationToken);
+            if (mask521)
+                SaleSensitiveFieldMask521.ApplyFinanceFreightForwarderPayableListItems(items, true);
+
+            var filters = ExportOperationAudit.NormalizeFilters(new Dictionary<string, object?>
+            {
+                ["keyword"] = keyword,
+                ["customerId"] = mask521 ? null : customerId,
+                ["freightForwarderCompanyId"] = freightForwarderCompanyId,
+                ["payableStatus"] = payableStatus
+            });
+            await FinanceExportHttp.AppendListLogAsync(
+                _exportLog,
+                BusinessLogTypes.FinanceFreightForwarderPayable,
+                ExportOperationAudit.FinanceFfPayableListRecordCode,
+                FinanceExportActionTypes.FfPayableListExport,
+                ExportAuditKinds.FinanceFfPayableList,
+                "货代付款",
+                items.Count,
+                truncated,
+                filters,
+                mask521,
+                User,
+                cancellationToken);
+            return FinanceExportHttp.CsvFile(FinanceExportHttp.BuildFfPayableCsv(items, mask521), "货代付款.csv");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "导出货代付款失败");
+            return StatusCode(500, new { success = false, message = $"导出货代付款失败: {ex.Message}" });
         }
     }
 

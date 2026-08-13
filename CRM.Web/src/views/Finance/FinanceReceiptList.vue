@@ -2,10 +2,15 @@
   <div class="finance-page">
     <div class="fr-list-page-header">
       <h1 class="finance-list-page-title">{{ t('financeReceiptList.pageTitle') }}</h1>
-      <button type="button" class="btn-write-off-desktop" @click="goWriteOffDesktop">
-        <span>{{ t('financeReceiptList.goWriteOffDesktop') }}</span>
-        <el-icon class="btn-write-off-desktop__arrow"><ArrowRight /></el-icon>
-      </button>
+      <div class="fr-list-page-header__actions">
+        <button type="button" class="btn-export" :disabled="exporting" @click="() => void handleExport()">
+          {{ t('financeReceiptList.filters.export') }}
+        </button>
+        <button type="button" class="btn-write-off-desktop" @click="goWriteOffDesktop">
+          <span>{{ t('financeReceiptList.goWriteOffDesktop') }}</span>
+          <el-icon class="btn-write-off-desktop__arrow"><ArrowRight /></el-icon>
+        </button>
+      </div>
     </div>
     <!-- 统计卡片（置顶：在筛选栏与表格之上） -->
     <div class="stat-cards">
@@ -580,6 +585,7 @@ import {
 } from '@/utils/financeReceiptListTabMode'
 import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
+import { downloadCsvBlob } from '@/utils/exportFileName'
 import { customerApi } from '@/api/customer'
 import salesOrderApi from '@/api/salesOrder'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
@@ -692,6 +698,7 @@ const query = reactive<PageQuery & { page: number; pageSize: number }>({
 const dateRange = ref<[string, string] | null>(null)
 const total = ref(0)
 const loading = ref(false)
+const exporting = ref(false)
 const tabModeDimension = ref<FinanceReceiptListTabModeDimension>(readFinanceReceiptListTabMode())
 const settingsMenuOpen = ref(false)
 const settingsSubmenuOpen = ref(false)
@@ -885,6 +892,35 @@ const loadData = async () => {
     stats.pendingCount = tableData.value.filter(r => r.status === 1).length
     stats.receivedCount = tableData.value.filter(r => r.status === 3).length
     stats.draftCount = tableData.value.filter(r => r.status === 0).length
+  }
+}
+
+async function handleExport() {
+  try {
+    await ElMessageBox.confirm(
+      t('financeReceiptList.messages.exportConfirmMessage'),
+      t('financeReceiptList.messages.exportConfirmTitle'),
+      { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
+    )
+  } catch {
+    return
+  }
+  exporting.value = true
+  try {
+    if (dateRange.value) {
+      query.startDate = dateRange.value[0]
+      query.endDate = dateRange.value[1]
+    } else {
+      query.startDate = undefined
+      query.endDate = undefined
+    }
+    const blob = await financeReceiptApi.exportList(query)
+    downloadCsvBlob(blob, '收款记录.csv')
+    ElMessage.success(t('financeReceiptList.messages.exportSuccess'))
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : t('financeReceiptList.messages.exportFailed'))
+  } finally {
+    exporting.value = false
   }
 }
 
@@ -1223,6 +1259,12 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.fr-list-page-header__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .btn-write-off-desktop {

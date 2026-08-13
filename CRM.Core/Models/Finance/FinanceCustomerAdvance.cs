@@ -21,6 +21,10 @@ public class FinanceCustomerAdvance : BaseGuidEntity, ISoftDeletable
     [Column("customer_name")]
     public string? CustomerName { get; set; }
 
+    /// <summary>客户英文名称（列表/导出填充，不落库）</summary>
+    [NotMapped]
+    public string? CustomerEnglishName { get; set; }
+
     public short Currency { get; set; } = 1;
 
     [Column("balance", TypeName = "numeric(18,2)")]

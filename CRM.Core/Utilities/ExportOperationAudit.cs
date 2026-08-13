@@ -24,6 +24,13 @@ public static class ExportOperationAudit
     public const string InventoryStockItemListRecordCode = "INVENTORY_STOCK_ITEM_LIST";
     public const string BatchReconInRecordCode = "BATCH_RECON_IN";
     public const string BatchReconOutRecordCode = "BATCH_RECON_OUT";
+    public const string FinancePaymentListRecordCode = "FINANCE_PAYMENT_LIST";
+    public const string FinancePurchaseInvoiceListRecordCode = "FINANCE_PURCHASE_INVOICE_LIST";
+    public const string FinanceReceivableListRecordCode = "FINANCE_RECEIVABLE_LIST";
+    public const string FinanceCustomerAdvanceListRecordCode = "FINANCE_CUSTOMER_ADVANCE_LIST";
+    public const string FinanceReceiptListRecordCode = "FINANCE_RECEIPT_LIST";
+    public const string FinanceSellInvoiceListRecordCode = "FINANCE_SELL_INVOICE_LIST";
+    public const string FinanceFfPayableListRecordCode = "FINANCE_FF_PAYABLE_LIST";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -201,6 +208,9 @@ public static class ExportOperationAudit
         if (key.Equals("shipmentMethod", StringComparison.OrdinalIgnoreCase))
             return MapShipmentMethodLabel(text);
 
+        var financeLabel = MapFinanceFilterDisplayValue(exportKind, key, text);
+        if (financeLabel != null) return financeLabel;
+
         return text;
     }
 
@@ -330,6 +340,13 @@ public static class ExportOperationAudit
                 or ExportAuditKinds.StockInBatch or ExportAuditKinds.StockOutBatch
                 or ExportAuditKinds.PurchaseOrderStockInBatch or ExportAuditKinds.SalesOrderStockOutBatch
                 => BatchLabels,
+            ExportAuditKinds.FinancePaymentList => FinancePaymentListLabels,
+            ExportAuditKinds.FinancePurchaseInvoiceList => FinancePurchaseInvoiceListLabels,
+            ExportAuditKinds.FinanceReceivableList => FinanceReceivableListLabels,
+            ExportAuditKinds.FinanceCustomerAdvanceList => FinanceCustomerAdvanceListLabels,
+            ExportAuditKinds.FinanceReceiptList => FinanceReceiptListLabels,
+            ExportAuditKinds.FinanceSellInvoiceList => FinanceSellInvoiceListLabels,
+            ExportAuditKinds.FinanceFfPayableList => FinanceFfPayableListLabels,
             _ => BatchLabels
         };
     }
@@ -411,4 +428,217 @@ public static class ExportOperationAudit
         ["customerName"] = "客户",
         ["remark"] = "备注"
     };
+
+    private static readonly Dictionary<string, string> FinancePaymentListLabels = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["keyword"] = "关键字",
+        ["financePaymentCode"] = "付款单号",
+        ["freightForwarderOrderNo"] = "货代单号",
+        ["bankSlipNo"] = "银行水单号",
+        ["paymentMode"] = "付款方式",
+        ["vendorName"] = "供应商",
+        ["remark"] = "备注",
+        ["status"] = "状态",
+        ["startDate"] = "付款日期起",
+        ["endDate"] = "付款日期止"
+    };
+
+    private static readonly Dictionary<string, string> FinancePurchaseInvoiceListLabels = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["keyword"] = "关键字",
+        ["invoiceStatus"] = "开票状态",
+        ["confirmStatus"] = "认证状态",
+        ["verificationStatus"] = "核销状态",
+        ["paymentStatus"] = "付款状态",
+        ["startDate"] = "开票日期起",
+        ["endDate"] = "开票日期止"
+    };
+
+    private static readonly Dictionary<string, string> FinanceReceivableListLabels = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["keyword"] = "关键字",
+        ["customerId"] = "客户",
+        ["verificationStatus"] = "核销状态",
+        ["onlyOpen"] = "仅待核销",
+        ["stockOutDateFrom"] = "出库日期起",
+        ["stockOutDateTo"] = "出库日期止"
+    };
+
+    private static readonly Dictionary<string, string> FinanceCustomerAdvanceListLabels = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["keyword"] = "关键字",
+        ["customerId"] = "客户",
+        ["currency"] = "币别",
+        ["onlyPositiveBalance"] = "仅有余额"
+    };
+
+    private static readonly Dictionary<string, string> FinanceReceiptListLabels = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["keyword"] = "关键字",
+        ["status"] = "状态",
+        ["receiptPurpose"] = "收款用途",
+        ["verificationStatus"] = "核销状态",
+        ["startDate"] = "收款日期起",
+        ["endDate"] = "收款日期止"
+    };
+
+    private static readonly Dictionary<string, string> FinanceSellInvoiceListLabels = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["keyword"] = "关键字",
+        ["invoiceStatus"] = "开票状态",
+        ["receiveStatus"] = "收款状态",
+        ["matchStatus"] = "核销状态",
+        ["startDate"] = "开票日期起",
+        ["endDate"] = "开票日期止"
+    };
+
+    private static readonly Dictionary<string, string> FinanceFfPayableListLabels = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["keyword"] = "关键字",
+        ["customerId"] = "客户",
+        ["freightForwarderCompanyId"] = "货代公司",
+        ["payableStatus"] = "台账状态"
+    };
+
+    private static string? MapFinanceFilterDisplayValue(string exportKind, string key, string text)
+    {
+        if (key.Equals("onlyOpen", StringComparison.OrdinalIgnoreCase)
+            || key.Equals("onlyPositiveBalance", StringComparison.OrdinalIgnoreCase))
+            return MapYesNo(text);
+
+        if (key.Equals("currency", StringComparison.OrdinalIgnoreCase)
+            || key.Equals("receiptCurrency", StringComparison.OrdinalIgnoreCase)
+            || key.Equals("paymentCurrency", StringComparison.OrdinalIgnoreCase))
+            return MapCurrencyIso(text);
+
+        if (key.Equals("paymentMode", StringComparison.OrdinalIgnoreCase)
+            || key.Equals("receiptMode", StringComparison.OrdinalIgnoreCase))
+            return MapPaymentModeLabel(text);
+
+        if (key.Equals("verificationStatus", StringComparison.OrdinalIgnoreCase)
+            || key.Equals("matchStatus", StringComparison.OrdinalIgnoreCase))
+            return MapVerificationStatusLabel(text);
+
+        if (key.Equals("paymentStatus", StringComparison.OrdinalIgnoreCase))
+            return MapPaymentDoneStatusLabel(text);
+
+        if (key.Equals("receiveStatus", StringComparison.OrdinalIgnoreCase))
+            return MapReceiveStatusLabel(text);
+
+        if (key.Equals("receiptPurpose", StringComparison.OrdinalIgnoreCase))
+            return MapReceiptPurposeLabel(text);
+
+        if (key.Equals("payableStatus", StringComparison.OrdinalIgnoreCase))
+            return MapFfPayableStatusLabel(text);
+
+        if (key.Equals("invoiceStatus", StringComparison.OrdinalIgnoreCase))
+            return MapInvoiceStatusLabel(text);
+
+        if (key.Equals("status", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.Equals(exportKind, ExportAuditKinds.FinancePaymentList, StringComparison.OrdinalIgnoreCase))
+                return MapPaymentStatusLabel(text);
+            if (string.Equals(exportKind, ExportAuditKinds.FinanceReceiptList, StringComparison.OrdinalIgnoreCase))
+                return MapReceiptStatusLabel(text);
+        }
+
+        return null;
+    }
+
+    private static string MapYesNo(string raw)
+    {
+        if (bool.TryParse(raw, out var b)) return b ? "是" : "否";
+        if (raw is "1" or "true" or "True") return "是";
+        if (raw is "0" or "false" or "False") return "否";
+        return raw;
+    }
+
+    private static string MapCurrencyIso(string raw)
+    {
+        if (!TryParseShort(raw, out var code)) return raw;
+        return Enum.IsDefined(typeof(CurrencyCode), code)
+            ? ((CurrencyCode)code).ToIsoText()
+            : raw;
+    }
+
+    private static string MapPaymentModeLabel(string raw) =>
+        TryParseShort(raw, out var code)
+            ? code switch { 1 => "银行转账", 2 => "现金", 3 => "支票", 4 => "承兑汇票", _ => raw }
+            : raw;
+
+    private static string MapVerificationStatusLabel(string raw) =>
+        TryParseShort(raw, out var code)
+            ? code switch { 0 => "未核销", 1 => "部分核销", 2 => "核销完成", _ => raw }
+            : raw;
+
+    private static string MapPaymentDoneStatusLabel(string raw) =>
+        TryParseShort(raw, out var code)
+            ? code switch { 0 => "未付款", 1 => "部分付款", 2 => "付款完成", _ => raw }
+            : raw;
+
+    private static string MapReceiveStatusLabel(string raw) =>
+        TryParseShort(raw, out var code)
+            ? code switch { 0 => "未收款", 1 => "部分收款", 2 => "收款完成", _ => raw }
+            : raw;
+
+    private static string MapReceiptPurposeLabel(string raw) =>
+        TryParseShort(raw, out var code)
+            ? code switch
+            {
+                FinanceReceiptPurposeCode.Normal => "普通",
+                FinanceReceiptPurposeCode.Advance => "预收",
+                _ => raw
+            }
+            : raw;
+
+    private static string MapFfPayableStatusLabel(string raw) =>
+        TryParseShort(raw, out var code)
+            ? code switch
+            {
+                FinanceFreightForwarderPayableStatusCodes.Pending => "待付款",
+                FinanceFreightForwarderPayableStatusCodes.Partial => "部分付款",
+                FinanceFreightForwarderPayableStatusCodes.Completed => "付款完成",
+                _ => raw
+            }
+            : raw;
+
+    private static string MapInvoiceStatusLabel(string raw) =>
+        TryParseShort(raw, out var code)
+            ? code switch
+            {
+                1 => "未申请",
+                2 => "申请中",
+                100 => "已开票",
+                101 => "开票失败",
+                -1 => "已作废",
+                _ => raw
+            }
+            : raw;
+
+    private static string MapPaymentStatusLabel(string raw) =>
+        TryParseShort(raw, out var code)
+            ? code switch
+            {
+                1 => "新建",
+                2 => "待审核",
+                10 => "审核通过",
+                100 => "付款完成",
+                -1 => "审核失败",
+                -2 => "取消",
+                _ => raw
+            }
+            : raw;
+
+    private static string MapReceiptStatusLabel(string raw) =>
+        TryParseShort(raw, out var code)
+            ? code switch
+            {
+                0 => "草稿",
+                1 => "待审核",
+                2 => "已审核",
+                3 => "已收款",
+                4 => "已取消",
+                _ => raw
+            }
+            : raw;
 }

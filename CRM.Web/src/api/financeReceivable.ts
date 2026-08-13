@@ -1,5 +1,6 @@
 import apiClient from './client'
 import type { FinanceCustomerAdvanceBalance } from './financeCustomerAdvance'
+import { toExportQueryString } from '@/utils/exportFileName'
 
 export interface FinanceReceivable {
   id: string
@@ -202,6 +203,10 @@ export const financeReceivableApi = {
       RECEIVABLE_BASE,
       { params }
     ),
+  exportList: (params?: Record<string, unknown>) => {
+    const q = toExportQueryString(params)
+    return apiClient.getBlob(q ? `${RECEIVABLE_BASE}/export?${q}` : `${RECEIVABLE_BASE}/export`)
+  },
   getById: (id: string) => apiClient.get<FinanceReceivable>(`${RECEIVABLE_BASE}/${encodeURIComponent(id)}`),
   getWriteOffs: (id: string) =>
     apiClient.get<FinanceReceivableWriteOffDetailItem[]>(`${RECEIVABLE_BASE}/${encodeURIComponent(id)}/write-offs`),

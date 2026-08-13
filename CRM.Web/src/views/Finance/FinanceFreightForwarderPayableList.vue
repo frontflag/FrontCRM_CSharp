@@ -2,6 +2,9 @@
   <div class="finance-page ff-payable-list-page">
     <div class="page-header-row">
       <h1 class="finance-list-page-title">{{ t('financeFfPayableList.pageTitle') }}</h1>
+      <button type="button" class="btn-export" :disabled="exporting" @click="() => void handleExport()">
+        {{ t('financeFfPayableList.filters.export') }}
+      </button>
     </div>
 
     <div class="search-bar">
@@ -180,6 +183,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Setting } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import {
@@ -190,6 +194,7 @@ import {
 import { fetchFreightForwarderCompanies, type FreightForwarderCompany } from '@/api/freightForwarderCompany'
 import { useFinanceWriteGate } from '@/composables/useDepartmentDataReadOnly'
 import { formatDisplayDate } from '@/utils/displayDateTime'
+import { downloadCsvBlob } from '@/utils/exportFileName'
 import { formatTotalAmountNumber, listAmountCurrencyDockClass, listAmountCurrencyIso } from '@/utils/moneyFormat'
 import FinanceFreightForwarderPaymentPayDialog from '@/components/Finance/FinanceFreightForwarderPaymentPayDialog.vue'
 
@@ -198,6 +203,7 @@ const router = useRouter()
 const { canWriteFinanceReceipt } = useFinanceWriteGate()
 
 const loading = ref(false)
+const exporting = ref(false)
 const tableData = ref<FfPayableListItem[]>([])
 const total = ref(0)
 const ffCompanies = ref<FreightForwarderCompany[]>([])
@@ -302,6 +308,32 @@ async function loadData() {
     }
   } finally {
     loading.value = false
+  }
+}
+
+async function handleExport() {
+  try {
+    await ElMessageBox.confirm(
+      t('financeFfPayableList.messages.exportConfirmMessage'),
+      t('financeFfPayableList.messages.exportConfirmTitle'),
+      { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
+    )
+  } catch {
+    return
+  }
+  exporting.value = true
+  try {
+    const blob = await financeFreightForwarderPayableApi.exportList({
+      keyword: query.keyword || undefined,
+      payableStatus: query.payableStatus,
+      freightForwarderCompanyId: query.freightForwarderCompanyId || undefined
+    })
+    downloadCsvBlob(blob, '货代付款.csv')
+    ElMessage.success(t('financeFfPayableList.messages.exportSuccess'))
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : t('financeFfPayableList.messages.exportFailed'))
+  } finally {
+    exporting.value = false
   }
 }
 

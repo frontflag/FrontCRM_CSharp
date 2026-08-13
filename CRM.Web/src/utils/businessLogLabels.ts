@@ -38,6 +38,9 @@ export function operationBizTypeLabel(bizType?: string | null): string {
     FinanceReceipt: '收款单',
     FinanceSellInvoice: '销项发票',
     FinancePurchaseInvoice: '进项发票',
+    FinanceReceivable: '应收款',
+    FinanceCustomerAdvance: '预收款',
+    FinanceFreightForwarderPayable: '货代付款',
     Document: '文档'
   };
   return m[bizType] ?? bizType;

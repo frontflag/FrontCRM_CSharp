@@ -54,6 +54,15 @@ public sealed class FinanceCustomerAdvanceListQuery : IFinanceCustomerAdvanceLis
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
+        var nameMap = await FinanceCustomerDisplayEnrichment.LoadMapAsync(
+            _db, items.Select(x => x.CustomerId), cancellationToken);
+        foreach (var row in items)
+        {
+            if (!nameMap.TryGetValue(row.CustomerId, out var names)) continue;
+            if (!string.IsNullOrWhiteSpace(names.Zh)) row.CustomerName = names.Zh;
+            row.CustomerEnglishName = names.En;
+        }
+
         return new PagedResult<FinanceCustomerAdvance>
         {
             Items = items,

@@ -159,6 +159,11 @@
           </div>
         </el-popover>
       </div>
+      <div class="search-right">
+        <button type="button" class="btn-export" :disabled="exporting" @click="() => void handleExport()">
+          {{ t('financePaymentList.filters.export') }}
+        </button>
+      </div>
     </div>
 
     <div class="fp-main-panel" :class="{ 'fp-main-panel--with-filter-tabs': filterTabStripVisible }">
@@ -434,6 +439,7 @@ import {
   type FpPaymentModeTabId
 } from '@/utils/financePaymentListTabMode'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
+import { downloadCsvBlob } from '@/utils/exportFileName'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useAuthStore } from '@/stores/auth'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
@@ -511,6 +517,7 @@ const query = reactive<PageQuery & { page: number; pageSize: number }>({
 const dateRange = ref<[string, string] | null>(null)
 const total = ref(0)
 const loading = ref(false)
+const exporting = ref(false)
 const tabModeDimension = ref<FinancePaymentListTabModeDimension>(readFinancePaymentListTabMode())
 const settingsMenuOpen = ref(false)
 const settingsSubmenuOpen = ref(false)
@@ -739,6 +746,35 @@ const loadData = async () => {
     ElMessage.error(e?.message || t('financePaymentList.messages.loadFailed'))
   } finally {
     loading.value = false
+  }
+}
+
+async function handleExport() {
+  try {
+    await ElMessageBox.confirm(
+      t('financePaymentList.messages.exportConfirmMessage'),
+      t('financePaymentList.messages.exportConfirmTitle'),
+      { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
+    )
+  } catch {
+    return
+  }
+  exporting.value = true
+  try {
+    if (dateRange.value) {
+      query.startDate = dateRange.value[0]
+      query.endDate = dateRange.value[1]
+    } else {
+      query.startDate = undefined
+      query.endDate = undefined
+    }
+    const blob = await financePaymentApi.exportList(query)
+    downloadCsvBlob(blob, '付款记录.csv')
+    ElMessage.success(t('financePaymentList.messages.exportSuccess'))
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : t('financePaymentList.messages.exportFailed'))
+  } finally {
+    exporting.value = false
   }
 }
 

@@ -248,6 +248,7 @@ public static class SaleSensitiveFieldMask521
         if (!mask || inv == null) return;
         inv.CustomerId = string.Empty;
         inv.CustomerName = null;
+        inv.CustomerEnglishName = null;
         inv.InvoiceTotal = 0m;
         inv.ReceiveDone = 0m;
         inv.ReceiveToBe = 0m;
@@ -266,6 +267,65 @@ public static class SaleSensitiveFieldMask521
         if (!mask || items == null) return;
         foreach (var inv in items)
             ApplyFinanceSellInvoice(inv, true);
+    }
+
+    public static void ApplyFinanceReceivableListItem(FinanceReceivableListItem? row, bool mask)
+    {
+        if (!mask || row == null) return;
+        row.CustomerId = string.Empty;
+        row.CustomerName = null;
+        row.CustomerEnglishName = null;
+        row.CustomerCode = null;
+        row.SalesUserId = null;
+        row.SalesUserName = null;
+        row.UnitPrice = 0m;
+        row.Amount = 0m;
+        row.VerifiedDone = 0m;
+        row.VerifiedToBe = 0m;
+    }
+
+    public static void ApplyFinanceReceivableListItems(IEnumerable<FinanceReceivableListItem>? items, bool mask)
+    {
+        if (!mask || items == null) return;
+        foreach (var row in items)
+            ApplyFinanceReceivableListItem(row, true);
+    }
+
+    public static void ApplyFinanceCustomerAdvance(FinanceCustomerAdvance? row, bool mask)
+    {
+        if (!mask || row == null) return;
+        row.CustomerId = string.Empty;
+        row.CustomerName = null;
+        row.CustomerEnglishName = null;
+        row.Balance = 0m;
+        row.TotalIn = 0m;
+        row.TotalApplied = 0m;
+        row.TotalRefund = 0m;
+        row.SalesUserId = null;
+    }
+
+    public static void ApplyFinanceCustomerAdvances(IEnumerable<FinanceCustomerAdvance>? items, bool mask)
+    {
+        if (!mask || items == null) return;
+        foreach (var row in items)
+            ApplyFinanceCustomerAdvance(row, true);
+    }
+
+    public static void ApplyFinanceFreightForwarderPayableListItem(FinanceFreightForwarderPayableListItem? row, bool mask)
+    {
+        if (!mask || row == null) return;
+        row.CustomerId = string.Empty;
+        row.CustomerName = null;
+        row.CustomerEnglishName = null;
+    }
+
+    public static void ApplyFinanceFreightForwarderPayableListItems(
+        IEnumerable<FinanceFreightForwarderPayableListItem>? items,
+        bool mask)
+    {
+        if (!mask || items == null) return;
+        foreach (var row in items)
+            ApplyFinanceFreightForwarderPayableListItem(row, true);
     }
 
     public static void ApplyBatchReconciliationRow(BatchReconciliationRowDto? row, bool mask)

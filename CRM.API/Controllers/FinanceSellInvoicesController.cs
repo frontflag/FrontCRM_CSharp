@@ -1,5 +1,7 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Finance;
+using CRM.Core.Services;
 using CRM.Core.Utilities;
 using CRM.API.Authorization;
 using CRM.API.Utilities;
@@ -17,17 +19,20 @@ namespace CRM.API.Controllers
         private readonly IFinanceSellInvoiceService _service;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IRbacService _rbacService;
+        private readonly IExportOperationLogService _exportLog;
         private readonly ILogger<FinanceSellInvoicesController> _logger;
 
         public FinanceSellInvoicesController(
             IFinanceSellInvoiceService service,
             IDataPermissionService dataPermissionService,
             IRbacService rbacService,
+            IExportOperationLogService exportLog,
             ILogger<FinanceSellInvoicesController> logger)
         {
             _service = service;
             _dataPermissionService = dataPermissionService;
             _rbacService = rbacService;
+            _exportLog = exportLog;
             _logger = logger;
         }
 
@@ -67,6 +72,72 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "获取销项发票列表失败");
                 return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>按当前筛选导出销项发票 CSV，并写入操作审计。</summary>
+        [HttpGet("export")]
+        public async Task<IActionResult> ExportList(
+            [FromQuery] string? keyword,
+            [FromQuery] short? invoiceStatus,
+            [FromQuery] byte? receiveStatus,
+            [FromQuery] short? matchStatus,
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var mask521 = await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User);
+                var request = new FinanceSellInvoiceQueryRequest
+                {
+                    Keyword = keyword,
+                    InvoiceStatus = invoiceStatus,
+                    ReceiveStatus = receiveStatus,
+                    MatchStatus = matchStatus,
+                    StartDate = DateTime.TryParse(startDate, out var start) ? start : null,
+                    EndDate = DateTime.TryParse(endDate, out var end) ? end : null,
+                    CurrentUserId = InventoryExportHttp.UserId(User)
+                };
+                var (items, truncated, _) = await InventoryExportHttp.CollectForExportAsync(
+                    async (page, pageSize, _) =>
+                    {
+                        request.Page = page;
+                        request.PageSize = pageSize;
+                        return await _service.GetPagedAsync(request);
+                    },
+                    cancellationToken: cancellationToken);
+                if (mask521)
+                    SaleSensitiveFieldMask521.ApplyFinanceSellInvoices(items, true);
+
+                var filters = ExportOperationAudit.NormalizeFilters(new Dictionary<string, object?>
+                {
+                    ["keyword"] = keyword,
+                    ["invoiceStatus"] = invoiceStatus,
+                    ["receiveStatus"] = receiveStatus,
+                    ["matchStatus"] = matchStatus,
+                    ["startDate"] = startDate,
+                    ["endDate"] = endDate
+                });
+                await FinanceExportHttp.AppendListLogAsync(
+                    _exportLog,
+                    BusinessLogTypes.FinanceSellInvoice,
+                    ExportOperationAudit.FinanceSellInvoiceListRecordCode,
+                    FinanceExportActionTypes.SellInvoiceListExport,
+                    ExportAuditKinds.FinanceSellInvoiceList,
+                    "销项发票",
+                    items.Count,
+                    truncated,
+                    filters,
+                    mask521,
+                    User,
+                    cancellationToken);
+                return FinanceExportHttp.CsvFile(FinanceExportHttp.BuildSellInvoiceCsv(items, mask521), "销项发票.csv");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "导出销项发票失败");
+                return StatusCode(500, new { success = false, message = $"导出销项发票失败: {ex.Message}" });
             }
         }
 

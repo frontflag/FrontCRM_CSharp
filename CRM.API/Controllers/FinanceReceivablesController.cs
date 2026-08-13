@@ -1,8 +1,12 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Analytics;
 using CRM.Core.Models.Finance;
+using CRM.Core.Constants;
+using CRM.Core.Services;
+using CRM.Core.Utilities;
 using CRM.API.Authorization;
 using CRM.API.Models.DTOs;
+using CRM.API.Utilities;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
@@ -15,15 +19,21 @@ public class FinanceReceivablesController : ControllerBase
 {
     private readonly IFinanceReceivableService _service;
     private readonly IFinanceReceivableListQuery _listQuery;
+    private readonly IRbacService _rbacService;
+    private readonly IExportOperationLogService _exportLog;
     private readonly ILogger<FinanceReceivablesController> _logger;
 
     public FinanceReceivablesController(
         IFinanceReceivableService service,
         IFinanceReceivableListQuery listQuery,
+        IRbacService rbacService,
+        IExportOperationLogService exportLog,
         ILogger<FinanceReceivablesController> logger)
     {
         _service = service;
         _listQuery = listQuery;
+        _rbacService = rbacService;
+        _exportLog = exportLog;
         _logger = logger;
     }
 
@@ -151,6 +161,71 @@ public class FinanceReceivablesController : ControllerBase
         {
             _logger.LogError(ex, "获取应收款列表失败");
             return StatusCode(500, new { success = false, message = ex.Message });
+        }
+    }
+
+    [HttpGet("export")]
+    public async Task<IActionResult> ExportList(
+        [FromQuery] string? keyword,
+        [FromQuery] string? customerId,
+        [FromQuery] short? verificationStatus,
+        [FromQuery] bool? onlyOpen,
+        [FromQuery] string? stockOutDateFrom,
+        [FromQuery] string? stockOutDateTo,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var mask521 = await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User);
+            var request = new FinanceReceivableQueryRequest
+            {
+                Keyword = keyword,
+                CustomerId = mask521 ? null : customerId,
+                VerificationStatus = verificationStatus,
+                OnlyOpen = onlyOpen ?? true,
+                StockOutDateFrom = DateTime.TryParse(stockOutDateFrom, out var from) ? from : null,
+                StockOutDateTo = DateTime.TryParse(stockOutDateTo, out var to) ? to : null,
+                CurrentUserId = InventoryExportHttp.UserId(User)
+            };
+            var (items, truncated, _) = await InventoryExportHttp.CollectForExportAsync(
+                (page, pageSize, ct) =>
+                {
+                    request.Page = page;
+                    request.PageSize = pageSize;
+                    return _service.GetPagedListAsync(request, ct);
+                },
+                cancellationToken: cancellationToken);
+            if (mask521)
+                SaleSensitiveFieldMask521.ApplyFinanceReceivableListItems(items, true);
+
+            var filters = ExportOperationAudit.NormalizeFilters(new Dictionary<string, object?>
+            {
+                ["keyword"] = keyword,
+                ["customerId"] = mask521 ? null : customerId,
+                ["verificationStatus"] = verificationStatus,
+                ["onlyOpen"] = onlyOpen ?? true,
+                ["stockOutDateFrom"] = stockOutDateFrom,
+                ["stockOutDateTo"] = stockOutDateTo
+            });
+            await FinanceExportHttp.AppendListLogAsync(
+                _exportLog,
+                BusinessLogTypes.FinanceReceivable,
+                ExportOperationAudit.FinanceReceivableListRecordCode,
+                FinanceExportActionTypes.ReceivableListExport,
+                ExportAuditKinds.FinanceReceivableList,
+                "应收款",
+                items.Count,
+                truncated,
+                filters,
+                mask521,
+                User,
+                cancellationToken);
+            return FinanceExportHttp.CsvFile(FinanceExportHttp.BuildReceivableCsv(items, mask521), "应收款.csv");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "导出应收款失败");
+            return StatusCode(500, new { success = false, message = $"导出应收款失败: {ex.Message}" });
         }
     }
 

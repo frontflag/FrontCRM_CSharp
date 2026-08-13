@@ -8750,7 +8750,8 @@ const zhCN = {
       to: '至',
       startDate: '付款日期起',
       endDate: '付款日期止',
-      search: '查询'
+      search: '查询',
+      export: '导出'
     },
     settingsMenu: {
       aria: '列表筛选设置',
@@ -8835,6 +8836,10 @@ const zhCN = {
     btnPaymentDone: '付款完成',
     messages: {
       loadFailed: '加载付款列表失败',
+      exportConfirmTitle: '导出确认',
+      exportConfirmMessage: '将按当前筛选条件导出付款记录，最多 50000 条，是否继续？',
+      exportSuccess: '导出成功',
+      exportFailed: '导出失败',
       saveOk: '保存成功',
       saveOkDemo: '保存成功（演示模式）',
       saveFailed: '保存失败',
@@ -8936,7 +8941,8 @@ const zhCN = {
       to: '至',
       startDate: '开始日期',
       endDate: '结束日期',
-      search: '查询'
+      search: '查询',
+      export: '导出'
     },
     settingsMenu: {
       aria: '列表筛选设置',
@@ -9006,6 +9012,10 @@ const zhCN = {
     btnSave: '保存',
     messages: {
       selectCustomer: '请选择客户',
+      exportConfirmTitle: '导出确认',
+      exportConfirmMessage: '将按当前筛选条件导出收款记录，最多 50000 条，是否继续？',
+      exportSuccess: '导出成功',
+      exportFailed: '导出失败',
       saveOk: '保存成功',
       saveFail: '保存失败',
       saveOkDemo: '保存成功（演示模式）',
@@ -9040,7 +9050,8 @@ const zhCN = {
       stockOutDateTo: '出库日止',
       dateSep: '至',
       boardView: '看板',
-      listView: '列表'
+      listView: '列表',
+      export: '导出'
     },
     verification: {
       pending: '未核销',
@@ -9064,6 +9075,12 @@ const zhCN = {
     },
     actions: {
       detail: '详情'
+    },
+    messages: {
+      exportConfirmTitle: '导出确认',
+      exportConfirmMessage: '将按当前筛选条件导出应收款，最多 50000 条，是否继续？',
+      exportSuccess: '导出成功',
+      exportFailed: '导出失败'
     },
     board: {
       hint: '统计范围与当前搜索条件一致（含「仅待核销」）。金额按关联销售订单行当时落库的折算单价折算美金（历史成交折算）。',
@@ -9560,7 +9577,14 @@ const zhCN = {
       keyword: '收款单号/客户',
       status: '台账状态',
       ffCompany: '货代公司',
-      reset: '重置'
+      reset: '重置',
+      export: '导出'
+    },
+    messages: {
+      exportConfirmTitle: '导出确认',
+      exportConfirmMessage: '将按当前筛选条件导出货代付款，最多 50000 条，是否继续？',
+      exportSuccess: '导出成功',
+      exportFailed: '导出失败'
     },
     colStatus: '状态',
     colReceiptCode: '收款单号',
@@ -9655,7 +9679,8 @@ const zhCN = {
       keyword: '搜索客户',
       currency: '币别',
       onlyPositive: '仅有余额',
-      search: '查询'
+      search: '查询',
+      export: '导出'
     },
     columns: {
       customer: '客户',
@@ -9664,6 +9689,12 @@ const zhCN = {
       totalIn: '累计入账',
       totalApplied: '累计核销',
       actions: '操作'
+    },
+    messages: {
+      exportConfirmTitle: '导出确认',
+      exportConfirmMessage: '将按当前筛选条件导出预收款，最多 50000 条，是否继续？',
+      exportSuccess: '导出成功',
+      exportFailed: '导出失败'
     }
   },
   financeReceiptDetail: {
@@ -9740,7 +9771,8 @@ const zhCN = {
       to: '至',
       start: '开票开始',
       end: '开票结束',
-      search: '查询'
+      search: '查询',
+      export: '导出'
     },
     create: '新建进项发票',
     goWriteOffDesktop: '进项发票核销桌面',
@@ -9786,6 +9818,10 @@ const zhCN = {
       saveOk: '保存成功',
       saveOkDemo: '保存成功（演示模式）',
       loadFailed: '加载进项发票列表失败',
+      exportConfirmTitle: '导出确认',
+      exportConfirmMessage: '将按当前筛选条件导出进项发票，最多 50000 条，是否继续？',
+      exportSuccess: '导出成功',
+      exportFailed: '导出失败',
       voidTitle: '冲红确认',
       voidMsg: '确认冲红发票 {code}？',
       voided: '发票已冲红'
@@ -9831,7 +9867,8 @@ const zhCN = {
       start: '开票开始',
       end: '开票结束',
       search: '搜索',
-      reset: '重置'
+      reset: '重置',
+      export: '导出'
     },
     create: '新建销项发票',
     stats: {
@@ -9886,6 +9923,10 @@ const zhCN = {
       selectCustomer: '请选择客户',
       saveOk: '保存成功',
       saveOkDemo: '保存成功（演示模式）',
+      exportConfirmTitle: '导出确认',
+      exportConfirmMessage: '将按当前筛选条件导出销项发票，最多 50000 条，是否继续？',
+      exportSuccess: '导出成功',
+      exportFailed: '导出失败',
       applyTitle: '申请开票',
       applyMsg: '确认申请开票 {code}？',
       applied: '已提交开票申请',

@@ -54,6 +54,9 @@
         </el-button>
       </div>
       <div class="search-right">
+        <button type="button" class="btn-export" :disabled="exporting" @click="() => void handleExport()">
+          {{ t('financeReceivableList.filters.export') }}
+        </button>
         <el-button v-if="canWriteFinanceReceipt" type="primary" @click="goWriteOff">
           {{ t('financeReceivableList.goWriteOff') }}
         </el-button>
@@ -173,6 +176,7 @@ import { reactive, ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Search } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { financeReceivableApi, type FinanceReceivable } from '@/api/financeReceivable'
 import type { FinanceReceivableListAnalyticsQuery } from '@/api/financeReceivableAnalytics'
 import { CURRENCY_MAP } from '@/api/finance'
@@ -183,6 +187,7 @@ import CustomerExtendCell from '@/components/list/CustomerExtendCell.vue'
 import { useCustomerExtendColumn, isCustomerExtendTableColumn } from '@/composables/useCustomerExtendColumn'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useListBoardHelpOverride } from '@/composables/useHelpDocOverride'
+import { downloadCsvBlob } from '@/utils/exportFileName'
 import FinanceReceivableListBoard from './FinanceReceivableListBoard.vue'
 
 const { t } = useI18n()
@@ -219,6 +224,7 @@ function toggleOpCol() {
 }
 
 const loading = ref(false)
+const exporting = ref(false)
 const tableData = ref<FinanceReceivable[]>([])
 const total = ref(0)
 const viewMode = ref<'list' | 'board'>('list')
@@ -360,6 +366,34 @@ async function loadData() {
     total.value = res.total ?? 0
   } finally {
     loading.value = false
+  }
+}
+
+async function handleExport() {
+  try {
+    await ElMessageBox.confirm(
+      t('financeReceivableList.messages.exportConfirmMessage'),
+      t('financeReceivableList.messages.exportConfirmTitle'),
+      { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
+    )
+  } catch {
+    return
+  }
+  exporting.value = true
+  try {
+    const blob = await financeReceivableApi.exportList({
+      keyword: query.keyword || undefined,
+      verificationStatus: query.verificationStatus,
+      onlyOpen: query.onlyOpen,
+      stockOutDateFrom: query.stockOutDateFrom,
+      stockOutDateTo: query.stockOutDateTo
+    })
+    downloadCsvBlob(blob, '应收款.csv')
+    ElMessage.success(t('financeReceivableList.messages.exportSuccess'))
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : t('financeReceivableList.messages.exportFailed'))
+  } finally {
+    exporting.value = false
   }
 }
 

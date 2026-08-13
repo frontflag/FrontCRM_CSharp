@@ -41,6 +41,9 @@ export const BusinessLogTypes = {
   FinanceReceipt: 'FinanceReceipt',
   FinanceSellInvoice: 'FinanceSellInvoice',
   FinancePurchaseInvoice: 'FinancePurchaseInvoice',
+  FinanceReceivable: 'FinanceReceivable',
+  FinanceCustomerAdvance: 'FinanceCustomerAdvance',
+  FinanceFreightForwarderPayable: 'FinanceFreightForwarderPayable',
 
   Document: 'Document'
 } as const

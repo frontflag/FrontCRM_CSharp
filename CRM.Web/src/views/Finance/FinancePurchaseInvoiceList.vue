@@ -2,24 +2,29 @@
   <div class="finance-page">
     <div class="fpi-list-page-header">
       <h1 class="finance-list-page-title">{{ t('financePurchaseInvoiceList.pageTitle') }}</h1>
-      <button type="button" class="btn-write-off-desktop" @click="goWriteOffDesktop">
-        <span>{{ t('financePurchaseInvoiceList.goWriteOffDesktop') }}</span>
-        <el-icon class="btn-write-off-desktop__arrow"><ArrowRight /></el-icon>
-      </button>
+      <div class="fpi-list-page-header__actions">
+        <button type="button" class="btn-export" :disabled="exporting" @click="() => void handleExport()">
+          {{ t('financePurchaseInvoiceList.filters.export') }}
+        </button>
+        <button type="button" class="btn-write-off-desktop" @click="goWriteOffDesktop">
+          <span>{{ t('financePurchaseInvoiceList.goWriteOffDesktop') }}</span>
+          <el-icon class="btn-write-off-desktop__arrow"><ArrowRight /></el-icon>
+        </button>
+      </div>
     </div>
     <!-- 统计卡片（置顶） -->
     <div class="stat-cards">
       <div class="stat-card">
         <div class="stat-label">{{ t('financePurchaseInvoiceList.stats.totalAmount') }}</div>
-        <div class="stat-value">{{ maskPurchaseSensitiveFields ? '—' : ('¥ ' + formatAmount(stats.totalAmount)) }}</div>
+        <div class="stat-value">{{ maskPurchaseSensitiveFields ? '—' : formatTotalAmountNumber(stats.totalAmount) }}</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">{{ t('financePurchaseInvoiceList.stats.paidAmount') }}</div>
-        <div class="stat-value success">{{ maskPurchaseSensitiveFields ? '—' : ('¥ ' + formatAmount(stats.paidAmount)) }}</div>
+        <div class="stat-value success">{{ maskPurchaseSensitiveFields ? '—' : formatTotalAmountNumber(stats.paidAmount) }}</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">{{ t('financePurchaseInvoiceList.stats.toPayAmount') }}</div>
-        <div class="stat-value warning">{{ maskPurchaseSensitiveFields ? '—' : ('¥ ' + formatAmount(stats.toPayAmount)) }}</div>
+        <div class="stat-value warning">{{ maskPurchaseSensitiveFields ? '—' : formatTotalAmountNumber(stats.toPayAmount) }}</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">{{ t('financePurchaseInvoiceList.stats.invoicedCount') }}</div>
@@ -99,8 +104,18 @@
         />
       </template>
       <template #col-invoiceTotal="{ row }">
-        <span v-if="maskPurchaseSensitiveFields">—</span>
-        <span v-else class="amount-text">¥ {{ formatAmount(row.invoiceTotal) }}</span>
+        <template v-if="maskPurchaseSensitiveFields || !listTotalAmountHasValue(row.invoiceTotal)">
+          <span class="dock-tier-empty">—</span>
+        </template>
+        <div v-else class="dock-tier-price-line">
+          <template v-for="amt in [splitListMoneyParts(Number(row.invoiceTotal))]" :key="'inv-total-' + row.id">
+            <span class="dock-tier-amt">
+              <span class="dock-tier-amt-int">{{ amt.intPart }}</span><span class="dock-tier-amt-frac">{{ amt.fracPart }}</span>
+            </span>
+          </template>
+          <span class="dock-tier-ccy-gap">&nbsp;</span>
+          <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]">{{ listAmountCurrencyIso(row.currency) }}</span>
+        </div>
       </template>
       <template #col-verificationStatus="{ row }">
         <el-tag effect="dark" :type="sellInvoiceMatchStatusTag(row.verificationStatus ?? 0) as any" size="small">
@@ -108,12 +123,32 @@
         </el-tag>
       </template>
       <template #col-verifiedDone="{ row }">
-        <span v-if="maskPurchaseSensitiveFields">—</span>
-        <span v-else class="amount-text">¥ {{ formatAmount(row.verifiedDone) }}</span>
+        <template v-if="maskPurchaseSensitiveFields || !listTotalAmountHasValue(row.verifiedDone)">
+          <span class="dock-tier-empty">—</span>
+        </template>
+        <div v-else class="dock-tier-price-line">
+          <template v-for="amt in [splitListMoneyParts(Number(row.verifiedDone))]" :key="'inv-match-' + row.id">
+            <span class="dock-tier-amt">
+              <span class="dock-tier-amt-int">{{ amt.intPart }}</span><span class="dock-tier-amt-frac">{{ amt.fracPart }}</span>
+            </span>
+          </template>
+          <span class="dock-tier-ccy-gap">&nbsp;</span>
+          <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]">{{ listAmountCurrencyIso(row.currency) }}</span>
+        </div>
       </template>
       <template #col-paymentDone="{ row }">
-        <span v-if="maskPurchaseSensitiveFields">—</span>
-        <span v-else class="amount-text">¥ {{ formatAmount(row.paymentDone) }}</span>
+        <template v-if="maskPurchaseSensitiveFields || !listTotalAmountHasValue(row.paymentDone)">
+          <span class="dock-tier-empty">—</span>
+        </template>
+        <div v-else class="dock-tier-price-line">
+          <template v-for="amt in [splitListMoneyParts(Number(row.paymentDone))]" :key="'inv-pay-' + row.id">
+            <span class="dock-tier-amt">
+              <span class="dock-tier-amt-int">{{ amt.intPart }}</span><span class="dock-tier-amt-frac">{{ amt.fracPart }}</span>
+            </span>
+          </template>
+          <span class="dock-tier-ccy-gap">&nbsp;</span>
+          <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]">{{ listAmountCurrencyIso(row.currency) }}</span>
+        </div>
       </template>
       <template #col-paymentStatus="{ row }">
         <el-tag effect="dark" :type="paymentDoneStatusTag(row.paymentStatus) as any" size="small">
@@ -321,6 +356,14 @@ import {
 } from '@/api/finance'
 import { SETTLEMENT_CURRENCY_OPTIONS, DEFAULT_SETTLEMENT_CURRENCY_CODE } from '@/constants/currency'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
+import { downloadCsvBlob } from '@/utils/exportFileName'
+import {
+  formatTotalAmountNumber,
+  listAmountCurrencyDockClass,
+  listAmountCurrencyIso,
+  listTotalAmountHasValue,
+  splitListMoneyParts,
+} from '@/utils/moneyFormat'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { vendorApi } from '@/api/vendor'
 import type { Vendor } from '@/types/vendor'
@@ -361,6 +404,7 @@ const filterPayStatus = ref<number | undefined>(undefined)
 const filterVerificationStatus = ref<number | undefined>(undefined)
 const total = ref(0)
 const loading = ref(false)
+const exporting = ref(false)
 const tableData = ref<FinancePurchaseInvoice[]>([])
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
@@ -456,6 +500,40 @@ const loadData = async () => {
     stats.paidAmount = tableData.value.reduce((s, r) => s + safeNum(r.paymentDone), 0)
     stats.toPayAmount = tableData.value.reduce((s, r) => s + safeNum(r.paymentToBe), 0)
     stats.invoicedCount = tableData.value.filter(r => r.invoiceStatus === 100).length
+  }
+}
+
+async function handleExport() {
+  try {
+    await ElMessageBox.confirm(
+      t('financePurchaseInvoiceList.messages.exportConfirmMessage'),
+      t('financePurchaseInvoiceList.messages.exportConfirmTitle'),
+      { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
+    )
+  } catch {
+    return
+  }
+  exporting.value = true
+  try {
+    if (dateRange.value) {
+      query.startDate = dateRange.value[0]
+      query.endDate = dateRange.value[1]
+    } else {
+      query.startDate = undefined
+      query.endDate = undefined
+    }
+    const blob = await financePurchaseInvoiceApi.exportList({
+      ...query,
+      invoiceStatus: query.status,
+      verificationStatus: filterVerificationStatus.value,
+      paymentStatus: filterPayStatus.value,
+    })
+    downloadCsvBlob(blob, '进项发票.csv')
+    ElMessage.success(t('financePurchaseInvoiceList.messages.exportSuccess'))
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : t('financePurchaseInvoiceList.messages.exportFailed'))
+  } finally {
+    exporting.value = false
   }
 }
 
@@ -629,12 +707,6 @@ const handleForceDeleteRow = async (row: FinancePurchaseInvoice) => {
   }
 }
 
-const formatAmount = (v: number | unknown) => {
-  const n = Number(v)
-  if (!Number.isFinite(n)) return '0.00'
-  return n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
-
 function goWriteOffDesktop() {
   router.push({ name: 'PurchaseInvoiceWriteOffDesktop' })
 }
@@ -651,6 +723,12 @@ onMounted(loadData)
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.fpi-list-page-header__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .btn-write-off-desktop {

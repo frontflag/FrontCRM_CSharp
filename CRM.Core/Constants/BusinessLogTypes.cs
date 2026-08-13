@@ -54,6 +54,9 @@ public static class BusinessLogTypes
     public const string FinanceReceipt = "FinanceReceipt";
     public const string FinanceSellInvoice = "FinanceSellInvoice";
     public const string FinancePurchaseInvoice = "FinancePurchaseInvoice";
+    public const string FinanceReceivable = "FinanceReceivable";
+    public const string FinanceCustomerAdvance = "FinanceCustomerAdvance";
+    public const string FinanceFreightForwarderPayable = "FinanceFreightForwarderPayable";
 
     public const string Document = "Document";
 }

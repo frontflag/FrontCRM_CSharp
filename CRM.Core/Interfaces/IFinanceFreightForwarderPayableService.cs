@@ -24,6 +24,7 @@ public class FinanceFreightForwarderPayableListItem
     public short ReceiptStatus { get; set; }
     public string CustomerId { get; set; } = string.Empty;
     public string? CustomerName { get; set; }
+    public string? CustomerEnglishName { get; set; }
     public string? FreightForwarderCompanyId { get; set; }
     public string? FreightForwarderCompanyName { get; set; }
     public decimal ReceiptAmount { get; set; }

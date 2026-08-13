@@ -2,10 +2,15 @@
   <div class="finance-page">
     <div class="fsi-list-page-header">
       <h1 class="finance-list-page-title">{{ t('financeSellInvoiceList.pageTitle') }}</h1>
-      <button type="button" class="btn-write-off-desktop" @click="goWriteOffDesktop">
-        <span>{{ t('financeSellInvoiceList.goWriteOffDesktop') }}</span>
-        <el-icon class="btn-write-off-desktop__arrow"><ArrowRight /></el-icon>
-      </button>
+      <div class="fsi-list-page-header__actions">
+        <button type="button" class="btn-export" :disabled="exporting" @click="() => void handleExport()">
+          {{ t('financeSellInvoiceList.filters.export') }}
+        </button>
+        <button type="button" class="btn-write-off-desktop" @click="goWriteOffDesktop">
+          <span>{{ t('financeSellInvoiceList.goWriteOffDesktop') }}</span>
+          <el-icon class="btn-write-off-desktop__arrow"><ArrowRight /></el-icon>
+        </button>
+      </div>
     </div>
 
     <!-- 统计卡片（置顶） -->
@@ -402,6 +407,7 @@ import {
 } from '@/api/finance'
 import { SETTLEMENT_CURRENCY_OPTIONS, DEFAULT_SETTLEMENT_CURRENCY_CODE } from '@/constants/currency'
 import { formatDisplayDate, formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
+import { downloadCsvBlob } from '@/utils/exportFileName'
 import {
   formatTotalAmountNumber,
   listAmountCurrencyDockClass,
@@ -487,6 +493,7 @@ const filterMatchStatus = ref<number | undefined>(undefined)
 const filterReceiveStatus = ref<number | undefined>(undefined)
 const total = ref(0)
 const loading = ref(false)
+const exporting = ref(false)
 const tableData = ref<FinanceSellInvoice[]>([])
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
@@ -599,6 +606,40 @@ const loadData = async () => {
     stats.receivedAmount = tableData.value.reduce((s, r) => s + r.receiveDone, 0)
     stats.toReceiveAmount = tableData.value.reduce((s, r) => s + r.receiveToBe, 0)
     stats.invoicedCount = tableData.value.filter(r => r.invoiceStatus === 100).length
+  }
+}
+
+async function handleExport() {
+  try {
+    await ElMessageBox.confirm(
+      t('financeSellInvoiceList.messages.exportConfirmMessage'),
+      t('financeSellInvoiceList.messages.exportConfirmTitle'),
+      { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
+    )
+  } catch {
+    return
+  }
+  exporting.value = true
+  try {
+    if (dateRange.value) {
+      query.startDate = dateRange.value[0]
+      query.endDate = dateRange.value[1]
+    } else {
+      query.startDate = undefined
+      query.endDate = undefined
+    }
+    const blob = await financeSellInvoiceApi.exportList({
+      ...query,
+      invoiceStatus: query.status,
+      matchStatus: filterMatchStatus.value,
+      receiveStatus: filterReceiveStatus.value,
+    })
+    downloadCsvBlob(blob, '销项发票.csv')
+    ElMessage.success(t('financeSellInvoiceList.messages.exportSuccess'))
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : t('financeSellInvoiceList.messages.exportFailed'))
+  } finally {
+    exporting.value = false
   }
 }
 
@@ -775,6 +816,12 @@ function goWriteOffDesktop() {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.fsi-list-page-header__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .btn-write-off-desktop {

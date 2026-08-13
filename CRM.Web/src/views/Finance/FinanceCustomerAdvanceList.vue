@@ -36,6 +36,9 @@
         </el-button>
       </div>
       <div class="search-right">
+        <button type="button" class="btn-export" :disabled="exporting" @click="() => void handleExport()">
+          {{ t('financeCustomerAdvanceList.filters.export') }}
+        </button>
         <el-button @click="goWriteOff">{{ t('financeCustomerAdvanceList.goWriteOff') }}</el-button>
       </div>
     </div>
@@ -103,6 +106,7 @@ import { onMounted, reactive, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Search } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   financeCustomerAdvanceApi,
   type FinanceCustomerAdvance,
@@ -111,11 +115,13 @@ import {
 import { CURRENCY_MAP } from '@/api/finance'
 import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import { downloadCsvBlob } from '@/utils/exportFileName'
 
 const { t } = useI18n()
 const router = useRouter()
 
 const loading = ref(false)
+const exporting = ref(false)
 const tableData = ref<FinanceCustomerAdvance[]>([])
 const total = ref(0)
 
@@ -175,6 +181,32 @@ async function loadData() {
     total.value = res.total ?? 0
   } finally {
     loading.value = false
+  }
+}
+
+async function handleExport() {
+  try {
+    await ElMessageBox.confirm(
+      t('financeCustomerAdvanceList.messages.exportConfirmMessage'),
+      t('financeCustomerAdvanceList.messages.exportConfirmTitle'),
+      { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
+    )
+  } catch {
+    return
+  }
+  exporting.value = true
+  try {
+    const blob = await financeCustomerAdvanceApi.exportList({
+      keyword: query.keyword || undefined,
+      currency: query.currency,
+      onlyPositiveBalance: query.onlyPositiveBalance
+    })
+    downloadCsvBlob(blob, '预收款.csv')
+    ElMessage.success(t('financeCustomerAdvanceList.messages.exportSuccess'))
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : t('financeCustomerAdvanceList.messages.exportFailed'))
+  } finally {
+    exporting.value = false
   }
 }
 

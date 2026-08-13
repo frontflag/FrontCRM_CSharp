@@ -1,7 +1,9 @@
 using CRM.API.Authorization;
 using CRM.API.Utilities;
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Finance;
+using CRM.Core.Services;
 using CRM.Core.Utilities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -18,6 +20,7 @@ namespace CRM.API.Controllers
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IRbacService _rbacService;
         private readonly IApprovalPartyIntelWarmupService _approvalPartyIntelWarmup;
+        private readonly IExportOperationLogService _exportLog;
         private readonly ILogger<FinancePaymentsController> _logger;
 
         public FinancePaymentsController(
@@ -25,12 +28,14 @@ namespace CRM.API.Controllers
             IDataPermissionService dataPermissionService,
             IRbacService rbacService,
             IApprovalPartyIntelWarmupService approvalPartyIntelWarmup,
+            IExportOperationLogService exportLog,
             ILogger<FinancePaymentsController> logger)
         {
             _service = service;
             _dataPermissionService = dataPermissionService;
             _rbacService = rbacService;
             _approvalPartyIntelWarmup = approvalPartyIntelWarmup;
+            _exportLog = exportLog;
             _logger = logger;
         }
 
@@ -79,6 +84,85 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "获取付款单列表失败");
                 return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>按当前筛选导出付款记录 CSV，并写入操作审计。</summary>
+        [HttpGet("export")]
+        [RequireAnyPermission("finance-payment.read", "purchase-order.read")]
+        public async Task<IActionResult> ExportList(
+            [FromQuery] string? keyword,
+            [FromQuery] string? financePaymentCode,
+            [FromQuery] string? freightForwarderOrderNo,
+            [FromQuery] string? bankSlipNo,
+            [FromQuery] short? paymentMode,
+            [FromQuery] string? vendorName,
+            [FromQuery] string? remark,
+            [FromQuery] short? status,
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var mask511 = await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User);
+                var request = new FinancePaymentQueryRequest
+                {
+                    Keyword = keyword,
+                    FinancePaymentCode = financePaymentCode,
+                    FreightForwarderOrderNo = freightForwarderOrderNo,
+                    BankSlipNo = bankSlipNo,
+                    PaymentMode = paymentMode,
+                    VendorName = mask511 ? null : vendorName,
+                    Remark = remark,
+                    Status = status,
+                    StartDate = DateTime.TryParse(startDate, out var start) ? start : null,
+                    EndDate = DateTime.TryParse(endDate, out var end) ? end : null,
+                    CurrentUserId = InventoryExportHttp.UserId(User)
+                };
+                var (items, truncated, _) = await InventoryExportHttp.CollectForExportAsync(
+                    async (page, pageSize, _) =>
+                    {
+                        request.Page = page;
+                        request.PageSize = pageSize;
+                        return await _service.GetPagedAsync(request);
+                    },
+                    cancellationToken: cancellationToken);
+                if (mask511)
+                    PurchaseSensitiveFieldMask511.ApplyFinancePayments(items, true);
+
+                var filters = ExportOperationAudit.NormalizeFilters(new Dictionary<string, object?>
+                {
+                    ["keyword"] = keyword,
+                    ["financePaymentCode"] = financePaymentCode,
+                    ["freightForwarderOrderNo"] = freightForwarderOrderNo,
+                    ["bankSlipNo"] = bankSlipNo,
+                    ["paymentMode"] = paymentMode,
+                    ["vendorName"] = mask511 ? null : vendorName,
+                    ["remark"] = remark,
+                    ["status"] = status,
+                    ["startDate"] = startDate,
+                    ["endDate"] = endDate
+                });
+                await FinanceExportHttp.AppendListLogAsync(
+                    _exportLog,
+                    BusinessLogTypes.FinancePayment,
+                    ExportOperationAudit.FinancePaymentListRecordCode,
+                    FinanceExportActionTypes.PaymentListExport,
+                    ExportAuditKinds.FinancePaymentList,
+                    "付款记录",
+                    items.Count,
+                    truncated,
+                    filters,
+                    mask511,
+                    User,
+                    cancellationToken);
+                return FinanceExportHttp.CsvFile(FinanceExportHttp.BuildPaymentCsv(items, mask511), "付款记录.csv");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "导出付款记录失败");
+                return StatusCode(500, new { success = false, message = $"导出付款记录失败: {ex.Message}" });
             }
         }
 

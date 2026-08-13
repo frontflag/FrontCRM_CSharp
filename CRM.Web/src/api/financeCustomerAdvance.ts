@@ -1,9 +1,11 @@
 import apiClient from './client'
+import { toExportQueryString } from '@/utils/exportFileName'
 
 export interface FinanceCustomerAdvance {
   id: string
   customerId: string
   customerName?: string
+  customerEnglishName?: string
   currency: number
   balance: number
   totalIn: number
@@ -44,6 +46,10 @@ export const financeCustomerAdvanceApi = {
       BASE,
       { params }
     ),
+  exportList: (params?: Record<string, unknown>) => {
+    const q = toExportQueryString(params)
+    return apiClient.getBlob(q ? `${BASE}/export?${q}` : `${BASE}/export`)
+  },
   getLedger: (params: Record<string, unknown>) =>
     apiClient.get<{ items: FinanceCustomerAdvanceLedger[]; total: number; page: number; pageSize: number }>(
       `${BASE}/ledger`,

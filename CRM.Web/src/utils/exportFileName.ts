@@ -15,3 +15,24 @@ export function withExportTimestamp(fileName: string, at: Date = new Date()): st
   if (dot <= 0) return `${raw}_${stamp}`
   return `${raw.slice(0, dot)}_${stamp}${raw.slice(dot)}`
 }
+
+/** 列表导出 query：去掉空值与分页参数。 */
+export function toExportQueryString(params?: Record<string, unknown>): string {
+  const qs = new URLSearchParams()
+  Object.entries(params ?? {}).forEach(([k, v]) => {
+    if (v === undefined || v === null || v === '') return
+    if (k === 'page' || k === 'pageSize') return
+    if (typeof v === 'boolean') qs.set(k, v ? 'true' : 'false')
+    else qs.set(k, String(v))
+  })
+  return qs.toString()
+}
+
+export function downloadCsvBlob(blob: Blob, fileName: string) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = withExportTimestamp(fileName)
+  a.click()
+  URL.revokeObjectURL(url)
+}

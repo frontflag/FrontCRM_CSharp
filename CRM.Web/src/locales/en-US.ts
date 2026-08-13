@@ -8766,7 +8766,8 @@ const enUS = {
       to: 'to',
       startDate: 'Payment date from',
       endDate: 'Payment date to',
-      search: 'Search'
+      search: 'Search',
+      export: 'Export'
     },
     settingsMenu: {
       aria: 'List filter settings',
@@ -8851,6 +8852,10 @@ const enUS = {
     btnPaymentDone: 'Mark paid',
     messages: {
       loadFailed: 'Failed to load payment list',
+      exportConfirmTitle: 'Export',
+      exportConfirmMessage: 'Export payments with current filters (max 50,000 rows)?',
+      exportSuccess: 'Export succeeded',
+      exportFailed: 'Export failed',
       saveOk: 'Saved',
       saveOkDemo: 'Saved (demo)',
       saveFailed: 'Save failed',
@@ -8952,7 +8957,8 @@ const enUS = {
       to: 'to',
       startDate: 'Start date',
       endDate: 'End date',
-      search: 'Search'
+      search: 'Search',
+      export: 'Export'
     },
     settingsMenu: {
       aria: 'List filter settings',
@@ -9022,6 +9028,10 @@ const enUS = {
     btnSave: 'Save',
     messages: {
       selectCustomer: 'Select a customer',
+      exportConfirmTitle: 'Export',
+      exportConfirmMessage: 'Export receipts with current filters (max 50,000 rows)?',
+      exportSuccess: 'Export succeeded',
+      exportFailed: 'Export failed',
       saveOk: 'Saved',
       saveFail: 'Save failed',
       saveOkDemo: 'Saved (demo)',
@@ -9056,7 +9066,8 @@ const enUS = {
       stockOutDateTo: 'Stock-out to',
       dateSep: 'to',
       boardView: 'Board',
-      listView: 'List'
+      listView: 'List',
+      export: 'Export'
     },
     verification: {
       pending: 'Pending',
@@ -9080,6 +9091,12 @@ const enUS = {
     },
     actions: {
       detail: 'Detail'
+    },
+    messages: {
+      exportConfirmTitle: 'Export',
+      exportConfirmMessage: 'Export receivables with current filters (max 50,000 rows)?',
+      exportSuccess: 'Export succeeded',
+      exportFailed: 'Export failed'
     },
     board: {
       hint: 'Stats use the same filters as the list (including Open only). USD uses the linked sales-order line convert price stored at order time (historical FX).',
@@ -9576,7 +9593,14 @@ const enUS = {
       keyword: 'Receipt / customer',
       status: 'Status',
       ffCompany: 'Freight forwarder',
-      reset: 'Reset'
+      reset: 'Reset',
+      export: 'Export'
+    },
+    messages: {
+      exportConfirmTitle: 'Export',
+      exportConfirmMessage: 'Export freight-forwarder payments with current filters (max 50,000 rows)?',
+      exportSuccess: 'Export succeeded',
+      exportFailed: 'Export failed'
     },
     colStatus: 'Status',
     colReceiptCode: 'Receipt no.',
@@ -9671,7 +9695,8 @@ const enUS = {
       keyword: 'Search customer',
       currency: 'Currency',
       onlyPositive: 'Positive balance only',
-      search: 'Search'
+      search: 'Search',
+      export: 'Export'
     },
     columns: {
       customer: 'Customer',
@@ -9680,6 +9705,12 @@ const enUS = {
       totalIn: 'Total in',
       totalApplied: 'Total applied',
       actions: 'Actions'
+    },
+    messages: {
+      exportConfirmTitle: 'Export',
+      exportConfirmMessage: 'Export customer advances with current filters (max 50,000 rows)?',
+      exportSuccess: 'Export succeeded',
+      exportFailed: 'Export failed'
     }
   },
   financeReceiptDetail: {
@@ -9756,7 +9787,8 @@ const enUS = {
       to: 'to',
       start: 'Issue from',
       end: 'Issue to',
-      search: 'Search'
+      search: 'Search',
+      export: 'Export'
     },
     create: 'New purchase invoice',
     goWriteOffDesktop: 'Purchase invoice write-off desk',
@@ -9802,6 +9834,10 @@ const enUS = {
       saveOk: 'Saved',
       saveOkDemo: 'Saved (demo)',
       loadFailed: 'Failed to load purchase invoices',
+      exportConfirmTitle: 'Export',
+      exportConfirmMessage: 'Export purchase invoices with current filters (max 50,000 rows)?',
+      exportSuccess: 'Export succeeded',
+      exportFailed: 'Export failed',
       voidTitle: 'Red invoice',
       voidMsg: 'Red invoice {code}?',
       voided: 'Invoice red / voided'
@@ -9847,7 +9883,8 @@ const enUS = {
       start: 'Issue from',
       end: 'Issue to',
       search: 'Search',
-      reset: 'Reset'
+      reset: 'Reset',
+      export: 'Export'
     },
     create: 'New sales invoice',
     stats: {
@@ -9902,6 +9939,10 @@ const enUS = {
       selectCustomer: 'Select a customer',
       saveOk: 'Saved',
       saveOkDemo: 'Saved (demo)',
+      exportConfirmTitle: 'Export',
+      exportConfirmMessage: 'Export sales invoices with current filters (max 50,000 rows)?',
+      exportSuccess: 'Export succeeded',
+      exportFailed: 'Export failed',
       applyTitle: 'Apply for invoice',
       applyMsg: 'Apply for invoice {code}?',
       applied: 'Application submitted',

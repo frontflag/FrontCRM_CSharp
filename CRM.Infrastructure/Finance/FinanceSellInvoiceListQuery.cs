@@ -65,6 +65,15 @@ public sealed class FinanceSellInvoiceListQuery : IFinanceSellInvoiceListQuery
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
+        var nameMap = await FinanceCustomerDisplayEnrichment.LoadMapAsync(
+            _db, items.Select(x => x.CustomerId), cancellationToken);
+        foreach (var inv in items)
+        {
+            if (!nameMap.TryGetValue(inv.CustomerId, out var names)) continue;
+            if (!string.IsNullOrWhiteSpace(names.Zh)) inv.CustomerName = names.Zh;
+            inv.CustomerEnglishName = names.En;
+        }
+
         return new PagedResult<FinanceSellInvoice>
         {
             Items = items,

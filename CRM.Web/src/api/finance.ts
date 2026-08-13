@@ -5,6 +5,7 @@
 // ============================================================
 import apiClient from './client'
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
+import { toExportQueryString } from '@/utils/exportFileName'
 
 // ==================== 类型定义 ====================
 
@@ -360,6 +361,7 @@ export interface FinanceSellInvoice {
   invoiceCode?: string
   customerId: string
   customerName?: string
+  customerEnglishName?: string
   invoiceNo?: string
   invoiceTotal: number
   makeInvoiceDate?: string
@@ -407,6 +409,10 @@ export interface PageQuery {
   status?: number
   invoiceStatus?: number
   paymentStatus?: number
+  /** 销项发票收款状态：0未收款 1部分收款 2收款完成 */
+  receiveStatus?: number
+  /** 销项发票核销状态：0未核销 1部分核销 2核销完成 */
+  matchStatus?: number
   /** 收款用途：10 普通 / 20 预收 */
   receiptPurpose?: number
   /** 整单核销状态：0未核销 1部分核销 2核销完成 */
@@ -428,6 +434,10 @@ const PAYMENT_BASE = '/api/v1/finance/payments'
 export const financePaymentApi = {
   getList: (params: PageQuery) =>
     apiClient.get<PageResult<FinancePayment>>(PAYMENT_BASE, { params }),
+  exportList: (params?: PageQuery) => {
+    const q = toExportQueryString(params as Record<string, unknown>)
+    return apiClient.getBlob(q ? `${PAYMENT_BASE}/export?${q}` : `${PAYMENT_BASE}/export`)
+  },
   getById: (id: string) =>
     apiClient.get<FinancePayment>(`${PAYMENT_BASE}/${id}`),
   create: (data: Partial<FinancePayment>) =>
@@ -468,6 +478,10 @@ const RECEIPT_BASE = '/api/v1/finance/receipts'
 export const financeReceiptApi = {
   getList: (params: PageQuery) =>
     apiClient.get<PageResult<FinanceReceipt>>(RECEIPT_BASE, { params }),
+  exportList: (params?: PageQuery) => {
+    const q = toExportQueryString(params as Record<string, unknown>)
+    return apiClient.getBlob(q ? `${RECEIPT_BASE}/export?${q}` : `${RECEIPT_BASE}/export`)
+  },
   getById: (id: string) =>
     apiClient.get<FinanceReceipt>(`${RECEIPT_BASE}/${id}`),
   getWriteOffs: (id: string) =>
@@ -502,6 +516,10 @@ const PURCHASE_INVOICE_BASE = '/api/v1/finance/purchase-invoices'
 export const financePurchaseInvoiceApi = {
   getList: (params: PageQuery) =>
     apiClient.get<PageResult<FinancePurchaseInvoice>>(PURCHASE_INVOICE_BASE, { params }),
+  exportList: (params?: PageQuery) => {
+    const q = toExportQueryString(params as Record<string, unknown>)
+    return apiClient.getBlob(q ? `${PURCHASE_INVOICE_BASE}/export?${q}` : `${PURCHASE_INVOICE_BASE}/export`)
+  },
   getById: (id: string) =>
     apiClient.get<FinancePurchaseInvoice>(`${PURCHASE_INVOICE_BASE}/${id}`),
   create: (data: Partial<FinancePurchaseInvoice>) =>
@@ -526,6 +544,10 @@ const SELL_INVOICE_BASE = '/api/v1/finance/sell-invoices'
 export const financeSellInvoiceApi = {
   getList: (params: PageQuery) =>
     apiClient.get<PageResult<FinanceSellInvoice>>(SELL_INVOICE_BASE, { params }),
+  exportList: (params?: PageQuery) => {
+    const q = toExportQueryString(params as Record<string, unknown>)
+    return apiClient.getBlob(q ? `${SELL_INVOICE_BASE}/export?${q}` : `${SELL_INVOICE_BASE}/export`)
+  },
   getById: (id: string) =>
     apiClient.get<FinanceSellInvoice>(`${SELL_INVOICE_BASE}/${id}`),
   create: (data: Partial<FinanceSellInvoice>) =>
