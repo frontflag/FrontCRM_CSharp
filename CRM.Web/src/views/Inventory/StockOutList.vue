@@ -219,7 +219,7 @@
       </template>
       <template #col-stockOutCode="{ row }">
         <span class="stock-out-code-cell">
-          <span class="mono-cell">{{ row.stockOutCode || t('quoteList.na') }}</span>
+          <span>{{ row.stockOutCode || t('quoteList.na') }}</span>
           <el-tooltip
             v-if="isCustomsStockOut(row) && salesNotifyTooltip(row)"
             :content="salesNotifyTooltip(row)"
@@ -238,7 +238,7 @@
       </template>
       <template #col-packingCount="{ row }">{{ formatPackingCount(row.packingCount) }}</template>
       <template #col-packingCodes="{ row }">
-        <span class="mono-cell">{{ row.packingCodes?.trim() || t('quoteList.na') }}</span>
+        <span>{{ row.packingCodes?.trim() || t('quoteList.na') }}</span>
       </template>
       <template #col-createTime="{ row }">{{ formatDate((row as any).createTime || (row as any).createdAt) }}</template>
       <template #col-createUser="{ row }">{{ row.createUserName || (row as any).createdBy || t('quoteList.na') }}</template>
@@ -1277,10 +1277,6 @@ html[data-theme='dark'] .sol-filter-tabs__item:not(.is-active) {
   }
 }
 
-.mono-cell {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 12px;
-}
 .page-title-group {
   display: flex;
   align-items: center;
