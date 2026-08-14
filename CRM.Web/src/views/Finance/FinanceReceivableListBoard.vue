@@ -332,7 +332,7 @@ defineExpose({ reload: loadData })
             <el-table-column
               v-if="table.showStatus"
               :label="t('financeReceivableList.columns.verificationStatus')"
-              width="100"
+              width="128"
               align="center"
             >
               <template #default="{ row }">

@@ -280,15 +280,16 @@ public static class FinanceExportHttp
     {
         var sb = new StringBuilder();
         sb.AppendLine(string.Join(',',
-            "核销状态", "出库日期", "应收单号", "出库单号", "客户中文", "客户英文",
-            "业务员", "型号", "品牌", "数量",
-            "金额", "金额币别", "已核销", "已核销币别", "待核销", "待核销币别"));
+            "应收单号", "出库日期", "出库单号", "客户中文", "客户英文",
+            "业务员", "物料型号", "品牌", "出库数量",
+            "应收金额", "应收金额币别",
+            "收款核销状态", "收款已核销", "收款已核销币别", "收款待核销", "收款待核销币别",
+            "发票核销状态", "发票已核销", "发票已核销币别", "发票待核销", "发票待核销币别"));
         foreach (var r in items)
         {
             sb.AppendLine(string.Join(',',
-                InventoryExportHttp.CsvCell(VerificationStatusLabel(r.VerificationStatus)),
-                InventoryExportHttp.CsvCell(InventoryExportHttp.FormatDate(r.StockOutDate)),
                 InventoryExportHttp.CsvCell(r.ReceivableCode),
+                InventoryExportHttp.CsvCell(InventoryExportHttp.FormatDate(r.StockOutDate)),
                 InventoryExportHttp.CsvCell(r.StockOutCode),
                 InventoryExportHttp.CsvCell(MaskedName(mask521, r.CustomerName)),
                 InventoryExportHttp.CsvCell(MaskedName(mask521, r.CustomerEnglishName)),
@@ -298,9 +299,15 @@ public static class FinanceExportHttp
                 InventoryExportHttp.CsvCell(InventoryExportHttp.FormatDecimal(r.OutboundQty)),
                 AmountCell(mask521, r.Amount),
                 CurrencyCell(mask521, r.Currency),
+                InventoryExportHttp.CsvCell(VerificationStatusLabel(r.VerificationStatus)),
                 AmountCell(mask521, r.VerifiedDone),
                 CurrencyCell(mask521, r.Currency),
                 AmountCell(mask521, r.VerifiedToBe),
+                CurrencyCell(mask521, r.Currency),
+                InventoryExportHttp.CsvCell(VerificationStatusLabel(r.InvoiceMatchStatus)),
+                AmountCell(mask521, r.InvoiceMatchDone),
+                CurrencyCell(mask521, r.Currency),
+                AmountCell(mask521, r.InvoiceMatchToBe),
                 CurrencyCell(mask521, r.Currency)));
         }
 

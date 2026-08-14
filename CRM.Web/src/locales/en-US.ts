@@ -9056,11 +9056,12 @@ const enUS = {
   },
   financeReceivableList: {
     pageTitle: 'Receivables',
-    goWriteOff: 'Write-off',
+    columnSettings: 'Column settings',
     filters: {
       keyword: 'Search code / stock-out / customer / PN',
-      verificationStatus: 'Verification status',
-      onlyOpen: 'Open only',
+      invoiceWriteOffStatus: 'Invoice write-off',
+      receiptWriteOffStatus: 'Receipt write-off',
+      writeOffOpen: 'Outstanding',
       search: 'Search',
       stockOutDateFrom: 'Stock-out from',
       stockOutDateTo: 'Stock-out to',
@@ -9079,13 +9080,16 @@ const enUS = {
       stockOutCode: 'Stock-out',
       customer: 'Customer',
       salesUser: 'Sales rep',
-      pn: 'PN',
+      pn: 'Material PN',
       brand: 'Brand',
       qty: 'Qty',
       amount: 'Amount',
-      verifiedDone: 'Verified',
-      verifiedToBe: 'Open',
-      verificationStatus: 'Status',
+      invoiceMatchStatus: 'Invoice write-off',
+      invoiceMatchDone: 'Invoice written off',
+      invoiceMatchToBe: 'Invoice outstanding',
+      verifiedDone: 'Receipt written off',
+      verifiedToBe: 'Receipt outstanding',
+      verificationStatus: 'Receipt write-off',
       stockOutDate: 'Stock-out date',
       actions: 'Actions'
     },
@@ -9099,7 +9103,7 @@ const enUS = {
       exportFailed: 'Export failed'
     },
     board: {
-      hint: 'Stats use the same filters as the list (including Open only). USD uses the linked sales-order line convert price stored at order time (historical FX).',
+      hint: 'Stats use the same filters as the list (invoice / receipt write-off status). USD uses the linked sales-order line convert price stored at order time (historical FX).',
       refresh: 'Refresh',
       loadFailed: 'Failed to load receivables board',
       amountMode: {
@@ -9130,12 +9134,12 @@ const enUS = {
       stockOutReceivableDefinition: {
         chart: 'Stock-out receivables',
         dataSource: 'Receivables',
-        text: 'With other filters unchanged, by the “Open only” checkbox:\n· Checked: only rows not fully written off; sum their total Amount (including already verified portions), convert to USD via the linked sales-order line convert price stored at order time, break down by original currency.\n· Unchecked: all receivable rows in the filter (including fully written off); sum total Amount with the same historical USD conversion, break down by original currency.\nThe gap vs Open receivables is the verified amount on the current row set.'
+        text: 'Sums total Amount of receivable rows in the current filters (including fully receipt-written-off rows), converted to USD via the linked sales-order line convert price stored at order time, broken down by original currency. If Receipt write-off is “Outstanding”, only rows not yet 100% receipt-written-off are included (total still includes already verified portions). The gap vs Open receivables is the receipt-verified amount on the current row set.'
       },
       pendingReceivableDefinition: {
         chart: 'Open receivables',
         dataSource: 'Receivables',
-        text: 'On the same receivable rows as Stock-out receivables, sum remaining open balance (total minus verified); USD uses the linked sales-order line convert price stored at order time, break down by original currency. It is the open balance total of stock-out receivables not yet 100% written off. Toggling “Open only” does not change this card (fully written-off rows have zero open balance and add nothing).'
+        text: 'On the same receivable rows as Stock-out receivables, sum remaining receipt-open balance (total minus receipt-verified); USD uses the linked sales-order line convert price stored at order time, break down by original currency. Fully receipt-written-off rows have zero open balance and add nothing.'
       },
       trendUnit: {
         customers: '',
@@ -9143,7 +9147,7 @@ const enUS = {
         moneyCaption: 'Unit: converted USD'
       },
       breakdown: {
-        verificationStatus: 'Status',
+        verificationStatus: 'Receipt write-off',
         currency: 'Currency',
         aging: 'Aging',
         salesUser: 'Sales rep'

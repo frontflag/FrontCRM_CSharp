@@ -9040,11 +9040,12 @@ const zhCN = {
   },
   financeReceivableList: {
     pageTitle: '应收款',
-    goWriteOff: '收款核销',
+    columnSettings: '列设置',
     filters: {
       keyword: '搜索应收单号/出库单号/客户/型号',
-      verificationStatus: '核销状态',
-      onlyOpen: '仅待核销',
+      invoiceWriteOffStatus: '发票核销状态',
+      receiptWriteOffStatus: '收款核销状态',
+      writeOffOpen: '待核销',
       search: '查询',
       stockOutDateFrom: '出库日起',
       stockOutDateTo: '出库日止',
@@ -9056,20 +9057,23 @@ const zhCN = {
     verification: {
       pending: '未核销',
       partial: '部分核销',
-      complete: '已核销'
+      complete: '核销完成'
     },
     columns: {
       code: '应收单号',
       stockOutCode: '出库单号',
       customer: '客户',
       salesUser: '业务员',
-      pn: '型号',
+      pn: '物料型号',
       brand: '品牌',
       qty: '出库数量',
       amount: '应收金额',
-      verifiedDone: '已核销',
-      verifiedToBe: '待核销',
-      verificationStatus: '核销状态',
+      invoiceMatchStatus: '发票核销状态',
+      invoiceMatchDone: '发票已核销',
+      invoiceMatchToBe: '发票待核销',
+      verifiedDone: '收款已核销',
+      verifiedToBe: '收款待核销',
+      verificationStatus: '收款核销状态',
       stockOutDate: '出库日期',
       actions: '操作'
     },
@@ -9083,7 +9087,7 @@ const zhCN = {
       exportFailed: '导出失败'
     },
     board: {
-      hint: '统计范围与当前搜索条件一致（含「仅待核销」）。金额按关联销售订单行当时落库的折算单价折算美金（历史成交折算）。',
+      hint: '统计范围与当前搜索条件一致（含发票/收款核销状态）。金额按关联销售订单行当时落库的折算单价折算美金（历史成交折算）。',
       refresh: '刷新',
       loadFailed: '加载应收款看板失败',
       amountMode: {
@@ -9114,12 +9118,12 @@ const zhCN = {
       stockOutReceivableDefinition: {
         chart: '出库应收款',
         dataSource: '应收款',
-        text: '在其它搜索条件不变时，按「仅待核销」勾选状态分别理解：\n· 勾选「仅待核销」：只统计尚未 100% 核销的应收行，对这些行汇总应收总额（含行上已核销部分），按关联销售订单行当时落库的折算单价折算美金并按原币分档。\n· 取消「仅待核销」：统计筛选结果中全部应收行（含已核销完成），汇总应收总额，同样按订单行历史折算单价折算美金并按原币分档。\n与「待核销应收款」的差额，为当前行集上已核销金额。'
+        text: '按当前搜索条件统计筛选结果中全部应收行的应收总额（含已收款核销完成），按关联销售订单行当时落库的折算单价折算美金并按原币分档。若收款核销状态选「待核销」，则只含尚未 100% 收款核销的行（总额含行上已核销部分）。与「待核销应收款」的差额，为当前行集上已收款核销金额。'
       },
       pendingReceivableDefinition: {
         chart: '待核销应收款',
         dataSource: '应收款',
-        text: '与「出库应收款」同一批应收行上统计待核销余额（总额扣除已核销），按关联销售订单行当时落库的折算单价折算美金并按原币分档。是对尚未 100% 核销的出库应收金额的待核销余额合计。无论是否勾选「仅待核销」，本卡数值不变化（已核销完成行余额为 0，不增加合计）。'
+        text: '与「出库应收款」同一批应收行上统计收款待核销余额（总额扣除已收款核销），按关联销售订单行当时落库的折算单价折算美金并按原币分档。已收款核销完成行余额为 0，不增加合计。'
       },
       trendUnit: {
         customers: '家',
@@ -9127,7 +9131,7 @@ const zhCN = {
         moneyCaption: '单位：折算美元（USD）'
       },
       breakdown: {
-        verificationStatus: '核销状态',
+        verificationStatus: '收款核销状态',
         currency: '币别',
         aging: '账期',
         salesUser: '业务员'

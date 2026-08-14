@@ -282,6 +282,8 @@ public static class SaleSensitiveFieldMask521
         row.Amount = 0m;
         row.VerifiedDone = 0m;
         row.VerifiedToBe = 0m;
+        row.InvoiceMatchDone = 0m;
+        row.InvoiceMatchToBe = 0m;
     }
 
     public static void ApplyFinanceReceivableListItems(IEnumerable<FinanceReceivableListItem>? items, bool mask)

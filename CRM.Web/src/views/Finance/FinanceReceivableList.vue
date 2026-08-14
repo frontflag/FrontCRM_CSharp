@@ -9,21 +9,34 @@
           :placeholder="t('financeReceivableList.filters.keyword')"
           clearable
           class="search-input"
-          @keyup.enter="loadData"
-          @clear="loadData"
+          @keyup.enter="applyFiltersAndReload"
+          @clear="applyFiltersAndReload"
         >
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
         <el-select
-          v-model="query.verificationStatus"
-          :placeholder="t('financeReceivableList.filters.verificationStatus')"
+          v-model="invoiceWriteOffFilter"
+          :placeholder="t('financeReceivableList.filters.invoiceWriteOffStatus')"
           clearable
-          class="filter-select"
-          @change="loadData"
+          class="filter-select filter-select--write-off"
+          @change="applyFiltersAndReload"
         >
           <el-option :label="t('financeReceivableList.verification.pending')" :value="0" />
           <el-option :label="t('financeReceivableList.verification.partial')" :value="1" />
           <el-option :label="t('financeReceivableList.verification.complete')" :value="2" />
+          <el-option :label="t('financeReceivableList.filters.writeOffOpen')" :value="WRITE_OFF_OPEN" />
+        </el-select>
+        <el-select
+          v-model="receiptWriteOffFilter"
+          :placeholder="t('financeReceivableList.filters.receiptWriteOffStatus')"
+          clearable
+          class="filter-select filter-select--write-off"
+          @change="applyFiltersAndReload"
+        >
+          <el-option :label="t('financeReceivableList.verification.pending')" :value="0" />
+          <el-option :label="t('financeReceivableList.verification.partial')" :value="1" />
+          <el-option :label="t('financeReceivableList.verification.complete')" :value="2" />
+          <el-option :label="t('financeReceivableList.filters.writeOffOpen')" :value="WRITE_OFF_OPEN" />
         </el-select>
         <el-date-picker
           v-model="stockOutDateRange"
@@ -36,10 +49,7 @@
           class="filter-date-range"
           @change="onStockOutDateChange"
         />
-        <el-checkbox v-model="query.onlyOpen" @change="loadData">
-          {{ t('financeReceivableList.filters.onlyOpen') }}
-        </el-checkbox>
-        <el-button type="primary" @click="loadData">
+        <el-button type="primary" @click="applyFiltersAndReload">
           <el-icon><Search /></el-icon> {{ t('financeReceivableList.filters.search') }}
         </el-button>
         <el-button
@@ -57,9 +67,6 @@
         <button type="button" class="btn-export" :disabled="exporting" @click="() => void handleExport()">
           {{ t('financeReceivableList.filters.export') }}
         </button>
-        <el-button v-if="canWriteFinanceReceipt" type="primary" @click="goWriteOff">
-          {{ t('financeReceivableList.goWriteOff') }}
-        </el-button>
       </div>
     </div>
 
@@ -67,13 +74,15 @@
 
     <CrmDataTable
       v-show="viewMode === 'list'"
-      column-layout-key="finance-receivable-list-main-v4"
+      ref="dataTableRef"
+      column-layout-key="finance-receivable-list-main-v8"
       :columns="tableColumns"
       :show-column-settings="false"
+      :density-toggle-anchor-el="rowDensityToggleAnchorEl"
       :data="tableData"
       v-loading="loading"
       row-class-name="table-row-pointer"
-      @row-dblclick="openDetail"
+      @row-dblclick="onRowDblClick"
       @header-dragend="onReceivableTableHeaderDragEnd"
     >
       <template #col-verificationStatus="{ row }">
@@ -81,7 +90,12 @@
           {{ verificationLabel(row.verificationStatus) }}
         </el-tag>
       </template>
-      <template #col-stockOutDate="{ row }">{{ formatDate(row.stockOutDate) }}</template>
+      <template #col-invoiceMatchStatus="{ row }">
+        <el-tag :type="verificationTagType(row.invoiceMatchStatus ?? 0)" size="small">
+          {{ verificationLabel(row.invoiceMatchStatus ?? 0) }}
+        </el-tag>
+      </template>
+      <template #col-stockOutDate="{ row }">{{ row.stockOutDate ? formatDisplayDate(row.stockOutDate) : '—' }}</template>
       <template #col-receivableCode="{ row }">
         <span class="code-text">{{ row.receivableCode || '—' }}</span>
       </template>
@@ -107,20 +121,81 @@
       <template #col-salesUserName="{ row }">
         {{ maskSaleSensitiveFields ? '—' : (row.salesUserName || '—') }}
       </template>
-      <template #col-amount="{ row }">
-        <span class="amount-text amount-text--receivable">{{
-          maskSaleSensitiveFields ? '—' : formatAmountWithCurrency(row.amount, row.currency)
+      <template #col-outboundQty="{ row }">
+        <span v-if="row.outboundQty == null" class="dock-tier-empty">—</span>
+        <span v-else class="dock-quote-tier-line">{{
+          Number(row.outboundQty).toLocaleString('zh-CN', { maximumFractionDigits: 6 })
         }}</span>
+      </template>
+      <template #col-amount="{ row }">
+        <template v-if="maskSaleSensitiveFields || !listTotalAmountHasValue(row.amount)">
+          <span class="dock-tier-empty">—</span>
+        </template>
+        <div v-else class="dock-tier-price-line">
+          <template v-for="amt in [splitListMoneyParts(Number(row.amount))]" :key="'recv-amt-' + row.id">
+            <span class="dock-tier-amt">
+              <span class="dock-tier-amt-int">{{ amt.intPart }}</span><span class="dock-tier-amt-frac">{{ amt.fracPart }}</span>
+            </span>
+          </template>
+          <span class="dock-tier-ccy-gap">&nbsp;</span>
+          <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]">{{ listAmountCurrencyIso(row.currency) }}</span>
+        </div>
+      </template>
+      <template #col-invoiceMatchDone="{ row }">
+        <template v-if="maskSaleSensitiveFields || !listTotalAmountHasValue(row.invoiceMatchDone)">
+          <span class="dock-tier-empty">—</span>
+        </template>
+        <div v-else class="dock-tier-price-line">
+          <template v-for="amt in [splitListMoneyParts(Number(row.invoiceMatchDone))]" :key="'inv-done-' + row.id">
+            <span class="dock-tier-amt">
+              <span class="dock-tier-amt-int">{{ amt.intPart }}</span><span class="dock-tier-amt-frac">{{ amt.fracPart }}</span>
+            </span>
+          </template>
+          <span class="dock-tier-ccy-gap">&nbsp;</span>
+          <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]">{{ listAmountCurrencyIso(row.currency) }}</span>
+        </div>
+      </template>
+      <template #col-invoiceMatchToBe="{ row }">
+        <template v-if="maskSaleSensitiveFields || !listTotalAmountHasValue(row.invoiceMatchToBe)">
+          <span class="dock-tier-empty">—</span>
+        </template>
+        <div v-else class="dock-tier-price-line">
+          <template v-for="amt in [splitListMoneyParts(Number(row.invoiceMatchToBe))]" :key="'inv-tobe-' + row.id">
+            <span class="dock-tier-amt">
+              <span class="dock-tier-amt-int">{{ amt.intPart }}</span><span class="dock-tier-amt-frac">{{ amt.fracPart }}</span>
+            </span>
+          </template>
+          <span class="dock-tier-ccy-gap">&nbsp;</span>
+          <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]">{{ listAmountCurrencyIso(row.currency) }}</span>
+        </div>
       </template>
       <template #col-verifiedDone="{ row }">
-        <span class="amount-text amount-text--received">{{
-          maskSaleSensitiveFields ? '—' : formatAmountWithCurrency(row.verifiedDone, row.currency)
-        }}</span>
+        <template v-if="maskSaleSensitiveFields || !listTotalAmountHasValue(row.verifiedDone)">
+          <span class="dock-tier-empty">—</span>
+        </template>
+        <div v-else class="dock-tier-price-line">
+          <template v-for="amt in [splitListMoneyParts(Number(row.verifiedDone))]" :key="'recv-done-' + row.id">
+            <span class="dock-tier-amt">
+              <span class="dock-tier-amt-int">{{ amt.intPart }}</span><span class="dock-tier-amt-frac">{{ amt.fracPart }}</span>
+            </span>
+          </template>
+          <span class="dock-tier-ccy-gap">&nbsp;</span>
+          <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]">{{ listAmountCurrencyIso(row.currency) }}</span>
+        </div>
       </template>
       <template #col-verifiedToBe="{ row }">
-        <span class="amount-text amount-text--pending">{{
-          maskSaleSensitiveFields ? '—' : formatAmountWithCurrency(row.verifiedToBe, row.currency)
-        }}</span>
+        <template v-if="maskSaleSensitiveFields || !listTotalAmountHasValue(row.verifiedToBe)">
+          <span class="dock-tier-empty">—</span>
+        </template>
+        <div v-else class="dock-tier-price-line">
+          <template v-for="amt in [splitListMoneyParts(Number(row.verifiedToBe))]" :key="'recv-tobe-' + row.id">
+            <span class="dock-tier-amt">
+              <span class="dock-tier-amt-int">{{ amt.intPart }}</span><span class="dock-tier-amt-frac">{{ amt.fracPart }}</span>
+            </span>
+          </template>
+          <span class="dock-tier-ccy-gap">&nbsp;</span>
+          <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]">{{ listAmountCurrencyIso(row.currency) }}</span>
+        </div>
       </template>
       <template #col-actions-header>
         <div class="list-op-col-header--icon-only">
@@ -157,13 +232,23 @@
       </template>
     </CrmDataTable>
 
-    <div v-show="viewMode === 'list'" class="pagination-wrap">
+    <div v-show="viewMode === 'list'" class="pagination-wrapper">
+      <div class="list-footer-left">
+        <el-tooltip :content="t('financeReceivableList.columnSettings')" placement="top" :hide-after="0">
+          <el-button class="list-settings-btn" link type="primary" :aria-label="t('financeReceivableList.columnSettings')" @click="dataTableRef?.openColumnSettings?.()">
+            <el-icon><Setting /></el-icon>
+          </el-button>
+        </el-tooltip>
+        <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
+        <div class="list-footer-spacer" aria-hidden="true"></div>
+      </div>
       <el-pagination
+        class="list-main-pagination"
         v-model:current-page="query.page"
         v-model:page-size="query.pageSize"
         :total="total"
-        :page-sizes="[20, 50, 100]"
-        layout="total, sizes, prev, pager, next"
+        :page-sizes="[10, 20, 50, 100]"
+        layout="total, sizes, prev, pager, next, jumper"
         @current-change="loadData"
         @size-change="loadData"
       />
@@ -175,12 +260,10 @@
 import { reactive, ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Search } from '@element-plus/icons-vue'
+import { Search, Setting } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { financeReceivableApi, type FinanceReceivable } from '@/api/financeReceivable'
 import type { FinanceReceivableListAnalyticsQuery } from '@/api/financeReceivableAnalytics'
-import { CURRENCY_MAP } from '@/api/finance'
-import { useFinanceWriteGate } from '@/composables/useDepartmentDataReadOnly'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import CustomerExtendColumnHeader from '@/components/list/CustomerExtendColumnHeader.vue'
 import CustomerExtendCell from '@/components/list/CustomerExtendCell.vue'
@@ -188,12 +271,19 @@ import { useCustomerExtendColumn, isCustomerExtendTableColumn } from '@/composab
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useListBoardHelpOverride } from '@/composables/useHelpDocOverride'
 import { downloadCsvBlob } from '@/utils/exportFileName'
+import { formatDisplayDate } from '@/utils/displayDateTime'
+import { estimateListColumnHeaderMinWidth } from '@/utils/listColumnHeaderWidth'
+import {
+  listAmountCurrencyDockClass,
+  listAmountCurrencyIso,
+  listTotalAmountHasValue,
+  splitListMoneyParts,
+} from '@/utils/moneyFormat'
 import FinanceReceivableListBoard from './FinanceReceivableListBoard.vue'
 
 const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
-const { canWriteFinanceReceipt } = useFinanceWriteGate()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const {
   expanded: customerExtendExpanded,
@@ -215,13 +305,19 @@ function onReceivableTableHeaderDragEnd(
 
 const opColExpanded = ref(false)
 const OP_COL_COLLAPSED_WIDTH = 43
-const OP_COL_EXPANDED_WIDTH = 88
-const OP_COL_EXPANDED_MIN_WIDTH = 80
+const OP_COL_EXPANDED_WIDTH = 173
+const OP_COL_EXPANDED_MIN_WIDTH = 160
 const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
 const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_WIDTH : OP_COL_COLLAPSED_WIDTH))
 function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
+
+const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
+const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
+
+const WRITE_OFF_OPEN = 'open' as const
+type WriteOffFilter = number | typeof WRITE_OFF_OPEN | undefined
 
 const loading = ref(false)
 const exporting = ref(false)
@@ -230,24 +326,33 @@ const total = ref(0)
 const viewMode = ref<'list' | 'board'>('list')
 useListBoardHelpOverride('pages/应收款看板_MENU_FINANCE_RECEIVABLE_BOARD.md', viewMode)
 const stockOutDateRange = ref<[string, string] | null>(null)
+const receiptWriteOffFilter = ref<WriteOffFilter>(undefined)
+const invoiceWriteOffFilter = ref<WriteOffFilter>(undefined)
 
 const query = reactive({
   keyword: '',
-  verificationStatus: undefined as number | undefined,
-  onlyOpen: true,
   stockOutDateFrom: undefined as string | undefined,
   stockOutDateTo: undefined as string | undefined,
   page: 1,
   pageSize: 20
 })
 
-const boardFilters = computed<FinanceReceivableListAnalyticsQuery>(() => ({
-  keyword: query.keyword?.trim() || undefined,
-  verificationStatus: query.verificationStatus,
-  onlyOpen: query.onlyOpen,
-  stockOutDateFrom: query.stockOutDateFrom,
-  stockOutDateTo: query.stockOutDateTo
-}))
+function appendWriteOffQueryParams(target: Record<string, unknown>) {
+  if (receiptWriteOffFilter.value === WRITE_OFF_OPEN) target.onlyOpen = true
+  else if (typeof receiptWriteOffFilter.value === 'number') target.verificationStatus = receiptWriteOffFilter.value
+  if (invoiceWriteOffFilter.value === WRITE_OFF_OPEN) target.invoiceMatchOnlyOpen = true
+  else if (typeof invoiceWriteOffFilter.value === 'number') target.invoiceMatchStatus = invoiceWriteOffFilter.value
+}
+
+const boardFilters = computed<FinanceReceivableListAnalyticsQuery>(() => {
+  const filters: FinanceReceivableListAnalyticsQuery = {
+    keyword: query.keyword?.trim() || undefined,
+    stockOutDateFrom: query.stockOutDateFrom,
+    stockOutDateTo: query.stockOutDateTo
+  }
+  appendWriteOffQueryParams(filters as Record<string, unknown>)
+  return filters
+})
 
 function toggleViewMode() {
   viewMode.value = viewMode.value === 'list' ? 'board' : 'list'
@@ -264,18 +369,28 @@ function onStockOutDateChange(val: [string, string] | null) {
 const tableColumns = computed<CrmTableColumnDef[]>(() => {
   void customerExtendExpanded.value
   void customerExtendColWidth.value
+  const w = (label: string, extra?: { align?: 'left' | 'center' | 'right'; extra?: number }) =>
+    estimateListColumnHeaderMinWidth(label, extra)
   return [
     {
-      key: 'verificationStatus',
-      prop: 'verificationStatus',
-      label: t('financeReceivableList.columns.verificationStatus'),
-      width: 108,
-      minWidth: 108,
-      align: 'center'
+      key: 'receivableCode',
+      prop: 'receivableCode',
+      label: t('financeReceivableList.columns.code'),
+      minWidth: w(t('financeReceivableList.columns.code'))
     },
-    { key: 'stockOutDate', prop: 'stockOutDate', label: t('financeReceivableList.columns.stockOutDate'), width: 120 },
-    { key: 'receivableCode', prop: 'receivableCode', label: t('financeReceivableList.columns.code'), minWidth: 120 },
-    { key: 'stockOutCode', prop: 'stockOutCode', label: t('financeReceivableList.columns.stockOutCode'), minWidth: 130 },
+    {
+      key: 'stockOutDate',
+      prop: 'stockOutDate',
+      label: t('financeReceivableList.columns.stockOutDate'),
+      width: w(t('financeReceivableList.columns.stockOutDate')),
+      minWidth: w(t('financeReceivableList.columns.stockOutDate'))
+    },
+    {
+      key: 'stockOutCode',
+      prop: 'stockOutCode',
+      label: t('financeReceivableList.columns.stockOutCode'),
+      minWidth: w(t('financeReceivableList.columns.stockOutCode'))
+    },
     {
       key: 'customer',
       label: t('common.customerExtendCol.columnTitle'),
@@ -290,16 +405,87 @@ const tableColumns = computed<CrmTableColumnDef[]>(() => {
       key: 'salesUserName',
       prop: 'salesUserName',
       label: t('financeReceivableList.columns.salesUser'),
-      width: 96,
-      minWidth: 96,
+      minWidth: Math.max(140, w(t('financeReceivableList.columns.salesUser'))),
       showOverflowTooltip: true
     },
-    { key: 'pn', prop: 'pn', label: t('financeReceivableList.columns.pn'), minWidth: 120 },
-    { key: 'brand', prop: 'brand', label: t('financeReceivableList.columns.brand'), minWidth: 100 },
-    { key: 'outboundQty', prop: 'outboundQty', label: t('financeReceivableList.columns.qty'), width: 112, minWidth: 112, align: 'right' },
-    { key: 'amount', prop: 'amount', label: t('financeReceivableList.columns.amount'), width: 190, minWidth: 180, align: 'right', className: 'receivable-amount-col', labelClassName: 'receivable-amount-col' },
-    { key: 'verifiedDone', prop: 'verifiedDone', label: t('financeReceivableList.columns.verifiedDone'), width: 190, minWidth: 180, align: 'right', className: 'receivable-amount-col', labelClassName: 'receivable-amount-col' },
-    { key: 'verifiedToBe', prop: 'verifiedToBe', label: t('financeReceivableList.columns.verifiedToBe'), width: 190, minWidth: 180, align: 'right', className: 'receivable-amount-col', labelClassName: 'receivable-amount-col' },
+    {
+      key: 'pn',
+      prop: 'pn',
+      label: t('financeReceivableList.columns.pn'),
+      minWidth: Math.max(200, w(t('financeReceivableList.columns.pn'))),
+      showOverflowTooltip: true
+    },
+    {
+      key: 'brand',
+      prop: 'brand',
+      label: t('financeReceivableList.columns.brand'),
+      minWidth: Math.max(140, w(t('financeReceivableList.columns.brand'))),
+      showOverflowTooltip: true
+    },
+    {
+      key: 'outboundQty',
+      prop: 'outboundQty',
+      label: t('financeReceivableList.columns.qty'),
+      width: w(t('financeReceivableList.columns.qty'), { align: 'right' }),
+      minWidth: w(t('financeReceivableList.columns.qty'), { align: 'right' }),
+      align: 'right'
+    },
+    {
+      key: 'amount',
+      prop: 'amount',
+      label: t('financeReceivableList.columns.amount'),
+      width: Math.max(180, w(t('financeReceivableList.columns.amount'), { align: 'right' })),
+      minWidth: Math.max(180, w(t('financeReceivableList.columns.amount'), { align: 'right' })),
+      align: 'right'
+    },
+    {
+      key: 'verificationStatus',
+      prop: 'verificationStatus',
+      label: t('financeReceivableList.columns.verificationStatus'),
+      width: w(t('financeReceivableList.columns.verificationStatus'), { align: 'center' }),
+      minWidth: w(t('financeReceivableList.columns.verificationStatus'), { align: 'center' }),
+      align: 'center'
+    },
+    {
+      key: 'verifiedDone',
+      prop: 'verifiedDone',
+      label: t('financeReceivableList.columns.verifiedDone'),
+      width: Math.max(180, w(t('financeReceivableList.columns.verifiedDone'), { align: 'right' })),
+      minWidth: Math.max(180, w(t('financeReceivableList.columns.verifiedDone'), { align: 'right' })),
+      align: 'right'
+    },
+    {
+      key: 'verifiedToBe',
+      prop: 'verifiedToBe',
+      label: t('financeReceivableList.columns.verifiedToBe'),
+      width: Math.max(180, w(t('financeReceivableList.columns.verifiedToBe'), { align: 'right' })),
+      minWidth: Math.max(180, w(t('financeReceivableList.columns.verifiedToBe'), { align: 'right' })),
+      align: 'right'
+    },
+    {
+      key: 'invoiceMatchStatus',
+      prop: 'invoiceMatchStatus',
+      label: t('financeReceivableList.columns.invoiceMatchStatus'),
+      width: w(t('financeReceivableList.columns.invoiceMatchStatus'), { align: 'center' }),
+      minWidth: w(t('financeReceivableList.columns.invoiceMatchStatus'), { align: 'center' }),
+      align: 'center'
+    },
+    {
+      key: 'invoiceMatchDone',
+      prop: 'invoiceMatchDone',
+      label: t('financeReceivableList.columns.invoiceMatchDone'),
+      width: Math.max(180, w(t('financeReceivableList.columns.invoiceMatchDone'), { align: 'right' })),
+      minWidth: Math.max(180, w(t('financeReceivableList.columns.invoiceMatchDone'), { align: 'right' })),
+      align: 'right'
+    },
+    {
+      key: 'invoiceMatchToBe',
+      prop: 'invoiceMatchToBe',
+      label: t('financeReceivableList.columns.invoiceMatchToBe'),
+      width: Math.max(180, w(t('financeReceivableList.columns.invoiceMatchToBe'), { align: 'right' })),
+      minWidth: Math.max(180, w(t('financeReceivableList.columns.invoiceMatchToBe'), { align: 'right' })),
+      align: 'right'
+    },
     {
       key: 'actions',
       label: t('financeReceivableList.columns.actions'),
@@ -316,27 +502,6 @@ const tableColumns = computed<CrmTableColumnDef[]>(() => {
   ]
 })
 
-function formatAmount(v?: number) {
-  if (v == null) return '—'
-  return Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
-
-function currencyLabel(currency?: number) {
-  if (currency == null) return ''
-  return CURRENCY_MAP[currency] ?? String(currency)
-}
-
-function formatAmountWithCurrency(amount?: number, currency?: number) {
-  if (amount == null) return '—'
-  if (currency == null) return formatAmount(amount)
-  return `${formatAmount(amount)} ${currencyLabel(currency)}`
-}
-
-function formatDate(v?: string) {
-  if (!v) return '—'
-  return v.slice(0, 10)
-}
-
 function verificationLabel(status: number) {
   if (status === 2) return t('financeReceivableList.verification.complete')
   if (status === 1) return t('financeReceivableList.verification.partial')
@@ -349,19 +514,24 @@ function verificationTagType(status: number): 'success' | 'warning' | 'info' {
   return 'info'
 }
 
+function applyFiltersAndReload() {
+  query.page = 1
+  void loadData()
+}
+
 async function loadData() {
   loading.value = true
   try {
     if (viewMode.value === 'board') return
-    const res = await financeReceivableApi.getPaged({
+    const params: Record<string, unknown> = {
       keyword: query.keyword || undefined,
-      verificationStatus: query.verificationStatus,
-      onlyOpen: query.onlyOpen,
       stockOutDateFrom: query.stockOutDateFrom,
       stockOutDateTo: query.stockOutDateTo,
       page: query.page,
       pageSize: query.pageSize
-    })
+    }
+    appendWriteOffQueryParams(params)
+    const res = await financeReceivableApi.getPaged(params)
     tableData.value = res.items ?? []
     total.value = res.total ?? 0
   } finally {
@@ -381,13 +551,13 @@ async function handleExport() {
   }
   exporting.value = true
   try {
-    const blob = await financeReceivableApi.exportList({
+    const params: Record<string, unknown> = {
       keyword: query.keyword || undefined,
-      verificationStatus: query.verificationStatus,
-      onlyOpen: query.onlyOpen,
       stockOutDateFrom: query.stockOutDateFrom,
       stockOutDateTo: query.stockOutDateTo
-    })
+    }
+    appendWriteOffQueryParams(params)
+    const blob = await financeReceivableApi.exportList(params)
     downloadCsvBlob(blob, '应收款.csv')
     ElMessage.success(t('financeReceivableList.messages.exportSuccess'))
   } catch (e) {
@@ -400,10 +570,8 @@ async function handleExport() {
 function syncQueryFromRoute() {
   if (route.name !== 'FinanceReceivableList') return
   const q = route.query
-  if (q.onlyOpen === '0' || q.onlyOpen === 'false') {
-    query.onlyOpen = false
-  } else if (q.onlyOpen === '1' || q.onlyOpen === 'true') {
-    query.onlyOpen = true
+  if (q.onlyOpen === '1' || q.onlyOpen === 'true') {
+    receiptWriteOffFilter.value = WRITE_OFF_OPEN
   }
 }
 
@@ -416,27 +584,61 @@ watch(
   { deep: true, immediate: true }
 )
 
-function goWriteOff() {
-  router.push({ name: 'FinanceReceiptWriteOff' })
-}
-
 function openDetail(row: FinanceReceivable) {
   router.push({ name: 'FinanceReceivableDetail', params: { id: row.id } })
+}
+
+/** 无独立编辑页：Ctrl+双击与双击均进详情（《列表交互规范》§3.2）。 */
+function onRowDblClick(row: FinanceReceivable) {
+  openDetail(row)
 }
 </script>
 
 <style scoped lang="scss">
 @import './finance-common.scss';
-@import '@/assets/styles/variables.scss';
-
-.pagination-wrap {
-  margin-top: 16px;
-  display: flex;
-  justify-content: flex-end;
-}
 
 .filter-date-range {
   width: 260px;
+}
+
+.filter-select--write-off {
+  width: 190px;
+}
+
+.pagination-wrapper {
+  margin-top: 12px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+}
+
+.list-main-pagination {
+  margin-left: auto;
+}
+
+.list-footer-left {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.list-settings-btn {
+  padding: 4px 6px !important;
+  min-width: 28px;
+}
+
+.list-footer-density-anchor {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
+}
+
+.list-footer-spacer {
+  width: 26px;
+  flex: 0 0 26px;
 }
 
 .btn-board-active {
@@ -456,22 +658,10 @@ function openDetail(row: FinanceReceivable) {
   &:hover { text-decoration: underline; }
 }
 
-.amount-text {
-  white-space: nowrap;
-
-  &--receivable {
-    color: $cyan-primary;
-    font-weight: 700;
-  }
-
-  &--received {
-    color: $success-color;
-    font-weight: 700;
-  }
-
-  &--pending {
-    color: #e8a838;
-    font-weight: 700;
+:deep(.crm-items-table--density-compact) {
+  .dock-tier-price-line,
+  .dock-quote-tier-line {
+    white-space: nowrap;
   }
 }
 </style>

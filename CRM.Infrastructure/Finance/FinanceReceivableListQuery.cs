@@ -173,6 +173,12 @@ public sealed partial class FinanceReceivableListQuery : IFinanceReceivableListQ
         if (request.OnlyOpen == true)
             q = q.Where(r => r.VerifiedToBe > 0m);
 
+        if (request.InvoiceMatchStatus.HasValue)
+            q = q.Where(r => r.InvoiceMatchStatus == request.InvoiceMatchStatus.Value);
+
+        if (request.InvoiceMatchOnlyOpen == true)
+            q = q.Where(r => r.InvoiceMatchToBe > 0m);
+
         if (request.StockOutDateFrom.HasValue)
             q = q.Where(r => r.StockOutDate >= request.StockOutDateFrom.Value);
 

@@ -6,6 +6,8 @@ export interface FinanceReceivableListAnalyticsQuery {
   customerId?: string
   verificationStatus?: number
   onlyOpen?: boolean
+  invoiceMatchStatus?: number
+  invoiceMatchOnlyOpen?: boolean
   stockOutDateFrom?: string
   stockOutDateTo?: string
   groupBy?: 'day' | 'week' | 'month'
@@ -79,7 +81,11 @@ function buildParams(q: FinanceReceivableListAnalyticsQuery): Record<string, unk
   if (q.verificationStatus !== undefined && q.verificationStatus !== null) {
     p.verificationStatus = q.verificationStatus
   }
-  if (q.onlyOpen !== undefined && q.onlyOpen !== null) p.onlyOpen = q.onlyOpen
+  if (q.onlyOpen === true) p.onlyOpen = true
+  if (q.invoiceMatchStatus !== undefined && q.invoiceMatchStatus !== null) {
+    p.invoiceMatchStatus = q.invoiceMatchStatus
+  }
+  if (q.invoiceMatchOnlyOpen === true) p.invoiceMatchOnlyOpen = true
   if (q.stockOutDateFrom) p.stockOutDateFrom = q.stockOutDateFrom
   if (q.stockOutDateTo) p.stockOutDateTo = q.stockOutDateTo
   if (q.groupBy) p.groupBy = q.groupBy

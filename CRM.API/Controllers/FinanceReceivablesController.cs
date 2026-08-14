@@ -43,11 +43,13 @@ public class FinanceReceivablesController : ControllerBase
         [FromQuery] string? customerId,
         [FromQuery] short? verificationStatus,
         [FromQuery] bool? onlyOpen,
+        [FromQuery] short? invoiceMatchStatus,
+        [FromQuery] bool? invoiceMatchOnlyOpen,
         [FromQuery] string? stockOutDateFrom,
         [FromQuery] string? stockOutDateTo,
         CancellationToken cancellationToken = default)
     {
-        var request = BuildAnalyticsQueryRequest(keyword, customerId, verificationStatus, onlyOpen, stockOutDateFrom, stockOutDateTo);
+        var request = BuildListQueryRequest(keyword, customerId, verificationStatus, onlyOpen, invoiceMatchStatus, invoiceMatchOnlyOpen, stockOutDateFrom, stockOutDateTo);
         var data = await _listQuery.GetListAnalyticsDashboardAsync(request, cancellationToken);
         return Ok(ApiResponse<FinanceReceivableListAnalyticsDashboardDto>.Ok(data));
     }
@@ -58,12 +60,14 @@ public class FinanceReceivablesController : ControllerBase
         [FromQuery] string? customerId,
         [FromQuery] short? verificationStatus,
         [FromQuery] bool? onlyOpen,
+        [FromQuery] short? invoiceMatchStatus,
+        [FromQuery] bool? invoiceMatchOnlyOpen,
         [FromQuery] string? stockOutDateFrom,
         [FromQuery] string? stockOutDateTo,
         [FromQuery] string? groupBy = null,
         CancellationToken cancellationToken = default)
     {
-        var request = BuildAnalyticsQueryRequest(keyword, customerId, verificationStatus, onlyOpen, stockOutDateFrom, stockOutDateTo);
+        var request = BuildListQueryRequest(keyword, customerId, verificationStatus, onlyOpen, invoiceMatchStatus, invoiceMatchOnlyOpen, stockOutDateFrom, stockOutDateTo);
         var data = await _listQuery.GetListAnalyticsTrendsAsync(
             request,
             string.IsNullOrWhiteSpace(groupBy) ? "month" : groupBy.Trim(),
@@ -77,11 +81,13 @@ public class FinanceReceivablesController : ControllerBase
         [FromQuery] string? customerId,
         [FromQuery] short? verificationStatus,
         [FromQuery] bool? onlyOpen,
+        [FromQuery] short? invoiceMatchStatus,
+        [FromQuery] bool? invoiceMatchOnlyOpen,
         [FromQuery] string? stockOutDateFrom,
         [FromQuery] string? stockOutDateTo,
         CancellationToken cancellationToken = default)
     {
-        var request = BuildAnalyticsQueryRequest(keyword, customerId, verificationStatus, onlyOpen, stockOutDateFrom, stockOutDateTo);
+        var request = BuildListQueryRequest(keyword, customerId, verificationStatus, onlyOpen, invoiceMatchStatus, invoiceMatchOnlyOpen, stockOutDateFrom, stockOutDateTo);
         var data = await _listQuery.GetListAnalyticsBreakdownsAsync(request, cancellationToken);
         return Ok(ApiResponse<IReadOnlyList<FinanceReceivableListAnalyticsBreakdownGroupDto>>.Ok(data));
     }
@@ -92,30 +98,40 @@ public class FinanceReceivablesController : ControllerBase
         [FromQuery] string? customerId,
         [FromQuery] short? verificationStatus,
         [FromQuery] bool? onlyOpen,
+        [FromQuery] short? invoiceMatchStatus,
+        [FromQuery] bool? invoiceMatchOnlyOpen,
         [FromQuery] string? stockOutDateFrom,
         [FromQuery] string? stockOutDateTo,
         CancellationToken cancellationToken = default)
     {
-        var request = BuildAnalyticsQueryRequest(keyword, customerId, verificationStatus, onlyOpen, stockOutDateFrom, stockOutDateTo);
+        var request = BuildListQueryRequest(keyword, customerId, verificationStatus, onlyOpen, invoiceMatchStatus, invoiceMatchOnlyOpen, stockOutDateFrom, stockOutDateTo);
         var data = await _listQuery.GetListAnalyticsRankingsAsync(request, cancellationToken);
         return Ok(ApiResponse<FinanceReceivableListAnalyticsRankingsDto>.Ok(data));
     }
 
-    private FinanceReceivableQueryRequest BuildAnalyticsQueryRequest(
+    private FinanceReceivableQueryRequest BuildListQueryRequest(
         string? keyword,
         string? customerId,
         short? verificationStatus,
         bool? onlyOpen,
+        short? invoiceMatchStatus,
+        bool? invoiceMatchOnlyOpen,
         string? stockOutDateFrom,
-        string? stockOutDateTo) =>
+        string? stockOutDateTo,
+        int page = 1,
+        int pageSize = 20) =>
         new()
         {
             Keyword = keyword,
             CustomerId = customerId,
             VerificationStatus = verificationStatus,
-            OnlyOpen = onlyOpen ?? true,
+            OnlyOpen = onlyOpen,
+            InvoiceMatchStatus = invoiceMatchStatus,
+            InvoiceMatchOnlyOpen = invoiceMatchOnlyOpen,
             StockOutDateFrom = DateTime.TryParse(stockOutDateFrom, out var from) ? from : null,
             StockOutDateTo = DateTime.TryParse(stockOutDateTo, out var to) ? to : null,
+            Page = page,
+            PageSize = pageSize,
             CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
         };
 
@@ -125,6 +141,8 @@ public class FinanceReceivablesController : ControllerBase
         [FromQuery] string? customerId,
         [FromQuery] short? verificationStatus,
         [FromQuery] bool? onlyOpen,
+        [FromQuery] short? invoiceMatchStatus,
+        [FromQuery] bool? invoiceMatchOnlyOpen,
         [FromQuery] string? stockOutDateFrom,
         [FromQuery] string? stockOutDateTo,
         [FromQuery] int page = 1,
@@ -132,18 +150,9 @@ public class FinanceReceivablesController : ControllerBase
     {
         try
         {
-            var request = new FinanceReceivableQueryRequest
-            {
-                Keyword = keyword,
-                CustomerId = customerId,
-                VerificationStatus = verificationStatus,
-                OnlyOpen = onlyOpen ?? true,
-                StockOutDateFrom = DateTime.TryParse(stockOutDateFrom, out var from) ? from : null,
-                StockOutDateTo = DateTime.TryParse(stockOutDateTo, out var to) ? to : null,
-                Page = page,
-                PageSize = pageSize,
-                CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
-            };
+            var request = BuildListQueryRequest(
+                keyword, customerId, verificationStatus, onlyOpen, invoiceMatchStatus, invoiceMatchOnlyOpen,
+                stockOutDateFrom, stockOutDateTo, page, pageSize);
             var result = await _service.GetPagedListAsync(request);
             return Ok(new
             {
@@ -170,6 +179,8 @@ public class FinanceReceivablesController : ControllerBase
         [FromQuery] string? customerId,
         [FromQuery] short? verificationStatus,
         [FromQuery] bool? onlyOpen,
+        [FromQuery] short? invoiceMatchStatus,
+        [FromQuery] bool? invoiceMatchOnlyOpen,
         [FromQuery] string? stockOutDateFrom,
         [FromQuery] string? stockOutDateTo,
         CancellationToken cancellationToken = default)
@@ -177,16 +188,10 @@ public class FinanceReceivablesController : ControllerBase
         try
         {
             var mask521 = await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User);
-            var request = new FinanceReceivableQueryRequest
-            {
-                Keyword = keyword,
-                CustomerId = mask521 ? null : customerId,
-                VerificationStatus = verificationStatus,
-                OnlyOpen = onlyOpen ?? true,
-                StockOutDateFrom = DateTime.TryParse(stockOutDateFrom, out var from) ? from : null,
-                StockOutDateTo = DateTime.TryParse(stockOutDateTo, out var to) ? to : null,
-                CurrentUserId = InventoryExportHttp.UserId(User)
-            };
+            var request = BuildListQueryRequest(
+                keyword, mask521 ? null : customerId, verificationStatus, onlyOpen, invoiceMatchStatus, invoiceMatchOnlyOpen,
+                stockOutDateFrom, stockOutDateTo);
+            request.CurrentUserId = InventoryExportHttp.UserId(User);
             var (items, truncated, _) = await InventoryExportHttp.CollectForExportAsync(
                 (page, pageSize, ct) =>
                 {
@@ -203,7 +208,9 @@ public class FinanceReceivablesController : ControllerBase
                 ["keyword"] = keyword,
                 ["customerId"] = mask521 ? null : customerId,
                 ["verificationStatus"] = verificationStatus,
-                ["onlyOpen"] = onlyOpen ?? true,
+                ["onlyOpen"] = onlyOpen,
+                ["invoiceMatchStatus"] = invoiceMatchStatus,
+                ["invoiceMatchOnlyOpen"] = invoiceMatchOnlyOpen,
                 ["stockOutDateFrom"] = stockOutDateFrom,
                 ["stockOutDateTo"] = stockOutDateTo
             });

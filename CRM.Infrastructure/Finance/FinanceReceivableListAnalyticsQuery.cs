@@ -130,7 +130,7 @@ public sealed partial class FinanceReceivableListQuery
 
         return new List<FinanceReceivableListAnalyticsBreakdownGroupDto>
         {
-            new() { GroupKey = "verificationStatus", GroupLabel = "核销状态", Items = statusItems },
+            new() { GroupKey = "verificationStatus", GroupLabel = "收款核销状态", Items = statusItems },
             new() { GroupKey = "currency", GroupLabel = "币别", Items = currencyItems },
             new() { GroupKey = "aging", GroupLabel = "账期", Items = agingItems },
             new() { GroupKey = "salesUser", GroupLabel = "业务员", Items = salesUserItems }

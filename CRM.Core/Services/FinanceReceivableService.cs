@@ -913,6 +913,9 @@ public class FinanceReceivableService : IFinanceReceivableService
             VerifiedDone = receivable.VerifiedDone,
             VerifiedToBe = receivable.VerifiedToBe,
             VerificationStatus = receivable.VerificationStatus,
+            InvoiceMatchDone = receivable.InvoiceMatchDone,
+            InvoiceMatchToBe = receivable.InvoiceMatchToBe,
+            InvoiceMatchStatus = receivable.InvoiceMatchStatus,
             StockOutDate = receivable.StockOutDate,
             CreateTime = receivable.CreateTime
         };

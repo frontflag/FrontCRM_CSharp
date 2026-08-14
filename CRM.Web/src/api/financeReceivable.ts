@@ -25,6 +25,9 @@ export interface FinanceReceivable {
   verifiedDone: number
   verifiedToBe: number
   verificationStatus: number
+  invoiceMatchDone?: number
+  invoiceMatchToBe?: number
+  invoiceMatchStatus?: number
   stockOutDate?: string
   createTime?: string
 }

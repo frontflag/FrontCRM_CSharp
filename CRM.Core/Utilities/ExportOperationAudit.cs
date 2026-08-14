@@ -458,8 +458,10 @@ public static class ExportOperationAudit
     {
         ["keyword"] = "关键字",
         ["customerId"] = "客户",
-        ["verificationStatus"] = "核销状态",
-        ["onlyOpen"] = "仅待核销",
+        ["verificationStatus"] = "收款核销状态",
+        ["onlyOpen"] = "收款核销状态",
+        ["invoiceMatchStatus"] = "发票核销状态",
+        ["invoiceMatchOnlyOpen"] = "发票核销状态",
         ["stockOutDateFrom"] = "出库日期起",
         ["stockOutDateTo"] = "出库日期止"
     };
@@ -502,6 +504,14 @@ public static class ExportOperationAudit
 
     private static string? MapFinanceFilterDisplayValue(string exportKind, string key, string text)
     {
+        if (string.Equals(exportKind, ExportAuditKinds.FinanceReceivableList, StringComparison.OrdinalIgnoreCase)
+            && (key.Equals("onlyOpen", StringComparison.OrdinalIgnoreCase)
+                || key.Equals("invoiceMatchOnlyOpen", StringComparison.OrdinalIgnoreCase)))
+        {
+            var yn = MapYesNo(text);
+            return yn == "是" ? "待核销" : yn;
+        }
+
         if (key.Equals("onlyOpen", StringComparison.OrdinalIgnoreCase)
             || key.Equals("onlyPositiveBalance", StringComparison.OrdinalIgnoreCase))
             return MapYesNo(text);
@@ -516,7 +526,8 @@ public static class ExportOperationAudit
             return MapPaymentModeLabel(text);
 
         if (key.Equals("verificationStatus", StringComparison.OrdinalIgnoreCase)
-            || key.Equals("matchStatus", StringComparison.OrdinalIgnoreCase))
+            || key.Equals("matchStatus", StringComparison.OrdinalIgnoreCase)
+            || key.Equals("invoiceMatchStatus", StringComparison.OrdinalIgnoreCase))
             return MapVerificationStatusLabel(text);
 
         if (key.Equals("paymentStatus", StringComparison.OrdinalIgnoreCase))

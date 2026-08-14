@@ -55,6 +55,9 @@ public class FinanceReceivableListItem
     public decimal VerifiedDone { get; set; }
     public decimal VerifiedToBe { get; set; }
     public short VerificationStatus { get; set; }
+    public decimal InvoiceMatchDone { get; set; }
+    public decimal InvoiceMatchToBe { get; set; }
+    public short InvoiceMatchStatus { get; set; }
     public DateTime? StockOutDate { get; set; }
     public DateTime? CreateTime { get; set; }
 }
