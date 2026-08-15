@@ -44,6 +44,7 @@ namespace CRM.API.Controllers
         private readonly ILogisticsService _logisticsService;
         private readonly ISalesOrderCustomerDownstreamSyncService _customerDownstreamSyncService;
         private readonly IApprovalPartyIntelWarmupService _approvalPartyIntelWarmup;
+        private readonly IExportOperationLogService _exportLog;
         private readonly ApplicationDbContext _db;
         private readonly ILogger<SalesOrdersController> _logger;
 
@@ -64,6 +65,7 @@ namespace CRM.API.Controllers
             ILogisticsService logisticsService,
             ISalesOrderCustomerDownstreamSyncService customerDownstreamSyncService,
             IApprovalPartyIntelWarmupService approvalPartyIntelWarmup,
+            IExportOperationLogService exportLog,
             ApplicationDbContext db,
             ILogger<SalesOrdersController> logger)
         {
@@ -83,6 +85,7 @@ namespace CRM.API.Controllers
             _logisticsService = logisticsService;
             _customerDownstreamSyncService = customerDownstreamSyncService;
             _approvalPartyIntelWarmup = approvalPartyIntelWarmup;
+            _exportLog = exportLog;
             _db = db;
             _logger = logger;
         }
@@ -484,6 +487,133 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "????????????");
                 return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpGet("items/export")]
+        public async Task<IActionResult> ExportSellOrderItemLines(
+            [FromQuery] string? orderCreateStart,
+            [FromQuery] string? orderCreateEnd,
+            [FromQuery] string? customerName,
+            [FromQuery] string? salesUserName,
+            [FromQuery] string? salesUserId,
+            [FromQuery] string? purchaseUserAccount,
+            [FromQuery] string? customerId,
+            [FromQuery] string? sellOrderCode,
+            [FromQuery] string? sellOrderItemCode,
+            [FromQuery] string? pn,
+            [FromQuery] string? customerSo,
+            [FromQuery] string? customerPn,
+            [FromQuery] string? purchaseOrderItemCode,
+            [FromQuery] string? transactionCurrency,
+            [FromQuery] bool stockOutPending = false,
+            [FromQuery] bool receiptPending = false,
+            [FromQuery] bool invoicePending = false,
+            [FromQuery] List<short>? purchaseProgressStatus = null,
+            [FromQuery] List<short>? stockInProgressStatus = null,
+            [FromQuery] List<short>? stockOutNotifyProgressStatus = null,
+            [FromQuery] List<short>? stockOutProgressStatus = null,
+            [FromQuery] List<short>? receiptProgressStatus = null,
+            [FromQuery] List<short>? invoiceProgressStatus = null,
+            [FromQuery] string? quickFilter = null,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var summary = await GetPermissionSummaryAsync(userId);
+                var mask521 = SaleSensitiveFieldMask521.ShouldMask(summary);
+                var canViewCustomer = !mask521 && (summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("customer.info.read") ?? false));
+                var canViewSalesUser = summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("sales.user.read") ?? false)
+                    || (summary?.PermissionCodes?.Contains("sales-order.read") ?? false);
+                var canViewAmount = !mask521 && (summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("sales.amount.read") ?? false));
+
+                var request = new SellOrderItemLineQueryRequest
+                {
+                    OrderCreateStart = DateTime.TryParse(orderCreateStart, out var ds) ? ds : null,
+                    OrderCreateEnd = DateTime.TryParse(orderCreateEnd, out var de) ? de : null,
+                    CustomerName = canViewCustomer && !string.IsNullOrWhiteSpace(customerName) ? customerName.Trim() : null,
+                    SalesUserName = canViewSalesUser && !string.IsNullOrWhiteSpace(salesUserName) ? salesUserName.Trim() : null,
+                    SalesUserId = canViewSalesUser && !string.IsNullOrWhiteSpace(salesUserId) ? salesUserId.Trim() : null,
+                    PurchaseUserAccount = !string.IsNullOrWhiteSpace(purchaseUserAccount) ? purchaseUserAccount.Trim() : null,
+                    CustomerId = canViewCustomer && !string.IsNullOrWhiteSpace(customerId) ? customerId.Trim() : null,
+                    SellOrderCode = sellOrderCode,
+                    SellOrderItemCode = FirstNonEmptyQuery(sellOrderItemCode, Request.Query["sellOrderItemCode"]),
+                    Pn = pn,
+                    CustomerSo = canViewCustomer && !string.IsNullOrWhiteSpace(customerSo) ? customerSo.Trim() : null,
+                    CustomerPn = canViewCustomer && !string.IsNullOrWhiteSpace(customerPn) ? customerPn.Trim() : null,
+                    PurchaseOrderItemCode = string.IsNullOrWhiteSpace(purchaseOrderItemCode) ? null : purchaseOrderItemCode.Trim(),
+                    TransactionCurrency = transactionCurrency,
+                    StockOutPending = stockOutPending,
+                    ReceiptPending = receiptPending,
+                    InvoicePending = invoicePending,
+                    PurchaseProgressStatus = QueryShortListParser.Parse(Request.Query["purchaseProgressStatus"]) ?? purchaseProgressStatus,
+                    StockInProgressStatus = QueryShortListParser.Parse(Request.Query["stockInProgressStatus"]) ?? stockInProgressStatus,
+                    StockOutNotifyProgressStatus = QueryShortListParser.Parse(Request.Query["stockOutNotifyProgressStatus"]) ?? stockOutNotifyProgressStatus,
+                    StockOutProgressStatus = QueryShortListParser.Parse(Request.Query["stockOutProgressStatus"]) ?? stockOutProgressStatus,
+                    ReceiptProgressStatus = QueryShortListParser.Parse(Request.Query["receiptProgressStatus"]) ?? receiptProgressStatus,
+                    InvoiceProgressStatus = QueryShortListParser.Parse(Request.Query["invoiceProgressStatus"]) ?? invoiceProgressStatus,
+                    QuickFilter = quickFilter,
+                    CurrentUserId = userId
+                };
+
+                var (items, truncated, _) = await InventoryExportHttp.CollectForExportAsync(
+                    (page, pageSize, _) =>
+                    {
+                        request.Page = page;
+                        request.PageSize = pageSize;
+                        return _service.GetSellOrderItemLinesPagedAsync(request);
+                    },
+                    cancellationToken: cancellationToken);
+
+                var filters = ExportOperationAudit.NormalizeFilters(new Dictionary<string, object?>
+                {
+                    ["orderCreateStart"] = orderCreateStart,
+                    ["orderCreateEnd"] = orderCreateEnd,
+                    ["customerName"] = canViewCustomer ? customerName : null,
+                    ["salesUserName"] = canViewSalesUser ? salesUserName : null,
+                    ["salesUserId"] = canViewSalesUser ? salesUserId : null,
+                    ["purchaseUserAccount"] = purchaseUserAccount,
+                    ["customerId"] = canViewCustomer ? customerId : null,
+                    ["sellOrderCode"] = sellOrderCode,
+                    ["sellOrderItemCode"] = sellOrderItemCode,
+                    ["pn"] = pn,
+                    ["customerSo"] = canViewCustomer ? customerSo : null,
+                    ["customerPn"] = canViewCustomer ? customerPn : null,
+                    ["purchaseOrderItemCode"] = purchaseOrderItemCode,
+                    ["transactionCurrency"] = transactionCurrency,
+                    ["stockOutPending"] = stockOutPending ? true : null,
+                    ["receiptPending"] = receiptPending ? true : null,
+                    ["invoicePending"] = invoicePending ? true : null,
+                    ["purchaseProgressStatus"] = request.PurchaseProgressStatus,
+                    ["stockInProgressStatus"] = request.StockInProgressStatus,
+                    ["stockOutNotifyProgressStatus"] = request.StockOutNotifyProgressStatus,
+                    ["stockOutProgressStatus"] = request.StockOutProgressStatus,
+                    ["receiptProgressStatus"] = request.ReceiptProgressStatus,
+                    ["invoiceProgressStatus"] = request.InvoiceProgressStatus,
+                    ["quickFilter"] = quickFilter
+                });
+                await FinanceExportHttp.AppendListLogAsync(
+                    _exportLog,
+                    BusinessLogTypes.SellOrderItem,
+                    ExportOperationAudit.SalesOrderItemListRecordCode,
+                    OrderItemExportActionTypes.SalesOrderItemListExport,
+                    ExportAuditKinds.SalesOrderItemList,
+                    "销售订单明细",
+                    items.Count,
+                    truncated,
+                    filters,
+                    mask521,
+                    User,
+                    cancellationToken);
+                return FinanceExportHttp.CsvFile(
+                    OrderItemExportHttp.BuildSalesOrderItemCsv(items, mask521, canViewCustomer, canViewAmount),
+                    "销售订单明细.csv");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "导出销售订单明细失败");
+                return StatusCode(500, new { success = false, message = $"导出销售订单明细失败: {ex.Message}" });
             }
         }
 

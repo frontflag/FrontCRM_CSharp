@@ -5010,7 +5010,8 @@ const enUS = {
       reset: 'Reset',
       refresh: 'Refresh',
       boardView: 'Board',
-      listView: 'List'
+      listView: 'List',
+      export: 'Export'
     },
     settingsMenu: {
       aria: 'List filter settings',
@@ -5311,6 +5312,10 @@ const enUS = {
       createFailed: 'Create failed',
       loadLineFailed: 'Failed to load line details',
       loadListFailed: 'Failed to load',
+      exportConfirmTitle: 'Export',
+      exportConfirmMessage: 'Export sales order lines with current filters (max 50,000 rows)?',
+      exportSuccess: 'Export succeeded',
+      exportFailed: 'Export failed',
       applyPurchaseNeedAudit: 'Purchase can be requested only after the sales order is approved.',
       applyStockOutNeedAudit: 'Stock-out can be requested only after the sales order is approved.',
       applyStockOutNeedPurchaseGate:
@@ -5730,7 +5735,8 @@ const enUS = {
       reset: 'Reset',
       refresh: 'Refresh',
       boardView: 'Board',
-      listView: 'List'
+      listView: 'List',
+      export: 'Export'
     },
     settingsMenu: {
       aria: 'List filter settings',
@@ -6063,7 +6069,11 @@ const enUS = {
       paymentNoId: 'Payment request created but no document ID was returned.',
       paymentSubmitted: 'Payment request submitted for approval.',
       paymentSubmitFailed: 'Submit failed. Please try again.',
-      loadLineFailed: 'Failed to load line details'
+      loadLineFailed: 'Failed to load line details',
+      exportConfirmTitle: 'Export',
+      exportConfirmMessage: 'Export purchase order lines with current filters (max 50,000 rows)?',
+      exportSuccess: 'Export succeeded',
+      exportFailed: 'Export failed'
     }
   },
   arrivalNoticeList: {

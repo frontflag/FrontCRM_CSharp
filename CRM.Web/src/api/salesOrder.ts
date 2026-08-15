@@ -442,6 +442,14 @@ export const salesOrderApi = {
     return await apiClient.get(`/api/v1/sales-orders/items?${q}`)
   },
 
+  exportItemLines(params?: Record<string, unknown>) {
+    const q: Record<string, unknown> = { ...(params ?? {}) }
+    delete q.page
+    delete q.pageSize
+    const qs = buildQueryString(q)
+    return apiClient.getBlob(qs ? `/api/v1/sales-orders/items/export?${qs}` : '/api/v1/sales-orders/items/export')
+  },
+
   // 获取销售订单详情
   async getById(id: string) {
     return await apiClient.get(`/api/v1/sales-orders/${id}`)

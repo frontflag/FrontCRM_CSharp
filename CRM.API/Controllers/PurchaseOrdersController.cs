@@ -20,6 +20,7 @@ using System.Text.Json;
 using CRM.Core.Constants;
 using CRM.Core.Models.Analytics;
 using CRM.Core.Models.Dtos;
+using CRM.Core.Services;
 using CRM.API.Models.DTOs;
 
 namespace CRM.API.Controllers
@@ -42,6 +43,7 @@ namespace CRM.API.Controllers
         private readonly IArrivalNoticeListQuery _arrivalNoticeListQuery;
         private readonly IInventoryStockItemListQuery _inventoryStockItemListQuery;
         private readonly IApprovalPartyIntelWarmupService _approvalPartyIntelWarmup;
+        private readonly IExportOperationLogService _exportLog;
         private readonly ApplicationDbContext _db;
         private readonly ILogger<PurchaseOrdersController> _logger;
 
@@ -59,6 +61,7 @@ namespace CRM.API.Controllers
             IArrivalNoticeListQuery arrivalNoticeListQuery,
             IInventoryStockItemListQuery inventoryStockItemListQuery,
             IApprovalPartyIntelWarmupService approvalPartyIntelWarmup,
+            IExportOperationLogService exportLog,
             ApplicationDbContext db,
             ILogger<PurchaseOrdersController> logger)
         {
@@ -75,6 +78,7 @@ namespace CRM.API.Controllers
             _arrivalNoticeListQuery = arrivalNoticeListQuery;
             _inventoryStockItemListQuery = inventoryStockItemListQuery;
             _approvalPartyIntelWarmup = approvalPartyIntelWarmup;
+            _exportLog = exportLog;
             _db = db;
             _logger = logger;
         }
@@ -444,6 +448,129 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "?????????????");
                 return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpGet("items/export")]
+        public async Task<IActionResult> ExportPurchaseOrderItemLines(
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            [FromQuery] string? purchaseOrderCode,
+            [FromQuery] string? freightForwarderOrderNo,
+            [FromQuery] string? vendorName,
+            [FromQuery] string? purchaseUserName,
+            [FromQuery] string? pn,
+            [FromQuery] string? sellOrderItemCode,
+            [FromQuery] short? orderType,
+            [FromQuery] string? transactionCurrency,
+            [FromQuery] List<short>? paymentProgressStatus = null,
+            [FromQuery] List<short>? purchaseProgressStatus = null,
+            [FromQuery] List<short>? stockInProgressStatus = null,
+            [FromQuery] List<short>? invoiceProgressStatus = null,
+            [FromQuery] string? quickFilter = null,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var summary = await GetPermissionSummaryAsync(userId);
+                var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
+                var canViewVendorInfo = !mask511 && (summary?.IsSysAdmin == true
+                    || SummaryHasPermission(summary, "vendor.info.read")
+                    || SummaryHasPermission(summary, "vendor.read")
+                    || SummaryHasPermission(summary, "purchase-order.read")
+                    || SummaryHasPermission(summary, "purchase-order.write"));
+                var canViewPurchaseUser = summary?.IsSysAdmin == true
+                    || SummaryHasPermission(summary, "purchase.user.read")
+                    || SummaryHasPermission(summary, "purchase-order.read");
+                var canViewPurchaseAmount = !mask511 && (summary?.IsSysAdmin == true
+                    || (summary?.PermissionCodes?.Contains("purchase.amount.read") ?? false));
+
+                var request = new PurchaseOrderItemListQueryRequest
+                {
+                    CurrentUserId = userId,
+                    StartDate = DateTime.TryParse(startDate, out var sd) ? sd : null,
+                    EndDate = DateTime.TryParse(endDate, out var ed) ? ed : null,
+                    PurchaseOrderCode = string.IsNullOrWhiteSpace(purchaseOrderCode) ? null : purchaseOrderCode.Trim(),
+                    FreightForwarderOrderNo = string.IsNullOrWhiteSpace(freightForwarderOrderNo) ? null : freightForwarderOrderNo.Trim(),
+                    VendorName = canViewVendorInfo && !string.IsNullOrWhiteSpace(vendorName) ? vendorName.Trim() : null,
+                    PurchaseUserName = canViewPurchaseUser && !string.IsNullOrWhiteSpace(purchaseUserName) ? purchaseUserName.Trim() : null,
+                    Pn = string.IsNullOrWhiteSpace(pn) ? null : pn.Trim(),
+                    SellOrderItemCode = string.IsNullOrWhiteSpace(sellOrderItemCode) ? null : sellOrderItemCode.Trim(),
+                    OrderType = orderType,
+                    TransactionCurrency = transactionCurrency,
+                    PaymentProgressStatus = QueryShortListParser.Parse(Request.Query["paymentProgressStatus"]) ?? paymentProgressStatus,
+                    PurchaseProgressStatus = QueryShortListParser.Parse(Request.Query["purchaseProgressStatus"]) ?? purchaseProgressStatus,
+                    StockInProgressStatus = QueryShortListParser.Parse(Request.Query["stockInProgressStatus"]) ?? stockInProgressStatus,
+                    InvoiceProgressStatus = QueryShortListParser.Parse(Request.Query["invoiceProgressStatus"]) ?? invoiceProgressStatus,
+                    QuickFilter = quickFilter
+                };
+
+                var (rawItems, truncated, _) = await InventoryExportHttp.CollectForExportAsync(
+                    (page, pageSize, ct) =>
+                    {
+                        request.Page = page;
+                        request.PageSize = pageSize;
+                        return _purchaseOrderItemListQuery.GetPagedAsync(request, ct);
+                    },
+                    cancellationToken: cancellationToken);
+
+                var loginMap = await LoadCreateUserLoginNamesForPoLinesAsync(rawItems, cancellationToken);
+                var paymentRequestFlags = await LoadPoItemIdsWithActivePaymentRequestAsync(rawItems, cancellationToken);
+                IReadOnlyDictionary<string, string> vendorEnglishMap = canViewVendorInfo
+                    ? await LoadVendorEnglishNameMapForPoLinesAsync(rawItems, cancellationToken)
+                    : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                var items = rawItems.Select(r => OrderItemExportHttp.ToPurchaseExportRow(
+                    r,
+                    canViewVendorInfo,
+                    canViewPurchaseAmount,
+                    canViewPurchaseUser,
+                    loginMap,
+                    paymentRequestFlags,
+                    vendorEnglishMap)).ToList();
+
+                var filters = ExportOperationAudit.NormalizeFilters(new Dictionary<string, object?>
+                {
+                    ["startDate"] = startDate,
+                    ["endDate"] = endDate,
+                    ["purchaseOrderCode"] = purchaseOrderCode,
+                    ["freightForwarderOrderNo"] = freightForwarderOrderNo,
+                    ["vendorName"] = canViewVendorInfo ? vendorName : null,
+                    ["purchaseUserName"] = canViewPurchaseUser ? purchaseUserName : null,
+                    ["pn"] = pn,
+                    ["sellOrderItemCode"] = sellOrderItemCode,
+                    ["orderType"] = orderType,
+                    ["transactionCurrency"] = transactionCurrency,
+                    ["paymentProgressStatus"] = request.PaymentProgressStatus,
+                    ["purchaseProgressStatus"] = request.PurchaseProgressStatus,
+                    ["stockInProgressStatus"] = request.StockInProgressStatus,
+                    ["invoiceProgressStatus"] = request.InvoiceProgressStatus,
+                    ["quickFilter"] = quickFilter
+                });
+                await FinanceExportHttp.AppendListLogAsync(
+                    _exportLog,
+                    BusinessLogTypes.PurchaseOrderItem,
+                    ExportOperationAudit.PurchaseOrderItemListRecordCode,
+                    OrderItemExportActionTypes.PurchaseOrderItemListExport,
+                    ExportAuditKinds.PurchaseOrderItemList,
+                    "采购订单明细",
+                    items.Count,
+                    truncated,
+                    filters,
+                    mask511,
+                    User,
+                    cancellationToken);
+                return FinanceExportHttp.CsvFile(
+                    OrderItemExportHttp.BuildPurchaseOrderItemCsv(
+                        items,
+                        mask511 || !canViewVendorInfo,
+                        mask511 || !canViewPurchaseAmount),
+                    "采购订单明细.csv");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "导出采购订单明细失败");
+                return StatusCode(500, new { success = false, message = $"导出采购订单明细失败: {ex.Message}" });
             }
         }
 

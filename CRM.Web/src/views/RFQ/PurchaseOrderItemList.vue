@@ -246,6 +246,14 @@
         >
           {{ viewMode === 'board' ? t('purchaseOrderItemList.filters.listView') : t('purchaseOrderItemList.filters.boardView') }}
         </button>
+        <button
+          type="button"
+          class="btn-export"
+          :disabled="exporting"
+          @click="() => void handleExport()"
+        >
+          {{ t('purchaseOrderItemList.filters.export') }}
+        </button>
         <el-popover
           v-model:visible="settingsMenuOpen"
           trigger="click"
@@ -849,6 +857,7 @@ import { useListBoardHelpOverride } from '@/composables/useHelpDocOverride'
 import PurchaseOrderItemListBoard from './PurchaseOrderItemListBoard.vue'
 import type { PurchaseOrderItemListAnalyticsQuery } from '@/api/purchaseOrderItemAnalytics'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
+import { downloadCsvBlob } from '@/utils/exportFileName'
 import {
   buildPoItemListRouteQuery,
   isPoItemListPresetId,
@@ -881,7 +890,7 @@ import {
 import ProgressMultiSelectOption from '@/components/Common/ProgressMultiSelectOption.vue'
 import { financePaymentApi } from '@/api/finance'
 import { logisticsApi } from '@/api/logistics'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import {
   formatCurrencyTotal,
@@ -1020,6 +1029,7 @@ const canViewAmount = computed(
 const canCreateArrivalNotice = computed(() => authStore.hasPermission('purchase-order.read'))
 
 const loading = ref(false)
+const exporting = ref(false)
 /** 当前页明细行（服务端分页） */
 const tableRows = ref<any[]>([])
 
@@ -1721,58 +1731,49 @@ function onSelectionChange(rows: any[]) {
   selectedRows.value = rows
 }
 
+function buildItemListQueryParams(): Record<string, unknown> {
+  const params: Record<string, unknown> = {}
+  if (dateRange.value?.[0]) params.startDate = dateRange.value[0]
+  if (dateRange.value?.[1]) params.endDate = dateRange.value[1]
+  if (filters.purchaseOrderCode.trim()) params.purchaseOrderCode = filters.purchaseOrderCode.trim()
+  if (filters.freightForwarderOrderNo.trim()) params.freightForwarderOrderNo = filters.freightForwarderOrderNo.trim()
+  if (canViewVendor.value && filters.vendorName.trim()) params.vendorName = filters.vendorName.trim()
+  if (canViewPurchaseUser.value && filters.purchaseUserName.trim()) params.purchaseUserName = filters.purchaseUserName.trim()
+  if (filters.pn.trim()) params.pn = filters.pn.trim()
+  if (filters.orderType !== undefined && filters.orderType !== null) params.orderType = filters.orderType
+  if (filters.transactionCurrency) params.transactionCurrency = filters.transactionCurrency
+  const qf = route.query.quickFilter
+  if (typeof qf === 'string' && qf.trim() && activePreset.value) {
+    params.quickFilter = qf.trim()
+  } else if (!activePreset.value) {
+    if (filters.paymentProgressStatus.length) {
+      params.paymentProgressStatus = [...filters.paymentProgressStatus]
+    }
+    if (filters.purchaseProgressStatus.length) {
+      params.purchaseProgressStatus = [...filters.purchaseProgressStatus]
+    }
+    if (filters.stockInProgressStatus.length) {
+      params.stockInProgressStatus = [...filters.stockInProgressStatus]
+    }
+    if (filters.invoiceProgressStatus.length) {
+      params.invoiceProgressStatus = [...filters.invoiceProgressStatus]
+    }
+  }
+  return params
+}
+
 async function loadList() {
   loading.value = true
   try {
-    const params: {
-      page: number
-      pageSize: number
-      startDate?: string
-      endDate?: string
-      purchaseOrderCode?: string
-      freightForwarderOrderNo?: string
-      vendorName?: string
-      purchaseUserName?: string
-      pn?: string
-      orderType?: number
-      transactionCurrency?: 'rmb' | 'foreign'
-      paymentProgressStatus?: number | number[]
-      purchaseProgressStatus?: number | number[]
-      stockInProgressStatus?: number | number[]
-      invoiceProgressStatus?: number | number[]
-      quickFilter?: string
-    } = {
+    const params: Record<string, unknown> = {
+      ...buildItemListQueryParams(),
       page: page.value,
       pageSize: pageSize.value
     }
-    if (dateRange.value?.[0]) params.startDate = dateRange.value[0]
-    if (dateRange.value?.[1]) params.endDate = dateRange.value[1]
-    if (filters.purchaseOrderCode.trim()) params.purchaseOrderCode = filters.purchaseOrderCode.trim()
-    if (filters.freightForwarderOrderNo.trim()) params.freightForwarderOrderNo = filters.freightForwarderOrderNo.trim()
-    if (canViewVendor.value && filters.vendorName.trim()) params.vendorName = filters.vendorName.trim()
-    if (canViewPurchaseUser.value && filters.purchaseUserName.trim()) params.purchaseUserName = filters.purchaseUserName.trim()
-    if (filters.pn.trim()) params.pn = filters.pn.trim()
-    if (filters.orderType !== undefined && filters.orderType !== null) params.orderType = filters.orderType
-    if (filters.transactionCurrency) params.transactionCurrency = filters.transactionCurrency
-    const qf = route.query.quickFilter
-    if (typeof qf === 'string' && qf.trim() && activePreset.value) {
-      params.quickFilter = qf.trim()
-    } else if (!activePreset.value) {
-      if (filters.paymentProgressStatus.length) {
-        params.paymentProgressStatus = [...filters.paymentProgressStatus]
-      }
-      if (filters.purchaseProgressStatus.length) {
-        params.purchaseProgressStatus = [...filters.purchaseProgressStatus]
-      }
-      if (filters.stockInProgressStatus.length) {
-        params.stockInProgressStatus = [...filters.stockInProgressStatus]
-      }
-      if (filters.invoiceProgressStatus.length) {
-        params.invoiceProgressStatus = [...filters.invoiceProgressStatus]
-      }
-    }
 
-    const data = (await purchaseOrderApi.getItemLinesPage(params)) as {
+    const data = (await purchaseOrderApi.getItemLinesPage(
+      params as Parameters<typeof purchaseOrderApi.getItemLinesPage>[0]
+    )) as {
       items?: any[]
       total?: number
       page?: number
@@ -1794,6 +1795,29 @@ async function loadList() {
     console.error(e)
   } finally {
     loading.value = false
+  }
+}
+
+async function handleExport() {
+  if (exporting.value) return
+  try {
+    await ElMessageBox.confirm(
+      t('purchaseOrderItemList.messages.exportConfirmMessage'),
+      t('purchaseOrderItemList.messages.exportConfirmTitle'),
+      { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
+    )
+  } catch {
+    return
+  }
+  exporting.value = true
+  try {
+    const blob = await purchaseOrderApi.exportItemLines(buildItemListQueryParams())
+    downloadCsvBlob(blob, '采购订单明细.csv')
+    ElMessage.success(t('purchaseOrderItemList.messages.exportSuccess'))
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : t('purchaseOrderItemList.messages.exportFailed'))
+  } finally {
+    exporting.value = false
   }
 }
 
@@ -1953,6 +1977,29 @@ onBeforeUnmount(() => {
   border-color: rgba(0, 212, 255, 0.45);
   color: #00d4ff;
   background: rgba(0, 212, 255, 0.08);
+}
+.btn-export {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  color: #7a5a12;
+  background: #f3e7b8;
+  border: 1px solid #d4bc6a;
+  border-radius: $border-radius-md;
+}
+.btn-export:hover:not(:disabled),
+.btn-export:focus {
+  color: #5c4308;
+  background: #efe0a4;
+  border-color: #c4aa58;
+}
+.btn-export:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 .btn-icon-only {
   width: 32px;

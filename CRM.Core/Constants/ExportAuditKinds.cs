@@ -22,6 +22,9 @@ public static class ExportAuditKinds
     public const string FinanceReceiptList = "financeReceiptList";
     public const string FinanceSellInvoiceList = "financeSellInvoiceList";
     public const string FinanceFfPayableList = "financeFfPayableList";
+
+    public const string SalesOrderItemList = "salesOrderItemList";
+    public const string PurchaseOrderItemList = "purchaseOrderItemList";
 }
 
 /// <summary>列表级 / 批次核销导出 ActionType。</summary>
@@ -45,6 +48,13 @@ public static class FinanceExportActionTypes
     public const string ReceiptListExport = "FinanceReceiptListExport";
     public const string SellInvoiceListExport = "FinanceSellInvoiceListExport";
     public const string FfPayableListExport = "FinanceFfPayableListExport";
+}
+
+/// <summary>销售/采购订单明细列表导出 ActionType。</summary>
+public static class OrderItemExportActionTypes
+{
+    public const string SalesOrderItemListExport = "SalesOrderItemListExport";
+    public const string PurchaseOrderItemListExport = "PurchaseOrderItemListExport";
 }
 
 /// <summary>批次导出请求上的来源标识（前端显式传入，避免仅凭筛选条件误挂单据）。</summary>

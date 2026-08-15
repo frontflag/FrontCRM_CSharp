@@ -31,6 +31,8 @@ public static class ExportOperationAudit
     public const string FinanceReceiptListRecordCode = "FINANCE_RECEIPT_LIST";
     public const string FinanceSellInvoiceListRecordCode = "FINANCE_SELL_INVOICE_LIST";
     public const string FinanceFfPayableListRecordCode = "FINANCE_FF_PAYABLE_LIST";
+    public const string SalesOrderItemListRecordCode = "SALES_ORDER_ITEM_LIST";
+    public const string PurchaseOrderItemListRecordCode = "PURCHASE_ORDER_ITEM_LIST";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -211,6 +213,9 @@ public static class ExportOperationAudit
         var financeLabel = MapFinanceFilterDisplayValue(exportKind, key, text);
         if (financeLabel != null) return financeLabel;
 
+        var orderItemLabel = MapOrderItemFilterDisplayValue(exportKind, key, text);
+        if (orderItemLabel != null) return orderItemLabel;
+
         return text;
     }
 
@@ -347,6 +352,8 @@ public static class ExportOperationAudit
             ExportAuditKinds.FinanceReceiptList => FinanceReceiptListLabels,
             ExportAuditKinds.FinanceSellInvoiceList => FinanceSellInvoiceListLabels,
             ExportAuditKinds.FinanceFfPayableList => FinanceFfPayableListLabels,
+            ExportAuditKinds.SalesOrderItemList => SalesOrderItemListLabels,
+            ExportAuditKinds.PurchaseOrderItemList => PurchaseOrderItemListLabels,
             _ => BatchLabels
         };
     }
@@ -502,6 +509,53 @@ public static class ExportOperationAudit
         ["payableStatus"] = "台账状态"
     };
 
+    private static readonly Dictionary<string, string> SalesOrderItemListLabels = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["orderCreateStart"] = "订单生成起",
+        ["orderCreateEnd"] = "订单生成止",
+        ["sellOrderCode"] = "销售订单/明细号",
+        ["sellOrderItemCode"] = "销售订单明细号",
+        ["customerName"] = "客户",
+        ["customerId"] = "客户",
+        ["salesUserName"] = "销售员",
+        ["salesUserId"] = "销售员",
+        ["purchaseUserAccount"] = "采购员",
+        ["pn"] = "物料型号",
+        ["purchaseOrderItemCode"] = "采购订单明细单号",
+        ["customerSo"] = "客户订单号",
+        ["customerPn"] = "客户型号",
+        ["transactionCurrency"] = "交易币别",
+        ["quickFilter"] = "快捷检索",
+        ["purchaseProgressStatus"] = "采购状态",
+        ["stockInProgressStatus"] = "入库状态",
+        ["stockOutNotifyProgressStatus"] = "出库通知状态",
+        ["stockOutProgressStatus"] = "出库状态",
+        ["receiptProgressStatus"] = "收款状态",
+        ["invoiceProgressStatus"] = "开票状态",
+        ["stockOutPending"] = "仅待出库",
+        ["receiptPending"] = "仅待收款",
+        ["invoicePending"] = "仅待开票"
+    };
+
+    private static readonly Dictionary<string, string> PurchaseOrderItemListLabels = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["startDate"] = "订单生成起",
+        ["endDate"] = "订单生成止",
+        ["purchaseOrderCode"] = "采购订单/明细号",
+        ["freightForwarderOrderNo"] = "货代单号",
+        ["vendorName"] = "供应商",
+        ["purchaseUserName"] = "采购员",
+        ["pn"] = "物料型号",
+        ["sellOrderItemCode"] = "销售订单明细号",
+        ["orderType"] = "订单类型",
+        ["transactionCurrency"] = "交易币别",
+        ["quickFilter"] = "快捷检索",
+        ["paymentProgressStatus"] = "付款状态",
+        ["purchaseProgressStatus"] = "采购状态",
+        ["stockInProgressStatus"] = "入库状态",
+        ["invoiceProgressStatus"] = "开票状态"
+    };
+
     private static string? MapFinanceFilterDisplayValue(string exportKind, string key, string text)
     {
         if (string.Equals(exportKind, ExportAuditKinds.FinanceReceivableList, StringComparison.OrdinalIgnoreCase)
@@ -651,5 +705,86 @@ public static class ExportOperationAudit
                 4 => "已取消",
                 _ => raw
             }
+            : raw;
+
+    private static string? MapOrderItemFilterDisplayValue(string exportKind, string key, string text)
+    {
+        var isSo = string.Equals(exportKind, ExportAuditKinds.SalesOrderItemList, StringComparison.OrdinalIgnoreCase);
+        var isPo = string.Equals(exportKind, ExportAuditKinds.PurchaseOrderItemList, StringComparison.OrdinalIgnoreCase);
+        if (!isSo && !isPo) return null;
+
+        if (key.Equals("transactionCurrency", StringComparison.OrdinalIgnoreCase))
+        {
+            return text.Trim().ToLowerInvariant() switch
+            {
+                "rmb" => "人民币",
+                "foreign" => "外币",
+                _ => text
+            };
+        }
+
+        if (key.Equals("orderType", StringComparison.OrdinalIgnoreCase))
+        {
+            return TryParseShort(text, out var ot)
+                ? ot switch { 1 => "客单采购", 2 => "备货采购", 3 => "样品采购", _ => text }
+                : text;
+        }
+
+        if (key.Equals("quickFilter", StringComparison.OrdinalIgnoreCase))
+            return MapOrderItemQuickFilterLabel(text);
+
+        if (key.Equals("stockOutPending", StringComparison.OrdinalIgnoreCase)
+            || key.Equals("receiptPending", StringComparison.OrdinalIgnoreCase)
+            || key.Equals("invoicePending", StringComparison.OrdinalIgnoreCase))
+            return MapYesNo(text);
+
+        if (key.EndsWith("ProgressStatus", StringComparison.OrdinalIgnoreCase))
+            return MapTriProgressCsv(text);
+
+        return null;
+    }
+
+    private static string MapOrderItemQuickFilterLabel(string raw)
+    {
+        return raw.Trim() switch
+        {
+            SellOrderItemListQuickFilterCodes.PendingSubmitAudit
+                or PurchaseOrderItemListQuickFilterCodes.PendingSubmitAudit => "待提交审核",
+            SellOrderItemListQuickFilterCodes.PendingSubmitPurchaseReq => "待提交采购申请",
+            SellOrderItemListQuickFilterCodes.PendingSubmitStockOutNotify => "待提交出库通知",
+            SellOrderItemListQuickFilterCodes.AppliedPendingPo => "已申请待下采购",
+            SellOrderItemListQuickFilterCodes.PurchasedPendingStockIn => "已采购待入库",
+            SellOrderItemListQuickFilterCodes.NotifyPendingPacking => "已通知待装箱",
+            SellOrderItemListQuickFilterCodes.PackedPendingStockOut => "已装箱待出库",
+            SellOrderItemListQuickFilterCodes.InStockPendingOut => "在库待出库",
+            SellOrderItemListQuickFilterCodes.UsedStocking => "使用备货",
+            SellOrderItemListQuickFilterCodes.StockOutPendingReceipt => "已出库待收款",
+            SellOrderItemListQuickFilterCodes.ReceiptPartial => "部分收款",
+            SellOrderItemListQuickFilterCodes.ReceiptComplete => "收款完成",
+            PurchaseOrderItemListQuickFilterCodes.PendingVendorConfirm => "待供应商确认",
+            PurchaseOrderItemListQuickFilterCodes.PendingSubmitPaymentRequest => "待提交请款",
+            PurchaseOrderItemListQuickFilterCodes.PendingSubmitArrivalNotify => "待提交到货通知",
+            PurchaseOrderItemListQuickFilterCodes.PayLater => "后付款",
+            PurchaseOrderItemListQuickFilterCodes.ConfirmedUnpaid => "已确认未付款",
+            PurchaseOrderItemListQuickFilterCodes.StockedInUnpaid => "已入库未付款",
+            PurchaseOrderItemListQuickFilterCodes.PaymentPartial => "部分付款",
+            PurchaseOrderItemListQuickFilterCodes.PaymentComplete => "付款完成",
+            PurchaseOrderItemListQuickFilterCodes.ConfirmedPendingStockIn => "已确认待入库",
+            PurchaseOrderItemListQuickFilterCodes.PaidPendingStockIn => "已付款待入库",
+            PurchaseOrderItemListQuickFilterCodes.StockedIn => "已入库",
+            _ => raw
+        };
+    }
+
+    private static string MapTriProgressCsv(string raw)
+    {
+        var parts = raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length == 0) return raw;
+        return string.Join("、", parts.Select(MapTriProgressOne));
+    }
+
+    private static string MapTriProgressOne(string raw) =>
+        TryParseShort(raw, out var code)
+            ? code switch { 0 => "待处理", 1 => "部分", 2 => "完成", _ => raw }
             : raw;
 }

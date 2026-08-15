@@ -5004,7 +5004,8 @@ const zhCN = {
       reset: '重置',
       refresh: '刷新',
       boardView: '看板',
-      listView: '列表'
+      listView: '列表',
+      export: '导出'
     },
     settingsMenu: {
       aria: '列表筛选设置',
@@ -5301,6 +5302,10 @@ const zhCN = {
       createFailed: '创建失败',
       loadLineFailed: '加载明细失败',
       loadListFailed: '加载失败',
+      exportConfirmTitle: '导出确认',
+      exportConfirmMessage: '将按当前筛选条件导出销售订单明细，最多 50000 条，是否继续？',
+      exportSuccess: '导出成功',
+      exportFailed: '导出失败',
       applyPurchaseNeedAudit: '销售订单主表审核通过后，方可申请采购',
       applyStockOutNeedAudit: '销售订单主表审核通过后，方可申请出库',
       applyStockOutNeedPurchaseGate:
@@ -5714,7 +5719,8 @@ const zhCN = {
       reset: '重置',
       refresh: '刷新',
       boardView: '看板',
-      listView: '列表'
+      listView: '列表',
+      export: '导出'
     },
     settingsMenu: {
       aria: '列表筛选设置',
@@ -6046,7 +6052,11 @@ const zhCN = {
       paymentNoId: '创建请款单成功，但未获取到单据ID',
       paymentSubmitted: '请款单已提交审批',
       paymentSubmitFailed: '提交审批失败，请稍后重试',
-      loadLineFailed: '加载明细失败'
+      loadLineFailed: '加载明细失败',
+      exportConfirmTitle: '导出确认',
+      exportConfirmMessage: '将按当前筛选条件导出采购订单明细，最多 50000 条，是否继续？',
+      exportSuccess: '导出成功',
+      exportFailed: '导出失败'
     }
   },
   arrivalNoticeList: {

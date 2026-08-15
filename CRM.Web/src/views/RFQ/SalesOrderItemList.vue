@@ -305,6 +305,14 @@
         >
           {{ viewMode === 'board' ? t('salesOrderItemList.filters.listView') : t('salesOrderItemList.filters.boardView') }}
         </button>
+        <button
+          type="button"
+          class="btn-export"
+          :disabled="exporting"
+          @click="() => void handleExport()"
+        >
+          {{ t('salesOrderItemList.filters.export') }}
+        </button>
         <el-popover
           v-model:visible="settingsMenuOpen"
           trigger="click"
@@ -864,6 +872,7 @@ import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import salesOrderApi from '@/api/salesOrder'
+import { downloadCsvBlob } from '@/utils/exportFileName'
 import purchaseRequisitionApi from '@/api/purchaseRequisition'
 import { runSaveTask, validateElFormOrWarn } from '@/composables/useFormSubmit'
 import {
@@ -997,6 +1006,7 @@ function settlementCurrencyLabel(code: unknown): string {
 }
 
 const loading = ref(false)
+const exporting = ref(false)
 const list = ref<any[]>([])
 const total = ref(0)
 const page = ref(1)
@@ -1504,71 +1514,77 @@ function onPageSizeChange(next: number) {
   void loadList()
 }
 
+function buildItemListQueryParams(): Record<string, unknown> {
+  const params: Record<string, unknown> = {}
+  if (dateRange.value?.[0]) params.orderCreateStart = dateRange.value[0]
+  if (dateRange.value?.[1]) params.orderCreateEnd = dateRange.value[1]
+  // 优先路由：兼容旧深链 sellOrderItemCode，统一走「销售订单/明细号」OR 检索
+  const socFromRoute =
+    typeof route.query.sellOrderCode === 'string' ? route.query.sellOrderCode.trim() : ''
+  const soicFromRoute =
+    typeof route.query.sellOrderItemCode === 'string' ? route.query.sellOrderItemCode.trim() : ''
+  const soc = String(filters.sellOrderCode ?? '').trim() || socFromRoute || soicFromRoute
+  if (soc) params.sellOrderCode = soc
+  if (!maskSaleSensitiveFields.value) {
+    const cn = String(filters.customerName ?? '').trim()
+    if (cn) params.customerName = cn
+    const sun = String(filters.salesUserName ?? '').trim()
+    if (sun) params.salesUserName = sun
+  }
+  const pnk = String(filters.pn ?? '').trim()
+  if (pnk) params.pn = pnk
+  const poic = String(filters.purchaseOrderItemCode ?? '').trim()
+  if (poic) params.purchaseOrderItemCode = poic
+  const pua = String(filters.purchaseUserAccount ?? '').trim()
+  if (pua) params.purchaseUserAccount = pua
+  if (listCustomerColumnOk.value) {
+    const cso = String(filters.customerSo ?? '').trim()
+    if (cso) params.customerSo = cso
+    const cpn = String(filters.customerPn ?? '').trim()
+    if (cpn) params.customerPn = cpn
+  }
+  if (filters.transactionCurrency) params.transactionCurrency = filters.transactionCurrency
+  const qf = route.query.quickFilter
+  if (typeof qf === 'string' && qf.trim() && activePreset.value) {
+    params.quickFilter = qf.trim()
+  } else if (!activePreset.value) {
+    if (filters.purchaseProgressStatus.length) {
+      params.purchaseProgressStatus = [...filters.purchaseProgressStatus]
+    }
+    if (filters.stockInProgressStatus.length) {
+      params.stockInProgressStatus = [...filters.stockInProgressStatus]
+    }
+    if (filters.stockOutNotifyProgressStatus.length) {
+      params.stockOutNotifyProgressStatus = [...filters.stockOutNotifyProgressStatus]
+    }
+    if (filters.stockOutProgressStatus.length) {
+      params.stockOutProgressStatus = [...filters.stockOutProgressStatus]
+    }
+    if (filters.receiptProgressStatus.length) {
+      params.receiptProgressStatus = [...filters.receiptProgressStatus]
+    }
+    if (filters.invoiceProgressStatus.length) {
+      params.invoiceProgressStatus = [...filters.invoiceProgressStatus]
+    }
+    if (stockOutPending.value) params.stockOutPending = true
+    if (receiptPending.value) params.receiptPending = true
+    if (invoicePending.value) params.invoicePending = true
+  }
+  const suid = salesUserIdFilter.value.trim()
+  if (suid) params.salesUserId = suid
+  const cid = customerIdFilter.value.trim()
+  if (cid) params.customerId = cid
+  return params
+}
+
 async function loadList() {
   loading.value = true
   try {
     const params: Record<string, unknown> = {
+      ...buildItemListQueryParams(),
       page: page.value,
       pageSize: Math.min(100, pageSize.value)
     }
-    if (dateRange.value?.[0]) params.orderCreateStart = dateRange.value[0]
-    if (dateRange.value?.[1]) params.orderCreateEnd = dateRange.value[1]
-    // 优先路由：兼容旧深链 sellOrderItemCode，统一走「销售订单/明细号」OR 检索
-    const socFromRoute =
-      typeof route.query.sellOrderCode === 'string' ? route.query.sellOrderCode.trim() : ''
-    const soicFromRoute =
-      typeof route.query.sellOrderItemCode === 'string' ? route.query.sellOrderItemCode.trim() : ''
-    const soc = String(filters.sellOrderCode ?? '').trim() || socFromRoute || soicFromRoute
-    if (soc) params.sellOrderCode = soc
-    if (!maskSaleSensitiveFields.value) {
-      const cn = String(filters.customerName ?? '').trim()
-      if (cn) params.customerName = cn
-      const sun = String(filters.salesUserName ?? '').trim()
-      if (sun) params.salesUserName = sun
-    }
-    const pnk = String(filters.pn ?? '').trim()
-    if (pnk) params.pn = pnk
-    const poic = String(filters.purchaseOrderItemCode ?? '').trim()
-    if (poic) params.purchaseOrderItemCode = poic
-    const pua = String(filters.purchaseUserAccount ?? '').trim()
-    if (pua) params.purchaseUserAccount = pua
-    if (listCustomerColumnOk.value) {
-      const cso = String(filters.customerSo ?? '').trim()
-      if (cso) params.customerSo = cso
-      const cpn = String(filters.customerPn ?? '').trim()
-      if (cpn) params.customerPn = cpn
-    }
-    if (filters.transactionCurrency) params.transactionCurrency = filters.transactionCurrency
-    const qf = route.query.quickFilter
-    if (typeof qf === 'string' && qf.trim() && activePreset.value) {
-      params.quickFilter = qf.trim()
-    } else if (!activePreset.value) {
-      if (filters.purchaseProgressStatus.length) {
-        params.purchaseProgressStatus = [...filters.purchaseProgressStatus]
-      }
-      if (filters.stockInProgressStatus.length) {
-        params.stockInProgressStatus = [...filters.stockInProgressStatus]
-      }
-      if (filters.stockOutNotifyProgressStatus.length) {
-        params.stockOutNotifyProgressStatus = [...filters.stockOutNotifyProgressStatus]
-      }
-      if (filters.stockOutProgressStatus.length) {
-        params.stockOutProgressStatus = [...filters.stockOutProgressStatus]
-      }
-      if (filters.receiptProgressStatus.length) {
-        params.receiptProgressStatus = [...filters.receiptProgressStatus]
-      }
-      if (filters.invoiceProgressStatus.length) {
-        params.invoiceProgressStatus = [...filters.invoiceProgressStatus]
-      }
-      if (stockOutPending.value) params.stockOutPending = true
-      if (receiptPending.value) params.receiptPending = true
-      if (invoicePending.value) params.invoicePending = true
-    }
-    const suid = salesUserIdFilter.value.trim()
-    if (suid) params.salesUserId = suid
-    const cid = customerIdFilter.value.trim()
-    if (cid) params.customerId = cid
 
     const data = (await salesOrderApi.getItemLines(params)) as {
       items?: any[]
@@ -1595,6 +1611,29 @@ async function loadList() {
   await nextTick()
   await restoreTableSelectionFromBasket()
   resetListRightPanelOnReload(salesOrderItemOpsStore)
+}
+
+async function handleExport() {
+  if (exporting.value) return
+  try {
+    await ElMessageBox.confirm(
+      t('salesOrderItemList.messages.exportConfirmMessage'),
+      t('salesOrderItemList.messages.exportConfirmTitle'),
+      { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
+    )
+  } catch {
+    return
+  }
+  exporting.value = true
+  try {
+    const blob = await salesOrderApi.exportItemLines(buildItemListQueryParams())
+    downloadCsvBlob(blob, '销售订单明细.csv')
+    ElMessage.success(t('salesOrderItemList.messages.exportSuccess'))
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : t('salesOrderItemList.messages.exportFailed'))
+  } finally {
+    exporting.value = false
+  }
 }
 
 function resetFilters() {
@@ -1936,6 +1975,29 @@ watch(
   border-color: rgba(0, 212, 255, 0.45);
   color: #00d4ff;
   background: rgba(0, 212, 255, 0.08);
+}
+.btn-export {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  color: #7a5a12;
+  background: #f3e7b8;
+  border: 1px solid #d4bc6a;
+  border-radius: $border-radius-md;
+}
+.btn-export:hover:not(:disabled),
+.btn-export:focus {
+  color: #5c4308;
+  background: #efe0a4;
+  border-color: #c4aa58;
+}
+.btn-export:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 .btn-icon-only {
   width: 32px;
