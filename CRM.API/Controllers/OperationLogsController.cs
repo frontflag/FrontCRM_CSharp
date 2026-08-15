@@ -47,6 +47,7 @@ public class OperationLogsController : ControllerBase
                 OperationTimeFrom = operationTimeFrom,
                 OperationTimeTo = operationTimeTo,
                 Reason = reason,
+                ExcludeExportLogs = true,
                 Page = page,
                 PageSize = pageSize
             };

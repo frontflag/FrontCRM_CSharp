@@ -229,6 +229,7 @@ Manager **不得** 设置 `IsSysAdmin=true`。
 | PermissionCode | Admin | Manager |
 |----------------|:-----:|:-------:|
 | `system.logs.operation.read` | ✅ | ✅ |
+| `system.logs.export.read` | ✅ | ✅ |
 | `system.logs.login.read` | ✅ | ✅ |
 | `system.platform.impersonate` | ✅ | ✅ |
 | `system.platform.force-delete` | ✅ | ✅ |
@@ -279,6 +280,7 @@ Manager **不得** 设置 `IsSysAdmin=true`。
 |------|------|------|
 | 登录日志 | `/system/login-logs` | `system.logs.login.read` |
 | 操作日志 | `/system/operation-logs` | `system.logs.operation.read` |
+| 导出日志 | `/system/export-logs` | `system.logs.export.read` |
 
 ### 7.4 业务管理
 

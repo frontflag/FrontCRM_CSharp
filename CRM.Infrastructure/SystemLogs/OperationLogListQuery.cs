@@ -2,6 +2,7 @@ using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Dtos;
 using CRM.Core.Models.System;
+using CRM.Core.Utilities;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -101,6 +102,11 @@ public sealed class OperationLogListQuery : IOperationLogQueryService
             q = q.Where(o => o.OperationTime <= t);
         }
 
+        if (query.ExcludeExportLogs)
+        {
+            q = q.Where(o => o.ExtraInfo == null || !o.ExtraInfo.Contains("\"exportKind\""));
+        }
+
         var total = await q.CountAsync(cancellationToken);
         var rows = await q
             .OrderByDescending(o => o.OperationTime)
@@ -124,6 +130,74 @@ public sealed class OperationLogListQuery : IOperationLogQueryService
         }).ToList();
 
         return new OperationLogPagedResult
+        {
+            Total = total,
+            Page = page,
+            PageSize = pageSize,
+            Items = items
+        };
+    }
+
+    /// <inheritdoc />
+    public async Task<ExportLogPagedResult> QueryExportLogsAsync(ExportLogQuery query, CancellationToken cancellationToken = default)
+    {
+        var page = query.Page < 1 ? 1 : query.Page;
+        var pageSize = query.PageSize < 1 ? 20 : Math.Min(query.PageSize, MaxPageSize);
+
+        var q = _db.OperationLogs.AsNoTracking()
+            .Where(o => o.ExtraInfo != null && o.ExtraInfo.Contains("\"exportKind\""));
+
+        if (!string.IsNullOrWhiteSpace(query.ExportKind))
+        {
+            var kind = query.ExportKind.Trim();
+            var needle = "\"exportKind\":\"" + kind + "\"";
+            q = q.Where(o => o.ExtraInfo != null && o.ExtraInfo.Contains(needle));
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.OperatorUserName))
+        {
+            var p = query.OperatorUserName.Trim().ToLowerInvariant();
+            q = q.Where(o => o.OperatorUserName != null && o.OperatorUserName.ToLower().Contains(p));
+        }
+
+        if (query.OperationTimeFrom is { } from)
+        {
+            var f = ToUtc(from);
+            q = q.Where(o => o.OperationTime >= f);
+        }
+
+        if (query.OperationTimeTo is { } to)
+        {
+            var t = ToUtc(to);
+            q = q.Where(o => o.OperationTime <= t);
+        }
+
+        var total = await q.CountAsync(cancellationToken);
+        var rows = await q
+            .OrderByDescending(o => o.OperationTime)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        var items = rows.Select(o =>
+        {
+            var d = ExportKindCatalog.Hydrate(o.ExtraInfo);
+            return new ExportLogListItemDto
+            {
+                Id = o.Id,
+                OperationTime = o.OperationTime,
+                OperatorUserName = o.OperatorUserName,
+                ExportKind = d.ExportKind,
+                ExportKindName = d.BusinessTypeName,
+                PageTitle = d.PageTitle,
+                PageUrl = d.PageUrl,
+                FilterSummary = d.FilterSummary,
+                ExportedCount = d.ExportedCount,
+                SysRemark = d.SysRemark
+            };
+        }).ToList();
+
+        return new ExportLogPagedResult
         {
             Total = total,
             Page = page,

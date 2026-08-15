@@ -160,12 +160,14 @@ public static class InventoryExportHttp
         bool truncated,
         bool filtersMasked,
         ClaimsPrincipal user,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? exportPageUrl = null)
     {
         var source = (exportSource ?? string.Empty).Trim().ToLowerInvariant();
         if (string.IsNullOrEmpty(source))
             source = InferBatchExportSource(request);
 
+        var pageUrl = ExportKindCatalog.SanitizePageUrl(exportPageUrl);
         var filters = BatchFilters(request);
         var userId = UserId(user);
         var userName = UserName(user);
@@ -193,7 +195,8 @@ public static class InventoryExportHttp
                 Filters = filters,
                 FiltersMasked = filtersMasked,
                 OperatorUserId = userId,
-                OperatorUserName = userName
+                OperatorUserName = userName,
+                PageUrl = pageUrl
             }, cancellationToken);
             return;
         }
@@ -219,7 +222,8 @@ public static class InventoryExportHttp
                 Filters = filters,
                 FiltersMasked = filtersMasked,
                 OperatorUserId = userId,
-                OperatorUserName = userName
+                OperatorUserName = userName,
+                PageUrl = pageUrl
             }, cancellationToken);
             return;
         }
@@ -246,7 +250,8 @@ public static class InventoryExportHttp
                     Filters = filters,
                     FiltersMasked = filtersMasked,
                     OperatorUserId = userId,
-                    OperatorUserName = userName
+                    OperatorUserName = userName,
+                    PageUrl = pageUrl
                 }, cancellationToken);
                 return;
             }
@@ -278,7 +283,8 @@ public static class InventoryExportHttp
                     Filters = filters,
                     FiltersMasked = filtersMasked,
                     OperatorUserId = userId,
-                    OperatorUserName = userName
+                    OperatorUserName = userName,
+                    PageUrl = pageUrl
                 }, cancellationToken);
                 return;
             }
@@ -309,7 +315,8 @@ public static class InventoryExportHttp
             Filters = filters,
             FiltersMasked = filtersMasked,
             OperatorUserId = userId,
-            OperatorUserName = userName
+            OperatorUserName = userName,
+            PageUrl = pageUrl
         }, cancellationToken);
     }
 

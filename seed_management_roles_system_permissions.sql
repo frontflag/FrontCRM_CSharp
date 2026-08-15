@@ -45,7 +45,8 @@ INSERT INTO sys_permission ("PermissionId", "PermissionCode", "PermissionName", 
 ('31000000-0000-4000-8000-000000000028', 'system.params.finance.payment-banks.read', '系统-财务参数-付款银行-查看', 'api', 'system.params.finance.payment-banks', 'read', 1, NOW()),
 ('31000000-0000-4000-8000-000000000029', 'system.params.finance.payment-banks.write', '系统-财务参数-付款银行-维护', 'api', 'system.params.finance.payment-banks', 'write', 1, NOW()),
 ('31000000-0000-4000-8000-000000000018', 'system.logs.login.read', '系统-登录日志-查看', 'api', 'system.logs.login', 'read', 1, NOW()),
-('31000000-0000-4000-8000-000000000019', 'system.logs.operation.read', '系统-操作日志-查看', 'api', 'system.logs.operation', 'read', 1, NOW())
+('31000000-0000-4000-8000-000000000019', 'system.logs.operation.read', '系统-操作日志-查看', 'api', 'system.logs.operation', 'read', 1, NOW()),
+('31000000-0000-4000-8000-00000000002a', 'system.logs.export.read', '系统-导出日志-查看', 'api', 'system.logs.export', 'read', 1, NOW())
 ON CONFLICT ("PermissionCode") DO NOTHING;
 
 INSERT INTO sys_role_permission ("RolePermissionId", "RoleId", "PermissionId", "CreateTime")
@@ -82,7 +83,7 @@ WHERE r."RoleCode" = 'SYS_MANAGER'
     'system.params.finance.exchange-rates.read','system.params.finance.exchange-rates.write',
     'system.params.finance.purchase-cost-params.read','system.params.finance.purchase-cost-params.write',
     'system.params.finance.payment-banks.read','system.params.finance.payment-banks.write',
-    'system.logs.login.read','system.logs.operation.read'
+    'system.logs.login.read','system.logs.operation.read','system.logs.export.read'
   )
   AND NOT EXISTS (
     SELECT 1 FROM sys_role_permission rp

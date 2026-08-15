@@ -1146,6 +1146,7 @@
           <template #submenu>
             <router-link v-if="canAccessSystemPermission('system.logs.login.read')" to="/system/login-logs" class="submenu-item" active-class="active" exact>{{ t('layout.menu.loginLog') }}</router-link>
             <router-link v-if="canAccessSystemPermission('system.logs.operation.read')" to="/system/operation-logs" class="submenu-item" active-class="active" exact>{{ t('layout.menu.operationLog') }}</router-link>
+            <router-link v-if="canAccessSystemPermission('system.logs.export.read')" to="/system/export-logs" class="submenu-item" active-class="active" exact>{{ t('layout.menu.exportLog') }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
 
@@ -2865,6 +2866,7 @@ const pageTitleMap: Record<string, string> = {
   '/system/purchase-params/refresh-vendor': 'purchaseParams.refreshVendorNav',
   '/system/login-logs': 'layout.menu.loginLog',
   '/system/operation-logs': 'layout.menu.operationLog',
+  '/system/export-logs': 'layout.menu.exportLog',
   '/inventory/list': 'layout.menu.inventoryCenter',
   '/inventory/warehouses': 'warehouseManage.title',
   '/inventory/stock-items': 'layout.menu.inventoryStockItems',
@@ -3026,6 +3028,7 @@ const routeMetaTitleKeyMap: Record<string, string> = {
   '财务参数': 'layout.menu.financeParams',
   '登录日志': 'layout.menu.loginLog',
   '操作日志': 'layout.menu.operationLog',
+  '导出日志': 'layout.menu.exportLog',
   '汇率设置': 'financeParams.exchangeRatesNav',
   '付款管理': 'layout.menu.paymentManagement',
   '付款单详情': 'rfqItemList.actions.detail',
@@ -3236,7 +3239,7 @@ watch(
     if (p === '/system/company-info' || p === '/system/dict-items' || p === '/system/ai-config' || p.startsWith('/system/sales-params') || p.startsWith('/system/purchase-params') || p.startsWith('/system/finance-params')) {
       openGroups.value.paramManagement = true
     }
-    if (p === '/system/login-logs' || p === '/system/operation-logs') {
+    if (p === '/system/login-logs' || p === '/system/operation-logs' || p === '/system/export-logs') {
       openGroups.value.systemLogs = true
     }
     if (p === '/finance/stock-accumulated' || p.startsWith('/finance/stock-accumulated/')) {

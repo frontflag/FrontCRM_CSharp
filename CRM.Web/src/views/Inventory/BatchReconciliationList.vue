@@ -317,7 +317,8 @@ function buildQuery(): BatchReconciliationQuery {
     vendorName: maskPurchaseSensitiveFields.value ? undefined : filters.vendorName.trim() || undefined,
     customerName: maskSaleSensitiveFields.value ? undefined : filters.customerName.trim() || undefined,
     remark: filters.remark.trim() || undefined,
-    exportSource: 'list'
+    exportSource: 'list',
+    exportPageUrl: '/inventory/batch-reconciliation'
   }
 }
 

@@ -434,7 +434,8 @@ async function exportBatches() {
     const blob = await batchReconciliationApi.exportOutBatches({
       packingId: pid,
       packingCode: code,
-      exportSource: 'packing'
+      exportSource: 'packing',
+      exportPageUrl: `/inventory/packing/${pid}`
     })
     downloadBlob(blob, withExportTimestamp(`stock-out-batches-${code}.csv`))
     ElMessage.success(t('packingDetail.batchPanel.messages.exportSuccess'))

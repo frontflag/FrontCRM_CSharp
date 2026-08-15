@@ -19,6 +19,8 @@ public sealed class ExportOperationLogRequest
     public bool FiltersMasked { get; init; }
     public string? OperatorUserId { get; init; }
     public string? OperatorUserName { get; init; }
+    public string? PageTitle { get; init; }
+    public string? PageUrl { get; init; }
 }
 
 public interface IExportOperationLogService
@@ -41,6 +43,10 @@ public sealed class ExportOperationLogService : IExportOperationLogService
     {
         ArgumentNullException.ThrowIfNull(request);
         var display = await BuildDisplayContextAsync(request.Filters, cancellationToken).ConfigureAwait(false);
+        var catalog = ExportKindCatalog.Get(request.ExportKind);
+        var pageTitle = string.IsNullOrWhiteSpace(request.PageTitle) ? catalog?.PageTitle : request.PageTitle.Trim();
+        var pageUrl = ExportKindCatalog.SanitizePageUrl(request.PageUrl) ?? catalog?.PageUrl;
+        var sysRemark = ExportKindCatalog.BuildSysRemark(request.Truncated, request.FiltersMasked, request.MaxRows);
         var extra = ExportOperationAudit.BuildExtraInfoJson(
             request.ExportKind,
             request.ExportedCount,
@@ -48,7 +54,10 @@ public sealed class ExportOperationLogService : IExportOperationLogService
             request.FiltersMasked,
             request.MaxRows,
             request.Truncated,
-            display: display);
+            display: display,
+            pageTitle: pageTitle,
+            pageUrl: pageUrl,
+            sysRemark: string.IsNullOrWhiteSpace(sysRemark) ? null : sysRemark);
 
         await _append.AppendAsync(
             request.BizType,

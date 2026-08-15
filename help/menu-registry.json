@@ -71,6 +71,7 @@
     { "id": "MENU_SYS_DEPTS", "label": "部门管理", "routeNames": ["DepartmentList", "DepartmentCreate", "DepartmentEdit", "DepartmentDetail"], "pathPrefixes": ["/system/departments"] },
     { "id": "MENU_SYS_ROLES", "label": "角色管理", "routeNames": ["RoleList", "RoleCreate", "RoleEdit"], "pathPrefixes": ["/system/roles"] },
     { "id": "MENU_SYS_PERMS", "label": "权限管理", "routeNames": ["PermissionList", "PermissionCreate", "PermissionEdit"], "pathPrefixes": ["/system/permissions"] },
+    { "id": "MENU_EXPORT_LOGS", "label": "导出日志", "routeNames": ["ExportLogList"], "pathPrefixes": ["/system/export-logs"] },
 
     { "id": "MENU_COMPANY_INFO", "label": "公司信息", "routeNames": ["CompanyInfo"], "pathPrefixes": ["/system/company-info"] },
     { "id": "MENU_SETTINGS", "label": "系统设置", "routeNames": ["Settings"], "pathPrefixes": ["/dashboard/settings"] },

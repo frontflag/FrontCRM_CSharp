@@ -49,7 +49,10 @@ public static class ExportOperationAudit
         int maxRows = DefaultMaxExportRows,
         bool truncated = false,
         string? filterSummary = null,
-        ExportFilterDisplayContext? display = null)
+        ExportFilterDisplayContext? display = null,
+        string? pageTitle = null,
+        string? pageUrl = null,
+        string? sysRemark = null)
     {
         var summary = filterSummary ?? BuildFilterSummary(exportKind, filters, display);
         var payload = new Dictionary<string, object?>
@@ -62,7 +65,10 @@ public static class ExportOperationAudit
             ["truncated"] = truncated,
             ["filters"] = filters,
             ["filtersMasked"] = filtersMasked,
-            ["filterSummary"] = summary
+            ["filterSummary"] = summary,
+            ["pageTitle"] = pageTitle,
+            ["pageUrl"] = pageUrl,
+            ["sysRemark"] = sysRemark
         };
         return JsonSerializer.Serialize(payload, JsonOptions);
     }

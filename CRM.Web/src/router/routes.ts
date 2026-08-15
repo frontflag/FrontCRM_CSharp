@@ -980,6 +980,12 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '操作日志', permission: 'system.logs.operation.read' }
       },
       {
+        path: 'system/export-logs',
+        name: 'ExportLogList',
+        component: () => import('@/views/System/ExportLogList.vue'),
+        meta: { requiresAuth: true, title: '导出日志', permission: 'system.logs.export.read' }
+      },
+      {
         path: 'system/ai-config',
         name: 'AiConfig',
         component: () => import('@/views/System/AiConfigPage.vue'),

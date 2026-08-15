@@ -139,6 +139,7 @@ public static class TelemetryCatalog
             ["FinancePaymentBanks"] = "财务参数-付款银行",
             ["LoginLogList"] = "登录日志",
             ["OperationLogList"] = "操作日志",
+            ["ExportLogList"] = "导出日志",
             ["AiConfig"] = "AI 配置",
             ["UserFeedbackList"] = "用户反馈",
             ["SystemErrorList"] = "系统错误",

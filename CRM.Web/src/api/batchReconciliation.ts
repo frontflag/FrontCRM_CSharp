@@ -16,6 +16,8 @@ export interface BatchReconciliationQuery {
   remark?: string
   /** list|stockIn|packing|purchaseOrder|salesOrder — 服务端导出审计挂靠 */
   exportSource?: string
+  /** 导出按钮所在页路由（详情批次导出写入导出日志） */
+  exportPageUrl?: string
 }
 
 export interface BatchReconciliationRow {
@@ -86,6 +88,8 @@ function buildQueryParams(params?: BatchReconciliationQuery & { page?: number; p
   if (params.vendorName?.trim()) q.vendorName = params.vendorName.trim()
   if (params.customerName?.trim()) q.customerName = params.customerName.trim()
   if (params.remark?.trim()) q.remark = params.remark.trim()
+  if (params.exportSource?.trim()) q.exportSource = params.exportSource.trim()
+  if (params.exportPageUrl?.trim()) q.exportPageUrl = params.exportPageUrl.trim()
   if (params.page != null) q.page = params.page
   if (params.pageSize != null) q.pageSize = params.pageSize
   return q

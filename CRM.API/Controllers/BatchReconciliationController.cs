@@ -112,6 +112,7 @@ public class BatchReconciliationController : ControllerBase
     public async Task<IActionResult> ExportInBatches(
         [FromQuery] BatchReconciliationQueryRequest request,
         [FromQuery] string? exportSource = null,
+        [FromQuery] string? exportPageUrl = null,
         CancellationToken cancellationToken = default)
     {
         try
@@ -171,7 +172,8 @@ public class BatchReconciliationController : ControllerBase
                 truncated,
                 filtersMasked: mask511 || mask521,
                 User,
-                cancellationToken);
+                cancellationToken,
+                exportPageUrl);
 
             return InventoryExportHttp.CsvFile(sb.ToString(), "stock-in-batches.csv");
         }
@@ -186,6 +188,7 @@ public class BatchReconciliationController : ControllerBase
     public async Task<IActionResult> ExportOutBatches(
         [FromQuery] BatchReconciliationQueryRequest request,
         [FromQuery] string? exportSource = null,
+        [FromQuery] string? exportPageUrl = null,
         CancellationToken cancellationToken = default)
     {
         try
@@ -228,7 +231,8 @@ public class BatchReconciliationController : ControllerBase
                 truncated,
                 filtersMasked: mask511 || mask521,
                 User,
-                cancellationToken);
+                cancellationToken,
+                exportPageUrl);
 
             return InventoryExportHttp.CsvFile(sb.ToString(), "stock-out-batches.csv");
         }

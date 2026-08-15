@@ -386,7 +386,11 @@ async function exportBatches() {
   }
   exporting.value = true
   try {
-    const blob = await batchReconciliationApi.exportOutBatches({ sellOrderId: id, exportSource: 'salesOrder' })
+    const blob = await batchReconciliationApi.exportOutBatches({
+      sellOrderId: id,
+      exportSource: 'salesOrder',
+      exportPageUrl: `/sales-orders/${id}`
+    })
     const filename = withExportTimestamp(code ? `${code}-out-batches.csv` : 'sales-order-out-batches.csv')
     downloadBlob(blob, filename)
     ElMessage.success(t('salesOrderDetailView.batchPanel.messages.exportSuccess'))

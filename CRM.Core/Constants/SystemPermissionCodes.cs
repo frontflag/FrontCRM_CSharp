@@ -55,6 +55,7 @@ public static class SystemPermissionCodes
 
     public const string LogsLoginRead = "system.logs.login.read";
     public const string LogsOperationRead = "system.logs.operation.read";
+    public const string LogsExportRead = "system.logs.export.read";
 
     public static bool IsSystemPermission(string? code) =>
         !string.IsNullOrWhiteSpace(code)
@@ -120,7 +121,7 @@ public static class SystemPermissionCodes
         ParamsFinanceExchangeRatesRead, ParamsFinanceExchangeRatesWrite,
         ParamsFinancePurchaseCostParamsRead, ParamsFinancePurchaseCostParamsWrite,
         ParamsFinancePaymentBanksRead, ParamsFinancePaymentBanksWrite,
-        LogsLoginRead, LogsOperationRead
+        LogsLoginRead, LogsOperationRead, LogsExportRead
     };
 
     /// <summary>Admin（SYS_MANAGER）默认开放：含销售/采购/财务参数及其现有页内子项。</summary>
@@ -143,7 +144,7 @@ public static class SystemPermissionCodes
         ParamsFinanceExchangeRatesRead, ParamsFinanceExchangeRatesWrite,
         ParamsFinancePurchaseCostParamsRead, ParamsFinancePurchaseCostParamsWrite,
         ParamsFinancePaymentBanksRead, ParamsFinancePaymentBanksWrite,
-        LogsLoginRead, LogsOperationRead
+        LogsLoginRead, LogsOperationRead, LogsExportRead
     };
 
     /// <summary>Manager（SYS_BIZ_MANAGER）默认仅员工管理。</summary>

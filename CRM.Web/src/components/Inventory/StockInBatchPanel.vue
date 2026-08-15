@@ -482,7 +482,12 @@ async function exportBatches() {
   }
   exporting.value = true
   try {
-    const blob = await batchReconciliationApi.exportInBatches({ stockInCode: code, exportSource: 'stockIn' })
+    const stockInId = (props.stockInId ?? '').trim()
+    const blob = await batchReconciliationApi.exportInBatches({
+      stockInCode: code,
+      exportSource: 'stockIn',
+      ...(stockInId ? { exportPageUrl: `/inventory/stock-in/${stockInId}` } : {})
+    })
     downloadBlob(blob, withExportTimestamp(`stock-in-batches-${code}.csv`))
     ElMessage.success(t('stockInDetail.batchPanel.messages.exportSuccess'))
     void fetchLogs(false)
