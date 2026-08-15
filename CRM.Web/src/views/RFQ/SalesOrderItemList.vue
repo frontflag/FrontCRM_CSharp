@@ -14,6 +14,14 @@
       </div>
       <div class="header-right">
         <button type="button" class="btn-ghost btn-sm" :disabled="loading" @click="loadList">{{ t('salesOrderItemList.filters.refresh') }}</button>
+        <button
+          type="button"
+          class="btn-export"
+          :disabled="exporting"
+          @click="() => void handleExport()"
+        >
+          {{ t('salesOrderItemList.filters.export') }}
+        </button>
       </div>
     </div>
 
@@ -304,14 +312,6 @@
           @click="toggleViewMode"
         >
           {{ viewMode === 'board' ? t('salesOrderItemList.filters.listView') : t('salesOrderItemList.filters.boardView') }}
-        </button>
-        <button
-          type="button"
-          class="btn-export"
-          :disabled="exporting"
-          @click="() => void handleExport()"
-        >
-          {{ t('salesOrderItemList.filters.export') }}
         </button>
         <el-popover
           v-model:visible="settingsMenuOpen"
