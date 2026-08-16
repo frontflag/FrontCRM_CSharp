@@ -1,5 +1,6 @@
 using CRM.Core.Constants;
 using System.Collections.Generic;
+using System.Text.Json;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Customer;
 using CRM.Core.Models.Quote;
@@ -38,6 +39,7 @@ namespace CRM.Core.Services
         private readonly ILogger<SalesOrderService> _logger;
         private readonly IQuoteStatusSyncService _quoteStatusSync;
         private readonly ISalesOrderCustomerDownstreamSyncService? _customerDownstreamSyncService;
+        private readonly ISalesOrderSalesPriceDownstreamSyncService? _salesPriceDownstreamSync;
 
         public SalesOrderService(
             IRepository<SellOrder> soRepo,
@@ -63,7 +65,8 @@ namespace CRM.Core.Services
             IUnitOfWork unitOfWork,
             ILogger<SalesOrderService> logger,
             IQuoteStatusSyncService quoteStatusSync,
-            ISalesOrderCustomerDownstreamSyncService? customerDownstreamSyncService = null)
+            ISalesOrderCustomerDownstreamSyncService? customerDownstreamSyncService = null,
+            ISalesOrderSalesPriceDownstreamSyncService? salesPriceDownstreamSync = null)
         {
             _soRepo = soRepo;
             _soItemRepo = soItemRepo;
@@ -89,6 +92,7 @@ namespace CRM.Core.Services
             _logger = logger;
             _quoteStatusSync = quoteStatusSync ?? throw new ArgumentNullException(nameof(quoteStatusSync));
             _customerDownstreamSyncService = customerDownstreamSyncService;
+            _salesPriceDownstreamSync = salesPriceDownstreamSync;
         }
 
         private static IEnumerable<string?> CollectQuoteIds(IEnumerable<SellOrderItem> items) =>
@@ -1102,7 +1106,10 @@ namespace CRM.Core.Services
             }
         }
 
-        public async Task<SalesOrderItemExtendRefreshResult> RefreshItemExtendsAsync(string salesOrderId, CancellationToken cancellationToken = default)
+        public async Task<SalesOrderItemExtendRefreshResult> RefreshItemExtendsAsync(
+            string salesOrderId,
+            CancellationToken cancellationToken = default,
+            string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(salesOrderId))
                 throw new ArgumentException("销售订单ID不能为空", nameof(salesOrderId));
@@ -1118,6 +1125,19 @@ namespace CRM.Core.Services
                 TotalItems = items.Count,
                 RefreshedAt = DateTime.UtcNow
             };
+
+            SalesOrderSalesPriceDownstreamSyncResult? priceSync = null;
+            if (_salesPriceDownstreamSync != null && items.Count > 0)
+            {
+                priceSync = await _salesPriceDownstreamSync.ApplyAsync(items, cancellationToken);
+                result.PackingItemExtendsUpdated = priceSync.PackingItemExtendsUpdated;
+                result.StockItemsUpdated = priceSync.StockItemsUpdated;
+                result.StockOutItemExtendsUpdated = priceSync.StockOutItemExtendsUpdated;
+                result.StockOutHeadersUpdated = priceSync.StockOutHeadersUpdated;
+                result.ReceivablesUpdated = priceSync.ReceivablesUpdated;
+                result.SalesPriceLineChanges = priceSync.LineChanges;
+                result.ReceivableWarnings = priceSync.ReceivableWarnings;
+            }
 
             foreach (var item in items)
             {
@@ -1147,10 +1167,69 @@ namespace CRM.Core.Services
             result.ChangedItems = result.Changes.Count;
             await _unitOfWork.SaveChangesAsync();
 
+            if (priceSync is { HasUpdates: true })
+                await AppendSalesPriceRefreshLogAsync(order, priceSync, actingUserId, cancellationToken);
+
             _logger.LogInformation(
-                "SO明细扩展刷新完成: SalesOrderId={SalesOrderId} Code={Code} TotalItems={TotalItems} ChangedItems={ChangedItems} ChangedFields={ChangedFields}",
-                orderId, order.SellOrderCode, result.TotalItems, result.ChangedItems, result.ChangedFieldsCount);
+                "SO明细扩展刷新完成: SalesOrderId={SalesOrderId} Code={Code} TotalItems={TotalItems} ChangedItems={ChangedItems} ChangedFields={ChangedFields} Packing={Packing} StockItem={StockItem} StockOutExt={StockOutExt} StockOutHead={StockOutHead} Receivable={Receivable}",
+                orderId,
+                order.SellOrderCode,
+                result.TotalItems,
+                result.ChangedItems,
+                result.ChangedFieldsCount,
+                result.PackingItemExtendsUpdated,
+                result.StockItemsUpdated,
+                result.StockOutItemExtendsUpdated,
+                result.StockOutHeadersUpdated,
+                result.ReceivablesUpdated);
             return result;
+        }
+
+        private async Task AppendSalesPriceRefreshLogAsync(
+            SellOrder order,
+            SalesOrderSalesPriceDownstreamSyncResult priceSync,
+            string? actingUserId,
+            CancellationToken cancellationToken)
+        {
+            string? operatorName = null;
+            var actor = string.IsNullOrWhiteSpace(actingUserId) ? null : actingUserId.Trim();
+            if (!string.IsNullOrEmpty(actor))
+            {
+                var user = await _userService.GetByIdAsync(actor);
+                operatorName = string.IsNullOrWhiteSpace(user?.RealName) ? user?.UserName : user!.RealName;
+            }
+
+            var lineDesc = priceSync.LineChanges.Count == 0
+                ? "无单价变化行"
+                : string.Join("；", priceSync.LineChanges.Select(c =>
+                    $"{c.SellOrderItemCode ?? c.SellOrderItemId}: {c.OldPrice}→{c.NewPrice}"));
+            var desc =
+                $"覆盖下游销售价快照。明细 {lineDesc}。装箱 {priceSync.PackingItemExtendsUpdated}、库存 {priceSync.StockItemsUpdated}、出库扩展 {priceSync.StockOutItemExtendsUpdated}、出库单头 {priceSync.StockOutHeadersUpdated}、应收 {priceSync.ReceivablesUpdated}。";
+            if (priceSync.ReceivableWarnings.Count > 0)
+                desc += $" 超额警告 {priceSync.ReceivableWarnings.Count} 条。";
+
+            var extraInfo = JsonSerializer.Serialize(new
+            {
+                lines = priceSync.LineChanges,
+                packingItemExtends = priceSync.PackingItemExtendsUpdated,
+                stockItems = priceSync.StockItemsUpdated,
+                stockOutItemExtends = priceSync.StockOutItemExtendsUpdated,
+                stockOutHeaders = priceSync.StockOutHeadersUpdated,
+                receivables = priceSync.ReceivablesUpdated,
+                warnings = priceSync.ReceivableWarnings
+            });
+
+            await _logOperationAppend.AppendAsync(
+                BusinessLogTypes.SalesOrder,
+                order.Id,
+                order.SellOrderCode,
+                OperationLogActionTypes.SellOrderRefreshSalesPrice,
+                actor,
+                operatorName,
+                desc,
+                null,
+                extraInfo,
+                cancellationToken);
         }
 
         /// <inheritdoc />

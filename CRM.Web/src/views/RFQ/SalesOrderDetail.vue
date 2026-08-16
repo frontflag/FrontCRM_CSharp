@@ -2322,13 +2322,68 @@ function salesRefreshStatusText(field: string, value: string) {
   return value
 }
 
+function hasSalesRefreshUpdates(result: SalesOrderItemExtendRefreshResult | null | undefined) {
+  if (!result) return false
+  const downstream =
+    Number(result.packingItemExtendsUpdated ?? 0)
+    + Number(result.stockItemsUpdated ?? 0)
+    + Number(result.stockOutItemExtendsUpdated ?? 0)
+    + Number(result.stockOutHeadersUpdated ?? 0)
+    + Number(result.receivablesUpdated ?? 0)
+    + (result.salesPriceLineChanges?.length ?? 0)
+    + (result.receivableWarnings?.length ?? 0)
+  return result.changedItems > 0 || result.changedFieldsCount > 0 || downstream > 0
+}
+
 function buildSalesRefreshResultHtml(result: SalesOrderItemExtendRefreshResult) {
   const syncedNotifyCount = Number(result.syncedStockOutNotifyStatusCount ?? 0)
   const lines: string[] = [
     `共 ${result.changedItems} 条明细发生更新，${result.changedFieldsCount} 个字段已变更。`,
     `已同步回写 ${syncedNotifyCount} 条出库通知状态。`,
+    t('salesOrderDetailView.refreshDownstreamSummary', {
+      packing: Number(result.packingItemExtendsUpdated ?? 0),
+      stock: Number(result.stockItemsUpdated ?? 0),
+      outItem: Number(result.stockOutItemExtendsUpdated ?? 0),
+      outHead: Number(result.stockOutHeadersUpdated ?? 0),
+      ar: Number(result.receivablesUpdated ?? 0)
+    }),
     ''
   ]
+  for (const price of result.salesPriceLineChanges ?? []) {
+    lines.push(
+      t('salesOrderDetailView.refreshPriceLine', {
+        code: price.sellOrderItemCode || price.sellOrderItemId,
+        before: String(price.oldPrice),
+        after: String(price.newPrice)
+      })
+    )
+  }
+  for (const warning of result.receivableWarnings ?? []) {
+    const code = warning.receivableCode || warning.receivableId
+    if (warning.verifiedOverAmount) {
+      lines.push(
+        t('salesOrderDetailView.refreshOverVerify', {
+          code,
+          done: String(warning.verifiedDone),
+          amount: String(warning.amount),
+          toBe: String(warning.verifiedToBe)
+        })
+      )
+    }
+    if (warning.invoiceMatchOverAmount) {
+      lines.push(
+        t('salesOrderDetailView.refreshOverInvoice', {
+          code,
+          done: String(warning.invoiceMatchDone),
+          amount: String(warning.amount),
+          toBe: String(warning.invoiceMatchToBe)
+        })
+      )
+    }
+  }
+  if ((result.salesPriceLineChanges?.length ?? 0) > 0 || (result.receivableWarnings?.length ?? 0) > 0) {
+    lines.push('')
+  }
   for (const change of result.changes) {
     const lineCode = change.sellOrderItemCode || change.sellOrderItemId
     lines.push(`【${lineCode}】`)
@@ -2352,9 +2407,9 @@ async function handleRefreshItemExtends() {
   if (!order.value?.id || refreshingExtends.value) return
   try {
     await ElMessageBox.confirm(
-      `确认刷新销售订单 ${order.value.sellOrderCode} 的明细执行状态与扩展字段吗？`,
-      '刷新确认',
-      { type: 'warning', confirmButtonText: '刷新', cancelButtonText: '取消' }
+      t('salesOrderDetailView.refreshConfirm'),
+      t('salesOrderDetailView.refresh'),
+      { type: 'warning', confirmButtonText: t('salesOrderDetailView.refresh'), cancelButtonText: t('common.cancel') }
     )
   } catch {
     return
@@ -2365,19 +2420,23 @@ async function handleRefreshItemExtends() {
     const result = await salesOrderApi.refreshItemExtends(order.value.id)
     await fetchOrder()
     await reloadSoItemLinePanelAggregates()
-    if (!result || result.changedItems <= 0) {
-      await ElMessageBox.alert('无更新数据', '刷新结果', { confirmButtonText: '知道了' })
+    if (!hasSalesRefreshUpdates(result)) {
+      await ElMessageBox.alert(
+        t('salesOrderDetailView.refreshResultEmpty'),
+        t('salesOrderDetailView.refreshResultTitle'),
+        { confirmButtonText: t('common.confirm') }
+      )
       return
     }
-    await ElMessageBox.alert(buildSalesRefreshResultHtml(result), '刷新结果', {
+    await ElMessageBox.alert(buildSalesRefreshResultHtml(result), t('salesOrderDetailView.refreshResultTitle'), {
       dangerouslyUseHTMLString: true,
-      confirmButtonText: '知道了'
+      confirmButtonText: t('common.confirm')
     })
   } catch (e) {
     await ElMessageBox.alert(
       getApiErrorMessage(e, '刷新失败，请稍后重试'),
       '刷新失败',
-      { confirmButtonText: '知道了' }
+      { confirmButtonText: t('common.confirm') }
     )
   } finally {
     refreshingExtends.value = false

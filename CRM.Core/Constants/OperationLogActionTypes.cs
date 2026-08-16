@@ -7,6 +7,7 @@ public static class OperationLogActionTypes
     public const string GenericDelete = "删除";
 
     public const string SellOrderDelete = "销售订单整单删除";
+    public const string SellOrderRefreshSalesPrice = "刷新销售价";
     public const string SellOrderItemDelete = "销售明细删除";
     public const string SellOrderItemDeleteWithOrder = "销售明细整单删除";
 

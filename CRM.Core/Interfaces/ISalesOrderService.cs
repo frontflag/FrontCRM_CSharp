@@ -44,8 +44,11 @@ namespace CRM.Core.Interfaces
         Task<IReadOnlyDictionary<string, StockOutApplyPurchaseGateDetailDto>> GetStockOutApplyPurchaseGateDetailsBySellLineIdsAsync(
             IEnumerable<string> sellOrderItemIds);
 
-        /// <summary>按销售订单批量重算明细扩展并返回变更结果。</summary>
-        Task<SalesOrderItemExtendRefreshResult> RefreshItemExtendsAsync(string salesOrderId, CancellationToken cancellationToken = default);
+        /// <summary>按销售订单覆盖下游销售价快照并重算明细扩展，返回变更结果。</summary>
+        Task<SalesOrderItemExtendRefreshResult> RefreshItemExtendsAsync(
+            string salesOrderId,
+            CancellationToken cancellationToken = default,
+            string? actingUserId = null);
 
         /// <summary>销售订单主表字段变更日志（<c>log_change_fldval</c>，BizType=<see cref="Constants.BusinessLogTypes.SalesOrder"/>）。</summary>
         Task<IReadOnlyList<SalesOrderFieldChangeLogDto>> GetFieldChangeLogsAsync(string sellOrderId);

@@ -1213,6 +1213,10 @@ namespace CRM.Infrastructure.Data
             modelBuilder.Entity<PackingItemExtend>(entity =>
             {
                 entity.HasKey(e => e.Id);
+                entity.Ignore(e => e.CreateTime);
+                entity.Ignore(e => e.CreateUserId);
+                entity.Ignore(e => e.ModifyTime);
+                entity.Ignore(e => e.ModifyUserId);
                 entity.Property(e => e.PackingItemId).IsRequired().HasMaxLength(36);
                 entity.HasIndex(e => e.PackingItemId).IsUnique().HasFilter("is_deleted = false");
                 entity.Property(e => e.CustomerId).HasColumnName("customer_id").HasMaxLength(36);

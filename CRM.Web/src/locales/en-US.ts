@@ -5510,6 +5510,15 @@ const enUS = {
     refreshing: 'Refreshing…',
     refreshMenu: 'More refresh actions',
     refreshCustomer: 'Refresh customer',
+    refreshConfirm:
+      'This will overwrite sales-price snapshots on packing, stock, outbound, and receivables (including shipped / written-off / invoiced), then recalculate line progress. Receipt write-off rows and invoice face amounts are not changed. The operator is responsible for the result. Continue?',
+    refreshResultEmpty: 'No updates',
+    refreshResultTitle: 'Refresh result',
+    refreshDownstreamSummary:
+      'Downstream sales prices: packing {packing}, stock {stock}, outbound lines {outItem}, outbound headers {outHead}, receivables {ar}.',
+    refreshPriceLine: '{code}: unit price {before} → {after}',
+    refreshOverVerify: 'Receivable {code}: written-off {done} exceeds new total {amount} (open {toBe})',
+    refreshOverInvoice: 'Receivable {code}: invoice-matched {done} exceeds new total {amount} (open {toBe})',
     syncingDownstreamCustomer: 'Syncing customer…',
     edit: 'Edit',
     more: 'More actions',

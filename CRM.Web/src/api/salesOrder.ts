@@ -29,6 +29,38 @@ export interface SalesOrderItemExtendRefreshResult {
   syncedStockOutNotifyStatusCount?: number
   refreshedAt: string
   changes: SalesOrderItemExtendChangeDto[]
+  packingItemExtendsUpdated?: number
+  stockItemsUpdated?: number
+  stockOutItemExtendsUpdated?: number
+  stockOutHeadersUpdated?: number
+  receivablesUpdated?: number
+  salesPriceLineChanges?: SalesOrderSalesPriceLineChangeDto[]
+  receivableWarnings?: SalesOrderReceivableAmountWarningDto[]
+}
+
+export interface SalesOrderSalesPriceLineChangeDto {
+  sellOrderItemId: string
+  sellOrderItemCode?: string
+  oldPrice: number
+  newPrice: number
+  oldCurrency: number
+  newCurrency: number
+  oldConvertPrice: number
+  newConvertPrice: number
+}
+
+export interface SalesOrderReceivableAmountWarningDto {
+  receivableId: string
+  receivableCode?: string
+  sellOrderItemId: string
+  sellOrderItemCode?: string
+  amount: number
+  verifiedDone: number
+  verifiedToBe: number
+  invoiceMatchDone: number
+  invoiceMatchToBe: number
+  verifiedOverAmount: boolean
+  invoiceMatchOverAmount: boolean
 }
 
 export interface SalesOrderCustomerDownstreamSyncPreviewItem {

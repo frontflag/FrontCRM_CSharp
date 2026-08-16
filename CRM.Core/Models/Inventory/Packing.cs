@@ -302,12 +302,12 @@ public class PackingItem : BaseGuidEntity, ISoftDeletable
 
 /// <summary>装箱单明细扩展表（客户/业务员/销售价快照）。</summary>
 [Table("packing_item_extend")]
-public class PackingItemExtend : ISoftDeletable
+public class PackingItemExtend : BaseGuidEntity, ISoftDeletable
 {
     [Key]
     [StringLength(36)]
     [Column("Id")]
-    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public override string Id { get; set; } = Guid.NewGuid().ToString();
 
     [Required]
     [StringLength(36)]
