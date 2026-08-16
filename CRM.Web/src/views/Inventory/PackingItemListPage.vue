@@ -33,6 +33,8 @@
         :show-column-settings="false"
         :data="list"
         row-key="id"
+        :row-class-name="flowPanelRowClassName"
+        @row-click="onRowClick"
       >
         <template #col-customerName="{ row }">
           <span>{{ maskSaleSensitiveFields ? '—' : (row.customerName?.trim() || '—') }}</span>
@@ -64,9 +66,11 @@ import { packingApi, packingStatusLabel, type PackingItemListRow } from '@/api/p
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import { usePackingDetailFlowPanelStore } from '@/stores/packingDetailFlowPanel'
 
 const { t } = useI18n()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
+const packingFlowStore = usePackingDetailFlowPanelStore()
 
 const loading = ref(false)
 const keyword = ref('')
@@ -122,6 +126,24 @@ function resetFilters() {
   keyword.value = ''
   filters.value.packingCode = ''
   void fetchList(true)
+}
+
+function onRowClick(row: PackingItemListRow) {
+  const packingId = String(row?.packingId || '').trim()
+  const itemId = String(row?.id || '').trim()
+  if (!packingId || !itemId) return
+  void packingFlowStore.bindPackingItemFromList(
+    packingId,
+    itemId,
+    t('packingItemList.flowPanel.loadFailed'),
+    t('packingItemList.flowPanel.itemNotFound')
+  )
+}
+
+function flowPanelRowClassName({ row }: { row: PackingItemListRow }) {
+  const itemId = String(row?.id || '').trim()
+  if (!itemId || !packingFlowStore.selectedPackingItemId) return ''
+  return itemId === packingFlowStore.selectedPackingItemId ? 'so-item-row--active' : ''
 }
 
 onMounted(() => {
@@ -195,6 +217,10 @@ onMounted(() => {
   border-radius: 10px;
   border: 1px solid $border-panel;
   background: $layer-2;
+}
+
+:deep(.el-table__body tr.el-table__row.so-item-row--active > td.el-table__cell) {
+  background: rgba(0, 160, 220, 0.1) !important;
 }
 
 .btn-primary {

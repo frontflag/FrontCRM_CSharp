@@ -62,6 +62,14 @@ public sealed class StockOutItemEfListQuery : IStockOutItemListQuery
             q = q.Where(x => x.so.StockOutCode.ToLower().Contains(k));
         }
 
+        if (!string.IsNullOrWhiteSpace(query.StockOutItemCode))
+        {
+            var k = query.StockOutItemCode.Trim().ToLowerInvariant();
+            q = q.Where(x =>
+                x.si.StockOutItemCode != null &&
+                x.si.StockOutItemCode.ToLower().Contains(k));
+        }
+
         if (query.StockOutDateFrom.HasValue)
         {
             var d = query.StockOutDateFrom.Value.Date;

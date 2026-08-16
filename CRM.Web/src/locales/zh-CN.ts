@@ -7452,6 +7452,7 @@ const zhCN = {
     filters: {
       status: '状态',
       stockOutCode: '出库单号',
+      stockOutItemCode: '出库明细单号',
       stockInCode: '入库单号',
       packingCode: '装箱单号',
       stockOutDateRange: '出库日期',
@@ -7468,6 +7469,7 @@ const zhCN = {
     columns: {
       status: '状态',
       stockOutCode: '出库单号',
+      stockOutItemCode: '出库明细单号',
       stockInCode: '入库单号',
       packingCode: '装箱单号',
       stockOutDate: '出库日期',
@@ -8239,6 +8241,9 @@ const zhCN = {
     flowPanel: {
       noSelection: '请选择一条装箱明细',
       missingSellLink: '当前装箱明细未关联销售订单明细，销售明细站为空；其余节点仍按本箱展示',
+      fields: {
+        stockOutItemCode: '出库明细单号'
+      },
       stations: {
         sellOrderItem: '销售订单明细',
         stockOutNotify: '出库通知',
@@ -8271,6 +8276,11 @@ const zhCN = {
     },
     messages: {
       loadFailed: '加载装箱单明细失败'
+    },
+    flowPanel: {
+      pickItem: '请单击列表中的装箱明细，查看流程',
+      loadFailed: '加载装箱明细流程失败',
+      itemNotFound: '该装箱明细不存在或已删除'
     }
   },
   pickingSlip: {

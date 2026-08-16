@@ -40,7 +40,7 @@
     { "id": "MENU_PACKING_LIST", "label": "装箱单", "routeNames": ["PackingList", "PackingCreate", "PackingDetail", "PackingInvoiceReport", "PackingReport"], "pathPrefixes": ["/inventory/packing"] },
     { "id": "MENU_PACKING_ITEMS", "label": "装箱单明细", "routeNames": ["PackingItemList"], "pathPrefixes": ["/inventory/packing/items"] },
     { "id": "MENU_PICKING_SLIP", "label": "拣货单", "routeNames": ["PickingSlipList", "PickingSlipDetail"], "pathPrefixes": ["/inventory/picking-list"] },
-    { "id": "MENU_STOCK_OUT", "label": "出库单", "routeNames": ["StockOutList", "StockOutCreate", "StockOutDetail", "PickCreate"], "pathPrefixes": ["/inventory/stock-out"] },
+    { "id": "MENU_STOCK_OUT", "label": "出库单", "routeNames": ["StockOutList", "StockOutItemList", "StockOutCreate", "StockOutDetail", "PickCreate"], "pathPrefixes": ["/inventory/stock-out"] },
 
     { "id": "MENU_CUSTOMS_BROKERS", "label": "报关公司", "routeNames": ["CustomsBrokerList"], "pathPrefixes": ["/customs/brokers"] },
     { "id": "MENU_CUSTOMS_PENDLISTS", "label": "待报关列表", "routeNames": ["CustomsPendlistList"], "pathPrefixes": ["/customs/pendlists"] },

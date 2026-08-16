@@ -371,6 +371,10 @@ namespace CRM.Core.Interfaces
         public short? Status { get; set; }
 
         public string? StockOutCode { get; set; }
+
+        /// <summary>出库明细单号（<c>stock_out_item.stock_out_item_code</c>），子串匹配</summary>
+        public string? StockOutItemCode { get; set; }
+
         public DateTime? StockOutDateFrom { get; set; }
         public DateTime? StockOutDateTo { get; set; }
         public string? CustomerName { get; set; }
@@ -398,6 +402,8 @@ namespace CRM.Core.Interfaces
         public string StockOutId { get; set; } = string.Empty;
         public short Status { get; set; }
         public string StockOutCode { get; set; } = string.Empty;
+        /// <summary>出库明细单号：<c>{出库单号}-{行序号}</c>。</summary>
+        public string? StockOutItemCode { get; set; }
         public DateTime? StockOutDate { get; set; }
         public string? CustomerName { get; set; }
         public string? SalesUserName { get; set; }

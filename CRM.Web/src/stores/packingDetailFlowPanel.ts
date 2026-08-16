@@ -5,6 +5,7 @@ import {
   packingApi,
   type PackingDetail,
   type PackingDetailLine,
+  type PackingItemFlowStockOutLine,
   type PackingStockOutNotifyRow
 } from '@/api/packing'
 import {
@@ -23,7 +24,7 @@ export type PackingFlowItemChip = {
   itemCode: string
 }
 
-/** 装箱「流程」：详情选明细 / 列表选箱+明细单号切换 */
+/** 装箱「流程」：详情选明细 / 装箱单列表选箱 / 装箱明细列表选行 */
 export const usePackingDetailFlowPanelStore = defineStore('packingDetailFlowPanel', () => {
   const packing = ref<PackingDetail | null>(null)
   const packingItem = ref<PackingDetailLine | null>(null)
@@ -43,6 +44,7 @@ export const usePackingDetailFlowPanelStore = defineStore('packingDetailFlowPane
 
   let loadSeq = 0
   let bindSeq = 0
+  let stockOutLinesSeq = 0
 
   const selectedPackingId = computed(() => String(packing.value?.id ?? '').trim())
   const selectedPackingItemId = computed(() => String(packingItem.value?.id ?? '').trim())
@@ -74,6 +76,7 @@ export const usePackingDetailFlowPanelStore = defineStore('packingDetailFlowPane
     aggregatesKey.value = ''
     loadSeq += 1
     bindSeq += 1
+    stockOutLinesSeq += 1
   }
 
   function resolveSelectedNotifies(
@@ -96,7 +99,8 @@ export const usePackingDetailFlowPanelStore = defineStore('packingDetailFlowPane
   function buildFlowExtras(
     header: PackingDetail,
     line: PackingDetailLine,
-    page?: PickPageByPacking | null
+    page?: PickPageByPacking | null,
+    stockOutLines?: PackingItemFlowStockOutLine[] | null
   ): PackingFlowExtras {
     const itemId = String(line.id || '').trim()
     const pickLine: PickPagePackingLine | null =
@@ -105,7 +109,8 @@ export const usePackingDetailFlowPanelStore = defineStore('packingDetailFlowPane
     return {
       stockOutNotifies: resolveSelectedNotifies(header, line),
       pickingTask,
-      pickLine
+      pickLine,
+      stockOutLines: stockOutLines ?? []
     }
   }
 
@@ -157,6 +162,7 @@ export const usePackingDetailFlowPanelStore = defineStore('packingDetailFlowPane
     }
     flowRow.value = buildFlowRow(header, line)
     flowExtras.value = buildFlowExtras(header, line, pickPage.value)
+    void loadStockOutLines(String(line.id || '').trim())
     const key = `${header.id}|${line.id}|${line.sellOrderItemId || ''}`
     if (aggregatesKey.value !== key) {
       aggregates.value = null
@@ -224,21 +230,34 @@ export const usePackingDetailFlowPanelStore = defineStore('packingDetailFlowPane
       flowExtras.value = null
       return
     }
-    flowExtras.value = buildFlowExtras(header, line, page)
+    flowExtras.value = buildFlowExtras(header, line, page, flowExtras.value?.stockOutLines)
   }
 
-  /** 列表：单击装箱单 → 拉详情+拣货，默认首条明细 */
-  async function bindPackingFromList(packingId: string, loadFailedText = '加载装箱单失败') {
-    const id = String(packingId || '').trim()
-    if (!id) return
-
-    if (selectedPackingId.value === id && packing.value && !bindError.value) {
-      // 同箱再次单击：保持当前明细，仅确保已加载
-      if (packingItem.value) await loadAggregates()
+  async function loadStockOutLines(packingItemId: string) {
+    const itemId = String(packingItemId || '').trim()
+    const seq = ++stockOutLinesSeq
+    if (!itemId) {
+      if (flowExtras.value) flowExtras.value = { ...flowExtras.value, stockOutLines: [] }
       return
     }
+    try {
+      const lines = await packingApi.getFlowStockOutLines(itemId)
+      if (seq !== stockOutLinesSeq) return
+      if (flowExtras.value) flowExtras.value = { ...flowExtras.value, stockOutLines: lines }
+    } catch {
+      if (seq !== stockOutLinesSeq) return
+      if (flowExtras.value) flowExtras.value = { ...flowExtras.value, stockOutLines: [] }
+    }
+  }
 
+  async function loadPackingAndSelectItem(
+    packingId: string,
+    packingItemId: string | null,
+    loadFailedText: string,
+    itemNotFoundText?: string
+  ) {
     const seq = ++bindSeq
+    stockOutLinesSeq += 1
     bindingLoading.value = true
     bindError.value = ''
     loadError.value = ''
@@ -253,21 +272,25 @@ export const usePackingDetailFlowPanelStore = defineStore('packingDetailFlowPane
 
     try {
       const [detail, page] = await Promise.all([
-        packingApi.getById(id),
-        inventoryCenterApi.getPickPageByPacking(id).catch(() => null)
+        packingApi.getById(packingId),
+        inventoryCenterApi.getPickPageByPacking(packingId).catch(() => null)
       ])
       if (seq !== bindSeq) return
 
       packing.value = detail
       pickPage.value = page
-      const first = detail.items?.[0] ?? null
-      if (!first) {
+      const targetId = String(packingItemId || '').trim()
+      const line = targetId
+        ? (detail.items?.find((x) => String(x.id || '').trim() === targetId) ?? null)
+        : (detail.items?.[0] ?? null)
+      if (!line) {
         packingItem.value = null
         flowRow.value = null
         flowExtras.value = null
+        if (targetId) bindError.value = itemNotFoundText || loadFailedText
         return
       }
-      await selectPackingItem(detail, first, page)
+      await selectPackingItem(detail, line, page)
     } catch (e: unknown) {
       if (seq !== bindSeq) return
       packing.value = null
@@ -279,6 +302,39 @@ export const usePackingDetailFlowPanelStore = defineStore('packingDetailFlowPane
     } finally {
       if (seq === bindSeq) bindingLoading.value = false
     }
+  }
+
+  /** 列表：单击装箱单 → 拉详情+拣货，默认首条明细 */
+  async function bindPackingFromList(packingId: string, loadFailedText = '加载装箱单失败') {
+    const id = String(packingId || '').trim()
+    if (!id) return
+
+    if (selectedPackingId.value === id && packing.value && !bindError.value) {
+      // 同箱再次单击：保持当前明细，仅确保已加载
+      if (packingItem.value) await loadAggregates()
+      return
+    }
+
+    await loadPackingAndSelectItem(id, null, loadFailedText)
+  }
+
+  /** 装箱明细列表：单击一行 → 拉所属装箱单并选中该行 */
+  async function bindPackingItemFromList(
+    packingId: string,
+    packingItemId: string,
+    loadFailedText = '加载装箱单失败',
+    itemNotFoundText?: string
+  ) {
+    const pid = String(packingId || '').trim()
+    const itemId = String(packingItemId || '').trim()
+    if (!pid || !itemId) return
+
+    if (selectedPackingId.value === pid && packing.value && !bindError.value) {
+      await selectItemById(itemId)
+      return
+    }
+
+    await loadPackingAndSelectItem(pid, itemId, loadFailedText, itemNotFoundText)
   }
 
   /** 列表/详情：切换本箱明细 */
@@ -316,6 +372,7 @@ export const usePackingDetailFlowPanelStore = defineStore('packingDetailFlowPane
     selectPackingItem,
     patchPickPage,
     bindPackingFromList,
+    bindPackingItemFromList,
     selectItemById
   }
 })

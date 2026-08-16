@@ -314,6 +314,7 @@ public sealed class InternalTransferPostingKernel : IInternalTransferPostingKern
             Amount = lineAmount,
             StockId = sourceStock.Id,
             StockItemId = layer.Id,
+            StockOutItemCode = OrderLineItemCodes.RequireStockOut(stockOutCode, 1),
             WarehouseId = fromWh,
             LocationId = layer.LocationId,
             BatchNo = layer.BatchNo,

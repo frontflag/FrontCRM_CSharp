@@ -57,6 +57,20 @@ export interface PackingListItem {
   customsDeclarationCode?: string | null
 }
 
+/** 装箱流程出库站：与装箱行对齐的出库明细 */
+export interface PackingItemFlowStockOutLine {
+  stockOutId: string
+  stockOutCode: string
+  stockOutItemId: string
+  stockOutItemCode?: string | null
+  qty: number
+  status: number
+  createTime?: string | null
+  customerName?: string | null
+  customerCode?: string | null
+  createUserName?: string | null
+}
+
 export interface PackingItemListRow {
   id: string
   packingId: string
@@ -793,6 +807,39 @@ export const packingApi = {
       }
     }
     return { items: [], total: 0, page: 1, pageSize: 20 }
+  },
+
+  /** 装箱流程出库站：按装箱行对齐的出库明细 */
+  async getFlowStockOutLines(packingItemId: string): Promise<PackingItemFlowStockOutLine[]> {
+    const id = String(packingItemId || '').trim()
+    if (!id) return []
+    const res = await apiClient.get<unknown>(
+      `/api/v1/packing/items/${encodeURIComponent(id)}/flow-stock-out-lines`
+    )
+    const raw = Array.isArray(res)
+      ? res
+      : res && typeof res === 'object'
+        ? ((res as Record<string, unknown>).items ??
+            (res as Record<string, unknown>).Items ??
+            (res as Record<string, unknown>).data ??
+            (res as Record<string, unknown>).Data)
+        : null
+    if (!Array.isArray(raw)) return []
+    return raw.map((row) => {
+      const r = row && typeof row === 'object' ? (row as Record<string, unknown>) : {}
+      return {
+        stockOutId: String(r.stockOutId ?? r.StockOutId ?? ''),
+        stockOutCode: String(r.stockOutCode ?? r.StockOutCode ?? ''),
+        stockOutItemId: String(r.stockOutItemId ?? r.StockOutItemId ?? ''),
+        stockOutItemCode: (r.stockOutItemCode ?? r.StockOutItemCode) as string | null | undefined,
+        qty: Number(r.qty ?? r.Qty ?? 0),
+        status: Number(r.status ?? r.Status ?? 0),
+        createTime: (r.createTime ?? r.CreateTime) as string | null | undefined,
+        customerName: (r.customerName ?? r.CustomerName) as string | null | undefined,
+        customerCode: (r.customerCode ?? r.CustomerCode) as string | null | undefined,
+        createUserName: (r.createUserName ?? r.CreateUserName) as string | null | undefined
+      }
+    })
   },
 
   async previewFromStockOutRequests(stockOutRequestIds: string[]): Promise<PackingDraftFromStockOutRequests> {

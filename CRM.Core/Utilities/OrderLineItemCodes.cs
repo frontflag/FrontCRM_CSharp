@@ -22,4 +22,17 @@ public static class OrderLineItemCodes
     /// <summary>拣货明细业务编号（无装箱明细关联时的回退）：<c>{拣货任务号}-{行序号}</c>。</summary>
     public static string PickingTaskItem(string? taskCode, int seq) =>
         seq > 0 && !string.IsNullOrWhiteSpace(taskCode) ? $"{taskCode}-{seq}" : string.Empty;
+
+    /// <summary>出库明细业务编号：<c>{出库单号}-{行序号}</c>。</summary>
+    public static string StockOut(string? stockOutCode, int seq) =>
+        seq > 0 && !string.IsNullOrWhiteSpace(stockOutCode) ? $"{stockOutCode}-{seq}" : string.Empty;
+
+    /// <summary>写入出库明细时必须有号；单号无效则抛错，避免落空号。</summary>
+    public static string RequireStockOut(string? stockOutCode, int seq)
+    {
+        var code = StockOut(stockOutCode, seq);
+        if (string.IsNullOrWhiteSpace(code))
+            throw new InvalidOperationException("出库明细单号生成失败：出库单号无效");
+        return code;
+    }
 }

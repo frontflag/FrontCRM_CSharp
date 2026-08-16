@@ -51,6 +51,10 @@ export interface FlowCard {
   unitPriceText?: string | null
   qtyText?: string | null
   description?: string | null
+  /** 行级单号（如出库明细单号），与头单号并列 */
+  lineDocNo?: string | null
+  lineDocLabelKey?: string
+  lineDocRoute?: FlowDocRoute
   /** 报关出库通知小卡：关联待报关 Id（溯源展示） */
   pendlistId?: string | null
 }

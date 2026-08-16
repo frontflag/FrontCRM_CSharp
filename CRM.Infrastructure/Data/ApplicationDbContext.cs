@@ -1017,6 +1017,11 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.StockItemId).HasMaxLength(36);
                 entity.Property(e => e.PickingTaskItemId).HasColumnName("picking_task_item_id").HasMaxLength(36);
                 entity.Property(e => e.PackingId).HasColumnName("packing_id").HasMaxLength(36);
+                entity.Property(e => e.StockOutItemCode).HasColumnName("stock_out_item_code").HasMaxLength(64);
+                entity.HasIndex(e => e.StockOutItemCode)
+                    .IsUnique()
+                    .HasDatabaseName("UX_stock_out_item_code")
+                    .HasFilter("stock_out_item_code IS NOT NULL AND btrim(stock_out_item_code) <> ''");
             });
 
             modelBuilder.Entity<StockOutItemExtend>(entity =>

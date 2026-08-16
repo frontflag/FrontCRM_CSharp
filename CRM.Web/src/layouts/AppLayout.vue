@@ -1461,10 +1461,12 @@
             :row="packingDetailFlowStore.flowRow"
             :aggregates="packingDetailFlowStore.aggregates"
             :extras="packingDetailFlowStore.flowExtras"
-            :loading="packingDetailFlowStore.loading"
+            :loading="packingDetailFlowStore.loading || (isPackingItemListRoute && packingDetailFlowStore.bindingLoading)"
             :load-error="packingDetailFlowStore.loadError"
             :missing-sell-link="packingDetailFlowStore.missingSellLink"
             :mask-sensitive="maskSaleSensitiveFields"
+            :empty-text="isPackingItemListRoute ? t('packingItemList.flowPanel.pickItem') : ''"
+            :bind-error="isPackingItemListRoute ? packingDetailFlowStore.bindError : ''"
             class="aux-panel-tab-body"
           />
           <PackingListFlowPanel
@@ -2087,6 +2089,7 @@ const DEFAULT_LEFT_AUX_TABS = [
 const isSalesOrderItemListRoute = computed(() => route.name === 'SalesOrderItemList')
 const isPackingDetailRoute = computed(() => route.name === 'PackingDetail')
 const isPackingListRoute = computed(() => route.name === 'PackingList')
+const isPackingItemListRoute = computed(() => route.name === 'PackingItemList')
 const isSalesOrderDetailRoute = computed(() => route.name === 'SalesOrderDetail')
 const isSalesOrderItemOpsRoute = computed(
   () => isSalesOrderItemListRoute.value || isSalesOrderDetailRoute.value
@@ -2114,7 +2117,9 @@ const showSalesOrderItemFlowPanel = computed(
 )
 
 const showPackingDetailFlowPanel = computed(
-  () => rightActiveTabId.value === 'r-flow' && isPackingDetailRoute.value
+  () =>
+    rightActiveTabId.value === 'r-flow' &&
+    (isPackingDetailRoute.value || isPackingItemListRoute.value)
 )
 
 const showPackingListFlowPanel = computed(
@@ -2628,7 +2633,7 @@ watch(
       restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-flow' })
       return
     }
-    if (name === 'PackingList') {
+    if (name === 'PackingList' || name === 'PackingItemList') {
       rightTabs.value = [
         { id: 'r-flow', labelKey: 'layout.auxTabs.flow' },
         { id: 'r4', labelKey: 'layout.auxTabs.help' }

@@ -36,6 +36,12 @@
           @keyup.enter="fetchList"
         />
         <input
+          v-model="filters.stockOutItemCode"
+          class="search-input search-input--filter search-input--wide"
+          :placeholder="t('stockOutItemList.filters.stockOutItemCode')"
+          @keyup.enter="fetchList"
+        />
+        <input
           v-model="filters.stockInCode"
           class="search-input search-input--filter search-input--wide"
           :placeholder="t('stockOutItemList.filters.stockInCode')"
@@ -109,13 +115,22 @@
       </div>
     </div>
 
-    <CrmDataTable :data="list" v-loading="loading" row-key="stockOutItemId" @row-dblclick="onRowDblclick">
+    <CrmDataTable
+      :data="list"
+      v-loading="loading"
+      row-key="stockOutItemId"
+      :row-class-name="highlightRowClassName"
+      @row-dblclick="onRowDblclick"
+    >
       <el-table-column :label="t('stockOutItemList.columns.status')" width="100" align="center">
         <template #default="{ row }">
           <span :class="['status-badge', `status-${row.status}`]">{{ statusLabel(row.status) }}</span>
         </template>
       </el-table-column>
       <el-table-column prop="stockOutCode" :label="t('stockOutItemList.columns.stockOutCode')" width="150" show-overflow-tooltip />
+      <el-table-column prop="stockOutItemCode" :label="t('stockOutItemList.columns.stockOutItemCode')" width="160" show-overflow-tooltip>
+        <template #default="{ row }">{{ row.stockOutItemCode || t('quoteList.na') }}</template>
+      </el-table-column>
       <el-table-column prop="stockInCode" :label="t('stockOutItemList.columns.stockInCode')" width="140" show-overflow-tooltip>
         <template #default="{ row }">{{ row.stockInCode || t('quoteList.na') }}</template>
       </el-table-column>
@@ -188,7 +203,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import CrmDataTable from '@/components/CrmDataTable.vue'
@@ -200,7 +215,14 @@ import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMa
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 
 const router = useRouter()
+const route = useRoute()
 const { t } = useI18n()
+
+const highlightCode = computed(() => {
+  const raw = route.query.highlight
+  const v = Array.isArray(raw) ? raw[0] : raw
+  return String(v ?? '').trim()
+})
 const { ensureLoaded: ensureLogisticsDict, arrivalOptions } = useLogisticsFormDict()
 
 /** LogisticsArrivalMethod ItemCode → 字典显示名（与出库单头、出库详情一致） */
@@ -236,6 +258,7 @@ const dateTo = ref<string | null>(null)
 const filters = reactive({
   status: undefined as number | undefined,
   stockOutCode: '',
+  stockOutItemCode: '',
   stockInCode: '',
   packingCode: '',
   freightForwarderOrderNo: '',
@@ -249,6 +272,7 @@ function buildQuery(): StockOutItemListQuery {
   const q: StockOutItemListQuery = {
     status: filters.status,
     stockOutCode: filters.stockOutCode.trim() || undefined,
+    stockOutItemCode: filters.stockOutItemCode.trim() || undefined,
     stockInCode: filters.stockInCode.trim() || undefined,
     packingCode: filters.packingCode.trim() || undefined,
     freightForwarderOrderNo: filters.freightForwarderOrderNo.trim() || undefined,
@@ -292,9 +316,23 @@ function onStockOutItemPageSizeChange() {
 
 const fetchList = () => void runStockOutItemFetch(true)
 
+function applyHighlightFilter() {
+  const code = highlightCode.value
+  if (code) filters.stockOutItemCode = code
+}
+
+function highlightRowClassName({ row }: { row: StockOutItemListRow }) {
+  const code = highlightCode.value
+  if (!code) return ''
+  return String(row.stockOutItemCode ?? '').trim().toLowerCase() === code.toLowerCase()
+    ? 'so-item-row--active'
+    : ''
+}
+
 const resetFilters = () => {
   filters.status = undefined
   filters.stockOutCode = ''
+  filters.stockOutItemCode = ''
   filters.stockInCode = ''
   filters.packingCode = ''
   filters.freightForwarderOrderNo = ''
@@ -304,6 +342,12 @@ const resetFilters = () => {
   filters.sellOrderItemCode = ''
   dateFrom.value = null
   dateTo.value = null
+  if (highlightCode.value) {
+    const nextQuery = { ...route.query }
+    delete nextQuery.highlight
+    void router.replace({ query: nextQuery })
+    return
+  }
   void fetchList()
 }
 
@@ -338,12 +382,19 @@ const onRowDblclick = (row: StockOutItemListRow) => {
   void router.push(`/inventory/stock-out/${encodeURIComponent(id)}`)
 }
 
+watch(highlightCode, (code, prev) => {
+  if (code === prev) return
+  applyHighlightFilter()
+  void fetchList()
+})
+
 onMounted(async () => {
   try {
     await ensureLogisticsDict()
   } catch {
     /* 字典失败时 shipmentMethodDisplay 仍回退为原始码 */
   }
+  applyHighlightFilter()
   void fetchList()
 })
 </script>
@@ -515,5 +566,9 @@ onMounted(async () => {
 
 .list-main-pagination {
   margin-left: auto;
+}
+
+:deep(.el-table__body tr.el-table__row.so-item-row--active > td.el-table__cell) {
+  background: rgba(0, 160, 220, 0.1) !important;
 }
 </style>

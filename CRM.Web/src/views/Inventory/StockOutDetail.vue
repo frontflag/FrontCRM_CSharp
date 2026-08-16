@@ -220,6 +220,14 @@
                   show-overflow-tooltip
                 />
                 <el-table-column
+                  prop="stockOutItemCode"
+                  :label="t('stockOutItemList.columns.stockOutItemCode')"
+                  width="160"
+                  show-overflow-tooltip
+                >
+                  <template #default="{ row }">{{ row.stockOutItemCode || stockOutItemNa }}</template>
+                </el-table-column>
+                <el-table-column
                   prop="stockInCode"
                   :label="t('stockOutItemList.columns.stockInCode')"
                   width="140"

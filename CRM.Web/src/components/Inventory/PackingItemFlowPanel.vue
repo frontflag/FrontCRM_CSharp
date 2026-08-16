@@ -3,11 +3,12 @@
     class="so-item-flow-root so-item-flow-root--embedded"
     aria-label="packing-item-flow-panel"
   >
-    <div v-if="!row" class="so-item-flow-root__empty">
-      {{ t('packingDetail.flowPanel.noSelection') }}
+    <div v-if="!row && !loading" class="so-item-flow-root__empty">
+      {{ bindError || emptyText || t('packingDetail.flowPanel.noSelection') }}
     </div>
 
     <div v-else v-loading="loading" class="so-item-flow-root__content">
+      <template v-if="row">
       <p v-if="loadError" class="so-item-flow-root__error">{{ loadError }}</p>
       <p v-else-if="missingSellLink" class="so-item-flow-root__hint">
         {{ t('packingDetail.flowPanel.missingSellLink') }}
@@ -61,6 +62,21 @@
                         {{ card.docNo }}
                       </router-link>
                       <template v-else>{{ card.docNo }}</template>
+                    </span>
+                  </div>
+                  <div v-if="card.lineDocNo" class="so-item-flow-kv__cell">
+                    <span class="so-item-flow-kv__label">
+                      {{ t(card.lineDocLabelKey || 'packingDetail.flowPanel.fields.stockOutItemCode') }}：
+                    </span>
+                    <span class="so-item-flow-kv__value">
+                      <router-link
+                        v-if="card.lineDocRoute && !maskSensitive"
+                        class="link-text"
+                        :to="toRouteLocation(card.lineDocRoute)"
+                      >
+                        {{ card.lineDocNo }}
+                      </router-link>
+                      <template v-else>{{ card.lineDocNo }}</template>
                     </span>
                   </div>
                   <div class="so-item-flow-kv__cell">
@@ -118,6 +134,7 @@
           </div>
         </li>
       </ol>
+      </template>
     </div>
   </div>
 </template>
@@ -143,6 +160,8 @@ const props = withDefaults(
     loadError?: string
     missingSellLink?: boolean
     maskSensitive?: boolean
+    emptyText?: string
+    bindError?: string
   }>(),
   {
     aggregates: null,
@@ -150,7 +169,9 @@ const props = withDefaults(
     loading: false,
     loadError: '',
     missingSellLink: false,
-    maskSensitive: false
+    maskSensitive: false,
+    emptyText: '',
+    bindError: ''
   }
 )
 

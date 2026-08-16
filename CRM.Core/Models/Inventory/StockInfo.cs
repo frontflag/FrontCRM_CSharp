@@ -749,6 +749,11 @@ namespace CRM.Core.Models.Inventory
         [Column("packing_id")]
         public string? PackingId { get; set; }
 
+        /// <summary>出库明细业务单号：<c>{出库单号}-{行序号}</c>。</summary>
+        [StringLength(64)]
+        [Column("stock_out_item_code")]
+        public string? StockOutItemCode { get; set; }
+
         /// <summary>
         /// 仓库ID（冗余，方便查询）
         /// </summary>

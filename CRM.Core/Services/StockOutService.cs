@@ -1000,6 +1000,69 @@ namespace CRM.Core.Services
                 changedLayers.Add(layer);
         }
 
+        /// <summary>装箱单已有未取消的有效出库明细时拒绝再出库（含状态被刷新回「已备货」的重复点击）。</summary>
+        private async Task ThrowIfPackingAlreadyStockedOutAsync(string packingId)
+        {
+            var pid = packingId.Trim();
+            if (pid.Length == 0)
+                return;
+
+            const short cancelled = 3;
+            var packing = await _packingRepository.GetByIdAsync(pid);
+            var packingCode = string.IsNullOrWhiteSpace(packing?.Code) ? pid : packing!.Code.Trim();
+
+            var directItems = (await _stockOutItemRepository.FindAsync(x =>
+                    !x.IsDeleted
+                    && x.PackingId != null
+                    && x.PackingId == pid))
+                .ToList();
+            if (await HasEffectiveStockOutAsync(directItems, cancelled))
+                throw new InvalidOperationException($"装箱单 {packingCode} 已出库，不能重复出库");
+
+            var packingItemIds = (await _packingItemRepository.FindAsync(pi =>
+                    !pi.IsDeleted && pi.PackingId == pid))
+                .Select(pi => pi.Id)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (packingItemIds.Count == 0)
+                return;
+
+            var pickItemIds = (await _pickingTaskItemRepository.FindAsync(pti =>
+                    !pti.IsDeleted
+                    && pti.PackingItemId != null
+                    && packingItemIds.Contains(pti.PackingItemId)))
+                .Select(pti => pti.Id)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (pickItemIds.Count == 0)
+                return;
+
+            var viaPickItems = (await _stockOutItemRepository.FindAsync(x =>
+                    !x.IsDeleted
+                    && x.PickingTaskItemId != null
+                    && pickItemIds.Contains(x.PickingTaskItemId)))
+                .ToList();
+            if (await HasEffectiveStockOutAsync(viaPickItems, cancelled))
+                throw new InvalidOperationException($"装箱单 {packingCode} 已出库，不能重复出库");
+        }
+
+        private async Task<bool> HasEffectiveStockOutAsync(IReadOnlyList<StockOutItem> items, short cancelledStatus)
+        {
+            var headerIds = items
+                .Select(x => x.StockOutId?.Trim())
+                .Where(x => !string.IsNullOrEmpty(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (headerIds.Count == 0)
+                return false;
+
+            var headers = (await _stockOutRepository.FindAsync(so =>
+                    headerIds.Contains(so.Id)
+                    && !so.IsDeleted
+                    && so.Status != cancelledStatus
+                    && so.StockOutType != StockOutTypeCode.Transfer))
+                .ToList();
+            return headers.Count > 0;
+        }
+
         /// <summary>
         /// 执行出库：按拣货明细生成出库单；库存扣减在「生成拣货单」时完成，装箱单批量出库此处不再扣 <c>stockitem</c>。
         /// </summary>
@@ -1034,6 +1097,12 @@ namespace CRM.Core.Services
                 .Where(x => !string.IsNullOrEmpty(x))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
+
+            var packingIdToGuard = executePackingId;
+            if (string.IsNullOrEmpty(packingIdToGuard) && packingIds.Count == 1)
+                packingIdToGuard = packingIds[0];
+            if (!string.IsNullOrEmpty(packingIdToGuard))
+                await ThrowIfPackingAlreadyStockedOutAsync(packingIdToGuard);
 
             List<PickingTask> pickingTasks;
             if (isPackingBatch && !string.IsNullOrEmpty(executePackingId))
@@ -1235,6 +1304,7 @@ namespace CRM.Core.Services
             }
 
             var fulfilledSellLineIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var lineSeq = 0;
 
             foreach (var pickItem in pickItems)
             {
@@ -1312,6 +1382,7 @@ namespace CRM.Core.Services
                     StockId = stock.Id,
                     StockItemId = layer.Id,
                     PickingTaskItemId = pickItem.Id,
+                    StockOutItemCode = OrderLineItemCodes.RequireStockOut(stockOutCode, ++lineSeq),
                     PackingId = linePackingId,
                     WarehouseId = stock.WarehouseId,
                     LocationId = layer.LocationId,
@@ -1385,6 +1456,7 @@ namespace CRM.Core.Services
                         StockId = stock.Id,
                         StockItemId = layer.Id,
                         PickingTaskItemId = null,
+                        StockOutItemCode = OrderLineItemCodes.RequireStockOut(stockOutCode, ++lineSeq),
                         PackingId = defaultPackingId,
                         WarehouseId = stock.WarehouseId,
                         LocationId = layer.LocationId,
@@ -2345,6 +2417,7 @@ namespace CRM.Core.Services
                 .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
             var codeNeedle = query.StockOutCode?.Trim();
+            var itemCodeNeedle = query.StockOutItemCode?.Trim();
             var custNeedle = query.CustomerName?.Trim();
             var salesNeedle = query.SalesUserName?.Trim();
             var pnNeedle = query.PurchasePn?.Trim();
@@ -2364,6 +2437,11 @@ namespace CRM.Core.Services
                 if (statusFilter.HasValue && hdr.Status != statusFilter.Value)
                     continue;
                 if (!TextContainsOptional(hdr.StockOutCode, codeNeedle))
+                    continue;
+                var stockOutItemCode = string.IsNullOrWhiteSpace(line.StockOutItemCode)
+                    ? null
+                    : line.StockOutItemCode.Trim();
+                if (!TextContainsOptional(stockOutItemCode, itemCodeNeedle))
                     continue;
                 if (!StockOutDateInRange(hdr.StockOutDate, query.StockOutDateFrom, query.StockOutDateTo))
                     continue;
@@ -2430,6 +2508,7 @@ namespace CRM.Core.Services
                     StockOutId = hdr.Id,
                     Status = hdr.Status,
                     StockOutCode = hdr.StockOutCode,
+                    StockOutItemCode = stockOutItemCode,
                     StockOutDate = hdr.StockOutDate,
                     CustomerName = customerName,
                     SalesUserName = salesUserName,
@@ -2674,6 +2753,9 @@ namespace CRM.Core.Services
                     StockOutId = hdr.Id,
                     Status = hdr.Status,
                     StockOutCode = hdr.StockOutCode,
+                    StockOutItemCode = string.IsNullOrWhiteSpace(line.StockOutItemCode)
+                        ? null
+                        : line.StockOutItemCode.Trim(),
                     StockOutDate = hdr.StockOutDate,
                     CustomerName = customerName,
                     SalesUserName = salesUserName,

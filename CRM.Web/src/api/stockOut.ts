@@ -448,6 +448,8 @@ export interface StockOutItemListQuery {
   salesUserName?: string
   purchasePn?: string
   sellOrderItemCode?: string
+  /** 出库明细单号（子串匹配） */
+  stockOutItemCode?: string
   /** 入库单号（子串匹配） */
   stockInCode?: string
   /** 装箱单号（子串匹配） */
@@ -460,6 +462,8 @@ export interface StockOutItemListRow {
   stockOutId: string
   status: number
   stockOutCode: string
+  /** 出库明细单号：{出库单号}-{行序号} */
+  stockOutItemCode?: string | null
   stockOutDate: string
   customerName?: string | null
   salesUserName?: string | null
@@ -662,6 +666,7 @@ function normalizeStockOutItemListRow(row: unknown): StockOutItemListRow {
     stockOutId: String(r.stockOutId ?? r.StockOutId ?? ''),
     status: Number(r.status ?? r.Status ?? 0),
     stockOutCode: String(r.stockOutCode ?? r.StockOutCode ?? ''),
+    stockOutItemCode: (r.stockOutItemCode ?? r.StockOutItemCode) as string | null | undefined,
     stockOutDate: String(r.stockOutDate ?? r.StockOutDate ?? ''),
     customerName: (r.customerName ?? r.CustomerName) as string | null | undefined,
     salesUserName: (r.salesUserName ?? r.SalesUserName) as string | null | undefined,

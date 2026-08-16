@@ -130,6 +130,35 @@ public class PackingController : ControllerBase
         }
     }
 
+    /// <summary>装箱流程出库站：按装箱行对齐的出库明细。</summary>
+    [HttpGet("items/{packingItemId}/flow-stock-out-lines")]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<PackingItemFlowStockOutLineDto>>>> GetFlowStockOutLines(
+        string packingItemId,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var lines = await _packingService.GetFlowStockOutLinesByPackingItemIdAsync(
+                packingItemId,
+                cancellationToken);
+            if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
+            {
+                foreach (var row in lines)
+                {
+                    row.CustomerName = null;
+                    row.CustomerCode = null;
+                }
+            }
+
+            return Ok(ApiResponse<IReadOnlyList<PackingItemFlowStockOutLineDto>>.Ok(lines, "ok"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "装箱明细流程出库行查询失败 packingItemId={PackingItemId}", packingItemId);
+            return StatusCode(500, ApiResponse<IReadOnlyList<PackingItemFlowStockOutLineDto>>.Fail($"加载失败: {ex.Message}", 500));
+        }
+    }
+
     /// <summary>批量出库：校验装箱单后直接生成出库单（不经过执行出库页）。</summary>
     [HttpPost("batch-stock-out")]
     public async Task<ActionResult<ApiResponse<PackingBatchStockOutResultDto>>> BatchStockOut(

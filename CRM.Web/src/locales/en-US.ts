@@ -7468,6 +7468,7 @@ const enUS = {
     filters: {
       status: 'Status',
       stockOutCode: 'Stock-out code',
+      stockOutItemCode: 'Stock-out line no.',
       stockInCode: 'Inbound doc no.',
       packingCode: 'Packing no.',
       stockOutDateRange: 'Stock-out date',
@@ -7484,6 +7485,7 @@ const enUS = {
     columns: {
       status: 'Status',
       stockOutCode: 'Stock-out code',
+      stockOutItemCode: 'Stock-out line no.',
       stockInCode: 'Inbound doc no.',
       packingCode: 'Packing no.',
       stockOutDate: 'Stock-out date',
@@ -8255,6 +8257,9 @@ const enUS = {
       noSelection: 'Select a packing line',
       missingSellLink:
         'This packing line is not linked to a sales order line. The sales-line station is empty; other stations still follow this packing.',
+      fields: {
+        stockOutItemCode: 'Stock-out line no.'
+      },
       stations: {
         sellOrderItem: 'Sales order line',
         stockOutNotify: 'Stock-out notice',
@@ -8286,7 +8291,12 @@ const enUS = {
       createTime: 'Created'
     },
     messages: {
-      loadFailed: 'Failed to load packing lines'
+      loadFailed: 'Failed to load packing lines',
+    },
+    flowPanel: {
+      pickItem: 'Click a packing line to view its process flow',
+      loadFailed: 'Failed to load packing line process flow',
+      itemNotFound: 'This packing line does not exist or was deleted'
     }
   },
   pickingSlip: {

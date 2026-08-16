@@ -2247,6 +2247,54 @@ public class PackingService : IPackingService
     }
 
     /// <inheritdoc />
+    public async Task<IReadOnlyList<PackingItemFlowStockOutLineDto>> GetFlowStockOutLinesByPackingItemIdAsync(
+        string packingItemId,
+        CancellationToken cancellationToken = default)
+    {
+        var id = packingItemId?.Trim();
+        if (string.IsNullOrEmpty(id))
+            return Array.Empty<PackingItemFlowStockOutLineDto>();
+
+        var pickItemIds = await _db.PickingTaskItems.AsNoTracking()
+            .Where(pti => !pti.IsDeleted && pti.PackingItemId == id)
+            .Select(pti => pti.Id)
+            .ToListAsync(cancellationToken);
+        if (pickItemIds.Count == 0)
+            return Array.Empty<PackingItemFlowStockOutLineDto>();
+
+        var rows = await (
+            from soi in _db.StockOutItems.AsNoTracking()
+            join so in _db.StockOuts.AsNoTracking() on soi.StockOutId equals so.Id
+            join cust in _db.Customers.AsNoTracking() on so.CustomerId equals cust.Id into cg
+            from cust in cg.DefaultIfEmpty()
+            join u in _db.Users.AsNoTracking() on so.CreateByUserId equals u.Id into ug
+            from u in ug.DefaultIfEmpty()
+            where !soi.IsDeleted
+                  && !so.IsDeleted
+                  && soi.PickingTaskItemId != null
+                  && pickItemIds.Contains(soi.PickingTaskItemId)
+                  && so.StockOutType != StockOutTypeCode.Transfer
+            orderby soi.CreateTime, soi.Id
+            select new PackingItemFlowStockOutLineDto
+            {
+                StockOutId = so.Id,
+                StockOutCode = so.StockOutCode,
+                StockOutItemId = soi.Id,
+                StockOutItemCode = soi.StockOutItemCode,
+                Qty = soi.ActualQty > 0 ? soi.ActualQty : soi.Quantity,
+                Status = so.Status,
+                CreateTime = soi.CreateTime,
+                CustomerName = cust != null
+                    ? (string.IsNullOrWhiteSpace(cust.OfficialName) ? cust.NickName : cust.OfficialName)
+                    : null,
+                CustomerCode = cust != null ? cust.CustomerCode : null,
+                CreateUserName = u != null ? u.UserName : null
+            }).ToListAsync(cancellationToken);
+
+        return rows;
+    }
+
+    /// <inheritdoc />
     public async Task<string?> ResolveLinkedStockOutIdForPrintAsync(
         string packingId,
         CancellationToken cancellationToken = default)

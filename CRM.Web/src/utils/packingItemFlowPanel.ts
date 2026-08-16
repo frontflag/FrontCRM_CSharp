@@ -1,5 +1,5 @@
 import type { SalesOrderDetailTabAggregates } from '@/api/salesOrder'
-import type { PackingStockOutNotifyRow } from '@/api/packing'
+import type { PackingItemFlowStockOutLine, PackingStockOutNotifyRow } from '@/api/packing'
 import { packingStatusLabel } from '@/api/packing'
 import type { PickPagePackingLine, PickingTask } from '@/api/inventoryCenter'
 import { STOCK_OUT_REQUEST_STATUS } from '@/constants/stockOutRequestStatus'
@@ -26,6 +26,7 @@ export type PackingFlowExtras = {
   stockOutNotifies?: PackingStockOutNotifyRow[] | null
   pickingTask?: PickingTask | null
   pickLine?: PickPagePackingLine | null
+  stockOutLines?: PackingItemFlowStockOutLine[] | null
 }
 
 type TFunc = (key: string, ...args: unknown[]) => string
@@ -118,18 +119,6 @@ function isPickingFinal(v: unknown) {
   return s === 100 || s === -1
 }
 
-function packingCodeMatched(packingCodes: string | null | undefined, packingCode: string): boolean {
-  const code = packingCode.trim()
-  if (!code) return false
-  const raw = String(packingCodes ?? '')
-  if (!raw.trim()) return false
-  return raw
-    .split(/[,，;；]/)
-    .map((x) => x.trim())
-    .filter(Boolean)
-    .some((x) => x.toLowerCase() === code.toLowerCase())
-}
-
 /**
  * 装箱明细流程（定稿节点）：
  * 销售订单明细 → 出库通知 → 装箱 → 拣货 → 出库
@@ -211,7 +200,7 @@ export function buildPackingItemFlowStations(
             customerCode: mask ? '—' : null,
             personRoleKey: 'salesOrderItemList.flowPanel.role.requester',
             personName: mask ? '—' : dash(x.salesUserName),
-            qtyText: formatQtyPcs(x.outQuantity),
+            qtyText: formatQtyPcs(row?.packingItemQty ?? x.outQuantity),
             description: null
           }))
         : fromAgg.map((x) => ({
@@ -226,7 +215,7 @@ export function buildPackingItemFlowStations(
             customerCode: mask ? '—' : null,
             personRoleKey: 'salesOrderItemList.flowPanel.role.requester',
             personName: mask ? '—' : dash(x.requestUserName),
-            qtyText: formatQtyPcs(x.outQuantity),
+            qtyText: formatQtyPcs(row?.packingItemQty ?? x.outQuantity),
             description: null
           }))
     stations.push(
@@ -286,8 +275,8 @@ export function buildPackingItemFlowStations(
     if (task && String(task.id || '').trim()) {
       const qty =
         packingItemId && line
-          ? line.pickedQtyTotal ?? line.planQtyTotal
-          : task.pickedQtyTotal ?? task.planQtyTotal
+          ? line.pickedQtyTotal ?? line.planQtyTotal ?? row?.packingItemQty
+          : row?.packingItemQty ?? task.pickedQtyTotal ?? task.planQtyTotal
       cards.push({
         id: task.id,
         docNo: dash(task.taskCode),
@@ -305,26 +294,31 @@ export function buildPackingItemFlowStations(
     stations.push(buildStation('picking', 'packingDetail.flowPanel.stations.picking', cards))
   }
 
-  // 5. 出库（优先匹配当前装箱单号）
+  // 5. 出库（只按本装箱行 extras，不回退销售行全量单头）
   {
-    const all = sortByCreatedAsc(aggregates?.stockOuts ?? [], (x) => x.createTime ?? x.stockOutDate)
-    const matched = packingCode
-      ? all.filter((x) => packingCodeMatched(x.packingCodes, packingCode))
-      : []
-    const list = matched.length > 0 ? matched : packingCode ? [] : all
-    const cards: FlowCard[] = list.map((x) => ({
-      id: x.id,
+    const lines = extras?.stockOutLines ?? []
+    const cards: FlowCard[] = sortByCreatedAsc(lines, (x) => x.createTime).map((x) => ({
+      id: x.stockOutItemId || x.stockOutId,
       docNo: dash(x.stockOutCode),
-      docRoute: !mask ? { name: 'StockOutDetail', params: { id: x.id } } : undefined,
+      docRoute:
+        !mask && String(x.stockOutId || '').trim()
+          ? { name: 'StockOutDetail', params: { id: x.stockOutId } }
+          : undefined,
+      lineDocNo: dash(x.stockOutItemCode),
+      lineDocLabelKey: 'packingDetail.flowPanel.fields.stockOutItemCode',
+      lineDocRoute:
+        !mask && String(x.stockOutItemCode || '').trim()
+          ? { name: 'StockOutItemList', query: { highlight: String(x.stockOutItemCode).trim() } }
+          : undefined,
       statusText: stockOutStatusLabel(x.status, t),
       isFinal: isStockOutFinal(x.status),
-      createdAt: x.createTime ?? x.stockOutDate,
+      createdAt: x.createTime,
       showCustomer: true,
       customerName: mask ? '—' : x.customerName,
       customerCode: mask ? '—' : x.customerCode,
       personRoleKey: 'salesOrderItemList.flowPanel.role.creator',
       personName: dash(x.createUserName),
-      qtyText: formatQtyPcs(x.totalQuantity),
+      qtyText: formatQtyPcs(x.qty),
       description: null
     }))
     stations.push(buildStation('stockOut', 'packingDetail.flowPanel.stations.stockOut', cards))

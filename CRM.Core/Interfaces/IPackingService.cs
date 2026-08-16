@@ -51,6 +51,13 @@ public interface IPackingService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 装箱流程出库站：按装箱行 → 拣货行 → 出库明细对齐（排除已删、调拨虚拟出库）。
+    /// </summary>
+    Task<IReadOnlyList<PackingItemFlowStockOutLineDto>> GetFlowStockOutLinesByPackingItemIdAsync(
+        string packingItemId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 按所选装箱单解析出库通知 Id。
     /// <paramref name="forPicking"/> 为 true 时：仅要求装箱单已确认，按明细关联通知解析（不校验通知为已装箱）；
     /// 为 false 时：用于批量出库解析（不校验出库通知状态）。
@@ -110,6 +117,21 @@ public interface IPackingService
         string packingId,
         string? actingUserId = null,
         CancellationToken cancellationToken = default);
+}
+
+/// <summary>装箱流程出库站：与装箱行对齐的出库明细。</summary>
+public class PackingItemFlowStockOutLineDto
+{
+    public string StockOutId { get; set; } = string.Empty;
+    public string StockOutCode { get; set; } = string.Empty;
+    public string StockOutItemId { get; set; } = string.Empty;
+    public string? StockOutItemCode { get; set; }
+    public int Qty { get; set; }
+    public short Status { get; set; }
+    public DateTime? CreateTime { get; set; }
+    public string? CustomerName { get; set; }
+    public string? CustomerCode { get; set; }
+    public string? CreateUserName { get; set; }
 }
 
 public class PackingStockOutRequestsResolveDto

@@ -3497,6 +3497,11 @@ namespace CRM.Infrastructure.Data.Migrations
                         .HasMaxLength(36)
                         .HasColumnType("character varying(36)");
 
+                    b.Property<string>("StockOutItemCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("stock_out_item_code");
+
                     b.Property<string>("WarehouseId")
                         .HasMaxLength(36)
                         .HasColumnType("character varying(36)");
@@ -3504,6 +3509,11 @@ namespace CRM.Infrastructure.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("StockOutId");
+
+                    b.HasIndex("StockOutItemCode")
+                        .IsUnique()
+                        .HasDatabaseName("UX_stock_out_item_code")
+                        .HasFilter("stock_out_item_code IS NOT NULL AND btrim(stock_out_item_code) <> ''");
 
                     b.ToTable("stock_out_item");
                 });
