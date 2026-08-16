@@ -55,8 +55,3 @@ export const salesOrderReportDocumentPropDefaults = {
   sellerSignDate: '',
   showSeal: true
 }
-
-export function salesOrderReportFillerRowCount(lineCount: number, target = 6): number {
-  if (lineCount === 0) return 0
-  return Math.max(0, target - lineCount)
-}

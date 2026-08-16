@@ -58,8 +58,3 @@ export const purchaseOrderReportDocumentPropDefaults = {
   buyerSignDate: '',
   showSeal: true
 }
-
-export function purchaseOrderReportFillerRowCount(lineCount: number, target = 6): number {
-  if (lineCount === 0) return 0
-  return Math.max(0, target - lineCount)
-}

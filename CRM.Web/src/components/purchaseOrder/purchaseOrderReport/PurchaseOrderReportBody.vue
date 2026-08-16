@@ -31,14 +31,8 @@
           <td class="num">{{ line.taxRate }}</td>
           <td class="num">{{ showAmounts ? line.lineTotal : '—' }}</td>
         </tr>
-        <tr v-for="i in fillerRowCount" :key="'f' + i">
-          <td v-for="c in 10" :key="`${i}-${c}`">&nbsp;</td>
-        </tr>
         <tr v-if="lines.length === 0">
           <td colspan="10" class="po-doc__empty">暂无明细</td>
-        </tr>
-        <tr v-else-if="lines.length > 0" class="po-doc__hint-row">
-          <td colspan="10" class="po-doc__hint">以下空白</td>
         </tr>
         <tr v-if="showAmounts && lines.length > 0" class="po-doc__sum-row">
           <td>总计</td>
@@ -96,13 +90,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import {
-  purchaseOrderReportFillerRowCount,
-  type PurchaseOrderReportDocumentProps
-} from './types'
+import { type PurchaseOrderReportDocumentProps } from './types'
 
-const props = defineProps<
+defineProps<
   Pick<
     PurchaseOrderReportDocumentProps,
     | 'lines'
@@ -118,6 +108,4 @@ const props = defineProps<
     | 'terms'
   >
 >()
-
-const fillerRowCount = computed(() => purchaseOrderReportFillerRowCount(props.lines.length))
 </script>
