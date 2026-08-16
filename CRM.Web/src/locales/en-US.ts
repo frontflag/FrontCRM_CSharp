@@ -718,6 +718,7 @@ const enUS = {
       pickingSlip: 'Picking slips',
       stockOut: 'Stock-out orders',
       stockOutItems: 'Stock-out lines',
+      stockOutOpsCheck: 'Stock-out ops check',
       paymentManagement: 'Payment Buz',
       paymentRecords: 'Payment Records',
       purchaseInvoices: 'Purchase Invoices',
@@ -7359,6 +7360,55 @@ const enUS = {
       }
     }
   },
+  stockOutOpsCheck: {
+    title: 'Stock-out ops check',
+    run: 'Check',
+    running: 'Checking…',
+    hint: 'Full scan of packing, stock-out, and receivables. Report only; no data is changed.',
+    summary: '{errors} errors · {warnings} warnings',
+    filteredCount: 'Showing {shown} / {total}',
+    empty: 'No issues found.',
+    emptyFiltered: 'No findings match the current filters.',
+    idle: 'Click Check to run a full scan.',
+    failed: 'Check failed',
+    truncated: 'More than 2000 findings; showing the first 2000.',
+    severity: { error: 'Error', warning: 'Warning' },
+    category: {
+      chain: 'Chain',
+      status: 'Status',
+      duplicate: 'Duplicate',
+      amount: 'Amount',
+      customer: 'Customer'
+    },
+    docType: {
+      packing: 'Packing',
+      packingItem: 'Packing line',
+      stockOut: 'Stock-out',
+      receivable: 'Receivable'
+    },
+    docCodeTip: {
+      packing: 'Packing no.',
+      packingItem: 'Packing line no.',
+      stockOut: 'Stock-out no.',
+      receivable: 'Receivable no.'
+    },
+    filters: {
+      search: 'Search',
+      reset: 'Reset',
+      severity: 'Level',
+      category: 'Check type',
+      docType: 'Document type',
+      docCode: 'Doc / related no.',
+      shown: 'Shown'
+    },
+    col: {
+      severity: 'Level',
+      docCode: 'Document',
+      related: 'Related',
+      reason: 'Reason',
+      suggestion: 'Ops action'
+    }
+  },
   stockOutList: {
     title: 'Stock-Out List',
     count: '{count} records total',
@@ -9291,7 +9341,12 @@ const enUS = {
       qty: 'Qty',
       unitPrice: 'Unit price',
       amount: 'Total'
-    }
+    },
+    void: 'Void receivable',
+    voidPrompt: 'Enter the receivable number to confirm void',
+    voidMismatch: 'The number does not match the receivable',
+    voidOk: 'Receivable voided',
+    voidFailed: 'Failed to void receivable'
   },
   receiptWriteOffDesktop: {
     title: 'Receipt write-off desk',

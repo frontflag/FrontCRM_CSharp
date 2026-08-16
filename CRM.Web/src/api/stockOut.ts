@@ -922,5 +922,82 @@ export const stockOutApi = {
     body: { stockOutDate: string; courierTrackingNo: string; remark?: string }
   ): Promise<void> {
     await apiClient.post(`/api/v1/stock-out/${encodeURIComponent(id)}/mark-finished`, body)
+  },
+
+  async runOpsCheck(): Promise<StockOutOpsCheckResult> {
+    const res = await apiClient.post<unknown>('/api/v1/stock-out/ops-check')
+    const root = res && typeof res === 'object' ? (res as Record<string, unknown>) : null
+    const d = (root?.data ?? root?.Data ?? root) as Record<string, unknown> | null
+    const raw = Array.isArray(d?.findings)
+      ? d!.findings
+      : Array.isArray(d?.Findings)
+        ? d!.Findings
+        : []
+    return {
+      ranAtUtc: String(d?.ranAtUtc ?? d?.RanAtUtc ?? ''),
+      errorCount: Number(d?.errorCount ?? d?.ErrorCount ?? 0),
+      warningCount: Number(d?.warningCount ?? d?.WarningCount ?? 0),
+      findingCount: Number(d?.findingCount ?? d?.FindingCount ?? 0),
+      truncated: Boolean(d?.truncated ?? d?.Truncated),
+      findings: (raw as unknown[]).map(mapOpsFinding)
+    }
+  }
+}
+
+export interface StockOutOpsCheckFinding {
+  severity: string
+  category: string
+  docType: string
+  docId?: string | null
+  docCode?: string | null
+  routeName?: string | null
+  routeParams?: Record<string, string> | null
+  routeQuery?: Record<string, string> | null
+  relatedDocType?: string | null
+  relatedDocId?: string | null
+  relatedDocCode?: string | null
+  relatedRouteName?: string | null
+  relatedRouteParams?: Record<string, string> | null
+  relatedRouteQuery?: Record<string, string> | null
+  reason: string
+  suggestion: string
+}
+
+export interface StockOutOpsCheckResult {
+  ranAtUtc: string
+  errorCount: number
+  warningCount: number
+  findingCount: number
+  truncated: boolean
+  findings: StockOutOpsCheckFinding[]
+}
+
+function mapOpsFinding(row: unknown): StockOutOpsCheckFinding {
+  const r = row && typeof row === 'object' ? (row as Record<string, unknown>) : {}
+  const dict = (v: unknown): Record<string, string> | null => {
+    if (!v || typeof v !== 'object') return null
+    const out: Record<string, string> = {}
+    for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+      if (val != null) out[k] = String(val)
+    }
+    return out
+  }
+  return {
+    severity: String(r.severity ?? r.Severity ?? 'error'),
+    category: String(r.category ?? r.Category ?? ''),
+    docType: String(r.docType ?? r.DocType ?? ''),
+    docId: (r.docId ?? r.DocId) as string | null | undefined,
+    docCode: (r.docCode ?? r.DocCode) as string | null | undefined,
+    routeName: (r.routeName ?? r.RouteName) as string | null | undefined,
+    routeParams: dict(r.routeParams ?? r.RouteParams),
+    routeQuery: dict(r.routeQuery ?? r.RouteQuery),
+    relatedDocType: (r.relatedDocType ?? r.RelatedDocType) as string | null | undefined,
+    relatedDocId: (r.relatedDocId ?? r.RelatedDocId) as string | null | undefined,
+    relatedDocCode: (r.relatedDocCode ?? r.RelatedDocCode) as string | null | undefined,
+    relatedRouteName: (r.relatedRouteName ?? r.RelatedRouteName) as string | null | undefined,
+    relatedRouteParams: dict(r.relatedRouteParams ?? r.RelatedRouteParams),
+    relatedRouteQuery: dict(r.relatedRouteQuery ?? r.RelatedRouteQuery),
+    reason: String(r.reason ?? r.Reason ?? ''),
+    suggestion: String(r.suggestion ?? r.Suggestion ?? '')
   }
 }

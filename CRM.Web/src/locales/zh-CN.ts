@@ -714,6 +714,7 @@ const zhCN = {
       pickingSlip: '拣货单',
       stockOut: '出库单',
       stockOutItems: '出库明细',
+      stockOutOpsCheck: '出库运维检查',
       paymentManagement: '付款管理',
       paymentRecords: '付款记录',
       purchaseInvoices: '进项发票',
@@ -7343,6 +7344,55 @@ const zhCN = {
       }
     }
   },
+  stockOutOpsCheck: {
+    title: '出库运维检查',
+    run: '检查',
+    running: '检查中…',
+    hint: '全量核对装箱、出库与应收。只出报告，不改数据。',
+    summary: '错误 {errors} · 警告 {warnings}',
+    filteredCount: '显示 {shown} / 共 {total} 条',
+    empty: '未发现异常。',
+    emptyFiltered: '当前过滤无匹配。',
+    idle: '点击「检查」开始全量核对。',
+    failed: '检查失败',
+    truncated: '结果超过上限，只显示前 2000 条。',
+    severity: { error: '错误', warning: '警告' },
+    category: {
+      chain: '链条',
+      status: '状态',
+      duplicate: '重复',
+      amount: '金额',
+      customer: '客户'
+    },
+    docType: {
+      packing: '装箱单',
+      packingItem: '装箱明细',
+      stockOut: '出库单',
+      receivable: '应收款'
+    },
+    docCodeTip: {
+      packing: '装箱单号',
+      packingItem: '装箱明细单号',
+      stockOut: '出库单号',
+      receivable: '应收款单号'
+    },
+    filters: {
+      search: '搜索',
+      reset: '重置',
+      severity: '级别',
+      category: '检查类型',
+      docType: '单据类型',
+      docCode: '单号 / 关联单号',
+      shown: '显示'
+    },
+    col: {
+      severity: '级别',
+      docCode: '单号',
+      related: '关联单号',
+      reason: '错误原因',
+      suggestion: '运维操作建议'
+    }
+  },
   stockOutList: {
     title: '出库单列表',
     count: '共 {count} 条',
@@ -9274,7 +9324,12 @@ const zhCN = {
       qty: '销售数量',
       unitPrice: '销售单价',
       amount: '销售总额'
-    }
+    },
+    void: '作废应收',
+    voidPrompt: '请输入应收单号以确认作废',
+    voidMismatch: '输入的单号与应收单号不一致',
+    voidOk: '应收已作废',
+    voidFailed: '作废应收失败'
   },
   receiptWriteOffDesktop: {
     title: '收款核销桌面',

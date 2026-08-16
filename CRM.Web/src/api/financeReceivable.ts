@@ -211,6 +211,8 @@ export const financeReceivableApi = {
     return apiClient.getBlob(q ? `${RECEIVABLE_BASE}/export?${q}` : `${RECEIVABLE_BASE}/export`)
   },
   getById: (id: string) => apiClient.get<FinanceReceivable>(`${RECEIVABLE_BASE}/${encodeURIComponent(id)}`),
+  voidUnverified: (id: string, confirmBillCode: string) =>
+    apiClient.post(`${RECEIVABLE_BASE}/${encodeURIComponent(id)}/void`, { confirmBillCode }),
   getWriteOffs: (id: string) =>
     apiClient.get<FinanceReceivableWriteOffDetailItem[]>(`${RECEIVABLE_BASE}/${encodeURIComponent(id)}/write-offs`),
   getWriteOffCustomerSummaries: (keyword?: string) =>

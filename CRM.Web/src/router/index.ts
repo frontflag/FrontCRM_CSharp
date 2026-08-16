@@ -76,6 +76,8 @@ router.beforeEach((to, _from, next) => {
     next('/login')
   } else if (to.meta.requiresAuth && to.meta.sysAdminOnly === true && authStore.user?.isSysAdmin !== true) {
     next(to.meta.denyAs404 === true ? { name: 'NotFound', replace: true } : '/dashboard')
+  } else if (to.meta.requiresAuth && to.meta.adminOrManagerOnly === true && !authStore.canForceDelete()) {
+    next('/dashboard')
   } else if (to.meta.requiresAuth && to.meta.purchaseOrderCreateAccess === true) {
     const ok = canAccessPurchaseOrderCreatePage({
       isSysAdmin: authStore.user?.isSysAdmin,

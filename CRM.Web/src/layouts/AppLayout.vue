@@ -640,6 +640,12 @@
               <router-link to="/inventory/picking-list" class="submenu-item" active-class="active">{{ t('layout.menu.pickingSlip') }}</router-link>
               <router-link to="/inventory/stock-out" class="submenu-item" active-class="active">{{ t('layout.menu.stockOut') }}</router-link>
               <router-link to="/inventory/stock-out/items" class="submenu-item" active-class="active">{{ t('layout.menu.stockOutItems') }}</router-link>
+              <router-link
+                v-if="canStockOutOpsCheck"
+                to="/inventory/stock-out/ops-check"
+                class="submenu-item"
+                active-class="active"
+              >{{ t('layout.menu.stockOutOpsCheck') }}</router-link>
             </template>
           </SidebarMenuGroupFlyout>
         </template>
@@ -2869,6 +2875,7 @@ const pageTitleMap: Record<string, string> = {
   '/inventory/stock-in': 'layout.menu.stockInManagement',
   '/inventory/batch-reconciliation': 'batchReconciliation.title',
   '/inventory/stock-out': 'layout.menu.stockOutManagement',
+  '/inventory/stock-out/ops-check': 'layout.menu.stockOutOpsCheck',
   '/inventory/stock-out/items': 'layout.menu.stockOutItems',
   '/inventory/stock-out-notifies': 'layout.menu.stockOutNotifies',
   '/inventory/packing': 'layout.menu.packingList',
@@ -3092,6 +3099,7 @@ const handleLogout = async () => {
 const hasPermission = (code: string) => authStore.hasPermission(code)
 const identityType = computed(() => authStore.user?.identityType ?? 0)
 const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
+const canStockOutOpsCheck = computed(() => authStore.canForceDelete())
 /** SuperAdmin / Admin / Manager：业务侧栏不受主部门身份藏菜单 */
 const hasBizDataBypass = computed(() => authStore.user?.hasBizDataBypass === true)
 

@@ -31,6 +31,7 @@ namespace CRM.API.Controllers
         private readonly IForceDeleteGuardService _forceDeleteGuard;
         private readonly ICustomsPendlistService _customsPendlistService;
         private readonly IExportOperationLogService _exportLog;
+        private readonly IStockOutOpsCheckService _opsCheck;
         private readonly ILogger<StockOutController> _logger;
 
         public StockOutController(
@@ -45,6 +46,7 @@ namespace CRM.API.Controllers
             IForceDeleteGuardService forceDeleteGuard,
             ICustomsPendlistService customsPendlistService,
             IExportOperationLogService exportLog,
+            IStockOutOpsCheckService opsCheck,
             ILogger<StockOutController> logger)
         {
             _service = service;
@@ -58,12 +60,38 @@ namespace CRM.API.Controllers
             _forceDeleteGuard = forceDeleteGuard;
             _customsPendlistService = customsPendlistService;
             _exportLog = exportLog;
+            _opsCheck = opsCheck;
             _logger = logger;
         }
 
         public class ForceDeleteStockOutRequest
         {
             public string ConfirmBillCode { get; set; } = string.Empty;
+        }
+
+        /// <summary>出库运维检查（系统管理员 / 平台管理员）：全量只读对账。</summary>
+        [HttpPost("ops-check")]
+        public async Task<ActionResult<ApiResponse<StockOutOpsCheckResultDto>>> RunOpsCheck(
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrWhiteSpace(userId))
+                    return StatusCode(403, ApiResponse<StockOutOpsCheckResultDto>.Fail("未登录或身份无效", 403));
+
+                var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
+                if (!ManagementAccountPolicy.CanForceDelete(summary))
+                    return StatusCode(403, ApiResponse<StockOutOpsCheckResultDto>.Fail("仅系统管理员或平台管理员可做出库运维检查", 403));
+
+                var result = await _opsCheck.RunAsync(cancellationToken);
+                return Ok(ApiResponse<StockOutOpsCheckResultDto>.Ok(result, "ok"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "出库运维检查失败");
+                return StatusCode(500, ApiResponse<StockOutOpsCheckResultDto>.Fail($"检查失败: {ex.Message}", 500));
+            }
         }
 
         [HttpGet]

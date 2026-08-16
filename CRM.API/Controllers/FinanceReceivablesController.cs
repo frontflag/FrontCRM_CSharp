@@ -258,6 +258,47 @@ public class FinanceReceivablesController : ControllerBase
         }
     }
 
+    /// <summary>作废未核销应收（系统管理员 / 平台管理员）。</summary>
+    [HttpPost("{id}/void")]
+    [RequirePermission("finance-receipt.write")]
+    public async Task<IActionResult> VoidUnverified(string id, [FromBody] VoidFinanceReceivableRequest? body)
+    {
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrWhiteSpace(userId))
+                return StatusCode(403, new { success = false, message = "未登录或身份无效" });
+
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
+            if (!ManagementAccountPolicy.CanForceDelete(summary))
+                return StatusCode(403, new { success = false, message = "仅系统管理员或平台管理员可作废应收" });
+
+            if (body == null || string.IsNullOrWhiteSpace(body.ConfirmBillCode))
+                return BadRequest(new { success = false, message = "请填写 confirmBillCode" });
+
+            await _service.VoidUnverifiedAsync(id, body.ConfirmBillCode.Trim(), userId.Trim());
+            return Ok(new { success = true, message = "应收已作废" });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "作废应收失败 Id={Id}", id);
+            return StatusCode(500, new { success = false, message = ex.Message });
+        }
+    }
+
+    public class VoidFinanceReceivableRequest
+    {
+        public string? ConfirmBillCode { get; set; }
+    }
+
     [HttpGet("{id}/write-offs")]
     public async Task<IActionResult> GetWriteOffs(string id)
     {

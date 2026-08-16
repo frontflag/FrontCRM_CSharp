@@ -420,6 +420,12 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '报关移库' }
       },
       {
+        path: 'inventory/stock-out/ops-check',
+        name: 'StockOutOpsCheck',
+        component: () => import('@/views/Inventory/StockOutOpsCheckPage.vue'),
+        meta: { requiresAuth: true, title: '出库运维检查', adminOrManagerOnly: true }
+      },
+      {
         path: 'inventory/stock-out',
         name: 'StockOutList',
         component: () => import('@/views/Inventory/StockOutList.vue'),

@@ -221,6 +221,32 @@ public class FinanceReceivableService : IFinanceReceivableService
     }
 
     /// <inheritdoc />
+    public async Task VoidUnverifiedAsync(
+        string id,
+        string confirmBillCode,
+        string? actingUserId = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+            throw new ArgumentException("请指定应收款");
+        if (string.IsNullOrWhiteSpace(confirmBillCode))
+            throw new ArgumentException("请填写 confirmBillCode");
+
+        var receivable = await _receivableRepo.GetByIdAsync(id.Trim())
+            ?? throw new InvalidOperationException("应收款不存在");
+        if (receivable.IsDeleted)
+            throw new InvalidOperationException("应收款已作废");
+
+        var code = (receivable.ReceivableCode ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(code)
+            || !string.Equals(code, confirmBillCode.Trim(), StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("确认单号与应收单号不一致");
+
+        AssertStockOutCanVoid(receivable);
+        await TrySoftDeleteForStockOutAsync(receivable.StockOutId, actingUserId, cancellationToken);
+    }
+
+    /// <inheritdoc />
     public async Task<FinanceReceivableBackfillResult> BackfillReceivablesFromCompletedStockOutsAsync(
         string? actingUserId = null,
         CancellationToken cancellationToken = default)

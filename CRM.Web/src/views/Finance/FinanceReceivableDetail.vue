@@ -26,6 +26,11 @@
           </div>
         </div>
       </div>
+      <div v-if="detail && canVoidReceivable" class="header-right">
+        <el-button type="danger" :loading="voiding" @click="handleVoid">
+          {{ t('financeReceivableDetail.void') }}
+        </el-button>
+      </div>
     </div>
 
     <div class="detail-content">
@@ -537,6 +542,8 @@ import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMa
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { useAuthStore } from '@/stores/auth'
 import type { SalesOrderItemLineRow } from '@/stores/salesOrderItemListBasket'
+import { getApiErrorMessage } from '@/utils/apiError'
+import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 const route = useRoute()
@@ -577,6 +584,7 @@ const sellOrderItemColumns = computed<CrmTableColumnDef[]>(() => {
 })
 
 const loading = ref(false)
+const voiding = ref(false)
 const writeOffLoading = ref(false)
 const stockOutItemsLoading = ref(false)
 const sellOrderItemLoading = ref(false)
@@ -586,6 +594,13 @@ const stockOutItems = ref<StockOutItemListRow[]>([])
 const sellOrderItemRows = ref<SalesOrderItemLineRow[]>([])
 
 const receivableId = computed(() => route.params.id as string)
+
+const canVoidReceivable = computed(
+  () =>
+    !!detail.value
+    && authStore.canForceDelete()
+    && Number(detail.value.verifiedDone ?? 0) <= 0
+)
 
 const receivableCaptionAvatarChar = computed(() => {
   const c = detail.value?.receivableCode?.trim()
@@ -807,6 +822,27 @@ function writeOffSourceLabel(source?: number) {
 function goBack() {
   router.push({ name: 'FinanceReceivableList' })
 }
+
+async function handleVoid() {
+  if (!detail.value) return
+  const code = String(detail.value.receivableCode ?? '').trim()
+  const entered = window.prompt(t('financeReceivableDetail.voidPrompt'), code)?.trim() ?? ''
+  if (!entered) return
+  if (!code || entered.toUpperCase() !== code.toUpperCase()) {
+    ElMessage.error(t('financeReceivableDetail.voidMismatch'))
+    return
+  }
+  voiding.value = true
+  try {
+    await financeReceivableApi.voidUnverified(detail.value.id, entered)
+    ElMessage.success(t('financeReceivableDetail.voidOk'))
+    goBack()
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, t('financeReceivableDetail.voidFailed')))
+  } finally {
+    voiding.value = false
+  }
+}
 </script>
 
 <style lang="scss" scoped>
@@ -964,6 +1000,12 @@ function goBack() {
   align-items: center;
   gap: 10px;
   min-width: 0;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 .detail-content {

@@ -132,6 +132,9 @@ public interface IFinanceReceivableService
     /// <summary>出库单离开「出库完成」(4) 时软删对应应收。</summary>
     Task TrySoftDeleteForStockOutAsync(string stockOutId, string? actingUserId = null, CancellationToken cancellationToken = default);
 
+    /// <summary>作废未核销应收（系统管理员 / 平台管理员）。已核销须先反核销。</summary>
+    Task VoidUnverifiedAsync(string id, string confirmBillCode, string? actingUserId = null, CancellationToken cancellationToken = default);
+
     void AssertStockOutCanVoid(FinanceReceivable? receivable);
 
     Task<PagedResult<FinanceReceivable>> GetPagedAsync(FinanceReceivableQueryRequest request, CancellationToken cancellationToken = default);
