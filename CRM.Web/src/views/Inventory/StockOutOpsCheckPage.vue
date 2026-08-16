@@ -11,32 +11,31 @@
           </div>
           <h1 class="page-title">{{ t('stockOutOpsCheck.title') }}</h1>
         </div>
-        <div v-if="result" class="summary-metrics">
-          <div class="summary-metric">
-            <span class="summary-metric__label">{{ t('stockOutOpsCheck.severity.error') }}</span>
-            <span class="summary-metric__value is-error">{{ result.errorCount }}</span>
-          </div>
-          <span class="summary-metric__divider" aria-hidden="true" />
-          <div class="summary-metric">
-            <span class="summary-metric__label">{{ t('stockOutOpsCheck.severity.warning') }}</span>
-            <span class="summary-metric__value is-warning">{{ result.warningCount }}</span>
-          </div>
-          <template v-if="isFilterActive">
-            <span class="summary-metric__divider" aria-hidden="true" />
-            <div class="summary-metric">
-              <span class="summary-metric__label">{{ t('stockOutOpsCheck.filters.shown') }}</span>
-              <span class="summary-metric__value is-info">
-                {{ visibleFindings.length }} / {{ result.findings.length }}
-              </span>
-            </div>
-          </template>
-        </div>
       </div>
       <div class="header-right">
         <p class="hint">{{ t('stockOutOpsCheck.hint') }}</p>
         <button type="button" class="btn-primary" :disabled="loading" @click="runCheck">
           {{ loading ? t('stockOutOpsCheck.running') : t('stockOutOpsCheck.run') }}
         </button>
+      </div>
+    </div>
+
+    <div v-if="result" class="stat-row">
+      <div class="stat-card">
+        <div class="label">{{ t('stockOutOpsCheck.severity.error') }}</div>
+        <div class="value is-error">{{ result.errorCount }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">{{ t('stockOutOpsCheck.severity.warning') }}</div>
+        <div class="value is-warning">{{ result.warningCount }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">
+          {{ isFilterActive ? t('stockOutOpsCheck.filters.shown') : t('stockOutOpsCheck.stats.total') }}
+        </div>
+        <div class="value is-info">
+          {{ isFilterActive ? `${visibleFindings.length} / ${result.findings.length}` : result.findings.length }}
+        </div>
       </div>
     </div>
 
@@ -161,7 +160,7 @@
               </el-tooltip>
             </td>
             <td>{{ row.reason }}</td>
-            <td>{{ row.suggestion }}</td>
+            <td class="col-suggestion">{{ row.suggestion }}</td>
           </tr>
         </tbody>
       </table>
@@ -355,50 +354,44 @@ async function runCheck() {
   color: $text-primary;
 }
 
-.summary-metrics {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-left: 4px;
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
-.summary-metric {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  white-space: nowrap;
-}
+.stat-card {
+  background: $layer-3;
+  border: 1px solid $border-card;
+  border-radius: 8px;
+  padding: 10px 12px;
 
-.summary-metric__label {
-  font-size: 13px;
-  color: $text-muted;
-}
-
-.summary-metric__value {
-  font-size: 16px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.2;
-  color: $text-primary;
-
-  &.is-error {
-    color: $danger-color;
+  .label {
+    color: $text-muted;
+    font-size: 12px;
   }
 
-  &.is-warning {
-    color: $warning-color;
-  }
+  .value {
+    margin-top: 4px;
+    font-size: 18px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+    color: $text-primary;
 
-  &.is-info {
-    color: $cyan-primary;
-  }
-}
+    &.is-error {
+      color: $danger-color;
+    }
 
-.summary-metric__divider {
-  width: 1px;
-  height: 16px;
-  background: $border-panel;
-  flex-shrink: 0;
+    &.is-warning {
+      color: $warning-color;
+    }
+
+    &.is-info {
+      color: $cyan-primary;
+    }
+  }
 }
 
 .btn-primary {
@@ -582,6 +575,12 @@ async function runCheck() {
 
   tbody tr:last-child td {
     border-bottom: none;
+  }
+
+  .col-suggestion {
+    white-space: pre-line;
+    line-height: 1.55;
+    min-width: 260px;
   }
 }
 

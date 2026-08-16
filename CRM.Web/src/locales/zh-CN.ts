@@ -7356,6 +7356,7 @@ const zhCN = {
     idle: '点击「检查」开始全量核对。',
     failed: '检查失败',
     truncated: '结果超过上限，只显示前 2000 条。',
+    stats: { total: '合计' },
     severity: { error: '错误', warning: '警告' },
     category: {
       chain: '链条',

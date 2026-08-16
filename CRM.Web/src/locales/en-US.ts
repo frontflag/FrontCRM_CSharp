@@ -7372,6 +7372,7 @@ const enUS = {
     idle: 'Click Check to run a full scan.',
     failed: 'Check failed',
     truncated: 'More than 2000 findings; showing the first 2000.',
+    stats: { total: 'Total' },
     severity: { error: 'Error', warning: 'Warning' },
     category: {
       chain: 'Chain',
