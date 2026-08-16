@@ -190,6 +190,74 @@
           </template>
         </SidebarMenuGroupFlyout>
 
+        <!-- 数据分析（我的菜单内，位于「我的」下方） -->
+        <SidebarMenuGroupFlyout
+          v-if="showAnalyticsMenuGroup"
+          :collapsed="isCollapsed"
+          :expanded="openGroups.analytics"
+          @toggle="toggleGroup('analytics')"
+        >
+          <template #icon>
+            <span class="menu-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <line x1="18" y1="20" x2="18" y2="10"/>
+                <line x1="12" y1="20" x2="12" y2="4"/>
+                <line x1="6" y1="20" x2="6" y2="14"/>
+              </svg>
+            </span>
+          </template>
+          <template #label>
+            <span class="menu-label" v-if="!isCollapsed">{{ t('layout.sections.analytics') }}</span>
+          </template>
+          <template #chevron>
+            <svg
+              v-if="!isCollapsed"
+              class="chevron"
+              :class="{ rotated: openGroups.analytics }"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </template>
+          <template #submenu>
+            <router-link
+              v-if="hasPermission('analytics-sales.read') || hasPermission('sales-order.read')"
+              to="/reports/sales"
+              class="submenu-item"
+              active-class="active"
+            >{{ t('salesAnalytics.title') }}</router-link>
+            <router-link
+              v-if="hasPermission('analytics-purchase.read') || hasPermission('purchase-order.read')"
+              to="/reports/purchase"
+              class="submenu-item"
+              active-class="active"
+            >{{ t('purchaseAnalytics.title') }}</router-link>
+            <router-link
+              v-if="hasPermission('analytics-logistics.read') || hasPermission('inventory.read')"
+              to="/reports/logistics"
+              class="submenu-item"
+              active-class="active"
+            >{{ t('logisticsAnalytics.title') }}</router-link>
+            <router-link
+              v-if="
+                hasPermission('analytics-finance.read') ||
+                hasPermission('finance-payment.read') ||
+                hasPermission('finance-receipt.read') ||
+                hasPermission('finance-purchase-invoice.read') ||
+                hasPermission('finance-sell-invoice.read') ||
+                hasPermission('sales-order.read') ||
+                hasPermission('purchase-order.read')
+              "
+              to="/reports/finance"
+              class="submenu-item"
+              active-class="active"
+            >{{ t('financeAnalytics.title') }}</router-link>
+          </template>
+        </SidebarMenuGroupFlyout>
+
         <!-- 待办 -->
         <div class="menu-section-label" v-if="!isCollapsed">{{ t('layout.sections.todo') }}</div>
         <SidebarMenuTooltipWrap
@@ -810,84 +878,6 @@
             </template>
           </SidebarMenuGroupFlyout>
         </div>
-
-        <!-- 数据分析 -->
-        <div class="menu-section-label" v-if="!isCollapsed">{{ t('layout.sections.analytics') }}</div>
-
-        <SidebarMenuTooltipWrap
-          v-if="hasPermission('analytics-sales.read') || hasPermission('sales-order.read')"
-          :collapsed="isCollapsed"
-          :tooltip="t('salesAnalytics.title')"
-        >
-          <router-link to="/reports/sales" class="menu-item" active-class="active">
-            <span class="menu-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                <line x1="18" y1="20" x2="18" y2="10"/>
-                <line x1="12" y1="20" x2="12" y2="4"/>
-                <line x1="6" y1="20" x2="6" y2="14"/>
-              </svg>
-            </span>
-            <span class="menu-label" v-if="!isCollapsed">{{ t('salesAnalytics.title') }}</span>
-          </router-link>
-        </SidebarMenuTooltipWrap>
-
-        <SidebarMenuTooltipWrap
-          v-if="hasPermission('analytics-purchase.read') || hasPermission('purchase-order.read')"
-          :collapsed="isCollapsed"
-          :tooltip="t('purchaseAnalytics.title')"
-        >
-          <router-link to="/reports/purchase" class="menu-item" active-class="active">
-            <span class="menu-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                <line x1="18" y1="20" x2="18" y2="10"/>
-                <line x1="12" y1="20" x2="12" y2="4"/>
-                <line x1="6" y1="20" x2="6" y2="14"/>
-              </svg>
-            </span>
-            <span class="menu-label" v-if="!isCollapsed">{{ t('purchaseAnalytics.title') }}</span>
-          </router-link>
-        </SidebarMenuTooltipWrap>
-
-        <SidebarMenuTooltipWrap
-          v-if="hasPermission('analytics-logistics.read') || hasPermission('inventory.read')"
-          :collapsed="isCollapsed"
-          :tooltip="t('logisticsAnalytics.title')"
-        >
-          <router-link to="/reports/logistics" class="menu-item" active-class="active">
-            <span class="menu-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-                <line x1="12" y1="22.08" x2="12" y2="12"/>
-              </svg>
-            </span>
-            <span class="menu-label" v-if="!isCollapsed">{{ t('logisticsAnalytics.title') }}</span>
-          </router-link>
-        </SidebarMenuTooltipWrap>
-
-        <SidebarMenuTooltipWrap
-          v-if="
-            hasPermission('analytics-finance.read') ||
-            hasPermission('finance-payment.read') ||
-            hasPermission('finance-receipt.read') ||
-            hasPermission('finance-purchase-invoice.read') ||
-            hasPermission('finance-sell-invoice.read') ||
-            hasPermission('sales-order.read') ||
-            hasPermission('purchase-order.read')
-          "
-          :collapsed="isCollapsed"
-          :tooltip="t('financeAnalytics.title')"
-        >
-          <router-link to="/reports/finance" class="menu-item" active-class="active">
-            <span class="menu-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                <line x1="12" y1="1" x2="12" y2="23"/>
-                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-              </svg>
-            </span>
-            <span class="menu-label" v-if="!isCollapsed">{{ t('financeAnalytics.title') }}</span>
-          </router-link>
-        </SidebarMenuTooltipWrap>
 
         <!-- 业务管理 -->
         <div
@@ -1656,6 +1646,15 @@ import PurchaseOrderItemSearchPanel from '@/components/RFQ/PurchaseOrderItemSear
 import ArrivalNoticeSearchPanel from '@/components/Logistics/ArrivalNoticeSearchPanel.vue'
 import QcSearchPanel from '@/components/Logistics/QcSearchPanel.vue'
 import { canAccessCustomsModule } from '@/utils/departmentModuleGate'
+import {
+  collapsedSidebarMenuGroups,
+  defaultSidebarMenuGroups,
+  expandedSidebarMenuGroups,
+  readSidebarMenuGroups,
+  writeSidebarMenuGroups,
+  type SidebarMenuGroupKey,
+  type SidebarMenuGroupsState
+} from '@/utils/sidebarMenuGroupState'
 import StockInSearchPanel from '@/components/Inventory/StockInSearchPanel.vue'
 import StockOutSearchPanel from '@/components/Inventory/StockOutSearchPanel.vue'
 import SalesOrderFavoritePanel from '@/components/SalesOrder/SalesOrderFavoritePanel.vue'
@@ -2692,58 +2691,49 @@ const leftPanelTitle = computed(() => {
   const item = leftTabs.value.find(x => x.id === leftActiveTabId.value)
   return item ? t(item.labelKey) : ''
 })
-const openGroups = ref({
-  mine: true,
-  purchase: false,
-  sales: false,
-  inventory: false,
-  stockInManagement: false,
-  customs: false,
-  stockOutManagement: false,
-  customers: false,
-  vendors: false,
-  rfqs: false,
-  quotes: false,
-  finance: false,
-  financePayments: false,
-  financeReceipts: false,
-  financeInventoryReports: false,
-  ops: false,
-  systemManagement: false,
-  paramManagement: false,
-  systemLogs: false
-})
+const openGroups = ref<SidebarMenuGroupsState>(defaultSidebarMenuGroups())
+/** 已从本地恢复过分组状态时，登录当次不再按当前路由强行展开。 */
+let skipRouteMenuExpandOnce = false
+
+function currentMenuGroupsUserId(): string {
+  return (authStore.user?.id || '').trim()
+}
+
+function persistMenuGroups(): void {
+  if (sidebarMode.value === 'narrow') return
+  const uid = currentMenuGroupsUserId()
+  if (!uid) return
+  writeSidebarMenuGroups(uid, { ...openGroups.value })
+}
+
+function hydrateMenuGroups(): boolean {
+  const uid = currentMenuGroupsUserId()
+  const saved = uid ? readSidebarMenuGroups(uid) : null
+  if (saved) {
+    openGroups.value = saved
+    return true
+  }
+  if (authStore.user?.isSysAdmin === true) {
+    openGroups.value = expandedSidebarMenuGroups()
+    return false
+  }
+  openGroups.value = defaultSidebarMenuGroups()
+  return false
+}
+
+skipRouteMenuExpandOnce = hydrateMenuGroups()
 
 const expandAllGroups = () => {
-  // SYS_ADMIN 需要“看见所有菜单项”，因此默认把所有分组都展开
-  openGroups.value = {
-    mine: true,
-    purchase: true,
-    sales: true,
-    inventory: true,
-    stockInManagement: true,
-    customs: true,
-    stockOutManagement: true,
-    customers: true,
-    vendors: true,
-    rfqs: true,
-    quotes: true,
-    finance: true,
-    financePayments: true,
-    financeReceipts: true,
-    financeInventoryReports: true,
-    ops: true,
-    systemManagement: true,
-    paramManagement: true,
-    systemLogs: true
-  }
+  openGroups.value = expandedSidebarMenuGroups()
 }
 
 const toggleCollapse = () => {
   cycleSidebarMode()
   if (sidebarMode.value === 'narrow') {
-    openGroups.value = { mine: false, purchase: false, sales: false, inventory: false, stockInManagement: false, customs: false, stockOutManagement: false, customers: false, vendors: false, rfqs: false, quotes: false, finance: false, financePayments: false, financeReceipts: false, financeInventoryReports: false, ops: false, systemManagement: false, paramManagement: false, systemLogs: false }
-  } else if (sidebarMode.value === 'full' && isSysAdmin.value) {
+    openGroups.value = collapsedSidebarMenuGroups()
+    return
+  }
+  if (!hydrateMenuGroups() && isSysAdmin.value) {
     expandAllGroups()
   }
 }
@@ -2810,8 +2800,9 @@ watch(forceModalToken, () => {
   void checkForceAnnouncements()
 })
 
-const toggleGroup = (group: keyof typeof openGroups.value) => {
+const toggleGroup = (group: SidebarMenuGroupKey) => {
   openGroups.value[group] = !openGroups.value[group]
+  persistMenuGroups()
 }
 
 const userName = computed(() => authStore.user?.userName || '管理员')
@@ -3156,13 +3147,14 @@ const showCustomsMenus = computed(() =>
   })
 )
 
-// 管理员登录时默认展开所有分组（不强制主菜单宽度，以便可缩为边条/隐藏）
+// 管理员首次无记忆时默认展开全部；已有记忆则沿用上次收起/展开
 watch(
   isSysAdmin,
   (v) => {
-    if (v) expandAllGroups()
-  },
-  { immediate: true }
+    if (!v) return
+    if (readSidebarMenuGroups(currentMenuGroupsUserId())) return
+    expandAllGroups()
+  }
 )
 
 watch(
@@ -3179,12 +3171,42 @@ const hasAnyApprovalPermission = computed(() => {
   return codes.some(code => hasPermission(code))
 })
 
+const showAnalyticsMenuGroup = computed(() =>
+  hasPermission('analytics-sales.read') ||
+  hasPermission('analytics-purchase.read') ||
+  hasPermission('analytics-logistics.read') ||
+  hasPermission('analytics-finance.read') ||
+  hasPermission('sales-order.read') ||
+  hasPermission('purchase-order.read') ||
+  hasPermission('inventory.read') ||
+  hasPermission('finance-payment.read') ||
+  hasPermission('finance-receipt.read') ||
+  hasPermission('finance-purchase-invoice.read') ||
+  hasPermission('finance-sell-invoice.read')
+)
+
 // 根据当前路由自动展开“需求管理”分组
 watch(
   () => route.path,
   (p) => {
+    if (skipRouteMenuExpandOnce) {
+      skipRouteMenuExpandOnce = false
+      return
+    }
     if (p === '/dashboard' || p.startsWith('/dashboard/') || p === '/my/mails' || p.startsWith('/my/mails')) {
       openGroups.value.mine = true
+    }
+    if (
+      p === '/reports/sales' ||
+      p.startsWith('/reports/sales/') ||
+      p === '/reports/purchase' ||
+      p.startsWith('/reports/purchase/') ||
+      p === '/reports/logistics' ||
+      p.startsWith('/reports/logistics/') ||
+      p === '/reports/finance' ||
+      p.startsWith('/reports/finance/')
+    ) {
+      openGroups.value.analytics = true
     }
     if (
       p === '/rfq' ||
@@ -3248,6 +3270,7 @@ watch(
     if (p === '/finance/vendor-accumulated' || p.startsWith('/finance/vendor-accumulated/')) {
       openGroups.value.financeInventoryReports = true
     }
+    persistMenuGroups()
   },
   { immediate: true }
 )
@@ -3370,6 +3393,7 @@ watch(
     if (!n) return
 
     if (!o && n) {
+      skipRouteMenuExpandOnce = hydrateMenuGroups()
       purgeLegacyWorkspaceTabKeys()
       const { tabs: tk, active: ak } = workspaceTabKeys(n)
       let loaded = false
@@ -3400,6 +3424,7 @@ watch(
     }
 
     if (o && n && o !== n) {
+      skipRouteMenuExpandOnce = hydrateMenuGroups()
       purgeLegacyWorkspaceTabKeys()
       tabs.value = []
       activeTab.value = ''
