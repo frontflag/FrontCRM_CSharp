@@ -1,8 +1,8 @@
 # 管理角色分级与权限体系 PRD
 
-**文档版本：** v1.0  
+**文档版本：** v1.1  
 **编写日期：** 2026-06-03  
-**状态：** 已定稿（待开发落地）  
+**状态：** 已定稿（一期已落地，见 [管理角色三级-设计与实现](../System/管理角色三级-设计与实现.md)）  
 **关联文档：** [RBAC权限系统PRD](./RBAC权限系统PRD.md)、[部门组织角色编码](../System/部门组织角色编码.md)、[权限-部门](../System/权限/权限-部门.md)
 
 ---
@@ -44,7 +44,7 @@
 | 层级 | RoleCode | 中文名 | 职责摘要 |
 |------|----------|--------|----------|
 | L1 | `SYS_ADMIN` | 系统管理员（Admin） | 全系统最高权限；`IsSysAdmin=true` |
-| L2 | `SYS_MANAGER` | 平台管理员（Manager） | 除角色/权限/Debug/Admin 账号外，平台级管理能力 |
+| L2 | `SYS_MANAGER` | 平台管理员（Manager） | 除角色/权限/Debug/Admin 账号外，平台级管理能力；业务数据全量 bypass（`HasBizDataBypass`） |
 | L3 | `SYS_MGR_HR` | 人事系统管理员 | 员工 + 部门；可创建 Manager |
 | L3 | `SYS_MGR_SALES` | 销售系统管理员 | 销售域系统参数 + 可手工配销售域主数据菜单 |
 | L3 | `SYS_MGR_PURCHASE` | 采购系统管理员 | 采购域系统参数 + 可手工配采购域主数据菜单 |
@@ -75,9 +75,17 @@
 | 创建 `SYS_MANAGER` | ✅ | ❌ | ✅ | ❌ |
 | 本域 `system.params.*` | ✅ | ✅ | ❌ | ✅ |
 | 业务主数据菜单（如品牌管理） | ✅ | ✅ | ❌ | 手工配置 |
-| 业务数据全量 bypass | ✅ | ❌ | ❌ | ❌ |
+| 业务数据全量 bypass（`HasBizDataBypass`） | ✅ | ✅ | ❌ | ❌ |
 
 \* 不可见/不可改 **Admin** 账号；Manager **不能** 编辑/删除/改密 **其他 Manager**（仅 Admin + HR 可维护 Manager 账号）。
+
+**`HasBizDataBypass` 口径（与实现一致）：**
+
+- **不是**角色编辑里可勾选的权限码，而是 `GET /api/v1/auth/permission-summary` 的计算标志。
+- **置 true：** `SYS_ADMIN`、`SYS_MANAGER`，以及一期落地的 `SYS_BIZ_MANAGER`（与 `hasManagementAccess` 同期）。
+- **仍为 false：** 普通员工、仅 `DEPT_*`、L3 `SYS_MGR_*`（域管理员**不**扩业务单据数据范围，与 §一目标 2 一致）。
+- **放开：** 行级不再按主部门 `*DataScope` 收窄；侧栏不受 `IdentityType` / 隐藏客户·供应商 / `*DataScope=4` 藏菜单；业务权限码在前端 `hasPermission` 与 API `RequirePermission`（非 `system.*`）放行。
+- **不放开：** `system.*` 仍走 §五双重门槛；角色/权限/Debug 仍仅 Admin。
 
 ### 3.3 账号隔离与赋权规则（后端硬约束）
 
@@ -155,8 +163,10 @@ hasManagementAccess =
 {
   isSysAdmin: boolean
   isSysManager: boolean
+  isBizManager: boolean         // 一期：SYS_BIZ_MANAGER
   sysManagerDomains: string[]   // ['HR','PURCHASE','FINANCE', ...]
   hasManagementAccess: boolean  // 上述 OR
+  hasBizDataBypass: boolean     // 业务数据行级全量；一期与 hasManagementAccess 同期
   permissionCodes: string[]
 }
 ```
@@ -181,13 +191,13 @@ function canAccessSystemPermission(code: string): boolean {
 
 ### 5.4 平台能力与 IsSysAdmin 解耦
 
-| 能力 | 目标权限 | 持有者 |
-|------|----------|--------|
+| 能力 | 目标权限 / 标志 | 持有者 |
+|------|-----------------|--------|
 | 模拟登录 | `system.platform.impersonate` | Admin、Manager |
 | 强制删除 | `system.platform.force-delete` | Admin、Manager |
-| 数据 bypass | `IsSysAdmin` | **仅 Admin** |
+| 业务数据全量 bypass | `HasBizDataBypass` | Admin、Manager（及一期 `SYS_BIZ_MANAGER`） |
 
-Manager **不得** 设置 `IsSysAdmin=true`。
+Manager **不得** 设置 `IsSysAdmin=true`。业务数据全量由 **`HasBizDataBypass`** 表达，与 `IsSysAdmin` 解耦：平台管理员看全量业务单据、不受主部门藏菜单，但角色/权限/Debug 仍仅 Admin。
 
 ---
 
@@ -400,6 +410,7 @@ flowchart TD
 | 10 | HR DepartManager | 创建 SYS_ADMIN | 403 |
 | 11 | SYS_MGR_PURCHASE + biz.brand.read | 品牌列表 | 200；采购单仍按 DEPT 数据范围 |
 | 12 | Admin | 角色页「勾选采购域全部主数据」 | 写入 sys_role_permission |
+| 13 | Manager（主部门销售、`SaleDataScope=1`） | 采购订单列表 / 报关菜单 | 可见；业务列表全量；不被部门身份重定向 `/dashboard` |
 
 ---
 
@@ -408,3 +419,4 @@ flowchart TD
 | 版本 | 日期 | 说明 |
 |------|------|------|
 | v1.0 | 2026-06-03 | 初版：管理角色分级、权限分层、系统双重门槛、品牌拆分、方式 C 按域批量配置、定稿答复汇总 |
+| v1.1 | 2026-08-17 | §3.2 / §5.4：业务数据全量 bypass 与实现对齐——平台管理员（`SYS_MANAGER`）及一期 `SYS_BIZ_MANAGER` 置 `HasBizDataBypass`；L3 域管理员仍不扩业务数据范围 |

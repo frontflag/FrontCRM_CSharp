@@ -93,6 +93,11 @@ export interface CustomsDeclarationItemListItemDto {
   purchasePn?: string | null
   purchaseBrand?: string | null
   declareQty: number
+  purchaseOrderItemCode?: string | null
+  purchaseOrderId?: string | null
+  originalPurchasePrice?: number | null
+  purchaseCurrency?: number | null
+  originalPurchaseAmount?: number | null
   declareUnitPrice: number
   dutyAmount: number
   vatAmount: number

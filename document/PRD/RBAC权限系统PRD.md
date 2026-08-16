@@ -1,6 +1,6 @@
 # RBAC权限系统产品需求文档（PRD）
 
-**文档版本：** v1.6（管理角色分级、权限分层与系统管理双重门槛 — 详见专篇 PRD）
+**文档版本：** v1.8（平台管理员业务数据全量 bypass 与专篇 PRD 对齐）
 **编写日期：** 2026-04-08
 **项目名称：** AI智销系统（FrontCRM_CSharp）
 **技术栈：** .NET 9.0 + Vue 3 + TypeScript + PostgreSQL
@@ -91,12 +91,12 @@
 
 ### 2.4 管理角色（与组织角色正交）
 
-与 §2.3 **组织角色**（`DEPT_*`）独立，用于 **系统管理菜单与平台能力**，**不**自动改变业务单据 `DataScope`。完整矩阵见 [管理角色分级与权限体系PRD §三](./管理角色分级与权限体系PRD.md#三管理角色分级)。
+与 §2.3 **组织角色**（`DEPT_*`）独立，用于 **系统管理菜单与平台能力**。L1/L2（`SYS_ADMIN` / `SYS_MANAGER`）置 `HasBizDataBypass`，业务单据不受主部门 `DataScope` / `IdentityType` 藏菜单；L3 `SYS_MGR_*` **不**改变业务单据数据范围。完整矩阵见 [管理角色分级与权限体系PRD §三](./管理角色分级与权限体系PRD.md#三管理角色分级)。
 
 | RoleCode | 中文名 | 摘要 |
 |----------|--------|------|
-| `SYS_ADMIN` | 系统管理员 | 最高权限；`IsSysAdmin=true` |
-| `SYS_MANAGER` | 平台管理员 | 含日志/公司信息/模拟登录/强删；**不含** 角色/权限/Debug/Admin 账号 |
+| `SYS_ADMIN` | 系统管理员 | 最高权限；`IsSysAdmin=true`；`HasBizDataBypass=true` |
+| `SYS_MANAGER` | 平台管理员 | 含日志/公司信息/模拟登录/强删、业务数据全量 bypass；**不含** 角色/权限/Debug/Admin 账号 |
 | `SYS_MGR_HR` | 人事系统管理员 | 员工+部门；可创建 Manager |
 | `SYS_MGR_SALES` / `PURCHASE` / `LOGISTICS` / `FINANCE` | 域系统管理员 | 本域 `system.params.*` + 可手工配本域主数据菜单；**不管** 业务单据数据范围 |
 
@@ -409,17 +409,19 @@ WHERE
 - 前端侧栏：`CRM.Web/src/layouts/AppLayout.vue` 中 `showStockOutMenus`（依赖 `showLogisticsMenus` 与 `belongsToPurchaseDept`）。
 - 摘要字段：`GET /api/v1/auth/permission-summary` 返回 `belongsToPurchaseDept`（JSON camelCase）。
 
-### 5.5.1 报关板块：仅物流部、财务部与系统管理员
+### 5.5.1 报关板块：仅物流部、财务部与系统/平台管理员
 
 **业务目的：** 报关（待报关、报关公司、报关单、报关明细、报关客户移库）为关务与财务协同场景，**不对**销售、采购、商务等其他部门开放模块入口与 API。
 
 **模块准入（与 `SaleDataScope` / `PurchaseDataScope` 无关）：**
 
-| 身份 | `IdentityType` | 报关侧栏 | 报关 API |
-|------|----------------|----------|----------|
-| 系统管理员 | —（`IsSysAdmin`） | ✅ | ✅ |
-| 财务部 | **5** | ✅ | ✅（报关单/明细列表默认全量） |
-| 物流部 | **6** | ✅ | ✅（报关单列表可按 `LogisticsDataScope` 收窄创建人） |
+| 身份 | 判定 | 报关侧栏 | 报关 API |
+|------|------|----------|----------|
+| 系统管理员 | `IsSysAdmin`（`SYS_ADMIN`） | ✅ | ✅ |
+| 平台管理员 | `IsSysManager`（`SYS_MANAGER`） | ✅ | ✅（报关单/明细列表默认全量） |
+| 业务数据 bypass | `HasBizDataBypass` | ✅ | ✅（列表默认全量） |
+| 财务部 | `IdentityType` **5** | ✅ | ✅（报关单/明细列表默认全量） |
+| 物流部 | `IdentityType` **6** | ✅ | ✅（报关单列表可按 `LogisticsDataScope` 收窄创建人） |
 | 销售 / 采购 / 商务 / 客服等 | 其他 | ❌ | **403** |
 
 **覆盖范围：**
@@ -760,6 +762,8 @@ WHERE r.role_code = 'SYS_ADMIN';
 | v1.4 | 2026-04-24 | AI助手 | 增补 §5.6：销售侧不可见采购订单/付款上传附件，采购侧不可见销售订单/收款上传附件；§4.2 与附件策略交叉引用；实现见 `CrossSideDocumentAttachmentPolicy` 与 `DocumentsController` |
 | v1.5 | 2026-06-11 | AI助手 | §5.5 拆分为出库/报关：§5.5.1 报关板块仅 **物流(6)/财务(5)/管理员** 可访问；待报关取消 `SaleDataScope` 过滤；API 403 + 前端 `showCustomsMenus` |
 | v1.6 | 2026-06-03 | AI助手 | 新增 §2.4 管理角色、§4.1.1 系统管理门禁；权限实体扩展说明；附录 §12.1 对齐 `system.*` / `biz.*` 分层；专篇 [管理角色分级与权限体系PRD](./管理角色分级与权限体系PRD.md) |
+| v1.7 | 2026-08-17 | AI助手 | §5.5.1 报关板块准入补齐 **平台管理员**（`IsSysManager` / `SYS_MANAGER`）与 `HasBizDataBypass`：侧栏、路由守卫、API 使用同一规则，避免菜单可见却被重定向到 `/dashboard` |
+| v1.8 | 2026-08-17 | AI助手 | §2.4：L1/L2 置 `HasBizDataBypass`（平台管理员看全量业务数据）；L3 仍不改业务单据数据范围；与 [管理角色分级 PRD v1.1](./管理角色分级与权限体系PRD.md) 对齐 |
 
 ---
 

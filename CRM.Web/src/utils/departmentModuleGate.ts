@@ -42,12 +42,20 @@ export function isCustomsModuleRoute(to: RouteLocationNormalized): boolean {
   return p.startsWith('/customs/')
 }
 
-/** 报关板块侧栏/API：仅系统管理员、财务部(5)、物流部(6)。 */
+/** 报关板块侧栏/API：系统管理员、平台管理员、业务数据 bypass、财务部(5)、物流部(6)。 */
 export function canAccessCustomsModule(input: {
   isSysAdmin?: boolean
+  isSysManager?: boolean
+  hasBizDataBypass?: boolean
   identityType?: number
 }): boolean {
-  if (input.isSysAdmin === true) return true
+  if (
+    input.isSysAdmin === true ||
+    input.isSysManager === true ||
+    input.hasBizDataBypass === true
+  ) {
+    return true
+  }
   const t = input.identityType ?? 0
   return t === 5 || t === 6
 }

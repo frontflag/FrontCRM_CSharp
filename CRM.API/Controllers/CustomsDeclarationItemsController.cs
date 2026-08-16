@@ -82,6 +82,7 @@ public class CustomsDeclarationItemsController : ControllerBase
         [FromQuery] string? salesUserId,
         [FromQuery] string? sellOrderItemCode,
         [FromQuery] string? stockOutRequestId,
+        [FromQuery] string? purchaseOrderItemCode,
         [FromQuery] int take = 500)
     {
         try
@@ -96,6 +97,8 @@ public class CustomsDeclarationItemsController : ControllerBase
             var suQ = (salesUserId ?? string.Empty).Trim();
             var soLineQ = (sellOrderItemCode ?? string.Empty).Trim();
             var sorQ = (stockOutRequestId ?? string.Empty).Trim();
+            var poItemQ = (purchaseOrderItemCode ?? string.Empty).Trim();
+            var mask511 = await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User);
 
             var iq = _db.CustomsDeclarationItems.AsNoTracking();
             if (!string.IsNullOrEmpty(pnQ))
@@ -106,6 +109,14 @@ public class CustomsDeclarationItemsController : ControllerBase
                 iq = iq.Where(i => i.StockOutRequestId == sorQ);
             if (!string.IsNullOrEmpty(suQ))
                 iq = iq.Where(i => i.SalesUserId == suQ);
+            if (!mask511 && !string.IsNullOrEmpty(poItemQ))
+            {
+                var matchedLayerIds = _db.StockItems.AsNoTracking()
+                    .Where(s => s.PurchaseOrderItemCode != null
+                                && EF.Functions.ILike(s.PurchaseOrderItemCode, $"%{poItemQ}%"))
+                    .Select(s => s.Id);
+                iq = iq.Where(i => i.SourceStockItemId != null && matchedLayerIds.Contains(i.SourceStockItemId));
+            }
 
             var query =
                 from i in iq
@@ -122,36 +133,84 @@ public class CustomsDeclarationItemsController : ControllerBase
                 select new { i, d, c, u };
 
             var rows = await query.Take(n).ToListAsync();
-            var list = rows.Select(x => new CustomsDeclarationItemListItemDto
+            var layerIds = rows
+                .Select(x => x.i.SourceStockItemId)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Select(id => id!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var layers = await _db.StockItems.AsNoTracking()
+                .Where(s => layerIds.Contains(s.Id))
+                .Select(s => new { s.Id, s.PurchaseOrderItemCode, s.PurchaseOrderItemId })
+                .ToListAsync();
+            var layerById = layers.ToDictionary(s => s.Id, StringComparer.OrdinalIgnoreCase);
+            var poItemIds = layers
+                .Select(s => s.PurchaseOrderItemId)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Select(id => id!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var poByItemId = await _db.PurchaseOrderItems.AsNoTracking()
+                .Where(p => poItemIds.Contains(p.Id))
+                .ToDictionaryAsync(p => p.Id, p => p.PurchaseOrderId, StringComparer.OrdinalIgnoreCase);
+
+            var list = rows.Select(x =>
             {
-                Id = x.i.Id,
-                DeclarationId = x.i.DeclarationId,
-                DeclarationCode = x.d.DeclarationCode,
-                DeclareDate = x.d.DeclareDate,
-                LineNo = x.i.LineNo,
-                StockOutRequestId = x.i.StockOutRequestId,
-                CustomerId = x.i.CustomerId,
-                CustomerName = x.c?.OfficialName,
-                SalesUserId = x.i.SalesUserId,
-                SalesUserName = x.u != null && !string.IsNullOrWhiteSpace(x.u.UserName)
-                    ? x.u.UserName.Trim()
-                    : null,
-                SellOrderItemCode = x.i.SellOrderItemCode,
-                PurchasePn = x.i.PurchasePn,
-                PurchaseBrand = x.i.PurchaseBrand,
-                DeclareQty = x.i.DeclareQty,
-                DeclareUnitPrice = x.i.DeclareUnitPrice,
-                DutyAmount = x.i.DutyAmount,
-                VatAmount = x.i.VatAmount,
-                CustomsPaymentGoods = x.i.CustomsPaymentGoods,
-                CustomsAgencyFee = x.i.CustomsAgencyFee,
-                OtherFee = x.i.OtherFee,
-                InspectionFee = x.i.InspectionFee,
-                TotalValueTax = x.i.TotalValueTax,
-                TaxIncludedUnitPrice = x.i.TaxIncludedUnitPrice,
-                CreateTime = x.i.CreateTime,
-                CreateByUserId = null,
-                CreateUserDisplay = x.i.CreateUserId.HasValue ? x.i.CreateUserId.Value.ToString() : null
+                string? poCode = null;
+                string? poId = null;
+                decimal? p0 = null;
+                short? ccy = null;
+                decimal? amount = null;
+                var layerId = x.i.SourceStockItemId?.Trim();
+                if (!mask511 && !string.IsNullOrWhiteSpace(layerId) && layerById.TryGetValue(layerId, out var layer))
+                {
+                    poCode = string.IsNullOrWhiteSpace(layer.PurchaseOrderItemCode)
+                        ? null
+                        : layer.PurchaseOrderItemCode.Trim();
+                    var poItemId = layer.PurchaseOrderItemId?.Trim();
+                    if (!string.IsNullOrWhiteSpace(poItemId) && poByItemId.TryGetValue(poItemId, out var hid))
+                        poId = string.IsNullOrWhiteSpace(hid) ? null : hid.Trim();
+                    p0 = x.i.OriginalPurchasePrice;
+                    ccy = x.i.PurchaseCurrency;
+                    amount = x.i.OriginalPurchasePrice * x.i.DeclareQty;
+                }
+
+                return new CustomsDeclarationItemListItemDto
+                {
+                    Id = x.i.Id,
+                    DeclarationId = x.i.DeclarationId,
+                    DeclarationCode = x.d.DeclarationCode,
+                    DeclareDate = x.d.DeclareDate,
+                    LineNo = x.i.LineNo,
+                    StockOutRequestId = x.i.StockOutRequestId,
+                    CustomerId = x.i.CustomerId,
+                    CustomerName = x.c?.OfficialName,
+                    SalesUserId = x.i.SalesUserId,
+                    SalesUserName = x.u != null && !string.IsNullOrWhiteSpace(x.u.UserName)
+                        ? x.u.UserName.Trim()
+                        : null,
+                    SellOrderItemCode = x.i.SellOrderItemCode,
+                    PurchasePn = x.i.PurchasePn,
+                    PurchaseBrand = x.i.PurchaseBrand,
+                    DeclareQty = x.i.DeclareQty,
+                    PurchaseOrderItemCode = poCode,
+                    PurchaseOrderId = poId,
+                    OriginalPurchasePrice = p0,
+                    PurchaseCurrency = ccy,
+                    OriginalPurchaseAmount = amount,
+                    DeclareUnitPrice = x.i.DeclareUnitPrice,
+                    DutyAmount = x.i.DutyAmount,
+                    VatAmount = x.i.VatAmount,
+                    CustomsPaymentGoods = x.i.CustomsPaymentGoods,
+                    CustomsAgencyFee = x.i.CustomsAgencyFee,
+                    OtherFee = x.i.OtherFee,
+                    InspectionFee = x.i.InspectionFee,
+                    TotalValueTax = x.i.TotalValueTax,
+                    TaxIncludedUnitPrice = x.i.TaxIncludedUnitPrice,
+                    CreateTime = x.i.CreateTime,
+                    CreateByUserId = null,
+                    CreateUserDisplay = x.i.CreateUserId.HasValue ? x.i.CreateUserId.Value.ToString() : null
+                };
             }).ToList();
 
             return Ok(ApiResponse<List<CustomsDeclarationItemListItemDto>>.Ok(list, "OK"));

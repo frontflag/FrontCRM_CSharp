@@ -651,7 +651,7 @@
         </template>
         </template>
 
-        <!-- 报关：仅物流部、财务部、系统管理员（RBAC PRD §5.5.1） -->
+        <!-- 报关：物流部、财务部、系统/平台管理员（RBAC PRD §5.5.1） -->
         <template v-if="showCustomsMenus">
           <div class="menu-section-label" v-if="!isCollapsed">{{ t('layout.sections.customs') }}</div>
           <SidebarMenuGroupFlyout
@@ -3099,6 +3099,7 @@ const handleLogout = async () => {
 const hasPermission = (code: string) => authStore.hasPermission(code)
 const identityType = computed(() => authStore.user?.identityType ?? 0)
 const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
+const isSysManager = computed(() => authStore.user?.isSysManager === true)
 const canStockOutOpsCheck = computed(() => authStore.canForceDelete())
 /** SuperAdmin / Admin / Manager：业务侧栏不受主部门身份藏菜单 */
 const hasBizDataBypass = computed(() => authStore.user?.hasBizDataBypass === true)
@@ -3152,10 +3153,12 @@ const showStockOutMenus = computed(() => {
   return authStore.user?.belongsToPurchaseDept !== true
 })
 
-/** 报关板块：仅系统管理员、财务部(IdentityType=5)、物流部(IdentityType=6) */
+/** 报关板块：系统/平台管理员、业务数据 bypass、财务部(5)、物流部(6) */
 const showCustomsMenus = computed(() =>
   canAccessCustomsModule({
-    isSysAdmin: isSysAdmin.value || hasBizDataBypass.value,
+    isSysAdmin: isSysAdmin.value,
+    isSysManager: isSysManager.value,
+    hasBizDataBypass: hasBizDataBypass.value,
     identityType: identityType.value
   })
 )

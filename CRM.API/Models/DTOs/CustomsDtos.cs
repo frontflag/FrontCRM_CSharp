@@ -38,6 +38,15 @@ public sealed class CustomsDeclarationItemListItemDto
     public string? PurchasePn { get; set; }
     public string? PurchaseBrand { get; set; }
     public int DeclareQty { get; set; }
+    /// <summary>拣货回写后的采购明细单号；未拣货或销售方向脱敏时为空。</summary>
+    public string? PurchaseOrderItemCode { get; set; }
+    /// <summary>跳转采购订单详情用；未拣货或脱敏时为空。</summary>
+    public string? PurchaseOrderId { get; set; }
+    /// <summary>P0 原币采购单价；未拣货或脱敏时为空。</summary>
+    public decimal? OriginalPurchasePrice { get; set; }
+    public short? PurchaseCurrency { get; set; }
+    /// <summary>P0 × 申报数量；未拣货或脱敏时为空。</summary>
+    public decimal? OriginalPurchaseAmount { get; set; }
     public decimal DeclareUnitPrice { get; set; }
     public decimal DutyAmount { get; set; }
     public decimal VatAmount { get; set; }

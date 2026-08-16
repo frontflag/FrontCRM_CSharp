@@ -104,6 +104,8 @@ router.beforeEach((to, _from, next) => {
     isCustomsModuleRoute(to) &&
     !canAccessCustomsModule({
       isSysAdmin: authStore.user?.isSysAdmin,
+      isSysManager: authStore.user?.isSysManager,
+      hasBizDataBypass: authStore.user?.hasBizDataBypass,
       identityType: authStore.user?.identityType
     })
   ) {

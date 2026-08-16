@@ -59,6 +59,16 @@ export function formatUnitPriceWithCurrencyCodeSuffix(value: unknown, currency?:
   return `${s} ${code}`
 }
 
+/** 总额 + 币别字母后缀（如 `1,250.00 USD`） */
+export function formatTotalAmountWithCurrencyCodeSuffix(value: unknown, currency?: number): string {
+  const s = formatTotalAmountNumber(value)
+  if (s === '—') return s
+  const c = Number(currency)
+  const code =
+    (Number.isFinite(c) && CURRENCY_CODE_TO_TEXT[c as keyof typeof CURRENCY_CODE_TO_TEXT]) || DEFAULT_SETTLEMENT_CURRENCY_STRING
+  return `${s} ${code}`
+}
+
 /** 总额 + 币别符号 */
 export function formatCurrencyTotal(value: unknown, currency?: number): string {
   const sym = currencySymbol(currency)
