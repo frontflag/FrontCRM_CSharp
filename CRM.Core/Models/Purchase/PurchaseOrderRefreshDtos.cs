@@ -13,6 +13,47 @@ public class PurchaseOrderItemExtendRefreshResult
     public int SyncedArrivalNoticeStatusCount { get; set; }
     public DateTime RefreshedAt { get; set; } = DateTime.UtcNow;
     public List<PurchaseOrderItemExtendChangeDto> Changes { get; set; } = new();
+
+    public int ArrivalNoticesUpdated { get; set; }
+    public int StockInItemsUpdated { get; set; }
+    public int StockInHeadersUpdated { get; set; }
+    public int StockInItemExtendsUpdated { get; set; }
+    public int StockItemsUpdated { get; set; }
+    public int StockOutItemExtendsUpdated { get; set; }
+    public List<PurchaseOrderPurchasePriceLineChangeDto> PurchasePriceLineChanges { get; set; } = new();
+    public List<PurchaseOrderInvoiceMatchWarningDto> InvoiceMatchWarnings { get; set; } = new();
+    public List<PurchaseOrderPaymentOverWarningDto> PaymentOverWarnings { get; set; } = new();
+}
+
+public class PurchaseOrderPurchasePriceLineChangeDto
+{
+    public string PurchaseOrderItemId { get; set; } = string.Empty;
+    public string? PurchaseOrderItemCode { get; set; }
+    public decimal OldCost { get; set; }
+    public decimal NewCost { get; set; }
+    public short OldCurrency { get; set; }
+    public short NewCurrency { get; set; }
+    public decimal OldConvertPrice { get; set; }
+    public decimal NewConvertPrice { get; set; }
+}
+
+public class PurchaseOrderInvoiceMatchWarningDto
+{
+    public string StockInItemId { get; set; } = string.Empty;
+    public string? StockInItemCode { get; set; }
+    public string PurchaseOrderItemId { get; set; } = string.Empty;
+    public string? PurchaseOrderItemCode { get; set; }
+    public decimal Amount { get; set; }
+    public decimal InvoiceMatchDone { get; set; }
+    public decimal InvoiceMatchToBe { get; set; }
+}
+
+public class PurchaseOrderPaymentOverWarningDto
+{
+    public string PurchaseOrderItemId { get; set; } = string.Empty;
+    public string? PurchaseOrderItemCode { get; set; }
+    public decimal LineAmount { get; set; }
+    public decimal PaymentDone { get; set; }
 }
 
 public class PurchaseOrderItemExtendChangeDto

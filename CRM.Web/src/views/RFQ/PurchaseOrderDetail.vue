@@ -105,7 +105,7 @@
               <polyline points="1 20 1 14 7 14" />
               <path d="M3.51 9a9 9 0 0 1 14.13-3.36L23 10M1 14l5.36 4.36A9 9 0 0 0 20.49 15" />
             </svg>
-            {{ refreshingExtends ? '刷新中...' : '刷新' }}
+            {{ refreshingExtends ? t('purchaseOrderDetail.refreshing') : t('purchaseOrderDetail.refresh') }}
           </button>
           <el-dropdown
             v-if="canRefreshPoVendor"
@@ -871,6 +871,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, reactive, watch, nextTick, inject, defineAsyncComponent } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import {
@@ -931,6 +932,7 @@ const PurchaseOrderStockInBatchPanel = defineAsyncComponent(
 
 const router = useRouter()
 const route = useRoute()
+const { t } = useI18n()
 const authStore = useAuthStore()
 const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const purchaseOrderItemOpsStore = usePurchaseOrderItemOpsPanelStore()
@@ -1803,6 +1805,21 @@ function poRefreshFieldValueText(field: string, value: string) {
   return value
 }
 
+function hasPurchaseRefreshUpdates(result: PurchaseOrderItemExtendRefreshResult | null | undefined) {
+  if (!result) return false
+  const downstream =
+    Number(result.arrivalNoticesUpdated ?? 0)
+    + Number(result.stockInItemsUpdated ?? 0)
+    + Number(result.stockInHeadersUpdated ?? 0)
+    + Number(result.stockInItemExtendsUpdated ?? 0)
+    + Number(result.stockItemsUpdated ?? 0)
+    + Number(result.stockOutItemExtendsUpdated ?? 0)
+    + (result.purchasePriceLineChanges?.length ?? 0)
+    + (result.invoiceMatchWarnings?.length ?? 0)
+    + (result.paymentOverWarnings?.length ?? 0)
+  return result.changedItems > 0 || result.changedFieldsCount > 0 || downstream > 0
+}
+
 function buildRefreshResultHtml(result: PurchaseOrderItemExtendRefreshResult) {
   const syncedPrCount = Number(result.syncedPurchaseRequisitionStatusCount ?? 0)
   const syncedArrivalCount = Number(result.syncedArrivalNoticeStatusCount ?? 0)
@@ -1810,8 +1827,50 @@ function buildRefreshResultHtml(result: PurchaseOrderItemExtendRefreshResult) {
     `共 ${result.changedItems} 条明细发生更新，${result.changedFieldsCount} 个字段已变更。`,
     `已同步回写 ${syncedPrCount} 条采购申请状态。`,
     `已同步回写 ${syncedArrivalCount} 条到货通知状态。`,
+    t('purchaseOrderDetail.refreshDownstreamSummary', {
+      notices: Number(result.arrivalNoticesUpdated ?? 0),
+      stockIn: Number(result.stockInItemsUpdated ?? 0),
+      stockInHead: Number(result.stockInHeadersUpdated ?? 0),
+      stock: Number(result.stockItemsUpdated ?? 0),
+      outItem: Number(result.stockOutItemExtendsUpdated ?? 0)
+    }),
     ''
   ]
+  for (const price of result.purchasePriceLineChanges ?? []) {
+    lines.push(
+      t('purchaseOrderDetail.refreshPriceLine', {
+        code: price.purchaseOrderItemCode || price.purchaseOrderItemId,
+        before: String(price.oldCost),
+        after: String(price.newCost)
+      })
+    )
+  }
+  for (const warning of result.invoiceMatchWarnings ?? []) {
+    lines.push(
+      t('purchaseOrderDetail.refreshOverInvoice', {
+        code: warning.stockInItemCode || warning.stockInItemId,
+        done: String(warning.invoiceMatchDone),
+        amount: String(warning.amount),
+        toBe: String(warning.invoiceMatchToBe)
+      })
+    )
+  }
+  for (const warning of result.paymentOverWarnings ?? []) {
+    lines.push(
+      t('purchaseOrderDetail.refreshOverPayment', {
+        code: warning.purchaseOrderItemCode || warning.purchaseOrderItemId,
+        done: String(warning.paymentDone),
+        amount: String(warning.lineAmount)
+      })
+    )
+  }
+  if (
+    (result.purchasePriceLineChanges?.length ?? 0) > 0
+    || (result.invoiceMatchWarnings?.length ?? 0) > 0
+    || (result.paymentOverWarnings?.length ?? 0) > 0
+  ) {
+    lines.push('')
+  }
   for (const change of result.changes) {
     const lineCode = change.purchaseOrderItemCode || change.purchaseOrderItemId
     lines.push(`【${lineCode}】`)
@@ -1835,9 +1894,13 @@ async function handleRefreshItemExtends() {
   if (!order.value?.id || refreshingExtends.value) return
   try {
     await ElMessageBox.confirm(
-      `确认刷新采购订单 ${order.value.purchaseOrderCode} 的明细执行状态与扩展字段吗？`,
-      '刷新确认',
-      { type: 'warning', confirmButtonText: '刷新', cancelButtonText: '取消' }
+      t('purchaseOrderDetail.refreshConfirm'),
+      t('purchaseOrderDetail.refreshConfirmTitle'),
+      {
+        type: 'warning',
+        confirmButtonText: t('purchaseOrderDetail.refresh'),
+        cancelButtonText: t('common.cancel')
+      }
     )
   } catch {
     return
@@ -1848,13 +1911,17 @@ async function handleRefreshItemExtends() {
     const result = await purchaseOrderApi.refreshItemExtends(order.value.id)
     await fetchOrder()
     await reloadPoItemLinePanelAggregates()
-    if (!result || result.changedItems <= 0) {
-      await ElMessageBox.alert('无更新数据', '刷新结果', { confirmButtonText: '知道了' })
+    if (!hasPurchaseRefreshUpdates(result)) {
+      await ElMessageBox.alert(
+        t('purchaseOrderDetail.refreshResultEmpty'),
+        t('purchaseOrderDetail.refreshResultTitle'),
+        { confirmButtonText: t('common.confirm') }
+      )
       return
     }
-    await ElMessageBox.alert(buildRefreshResultHtml(result), '刷新结果', {
+    await ElMessageBox.alert(buildRefreshResultHtml(result), t('purchaseOrderDetail.refreshResultTitle'), {
       dangerouslyUseHTMLString: true,
-      confirmButtonText: '知道了'
+      confirmButtonText: t('common.confirm')
     })
   } catch (e: unknown) {
     ElMessage.error(getApiErrorMessage(e, '刷新失败，请稍后重试'))

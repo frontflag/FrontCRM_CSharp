@@ -1,4 +1,5 @@
 using CRM.Core.Constants;
+using System.Text.Json;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
@@ -49,6 +50,7 @@ namespace CRM.Core.Services
         private readonly IPurchaseOrderListQuery _purchaseOrderListQuery;
         private readonly IRepository<VendorInfo>? _vendorRepo;
         private readonly IPurchaseOrderVendorChangeService? _vendorChangeService;
+        private readonly IPurchaseOrderPurchasePriceDownstreamSyncService? _purchasePriceDownstreamSync;
 
         public PurchaseOrderService(
             IRepository<PurchaseOrder> poRepo,
@@ -73,7 +75,8 @@ namespace CRM.Core.Services
             ILogOperationAppendService? logOperationAppend = null,
             IUnitOfWork? unitOfWork = null,
             IRepository<VendorInfo>? vendorRepo = null,
-            IPurchaseOrderVendorChangeService? vendorChangeService = null)
+            IPurchaseOrderVendorChangeService? vendorChangeService = null,
+            IPurchaseOrderPurchasePriceDownstreamSyncService? purchasePriceDownstreamSync = null)
         {
             _poRepo = poRepo;
             _poItemRepo = poItemRepo;
@@ -98,6 +101,7 @@ namespace CRM.Core.Services
             _unitOfWork = unitOfWork;
             _vendorRepo = vendorRepo;
             _vendorChangeService = vendorChangeService;
+            _purchasePriceDownstreamSync = purchasePriceDownstreamSync;
         }
 
         // 兼容旧调用方（单测/临时构造）：不注入采购申请回写依赖时，状态回写能力自动降级为 no-op。
@@ -666,7 +670,10 @@ namespace CRM.Core.Services
             await RecalculatePurchaseRequisitionBySellLinesAsync(recalcAfterDelete);
         }
 
-        public async Task<PurchaseOrderItemExtendRefreshResult> RefreshItemExtendsAsync(string purchaseOrderId, CancellationToken cancellationToken = default)
+        public async Task<PurchaseOrderItemExtendRefreshResult> RefreshItemExtendsAsync(
+            string purchaseOrderId,
+            CancellationToken cancellationToken = default,
+            string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(purchaseOrderId))
                 throw new ArgumentException("采购订单ID不能为空", nameof(purchaseOrderId));
@@ -685,6 +692,21 @@ namespace CRM.Core.Services
             var poLineIds = items.Select(x => x.Id).ToList();
             var beforeArrivalStatus =
                 await LoadArrivalNoticeStatusMapByPoLineIdsAsync(poLineIds);
+
+            PurchaseOrderPurchasePriceDownstreamSyncResult? priceSync = null;
+            if (_purchasePriceDownstreamSync != null && items.Count > 0)
+            {
+                priceSync = await _purchasePriceDownstreamSync.ApplyAsync(items, cancellationToken);
+                result.ArrivalNoticesUpdated = priceSync.ArrivalNoticesUpdated;
+                result.StockInItemsUpdated = priceSync.StockInItemsUpdated;
+                result.StockInHeadersUpdated = priceSync.StockInHeadersUpdated;
+                result.StockInItemExtendsUpdated = priceSync.StockInItemExtendsUpdated;
+                result.StockItemsUpdated = priceSync.StockItemsUpdated;
+                result.StockOutItemExtendsUpdated = priceSync.StockOutItemExtendsUpdated;
+                result.PurchasePriceLineChanges = priceSync.LineChanges;
+                result.InvoiceMatchWarnings = priceSync.InvoiceMatchWarnings;
+                result.PaymentOverWarnings = priceSync.PaymentOverWarnings;
+            }
 
             foreach (var item in items)
             {
@@ -744,11 +766,75 @@ namespace CRM.Core.Services
 
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
 
+            if (priceSync is { HasUpdates: true })
+                await AppendPurchasePriceRefreshLogAsync(order, priceSync, actingUserId, cancellationToken);
+
             _logger.LogInformation(
-                "PO明细扩展刷新完成: PurchaseOrderId={PurchaseOrderId} Code={Code} TotalItems={TotalItems} ChangedItems={ChangedItems} ChangedFields={ChangedFields}",
-                orderId, order.PurchaseOrderCode, result.TotalItems, result.ChangedItems, result.ChangedFieldsCount);
+                "PO明细扩展刷新完成: PurchaseOrderId={PurchaseOrderId} Code={Code} TotalItems={TotalItems} ChangedItems={ChangedItems} ChangedFields={ChangedFields} Notices={Notices} StockIn={StockIn} StockInHead={StockInHead} StockItem={StockItem} StockOutExt={StockOutExt}",
+                orderId,
+                order.PurchaseOrderCode,
+                result.TotalItems,
+                result.ChangedItems,
+                result.ChangedFieldsCount,
+                result.ArrivalNoticesUpdated,
+                result.StockInItemsUpdated,
+                result.StockInHeadersUpdated,
+                result.StockItemsUpdated,
+                result.StockOutItemExtendsUpdated);
 
             return result;
+        }
+
+        private async Task AppendPurchasePriceRefreshLogAsync(
+            PurchaseOrder order,
+            PurchaseOrderPurchasePriceDownstreamSyncResult priceSync,
+            string? actingUserId,
+            CancellationToken cancellationToken)
+        {
+            if (_logOperationAppend == null)
+                return;
+
+            string? operatorName = null;
+            var actor = string.IsNullOrWhiteSpace(actingUserId) ? null : actingUserId.Trim();
+            if (!string.IsNullOrEmpty(actor) && _userService != null)
+            {
+                var user = await _userService.GetByIdAsync(actor);
+                operatorName = string.IsNullOrWhiteSpace(user?.RealName) ? user?.UserName : user!.RealName;
+            }
+
+            var lineDesc = priceSync.LineChanges.Count == 0
+                ? "无单价变化行"
+                : string.Join("；", priceSync.LineChanges.Select(c =>
+                    $"{c.PurchaseOrderItemCode ?? c.PurchaseOrderItemId}: {c.OldCost}→{c.NewCost}"));
+            var desc =
+                $"覆盖下游采购价快照。明细 {lineDesc}。到货通知 {priceSync.ArrivalNoticesUpdated}、入库明细 {priceSync.StockInItemsUpdated}、入库单头 {priceSync.StockInHeadersUpdated}、库存 {priceSync.StockItemsUpdated}、出库扩展 {priceSync.StockOutItemExtendsUpdated}。";
+            if (priceSync.InvoiceMatchWarnings.Count > 0 || priceSync.PaymentOverWarnings.Count > 0)
+                desc += $" 超额警告 进项 {priceSync.InvoiceMatchWarnings.Count}、已付 {priceSync.PaymentOverWarnings.Count} 条。";
+
+            var extraInfo = JsonSerializer.Serialize(new
+            {
+                lines = priceSync.LineChanges,
+                arrivalNotices = priceSync.ArrivalNoticesUpdated,
+                stockInItems = priceSync.StockInItemsUpdated,
+                stockInHeaders = priceSync.StockInHeadersUpdated,
+                stockInItemExtends = priceSync.StockInItemExtendsUpdated,
+                stockItems = priceSync.StockItemsUpdated,
+                stockOutItemExtends = priceSync.StockOutItemExtendsUpdated,
+                invoiceWarnings = priceSync.InvoiceMatchWarnings,
+                paymentWarnings = priceSync.PaymentOverWarnings
+            });
+
+            await _logOperationAppend.AppendAsync(
+                BusinessLogTypes.PurchaseOrder,
+                order.Id,
+                order.PurchaseOrderCode,
+                OperationLogActionTypes.PurchaseOrderRefreshPurchasePrice,
+                actor,
+                operatorName,
+                desc,
+                null,
+                extraInfo,
+                cancellationToken);
         }
 
         /// <inheritdoc />

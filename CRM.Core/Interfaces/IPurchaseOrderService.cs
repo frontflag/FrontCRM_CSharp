@@ -23,8 +23,11 @@ namespace CRM.Core.Interfaces
         /// <summary>自动生成采购订单(以销定采)</summary>
         /// <param name="actingUserId">当前登录用户 ID（写入各新生成单的 create_by_user_id）</param>
         Task<IEnumerable<PurchaseOrder>> AutoGenerateFromSellOrderAsync(string sellOrderId, string? actingUserId = null);
-        /// <summary>按采购单批量重算明细扩展并返回变更结果。</summary>
-        Task<PurchaseOrderItemExtendRefreshResult> RefreshItemExtendsAsync(string purchaseOrderId, CancellationToken cancellationToken = default);
+        /// <summary>按采购单覆盖下游采购价快照并重算明细扩展，返回变更结果。</summary>
+        Task<PurchaseOrderItemExtendRefreshResult> RefreshItemExtendsAsync(
+            string purchaseOrderId,
+            CancellationToken cancellationToken = default,
+            string? actingUserId = null);
 
         /// <summary>按主表 <c>vendor_id</c> 从供应商主数据刷新冗余 <c>vendor_name</c>（仅系统管理员）。</summary>
         Task<PurchaseOrderVendorNameRefreshResult> RefreshVendorNameAsync(string purchaseOrderId, string? actingUserId = null);

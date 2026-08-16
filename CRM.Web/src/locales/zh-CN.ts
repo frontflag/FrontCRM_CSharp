@@ -8029,6 +8029,18 @@ const zhCN = {
     shipmentMethodRequired: '请选择出货方式'
   },
   purchaseOrderDetail: {
+    refresh: '刷新',
+    refreshing: '刷新中…',
+    refreshConfirmTitle: '刷新确认',
+    refreshConfirm:
+      '将按当前采购单价覆盖到货通知、入库、库存、出库上的采购价快照（含已入库 / 已请款 / 已核销 / 已进项匹配），并重算明细执行状态。请款与付款流水、进项发票票面不会改。数据由操作人核对，是否继续？',
+    refreshResultEmpty: '无更新数据',
+    refreshResultTitle: '刷新结果',
+    refreshDownstreamSummary:
+      '下游采购价：到货通知 {notices}，入库明细 {stockIn}，入库单头 {stockInHead}，库存 {stock}，出库明细 {outItem}。',
+    refreshPriceLine: '{code}：单价 {before} → {after}',
+    refreshOverInvoice: '入库 {code} 已进项匹配 {done} 大于新总额 {amount}（待匹配 {toBe}）',
+    refreshOverPayment: '明细 {code} 已付核销 {done} 大于新行总额 {amount}',
     batchPanel: {
       title: '入库批次',
       count: '共 {count} 条',

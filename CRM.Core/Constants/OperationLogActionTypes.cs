@@ -12,6 +12,7 @@ public static class OperationLogActionTypes
     public const string SellOrderItemDeleteWithOrder = "销售明细整单删除";
 
     public const string PurchaseOrderDelete = "采购订单整单删除";
+    public const string PurchaseOrderRefreshPurchasePrice = "刷新采购价";
     public const string PurchaseOrderItemDelete = "采购明细删除";
     public const string PurchaseOrderItemDeleteWithOrder = "采购明细整单删除";
 

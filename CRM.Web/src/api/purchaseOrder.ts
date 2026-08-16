@@ -18,6 +18,34 @@ export interface PurchaseOrderItemExtendChangeDto {
   fields: PurchaseOrderItemExtendFieldChangeDto[]
 }
 
+export interface PurchaseOrderPurchasePriceLineChangeDto {
+  purchaseOrderItemId: string
+  purchaseOrderItemCode?: string
+  oldCost: number
+  newCost: number
+  oldCurrency: number
+  newCurrency: number
+  oldConvertPrice: number
+  newConvertPrice: number
+}
+
+export interface PurchaseOrderInvoiceMatchWarningDto {
+  stockInItemId: string
+  stockInItemCode?: string
+  purchaseOrderItemId: string
+  purchaseOrderItemCode?: string
+  amount: number
+  invoiceMatchDone: number
+  invoiceMatchToBe: number
+}
+
+export interface PurchaseOrderPaymentOverWarningDto {
+  purchaseOrderItemId: string
+  purchaseOrderItemCode?: string
+  lineAmount: number
+  paymentDone: number
+}
+
 export interface PurchaseOrderItemExtendRefreshResult {
   purchaseOrderId: string
   totalItems: number
@@ -27,6 +55,15 @@ export interface PurchaseOrderItemExtendRefreshResult {
   syncedArrivalNoticeStatusCount?: number
   refreshedAt: string
   changes: PurchaseOrderItemExtendChangeDto[]
+  arrivalNoticesUpdated?: number
+  stockInItemsUpdated?: number
+  stockInHeadersUpdated?: number
+  stockInItemExtendsUpdated?: number
+  stockItemsUpdated?: number
+  stockOutItemExtendsUpdated?: number
+  purchasePriceLineChanges?: PurchaseOrderPurchasePriceLineChangeDto[]
+  invoiceMatchWarnings?: PurchaseOrderInvoiceMatchWarningDto[]
+  paymentOverWarnings?: PurchaseOrderPaymentOverWarningDto[]
 }
 
 export interface PurchaseOrderVendorNameRefreshResult {

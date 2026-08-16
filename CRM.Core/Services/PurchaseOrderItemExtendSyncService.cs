@@ -224,15 +224,14 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
         var notices = (await _notifyRepo.FindAsync(x => x.PurchaseOrderItemId == poItem.Id)).ToList();
         if (notices.Count == 0) return;
 
-        if (notices.Count == 1)
+        var targetExpect = InventoryQuantity.RoundFromDecimal(poItem.Qty);
+        foreach (var notice in notices)
         {
-            var notice = notices[0];
-            var targetExpect = InventoryQuantity.RoundFromDecimal(poItem.Qty);
             var dirty = false;
 
             // 分批到货：部分通知数量有意小于采购行数量，刷新/重算时不得自动扩成整单。
             // 仅当采购行数量下调导致单批次通知超量时，收缩预计数量。
-            if (notice.ExpectQty > targetExpect)
+            if (notices.Count == 1 && notice.ExpectQty > targetExpect)
             {
                 notice.ExpectQty = targetExpect;
                 dirty = true;
@@ -244,15 +243,15 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
                 dirty = true;
             }
 
-            if (dirty)
-            {
-                notice.ExpectTotal = Math.Round((decimal)notice.ExpectQty * notice.Cost, 2, MidpointRounding.AwayFromZero);
-                if (notice.ReceiveQty > notice.ExpectQty)
-                    notice.ReceiveQty = notice.ExpectQty;
-                notice.ReceiveTotal = Math.Round((decimal)notice.ReceiveQty * notice.Cost, 2, MidpointRounding.AwayFromZero);
-                notice.ModifyTime = DateTime.UtcNow;
-                await _notifyRepo.UpdateAsync(notice);
-            }
+            if (!dirty)
+                continue;
+
+            notice.ExpectTotal = Math.Round((decimal)notice.ExpectQty * notice.Cost, 2, MidpointRounding.AwayFromZero);
+            if (notices.Count == 1 && notice.ReceiveQty > notice.ExpectQty)
+                notice.ReceiveQty = notice.ExpectQty;
+            notice.ReceiveTotal = Math.Round((decimal)notice.ReceiveQty * notice.Cost, 2, MidpointRounding.AwayFromZero);
+            notice.ModifyTime = DateTime.UtcNow;
+            await _notifyRepo.UpdateAsync(notice);
         }
 
         var sumReceiveNotify = notices.Sum(x => (decimal)x.ReceiveQty);

@@ -8043,6 +8043,18 @@ const enUS = {
     shipmentMethodRequired: 'Please select a shipping method'
   },
   purchaseOrderDetail: {
+    refresh: 'Refresh',
+    refreshing: 'Refreshing…',
+    refreshConfirmTitle: 'Confirm refresh',
+    refreshConfirm:
+      'This will overwrite purchase-price snapshots on arrival notices, stock-in, inventory, and outbound (including received / requested / written-off / invoice-matched), then recalculate line progress. Payment request / payment rows and purchase-invoice face amounts are not changed. The operator is responsible for the result. Continue?',
+    refreshResultEmpty: 'No updates',
+    refreshResultTitle: 'Refresh result',
+    refreshDownstreamSummary:
+      'Downstream purchase prices: arrival notices {notices}, stock-in lines {stockIn}, stock-in headers {stockInHead}, stock {stock}, outbound lines {outItem}.',
+    refreshPriceLine: '{code}: unit cost {before} → {after}',
+    refreshOverInvoice: 'Stock-in {code}: invoice-matched {done} exceeds new total {amount} (open {toBe})',
+    refreshOverPayment: 'Line {code}: paid/verified {done} exceeds new line total {amount}',
     batchPanel: {
       title: 'Stock-in batches',
       count: '{count} total',

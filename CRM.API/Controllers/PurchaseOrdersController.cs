@@ -1789,7 +1789,7 @@ namespace CRM.API.Controllers
                 if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessPurchaseOrderAsync(userId, order))
                     return StatusCode(403, new { success = false, message = "??????????" });
 
-                var result = await _service.RefreshItemExtendsAsync(id, cancellationToken);
+                var result = await _service.RefreshItemExtendsAsync(id, cancellationToken, userId);
                 return Ok(new { success = true, data = result });
             }
             catch (Exception ex)
