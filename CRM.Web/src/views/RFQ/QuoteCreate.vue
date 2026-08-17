@@ -1454,13 +1454,6 @@ onMounted(async () => {
     syncMaterialIntelFromForm()
     return
   }
-  const u = authStore.user
-  if (u?.id && !formData.value.salesUserId) {
-    formData.value.salesUserId = u.id
-  }
-  if (u?.userName && !formData.value.salesUserName) {
-    formData.value.salesUserName = u.userName
-  }
   recalcAllConvertedPrices()
 })
 

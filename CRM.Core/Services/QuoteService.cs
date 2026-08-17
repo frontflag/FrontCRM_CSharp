@@ -173,6 +173,22 @@ namespace CRM.Core.Services
                 }
             }
 
+            var needRfqSalesIds = quotes
+                .Where(q => !string.IsNullOrWhiteSpace(q.RFQId) && NeedsRfqSalesUserFallback(q))
+                .Select(q => q.RFQId!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var salesByRfqId = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (needRfqSalesIds.Count > 0)
+            {
+                var rfqs = (await _rfqRepository.FindAsync(r => needRfqSalesIds.Contains(r.Id))).ToList();
+                foreach (var r in rfqs)
+                {
+                    if (!string.IsNullOrWhiteSpace(r.SalesUserId))
+                        salesByRfqId[r.Id.Trim()] = r.SalesUserId.Trim();
+                }
+            }
+
             foreach (var q in quotes)
             {
                 var purchaseUserId = !string.IsNullOrWhiteSpace(q.PurchaseUserId)
@@ -184,13 +200,50 @@ namespace CRM.Core.Services
                 if (!string.IsNullOrWhiteSpace(purchaseUserId) &&
                     users.TryGetValue(purchaseUserId, out var pu))
                     q.PurchaseUserName = EntityLookupService.FormatUserLoginName(pu);
-                if (!string.IsNullOrWhiteSpace(q.SalesUserId) &&
-                    users.TryGetValue(q.SalesUserId.Trim(), out var su))
+
+                var salesUserId = ResolveDisplaySalesUserId(q, purchaseUserId, salesByRfqId);
+                if (!string.IsNullOrWhiteSpace(salesUserId) &&
+                    users.TryGetValue(salesUserId, out var su))
                     q.SalesUserName = EntityLookupService.FormatUserLoginName(su);
                 if (!string.IsNullOrWhiteSpace(q.CreateByUserId) &&
                     users.TryGetValue(q.CreateByUserId.Trim(), out var cu))
                     q.CreateUserName = EntityLookupService.FormatUserLoginName(cu);
             }
+        }
+
+        /// <summary>
+        /// 报价头业务员为空，或被写成与采购员同一人时，改用需求主表业务员展示。
+        /// </summary>
+        private static bool NeedsRfqSalesUserFallback(Quote q)
+        {
+            if (string.IsNullOrWhiteSpace(q.SalesUserId))
+                return true;
+            return !string.IsNullOrWhiteSpace(q.PurchaseUserId) &&
+                   string.Equals(q.SalesUserId.Trim(), q.PurchaseUserId.Trim(), StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string? ResolveDisplaySalesUserId(
+            Quote q,
+            string? purchaseUserId,
+            IReadOnlyDictionary<string, string> salesByRfqId)
+        {
+            var quoteSales = string.IsNullOrWhiteSpace(q.SalesUserId) ? null : q.SalesUserId.Trim();
+            string? rfqSales = null;
+            if (!string.IsNullOrWhiteSpace(q.RFQId) &&
+                salesByRfqId.TryGetValue(q.RFQId.Trim(), out var fromRfq) &&
+                !string.IsNullOrWhiteSpace(fromRfq))
+                rfqSales = fromRfq.Trim();
+
+            if (string.IsNullOrWhiteSpace(quoteSales))
+                return rfqSales;
+
+            if (purchaseUserId != null &&
+                string.Equals(quoteSales, purchaseUserId, StringComparison.OrdinalIgnoreCase) &&
+                rfqSales != null &&
+                !string.Equals(rfqSales, purchaseUserId, StringComparison.OrdinalIgnoreCase))
+                return rfqSales;
+
+            return quoteSales;
         }
 
         public async Task<Quote> CreateAsync(CreateQuoteRequest request, string? actingUserId = null)
@@ -222,6 +275,13 @@ namespace CRM.Core.Services
                 !string.Equals(request.RFQId.Trim(), rfqIdFromItem, StringComparison.OrdinalIgnoreCase))
                 throw new ArgumentException("需求主单与明细不一致");
 
+            var salesUserId = string.IsNullOrWhiteSpace(request.SalesUserId) ? null : request.SalesUserId.Trim();
+            if (string.IsNullOrWhiteSpace(salesUserId))
+            {
+                var linkedRfq = await _rfqRepository.GetByIdAsync(rfqIdFromItem);
+                salesUserId = string.IsNullOrWhiteSpace(linkedRfq?.SalesUserId) ? null : linkedRfq.SalesUserId.Trim();
+            }
+
             var quote = new Quote
             {
                 Id = Guid.NewGuid().ToString(),
@@ -230,7 +290,7 @@ namespace CRM.Core.Services
                 RFQItemId = rfqItemIdTrim,
                 Mpn = request.Mpn,
                 CustomerId = request.CustomerId,
-                SalesUserId = request.SalesUserId,
+                SalesUserId = salesUserId,
                 PurchaseUserId = purchaseUserId,
                 QuoteDate = request.QuoteDate == default ? DateTime.UtcNow : PostgreSqlDateTime.ToUtc(request.QuoteDate),
                 Status = (short)QuoteMainStatus.New,

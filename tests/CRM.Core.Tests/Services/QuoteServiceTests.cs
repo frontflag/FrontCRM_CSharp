@@ -252,5 +252,62 @@ namespace CRM.Core.Tests.Services
 
             Assert.Equal(3, result.Count());
         }
+
+        [Fact]
+        public async Task GetPagedAsync_ShouldShowRfqSalesUser_WhenQuoteSalesUserIsPurchaser()
+        {
+            const string purchaserId = "USER-PURCH";
+            const string salesId = "USER-SALES";
+            var quote = new Quote
+            {
+                Id = "QT-1",
+                QuoteCode = "QT1",
+                RFQId = RfqId,
+                RFQItemId = RfqItemId,
+                SalesUserId = purchaserId,
+                PurchaseUserId = purchaserId
+            };
+            _quoteListQuery.GetPagedAsync(Arg.Any<QuoteQueryRequest>(), default)
+                .Returns(new PagedResult<Quote>
+                {
+                    Items = new[] { quote },
+                    TotalCount = 1,
+                    PageIndex = 1,
+                    PageSize = 20
+                });
+            _quoteItemRepository.FindAsync(Arg.Any<Expression<Func<QuoteItem, bool>>>())
+                .Returns(Task.FromResult<IEnumerable<QuoteItem>>(Array.Empty<QuoteItem>()));
+            _rfqRepository.FindAsync(Arg.Any<Expression<Func<RFQ, bool>>>())
+                .Returns(Task.FromResult<IEnumerable<RFQ>>(new[]
+                {
+                    new RFQ { Id = RfqId, RfqCode = "RFQ1", SalesUserId = salesId }
+                }));
+            _userService.GetAllAsync().Returns(new List<User>
+            {
+                new() { Id = purchaserId, UserName = "Alina" },
+                new() { Id = salesId, UserName = "Janetta" }
+            });
+
+            var page = await _quoteService.GetPagedAsync(new QuoteQueryRequest { Page = 1, PageSize = 20 });
+
+            var row = Assert.Single(page.Items);
+            Assert.Equal("Alina", row.PurchaseUserName);
+            Assert.Equal("Janetta", row.SalesUserName);
+        }
+
+        [Fact]
+        public async Task CreateAsync_WithoutSalesUserId_ShouldCopyFromRfq()
+        {
+            const string salesId = "USER-SALES";
+            _quoteRepository.GetAllAsync().Returns(new List<Quote>());
+            _quoteItemRepository.GetAllAsync().Returns(new List<QuoteItem>());
+            _rfqRepository.GetByIdAsync(RfqId).Returns(new RFQ { Id = RfqId, SalesUserId = salesId });
+
+            var request = BuildValidCreateRequest();
+            request.SalesUserId = null;
+            var result = await _quoteService.CreateAsync(request, ActingUserId);
+
+            Assert.Equal(salesId, result.SalesUserId);
+        }
     }
 }

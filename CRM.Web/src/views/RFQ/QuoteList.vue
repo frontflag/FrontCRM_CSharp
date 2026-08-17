@@ -88,7 +88,7 @@
     </div>
 
     <!-- 主表：.table-wrapper + CrmDataTable（全局 crm-unified-list） -->
-    <div v-show="viewMode === 'list'" class="table-wrapper" v-loading="loading">
+    <div v-show="viewMode === 'list'" class="table-wrapper quote-list-table-scroll" v-loading="loading">
       <CrmDataTable
         ref="dataTableRef"
         class="dock-quote-table"
@@ -136,6 +136,9 @@
         </template>
         <template #col-lineQuantity="{ row }">
           <span>{{ displayFirstItemQuantity(row) }}</span>
+        </template>
+        <template #col-salesUserName="{ row }">
+          <span>{{ row.salesUserName || '—' }}</span>
         </template>
         <template #col-vendorCount="{ row }">
           {{ maskPurchaseSensitiveFields ? '—' : (row.items?.length || 0) }}
@@ -945,10 +948,25 @@ onMounted(() => {
   height: 100%;
   min-height: 0;
   max-height: 100%;
+  overflow: hidden;
   padding: 24px;
   padding-bottom: 12px;
   background: $layer-1;
   font-family: 'Noto Sans SC', sans-serif;
+}
+
+.quote-list-page .page-header,
+.quote-list-page .statistics-row,
+.quote-list-page .search-bar,
+.quote-list-page .pagination-wrapper {
+  flex-shrink: 0;
+}
+
+.quote-list-page .quote-list-table-scroll {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .quote-board-scroll {
