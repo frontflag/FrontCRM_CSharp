@@ -27,6 +27,7 @@ declare module 'vue' {
     ApprovalAuditWorkspace: typeof import('./src/components/Approvals/ApprovalAuditWorkspace.vue')['default']
     ApprovalDesktopQueuePanel: typeof import('./src/components/Approvals/ApprovalDesktopQueuePanel.vue')['default']
     ApprovalOrderLineCards: typeof import('./src/components/Approvals/ApprovalOrderLineCards.vue')['default']
+    ArrivalNoticeArrivalInfoDialog: typeof import('./src/components/Logistics/ArrivalNoticeArrivalInfoDialog.vue')['default']
     ArrivalNoticeOpsPanel: typeof import('./src/components/Logistics/ArrivalNoticeOpsPanel.vue')['default']
     ArrivalNoticeSearchPanel: typeof import('./src/components/Logistics/ArrivalNoticeSearchPanel.vue')['default']
     AssistantRelationPanel: typeof import('./src/components/System/AssistantRelationPanel.vue')['default']

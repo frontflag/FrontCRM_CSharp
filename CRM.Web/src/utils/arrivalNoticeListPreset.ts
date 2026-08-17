@@ -57,7 +57,13 @@ export function isArrivalNoticeListPresetId(v: unknown): v is ArrivalNoticeListP
   return typeof v === 'string' && (ARRIVAL_NOTICE_LIST_PRESET_IDS as readonly string[]).includes(v)
 }
 
-export const ARRIVAL_NOTICE_KEYWORD_QUERY_KEYS = ['purchaseOrderCode', 'freightForwarderOrderNo'] as const
+export const ARRIVAL_NOTICE_KEYWORD_QUERY_KEYS = [
+  'purchaseOrderCode',
+  'freightForwarderOrderNo',
+  'pn',
+  'vendorName',
+  'purchaseCurrency'
+] as const
 
 export function pickArrivalNoticeKeywordQuery(query: Record<string, unknown>): Record<string, string> {
   const out: Record<string, string> = {}

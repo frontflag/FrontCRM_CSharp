@@ -61,6 +61,9 @@ namespace CRM.API.Controllers
             [FromQuery] string? id,
             [FromQuery] short? stockInType,
             [FromQuery] string? preset,
+            [FromQuery] string? pn,
+            [FromQuery] string? vendorName,
+            [FromQuery] short? purchaseCurrency,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20,
             CancellationToken cancellationToken = default)
@@ -68,6 +71,7 @@ namespace CRM.API.Controllers
             try
             {
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var mask511 = await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User);
                 var paged = await _arrivalNoticeListQuery.GetPagedAsync(
                     status,
                     purchaseOrderCode,
@@ -76,12 +80,15 @@ namespace CRM.API.Controllers
                     string.IsNullOrWhiteSpace(id) ? null : id.Trim(),
                     stockInType,
                     string.IsNullOrWhiteSpace(preset) ? null : preset.Trim(),
+                    string.IsNullOrWhiteSpace(pn) ? null : pn.Trim(),
+                    mask511 || string.IsNullOrWhiteSpace(vendorName) ? null : vendorName.Trim(),
+                    purchaseCurrency,
                     page,
                     pageSize,
                     userId,
                     cancellationToken);
                 var items = paged.Items.ToList();
-                if (await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User))
+                if (mask511)
                     PurchaseSensitiveFieldMask511.ApplyStockInNotifies(items, true);
 
                 return Ok(new
@@ -129,6 +136,46 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "批量生成到货通知失败");
                 return BadRequest(ApiResponse<AutoGenerateArrivalNoticeResult>.Fail(ex.Message, 400));
+            }
+        }
+
+        [HttpPatch("arrival-notices/{id}/arrival-info")]
+        public async Task<ActionResult<ApiResponse<StockInNotify>>> UpdateArrivalInfo(
+            string id,
+            [FromBody] UpdateArrivalNoticeInfoRequest request)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrWhiteSpace(userId))
+                    return StatusCode(403, ApiResponse<StockInNotify>.Fail("未登录或身份无效", 403));
+
+                var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
+                if (!ArrivalNoticeArrivalInfoAccessRules.CanEdit(summary))
+                    return StatusCode(403, ApiResponse<StockInNotify>.Fail("无权编辑到货信息", 403));
+
+                var visible = await _arrivalNoticeListQuery.GetByIdsAsync(new[] { id }, userId);
+                if (visible.Count == 0)
+                    return NotFound(ApiResponse<StockInNotify>.Fail("到货通知不存在", 404));
+
+                var updated = await _service.UpdateArrivalNoticeInfoAsync(id, request ?? new UpdateArrivalNoticeInfoRequest());
+                if (await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User))
+                    PurchaseSensitiveFieldMask511.ApplyStockInNotifies(new[] { updated }, true);
+
+                return Ok(ApiResponse<StockInNotify>.Ok(updated, "已更新到货信息"));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(ApiResponse<StockInNotify>.Fail(ex.Message, 404));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<StockInNotify>.Fail(ex.Message, 400));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "更新到货信息失败 NoticeId={NoticeId}", id);
+                return StatusCode(500, ApiResponse<StockInNotify>.Fail(ex.Message, 500));
             }
         }
 

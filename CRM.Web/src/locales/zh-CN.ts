@@ -6106,6 +6106,9 @@ const zhCN = {
       poCode: '采购单号',
       poCodePlaceholder: '采购单号 / 到货通知单号',
       arrivalTypePlaceholder: '到货类型',
+      pnPlaceholder: '物料型号',
+      vendorPlaceholder: '供应商名称',
+      purchaseCurrencyPlaceholder: '采购币种',
       expectedDate: '预计到货日期',
       datePlaceholder: '选择日期',
       search: '搜索',
@@ -6189,7 +6192,8 @@ const zhCN = {
     actions: {
       confirmArrived: '确认到货',
       qc: '质检',
-      detail: '明细'
+      detail: '明细',
+      editArrivalInfo: '编辑到货信息'
     },
     columnSettings: '列设置',
     detailDialog: {
@@ -6208,13 +6212,26 @@ const zhCN = {
       stockInQty: '入库数量'
     },
     messages: {
-      arrivedSuccess: '已确认到货，等待质检'
+      arrivedSuccess: '已确认到货，等待质检',
+      arrivalInfoSaved: '到货信息已保存',
+      arrivalInfoFailed: '保存到货信息失败'
+    },
+    arrivalInfoDialog: {
+      title: '编辑到货信息',
+      expressCompany: '快递公司',
+      selectPlaceholder: '请选择',
+      cancel: '取消',
+      save: '保存'
     },
     opsPanel: {
       pickRow: '请在「操作」页签下单击列表行，查看本行采购、质检与入库摘要。',
       loadFailed: '加载操作面板失败',
       overviewTitle: '到货概况',
       confirmArrivedTitle: '确认到货',
+      arrivalInfoTitle: '到货信息',
+      expectedArrivalMethod: '预计到货方式',
+      expressCompany: '快递公司',
+      expectedArrivalExpressNo: '预计到货快递单号',
       completed: '已完成',
       purchaseTitle: '采购',
       purchaseItemCode: '采购明细单号',

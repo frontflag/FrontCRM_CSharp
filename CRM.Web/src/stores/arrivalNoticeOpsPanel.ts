@@ -20,18 +20,21 @@ export const useArrivalNoticeOpsPanelStore = defineStore('arrivalNoticeOpsPanel'
   const actionLoading = ref(false)
 
   let confirmArrivedHandler: RowHandler | null = null
+  let editArrivalInfoHandler: RowHandler | null = null
   let loadSeq = 0
 
   function rowKey(target: RowRecord) {
     return String(target.id ?? target.Id ?? '').trim()
   }
 
-  function registerHandlers(handlers: { confirmArrived?: RowHandler }) {
+  function registerHandlers(handlers: { confirmArrived?: RowHandler; editArrivalInfo?: RowHandler }) {
     if (handlers.confirmArrived) confirmArrivedHandler = handlers.confirmArrived
+    if (handlers.editArrivalInfo) editArrivalInfoHandler = handlers.editArrivalInfo
   }
 
   function unregisterHandlers() {
     confirmArrivedHandler = null
+    editArrivalInfoHandler = null
   }
 
   function clear() {
@@ -114,6 +117,11 @@ export const useArrivalNoticeOpsPanelStore = defineStore('arrivalNoticeOpsPanel'
     }
   }
 
+  function runEditArrivalInfo() {
+    if (!row.value || !editArrivalInfoHandler) return
+    void editArrivalInfoHandler(row.value)
+  }
+
   return {
     row,
     aggregates,
@@ -129,6 +137,7 @@ export const useArrivalNoticeOpsPanelStore = defineStore('arrivalNoticeOpsPanel'
     refreshFromListRows,
     syncNoticeRow,
     runConfirmArrived,
+    runEditArrivalInfo,
     rowKey
   }
 })

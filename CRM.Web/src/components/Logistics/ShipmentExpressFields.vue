@@ -4,6 +4,7 @@
       <el-select
         :model-value="shipmentMethod"
         filterable
+        :clearable="shipmentClearable"
         :placeholder="placeholderText"
         style="width: 100%"
         @update:model-value="onShipmentChange"
@@ -52,10 +53,12 @@ const props = withDefaults(
     expressLabel?: string
     placeholder?: string
     shipmentRequired?: boolean
+    shipmentClearable?: boolean
     colSpan?: number
   }>(),
   {
     shipmentRequired: true,
+    shipmentClearable: false,
     colSpan: 12
   }
 )

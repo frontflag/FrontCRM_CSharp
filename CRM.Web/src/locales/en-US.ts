@@ -6124,6 +6124,9 @@ const enUS = {
       poCode: 'PO no.',
       poCodePlaceholder: 'PO no. / arrival notice no.',
       arrivalTypePlaceholder: 'Arrival type',
+      pnPlaceholder: 'Part number',
+      vendorPlaceholder: 'Vendor name',
+      purchaseCurrencyPlaceholder: 'Purchase currency',
       expectedDate: 'Expected arrival',
       datePlaceholder: 'Select date',
       search: 'Search',
@@ -6207,7 +6210,8 @@ const enUS = {
     actions: {
       confirmArrived: 'Confirm receipt',
       qc: 'QC',
-      detail: 'Detail'
+      detail: 'Detail',
+      editArrivalInfo: 'Edit arrival info'
     },
     columnSettings: 'Column settings',
     detailDialog: {
@@ -6226,13 +6230,26 @@ const enUS = {
       stockInQty: 'Stock-in qty'
     },
     messages: {
-      arrivedSuccess: 'Receipt confirmed; awaiting QC.'
+      arrivedSuccess: 'Receipt confirmed; awaiting QC.',
+      arrivalInfoSaved: 'Arrival info saved',
+      arrivalInfoFailed: 'Failed to save arrival info'
+    },
+    arrivalInfoDialog: {
+      title: 'Edit arrival info',
+      expressCompany: 'Courier company',
+      selectPlaceholder: 'Select',
+      cancel: 'Cancel',
+      save: 'Save'
     },
     opsPanel: {
       pickRow: 'Select a row on the Operations tab to view purchase, QC, and stock-in summary.',
       loadFailed: 'Failed to load operations panel',
       overviewTitle: 'Arrival overview',
       confirmArrivedTitle: 'Confirm receipt',
+      arrivalInfoTitle: 'Arrival info',
+      expectedArrivalMethod: 'Expected delivery method',
+      expressCompany: 'Courier company',
+      expectedArrivalExpressNo: 'Expected tracking no.',
       completed: 'Done',
       purchaseTitle: 'Purchase',
       purchaseItemCode: 'PO line no.',

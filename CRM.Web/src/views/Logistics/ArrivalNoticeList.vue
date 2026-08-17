@@ -74,6 +74,44 @@
             @keyup.enter="runSearch"
           />
         </div>
+        <div class="search-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            v-model="filters.pn"
+            class="search-input"
+            :placeholder="t('arrivalNoticeList.filters.pnPlaceholder')"
+            @keyup.enter="runSearch"
+          />
+        </div>
+        <div v-if="!maskPurchaseSensitiveFields" class="search-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            v-model="filters.vendorName"
+            class="search-input"
+            :placeholder="t('arrivalNoticeList.filters.vendorPlaceholder')"
+            @keyup.enter="runSearch"
+          />
+        </div>
+        <el-select
+          v-model="filters.purchaseCurrency"
+          clearable
+          :placeholder="t('arrivalNoticeList.filters.purchaseCurrencyPlaceholder')"
+          class="purchase-currency-select"
+          :teleported="false"
+        >
+          <el-option
+            v-for="opt in SETTLEMENT_CURRENCY_OPTIONS"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          />
+        </el-select>
         <el-date-picker
           v-if="!presetHidesExpectedDate"
           v-model="filters.expectedArrivalDate"
@@ -255,6 +293,14 @@
             >
               {{ t('arrivalNoticeList.actions.qc') }}
             </button>
+            <button
+              v-if="canEditArrivalInfo"
+              type="button"
+              class="action-btn action-btn--info"
+              @click.stop="openArrivalInfoDialog(row)"
+            >
+              {{ t('arrivalNoticeList.actions.editArrivalInfo') }}
+            </button>
             <button type="button" class="action-btn action-btn--info" @click.stop="viewItems(row)">
               {{ t('arrivalNoticeList.actions.detail') }}
             </button>
@@ -273,6 +319,9 @@
                 </el-dropdown-item>
                 <el-dropdown-item v-if="row.status === 20" @click.stop="goCreateQc(row)">
                   <span class="op-more-item op-more-item--warning">{{ t('arrivalNoticeList.actions.qc') }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="canEditArrivalInfo" @click.stop="openArrivalInfoDialog(row)">
+                  <span class="op-more-item op-more-item--info">{{ t('arrivalNoticeList.actions.editArrivalInfo') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item @click.stop="viewItems(row)">
                   <span class="op-more-item op-more-item--info">{{ t('arrivalNoticeList.actions.detail') }}</span>
@@ -378,6 +427,12 @@
       </el-descriptions>
     </el-dialog>
 
+    <ArrivalNoticeArrivalInfoDialog
+      v-model:visible="arrivalInfoDialogVisible"
+      :notice="arrivalInfoNotice"
+      @saved="onArrivalInfoSaved"
+    />
+
   </div>
 </template>
 
@@ -398,10 +453,13 @@ import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { StockInTypeCode, STOCK_IN_TYPE_FILTER_VALUES } from '@/constants/stockInType'
+import { SETTLEMENT_CURRENCY_OPTIONS, CurrencyCode } from '@/constants/currency'
 import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
 import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
 import { useArrivalNoticeOpsPanelStore } from '@/stores/arrivalNoticeOpsPanel'
+import ArrivalNoticeArrivalInfoDialog from '@/components/Logistics/ArrivalNoticeArrivalInfoDialog.vue'
+import { canEditArrivalNoticeArrivalInfo } from '@/utils/arrivalNoticeArrivalInfoAccess'
 import {
   ARRIVAL_NOTICE_LIST_TAB_MODE_OPTIONS,
   ARRIVAL_NOTICE_STATUS_TAB_VALUES,
@@ -433,6 +491,9 @@ const authStore = useAuthStore()
 const arrivalNoticeOpsStore = useArrivalNoticeOpsPanelStore()
 const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const canForceDelete = computed(() => authStore.canForceDelete())
+const canEditArrivalInfo = computed(() => canEditArrivalNoticeArrivalInfo(authStore.user))
+const arrivalInfoDialogVisible = ref(false)
+const arrivalInfoNotice = ref<StockInNotifyDto | null>(null)
 const router = useRouter()
 const route = useRoute()
 const { t, locale } = useI18n()
@@ -455,8 +516,8 @@ const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 // 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
 const OP_COL_COLLAPSED_WIDTH = 43
-const OP_COL_EXPANDED_WIDTH = 173
-const OP_COL_EXPANDED_MIN_WIDTH = 160
+const OP_COL_EXPANDED_WIDTH = 200
+const OP_COL_EXPANDED_MIN_WIDTH = 180
 const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
 const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_WIDTH : OP_COL_COLLAPSED_WIDTH))
 function toggleOpCol() {
@@ -483,12 +544,18 @@ const filters = ref<{
   stockInType?: number
   purchaseOrderCode: string
   freightForwarderOrderNo: string
+  pn: string
+  vendorName: string
+  purchaseCurrency?: number
   expectedArrivalDate: string
 }>({
   status: undefined,
   stockInType: undefined,
   purchaseOrderCode: '',
   freightForwarderOrderNo: '',
+  pn: '',
+  vendorName: '',
+  purchaseCurrency: undefined,
   expectedArrivalDate: ''
 })
 
@@ -722,12 +789,24 @@ function onArrivalPageSizeChange() {
   void applyArrivalList(false)
 }
 
+function isKnownPurchaseCurrency(v: number): boolean {
+  return v >= CurrencyCode.RMB && v <= CurrencyCode.GBP
+}
+
 function collectKeywordQuery(): Record<string, string> {
   const keywords: Record<string, string> = {}
   const poc = filters.value.purchaseOrderCode.trim()
   if (poc) keywords.purchaseOrderCode = poc
   const ffo = filters.value.freightForwarderOrderNo.trim()
   if (ffo) keywords.freightForwarderOrderNo = ffo
+  const pn = filters.value.pn.trim()
+  if (pn) keywords.pn = pn
+  if (!maskPurchaseSensitiveFields.value) {
+    const vn = filters.value.vendorName.trim()
+    if (vn) keywords.vendorName = vn
+  }
+  const ccy = filters.value.purchaseCurrency
+  if (ccy != null && isKnownPurchaseCurrency(ccy)) keywords.purchaseCurrency = String(ccy)
   return keywords
 }
 
@@ -757,6 +836,10 @@ function syncFiltersFromRoute() {
   filters.value.purchaseOrderCode = typeof q.purchaseOrderCode === 'string' ? q.purchaseOrderCode : ''
   filters.value.freightForwarderOrderNo =
     typeof q.freightForwarderOrderNo === 'string' ? q.freightForwarderOrderNo : ''
+  filters.value.pn = typeof q.pn === 'string' ? q.pn : ''
+  filters.value.vendorName = typeof q.vendorName === 'string' ? q.vendorName : ''
+  const ccy = typeof q.purchaseCurrency === 'string' ? Number(q.purchaseCurrency) : NaN
+  filters.value.purchaseCurrency = isKnownPurchaseCurrency(ccy) ? ccy : undefined
 
   const preset = activePreset.value
   if (preset) {
@@ -791,6 +874,14 @@ function applyArrivalList(resetPage: boolean) {
   const params: Parameters<typeof logisticsApi.getArrivalNotices>[0] = {
     purchaseOrderCode: filters.value.purchaseOrderCode.trim() || undefined,
     freightForwarderOrderNo: filters.value.freightForwarderOrderNo.trim() || undefined,
+    pn: filters.value.pn.trim() || undefined,
+    vendorName: maskPurchaseSensitiveFields.value
+      ? undefined
+      : filters.value.vendorName.trim() || undefined,
+    purchaseCurrency:
+      filters.value.purchaseCurrency != null && isKnownPurchaseCurrency(filters.value.purchaseCurrency)
+        ? filters.value.purchaseCurrency
+        : undefined,
     id: noticeIdFromRoute,
     page: listPage.value,
     pageSize: listPageSize.value
@@ -854,6 +945,23 @@ const refreshArrivalList = () => applyArrivalList(false)
 const resetFilters = () => {
   listPage.value = 1
   router.replace({ name: 'ArrivalNoticeList', query: {} })
+}
+
+function openArrivalInfoDialog(row: StockInNotifyDto) {
+  arrivalInfoNotice.value = row
+  arrivalInfoDialogVisible.value = true
+}
+
+function onArrivalInfoSaved(updated: StockInNotifyDto) {
+  const id = updated.id?.trim()
+  if (id) {
+    const idx = list.value.findIndex((r) => r.id === id)
+    if (idx >= 0) list.value[idx] = { ...list.value[idx], ...updated }
+    if (arrivalNoticeOpsStore.row && arrivalNoticeOpsStore.rowKey(arrivalNoticeOpsStore.row) === id) {
+      arrivalNoticeOpsStore.syncNoticeRow(updated)
+    }
+  }
+  arrivalInfoNotice.value = updated
 }
 
 const markArrived = async (row: StockInNotifyDto) => {
@@ -920,6 +1028,9 @@ onMounted(async () => {
   arrivalNoticeOpsStore.registerHandlers({
     confirmArrived: (row) => {
       void confirmArrivedFromOpsPanel(row)
+    },
+    editArrivalInfo: (row) => {
+      openArrivalInfoDialog(row as unknown as StockInNotifyDto)
     }
   })
   try {
@@ -1075,7 +1186,8 @@ html[data-theme='dark'] .inv-list-qty {
 }
 
 .status-select,
-.arrival-type-select {
+.arrival-type-select,
+.purchase-currency-select {
   width: 140px;
   :deep(.el-select__wrapper) {
     background: $layer-2 !important;

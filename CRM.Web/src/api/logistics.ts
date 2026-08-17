@@ -332,6 +332,12 @@ export const logisticsApi = {
     preset?: string
     /** 到货类型（StockInType：10 采购 / 20 报关 / 30 退货 / 40 报废） */
     stockInType?: number
+    /** 物料型号（通知快照 / 采购明细 PN，Contains） */
+    pn?: string
+    /** 供应商名称（中文快照 / 档案中英文名，Contains） */
+    vendorName?: string
+    /** 采购币种（CurrencyCode 1–6，按采购明细币别精确匹配） */
+    purchaseCurrency?: number
     /** 按到货通知主键精确查（编辑/联动场景） */
     id?: string
     page?: number
@@ -355,6 +361,20 @@ export const logisticsApi = {
   },
   async updateArrivalStatus(id: string, status: number): Promise<void> {
     await apiClient.patch(`/api/v1/logistics/arrival-notices/${id}/status?status=${status}`)
+  },
+  async updateArrivalInfo(
+    id: string,
+    payload: {
+      shipmentMethod?: string | null
+      expressCompany?: string | null
+      courierTrackingNo?: string | null
+    }
+  ): Promise<StockInNotifyDto> {
+    return normalizeStockInNotifyRow(
+      unwrap<unknown>(
+        await apiClient.patch(`/api/v1/logistics/arrival-notices/${encodeURIComponent(id)}/arrival-info`, payload)
+      )
+    )
   },
   async deleteArrivalNotice(id: string): Promise<void> {
     await apiClient.delete(`/api/v1/logistics/arrival-notices/${encodeURIComponent(id)}`)

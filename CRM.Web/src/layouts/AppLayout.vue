@@ -1535,9 +1535,11 @@
             :load-error="arrivalNoticeOpsStore.loadError"
             :action-loading="arrivalNoticeOpsStore.actionLoading"
             :can-write-logistics="canWriteLogisticsData"
+            :can-edit-arrival-info="canEditArrivalNoticeInfo"
             :mask-sensitive="maskPurchaseSensitiveFields"
             class="aux-panel-tab-body"
             @confirm-arrived="arrivalNoticeOpsStore.runConfirmArrived()"
+            @edit-arrival-info="arrivalNoticeOpsStore.runEditArrivalInfo()"
           />
           <QcOpsPanel
             v-show="showQcOpsPanel"
@@ -1713,6 +1715,7 @@ import { useVendorIntelLookupStore } from '@/stores/vendorIntelLookup'
 import { usePurchaseOrderItemOpsPanelStore } from '@/stores/purchaseOrderItemOpsPanel'
 import { useCustomsDeclarationOpsPanelStore } from '@/stores/customsDeclarationOpsPanel'
 import { useArrivalNoticeOpsPanelStore } from '@/stores/arrivalNoticeOpsPanel'
+import { canEditArrivalNoticeArrivalInfo } from '@/utils/arrivalNoticeArrivalInfoAccess'
 import { useQcOpsPanelStore } from '@/stores/qcOpsPanel'
 import { useStockOutNotifyCustomsPanelStore } from '@/stores/stockOutNotifyCustomsPanel'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
@@ -1788,6 +1791,7 @@ const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { canWriteSo: canSalesOrderItemOpsWriteSo } = useSaleOrderWriteGate()
 const { canWriteLogisticsData } = useDepartmentDataReadOnly()
+const canEditArrivalNoticeInfo = computed(() => canEditArrivalNoticeArrivalInfo(authStore.user))
 const canSalesOrderItemOpsPurchase = computed(
   () =>
     authStore.hasPermission('purchase-requisition.write') ||

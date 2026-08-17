@@ -34,6 +34,9 @@ public sealed class ArrivalNoticeListQuery : IArrivalNoticeListQuery
         string? noticeId,
         short? stockInType,
         string? preset,
+        string? pn,
+        string? vendorName,
+        short? purchaseCurrency,
         int page,
         int pageSize,
         string? currentUserId = null,
@@ -92,6 +95,37 @@ public sealed class ArrivalNoticeListQuery : IArrivalNoticeListQuery
                 po.Id == x.PurchaseOrderId &&
                 po.FreightForwarderOrderNo != null &&
                 po.FreightForwarderOrderNo.ToLower().Contains(k)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(pn))
+        {
+            var k = pn.Trim().ToLowerInvariant();
+            q = q.Where(x =>
+                (x.Pn != null && x.Pn.ToLower().Contains(k))
+                || _db.PurchaseOrderItems.Any(poi =>
+                    poi.Id == x.PurchaseOrderItemId &&
+                    poi.PN != null &&
+                    poi.PN.ToLower().Contains(k)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(vendorName))
+        {
+            var k = vendorName.Trim().ToLowerInvariant();
+            q = q.Where(x =>
+                (x.VendorName != null && x.VendorName.ToLower().Contains(k))
+                || _db.Vendors.Any(v =>
+                    v.Id == x.VendorId &&
+                    ((v.OfficialName != null && v.OfficialName.ToLower().Contains(k))
+                     || (v.EnglishOfficialName != null && v.EnglishOfficialName.ToLower().Contains(k)))));
+        }
+
+        if (purchaseCurrency is >= (short)CurrencyCode.RMB and <= (short)CurrencyCode.GBP)
+        {
+            var ccy = purchaseCurrency.Value;
+            q = q.Where(x =>
+                _db.PurchaseOrderItems.Any(poi => poi.Id == x.PurchaseOrderItemId && poi.Currency == ccy)
+                || (x.PurchaseOrderItemId == ""
+                    && _db.PurchaseOrders.Any(po => po.Id == x.PurchaseOrderId && po.Currency == ccy)));
         }
 
         var total = await q.CountAsync(cancellationToken);

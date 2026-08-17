@@ -419,6 +419,35 @@ namespace CRM.Core.Services
             await _unitOfWork.SaveChangesAsync();
         }
 
+        public async Task<StockInNotify> UpdateArrivalNoticeInfoAsync(string id, UpdateArrivalNoticeInfoRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+                throw new ArgumentException("到货通知ID不能为空", nameof(id));
+
+            var row = await _notifyRepo.GetByIdAsync(id.Trim())
+                      ?? throw new InvalidOperationException("到货通知不存在");
+
+            var shipmentMethod = LogisticsShipmentMethodCode.Normalize(request.ShipmentMethod);
+            if (!string.IsNullOrEmpty(shipmentMethod))
+                LogisticsShipmentMethodCode.EnsureRequired(shipmentMethod, nameof(request.ShipmentMethod));
+
+            var expressCompany = LogisticsShipmentMethodCode.NormalizeExpressCompany(request.ExpressCompany);
+            if (!string.Equals(shipmentMethod, LogisticsShipmentMethodCode.Express, StringComparison.OrdinalIgnoreCase))
+                expressCompany = null;
+
+            row.ShipmentMethod = shipmentMethod;
+            row.ExpressCompany = expressCompany;
+            row.CourierTrackingNo = string.IsNullOrWhiteSpace(request.CourierTrackingNo)
+                ? null
+                : request.CourierTrackingNo.Trim();
+            row.ModifyTime = DateTime.UtcNow;
+
+            await _notifyRepo.UpdateAsync(row);
+            await _unitOfWork.SaveChangesAsync();
+            AttachItemSnapshot(row);
+            return row;
+        }
+
         internal static void ApplyNoticeStatus(StockInNotify row, short status)
         {
             row.Status = status;

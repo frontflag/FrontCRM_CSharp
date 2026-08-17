@@ -10,6 +10,7 @@ namespace CRM.Core.Interfaces
         Task<StockInNotify> CreateArrivalNoticeAsync(CreateArrivalNoticeRequest request);
         Task<AutoGenerateArrivalNoticeResult> AutoGenerateArrivalNoticesAsync();
         Task UpdateArrivalNoticeStatusAsync(string id, short status);
+        Task<StockInNotify> UpdateArrivalNoticeInfoAsync(string id, UpdateArrivalNoticeInfoRequest request);
 
         /// <summary>到货通知列表右侧「操作」面板：采购行摘要 + 关联质检/入库。</summary>
         Task<ArrivalNoticeOpsAggregates> GetArrivalNoticeOpsAggregatesAsync(
@@ -69,6 +70,18 @@ namespace CRM.Core.Interfaces
         public string? CourierTrackingNo { get; set; }
 
         /// <summary>快递公司（字典 LogisticsExpressMethod ItemCode）。</summary>
+        public string? ExpressCompany { get; set; }
+    }
+
+    public class UpdateArrivalNoticeInfoRequest
+    {
+        /// <summary>预计到货方式（字典 LogisticsArrivalMethod ItemCode，可空）。</summary>
+        public string? ShipmentMethod { get; set; }
+
+        /// <summary>预计到货快递单号（可空）。</summary>
+        public string? CourierTrackingNo { get; set; }
+
+        /// <summary>快递公司（字典 LogisticsExpressMethod ItemCode，可空；非快递时服务端清空）。</summary>
         public string? ExpressCompany { get; set; }
     }
 

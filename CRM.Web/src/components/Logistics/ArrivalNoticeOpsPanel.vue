@@ -57,6 +57,42 @@
 
       <section class="ops-card">
         <header class="ops-card__head">
+          <h3 class="ops-card__title">{{ t('arrivalNoticeList.opsPanel.arrivalInfoTitle') }}</h3>
+        </header>
+        <div class="ops-card__body">
+          <div class="ops-stock-region-row">
+            <div class="ops-stock-region-cell">
+              <span class="ops-kv__label">{{ t('arrivalNoticeList.opsPanel.expectedArrivalMethod') }}</span>
+              <span class="ops-kv__sep" aria-hidden="true">：</span>
+              <span class="ops-kv__value">{{ shipmentMethodText }}</span>
+            </div>
+            <div class="ops-stock-region-cell">
+              <span class="ops-kv__label">{{ t('arrivalNoticeList.opsPanel.expressCompany') }}</span>
+              <span class="ops-kv__sep" aria-hidden="true">：</span>
+              <span class="ops-kv__value">{{ expressCompanyText }}</span>
+            </div>
+          </div>
+          <div class="ops-stock-region-row">
+            <div class="ops-stock-region-cell">
+              <span class="ops-kv__label">{{ t('arrivalNoticeList.opsPanel.expectedArrivalExpressNo') }}</span>
+              <span class="ops-kv__sep" aria-hidden="true">：</span>
+              <span class="ops-kv__value">{{ courierTrackingNoText }}</span>
+            </div>
+          </div>
+          <button
+            v-if="canEditArrivalInfo"
+            type="button"
+            class="ops-action-btn ops-action-btn--primary"
+            :disabled="actionLoading"
+            @click="emit('edit-arrival-info')"
+          >
+            {{ t('arrivalNoticeList.actions.editArrivalInfo') }}
+          </button>
+        </div>
+      </section>
+
+      <section class="ops-card">
+        <header class="ops-card__head">
           <h3 class="ops-card__title">{{ t('arrivalNoticeList.opsPanel.confirmArrivedTitle') }}</h3>
           <span v-if="confirmArrivedCompleted" class="ops-card__done">
             <el-icon class="ops-card__done-icon" aria-hidden="true"><CircleCheck /></el-icon>
@@ -235,7 +271,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { CircleCheck } from '@element-plus/icons-vue'
 import type { ArrivalNoticeOpsAggregatesDto } from '@/api/logistics'
@@ -243,6 +279,7 @@ import { formatDisplayDate } from '@/utils/displayDateTime'
 import VendorNameReadonlyText from '@/components/Vendor/VendorNameReadonlyText.vue'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { StockInTypeCode } from '@/constants/stockInType'
+import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 
 const props = defineProps<{
   row: Record<string, unknown> | null
@@ -251,15 +288,21 @@ const props = defineProps<{
   loadError?: string
   actionLoading?: boolean
   canWriteLogistics?: boolean
+  canEditArrivalInfo?: boolean
   maskSensitive?: boolean
   embedded?: boolean
 }>()
 
 const emit = defineEmits<{
   'confirm-arrived': []
+  'edit-arrival-info': []
 }>()
 
 const { t } = useI18n()
+const { ensureLoaded: ensureLogisticsDict, shipmentArrivalOptions, expressOptions } = useLogisticsFormDict()
+onMounted(() => {
+  void ensureLogisticsDict()
+})
 
 const noticeCode = computed(() => String(props.row?.noticeCode ?? props.row?.NoticeCode ?? '—') || '—')
 const vendorNameZh = computed(() => String(props.row?.vendorName ?? props.row?.VendorName ?? '').trim())
@@ -286,6 +329,32 @@ const customsDeclarationCode = computed(() =>
 const expectedArrivalDateText = computed(() => {
   const raw = props.row?.expectedArrivalDate ?? props.row?.ExpectedArrivalDate
   return raw ? formatDisplayDate(String(raw)) : '—'
+})
+
+function dictLabel(
+  options: { label: string; value: string }[],
+  code: string | null | undefined
+): string {
+  const c = String(code ?? '').trim()
+  if (!c) return '—'
+  return options.find((o) => String(o.value).trim() === c)?.label ?? c
+}
+
+const shipmentMethodText = computed(() =>
+  dictLabel(
+    shipmentArrivalOptions.value,
+    (props.row?.shipmentMethod ?? props.row?.ShipmentMethod) as string | null | undefined
+  )
+)
+const expressCompanyText = computed(() =>
+  dictLabel(
+    expressOptions.value,
+    (props.row?.expressCompany ?? props.row?.ExpressCompany) as string | null | undefined
+  )
+)
+const courierTrackingNoText = computed(() => {
+  const v = String(props.row?.courierTrackingNo ?? props.row?.CourierTrackingNo ?? '').trim()
+  return v || '—'
 })
 
 const noticeStatus = computed(() => Number(props.row?.status ?? props.row?.Status ?? 0))
