@@ -1119,32 +1119,6 @@ namespace CRM.Core.Services
             return pr;
         }
 
-        public async Task DeleteAsync(string id)
-        {
-            var pr = await _prRepo.GetByIdAsync(id)
-                ?? throw new InvalidOperationException("采购申请不存在");
-
-            var poItems = await LoadPoItemsForLineAsync(pr.SellOrderItemId);
-            var activePoQty = poItems.Where(i => i.Status == 0).Sum(i => i.Qty);
-            if (activePoQty > 0 || pr.StockClearedQty > 0)
-                throw new InvalidOperationException("存在有效采购订单数量或已清库存，不能删除");
-
-            await _prRepo.DeleteAsync(id);
-            if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
-
-            if (_logOperationAppend != null)
-            {
-                await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
-                {
-                    BizType = BusinessLogTypes.PurchaseRequisition,
-                    RecordId = pr.Id,
-                    RecordCode = pr.BillCode,
-                    EntityDisplayName = DeleteLogEntityNames.PurchaseRequisition,
-                    OperationDescOverride = $"物理删除采购申请，单号 {pr.BillCode}"
-                });
-            }
-        }
-
         public async Task<IReadOnlyList<PurchaseRequisitionListItemDto>> AutoGenerateForSellOrderAsync(string sellOrderId)
         {
             var so = await _soRepo.GetByIdAsync(sellOrderId)

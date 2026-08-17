@@ -30,4 +30,7 @@ public static class OperationLogActionTypes
 
     /// <summary>收款单反核销（撤销核销流水，主单状态不变）。</summary>
     public const string FinanceReceiptReverseVerification = "收款反核销";
+
+    /// <summary>进项发票反核销（软删核销流水，开票/认证状态不变）。</summary>
+    public const string FinancePurchaseInvoiceReverseVerification = "进项发票反核销";
 }

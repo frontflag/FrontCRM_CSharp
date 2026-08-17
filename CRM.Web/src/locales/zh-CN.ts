@@ -711,6 +711,7 @@ const zhCN = {
       stockIn: '入库',
       stockInBatchRecords: '批次记录',
       batchReconciliation: '批次核销',
+      stockInOpsCheck: '入库运维检查',
       inventoryManagement: '库存管理',
       inventoryCenter: '库存中心',
       inventoryStockItems: '库存明细',
@@ -7369,6 +7370,64 @@ const zhCN = {
       }
     }
   },
+  stockInOpsCheck: {
+    title: '入库运维检查',
+    run: '检查',
+    running: '检查中…',
+    hint: '全量核对到货通知、采购入库、库存明细与进项核销。只出报告，不改数据。',
+    summary: '错误 {errors} · 警告 {warnings}',
+    filteredCount: '显示 {shown} / 共 {total} 条',
+    empty: '未发现异常。',
+    emptyFiltered: '当前过滤无匹配。',
+    idle: '点击「检查」开始全量核对。',
+    failed: '检查失败',
+    truncated: '结果超过上限，只显示前 2000 条。',
+    stats: { total: '合计' },
+    severity: { error: '错误', warning: '警告' },
+    category: {
+      chain: '链条',
+      status: '状态',
+      duplicate: '重复',
+      amount: '金额',
+      vendor: '供应商'
+    },
+    docType: {
+      arrivalNotice: '到货通知',
+      stockIn: '入库单',
+      stockInItem: '入库明细',
+      stockItem: '库存明细',
+      qc: '质检',
+      purchaseInvoice: '进项发票',
+      purchaseOrder: '采购订单',
+      debug: 'Debug'
+    },
+    docCodeTip: {
+      arrivalNotice: '到货通知单号',
+      stockIn: '入库单号',
+      stockInItem: '入库明细单号',
+      stockItem: '库存明细编号',
+      qc: '质检单号',
+      purchaseInvoice: '进项发票单号',
+      purchaseOrder: '采购订单号',
+      debug: 'Debug'
+    },
+    filters: {
+      search: '搜索',
+      reset: '重置',
+      severity: '级别',
+      category: '检查类型',
+      docType: '单据类型',
+      docCode: '单号 / 关联单号',
+      shown: '显示'
+    },
+    col: {
+      severity: '级别',
+      docCode: '单号',
+      related: '关联单号',
+      reason: '错误原因',
+      suggestion: '运维操作建议'
+    }
+  },
   stockOutOpsCheck: {
     title: '出库运维检查',
     run: '检查',
@@ -9939,7 +9998,7 @@ const zhCN = {
       createUser: '创建人',
       actions: '操作'
     },
-    actions: { detail: '详情', edit: '编辑', void: '作废' },
+    actions: { detail: '详情', edit: '编辑', void: '作废', reverseVerification: '反核销' },
     columnSettings: '列设置',
     dialogCreate: '新建进项发票',
     dialogEdit: '编辑进项发票',
@@ -9970,7 +10029,11 @@ const zhCN = {
       exportFailed: '导出失败',
       voidTitle: '冲红确认',
       voidMsg: '确认冲红发票 {code}？',
-      voided: '发票已冲红'
+      voided: '发票已冲红',
+      reverseVerificationPrompt: '请输入发票单号或发票号码以确认反核销',
+      reverseVerificationSuccess: '反核销成功，进项发票核销已撤销',
+      reverseVerificationFailed: '反核销失败',
+      reverseVerificationBillMismatch: '输入单号不匹配，已取消'
     }
   },
   financePurchaseInvoiceDetail: {

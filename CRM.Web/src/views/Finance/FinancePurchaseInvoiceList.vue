@@ -195,6 +195,15 @@
             >
               {{ t('financePurchaseInvoiceList.actions.void') }}
             </el-button>
+            <el-button
+              size="small"
+              text
+              type="warning"
+              @click.stop="handleReverseVerificationRow(row)"
+              v-if="canReverseVerification(row)"
+            >
+              {{ t('financePurchaseInvoiceList.actions.reverseVerification') }}
+            </el-button>
             <el-button v-if="canWriteFinancePurchaseInvoice" size="small" text type="danger" @click.stop="handleDeleteRow(row)">删除</el-button>
             <el-button v-if="canForceDelete" size="small" text type="danger" @click.stop="handleForceDeleteRow(row)">强制删除</el-button>
           </div>
@@ -213,6 +222,9 @@
                 </el-dropdown-item>
                 <el-dropdown-item v-if="canWriteFinancePurchaseInvoice && row.invoiceStatus === 100" @click.stop="voidInvoice(row)">
                   <span class="op-more-item op-more-item--danger">{{ t('financePurchaseInvoiceList.actions.void') }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="canReverseVerification(row)" @click.stop="handleReverseVerificationRow(row)">
+                  <span class="op-more-item op-more-item--warning">{{ t('financePurchaseInvoiceList.actions.reverseVerification') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="canWriteFinancePurchaseInvoice" divided @click.stop="handleDeleteRow(row)">
                   <span class="op-more-item op-more-item--danger">删除</span>
@@ -680,6 +692,39 @@ const voidInvoice = async (row: FinancePurchaseInvoice) => {
   await financePurchaseInvoiceApi.redInvoice(row.id)
   ElMessage.success(t('financePurchaseInvoiceList.messages.voided'))
   await loadData()
+}
+
+function canReverseVerification(row: FinancePurchaseInvoice) {
+  if (!canWriteFinancePurchaseInvoice.value) return false
+  if (row.invoiceStatus === -1) return false
+  return Number(row.verificationStatus ?? 0) > 0 || Number(row.verifiedDone ?? 0) > 0
+}
+
+function matchesReverseConfirmCode(row: FinancePurchaseInvoice, entered: string) {
+  const typed = entered.trim()
+  if (!typed) return false
+  const code = String(row.financePurchaseInvoiceCode || '').trim()
+  const invoiceNo = String(row.invoiceNo || '').trim()
+  return typed === code || (!!invoiceNo && typed === invoiceNo)
+}
+
+const handleReverseVerificationRow = async (row: FinancePurchaseInvoice) => {
+  const entered = window.prompt(
+    t('financePurchaseInvoiceList.messages.reverseVerificationPrompt'),
+    row.financePurchaseInvoiceCode || row.invoiceNo || ''
+  )?.trim() ?? ''
+  if (!entered) return
+  if (!matchesReverseConfirmCode(row, entered)) {
+    ElMessage.error(t('financePurchaseInvoiceList.messages.reverseVerificationBillMismatch'))
+    return
+  }
+  try {
+    await financePurchaseInvoiceApi.reverseVerification(row.id, entered)
+    ElMessage.success(t('financePurchaseInvoiceList.messages.reverseVerificationSuccess'))
+    await loadData()
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('financePurchaseInvoiceList.messages.reverseVerificationFailed'))
+  }
 }
 
 const handleDeleteRow = async (row: FinancePurchaseInvoice) => {

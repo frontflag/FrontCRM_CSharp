@@ -580,12 +580,27 @@ namespace CRM.Core.Services
 
         public async Task AssignUserRolesAsync(string userId, IReadOnlyList<string> roleIds)
         {
-            var current = (await _userRoleRepo.FindAsync(x => x.UserId == userId)).ToList();
-            foreach (var item in current)
+            var desired = NormalizeIds(roleIds);
+            var live = (await _userRoleRepo.FindAsync(x => x.UserId == userId)).ToList();
+            var all = (await _userRoleRepo.FindIgnoreFiltersAsync(x => x.UserId == userId)).ToList();
+
+            foreach (var item in live.Where(x => !desired.Contains(x.RoleId, StringComparer.OrdinalIgnoreCase)))
                 await _userRoleRepo.DeleteAsync(item.Id);
 
-            foreach (var roleId in roleIds.Distinct().Where(x => !string.IsNullOrWhiteSpace(x)))
+            foreach (var roleId in desired)
             {
+                if (live.Any(x => SameId(x.RoleId, roleId)))
+                    continue;
+
+                var dead = all.FirstOrDefault(x => x.IsDeleted && SameId(x.RoleId, roleId));
+                if (dead != null)
+                {
+                    dead.IsDeleted = false;
+                    dead.ModifyTime = DateTime.UtcNow;
+                    await _userRoleRepo.UpdateAsync(dead);
+                    continue;
+                }
+
                 await _userRoleRepo.AddAsync(new RbacUserRole
                 {
                     UserId = userId,
@@ -599,18 +614,47 @@ namespace CRM.Core.Services
 
         public async Task AssignUserDepartmentsAsync(string userId, IReadOnlyList<string> departmentIds, string? primaryDepartmentId)
         {
-            var current = (await _userDepartmentRepo.FindAsync(x => x.UserId == userId)).ToList();
-            foreach (var item in current)
+            var distinctIds = NormalizeIds(departmentIds);
+            var primary = string.IsNullOrWhiteSpace(primaryDepartmentId)
+                ? distinctIds.FirstOrDefault()
+                : primaryDepartmentId.Trim();
+
+            var live = (await _userDepartmentRepo.FindAsync(x => x.UserId == userId)).ToList();
+            var all = (await _userDepartmentRepo.FindIgnoreFiltersAsync(x => x.UserId == userId)).ToList();
+
+            foreach (var item in live.Where(x => !distinctIds.Contains(x.DepartmentId, StringComparer.OrdinalIgnoreCase)))
                 await _userDepartmentRepo.DeleteAsync(item.Id);
 
-            var distinctIds = departmentIds.Distinct().Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
             foreach (var departmentId in distinctIds)
             {
+                var isPrimary = SameId(departmentId, primary);
+                var liveRow = live.FirstOrDefault(x => SameId(x.DepartmentId, departmentId));
+                if (liveRow != null)
+                {
+                    if (liveRow.IsPrimary != isPrimary)
+                    {
+                        liveRow.IsPrimary = isPrimary;
+                        liveRow.ModifyTime = DateTime.UtcNow;
+                        await _userDepartmentRepo.UpdateAsync(liveRow);
+                    }
+                    continue;
+                }
+
+                var dead = all.FirstOrDefault(x => x.IsDeleted && SameId(x.DepartmentId, departmentId));
+                if (dead != null)
+                {
+                    dead.IsDeleted = false;
+                    dead.IsPrimary = isPrimary;
+                    dead.ModifyTime = DateTime.UtcNow;
+                    await _userDepartmentRepo.UpdateAsync(dead);
+                    continue;
+                }
+
                 await _userDepartmentRepo.AddAsync(new RbacUserDepartment
                 {
                     UserId = userId,
                     DepartmentId = departmentId,
-                    IsPrimary = departmentId == primaryDepartmentId || (string.IsNullOrWhiteSpace(primaryDepartmentId) && departmentId == distinctIds.First()),
+                    IsPrimary = isPrimary,
                     CreateTime = DateTime.UtcNow
                 });
             }
@@ -620,12 +664,27 @@ namespace CRM.Core.Services
 
         public async Task AssignRolePermissionsAsync(string roleId, IReadOnlyList<string> permissionIds)
         {
-            var current = (await _rolePermissionRepo.FindAsync(x => x.RoleId == roleId)).ToList();
-            foreach (var item in current)
+            var desired = NormalizeIds(permissionIds);
+            var live = (await _rolePermissionRepo.FindAsync(x => x.RoleId == roleId)).ToList();
+            var all = (await _rolePermissionRepo.FindIgnoreFiltersAsync(x => x.RoleId == roleId)).ToList();
+
+            foreach (var item in live.Where(x => !desired.Contains(x.PermissionId, StringComparer.OrdinalIgnoreCase)))
                 await _rolePermissionRepo.DeleteAsync(item.Id);
 
-            foreach (var permissionId in permissionIds.Distinct().Where(x => !string.IsNullOrWhiteSpace(x)))
+            foreach (var permissionId in desired)
             {
+                if (live.Any(x => SameId(x.PermissionId, permissionId)))
+                    continue;
+
+                var dead = all.FirstOrDefault(x => x.IsDeleted && SameId(x.PermissionId, permissionId));
+                if (dead != null)
+                {
+                    dead.IsDeleted = false;
+                    dead.ModifyTime = DateTime.UtcNow;
+                    await _rolePermissionRepo.UpdateAsync(dead);
+                    continue;
+                }
+
                 await _rolePermissionRepo.AddAsync(new RbacRolePermission
                 {
                     RoleId = roleId,
@@ -636,5 +695,14 @@ namespace CRM.Core.Services
 
             await _unitOfWork.SaveChangesAsync();
         }
+
+        private static List<string> NormalizeIds(IReadOnlyList<string> ids) =>
+            ids.Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+        private static bool SameId(string? a, string? b) =>
+            string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
     }
 }

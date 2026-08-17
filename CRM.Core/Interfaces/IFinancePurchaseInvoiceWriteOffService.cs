@@ -12,6 +12,10 @@ public interface IFinancePurchaseInvoiceWriteOffService
 
     Task<FinancePurchaseInvoiceWriteOffResult> ApplyAsync(
         FinancePurchaseInvoiceWriteOffRequest request, string? actingUserId, CancellationToken cancellationToken = default);
+
+    /// <summary>整票反核销：软删该发票全部有效核销流水，并重算发票/入库匹配与付款缓存。</summary>
+    Task<FinancePurchaseInvoiceWriteOffReverseResult> ReverseByInvoiceAsync(
+        string invoiceId, string? actingUserId, CancellationToken cancellationToken = default);
 }
 
 public class FinancePurchaseInvoiceWriteOffVendorSummary
@@ -106,4 +110,12 @@ public class FinancePurchaseInvoiceWriteOffResult
     public string FinancePurchaseInvoiceId { get; set; } = string.Empty;
     public decimal AppliedTotal { get; set; }
     public int AllocationCount { get; set; }
+}
+
+public class FinancePurchaseInvoiceWriteOffReverseResult
+{
+    public string FinancePurchaseInvoiceId { get; set; } = string.Empty;
+    public int WriteOffCount { get; set; }
+    public decimal ReversedTotal { get; set; }
+    public List<string> StockInCodes { get; set; } = new();
 }

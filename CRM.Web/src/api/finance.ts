@@ -530,6 +530,8 @@ export const financePurchaseInvoiceApi = {
     apiClient.delete(`${PURCHASE_INVOICE_BASE}/${id}`),
   forceDelete: (id: string, confirmBillCode: string) =>
     apiClient.post(`${PURCHASE_INVOICE_BASE}/${id}/force-delete`, { confirmBillCode: confirmBillCode.trim() }),
+  reverseVerification: (id: string, confirmBillCode: string) =>
+    apiClient.post(`${PURCHASE_INVOICE_BASE}/${id}/reverse-verification`, { confirmBillCode: confirmBillCode.trim() }),
   confirm: (id: string, confirmDate?: string) =>
     apiClient.post(`${PURCHASE_INVOICE_BASE}/${id}/confirm`, { confirmDate }),
   unconfirm: (id: string) =>

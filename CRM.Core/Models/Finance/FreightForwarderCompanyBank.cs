@@ -5,7 +5,7 @@ using CRM.Core.Interfaces;
 namespace CRM.Core.Models.Finance;
 
 [Table("freight_forwarder_company_bank")]
-public class FreightForwarderCompanyBank : BaseGuidEntity
+public class FreightForwarderCompanyBank : BaseGuidEntity, ISoftDeletable
 {
     [Key]
     [StringLength(36)]
@@ -39,4 +39,7 @@ public class FreightForwarderCompanyBank : BaseGuidEntity
     [StringLength(36)]
     [Column("modify_by_user_id")]
     public string? ModifyByUserId { get; set; }
+
+    [Column("is_deleted")]
+    public bool IsDeleted { get; set; }
 }

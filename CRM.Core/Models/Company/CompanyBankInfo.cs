@@ -1,11 +1,12 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using CRM.Core.Interfaces;
 
 namespace CRM.Core.Models.Company
 {
     /// <summary>公司银行信息（公司信息页多组维护）。</summary>
     [Table("company_bankinfo")]
-    public class CompanyBankInfo : BaseGuidEntity
+    public class CompanyBankInfo : BaseGuidEntity, ISoftDeletable
     {
         [Key]
         [StringLength(36)]
@@ -75,5 +76,8 @@ namespace CRM.Core.Models.Company
 
         [Column("sort_order")]
         public int SortOrder { get; set; }
+
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
     }
 }

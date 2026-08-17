@@ -575,6 +575,12 @@
             <router-link to="/inventory/batch-reconciliation" class="submenu-item" active-class="active">{{
               t('layout.menu.batchReconciliation')
             }}</router-link>
+            <router-link
+              v-if="canStockInOpsCheck"
+              to="/inventory/stock-in/ops-check"
+              class="submenu-item"
+              active-class="active"
+            >{{ t('layout.menu.stockInOpsCheck') }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
 
@@ -2877,6 +2883,7 @@ const pageTitleMap: Record<string, string> = {
   '/inventory/warehouses': 'warehouseManage.title',
   '/inventory/stock-items': 'layout.menu.inventoryStockItems',
   '/inventory/stock-in': 'layout.menu.stockInManagement',
+  '/inventory/stock-in/ops-check': 'layout.menu.stockInOpsCheck',
   '/inventory/batch-reconciliation': 'batchReconciliation.title',
   '/inventory/stock-out': 'layout.menu.stockOutManagement',
   '/inventory/stock-out/ops-check': 'layout.menu.stockOutOpsCheck',
@@ -3105,6 +3112,7 @@ const identityType = computed(() => authStore.user?.identityType ?? 0)
 const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const isSysManager = computed(() => authStore.user?.isSysManager === true)
 const canStockOutOpsCheck = computed(() => authStore.canForceDelete())
+const canStockInOpsCheck = computed(() => authStore.canForceDelete())
 /** SuperAdmin / Admin / Manager：业务侧栏不受主部门身份藏菜单 */
 const hasBizDataBypass = computed(() => authStore.user?.hasBizDataBypass === true)
 

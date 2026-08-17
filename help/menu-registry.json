@@ -32,6 +32,7 @@
     { "id": "MENU_ARRIVAL", "label": "到货通知", "routeNames": ["ArrivalNoticeList"], "pathPrefixes": ["/logistics/arrival-notices"] },
     { "id": "MENU_QC", "label": "质检", "routeNames": ["QcList", "QcCreate"], "pathPrefixes": ["/logistics/qc"] },
     { "id": "MENU_STOCK_IN", "label": "入库", "routeNames": ["StockInList", "StockInCreate", "StockInDetail"], "pathPrefixes": ["/inventory/stock-in"] },
+    { "id": "MENU_STOCK_IN_OPS_CHECK", "label": "入库运维检查", "routeNames": ["StockInOpsCheck"], "pathPrefixes": ["/inventory/stock-in/ops-check"] },
     { "id": "MENU_BATCH_RECONCILIATION", "label": "批次核销", "routeNames": ["BatchReconciliation"], "pathPrefixes": ["/inventory/batch-reconciliation"] },
     { "id": "MENU_INVENTORY_LIST", "label": "库存管理", "routeNames": ["InventoryList", "InventoryTrace"], "pathPrefixes": ["/inventory/list", "/inventory/traces"] },
     { "id": "MENU_INVENTORY_TRANSFER", "label": "库存调拨", "routeNames": ["InventoryTransfer"], "pathPrefixes": ["/inventory/transfer"] },

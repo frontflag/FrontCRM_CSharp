@@ -270,6 +270,107 @@ public class FinancePurchaseInvoiceWriteOffService : IFinancePurchaseInvoiceWrit
         };
     }
 
+    public async Task<FinancePurchaseInvoiceWriteOffReverseResult> ReverseByInvoiceAsync(
+        string invoiceId, string? actingUserId, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(invoiceId))
+            throw new ArgumentException("进项发票ID不能为空", nameof(invoiceId));
+
+        var invoice = await _invoiceRepo.GetByIdAsync(invoiceId.Trim())
+            ?? throw new InvalidOperationException("进项发票不存在");
+        if (invoice.RedInvoiceStatus == 1)
+            throw new InvalidOperationException("已冲红的进项发票不允许反核销");
+
+        var writeOffs = (await _writeOffRepo.FindAsync(w => w.FinancePurchaseInvoiceId == invoice.Id)).ToList();
+        if (writeOffs.Count == 0)
+            throw new ArgumentException("当前进项发票无需反核销");
+
+        var operatorId = ActingUserIdNormalizer.Normalize(actingUserId);
+        var reversedTotal = Math.Round(writeOffs.Sum(w => w.Amount), 2, MidpointRounding.AwayFromZero);
+        var stockInItemIds = writeOffs
+            .Select(w => w.StockInItemId)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var stockInIds = writeOffs
+            .Select(w => w.StockInId)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var poItemIds = writeOffs
+            .Select(w => w.PurchaseOrderItemId)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        foreach (var wo in writeOffs)
+            await _writeOffRepo.DeleteAsync(wo.Id);
+
+        var remainingInvoice = (await _writeOffRepo.FindAsync(w => w.FinancePurchaseInvoiceId == invoice.Id)).ToList();
+        invoice.VerifiedDone = Math.Round(remainingInvoice.Sum(w => w.Amount), 2, MidpointRounding.AwayFromZero);
+        invoice.VerifiedToBe = Math.Max(0m, Math.Round(invoice.InvoiceAmount - invoice.VerifiedDone, 2, MidpointRounding.AwayFromZero));
+        invoice.VerificationStatus = ResolveMatchStatus(invoice.VerifiedDone, invoice.InvoiceAmount);
+        invoice.ModifyTime = DateTime.UtcNow;
+        invoice.ModifyByUserId = operatorId;
+        await _invoiceRepo.UpdateAsync(invoice);
+
+        foreach (var itemId in stockInItemIds)
+            await RefreshStockInItemMatchAsync(itemId, cancellationToken);
+
+        foreach (var sid in stockInIds)
+        {
+            var header = await _stockInRepo.GetByIdAsync(sid);
+            if (header == null)
+                continue;
+            await RefreshStockInHeaderMatchAsync(sid, cancellationToken);
+        }
+
+        if (_unitOfWork != null)
+            await _unitOfWork.SaveChangesAsync();
+
+        foreach (var pid in poItemIds)
+            await _poItemExtendSync.RecalculateAsync(pid, cancellationToken);
+
+        await _invoicePaymentSync.RecalculateForInvoiceAsync(invoice.Id, cancellationToken);
+
+        var stockInCodes = new List<string>();
+        foreach (var sid in stockInIds)
+        {
+            var si = await _stockInRepo.GetByIdAsync(sid);
+            if (si != null && !string.IsNullOrWhiteSpace(si.StockInCode))
+                stockInCodes.Add(si.StockInCode.Trim());
+        }
+
+        return new FinancePurchaseInvoiceWriteOffReverseResult
+        {
+            FinancePurchaseInvoiceId = invoice.Id,
+            WriteOffCount = writeOffs.Count,
+            ReversedTotal = reversedTotal,
+            StockInCodes = stockInCodes
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+                .ToList()
+        };
+    }
+
+    private async Task RefreshStockInItemMatchAsync(string stockInItemId, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var item = await _stockInItemRepo.GetByIdAsync(stockInItemId);
+        var ext = await _stockInItemExtendRepo.GetByIdAsync(stockInItemId);
+        if (item == null || ext == null)
+            return;
+
+        var remaining = (await _writeOffRepo.FindAsync(w => w.StockInItemId == stockInItemId)).ToList();
+        ext.InvoiceMatchDone = Math.Round(remaining.Sum(w => w.Amount), 2, MidpointRounding.AwayFromZero);
+        ext.InvoiceMatchToBe = Math.Max(0m, Math.Round(item.Amount - ext.InvoiceMatchDone, 2, MidpointRounding.AwayFromZero));
+        ext.InvoiceMatchStatus = ResolveMatchStatus(ext.InvoiceMatchDone, item.Amount);
+        await _stockInItemExtendRepo.UpdateAsync(ext);
+    }
+
     private async Task<HashSet<(string VendorId, byte Currency)>> LoadOpenStockInVendorCurrencyKeysAsync(
         CancellationToken cancellationToken)
     {

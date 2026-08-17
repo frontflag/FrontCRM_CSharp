@@ -10,6 +10,11 @@
           <span class="order-code">{{ detail?.financePurchaseInvoiceCode || t('financePurchaseInvoiceDetail.detail') }}</span>
         </el-breadcrumb-item>
       </el-breadcrumb>
+      <div class="header-actions">
+        <el-button v-if="canReverseVerificationDetail" type="warning" @click="handleReverseVerification">
+          {{ t('financePurchaseInvoiceList.actions.reverseVerification') }}
+        </el-button>
+      </div>
     </div>
 
     <div v-if="loading" class="loading-wrap">
@@ -102,6 +107,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useFinanceEnumLabels } from '@/composables/useFinanceEnumLabels'
 import { ArrowLeft } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import {
   financePurchaseInvoiceApi,
   normalizeFinancePurchaseInvoice,
@@ -109,9 +115,11 @@ import {
 } from '@/api/finance'
 import { formatDisplayDate } from '@/utils/displayDateTime'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import { useFinanceWriteGate } from '@/composables/useDepartmentDataReadOnly'
 import VendorNameReadonlyText from '@/components/Vendor/VendorNameReadonlyText.vue'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
+const { canWriteFinancePurchaseInvoice } = useFinanceWriteGate()
 const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
@@ -152,6 +160,42 @@ const formatAmount = (val: number | unknown) => {
   if (!Number.isFinite(n)) return '0.00'
   return n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
+
+const canReverseVerificationDetail = computed(() => {
+  const row = detail.value
+  if (!row || !canWriteFinancePurchaseInvoice.value) return false
+  if (row.invoiceStatus === -1) return false
+  return Number(row.verificationStatus ?? 0) > 0 || Number(row.verifiedDone ?? 0) > 0
+})
+
+function matchesReverseConfirmCode(row: FinancePurchaseInvoice, entered: string) {
+  const typed = entered.trim()
+  if (!typed) return false
+  const code = String(row.financePurchaseInvoiceCode || '').trim()
+  const invoiceNo = String(row.invoiceNo || '').trim()
+  return typed === code || (!!invoiceNo && typed === invoiceNo)
+}
+
+async function handleReverseVerification() {
+  const row = detail.value
+  if (!row) return
+  const entered = window.prompt(
+    t('financePurchaseInvoiceList.messages.reverseVerificationPrompt'),
+    row.financePurchaseInvoiceCode || row.invoiceNo || ''
+  )?.trim() ?? ''
+  if (!entered) return
+  if (!matchesReverseConfirmCode(row, entered)) {
+    ElMessage.error(t('financePurchaseInvoiceList.messages.reverseVerificationBillMismatch'))
+    return
+  }
+  try {
+    await financePurchaseInvoiceApi.reverseVerification(row.id, entered)
+    ElMessage.success(t('financePurchaseInvoiceList.messages.reverseVerificationSuccess'))
+    await fetchDetail()
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('financePurchaseInvoiceList.messages.reverseVerificationFailed'))
+  }
+}
 </script>
 
 <style lang="scss" scoped>
@@ -170,6 +214,9 @@ const formatAmount = (val: number | unknown) => {
   .back-btn {
     color: $text-secondary;
     &:hover { color: $cyan-primary; }
+  }
+  .header-actions {
+    margin-left: auto;
   }
 }
 

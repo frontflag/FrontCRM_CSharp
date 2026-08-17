@@ -366,6 +366,52 @@ namespace CRM.API.Controllers
             }
         }
 
+        /// <summary>进项发票反核销（软删全部有效核销流水，开票/认证状态不变）</summary>
+        [HttpPost("{id}/reverse-verification")]
+        [RequirePermission("finance-purchase-invoice.write")]
+        public async Task<IActionResult> ReverseVerification(string id, [FromBody] ForceDeleteFinancePurchaseInvoiceRequest? body)
+        {
+            try
+            {
+                var denied = await RejectIfFinanceDataReadOnlyAsync();
+                if (denied != null) return denied;
+
+                if (body == null || string.IsNullOrWhiteSpace(body.ConfirmBillCode))
+                    return BadRequest(new { success = false, message = "请填写 confirmBillCode" });
+
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrWhiteSpace(userId))
+                    return StatusCode(403, new { success = false, message = "未登录或身份无效" });
+
+                var userName = User.FindFirst(ClaimTypes.Name)?.Value;
+                var invoice = await _service.ReverseVerificationAsync(
+                    id,
+                    body.ConfirmBillCode.Trim(),
+                    userId.Trim(),
+                    string.IsNullOrWhiteSpace(userName) ? null : userName.Trim());
+
+                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessFinancePurchaseInvoiceAsync(userId, invoice))
+                    return StatusCode(403, new { success = false, message = "无权限访问该进项发票" });
+                if (await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User))
+                    PurchaseSensitiveFieldMask511.ApplyFinancePurchaseInvoice(invoice, true);
+
+                return Ok(new { success = true, message = "反核销成功", data = invoice });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "进项发票反核销失败");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
         private async Task<IActionResult?> RejectIfFinanceDataReadOnlyAsync()
         {
             if (!await FinanceDataAccessHttp.CanWriteAsync(_rbacService, User))

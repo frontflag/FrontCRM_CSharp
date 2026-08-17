@@ -503,9 +503,15 @@ namespace CRM.Infrastructure.Data
             modelBuilder.Entity<FinancePurchaseInvoice>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<FinancePurchaseInvoiceItem>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<FinancePurchaseInvoiceWriteOff>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<FinanceReceivableWriteOff>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<FinanceSellInvoice>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<SellInvoiceItem>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<FinanceSellInvoiceWriteOff>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<FreightForwarderCompanyBank>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<CompanyBankInfo>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<RbacUserRole>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<RbacRolePermission>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<RbacUserDepartment>().HasQueryFilter(e => !e.IsDeleted);
 
             modelBuilder.Entity<StockOutRequest>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<StockInNotify>().HasQueryFilter(e => !e.IsDeleted);
@@ -1453,6 +1459,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.AccountName).HasMaxLength(200);
                 entity.Property(e => e.AccountNo).HasMaxLength(64);
                 entity.HasIndex(e => e.FreightForwarderCompanyId);
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
                 entity.Ignore(e => e.CreateUserId);
                 entity.Ignore(e => e.ModifyUserId);
                 entity.Property(e => e.CreateByUserId).HasColumnName("create_by_user_id").HasMaxLength(36);
@@ -1937,6 +1944,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.Amount).HasColumnType("numeric(18,2)");
                 entity.Property(e => e.FinanceReceiptId).IsRequired(false);
                 entity.Property(e => e.FinanceReceiptItemId).IsRequired(false);
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
                 entity.Ignore(e => e.CreateUserId);
                 entity.Ignore(e => e.ModifyUserId);
                 entity.HasIndex(e => e.FinanceReceivableId);
@@ -2130,7 +2138,11 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.Id).HasColumnName("UserDepartmentId");
                 entity.Property(e => e.UserId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.DepartmentId).IsRequired().HasMaxLength(36);
-                entity.HasIndex(e => new { e.UserId, e.DepartmentId }).IsUnique();
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.HasIndex(e => new { e.UserId, e.DepartmentId })
+                    .IsUnique()
+                    .HasFilter("is_deleted = false")
+                    .HasDatabaseName("IX_sys_user_department_UserId_DepartmentId_alive");
             });
 
             modelBuilder.Entity<RbacUserRole>(entity =>
@@ -2139,7 +2151,11 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.Id).HasColumnName("UserRoleId");
                 entity.Property(e => e.UserId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.RoleId).IsRequired().HasMaxLength(36);
-                entity.HasIndex(e => new { e.UserId, e.RoleId }).IsUnique();
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.HasIndex(e => new { e.UserId, e.RoleId })
+                    .IsUnique()
+                    .HasFilter("is_deleted = false")
+                    .HasDatabaseName("IX_sys_user_role_UserId_RoleId_alive");
             });
 
             modelBuilder.Entity<RbacRolePermission>(entity =>
@@ -2148,7 +2164,11 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.Id).HasColumnName("RolePermissionId");
                 entity.Property(e => e.RoleId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.PermissionId).IsRequired().HasMaxLength(36);
-                entity.HasIndex(e => new { e.RoleId, e.PermissionId }).IsUnique();
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.HasIndex(e => new { e.RoleId, e.PermissionId })
+                    .IsUnique()
+                    .HasFilter("is_deleted = false")
+                    .HasDatabaseName("IX_sys_role_permission_RoleId_PermissionId_alive");
             });
 
             modelBuilder.Entity<SysParamGroup>(entity =>

@@ -43,8 +43,11 @@ namespace CRM.Core.Interfaces
             short identityType,
             short status);
 
+        /// <summary>按目标集合同步用户角色：多余软删，缺失则复活已删行或插入。</summary>
         Task AssignUserRolesAsync(string userId, IReadOnlyList<string> roleIds);
+        /// <summary>按目标集合同步用户部门：多余软删，缺失则复活；保留行可更新主部门。</summary>
         Task AssignUserDepartmentsAsync(string userId, IReadOnlyList<string> departmentIds, string? primaryDepartmentId);
+        /// <summary>按目标集合同步角色权限：多余软删，缺失则复活已删行或插入。</summary>
         Task AssignRolePermissionsAsync(string roleId, IReadOnlyList<string> permissionIds);
     }
 

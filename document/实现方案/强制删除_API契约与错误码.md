@@ -78,12 +78,13 @@ HTTP 响应 JSON 形如：
 
 ### 反核销（强制删除前置，非删除接口）
 
-已核销的付款/收款单须先反核销，再执行上表 `force-delete`。完整设计见 [付款收款反核销-设计与实现](../System/财务/付款收款反核销-设计与实现.md)。
+已核销的付款/收款单、进项发票须先反核销，再执行上表 `force-delete`。付款/收款见 [付款收款反核销-设计与实现](../System/财务/付款收款反核销-设计与实现.md)；进项见 [进项发票反核销-设计与实现](../System/财务/进项发票反核销-设计与实现.md)。
 
 | 模块 | 方法 | 路径 | 权限 | `confirmBillCode` 须等于 |
 | --- | --- | --- | --- | --- |
 | 付款单 | POST | `api/v1/finance/payments/{id}/reverse-verification` | `finance-payment.write` | `FinancePaymentCode` |
 | 收款单 | POST | `api/v1/finance/receipts/{id}/reverse-verification` | `finance-receipt.write` | `FinanceReceiptCode` |
+| 进项发票 | POST | `api/v1/finance/purchase-invoices/{id}/reverse-verification` | `finance-purchase-invoice.write` | `InvoiceCode` **或** `InvoiceNo` |
 
 ---
 
@@ -95,9 +96,9 @@ HTTP 响应 JSON 形如：
 | --- | --- |
 | 出库通知（**普通删除** `DELETE …/request/{id}` 与**强制删除**） | 存在未取消的 **拣货单**（`PickingTask.StockOutRequestId` = 该通知；`Status != -1` 且未软删）。二者共用 `CanForceDeleteStockOutRequestAsync`。 |
 | 出库单 | 已执行出库等状态；或销项明细等引用出库明细。强制删除走软删级联，**不**与库存自动冲销合并为一步。 |
-| 入库单（`DELETE …/stock-in/{id}` 与**强制删除**） | 存在未软删 **库存明细** `StockItem` 且 `StockInId` = 本入库单。 |
+| 入库单（`DELETE …/stock-in/{id}` 与**强制删除**） | 存在未软删 **库存明细** `StockItem` 且 `StockInId` = 本入库单。另拦有效进项核销流水（文案含进项发票单号）。 |
 | 财务付款/收款 | 存在核销类下游字段表明已核销；收款另有预收池入账（`AdvancePoolAmount>0`）。已核销须先 `reverse-verification`。 |
-| 进项发票 | 已认证 / 已冲红等。 |
+| 进项发票 | 已认证 / 已冲红；**或**存在有效进项核销流水（须先反核销）。 |
 | 销项发票 | 存在收款核销等下游。 |
 | 到货通知 | 已有质检单，或状态/数量已进入质检、收货链路。 |
 | 质检单 | 已绑定或进入入库链路、存在关联入库单。 |
@@ -115,7 +116,7 @@ HTTP 响应 JSON 形如：
 | --- | --- | --- |
 | **出库通知** | 同上；**普通删除**与**强制删除**均调用 `CanForceDeleteStockOutRequestAsync`（`Status == -1` 的已取消拣货单不拦截）。 | `IForceDeleteGuardService.CanForceDeleteStockOutRequestAsync`；`StockOutController.DeleteRequest` / `ForceDeleteRequest` |
 | **出库单** | ① 本单 `Status` 为 **2 或 4**（已执行出库类，不可直接强删）。② 存在 **销项发票明细** `SellInvoiceItem`，其 `StockOutItemId` 指向本单任一 **出库明细** `StockOutItem`。 | `IForceDeleteGuardService.CanForceDeleteStockOutAsync` |
-| **入库单** | 存在未软删 **库存明细** `StockItem` 且 `StockInId` = 本入库单（在库层仍占用），则 **普通删除**与**强制删除**均 **400**（`ArgumentException`）。无在库明细时仍走原 `DeleteAsync` 级联删入库明细等。 | `StockInService.DeleteAsync`；`StockInController.Delete` / `ForceDelete` |
+| **入库单** | ① 存在未软删 **库存明细** `StockItem` 且 `StockInId` = 本入库单（在库层仍占用），则 **普通删除**与**强制删除**均 **400**。② 存在有效 **进项核销流水** `finance_purchase_invoice_write_off.stock_in_id` = 本入库单，则 **普通删除**与**强制删除**均 **400**，文案列出进项发票单号（须先到进项发票「反核销」）。无在库明细且无有效核销时仍走原 `DeleteAsync` 级联删入库明细等。 | `StockInService.DeleteInternalAsync`；`CanForceDeleteStockInAsync` |
 | **报关单** | **无**业务级下游 400 拦截（校验确认号、`SYS_ADMIN` 后即删；关联移库单走软删，不作为拒绝条件）。 | `CustomsDeclarationsController` |
 | **到货通知** | ① 存在 **质检单** `QCInfo`，`StockInNotifyId` = 本通知。② 或本通知 `Status >= 30`。③ 或 `ReceiveQty > 0` / `PassedQty > 0`（已进入收货/质检数量链路）。 | `LogisticsController.ForceDeleteArrivalNotice` |
 | **质检单** | ① `StockInId` 已绑定 **或** `StockInStatus >= 100`（已进入入库链路）。② 或存在主键为 `StockInId` 的 **入库单** `StockIn` 记录。 | `LogisticsController.ForceDeleteQc` |
@@ -125,7 +126,7 @@ HTTP 响应 JSON 形如：
 | **采购申请** | 存在 **采购订单明细** `PurchaseOrderItem`，其 `SellOrderItemId` = 本申请关联的销售订单明细（以销定采已落单）。 | `PurchaseRequisitionService.ForceDeleteAsync`（`HasPurchaseOrderDownstreamAsync`） |
 | **付款单** | 本单下任一 **付款明细** `FinancePaymentItem`：`VerificationStatus > 0` **或** `VerificationDone > 0`（已核销/部分核销）。**须先** `POST .../reverse-verification` 清除核销，再 `POST .../force-delete`（SYS_ADMIN）。普通 `DELETE` 与强制删除共用 `CanForceDeleteFinancePaymentAsync`。 | `IForceDeleteGuardService.CanForceDeleteFinancePaymentAsync`；`FinancePaymentService.ReverseVerificationAsync` |
 | **收款单** | 本单下任一 **收款明细** `FinanceReceiptItem`：`VerificationStatus > 0` **或** `VerifiedAmount > 0` **或** `AdvancePoolAmount > 0`。已核销时**须先** `POST .../reverse-verification` 清除核销，再 `POST .../force-delete`（SYS_ADMIN）。普通 `DELETE` 与强制删除共用守卫。 | `IForceDeleteGuardService.CanForceDeleteFinanceReceiptAsync`；`FinanceReceiptService.ReverseVerificationAsync` |
-| **进项发票** | 票面状态：已认证（`ConfirmStatus == 1`）或已冲红（`RedInvoiceStatus == 1`）。 | `IForceDeleteGuardService.CanForceDeleteFinancePurchaseInvoiceAsync` |
+| **进项发票** | ① 已认证（`ConfirmStatus == 1`）或已冲红（`RedInvoiceStatus == 1`）。② 存在有效 **进项核销流水**（须先 `POST .../reverse-verification`）。 | `IForceDeleteGuardService.CanForceDeleteFinancePurchaseInvoiceAsync`；`FinancePurchaseInvoiceService.ReverseVerificationAsync` |
 | **销项发票** | 头：`ReceiveStatus > 0` 或 `ReceiveDone > 0`；**或** 任一 **销项发票明细** `SellInvoiceItem`（表内行）`ReceiveStatus > 0`。 | `IForceDeleteGuardService.CanForceDeleteFinanceSellInvoiceAsync` |
 
 **已移除的节点**：库存聚合 `Stock` 的 `force-delete` 接口已删除，上表不再列出。

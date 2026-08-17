@@ -715,6 +715,7 @@ const enUS = {
       stockIn: 'Stock In',
       stockInBatchRecords: 'Batch records',
       batchReconciliation: 'Batch reconciliation',
+      stockInOpsCheck: 'Stock-in ops check',
       inventoryManagement: 'Inventory',
       inventoryCenter: 'Inventory Center',
       inventoryStockItems: 'Stock items',
@@ -7385,6 +7386,64 @@ const enUS = {
       }
     }
   },
+  stockInOpsCheck: {
+    title: 'Stock-in ops check',
+    run: 'Check',
+    running: 'Checking…',
+    hint: 'Full scan of arrival notices, purchase stock-in, stock items, and AP write-offs. Report only; no data is changed.',
+    summary: '{errors} errors · {warnings} warnings',
+    filteredCount: 'Showing {shown} / {total}',
+    empty: 'No issues found.',
+    emptyFiltered: 'No findings match the current filters.',
+    idle: 'Click Check to run a full scan.',
+    failed: 'Check failed',
+    truncated: 'More than 2000 findings; showing the first 2000.',
+    stats: { total: 'Total' },
+    severity: { error: 'Error', warning: 'Warning' },
+    category: {
+      chain: 'Chain',
+      status: 'Status',
+      duplicate: 'Duplicate',
+      amount: 'Amount',
+      vendor: 'Vendor'
+    },
+    docType: {
+      arrivalNotice: 'Arrival notice',
+      stockIn: 'Stock-in',
+      stockInItem: 'Stock-in line',
+      stockItem: 'Stock item',
+      qc: 'QC',
+      purchaseInvoice: 'Purchase invoice',
+      purchaseOrder: 'Purchase order',
+      debug: 'Debug'
+    },
+    docCodeTip: {
+      arrivalNotice: 'Arrival notice no.',
+      stockIn: 'Stock-in no.',
+      stockInItem: 'Stock-in line no.',
+      stockItem: 'Stock item no.',
+      qc: 'QC no.',
+      purchaseInvoice: 'Purchase invoice no.',
+      purchaseOrder: 'Purchase order no.',
+      debug: 'Debug'
+    },
+    filters: {
+      search: 'Search',
+      reset: 'Reset',
+      severity: 'Level',
+      category: 'Check type',
+      docType: 'Document type',
+      docCode: 'Doc / related no.',
+      shown: 'Shown'
+    },
+    col: {
+      severity: 'Level',
+      docCode: 'Document',
+      related: 'Related',
+      reason: 'Reason',
+      suggestion: 'Ops action'
+    }
+  },
   stockOutOpsCheck: {
     title: 'Stock-out ops check',
     run: 'Check',
@@ -9956,7 +10015,7 @@ const enUS = {
       createUser: 'Created by',
       actions: 'Actions'
     },
-    actions: { detail: 'Detail', edit: 'Edit', void: 'Red / void' },
+    actions: { detail: 'Detail', edit: 'Edit', void: 'Red / void', reverseVerification: 'Reverse write-off' },
     columnSettings: 'Column settings',
     dialogCreate: 'New purchase invoice',
     dialogEdit: 'Edit purchase invoice',
@@ -9987,7 +10046,11 @@ const enUS = {
       exportFailed: 'Export failed',
       voidTitle: 'Red invoice',
       voidMsg: 'Red invoice {code}?',
-      voided: 'Invoice red / voided'
+      voided: 'Invoice red / voided',
+      reverseVerificationPrompt: 'Enter invoice code or invoice no. to confirm reverse write-off',
+      reverseVerificationSuccess: 'Reverse write-off succeeded; purchase invoice matching cleared',
+      reverseVerificationFailed: 'Reverse write-off failed',
+      reverseVerificationBillMismatch: 'Number mismatch; cancelled'
     }
   },
   financePurchaseInvoiceDetail: {

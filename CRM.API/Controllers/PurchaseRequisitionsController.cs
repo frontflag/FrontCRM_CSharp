@@ -756,25 +756,6 @@ namespace CRM.API.Controllers
             }
         }
 
-        [HttpDelete("{id}")]
-        [RequirePermission("purchase-requisition.write")]
-        public async Task<IActionResult> Delete(string id)
-        {
-            try
-            {
-                await _service.DeleteAsync(id);
-                return Ok(new { success = true, message = "删除成功" });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { success = false, message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { success = false, message = ex.Message });
-            }
-        }
-
         [HttpPost("auto-generate/{sellOrderId}")]
         [RequirePermission("purchase-requisition.write")]
         public async Task<IActionResult> AutoGenerate(string sellOrderId)

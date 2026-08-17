@@ -59,6 +59,7 @@ public static class TelemetryCatalog
             ["BatchReconciliation"] = "批次对账",
             ["StockInCreate"] = "新建入库单",
             ["StockInDetail"] = "入库单详情",
+            ["StockInOpsCheck"] = "入库运维检查",
             ["CustomsBrokerList"] = "报关行",
             ["CustomsPendlistList"] = "报关待办",
             ["CustomsDeclarationList"] = "报关单列表",

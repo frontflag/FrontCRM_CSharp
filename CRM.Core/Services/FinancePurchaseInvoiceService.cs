@@ -20,6 +20,7 @@ namespace CRM.Core.Services
         private readonly IRepository<VendorInfo> _vendorRepo;
         private readonly ISerialNumberService _serialNumberService;
         private readonly IFinancePurchaseInvoicePaymentSyncService _invoicePaymentSync;
+        private readonly IFinancePurchaseInvoiceWriteOffService _writeOffService;
 
         public FinancePurchaseInvoiceService(
             IRepository<FinancePurchaseInvoice> invoiceRepo,
@@ -32,6 +33,7 @@ namespace CRM.Core.Services
             IRepository<VendorInfo> vendorRepo,
             ISerialNumberService serialNumberService,
             IFinancePurchaseInvoicePaymentSyncService invoicePaymentSync,
+            IFinancePurchaseInvoiceWriteOffService writeOffService,
             IUnitOfWork? unitOfWork = null)
         {
             _invoiceRepo = invoiceRepo;
@@ -44,6 +46,7 @@ namespace CRM.Core.Services
             _vendorRepo = vendorRepo;
             _serialNumberService = serialNumberService;
             _invoicePaymentSync = invoicePaymentSync;
+            _writeOffService = writeOffService;
             _unitOfWork = unitOfWork;
         }
 
@@ -218,6 +221,54 @@ namespace CRM.Core.Services
                 OperatorUserName = actingUserName?.Trim(),
                 OperationDescOverride = $"强制删除进项发票：Id={entity.Id}，InvoiceCode={entity.InvoiceCode}，InvoiceNo={entity.InvoiceNo}"
             });
+        }
+
+        /// <inheritdoc />
+        public async Task<FinancePurchaseInvoice> ReverseVerificationAsync(
+            string id,
+            string confirmBillCode,
+            string actingUserId,
+            string? actingUserName)
+        {
+            if (string.IsNullOrWhiteSpace(confirmBillCode))
+                throw new ArgumentException("请填写 confirmBillCode", nameof(confirmBillCode));
+            if (string.IsNullOrWhiteSpace(actingUserId))
+                throw new ArgumentException("操作人不能为空", nameof(actingUserId));
+
+            var invoice = await _invoiceRepo.GetByIdAsync(id.Trim())
+                ?? throw new InvalidOperationException("进项发票不存在");
+            if (!MatchesConfirmBillCode(invoice, confirmBillCode))
+                throw new ArgumentException("确认单号不匹配，已拒绝反核销");
+
+            var reverseResult = await _writeOffService.ReverseByInvoiceAsync(invoice.Id, actingUserId);
+
+            var stockInCodes = reverseResult.StockInCodes.Count > 0
+                ? string.Join("、", reverseResult.StockInCodes)
+                : "—";
+            await _logOperationAppend.AppendAsync(
+                BusinessLogTypes.FinancePurchaseInvoice,
+                invoice.Id,
+                invoice.InvoiceCode ?? invoice.InvoiceNo,
+                OperationLogActionTypes.FinancePurchaseInvoiceReverseVerification,
+                actingUserId.Trim(),
+                actingUserName?.Trim(),
+                $"进项发票反核销：Id={invoice.Id}，InvoiceCode={invoice.InvoiceCode}，InvoiceNo={invoice.InvoiceNo}，撤销流水 {reverseResult.WriteOffCount} 笔，关联入库：{stockInCodes}");
+
+            return await GetByIdAsync(invoice.Id) ?? invoice;
+        }
+
+        private static bool MatchesConfirmBillCode(FinancePurchaseInvoice invoice, string confirmBillCode)
+        {
+            var confirm = confirmBillCode.Trim();
+            if (string.IsNullOrWhiteSpace(confirm))
+                return false;
+            if (!string.IsNullOrWhiteSpace(invoice.InvoiceCode) &&
+                string.Equals(confirm, invoice.InvoiceCode.Trim(), StringComparison.Ordinal))
+                return true;
+            if (!string.IsNullOrWhiteSpace(invoice.InvoiceNo) &&
+                string.Equals(confirm, invoice.InvoiceNo.Trim(), StringComparison.Ordinal))
+                return true;
+            return false;
         }
 
         public async Task ConfirmAsync(string id, DateTime confirmDate, string? actingUserId = null)

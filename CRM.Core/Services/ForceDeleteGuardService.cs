@@ -24,6 +24,7 @@ public class ForceDeleteGuardService : IForceDeleteGuardService
     private readonly IRepository<FinanceReceivable> _financeReceivableRepo;
     private readonly IRepository<Packing> _packingRepo;
     private readonly IRepository<CustomsDeclaration> _customsDeclarationRepo;
+    private readonly IRepository<FinancePurchaseInvoiceWriteOff> _financePurchaseInvoiceWriteOffRepo;
 
     public ForceDeleteGuardService(
         IRepository<FinancePaymentItem> financePaymentItemRepo,
@@ -40,7 +41,8 @@ public class ForceDeleteGuardService : IForceDeleteGuardService
         IRepository<FinanceReceipt> financeReceiptRepo,
         IRepository<FinanceReceivable> financeReceivableRepo,
         IRepository<Packing> packingRepo,
-        IRepository<CustomsDeclaration> customsDeclarationRepo)
+        IRepository<CustomsDeclaration> customsDeclarationRepo,
+        IRepository<FinancePurchaseInvoiceWriteOff> financePurchaseInvoiceWriteOffRepo)
     {
         _financePaymentItemRepo = financePaymentItemRepo;
         _financeReceiptItemRepo = financeReceiptItemRepo;
@@ -57,6 +59,7 @@ public class ForceDeleteGuardService : IForceDeleteGuardService
         _financeReceivableRepo = financeReceivableRepo;
         _packingRepo = packingRepo;
         _customsDeclarationRepo = customsDeclarationRepo;
+        _financePurchaseInvoiceWriteOffRepo = financePurchaseInvoiceWriteOffRepo;
     }
 
     public async Task<ForceDeleteGuardResult> CanForceDeleteFinancePaymentAsync(string financePaymentId)
@@ -133,6 +136,10 @@ public class ForceDeleteGuardService : IForceDeleteGuardService
             reasons.Add("进项发票已认证，需先人工反处理后再删除");
         if (header.RedInvoiceStatus == 1)
             reasons.Add("进项发票已冲红，需先人工核对后再删除");
+        var writeOffs = (await _financePurchaseInvoiceWriteOffRepo.FindAsync(x =>
+                x.FinancePurchaseInvoiceId == financePurchaseInvoiceId)).ToList();
+        if (writeOffs.Count > 0)
+            reasons.Add($"存在下游业务节点：进项发票核销流水 {writeOffs.Count} 笔，须先反核销后再删除");
         return reasons.Count == 0 ? ForceDeleteGuardResult.Allow() : ForceDeleteGuardResult.Deny(reasons);
     }
 
@@ -219,6 +226,34 @@ public class ForceDeleteGuardService : IForceDeleteGuardService
             return ForceDeleteGuardResult.Deny(
                 $"该出库单已有收款核销（已核销 {receivable.VerifiedDone}），不可删除");
         return ForceDeleteGuardResult.Allow();
+    }
+
+    public async Task<ForceDeleteGuardResult> CanForceDeleteStockInAsync(string stockInId)
+    {
+        if (string.IsNullOrWhiteSpace(stockInId))
+            return ForceDeleteGuardResult.Deny("入库单ID不能为空");
+        var key = stockInId.Trim();
+        var writeOffs = (await _financePurchaseInvoiceWriteOffRepo.FindAsync(w => w.StockInId == key)).ToList();
+        if (writeOffs.Count == 0)
+            return ForceDeleteGuardResult.Allow();
+
+        var invoiceIds = writeOffs
+            .Select(w => w.FinancePurchaseInvoiceId?.Trim())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList()!;
+        var invoiceCodes = invoiceIds.Count == 0
+            ? Array.Empty<string>()
+            : (await _financePurchaseInvoiceRepo.FindAsync(x => invoiceIds.Contains(x.Id)))
+                .Select(x => string.IsNullOrWhiteSpace(x.InvoiceCode) ? x.InvoiceNo : x.InvoiceCode.Trim())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(5)
+                .ToArray();
+        return ForceDeleteGuardResult.Deny(invoiceCodes.Length == 0
+            ? "存在下游业务节点：进项发票核销，不能强制删除入库单"
+            : $"存在下游业务节点：进项发票核销；进项发票单号：{string.Join("、", invoiceCodes)}");
     }
 
     public async Task<ForceDeleteGuardResult> CanForceDeletePackingAsync(string packingId)

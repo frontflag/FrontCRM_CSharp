@@ -10,6 +10,7 @@ public interface IForceDeleteGuardService
     Task<ForceDeleteGuardResult> CanForceDeleteFinanceSellInvoiceAsync(string financeSellInvoiceId);
     Task<ForceDeleteGuardResult> CanForceDeleteStockOutRequestAsync(string stockOutRequestId);
     Task<ForceDeleteGuardResult> CanForceDeleteStockOutAsync(string stockOutId);
+    Task<ForceDeleteGuardResult> CanForceDeleteStockInAsync(string stockInId);
     Task<ForceDeleteGuardResult> CanForceDeletePackingAsync(string packingId);
 }
 

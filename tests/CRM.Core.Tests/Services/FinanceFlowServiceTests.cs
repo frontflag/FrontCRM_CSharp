@@ -290,7 +290,8 @@ namespace CRM.Core.Tests.Services
                 Substitute.For<IRepository<FinanceReceipt>>(),
                 Substitute.For<IRepository<FinanceReceivable>>(),
                 Substitute.For<IRepository<Packing>>(),
-                Substitute.For<IRepository<CustomsDeclaration>>());
+                Substitute.For<IRepository<CustomsDeclaration>>(),
+                Substitute.For<IRepository<FinancePurchaseInvoiceWriteOff>>());
 
             var result = await guardWithItems.CanForceDeleteFinancePaymentAsync("pay-1");
 
@@ -470,7 +471,8 @@ namespace CRM.Core.Tests.Services
                 Substitute.For<IRepository<FinanceReceipt>>(),
                 Substitute.For<IRepository<FinanceReceivable>>(),
                 Substitute.For<IRepository<Packing>>(),
-                Substitute.For<IRepository<CustomsDeclaration>>());
+                Substitute.For<IRepository<CustomsDeclaration>>(),
+                Substitute.For<IRepository<FinancePurchaseInvoiceWriteOff>>());
 
             var result = await guard.CanForceDeleteFinanceReceiptAsync("rec-1");
 
@@ -510,7 +512,8 @@ namespace CRM.Core.Tests.Services
                 Substitute.For<IRepository<FinanceReceipt>>(),
                 Substitute.For<IRepository<FinanceReceivable>>(),
                 Substitute.For<IRepository<Packing>>(),
-                Substitute.For<IRepository<CustomsDeclaration>>());
+                Substitute.For<IRepository<CustomsDeclaration>>(),
+                Substitute.For<IRepository<FinancePurchaseInvoiceWriteOff>>());
 
             var result = await guard.CanForceDeleteFinanceReceiptAsync("rec-1");
 

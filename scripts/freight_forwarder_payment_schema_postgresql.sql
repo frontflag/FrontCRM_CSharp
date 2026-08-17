@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS public.freight_forwarder_company_bank (
   "Currency" smallint NOT NULL DEFAULT 1,
   "IsDefault" boolean NOT NULL DEFAULT false,
   "IsDisabled" boolean NOT NULL DEFAULT false,
+  is_deleted boolean NOT NULL DEFAULT false,
   "create_by_user_id" character varying(36) NULL,
   "modify_by_user_id" character varying(36) NULL,
   "CreateTime" timestamp with time zone NOT NULL,
@@ -76,6 +77,7 @@ COMMENT ON COLUMN public.freight_forwarder_company_bank."AccountNo" IS '银行�
 COMMENT ON COLUMN public.freight_forwarder_company_bank."Currency" IS '账户币别：1=人民币，2=美元，3=欧元';
 COMMENT ON COLUMN public.freight_forwarder_company_bank."IsDefault" IS '是否默认收款账户；同一货代公司仅建议一条为 true';
 COMMENT ON COLUMN public.freight_forwarder_company_bank."IsDisabled" IS '是否停用；true 时付款弹窗不可选';
+COMMENT ON COLUMN public.freight_forwarder_company_bank.is_deleted IS '软删除；默认查询排除';
 COMMENT ON COLUMN public.freight_forwarder_company_bank."create_by_user_id" IS '创建人用户 ID';
 COMMENT ON COLUMN public.freight_forwarder_company_bank."modify_by_user_id" IS '最后修改人用户 ID';
 COMMENT ON COLUMN public.freight_forwarder_company_bank."CreateTime" IS '创建时间（UTC）';

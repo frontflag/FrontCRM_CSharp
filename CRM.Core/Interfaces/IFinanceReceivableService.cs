@@ -162,7 +162,7 @@ public interface IFinanceReceivableService
 
     Task<IReadOnlyList<FinanceReceivableWriteOffListItem>> GetWriteOffsByReceiptIdAsync(string receiptId, CancellationToken cancellationToken = default);
 
-    /// <summary>撤销收款单下全部收款明细来源的应收核销流水（物理删除流水并回滚应收/明细）。</summary>
+    /// <summary>撤销收款单下全部收款明细来源的应收核销流水（软删流水并回滚应收/明细）。</summary>
     Task<FinanceReceiptReverseWriteOffResult> ReverseWriteOffsByReceiptAsync(
         string receiptId,
         string? actingUserId = null,

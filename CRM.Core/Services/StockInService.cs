@@ -46,6 +46,7 @@ namespace CRM.Core.Services
         private readonly ICustomsV2FlowService _customsV2FlowService;
         private readonly IStockInCustomsContextQuery _stockInCustomsContextQuery;
         private readonly ICustomsTraceQuery _customsTraceQuery;
+        private readonly IForceDeleteGuardService _forceDeleteGuard;
 
         public StockInService(
             IRepository<StockIn> stockInRepository,
@@ -75,7 +76,8 @@ namespace CRM.Core.Services
             IStockInListQuery stockInListQuery,
             ICustomsV2FlowService customsV2FlowService,
             IStockInCustomsContextQuery stockInCustomsContextQuery,
-            ICustomsTraceQuery customsTraceQuery)
+            ICustomsTraceQuery customsTraceQuery,
+            IForceDeleteGuardService forceDeleteGuard)
         {
             _stockInRepository = stockInRepository;
             _stockInItemRepository = stockInItemRepository;
@@ -105,6 +107,7 @@ namespace CRM.Core.Services
             _customsV2FlowService = customsV2FlowService;
             _stockInCustomsContextQuery = stockInCustomsContextQuery;
             _customsTraceQuery = customsTraceQuery;
+            _forceDeleteGuard = forceDeleteGuard;
         }
 
         public async Task<StockIn> CreateAsync(CreateStockInRequest request, string? actingUserId = null)
@@ -1206,6 +1209,10 @@ namespace CRM.Core.Services
         private async Task DeleteInternalAsync(StockIn stockIn)
         {
             var sid = stockIn.Id.Trim();
+            var writeOffGuard = await _forceDeleteGuard.CanForceDeleteStockInAsync(sid);
+            if (!writeOffGuard.CanDelete)
+                throw new ArgumentException(writeOffGuard.Message);
+
             var sidLower = sid.ToLowerInvariant();
             var downstreamStockItems = (await _stockItemRepository.FindAsync(x =>
                     x.StockInId != null &&

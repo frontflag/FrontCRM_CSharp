@@ -22,6 +22,7 @@ namespace CRM.API.Controllers
         private readonly IOperationLogQueryService _operationLogQuery;
         private readonly IRbacService _rbacService;
         private readonly IExportOperationLogService _exportLog;
+        private readonly IStockInOpsCheckService _opsCheck;
         private readonly ILogger<StockInController> _logger;
 
         public StockInController(
@@ -29,13 +30,40 @@ namespace CRM.API.Controllers
             IOperationLogQueryService operationLogQuery,
             IRbacService rbacService,
             IExportOperationLogService exportLog,
+            IStockInOpsCheckService opsCheck,
             ILogger<StockInController> logger)
         {
             _service = service;
             _operationLogQuery = operationLogQuery;
             _rbacService = rbacService;
             _exportLog = exportLog;
+            _opsCheck = opsCheck;
             _logger = logger;
+        }
+
+        /// <summary>入库运维检查（系统管理员 / 平台管理员）：全量只读对账，仅采购入库。</summary>
+        [HttpPost("ops-check")]
+        public async Task<ActionResult<ApiResponse<StockInOpsCheckResultDto>>> RunOpsCheck(
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrWhiteSpace(userId))
+                    return StatusCode(403, ApiResponse<StockInOpsCheckResultDto>.Fail("未登录或身份无效", 403));
+
+                var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
+                if (!ManagementAccountPolicy.CanForceDelete(summary))
+                    return StatusCode(403, ApiResponse<StockInOpsCheckResultDto>.Fail("仅系统管理员或平台管理员可做入库运维检查", 403));
+
+                var result = await _opsCheck.RunAsync(cancellationToken);
+                return Ok(ApiResponse<StockInOpsCheckResultDto>.Ok(result, "ok"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "入库运维检查失败");
+                return StatusCode(500, ApiResponse<StockInOpsCheckResultDto>.Fail($"检查失败: {ex.Message}", 500));
+            }
         }
 
         public class ForceDeleteStockInRequest

@@ -1710,7 +1710,7 @@ public class FinanceReceivableService : IFinanceReceivableService
                 }
             }
 
-            await _writeOffRepo.DeleteAsync(writeOff.Id);
+            await _writeOffRepo.DeleteAsync(writeOff.Id); // ISoftDeletable：软删流水，核销页不再展示
 
             touchedLines.Add(receivable.SellOrderItemId);
             if (receivableCodes.Count < 5 && !string.IsNullOrWhiteSpace(receivable.ReceivableCode))

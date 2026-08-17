@@ -34,6 +34,14 @@ public static class CompanyBankInfoStore
         if (rows.Count > 0)
             return rows.Select(ToDto).ToList();
 
+        // 表里已有行（含全部软删）时不再回退 legacy sysparam，避免「删光后复活旧 JSON」。
+        var anyIncludingDeleted = await db.CompanyBankInfos
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .AnyAsync(cancellationToken);
+        if (anyIncludingDeleted)
+            return new List<CompanyBankInfoRowDto>();
+
         return await ReadLegacySysParamAsync(db, logger, cancellationToken);
     }
 
@@ -94,14 +102,17 @@ public static class CompanyBankInfoStore
         CancellationToken cancellationToken = default)
     {
         dtos ??= new List<CompanyBankInfoRowDto>();
-        var existing = await db.CompanyBankInfos.ToListAsync(cancellationToken);
+        var existing = await db.CompanyBankInfos.IgnoreQueryFilters().ToListAsync(cancellationToken);
         var incomingIds = dtos
             .Select(d => (d.Id ?? string.Empty).Trim())
             .Where(id => id.Length > 0)
             .ToHashSet(StringComparer.Ordinal);
 
-        foreach (var row in existing.Where(e => !incomingIds.Contains(e.Id)).ToList())
-            db.CompanyBankInfos.Remove(row);
+        foreach (var row in existing.Where(e => !incomingIds.Contains(e.Id) && !e.IsDeleted).ToList())
+        {
+            row.IsDeleted = true;
+            row.ModifyTime = DateTime.UtcNow;
+        }
 
         for (var i = 0; i < dtos.Count; i++)
         {
@@ -122,6 +133,7 @@ public static class CompanyBankInfoStore
             }
 
             MapToEntity(dto, entity, i);
+            entity.IsDeleted = false;
             entity.ModifyTime = DateTime.UtcNow;
         }
     }

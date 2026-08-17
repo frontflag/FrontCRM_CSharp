@@ -378,6 +378,12 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '新建入库单' }
       },
       {
+        path: 'inventory/stock-in/ops-check',
+        name: 'StockInOpsCheck',
+        component: () => import('@/views/Inventory/StockInOpsCheckPage.vue'),
+        meta: { requiresAuth: true, title: '入库运维检查', adminOrManagerOnly: true }
+      },
+      {
         path: 'inventory/stock-in/:id',
         name: 'StockInDetail',
         component: () => import('@/views/Inventory/StockInEdit.vue'),

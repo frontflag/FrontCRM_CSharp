@@ -1,12 +1,13 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using CRM.Core.Constants;
+using CRM.Core.Interfaces;
 
 namespace CRM.Core.Models.Finance;
 
 /// <summary>应收款与收款明细/预收池核销记录。</summary>
 [Table("finance_receivable_write_off")]
-public class FinanceReceivableWriteOff : BaseGuidEntity
+public class FinanceReceivableWriteOff : BaseGuidEntity, ISoftDeletable
 {
     [Key]
     [StringLength(36)]
@@ -40,4 +41,7 @@ public class FinanceReceivableWriteOff : BaseGuidEntity
     [StringLength(36)]
     [Column("operator_user_id")]
     public string? OperatorUserId { get; set; }
+
+    [Column("is_deleted")]
+    public bool IsDeleted { get; set; }
 }

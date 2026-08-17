@@ -1,10 +1,11 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using CRM.Core.Interfaces;
 
 namespace CRM.Core.Models.Rbac
 {
     [Table("sys_user_role")]
-    public class RbacUserRole : BaseGuidEntity
+    public class RbacUserRole : BaseGuidEntity, ISoftDeletable
     {
         [Key]
         [StringLength(36)]
@@ -18,5 +19,8 @@ namespace CRM.Core.Models.Rbac
         [Required]
         [StringLength(36)]
         public string RoleId { get; set; } = string.Empty;
+
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
     }
 }

@@ -2090,7 +2090,8 @@ namespace CRM.IntegrationTests
                 Substitute.For<IStockInListQuery>(),
                 Substitute.For<ICustomsV2FlowService>(),
                 Substitute.For<IStockInCustomsContextQuery>(),
-                Substitute.For<ICustomsTraceQuery>());
+                Substitute.For<ICustomsTraceQuery>(),
+                Substitute.For<IForceDeleteGuardService>());
 
             // 模拟入库单仓储
             var allStockIns = new List<StockIn>();
