@@ -258,7 +258,7 @@ public class FinanceReceivablesController : ControllerBase
         }
     }
 
-    /// <summary>作废未核销应收（系统管理员 / 平台管理员）。</summary>
+    /// <summary>作废未核销孤儿应收（出库已删；系统管理员 / 平台管理员）。出库仍有效时拒绝。</summary>
     [HttpPost("{id}/void")]
     [RequirePermission("finance-receipt.write")]
     public async Task<IActionResult> VoidUnverified(string id, [FromBody] VoidFinanceReceivableRequest? body)

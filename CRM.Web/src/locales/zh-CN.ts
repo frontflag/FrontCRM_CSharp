@@ -7596,6 +7596,36 @@ const zhCN = {
       remarkPlaceholder: '可选备注',
       loadContextFailed: '加载出库单信息失败'
     },
+    forceDelete: {
+      title: '强制删除出库单',
+      close: '关闭',
+      confirm: '强制删除',
+      codeLabel: '请输入出库单号以确认',
+      codePlaceholder: '出库单号',
+      codeMismatch: '输入单号不匹配，已取消',
+      loadFailed: '加载强制删除信息失败',
+      success: '强制删除成功',
+      failed: '强制删除失败',
+      noReceivable: '本单没有有效应收。',
+      receivableTitle: '应收与核销',
+      receivableCode: '应收单号',
+      amount: '应收金额',
+      verifiedDone: '已核销',
+      verification: '核销状态',
+      receipts: '收款单',
+      verificationStatus: {
+        pending: '未核销',
+        partial: '部分核销',
+        complete: '核销完成'
+      },
+      blockedTitle: '不能强制删除',
+      reverseFirst: '请先打开上表中的收款单，点「反核销」并输入该收款单号确认，然后再强制删除。',
+      consequencesTitle: '删除后将会',
+      voidReceivables: '一并作废上表未核销应收，应收列表中不再显示。',
+      rollbackInventory: '已出库数量会回滚库存。',
+      noRegen: '不会自动再生成应收。若还要出库，须重新出库后再「标记完成」。',
+      packingReconcile: '关联装箱单状态会按实际出库情况校正。'
+    },
     messages: {
       loadFailed: '加载出库单失败',
       markFinishedSuccess: '已标记为完成',
@@ -9436,7 +9466,7 @@ const zhCN = {
       amount: '销售总额'
     },
     void: '作废应收',
-    voidPrompt: '请输入应收单号以确认作废',
+    voidPrompt: '仅对应出库单已删除时才能作废。请输入应收单号以确认作废',
     voidMismatch: '输入的单号与应收单号不一致',
     voidOk: '应收已作废',
     voidFailed: '作废应收失败'

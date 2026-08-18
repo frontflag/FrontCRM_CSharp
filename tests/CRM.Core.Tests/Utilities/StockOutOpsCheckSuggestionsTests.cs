@@ -66,6 +66,29 @@ public class StockOutOpsCheckSuggestionsTests
     }
 
     [Fact]
+    public void VoidThenRebuild_Unverified_ForceDeletesWithoutVoid()
+    {
+        var ar = new StockOutOpsCheckSuggestions.ReceivableHint("ARV00007", 0m, Array.Empty<string>());
+        var text = StockOutOpsCheckSuggestions.VoidThenRebuild(ar, "STO0020X");
+
+        Assert.Contains("① 打开「出库单列表」，对 STO0020X 点「强制删除」，输入 STO0020X 确认。", text);
+        Assert.Contains("标记完成", text);
+        Assert.DoesNotContain("作废应收", text);
+        Assert.DoesNotContain("反核销", text);
+    }
+
+    [Fact]
+    public void VoidThenRebuild_Verified_ReverseThenForceDelete()
+    {
+        var ar = new StockOutOpsCheckSuggestions.ReceivableHint("ARV00008", 100m, new[] { "FRC0009B" });
+        var text = StockOutOpsCheckSuggestions.VoidThenRebuild(ar, "STO0020X");
+
+        Assert.Contains("① 打开「收款单」FRC0009B，点「反核销」，输入 FRC0009B 确认。", text);
+        Assert.Contains("② 打开「出库单列表」，对 STO0020X 点「强制删除」，输入 STO0020X 确认。", text);
+        Assert.DoesNotContain("作废应收", text);
+    }
+
+    [Fact]
     public void JoinSteps_UsesCircledNumbersAndNewlines()
     {
         var text = StockOutOpsCheckSuggestions.JoinSteps(new[] { "第一步", "第二步" });

@@ -7612,6 +7612,36 @@ const enUS = {
       remarkPlaceholder: 'Optional remark',
       loadContextFailed: 'Failed to load stock-out details'
     },
+    forceDelete: {
+      title: 'Force-delete stock-out',
+      close: 'Close',
+      confirm: 'Force delete',
+      codeLabel: 'Enter the stock-out number to confirm',
+      codePlaceholder: 'Stock-out number',
+      codeMismatch: 'Number does not match; cancelled',
+      loadFailed: 'Failed to load force-delete preview',
+      success: 'Force-deleted',
+      failed: 'Force delete failed',
+      noReceivable: 'This stock-out has no active receivable.',
+      receivableTitle: 'Receivable and write-off',
+      receivableCode: 'Receivable no.',
+      amount: 'Amount',
+      verifiedDone: 'Written off',
+      verification: 'Write-off status',
+      receipts: 'Receipts',
+      verificationStatus: {
+        pending: 'Not written off',
+        partial: 'Partial',
+        complete: 'Written off'
+      },
+      blockedTitle: 'Cannot force-delete',
+      reverseFirst: 'Open the receipt listed above, click Reverse write-off, enter that receipt number, then force-delete again.',
+      consequencesTitle: 'This will',
+      voidReceivables: 'Void the unverified receivables above; they disappear from the receivable list.',
+      rollbackInventory: 'Roll back inventory for quantities already shipped.',
+      noRegen: 'Receivables will not be recreated automatically. To ship again, stock out and Mark finished.',
+      packingReconcile: 'Related packing status will be reconciled to remaining stock-outs.'
+    },
     messages: {
       loadFailed: 'Failed to load stock-out list',
       markFinishedSuccess: 'Marked as finished',
@@ -9453,7 +9483,7 @@ const enUS = {
       amount: 'Total'
     },
     void: 'Void receivable',
-    voidPrompt: 'Enter the receivable number to confirm void',
+    voidPrompt: 'Only leftover receivables of a deleted stock-out can be voided. Enter the receivable number to confirm',
     voidMismatch: 'The number does not match the receivable',
     voidOk: 'Receivable voided',
     voidFailed: 'Failed to void receivable'

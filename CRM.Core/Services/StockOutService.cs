@@ -3027,6 +3027,8 @@ namespace CRM.Core.Services
             var stockOut = await _stockOutRepository.GetByIdAsync(id.Trim())
                 ?? throw new InvalidOperationException($"出库单 {id} 不存在");
 
+            await _financeReceivableService.TrySoftDeleteForStockOutAsync(stockOut.Id, actingUserId);
+
             var lineItems = (await _stockOutItemRepository.FindAsync(x => x.StockOutId == stockOut.Id)).ToList();
             var linkedPackingIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var pid in lineItems
@@ -3355,6 +3357,24 @@ namespace CRM.Core.Services
                 OperatorUserName = actingUserName?.Trim(),
                 OperationDescOverride = $"强制删除出库通知 RequestId={entity.Id}，确认单号={recordCode}"
             });
+        }
+
+        /// <inheritdoc />
+        public async Task<StockOutForceDeletePreviewDto> GetForceDeletePreviewAsync(
+            string id,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+                throw new ArgumentException("ID不能为空", nameof(id));
+
+            var entity = await _stockOutRepository.GetByIdAsync(id.Trim())
+                ?? throw new InvalidOperationException("出库单不存在");
+            cancellationToken.ThrowIfCancellationRequested();
+            var guard = await _forceDeleteGuard.CanForceDeleteStockOutAsync(entity.Id);
+            var receivables = await _financeReceivableService.ListActiveForStockOutForceDeleteAsync(
+                entity.Id,
+                cancellationToken);
+            return StockOutForceDeletePreviewFactory.Create(entity, guard, receivables);
         }
 
         /// <inheritdoc />

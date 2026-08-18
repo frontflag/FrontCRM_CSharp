@@ -600,6 +600,7 @@ const canVoidReceivable = computed(
     !!detail.value
     && authStore.canForceDelete()
     && Number(detail.value.verifiedDone ?? 0) <= 0
+    && !!detail.value.stockOutMissingOrDeleted
 )
 
 const receivableCaptionAvatarChar = computed(() => {

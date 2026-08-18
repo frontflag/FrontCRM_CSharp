@@ -111,4 +111,8 @@ public class FinanceReceivable : BaseGuidEntity, ISoftDeletable
 
     [StringLength(36)]
     public string? ModifyByUserId { get; set; }
+
+    /// <summary>详情 API：对应出库单不存在或已软删时为 true，才允许作废。</summary>
+    [NotMapped]
+    public bool StockOutMissingOrDeleted { get; set; }
 }

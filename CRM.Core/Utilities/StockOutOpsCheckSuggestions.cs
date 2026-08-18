@@ -129,7 +129,6 @@ public static class StockOutOpsCheckSuggestions
 
     public static string VoidThenRebuild(ReceivableHint ar, string stockOutCode) =>
         JoinSteps(ReverseWriteOffSteps(ar.ReceivableCode, ar.VerifiedDone, ar.ReceiptCodes)
-            .Append(VoidReceivable(ar.ReceivableCode))
             .Append(ForceDeleteStockOut(stockOutCode, openList: true))
             .Append("按装箱重出后，在「出库单列表」对新出库单点「标记完成」。"));
 

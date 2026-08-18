@@ -424,6 +424,94 @@
     </el-dialog>
 
     <el-dialog
+      v-model="forceDeleteDialogVisible"
+      :title="t('stockOutList.forceDelete.title')"
+      width="640px"
+      class="stock-out-force-delete-dialog"
+      @closed="resetForceDeleteDialog"
+    >
+      <div v-loading="forceDeleteLoading" class="stock-out-force-delete-dialog__body">
+        <template v-if="forceDeletePreview">
+          <div
+            v-if="!forceDeletePreview.canForceDelete"
+            class="stock-out-force-delete-dialog__alert stock-out-force-delete-dialog__alert--block"
+          >
+            <strong>{{ t('stockOutList.forceDelete.blockedTitle') }}</strong>
+            <p>{{ forceDeletePreview.blockReason }}</p>
+            <p v-if="forceDeletePreview.receivables.some((r) => Number(r.verifiedDone) > 0)">
+              {{ t('stockOutList.forceDelete.reverseFirst') }}
+            </p>
+          </div>
+          <div class="stock-out-force-delete-dialog__section-title">
+            {{ t('stockOutList.forceDelete.receivableTitle') }}
+          </div>
+          <p v-if="!forceDeletePreview.receivables.length" class="stock-out-force-delete-dialog__muted">
+            {{ t('stockOutList.forceDelete.noReceivable') }}
+          </p>
+          <table v-else class="stock-out-force-delete-dialog__table">
+            <thead>
+              <tr>
+                <th>{{ t('stockOutList.forceDelete.receivableCode') }}</th>
+                <th>{{ t('stockOutList.forceDelete.verification') }}</th>
+                <th>{{ t('stockOutList.forceDelete.amount') }}</th>
+                <th>{{ t('stockOutList.forceDelete.verifiedDone') }}</th>
+                <th>{{ t('stockOutList.forceDelete.receipts') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in forceDeletePreview.receivables" :key="row.id">
+                <td>{{ row.receivableCode || '—' }}</td>
+                <td>{{ forceDeleteVerificationLabel(row.verificationStatus) }}</td>
+                <td>{{ formatForceDeleteAmount(row.amount) }}</td>
+                <td>{{ formatForceDeleteAmount(row.verifiedDone) }}</td>
+                <td>{{ row.receiptCodes.length ? row.receiptCodes.join('、') : '—' }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <template v-if="forceDeletePreview.canForceDelete">
+            <div class="stock-out-force-delete-dialog__section-title">
+              {{ t('stockOutList.forceDelete.consequencesTitle') }}
+            </div>
+            <ul class="stock-out-force-delete-dialog__consequences">
+              <li v-if="forceDeletePreview.willVoidReceivables">
+                {{ t('stockOutList.forceDelete.voidReceivables') }}
+              </li>
+              <li v-if="forceDeletePreview.willRollbackInventory">
+                {{ t('stockOutList.forceDelete.rollbackInventory') }}
+              </li>
+              <li>{{ t('stockOutList.forceDelete.noRegen') }}</li>
+              <li>{{ t('stockOutList.forceDelete.packingReconcile') }}</li>
+            </ul>
+            <label class="stock-out-force-delete-dialog__label">
+              {{ t('stockOutList.forceDelete.codeLabel') }}
+              <el-input
+                v-model="forceDeleteConfirmCode"
+                :placeholder="t('stockOutList.forceDelete.codePlaceholder')"
+                clearable
+                class="stock-out-force-delete-dialog__field"
+                @keyup.enter="() => void submitForceDelete()"
+              />
+            </label>
+          </template>
+        </template>
+      </div>
+      <template #footer>
+        <el-button @click="forceDeleteDialogVisible = false">
+          {{ forceDeletePreview?.canForceDelete ? t('common.cancel') : t('stockOutList.forceDelete.close') }}
+        </el-button>
+        <el-button
+          v-if="forceDeletePreview?.canForceDelete"
+          type="danger"
+          :disabled="!canSubmitForceDelete"
+          :loading="forceDeleteSubmitting"
+          @click="() => void submitForceDelete()"
+        >
+          {{ t('stockOutList.forceDelete.confirm') }}
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog
       v-model="editDialogVisible"
       :title="t('stockOutList.editDialog.title')"
       width="480px"
@@ -479,7 +567,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowRight, Setting } from '@element-plus/icons-vue'
-import { stockOutApi, type StockOutDto, type StockOutListQuery, type StockOutMarkFinishContext } from '@/api/stockOut'
+import { stockOutApi, type StockOutDto, type StockOutForceDeletePreview, type StockOutListQuery, type StockOutMarkFinishContext } from '@/api/stockOut'
 import {
   STOCK_OUT_LIST_TAB_MODE_OPTIONS,
   STOCK_OUT_STATUS_TAB_VALUES,
@@ -496,6 +584,7 @@ import {
 } from '@/utils/stockOutListTabMode'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import { withExportTimestamp } from '@/utils/exportFileName'
+import { getApiErrorMessage } from '@/utils/apiError'
 import { buildStockOutListColumns } from '@/composables/buildStockOutListColumns'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
@@ -671,6 +760,13 @@ const markFinishForm = reactive({
   remark: ''
 })
 
+const forceDeleteDialogVisible = ref(false)
+const forceDeleteLoading = ref(false)
+const forceDeleteSubmitting = ref(false)
+const forceDeleteTargetId = ref('')
+const forceDeleteConfirmCode = ref('')
+const forceDeletePreview = ref<StockOutForceDeletePreview | null>(null)
+
 const editDialogVisible = ref(false)
 const editLoading = ref(false)
 const editSubmitting = ref(false)
@@ -685,6 +781,34 @@ const canSubmitMarkFinish = computed(
   () =>
     Boolean(markFinishForm.stockOutDate?.trim()) && Boolean(markFinishForm.courierTrackingNo?.trim())
 )
+
+const canSubmitForceDelete = computed(() => {
+  const expected = String(forceDeletePreview.value?.stockOutCode ?? '').trim()
+  return (
+    !!forceDeletePreview.value?.canForceDelete &&
+    expected.length > 0 &&
+    forceDeleteConfirmCode.value.trim() === expected
+  )
+})
+
+function forceDeleteVerificationLabel(status: number): string {
+  if (status === 2) return t('stockOutList.forceDelete.verificationStatus.complete')
+  if (status === 1) return t('stockOutList.forceDelete.verificationStatus.partial')
+  return t('stockOutList.forceDelete.verificationStatus.pending')
+}
+
+function formatForceDeleteAmount(n: number): string {
+  if (!Number.isFinite(n)) return '—'
+  return n.toFixed(2)
+}
+
+function resetForceDeleteDialog() {
+  forceDeleteTargetId.value = ''
+  forceDeleteConfirmCode.value = ''
+  forceDeletePreview.value = null
+  forceDeleteLoading.value = false
+  forceDeleteSubmitting.value = false
+}
 
 function displayOrDash(value: string | null | undefined): string {
   const s = String(value ?? '').trim()
@@ -1091,19 +1215,36 @@ const handleDeleteRow = async (row: StockOutDto) => {
 }
 
 const handleForceDeleteRow = async (row: StockOutDto) => {
-  const entered = window.prompt('请输入出库单号以确认强制删除', row.stockOutCode || '')?.trim() ?? ''
-  if (!entered) return
-  if (entered !== String(row.stockOutCode || '').trim()) {
-    ElMessage.error('输入单号不匹配，已取消')
+  forceDeleteTargetId.value = row.id
+  forceDeleteConfirmCode.value = ''
+  forceDeletePreview.value = null
+  forceDeleteDialogVisible.value = true
+  forceDeleteLoading.value = true
+  try {
+    forceDeletePreview.value = await stockOutApi.getForceDeletePreview(row.id)
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, t('stockOutList.forceDelete.loadFailed')))
+    forceDeleteDialogVisible.value = false
+  } finally {
+    forceDeleteLoading.value = false
+  }
+}
+
+const submitForceDelete = async () => {
+  if (!forceDeleteTargetId.value || !canSubmitForceDelete.value) {
+    ElMessage.error(t('stockOutList.forceDelete.codeMismatch'))
     return
   }
+  forceDeleteSubmitting.value = true
   try {
-    await stockOutApi.forceDeleteStockOut(row.id, entered)
-    ElMessage.success('强制删除成功')
+    await stockOutApi.forceDeleteStockOut(forceDeleteTargetId.value, forceDeleteConfirmCode.value.trim())
+    ElMessage.success(t('stockOutList.forceDelete.success'))
+    forceDeleteDialogVisible.value = false
     await runStockOutListFetch(false)
   } catch (e) {
-    console.error(e)
-    ElMessage.error(e instanceof Error ? e.message : '强制删除失败')
+    ElMessage.error(getApiErrorMessage(e, t('stockOutList.forceDelete.failed')))
+  } finally {
+    forceDeleteSubmitting.value = false
   }
 }
 
@@ -1522,6 +1663,82 @@ html[data-theme='dark'] .sol-filter-tabs__item:not(.is-active) {
 }
 
 .stock-out-mark-finish-dialog__field {
+  width: 100%;
+}
+
+.stock-out-force-delete-dialog__body {
+  min-height: 80px;
+}
+
+.stock-out-force-delete-dialog__alert {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.stock-out-force-delete-dialog__alert--block {
+  color: #ffd0d0;
+  background: rgba(245, 108, 108, 0.16);
+  border: 1px solid rgba(245, 108, 108, 0.4);
+}
+
+.stock-out-force-delete-dialog__alert p {
+  margin: 8px 0 0;
+}
+
+.stock-out-force-delete-dialog__section-title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: $text-primary;
+}
+
+.stock-out-force-delete-dialog__muted {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: $text-muted;
+}
+
+.stock-out-force-delete-dialog__table {
+  width: 100%;
+  margin: 0 0 16px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.stock-out-force-delete-dialog__table th,
+.stock-out-force-delete-dialog__table td {
+  padding: 6px 8px;
+  text-align: left;
+  border-bottom: 1px solid $border-panel;
+  color: $text-secondary;
+  word-break: break-word;
+}
+
+.stock-out-force-delete-dialog__table th {
+  color: $text-muted;
+  font-weight: 500;
+}
+
+.stock-out-force-delete-dialog__consequences {
+  margin: 0 0 16px;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: $text-secondary;
+}
+
+.stock-out-force-delete-dialog__label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: $text-muted;
+}
+
+.stock-out-force-delete-dialog__field {
   width: 100%;
 }
 

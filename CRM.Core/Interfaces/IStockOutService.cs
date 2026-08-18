@@ -74,6 +74,11 @@ namespace CRM.Core.Interfaces
 
         /// <summary>管理员强制删除出库单：校验确认单号、守卫、库存回冲与级联删除并写操作日志。</summary>
         Task ForceDeleteStockOutAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName);
+
+        /// <summary>强制删除前只读预览：应收/核销状态、是否拦截、库存是否回滚。</summary>
+        Task<StockOutForceDeletePreviewDto> GetForceDeletePreviewAsync(
+            string id,
+            CancellationToken cancellationToken = default);
     }
 
     public class CreateStockOutRequestRequest
@@ -264,6 +269,30 @@ namespace CRM.Core.Interfaces
         public DateTime? StockOutDate { get; set; }
         public string? CourierTrackingNo { get; set; }
         public string? Remark { get; set; }
+    }
+
+    public class StockOutForceDeleteReceivableRow
+    {
+        public string Id { get; set; } = string.Empty;
+        public string? ReceivableCode { get; set; }
+        public decimal Amount { get; set; }
+        public decimal VerifiedDone { get; set; }
+        public decimal VerifiedToBe { get; set; }
+        public short VerificationStatus { get; set; }
+        public IReadOnlyList<string> ReceiptCodes { get; set; } = Array.Empty<string>();
+    }
+
+    public class StockOutForceDeletePreviewDto
+    {
+        public string StockOutId { get; set; } = string.Empty;
+        public string? StockOutCode { get; set; }
+        public short Status { get; set; }
+        public bool CanForceDelete { get; set; }
+        public string? BlockReason { get; set; }
+        public bool WillRollbackInventory { get; set; }
+        public bool WillVoidReceivables { get; set; }
+        public IReadOnlyList<StockOutForceDeleteReceivableRow> Receivables { get; set; } =
+            Array.Empty<StockOutForceDeleteReceivableRow>();
     }
 
     public class MarkStockOutFinishedRequest

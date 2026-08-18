@@ -243,6 +243,10 @@ public class FinanceReceivableService : IFinanceReceivableService
             throw new ArgumentException("确认单号与应收单号不一致");
 
         AssertStockOutCanVoid(receivable);
+        var liveStockOut = string.IsNullOrWhiteSpace(receivable.StockOutId)
+            ? null
+            : await _stockOutRepo.GetByIdAsync(receivable.StockOutId.Trim());
+        FinanceReceivableVoidRules.AssertOrphanStockOutForDetailVoid(liveStockOut);
         await TrySoftDeleteForStockOutAsync(receivable.StockOutId, actingUserId, cancellationToken);
     }
 
@@ -394,6 +398,69 @@ public class FinanceReceivableService : IFinanceReceivableService
     }
 
     /// <inheritdoc />
+    public async Task<IReadOnlyList<StockOutForceDeleteReceivableRow>> ListActiveForStockOutForceDeleteAsync(
+        string stockOutId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(stockOutId))
+            return Array.Empty<StockOutForceDeleteReceivableRow>();
+
+        var key = stockOutId.Trim();
+        var receivables = (await _receivableRepo.FindAsync(r => r.StockOutId == key && !r.IsDeleted))
+            .OrderBy(r => r.ReceivableCode)
+            .ThenBy(r => r.Id)
+            .ToList();
+        if (receivables.Count == 0)
+            return Array.Empty<StockOutForceDeleteReceivableRow>();
+
+        var arIds = receivables.Select(r => r.Id).ToList();
+        var writeOffs = (await _writeOffRepo.FindAsync(w => arIds.Contains(w.FinanceReceivableId) && !w.IsDeleted))
+            .ToList();
+        var receiptIds = writeOffs
+            .Select(w => w.FinanceReceiptId)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var receiptCodeById = receiptIds.Count == 0
+            ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            : (await _receiptRepo.FindAsync(r => receiptIds.Contains(r.Id)))
+                .Where(r => !string.IsNullOrWhiteSpace(r.FinanceReceiptCode))
+                .GroupBy(r => r.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First().FinanceReceiptCode!.Trim(), StringComparer.OrdinalIgnoreCase);
+
+        var codesByAr = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var wo in writeOffs)
+        {
+            if (!codesByAr.TryGetValue(wo.FinanceReceivableId, out var list))
+            {
+                list = new List<string>();
+                codesByAr[wo.FinanceReceivableId] = list;
+            }
+
+            if (!string.IsNullOrWhiteSpace(wo.FinanceReceiptId)
+                && receiptCodeById.TryGetValue(wo.FinanceReceiptId.Trim(), out var code)
+                && !list.Contains(code, StringComparer.OrdinalIgnoreCase))
+                list.Add(code);
+            else if (wo.WriteOffSource == FinanceReceivableWriteOffSourceCode.AdvancePool
+                     && !list.Contains("预收池", StringComparer.OrdinalIgnoreCase))
+                list.Add("预收池");
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        return receivables.Select(r => new StockOutForceDeleteReceivableRow
+        {
+            Id = r.Id,
+            ReceivableCode = r.ReceivableCode,
+            Amount = r.Amount,
+            VerifiedDone = r.VerifiedDone,
+            VerifiedToBe = r.VerifiedToBe,
+            VerificationStatus = r.VerificationStatus,
+            ReceiptCodes = codesByAr.TryGetValue(r.Id, out var codes) ? codes : Array.Empty<string>()
+        }).ToList();
+    }
+
+    /// <inheritdoc />
     public Task<PagedResult<FinanceReceivable>> GetPagedAsync(
         FinanceReceivableQueryRequest request,
         CancellationToken cancellationToken = default) =>
@@ -427,6 +494,10 @@ public class FinanceReceivableService : IFinanceReceivableService
             return null;
 
         await EnrichReceivableDetailAsync(receivable, cancellationToken);
+        receivable.StockOutMissingOrDeleted = FinanceReceivableVoidRules.IsOrphanStockOut(
+            string.IsNullOrWhiteSpace(receivable.StockOutId)
+                ? null
+                : await _stockOutRepo.GetByIdAsync(receivable.StockOutId.Trim()));
         return receivable;
     }
 

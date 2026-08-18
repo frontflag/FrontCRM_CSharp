@@ -30,6 +30,8 @@ export interface FinanceReceivable {
   invoiceMatchStatus?: number
   stockOutDate?: string
   createTime?: string
+  /** 对应出库单不存在或已删除时为 true，才显示「作废应收」 */
+  stockOutMissingOrDeleted?: boolean
 }
 
 export interface FinanceReceivableWriteOffDetailItem {

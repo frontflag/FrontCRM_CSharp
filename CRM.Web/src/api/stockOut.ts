@@ -67,6 +67,27 @@ export interface StockOutMarkFinishContext {
   remark?: string
 }
 
+export interface StockOutForceDeleteReceivableRow {
+  id: string
+  receivableCode?: string
+  amount: number
+  verifiedDone: number
+  verifiedToBe: number
+  verificationStatus: number
+  receiptCodes: string[]
+}
+
+export interface StockOutForceDeletePreview {
+  stockOutId: string
+  stockOutCode?: string
+  status: number
+  canForceDelete: boolean
+  blockReason?: string | null
+  willRollbackInventory: boolean
+  willVoidReceivables: boolean
+  receivables: StockOutForceDeleteReceivableRow[]
+}
+
 /** GET /api/v1/stock-out/:id（详情视图，含仓库与明细主键） */
 export interface StockOutDetailDto extends StockOutDto {
   warehouseId?: string
@@ -914,6 +935,42 @@ export const stockOutApi = {
       stockOutDate: (d?.stockOutDate ?? d?.StockOutDate) as string | undefined,
       courierTrackingNo: (d?.courierTrackingNo ?? d?.CourierTrackingNo) as string | undefined,
       remark: (d?.remark ?? d?.Remark) as string | undefined
+    }
+  },
+
+  async getForceDeletePreview(id: string): Promise<StockOutForceDeletePreview> {
+    const enc = encodeURIComponent(id)
+    const res = await apiClient.get<unknown>(`/api/v1/stock-out/${enc}/force-delete-preview`)
+    const root = res && typeof res === 'object' ? (res as Record<string, unknown>) : null
+    const d = (root?.data ?? root?.Data ?? root) as Record<string, unknown> | null
+    const recRaw = (d?.receivables ?? d?.Receivables) as unknown
+    const receivables: StockOutForceDeleteReceivableRow[] = Array.isArray(recRaw)
+      ? recRaw.map((x) => {
+          const o = x && typeof x === 'object' ? (x as Record<string, unknown>) : {}
+          const codesRaw = (o.receiptCodes ?? o.ReceiptCodes) as unknown
+          return {
+            id: String(o.id ?? o.Id ?? ''),
+            receivableCode: (o.receivableCode ?? o.ReceivableCode) as string | undefined,
+            amount: Number(o.amount ?? o.Amount ?? 0),
+            verifiedDone: Number(o.verifiedDone ?? o.VerifiedDone ?? 0),
+            verifiedToBe: Number(o.verifiedToBe ?? o.VerifiedToBe ?? 0),
+            verificationStatus: Number(o.verificationStatus ?? o.VerificationStatus ?? 0),
+            receiptCodes: Array.isArray(codesRaw)
+              ? codesRaw.map((c) => String(c)).filter((c) => c.trim())
+              : []
+          }
+        })
+      : []
+    const asBool = (v: unknown) => v === true || v === 'true' || v === 1
+    return {
+      stockOutId: String(d?.stockOutId ?? d?.StockOutId ?? id),
+      stockOutCode: (d?.stockOutCode ?? d?.StockOutCode) as string | undefined,
+      status: Number(d?.status ?? d?.Status ?? 0),
+      canForceDelete: asBool(d?.canForceDelete ?? d?.CanForceDelete),
+      blockReason: (d?.blockReason ?? d?.BlockReason) as string | null | undefined,
+      willRollbackInventory: asBool(d?.willRollbackInventory ?? d?.WillRollbackInventory),
+      willVoidReceivables: asBool(d?.willVoidReceivables ?? d?.WillVoidReceivables),
+      receivables
     }
   },
 

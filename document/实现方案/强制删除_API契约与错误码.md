@@ -115,7 +115,7 @@ HTTP 响应 JSON 形如：
 | 被删节点 | 有则拦截（下游或条件） | 实现位置 |
 | --- | --- | --- |
 | **出库通知** | 同上；**普通删除**与**强制删除**均调用 `CanForceDeleteStockOutRequestAsync`（`Status == -1` 的已取消拣货单不拦截）。 | `IForceDeleteGuardService.CanForceDeleteStockOutRequestAsync`；`StockOutController.DeleteRequest` / `ForceDeleteRequest` |
-| **出库单** | ① 本单 `Status` 为 **2 或 4**（已执行出库类，不可直接强删）。② 存在 **销项发票明细** `SellInvoiceItem`，其 `StockOutItemId` 指向本单任一 **出库明细** `StockOutItem`。 | `IForceDeleteGuardService.CanForceDeleteStockOutAsync` |
+| **出库单** | ① 存在有效应收且已收款核销（`VerifiedDone > 0`）则拦截，须先反核销。② 未核销应收**不拦截**：强制删除与普通删除均同步软删该出库下有效应收。③ **普通删除**另拦截本单 `Status` 为 **2 或 4**（已执行出库）。④ 强制删除前 `GET …/force-delete-preview` 只读展示应收/核销与后果（须管理员）。 | `IForceDeleteGuardService.CanForceDeleteStockOutAsync`；`StockOutService.GetForceDeletePreviewAsync` / `ForceDeleteWithInventoryRollbackAsync`；`StockOutController.DeleteStockOut` |
 | **入库单** | ① 存在未软删 **库存明细** `StockItem` 且 `StockInId` = 本入库单（在库层仍占用），则 **普通删除**与**强制删除**均 **400**。② 存在有效 **进项核销流水** `finance_purchase_invoice_write_off.stock_in_id` = 本入库单，则 **普通删除**与**强制删除**均 **400**，文案列出进项发票单号（须先到进项发票「反核销」）。无在库明细且无有效核销时仍走原 `DeleteAsync` 级联删入库明细等。 | `StockInService.DeleteInternalAsync`；`CanForceDeleteStockInAsync` |
 | **报关单** | **无**业务级下游 400 拦截（校验确认号、`SYS_ADMIN` 后即删；关联移库单走软删，不作为拒绝条件）。 | `CustomsDeclarationsController` |
 | **到货通知** | ① 存在 **质检单** `QCInfo`，`StockInNotifyId` = 本通知。② 或本通知 `Status >= 30`。③ 或 `ReceiveQty > 0` / `PassedQty > 0`（已进入收货/质检数量链路）。 | `LogisticsController.ForceDeleteArrivalNotice` |

@@ -129,13 +129,18 @@ public interface IFinanceReceivableService
     /// <summary>销售出库进入「出库完成」(4) 时确保生成对应应收款；已存在则仅同步出库日期。</summary>
     Task TryEnsureFromStockOutAsync(string stockOutId, string? actingUserId = null, CancellationToken cancellationToken = default);
 
-    /// <summary>出库单离开「出库完成」(4) 时软删对应应收。</summary>
+    /// <summary>软删该出库下全部未核销有效应收。用于离开「出库完成」、强制/普通删除出库。</summary>
     Task TrySoftDeleteForStockOutAsync(string stockOutId, string? actingUserId = null, CancellationToken cancellationToken = default);
 
-    /// <summary>作废未核销应收（系统管理员 / 平台管理员）。已核销须先反核销。</summary>
+    /// <summary>作废未核销孤儿应收（出库已删或缺失）。出库仍有效时拒绝。已核销须先反核销。</summary>
     Task VoidUnverifiedAsync(string id, string confirmBillCode, string? actingUserId = null, CancellationToken cancellationToken = default);
 
     void AssertStockOutCanVoid(FinanceReceivable? receivable);
+
+    /// <summary>出库强制删除预览：该出库下有效应收及关联收款单号。</summary>
+    Task<IReadOnlyList<StockOutForceDeleteReceivableRow>> ListActiveForStockOutForceDeleteAsync(
+        string stockOutId,
+        CancellationToken cancellationToken = default);
 
     Task<PagedResult<FinanceReceivable>> GetPagedAsync(FinanceReceivableQueryRequest request, CancellationToken cancellationToken = default);
 

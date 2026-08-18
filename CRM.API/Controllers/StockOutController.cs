@@ -32,6 +32,7 @@ namespace CRM.API.Controllers
         private readonly ICustomsPendlistService _customsPendlistService;
         private readonly IExportOperationLogService _exportLog;
         private readonly IStockOutOpsCheckService _opsCheck;
+        private readonly IFinanceReceivableService _financeReceivableService;
         private readonly ILogger<StockOutController> _logger;
 
         public StockOutController(
@@ -47,6 +48,7 @@ namespace CRM.API.Controllers
             ICustomsPendlistService customsPendlistService,
             IExportOperationLogService exportLog,
             IStockOutOpsCheckService opsCheck,
+            IFinanceReceivableService financeReceivableService,
             ILogger<StockOutController> logger)
         {
             _service = service;
@@ -61,6 +63,7 @@ namespace CRM.API.Controllers
             _customsPendlistService = customsPendlistService;
             _exportLog = exportLog;
             _opsCheck = opsCheck;
+            _financeReceivableService = financeReceivableService;
             _logger = logger;
         }
 
@@ -724,6 +727,7 @@ namespace CRM.API.Controllers
                 var guard = await _forceDeleteGuard.CanForceDeleteStockOutAsync(entity.Id);
                 if (!guard.CanDelete)
                     return BadRequest(ApiResponse<object>.Fail(guard.Message, 400));
+                await _financeReceivableService.TrySoftDeleteForStockOutAsync(entity.Id, userId);
                 await SoftDeleteStockOutCascadeAsync(entity.Id);
                 await _unitOfWork.SaveChangesAsync();
                 return Ok(ApiResponse<object>.Ok(null, "删除出库单成功"));
@@ -732,6 +736,40 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "删除出库单失败");
                 return StatusCode(500, ApiResponse<object>.Fail($"删除出库单失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>强制删除前只读预览（系统管理员 / 平台管理员）：应收与核销状态、后果。</summary>
+        [HttpGet("{id}/force-delete-preview")]
+        public async Task<ActionResult<ApiResponse<StockOutForceDeletePreviewDto>>> GetForceDeletePreview(
+            string id,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrWhiteSpace(userId))
+                    return StatusCode(403, ApiResponse<StockOutForceDeletePreviewDto>.Fail("未登录或身份无效", 403));
+
+                var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
+                if (!ManagementAccountPolicy.CanForceDelete(summary))
+                    return StatusCode(403, ApiResponse<StockOutForceDeletePreviewDto>.Fail("仅系统管理员或平台管理员可强制删除出库单", 403));
+
+                var dto = await _service.GetForceDeletePreviewAsync(id, cancellationToken);
+                return Ok(ApiResponse<StockOutForceDeletePreviewDto>.Ok(dto, "OK"));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<StockOutForceDeletePreviewDto>.Fail(ex.Message, 400));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(ApiResponse<StockOutForceDeletePreviewDto>.Fail(ex.Message, 404));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取出库强制删除预览失败");
+                return StatusCode(500, ApiResponse<StockOutForceDeletePreviewDto>.Fail($"加载失败: {ex.Message}", 500));
             }
         }
 
