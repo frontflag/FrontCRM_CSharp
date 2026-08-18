@@ -1561,6 +1561,20 @@
             class="aux-panel-tab-body"
             @create-stock-in="qcOpsStore.runCreateStockIn()"
           />
+          <StockOutOpsPanel
+            v-show="showStockOutOpsPanel"
+            embedded
+            :row="stockOutOpsStore.row"
+            :aggregates="stockOutOpsStore.aggregates"
+            :loading="stockOutOpsStore.loading"
+            :load-error="stockOutOpsStore.loadError"
+            :action-loading="stockOutOpsStore.actionLoading"
+            :can-write-logistics="canWriteLogisticsData"
+            :mask-sensitive="maskSaleSensitiveFields"
+            class="aux-panel-tab-body"
+            @edit-header="stockOutOpsStore.runEditHeader()"
+            @mark-finish="stockOutOpsStore.runMarkFinish()"
+          />
           <StockOutNotifyCustomsTabPanel
             v-show="showStockOutNotifyCustomsPanel"
             class="aux-panel-tab-body"
@@ -1712,6 +1726,7 @@ import CustomsDeclarationOpsPanel from '@/components/Customs/CustomsDeclarationO
 import CustomsPendlistFlowPanel from '@/components/Customs/CustomsPendlistFlowPanel.vue'
 import ArrivalNoticeOpsPanel from '@/components/Logistics/ArrivalNoticeOpsPanel.vue'
 import QcOpsPanel from '@/components/Logistics/QcOpsPanel.vue'
+import StockOutOpsPanel from '@/components/Inventory/StockOutOpsPanel.vue'
 import StockOutNotifyCustomsTabPanel from '@/components/Inventory/StockOutNotifyCustomsTabPanel.vue'
 import { useSalesOrderItemOpsPanelStore } from '@/stores/salesOrderItemOpsPanel'
 import { usePackingDetailFlowPanelStore } from '@/stores/packingDetailFlowPanel'
@@ -1724,6 +1739,7 @@ import { useCustomsDeclarationOpsPanelStore } from '@/stores/customsDeclarationO
 import { useArrivalNoticeOpsPanelStore } from '@/stores/arrivalNoticeOpsPanel'
 import { canEditArrivalNoticeArrivalInfo } from '@/utils/arrivalNoticeArrivalInfoAccess'
 import { useQcOpsPanelStore } from '@/stores/qcOpsPanel'
+import { useStockOutOpsPanelStore } from '@/stores/stockOutOpsPanel'
 import { useStockOutNotifyCustomsPanelStore } from '@/stores/stockOutNotifyCustomsPanel'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleOrderWriteGate, useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
@@ -1769,6 +1785,7 @@ const purchaseOrderItemOpsStore = usePurchaseOrderItemOpsPanelStore()
 const customsDeclarationOpsStore = useCustomsDeclarationOpsPanelStore()
 const arrivalNoticeOpsStore = useArrivalNoticeOpsPanelStore()
 const qcOpsStore = useQcOpsPanelStore()
+const stockOutOpsStore = useStockOutOpsPanelStore()
 const stockOutNotifyCustomsPanelStore = useStockOutNotifyCustomsPanelStore()
 const approvalDesktopQueueStore = useApprovalDesktopQueueStore()
 const quoteDesktopQueueStore = useQuoteDesktopQueueStore()
@@ -2164,6 +2181,11 @@ const showArrivalNoticeOpsPanel = computed(
 
 const showQcOpsPanel = computed(() => rightActiveTabId.value === 'r-ops' && isQcListRoute.value)
 
+const isStockOutListRoute = computed(() => route.name === 'StockOutList')
+const showStockOutOpsPanel = computed(
+  () => rightActiveTabId.value === 'r-ops' && isStockOutListRoute.value
+)
+
 const showStockOutNotifyCustomsPanel = computed(
   () => rightActiveTabId.value === 'r-stock-out-customs' && isStockOutNotifyListRoute.value
 )
@@ -2305,6 +2327,8 @@ watch(
   () => route.name,
   (name, oldName) => {
     if (oldName != null && oldName !== name) rememberAuxTabsForRoute(oldName)
+
+    if (name !== 'StockOutList') stockOutOpsStore.clear()
 
     if (name === 'ApprovalDesktop') {
       leftTabs.value = [{ id: 'l1', labelKey: 'approvalDesktop.leftTab' }]
@@ -2558,6 +2582,24 @@ watch(
       packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
+      materialIntelLookupStore.clearBound()
+      customerIntelLookupStore.clearBound()
+      vendorIntelLookupStore.clearBound()
+      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-ops' })
+      return
+    }
+    if (name === 'StockOutList') {
+      rightTabs.value = [
+        { id: 'r-ops', labelKey: 'layout.auxTabs.ops' },
+        { id: 'r4', labelKey: 'layout.auxTabs.help' }
+      ]
+      salesOrderItemOpsStore.clear()
+      purchaseOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
+      customsDeclarationOpsStore.clear()
+      arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       customerIntelLookupStore.clearBound()

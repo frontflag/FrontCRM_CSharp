@@ -1988,6 +1988,15 @@ namespace CRM.Core.Services
                 : (await _stockOutRequestRepository.FindAsync(r => notifyIdSet.Contains(r.Id)))
                     .ToDictionary(r => r.Id.Trim(), r => r, StringComparer.OrdinalIgnoreCase);
 
+            var packingIdSet = new HashSet<string>(notifyIdSet, StringComparer.OrdinalIgnoreCase);
+            foreach (var line in outItems)
+            {
+                var pid = line.PackingId?.Trim();
+                if (!string.IsNullOrEmpty(pid))
+                    packingIdSet.Add(pid);
+            }
+            var packingExpressById = await LoadPackingExpressCompanyByPackingIdAsync(packingIdSet);
+
             var customsSourceIds = outs
                 .Where(x => StockOutTypeCode.NormalizeForNotify(x.StockOutType) == StockOutTypeCode.Customs)
                 .Select(x => x.SourceId?.Trim())
@@ -2000,9 +2009,7 @@ namespace CRM.Core.Services
             var dtos = outs
                 .Select(x =>
                 {
-                    SellOrderItem? line = null;
-                    if (!string.IsNullOrWhiteSpace(x.SellOrderItemId))
-                        itemById.TryGetValue(x.SellOrderItemId.Trim(), out line);
+                    SellOrderItem? line = ResolveStockOutListSellLine(x, itemsByStockOutId, extendByOutItemId, itemById);
 
                     SellOrder? so = null;
                     if (line != null && !string.IsNullOrWhiteSpace(line.SellOrderId))
@@ -2064,7 +2071,7 @@ namespace CRM.Core.Services
                     }
 
                     var shipmentMethod = string.IsNullOrWhiteSpace(x.ShipmentMethod) ? null : x.ShipmentMethod.Trim();
-                    string? expressCompany = null;
+                    string? notifyExpress = null;
                     var sourceId = x.SourceId?.Trim();
                     if (!string.IsNullOrEmpty(sourceId) && notifyById.TryGetValue(sourceId, out var notify))
                     {
@@ -2072,10 +2079,32 @@ namespace CRM.Core.Services
                             shipmentMethod = string.IsNullOrWhiteSpace(notify.ShipmentMethod)
                                 ? null
                                 : notify.ShipmentMethod.Trim();
-                        expressCompany = string.IsNullOrWhiteSpace(notify.ExpressCompany)
+                        notifyExpress = string.IsNullOrWhiteSpace(notify.ExpressCompany)
                             ? null
                             : notify.ExpressCompany.Trim();
                     }
+
+                    packingExpressById.TryGetValue(sourceId ?? string.Empty, out var packingExpressFromSource);
+                    string? packingExpressFromLine = null;
+                    if (itemsByStockOutId.TryGetValue(x.Id.Trim(), out var linesForPacking))
+                    {
+                        foreach (var linePk in linesForPacking)
+                        {
+                            var pid = linePk.PackingId?.Trim();
+                            if (string.IsNullOrEmpty(pid)) continue;
+                            if (packingExpressById.TryGetValue(pid, out var pe) && !string.IsNullOrWhiteSpace(pe))
+                            {
+                                packingExpressFromLine = pe;
+                                break;
+                            }
+                        }
+                    }
+
+                    var expressCompany = FirstNonEmpty(
+                        x.ExpressCompany,
+                        notifyExpress,
+                        packingExpressFromSource,
+                        packingExpressFromLine);
 
                     string? salesStockOutNotifyId = null;
                     string? salesStockOutNotifyCode = null;
@@ -3012,9 +3041,14 @@ namespace CRM.Core.Services
                 throw new InvalidOperationException($"出库单 {id} 不存在");
 
             stockOut.StockOutDate = PostgreSqlDateTime.ToUtc(request.StockOutDate);
-            stockOut.ShipmentMethod = string.IsNullOrWhiteSpace(request.ShipmentMethod)
-                ? null
-                : request.ShipmentMethod.Trim();
+            var shipmentMethod = LogisticsShipmentMethodCode.Normalize(request.ShipmentMethod);
+            if (!string.IsNullOrEmpty(shipmentMethod))
+                LogisticsShipmentMethodCode.EnsureRequired(shipmentMethod, nameof(request.ShipmentMethod));
+            stockOut.ShipmentMethod = shipmentMethod;
+            var expressCompany = LogisticsShipmentMethodCode.NormalizeExpressCompany(request.ExpressCompany);
+            if (!string.Equals(shipmentMethod, LogisticsShipmentMethodCode.Express, StringComparison.OrdinalIgnoreCase))
+                expressCompany = null;
+            stockOut.ExpressCompany = expressCompany;
             stockOut.CourierTrackingNo = string.IsNullOrWhiteSpace(request.CourierTrackingNo)
                 ? null
                 : request.CourierTrackingNo.Trim();
@@ -3399,6 +3433,125 @@ namespace CRM.Core.Services
 
             cancellationToken.ThrowIfCancellationRequested();
             return await _financeReceivableService.ListForStockOutDetailAsync(entity.Id, cancellationToken);
+        }
+
+        /// <inheritdoc />
+        public async Task<StockOutOpsAggregatesDto> GetOpsAggregatesAsync(
+            string id,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+                throw new ArgumentException("ID不能为空", nameof(id));
+
+            var entity = await _stockOutRepository.GetByIdAsync(id.Trim())
+                ?? throw new InvalidOperationException("出库单不存在");
+
+            var lines = (await _stockOutItemRepository.FindAsync(x => x.StockOutId == entity.Id))
+                .Where(x => !x.IsDeleted)
+                .OrderBy(x => x.StockOutItemCode ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(x => x.Id)
+                .ToList();
+            cancellationToken.ThrowIfCancellationRequested();
+            var items = await BuildStockOutItemListRowsForItemsAsync(lines);
+
+            if (!StockOutTypeCode.IsSalesStockOut(entity.StockOutType))
+            {
+                return new StockOutOpsAggregatesDto
+                {
+                    Items = items,
+                    SellOrderItems = Array.Empty<StockOutOpsSellOrderItemDto>(),
+                    Receivables = Array.Empty<StockOutDetailReceivableRowDto>()
+                };
+            }
+
+            var sellRows = await BuildOpsSellOrderItemsAsync(items);
+            cancellationToken.ThrowIfCancellationRequested();
+            var receivables = await _financeReceivableService.ListForStockOutDetailAsync(entity.Id, cancellationToken);
+            return new StockOutOpsAggregatesDto
+            {
+                Items = items,
+                SellOrderItems = sellRows,
+                Receivables = receivables
+            };
+        }
+
+        private async Task<Dictionary<string, string>> LoadPackingExpressCompanyByPackingIdAsync(
+            IReadOnlyCollection<string> packingIds)
+        {
+            var map = await _stockOutListQuery.GetPackingExpressCompanyByPackingIdsAsync(packingIds);
+            return new Dictionary<string, string>(map, StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static SellOrderItem? ResolveStockOutListSellLine(
+            StockOut stockOut,
+            IReadOnlyDictionary<string, IReadOnlyList<StockOutItem>> itemsByStockOutId,
+            IReadOnlyDictionary<string, StockOutItemExtend> extendByOutItemId,
+            IReadOnlyDictionary<string, SellOrderItem> itemById)
+        {
+            if (!string.IsNullOrWhiteSpace(stockOut.SellOrderItemId)
+                && itemById.TryGetValue(stockOut.SellOrderItemId.Trim(), out var headerLine))
+                return headerLine;
+
+            if (!itemsByStockOutId.TryGetValue(stockOut.Id.Trim(), out var lines))
+                return null;
+            foreach (var ol in lines)
+            {
+                if (!extendByOutItemId.TryGetValue(ol.Id.Trim(), out var ext))
+                    continue;
+                var sid = ext.SellOrderItemId?.Trim();
+                if (string.IsNullOrEmpty(sid))
+                    continue;
+                if (itemById.TryGetValue(sid, out var fromExt))
+                    return fromExt;
+            }
+            return null;
+        }
+
+        private static string? FirstNonEmpty(params string?[] values)
+        {
+            foreach (var v in values)
+            {
+                if (!string.IsNullOrWhiteSpace(v))
+                    return v.Trim();
+            }
+            return null;
+        }
+
+        private async Task<List<StockOutOpsSellOrderItemDto>> BuildOpsSellOrderItemsAsync(
+            IReadOnlyList<StockOutItemListRowDto> items)
+        {
+            var result = new List<StockOutOpsSellOrderItemDto>();
+            var sellIds = items
+                .Select(x => x.SellOrderItemId?.Trim())
+                .Where(x => !string.IsNullOrEmpty(x))
+                .Cast<string>()
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var soById = sellIds.Count == 0
+                ? new Dictionary<string, SellOrderItem>(StringComparer.OrdinalIgnoreCase)
+                : (await _sellOrderItemRepository.FindAsync(x => sellIds.Contains(x.Id)))
+                    .GroupBy(x => x.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var row in items)
+            {
+                var sellId = row.SellOrderItemId?.Trim();
+                if (string.IsNullOrEmpty(sellId) || !seen.Add(sellId))
+                    continue;
+                soById.TryGetValue(sellId, out var soLine);
+                result.Add(new StockOutOpsSellOrderItemDto
+                {
+                    SellOrderId = string.IsNullOrWhiteSpace(soLine?.SellOrderId) ? null : soLine!.SellOrderId.Trim(),
+                    SellOrderItemId = sellId,
+                    SellOrderItemCode = FirstNonEmpty(row.SellOrderItemCode, soLine?.SellOrderItemCode),
+                    SalesUserName = string.IsNullOrWhiteSpace(row.SalesUserName) ? null : row.SalesUserName.Trim(),
+                    Pn = FirstNonEmpty(soLine?.PN, row.PurchasePn),
+                    Brand = FirstNonEmpty(soLine?.Brand, row.PurchaseBrand),
+                    Qty = soLine?.Qty ?? row.OutQuantity
+                });
+            }
+            return result;
         }
 
         /// <inheritdoc />

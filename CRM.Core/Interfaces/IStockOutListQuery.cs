@@ -10,4 +10,9 @@ public interface IStockOutListQuery
         int page,
         int pageSize,
         CancellationToken cancellationToken = default);
+
+    /// <summary>装箱收发货扩展表快递公司（packingId → LogisticsExpressMethod ItemCode）。</summary>
+    Task<IReadOnlyDictionary<string, string>> GetPackingExpressCompanyByPackingIdsAsync(
+        IReadOnlyCollection<string> packingIds,
+        CancellationToken cancellationToken = default);
 }

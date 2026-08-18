@@ -7642,6 +7642,22 @@ const enUS = {
       noRegen: 'Receivables will not be recreated automatically. To ship again, stock out and Mark finished.',
       packingReconcile: 'Related packing status will be reconciled to remaining stock-outs.'
     },
+    opsPanel: {
+      pickRow: 'With the Ops tab open, click a row to see this stock-out summary, shipment method, and lines.',
+      loadFailed: 'Failed to load the ops panel',
+      overviewTitle: 'Stock-out summary',
+      shipmentTitle: 'Shipment method',
+      markFinishTitle: 'Mark finished',
+      completed: 'Completed',
+      itemsTitle: 'Stock-out lines',
+      sellItemsTitle: 'Sales order lines',
+      receivablesTitle: 'Receivables',
+      noItems: 'No stock-out lines',
+      noSellItems: 'No linked sales order lines',
+      qty: 'Qty',
+      moreCount: '{n} more, ',
+      openDetail: 'open detail'
+    },
     messages: {
       loadFailed: 'Failed to load stock-out list',
       markFinishedSuccess: 'Marked as finished',

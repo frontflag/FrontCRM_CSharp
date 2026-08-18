@@ -238,6 +238,16 @@
   color: $text-primary;
 }
 
+.ops-card__head-btn.el-button.is-link {
+  flex-shrink: 0;
+  margin: 0;
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 500;
+}
+
 .ops-card__body {
   padding: 10px 14px 14px;
 }

@@ -7626,6 +7626,22 @@ const zhCN = {
       noRegen: '不会自动再生成应收。若还要出库，须重新出库后再「标记完成」。',
       packingReconcile: '关联装箱单状态会按实际出库情况校正。'
     },
+    opsPanel: {
+      pickRow: '请在「操作」页签下单击列表行，查看本单摘要、出货方式与明细。',
+      loadFailed: '加载操作面板失败',
+      overviewTitle: '出库摘要',
+      shipmentTitle: '出货方式',
+      markFinishTitle: '标记完成',
+      completed: '已完成',
+      itemsTitle: '出库明细',
+      sellItemsTitle: '销售订单明细',
+      receivablesTitle: '应收款',
+      noItems: '暂无出库明细',
+      noSellItems: '暂无关联销售订单明细',
+      qty: '数量',
+      moreCount: '还有 {n} 条，',
+      openDetail: '打开详情'
+    },
     messages: {
       loadFailed: '加载出库单失败',
       markFinishedSuccess: '已标记为完成',

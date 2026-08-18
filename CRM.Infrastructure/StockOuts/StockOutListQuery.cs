@@ -202,4 +202,35 @@ public sealed class StockOutListQuery : IStockOutListQuery
             PageSize = ps
         };
     }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyDictionary<string, string>> GetPackingExpressCompanyByPackingIdsAsync(
+        IReadOnlyCollection<string> packingIds,
+        CancellationToken cancellationToken = default)
+    {
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (packingIds.Count == 0)
+            return result;
+        var ids = packingIds
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (ids.Count == 0)
+            return result;
+        var ships = await _db.PackingExtendShips.AsNoTracking()
+            .Where(s => ids.Contains(s.PackingId))
+            .Select(s => new { s.PackingId, s.ExpressCompany })
+            .ToListAsync(cancellationToken);
+        foreach (var ship in ships)
+        {
+            var pid = ship.PackingId?.Trim();
+            var code = ship.ExpressCompany?.Trim();
+            if (string.IsNullOrEmpty(pid) || string.IsNullOrEmpty(code))
+                continue;
+            if (!result.ContainsKey(pid))
+                result[pid] = code;
+        }
+        return result;
+    }
 }

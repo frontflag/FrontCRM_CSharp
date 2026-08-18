@@ -625,6 +625,10 @@ namespace CRM.Core.Models.Inventory
         [StringLength(128)]
         public string? CourierTrackingNo { get; set; }
 
+        /// <summary>快递公司（字典 LogisticsExpressMethod ItemCode；出货方式为快递时可填）</summary>
+        [StringLength(64)]
+        public string? ExpressCompany { get; set; }
+
         [StringLength(36)]
         [Column("create_by_user_id")]
         public string? CreateByUserId { get; set; }

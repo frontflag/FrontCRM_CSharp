@@ -203,6 +203,8 @@
       :data="list"
       row-key="id"
       v-loading="loading"
+      :row-class-name="opsPanelRowClassName"
+      @row-click="onRowClick"
       @row-dblclick="onRowDblclick"
       @header-dragend="onStockOutTableHeaderDragEnd"
     >
@@ -542,6 +544,19 @@
               <el-option v-for="o in shipmentArrivalOptions" :key="o.value" :label="o.label" :value="o.value" />
             </el-select>
           </el-form-item>
+          <el-form-item :label="t('stockOutList.columns.expressCompany')">
+            <el-select
+              v-model="editForm.expressCompany"
+              clearable
+              filterable
+              :disabled="!isExpressShipmentMethod(editForm.shipmentMethod)"
+              :placeholder="t('stockOutDetail.shipmentPlaceholder')"
+              :teleported="false"
+              style="width: 100%"
+            >
+              <el-option v-for="o in expressOptions" :key="o.value" :label="o.label" :value="o.value" />
+            </el-select>
+          </el-form-item>
           <el-form-item :label="t('stockOutDetail.courierTrackingNo')">
             <el-input
               v-model="editForm.courierTrackingNo"
@@ -562,7 +577,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, inject, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -589,8 +604,12 @@ import { buildStockOutListColumns } from '@/composables/buildStockOutListColumns
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
-import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
+import { isExpressShipmentMethod, useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { useAuthStore } from '@/stores/auth'
+import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
+import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
+import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
+import { useStockOutOpsPanelStore } from '@/stores/stockOutOpsPanel'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import CustomerExtendColumnHeader from '@/components/list/CustomerExtendColumnHeader.vue'
 import CustomerExtendCell from '@/components/list/CustomerExtendCell.vue'
@@ -620,6 +639,8 @@ const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
+const workspaceLayout = inject(WorkspaceLayoutKey, null)
+const stockOutOpsStore = useStockOutOpsPanelStore()
 const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 const { ensureLoaded: ensureLogisticsDict, shipmentArrivalOptions, expressOptions } = useLogisticsFormDict()
 const canForceDelete = computed(() => authStore.canForceDelete())
@@ -774,6 +795,7 @@ const editTargetId = ref('')
 const editForm = reactive({
   stockOutDate: '',
   shipmentMethod: '',
+  expressCompany: '',
   courierTrackingNo: ''
 })
 
@@ -829,6 +851,7 @@ function resetEditDialog() {
   editTargetId.value = ''
   editForm.stockOutDate = ''
   editForm.shipmentMethod = ''
+  editForm.expressCompany = ''
   editForm.courierTrackingNo = ''
   editLoading.value = false
   editSubmitting.value = false
@@ -997,11 +1020,23 @@ function expressCompanyDisplay(code?: string | null): string {
 }
 
 onMounted(async () => {
+  stockOutOpsStore.registerHandlers({
+    editHeader: (row) => {
+      void handleEdit(row as unknown as StockOutDto)
+    },
+    markFinish: (row) => {
+      void handleMarkFinish(row as unknown as StockOutDto)
+    }
+  })
   try {
     await ensureLogisticsDict()
   } catch {
     /* 字典失败时 shipmentMethodDisplay 仍回退为原始码 */
   }
+})
+
+onBeforeUnmount(() => {
+  stockOutOpsStore.unregisterHandlers()
 })
 
 const statusLabel = (s: number) => {
@@ -1027,12 +1062,18 @@ watch(listTotal, () => {
 })
 
 async function runStockOutListFetch(resetPage: boolean) {
-  if (resetPage) listPage.value = 1
+  if (resetPage) {
+    listPage.value = 1
+    resetListRightPanelOnReload(stockOutOpsStore)
+  }
   loading.value = true
   try {
     const res = await stockOutApi.getListPaged(buildListQuery())
     list.value = res.items
     listTotal.value = res.total
+    if (!resetPage) {
+      void stockOutOpsStore.refreshFromListRows(list.value, t('stockOutList.opsPanel.loadFailed'))
+    }
   } catch (e) {
     console.error(e)
     ElMessage.error(t('stockOutList.messages.loadFailed'))
@@ -1103,6 +1144,38 @@ function onRowDblclick(row: StockOutDto) {
   goDetail(row)
 }
 
+const { onOpsPanelRowClick } = useListRightOpsPanelInteraction({
+  workspaceLayout,
+  isActiveRoute: () => route.name === 'StockOutList',
+  hasSelectedRow: () => !!stockOutOpsStore.row,
+  setRowOnly: (row) => stockOutOpsStore.setRowOnly(row),
+  selectRow: (row) => stockOutOpsStore.selectRow(row, t('stockOutList.opsPanel.loadFailed')),
+  loadSelected: () => {
+    void stockOutOpsStore.loadAggregates(t('stockOutList.opsPanel.loadFailed'))
+  }
+})
+
+async function onRowClick(row: StockOutDto) {
+  await onOpsPanelRowClick(row as unknown as Record<string, unknown>)
+}
+
+function opsPanelRowClassName({ row }: { row: StockOutDto }) {
+  if (!stockOutOpsStore.row) return 'table-row-pointer'
+  return stockOutOpsStore.rowKey(row as unknown as Record<string, unknown>) ===
+    stockOutOpsStore.rowKey(stockOutOpsStore.row)
+    ? 'so-item-row--active'
+    : 'table-row-pointer'
+}
+
+watch(
+  () => editForm.shipmentMethod,
+  (next) => {
+    if (!isExpressShipmentMethod(next) && editForm.expressCompany) {
+      editForm.expressCompany = ''
+    }
+  }
+)
+
 async function handleEdit(row: StockOutDto) {
   if (!row?.id) return
   editTargetId.value = row.id
@@ -1110,6 +1183,7 @@ async function handleEdit(row: StockOutDto) {
   editLoading.value = true
   editForm.stockOutDate = ''
   editForm.shipmentMethod = ''
+  editForm.expressCompany = ''
   editForm.courierTrackingNo = ''
   try {
     await ensureLogisticsDict()
@@ -1121,6 +1195,7 @@ async function handleEdit(row: StockOutDto) {
     }
     editForm.stockOutDate = d.stockOutDate ? String(d.stockOutDate).slice(0, 10) : ''
     editForm.shipmentMethod = d.shipmentMethod?.trim() || ''
+    editForm.expressCompany = d.expressCompany?.trim() || ''
     editForm.courierTrackingNo = d.courierTrackingNo?.trim() || ''
   } catch (e) {
     console.error(e)
@@ -1140,9 +1215,11 @@ async function submitEditHeader() {
   editSubmitting.value = true
   try {
     const dateIso = `${editForm.stockOutDate.trim()}T00:00:00.000Z`
+    const express = isExpressShipmentMethod(editForm.shipmentMethod) ? editForm.expressCompany.trim() : ''
     await stockOutApi.updateHeader(editTargetId.value, {
       stockOutDate: dateIso,
       shipmentMethod: editForm.shipmentMethod?.trim() || null,
+      expressCompany: express || null,
       courierTrackingNo: editForm.courierTrackingNo?.trim() || null
     })
     ElMessage.success(t('stockOutDetail.saveOk'))
@@ -1764,6 +1841,10 @@ html[data-theme='dark'] .sol-filter-tabs__item:not(.is-active) {
 
 :deep(.stock-out-type-col .cell) {
   overflow: visible;
+}
+
+:deep(.el-table__body tr.el-table__row.so-item-row--active > td.el-table__cell) {
+  background: rgba(0, 160, 220, 0.1) !important;
 }
 
 </style>

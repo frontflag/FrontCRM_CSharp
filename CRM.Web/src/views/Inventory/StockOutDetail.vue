@@ -155,6 +155,21 @@
               </span>
             </div>
             <div class="info-item">
+              <span class="info-label">{{ t('stockOutList.columns.expressCompany') }}</span>
+              <span class="info-value info-value--control">
+                <el-select
+                  v-model="editForm.expressCompany"
+                  clearable
+                  filterable
+                  :disabled="!isExpressShipmentMethod(editForm.shipmentMethod)"
+                  :placeholder="t('stockOutDetail.shipmentPlaceholder')"
+                  style="width: 100%"
+                >
+                  <el-option v-for="o in expressOptions" :key="o.value" :label="o.label" :value="o.value" />
+                </el-select>
+              </span>
+            </div>
+            <div class="info-item">
               <span class="info-label">{{ t('stockOutDetail.courierTrackingNo') }}</span>
               <span class="info-value info-value--control">
                 <el-input
@@ -695,7 +710,7 @@ import { buildSalesOrderItemListColumns } from '@/composables/buildSalesOrderIte
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { translateSalesOrderStatus, salesOrderStatusTagType } from '@/constants/salesOrderStatus'
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
-import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
+import { isExpressShipmentMethod, useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { StockOutTypeCode } from '@/constants/stockOutType'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
@@ -723,7 +738,7 @@ const DOC_BIZ = 'STOCK_OUT'
 const route = useRoute()
 const router = useRouter()
 const { t, locale } = useI18n()
-const { ensureLoaded: ensureLogisticsDict, shipmentArrivalOptions: shipmentMethodOptions, arrivalOptions } =
+const { ensureLoaded: ensureLogisticsDict, shipmentArrivalOptions: shipmentMethodOptions, arrivalOptions, expressOptions } =
   useLogisticsFormDict()
 
 const stockOutItemNa = computed(() => t('quoteList.na'))
@@ -789,6 +804,7 @@ const stockOutId = computed(() => {
 const editForm = ref({
   stockOutDate: '' as string,
   shipmentMethod: '' as string,
+  expressCompany: '' as string,
   courierTrackingNo: '' as string
 })
 
@@ -840,6 +856,7 @@ function syncEditFromDetail(d: StockOutDetailDto) {
   editForm.value = {
     stockOutDate: toDateOnly(d.stockOutDate),
     shipmentMethod: d.shipmentMethod ?? '',
+    expressCompany: d.expressCompany ?? '',
     courierTrackingNo: d.courierTrackingNo ?? ''
   }
 }
@@ -847,6 +864,15 @@ function syncEditFromDetail(d: StockOutDetailDto) {
 watch(detail, (d) => {
   if (d) syncEditFromDetail(d)
 })
+
+watch(
+  () => editForm.value.shipmentMethod,
+  (next) => {
+    if (!isExpressShipmentMethod(next) && editForm.value.expressCompany) {
+      editForm.value.expressCompany = ''
+    }
+  }
+)
 
 function reportCellText(v: unknown): string {
   if (v === null || v === undefined) return '—'
@@ -1095,6 +1121,9 @@ async function saveHeader() {
     await stockOutApi.updateHeader(id, {
       stockOutDate: dateIso,
       shipmentMethod: editForm.value.shipmentMethod?.trim() || null,
+      expressCompany: isExpressShipmentMethod(editForm.value.shipmentMethod)
+        ? editForm.value.expressCompany?.trim() || null
+        : null,
       courierTrackingNo: editForm.value.courierTrackingNo?.trim() || null
     })
     ElMessage.success(t('stockOutDetail.saveOk'))

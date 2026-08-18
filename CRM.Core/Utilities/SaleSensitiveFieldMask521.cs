@@ -113,14 +113,33 @@ public static class SaleSensitiveFieldMask521
         if (!mask || x == null) return;
         x.CustomerName = null;
         x.SalesUserName = null;
+        x.SalesPrice = null;
+        x.SalesCurrency = null;
     }
 
-    public static void ApplyStockOutItemListRows(IEnumerable<StockOutItemListRowDto>? rows, bool mask)
-    {
-        if (!mask || rows == null) return;
-        foreach (var x in rows)
-            ApplyStockOutItemListRow(x, true);
-    }
+        public static void ApplyStockOutItemListRows(IEnumerable<StockOutItemListRowDto>? rows, bool mask)
+        {
+            if (!mask || rows == null) return;
+            foreach (var x in rows)
+                ApplyStockOutItemListRow(x, true);
+        }
+
+        public static void ApplyStockOutOpsAggregates(StockOutOpsAggregatesDto? dto, bool mask)
+        {
+            if (!mask || dto == null) return;
+            ApplyStockOutItemListRows(dto.Items, true);
+            foreach (var row in dto.SellOrderItems)
+                row.SalesUserName = null;
+            foreach (var rec in dto.Receivables)
+            {
+                rec.Amount = 0m;
+                rec.VerifiedDone = 0m;
+                rec.VerifiedToBe = 0m;
+                rec.InvoiceMatchDone = 0m;
+                rec.InvoiceMatchToBe = 0m;
+                rec.Currency = 0;
+            }
+        }
 
     public static void ApplyPickingTaskListItem(PickingTaskListItemDto? x, bool mask)
     {

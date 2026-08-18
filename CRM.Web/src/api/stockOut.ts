@@ -94,6 +94,22 @@ export interface StockOutDetailReceivableRow {
   invoiceMatchStatus: number
 }
 
+export interface StockOutOpsSellOrderItemRow {
+  sellOrderId?: string | null
+  sellOrderItemId?: string | null
+  sellOrderItemCode?: string | null
+  salesUserName?: string | null
+  pn?: string | null
+  brand?: string | null
+  qty: number
+}
+
+export interface StockOutOpsAggregatesDto {
+  items: StockOutItemListRow[]
+  sellOrderItems: StockOutOpsSellOrderItemRow[]
+  receivables: StockOutDetailReceivableRow[]
+}
+
 export interface StockOutForceDeletePreview {
   stockOutId: string
   stockOutCode?: string
@@ -728,6 +744,38 @@ function normalizeStockOutItemListRow(row: unknown): StockOutItemListRow {
   }
 }
 
+function normalizeStockOutDetailReceivableRow(row: unknown): StockOutDetailReceivableRow {
+  const o = row && typeof row === 'object' ? (row as Record<string, unknown>) : {}
+  return {
+    id: String(o.id ?? o.Id ?? ''),
+    receivableCode: (o.receivableCode ?? o.ReceivableCode) as string | null | undefined,
+    sellOrderItemId: (o.sellOrderItemId ?? o.SellOrderItemId) as string | null | undefined,
+    sellOrderItemCode: (o.sellOrderItemCode ?? o.SellOrderItemCode) as string | null | undefined,
+    outboundQty: Number(o.outboundQty ?? o.OutboundQty ?? 0),
+    amount: Number(o.amount ?? o.Amount ?? 0),
+    currency: Number(o.currency ?? o.Currency ?? 0),
+    verifiedDone: Number(o.verifiedDone ?? o.VerifiedDone ?? 0),
+    verifiedToBe: Number(o.verifiedToBe ?? o.VerifiedToBe ?? 0),
+    verificationStatus: Number(o.verificationStatus ?? o.VerificationStatus ?? 0),
+    invoiceMatchDone: Number(o.invoiceMatchDone ?? o.InvoiceMatchDone ?? 0),
+    invoiceMatchToBe: Number(o.invoiceMatchToBe ?? o.InvoiceMatchToBe ?? 0),
+    invoiceMatchStatus: Number(o.invoiceMatchStatus ?? o.InvoiceMatchStatus ?? 0)
+  }
+}
+
+function normalizeStockOutOpsSellOrderItem(row: unknown): StockOutOpsSellOrderItemRow {
+  const o = row && typeof row === 'object' ? (row as Record<string, unknown>) : {}
+  return {
+    sellOrderId: (o.sellOrderId ?? o.SellOrderId) as string | null | undefined,
+    sellOrderItemId: (o.sellOrderItemId ?? o.SellOrderItemId) as string | null | undefined,
+    sellOrderItemCode: (o.sellOrderItemCode ?? o.SellOrderItemCode) as string | null | undefined,
+    salesUserName: (o.salesUserName ?? o.SalesUserName) as string | null | undefined,
+    pn: (o.pn ?? o.Pn) as string | null | undefined,
+    brand: (o.brand ?? o.Brand) as string | null | undefined,
+    qty: Number(o.qty ?? o.Qty ?? 0)
+  }
+}
+
 function unwrapPagedStockOutItems(res: unknown): StockOutItemListPaged {
   const d = res && typeof res === 'object' ? (res as Record<string, unknown>) : null
   if (d && Array.isArray(d.items)) {
@@ -795,24 +843,23 @@ export const stockOutApi = {
             (data as Record<string, unknown>).Items) as unknown)
         : []
     if (!Array.isArray(rows)) return []
-    return rows.map((x) => {
-      const o = x && typeof x === 'object' ? (x as Record<string, unknown>) : {}
-      return {
-        id: String(o.id ?? o.Id ?? ''),
-        receivableCode: (o.receivableCode ?? o.ReceivableCode) as string | null | undefined,
-        sellOrderItemId: (o.sellOrderItemId ?? o.SellOrderItemId) as string | null | undefined,
-        sellOrderItemCode: (o.sellOrderItemCode ?? o.SellOrderItemCode) as string | null | undefined,
-        outboundQty: Number(o.outboundQty ?? o.OutboundQty ?? 0),
-        amount: Number(o.amount ?? o.Amount ?? 0),
-        currency: Number(o.currency ?? o.Currency ?? 0),
-        verifiedDone: Number(o.verifiedDone ?? o.VerifiedDone ?? 0),
-        verifiedToBe: Number(o.verifiedToBe ?? o.VerifiedToBe ?? 0),
-        verificationStatus: Number(o.verificationStatus ?? o.VerificationStatus ?? 0),
-        invoiceMatchDone: Number(o.invoiceMatchDone ?? o.InvoiceMatchDone ?? 0),
-        invoiceMatchToBe: Number(o.invoiceMatchToBe ?? o.InvoiceMatchToBe ?? 0),
-        invoiceMatchStatus: Number(o.invoiceMatchStatus ?? o.InvoiceMatchStatus ?? 0)
-      }
-    })
+    return rows.map(normalizeStockOutDetailReceivableRow)
+  },
+
+  async getOpsAggregates(id: string): Promise<StockOutOpsAggregatesDto> {
+    const enc = encodeURIComponent(id)
+    const res = await apiClient.get<unknown>(`/api/v1/stock-out/${enc}/ops-aggregates`)
+    const root = res && typeof res === 'object' ? (res as Record<string, unknown>) : null
+    const data = (root?.data ?? root?.Data ?? root) as Record<string, unknown> | null
+    const src = data && typeof data === 'object' ? data : {}
+    const itemsRaw = (src.items ?? src.Items) as unknown
+    const sellRaw = (src.sellOrderItems ?? src.SellOrderItems) as unknown
+    const recRaw = (src.receivables ?? src.Receivables) as unknown
+    return {
+      items: Array.isArray(itemsRaw) ? itemsRaw.map(normalizeStockOutItemListRow) : [],
+      sellOrderItems: Array.isArray(sellRaw) ? sellRaw.map(normalizeStockOutOpsSellOrderItem) : [],
+      receivables: Array.isArray(recRaw) ? recRaw.map(normalizeStockOutDetailReceivableRow) : []
+    }
   },
 
   /**
@@ -859,7 +906,7 @@ export const stockOutApi = {
 
   async updateHeader(
     id: string,
-    body: { stockOutDate: string; shipmentMethod?: string | null; courierTrackingNo?: string | null }
+    body: { stockOutDate: string; shipmentMethod?: string | null; expressCompany?: string | null; courierTrackingNo?: string | null }
   ): Promise<void> {
     await apiClient.patch(`/api/v1/stock-out/${id}/header`, body)
   },

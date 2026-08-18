@@ -404,7 +404,35 @@ namespace CRM.API.Controllers
             }
         }
 
-        /// <summary>更新出库日期、出货方式、快递单号</summary>
+        /// <summary>列表右侧操作面板聚合</summary>
+        [HttpGet("{id}/ops-aggregates")]
+        public async Task<ActionResult<ApiResponse<StockOutOpsAggregatesDto>>> GetOpsAggregates(
+            string id,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var dto = await _service.GetOpsAggregatesAsync(id, cancellationToken);
+                if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
+                    SaleSensitiveFieldMask521.ApplyStockOutOpsAggregates(dto, true);
+                return Ok(ApiResponse<StockOutOpsAggregatesDto>.Ok(dto, "OK"));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<StockOutOpsAggregatesDto>.Fail(ex.Message, 400));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(ApiResponse<StockOutOpsAggregatesDto>.Fail(ex.Message, 404));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取出库单操作面板失败");
+                return StatusCode(500, ApiResponse<StockOutOpsAggregatesDto>.Fail($"加载失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>更新出库日期、出货方式、快递公司、快递单号</summary>
         [HttpPatch("{id}/header")]
         public async Task<ActionResult<ApiResponse<object>>> UpdateHeader(string id, [FromBody] UpdateStockOutHeaderRequest? body)
         {
@@ -415,6 +443,10 @@ namespace CRM.API.Controllers
                 var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 await _service.UpdateHeaderAsync(id, body, actorId);
                 return Ok(ApiResponse<object>.Ok(null, "保存成功"));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
             }
             catch (InvalidOperationException ex)
             {

@@ -1001,6 +1001,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.PickingTaskId).HasColumnName("picking_task_id").HasMaxLength(36);
                 entity.Property(e => e.Remark).HasMaxLength(500);
                 entity.Property(e => e.ShipmentMethod).HasMaxLength(64);
+                entity.Property(e => e.ExpressCompany).HasMaxLength(64);
                 entity.Property(e => e.CourierTrackingNo).HasMaxLength(128);
                 entity.Property(e => e.ExpectedStockOutDate).HasColumnName("expected_stock_out_date");
                 entity.Property(e => e.RegionType).HasColumnName("RegionType").HasDefaultValue((short)10);

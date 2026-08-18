@@ -61,7 +61,7 @@ namespace CRM.Core.Interfaces
             int pageSize,
             CancellationToken cancellationToken = default);
         Task UpdateStatusAsync(string id, short status, string? actingUserId = null);
-        /// <summary>可改：出库日期、出货方式、快递单号</summary>
+        /// <summary>可改：出库日期、出货方式、快递公司、快递单号</summary>
         Task UpdateHeaderAsync(string id, UpdateStockOutHeaderRequest request, string? actingUserId = null);
 
         /// <summary>标记完成：更新实际出库日期、快递单号、备注并置状态为已完成(4)。</summary>
@@ -82,6 +82,11 @@ namespace CRM.Core.Interfaces
 
         /// <summary>出库详情应收摘要。出库不存在抛出；非销售出库返回空列表。</summary>
         Task<IReadOnlyList<StockOutDetailReceivableRowDto>> GetDetailReceivablesAsync(
+            string id,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>列表右侧操作面板聚合：出库明细、销售行、应收。</summary>
+        Task<StockOutOpsAggregatesDto> GetOpsAggregatesAsync(
             string id,
             CancellationToken cancellationToken = default);
     }
@@ -255,6 +260,7 @@ namespace CRM.Core.Interfaces
     {
         public DateTime StockOutDate { get; set; }
         public string? ShipmentMethod { get; set; }
+        public string? ExpressCompany { get; set; }
         public string? CourierTrackingNo { get; set; }
     }
 
@@ -303,6 +309,27 @@ namespace CRM.Core.Interfaces
         public decimal InvoiceMatchDone { get; set; }
         public decimal InvoiceMatchToBe { get; set; }
         public short InvoiceMatchStatus { get; set; }
+    }
+
+    public class StockOutOpsSellOrderItemDto
+    {
+        public string? SellOrderId { get; set; }
+        public string? SellOrderItemId { get; set; }
+        public string? SellOrderItemCode { get; set; }
+        public string? SalesUserName { get; set; }
+        public string? Pn { get; set; }
+        public string? Brand { get; set; }
+        public decimal Qty { get; set; }
+    }
+
+    public class StockOutOpsAggregatesDto
+    {
+        public IReadOnlyList<StockOutItemListRowDto> Items { get; set; } =
+            Array.Empty<StockOutItemListRowDto>();
+        public IReadOnlyList<StockOutOpsSellOrderItemDto> SellOrderItems { get; set; } =
+            Array.Empty<StockOutOpsSellOrderItemDto>();
+        public IReadOnlyList<StockOutDetailReceivableRowDto> Receivables { get; set; } =
+            Array.Empty<StockOutDetailReceivableRowDto>();
     }
 
     public class StockOutForceDeletePreviewDto
