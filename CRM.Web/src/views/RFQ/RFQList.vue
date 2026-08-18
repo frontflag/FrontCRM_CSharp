@@ -115,6 +115,34 @@
           <el-option :label="t('rfqList.status.closed')" :value="7" />
           <el-option :label="t('rfqList.status.cancelled')" :value="8" />
         </el-select>
+        <template v-if="showRfqSalesUserColumn">
+          <div class="search-input-wrap">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              v-model="searchForm.salesUserName"
+              type="search"
+              class="search-input search-input--w160"
+              :placeholder="t('rfqList.filters.salesUserPlaceholder')"
+              @keyup.enter="handleSearch"
+            />
+          </div>
+        </template>
+        <div class="search-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            v-model="searchForm.createUserName"
+            type="search"
+            class="search-input search-input--w160"
+            :placeholder="t('rfqList.filters.createUserPlaceholder')"
+            @keyup.enter="handleSearch"
+          />
+        </div>
         <el-select
           v-if="showRfqTagFilter"
           v-model="searchForm.tagIds"
@@ -356,6 +384,8 @@ const stats = ref({ total: 0, pending: 0, processing: 0, quoted: 0 })
 const searchForm = ref({
   keyword: '',
   status: undefined as number | undefined,
+  salesUserName: '',
+  createUserName: '',
   tagIds: [] as string[],
   dateRange: null as [string, string] | null
 })
@@ -518,6 +548,10 @@ const loadData = async () => {
     const res = await rfqApi.searchRFQs({
       keyword: searchForm.value.keyword,
       status: searchForm.value.status,
+      salesUserName: showRfqSalesUserColumn.value
+        ? (searchForm.value.salesUserName.trim() || undefined)
+        : undefined,
+      createUserName: searchForm.value.createUserName.trim() || undefined,
       tagIds: searchForm.value.tagIds?.length ? searchForm.value.tagIds : undefined,
       startDate: searchForm.value.dateRange?.[0],
       endDate: searchForm.value.dateRange?.[1],
@@ -562,6 +596,10 @@ const handleSearch = () => {
   if (searchForm.value.status !== undefined && searchForm.value.status !== null) {
     q.status = String(searchForm.value.status)
   }
+  const sales = searchForm.value.salesUserName.trim()
+  if (sales && showRfqSalesUserColumn.value) q.salesUserName = sales
+  const creator = searchForm.value.createUserName.trim()
+  if (creator) q.createUserName = creator
   if (searchForm.value.dateRange?.[0]) q.startDate = searchForm.value.dateRange[0]
   if (searchForm.value.dateRange?.[1]) q.endDate = searchForm.value.dateRange[1]
   router.replace({ name: 'RFQList', query: q })
@@ -597,7 +635,9 @@ watch(
     const sd = typeof route.query.startDate === 'string' ? route.query.startDate : ''
     const ed = typeof route.query.endDate === 'string' ? route.query.endDate : ''
     const dateRange: [string, string] | null = sd && ed ? [sd, ed] : null
-    searchForm.value = { keyword: kw, status: st, tagIds: [], dateRange }
+    const salesUserName = typeof route.query.salesUserName === 'string' ? route.query.salesUserName : ''
+    const createUserName = typeof route.query.createUserName === 'string' ? route.query.createUserName : ''
+    searchForm.value = { keyword: kw, status: st, salesUserName, createUserName, tagIds: [], dateRange }
     pageInfo.value.page = 1
     loadData()
   },
@@ -752,6 +792,10 @@ function onRfqRowDblClick(row: any, _column: unknown, event?: MouseEvent) {
 
 .search-input--w280 {
   width: 280px;
+}
+
+.search-input--w160 {
+  width: 160px;
 }
 
 .status-select {

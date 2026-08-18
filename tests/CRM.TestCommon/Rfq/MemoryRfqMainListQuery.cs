@@ -56,6 +56,32 @@ public sealed class MemoryRfqMainListQuery : IRfqMainListQuery
         if (!string.IsNullOrWhiteSpace(request.CustomerId))
             query = query.Where(r => r.CustomerId == request.CustomerId);
 
+        if (!string.IsNullOrWhiteSpace(request.SalesUserName))
+        {
+            var acc = request.SalesUserName.Trim().ToLowerInvariant();
+            var usersForFilter = (await _userService.GetAllAsync()).ToList();
+            var matchedIds = usersForFilter
+                .Where(u => !string.IsNullOrWhiteSpace(u.UserName) && u.UserName.ToLowerInvariant().Contains(acc))
+                .Select(u => u.Id)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            query = matchedIds.Count == 0
+                ? query.Where(r => false)
+                : query.Where(r => r.SalesUserId != null && matchedIds.Contains(r.SalesUserId));
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.CreateUserName))
+        {
+            var acc = request.CreateUserName.Trim().ToLowerInvariant();
+            var usersForFilter = (await _userService.GetAllAsync()).ToList();
+            var matchedIds = usersForFilter
+                .Where(u => !string.IsNullOrWhiteSpace(u.UserName) && u.UserName.ToLowerInvariant().Contains(acc))
+                .Select(u => u.Id)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            query = matchedIds.Count == 0
+                ? query.Where(r => false)
+                : query.Where(r => r.CreateByUserId != null && matchedIds.Contains(r.CreateByUserId));
+        }
+
         if (request.StartDate.HasValue)
             query = query.Where(r => r.CreateTime >= request.StartDate.Value);
 

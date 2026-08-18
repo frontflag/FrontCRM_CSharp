@@ -180,7 +180,7 @@ export const useAuthStore = defineStore('auth', () => {
       return await applyAuthPayload(authData)
     } catch (error) {
       console.error('Login failed:', error)
-      return false
+      throw error
     } finally {
       loading.value = false
     }

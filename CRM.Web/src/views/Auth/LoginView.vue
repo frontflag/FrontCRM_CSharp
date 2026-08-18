@@ -177,6 +177,7 @@ import { useI18n } from 'vue-i18n'
 import { type FormInstance, type FormRules } from 'element-plus'
 import { ChatDotRound, Loading, CircleCheck, Warning, Timer } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores'
+import { getApiErrorMessage } from '@/utils/apiError'
 import { getWechatQrCode, checkWechatLoginStatus } from '@/api/wechatAuth'
 import { COMPANY_LOGIN_LOGO_URL } from '@/api/companyProfile'
 import { LOGIN_TENANT_ID, loginPageLayout, loginTenantText, loginThemeCssHref } from '@/config/loginTenant'
@@ -388,7 +389,7 @@ const handleLogin = async () => {
         errorMsg.value = t('login.loginFailedDefault')
       }
     } catch (error: any) {
-      errorMsg.value = error.message || error.response?.data?.message || t('login.loginFailedRetry')
+      errorMsg.value = getApiErrorMessage(error, t('login.loginFailedRetry'))
     } finally {
       loading.value = false
     }

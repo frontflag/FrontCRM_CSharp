@@ -53,6 +53,8 @@ namespace CRM.API.Controllers
             [FromQuery] string? customerId = null,
             [FromQuery] string? startDate = null,
             [FromQuery] string? endDate = null,
+            [FromQuery] string? salesUserName = null,
+            [FromQuery] string? createUserName = null,
             [FromQuery] string[]? tagIds = null)
         {
             try
@@ -73,7 +75,9 @@ namespace CRM.API.Controllers
                     StartDate = PostgreSqlDateTime.ParseDateOnly(startDate),
                     EndDate = PostgreSqlDateTime.ParseDateOnly(endDate),
                     CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
-                    TagIds = normalizedTagIds is { Count: > 0 } ? normalizedTagIds : null
+                    TagIds = normalizedTagIds is { Count: > 0 } ? normalizedTagIds : null,
+                    SalesUserName = salesUserName,
+                    CreateUserName = createUserName
                 };
                 var result = await _rfqService.GetPagedAsync(request);
                 return Ok(ApiResponse<object>.Ok(new
@@ -102,11 +106,13 @@ namespace CRM.API.Controllers
             [FromQuery] short? status,
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
+            [FromQuery] string? salesUserName,
+            [FromQuery] string? createUserName,
             [FromQuery] string[]? tagIds,
             CancellationToken cancellationToken = default)
         {
             var (request, maskCustomerNames) = await BuildListAnalyticsQueryRequestAsync(
-                keyword, status, startDate, endDate, tagIds, cancellationToken);
+                keyword, status, startDate, endDate, salesUserName, createUserName, tagIds, cancellationToken);
             var data = await _rfqMainListQuery.GetListAnalyticsDashboardAsync(request, maskCustomerNames, cancellationToken);
             return Ok(ApiResponse<RfqListAnalyticsDashboardDto>.Ok(data));
         }
@@ -118,12 +124,14 @@ namespace CRM.API.Controllers
             [FromQuery] short? status,
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
+            [FromQuery] string? salesUserName,
+            [FromQuery] string? createUserName,
             [FromQuery] string[]? tagIds,
             [FromQuery] string? groupBy,
             CancellationToken cancellationToken = default)
         {
             var (request, _) = await BuildListAnalyticsQueryRequestAsync(
-                keyword, status, startDate, endDate, tagIds, cancellationToken);
+                keyword, status, startDate, endDate, salesUserName, createUserName, tagIds, cancellationToken);
             var data = await _rfqMainListQuery.GetListAnalyticsTrendsAsync(
                 request,
                 string.IsNullOrWhiteSpace(groupBy) ? "month" : groupBy.Trim(),
@@ -138,11 +146,13 @@ namespace CRM.API.Controllers
             [FromQuery] short? status,
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
+            [FromQuery] string? salesUserName,
+            [FromQuery] string? createUserName,
             [FromQuery] string[]? tagIds,
             CancellationToken cancellationToken = default)
         {
             var (request, _) = await BuildListAnalyticsQueryRequestAsync(
-                keyword, status, startDate, endDate, tagIds, cancellationToken);
+                keyword, status, startDate, endDate, salesUserName, createUserName, tagIds, cancellationToken);
             var data = await _rfqMainListQuery.GetListAnalyticsBreakdownsAsync(request, cancellationToken);
             return Ok(ApiResponse<IReadOnlyList<SalesAnalyticsBreakdownGroupDto>>.Ok(data));
         }
@@ -154,11 +164,13 @@ namespace CRM.API.Controllers
             [FromQuery] short? status,
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
+            [FromQuery] string? salesUserName,
+            [FromQuery] string? createUserName,
             [FromQuery] string[]? tagIds,
             CancellationToken cancellationToken = default)
         {
             var (request, maskCustomerNames) = await BuildListAnalyticsQueryRequestAsync(
-                keyword, status, startDate, endDate, tagIds, cancellationToken);
+                keyword, status, startDate, endDate, salesUserName, createUserName, tagIds, cancellationToken);
             var data = await _rfqMainListQuery.GetListAnalyticsRankingsAsync(request, maskCustomerNames, cancellationToken);
             return Ok(ApiResponse<RfqListAnalyticsRankingsDto>.Ok(data));
         }
@@ -685,6 +697,8 @@ namespace CRM.API.Controllers
             short? status,
             string? startDate,
             string? endDate,
+            string? salesUserName,
+            string? createUserName,
             string[]? tagIds,
             CancellationToken cancellationToken)
         {
@@ -711,7 +725,9 @@ namespace CRM.API.Controllers
                 StartDate = PostgreSqlDateTime.ParseDateOnly(startDate),
                 EndDate = PostgreSqlDateTime.ParseDateOnly(endDate),
                 CurrentUserId = userId,
-                TagIds = normalizedTagIds is { Count: > 0 } ? normalizedTagIds : null
+                TagIds = normalizedTagIds is { Count: > 0 } ? normalizedTagIds : null,
+                SalesUserName = salesUserName,
+                CreateUserName = createUserName
             };
 
             return (request, maskCustomerNames);

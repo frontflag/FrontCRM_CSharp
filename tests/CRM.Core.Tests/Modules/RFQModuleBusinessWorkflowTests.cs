@@ -205,6 +205,69 @@ public sealed class RFQModuleBusinessWorkflowTests
     }
 
     [Fact]
+    public async Task GetPagedAsync_FiltersBySalesUserLoginAccount()
+    {
+        var h = new RfqInMemoryHarness();
+        await SeedCustomerAsync(h);
+        await h.Service.CreateAsync(BuildCreateRequest());
+
+        var hit = await h.Service.GetPagedAsync(new RFQQueryRequest
+        {
+            SalesUserName = "saler",
+            PageIndex = 1,
+            PageSize = 10
+        });
+        hit.TotalCount.Should().Be(1);
+
+        var miss = await h.Service.GetPagedAsync(new RFQQueryRequest
+        {
+            SalesUserName = "nobody",
+            PageIndex = 1,
+            PageSize = 10
+        });
+        miss.TotalCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_FiltersByCreateUserLoginAccount()
+    {
+        var h = new RfqInMemoryHarness();
+        await SeedCustomerAsync(h);
+        var creator = new User { Id = "USER-CREATOR", UserName = "creator1", RealName = "创建人" };
+        h.UserService.GetAllAsync().Returns(new List<User>
+        {
+            new() { Id = "USER-001", UserName = "saler1", RealName = "李业务" },
+            creator
+        });
+        h.UserService.GetByIdAsync("USER-CREATOR").Returns(creator);
+        await h.Service.CreateAsync(BuildCreateRequest(), "USER-CREATOR");
+
+        var hit = await h.Service.GetPagedAsync(new RFQQueryRequest
+        {
+            CreateUserName = "creator",
+            PageIndex = 1,
+            PageSize = 10
+        });
+        hit.TotalCount.Should().Be(1);
+
+        var salesOnly = await h.Service.GetPagedAsync(new RFQQueryRequest
+        {
+            CreateUserName = "saler",
+            PageIndex = 1,
+            PageSize = 10
+        });
+        salesOnly.TotalCount.Should().Be(0);
+
+        var miss = await h.Service.GetPagedAsync(new RFQQueryRequest
+        {
+            CreateUserName = "nobody",
+            PageIndex = 1,
+            PageSize = 10
+        });
+        miss.TotalCount.Should().Be(0);
+    }
+
+    [Fact]
     public async Task CreateAsync_WithoutCustomerId_Throws()
     {
         var h = new RfqInMemoryHarness();

@@ -1,7 +1,7 @@
 # AI 物料情报查询（material.intel.lookup）设计与实现
 
-**文档版本：** v1.0  
-**更新日期：** 2026-06-03  
+**文档版本：** v1.1  
+**更新日期：** 2026-08-18  
 **项目名称：** FrontCRM_CSharp  
 **关联文档：** [AI模块架构与实现](./AI模块架构与实现.md) · [AI模块PRD](../PRD/AI模块PRD.md)
 
@@ -297,6 +297,7 @@ EF 迁移（按需）：`20260804100000_MaterialIntelLookupScenario` → `202608
 | 504 超时 | Nginx / 浏览器断开 | 调大 `proxy_read_timeout`；LLM 耗时长属正常 |
 | 仍返回英文/旧结构 | 命中旧缓存 | 执行清缓存 SQL；确认 v2 Prompt 已入库 |
 | 401 Moonshot | Key 与 base_url 区域不匹配 | 国内 Key + `.cn` 端点 |
+| 429 / 额度不足 | 厂商账号余额不足或套餐暂停 | 管理员在 AI 配置页核对密钥与账单后充值；界面只提示「额度不足」，不展示厂商 JSON / 组织号 / 密钥片段 |
 
 ---
 
@@ -310,6 +311,7 @@ EF 迁移（按需）：`20260804100000_MaterialIntelLookupScenario` → `202608
 | `CRM.Infrastructure/Ai/AiJsonHelper.cs` | 模板渲染、JSON 提取与 jsonb 安全 |
 | `CRM.API/Controllers/AiController.cs` | `/api/v1/ai/invoke` |
 | `CRM.Core/Constants/AiCodes.cs` | 场景码与权限码 |
+| `CRM.Core/Utilities/AiProviderUserError.cs` | 厂商 HTTP 错误 → 用户可见文案（不回传响应体） |
 | `CRM.Infrastructure/Migrations/20260805100000_MaterialIntelLookupSchemaV2.cs` | 契约 v2 DB 更新 |
 
 ### 8.2 前端

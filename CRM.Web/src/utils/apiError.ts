@@ -7,6 +7,13 @@
 export const AI_INVOKE_TIMEOUT_USER_MESSAGE =
   'AI 调查耗时较长，连接已超时，请稍后点击「重试」。'
 
+/** 厂商额度/鉴权失败时勿把组织号、密钥片段、原始 JSON 展示给业务用户 */
+export const AI_PROVIDER_QUOTA_USER_MESSAGE =
+  'AI 服务额度不足或账号已暂停，请联系管理员检查套餐与余额后重试。'
+
+export const AI_PROVIDER_AUTH_USER_MESSAGE =
+  'AI 服务鉴权失败，请联系管理员检查密钥配置。'
+
 function sanitizeUserFacingMessage(message: string): string {
   const m = message.trim()
   if (!m) return m
@@ -15,6 +22,16 @@ function sanitizeUserFacingMessage(message: string): string {
     (/AI 调用超时|504/i.test(m) && /nginx|proxy_read|运维|网关|Kimi/i.test(m))
   ) {
     return AI_INVOKE_TIMEOUT_USER_MESSAGE
+  }
+  if (
+    /insufficient balance|exceeded_current_quota|quota_exceeded|exceeded your current quota/i.test(m) ||
+    (/AI 调用失败\s*\(429\)/i.test(m) && /suspended|recharge|quota|org-|ak-/i.test(m)) ||
+    (/org-[a-z0-9]+/i.test(m) && /suspended|insufficient|quota/i.test(m))
+  ) {
+    return AI_PROVIDER_QUOTA_USER_MESSAGE
+  }
+  if (/invalid authentication|incorrect api key|invalid_api_key|AI 调用失败\s*\(40[13]\)/i.test(m)) {
+    return AI_PROVIDER_AUTH_USER_MESSAGE
   }
   return m
 }

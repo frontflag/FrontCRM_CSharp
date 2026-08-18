@@ -173,6 +173,12 @@ namespace CRM.Core.Interfaces
 
         /// <summary>按标签 OR 筛选（AND 与其他条件组合）。</summary>
         public List<string>? TagIds { get; set; }
+
+        /// <summary>按业务员登录账号模糊筛选（匹配 user.UserName）。</summary>
+        public string? SalesUserName { get; set; }
+
+        /// <summary>按创建人登录账号模糊筛选（匹配 user.UserName → rfq.CreateByUserId）。</summary>
+        public string? CreateUserName { get; set; }
     }
 
     public class RFQListItem

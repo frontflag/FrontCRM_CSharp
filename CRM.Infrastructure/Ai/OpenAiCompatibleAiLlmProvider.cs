@@ -7,6 +7,7 @@ using System.Text.Json.Serialization;
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Ai;
+using CRM.Core.Utilities;
 using Microsoft.Extensions.Logging;
 
 namespace CRM.Infrastructure.Ai;
@@ -225,7 +226,7 @@ public sealed class OpenAiCompatibleAiLlmProvider : IAiLlmProvider
         if (!resp.IsSuccessStatusCode)
         {
             _logger.LogWarning("AI provider {Provider} HTTP {Status}: {Body}", _config.Code, (int)resp.StatusCode, Truncate(body, 500));
-            throw new InvalidOperationException($"AI 调用失败 ({(int)resp.StatusCode}): {Truncate(body, 300)}");
+            throw new InvalidOperationException(AiProviderUserError.FromHttp((int)resp.StatusCode, body));
         }
 
         var parsed = JsonSerializer.Deserialize<OpenAiChatResponse>(body);

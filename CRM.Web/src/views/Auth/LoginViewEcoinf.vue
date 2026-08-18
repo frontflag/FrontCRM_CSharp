@@ -136,6 +136,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { type FormInstance, type FormRules } from 'element-plus'
 import { useAuthStore } from '@/stores'
+import { getApiErrorMessage } from '@/utils/apiError'
 import { loginTenantText, loginThemeCssHref } from '@/config/loginTenant'
 
 const REMEMBER_USER_KEY = 'frontcrm_login_remember_user'
@@ -243,7 +244,7 @@ const handleLogin = async () => {
         errorMsg.value = t('login.loginFailedDefault')
       }
     } catch (error: any) {
-      errorMsg.value = error.message || error.response?.data?.message || t('login.loginFailedRetry')
+      errorMsg.value = getApiErrorMessage(error, t('login.loginFailedRetry'))
     } finally {
       loading.value = false
     }

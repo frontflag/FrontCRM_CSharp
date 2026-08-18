@@ -341,7 +341,9 @@ namespace CRM.Core.Services
                 StartDate = request.StartDate,
                 EndDate = request.EndDate,
                 CurrentUserId = request.CurrentUserId,
-                TagIds = request.TagIds
+                TagIds = request.TagIds,
+                SalesUserName = request.SalesUserName,
+                CreateUserName = request.CreateUserName
             };
 
             var page = await _rfqMainListQuery.GetPagedWithAggregatesAsync(queryReq, default);

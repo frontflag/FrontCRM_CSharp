@@ -88,6 +88,32 @@ public sealed partial class RfqMainListQuery : IRfqMainListQuery
         if (!string.IsNullOrWhiteSpace(request.CustomerId))
             q = q.Where(r => r.CustomerId == request.CustomerId);
 
+        if (!string.IsNullOrWhiteSpace(request.SalesUserName))
+        {
+            var acc = request.SalesUserName.Trim().ToLowerInvariant();
+            var matchedUserIds = await _db.Users.AsNoTracking()
+                .Where(u => u.UserName.ToLower().Contains(acc))
+                .Select(u => u.Id)
+                .ToListAsync(cancellationToken);
+            if (matchedUserIds.Count == 0)
+                q = q.Where(r => false);
+            else
+                q = q.Where(r => r.SalesUserId != null && matchedUserIds.Contains(r.SalesUserId));
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.CreateUserName))
+        {
+            var acc = request.CreateUserName.Trim().ToLowerInvariant();
+            var matchedUserIds = await _db.Users.AsNoTracking()
+                .Where(u => u.UserName.ToLower().Contains(acc))
+                .Select(u => u.Id)
+                .ToListAsync(cancellationToken);
+            if (matchedUserIds.Count == 0)
+                q = q.Where(r => false);
+            else
+                q = q.Where(r => r.CreateByUserId != null && matchedUserIds.Contains(r.CreateByUserId));
+        }
+
         if (request.StartDate.HasValue)
         {
             var start = SalesAnalyticsDateFilter.ToUtcDateStart(request.StartDate.Value);

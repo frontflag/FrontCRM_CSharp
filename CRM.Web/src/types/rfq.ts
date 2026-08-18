@@ -256,6 +256,10 @@ export interface RFQSearchRequest {
   searchTerm?: string
   customerId?: string
   salesUserId?: string
+  /** 业务员登录账号（模糊匹配） */
+  salesUserName?: string
+  /** 创建人登录账号（模糊匹配） */
+  createUserName?: string
   status?: RFQStatus | ''
   rfqType?: RFQType | ''
   source?: RFQSource | ''

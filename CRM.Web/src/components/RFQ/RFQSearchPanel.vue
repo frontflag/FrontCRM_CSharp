@@ -2,19 +2,25 @@
 import { reactive, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 
 const form = reactive({
   keyword: '',
-  status: undefined as number | undefined
+  status: undefined as number | undefined,
+  salesUserName: '',
+  createUserName: ''
 })
 
 function syncFromRoute() {
   if (route.name !== 'RFQList') return
   form.keyword = typeof route.query.keyword === 'string' ? route.query.keyword : ''
+  form.salesUserName = typeof route.query.salesUserName === 'string' ? route.query.salesUserName : ''
+  form.createUserName = typeof route.query.createUserName === 'string' ? route.query.createUserName : ''
   const s = route.query.status
   if (s === undefined || s === null || s === '') {
     form.status = undefined
@@ -39,6 +45,12 @@ function handleSearch() {
   const kw = form.keyword.trim()
   if (kw) query.keyword = kw
   if (form.status !== undefined && form.status !== null) query.status = String(form.status)
+  const sales = form.salesUserName.trim()
+  if (sales && !maskSaleSensitiveFields.value) query.salesUserName = sales
+  const creator = form.createUserName.trim()
+  if (creator) query.createUserName = creator
+  if (typeof route.query.startDate === 'string' && route.query.startDate) query.startDate = route.query.startDate
+  if (typeof route.query.endDate === 'string' && route.query.endDate) query.endDate = route.query.endDate
   router.push({ name: 'RFQList', query })
 }
 </script>
@@ -56,6 +68,32 @@ function handleSearch() {
             type="text"
             class="field-input"
             :placeholder="t('leftPanel.rfqKeywordPlaceholder')"
+            @keyup.enter="handleSearch"
+          />
+        </div>
+      </div>
+
+      <div v-if="!maskSaleSensitiveFields" class="field-col">
+        <label class="field-label">{{ t('rfqList.filters.salesUser') }}</label>
+        <div class="field-control">
+          <input
+            v-model="form.salesUserName"
+            type="text"
+            class="field-input"
+            :placeholder="t('rfqList.filters.salesUserPlaceholder')"
+            @keyup.enter="handleSearch"
+          />
+        </div>
+      </div>
+
+      <div class="field-col">
+        <label class="field-label">{{ t('rfqList.filters.createUser') }}</label>
+        <div class="field-control">
+          <input
+            v-model="form.createUserName"
+            type="text"
+            class="field-input"
+            :placeholder="t('rfqList.filters.createUserPlaceholder')"
             @keyup.enter="handleSearch"
           />
         </div>

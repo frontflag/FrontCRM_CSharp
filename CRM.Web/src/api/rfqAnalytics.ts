@@ -6,6 +6,8 @@ export interface RfqListAnalyticsQuery {
   status?: number
   startDate?: string
   endDate?: string
+  salesUserName?: string
+  createUserName?: string
   tagIds?: string[]
   groupBy?: 'day' | 'week' | 'month'
 }
@@ -49,6 +51,8 @@ function buildParams(q: RfqListAnalyticsQuery): Record<string, string | number> 
   if (q.status !== undefined && q.status !== null) p.status = q.status
   if (q.startDate) p.startDate = q.startDate
   if (q.endDate) p.endDate = q.endDate
+  if (q.salesUserName) p.salesUserName = q.salesUserName
+  if (q.createUserName) p.createUserName = q.createUserName
   if (q.groupBy) p.groupBy = q.groupBy
   return p
 }
