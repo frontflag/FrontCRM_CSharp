@@ -99,6 +99,93 @@ namespace CRM.API.Controllers
             }
         }
 
+        /// <summary>需求回收站列表（须放在 {id} 之前）。</summary>
+        [HttpGet("recycle-bin")]
+        [RequirePermission("rfq.read")]
+        public async Task<ActionResult<ApiResponse<object>>> GetRecycleBin(
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int? page = null,
+            [FromQuery] int pageSize = 20,
+            [FromQuery] string? keyword = null,
+            [FromQuery] short? status = null,
+            [FromQuery] string? customerId = null,
+            [FromQuery] string? startDate = null,
+            [FromQuery] string? endDate = null,
+            [FromQuery] string? salesUserName = null,
+            [FromQuery] string? createUserName = null,
+            [FromQuery] string[]? tagIds = null)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await EnsureRfqRecycleAccessAsync(userId);
+                var pageNorm = page is >= 1 ? page!.Value : (pageNumber < 1 ? 1 : pageNumber);
+                var normalizedTagIds = tagIds?
+                    .SelectMany(v => (v ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                    .Where(id => !string.IsNullOrWhiteSpace(id))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                var result = await _rfqService.GetDeletedPagedAsync(new RFQQueryRequest
+                {
+                    PageIndex = pageNorm,
+                    PageSize = pageSize,
+                    Keyword = keyword,
+                    Status = status,
+                    CustomerId = customerId,
+                    StartDate = PostgreSqlDateTime.ParseDateOnly(startDate),
+                    EndDate = PostgreSqlDateTime.ParseDateOnly(endDate),
+                    CurrentUserId = userId,
+                    TagIds = normalizedTagIds is { Count: > 0 } ? normalizedTagIds : null,
+                    SalesUserName = salesUserName,
+                    CreateUserName = createUserName
+                });
+                return Ok(ApiResponse<object>.Ok(new
+                {
+                    items = result.Items,
+                    totalCount = result.TotalCount,
+                    total = result.TotalCount,
+                    pageNumber = result.PageIndex,
+                    page = result.PageIndex,
+                    pageSize = result.PageSize,
+                    totalPages = result.TotalPages
+                }, "获取需求回收站列表成功"));
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(403, ApiResponse<object>.Fail(ex.Message, 403));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取需求回收站列表失败");
+                return StatusCode(500, ApiResponse<object>.Fail($"获取需求回收站列表失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>需求回收站只读详情（须放在 {id} 之前）。</summary>
+        [HttpGet("recycle-bin/{id}")]
+        [RequirePermission("rfq.read")]
+        public async Task<ActionResult<ApiResponse<object>>> GetRecycleBinRFQ(string id)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await EnsureRfqRecycleAccessAsync(userId);
+                var rfq = await _rfqService.GetDeletedByIdAsync(id, userId);
+                if (rfq == null)
+                    return NotFound(ApiResponse<object>.Fail("需求不在回收站", 404));
+                return Ok(ApiResponse<object>.Ok(rfq, "获取需求成功"));
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(403, ApiResponse<object>.Fail(ex.Message, 403));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取回收站需求失败: {Id}", id);
+                return StatusCode(500, ApiResponse<object>.Fail($"获取需求失败: {ex.Message}", 500));
+            }
+        }
+
         [HttpGet("analytics/dashboard")]
         [RequirePermission("rfq.read")]
         public async Task<IActionResult> GetListAnalyticsDashboard(
@@ -544,6 +631,36 @@ namespace CRM.API.Controllers
             }
         }
 
+        [HttpPost("{id}/restore")]
+        [RequirePermission("rfq.read")]
+        public async Task<ActionResult<ApiResponse<object>>> RestoreRFQ(string id)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await EnsureRfqRecycleAccessAsync(userId);
+                await _rfqService.RestoreAsync(id, userId);
+                return Ok(ApiResponse<object>.Ok((object)null!, "需求已恢复"));
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(403, ApiResponse<object>.Fail(ex.Message, 403));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ApiResponse<object>.Fail(ex.Message, 404));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "恢复需求失败: {Id}", id);
+                return StatusCode(500, ApiResponse<object>.Fail($"恢复需求失败: {ex.Message}", 500));
+            }
+        }
+
         // PATCH api/v1/rfqs/{id}/status
         [HttpPatch("{id}/status")]
         [RequirePermission("rfq.read")]
@@ -790,6 +907,15 @@ namespace CRM.API.Controllers
             };
 
             return (request, maskCustomerNames);
+        }
+
+        private async Task EnsureRfqRecycleAccessAsync(string? userId)
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+                throw new UnauthorizedAccessException("无权限访问需求回收站");
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
+            if (!RfqRecycleBinAccessRules.CanAccess(summary))
+                throw new UnauthorizedAccessException("无权限访问需求回收站");
         }
 
         /// <summary>解析查询字符串布尔（兼容 true/True/1/yes），避免模型绑定对 query 的歧义。</summary>

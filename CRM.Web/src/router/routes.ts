@@ -195,6 +195,12 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '需求列表', permission: 'rfq.read' }
       },
       {
+        path: 'rfqlist/recycle-bin',
+        name: 'RFQRecycleBin',
+        component: () => import('@/views/RFQ/RFQRecycleBin.vue'),
+        meta: { requiresAuth: true, title: '需求(回收站)', permission: 'rfq.read' }
+      },
+      {
         path: 'pn',
         name: 'PnList',
         component: () => import('@/views/Material/PnList.vue'),
@@ -381,7 +387,7 @@ const routes: RouteRecordRaw[] = [
         path: 'inventory/stock-in/ops-check',
         name: 'StockInOpsCheck',
         component: () => import('@/views/Inventory/StockInOpsCheckPage.vue'),
-        meta: { requiresAuth: true, title: '入库运维检查', adminOrManagerOnly: true }
+        meta: { requiresAuth: true, title: '入库运维检查', inventoryOpsCheckAccess: true }
       },
       {
         path: 'inventory/stock-in/:id',
@@ -429,7 +435,7 @@ const routes: RouteRecordRaw[] = [
         path: 'inventory/stock-out/ops-check',
         name: 'StockOutOpsCheck',
         component: () => import('@/views/Inventory/StockOutOpsCheckPage.vue'),
-        meta: { requiresAuth: true, title: '出库运维检查', adminOrManagerOnly: true }
+        meta: { requiresAuth: true, title: '出库运维检查', inventoryOpsCheckAccess: true }
       },
       {
         path: 'inventory/stock-out',

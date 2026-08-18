@@ -145,6 +145,14 @@ namespace CRM.Core.Models.RFQ
         [NotMapped]
         public bool CanEditRfqTags { get; set; }
 
+        /// <summary>回收站详情：删除时间（操作日志；无日志时用主表修改时间）</summary>
+        [NotMapped]
+        public DateTime? DeletedAt { get; set; }
+
+        /// <summary>回收站详情：删除人（操作日志；无则空，前端显示 —）</summary>
+        [NotMapped]
+        public string? DeletedByUserName { get; set; }
+
         // 导航属性
         public virtual ICollection<RFQItem> Items { get; set; } = new List<RFQItem>();
     }

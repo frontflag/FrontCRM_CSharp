@@ -453,6 +453,75 @@ namespace CRM.Core.Tests.Services
         }
 
         [Fact]
+        public async Task RestoreAsync_DoesNotReviveEarlierDeletedItems()
+        {
+            var rfqId = "RFQ-DEL";
+            var headerTime = DateTime.UtcNow;
+            var rfq = new RFQ
+            {
+                Id = rfqId,
+                RfqCode = "RF20260099",
+                IsDeleted = true,
+                ModifyTime = headerTime,
+                SalesUserId = "USER-001"
+            };
+            var keep = new RFQItem
+            {
+                Id = "ITEM-A",
+                RfqId = rfqId,
+                LineNo = 1,
+                IsDeleted = true,
+                ModifyTime = headerTime
+            };
+            var earlier = new RFQItem
+            {
+                Id = "ITEM-C",
+                RfqId = rfqId,
+                LineNo = 2,
+                IsDeleted = true,
+                ModifyTime = headerTime.AddDays(-3)
+            };
+
+            _rfqRepository.FindIgnoreFiltersAsync(Arg.Any<Expression<Func<RFQ, bool>>>())
+                .Returns(Task.FromResult<IEnumerable<RFQ>>(new[] { rfq }));
+            _rfqItemRepository.FindIgnoreFiltersAsync(Arg.Any<Expression<Func<RFQItem, bool>>>())
+                .Returns(Task.FromResult<IEnumerable<RFQItem>>(new[] { keep, earlier }));
+            _dataPermissionService.CanAccessRFQAsync(Arg.Any<string>(), Arg.Any<RFQ>()).Returns(true);
+            _rfqMainListQuery.GetLatestRfqHeaderDeleteLogsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+                .Returns(new Dictionary<string, RfqHeaderDeleteLogInfo>(StringComparer.OrdinalIgnoreCase)
+                {
+                    [rfqId] = new RfqHeaderDeleteLogInfo
+                    {
+                        OperationTime = headerTime,
+                        ExtraInfo = keep.Id
+                    }
+                });
+
+            await _rfqService.RestoreAsync(rfqId, "user-1");
+
+            Assert.False(rfq.IsDeleted);
+            Assert.False(keep.IsDeleted);
+            Assert.True(earlier.IsDeleted);
+            await _rfqItemRepository.Received(1).UpdateAsync(Arg.Is<RFQItem>(i => i.Id == keep.Id && !i.IsDeleted));
+            await _rfqItemRepository.DidNotReceive().UpdateAsync(Arg.Is<RFQItem>(i => i.Id == earlier.Id));
+        }
+
+        [Fact]
+        public async Task GetDeletedPagedAsync_Throws_WhenNoRecycleAccess()
+        {
+            _rbacService.GetUserPermissionSummaryAsync(Arg.Any<string>())
+                .Returns(new UserPermissionSummaryDto
+                {
+                    UserId = "sales-1",
+                    IdentityType = 1,
+                    RoleCodes = new[] { "DEPT_EMPLOYEE" }
+                });
+
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+                _rfqService.GetDeletedPagedAsync(new RFQQueryRequest { CurrentUserId = "sales-1" }));
+        }
+
+        [Fact]
         public async Task GetByCustomerIdAsync_ShouldReturnCustomerRFQs()
         {
             // Arrange

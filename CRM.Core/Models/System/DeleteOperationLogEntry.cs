@@ -27,4 +27,7 @@ public sealed class DeleteOperationLogEntry
 
     /// <summary>追加到默认 OperationDesc 的额外说明。</summary>
     public string? ExtraDetail { get; init; }
+
+    /// <summary>写入 log_operation.ExtraInfo（如整单删除时的明细 ID 列表）。</summary>
+    public string? ExtraInfo { get; init; }
 }

@@ -237,4 +237,14 @@ export const rfqApi = {
   async markNoQuote(itemId: string): Promise<{ id: string; status: number }> {
     return apiClient.post<{ id: string; status: number }>(`${BASE}/items/${itemId}/mark-no-quote`, {})
   },
+  async getRecycleBin(params: RFQSearchRequest = {}): Promise<RFQSearchResponse> {
+    const q = buildQuery(params as Record<string, any>)
+    return apiClient.get<RFQSearchResponse>(`${BASE}/recycle-bin?${q}`)
+  },
+  async getRecycleRFQById(id: string): Promise<RFQ> {
+    return apiClient.get<RFQ>(`${BASE}/recycle-bin/${id}`)
+  },
+  async restoreRFQ(id: string): Promise<void> {
+    await apiClient.post(`${BASE}/${id}/restore`)
+  },
 }

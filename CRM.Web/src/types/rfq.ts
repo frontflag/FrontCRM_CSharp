@@ -135,6 +135,11 @@ export interface RFQ {
   tags?: EntityTagDto[]
   canViewRfqTags?: boolean
   canEditRfqTags?: boolean
+
+  /** 回收站详情：删除时间（操作日志；无日志时用主表修改时间） */
+  deletedAt?: string | null
+  /** 回收站详情：删除人（操作日志；无则空，前端显示 —） */
+  deletedByUserName?: string | null
 }
 
 export interface EntityTagDto {

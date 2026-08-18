@@ -2630,6 +2630,7 @@ const zhCN = {
     count: '共 {count} 条需求',
     importExcel: '导入 Excel 创建',
     create: '新增需求',
+    recycleBin: '回收站',
     createMenuTip: {
       pasteText: '适合从邮件、微信、聊天记录等复制零散文字。',
       excelImport: '适合客户已提供的 Excel 需求表/报价单。可批量导入最多 500 条明细。'
@@ -3597,6 +3598,8 @@ const zhCN = {
       salesUser: '业务员',
       createDate: '创建日期',
       createUser: '创建人',
+      deleteDate: '删除日期',
+      deleteUser: '删除人',
       rfqType: '需求类型',
       quoteMethod: '报价方式',
       assignMethod: '分配方式',
@@ -4743,6 +4746,24 @@ const zhCN = {
     restoreSuccessMessage: '客户已恢复到客户列表',
     restoreFailedTitle: '恢复失败',
     restoreFailedMessage: '客户恢复失败，请稍后重试'
+  },
+  rfqRecycle: {
+    title: '需求(回收站)',
+    back: '返回列表',
+    count: '共 {count} 条已删除记录',
+    searchPlaceholder: '搜索需求编号',
+    empty: '回收站为空',
+    deletedAt: '删除时间：',
+    operator: '删除人：',
+    restore: '恢复',
+    loadFailedTitle: '加载失败',
+    loadFailedMessage: '获取回收站数据失败，请刷新重试',
+    restoreTitle: '确认恢复',
+    restoreConfirm: '确定要恢复需求「{code}」吗？更早编辑时删掉的明细行不会一并恢复。',
+    restoreSuccessTitle: '恢复成功',
+    restoreSuccessMessage: '需求已恢复到需求列表',
+    restoreFailedTitle: '恢复失败',
+    restoreFailedMessage: '需求恢复失败，请稍后重试'
   },
   vendorRecycle: {
     title: '供应商回收站',

@@ -51,7 +51,11 @@ public sealed class RFQsControllerTests
 
         return new RFQsController(
             rfq,
+            Substitute.For<IRfqMainListQuery>(),
+            Substitute.For<IRfqItemListQuery>(),
             dataPermission,
+            rbac,
+            Substitute.For<IPurchaseQuoterPoolService>(),
             Substitute.For<ILogger<RFQsController>>())
         {
             ControllerContext = new ControllerContext { HttpContext = http }
@@ -86,7 +90,7 @@ public sealed class RFQsControllerTests
         });
 
         var c = CreateController(rfq, Substitute.For<IDataPermissionService>());
-        var action = await c.GetRFQs(1, 20, null, null, null, null, null);
+        var action = await c.GetRFQs(pageNumber: 1, pageSize: 20);
 
         var ok = action.Result.Should().BeOfType<OkObjectResult>().Subject;
         var api = ok.Value.Should().BeOfType<ApiResponse<object>>().Subject;
@@ -109,7 +113,14 @@ public sealed class RFQsControllerTests
             });
 
         var c = CreateController(rfq, Substitute.For<IDataPermissionService>());
-        var action = await c.GetRFQItems(2, 10, "2026-01-01", "2026-01-31", "kw", "mpn", salesUserId: null, salesUserKeyword: "sales");
+        var action = await c.GetRFQItems(
+            pageNumber: 2,
+            pageSize: 10,
+            startDate: "2026-01-01",
+            endDate: "2026-01-31",
+            customerKeyword: "kw",
+            materialModel: "mpn",
+            salesUserKeyword: "sales");
 
         action.Result.Should().BeOfType<OkObjectResult>();
         await rfq.Received(1).GetPagedItemsAsync(Arg.Is<RFQItemQueryRequest>(q =>
@@ -205,7 +216,7 @@ public sealed class RFQsControllerTests
     public async Task UpdateRFQ_Returns404_WhenServiceThrowsNotFound()
     {
         var rfq = Substitute.For<IRFQService>();
-        rfq.UpdateAsync(Arg.Any<string>(), Arg.Any<UpdateRFQRequest>())
+        rfq.UpdateAsync(Arg.Any<string>(), Arg.Any<UpdateRFQRequest>(), Arg.Any<string?>())
             .Returns(Task.FromException<RFQ>(new InvalidOperationException("需求 x 不存在")));
 
         var c = CreateController(rfq, Substitute.For<IDataPermissionService>());
@@ -238,6 +249,47 @@ public sealed class RFQsControllerTests
         var api = ok.Value.Should().BeOfType<ApiResponse<object>>().Subject;
         api.Success.Should().BeTrue();
         await rfq.Received(1).UpdateStatusAsync("id1", 2);
+    }
+
+    [Fact]
+    public async Task GetRecycleBin_Returns403_WhenNoAccess()
+    {
+        var rfq = Substitute.For<IRFQService>();
+        var c = CreateController(
+            rfq,
+            Substitute.For<IDataPermissionService>(),
+            rbac => rbac.GetUserPermissionSummaryAsync(Arg.Any<string>()).Returns(new UserPermissionSummaryDto
+            {
+                UserId = "sales-1",
+                IdentityType = 1,
+                RoleCodes = new[] { "DEPT_EMPLOYEE" },
+                PermissionCodes = new[] { "rfq.read" }
+            }));
+
+        var action = await c.GetRecycleBin();
+
+        action.Result.Should().BeOfType<ObjectResult>().Which.StatusCode.Should().Be(403);
+        await rfq.DidNotReceive().GetDeletedPagedAsync(Arg.Any<RFQQueryRequest>());
+    }
+
+    [Fact]
+    public async Task GetRecycleBin_Returns200_WhenAllowed()
+    {
+        var rfq = Substitute.For<IRFQService>();
+        rfq.GetDeletedPagedAsync(Arg.Any<RFQQueryRequest>()).Returns(new PagedResult<RFQListItem>
+        {
+            Items = new List<RFQListItem> { new() { Id = "r1", RfqCode = "RF001" } },
+            TotalCount = 1,
+            PageIndex = 1,
+            PageSize = 20
+        });
+
+        var c = CreateController(rfq, Substitute.For<IDataPermissionService>());
+        var action = await c.GetRecycleBin();
+
+        var ok = action.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var api = ok.Value.Should().BeOfType<ApiResponse<object>>().Subject;
+        api.Success.Should().BeTrue();
     }
 
 }

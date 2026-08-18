@@ -1,96 +1,26 @@
 <template>
   <div class="rfq-list-page">
-    <!-- 页面头部 -->
     <div class="page-header">
       <div class="header-left">
+        <button class="btn-back" type="button" @click="goBack">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+          {{ t('rfqRecycle.back') }}
+        </button>
         <div class="page-title-group">
-          <div class="page-icon">R</div>
-          <h1 class="page-title">{{ t('rfqList.title') }}</h1>
-        </div>
-        <div class="count-badge">{{ t('rfqList.count', { count: totalCount }) }}</div>
-        <el-button
-          v-if="canAccessRecycleBin"
-          class="btn-ghost btn-sm"
-          @click="goRecycleBin"
-        >
-          {{ t('rfqList.recycleBin') }}
-        </el-button>
-      </div>
-      <div class="header-right">
-        <el-button
-          v-if="canCreateNewRfq && canAiParseRfq"
-          class="btn-ghost btn-sm"
-          @click="excelImportHostRef?.open()"
-        >
-          <el-icon><Upload /></el-icon>{{ t('rfqList.importExcel') }}
-        </el-button>
-        <template v-if="canCreateNewRfq">
-          <div v-if="canAiParseRfq" class="btn-split-group">
-            <button class="btn-success" type="button" @click="goCreateRfq">
-              <el-icon class="btn-success__icon"><Plus /></el-icon>
-              {{ t('rfqList.create') }}
-            </button>
-            <el-dropdown trigger="click" @command="onCreateDropdownCommand">
-              <button type="button" class="btn-success btn-success--caret" :aria-label="t('customerList.expandMenu')">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="aiCreate">
-                    <el-tooltip
-                      :content="t('rfqList.createMenuTip.pasteText')"
-                      placement="right"
-                      effect="light"
-                      :show-after="400"
-                    >
-                      <span class="rfq-create-menu-item">{{ t('aiEntityCreate.aiCreate') }}</span>
-                    </el-tooltip>
-                  </el-dropdown-item>
-                  <el-dropdown-item command="excelImport">
-                    <el-tooltip
-                      :content="t('rfqList.createMenuTip.excelImport')"
-                      placement="right"
-                      effect="light"
-                      :show-after="400"
-                    >
-                      <span class="rfq-create-menu-item">{{ t('rfqExcelImport.menuLabel') }}</span>
-                    </el-tooltip>
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
+          <div class="page-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+            </svg>
           </div>
-          <button v-else class="btn-success" type="button" @click="goCreateRfq">
-            <el-icon class="btn-success__icon"><Plus /></el-icon>
-            {{ t('rfqList.create') }}
-          </button>
-        </template>
+          <h1 class="page-title">{{ t('rfqRecycle.title') }}</h1>
+        </div>
+        <div class="count-badge">{{ t('rfqRecycle.count', { count: totalCount }) }}</div>
       </div>
     </div>
 
-    <!-- 统计卡片 -->
-    <div class="statistics-row">
-      <div class="stat-card">
-        <div class="stat-value">{{ stats.total }}</div>
-        <div class="stat-label">{{ t('rfqList.stats.total') }}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value">{{ stats.pending }}</div>
-        <div class="stat-label">{{ t('rfqList.stats.pending') }}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value">{{ stats.processing }}</div>
-        <div class="stat-label">{{ t('rfqList.stats.processing') }}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value">{{ stats.quoted }}</div>
-        <div class="stat-label">{{ t('rfqList.stats.quoted') }}</div>
-      </div>
-    </div>
-
-    <!-- 筛选栏：与《业务列表规范》及 CustomerList / RFQItemList 一致（非 el-card） -->
     <div class="search-bar">
       <div class="search-left">
         <div class="search-input-wrap">
@@ -182,11 +112,10 @@
       </div>
     </div>
 
-    <!-- 主表：.table-wrapper + CrmDataTable（全局 crm-unified-list / 行高密度） -->
     <div class="table-wrapper" v-loading="loading">
       <CrmDataTable
         ref="dataTableRef"
-        column-layout-key="rfq-list-main"
+        column-layout-key="rfq-recycle-bin-main"
         :columns="rfqTableColumns"
         :show-column-settings="false"
         :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -261,9 +190,7 @@
           <div @click.stop @dblclick.stop>
             <div v-if="opColExpanded" class="action-btns">
               <button type="button" class="action-btn action-btn--primary" @click.stop="handleView(row)">{{ t('rfqList.actions.view') }}</button>
-              <button v-if="canEditRfq" type="button" class="action-btn action-btn--primary" @click.stop="handleEdit(row)">{{ t('rfqList.actions.edit') }}</button>
             </div>
-
             <el-dropdown v-else trigger="click" placement="bottom-end">
               <div class="op-more-dropdown-trigger">
                 <button type="button" class="op-more-trigger">...</button>
@@ -272,9 +199,6 @@
                 <el-dropdown-menu>
                   <el-dropdown-item @click.stop="handleView(row)">
                     <span class="op-more-item op-more-item--primary">{{ t('rfqList.actions.view') }}</span>
-                  </el-dropdown-item>
-                  <el-dropdown-item v-if="canEditRfq" @click.stop="handleEdit(row)">
-                    <span class="op-more-item op-more-item--primary">{{ t('rfqList.actions.edit') }}</span>
                   </el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -305,13 +229,6 @@
         @current-change="handlePageChange"
       />
     </div>
-
-    <RfqExcelImportHost ref="excelImportHostRef" />
-    <AiEntityCreateHost
-      ref="aiCreateHostRef"
-      entity-type="RFQ"
-      :target-route="{ name: 'RFQCreate' }"
-    />
   </div>
 </template>
 
@@ -320,13 +237,9 @@ import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
-import { canAccessRfqRecycleBin } from '@/utils/rfqRecycleBinAccess'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
-import { Plus, Search, Setting, Upload } from '@element-plus/icons-vue'
-import RfqExcelImportHost from '@/components/AiCreate/RfqExcelImportHost.vue'
-import AiEntityCreateHost from '@/components/AiCreate/AiEntityCreateHost.vue'
-import { AI_PERMISSION_ENTITY_PARSE_RFQ } from '@/api/ai'
-import { ElMessage } from 'element-plus'
+import { Search, Setting } from '@element-plus/icons-vue'
+import { ElNotification } from 'element-plus'
 import { rfqApi } from '@/api/rfq'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
@@ -348,15 +261,6 @@ const route = useRoute()
 const { t } = useI18n()
 const authStore = useAuthStore()
 
-/** 新建需求 / Excel 导入（调用创建 API） */
-const canCreateNewRfq = computed(() => authStore.hasPermission('rfq.create'))
-const canAccessRecycleBin = computed(() => canAccessRfqRecycleBin(authStore.user))
-const canAiParseRfq = computed(() => authStore.hasPermission(AI_PERMISSION_ENTITY_PARSE_RFQ))
-const aiCreateHostRef = ref<InstanceType<typeof AiEntityCreateHost> | null>(null)
-const excelImportHostRef = ref<InstanceType<typeof RfqExcelImportHost> | null>(null)
-/** 编辑需求头表（分配等维护仍用 rfq.write） */
-const canEditRfq = computed(() => authStore.hasPermission('rfq.write'))
-/** 与后端 RFQ 脱敏一致：采购等角色可有 customer.read 但不应见需求侧客户名（需 customer.info.read） */
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const canViewCustomerInRfq = computed(
   () => authStore.hasPermission('customer.info.read') && !maskSaleSensitiveFields.value
@@ -366,30 +270,11 @@ const showRfqTagColumn = computed(() => canUseRfqTagUi(authStore.user))
 const showRfqTagFilter = showRfqTagColumn
 const rfqTagFilterOptions = ref<TagDefinitionDto[]>([])
 
-function goCreateRfq() {
-  if (authStore.isIdentityBlockedForPermission('rfq.create')) {
-    ElMessage.warning(t('rfqHome.createBlockedByIdentity'))
-    return
-  }
-  if (!authStore.hasPermission('rfq.create')) {
-    ElMessage.warning(t('rfqHome.createNeedRfqCreate'))
-    return
-  }
-  router.push({ name: 'RFQCreate' })
-}
-
-function onCreateDropdownCommand(cmd: string) {
-  if (cmd === 'aiCreate') aiCreateHostRef.value?.open()
-  else if (cmd === 'excelImport') excelImportHostRef.value?.open()
-}
-
 const loading = ref(false)
 const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const rfqList = ref<any[]>([])
-const stats = ref({ total: 0, pending: 0, processing: 0, quoted: 0 })
 
-// 搜索表单
 const searchForm = ref({
   keyword: '',
   status: undefined as number | undefined,
@@ -399,18 +284,16 @@ const searchForm = ref({
   dateRange: null as [string, string] | null
 })
 
-// 分页信息
 const pageInfo = ref({
   page: 1,
   pageSize: 20,
   total: 0
 })
 
-// 列表操作列：《列表操作列规范》高密度（与需求明细主表一致）
 const opColExpanded = ref(false)
 const LIST_OP_COL_COLLAPSED_WIDTH = 43
-const LIST_OP_COL_EXPANDED_WIDTH = 173
-const LIST_OP_COL_EXPANDED_MIN_WIDTH = 160
+const LIST_OP_COL_EXPANDED_WIDTH = 90
+const LIST_OP_COL_EXPANDED_MIN_WIDTH = 88
 const opColWidth = computed(() =>
   opColExpanded.value ? LIST_OP_COL_EXPANDED_WIDTH : LIST_OP_COL_COLLAPSED_WIDTH
 )
@@ -421,10 +304,9 @@ function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
 
-/** 需求列表主表可配置列（localStorage：crm-table-columns:v1:rfq-list-main） */
 const rfqTableColumns = computed((): CrmTableColumnDef[] => {
   const cols: CrmTableColumnDef[] = [
-  { key: 'status', label: t('rfqList.columns.status'), prop: 'status', width: 160, align: 'center' as const },
+    { key: 'status', label: t('rfqList.columns.status'), prop: 'status', width: 160, align: 'center' as const },
   ]
   if (canViewCustomerInRfq.value) {
     cols.push({ key: 'customerName', label: t('rfqList.columns.customer'), prop: 'customerName', minWidth: 200, showOverflowTooltip: true })
@@ -440,14 +322,13 @@ const rfqTableColumns = computed((): CrmTableColumnDef[] => {
     })
   }
   cols.push(
-  { key: 'itemCount', label: t('rfqList.columns.itemCount'), prop: 'itemCount', minWidth: 112, width: 112, align: 'center' as const },
-  { key: 'targetType', label: t('rfqList.columns.targetType'), minWidth: 112, width: 112, align: 'center' as const },
-  { key: 'rfqType', label: t('rfqList.columns.rfqType'), prop: 'rfqType', minWidth: 112, width: 112 },
-  { key: 'industry', label: t('rfqList.columns.industry'), prop: 'industry', minWidth: 100, width: 104, showOverflowTooltip: true },
-  { key: 'product', label: t('rfqList.columns.product'), prop: 'product', minWidth: 140, showOverflowTooltip: true },
-  /** 重要程度：列表为三星，与 RFQCreate 一致；存盘值可能为 1–10，按同构规则映射到 1–3 星展示 */
-  { key: 'importance', label: t('rfqList.columns.importance'), prop: 'importance', minWidth: 120, width: 120, align: 'center' as const },
-  { key: 'remark', label: t('rfqList.columns.remark'), prop: 'remark', minWidth: 160, showOverflowTooltip: true },
+    { key: 'itemCount', label: t('rfqList.columns.itemCount'), prop: 'itemCount', minWidth: 112, width: 112, align: 'center' as const },
+    { key: 'targetType', label: t('rfqList.columns.targetType'), minWidth: 112, width: 112, align: 'center' as const },
+    { key: 'rfqType', label: t('rfqList.columns.rfqType'), prop: 'rfqType', minWidth: 112, width: 112 },
+    { key: 'industry', label: t('rfqList.columns.industry'), prop: 'industry', minWidth: 100, width: 104, showOverflowTooltip: true },
+    { key: 'product', label: t('rfqList.columns.product'), prop: 'product', minWidth: 140, showOverflowTooltip: true },
+    { key: 'importance', label: t('rfqList.columns.importance'), prop: 'importance', minWidth: 120, width: 120, align: 'center' as const },
+    { key: 'remark', label: t('rfqList.columns.remark'), prop: 'remark', minWidth: 160, showOverflowTooltip: true },
   )
   if (showRfqTagColumn.value) {
     cols.push({
@@ -459,16 +340,16 @@ const rfqTableColumns = computed((): CrmTableColumnDef[] => {
     })
   }
   cols.push(
-  {
-    key: 'rfqCode',
-    label: t('rfqList.columns.rfqCode'),
-    prop: 'rfqCode',
-    width: 160,
-    minWidth: 160,
-    showOverflowTooltip: true,
-    sortable: true
-  },
-  { key: 'createTime', label: t('rfqList.columns.createTime'), width: 160 },
+    {
+      key: 'rfqCode',
+      label: t('rfqList.columns.rfqCode'),
+      prop: 'rfqCode',
+      width: 160,
+      minWidth: 160,
+      showOverflowTooltip: true,
+      sortable: true
+    },
+    { key: 'createTime', label: t('rfqList.columns.createTime'), width: 160 },
     { key: 'createUser', label: t('rfqList.columns.createUser'), width: 120, showOverflowTooltip: true },
     {
       key: 'actions',
@@ -489,7 +370,6 @@ const rfqTableColumns = computed((): CrmTableColumnDef[] => {
 
 const totalCount = computed(() => pageInfo.value.total)
 
-/** 明细条目（数量）列：与《业务列表规范》§3.2 一致（千分位、tabular） */
 const formatItemCountCell = (v: unknown) => {
   if (v == null || v === '') return '—'
   const n = Number(v)
@@ -497,7 +377,6 @@ const formatItemCountCell = (v: unknown) => {
   return n.toLocaleString('zh-CN')
 }
 
-// 状态处理
 const getStatusType = (status: number) => {
   const map: Record<number, string> = {
     0: 'info',
@@ -550,12 +429,80 @@ function resolveRowTags(row: Record<string, unknown>): TagDefinitionDto[] {
   return Array.isArray(raw) ? (raw as TagDefinitionDto[]) : []
 }
 
-// 加载数据
+function emptySearchForm() {
+  return {
+    keyword: '',
+    status: undefined as number | undefined,
+    salesUserName: '',
+    createUserName: '',
+    tagIds: [] as string[],
+    dateRange: null as [string, string] | null
+  }
+}
+
+function parseQueryStringList(raw: unknown): string[] {
+  const parts = Array.isArray(raw) ? raw : raw == null || raw === '' ? [] : [raw]
+  return parts
+    .flatMap((v) => String(v).split(','))
+    .map((s) => s.trim())
+    .filter(Boolean)
+}
+
+function applyRouteQueryToSearchForm() {
+  const kw = typeof route.query.keyword === 'string' ? route.query.keyword : ''
+  let st: number | undefined = undefined
+  const qs = route.query.status
+  if (qs !== undefined && qs !== null && qs !== '') {
+    const raw = Array.isArray(qs) ? qs[0] : qs
+    const n = Number(raw)
+    if (!Number.isNaN(n)) st = n === 6 ? 7 : n
+  }
+  const sd = typeof route.query.startDate === 'string' ? route.query.startDate : ''
+  const ed = typeof route.query.endDate === 'string' ? route.query.endDate : ''
+  const dateRange: [string, string] | null = sd && ed ? [sd, ed] : null
+  const salesUserName = typeof route.query.salesUserName === 'string' ? route.query.salesUserName : ''
+  const createUserName = typeof route.query.createUserName === 'string' ? route.query.createUserName : ''
+  searchForm.value = {
+    keyword: kw,
+    status: st,
+    salesUserName,
+    createUserName,
+    tagIds: parseQueryStringList(route.query.tagIds),
+    dateRange
+  }
+}
+
+function searchFormToRouteQuery(): Record<string, string | string[]> {
+  const q: Record<string, string | string[]> = {}
+  const kw = searchForm.value.keyword.trim()
+  if (kw) q.keyword = kw
+  if (searchForm.value.status !== undefined && searchForm.value.status !== null) {
+    q.status = String(searchForm.value.status)
+  }
+  const sales = searchForm.value.salesUserName.trim()
+  if (sales && showRfqSalesUserColumn.value) q.salesUserName = sales
+  const creator = searchForm.value.createUserName.trim()
+  if (creator) q.createUserName = creator
+  if (searchForm.value.dateRange?.[0]) q.startDate = searchForm.value.dateRange[0]
+  if (searchForm.value.dateRange?.[1]) q.endDate = searchForm.value.dateRange[1]
+  if (searchForm.value.tagIds?.length) q.tagIds = [...searchForm.value.tagIds]
+  return q
+}
+
+let syncingOwnQuery = false
+
+function syncRouteQuery() {
+  syncingOwnQuery = true
+  void router.replace({ name: 'RFQRecycleBin', query: searchFormToRouteQuery() }).finally(() => {
+    syncingOwnQuery = false
+  })
+}
+
 const loadData = async () => {
   loading.value = true
   try {
-    const res = await rfqApi.searchRFQs({
-      keyword: searchForm.value.keyword,
+    const res = await rfqApi.getRecycleBin({
+      keyword: searchForm.value.keyword.trim() || undefined,
       status: searchForm.value.status,
       salesUserName: showRfqSalesUserColumn.value
         ? (searchForm.value.salesUserName.trim() || undefined)
@@ -569,53 +516,27 @@ const loadData = async () => {
     })
     rfqList.value = res.items || []
     pageInfo.value.total = res.totalCount ?? res.total ?? 0
-
-    const agg = (res as any).aggregates
-    if (agg && typeof agg.total === 'number') {
-      stats.value = {
-        total: agg.total,
-        pending: agg.pending ?? 0,
-        processing: agg.processing ?? 0,
-        quoted: agg.quoted ?? 0
-      }
-    } else {
-      stats.value = {
-        total: pageInfo.value.total,
-        pending: rfqList.value.filter((r: any) => r.status === 0).length,
-        processing: rfqList.value.filter((r: any) => r.status === 1 || r.status === 2).length,
-        quoted: rfqList.value.filter((r: any) => {
-          const s = r.status
-          return s === 3 || s === 4 || s === 5
-        }).length
-      }
-    }
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, t('rfqList.loadFailed')))
+    ElNotification.error({
+      title: t('rfqRecycle.loadFailedTitle'),
+      message: getApiErrorMessage(error, t('rfqRecycle.loadFailedMessage'))
+    })
   } finally {
     loading.value = false
   }
 }
 
-// 与左侧「检索」面板共用 URL 查询参数（keyword、status）
 const handleSearch = () => {
   pageInfo.value.page = 1
-  const q: Record<string, string> = {}
-  const kw = searchForm.value.keyword.trim()
-  if (kw) q.keyword = kw
-  if (searchForm.value.status !== undefined && searchForm.value.status !== null) {
-    q.status = String(searchForm.value.status)
-  }
-  const sales = searchForm.value.salesUserName.trim()
-  if (sales && showRfqSalesUserColumn.value) q.salesUserName = sales
-  const creator = searchForm.value.createUserName.trim()
-  if (creator) q.createUserName = creator
-  if (searchForm.value.dateRange?.[0]) q.startDate = searchForm.value.dateRange[0]
-  if (searchForm.value.dateRange?.[1]) q.endDate = searchForm.value.dateRange[1]
-  router.replace({ name: 'RFQList', query: q })
+  loadData()
+  syncRouteQuery()
 }
 
 const handleReset = () => {
-  router.replace({ name: 'RFQList', query: {} })
+  searchForm.value = emptySearchForm()
+  pageInfo.value.page = 1
+  loadData()
+  syncRouteQuery()
 }
 
 watch(
@@ -632,28 +553,15 @@ watch(
 watch(
   () => [route.name, route.query] as const,
   () => {
-    if (route.name !== 'RFQList') return
-    const kw = typeof route.query.keyword === 'string' ? route.query.keyword : ''
-    let st: number | undefined = undefined
-    const qs = route.query.status
-    if (qs !== undefined && qs !== null && qs !== '') {
-      const raw = Array.isArray(qs) ? qs[0] : qs
-      const n = Number(raw)
-      if (!Number.isNaN(n)) st = n === 6 ? 7 : n
-    }
-    const sd = typeof route.query.startDate === 'string' ? route.query.startDate : ''
-    const ed = typeof route.query.endDate === 'string' ? route.query.endDate : ''
-    const dateRange: [string, string] | null = sd && ed ? [sd, ed] : null
-    const salesUserName = typeof route.query.salesUserName === 'string' ? route.query.salesUserName : ''
-    const createUserName = typeof route.query.createUserName === 'string' ? route.query.createUserName : ''
-    searchForm.value = { keyword: kw, status: st, salesUserName, createUserName, tagIds: [], dateRange }
+    if (route.name !== 'RFQRecycleBin') return
+    if (syncingOwnQuery) return
+    applyRouteQueryToSearchForm()
     pageInfo.value.page = 1
     loadData()
   },
   { deep: true, immediate: true }
 )
 
-// 分页
 const handleSizeChange = (val: number) => {
   pageInfo.value.pageSize = val
   loadData()
@@ -664,34 +572,22 @@ const handlePageChange = (val: number) => {
   loadData()
 }
 
-
-// 编辑：与「新建需求」共用 RFQCreate 页面（路由 rfqs/:id/edit）
-const handleEdit = (row: any) => {
-  if (!authStore.hasPermission('rfq.write')) {
-    ElMessage.warning(t('rfqList.editNeedRfqWrite'))
-    return
-  }
-  router.push({ name: 'RFQEdit', params: { id: row.id } })
+function goBack() {
+  router.push({ name: 'RFQList' })
 }
 
-// 查看
 const handleView = (row: any) => {
-  router.push({ name: 'RFQDetail', params: { id: row.id } })
+  if (!row?.id) return
+  router.push({ name: 'RFQDetail', params: { id: row.id }, query: { from: 'recycle' } })
 }
 
-function goRecycleBin() {
-  router.push({ name: 'RFQRecycleBin' })
-}
-
-/** 双击：详情；按住 Ctrl 双击：编辑（与行操作「编辑」同入口） */
 function onRfqRowDblClick(row: any, _column: unknown, event?: MouseEvent) {
   onCrmDetailListRowDblClick(row, _column, event, {
-    canEdit: canEditRfq.value,
-    onEdit: handleEdit,
+    canEdit: false,
+    onEdit: () => undefined,
     onDefault: handleView,
   })
 }
-
 </script>
 
 <style scoped lang="scss">
@@ -711,7 +607,6 @@ function onRfqRowDblClick(row: any, _column: unknown, event?: MouseEvent) {
   align-items: center;
   margin-bottom: 20px;
   .header-left { display: flex; align-items: center; gap: 12px; }
-  .header-right { display: flex; align-items: center; gap: 10px; }
   .page-title { margin: 0; color: $text-primary; font-size: 20px; }
   .count-badge {
     padding: 3px 10px;
@@ -723,32 +618,30 @@ function onRfqRowDblClick(row: any, _column: unknown, event?: MouseEvent) {
   }
 }
 
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-muted;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  &:hover { background: rgba(255,255,255,0.07); color: $text-secondary; border-color: rgba(0,212,255,0.2); }
+}
+
 .page-title-group {
   display: flex; align-items: center; gap: 10px;
   .page-icon {
     width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
-    background: rgba(0, 212, 255, 0.1); border: 1px solid rgba(0, 212, 255, 0.25); color: $cyan-primary; font-weight: 700;
+    background: rgba(201, 87, 69, 0.12); border: 1px solid rgba(201, 87, 69, 0.25); color: $color-red-brown;
   }
 }
 
-.statistics-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
-.stat-card {
-  background: $layer-3;
-  border: 1px solid $border-card;
-  border-radius: $border-radius-lg;
-  padding: 20px;
-  text-align: center;
-  .stat-value {
-    font-size: 22px;
-    font-weight: 700;
-    color: $text-primary;
-    margin-bottom: 5px;
-    font-family: 'Noto Sans SC', sans-serif;
-  }
-  .stat-label { font-size: 12px; color: $text-muted; }
-}
-
-// ---- 搜索栏（业务列表规范，与 CustomerList 对齐）----
 .search-bar {
   display: flex;
   align-items: center;
@@ -761,13 +654,6 @@ function onRfqRowDblClick(row: any, _column: unknown, event?: MouseEvent) {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-}
-
-.filter-field-label {
-  font-size: 12px;
-  font-weight: 500;
-  color: $text-muted;
-  white-space: nowrap;
 }
 
 .search-input-wrap {
@@ -841,7 +727,6 @@ function onRfqRowDblClick(row: any, _column: unknown, event?: MouseEvent) {
   }
 }
 
-// ---- 表格：.table-wrapper / CrmDataTable 全局样式见 crm-unified-list.scss ----
 .rfq-list-page .table-wrapper {
   :deep(.el-table .cell) {
     line-height: 1.2;
@@ -855,10 +740,8 @@ function onRfqRowDblClick(row: any, _column: unknown, event?: MouseEvent) {
   :deep(.el-table__fixed-body-wrapper .el-table__body tr.el-table__row.current-row) {
     transform: translateY(-1px);
   }
-
 }
 
-/** 《业务列表规范》§3.2：数量字重与字色 */
 .rfq-list-qty {
   font-weight: 700;
   color: #27292c;
@@ -946,65 +829,12 @@ html[data-theme='dark'] .rfq-list-qty {
     border-color: rgba(0, 212, 255, 0.3);
     color: $text-secondary;
   }
-
-  &.btn-sm {
-    padding: 6px 12px;
-    font-size: 12px;
-  }
 }
-
-// 新建/新增/创建（列表操作按钮颜色规范 PRD：success 绿）
-.btn-success {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  background: linear-gradient(135deg, rgba(46, 160, 67, 0.85), rgba(70, 191, 145, 0.75));
-  border: 1px solid rgba(70, 191, 145, 0.45);
-  border-radius: $border-radius-md;
-  color: #fff;
-  font-size: 13px;
-  font-family: 'Noto Sans SC', sans-serif;
-  cursor: pointer;
-  transition: all 0.2s;
-  letter-spacing: 0.5px;
-
-  .btn-success__icon {
-    font-size: 14px;
-  }
-
-  &:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(70, 191, 145, 0.3);
-  }
-
-  &--caret {
-    border-left: 1px solid rgba(255, 255, 255, 0.25);
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
-    min-width: 38px;
-    padding-left: 10px;
-    padding-right: 10px;
-  }
-}
-
-.btn-split-group {
-  display: inline-flex;
-  align-items: stretch;
-
-  .btn-success:first-child {
-    border-top-right-radius: 0;
-    border-bottom-right-radius: 0;
-  }
-}
-
-// 操作列 op-col 底色与固定列叠层：main.scss 全局 .el-table 规则；按钮：crm-unified-list.scss .crm-data-table
 
 .quantum-pagination {
   :deep(.el-pagination__total) { color: $text-muted; }
 }
 
-// 操作列切换钮（列头见上 .table-wrapper :deep(th.op-col…)）
 .op-col-toggle-btn {
   padding: 0;
   border: none;
@@ -1042,26 +872,5 @@ html[data-theme='dark'] .rfq-list-qty {
 
 .op-more-item--primary {
   color: $cyan-primary;
-}
-
-.op-more-item--warning {
-  color: $color-amber;
-}
-
-.op-more-item--danger {
-  color: $color-red-brown;
-}
-
-.op-more-item--success {
-  color: $color-mint-green;
-}
-
-.op-more-item--info {
-  color: rgba(200, 216, 232, 0.85);
-}
-
-.rfq-create-menu-item {
-  display: block;
-  width: 100%;
 }
 </style>

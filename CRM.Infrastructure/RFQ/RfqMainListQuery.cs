@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.RFQ;
 using CRM.Core.Utilities;
@@ -65,11 +66,79 @@ public sealed partial class RfqMainListQuery : IRfqMainListQuery
         };
     }
 
+    /// <inheritdoc />
+    public async Task<RfqMainListQueryPage> GetDeletedPagedAsync(
+        RFQQueryRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var page = request.PageIndex < 1 ? 1 : request.PageIndex;
+        var pageSize = request.PageSize < 1 ? 20 : Math.Min(request.PageSize, MaxPageSize);
+
+        var filtered = await BuildFilteredQueryAsync(request, cancellationToken, deletedOnly: true);
+        var total = await filtered.CountAsync(cancellationToken);
+        var items = await filtered
+            .OrderByDescending(r => r.ModifyTime ?? r.CreateTime)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return new RfqMainListQueryPage
+        {
+            Items = items,
+            TotalCount = total,
+            PageIndex = page,
+            PageSize = pageSize
+        };
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyDictionary<string, RfqHeaderDeleteLogInfo>> GetLatestRfqHeaderDeleteLogsAsync(
+        IReadOnlyList<string> recordIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (recordIds == null || recordIds.Count == 0)
+            return new Dictionary<string, RfqHeaderDeleteLogInfo>(StringComparer.OrdinalIgnoreCase);
+
+        var ids = recordIds
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (ids.Count == 0)
+            return new Dictionary<string, RfqHeaderDeleteLogInfo>(StringComparer.OrdinalIgnoreCase);
+
+        var logs = await _db.OperationLogs.AsNoTracking()
+            .Where(o => o.BizType == BusinessLogTypes.Rfq
+                        && ids.Contains(o.RecordId)
+                        && (o.ActionType == OperationLogActionTypes.RfqHeaderDelete
+                            || o.ActionType == OperationLogActionTypes.RfqHeaderForceDelete))
+            .ToListAsync(cancellationToken);
+
+        return logs
+            .GroupBy(o => o.RecordId, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g =>
+                {
+                    var latest = g.OrderByDescending(x => x.OperationTime).First();
+                    return new RfqHeaderDeleteLogInfo
+                    {
+                        OperationTime = latest.OperationTime,
+                        OperatorUserName = latest.OperatorUserName,
+                        ExtraInfo = latest.ExtraInfo
+                    };
+                },
+                StringComparer.OrdinalIgnoreCase);
+    }
+
     private async Task<IQueryable<RFQ>> BuildFilteredQueryAsync(
         RFQQueryRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool deletedOnly = false)
     {
-        var q = _db.RFQs.AsNoTracking();
+        IQueryable<RFQ> q = deletedOnly
+            ? _db.RFQs.AsNoTracking().IgnoreQueryFilters().Where(r => r.IsDeleted)
+            : _db.RFQs.AsNoTracking();
         q = await _dataPermission.ApplyRfqMainListDataScopeAsync(request.CurrentUserId, q, cancellationToken);
 
         if (!string.IsNullOrWhiteSpace(request.Keyword))

@@ -71,7 +71,7 @@ public class LogOperationAppendService : ILogOperationAppendService
             string.IsNullOrWhiteSpace(entry.OperatorUserName) ? null : entry.OperatorUserName.Trim(),
             operationDesc,
             string.IsNullOrWhiteSpace(entry.Reason) ? null : entry.Reason.Trim(),
-            null,
+            string.IsNullOrWhiteSpace(entry.ExtraInfo) ? null : entry.ExtraInfo.Trim(),
             cancellationToken);
     }
 

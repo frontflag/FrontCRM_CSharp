@@ -1662,6 +1662,7 @@ import PurchaseOrderItemSearchPanel from '@/components/RFQ/PurchaseOrderItemSear
 import ArrivalNoticeSearchPanel from '@/components/Logistics/ArrivalNoticeSearchPanel.vue'
 import QcSearchPanel from '@/components/Logistics/QcSearchPanel.vue'
 import { canAccessCustomsModule } from '@/utils/departmentModuleGate'
+import { canAccessInventoryOpsCheck } from '@/utils/inventoryOpsCheckAccess'
 import {
   collapsedSidebarMenuGroups,
   defaultSidebarMenuGroups,
@@ -2907,6 +2908,7 @@ const pageTitleMap: Record<string, string> = {
   '/dashboard/settings': 'layout.menu.systemSettings',
   '/rfq': 'layout.menu.rfqList',
   '/rfqlist': 'layout.menu.rfqList',
+  '/rfqlist/recycle-bin': 'rfqRecycle.title',
   '/pn': 'layout.menu.rfqItems',
   '/rfq-items': 'layout.menu.rfqItems',
   '/quotes': 'layout.menu.quoteList',
@@ -3111,8 +3113,8 @@ const hasPermission = (code: string) => authStore.hasPermission(code)
 const identityType = computed(() => authStore.user?.identityType ?? 0)
 const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const isSysManager = computed(() => authStore.user?.isSysManager === true)
-const canStockOutOpsCheck = computed(() => authStore.canForceDelete())
-const canStockInOpsCheck = computed(() => authStore.canForceDelete())
+const canStockOutOpsCheck = computed(() => canAccessInventoryOpsCheck(authStore.user))
+const canStockInOpsCheck = computed(() => canAccessInventoryOpsCheck(authStore.user))
 /** SuperAdmin / Admin / Manager：业务侧栏不受主部门身份藏菜单 */
 const hasBizDataBypass = computed(() => authStore.user?.hasBizDataBypass === true)
 
@@ -3239,6 +3241,7 @@ watch(
     if (
       p === '/rfq' ||
       p === '/rfqlist' ||
+      p.startsWith('/rfqlist/') ||
       p.startsWith('/rfqs/') ||
       p === '/rfq-items' ||
       p === '/pn'

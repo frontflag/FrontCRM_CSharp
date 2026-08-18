@@ -1049,6 +1049,10 @@ watch(
   async () => {
     await ensureMaterialPdDict()
     await customerDict.ensureLoaded()
+    if (route.name === 'RFQEdit' && String(route.query.from || '') === 'recycle' && rfqId.value) {
+      router.replace({ name: 'RFQDetail', params: { id: rfqId.value }, query: { from: 'recycle' } })
+      return
+    }
     if (route.name === 'RFQEdit' && rfqId.value) {
       currentDraftId.value = ''
       await loadRfqForEdit()

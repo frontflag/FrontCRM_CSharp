@@ -41,7 +41,7 @@ namespace CRM.API.Controllers
             _logger = logger;
         }
 
-        /// <summary>入库运维检查（系统管理员 / 平台管理员）：全量只读对账，仅采购入库。</summary>
+        /// <summary>入库运维检查（系统/平台管理员、财务总监）：全量只读对账，仅采购入库。</summary>
         [HttpPost("ops-check")]
         public async Task<ActionResult<ApiResponse<StockInOpsCheckResultDto>>> RunOpsCheck(
             CancellationToken cancellationToken = default)
@@ -53,8 +53,8 @@ namespace CRM.API.Controllers
                     return StatusCode(403, ApiResponse<StockInOpsCheckResultDto>.Fail("未登录或身份无效", 403));
 
                 var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
-                if (!ManagementAccountPolicy.CanForceDelete(summary))
-                    return StatusCode(403, ApiResponse<StockInOpsCheckResultDto>.Fail("仅系统管理员或平台管理员可做入库运维检查", 403));
+                if (!InventoryOpsCheckAccessRules.CanAccess(summary))
+                    return StatusCode(403, ApiResponse<StockInOpsCheckResultDto>.Fail("仅系统管理员、平台管理员或财务总监可做入库运维检查", 403));
 
                 var result = await _opsCheck.RunAsync(cancellationToken);
                 return Ok(ApiResponse<StockInOpsCheckResultDto>.Ok(result, "ok"));

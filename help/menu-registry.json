@@ -18,6 +18,7 @@
     { "id": "MENU_VENDOR_RECYCLE", "label": "回收站", "routeNames": ["VendorRecycleBin"], "pathPrefixes": ["/vendors/recycle-bin"] },
 
     { "id": "MENU_RFQ_LIST", "label": "需求列表", "routeNames": ["RFQHome", "RFQList", "RFQCreate", "RFQDetail", "RFQEdit"], "pathPrefixes": ["/rfq", "/rfqlist", "/rfqs"] },
+    { "id": "MENU_RFQ_RECYCLE", "label": "需求(回收站)", "routeNames": ["RFQRecycleBin"], "pathPrefixes": ["/rfqlist/recycle-bin"] },
     { "id": "MENU_RFQ_ITEMS", "label": "需求明细", "routeNames": ["PnList", "RFQItemList"], "pathPrefixes": ["/pn", "/rfq-items"] },
     { "id": "MENU_BOM", "label": "BOM 快速报价", "routeNames": ["BOMList", "BOMCreate", "BOMDetail"], "pathPrefixes": ["/boms"] },
     { "id": "MENU_QUOTE_LIST", "label": "报价列表", "routeNames": ["QuoteList", "QuoteCreate", "QuoteEdit", "QuoteDetail"], "pathPrefixes": ["/quotes"] },

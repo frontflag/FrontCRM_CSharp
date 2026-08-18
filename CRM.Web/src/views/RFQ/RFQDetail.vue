@@ -23,7 +23,7 @@
                   <template v-else>{{ t('rfqDetail.title') }}</template>
                 </h1>
                 <button
-                  v-if="rfq"
+                  v-if="rfq && !isRecycleView"
                   type="button"
                   class="btn-favorite-star"
                   :class="{ 'is-favorite': rfqFavorited }"
@@ -52,7 +52,7 @@
                 <template v-if="showRfqTagsSection && (rfqTags.length || canEditRfqTags)">
                   <div class="rfq-header-tags-row tags-row">
                     <TagListDisplay v-if="rfqTags.length" :tags="rfqTags" />
-                    <button v-if="canEditRfqTags" type="button" class="btn-secondary rfq-header-add-tag-btn" @click="tagDialogVisible = true">
+                    <button v-if="canEditRfqTags && !isRecycleView" type="button" class="btn-secondary rfq-header-add-tag-btn" @click="tagDialogVisible = true">
                       <span class="rfq-header-add-tag-icon" aria-hidden="true">±</span>
                       {{ t('rfqDetail.tags.add') }}
                     </button>
@@ -65,6 +65,16 @@
               <el-tag v-if="rfq" effect="dark" :type="getStatusType(rfq.status)" size="small">
                 {{ getStatusLabel(rfq.status) }}
               </el-tag>
+              <template v-if="isRecycleView && rfq">
+                <span class="title-meta-item">
+                  <span class="title-meta-item__label">{{ t('rfqDetail.fields.deleteDate') }}</span>
+                  <span class="title-meta-item__value">{{ rfqDeleteDateText }}</span>
+                </span>
+                <span class="title-meta-item">
+                  <span class="title-meta-item__label">{{ t('rfqDetail.fields.deleteUser') }}</span>
+                  <span class="title-meta-item__value">{{ rfqDeleteUserText }}</span>
+                </span>
+              </template>
               <div v-if="rfqItemQuoteStatPills.length" class="item-quote-stats-bar item-quote-stats-bar--header">
                 <template v-for="(pill, idx) in rfqItemQuoteStatPills" :key="pill.key">
                   <span v-if="idx > 0" class="item-quote-stats__sep" aria-hidden="true">·</span>
@@ -77,9 +87,18 @@
       </div>
       <div class="header-right">
         <button
+          v-if="isRecycleView && rfq"
+          class="btn-warning"
+          type="button"
+          :disabled="restoring"
+          @click="handleRestore"
+        >
+          {{ t('rfqRecycle.restore') }}
+        </button>
+        <button
           class="btn-secondary btn-close-rfq"
           @click="showCloseDialog"
-          v-if="canWriteSaleData && rfq?.status !== 7 && rfq?.status !== 8"
+          v-if="canMutateRfq && rfq?.status !== 7 && rfq?.status !== 8"
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
@@ -89,7 +108,7 @@
         <button
           class="btn-primary"
           @click="handleEdit"
-          v-if="canWriteSaleData && (rfq?.status === 0 || rfq?.status === 1)"
+          v-if="canMutateRfq && (rfq?.status === 0 || rfq?.status === 1)"
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
@@ -98,7 +117,7 @@
           {{ t('rfqDetail.edit') }}
         </button>
         <el-dropdown
-          v-if="canWriteSaleData"
+          v-if="canMutateRfq"
           trigger="click"
           placement="bottom-end"
           popper-class="rfq-detail-header-more-popper"
@@ -285,7 +304,7 @@
                     </svg>
                     {{ t('rfqDetail.assignPurchaser') }}
                   </button>
-                  <button type="button" class="btn-add-item" @click="loadItems">
+                  <button v-if="!isRecycleView" type="button" class="btn-add-item" @click="loadItems">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/>
                     </svg>
@@ -468,7 +487,7 @@
                   <template #default="{ row }"><span class="cell-muted">{{ row.minOrderQty ?? '—' }}</span></template>
                 </el-table-column>
                 <el-table-column
-                  v-if="canAssignRfqPurchaser"
+                  v-if="canAssignRfqPurchaser && !isRecycleView"
                   label="操作"
                   :width="rfqDetailAssignOpColWidth"
                   :min-width="rfqDetailAssignOpColMinWidth"
@@ -690,6 +709,8 @@ const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
 const { canWriteSaleData } = useDepartmentDataReadOnly()
+const isRecycleView = computed(() => String(route.query.from ?? '') === 'recycle')
+const canMutateRfq = computed(() => canWriteSaleData.value && !isRecycleView.value)
 const rfqId = route.params.id as string
 const { options: materialPdOptions, ensureLoaded: ensureMaterialPdDict } = useMaterialProductionDateDict()
 const tagDialogVisible = ref(false)
@@ -697,7 +718,9 @@ const tagDialogVisible = ref(false)
 const showRfqTagsSection = computed(
   () => canUseRfqTagUi(authStore.user) && resolveRfqCanViewTags(rfq.value)
 )
-const canEditRfqTags = computed(() => resolveRfqCanEditTagsForUser(rfq.value, authStore.user))
+const canEditRfqTags = computed(
+  () => !isRecycleView.value && resolveRfqCanEditTagsForUser(rfq.value, authStore.user)
+)
 const rfqTags = computed(() => normalizeRfqTags(rfq.value))
 
 async function refreshTags() {
@@ -748,7 +771,7 @@ const rfqClosedForAssign = computed(() => {
 })
 /** 工具栏提供「为全部明细分配采购员」入口（列表/面板均显示；单行分配见列表操作列） */
 const showAssignPurchaserToolbar = computed(
-  () => canAssignRfqPurchaser.value && !rfqClosedForAssign.value
+  () => canAssignRfqPurchaser.value && !rfqClosedForAssign.value && !isRecycleView.value
 )
 
 /** 需求明细报价统计（与列表 effective 状态口径一致） */
@@ -794,6 +817,7 @@ const rfqItemQuoteStatPills = computed(() => {
 })
 
 const loading = ref(false)
+const restoring = ref(false)
 const rfqFavorited = ref(false)
 const favoriteLoading = ref(false)
 const rfq = ref<any>(null)
@@ -877,11 +901,15 @@ function toggleRfqDetailAssignOpCol() {
   rfqDetailAssignOpColExpanded.value = !rfqDetailAssignOpColExpanded.value
 }
 
-const tabs = computed(() => [
-  { key: 'items' as const, label: t('rfqDetail.tabs.items') },
-  { key: 'changeLogs' as const, label: t('rfqDetail.tabs.changeLogs') },
-  { key: 'closeRecords' as const, label: t('rfqDetail.tabs.closeRecords') },
-])
+const tabs = computed(() => {
+  const itemTab = { key: 'items' as const, label: t('rfqDetail.tabs.items') }
+  if (isRecycleView.value) return [itemTab]
+  return [
+    itemTab,
+    { key: 'changeLogs' as const, label: t('rfqDetail.tabs.changeLogs') },
+    { key: 'closeRecords' as const, label: t('rfqDetail.tabs.closeRecords') },
+  ]
+})
 
 const assignDialogVisible = ref(false)
 const assignLoading = ref(false)
@@ -1009,6 +1037,23 @@ const rfqBasicCreateUserText = computed(() => {
   return s || '—'
 })
 
+const rfqDeleteDateText = computed(() => {
+  const o = rfq.value as Record<string, unknown> | null
+  if (!o) return '—'
+  const raw = o.deletedAt ?? o.DeletedAt
+  if (raw == null || raw === '') return '—'
+  const s = formatDisplayDateTime(String(raw))
+  return !s || s === '--' ? '—' : s
+})
+
+const rfqDeleteUserText = computed(() => {
+  const o = rfq.value as Record<string, unknown> | null
+  if (!o) return '—'
+  const name = o.deletedByUserName ?? o.DeletedByUserName
+  const s = name != null ? String(name).trim() : ''
+  return s || '—'
+})
+
 function getTargetTypeLabel(type?: number) {
   const map: Record<number, string> = { 1: t('rfqDetail.targetType.priceCompare'), 2: t('rfqDetail.targetType.exclusive'), 3: t('rfqDetail.targetType.urgent'), 4: t('rfqDetail.targetType.normal') }
   return type !== undefined ? (map[type] ?? t('quoteList.na')) : t('quoteList.na')
@@ -1041,8 +1086,13 @@ function formatCloseAt(val?: string) {
   const s = formatDisplayDateTime(val)
   return s === '--' ? '—' : s
 }
-function goBack() { router.push('/rfqlist') }
-function handleEdit() { router.push(`/rfqs/${rfqId}/edit`) }
+function goBack() {
+  router.push(isRecycleView.value ? { name: 'RFQRecycleBin' } : '/rfqlist')
+}
+function handleEdit() {
+  if (isRecycleView.value) return
+  router.push(`/rfqs/${rfqId}/edit`)
+}
 
 function onHeaderMoreCommand(cmd: string) {
   if (cmd === 'delete') void handleDelete()
@@ -1082,8 +1132,10 @@ async function loadRFQ() {
   loading.value = true
   resetChangeLogs()
   try {
-    rfq.value = await rfqApi.getRFQDetail(rfqId)
-    if (rfq.value) {
+    rfq.value = isRecycleView.value
+      ? await rfqApi.getRecycleRFQById(rfqId)
+      : await rfqApi.getRFQDetail(rfqId)
+    if (rfq.value && !isRecycleView.value) {
       recordRfqRecentView({
         id: rfqId,
         rfqCode: rfq.value.rfqCode,
@@ -1091,7 +1143,7 @@ async function loadRFQ() {
       })
       void loadChangeLogs({ silent: true })
     }
-    await loadFavoriteState()
+    if (!isRecycleView.value) await loadFavoriteState()
   } catch {
     ElNotification.error({ title: t('rfqDetail.toast.loadFailedTitle'), message: t('rfqDetail.toast.loadFailedMessage') })
   } finally {
@@ -1102,6 +1154,12 @@ async function loadRFQ() {
 async function loadItems() {
   itemsLoading.value = true
   try {
+    if (isRecycleView.value) {
+      const data = rfq.value ?? (await rfqApi.getRecycleRFQById(rfqId))
+      rfqItems.value = (data?.items ?? []) as any[]
+      quoteRecordCountByRfqItemId.value = {}
+      return
+    }
     const res = await rfqApi.getRFQItemsWithBestQuote(rfqId)
     rfqItems.value = res || []
     const ids = rfqItems.value
@@ -1131,6 +1189,7 @@ async function loadCloseRecords() {
 }
 
 async function showAssignDialog(row?: { id?: string; lineNo?: number }, rowIndex?: number) {
+  if (isRecycleView.value) return
   assignTargetItemId.value = row?.id?.trim() || null
   const lineNo = Number(row?.lineNo)
   assignTargetLineNo.value =
@@ -1190,6 +1249,7 @@ async function handleCloseConfirm() {
 }
 
 async function handleDelete() {
+  if (isRecycleView.value) return
   try {
     await ElMessageBox.confirm(
       t('rfqDetail.deleteConfirm', { code: rfq.value?.rfqCode }),
@@ -1202,11 +1262,32 @@ async function handleDelete() {
   } catch { /* 取消 */ }
 }
 
+async function handleRestore() {
+  if (!isRecycleView.value || !rfq.value || restoring.value) return
+  try {
+    await ElMessageBox.confirm(
+      t('rfqRecycle.restoreConfirm', { code: rfq.value.rfqCode || rfqId }),
+      t('rfqRecycle.restoreTitle'),
+      { type: 'info' }
+    )
+    restoring.value = true
+    await rfqApi.restoreRFQ(rfqId)
+    ElNotification.success({ title: t('rfqRecycle.restoreSuccessTitle'), message: t('rfqRecycle.restoreSuccessMessage') })
+    router.push({ name: 'RFQRecycleBin' })
+  } catch (e) {
+    if (e !== 'cancel') {
+      ElNotification.error({ title: t('rfqRecycle.restoreFailedTitle'), message: t('rfqRecycle.restoreFailedMessage') })
+    }
+  } finally {
+    restoring.value = false
+  }
+}
+
 onMounted(() => {
   void ensureMaterialPdDict()
   loadRFQ()
   loadItems()
-  loadCloseRecords()
+  if (!isRecycleView.value) loadCloseRecords()
 })
 </script>
 
@@ -1294,6 +1375,23 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.title-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  &__label {
+    color: $text-primary;
+    &::after {
+      content: '：';
+    }
+  }
+  &__value {
+    color: $color-amber;
+  }
 }
 
 .title-meta--caption {
@@ -1388,6 +1486,7 @@ onMounted(() => {
   background: rgba(201,154,69,0.15); border: 1px solid rgba(201,154,69,0.4); border-radius: $border-radius-md;
   color: $color-amber; font-size: 13px; font-family: 'Noto Sans SC', sans-serif; cursor: pointer; transition: all 0.2s;
   &:hover { background: rgba(201,154,69,0.25); }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
 }
 .btn-more-actions {
   display: inline-flex;

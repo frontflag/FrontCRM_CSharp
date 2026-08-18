@@ -19,6 +19,12 @@ namespace CRM.Core.Interfaces
         Task<RFQ> UpdateAsync(string id, UpdateRFQRequest request, string? actingUserId = null);
         /// <param name="actingUserId">当前登录用户 ID（写入 log_operation 删除人）</param>
         Task DeleteAsync(string id, string? actingUserId = null);
+        /// <summary>需求回收站分页。无入口权限时抛 <see cref="UnauthorizedAccessException"/>。</summary>
+        Task<PagedResult<RFQListItem>> GetDeletedPagedAsync(RFQQueryRequest request);
+        /// <summary>回收站只读详情（仅整单删除时仍有效的明细）。不在回收站时返回 null。</summary>
+        Task<RFQ?> GetDeletedByIdAsync(string id, string? viewerUserId = null);
+        /// <summary>从回收站恢复主单及随整单删除的明细；不含更早编辑时删掉的行。</summary>
+        Task RestoreAsync(string id, string? actingUserId = null);
         /// <param name="actingUserId">当前登录用户 ID（写入 modify_by_user_id）</param>
         Task UpdateStatusAsync(string id, short status, string? actingUserId = null);
 
@@ -210,6 +216,11 @@ namespace CRM.Core.Interfaces
 
         /// <summary>标签（仅对有查看权限的用户返回）</summary>
         public List<EntityTagDto>? Tags { get; set; }
+
+        /// <summary>回收站：删除时间（操作日志；无日志时用主表修改时间）</summary>
+        public DateTime? DeletedAt { get; set; }
+        /// <summary>回收站：删除人（操作日志；无则空，前端显示 —）</summary>
+        public string? DeletedByUserName { get; set; }
     }
 
     /// <summary>需求明细列表查询条件（对应 GET /rfqs/items）</summary>

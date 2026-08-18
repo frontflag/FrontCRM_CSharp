@@ -29,6 +29,24 @@ public interface IRfqMainListQuery
         RFQQueryRequest request,
         bool maskCustomerNames,
         CancellationToken cancellationToken = default);
+
+    /// <summary>已软删需求主表分页（忽略全局过滤器，仍套销售/采购数据范围）。</summary>
+    Task<RfqMainListQueryPage> GetDeletedPagedAsync(
+        RFQQueryRequest request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>各需求最新一次整单删除操作日志（删除人/时间/明细 ID）。</summary>
+    Task<IReadOnlyDictionary<string, RfqHeaderDeleteLogInfo>> GetLatestRfqHeaderDeleteLogsAsync(
+        IReadOnlyList<string> recordIds,
+        CancellationToken cancellationToken = default);
+}
+
+/// <summary>需求整单删除日志摘要（联 log_operation）。</summary>
+public sealed class RfqHeaderDeleteLogInfo
+{
+    public DateTime OperationTime { get; init; }
+    public string? OperatorUserName { get; init; }
+    public string? ExtraInfo { get; init; }
 }
 
 /// <summary>需求主表列表一次查询结果：当前页实体 + 全量筛选维度统计。</summary>

@@ -191,4 +191,102 @@ public sealed class MemoryRfqMainListQuery : IRfqMainListQuery
         bool maskCustomerNames,
         CancellationToken cancellationToken = default) =>
         Task.FromResult(new RfqListAnalyticsRankingsDto());
+
+    /// <inheritdoc />
+    public async Task<RfqMainListQueryPage> GetDeletedPagedAsync(
+        RFQQueryRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var page = request.PageIndex < 1 ? 1 : request.PageIndex;
+        var pageSize = request.PageSize < 1 ? 20 : Math.Min(request.PageSize, MaxPageSize);
+
+        var all = (await _rfqRepo.FindIgnoreFiltersAsync(r => r.IsDeleted)).ToList();
+        var query = all.AsQueryable();
+        if (!string.IsNullOrWhiteSpace(request.Keyword))
+        {
+            var kw = request.Keyword.Trim().ToLowerInvariant();
+            query = query.Where(r =>
+                r.RfqCode.ToLower().Contains(kw) ||
+                (r.Industry != null && r.Industry.ToLower().Contains(kw)) ||
+                (r.Product != null && r.Product.ToLower().Contains(kw)) ||
+                (r.Remark != null && r.Remark.ToLower().Contains(kw)));
+        }
+
+        if (request.Status.HasValue)
+            query = query.Where(r => r.Status == request.Status.Value);
+
+        if (!string.IsNullOrWhiteSpace(request.CustomerId))
+            query = query.Where(r => r.CustomerId == request.CustomerId);
+
+        if (!string.IsNullOrWhiteSpace(request.SalesUserName))
+        {
+            var acc = request.SalesUserName.Trim().ToLowerInvariant();
+            var usersForFilter = (await _userService.GetAllAsync()).ToList();
+            var matchedIds = usersForFilter
+                .Where(u => !string.IsNullOrWhiteSpace(u.UserName) && u.UserName.ToLowerInvariant().Contains(acc))
+                .Select(u => u.Id)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            query = matchedIds.Count == 0
+                ? query.Where(r => false)
+                : query.Where(r => r.SalesUserId != null && matchedIds.Contains(r.SalesUserId));
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.CreateUserName))
+        {
+            var acc = request.CreateUserName.Trim().ToLowerInvariant();
+            var usersForFilter = (await _userService.GetAllAsync()).ToList();
+            var matchedIds = usersForFilter
+                .Where(u => !string.IsNullOrWhiteSpace(u.UserName) && u.UserName.ToLowerInvariant().Contains(acc))
+                .Select(u => u.Id)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            query = matchedIds.Count == 0
+                ? query.Where(r => false)
+                : query.Where(r => r.CreateByUserId != null && matchedIds.Contains(r.CreateByUserId));
+        }
+
+        if (request.StartDate.HasValue)
+            query = query.Where(r => r.CreateTime >= request.StartDate.Value);
+
+        if (request.EndDate.HasValue)
+            query = query.Where(r => r.CreateTime <= request.EndDate.Value.AddDays(1));
+
+        var ordered = query.OrderByDescending(r => r.ModifyTime ?? r.CreateTime).ToList();
+        if (!string.IsNullOrWhiteSpace(request.CurrentUserId))
+        {
+            var listItems = ordered.Select(r => new RFQListItem
+            {
+                Id = r.Id,
+                RfqCode = r.RfqCode,
+                CustomerId = r.CustomerId,
+                Status = r.Status,
+                SalesUserId = r.SalesUserId,
+                CreateTime = r.CreateTime
+            }).ToList();
+            listItems = (await _dataPermission.FilterRFQsAsync(request.CurrentUserId, listItems)).ToList();
+            var allow = listItems.Select(x => x.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            ordered = ordered.Where(r => allow.Contains(r.Id)).ToList();
+        }
+
+        var total = ordered.Count;
+        var slice = ordered.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        return new RfqMainListQueryPage
+        {
+            Items = slice,
+            TotalCount = total,
+            PageIndex = page,
+            PageSize = pageSize
+        };
+    }
+
+    /// <inheritdoc />
+    public Task<IReadOnlyDictionary<string, RfqHeaderDeleteLogInfo>> GetLatestRfqHeaderDeleteLogsAsync(
+        IReadOnlyList<string> recordIds,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        IReadOnlyDictionary<string, RfqHeaderDeleteLogInfo> empty =
+            new Dictionary<string, RfqHeaderDeleteLogInfo>(StringComparer.OrdinalIgnoreCase);
+        return Task.FromResult(empty);
+    }
 }

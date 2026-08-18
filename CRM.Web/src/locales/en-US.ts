@@ -2654,6 +2654,7 @@ const enUS = {
     count: '{count} RFQs total',
     importExcel: 'Import from Excel',
     create: 'New RFQ',
+    recycleBin: 'Recycle Bin',
     createMenuTip: {
       pasteText: 'For pasting scattered text copied from email, WeChat, chat logs, etc.',
       excelImport:
@@ -3610,6 +3611,8 @@ const enUS = {
       salesUser: 'Sales Rep',
       createDate: 'Created on',
       createUser: 'Created by',
+      deleteDate: 'Deleted on',
+      deleteUser: 'Deleted by',
       rfqType: 'RFQ Type',
       quoteMethod: 'Quote Method',
       assignMethod: 'Assign Method',
@@ -4749,6 +4752,24 @@ const enUS = {
     restoreSuccessMessage: 'Customer restored to list',
     restoreFailedTitle: 'Restore Failed',
     restoreFailedMessage: 'Failed to restore customer'
+  },
+  rfqRecycle: {
+    title: 'RFQ Recycle Bin',
+    back: 'Back to list',
+    count: '{count} deleted records',
+    searchPlaceholder: 'Search RFQ code',
+    empty: 'Recycle bin is empty',
+    deletedAt: 'Deleted at: ',
+    operator: 'Deleted by: ',
+    restore: 'Restore',
+    loadFailedTitle: 'Load failed',
+    loadFailedMessage: 'Failed to load recycle bin',
+    restoreTitle: 'Confirm restore',
+    restoreConfirm: 'Restore RFQ "{code}"? Lines deleted earlier during edit will not be restored.',
+    restoreSuccessTitle: 'Restored',
+    restoreSuccessMessage: 'RFQ restored to the list',
+    restoreFailedTitle: 'Restore failed',
+    restoreFailedMessage: 'Failed to restore RFQ'
   },
   vendorRecycle: {
     title: 'Vendor Recycle Bin',

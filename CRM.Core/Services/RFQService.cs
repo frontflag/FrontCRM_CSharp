@@ -225,7 +225,12 @@ namespace CRM.Core.Services
             // 加载明细
             var items = await _itemRepo.FindAsync(i => i.RfqId == id);
             rfq.Items = items.Where(i => !i.IsDeleted).OrderBy(i => i.LineNo).ToList();
+            await HydrateRfqDetailDisplayAsync(rfq, viewerUserId, recycleReadonly: false);
+            return rfq;
+        }
 
+        private async Task HydrateRfqDetailDisplayAsync(RFQ rfq, string? viewerUserId, bool recycleReadonly)
+        {
             var canViewCustomer = string.IsNullOrWhiteSpace(viewerUserId)
                 || await UserCanViewCustomerInRfqContextAsync(viewerUserId);
 
@@ -276,13 +281,78 @@ namespace CRM.Core.Services
             {
                 rfq.CanViewRfqTags = await _dataPermissionService.CanViewRfqTagsAsync(
                     viewerUserId, createByUserIdForTags, salesUserIdForTags);
-                rfq.CanEditRfqTags = await _dataPermissionService.CanEditRfqTagsAsync(
-                    viewerUserId, createByUserIdForTags, salesUserIdForTags);
+                rfq.CanEditRfqTags = !recycleReadonly
+                    && await _dataPermissionService.CanEditRfqTagsAsync(
+                        viewerUserId, createByUserIdForTags, salesUserIdForTags);
                 if (rfq.CanViewRfqTags)
-                    rfq.Tags = (await _rfqTagService.GetTagsForRfqAsync(id, viewerUserId)).ToList();
+                    rfq.Tags = (await _rfqTagService.GetTagsForRfqAsync(rfq.Id, viewerUserId)).ToList();
+            }
+        }
+
+        private async Task<List<RFQListItem>> MapRfqsToListItemsAsync(
+            IReadOnlyList<RFQ> rows,
+            bool canViewCustomerInList,
+            string? currentUserId)
+        {
+            var customerIds = rows.Where(r => r.CustomerId != null).Select(r => r.CustomerId!).Distinct().ToList();
+            var customers = new Dictionary<string, string>();
+            if (customerIds.Count > 0 && _customerRepo != null)
+            {
+                var allCustomers = await _customerRepo.GetAllAsync();
+                customers = allCustomers
+                    .Where(c => customerIds.Contains(c.Id))
+                    .ToDictionary(c => c.Id, c => c.OfficialName ?? c.NickName ?? "");
             }
 
-            return rfq;
+            var users = (await _userService.GetAllAsync())
+                .ToDictionary(u => u.Id, u => u, StringComparer.OrdinalIgnoreCase);
+
+            var listItems = rows.Select(r =>
+            {
+                users.TryGetValue(r.SalesUserId ?? string.Empty, out var salesUser);
+                users.TryGetValue(r.CreateByUserId ?? string.Empty, out var createUser);
+                return new RFQListItem
+                {
+                    Id = r.Id,
+                    RfqCode = r.RfqCode,
+                    CustomerId = r.CustomerId,
+                    CustomerName = r.CustomerId != null && customers.ContainsKey(r.CustomerId) ? customers[r.CustomerId] : null,
+                    Status = r.Status,
+                    RfqType = r.RfqType,
+                    TargetType = r.TargetType,
+                    Industry = r.Industry,
+                    Product = r.Product,
+                    Importance = r.Importance,
+                    ItemCount = r.ItemCount,
+                    Remark = r.Remark,
+                    CreateTime = r.CreateTime,
+                    SalesUserId = r.SalesUserId,
+                    SalesUserName = EntityLookupService.FormatUserLoginName(salesUser),
+                    CreateByUserId = r.CreateByUserId,
+                    CreateUserName = EntityLookupService.FormatUserLoginName(createUser)
+                };
+            }).ToList();
+
+            if (!canViewCustomerInList)
+            {
+                foreach (var it in listItems)
+                    MaskRfqListItemCustomerFields(it);
+            }
+
+            if (!string.IsNullOrWhiteSpace(currentUserId))
+            {
+                var s = await _rbacService.GetUserPermissionSummaryAsync(currentUserId.Trim());
+                if (SaleSensitiveFieldMask521.ShouldMask(s))
+                {
+                    foreach (var it in listItems)
+                    {
+                        it.SalesUserId = null;
+                        it.SalesUserName = null;
+                    }
+                }
+            }
+
+            return listItems;
         }
 
         /// <summary>具备 customer.info.read（客户敏感信息字段）或为系统管理员时，可在需求场景查看客户名/联系人等；与 PURCHASER 不授 info.read、仅 customer.read 的口径一致。</summary>
@@ -347,64 +417,7 @@ namespace CRM.Core.Services
             };
 
             var page = await _rfqMainListQuery.GetPagedWithAggregatesAsync(queryReq, default);
-
-            var customerIds = page.Items.Where(r => r.CustomerId != null).Select(r => r.CustomerId!).Distinct().ToList();
-            var customers = new Dictionary<string, string>();
-            if (customerIds.Count > 0 && _customerRepo != null)
-            {
-                var allCustomers = await _customerRepo.GetAllAsync();
-                customers = allCustomers
-                    .Where(c => customerIds.Contains(c.Id))
-                    .ToDictionary(c => c.Id, c => c.OfficialName ?? c.NickName ?? "");
-            }
-
-            var users = (await _userService.GetAllAsync())
-                .ToDictionary(u => u.Id, u => u, StringComparer.OrdinalIgnoreCase);
-
-            var listItems = page.Items.Select(r =>
-            {
-                users.TryGetValue(r.SalesUserId ?? string.Empty, out var salesUser);
-                users.TryGetValue(r.CreateByUserId ?? string.Empty, out var createUser);
-                return new RFQListItem
-                {
-                    Id = r.Id,
-                    RfqCode = r.RfqCode,
-                    CustomerId = r.CustomerId,
-                    CustomerName = r.CustomerId != null && customers.ContainsKey(r.CustomerId) ? customers[r.CustomerId] : null,
-                    Status = r.Status,
-                    RfqType = r.RfqType,
-                    TargetType = r.TargetType,
-                    Industry = r.Industry,
-                    Product = r.Product,
-                    Importance = r.Importance,
-                    ItemCount = r.ItemCount,
-                    Remark = r.Remark,
-                    CreateTime = r.CreateTime,
-                    SalesUserId = r.SalesUserId,
-                    SalesUserName = EntityLookupService.FormatUserLoginName(salesUser),
-                    CreateByUserId = r.CreateByUserId,
-                    CreateUserName = EntityLookupService.FormatUserLoginName(createUser)
-                };
-            }).ToList();
-
-            if (!canViewCustomerInList)
-            {
-                foreach (var it in listItems)
-                    MaskRfqListItemCustomerFields(it);
-            }
-
-            if (!string.IsNullOrWhiteSpace(request.CurrentUserId))
-            {
-                var s = await _rbacService.GetUserPermissionSummaryAsync(request.CurrentUserId.Trim());
-                if (SaleSensitiveFieldMask521.ShouldMask(s))
-                {
-                    foreach (var it in listItems)
-                    {
-                        it.SalesUserId = null;
-                        it.SalesUserName = null;
-                    }
-                }
-            }
+            var listItems = await MapRfqsToListItemsAsync(page.Items, canViewCustomerInList, request.CurrentUserId);
 
             if (!string.IsNullOrWhiteSpace(request.CurrentUserId) && listItems.Count > 0)
             {
@@ -607,9 +620,151 @@ namespace CRM.Core.Services
                 RecordCode = rfq.RfqCode,
                 EntityDisplayName = DeleteLogEntityNames.Rfq,
                 ExtraDetail = $"明细行数={items.Count}",
+                ExtraInfo = items.Count == 0 ? null : string.Join(",", items.Select(i => i.Id)),
                 OperatorUserId = actorId,
                 OperatorUserName = actorName
             });
+        }
+
+        public async Task<PagedResult<RFQListItem>> GetDeletedPagedAsync(RFQQueryRequest request)
+        {
+            await EnsureRfqRecycleAccessAsync(request.CurrentUserId);
+
+            var canViewCustomerInList = string.IsNullOrWhiteSpace(request.CurrentUserId)
+                || await UserCanViewCustomerInRfqContextAsync(request.CurrentUserId!);
+            var queryReq = new RFQQueryRequest
+            {
+                PageIndex = request.PageIndex,
+                PageSize = request.PageSize,
+                Keyword = request.Keyword,
+                Status = request.Status,
+                CustomerId = request.CustomerId,
+                StartDate = request.StartDate,
+                EndDate = request.EndDate,
+                CurrentUserId = request.CurrentUserId,
+                TagIds = request.TagIds,
+                SalesUserName = request.SalesUserName,
+                CreateUserName = request.CreateUserName
+            };
+
+            var page = await _rfqMainListQuery.GetDeletedPagedAsync(queryReq, default);
+            var listItems = await MapRfqsToListItemsAsync(page.Items, canViewCustomerInList, request.CurrentUserId);
+
+            if (!string.IsNullOrWhiteSpace(request.CurrentUserId) && listItems.Count > 0)
+            {
+                var tagPermissionRows = page.Items.Select(r => (r.Id, r.CreateByUserId, r.SalesUserId));
+                var tagMap = await _rfqTagService.GetTagsForRfqIdsAsync(
+                    listItems.Select(i => i.Id),
+                    request.CurrentUserId,
+                    tagPermissionRows);
+                foreach (var it in listItems)
+                {
+                    if (tagMap.TryGetValue(it.Id, out var tags))
+                        it.Tags = tags.ToList();
+                }
+            }
+
+            var logs = await _rfqMainListQuery.GetLatestRfqHeaderDeleteLogsAsync(
+                listItems.Select(i => i.Id).ToList(), default);
+            foreach (var it in listItems)
+            {
+                logs.TryGetValue(it.Id, out var log);
+                var header = page.Items.FirstOrDefault(r =>
+                    string.Equals(r.Id, it.Id, StringComparison.OrdinalIgnoreCase));
+                it.DeletedAt = log?.OperationTime ?? header?.ModifyTime;
+                var name = log?.OperatorUserName?.Trim();
+                it.DeletedByUserName = string.IsNullOrWhiteSpace(name) ? null : name;
+            }
+
+            return new PagedResult<RFQListItem>
+            {
+                Items = listItems,
+                TotalCount = page.TotalCount,
+                PageIndex = page.PageIndex,
+                PageSize = page.PageSize
+            };
+        }
+
+        public async Task<RFQ?> GetDeletedByIdAsync(string id, string? viewerUserId = null)
+        {
+            await EnsureRfqRecycleAccessAsync(viewerUserId);
+            if (string.IsNullOrWhiteSpace(id)) return null;
+
+            var rfq = (await _rfqRepo.FindIgnoreFiltersAsync(r => r.Id == id.Trim())).FirstOrDefault();
+            if (rfq == null || !rfq.IsDeleted) return null;
+
+            if (!string.IsNullOrWhiteSpace(viewerUserId)
+                && !await _dataPermissionService.CanAccessRFQAsync(viewerUserId.Trim(), rfq))
+                throw new UnauthorizedAccessException("无权限访问该需求");
+
+            var allItems = (await _itemRepo.FindIgnoreFiltersAsync(i => i.RfqId == rfq.Id)).ToList();
+            var logs = await _rfqMainListQuery.GetLatestRfqHeaderDeleteLogsAsync(new[] { rfq.Id }, default);
+            logs.TryGetValue(rfq.Id, out var log);
+            var loggedIds = RfqHeaderDeleteItemSelector.ParseLoggedItemIds(log?.ExtraInfo);
+            rfq.Items = RfqHeaderDeleteItemSelector.Select(allItems, rfq.ModifyTime, loggedIds).ToList();
+            rfq.DeletedAt = log?.OperationTime ?? rfq.ModifyTime;
+            var deleter = log?.OperatorUserName?.Trim();
+            rfq.DeletedByUserName = string.IsNullOrWhiteSpace(deleter) ? null : deleter;
+
+            await HydrateRfqDetailDisplayAsync(rfq, viewerUserId, recycleReadonly: true);
+            return rfq;
+        }
+
+        public async Task RestoreAsync(string id, string? actingUserId = null)
+        {
+            await EnsureRfqRecycleAccessAsync(actingUserId);
+            if (string.IsNullOrWhiteSpace(id))
+                throw new ArgumentException("ID不能为空");
+
+            var trimmed = id.Trim();
+            var rfq = (await _rfqRepo.FindIgnoreFiltersAsync(r => r.Id == trimmed)).FirstOrDefault();
+            if (rfq == null)
+                throw new KeyNotFoundException($"需求 {id} 不存在");
+            if (!rfq.IsDeleted)
+                throw new InvalidOperationException("该需求不在回收站");
+
+            if (!string.IsNullOrWhiteSpace(actingUserId)
+                && !await _dataPermissionService.CanAccessRFQAsync(actingUserId.Trim(), rfq))
+                throw new UnauthorizedAccessException("无权限访问该需求");
+
+            var allItems = (await _itemRepo.FindIgnoreFiltersAsync(i => i.RfqId == rfq.Id)).ToList();
+            var logs = await _rfqMainListQuery.GetLatestRfqHeaderDeleteLogsAsync(new[] { rfq.Id }, default);
+            logs.TryGetValue(rfq.Id, out var log);
+            var loggedIds = RfqHeaderDeleteItemSelector.ParseLoggedItemIds(log?.ExtraInfo);
+            var toRestore = RfqHeaderDeleteItemSelector.Select(allItems, rfq.ModifyTime, loggedIds);
+
+            var now = DateTime.UtcNow;
+            foreach (var item in toRestore)
+            {
+                item.IsDeleted = false;
+                item.ModifyTime = now;
+                await _itemRepo.UpdateAsync(item);
+            }
+
+            rfq.IsDeleted = false;
+            rfq.ModifyTime = now;
+            rfq.ItemCount = allItems.Count(i => !i.IsDeleted);
+            await _rfqRepo.UpdateAsync(rfq);
+            if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+
+            var (actorId, actorName) = await ResolveActorAsync(actingUserId);
+            await _logOperationAppend.AppendAsync(
+                BusinessLogTypes.Rfq,
+                rfq.Id,
+                rfq.RfqCode,
+                OperationLogActionTypes.RfqRestore,
+                actorId,
+                actorName,
+                $"恢复询价需求，单号={rfq.RfqCode}，明细行数={toRestore.Count}，Id={rfq.Id}");
+        }
+
+        private async Task EnsureRfqRecycleAccessAsync(string? userId)
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+                throw new UnauthorizedAccessException("无权限访问需求回收站");
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
+            if (!RfqRecycleBinAccessRules.CanAccess(summary))
+                throw new UnauthorizedAccessException("无权限访问需求回收站");
         }
 
         // ─── Status ──────────────────────────────────────────────────────────────
