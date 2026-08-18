@@ -500,7 +500,7 @@ namespace CRM.Core.Services
         /// <summary>
         /// 删除客户地址
         /// </summary>
-        public async Task DeleteAddressAsync(string addressId)
+        public async Task DeleteAddressAsync(string addressId, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(addressId))
                 throw new ArgumentException("地址ID不能为空", nameof(addressId));
@@ -517,7 +517,8 @@ namespace CRM.Core.Services
                 address.Id,
                 null,
                 DeleteLogEntityNames.CustomerAddress,
-                address.CustomerId);
+                address.CustomerId,
+                actingUserId);
         }
 
         /// <summary>
@@ -633,7 +634,7 @@ namespace CRM.Core.Services
         /// <summary>
         /// 删除客户联系人
         /// </summary>
-        public async Task DeleteContactAsync(string contactId)
+        public async Task DeleteContactAsync(string contactId, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(contactId))
                 throw new ArgumentException("联系人ID不能为空", nameof(contactId));
@@ -650,7 +651,8 @@ namespace CRM.Core.Services
                 contact.Id,
                 contact.Name,
                 DeleteLogEntityNames.CustomerContact,
-                contact.CustomerId);
+                contact.CustomerId,
+                actingUserId);
         }
 
         /// <summary>
@@ -825,7 +827,7 @@ namespace CRM.Core.Services
         /// <summary>
         /// 删除客户银行信息
         /// </summary>
-        public async Task DeleteBankAsync(string bankId)
+        public async Task DeleteBankAsync(string bankId, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(bankId))
                 throw new ArgumentException("银行ID不能为空", nameof(bankId));
@@ -842,7 +844,8 @@ namespace CRM.Core.Services
                 bank.Id,
                 bank.BankName,
                 DeleteLogEntityNames.CustomerBank,
-                bank.CustomerId);
+                bank.CustomerId,
+                actingUserId);
         }
 
         /// <summary>
@@ -1067,7 +1070,7 @@ namespace CRM.Core.Services
         /// <summary>
         /// 删除联系历史
         /// </summary>
-        public async Task DeleteContactHistoryAsync(string historyId)
+        public async Task DeleteContactHistoryAsync(string historyId, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(historyId))
                 throw new ArgumentException("联系历史ID不能为空", nameof(historyId));
@@ -1082,7 +1085,8 @@ namespace CRM.Core.Services
                 record.Id,
                 null,
                 DeleteLogEntityNames.CustomerContactHistory,
-                record.CustomerId);
+                record.CustomerId,
+                actingUserId);
         }
 
         /// <summary>删除客户（带理由）</summary>
@@ -1340,16 +1344,20 @@ ORDER BY c.""ChangedAt"" DESC";
             string recordId,
             string? recordCode,
             string entityDisplayName,
-            string parentCustomerId)
+            string parentCustomerId,
+            string? actingUserId = null)
         {
             var cust = await GetCustomerByIdAsync(parentCustomerId);
+            var (actorId, actorName) = await OperationLogActorResolver.ResolveAsync(_userService, actingUserId);
             await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
             {
                 BizType = bizType,
                 RecordId = recordId,
                 RecordCode = recordCode,
                 EntityDisplayName = entityDisplayName,
-                ExtraDetail = cust?.CustomerCode != null ? $"所属客户={cust.CustomerCode}" : $"所属客户Id={parentCustomerId}"
+                ExtraDetail = cust?.CustomerCode != null ? $"所属客户={cust.CustomerCode}" : $"所属客户Id={parentCustomerId}",
+                OperatorUserId = actorId,
+                OperatorUserName = actorName
             });
         }
 

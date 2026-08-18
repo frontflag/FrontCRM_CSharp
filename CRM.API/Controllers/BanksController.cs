@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using CRM.API.Models.DTOs;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Customer;
+using System.Security.Claims;
 
 namespace CRM.API.Controllers
 {
@@ -43,7 +44,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _customerService.DeleteBankAsync(bankId);
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _customerService.DeleteBankAsync(bankId, actorId);
                 return Ok(ApiResponse<object>.Ok(null, "删除银行信息成功"));
             }
             catch (KeyNotFoundException ex)

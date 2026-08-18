@@ -82,7 +82,8 @@ namespace CRM.Core.Interfaces
             CancellationToken cancellationToken = default);
 
         Task<StockIn> UpdateAsync(string id, UpdateStockInRequest request, string? actingUserId = null);
-        Task DeleteAsync(string id);
+        /// <param name="actingUserId">当前登录用户 ID（写入 log_operation 删除人）</param>
+        Task DeleteAsync(string id, string? actingUserId = null);
         /// <summary>管理员强制删除：校验入库单号、调用删除链并写操作日志。</summary>
         Task ForceDeleteAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName);
         Task UpdateStatusAsync(string id, short status, string? actingUserId = null);

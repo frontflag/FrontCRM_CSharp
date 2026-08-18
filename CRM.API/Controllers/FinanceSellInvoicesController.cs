@@ -356,7 +356,8 @@ namespace CRM.API.Controllers
                 var denied = await RejectIfFinanceDataReadOnlyAsync();
                 if (denied != null) return denied;
 
-                await _service.DeleteAsync(id);
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _service.DeleteAsync(id, actorId);
                 return Ok(new { success = true, message = "删除成功" });
             }
             catch (KeyNotFoundException)

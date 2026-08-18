@@ -17,7 +17,8 @@ namespace CRM.Core.Interfaces
         Task<FinancePayment> UpdateExecutionAsync(string id, UpdateFinancePaymentExecutionRequest request, string? actingUserId = null);
         /// <summary>撤回审核通过的请款（10→1），清空执行侧字段并删除水单附件。</summary>
         Task<FinancePayment> WithdrawAsync(string id, string actingUserId, bool actingUserHasFinancePaymentWrite);
-        Task DeleteAsync(string id);
+        /// <param name="actingUserId">当前登录用户 ID（写入 log_operation 删除人）</param>
+        Task DeleteAsync(string id, string? actingUserId = null);
         /// <summary>管理员强制删除：确认单号、守卫、删除（含采购扩展回算）并写操作日志。</summary>
         Task ForceDeleteAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName);
         /// <summary>反核销：仅 status=100；回滚明细核销并 100→10，重算 PO 付款状态。</summary>

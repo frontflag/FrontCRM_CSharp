@@ -218,7 +218,7 @@ public sealed class RFQsControllerTests
     public async Task DeleteRFQ_Returns404_WhenMissing()
     {
         var rfq = Substitute.For<IRFQService>();
-        rfq.DeleteAsync("missing")
+        rfq.DeleteAsync("missing", Arg.Any<string?>())
             .Returns(Task.FromException(new InvalidOperationException("需求 missing 不存在")));
 
         var c = CreateController(rfq, Substitute.For<IDataPermissionService>());

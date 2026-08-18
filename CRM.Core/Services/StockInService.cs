@@ -1186,7 +1186,7 @@ namespace CRM.Core.Services
             return stockIn;
         }
 
-        public async Task DeleteAsync(string id)
+        public async Task DeleteAsync(string id, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(id))
                 throw new ArgumentException("ID不能为空", nameof(id));
@@ -1197,12 +1197,15 @@ namespace CRM.Core.Services
 
             await DeleteInternalAsync(stockIn);
 
+            var (actorId, actorName) = await OperationLogActorResolver.ResolveAsync(_userService, actingUserId);
             await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
             {
                 BizType = BusinessLogTypes.StockIn,
                 RecordId = stockIn.Id,
                 RecordCode = stockIn.StockInCode,
-                EntityDisplayName = DeleteLogEntityNames.StockIn
+                EntityDisplayName = DeleteLogEntityNames.StockIn,
+                OperatorUserId = actorId,
+                OperatorUserName = actorName
             });
         }
 

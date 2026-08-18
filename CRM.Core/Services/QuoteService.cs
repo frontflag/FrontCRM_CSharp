@@ -470,7 +470,7 @@ namespace CRM.Core.Services
             return quote;
         }
 
-        public async Task DeleteAsync(string id)
+        public async Task DeleteAsync(string id, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(id))
                 throw new ArgumentException("ID不能为空", nameof(id));
@@ -489,13 +489,16 @@ namespace CRM.Core.Services
 
             await _quoteRepository.DeleteAsync(id);
 
+            var (actorId, actorName) = await ResolveActorAsync(actingUserId);
             await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
             {
                 BizType = BusinessLogTypes.Quote,
                 RecordId = quote.Id,
                 RecordCode = quote.QuoteCode,
                 EntityDisplayName = DeleteLogEntityNames.Quote,
-                ExtraDetail = $"明细行数={quoteItems.Count}"
+                ExtraDetail = $"明细行数={quoteItems.Count}",
+                OperatorUserId = actorId,
+                OperatorUserName = actorName
             });
 
             // 删除报价后，如果该 RFQ 明细已无任何报价，则回退为「待报价」(0)

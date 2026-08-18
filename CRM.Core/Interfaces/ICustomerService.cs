@@ -65,7 +65,7 @@ namespace CRM.Core.Interfaces
         /// <summary>
         /// 删除客户地址
         /// </summary>
-        Task DeleteAddressAsync(string addressId);
+        Task DeleteAddressAsync(string addressId, string? actingUserId = null);
 
         /// <summary>
         /// 添加客户联系人
@@ -80,7 +80,7 @@ namespace CRM.Core.Interfaces
         /// <summary>
         /// 删除客户联系人
         /// </summary>
-        Task DeleteContactAsync(string contactId);
+        Task DeleteContactAsync(string contactId, string? actingUserId = null);
 
         /// <summary>
         /// 设置默认联系人
@@ -110,7 +110,7 @@ namespace CRM.Core.Interfaces
     /// <summary>
     /// 删除客户银行信息
     /// </summary>
-    Task DeleteBankAsync(string bankId);
+    Task DeleteBankAsync(string bankId, string? actingUserId = null);
 
     /// <summary>
     /// 设置默认银行
@@ -142,7 +142,7 @@ namespace CRM.Core.Interfaces
         /// </summary>
         Task<CustomerContactHistory> AddContactHistoryAsync(string customerId, AddContactHistoryRequest request);
         Task<CustomerContactHistory> UpdateContactHistoryAsync(string historyId, UpdateContactHistoryRequest request);
-        Task DeleteContactHistoryAsync(string historyId);
+        Task DeleteContactHistoryAsync(string historyId, string? actingUserId = null);
 
         /// <summary>删除客户（带理由）</summary>
         Task DeleteCustomerWithReasonAsync(string id, string? reason, string? operatorUserId, string? operatorUserName);

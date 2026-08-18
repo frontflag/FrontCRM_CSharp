@@ -32,6 +32,7 @@ namespace CRM.Core.Services
         private readonly IFinanceCustomerAdvanceService _advanceService;
         private readonly IFinanceReceivableService _receivableService;
         private readonly IRepository<FreightForwarderCompany> _ffCompanyRepo;
+        private readonly IUserService? _userService;
 
         public FinanceReceiptService(
             IRepository<FinanceReceipt> receiptRepo,
@@ -50,7 +51,8 @@ namespace CRM.Core.Services
             IFinanceCustomerAdvanceService advanceService,
             IFinanceReceivableService receivableService,
             IRepository<FreightForwarderCompany> ffCompanyRepo,
-            IUnitOfWork? unitOfWork = null)
+            IUnitOfWork? unitOfWork = null,
+            IUserService? userService = null)
         {
             _receiptRepo = receiptRepo;
             _itemRepo = itemRepo;
@@ -69,6 +71,7 @@ namespace CRM.Core.Services
             _receivableService = receivableService;
             _ffCompanyRepo = ffCompanyRepo;
             _unitOfWork = unitOfWork;
+            _userService = userService;
         }
 
         private async Task EnrichCreateUserNamesAsync(IReadOnlyList<FinanceReceipt> items)
@@ -345,7 +348,7 @@ namespace CRM.Core.Services
             return receipt;
         }
 
-        public async Task DeleteAsync(string id)
+        public async Task DeleteAsync(string id, string? actingUserId = null)
         {
             var receipt = await _receiptRepo.GetByIdAsync(id)
                 ?? throw new InvalidOperationException($"收款单 {id} 不存在");
@@ -355,12 +358,15 @@ namespace CRM.Core.Services
                 throw new ArgumentException(guard.Message);
 
             await DeleteCoreAsync(receipt);
+            var (actorId, actorName) = await OperationLogActorResolver.ResolveAsync(_userService, actingUserId);
             await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
             {
                 BizType = BusinessLogTypes.FinanceReceipt,
                 RecordId = receipt.Id,
                 RecordCode = receipt.FinanceReceiptCode,
-                EntityDisplayName = DeleteLogEntityNames.FinanceReceipt
+                EntityDisplayName = DeleteLogEntityNames.FinanceReceipt,
+                OperatorUserId = actorId,
+                OperatorUserName = actorName
             });
         }
 

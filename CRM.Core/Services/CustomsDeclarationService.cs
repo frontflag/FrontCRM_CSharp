@@ -25,6 +25,7 @@ public class CustomsDeclarationService : ICustomsDeclarationService
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogOperationAppendService _logOperationAppend;
     private readonly ILogger<CustomsDeclarationService> _logger;
+    private readonly IUserService? _userService;
 
     public CustomsDeclarationService(
         IRepository<CustomsDeclaration> declarationRepo,
@@ -40,7 +41,8 @@ public class CustomsDeclarationService : ICustomsDeclarationService
         ISellOrderItemPurchasedStockAvailableSyncService purchasedStockAvailableSync,
         IUnitOfWork unitOfWork,
         ILogOperationAppendService logOperationAppend,
-        ILogger<CustomsDeclarationService> logger)
+        ILogger<CustomsDeclarationService> logger,
+        IUserService? userService = null)
     {
         _declarationRepo = declarationRepo;
         _declarationItemRepo = declarationItemRepo;
@@ -56,6 +58,7 @@ public class CustomsDeclarationService : ICustomsDeclarationService
         _unitOfWork = unitOfWork;
         _logOperationAppend = logOperationAppend;
         _logger = logger;
+        _userService = userService;
     }
 
     public async Task<CustomsDeclaration?> GetByIdAsync(string id)
@@ -106,7 +109,7 @@ public class CustomsDeclarationService : ICustomsDeclarationService
     }
 
     /// <inheritdoc />
-    public async Task DeleteDeclarationAsync(string id)
+    public async Task DeleteDeclarationAsync(string id, string? actingUserId = null)
     {
         if (string.IsNullOrWhiteSpace(id))
             throw new ArgumentException("报关单 ID 不能为空", nameof(id));
@@ -127,13 +130,16 @@ public class CustomsDeclarationService : ICustomsDeclarationService
 
         await _unitOfWork.SaveChangesAsync();
 
+        var (actorId, actorName) = await OperationLogActorResolver.ResolveAsync(_userService, actingUserId);
         await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
         {
             BizType = BusinessLogTypes.CustomsDeclaration,
             RecordId = row.Id,
             RecordCode = row.DeclarationCode,
             EntityDisplayName = DeleteLogEntityNames.CustomsDeclaration,
-            ExtraDetail = $"明细行数={items.Count}"
+            ExtraDetail = $"明细行数={items.Count}",
+            OperatorUserId = actorId,
+            OperatorUserName = actorName
         });
     }
 

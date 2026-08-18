@@ -75,7 +75,7 @@ namespace CRM.Core.Interfaces
         /// <summary>
         /// 删除供应商联系人
         /// </summary>
-        Task DeleteContactAsync(string contactId);
+        Task DeleteContactAsync(string contactId, string? actingUserId = null);
 
         /// <summary>
         /// 设置主联系人
@@ -100,7 +100,7 @@ namespace CRM.Core.Interfaces
         /// <summary>
         /// 删除供应商地址
         /// </summary>
-        Task DeleteAddressAsync(string addressId);
+        Task DeleteAddressAsync(string addressId, string? actingUserId = null);
 
         /// <summary>
         /// 设置默认地址
@@ -125,7 +125,7 @@ namespace CRM.Core.Interfaces
         /// <summary>
         /// 删除供应商银行账户
         /// </summary>
-        Task DeleteBankAsync(string bankId);
+        Task DeleteBankAsync(string bankId, string? actingUserId = null);
 
         /// <summary>
         /// 设置默认银行账户
@@ -180,7 +180,7 @@ namespace CRM.Core.Interfaces
         /// <summary>
         /// 删除供应商联系记录
         /// </summary>
-        Task DeleteContactHistoryAsync(string historyId);
+        Task DeleteContactHistoryAsync(string historyId, string? actingUserId = null);
 
         /// <summary>
         /// 获取供应商操作日志

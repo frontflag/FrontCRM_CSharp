@@ -21,6 +21,7 @@ namespace CRM.Core.Services
         private readonly ISerialNumberService _serialNumberService;
         private readonly IFinancePurchaseInvoicePaymentSyncService _invoicePaymentSync;
         private readonly IFinancePurchaseInvoiceWriteOffService _writeOffService;
+        private readonly IUserService? _userService;
 
         public FinancePurchaseInvoiceService(
             IRepository<FinancePurchaseInvoice> invoiceRepo,
@@ -34,7 +35,8 @@ namespace CRM.Core.Services
             ISerialNumberService serialNumberService,
             IFinancePurchaseInvoicePaymentSyncService invoicePaymentSync,
             IFinancePurchaseInvoiceWriteOffService writeOffService,
-            IUnitOfWork? unitOfWork = null)
+            IUnitOfWork? unitOfWork = null,
+            IUserService? userService = null)
         {
             _invoiceRepo = invoiceRepo;
             _itemRepo = itemRepo;
@@ -48,6 +50,7 @@ namespace CRM.Core.Services
             _invoicePaymentSync = invoicePaymentSync;
             _writeOffService = writeOffService;
             _unitOfWork = unitOfWork;
+            _userService = userService;
         }
 
         public async Task<FinancePurchaseInvoice> CreateAsync(CreateFinancePurchaseInvoiceRequest request, string? actingUserId = null)
@@ -162,17 +165,20 @@ namespace CRM.Core.Services
             return invoice;
         }
 
-        public async Task DeleteAsync(string id)
+        public async Task DeleteAsync(string id, string? actingUserId = null)
         {
             var invoice = await _invoiceRepo.GetByIdAsync(id)
                 ?? throw new InvalidOperationException($"进项发票 {id} 不存在");
             await DeleteCoreAsync(invoice);
+            var (actorId, actorName) = await OperationLogActorResolver.ResolveAsync(_userService, actingUserId);
             await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
             {
                 BizType = BusinessLogTypes.FinancePurchaseInvoice,
                 RecordId = invoice.Id,
                 RecordCode = invoice.InvoiceCode ?? invoice.InvoiceNo,
-                EntityDisplayName = DeleteLogEntityNames.FinancePurchaseInvoice
+                EntityDisplayName = DeleteLogEntityNames.FinancePurchaseInvoice,
+                OperatorUserId = actorId,
+                OperatorUserName = actorName
             });
         }
 

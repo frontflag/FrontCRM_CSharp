@@ -13,7 +13,8 @@ namespace CRM.Core.Interfaces
         /// <summary>报价主表列表（数据库分页 + 当前页明细与展示字段填充）。</summary>
         Task<PagedResult<Quote>> GetPagedAsync(QuoteQueryRequest request);
         Task<Quote> UpdateAsync(string id, UpdateQuoteRequest request, string? actingUserId = null);
-        Task DeleteAsync(string id);
+        /// <param name="actingUserId">当前登录用户 ID（写入 log_operation 删除人）</param>
+        Task DeleteAsync(string id, string? actingUserId = null);
         Task UpdateStatusAsync(string id, short status, string? actingUserId = null);
 
         /// <summary>报价主表及明细字段变更日志（<c>log_change_fldval</c>）。</summary>

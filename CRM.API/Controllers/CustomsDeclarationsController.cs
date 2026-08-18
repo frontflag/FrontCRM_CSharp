@@ -555,7 +555,8 @@ public class CustomsDeclarationsController : ControllerBase
 
             if (!await LogisticsDataAccessHttp.CanWriteAsync(_rbacService, User))
                 return StatusCode(403, ApiResponse<object>.Fail("当前账号物流数据为只读或禁止", 403));
-            await _service.DeleteDeclarationAsync(id);
+            var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            await _service.DeleteDeclarationAsync(id, actorId);
             return Ok(ApiResponse<object>.Ok(null, "删除报关单成功"));
         }
         catch (InvalidOperationException ex)

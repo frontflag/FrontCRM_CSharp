@@ -585,7 +585,7 @@ namespace CRM.Core.Services
         }
 
         // ─── Delete ──────────────────────────────────────────────────────────────
-        public async Task DeleteAsync(string id)
+        public async Task DeleteAsync(string id, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(id)) throw new ArgumentException("ID不能为空");
             var rfq = await _rfqRepo.GetByIdAsync(id);
@@ -599,13 +599,16 @@ namespace CRM.Core.Services
             await _rfqRepo.DeleteAsync(id);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
 
+            var (actorId, actorName) = await ResolveActorAsync(actingUserId);
             await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
             {
                 BizType = BusinessLogTypes.Rfq,
                 RecordId = rfq.Id,
                 RecordCode = rfq.RfqCode,
                 EntityDisplayName = DeleteLogEntityNames.Rfq,
-                ExtraDetail = $"明细行数={items.Count}"
+                ExtraDetail = $"明细行数={items.Count}",
+                OperatorUserId = actorId,
+                OperatorUserName = actorName
             });
         }
 

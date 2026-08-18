@@ -442,9 +442,11 @@ namespace CRM.Core.Tests.Services
             };
             _rfqRepository.GetByIdAsync(rfqId).Returns(existingRFQ);
             _rfqItemRepository.GetAllAsync().Returns(new List<RFQItem>());
+            _rfqItemRepository.FindAsync(Arg.Any<Expression<Func<RFQItem, bool>>>())
+                .Returns(Task.FromResult<IEnumerable<RFQItem>>(Array.Empty<RFQItem>()));
 
             // Act
-            await _rfqService.DeleteAsync(rfqId);
+            await _rfqService.DeleteAsync(rfqId, "user-1");
 
             // Assert
             await _rfqRepository.Received(1).DeleteAsync(rfqId);

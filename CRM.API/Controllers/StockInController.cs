@@ -375,7 +375,7 @@ namespace CRM.API.Controllers
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (!await _service.CanUserAccessStockInAsync(userId, id, cancellationToken))
                     return NotFound(ApiResponse<object>.Fail("入库单不存在", 404));
-                await _service.DeleteAsync(id);
+                await _service.DeleteAsync(id, userId);
                 return Ok(ApiResponse<object>.Ok(null, "删除入库单成功"));
             }
             catch (ArgumentException ex)

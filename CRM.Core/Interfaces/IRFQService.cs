@@ -17,7 +17,8 @@ namespace CRM.Core.Interfaces
         Task<RFQItem?> GetItemByIdAsync(string itemId, string? viewerUserId = null);
         /// <param name="actingUserId">当前登录用户 ID（写入 modify_by_user_id）</param>
         Task<RFQ> UpdateAsync(string id, UpdateRFQRequest request, string? actingUserId = null);
-        Task DeleteAsync(string id);
+        /// <param name="actingUserId">当前登录用户 ID（写入 log_operation 删除人）</param>
+        Task DeleteAsync(string id, string? actingUserId = null);
         /// <param name="actingUserId">当前登录用户 ID（写入 modify_by_user_id）</param>
         Task UpdateStatusAsync(string id, short status, string? actingUserId = null);
 

@@ -11,7 +11,8 @@ namespace CRM.Core.Interfaces
         Task<FinancePurchaseInvoice?> GetByIdAsync(string id);
         Task<IEnumerable<FinancePurchaseInvoice>> GetAllAsync();
         Task<FinancePurchaseInvoice> UpdateAsync(string id, UpdateFinancePurchaseInvoiceRequest request, string? actingUserId = null);
-        Task DeleteAsync(string id);
+        /// <param name="actingUserId">当前登录用户 ID（写入 log_operation 删除人）</param>
+        Task DeleteAsync(string id, string? actingUserId = null);
         Task ForceDeleteAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName);
         Task<FinancePurchaseInvoice> ReverseVerificationAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName);
         Task ConfirmAsync(string id, DateTime confirmDate, string? actingUserId = null);

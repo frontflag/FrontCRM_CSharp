@@ -529,7 +529,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _rfqService.DeleteAsync(id);
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _rfqService.DeleteAsync(id, actorId);
                 return Ok(ApiResponse<object>.Ok((object)null!, "需求删除成功"));
             }
             catch (InvalidOperationException ex)

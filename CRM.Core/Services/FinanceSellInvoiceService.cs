@@ -16,6 +16,7 @@ namespace CRM.Core.Services
         private readonly IForceDeleteGuardService _forceDeleteGuard;
         private readonly ILogOperationAppendService _logOperationAppend;
         private readonly IFinanceSellInvoiceListQuery _sellInvoiceListQuery;
+        private readonly IUserService? _userService;
 
         public FinanceSellInvoiceService(
             IRepository<FinanceSellInvoice> invoiceRepo,
@@ -25,7 +26,8 @@ namespace CRM.Core.Services
             IForceDeleteGuardService forceDeleteGuard,
             ILogOperationAppendService logOperationAppend,
             IFinanceSellInvoiceListQuery sellInvoiceListQuery,
-            IUnitOfWork? unitOfWork = null)
+            IUnitOfWork? unitOfWork = null,
+            IUserService? userService = null)
         {
             _invoiceRepo = invoiceRepo;
             _itemRepo = itemRepo;
@@ -35,6 +37,7 @@ namespace CRM.Core.Services
             _logOperationAppend = logOperationAppend;
             _sellInvoiceListQuery = sellInvoiceListQuery;
             _unitOfWork = unitOfWork;
+            _userService = userService;
         }
 
         public async Task<FinanceSellInvoice> CreateAsync(CreateFinanceSellInvoiceRequest request, string? actingUserId = null)
@@ -122,17 +125,20 @@ namespace CRM.Core.Services
             return invoice;
         }
 
-        public async Task DeleteAsync(string id)
+        public async Task DeleteAsync(string id, string? actingUserId = null)
         {
             var invoice = await _invoiceRepo.GetByIdAsync(id)
                 ?? throw new InvalidOperationException($"销项发票 {id} 不存在");
             await DeleteCoreAsync(invoice);
+            var (actorId, actorName) = await OperationLogActorResolver.ResolveAsync(_userService, actingUserId);
             await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
             {
                 BizType = BusinessLogTypes.FinanceSellInvoice,
                 RecordId = invoice.Id,
                 RecordCode = invoice.InvoiceCode,
-                EntityDisplayName = DeleteLogEntityNames.FinanceSellInvoice
+                EntityDisplayName = DeleteLogEntityNames.FinanceSellInvoice,
+                OperatorUserId = actorId,
+                OperatorUserName = actorName
             });
         }
 

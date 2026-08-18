@@ -409,7 +409,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _vendorService.DeleteAsync(id, request?.Reason);
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _vendorService.DeleteAsync(id, request?.Reason, actorId);
                 return Ok(ApiResponse<object>.Ok(null, "删除供应商成功"));
             }
             catch (KeyNotFoundException ex)
@@ -428,7 +429,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _vendorService.AddToBlacklistAsync(id, request?.Reason);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _vendorService.AddToBlacklistAsync(id, request?.Reason, userId);
                 return Ok(ApiResponse<object>.Ok(null, "加入黑名单成功"));
             }
             catch (KeyNotFoundException ex)
@@ -654,7 +656,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _vendorService.RestoreAsync(id);
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _vendorService.RestoreAsync(id, actorId);
                 return Ok(ApiResponse<object>.Ok(null, "恢复供应商成功"));
             }
             catch (KeyNotFoundException ex)
@@ -895,7 +898,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _vendorService.DeleteContactHistoryAsync(historyId);
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _vendorService.DeleteContactHistoryAsync(historyId, actorId);
                 return Ok(ApiResponse<object>.Ok(null, "删除联系记录成功"));
             }
             catch (KeyNotFoundException ex)
@@ -1071,7 +1075,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _vendorService.DeleteAddressAsync(addressId);
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _vendorService.DeleteAddressAsync(addressId, actorId);
                 return Ok(ApiResponse<object>.Ok(null, "删除地址成功"));
             }
             catch (KeyNotFoundException ex)

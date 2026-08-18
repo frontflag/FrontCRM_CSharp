@@ -395,10 +395,12 @@ namespace CRM.Core.Services
             entity.DeleteTime = null;
             entity.DeleteReason = null;
             entity.ModifyTime = DateTime.UtcNow;
+            entity.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
 
             await _repository.UpdateAsync(entity);
             await _unitOfWork.SaveChangesAsync();
-            await AddOperationLogAsync(entity.Id, "恢复", "供应商已从回收站恢复", null, "系统用户");
+            var (actorId, actorName) = await OperationLogActorResolver.ResolveAsync(_userService, actingUserId);
+            await AddOperationLogAsync(entity.Id, "恢复", "供应商已从回收站恢复", actorId, actorName);
         }
 
         public async Task AddToBlacklistAsync(string id, string? reason, string? actingUserId = null)
@@ -416,7 +418,8 @@ namespace CRM.Core.Services
             await _repository.UpdateAsync(entity);
             await _unitOfWork.SaveChangesAsync();
             var r = string.IsNullOrWhiteSpace(reason) ? "无" : reason.Trim();
-            await AddOperationLogAsync(entity.Id, "加入黑名单", $"加入黑名单，理由：{r}", null, "系统用户");
+            var (actorId, actorName) = await OperationLogActorResolver.ResolveAsync(_userService, actingUserId);
+            await AddOperationLogAsync(entity.Id, "加入黑名单", $"加入黑名单，理由：{r}", actorId, actorName);
         }
 
         public async Task RemoveFromBlacklistAsync(string id, string reason, string? operatorUserId, string? operatorUserName)
@@ -602,7 +605,7 @@ namespace CRM.Core.Services
         /// <summary>
         /// 删除供应商联系人
         /// </summary>
-        public async Task DeleteContactAsync(string contactId)
+        public async Task DeleteContactAsync(string contactId, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(contactId))
                 throw new ArgumentException("联系人ID不能为空", nameof(contactId));
@@ -619,7 +622,8 @@ namespace CRM.Core.Services
                 contact.Id,
                 string.IsNullOrWhiteSpace(contact.CName) ? contact.EName : contact.CName,
                 DeleteLogEntityNames.VendorContact,
-                contact.VendorId);
+                contact.VendorId,
+                actingUserId);
         }
 
         public async Task SetMainContactAsync(string contactId)
@@ -747,7 +751,7 @@ namespace CRM.Core.Services
             return address;
         }
 
-        public async Task DeleteAddressAsync(string addressId)
+        public async Task DeleteAddressAsync(string addressId, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(addressId))
                 throw new ArgumentException("地址ID不能为空", nameof(addressId));
@@ -764,7 +768,8 @@ namespace CRM.Core.Services
                 address.Id,
                 null,
                 DeleteLogEntityNames.VendorAddress,
-                address.VendorId);
+                address.VendorId,
+                actingUserId);
         }
 
         public async Task SetDefaultAddressAsync(string addressId)
@@ -952,7 +957,7 @@ namespace CRM.Core.Services
             return bank;
         }
 
-        public async Task DeleteBankAsync(string bankId)
+        public async Task DeleteBankAsync(string bankId, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(bankId))
                 throw new ArgumentException("银行ID不能为空", nameof(bankId));
@@ -969,7 +974,8 @@ namespace CRM.Core.Services
                 bank.Id,
                 bank.BankName,
                 DeleteLogEntityNames.VendorBank,
-                bank.VendorId);
+                bank.VendorId,
+                actingUserId);
         }
 
         public async Task SetDefaultBankAsync(string bankId)
@@ -1061,7 +1067,7 @@ namespace CRM.Core.Services
             return record;
         }
 
-        public async Task DeleteContactHistoryAsync(string historyId)
+        public async Task DeleteContactHistoryAsync(string historyId, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(historyId))
                 throw new ArgumentException("记录ID不能为空", nameof(historyId));
@@ -1078,7 +1084,8 @@ namespace CRM.Core.Services
                 record.Id,
                 null,
                 DeleteLogEntityNames.VendorContactHistory,
-                record.VendorId);
+                record.VendorId,
+                actingUserId);
         }
 
         public async Task<IEnumerable<VendorOperationLog>> GetOperationLogsAsync(string vendorId)
@@ -1229,16 +1236,20 @@ ORDER BY c.""ChangedAt"" DESC";
             string recordId,
             string? recordCode,
             string entityDisplayName,
-            string parentVendorId)
+            string parentVendorId,
+            string? actingUserId = null)
         {
             var vendor = await GetByIdAsync(parentVendorId);
+            var (actorId, actorName) = await OperationLogActorResolver.ResolveAsync(_userService, actingUserId);
             await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
             {
                 BizType = bizType,
                 RecordId = recordId,
                 RecordCode = recordCode,
                 EntityDisplayName = entityDisplayName,
-                ExtraDetail = vendor?.Code != null ? $"所属供应商={vendor.Code}" : $"所属供应商Id={parentVendorId}"
+                ExtraDetail = vendor?.Code != null ? $"所属供应商={vendor.Code}" : $"所属供应商Id={parentVendorId}",
+                OperatorUserId = actorId,
+                OperatorUserName = actorName
             });
         }
 

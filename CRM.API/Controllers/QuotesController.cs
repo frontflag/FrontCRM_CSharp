@@ -357,7 +357,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _quoteService.DeleteAsync(id);
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _quoteService.DeleteAsync(id, actorId);
                 return Ok(new { success = true, message = "报价单删除成功", errorCode = 0 });
             }
             catch (ArgumentException ex)

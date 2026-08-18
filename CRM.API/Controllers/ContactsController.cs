@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using CRM.API.Models.DTOs;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Customer;
+using System.Security.Claims;
 
 namespace CRM.API.Controllers
 {
@@ -38,7 +39,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _customerService.DeleteContactAsync(contactId);
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _customerService.DeleteContactAsync(contactId, actorId);
                 return Ok(ApiResponse<object>.Ok(null, "删除联系人成功"));
             }
             catch (Exception ex)

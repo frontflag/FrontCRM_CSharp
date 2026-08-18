@@ -391,7 +391,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _customerService.DeleteCustomerAsync(id);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _customerService.DeleteCustomerAsync(id, userId);
                 return Ok(ApiResponse<object>.Ok(null, "删除客户成功"));
             }
             catch (Exception ex)
@@ -569,7 +570,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _customerService.DeleteContactHistoryAsync(historyId);
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _customerService.DeleteContactHistoryAsync(historyId, actorId);
                 return Ok(ApiResponse<object>.Ok(null, "删除联系记录成功"));
             }
             catch (KeyNotFoundException ex) { return NotFound(ApiResponse<object>.Fail(ex.Message, 404)); }
@@ -645,7 +647,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _customerService.DeleteContactAsync(contactId);
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _customerService.DeleteContactAsync(contactId, actorId);
                 return Ok(ApiResponse<object>.Ok(null, "删除联系人成功"));
             }
             catch (KeyNotFoundException ex)
@@ -739,7 +742,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _customerService.DeleteAddressAsync(addressId);
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _customerService.DeleteAddressAsync(addressId, actorId);
                 return Ok(ApiResponse<object>.Ok(null, "删除地址成功"));
             }
             catch (KeyNotFoundException ex)
@@ -810,7 +814,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _customerService.DeleteBankAsync(bankId);
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _customerService.DeleteBankAsync(bankId, actorId);
                 return Ok(ApiResponse<object>.Ok(null, "删除银行信息成功"));
             }
             catch (KeyNotFoundException ex)
@@ -849,7 +854,9 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _customerService.DeleteCustomerWithReasonAsync(id, request.Reason, null, "系统用户");
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var userName = User.Identity?.Name;
+                await _customerService.DeleteCustomerWithReasonAsync(id, request.Reason, userId, userName);
                 return Ok(ApiResponse<object>.Ok(null, "客户已删除"));
             }
             catch (KeyNotFoundException ex) { return NotFound(ApiResponse<object>.Fail(ex.Message, 404)); }
@@ -862,7 +869,9 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _customerService.SetBlackListAsync(id, request.Reason, null, "系统用户");
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var userName = User.Identity?.Name;
+                await _customerService.SetBlackListAsync(id, request.Reason, userId, userName);
                 return Ok(ApiResponse<object>.Ok(null, "已加入黑名单"));
             }
             catch (KeyNotFoundException ex) { return NotFound(ApiResponse<object>.Fail(ex.Message, 404)); }
@@ -941,7 +950,9 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _customerService.RestoreCustomerAsync(id, null, "系统用户");
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var userName = User.Identity?.Name;
+                await _customerService.RestoreCustomerAsync(id, userId, userName);
                 return Ok(ApiResponse<object>.Ok(null, "客户已恢复"));
             }
             catch (KeyNotFoundException ex) { return NotFound(ApiResponse<object>.Fail(ex.Message, 404)); }

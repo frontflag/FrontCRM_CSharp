@@ -10,6 +10,7 @@ public interface ICustomsDeclarationService
     /// <summary>报关完成 + 移库一步：循环调 <see cref="IInternalTransferPostingKernel"/>（<c>Kind=Customs</c>），写 <c>stocktransfer_customers</c> / 行，报关内部状态置完成。</summary>
     Task CompleteDeclarationAndTransferAsync(string declarationId, string? actingUserId);
 
-    Task DeleteDeclarationAsync(string id);
+    /// <param name="actingUserId">当前登录用户 ID（写入 log_operation 删除人）</param>
+    Task DeleteDeclarationAsync(string id, string? actingUserId = null);
     Task ForceDeleteDeclarationAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName);
 }

@@ -29,6 +29,7 @@ namespace CRM.Core.Services
         private readonly ILogOperationAppendService _logOperationAppend;
         private readonly IFinancePaymentListQuery _paymentListQuery;
         private readonly Document.IDocumentService _documentService;
+        private readonly IUserService? _userService;
 
         private const short FinancePaymentStatusNew = 1;
         private const short FinancePaymentStatusPendingAudit = 2;
@@ -54,7 +55,8 @@ namespace CRM.Core.Services
             ILogOperationAppendService logOperationAppend,
             IFinancePaymentListQuery paymentListQuery,
             Document.IDocumentService documentService,
-            IUnitOfWork? unitOfWork = null)
+            IUnitOfWork? unitOfWork = null,
+            IUserService? userService = null)
         {
             _paymentRepo = paymentRepo;
             _itemRepo = itemRepo;
@@ -73,6 +75,7 @@ namespace CRM.Core.Services
             _paymentListQuery = paymentListQuery;
             _documentService = documentService;
             _unitOfWork = unitOfWork;
+            _userService = userService;
         }
 
         private async Task EnrichCreateUserNamesAsync(IReadOnlyList<FinancePayment> items)
@@ -459,7 +462,7 @@ namespace CRM.Core.Services
             return payment;
         }
 
-        public async Task DeleteAsync(string id)
+        public async Task DeleteAsync(string id, string? actingUserId = null)
         {
             var payment = await _paymentRepo.GetByIdAsync(id)
                 ?? throw new InvalidOperationException($"付款单 {id} 不存在");
@@ -469,12 +472,15 @@ namespace CRM.Core.Services
                 throw new ArgumentException(guard.Message);
 
             await DeleteCoreAsync(payment);
+            var (actorId, actorName) = await OperationLogActorResolver.ResolveAsync(_userService, actingUserId);
             await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
             {
                 BizType = BusinessLogTypes.FinancePayment,
                 RecordId = payment.Id,
                 RecordCode = payment.FinancePaymentCode,
-                EntityDisplayName = DeleteLogEntityNames.FinancePayment
+                EntityDisplayName = DeleteLogEntityNames.FinancePayment,
+                OperatorUserId = actorId,
+                OperatorUserName = actorName
             });
         }
 
