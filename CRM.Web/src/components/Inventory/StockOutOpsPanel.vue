@@ -191,13 +191,14 @@
                   <span class="ops-kv__value">
                     <template v-if="showAmount">
                       <template v-if="lineAmount(item) != null">
-                        <span>{{ formatTotalAmountNumber(lineAmount(item)) }}</span>
-                        <span
-                          v-if="formatTotalAmountNumber(lineAmount(item)) !== '—'"
-                          :class="['dock-tier-ccy', listAmountCurrencyDockClass(item.salesCurrency)]"
-                        >
-                          {{ listAmountCurrencyIso(item.salesCurrency) }}
-                        </span>
+                        <template v-if="formatTotalAmountNumber(lineAmount(item)) !== '—'">
+                          <span>{{ formatTotalAmountNumber(lineAmount(item)) }}</span>
+                          <span class="dock-tier-ccy-gap">&nbsp;</span>
+                          <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(item.salesCurrency)]">
+                            {{ listAmountCurrencyIso(item.salesCurrency) }}
+                          </span>
+                        </template>
+                        <template v-else>—</template>
                       </template>
                       <template v-else>—</template>
                     </template>
@@ -316,7 +317,19 @@
                 <div class="ops-stock-region-cell">
                   <span class="ops-kv__label">{{ t('financeReceivableList.columns.amount') }}</span>
                   <span class="ops-kv__sep" aria-hidden="true">：</span>
-                  <span class="ops-kv__value">{{ amountText(rec.amount, rec.currency) }}</span>
+                  <span class="ops-kv__value">
+                    <template v-for="view in [opsMoney(rec.amount, rec.currency)]" :key="`${rec.id}-amt`">
+                      <template v-if="view">
+                        <span>{{ view.num }}</span>
+                        <span v-if="view.iso" class="dock-tier-ccy-gap">&nbsp;</span>
+                        <span
+                          v-if="view.iso"
+                          :class="['dock-tier-ccy', view.dock]"
+                        >{{ view.iso }}</span>
+                      </template>
+                      <template v-else>—</template>
+                    </template>
+                  </span>
                 </div>
               </div>
               <div class="ops-stock-region-row">
@@ -334,12 +347,36 @@
                 <div class="ops-stock-region-cell">
                   <span class="ops-kv__label">{{ t('financeReceivableList.columns.verifiedDone') }}</span>
                   <span class="ops-kv__sep" aria-hidden="true">：</span>
-                  <span class="ops-kv__value">{{ amountText(rec.verifiedDone, rec.currency) }}</span>
+                  <span class="ops-kv__value">
+                    <template v-for="view in [opsMoney(rec.verifiedDone, rec.currency)]" :key="`${rec.id}-vd`">
+                      <template v-if="view">
+                        <span>{{ view.num }}</span>
+                        <span v-if="view.iso" class="dock-tier-ccy-gap">&nbsp;</span>
+                        <span
+                          v-if="view.iso"
+                          :class="['dock-tier-ccy', view.dock]"
+                        >{{ view.iso }}</span>
+                      </template>
+                      <template v-else>—</template>
+                    </template>
+                  </span>
                 </div>
                 <div class="ops-stock-region-cell">
                   <span class="ops-kv__label">{{ t('financeReceivableList.columns.verifiedToBe') }}</span>
                   <span class="ops-kv__sep" aria-hidden="true">：</span>
-                  <span class="ops-kv__value">{{ amountText(rec.verifiedToBe, rec.currency) }}</span>
+                  <span class="ops-kv__value">
+                    <template v-for="view in [opsMoney(rec.verifiedToBe, rec.currency)]" :key="`${rec.id}-vtb`">
+                      <template v-if="view">
+                        <span>{{ view.num }}</span>
+                        <span v-if="view.iso" class="dock-tier-ccy-gap">&nbsp;</span>
+                        <span
+                          v-if="view.iso"
+                          :class="['dock-tier-ccy', view.dock]"
+                        >{{ view.iso }}</span>
+                      </template>
+                      <template v-else>—</template>
+                    </template>
+                  </span>
                 </div>
               </div>
               <div class="ops-stock-region-row">
@@ -357,12 +394,36 @@
                 <div class="ops-stock-region-cell">
                   <span class="ops-kv__label">{{ t('financeReceivableList.columns.invoiceMatchDone') }}</span>
                   <span class="ops-kv__sep" aria-hidden="true">：</span>
-                  <span class="ops-kv__value">{{ amountText(rec.invoiceMatchDone, rec.currency) }}</span>
+                  <span class="ops-kv__value">
+                    <template v-for="view in [opsMoney(rec.invoiceMatchDone, rec.currency)]" :key="`${rec.id}-imd`">
+                      <template v-if="view">
+                        <span>{{ view.num }}</span>
+                        <span v-if="view.iso" class="dock-tier-ccy-gap">&nbsp;</span>
+                        <span
+                          v-if="view.iso"
+                          :class="['dock-tier-ccy', view.dock]"
+                        >{{ view.iso }}</span>
+                      </template>
+                      <template v-else>—</template>
+                    </template>
+                  </span>
                 </div>
                 <div class="ops-stock-region-cell">
                   <span class="ops-kv__label">{{ t('financeReceivableList.columns.invoiceMatchToBe') }}</span>
                   <span class="ops-kv__sep" aria-hidden="true">：</span>
-                  <span class="ops-kv__value">{{ amountText(rec.invoiceMatchToBe, rec.currency) }}</span>
+                  <span class="ops-kv__value">
+                    <template v-for="view in [opsMoney(rec.invoiceMatchToBe, rec.currency)]" :key="`${rec.id}-imt`">
+                      <template v-if="view">
+                        <span>{{ view.num }}</span>
+                        <span v-if="view.iso" class="dock-tier-ccy-gap">&nbsp;</span>
+                        <span
+                          v-if="view.iso"
+                          :class="['dock-tier-ccy', view.dock]"
+                        >{{ view.iso }}</span>
+                      </template>
+                      <template v-else>—</template>
+                    </template>
+                  </span>
                 </div>
               </div>
             </div>
@@ -562,12 +623,16 @@ function lineAmount(row: StockOutItemListRow): number | null {
   return qty * price
 }
 
-function amountText(amount: number, currency: number): string {
-  if (!showAmount.value) return '—'
+function opsMoney(amount: number, currency: number) {
+  if (!showAmount.value) return null
   const num = formatTotalAmountNumber(amount)
-  if (num === '—') return '—'
+  if (num === '—') return null
   const iso = listAmountCurrencyIso(currency)
-  return iso ? `${num} ${iso}` : num
+  return {
+    num,
+    iso,
+    dock: iso ? listAmountCurrencyDockClass(currency) : ''
+  }
 }
 
 function sellOrderLink(row: StockOutOpsSellOrderItemRow) {
