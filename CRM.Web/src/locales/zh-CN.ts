@@ -7791,7 +7791,10 @@ const zhCN = {
     customsSection: '报关信息',
     customsDeclaration: '报关单',
     customsBroker: '报关公司',
-    viewFullCustomsInfo: '查看完整报关信息'
+    viewFullCustomsInfo: '查看完整报关信息',
+    receivableSection: '应收款',
+    receivableEmptyNotFinished: '尚未标记完成，暂无应收',
+    receivableEmptyNone: '暂无应收款'
   },
   stockOutNotifyList: {
     title: '出库通知',

@@ -1641,6 +1641,7 @@ namespace CRM.Core.Services
             SellOrderItem? line = null;
             if (!string.IsNullOrWhiteSpace(x.SellOrderItemId))
                 line = await _sellOrderItemRepository.GetByIdAsync(x.SellOrderItemId.Trim());
+            line ??= await ResolveFirstSellOrderItemFromStockOutExtendsAsync(x.Id);
 
             SellOrder? so = null;
             if (line != null && !string.IsNullOrWhiteSpace(line.SellOrderId))
@@ -2336,14 +2337,20 @@ namespace CRM.Core.Services
             var outById = (await _stockOutRepository.GetAllAsync())
                 .ToDictionary(x => x.Id.Trim(), x => x, StringComparer.OrdinalIgnoreCase);
 
+            var extendByOutItemId = (await _stockOutItemExtendRepository.GetAllAsync())
+                .GroupBy(e => e.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
             var lineIdSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var custIdSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var x in items)
             {
                 if (!outById.TryGetValue(x.StockOutId?.Trim() ?? string.Empty, out var hdr))
                     continue;
-                if (!string.IsNullOrWhiteSpace(hdr.SellOrderItemId))
-                    lineIdSet.Add(hdr.SellOrderItemId.Trim());
+                extendByOutItemId.TryGetValue(x.Id.Trim(), out var extForSell);
+                var sellLineId = ResolveStockOutLineSellOrderItemId(hdr, extForSell);
+                if (!string.IsNullOrEmpty(sellLineId))
+                    lineIdSet.Add(sellLineId);
                 if (!string.IsNullOrWhiteSpace(hdr.CustomerId))
                     custIdSet.Add(hdr.CustomerId.Trim());
             }
@@ -2385,10 +2392,6 @@ namespace CRM.Core.Services
             var customerById = (await _customerRepository.GetAllAsync())
                 .Where(c => custIdSet.Contains(c.Id))
                 .GroupBy(c => c.Id, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-
-            var extendByOutItemId = (await _stockOutItemExtendRepository.GetAllAsync())
-                .GroupBy(e => e.Id.Trim(), StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
             var stockInItemIdSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -2446,9 +2449,11 @@ namespace CRM.Core.Services
                 if (!StockOutDateInRange(hdr.StockOutDate, query.StockOutDateFrom, query.StockOutDateTo))
                     continue;
 
+                extendByOutItemId.TryGetValue(line.Id.Trim(), out var extForSell);
+                var sellLineId = ResolveStockOutLineSellOrderItemId(hdr, extForSell);
                 SellOrderItem? soLine = null;
-                if (!string.IsNullOrWhiteSpace(hdr.SellOrderItemId))
-                    itemById.TryGetValue(hdr.SellOrderItemId.Trim(), out soLine);
+                if (!string.IsNullOrEmpty(sellLineId))
+                    itemById.TryGetValue(sellLineId, out soLine);
 
                 SellOrder? so = null;
                 if (soLine != null && !string.IsNullOrWhiteSpace(soLine.SellOrderId))
@@ -2470,9 +2475,7 @@ namespace CRM.Core.Services
                 if (!TextContainsOptional(salesUserName, salesNeedle))
                     continue;
 
-                var sellOrderItemCode = string.IsNullOrWhiteSpace(soLine?.SellOrderItemCode)
-                    ? null
-                    : soLine!.SellOrderItemCode.Trim();
+                var sellOrderItemCode = ResolveStockOutLineSellOrderItemCode(extForSell, soLine);
                 if (!TextContainsOptional(sellOrderItemCode, soLineCodeNeedle))
                     continue;
 
@@ -2517,6 +2520,7 @@ namespace CRM.Core.Services
                     OutQuantity = outQty,
                     ShipmentMethod = string.IsNullOrWhiteSpace(hdr.ShipmentMethod) ? null : hdr.ShipmentMethod.Trim(),
                     CourierTrackingNo = string.IsNullOrWhiteSpace(hdr.CourierTrackingNo) ? null : hdr.CourierTrackingNo.Trim(),
+                    SellOrderItemId = sellLineId,
                     SellOrderItemCode = sellOrderItemCode,
                     StockInCode = headerStockInCode,
                     PackingId = packingDisplay.Id,
@@ -2588,14 +2592,22 @@ namespace CRM.Core.Services
             var outs = (await _stockOutRepository.FindAsync(x => outIds.Contains(x.Id))).ToList();
             var outById = outs.ToDictionary(x => x.Id.Trim(), x => x, StringComparer.OrdinalIgnoreCase);
 
+            var lineIdSetForExt = linesOrdered.Select(x => x.Id.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var extendByOutItemId = (await _stockOutItemExtendRepository.GetAllAsync())
+                .Where(e => lineIdSetForExt.Contains(e.Id.Trim()))
+                .GroupBy(e => e.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
             var lineIdSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var custIdSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var x in linesOrdered)
             {
                 if (!outById.TryGetValue(x.StockOutId?.Trim() ?? string.Empty, out var hdr))
                     continue;
-                if (!string.IsNullOrWhiteSpace(hdr.SellOrderItemId))
-                    lineIdSet.Add(hdr.SellOrderItemId.Trim());
+                extendByOutItemId.TryGetValue(x.Id.Trim(), out var extForSell);
+                var sellLineId = ResolveStockOutLineSellOrderItemId(hdr, extForSell);
+                if (!string.IsNullOrEmpty(sellLineId))
+                    lineIdSet.Add(sellLineId);
                 if (!string.IsNullOrWhiteSpace(hdr.CustomerId))
                     custIdSet.Add(hdr.CustomerId.Trim());
             }
@@ -2637,12 +2649,6 @@ namespace CRM.Core.Services
             var customerById = (await _customerRepository.GetAllAsync())
                 .Where(c => custIdSet.Contains(c.Id))
                 .GroupBy(c => c.Id, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-
-            var lineIdSetForExt = linesOrdered.Select(x => x.Id.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var extendByOutItemId = (await _stockOutItemExtendRepository.GetAllAsync())
-                .Where(e => lineIdSetForExt.Contains(e.Id.Trim()))
-                .GroupBy(e => e.Id.Trim(), StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
             var poiIdsForFf = extendByOutItemId.Values
@@ -2701,9 +2707,11 @@ namespace CRM.Core.Services
                 if (!outById.TryGetValue(line.StockOutId?.Trim() ?? string.Empty, out var hdr))
                     continue;
 
+                extendByOutItemId.TryGetValue(line.Id.Trim(), out var extForSell);
+                var sellLineId = ResolveStockOutLineSellOrderItemId(hdr, extForSell);
                 SellOrderItem? soLine = null;
-                if (!string.IsNullOrWhiteSpace(hdr.SellOrderItemId))
-                    itemById.TryGetValue(hdr.SellOrderItemId.Trim(), out soLine);
+                if (!string.IsNullOrEmpty(sellLineId))
+                    itemById.TryGetValue(sellLineId, out soLine);
 
                 SellOrder? so = null;
                 if (soLine != null && !string.IsNullOrWhiteSpace(soLine.SellOrderId))
@@ -2721,9 +2729,7 @@ namespace CRM.Core.Services
                 }
 
                 var salesUserName = ResolveSellOrderSalesLogin(so, userLoginByIdForSo);
-                var sellOrderItemCode = string.IsNullOrWhiteSpace(soLine?.SellOrderItemCode)
-                    ? null
-                    : soLine!.SellOrderItemCode.Trim();
+                var sellOrderItemCode = ResolveStockOutLineSellOrderItemCode(extForSell, soLine);
                 var pn = string.IsNullOrWhiteSpace(line.PurchasePn) ? null : line.PurchasePn.Trim();
 
                 string? headerStockInCode = null;
@@ -2764,6 +2770,7 @@ namespace CRM.Core.Services
                     OutQuantity = outQty,
                     ShipmentMethod = string.IsNullOrWhiteSpace(hdr.ShipmentMethod) ? null : hdr.ShipmentMethod.Trim(),
                     CourierTrackingNo = string.IsNullOrWhiteSpace(hdr.CourierTrackingNo) ? null : hdr.CourierTrackingNo.Trim(),
+                    SellOrderItemId = sellLineId,
                     SellOrderItemCode = sellOrderItemCode,
                     StockInCode = headerStockInCode,
                     PackingId = packingDisplay.Id,
@@ -3378,6 +3385,23 @@ namespace CRM.Core.Services
         }
 
         /// <inheritdoc />
+        public async Task<IReadOnlyList<StockOutDetailReceivableRowDto>> GetDetailReceivablesAsync(
+            string id,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+                throw new ArgumentException("ID不能为空", nameof(id));
+
+            var entity = await _stockOutRepository.GetByIdAsync(id.Trim())
+                ?? throw new InvalidOperationException("出库单不存在");
+            if (!StockOutTypeCode.IsSalesStockOut(entity.StockOutType))
+                return Array.Empty<StockOutDetailReceivableRowDto>();
+
+            cancellationToken.ThrowIfCancellationRequested();
+            return await _financeReceivableService.ListForStockOutDetailAsync(entity.Id, cancellationToken);
+        }
+
+        /// <inheritdoc />
         public async Task ForceDeleteStockOutAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName)
         {
             if (string.IsNullOrWhiteSpace(id))
@@ -3569,6 +3593,45 @@ namespace CRM.Core.Services
             }
 
             return ids.ToList();
+        }
+
+        /// <summary>按箱出库销售行在扩展表；通知单线出库才写头表 <see cref="StockOut.SellOrderItemId"/>。</summary>
+        private static string? ResolveStockOutLineSellOrderItemId(StockOut hdr, StockOutItemExtend? ext)
+        {
+            var fromExt = ext?.SellOrderItemId?.Trim();
+            if (!string.IsNullOrEmpty(fromExt))
+                return fromExt;
+            return string.IsNullOrWhiteSpace(hdr.SellOrderItemId) ? null : hdr.SellOrderItemId.Trim();
+        }
+
+        private static string? ResolveStockOutLineSellOrderItemCode(StockOutItemExtend? ext, SellOrderItem? soLine)
+        {
+            if (!string.IsNullOrWhiteSpace(ext?.SellOrderItemCode))
+                return ext.SellOrderItemCode.Trim();
+            return string.IsNullOrWhiteSpace(soLine?.SellOrderItemCode) ? null : soLine.SellOrderItemCode.Trim();
+        }
+
+        private async Task<SellOrderItem?> ResolveFirstSellOrderItemFromStockOutExtendsAsync(string stockOutId)
+        {
+            var lines = (await _stockOutItemRepository.FindAsync(i => i.StockOutId == stockOutId)).ToList();
+            if (lines.Count == 0)
+                return null;
+
+            var itemIds = lines
+                .Select(i => i.Id.Trim())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var exts = (await _stockOutItemExtendRepository.FindAsync(e => itemIds.Contains(e.Id))).ToList();
+            foreach (var ext in exts)
+            {
+                var sellId = ext.SellOrderItemId?.Trim();
+                if (string.IsNullOrEmpty(sellId))
+                    continue;
+                var line = await _sellOrderItemRepository.GetByIdAsync(sellId);
+                if (line != null)
+                    return line;
+            }
+
+            return null;
         }
 
         /// <summary>每条出库明细对应一条扩展行（主键与 <see cref="StockOutItem.Id"/> 相同）。</summary>

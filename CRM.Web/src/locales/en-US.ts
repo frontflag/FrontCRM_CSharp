@@ -7807,7 +7807,10 @@ const enUS = {
     customsSection: 'Customs info',
     customsDeclaration: 'Customs declaration',
     customsBroker: 'Customs broker',
-    viewFullCustomsInfo: 'View full customs info'
+    viewFullCustomsInfo: 'View full customs info',
+    receivableSection: 'Receivables',
+    receivableEmptyNotFinished: 'Not marked finished yet; no receivables',
+    receivableEmptyNone: 'No receivables'
   },
   stockOutNotifyList: {
     title: 'Stock-Out Notices',

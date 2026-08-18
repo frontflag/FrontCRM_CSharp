@@ -93,12 +93,15 @@
               <span class="info-value">{{ maskSaleSensitiveFields ? '—' : reportCellText(detail.salesUserName) }}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">{{ t('stockOutList.columns.sellOrderItemCode') }}</span>
-              <span class="info-value">{{ reportCellText(detail.sellOrderItemCode) }}</span>
+              <span class="info-label">{{ t('stockOutList.columns.expectedStockOutDate') }}</span>
+              <span class="info-value info-value--time">{{ expectedStockOutDateText }}</span>
             </div>
           </div>
-          <div class="info-grid info-grid--inline-labels info-grid--basic">
-            <div v-if="detailSalesNotifyId && detailSalesNotifyCode" class="info-item">
+          <div
+            v-if="detailSalesNotifyId && detailSalesNotifyCode"
+            class="info-grid info-grid--inline-labels info-grid--basic"
+          >
+            <div class="info-item">
               <span class="info-label">{{ t('stockOutList.salesNotifyCodeLink') }}</span>
               <span class="info-value">
                 <router-link :to="{ name: 'StockOutNotifyDetail', params: { id: detailSalesNotifyId } }" class="cell-link">
@@ -106,19 +109,6 @@
                 </router-link>
               </span>
             </div>
-            <div class="info-item">
-              <span class="info-label">{{ t('stockOutList.columns.expectedStockOutDate') }}</span>
-              <span class="info-value info-value--time">{{ expectedStockOutDateText }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">{{ t('stockOutList.columns.packingCodes') }}</span>
-              <span class="info-value">{{ reportCellText(detail.packingCodes) }}</span>
-            </div>
-            <div
-              v-if="!(detailSalesNotifyId && detailSalesNotifyCode)"
-              class="info-item info-item--basic-spacer"
-              aria-hidden="true"
-            ></div>
           </div>
           <div class="info-grid info-grid--inline-labels">
             <div class="info-item info-item--span-all">
@@ -537,6 +527,152 @@
             </div>
           </div>
         </div>
+
+        <div v-if="isSalesStockOut" class="info-section">
+          <div class="section-header">
+            <div class="section-header__main">
+              <div class="section-dot section-dot--cyan"></div>
+              <span class="section-title">{{ t('stockOutDetail.receivableSection') }}</span>
+              <span v-if="receivableRows.length" class="section-count">{{ receivableRows.length }}</span>
+            </div>
+          </div>
+          <div class="detail-panel-section-body">
+            <div v-loading="receivableLoading" class="detail-items-table-wrap">
+              <CrmDataTable
+                v-if="receivableRows.length"
+                :data="receivableRows"
+                embedded
+                column-layout-key="stock-out-detail-receivables"
+                :border="false"
+                :show-column-settings="false"
+                :show-row-density-toggle="false"
+                class="items-table detail-panel-list-table receivable-so-item-embed"
+                size="small"
+                stripe
+                row-key="id"
+              >
+                <el-table-column
+                  prop="receivableCode"
+                  :label="t('financeReceivableList.columns.code')"
+                  min-width="140"
+                  show-overflow-tooltip
+                >
+                  <template #default="{ row }">
+                    <router-link
+                      v-if="canOpenReceivableDetail && row.id && row.receivableCode"
+                      class="cell-link mono-cell"
+                      :to="`/finance/receivables/${row.id}`"
+                    >
+                      {{ row.receivableCode }}
+                    </router-link>
+                    <span v-else class="mono-cell">{{ row.receivableCode || '—' }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column
+                  prop="sellOrderItemCode"
+                  :label="t('stockOutItemList.columns.sellOrderItemCode')"
+                  min-width="150"
+                  show-overflow-tooltip
+                >
+                  <template #default="{ row }">{{ row.sellOrderItemCode || '—' }}</template>
+                </el-table-column>
+                <el-table-column
+                  prop="outboundQty"
+                  :label="t('financeReceivableList.columns.qty')"
+                  width="110"
+                  align="right"
+                  header-align="right"
+                >
+                  <template #default="{ row }">{{ formatNum(row.outboundQty) }}</template>
+                </el-table-column>
+                <el-table-column
+                  :label="t('financeReceivableList.columns.amount')"
+                  min-width="140"
+                  align="right"
+                  header-align="right"
+                >
+                  <template #default="{ row }">
+                    <span v-if="!listShowAmountColumns">—</span>
+                    <span v-else class="amount-with-code">
+                      <span>{{ formatTotalAmountNumber(row.amount) }}</span>
+                      <span
+                        v-if="formatTotalAmountNumber(row.amount) !== '—'"
+                        :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]"
+                      >
+                        {{ listAmountCurrencyIso(row.currency) }}
+                      </span>
+                    </span>
+                  </template>
+                </el-table-column>
+                <el-table-column
+                  :label="t('financeReceivableList.columns.verificationStatus')"
+                  width="120"
+                  align="center"
+                >
+                  <template #default="{ row }">
+                    <el-tag :type="receivableVerificationTagType(row.verificationStatus)" size="small">
+                      {{ receivableVerificationLabel(row.verificationStatus) }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column
+                  :label="t('financeReceivableList.columns.verifiedDone')"
+                  min-width="140"
+                  align="right"
+                  header-align="right"
+                >
+                  <template #default="{ row }">
+                    <span v-if="!listShowAmountColumns">—</span>
+                    <span v-else class="amount-with-code">
+                      <span>{{ formatTotalAmountNumber(row.verifiedDone) }}</span>
+                      <span
+                        v-if="formatTotalAmountNumber(row.verifiedDone) !== '—'"
+                        :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]"
+                      >
+                        {{ listAmountCurrencyIso(row.currency) }}
+                      </span>
+                    </span>
+                  </template>
+                </el-table-column>
+                <el-table-column
+                  :label="t('financeReceivableList.columns.verifiedToBe')"
+                  min-width="140"
+                  align="right"
+                  header-align="right"
+                >
+                  <template #default="{ row }">
+                    <span v-if="!listShowAmountColumns">—</span>
+                    <span v-else class="amount-with-code">
+                      <span>{{ formatTotalAmountNumber(row.verifiedToBe) }}</span>
+                      <span
+                        v-if="formatTotalAmountNumber(row.verifiedToBe) !== '—'"
+                        :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]"
+                      >
+                        {{ listAmountCurrencyIso(row.currency) }}
+                      </span>
+                    </span>
+                  </template>
+                </el-table-column>
+                <el-table-column
+                  :label="t('financeReceivableList.columns.invoiceMatchStatus')"
+                  width="120"
+                  align="center"
+                >
+                  <template #default="{ row }">
+                    <el-tag :type="receivableVerificationTagType(row.invoiceMatchStatus)" size="small">
+                      {{ receivableVerificationLabel(row.invoiceMatchStatus) }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+              </CrmDataTable>
+              <DetailListPanelEmpty
+                v-else-if="!receivableLoading"
+                size="low"
+                :description="receivableEmptyText"
+              />
+            </div>
+          </div>
+        </div>
       </template>
 
       <el-empty v-else-if="!loading" :description="loadError || t('stockOutDetail.notFound')" />
@@ -549,7 +685,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { stockOutApi, type StockOutDetailDto, type StockOutItemListRow } from '@/api/stockOut'
+import { stockOutApi, type StockOutDetailDto, type StockOutDetailReceivableRow, type StockOutItemListRow } from '@/api/stockOut'
 import salesOrderApi from '@/api/salesOrder'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import DetailListPanelEmpty from '@/components/Common/DetailListPanelEmpty.vue'
@@ -607,6 +743,16 @@ const canViewCustomer = computed(
 const canViewAmount = computed(() => authStore.hasPermission('sales.amount.read'))
 const listCustomerColumnOk = computed(() => canViewCustomer.value && !maskSaleSensitiveFields.value)
 const listShowAmountColumns = computed(() => canViewAmount.value && !maskSaleSensitiveFields.value)
+const canOpenReceivableDetail = computed(() => authStore.hasPermission('finance-receipt.read'))
+const isSalesStockOut = computed(() => {
+  const type = Number(detail.value?.stockOutType)
+  return type === StockOutTypeCode.Sales || type === 1
+})
+const receivableEmptyText = computed(() =>
+  Number(detail.value?.status) === 4
+    ? t('stockOutDetail.receivableEmptyNone')
+    : t('stockOutDetail.receivableEmptyNotFinished')
+)
 
 const sellOrderItemColumns = computed<CrmTableColumnDef[]>(() => {
   void locale.value
@@ -625,10 +771,12 @@ const loading = ref(false)
 const saving = ref(false)
 const itemsLoading = ref(false)
 const sellOrderItemLoading = ref(false)
+const receivableLoading = ref(false)
 const loadError = ref('')
 const detail = ref<StockOutDetailDto | null>(null)
 const stockOutItems = ref<StockOutItemListRow[]>([])
 const sellOrderItemRows = ref<SalesOrderItemLineRow[]>([])
+const receivableRows = ref<StockOutDetailReceivableRow[]>([])
 const detailActiveTab = ref<'items' | 'documents'>('items')
 const docListRef = ref<InstanceType<typeof DocumentListPanel> | null>(null)
 
@@ -811,29 +959,75 @@ const statusLabel = (s: number) => {
 }
 
 async function loadSellOrderItem() {
-  const orderCode = detail.value?.sellOrderCode?.trim()
-  const itemId = detail.value?.sellOrderItemId?.trim()
-  if (!orderCode || !itemId) {
+  const idSet = new Set<string>()
+  const codes: string[] = []
+  for (const row of stockOutItems.value) {
+    const id = row.sellOrderItemId?.trim()
+    if (id) idSet.add(id.toLowerCase())
+    const code = row.sellOrderItemCode?.trim()
+    if (code && !codes.includes(code)) codes.push(code)
+  }
+  if (idSet.size === 0) {
     sellOrderItemRows.value = []
     return
   }
   sellOrderItemLoading.value = true
   try {
-    const data = (await salesOrderApi.getItemLines({
-      sellOrderCode: orderCode,
-      page: 1,
-      pageSize: 100
-    })) as { items?: SalesOrderItemLineRow[] }
-    const items = data.items ?? []
-    const matched = items.find((row) => {
-      const rid = String(row.sellOrderItemId ?? row.id ?? '').trim()
-      return rid === itemId
-    })
-    sellOrderItemRows.value = matched ? [matched] : []
+    const seen = new Set<string>()
+    const matched: SalesOrderItemLineRow[] = []
+    const queries: Array<{ sellOrderItemCode?: string; sellOrderCode?: string }> =
+      codes.length > 0 ? codes.map((sellOrderItemCode) => ({ sellOrderItemCode })) : []
+    const headerOrderCode = detail.value?.sellOrderCode?.trim()
+    if (queries.length === 0 && headerOrderCode) {
+      queries.push({ sellOrderCode: headerOrderCode })
+    }
+    for (const q of queries) {
+      const data = (await salesOrderApi.getItemLines({
+        ...q,
+        page: 1,
+        pageSize: 100
+      })) as { items?: SalesOrderItemLineRow[] }
+      for (const row of data.items ?? []) {
+        const rid = String(row.sellOrderItemId ?? row.id ?? '').trim()
+        const ridKey = rid.toLowerCase()
+        if (!rid || seen.has(ridKey) || !idSet.has(ridKey)) continue
+        seen.add(ridKey)
+        matched.push(row)
+      }
+    }
+    sellOrderItemRows.value = matched
   } catch {
     sellOrderItemRows.value = []
   } finally {
     sellOrderItemLoading.value = false
+  }
+}
+
+function receivableVerificationLabel(status: number) {
+  if (status === 2) return t('financeReceivableList.verification.complete')
+  if (status === 1) return t('financeReceivableList.verification.partial')
+  return t('financeReceivableList.verification.pending')
+}
+
+function receivableVerificationTagType(status: number): 'success' | 'warning' | 'info' {
+  if (status === 2) return 'success'
+  if (status === 1) return 'warning'
+  return 'info'
+}
+
+async function loadReceivables() {
+  const id = stockOutId.value
+  if (!id || !isSalesStockOut.value) {
+    receivableRows.value = []
+    return
+  }
+  receivableLoading.value = true
+  try {
+    receivableRows.value = await stockOutApi.getReceivables(id)
+  } catch {
+    receivableRows.value = []
+  } finally {
+    receivableLoading.value = false
   }
 }
 
@@ -867,15 +1061,21 @@ async function load() {
     if (!d) {
       detail.value = null
       loadError.value = t('stockOutDetail.notFound')
+      receivableRows.value = []
+      sellOrderItemRows.value = []
+      stockOutItems.value = []
       return
     }
     detail.value = d
     syncEditFromDetail(d)
-    await Promise.all([loadItems(), loadSellOrderItem()])
+    await loadItems()
+    await loadSellOrderItem()
+    await loadReceivables()
   } catch {
     detail.value = null
     loadError.value = t('stockOutDetail.loadFailed')
     sellOrderItemRows.value = []
+    receivableRows.value = []
   } finally {
     loading.value = false
   }

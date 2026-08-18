@@ -142,6 +142,11 @@ public interface IFinanceReceivableService
         string stockOutId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>出库详情应收摘要（未删除）。销售行编号由销售明细解析。</summary>
+    Task<IReadOnlyList<StockOutDetailReceivableRowDto>> ListForStockOutDetailAsync(
+        string stockOutId,
+        CancellationToken cancellationToken = default);
+
     Task<PagedResult<FinanceReceivable>> GetPagedAsync(FinanceReceivableQueryRequest request, CancellationToken cancellationToken = default);
 
     Task<PagedResult<FinanceReceivableListItem>> GetPagedListAsync(

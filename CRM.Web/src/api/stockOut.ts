@@ -77,6 +77,23 @@ export interface StockOutForceDeleteReceivableRow {
   receiptCodes: string[]
 }
 
+/** GET /api/v1/stock-out/:id/receivables */
+export interface StockOutDetailReceivableRow {
+  id: string
+  receivableCode?: string | null
+  sellOrderItemId?: string | null
+  sellOrderItemCode?: string | null
+  outboundQty: number
+  amount: number
+  currency: number
+  verifiedDone: number
+  verifiedToBe: number
+  verificationStatus: number
+  invoiceMatchDone: number
+  invoiceMatchToBe: number
+  invoiceMatchStatus: number
+}
+
 export interface StockOutForceDeletePreview {
   stockOutId: string
   stockOutCode?: string
@@ -493,6 +510,8 @@ export interface StockOutItemListRow {
   outQuantity: number
   shipmentMethod?: string | null
   courierTrackingNo?: string | null
+  /** 销售明细主键（优先出库明细扩展） */
+  sellOrderItemId?: string | null
   sellOrderItemCode?: string | null
   /** 来源入库单号 */
   stockInCode?: string | null
@@ -696,6 +715,7 @@ function normalizeStockOutItemListRow(row: unknown): StockOutItemListRow {
     outQuantity: Number(r.outQuantity ?? r.OutQuantity ?? 0),
     shipmentMethod: (r.shipmentMethod ?? r.ShipmentMethod) as string | null | undefined,
     courierTrackingNo: (r.courierTrackingNo ?? r.CourierTrackingNo) as string | null | undefined,
+    sellOrderItemId: (r.sellOrderItemId ?? r.SellOrderItemId) as string | null | undefined,
     sellOrderItemCode: (r.sellOrderItemCode ?? r.SellOrderItemCode) as string | null | undefined,
     stockInCode: (r.stockInCode ?? r.StockInCode) as string | null | undefined,
     packingId: (r.packingId ?? r.PackingId) as string | null | undefined,
@@ -761,6 +781,38 @@ export const stockOutApi = {
 
   async getById(id: string): Promise<StockOutDetailDto | null> {
     return getStockOutDetailInternal(id)
+  },
+
+  async getReceivables(id: string): Promise<StockOutDetailReceivableRow[]> {
+    const enc = encodeURIComponent(id)
+    const res = await apiClient.get<unknown>(`/api/v1/stock-out/${enc}/receivables`)
+    const root = res && typeof res === 'object' ? (res as Record<string, unknown>) : null
+    const data = (root?.data ?? root?.Data ?? root) as unknown
+    const rows = Array.isArray(data)
+      ? data
+      : data && typeof data === 'object'
+        ? (((data as Record<string, unknown>).items ??
+            (data as Record<string, unknown>).Items) as unknown)
+        : []
+    if (!Array.isArray(rows)) return []
+    return rows.map((x) => {
+      const o = x && typeof x === 'object' ? (x as Record<string, unknown>) : {}
+      return {
+        id: String(o.id ?? o.Id ?? ''),
+        receivableCode: (o.receivableCode ?? o.ReceivableCode) as string | null | undefined,
+        sellOrderItemId: (o.sellOrderItemId ?? o.SellOrderItemId) as string | null | undefined,
+        sellOrderItemCode: (o.sellOrderItemCode ?? o.SellOrderItemCode) as string | null | undefined,
+        outboundQty: Number(o.outboundQty ?? o.OutboundQty ?? 0),
+        amount: Number(o.amount ?? o.Amount ?? 0),
+        currency: Number(o.currency ?? o.Currency ?? 0),
+        verifiedDone: Number(o.verifiedDone ?? o.VerifiedDone ?? 0),
+        verifiedToBe: Number(o.verifiedToBe ?? o.VerifiedToBe ?? 0),
+        verificationStatus: Number(o.verificationStatus ?? o.VerificationStatus ?? 0),
+        invoiceMatchDone: Number(o.invoiceMatchDone ?? o.InvoiceMatchDone ?? 0),
+        invoiceMatchToBe: Number(o.invoiceMatchToBe ?? o.InvoiceMatchToBe ?? 0),
+        invoiceMatchStatus: Number(o.invoiceMatchStatus ?? o.InvoiceMatchStatus ?? 0)
+      }
+    })
   },
 
   /**

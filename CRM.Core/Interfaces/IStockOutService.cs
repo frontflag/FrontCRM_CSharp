@@ -79,6 +79,11 @@ namespace CRM.Core.Interfaces
         Task<StockOutForceDeletePreviewDto> GetForceDeletePreviewAsync(
             string id,
             CancellationToken cancellationToken = default);
+
+        /// <summary>出库详情应收摘要。出库不存在抛出；非销售出库返回空列表。</summary>
+        Task<IReadOnlyList<StockOutDetailReceivableRowDto>> GetDetailReceivablesAsync(
+            string id,
+            CancellationToken cancellationToken = default);
     }
 
     public class CreateStockOutRequestRequest
@@ -282,6 +287,24 @@ namespace CRM.Core.Interfaces
         public IReadOnlyList<string> ReceiptCodes { get; set; } = Array.Empty<string>();
     }
 
+    /// <summary>出库详情「应收款」面板行。</summary>
+    public class StockOutDetailReceivableRowDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string? ReceivableCode { get; set; }
+        public string? SellOrderItemId { get; set; }
+        public string? SellOrderItemCode { get; set; }
+        public decimal OutboundQty { get; set; }
+        public decimal Amount { get; set; }
+        public short Currency { get; set; }
+        public decimal VerifiedDone { get; set; }
+        public decimal VerifiedToBe { get; set; }
+        public short VerificationStatus { get; set; }
+        public decimal InvoiceMatchDone { get; set; }
+        public decimal InvoiceMatchToBe { get; set; }
+        public short InvoiceMatchStatus { get; set; }
+    }
+
     public class StockOutForceDeletePreviewDto
     {
         public string StockOutId { get; set; } = string.Empty;
@@ -442,6 +465,8 @@ namespace CRM.Core.Interfaces
         public int OutQuantity { get; set; }
         public string? ShipmentMethod { get; set; }
         public string? CourierTrackingNo { get; set; }
+        /// <summary>销售明细主键：优先出库明细扩展，否则头表（通知单线出库）。</summary>
+        public string? SellOrderItemId { get; set; }
         public string? SellOrderItemCode { get; set; }
 
         /// <summary>来源入库单号（拣货扩展 <c>StockInItemId</c> → 入库头 <c>StockInCode</c>）</summary>

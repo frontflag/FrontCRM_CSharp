@@ -378,6 +378,32 @@ namespace CRM.API.Controllers
             }
         }
 
+        /// <summary>出库详情应收摘要（与出库单同一读权限；非销售出库为空）。</summary>
+        [HttpGet("{id}/receivables")]
+        public async Task<ActionResult<ApiResponse<IReadOnlyList<StockOutDetailReceivableRowDto>>>> GetReceivables(
+            string id,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var rows = await _service.GetDetailReceivablesAsync(id, cancellationToken);
+                return Ok(ApiResponse<IReadOnlyList<StockOutDetailReceivableRowDto>>.Ok(rows, "OK"));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<IReadOnlyList<StockOutDetailReceivableRowDto>>.Fail(ex.Message, 400));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(ApiResponse<IReadOnlyList<StockOutDetailReceivableRowDto>>.Fail(ex.Message, 404));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取出库单应收摘要失败");
+                return StatusCode(500, ApiResponse<IReadOnlyList<StockOutDetailReceivableRowDto>>.Fail($"加载失败: {ex.Message}", 500));
+            }
+        }
+
         /// <summary>更新出库日期、出货方式、快递单号</summary>
         [HttpPatch("{id}/header")]
         public async Task<ActionResult<ApiResponse<object>>> UpdateHeader(string id, [FromBody] UpdateStockOutHeaderRequest? body)

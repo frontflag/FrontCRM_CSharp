@@ -130,9 +130,13 @@ public sealed class StockOutItemEfListQuery : IStockOutItemListQuery
         {
             var k = query.SellOrderItemCode.Trim().ToLowerInvariant();
             q = q.Where(x =>
-                x.sol != null &&
-                x.sol.SellOrderItemCode != null &&
-                x.sol.SellOrderItemCode.ToLower().Contains(k));
+                (x.sol != null &&
+                 x.sol.SellOrderItemCode != null &&
+                 x.sol.SellOrderItemCode.ToLower().Contains(k))
+                || _db.StockOutItemExtends.Any(ext =>
+                    ext.Id == x.si.Id
+                    && ext.SellOrderItemCode != null
+                    && ext.SellOrderItemCode.ToLower().Contains(k)));
         }
 
         if (!string.IsNullOrWhiteSpace(query.StockInCode))

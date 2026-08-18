@@ -461,6 +461,61 @@ public class FinanceReceivableService : IFinanceReceivableService
     }
 
     /// <inheritdoc />
+    public async Task<IReadOnlyList<StockOutDetailReceivableRowDto>> ListForStockOutDetailAsync(
+        string stockOutId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(stockOutId))
+            return Array.Empty<StockOutDetailReceivableRowDto>();
+
+        var key = stockOutId.Trim();
+        var receivables = (await _receivableRepo.FindAsync(r => r.StockOutId == key && !r.IsDeleted))
+            .OrderBy(r => r.ReceivableCode)
+            .ThenBy(r => r.Id)
+            .ToList();
+        if (receivables.Count == 0)
+            return Array.Empty<StockOutDetailReceivableRowDto>();
+
+        cancellationToken.ThrowIfCancellationRequested();
+        var sellIds = receivables
+            .Select(r => r.SellOrderItemId?.Trim())
+            .Where(x => !string.IsNullOrEmpty(x))
+            .Cast<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var sellCodeById = sellIds.Count == 0
+            ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            : (await _sellOrderItemRepo.FindAsync(i => sellIds.Contains(i.Id)))
+                .Where(i => !string.IsNullOrWhiteSpace(i.SellOrderItemCode))
+                .GroupBy(i => i.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First().SellOrderItemCode!.Trim(), StringComparer.OrdinalIgnoreCase);
+
+        return receivables.Select(r =>
+        {
+            var sellId = string.IsNullOrWhiteSpace(r.SellOrderItemId) ? null : r.SellOrderItemId.Trim();
+            string? sellCode = null;
+            if (!string.IsNullOrEmpty(sellId))
+                sellCodeById.TryGetValue(sellId, out sellCode);
+            return new StockOutDetailReceivableRowDto
+            {
+                Id = r.Id,
+                ReceivableCode = r.ReceivableCode,
+                SellOrderItemId = sellId,
+                SellOrderItemCode = sellCode,
+                OutboundQty = r.OutboundQty,
+                Amount = r.Amount,
+                Currency = r.Currency,
+                VerifiedDone = r.VerifiedDone,
+                VerifiedToBe = r.VerifiedToBe,
+                VerificationStatus = r.VerificationStatus,
+                InvoiceMatchDone = r.InvoiceMatchDone,
+                InvoiceMatchToBe = r.InvoiceMatchToBe,
+                InvoiceMatchStatus = r.InvoiceMatchStatus
+            };
+        }).ToList();
+    }
+
+    /// <inheritdoc />
     public Task<PagedResult<FinanceReceivable>> GetPagedAsync(
         FinanceReceivableQueryRequest request,
         CancellationToken cancellationToken = default) =>
