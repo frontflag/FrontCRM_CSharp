@@ -1,38 +1,80 @@
 <template>
-  <div class="crm-system-list-page permission-list-page">
-    <el-card class="crm-system-list-card" shadow="never">
-      <div class="crm-system-list-toolbar">
-        <div class="permission-list-toolbar-left">
-          <h1 class="crm-system-list-title permission-list-title">{{ t('systemPermission.title') }}</h1>
-          <span class="permission-list-count">{{ t('systemPermission.listCount', { count: displayedPermissions.length }) }}</span>
+  <div class="crm-biz-list-page">
+    <div class="page-header">
+      <div class="header-left">
+        <div class="page-title-group">
+          <div class="page-icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
+            </svg>
+          </div>
+          <h1 class="page-title">{{ t('systemPermission.title') }}</h1>
         </div>
-        <el-button type="primary" @click="router.push({ name: 'PermissionCreate' })">{{ t('systemPermission.create') }}</el-button>
+        <div class="count-badge">{{ t('systemPermission.count', { count: filteredPermissions.length }) }}</div>
       </div>
-
-      <div class="permission-list-filters">
-        <el-input
-          v-model="filters.permissionName"
-          clearable
-          :placeholder="t('systemPermission.filters.permissionName')"
-          class="permission-list-filter-input"
-        />
-        <el-input
-          v-model="filters.permissionCode"
-          clearable
-          :placeholder="t('systemPermission.filters.permissionCode')"
-          class="permission-list-filter-input"
-        />
-        <el-button @click="resetFilters">{{ t('systemPermission.filters.reset') }}</el-button>
+      <div v-if="canWrite" class="header-right">
+        <button type="button" class="btn-primary" @click="router.push({ name: 'PermissionCreate' })">
+          {{ t('systemPermission.create') }}
+        </button>
       </div>
+    </div>
 
+    <div class="search-bar">
+      <div class="search-left">
+        <div class="search-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            v-model="searchFilters.nameKw"
+            class="search-input"
+            :placeholder="t('systemPermission.columns.permissionName')"
+            @keyup.enter="applySearch"
+          />
+        </div>
+        <div class="search-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            v-model="searchFilters.codeKw"
+            class="search-input"
+            :placeholder="t('systemPermission.columns.permissionCode')"
+            @keyup.enter="applySearch"
+          />
+        </div>
+        <el-select
+          v-model="searchFilters.statusFilter"
+          class="status-select"
+          clearable
+          :placeholder="t('systemUser.allStatuses')"
+          :teleported="false"
+          @change="applySearch"
+        >
+          <el-option :label="t('systemUser.allStatuses')" value="all" />
+          <el-option :label="t('systemUser.statusEnabled')" value="1" />
+          <el-option :label="t('systemUser.statusDisabled')" value="0" />
+        </el-select>
+        <button type="button" class="btn-primary btn-sm" :disabled="loading" @click="applySearch">
+          {{ t('systemUser.searchQuery') }}
+        </button>
+        <button type="button" class="btn-ghost btn-sm" :disabled="loading" @click="resetSearch">
+          {{ t('systemUser.searchReset') }}
+        </button>
+      </div>
+    </div>
+
+    <div class="table-wrapper" v-loading="loading">
       <CrmDataTable
+        v-show="loading || pagedPermissions.length > 0"
         ref="dataTableRef"
-        v-loading="loading"
-        column-layout-key="system-permission-list-main"
+        column-layout-key="system-permission-list-main-v2"
         :columns="permissionTableColumns"
         :show-column-settings="false"
         :density-toggle-anchor-el="rowDensityToggleAnchorEl"
-        :data="displayedPermissions"
+        :data="pagedPermissions"
+        row-key="id"
+        :row-class-name="() => 'table-row-pointer'"
         @row-dblclick="onRowDblclick"
       >
         <template #col-status="{ row }">
@@ -41,7 +83,13 @@
           </el-tag>
         </template>
         <template #col-createTime="{ row }">
-          {{ formatCreateTime(row.createTime || row.createdAt) }}
+          <template v-for="p in [formatDisplayDateTime2DigitYearParts(row.createTime || row.createdAt)]" :key="'ct-' + row.id">
+            <span v-if="p" class="crm-quote-create-time">
+              <span class="crm-quote-create-time__ymd">{{ p.date }}</span>
+              <span class="crm-quote-create-time__hm">{{ p.time }}</span>
+            </span>
+            <span v-else>—</span>
+          </template>
         </template>
         <template #col-createUser="{ row }">
           {{ row.createUserName || row.createdBy || t('quoteList.na') }}
@@ -61,11 +109,10 @@
         <template #col-actions="{ row }">
           <div @click.stop @dblclick.stop>
             <div v-if="opColExpanded" class="action-btns">
-              <el-button link type="primary" @click.stop="goEdit(row.id)">{{ t('systemUser.edit') }}</el-button>
-              <el-button link type="danger" @click.stop="handleDelete(row.id)">{{ t('systemUser.delete') }}</el-button>
+              <el-button v-if="canWrite" link type="primary" @click.stop="goEdit(row.id)">{{ t('systemUser.edit') }}</el-button>
+              <el-button v-if="canWrite" link type="danger" @click.stop="handleDelete(row.id)">{{ t('systemUser.delete') }}</el-button>
             </div>
-
-            <el-dropdown v-else trigger="click" placement="bottom-end">
+            <el-dropdown v-else-if="canWrite" trigger="click" placement="bottom-end">
               <div class="op-more-dropdown-trigger">
                 <button type="button" class="op-more-trigger">...</button>
               </div>
@@ -83,60 +130,76 @@
           </div>
         </template>
       </CrmDataTable>
-      <div class="pagination-wrapper">
-        <div class="list-footer-left">
-          <el-tooltip :content="t('systemUser.colSetting')" placement="top" :hide-after="0">
-            <el-button class="list-settings-btn" link type="primary" :aria-label="t('systemUser.colSetting')" @click="dataTableRef?.openColumnSettings?.()">
-              <el-icon><Setting /></el-icon>
-            </el-button>
-          </el-tooltip>
-          <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
-          <div class="list-footer-spacer" aria-hidden="true"></div>
-        </div>
+
+      <div v-show="!loading && pagedPermissions.length === 0" class="empty-state">
+        <p>{{ t('systemPermission.empty') }}</p>
       </div>
-    </el-card>
+    </div>
+
+    <div class="pagination-wrapper">
+      <div class="list-footer-left">
+        <el-tooltip :content="t('systemUser.colSetting')" placement="top" :hide-after="0">
+          <el-button
+            class="list-settings-btn"
+            link
+            type="primary"
+            :aria-label="t('systemUser.colSetting')"
+            @click="dataTableRef?.openColumnSettings?.()"
+          >
+            <el-icon><Setting /></el-icon>
+          </el-button>
+        </el-tooltip>
+        <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
+        <div class="list-footer-spacer" aria-hidden="true" />
+      </div>
+      <el-pagination
+        class="list-main-pagination"
+        v-model:current-page="page"
+        v-model:page-size="pageSize"
+        :total="filteredPermissions.length"
+        :page-sizes="[10, 20, 50, 100]"
+        layout="total, sizes, prev, pager, next, jumper"
+      />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
+import CrmDataTable from '@/components/CrmDataTable.vue'
 import { rbacAdminApi, type RbacPermission } from '@/api/rbacAdmin'
-import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import { useAuthStore } from '@/stores/auth'
+import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
+import { estimateListColumnHeaderMinWidth } from '@/utils/listColumnHeaderWidth'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
 const { t } = useI18n()
+const authStore = useAuthStore()
+const canWrite = computed(() => authStore.canAccessSystemPermission('system.rbac.permissions.write'))
 
 const loading = ref(false)
 const permissions = ref<RbacPermission[]>([])
-const filters = reactive({
-  permissionName: '',
-  permissionCode: ''
-})
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
-const formatCreateTime = (v?: string) => formatDisplayDateTime(v)
+const page = ref(1)
+const pageSize = ref(20)
 
-const displayedPermissions = computed(() => {
-  const nameQ = filters.permissionName.trim().toLowerCase()
-  const codeQ = filters.permissionCode.trim().toLowerCase()
-  return permissions.value.filter((p) => {
-    if (nameQ && !(p.permissionName ?? '').toLowerCase().includes(nameQ)) return false
-    if (codeQ && !(p.permissionCode ?? '').toLowerCase().includes(codeQ)) return false
-    return true
-  })
+const searchFilters = reactive({
+  nameKw: '',
+  codeKw: '',
+  statusFilter: 'all' as string
+})
+const appliedFilters = reactive({
+  nameKw: '',
+  codeKw: '',
+  statusFilter: 'all' as string
 })
 
-function resetFilters() {
-  filters.permissionName = ''
-  filters.permissionCode = ''
-}
-
-// 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
 const OP_COL_COLLAPSED_WIDTH = 43
 const OP_COL_EXPANDED_WIDTH = 173
@@ -147,50 +210,107 @@ function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
 
-const permissionTableColumns = computed<CrmTableColumnDef[]>(() => [
-  { key: 'status', label: t('systemUser.colStatus'), prop: 'status', width: 90, align: 'center' },
-  {
-    key: 'permissionName',
-    label: t('systemPermission.columns.permissionName'),
-    prop: 'permissionName',
-    minWidth: 200,
-    showOverflowTooltip: true,
-    sortable: true
-  },
-  { key: 'permissionType', label: t('systemPermission.columns.permissionType'), prop: 'permissionType', width: 110 },
-  { key: 'resource', label: t('systemPermission.columns.resource'), prop: 'resource', minWidth: 200, showOverflowTooltip: true },
-  { key: 'action', label: t('systemPermission.columns.action'), prop: 'action', minWidth: 140, showOverflowTooltip: true },
-  {
-    key: 'permissionCode',
-    label: t('systemPermission.columns.permissionCode'),
-    prop: 'permissionCode',
-    minWidth: 180,
-    showOverflowTooltip: true,
-    sortable: true
-  },
-  { key: 'createTime', label: t('systemUser.colCreateTime'), width: 160 },
-  { key: 'createUser', label: t('systemUser.colCreateUser'), width: 120, showOverflowTooltip: true },
-  {
-    key: 'actions',
-    label: t('systemPermission.columns.actions'),
-    width: opColWidth.value,
-    minWidth: opColMinWidth.value,
-    fixed: 'right',
-    hideable: false,
-    pinned: 'end',
-    reorderable: false,
-    className: 'op-col',
-    labelClassName: 'op-col',
-    resizable: false
-  }
-])
+function headerMin(label: string, extra?: { align?: 'left' | 'center' | 'right'; extra?: number }) {
+  return estimateListColumnHeaderMinWidth(label, extra)
+}
+
+const permissionTableColumns = computed<CrmTableColumnDef[]>(() => {
+  const status = t('systemUser.colStatus')
+  const name = t('systemPermission.columns.permissionName')
+  const type = t('systemPermission.columns.permissionType')
+  const resource = t('systemPermission.columns.resource')
+  const action = t('systemPermission.columns.action')
+  const code = t('systemPermission.columns.permissionCode')
+  const createTime = t('systemUser.colCreateTime')
+  const createUser = t('systemUser.colCreateUser')
+  return [
+    { key: 'status', label: status, prop: 'status', width: Math.max(90, headerMin(status, { align: 'center' })), align: 'center' },
+    {
+      key: 'permissionName',
+      label: name,
+      prop: 'permissionName',
+      minWidth: Math.max(200, headerMin(name)),
+      showOverflowTooltip: true,
+      sortable: true
+    },
+    { key: 'permissionType', label: type, prop: 'permissionType', width: Math.max(110, headerMin(type)) },
+    { key: 'resource', label: resource, prop: 'resource', minWidth: Math.max(200, headerMin(resource)), showOverflowTooltip: true },
+    { key: 'action', label: action, prop: 'action', minWidth: Math.max(140, headerMin(action)), showOverflowTooltip: true },
+    {
+      key: 'permissionCode',
+      label: code,
+      prop: 'permissionCode',
+      minWidth: Math.max(180, headerMin(code)),
+      showOverflowTooltip: true,
+      sortable: true
+    },
+    { key: 'createTime', label: createTime, width: Math.max(160, headerMin(createTime)) },
+    { key: 'createUser', label: createUser, width: Math.max(120, headerMin(createUser)), showOverflowTooltip: true },
+    {
+      key: 'actions',
+      label: t('systemPermission.columns.actions'),
+      width: opColWidth.value,
+      minWidth: opColMinWidth.value,
+      fixed: 'right',
+      hideable: false,
+      pinned: 'end',
+      reorderable: false,
+      className: 'op-col',
+      labelClassName: 'op-col',
+      resizable: false
+    }
+  ]
+})
+
+function applySearch() {
+  appliedFilters.nameKw = searchFilters.nameKw.trim()
+  appliedFilters.codeKw = searchFilters.codeKw.trim()
+  const sf = searchFilters.statusFilter?.trim()
+  appliedFilters.statusFilter = sf && ['all', '0', '1'].includes(sf) ? sf : 'all'
+  page.value = 1
+}
+
+function resetSearch() {
+  searchFilters.nameKw = ''
+  searchFilters.codeKw = ''
+  searchFilters.statusFilter = 'all'
+  applySearch()
+}
+
+const filteredPermissions = computed(() => {
+  const nameQ = appliedFilters.nameKw.toLowerCase()
+  const codeQ = appliedFilters.codeKw.toLowerCase()
+  const statusKey = appliedFilters.statusFilter
+  return permissions.value.filter((p) => {
+    if (statusKey && statusKey !== 'all') {
+      const want = Number(statusKey)
+      if (!Number.isNaN(want) && p.status !== want) return false
+    }
+    if (nameQ && !(p.permissionName ?? '').toLowerCase().includes(nameQ)) return false
+    if (codeQ && !(p.permissionCode ?? '').toLowerCase().includes(codeQ)) return false
+    return true
+  })
+})
+
+const pagedPermissions = computed(() => {
+  const start = (page.value - 1) * pageSize.value
+  return filteredPermissions.value.slice(start, start + pageSize.value)
+})
+
+watch(pageSize, () => {
+  page.value = 1
+})
+watch(filteredPermissions, (list) => {
+  const maxPage = Math.max(1, Math.ceil(list.length / pageSize.value) || 1)
+  if (page.value > maxPage) page.value = maxPage
+})
 
 const load = async () => {
   loading.value = true
   try {
     permissions.value = await rbacAdminApi.getPermissions()
-  } catch (e: any) {
-    ElMessage.error(e?.message || t('systemPermission.loadFailed'))
+  } catch (e: unknown) {
+    ElMessage.error(e instanceof Error ? e.message : t('systemPermission.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -200,7 +320,10 @@ const goEdit = (id: string) => {
   router.push({ name: 'PermissionEdit', params: { id } })
 }
 
-const onRowDblclick = (row: RbacPermission) => goEdit(row.id)
+const onRowDblclick = (row: RbacPermission) => {
+  if (!canWrite.value) return
+  goEdit(row.id)
+}
 
 const handleDelete = async (id: string) => {
   try {
@@ -220,68 +343,6 @@ const handleDelete = async (id: string) => {
 onMounted(load)
 </script>
 
-<style scoped lang="scss">
-@import '@/assets/styles/system-list-page.scss';
-
-.permission-list-toolbar-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-
-.permission-list-title {
-  color: var(--el-text-color-primary, #303133);
-}
-
-.permission-list-count {
-  flex: 0 0 auto;
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--el-text-color-secondary, #909399);
-  white-space: nowrap;
-}
-
-.permission-list-filters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 16px;
-}
-
-.permission-list-filter-input {
-  width: 220px;
-  max-width: 100%;
-}
-
-.pagination-wrapper {
-  margin-top: 12px;
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-start;
-}
-
-.list-footer-left {
-  display: inline-flex;
-  align-items: flex-start;
-  gap: 6px;
-}
-
-.list-settings-btn {
-  padding: 4px 6px !important;
-  min-width: 28px;
-}
-
-.list-footer-density-anchor {
-  display: inline-flex;
-  align-items: center;
-  min-width: 0;
-  min-height: 0;
-}
-
-.list-footer-spacer {
-  width: 26px;
-  flex: 0 0 26px;
-}
+<style lang="scss">
+@import '@/assets/styles/crm-biz-list-page.scss';
 </style>

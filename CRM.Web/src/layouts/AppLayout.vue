@@ -1022,6 +1022,7 @@
           </template>
           <template #submenu>
             <router-link v-if="canAccessSystemPermission('system.org.users.read')" to="/system/users" class="submenu-item" active-class="active" exact>{{ t('layout.menu.userManagement') }}</router-link>
+            <router-link v-if="canAccessSystemPermission('system.org.users.read')" to="/system/user-levels" class="submenu-item" active-class="active" exact>{{ t('layout.menu.userLevel') }}</router-link>
             <router-link v-if="canAccessSystemPermission('system.org.departments.read')" to="/system/departments" class="submenu-item" active-class="active" exact>{{ t('layout.menu.departmentManagement') }}</router-link>
             <router-link v-if="canAccessSystemPermission('system.rbac.roles.read')" to="/system/roles" class="submenu-item" active-class="active" exact>{{ t('layout.menu.roleManagement') }}</router-link>
             <router-link v-if="canAccessSystemPermission('system.rbac.permissions.read')" to="/system/permissions" class="submenu-item" active-class="active" exact>{{ t('layout.menu.permissionManagement') }}</router-link>
@@ -1575,6 +1576,7 @@
             @edit-header="stockOutOpsStore.runEditHeader()"
             @mark-finish="stockOutOpsStore.runMarkFinish()"
           />
+          <UserLevelChangeLogPanel v-show="showUserLevelLogPanel" class="aux-panel-tab-body" />
           <StockOutNotifyCustomsTabPanel
             v-show="showStockOutNotifyCustomsPanel"
             class="aux-panel-tab-body"
@@ -1727,6 +1729,7 @@ import CustomsPendlistFlowPanel from '@/components/Customs/CustomsPendlistFlowPa
 import ArrivalNoticeOpsPanel from '@/components/Logistics/ArrivalNoticeOpsPanel.vue'
 import QcOpsPanel from '@/components/Logistics/QcOpsPanel.vue'
 import StockOutOpsPanel from '@/components/Inventory/StockOutOpsPanel.vue'
+import UserLevelChangeLogPanel from '@/components/System/UserLevelChangeLogPanel.vue'
 import StockOutNotifyCustomsTabPanel from '@/components/Inventory/StockOutNotifyCustomsTabPanel.vue'
 import { useSalesOrderItemOpsPanelStore } from '@/stores/salesOrderItemOpsPanel'
 import { usePackingDetailFlowPanelStore } from '@/stores/packingDetailFlowPanel'
@@ -1740,6 +1743,7 @@ import { useArrivalNoticeOpsPanelStore } from '@/stores/arrivalNoticeOpsPanel'
 import { canEditArrivalNoticeArrivalInfo } from '@/utils/arrivalNoticeArrivalInfoAccess'
 import { useQcOpsPanelStore } from '@/stores/qcOpsPanel'
 import { useStockOutOpsPanelStore } from '@/stores/stockOutOpsPanel'
+import { useUserLevelLogStore } from '@/stores/userLevelLog'
 import { useStockOutNotifyCustomsPanelStore } from '@/stores/stockOutNotifyCustomsPanel'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleOrderWriteGate, useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
@@ -1786,6 +1790,7 @@ const customsDeclarationOpsStore = useCustomsDeclarationOpsPanelStore()
 const arrivalNoticeOpsStore = useArrivalNoticeOpsPanelStore()
 const qcOpsStore = useQcOpsPanelStore()
 const stockOutOpsStore = useStockOutOpsPanelStore()
+const userLevelLogStore = useUserLevelLogStore()
 const stockOutNotifyCustomsPanelStore = useStockOutNotifyCustomsPanelStore()
 const approvalDesktopQueueStore = useApprovalDesktopQueueStore()
 const quoteDesktopQueueStore = useQuoteDesktopQueueStore()
@@ -2186,6 +2191,11 @@ const showStockOutOpsPanel = computed(
   () => rightActiveTabId.value === 'r-ops' && isStockOutListRoute.value
 )
 
+const isUserLevelListRoute = computed(() => route.name === 'UserLevelList')
+const showUserLevelLogPanel = computed(
+  () => rightActiveTabId.value === 'r-user-level-log' && isUserLevelListRoute.value
+)
+
 const showStockOutNotifyCustomsPanel = computed(
   () => rightActiveTabId.value === 'r-stock-out-customs' && isStockOutNotifyListRoute.value
 )
@@ -2329,6 +2339,7 @@ watch(
     if (oldName != null && oldName !== name) rememberAuxTabsForRoute(oldName)
 
     if (name !== 'StockOutList') stockOutOpsStore.clear()
+    if (name !== 'UserLevelList') userLevelLogStore.clear()
 
     if (name === 'ApprovalDesktop') {
       leftTabs.value = [{ id: 'l1', labelKey: 'approvalDesktop.leftTab' }]
@@ -2710,6 +2721,24 @@ watch(
       restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-flow' })
       return
     }
+    if (name === 'UserLevelList') {
+      rightTabs.value = [
+        { id: 'r-user-level-log', labelKey: 'layout.auxTabs.changeLog' },
+        { id: 'r4', labelKey: 'layout.auxTabs.help' }
+      ]
+      salesOrderItemOpsStore.clear()
+      purchaseOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
+      customsDeclarationOpsStore.clear()
+      arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
+      materialIntelLookupStore.clearBound()
+      customerIntelLookupStore.clearBound()
+      vendorIntelLookupStore.clearBound()
+      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-user-level-log' })
+      return
+    }
     rightTabs.value = [{ id: 'r4', labelKey: 'layout.auxTabs.help' }]
     salesOrderItemOpsStore.clear()
     purchaseOrderItemOpsStore.clear()
@@ -2896,6 +2925,7 @@ const pageTitleMap: Record<string, string> = {
   '/vendors/frozen': 'layout.menu.freezeManagement',
   '/system/users': 'layout.menu.userManagement',
   '/system/users/create': 'layout.menu.userManagement',
+  '/system/user-levels': 'layout.menu.userLevel',
   '/system/roles': 'layout.menu.roleManagement',
   '/system/roles/create': 'layout.menu.roleManagement',
   '/system/permissions': 'layout.menu.permissionManagement',

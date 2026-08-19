@@ -1,27 +1,69 @@
 <template>
-  <div class="crm-system-list-page">
-    <el-card class="crm-system-list-card" shadow="never">
-      <div class="crm-system-list-toolbar">
-        <h1 class="crm-system-list-title">{{ t('systemUser.title') }}</h1>
-        <div class="crm-system-list-toolbar-actions">
-          <el-tooltip :content="t('systemUser.resetPasswordHint')" placement="bottom">
-            <el-button :disabled="selectedUsers.length === 0" @click="openResetDialogFromSelection">
-              {{ t('systemUser.resetPassword') }}
-            </el-button>
-          </el-tooltip>
-          <el-button type="primary" @click="router.push({ name: 'UserCreate' })">{{ t('systemUser.create') }}</el-button>
+  <div class="user-list-page">
+    <div class="page-header">
+      <div class="header-left">
+        <div class="page-title-group">
+          <div class="page-icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 00-3-3.87" />
+              <path d="M16 3.13a4 4 0 010 7.75" />
+            </svg>
+          </div>
+          <h1 class="page-title">{{ t('systemUser.title') }}</h1>
         </div>
+        <div class="count-badge">{{ t('systemUser.count', { count: filteredUsers.length }) }}</div>
       </div>
+      <div v-if="canWrite" class="header-right">
+        <el-tooltip :content="t('systemUser.resetPasswordHint')" placement="bottom">
+          <button
+            type="button"
+            class="btn-ghost"
+            :disabled="selectedUsers.length === 0"
+            @click="openResetDialogFromSelection"
+          >
+            {{ t('systemUser.resetPassword') }}
+          </button>
+        </el-tooltip>
+        <button type="button" class="btn-primary" @click="router.push({ name: 'UserCreate' })">
+          {{ t('systemUser.create') }}
+        </button>
+      </div>
+    </div>
 
-      <div class="user-list-search-bar">
-        <span class="user-list-search-label">{{ t('systemUser.searchDepartment') }}</span>
+    <div class="search-bar">
+      <div class="search-left">
+        <div class="search-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            v-model="searchFilters.userNameKw"
+            class="search-input search-input--narrow"
+            :placeholder="t('systemUser.colUserName')"
+            @keyup.enter="applySearch"
+          />
+        </div>
+        <div class="search-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            v-model="searchFilters.realNameKw"
+            class="search-input search-input--narrow"
+            :placeholder="t('systemUser.colRealName')"
+            @keyup.enter="applySearch"
+          />
+        </div>
         <el-select
           v-model="searchFilters.departmentId"
-          class="user-list-search-select"
+          class="status-select status-select--dept"
           clearable
           filterable
           :placeholder="t('systemUser.allDepartments')"
           :teleported="false"
+          @change="applySearch"
         >
           <el-option
             v-for="d in departmentOptions"
@@ -30,14 +72,14 @@
             :value="d.id"
           />
         </el-select>
-        <span class="user-list-search-label">{{ t('systemUser.searchRole') }}</span>
         <el-select
           v-model="searchFilters.roleId"
-          class="user-list-search-select user-list-search-select--role"
+          class="status-select status-select--role"
           clearable
           filterable
           :placeholder="t('systemUser.allRoles')"
           :teleported="false"
+          @change="applySearch"
         >
           <el-option
             v-for="r in roleOptions"
@@ -46,47 +88,37 @@
             :value="r.id"
           />
         </el-select>
-        <span class="user-list-search-label">{{ t('systemUser.searchUserName') }}</span>
-        <el-input
-          v-model="searchFilters.userNameKw"
-          class="user-list-search-input"
-          clearable
-          :placeholder="t('systemUser.userNameSearchPlaceholder')"
-          @keyup.enter="applySearch"
-        />
-        <span class="user-list-search-label">{{ t('systemUser.searchRealName') }}</span>
-        <el-input
-          v-model="searchFilters.realNameKw"
-          class="user-list-search-input"
-          clearable
-          :placeholder="t('systemUser.realNameSearchPlaceholder')"
-          @keyup.enter="applySearch"
-        />
-        <span class="user-list-search-label">{{ t('systemUser.searchFreezeFilter') }}</span>
         <el-select
           v-model="searchFilters.statusFilter"
-          class="user-list-search-select user-list-search-select--status"
+          class="status-select status-select--status"
           clearable
-          :placeholder="t('systemUser.freezeFilterAll')"
+          :placeholder="t('systemUser.allStatuses')"
           :teleported="false"
+          @change="applySearch"
         >
-          <el-option :label="t('systemUser.freezeFilterAll')" value="all" />
+          <el-option :label="t('systemUser.allStatuses')" value="all" />
           <el-option :label="t('systemUser.freezeFilterNormal')" value="1" />
           <el-option :label="t('systemUser.freezeFilterDisabled')" value="0" />
           <el-option :label="t('systemUser.freezeFilterFrozen')" value="2" />
         </el-select>
-        <el-button type="primary" @click="applySearch">{{ t('systemUser.searchQuery') }}</el-button>
-        <el-button @click="resetSearch">{{ t('systemUser.searchReset') }}</el-button>
+        <button type="button" class="btn-primary btn-sm" :disabled="loading" @click="applySearch">
+          {{ t('systemUser.searchQuery') }}
+        </button>
+        <button type="button" class="btn-ghost btn-sm" :disabled="loading" @click="resetSearch">
+          {{ t('systemUser.searchReset') }}
+        </button>
       </div>
+    </div>
 
+    <div class="table-wrapper" v-loading="loading">
       <CrmDataTable
+        v-show="loading || pagedUsers.length > 0"
         ref="dataTableRef"
-        v-loading="loading"
-        column-layout-key="system-user-list-main-v2"
+        column-layout-key="system-user-list-main-v3"
         :columns="userTableColumns"
         :show-column-settings="false"
         :density-toggle-anchor-el="rowDensityToggleAnchorEl"
-        :data="displayUsers"
+        :data="pagedUsers"
         row-key="id"
         :row-class-name="userRowClassName"
         @selection-change="onSelectionChange"
@@ -105,6 +137,7 @@
             {{ row.status === 1 ? t('systemUser.statusEnabled') : t('systemUser.statusDisabled') }}
           </el-tag>
         </template>
+        <template #col-level="{ row }">{{ row.level ?? 1 }}</template>
         <template #col-roleCodes="{ row }">
           <span>{{ row.roleCodes?.join(', ') || '-' }}</span>
         </template>
@@ -112,7 +145,13 @@
           <span>{{ row.primaryDepartmentName || '-' }}</span>
         </template>
         <template #col-createTime="{ row }">
-          {{ formatCreateTime(row.createTime || row.createdAt) }}
+          <template v-for="p in [formatDisplayDateTime2DigitYearParts(row.createTime || row.createdAt)]" :key="'ct-' + row.id">
+            <span v-if="p" class="crm-quote-create-time">
+              <span class="crm-quote-create-time__ymd">{{ p.date }}</span>
+              <span class="crm-quote-create-time__hm">{{ p.time }}</span>
+            </span>
+            <span v-else>—</span>
+          </template>
         </template>
         <template #col-createUser="{ row }">
           {{ row.createUserName || row.createdBy || '-' }}
@@ -208,18 +247,43 @@
           </div>
         </template>
       </CrmDataTable>
-      <div class="pagination-wrapper">
-        <div class="list-footer-left">
-          <el-tooltip :content="t('systemUser.colSetting')" placement="top" :hide-after="0">
-            <el-button class="list-settings-btn" link type="primary" :aria-label="t('systemUser.colSetting')" @click="dataTableRef?.openColumnSettings?.()">
-              <el-icon><Setting /></el-icon>
-            </el-button>
-          </el-tooltip>
-          <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
-          <div class="list-footer-spacer" aria-hidden="true"></div>
-        </div>
+
+      <div v-show="!loading && pagedUsers.length === 0" class="empty-state">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true">
+          <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M23 21v-2a4 4 0 00-3-3.87" />
+          <path d="M16 3.13a4 4 0 010 7.75" />
+        </svg>
+        <p>{{ t('systemUser.empty') }}</p>
       </div>
-    </el-card>
+    </div>
+
+    <div class="pagination-wrapper">
+      <div class="list-footer-left">
+        <el-tooltip :content="t('systemUser.colSetting')" placement="top" :hide-after="0">
+          <el-button
+            class="list-settings-btn"
+            link
+            type="primary"
+            :aria-label="t('systemUser.colSetting')"
+            @click="dataTableRef?.openColumnSettings?.()"
+          >
+            <el-icon><Setting /></el-icon>
+          </el-button>
+        </el-tooltip>
+        <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
+        <div class="list-footer-spacer" aria-hidden="true" />
+      </div>
+      <el-pagination
+        class="list-main-pagination"
+        v-model:current-page="page"
+        v-model:page-size="pageSize"
+        :total="filteredUsers.length"
+        :page-sizes="[10, 20, 50, 100]"
+        layout="total, sizes, prev, pager, next, jumper"
+      />
+    </div>
 
     <el-dialog
       v-model="resetDialogVisible"
@@ -261,13 +325,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
+import CrmDataTable from '@/components/CrmDataTable.vue'
 import { rbacAdminApi, type AdminUserDto, type RbacDepartment, type RbacRole } from '@/api/rbacAdmin'
-import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
+import { estimateListColumnHeaderMinWidth } from '@/utils/listColumnHeaderWidth'
 import { useAuthStore } from '@/stores/auth'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
@@ -275,12 +341,15 @@ const router = useRouter()
 const authStore = useAuthStore()
 const { t } = useI18n()
 
+const canWrite = computed(() => authStore.canAccessSystemPermission('system.org.users.write'))
+
 const loading = ref(false)
 const allUsers = ref<AdminUserDto[]>([])
 const departmentOptions = ref<RbacDepartment[]>([])
 const roleOptions = ref<RbacRole[]>([])
+const page = ref(1)
+const pageSize = ref(20)
 
-/** 表单上的条件（点「查询」后写入 appliedFilters） */
 const searchFilters = reactive({
   departmentId: '' as string,
   roleId: '' as string,
@@ -290,7 +359,6 @@ const searchFilters = reactive({
   statusFilter: 'all' as string
 })
 
-/** 当前生效的筛选（与表格联动） */
 const appliedFilters = reactive({
   departmentId: '' as string,
   roleId: '' as string,
@@ -316,7 +384,6 @@ const resetPwdSaving = ref(false)
 /** 仅系统管理员（SYS_ADMIN）可见模拟登录 */
 const canImpersonate = computed(() => authStore.user?.isSysAdmin === true)
 
-// 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
 const OP_COL_COLLAPSED_WIDTH = 43
 const OP_COL_EXPANDED_WIDTH = computed(() => (canImpersonate.value ? 520 : 420))
@@ -333,6 +400,7 @@ function applySearch() {
   appliedFilters.realNameKw = searchFilters.realNameKw?.trim() ?? ''
   const sf = searchFilters.statusFilter?.trim()
   appliedFilters.statusFilter = sf && ['all', '0', '1', '2'].includes(sf) ? sf : 'all'
+  page.value = 1
   dataTableRef.value?.clearSelection?.()
   selectedUsers.value = []
 }
@@ -346,7 +414,7 @@ function resetSearch() {
   applySearch()
 }
 
-const displayUsers = computed(() => {
+const filteredUsers = computed(() => {
   const deptId = appliedFilters.departmentId
   const roleId = appliedFilters.roleId
   const uname = appliedFilters.userNameKw.toLowerCase()
@@ -379,44 +447,75 @@ const displayUsers = computed(() => {
   })
 })
 
+const pagedUsers = computed(() => {
+  const start = (page.value - 1) * pageSize.value
+  return filteredUsers.value.slice(start, start + pageSize.value)
+})
+
+watch(pageSize, () => {
+  page.value = 1
+})
+
+watch(filteredUsers, (list) => {
+  const maxPage = Math.max(1, Math.ceil(list.length / pageSize.value) || 1)
+  if (page.value > maxPage) page.value = maxPage
+})
+
 function stringEq(a: string, b: string) {
   return (a || '').trim().toLowerCase() === (b || '').trim().toLowerCase()
 }
 
-const userTableColumns = computed<CrmTableColumnDef[]>(() => [
-  {
-    key: 'selection',
-    type: 'selection',
-    width: 48,
-    align: 'center',
-    fixed: 'left',
-    hideable: false,
-    reorderable: false,
-    pinned: 'start'
-  },
-  { key: 'status', label: t('systemUser.colStatus'), prop: 'status', width: 90, align: 'center' },
-  { key: 'userName', label: t('systemUser.colUserName'), prop: 'userName', minWidth: 160, showOverflowTooltip: true },
-  { key: 'realName', label: t('systemUser.colRealName'), prop: 'realName', minWidth: 160, showOverflowTooltip: true },
-  { key: 'email', label: t('systemUser.colEmail'), prop: 'email', minWidth: 200, showOverflowTooltip: true },
-  { key: 'mobile', label: t('systemUser.colMobile'), prop: 'mobile', width: 140 },
-  { key: 'roleCodes', label: t('systemUser.colRoleCodes'), minWidth: 220, showOverflowTooltip: true },
-  { key: 'primaryDepartmentName', label: t('systemUser.colPrimaryDept'), minWidth: 220, showOverflowTooltip: true },
-  { key: 'createTime', label: t('systemUser.colCreateTime'), width: 160 },
-  { key: 'createUser', label: t('systemUser.colCreateUser'), width: 120, showOverflowTooltip: true },
-  {
-    key: 'actions',
-    label: t('systemUser.action'),
-    width: opColWidth.value,
-    minWidth: opColMinWidth.value,
-    fixed: 'right',
-    hideable: false,
-    pinned: 'end',
-    reorderable: false,
-    className: 'op-col',
-    labelClassName: 'op-col',
-  resizable: false
-  }
-])
+function headerMin(label: string, extra?: { align?: 'left' | 'center' | 'right'; extra?: number }) {
+  return estimateListColumnHeaderMinWidth(label, extra)
+}
+
+const userTableColumns = computed<CrmTableColumnDef[]>(() => {
+  const status = t('systemUser.colStatus')
+  const userName = t('systemUser.colUserName')
+  const realName = t('systemUser.colRealName')
+  const level = t('systemUser.colLevel')
+  const email = t('systemUser.colEmail')
+  const mobile = t('systemUser.colMobile')
+  const roleCodes = t('systemUser.colRoleCodes')
+  const dept = t('systemUser.colPrimaryDept')
+  const createTime = t('systemUser.colCreateTime')
+  const createUser = t('systemUser.colCreateUser')
+  return [
+    {
+      key: 'selection',
+      type: 'selection',
+      width: 48,
+      align: 'center',
+      fixed: 'left',
+      hideable: false,
+      reorderable: false,
+      pinned: 'start'
+    },
+    { key: 'status', label: status, prop: 'status', width: Math.max(90, headerMin(status, { align: 'center' })), align: 'center' },
+    { key: 'userName', label: userName, prop: 'userName', minWidth: Math.max(160, headerMin(userName)), showOverflowTooltip: true },
+    { key: 'realName', label: realName, prop: 'realName', minWidth: Math.max(160, headerMin(realName)), showOverflowTooltip: true },
+    { key: 'level', label: level, width: Math.max(80, headerMin(level, { align: 'center' })), align: 'center' },
+    { key: 'email', label: email, prop: 'email', minWidth: Math.max(200, headerMin(email)), showOverflowTooltip: true },
+    { key: 'mobile', label: mobile, prop: 'mobile', width: Math.max(140, headerMin(mobile)) },
+    { key: 'roleCodes', label: roleCodes, minWidth: Math.max(220, headerMin(roleCodes)), showOverflowTooltip: true },
+    { key: 'primaryDepartmentName', label: dept, prop: 'primaryDepartmentName', minWidth: Math.max(220, headerMin(dept)), showOverflowTooltip: true },
+    { key: 'createTime', label: createTime, width: Math.max(160, headerMin(createTime)) },
+    { key: 'createUser', label: createUser, width: Math.max(120, headerMin(createUser)), showOverflowTooltip: true },
+    {
+      key: 'actions',
+      label: t('systemUser.action'),
+      width: opColWidth.value,
+      minWidth: opColMinWidth.value,
+      fixed: 'right',
+      hideable: false,
+      pinned: 'end',
+      reorderable: false,
+      className: 'op-col',
+      labelClassName: 'op-col',
+      resizable: false
+    }
+  ]
+})
 
 function impersonateVisibleForRow(row: AdminUserDto) {
   if (row.status !== 1) return false
@@ -432,10 +531,8 @@ function freezeRestoreVisibleForRow(row: AdminUserDto) {
 }
 
 function userRowClassName({ row }: { row: AdminUserDto }) {
-  return row.status === 2 ? 'user-list-row--frozen' : ''
+  return ['table-row-pointer', row.status === 2 ? 'user-list-row--frozen' : ''].filter(Boolean).join(' ')
 }
-
-const formatCreateTime = (v?: string) => formatDisplayDateTime(v)
 
 function onSelectionChange(rows: AdminUserDto[]) {
   selectedUsers.value = rows
@@ -505,8 +602,8 @@ const load = async () => {
       .filter((r) => r.status === 1)
       .filter((r) => authStore.user?.isSysAdmin === true || r.roleCode !== 'SYS_ADMIN')
       .sort((a, b) => a.roleName.localeCompare(b.roleName))
-  } catch (e: any) {
-    ElMessage.error(e?.message || t('systemUser.loadFailed'))
+  } catch (e: unknown) {
+    ElMessage.error(e instanceof Error ? e.message : t('systemUser.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -516,7 +613,10 @@ const goEdit = (id: string) => {
   router.push({ name: 'UserEdit', params: { id } })
 }
 
-const onRowDblclick = (row: AdminUserDto) => goEdit(row.id)
+const onRowDblclick = (row: AdminUserDto) => {
+  if (!canWrite.value) return
+  goEdit(row.id)
+}
 
 const requestDelete = (row: AdminUserDto) => {
   console.info('[UserList] delete click', { id: row.id, userName: row.userName })
@@ -571,7 +671,6 @@ const handleDelete = async (row: AdminUserDto) => {
     console.info('[UserList] delete api success, reloading list', { id })
     await load()
   } catch (e: unknown) {
-    // 用户点击取消：静默返回；其它异常明确提示，避免“删除后还在”却无反馈
     if (e === 'cancel' || e === 'close') {
       console.info('[UserList] delete canceled', { id, reason: e })
       return
@@ -662,8 +761,8 @@ async function handleImpersonate(row: AdminUserDto) {
     await authStore.impersonate(row.id)
     ElMessage.success(`已切换为 ${row.userName}`)
     await router.replace({ name: 'Dashboard' })
-  } catch (e: any) {
-    ElMessage.error(e?.message || '模拟登录失败')
+  } catch (e: unknown) {
+    ElMessage.error(e instanceof Error ? e.message : '模拟登录失败')
   } finally {
     impersonateUserId.value = null
   }
@@ -676,32 +775,245 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
-@import '@/assets/styles/system-list-page.scss';
 @import '@/assets/styles/variables.scss';
 
-.op-col-header {
+.user-list-page {
+  padding: 24px;
+  min-height: 100%;
+  background: $layer-1;
+  font-family: 'Noto Sans SC', sans-serif;
+}
+
+.page-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0;
-  width: 100%;
+  margin-bottom: 20px;
+  gap: 12px;
 }
 
-.op-col-header-text {
-  font-size: 12px;
-  line-height: 1;
-  white-space: nowrap;
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.op-col-toggle-btn {
-  padding: 0;
-  border: none;
-  background: transparent;
-  cursor: pointer;
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.page-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.page-icon {
+  width: 36px;
+  height: 36px;
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.25);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: $cyan-primary;
-  font-size: 16px;
-  line-height: 1;
-  flex: 0 0 auto;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: $text-primary;
+}
+
+.count-badge {
+  font-size: 12px;
+  color: $text-muted;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid $border-panel;
+  border-radius: 20px;
+  padding: 3px 10px;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.search-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.search-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  color: $text-muted;
+  pointer-events: none;
+}
+
+.search-input {
+  width: 220px;
+  padding: 7px 12px 7px 32px;
+  background: $layer-2;
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-primary;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  outline: none;
+  transition: border-color 0.2s;
+
+  &::placeholder { color: $text-muted; }
+  &:focus { border-color: rgba(0, 212, 255, 0.4); }
+
+  &--narrow {
+    width: 160px;
+  }
+}
+
+.status-select {
+  width: 120px;
+  :deep(.el-select__wrapper) {
+    background: $layer-2 !important;
+    box-shadow: none !important;
+    border: 1px solid $border-panel !important;
+    border-radius: $border-radius-md !important;
+  }
+  :deep(.el-select__placeholder) {
+    color: $text-muted !important;
+  }
+  :deep(.el-select__selected-item) {
+    color: $text-primary !important;
+  }
+}
+
+.status-select--dept {
+  width: 180px;
+}
+
+.status-select--role {
+  width: 240px;
+}
+
+.status-select--status {
+  width: 140px;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.8), rgba(0, 212, 255, 0.7));
+  border: 1px solid rgba(0, 212, 255, 0.4);
+  border-radius: $border-radius-md;
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  &.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(0, 212, 255, 0.25);
+  }
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-muted;
+  font-size: 13px;
+  cursor: pointer;
+  &:hover:not(:disabled) {
+    border-color: rgba(0, 212, 255, 0.3);
+    color: $text-secondary;
+  }
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  &.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
+
+.user-list-page .table-wrapper {
+  position: relative;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  color: $text-muted;
+  p {
+    margin: 12px 0 0;
+    font-size: 14px;
+  }
+}
+
+.pagination-wrapper {
+  margin-top: 12px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+}
+
+.list-main-pagination {
+  margin-left: auto;
+}
+
+.list-footer-left {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 0;
+}
+
+.list-settings-btn {
+  padding: 4px 6px !important;
+  min-width: 28px;
+}
+
+.list-footer-density-anchor {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
+}
+
+.list-footer-spacer {
+  width: 26px;
+  flex: 0 0 26px;
 }
 
 .op-more-trigger {
@@ -753,77 +1065,6 @@ onMounted(async () => {
   background-color: rgba(239, 68, 68, 0.12) !important;
 }
 
-.pagination-wrapper {
-  margin-top: 12px;
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-start;
-}
-
-.list-footer-left {
-  display: inline-flex;
-  align-items: flex-start;
-  gap: 6px;
-}
-
-.list-settings-btn {
-  padding: 4px 6px !important;
-  min-width: 28px;
-}
-
-.list-footer-density-anchor {
-  display: inline-flex;
-  align-items: center;
-  min-width: 0;
-  min-height: 0;
-}
-
-.list-footer-spacer {
-  width: 26px;
-  flex: 0 0 26px;
-}
-
-.crm-system-list-toolbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.user-list-search-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px 12px;
-  margin-bottom: 16px;
-  padding: 12px 14px;
-  border-radius: 8px;
-  background: rgba(0, 212, 255, 0.06);
-  border: 1px solid rgba(0, 212, 255, 0.12);
-}
-
-.user-list-search-label {
-  font-size: 13px;
-  color: rgba(148, 163, 184, 0.95);
-  white-space: nowrap;
-}
-
-.user-list-search-select {
-  width: 200px;
-}
-
-.user-list-search-select--role {
-  min-width: 220px;
-  width: 240px;
-}
-
-.user-list-search-select--status {
-  width: 140px;
-}
-
-.user-list-search-input {
-  width: 160px;
-}
-
 .reset-pwd-intro {
   margin: 0 0 8px;
   font-size: 13px;
@@ -839,4 +1080,3 @@ onMounted(async () => {
   line-height: 1.5;
 }
 </style>
-

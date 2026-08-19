@@ -745,6 +745,7 @@ const zhCN = {
       brandManagement: '品牌管理',
       systemManagement: '组织管理',
       userManagement: '员工管理',
+      userLevel: '用户等级',
       departmentManagement: '部门管理',
       roleManagement: '角色管理',
       permissionManagement: '权限管理',
@@ -795,7 +796,8 @@ const zhCN = {
       material: '物料',
       customerIntel: '调查',
       vendorIntel: '调查',
-      help: '帮助'
+      help: '帮助',
+      changeLog: '变更日志'
     },
     flowPanel: {
       youAreHere: '当前业务节点'
@@ -1687,6 +1689,8 @@ const zhCN = {
   },
   systemUser: {
     title: '员工管理',
+    count: '{count} 人',
+    empty: '暂无匹配的员工',
     create: '新增员工',
     statusEnabled: '启用',
     statusDisabled: '禁用',
@@ -1698,6 +1702,7 @@ const zhCN = {
     colStatus: '状态',
     colUserName: '员工账号',
     colRealName: '真实姓名',
+    colLevel: '等级',
     colEmail: '邮箱',
     colMobile: '手机',
     colRoleCodes: '角色',
@@ -1711,6 +1716,7 @@ const zhCN = {
     searchRealName: '真实姓名',
     searchFreezeFilter: '状态',
     freezeFilterAll: '全部',
+    allStatuses: '全部状态',
     freezeFilterNormal: '正常',
     freezeFilterDisabled: '停用',
     freezeFilterFrozen: '已冻结',
@@ -1752,6 +1758,8 @@ const zhCN = {
   },
   systemRole: {
     title: '角色管理',
+    count: '{count} 个',
+    empty: '暂无匹配的角色',
     create: '新增角色',
     columns: {
       roleCode: '角色编码',
@@ -1788,6 +1796,8 @@ const zhCN = {
   },
   systemPermission: {
     title: '权限管理',
+    count: '{count} 条',
+    empty: '暂无匹配的权限',
     create: '新增权限',
     listCount: '共 {count} 条',
     filters: {
@@ -2088,8 +2098,34 @@ const zhCN = {
       copyright: '版权信息'
     }
   },
+  systemUserLevel: {
+    title: '用户等级',
+    colRealName: '用户名称',
+    colUserName: '用户账号',
+    colDept: '部门',
+    colLevel: '等级',
+    colChangedAt: '变更日期',
+    colRemark: '备注',
+    allLevels: '全部等级',
+    count: '{count} 人',
+    empty: '暂无匹配的员工',
+    setLevel: '设置等级',
+    editTitle: '编辑用户等级',
+    userInfoTitle: '用户信息',
+    changePanelTitle: '等级变更',
+    changeLevel: '变更等级',
+    operator: '操作人',
+    logPickRow: '单击列表行查看等级变更记录',
+    historyEmpty: '尚无等级变更记录',
+    loadHistoryFailed: '加载变更记录失败',
+    levelUpdated: '等级已更新',
+    remarkSaved: '备注已保存',
+    saveFailed: '保存失败'
+  },
   systemDepartment: {
     title: '部门管理',
+    count: '{count} 个',
+    empty: '暂无匹配的部门',
     create: '新增部门',
     columns: {
       departmentName: '部门名称',

@@ -237,6 +237,7 @@ declare module 'vue' {
     SystemAnnouncementModal: typeof import('./src/components/SystemAnnouncement/SystemAnnouncementModal.vue')['default']
     SystemMessageDrawer: typeof import('./src/components/SystemAnnouncement/SystemMessageDrawer.vue')['default']
     TagListDisplay: typeof import('./src/components/Tag/TagListDisplay.vue')['default']
+    UserLevelChangeLogPanel: typeof import('./src/components/System/UserLevelChangeLogPanel.vue')['default']
     VendorBankInfoPanel: typeof import('./src/components/Vendor/VendorBankInfoPanel.vue')['default']
     VendorBankSelect: typeof import('./src/components/Vendor/VendorBankSelect.vue')['default']
     VendorExtendCell: typeof import('./src/components/list/VendorExtendCell.vue')['default']

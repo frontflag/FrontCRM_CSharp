@@ -71,6 +71,7 @@
     { "id": "MENU_FINANCE_ANALYTICS", "label": "财务分析", "routeNames": ["FinanceAnalytics"], "pathPrefixes": ["/reports/finance"] },
 
     { "id": "MENU_SYS_USERS", "label": "员工管理", "routeNames": ["UserList", "UserCreate", "UserEdit"], "pathPrefixes": ["/system/users"] },
+    { "id": "MENU_SYS_USER_LEVELS", "label": "用户等级", "routeNames": ["UserLevelList"], "pathPrefixes": ["/system/user-levels"] },
     { "id": "MENU_SYS_DEPTS", "label": "部门管理", "routeNames": ["DepartmentList", "DepartmentCreate", "DepartmentEdit", "DepartmentDetail"], "pathPrefixes": ["/system/departments"] },
     { "id": "MENU_SYS_ROLES", "label": "角色管理", "routeNames": ["RoleList", "RoleCreate", "RoleEdit"], "pathPrefixes": ["/system/roles"] },
     { "id": "MENU_SYS_PERMS", "label": "权限管理", "routeNames": ["PermissionList", "PermissionCreate", "PermissionEdit"], "pathPrefixes": ["/system/permissions"] },

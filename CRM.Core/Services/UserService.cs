@@ -32,6 +32,7 @@ namespace CRM.Core.Services
                 Email = request.Email?.Trim(),
                 Mobile = request.Mobile?.Trim(),
                 Status = 1,
+                Level = UserLevelCode.Default,
                 IsActive = true,
                 CreateTime = DateTime.UtcNow
             };

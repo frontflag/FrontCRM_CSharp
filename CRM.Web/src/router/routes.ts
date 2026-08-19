@@ -830,6 +830,12 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '编辑员工', permission: 'system.org.users.write' }
       },
       {
+        path: 'system/user-levels',
+        name: 'UserLevelList',
+        component: () => import('@/views/System/UserLevelList.vue'),
+        meta: { requiresAuth: true, title: '用户等级', permission: 'system.org.users.read' }
+      },
+      {
         path: 'system/roles',
         name: 'RoleList',
         component: () => import('@/views/System/RoleList.vue'),

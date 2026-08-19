@@ -17,6 +17,9 @@ export interface AdminUserDto {
   primaryDepartmentId?: string
   primaryDepartmentName?: string
   primaryDepartmentPath?: string
+  level?: number
+  levelChangedAt?: string | null
+  levelRemark?: string | null
 }
 
 export interface RbacRole {
@@ -25,6 +28,10 @@ export interface RbacRole {
   roleName: string
   description?: string
   status: number
+  createTime?: string
+  createdAt?: string
+  createUserName?: string
+  createdBy?: string
 }
 
 export interface RbacPermission {
@@ -35,6 +42,10 @@ export interface RbacPermission {
   resource?: string
   action?: string
   status: number
+  createTime?: string
+  createdAt?: string
+  createUserName?: string
+  createdBy?: string
 }
 
 export interface RbacDepartment {
@@ -64,6 +75,9 @@ export interface RbacDepartment {
   // 详情页可能用到的字段（先按可选字段处理）
   parentId?: string
   createTime?: string
+  createdAt?: string
+  createUserName?: string
+  createdBy?: string
   modifyTime?: string
 }
 

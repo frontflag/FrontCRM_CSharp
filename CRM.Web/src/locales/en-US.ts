@@ -749,6 +749,7 @@ const enUS = {
       brandManagement: 'Brand management',
       systemManagement: 'Organization',
       userManagement: 'Employee',
+      userLevel: 'User level',
       departmentManagement: 'Department',
       roleManagement: 'Role',
       permissionManagement: 'Permission',
@@ -799,7 +800,8 @@ const enUS = {
       material: 'Material',
       customerIntel: 'Intel',
       vendorIntel: 'Intel',
-      help: 'Help'
+      help: 'Help',
+      changeLog: 'Change log'
     },
     flowPanel: {
       youAreHere: 'Current business node'
@@ -1693,6 +1695,8 @@ const enUS = {
   },
   systemUser: {
     title: 'Employee Management',
+    count: '{count} people',
+    empty: 'No matching employees',
     create: 'New Employee',
     statusEnabled: 'Enabled',
     statusDisabled: 'Disabled',
@@ -1704,6 +1708,7 @@ const enUS = {
     colStatus: 'Status',
     colUserName: 'Account',
     colRealName: 'Name',
+    colLevel: 'Level',
     colEmail: 'Email',
     colMobile: 'Mobile',
     colRoleCodes: 'Roles',
@@ -1717,6 +1722,7 @@ const enUS = {
     searchRealName: 'Name',
     searchFreezeFilter: 'Status',
     freezeFilterAll: 'All',
+    allStatuses: 'All statuses',
     freezeFilterNormal: 'Active',
     freezeFilterDisabled: 'Disabled',
     freezeFilterFrozen: 'Frozen',
@@ -1760,6 +1766,8 @@ const enUS = {
   },
   systemRole: {
     title: 'Role Management',
+    count: '{count} items',
+    empty: 'No matching roles',
     create: 'New Role',
     columns: {
       roleCode: 'Role Code',
@@ -1796,6 +1804,8 @@ const enUS = {
   },
   systemPermission: {
     title: 'Permission Management',
+    count: '{count} items',
+    empty: 'No matching permissions',
     create: 'New Permission',
     listCount: '{count} total',
     filters: {
@@ -2105,8 +2115,34 @@ const enUS = {
       copyright: 'Copyright'
     }
   },
+  systemUserLevel: {
+    title: 'User level',
+    colRealName: 'Name',
+    colUserName: 'Account',
+    colDept: 'Department',
+    colLevel: 'Level',
+    colChangedAt: 'Effective date',
+    colRemark: 'Remark',
+    allLevels: 'All levels',
+    count: '{count} people',
+    empty: 'No matching employees',
+    setLevel: 'Set level',
+    editTitle: 'Edit user level',
+    userInfoTitle: 'User',
+    changePanelTitle: 'Level changes',
+    changeLevel: 'Level change',
+    operator: 'Operator',
+    logPickRow: 'Click a row to view level history',
+    historyEmpty: 'No level changes yet',
+    loadHistoryFailed: 'Failed to load history',
+    levelUpdated: 'Level updated',
+    remarkSaved: 'Remark saved',
+    saveFailed: 'Save failed'
+  },
   systemDepartment: {
     title: 'Department Management',
+    count: '{count} items',
+    empty: 'No matching departments',
     create: 'New Department',
     columns: {
       departmentName: 'Department Name',

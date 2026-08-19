@@ -35,6 +35,7 @@ namespace CRM.Infrastructure.Data
 
         // ===== 原有表 =====
         public DbSet<User> Users { get; set; } = null!;
+        public DbSet<UserLevelHistory> UserLevelHistories { get; set; } = null!;
         public DbSet<CustomerInfo> Customers { get; set; } = null!;
         public DbSet<CustomerAddress> CustomerAddresses { get; set; } = null!;
         public DbSet<CustomerContactInfo> CustomerContacts { get; set; } = null!;
@@ -531,6 +532,24 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.PasswordHash).IsRequired().HasMaxLength(256);
                 entity.Property(e => e.Salt).IsRequired().HasMaxLength(50);
                 entity.Property(e => e.Status).HasDefaultValue((short)1);
+                entity.Property(e => e.Level).HasDefaultValue((short)1);
+                entity.Property(e => e.LevelRemark).HasMaxLength(200);
+            });
+
+            modelBuilder.Entity<UserLevelHistory>(entity =>
+            {
+                entity.ToTable("user_level_history");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("UserLevelHistoryId").HasMaxLength(36);
+                entity.Property(e => e.UserId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.UserName).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.Remark).HasMaxLength(200);
+                entity.Property(e => e.OperatorUserId).HasMaxLength(36);
+                entity.Property(e => e.OperatorUserName).HasMaxLength(50);
+                entity.Ignore(e => e.CreateUserId);
+                entity.Ignore(e => e.ModifyUserId);
+                entity.Ignore(e => e.ModifyTime);
+                entity.HasIndex(e => new { e.UserId, e.ChangeTime });
             });
 
             // Customer configuration

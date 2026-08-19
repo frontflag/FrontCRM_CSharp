@@ -61,6 +61,19 @@ namespace CRM.Core.Models
         [Column("Status")]
         public short Status { get; set; } = 1;
 
+        /// <summary>当前用户等级（1～20，默认 1）。履历见 <c>user_level_history</c>。</summary>
+        [Column("Level")]
+        public short Level { get; set; } = 1;
+
+        /// <summary>当前等级开始时间（UTC）；从未改过级则为空。</summary>
+        [Column("LevelChangedAt")]
+        public DateTime? LevelChangedAt { get; set; }
+
+        /// <summary>当前等级备注（编辑窗口；改级时同时写入当次履历）。</summary>
+        [MaxLength(200)]
+        [Column("LevelRemark")]
+        public string? LevelRemark { get; set; }
+
         /// <summary>
         /// 密码最后修改时间
         /// </summary>

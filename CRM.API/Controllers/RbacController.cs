@@ -357,6 +357,9 @@ namespace CRM.API.Controllers
             public string? PrimaryDepartmentId { get; set; }
             public string? PrimaryDepartmentName { get; set; }
             public string? PrimaryDepartmentPath { get; set; }
+            public short Level { get; set; } = 1;
+            public DateTime? LevelChangedAt { get; set; }
+            public string? LevelRemark { get; set; }
         }
 
         public class CreateAdminUserRequest
@@ -430,7 +433,10 @@ namespace CRM.API.Controllers
                 DepartmentIds = departmentIds,
                 PrimaryDepartmentId = primaryDept?.DepartmentId,
                 PrimaryDepartmentName = primaryDeptEntity?.DepartmentName,
-                PrimaryDepartmentPath = primaryDeptEntity?.Path
+                PrimaryDepartmentPath = primaryDeptEntity?.Path,
+                Level = user.Level < 1 ? (short)1 : user.Level,
+                LevelChangedAt = user.LevelChangedAt,
+                LevelRemark = user.LevelRemark
             };
         }
 
@@ -493,7 +499,10 @@ namespace CRM.API.Controllers
                         DepartmentIds = departmentIds,
                         PrimaryDepartmentId = primaryDept?.DepartmentId,
                         PrimaryDepartmentName = primaryDeptEntity?.DepartmentName,
-                        PrimaryDepartmentPath = primaryDeptEntity?.Path
+                        PrimaryDepartmentPath = primaryDeptEntity?.Path,
+                        Level = u.Level < 1 ? (short)1 : u.Level,
+                        LevelChangedAt = u.LevelChangedAt,
+                        LevelRemark = u.LevelRemark
                     };
                 })
                 .Where(dto => ManagementAccountPolicy.CanMaintainTarget(actor, dto.RoleCodes))
