@@ -12,8 +12,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { StockInTypeCode } from '@/constants/stockInType'
-import { StockOutTypeCode } from '@/constants/stockOutType'
+import { resolveStockInTypeLabelKey } from '@/constants/stockInType'
+import { resolveStockOutTypeLabelKey } from '@/constants/stockOutType'
 import CustomsDeclarationIconLink from '@/components/Customs/CustomsDeclarationIconLink.vue'
 
 const props = defineProps<{
@@ -27,54 +27,30 @@ const props = defineProps<{
 
 const { t } = useI18n()
 
-const normalizedType = computed(() => {
-  const n = Number(props.type)
-  if (props.biz === 'in') {
-    if (n === 1) return StockInTypeCode.Purchase
-    if (n === 2) return StockInTypeCode.Return
-    if (n === 4) return StockInTypeCode.Scrap
-    if (
-      n === StockInTypeCode.Purchase ||
-      n === StockInTypeCode.Customs ||
-      n === StockInTypeCode.Return ||
-      n === StockInTypeCode.Scrap
-    ) {
-      return n
-    }
-    return StockInTypeCode.Purchase
-  }
-  if (
-    n === StockOutTypeCode.Sales ||
-    n === StockOutTypeCode.Customs ||
-    n === StockOutTypeCode.Return ||
-    n === StockOutTypeCode.Scrap
-  ) {
-    return n
-  }
-  return StockOutTypeCode.Sales
+const inLabelKey = computed(() => resolveStockInTypeLabelKey(props.type))
+const outLabelKey = computed(() => resolveStockOutTypeLabelKey(props.type))
+
+const tagClass = computed(() => {
+  const key = props.biz === 'in' ? inLabelKey.value : outLabelKey.value
+  if (key === 'purchase' || key === 'sales') return 'biz-type-tag--10'
+  if (key === 'customs') return 'biz-type-tag--20'
+  if (key === 'return') return 'biz-type-tag--30'
+  if (key === 'scrap') return 'biz-type-tag--40'
+  if (key === 'transfer') return 'biz-type-tag--3'
+  return 'biz-type-tag--unknown'
 })
 
-const tagClass = computed(() => `biz-type-tag--${normalizedType.value}`)
-
 const showCustomsIcon = computed(() => {
-  const n = normalizedType.value
   const isCustomsType =
-    props.biz === 'in' ? n === StockInTypeCode.Customs : n === StockOutTypeCode.Customs
+    props.biz === 'in' ? inLabelKey.value === 'customs' : outLabelKey.value === 'customs'
   return isCustomsType && !!(props.customsDeclarationId || '').trim()
 })
 
 const displayLabel = computed(() => {
-  const n = normalizedType.value
   if (props.biz === 'in') {
-    if (n === StockInTypeCode.Customs) return t('stockInList.stockInTypeLabels.customs')
-    if (n === StockInTypeCode.Return) return t('stockInList.stockInTypeLabels.return')
-    if (n === StockInTypeCode.Scrap) return t('stockInList.stockInTypeLabels.scrap')
-    return t('stockInList.stockInTypeLabels.purchase')
+    return t(`stockInList.stockInTypeLabels.${inLabelKey.value}`)
   }
-  if (n === StockOutTypeCode.Customs) return t('stockOutList.stockOutTypeLabels.customs')
-  if (n === StockOutTypeCode.Return) return t('stockOutList.stockOutTypeLabels.return')
-  if (n === StockOutTypeCode.Scrap) return t('stockOutList.stockOutTypeLabels.scrap')
-  return t('stockOutList.stockOutTypeLabels.sales')
+  return t(`stockOutList.stockOutTypeLabels.${outLabelKey.value}`)
 })
 </script>
 
@@ -121,5 +97,16 @@ const displayLabel = computed(() => {
 .biz-type-tag--40 {
   background: rgba(201, 87, 69, 0.18);
   color: #c95745;
+}
+
+/* 3 移库 */
+.biz-type-tag--3 {
+  background: rgba(64, 158, 255, 0.16);
+  color: #409eff;
+}
+
+.biz-type-tag--unknown {
+  background: rgba(148, 163, 184, 0.22);
+  color: #64748b;
 }
 </style>

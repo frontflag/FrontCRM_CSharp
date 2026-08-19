@@ -671,9 +671,12 @@
                         v-for="col in soLineOverviewColumns"
                         :key="`${row.key}-${col.key}`"
                         class="so-line-overview__cell"
-                        :class="{ 'so-line-overview__cell--right': col.isAmount }"
+                        :class="{
+                          'so-line-overview__cell--right': col.isAmount,
+                          'so-line-overview__cell--muted': formatOverviewCell(col, row.key).isMuted
+                        }"
                       >
-                        <span v-if="formatOverviewCell(col, row.key).type === 'dash'">—</span>
+                        <span v-if="formatOverviewCell(col, row.key).type === 'dash'" class="so-line-overview__dash">—</span>
                         <span
                           v-else-if="formatOverviewCell(col, row.key).type === 'qty'"
                           class="so-line-overview__qty"
@@ -1862,13 +1865,19 @@ function formatOverviewQty(v: number) {
   return n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 4 })
 }
 
+function isOverviewNumericZero(raw: number | undefined): boolean {
+  if (raw == null) return false
+  const n = Number(raw)
+  return Number.isFinite(n) && Math.abs(n) <= 1e-9
+}
+
 function formatOverviewCell(
   col: SoLineOverviewColumnDef,
   rowKey: 'total' | 'done' | 'pending'
-): { type: 'dash' | 'qty' | 'amount'; text: string; currency?: number } {
+): { type: 'dash' | 'qty' | 'amount'; text: string; currency?: number; isZero: boolean; isMuted: boolean } {
   const metric = col.metric
   if (!col.colorize && rowKey !== 'total') {
-    return { type: 'dash', text: '—' }
+    return { type: 'dash', text: '—', isZero: false, isMuted: true }
   }
 
   let raw: number | undefined
@@ -1876,15 +1885,16 @@ function formatOverviewCell(
   else if ('done' in metric && rowKey === 'done') raw = metric.done
   else if ('pending' in metric && rowKey === 'pending') raw = metric.pending
 
-  if (raw == null) return { type: 'dash', text: '—' }
+  if (raw == null) return { type: 'dash', text: '—', isZero: false, isMuted: true }
 
+  const isZero = isOverviewNumericZero(raw)
   if (col.isAmount) {
-    if (!showSalesMoneyFields.value) return { type: 'dash', text: '—' }
+    if (!showSalesMoneyFields.value) return { type: 'dash', text: '—', isZero: false, isMuted: true }
     const currency = 'currency' in metric ? metric.currency : undefined
-    return { type: 'amount', text: formatTotalAmountNumber(raw), currency }
+    return { type: 'amount', text: formatTotalAmountNumber(raw), currency, isZero, isMuted: isZero }
   }
 
-  return { type: 'qty', text: formatOverviewQty(raw) }
+  return { type: 'qty', text: formatOverviewQty(raw), isZero, isMuted: isZero }
 }
 
 const soItemLinePanel = reactive({
@@ -3449,11 +3459,35 @@ const handleEdit = () => {
     &--right {
       text-align: right;
     }
+
+    &--muted {
+      color: $text-muted;
+
+      .so-line-overview__dash,
+      .so-line-overview__qty,
+      .amount-with-code,
+      .amount-with-code > span {
+        color: $text-muted;
+      }
+
+      :deep(.dock-tier-ccy),
+      :deep(.dock-tier-ccy--rmb),
+      :deep(.dock-tier-ccy--usd),
+      :deep(.dock-tier-ccy--eur),
+      :deep(.dock-tier-ccy--hkd),
+      :deep(.dock-tier-ccy--purple) {
+        color: $text-muted;
+      }
+    }
   }
 
   &__qty {
     font-variant-numeric: tabular-nums;
     color: var(--crm-table-text);
+  }
+
+  &__dash {
+    color: $text-muted;
   }
 }
 
@@ -3814,6 +3848,21 @@ const handleEdit = () => {
   margin-top: 10px;
   margin-bottom: 4px;
   white-space: nowrap;
+}
+
+/* 概况矩阵：0 / — 覆盖全局币别色（.dock-tier-ccy--usd 等） */
+.so-line-overview__cell--muted,
+.so-line-overview__cell--muted .so-line-overview__dash,
+.so-line-overview__cell--muted .so-line-overview__qty,
+.so-line-overview__cell--muted .amount-with-code,
+.so-line-overview__cell--muted .amount-with-code > span,
+.so-line-overview__cell--muted .dock-tier-ccy,
+.so-line-overview__cell--muted .dock-tier-ccy--rmb,
+.so-line-overview__cell--muted .dock-tier-ccy--usd,
+.so-line-overview__cell--muted .dock-tier-ccy--eur,
+.so-line-overview__cell--muted .dock-tier-ccy--hkd,
+.so-line-overview__cell--muted .dock-tier-ccy--purple {
+  color: var(--crm-text-muted);
 }
 
 </style>

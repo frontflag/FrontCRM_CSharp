@@ -452,7 +452,7 @@ import { resetListRightPanelOnReload } from '@/composables/useListRightPanelRese
 import { STOCK_OUT_REQUEST_STATUS } from '@/constants/stockOutRequestStatus'
 import { STOCK_OUT_NOTIFY_CUSTOMS_STATUS } from '@/constants/stockOutNotifyCustomsStatus'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
-import { StockOutTypeCode, STOCK_OUT_TYPE_FILTER_VALUES } from '@/constants/stockOutType'
+import { StockOutTypeCode, STOCK_OUT_TYPE_FILTER_VALUES, resolveStockOutTypeLabelKey } from '@/constants/stockOutType'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 
@@ -664,11 +664,7 @@ function customsStatusLabel(code?: number | null): string {
 }
 
 function notifyStockOutTypeLabel(type?: number | null): string {
-  const n = Number(type ?? StockOutTypeCode.Sales)
-  if (n === StockOutTypeCode.Customs) return t('stockOutNotifyList.stockOutTypeLabels.customs')
-  if (n === StockOutTypeCode.Return) return t('stockOutNotifyList.stockOutTypeLabels.return')
-  if (n === StockOutTypeCode.Scrap) return t('stockOutNotifyList.stockOutTypeLabels.scrap')
-  return t('stockOutNotifyList.stockOutTypeLabels.sales')
+  return t(`stockOutNotifyList.stockOutTypeLabels.${resolveStockOutTypeLabelKey(type)}`)
 }
 
 function isCustomsNotify(row: StockOutRequestDto): boolean {

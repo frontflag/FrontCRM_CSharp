@@ -295,7 +295,7 @@ import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import VendorExtendColumnHeader from '@/components/list/VendorExtendColumnHeader.vue'
 import VendorExtendCell from '@/components/list/VendorExtendCell.vue'
 import { useVendorExtendColumn, isVendorExtendTableColumn } from '@/composables/useVendorExtendColumn'
-import { StockInTypeCode, STOCK_IN_TYPE_FILTER_VALUES } from '@/constants/stockInType'
+import { StockInTypeCode, STOCK_IN_TYPE_FILTER_VALUES, resolveStockInTypeLabelKey } from '@/constants/stockInType'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const {
@@ -471,11 +471,7 @@ const statusLabel = (s: number) => {
 }
 
 function listStockInTypeLabel(type: number | undefined | null): string {
-  const n = Number(type)
-  if (n === StockInTypeCode.Customs) return t('stockInList.stockInTypeLabels.customs')
-  if (n === StockInTypeCode.Return) return t('stockInList.stockInTypeLabels.return')
-  if (n === StockInTypeCode.Scrap) return t('stockInList.stockInTypeLabels.scrap')
-  return t('stockInList.stockInTypeLabels.purchase')
+  return t(`stockInList.stockInTypeLabels.${resolveStockInTypeLabelKey(type)}`)
 }
 
 function isCustomsStockIn(row: StockInListItemDto): boolean {

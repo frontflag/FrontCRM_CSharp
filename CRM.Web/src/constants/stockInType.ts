@@ -1,36 +1,55 @@
-/** 与后端 StockInTypeCode / stock_in.StockInType 一致 */
-export const StockInTypeCode = {
-  Purchase: 10,
-  Customs: 20,
-  Return: 30,
-  Scrap: 40,
-  /** 移库虚拟入库，购销列表默认排除 */
-  Transfer: 3
-} as const
-
-export const STOCK_IN_TYPE_FILTER_VALUES = [
-  StockInTypeCode.Purchase,
-  StockInTypeCode.Customs,
-  StockInTypeCode.Return,
-  StockInTypeCode.Scrap
-] as const
-
-const STOCK_IN_TYPE_LABELS: Record<number, string> = {
-  [StockInTypeCode.Purchase]: '采购入库',
-  [StockInTypeCode.Customs]: '报关入库',
-  [StockInTypeCode.Return]: '退货入库',
-  [StockInTypeCode.Scrap]: '报废入库',
-  [StockInTypeCode.Transfer]: '调拨入库'
-}
-
-/** 兼容迁移前库内 1/2/4 旧值展示 */
-const LEGACY_STOCK_IN_TYPE: Record<number, number> = {
-  1: StockInTypeCode.Purchase,
-  2: StockInTypeCode.Return,
-  4: StockInTypeCode.Scrap
-}
-
-export function stockInTypeLabel(type: number): string {
-  const resolved = LEGACY_STOCK_IN_TYPE[type] ?? type
-  return STOCK_IN_TYPE_LABELS[resolved] ?? String(type)
-}
+/** 与后端 StockInTypeCode / stock_in.StockInType 一致 */
+export const StockInTypeCode = {
+  Purchase: 10,
+  Customs: 20,
+  Return: 30,
+  Scrap: 40,
+  /** 移库虚拟入库，购销列表默认排除 */
+  Transfer: 3
+} as const
+
+export const STOCK_IN_TYPE_FILTER_VALUES = [
+  StockInTypeCode.Purchase,
+  StockInTypeCode.Customs,
+  StockInTypeCode.Return,
+  StockInTypeCode.Scrap
+] as const
+
+export type StockInTypeLabelKey =
+  | 'purchase'
+  | 'customs'
+  | 'return'
+  | 'scrap'
+  | 'transfer'
+  | 'unknown'
+
+/**
+ * 入库类型界面文案键。禁止未识别值兜成采购入库：仅 1/10 为采购入库。
+ */
+export function resolveStockInTypeLabelKey(
+  type: number | string | null | undefined
+): StockInTypeLabelKey {
+  if (type === null || type === undefined) return 'unknown'
+  if (typeof type === 'string' && type.trim() === '') return 'unknown'
+  const n = Number(type)
+  if (!Number.isFinite(n) || n === 0) return 'unknown'
+  if (n === 1 || n === StockInTypeCode.Purchase) return 'purchase'
+  if (n === StockInTypeCode.Customs) return 'customs'
+  if (n === 2 || n === StockInTypeCode.Return) return 'return'
+  if (n === 4 || n === StockInTypeCode.Scrap) return 'scrap'
+  if (n === StockInTypeCode.Transfer) return 'transfer'
+  return 'unknown'
+}
+
+const STOCK_IN_TYPE_LABELS: Record<StockInTypeLabelKey, string> = {
+  purchase: '采购入库',
+  customs: '报关入库',
+  return: '退货入库',
+  scrap: '报废入库',
+  transfer: '移库',
+  unknown: '未知'
+}
+
+export function stockInTypeLabel(type: number | string | null | undefined): string {
+  return STOCK_IN_TYPE_LABELS[resolveStockInTypeLabelKey(type)]
+}

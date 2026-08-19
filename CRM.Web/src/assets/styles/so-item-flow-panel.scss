@@ -181,6 +181,19 @@ $flow-status-done: #67c23a;
   &--full {
     grid-column: 1 / -1;
   }
+
+  &--type-status {
+    flex-direction: column;
+    gap: 4px;
+  }
+}
+
+.so-item-flow-kv__pair {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  width: 100%;
 }
 
 .so-item-flow-kv__label {

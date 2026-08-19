@@ -452,7 +452,7 @@ import VendorNameReadonlyText from '@/components/Vendor/VendorNameReadonlyText.v
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
-import { StockInTypeCode, STOCK_IN_TYPE_FILTER_VALUES } from '@/constants/stockInType'
+import { STOCK_IN_TYPE_FILTER_VALUES, resolveStockInTypeLabelKey } from '@/constants/stockInType'
 import { SETTLEMENT_CURRENCY_OPTIONS, CurrencyCode } from '@/constants/currency'
 import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
@@ -693,10 +693,7 @@ function onFilterTabClick(tab: ArrivalNoticeFilterTabId) {
 }
 
 function arrivalTypeLabel(type: number): string {
-  if (type === StockInTypeCode.Customs) return t('stockInList.stockInTypeLabels.customs')
-  if (type === StockInTypeCode.Return) return t('stockInList.stockInTypeLabels.return')
-  if (type === StockInTypeCode.Scrap) return t('stockInList.stockInTypeLabels.scrap')
-  return t('stockInList.stockInTypeLabels.purchase')
+  return t(`stockInList.stockInTypeLabels.${resolveStockInTypeLabelKey(type)}`)
 }
 
 const num = (v: unknown) => Number(v ?? 0)

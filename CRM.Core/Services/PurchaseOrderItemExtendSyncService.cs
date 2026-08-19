@@ -130,7 +130,7 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
         ext.QtyStockInNotifyExpectSum = lines.Sum(x => x.ExpectQty);
         ext.QtyStockInNotifyNot = Math.Max(0m, poItem.Qty - sumReceiveNotify - inTransit);
 
-        // --- 入库数量：已入库采购入库单下，stockinitemextend.purchase_order_item_id 与本行一致的明细数量累计 ---
+        // --- 入库数量：已过账采购入库（类型 1/10）下，stockinitemextend.purchase_order_item_id 与本行一致的明细数量累计 ---
         var stockInCompletedQty = await SumCompletedPurchaseStockInQtyForPoLineAsync(poItem.Id, cancellationToken);
         ext.QtyReceiveTotal = stockInCompletedQty;
 
@@ -385,7 +385,8 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
     }
 
     /// <summary>
-    /// 有效入库数量：<c>stockinitemextend.purchase_order_item_id</c> 等于本采购明细主键、且父入库单为已入库采购入库时，累计对应明细行 <see cref="StockInItem.Quantity"/>。
+    /// 有效入库数量：<c>stockinitemextend.purchase_order_item_id</c> 等于本采购明细主键、且父入库单已过账、类型为采购入库（1/10）时，累计对应明细行数量。
+    /// 报关入库、移库、退货、报废及未识别类型不计入（报关入库为后续入境内，不算采购行收货）。详情底部「入库」页签仍可列出关联单据。
     /// </summary>
     private async Task<decimal> SumCompletedPurchaseStockInQtyForPoLineAsync(
         string purchaseOrderItemId,
@@ -398,17 +399,51 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
                 e.PurchaseOrderItemId != null && e.PurchaseOrderItemId == poItemId))
             .ToList();
         if (extMatches.Count == 0) return 0m;
+
+        var stockInIds = extMatches
+            .Select(e => e.StockInId)
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var completed = (await _stockInRepo.FindAsync(s =>
+                stockInIds.Contains(s.Id)
+                && s.Status == StockInCompleted
+                && (s.StockInType == StockInTypeCode.Purchase
+                    || s.StockInType == StockInTypeCode.LegacyPurchase)))
+            .ToList();
+        if (completed.Count == 0) return 0m;
+        var completedIds = completed.Select(s => s.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         var itemIds = extMatches.Select(e => e.Id).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         var items = (await _stockInItemRepo.FindAsync(x => itemIds.Contains(x.Id))).ToList();
-        if (items.Count == 0) return 0m;
-        var siIds = items.Select(x => x.StockInId).Distinct().ToList();
-        var completedIds = (await _stockInRepo.FindAsync(s =>
-                siIds.Contains(s.Id)
-                && s.Status == StockInCompleted
-                && s.StockInType == StockInTypeCode.Purchase))
-            .Select(s => s.Id)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        return items.Where(i => completedIds.Contains(i.StockInId)).Sum(i => (decimal)i.Quantity);
+        var qtyByStockIn = items
+            .Where(i => completedIds.Contains(i.StockInId))
+            .GroupBy(i => i.StockInId, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.Sum(StockInLineProgressQty), StringComparer.OrdinalIgnoreCase);
+
+        decimal sum = 0m;
+        foreach (var si in completed)
+        {
+            if (qtyByStockIn.TryGetValue(si.Id, out var lineQty) && lineQty > 0m)
+            {
+                sum += lineQty;
+                continue;
+            }
+
+            var onlyThisLine = extMatches.Count(e =>
+                string.Equals(e.StockInId, si.Id, StringComparison.OrdinalIgnoreCase)) == 1;
+            if (onlyThisLine && si.TotalQuantity > 0)
+                sum += si.TotalQuantity;
+        }
+
+        return sum;
+    }
+
+    /// <summary>入库进度数量：优先明细 Quantity，历史为 0 时回退 QtyReceived。</summary>
+    private static decimal StockInLineProgressQty(StockInItem i)
+    {
+        if (i.Quantity > 0) return i.Quantity;
+        return i.QtyReceived > 0 ? i.QtyReceived : 0m;
     }
 
     private async Task<decimal> SumPurchaseInvoiceDoneForPoLineAsync(PurchaseOrderItem poItem)

@@ -45,23 +45,48 @@
             <div v-else class="so-item-flow-cards">
               <article v-for="card in station.cards" :key="card.id" class="so-item-flow-card">
                 <div class="so-item-flow-kv">
-                  <div class="so-item-flow-kv__cell">
-                    <span class="so-item-flow-kv__label">{{ t('purchaseOrderItemList.flowPanel.fields.docNo') }}：</span>
-                    <span class="so-item-flow-kv__value">
-                      <router-link
-                        v-if="card.docRoute && !maskSensitive"
-                        class="link-text"
-                        :to="toRouteLocation(card.docRoute)"
-                      >
-                        {{ card.docNo }}
-                      </router-link>
-                      <template v-else>{{ card.docNo }}</template>
-                    </span>
-                  </div>
-                  <div class="so-item-flow-kv__cell">
-                    <span class="so-item-flow-kv__label">{{ t('purchaseOrderItemList.flowPanel.fields.status') }}：</span>
-                    <span class="so-item-flow-kv__value">{{ card.statusText || '—' }}</span>
-                  </div>
+                  <template v-if="station.key === 'stockIn'">
+                    <div class="so-item-flow-kv__cell so-item-flow-kv__cell--full">
+                      <span class="so-item-flow-kv__label">{{ t('purchaseOrderItemList.flowPanel.fields.docNo') }}：</span>
+                      <span class="so-item-flow-kv__value">
+                        <router-link
+                          v-if="card.docRoute && !maskSensitive"
+                          class="link-text"
+                          :to="toRouteLocation(card.docRoute)"
+                        >
+                          {{ card.docNo }}
+                        </router-link>
+                        <template v-else>{{ card.docNo }}</template>
+                      </span>
+                    </div>
+                    <div class="so-item-flow-kv__cell">
+                      <span class="so-item-flow-kv__label">{{ t('purchaseOrderItemList.flowPanel.fields.stockInType') }}：</span>
+                      <span class="so-item-flow-kv__value">{{ card.bizTypeText || '—' }}</span>
+                    </div>
+                    <div class="so-item-flow-kv__cell">
+                      <span class="so-item-flow-kv__label">{{ t('purchaseOrderItemList.flowPanel.fields.status') }}：</span>
+                      <span class="so-item-flow-kv__value">{{ card.statusText || '—' }}</span>
+                    </div>
+                  </template>
+                  <template v-else>
+                    <div class="so-item-flow-kv__cell">
+                      <span class="so-item-flow-kv__label">{{ t('purchaseOrderItemList.flowPanel.fields.docNo') }}：</span>
+                      <span class="so-item-flow-kv__value">
+                        <router-link
+                          v-if="card.docRoute && !maskSensitive"
+                          class="link-text"
+                          :to="toRouteLocation(card.docRoute)"
+                        >
+                          {{ card.docNo }}
+                        </router-link>
+                        <template v-else>{{ card.docNo }}</template>
+                      </span>
+                    </div>
+                    <div class="so-item-flow-kv__cell">
+                      <span class="so-item-flow-kv__label">{{ t('purchaseOrderItemList.flowPanel.fields.status') }}：</span>
+                      <span class="so-item-flow-kv__value">{{ card.statusText || '—' }}</span>
+                    </div>
+                  </template>
                   <div class="so-item-flow-kv__cell">
                     <span class="so-item-flow-kv__label">{{ t('purchaseOrderItemList.flowPanel.fields.createdAt') }}：</span>
                     <span class="so-item-flow-kv__value">{{ formatPoFlowCardDate(card.createdAt) }}</span>

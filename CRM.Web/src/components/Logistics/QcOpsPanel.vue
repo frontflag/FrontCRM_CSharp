@@ -292,7 +292,7 @@ import {
 import { formatDisplayDate } from '@/utils/displayDateTime'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import QcImagesReadonlyGallery from '@/components/Logistics/QcImagesReadonlyGallery.vue'
-import { StockInTypeCode } from '@/constants/stockInType'
+import { resolveStockInTypeLabelKey } from '@/constants/stockInType'
 import { filterQcImageDocuments, resolveUploadDocumentId } from '@/utils/qcImageDocument'
 import { getApiErrorMessage } from '@/utils/apiError'
 import {
@@ -485,9 +485,12 @@ const purchaseLink = computed(() => {
 })
 
 const arrivalNoticeCode = computed(() => arrivalNotice.value?.noticeCode?.trim() || '—')
-const arrivalStockInType = computed(() =>
-  Number(arrivalNotice.value?.stockInType ?? StockInTypeCode.Purchase)
-)
+const arrivalStockInType = computed(() => {
+  const raw = arrivalNotice.value?.stockInType
+  if (raw == null) return null
+  const n = Number(raw)
+  return Number.isFinite(n) ? n : null
+})
 const arrivalQty = computed(() => Number(arrivalNotice.value?.expectQty ?? 0))
 
 const arrivalDateText = computed(() => {
@@ -525,10 +528,7 @@ const stockInStatusText = computed(() => {
 
 const stockInTypeLabel = computed(() => {
   const type = stockIn.value?.stockInType ?? arrivalStockInType.value
-  if (type === StockInTypeCode.Customs) return t('stockInList.stockInTypeLabels.customs')
-  if (type === StockInTypeCode.Return) return t('stockInList.stockInTypeLabels.return')
-  if (type === StockInTypeCode.Scrap) return t('stockInList.stockInTypeLabels.scrap')
-  return t('stockInList.stockInTypeLabels.purchase')
+  return t(`stockInList.stockInTypeLabels.${resolveStockInTypeLabelKey(type)}`)
 })
 
 function formatQty(v: unknown) {

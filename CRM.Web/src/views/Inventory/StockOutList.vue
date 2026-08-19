@@ -614,7 +614,7 @@ import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import CustomerExtendColumnHeader from '@/components/list/CustomerExtendColumnHeader.vue'
 import CustomerExtendCell from '@/components/list/CustomerExtendCell.vue'
 import { useCustomerExtendColumn, isCustomerExtendTableColumn } from '@/composables/useCustomerExtendColumn'
-import { StockOutTypeCode, STOCK_OUT_TYPE_FILTER_VALUES } from '@/constants/stockOutType'
+import { StockOutTypeCode, STOCK_OUT_TYPE_FILTER_VALUES, resolveStockOutTypeLabelKey } from '@/constants/stockOutType'
 
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const {
@@ -900,11 +900,7 @@ function syncFiltersFromRoute() {
 }
 
 function listStockOutTypeLabel(type: number | undefined | null): string {
-  const n = Number(type)
-  if (n === StockOutTypeCode.Customs) return t('stockOutList.stockOutTypeLabels.customs')
-  if (n === StockOutTypeCode.Return) return t('stockOutList.stockOutTypeLabels.return')
-  if (n === StockOutTypeCode.Scrap) return t('stockOutList.stockOutTypeLabels.scrap')
-  return t('stockOutList.stockOutTypeLabels.sales')
+  return t(`stockOutList.stockOutTypeLabels.${resolveStockOutTypeLabelKey(type)}`)
 }
 
 function isCustomsStockOut(row: StockOutDto): boolean {

@@ -1,4 +1,5 @@
 import type { PurchaseOrderDetailTabAggregates } from '@/api/purchaseOrder'
+import { resolveStockInTypeLabelKey } from '@/constants/stockInType'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import {
   formatTotalAmountNumber,
@@ -39,6 +40,8 @@ export interface PoFlowCard {
   unitPriceText?: string | null
   qtyText?: string | null
   description?: string | null
+  /** 入库站：入库类型文案，与状态同一列展示 */
+  bizTypeText?: string | null
 }
 
 export interface PoFlowStation {
@@ -435,7 +438,8 @@ export function buildPurchaseOrderItemFlowStations(
       personRoleKey: 'purchaseOrderItemList.flowPanel.role.creator',
       personName: dash(x.createUserName),
       qtyText: formatQtyPcs(x.totalQuantity),
-      description: null
+      description: null,
+      bizTypeText: t(`stockInList.stockInTypeLabels.${resolveStockInTypeLabelKey(x.stockInType)}`)
     }))
     stations.push(buildStation('stockIn', 'purchaseOrderItemList.flowPanel.stations.stockIn', cards))
   }

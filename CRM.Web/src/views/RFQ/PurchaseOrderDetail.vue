@@ -653,7 +653,10 @@
                         v-for="col in poLineOverviewColumns"
                         :key="`${row.key}-${col.key}`"
                         class="so-line-overview__cell"
-                        :class="{ 'so-line-overview__cell--right': col.isAmount }"
+                        :class="{
+                          'so-line-overview__cell--right': col.isAmount,
+                          'so-line-overview__cell--muted': formatPoOverviewCell(col, row.key).isMuted
+                        }"
                       >
                         <span v-if="formatPoOverviewCell(col, row.key).type === 'dash'">—</span>
                         <span
@@ -1298,13 +1301,19 @@ function formatPoOverviewQty(v: number) {
   return n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 4 })
 }
 
+function isPoOverviewNumericZero(raw: number | undefined): boolean {
+  if (raw == null) return false
+  const n = Number(raw)
+  return Number.isFinite(n) && Math.abs(n) <= 1e-9
+}
+
 function formatPoOverviewCell(
   col: PoLineOverviewColumnDef,
   rowKey: 'total' | 'done' | 'pending'
-): { type: 'dash' | 'qty' | 'amount'; text: string; currency?: number } {
+): { type: 'dash' | 'qty' | 'amount'; text: string; currency?: number; isZero: boolean; isMuted: boolean } {
   const metric = col.metric
   if (!col.colorize && rowKey !== 'total') {
-    return { type: 'dash', text: '—' }
+    return { type: 'dash', text: '—', isZero: false, isMuted: true }
   }
 
   let raw: number | undefined
@@ -1312,15 +1321,16 @@ function formatPoOverviewCell(
   else if ('done' in metric && rowKey === 'done') raw = metric.done
   else if ('pending' in metric && rowKey === 'pending') raw = metric.pending
 
-  if (raw == null) return { type: 'dash', text: '—' }
+  if (raw == null) return { type: 'dash', text: '—', isZero: false, isMuted: true }
 
+  const isZero = isPoOverviewNumericZero(raw)
   if (col.isAmount) {
-    if (!canViewPurchaseAmount.value) return { type: 'dash', text: '—' }
+    if (!canViewPurchaseAmount.value) return { type: 'dash', text: '—', isZero: false, isMuted: true }
     const currency = 'currency' in metric ? metric.currency : undefined
-    return { type: 'amount', text: formatTotalAmountNumber(raw), currency }
+    return { type: 'amount', text: formatTotalAmountNumber(raw), currency, isZero, isMuted: isZero }
   }
 
-  return { type: 'qty', text: formatPoOverviewQty(raw) }
+  return { type: 'qty', text: formatPoOverviewQty(raw), isZero, isMuted: isZero }
 }
 
 const poItemLinePanel = reactive({
@@ -1647,6 +1657,18 @@ function poDetailLineToListShape(it: any) {
     cost,
     lineTotal: qty * cost,
     paymentRequestedAmount: Number(it.paymentRequestedAmount ?? it.PaymentRequestedAmount ?? 0),
+    purchaseProgressStatus: Number(it.purchaseProgressStatus ?? it.PurchaseProgressStatus ?? 0),
+    stockInProgressStatus: Number(it.stockInProgressStatus ?? it.StockInProgressStatus ?? 0),
+    paymentProgressStatus: Number(it.paymentProgressStatus ?? it.PaymentProgressStatus ?? 0),
+    invoiceProgressStatus: Number(it.invoiceProgressStatus ?? it.InvoiceProgressStatus ?? 0),
+    paymentRequestProgressStatus: (() => {
+      const explicit = it.paymentRequestProgressStatus ?? it.PaymentRequestProgressStatus
+      if (explicit !== undefined && explicit !== null && explicit !== '') {
+        const n = Number(explicit)
+        if (Number.isFinite(n)) return n
+      }
+      return Number(it.paymentRequestedAmount ?? it.PaymentRequestedAmount ?? 0) > 0 ? 1 : 0
+    })(),
     qtyStockInNotifyExpectSum: Number(
       it.qtyStockInNotifyExpectSum ?? it.QtyStockInNotifyExpectSum ?? 0
     ),
@@ -3002,6 +3024,18 @@ html[data-theme='dark'] .purchase-order-detail .po-detail-biz-qty {
 
     &--right {
       text-align: right;
+    }
+
+    &--muted {
+      color: $text-muted;
+
+      .so-line-overview__qty,
+      .amount-with-code,
+      .amount-ccy,
+      .amount-ccy--rmb,
+      .amount-ccy--fx {
+        color: inherit;
+      }
     }
   }
 

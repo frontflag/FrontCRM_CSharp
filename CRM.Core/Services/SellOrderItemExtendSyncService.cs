@@ -192,10 +192,14 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
             var completedSiIds = (await _stockInRepo.FindAsync(s =>
                     siIds.Contains(s.Id)
                     && s.Status == StockInCompleted
-                    && s.StockInType == StockInTypeCode.Purchase))
+                    && s.StockInType != StockInTypeCode.Transfer))
                 .Select(s => s.Id)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            sumReceive = siItems.Where(i => completedSiIds.Contains(i.StockInId)).Sum(i => (decimal)i.Quantity);
+            sumReceive = siItems.Where(i => completedSiIds.Contains(i.StockInId)).Sum(i =>
+            {
+                if (i.Quantity > 0) return (decimal)i.Quantity;
+                return i.QtyReceived > 0 ? i.QtyReceived : 0m;
+            });
         }
 
         if (sumReceive <= 0m)

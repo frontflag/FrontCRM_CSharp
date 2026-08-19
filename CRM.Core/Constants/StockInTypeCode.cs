@@ -26,7 +26,15 @@ public static class StockInTypeCode
 
     public const short Transfer = 3;
 
+    /// <summary>历史 <c>stock_in.StockInType</c> 采购入库（迁移前为 1）。</summary>
+    public const short LegacyPurchase = 1;
 
+    /// <summary>
+    /// 是否为采购入库（仅 <see cref="Purchase"/> / <see cref="LegacyPurchase"/>）。
+    /// 采购行收货进度只用此判定；禁止用 <see cref="Normalize"/>，以免未识别值被当成采购。
+    /// </summary>
+    public static bool IsPurchaseReceipt(short value) =>
+        value is Purchase or LegacyPurchase;
 
     public static bool IsDefined(short value) =>
 

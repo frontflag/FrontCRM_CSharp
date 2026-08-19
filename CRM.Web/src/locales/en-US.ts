@@ -6032,7 +6032,8 @@ const enUS = {
         unitPrice: 'Unit price · currency',
         amount: 'Amount · currency',
         qty: 'Qty',
-        description: 'Description'
+        description: 'Description',
+        stockInType: 'Stock-in type'
       }
     },
     columnSettings: 'Column settings',
@@ -7221,7 +7222,9 @@ const enUS = {
       purchase: 'Purchase stock-in',
       customs: 'Customs stock-in',
       return: 'Return stock-in',
-      scrap: 'Scrap stock-in'
+      scrap: 'Scrap stock-in',
+      transfer: 'Transfer',
+      unknown: 'Unknown'
     },
     customsNotifyTag: 'Customs',
     customsDeclarationIconTooltipLabel: 'Customs declaration no.',
@@ -7592,7 +7595,9 @@ const enUS = {
       sales: 'Sales stock-out',
       customs: 'Customs stock-out',
       return: 'Return stock-out',
-      scrap: 'Scrap stock-out'
+      scrap: 'Scrap stock-out',
+      transfer: 'Transfer',
+      unknown: 'Unknown'
     },
     customsNotifyTag: 'Customs',
     salesNotifyCodeTooltip: 'Original sales stock-out notify: {code}',
@@ -7920,7 +7925,9 @@ const enUS = {
       sales: 'Sales stock-out',
       customs: 'Customs stock-out',
       return: 'Return stock-out',
-      scrap: 'Scrap stock-out'
+      scrap: 'Scrap stock-out',
+      transfer: 'Transfer',
+      unknown: 'Unknown'
     },
     customsNotifyTag: 'Customs',
     salesNotifyCodeTooltip: 'Original sales notice: {code}',

@@ -85,7 +85,7 @@ public sealed class StockOutRequestListQuery : IStockOutRequestListQuery
 
             if (filter.StockOutType.HasValue)
             {
-                var stockOutType = StockOutTypeCode.NormalizeForNotify(filter.StockOutType.Value);
+                var stockOutType = filter.StockOutType.Value;
                 q = q.Where(x => x.r.StockOutType == stockOutType);
             }
 

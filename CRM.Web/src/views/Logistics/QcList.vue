@@ -259,7 +259,7 @@ import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import VendorNameReadonlyText from '@/components/Vendor/VendorNameReadonlyText.vue'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
-import { StockInTypeCode, STOCK_IN_TYPE_FILTER_VALUES } from '@/constants/stockInType'
+import { STOCK_IN_TYPE_FILTER_VALUES, resolveStockInTypeLabelKey } from '@/constants/stockInType'
 import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
 import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
@@ -387,10 +387,7 @@ const filters = ref({
 })
 
 function arrivalTypeLabel(type: number): string {
-  if (type === StockInTypeCode.Customs) return t('stockInList.stockInTypeLabels.customs')
-  if (type === StockInTypeCode.Return) return t('stockInList.stockInTypeLabels.return')
-  if (type === StockInTypeCode.Scrap) return t('stockInList.stockInTypeLabels.scrap')
-  return t('stockInList.stockInTypeLabels.purchase')
+  return t(`stockInList.stockInTypeLabels.${resolveStockInTypeLabelKey(type)}`)
 }
 const getYYMMDD = (d: Date) => {
   const yy = String(d.getFullYear()).slice(-2)

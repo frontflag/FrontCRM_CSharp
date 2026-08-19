@@ -6015,7 +6015,8 @@ const zhCN = {
         unitPrice: '单价·币别',
         amount: '金额·币别',
         qty: '数量',
-        description: '描述'
+        description: '描述',
+        stockInType: '入库类型'
       }
     },
     columnSettings: '列设置',
@@ -7205,7 +7206,9 @@ const zhCN = {
       purchase: '采购入库',
       customs: '报关入库',
       return: '退货入库',
-      scrap: '报废入库'
+      scrap: '报废入库',
+      transfer: '移库',
+      unknown: '未知'
     },
     customsNotifyTag: '报关',
     customsDeclarationIconTooltipLabel: '报关单号码',
@@ -7576,7 +7579,9 @@ const zhCN = {
       sales: '销售出库',
       customs: '报关出库',
       return: '退货出库',
-      scrap: '报废出库'
+      scrap: '报废出库',
+      transfer: '移库',
+      unknown: '未知'
     },
     customsNotifyTag: '报关',
     salesNotifyCodeTooltip: '原销售出库通知：{code}',
@@ -7904,7 +7909,9 @@ const zhCN = {
       sales: '销售出库',
       customs: '报关出库',
       return: '退货出库',
-      scrap: '报废出库'
+      scrap: '报废出库',
+      transfer: '移库',
+      unknown: '未知'
     },
     customsNotifyTag: '报关',
     salesNotifyCodeTooltip: '原销售出库通知：{code}',

@@ -278,7 +278,7 @@ import type { ArrivalNoticeOpsAggregatesDto } from '@/api/logistics'
 import { formatDisplayDate } from '@/utils/displayDateTime'
 import VendorNameReadonlyText from '@/components/Vendor/VendorNameReadonlyText.vue'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
-import { StockInTypeCode } from '@/constants/stockInType'
+import { resolveStockInTypeLabelKey } from '@/constants/stockInType'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 
 const props = defineProps<{
@@ -316,9 +316,12 @@ const displayBrand = computed(() => {
   return brand != null && String(brand).trim() ? String(brand).trim() : '—'
 })
 const expectQty = computed(() => Number(props.row?.expectQty ?? props.row?.ExpectQty ?? 0))
-const stockInType = computed(() =>
-  Number(props.row?.stockInType ?? props.row?.StockInType ?? StockInTypeCode.Purchase)
-)
+const stockInType = computed(() => {
+  const raw = props.row?.stockInType ?? props.row?.StockInType
+  if (raw === null || raw === undefined || raw === '') return null
+  const n = Number(raw)
+  return Number.isFinite(n) ? n : null
+})
 const customsDeclarationId = computed(() =>
   (props.row?.customsDeclarationId ?? props.row?.CustomsDeclarationId) as string | null | undefined
 )
@@ -457,10 +460,7 @@ const stockInStatusText = computed(() => {
 
 const stockInTypeLabel = computed(() => {
   const type = stockIn.value?.stockInType ?? stockInType.value
-  if (type === StockInTypeCode.Customs) return t('stockInList.stockInTypeLabels.customs')
-  if (type === StockInTypeCode.Return) return t('stockInList.stockInTypeLabels.return')
-  if (type === StockInTypeCode.Scrap) return t('stockInList.stockInTypeLabels.scrap')
-  return t('stockInList.stockInTypeLabels.purchase')
+  return t(`stockInList.stockInTypeLabels.${resolveStockInTypeLabelKey(type)}`)
 })
 
 function formatQty(v: unknown) {
