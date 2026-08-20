@@ -45,6 +45,77 @@ ORDER BY c.""ChangedAt"" DESC";
             return rows.ToList();
         }
 
+        public async Task<IReadOnlyList<QuoteDeletedOnRfqItemDto>> GetDeletedQuotesByRfqItemIdsAsync(
+            IReadOnlyCollection<string> rfqItemIds)
+        {
+            var ids = (rfqItemIds ?? Array.Empty<string>())
+                .Select(id => id?.Trim())
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Select(id => id!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(2000)
+                .ToList();
+            if (ids.Count == 0)
+                return Array.Empty<QuoteDeletedOnRfqItemDto>();
+
+            var inList = string.Join(",", ids.Select(id => $"'{SqlQ(id)}'"));
+            var action = OperationLogActionTypes.QuoteHeaderDelete;
+            var sql = $@"
+SELECT q.""QuoteId"" AS ""QuoteId"",
+       q.quote_code AS ""QuoteCode"",
+       q.rfq_item_id AS ""RfqItemId"",
+       COALESCE(i.line_no, 0) AS ""LineNo"",
+       COALESCE(NULLIF(TRIM(i.mpn), ''), NULLIF(TRIM(q.mpn), '')) AS ""Mpn"",
+       i.brand AS ""Brand"",
+       q.""CreateTime"" AS ""QuoteCreatedAt"",
+       qi_agg.vendor_name AS ""VendorName"",
+       qi_agg.unit_price_text AS ""UnitPriceText"",
+       qi_agg.currency_text AS ""CurrencyText"",
+       COALESCE(NULLIF(TRIM(pu.""UserName""), ''), NULLIF(TRIM(cu.""UserName""), ''), '') AS ""PurchaseUserName"",
+       COALESCE(del_op.""OperationTime"", q.""ModifyTime"") AS ""DeletedAt"",
+       del_op.""OperatorUserId"" AS ""DeletedByUserId"",
+       COALESCE(NULLIF(TRIM(del_op.""OperatorUserName""), ''), '') AS ""DeletedByUserName""
+FROM quote q
+LEFT JOIN rfqitem i ON i.item_id = q.rfq_item_id
+LEFT JOIN ""user"" pu ON pu.""UserId"" = q.purchase_user_id
+LEFT JOIN ""user"" cu ON cu.""UserId"" = q.create_by_user_id
+LEFT JOIN LATERAL (
+    SELECT
+      string_agg(DISTINCT NULLIF(TRIM(qi.vendor_name), ''), '、') AS vendor_name,
+      string_agg(
+        to_char(ROUND(qi.unit_price, 4), 'FM9999999990.0000'),
+        chr(10) ORDER BY qi.""CreateTime"", qi.""QuoteItemId""
+      ) AS unit_price_text,
+      string_agg(
+        CASE qi.currency
+          WHEN 2 THEN 'USD'
+          WHEN 3 THEN 'EUR'
+          WHEN 4 THEN 'HKD'
+          WHEN 5 THEN 'JPY'
+          WHEN 6 THEN 'GBP'
+          ELSE 'RMB'
+        END,
+        chr(10) ORDER BY qi.""CreateTime"", qi.""QuoteItemId""
+      ) AS currency_text
+    FROM quoteitem qi
+    WHERE qi.quote_id = q.""QuoteId""
+) qi_agg ON true
+LEFT JOIN LATERAL (
+    SELECT o.""OperatorUserId"", o.""OperatorUserName"", o.""OperationTime""
+    FROM log_operation o
+    WHERE o.""BizType"" = '{BusinessLogTypes.Quote}'
+      AND o.""RecordId"" = q.""QuoteId""
+      AND o.""ActionType"" = '{action}'
+    ORDER BY o.""OperationTime"" DESC
+    LIMIT 1
+) del_op ON true
+WHERE q.is_deleted = true
+  AND q.rfq_item_id IN ({inList})
+ORDER BY COALESCE(del_op.""OperationTime"", q.""ModifyTime"") DESC NULLS LAST, q.quote_code";
+            var rows = await _unitOfWork.QueryAsync<QuoteDeletedOnRfqItemDto>(sql);
+            return rows.ToList();
+        }
+
         private async Task<(string? UserId, string UserName)> ResolveFieldChangeActorAsync(string? actingUserId) =>
             await OperationLogActorResolver.ResolveAsync(_userService, actingUserId);
 

@@ -22,7 +22,8 @@ public sealed class RFQsControllerTests
         IRFQService rfq,
         IDataPermissionService dataPermission,
         Action<IRbacService>? configureRbac = null,
-        string? userId = "test-user-1")
+        string? userId = "test-user-1",
+        IQuoteService? quoteService = null)
     {
         var rbac = Substitute.For<IRbacService>();
         if (configureRbac != null)
@@ -56,6 +57,7 @@ public sealed class RFQsControllerTests
             dataPermission,
             rbac,
             Substitute.For<IPurchaseQuoterPoolService>(),
+            quoteService ?? Substitute.For<IQuoteService>(),
             Substitute.For<ILogger<RFQsController>>())
         {
             ControllerContext = new ControllerContext { HttpContext = http }
@@ -286,6 +288,51 @@ public sealed class RFQsControllerTests
 
         var c = CreateController(rfq, Substitute.For<IDataPermissionService>());
         var action = await c.GetRecycleBin();
+
+        var ok = action.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var api = ok.Value.Should().BeOfType<ApiResponse<object>>().Subject;
+        api.Success.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GetDeletedQuotesForItem_Returns200()
+    {
+        var rfq = Substitute.For<IRFQService>();
+        rfq.GetItemByIdAsync("i1", "test-user-1").Returns(new RFQItem { Id = "i1", LineNo = 3 });
+        var quote = Substitute.For<IQuoteService>();
+        quote.GetDeletedQuotesByRfqItemIdsAsync(Arg.Any<IReadOnlyCollection<string>>())
+            .Returns(new List<QuoteDeletedOnRfqItemDto>
+            {
+                new() { QuoteId = "q1", QuoteCode = "QT1", RfqItemId = "i1" }
+            });
+
+        var c = CreateController(rfq, Substitute.For<IDataPermissionService>(), quoteService: quote);
+        var action = await c.GetDeletedQuotesForItem("i1");
+
+        var ok = action.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var api = ok.Value.Should().BeOfType<ApiResponse<object>>().Subject;
+        api.Success.Should().BeTrue();
+        await quote.Received(1).GetDeletedQuotesByRfqItemIdsAsync(
+            Arg.Is<IReadOnlyCollection<string>>(ids => ids.Contains("i1")));
+    }
+
+    [Fact]
+    public async Task GetDeletedQuotes_Returns200_WhenCanAccess()
+    {
+        var rfq = Substitute.For<IRFQService>();
+        rfq.GetByIdAsync("r1", "test-user-1").Returns(new CRM.Core.Models.RFQ.RFQ
+        {
+            Id = "r1",
+            Items = new List<RFQItem> { new() { Id = "i1" } }
+        });
+        var dataPermission = Substitute.For<IDataPermissionService>();
+        dataPermission.CanAccessRFQAsync("test-user-1", Arg.Any<CRM.Core.Models.RFQ.RFQ>()).Returns(true);
+        var quote = Substitute.For<IQuoteService>();
+        quote.GetDeletedQuotesByRfqItemIdsAsync(Arg.Any<IReadOnlyCollection<string>>())
+            .Returns(Array.Empty<QuoteDeletedOnRfqItemDto>());
+
+        var c = CreateController(rfq, dataPermission, quoteService: quote);
+        var action = await c.GetDeletedQuotes("r1");
 
         var ok = action.Result.Should().BeOfType<OkObjectResult>().Subject;
         var api = ok.Value.Should().BeOfType<ApiResponse<object>>().Subject;

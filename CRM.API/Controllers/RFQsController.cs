@@ -21,6 +21,7 @@ namespace CRM.API.Controllers
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IRbacService _rbacService;
         private readonly IPurchaseQuoterPoolService _purchaseQuoterPoolService;
+        private readonly IQuoteService _quoteService;
         private readonly ILogger<RFQsController> _logger;
 
         public RFQsController(
@@ -30,6 +31,7 @@ namespace CRM.API.Controllers
             IDataPermissionService dataPermissionService,
             IRbacService rbacService,
             IPurchaseQuoterPoolService purchaseQuoterPoolService,
+            IQuoteService quoteService,
             ILogger<RFQsController> logger)
         {
             _rfqService = rfqService;
@@ -38,6 +40,7 @@ namespace CRM.API.Controllers
             _dataPermissionService = dataPermissionService;
             _rbacService = rbacService;
             _purchaseQuoterPoolService = purchaseQuoterPoolService;
+            _quoteService = quoteService;
             _logger = logger;
         }
 
@@ -332,6 +335,31 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "获取需求明细列表失败");
                 return StatusCode(500, ApiResponse<object>.Fail($"获取需求明细列表失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>需求明细行上已删除的报价（谁、何时、单号）。</summary>
+        [HttpGet("items/{itemId}/deleted-quotes")]
+        [RequirePermission("rfq.read")]
+        public async Task<ActionResult<ApiResponse<object>>> GetDeletedQuotesForItem(string itemId)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var item = await _rfqService.GetItemByIdAsync(itemId, userId);
+                if (item == null)
+                    return NotFound(ApiResponse<object>.Fail("需求明细不存在", 404));
+                var rows = await _quoteService.GetDeletedQuotesByRfqItemIdsAsync(new[] { item.Id });
+                return Ok(ApiResponse<object>.Ok(rows, "获取已删报价成功"));
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(403, ApiResponse<object>.Fail(ex.Message, 403));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取需求明细已删报价失败: {ItemId}", itemId);
+                return StatusCode(500, ApiResponse<object>.Fail($"获取已删报价失败: {ex.Message}", 500));
             }
         }
 
@@ -730,6 +758,34 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "分配采购员失败: {Id}", id);
                 return StatusCode(500, ApiResponse<object>.Fail($"分配失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>本需求各明细行上已删除的报价。</summary>
+        [HttpGet("{id}/deleted-quotes")]
+        [RequirePermission("rfq.read")]
+        public async Task<ActionResult<ApiResponse<object>>> GetDeletedQuotes(string id)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var rfq = await _rfqService.GetByIdAsync(id, userId);
+                if (rfq == null)
+                    return NotFound(ApiResponse<object>.Fail("需求不存在", 404));
+                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessRFQAsync(userId, rfq))
+                    return StatusCode(403, ApiResponse<object>.Fail("无权限访问该需求", 403));
+
+                var itemIds = (rfq.Items ?? Enumerable.Empty<CRM.Core.Models.RFQ.RFQItem>())
+                    .Select(i => i.Id)
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .ToList();
+                var rows = await _quoteService.GetDeletedQuotesByRfqItemIdsAsync(itemIds);
+                return Ok(ApiResponse<object>.Ok(rows, "获取已删报价成功"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取需求已删报价失败: {Id}", id);
+                return StatusCode(500, ApiResponse<object>.Fail($"获取已删报价失败: {ex.Message}", 500));
             }
         }
 

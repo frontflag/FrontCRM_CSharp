@@ -26,6 +26,8 @@ public static class OperationLogActionTypes
     public const string RfqHeaderForceDelete = "询价需求强制删除";
     public const string RfqRestore = "询价需求恢复";
     public const string QuoteItemDelete = "报价明细删除";
+    /// <summary>与 <see cref="DeleteLogEntityNames.Quote"/> +「删除」拼出的 ActionType 一致。</summary>
+    public const string QuoteHeaderDelete = "报价单删除";
 
     public const string RfqTagApply = "需求打标签";
     public const string RfqTagRemove = "需求移除标签";

@@ -19,6 +19,29 @@ namespace CRM.Core.Interfaces
 
         /// <summary>报价主表及明细字段变更日志（<c>log_change_fldval</c>）。</summary>
         Task<IReadOnlyList<QuoteFieldChangeLogDto>> GetFieldChangeLogsAsync(string quoteId);
+
+        /// <summary>指定需求明细上已软删的报价（含删除人/时间；按行挂「已删报价」）。</summary>
+        Task<IReadOnlyList<QuoteDeletedOnRfqItemDto>> GetDeletedQuotesByRfqItemIdsAsync(
+            IReadOnlyCollection<string> rfqItemIds);
+    }
+
+    /// <summary>需求明细行上曾被删除的报价。</summary>
+    public class QuoteDeletedOnRfqItemDto
+    {
+        public string QuoteId { get; set; } = string.Empty;
+        public string? QuoteCode { get; set; }
+        public string? RfqItemId { get; set; }
+        public int LineNo { get; set; }
+        public string? Mpn { get; set; }
+        public string? Brand { get; set; }
+        public DateTime? QuoteCreatedAt { get; set; }
+        public string? VendorName { get; set; }
+        public string? UnitPriceText { get; set; }
+        public string? CurrencyText { get; set; }
+        public string? PurchaseUserName { get; set; }
+        public DateTime? DeletedAt { get; set; }
+        public string? DeletedByUserId { get; set; }
+        public string? DeletedByUserName { get; set; }
     }
 
     /// <summary>报价字段变更日志行。</summary>

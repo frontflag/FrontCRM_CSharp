@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
 using CRM.Core.Models.Customer;
@@ -25,6 +26,7 @@ namespace CRM.Core.Tests.Services
         private readonly IUserService _userService;
         private readonly IRepository<CustomerInfo> _customerRepository;
         private readonly IQuoteListQuery _quoteListQuery;
+        private readonly ILogOperationAppendService _logOperationAppend;
         private readonly QuoteService _quoteService;
 
         private const string RfqItemId = "rfq-item-1";
@@ -66,9 +68,13 @@ namespace CRM.Core.Tests.Services
             {
                 Id = RfqItemId,
                 RfqId = RfqId,
+                LineNo = 3,
+                Mpn = "REF3430QDBVRQ1",
+                Brand = "TI",
                 Status = (short)RfqItemStatus.Pending
             });
 
+            _logOperationAppend = Substitute.For<ILogOperationAppendService>();
             _quoteService = new QuoteService(
                 _quoteRepository,
                 _quoteItemRepository,
@@ -81,7 +87,7 @@ namespace CRM.Core.Tests.Services
                 _quoteListQuery,
                 rbacService,
                 NullLogger<QuoteService>.Instance,
-                Substitute.For<ILogOperationAppendService>(),
+                _logOperationAppend,
                 Substitute.For<IPurchaseQuoterPoolService>());
         }
 
@@ -230,11 +236,30 @@ namespace CRM.Core.Tests.Services
                 Status = (short)QuoteMainStatus.New
             });
             _quoteItemRepository.GetAllAsync().Returns(new List<QuoteItem>());
+            _quoteRepository.FindAsync(Arg.Any<Expression<Func<Quote, bool>>>())
+                .Returns(Task.FromResult<IEnumerable<Quote>>(Array.Empty<Quote>()));
 
             await _quoteService.DeleteAsync(quoteId);
 
             await _quoteRepository.Received(1).DeleteAsync(quoteId);
             await _unitOfWork.Received(1).SaveChangesAsync();
+            await _logOperationAppend.Received(1).AppendDeleteAsync(
+                Arg.Is<CRM.Core.Models.System.DeleteOperationLogEntry>(e =>
+                    e.ActionTypeOverride == OperationLogActionTypes.QuoteHeaderDelete
+                    && e.RecordCode == "QT-2024-001"
+                    && e.ExtraInfo != null
+                    && e.ExtraInfo.Contains(RfqItemId)
+                    && e.OperationDescOverride != null
+                    && e.OperationDescOverride.Contains("行号 3")),
+                Arg.Any<CancellationToken>());
+        }
+
+        [Fact]
+        public async Task GetDeletedQuotesByRfqItemIdsAsync_Empty_ReturnsEmpty()
+        {
+            var result = await _quoteService.GetDeletedQuotesByRfqItemIdsAsync(Array.Empty<string>());
+            Assert.Empty(result);
+            await _unitOfWork.DidNotReceive().QueryAsync<QuoteDeletedOnRfqItemDto>(Arg.Any<string>());
         }
 
         [Fact]

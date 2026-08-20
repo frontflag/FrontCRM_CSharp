@@ -39,6 +39,77 @@ export type RfqFieldChangeLogRow = {
   objectLabel?: string
 }
 
+/** 需求明细行上已软删的报价（谁、何时、单号） */
+export type RfqItemDeletedQuoteRow = {
+  quoteId: string
+  quoteCode: string
+  rfqItemId: string
+  lineNo: number
+  mpn: string
+  brand: string
+  quoteCreatedAt: string | null
+  vendorName: string
+  unitPriceText: string
+  currencyText: string
+  purchaseUserName: string
+  deletedAt: string | null
+  deletedByUserId: string | null
+  deletedByUserName: string | null
+}
+
+export function normalizeRfqItemDeletedQuoteRows(raw: unknown): RfqItemDeletedQuoteRow[] {
+  if (!Array.isArray(raw)) return []
+  return raw.map((item) => {
+    const o = (item ?? {}) as Record<string, unknown>
+    const str = (a: unknown, b: unknown) => {
+      const v = a ?? b
+      return v == null ? '' : String(v).trim()
+    }
+    const num = (a: unknown, b: unknown) => {
+      const n = Number(a ?? b ?? 0)
+      return Number.isFinite(n) ? n : 0
+    }
+    return {
+      quoteId: str(o.quoteId, o.QuoteId),
+      quoteCode: str(o.quoteCode, o.QuoteCode),
+      rfqItemId: str(o.rfqItemId, o.RfqItemId),
+      lineNo: num(o.lineNo, o.LineNo),
+      mpn: str(o.mpn, o.Mpn),
+      brand: str(o.brand, o.Brand),
+      quoteCreatedAt: (() => {
+        const v = o.quoteCreatedAt ?? o.QuoteCreatedAt
+        if (v == null || v === '') return null
+        return String(v)
+      })(),
+      vendorName: str(o.vendorName, o.VendorName),
+      unitPriceText: str(o.unitPriceText, o.UnitPriceText),
+      currencyText: str(o.currencyText, o.CurrencyText),
+      purchaseUserName: str(o.purchaseUserName, o.PurchaseUserName),
+      deletedAt: (() => {
+        const v = o.deletedAt ?? o.DeletedAt
+        if (v == null || v === '') return null
+        return String(v)
+      })(),
+      deletedByUserId: str(o.deletedByUserId, o.DeletedByUserId) || null,
+      deletedByUserName: str(o.deletedByUserName, o.DeletedByUserName) || null
+    }
+  })
+}
+
+/** 已删报价多行单价/币别（后端按换行拼接） */
+export function splitRfqDeletedQuoteMultiline(s: string | null | undefined): string[] {
+  const t = (s ?? '').trim()
+  if (!t) return []
+  return t.split(/\r?\n/).map((x) => x.trim()).filter(Boolean)
+}
+
+/** 已删报价单价：固定 4 位小数 */
+export function formatRfqDeletedQuotePriceLine(line: string): string {
+  const n = Number(String(line).replace(/,/g, ''))
+  if (!Number.isFinite(n)) return line.trim() || '—'
+  return n.toLocaleString('zh-CN', { minimumFractionDigits: 4, maximumFractionDigits: 4 })
+}
+
 // 构建查询字符串
 function buildQuery(params: Record<string, any>): string {
   const q = new URLSearchParams()
@@ -224,6 +295,18 @@ export const rfqApi = {
   /** 39. 需求主表及明细字段变更日志 */
   async getChangeLogs(rfqId: string): Promise<RfqFieldChangeLogRow[]> {
     return apiClient.get<RfqFieldChangeLogRow[]>(`${BASE}/${rfqId}/change-logs`)
+  },
+  /** 本需求各明细行上已删除的报价 */
+  async getDeletedQuotes(rfqId: string): Promise<RfqItemDeletedQuoteRow[]> {
+    const rows = await apiClient.get<unknown>(`${BASE}/${encodeURIComponent(rfqId)}/deleted-quotes`)
+    return normalizeRfqItemDeletedQuoteRows(rows)
+  },
+  /** 指定需求明细行上已删除的报价 */
+  async getDeletedQuotesForItem(itemId: string): Promise<RfqItemDeletedQuoteRow[]> {
+    const rows = await apiClient.get<unknown>(
+      `${BASE}/items/${encodeURIComponent(itemId)}/deleted-quotes`
+    )
+    return normalizeRfqItemDeletedQuoteRows(rows)
   },
   /** 40. 获取 RFQ 关闭记录 */
   async getCloseRecords(rfqId: string): Promise<RFQCloseRecord[]> {

@@ -3145,7 +3145,15 @@ const zhCN = {
       layoutStackHalf: '上下各半：需求明细与采购报价高度各占约 50%',
       layoutStackCompact: '上下布局：采购报价区高度约显示 2 行报价',
       layoutHeaderOnly: '仅显示采购报价标题栏',
-      dragSplit: '拖动调整上下区域高度'
+      dragSplit: '拖动调整上下区域高度',
+      deletedTitle: '已删报价',
+      deletedBy: '删除人',
+      deletedAt: '删除时间',
+      quoteCreatedAt: '报价生成日期',
+      deletedVendor: '供应商',
+      quotePrice: '报价价格',
+      quoteCurrency: '币别',
+      quoter: '报价员'
     },
     actions: { column: '操作', detail: '详情', quote: '报价', markNoQuote: '查无报价', copy: '复制', copySuccess: '已复制需求明细（物料型号、品牌、数量、币别）', copyFailed: '复制失败，请手动复制' },
     basket: {
@@ -3617,6 +3625,19 @@ const zhCN = {
     recommendMeta: '系统推荐 · 当前处理中：{count} 条',
     sections: { basic: '基础信息', rfq: '需求信息', purchaser: '采购员信息' },
     tabs: { items: '需求明细', changeLogs: '更改日志', closeRecords: '关闭记录' },
+    deletedQuotes: {
+      column: '已删报价',
+      btn: '已删报价 {n}',
+      dialogTitle: '已删报价 · 行号 {lineNo} · {mpn} · {brand}',
+      quoteCode: '报价单号',
+      quoteCreatedAt: '报价生成日期',
+      vendor: '供应商',
+      quotePrice: '报价价格',
+      currency: '币别',
+      quoter: '报价员',
+      deletedBy: '删除人',
+      deletedAt: '删除时间'
+    },
     logs: {
       colChangeTime: '变更时间',
       colOperator: '操作人',

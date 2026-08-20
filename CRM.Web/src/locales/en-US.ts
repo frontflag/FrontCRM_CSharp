@@ -3171,7 +3171,15 @@ const enUS = {
       layoutStackHalf: 'Split horizontally: RFQ lines and purchase quotes each ~50% height',
       layoutStackCompact: 'Stacked: quote panel height fits ~2 quote rows',
       layoutHeaderOnly: 'Collapse quotes panel to header bar only',
-      dragSplit: 'Drag to resize upper and lower panels'
+      dragSplit: 'Drag to resize upper and lower panels',
+      deletedTitle: 'Deleted quotes',
+      deletedBy: 'Deleted by',
+      deletedAt: 'Deleted at',
+      quoteCreatedAt: 'Quote created',
+      deletedVendor: 'Supplier',
+      quotePrice: 'Quote price',
+      quoteCurrency: 'Currency',
+      quoter: 'Quoter'
     },
     actions: { column: 'Actions', detail: 'Detail', quote: 'Quote', markNoQuote: 'No Quote Found', copy: 'Copy', copySuccess: 'Copied RFQ line (MPN, brand, qty, currency)', copyFailed: 'Copy failed; copy manually' },
     basket: {
@@ -3630,6 +3638,19 @@ const enUS = {
     recommendMeta: 'Recommended · Handling now: {count}',
     sections: { basic: 'Basic Info', rfq: 'RFQ Info', purchaser: 'Purchaser Info' },
     tabs: { items: 'RFQ Items', changeLogs: 'Change Logs', closeRecords: 'Close Records' },
+    deletedQuotes: {
+      column: 'Deleted quotes',
+      btn: 'Deleted quotes {n}',
+      dialogTitle: 'Deleted quotes · Line {lineNo} · {mpn} · {brand}',
+      quoteCode: 'Quote No.',
+      quoteCreatedAt: 'Quote created',
+      vendor: 'Supplier',
+      quotePrice: 'Quote price',
+      currency: 'Currency',
+      quoter: 'Quoter',
+      deletedBy: 'Deleted by',
+      deletedAt: 'Deleted at'
+    },
     logs: {
       colChangeTime: 'Changed At',
       colOperator: 'Operator',

@@ -333,6 +333,17 @@
                   >
                     <div class="item-panel-card__head">
                       <span class="item-panel-card__idx">{{ t('rfqDetail.itemN', { n: idx + 1 }) }}</span>
+                      <template v-if="!isRecycleView">
+                        <button
+                          v-if="deletedQuoteCountForRow(row) > 0"
+                          type="button"
+                          class="deleted-quotes-link"
+                          @click.stop="openDeletedQuotesDialog(row)"
+                        >
+                          {{ t('rfqDetail.deletedQuotes.btn', { n: deletedQuoteCountForRow(row) }) }}
+                        </button>
+                        <span v-else class="cell-muted">—</span>
+                      </template>
                     </div>
                     <div class="item-panel-card__body">
                     <el-row :gutter="16" class="item-panel-row">
@@ -485,6 +496,25 @@
                 </el-table-column>
                 <el-table-column label="最小起订量" width="128" min-width="128" align="right">
                   <template #default="{ row }"><span class="cell-muted">{{ row.minOrderQty ?? '—' }}</span></template>
+                </el-table-column>
+                <el-table-column
+                  v-if="!isRecycleView"
+                  :label="t('rfqDetail.deletedQuotes.column')"
+                  width="128"
+                  min-width="128"
+                  align="center"
+                >
+                  <template #default="{ row }">
+                    <button
+                      v-if="deletedQuoteCountForRow(row) > 0"
+                      type="button"
+                      class="deleted-quotes-link"
+                      @click.stop="openDeletedQuotesDialog(row)"
+                    >
+                      {{ t('rfqDetail.deletedQuotes.btn', { n: deletedQuoteCountForRow(row) }) }}
+                    </button>
+                    <span v-else class="cell-muted">—</span>
+                  </template>
                 </el-table-column>
                 <el-table-column
                   v-if="canAssignRfqPurchaser && !isRecycleView"
@@ -648,6 +678,53 @@
       </template>
     </el-dialog>
 
+    <!-- 本行已删报价 -->
+    <el-dialog
+      v-model="deletedQuotesDialogVisible"
+      :title="deletedQuotesDialogTitle"
+      width="920px"
+      append-to-body
+    >
+      <el-table :data="deletedQuotesDialogRows" size="small" stripe>
+        <el-table-column :label="t('rfqDetail.deletedQuotes.quoteCode')" min-width="120" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.quoteCode || '—' }}</template>
+        </el-table-column>
+        <el-table-column :label="t('rfqDetail.deletedQuotes.quoteCreatedAt')" width="168">
+          <template #default="{ row }">{{ formatChangeLogTime(row.quoteCreatedAt ?? undefined) }}</template>
+        </el-table-column>
+        <el-table-column :label="t('rfqDetail.deletedQuotes.vendor')" min-width="120" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.vendorName || '—' }}</template>
+        </el-table-column>
+        <el-table-column :label="t('rfqDetail.deletedQuotes.quotePrice')" min-width="100" align="right">
+          <template #default="{ row }">
+            <div v-if="splitRfqDeletedQuoteMultiline(row.unitPriceText).length" class="deleted-quote-stack deleted-quote-stack--right">
+              <div v-for="(line, idx) in splitRfqDeletedQuoteMultiline(row.unitPriceText)" :key="idx">{{
+                formatRfqDeletedQuotePriceLine(line)
+              }}</div>
+            </div>
+            <span v-else>—</span>
+          </template>
+        </el-table-column>
+        <el-table-column :label="t('rfqDetail.deletedQuotes.currency')" width="72">
+          <template #default="{ row }">
+            <div v-if="splitRfqDeletedQuoteMultiline(row.currencyText).length" class="deleted-quote-stack">
+              <div v-for="(line, idx) in splitRfqDeletedQuoteMultiline(row.currencyText)" :key="idx">{{ line }}</div>
+            </div>
+            <span v-else>—</span>
+          </template>
+        </el-table-column>
+        <el-table-column :label="t('rfqDetail.deletedQuotes.quoter')" width="110" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.purchaseUserName || '—' }}</template>
+        </el-table-column>
+        <el-table-column :label="t('rfqDetail.deletedQuotes.deletedBy')" width="110" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.deletedByUserName || '—' }}</template>
+        </el-table-column>
+        <el-table-column :label="t('rfqDetail.deletedQuotes.deletedAt')" width="168">
+          <template #default="{ row }">{{ formatChangeLogTime(row.deletedAt ?? undefined) }}</template>
+        </el-table-column>
+      </el-table>
+    </el-dialog>
+
     <ApplyTagsDialog
       v-if="rfq"
       v-model="tagDialogVisible"
@@ -664,7 +741,13 @@ import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElNotification, ElMessageBox } from 'element-plus'
-import { rfqApi, type RfqFieldChangeLogRow } from '@/api/rfq'
+import {
+  rfqApi,
+  type RfqFieldChangeLogRow,
+  type RfqItemDeletedQuoteRow,
+  splitRfqDeletedQuoteMultiline,
+  formatRfqDeletedQuotePriceLine
+} from '@/api/rfq'
 import { quoteApi } from '@/api/quote'
 import { favoriteApi } from '@/api/favorite'
 import { RFQ_FAVORITE_ENTITY_TYPE, RFQ_FAVORITES_CHANGED_EVENT } from '@/constants/rfqFavorites'
@@ -823,6 +906,10 @@ const favoriteLoading = ref(false)
 const rfq = ref<any>(null)
 const rfqItems = ref<any[]>([])
 const quoteRecordCountByRfqItemId = ref<Record<string, number>>({})
+const deletedQuotesByItemId = ref<Record<string, RfqItemDeletedQuoteRow[]>>({})
+const deletedQuotesDialogVisible = ref(false)
+const deletedQuotesDialogTitle = ref('')
+const deletedQuotesDialogRows = ref<RfqItemDeletedQuoteRow[]>([])
 const closeRecords = ref<any[]>([])
 const itemsLoading = ref(false)
 const activeTab = ref<'items' | 'changeLogs' | 'closeRecords'>('items')
@@ -981,6 +1068,38 @@ function getStatusLabel(status?: number) {
 function resolveRfqItemRowId(row: Record<string, unknown>): string {
   const id = row.id ?? row.Id
   return id != null && String(id).trim() !== '' ? String(id).trim() : ''
+}
+
+function indexDeletedQuotesByItemId(rows: RfqItemDeletedQuoteRow[]): Record<string, RfqItemDeletedQuoteRow[]> {
+  const map: Record<string, RfqItemDeletedQuoteRow[]> = {}
+  for (const r of rows) {
+    const id = (r.rfqItemId || '').trim().toLowerCase()
+    if (!id) continue
+    ;(map[id] ||= []).push(r)
+  }
+  return map
+}
+
+function deletedQuotesForRow(row: Record<string, unknown>): RfqItemDeletedQuoteRow[] {
+  const id = resolveRfqItemRowId(row).toLowerCase()
+  if (!id) return []
+  return deletedQuotesByItemId.value[id] ?? []
+}
+
+function deletedQuoteCountForRow(row: Record<string, unknown>): number {
+  return deletedQuotesForRow(row).length
+}
+
+function openDeletedQuotesDialog(row: Record<string, unknown>) {
+  const lineNoRaw = Number(row.lineNo ?? row.LineNo ?? 0)
+  const lineNo = Number.isFinite(lineNoRaw) && lineNoRaw > 0 ? String(lineNoRaw) : '—'
+  const mpn =
+    String(row.materialModel ?? row.mpn ?? row.Mpn ?? '')
+      .trim() || '—'
+  const brand = String(row.brand ?? row.Brand ?? '').trim() || '—'
+  deletedQuotesDialogTitle.value = t('rfqDetail.deletedQuotes.dialogTitle', { lineNo, mpn, brand })
+  deletedQuotesDialogRows.value = deletedQuotesForRow(row)
+  deletedQuotesDialogVisible.value = true
 }
 
 function effectiveItemLineStatus(row: Record<string, unknown>): number | undefined {
@@ -1158,6 +1277,7 @@ async function loadItems() {
       const data = rfq.value ?? (await rfqApi.getRecycleRFQById(rfqId))
       rfqItems.value = (data?.items ?? []) as any[]
       quoteRecordCountByRfqItemId.value = {}
+      deletedQuotesByItemId.value = {}
       return
     }
     const res = await rfqApi.getRFQItemsWithBestQuote(rfqId)
@@ -1175,9 +1295,15 @@ async function loadItems() {
     } else {
       quoteRecordCountByRfqItemId.value = {}
     }
+    try {
+      deletedQuotesByItemId.value = indexDeletedQuotesByItemId(await rfqApi.getDeletedQuotes(rfqId))
+    } catch {
+      deletedQuotesByItemId.value = {}
+    }
   } catch {
     rfqItems.value = []
     quoteRecordCountByRfqItemId.value = {}
+    deletedQuotesByItemId.value = {}
   } finally {
     itemsLoading.value = false
   }
@@ -1781,6 +1907,28 @@ onMounted(() => {
   font-size: 14px;
   font-weight: 600;
   color: $text-primary;
+}
+.deleted-quotes-link {
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--el-color-primary);
+  &:hover {
+    text-decoration: underline;
+  }
+}
+.deleted-quote-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.35;
+}
+.deleted-quote-stack--right {
+  align-items: flex-end;
 }
 .item-panel-card__body {
   padding: 12px 16px 16px;

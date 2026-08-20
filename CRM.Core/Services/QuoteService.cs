@@ -6,6 +6,7 @@ using CRM.Core.Models.Quote;
 using CRM.Core.Models.RFQ;
 using CRM.Core.Utilities;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
 
 namespace CRM.Core.Services
 {
@@ -481,6 +482,10 @@ namespace CRM.Core.Services
 
             EnsureQuoteDeletable(quote);
 
+            RFQItem? rfqItem = null;
+            if (!string.IsNullOrWhiteSpace(quote.RFQItemId))
+                rfqItem = await _rfqItemRepository.GetByIdAsync(quote.RFQItemId.Trim());
+
             // 先删明细行
             var items = await _quoteItemRepository.GetAllAsync();
             var quoteItems = items.Where(i => i.QuoteId == id).ToList();
@@ -490,15 +495,32 @@ namespace CRM.Core.Services
             await _quoteRepository.DeleteAsync(id);
 
             var (actorId, actorName) = await ResolveActorAsync(actingUserId);
+            var mpn = string.IsNullOrWhiteSpace(rfqItem?.Mpn) ? quote.Mpn : rfqItem!.Mpn;
+            var brand = rfqItem?.Brand;
+            var lineNo = rfqItem?.LineNo ?? 0;
+            var lineHint = rfqItem != null
+                ? $"需求明细行号 {lineNo}，物料型号 {mpn}，品牌 {brand}。"
+                : "";
+            var extraInfo = JsonSerializer.Serialize(new
+            {
+                quoteItemCount = quoteItems.Count,
+                rfqItemId = quote.RFQItemId,
+                lineNo,
+                mpn,
+                brand
+            });
             await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
             {
                 BizType = BusinessLogTypes.Quote,
                 RecordId = quote.Id,
                 RecordCode = quote.QuoteCode,
                 EntityDisplayName = DeleteLogEntityNames.Quote,
+                ActionTypeOverride = OperationLogActionTypes.QuoteHeaderDelete,
                 ExtraDetail = $"明细行数={quoteItems.Count}",
+                ExtraInfo = extraInfo,
                 OperatorUserId = actorId,
-                OperatorUserName = actorName
+                OperatorUserName = actorName,
+                OperationDescOverride = $"删除报价单 {quote.QuoteCode}。{lineHint}明细行数={quoteItems.Count}"
             });
 
             // 删除报价后，如果该 RFQ 明细已无任何报价，则回退为「待报价」(0)
@@ -508,7 +530,7 @@ namespace CRM.Core.Services
                 var remainingQuotes = await _quoteRepository.FindAsync(q => q.RFQItemId == rfqItemId && q.Id != id);
                 if (!remainingQuotes.Any())
                 {
-                    var rfqItem = await _rfqItemRepository.GetByIdAsync(rfqItemId);
+                    rfqItem ??= await _rfqItemRepository.GetByIdAsync(rfqItemId);
                     if (rfqItem != null && rfqItem.Status == 1)
                     {
                         rfqItem.Status = 0;

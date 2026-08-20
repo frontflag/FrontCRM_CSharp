@@ -729,6 +729,16 @@
                       {{ t('rfqItemList.dockQuotes.edit') }}
                     </el-button>
                     <el-button
+                      v-if="canDeleteDockQuoteRow(row as Record<string, unknown>)"
+                      class="action-btn action-btn--danger"
+                      link
+                      type="danger"
+                      size="small"
+                      @click.stop="handleDeleteDockQuote(row)"
+                    >
+                      {{ t('quoteList.actions.delete') }}
+                    </el-button>
+                    <el-button
                       class="action-btn action-btn--warning"
                       link
                       type="warning"
@@ -755,6 +765,12 @@
                       >
                         <span class="op-more-item op-more-item--primary">{{ t('rfqItemList.dockQuotes.edit') }}</span>
                       </el-dropdown-item>
+                      <el-dropdown-item
+                        v-if="canDeleteDockQuoteRow(row as Record<string, unknown>)"
+                        @click.stop="handleDeleteDockQuote(row)"
+                      >
+                        <span class="op-more-item op-more-item--danger">{{ t('quoteList.actions.delete') }}</span>
+                      </el-dropdown-item>
                       <el-dropdown-item @click.stop="handleDockRowGenerateSalesOrder(row)">
                         <span class="op-more-item op-more-item--warning">{{ t('rfqItemList.dockQuotes.genSalesOrder') }}</span>
                       </el-dropdown-item>
@@ -763,6 +779,81 @@
                 </el-dropdown>
               </template>
             </CrmDataTable>
+          <div class="dock-deleted-quotes">
+            <div class="dock-deleted-quotes__title">{{ t('rfqItemList.dockQuotes.deletedTitle') }}</div>
+            <el-table
+              v-if="deletedQuotesForItem.length"
+              :data="deletedQuotesForItem"
+              size="small"
+              stripe
+              class="dock-deleted-quotes__table"
+            >
+              <el-table-column :label="t('rfqItemList.dockQuotes.quoteCode')" min-width="120" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.quoteCode || '—' }}</template>
+              </el-table-column>
+              <el-table-column :label="t('rfqItemList.dockQuotes.quoteCreatedAt')" width="168">
+                <template #default="{ row }">
+                  <template
+                    v-for="p in [formatDisplayDateTime2DigitYearParts(row.quoteCreatedAt)]"
+                    :key="row.quoteId + '-qc'"
+                  >
+                    <span v-if="p" class="crm-quote-create-time">
+                      <span class="crm-quote-create-time__ymd">{{ p.date }}</span>
+                      <span class="crm-quote-create-time__hm">{{ p.time }}</span>
+                    </span>
+                    <span v-else>—</span>
+                  </template>
+                </template>
+              </el-table-column>
+              <el-table-column :label="t('rfqItemList.dockQuotes.deletedVendor')" min-width="120" show-overflow-tooltip>
+                <template #default="{ row }">{{
+                  maskPurchaseSensitiveFields ? '—' : row.vendorName || '—'
+                }}</template>
+              </el-table-column>
+              <el-table-column :label="t('rfqItemList.dockQuotes.quotePrice')" min-width="100" align="right">
+                <template #default="{ row }">
+                  <div
+                    v-if="splitRfqDeletedQuoteMultiline(row.unitPriceText).length"
+                    class="deleted-quote-stack deleted-quote-stack--right"
+                  >
+                    <div v-for="(line, idx) in splitRfqDeletedQuoteMultiline(row.unitPriceText)" :key="idx">{{
+                      formatRfqDeletedQuotePriceLine(line)
+                    }}</div>
+                  </div>
+                  <span v-else>—</span>
+                </template>
+              </el-table-column>
+              <el-table-column :label="t('rfqItemList.dockQuotes.quoteCurrency')" width="72">
+                <template #default="{ row }">
+                  <div v-if="splitRfqDeletedQuoteMultiline(row.currencyText).length" class="deleted-quote-stack">
+                    <div v-for="(line, idx) in splitRfqDeletedQuoteMultiline(row.currencyText)" :key="idx">{{ line }}</div>
+                  </div>
+                  <span v-else>—</span>
+                </template>
+              </el-table-column>
+              <el-table-column :label="t('rfqItemList.dockQuotes.quoter')" width="110" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.purchaseUserName || '—' }}</template>
+              </el-table-column>
+              <el-table-column :label="t('rfqItemList.dockQuotes.deletedBy')" width="110" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.deletedByUserName || '—' }}</template>
+              </el-table-column>
+              <el-table-column :label="t('rfqItemList.dockQuotes.deletedAt')" width="168">
+                <template #default="{ row }">
+                  <template
+                    v-for="p in [formatDisplayDateTime2DigitYearParts(row.deletedAt)]"
+                    :key="row.quoteId + '-del'"
+                  >
+                    <span v-if="p" class="crm-quote-create-time">
+                      <span class="crm-quote-create-time__ymd">{{ p.date }}</span>
+                      <span class="crm-quote-create-time__hm">{{ p.time }}</span>
+                    </span>
+                    <span v-else>—</span>
+                  </template>
+                </template>
+              </el-table-column>
+            </el-table>
+            <div v-else class="dock-deleted-quotes__empty">—</div>
+          </div>
           </div>
         </template>
       </div>
@@ -861,7 +952,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { storeToRefs } from 'pinia'
-import { rfqApi } from '@/api/rfq'
+import { rfqApi, type RfqItemDeletedQuoteRow, splitRfqDeletedQuoteMultiline, formatRfqDeletedQuotePriceLine } from '@/api/rfq'
 import { quoteApi } from '@/api/quote'
 import { buildLinkAlertFieldsFromItem, fetchLinkedRfqItemRecord } from '@/utils/rfqLinkedItemSummary'
 import { assertQuotesSameCustomer } from '@/utils/quoteSalesOrderPrefill'
@@ -901,7 +992,13 @@ import {
   useDockQuoteExtendColumn,
   isDockQuoteExtendTableColumn
 } from '@/composables/useDockQuoteExtendColumn'
-import { quoteMainStatusI18nKey, quoteMainStatusTagType, isQuoteReadOnly } from '@/utils/quoteMainStatus'
+import {
+  quoteMainStatusI18nKey,
+  quoteMainStatusTagType,
+  isQuoteReadOnly,
+  isQuoteDeleteForbidden
+} from '@/utils/quoteMainStatus'
+import { useQuoteListBasketStore } from '@/stores/quoteListBasket'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick'
 import { ArrowRight, Setting } from '@element-plus/icons-vue'
@@ -981,6 +1078,7 @@ const RFQ_ITEM_LIST_AUTO_REFRESH_MS = 5 * 60 * 1000
 let rfqItemListAutoRefreshTimer: number | null = null
 
 const basketStore = useRfqItemListBasketStore()
+const quoteListBasketStore = useQuoteListBasketStore()
 const { count: basketCount, items: basketItems } = storeToRefs(basketStore)
 
 const loading = ref(false)
@@ -1610,6 +1708,7 @@ const dockQuoteTableExtraAttrs = computed(() =>
 )
 const quotesForItem = ref<Record<string, unknown>[]>([])
 const quotesLoading = ref(false)
+const deletedQuotesForItem = ref<RfqItemDeletedQuoteRow[]>([])
 /** 正在预检并跳转生成销售订单的报价行 id（行内按钮 loading） */
 const dockRowSalesOrderQuoteId = ref<string | null>(null)
 
@@ -1666,6 +1765,10 @@ function quoteStatusType(status: number) {
 
 function canEditDockQuoteRow(row: Record<string, unknown>) {
   return !isQuoteReadOnly(row.status)
+}
+
+function canDeleteDockQuoteRow(row: Record<string, unknown>) {
+  return !isQuoteDeleteForbidden(row.status)
 }
 
 function displayQuoteCode(row: Record<string, unknown>) {
@@ -1939,6 +2042,7 @@ async function loadData() {
       } else {
         selectedRfqItem.value = null
         quotesForItem.value = []
+        deletedQuotesForItem.value = []
         dockLinkAlert.value = null
       }
     }
@@ -1949,6 +2053,7 @@ async function loadData() {
     quoteRecordCountByRfqItemId.value = {}
     selectedRfqItem.value = null
     quotesForItem.value = []
+    deletedQuotesForItem.value = []
     dockLinkAlert.value = null
     const msg = e instanceof Error ? e.message : t('rfqItemList.loadFailed')
     ElMessage.error(msg)
@@ -2132,14 +2237,20 @@ function dockQuotePurchaseUserDisplay(row: Record<string, unknown>) {
 async function loadQuotesForRfqItem(item: RFQItem | null) {
   if (!item?.id) {
     quotesForItem.value = []
+    deletedQuotesForItem.value = []
     return
   }
   quotesLoading.value = true
   try {
-    const res = await quoteApi.getList({ rfqItemId: item.id, page: 1, pageSize: 2000 })
+    const [res, deleted] = await Promise.all([
+      quoteApi.getList({ rfqItemId: item.id, page: 1, pageSize: 2000 }),
+      rfqApi.getDeletedQuotesForItem(item.id).catch(() => [] as RfqItemDeletedQuoteRow[])
+    ])
     quotesForItem.value = (res.data || []) as Record<string, unknown>[]
+    deletedQuotesForItem.value = deleted
   } catch {
     quotesForItem.value = []
+    deletedQuotesForItem.value = []
   } finally {
     quotesLoading.value = false
   }
@@ -2284,6 +2395,35 @@ function goEditDockQuote(row: Record<string, unknown>) {
     params: { id },
     query: { returnTo: route.fullPath }
   })
+}
+
+async function handleDeleteDockQuote(row: Record<string, unknown>) {
+  if (!canDeleteDockQuoteRow(row)) {
+    ElMessage.warning(t('quoteList.warnings.cannotDeleteWon'))
+    return
+  }
+  try {
+    await ElMessageBox.confirm(
+      t('quoteList.deleteConfirm', { code: displayQuoteCode(row) }),
+      t('quoteList.deleteTitle'),
+      { type: 'warning' }
+    )
+  } catch {
+    return
+  }
+  const rid = resolveQuoteRowId(row)
+  if (!rid) {
+    ElMessage.warning(t('rfqItemList.warnings.missingQuoteId'))
+    return
+  }
+  try {
+    await quoteApi.delete(rid)
+    quoteListBasketStore.remove(rid)
+    ElMessage.success(t('quoteDetail.deleteSuccess'))
+    await loadData()
+  } catch (e: unknown) {
+    ElMessage.error(e instanceof Error ? e.message : t('quoteList.loadFailed'))
+  }
 }
 
 async function handleCopyRfqItemRow(row: RFQItem) {
@@ -2790,6 +2930,39 @@ html[data-theme='dark'] .rfq-filter-tabs__item:not(.is-active) {
 
 .dock-table-wrap--quotes-empty {
   min-height: 0;
+}
+
+.dock-deleted-quotes {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--crm-border-panel, #e2e8f0);
+}
+
+.dock-deleted-quotes__title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--crm-text-primary, #1a2332);
+  margin-bottom: 6px;
+}
+
+.dock-deleted-quotes__empty {
+  font-size: 13px;
+  color: $text-muted;
+}
+
+.dock-deleted-quotes__table {
+  width: 100%;
+}
+
+.deleted-quote-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.35;
+}
+
+.deleted-quote-stack--right {
+  align-items: flex-end;
 }
 
 /* 与 /pending-approvals「进入审批桌面」同款 */
