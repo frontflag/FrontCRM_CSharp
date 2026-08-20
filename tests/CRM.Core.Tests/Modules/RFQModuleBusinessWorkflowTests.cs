@@ -408,6 +408,40 @@ public sealed class RFQModuleBusinessWorkflowTests
     }
 
     [Fact]
+    public async Task GetPagedItemsAsync_FiltersByBrandId()
+    {
+        var h = new RfqInMemoryHarness();
+        await SeedCustomerAsync(h);
+        await h.Service.CreateAsync(new CreateRFQRequest
+        {
+            CustomerId = "CUST-WF-001",
+            SalesUserId = "USER-001",
+            Items =
+            {
+                new CreateRFQItemRequest { Mpn = "A1", BrandId = 2, Brand = "B", CustomerBrand = "B", Quantity = 1 },
+                new CreateRFQItemRequest { Mpn = "A2", BrandId = 3, Brand = "NX", CustomerBrand = "NX", Quantity = 1 }
+            }
+        });
+
+        var hit = await h.Service.GetPagedItemsAsync(new RFQItemQueryRequest
+        {
+            BrandId = 2,
+            PageIndex = 1,
+            PageSize = 20
+        });
+        hit.TotalCount.Should().Be(1);
+        hit.Items.Single().Mpn.Should().Be("A1");
+
+        var miss = await h.Service.GetPagedItemsAsync(new RFQItemQueryRequest
+        {
+            BrandId = 99,
+            PageIndex = 1,
+            PageSize = 20
+        });
+        miss.TotalCount.Should().Be(0);
+    }
+
+    [Fact]
     public async Task GetPagedItemsAsync_HasQuotesOnly_ReturnsOnlyLinesWithQuote()
     {
         var h = new RfqInMemoryHarness();

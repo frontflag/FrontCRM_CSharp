@@ -140,6 +140,7 @@ export const RFQ_ITEM_KEYWORD_QUERY_KEYS = [
   'rfqCode',
   'customerKeyword',
   'materialModel',
+  'brandId',
   'salesUserId',
   'purchaserUserId'
 ] as const

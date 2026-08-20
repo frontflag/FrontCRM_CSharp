@@ -279,6 +279,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? quickFilter = null,
             [FromQuery] string? customerKeyword = null,
             [FromQuery] string? materialModel = null,
+            [FromQuery] long? brandId = null,
             [FromQuery] string? salesUserId = null,
             [FromQuery] string? salesUserKeyword = null,
             [FromQuery] string? purchaserUserId = null,
@@ -304,6 +305,7 @@ namespace CRM.API.Controllers
                     QuickFilter = string.IsNullOrWhiteSpace(quickFilter) ? null : quickFilter.Trim(),
                     CustomerKeyword = customerKeyword,
                     MaterialModel = materialModel,
+                    BrandId = brandId is > 0 ? brandId : null,
                     SalesUserId = salesUserId,
                     SalesUserKeyword = salesUserKeyword,
                     PurchaserUserId = purchaserUserId,
@@ -370,6 +372,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? quickFilter,
             [FromQuery] string? customerKeyword,
             [FromQuery] string? materialModel,
+            [FromQuery] long? brandId,
             [FromQuery] string? salesUserId,
             [FromQuery] string? salesUserKeyword,
             [FromQuery] string? purchaserUserId,
@@ -381,7 +384,7 @@ namespace CRM.API.Controllers
         {
             var (request, maskCustomerNames) = await BuildItemListAnalyticsQueryRequestAsync(
                 startDate, endDate, itemCreateStart, itemCreateEndExclusive, quoteCreateStart, quoteCreateEndExclusive,
-                quickFilter, customerKeyword, materialModel, salesUserId, salesUserKeyword,
+                quickFilter, customerKeyword, materialModel, brandId, salesUserId, salesUserKeyword,
                 purchaserUserId, hasQuotesOnly, status, rfqCode, dataset, cancellationToken);
             var data = await _rfqItemListQuery.GetListAnalyticsDashboardAsync(request, maskCustomerNames, cancellationToken);
             return Ok(ApiResponse<RfqListAnalyticsDashboardDto>.Ok(data));
@@ -399,6 +402,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? quickFilter,
             [FromQuery] string? customerKeyword,
             [FromQuery] string? materialModel,
+            [FromQuery] long? brandId,
             [FromQuery] string? salesUserId,
             [FromQuery] string? salesUserKeyword,
             [FromQuery] string? purchaserUserId,
@@ -411,7 +415,7 @@ namespace CRM.API.Controllers
         {
             var (request, _) = await BuildItemListAnalyticsQueryRequestAsync(
                 startDate, endDate, itemCreateStart, itemCreateEndExclusive, quoteCreateStart, quoteCreateEndExclusive,
-                quickFilter, customerKeyword, materialModel, salesUserId, salesUserKeyword,
+                quickFilter, customerKeyword, materialModel, brandId, salesUserId, salesUserKeyword,
                 purchaserUserId, hasQuotesOnly, status, rfqCode, dataset, cancellationToken);
             var data = await _rfqItemListQuery.GetListAnalyticsTrendsAsync(
                 request,
@@ -432,6 +436,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? quickFilter,
             [FromQuery] string? customerKeyword,
             [FromQuery] string? materialModel,
+            [FromQuery] long? brandId,
             [FromQuery] string? salesUserId,
             [FromQuery] string? salesUserKeyword,
             [FromQuery] string? purchaserUserId,
@@ -443,7 +448,7 @@ namespace CRM.API.Controllers
         {
             var (request, _) = await BuildItemListAnalyticsQueryRequestAsync(
                 startDate, endDate, itemCreateStart, itemCreateEndExclusive, quoteCreateStart, quoteCreateEndExclusive,
-                quickFilter, customerKeyword, materialModel, salesUserId, salesUserKeyword,
+                quickFilter, customerKeyword, materialModel, brandId, salesUserId, salesUserKeyword,
                 purchaserUserId, hasQuotesOnly, status, rfqCode, dataset, cancellationToken);
             var data = await _rfqItemListQuery.GetListAnalyticsBreakdownsAsync(request, cancellationToken);
             return Ok(ApiResponse<IReadOnlyList<SalesAnalyticsBreakdownGroupDto>>.Ok(data));
@@ -461,6 +466,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? quickFilter,
             [FromQuery] string? customerKeyword,
             [FromQuery] string? materialModel,
+            [FromQuery] long? brandId,
             [FromQuery] string? salesUserId,
             [FromQuery] string? salesUserKeyword,
             [FromQuery] string? purchaserUserId,
@@ -472,7 +478,7 @@ namespace CRM.API.Controllers
         {
             var (request, maskCustomerNames) = await BuildItemListAnalyticsQueryRequestAsync(
                 startDate, endDate, itemCreateStart, itemCreateEndExclusive, quoteCreateStart, quoteCreateEndExclusive,
-                quickFilter, customerKeyword, materialModel, salesUserId, salesUserKeyword,
+                quickFilter, customerKeyword, materialModel, brandId, salesUserId, salesUserKeyword,
                 purchaserUserId, hasQuotesOnly, status, rfqCode, dataset, cancellationToken);
             var data = await _rfqItemListQuery.GetListAnalyticsRankingsAsync(request, maskCustomerNames, cancellationToken);
             return Ok(ApiResponse<RfqItemListAnalyticsRankingsDto>.Ok(data));
@@ -861,6 +867,7 @@ namespace CRM.API.Controllers
             string? quickFilter,
             string? customerKeyword,
             string? materialModel,
+            long? brandId,
             string? salesUserId,
             string? salesUserKeyword,
             string? purchaserUserId,
@@ -893,6 +900,7 @@ namespace CRM.API.Controllers
                     ? customerKeyword.Trim()
                     : null,
                 MaterialModel = !string.IsNullOrWhiteSpace(materialModel) ? materialModel.Trim() : null,
+                BrandId = brandId is > 0 ? brandId : null,
                 SalesUserId = !mask521 && !string.IsNullOrWhiteSpace(salesUserId) ? salesUserId.Trim() : null,
                 SalesUserKeyword = !mask521 && !string.IsNullOrWhiteSpace(salesUserKeyword)
                     ? salesUserKeyword.Trim()

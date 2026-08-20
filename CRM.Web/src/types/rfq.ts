@@ -300,6 +300,8 @@ export interface RFQItemSearchRequest {
   customerId?: string
   customerKeyword?: string
   materialModel?: string
+  /** 品牌主键（biz_brand / rfqitem.brand_id） */
+  brandId?: number
   customerMaterialModel?: string
   /** 主表业务员用户 ID（与 auth sales-users-tree 范围一致，由前端下拉传入） */
   salesUserId?: string

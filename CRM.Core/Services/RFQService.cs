@@ -460,6 +460,7 @@ namespace CRM.Core.Services
                 QuickFilter = request.QuickFilter,
                 CustomerKeyword = canViewCustomerInList ? request.CustomerKeyword : null,
                 MaterialModel = request.MaterialModel,
+                BrandId = request.BrandId,
                 SalesUserId = request.SalesUserId,
                 SalesUserKeyword = request.SalesUserKeyword,
                 PurchaserUserId = request.PurchaserUserId,

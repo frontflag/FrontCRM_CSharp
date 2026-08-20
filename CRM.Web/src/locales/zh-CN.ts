@@ -2983,6 +2983,7 @@ const zhCN = {
       endDate: '创建止',
       customerPlaceholder: '客户名称模糊',
       materialPlaceholder: 'MPN / 客户料号',
+      brandPlaceholder: '品牌',
       rfqCodePlaceholder: '需求编号',
       allItemStatuses: '全部明细状态',
       itemStatus: '明细状态',

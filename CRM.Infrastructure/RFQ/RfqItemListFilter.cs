@@ -163,6 +163,12 @@ internal static partial class RfqItemListFilter
                 q = q.Where(x => x.Item.Mpn.ToLower().Contains(kw));
         }
 
+        if (request.BrandId is > 0)
+        {
+            var brandId = request.BrandId.Value;
+            q = q.Where(x => x.Item.BrandId == brandId);
+        }
+
         if (!string.IsNullOrWhiteSpace(request.SalesUserId))
         {
             var sid = request.SalesUserId.Trim();

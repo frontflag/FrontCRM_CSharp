@@ -76,6 +76,8 @@ public sealed class MemoryRfqItemListQuery : IRfqItemListQuery
                 continue;
             if (linePredicate != null && !linePredicate(rfq, item))
                 continue;
+            if (request.BrandId is > 0 && item.BrandId != request.BrandId)
+                continue;
 
             users.TryGetValue(rfq.SalesUserId ?? "", out var salesUser);
             users.TryGetValue(rfq.CreateByUserId ?? "", out var createUser);

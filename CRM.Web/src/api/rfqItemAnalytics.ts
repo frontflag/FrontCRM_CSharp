@@ -12,6 +12,7 @@ export interface RfqItemListAnalyticsQuery {
   quickFilter?: string
   customerKeyword?: string
   materialModel?: string
+  brandId?: number
   salesUserId?: string
   purchaserUserId?: string
   hasQuotesOnly?: boolean
@@ -48,6 +49,7 @@ function buildParams(q: RfqItemListAnalyticsQuery): Record<string, string | numb
   if (q.quickFilter) p.quickFilter = q.quickFilter
   if (q.customerKeyword) p.customerKeyword = q.customerKeyword
   if (q.materialModel) p.materialModel = q.materialModel
+  if (q.brandId != null && q.brandId > 0) p.brandId = q.brandId
   if (q.salesUserId) p.salesUserId = q.salesUserId
   if (q.purchaserUserId) p.purchaserUserId = q.purchaserUserId
   if (q.hasQuotesOnly) p.hasQuotesOnly = true

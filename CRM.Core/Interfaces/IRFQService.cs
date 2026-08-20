@@ -241,6 +241,8 @@ namespace CRM.Core.Interfaces
         public string? QuickFilter { get; set; }
         public string? CustomerKeyword { get; set; }
         public string? MaterialModel { get; set; }
+        /// <summary>按明细品牌主键精确筛选（biz_brand / rfqitem.brand_id）</summary>
+        public long? BrandId { get; set; }
         /// <summary>按主表业务员用户 ID 精确筛选（与前端下拉一致）</summary>
         public string? SalesUserId { get; set; }
         public string? SalesUserKeyword { get; set; }

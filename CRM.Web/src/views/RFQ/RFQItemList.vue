@@ -100,6 +100,12 @@
             @keyup.enter="handleSearch"
           />
         </div>
+        <BizBrandSelect
+          v-model="searchForm.brandId"
+          class="search-brand-select"
+          :placeholder="t('rfqItemList.filters.brandPlaceholder')"
+          :show-create-button="false"
+        />
         <template v-if="showRfqSalesUserColumn">
           <el-select
             v-model="searchForm.salesUserId"
@@ -886,6 +892,7 @@ import {
   RFQ_ITEM_STATUS_I18N_KEYS,
 } from '@/utils/rfqItemLineStatus'
 import CrmDataTable from '@/components/CrmDataTable.vue'
+import BizBrandSelect from '@/components/Biz/BizBrandSelect.vue'
 import RfqItemListBoard from './RfqItemListBoard.vue'
 import type { RfqItemListAnalyticsQuery } from '@/api/rfqItemAnalytics'
 import DockQuoteExtendColumnHeader from '@/components/list/DockQuoteExtendColumnHeader.vue'
@@ -1398,6 +1405,7 @@ const dockQuoteTableColumns = computed((): CrmTableColumnDef[] => {
 const searchForm = reactive({
   customerKeyword: '',
   materialModel: '',
+  brandId: null as number | null,
   rfqCode: '',
   itemStatus: undefined as number | undefined,
   salesUserId: undefined as string | undefined,
@@ -1428,6 +1436,7 @@ function appendRfqItemListFilterParams(
   if (ck) q.customerKeyword = ck
   const mm = searchForm.materialModel.trim()
   if (mm) q.materialModel = mm
+  if (searchForm.brandId != null && searchForm.brandId > 0) q.brandId = searchForm.brandId
   const rc = searchForm.rfqCode.trim()
   if (rc) q.rfqCode = rc
   if (searchForm.salesUserId) q.salesUserId = searchForm.salesUserId
@@ -1849,6 +1858,9 @@ function applyRouteQueryToFilters() {
   }
   searchForm.customerKeyword = typeof q.customerKeyword === 'string' ? q.customerKeyword : ''
   searchForm.materialModel = typeof q.materialModel === 'string' ? q.materialModel : ''
+  const bidRaw = Array.isArray(q.brandId) ? q.brandId[0] : q.brandId
+  const bidNum = typeof bidRaw === 'string' || typeof bidRaw === 'number' ? Number(bidRaw) : NaN
+  searchForm.brandId = Number.isFinite(bidNum) && bidNum > 0 ? bidNum : null
   searchForm.rfqCode = typeof q.rfqCode === 'string' ? q.rfqCode : ''
   const stRaw = q.itemStatus ?? q.status
   const stStr = Array.isArray(stRaw) ? stRaw[0] : stRaw
@@ -1889,6 +1901,7 @@ async function loadData() {
       quickFilter: filterBag.quickFilter,
       customerKeyword: filterBag.customerKeyword,
       materialModel: filterBag.materialModel,
+      brandId: filterBag.brandId,
       rfqCode: filterBag.rfqCode,
       ...(filterBag.status !== undefined && filterBag.status !== null
         ? { status: filterBag.status as RFQItemStatus }
@@ -1953,6 +1966,7 @@ function handleSearch() {
     rfqCode: searchForm.rfqCode.trim(),
     customerKeyword: searchForm.customerKeyword.trim(),
     materialModel: searchForm.materialModel.trim(),
+    brandId: searchForm.brandId != null && searchForm.brandId > 0 ? String(searchForm.brandId) : '',
     salesUserId: searchForm.salesUserId ?? '',
     purchaserUserId: searchForm.purchaserUserId ?? ''
   })
@@ -3007,6 +3021,26 @@ html[data-theme='dark'] .rfq-filter-tabs__item:not(.is-active) {
 .status-select--purchase,
 .status-select--item-status {
   width: 180px;
+}
+
+.search-brand-select {
+  width: 180px;
+  flex-shrink: 0;
+
+  :deep(.el-select__wrapper) {
+    background: $layer-2 !important;
+    box-shadow: none !important;
+    border: 1px solid $border-panel !important;
+    border-radius: $border-radius-md !important;
+  }
+
+  :deep(.el-select__placeholder) {
+    color: $text-muted !important;
+  }
+
+  :deep(.el-select__selected-item) {
+    color: $text-primary !important;
+  }
 }
 
 .filter-checkbox-has-quotes {

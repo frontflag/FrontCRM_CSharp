@@ -3009,6 +3009,7 @@ const enUS = {
       endDate: 'End',
       customerPlaceholder: 'Fuzzy customer name',
       materialPlaceholder: 'MPN / customer part',
+      brandPlaceholder: 'Brand',
       rfqCodePlaceholder: 'RFQ code',
       allItemStatuses: 'All item statuses',
       itemStatus: 'Item status',
