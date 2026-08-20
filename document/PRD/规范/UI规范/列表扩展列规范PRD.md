@@ -137,11 +137,14 @@
 
 ### 6.5 整体列宽调宽（el-table）
 
+- 由表头列界拖拽触发；`CrmDataTable` 统一画指引/热区（见 [《业务列表规范》](./业务列表规范.md) **§1.7.2**），再转发 **`header-dragend`**。
 - 列表页监听 `CrmDataTable` 的 **`@header-dragend`**。
 - 仅当 `column.property === 'customer'` 时处理（`isCustomerExtendTableColumn`）。
-- **收起态**：更新 `outerWidthCollapsed`。
+- **收起态**：更新 `outerWidthCollapsed`（不低于 `LIST_CUSTOMER_EXTEND_COL_COLLAPSED_MIN_WIDTH` **160**）。
 - **展开态**：按当前子列比例缩放 `subColWidths`，并更新 `outerWidthExpanded`。
-- 调整后 `persist()`。
+- 列定义上 `minWidth` 与当前 `width` 相同（防止表格把列挤窄）。**表头拖宽不得把该值当收缩下限**，否则无法往左收窄。
+- 调整后 `persist()`（全局扩展列键）。**不**写入列表的 `columnWidths`。
+- 指针在子列拖条（`customer-extend-sub-col-resizer`）上时，不显示主列界指引。
 
 ---
 
@@ -395,3 +398,4 @@ function onHeaderDragEnd(newWidth: number, _old: number, column: { property?: st
 | V1.0 | 2026-06-04 | 初稿与产品确认 |
 | V1.1 | 2026-06-04 | 对齐已实现：三列并排、切换钮置左、子列/整体宽度持久化、出库试点、样式与接入清单 |
 | V1.1.1 | 2026-08-21 | §9.3：普通列用户列宽与扩展列存储分离；恢复默认不清扩展列偏好 |
+| V1.1.2 | 2026-08-21 | §6.5：整体拖宽走表头列界指引；`minWidth` 锁不得挡住往左收窄 |

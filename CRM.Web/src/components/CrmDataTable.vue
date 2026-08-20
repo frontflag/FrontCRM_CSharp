@@ -1,12 +1,16 @@
 <template>
   <div
+    ref="rootRef"
     class="crm-data-table-root"
     :class="[
       props.embedded ? 'crm-items-table crm-data-table crm-data-table--embedded' : 'table-wrapper crm-items-table crm-data-table',
       rowDensityClass,
-      wrapperClass
+      wrapperClass,
+      { 'is-col-resizing': colResizeDragging }
     ]"
     :style="wrapperStyle"
+    @pointermove="onColResizePointerMove"
+    @pointerleave="onColResizePointerLeave"
   >
     <div
       v-if="configMode && props.showColumnSettings"
@@ -65,6 +69,7 @@
       style="width: 100%"
       @row-click="onInternalRowClick"
       @header-dragend="onInternalHeaderDragend"
+      :header-cell-class-name="mergedHeaderCellClassName"
     >
       <template v-if="configMode">
         <el-table-column
@@ -107,6 +112,16 @@
         <slot name="empty" />
       </template>
     </el-table>
+
+    <div
+      v-show="colResizeGuideVisible"
+      class="crm-col-resize-hit"
+      :class="{ 'is-dragging': colResizeDragging, 'is-hot': colResizeHot }"
+      :style="colResizeHitStyle"
+      @pointerdown="onColResizeHitDown"
+    >
+      <span class="crm-col-resize-hit__line" aria-hidden="true" />
+    </div>
 
     <el-drawer
       v-if="configMode"
@@ -176,7 +191,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, toRef, useAttrs, useSlots, watch, type StyleValue } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, toRef, useAttrs, useSlots, watch, type StyleValue } from 'vue'
 import { ElMessage } from 'element-plus'
 import { RefreshLeft, Setting } from '@element-plus/icons-vue'
 import { usePersistedTableColumns, type CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
@@ -195,6 +210,16 @@ import {
   resolveCrmTableRowKey,
   type CrmTableRowKeyProp
 } from '@/utils/crmListClickedRow'
+import {
+  CRM_COL_RESIZE_HIT_PX,
+  clampColumnResizeWidth,
+  isHeaderColumnResizable,
+  isHeaderResizeControlTarget,
+  isPointerOverTableHeader,
+  pickNearestBoundaryIndex,
+  resolveHeaderResizeMinWidth,
+  type HeaderResizeBoundary
+} from '@/utils/crmTableHeaderResizeGuide'
 
 type CheckboxValue = boolean | string | number
 
@@ -313,6 +338,8 @@ const tableAttrs = computed(() => {
   delete a['row-class-name']
   delete a.onRowClick
   delete a.onHeaderDragend
+  delete a.headerCellClassName
+  delete a['header-cell-class-name']
   return a
 })
 
@@ -335,6 +362,209 @@ function onInternalHeaderDragend(
   const handler = attrs.onHeaderDragend as ((...args: unknown[]) => void) | undefined
   handler?.(newWidth, oldWidth, column, event)
 }
+
+function mergedHeaderCellClassName(ctx: {
+  column: { columnKey?: string; property?: string }
+  columnIndex: number
+  rowIndex: number
+}) {
+  const user = attrs.headerCellClassName ?? attrs['header-cell-class-name']
+  let extra = ''
+  if (typeof user === 'function') extra = String(user(ctx) ?? '')
+  else if (typeof user === 'string') extra = user
+  const key = ctx.column?.columnKey || ctx.column?.property
+  const ours = key ? `crm-col-key-${key}` : ''
+  return [ours, extra].filter(Boolean).join(' ')
+}
+
+const rootRef = ref<HTMLElement | null>(null)
+const colResizeGuideVisible = ref(false)
+const colResizeHot = ref(false)
+const colResizeDragging = ref(false)
+const colResizeHitStyle = ref<{ left: string; top: string; height: string; width: string } | undefined>()
+const activeBoundary = ref<HeaderResizeBoundary | null>(null)
+
+type ColResizeDragState = {
+  key: string
+  property?: string
+  startWidth: number
+  minWidth: number
+  startX: number
+  startRight: number
+  top: number
+  height: number
+}
+
+let colResizeDrag: ColResizeDragState | null = null
+
+function collectResizeBoundaries(): HeaderResizeBoundary[] {
+  const root = rootRef.value
+  if (!root || props.border === false) return []
+  const fixedRight = root.querySelector('.el-table__fixed-right') as HTMLElement | null
+  const clipRight = fixedRight?.getBoundingClientRect().left ?? Number.POSITIVE_INFINITY
+  const defs = configMode.value ? persist.orderedVisibleColumns.value : []
+  const out: HeaderResizeBoundary[] = []
+
+  const pushTh = (th: HTMLElement, def: CrmTableColumnDef | undefined, fallbackKey: string) => {
+    if (th.classList.contains('gutter') || th.classList.contains('el-table-column--selection')) return
+    if (th.classList.contains('op-col')) return
+    if (def && !isHeaderColumnResizable(def)) return
+    if (!def && th.classList.contains('el-table-column--selection')) return
+    const rect = th.getBoundingClientRect()
+    if (rect.width < 12 || rect.height < 8) return
+    const right = Math.min(rect.right, clipRight)
+    if (right - rect.left < 20) return
+    out.push({
+      key: def?.key ?? fallbackKey,
+      property: def?.prop,
+      minWidth: resolveHeaderResizeMinWidth(def, rect.width),
+      startWidth: rect.width,
+      right,
+      top: rect.top,
+      height: rect.height
+    })
+  }
+
+  if (defs.length) {
+    for (const def of defs) {
+      if (!isHeaderColumnResizable(def)) continue
+      const nodes = [
+        ...root.querySelectorAll<HTMLElement>(`th.crm-col-key-${CSS.escape(def.key)}`)
+      ]
+      if (!nodes.length) continue
+      const th =
+        nodes.find((n) => n.closest('.el-table__header-wrapper') && !n.closest('.el-table__fixed')) ??
+        nodes[0]!
+      pushTh(th, def, def.key)
+    }
+    return out
+  }
+
+  const ths = [
+    ...root.querySelectorAll<HTMLElement>('.el-table__header-wrapper thead th.el-table__cell')
+  ].filter((th) => !th.classList.contains('gutter'))
+  ths.forEach((th, i) => pushTh(th, undefined, `idx-${i}`))
+  return out
+}
+
+function placeHitFromBoundary(b: HeaderResizeBoundary, rootRect: DOMRect, hot: boolean) {
+  colResizeHitStyle.value = {
+    left: `${b.right - rootRect.left - CRM_COL_RESIZE_HIT_PX}px`,
+    top: `${b.top - rootRect.top}px`,
+    height: `${b.height}px`,
+    width: `${CRM_COL_RESIZE_HIT_PX}px`
+  }
+  colResizeHot.value = hot
+  colResizeGuideVisible.value = true
+  activeBoundary.value = b
+}
+
+function hideColResizeGuide() {
+  if (colResizeDragging.value) return
+  colResizeGuideVisible.value = false
+  colResizeHot.value = false
+  activeBoundary.value = null
+}
+
+function onColResizePointerMove(e: PointerEvent) {
+  if (colResizeDragging.value) return
+  if (props.border === false) return
+  if (isHeaderResizeControlTarget(e.target)) {
+    hideColResizeGuide()
+    return
+  }
+  if (!isPointerOverTableHeader(e.target)) {
+    hideColResizeGuide()
+    return
+  }
+  const root = rootRef.value
+  if (!root) return
+  const boundaries = collectResizeBoundaries()
+  const idx = pickNearestBoundaryIndex(
+    boundaries.map((b) => b.right),
+    e.clientX
+  )
+  if (idx < 0) {
+    hideColResizeGuide()
+    return
+  }
+  const b = boundaries[idx]!
+  const hot = e.clientX <= b.right && b.right - e.clientX <= CRM_COL_RESIZE_HIT_PX
+  placeHitFromBoundary(b, root.getBoundingClientRect(), hot)
+}
+
+function onColResizePointerLeave(e: PointerEvent) {
+  const next = e.relatedTarget
+  if (next instanceof Node && rootRef.value?.contains(next)) return
+  hideColResizeGuide()
+}
+
+function onColResizeHitDown(e: PointerEvent) {
+  if (e.button !== 0) return
+  const b = activeBoundary.value
+  const root = rootRef.value
+  if (!b || !root) return
+  e.preventDefault()
+  e.stopPropagation()
+  colResizeDragging.value = true
+  colResizeHot.value = true
+  colResizeDrag = {
+    key: b.key,
+    property: b.property,
+    startWidth: b.startWidth,
+    minWidth: b.minWidth,
+    startX: e.clientX,
+    startRight: b.right,
+    top: b.top,
+    height: b.height
+  }
+  document.body.style.cursor = 'col-resize'
+  document.body.style.userSelect = 'none'
+  document.addEventListener('pointermove', onColResizeDocMove)
+  document.addEventListener('pointerup', onColResizeDocUp)
+}
+
+function onColResizeDocMove(e: PointerEvent) {
+  const drag = colResizeDrag
+  const root = rootRef.value
+  if (!drag || !root) return
+  const width = clampColumnResizeWidth(drag.startWidth + (e.clientX - drag.startX), drag.minWidth)
+  const right = drag.startRight + (width - drag.startWidth)
+  const rootRect = root.getBoundingClientRect()
+  colResizeHitStyle.value = {
+    left: `${right - rootRect.left - CRM_COL_RESIZE_HIT_PX}px`,
+    top: `${drag.top - rootRect.top}px`,
+    height: `${drag.height}px`,
+    width: `${CRM_COL_RESIZE_HIT_PX}px`
+  }
+}
+
+function onColResizeDocUp(e: PointerEvent) {
+  const drag = colResizeDrag
+  document.removeEventListener('pointermove', onColResizeDocMove)
+  document.removeEventListener('pointerup', onColResizeDocUp)
+  document.body.style.cursor = ''
+  document.body.style.userSelect = ''
+  colResizeDragging.value = false
+  colResizeDrag = null
+  if (!drag) return
+  const newWidth = clampColumnResizeWidth(drag.startWidth + (e.clientX - drag.startX), drag.minWidth)
+  onInternalHeaderDragend(
+    newWidth,
+    drag.startWidth,
+    { columnKey: drag.key, property: drag.property },
+    e as unknown as MouseEvent
+  )
+  void nextTick(() => innerTableRef.value?.doLayout?.())
+  hideColResizeGuide()
+}
+
+onBeforeUnmount(() => {
+  document.removeEventListener('pointermove', onColResizeDocMove)
+  document.removeEventListener('pointerup', onColResizeDocUp)
+  document.body.style.cursor = ''
+  document.body.style.userSelect = ''
+})
 
 const orderedVisibleColumns = computed(() => {
   if (!configMode.value) return []
@@ -425,6 +655,43 @@ defineExpose({
 </script>
 
 <style scoped lang="scss">
+.crm-data-table-root {
+  position: relative;
+}
+
+.crm-col-resize-hit {
+  position: absolute;
+  z-index: 8;
+  cursor: col-resize;
+  touch-action: none;
+
+  &:not(.is-hot):not(.is-dragging) {
+    pointer-events: none;
+  }
+}
+
+.crm-col-resize-hit__line {
+  position: absolute;
+  top: 10px;
+  right: 0;
+  bottom: 10px;
+  width: 2px;
+  height: auto;
+  background: #ced1d1;
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+.crm-col-resize-hit.is-hot .crm-col-resize-hit__line,
+.crm-col-resize-hit.is-dragging .crm-col-resize-hit__line {
+  opacity: 1;
+}
+
+.crm-data-table-root.is-col-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
 .crm-data-table__toolbar {
   display: flex;
   justify-content: flex-end;
