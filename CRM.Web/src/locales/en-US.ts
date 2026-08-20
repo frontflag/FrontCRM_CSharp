@@ -4561,6 +4561,50 @@ const enUS = {
       remark: 'Notes',
       remarkPh: 'Other notes'
     },
+    levelGuide: {
+      aria: 'Level guide',
+      title: 'Vendor level guide',
+      cols: {
+        code: 'Level',
+        name: 'Name',
+        source: 'Typical source',
+        definition: 'Definition',
+        action: 'Purchasing guidance'
+      },
+      rows: {
+        S: {
+          name: 'Safe',
+          source: 'OEM / officially authorized agent',
+          definition: 'Full authorization; OEM docs, COC, and datasheet available; supply chain is clear',
+          action: 'OK for large orders; standard IQC; long-term and stocking orders allowed'
+        },
+        A: {
+          name: 'Preferred',
+          source: 'Tier-1 distributor / large legitimate trader',
+          definition: 'Not OEM-direct, but upstream is stable via agent/OEM or large factory channels; rarely spot-market lots; genuine traceability and COC; few quality disputes',
+          action: 'Normal ordering; require COC on key parts; incoming inspection for high-value parts'
+        },
+        B: {
+          name: 'Watch',
+          source: 'Mid-size market trader',
+          definition: 'Can supply good stock, mixed with open-market lots; incomplete supply-chain visibility; occasional mixed date codes or missing docs; small disputes resolved',
+          action: 'Avoid large stocking; spot fills only; avoid high-value/controlled parts; incoming check: P/N, DC, COC, appearance'
+        },
+        C: {
+          name: 'Risk',
+          source: 'Small counter / open-market trader',
+          definition: 'Mixed sources, upstream uncontrolled; history may include refurbished/counterfeit, fake certs, disputes; missing credentials',
+          action: 'Do not purchase by default; tiny emergency lots only; third-party test every lot; no long-term cooperation'
+        },
+        D: {
+          name: 'Blacklist',
+          source: 'Open markets / platforms',
+          definition: 'Market consensus: dishonest, sells fakes',
+          action: 'No trading'
+        }
+      },
+      footnote: 'A, B, and C are not fixed; adjust later based on trading history.'
+    },
     contacts: {
       add: 'Add contact',
       empty: 'No contacts yet. Use the button above to add.',

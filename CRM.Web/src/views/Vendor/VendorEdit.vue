@@ -88,7 +88,54 @@
               </el-form-item>
             </el-col>
             <el-col :span="8">
-              <el-form-item :label="t('vendorEdit.fields.level')">
+              <el-form-item>
+                <template #label>
+                  <span class="vendor-level-label">
+                    <el-popover
+                      placement="bottom-start"
+                      :width="860"
+                      trigger="click"
+                      :teleported="true"
+                      popper-class="vendor-level-guide-popper"
+                    >
+                      <template #reference>
+                        <button
+                          type="button"
+                          class="vendor-level-tip-btn"
+                          :aria-label="t('vendorEdit.levelGuide.aria')"
+                          @click.stop
+                        >
+                          <el-icon><QuestionFilled /></el-icon>
+                        </button>
+                      </template>
+                      <div class="vendor-level-guide">
+                        <p class="vendor-level-guide__title">{{ t('vendorEdit.levelGuide.title') }}</p>
+                        <table class="vendor-level-guide__table">
+                          <thead>
+                            <tr>
+                              <th>{{ t('vendorEdit.levelGuide.cols.code') }}</th>
+                              <th>{{ t('vendorEdit.levelGuide.cols.name') }}</th>
+                              <th>{{ t('vendorEdit.levelGuide.cols.source') }}</th>
+                              <th>{{ t('vendorEdit.levelGuide.cols.definition') }}</th>
+                              <th>{{ t('vendorEdit.levelGuide.cols.action') }}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr v-for="row in levelGuideRows" :key="row.code">
+                              <td class="vendor-level-guide__code">{{ row.code }}</td>
+                              <td>{{ row.name }}</td>
+                              <td>{{ row.source }}</td>
+                              <td>{{ row.definition }}</td>
+                              <td>{{ row.action }}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                        <p class="vendor-level-guide__note">{{ t('vendorEdit.levelGuide.footnote') }}</p>
+                      </div>
+                    </el-popover>
+                    {{ t('vendorEdit.fields.level') }}
+                  </span>
+                </template>
                 <el-select v-model="formData.level" :placeholder="t('vendorEdit.fields.levelPh')" class="q-select">
                   <el-option
                     v-for="opt in vendorDict.levelSelectOptions"
@@ -378,6 +425,7 @@ import {
   hasContactName,
   splitContactNamesFromApi
 } from '@/utils/contactName';
+import { QuestionFilled } from '@element-plus/icons-vue';
 import { VENDOR_LEVEL_DEFAULT } from '@/constants/vendorEnums';
 
 const route = useRoute();
@@ -385,6 +433,17 @@ const router = useRouter();
 const { t, locale } = useI18n();
 
 const vendorDict = useVendorDictStore();
+
+const LEVEL_GUIDE_CODES = ['S', 'A', 'B', 'C', 'D'] as const;
+const levelGuideRows = computed(() =>
+  LEVEL_GUIDE_CODES.map((code) => ({
+    code,
+    name: t(`vendorEdit.levelGuide.rows.${code}.name`),
+    source: t(`vendorEdit.levelGuide.rows.${code}.source`),
+    definition: t(`vendorEdit.levelGuide.rows.${code}.definition`),
+    action: t(`vendorEdit.levelGuide.rows.${code}.action`)
+  }))
+);
 
 /** 与 CustomerEdit 一致：create 路由无 id，:id/edit 有 id */
 const isEdit = computed(() => !!route.params.id);
@@ -1112,6 +1171,36 @@ onMounted(async () => {
   }
 }
 
+.vendor-level-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.vendor-level-tip-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #eab308;
+  cursor: pointer;
+  border-radius: 4px;
+  vertical-align: middle;
+
+  &:hover {
+    background: rgba(234, 179, 8, 0.12);
+  }
+
+  .el-icon {
+    font-size: 14px;
+  }
+}
+
 .q-select {
   width: 100%;
 
@@ -1238,5 +1327,58 @@ onMounted(async () => {
     font-size: 12px;
     font-style: italic;
   }
+}
+</style>
+
+<style lang="scss">
+.vendor-level-guide-popper.el-popper {
+  max-width: min(860px, calc(100vw - 24px));
+  box-sizing: border-box;
+}
+
+.vendor-level-guide {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--el-text-color-primary);
+}
+
+.vendor-level-guide__title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.vendor-level-guide__table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    border: 1px solid var(--el-border-color);
+    padding: 6px 8px;
+    vertical-align: top;
+    text-align: left;
+  }
+
+  th {
+    font-weight: 600;
+    white-space: nowrap;
+    background: var(--el-fill-color-light);
+  }
+
+  td:nth-child(1),
+  td:nth-child(2) {
+    white-space: nowrap;
+  }
+}
+
+.vendor-level-guide__code {
+  font-weight: 700;
+  text-align: center !important;
+}
+
+.vendor-level-guide__note {
+  margin: 8px 0 0;
+  color: var(--el-text-color-secondary);
 }
 </style>
