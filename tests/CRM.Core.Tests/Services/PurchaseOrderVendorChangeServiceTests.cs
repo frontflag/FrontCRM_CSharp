@@ -76,6 +76,63 @@ public class PurchaseOrderVendorChangeServiceTests
         Assert.True(ok);
     }
 
+    [Theory]
+    [InlineData((short)1)]
+    [InlineData((short)2)]
+    [InlineData((short)-1)]
+    public void CanChangeVendorOnOrder_PurchaserWrite_PreAudit_ReturnsTrue(short status)
+    {
+        var ok = PurchaseOrderVendorChangeAccessRules.CanChangeVendorOnOrder(
+            new UserPermissionSummaryDto
+            {
+                IdentityType = 2,
+                PermissionCodes = new List<string> { "purchase-order.write" }
+            },
+            status);
+        Assert.True(ok);
+    }
+
+    [Fact]
+    public void CanChangeVendorOnOrder_PurchaserWrite_Approved_ReturnsFalse()
+    {
+        var ok = PurchaseOrderVendorChangeAccessRules.CanChangeVendorOnOrder(
+            new UserPermissionSummaryDto
+            {
+                IdentityType = 2,
+                PermissionCodes = new List<string> { "purchase-order.write" }
+            },
+            10);
+        Assert.False(ok);
+    }
+
+    [Fact]
+    public void CanChangeVendorOnOrder_Director_Approved_ReturnsTrue()
+    {
+        var ok = PurchaseOrderVendorChangeAccessRules.CanChangeVendorOnOrder(
+            new UserPermissionSummaryDto
+            {
+                IdentityType = 2,
+                RoleCodes = new List<string> { "DEPT_DIRECTOR" }
+            },
+            10);
+        Assert.True(ok);
+    }
+
+    [Fact]
+    public void CanChangeVendorOnOrder_Sales511_PreAudit_ReturnsFalse()
+    {
+        var ok = PurchaseOrderVendorChangeAccessRules.CanChangeVendorOnOrder(
+            new UserPermissionSummaryDto
+            {
+                IdentityType = 1,
+                PurchaseDataScope = 4,
+                BelongsToPurchaseDept = false,
+                PermissionCodes = new List<string> { "purchase-order.write", "sales-order.read" }
+            },
+            1);
+        Assert.False(ok);
+    }
+
     [Fact]
     public async Task PreviewAsync_SameVendor_ReturnsNoOp()
     {

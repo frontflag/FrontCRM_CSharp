@@ -15,7 +15,7 @@ public interface IPurchaseOrderVendorChangeService
 
     /// <summary>
     /// 执行：更新主表/明细供应商（含同 ID 刷新名称），并同步未完结下游。
-    /// 调用前须已校验权限与数据范围（换 ID 时须 <see cref="PurchaseOrderVendorChangeAccessRules.CanChangeVendor"/>）。
+    /// 调用前须已校验数据范围，以及 <see cref="CRM.Core.Utilities.PurchaseOrderVendorChangeAccessRules.CanChangeVendorOnOrder"/>。
     /// </summary>
     Task<PurchaseOrderVendorChangeApplyResult> ApplyAsync(
         PurchaseOrder order,

@@ -166,7 +166,7 @@ namespace CRM.Core.Interfaces
 
     public class UpdatePurchaseOrderRequest
     {
-        /// <summary>更换供应商时须同时提交；须具备 <c>purchase-order.change-vendor</c> 或采购总监权限。</summary>
+        /// <summary>更换供应商时须同时提交。审核前（新建/待审核/审核失败）凭 <c>purchase-order.write</c>；审核通过后须 <c>purchase-order.change-vendor</c> 或采购总监。</summary>
         public string? VendorId { get; set; }
         public string? VendorName { get; set; }
         public string? PurchaseUserId { get; set; }

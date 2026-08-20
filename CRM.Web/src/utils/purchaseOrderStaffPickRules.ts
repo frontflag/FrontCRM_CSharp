@@ -49,3 +49,30 @@ export function canChangePurchaseOrderVendor(user: {
   if (user.hasPermission?.('purchase-order.change-vendor')) return true
   return canPickPurchaseOrderStaffFreely(user)
 }
+
+/** 新建 / 待审核 / 审核失败：采购员可换供应商 */
+export function isPurchaseOrderPreAuditVendorChangeStatus(
+  status: number | null | undefined
+): boolean {
+  const s = Number(status)
+  return s === 1 || s === 2 || s === -1
+}
+
+/**
+ * 按订单主状态：审核前采购员凭 write 可换；审核通过后仍须总监 / change-vendor。
+ * 脱敏身份由调用方另行拦截。
+ */
+export function canChangePurchaseOrderVendorOnOrder(
+  user: {
+    isSysAdmin?: boolean
+    identityType?: number
+    roleCodes?: string[]
+    hasPermission?: (code: string) => boolean
+  } | null | undefined,
+  orderStatus: number | null | undefined
+): boolean {
+  if (!user) return false
+  if (canChangePurchaseOrderVendor(user)) return true
+  if (!isPurchaseOrderPreAuditVendorChangeStatus(orderStatus)) return false
+  return user.isSysAdmin === true || user.hasPermission?.('purchase-order.write') === true
+}

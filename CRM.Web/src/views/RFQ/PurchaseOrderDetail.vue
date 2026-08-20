@@ -901,7 +901,7 @@ import { tagApi, type TagDefinitionDto } from '@/api/tag'
 import { useAuthStore } from '@/stores/auth'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { usePurchaseOrderWriteGate, useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
-import { canChangePurchaseOrderVendor } from '@/utils/purchaseOrderStaffPickRules'
+import { canChangePurchaseOrderVendorOnOrder } from '@/utils/purchaseOrderStaffPickRules'
 import TagListDisplay from '@/components/Tag/TagListDisplay.vue'
 import ApplyTagsDialog from '@/components/Tag/ApplyTagsDialog.vue'
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue'
@@ -944,16 +944,19 @@ const { canWritePo } = usePurchaseOrderWriteGate()
 const { canWriteFinancePayment: canFinancePaymentWrite } = useFinanceWriteGate()
 const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 
-/** 与销售详情「刷新客户」对称：有换供应商权限且未脱敏时可刷新供应商 */
+/** 审核前采购员可换/刷新供应商；审核通过后须总监或 change-vendor；脱敏不可 */
 const canRefreshPoVendor = computed(
   () =>
     !maskPurchaseSensitiveFields.value &&
-    canChangePurchaseOrderVendor({
-      isSysAdmin: authStore.user?.isSysAdmin,
-      identityType: authStore.user?.identityType,
-      roleCodes: authStore.user?.roleCodes,
-      hasPermission: (c) => authStore.hasPermission(c)
-    })
+    canChangePurchaseOrderVendorOnOrder(
+      {
+        isSysAdmin: authStore.user?.isSysAdmin,
+        identityType: authStore.user?.identityType,
+        roleCodes: authStore.user?.roleCodes,
+        hasPermission: (c) => authStore.hasPermission(c)
+      },
+      normalizePurchaseOrderMainStatus(order.value)
+    )
 )
 
 const FF_EDITABLE_PO_STATUSES = new Set([10, 20, 30, 50, 100])

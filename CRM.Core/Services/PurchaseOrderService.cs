@@ -482,11 +482,12 @@ namespace CRM.Core.Services
                 ?? throw new InvalidOperationException($"采购订单 {id} 不存在");
 
             var headerBefore = CapturePurchaseOrderHeaderSnapshot(order);
+            PurchaseOrderVendorChangeApplyResult? vendorApply = null;
             if (!string.IsNullOrWhiteSpace(request.VendorId))
             {
                 if (_vendorChangeService == null)
                     throw new InvalidOperationException("换供应商服务未配置");
-                await _vendorChangeService.ApplyAsync(order, request.VendorId.Trim(), actingUserId);
+                vendorApply = await _vendorChangeService.ApplyAsync(order, request.VendorId.Trim(), actingUserId);
             }
 
             if (request.PurchaseUserId != null) order.PurchaseUserId = request.PurchaseUserId;
@@ -543,6 +544,11 @@ namespace CRM.Core.Services
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
 
             await LogPurchaseOrderHeaderChangesAsync(order, headerBefore, actingUserId);
+            if (vendorApply is { Applied: true }
+                && !VendorIdsEqual(headerBefore.VendorId, order.VendorId))
+            {
+                await AppendVendorChangeOperationLogAsync(order, headerBefore, vendorApply, actingUserId);
+            }
 
             if (syncResult != null)
             {
@@ -829,6 +835,55 @@ namespace CRM.Core.Services
                 order.Id,
                 order.PurchaseOrderCode,
                 OperationLogActionTypes.PurchaseOrderRefreshPurchasePrice,
+                actor,
+                operatorName,
+                desc,
+                null,
+                extraInfo,
+                cancellationToken);
+        }
+
+        private async Task AppendVendorChangeOperationLogAsync(
+            PurchaseOrder order,
+            PurchaseOrderHeaderSnapshot before,
+            PurchaseOrderVendorChangeApplyResult apply,
+            string? actingUserId,
+            CancellationToken cancellationToken = default)
+        {
+            if (_logOperationAppend == null)
+                return;
+
+            string? operatorName = null;
+            var actor = string.IsNullOrWhiteSpace(actingUserId) ? null : actingUserId.Trim();
+            if (!string.IsNullOrEmpty(actor) && _userService != null)
+            {
+                var user = await _userService.GetByIdAsync(actor);
+                operatorName = string.IsNullOrWhiteSpace(user?.RealName) ? user?.UserName : user!.RealName;
+            }
+
+            var oldDisplay = FormatVendorLogValue(before.VendorId, before.VendorCode, before.VendorName);
+            var newDisplay = FormatVendorLogValue(order.VendorId, order.VendorCode, order.VendorName);
+            var preview = apply.Preview;
+            var desc =
+                $"将供应商由「{oldDisplay}」更换为「{newDisplay}」。同步明细 {preview.PoItemsToSync}、到货通知 {preview.ArrivalNoticesToSync}、入库单 {preview.StockInsToSync}、付款单 {preview.PaymentsToSync}、进项发票 {preview.PurchaseInvoicesToSync}。";
+            var extraInfo = JsonSerializer.Serialize(new
+            {
+                oldVendorId = before.VendorId,
+                newVendorId = order.VendorId,
+                oldVendorName = before.VendorName,
+                newVendorName = order.VendorName,
+                poItems = preview.PoItemsToSync,
+                arrivalNotices = preview.ArrivalNoticesToSync,
+                stockIns = preview.StockInsToSync,
+                payments = preview.PaymentsToSync,
+                purchaseInvoices = preview.PurchaseInvoicesToSync
+            });
+
+            await _logOperationAppend.AppendAsync(
+                BusinessLogTypes.PurchaseOrder,
+                order.Id,
+                order.PurchaseOrderCode,
+                OperationLogActionTypes.PurchaseOrderChangeVendor,
                 actor,
                 operatorName,
                 desc,
@@ -1282,7 +1337,9 @@ ORDER BY i.""ModifyTime"" DESC NULLS LAST, i.""CreateTime"" DESC";
         private static string SqlQ(string? s) => (s ?? "").Replace("'", "''", StringComparison.Ordinal);
 
         private sealed record PurchaseOrderHeaderSnapshot(
+            string? VendorId,
             string? VendorName,
+            string? VendorCode,
             string? PurchaseUserName,
             string? Assistor,
             short Currency,
@@ -1297,7 +1354,9 @@ ORDER BY i.""ModifyTime"" DESC NULLS LAST, i.""CreateTime"" DESC";
 
         private static PurchaseOrderHeaderSnapshot CapturePurchaseOrderHeaderSnapshot(PurchaseOrder order) =>
             new(
+                order.VendorId,
                 order.VendorName,
+                order.VendorCode,
                 order.PurchaseUserName,
                 order.Assistor,
                 order.Currency,
@@ -1310,13 +1369,46 @@ ORDER BY i.""ModifyTime"" DESC NULLS LAST, i.""CreateTime"" DESC";
                 order.ConvertTotal,
                 order.Type);
 
+        private static bool VendorIdsEqual(string? left, string? right)
+        {
+            if (string.IsNullOrWhiteSpace(left))
+                return string.IsNullOrWhiteSpace(right);
+            return string.Equals(left.Trim(), right?.Trim(), StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string FormatVendorLogValue(string? vendorId, string? vendorCode, string? vendorName)
+        {
+            var code = string.IsNullOrWhiteSpace(vendorCode) ? null : vendorCode.Trim();
+            var name = string.IsNullOrWhiteSpace(vendorName) ? null : vendorName.Trim();
+            if (!string.IsNullOrEmpty(code) && !string.IsNullOrEmpty(name))
+                return $"{code} {name}";
+            if (!string.IsNullOrEmpty(name))
+                return name;
+            if (!string.IsNullOrEmpty(code))
+                return code;
+            return string.IsNullOrWhiteSpace(vendorId) ? string.Empty : vendorId.Trim();
+        }
+
         private async Task LogPurchaseOrderHeaderChangesAsync(
             PurchaseOrder order,
             PurchaseOrderHeaderSnapshot before,
             string? actingUserId)
         {
             var after = CapturePurchaseOrderHeaderSnapshot(order);
-            await CompareAndLogPoHeaderFieldAsync(order, before.VendorName, after.VendorName, "vendorName", "供应商", actingUserId);
+            if (!VendorIdsEqual(before.VendorId, after.VendorId))
+            {
+                await CompareAndLogPoHeaderFieldAsync(
+                    order,
+                    FormatVendorLogValue(before.VendorId, before.VendorCode, before.VendorName),
+                    FormatVendorLogValue(after.VendorId, after.VendorCode, after.VendorName),
+                    "vendorId",
+                    "供应商",
+                    actingUserId);
+            }
+            else
+            {
+                await CompareAndLogPoHeaderFieldAsync(order, before.VendorName, after.VendorName, "vendorName", "供应商", actingUserId);
+            }
             await CompareAndLogPoHeaderFieldAsync(order, before.PurchaseUserName, after.PurchaseUserName, "purchaseUserName", "采购员", actingUserId);
             await CompareAndLogPoAssistorFieldAsync(order, before.Assistor, after.Assistor, actingUserId);
             await CompareAndLogPoHeaderFieldAsync(order, FormatCurrency(before.Currency), FormatCurrency(after.Currency), "currency", "币别", actingUserId);

@@ -403,7 +403,7 @@ import PurchaserCascader from '@/components/PurchaserCascader.vue'
 import PurchaseOpsAssistorSelect from '@/components/PurchaseOpsAssistorSelect.vue'
 import { authApi, type PurchaseDeptStaffUserOption } from '@/api/auth'
 import {
-  canChangePurchaseOrderVendor,
+  canChangePurchaseOrderVendorOnOrder,
   canPickPurchaseOrderStaffFreely,
   isPurchaseOrderAssistorLockedMode
 } from '@/utils/purchaseOrderStaffPickRules'
@@ -494,13 +494,17 @@ const canRemovePoItem = computed(
 
 /** 无采购申请链路的纯新建：允许搜索选择供应商/联系人（含备货采购?type=2） */
 const allowManualVendorPick = computed(() => !editId.value && !hasRequisitionPrefill.value)
+const loadedOrderStatus = ref<number | null>(null)
 const canChangePoVendor = computed(() =>
-  canChangePurchaseOrderVendor({
-    isSysAdmin: authStore.user?.isSysAdmin,
-    identityType: authStore.user?.identityType,
-    roleCodes: authStore.user?.roleCodes,
-    hasPermission: (c) => authStore.hasPermission(c)
-  })
+  canChangePurchaseOrderVendorOnOrder(
+    {
+      isSysAdmin: authStore.user?.isSysAdmin,
+      identityType: authStore.user?.identityType,
+      roleCodes: authStore.user?.roleCodes,
+      hasPermission: (c) => authStore.hasPermission(c)
+    },
+    loadedOrderStatus.value
+  )
 )
 /** 销售等需脱敏身份时禁止供应商搜索，避免下拉暴露名称 */
 const showVendorPicker = computed(() => {
@@ -880,6 +884,8 @@ async function loadOrderForEdit(id: string) {
   formData.value.vendorEnglishName = String(o.vendorEnglishName ?? o.VendorEnglishName ?? '')
   formData.value.vendorId = String(o.vendorId ?? '')
   originalVendorId.value = formData.value.vendorId
+  loadedOrderStatus.value = Number(o.status ?? o.Status ?? NaN)
+  if (!Number.isFinite(loadedOrderStatus.value)) loadedOrderStatus.value = null
   clearVendorChangeTip()
   formData.value.vendorContactId = String(o.vendorContactId ?? '')
   formData.value.vendorContactName = String((o as { vendorContactName?: string }).vendorContactName ?? '')

@@ -1647,11 +1647,12 @@ namespace CRM.API.Controllers
                     && !await _dataPermissionService.CanAccessPurchaseOrderAsync(actorId, existing))
                     return StatusCode(403, new { success = false, message = "??????????" });
 
-                if (!string.IsNullOrWhiteSpace(request.VendorId))
+                if (!string.IsNullOrWhiteSpace(request.VendorId)
+                    && !string.Equals(request.VendorId.Trim(), existing.VendorId?.Trim(), StringComparison.OrdinalIgnoreCase))
                 {
                     var summary = await GetPermissionSummaryAsync(actorId);
-                    if (!PurchaseOrderVendorChangeAccessRules.CanChangeVendor(summary))
-                        return StatusCode(403, new { success = false, message = "????????????" });
+                    if (!PurchaseOrderVendorChangeAccessRules.CanChangeVendorOnOrder(summary, existing.Status))
+                        return StatusCode(403, new { success = false, message = "当前无权更换供应商" });
                 }
 
                 _logger.LogInformation(
@@ -1809,22 +1810,22 @@ namespace CRM.API.Controllers
             try
             {
                 if (string.IsNullOrWhiteSpace(newVendorId))
-                    return BadRequest(new { success = false, message = "???????" });
+                    return BadRequest(new { success = false, message = "新供应商ID不能为空" });
 
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrWhiteSpace(userId))
-                    return StatusCode(403, new { success = false, message = "????????" });
-
-                var summary = await GetPermissionSummaryAsync(userId.Trim());
-                if (!PurchaseOrderVendorChangeAccessRules.CanChangeVendor(summary))
-                    return StatusCode(403, new { success = false, message = "????????????" });
+                    return StatusCode(403, new { success = false, message = "未登录" });
 
                 var order = await _service.GetByIdAsync(id);
                 if (order == null)
-                    return NotFound(new { success = false, message = "???????" });
+                    return NotFound(new { success = false, message = "采购订单不存在" });
 
                 if (!await _dataPermissionService.CanAccessPurchaseOrderAsync(userId.Trim(), order))
-                    return StatusCode(403, new { success = false, message = "??????????" });
+                    return StatusCode(403, new { success = false, message = "无权访问该采购订单" });
+
+                var summary = await GetPermissionSummaryAsync(userId.Trim());
+                if (!PurchaseOrderVendorChangeAccessRules.CanChangeVendorOnOrder(summary, order.Status))
+                    return StatusCode(403, new { success = false, message = "当前无权更换供应商" });
 
                 cancellationToken.ThrowIfCancellationRequested();
                 var preview = await _service.PreviewVendorChangeAsync(id, newVendorId.Trim(), cancellationToken);
@@ -1853,17 +1854,17 @@ namespace CRM.API.Controllers
             {
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrWhiteSpace(userId))
-                    return StatusCode(403, new { success = false, message = "????????" });
-
-                var summary = await GetPermissionSummaryAsync(userId.Trim());
-                if (!PurchaseOrderVendorChangeAccessRules.CanChangeVendor(summary))
-                    return StatusCode(403, new { success = false, message = "??????????????" });
+                    return StatusCode(403, new { success = false, message = "未登录" });
 
                 var order = await _service.GetByIdAsync(id);
-                if (order == null) return NotFound(new { success = false, message = "???????" });
+                if (order == null) return NotFound(new { success = false, message = "采购订单不存在" });
 
                 if (!await _dataPermissionService.CanAccessPurchaseOrderAsync(userId.Trim(), order))
-                    return StatusCode(403, new { success = false, message = "??????????" });
+                    return StatusCode(403, new { success = false, message = "无权访问该采购订单" });
+
+                var summary = await GetPermissionSummaryAsync(userId.Trim());
+                if (!PurchaseOrderVendorChangeAccessRules.CanChangeVendorOnOrder(summary, order.Status))
+                    return StatusCode(403, new { success = false, message = "当前无权更换供应商" });
 
                 cancellationToken.ThrowIfCancellationRequested();
                 var result = await _service.RefreshVendorNameAsync(id, userId.Trim());
