@@ -102,12 +102,26 @@ namespace CRM.API.Controllers
                     },
                     cancellationToken);
 
+                var summary = await TryGetPermissionSummaryAsync();
+                var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
+                var items = result.Items.ToList();
+                if (mask511)
+                {
+                    foreach (var row in items)
+                    {
+                        row.QuoteVendorId = null;
+                        row.VendorName = null;
+                        row.VendorEnglishName = null;
+                        row.VendorCode = null;
+                    }
+                }
+
                 return Ok(new
                 {
                     success = true,
                     data = new
                     {
-                        items = result.Items.ToList(),
+                        items,
                         total = result.TotalCount,
                         page = result.PageIndex,
                         pageSize = result.PageSize

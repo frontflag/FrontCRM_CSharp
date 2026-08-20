@@ -173,6 +173,35 @@ public sealed class PurchaseRequisitionListQuery : IPurchaseRequisitionListQuery
                     StringComparer.OrdinalIgnoreCase);
         }
 
+        var vendorIds = slice
+            .Select(x => x.pr.QuoteVendorId)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var vendorById = new Dictionary<string, (string? Name, string? English, string? Code)>(
+            StringComparer.OrdinalIgnoreCase);
+        if (vendorIds.Count > 0)
+        {
+            var vendors = await _db.Vendors.AsNoTracking().IgnoreQueryFilters()
+                .Where(v => vendorIds.Contains(v.Id))
+                .Select(v => new { v.Id, v.OfficialName, v.NickName, v.EnglishOfficialName, v.Code })
+                .ToListAsync(cancellationToken);
+            foreach (var v in vendors)
+            {
+                var name = !string.IsNullOrWhiteSpace(v.OfficialName)
+                    ? v.OfficialName.Trim()
+                    : !string.IsNullOrWhiteSpace(v.NickName)
+                        ? v.NickName.Trim()
+                        : string.IsNullOrWhiteSpace(v.Code) ? null : v.Code.Trim();
+                var english = string.IsNullOrWhiteSpace(v.EnglishOfficialName)
+                    ? null
+                    : v.EnglishOfficialName.Trim();
+                var code = string.IsNullOrWhiteSpace(v.Code) ? null : v.Code.Trim();
+                vendorById[v.Id] = (name, english, code);
+            }
+        }
+
         string? DisplayNameFor(string? userId)
         {
             if (string.IsNullOrWhiteSpace(userId)) return null;
@@ -206,6 +235,17 @@ public sealed class PurchaseRequisitionListQuery : IPurchaseRequisitionListQuery
                 ?? LoginAccountFor(x.SellOrderSalesUserName)
                 ?? x.SellOrderSalesUserName?.Trim();
 
+            string? vendorName = null;
+            string? vendorEnglishName = null;
+            string? vendorCode = null;
+            if (!string.IsNullOrWhiteSpace(x.pr.QuoteVendorId)
+                && vendorById.TryGetValue(x.pr.QuoteVendorId.Trim(), out var vendorSnap))
+            {
+                vendorName = vendorSnap.Name;
+                vendorEnglishName = vendorSnap.English;
+                vendorCode = vendorSnap.Code;
+            }
+
             return new PurchaseRequisitionListPageRow
         {
             Id = x.pr.Id,
@@ -225,6 +265,9 @@ public sealed class PurchaseRequisitionListQuery : IPurchaseRequisitionListQuery
             PurchaseUserName = DisplayNameFor(x.pr.PurchaseUserId),
             PurchaseUserAccount = LoginAccountFor(x.pr.PurchaseUserId),
             QuoteVendorId = x.pr.QuoteVendorId,
+            VendorName = vendorName,
+            VendorEnglishName = vendorEnglishName,
+            VendorCode = vendorCode,
             QuoteCost = x.pr.QuoteCost,
             Remark = x.pr.Remark,
             CreateTime = x.pr.CreateTime,

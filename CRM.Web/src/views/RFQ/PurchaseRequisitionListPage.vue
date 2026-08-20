@@ -68,7 +68,7 @@
     <el-card v-loading="loading" class="table-card" element-loading-background="rgba(10,22,40,0.65)">
       <CrmDataTable
         ref="dataTableRef"
-        column-layout-key="purchase-requisition-list-main-v2"
+        column-layout-key="purchase-requisition-list-main-v3"
         :columns="purchaseReqColumns"
         :show-column-settings="false"
         :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -77,11 +77,26 @@
         highlight-current-row
         @row-dblclick="handleView"
         @selection-change="onSelectionChange"
+        @header-dragend="onPrTableHeaderDragEnd"
       >
         <template #col-status="{ row }">
           <el-tag effect="dark" :type="getStatusTagType(resolvePrRowStatus(row))" size="small">
             {{ getStatusText(resolvePrRowStatus(row)) }}
           </el-tag>
+        </template>
+        <template v-if="canViewVendorInfo" #col-vendor-header>
+          <VendorExtendColumnHeader
+            :active-field="vendorExtendActiveField"
+            @set-active-field="setVendorExtendActiveField"
+          />
+        </template>
+        <template v-if="canViewVendorInfo" #col-vendor="{ row }">
+          <VendorExtendCell
+            :row="row"
+            :active-field="vendorExtendActiveField"
+            :masked="maskPurchaseSensitiveFields"
+            :empty-text="t('quoteList.na')"
+          />
         </template>
         <template #col-expectedPurchaseTime="{ row }">{{ formatDisplayDateTime(row.expectedPurchaseTime) }}</template>
         <template #col-type="{ row }">{{ getPrTypeLabel(row.type) }}</template>
@@ -335,12 +350,37 @@ import {
   type PrBatchValidateErrorCode
 } from '@/utils/purchaseRequisitionBatchPo'
 import CrmDataTable from '@/components/CrmDataTable.vue'
+import VendorExtendColumnHeader from '@/components/list/VendorExtendColumnHeader.vue'
+import VendorExtendCell from '@/components/list/VendorExtendCell.vue'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import { useVendorExtendColumn, isVendorExtendTableColumn } from '@/composables/useVendorExtendColumn'
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 
 const router = useRouter()
 const { t, locale } = useI18n()
 const authStore = useAuthStore()
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
+const {
+  expanded: vendorExtendExpanded,
+  activeField: vendorExtendActiveField,
+  colWidth: vendorExtendColWidth,
+  colMinWidth: vendorExtendColMinWidth,
+  setActiveField: setVendorExtendActiveField,
+  applyOuterWidthFromTable: applyVendorExtendOuterWidth
+} = useVendorExtendColumn()
+/** 与详情 intendedVendorName 一致：511 不展示供应商标识 */
+const canViewVendorInfo = computed(() => !maskPurchaseSensitiveFields.value)
+
+function onPrTableHeaderDragEnd(
+  newWidth: number,
+  _oldWidth: number,
+  column: { property?: string; label?: string }
+) {
+  if (!isVendorExtendTableColumn(column)) return
+  applyVendorExtendOuterWidth(newWidth)
+}
+
 const basketStore = usePurchaseRequisitionPoBasketStore()
 const { count: basketCount, items: basketItems } = storeToRefs(basketStore)
 
@@ -388,6 +428,8 @@ function toggleOpCol() {
 
 const purchaseReqColumns = computed<CrmTableColumnDef[]>(() => {
   void locale.value
+  void vendorExtendExpanded.value
+  void vendorExtendColWidth.value
   const cols: CrmTableColumnDef[] = [
     {
       key: 'sel',
@@ -401,6 +443,18 @@ const purchaseReqColumns = computed<CrmTableColumnDef[]>(() => {
   ]
   cols.push(
     { key: 'status', label: t('purchaseRequisitionList.columns.status'), prop: 'status', width: 160, align: 'center' },
+    ...(canViewVendorInfo.value
+      ? [{
+          key: 'vendor',
+          label: t('common.vendorExtendCol.columnTitle'),
+          prop: 'vendor',
+          minWidth: vendorExtendColMinWidth.value,
+          width: vendorExtendColWidth.value,
+          showOverflowTooltip: true,
+          className: 'vendor-extend-col',
+          labelClassName: 'vendor-extend-col'
+        }]
+      : []),
     { key: 'pn', label: t('purchaseRequisitionList.columns.pn'), prop: 'pn', minWidth: 140, showOverflowTooltip: true },
     { key: 'brand', label: t('purchaseRequisitionList.columns.brand'), prop: 'brand', minWidth: 120, showOverflowTooltip: true },
     { key: 'qty', label: t('purchaseRequisitionList.columns.qty'), prop: 'qty', width: 120, align: 'right' },

@@ -39,6 +39,12 @@ public sealed class PurchaseRequisitionListPageRow
     public string? PurchaseUserName { get; set; }
     public string? PurchaseUserAccount { get; set; }
     public string? QuoteVendorId { get; set; }
+    /// <summary>报价供应商中文名（主数据 OfficialName ?? NickName ?? Code）。</summary>
+    public string? VendorName { get; set; }
+    /// <summary>报价供应商英文全称。</summary>
+    public string? VendorEnglishName { get; set; }
+    /// <summary>报价供应商编号。</summary>
+    public string? VendorCode { get; set; }
     public decimal QuoteCost { get; set; }
     public string? Remark { get; set; }
     public DateTime CreateTime { get; set; }
