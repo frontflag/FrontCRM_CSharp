@@ -430,7 +430,7 @@ namespace CRM.Core.Interfaces
         public string? NickName { get; set; }
         /// <summary>行业分类</summary>
         public string? Industry { get; set; }
-        /// <summary>等级（VendorLevelCode → vendorinfo.Level）</summary>
+        /// <summary>等级（VendorLevelCode → vendorinfo.Level：1=S 2=A 3=B 4=C，默认 4）</summary>
         public short? Level { get; set; }
         /// <summary>身份（VendorIdentityCode → vendorinfo.Credit）</summary>
         public short? Credit { get; set; }
@@ -479,7 +479,7 @@ namespace CRM.Core.Interfaces
         public string? OfficeAddress { get; set; }
         public string? Website { get; set; }
         public string? PurchaserName { get; set; }
-        /// <summary>供应商等级</summary>
+        /// <summary>供应商等级（VendorLevelCode：1=S 2=A 3=B 4=C；缺省或非法码按 4=C）</summary>
         public short? Level { get; set; }
         /// <summary>贸易币种</summary>
         public short? TradeCurrency { get; set; }
@@ -511,7 +511,7 @@ namespace CRM.Core.Interfaces
         public int PageSize { get; set; } = 10;
         public string? Keyword { get; set; }
         public short? Status { get; set; }
-        /// <summary>供应商等级（与 vendorinfo.Level 一致）</summary>
+        /// <summary>供应商等级（VendorLevelCode：1=S 2=A 3=B 4=C）</summary>
         public short? Level { get; set; }
         /// <summary>行业关键字（包含匹配）</summary>
         public string? Industry { get; set; }

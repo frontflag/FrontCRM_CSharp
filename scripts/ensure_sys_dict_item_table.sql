@@ -73,46 +73,24 @@ INSERT INTO public.sys_dict_item ("Id","Category","ItemCode","NameZh","NameEn","
 SELECT gen_random_uuid()::text, 'VendorIndustry', 'LedLightingOptoDisplay', 'LED照明、光电设备及显示器', 'LED lighting, optoelectronics & displays', 16, true, NOW() AT TIME ZONE 'utc'
 WHERE NOT EXISTS (SELECT 1 FROM public.sys_dict_item d WHERE d."Category" = 'VendorIndustry' AND d."ItemCode" = 'LedLightingOptoDisplay');
 
--- ========== VendorLevel ==========
+-- ========== VendorLevel：1=S 2=A 3=B 4=C ==========
 INSERT INTO public.sys_dict_item ("Id","Category","ItemCode","NameZh","NameEn","SortOrder","IsActive","CreateTime")
-SELECT gen_random_uuid()::text, 'VendorLevel', '1', '1-', '1-', 1, true, NOW() AT TIME ZONE 'utc'
+SELECT gen_random_uuid()::text, 'VendorLevel', '1', 'S', 'S', 1, true, NOW() AT TIME ZONE 'utc'
 WHERE NOT EXISTS (SELECT 1 FROM public.sys_dict_item d WHERE d."Category" = 'VendorLevel' AND d."ItemCode" = '1');
 INSERT INTO public.sys_dict_item ("Id","Category","ItemCode","NameZh","NameEn","SortOrder","IsActive","CreateTime")
-SELECT gen_random_uuid()::text, 'VendorLevel', '2', '1', '1', 2, true, NOW() AT TIME ZONE 'utc'
+SELECT gen_random_uuid()::text, 'VendorLevel', '2', 'A', 'A', 2, true, NOW() AT TIME ZONE 'utc'
 WHERE NOT EXISTS (SELECT 1 FROM public.sys_dict_item d WHERE d."Category" = 'VendorLevel' AND d."ItemCode" = '2');
 INSERT INTO public.sys_dict_item ("Id","Category","ItemCode","NameZh","NameEn","SortOrder","IsActive","CreateTime")
-SELECT gen_random_uuid()::text, 'VendorLevel', '3', '1+', '1+', 3, true, NOW() AT TIME ZONE 'utc'
+SELECT gen_random_uuid()::text, 'VendorLevel', '3', 'B', 'B', 3, true, NOW() AT TIME ZONE 'utc'
 WHERE NOT EXISTS (SELECT 1 FROM public.sys_dict_item d WHERE d."Category" = 'VendorLevel' AND d."ItemCode" = '3');
 INSERT INTO public.sys_dict_item ("Id","Category","ItemCode","NameZh","NameEn","SortOrder","IsActive","CreateTime")
-SELECT gen_random_uuid()::text, 'VendorLevel', '4', '2-', '2-', 4, true, NOW() AT TIME ZONE 'utc'
+SELECT gen_random_uuid()::text, 'VendorLevel', '4', 'C', 'C', 4, true, NOW() AT TIME ZONE 'utc'
 WHERE NOT EXISTS (SELECT 1 FROM public.sys_dict_item d WHERE d."Category" = 'VendorLevel' AND d."ItemCode" = '4');
-INSERT INTO public.sys_dict_item ("Id","Category","ItemCode","NameZh","NameEn","SortOrder","IsActive","CreateTime")
-SELECT gen_random_uuid()::text, 'VendorLevel', '5', '2', '2', 5, true, NOW() AT TIME ZONE 'utc'
-WHERE NOT EXISTS (SELECT 1 FROM public.sys_dict_item d WHERE d."Category" = 'VendorLevel' AND d."ItemCode" = '5');
-INSERT INTO public.sys_dict_item ("Id","Category","ItemCode","NameZh","NameEn","SortOrder","IsActive","CreateTime")
-SELECT gen_random_uuid()::text, 'VendorLevel', '6', '2+', '2+', 6, true, NOW() AT TIME ZONE 'utc'
-WHERE NOT EXISTS (SELECT 1 FROM public.sys_dict_item d WHERE d."Category" = 'VendorLevel' AND d."ItemCode" = '6');
-INSERT INTO public.sys_dict_item ("Id","Category","ItemCode","NameZh","NameEn","SortOrder","IsActive","CreateTime")
-SELECT gen_random_uuid()::text, 'VendorLevel', '7', '3-', '3-', 7, true, NOW() AT TIME ZONE 'utc'
-WHERE NOT EXISTS (SELECT 1 FROM public.sys_dict_item d WHERE d."Category" = 'VendorLevel' AND d."ItemCode" = '7');
-INSERT INTO public.sys_dict_item ("Id","Category","ItemCode","NameZh","NameEn","SortOrder","IsActive","CreateTime")
-SELECT gen_random_uuid()::text, 'VendorLevel', '8', '3', '3', 8, true, NOW() AT TIME ZONE 'utc'
-WHERE NOT EXISTS (SELECT 1 FROM public.sys_dict_item d WHERE d."Category" = 'VendorLevel' AND d."ItemCode" = '8');
-INSERT INTO public.sys_dict_item ("Id","Category","ItemCode","NameZh","NameEn","SortOrder","IsActive","CreateTime")
-SELECT gen_random_uuid()::text, 'VendorLevel', '9', '3+', '3+', 9, true, NOW() AT TIME ZONE 'utc'
-WHERE NOT EXISTS (SELECT 1 FROM public.sys_dict_item d WHERE d."Category" = 'VendorLevel' AND d."ItemCode" = '9');
-INSERT INTO public.sys_dict_item ("Id","Category","ItemCode","NameZh","NameEn","SortOrder","IsActive","CreateTime")
-SELECT gen_random_uuid()::text, 'VendorLevel', '10', 'A', 'A', 10, true, NOW() AT TIME ZONE 'utc'
-WHERE NOT EXISTS (SELECT 1 FROM public.sys_dict_item d WHERE d."Category" = 'VendorLevel' AND d."ItemCode" = '10');
-INSERT INTO public.sys_dict_item ("Id","Category","ItemCode","NameZh","NameEn","SortOrder","IsActive","CreateTime")
-SELECT gen_random_uuid()::text, 'VendorLevel', '11', 'B', 'B', 11, true, NOW() AT TIME ZONE 'utc'
-WHERE NOT EXISTS (SELECT 1 FROM public.sys_dict_item d WHERE d."Category" = 'VendorLevel' AND d."ItemCode" = '11');
-INSERT INTO public.sys_dict_item ("Id","Category","ItemCode","NameZh","NameEn","SortOrder","IsActive","CreateTime")
-SELECT gen_random_uuid()::text, 'VendorLevel', '12', 'C', 'C', 12, true, NOW() AT TIME ZONE 'utc'
-WHERE NOT EXISTS (SELECT 1 FROM public.sys_dict_item d WHERE d."Category" = 'VendorLevel' AND d."ItemCode" = '12');
-INSERT INTO public.sys_dict_item ("Id","Category","ItemCode","NameZh","NameEn","SortOrder","IsActive","CreateTime")
-SELECT gen_random_uuid()::text, 'VendorLevel', '13', 'D', 'D', 13, true, NOW() AT TIME ZONE 'utc'
-WHERE NOT EXISTS (SELECT 1 FROM public.sys_dict_item d WHERE d."Category" = 'VendorLevel' AND d."ItemCode" = '13');
+UPDATE public.sys_dict_item SET "NameZh" = 'S', "NameEn" = 'S', "SortOrder" = 1, "IsActive" = true WHERE "Category" = 'VendorLevel' AND "ItemCode" = '1';
+UPDATE public.sys_dict_item SET "NameZh" = 'A', "NameEn" = 'A', "SortOrder" = 2, "IsActive" = true WHERE "Category" = 'VendorLevel' AND "ItemCode" = '2';
+UPDATE public.sys_dict_item SET "NameZh" = 'B', "NameEn" = 'B', "SortOrder" = 3, "IsActive" = true WHERE "Category" = 'VendorLevel' AND "ItemCode" = '3';
+UPDATE public.sys_dict_item SET "NameZh" = 'C', "NameEn" = 'C', "SortOrder" = 4, "IsActive" = true WHERE "Category" = 'VendorLevel' AND "ItemCode" = '4';
+DELETE FROM public.sys_dict_item WHERE "Category" = 'VendorLevel' AND "ItemCode" NOT IN ('1','2','3','4');
 
 -- ========== VendorIdentity ==========
 INSERT INTO public.sys_dict_item ("Id","Category","ItemCode","NameZh","NameEn","SortOrder","IsActive","CreateTime")

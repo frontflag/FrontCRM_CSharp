@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using CRM.Core.Constants;
+using CRM.Core.Models.Vendor;
 
 namespace CRM.Infrastructure.Ai.EntityParse;
 
@@ -509,10 +510,21 @@ public static class EntityParseNormalizer
 
     private static JsonNode? NormalizeVendorLevel(JsonElement? v)
     {
+        if (v == null) return null;
+        var raw = StrFromElement(v).Trim();
+        if (!string.IsNullOrEmpty(raw))
+        {
+            var s = raw.ToUpperInvariant().TrimEnd('级', ' ');
+            if (s == "S") return (int)VendorLevelCode.S;
+            if (s == "A") return (int)VendorLevelCode.A;
+            if (s == "B") return (int)VendorLevelCode.B;
+            if (s == "C") return (int)VendorLevelCode.C;
+        }
+
         var n = NumFromElement(v);
         if (n == null) return null;
-        var r = (int)Math.Round(n.Value);
-        return r is >= 1 and <= 13 ? r : null;
+        var r = (short)Math.Round(n.Value);
+        return VendorLevelCodes.IsDefined(r) ? (int)r : null;
     }
 
     private static JsonNode? NormalizeVendorCredit(JsonElement? v)

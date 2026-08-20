@@ -1,18 +1,11 @@
-/** 与后端 VendorLevelCode 一致（vendorinfo.Level） */
+/** 与后端 VendorLevelCode 一致（vendorinfo.Level：1=S 2=A 3=B 4=C） */
+export const VENDOR_LEVEL_DEFAULT = 4
+
 export const VENDOR_LEVEL_OPTIONS: { value: number; label: string }[] = [
-  { value: 1, label: '1-' },
-  { value: 2, label: '1' },
-  { value: 3, label: '1+' },
-  { value: 4, label: '2-' },
-  { value: 5, label: '2' },
-  { value: 6, label: '2+' },
-  { value: 7, label: '3-' },
-  { value: 8, label: '3' },
-  { value: 9, label: '3+' },
-  { value: 10, label: 'A' },
-  { value: 11, label: 'B' },
-  { value: 12, label: 'C' },
-  { value: 13, label: 'D' }
+  { value: 1, label: 'S' },
+  { value: 2, label: 'A' },
+  { value: 3, label: 'B' },
+  { value: 4, label: 'C' }
 ]
 
 /** 与后端 VendorIdentityCode 一致（vendorinfo.Credit） */

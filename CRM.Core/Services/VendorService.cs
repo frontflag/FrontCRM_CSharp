@@ -104,7 +104,7 @@ namespace CRM.Core.Services
                     : request.EnglishOfficialName.Trim(),
                 NickName = string.IsNullOrWhiteSpace(request.NickName) ? null : request.NickName.Trim(),
                 Industry = string.IsNullOrWhiteSpace(request.Industry) ? null : request.Industry.Trim(),
-                Level = request.Level,
+                Level = VendorLevelCodes.NormalizeOrDefault(request.Level),
                 Credit = request.Credit,
                 Status = request.Status ?? 1,
                 OfficeAddress = string.IsNullOrWhiteSpace(request.OfficeAddress) ? null : request.OfficeAddress.Trim(),
@@ -290,7 +290,7 @@ namespace CRM.Core.Services
             if (request.PurchaserName != null)
                 entity.PurchaserName = string.IsNullOrWhiteSpace(request.PurchaserName) ? null : request.PurchaserName.Trim();
             if (request.Level.HasValue)
-                entity.Level = request.Level.Value;
+                entity.Level = VendorLevelCodes.NormalizeOrDefault(request.Level);
             if (request.TradeCurrency.HasValue)
                 entity.TradeCurrency = request.TradeCurrency.Value;
             if (request.PaymentMethod != null)

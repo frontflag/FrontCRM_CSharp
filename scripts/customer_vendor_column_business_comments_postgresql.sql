@@ -71,7 +71,7 @@ COMMENT ON COLUMN public.vendorinfo."OfficialName" IS '公司全称（中文注�
 COMMENT ON COLUMN public.vendorinfo."NickName" IS '公司简称（列表展示、检索友好名）';
 COMMENT ON COLUMN public.vendorinfo."EnglishOfficialName" IS '公司英文全称';
 COMMENT ON COLUMN public.vendorinfo."VendorIdCrm" IS 'CRM/外部系统供应商 ID（对接冗余）';
-COMMENT ON COLUMN public.vendorinfo."Level" IS '供应商等级（VendorLevelCode 数据字典编码）';
+COMMENT ON COLUMN public.vendorinfo."Level" IS '供应商等级 VendorLevelCode：1=S 2=A 3=B 4=C，默认 4=C';
 COMMENT ON COLUMN public.vendorinfo."Scale" IS '规模（数据字典编码 smallint）';
 COMMENT ON COLUMN public.vendorinfo."Background" IS '背景（数据字典编码 smallint）';
 COMMENT ON COLUMN public.vendorinfo."CompanyClass" IS '公司分类（数据字典编码 smallint）';

@@ -410,10 +410,17 @@ function boolOrFalse(v: unknown): boolean {
 }
 
 function normalizeVendorLevel(v: unknown): number | null {
+  if (typeof v === 'string') {
+    const s = v.trim().toUpperCase().replace(/级$/u, '')
+    if (s === 'S') return 1
+    if (s === 'A') return 2
+    if (s === 'B') return 3
+    if (s === 'C') return 4
+  }
   const n = numOrNull(v)
   if (n == null) return null
   const r = Math.round(n)
-  return r >= 1 && r <= 13 ? r : null
+  return r >= 1 && r <= 4 ? r : null
 }
 
 function normalizeVendorCredit(v: unknown): number | null {

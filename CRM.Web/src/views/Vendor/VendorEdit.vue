@@ -89,7 +89,7 @@
             </el-col>
             <el-col :span="8">
               <el-form-item :label="t('vendorEdit.fields.level')">
-                <el-select v-model="formData.level" :placeholder="t('vendorEdit.fields.levelPh')" clearable class="q-select">
+                <el-select v-model="formData.level" :placeholder="t('vendorEdit.fields.levelPh')" class="q-select">
                   <el-option
                     v-for="opt in vendorDict.levelSelectOptions"
                     :key="opt.value"
@@ -378,6 +378,7 @@ import {
   hasContactName,
   splitContactNamesFromApi
 } from '@/utils/contactName';
+import { VENDOR_LEVEL_DEFAULT } from '@/constants/vendorEnums';
 
 const route = useRoute();
 const router = useRouter();
@@ -404,7 +405,7 @@ const formData = reactive({
   englishOfficialName: '',
   nickName: '',
   industry: '',
-  level: undefined as number | undefined,
+  level: VENDOR_LEVEL_DEFAULT as number,
   /** 身份（vendorinfo.Credit） */
   credit: undefined as number | undefined,
   /** 与后端一致：1=新建 2=待审核…；新建页默认新建，便于列表出现「提交审核」 */
@@ -483,7 +484,7 @@ const buildVendorApiPayload = (): CreateVendorRequest & UpdateVendorRequest => (
   englishOfficialName: formData.englishOfficialName?.trim() || undefined,
   nickName: formData.nickName?.trim(),
   industry: formData.industry || undefined,
-  level: formData.level,
+  level: formData.level ?? VENDOR_LEVEL_DEFAULT,
   credit: formData.credit,
   /** 新建点「转正式」时若仍为草稿(0)，后端会原样落库为 0，列表不会出现「提交审核」；转正至少应为新建(1) */
   status: !isEdit.value && formData.status === 0 ? 1 : formData.status,
@@ -538,7 +539,7 @@ const fetchVendorDetail = async () => {
     formData.englishOfficialName = data.englishOfficialName ?? '';
     formData.nickName = data.nickName ?? '';
     formData.industry = data.industry ?? '';
-    formData.level = data.level;
+    formData.level = data.level ?? VENDOR_LEVEL_DEFAULT;
     formData.credit = data.credit;
     formData.status = data.status ?? 0;
     formData.officeAddress = data.officeAddress ?? '';

@@ -2,6 +2,7 @@ using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Analytics;
 using CRM.Core.Models.Purchase;
+using CRM.Core.Models.Vendor;
 using CRM.Core.Utilities;
 using CRM.Infrastructure.Common;
 using CRM.Infrastructure.Data;
@@ -218,7 +219,7 @@ public sealed class PurchaseOrderListQuery : IPurchaseOrderListQuery
         var levelItems = BuildVendorDimensionBreakdown(
             vendorDimRows,
             r => r.VendorLevel?.ToString() ?? "_unset",
-            r => r.VendorLevel.HasValue ? $"等级 {r.VendorLevel}" : "未设置",
+            r => VendorLevelCodes.DisplayLabel(r.VendorLevel),
             r => maskAmounts ? 1m : r.ConvertTotal,
             maskAmounts);
         var industryItems = BuildVendorDimensionBreakdown(

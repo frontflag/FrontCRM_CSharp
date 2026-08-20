@@ -5,7 +5,7 @@ export interface VendorListFilterQuery {
   searchTerm: string
   /** 工作流状态：1 新建、2 待审核、10 已审核 等 */
   status?: number
-  /** 等级 VendorLevelCode */
+  /** 等级 VendorLevelCode 1=S 2=A 3=B 4=C */
   level?: number
   /** 身份（vendorinfo.Credit，VendorIdentityCode） */
   credit?: number

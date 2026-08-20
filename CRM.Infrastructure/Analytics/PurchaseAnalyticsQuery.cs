@@ -3,6 +3,7 @@ using CRM.Core.Interfaces;
 using CRM.Core.Models.Analytics;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Quote;
+using CRM.Core.Models.Vendor;
 using CRM.Core.Utilities;
 using CRM.Infrastructure.Data;
 using CRM.Infrastructure.Quotes;
@@ -314,7 +315,7 @@ public sealed class PurchaseAnalyticsQuery : IPurchaseAnalyticsQuery
         var levelItems = BuildVendorDimensionBreakdown(
             vendorDimRows,
             r => r.VendorLevel?.ToString() ?? "_unset",
-            r => r.VendorLevel.HasValue ? $"等级 {r.VendorLevel}" : "未设置",
+            r => VendorLevelCodes.DisplayLabel(r.VendorLevel),
             r => r.ConvertTotal,
             maskAmounts);
         var industryItems = BuildVendorDimensionBreakdown(

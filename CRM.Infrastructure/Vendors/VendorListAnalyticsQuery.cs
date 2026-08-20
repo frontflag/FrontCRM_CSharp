@@ -75,7 +75,7 @@ public sealed partial class VendorListQuery
         var levelItems = BuildVendorDimensionBreakdown(
             orderRows,
             r => r.VendorLevel?.ToString() ?? "_unset",
-            r => r.VendorLevel.HasValue ? $"等级 {r.VendorLevel}" : "未设置",
+            r => VendorLevelCodes.DisplayLabel(r.VendorLevel),
             r => r.ConvertTotal,
             maskAmounts);
         var industryItems = BuildVendorDimensionBreakdown(

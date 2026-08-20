@@ -29,7 +29,7 @@ export interface Vendor {
   englishOfficialName?: string
   nickName?: string
   industry?: string
-  /** 等级（VendorLevelCode，vendorinfo.Level） */
+  /** 等级（VendorLevelCode 1=S 2=A 3=B 4=C） */
   level?: number
   /** 身份（VendorIdentityCode，存于 vendorinfo.Credit） */
   credit?: number

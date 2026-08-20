@@ -1,23 +1,37 @@
 namespace CRM.Core.Models.Vendor
 {
     /// <summary>
-    /// 供应商等级（vendorinfo.Level，存 short 枚举值）
+    /// 供应商等级（vendorinfo.Level，存 short；界面文案 S/A/B/C）
     /// </summary>
     public enum VendorLevelCode : short
     {
-        OneMinus = 1,
-        One = 2,
-        OnePlus = 3,
-        TwoMinus = 4,
-        Two = 5,
-        TwoPlus = 6,
-        ThreeMinus = 7,
-        Three = 8,
-        ThreePlus = 9,
-        A = 10,
-        B = 11,
-        C = 12,
-        D = 13
+        S = 1,
+        A = 2,
+        B = 3,
+        C = 4
+    }
+
+    public static class VendorLevelCodes
+    {
+        public const short Min = (short)VendorLevelCode.S;
+        public const short Max = (short)VendorLevelCode.C;
+        public const short Default = (short)VendorLevelCode.C;
+
+        public static bool IsDefined(short? level) =>
+            level is >= Min and <= Max;
+
+        public static short NormalizeOrDefault(short? level) =>
+            IsDefined(level) ? level!.Value : Default;
+
+        /// <summary>看板/回退文案；有字典时优先用字典名称。</summary>
+        public static string DisplayLabel(short? level) => level switch
+        {
+            (short)VendorLevelCode.S => "S",
+            (short)VendorLevelCode.A => "A",
+            (short)VendorLevelCode.B => "B",
+            (short)VendorLevelCode.C => "C",
+            _ => "未设置"
+        };
     }
 
     /// <summary>

@@ -69,7 +69,7 @@ import { ref, computed, watch } from 'vue';
 import * as XLSX from 'xlsx';
 import { ElMessageBox, ElNotification } from 'element-plus';
 import { vendorApi } from '@/api/vendor';
-import { VENDOR_LEVEL_OPTIONS, VENDOR_IDENTITY_OPTIONS } from '@/constants/vendorEnums';
+import { VENDOR_LEVEL_OPTIONS, VENDOR_IDENTITY_OPTIONS, VENDOR_LEVEL_DEFAULT } from '@/constants/vendorEnums';
 import { VENDOR_INDUSTRY_FILTER_VALUES } from '@/constants/vendorIndustry';
 import { CurrencyCode } from '@/constants/currency';
 
@@ -151,12 +151,14 @@ function parseSeq(v: string): number | null {
 }
 
 function parseVendorLevel(raw: string): number {
-  const s = raw.trim();
-  if (!s) return 10;
-  const n = parseInt(s, 10);
-  if (n >= 1 && n <= 13) return n;
-  const opt = VENDOR_LEVEL_OPTIONS.find((o) => o.label === s);
-  return opt?.value ?? 10;
+  const s = raw.trim()
+  if (!s) return VENDOR_LEVEL_DEFAULT
+  const upper = s.toUpperCase().replace(/级$/u, '')
+  const byLabel = VENDOR_LEVEL_OPTIONS.find((o) => o.label.toUpperCase() === upper)
+  if (byLabel) return byLabel.value
+  const n = parseInt(s, 10)
+  if (n >= 1 && n <= 4) return n
+  return VENDOR_LEVEL_DEFAULT
 }
 
 function parseVendorCredit(raw: string): number {

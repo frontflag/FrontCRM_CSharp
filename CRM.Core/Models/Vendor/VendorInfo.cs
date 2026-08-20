@@ -50,7 +50,7 @@ namespace CRM.Core.Models.Vendor
         public string? VendorIdCrm { get; set; }
 
         /// <summary>
-        /// 等级
+        /// 等级（VendorLevelCode：1=S 2=A 3=B 4=C，默认 4=C）
         /// </summary>
         public short? Level { get; set; }
 
