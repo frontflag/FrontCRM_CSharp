@@ -8749,6 +8749,7 @@ const zhCN = {
       vendorName: '供应商名称',
       createTime: '创建日期',
       salesUserAccount: '销售员',
+      purchaseUserAccount: '采购员',
       itemCode: '订单明细编号',
       pn: '物料型号',
       brand: '品牌',
@@ -8763,6 +8764,7 @@ const zhCN = {
       quoteProfit: '报价利润',
       quoteProfitRate: '报价利润率',
       purchaseProfit: '采购利润',
+      purchaseProfitRate: '采购利润率',
       quoteProfitTipTitle: '报价利润计算过程',
       quoteProfitTipAria: '查看报价利润计算公式',
       quoteProfitTipFormula:
@@ -8778,6 +8780,11 @@ const zhCN = {
       purchaseProfitTipFormula:
         '采购利润(USD) = (销售单价 − 采购单价) × 采购数量 = ({sellUnitPrice} − {purchaseUnitPrice}) × {qty} = {result}',
       purchaseProfitTipNoCost: '无关联销售/采购单价，无法按（销售单价 − 采购单价）× 采购数量计算。',
+      purchaseProfitRateTipTitle: '采购利润率计算过程',
+      purchaseProfitRateTipAria: '查看采购利润率计算公式',
+      purchaseProfitRateTipFormula:
+        '采购利润率 = 销售单价 ÷ 采购单价 = {sellUnitPrice} ÷ {purchaseUnitPrice} = {result}',
+      purchaseProfitRateTipNoCost: '无关联销售/采购单价，无法按 销售单价 ÷ 采购单价 计算。',
       emptyOrder: '缺少订单编号，无法加载',
       emptyItems: '暂无订单明细'
     }
@@ -8925,6 +8932,7 @@ const zhCN = {
     orderFilesSection: '订单文件',
     orderFilesEmpty: '无上传订单文件',
     purchaseOrderSection: '采购订单专属信息',
+    purchaseOrderVendorSection: '供应商信息',
     receiptSection: '收款单专属信息',
     paymentSection: '付款单专属信息',
     fallbackApprovalHint: '审批说明：请结合业务详情页面信息进行审批。',

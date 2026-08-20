@@ -17,11 +17,19 @@
             <span class="k">{{ t('approvalDesktop.orderRef.orderType') }}</span>
             <span class="v">{{ overview.orderType || '—' }}</span>
           </div>
+          <div v-if="mode === 'purchase'" class="approval-order-ref__row">
+            <span class="k">{{ t('approvalDesktop.orderRef.createTime') }}</span>
+            <span class="v">{{ overview.createTime || '—' }}</span>
+          </div>
           <div class="approval-order-ref__row">
             <span class="k">{{ overviewPartyLabel }}</span>
             <span class="v" :title="overview.party">{{ overview.party || '—' }}</span>
           </div>
-          <div v-if="mode === 'sales'" class="approval-order-ref__row">
+          <div v-if="mode === 'purchase'" class="approval-order-ref__row">
+            <span class="k">{{ t('approvalDesktop.orderRef.orderType') }}</span>
+            <span class="v">{{ overview.orderType || '—' }}</span>
+          </div>
+          <div class="approval-order-ref__row">
             <span class="k">{{ t('approvalDesktop.orderRef.orderAmount') }}</span>
             <span class="v">
               <template v-if="overview.amountText === '—'">—</template>
@@ -34,12 +42,12 @@
               </span>
             </span>
           </div>
-          <div class="approval-order-ref__row">
+          <div v-if="mode === 'sales'" class="approval-order-ref__row">
             <span class="k">{{ t('approvalDesktop.orderRef.createTime') }}</span>
             <span class="v">{{ overview.createTime || '—' }}</span>
           </div>
           <div class="approval-order-ref__row">
-            <span class="k">{{ t('approvalDesktop.orderRef.salesUserAccount') }}</span>
+            <span class="k">{{ overviewUserLabel }}</span>
             <span class="v" :title="overview.salesUserAccount">{{ overview.salesUserAccount || '—' }}</span>
           </div>
         </div>
@@ -81,7 +89,10 @@
           </p>
           <div v-else class="approval-order-ref__list">
           <div v-for="line in lines" :key="line.key" class="line-card">
-            <div class="line-card__row">
+            <div
+              class="line-card__row"
+              :class="{ 'line-card__row--span': mode === 'purchase' }"
+            >
               <span class="k">{{ t('approvalDesktop.orderRef.itemCode') }}</span>
               <span class="v" :title="line.itemCode">{{ line.itemCode || '—' }}</span>
             </div>
@@ -97,7 +108,7 @@
               <span class="k">{{ t('approvalDesktop.orderRef.brand') }}</span>
               <span class="v">{{ line.brand || '—' }}</span>
             </div>
-            <div v-if="mode === 'sales'" class="line-card__row">
+            <div class="line-card__row">
               <span class="k">{{ t('approvalDesktop.orderRef.dateCode') }}</span>
               <span class="v" :title="line.dateCode">{{ line.dateCode || '—' }}</span>
             </div>
@@ -157,8 +168,8 @@
                 </el-popover>
               </span>
             </div>
-            <div v-if="mode === 'sales'" class="line-card__row">
-              <span class="k">{{ t('approvalDesktop.orderRef.quoteProfitRate') }}</span>
+            <div class="line-card__row">
+              <span class="k">{{ profitRateLabel }}</span>
               <span class="v line-card__profit-v">
                 <template v-if="line.profitRateText === '—'">—</template>
                 <span v-else>{{ line.profitRateText }}</span>
@@ -174,14 +185,14 @@
                     <button
                       type="button"
                       class="line-card__tip-btn"
-                      :aria-label="t('approvalDesktop.orderRef.quoteProfitRateTipAria')"
+                      :aria-label="profitRateTipAria"
                       @click.stop
                     >
                       <el-icon><QuestionFilled /></el-icon>
                     </button>
                   </template>
                   <div class="line-card__tip-body">
-                    <p class="line-card__tip-title">{{ t('approvalDesktop.orderRef.quoteProfitRateTipTitle') }}</p>
+                    <p class="line-card__tip-title">{{ profitRateTipTitle }}</p>
                     <ul class="line-card__tip-list">
                       <li v-for="(text, idx) in line.profitRateFormulaLines" :key="idx">{{ text }}</li>
                     </ul>
@@ -313,14 +324,19 @@ function buildQuoteProfitRateTip(lp: SellOrderLineProfit | null | undefined): st
   ]
 }
 
-/** 审批右栏 Tip：采购利润 = (销售单价 − 采购单价) × 采购数量 */
-function buildPurchaseProfitTip(
+type PurchaseProfitOpts = {
+  purchaseOrderItemId: string
+  purchaseQty: number
+  purchaseConvertPrice?: number
+}
+
+function resolvePurchaseProfitInputs(
   lp: SellOrderLineProfit | null | undefined,
-  opts: { purchaseOrderItemId: string; purchaseQty: number; purchaseConvertPrice?: number }
-): string[] {
-  if (!lp) return []
+  opts: PurchaseProfitOpts
+): { sellUnit: number; purchaseUnit: number; qty: number } | null {
+  if (!lp) return null
   const sellUnit = Number(lp.convertPrice)
-  if (!Number.isFinite(sellUnit)) return []
+  if (!Number.isFinite(sellUnit)) return null
 
   const poLine = (lp.poCostLines ?? []).find(
     (x) => String(x.purchaseOrderItemId ?? '').trim() === opts.purchaseOrderItemId
@@ -333,6 +349,17 @@ function buildPurchaseProfitTip(
       ? opts.purchaseQty
       : poLine?.qty ?? lp.poQtyTotal ?? 0
   )
+  return { sellUnit, purchaseUnit, qty }
+}
+
+/** 审批右栏 Tip：采购利润 = (销售单价 − 采购单价) × 采购数量 */
+function buildPurchaseProfitTip(
+  lp: SellOrderLineProfit | null | undefined,
+  opts: PurchaseProfitOpts
+): string[] {
+  const inputs = resolvePurchaseProfitInputs(lp, opts)
+  if (!inputs) return []
+  const { sellUnit, purchaseUnit, qty } = inputs
   if (!(purchaseUnit > 0) || !(qty > 0)) {
     return [t('approvalDesktop.orderRef.purchaseProfitTipNoCost')]
   }
@@ -341,7 +368,28 @@ function buildPurchaseProfitTip(
       sellUnitPrice: fmtTipUnitPrice(sellUnit),
       purchaseUnitPrice: fmtTipUnitPrice(purchaseUnit),
       qty: fmtTipQty(qty),
-      result: formatUsdProfitAmount(lp.purchaseProfitExpected)
+      result: formatUsdProfitAmount(lp?.purchaseProfitExpected)
+    })
+  ]
+}
+
+/** 审批桌面 Tip：采购利润率 = 销售单价 ÷ 采购单价 */
+function buildPurchaseProfitRateTip(
+  lp: SellOrderLineProfit | null | undefined,
+  opts: PurchaseProfitOpts
+): string[] {
+  const inputs = resolvePurchaseProfitInputs(lp, opts)
+  if (!inputs) return []
+  const { sellUnit, purchaseUnit } = inputs
+  if (!(purchaseUnit > 0)) {
+    return [t('approvalDesktop.orderRef.purchaseProfitRateTipNoCost')]
+  }
+  const rate = sellUnit / purchaseUnit
+  return [
+    t('approvalDesktop.orderRef.purchaseProfitRateTipFormula', {
+      sellUnitPrice: fmtTipUnitPrice(sellUnit),
+      purchaseUnitPrice: fmtTipUnitPrice(purchaseUnit),
+      result: formatProfitRateMultiplierDisplay(lp?.purchaseProfitExpected, rate, 2)
     })
   ]
 }
@@ -355,6 +403,11 @@ const overviewPartyLabel = computed(() =>
   props.mode === 'sales'
     ? t('approvalDesktop.orderRef.customerName')
     : t('approvalDesktop.orderRef.vendorName')
+)
+const overviewUserLabel = computed(() =>
+  props.mode === 'sales'
+    ? t('approvalDesktop.orderRef.salesUserAccount')
+    : t('approvalDesktop.orderRef.purchaseUserAccount')
 )
 const unitPriceLabel = computed(() =>
   props.mode === 'sales'
@@ -375,6 +428,21 @@ const profitTipAria = computed(() =>
   props.mode === 'sales'
     ? t('approvalDesktop.orderRef.quoteProfitTipAria')
     : t('approvalDesktop.orderRef.purchaseProfitTipAria')
+)
+const profitRateLabel = computed(() =>
+  props.mode === 'sales'
+    ? t('approvalDesktop.orderRef.quoteProfitRate')
+    : t('approvalDesktop.orderRef.purchaseProfitRate')
+)
+const profitRateTipTitle = computed(() =>
+  props.mode === 'sales'
+    ? t('approvalDesktop.orderRef.quoteProfitRateTipTitle')
+    : t('approvalDesktop.orderRef.purchaseProfitRateTipTitle')
+)
+const profitRateTipAria = computed(() =>
+  props.mode === 'sales'
+    ? t('approvalDesktop.orderRef.quoteProfitRateTipAria')
+    : t('approvalDesktop.orderRef.purchaseProfitRateTipAria')
 )
 
 function formatQty(q: number) {
@@ -543,6 +611,7 @@ async function loadPanel() {
     const detail = await purchaseOrderApi.getById(orderId)
     const d = (detail as any)?.data ?? detail
     const mask = maskPurchaseSensitiveFields.value
+    const currency = Number(d?.currency ?? d?.Currency ?? 0) || undefined
     overview.value = {
       ...emptyOverview(),
       code: String(d?.purchaseOrderCode ?? d?.PurchaseOrderCode ?? '').trim(),
@@ -554,20 +623,26 @@ async function loadPanel() {
             { masked: false }
           ),
       createTime: formatCreateTime(d?.createTime ?? d?.CreateTime),
-      // 采购单无销售员时展示采购员（字段文案为「销售员」）
-      salesUserAccount: String(
-        d?.salesUserName ??
-          d?.SalesUserName ??
-          d?.purchaseUserName ??
-          d?.PurchaseUserName ??
-          d?.purchaseUserId ??
-          d?.PurchaseUserId ??
-          ''
-      ).trim()
+      orderType: formatSalesOrderType(d?.type ?? d?.Type),
+      salesUserAccount: mask
+        ? '—'
+        : String(
+            d?.purchaseUserName ??
+              d?.PurchaseUserName ??
+              d?.purchaseUserId ??
+              d?.PurchaseUserId ??
+              d?.salesUserName ??
+              d?.SalesUserName ??
+              ''
+          ).trim(),
+      amountText: mask ? '—' : formatTotalAmountNumber(d?.total ?? d?.Total),
+      currency: mask ? undefined : currency,
+      currencyIso: mask || currency == null ? '' : listAmountCurrencyIso(currency)
     }
 
     const items = normalizeItems(props.items?.length ? props.items : d?.items ?? d?.Items)
     const soIdMap = await resolveSellOrderIdMap(orderId)
+    await ensureMaterialPdDict()
 
     lines.value = await Promise.all(
       items.slice(0, 40).map(async (it, idx) => {
@@ -579,29 +654,42 @@ async function loadPanel() {
         const brand = String(it.brand ?? it.Brand ?? '').trim()
         const qty = Number(it.qty ?? it.Qty ?? 0)
         const cost = Number(it.cost ?? it.Cost ?? 0)
-        const currency = Number(it.currency ?? it.Currency ?? 0) || undefined
+        const lineCurrency = Number(it.currency ?? it.Currency ?? 0) || undefined
         const sellOrderItemId = String(it.sellOrderItemId ?? it.SellOrderItemId ?? '').trim()
         const sellOrderId = String(
           it.sellOrderId ?? it.SellOrderId ?? soIdMap.get(sellOrderItemId) ?? ''
         ).trim()
         let profitText = '—'
         let profitFormulaLines: string[] = []
+        let profitRateText = '—'
+        let profitRateFormulaLines: string[] = []
         if (!mask && sellOrderId && sellOrderItemId) {
           try {
             const lp = await salesOrderApi.getSellOrderItemLineProfit(sellOrderId, sellOrderItemId)
-            profitText = formatUsdProfitAmount(lp?.purchaseProfitExpected)
             const purchaseConvertPrice = Number(
               it.convertPrice ?? it.ConvertPrice ?? it.convert_price ?? NaN
             )
-            profitFormulaLines = buildPurchaseProfitTip(lp, {
+            const opts: PurchaseProfitOpts = {
               purchaseOrderItemId: itemId,
               purchaseQty: qty,
               purchaseConvertPrice: Number.isFinite(purchaseConvertPrice)
                 ? purchaseConvertPrice
                 : undefined
-            })
+            }
+            profitText = formatUsdProfitAmount(lp?.purchaseProfitExpected)
+            profitFormulaLines = buildPurchaseProfitTip(lp, opts)
+            const inputs = resolvePurchaseProfitInputs(lp, opts)
+            const rate =
+              inputs && inputs.purchaseUnit > 0 ? inputs.sellUnit / inputs.purchaseUnit : null
+            profitRateText = formatProfitRateMultiplierDisplay(
+              lp?.purchaseProfitExpected,
+              rate,
+              2
+            )
+            profitRateFormulaLines = buildPurchaseProfitRateTip(lp, opts)
           } catch {
             profitText = '—'
+            profitRateText = '—'
           }
         }
         return {
@@ -610,16 +698,16 @@ async function loadPanel() {
             pn,
             brand,
             customerSo: '',
-            dateCode: '',
+            dateCode: formatLineDateCode(it),
             deliveryDate: formatLineDeliveryDate(it),
             qty,
             unitPriceText: mask ? '—' : formatUnitPriceNumber(cost),
-            currency: mask ? undefined : currency,
-            currencyIso: mask || currency == null ? '' : listAmountCurrencyIso(currency),
+            currency: mask ? undefined : lineCurrency,
+            currencyIso: mask || lineCurrency == null ? '' : listAmountCurrencyIso(lineCurrency),
             profitText: mask ? '—' : profitText,
             profitFormulaLines,
-            profitRateText: '—',
-            profitRateFormulaLines: []
+            profitRateText: mask ? '—' : profitRateText,
+            profitRateFormulaLines
           }
       })
     )
@@ -742,6 +830,10 @@ watch(
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 6px 24px;
+    }
+
+    .line-card__row--span {
+      grid-column: 1 / -1;
     }
   }
 

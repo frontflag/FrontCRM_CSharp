@@ -25,7 +25,10 @@
         </div>
       </div>
 
-      <div class="biz-extra" :class="{ 'biz-extra--stacked': row.bizType === 'SALES_ORDER' }">
+      <div
+        class="biz-extra"
+        :class="{ 'biz-extra--stacked': row.bizType === 'SALES_ORDER' || row.bizType === 'PURCHASE_ORDER' }"
+      >
         <template v-if="row.bizType === 'VENDOR'">
           <div class="extra-title">{{ t('pendingApprovals.vendorSection') }}</div>
           <div class="extra-grid">
@@ -127,46 +130,41 @@
           />
         </template>
         <template v-else-if="row.bizType === 'PURCHASE_ORDER'">
-          <div class="extra-title">{{ t('pendingApprovals.purchaseOrderSection') }}</div>
-          <div class="extra-grid">
-            <div class="extra-line extra-line--span">
-              <span>{{ t('pendingApprovals.purchaseOrder.vendor') }}</span>{{ auditPurchaseOrderVendorNameLabel }}
+          <div class="extra-panel extra-panel--customer">
+            <div class="extra-title">{{ t('pendingApprovals.purchaseOrderVendorSection') }}</div>
+            <div class="extra-grid">
+              <div class="extra-line extra-line--span">
+                <span>{{ t('pendingApprovals.purchaseOrder.vendor') }}</span>{{ auditPurchaseOrderVendorNameLabel }}
+              </div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.vendor.identity') }}</span>{{ maskPurchaseSensitiveFields ? '—' : auditVendorIdentityLabel }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.vendor.paymentMethod') }}</span>{{ maskPurchaseSensitiveFields ? '—' : auditVendorPaymentMethodLabel }}</div>
+              <div class="extra-line">
+                <span>{{ t('pendingApprovals.vendor.paymentTermType') }}</span>
+                <em
+                  v-if="!maskPurchaseSensitiveFields"
+                  class="extra-value"
+                  :class="{ 'extra-value--warn': auditVendorIsCreditTerm }"
+                >{{ auditVendorPaymentTermTypeLabel }}</em>
+                <template v-else>—</template>
+              </div>
+              <div class="extra-line">
+                <span>{{ t('pendingApprovals.customer.paymentDays') }}</span>
+                <em
+                  v-if="!maskPurchaseSensitiveFields"
+                  class="extra-value"
+                  :class="{ 'extra-value--warn': auditVendorPaymentHighlight }"
+                >{{ auditVendorPaymentLabel }}</em>
+                <template v-else>—</template>
+              </div>
             </div>
-            <div class="extra-line"><span>{{ t('pendingApprovals.vendor.identity') }}</span>{{ maskPurchaseSensitiveFields ? '—' : auditVendorIdentityLabel }}</div>
-            <div class="extra-line"><span>{{ t('pendingApprovals.vendor.paymentMethod') }}</span>{{ maskPurchaseSensitiveFields ? '—' : auditVendorPaymentMethodLabel }}</div>
-            <div class="extra-line">
-              <span>{{ t('pendingApprovals.vendor.paymentTermType') }}</span>
-              <em
-                v-if="!maskPurchaseSensitiveFields"
-                class="extra-value"
-                :class="{ 'extra-value--warn': auditVendorIsCreditTerm }"
-              >{{ auditVendorPaymentTermTypeLabel }}</em>
-              <template v-else>—</template>
-            </div>
-            <div class="extra-line">
-              <span>{{ t('pendingApprovals.customer.paymentDays') }}</span>
-              <em
-                v-if="!maskPurchaseSensitiveFields"
-                class="extra-value"
-                :class="{ 'extra-value--warn': auditVendorPaymentHighlight }"
-              >{{ auditVendorPaymentLabel }}</em>
-              <template v-else>—</template>
-            </div>
-            <div class="extra-divider" role="separator" />
-            <div class="extra-line"><span>{{ t('pendingApprovals.purchaseOrder.poNo') }}</span>{{ row.documentCode }}</div>
-            <div class="extra-line">
-              <span>{{ t('pendingApprovals.purchaseOrder.orderAmount') }}</span>
-              <template v-if="auditPurchaseOrderAmountText === '—'">—</template>
-              <span v-else class="amount-with-code">
-                <span class="amount-with-code__num">{{ auditPurchaseOrderAmountText }}</span>
-                <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(auditPurchaseOrderCurrency)]">
-                  {{ listAmountCurrencyIso(auditPurchaseOrderCurrency) }}
-                </span>
-              </span>
-            </div>
-            <div class="extra-line"><span>{{ t('pendingApprovals.purchaseOrder.deliveryDate') }}</span>{{ auditDetail?.deliveryDate ? formatDate(auditDetail.deliveryDate) : '—' }}</div>
-            <div class="extra-line"><span>{{ t('pendingApprovals.purchaseOrder.buyer') }}</span>{{ auditDetail?.purchaseUserName || auditDetail?.purchaseUserId || '—' }}</div>
           </div>
+          <ApprovalOrderLineCards
+            class="audit-sales-order-ref"
+            mode="purchase"
+            :columns="2"
+            :order-id="String(row.businessId || '')"
+            :items="auditPurchaseOrderItems"
+          />
         </template>
         <template v-else-if="row.bizType === 'FINANCE_RECEIPT'">
           <div class="extra-title">{{ t('pendingApprovals.receiptSection') }}</div>
@@ -648,25 +646,10 @@ const auditSalesOrderItems = computed(() => {
   return Array.isArray(items) ? items : null
 })
 
-const auditPurchaseOrderCurrency = computed(() => {
+const auditPurchaseOrderItems = computed(() => {
   const d = auditDetail.value
-  const item = props.row
-  return (
-    pickDefinedNumber(d?.currency) ??
-    pickDefinedNumber(d?.Currency) ??
-    pickDefinedNumber(item?.currency) ??
-    1
-  )
-})
-
-const auditPurchaseOrderAmountText = computed(() => {
-  const d = auditDetail.value
-  const item = props.row
-  const amount =
-    pickDefinedNumber(d?.total) ??
-    pickDefinedNumber(d?.Total) ??
-    pickDefinedNumber(item?.amount)
-  return amount === undefined ? '—' : formatTotalAmountNumber(amount)
+  const items = d?.items ?? d?.Items
+  return Array.isArray(items) ? items : null
 })
 
 const auditPaymentModeLabel = computed(() => {

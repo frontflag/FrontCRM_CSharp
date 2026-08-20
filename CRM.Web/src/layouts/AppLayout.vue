@@ -2281,7 +2281,7 @@ function preferredApprovalDesktopRightTab(bt: string | null | undefined): string
     case 'SALES_ORDER':
       return 'r-customer-intel'
     case 'PURCHASE_ORDER':
-      return 'r-approval-purchase-lines'
+      return 'r-vendor-intel'
     default:
       return 'r4'
   }

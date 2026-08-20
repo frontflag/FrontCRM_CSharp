@@ -8765,6 +8765,7 @@ const enUS = {
       vendorName: 'Vendor',
       createTime: 'Created at',
       salesUserAccount: 'Salesperson',
+      purchaseUserAccount: 'Buyer',
       itemCode: 'Line no.',
       pn: 'PN',
       brand: 'Brand',
@@ -8779,6 +8780,7 @@ const enUS = {
       quoteProfit: 'Quote profit',
       quoteProfitRate: 'Quote profit rate',
       purchaseProfit: 'Purchase profit',
+      purchaseProfitRate: 'Purchase profit rate',
       quoteProfitTipTitle: 'Quote profit calculation',
       quoteProfitTipAria: 'View quote profit formula',
       quoteProfitTipFormula:
@@ -8795,6 +8797,12 @@ const enUS = {
         'Purchase profit (USD) = (Sell unit price − Purchase unit price) × Qty = ({sellUnitPrice} − {purchaseUnitPrice}) × {qty} = {result}',
       purchaseProfitTipNoCost:
         'Missing linked sell/purchase unit price; cannot compute (sell − purchase) × qty.',
+      purchaseProfitRateTipTitle: 'Purchase profit rate calculation',
+      purchaseProfitRateTipAria: 'View purchase profit rate formula',
+      purchaseProfitRateTipFormula:
+        'Purchase profit rate = Sell unit price ÷ Purchase unit price = {sellUnitPrice} ÷ {purchaseUnitPrice} = {result}',
+      purchaseProfitRateTipNoCost:
+        'Missing linked sell/purchase unit price; cannot compute sell unit price ÷ purchase unit price.',
       emptyOrder: 'Missing order id; cannot load',
       emptyItems: 'No order lines'
     }
@@ -8942,6 +8950,7 @@ const enUS = {
     orderFilesSection: 'Order files',
     orderFilesEmpty: 'No order files uploaded',
     purchaseOrderSection: 'Purchase order details',
+    purchaseOrderVendorSection: 'Vendor info',
     receiptSection: 'Receipt details',
     paymentSection: 'Payment details',
     fallbackApprovalHint: 'Use the full business detail page as reference when approving.',
