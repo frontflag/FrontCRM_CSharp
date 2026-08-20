@@ -645,6 +645,8 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.Website).HasMaxLength(300);
                 entity.Property(e => e.PurchaserName).HasMaxLength(64);
                 entity.Property(e => e.PaymentMethod).HasMaxLength(50);
+                entity.Property(e => e.CreditCode).HasMaxLength(50);
+                entity.Property(e => e.DUNS).HasMaxLength(20);
             });
 
             // Vendor Address configuration

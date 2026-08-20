@@ -114,6 +114,7 @@ namespace CRM.Core.Services
                 PaymentMethod = string.IsNullOrWhiteSpace(request.PaymentMethod) ? null : request.PaymentMethod.Trim(),
                 Payment = request.PaymentDays,
                 CreditCode = string.IsNullOrWhiteSpace(tax) ? null : tax.Trim(),
+                DUNS = string.IsNullOrWhiteSpace(request.Duns) ? null : request.Duns.Trim(),
                 CompanyInfo = string.IsNullOrWhiteSpace(request.CompanyInfo) ? null : request.CompanyInfo.Trim(),
                 Remark = string.IsNullOrWhiteSpace(request.Remark) ? null : request.Remark.Trim(),
                 CreateTime = DateTime.UtcNow,
@@ -300,6 +301,8 @@ namespace CRM.Core.Services
                 entity.Payment = paymentDays.Value;
             if (request.CreditCode != null)
                 entity.CreditCode = string.IsNullOrWhiteSpace(request.CreditCode) ? null : request.CreditCode.Trim();
+            if (request.Duns != null)
+                entity.DUNS = string.IsNullOrWhiteSpace(request.Duns) ? null : request.Duns.Trim();
             if (request.CompanyInfo != null)
                 entity.CompanyInfo = string.IsNullOrWhiteSpace(request.CompanyInfo) ? null : request.CompanyInfo.Trim();
             if (request.Remark != null)

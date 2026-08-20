@@ -351,4 +351,28 @@ public sealed partial class VendorListQuery : IVendorListQuery
             }
         }
     }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<VendorDuplicateCheckRow>> GetDuplicateCheckRowsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return await _db.Vendors.AsNoTracking()
+            .IgnoreQueryFilters()
+            .Select(e => new VendorDuplicateCheckRow
+            {
+                Id = e.Id,
+                Code = e.Code,
+                OfficialName = e.OfficialName,
+                EnglishOfficialName = e.EnglishOfficialName,
+                CreditCode = e.CreditCode,
+                DUNS = e.DUNS,
+                PurchaserName = e.PurchaserName,
+                PurchaseUserId = e.PurchaseUserId,
+                CreateTime = e.CreateTime,
+                IsDeleted = e.IsDeleted,
+                BlackList = e.BlackList,
+                AscriptionType = e.AscriptionType
+            })
+            .ToListAsync(cancellationToken);
+    }
 }

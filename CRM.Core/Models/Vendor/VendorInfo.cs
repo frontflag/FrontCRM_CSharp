@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 using CRM.Core.Interfaces;
 
 namespace CRM.Core.Models.Vendor
@@ -230,6 +231,13 @@ namespace CRM.Core.Models.Vendor
         /// </summary>
         [StringLength(50)]
         public string? CreditCode { get; set; }
+
+        /// <summary>
+        /// 邓白氏码（D-U-N-S Number），与 customerinfo.DUNS 对齐
+        /// </summary>
+        [StringLength(20)]
+        [JsonPropertyName("duns")]
+        public string? DUNS { get; set; }
 
         /// <summary>
         /// 供应商归属 (1:专属 2:公海)

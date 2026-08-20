@@ -88,6 +88,7 @@ namespace CRM.Core.Services
             string? PaymentMethod,
             short? Payment,
             string? CreditCode,
+            string? DUNS,
             string? CompanyInfo,
             string? Remark,
             string? ExternalNumber,
@@ -110,6 +111,7 @@ namespace CRM.Core.Services
                 vendor.PaymentMethod,
                 vendor.Payment,
                 vendor.CreditCode,
+                vendor.DUNS,
                 vendor.CompanyInfo,
                 vendor.Remark,
                 vendor.ExternalNumber,
@@ -142,6 +144,7 @@ namespace CRM.Core.Services
             await AppendVendorFieldChangeLogAsync(vendor, "paymentMethod", "付款方式", before.PaymentMethod, after.PaymentMethod, actingUserId);
             await AppendVendorFieldChangeLogAsync(vendor, "payment", "账期", before.Payment?.ToString(), after.Payment?.ToString(), actingUserId);
             await AppendVendorFieldChangeLogAsync(vendor, "creditCode", "统一社会信用代码", before.CreditCode, after.CreditCode, actingUserId);
+            await AppendVendorFieldChangeLogAsync(vendor, "duns", "邓白氏编码", before.DUNS, after.DUNS, actingUserId);
             await AppendVendorFieldChangeLogAsync(vendor, "companyInfo", "公司信息", before.CompanyInfo, after.CompanyInfo, actingUserId);
             await AppendVendorFieldChangeLogAsync(vendor, "remark", "备注", before.Remark, after.Remark, actingUserId);
             await AppendVendorFieldChangeLogAsync(vendor, "externalNumber", "外部编号", before.ExternalNumber, after.ExternalNumber, actingUserId);

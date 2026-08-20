@@ -46,6 +46,8 @@ export interface Vendor {
   /** 账期（天），后端字段 payment */
   payment?: number
   creditCode?: string
+  /** 邓白氏编码 */
+  duns?: string
   /** 状态：1新建 2待审核 10已审核 12待财务审核 20财务建档 -1审核失败 */
   status?: number
   /** 审核驳回原因（status=-1 时） */
@@ -85,6 +87,7 @@ export interface CreateVendorRequest {
   paymentDays?: number
   creditCode?: string
   taxNumber?: string
+  duns?: string
   companyInfo?: string
   remark?: string
 }
@@ -108,6 +111,7 @@ export interface UpdateVendorRequest {
   paymentDays?: number
   payment?: number
   creditCode?: string
+  duns?: string
   companyInfo?: string
   remark?: string
   externalNumber?: string
@@ -149,6 +153,25 @@ export interface VendorSearchResponse {
   page?: number
   pageSize?: number
   totalPages?: number
+}
+
+export interface VendorDuplicateMatch {
+  id: string
+  code?: string
+  officialName?: string
+  englishOfficialName?: string
+  creditCode?: string
+  duns?: string
+  purchaserName?: string
+  createTime?: string
+  isDeleted?: boolean
+  blackList?: boolean
+  canViewDetail?: boolean
+}
+
+export interface VendorDuplicateCheckResult {
+  items: VendorDuplicateMatch[]
+  truncated?: boolean
 }
 
 // 供应商统计信息

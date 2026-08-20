@@ -27,11 +27,12 @@
 
       <div
         class="biz-extra"
-        :class="{ 'biz-extra--stacked': row.bizType === 'SALES_ORDER' || row.bizType === 'PURCHASE_ORDER' }"
+        :class="{ 'biz-extra--stacked': row.bizType === 'SALES_ORDER' || row.bizType === 'PURCHASE_ORDER' || row.bizType === 'VENDOR' }"
       >
         <template v-if="row.bizType === 'VENDOR'">
-          <div class="extra-title">{{ t('pendingApprovals.vendorSection') }}</div>
-          <div class="extra-grid">
+          <div class="extra-panel extra-panel--customer">
+            <div class="extra-title">{{ t('pendingApprovals.vendorSection') }}</div>
+            <div class="extra-grid">
             <div class="extra-line extra-line--span">
               <span>{{ t('pendingApprovals.vendor.nameLabel') }}</span>{{ auditVendorNameLabel(auditDetail, row.counterpartyName ?? undefined) }}
             </div>
@@ -58,6 +59,14 @@
               <template v-else>—</template>
             </div>
             <div class="extra-line"><span>{{ t('pendingApprovals.vendor.purchaser') }}</span>{{ maskPurchaseSensitiveFields ? '—' : auditVendorPurchaserLabel }}</div>
+            </div>
+          </div>
+          <div class="extra-panel extra-panel--order-ref">
+            <div class="extra-title">{{ t('pendingApprovals.vendorDuplicateSection') }}</div>
+            <div v-if="vendorDupLoading" class="vendor-dup-status">{{ t('pendingApprovals.vendorDuplicateLoading') }}</div>
+            <div v-else-if="vendorDupError" class="vendor-dup-status vendor-dup-status--error">{{ vendorDupError }}</div>
+            <div v-else-if="vendorDupMatches.length === 0" class="vendor-dup-status">{{ t('pendingApprovals.vendorDuplicateEmpty') }}</div>
+            <VendorDuplicateHits v-else :matches="vendorDupMatches" :truncated="vendorDupTruncated" />
           </div>
         </template>
         <template v-else-if="row.bizType === 'CUSTOMER'">
@@ -334,6 +343,7 @@ import {
 } from '@/api/approvals'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import { vendorApi } from '@/api/vendor'
+import type { VendorDuplicateMatch } from '@/types/vendor'
 import { customerApi } from '@/api/customer'
 import salesOrderApi from '@/api/salesOrder'
 import { financePaymentApi, financeReceiptApi } from '@/api/finance'
@@ -341,6 +351,7 @@ import { purchaseOrderApi } from '@/api/purchaseOrder'
 import { documentApi, type UploadDocumentDto } from '@/api/document'
 import DocumentListPanel from '@/components/Document/DocumentListPanel.vue'
 import ApprovalOrderLineCards from '@/components/Approvals/ApprovalOrderLineCards.vue'
+import VendorDuplicateHits from '@/components/Vendor/VendorDuplicateHits.vue'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { formatVendorNameReadonly } from '@/utils/vendorDisplayName'
 import { formatCustomerNameReadonly } from '@/utils/customerDisplayName'
@@ -409,6 +420,44 @@ const auditHistoryLoading = ref(false)
 const auditHistory = ref<ApprovalHistoryItem[]>([])
 const customerDict = useCustomerDictStore()
 const vendorDict = useVendorDictStore()
+const vendorDupLoading = ref(false)
+const vendorDupError = ref('')
+const vendorDupMatches = ref<VendorDuplicateMatch[]>([])
+const vendorDupTruncated = ref(false)
+let vendorDupSeq = 0
+
+function resetVendorDuplicates() {
+  vendorDupSeq += 1
+  vendorDupLoading.value = false
+  vendorDupError.value = ''
+  vendorDupMatches.value = []
+  vendorDupTruncated.value = false
+}
+
+async function loadVendorDuplicates(item: PendingApprovalItem, detail: any, seq: number) {
+  vendorDupLoading.value = true
+  vendorDupError.value = ''
+  vendorDupMatches.value = []
+  vendorDupTruncated.value = false
+  try {
+    const result = await vendorApi.checkDuplicates({
+      excludeVendorId: String(item.businessId || '').trim() || undefined,
+      officialName: String(detail?.officialName ?? detail?.name ?? '').trim() || undefined,
+      englishOfficialName: String(detail?.englishOfficialName ?? '').trim() || undefined,
+      creditCode: String(detail?.creditCode ?? '').trim() || undefined,
+      duns: String(detail?.duns ?? detail?.dUNS ?? '').trim() || undefined
+    })
+    if (seq !== vendorDupSeq) return
+    vendorDupMatches.value = result.items ?? []
+    vendorDupTruncated.value = Boolean(result.truncated)
+  } catch (e: unknown) {
+    if (seq !== vendorDupSeq) return
+    const err = e as { message?: string }
+    vendorDupError.value = err?.message || t('vendorEdit.duplicate.checkFailed')
+  } finally {
+    if (seq === vendorDupSeq) vendorDupLoading.value = false
+  }
+}
 
 function isAuditAttachmentsRestricted(item: PendingApprovalItem) {
   const bt = item.bizType
@@ -819,13 +868,27 @@ const loadAuditDetail = async (item: PendingApprovalItem) => {
   auditRelatedVendor.value = null
   auditRelatedCustomer.value = null
   emit('context', null)
+  let vendorDupRequestSeq = 0
+  if (item.bizType === 'VENDOR') {
+    vendorDupRequestSeq = ++vendorDupSeq
+    vendorDupLoading.value = true
+    vendorDupError.value = ''
+    vendorDupMatches.value = []
+    vendorDupTruncated.value = false
+  } else {
+    resetVendorDuplicates()
+  }
   try {
     if (item.bizType === 'VENDOR') {
-      auditDetail.value = normalizeApiData(await vendorApi.getVendorById(item.businessId))
+      const detail = normalizeApiData(await vendorApi.getVendorById(item.businessId))
+      if (vendorDupRequestSeq !== vendorDupSeq) return
+      auditDetail.value = detail
       await vendorDict.hydrateVendorEditForm({
         credit: auditDetail.value?.credit ?? auditDetail.value?.Credit,
         paymentMethod: auditDetail.value?.paymentMethod ?? ''
       })
+      if (vendorDupRequestSeq !== vendorDupSeq) return
+      void loadVendorDuplicates(item, auditDetail.value, vendorDupRequestSeq)
     } else if (item.bizType === 'CUSTOMER') {
       auditDetail.value = normalizeApiData(await customerApi.getCustomerById(item.businessId))
       const type = auditDetail.value?.customerType ?? auditDetail.value?.type ?? auditDetail.value?.Type
@@ -882,6 +945,9 @@ const loadAuditDetail = async (item: PendingApprovalItem) => {
   } catch (e: any) {
     auditDetailError.value = e?.message || t('pendingApprovals.messages.detailLoadFailed')
     emit('context', null)
+    if (item.bizType === 'VENDOR' && vendorDupRequestSeq === vendorDupSeq) {
+      vendorDupLoading.value = false
+    }
   } finally {
     auditDetailLoading.value = false
   }
@@ -1199,6 +1265,22 @@ watch(
     &--customer {
       border: 1px solid rgba(230, 180, 40, 0.28);
       background: #fff8e1;
+    }
+
+    &--order-ref {
+      border: 1px solid rgba(0, 212, 255, 0.16);
+      background: rgba(0, 212, 255, 0.03);
+    }
+  }
+
+  .vendor-dup-status {
+    font-size: 13px;
+    font-weight: 400;
+    color: $text-muted;
+    white-space: normal;
+
+    &--error {
+      color: #ef6a73;
     }
   }
 

@@ -4272,11 +4272,19 @@ const enUS = {
     fields: {
       vendorCode: 'Vendor code',
       vendorName: 'Vendor name',
+      officialName: 'Legal name (Chinese)',
+      englishOfficialName: 'Legal name (English)',
       shortName: 'Short name',
       industry: 'Industry',
       regionAddress: 'Region / address',
+      officeAddress: 'Office address',
+      website: 'Website',
+      purchaser: 'Buyer',
       level: 'Level',
       identity: 'Identity',
+      creditCode: 'Unified social credit code',
+      duns: 'D-U-N-S Number',
+      companyInfo: 'Company profile',
       remarks: 'Remarks',
       createdAt: 'Created at',
       updatedAt: 'Updated at'
@@ -4548,8 +4556,10 @@ const enUS = {
       paymentTt: 'Wire T/T',
       paymentLc: 'L/C',
       paymentDays: 'Payment days',
-      taxNumber: 'Tax ID',
-      taxNumberPh: 'Unified social credit code',
+      taxNumber: 'Unified social credit code',
+      taxNumberPh: 'Enter unified social credit code',
+      duns: 'D-U-N-S Number',
+      dunsPh: 'Enter D-U-N-S Number',
       bankName: 'Bank name',
       bankNamePh: 'Bank name',
       bankAccount: 'Account number',
@@ -4657,7 +4667,21 @@ const enUS = {
       deleteFailed: 'Delete failed'
     },
     draftNameDefault: 'Vendor draft',
-    draftRemarkFromVendor: 'From vendor ID:{id}'
+    draftRemarkFromVendor: 'From vendor ID:{id}',
+    duplicate: {
+      title: 'Possible duplicate vendors',
+      intro: '',
+      truncated: 'Too many hits; showing the first 10.',
+      meta: 'Existing vendor, buyer: {purchaser}, created: {date}',
+      purchaserUnknown: '—',
+      deleted: 'Deleted',
+      blacklist: 'Blacklist',
+      confirmCreate: 'Create this vendor anyway?',
+      confirmSave: 'Save this vendor anyway?',
+      okCreate: 'Create',
+      okSave: 'Save',
+      checkFailed: 'Duplicate check failed. Please try again.'
+    }
   },
   customerHome: {
     searchPlaceholder: 'Enter customer name, code, or keyword…',
@@ -8987,6 +9011,9 @@ const enUS = {
       rejected: 'Rejected'
     },
     vendorSection: 'Vendor details',
+    vendorDuplicateSection: 'Vendor duplicate check',
+    vendorDuplicateLoading: 'Checking for duplicates…',
+    vendorDuplicateEmpty: 'No duplicate vendors found',
     customerSection: 'Customer details',
     salesOrderSection: 'Sales order details',
     salesOrderCustomerSection: 'Customer info',

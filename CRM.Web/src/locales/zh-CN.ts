@@ -4270,6 +4270,8 @@ const zhCN = {
       purchaser: '采购员',
       level: '等级',
       identity: '身份',
+      creditCode: '统一社会信用代码',
+      duns: '邓白氏编码',
       companyInfo: '公司简介',
       remarks: '备注',
       createdAt: '创建时间',
@@ -4542,8 +4544,10 @@ const zhCN = {
       paymentTt: '电汇 T/T',
       paymentLc: '信用证 L/C',
       paymentDays: '账期（天）',
-      taxNumber: '税号',
-      taxNumberPh: '统一社会信用代码',
+      taxNumber: '统一社会信用代码',
+      taxNumberPh: '请输入统一社会信用代码',
+      duns: '邓白氏编码',
+      dunsPh: '请输入邓白氏编码',
       bankName: '开户银行',
       bankNamePh: '开户银行名称',
       bankAccount: '银行账号',
@@ -4651,7 +4655,21 @@ const zhCN = {
       deleteFailed: '删除失败'
     },
     draftNameDefault: '供应商草稿',
-    draftRemarkFromVendor: '来源供应商ID:{id}'
+    draftRemarkFromVendor: '来源供应商ID:{id}',
+    duplicate: {
+      title: '可能重复的供应商',
+      intro: '',
+      truncated: '命中较多，仅列出前 10 条。',
+      meta: '已存在供应商，采购员：{purchaser}，创建日期：{date}',
+      purchaserUnknown: '—',
+      deleted: '已删除',
+      blacklist: '黑名单',
+      confirmCreate: '您是否确认正式创建此供应商？',
+      confirmSave: '您是否确认保存此供应商？',
+      okCreate: '确认创建',
+      okSave: '确认保存',
+      checkFailed: '查重失败，请稍后重试'
+    }
   },
   customerHome: {
     searchPlaceholder: '输入客户名称、编号或关键词…',
@@ -8969,6 +8987,9 @@ const zhCN = {
       rejected: '已拒绝'
     },
     vendorSection: '供应商专属信息',
+    vendorDuplicateSection: '供应商查重',
+    vendorDuplicateLoading: '正在查重…',
+    vendorDuplicateEmpty: '未发现重复供应商',
     customerSection: '客户专属信息',
     salesOrderSection: '销售订单专属信息',
     salesOrderCustomerSection: '客户信息',

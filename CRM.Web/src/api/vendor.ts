@@ -10,7 +10,8 @@ import type {
   UpdateVendorRequest,
   AddVendorContactRequest,
   UpdateVendorContactRequest,
-  VendorStatistics
+  VendorStatistics,
+  VendorDuplicateCheckResult
 } from '@/types/vendor';
 
 function vendorsPath(id: string, suffix: string): string {
@@ -106,6 +107,7 @@ export const vendorApi = {
       paymentDays: data.paymentDays,
       creditCode: data.creditCode?.trim(),
       taxNumber: data.taxNumber?.trim(),
+      duns: data.duns?.trim(),
       companyInfo: data.companyInfo?.trim(),
       remark: data.remark?.trim()
     };
@@ -155,6 +157,7 @@ export const vendorApi = {
       paymentMethod: data.paymentMethod?.trim(),
       paymentDays: data.paymentDays ?? data.payment,
       creditCode: data.creditCode?.trim(),
+      duns: data.duns?.trim(),
       companyInfo: data.companyInfo?.trim(),
       remark: data.remark?.trim(),
       externalNumber: data.externalNumber?.trim()
@@ -166,6 +169,31 @@ export const vendorApi = {
     if (response && typeof response === 'object' && 'data' in response && response.data)
       return response.data as Vendor;
     return response as Vendor;
+  },
+
+  async checkDuplicates(payload: {
+    excludeVendorId?: string
+    officialName?: string
+    englishOfficialName?: string
+    creditCode?: string
+    duns?: string
+  }): Promise<VendorDuplicateCheckResult> {
+    const body: Record<string, unknown> = {
+      excludeVendorId: payload.excludeVendorId?.trim() || undefined,
+      officialName: payload.officialName?.trim() || undefined,
+      englishOfficialName: payload.englishOfficialName?.trim() || undefined,
+      creditCode: payload.creditCode?.trim() || undefined,
+      duns: payload.duns?.trim() || undefined
+    }
+    Object.keys(body).forEach((k) => {
+      if (body[k] === undefined) delete body[k]
+    })
+    const response = await apiClient.post<any>('/api/v1/vendors/check-duplicates', body)
+    if (response && typeof response === 'object' && Array.isArray(response.items))
+      return { items: response.items, truncated: Boolean(response.truncated) }
+    if (response && typeof response === 'object' && Array.isArray(response.data?.items))
+      return { items: response.data.items, truncated: Boolean(response.data.truncated) }
+    return { items: [], truncated: false }
   },
 
   async deleteVendor(id: string): Promise<void> {

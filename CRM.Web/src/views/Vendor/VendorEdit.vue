@@ -34,7 +34,7 @@
       </div>
     </div>
 
-    <el-form ref="formRef" :model="formData" :rules="formRules" label-width="110px" class="vendor-form">
+    <el-form ref="formRef" :model="formData" :rules="formRules" label-width="132px" class="vendor-form">
 
       <!-- 基本信息 -->
       <div class="form-section">
@@ -76,17 +76,17 @@
               </el-form-item>
             </el-col>
             <el-col :span="8">
-              <el-form-item :label="t('vendorEdit.fields.industry')">
-                <el-select v-model="formData.industry" :placeholder="t('vendorEdit.fields.industryPh')" clearable class="q-select">
-                  <el-option
-                    v-for="opt in vendorDict.industryOptions"
-                    :key="opt.value"
-                    :label="opt.label"
-                    :value="opt.value"
-                  />
-                </el-select>
+              <el-form-item :label="t('vendorEdit.fields.taxNumber')">
+                <el-input v-model="formData.taxNumber" :placeholder="t('vendorEdit.fields.taxNumberPh')" class="q-input" />
               </el-form-item>
             </el-col>
+            <el-col :span="8">
+              <el-form-item :label="t('vendorEdit.fields.duns')">
+                <el-input v-model="formData.duns" :placeholder="t('vendorEdit.fields.dunsPh')" class="q-input" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row :gutter="24">
             <el-col :span="8">
               <el-form-item>
                 <template #label>
@@ -146,8 +146,6 @@
                 </el-select>
               </el-form-item>
             </el-col>
-          </el-row>
-          <el-row :gutter="24">
             <el-col :span="8">
               <el-form-item :label="t('vendorEdit.fields.identity')">
                 <el-select v-model="formData.credit" :placeholder="t('vendorEdit.fields.identityPh')" clearable class="q-select">
@@ -161,14 +159,19 @@
               </el-form-item>
             </el-col>
             <el-col :span="8">
-              <el-form-item :label="t('vendorEdit.fields.workflowStatus')">
-                <el-select v-model="formData.status" :placeholder="t('vendorEdit.fields.statusPh')" class="q-select">
-                  <el-option :label="t('vendorEdit.fields.statusDraft')" :value="0" />
-                  <el-option :label="t('vendorEdit.fields.statusNew')" :value="1" />
-                  <el-option :label="t('vendorEdit.fields.statusPending')" :value="2" />
+              <el-form-item :label="t('vendorEdit.fields.industry')">
+                <el-select v-model="formData.industry" :placeholder="t('vendorEdit.fields.industryPh')" clearable class="q-select">
+                  <el-option
+                    v-for="opt in vendorDict.industryOptions"
+                    :key="opt.value"
+                    :label="opt.label"
+                    :value="opt.value"
+                  />
                 </el-select>
               </el-form-item>
             </el-col>
+          </el-row>
+          <el-row :gutter="24">
             <el-col :span="8">
               <el-form-item :label="t('vendorEdit.fields.purchaser')">
                 <PurchaserCascader
@@ -179,14 +182,12 @@
                 />
               </el-form-item>
             </el-col>
-          </el-row>
-          <el-row :gutter="24">
             <el-col :span="8">
               <el-form-item :label="t('vendorEdit.fields.officeAddress')">
                 <el-input v-model="formData.officeAddress" :placeholder="t('vendorEdit.fields.officeAddressPh')" class="q-input" />
               </el-form-item>
             </el-col>
-            <el-col :span="16">
+            <el-col :span="8">
               <el-form-item :label="t('vendorEdit.fields.website')">
                 <el-input v-model="formData.website" :placeholder="t('vendorEdit.fields.websitePh')" class="q-input" />
               </el-form-item>
@@ -235,11 +236,6 @@
           </el-row>
           <el-row :gutter="24">
             <el-col :span="8">
-              <el-form-item :label="t('vendorEdit.fields.taxNumber')">
-                <el-input v-model="formData.taxNumber" :placeholder="t('vendorEdit.fields.taxNumberPh')" class="q-input" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="8">
               <el-form-item :label="t('vendorEdit.fields.bankName')">
                 <finance-payment-bank-select
                   v-model="formData.financePaymentBankId"
@@ -249,8 +245,6 @@
                 />
               </el-form-item>
             </el-col>
-          </el-row>
-          <el-row :gutter="24">
             <el-col :span="8">
               <el-form-item :label="t('vendorEdit.fields.bankAccount')">
                 <el-input v-model="formData.bankAccount" :placeholder="t('vendorEdit.fields.bankAccountPh')" class="q-input" />
@@ -399,6 +393,27 @@
         </el-radio-group>
       </div>
     </div>
+
+    <el-dialog
+      v-model="dupDialog.visible"
+      :title="t('vendorEdit.duplicate.title')"
+      width="560px"
+      append-to-body
+      class="vendor-dup-dialog"
+      @close="onDuplicateDialogClosed"
+    >
+      <p v-if="t('vendorEdit.duplicate.intro')" class="vendor-dup-dialog__intro">{{ t('vendorEdit.duplicate.intro') }}</p>
+      <VendorDuplicateHits :matches="dupDialog.matches" :truncated="dupDialog.truncated" />
+      <p class="vendor-dup-dialog__ask">
+        {{ isEdit ? t('vendorEdit.duplicate.confirmSave') : t('vendorEdit.duplicate.confirmCreate') }}
+      </p>
+      <template #footer>
+        <el-button @click="resolveDuplicateDialog(false)">{{ t('vendorEdit.cancel') }}</el-button>
+        <el-button type="primary" @click="resolveDuplicateDialog(true)">
+          {{ isEdit ? t('vendorEdit.duplicate.okSave') : t('vendorEdit.duplicate.okCreate') }}
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -410,7 +425,7 @@ import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'elem
 import { vendorApi, vendorBankApi, vendorContactApi, vendorAddressApi } from '@/api/vendor';
 import { documentApi } from '@/api/document';
 import { draftApi } from '@/api/draft';
-import type { CreateVendorRequest, UpdateVendorRequest, Vendor, VendorContactInfo } from '@/types/vendor';
+import type { CreateVendorRequest, UpdateVendorRequest, Vendor, VendorContactInfo, VendorDuplicateMatch } from '@/types/vendor';
 import { runValidatedFormSave } from '@/composables/useFormSubmit';
 import { SETTLEMENT_CURRENCY_OPTIONS, DEFAULT_SETTLEMENT_CURRENCY_CODE } from '@/constants/currency';
 import PurchaserCascader from '@/components/PurchaserCascader.vue';
@@ -427,6 +442,7 @@ import {
 } from '@/utils/contactName';
 import { QuestionFilled } from '@element-plus/icons-vue';
 import { VENDOR_LEVEL_DEFAULT } from '@/constants/vendorEnums';
+import VendorDuplicateHits from '@/components/Vendor/VendorDuplicateHits.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -458,6 +474,65 @@ const businessCardAddress = ref<Record<string, unknown> | null>(null);
 const saving = ref(false);
 const currentDraftId = ref('');
 
+const dupDialog = reactive({
+  visible: false,
+  matches: [] as VendorDuplicateMatch[],
+  truncated: false
+});
+let dupResolve: ((ok: boolean) => void) | null = null;
+let lastDuplicateCheckKey = '';
+
+function duplicateFingerprint() {
+  return [
+    formData.officialName.trim(),
+    formData.englishOfficialName.trim(),
+    formData.taxNumber.trim(),
+    formData.duns.trim()
+  ].join('\n');
+}
+
+function resolveDuplicateDialog(ok: boolean) {
+  dupDialog.visible = false;
+  const r = dupResolve;
+  dupResolve = null;
+  r?.(ok);
+}
+
+function onDuplicateDialogClosed() {
+  if (dupResolve) resolveDuplicateDialog(false);
+}
+
+async function confirmDuplicatesIfNeeded(): Promise<boolean> {
+  const key = duplicateFingerprint();
+  if (key === lastDuplicateCheckKey) return true;
+  try {
+    const result = await vendorApi.checkDuplicates({
+      excludeVendorId: isEdit.value ? vendorId.value : undefined,
+      officialName: formData.officialName,
+      englishOfficialName: formData.englishOfficialName,
+      creditCode: formData.taxNumber,
+      duns: formData.duns
+    });
+    const items = result.items ?? [];
+    if (items.length === 0) {
+      lastDuplicateCheckKey = key;
+      return true;
+    }
+    const confirmed = await new Promise<boolean>((resolve) => {
+      dupResolve = resolve;
+      dupDialog.matches = items;
+      dupDialog.truncated = Boolean(result.truncated);
+      dupDialog.visible = true;
+    });
+    if (confirmed) lastDuplicateCheckKey = key;
+    return confirmed;
+  } catch (e: unknown) {
+    const err = e as { message?: string };
+    ElMessage.error(err?.message || t('vendorEdit.duplicate.checkFailed'));
+    return false;
+  }
+}
+
 const formData = reactive({
   code: '',
   officialName: '',
@@ -480,6 +555,7 @@ const formData = reactive({
   purchaseUserId: '',
   purchaserName: '',
   taxNumber: '',
+  duns: '',
   /** 财务参数-付款银行主键（开户银行下拉） */
   financePaymentBankId: '',
   bankAccount: '',
@@ -554,6 +630,7 @@ const buildVendorApiPayload = (): CreateVendorRequest & UpdateVendorRequest => (
   paymentMethod: formData.paymentMethod || undefined,
   paymentDays: Number(formData.paymentDays ?? 0),
   creditCode: formData.taxNumber?.trim(),
+  duns: formData.duns?.trim() || undefined,
   companyInfo: formData.companyInfo?.trim(),
   remark: formData.remark?.trim()
 });
@@ -609,6 +686,7 @@ const fetchVendorDetail = async () => {
     formData.purchaserName = data.purchaserName ?? '';
     formData.purchaseUserId = '';
     formData.taxNumber = data.creditCode ?? '';
+    formData.duns = data.duns ?? (data as { dUNS?: string }).dUNS ?? '';
     formData.companyInfo = data.companyInfo ?? '';
     formData.remark = data.remark ?? '';
     const banks = data.bankAccounts ?? [];
@@ -840,6 +918,22 @@ const validateVendorContacts = () => {
 const handleConvertToFormal = async () => {
   // 需求：只有用户主动点击“保存草稿”才保存草稿；
   // “转正式”应直接保存正式数据，不再自动保存草稿。
+  if (formRef.value) {
+    try {
+      await formRef.value.validate();
+    } catch {
+      return;
+    }
+  }
+  try {
+    validateVendorContacts();
+  } catch (e: unknown) {
+    const err = e as { message?: string };
+    ElMessage.error(err?.message || t('vendorEdit.messages.saveFailed'));
+    return;
+  }
+  const proceed = await confirmDuplicatesIfNeeded();
+  if (!proceed) return;
   await handleSave();
 };
 
@@ -1381,4 +1475,16 @@ onMounted(async () => {
   margin: 8px 0 0;
   color: var(--el-text-color-secondary);
 }
+
+.vendor-dup-dialog__intro,
+.vendor-dup-dialog__ask {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.vendor-dup-dialog__intro {
+  margin: 0 0 10px;
+}
+
 </style>

@@ -38,6 +38,14 @@ namespace CRM.Core.Interfaces
         Task<VendorInfo> UpdateAsync(string id, UpdateVendorRequest request, string? actingUserId = null);
 
         /// <summary>
+        /// 保存前查重：含软删与黑名单，不走采购列表数据范围；只返回命中，不拦截保存。
+        /// </summary>
+        Task<VendorDuplicateCheckResult> CheckDuplicatesAsync(
+            VendorDuplicateCheckRequest request,
+            string? currentUserId = null,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// 删除
         /// </summary>
         Task DeleteAsync(string id, string? reason = null, string? actingUserId = null);
@@ -447,10 +455,13 @@ namespace CRM.Core.Interfaces
         public string? PaymentMethod { get; set; }
         /// <summary>账期天数</summary>
         public short? PaymentDays { get; set; }
-        /// <summary>税号 / 统一社会信用代码</summary>
+        /// <summary>统一社会信用代码</summary>
         public string? CreditCode { get; set; }
         /// <summary>与 CreditCode 二选一（前端表单 taxNumber）</summary>
         public string? TaxNumber { get; set; }
+        /// <summary>邓白氏编码</summary>
+        [System.Text.Json.Serialization.JsonPropertyName("duns")]
+        public string? Duns { get; set; }
         /// <summary>公司简介</summary>
         public string? CompanyInfo { get; set; }
         /// <summary>其他备注</summary>
@@ -489,8 +500,11 @@ namespace CRM.Core.Interfaces
         public short? PaymentDays { get; set; }
         /// <summary>兼容旧字段：与 PaymentDays 同义</summary>
         public short? Payment { get; set; }
-        /// <summary>税号</summary>
+        /// <summary>统一社会信用代码</summary>
         public string? CreditCode { get; set; }
+        /// <summary>邓白氏编码</summary>
+        [System.Text.Json.Serialization.JsonPropertyName("duns")]
+        public string? Duns { get; set; }
         /// <summary>公司简介</summary>
         public string? CompanyInfo { get; set; }
         /// <summary>其他备注</summary>
@@ -567,5 +581,59 @@ namespace CRM.Core.Interfaces
         public DateTime ChangedAt { get; set; }
         public string? BizType { get; set; }
         public string? RecordCode { get; set; }
+    }
+
+    /// <summary>保存前查重请求（空字段不参与比对）</summary>
+    public class VendorDuplicateCheckRequest
+    {
+        /// <summary>编辑时排除自身</summary>
+        public string? ExcludeVendorId { get; set; }
+        public string? Name { get; set; }
+        public string? OfficialName { get; set; }
+        public string? EnglishOfficialName { get; set; }
+        public string? CreditCode { get; set; }
+        public string? TaxNumber { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("duns")]
+        public string? Duns { get; set; }
+    }
+
+    public class VendorDuplicateCheckResult
+    {
+        public IReadOnlyList<VendorDuplicateMatchDto> Items { get; set; } = Array.Empty<VendorDuplicateMatchDto>();
+        public bool Truncated { get; set; }
+    }
+
+    public class VendorDuplicateMatchDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Code { get; set; } = string.Empty;
+        public string? OfficialName { get; set; }
+        public string? EnglishOfficialName { get; set; }
+        public string? CreditCode { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("duns")]
+        public string? Duns { get; set; }
+        public string? PurchaserName { get; set; }
+        public DateTime CreateTime { get; set; }
+        public bool IsDeleted { get; set; }
+        public bool BlackList { get; set; }
+        /// <summary>无详情权限或已删除时前端灰显、不跳转</summary>
+        public bool CanViewDetail { get; set; }
+    }
+
+    /// <summary>查重候选（含软删），由列表查询提供，不套采购数据范围。</summary>
+    public class VendorDuplicateCheckRow
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Code { get; set; } = string.Empty;
+        public string? OfficialName { get; set; }
+        public string? EnglishOfficialName { get; set; }
+        public string? CreditCode { get; set; }
+        public string? DUNS { get; set; }
+        public string? PurchaserName { get; set; }
+        public string? PurchaseUserId { get; set; }
+        public DateTime CreateTime { get; set; }
+        public bool IsDeleted { get; set; }
+        public bool BlackList { get; set; }
+        public short AscriptionType { get; set; }
     }
 }

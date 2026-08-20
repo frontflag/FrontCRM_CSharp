@@ -105,6 +105,7 @@ COMMENT ON COLUMN public.vendorinfo."ListingCode" IS '上市代码/股票代码'
 COMMENT ON COLUMN public.vendorinfo."VendorScope" IS '经营范围';
 COMMENT ON COLUMN public.vendorinfo."IsControl" IS '是否管控供应商（true=需额外审批或限制下单）';
 COMMENT ON COLUMN public.vendorinfo."CreditCode" IS '统一社会信用代码';
+COMMENT ON COLUMN public.vendorinfo."DUNS" IS '邓白氏码（D-U-N-S Number）';
 COMMENT ON COLUMN public.vendorinfo."AscriptionType" IS '供应商归属：1=专属（绑定采购员） 2=公海（可领取/分配）';
 COMMENT ON COLUMN public.vendorinfo."PurchaseUserId" IS '负责采购员用户主键（GUID，关联系统用户）';
 COMMENT ON COLUMN public.vendorinfo."PurchaseGroupId" IS '采购员组/采购组主键（GUID）';

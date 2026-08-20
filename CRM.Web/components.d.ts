@@ -240,6 +240,7 @@ declare module 'vue' {
     UserLevelChangeLogPanel: typeof import('./src/components/System/UserLevelChangeLogPanel.vue')['default']
     VendorBankInfoPanel: typeof import('./src/components/Vendor/VendorBankInfoPanel.vue')['default']
     VendorBankSelect: typeof import('./src/components/Vendor/VendorBankSelect.vue')['default']
+    VendorDuplicateHits: typeof import('./src/components/Vendor/VendorDuplicateHits.vue')['default']
     VendorExtendCell: typeof import('./src/components/list/VendorExtendCell.vue')['default']
     VendorExtendColumnHeader: typeof import('./src/components/list/VendorExtendColumnHeader.vue')['default']
     VendorFavoritePanel: typeof import('./src/components/Vendor/VendorFavoritePanel.vue')['default']

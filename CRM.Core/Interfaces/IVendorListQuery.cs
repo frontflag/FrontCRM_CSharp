@@ -36,4 +36,10 @@ public interface IVendorListQuery
         string? keyword,
         string? currentUserId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 查重候选：忽略软删过滤器，不套采购列表数据范围，只取比对所需列。
+    /// </summary>
+    Task<IReadOnlyList<VendorDuplicateCheckRow>> GetDuplicateCheckRowsAsync(
+        CancellationToken cancellationToken = default);
 }

@@ -175,6 +175,16 @@
             <span class="info-value">{{ vendorPurchaserDisplay }}</span>
           </div>
         </div>
+        <div class="info-grid info-grid--inline-labels info-grid--basic">
+          <div class="info-item">
+            <span class="info-label">{{ t('vendorDetail.fields.creditCode') }}</span>
+            <span class="info-value">{{ maskPurchaseSensitiveFields ? '—' : (vendor.creditCode || '—') }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">{{ t('vendorDetail.fields.duns') }}</span>
+            <span class="info-value">{{ maskPurchaseSensitiveFields ? '—' : (vendor.duns || '—') }}</span>
+          </div>
+        </div>
         <div class="info-grid info-grid--inline-labels">
           <div class="info-item info-item--span-all">
             <span class="info-label">{{ t('vendorDetail.fields.companyInfo') }}</span>

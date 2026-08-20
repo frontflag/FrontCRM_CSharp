@@ -330,6 +330,24 @@ namespace CRM.API.Controllers
             }
         }
 
+        /// <summary>查重：含软删与黑名单，不套采购列表数据范围；只提醒不拦截。审批桌面供应商审核亦调用。</summary>
+        [HttpPost("check-duplicates")]
+        public async Task<ActionResult<ApiResponse<VendorDuplicateCheckResult>>> CheckDuplicates(
+            [FromBody] VendorDuplicateCheckRequest request)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var result = await _vendorService.CheckDuplicatesAsync(request ?? new VendorDuplicateCheckRequest(), userId);
+                return Ok(ApiResponse<VendorDuplicateCheckResult>.Ok(result, "查重完成"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "供应商查重失败");
+                return StatusCode(500, ApiResponse<VendorDuplicateCheckResult>.Fail($"供应商查重失败: {ex.Message}", 500));
+            }
+        }
+
         [HttpPost]
         [RequirePermission("vendor.write")]
         public async Task<ActionResult<ApiResponse<VendorInfo>>> CreateVendor([FromBody] CreateVendorRequest request)
