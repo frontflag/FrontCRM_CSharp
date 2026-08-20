@@ -4,7 +4,7 @@
   "catalogFile": "帮助文档目录.md",
   "entries": [
     { "id": "MENU_DASHBOARD", "label": "控制台", "routeNames": ["Dashboard"], "pathPrefixes": ["/dashboard"] },
-    { "id": "MENU_PENDING_APPROVALS", "label": "待审批", "routeNames": ["PendingApprovals"], "pathPrefixes": ["/pending-approvals"] },
+    { "id": "MENU_PENDING_APPROVALS", "label": "待审批", "routeNames": ["PendingApprovals", "ApprovalDesktop"], "pathPrefixes": ["/pending-approvals", "/approval-desktop"] },
     { "id": "MENU_DRAFTS", "label": "草稿箱", "routeNames": ["DraftList"], "pathPrefixes": ["/drafts"] },
 
     { "id": "MENU_CUSTOMER_HOME", "label": "客户", "routeNames": ["CustomerHome", "CustomerList", "CustomerDetail", "CustomerCreate", "CustomerEdit", "CustomerContactCreate", "CustomerContactEdit"], "pathPrefixes": ["/custome", "/customerlist", "/customers"] },

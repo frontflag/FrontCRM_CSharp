@@ -2247,18 +2247,18 @@ const showApprovalVendorIntelPanel = computed(
       approvalDesktopBizType.value === 'FINANCE_PAYMENT')
 )
 
-const showApprovalSalesLinesPanel = computed(
-  () =>
-    isApprovalDesktopRoute.value &&
-    rightActiveTabId.value === 'r-approval-sales-lines' &&
-    approvalDesktopBizType.value === 'SALES_ORDER'
-)
-
 const showApprovalPurchaseLinesPanel = computed(
   () =>
     isApprovalDesktopRoute.value &&
     rightActiveTabId.value === 'r-approval-purchase-lines' &&
     approvalDesktopBizType.value === 'PURCHASE_ORDER'
+)
+
+const showApprovalSalesLinesPanel = computed(
+  () =>
+    isApprovalDesktopRoute.value &&
+    rightActiveTabId.value === 'r-approval-sales-lines' &&
+    approvalDesktopBizType.value === 'SALES_ORDER'
 )
 
 const approvalDesktopOrderId = computed(() =>
@@ -2279,7 +2279,7 @@ function preferredApprovalDesktopRightTab(bt: string | null | undefined): string
     case 'FINANCE_PAYMENT':
       return 'r-vendor-intel'
     case 'SALES_ORDER':
-      return 'r-approval-sales-lines'
+      return 'r-customer-intel'
     case 'PURCHASE_ORDER':
       return 'r-approval-purchase-lines'
     default:
@@ -2351,6 +2351,7 @@ watch(
       qcOpsStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
+      rightPanelVisible.value = true
       syncApprovalDesktopRightTabs({ forceDefault: true })
       restoreAuxTabsForRoute(name, {
         left: 'l1',

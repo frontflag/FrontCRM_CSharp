@@ -1,5 +1,5 @@
 <template>
-  <div class="approval-order-ref" v-loading="loading">
+  <div class="approval-order-ref" :class="{ 'approval-order-ref--cols-2': columns === 2 }" v-loading="loading">
     <p v-if="!orderId" class="approval-order-ref__hint">
       {{ t('approvalDesktop.orderRef.emptyOrder') }}
     </p>
@@ -13,9 +13,26 @@
             <span class="k">{{ overviewCodeLabel }}</span>
             <span class="v" :title="overview.code">{{ overview.code || '—' }}</span>
           </div>
+          <div v-if="mode === 'sales'" class="approval-order-ref__row">
+            <span class="k">{{ t('approvalDesktop.orderRef.orderType') }}</span>
+            <span class="v">{{ overview.orderType || '—' }}</span>
+          </div>
           <div class="approval-order-ref__row">
             <span class="k">{{ overviewPartyLabel }}</span>
             <span class="v" :title="overview.party">{{ overview.party || '—' }}</span>
+          </div>
+          <div v-if="mode === 'sales'" class="approval-order-ref__row">
+            <span class="k">{{ t('approvalDesktop.orderRef.orderAmount') }}</span>
+            <span class="v">
+              <template v-if="overview.amountText === '—'">—</template>
+              <span v-else class="amount-with-code">
+                <span class="approval-order-ref__amount-num">{{ overview.amountText }}</span>
+                <span
+                  v-if="overview.currencyIso"
+                  :class="['dock-tier-ccy', listAmountCurrencyDockClass(overview.currency)]"
+                >{{ overview.currencyIso }}</span>
+              </span>
+            </span>
           </div>
           <div class="approval-order-ref__row">
             <span class="k">{{ t('approvalDesktop.orderRef.createTime') }}</span>
@@ -28,18 +45,49 @@
         </div>
       </section>
 
-      <section class="approval-order-ref__panel">
-        <div class="approval-order-ref__panel-title">
-          {{ t('approvalDesktop.orderRef.linesTitle') }}
+      <section
+        class="approval-order-ref__panel"
+        :class="{ 'approval-order-ref__panel--lines-collapsed': linesCollapsed }"
+      >
+        <div class="approval-order-ref__panel-head">
+          <div class="approval-order-ref__panel-title">
+            {{ t('approvalDesktop.orderRef.linesTitle') }}
+            <span class="approval-order-ref__panel-count">{{ t('approvalDesktop.orderRef.linesCount', { n: lines.length }) }}</span>
+          </div>
+          <el-tooltip
+            :content="linesCollapsed ? t('approvalDesktop.orderRef.expandLines') : t('approvalDesktop.orderRef.collapseLines')"
+            placement="top"
+            :show-after="200"
+          >
+            <el-button
+              size="small"
+              text
+              type="primary"
+              class="approval-order-ref__fold-btn"
+              :aria-expanded="!linesCollapsed"
+              :aria-label="linesCollapsed ? t('approvalDesktop.orderRef.expandLines') : t('approvalDesktop.orderRef.collapseLines')"
+              @click="linesCollapsed = !linesCollapsed"
+            >
+              <el-icon>
+                <ArrowDown v-if="linesCollapsed" />
+                <ArrowUp v-else />
+              </el-icon>
+            </el-button>
+          </el-tooltip>
         </div>
-        <p v-if="!loading && lines.length === 0" class="approval-order-ref__hint">
-          {{ t('approvalDesktop.orderRef.emptyItems') }}
-        </p>
-        <div v-else class="approval-order-ref__list">
+        <div v-show="!linesCollapsed">
+          <p v-if="!loading && lines.length === 0" class="approval-order-ref__hint">
+            {{ t('approvalDesktop.orderRef.emptyItems') }}
+          </p>
+          <div v-else class="approval-order-ref__list">
           <div v-for="line in lines" :key="line.key" class="line-card">
             <div class="line-card__row">
               <span class="k">{{ t('approvalDesktop.orderRef.itemCode') }}</span>
               <span class="v" :title="line.itemCode">{{ line.itemCode || '—' }}</span>
+            </div>
+            <div v-if="mode === 'sales'" class="line-card__row">
+              <span class="k">{{ t('approvalDesktop.orderRef.customerSo') }}</span>
+              <span class="v" :title="line.customerSo">{{ line.customerSo || '—' }}</span>
             </div>
             <div class="line-card__row">
               <span class="k">{{ t('approvalDesktop.orderRef.pn') }}</span>
@@ -48,6 +96,14 @@
             <div class="line-card__row">
               <span class="k">{{ t('approvalDesktop.orderRef.brand') }}</span>
               <span class="v">{{ line.brand || '—' }}</span>
+            </div>
+            <div v-if="mode === 'sales'" class="line-card__row">
+              <span class="k">{{ t('approvalDesktop.orderRef.dateCode') }}</span>
+              <span class="v" :title="line.dateCode">{{ line.dateCode || '—' }}</span>
+            </div>
+            <div class="line-card__row">
+              <span class="k">{{ t('approvalDesktop.orderRef.deliveryDate') }}</span>
+              <span class="v">{{ line.deliveryDate || '—' }}</span>
             </div>
             <div class="line-card__row">
               <span class="k">{{ unitPriceLabel }}</span>
@@ -101,7 +157,40 @@
                 </el-popover>
               </span>
             </div>
+            <div v-if="mode === 'sales'" class="line-card__row">
+              <span class="k">{{ t('approvalDesktop.orderRef.quoteProfitRate') }}</span>
+              <span class="v line-card__profit-v">
+                <template v-if="line.profitRateText === '—'">—</template>
+                <span v-else>{{ line.profitRateText }}</span>
+                <el-popover
+                  v-if="line.profitRateFormulaLines.length"
+                  placement="left"
+                  :width="720"
+                  trigger="click"
+                  :teleported="true"
+                  popper-class="approval-order-ref-profit-tip"
+                >
+                  <template #reference>
+                    <button
+                      type="button"
+                      class="line-card__tip-btn"
+                      :aria-label="t('approvalDesktop.orderRef.quoteProfitRateTipAria')"
+                      @click.stop
+                    >
+                      <el-icon><QuestionFilled /></el-icon>
+                    </button>
+                  </template>
+                  <div class="line-card__tip-body">
+                    <p class="line-card__tip-title">{{ t('approvalDesktop.orderRef.quoteProfitRateTipTitle') }}</p>
+                    <ul class="line-card__tip-list">
+                      <li v-for="(text, idx) in line.profitRateFormulaLines" :key="idx">{{ text }}</li>
+                    </ul>
+                  </div>
+                </el-popover>
+              </span>
+            </div>
           </div>
+        </div>
         </div>
       </section>
     </template>
@@ -111,34 +200,49 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { QuestionFilled } from '@element-plus/icons-vue'
+import { ArrowDown, ArrowUp, QuestionFilled } from '@element-plus/icons-vue'
 import { salesOrderApi, type SellOrderLineProfit } from '@/api/salesOrder'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
-import { formatUnitPriceNumber, listAmountCurrencyDockClass, listAmountCurrencyIso } from '@/utils/moneyFormat'
-import { formatUsdProfitAmount } from '@/utils/sellOrderLineProfitDisplay'
+import { formatTotalAmountNumber, formatUnitPriceNumber, listAmountCurrencyDockClass, listAmountCurrencyIso } from '@/utils/moneyFormat'
+import { formatUsdProfitAmount, formatProfitRateMultiplierDisplay } from '@/utils/sellOrderLineProfitDisplay'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
-import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import { formatVendorNameReadonly } from '@/utils/vendorDisplayName'
 import { formatCustomerNameReadonly } from '@/utils/customerDisplayName'
+import {
+  productionDateDisplayLabel,
+  useMaterialProductionDateDict
+} from '@/composables/useMaterialProductionDateDict'
 
-const props = defineProps<{
-  mode: 'sales' | 'purchase'
-  orderId: string
-  /** 来自审批工作区已加载的明细；缺省时组件内自行拉取 */
-  items?: any[] | null
-}>()
+const props = withDefaults(
+  defineProps<{
+    mode: 'sales' | 'purchase'
+    orderId: string
+    /** 来自审批工作区已加载的明细；缺省时组件内自行拉取 */
+    items?: any[] | null
+    /** 中栏宽面板用 2 列；右栏窄页签保持 1 列 */
+    columns?: 1 | 2
+  }>(),
+  { columns: 1 }
+)
 
 const { t } = useI18n()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
+const { options: materialPdOptions, ensureLoaded: ensureMaterialPdDict } = useMaterialProductionDateDict()
 
 const loading = ref(false)
+const linesCollapsed = ref(false)
 const overview = ref({
   code: '',
   party: '',
   createTime: '',
-  salesUserAccount: ''
+  salesUserAccount: '',
+  orderType: '',
+  amountText: '—',
+  currency: undefined as number | undefined,
+  currencyIso: ''
 })
 const lines = ref<
   Array<{
@@ -146,12 +250,17 @@ const lines = ref<
     itemCode: string
     pn: string
     brand: string
+    customerSo: string
+    dateCode: string
+    deliveryDate: string
     qty: number
     unitPriceText: string
     currency?: number
     currencyIso: string
     profitText: string
     profitFormulaLines: string[]
+    profitRateText: string
+    profitRateFormulaLines: string[]
   }>
 >([])
 
@@ -182,6 +291,24 @@ function buildQuoteProfitTip(lp: SellOrderLineProfit | null | undefined): string
       quotePrice: fmtTipUnitPrice(quoteUnit),
       qty: fmtTipQty(qty),
       result: formatUsdProfitAmount(lp.quote?.profitUsd)
+    })
+  ]
+}
+
+/** 审批桌面 Tip：报价利润率 = 销售单价 ÷ 报价 */
+function buildQuoteProfitRateTip(lp: SellOrderLineProfit | null | undefined): string[] {
+  if (!lp) return []
+  const sellUnit = Number(lp.convertPrice)
+  const quoteUnit = Number(lp.quoteConvertCost)
+  if (!Number.isFinite(sellUnit)) return []
+  if (!(quoteUnit > 0)) {
+    return [t('approvalDesktop.orderRef.quoteProfitRateTipNoCost')]
+  }
+  return [
+    t('approvalDesktop.orderRef.quoteProfitRateTipFormula', {
+      sellUnitPrice: fmtTipUnitPrice(sellUnit),
+      quotePrice: fmtTipUnitPrice(quoteUnit),
+      result: formatProfitRateMultiplierDisplay(lp.quote?.profitUsd, lp.quote?.profitRate, 2)
     })
   ]
 }
@@ -256,6 +383,31 @@ function formatQty(q: number) {
   return q.toLocaleString('zh-CN', { maximumFractionDigits: 4 })
 }
 
+function pickCustomerSo(it: Record<string, unknown>): string {
+  const raw =
+    it.customerSo ??
+    it.CustomerSo ??
+    it.customerPO ??
+    it.CustomerPO ??
+    it.customerPo ??
+    it.CustomerPo ??
+    ''
+  return String(raw ?? '').trim()
+}
+
+function formatLineDateCode(it: Record<string, unknown>): string {
+  const raw = String(it.dateCode ?? it.DateCode ?? '').trim()
+  if (!raw) return ''
+  return productionDateDisplayLabel(raw, materialPdOptions.value) || raw
+}
+
+function formatLineDeliveryDate(it: Record<string, unknown>): string {
+  const v = it.deliveryDate ?? it.DeliveryDate
+  if (v == null || v === '') return ''
+  const s = formatDisplayDate(v as string | Date)
+  return s === '--' ? '' : s
+}
+
 function normalizeItems(raw: any[] | null | undefined): any[] {
   return Array.isArray(raw) ? raw : []
 }
@@ -264,6 +416,27 @@ function formatCreateTime(raw: unknown): string {
   const s = String(raw ?? '').trim()
   if (!s) return ''
   return formatDisplayDateTime(s)
+}
+
+function emptyOverview() {
+  return {
+    code: '',
+    party: '',
+    createTime: '',
+    salesUserAccount: '',
+    orderType: '',
+    amountText: '—',
+    currency: undefined as number | undefined,
+    currencyIso: ''
+  }
+}
+
+function formatSalesOrderType(raw: unknown): string {
+  const n = Number(raw)
+  if (n === 1) return t('salesOrderCreate.orderTypes.normal')
+  if (n === 2) return t('salesOrderCreate.orderTypes.urgent')
+  if (n === 3) return t('salesOrderCreate.orderTypes.sample')
+  return ''
 }
 
 async function resolveSellOrderIdMap(poId: string): Promise<Map<string, string>> {
@@ -285,7 +458,7 @@ async function resolveSellOrderIdMap(poId: string): Promise<Map<string, string>>
 
 async function loadPanel() {
   const orderId = String(props.orderId || '').trim()
-  overview.value = { code: '', party: '', createTime: '', salesUserAccount: '' }
+  overview.value = emptyOverview()
   lines.value = []
   if (!orderId) return
 
@@ -295,6 +468,7 @@ async function loadPanel() {
       const detail = await salesOrderApi.getById(orderId)
       const d = (detail as any)?.data ?? detail
       const mask = maskSaleSensitiveFields.value
+      const currency = Number(d?.currency ?? d?.Currency ?? 0) || undefined
       overview.value = {
         code: String(d?.sellOrderCode ?? d?.SellOrderCode ?? '').trim(),
         party: mask
@@ -307,10 +481,15 @@ async function loadPanel() {
         createTime: formatCreateTime(d?.createTime ?? d?.CreateTime),
         salesUserAccount: mask
           ? '—'
-          : String(d?.salesUserName ?? d?.SalesUserName ?? d?.salesUserId ?? d?.SalesUserId ?? '').trim()
+          : String(d?.salesUserName ?? d?.SalesUserName ?? d?.salesUserId ?? d?.SalesUserId ?? '').trim(),
+        orderType: formatSalesOrderType(d?.type ?? d?.Type),
+        amountText: mask ? '—' : formatTotalAmountNumber(d?.total ?? d?.Total),
+        currency: mask ? undefined : currency,
+        currencyIso: mask || currency == null ? '' : listAmountCurrencyIso(currency)
       }
 
       const items = normalizeItems(props.items?.length ? props.items : d?.items ?? d?.Items)
+      await ensureMaterialPdDict()
       lines.value = await Promise.all(
         items.slice(0, 40).map(async (it, idx) => {
           const itemId = String(it.id ?? it.Id ?? '').trim()
@@ -324,13 +503,18 @@ async function loadPanel() {
           const currency = Number(it.currency ?? it.Currency ?? 0) || undefined
           let profitText = '—'
           let profitFormulaLines: string[] = []
+          let profitRateText = '—'
+          let profitRateFormulaLines: string[] = []
           if (!mask && itemId) {
             try {
               const lp = await salesOrderApi.getSellOrderItemLineProfit(orderId, itemId)
               profitText = formatUsdProfitAmount(lp?.quote?.profitUsd)
               profitFormulaLines = buildQuoteProfitTip(lp)
+              profitRateText = formatProfitRateMultiplierDisplay(lp?.quote?.profitUsd, lp?.quote?.profitRate, 2)
+              profitRateFormulaLines = buildQuoteProfitRateTip(lp)
             } catch {
               profitText = '—'
+              profitRateText = '—'
             }
           }
           return {
@@ -338,12 +522,17 @@ async function loadPanel() {
             itemCode,
             pn,
             brand,
+            customerSo: mask ? '—' : pickCustomerSo(it),
+            dateCode: formatLineDateCode(it),
+            deliveryDate: formatLineDeliveryDate(it),
             qty,
             unitPriceText: mask ? '—' : formatUnitPriceNumber(price),
             currency: mask ? undefined : currency,
             currencyIso: mask || currency == null ? '' : listAmountCurrencyIso(currency),
             profitText: mask ? '—' : profitText,
-            profitFormulaLines
+            profitFormulaLines,
+            profitRateText: mask ? '—' : profitRateText,
+            profitRateFormulaLines
           }
         })
       )
@@ -355,6 +544,7 @@ async function loadPanel() {
     const d = (detail as any)?.data ?? detail
     const mask = maskPurchaseSensitiveFields.value
     overview.value = {
+      ...emptyOverview(),
       code: String(d?.purchaseOrderCode ?? d?.PurchaseOrderCode ?? '').trim(),
       party: mask
         ? '—'
@@ -364,7 +554,7 @@ async function loadPanel() {
             { masked: false }
           ),
       createTime: formatCreateTime(d?.createTime ?? d?.CreateTime),
-      // 采购单无销售员时展示采购员账号（字段文案按产品为「销售员账号」）
+      // 采购单无销售员时展示采购员（字段文案为「销售员」）
       salesUserAccount: String(
         d?.salesUserName ??
           d?.SalesUserName ??
@@ -415,21 +605,26 @@ async function loadPanel() {
           }
         }
         return {
-          key: itemId || `po-${idx}`,
-          itemCode,
-          pn,
-          brand,
-          qty,
-          unitPriceText: mask ? '—' : formatUnitPriceNumber(cost),
-          currency: mask ? undefined : currency,
-          currencyIso: mask || currency == null ? '' : listAmountCurrencyIso(currency),
-          profitText: mask ? '—' : profitText,
-          profitFormulaLines
-        }
+            key: itemId || `po-${idx}`,
+            itemCode,
+            pn,
+            brand,
+            customerSo: '',
+            dateCode: '',
+            deliveryDate: formatLineDeliveryDate(it),
+            qty,
+            unitPriceText: mask ? '—' : formatUnitPriceNumber(cost),
+            currency: mask ? undefined : currency,
+            currencyIso: mask || currency == null ? '' : listAmountCurrencyIso(currency),
+            profitText: mask ? '—' : profitText,
+            profitFormulaLines,
+            profitRateText: '—',
+            profitRateFormulaLines: []
+          }
       })
     )
   } catch {
-    overview.value = { code: '', party: '', createTime: '', salesUserAccount: '' }
+    overview.value = emptyOverview()
     lines.value = []
   } finally {
     loading.value = false
@@ -470,11 +665,46 @@ watch(
     background: rgba(0, 212, 255, 0.03);
   }
 
+  &__amount-num {
+    font-weight: 700;
+  }
+
+  &__panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  &__panel--lines-collapsed &__panel-head {
+    margin-bottom: 0;
+  }
+
   &__panel-title {
     font-size: 13px;
     font-weight: 600;
     color: $text-primary;
     margin-bottom: 8px;
+
+    .approval-order-ref__panel-head & {
+      margin-bottom: 0;
+    }
+  }
+
+  &__panel-count {
+    margin-left: 0.4em;
+    font-weight: 400;
+  }
+
+  &__fold-btn {
+    flex-shrink: 0;
+    padding: 0 4px;
+    margin-right: -4px;
+
+    .el-icon {
+      font-size: 14px;
+    }
   }
 
   &__kv {
@@ -503,6 +733,15 @@ watch(
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+  }
+
+  &--cols-2 {
+    .approval-order-ref__kv,
+    .line-card {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px 24px;
     }
   }
 

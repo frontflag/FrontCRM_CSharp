@@ -10,10 +10,22 @@
         <div class="info-item"><span class="k">{{ t('pendingApprovals.infoLabels.submittedAt') }}</span><span class="v">{{ formatDate(row.createdAt) }}</span></div>
         <div class="info-item"><span class="k">{{ t('pendingApprovals.infoLabels.status') }}</span><span class="v">{{ statusText(row.status) }}</span></div>
         <div class="info-item"><span class="k">{{ t('pendingApprovals.infoLabels.counterparty') }}</span><span class="v">{{ displayCounterpartyName(row) }}</span></div>
-        <div class="info-item"><span class="k">{{ t('pendingApprovals.infoLabels.amount') }}</span><span class="v">{{ formatAuditAmount(row, auditDetail) }}</span></div>
+        <div class="info-item">
+          <span class="k">{{ t('pendingApprovals.infoLabels.amount') }}</span>
+          <span class="v">
+            <template v-if="auditHeaderAmountText === '—'">—</template>
+            <span v-else class="amount-with-code">
+              <span>{{ auditHeaderAmountText }}</span>
+              <span
+                v-if="auditHeaderCurrencyIso"
+                :class="['dock-tier-ccy', listAmountCurrencyDockClass(auditHeaderCurrency)]"
+              >{{ auditHeaderCurrencyIso }}</span>
+            </span>
+          </span>
+        </div>
       </div>
 
-      <div class="biz-extra">
+      <div class="biz-extra" :class="{ 'biz-extra--stacked': row.bizType === 'SALES_ORDER' }">
         <template v-if="row.bizType === 'VENDOR'">
           <div class="extra-title">{{ t('pendingApprovals.vendorSection') }}</div>
           <div class="extra-grid">
@@ -77,47 +89,42 @@
           </div>
         </template>
         <template v-else-if="row.bizType === 'SALES_ORDER'">
-          <div class="extra-title">{{ t('pendingApprovals.salesOrderSection') }}</div>
-          <div class="extra-grid">
-            <div class="extra-line extra-line--span">
-              <span>{{ t('pendingApprovals.salesOrder.customer') }}</span>{{ auditSalesOrderCustomerNameLabel }}
+          <div class="extra-panel extra-panel--customer">
+            <div class="extra-title">{{ t('pendingApprovals.salesOrderCustomerSection') }}</div>
+            <div class="extra-grid">
+              <div class="extra-line extra-line--span">
+                <span>{{ t('pendingApprovals.salesOrder.customer') }}</span>{{ auditSalesOrderCustomerNameLabel }}
+              </div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.customer.customerType') }}</span>{{ maskSaleSensitiveFields ? '—' : auditCustomerTypeLabel }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.customer.settlementCurrency') }}</span>{{ maskSaleSensitiveFields ? '—' : auditCustomerCurrencyLabel }}</div>
+              <div class="extra-line">
+                <span>{{ t('pendingApprovals.customer.paymentTermType') }}</span>
+                <em
+                  v-if="!maskSaleSensitiveFields"
+                  class="extra-value"
+                  :class="{ 'extra-value--warn': auditCustomerIsCreditTerm }"
+                >{{ auditCustomerPaymentTermTypeLabel }}</em>
+                <template v-else>—</template>
+              </div>
+              <div class="extra-line">
+                <span>{{ t('pendingApprovals.customer.paymentDays') }}</span>
+                <em
+                  v-if="!maskSaleSensitiveFields"
+                  class="extra-value"
+                  :class="{ 'extra-value--warn': auditCustomerPaymentDaysHighlight }"
+                >{{ auditCustomerPaymentDaysLabel }}</em>
+                <template v-else>—</template>
+              </div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.customer.creditLimit') }}</span>{{ maskSaleSensitiveFields ? '—' : auditCustomerCreditLimitLabel }}</div>
             </div>
-            <div class="extra-line"><span>{{ t('pendingApprovals.customer.customerType') }}</span>{{ maskSaleSensitiveFields ? '—' : auditCustomerTypeLabel }}</div>
-            <div class="extra-line"><span>{{ t('pendingApprovals.customer.settlementCurrency') }}</span>{{ maskSaleSensitiveFields ? '—' : auditCustomerCurrencyLabel }}</div>
-            <div class="extra-line">
-              <span>{{ t('pendingApprovals.customer.paymentTermType') }}</span>
-              <em
-                v-if="!maskSaleSensitiveFields"
-                class="extra-value"
-                :class="{ 'extra-value--warn': auditCustomerIsCreditTerm }"
-              >{{ auditCustomerPaymentTermTypeLabel }}</em>
-              <template v-else>—</template>
-            </div>
-            <div class="extra-line">
-              <span>{{ t('pendingApprovals.customer.paymentDays') }}</span>
-              <em
-                v-if="!maskSaleSensitiveFields"
-                class="extra-value"
-                :class="{ 'extra-value--warn': auditCustomerPaymentDaysHighlight }"
-              >{{ auditCustomerPaymentDaysLabel }}</em>
-              <template v-else>—</template>
-            </div>
-            <div class="extra-line"><span>{{ t('pendingApprovals.customer.creditLimit') }}</span>{{ maskSaleSensitiveFields ? '—' : auditCustomerCreditLimitLabel }}</div>
-            <div class="extra-divider" role="separator" />
-            <div class="extra-line"><span>{{ t('pendingApprovals.salesOrder.orderNo') }}</span>{{ row.documentCode }}</div>
-            <div class="extra-line">
-              <span>{{ t('pendingApprovals.salesOrder.orderAmount') }}</span>
-              <template v-if="maskSaleSensitiveFields || auditSalesOrderAmountText === '—'">—</template>
-              <span v-else class="amount-with-code">
-                <span class="amount-with-code__num">{{ auditSalesOrderAmountText }}</span>
-                <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(auditSalesOrderCurrency)]">
-                  {{ listAmountCurrencyIso(auditSalesOrderCurrency) }}
-                </span>
-              </span>
-            </div>
-            <div class="extra-line"><span>{{ t('pendingApprovals.salesOrder.deliveryDate') }}</span>{{ auditDetail?.deliveryDate ? formatDate(auditDetail.deliveryDate) : '—' }}</div>
-            <div class="extra-line"><span>{{ t('pendingApprovals.salesOrder.salesUser') }}</span>{{ maskSaleSensitiveFields ? '—' : (auditDetail?.salesUserName || auditDetail?.salesUserId || '—') }}</div>
           </div>
+          <ApprovalOrderLineCards
+            class="audit-sales-order-ref"
+            mode="sales"
+            :columns="2"
+            :order-id="String(row.businessId || '')"
+            :items="auditSalesOrderItems"
+          />
         </template>
         <template v-else-if="row.bizType === 'PURCHASE_ORDER'">
           <div class="extra-title">{{ t('pendingApprovals.purchaseOrderSection') }}</div>
@@ -335,6 +342,7 @@ import { financePaymentApi, financeReceiptApi } from '@/api/finance'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
 import { documentApi, type UploadDocumentDto } from '@/api/document'
 import DocumentListPanel from '@/components/Document/DocumentListPanel.vue'
+import ApprovalOrderLineCards from '@/components/Approvals/ApprovalOrderLineCards.vue'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { formatVendorNameReadonly } from '@/utils/vendorDisplayName'
 import { formatCustomerNameReadonly } from '@/utils/customerDisplayName'
@@ -624,12 +632,6 @@ function resolveFinancePaymentAuditAmount(item: PendingApprovalItem, detail: any
   )
 }
 
-const formatFinancePaymentAuditAmount = (item: PendingApprovalItem, detail: any) => {
-  const amount = resolveFinancePaymentAuditAmount(item, detail)
-  if (amount === undefined) return '—'
-  return formatAmount(amount, auditMoneyCurrency(item, detail))
-}
-
 const auditFinancePaymentCurrency = computed(() =>
   props.row ? auditMoneyCurrency(props.row, auditDetail.value) : 1
 )
@@ -640,25 +642,10 @@ const auditFinancePaymentAmountText = computed(() => {
   return amount === undefined ? '—' : formatTotalAmountNumber(amount)
 })
 
-const auditSalesOrderCurrency = computed(() => {
+const auditSalesOrderItems = computed(() => {
   const d = auditDetail.value
-  const item = props.row
-  return (
-    pickDefinedNumber(d?.currency) ??
-    pickDefinedNumber(d?.Currency) ??
-    pickDefinedNumber(item?.currency) ??
-    1
-  )
-})
-
-const auditSalesOrderAmountText = computed(() => {
-  const d = auditDetail.value
-  const item = props.row
-  const amount =
-    pickDefinedNumber(d?.total) ??
-    pickDefinedNumber(d?.Total) ??
-    pickDefinedNumber(item?.amount)
-  return amount === undefined ? '—' : formatTotalAmountNumber(amount)
+  const items = d?.items ?? d?.Items
+  return Array.isArray(items) ? items : null
 })
 
 const auditPurchaseOrderCurrency = computed(() => {
@@ -690,15 +677,65 @@ const auditPaymentModeLabel = computed(() => {
   return paymentModeLabel(n) || '—'
 })
 
-const formatAuditAmount = (item: PendingApprovalItem, detail: any) => {
-  if (item.bizType === 'FINANCE_PAYMENT') return formatFinancePaymentAuditAmount(item, detail)
-  if (
+function resolveAuditHeaderAmount(item: PendingApprovalItem | null, detail: any): number | undefined {
+  if (!item) return undefined
+  if (item.bizType === 'FINANCE_PAYMENT') return resolveFinancePaymentAuditAmount(item, detail)
+  if (item.bizType === 'SALES_ORDER' || item.bizType === 'PURCHASE_ORDER') {
+    return (
+      pickDefinedNumber(detail?.total) ??
+      pickDefinedNumber(detail?.Total) ??
+      pickDefinedNumber(item.amount)
+    )
+  }
+  if (item.bizType === 'FINANCE_RECEIPT') {
+    return (
+      pickDefinedNumber(detail?.receiptAmount) ??
+      pickDefinedNumber(detail?.ReceiptAmount) ??
+      pickDefinedNumber(item.amount)
+    )
+  }
+  return pickDefinedNumber(item.amount)
+}
+
+function resolveAuditHeaderCurrency(item: PendingApprovalItem | null, detail: any): number | undefined {
+  if (!item) return undefined
+  if (item.bizType === 'FINANCE_PAYMENT') return auditMoneyCurrency(item, detail)
+  if (item.bizType === 'FINANCE_RECEIPT') {
+    return (
+      pickDefinedNumber(item.currency) ??
+      pickDefinedNumber(detail?.receiptCurrency) ??
+      pickDefinedNumber(detail?.ReceiptCurrency)
+    )
+  }
+  return (
+    pickDefinedNumber(item.currency) ??
+    pickDefinedNumber(detail?.currency) ??
+    pickDefinedNumber(detail?.Currency)
+  )
+}
+
+const auditHeaderAmountMasked = computed(() => {
+  const item = props.row
+  if (!item) return false
+  return (
     maskSaleSensitiveFields.value &&
     (item.bizType === 'SALES_ORDER' || item.bizType === 'FINANCE_RECEIPT')
   )
-    return '—'
-  return item.amount != null ? formatAmount(item.amount, item.currency) : '—'
-}
+})
+
+const auditHeaderAmountText = computed(() => {
+  if (auditHeaderAmountMasked.value) return '—'
+  const amount = resolveAuditHeaderAmount(props.row, auditDetail.value)
+  return amount === undefined ? '—' : formatTotalAmountNumber(amount)
+})
+
+const auditHeaderCurrency = computed(() => resolveAuditHeaderCurrency(props.row, auditDetail.value))
+
+const auditHeaderCurrencyIso = computed(() => {
+  if (auditHeaderAmountMasked.value || auditHeaderAmountText.value === '—') return ''
+  const ccy = auditHeaderCurrency.value
+  return ccy == null ? '' : listAmountCurrencyIso(ccy)
+})
 
 function displayCounterpartyName(item: PendingApprovalItem): string {
   const bt = String(item.bizType || '')
@@ -1161,6 +1198,25 @@ watch(
     border-radius: 8px;
     border: 1px solid rgba(230, 180, 40, 0.28);
     background: #fff8e1;
+
+    &--stacked {
+      padding: 0;
+      border: none;
+      background: transparent;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+  }
+
+  .extra-panel {
+    padding: 12px 14px;
+    border-radius: 8px;
+
+    &--customer {
+      border: 1px solid rgba(230, 180, 40, 0.28);
+      background: #fff8e1;
+    }
   }
 
   .detail-loading {

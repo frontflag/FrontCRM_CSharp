@@ -97,7 +97,7 @@
       highlight-current-row
       :default-sort="{ prop: 'createdAt', order: 'descending' }"
       @sort-change="onSortChange"
-      @row-dblclick="handleView"
+      @row-dblclick="handleRowDblClick"
     >
       <el-table-column :label="t('pendingApprovals.columns.bizType')" width="140" min-width="140" align="center">
         <template #default="{ row }">
@@ -558,6 +558,15 @@ const openAuditDialog = (row: PendingApprovalItem) => {
       businessId: row.businessId
     }
   })
+}
+
+/** 待处理：双击进入审批桌面并开始审该条；已通过/已拒绝：打开业务详情 */
+const handleRowDblClick = (row: PendingApprovalItem) => {
+  if (activeState.value === 'pending') {
+    openAuditDialog(row)
+    return
+  }
+  handleView(row)
 }
 
 const statusText = (status: number) => {
