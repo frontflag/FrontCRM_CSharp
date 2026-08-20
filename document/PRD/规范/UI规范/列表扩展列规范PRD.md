@@ -243,8 +243,8 @@ crm-table-extend-col:v1:global:customer
 
 ### 9.3 与列设置的关系
 
-- 列顺序/显隐：`crm-table-columns:v1:<columnLayoutKey>`（不变）。
-- 「恢复默认」**不**清除扩展列偏好。
+- 列顺序/显隐/普通列用户列宽：`crm-table-columns:v1:<columnLayoutKey>`（`columnWidths` **不含**扩展列）。
+- 「恢复默认」清除该表的顺序、显隐与普通列宽，**不**清除扩展列偏好。
 - 接入扩展列时若列 `key` 由 `customerName` 改为 `customer`，应**升级** `column-layout-key` 版本后缀，避免旧布局缓存冲突（试点：`stock-out-list-main-v4`）。
 
 ---
@@ -394,3 +394,4 @@ function onHeaderDragEnd(newWidth: number, _old: number, column: { property?: st
 |------|------|------|
 | V1.0 | 2026-06-04 | 初稿与产品确认 |
 | V1.1 | 2026-06-04 | 对齐已实现：三列并排、切换钮置左、子列/整体宽度持久化、出库试点、样式与接入清单 |
+| V1.1.1 | 2026-08-21 | §9.3：普通列用户列宽与扩展列存储分离；恢复默认不清扩展列偏好 |

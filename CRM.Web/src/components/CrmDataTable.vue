@@ -64,11 +64,13 @@
       :row-class-name="mergedRowClassName"
       style="width: 100%"
       @row-click="onInternalRowClick"
+      @header-dragend="onInternalHeaderDragend"
     >
       <template v-if="configMode">
         <el-table-column
           v-for="col in orderedVisibleColumns"
           :key="col.key"
+          :column-key="col.key"
           :type="col.type"
           :prop="col.prop"
           :label="col.label"
@@ -115,7 +117,7 @@
       append-to-body
       class="crm-data-table-column-drawer"
     >
-      <p class="crm-data-table__drawer-hint">勾选控制显示；拖拽调整顺序。设置保存在本机，下次打开仍有效。</p>
+      <p class="crm-data-table__drawer-hint">勾选控制显示；拖拽调整顺序。拖表头可调列宽。列显示、顺序与列宽保存在本机，下次打开仍有效；恢复默认时一并清除。</p>
       <div v-if="pinnedStartDefs.length" class="crm-data-table__drawer-section">
         <div class="crm-data-table__drawer-section-title">固定在前</div>
         <ul class="crm-data-table__drawer-list">
@@ -174,7 +176,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, toRef, useAttrs, useSlots, watch, type StyleValue } from 'vue'
+import { computed, nextTick, ref, toRef, useAttrs, useSlots, watch, type StyleValue } from 'vue'
 import { ElMessage } from 'element-plus'
 import { RefreshLeft, Setting } from '@element-plus/icons-vue'
 import { usePersistedTableColumns, type CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
@@ -198,7 +200,7 @@ type CheckboxValue = boolean | string | number
 
 /**
  * 项目统一列表表格：与 .crm-items-table 视觉一致；默认 `border` 以支持表头拖拽调列宽。
- * 可选：传入 `columnLayoutKey` + `columns` 启用列显隐、顺序与 localStorage 持久化。
+ * 可选：传入 `columnLayoutKey` + `columns` 启用列显隐、顺序、用户拖过的列宽与 localStorage 持久化。
  */
 defineOptions({ name: 'CrmDataTable', inheritAttrs: false })
 
@@ -310,6 +312,7 @@ const tableAttrs = computed(() => {
   delete a.rowClassName
   delete a['row-class-name']
   delete a.onRowClick
+  delete a.onHeaderDragend
   return a
 })
 
@@ -321,6 +324,17 @@ const columnsRef = computed<CrmTableColumnDef[]>(() => props.columns ?? [])
 const configMode = computed(() => !!(props.columnLayoutKey?.trim() && props.columns?.length))
 
 const persist = usePersistedTableColumns(toRef(props, 'columnLayoutKey'), columnsRef)
+
+function onInternalHeaderDragend(
+  newWidth: number,
+  oldWidth: number,
+  column: { columnKey?: string; property?: string },
+  event: MouseEvent
+) {
+  if (configMode.value) persist.applyHeaderDragWidth(column, newWidth)
+  const handler = attrs.onHeaderDragend as ((...args: unknown[]) => void) | undefined
+  handler?.(newWidth, oldWidth, column, event)
+}
 
 const orderedVisibleColumns = computed(() => {
   if (!configMode.value) return []
@@ -375,6 +389,7 @@ function onDrop(targetIdx: number) {
 
 function onResetColumns() {
   persist.resetToDefault()
+  void nextTick(() => innerTableRef.value?.doLayout?.())
   ElMessage.success('已恢复默认列布局')
 }
 
@@ -383,6 +398,7 @@ const innerTableRef = ref<{
   toggleRowSelection: (row: unknown, selected?: boolean) => void
   setCurrentRow: (row?: unknown) => void
   getSelectionRows?: () => unknown[]
+  doLayout?: () => void
 } | null>(null)
 
 defineExpose({
@@ -391,7 +407,10 @@ defineExpose({
     innerTableRef.value?.toggleRowSelection(row, selected),
   setCurrentRow: (row?: unknown) => innerTableRef.value?.setCurrentRow(row),
   getSelectionRows: () => innerTableRef.value?.getSelectionRows?.(),
-  resetColumnLayout: () => persist.resetToDefault(),
+  resetColumnLayout: () => {
+    persist.resetToDefault()
+    void nextTick(() => innerTableRef.value?.doLayout?.())
+  },
   clearClickedRow: () => {
     clickedRowKey.value = null
   },

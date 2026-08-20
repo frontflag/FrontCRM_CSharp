@@ -40,6 +40,69 @@ export interface PersistedTableLayout {
   middleOrder: string[]
   /** 被用户隐藏的列 key（仅 hideable 为 true 的列会生效） */
   hiddenKeys: string[]
+  /**
+   * 用户拖过的列宽（px），按稳定 `key` 存储。
+   * 未出现的 key 继续用列定义默认宽；新插入的列不会让旧 key 失效。
+   */
+  columnWidths: Record<string, number>
+}
+
+const COLUMN_WIDTH_MIN_PX = 1
+const COLUMN_WIDTH_MAX_PX = 4000
+
+function classNameTokens(className: CrmTableColumnDef['className']): string {
+  return typeof className === 'string' ? className : ''
+}
+
+/** 勾选 / 操作 / 扩展列等不走本表列宽记忆（操作列与展开收起冲突；扩展列有独立存储） */
+export function isColumnWidthPersistable(col: CrmTableColumnDef): boolean {
+  if (col.type === 'selection' || col.type === 'index' || col.type === 'expand') return false
+  if (col.resizable === false) return false
+  if (col.pinned === 'end' || col.fixed === 'right') return false
+  const cn = classNameTokens(col.className)
+  if (cn.split(/\s+/).includes('op-col')) return false
+  if (cn.includes('extend-col')) return false
+  return true
+}
+
+function clampPersistedWidth(px: number): number | null {
+  if (!Number.isFinite(px)) return null
+  const n = Math.round(px)
+  if (n < COLUMN_WIDTH_MIN_PX || n > COLUMN_WIDTH_MAX_PX) return null
+  return n
+}
+
+export function sanitizeColumnWidths(
+  defs: CrmTableColumnDef[],
+  raw: Record<string, unknown> | null | undefined
+): Record<string, number> {
+  if (!raw || typeof raw !== 'object') return {}
+  const allowed = new Set(defs.filter(isColumnWidthPersistable).map((d) => d.key))
+  const out: Record<string, number> = {}
+  for (const [k, v] of Object.entries(raw)) {
+    if (!allowed.has(k)) continue
+    const n = clampPersistedWidth(typeof v === 'number' ? v : Number(v))
+    if (n == null) continue
+    out[k] = n
+  }
+  return out
+}
+
+export function resolveColumnKeyFromDrag(
+  defs: CrmTableColumnDef[],
+  column: { columnKey?: string; property?: string } | undefined
+): string | undefined {
+  if (!column) return undefined
+  const byKey = new Map(defs.map((d) => [d.key, d]))
+  const ck = typeof column.columnKey === 'string' ? column.columnKey.trim() : ''
+  if (ck && byKey.has(ck)) return ck
+  const prop = typeof column.property === 'string' ? column.property.trim() : ''
+  if (prop && byKey.has(prop)) return prop
+  if (prop) {
+    const found = defs.find((d) => d.prop === prop)
+    if (found) return found.key
+  }
+  return undefined
 }
 
 function isPinnedStart(c: CrmTableColumnDef) {
@@ -85,7 +148,7 @@ function mergeMiddleOrder(defaultKeys: string[], savedKeys: string[]): string[] 
   return result
 }
 
-function mergeLayout(defs: CrmTableColumnDef[], saved: Partial<PersistedTableLayout> | null): PersistedTableLayout {
+export function mergeLayout(defs: CrmTableColumnDef[], saved: Partial<PersistedTableLayout> | null): PersistedTableLayout {
   const mk = middleKeys(defs)
   const savedMid = (saved?.middleOrder ?? []).filter((k) => mk.includes(k))
   const mergedMid = mergeMiddleOrder(mk, savedMid)
@@ -105,7 +168,23 @@ function mergeLayout(defs: CrmTableColumnDef[], saved: Partial<PersistedTableLay
     })
   }
 
-  return { middleOrder: mergedMid, hiddenKeys: [...rawHidden] }
+  return {
+    middleOrder: mergedMid,
+    hiddenKeys: [...rawHidden],
+    columnWidths: sanitizeColumnWidths(defs, saved?.columnWidths as Record<string, unknown> | undefined)
+  }
+}
+
+function parseStoredColumnWidths(raw: unknown): Record<string, number> | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined
+  const out: Record<string, number> = {}
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof k !== 'string' || !k) continue
+    const n = clampPersistedWidth(typeof v === 'number' ? v : Number(v))
+    if (n == null) continue
+    out[k] = n
+  }
+  return out
 }
 
 function loadRaw(tableKey: string): Partial<PersistedTableLayout> | null {
@@ -116,7 +195,8 @@ function loadRaw(tableKey: string): Partial<PersistedTableLayout> | null {
     if (!p || typeof p !== 'object') return null
     return {
       middleOrder: Array.isArray(p.middleOrder) ? p.middleOrder.filter((x) => typeof x === 'string') : undefined,
-      hiddenKeys: Array.isArray(p.hiddenKeys) ? p.hiddenKeys.filter((x) => typeof x === 'string') : undefined
+      hiddenKeys: Array.isArray(p.hiddenKeys) ? p.hiddenKeys.filter((x) => typeof x === 'string') : undefined,
+      columnWidths: parseStoredColumnWidths(p.columnWidths)
     }
   } catch {
     return null
@@ -140,12 +220,13 @@ export function clearTableLayout(tableKey: string) {
 }
 
 /**
- * 表格列顺序 / 显隐持久化（localStorage），与 CrmDataTable 的 columnLayoutKey 配合使用。
+ * 表格列顺序 / 显隐 / 用户拖过的列宽 持久化（localStorage），与 CrmDataTable 的 columnLayoutKey 配合使用。
  * tableKey 为空或未传列定义时不读写存储。
  */
 export function usePersistedTableColumns(tableKey: MaybeRef<string | undefined | null>, columnDefs: Ref<CrmTableColumnDef[]>) {
   const middleOrder = ref<string[]>([])
   const hiddenKeys = ref<string[]>([])
+  const columnWidths = ref<Record<string, number>>({})
 
   const storageKey = computed(() => String(unref(tableKey) ?? '').trim())
   const enabled = computed(() => storageKey.value.length > 0 && columnDefs.value.length > 0)
@@ -154,11 +235,13 @@ export function usePersistedTableColumns(tableKey: MaybeRef<string | undefined |
     if (!enabled.value) {
       middleOrder.value = []
       hiddenKeys.value = []
+      columnWidths.value = {}
       return
     }
     const merged = mergeLayout(columnDefs.value, loadRaw(storageKey.value))
     middleOrder.value = merged.middleOrder
     hiddenKeys.value = merged.hiddenKeys
+    columnWidths.value = merged.columnWidths
   }
 
   watch(
@@ -171,7 +254,8 @@ export function usePersistedTableColumns(tableKey: MaybeRef<string | undefined |
 
   const layout = computed<PersistedTableLayout>(() => ({
     middleOrder: [...middleOrder.value],
-    hiddenKeys: [...hiddenKeys.value]
+    hiddenKeys: [...hiddenKeys.value],
+    columnWidths: { ...columnWidths.value }
   }))
 
   watch(
@@ -198,8 +282,15 @@ export function usePersistedTableColumns(tableKey: MaybeRef<string | undefined |
     const mid = middleOrder.value.map((k) => defByKey.value.get(k)).filter(Boolean) as CrmTableColumnDef[]
 
     const vis = (c: CrmTableColumnDef) => c.hideable === false || !hidden.has(c.key)
+    const widths = columnWidths.value
 
-    return [...start.filter(vis), ...mid.filter(vis), ...end.filter(vis)]
+    function withPersistedWidth(c: CrmTableColumnDef): CrmTableColumnDef {
+      const w = widths[c.key]
+      if (w == null || !isColumnWidthPersistable(c)) return c
+      return { ...c, width: w }
+    }
+
+    return [...start.filter(vis), ...mid.filter(vis), ...end.filter(vis)].map(withPersistedWidth)
   })
 
   /** 设置面板：中间列（可排序项） */
@@ -237,15 +328,28 @@ export function usePersistedTableColumns(tableKey: MaybeRef<string | undefined |
     applyMerged()
   }
 
+  function applyHeaderDragWidth(column: { columnKey?: string; property?: string } | undefined, newWidth: number) {
+    const key = resolveColumnKeyFromDrag(columnDefs.value, column)
+    if (!key) return
+    const def = defByKey.value.get(key)
+    if (!def || !isColumnWidthPersistable(def)) return
+    const w = clampPersistedWidth(newWidth)
+    if (w == null) return
+    if (columnWidths.value[key] === w) return
+    columnWidths.value = { ...columnWidths.value, [key]: w }
+  }
+
   return {
     middleOrder,
     hiddenKeys,
+    columnWidths,
     orderedVisibleColumns,
     settingsMiddleColumns,
     setMiddleOrder,
     toggleHidden,
     setColumnVisible,
     isHidden,
+    applyHeaderDragWidth,
     resetToDefault
   }
 }
