@@ -38,11 +38,11 @@ public static class FinanceExportHttp
 
     public static string ReceiptStatusLabel(short status) => status switch
     {
-        0 => "草稿",
-        1 => "待审核",
-        2 => "已审核",
-        3 => "已收款",
-        4 => "已取消",
+        0 => "新建",
+        1 => "新建",
+        2 => "确认",
+        3 => "确认",
+        4 => "取消",
         _ => status.ToString(CultureInfo.InvariantCulture)
     };
 

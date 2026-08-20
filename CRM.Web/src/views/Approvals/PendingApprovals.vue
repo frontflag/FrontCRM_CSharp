@@ -37,7 +37,6 @@
           <el-option :label="t('pendingApprovals.bizType.SALES_ORDER')" value="SALES_ORDER" />
           <el-option :label="t('pendingApprovals.bizType.PURCHASE_ORDER')" value="PURCHASE_ORDER" />
           <el-option :label="t('pendingApprovals.bizType.FINANCE_PAYMENT')" value="FINANCE_PAYMENT" />
-          <el-option :label="t('pendingApprovals.bizType.FINANCE_RECEIPT')" value="FINANCE_RECEIPT" />
         </el-select>
         <span class="search-label">{{ t('pendingApprovals.filters.submittedRange') }}</span>
         <el-date-picker

@@ -12,9 +12,6 @@ namespace CRM.Core.Services
 {
     public class FinanceReceiptService : IFinanceReceiptService
     {
-        private const short ReceiptApproved = 2;
-        private const short ReceiptReceived = 3;
-
         private readonly IRepository<FinanceReceipt> _receiptRepo;
         private readonly IRepository<FinanceReceiptItem> _itemRepo;
         private readonly IRepository<FinanceSellInvoice> _sellInvoiceRepo;
@@ -32,6 +29,7 @@ namespace CRM.Core.Services
         private readonly IFinanceCustomerAdvanceService _advanceService;
         private readonly IFinanceReceivableService _receivableService;
         private readonly IRepository<FreightForwarderCompany> _ffCompanyRepo;
+        private readonly IRepository<FinanceFreightForwarderPayment>? _ffPaymentRepo;
         private readonly IUserService? _userService;
 
         public FinanceReceiptService(
@@ -52,7 +50,8 @@ namespace CRM.Core.Services
             IFinanceReceivableService receivableService,
             IRepository<FreightForwarderCompany> ffCompanyRepo,
             IUnitOfWork? unitOfWork = null,
-            IUserService? userService = null)
+            IUserService? userService = null,
+            IRepository<FinanceFreightForwarderPayment>? ffPaymentRepo = null)
         {
             _receiptRepo = receiptRepo;
             _itemRepo = itemRepo;
@@ -72,6 +71,7 @@ namespace CRM.Core.Services
             _ffCompanyRepo = ffCompanyRepo;
             _unitOfWork = unitOfWork;
             _userService = userService;
+            _ffPaymentRepo = ffPaymentRepo;
         }
 
         private async Task EnrichCreateUserNamesAsync(IReadOnlyList<FinanceReceipt> items)
@@ -273,8 +273,13 @@ namespace CRM.Core.Services
             if (receipt.Items.Count > 0)
             {
                 receipt.ReceiptPurpose = receipt.Items.Max(i => i.ReceiptPurpose);
+                var minVs = receipt.Items.Min(i => i.VerificationStatus);
+                var maxVs = receipt.Items.Max(i => i.VerificationStatus);
+                receipt.VerificationStatus = minVs == maxVs ? minVs : (short)1;
                 return;
             }
+
+            receipt.VerificationStatus = 0;
 
             if (receipt.ReceiptAmount <= 0m) return;
 
@@ -313,6 +318,8 @@ namespace CRM.Core.Services
         {
             var receipt = await _receiptRepo.GetByIdAsync(id)
                 ?? throw new InvalidOperationException($"收款单 {id} 不存在");
+            if (!FinanceReceiptStatusCode.IsNew(receipt.Status))
+                throw new InvalidOperationException("仅新建状态的收款单可编辑");
 
             if (!string.IsNullOrWhiteSpace(request.CustomerId))
                 receipt.CustomerId = request.CustomerId.Trim();
@@ -437,8 +444,8 @@ namespace CRM.Core.Services
             if (!string.Equals(confirmBillCode.Trim(), receipt.FinanceReceiptCode?.Trim(), StringComparison.Ordinal))
                 throw new ArgumentException("确认单号不匹配，已拒绝反核销");
 
-            if (receipt.Status != ReceiptApproved && receipt.Status != ReceiptReceived)
-                throw new InvalidOperationException("仅已审核或已收款状态的收款单可反核销");
+            if (!FinanceReceiptStatusCode.IsConfirmed(receipt.Status))
+                throw new InvalidOperationException("仅确认状态的收款单可反核销");
 
             var items = (await _itemRepo.FindAsync(i => i.FinanceReceiptId == receipt.Id)).ToList();
             if (items.Any(i => i.AdvancePoolAmount > 0m))
@@ -506,36 +513,95 @@ namespace CRM.Core.Services
                 await _sellOrderItemExtendSync.RecalculateAsync(item.SellOrderItemId.Trim());
         }
 
-        public async Task UpdateStatusAsync(string id, short status, string? actingUserId = null)
+        public Task ConfirmAsync(string id, string? actingUserId = null, string? actingUserName = null) =>
+            UpdateStatusAsync(id, FinanceReceiptStatusCode.Confirmed, actingUserId, actingUserName);
+
+        public async Task UpdateStatusAsync(string id, short status, string? actingUserId = null, string? actingUserName = null)
         {
             var receipt = await _receiptRepo.GetByIdAsync(id)
                 ?? throw new InvalidOperationException($"收款单 {id} 不存在");
 
-            // 状态流转：Draft(0) -> PendingAudit(1) -> Approved(2) -> Received(3)
-            //                          \-> Cancelled(4)
-            // 审核通过后允许直接收款或取消
             var current = receipt.Status;
-            var allowed =
-                (current == 0 && status == 1) ||                // 提交审核
-                (current == 0 && status == 4) ||                // 草稿取消
-                (current == 1 && (status == 2 || status == 4)) || // 审核通过/驳回取消
-                (current == 2 && (status == 3 || status == 4));   // 已审核收款/取消
-
-            if (!allowed)
+            if (status == FinanceReceiptStatusCode.Confirmed)
+            {
+                if (current == FinanceReceiptStatusCode.Confirmed)
+                    throw new InvalidOperationException("收款单已确认，不可重复确认");
+                if (!FinanceReceiptStatusCode.IsNew(current) && current != FinanceReceiptStatusCode.LegacyApproved)
+                    throw new InvalidOperationException($"不允许的状态流转: {current} -> {status}");
+            }
+            else if (status == FinanceReceiptStatusCode.Cancelled)
+            {
+                if (current == FinanceReceiptStatusCode.Cancelled)
+                    throw new InvalidOperationException("收款单已取消");
+                if (FinanceReceiptStatusCode.IsConfirmed(current))
+                    await EnsureCanCancelConfirmedAsync(receipt, actingUserId);
+                else if (!FinanceReceiptStatusCode.IsNew(current))
+                    throw new InvalidOperationException($"不允许的状态流转: {current} -> {status}");
+            }
+            else
+            {
                 throw new InvalidOperationException($"不允许的状态流转: {current} -> {status}");
+            }
 
             receipt.Status = status;
-            if (status == 3) // 已收款
-            {
+            if (status == FinanceReceiptStatusCode.Confirmed)
                 receipt.ReceiptDate ??= DateTime.UtcNow;
-            }
             receipt.ModifyTime = DateTime.UtcNow;
             receipt.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
             await _receiptRepo.UpdateAsync(receipt);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
 
-            if (status == 2 || status == 3)
+            if (status == FinanceReceiptStatusCode.Confirmed)
+            {
                 await _advanceService.TryCreditExplicitAdvanceOnReceiptApprovedAsync(receipt.Id, actingUserId);
+                await AppendReceiptStatusLogAsync(
+                    receipt, OperationLogActionTypes.FinanceReceiptConfirm, actingUserId, actingUserName,
+                    $"收款确认：Id={receipt.Id}，Code={receipt.FinanceReceiptCode}");
+            }
+            else if (status == FinanceReceiptStatusCode.Cancelled)
+            {
+                await AppendReceiptStatusLogAsync(
+                    receipt, OperationLogActionTypes.FinanceReceiptCancel, actingUserId, actingUserName,
+                    $"收款取消：Id={receipt.Id}，Code={receipt.FinanceReceiptCode}");
+            }
+        }
+
+        private async Task EnsureCanCancelConfirmedAsync(FinanceReceipt receipt, string? actingUserId)
+        {
+            var items = (await _itemRepo.FindAsync(i => i.FinanceReceiptId == receipt.Id)).ToList();
+            if (items.Any(i => i.VerificationStatus > 0 || i.VerifiedAmount > 0m))
+                throw new InvalidOperationException("已发生核销，须先反核销后再取消");
+
+            var writeOffs = await _receivableService.GetWriteOffsByReceiptIdAsync(receipt.Id);
+            if (writeOffs.Count > 0)
+                throw new InvalidOperationException("已发生核销，须先反核销后再取消");
+
+            if (_ffPaymentRepo != null)
+            {
+                var payments = (await _ffPaymentRepo.FindAsync(p => p.FinanceReceiptId == receipt.Id && !p.IsDeleted)).ToList();
+                if (payments.Count > 0)
+                    throw new InvalidOperationException("货代付款已产生付款记录，禁止取消");
+            }
+
+            await _advanceService.ReverseAdvanceCreditedByReceiptAsync(receipt.Id, actingUserId);
+        }
+
+        private async Task AppendReceiptStatusLogAsync(
+            FinanceReceipt receipt,
+            string actionType,
+            string? actingUserId,
+            string? actingUserName,
+            string operationDesc)
+        {
+            var (actorId, actorName) = await OperationLogActorResolver.ResolveAsync(_userService, actingUserId);
+            await _logOperationAppend.AppendAsync(
+                BusinessLogTypes.FinanceReceipt,
+                receipt.Id,
+                receipt.FinanceReceiptCode,
+                actionType,
+                actorId,
+                string.IsNullOrWhiteSpace(actingUserName) ? actorName : actingUserName.Trim(),
+                operationDesc);
         }
 
         public async Task VerifyReceiptItemAsync(string receiptItemId, string sellInvoiceId, decimal amount, string? actingUserId = null)

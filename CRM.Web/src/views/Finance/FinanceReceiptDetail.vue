@@ -43,6 +43,20 @@
         </div>
       </div>
       <div v-if="detail" class="header-right">
+        <el-button
+          v-if="canConfirmDetail"
+          type="primary"
+          @click="confirmReceiptDetail"
+        >
+          {{ t('financeReceiptList.actions.confirm') }}
+        </el-button>
+        <el-button
+          v-if="canCancelDetail"
+          type="danger"
+          @click="cancelReceiptDetail"
+        >
+          {{ t('financeReceiptList.actions.cancel') }}
+        </el-button>
         <el-button v-if="canReverseVerificationDetail" type="warning" @click="handleReverseVerification">
           {{ t('financeReceiptList.actions.reverseVerification') }}
         </el-button>
@@ -370,10 +384,10 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useFinanceEnumLabels } from '@/composables/useFinanceEnumLabels'
 import { useFinanceWriteGate } from '@/composables/useDepartmentDataReadOnly'
-import { financeReceiptApi, CURRENCY_MAP, type FinanceReceipt, type FinanceReceiptItem, type FinanceReceiptWriteOffRecord } from '@/api/finance'
+import { financeReceiptApi, CURRENCY_MAP, isFinanceReceiptNew, isFinanceReceiptConfirmed, type FinanceReceipt, type FinanceReceiptItem, type FinanceReceiptWriteOffRecord } from '@/api/finance'
 import { documentApi, type UploadDocumentDto } from '@/api/document'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import DetailListPanelEmpty from '@/components/Common/DetailListPanelEmpty.vue'
@@ -394,8 +408,22 @@ const writeOffRecords = ref<FinanceReceiptWriteOffRecord[]>([])
 
 const receiptId = computed(() => route.params.id as string)
 
+const canConfirmDetail = computed(
+  () => !!detail.value && canWriteFinanceReceipt.value && isFinanceReceiptNew(detail.value.status)
+)
+
+const canCancelDetail = computed(() => {
+  if (!detail.value || !canWriteFinanceReceipt.value) return false
+  if (isFinanceReceiptNew(detail.value.status)) return true
+  if (!isFinanceReceiptConfirmed(detail.value.status)) return false
+  if (writeOffRecords.value.length > 0) return false
+  const items = detail.value.items ?? []
+  if (items.some(i => (i.verificationStatus ?? 0) > 0 || (i.verifiedAmount ?? 0) > 0)) return false
+  return (detail.value.verificationStatus ?? 0) === 0
+})
+
 const canReverseVerificationDetail = computed(
-  () => !!detail.value && canWriteFinanceReceipt.value && [2, 3].includes(detail.value.status)
+  () => !!detail.value && canWriteFinanceReceipt.value && isFinanceReceiptConfirmed(detail.value.status)
 )
 
 const receiptCaptionAvatarChar = computed(() => {
@@ -460,6 +488,30 @@ const fetchDetail = async () => {
   } finally {
     loading.value = false
   }
+}
+
+async function confirmReceiptDetail() {
+  if (!detail.value) return
+  await ElMessageBox.confirm(
+    t('financeReceiptList.messages.confirmMsg', { code: detail.value.financeReceiptCode }),
+    t('financeReceiptList.messages.confirmTitle'),
+    { type: 'success' }
+  )
+  await financeReceiptApi.confirm(detail.value.id)
+  ElMessage.success(t('financeReceiptList.messages.confirmed'))
+  await fetchDetail()
+}
+
+async function cancelReceiptDetail() {
+  if (!detail.value) return
+  await ElMessageBox.confirm(
+    t('financeReceiptList.messages.cancelMsg', { code: detail.value.financeReceiptCode }),
+    t('financeReceiptList.messages.cancelTitle'),
+    { type: 'warning' }
+  )
+  await financeReceiptApi.cancel(detail.value.id)
+  ElMessage.success(t('financeReceiptList.messages.cancelled'))
+  await fetchDetail()
 }
 
 async function handleReverseVerification() {

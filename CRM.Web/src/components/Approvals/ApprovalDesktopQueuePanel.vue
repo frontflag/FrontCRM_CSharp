@@ -14,7 +14,6 @@
         <el-option :label="t('pendingApprovals.bizType.SALES_ORDER')" value="SALES_ORDER" />
         <el-option :label="t('pendingApprovals.bizType.PURCHASE_ORDER')" value="PURCHASE_ORDER" />
         <el-option :label="t('pendingApprovals.bizType.FINANCE_PAYMENT')" value="FINANCE_PAYMENT" />
-        <el-option :label="t('pendingApprovals.bizType.FINANCE_RECEIPT')" value="FINANCE_RECEIPT" />
       </el-select>
     </div>
     <div ref="listEl" class="approval-desktop-queue-panel__list" v-loading="loading">

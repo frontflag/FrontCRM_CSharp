@@ -140,7 +140,7 @@ public class FinanceFreightForwarderPayablesController : ControllerBase
         {
             var detail = await _service.GetDetailAsync(receiptId);
             if (detail == null)
-                return NotFound(new { success = false, message = "货代付款台账不存在或收款单未审核通过" });
+                return NotFound(new { success = false, message = "货代付款台账不存在或收款单未确认" });
 
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (!await _dataPermissionService.CanAccessFinanceReceiptAsync(userId, detail.Receipt))

@@ -104,16 +104,6 @@ namespace CRM.API.Controllers
                 ApproveStatus = 10, // 已审核
                 RejectStatus = -1   // 审核失败
             },
-            ["FINANCE_RECEIPT"] = new BizTypeConfig
-            {
-                BizType = "FINANCE_RECEIPT",
-                BizTypeName = "收款",
-                PermissionCode = "finance-receipt.write",
-                PendingStatus = 1,
-                // 与前端 FinanceReceiptList 的“审核通过”一致：直接标记为已收款(3)
-                ApproveStatus = 3,
-                RejectStatus = 4
-            },
             ["FINANCE_PAYMENT"] = new BizTypeConfig
             {
                 BizType = "FINANCE_PAYMENT",
@@ -137,7 +127,6 @@ namespace CRM.API.Controllers
             ["CUSTOMER"] = "customer.read",
             ["SALES_ORDER"] = "sales-order.read",
             ["PURCHASE_ORDER"] = "purchase-order.read",
-            ["FINANCE_RECEIPT"] = "finance-receipt.read",
             ["FINANCE_PAYMENT"] = "finance-payment.read"
         };
 

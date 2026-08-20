@@ -7,9 +7,6 @@ namespace CRM.Core.Services;
 
 public class FinanceCustomerAdvanceService : IFinanceCustomerAdvanceService
 {
-    private const short ReceiptApproved = 2;
-    private const short ReceiptReceived = 3;
-
     private readonly IRepository<FinanceCustomerAdvance> _advanceRepo;
     private readonly IRepository<FinanceCustomerAdvanceLedger> _ledgerRepo;
     private readonly IRepository<FinanceReceipt> _receiptRepo;
@@ -103,6 +100,62 @@ public class FinanceCustomerAdvanceService : IFinanceCustomerAdvanceService
     /// <inheritdoc />
     public bool IsReceiptItemAlreadyCreditedToPool(FinanceReceiptItem item) =>
         item.AdvancePoolAmount > 0m;
+
+    public async Task ReverseAdvanceCreditedByReceiptAsync(string receiptId, string? actingUserId = null)
+    {
+        if (string.IsNullOrWhiteSpace(receiptId))
+            return;
+
+        var receipt = await _receiptRepo.GetByIdAsync(receiptId.Trim());
+        if (receipt == null)
+            return;
+
+        var items = (await _receiptItemRepo.FindAsync(i => i.FinanceReceiptId == receipt.Id)).ToList();
+        var credited = items.Where(i => i.AdvancePoolAmount > 0m).ToList();
+        if (credited.Count == 0)
+            return;
+
+        var currency = (short)receipt.ReceiptCurrency;
+        var cid = receipt.CustomerId.Trim();
+        var advance = (await _advanceRepo.FindAsync(a =>
+            !a.IsDeleted && a.CustomerId == cid && a.Currency == currency)).FirstOrDefault()
+            ?? throw new InvalidOperationException("客户预收池不存在，无法冲回，禁止取消");
+
+        var total = credited.Sum(i => i.AdvancePoolAmount);
+        if (advance.Balance + 0.0001m < total)
+            throw new InvalidOperationException(
+                $"预收已使用（可用 {advance.Balance}，需冲回 {total}），无法取消。请先处理预收核销。");
+
+        advance.Balance -= total;
+        advance.TotalIn = Math.Max(0m, advance.TotalIn - total);
+        advance.ModifyTime = DateTime.UtcNow;
+        await _advanceRepo.UpdateAsync(advance);
+
+        foreach (var item in credited)
+        {
+            var amount = item.AdvancePoolAmount;
+            await _ledgerRepo.AddAsync(new FinanceCustomerAdvanceLedger
+            {
+                Id = Guid.NewGuid().ToString(),
+                FinanceCustomerAdvanceId = advance.Id,
+                CustomerId = cid,
+                Currency = currency,
+                LedgerType = FinanceCustomerAdvanceLedgerTypeCode.Refund,
+                Amount = amount,
+                FinanceReceiptId = receipt.Id,
+                FinanceReceiptItemId = item.Id,
+                Remark = "收款取消冲回预收",
+                OperatorUserId = ActingUserIdNormalizer.Normalize(actingUserId),
+                CreateTime = DateTime.UtcNow
+            });
+            item.AdvancePoolAmount = 0m;
+            item.ModifyTime = DateTime.UtcNow;
+            await _receiptItemRepo.UpdateAsync(item);
+        }
+
+        if (_unitOfWork != null)
+            await _unitOfWork.SaveChangesAsync();
+    }
 
     /// <inheritdoc />
     public async Task TryCreditExplicitAdvanceOnReceiptApprovedAsync(string receiptId, string? actingUserId = null)
@@ -217,8 +270,8 @@ public class FinanceCustomerAdvanceService : IFinanceCustomerAdvanceService
             ?? throw new InvalidOperationException("收款单不存在");
         if (receipt.IsDeleted)
             throw new InvalidOperationException("收款单已失效");
-        if (receipt.Status != ReceiptApproved && receipt.Status != ReceiptReceived)
-            throw new InvalidOperationException($"收款单 {receipt.FinanceReceiptCode} 未审核，不可转预收");
+        if (!FinanceReceiptStatusCode.IsConfirmed(receipt.Status))
+            throw new InvalidOperationException($"收款单 {receipt.FinanceReceiptCode} 未确认，不可转预收");
 
         var remaining = GetReceiptItemRemaining(item);
         if (remaining <= 0m)

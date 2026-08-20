@@ -3269,7 +3269,7 @@ watch(
 
 // 待办：只在员工拥有任一“审批”相关写权限时显示入口
 const hasAnyApprovalPermission = computed(() => {
-  const codes = ['vendor.write', 'rfq.write', 'sales-order.write', 'finance-receipt.write', 'finance-payment.write']
+  const codes = ['vendor.write', 'rfq.write', 'sales-order.write', 'finance-payment.write']
   return codes.some(code => hasPermission(code))
 })
 

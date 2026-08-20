@@ -20,7 +20,6 @@ namespace CRM.API.Controllers
         private readonly IFinanceReceivableService _receivableService;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IRbacService _rbacService;
-        private readonly IApprovalPartyIntelWarmupService _approvalPartyIntelWarmup;
         private readonly IExportOperationLogService _exportLog;
         private readonly ILogger<FinanceReceiptsController> _logger;
 
@@ -29,7 +28,6 @@ namespace CRM.API.Controllers
             IFinanceReceivableService receivableService,
             IDataPermissionService dataPermissionService,
             IRbacService rbacService,
-            IApprovalPartyIntelWarmupService approvalPartyIntelWarmup,
             IExportOperationLogService exportLog,
             ILogger<FinanceReceiptsController> logger)
         {
@@ -37,7 +35,6 @@ namespace CRM.API.Controllers
             _receivableService = receivableService;
             _dataPermissionService = dataPermissionService;
             _rbacService = rbacService;
-            _approvalPartyIntelWarmup = approvalPartyIntelWarmup;
             _exportLog = exportLog;
             _logger = logger;
         }
@@ -255,6 +252,10 @@ namespace CRM.API.Controllers
             {
                 return NotFound(new { success = false, message = "收款单不存在" });
             }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { success = false, message = ex.Message });
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "更新收款单失败");
@@ -262,7 +263,7 @@ namespace CRM.API.Controllers
             }
         }
 
-        /// <summary>更新收款单状态</summary>
+        /// <summary>更新收款单状态（仅允许确认 3 / 取消 4）</summary>
         [HttpPatch("{id}/status")]
         [RequirePermission("finance-receipt.write")]
         public async Task<IActionResult> UpdateStatus(string id, [FromBody] FinanceReceiptStatusRequest request)
@@ -272,13 +273,17 @@ namespace CRM.API.Controllers
                 var denied = await RejectIfFinanceDataReadOnlyAsync();
                 if (denied != null) return denied;
 
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                await _service.UpdateStatusAsync(id, request.Status, userId);
+                var (userId, userName) = GetActor();
+                await _service.UpdateStatusAsync(id, request.Status, userId, userName);
                 return Ok(new { success = true, message = "状态更新成功" });
             }
             catch (KeyNotFoundException)
             {
                 return NotFound(new { success = false, message = "收款单不存在" });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { success = false, message = ex.Message });
             }
             catch (Exception ex)
             {
@@ -287,45 +292,39 @@ namespace CRM.API.Controllers
             }
         }
 
-        /// <summary>提交审核（0 -> 1）</summary>
+        /// <summary>收款单已取消审核；请改用确认。</summary>
         [HttpPost("{id}/submit")]
         [RequirePermission("finance-receipt.write")]
-        public async Task<IActionResult> Submit(string id)
-        {
-            try
+        public Task<IActionResult> Submit(string id) =>
+            Task.FromResult<IActionResult>(Conflict(new
             {
-                var denied = await RejectIfFinanceDataReadOnlyAsync();
-                if (denied != null) return denied;
+                success = false,
+                message = "收款单已取消审核流程，请使用确认"
+            }));
 
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                await _service.UpdateStatusAsync(id, 1, userId);
-                _approvalPartyIntelWarmup.ScheduleAfterSubmit("FINANCE_RECEIPT", id, userId);
-                return Ok(new { success = true, message = "提交审核成功" });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return Conflict(new { success = false, message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "提交收款单审核失败");
-                return StatusCode(500, new { success = false, message = ex.Message });
-            }
-        }
-
-        /// <summary>审核通过（1 -> 2）</summary>
+        /// <summary>收款单已取消审核；请改用确认。</summary>
         [HttpPost("{id}/approve")]
         [RequirePermission("finance-receipt.write")]
-        public async Task<IActionResult> Approve(string id)
+        public Task<IActionResult> Approve(string id) =>
+            Task.FromResult<IActionResult>(Conflict(new
+            {
+                success = false,
+                message = "收款单已取消审核流程，请使用确认"
+            }));
+
+        /// <summary>确认收款单（新建 → 确认）</summary>
+        [HttpPost("{id}/confirm")]
+        [RequirePermission("finance-receipt.write")]
+        public async Task<IActionResult> Confirm(string id)
         {
             try
             {
                 var denied = await RejectIfFinanceDataReadOnlyAsync();
                 if (denied != null) return denied;
 
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                await _service.UpdateStatusAsync(id, 2, userId);
-                return Ok(new { success = true, message = "审核通过" });
+                var (userId, userName) = GetActor();
+                await _service.ConfirmAsync(id, userId, userName);
+                return Ok(new { success = true, message = "已确认" });
             }
             catch (InvalidOperationException ex)
             {
@@ -333,37 +332,17 @@ namespace CRM.API.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "审核收款单失败");
+                _logger.LogError(ex, "确认收款单失败");
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
 
-        /// <summary>确认收款（2 -> 3）</summary>
+        /// <summary>兼容旧客户端：与 confirm 相同。</summary>
         [HttpPost("{id}/confirm-received")]
         [RequirePermission("finance-receipt.write")]
-        public async Task<IActionResult> ConfirmReceived(string id)
-        {
-            try
-            {
-                var denied = await RejectIfFinanceDataReadOnlyAsync();
-                if (denied != null) return denied;
+        public Task<IActionResult> ConfirmReceived(string id) => Confirm(id);
 
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                await _service.UpdateStatusAsync(id, 3, userId);
-                return Ok(new { success = true, message = "确认收款成功" });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return Conflict(new { success = false, message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "确认收款失败");
-                return StatusCode(500, new { success = false, message = ex.Message });
-            }
-        }
-
-        /// <summary>取消收款单（0/1/2 -> 4）</summary>
+        /// <summary>取消收款单（新建可直接取消；确认后须整单未核销）</summary>
         [HttpPost("{id}/cancel")]
         [RequirePermission("finance-receipt.write")]
         public async Task<IActionResult> Cancel(string id)
@@ -373,8 +352,8 @@ namespace CRM.API.Controllers
                 var denied = await RejectIfFinanceDataReadOnlyAsync();
                 if (denied != null) return denied;
 
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                await _service.UpdateStatusAsync(id, 4, userId);
+                var (userId, userName) = GetActor();
+                await _service.UpdateStatusAsync(id, FinanceReceiptStatusCode.Cancelled, userId, userName);
                 return Ok(new { success = true, message = "已取消" });
             }
             catch (InvalidOperationException ex)
@@ -522,6 +501,15 @@ namespace CRM.API.Controllers
                 _logger.LogError(ex, "核销收款明细失败");
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
+        }
+
+        private (string? userId, string? userName) GetActor()
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userName = User.FindFirst(ClaimTypes.Name)?.Value;
+            return (
+                string.IsNullOrWhiteSpace(userId) ? null : userId.Trim(),
+                string.IsNullOrWhiteSpace(userName) ? null : userName.Trim());
         }
 
         private async Task<IActionResult?> RejectIfFinanceDataReadOnlyAsync()

@@ -23,8 +23,7 @@ const BIZ_TYPES: BizType[] = [
   'VENDOR',
   'SALES_ORDER',
   'PURCHASE_ORDER',
-  'FINANCE_PAYMENT',
-  'FINANCE_RECEIPT'
+  'FINANCE_PAYMENT'
 ]
 
 function normalizePendingItem(raw: PendingApprovalItem): PendingApprovalItem {

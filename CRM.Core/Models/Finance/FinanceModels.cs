@@ -247,7 +247,7 @@ namespace CRM.Core.Models.Finance
         [StringLength(36)]
         public string? PurchaseGroupId { get; set; }
 
-        /// <summary>收款状态 0草稿 1待审核 2已审核 3已收款 4已取消</summary>
+        /// <summary>收款状态 0新建 3确认 4取消（历史 1 视为新建，2 视为确认）</summary>
         public short Status { get; set; } = 0;
 
         /// <summary>收款总额</summary>

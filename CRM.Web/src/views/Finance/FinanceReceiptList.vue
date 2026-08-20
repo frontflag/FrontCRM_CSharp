@@ -272,10 +272,9 @@
         <div @click.stop @dblclick.stop>
           <div v-if="opColExpanded" class="action-btns">
             <el-button size="small" text type="primary" @click.stop="openDetail(row)">{{ t('financeReceiptList.actions.detail') }}</el-button>
-            <el-button size="small" text type="primary" @click.stop="openEdit(row)" v-if="canWriteFinanceReceipt && row.status === 0">{{ t('financeReceiptList.actions.edit') }}</el-button>
-            <el-button size="small" text type="warning" @click.stop="submitAudit(row)" v-if="canWriteFinanceReceipt && row.status === 0">{{ t('financeReceiptList.actions.submitAudit') }}</el-button>
-            <el-button size="small" text type="warning" @click.stop="approveReceipt(row)" v-if="canWriteFinanceReceipt && row.status === 1">{{ t('financeReceiptList.actions.approve') }}</el-button>
-            <el-button size="small" text type="danger" @click.stop="cancelReceipt(row)" v-if="canWriteFinanceReceipt && [0,1].includes(row.status)">{{ t('financeReceiptList.actions.cancel') }}</el-button>
+            <el-button size="small" text type="primary" @click.stop="openEdit(row)" v-if="canWriteFinanceReceipt && isFinanceReceiptNew(row.status)">{{ t('financeReceiptList.actions.edit') }}</el-button>
+            <el-button size="small" text type="warning" @click.stop="confirmReceipt(row)" v-if="canWriteFinanceReceipt && isFinanceReceiptNew(row.status)">{{ t('financeReceiptList.actions.confirm') }}</el-button>
+            <el-button size="small" text type="danger" @click.stop="cancelReceipt(row)" v-if="canCancelReceipt(row)">{{ t('financeReceiptList.actions.cancel') }}</el-button>
             <el-button v-if="canWriteFinanceReceipt" size="small" text type="danger" @click.stop="handleDeleteRow(row)">删除</el-button>
             <el-button
               v-if="canReverseVerification(row)"
@@ -298,16 +297,13 @@
                 <el-dropdown-item @click.stop="openDetail(row)">
                   <span class="op-more-item op-more-item--primary">{{ t('financeReceiptList.actions.detail') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item v-if="canWriteFinanceReceipt && row.status === 0" @click.stop="openEdit(row)">
+                <el-dropdown-item v-if="canWriteFinanceReceipt && isFinanceReceiptNew(row.status)" @click.stop="openEdit(row)">
                   <span class="op-more-item op-more-item--primary">{{ t('financeReceiptList.actions.edit') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item v-if="canWriteFinanceReceipt && row.status === 0" @click.stop="submitAudit(row)">
-                  <span class="op-more-item op-more-item--warning">{{ t('financeReceiptList.actions.submitAudit') }}</span>
+                <el-dropdown-item v-if="canWriteFinanceReceipt && isFinanceReceiptNew(row.status)" @click.stop="confirmReceipt(row)">
+                  <span class="op-more-item op-more-item--warning">{{ t('financeReceiptList.actions.confirm') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item v-if="canWriteFinanceReceipt && row.status === 1" @click.stop="approveReceipt(row)">
-                  <span class="op-more-item op-more-item--warning">{{ t('financeReceiptList.actions.approve') }}</span>
-                </el-dropdown-item>
-                <el-dropdown-item v-if="canWriteFinanceReceipt && [0,1].includes(row.status)" @click.stop="cancelReceipt(row)">
+                <el-dropdown-item v-if="canCancelReceipt(row)" @click.stop="cancelReceipt(row)">
                   <span class="op-more-item op-more-item--danger">{{ t('financeReceiptList.actions.cancel') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="canWriteFinanceReceipt" divided @click.stop="handleDeleteRow(row)">
@@ -560,6 +556,8 @@ import { documentApi, type UploadDocumentDto } from '@/api/document'
 import {
   financeReceiptApi,
   RECEIPT_STATUS_MAP,
+  isFinanceReceiptNew,
+  isFinanceReceiptConfirmed,
   PAYMENT_MODE_MAP,
   CURRENCY_MAP,
   type FinanceReceipt,
@@ -888,10 +886,10 @@ const loadData = async () => {
     total.value = tableData.value.length
   } finally {
     loading.value = false
-    stats.monthTotal = tableData.value.filter(r => r.status === 3).reduce((s, r) => s + r.receiptAmount, 0)
-    stats.pendingCount = tableData.value.filter(r => r.status === 1).length
-    stats.receivedCount = tableData.value.filter(r => r.status === 3).length
-    stats.draftCount = tableData.value.filter(r => r.status === 0).length
+    stats.monthTotal = tableData.value.filter(r => isFinanceReceiptConfirmed(r.status)).reduce((s, r) => s + r.receiptAmount, 0)
+    stats.pendingCount = tableData.value.filter(r => isFinanceReceiptNew(r.status)).length
+    stats.receivedCount = tableData.value.filter(r => isFinanceReceiptConfirmed(r.status)).length
+    stats.draftCount = tableData.value.filter(r => r.status === 4).length
   }
 }
 
@@ -926,9 +924,9 @@ async function handleExport() {
 
 const getMockData = (): FinanceReceipt[] => [
   { id: '1', financeReceiptCode: 'RCP-2026-0001', customerId: 'c1', customerName: '北京科技有限公司', receiptAmount: 256000, receiptCurrency: 1, receiptMode: 1, receiptDate: '2026-03-14', status: 3, remark: '3月货款', createdAt: '2026-03-10' },
-  { id: '2', financeReceiptCode: 'RCP-2026-0002', customerId: 'c2', customerName: '上海智能制造股份', receiptAmount: 88500, receiptCurrency: 1, receiptMode: 1, receiptDate: '2026-03-17', status: 1, remark: '', createdAt: '2026-03-12' },
-  { id: '3', financeReceiptCode: 'RCP-2026-0003', customerId: 'c3', customerName: 'Acme Corp', receiptAmount: 15800, receiptCurrency: 2, receiptMode: 1, receiptDate: undefined, status: 0, remark: '待提交', createdAt: '2026-03-15' },
-  { id: '4', financeReceiptCode: 'RCP-2026-0004', customerId: 'c4', customerName: '广州电子科技', receiptAmount: 43200, receiptCurrency: 1, receiptMode: 2, receiptDate: '2026-03-16', status: 2, remark: '', createdAt: '2026-03-13' },
+  { id: '2', financeReceiptCode: 'RCP-2026-0002', customerId: 'c2', customerName: '上海智能制造股份', receiptAmount: 88500, receiptCurrency: 1, receiptMode: 1, receiptDate: '2026-03-17', status: 0, remark: '', createdAt: '2026-03-12' },
+  { id: '3', financeReceiptCode: 'RCP-2026-0003', customerId: 'c3', customerName: 'Acme Corp', receiptAmount: 15800, receiptCurrency: 2, receiptMode: 1, receiptDate: undefined, status: 0, remark: '', createdAt: '2026-03-15' },
+  { id: '4', financeReceiptCode: 'RCP-2026-0004', customerId: 'c4', customerName: '广州电子科技', receiptAmount: 43200, receiptCurrency: 1, receiptMode: 2, receiptDate: '2026-03-16', status: 3, remark: '', createdAt: '2026-03-13' },
   { id: '5', financeReceiptCode: 'RCP-2026-0005', customerId: 'c1', customerName: '北京科技有限公司', receiptAmount: 19800, receiptCurrency: 1, receiptMode: 3, receiptDate: undefined, status: 4, remark: '已取消', createdAt: '2026-03-08' },
 ]
 
@@ -1158,26 +1156,14 @@ const openDetail = (row: FinanceReceipt) => {
   router.push({ name: 'FinanceReceiptDetail', params: { id: row.id } })
 }
 
-const submitAudit = async (row: FinanceReceipt) => {
+const confirmReceipt = async (row: FinanceReceipt) => {
   await ElMessageBox.confirm(
-    t('financeReceiptList.messages.submitMsg', { code: row.financeReceiptCode }),
-    t('financeReceiptList.messages.submitTitle'),
-    { type: 'info' }
-  )
-  await financeReceiptApi.submit(row.id)
-  ElMessage.success(t('financeReceiptList.messages.submitted'))
-  await loadData()
-}
-
-const approveReceipt = async (row: FinanceReceipt) => {
-  await ElMessageBox.confirm(
-    t('financeReceiptList.messages.approveMsg'),
-    t('financeReceiptList.messages.approveTitle'),
+    t('financeReceiptList.messages.confirmMsg', { code: row.financeReceiptCode }),
+    t('financeReceiptList.messages.confirmTitle'),
     { type: 'success' }
   )
-  await financeReceiptApi.approve(row.id)
-  await financeReceiptApi.confirmReceived(row.id)
-  ElMessage.success(t('financeReceiptList.messages.approved'))
+  await financeReceiptApi.confirm(row.id)
+  ElMessage.success(t('financeReceiptList.messages.confirmed'))
   await loadData()
 }
 
@@ -1203,8 +1189,14 @@ const handleDeleteRow = async (row: FinanceReceipt) => {
   await loadData()
 }
 
+function canCancelReceipt(row: FinanceReceipt) {
+  if (!canWriteFinanceReceipt.value) return false
+  if (isFinanceReceiptNew(row.status)) return true
+  return isFinanceReceiptConfirmed(row.status) && (row.verificationStatus ?? 0) === 0
+}
+
 function canReverseVerification(row: FinanceReceipt) {
-  return canWriteFinanceReceipt.value && [2, 3].includes(row.status)
+  return canWriteFinanceReceipt.value && isFinanceReceiptConfirmed(row.status)
 }
 
 const handleReverseVerificationRow = async (row: FinanceReceipt) => {

@@ -13,8 +13,6 @@ namespace CRM.Core.Services;
 public class FinanceReceivableService : IFinanceReceivableService
 {
     private const short StockOutFinished = 4;
-    private const short ReceiptApproved = 2;
-    private const short ReceiptReceived = 3;
 
     private readonly IRepository<FinanceReceivable> _receivableRepo;
     private readonly IRepository<FinanceReceivableWriteOff> _writeOffRepo;
@@ -943,7 +941,8 @@ public class FinanceReceivableService : IFinanceReceivableService
 
         var receiptItems = (await _receiptItemRepo.GetAllAsync()).ToList();
         var eligibleReceipts = (await _receiptRepo.FindAsync(r =>
-            !r.IsDeleted && (r.Status == ReceiptApproved || r.Status == ReceiptReceived))).ToList();
+            !r.IsDeleted && (r.Status == FinanceReceiptStatusCode.Confirmed
+                             || r.Status == FinanceReceiptStatusCode.LegacyApproved))).ToList();
 
         var mutated = false;
         foreach (var receipt in eligibleReceipts)
@@ -1445,8 +1444,8 @@ public class FinanceReceivableService : IFinanceReceivableService
             {
                 var receipt = await _receiptRepo.GetByIdAsync(item.FinanceReceiptId)
                     ?? throw new InvalidOperationException($"收款单 {item.FinanceReceiptId} 不存在");
-                if (receipt.Status != ReceiptApproved && receipt.Status != ReceiptReceived)
-                    throw new InvalidOperationException($"收款单 {receipt.FinanceReceiptCode} 未审核，不可核销");
+                if (!FinanceReceiptStatusCode.IsConfirmed(receipt.Status))
+                    throw new InvalidOperationException($"收款单 {receipt.FinanceReceiptCode} 未确认，不可核销");
                 receipts[item.FinanceReceiptId] = receipt;
             }
         }

@@ -5750,11 +5750,11 @@ const zhCN = {
     soSt1: '待出库',
     soSt2: '已出库',
     soSt3: '已取消',
-    recSt0: '草稿',
-    recSt1: '待审核',
-    recSt2: '已审核',
-    recSt3: '已收款',
-    recSt4: '已取消',
+    recSt0: '新建',
+    recSt1: '新建',
+    recSt2: '确认',
+    recSt3: '确认',
+    recSt4: '取消',
     invSt1: '未申请',
     invSt2: '申请中',
     invSt100: '已开票',
@@ -9001,11 +9001,11 @@ const zhCN = {
       '-2': '取消'
     },
     receiptStatus: {
-      '0': '草稿',
-      '1': '待审核',
-      '2': '已审核',
-      '3': '已收款',
-      '4': '已取消'
+      '0': '新建',
+      '1': '新建',
+      '2': '确认',
+      '3': '确认',
+      '4': '取消'
     },
     invoiceStatus: {
       '1': '未申请',
@@ -9271,9 +9271,9 @@ const zhCN = {
     purposeAdvance: '预收',
     stats: {
       monthTotal: '本月收款总额',
-      pending: '待审核',
-      received: '已收款',
-      draft: '草稿'
+      pending: '新建',
+      received: '确认',
+      draft: '取消'
     },
     columns: {
       code: '收款单号',
@@ -9290,7 +9290,7 @@ const zhCN = {
       createUser: '创建人',
       actions: '操作'
     },
-    actions: { detail: '详情', edit: '编辑', submitAudit: '提交审核', approve: '审核通过', cancel: '取消', reverseVerification: '反核销' },
+    actions: { detail: '详情', edit: '编辑', confirm: '确认', cancel: '取消', reverseVerification: '反核销' },
     columnSettings: '列设置',
     dialogCreate: '新建收款单',
     dialogEdit: '编辑收款单',
@@ -9308,9 +9308,9 @@ const zhCN = {
     formRemarkPh: '请输入备注',
     formAdvance: '预收款',
     formFfPayment: '货代付款',
-    formFfPaymentHint: '审核通过后进入货代付款台账',
+    formFfPaymentHint: '确认后进入货代付款台账',
     formFfCompanyPh: '请选择货代公司（可选）',
-    formAdvanceHint: '审核通过后金额进入客户预收池',
+    formAdvanceHint: '确认后金额进入客户预收池',
     formAdvanceSo: '关联销售订单（可选）',
     formAdvanceSoPh: '输入订单号搜索',
     formSlipAttach: '银行水单附件',
@@ -9334,12 +9334,9 @@ const zhCN = {
       saveOkDemo: '保存成功（演示模式）',
       slipUploadOk: '水单附件上传成功',
       slipUploadFail: '水单附件上传失败',
-      submitTitle: '提交审核',
-      submitMsg: '确认提交收款单 {code} 审核？',
-      submitted: '已提交审核',
-      approveTitle: '审核确认',
-      approveMsg: '确认审核通过并标记为已收款？',
-      approved: '审核通过，已标记为已收款',
+      confirmTitle: '确认收款单',
+      confirmMsg: '确认收款单 {code}？确认后可核销，不可改回新建。',
+      confirmed: '已确认',
       cancelTitle: '取消确认',
       cancelMsg: '确认取消收款单 {code}？',
       cancelled: '已取消',

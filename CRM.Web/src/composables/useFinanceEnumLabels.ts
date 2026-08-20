@@ -67,8 +67,14 @@ export function useFinanceEnumLabels() {
   return {
     paymentStatusLabel: (n: number) => labelFromMap(t, te, 'paymentStatus', n, PAYMENT_STATUS_MAP),
     paymentStatusTag: (n: number) => tagFromMap(n, PAYMENT_STATUS_MAP),
-    receiptStatusLabel: (n: number) => labelFromMap(t, te, 'receiptStatus', n, RECEIPT_STATUS_MAP),
-    receiptStatusTag: (n: number) => tagFromMap(n, RECEIPT_STATUS_MAP),
+    receiptStatusLabel: (n: number) => {
+      const mapped = n === 1 ? 0 : n === 2 ? 3 : n
+      return labelFromMap(t, te, 'receiptStatus', mapped, RECEIPT_STATUS_MAP)
+    },
+    receiptStatusTag: (n: number) => {
+      const mapped = n === 1 ? 0 : n === 2 ? 3 : n
+      return tagFromMap(mapped, RECEIPT_STATUS_MAP)
+    },
     invoiceStatusLabel: (n: unknown) =>
       labelFromMap(t, te, 'invoiceStatus', coerceInvoiceStatusKey(n), INVOICE_STATUS_MAP),
     invoiceStatusTag: (n: unknown) => tagFromMap(coerceInvoiceStatusKey(n), INVOICE_STATUS_MAP),

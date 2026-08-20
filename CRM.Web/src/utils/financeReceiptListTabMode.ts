@@ -34,13 +34,15 @@ export function writeFinanceReceiptListTabMode(dimension: FinanceReceiptListTabM
   }
 }
 
-/** 与状态下拉一致：草稿～已取消（含已取消） */
-export const FR_STATUS_TAB_VALUES = [0, 1, 2, 3, 4] as const
+/** 与状态下拉一致：新建 / 确认 / 取消 */
+export const FR_STATUS_TAB_VALUES = [0, 3, 4] as const
 
-export type FrStatusTabId = 'all' | '0' | '1' | '2' | '3' | '4'
+export type FrStatusTabId = 'all' | '0' | '3' | '4'
 
 export function frStatusFilterToTab(value: number | undefined | null): FrStatusTabId {
-  if (value === 0 || value === 1 || value === 2 || value === 3 || value === 4) {
+  if (value === 1) return '0'
+  if (value === 2) return '3'
+  if (value === 0 || value === 3 || value === 4) {
     return String(value) as FrStatusTabId
   }
   return 'all'
@@ -49,7 +51,7 @@ export function frStatusFilterToTab(value: number | undefined | null): FrStatusT
 export function frStatusTabToFilter(tab: FrStatusTabId): number | undefined {
   if (tab === 'all') return undefined
   const n = Number(tab)
-  if (n === 0 || n === 1 || n === 2 || n === 3 || n === 4) return n
+  if (n === 0 || n === 3 || n === 4) return n
   return undefined
 }
 

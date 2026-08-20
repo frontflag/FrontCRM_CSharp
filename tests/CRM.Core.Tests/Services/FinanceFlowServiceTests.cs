@@ -325,7 +325,7 @@ namespace CRM.Core.Tests.Services
                 Substitute.For<IRepository<FreightForwarderCompany>>(),
                 uow);
 
-            await Assert.ThrowsAsync<InvalidOperationException>(() => svc.UpdateStatusAsync("r-1", 3));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => svc.UpdateStatusAsync("r-1", 1));
         }
 
         [Fact]

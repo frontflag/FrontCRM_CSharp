@@ -121,7 +121,7 @@ export interface FinanceReceipt {
   customerCode?: string
   salesUserId?: string
   purchaseGroupId?: string
-  status: number       // 0草稿 1待审核 2已审核 3已收款 4已取消
+  status: number       // 0新建 3确认 4取消（历史 1 视为新建，2 视为确认）
   receiptAmount: number
   receiptCurrency: number  // 1:人民币 2:美元 3:欧元
   receiptDate?: string
@@ -500,12 +500,8 @@ export const financeReceiptApi = {
     }),
   updateStatus: (id: string, status: number) =>
     apiClient.patch(`${RECEIPT_BASE}/${id}/status`, { status }),
-  submit: (id: string) =>
-    apiClient.post(`${RECEIPT_BASE}/${id}/submit`, {}),
-  approve: (id: string) =>
-    apiClient.post(`${RECEIPT_BASE}/${id}/approve`, {}),
-  confirmReceived: (id: string) =>
-    apiClient.post(`${RECEIPT_BASE}/${id}/confirm-received`, {}),
+  confirm: (id: string) =>
+    apiClient.post(`${RECEIPT_BASE}/${id}/confirm`, {}),
   cancel: (id: string) =>
     apiClient.post(`${RECEIPT_BASE}/${id}/cancel`, {}),
 }
@@ -583,11 +579,17 @@ export const PAYMENT_STATUS_MAP: Record<number, { label: string; type: string }>
 }
 
 export const RECEIPT_STATUS_MAP: Record<number, { label: string; type: string }> = {
-  0: { label: '草稿', type: 'info' },
-  1: { label: '待审核', type: 'warning' },
-  2: { label: '已审核', type: 'primary' },
-  3: { label: '已收款', type: 'success' },
-  4: { label: '已取消', type: 'danger' },
+  0: { label: '新建', type: 'info' },
+  3: { label: '确认', type: 'success' },
+  4: { label: '取消', type: 'danger' },
+}
+
+export function isFinanceReceiptNew(status: number) {
+  return status === 0 || status === 1
+}
+
+export function isFinanceReceiptConfirmed(status: number) {
+  return status === 2 || status === 3
 }
 
 export const INVOICE_STATUS_MAP: Record<number, { label: string; type: string }> = {

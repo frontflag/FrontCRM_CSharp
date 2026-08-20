@@ -81,6 +81,9 @@ public interface IFinanceCustomerAdvanceService
         string? actingUserId = null,
         string? remark = null);
 
+    /// <summary>收款单取消时冲回本单预收入账；余额不足则抛错。</summary>
+    Task ReverseAdvanceCreditedByReceiptAsync(string receiptId, string? actingUserId = null);
+
     Task TryCreditExplicitAdvanceOnReceiptApprovedAsync(string receiptId, string? actingUserId = null);
 
     Task CreditAutoInExcessAsync(

@@ -9,8 +9,6 @@ namespace CRM.Infrastructure.Finance;
 public sealed class FinanceFreightForwarderPayableListQuery : IFinanceFreightForwarderPayableListQuery
 {
     public const int MaxPageSize = 2000;
-    private const short ReceiptApproved = 2;
-    private const short ReceiptCancelled = 4;
 
     private readonly ApplicationDbContext _db;
     private readonly IDataPermissionService _dataPermissionService;
@@ -32,7 +30,8 @@ public sealed class FinanceFreightForwarderPayableListQuery : IFinanceFreightFor
 
         var q = _db.FinanceReceipts.AsNoTracking()
             .Where(r => r.IsFreightForwarderPayment)
-            .Where(r => r.Status >= ReceiptApproved && r.Status != ReceiptCancelled);
+            .Where(r => r.Status == FinanceReceiptStatusCode.Confirmed
+                        || r.Status == FinanceReceiptStatusCode.LegacyApproved);
 
         q = await _dataPermissionService.ApplyFinanceReceiptListDataScopeAsync(
             request.CurrentUserId, q, cancellationToken);

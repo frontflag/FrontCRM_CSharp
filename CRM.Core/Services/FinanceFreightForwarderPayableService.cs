@@ -8,9 +8,6 @@ namespace CRM.Core.Services;
 
 public class FinanceFreightForwarderPayableService : IFinanceFreightForwarderPayableService
 {
-    private const short ReceiptApproved = 2;
-    private const short ReceiptReceived = 3;
-
     private readonly IFinanceFreightForwarderPayableListQuery _listQuery;
     private readonly IRepository<FinanceReceipt> _receiptRepo;
     private readonly IRepository<FinanceFreightForwarderPayment> _paymentRepo;
@@ -48,7 +45,7 @@ public class FinanceFreightForwarderPayableService : IFinanceFreightForwarderPay
         var receipt = await _receiptRepo.GetByIdAsync(receiptId);
         if (receipt == null || !receipt.IsFreightForwarderPayment)
             return null;
-        if (receipt.Status < ReceiptApproved || receipt.Status == 4)
+        if (!FinanceReceiptStatusCode.IsConfirmed(receipt.Status))
             return null;
 
         var payments = (await _paymentRepo.FindAsync(p => p.FinanceReceiptId == receiptId))
@@ -88,8 +85,8 @@ public class FinanceFreightForwarderPayableService : IFinanceFreightForwarderPay
             ?? throw new InvalidOperationException("收款单不存在");
         if (!receipt.IsFreightForwarderPayment)
             throw new InvalidOperationException("该收款单未标记货代付款");
-        if (receipt.Status < ReceiptApproved || receipt.Status == 4)
-            throw new InvalidOperationException("收款单未审核通过，不可登记货代付款");
+        if (!FinanceReceiptStatusCode.IsConfirmed(receipt.Status))
+            throw new InvalidOperationException("收款单未确认，不可登记货代付款");
 
         var companyId = string.IsNullOrWhiteSpace(request.FreightForwarderCompanyId)
             ? receipt.FreightForwarderCompanyId

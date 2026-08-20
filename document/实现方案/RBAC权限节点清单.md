@@ -49,13 +49,14 @@
 
 ## 三、待办审批绑定的业务权限（`ApprovalsController`）
 
+收款单已取消审核，**不再**出现在待审批。确认在收款记录页完成，见 [收款单状态-设计与实现](../System/财务/收款单状态-设计与实现.md)。
+
 | 业务类型 | PermissionCode（审批操作依赖） |
 |----------|--------------------------------|
 | VENDOR | `vendor.write` |
 | SALES_ORDER | `sales-order.write` |
 | PURCHASE_ORDER | `purchase-order.write` |
 | CUSTOMER | `customer.write` |
-| FINANCE_RECEIPT | `finance-receipt.write` |
 | FINANCE_PAYMENT | `finance-payment.write` |
 
 ---

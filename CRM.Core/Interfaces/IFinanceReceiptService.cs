@@ -17,7 +17,9 @@ namespace CRM.Core.Interfaces
         Task ForceDeleteAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName);
         /// <summary>反核销：撤销本单全部核销（主单状态不变）；须无预收池入账。</summary>
         Task<FinanceReceipt> ReverseVerificationAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName);
-        Task UpdateStatusAsync(string id, short status, string? actingUserId = null);
+        /// <summary>确认收款单（新建 → 确认），写操作日志。</summary>
+        Task ConfirmAsync(string id, string? actingUserId = null, string? actingUserName = null);
+        Task UpdateStatusAsync(string id, short status, string? actingUserId = null, string? actingUserName = null);
         Task VerifyReceiptItemAsync(string receiptItemId, string sellInvoiceId, decimal amount, string? actingUserId = null);
         Task<PagedResult<FinanceReceipt>> GetPagedAsync(FinanceReceiptQueryRequest request);
     }

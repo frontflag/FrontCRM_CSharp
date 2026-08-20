@@ -32,6 +32,12 @@ public static class OperationLogActionTypes
     /// <summary>付款单反核销（付款完成回滚至审核通过）。</summary>
     public const string FinancePaymentReverseVerification = "付款反核销";
 
+    /// <summary>收款单确认（新建 → 确认）。</summary>
+    public const string FinanceReceiptConfirm = "收款确认";
+
+    /// <summary>收款单取消。</summary>
+    public const string FinanceReceiptCancel = "收款取消";
+
     /// <summary>收款单反核销（撤销核销流水，主单状态不变）。</summary>
     public const string FinanceReceiptReverseVerification = "收款反核销";
 

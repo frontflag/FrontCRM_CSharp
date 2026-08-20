@@ -30,7 +30,7 @@ export const financeAnalyticsDefsZh = {
     received: {
       chart: '已收款',
       dataSource: '收款记录',
-      text: '区间内、状态为已收款的收款单金额合计（按收款日落入区间），再折算美元。'
+      text: '区间内、状态为确认的收款单金额合计（按收款日落入区间），再折算美元。'
     },
     issuedPurchaseInvoice: {
       chart: '已开进项发票',

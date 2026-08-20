@@ -143,7 +143,7 @@ namespace CRM.Core.Models.Finance
         public string? Payer { get; set; }
 
         /// <summary>
-        /// 状态 (0:草稿 1:待审核 2:已审核 3:已收款 4:已取消)
+        /// 状态 (0:新建 3:确认 4:取消；历史 1 视为新建，2 视为确认)
         /// </summary>
         public short Status { get; set; } = 0;
 
