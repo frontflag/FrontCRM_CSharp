@@ -34,9 +34,9 @@ export function isPoProgressTabDimension(
   return dim === 'payment' || dim === 'purchase' || dim === 'stockIn' || dim === 'invoice'
 }
 
-export function readPoItemTabMode(): PoItemTabModeDimension {
+export function readPoItemTabMode(storageKey = TAB_MODE_KEY): PoItemTabModeDimension {
   try {
-    const raw = localStorage.getItem(TAB_MODE_KEY)
+    const raw = localStorage.getItem(storageKey)
     if (raw && isTabModeDimension(raw)) return raw
     return 'off'
   } catch {
@@ -44,9 +44,9 @@ export function readPoItemTabMode(): PoItemTabModeDimension {
   }
 }
 
-export function writePoItemTabMode(dimension: PoItemTabModeDimension): void {
+export function writePoItemTabMode(dimension: PoItemTabModeDimension, storageKey = TAB_MODE_KEY): void {
   try {
-    localStorage.setItem(TAB_MODE_KEY, dimension)
+    localStorage.setItem(storageKey, dimension)
   } catch {
     /* ignore quota / private mode */
   }

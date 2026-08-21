@@ -78,6 +78,16 @@ public sealed class PurchaseOrderItemListQueryRequest
     public string? QuickFilter { get; set; }
 
     /// <summary>
+    /// 备货采购清单：锁定备货类型、不按采购员数据范围过滤，并填充 <see cref="PurchaseOrderItemListLineRaw.StockingAvailableQty"/>。
+    /// </summary>
+    public bool StockingPurchaseSharedList { get; set; }
+
+    /// <summary>
+    /// 备货采购清单：仅保留 <see cref="PurchaseOrderItemListLineRaw.StockingAvailableQty"/> &gt; 0 的行。
+    /// </summary>
+    public bool HasAvailableStock { get; set; }
+
+    /// <summary>
     /// 分析数据集：<c>listFilter</c>（默认，跟列表筛选）或 <c>reportApproved</c>（报表成单）。
     /// </summary>
     public string? AnalyticsDataset { get; set; }
@@ -129,6 +139,8 @@ public sealed class PurchaseOrderItemListLineRaw
     public decimal Cost { get; set; }
     public short Currency { get; set; }
     public DateTime? DeliveryDate { get; set; }
+    /// <summary>同 PN+品牌备货库存可用量合计（仅备货采购清单填充）。</summary>
+    public int StockingAvailableQty { get; set; }
 }
 
 /// <summary>采购订单明细列表行（与 <c>GET /api/v1/purchase-orders/items</c> 响应字段一致，供嵌入场景复用）。</summary>
@@ -159,4 +171,5 @@ public sealed class PurchaseOrderItemListLineDto
     public decimal Cost { get; set; }
     public decimal LineTotal { get; set; }
     public short Currency { get; set; }
+    public int StockingAvailableQty { get; set; }
 }

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using System.Collections.Generic;
 using CRM.Core.Interfaces;
 using CRM.Core.Utilities;
 
@@ -66,19 +67,30 @@ public static class OrderItemExportHttp
     public static string BuildPurchaseOrderItemCsv(
         IReadOnlyList<PurchaseOrderItemListLineDto> items,
         bool hideParty,
-        bool hideAmount)
+        bool hideAmount,
+        bool includeStockingAvailableQty = false)
     {
         var sb = new StringBuilder();
-        sb.AppendLine(string.Join(',',
+        var headers = new List<string>
+        {
             "采购订单明细", "采购订单号", "货代单号", "明细状态",
             "供应商中文", "供应商英文", "采购员",
-            "物料型号", "品牌", "数量",
-            "单价", "单价币别", "行金额", "行金额币别",
+            "物料型号", "品牌",
+            includeStockingAvailableQty ? "采购数量" : "数量"
+        };
+        if (includeStockingAvailableQty)
+            headers.Add("可用库存数量");
+        headers.AddRange(
+        [
+            includeStockingAvailableQty ? "采购单价" : "单价", "单价币别", "行金额", "行金额币别",
             "创建日期", "创建人",
-            "请款进度", "付款进度", "采购进度", "入库进度", "发票进度"));
+            "请款进度", "付款进度", "采购进度", "入库进度", "发票进度"
+        ]);
+        sb.AppendLine(string.Join(',', headers));
         foreach (var r in items)
         {
-            sb.AppendLine(string.Join(',',
+            var cells = new List<string>
+            {
                 InventoryExportHttp.CsvCell(r.PurchaseOrderItemCode),
                 InventoryExportHttp.CsvCell(r.PurchaseOrderCode),
                 InventoryExportHttp.CsvCell(r.FreightForwarderOrderNo),
@@ -88,7 +100,12 @@ public static class OrderItemExportHttp
                 InventoryExportHttp.CsvCell(r.PurchaseUserName),
                 InventoryExportHttp.CsvCell(r.Pn),
                 InventoryExportHttp.CsvCell(r.Brand),
-                InventoryExportHttp.CsvCell(InventoryExportHttp.FormatDecimal(r.Qty)),
+                InventoryExportHttp.CsvCell(InventoryExportHttp.FormatDecimal(r.Qty))
+            };
+            if (includeStockingAvailableQty)
+                cells.Add(InventoryExportHttp.CsvCell(r.StockingAvailableQty.ToString(CultureInfo.InvariantCulture)));
+            cells.AddRange(
+            [
                 AmountCell(hideAmount, r.Cost),
                 CurrencyCell(hideAmount, r.Currency),
                 AmountCell(hideAmount, r.LineTotal),
@@ -97,8 +114,11 @@ public static class OrderItemExportHttp
                 InventoryExportHttp.CsvCell(r.CreateUserName),
                 InventoryExportHttp.CsvCell(r.PaymentRequestProgressStatus >= 1 ? "已申请" : "待申请"),
                 InventoryExportHttp.CsvCell(PoProgressLabel("payment", r.PaymentProgressStatus)),
+                InventoryExportHttp.CsvCell(PoProgressLabel("purchase", r.PurchaseProgressStatus)),
                 InventoryExportHttp.CsvCell(PoProgressLabel("stockIn", r.StockInProgressStatus)),
-                InventoryExportHttp.CsvCell(PoProgressLabel("invoice", r.InvoiceProgressStatus))));
+                InventoryExportHttp.CsvCell(PoProgressLabel("invoice", r.InvoiceProgressStatus))
+            ]);
+            sb.AppendLine(string.Join(',', cells));
         }
 
         return sb.ToString();
@@ -146,6 +166,7 @@ public static class OrderItemExportHttp
             Pn = r.Pn,
             Brand = r.Brand,
             Qty = r.Qty,
+            StockingAvailableQty = r.StockingAvailableQty,
             Cost = canViewAmount ? r.Cost : 0m,
             LineTotal = canViewAmount ? r.Qty * r.Cost : 0m,
             Currency = r.Currency

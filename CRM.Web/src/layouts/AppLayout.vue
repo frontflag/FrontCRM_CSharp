@@ -528,6 +528,12 @@
               class="submenu-item"
               active-class="active"
             >{{ t('layout.menu.purchaseOrderItems') }}</router-link>
+            <router-link
+              v-if="canShowStockingPurchaseList"
+              to="/stocking-purchase-items"
+              class="submenu-item"
+              active-class="active"
+            >{{ t('layout.menu.stockingPurchaseItems') }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
 
@@ -1679,6 +1685,7 @@ import ArrivalNoticeSearchPanel from '@/components/Logistics/ArrivalNoticeSearch
 import QcSearchPanel from '@/components/Logistics/QcSearchPanel.vue'
 import { canAccessCustomsModule } from '@/utils/departmentModuleGate'
 import { canAccessInventoryOpsCheck } from '@/utils/inventoryOpsCheckAccess'
+import { canAccessStockingPurchaseList } from '@/utils/stockingPurchaseListAccess'
 import {
   collapsedSidebarMenuGroups,
   defaultSidebarMenuGroups,
@@ -2501,6 +2508,19 @@ watch(
       restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-ops' })
       return
     }
+    if (name === 'StockingPurchaseItemList' || name === 'StockingPurchaseOrderDetail') {
+      rightTabs.value = [{ id: 'r4', labelKey: 'layout.auxTabs.help' }]
+      salesOrderItemOpsStore.clear()
+      purchaseOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
+      customsDeclarationOpsStore.clear()
+      arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
+      materialIntelLookupStore.clearBound()
+      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r4' })
+      return
+    }
     if (name === 'PurchaseOrderItemList') {
       rightTabs.value = [
         { id: 'r-ops', labelKey: 'layout.auxTabs.ops' },
@@ -2988,6 +3008,7 @@ const pageTitleMap: Record<string, string> = {
   '/quotes/create': 'layout.menu.quoteManagement',
   '/purchase-orders': 'layout.menu.purchaseOrders',
   '/purchase-order-items': 'layout.menu.purchaseOrderItems',
+  '/stocking-purchase-items': 'layout.menu.stockingPurchaseItems',
   '/purchase-requisitions': 'layout.menu.purchaseRequisitions',
   '/logistics/arrival-notices': 'layout.menu.arrivalNotices',
   '/logistics/qc': 'layout.menu.qualityCheck',
@@ -3083,6 +3104,8 @@ const routeMetaTitleKeyMap: Record<string, string> = {
   '销售订单': 'layout.menu.salesOrders',
   '销售订单明细': 'layout.menu.salesOrderItems',
   '采购订单明细': 'layout.menu.purchaseOrderItems',
+  '备货采购清单': 'layout.menu.stockingPurchaseItems',
+  '备货采购清单详情': 'layout.menu.stockingPurchaseItemDetail',
   '报关公司': 'customsPages.brokers.title',
   '报关单': 'customsPages.declarations.title',
   '报关明细': 'customsPages.items.title',
@@ -3183,6 +3206,9 @@ const handleLogout = async () => {
 }
 
 const hasPermission = (code: string) => authStore.hasPermission(code)
+const canShowStockingPurchaseList = computed(() =>
+  canAccessStockingPurchaseList(authStore.user, authStore.hasPermission('purchase-order.read'))
+)
 const identityType = computed(() => authStore.user?.identityType ?? 0)
 const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const isSysManager = computed(() => authStore.user?.isSysManager === true)
@@ -3331,6 +3357,8 @@ watch(
       p === '/purchase-orders' ||
       p.startsWith('/purchase-orders/') ||
       p === '/purchase-order-items' ||
+      p === '/stocking-purchase-items' ||
+      p.startsWith('/stocking-purchase-items/') ||
       p === '/purchase-requisitions' ||
       p.startsWith('/purchase-requisitions/')
     ) {

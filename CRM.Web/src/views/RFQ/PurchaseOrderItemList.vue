@@ -8,7 +8,7 @@
               <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
             </svg>
           </div>
-          <h1 class="page-title">{{ t('purchaseOrderItemList.title') }}</h1>
+          <h1 class="page-title">{{ pageTitle }}</h1>
         </div>
         <div class="count-badge">{{ t('purchaseOrderItemList.totalCount', { total }) }}</div>
       </div>
@@ -129,7 +129,7 @@
         </el-select>
 
         <el-select
-          v-if="tabModeDimension !== 'orderType'"
+          v-if="!isStockingPurchaseList && tabModeDimension !== 'orderType'"
           v-model="filters.orderType"
           :placeholder="t('purchaseOrderItemList.filters.allOrderTypes')"
           clearable
@@ -241,6 +241,16 @@
           </el-select>
         </template>
 
+        <el-checkbox
+          v-if="isStockingPurchaseList"
+          v-model="filters.hasAvailableStock"
+          class="filter-checkbox-has-stock"
+          border
+          @change="runSearch"
+        >
+          {{ t('stockingPurchaseItemList.filters.hasAvailableStock') }}
+        </el-checkbox>
+
         <button type="button" class="btn-primary btn-sm" :disabled="loading" @click="runSearch">
           {{ t('purchaseOrderItemList.filters.search') }}
         </button>
@@ -248,6 +258,7 @@
           {{ t('purchaseOrderItemList.filters.reset') }}
         </button>
         <button
+          v-if="!isStockingPurchaseList"
           class="btn-ghost btn-sm btn-board-active"
           type="button"
           @click="toggleViewMode"
@@ -335,7 +346,7 @@
     <CrmDataTable
       ref="tableRef"
       class="quantum-table-block el-table-host"
-      column-layout-key="purchase-order-item-list-main"
+      :column-layout-key="tableColumnLayoutKey"
       :columns="purchaseOrderItemColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -430,7 +441,7 @@
               {{ t('purchaseOrderItemList.actions.detail') }}
             </el-button>
             <el-button
-              v-if="canCreateArrivalNotice && purchaseOrderAllowsArrivalNotice(row)"
+              v-if="!isStockingPurchaseList && canCreateArrivalNotice && purchaseOrderAllowsArrivalNotice(row)"
               link
               type="warning"
               size="small"
@@ -439,7 +450,7 @@
               {{ t('purchaseOrderItemList.actions.notifyArrival') }}
             </el-button>
             <el-button
-              v-if="row.canApplyPayment"
+              v-if="!isStockingPurchaseList && row.canApplyPayment"
               link
               type="warning"
               size="small"
@@ -459,12 +470,12 @@
                   <span class="op-more-item op-more-item--primary">{{ t('purchaseOrderItemList.actions.detail') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item
-                  v-if="canCreateArrivalNotice && purchaseOrderAllowsArrivalNotice(row)"
+                  v-if="!isStockingPurchaseList && canCreateArrivalNotice && purchaseOrderAllowsArrivalNotice(row)"
                   @click.stop="openArrivalDialog(row)"
                 >
                   <span class="op-more-item op-more-item--warning">{{ t('purchaseOrderItemList.actions.notifyArrival') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item v-if="row.canApplyPayment" @click.stop="openPaymentDialog(row)">
+                <el-dropdown-item v-if="!isStockingPurchaseList && row.canApplyPayment" @click.stop="openPaymentDialog(row)">
                   <span class="op-more-item op-more-item--warning">{{ t('purchaseOrderItemList.actions.applyPayment') }}</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
@@ -931,9 +942,22 @@ const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { canWritePo } = usePurchaseOrderWriteGate()
 const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const purchaseOrderItemOpsStore = usePurchaseOrderItemOpsPanelStore()
+const isStockingPurchaseList = computed(() => route.meta.stockingPurchaseList === true)
+const pageTitle = computed(() =>
+  isStockingPurchaseList.value ? t('stockingPurchaseItemList.title') : t('purchaseOrderItemList.title')
+)
+const tableColumnLayoutKey = computed(() =>
+  isStockingPurchaseList.value ? 'stocking-purchase-list-main-v2' : 'purchase-order-item-list-main'
+)
 const viewMode = ref<'list' | 'board'>('list')
 useListBoardHelpOverride('pages/采购订单明细看板_MENU_PURCHASE_ORDER_ITEMS_BOARD.md', viewMode)
-const tabModeDimension = ref<PoItemTabModeDimension>(readPoItemTabMode())
+const tabModeStorageKey = isStockingPurchaseList.value
+  ? 'crm.stocking-po-item-list.tab-mode'
+  : undefined
+const tabModeDimension = ref<PoItemTabModeDimension>(readPoItemTabMode(tabModeStorageKey))
+if (isStockingPurchaseList.value && tabModeDimension.value === 'orderType') {
+  tabModeDimension.value = 'off'
+}
 const settingsMenuOpen = ref(false)
 const settingsSubmenuOpen = ref(false)
 
@@ -953,7 +977,7 @@ function tabModeDimensionLabel(dim: Exclude<PoItemTabModeDimension, 'off'>) {
 function closeFilterTabMode() {
   if (tabModeDimension.value === 'off') return
   tabModeDimension.value = 'off'
-  writePoItemTabMode('off')
+  writePoItemTabMode('off', tabModeStorageKey)
   settingsMenuOpen.value = false
   settingsSubmenuOpen.value = false
 }
@@ -974,7 +998,7 @@ const canViewVendor = computed(
 
 async function onPurchaseOrderItemRowDblClick(row: Record<string, unknown>, _column: unknown, event?: MouseEvent) {
   onCrmDetailListRowDblClick(row, _column, event, {
-    canEdit: canWritePo.value && !maskPurchaseSensitiveFields.value,
+    canEdit: canWritePo.value && !maskPurchaseSensitiveFields.value && !isStockingPurchaseList.value,
     onEdit: goEdit,
     onDefault: navigatePurchaseOrderItemDetail,
   })
@@ -986,7 +1010,7 @@ function navigatePurchaseOrderItemDetail(row: Record<string, unknown>) {
   const purchaseOrderItemId = String(row?.purchaseOrderItemId ?? '').trim()
   if (!purchaseOrderId || !purchaseOrderItemId) return
   router.push({
-    name: 'PurchaseOrderDetail',
+    name: isStockingPurchaseList.value ? 'StockingPurchaseOrderDetail' : 'PurchaseOrderDetail',
     params: { id: purchaseOrderId },
     query: { purchaseOrderItemId }
   })
@@ -1059,8 +1083,9 @@ const purchaseOrderItemColumns = computed<CrmTableColumnDef[]>(() => {
     canViewAmount: canViewAmount.value,
     opColWidth: opColWidth.value,
     opColMinWidth: opColMinWidth.value,
-    withSelection: true,
-    withActions: true
+    withSelection: !isStockingPurchaseList.value,
+    withActions: true,
+    withStockingAvailableQty: isStockingPurchaseList.value
   })
 })
 
@@ -1150,10 +1175,12 @@ const filters = reactive({
   paymentProgressStatus: [] as number[],
   purchaseProgressStatus: [] as number[],
   stockInProgressStatus: [] as number[],
-  invoiceProgressStatus: [] as number[]
+  invoiceProgressStatus: [] as number[],
+  hasAvailableStock: false
 })
 
 const activePreset = computed((): PoItemListPresetId | null => {
+  if (isStockingPurchaseList.value) return null
   const p = route.query.preset
   return typeof p === 'string' && isPoItemListPresetId(p) ? p : null
 })
@@ -1161,16 +1188,17 @@ const activePreset = computed((): PoItemListPresetId | null => {
 const presetActive = computed(() => !!activePreset.value)
 
 /** preset 打开时隐藏进度类页签模式项，保留币别与订单类型 */
-const visibleTabModeMenuOptions = computed(() =>
-  presetActive.value
+const visibleTabModeMenuOptions = computed(() => {
+  const base = presetActive.value
     ? PO_ITEM_TAB_MODE_OPTIONS.filter((dim) => dim === 'currency' || dim === 'orderType')
     : PO_ITEM_TAB_MODE_OPTIONS
-)
+  return isStockingPurchaseList.value ? base.filter((dim) => dim !== 'orderType') : base
+})
 
 function enableFilterTabMode(dim: Exclude<PoItemTabModeDimension, 'off'>) {
   if (isPoProgressTabDimension(dim) && presetActive.value) return
   tabModeDimension.value = dim
-  writePoItemTabMode(dim)
+  writePoItemTabMode(dim, tabModeStorageKey)
   settingsMenuOpen.value = false
   settingsSubmenuOpen.value = false
 }
@@ -1345,9 +1373,10 @@ function collectKeywordQuery(): Record<string, string> {
   const pnk = String(filters.pn ?? '').trim()
   if (pnk) keywords.pn = pnk
   if (filters.transactionCurrency) keywords.transactionCurrency = filters.transactionCurrency
-  if (filters.orderType !== undefined && filters.orderType !== null) {
+  if (!isStockingPurchaseList.value && filters.orderType !== undefined && filters.orderType !== null) {
     keywords.orderType = String(filters.orderType)
   }
+  if (isStockingPurchaseList.value && filters.hasAvailableStock) keywords.hasAvailableStock = '1'
   return keywords
 }
 
@@ -1370,10 +1399,14 @@ function buildListRouteQueryFromUi(): Record<string, string> {
   return buildPoItemListRouteQuery({ keywords, advanced })
 }
 
+function listRouteName() {
+  return isStockingPurchaseList.value ? 'StockingPurchaseItemList' : 'PurchaseOrderItemList'
+}
+
 /** 筛选条件变更后查询：回到第一页（与分页切换区分）。 */
 function runSearch() {
   page.value = 1
-  router.replace({ name: 'PurchaseOrderItemList', query: buildListRouteQueryFromUi() })
+  router.replace({ name: listRouteName(), query: buildListRouteQueryFromUi() })
 }
 
 function clearPresetChip() {
@@ -1385,7 +1418,7 @@ function parseProgressQuery(v: unknown): number[] {
 }
 
 function syncFiltersFromRoute() {
-  if (route.name !== 'PurchaseOrderItemList') return
+  if (route.name !== 'PurchaseOrderItemList' && route.name !== 'StockingPurchaseItemList') return
   const q = route.query
   filters.purchaseOrderCode = typeof q.purchaseOrderCode === 'string' ? q.purchaseOrderCode : ''
   filters.freightForwarderOrderNo = typeof q.freightForwarderOrderNo === 'string' ? q.freightForwarderOrderNo : ''
@@ -1396,6 +1429,10 @@ function syncFiltersFromRoute() {
     q.transactionCurrency === 'rmb' || q.transactionCurrency === 'foreign' ? q.transactionCurrency : ''
   const ot = typeof q.orderType === 'string' ? Number(q.orderType) : NaN
   filters.orderType = ot === 1 || ot === 2 || ot === 3 ? ot : undefined
+  const hasStock = q.hasAvailableStock
+  filters.hasAvailableStock =
+    isStockingPurchaseList.value &&
+    (hasStock === '1' || hasStock === 'true' || hasStock === 'True')
 
   const preset = activePreset.value
   if (preset) {
@@ -1740,8 +1777,11 @@ function buildItemListQueryParams(): Record<string, unknown> {
   if (canViewVendor.value && filters.vendorName.trim()) params.vendorName = filters.vendorName.trim()
   if (canViewPurchaseUser.value && filters.purchaseUserName.trim()) params.purchaseUserName = filters.purchaseUserName.trim()
   if (filters.pn.trim()) params.pn = filters.pn.trim()
-  if (filters.orderType !== undefined && filters.orderType !== null) params.orderType = filters.orderType
+  if (!isStockingPurchaseList.value && filters.orderType !== undefined && filters.orderType !== null) {
+    params.orderType = filters.orderType
+  }
   if (filters.transactionCurrency) params.transactionCurrency = filters.transactionCurrency
+  if (isStockingPurchaseList.value && filters.hasAvailableStock) params.hasAvailableStock = true
   const qf = route.query.quickFilter
   if (typeof qf === 'string' && qf.trim() && activePreset.value) {
     params.quickFilter = qf.trim()
@@ -1771,9 +1811,9 @@ async function loadList() {
       pageSize: pageSize.value
     }
 
-    const data = (await purchaseOrderApi.getItemLinesPage(
-      params as Parameters<typeof purchaseOrderApi.getItemLinesPage>[0]
-    )) as {
+    const data = (await (isStockingPurchaseList.value
+      ? purchaseOrderApi.getStockingItemLinesPage(params as Parameters<typeof purchaseOrderApi.getStockingItemLinesPage>[0])
+      : purchaseOrderApi.getItemLinesPage(params as Parameters<typeof purchaseOrderApi.getItemLinesPage>[0]))) as {
       items?: any[]
       total?: number
       page?: number
@@ -1802,7 +1842,11 @@ async function handleExport() {
   if (exporting.value) return
   try {
     await ElMessageBox.confirm(
-      t('purchaseOrderItemList.messages.exportConfirmMessage'),
+      t(
+        isStockingPurchaseList.value
+          ? 'stockingPurchaseItemList.messages.exportConfirmMessage'
+          : 'purchaseOrderItemList.messages.exportConfirmMessage'
+      ),
       t('purchaseOrderItemList.messages.exportConfirmTitle'),
       { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
     )
@@ -1811,8 +1855,13 @@ async function handleExport() {
   }
   exporting.value = true
   try {
-    const blob = await purchaseOrderApi.exportItemLines(buildItemListQueryParams())
-    downloadCsvBlob(blob, '采购订单明细.csv')
+    const blob = isStockingPurchaseList.value
+      ? await purchaseOrderApi.exportStockingItemLines(buildItemListQueryParams())
+      : await purchaseOrderApi.exportItemLines(buildItemListQueryParams())
+    downloadCsvBlob(
+      blob,
+      isStockingPurchaseList.value ? t('stockingPurchaseItemList.exportFileName') : '采购订单明细.csv'
+    )
     ElMessage.success(t('purchaseOrderItemList.messages.exportSuccess'))
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : t('purchaseOrderItemList.messages.exportFailed'))
@@ -1823,7 +1872,10 @@ async function handleExport() {
 
 function resetFilters() {
   page.value = 1
-  router.replace({ name: 'PurchaseOrderItemList', query: {} })
+  router.replace({
+    name: isStockingPurchaseList.value ? 'StockingPurchaseItemList' : 'PurchaseOrderItemList',
+    query: {}
+  })
 }
 
 function onPageChange(nextPage: number) {
@@ -1838,10 +1890,18 @@ function onPageSizeChange(nextSize: number) {
 }
 
 function goDetail(row: any) {
-  router.push({ name: 'PurchaseOrderDetail', params: { id: row.purchaseOrderId } })
+  const purchaseOrderId = String(row?.purchaseOrderId ?? '').trim()
+  const purchaseOrderItemId = String(row?.purchaseOrderItemId ?? '').trim()
+  if (!purchaseOrderId) return
+  router.push({
+    name: isStockingPurchaseList.value ? 'StockingPurchaseOrderDetail' : 'PurchaseOrderDetail',
+    params: { id: purchaseOrderId },
+    query: purchaseOrderItemId ? { purchaseOrderItemId } : {}
+  })
 }
 
 onMounted(() => {
+  if (isStockingPurchaseList.value) return
   purchaseOrderItemOpsStore.registerHandlers({
     applyArrival: (row) => {
       void openArrivalDialog(row)
@@ -1856,7 +1916,7 @@ watch(
   () => [route.name, route.query] as const,
   async () => {
     syncFiltersFromRoute()
-    if (route.name === 'PurchaseOrderItemList') {
+    if (route.name === 'PurchaseOrderItemList' || route.name === 'StockingPurchaseItemList') {
       page.value = 1
       await loadList()
     }
@@ -2133,6 +2193,14 @@ html[data-theme='dark'] .po-filter-tabs__item:not(.is-active) {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+.filter-checkbox-has-stock {
+  flex-shrink: 0;
+
+  :deep(.el-checkbox__label) {
+    color: $text-primary;
+    font-size: 12px;
+  }
 }
 .filter-field-label {
   font-size: 12px;

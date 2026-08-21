@@ -697,6 +697,8 @@ const zhCN = {
       purchaseRequisitions: '采购申请',
       purchaseOrders: '采购订单',
       purchaseOrderItems: '采购订单明细',
+      stockingPurchaseItems: '备货采购清单',
+      stockingPurchaseItemDetail: '备货采购清单详情',
       purchaseOrderDetail: '采购订单详情',
       stockInManagement: '入库管理',
       customsGroup: '报关',
@@ -6017,6 +6019,7 @@ const zhCN = {
       pn: '物料型号',
       brand: '品牌',
       qty: '数量',
+      stockingAvailableQty: '可用库存数量',
       paymentRequestProgressStatus: '申请付款状态',
       paymentProgressStatus: '付款状态',
       purchaseProgressStatus: '采购状态',
@@ -6242,6 +6245,21 @@ const zhCN = {
       exportConfirmMessage: '将按当前筛选条件导出采购订单明细，最多 50000 条，是否继续？',
       exportSuccess: '导出成功',
       exportFailed: '导出失败'
+    }
+  },
+  stockingPurchaseItemList: {
+    title: '备货采购清单',
+    exportFileName: '备货采购清单.csv',
+    columns: {
+      qty: '采购数量',
+      cost: '采购单价',
+      stockingAvailableQty: '可用库存数量'
+    },
+    filters: {
+      hasAvailableStock: '有可用库存'
+    },
+    messages: {
+      exportConfirmMessage: '将按当前筛选条件导出备货采购清单，最多 50000 条，是否继续？'
     }
   },
   arrivalNoticeList: {

@@ -701,6 +701,8 @@ const enUS = {
       purchaseRequisitions: 'Purchase Requisitions',
       purchaseOrders: 'Purchase Orders',
       purchaseOrderItems: 'Purchase Order Items',
+      stockingPurchaseItems: 'Stocking Purchase List',
+      stockingPurchaseItemDetail: 'Stocking Purchase Detail',
       purchaseOrderDetail: 'Purchase Order Detail',
       stockInManagement: 'Stock-In Buz',
       customsGroup: 'Customs',
@@ -6040,6 +6042,7 @@ const enUS = {
       pn: 'Material / MPN',
       brand: 'Brand',
       qty: 'Qty',
+      stockingAvailableQty: 'Available stock qty',
       paymentRequestProgressStatus: 'Payment request',
       paymentProgressStatus: 'Payment',
       purchaseProgressStatus: 'Purchase',
@@ -6266,6 +6269,21 @@ const enUS = {
       exportConfirmMessage: 'Export purchase order lines with current filters (max 50,000 rows)?',
       exportSuccess: 'Export succeeded',
       exportFailed: 'Export failed'
+    }
+  },
+  stockingPurchaseItemList: {
+    title: 'Stocking purchase list',
+    exportFileName: 'stocking-purchase-list.csv',
+    columns: {
+      qty: 'Purchase qty',
+      cost: 'Purchase unit price',
+      stockingAvailableQty: 'Available stock qty'
+    },
+    filters: {
+      hasAvailableStock: 'Has available stock'
+    },
+    messages: {
+      exportConfirmMessage: 'Export stocking purchase lines with current filters (max 50,000 rows)?'
     }
   },
   arrivalNoticeList: {

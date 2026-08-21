@@ -33,6 +33,7 @@ public static class ExportOperationAudit
     public const string FinanceFfPayableListRecordCode = "FINANCE_FF_PAYABLE_LIST";
     public const string SalesOrderItemListRecordCode = "SALES_ORDER_ITEM_LIST";
     public const string PurchaseOrderItemListRecordCode = "PURCHASE_ORDER_ITEM_LIST";
+    public const string StockingPurchaseItemListRecordCode = "STOCKING_PURCHASE_ITEM_LIST";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -359,7 +360,7 @@ public static class ExportOperationAudit
             ExportAuditKinds.FinanceSellInvoiceList => FinanceSellInvoiceListLabels,
             ExportAuditKinds.FinanceFfPayableList => FinanceFfPayableListLabels,
             ExportAuditKinds.SalesOrderItemList => SalesOrderItemListLabels,
-            ExportAuditKinds.PurchaseOrderItemList => PurchaseOrderItemListLabels,
+            ExportAuditKinds.PurchaseOrderItemList or ExportAuditKinds.StockingPurchaseItemList => PurchaseOrderItemListLabels,
             _ => BatchLabels
         };
     }
@@ -559,7 +560,8 @@ public static class ExportOperationAudit
         ["paymentProgressStatus"] = "付款状态",
         ["purchaseProgressStatus"] = "采购状态",
         ["stockInProgressStatus"] = "入库状态",
-        ["invoiceProgressStatus"] = "开票状态"
+        ["invoiceProgressStatus"] = "开票状态",
+        ["hasAvailableStock"] = "有可用库存"
     };
 
     private static string? MapFinanceFilterDisplayValue(string exportKind, string key, string text)
@@ -716,7 +718,8 @@ public static class ExportOperationAudit
     private static string? MapOrderItemFilterDisplayValue(string exportKind, string key, string text)
     {
         var isSo = string.Equals(exportKind, ExportAuditKinds.SalesOrderItemList, StringComparison.OrdinalIgnoreCase);
-        var isPo = string.Equals(exportKind, ExportAuditKinds.PurchaseOrderItemList, StringComparison.OrdinalIgnoreCase);
+        var isPo = string.Equals(exportKind, ExportAuditKinds.PurchaseOrderItemList, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(exportKind, ExportAuditKinds.StockingPurchaseItemList, StringComparison.OrdinalIgnoreCase);
         if (!isSo && !isPo) return null;
 
         if (key.Equals("transactionCurrency", StringComparison.OrdinalIgnoreCase))
@@ -738,6 +741,9 @@ public static class ExportOperationAudit
 
         if (key.Equals("quickFilter", StringComparison.OrdinalIgnoreCase))
             return MapOrderItemQuickFilterLabel(text);
+
+        if (key.Equals("hasAvailableStock", StringComparison.OrdinalIgnoreCase))
+            return MapYesNo(text);
 
         if (key.Equals("stockOutPending", StringComparison.OrdinalIgnoreCase)
             || key.Equals("receiptPending", StringComparison.OrdinalIgnoreCase)

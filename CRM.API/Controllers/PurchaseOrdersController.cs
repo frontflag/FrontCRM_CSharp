@@ -574,6 +574,193 @@ namespace CRM.API.Controllers
             }
         }
 
+        /// <summary>备货采购清单：仅 Type=2，采购侧全员可见，不按采购员范围收缩。</summary>
+        [HttpGet("stocking-items")]
+        public async Task<IActionResult> GetStockingPurchaseItemLines(
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            [FromQuery] string? purchaseOrderCode,
+            [FromQuery] string? freightForwarderOrderNo,
+            [FromQuery] string? vendorName,
+            [FromQuery] string? purchaseUserName,
+            [FromQuery] string? pn,
+            [FromQuery] string? transactionCurrency,
+            [FromQuery] List<short>? paymentProgressStatus = null,
+            [FromQuery] List<short>? purchaseProgressStatus = null,
+            [FromQuery] List<short>? stockInProgressStatus = null,
+            [FromQuery] List<short>? invoiceProgressStatus = null,
+            [FromQuery] string? hasAvailableStock = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var summary = await GetPermissionSummaryAsync(userId);
+                if (!StockingPurchaseListAccess.CanEnter(summary))
+                    return StatusCode(403, new { success = false, message = "无权查看备货采购清单" });
+
+                var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
+                var canViewVendorInfo = !mask511 && (summary?.IsSysAdmin == true
+                    || SummaryHasPermission(summary, "vendor.info.read")
+                    || SummaryHasPermission(summary, "vendor.read")
+                    || SummaryHasPermission(summary, "purchase-order.read")
+                    || SummaryHasPermission(summary, "purchase-order.write"));
+                var canViewPurchaseUser = summary?.IsSysAdmin == true
+                    || SummaryHasPermission(summary, "purchase.user.read")
+                    || SummaryHasPermission(summary, "purchase-order.read");
+
+                var request = BuildStockingPurchaseItemListRequest(
+                    userId, startDate, endDate, purchaseOrderCode, freightForwarderOrderNo,
+                    canViewVendorInfo ? vendorName : null,
+                    canViewPurchaseUser ? purchaseUserName : null,
+                    pn, transactionCurrency,
+                    paymentProgressStatus, purchaseProgressStatus, stockInProgressStatus, invoiceProgressStatus,
+                    hasAvailableStock,
+                    page, pageSize);
+
+                var result = await _purchaseOrderItemListQuery.GetPagedAsync(request, cancellationToken);
+                var loginMap = await LoadCreateUserLoginNamesForPoLinesAsync(result.Items, cancellationToken);
+                var paymentRequestFlags = await LoadPoItemIdsWithActivePaymentRequestAsync(result.Items, cancellationToken);
+                IReadOnlyDictionary<string, string> vendorEnglishMap = canViewVendorInfo
+                    ? await LoadVendorEnglishNameMapForPoLinesAsync(result.Items, cancellationToken)
+                    : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                IReadOnlyDictionary<string, string> vendorCodeMap = canViewVendorInfo
+                    ? await LoadVendorCodeMapForPoLinesAsync(result.Items, cancellationToken)
+                    : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                var items = MapPurchaseOrderItemListLines(result.Items, summary, loginMap, paymentRequestFlags, vendorEnglishMap, vendorCodeMap);
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        items,
+                        total = result.TotalCount,
+                        page = result.PageIndex,
+                        pageSize = result.PageSize
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "查询备货采购清单失败");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpGet("stocking-items/export")]
+        public async Task<IActionResult> ExportStockingPurchaseItemLines(
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            [FromQuery] string? purchaseOrderCode,
+            [FromQuery] string? freightForwarderOrderNo,
+            [FromQuery] string? vendorName,
+            [FromQuery] string? purchaseUserName,
+            [FromQuery] string? pn,
+            [FromQuery] string? transactionCurrency,
+            [FromQuery] List<short>? paymentProgressStatus = null,
+            [FromQuery] List<short>? purchaseProgressStatus = null,
+            [FromQuery] List<short>? stockInProgressStatus = null,
+            [FromQuery] List<short>? invoiceProgressStatus = null,
+            [FromQuery] string? hasAvailableStock = null,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var summary = await GetPermissionSummaryAsync(userId);
+                if (!StockingPurchaseListAccess.CanEnter(summary))
+                    return StatusCode(403, new { success = false, message = "无权导出备货采购清单" });
+
+                var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
+                var canViewVendorInfo = !mask511 && (summary?.IsSysAdmin == true
+                    || SummaryHasPermission(summary, "vendor.info.read")
+                    || SummaryHasPermission(summary, "vendor.read")
+                    || SummaryHasPermission(summary, "purchase-order.read")
+                    || SummaryHasPermission(summary, "purchase-order.write"));
+                var canViewPurchaseUser = summary?.IsSysAdmin == true
+                    || SummaryHasPermission(summary, "purchase.user.read")
+                    || SummaryHasPermission(summary, "purchase-order.read");
+                var canViewPurchaseAmount = !mask511 && (summary?.IsSysAdmin == true
+                    || (summary?.PermissionCodes?.Contains("purchase.amount.read") ?? false));
+
+                var request = BuildStockingPurchaseItemListRequest(
+                    userId, startDate, endDate, purchaseOrderCode, freightForwarderOrderNo,
+                    canViewVendorInfo ? vendorName : null,
+                    canViewPurchaseUser ? purchaseUserName : null,
+                    pn, transactionCurrency,
+                    paymentProgressStatus, purchaseProgressStatus, stockInProgressStatus, invoiceProgressStatus,
+                    hasAvailableStock,
+                    1, 20);
+
+                var (rawItems, truncated, _) = await InventoryExportHttp.CollectForExportAsync(
+                    (page, pageSize, ct) =>
+                    {
+                        request.Page = page;
+                        request.PageSize = pageSize;
+                        return _purchaseOrderItemListQuery.GetPagedAsync(request, ct);
+                    },
+                    cancellationToken: cancellationToken);
+
+                var loginMap = await LoadCreateUserLoginNamesForPoLinesAsync(rawItems, cancellationToken);
+                var paymentRequestFlags = await LoadPoItemIdsWithActivePaymentRequestAsync(rawItems, cancellationToken);
+                IReadOnlyDictionary<string, string> vendorEnglishMap = canViewVendorInfo
+                    ? await LoadVendorEnglishNameMapForPoLinesAsync(rawItems, cancellationToken)
+                    : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                var items = rawItems.Select(r => OrderItemExportHttp.ToPurchaseExportRow(
+                    r,
+                    canViewVendorInfo,
+                    canViewPurchaseAmount,
+                    canViewPurchaseUser,
+                    loginMap,
+                    paymentRequestFlags,
+                    vendorEnglishMap)).ToList();
+
+                var filters = ExportOperationAudit.NormalizeFilters(new Dictionary<string, object?>
+                {
+                    ["startDate"] = startDate,
+                    ["endDate"] = endDate,
+                    ["purchaseOrderCode"] = purchaseOrderCode,
+                    ["freightForwarderOrderNo"] = freightForwarderOrderNo,
+                    ["vendorName"] = canViewVendorInfo ? vendorName : null,
+                    ["purchaseUserName"] = canViewPurchaseUser ? purchaseUserName : null,
+                    ["pn"] = pn,
+                    ["transactionCurrency"] = transactionCurrency,
+                    ["paymentProgressStatus"] = request.PaymentProgressStatus,
+                    ["purchaseProgressStatus"] = request.PurchaseProgressStatus,
+                    ["stockInProgressStatus"] = request.StockInProgressStatus,
+                    ["invoiceProgressStatus"] = request.InvoiceProgressStatus,
+                    ["hasAvailableStock"] = request.HasAvailableStock ? true : null
+                });
+                await FinanceExportHttp.AppendListLogAsync(
+                    _exportLog,
+                    BusinessLogTypes.PurchaseOrderItem,
+                    ExportOperationAudit.StockingPurchaseItemListRecordCode,
+                    OrderItemExportActionTypes.StockingPurchaseItemListExport,
+                    ExportAuditKinds.StockingPurchaseItemList,
+                    "备货采购清单",
+                    items.Count,
+                    truncated,
+                    filters,
+                    mask511,
+                    User,
+                    cancellationToken);
+                return FinanceExportHttp.CsvFile(
+                    OrderItemExportHttp.BuildPurchaseOrderItemCsv(
+                        items,
+                        mask511 || !canViewVendorInfo,
+                        mask511 || !canViewPurchaseAmount,
+                        includeStockingAvailableQty: true),
+                    "备货采购清单.csv");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "导出备货采购清单失败");
+                return StatusCode(500, new { success = false, message = $"导出备货采购清单失败: {ex.Message}" });
+            }
+        }
+
         /// <summary>?????????????????????????????????????? company-profile/report-bundle?</summary>
         [HttpGet("{id:guid}/report-data")]
         public async Task<IActionResult> GetReportData(string id, CancellationToken cancellationToken)
@@ -633,7 +820,7 @@ namespace CRM.API.Controllers
                 var order = await _service.GetByIdAsync(id);
                 if (order == null) return NotFound(new { success = false, message = "???????" });
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessPurchaseOrderAsync(userId, order))
+                if (!string.IsNullOrWhiteSpace(userId) && !await AllowPurchaseOrderGetAsync(userId, order))
                     return StatusCode(403, new { success = false, message = "??????????" });
                 var summary = await GetPermissionSummaryAsync(userId);
                 var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
@@ -662,7 +849,7 @@ namespace CRM.API.Controllers
                 var order = await _service.GetByIdAsync(id);
                 if (order == null) return NotFound(new { success = false, message = "???????" });
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessPurchaseOrderAsync(userId, order))
+                if (!string.IsNullOrWhiteSpace(userId) && !await AllowPurchaseOrderGetAsync(userId, order))
                     return StatusCode(403, new { success = false, message = "??????????" });
 
                 var orderLineIds = (order.Items ?? new List<PurchaseOrderItem>())
@@ -1329,7 +1516,7 @@ namespace CRM.API.Controllers
                 var order = await _service.GetByIdAsync(id);
                 if (order == null) return NotFound(new { success = false, message = "???????" });
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessPurchaseOrderAsync(userId, order))
+                if (!string.IsNullOrWhiteSpace(userId) && !await AllowPurchaseOrderGetAsync(userId, order))
                     return StatusCode(403, new { success = false, message = "??????????" });
                 var logs = await _service.GetFieldChangeLogsAsync(id);
                 return Ok(new { success = true, data = logs });
@@ -1350,7 +1537,7 @@ namespace CRM.API.Controllers
                 var order = await _service.GetByIdAsync(id);
                 if (order == null) return NotFound(new { success = false, message = "???????" });
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessPurchaseOrderAsync(userId, order))
+                if (!string.IsNullOrWhiteSpace(userId) && !await AllowPurchaseOrderGetAsync(userId, order))
                     return StatusCode(403, new { success = false, message = "??????????" });
                 var items = await _service.GetDeletedOrderItemsAsync(id);
                 return Ok(new { success = true, data = items });
@@ -1375,7 +1562,7 @@ namespace CRM.API.Controllers
                 var order = await _service.GetByIdAsync(id);
                 if (order == null) return NotFound(new { success = false, message = "???????" });
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessPurchaseOrderAsync(userId, order))
+                if (!string.IsNullOrWhiteSpace(userId) && !await AllowPurchaseOrderGetAsync(userId, order))
                     return StatusCode(403, new { success = false, message = "??????????" });
 
                 var data = await _operationLogQuery.QueryAsync(new OperationLogQuery
@@ -1448,7 +1635,7 @@ namespace CRM.API.Controllers
                 var order = await _service.GetByIdAsync(id);
                 if (order == null) return NotFound(new { success = false, message = "???????" });
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessPurchaseOrderAsync(userId, order))
+                if (!string.IsNullOrWhiteSpace(userId) && !await AllowPurchaseOrderGetAsync(userId, order))
                     return StatusCode(403, new { success = false, message = "??????????" });
                 var summary = await GetPermissionSummaryAsync(userId);
                 VendorContactInfo? contact = null;
@@ -2132,6 +2319,7 @@ namespace CRM.API.Controllers
                     pn = r.Pn,
                     brand = r.Brand,
                     qty = r.Qty,
+                    stockingAvailableQty = r.StockingAvailableQty,
                     cost = costOut,
                     lineTotal,
                     paymentRequestedAmount = canViewPurchaseAmount ? r.PaymentAmountRequested : 0m,
@@ -2491,6 +2679,64 @@ namespace CRM.API.Controllers
             }
 
             return ex.Message;
+        }
+
+        private async Task<bool> AllowPurchaseOrderGetAsync(string userId, PurchaseOrder order)
+        {
+            if (await _dataPermissionService.CanAccessPurchaseOrderAsync(userId, order))
+                return true;
+            var summary = await GetPermissionSummaryAsync(userId);
+            return StockingPurchaseListAccess.CanReadStockingPurchaseOrder(summary, order.Type);
+        }
+
+        private PurchaseOrderItemListQueryRequest BuildStockingPurchaseItemListRequest(
+            string? userId,
+            string? startDate,
+            string? endDate,
+            string? purchaseOrderCode,
+            string? freightForwarderOrderNo,
+            string? vendorName,
+            string? purchaseUserName,
+            string? pn,
+            string? transactionCurrency,
+            List<short>? paymentProgressStatus,
+            List<short>? purchaseProgressStatus,
+            List<short>? stockInProgressStatus,
+            List<short>? invoiceProgressStatus,
+            string? hasAvailableStock,
+            int page,
+            int pageSize)
+        {
+            return new PurchaseOrderItemListQueryRequest
+            {
+                CurrentUserId = userId,
+                StartDate = DateTime.TryParse(startDate, out var sd) ? sd : null,
+                EndDate = DateTime.TryParse(endDate, out var ed) ? ed : null,
+                PurchaseOrderCode = string.IsNullOrWhiteSpace(purchaseOrderCode) ? null : purchaseOrderCode.Trim(),
+                FreightForwarderOrderNo = string.IsNullOrWhiteSpace(freightForwarderOrderNo) ? null : freightForwarderOrderNo.Trim(),
+                VendorName = string.IsNullOrWhiteSpace(vendorName) ? null : vendorName.Trim(),
+                PurchaseUserName = string.IsNullOrWhiteSpace(purchaseUserName) ? null : purchaseUserName.Trim(),
+                Pn = string.IsNullOrWhiteSpace(pn) ? null : pn.Trim(),
+                OrderType = PurchaseOrderItemLinkRules.PurchaseOrderTypeStocking,
+                TransactionCurrency = transactionCurrency,
+                PaymentProgressStatus = QueryShortListParser.Parse(Request.Query["paymentProgressStatus"]) ?? paymentProgressStatus,
+                PurchaseProgressStatus = QueryShortListParser.Parse(Request.Query["purchaseProgressStatus"]) ?? purchaseProgressStatus,
+                StockInProgressStatus = QueryShortListParser.Parse(Request.Query["stockInProgressStatus"]) ?? stockInProgressStatus,
+                InvoiceProgressStatus = QueryShortListParser.Parse(Request.Query["invoiceProgressStatus"]) ?? invoiceProgressStatus,
+                Page = page,
+                PageSize = pageSize,
+                StockingPurchaseSharedList = true,
+                HasAvailableStock = ParseQueryFlag(hasAvailableStock)
+            };
+        }
+
+        private static bool ParseQueryFlag(string? raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return false;
+            var s = raw.Trim();
+            return s == "1"
+                || string.Equals(s, "true", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(s, "yes", StringComparison.OrdinalIgnoreCase);
         }
     }
 

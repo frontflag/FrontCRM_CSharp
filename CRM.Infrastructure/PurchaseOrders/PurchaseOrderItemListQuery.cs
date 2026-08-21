@@ -45,6 +45,9 @@ public sealed partial class PurchaseOrderItemListQuery : IPurchaseOrderItemListQ
             .Select(x => MapLineRaw(x))
             .ToListAsync(cancellationToken);
 
+        if (request.StockingPurchaseSharedList)
+            await StockingAvailableQtyLookup.ApplyAsync(_db, slice, cancellationToken);
+
         return new PagedResult<PurchaseOrderItemListLineRaw>
         {
             Items = slice,

@@ -25,6 +25,7 @@ public static class ExportAuditKinds
 
     public const string SalesOrderItemList = "salesOrderItemList";
     public const string PurchaseOrderItemList = "purchaseOrderItemList";
+    public const string StockingPurchaseItemList = "stockingPurchaseItemList";
 }
 
 /// <summary>列表级 / 批次核销导出 ActionType。</summary>
@@ -55,6 +56,7 @@ public static class OrderItemExportActionTypes
 {
     public const string SalesOrderItemListExport = "SalesOrderItemListExport";
     public const string PurchaseOrderItemListExport = "PurchaseOrderItemListExport";
+    public const string StockingPurchaseItemListExport = "StockingPurchaseItemListExport";
 }
 
 /// <summary>批次导出请求上的来源标识（前端显式传入，避免仅凭筛选条件误挂单据）。</summary>

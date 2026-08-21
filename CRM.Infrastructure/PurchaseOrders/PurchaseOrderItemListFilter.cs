@@ -1,6 +1,7 @@
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Analytics;
+using CRM.Core.Models.Purchase;
 using CRM.Core.Utilities;
 using CRM.Infrastructure.Common;
 using CRM.Infrastructure.Data;
@@ -17,10 +18,14 @@ internal static partial class PurchaseOrderItemListFilter
         PurchaseOrderItemListQueryRequest request,
         CancellationToken cancellationToken)
     {
-        var scopedPo = await dataPermission.ApplyPurchaseOrderDataScopeAsync(
-            request.CurrentUserId,
-            db.PurchaseOrders.AsNoTracking(),
-            cancellationToken);
+        IQueryable<PurchaseOrder> scopedPo = db.PurchaseOrders.AsNoTracking();
+        if (!request.StockingPurchaseSharedList)
+        {
+            scopedPo = await dataPermission.ApplyPurchaseOrderDataScopeAsync(
+                request.CurrentUserId,
+                scopedPo,
+                cancellationToken);
+        }
 
         var q =
             from item in db.PurchaseOrderItems.AsNoTracking()
@@ -94,7 +99,13 @@ internal static partial class PurchaseOrderItemListFilter
                     && soi.SellOrderItemCode.ToLower().Contains(soc)));
         }
 
-        if (request.OrderType.HasValue)
+        if (request.StockingPurchaseSharedList)
+        {
+            q = q.Where(x => x.Po.Type == PurchaseOrderItemLinkRules.PurchaseOrderTypeStocking);
+            if (request.HasAvailableStock)
+                q = await StockingAvailableQtyLookup.RestrictToPositiveAvailableAsync(db, q, cancellationToken);
+        }
+        else if (request.OrderType.HasValue)
             q = q.Where(x => x.Po.Type == request.OrderType.Value);
 
         if (!string.IsNullOrWhiteSpace(request.TransactionCurrency))

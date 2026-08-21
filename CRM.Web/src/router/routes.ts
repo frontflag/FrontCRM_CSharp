@@ -711,6 +711,30 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '采购订单明细', permission: 'purchase-order.read' }
       },
       {
+        path: 'stocking-purchase-items',
+        name: 'StockingPurchaseItemList',
+        component: () => import('@/views/RFQ/StockingPurchaseItemList.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '备货采购清单',
+          permission: 'purchase-order.read',
+          stockingPurchaseList: true,
+          stockingPurchaseListAccess: true
+        }
+      },
+      {
+        path: 'stocking-purchase-items/:id',
+        name: 'StockingPurchaseOrderDetail',
+        component: () => import('@/views/RFQ/StockingPurchaseOrderDetail.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '备货采购清单详情',
+          permission: 'purchase-order.read',
+          stockingPurchaseReadOnly: true,
+          stockingPurchaseListAccess: true
+        }
+      },
+      {
         path: 'logistics/arrival-notices',
         name: 'ArrivalNoticeList',
         component: () => import('@/views/Logistics/ArrivalNoticeList.vue'),

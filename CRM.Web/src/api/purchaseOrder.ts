@@ -266,6 +266,7 @@ export interface PurchaseOrderItemListLineRow {
   pn?: string | null
   brand?: string | null
       qty?: number
+  stockingAvailableQty?: number
   qtyStockInNotifyExpectSum?: number
   qtyStockInNotifyNot?: number
   cost?: number
@@ -309,6 +310,37 @@ export const purchaseOrderApi = {
     delete q.pageSize
     const qs = buildQueryString(q)
     return apiClient.getBlob(qs ? `/api/v1/purchase-orders/items/export?${qs}` : '/api/v1/purchase-orders/items/export')
+  },
+
+  async getStockingItemLinesPage(params: {
+    page: number
+    pageSize: number
+    startDate?: string
+    endDate?: string
+    purchaseOrderCode?: string
+    vendorName?: string
+    purchaseUserName?: string
+    pn?: string
+    freightForwarderOrderNo?: string
+    transactionCurrency?: 'rmb' | 'foreign' | ''
+    hasAvailableStock?: boolean
+    paymentProgressStatus?: number | number[]
+    purchaseProgressStatus?: number | number[]
+    stockInProgressStatus?: number | number[]
+    invoiceProgressStatus?: number | number[]
+  }) {
+    const q = buildQueryString(params as Record<string, unknown>)
+    return await apiClient.get(`/api/v1/purchase-orders/stocking-items?${q}`)
+  },
+
+  exportStockingItemLines(params?: Record<string, unknown>) {
+    const q: Record<string, unknown> = { ...(params ?? {}) }
+    delete q.page
+    delete q.pageSize
+    const qs = buildQueryString(q)
+    return apiClient.getBlob(
+      qs ? `/api/v1/purchase-orders/stocking-items/export?${qs}` : '/api/v1/purchase-orders/stocking-items/export'
+    )
   },
 
   async getList(params?: {

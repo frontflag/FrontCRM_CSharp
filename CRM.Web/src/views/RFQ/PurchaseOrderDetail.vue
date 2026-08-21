@@ -131,7 +131,7 @@
           </el-dropdown>
         </div>
         <button
-          v-if="order && purchaseOrderReportAllowed(normalizePurchaseOrderMainStatus(order))"
+          v-if="!isStockingPurchaseReadOnly && order && purchaseOrderReportAllowed(normalizePurchaseOrderMainStatus(order))"
           class="btn-secondary"
           type="button"
           @click="handleGoReport"
@@ -940,13 +940,16 @@ const authStore = useAuthStore()
 const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const purchaseOrderItemOpsStore = usePurchaseOrderItemOpsPanelStore()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
-const { canWritePo } = usePurchaseOrderWriteGate()
+const { canWritePo: canWritePoByPerm } = usePurchaseOrderWriteGate()
+const isStockingPurchaseReadOnly = computed(() => route.meta.stockingPurchaseReadOnly === true)
+const canWritePo = computed(() => canWritePoByPerm.value && !isStockingPurchaseReadOnly.value)
 const { canWriteFinancePayment: canFinancePaymentWrite } = useFinanceWriteGate()
 const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 
 /** 审核前采购员可换/刷新供应商；审核通过后须总监或 change-vendor；脱敏不可 */
 const canRefreshPoVendor = computed(
   () =>
+    !isStockingPurchaseReadOnly.value &&
     !maskPurchaseSensitiveFields.value &&
     canChangePurchaseOrderVendorOnOrder(
       {
@@ -962,6 +965,7 @@ const canRefreshPoVendor = computed(
 const FF_EDITABLE_PO_STATUSES = new Set([10, 20, 30, 50, 100])
 const showHeaderMoreMenu = computed(() => canWritePo.value)
 const canEditFreightForwarderOrderNo = computed(() => {
+  if (isStockingPurchaseReadOnly.value) return false
   const o = order.value
   if (!o || !canWriteLogisticsData.value) return false
   const s = normalizePurchaseOrderMainStatus(o)

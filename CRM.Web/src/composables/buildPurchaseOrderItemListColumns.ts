@@ -9,6 +9,7 @@ export type BuildPurchaseOrderItemListColumnsParams = {
   opColMinWidth: number
   withSelection?: boolean
   withActions?: boolean
+  withStockingAvailableQty?: boolean
 }
 
 /**
@@ -88,15 +89,39 @@ export function buildPurchaseOrderItemListColumns(
     })
   }
 
+  const qtyLabel = p.withStockingAvailableQty
+    ? p.t('stockingPurchaseItemList.columns.qty')
+    : p.t('purchaseOrderItemList.columns.qty')
+  const costLabel = p.withStockingAvailableQty
+    ? p.t('stockingPurchaseItemList.columns.cost')
+    : p.t('purchaseOrderItemList.columns.cost')
+
   cols.push(
     { key: 'pn', label: p.t('purchaseOrderItemList.columns.pn'), prop: 'pn', minWidth: 130, showOverflowTooltip: true },
     { key: 'brand', label: p.t('purchaseOrderItemList.columns.brand'), prop: 'brand', width: 110, showOverflowTooltip: true },
-    { key: 'qty', label: p.t('purchaseOrderItemList.columns.qty'), prop: 'qty', width: 100, align: 'right' }
+    {
+      key: 'qty',
+      label: qtyLabel,
+      prop: 'qty',
+      width: p.withStockingAvailableQty ? 120 : 100,
+      align: 'right'
+    }
   )
+
+  if (p.withStockingAvailableQty) {
+    cols.push({
+      key: 'stockingAvailableQty',
+      label: p.t('stockingPurchaseItemList.columns.stockingAvailableQty'),
+      prop: 'stockingAvailableQty',
+      width: 150,
+      minWidth: 150,
+      align: 'right'
+    })
+  }
 
   if (p.canViewAmount) {
     cols.push(
-      { key: 'cost', label: p.t('purchaseOrderItemList.columns.cost'), prop: 'cost', width: 160, align: 'right' },
+      { key: 'cost', label: costLabel, prop: 'cost', width: 160, align: 'right' },
       { key: 'lineTotal', label: p.t('purchaseOrderItemList.columns.lineTotal'), prop: 'lineTotal', width: 160, align: 'right' }
     )
   }

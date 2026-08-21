@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteLocationNormalized } from 'vue-router'
 import { useAuthStore } from '@/stores'
 import { canAccessPurchaseOrderCreatePage } from '@/utils/purchaseOrderCreateGate'
+import { canAccessStockingPurchaseList } from '@/utils/stockingPurchaseListAccess'
 import { canAccessInventoryOpsCheck } from '@/utils/inventoryOpsCheckAccess'
 import {
   canAccessCustomsModule,
@@ -80,6 +81,12 @@ router.beforeEach((to, _from, next) => {
   } else if (to.meta.requiresAuth && to.meta.adminOrManagerOnly === true && !authStore.canForceDelete()) {
     next('/dashboard')
   } else if (to.meta.requiresAuth && to.meta.inventoryOpsCheckAccess === true && !canAccessInventoryOpsCheck(authStore.user)) {
+    next('/dashboard')
+  } else if (
+    to.meta.requiresAuth &&
+    to.meta.stockingPurchaseListAccess === true &&
+    !canAccessStockingPurchaseList(authStore.user, authStore.hasPermission('purchase-order.read'))
+  ) {
     next('/dashboard')
   } else if (to.meta.requiresAuth && to.meta.purchaseOrderCreateAccess === true) {
     const ok = canAccessPurchaseOrderCreatePage({

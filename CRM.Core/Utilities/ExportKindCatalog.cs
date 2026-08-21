@@ -39,6 +39,7 @@ public static class ExportKindCatalog
         new(ExportAuditKinds.FinanceFfPayableList, "货代付款列表", "货代付款", "/finance/freight-forwarder-payables"),
         new(ExportAuditKinds.SalesOrderItemList, "销售订单明细列表", "销售订单明细", "/sales-order-items"),
         new(ExportAuditKinds.PurchaseOrderItemList, "采购订单明细列表", "采购订单明细", "/purchase-order-items"),
+        new(ExportAuditKinds.StockingPurchaseItemList, "备货采购清单", "备货采购清单", "/stocking-purchase-items"),
         new(ExportAuditKinds.BatchReconciliationIn, "批次核销-入库批次", "批次核销", "/inventory/batch-reconciliation"),
         new(ExportAuditKinds.BatchReconciliationOut, "批次核销-出库批次", "批次核销", "/inventory/batch-reconciliation"),
         new(ExportAuditKinds.StockInBatch, "入库单批次", "入库", "/inventory/stock-in"),
