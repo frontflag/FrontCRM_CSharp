@@ -135,6 +135,24 @@
                 />
               </el-form-item>
             </el-col>
+            <el-col :span="8">
+              <el-form-item :label="t('customerEdit.fields.creditCode')">
+                <el-input
+                  v-model="formData.unifiedSocialCreditCode"
+                  :placeholder="t('customerEdit.placeholders.creditCode')"
+                  class="q-input"
+                />
+              </el-form-item>
+            </el-col>
+            <el-col :span="8">
+              <el-form-item :label="t('customerEdit.fields.duns')">
+                <el-input
+                  v-model="formData.duns"
+                  :placeholder="t('customerEdit.placeholders.duns')"
+                  class="q-input"
+                />
+              </el-form-item>
+            </el-col>
           </el-row>
           <el-row :gutter="20">
             <el-col :span="8">
@@ -194,15 +212,6 @@
             </el-col>
           </el-row>
           <el-row :gutter="20">
-            <el-col :span="8">
-              <el-form-item :label="t('customerEdit.fields.creditCode')">
-                <el-input
-                  v-model="formData.unifiedSocialCreditCode"
-                  :placeholder="t('customerEdit.placeholders.creditCode')"
-                  class="q-input"
-                />
-              </el-form-item>
-            </el-col>
             <el-col :span="8">
               <el-form-item :label="t('customerEdit.fields.salesPerson')">
                 <SalesUserCascader
@@ -586,7 +595,7 @@ const currentDraftId = ref('');
 const formData = reactive<CreateCustomerRequest & { contacts: any[] }>({
   customerCode: '', customerName: '', englishOfficialName: '', customerShortName: '',
   customerType: 2, customerLevel: 'B', industry: '',
-  unifiedSocialCreditCode: '', salesPersonId: '', salesPersonName: '',
+  unifiedSocialCreditCode: '', duns: '', salesPersonId: '', salesPersonName: '',
   country: '', province: '', city: '', district: '', address: '',
   creditLimit: 0, paymentTerms: 30, currency: DEFAULT_SETTLEMENT_CURRENCY_CODE, taxRate: 0,
   invoiceType: 2, isActive: true, companyInfo: '', remarks: '', contacts: []
@@ -654,6 +663,7 @@ const fetchCustomerDetail = async () => {
       customerType: customer.customerType ?? 2,
       salesPersonId: customer.salesPersonId || customerAny.salesUserId,
       unifiedSocialCreditCode: customer.unifiedSocialCreditCode || customerAny.creditCode,
+      duns: customer.duns || customerAny.dUNS || customerAny.DUNS || '',
       creditLimit: customer.creditLimit ?? 0,
       paymentTerms: customer.paymentTerms ?? 30,
       currency: customer.currency ?? DEFAULT_SETTLEMENT_CURRENCY_CODE,

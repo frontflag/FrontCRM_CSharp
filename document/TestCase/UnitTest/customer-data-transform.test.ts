@@ -21,6 +21,8 @@ interface BackendCustomer {
   salesUserId?: string;
   unifiedSocialCreditCode?: string;
   creditCode?: string;
+  duns?: string;
+  dUNS?: string;
   creditLimit?: number;
   creditLine?: number;
   paymentTerms?: number;
@@ -48,6 +50,7 @@ function mapBackendToForm(customer: BackendCustomer): any {
     customerType: customer.customerType ?? 1,
     salesPersonId: customer.salesPersonId || customerAny.salesUserId || '',
     unifiedSocialCreditCode: customer.unifiedSocialCreditCode || customerAny.creditCode || '',
+    duns: customer.duns || customerAny.dUNS || '',
     creditLimit: customer.creditLimit ?? 0,
     paymentTerms: customer.paymentTerms ?? 30,
     currency: customer.currency ?? 1,
@@ -83,6 +86,7 @@ function mapFormToBackend(data: any): any {
     payment: data.paymentTerms ?? data.payment ?? 30,
     tradeCurrency: data.currency ?? data.tradeCurrency ?? 1,
     creditCode: data.unifiedSocialCreditCode || data.creditCode || '',
+    duns: (data.duns ?? data.dUNS ?? '').trim() || undefined,
     contacts: data.contacts || []
   };
 }
@@ -162,6 +166,16 @@ describe('CustomerEdit - 后端数据映射到前端表单 (mapBackendToForm)', 
   it('UT-TRANSFORM-013: unifiedSocialCreditCode 为空时，回退到 creditCode（旧字段兼容）', () => {
     const result = mapBackendToForm({ creditCode: '91440300MA5DXXXX' } as any);
     expect(result.unifiedSocialCreditCode).toBe('91440300MA5DXXXX');
+  });
+
+  it('UT-TRANSFORM-013b: duns 有值时使用原值', () => {
+    const result = mapBackendToForm({ duns: '123456789' });
+    expect(result.duns).toBe('123456789');
+  });
+
+  it('UT-TRANSFORM-013c: duns 为空时回退到 dUNS（序列化兼容）', () => {
+    const result = mapBackendToForm({ dUNS: '987654321' } as any);
+    expect(result.duns).toBe('987654321');
   });
 
   it('UT-TRANSFORM-014: creditLimit 有值时使用原值', () => {

@@ -307,6 +307,7 @@ namespace CRM.Core.Models.Customer
         /// 邓白氏码
         /// </summary>
         [StringLength(20)]
+        [JsonPropertyName("duns")]
         public string? DUNS { get; set; }
 
         /// <summary>

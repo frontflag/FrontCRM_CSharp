@@ -182,6 +182,8 @@ export interface Customer {
   customerLevel?: string
   industry?: string
   unifiedSocialCreditCode?: string
+  /** 邓白氏编码 */
+  duns?: string
   salesPersonId?: string
   salesPersonName?: string
   region?: string
@@ -283,6 +285,8 @@ export interface CreateCustomerRequest {
   customerLevel: string
   industry?: string
   unifiedSocialCreditCode?: string
+  /** 邓白氏编码 */
+  duns?: string
   salesPersonId?: string
   salesPersonName?: string
   country?: string

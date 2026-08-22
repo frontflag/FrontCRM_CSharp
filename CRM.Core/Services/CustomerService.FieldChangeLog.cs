@@ -97,6 +97,7 @@ namespace CRM.Core.Services
             short? Payment,
             short? TradeCurrency,
             string? CreditCode,
+            string? DUNS,
             string? Province,
             string? City,
             string? District);
@@ -118,6 +119,7 @@ namespace CRM.Core.Services
                 customer.Payment,
                 customer.TradeCurrency,
                 customer.CreditCode,
+                customer.DUNS,
                 customer.Province,
                 customer.City,
                 customer.District);
@@ -145,6 +147,7 @@ namespace CRM.Core.Services
             await AppendCustomerFieldChangeLogAsync(customer, "payment", "账期", before.Payment?.ToString(), after.Payment?.ToString(), actingUserId);
             await AppendCustomerFieldChangeLogAsync(customer, "tradeCurrency", "交易币别", before.TradeCurrency?.ToString(), after.TradeCurrency?.ToString(), actingUserId);
             await AppendCustomerFieldChangeLogAsync(customer, "creditCode", "统一社会信用代码", before.CreditCode, after.CreditCode, actingUserId);
+            await AppendCustomerFieldChangeLogAsync(customer, "duns", "邓白氏编码", before.DUNS, after.DUNS, actingUserId);
             await AppendCustomerFieldChangeLogAsync(customer, "province", "省", before.Province, after.Province, actingUserId);
             await AppendCustomerFieldChangeLogAsync(customer, "city", "市", before.City, after.City, actingUserId);
             await AppendCustomerFieldChangeLogAsync(customer, "district", "区", before.District, after.District, actingUserId);

@@ -89,6 +89,7 @@ namespace CRM.Core.Services
                 Payment = request.Payment,
                 TradeCurrency = request.TradeCurrency,
                 CreditCode = request.CreditCode?.Trim(),
+                DUNS = string.IsNullOrWhiteSpace(request.Duns) ? null : request.Duns.Trim(),
                 Province = request.Province?.Trim(),
                 City = request.City?.Trim(),
                 District = request.District?.Trim(),
@@ -327,6 +328,8 @@ namespace CRM.Core.Services
                 customer.TradeCurrency = request.TradeCurrency.Value;
             if (request.CreditCode != null)
                 customer.CreditCode = request.CreditCode.Trim();
+            if (request.Duns != null)
+                customer.DUNS = string.IsNullOrWhiteSpace(request.Duns) ? null : request.Duns.Trim();
             if (request.Province != null)
                 customer.Province = request.Province.Trim();
             if (request.City != null)

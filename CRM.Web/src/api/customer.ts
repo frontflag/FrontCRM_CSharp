@@ -357,6 +357,10 @@ export const customerApi = {
     const banks = banksFromCustomerApiPayload(raw);
     const { bankAccounts: _bankAccounts, ...rest } = raw;
     const customer = { ...(rest as unknown as Customer), banks };
+    customer.unifiedSocialCreditCode =
+      customer.unifiedSocialCreditCode || (raw.creditCode as string | undefined) || '';
+    customer.duns =
+      customer.duns || (raw.duns as string | undefined) || (raw.dUNS as string | undefined) || '';
     if (Array.isArray(customer.contacts)) {
       customer.contacts = customer.contacts.map((c) => normalizeCustomerContactFromApi(c));
     }
@@ -400,6 +404,7 @@ export const customerApi = {
       payment: data.paymentTerms ?? (data as any).payment,
       tradeCurrency: data.currency ?? (data as any).tradeCurrency,
       creditCode: data.unifiedSocialCreditCode || (data as any).creditCode,
+      duns: (data.duns ?? (data as any).dUNS ?? '').trim() || undefined,
       // P1 修复：新建时包含联系人数组
       contacts: (data as any).contacts || []
     };
@@ -430,6 +435,7 @@ export const customerApi = {
       payment: data.paymentTerms ?? (data as any).payment,
       tradeCurrency: data.currency ?? (data as any).tradeCurrency,
       creditCode: data.unifiedSocialCreditCode || (data as any).creditCode,
+      duns: (data.duns ?? (data as any).dUNS ?? '').trim(),
       // P1 修复：更新时包含联系人数组
       contacts: (data as any).contacts || []
     };

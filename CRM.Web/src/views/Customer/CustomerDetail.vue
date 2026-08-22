@@ -164,6 +164,16 @@
           </div>
           <div class="info-grid info-grid--inline-labels info-grid--basic">
             <div class="info-item">
+              <span class="info-label">统一社会信用代码</span>
+              <span class="info-value info-value--code">{{ customer.unifiedSocialCreditCode?.trim() || '—' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">邓白氏编码</span>
+              <span class="info-value info-value--code">{{ customerDunsText }}</span>
+            </div>
+          </div>
+          <div class="info-grid info-grid--inline-labels info-grid--basic">
+            <div class="info-item">
               <span class="info-label">客户类型</span>
               <span class="info-value">{{ customerTypeDisplayText }}</span>
             </div>
@@ -180,10 +190,6 @@
             <div class="info-item">
               <span class="info-label">地区</span>
               <span class="info-value">{{ customer.region?.trim() || '—' }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">社会信用代码</span>
-              <span class="info-value info-value--code">{{ customer.unifiedSocialCreditCode?.trim() || '—' }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">业务员</span>
@@ -971,6 +977,13 @@ const customerCompanyInfoText = computed(() => {
   const c = customer.value as Record<string, unknown> | null | undefined;
   if (!c) return '—';
   const s = String(c.companyInfo ?? c.CompanyInfo ?? '').trim();
+  return s || '—';
+});
+
+const customerDunsText = computed(() => {
+  const c = customer.value as Record<string, unknown> | null | undefined;
+  if (!c) return '—';
+  const s = String(c.duns ?? c.dUNS ?? c.DUNS ?? '').trim();
   return s || '—';
 });
 
