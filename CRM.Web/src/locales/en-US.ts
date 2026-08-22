@@ -643,8 +643,8 @@ const enUS = {
     loadFailed: 'Failed to load sales parameters'
   },
   layout: {
-    brandFull: 'Semicore Ai Intelligent System',
-    brandSub: 'Semicore Ai Intelligent System',
+    brandFull: 'Semicore AI Intelligent System',
+    brandSub: 'Semicore AI Intelligent System',
     switchToLight: 'Switch to light theme',
     switchToDark: 'Switch to dark theme',
     notifications: 'Notifications',

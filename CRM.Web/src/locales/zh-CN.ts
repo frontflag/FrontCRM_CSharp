@@ -639,8 +639,8 @@ const zhCN = {
   },
   layout: {
     /** 顶栏 Logo 旁完整品牌文案（与产品对外名称一致） */
-    brandFull: 'Semicore Ai智能系統',
-    brandSub: 'Semicore Ai智能系統',
+    brandFull: 'Semicore AI Intelligent System',
+    brandSub: 'Semicore AI Intelligent System',
     switchToLight: '切换为浅色主题',
     switchToDark: '切换为深色主题',
     notifications: '消息通知',
