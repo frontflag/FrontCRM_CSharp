@@ -340,6 +340,10 @@ namespace CRM.API.Controllers
                 var customer = await _customerService.CreateCustomerAsync(request, userId);
                 return Ok(ApiResponse<CustomerInfo>.Ok(customer, "创建客户成功"));
             }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<CustomerInfo>.Fail(ex.Message, 400));
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "创建客户失败");
@@ -377,6 +381,10 @@ namespace CRM.API.Controllers
             {
                 var customer = await _customerService.UpdateCustomerAsync(id, request);
                 return Ok(ApiResponse<CustomerInfo>.Ok(customer, "更新客户成功"));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<CustomerInfo>.Fail(ex.Message, 400));
             }
             catch (Exception ex)
             {

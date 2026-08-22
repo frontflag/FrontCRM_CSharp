@@ -39,6 +39,7 @@ declare module 'vue' {
     CompanyBankInfoPanel: typeof import('./src/components/Company/CompanyBankInfoPanel.vue')['default']
     CompanyBankSelect: typeof import('./src/components/Company/CompanyBankSelect.vue')['default']
     CompanyEmailSettingsPanel: typeof import('./src/components/Company/CompanyEmailSettingsPanel.vue')['default']
+    CompanyEmailSuffixSelect: typeof import('./src/components/Common/CompanyEmailSuffixSelect.vue')['default']
     CrmCopyableTableColumn: typeof import('./src/components/CrmCopyableTableColumn.vue')['default']
     CrmDataTable: typeof import('./src/components/CrmDataTable.vue')['default']
     CrmImageBrowser: typeof import('./src/components/Common/CrmImageBrowser.vue')['default']

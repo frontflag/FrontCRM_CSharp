@@ -405,6 +405,7 @@ export const customerApi = {
       tradeCurrency: data.currency ?? (data as any).tradeCurrency,
       creditCode: data.unifiedSocialCreditCode || (data as any).creditCode,
       duns: (data.duns ?? (data as any).dUNS ?? '').trim() || undefined,
+      companyEmailSuffix: (data.companyEmailSuffix ?? '').trim() || undefined,
       // P1 修复：新建时包含联系人数组
       contacts: (data as any).contacts || []
     };
@@ -436,6 +437,7 @@ export const customerApi = {
       tradeCurrency: data.currency ?? (data as any).tradeCurrency,
       creditCode: data.unifiedSocialCreditCode || (data as any).creditCode,
       duns: (data.duns ?? (data as any).dUNS ?? '').trim(),
+      companyEmailSuffix: (data.companyEmailSuffix ?? '').trim(),
       // P1 修复：更新时包含联系人数组
       contacts: (data as any).contacts || []
     };

@@ -108,6 +108,7 @@ export const vendorApi = {
       creditCode: data.creditCode?.trim(),
       taxNumber: data.taxNumber?.trim(),
       duns: data.duns?.trim(),
+      companyEmailSuffix: data.companyEmailSuffix?.trim() || undefined,
       companyInfo: data.companyInfo?.trim(),
       remark: data.remark?.trim()
     };
@@ -158,6 +159,7 @@ export const vendorApi = {
       paymentDays: data.paymentDays ?? data.payment,
       creditCode: data.creditCode?.trim(),
       duns: data.duns?.trim(),
+      companyEmailSuffix: data.companyEmailSuffix?.trim() ?? '',
       companyInfo: data.companyInfo?.trim(),
       remark: data.remark?.trim(),
       externalNumber: data.externalNumber?.trim()

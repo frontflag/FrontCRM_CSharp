@@ -311,6 +311,12 @@ namespace CRM.Core.Models.Customer
         public string? DUNS { get; set; }
 
         /// <summary>
+        /// 企业邮箱后缀（如 @huawei.com），用于邮件匹配客户
+        /// </summary>
+        [StringLength(128)]
+        public string? CompanyEmailSuffix { get; set; }
+
+        /// <summary>
         /// 是否管控
         /// </summary>
         public bool IsControl { get; set; } = false;

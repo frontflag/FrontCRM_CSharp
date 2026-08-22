@@ -115,6 +115,7 @@ namespace CRM.Core.Services
                 Payment = request.PaymentDays,
                 CreditCode = string.IsNullOrWhiteSpace(tax) ? null : tax.Trim(),
                 DUNS = string.IsNullOrWhiteSpace(request.Duns) ? null : request.Duns.Trim(),
+                CompanyEmailSuffix = await ResolveUniqueCompanyEmailSuffixAsync(request.CompanyEmailSuffix, null),
                 CompanyInfo = string.IsNullOrWhiteSpace(request.CompanyInfo) ? null : request.CompanyInfo.Trim(),
                 Remark = string.IsNullOrWhiteSpace(request.Remark) ? null : request.Remark.Trim(),
                 CreateTime = DateTime.UtcNow,
@@ -303,6 +304,8 @@ namespace CRM.Core.Services
                 entity.CreditCode = string.IsNullOrWhiteSpace(request.CreditCode) ? null : request.CreditCode.Trim();
             if (request.Duns != null)
                 entity.DUNS = string.IsNullOrWhiteSpace(request.Duns) ? null : request.Duns.Trim();
+            if (request.CompanyEmailSuffix != null)
+                entity.CompanyEmailSuffix = await ResolveUniqueCompanyEmailSuffixAsync(request.CompanyEmailSuffix, entity.Id);
             if (request.CompanyInfo != null)
                 entity.CompanyInfo = string.IsNullOrWhiteSpace(request.CompanyInfo) ? null : request.CompanyInfo.Trim();
             if (request.Remark != null)
@@ -1264,6 +1267,23 @@ ORDER BY c.""ChangedAt"" DESC";
                 1 or 2 => gender.Value,
                 _ => 0
             };
+        }
+
+        private async Task<string?> ResolveUniqueCompanyEmailSuffixAsync(string? raw, string? excludeVendorId)
+        {
+            if (!CompanyEmailSuffix.TryNormalize(raw, out var suffix, out var error))
+                throw new InvalidOperationException(error ?? CompanyEmailSuffix.InvalidFormatMessage);
+            if (suffix == null)
+                return null;
+
+            var hits = await _repository.FindAsNoTrackingAsync(x =>
+                x.CompanyEmailSuffix == suffix
+                && (excludeVendorId == null || x.Id != excludeVendorId));
+            var other = hits.FirstOrDefault();
+            if (other != null)
+                throw new InvalidOperationException(
+                    CompanyEmailSuffix.DuplicateMessage("供应商", suffix, other.OfficialName ?? other.Code));
+            return suffix;
         }
     }
 }

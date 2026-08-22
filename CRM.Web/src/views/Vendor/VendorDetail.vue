@@ -177,6 +177,12 @@
         </div>
         <div class="info-grid info-grid--inline-labels info-grid--basic">
           <div class="info-item">
+            <span class="info-label">{{ t('vendorDetail.fields.companyEmailSuffix') }}</span>
+            <span class="info-value">{{ maskPurchaseSensitiveFields ? '—' : (vendor.companyEmailSuffix || '—') }}</span>
+          </div>
+        </div>
+        <div class="info-grid info-grid--inline-labels info-grid--basic">
+          <div class="info-item">
             <span class="info-label">{{ t('vendorDetail.fields.creditCode') }}</span>
             <span class="info-value">{{ maskPurchaseSensitiveFields ? '—' : (vendor.creditCode || '—') }}</span>
           </div>

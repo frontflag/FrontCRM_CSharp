@@ -364,6 +364,10 @@ namespace CRM.API.Controllers
             {
                 return BadRequest(ApiResponse<VendorInfo>.Fail(ex.Message, 400));
             }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<VendorInfo>.Fail(ex.Message, 400));
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "创建供应商失败");
@@ -408,6 +412,10 @@ namespace CRM.API.Controllers
             catch (KeyNotFoundException ex)
             {
                 return NotFound(ApiResponse<VendorInfo>.Fail(ex.Message, 404));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<VendorInfo>.Fail(ex.Message, 400));
             }
             catch (Exception ex)
             {

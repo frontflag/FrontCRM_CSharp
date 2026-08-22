@@ -90,6 +90,7 @@ namespace CRM.Core.Services
                 TradeCurrency = request.TradeCurrency,
                 CreditCode = request.CreditCode?.Trim(),
                 DUNS = string.IsNullOrWhiteSpace(request.Duns) ? null : request.Duns.Trim(),
+                CompanyEmailSuffix = await ResolveUniqueCompanyEmailSuffixAsync(request.CompanyEmailSuffix, null),
                 Province = request.Province?.Trim(),
                 City = request.City?.Trim(),
                 District = request.District?.Trim(),
@@ -330,6 +331,8 @@ namespace CRM.Core.Services
                 customer.CreditCode = request.CreditCode.Trim();
             if (request.Duns != null)
                 customer.DUNS = string.IsNullOrWhiteSpace(request.Duns) ? null : request.Duns.Trim();
+            if (request.CompanyEmailSuffix != null)
+                customer.CompanyEmailSuffix = await ResolveUniqueCompanyEmailSuffixAsync(request.CompanyEmailSuffix, customer.Id);
             if (request.Province != null)
                 customer.Province = request.Province.Trim();
             if (request.City != null)
@@ -1385,6 +1388,23 @@ ORDER BY c.""ChangedAt"" DESC";
                 newValue,
                 resolvedUserId,
                 resolvedUserName ?? "系统");
+        }
+
+        private async Task<string?> ResolveUniqueCompanyEmailSuffixAsync(string? raw, string? excludeCustomerId)
+        {
+            if (!CompanyEmailSuffix.TryNormalize(raw, out var suffix, out var error))
+                throw new InvalidOperationException(error ?? CompanyEmailSuffix.InvalidFormatMessage);
+            if (suffix == null)
+                return null;
+
+            var hits = await _customerRepository.FindAsNoTrackingAsync(x =>
+                x.CompanyEmailSuffix == suffix
+                && (excludeCustomerId == null || x.Id != excludeCustomerId));
+            var other = hits.FirstOrDefault();
+            if (other != null)
+                throw new InvalidOperationException(
+                    CompanyEmailSuffix.DuplicateMessage("客户", suffix, other.OfficialName ?? other.CustomerCode));
+            return suffix;
         }
     }
 }

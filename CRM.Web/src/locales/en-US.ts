@@ -3973,7 +3973,8 @@ const enUS = {
     },
     sections: {
       basicInfo: 'Basic information',
-      financialInfo: 'Business attributes'
+      financialInfo: 'Financial information',
+      remarkInfo: 'Remarks'
     },
     fields: {
       customerCode: 'Customer code',
@@ -3985,6 +3986,7 @@ const enUS = {
       industry: 'Industry',
       creditCode: 'Unified social credit code',
       duns: 'D-U-N-S Number',
+      companyEmailSuffix: 'Company email',
       salesPerson: 'Sales rep',
       region: 'Region',
       companyInfo: 'Company introduction',
@@ -4004,6 +4006,7 @@ const enUS = {
       shortName: 'Enter short name',
       creditCode: 'Enter unified social credit code',
       duns: 'Enter D-U-N-S Number',
+      companyEmailSuffix: "e.g. {'@'}xxx.com, or type manually",
       salesPerson: 'Select sales rep',
       region: 'Select region',
       companyInfo: 'Enter company introduction',
@@ -4019,6 +4022,7 @@ const enUS = {
       chineseNameRequired: 'Please enter the Chinese full name',
       chineseNameLength: 'Length must be between 2 and 100 characters',
       typeRequired: 'Please select customer type',
+      companyEmailSuffix: "Use a domain suffix such as {'@'}xxx.com",
       levelRequired: 'Please select customer level'
     },
     messages: {
@@ -4305,6 +4309,7 @@ const enUS = {
       regionAddress: 'Region / address',
       officeAddress: 'Office address',
       website: 'Website',
+      companyEmailSuffix: 'Company email',
       purchaser: 'Buyer',
       level: 'Level',
       identity: 'Identity',
@@ -4571,6 +4576,8 @@ const enUS = {
       officeAddressPh: 'Full office address',
       website: 'Website',
       websitePh: 'https://…',
+      companyEmailSuffix: 'Company email',
+      companyEmailSuffixPh: "e.g. {'@'}xxx.com, or type manually",
       settlementCurrency: 'Settlement currency',
       currencyPh: 'Select currency',
       paymentMethod: 'Payment terms',
@@ -4671,7 +4678,10 @@ const enUS = {
       remarkPh: 'Notes',
       setMain: 'Set as default contact'
     },
-    rules: { officialNameRequired: 'Enter vendor legal name (Chinese)' },
+    rules: {
+      officialNameRequired: 'Enter vendor legal name (Chinese)',
+      companyEmailSuffix: "Use a domain suffix such as {'@'}xxx.com"
+    },
     messages: {
       fetchFailed: 'Failed to load vendor',
       draftSaved: 'Draft saved ({id})',

@@ -3960,7 +3960,8 @@ const zhCN = {
     },
     sections: {
       basicInfo: '基本信息',
-      financialInfo: '业务属性'
+      financialInfo: '财务信息',
+      remarkInfo: '备注信息'
     },
     fields: {
       customerCode: '客户编号',
@@ -3972,6 +3973,7 @@ const zhCN = {
       industry: '行业',
       creditCode: '统一社会信用代码',
       duns: '邓白氏编码',
+      companyEmailSuffix: '企业邮箱',
       salesPerson: '所属业务员',
       region: '地区',
       companyInfo: '公司介绍',
@@ -3991,6 +3993,7 @@ const zhCN = {
       shortName: '请输入客户简称',
       creditCode: '请输入统一社会信用代码',
       duns: '请输入邓白氏编码',
+      companyEmailSuffix: "如 {'@'}xxx.com，可选手动输入",
       salesPerson: '请选择业务员',
       region: '请选择地区',
       companyInfo: '请输入公司介绍',
@@ -4006,7 +4009,8 @@ const zhCN = {
       chineseNameRequired: '请输入客户中文全称',
       chineseNameLength: '长度在 2 到 100 个字符',
       typeRequired: '请选择客户类型',
-      levelRequired: '请选择客户等级'
+      levelRequired: '请选择客户等级',
+      companyEmailSuffix: "企业邮箱须为邮箱后缀，如 {'@'}xxx.com"
     },
     messages: {
       loadFailedTitle: '加载失败',
@@ -4293,6 +4297,7 @@ const zhCN = {
       regionAddress: '地区/地址',
       officeAddress: '办公地址',
       website: '官方网站',
+      companyEmailSuffix: '企业邮箱',
       purchaser: '采购员',
       level: '等级',
       identity: '身份',
@@ -4559,6 +4564,8 @@ const zhCN = {
       officeAddressPh: '详细办公地址',
       website: '官方网站',
       websitePh: 'https://...',
+      companyEmailSuffix: '企业邮箱',
+      companyEmailSuffixPh: "如 {'@'}xxx.com，可选手动输入",
       settlementCurrency: '结算货币',
       currencyPh: '请选择货币',
       paymentMethod: '付款方式',
@@ -4659,7 +4666,10 @@ const zhCN = {
       remarkPh: '备注',
       setMain: '设为默认联系人'
     },
-    rules: { officialNameRequired: '请输入供应商中文全称' },
+    rules: {
+      officialNameRequired: '请输入供应商中文全称',
+      companyEmailSuffix: "企业邮箱须为邮箱后缀，如 {'@'}xxx.com"
+    },
     messages: {
       fetchFailed: '获取供应商详情失败',
       draftSaved: '草稿已保存（{id}）',

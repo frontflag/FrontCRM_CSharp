@@ -1347,3 +1347,32 @@ SELECT '20260810180000_AddUserMailInbox', '9.0.0'
 WHERE NOT EXISTS (
   SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260810180000_AddUserMailInbox'
 );
+
+-- 25) 客户/供应商企业邮箱后缀（各自未删除记录内唯一）
+ALTER TABLE public.customerinfo
+  ADD COLUMN IF NOT EXISTS "CompanyEmailSuffix" character varying(128);
+
+COMMENT ON COLUMN public.customerinfo."CompanyEmailSuffix" IS '企业邮箱后缀，如 @xxx.com';
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_customerinfo_company_email_suffix
+  ON public.customerinfo ("CompanyEmailSuffix")
+  WHERE "IsDeleted" = false
+    AND "CompanyEmailSuffix" IS NOT NULL
+    AND btrim("CompanyEmailSuffix") <> '';
+
+ALTER TABLE public.vendorinfo
+  ADD COLUMN IF NOT EXISTS "CompanyEmailSuffix" character varying(128);
+
+COMMENT ON COLUMN public.vendorinfo."CompanyEmailSuffix" IS '企业邮箱后缀，如 @xxx.com';
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_vendorinfo_company_email_suffix
+  ON public.vendorinfo ("CompanyEmailSuffix")
+  WHERE "IsDeleted" = false
+    AND "CompanyEmailSuffix" IS NOT NULL
+    AND btrim("CompanyEmailSuffix") <> '';
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+SELECT '20260912120000_PartyCompanyEmailSuffix', '9.0.0'
+WHERE NOT EXISTS (
+  SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260912120000_PartyCompanyEmailSuffix'
+);

@@ -240,6 +240,12 @@ namespace CRM.Core.Models.Vendor
         public string? DUNS { get; set; }
 
         /// <summary>
+        /// 企业邮箱后缀（如 @huawei.com），用于邮件匹配供应商
+        /// </summary>
+        [StringLength(128)]
+        public string? CompanyEmailSuffix { get; set; }
+
+        /// <summary>
         /// 供应商归属 (1:专属 2:公海)
         /// </summary>
         public short AscriptionType { get; set; } = 1;

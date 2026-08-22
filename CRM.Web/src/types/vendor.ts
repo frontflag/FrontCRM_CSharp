@@ -48,6 +48,8 @@ export interface Vendor {
   creditCode?: string
   /** 邓白氏编码 */
   duns?: string
+  /** 企业邮箱后缀，如 @xxx.com */
+  companyEmailSuffix?: string
   /** 状态：1新建 2待审核 10已审核 12待财务审核 20财务建档 -1审核失败 */
   status?: number
   /** 审核驳回原因（status=-1 时） */
@@ -88,6 +90,7 @@ export interface CreateVendorRequest {
   creditCode?: string
   taxNumber?: string
   duns?: string
+  companyEmailSuffix?: string
   companyInfo?: string
   remark?: string
 }
@@ -112,6 +115,7 @@ export interface UpdateVendorRequest {
   payment?: number
   creditCode?: string
   duns?: string
+  companyEmailSuffix?: string
   companyInfo?: string
   remark?: string
   externalNumber?: string

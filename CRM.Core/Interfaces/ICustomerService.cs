@@ -524,6 +524,9 @@ namespace CRM.Core.Interfaces
         [System.Text.Json.Serialization.JsonPropertyName("duns")]
         public string? Duns { get; set; }
 
+        /// <summary>企业邮箱后缀（如 @xxx.com）</summary>
+        public string? CompanyEmailSuffix { get; set; }
+
         /// <summary>省/州（地区级联）</summary>
         public string? Province { get; set; }
 
@@ -724,6 +727,9 @@ namespace CRM.Core.Interfaces
         /// <summary>邓白氏编码</summary>
         [System.Text.Json.Serialization.JsonPropertyName("duns")]
         public string? Duns { get; set; }
+
+        /// <summary>企业邮箱后缀（如 @xxx.com）</summary>
+        public string? CompanyEmailSuffix { get; set; }
 
         /// <summary>省/州（地区级联）</summary>
         public string? Province { get; set; }

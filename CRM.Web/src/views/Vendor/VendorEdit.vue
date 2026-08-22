@@ -193,6 +193,45 @@
               </el-form-item>
             </el-col>
           </el-row>
+          <el-row :gutter="24">
+            <el-col :span="8">
+              <el-form-item :label="t('vendorEdit.fields.companyEmailSuffix')" prop="companyEmailSuffix">
+                <CompanyEmailSuffixSelect
+                  v-model="formData.companyEmailSuffix"
+                  :placeholder="t('vendorEdit.fields.companyEmailSuffixPh')"
+                  :contact-emails="vendorContactEmailList"
+                />
+              </el-form-item>
+            </el-col>
+          </el-row>
+        </div>
+      </div>
+
+      <!-- 备注 -->
+      <div class="form-section">
+        <div class="section-header">
+          <div class="section-dot section-dot--purple"></div>
+          <span class="section-title">{{ t('vendorEdit.sections.remark') }}</span>
+        </div>
+        <div class="section-body">
+          <el-form-item :label="t('vendorEdit.fields.companyInfo')">
+            <el-input
+              v-model="formData.companyInfo"
+              type="textarea"
+              :rows="3"
+              :placeholder="t('vendorEdit.fields.companyInfoPh')"
+              class="q-input"
+            />
+          </el-form-item>
+          <el-form-item :label="t('vendorEdit.fields.remark')">
+            <el-input
+              v-model="formData.remark"
+              type="textarea"
+              :rows="2"
+              :placeholder="t('vendorEdit.fields.remarkPh')"
+              class="q-input"
+            />
+          </el-form-item>
         </div>
       </div>
 
@@ -256,34 +295,6 @@
               </el-form-item>
             </el-col>
           </el-row>
-        </div>
-      </div>
-
-      <!-- 备注 -->
-      <div class="form-section">
-        <div class="section-header">
-          <div class="section-dot section-dot--purple"></div>
-          <span class="section-title">{{ t('vendorEdit.sections.remark') }}</span>
-        </div>
-        <div class="section-body">
-          <el-form-item :label="t('vendorEdit.fields.companyInfo')">
-            <el-input
-              v-model="formData.companyInfo"
-              type="textarea"
-              :rows="3"
-              :placeholder="t('vendorEdit.fields.companyInfoPh')"
-              class="q-input"
-            />
-          </el-form-item>
-          <el-form-item :label="t('vendorEdit.fields.remark')">
-            <el-input
-              v-model="formData.remark"
-              type="textarea"
-              :rows="2"
-              :placeholder="t('vendorEdit.fields.remarkPh')"
-              class="q-input"
-            />
-          </el-form-item>
         </div>
       </div>
 
@@ -429,6 +440,8 @@ import type { CreateVendorRequest, UpdateVendorRequest, Vendor, VendorContactInf
 import { runValidatedFormSave } from '@/composables/useFormSubmit';
 import { SETTLEMENT_CURRENCY_OPTIONS, DEFAULT_SETTLEMENT_CURRENCY_CODE } from '@/constants/currency';
 import PurchaserCascader from '@/components/PurchaserCascader.vue';
+import CompanyEmailSuffixSelect from '@/components/Common/CompanyEmailSuffixSelect.vue';
+import { tryNormalizeCompanyEmailSuffix } from '@/utils/companyEmailSuffix';
 import { useVendorDictStore } from '@/stores/vendorDict';
 import { logRecentApi } from '@/api/logRecent';
 import { VENDOR_RECENT_HISTORY_CHANGED_EVENT } from '@/constants/vendorRecentHistory';
@@ -556,6 +569,7 @@ const formData = reactive({
   purchaserName: '',
   taxNumber: '',
   duns: '',
+  companyEmailSuffix: '',
   /** 财务参数-付款银行主键（开户银行下拉） */
   financePaymentBankId: '',
   bankAccount: '',
@@ -567,7 +581,17 @@ const formData = reactive({
 const formRules = computed<FormRules>(() => {
   void locale.value;
   return {
-    officialName: [{ required: true, message: t('vendorEdit.rules.officialNameRequired'), trigger: 'blur' }]
+    officialName: [{ required: true, message: t('vendorEdit.rules.officialNameRequired'), trigger: 'blur' }],
+    companyEmailSuffix: [
+      {
+        validator: (_r, v, cb) => {
+          const { error } = tryNormalizeCompanyEmailSuffix(v)
+          if (error) cb(new Error(t('vendorEdit.rules.companyEmailSuffix')))
+          else cb()
+        },
+        trigger: 'blur'
+      }
+    ]
   };
 });
 
@@ -579,6 +603,7 @@ function onPurchaserChange(p: { id: string; label: string }) {
 
 type VendorContactDraft = Omit<VendorContactInfo, 'vendorId' | 'id'> & { id?: string; vendorId?: string; _key?: string };
 const contacts = ref<VendorContactDraft[]>([]);
+const vendorContactEmailList = computed(() => contacts.value.map((c) => c.email));
 
 /** 默认联系人单选：与每行 contact.isMain 同步，保证仅一人为 true */
 const mainContactKey = ref<string | undefined>(undefined);
@@ -631,6 +656,7 @@ const buildVendorApiPayload = (): CreateVendorRequest & UpdateVendorRequest => (
   paymentDays: Number(formData.paymentDays ?? 0),
   creditCode: formData.taxNumber?.trim(),
   duns: formData.duns?.trim() || undefined,
+  companyEmailSuffix: formData.companyEmailSuffix?.trim() ?? '',
   companyInfo: formData.companyInfo?.trim(),
   remark: formData.remark?.trim()
 });
@@ -687,6 +713,7 @@ const fetchVendorDetail = async () => {
     formData.purchaseUserId = '';
     formData.taxNumber = data.creditCode ?? '';
     formData.duns = data.duns ?? (data as { dUNS?: string }).dUNS ?? '';
+    formData.companyEmailSuffix = data.companyEmailSuffix ?? '';
     formData.companyInfo = data.companyInfo ?? '';
     formData.remark = data.remark ?? '';
     const banks = data.bankAccounts ?? [];
@@ -1307,8 +1334,9 @@ onMounted(async () => {
     &.is-focused { box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.5) !important; }
   }
 
-  :deep(.el-select__placeholder) { color: $text-muted !important; }
-  :deep(.el-select__selected-item) { color: $text-primary !important; }
+  :deep(.el-select__placeholder.is-transparent) { color: $text-placeholder !important; }
+  :deep(.el-select__placeholder:not(.is-transparent)),
+  :deep(.el-select__selected-item:not(.el-select__placeholder)) { color: $text-primary !important; }
 }
 
 :deep(.el-form-item__label) {

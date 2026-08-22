@@ -184,6 +184,8 @@ export interface Customer {
   unifiedSocialCreditCode?: string
   /** 邓白氏编码 */
   duns?: string
+  /** 企业邮箱后缀，如 @xxx.com */
+  companyEmailSuffix?: string
   salesPersonId?: string
   salesPersonName?: string
   region?: string
@@ -287,6 +289,8 @@ export interface CreateCustomerRequest {
   unifiedSocialCreditCode?: string
   /** 邓白氏编码 */
   duns?: string
+  /** 企业邮箱后缀，如 @xxx.com */
+  companyEmailSuffix?: string
   salesPersonId?: string
   salesPersonName?: string
   country?: string
@@ -361,6 +365,7 @@ export interface UpdateCustomerRequest {
   companyInfo?: string
   remark?: string
   duns?: string
+  companyEmailSuffix?: string
   creditCode?: string
   identityType?: number
   salesUserId?: string

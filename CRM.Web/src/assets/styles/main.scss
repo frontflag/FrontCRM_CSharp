@@ -477,7 +477,7 @@ html {
   }
 }
 
-/** filterable ?????????? is-transparent?? clear ??????? */
+/** filterable 已选值展开筛选时，占位层需跟已选文字同色 */
 .el-select__wrapper.is-filterable:has(.el-select__clear) .el-select__placeholder.is-transparent {
   color: $text-primary !important;
 }
@@ -486,8 +486,21 @@ html {
   color: $text-primary !important;
 }
 
+/** 占位节点同时带 selected-item：空值浅灰，已选值跟正文同色 */
+.el-select .el-select__selected-item.el-select__placeholder.is-transparent {
+  color: $text-placeholder !important;
+}
+
+.el-select .el-select__selected-item.el-select__placeholder:not(.is-transparent) {
+  color: $text-primary !important;
+}
+
 .el-select__input {
   color: $text-primary !important;
+
+  &::placeholder {
+    color: $text-placeholder !important;
+  }
 }
 
 // el-select ????

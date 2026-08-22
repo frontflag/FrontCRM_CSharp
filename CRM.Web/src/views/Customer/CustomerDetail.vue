@@ -192,6 +192,10 @@
               <span class="info-value">{{ customer.region?.trim() || '—' }}</span>
             </div>
             <div class="info-item">
+              <span class="info-label">企业邮箱</span>
+              <span class="info-value info-value--code">{{ customer.companyEmailSuffix?.trim() || '—' }}</span>
+            </div>
+            <div class="info-item">
               <span class="info-label">业务员</span>
               <span class="info-value">{{ maskSaleSensitiveFields ? '—' : (customer.salesPersonName?.trim() || '—') }}</span>
             </div>

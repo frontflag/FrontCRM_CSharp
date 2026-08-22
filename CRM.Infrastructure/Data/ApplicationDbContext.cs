@@ -558,6 +558,7 @@ namespace CRM.Infrastructure.Data
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.CustomerCode).IsRequired().HasMaxLength(16);
                 entity.Property(e => e.CreditCode).HasMaxLength(50);
+                entity.Property(e => e.CompanyEmailSuffix).HasMaxLength(128);
                 entity.Property(e => e.OfficialName).HasMaxLength(128);
                 entity.Property(e => e.Province).HasMaxLength(50);
                 entity.Property(e => e.City).HasMaxLength(50);
@@ -647,6 +648,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.PaymentMethod).HasMaxLength(50);
                 entity.Property(e => e.CreditCode).HasMaxLength(50);
                 entity.Property(e => e.DUNS).HasMaxLength(20);
+                entity.Property(e => e.CompanyEmailSuffix).HasMaxLength(128);
             });
 
             // Vendor Address configuration

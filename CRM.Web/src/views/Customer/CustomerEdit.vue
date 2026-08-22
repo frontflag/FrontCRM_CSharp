@@ -233,7 +233,28 @@
                 />
               </el-form-item>
             </el-col>
+            <el-col :span="8">
+              <el-form-item :label="t('customerEdit.fields.companyEmailSuffix')" prop="companyEmailSuffix">
+                <CompanyEmailSuffixSelect
+                  v-model="formData.companyEmailSuffix"
+                  :placeholder="t('customerEdit.placeholders.companyEmailSuffix')"
+                  :contact-emails="contactEmailList"
+                />
+              </el-form-item>
+            </el-col>
           </el-row>
+        </div>
+      </div>
+
+      <!-- 备注信息 -->
+      <div class="info-section">
+        <div class="section-header">
+          <div class="section-header__main">
+            <div class="section-dot section-dot--cyan"></div>
+            <span class="section-title">{{ t('customerEdit.sections.remarkInfo') }}</span>
+          </div>
+        </div>
+        <div class="info-section__body">
           <el-row :gutter="20">
             <el-col :span="24">
               <el-form-item :label="t('customerEdit.fields.companyInfo')">
@@ -263,7 +284,7 @@
         </div>
       </div>
 
-      <!-- 业务属性（§4 info-section） -->
+      <!-- 财务信息（§4 info-section） -->
       <div class="info-section">
         <div class="section-header">
           <div class="section-header__main">
@@ -477,6 +498,8 @@ import { markEntityParseSaved } from '@/utils/entityParseLogTrack';
 import { contactDisplayName, contactRowNameValidator, splitContactNamesFromApi } from '@/utils/contactName';
 import SalesUserCascader from '@/components/SalesUserCascader.vue';
 import RegionCascaderWithQuickPick from '@/components/RegionCascaderWithQuickPick.vue';
+import CompanyEmailSuffixSelect from '@/components/Common/CompanyEmailSuffixSelect.vue';
+import { tryNormalizeCompanyEmailSuffix } from '@/utils/companyEmailSuffix';
 import { regionData } from '@/data/regions';
 import { type CreateCustomerRequest } from '@/types/customer';
 import { useCustomerDictStore } from '@/stores/customerDict';
@@ -595,7 +618,7 @@ const currentDraftId = ref('');
 const formData = reactive<CreateCustomerRequest & { contacts: any[] }>({
   customerCode: '', customerName: '', englishOfficialName: '', customerShortName: '',
   customerType: 2, customerLevel: 'B', industry: '',
-  unifiedSocialCreditCode: '', duns: '', salesPersonId: '', salesPersonName: '',
+  unifiedSocialCreditCode: '', duns: '', companyEmailSuffix: '', salesPersonId: '', salesPersonName: '',
   country: '', province: '', city: '', district: '', address: '',
   creditLimit: 0, paymentTerms: 30, currency: DEFAULT_SETTLEMENT_CURRENCY_CODE, taxRate: 0,
   invoiceType: 2, isActive: true, companyInfo: '', remarks: '', contacts: []
@@ -636,7 +659,17 @@ const formRules = computed<FormRules>(() => {
       { min: 2, max: 100, message: t('customerEdit.validation.chineseNameLength'), trigger: 'blur' }
     ],
     customerType: [{ required: true, message: t('customerEdit.validation.typeRequired'), trigger: 'change' }],
-    customerLevel: [{ required: true, message: t('customerEdit.validation.levelRequired'), trigger: 'change' }]
+    customerLevel: [{ required: true, message: t('customerEdit.validation.levelRequired'), trigger: 'change' }],
+    companyEmailSuffix: [
+      {
+        validator: (_r, v, cb) => {
+          const { error } = tryNormalizeCompanyEmailSuffix(v)
+          if (error) cb(new Error(t('customerEdit.validation.companyEmailSuffix')))
+          else cb()
+        },
+        trigger: 'blur'
+      }
+    ]
   };
 });
 
@@ -647,6 +680,8 @@ const regionOptions = regionData;
 function onSalesPersonChange(p: { id: string; label: string }) {
   formData.salesPersonName = p.label || '';
 }
+
+const contactEmailList = computed(() => formData.contacts.map((c: { email?: string }) => c.email));
 
 const fetchCustomerDetail = async () => {
   if (!isEdit.value) return;
@@ -664,6 +699,7 @@ const fetchCustomerDetail = async () => {
       salesPersonId: customer.salesPersonId || customerAny.salesUserId,
       unifiedSocialCreditCode: customer.unifiedSocialCreditCode || customerAny.creditCode,
       duns: customer.duns || customerAny.dUNS || customerAny.DUNS || '',
+      companyEmailSuffix: customer.companyEmailSuffix || '',
       creditLimit: customer.creditLimit ?? 0,
       paymentTerms: customer.paymentTerms ?? 30,
       currency: customer.currency ?? DEFAULT_SETTLEMENT_CURRENCY_CODE,
@@ -1482,8 +1518,9 @@ onMounted(() => {
     &.is-focused { border-color: rgba(0, 212, 255, 0.5) !important; }
   }
 
-  :deep(.el-select__placeholder) { color: $text-placeholder !important; }
-  :deep(.el-select__selected-item) { color: $text-primary !important; }
+  :deep(.el-select__placeholder.is-transparent) { color: $text-placeholder !important; }
+  :deep(.el-select__placeholder:not(.is-transparent)),
+  :deep(.el-select__selected-item:not(.el-select__placeholder)) { color: $text-primary !important; }
 }
 
 .q-number {
