@@ -36,27 +36,31 @@
 
     <template v-if="viewMode === 'list'">
       <el-card shadow="never" class="filter-card">
-        <el-form :inline="true" class="filter-form" @submit.prevent="search">
-          <el-form-item :label="t('myMails.filters.keyword')">
-            <el-input
-              v-model="keyword"
-              clearable
-              style="width: 280px"
-              :placeholder="t('myMails.filters.keywordPh')"
-              @keyup.enter="search"
-            />
-          </el-form-item>
-          <el-form-item>
-            <el-button type="primary" :loading="loading" @click="search">
-              {{ t('myMails.filters.search') }}
-            </el-button>
+        <el-form :inline="true" class="filter-form filter-form--split" @submit.prevent="search">
+          <div class="filter-form__left">
+            <el-form-item :label="t('myMails.filters.keyword')">
+              <el-input
+                v-model="keyword"
+                clearable
+                style="width: 280px"
+                :placeholder="t('myMails.filters.keywordPh')"
+                @keyup.enter="search"
+              />
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" :loading="loading" @click="search">
+                {{ t('myMails.filters.search') }}
+              </el-button>
+            </el-form-item>
+          </div>
+          <div class="filter-form__right">
             <el-button :disabled="!summary.hasVerifiedMailbox" :loading="syncing" @click="receiveSelectedMailbox">
               {{ t('myMails.filters.readMails') }}
             </el-button>
             <el-button :disabled="!summary.hasVerifiedMailbox" @click="onWriteMail">
               {{ t('myMails.compose.write') }}
             </el-button>
-          </el-form-item>
+          </div>
         </el-form>
       </el-card>
 
@@ -71,7 +75,7 @@
           @row-click="(row: MyMailListItem) => selectRow(row)"
           @row-dblclick="(row: MyMailListItem) => openBody(row)"
         >
-          <el-table-column width="72" align="center">
+          <el-table-column width="40" align="center" class-name="icon-col">
             <template #default="{ row }">
               <img
                 class="read-icon"
@@ -81,7 +85,7 @@
               />
             </template>
           </el-table-column>
-          <el-table-column width="56" align="center" class-name="star-col">
+          <el-table-column width="40" align="center" class-name="star-col">
             <template #default="{ row }">
               <button
                 type="button"
@@ -97,12 +101,17 @@
               </button>
             </template>
           </el-table-column>
-          <el-table-column :label="t('myMails.columns.from')" min-width="160" show-overflow-tooltip>
+          <el-table-column
+            :label="t('myMails.columns.from')"
+            width="200"
+            show-overflow-tooltip
+            class-name="from-col"
+          >
             <template #default="{ row }">
               <span :class="{ 'is-unread': row.isUnread }">{{ formatMailFrom(row) }}</span>
             </template>
           </el-table-column>
-          <el-table-column :label="t('myMails.columns.subject')" min-width="240">
+          <el-table-column :label="t('myMails.columns.subject')" min-width="360">
             <template #default="{ row }">
               <div class="mail-subject-cell" :title="subjectCellTitle(row)">
                 <span class="mail-subject-cell__title" :class="{ 'is-unread': row.isUnread }">
@@ -116,7 +125,7 @@
           </el-table-column>
           <el-table-column
             :label="t('myMails.columns.remark')"
-            min-width="140"
+            width="140"
             show-overflow-tooltip
           >
             <template #default="{ row }">
@@ -576,6 +585,21 @@ onMounted(() => {
 .mail-remark-card {
   margin-bottom: 12px;
 }
+.filter-form--split {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+.filter-form--split :deep(.el-form-item) {
+  margin-bottom: 0;
+}
+.filter-form__left,
+.filter-form__right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .pager {
   display: flex;
   align-items: center;
@@ -608,10 +632,15 @@ onMounted(() => {
   height: 20px;
   margin: 0 auto;
 }
+:deep(.icon-col.el-table__cell),
 :deep(.star-col.el-table__cell) {
   padding-left: 4px !important;
   padding-right: 4px !important;
   overflow: visible;
+}
+:deep(.from-col.el-table__cell) {
+  padding-left: 8px !important;
+  padding-right: 8px !important;
 }
 .star-btn {
   display: inline-flex;
