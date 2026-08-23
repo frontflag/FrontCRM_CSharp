@@ -9303,6 +9303,9 @@ const zhCN = {
       keyword: '搜索付款单号/供应商',
       status: '状态',
       financePaymentCode: '付款单号',
+      purchaseOrderCode: '采购订单号',
+      purchaseUserName: '采购员',
+      purchaseCurrency: '采购币种',
       freightForwarderOrderNo: '货代单号',
       bankSlipNo: '银行水单号',
       paymentMode: '付款方式',
@@ -9324,6 +9327,8 @@ const zhCN = {
     },
     columns: {
       freightForwarderOrderNo: '货代单号',
+      purchaseOrderCode: '采购订单号',
+      purchaseUserName: '采购员',
       code: '付款单号',
       status: '状态',
       vendor: '供应商',

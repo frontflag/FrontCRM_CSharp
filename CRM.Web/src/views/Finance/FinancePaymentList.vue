@@ -48,6 +48,36 @@
           @clear="loadData"
         />
         <el-input
+          v-model="query.purchaseOrderCode"
+          :placeholder="t('financePaymentList.filters.purchaseOrderCode')"
+          clearable
+          class="search-input search-input--po"
+          @keyup.enter="loadData"
+          @clear="loadData"
+        />
+        <el-input
+          v-model="query.purchaseUserName"
+          :placeholder="t('financePaymentList.filters.purchaseUserName')"
+          clearable
+          class="search-input search-input--buyer"
+          @keyup.enter="loadData"
+          @clear="loadData"
+        />
+        <el-select
+          v-model="query.purchaseCurrency"
+          :placeholder="t('financePaymentList.filters.purchaseCurrency')"
+          clearable
+          class="filter-select filter-select--currency"
+          @change="loadData"
+        >
+          <el-option
+            v-for="opt in SETTLEMENT_CURRENCY_OPTIONS"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          />
+        </el-select>
+        <el-input
           v-model="query.freightForwarderOrderNo"
           :placeholder="t('financePaymentList.filters.freightForwarderOrderNo')"
           clearable
@@ -190,7 +220,7 @@
     <!-- 数据表格 -->
     <CrmDataTable
       ref="dataTableRef"
-      column-layout-key="finance-payment-list-main-v4"
+      column-layout-key="finance-payment-list-main-v5"
       :columns="paymentTableColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -224,6 +254,28 @@
           :masked="maskPurchaseSensitiveFields"
           :empty-text="t('quoteList.na')"
         />
+      </template>
+      <template #col-purchaseOrderCodes="{ row }">
+        <template v-if="paymentPurchaseOrderRefs(row).length">
+          <span class="fp-po-codes">
+            <template v-for="(poRef, idx) in paymentPurchaseOrderRefs(row)" :key="poRef.id">
+              <router-link
+                v-if="canOpenPurchaseOrder && poRef.id"
+                class="link-text"
+                :to="{ name: 'PurchaseOrderDetail', params: { id: poRef.id } }"
+                @click.stop
+              >
+                <CrmListCopyableTextCell :text="poRef.code" />
+              </router-link>
+              <CrmListCopyableTextCell v-else :text="poRef.code" />
+              <span v-if="idx < paymentPurchaseOrderRefs(row).length - 1">, </span>
+            </template>
+          </span>
+        </template>
+        <span v-else>—</span>
+      </template>
+      <template #col-purchaseUserName="{ row }">
+        <span>{{ paymentRowPurchaseUserName(row) || '—' }}</span>
       </template>
       <template #col-vendorReceivingBank-header>
         <VendorReceivingBankExtendColumnHeader
@@ -422,8 +474,10 @@ import {
   PAYMENT_MODE_MAP,
   CURRENCY_MAP,
   type FinancePayment,
+  type FinancePaymentPurchaseOrderRef,
   type PageQuery,
 } from '@/api/finance'
+import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 import {
   FINANCE_PAYMENT_LIST_TAB_MODE_OPTIONS,
   FP_STATUS_TAB_VALUES,
@@ -505,6 +559,9 @@ const query = reactive<PageQuery & { page: number; pageSize: number }>({
   page: 1,
   pageSize: 20,
   financePaymentCode: '',
+  purchaseOrderCode: '',
+  purchaseUserName: '',
+  purchaseCurrency: undefined,
   freightForwarderOrderNo: '',
   bankSlipNo: '',
   paymentMode: undefined,
@@ -640,6 +697,32 @@ function paymentRowFreightForwarderOrderNo(row: FinancePayment): string {
   return s
 }
 
+const canOpenPurchaseOrder = computed(() => authStore.hasPermission('purchase-order.read'))
+
+function paymentPurchaseOrderRefs(row: FinancePayment): FinancePaymentPurchaseOrderRef[] {
+  const ext = row as unknown as Record<string, unknown>
+  const raw = row.purchaseOrderRefs ?? ext.PurchaseOrderRefs
+  if (Array.isArray(raw)) {
+    return raw
+      .map((item) => {
+        const rec = item as Record<string, unknown>
+        const id = String(rec.id ?? rec.Id ?? '').trim()
+        const code = String(rec.code ?? rec.Code ?? '').trim()
+        return { id, code }
+      })
+      .filter((item) => item.id && item.code)
+  }
+  const codes = String(row.purchaseOrderCodes ?? ext.PurchaseOrderCodes ?? '').trim()
+  if (!codes) return []
+  return codes.split(',').map((code) => ({ id: '', code: code.trim() })).filter((item) => item.code)
+}
+
+function paymentRowPurchaseUserName(row: FinancePayment): string {
+  const ext = row as unknown as Record<string, unknown>
+  const raw = row.purchaseUserName ?? ext.PurchaseUserName
+  return raw != null ? String(raw).trim() : ''
+}
+
 const paymentTableColumns = computed<CrmTableColumnDef[]>(() => {
   void vendorExtendExpanded.value
   void vendorExtendColWidth.value
@@ -656,6 +739,22 @@ const paymentTableColumns = computed<CrmTableColumnDef[]>(() => {
     showOverflowTooltip: true,
     className: 'vendor-extend-col',
     labelClassName: 'vendor-extend-col'
+  },
+  {
+    key: 'purchaseOrderCodes',
+    label: t('financePaymentList.columns.purchaseOrderCode'),
+    prop: 'purchaseOrderCodes',
+    minWidth: 150,
+    width: 170,
+    showOverflowTooltip: true
+  },
+  {
+    key: 'purchaseUserName',
+    label: t('financePaymentList.columns.purchaseUserName'),
+    prop: 'purchaseUserName',
+    minWidth: 110,
+    width: 120,
+    showOverflowTooltip: true
   },
   {
     key: 'vendorReceivingBank',
@@ -973,6 +1072,28 @@ onMounted(loadData)
 .list-footer-spacer {
   width: 26px;
   flex: 0 0 26px;
+}
+
+.search-input--po,
+.search-input--buyer {
+  width: 150px;
+}
+
+.filter-select--currency {
+  width: 130px;
+}
+
+.fp-po-codes {
+  display: inline;
+}
+
+.link-text {
+  color: var(--el-color-primary);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
 }
 
 .search-input--code,

@@ -451,6 +451,9 @@ public static class ExportOperationAudit
         ["bankSlipNo"] = "银行水单号",
         ["paymentMode"] = "付款方式",
         ["vendorName"] = "供应商",
+        ["purchaseOrderCode"] = "采购订单号",
+        ["purchaseUserName"] = "采购员",
+        ["purchaseCurrency"] = "采购币种",
         ["remark"] = "备注",
         ["status"] = "状态",
         ["startDate"] = "付款日期起",
@@ -580,7 +583,8 @@ public static class ExportOperationAudit
 
         if (key.Equals("currency", StringComparison.OrdinalIgnoreCase)
             || key.Equals("receiptCurrency", StringComparison.OrdinalIgnoreCase)
-            || key.Equals("paymentCurrency", StringComparison.OrdinalIgnoreCase))
+            || key.Equals("paymentCurrency", StringComparison.OrdinalIgnoreCase)
+            || key.Equals("purchaseCurrency", StringComparison.OrdinalIgnoreCase))
             return MapCurrencyIso(text);
 
         if (key.Equals("paymentMode", StringComparison.OrdinalIgnoreCase)

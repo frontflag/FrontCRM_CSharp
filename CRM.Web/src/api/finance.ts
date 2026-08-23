@@ -61,7 +61,18 @@ export interface FinancePayment {
   createUserName?: string
   /** 关联采购订单货代单号（列表/详情由后端填充） */
   freightForwarderOrderNo?: string | null
+  /** 关联采购订单号（多明细去重拼接） */
+  purchaseOrderCodes?: string | null
+  /** 关联采购订单（列表跳转） */
+  purchaseOrderRefs?: FinancePaymentPurchaseOrderRef[]
+  /** 关联采购订单采购员（多明细去重拼接） */
+  purchaseUserName?: string | null
   items?: FinancePaymentItem[]
+}
+
+export interface FinancePaymentPurchaseOrderRef {
+  id: string
+  code: string
 }
 
 export interface UpdateFinancePaymentRequestBody {
@@ -405,6 +416,10 @@ export interface PageQuery {
   bankSlipNo?: string
   paymentMode?: number
   vendorName?: string
+  purchaseOrderCode?: string
+  purchaseUserName?: string
+  /** 采购订单币种（purchaseorder.Currency） */
+  purchaseCurrency?: number
   remark?: string
   status?: number
   invoiceStatus?: number

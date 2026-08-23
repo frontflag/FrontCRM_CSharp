@@ -50,6 +50,36 @@ public sealed class FinancePaymentListQuery : IFinancePaymentListQuery
         if (!string.IsNullOrWhiteSpace(request.FreightForwarderOrderNo))
             q = await ApplyFreightForwarderOrderNoFilterAsync(q, request.FreightForwarderOrderNo.Trim(), cancellationToken);
 
+        if (!string.IsNullOrWhiteSpace(request.PurchaseOrderCode))
+        {
+            var code = request.PurchaseOrderCode.Trim().ToLowerInvariant();
+            var poIds = await _db.PurchaseOrders.AsNoTracking()
+                .Where(po => po.PurchaseOrderCode != null && po.PurchaseOrderCode.ToLower().Contains(code))
+                .Select(po => po.Id)
+                .ToListAsync(cancellationToken);
+            q = await ApplyLinkedPurchaseOrderFilterAsync(q, poIds, cancellationToken);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.PurchaseUserName))
+        {
+            var name = request.PurchaseUserName.Trim().ToLowerInvariant();
+            var poIds = await _db.PurchaseOrders.AsNoTracking()
+                .Where(po => po.PurchaseUserName != null && po.PurchaseUserName.ToLower().Contains(name))
+                .Select(po => po.Id)
+                .ToListAsync(cancellationToken);
+            q = await ApplyLinkedPurchaseOrderFilterAsync(q, poIds, cancellationToken);
+        }
+
+        if (request.PurchaseCurrency.HasValue)
+        {
+            var currency = request.PurchaseCurrency.Value;
+            var poIds = await _db.PurchaseOrders.AsNoTracking()
+                .Where(po => po.Currency == currency)
+                .Select(po => po.Id)
+                .ToListAsync(cancellationToken);
+            q = await ApplyLinkedPurchaseOrderFilterAsync(q, poIds, cancellationToken);
+        }
+
         if (!string.IsNullOrWhiteSpace(request.BankSlipNo))
         {
             var b = request.BankSlipNo.Trim().ToLowerInvariant();
@@ -109,6 +139,17 @@ public sealed class FinancePaymentListQuery : IFinancePaymentListQuery
             .Select(po => po.Id)
             .ToListAsync(cancellationToken);
 
+        if (matchingPoIds.Count == 0)
+            return q.Where(_ => false);
+
+        return await ApplyLinkedPurchaseOrderFilterAsync(q, matchingPoIds, cancellationToken);
+    }
+
+    private async Task<IQueryable<FinancePayment>> ApplyLinkedPurchaseOrderFilterAsync(
+        IQueryable<FinancePayment> q,
+        List<string> matchingPoIds,
+        CancellationToken cancellationToken)
+    {
         if (matchingPoIds.Count == 0)
             return q.Where(_ => false);
 

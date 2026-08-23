@@ -1088,11 +1088,70 @@ namespace CRM.Core.Services
                         ?? FreightForwarderOrderNoLookup.FromPurchaseOrderItemId(item.PurchaseOrderItemId, poiById, poById))),
                     StringComparer.OrdinalIgnoreCase);
 
+            var poRefsByPaymentId = payItems
+                .GroupBy(i => i.FinancePaymentId, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    g => g.Key,
+                    g => DistinctPurchaseOrderRefs(g.Select(item =>
+                        ResolveLinkedPurchaseOrder(item.PurchaseOrderId, item.PurchaseOrderItemId, poById, poiById))),
+                    StringComparer.OrdinalIgnoreCase);
+
             foreach (var payment in list)
             {
                 if (ffByPaymentId.TryGetValue(payment.Id, out var ff) && !string.IsNullOrWhiteSpace(ff))
                     payment.FreightForwarderOrderNo = ff;
+
+                if (!poRefsByPaymentId.TryGetValue(payment.Id, out var refs) || refs.Count == 0)
+                    continue;
+
+                payment.PurchaseOrderRefs = refs;
+                payment.PurchaseOrderCodes = string.Join(", ", refs.Select(r => r.Code));
+                payment.PurchaseUserName = JoinDistinctDisplayNames(refs.Select(r =>
+                    poById.TryGetValue(r.Id, out var po) ? po.PurchaseUserName : null));
             }
+        }
+
+        private static PurchaseOrder? ResolveLinkedPurchaseOrder(
+            string? purchaseOrderId,
+            string? purchaseOrderItemId,
+            IReadOnlyDictionary<string, PurchaseOrder> poById,
+            IReadOnlyDictionary<string, PurchaseOrderItem> poiById)
+        {
+            var poId = purchaseOrderId?.Trim();
+            if (!string.IsNullOrEmpty(poId) && poById.TryGetValue(poId, out var po))
+                return po;
+
+            var poiId = purchaseOrderItemId?.Trim();
+            if (string.IsNullOrEmpty(poiId) || !poiById.TryGetValue(poiId, out var poi))
+                return null;
+            return ResolveLinkedPurchaseOrder(poi.PurchaseOrderId, null, poById, poiById);
+        }
+
+        private static List<FinancePaymentPurchaseOrderRef> DistinctPurchaseOrderRefs(
+            IEnumerable<PurchaseOrder?> orders)
+        {
+            return orders
+                .Where(po => po != null && !string.IsNullOrWhiteSpace(po.Id) && !string.IsNullOrWhiteSpace(po.PurchaseOrderCode))
+                .GroupBy(po => po!.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+                .Select(g => g.First()!)
+                .OrderBy(po => po.PurchaseOrderCode, StringComparer.OrdinalIgnoreCase)
+                .Select(po => new FinancePaymentPurchaseOrderRef
+                {
+                    Id = po.Id.Trim(),
+                    Code = po.PurchaseOrderCode.Trim()
+                })
+                .ToList();
+        }
+
+        private static string? JoinDistinctDisplayNames(IEnumerable<string?> values)
+        {
+            var list = values
+                .Where(v => !string.IsNullOrWhiteSpace(v))
+                .Select(v => v!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(v => v, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            return list.Count == 0 ? null : string.Join(", ", list);
         }
     }
 }

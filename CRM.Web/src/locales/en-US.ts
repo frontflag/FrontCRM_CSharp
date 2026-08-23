@@ -9327,6 +9327,9 @@ const enUS = {
       keyword: 'Payment code / vendor',
       status: 'Status',
       financePaymentCode: 'Payment code',
+      purchaseOrderCode: 'PO number',
+      purchaseUserName: 'Buyer',
+      purchaseCurrency: 'PO currency',
       freightForwarderOrderNo: 'Freight forwarder no.',
       bankSlipNo: 'Bank slip no.',
       paymentMode: 'Payment method',
@@ -9348,6 +9351,8 @@ const enUS = {
     },
     columns: {
       freightForwarderOrderNo: 'Freight forwarder no.',
+      purchaseOrderCode: 'PO number',
+      purchaseUserName: 'Buyer',
       code: 'Payment code',
       status: 'Status',
       vendor: 'Vendor',

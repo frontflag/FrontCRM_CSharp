@@ -152,7 +152,7 @@ public static class FinanceExportHttp
     {
         var sb = new StringBuilder();
         sb.AppendLine(string.Join(',',
-            "状态", "供应商中文", "供应商英文", "收款银行", "付款银行",
+            "状态", "供应商中文", "供应商英文", "采购订单号", "采购员", "收款银行", "付款银行",
             "请款金额", "请款金额币别", "付款金额", "付款金额币别",
             "付款方式", "付款日期", "水单号", "备注", "货代单号", "付款单号",
             "创建日期", "创建人"));
@@ -162,6 +162,8 @@ public static class FinanceExportHttp
                 InventoryExportHttp.CsvCell(PaymentStatusLabel(r.Status)),
                 InventoryExportHttp.CsvCell(MaskedName(mask511, r.VendorName)),
                 InventoryExportHttp.CsvCell(MaskedName(mask511, r.VendorEnglishName)),
+                InventoryExportHttp.CsvCell(r.PurchaseOrderCodes),
+                InventoryExportHttp.CsvCell(r.PurchaseUserName),
                 InventoryExportHttp.CsvCell(MaskedName(mask511, r.VendorBankName)),
                 InventoryExportHttp.CsvCell(MaskedName(mask511, r.PaymentBankName)),
                 AmountCell(false, r.PaymentAmountToBe),

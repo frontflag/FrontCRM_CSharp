@@ -127,6 +127,18 @@ namespace CRM.Core.Models.Finance
         [NotMapped]
         public string? FreightForwarderOrderNo { get; set; }
 
+        /// <summary>关联采购订单号（展示/导出用，多明细去重拼接，不落库）。</summary>
+        [NotMapped]
+        public string? PurchaseOrderCodes { get; set; }
+
+        /// <summary>关联采购订单（列表链接用，多明细按单号去重，不落库）。</summary>
+        [NotMapped]
+        public List<FinancePaymentPurchaseOrderRef> PurchaseOrderRefs { get; set; } = new();
+
+        /// <summary>关联采购订单采购员（展示用，多明细去重拼接，不落库）。</summary>
+        [NotMapped]
+        public string? PurchaseUserName { get; set; }
+
         [StringLength(36)]
         [Column("create_by_user_id")]
         public string? CreateByUserId { get; set; }
@@ -143,6 +155,13 @@ namespace CRM.Core.Models.Finance
         public bool IsDeleted { get; set; }
 
         public virtual ICollection<FinancePaymentItem> Items { get; set; } = new List<FinancePaymentItem>();
+    }
+
+    /// <summary>付款列表关联采购订单（展示/跳转，不落库）。</summary>
+    public sealed class FinancePaymentPurchaseOrderRef
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Code { get; set; } = string.Empty;
     }
 
     /// <summary>

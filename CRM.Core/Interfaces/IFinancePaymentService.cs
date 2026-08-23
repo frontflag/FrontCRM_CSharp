@@ -136,6 +136,12 @@ namespace CRM.Core.Interfaces
         public string? BankSlipNo { get; set; }
         public short? PaymentMode { get; set; }
         public string? VendorName { get; set; }
+        /// <summary>关联采购订单号模糊（任一明细命中即保留）。</summary>
+        public string? PurchaseOrderCode { get; set; }
+        /// <summary>关联采购订单采购员姓名模糊（任一明细命中即保留）。</summary>
+        public string? PurchaseUserName { get; set; }
+        /// <summary>关联采购订单币种精确匹配（purchaseorder.Currency）。</summary>
+        public short? PurchaseCurrency { get; set; }
         public string? Remark { get; set; }
         public short? Status { get; set; }
         /// <summary>付款日期起（含）。</summary>
