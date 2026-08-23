@@ -803,7 +803,10 @@ const enUS = {
       customerIntel: 'Intel',
       vendorIntel: 'Intel',
       help: 'Help',
-      changeLog: 'Change log'
+      changeLog: 'Change log',
+      mailbox: 'Mailbox',
+      mailInboxList: 'Inbox list',
+      mailFn: 'Mail tools'
     },
     flowPanel: {
       youAreHere: 'Current business node'
@@ -8749,10 +8752,61 @@ const enUS = {
     noMailboxTitle: 'No verified mailbox',
     noMailboxHint: 'Add and verify an IMAP mailbox under My Mailboxes before syncing.',
     goMailboxSettings: 'Configure my mailboxes',
+    comingSoon: 'Coming soon',
     stats: { total: 'All mail', unread: 'Unread' },
+    menu: {
+      mailboxPanel: 'Mailbox',
+      folderPanel: 'Folders',
+      inboxPanel: 'Inbox',
+      filterPanel: 'Filters',
+      inbox: 'Inbox',
+      inboxWithUnread: 'Inbox ({count})',
+      draft: 'Drafts',
+      sent: 'Sent',
+      deleted: 'Deleted'
+    },
+    cardList: {
+      title: 'Inbox list',
+      loading: 'Loading…',
+      empty: 'No messages'
+    },
+    fn: {
+      title: 'Mail tools',
+      write: 'Compose',
+      receive: 'Fetch',
+      addressBook: 'Address book',
+      extractTitle: 'Extract',
+      extractHint: 'Detect RFQ / demand from the current message, then open New RFQ.',
+      extract: 'Extract',
+      needMail: 'Select or open a message first',
+      emptyBody: 'This message has no extractable body',
+      noPermission: 'No permission to parse RFQ with AI'
+    },
+    addressBook: {
+      keywordPh: 'Name, email, or company',
+      contactName: 'Contact',
+      email: 'Email',
+      partyName: 'Customer / Vendor'
+    },
+    compose: {
+      write: 'Compose',
+      send: 'Send',
+      from: 'From',
+      to: 'To',
+      toPh: 'Separate multiple addresses with commas or semicolons',
+      cc: 'Cc',
+      ccPh: 'Optional',
+      subject: 'Subject',
+      subjectPh: 'Subject',
+      body: 'Body',
+      bodyPh: 'Write your message'
+    },
     filters: {
       mailbox: 'Mailbox',
       mailboxAll: 'All verified mailboxes',
+      setupMailbox: 'Set up your mailbox',
+      keyword: 'Search',
+      keywordPh: 'Subject, sender, or body',
       subject: 'Subject',
       from: 'From',
       body: 'Body',
@@ -8760,15 +8814,26 @@ const enUS = {
       fromDate: 'From',
       toDate: 'To',
       search: 'Search',
-      readMails: 'Fetch mail'
+      readMails: 'Fetch mail',
+      readAll: 'All',
+      unreadOnly: 'Unread',
+      readOnly: 'Read',
+      starredOnly: 'Starred',
+      remarkedOnly: 'Remarks'
     },
     columns: {
-      receivedAt: 'Date',
+      receivedAt: 'Sent at',
       subject: 'Subject',
       snippet: 'Snippet',
       from: 'From',
       mailbox: 'Mailbox',
-      actions: 'Actions'
+      actions: 'Actions',
+      readState: 'Read',
+      unread: 'Unread',
+      read: 'Read',
+      star: 'Star',
+      starred: 'Unstar',
+      remark: 'Mail remark'
     },
     actions: { view: 'View' },
     syncDialog: {
@@ -8778,10 +8843,44 @@ const enUS = {
       confirm: 'Start'
     },
     detail: { title: 'Message' },
+    body: {
+      back: 'Back',
+      reply: 'Reply',
+      delete: 'Delete',
+      restore: 'Restore to Inbox',
+      deleteConfirm: 'Remove this message from the list? The server copy is not deleted.',
+      from: 'From',
+      sentAt: 'Sent',
+      to: 'To',
+      cc: 'Cc',
+      signature: 'Signature',
+      signatureEmpty: 'No signature'
+    },
+    remark: {
+      title: 'Mail remark',
+      placeholder: 'Enter a mail remark',
+      save: 'Save remark',
+      clear: 'Clear remark',
+      clearConfirm: 'Clear the remark on this message? This cannot be undone.'
+    },
     messages: {
       loadFailed: 'Failed to load',
       syncDone: 'Sync done: fetched {fetched}, saved {upserted}',
-      syncFailed: 'Fetch failed'
+      syncFailed: 'Fetch failed',
+      needTo: 'Enter at least one recipient',
+      needSubject: 'Enter a subject',
+      needBody: 'Enter the message body',
+      needMail: 'Select a message first',
+      sent: 'Sent',
+      sendFailed: 'Failed to send',
+      deleted: 'Deleted',
+      deleteFailed: 'Failed to delete',
+      restored: 'Restored to Inbox',
+      restoreFailed: 'Failed to restore',
+      starFailed: 'Failed to update star',
+      remarkSaved: 'Remark saved',
+      remarkCleared: 'Remark cleared',
+      remarkFailed: 'Failed to update remark'
     }
   },
   draftList: {

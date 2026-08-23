@@ -120,7 +120,7 @@ public sealed class MailboxVerifyService : IMailboxVerifyService
 
             using var smtp = new SmtpClient();
             var port = tenant.SmtpPort is >= 1 and <= 65535 ? tenant.SmtpPort : 587;
-            var secure = ResolveSmtpSecure(port, tenant.UseSsl);
+            var secure = SmtpSecureOptions.Resolve(port, tenant.UseSsl);
             await smtp.ConnectAsync(tenant.SmtpHost.Trim(), port, secure, cancellationToken);
             await smtp.AuthenticateAsync(address, password, cancellationToken);
             await smtp.SendAsync(message, cancellationToken);
@@ -174,13 +174,6 @@ public sealed class MailboxVerifyService : IMailboxVerifyService
         if (!string.IsNullOrWhiteSpace(a)) return a;
         if (!string.IsNullOrWhiteSpace(b)) return b;
         return null;
-    }
-
-    private static SecureSocketOptions ResolveSmtpSecure(int port, bool useSsl)
-    {
-        if (!useSsl) return SecureSocketOptions.Auto;
-        if (port == 465) return SecureSocketOptions.SslOnConnect;
-        return SecureSocketOptions.StartTls;
     }
 
     private static MailboxVerifyResultDto EarlyFail(string message) => new()

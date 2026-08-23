@@ -12,6 +12,7 @@ export interface MyMailMailboxOption {
   address: string
   kind: string
   displayName?: string | null
+  isDefaultSend?: boolean
 }
 
 export interface MyMailListItem {
@@ -24,7 +25,10 @@ export interface MyMailListItem {
   fromName?: string | null
   receivedAt?: string | null
   isUnread: boolean
+  isStarred?: boolean
+  remark?: string | null
   hasAttachments: boolean
+  isDeleted?: boolean
 }
 
 export interface MyMailDetail extends MyMailListItem {
@@ -46,6 +50,11 @@ export interface MyMailListQuery {
   subject?: string
   from?: string
   body?: string
+  q?: string
+  isUnread?: boolean
+  isStarred?: boolean
+  hasRemark?: boolean
+  folder?: 'inbox' | 'deleted' | 'sent'
   receivedFrom?: string
   receivedTo?: string
   page?: number
@@ -88,4 +97,64 @@ export async function syncMyMails(mailboxId?: string | null): Promise<MyMailSync
 
 export async function markMyMailRead(id: string): Promise<void> {
   await apiClient.post(`${BASE}/${encodeURIComponent(id)}/read`)
+}
+
+export async function setMyMailStarred(id: string, starred: boolean): Promise<void> {
+  await apiClient.post(`${BASE}/${encodeURIComponent(id)}/star`, { starred })
+}
+
+export async function saveMyMailRemark(id: string, remark: string): Promise<void> {
+  await apiClient.post(`${BASE}/${encodeURIComponent(id)}/remark`, { remark })
+}
+
+export async function clearMyMailRemark(id: string): Promise<void> {
+  await apiClient.post(`${BASE}/${encodeURIComponent(id)}/remark/clear`)
+}
+
+export async function deleteMyMail(id: string): Promise<void> {
+  await apiClient.delete(`${BASE}/${encodeURIComponent(id)}`)
+}
+
+export async function restoreMyMail(id: string): Promise<void> {
+  await apiClient.post(`${BASE}/${encodeURIComponent(id)}/restore`)
+}
+
+export interface MyMailSendRequest {
+  to: string
+  cc?: string
+  subject: string
+  body: string
+  inReplyToMailId?: string
+}
+
+export async function sendMyMail(body: MyMailSendRequest): Promise<void> {
+  await apiClient.post(`${BASE}/send`, body, { timeout: 60_000 })
+}
+
+export interface MyMailAddressBookItem {
+  id: string
+  partyKind: 'customer' | 'vendor' | string
+  partyId: string
+  partyName?: string | null
+  contactName?: string | null
+  email: string
+}
+
+export interface MyMailAddressBookQuery {
+  q?: string
+  page?: number
+  pageSize?: number
+}
+
+export interface MyMailAddressBookPaged {
+  items: MyMailAddressBookItem[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+export async function fetchMyMailAddressBook(
+  query: MyMailAddressBookQuery
+): Promise<MyMailAddressBookPaged> {
+  return await apiClient.get<MyMailAddressBookPaged>(`${BASE}/address-book`, { params: query })
 }

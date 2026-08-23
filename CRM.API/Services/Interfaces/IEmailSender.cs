@@ -12,4 +12,15 @@ public interface IEmailSender
         string attachmentFileName,
         string attachmentMimeType,
         CancellationToken cancellationToken = default);
+
+    /// <summary>使用默认平台邮箱发送纯文本/HTML 邮件（我的邮件回复/写新信）。</summary>
+    Task SendAsync(
+        string senderUserId,
+        IReadOnlyList<string> to,
+        IReadOnlyList<string>? cc,
+        string subject,
+        string? textBody,
+        string? htmlBody,
+        string? inReplyToMessageId,
+        CancellationToken cancellationToken = default);
 }

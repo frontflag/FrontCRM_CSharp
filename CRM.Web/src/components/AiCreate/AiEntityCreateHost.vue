@@ -124,6 +124,11 @@ function open() {
   textVisible.value = true
 }
 
+async function openWithText(rawText: string) {
+  entityParseLogId.value = null
+  await onGenerate(rawText)
+}
+
 function resolveRawObject(result: Awaited<ReturnType<typeof aiApi.invoke>>) {
   if (result.entityParseLogId && result.data && typeof result.data === 'object' && !Array.isArray(result.data)) {
     return result.data as Record<string, unknown>
@@ -265,5 +270,5 @@ function onConfirm(
   })
 }
 
-defineExpose({ open })
+defineExpose({ open, openWithText })
 </script>

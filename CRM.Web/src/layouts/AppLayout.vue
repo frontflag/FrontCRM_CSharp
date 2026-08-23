@@ -1226,7 +1226,9 @@
           </div>
         </div>
         <div class="aux-panel-body">
-          <CustomerSearchPanel v-if="showCustomerSearchPanel" />
+          <MailMailboxMenuPanel v-if="showMailMailboxMenuPanel" />
+          <MailInboxCardList v-else-if="showMailInboxCardList" />
+          <CustomerSearchPanel v-else-if="showCustomerSearchPanel" />
           <CustomerFavoritePanel v-else-if="showCustomerFavoritePanel" />
           <CustomerRecentHistoryPanel v-else-if="showCustomerRecentHistoryPanel" />
           <VendorSearchPanel v-else-if="showVendorSearchPanel" />
@@ -1637,6 +1639,7 @@
             v-show="showSellInvoiceWriteOffStockOutPanel"
             class="aux-panel-tab-body"
           />
+          <MailFunctionPanel v-show="showMailFunctionPanel" class="aux-panel-tab-body" />
           <HelpManualPanel v-show="rightActiveTabId === 'r4'" class="aux-panel-tab-body" />
         </div>
       </aside>
@@ -1727,6 +1730,9 @@ import SalesOrderItemFlowPanel from '@/components/RFQ/SalesOrderItemFlowPanel.vu
 import PackingItemFlowPanel from '@/components/Inventory/PackingItemFlowPanel.vue'
 import PackingListFlowPanel from '@/components/Inventory/PackingListFlowPanel.vue'
 import RfqItemMaterialPanel from '@/components/RFQ/RfqItemMaterialPanel.vue'
+import MailMailboxMenuPanel from '@/components/Mail/MailMailboxMenuPanel.vue'
+import MailInboxCardList from '@/components/Mail/MailInboxCardList.vue'
+import MailFunctionPanel from '@/components/Mail/MailFunctionPanel.vue'
 import CustomerIntelPanel from '@/components/Customer/CustomerIntelPanel.vue'
 import VendorIntelPanel from '@/components/Vendor/VendorIntelPanel.vue'
 import PurchaseOrderItemOpsPanel from '@/components/RFQ/PurchaseOrderItemOpsPanel.vue'
@@ -1909,6 +1915,17 @@ const isCustomerLeftAuxRoute = computed(() => {
     n === 'CustomerWarrantyReport'
   )
 })
+
+const isMyMailsRoute = computed(() => route.name === 'MyMails')
+const showMailMailboxMenuPanel = computed(
+  () => isMyMailsRoute.value && leftActiveTabId.value === 'l-mailbox'
+)
+const showMailInboxCardList = computed(
+  () => isMyMailsRoute.value && leftActiveTabId.value === 'l-mail-list'
+)
+const showMailFunctionPanel = computed(
+  () => isMyMailsRoute.value && rightActiveTabId.value === 'r-mail-fn'
+)
 
 const showCustomerSearchPanel = computed(
   () => leftActiveTabId.value === 'l1' && isCustomerLeftAuxRoute.value
@@ -2471,6 +2488,29 @@ watch(
       ]
       restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-quote-history' })
       rightActiveTabId.value = 'r-quote-history'
+      return
+    }
+
+    if (name === 'MyMails') {
+      leftTabs.value = [
+        { id: 'l-mailbox', labelKey: 'layout.auxTabs.mailbox' },
+        { id: 'l-mail-list', labelKey: 'layout.auxTabs.mailInboxList' }
+      ]
+      rightTabs.value = [
+        { id: 'r-mail-fn', labelKey: 'layout.auxTabs.mailFn' },
+        { id: 'r4', labelKey: 'layout.auxTabs.help' }
+      ]
+      salesOrderItemOpsStore.clear()
+      purchaseOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
+      customsDeclarationOpsStore.clear()
+      arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
+      materialIntelLookupStore.clearBound()
+      customerIntelLookupStore.clearBound()
+      vendorIntelLookupStore.clearBound()
+      restoreAuxTabsForRoute(name, { left: 'l-mailbox', right: 'r-mail-fn' })
       return
     }
 

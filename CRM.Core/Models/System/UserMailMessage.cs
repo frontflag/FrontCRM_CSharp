@@ -56,6 +56,15 @@ public class UserMailMessage
     [Column("is_unread")]
     public bool IsUnread { get; set; } = true;
 
+    /// <summary>本地星标；同步不覆盖，不写回 IMAP。</summary>
+    [Column("is_starred")]
+    public bool IsStarred { get; set; }
+
+    /// <summary>本地备注；同步不覆盖，不写回 IMAP。</summary>
+    [StringLength(2000)]
+    [Column("remark")]
+    public string? Remark { get; set; }
+
     [StringLength(500)]
     [Column("snippet")]
     public string? Snippet { get; set; }

@@ -2,7 +2,9 @@
   <div class="my-mails-page">
     <div class="page-header">
       <h2>{{ t('myMails.title') }}</h2>
-      <span class="count">{{ t('myMails.count', { count: total }) }}</span>
+      <span class="count">{{
+        t('myMails.count', { count: viewMode === 'contacts' ? addressTotal : total })
+      }}</span>
     </div>
 
     <el-alert
@@ -19,7 +21,7 @@
       </el-button>
     </el-alert>
 
-    <el-card v-else shadow="never" class="info-panel stats-card">
+    <el-card v-else-if="viewMode === 'list'" shadow="never" class="info-panel stats-card">
       <div class="stats-row">
         <div class="stat">
           <div class="stat-label">{{ t('myMails.stats.total') }}</div>
@@ -32,312 +34,430 @@
       </div>
     </el-card>
 
-    <el-card shadow="never" class="filter-card">
-      <el-form :inline="true" class="filter-form" @submit.prevent="onSearch">
-        <el-form-item :label="t('myMails.filters.mailbox')">
-          <el-select
-            v-model="filters.mailboxId"
-            clearable
-            filterable
-            style="width: 220px"
-            :placeholder="t('myMails.filters.mailboxAll')"
+    <template v-if="viewMode === 'list'">
+      <el-card shadow="never" class="filter-card">
+        <el-form :inline="true" class="filter-form" @submit.prevent="search">
+          <el-form-item :label="t('myMails.filters.keyword')">
+            <el-input
+              v-model="keyword"
+              clearable
+              style="width: 280px"
+              :placeholder="t('myMails.filters.keywordPh')"
+              @keyup.enter="search"
+            />
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" :loading="loading" @click="search">
+              {{ t('myMails.filters.search') }}
+            </el-button>
+            <el-button :disabled="!summary.hasVerifiedMailbox" :loading="syncing" @click="receiveSelectedMailbox">
+              {{ t('myMails.filters.readMails') }}
+            </el-button>
+            <el-button :disabled="!summary.hasVerifiedMailbox" @click="onWriteMail">
+              {{ t('myMails.compose.write') }}
+            </el-button>
+          </el-form-item>
+        </el-form>
+      </el-card>
+
+      <el-card shadow="never" class="table-card">
+        <el-table
+          v-loading="loading"
+          :data="rows"
+          stripe
+          highlight-current-row
+          row-key="id"
+          :row-class-name="rowClassName"
+          @row-click="(row: MyMailListItem) => selectRow(row)"
+          @row-dblclick="(row: MyMailListItem) => openBody(row)"
+        >
+          <el-table-column width="72" align="center">
+            <template #default="{ row }">
+              <img
+                class="read-icon"
+                :src="row.isUnread ? mailUnreadIcon : mailReadIcon"
+                :alt="row.isUnread ? t('myMails.columns.unread') : t('myMails.columns.read')"
+                :title="row.isUnread ? t('myMails.columns.unread') : t('myMails.columns.read')"
+              />
+            </template>
+          </el-table-column>
+          <el-table-column width="56" align="center" class-name="star-col">
+            <template #default="{ row }">
+              <button
+                type="button"
+                class="star-btn"
+                :title="row.isStarred ? t('myMails.columns.starred') : t('myMails.columns.star')"
+                @click.stop="toggleStar(row)"
+              >
+                <img
+                  class="star-icon"
+                  :src="row.isStarred ? mailStarOnIcon : mailStarOffIcon"
+                  :alt="row.isStarred ? t('myMails.columns.starred') : t('myMails.columns.star')"
+                />
+              </button>
+            </template>
+          </el-table-column>
+          <el-table-column :label="t('myMails.columns.from')" min-width="160" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span :class="{ 'is-unread': row.isUnread }">{{ formatMailFrom(row) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column :label="t('myMails.columns.subject')" min-width="240" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span :class="{ 'is-unread': row.isUnread }">{{ row.subject || '—' }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column
+            :label="t('myMails.columns.remark')"
+            min-width="140"
+            show-overflow-tooltip
           >
-            <el-option
-              v-for="m in mailboxOptions"
-              :key="m.id"
-              :label="m.address"
-              :value="m.id"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item :label="t('myMails.filters.subject')">
-          <el-input v-model="filters.subject" clearable style="width: 160px" @keyup.enter="onSearch" />
-        </el-form-item>
-        <el-form-item :label="t('myMails.filters.from')">
-          <el-input v-model="filters.from" clearable style="width: 160px" @keyup.enter="onSearch" />
-        </el-form-item>
-        <el-form-item :label="t('myMails.filters.body')">
-          <el-input v-model="filters.body" clearable style="width: 160px" @keyup.enter="onSearch" />
-        </el-form-item>
-        <el-form-item :label="t('myMails.filters.receivedRange')">
-          <el-date-picker
-            v-model="receivedRange"
-            type="daterange"
-            value-format="YYYY-MM-DD"
-            unlink-panels
-            style="width: 260px"
-            :start-placeholder="t('myMails.filters.fromDate')"
-            :end-placeholder="t('myMails.filters.toDate')"
+            <template #default="{ row }">
+              <span>{{ row.remark?.trim() || '—' }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column :label="t('myMails.columns.receivedAt')" width="170">
+            <template #default="{ row }">
+              <span :class="{ 'is-unread': row.isUnread }">{{ formatMailAt(row.receivedAt) }}</span>
+            </template>
+          </el-table-column>
+        </el-table>
+        <div class="pager">
+          <el-pagination
+            v-model:current-page="page"
+            v-model:page-size="pageSize"
+            layout="total, sizes, prev, pager, next"
+            :total="total"
+            :page-sizes="[10, 20, 50]"
+            @current-change="loadList"
+            @size-change="onPageSizeChange"
           />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" :loading="loading" @click="onSearch">{{ t('myMails.filters.search') }}</el-button>
-          <el-button :disabled="!summary.hasVerifiedMailbox" :loading="syncing" @click="openSyncDialog">
-            {{ t('myMails.filters.readMails') }}
-          </el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
-
-    <el-card shadow="never" class="table-card">
-      <el-table
-        v-loading="loading"
-        :data="rows"
-        stripe
-        highlight-current-row
-        @row-dblclick="(row: MyMailListItem) => openDetail(row)"
-      >
-        <el-table-column :label="t('myMails.columns.receivedAt')" width="170">
-          <template #default="{ row }">
-            <span :class="{ 'is-unread': row.isUnread }">{{ formatAt(row.receivedAt) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column :label="t('myMails.columns.subject')" min-width="200" show-overflow-tooltip>
-          <template #default="{ row }">
-            <span :class="{ 'is-unread': row.isUnread }">{{ row.subject || '—' }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="snippet" :label="t('myMails.columns.snippet')" min-width="240" show-overflow-tooltip />
-        <el-table-column :label="t('myMails.columns.from')" min-width="160" show-overflow-tooltip>
-          <template #default="{ row }">
-            {{ row.fromName ? `${row.fromName} <${row.fromAddress || ''}>` : row.fromAddress || '—' }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="mailboxAddress" :label="t('myMails.columns.mailbox')" min-width="160" show-overflow-tooltip />
-        <el-table-column :label="t('myMails.columns.actions')" width="100" fixed="right" align="center">
-          <template #default="{ row }">
-            <el-button link type="primary" @click="openDetail(row)">{{ t('myMails.actions.view') }}</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-      <div class="pager">
-        <el-pagination
-          v-model:current-page="page"
-          v-model:page-size="pageSize"
-          layout="total, sizes, prev, pager, next"
-          :total="total"
-          :page-sizes="[10, 20, 50]"
-          @current-change="loadList"
-          @size-change="onPageSizeChange"
-        />
-      </div>
-    </el-card>
-
-    <el-dialog
-      v-model="syncVisible"
-      :title="t('myMails.syncDialog.title')"
-      width="420px"
-      destroy-on-close
-    >
-      <el-form label-width="100px">
-        <el-form-item :label="t('myMails.syncDialog.mailbox')">
-          <el-select v-model="syncMailboxId" style="width: 100%">
-            <el-option :label="t('myMails.syncDialog.all')" value="" />
-            <el-option
-              v-for="m in mailboxOptions"
-              :key="m.id"
-              :label="m.address"
-              :value="m.id"
-            />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="syncVisible = false">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" :loading="syncing" @click="runSync">{{ t('myMails.syncDialog.confirm') }}</el-button>
-      </template>
-    </el-dialog>
-
-    <el-dialog
-      v-model="detailVisible"
-      :title="detail?.subject || t('myMails.detail.title')"
-      width="720px"
-      destroy-on-close
-      class="mail-detail-dialog"
-    >
-      <template v-if="detail">
-        <div class="detail-meta">
-          <div><b>{{ t('myMails.columns.from') }}：</b>{{ detail.fromName || '' }} {{ detail.fromAddress }}</div>
-          <div><b>{{ t('myMails.columns.mailbox') }}：</b>{{ detail.mailboxAddress }}</div>
-          <div><b>{{ t('myMails.columns.receivedAt') }}：</b>{{ formatAt(detail.receivedAt) }}</div>
         </div>
-        <div v-if="detail.bodyHtml" class="detail-body" v-html="sanitizedHtml" />
-        <pre v-else class="detail-body detail-body--text">{{ detail.bodyText || detail.snippet || '' }}</pre>
-      </template>
-    </el-dialog>
+      </el-card>
+    </template>
+
+    <template v-else-if="viewMode === 'body'">
+      <el-card shadow="never" class="body-card" v-loading="detailLoading">
+        <div class="mail-toolbar">
+          <el-button @click="backToList">{{ t('myMails.body.back') }}</el-button>
+          <el-button v-if="folderId !== 'sent'" :disabled="!detail" @click="onReply">
+            {{ t('myMails.body.reply') }}
+          </el-button>
+          <el-button
+            v-if="isDeletedFolder"
+            :loading="restoring"
+            :disabled="!detail"
+            @click="onRestore"
+          >
+            {{ t('myMails.body.restore') }}
+          </el-button>
+          <el-button
+            v-else
+            :loading="deleting"
+            :disabled="!detail"
+            @click="onDelete"
+          >
+            {{ t('myMails.body.delete') }}
+          </el-button>
+        </div>
+        <div v-if="detail" class="mail-summary">
+          <div class="mail-summary__title">{{ detail.subject || t('myMails.detail.title') }}</div>
+          <div class="mail-summary__row">
+            <span class="mail-summary__label">{{ t('myMails.body.from') }}</span>
+            <span>{{ formatMailFrom(detail) }}{{ detail.fromAddress ? ` <${detail.fromAddress}>` : '' }}</span>
+          </div>
+          <div class="mail-summary__row">
+            <span class="mail-summary__label">{{ t('myMails.body.sentAt') }}</span>
+            <span>{{ formatMailAt(detail.receivedAt) }}</span>
+          </div>
+          <div class="mail-summary__row">
+            <span class="mail-summary__label">{{ t('myMails.body.to') }}</span>
+            <span>{{ detail.toAddresses || '—' }}</span>
+          </div>
+          <div class="mail-summary__row">
+            <span class="mail-summary__label">{{ t('myMails.body.cc') }}</span>
+            <span>—</span>
+          </div>
+        </div>
+        <div v-if="detail?.bodyHtml" class="mail-body" v-html="sanitizedHtml" />
+        <pre v-else class="mail-body mail-body--text">{{ detail?.bodyText || detail?.snippet || '' }}</pre>
+        <div class="mail-signature">
+          <div class="mail-signature__title">{{ t('myMails.body.signature') }}</div>
+          <div class="mail-signature__empty">{{ t('myMails.body.signatureEmpty') }}</div>
+        </div>
+        <div class="mail-remark">
+          <div class="mail-remark__title">{{ t('myMails.remark.title') }}</div>
+          <el-input
+            v-model="remarkDraft"
+            type="textarea"
+            :rows="4"
+            maxlength="2000"
+            show-word-limit
+            :placeholder="t('myMails.remark.placeholder')"
+          />
+          <div class="mail-remark__actions">
+            <el-button
+              type="primary"
+              :disabled="!canSaveRemark"
+              :loading="remarkSaving"
+              @click="saveRemark"
+            >
+              {{ t('myMails.remark.save') }}
+            </el-button>
+            <el-button
+              :disabled="!canClearRemark"
+              :loading="remarkClearing"
+              @click="onClearRemark"
+            >
+              {{ t('myMails.remark.clear') }}
+            </el-button>
+          </div>
+        </div>
+      </el-card>
+    </template>
+
+    <template v-else-if="viewMode === 'contacts'">
+      <el-card shadow="never" class="filter-card">
+        <el-form :inline="true" class="filter-form" @submit.prevent="search">
+          <el-form-item :label="t('myMails.filters.keyword')">
+            <el-input
+              v-model="addressKeyword"
+              clearable
+              style="width: 280px"
+              :placeholder="t('myMails.addressBook.keywordPh')"
+              @keyup.enter="search"
+            />
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" :loading="addressLoading" @click="search">
+              {{ t('myMails.filters.search') }}
+            </el-button>
+          </el-form-item>
+        </el-form>
+      </el-card>
+      <el-card shadow="never" class="table-card">
+        <el-table
+          v-loading="addressLoading"
+          :data="addressRows"
+          stripe
+          highlight-current-row
+          row-key="id"
+          :row-class-name="addressRowClassName"
+          @row-click="(row: MyMailAddressBookItem) => selectAddress(row)"
+          @row-dblclick="(row: MyMailAddressBookItem) => composeToAddress(row)"
+        >
+          <el-table-column
+            :label="t('myMails.addressBook.contactName')"
+            min-width="140"
+            show-overflow-tooltip
+          >
+            <template #default="{ row }">{{ row.contactName || '—' }}</template>
+          </el-table-column>
+          <el-table-column
+            :label="t('myMails.addressBook.email')"
+            min-width="200"
+            show-overflow-tooltip
+            prop="email"
+          />
+          <el-table-column
+            :label="t('myMails.addressBook.partyName')"
+            min-width="200"
+            show-overflow-tooltip
+          >
+            <template #default="{ row }">{{ row.partyName || '—' }}</template>
+          </el-table-column>
+        </el-table>
+        <div class="pager">
+          <el-pagination
+            v-model:current-page="addressPage"
+            v-model:page-size="addressPageSize"
+            layout="total, sizes, prev, pager, next"
+            :total="addressTotal"
+            :page-sizes="[10, 20, 50]"
+            @current-change="loadAddressBook"
+            @size-change="onAddressPageSizeChange"
+          />
+        </div>
+      </el-card>
+    </template>
+
+    <template v-else-if="viewMode === 'compose'">
+      <el-card shadow="never" class="body-card">
+        <div class="mail-toolbar">
+          <el-button @click="cancelCompose">{{ t('myMails.body.back') }}</el-button>
+          <el-button type="primary" :loading="sending" @click="onSend">
+            {{ t('myMails.compose.send') }}
+          </el-button>
+        </div>
+        <el-form label-width="96px" class="compose-form" @submit.prevent="onSend">
+          <el-form-item :label="t('myMails.compose.from')">
+            <span class="compose-from">{{ sendFromDisplay || '—' }}</span>
+          </el-form-item>
+          <el-form-item :label="t('myMails.compose.to')">
+            <el-input v-model="compose.to" :placeholder="t('myMails.compose.toPh')" />
+          </el-form-item>
+          <el-form-item :label="t('myMails.compose.cc')">
+            <el-input v-model="compose.cc" :placeholder="t('myMails.compose.ccPh')" />
+          </el-form-item>
+          <el-form-item :label="t('myMails.compose.subject')">
+            <el-input v-model="compose.subject" :placeholder="t('myMails.compose.subjectPh')" />
+          </el-form-item>
+          <el-form-item :label="t('myMails.compose.body')">
+            <el-input
+              v-model="compose.body"
+              type="textarea"
+              :rows="16"
+              :placeholder="t('myMails.compose.bodyPh')"
+            />
+          </el-form-item>
+        </el-form>
+      </el-card>
+    </template>
+
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import {
-  fetchMyMailDetail,
-  fetchMyMailMailboxOptions,
-  fetchMyMails,
-  fetchMyMailSummary,
-  markMyMailRead,
-  syncMyMails,
-  type MyMailDetail,
-  type MyMailListItem,
-  type MyMailMailboxOption,
-  type MyMailSummary
-} from '@/api/myMails'
-import { getApiErrorMessage } from '@/utils/apiError'
-import { profileMailboxLocation } from '@/utils/profileMailboxLink'
+import { ElMessageBox } from 'element-plus'
 import DOMPurify from 'dompurify'
+import type { MyMailAddressBookItem, MyMailListItem } from '@/api/myMails'
+import { profileMailboxLocation } from '@/utils/profileMailboxLink'
+import {
+  formatMailAt,
+  formatMailFrom,
+  useMyMailsWorkspace
+} from '@/composables/useMyMailsWorkspace'
+import mailReadIcon from '@/assets/icons/mail/mail-read.svg'
+import mailUnreadIcon from '@/assets/icons/mail/mail-unread.svg'
+import mailStarOnIcon from '@/assets/icons/mail/mail-star-on.svg'
+import mailStarOffIcon from '@/assets/icons/mail/mail-star-off.svg'
 
 const { t } = useI18n()
 const router = useRouter()
+const {
+  summaryLoaded,
+  summary,
+  keyword,
+  rows,
+  loading,
+  total,
+  page,
+  pageSize,
+  selectedId,
+  folderId,
+  viewMode,
+  detail,
+  detailLoading,
+  syncing,
+  loadList,
+  search,
+  onPageSizeChange,
+  selectRow,
+  toggleStar,
+  openBody,
+  backToList,
+  receiveSelectedMailbox,
+  ensureLoaded,
+  sending,
+  deleting,
+  restoring,
+  isDeletedFolder,
+  compose,
+  sendFromDisplay,
+  startCompose,
+  startReply,
+  cancelCompose,
+  sendCompose,
+  deleteCurrent,
+  restoreCurrent,
+  remarkDraft,
+  remarkSaving,
+  remarkClearing,
+  canSaveRemark,
+  canClearRemark,
+  saveRemark,
+  clearRemark,
+  addressKeyword,
+  addressRows,
+  addressLoading,
+  addressTotal,
+  addressPage,
+  addressPageSize,
+  selectedAddressId,
+  loadAddressBook,
+  selectAddress,
+  composeToAddress,
+  onAddressPageSizeChange
+} = useMyMailsWorkspace()
 
-const summaryLoaded = ref(false)
-const summary = reactive<MyMailSummary>({
-  hasVerifiedMailbox: false,
-  verifiedMailboxCount: 0,
-  totalCount: 0,
-  unreadCount: 0
-})
-const mailboxOptions = ref<MyMailMailboxOption[]>([])
-const filters = reactive({
-  mailboxId: '' as string,
-  subject: '',
-  from: '',
-  body: ''
-})
-const receivedRange = ref<[string, string] | null>(null)
-const rows = ref<MyMailListItem[]>([])
-const loading = ref(false)
-const total = ref(0)
-const page = ref(1)
-const pageSize = ref(20)
-
-const syncVisible = ref(false)
-const syncMailboxId = ref('')
-const syncing = ref(false)
-
-const detailVisible = ref(false)
-const detail = ref<MyMailDetail | null>(null)
 const sanitizedHtml = computed(() =>
   detail.value?.bodyHtml
     ? DOMPurify.sanitize(detail.value.bodyHtml, { USE_PROFILES: { html: true } })
     : ''
 )
 
-function formatAt(v?: string | null) {
-  if (!v) return '—'
-  const d = new Date(v)
-  if (Number.isNaN(d.getTime())) return String(v)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+function rowClassName({ row }: { row: MyMailListItem }) {
+  return row.id === selectedId.value ? 'is-current' : ''
+}
+
+function addressRowClassName({ row }: { row: MyMailAddressBookItem }) {
+  return row.id === selectedAddressId.value ? 'is-current' : ''
 }
 
 function goMailboxSettings() {
   router.push(profileMailboxLocation('/my/mails'))
 }
 
-async function loadSummary() {
-  try {
-    const s = await fetchMyMailSummary()
-    Object.assign(summary, s)
-  } catch (e) {
-    ElMessage.error(getApiErrorMessage(e, t('myMails.messages.loadFailed')))
-  } finally {
-    summaryLoaded.value = true
-  }
+function onWriteMail() {
+  startCompose()
 }
 
-async function loadMailboxes() {
-  try {
-    mailboxOptions.value = await fetchMyMailMailboxOptions()
-  } catch {
-    mailboxOptions.value = []
-  }
+function onReply() {
+  if (!detail.value) return
+  startReply(detail.value)
 }
 
-async function loadList() {
-  loading.value = true
+async function onSend() {
+  await sendCompose()
+}
+
+async function onDelete() {
   try {
-    const data = await fetchMyMails({
-      mailboxId: filters.mailboxId || undefined,
-      subject: filters.subject || undefined,
-      from: filters.from || undefined,
-      body: filters.body || undefined,
-      receivedFrom: receivedRange.value?.[0],
-      receivedTo: receivedRange.value?.[1],
-      page: page.value,
-      pageSize: pageSize.value
+    await ElMessageBox.confirm(t('myMails.body.deleteConfirm'), t('myMails.body.delete'), {
+      type: 'warning',
+      confirmButtonText: t('common.confirm'),
+      cancelButtonText: t('common.cancel')
     })
-    rows.value = data?.items ?? []
-    total.value = data?.total ?? 0
-  } catch (e) {
-    rows.value = []
-    total.value = 0
-    ElMessage.error(getApiErrorMessage(e, t('myMails.messages.loadFailed')))
-  } finally {
-    loading.value = false
+  } catch {
+    return
   }
+  await deleteCurrent()
 }
 
-function onSearch() {
-  page.value = 1
-  void loadList()
+async function onRestore() {
+  await restoreCurrent()
 }
 
-function onPageSizeChange() {
-  page.value = 1
-  void loadList()
-}
-
-function openSyncDialog() {
-  syncMailboxId.value = ''
-  syncVisible.value = true
-}
-
-async function runSync() {
-  syncing.value = true
+async function onClearRemark() {
+  if (!canClearRemark.value) return
   try {
-    const result = await syncMyMails(syncMailboxId.value || null)
-    const err = (result.errors || []).filter(Boolean)
-    if (err.length) {
-      ElMessage.warning(err.join('；'))
-    } else {
-      ElMessage.success(
-        t('myMails.messages.syncDone', {
-          fetched: result.fetchedCount,
-          upserted: result.upsertedCount
-        })
-      )
-    }
-    syncVisible.value = false
-    await loadSummary()
-    await loadList()
-  } catch (e) {
-    ElMessage.error(getApiErrorMessage(e, t('myMails.messages.syncFailed')))
-  } finally {
-    syncing.value = false
+    await ElMessageBox.confirm(t('myMails.remark.clearConfirm'), t('myMails.remark.clear'), {
+      type: 'warning',
+      confirmButtonText: t('common.confirm'),
+      cancelButtonText: t('common.cancel')
+    })
+  } catch {
+    return
   }
+  await clearRemark()
 }
 
-async function openDetail(row: MyMailListItem) {
-  try {
-    detail.value = await fetchMyMailDetail(row.id)
-    detailVisible.value = true
-    if (row.isUnread) {
-      await markMyMailRead(row.id)
-      row.isUnread = false
-      if (summary.unreadCount > 0) summary.unreadCount -= 1
-      if (detail.value) detail.value.isUnread = false
-    }
-  } catch (e) {
-    ElMessage.error(getApiErrorMessage(e, t('myMails.messages.loadFailed')))
-  }
-}
 
-onMounted(async () => {
-  await Promise.all([loadSummary(), loadMailboxes()])
-  await loadList()
+onMounted(() => {
+  void ensureLoaded()
 })
 </script>
 
@@ -382,7 +502,8 @@ onMounted(async () => {
   color: var(--el-color-warning);
 }
 .filter-card,
-.table-card {
+.table-card,
+.body-card {
   margin-bottom: 12px;
 }
 .pager {
@@ -393,23 +514,125 @@ onMounted(async () => {
 .is-unread {
   font-weight: 600;
 }
-.detail-meta {
-  margin-bottom: 12px;
+.read-icon {
+  display: block;
+  width: 20px;
+  height: 20px;
+  margin: 0 auto;
+}
+:deep(.star-col.el-table__cell) {
+  padding-left: 4px !important;
+  padding-right: 4px !important;
+  overflow: visible;
+}
+.star-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.star-btn:hover {
+  background: var(--crm-accent-008);
+}
+.star-icon {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+:deep(.el-table__row.is-current > td.el-table__cell) {
+  background: var(--crm-accent-008) !important;
+}
+.mail-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.mail-summary {
+  margin-bottom: 14px;
   font-size: 13px;
   line-height: 1.7;
   color: var(--el-text-color-regular);
 }
-.detail-body {
-  max-height: 480px;
+.mail-summary__title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+  margin-bottom: 10px;
+}
+.mail-summary__row {
+  display: flex;
+  gap: 10px;
+}
+.mail-summary__label {
+  width: 72px;
+  flex-shrink: 0;
+  color: var(--el-text-color-secondary);
+}
+.mail-body {
+  min-height: calc(1.6em * 10 + 24px);
+  max-height: 520px;
   overflow: auto;
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 6px;
   padding: 12px;
   background: var(--el-fill-color-blank);
+  line-height: 1.6;
 }
-.detail-body--text {
+.mail-body--text {
   white-space: pre-wrap;
   font-family: inherit;
   margin: 0;
+}
+.mail-signature {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px dashed var(--el-border-color);
+  border-radius: 6px;
+}
+.mail-signature__title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.mail-signature__empty {
+  font-size: 12px;
+  color: var(--el-text-color-placeholder);
+}
+.mail-remark {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+  background: var(--el-fill-color-light);
+}
+.mail-remark__title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.mail-remark :deep(.el-textarea__inner) {
+  background-color: #fff !important;
+}
+.mail-remark__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.compose-form {
+  max-width: 920px;
+}
+.compose-from {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  font-size: 14px;
+  color: var(--el-text-color-regular);
+  word-break: break-all;
 }
 </style>

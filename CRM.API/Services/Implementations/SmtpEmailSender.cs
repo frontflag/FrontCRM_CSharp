@@ -57,15 +57,75 @@ public sealed class SmtpEmailSender : IEmailSender
         builder.Attachments.Add(attachmentFileName, attachmentBytes, ContentType.Parse(attachmentMimeType));
         message.Body = builder.ToMessageBody();
 
+        await DeliverAsync(host, port, useSsl, address, password, message, to, cancellationToken);
+    }
+
+    public async Task SendAsync(
+        string senderUserId,
+        IReadOnlyList<string> to,
+        IReadOnlyList<string>? cc,
+        string subject,
+        string? textBody,
+        string? htmlBody,
+        string? inReplyToMessageId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(senderUserId))
+            throw new EmailSendException(MailboxSendErrorCodes.NoDefaultMailbox, MailboxSendErrorCodes.DefaultUserHint);
+        if (to == null || to.Count == 0 || to.All(string.IsNullOrWhiteSpace))
+            throw new ArgumentException("收件人邮箱不能为空", nameof(to));
+
+        var (cfg, box, password) = await _send.ResolveSenderAsync(senderUserId, cancellationToken);
+        var host = cfg.SmtpHost.Trim();
+        var port = cfg.SmtpPort;
+        var address = box.Address.Trim();
+        var fromName = string.IsNullOrWhiteSpace(box.DisplayName) ? null : box.DisplayName.Trim();
+        var useSsl = cfg.UseSsl;
+
+        var message = new MimeMessage();
+        message.From.Add(string.IsNullOrEmpty(fromName)
+            ? new MailboxAddress(string.Empty, address)
+            : new MailboxAddress(fromName, address));
+        foreach (var addr in to.Where(x => !string.IsNullOrWhiteSpace(x)))
+            message.To.Add(MailboxAddress.Parse(addr.Trim()));
+        if (cc != null)
+        {
+            foreach (var addr in cc.Where(x => !string.IsNullOrWhiteSpace(x)))
+                message.Cc.Add(MailboxAddress.Parse(addr.Trim()));
+        }
+        message.Subject = subject ?? "";
+        if (!string.IsNullOrWhiteSpace(inReplyToMessageId))
+            message.InReplyTo = inReplyToMessageId.Trim();
+
+        var builder = new BodyBuilder();
+        if (!string.IsNullOrWhiteSpace(htmlBody))
+            builder.HtmlBody = htmlBody;
+        builder.TextBody = string.IsNullOrWhiteSpace(textBody) ? " " : textBody;
+        message.Body = builder.ToMessageBody();
+
+        var toLog = string.Join(",", to);
+        await DeliverAsync(host, port, useSsl, address, password, message, toLog, cancellationToken);
+    }
+
+    private async Task DeliverAsync(
+        string host,
+        int port,
+        bool useSsl,
+        string address,
+        string password,
+        MimeMessage message,
+        string toLog,
+        CancellationToken cancellationToken)
+    {
         try
         {
             using var client = new SmtpClient();
-            var secure = useSsl ? SecureSocketOptions.StartTls : SecureSocketOptions.Auto;
+            var secure = SmtpSecureOptions.Resolve(port, useSsl);
             await client.ConnectAsync(host, port, secure, cancellationToken);
             await client.AuthenticateAsync(address, password, cancellationToken);
             await client.SendAsync(message, cancellationToken);
             await client.DisconnectAsync(true, cancellationToken);
-            _logger.LogInformation("已发送邮件至 {To}，发件人 {From}，主题 {Subject}", to, address, subject);
+            _logger.LogInformation("已发送邮件至 {To}，发件人 {From}，主题 {Subject}", toLog, address, message.Subject);
         }
         catch (EmailSendException)
         {
@@ -73,7 +133,7 @@ public sealed class SmtpEmailSender : IEmailSender
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "SMTP 发信失败 from={From} to={To}", address, to);
+            _logger.LogWarning(ex, "SMTP 发信失败 from={From} to={To}", address, toLog);
             var detail = string.IsNullOrWhiteSpace(ex.Message) ? "未知错误" : ex.Message.Trim();
             if (detail.Length > 200) detail = detail[..200];
             throw new EmailSendException(MailboxSendErrorCodes.SmtpRejected, $"邮件服务器拒绝发送：{detail}");

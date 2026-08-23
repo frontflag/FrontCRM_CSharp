@@ -194,9 +194,11 @@ public sealed class UserMailSyncService : IUserMailSyncService
         var existing = await _db.UserMailMessages.FirstOrDefaultAsync(
             x => x.MailboxId == box.Id
                  && x.Folder == InboxFolder
-                 && x.ImapUid == imapUid
-                 && !x.IsDeleted,
+                 && x.ImapUid == imapUid,
             cancellationToken);
+        // 本地软删不写回 IMAP；同步不得把同一封再插回收件箱
+        if (existing is { IsDeleted: true })
+            return 0;
 
         var text = message.TextBody ?? string.Empty;
         if (string.IsNullOrWhiteSpace(text) && !string.IsNullOrWhiteSpace(message.HtmlBody))
@@ -232,6 +234,7 @@ public sealed class UserMailSyncService : IUserMailSyncService
             existing.IsUnread = isUnread;
         else if (existing.IsUnread)
             existing.IsUnread = isUnread;
+        // 本地星标 / 备注：同步不覆盖（新信默认无星、无备注）
 
         existing.Snippet = Truncate(text.Replace('\r', ' ').Replace('\n', ' ').Trim(), SnippetMaxLen);
         existing.BodyText = text;

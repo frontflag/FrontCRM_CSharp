@@ -799,7 +799,10 @@ const zhCN = {
       customerIntel: '调查',
       vendorIntel: '调查',
       help: '帮助',
-      changeLog: '变更日志'
+      changeLog: '变更日志',
+      mailbox: '邮箱',
+      mailInboxList: '收件列表',
+      mailFn: '邮箱功能'
     },
     flowPanel: {
       youAreHere: '当前业务节点'
@@ -8727,10 +8730,61 @@ const zhCN = {
     noMailboxTitle: '尚未配置已验证邮箱',
     noMailboxHint: '请先在「我的邮箱」中添加并完成 IMAP 验证，才能读取邮件。',
     goMailboxSettings: '去配置我的邮箱',
+    comingSoon: '即将支持',
     stats: { total: '全部邮件', unread: '未读邮件' },
+    menu: {
+      mailboxPanel: '邮箱选择',
+      folderPanel: '文件夹',
+      inboxPanel: '收件箱',
+      filterPanel: '筛选条件',
+      inbox: '收件箱',
+      inboxWithUnread: '收件箱 （{count}）',
+      draft: '草稿箱',
+      sent: '已发送',
+      deleted: '已删除'
+    },
+    cardList: {
+      title: '收件列表',
+      loading: '加载中…',
+      empty: '暂无邮件'
+    },
+    fn: {
+      title: '邮箱功能',
+      write: '写信',
+      receive: '收信',
+      addressBook: '通讯录',
+      extractTitle: '内容提取',
+      extractHint: '从当前邮件正文识别需求 / RFQ，确认后打开新建需求。',
+      extract: '内容提取',
+      needMail: '请先单击或打开一封邮件',
+      emptyBody: '当前邮件没有可提取的正文',
+      noPermission: '没有 AI 识别需求的权限'
+    },
+    addressBook: {
+      keywordPh: '联系人、邮箱或客户/供应商',
+      contactName: '联系人名称',
+      email: '邮箱地址',
+      partyName: '客户/供应商'
+    },
+    compose: {
+      write: '写邮件',
+      send: '发送',
+      from: '发件人',
+      to: '收件人',
+      toPh: '多个邮箱用逗号或分号分隔',
+      cc: '抄送',
+      ccPh: '可选',
+      subject: '主题',
+      subjectPh: '邮件主题',
+      body: '正文',
+      bodyPh: '请输入邮件正文'
+    },
     filters: {
       mailbox: '邮箱',
       mailboxAll: '全部已验证邮箱',
+      setupMailbox: '请设置个人邮箱',
+      keyword: '搜索',
+      keywordPh: '标题、发件人或正文',
       subject: '标题',
       from: '发件人',
       body: '正文',
@@ -8738,15 +8792,26 @@ const zhCN = {
       fromDate: '开始',
       toDate: '结束',
       search: '查询',
-      readMails: '读取邮件'
+      readMails: '读取邮件',
+      readAll: '全部',
+      unreadOnly: '未读',
+      readOnly: '已读',
+      starredOnly: '星标',
+      remarkedOnly: '备注'
     },
     columns: {
-      receivedAt: '邮件日期',
+      receivedAt: '邮件发送日期',
       subject: '邮件标题',
       snippet: '正文摘要',
       from: '发件人',
       mailbox: '邮箱',
-      actions: '操作'
+      actions: '操作',
+      readState: '未读/已读',
+      unread: '未读',
+      read: '已读',
+      star: '加星标',
+      starred: '取消星标',
+      remark: '邮件备注'
     },
     actions: { view: '查看' },
     syncDialog: {
@@ -8756,10 +8821,44 @@ const zhCN = {
       confirm: '开始读取'
     },
     detail: { title: '邮件详情' },
+    body: {
+      back: '返回',
+      reply: '回复',
+      delete: '删除',
+      restore: '恢复到收件箱',
+      deleteConfirm: '仅从本系统列表隐藏，不会删除邮箱服务器上的邮件。确定删除？',
+      from: '发件人',
+      sentAt: '发送时间',
+      to: '收件人',
+      cc: '抄送人',
+      signature: '收件人签名档',
+      signatureEmpty: '暂无签名档'
+    },
+    remark: {
+      title: '邮件备注',
+      placeholder: '请输入邮件备注',
+      save: '保存备注',
+      clear: '清除备注',
+      clearConfirm: '确定清除这条邮件的备注？清除后不可恢复。'
+    },
     messages: {
       loadFailed: '加载失败',
       syncDone: '同步完成：拉取 {fetched}，写入 {upserted}',
-      syncFailed: '读取邮件失败'
+      syncFailed: '读取邮件失败',
+      needTo: '请填写收件人',
+      needSubject: '请填写主题',
+      needBody: '请填写正文',
+      needMail: '请先选择邮件',
+      sent: '已发送',
+      sendFailed: '发送失败',
+      deleted: '已删除',
+      deleteFailed: '删除失败',
+      restored: '已恢复到收件箱',
+      restoreFailed: '恢复失败',
+      starFailed: '设置星标失败',
+      remarkSaved: '备注已保存',
+      remarkCleared: '备注已清除',
+      remarkFailed: '备注操作失败'
     }
   },
   draftList: {

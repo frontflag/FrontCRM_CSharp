@@ -1376,3 +1376,35 @@ SELECT '20260912120000_PartyCompanyEmailSuffix', '9.0.0'
 WHERE NOT EXISTS (
   SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260912120000_PartyCompanyEmailSuffix'
 );
+
+-- 26) 我的邮件：本地星标
+ALTER TABLE public.user_mail_message
+  ADD COLUMN IF NOT EXISTS is_starred boolean NOT NULL DEFAULT false;
+
+COMMENT ON COLUMN public.user_mail_message.is_starred IS '本地星标；同步不覆盖，不写回 IMAP';
+
+CREATE INDEX IF NOT EXISTS ix_user_mail_message_user_starred
+  ON public.user_mail_message (user_id, is_starred)
+  WHERE is_starred;
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+SELECT '20260923180000_AddUserMailStarred', '9.0.0'
+WHERE NOT EXISTS (
+  SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260923180000_AddUserMailStarred'
+);
+
+-- 27) 我的邮件：本地备注
+ALTER TABLE public.user_mail_message
+  ADD COLUMN IF NOT EXISTS remark character varying(2000) NULL;
+
+COMMENT ON COLUMN public.user_mail_message.remark IS '本地备注；同步不覆盖，不写回 IMAP';
+
+CREATE INDEX IF NOT EXISTS ix_user_mail_message_user_remark
+  ON public.user_mail_message (user_id)
+  WHERE remark IS NOT NULL AND btrim(remark) <> '';
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+SELECT '20260923190000_AddUserMailRemark', '9.0.0'
+WHERE NOT EXISTS (
+  SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260923190000_AddUserMailRemark'
+);
