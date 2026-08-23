@@ -8790,6 +8790,7 @@ const enUS = {
     },
     compose: {
       write: 'Compose',
+      saveDraft: 'Save draft',
       send: 'Send',
       from: 'From',
       to: 'To',
@@ -8806,7 +8807,7 @@ const enUS = {
       mailboxAll: 'All verified mailboxes',
       setupMailbox: 'Set up your mailbox',
       keyword: 'Search',
-      keywordPh: 'Subject, sender, or body',
+      keywordPh: 'Subject, sender, body, or remark',
       subject: 'Subject',
       from: 'From',
       body: 'Body',
@@ -8815,6 +8816,7 @@ const enUS = {
       toDate: 'To',
       search: 'Search',
       readMails: 'Fetch mail',
+      markAllRead: 'Mark all as read',
       readAll: 'All',
       unreadOnly: 'Unread',
       readOnly: 'Read',
@@ -8873,6 +8875,9 @@ const enUS = {
       needMail: 'Select a message first',
       sent: 'Sent',
       sendFailed: 'Failed to send',
+      draftSaved: 'Draft saved',
+      draftSaveFailed: 'Failed to save draft',
+      needDraftContent: 'Enter a recipient, subject, or body first',
       deleted: 'Deleted',
       deleteFailed: 'Failed to delete',
       restored: 'Restored to Inbox',
@@ -8880,7 +8885,10 @@ const enUS = {
       starFailed: 'Failed to update star',
       remarkSaved: 'Remark saved',
       remarkCleared: 'Remark cleared',
-      remarkFailed: 'Failed to update remark'
+      remarkFailed: 'Failed to update remark',
+      markAllReadDone: 'All messages marked as read',
+      markAllReadEmpty: 'No unread messages',
+      markAllReadFailed: 'Failed to mark all as read'
     }
   },
   draftList: {

@@ -29,6 +29,7 @@ export interface MyMailListItem {
   remark?: string | null
   hasAttachments: boolean
   isDeleted?: boolean
+  folder?: string | null
 }
 
 export interface MyMailDetail extends MyMailListItem {
@@ -36,6 +37,8 @@ export interface MyMailDetail extends MyMailListItem {
   bodyText?: string | null
   bodyHtml?: string | null
   messageId?: string | null
+  ccAddresses?: string | null
+  inReplyToMailId?: string | null
 }
 
 export interface MyMailSyncResult {
@@ -54,7 +57,7 @@ export interface MyMailListQuery {
   isUnread?: boolean
   isStarred?: boolean
   hasRemark?: boolean
-  folder?: 'inbox' | 'deleted' | 'sent'
+  folder?: 'inbox' | 'deleted' | 'sent' | 'draft'
   receivedFrom?: string
   receivedTo?: string
   page?: number
@@ -99,6 +102,13 @@ export async function markMyMailRead(id: string): Promise<void> {
   await apiClient.post(`${BASE}/${encodeURIComponent(id)}/read`)
 }
 
+export async function markAllMyMailsRead(body: {
+  mailboxId: string
+  folder?: 'inbox' | 'deleted' | 'sent' | 'draft'
+}): Promise<{ updatedCount: number }> {
+  return await apiClient.post<{ updatedCount: number }>(`${BASE}/read-all`, body)
+}
+
 export async function setMyMailStarred(id: string, starred: boolean): Promise<void> {
   await apiClient.post(`${BASE}/${encodeURIComponent(id)}/star`, { starred })
 }
@@ -125,10 +135,23 @@ export interface MyMailSendRequest {
   subject: string
   body: string
   inReplyToMailId?: string
+  draftId?: string
 }
 
 export async function sendMyMail(body: MyMailSendRequest): Promise<void> {
   await apiClient.post(`${BASE}/send`, body, { timeout: 60_000 })
+}
+
+export async function saveMyMailDraft(body: {
+  id?: string
+  mailboxId: string
+  to?: string
+  cc?: string
+  subject?: string
+  body?: string
+  inReplyToMailId?: string
+}): Promise<{ id: string }> {
+  return await apiClient.post<{ id: string }>(`${BASE}/drafts`, body)
 }
 
 export interface MyMailAddressBookItem {

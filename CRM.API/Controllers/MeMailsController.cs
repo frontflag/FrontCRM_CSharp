@@ -212,15 +212,17 @@ public sealed class MeMailsController : ControllerBase
 
         var folderKey = (folder ?? "inbox").Trim().ToLowerInvariant();
         var deletedOnly = folderKey == "deleted";
-        var sentOnly = folderKey == "sent";
         var q = from m in _db.UserMailMessages.AsNoTracking()
                 join b in _db.UserMailboxes.AsNoTracking() on m.MailboxId equals b.Id
                 where m.UserId == userId && m.IsDeleted == deletedOnly
                 select new { m, b };
         if (!deletedOnly)
-            q = sentOnly
-                ? q.Where(x => x.m.Folder == SentFolder)
-                : q.Where(x => x.m.Folder == InboxFolder);
+            q = folderKey switch
+            {
+                "sent" => q.Where(x => x.m.Folder == SentFolder),
+                "draft" => q.Where(x => x.m.Folder == DraftFolder),
+                _ => q.Where(x => x.m.Folder == InboxFolder)
+            };
 
         if (!string.IsNullOrWhiteSpace(mailboxId))
             q = q.Where(x => x.m.MailboxId == mailboxId.Trim());
@@ -238,7 +240,9 @@ public sealed class MeMailsController : ControllerBase
                 || (x.m.FromAddress != null && x.m.FromAddress.Contains(kw))
                 || (x.m.FromName != null && x.m.FromName.Contains(kw))
                 || (x.m.BodyText != null && x.m.BodyText.Contains(kw))
-                || (x.m.Snippet != null && x.m.Snippet.Contains(kw)));
+                || (x.m.Snippet != null && x.m.Snippet.Contains(kw))
+                || (x.m.Remark != null && x.m.Remark.Contains(kw))
+                || (x.m.ToAddresses != null && x.m.ToAddresses.Contains(kw)));
         }
         if (!string.IsNullOrWhiteSpace(subject))
         {
@@ -290,7 +294,8 @@ public sealed class MeMailsController : ControllerBase
                 IsStarred = x.m.IsStarred,
                 Remark = x.m.Remark,
                 HasAttachments = x.m.HasAttachments,
-                IsDeleted = x.m.IsDeleted
+                IsDeleted = x.m.IsDeleted,
+                Folder = x.m.Folder
             })
             .ToListAsync(ct);
 
@@ -330,6 +335,7 @@ public sealed class MeMailsController : ControllerBase
                 Remark = m.Remark,
                 HasAttachments = m.HasAttachments,
                 IsDeleted = m.IsDeleted,
+                Folder = m.Folder,
                 BodyText = m.BodyText,
                 BodyHtml = m.BodyHtml,
                 MessageId = m.MessageId
@@ -338,6 +344,7 @@ public sealed class MeMailsController : ControllerBase
         if (row == null)
             return NotFound(ApiResponse<MyMailDetailDto>.Fail("邮件不存在", 404));
 
+        ApplyDraftDetail(row);
         return Ok(ApiResponse<MyMailDetailDto>.Ok(row));
     }
 
@@ -355,6 +362,85 @@ public sealed class MeMailsController : ControllerBase
             return Ok(ApiResponse<UserMailSyncResultDto>.Ok(result, string.Join("；", result.Errors)));
 
         return Ok(ApiResponse<UserMailSyncResultDto>.Ok(result, "同步完成"));
+    }
+
+    [HttpPost("drafts")]
+    public async Task<ActionResult<ApiResponse<MyMailDraftResultDto>>> SaveDraft(
+        [FromBody] MyMailDraftRequest? body,
+        CancellationToken ct)
+    {
+        var userId = CurrentUserId;
+        if (string.IsNullOrWhiteSpace(userId))
+            return Unauthorized(ApiResponse<MyMailDraftResultDto>.Fail("未登录", 401));
+        body ??= new MyMailDraftRequest();
+
+        var mailboxId = body.MailboxId?.Trim();
+        if (string.IsNullOrWhiteSpace(mailboxId))
+            return BadRequest(ApiResponse<MyMailDraftResultDto>.Fail("请选择邮箱"));
+
+        var box = await _db.UserMailboxes.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == mailboxId && x.UserId == userId && !x.IsDeleted, ct);
+        if (box == null)
+            return BadRequest(ApiResponse<MyMailDraftResultDto>.Fail("邮箱不存在"));
+
+        var to = (body.To ?? "").Trim();
+        var cc = (body.Cc ?? "").Trim();
+        var subject = (body.Subject ?? "").Trim();
+        var text = body.Body ?? "";
+        if (string.IsNullOrWhiteSpace(to)
+            && string.IsNullOrWhiteSpace(cc)
+            && string.IsNullOrWhiteSpace(subject)
+            && string.IsNullOrWhiteSpace(text))
+            return BadRequest(ApiResponse<MyMailDraftResultDto>.Fail("请至少填写收件人、主题或正文"));
+
+        if (subject.Length > 1000) subject = subject[..1000];
+        var snippet = text.Replace('\r', ' ').Replace('\n', ' ').Trim();
+        if (snippet.Length > 500) snippet = snippet[..500];
+        var packed = PackDraftRecipients(to, cc);
+        var replyKey = string.IsNullOrWhiteSpace(body.InReplyToMailId)
+            ? null
+            : DraftReplyPrefix + body.InReplyToMailId.Trim();
+        var now = DateTime.UtcNow;
+        var fromName = string.IsNullOrWhiteSpace(box.DisplayName) ? box.Address : box.DisplayName.Trim();
+
+        UserMailMessage entity;
+        var draftId = body.Id?.Trim();
+        if (!string.IsNullOrWhiteSpace(draftId))
+        {
+            var existing = await _db.UserMailMessages
+                .FirstOrDefaultAsync(
+                    x => x.Id == draftId && x.UserId == userId && x.Folder == DraftFolder && !x.IsDeleted,
+                    ct);
+            if (existing == null)
+                return NotFound(ApiResponse<MyMailDraftResultDto>.Fail("草稿不存在", 404));
+            entity = existing;
+        }
+        else
+        {
+            entity = new UserMailMessage
+            {
+                UserId = userId,
+                ImapUid = Random.Shared.NextInt64(1, long.MaxValue),
+                Folder = DraftFolder,
+                IsUnread = false,
+                CreateTime = now
+            };
+            _db.UserMailMessages.Add(entity);
+        }
+
+        entity.MailboxId = box.Id;
+        entity.Subject = subject;
+        entity.FromAddress = box.Address;
+        entity.FromName = fromName;
+        entity.ToAddresses = packed;
+        entity.BodyText = text;
+        entity.Snippet = snippet;
+        entity.ReceivedAt = now;
+        entity.MessageId = replyKey;
+        entity.ModifyTime = now;
+
+        await _db.SaveChangesAsync(ct);
+        return Ok(ApiResponse<MyMailDraftResultDto>.Ok(new MyMailDraftResultDto { Id = entity.Id }, "草稿已保存"));
     }
 
     [HttpPost("send")]
@@ -404,6 +490,7 @@ public sealed class MeMailsController : ControllerBase
             {
                 // SMTP 已成功，本地已发送落库失败不阻断
             }
+            await RemoveDraftAfterSendAsync(userId, body.DraftId, ct);
             return Ok(ApiResponse<object>.Ok(null, "已发送"));
         }
         catch (EmailSendException ex)
@@ -491,6 +578,45 @@ public sealed class MeMailsController : ControllerBase
         return Ok(ApiResponse<object>.Ok(null, starred ? "已加星标" : "已取消星标"));
     }
 
+    [HttpPost("read-all")]
+    public async Task<ActionResult<ApiResponse<MyMailMarkAllReadResultDto>>> MarkAllRead(
+        [FromBody] MyMailMarkAllReadRequest? body,
+        CancellationToken ct)
+    {
+        var userId = CurrentUserId;
+        if (string.IsNullOrWhiteSpace(userId))
+            return Unauthorized(ApiResponse<MyMailMarkAllReadResultDto>.Fail("未登录", 401));
+
+        var mailboxId = body?.MailboxId?.Trim();
+        if (string.IsNullOrWhiteSpace(mailboxId))
+            return BadRequest(ApiResponse<MyMailMarkAllReadResultDto>.Fail("请选择邮箱"));
+
+        var folderKey = (body?.Folder ?? "inbox").Trim().ToLowerInvariant();
+        var deletedOnly = folderKey == "deleted";
+
+        var q = _db.UserMailMessages.Where(x =>
+            x.UserId == userId
+            && x.MailboxId == mailboxId
+            && x.IsUnread
+            && x.IsDeleted == deletedOnly);
+        if (!deletedOnly)
+            q = folderKey switch
+            {
+                "sent" => q.Where(x => x.Folder == SentFolder),
+                "draft" => q.Where(x => x.Folder == DraftFolder),
+                _ => q.Where(x => x.Folder == InboxFolder)
+            };
+
+        var now = DateTime.UtcNow;
+        var updated = await q.ExecuteUpdateAsync(
+            s => s.SetProperty(x => x.IsUnread, false).SetProperty(x => x.ModifyTime, now),
+            ct);
+
+        return Ok(ApiResponse<MyMailMarkAllReadResultDto>.Ok(
+            new MyMailMarkAllReadResultDto { UpdatedCount = updated },
+            updated > 0 ? "已全部标为已读" : "没有未读邮件"));
+    }
+
     [HttpPost("{id}/read")]
     public async Task<ActionResult<ApiResponse<object>>> MarkRead(string id, CancellationToken ct)
     {
@@ -564,6 +690,65 @@ public sealed class MeMailsController : ControllerBase
 
     private const string InboxFolder = "INBOX";
     private const string SentFolder = "SENT";
+    private const string DraftFolder = "DRAFT";
+    private const string DraftCcSep = "\n--cc--\n";
+    private const string DraftReplyPrefix = "draft-in-reply:";
+
+    private static string PackDraftRecipients(string to, string cc)
+    {
+        if (string.IsNullOrWhiteSpace(cc))
+            return to ?? "";
+        return (to ?? "") + DraftCcSep + cc;
+    }
+
+    private static (string To, string Cc) UnpackDraftRecipients(string? raw)
+    {
+        if (string.IsNullOrEmpty(raw))
+            return ("", "");
+        var i = raw.IndexOf(DraftCcSep, StringComparison.Ordinal);
+        if (i < 0)
+            return (raw, "");
+        return (raw[..i], raw[(i + DraftCcSep.Length)..]);
+    }
+
+    private static void ApplyDraftDetail(MyMailDetailDto row)
+    {
+        if (!string.Equals(row.Folder, DraftFolder, StringComparison.OrdinalIgnoreCase))
+            return;
+        var (to, cc) = UnpackDraftRecipients(row.ToAddresses);
+        row.ToAddresses = to;
+        row.CcAddresses = cc;
+        if (!string.IsNullOrWhiteSpace(row.MessageId)
+            && row.MessageId.StartsWith(DraftReplyPrefix, StringComparison.Ordinal))
+        {
+            row.InReplyToMailId = row.MessageId[DraftReplyPrefix.Length..];
+            row.MessageId = null;
+        }
+    }
+
+    private async Task RemoveDraftAfterSendAsync(string userId, string? draftId, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(draftId))
+            return;
+        var draft = await _db.UserMailMessages
+            .FirstOrDefaultAsync(
+                x => x.Id == draftId.Trim()
+                     && x.UserId == userId
+                     && x.Folder == DraftFolder
+                     && !x.IsDeleted,
+                ct);
+        if (draft == null)
+            return;
+        _db.UserMailMessages.Remove(draft);
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch
+        {
+            // 已发送成功，清草稿失败不阻断
+        }
+    }
 
     private async Task SaveSentCopyAsync(
         string userId,
@@ -655,6 +840,7 @@ public class MyMailListItemDto
     public string? Remark { get; set; }
     public bool HasAttachments { get; set; }
     public bool IsDeleted { get; set; }
+    public string? Folder { get; set; }
 }
 
 public sealed class MyMailDetailDto : MyMailListItemDto
@@ -663,6 +849,8 @@ public sealed class MyMailDetailDto : MyMailListItemDto
     public string? BodyText { get; set; }
     public string? BodyHtml { get; set; }
     public string? MessageId { get; set; }
+    public string? CcAddresses { get; set; }
+    public string? InReplyToMailId { get; set; }
 }
 
 public sealed class MyMailSyncRequest
@@ -673,6 +861,17 @@ public sealed class MyMailSyncRequest
 public sealed class MyMailStarRequest
 {
     public bool Starred { get; set; }
+}
+
+public sealed class MyMailMarkAllReadRequest
+{
+    public string? MailboxId { get; set; }
+    public string? Folder { get; set; }
+}
+
+public sealed class MyMailMarkAllReadResultDto
+{
+    public int UpdatedCount { get; set; }
 }
 
 public sealed class MyMailRemarkRequest
@@ -687,6 +886,23 @@ public sealed class MyMailSendRequest
     public string? Subject { get; set; }
     public string? Body { get; set; }
     public string? InReplyToMailId { get; set; }
+    public string? DraftId { get; set; }
+}
+
+public sealed class MyMailDraftRequest
+{
+    public string? Id { get; set; }
+    public string? MailboxId { get; set; }
+    public string? To { get; set; }
+    public string? Cc { get; set; }
+    public string? Subject { get; set; }
+    public string? Body { get; set; }
+    public string? InReplyToMailId { get; set; }
+}
+
+public sealed class MyMailDraftResultDto
+{
+    public string Id { get; set; } = string.Empty;
 }
 
 public sealed class PagedResultDto<T>

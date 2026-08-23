@@ -8768,6 +8768,7 @@ const zhCN = {
     },
     compose: {
       write: '写邮件',
+      saveDraft: '保存草稿',
       send: '发送',
       from: '发件人',
       to: '收件人',
@@ -8784,7 +8785,7 @@ const zhCN = {
       mailboxAll: '全部已验证邮箱',
       setupMailbox: '请设置个人邮箱',
       keyword: '搜索',
-      keywordPh: '标题、发件人或正文',
+      keywordPh: '标题、发件人、正文或备注',
       subject: '标题',
       from: '发件人',
       body: '正文',
@@ -8793,6 +8794,7 @@ const zhCN = {
       toDate: '结束',
       search: '查询',
       readMails: '读取邮件',
+      markAllRead: '设置全部已读',
       readAll: '全部',
       unreadOnly: '未读',
       readOnly: '已读',
@@ -8851,6 +8853,9 @@ const zhCN = {
       needMail: '请先选择邮件',
       sent: '已发送',
       sendFailed: '发送失败',
+      draftSaved: '草稿已保存',
+      draftSaveFailed: '保存草稿失败',
+      needDraftContent: '请至少填写收件人、主题或正文',
       deleted: '已删除',
       deleteFailed: '删除失败',
       restored: '已恢复到收件箱',
@@ -8858,7 +8863,10 @@ const zhCN = {
       starFailed: '设置星标失败',
       remarkSaved: '备注已保存',
       remarkCleared: '备注已清除',
-      remarkFailed: '备注操作失败'
+      remarkFailed: '备注操作失败',
+      markAllReadDone: '已将全部邮件标为已读',
+      markAllReadEmpty: '没有未读邮件',
+      markAllReadFailed: '设置全部已读失败'
     }
   },
   draftList: {

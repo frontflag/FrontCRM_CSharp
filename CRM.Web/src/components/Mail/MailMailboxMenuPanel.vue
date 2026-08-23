@@ -90,7 +90,13 @@
           </button>
         </li>
         <li>
-          <button type="button" class="mail-mailbox-menu__item is-disabled" disabled>
+          <button
+            type="button"
+            class="mail-mailbox-menu__item"
+            :class="{ 'is-active': hasMailbox && viewMode !== 'contacts' && folderId === 'draft' }"
+            :disabled="!hasMailbox"
+            @click="selectFolder('draft')"
+          >
             <span>{{ t('myMails.menu.draft') }}</span>
           </button>
         </li>

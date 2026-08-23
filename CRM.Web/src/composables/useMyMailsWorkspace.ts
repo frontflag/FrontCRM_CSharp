@@ -9,10 +9,12 @@ import {
   fetchMyMails,
   fetchMyMailSummary,
   markMyMailRead,
+  markAllMyMailsRead,
   setMyMailStarred,
   saveMyMailRemark,
   clearMyMailRemark,
   sendMyMail,
+  saveMyMailDraft,
   syncMyMails,
   fetchMyMailAddressBook,
   type MyMailAddressBookItem,
@@ -64,6 +66,7 @@ export type MyMailsComposeMode = 'new' | 'reply'
 
 export interface MyMailsComposeDraft {
   mode: MyMailsComposeMode
+  draftId: string
   to: string
   cc: string
   subject: string
@@ -96,8 +99,10 @@ const detail = ref<MyMailDetail | null>(null)
 const detailLoading = ref(false)
 const syncing = ref(false)
 const sending = ref(false)
+const savingDraft = ref(false)
 const deleting = ref(false)
 const restoring = ref(false)
+const markingAllRead = ref(false)
 const isDeletedFolder = computed(() => folderId.value === 'deleted')
 const hasMailbox = computed(() => mailboxOptions.value.length > 0)
 const remarkDraft = ref('')
@@ -120,12 +125,30 @@ const addressPageSize = ref(20)
 const selectedAddressId = ref('')
 const compose = reactive<MyMailsComposeDraft>({
   mode: 'new',
+  draftId: '',
   to: '',
   cc: '',
   subject: '',
   body: '',
   inReplyToMailId: ''
 })
+
+function listFolderParam(): 'inbox' | 'deleted' | 'sent' | 'draft' {
+  if (folderId.value === 'deleted') return 'deleted'
+  if (folderId.value === 'sent') return 'sent'
+  if (folderId.value === 'draft') return 'draft'
+  return 'inbox'
+}
+
+function resetCompose() {
+  compose.mode = 'new'
+  compose.draftId = ''
+  compose.to = ''
+  compose.cc = ''
+  compose.subject = ''
+  compose.body = ''
+  compose.inReplyToMailId = ''
+}
 
 export function formatMailAt(v?: string | null) {
   if (!v) return '—'
@@ -200,8 +223,7 @@ export function useMyMailsWorkspace() {
         isUnread,
         isStarred: readFilter.value === 'starred' ? true : undefined,
         hasRemark: readFilter.value === 'remarked' ? true : undefined,
-        folder:
-          folderId.value === 'deleted' ? 'deleted' : folderId.value === 'sent' ? 'sent' : 'inbox',
+        folder: listFolderParam(),
         receivedFrom: receivedRange.value?.[0],
         receivedTo: receivedRange.value?.[1],
         page: page.value,
@@ -264,6 +286,12 @@ export function useMyMailsWorkspace() {
 
   async function receiveSelectedMailbox() {
     if (!hasMailbox.value || !mailboxId.value || syncing.value) return
+    lastMainView.value = 'list'
+    folderId.value = 'inbox'
+    selectedId.value = ''
+    detail.value = null
+    viewMode.value = 'list'
+    page.value = 1
     try {
       const result = await runSync(mailboxId.value)
       const err = (result.errors || []).filter(Boolean)
@@ -369,7 +397,6 @@ export function useMyMailsWorkspace() {
 
   function selectFolder(id: MyMailsFolderId) {
     if (!hasMailbox.value) return
-    if (id === 'draft') return
     lastMainView.value = 'list'
     if (folderId.value === id && viewMode.value === 'list') return
     folderId.value = id
@@ -390,6 +417,10 @@ export function useMyMailsWorkspace() {
   }
 
   async function openBody(row: MyMailListItem) {
+    if (folderId.value === 'draft' || row.folder === 'DRAFT') {
+      await openDraft(row)
+      return
+    }
     selectedId.value = row.id
     detailLoading.value = true
     try {
@@ -413,6 +444,29 @@ export function useMyMailsWorkspace() {
     viewMode.value = 'list'
   }
 
+  async function markAllRead() {
+    if (!hasMailbox.value || !mailboxId.value || markingAllRead.value) return
+    markingAllRead.value = true
+    try {
+      const result = await markAllMyMailsRead({
+        mailboxId: mailboxId.value,
+        folder: listFolderParam()
+      })
+      const updated = result?.updatedCount ?? 0
+      if (updated > 0) {
+        ElMessage.success(t('myMails.messages.markAllReadDone'))
+        if (detail.value) detail.value.isUnread = false
+        await Promise.all([loadSummary(), loadList()])
+      } else {
+        ElMessage.info(t('myMails.messages.markAllReadEmpty'))
+      }
+    } catch (e) {
+      ElMessage.error(getApiErrorMessage(e, t('myMails.messages.markAllReadFailed')))
+    } finally {
+      markingAllRead.value = false
+    }
+  }
+
   function replySubject(subject?: string | null) {
     const s = (subject || '').trim()
     if (!s) return 'Re: '
@@ -421,18 +475,37 @@ export function useMyMailsWorkspace() {
 
   function startCompose(to?: string) {
     if (!hasMailbox.value) return
-    compose.mode = 'new'
+    resetCompose()
     compose.to = to?.trim() || ''
-    compose.cc = ''
-    compose.subject = ''
-    compose.body = ''
-    compose.inReplyToMailId = ''
     viewMode.value = 'compose'
+  }
+
+  async function openDraft(row: MyMailListItem) {
+    selectedId.value = row.id
+    detailLoading.value = true
+    try {
+      const mail = await fetchMyMailDetail(row.id)
+      compose.mode = 'new'
+      compose.draftId = mail.id
+      compose.to = mail.toAddresses?.trim() || ''
+      compose.cc = mail.ccAddresses?.trim() || ''
+      compose.subject = mail.subject || ''
+      compose.body = mail.bodyText || ''
+      compose.inReplyToMailId = mail.inReplyToMailId || ''
+      detail.value = mail
+      remarkDraft.value = mail.remark ?? ''
+      viewMode.value = 'compose'
+    } catch (e) {
+      ElMessage.error(getApiErrorMessage(e, t('myMails.messages.loadFailed')))
+    } finally {
+      detailLoading.value = false
+    }
   }
 
   function startReply(mail: MyMailDetail) {
     if (!hasMailbox.value) return
     compose.mode = 'reply'
+    compose.draftId = ''
     compose.to = mail.fromAddress?.trim() || ''
     compose.cc = ''
     compose.subject = replySubject(mail.subject)
@@ -452,11 +525,44 @@ export function useMyMailsWorkspace() {
   }
 
   function cancelCompose() {
-    if (compose.mode === 'reply' && detail.value) {
+    if (compose.mode === 'reply' && !compose.draftId && detail.value) {
       viewMode.value = 'body'
       return
     }
     viewMode.value = lastMainView.value
+  }
+
+  async function saveDraft() {
+    if (!hasMailbox.value || !mailboxId.value || savingDraft.value) return false
+    if (
+      !compose.to.trim()
+      && !compose.cc.trim()
+      && !compose.subject.trim()
+      && !compose.body.trim()
+    ) {
+      ElMessage.warning(t('myMails.messages.needDraftContent'))
+      return false
+    }
+    savingDraft.value = true
+    try {
+      const result = await saveMyMailDraft({
+        id: compose.draftId || undefined,
+        mailboxId: mailboxId.value,
+        to: compose.to,
+        cc: compose.cc,
+        subject: compose.subject,
+        body: compose.body,
+        inReplyToMailId: compose.inReplyToMailId || undefined
+      })
+      compose.draftId = result?.id || compose.draftId
+      ElMessage.success(t('myMails.messages.draftSaved'))
+      return true
+    } catch (e) {
+      ElMessage.error(getApiErrorMessage(e, t('myMails.messages.draftSaveFailed')))
+      return false
+    } finally {
+      savingDraft.value = false
+    }
   }
 
   async function sendCompose() {
@@ -479,9 +585,11 @@ export function useMyMailsWorkspace() {
         cc: compose.cc.trim() || undefined,
         subject: compose.subject.trim(),
         body: compose.body,
-        inReplyToMailId: compose.inReplyToMailId || undefined
+        inReplyToMailId: compose.inReplyToMailId || undefined,
+        draftId: compose.draftId || undefined
       })
       ElMessage.success(t('myMails.messages.sent'))
+      resetCompose()
       lastMainView.value = 'list'
       folderId.value = 'sent'
       selectedId.value = ''
@@ -498,7 +606,7 @@ export function useMyMailsWorkspace() {
   }
 
   async function deleteCurrent() {
-    const id = detail.value?.id || selectedId.value
+    const id = detail.value?.id || selectedId.value || compose.draftId
     if (!id) {
       ElMessage.warning(t('myMails.messages.needMail'))
       return false
@@ -509,6 +617,7 @@ export function useMyMailsWorkspace() {
       ElMessage.success(t('myMails.messages.deleted'))
       if (detail.value?.id === id) detail.value = null
       if (selectedId.value === id) selectedId.value = ''
+      if (compose.draftId === id) resetCompose()
       viewMode.value = 'list'
       await loadSummary()
       await loadList()
@@ -605,8 +714,12 @@ export function useMyMailsWorkspace() {
     detailLoading,
     syncing,
     sending,
+    savingDraft,
+    saveDraft,
     deleting,
     restoring,
+    markingAllRead,
+    markAllRead,
     compose,
     startCompose,
     startReply,
