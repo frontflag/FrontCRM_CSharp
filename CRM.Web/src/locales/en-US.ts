@@ -1806,7 +1806,7 @@ const enUS = {
     permKindMenu: 'Sidebar menu',
     permKindSub: 'In-page nav',
     permKindFeature: 'Feature / API',
-    permKindMenuHint: 'Controls sidebar menu visibility (analytics, business, ops, system, etc.)',
+    permKindMenuHint: 'Controls sidebar menu visibility (analytics, business, system, etc.). Ops is visible only to system admins and is not controlled here.',
     permKindSubHint: 'Param-page left nav; convention system.params.sales|purchase|finance.feature.read/write',
     permKindFeatureHint: 'Business features or write APIs; usually not a sidebar item',
     permKindFilterAll: 'All kinds',

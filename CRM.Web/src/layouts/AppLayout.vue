@@ -918,13 +918,13 @@
           </router-link>
         </SidebarMenuTooltipWrap>
 
-        <!-- 运维管理 -->
+        <!-- 运维管理：仅系统管理员可见 -->
         <div
           class="menu-section-label"
-          v-if="!isCollapsed && (isSysAdmin || hasPermission('biz.feedback.admin') || hasPermission('sys.errorlog.read') || hasPermission('biz.telemetry.analytics'))"
+          v-if="!isCollapsed && showOpsNav"
         >{{ t('layout.sections.ops') }}</div>
         <SidebarMenuGroupFlyout
-          v-if="isSysAdmin || hasPermission('biz.feedback.admin') || hasPermission('sys.errorlog.read') || hasPermission('biz.telemetry.analytics')"
+          v-if="showOpsNav"
           :collapsed="isCollapsed"
           :expanded="openGroups.ops"
           @toggle="toggleGroup('ops')"
@@ -3251,6 +3251,8 @@ const canShowStockingPurchaseList = computed(() =>
 )
 const identityType = computed(() => authStore.user?.identityType ?? 0)
 const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
+/** 侧栏「运维管理」整组仅系统管理员；直链/API 仍按原权限码。 */
+const showOpsNav = computed(() => isSysAdmin.value)
 const isSysManager = computed(() => authStore.user?.isSysManager === true)
 const canStockOutOpsCheck = computed(() => canAccessInventoryOpsCheck(authStore.user))
 const canStockInOpsCheck = computed(() => canAccessInventoryOpsCheck(authStore.user))

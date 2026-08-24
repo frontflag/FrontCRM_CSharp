@@ -1798,7 +1798,7 @@ const zhCN = {
     permKindMenu: '侧栏菜单',
     permKindSub: '页内子项',
     permKindFeature: '功能/接口',
-    permKindMenuHint: '控制左侧侧栏菜单是否出现（含数据分析、业务管理、运维管理、系统管理等）',
+    permKindMenuHint: '控制左侧侧栏菜单是否出现（含数据分析、业务管理、系统管理等）。「运维管理」仅系统管理员可见，不受本页勾选影响。',
     permKindSubHint: '控制参数页左侧子导航；约定 system.params.销售|采购|财务.子项.read/write',
     permKindFeatureHint: '业务功能或写接口，一般不单独对应一条侧栏菜单',
     permKindFilterAll: '全部类型',
