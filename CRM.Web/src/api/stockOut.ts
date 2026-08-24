@@ -547,6 +547,10 @@ export interface StockOutRequestDto {
   /** 销售订单明细主键 */
   salesOrderItemId?: string
   salesOrderCode?: string
+  /** 销售明细当前客户订单号 */
+  customerSo?: string | null
+  /** 销售明细当前客户型号 */
+  customerPn?: string | null
   materialModel?: string
   brand?: string
   outQuantity: number
@@ -569,6 +573,10 @@ export interface StockOutRequestDto {
   packingId?: string | null
   /** 关联装箱单号 packing.code */
   packingCode?: string | null
+  /** 关联出库单 Id */
+  stockOutId?: string | null
+  /** 关联出库单号 */
+  stockOutCode?: string | null
   /** RegionType：10=境内 20=境外（与仓库、到货通知共用） */
   regionType?: number
   /** 出库类型：10销售 20报关 30退货 40报废 */
@@ -671,6 +679,8 @@ export function normalizeStockOutRequestRow(row: unknown): StockOutRequestDto {
     salesOrderId: String(r.salesOrderId ?? r.SalesOrderId ?? ''),
     salesOrderItemId: (r.salesOrderItemId ?? r.SalesOrderItemId) as string | undefined,
     salesOrderCode: (r.salesOrderCode ?? r.SalesOrderCode) as string | undefined,
+    customerSo: (r.customerSo ?? r.CustomerSo) as string | null | undefined,
+    customerPn: (r.customerPn ?? r.CustomerPn) as string | null | undefined,
     materialModel: (r.materialModel ?? r.MaterialModel) as string | undefined,
     brand: (r.brand ?? r.Brand) as string | undefined,
     outQuantity: Number(r.outQuantity ?? r.OutQuantity ?? 0),
@@ -688,6 +698,8 @@ export function normalizeStockOutRequestRow(row: unknown): StockOutRequestDto {
     expressCompany: (r.expressCompany ?? r.ExpressCompany) as string | null | undefined,
     packingId: (r.packingId ?? r.PackingId) as string | null | undefined,
     packingCode: (r.packingCode ?? r.PackingCode) as string | null | undefined,
+    stockOutId: (r.stockOutId ?? r.StockOutId) as string | null | undefined,
+    stockOutCode: (r.stockOutCode ?? r.StockOutCode) as string | null | undefined,
     regionType: r.regionType != null || r.RegionType != null ? Number(r.regionType ?? r.RegionType) : undefined,
     stockOutType:
       r.stockOutType != null || r.StockOutType != null ? Number(r.stockOutType ?? r.StockOutType) : undefined,
@@ -929,6 +941,12 @@ export const stockOutApi = {
     customerName?: string
     salesUserName?: string
     materialModel?: string
+    salesOrderCode?: string
+    customerSo?: string
+    customerPn?: string
+    packingCode?: string
+    stockOutCode?: string
+    brand?: string
     requestDateFrom?: string
     requestDateTo?: string
     stockOutType?: number

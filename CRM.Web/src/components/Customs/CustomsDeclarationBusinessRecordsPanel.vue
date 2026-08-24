@@ -326,6 +326,18 @@
                 <span v-else-if="row.packingCode?.trim()">{{ row.packingCode.trim() }}</span>
                 <span v-else>—</span>
               </template>
+              <template #col-stockOutCode="{ row }">
+                <router-link
+                  v-if="row.stockOutId?.trim() && row.stockOutCode?.trim()"
+                  :to="{ name: 'StockOutDetail', params: { id: row.stockOutId.trim() } }"
+                  class="link-text"
+                  @click.stop
+                >
+                  {{ row.stockOutCode.trim() }}
+                </router-link>
+                <span v-else-if="row.stockOutCode?.trim()">{{ row.stockOutCode.trim() }}</span>
+                <span v-else>—</span>
+              </template>
               <template #col-salesOrderCode="{ row }">
                 <router-link
                   v-if="row.salesOrderId?.trim() && row.salesOrderCode?.trim()"
@@ -336,6 +348,12 @@
                   {{ row.salesOrderCode.trim() }}
                 </router-link>
                 <span v-else>{{ row.salesOrderCode?.trim() || '—' }}</span>
+              </template>
+              <template #col-customerSo="{ row }">
+                <span>{{ maskSaleSensitiveFields ? '—' : (row.customerSo?.trim() || '—') }}</span>
+              </template>
+              <template #col-customerPn="{ row }">
+                <span>{{ maskSaleSensitiveFields ? '—' : (row.customerPn?.trim() || '—') }}</span>
               </template>
               <template #col-salesUserName="{ row }">
                 <span>{{ maskSaleSensitiveFields ? '—' : (row.salesUserName || '—') }}</span>

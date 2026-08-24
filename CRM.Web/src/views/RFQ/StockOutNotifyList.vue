@@ -78,10 +78,64 @@
         </div>
         <div class="search-input-wrap">
           <input
+            v-model="filterForm.salesOrderCode"
+            class="search-input search-input--material"
+            type="search"
+            :placeholder="t('stockOutNotifyList.filters.salesOrderCodePlaceholder')"
+            @keyup.enter="handleSearch"
+          />
+        </div>
+        <div v-if="!maskSaleSensitiveFields" class="search-input-wrap">
+          <input
+            v-model="filterForm.customerSo"
+            class="search-input search-input--material"
+            type="search"
+            :placeholder="t('stockOutNotifyList.filters.customerSoPlaceholder')"
+            @keyup.enter="handleSearch"
+          />
+        </div>
+        <div v-if="!maskSaleSensitiveFields" class="search-input-wrap">
+          <input
+            v-model="filterForm.customerPn"
+            class="search-input search-input--material"
+            type="search"
+            :placeholder="t('stockOutNotifyList.filters.customerPnPlaceholder')"
+            @keyup.enter="handleSearch"
+          />
+        </div>
+        <div class="search-input-wrap">
+          <input
             v-model="filterForm.materialModel"
             class="search-input search-input--material"
             type="search"
             :placeholder="t('stockOutNotifyList.filters.materialModelPlaceholder')"
+            @keyup.enter="handleSearch"
+          />
+        </div>
+        <div class="search-input-wrap">
+          <input
+            v-model="filterForm.packingCode"
+            class="search-input search-input--material"
+            type="search"
+            :placeholder="t('stockOutNotifyList.filters.packingCodePlaceholder')"
+            @keyup.enter="handleSearch"
+          />
+        </div>
+        <div class="search-input-wrap">
+          <input
+            v-model="filterForm.stockOutCode"
+            class="search-input search-input--material"
+            type="search"
+            :placeholder="t('stockOutNotifyList.filters.stockOutCodePlaceholder')"
+            @keyup.enter="handleSearch"
+          />
+        </div>
+        <div class="search-input-wrap">
+          <input
+            v-model="filterForm.brand"
+            class="search-input search-input--material"
+            type="search"
+            :placeholder="t('stockOutNotifyList.filters.brandPlaceholder')"
             @keyup.enter="handleSearch"
           />
         </div>
@@ -228,6 +282,18 @@
         <span v-else-if="row.packingCode?.trim()">{{ row.packingCode.trim() }}</span>
         <span v-else>—</span>
       </template>
+      <template #col-stockOutCode="{ row }">
+        <router-link
+          v-if="row.stockOutId?.trim() && row.stockOutCode?.trim()"
+          :to="{ name: 'StockOutDetail', params: { id: row.stockOutId.trim() } }"
+          class="cell-link"
+          @click.stop
+        >
+          {{ row.stockOutCode.trim() }}
+        </router-link>
+        <span v-else-if="row.stockOutCode?.trim()">{{ row.stockOutCode.trim() }}</span>
+        <span v-else>—</span>
+      </template>
       <template #col-salesOrderCode="{ row }">
         <router-link
           v-if="row.salesOrderId?.trim() && row.salesOrderCode?.trim()"
@@ -238,6 +304,12 @@
           {{ row.salesOrderCode.trim() }}
         </router-link>
         <span v-else>{{ row.salesOrderCode?.trim() || '—' }}</span>
+      </template>
+      <template #col-customerSo="{ row }">
+        <span>{{ maskSaleSensitiveFields ? '—' : (row.customerSo?.trim() || '—') }}</span>
+      </template>
+      <template #col-customerPn="{ row }">
+        <span>{{ maskSaleSensitiveFields ? '—' : (row.customerPn?.trim() || '—') }}</span>
       </template>
       <template #col-requestDate="{ row }">{{ formatRequestDateTime(row.requestDate) }}</template>
       <template #col-createTime="{ row }">{{ formatRequestDateTime(row.createTime) }}</template>
@@ -574,7 +646,13 @@ const filterForm = reactive({
   stockOutType: undefined as number | undefined,
   customerName: '',
   salesUserName: '',
+  salesOrderCode: '',
+  customerSo: '',
+  customerPn: '',
   materialModel: '',
+  packingCode: '',
+  stockOutCode: '',
+  brand: '',
   requestDateRange: null as [string, string] | null
 })
 const list = ref<StockOutRequestDto[]>([])
@@ -627,8 +705,22 @@ function buildListQueryParams() {
   if (customer) params.customerName = customer
   const salesUser = filterForm.salesUserName.trim()
   if (salesUser) params.salesUserName = salesUser
+  const salesOrder = filterForm.salesOrderCode.trim()
+  if (salesOrder) params.salesOrderCode = salesOrder
+  if (!maskSaleSensitiveFields.value) {
+    const customerSo = filterForm.customerSo.trim()
+    if (customerSo) params.customerSo = customerSo
+    const customerPn = filterForm.customerPn.trim()
+    if (customerPn) params.customerPn = customerPn
+  }
   const material = filterForm.materialModel.trim()
   if (material) params.materialModel = material
+  const packing = filterForm.packingCode.trim()
+  if (packing) params.packingCode = packing
+  const stockOut = filterForm.stockOutCode.trim()
+  if (stockOut) params.stockOutCode = stockOut
+  const brand = filterForm.brand.trim()
+  if (brand) params.brand = brand
   if (filterForm.requestDateRange?.[0]) params.requestDateFrom = filterForm.requestDateRange[0]
   if (filterForm.requestDateRange?.[1]) params.requestDateTo = filterForm.requestDateRange[1]
   return params
@@ -763,7 +855,13 @@ function handleReset() {
   filterForm.stockOutType = undefined
   filterForm.customerName = ''
   filterForm.salesUserName = ''
+  filterForm.salesOrderCode = ''
+  filterForm.customerSo = ''
+  filterForm.customerPn = ''
   filterForm.materialModel = ''
+  filterForm.packingCode = ''
+  filterForm.stockOutCode = ''
+  filterForm.brand = ''
   filterForm.requestDateRange = null
   void runNotifyFetch(true)
 }

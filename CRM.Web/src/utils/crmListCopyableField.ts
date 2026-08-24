@@ -7,6 +7,7 @@ export const CRM_LIST_COPYABLE_FIELD_KEYS = new Set([
   'materialBrand',
   'brand',
   'mpn',
+  'customerPn',
   'model',
   'purchasePn',
   'purchaseBrand',
@@ -45,6 +46,8 @@ function resolveByFieldKey(row: Record<string, unknown>, field: string): string 
       return pickRowField(row, 'materialModel') || pickRowField(row, 'mpn') || pickRowField(row, 'pn')
     case 'brand':
       return pickRowField(row, 'brand') || pickRowField(row, 'materialBrand') || pickRowField(row, 'purchaseBrand')
+    case 'customerPn':
+      return pickRowField(row, 'customerPn')
     case 'materialBrand':
       return pickRowField(row, 'materialBrand') || pickRowField(row, 'brand') || pickRowField(row, 'purchaseBrand')
     case 'mpn':

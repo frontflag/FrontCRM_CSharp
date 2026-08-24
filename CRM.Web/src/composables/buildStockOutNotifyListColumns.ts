@@ -51,6 +51,14 @@ export function buildStockOutNotifyListColumns(p: BuildStockOutNotifyListColumns
       width: 180,
       showOverflowTooltip: true
     },
+    {
+      key: 'customerPn',
+      label: p.t('stockOutNotifyList.columns.customerPn'),
+      prop: 'customerPn',
+      width: 160,
+      minWidth: 140,
+      showOverflowTooltip: true
+    },
     { key: 'brand', label: p.t('stockOutNotifyList.columns.brand'), prop: 'brand', width: 140, showOverflowTooltip: true },
     {
       key: 'outQuantity',
@@ -88,6 +96,14 @@ export function buildStockOutNotifyListColumns(p: BuildStockOutNotifyListColumns
       minWidth: 130,
       showOverflowTooltip: true
     },
+    {
+      key: 'stockOutCode',
+      label: p.t('stockOutNotifyList.columns.stockOutCode'),
+      prop: 'stockOutCode',
+      width: 160,
+      minWidth: 140,
+      showOverflowTooltip: true
+    },
     { key: 'requestDate', label: p.t('stockOutNotifyList.columns.requestDate'), prop: 'requestDate', width: 170 },
     {
       key: 'salesUserName',
@@ -117,6 +133,14 @@ export function buildStockOutNotifyListColumns(p: BuildStockOutNotifyListColumns
       prop: 'salesOrderCode',
       width: 160,
       minWidth: 160
+    },
+    {
+      key: 'customerSo',
+      label: p.t('stockOutNotifyList.columns.customerSo'),
+      prop: 'customerSo',
+      width: 160,
+      minWidth: 140,
+      showOverflowTooltip: true
     },
     { key: 'createTime', label: p.t('stockOutNotifyList.columns.createTime'), prop: 'createTime', width: 170 },
     { key: 'createUser', label: p.t('stockOutNotifyList.columns.createUser'), width: 140, showOverflowTooltip: true }

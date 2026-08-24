@@ -99,6 +99,8 @@ public static class SaleSensitiveFieldMask521
         x.CustomerName = null;
         x.SalesUserName = null;
         x.CustomerId = string.Empty;
+        x.CustomerSo = null;
+        x.CustomerPn = null;
     }
 
     public static void ApplyStockOutRequestListItems(IEnumerable<StockOutRequestListItemDto>? rows, bool mask)

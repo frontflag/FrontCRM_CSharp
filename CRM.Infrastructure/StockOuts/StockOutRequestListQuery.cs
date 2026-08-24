@@ -118,6 +118,91 @@ public sealed class StockOutRequestListQuery : IStockOutRequestListQuery
                 q = q.Where(x => x.r.MaterialCode.ToLower().Contains(k));
             }
 
+            if (!string.IsNullOrWhiteSpace(filter.SalesOrderCode))
+            {
+                var k = filter.SalesOrderCode.Trim().ToLowerInvariant();
+                q = q.Where(x => x.so.SellOrderCode.ToLower().Contains(k));
+            }
+
+            if (!string.IsNullOrWhiteSpace(filter.CustomerSo))
+            {
+                var k = filter.CustomerSo.Trim().ToLowerInvariant();
+                q = q.Where(x =>
+                    _db.SellOrderItems.Any(si =>
+                        !si.IsDeleted
+                        && si.Id == x.r.SalesOrderItemId
+                        && si.CustomerSo != null
+                        && si.CustomerSo.ToLower().Contains(k)));
+            }
+
+            if (!string.IsNullOrWhiteSpace(filter.CustomerPn))
+            {
+                var k = filter.CustomerPn.Trim().ToLowerInvariant();
+                q = q.Where(x =>
+                    _db.SellOrderItems.Any(si =>
+                        !si.IsDeleted
+                        && si.Id == x.r.SalesOrderItemId
+                        && si.CustomerPn != null
+                        && si.CustomerPn.ToLower().Contains(k)));
+            }
+
+            if (!string.IsNullOrWhiteSpace(filter.Brand))
+            {
+                var k = filter.Brand.Trim().ToLowerInvariant();
+                q = q.Where(x =>
+                    x.r.MaterialName != null && x.r.MaterialName.ToLower().Contains(k));
+            }
+
+            if (!string.IsNullOrWhiteSpace(filter.PackingCode))
+            {
+                var k = filter.PackingCode.Trim().ToLowerInvariant();
+                q = q.Where(x =>
+                    _db.PackingItems.Any(pi =>
+                        !pi.IsDeleted
+                        && pi.StockOutNotifyId != null
+                        && pi.StockOutNotifyId == x.r.Id
+                        && _db.Packings.Any(pk =>
+                            !pk.IsDeleted
+                            && pk.Id == pi.PackingId
+                            && pk.Code.ToLower().Contains(k))));
+            }
+
+            if (!string.IsNullOrWhiteSpace(filter.StockOutCode))
+            {
+                var k = filter.StockOutCode.Trim().ToLowerInvariant();
+                q = q.Where(x =>
+                    _db.PackingItems.Any(pi =>
+                        !pi.IsDeleted
+                        && pi.StockOutNotifyId != null
+                        && pi.StockOutNotifyId == x.r.Id
+                        && _db.StockOutItems.Any(soi =>
+                            !soi.IsDeleted
+                            && soi.PackingId != null
+                            && soi.PackingId == pi.PackingId
+                            && _db.StockOuts.Any(soOut =>
+                                !soOut.IsDeleted
+                                && soOut.Id == soi.StockOutId
+                                && soOut.StockOutType != StockOutTypeCode.Transfer
+                                && soOut.StockOutCode.ToLower().Contains(k))))
+                    || _db.PackingItems.Any(pi =>
+                        !pi.IsDeleted
+                        && pi.StockOutNotifyId != null
+                        && pi.StockOutNotifyId == x.r.Id
+                        && _db.PickingTaskItems.Any(pti =>
+                            !pti.IsDeleted
+                            && pti.PackingItemId != null
+                            && pti.PackingItemId == pi.Id
+                            && _db.StockOutItems.Any(soi =>
+                                !soi.IsDeleted
+                                && soi.PickingTaskItemId != null
+                                && soi.PickingTaskItemId == pti.Id
+                                && _db.StockOuts.Any(soOut =>
+                                    !soOut.IsDeleted
+                                    && soOut.Id == soi.StockOutId
+                                    && soOut.StockOutType != StockOutTypeCode.Transfer
+                                    && soOut.StockOutCode.ToLower().Contains(k))))));
+            }
+
             if (filter.RequestDateFrom.HasValue)
                 q = q.Where(x => x.r.RequestDate >= filter.RequestDateFrom.Value);
 

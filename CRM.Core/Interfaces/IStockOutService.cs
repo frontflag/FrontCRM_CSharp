@@ -359,6 +359,10 @@ namespace CRM.Core.Interfaces
         public string SalesOrderId { get; set; } = string.Empty;
         public string SalesOrderItemId { get; set; } = string.Empty;
         public string? SalesOrderCode { get; set; }
+        /// <summary>销售明细当前客户订单号 <c>customer_so</c>。</summary>
+        public string? CustomerSo { get; set; }
+        /// <summary>销售明细当前客户型号 <c>customer_pn</c>。</summary>
+        public string? CustomerPn { get; set; }
         public string? MaterialModel { get; set; }
         public string? Brand { get; set; }
         /// <summary>出库通知数量（单表 Quantity）</summary>
@@ -385,6 +389,12 @@ namespace CRM.Core.Interfaces
 
         /// <summary>关联装箱单号 <c>packing.code</c>。</summary>
         public string? PackingCode { get; set; }
+
+        /// <summary>关联出库单主键（经装箱明细；多单时取排序后首条）。</summary>
+        public string? StockOutId { get; set; }
+
+        /// <summary>关联出库单号；多单顿号拼接。</summary>
+        public string? StockOutCode { get; set; }
 
         /// <summary>地域类型：10=境内 20=境外</summary>
         public short RegionType { get; set; }
