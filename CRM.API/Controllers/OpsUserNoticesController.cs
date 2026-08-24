@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using CRM.API.Models.DTOs;
+using CRM.Core.Document;
 using CRM.Core.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -88,8 +89,14 @@ public class OpsUserNoticesController : ControllerBase
     }
 
     [HttpPost]
+    [RequestSizeLimit(80 * 1024 * 1024)]
+    [RequestFormLimits(MultipartBodyLengthLimit = 80 * 1024 * 1024)]
     public async Task<ActionResult<ApiResponse<SysUserNoticeDetailDto>>> Send(
-        [FromBody] SysUserNoticeSendRequest? body,
+        [FromForm] string? recipientUserId,
+        [FromForm] bool isUrgent,
+        [FromForm] string? title,
+        [FromForm] string? body,
+        [FromForm] IFormFileCollection? files,
         CancellationToken ct)
     {
         if (!await IsSuperAdminAsync())
@@ -98,12 +105,40 @@ public class OpsUserNoticesController : ControllerBase
         if (string.IsNullOrWhiteSpace(uid))
             return Unauthorized(ApiResponse<SysUserNoticeDetailDto>.Fail("未登录", 401));
 
+        var images = new List<DocumentUploadFile>();
         try
         {
-            var dto = await _service.AdminSendAsync(body ?? new SysUserNoticeSendRequest(), uid, ct);
+            if (files != null)
+            {
+                foreach (var f in files)
+                {
+                    if (f == null || f.Length == 0) continue;
+                    var stream = new MemoryStream();
+                    await f.CopyToAsync(stream, ct);
+                    stream.Position = 0;
+                    images.Add(new DocumentUploadFile
+                    {
+                        Stream = stream,
+                        FileName = f.FileName ?? "image",
+                        ContentType = f.ContentType
+                    });
+                }
+            }
+
+            var dto = await _service.AdminSendAsync(new SysUserNoticeSendRequest
+            {
+                RecipientUserId = recipientUserId ?? string.Empty,
+                IsUrgent = isUrgent,
+                Title = title ?? string.Empty,
+                Body = body ?? string.Empty
+            }, uid, images, ct);
             return Ok(ApiResponse<SysUserNoticeDetailDto>.Ok(dto, "已发送"));
         }
         catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<SysUserNoticeDetailDto>.Fail(ex.Message, 400));
+        }
+        catch (ArgumentException ex)
         {
             return BadRequest(ApiResponse<SysUserNoticeDetailDto>.Fail(ex.Message, 400));
         }
@@ -111,6 +146,11 @@ public class OpsUserNoticesController : ControllerBase
         {
             _logger.LogError(ex, "发送系统通知失败");
             return StatusCode(500, ApiResponse<SysUserNoticeDetailDto>.Fail("发送失败", 500));
+        }
+        finally
+        {
+            foreach (var img in images)
+                img.Stream?.Dispose();
         }
     }
 }

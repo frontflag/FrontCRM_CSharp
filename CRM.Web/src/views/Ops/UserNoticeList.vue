@@ -117,7 +117,7 @@
           <span class="cell-ellipsis" :title="row.title">{{ row.title }}</span>
         </template>
         <template #col-bodyPreview="{ row }">
-          <span class="cell-ellipsis" :title="row.bodyPreview || undefined">{{ row.bodyPreview || '—' }}</span>
+          <span class="cell-ellipsis" :title="previewLine(row)">{{ previewLine(row) }}</span>
         </template>
         <template #col-createTime="{ row }">
           {{ formatTime(row.createTime) }}
@@ -160,7 +160,7 @@
     <el-dialog
       v-model="sendOpen"
       :title="t('sysUserNotice.sendTitle')"
-      width="560px"
+      width="960px"
       destroy-on-close
       @closed="resetSend"
     >
@@ -186,15 +186,29 @@
         <el-form-item :label="t('sysUserNotice.colTitle')" required>
           <el-input v-model="sendForm.title" maxlength="100" show-word-limit />
         </el-form-item>
-        <el-form-item :label="t('sysUserNotice.body')" required>
+        <el-form-item :label="t('sysUserNotice.body')">
           <el-input
             v-model="sendForm.body"
             type="textarea"
-            :rows="8"
+            :rows="9"
             maxlength="4000"
             show-word-limit
             :placeholder="t('sysUserNotice.bodyPh')"
           />
+        </el-form-item>
+        <el-form-item :label="t('sysUserNotice.images')">
+          <el-upload
+            v-model:file-list="sendFileList"
+            list-type="picture-card"
+            accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+            :limit="9"
+            :auto-upload="false"
+            :on-exceed="onImageExceed"
+            :before-upload="beforeImageUpload"
+          >
+            <el-icon><Plus /></el-icon>
+          </el-upload>
+          <div class="form-hint">{{ t('sysUserNotice.imagesHint') }}</div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -203,7 +217,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="detailOpen" :title="t('sysUserNotice.detailTitle')" width="560px" destroy-on-close>
+    <el-dialog v-model="detailOpen" :title="t('sysUserNotice.detailTitle')" width="640px" destroy-on-close>
       <div v-if="detail" v-loading="detailLoading" class="detail-body">
         <div class="detail-meta">
           <el-tag :type="detail.isUrgent ? 'danger' : 'info'" size="small" effect="plain">
@@ -216,7 +230,8 @@
           <span>{{ formatTime(detail.createTime) }}</span>
         </div>
         <h3 class="detail-title">{{ detail.title }}</h3>
-        <pre class="detail-text">{{ detail.body }}</pre>
+        <pre v-if="(detail.body || '').trim()" class="detail-text">{{ detail.body }}</pre>
+        <UserNoticeImageGallery :images="detail.images || []" :thumb-size="108" />
         <p class="detail-hint">{{ t('sysUserNotice.adminViewHint') }}</p>
       </div>
     </el-dialog>
@@ -227,7 +242,8 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { Setting } from '@element-plus/icons-vue'
+import { Plus, Setting } from '@element-plus/icons-vue'
+import type { UploadRawFile, UploadUserFile } from 'element-plus'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import {
   sysUserNoticesApi,
@@ -239,6 +255,7 @@ import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import NoticeUrgentIcon from '@/components/SystemAnnouncement/NoticeUrgentIcon.vue'
+import UserNoticeImageGallery from '@/components/SystemAnnouncement/UserNoticeImageGallery.vue'
 
 const { t, locale } = useI18n()
 
@@ -267,6 +284,9 @@ const sendForm = reactive({
   title: '',
   body: ''
 })
+const sendFileList = ref<UploadUserFile[]>([])
+const MAX_NOTICE_IMAGE_BYTES = 8 * 1024 * 1024
+const NOTICE_IMAGE_EXT = /\.(jpe?g|png|webp|gif)$/i
 
 const detailOpen = ref(false)
 const detailLoading = ref(false)
@@ -291,6 +311,14 @@ function rowClassName({ row }: { row: UserNoticeAdminListItem }) {
 function recipientOptionLabel(u: UserNoticeRecipient) {
   const name = (u.realName || '').trim()
   return name ? `${u.userName} / ${name}` : u.userName
+}
+
+function previewLine(row: { bodyPreview?: string; imageCount?: number }) {
+  const text = String(row.bodyPreview || '').trim()
+  const n = Number(row.imageCount || 0)
+  const img = n > 0 ? t('sysUserNotice.imageCount', { n }) : ''
+  if (text && img) return `${text}  ${img}`
+  return text || img || '—'
 }
 
 function formatTime(v?: string | null) {
@@ -357,6 +385,24 @@ function resetSend() {
   sendForm.isUrgent = false
   sendForm.title = ''
   sendForm.body = ''
+  sendFileList.value = []
+}
+
+function onImageExceed() {
+  ElMessage.warning(t('sysUserNotice.imagesExceed'))
+}
+
+function beforeImageUpload(file: UploadRawFile) {
+  const name = String(file.name || '')
+  if (!NOTICE_IMAGE_EXT.test(name)) {
+    ElMessage.warning(t('sysUserNotice.imagesType'))
+    return false
+  }
+  if (file.size > MAX_NOTICE_IMAGE_BYTES) {
+    ElMessage.warning(t('sysUserNotice.imagesTooLarge'))
+    return false
+  }
+  return true
 }
 
 async function submitSend() {
@@ -368,18 +414,25 @@ async function submitSend() {
     ElMessage.warning(t('sysUserNotice.needTitle'))
     return
   }
-  if (!sendForm.body.trim()) {
-    ElMessage.warning(t('sysUserNotice.needBody'))
+  const files: File[] = []
+  for (const item of sendFileList.value) {
+    if (item.raw) files.push(item.raw)
+  }
+  if (!sendForm.body.trim() && files.length === 0) {
+    ElMessage.warning(t('sysUserNotice.needBodyOrImages'))
     return
   }
   sending.value = true
   try {
-    await sysUserNoticesApi.send({
-      recipientUserId: sendForm.recipientUserId,
-      isUrgent: sendForm.isUrgent,
-      title: sendForm.title.trim(),
-      body: sendForm.body.trim()
-    })
+    await sysUserNoticesApi.send(
+      {
+        recipientUserId: sendForm.recipientUserId,
+        isUrgent: sendForm.isUrgent,
+        title: sendForm.title.trim(),
+        body: sendForm.body.trim()
+      },
+      files
+    )
     ElMessage.success(t('sysUserNotice.sent'))
     sendOpen.value = false
     page.value = 1
@@ -608,6 +661,13 @@ onMounted(() => {
 .detail-hint {
   margin: 16px 0 0;
   font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.form-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.4;
   color: var(--el-text-color-secondary);
 }
 </style>

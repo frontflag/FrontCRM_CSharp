@@ -14,6 +14,7 @@ export interface UserNoticeAdminListItem {
   recipientLabel: string
   title: string
   bodyPreview: string
+  imageCount: number
   createTime: string
 }
 
@@ -24,6 +25,11 @@ export interface UserNoticeAdminPaged {
   pageSize: number
 }
 
+export interface UserNoticeImage {
+  documentId: string
+  originalFileName: string
+}
+
 export interface UserNoticeDetail {
   id: string
   isUrgent: boolean
@@ -32,6 +38,7 @@ export interface UserNoticeDetail {
   recipientLabel: string
   title: string
   body: string
+  images?: UserNoticeImage[]
   createTime: string
   readAt?: string | null
 }
@@ -42,6 +49,7 @@ export interface UserNoticeMeListItem {
   isRead: boolean
   title: string
   bodyPreview: string
+  imageCount: number
   createTime: string
 }
 
@@ -78,8 +86,19 @@ export const sysUserNoticesApi = {
   adminGet(id: string) {
     return apiClient.get<UserNoticeDetail>(`/api/v1/ops/user-notices/${encodeURIComponent(id)}`)
   },
-  send(payload: UserNoticeSendPayload) {
-    return apiClient.post<UserNoticeDetail>('/api/v1/ops/user-notices', payload)
+  send(payload: UserNoticeSendPayload, files?: File[]) {
+    const form = new FormData()
+    form.append('recipientUserId', payload.recipientUserId)
+    form.append('isUrgent', payload.isUrgent ? 'true' : 'false')
+    form.append('title', payload.title)
+    form.append('body', payload.body ?? '')
+    for (const f of files ?? []) {
+      form.append('files', f)
+    }
+    return apiClient.post<UserNoticeDetail>('/api/v1/ops/user-notices', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120_000
+    })
   },
   unreadSummary() {
     return apiClient.get<UserNoticeUnreadSummary>('/api/v1/me/user-notices/unread-summary')

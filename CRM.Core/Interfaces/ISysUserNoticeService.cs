@@ -1,3 +1,5 @@
+using CRM.Core.Document;
+
 namespace CRM.Core.Interfaces;
 
 public interface ISysUserNoticeService
@@ -8,7 +10,11 @@ public interface ISysUserNoticeService
 
     Task<SysUserNoticeDetailDto?> AdminGetAsync(string id, CancellationToken ct = default);
 
-    Task<SysUserNoticeDetailDto> AdminSendAsync(SysUserNoticeSendRequest request, string senderUserId, CancellationToken ct = default);
+    Task<SysUserNoticeDetailDto> AdminSendAsync(
+        SysUserNoticeSendRequest request,
+        string senderUserId,
+        IReadOnlyList<DocumentUploadFile>? images,
+        CancellationToken ct = default);
 
     Task<IReadOnlyList<SysUserNoticeMeListItemDto>> ListMineAsync(string userId, CancellationToken ct = default);
 
@@ -18,6 +24,12 @@ public interface ISysUserNoticeService
 
     Task MarkReadAsync(string id, string userId, CancellationToken ct = default);
     Task MarkAllReadAsync(string userId, CancellationToken ct = default);
+
+    /// <summary>系统通知附图：仅 SuperAdmin、接收人或发送人可预览/下载。</summary>
+    Task<bool> CanAccessNoticeAttachmentAsync(string documentId, string userId, bool isSysAdmin, CancellationToken ct = default);
+
+    /// <summary>按通知 Id 判断是否可列出该通知附图。</summary>
+    Task<bool> CanAccessNoticeBizAsync(string noticeId, string userId, bool isSysAdmin, CancellationToken ct = default);
 }
 
 public class SysUserNoticeAdminQuery
@@ -56,6 +68,7 @@ public class SysUserNoticeAdminListItemDto
     public string RecipientLabel { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string BodyPreview { get; set; } = string.Empty;
+    public int ImageCount { get; set; }
     public DateTime CreateTime { get; set; }
 }
 
@@ -76,8 +89,15 @@ public class SysUserNoticeDetailDto
     public string RecipientLabel { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string Body { get; set; } = string.Empty;
+    public IReadOnlyList<SysUserNoticeImageDto> Images { get; set; } = Array.Empty<SysUserNoticeImageDto>();
     public DateTime CreateTime { get; set; }
     public DateTime? ReadAt { get; set; }
+}
+
+public class SysUserNoticeImageDto
+{
+    public string DocumentId { get; set; } = string.Empty;
+    public string OriginalFileName { get; set; } = string.Empty;
 }
 
 public class SysUserNoticeMeListItemDto
@@ -87,6 +107,7 @@ public class SysUserNoticeMeListItemDto
     public bool IsRead { get; set; }
     public string Title { get; set; } = string.Empty;
     public string BodyPreview { get; set; } = string.Empty;
+    public int ImageCount { get; set; }
     public DateTime CreateTime { get; set; }
 }
 

@@ -46,4 +46,8 @@ public static class SysUserNoticeLimits
 {
     public const int TitleMaxLength = 100;
     public const int BodyMaxLength = 4000;
+    public const int MaxImageCount = 9;
+    public const int MaxImageSizeMb = 8;
+
+    public static readonly string[] AllowedImageExtensions = { ".jpg", ".jpeg", ".png", ".webp", ".gif" };
 }

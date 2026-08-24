@@ -1,5 +1,7 @@
 using CRM.Core.Constants;
+using CRM.Core.Document;
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Document;
 using CRM.Core.Models.System;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -9,10 +11,12 @@ namespace CRM.Infrastructure.Services;
 public class SysUserNoticeService : ISysUserNoticeService
 {
     private readonly ApplicationDbContext _db;
+    private readonly IDocumentService _documents;
 
-    public SysUserNoticeService(ApplicationDbContext db)
+    public SysUserNoticeService(ApplicationDbContext db, IDocumentService documents)
     {
         _db = db;
+        _documents = documents;
     }
 
     public async Task<IReadOnlyList<SysUserNoticeRecipientDto>> ListRecipientsAsync(CancellationToken ct = default)
@@ -71,6 +75,7 @@ public class SysUserNoticeService : ISysUserNoticeService
 
         var recipientIds = rows.Select(x => x.RecipientUserId).Distinct().ToList();
         var names = await LoadUserLabelsAsync(recipientIds, ct);
+        var imageCounts = await LoadImageCountsAsync(rows.Select(x => x.Id), ct);
 
         return new SysUserNoticeAdminPagedDto
         {
@@ -83,6 +88,7 @@ public class SysUserNoticeService : ISysUserNoticeService
                 RecipientLabel = names.GetValueOrDefault(x.RecipientUserId, x.RecipientUserId),
                 Title = x.Title,
                 BodyPreview = MakeBodyPreview(x.Body),
+                ImageCount = imageCounts.GetValueOrDefault(x.Id),
                 CreateTime = x.CreateTime
             }).ToList(),
             Total = total,
@@ -101,6 +107,7 @@ public class SysUserNoticeService : ISysUserNoticeService
     public async Task<SysUserNoticeDetailDto> AdminSendAsync(
         SysUserNoticeSendRequest request,
         string senderUserId,
+        IReadOnlyList<DocumentUploadFile>? images,
         CancellationToken ct = default)
     {
         var recipientId = (request.RecipientUserId ?? string.Empty).Trim();
@@ -119,10 +126,13 @@ public class SysUserNoticeService : ISysUserNoticeService
             throw new InvalidOperationException($"标题最长 {SysUserNoticeLimits.TitleMaxLength} 字符");
 
         var body = (request.Body ?? string.Empty).Trim();
-        if (string.IsNullOrWhiteSpace(body))
-            throw new InvalidOperationException("请填写正文");
         if (body.Length > SysUserNoticeLimits.BodyMaxLength)
             throw new InvalidOperationException($"正文最长 {SysUserNoticeLimits.BodyMaxLength} 字符");
+
+        ValidateImages(images);
+        var hasImages = images != null && images.Count > 0;
+        if (string.IsNullOrWhiteSpace(body) && !hasImages)
+            throw new InvalidOperationException("请填写正文或添加图片");
 
         var entity = new SysUserNotice
         {
@@ -135,6 +145,27 @@ public class SysUserNoticeService : ISysUserNoticeService
         };
         _db.SysUserNotices.Add(entity);
         await _db.SaveChangesAsync(ct);
+
+        if (hasImages)
+        {
+            try
+            {
+                await _documents.UploadAsync(new DocumentUploadRequest
+                {
+                    BizType = SysUserNoticeDocumentBizType.SysUserNotice,
+                    BizId = entity.Id,
+                    UploadUserId = senderUserId,
+                    Files = images!.ToList()
+                });
+            }
+            catch
+            {
+                _db.SysUserNotices.Remove(entity);
+                await _db.SaveChangesAsync(ct);
+                throw;
+            }
+        }
+
         return await ToDetailAsync(entity, ct);
     }
 
@@ -144,6 +175,7 @@ public class SysUserNoticeService : ISysUserNoticeService
             .Where(x => x.RecipientUserId == userId)
             .OrderByDescending(x => x.CreateTime)
             .ToListAsync(ct);
+        var imageCounts = await LoadImageCountsAsync(rows.Select(x => x.Id), ct);
         return rows.Select(x => new SysUserNoticeMeListItemDto
         {
             Id = x.Id,
@@ -151,6 +183,7 @@ public class SysUserNoticeService : ISysUserNoticeService
             IsRead = x.ReadAt != null,
             Title = x.Title,
             BodyPreview = MakeBodyPreview(x.Body),
+            ImageCount = imageCounts.GetValueOrDefault(x.Id),
             CreateTime = x.CreateTime
         }).ToList();
     }
@@ -194,9 +227,30 @@ public class SysUserNoticeService : ISysUserNoticeService
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.ReadAt, now), ct);
     }
 
+    public async Task<bool> CanAccessNoticeAttachmentAsync(string documentId, string userId, bool isSysAdmin, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(documentId) || string.IsNullOrWhiteSpace(userId))
+            return false;
+        var doc = await _db.Set<UploadDocument>().AsNoTracking()
+            .FirstOrDefaultAsync(d => d.Id == documentId && !d.IsDeleted, ct);
+        if (doc == null || !SysUserNoticeDocumentBizType.Is(doc.BizType))
+            return false;
+        return await CanAccessNoticeBizAsync(doc.BizId, userId, isSysAdmin, ct);
+    }
+
+    public async Task<bool> CanAccessNoticeBizAsync(string noticeId, string userId, bool isSysAdmin, CancellationToken ct = default)
+    {
+        if (isSysAdmin) return true;
+        if (string.IsNullOrWhiteSpace(noticeId) || string.IsNullOrWhiteSpace(userId))
+            return false;
+        return await _db.SysUserNotices.AsNoTracking()
+            .AnyAsync(x => x.Id == noticeId && (x.RecipientUserId == userId || x.SenderUserId == userId), ct);
+    }
+
     private async Task<SysUserNoticeDetailDto> ToDetailAsync(SysUserNotice x, CancellationToken ct)
     {
         var names = await LoadUserLabelsAsync(new[] { x.RecipientUserId }, ct);
+        var images = await LoadImagesAsync(x.Id, ct);
         return new SysUserNoticeDetailDto
         {
             Id = x.Id,
@@ -206,9 +260,55 @@ public class SysUserNoticeService : ISysUserNoticeService
             RecipientLabel = names.GetValueOrDefault(x.RecipientUserId, x.RecipientUserId),
             Title = x.Title,
             Body = x.Body,
+            Images = images,
             CreateTime = x.CreateTime,
             ReadAt = x.ReadAt
         };
+    }
+
+    private async Task<IReadOnlyList<SysUserNoticeImageDto>> LoadImagesAsync(string noticeId, CancellationToken ct)
+    {
+        return await _db.Set<UploadDocument>().AsNoTracking()
+            .Where(d => d.BizType == SysUserNoticeDocumentBizType.SysUserNotice && d.BizId == noticeId && !d.IsDeleted)
+            .OrderBy(d => d.CreateTime)
+            .Select(d => new SysUserNoticeImageDto
+            {
+                DocumentId = d.Id,
+                OriginalFileName = d.OriginalFileName
+            })
+            .ToListAsync(ct);
+    }
+
+    private async Task<Dictionary<string, int>> LoadImageCountsAsync(IEnumerable<string> noticeIds, CancellationToken ct)
+    {
+        var ids = noticeIds.Where(id => !string.IsNullOrWhiteSpace(id)).Distinct().ToList();
+        if (ids.Count == 0) return new Dictionary<string, int>();
+
+        var rows = await _db.Set<UploadDocument>().AsNoTracking()
+            .Where(d => d.BizType == SysUserNoticeDocumentBizType.SysUserNotice && ids.Contains(d.BizId) && !d.IsDeleted)
+            .GroupBy(d => d.BizId)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+        return rows.ToDictionary(x => x.Key, x => x.Count);
+    }
+
+    private static void ValidateImages(IReadOnlyList<DocumentUploadFile>? images)
+    {
+        if (images == null || images.Count == 0) return;
+        if (images.Count > SysUserNoticeLimits.MaxImageCount)
+            throw new InvalidOperationException($"最多上传 {SysUserNoticeLimits.MaxImageCount} 张图片");
+
+        var maxBytes = SysUserNoticeLimits.MaxImageSizeMb * 1024L * 1024L;
+        var allowed = new HashSet<string>(SysUserNoticeLimits.AllowedImageExtensions, StringComparer.OrdinalIgnoreCase);
+        foreach (var file in images)
+        {
+            var name = file.FileName ?? string.Empty;
+            var ext = Path.GetExtension(name);
+            if (string.IsNullOrWhiteSpace(ext) || !allowed.Contains(ext))
+                throw new InvalidOperationException("仅支持 jpg、png、webp、gif 图片");
+            if (file.Stream != null && file.Stream.CanSeek && file.Stream.Length > maxBytes)
+                throw new InvalidOperationException($"单张图片不能超过 {SysUserNoticeLimits.MaxImageSizeMb}MB");
+        }
     }
 
     private async Task<Dictionary<string, string>> LoadUserLabelsAsync(IEnumerable<string> userIds, CancellationToken ct)

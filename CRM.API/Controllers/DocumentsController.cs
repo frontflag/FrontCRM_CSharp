@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using CRM.API.Models.DTOs;
+using CRM.Core.Constants;
 using CRM.Core.Document;
 using CRM.Core.Models.Document;
 using CRM.Core.Interfaces;
@@ -15,17 +16,20 @@ namespace CRM.API.Controllers
         private readonly IDocumentService _documentService;
         private readonly IFileStorageService _fileStorage;
         private readonly IRbacService _rbacService;
+        private readonly ISysUserNoticeService _userNoticeService;
         private readonly ILogger<DocumentsController> _logger;
 
         public DocumentsController(
             IDocumentService documentService,
             IFileStorageService fileStorage,
             IRbacService rbacService,
+            ISysUserNoticeService userNoticeService,
             ILogger<DocumentsController> logger)
         {
             _documentService = documentService;
             _fileStorage = fileStorage;
             _rbacService = rbacService;
+            _userNoticeService = userNoticeService;
             _logger = logger;
         }
 
@@ -34,6 +38,24 @@ namespace CRM.API.Controllers
             var id = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrWhiteSpace(id)) return null;
             return await _rbacService.GetUserPermissionSummaryAsync(id.Trim());
+        }
+
+        private string? CurrentUserId => User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        private async Task<bool> CanAccessUserNoticeDocAsync(string documentId, CancellationToken ct)
+        {
+            var uid = CurrentUserId;
+            if (string.IsNullOrWhiteSpace(uid)) return false;
+            var summary = await TryGetPermissionSummaryAsync();
+            return await _userNoticeService.CanAccessNoticeAttachmentAsync(documentId, uid, summary?.IsSysAdmin == true, ct);
+        }
+
+        private async Task<bool> CanAccessUserNoticeBizAsync(string noticeId, CancellationToken ct)
+        {
+            var uid = CurrentUserId;
+            if (string.IsNullOrWhiteSpace(uid)) return false;
+            var summary = await TryGetPermissionSummaryAsync();
+            return await _userNoticeService.CanAccessNoticeBizAsync(noticeId, uid, summary?.IsSysAdmin == true, ct);
         }
 
         /// <summary>上传文档（multipart/form-data: bizType, bizId, remark?, uploadUserId?, files）</summary>
@@ -51,6 +73,9 @@ namespace CRM.API.Controllers
             {
                 if (string.IsNullOrWhiteSpace(bizType) || string.IsNullOrWhiteSpace(bizId))
                     return BadRequest(ApiResponse<object>.Fail("bizType 与 bizId 不能为空", 400));
+
+                if (SysUserNoticeDocumentBizType.Is(bizType))
+                    return StatusCode(403, ApiResponse<object>.Fail("系统通知图片只能在发送时一并上传", 403));
 
                 var summary = await TryGetPermissionSummaryAsync();
                 if (CrossSideDocumentAttachmentPolicy.ShouldDeny(summary, bizType))
@@ -109,6 +134,10 @@ namespace CRM.API.Controllers
                 var summary = await TryGetPermissionSummaryAsync();
                 if (CrossSideDocumentAttachmentPolicy.ShouldDeny(summary, bizType))
                     return Ok(ApiResponse<object>.Ok(Array.Empty<object>(), "获取成功"));
+
+                if (SysUserNoticeDocumentBizType.Is(bizType)
+                    && !await CanAccessUserNoticeBizAsync(bizId, HttpContext.RequestAborted))
+                    return StatusCode(403, ApiResponse<object>.Fail("无权查看该通知图片", 403));
 
                 var list = await _documentService.GetByBizAsync(bizType, bizId);
                 return Ok(ApiResponse<object>.Ok(list.Select(ToDto).ToList(), "获取成功"));
@@ -192,6 +221,9 @@ namespace CRM.API.Controllers
                 var summary = await TryGetPermissionSummaryAsync();
                 if (CrossSideDocumentAttachmentPolicy.ShouldDeny(summary, doc.BizType))
                     return Forbid();
+                if (SysUserNoticeDocumentBizType.Is(doc.BizType)
+                    && !await CanAccessUserNoticeDocAsync(doc.Id, HttpContext.RequestAborted))
+                    return Forbid();
 
                 try
                 {
@@ -228,6 +260,9 @@ namespace CRM.API.Controllers
 
                 var summary = await TryGetPermissionSummaryAsync();
                 if (CrossSideDocumentAttachmentPolicy.ShouldDeny(summary, doc.BizType))
+                    return Forbid();
+                if (SysUserNoticeDocumentBizType.Is(doc.BizType)
+                    && !await CanAccessUserNoticeDocAsync(doc.Id, HttpContext.RequestAborted))
                     return Forbid();
 
                 try
@@ -275,6 +310,8 @@ namespace CRM.API.Controllers
                 var summary = await TryGetPermissionSummaryAsync();
                 if (CrossSideDocumentAttachmentPolicy.ShouldDeny(summary, doc.BizType))
                     return StatusCode(403, ApiResponse<object>.Fail("当前角色无权删除该业务类型的附件", 403));
+                if (SysUserNoticeDocumentBizType.Is(doc.BizType))
+                    return StatusCode(403, ApiResponse<object>.Fail("系统通知图片发出后不可删除", 403));
 
                 await _documentService.SoftDeleteAsync(id, userId ?? "");
                 return Ok(ApiResponse<object>.Ok(null, "删除成功"));

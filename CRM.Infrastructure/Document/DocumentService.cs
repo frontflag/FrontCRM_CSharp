@@ -35,7 +35,9 @@ namespace CRM.Infrastructure.Document
             if (request.Files == null || request.Files.Count == 0)
                 return Array.Empty<UploadDocument>();
 
-            var maxFiles = 5;
+            var maxFiles = SysUserNoticeDocumentBizType.Is(request.BizType)
+                ? SysUserNoticeLimits.MaxImageCount
+                : 5;
             if (request.Files.Count > maxFiles)
                 throw new ArgumentException($"单次最多上传 {maxFiles} 个文件");
 

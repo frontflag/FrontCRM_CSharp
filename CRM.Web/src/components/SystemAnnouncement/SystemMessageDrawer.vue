@@ -37,7 +37,7 @@
                 </div>
                 <span class="notice-card__date">{{ formatNoticeTime(row.createTime) }}</span>
               </div>
-              <div class="notice-card__preview">{{ row.bodyPreview || '—' }}</div>
+              <div class="notice-card__preview">{{ noticePreviewLine(row) }}</div>
             </button>
           </div>
           <div class="tab-footer">
@@ -101,7 +101,7 @@
       @read="onDetailRead"
     />
 
-    <el-dialog v-model="noticeDetailOpen" :title="t('sysUserNotice.detailTitle')" width="520px" append-to-body destroy-on-close>
+    <el-dialog v-model="noticeDetailOpen" :title="t('sysUserNotice.detailTitle')" width="560px" append-to-body destroy-on-close>
       <div v-if="noticeDetail" class="notice-detail">
         <div class="notice-detail__head">
           <h3 class="notice-detail__title">
@@ -112,7 +112,8 @@
           </h3>
           <span class="notice-detail__date">{{ formatDateTime(noticeDetail.createTime) }}</span>
         </div>
-        <pre class="notice-detail__body">{{ noticeDetail.body }}</pre>
+        <pre v-if="(noticeDetail.body || '').trim()" class="notice-detail__body">{{ noticeDetail.body }}</pre>
+        <UserNoticeImageGallery :images="noticeDetail.images || []" :thumb-size="96" />
       </div>
     </el-dialog>
   </el-drawer>
@@ -134,6 +135,7 @@ import {
 } from '@/api/sysUserNotices'
 import SystemAnnouncementModal from '@/components/SystemAnnouncement/SystemAnnouncementModal.vue'
 import NoticeUrgentIcon from '@/components/SystemAnnouncement/NoticeUrgentIcon.vue'
+import UserNoticeImageGallery from '@/components/SystemAnnouncement/UserNoticeImageGallery.vue'
 import { useSystemAnnouncementUi } from '@/composables/useSystemAnnouncementUi'
 import { formatDisplayDate, formatDisplayDateTime, formatDisplayRelativeNoticeTime } from '@/utils/displayDateTime'
 import { getApiErrorMessage } from '@/utils/apiError'
@@ -195,6 +197,14 @@ function formatNoticeTime(v?: string | null) {
     today: t('sysUserNotice.dateTodayPrefix'),
     yesterday: t('sysUserNotice.dateYesterdayPrefix')
   })
+}
+
+function noticePreviewLine(row: UserNoticeMeListItem) {
+  const text = String(row.bodyPreview || '').trim()
+  const n = Number(row.imageCount || 0)
+  const img = n > 0 ? t('sysUserNotice.imageCount', { n }) : ''
+  if (text && img) return `${text}  ${img}`
+  return text || img || '—'
 }
 
 function tabBadgeText(n: number) {
