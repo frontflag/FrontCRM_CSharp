@@ -19,6 +19,7 @@ public interface ISysAnnouncementService
     Task<IReadOnlyList<SysAnnouncementHistoryItemDto>> GetHistoryAsync(string userId, CancellationToken ct = default);
     Task<SysAnnouncementDetailDto?> GetPublishedAsync(string id, CancellationToken ct = default);
     Task MarkReadAsync(string id, string userId, CancellationToken ct = default);
+    Task MarkAllReadAsync(string userId, CancellationToken ct = default);
 }
 
 public class SysAnnouncementUpsertRequest

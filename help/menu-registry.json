@@ -82,6 +82,7 @@
     { "id": "MENU_SETTINGS", "label": "系统设置", "routeNames": ["Settings"], "pathPrefixes": ["/dashboard/settings"] },
     { "id": "MENU_RELEASE_NOTES", "label": "版本更新日志", "routeNames": ["ReleaseNotes"], "pathPrefixes": ["/release-notes"], "docPath": "pages/version/版本更新日志_MENU_RELEASE_NOTES.md" },
     { "id": "MENU_PROFILE", "label": "个人设置", "routeNames": ["Profile", "WechatBinding"], "pathPrefixes": ["/profile"] },
-    { "id": "MENU_MY_MAILS", "label": "我的邮件", "routeNames": ["MyMails"], "pathPrefixes": ["/my/mails"] }
+    { "id": "MENU_MY_MAILS", "label": "我的邮件", "routeNames": ["MyMails"], "pathPrefixes": ["/my/mails"] },
+    { "id": "MENU_OPS_USER_NOTICES", "label": "消息通知管理", "routeNames": ["UserNoticeList"], "pathPrefixes": ["/ops/user-notices"] }
   ]
 }

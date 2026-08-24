@@ -87,6 +87,28 @@ public class MeAnnouncementsController : ControllerBase
         return Ok(ApiResponse<SysAnnouncementDetailDto>.Ok(dto));
     }
 
+    [HttpPost("read-all")]
+    public async Task<ActionResult<ApiResponse<object>>> MarkAllRead(CancellationToken ct)
+    {
+        if (IsImpersonating)
+            return Ok(ApiResponse<object>.Ok(new { }, "模拟登录不记已读"));
+
+        var uid = CurrentUserId;
+        if (string.IsNullOrWhiteSpace(uid))
+            return Unauthorized(ApiResponse<object>.Fail("未登录", 401));
+
+        try
+        {
+            await _service.MarkAllReadAsync(uid, ct);
+            return Ok(ApiResponse<object>.Ok(new { }, "ok"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "全部标记公告已读失败");
+            return StatusCode(500, ApiResponse<object>.Fail("标记失败", 500));
+        }
+    }
+
     [HttpPost("{id}/read")]
     public async Task<ActionResult<ApiResponse<object>>> MarkRead(string id, CancellationToken ct)
     {

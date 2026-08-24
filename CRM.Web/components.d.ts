@@ -142,6 +142,7 @@ declare module 'vue' {
     MailMailboxMenuPanel: typeof import('./src/components/Mail/MailMailboxMenuPanel.vue')['default']
     MaterialIntelResultPanel: typeof import('./src/components/RFQ/MaterialIntelResultPanel.vue')['default']
     MaterialProductionDateSelect: typeof import('./src/components/MaterialProductionDateSelect.vue')['default']
+    NoticeUrgentIcon: typeof import('./src/components/SystemAnnouncement/NoticeUrgentIcon.vue')['default']
     PackingCascadeItemSummary: typeof import('./src/components/Inventory/PackingCascadeItemSummary.vue')['default']
     PackingItemFlowPanel: typeof import('./src/components/Inventory/PackingItemFlowPanel.vue')['default']
     PackingListFlowPanel: typeof import('./src/components/Inventory/PackingListFlowPanel.vue')['default']

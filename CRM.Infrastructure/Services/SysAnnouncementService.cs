@@ -221,6 +221,31 @@ public class SysAnnouncementService : ISysAnnouncementService
         }
     }
 
+    public async Task MarkAllReadAsync(string userId, CancellationToken ct = default)
+    {
+        var unreadIds = await UnreadQuery(userId).Select(x => x.Id).ToListAsync(ct);
+        if (unreadIds.Count == 0) return;
+
+        var now = DateTime.UtcNow;
+        foreach (var id in unreadIds)
+        {
+            _db.SysAnnouncementReads.Add(new SysAnnouncementRead
+            {
+                AnnouncementId = id,
+                UserId = userId,
+                ReadAt = now
+            });
+        }
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            // 并发下唯一约束冲突视为已读成功
+        }
+    }
+
     private IQueryable<SysAnnouncement> UnreadQuery(string userId) =>
         _db.SysAnnouncements.AsNoTracking()
             .Where(x => x.Status == SysAnnouncementStatuses.Published)

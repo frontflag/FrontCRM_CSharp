@@ -1046,6 +1046,12 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '用户反馈', permission: 'biz.feedback.admin' }
       },
       {
+        path: 'ops/user-notices',
+        name: 'UserNoticeList',
+        component: () => import('@/views/Ops/UserNoticeList.vue'),
+        meta: { requiresAuth: true, title: '消息通知管理', sysAdminOnly: true }
+      },
+      {
         path: 'ops/system-errors',
         name: 'SystemErrorList',
         component: () => import('@/views/Ops/SystemErrorList.vue'),

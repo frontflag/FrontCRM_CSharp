@@ -79,6 +79,43 @@ export function formatDisplayDateTime2DigitYear(input: Date | string | undefined
   return `${date} ${time}`.trim()
 }
 
+function calendarYmdInZone(d: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat('sv-SE', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(d)
+}
+
+function addCalendarDays(ymd: string, days: number): string {
+  const [y, m, d] = ymd.split('-').map((n) => Number(n))
+  const utc = Date.UTC(y, (m ?? 1) - 1, (d ?? 1) + days)
+  return new Date(utc).toISOString().slice(0, 10)
+}
+
+/** 今日/昨日 + HH:mm，其它为 YY-MM-DD HH:mm（按配置时区） */
+export function formatDisplayRelativeNoticeTime(
+  input: Date | string | undefined | null,
+  labels: { today: string; yesterday: string }
+): string {
+  const d = toDate(input)
+  if (!d) return '—'
+  const tz = getDisplayTimeZoneId()
+  const ymd = calendarYmdInZone(d, tz)
+  const today = calendarYmdInZone(new Date(), tz)
+  const hm = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: tz,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).format(d)
+  if (ymd === today) return `${labels.today} ${hm}`.trim()
+  if (ymd === addCalendarDays(today, -1)) return `${labels.yesterday} ${hm}`.trim()
+  const { date, time } = formatYmdHm2DigitYearInZone(d, tz)
+  return `${date} ${time}`.trim()
+}
+
 /** 按配置时区显示：YYYY-MM-DD */
 export function formatDisplayDate(input: Date | string | undefined | null): string {
   const d = toDate(input)

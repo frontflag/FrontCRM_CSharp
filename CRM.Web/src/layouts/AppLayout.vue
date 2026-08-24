@@ -82,6 +82,7 @@
           <button
             type="button"
             class="global-notify-btn"
+            :class="{ 'is-urgent-shake': headerNotifyShake }"
             :title="t('layout.notifications')"
             @click="openSystemMessages"
           >
@@ -91,7 +92,7 @@
                 <path d="M13.73 21a2 2 0 01-3.46 0"/>
               </svg>
             </span>
-            <span v-if="headerNotifyCount > 0" class="global-notify-badge">{{ headerNotifyCount > 99 ? '99+' : headerNotifyCount }}</span>
+            <span v-if="headerNotifyCount > 0" class="global-notify-badge">{{ headerNotifyBadgeText }}</span>
           </button>
           <div class="user-dropdown global-user-dropdown" v-click-outside="closeDropdown">
             <button type="button" class="global-user-trigger" @click="toggleDropdown">
@@ -963,6 +964,15 @@
               {{ t('layout.menu.userFeedback') }}
             </router-link>
             <router-link
+              v-if="isSysAdmin"
+              to="/ops/user-notices"
+              class="submenu-item"
+              active-class="active"
+              data-track="menu.ops.user_notices"
+            >
+              {{ t('layout.menu.userNotices') }}
+            </router-link>
+            <router-link
               v-if="hasPermission('sys.errorlog.read')"
               to="/ops/system-errors"
               class="submenu-item"
@@ -1723,6 +1733,7 @@ import AiAssistantDrawer from '@/components/AiAssistant/AiAssistantDrawer.vue'
 import SystemMessageDrawer from '@/components/SystemAnnouncement/SystemMessageDrawer.vue'
 import SystemAnnouncementModal from '@/components/SystemAnnouncement/SystemAnnouncementModal.vue'
 import { sysAnnouncementsApi, type AnnouncementDetail } from '@/api/sysAnnouncements'
+import { sysUserNoticesApi } from '@/api/sysUserNotices'
 import { useSystemAnnouncementUi } from '@/composables/useSystemAnnouncementUi'
 import { useImageBrowserStore } from '@/stores/imageBrowser'
 import SalesOrderItemOpsPanel from '@/components/RFQ/SalesOrderItemOpsPanel.vue'
@@ -2896,32 +2907,67 @@ const aiAssistantOpen = ref(false)
 
 const {
   unreadCount: announcementUnreadCount,
+  noticeUnreadCount,
+  hasUnreadUrgentNotice,
   forceModalToken,
   openMessageDrawer,
-  setUnreadCount: setAnnouncementUnreadCount
+  setUnreadCount: setAnnouncementUnreadCount,
+  setNoticeUnreadSummary
 } = useSystemAnnouncementUi()
 
 const forceAnnouncementOpen = ref(false)
 const forceAnnouncementItems = ref<AnnouncementDetail[]>([])
 const forceAnnouncementTotalUnread = ref(0)
 let forceAnnouncementChecked = false
+let notifyPollTimer: ReturnType<typeof setInterval> | null = null
 
-const headerNotifyCount = computed(() => announcementUnreadCount.value)
+const headerNotifyCount = computed(
+  () => Number(announcementUnreadCount.value || 0) + Number(noticeUnreadCount.value || 0)
+)
+const headerNotifyBadgeText = computed(() =>
+  headerNotifyCount.value > 20 ? '20+' : String(headerNotifyCount.value)
+)
+const headerNotifyShake = computed(
+  () => !authStore.user?.isImpersonating && hasUnreadUrgentNotice.value
+)
 
 function openSystemMessages() {
-  openMessageDrawer('announcements')
+  openMessageDrawer(noticeUnreadCount.value > 0 ? 'messages' : 'announcements')
+}
+
+function clearNotifyBadge() {
+  setAnnouncementUnreadCount(0)
+  setNoticeUnreadSummary(0, false)
 }
 
 async function refreshAnnouncementUnreadBadge() {
   if (!authStore.isAuthenticated || authStore.user?.isImpersonating) {
-    setAnnouncementUnreadCount(0)
+    clearNotifyBadge()
     return
   }
   try {
-    const s = await sysAnnouncementsApi.unreadSummary()
-    setAnnouncementUnreadCount(Number(s?.totalUnread || 0))
+    const [ann, notice] = await Promise.all([
+      sysAnnouncementsApi.unreadSummary(),
+      sysUserNoticesApi.unreadSummary()
+    ])
+    setAnnouncementUnreadCount(Number(ann?.totalUnread || 0))
+    setNoticeUnreadSummary(Number(notice?.unreadCount || 0), !!notice?.hasUnreadUrgent)
   } catch {
     /* 角标失败不打断主流程 */
+  }
+}
+
+function startNotifyPolling() {
+  stopNotifyPolling()
+  notifyPollTimer = setInterval(() => {
+    void refreshAnnouncementUnreadBadge()
+  }, 60_000)
+}
+
+function stopNotifyPolling() {
+  if (notifyPollTimer) {
+    clearInterval(notifyPollTimer)
+    notifyPollTimer = null
   }
 }
 
@@ -2929,13 +2975,17 @@ async function checkForceAnnouncements() {
   if (!authStore.isAuthenticated || authStore.user?.isImpersonating) {
     forceAnnouncementOpen.value = false
     forceAnnouncementItems.value = []
-    setAnnouncementUnreadCount(0)
+    clearNotifyBadge()
     return
   }
   try {
-    const preview = await sysAnnouncementsApi.unreadPreview(5)
+    const [preview, notice] = await Promise.all([
+      sysAnnouncementsApi.unreadPreview(5),
+      sysUserNoticesApi.unreadSummary()
+    ])
     forceAnnouncementTotalUnread.value = Number(preview?.totalUnread || 0)
     setAnnouncementUnreadCount(forceAnnouncementTotalUnread.value)
+    setNoticeUnreadSummary(Number(notice?.unreadCount || 0), !!notice?.hasUnreadUrgent)
     const items = preview?.items || []
     if (items.length > 0) {
       forceAnnouncementItems.value = items
@@ -2998,6 +3048,7 @@ const pageTitleMap: Record<string, string> = {
   '/system/dict-items': 'layout.menu.dictItems',
   '/system/ai-config': 'layout.menu.aiConfig',
   '/ops/user-feedback': 'layout.menu.userFeedback',
+  '/ops/user-notices': 'layout.menu.userNotices',
   '/ops/system-errors': 'layout.menu.systemErrors',
   '/ops/telemetry-analytics': 'layout.menu.telemetryAnalytics',
   '/ops/system-announcements': 'layout.menu.systemAnnouncements',
@@ -3775,6 +3826,7 @@ onMounted(() => {
     forceAnnouncementChecked = true
     void checkForceAnnouncements()
   }
+  startNotifyPolling()
 })
 
 watch(
@@ -3783,7 +3835,7 @@ watch(
     if (!ok) {
       forceAnnouncementChecked = false
       forceAnnouncementOpen.value = false
-      setAnnouncementUnreadCount(0)
+      clearNotifyBadge()
       return
     }
     // 登录/模拟切换后重新检查
@@ -3793,6 +3845,7 @@ watch(
 )
 
 onBeforeUnmount(() => {
+  stopNotifyPolling()
   tabBarResizeObserver?.disconnect()
   tabBarResizeObserver = null
   if (typeof document !== 'undefined') {
@@ -4022,6 +4075,20 @@ onBeforeUnmount(() => {
     border-color: var(--crm-notify-hover-border);
     color: var(--crm-notify-hover-color);
   }
+
+  &.is-urgent-shake .global-notify-icon-wrap {
+    animation: notify-bell-shake 0.85s ease-in-out infinite;
+    transform-origin: top center;
+  }
+}
+
+@keyframes notify-bell-shake {
+  0%, 100% { transform: rotate(0deg); }
+  15% { transform: rotate(14deg); }
+  30% { transform: rotate(-12deg); }
+  45% { transform: rotate(10deg); }
+  60% { transform: rotate(-8deg); }
+  75% { transform: rotate(4deg); }
 }
 
 .global-help-btn {

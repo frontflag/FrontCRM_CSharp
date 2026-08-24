@@ -56,6 +56,7 @@ namespace CRM.Infrastructure.Data
         public DbSet<SysErrorLog> ErrorLogs { get; set; } = null!;
         public DbSet<SysAnnouncement> SysAnnouncements { get; set; } = null!;
         public DbSet<SysAnnouncementRead> SysAnnouncementReads { get; set; } = null!;
+        public DbSet<SysUserNotice> SysUserNotices { get; set; } = null!;
         public DbSet<TelemetryEvent> TelemetryEvents { get; set; } = null!;
         public DbSet<TelemetryDailyPage> TelemetryDailyPages { get; set; } = null!;
         public DbSet<TelemetryDailyAction> TelemetryDailyActions { get; set; } = null!;
@@ -2674,6 +2675,23 @@ namespace CRM.Infrastructure.Data
                     .IsUnique()
                     .HasDatabaseName("ux_sys_announcement_read_ann_user");
                 entity.HasIndex(e => e.UserId).HasDatabaseName("ix_sys_announcement_read_user_id");
+            });
+
+            modelBuilder.Entity<SysUserNotice>(entity =>
+            {
+                entity.ToTable("sys_user_notice");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(36);
+                entity.Property(e => e.RecipientUserId).HasColumnName("recipient_user_id").HasMaxLength(36);
+                entity.Property(e => e.IsUrgent).HasColumnName("is_urgent");
+                entity.Property(e => e.Title).HasColumnName("title").HasMaxLength(100);
+                entity.Property(e => e.Body).HasColumnName("body").HasMaxLength(4000);
+                entity.Property(e => e.SenderUserId).HasColumnName("sender_user_id").HasMaxLength(36);
+                entity.Property(e => e.CreateTime).HasColumnName("create_time");
+                entity.Property(e => e.ReadAt).HasColumnName("read_at");
+                entity.HasIndex(e => new { e.RecipientUserId, e.CreateTime })
+                    .HasDatabaseName("ix_sys_user_notice_recipient_create");
+                entity.HasIndex(e => e.CreateTime).HasDatabaseName("ix_sys_user_notice_create_time");
             });
         }
     }

@@ -143,6 +143,7 @@ public static class TelemetryCatalog
             ["ExportLogList"] = "导出日志",
             ["AiConfig"] = "AI 配置",
             ["UserFeedbackList"] = "用户反馈",
+            ["UserNoticeList"] = "消息通知管理",
             ["SystemErrorList"] = "系统错误",
             ["TelemetryAnalytics"] = "埋点分析",
             ["FinancePaymentList"] = "付款管理",

@@ -82,5 +82,8 @@ export const sysAnnouncementsApi = {
   },
   markRead(id: string): Promise<void> {
     return apiClient.post(`/api/v1/me/announcements/${encodeURIComponent(id)}/read`) as Promise<void>
+  },
+  markAllRead(): Promise<void> {
+    return apiClient.post('/api/v1/me/announcements/read-all') as Promise<void>
   }
 }
