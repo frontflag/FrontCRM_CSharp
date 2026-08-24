@@ -547,7 +547,7 @@
 
 <script setup lang="ts">
 import { computed, ref, reactive, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useFinanceEnumLabels } from '@/composables/useFinanceEnumLabels'
 import { ArrowRight, Search, Plus, Setting } from '@element-plus/icons-vue'
@@ -596,6 +596,7 @@ import { useFinanceWriteGate } from '@/composables/useDepartmentDataReadOnly'
 import { fetchFreightForwarderCompanies, type FreightForwarderCompany } from '@/api/freightForwarderCompany'
 
 const router = useRouter()
+const route = useRoute()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const {
   expanded: customerExtendExpanded,
@@ -1237,10 +1238,31 @@ const handleForceDeleteRow = async (row: FinanceReceipt) => {
 
 const formatAmount = (v: number) => v?.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'
 
+function applyKeywordFromRoute() {
+  const raw = route.query.keyword
+  const kw = typeof raw === 'string'
+    ? raw.trim()
+    : Array.isArray(raw)
+      ? String(raw[0] ?? '').trim()
+      : ''
+  query.keyword = kw
+  if (kw) query.page = 1
+}
+
 onMounted(async () => {
+  applyKeywordFromRoute()
   ffCompanyOptions.value = await fetchFreightForwarderCompanies(true)
   await loadData()
 })
+
+watch(
+  () => route.query.keyword,
+  (now, prev) => {
+    if (now === prev) return
+    applyKeywordFromRoute()
+    void loadData()
+  }
+)
 </script>
 
 <style lang="scss" scoped>

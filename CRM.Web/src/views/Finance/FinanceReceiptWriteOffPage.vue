@@ -283,7 +283,19 @@
             <el-table-column :label="t('financeReceiptWriteOff.colReceiptDate')" width="108">
               <template #default="{ row }">{{ formatDate(row.receiptDate) }}</template>
             </el-table-column>
-            <el-table-column prop="financeReceiptCode" :label="t('financeReceiptWriteOff.colReceiptCode')" min-width="118" show-overflow-tooltip />
+            <el-table-column :label="t('financeReceiptWriteOff.colReceiptCode')" min-width="118" show-overflow-tooltip>
+              <template #default="{ row }">
+                <router-link
+                  v-if="row.item?.financeReceiptId && row.financeReceiptCode"
+                  class="link-text"
+                  :to="{ name: 'FinanceReceiptList', query: { keyword: row.financeReceiptCode } }"
+                  @click.stop
+                >
+                  {{ row.financeReceiptCode }}
+                </router-link>
+                <span v-else>{{ row.financeReceiptCode || '—' }}</span>
+              </template>
+            </el-table-column>
             <el-table-column :label="t('financeReceiptWriteOff.colReceiptType')" width="92">
               <template #default="{ row }">{{ paymentModeLabel(row.receiptMode) }}</template>
             </el-table-column>
@@ -418,7 +430,15 @@
               show-overflow-tooltip
             >
               <template #default="{ row }">
-                <span class="code-text">{{ row.receivableCode || '—' }}</span>
+                <router-link
+                  v-if="row.receivableCode"
+                  class="link-text"
+                  :to="{ name: 'FinanceReceivableList', query: { keyword: row.receivableCode } }"
+                  @click.stop
+                >
+                  {{ row.receivableCode }}
+                </router-link>
+                <span v-else>—</span>
               </template>
             </el-table-column>
             <el-table-column :label="t('financeReceiptWriteOff.colStockOutDate')" width="108">
@@ -438,7 +458,17 @@
               </template>
             </el-table-column>
             <el-table-column prop="sellOrderCode" :label="t('financeReceiptWriteOff.colSellOrderCode')" min-width="118" show-overflow-tooltip>
-              <template #default="{ row }">{{ row.sellOrderCode || '—' }}</template>
+              <template #default="{ row }">
+                <router-link
+                  v-if="row.sellOrderCode"
+                  class="link-text"
+                  :to="{ name: 'SalesOrderList', query: { code: row.sellOrderCode } }"
+                  @click.stop
+                >
+                  {{ row.sellOrderCode }}
+                </router-link>
+                <span v-else>—</span>
+              </template>
             </el-table-column>
             <el-table-column prop="salesUserName" :label="t('financeReceiptWriteOff.colSalesUser')" width="96" show-overflow-tooltip>
               <template #default="{ row }">{{ row.salesUserName || '—' }}</template>
@@ -449,7 +479,17 @@
               </template>
             </el-table-column>
             <el-table-column prop="stockInCode" :label="t('financeReceiptWriteOff.colStockInCode')" min-width="110" show-overflow-tooltip>
-              <template #default="{ row }">{{ row.stockInCode || '—' }}</template>
+              <template #default="{ row }">
+                <router-link
+                  v-if="row.stockInCode"
+                  class="link-text"
+                  :to="{ name: 'StockInList', query: { stockInCode: row.stockInCode } }"
+                  @click.stop
+                >
+                  {{ row.stockInCode }}
+                </router-link>
+                <span v-else>—</span>
+              </template>
             </el-table-column>
             <el-table-column :label="t('financeReceiptWriteOff.colToBe')" width="132" min-width="130" align="right">
               <template #default="{ row }">{{ formatAmountWithCurrency(row.verifiedToBe, row.currency) }}</template>

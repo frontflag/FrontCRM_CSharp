@@ -567,12 +567,25 @@ async function handleExport() {
   }
 }
 
+function applyKeywordFromRoute(q: typeof route.query) {
+  if (!('keyword' in q)) return
+  const raw = q.keyword
+  const kw = typeof raw === 'string'
+    ? raw.trim()
+    : Array.isArray(raw)
+      ? String(raw[0] ?? '').trim()
+      : ''
+  query.keyword = kw
+  if (kw) query.page = 1
+}
+
 function syncQueryFromRoute() {
   if (route.name !== 'FinanceReceivableList') return
   const q = route.query
   if (q.onlyOpen === '1' || q.onlyOpen === 'true') {
     receiptWriteOffFilter.value = WRITE_OFF_OPEN
   }
+  applyKeywordFromRoute(q)
 }
 
 watch(
