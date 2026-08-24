@@ -188,6 +188,20 @@
             {{ t('dashboard.todo.setupMailboxAction') }}
           </router-link>
         </article>
+        <article v-if="showFeedbackTask" class="todo-card">
+          <div class="todo-card__body">
+            <h4 class="todo-card__title">
+              {{ t('dashboard.todo.feedbackTitle') }}
+              <span class="todo-card__count">{{ pendingFeedbackCount }}</span>
+            </h4>
+            <p class="todo-card__desc">
+              {{ t('dashboard.todo.feedbackDesc', { count: pendingFeedbackCount }) }}
+            </p>
+          </div>
+          <router-link class="todo-card__action" :to="feedbackTodoTo">
+            {{ t('dashboard.todo.feedbackAction') }}
+          </router-link>
+        </article>
       </div>
     </section>
   </div>
@@ -201,6 +215,7 @@ import { customerApi } from '@/api/customer'
 import { vendorApi } from '@/api/vendor'
 import { approvalsApi } from '@/api/approvals'
 import { fetchMyMailSummary } from '@/api/myMails'
+import { feedbackApi } from '@/api/feedback'
 import { profileMailboxLocation } from '@/utils/profileMailboxLink'
 
 const { t } = useI18n()
@@ -254,8 +269,15 @@ const stats = reactive({
 /** null=未返回；失败当未验证，仍显示引导 */
 const hasVerifiedMailbox = ref<boolean | null>(null)
 const showSetupMailboxTask = computed(() => hasVerifiedMailbox.value === false)
-const showTodoPanel = computed(() => showSetupMailboxTask.value)
+/** null=未返回；仅系统管理员拉取 */
+const pendingFeedbackCount = ref<number | null>(null)
+const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
+const showFeedbackTask = computed(
+  () => isSysAdmin.value && (pendingFeedbackCount.value ?? 0) > 0
+)
+const showTodoPanel = computed(() => showSetupMailboxTask.value || showFeedbackTask.value)
 const mailboxSetupTo = profileMailboxLocation('/dashboard')
+const feedbackTodoTo = { path: '/ops/user-feedback', query: { handling: 'need' } }
 
 async function loadMailboxTodo() {
   try {
@@ -263,6 +285,19 @@ async function loadMailboxTodo() {
     hasVerifiedMailbox.value = !!s.hasVerifiedMailbox
   } catch {
     hasVerifiedMailbox.value = false
+  }
+}
+
+async function loadFeedbackTodo() {
+  if (!isSysAdmin.value) {
+    pendingFeedbackCount.value = 0
+    return
+  }
+  try {
+    const res = await feedbackApi.adminList({ needsHandling: true, page: 1, pageSize: 1 })
+    pendingFeedbackCount.value = Number(res?.total ?? 0)
+  } catch {
+    pendingFeedbackCount.value = 0
   }
 }
 
@@ -310,10 +345,12 @@ async function loadDashboardStats() {
 onMounted(() => {
   void loadDashboardStats()
   void loadMailboxTodo()
+  void loadFeedbackTodo()
 })
 
 onActivated(() => {
   void loadMailboxTodo()
+  void loadFeedbackTodo()
 })
 </script>
 
@@ -518,11 +555,29 @@ onActivated(() => {
 }
 
 .todo-card__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin: 0 0 6px;
   font-family: 'Noto Sans SC', sans-serif;
   font-size: 15px;
   font-weight: 600;
   color: vars.$text-primary;
+}
+
+.todo-card__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 11px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  color: #0b3a4a;
+  background: rgba(0, 212, 255, 0.22);
 }
 
 .todo-card__desc {

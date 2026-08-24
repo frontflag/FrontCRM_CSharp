@@ -207,6 +207,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
@@ -221,6 +222,7 @@ import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const { t, locale } = useI18n()
+const route = useRoute()
 
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
@@ -382,6 +384,11 @@ async function saveDetail() {
 }
 
 onMounted(() => {
+  if (String(route.query.handling || '') === 'need') {
+    handlingFilter.value = 'need'
+    filters.needsHandling = true
+    filters.isHandled = false
+  }
   void load()
 })
 </script>

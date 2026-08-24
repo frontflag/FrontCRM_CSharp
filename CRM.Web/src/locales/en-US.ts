@@ -1701,7 +1701,10 @@ const enUS = {
       title: 'To-do',
       setupMailboxTitle: 'Set up my mailbox',
       setupMailboxDesc: 'Add and verify a mailbox to receive mail in My Mails.',
-      setupMailboxAction: 'Set up'
+      setupMailboxAction: 'Set up',
+      feedbackTitle: 'User feedback',
+      feedbackDesc: '{count} feedback item(s) need handling.',
+      feedbackAction: 'Review'
     }
   },
   systemUser: {

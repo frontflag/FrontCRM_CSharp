@@ -1695,7 +1695,10 @@ const zhCN = {
       title: '待办',
       setupMailboxTitle: '设置我的邮箱',
       setupMailboxDesc: '填写邮箱并完成验证后，才能在「我的邮件」里收信。',
-      setupMailboxAction: '去设置'
+      setupMailboxAction: '去设置',
+      feedbackTitle: '用户反馈',
+      feedbackDesc: '当前有 {count} 条需处理的反馈。',
+      feedbackAction: '去处理'
     }
   },
   systemUser: {
