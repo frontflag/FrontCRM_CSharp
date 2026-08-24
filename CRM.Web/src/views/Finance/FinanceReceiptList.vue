@@ -1091,6 +1091,7 @@ const saveForm = async () => {
   saving.value = true
   try {
     if (editingId.value) {
+      // 只传单头金额；后端 UpdateAsync 同步唯一默认明细（ReceiptAmount / ReceiptConvertAmount）
       await financeReceiptApi.update(editingId.value, {
         customerId: form.customerId,
         customerName: form.customerName,

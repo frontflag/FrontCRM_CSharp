@@ -8,6 +8,7 @@ public static class FinanceReceiptItemWriteOffHelper
     /// <summary>
     /// 有效折算金额：优先 <see cref="FinanceReceiptItem.ReceiptConvertAmount"/>；
     /// 为 0 时回退 <see cref="FinanceReceiptItem.ReceiptAmount"/>（历史/导入数据）。
+    /// 默认明细的折算金额与明细金额由新建/编辑单头金额时写成同一值。
     /// </summary>
     public static decimal EffectiveConvertAmount(FinanceReceiptItem item)
     {

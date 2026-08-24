@@ -170,6 +170,7 @@ namespace CRM.Core.Services
             };
             await _receiptRepo.AddAsync(receipt);
 
+            // 列表新建只填单头金额时，落一条等额默认明细（核销读明细不读单头）。
             var itemRequests = (request.Items ?? new List<CreateFinanceReceiptItemRequest>())
                 .Where(i => i.ReceiptAmount > 0m)
                 .ToList();
@@ -262,7 +263,51 @@ namespace CRM.Core.Services
             return r;
         }
 
-        /// <summary>挂载收款明细；主表有金额但无明细行时补一条仅用于展示的占位行（历史数据/仅改主表金额）。</summary>
+        /// <summary>
+        /// 列表编辑只改单头金额时，同步唯一一条尚未核销/转预收的默认明细（无明细则补一条）。
+        /// 多明细不自动改，避免覆盖拆分金额。已核销或已转预收的明细也不改。
+        /// </summary>
+        private async Task SyncDefaultReceiptItemAmountAsync(FinanceReceipt receipt)
+        {
+            var headerAmount = receipt.ReceiptAmount;
+            var items = (await _itemRepo.FindAsync(i =>
+                    i.FinanceReceiptId == receipt.Id && !i.IsDeleted))
+                .ToList();
+            if (items.Count > 1)
+                return;
+
+            if (items.Count == 0)
+            {
+                if (headerAmount <= 0m)
+                    return;
+                await _itemRepo.AddAsync(new FinanceReceiptItem
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    FinanceReceiptId = receipt.Id,
+                    ReceiptAmount = headerAmount,
+                    ReceiptConvertAmount = headerAmount,
+                    ReceiptPurpose = receipt.IsFreightForwarderPayment
+                        ? FinanceReceiptPurposeCode.Normal
+                        : receipt.ReceiptPurpose,
+                    VerificationStatus = 0,
+                    CreateTime = DateTime.UtcNow
+                });
+                return;
+            }
+
+            var item = items[0];
+            if (item.VerificationStatus > 0 || item.VerifiedAmount > 0m || item.AdvancePoolAmount > 0m)
+                return;
+            if (item.ReceiptAmount == headerAmount && item.ReceiptConvertAmount == headerAmount)
+                return;
+
+            item.ReceiptAmount = headerAmount;
+            item.ReceiptConvertAmount = headerAmount;
+            item.ModifyTime = DateTime.UtcNow;
+            await _itemRepo.UpdateAsync(item);
+        }
+
+        /// <summary>挂载收款明细；主表有金额但无明细行时补一条仅用于展示的占位行（历史无明细）。</summary>
         private static void AttachReceiptItems(FinanceReceipt receipt, IReadOnlyList<FinanceReceiptItem> items)
         {
             receipt.Items = items
@@ -314,6 +359,10 @@ namespace CRM.Core.Services
             };
         }
 
+        /// <summary>
+        /// 仅新建可编辑。改 <see cref="UpdateFinanceReceiptRequest.ReceiptAmount"/> 时调用
+        /// <see cref="SyncDefaultReceiptItemAmountAsync"/>，避免列表金额与核销桌面不一致。
+        /// </summary>
         public async Task<FinanceReceipt> UpdateAsync(string id, UpdateFinanceReceiptRequest request, string? actingUserId = null)
         {
             var receipt = await _receiptRepo.GetByIdAsync(id)
@@ -351,6 +400,8 @@ namespace CRM.Core.Services
             receipt.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
 
             await _receiptRepo.UpdateAsync(receipt);
+            if (request.ReceiptAmount.HasValue)
+                await SyncDefaultReceiptItemAmountAsync(receipt);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
             return receipt;
         }

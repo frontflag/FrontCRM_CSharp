@@ -269,7 +269,10 @@ namespace CRM.Core.Models.Finance
         /// <summary>收款状态 0新建 3确认 4取消（历史 1 视为新建，2 视为确认）</summary>
         public short Status { get; set; } = 0;
 
-        /// <summary>收款总额</summary>
+        /// <summary>
+        /// 收款总额（列表/详情展示）。核销额度取明细，不读本字段。
+        /// 新建编辑本字段时同步默认明细（<see cref="IFinanceReceiptService.UpdateAsync"/>）。
+        /// </summary>
         [Column(TypeName = "numeric(18,2)")]
         public decimal ReceiptAmount { get; set; } = 0m;
 
@@ -369,11 +372,11 @@ namespace CRM.Core.Models.Finance
         [StringLength(36)]
         public string? FinanceSellInvoiceItemId { get; set; }
 
-        /// <summary>收款金额</summary>
+        /// <summary>收款金额（核销桌面「收款金额」列）。列表编辑单头金额时与单头对齐（默认单明细）。</summary>
         [Column(TypeName = "numeric(18,2)")]
         public decimal ReceiptAmount { get; set; } = 0m;
 
-        /// <summary>收款折算金额</summary>
+        /// <summary>收款折算金额（核销额度基准）。默认明细与 <see cref="ReceiptAmount"/> 同值同步。</summary>
         [Column(TypeName = "numeric(18,2)")]
         public decimal ReceiptConvertAmount { get; set; } = 0m;
 

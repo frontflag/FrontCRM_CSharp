@@ -1010,6 +1010,7 @@ public class FinanceReceivableService : IFinanceReceivableService
                 ? source.Item.SellOrderId
                 : source.Item.AdvanceSellOrderId,
             ReceiptDate = source.Receipt.ReceiptDate,
+            // 核销桌面「收款金额」= 明细金额，不是单头 financereceipt.ReceiptAmount
             ReceiptAmount = source.Item.ReceiptAmount,
             ReceiptCurrency = source.Receipt.ReceiptCurrency,
             ReceiptMode = source.Receipt.ReceiptMode,

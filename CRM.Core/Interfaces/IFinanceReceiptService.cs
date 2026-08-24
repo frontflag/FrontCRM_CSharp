@@ -11,6 +11,10 @@ namespace CRM.Core.Interfaces
         Task<FinanceReceipt> CreateAsync(CreateFinanceReceiptRequest request, string? actingUserId = null);
         Task<FinanceReceipt?> GetByIdAsync(string id);
         Task<IEnumerable<FinanceReceipt>> GetAllAsync();
+        /// <summary>
+        /// 仅新建可编辑。传入 <c>ReceiptAmount</c> 时同步唯一未核销、未转预收的默认明细
+        /// （<c>ReceiptAmount</c> / <c>ReceiptConvertAmount</c>）；无明细则补一条；多明细不改。
+        /// </summary>
         Task<FinanceReceipt> UpdateAsync(string id, UpdateFinanceReceiptRequest request, string? actingUserId = null);
         /// <param name="actingUserId">当前登录用户 ID（写入 log_operation 删除人）</param>
         Task DeleteAsync(string id, string? actingUserId = null);
@@ -67,6 +71,7 @@ namespace CRM.Core.Interfaces
     {
         public string? CustomerId { get; set; }
         public string? CustomerName { get; set; }
+        /// <summary>单头收款金额。传入时后端同步默认明细（见 <see cref="IFinanceReceiptService.UpdateAsync"/>）。</summary>
         public decimal? ReceiptAmount { get; set; }
         public byte? ReceiptCurrency { get; set; }
         public DateTime? ReceiptDate { get; set; }

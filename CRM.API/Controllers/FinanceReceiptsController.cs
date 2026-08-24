@@ -232,7 +232,10 @@ namespace CRM.API.Controllers
             }
         }
 
-        /// <summary>更新收款单</summary>
+        /// <summary>
+        /// 更新收款单（仅新建）。改收款金额时同步唯一默认明细，见
+        /// <see cref="IFinanceReceiptService.UpdateAsync"/>。
+        /// </summary>
         [HttpPut("{id}")]
         [RequirePermission("finance-receipt.write")]
         public async Task<IActionResult> Update(string id, [FromBody] UpdateFinanceReceiptRequest request)
