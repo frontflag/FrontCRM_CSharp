@@ -1696,7 +1696,13 @@ const enUS = {
     quickNewCustomer: 'New customer',
     quickVendorManagement: 'Vendor management',
     quickNewVendor: 'New vendor',
-    quickSystemSettings: 'System settings'
+    quickSystemSettings: 'System settings',
+    todo: {
+      title: 'To-do',
+      setupMailboxTitle: 'Set up my mailbox',
+      setupMailboxDesc: 'Add and verify a mailbox to receive mail in My Mails.',
+      setupMailboxAction: 'Set up'
+    }
   },
   systemUser: {
     title: 'Employee Management',
@@ -2589,7 +2595,12 @@ const enUS = {
       defaultSend: 'Default send',
       setDefaultSend: 'Set as default send',
       setDefaultOk: 'Set as default send mailbox',
-      setDefaultFailed: 'Failed to set default send mailbox'
+      setDefaultFailed: 'Failed to set default send mailbox',
+      applyHint: 'I do not yet have a {suffix} company mailbox',
+      applyHintNoSuffix: 'I do not yet have a company mailbox',
+      applyButton: 'Apply for company mailbox',
+      applySent: 'Application sent. Please wait for processing.',
+      applyFailed: 'Failed to send application'
     },
     mailboxSend: {
       SmtpDisabled: 'SMTP sending is disabled by admin',

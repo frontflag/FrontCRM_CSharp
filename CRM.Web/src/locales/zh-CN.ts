@@ -1690,7 +1690,13 @@ const zhCN = {
     quickNewCustomer: '新增客户',
     quickVendorManagement: '供应商管理',
     quickNewVendor: '新建供应商',
-    quickSystemSettings: '系统设置'
+    quickSystemSettings: '系统设置',
+    todo: {
+      title: '待办',
+      setupMailboxTitle: '设置我的邮箱',
+      setupMailboxDesc: '填写邮箱并完成验证后，才能在「我的邮件」里收信。',
+      setupMailboxAction: '去设置'
+    }
   },
   systemUser: {
     title: '员工管理',
@@ -2565,7 +2571,12 @@ const zhCN = {
       defaultSend: '默认发信',
       setDefaultSend: '设为默认发信',
       setDefaultOk: '已设为默认发信邮箱',
-      setDefaultFailed: '设置默认发信失败'
+      setDefaultFailed: '设置默认发信失败',
+      applyHint: '我目前尚未有{suffix}公司邮箱',
+      applyHintNoSuffix: '我目前尚未有公司邮箱',
+      applyButton: '申请公司邮箱',
+      applySent: '申请已发送，敬请等候处理',
+      applyFailed: '申请发送失败'
     },
     mailboxSend: {
       SmtpDisabled: '管理员未启用 SMTP 发信',

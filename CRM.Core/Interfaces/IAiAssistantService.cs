@@ -9,6 +9,12 @@ public interface IAiAssistantService
         SendAiAssistantMessageRequest request,
         string userId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>跳过对话模型，直接落一条待处理用户反馈（会话标记为已提交）。</summary>
+    Task<DirectFeedbackSubmitResult> SubmitDirectFeedbackAsync(
+        SubmitDirectFeedbackRequest request,
+        string userId,
+        CancellationToken cancellationToken = default);
 }
 
 public interface IUserFeedbackAdminService
@@ -122,4 +128,20 @@ public sealed class UserFeedbackPagedResult
     public int Total { get; set; }
     public int Page { get; set; }
     public int PageSize { get; set; }
+}
+
+public sealed class SubmitDirectFeedbackRequest
+{
+    public string Title { get; set; } = string.Empty;
+    public string Summary { get; set; } = string.Empty;
+    public string? Category { get; set; }
+    public string? PageUrl { get; set; }
+    public string? RouteName { get; set; }
+    public string? UserAgent { get; set; }
+}
+
+public sealed class DirectFeedbackSubmitResult
+{
+    public string FeedbackId { get; set; } = string.Empty;
+    public string SessionId { get; set; } = string.Empty;
 }

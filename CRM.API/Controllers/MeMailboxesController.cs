@@ -2,6 +2,8 @@ using System.Security.Claims;
 using CRM.API.Models.DTOs;
 using CRM.API.Services;
 using CRM.API.Services.Interfaces;
+using CRM.Core.Constants;
+using CRM.Core.Interfaces;
 using CRM.Core.Models.System;
 using CRM.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
@@ -19,6 +21,7 @@ public class MeMailboxesController : ControllerBase
     private readonly IMailboxPasswordCipher _cipher;
     private readonly IMailboxVerifyService _verify;
     private readonly IMailboxSendService _send;
+    private readonly IAiAssistantService _assistant;
     private readonly ILogger<MeMailboxesController> _logger;
 
     public MeMailboxesController(
@@ -26,12 +29,14 @@ public class MeMailboxesController : ControllerBase
         IMailboxPasswordCipher cipher,
         IMailboxVerifyService verify,
         IMailboxSendService send,
+        IAiAssistantService assistant,
         ILogger<MeMailboxesController> logger)
     {
         _db = db;
         _cipher = cipher;
         _verify = verify;
         _send = send;
+        _assistant = assistant;
         _logger = logger;
     }
 
@@ -64,6 +69,57 @@ public class MeMailboxesController : ControllerBase
 
         var dto = await _send.GetSendReadyAsync(uid, ct);
         return Ok(ApiResponse<MailboxSendReadyDto>.Ok(dto));
+    }
+
+    /// <summary>未验证平台邮箱的用户申请公司邮箱：直写用户反馈，不走对话模型。</summary>
+    [HttpPost("apply-company")]
+    public async Task<ActionResult<ApiResponse<object>>> ApplyCompany(CancellationToken ct)
+    {
+        var uid = UserId;
+        if (string.IsNullOrWhiteSpace(uid))
+            return Unauthorized(ApiResponse<object>.Fail("未登录", 401));
+
+        var hasVerifiedPlatform = await _db.UserMailboxes.AnyAsync(
+            x => x.UserId == uid
+                 && !x.IsDeleted
+                 && x.Kind == UserMailboxKind.Platform
+                 && x.VerifyStatus == UserMailboxVerifyStatus.Ok,
+            ct);
+        if (hasVerifiedPlatform)
+            return BadRequest(ApiResponse<object>.Fail("已有验证成功的平台邮箱", 400));
+
+        var user = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == uid, ct);
+        var login = (user?.UserName ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(login))
+            login = uid;
+
+        var summary = $"申请公司邮箱，申请人{login}";
+        try
+        {
+            await _assistant.SubmitDirectFeedbackAsync(
+                new SubmitDirectFeedbackRequest
+                {
+                    Title = "申请公司邮箱",
+                    Summary = summary,
+                    Category = FeedbackCategories.Suggestion,
+                    PageUrl = "/profile/mailbox",
+                    RouteName = "ProfileMailbox",
+                    UserAgent = Request.Headers.UserAgent.ToString()
+                },
+                uid,
+                ct);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "申请公司邮箱写入反馈失败 userId={UserId}", uid);
+            return StatusCode(500, ApiResponse<object>.Fail("申请发送失败", 500));
+        }
+
+        return Ok(ApiResponse<object>.Ok(null, "申请已发送，敬请等候处理"));
     }
 
     [HttpPost]

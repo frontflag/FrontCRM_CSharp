@@ -69,6 +69,10 @@ export async function fetchMyMailboxes(): Promise<UserMailbox[]> {
   return Array.isArray(res) ? res : []
 }
 
+export async function applyCompanyMailbox(): Promise<void> {
+  await apiClient.post(`${ME}/apply-company`)
+}
+
 export async function fetchMailboxSendReady(): Promise<MailboxSendReady> {
   const res = await apiClient.get<MailboxSendReady>(`${ME}/send-ready`)
   return {

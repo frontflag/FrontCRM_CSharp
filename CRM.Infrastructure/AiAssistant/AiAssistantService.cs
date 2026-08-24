@@ -334,6 +334,73 @@ public sealed class AiAssistantService : IAiAssistantService
         return list;
     }
 
+    public async Task<DirectFeedbackSubmitResult> SubmitDirectFeedbackAsync(
+        SubmitDirectFeedbackRequest request,
+        string userId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new ArgumentException("用户未登录", nameof(userId));
+
+        var title = (request.Title ?? string.Empty).Trim();
+        var summary = (request.Summary ?? string.Empty).Trim();
+        if (title.Length == 0 && summary.Length == 0)
+            throw new ArgumentException("反馈内容不能为空");
+        if (title.Length == 0)
+            title = summary.Length > 40 ? summary[..40] + "…" : summary;
+        if (summary.Length == 0)
+            summary = title;
+
+        var category = NormalizeCategory(request.Category) ?? FeedbackCategories.Other;
+        var now = DateTime.UtcNow;
+        var session = new AiAssistantSession
+        {
+            Id = Guid.NewGuid().ToString(),
+            UserId = userId.Trim(),
+            ActiveSkill = AiAssistantSkills.Feedback,
+            Status = AiAssistantSessionStatus.Submitted,
+            PreferredCategory = category,
+            PageUrl = TrimOrNull(request.PageUrl, 500),
+            RouteName = TrimOrNull(request.RouteName, 100),
+            UserAgent = TrimOrNull(request.UserAgent, 500),
+            UserTurnCount = 1,
+            CreateTime = now
+        };
+        var userMsg = new AiAssistantMessage
+        {
+            Id = Guid.NewGuid().ToString(),
+            SessionId = session.Id,
+            Role = AiAssistantMessageRoles.User,
+            Content = summary,
+            CreateTime = now
+        };
+        var feedback = new UserFeedback
+        {
+            Id = Guid.NewGuid().ToString(),
+            SessionId = session.Id,
+            Category = category,
+            Title = title.Length > 200 ? title[..200] : title,
+            Summary = summary,
+            PageUrl = session.PageUrl,
+            RouteName = session.RouteName,
+            SubmitUserId = session.UserId,
+            NeedsHandling = true,
+            IsHandled = false,
+            CreateTime = now
+        };
+
+        _db.AiAssistantSessions.Add(session);
+        _db.AiAssistantMessages.Add(userMsg);
+        _db.UserFeedbacks.Add(feedback);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        return new DirectFeedbackSubmitResult
+        {
+            FeedbackId = feedback.Id,
+            SessionId = session.Id
+        };
+    }
+
     private async Task<string> FinalizeFeedbackAsync(
         AiAssistantSession session,
         FeedbackAssistantLlmResult result,

@@ -19,6 +19,13 @@
       {{ t('profilePage.mailbox.suffixMissing') }}
     </el-alert>
 
+    <div v-if="showApplyCompanyBar" class="apply-company-bar">
+      <span>{{ applyCompanyHint }}</span>
+      <el-button type="primary" size="small" :loading="applyingCompany" @click="onApplyCompany">
+        {{ t('profilePage.mailbox.applyButton') }}
+      </el-button>
+    </div>
+
     <div v-if="!loading && rows.length === 0" class="empty-hint">{{ t('profilePage.mailbox.noRows') }}</div>
 
     <div v-for="row in rows" :key="row.id" class="mailbox-card">
@@ -213,6 +220,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
+  applyCompanyMailbox,
   createMyMailbox,
   deleteMyMailbox,
   fetchMyMailboxes,
@@ -248,6 +256,7 @@ const verifyingId = ref<string | null>(null)
 const deletingId = ref<string | null>(null)
 const revealingId = ref<string | null>(null)
 const defaultingId = ref<string | null>(null)
+const applyingCompany = ref(false)
 
 const defaultSendId = computed(() => rows.value.find((r) => r.isDefaultSend)?.id ?? '')
 
@@ -303,6 +312,19 @@ function platformSuffixOf(row: UserMailbox): string {
 const createPlatformSuffix = computed(() => {
   const p = rows.value.find((r) => r.kind === 'platform' && suffixFromAddress(r.address))
   return p ? suffixFromAddress(p.address) : ''
+})
+
+const hasVerifiedPlatform = computed(() =>
+  rows.value.some((r) => r.kind === 'platform' && r.verifyStatus === 'ok')
+)
+
+const showApplyCompanyBar = computed(() => !loading.value && !hasVerifiedPlatform.value)
+
+const applyCompanyHint = computed(() => {
+  const suffix = createPlatformSuffix.value
+  return suffix
+    ? t('profilePage.mailbox.applyHint', { suffix })
+    : t('profilePage.mailbox.applyHintNoSuffix')
 })
 
 function syncDraftFromRows(list: UserMailbox[]) {
@@ -505,6 +527,23 @@ async function toggleReveal(row: UserMailbox) {
   }
 }
 
+async function onApplyCompany() {
+  if (applyingCompany.value) return
+  applyingCompany.value = true
+  try {
+    await applyCompanyMailbox()
+    await ElMessageBox.alert(
+      t('profilePage.mailbox.applySent'),
+      t('profilePage.mailbox.applyButton'),
+      { type: 'success', confirmButtonText: t('common.confirm') }
+    )
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, t('profilePage.mailbox.applyFailed')))
+  } finally {
+    applyingCompany.value = false
+  }
+}
+
 onMounted(() => {
   void load()
 })
@@ -547,6 +586,21 @@ $mailbox-control-width: 280px;
 
 .mb-12 {
   margin-bottom: 12px;
+}
+
+.apply-company-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: vars.$text-primary;
+  background: vars.$layer-2;
+  border: 1px solid vars.$border-panel;
+  border-radius: 6px;
 }
 
 .empty-hint {

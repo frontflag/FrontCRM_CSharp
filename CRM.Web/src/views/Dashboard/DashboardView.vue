@@ -175,16 +175,33 @@
         </div>
       </div>
     </div>
+
+    <section v-if="showTodoPanel" class="todo-panel" aria-labelledby="dashboard-todo-title">
+      <h3 id="dashboard-todo-title" class="todo-panel__title">{{ t('dashboard.todo.title') }}</h3>
+      <div class="todo-panel__list">
+        <article v-if="showSetupMailboxTask" class="todo-card">
+          <div class="todo-card__body">
+            <h4 class="todo-card__title">{{ t('dashboard.todo.setupMailboxTitle') }}</h4>
+            <p class="todo-card__desc">{{ t('dashboard.todo.setupMailboxDesc') }}</p>
+          </div>
+          <router-link class="todo-card__action" :to="mailboxSetupTo">
+            {{ t('dashboard.todo.setupMailboxAction') }}
+          </router-link>
+        </article>
+      </div>
+    </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, onMounted } from 'vue'
+import { computed, reactive, ref, onMounted, onActivated } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores'
 import { customerApi } from '@/api/customer'
 import { vendorApi } from '@/api/vendor'
 import { approvalsApi } from '@/api/approvals'
+import { fetchMyMailSummary } from '@/api/myMails'
+import { profileMailboxLocation } from '@/utils/profileMailboxLink'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
@@ -234,6 +251,21 @@ const stats = reactive({
   vendorPayable: '0.00'
 })
 
+/** null=未返回；失败当未验证，仍显示引导 */
+const hasVerifiedMailbox = ref<boolean | null>(null)
+const showSetupMailboxTask = computed(() => hasVerifiedMailbox.value === false)
+const showTodoPanel = computed(() => showSetupMailboxTask.value)
+const mailboxSetupTo = profileMailboxLocation('/dashboard')
+
+async function loadMailboxTodo() {
+  try {
+    const s = await fetchMyMailSummary()
+    hasVerifiedMailbox.value = !!s.hasVerifiedMailbox
+  } catch {
+    hasVerifiedMailbox.value = false
+  }
+}
+
 function formatMoneyAmount(n: number) {
   if (!Number.isFinite(n)) return '0.00'
   return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -277,6 +309,11 @@ async function loadDashboardStats() {
 
 onMounted(() => {
   void loadDashboardStats()
+  void loadMailboxTodo()
+})
+
+onActivated(() => {
+  void loadMailboxTodo()
 })
 </script>
 
@@ -441,6 +478,77 @@ onMounted(() => {
     border-color: rgba(0, 212, 255, 0.5);
     color: #00d4ff;
     transform: translateY(-1px);
+  }
+}
+
+.todo-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.todo-panel__title {
+  margin: 0;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: vars.$text-primary;
+}
+
+.todo-panel__list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.todo-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  background: vars.$layer-3;
+  border: 1px solid vars.$border-card;
+  border-radius: 12px;
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+.todo-card__title {
+  margin: 0 0 6px;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: vars.$text-primary;
+}
+
+.todo-card__desc {
+  margin: 0;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 13px;
+  line-height: 1.55;
+  color: vars.$text-muted;
+}
+
+.todo-card__action {
+  flex-shrink: 0;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  background: rgba(0, 212, 255, 0.06);
+  color: rgba(80, 187, 227, 0.95);
+  text-decoration: none;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 13px;
+  white-space: nowrap;
+
+  &:hover {
+    background: rgba(0, 212, 255, 0.15);
+    border-color: rgba(0, 212, 255, 0.5);
+    color: #00d4ff;
   }
 }
 </style>
