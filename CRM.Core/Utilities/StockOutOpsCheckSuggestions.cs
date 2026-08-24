@@ -12,12 +12,16 @@ public static class StockOutOpsCheckSuggestions
     public readonly record struct ReceivableHint(
         string ReceivableCode,
         decimal VerifiedDone,
-        IReadOnlyList<string> ReceiptCodes);
+        IReadOnlyList<string> ReceiptCodes,
+        string? StockOutCode = null);
 
     public readonly record struct StockOutHint(
         string StockOutCode,
         short Status,
         IReadOnlyList<ReceivableHint> Receivables);
+
+    public static string ReceivableDisplayCode(ReceivableHint ar) =>
+        OpsCheckDocumentCodes.ForSuggestion(ar.ReceivableCode, ar.StockOutCode);
 
     public static string JoinSteps(IEnumerable<string> steps)
     {
@@ -44,7 +48,8 @@ public static class StockOutOpsCheckSuggestions
         var codes = DistinctCodes(receiptCodes);
         if (codes.Count == 0)
         {
-            yield return $"打开「应收款详情」{receivableCode}，在核销记录中打开已关联的收款单，点「反核销」并输入该收款单号确认。";
+            var arLabel = OpsCheckDocumentCodes.ForSuggestion(receivableCode);
+            yield return $"打开「应收款详情」{arLabel}，在核销记录中打开已关联的收款单，点「反核销」并输入该收款单号确认。";
             yield break;
         }
 
@@ -52,8 +57,19 @@ public static class StockOutOpsCheckSuggestions
             yield return $"打开「收款单」{code}，点「反核销」，输入 {code} 确认。";
     }
 
-    public static string VoidReceivable(string arCode) =>
-        $"打开「应收款详情」{arCode}，点「作废应收」，输入 {arCode} 确认。";
+    public static string VoidReceivable(ReceivableHint ar)
+    {
+        if (OpsCheckDocumentCodes.IsUsableCode(ar.ReceivableCode))
+        {
+            var code = ar.ReceivableCode.Trim();
+            return $"打开「应收款详情」{code}，点「作废应收」，输入 {code} 确认。";
+        }
+
+        if (OpsCheckDocumentCodes.IsUsableCode(ar.StockOutCode))
+            return $"打开「出库单详情」{ar.StockOutCode!.Trim()}，在应收面板作废该笔应收（当前应收单号缺失，无法按单号输入确认）。";
+
+        return "打开本行应收款详情作废该笔应收（当前应收单号缺失，请联系管理员补全单号）。";
+    }
 
     public static string ForceDeleteStockOut(string stockOutCode, bool openList) =>
         openList
@@ -175,11 +191,11 @@ public static class StockOutOpsCheckSuggestions
         string? SellOrderCode = null);
 
     public static string VoidReceivableChain(ReceivableHint ar) =>
-        JoinSteps(ReverseWriteOffSteps(ar.ReceivableCode, ar.VerifiedDone, ar.ReceiptCodes)
-            .Append(VoidReceivable(ar.ReceivableCode)));
+        JoinSteps(ReverseWriteOffSteps(ReceivableDisplayCode(ar), ar.VerifiedDone, ar.ReceiptCodes)
+            .Append(VoidReceivable(ar)));
 
     public static string VoidThenRebuild(ReceivableHint ar, string stockOutCode, string? packingCode = null) =>
-        JoinSteps(ReverseWriteOffSteps(ar.ReceivableCode, ar.VerifiedDone, ar.ReceiptCodes)
+        JoinSteps(ReverseWriteOffSteps(ReceivableDisplayCode(ar), ar.VerifiedDone, ar.ReceiptCodes)
             .Append(ForceDeleteStockOut(stockOutCode, openList: true))
             .Append($"{ReOutboundByPacking(packingCode)}，在「出库单列表」对新出库单点「标记完成」。"));
 
@@ -225,21 +241,17 @@ public static class StockOutOpsCheckSuggestions
     {
         var steps = new List<string>();
         if (ar is { } written && IsWrittenOff(written.VerifiedDone))
-            steps.AddRange(ReverseWriteOffSteps(written.ReceivableCode, written.VerifiedDone, written.ReceiptCodes));
+            steps.AddRange(ReverseWriteOffSteps(ReceivableDisplayCode(written), written.VerifiedDone, written.ReceiptCodes));
 
         var refreshStep = RefreshCustomer(sellOrderCode);
         if (ar is { } hint && !IsWrittenOff(hint.VerifiedDone))
-            refreshStep = $"{refreshStep}（会同步未核销应收 {hint.ReceivableCode} 的客户）";
+            refreshStep = $"{refreshStep}（会同步未核销应收 {ReceivableDisplayCode(hint)} 的客户）";
         steps.Add(refreshStep);
         return JoinSteps(steps);
     }
 
     public static List<string> DistinctCodes(IReadOnlyList<string>? codes) =>
-        (codes ?? Array.Empty<string>())
-            .Where(c => !string.IsNullOrWhiteSpace(c))
-            .Select(c => c.Trim())
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        OpsCheckDocumentCodes.FilterCodes(codes);
 
     private static void AppendForceDeleteStockOuts(List<string> steps, IReadOnlyList<StockOutHint> stockOuts)
     {
@@ -247,7 +259,7 @@ public static class StockOutOpsCheckSuggestions
         foreach (var so in stockOuts)
         {
             foreach (var ar in so.Receivables)
-                steps.AddRange(ReverseWriteOffSteps(ar.ReceivableCode, ar.VerifiedDone, ar.ReceiptCodes));
+                steps.AddRange(ReverseWriteOffSteps(ReceivableDisplayCode(ar), ar.VerifiedDone, ar.ReceiptCodes));
             steps.Add(ForceDeleteStockOut(so.StockOutCode, openList: !opened));
             opened = true;
         }

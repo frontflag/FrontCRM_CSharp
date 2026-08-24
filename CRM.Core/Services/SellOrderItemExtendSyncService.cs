@@ -391,7 +391,8 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
 
         // B) 头表归属本行，但扩展行 SellOrderItemId 空/误挂备货原行（刷新可修复历史出库状态）
         var headerMatched = (await _stockOutRepo.FindAsync(o =>
-                o.SellOrderItemId != null
+                !o.IsDeleted
+                && o.SellOrderItemId != null
                 && o.SellOrderItemId == lineId
                 && (o.Status == StockOutCompleted || o.Status == StockOutFinished)
                 && (o.StockOutType == StockOutTypeCode.Sales
@@ -464,7 +465,8 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
 
         // 勿在 IQueryable/FindAsync 中调用 IsSalesStockOut（EF 无法翻译自定义方法）
         var completedHeaders = (await _stockOutRepo.FindAsync(o =>
-                stockOutIds.Contains(o.Id)
+                !o.IsDeleted
+                && stockOutIds.Contains(o.Id)
                 && (o.Status == StockOutCompleted || o.Status == StockOutFinished)
                 && (o.StockOutType == StockOutTypeCode.Sales
                     || o.StockOutType == StockOutTypeCode.LegacySales)))

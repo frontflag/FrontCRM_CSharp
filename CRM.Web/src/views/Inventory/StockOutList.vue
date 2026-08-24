@@ -1268,7 +1268,7 @@ async function submitMarkFinish() {
     await runStockOutListFetch(false)
   } catch (e) {
     console.error(e)
-    ElMessage.error(t('stockOutList.messages.updateStatusFailed'))
+    ElMessage.error(getApiErrorMessage(e, t('stockOutList.messages.updateStatusFailed')))
   } finally {
     markFinishSubmitting.value = false
   }

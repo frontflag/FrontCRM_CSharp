@@ -50,6 +50,20 @@ public class StockOutOpsCheckSuggestionsTests
     }
 
     [Fact]
+    public void VoidReceivable_MissingCode_UsesStockOutCode()
+    {
+        var ar = new StockOutOpsCheckSuggestions.ReceivableHint(
+            "",
+            0m,
+            Array.Empty<string>(),
+            "STO0020H");
+        var text = StockOutOpsCheckSuggestions.VoidReceivableChain(ar);
+
+        Assert.Contains("STO0020H", text);
+        Assert.DoesNotContain("作废应收」，输入", text);
+    }
+
+    [Fact]
     public void VoidReceivable_Verified_NamesReceipt()
     {
         var ar = new StockOutOpsCheckSuggestions.ReceivableHint("ARV00008", 100m, new[] { "FRC0009B" });

@@ -3831,7 +3831,16 @@ namespace CRM.Core.Services
                 _logger.LogInformation(
                     "[SellLineStockOutSync] UpdateStatus calling RecalculateAsync SellOrderItemId={SellOrderItemId}",
                     soLineId);
-                await _sellOrderItemExtendSync.RecalculateAsync(soLineId);
+                try
+                {
+                    await _sellOrderItemExtendSync.RecalculateAsync(soLineId);
+                }
+                catch (InvalidOperationException ex) when (status == stockOutFinished)
+                {
+                    throw new InvalidOperationException(
+                        $"{ex.Message} 若按运维建议重出：请确认已对旧出库单「强制删除」，且同销售行无其它有效的「准备出库/出库完成」出库单后再标记完成。",
+                        ex);
+                }
             }
 
             var saveExtend = await _unitOfWork.SaveChangesAsync();

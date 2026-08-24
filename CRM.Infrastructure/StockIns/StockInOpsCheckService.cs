@@ -215,8 +215,9 @@ public sealed class StockInOpsCheckService : IStockInOpsCheckService
         StockInOpsCheckSuggestions.StockInHint ToSiHint(string siId)
         {
             siById.TryGetValue(siId, out var si);
-            var code = si != null && !string.IsNullOrWhiteSpace(si.StockInCode) ? si.StockInCode : siId;
-            return new StockInOpsCheckSuggestions.StockInHint(code, InvoiceCodesForSi(siId));
+            return new StockInOpsCheckSuggestions.StockInHint(
+                OpsCheckDocumentCodes.ForSuggestion(si?.StockInCode),
+                InvoiceCodesForSi(siId));
         }
 
         List<string> InvoiceCodesForSi(string siId)
@@ -226,8 +227,9 @@ public sealed class StockInOpsCheckService : IStockInOpsCheckService
             return rows
                 .Select(w => invoices.TryGetValue(w.FinancePurchaseInvoiceId, out var code)
                     ? code
-                    : w.FinancePurchaseInvoiceId)
-                .Where(c => !string.IsNullOrWhiteSpace(c))
+                    : null)
+                .Where(OpsCheckDocumentCodes.IsUsableCode)
+                .Select(c => c!.Trim())
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(c => c, StringComparer.OrdinalIgnoreCase)
                 .ToList();
@@ -285,14 +287,14 @@ public sealed class StockInOpsCheckService : IStockInOpsCheckService
             postedByNotice.TryGetValue(notice.Id, out var postedIds);
             postedIds ??= new List<string>();
             var distinctPosted = OrderSiIds(postedIds);
-            var noticeCode = string.IsNullOrWhiteSpace(notice.NoticeCode) ? notice.Id : notice.NoticeCode;
+            var noticeCode = OpsCheckDocumentCodes.ForSuggestion(notice.NoticeCode);
 
             if (notice.Status == ArrivalNoticeStatusCalculator.StatusStockedIn && distinctPosted.Count == 0)
             {
                 unpostedByNotice.TryGetValue(notice.Id, out var unpostedIds);
                 unpostedIds ??= new List<string>();
                 var unpostedCodes = OrderSiIds(unpostedIds)
-                    .Select(id => siById[id].StockInCode ?? id)
+                    .Select(id => OpsCheckDocumentCodes.ForSuggestion(siById[id].StockInCode))
                     .ToList();
                 AddFinding(findings, "error", "chain", "arrivalNotice", notice.Id, notice.NoticeCode,
                     "ArrivalNoticeList", null, null,
@@ -426,7 +428,7 @@ public sealed class StockInOpsCheckService : IStockInOpsCheckService
             {
                 stockItemsByItem.TryGetValue(line.Id, out var sis);
                 sis ??= new();
-                var itemCode = string.IsNullOrWhiteSpace(line.StockInItemCode) ? line.Id : line.StockInItemCode;
+                var itemCode = OpsCheckDocumentCodes.ForSuggestion(line.StockInItemCode);
 
                 if (sis.Count == 0)
                 {
@@ -442,11 +444,9 @@ public sealed class StockInOpsCheckService : IStockInOpsCheckService
                         .OrderBy(x => x.StockItemCode ?? "", StringComparer.OrdinalIgnoreCase)
                         .ToList();
                     var extras = ordered.Skip(1)
-                        .Select(x => string.IsNullOrWhiteSpace(x.StockItemCode) ? x.Id : x.StockItemCode!)
+                        .Select(x => OpsCheckDocumentCodes.ForSuggestion(x.StockItemCode))
                         .ToList();
-                    var keeperCode = string.IsNullOrWhiteSpace(ordered[0].StockItemCode)
-                        ? ordered[0].Id
-                        : ordered[0].StockItemCode;
+                    var keeperCode = OpsCheckDocumentCodes.ForSuggestion(ordered[0].StockItemCode);
                     AddFinding(findings, "error", "duplicate", "stockItem", ordered[0].Id, keeperCode,
                         "InventoryStockItemList", null, Highlight(keeperCode),
                         "stockInItem", line.Id, itemCode, "StockInDetail", Params(si.Id),
@@ -470,12 +470,12 @@ public sealed class StockInOpsCheckService : IStockInOpsCheckService
         {
             if (!stockItemSiTypeById.TryGetValue(row.StockInId, out var siMeta))
             {
-                var code = string.IsNullOrWhiteSpace(row.StockItemCode) ? row.Id : row.StockItemCode;
+                var code = OpsCheckDocumentCodes.ForSuggestion(row.StockItemCode);
                 AddFinding(findings, "error", "chain", "stockItem", row.Id, code,
                     "InventoryStockItemList", null, Highlight(code),
                     null, null, null, null, null,
                     "库存明细挂着的入库单不存在。",
-                    StockInOpsCheckSuggestions.OrphanStockItem(code ?? row.Id));
+                    StockInOpsCheckSuggestions.OrphanStockItem(code));
                 continue;
             }
 
@@ -485,7 +485,7 @@ public sealed class StockInOpsCheckService : IStockInOpsCheckService
             if (liveItemIds.Contains(row.StockInItemId) && !siMeta.IsDeleted)
                 continue;
 
-            var stockItemCode = string.IsNullOrWhiteSpace(row.StockItemCode) ? row.Id : row.StockItemCode;
+            var stockItemCode = OpsCheckDocumentCodes.ForSuggestion(row.StockItemCode);
             var reason = siMeta.IsDeleted
                 ? "入库单已删除，库存明细仍有效。"
                 : "库存明细对应的入库明细不存在或已删除。";
@@ -493,7 +493,7 @@ public sealed class StockInOpsCheckService : IStockInOpsCheckService
                 "InventoryStockItemList", null, Highlight(stockItemCode),
                 "stockIn", row.StockInId, null, "StockInDetail", Params(row.StockInId),
                 reason,
-                StockInOpsCheckSuggestions.OrphanStockItem(stockItemCode ?? row.Id));
+                StockInOpsCheckSuggestions.OrphanStockItem(stockItemCode));
         }
 
         var orphanKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -509,7 +509,8 @@ public sealed class StockInOpsCheckService : IStockInOpsCheckService
 
             var invoiceCode = invoices.TryGetValue(wo.FinancePurchaseInvoiceId, out var code)
                 ? code
-                : wo.FinancePurchaseInvoiceId;
+                : null;
+            invoiceCode = OpsCheckDocumentCodes.ForSuggestion(invoiceCode);
             var key = $"{wo.FinancePurchaseInvoiceId}|{siId}";
             if (!orphanKeys.Add(key))
                 continue;
@@ -546,8 +547,7 @@ public sealed class StockInOpsCheckService : IStockInOpsCheckService
                 "QcList", null, null,
                 "stockIn", first.Id, first.StockInCode, "StockInDetail", Params(first.Id),
                 $"质检已关联已过账入库单 {first.StockInCode}，质检入库状态仍为未入库。",
-                StockInOpsCheckSuggestions.QcStockInStatusLag(
-                    string.IsNullOrWhiteSpace(qc.QcCode) ? qc.Id : qc.QcCode));
+                StockInOpsCheckSuggestions.QcStockInStatusLag(OpsCheckDocumentCodes.ForSuggestion(qc.QcCode)));
         }
 
         var truncated = findings.Count > MaxFindings;
@@ -595,12 +595,8 @@ public sealed class StockInOpsCheckService : IStockInOpsCheckService
             QcId = qcId
         };
 
-    private static string FirstCode(string? invoiceCode, string? invoiceNo, string id)
-    {
-        if (!string.IsNullOrWhiteSpace(invoiceCode)) return invoiceCode.Trim();
-        if (!string.IsNullOrWhiteSpace(invoiceNo)) return invoiceNo.Trim();
-        return id;
-    }
+    private static string FirstCode(string? invoiceCode, string? invoiceNo, string id) =>
+        OpsCheckDocumentCodes.ForSuggestion(invoiceCode, invoiceNo);
 
     private static string Norm(string? id) =>
         string.IsNullOrWhiteSpace(id) ? "空" : id.Trim();

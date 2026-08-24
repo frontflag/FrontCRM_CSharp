@@ -26,11 +26,7 @@ public static class StockInOpsCheckSuggestions
     }
 
     public static List<string> DistinctCodes(IReadOnlyList<string>? codes) =>
-        (codes ?? Array.Empty<string>())
-            .Where(c => !string.IsNullOrWhiteSpace(c))
-            .Select(c => c.Trim())
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        OpsCheckDocumentCodes.FilterCodes(codes);
 
     public static IEnumerable<string> ReversePurchaseInvoiceSteps(IReadOnlyList<string>? invoiceCodes)
     {
