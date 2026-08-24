@@ -17,7 +17,9 @@ public sealed class StockOutOpsCheckService : IStockOutOpsCheckService
         _db = db;
     }
 
-    public async Task<StockOutOpsCheckResultDto> RunAsync(CancellationToken cancellationToken = default)
+    public async Task<StockOutOpsCheckResultDto> RunAsync(
+        bool includeAdminDebugSuggestions = false,
+        CancellationToken cancellationToken = default)
     {
         var findings = new List<StockOutOpsCheckFindingDto>();
 
@@ -407,16 +409,131 @@ public sealed class StockOutOpsCheckService : IStockOutOpsCheckService
                     extras));
         }
 
+        StockOutOpsCheckSuggestions.MissingReceivableDiagnosis DiagnoseMissingReceivable(
+            string stockOutId,
+            string? headerSellOrderItemId)
+        {
+            soItemsByStockOut.TryGetValue(stockOutId, out var lines);
+            lines ??= new();
+            var hasSellLink = false;
+            var totalQty = 0m;
+            var maxAmount = 0m;
+            string? sellOrderCode = null;
+
+            foreach (var line in lines)
+            {
+                string? sellLineId = null;
+                var qty = (decimal)line.Qty;
+                if (extByItemId.TryGetValue(line.Id, out var ext))
+                {
+                    sellLineId = ext.SellOrderItemId;
+                    if (ext.QtyStockOut > 0)
+                        qty = ext.QtyStockOut;
+                }
+
+                if (string.IsNullOrWhiteSpace(sellLineId))
+                    continue;
+
+                hasSellLink = true;
+                if (qty <= 0)
+                    continue;
+
+                totalQty += qty;
+                if (sellItems.TryGetValue(sellLineId.Trim(), out var si))
+                {
+                    maxAmount = Math.Max(
+                        maxAmount,
+                        Math.Round(qty * si.Price, 2, MidpointRounding.AwayFromZero));
+                    if (string.IsNullOrWhiteSpace(sellOrderCode)
+                        && sellOrders.TryGetValue(si.SellOrderId, out var hdr))
+                        sellOrderCode = hdr.Code;
+                }
+            }
+
+            if (!hasSellLink && !string.IsNullOrWhiteSpace(headerSellOrderItemId))
+                hasSellLink = true;
+
+            if (lines.Count == 0 && string.IsNullOrWhiteSpace(headerSellOrderItemId))
+            {
+                return new StockOutOpsCheckSuggestions.MissingReceivableDiagnosis(
+                    StockOutOpsCheckSuggestions.MissingReceivableCause.NoSellLineLink,
+                    "系统判定：无出库明细且头表未关联销售行。");
+            }
+
+            if (!hasSellLink)
+            {
+                return new StockOutOpsCheckSuggestions.MissingReceivableDiagnosis(
+                    StockOutOpsCheckSuggestions.MissingReceivableCause.NoSellLineLink,
+                    "系统判定：出库明细扩展未关联销售订单明细。");
+            }
+
+            if (totalQty <= 0)
+            {
+                return new StockOutOpsCheckSuggestions.MissingReceivableDiagnosis(
+                    StockOutOpsCheckSuggestions.MissingReceivableCause.ZeroQty,
+                    "系统判定：关联销售行的出库数量为 0。");
+            }
+
+            if (maxAmount <= 0m)
+            {
+                return new StockOutOpsCheckSuggestions.MissingReceivableDiagnosis(
+                    StockOutOpsCheckSuggestions.MissingReceivableCause.ZeroPrice,
+                    "系统判定：销售行单价为 0，标记完成时跳过生成应收。",
+                    sellOrderCode);
+            }
+
+            return new StockOutOpsCheckSuggestions.MissingReceivableDiagnosis(
+                StockOutOpsCheckSuggestions.MissingReceivableCause.Unknown,
+                "系统判定：完成态出库未生成应收（可能标记完成时未触发；可补生成或强制删除后重出）。");
+        }
+
+        string? ResolvePackingCodeForStockOut(string stockOutId, string? sourceId)
+        {
+            var codes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var src = sourceId?.Trim();
+            if (!string.IsNullOrEmpty(src) && packingById.TryGetValue(src, out var packingBySource))
+            {
+                var c = packingBySource.Code?.Trim();
+                if (!string.IsNullOrEmpty(c))
+                    codes.Add(c);
+            }
+
+            if (soItemsByStockOut.TryGetValue(stockOutId, out var lines))
+            {
+                foreach (var line in lines)
+                {
+                    var pid = line.PackingId?.Trim();
+                    if (string.IsNullOrEmpty(pid))
+                        continue;
+                    if (!packingById.TryGetValue(pid, out var packing))
+                        continue;
+                    var c = packing.Code?.Trim();
+                    if (!string.IsNullOrEmpty(c))
+                        codes.Add(c);
+                }
+            }
+
+            if (codes.Count == 0)
+                return null;
+            return string.Join("、", codes.OrderBy(c => c, StringComparer.OrdinalIgnoreCase));
+        }
+
         foreach (var so in stockOuts)
         {
             if (so.Status != 4 || !IsSales(so.StockOutType))
                 continue;
             if (arByStockOut.ContainsKey(so.Id))
                 continue;
+            var diag = DiagnoseMissingReceivable(so.Id, so.SellOrderItemId);
+            var packingCode = ResolvePackingCodeForStockOut(so.Id, so.SourceId);
             AddFinding(findings, "error", "chain", "stockOut", so.Id, so.StockOutCode, "StockOutDetail",
                 Params(so.Id), null, null, null, null, null, null,
-                "销售出库已完成，没有有效应收款。",
-                StockOutOpsCheckSuggestions.SalesDoneNoReceivable(so.StockOutCode ?? so.Id));
+                $"销售出库已完成，没有有效应收款。{diag.ReasonSuffix}",
+                StockOutOpsCheckSuggestions.SalesDoneNoReceivable(
+                    so.StockOutCode ?? so.Id,
+                    diag,
+                    packingCode,
+                    includeAdminDebugSuggestions));
         }
 
         foreach (var ar in receivables)
@@ -481,7 +598,8 @@ public sealed class StockOutOpsCheckService : IStockOutOpsCheckService
                     $"应收数量 {ar.OutboundQty} 与出库明细合计 {qtySum} 不一致。",
                     StockOutOpsCheckSuggestions.VoidThenRebuild(
                         ToArHint(ar.Id, ar.ReceivableCode, ar.VerifiedDone),
-                        soLive.StockOutCode ?? soLive.Id));
+                        soLive.StockOutCode ?? soLive.Id,
+                        ResolvePackingCodeForStockOut(soLive.Id, soLive.SourceId)));
             }
 
             if (amountSum > 0 && !StockOutOpsCheckAmounts.AmountsMatch(amountSum, ar.Amount))
@@ -492,7 +610,8 @@ public sealed class StockOutOpsCheckService : IStockOutOpsCheckService
                     $"应收金额 {ar.Amount} 与「出库数量×销售行单价」{StockOutOpsCheckAmounts.RoundAmount(amountSum)} 不一致。",
                     StockOutOpsCheckSuggestions.VoidThenRebuild(
                         ToArHint(ar.Id, ar.ReceivableCode, ar.VerifiedDone),
-                        soLive.StockOutCode ?? soLive.Id));
+                        soLive.StockOutCode ?? soLive.Id,
+                        ResolvePackingCodeForStockOut(soLive.Id, soLive.SourceId)));
             }
 
             if (sellCurrency is short cur && cur != ar.Currency)
@@ -503,7 +622,8 @@ public sealed class StockOutOpsCheckService : IStockOutOpsCheckService
                     $"应收币别 {ar.Currency} 与销售订单币别 {cur} 不一致。",
                     StockOutOpsCheckSuggestions.VoidThenRebuild(
                         ToArHint(ar.Id, ar.ReceivableCode, ar.VerifiedDone),
-                        soLive.StockOutCode ?? soLive.Id));
+                        soLive.StockOutCode ?? soLive.Id,
+                        ResolvePackingCodeForStockOut(soLive.Id, soLive.SourceId)));
             }
 
             var packingCustomer = soItemsByStockOut.TryGetValue(soLive.Id, out var soLines)
@@ -526,7 +646,8 @@ public sealed class StockOutOpsCheckService : IStockOutOpsCheckService
 
             CheckCustomer(findings, ar.Id, ar.ReceivableCode, soLive.Id, soLive.StockOutCode,
                 packingCustomer, soLive.CustomerId, ar.CustomerId, sellCustomerId, customers, ar.CustomerName,
-                sellOrderCode, ToArHint(ar.Id, ar.ReceivableCode, ar.VerifiedDone));
+                sellOrderCode, ToArHint(ar.Id, ar.ReceivableCode, ar.VerifiedDone),
+                ResolvePackingCodeForStockOut(soLive.Id, soLive.SourceId));
         }
 
         foreach (var pi in packingItems)
@@ -547,6 +668,7 @@ public sealed class StockOutOpsCheckService : IStockOutOpsCheckService
                 $"已有有效出库，出库通知 {n.Item1} 状态仍为 {n.Status}（应为已出库）。",
                 StockOutOpsCheckSuggestions.NotifyNotStockedOut(
                     n.Item1 ?? pi.StockOutNotifyId,
+                    packing?.Code,
                     ordered.Select(ToSoHint).ToList()));
         }
 
@@ -578,7 +700,8 @@ public sealed class StockOutOpsCheckService : IStockOutOpsCheckService
         Dictionary<string, string?> customers,
         string? arCustomerName,
         string? sellOrderCode,
-        StockOutOpsCheckSuggestions.ReceivableHint arHint)
+        StockOutOpsCheckSuggestions.ReceivableHint arHint,
+        string? packingCode = null)
     {
         var ids = new[] { packingCustomerId, soCustomerId, arCustomerId, sellCustomerId }
             .Where(x => !string.IsNullOrWhiteSpace(x))
@@ -587,11 +710,15 @@ public sealed class StockOutOpsCheckService : IStockOutOpsCheckService
             .ToList();
         if (ids.Count > 1)
         {
+            var arLabel = string.IsNullOrWhiteSpace(arCode) ? arId : arCode.Trim();
+            var arStatus = FormatReceivableVerificationStatus(arHint);
             AddFinding(findings, "error", "customer", "receivable", arId, arCode,
                 "FinanceReceivableDetail", Params(arId), null,
                 "stockOut", soId, soCode, "StockOutDetail", Params(soId),
-                $"客户主键不一致：装箱 {Norm(packingCustomerId)} / 出库 {Norm(soCustomerId)} / 应收 {Norm(arCustomerId)} / 销售订单 {Norm(sellCustomerId)}。",
-                StockOutOpsCheckSuggestions.CustomerRefresh(sellOrderCode, arHint));
+                $"客户主键不一致（应收 {arLabel} {arStatus}）：装箱 {Norm(packingCustomerId)} / 出库 {Norm(soCustomerId)} / 应收 {Norm(arCustomerId)} / 销售订单 {Norm(sellCustomerId)}。",
+                StockOutOpsCheckSuggestions.IsWrittenOff(arHint.VerifiedDone)
+                    ? StockOutOpsCheckSuggestions.VoidThenRebuild(arHint, soCode ?? soId, packingCode)
+                    : StockOutOpsCheckSuggestions.CustomerRefresh(sellOrderCode, arHint));
             return;
         }
 
@@ -611,6 +738,19 @@ public sealed class StockOutOpsCheckService : IStockOutOpsCheckService
 
     private static string Norm(string? id) =>
         string.IsNullOrWhiteSpace(id) ? "空" : id.Trim();
+
+    private static string FormatReceivableVerificationStatus(StockOutOpsCheckSuggestions.ReceivableHint arHint)
+    {
+        if (StockOutOpsCheckSuggestions.IsWrittenOff(arHint.VerifiedDone))
+        {
+            var codes = StockOutOpsCheckSuggestions.DistinctCodes(arHint.ReceiptCodes);
+            return codes.Count > 0
+                ? $"已核销（{string.Join("、", codes)}）"
+                : "已核销";
+        }
+
+        return "未核销";
+    }
 
     private static void Add(Dictionary<string, List<string>> map, string key, string value)
     {

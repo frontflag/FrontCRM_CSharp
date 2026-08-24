@@ -44,7 +44,7 @@ public static class StockOutOpsCheckSuggestions
         var codes = DistinctCodes(receiptCodes);
         if (codes.Count == 0)
         {
-            yield return $"打开「应收款详情」{receivableCode}，在核销记录打开对应收款单，点「反核销」。";
+            yield return $"打开「应收款详情」{receivableCode}，在核销记录中打开已关联的收款单，点「反核销」并输入该收款单号确认。";
             yield break;
         }
 
@@ -65,6 +65,14 @@ public static class StockOutOpsCheckSuggestions
             ? $"点本行 {packingCode} 打开「装箱单详情」，点击「刷新」。"
             : $"打开「装箱单详情」{packingCode}，点击「刷新」。";
 
+    public static string ReOutboundByPacking(string? packingCode)
+    {
+        var code = packingCode?.Trim();
+        if (string.IsNullOrEmpty(code))
+            return "按装箱流程重新出库。";
+        return $"打开「装箱单详情」{code}，按装箱流程重新出库。";
+    }
+
     public static string MarkFinished(string stockOutCode, bool openList) =>
         openList
             ? $"打开「出库单列表」，对 {stockOutCode} 点「标记完成」。"
@@ -72,7 +80,7 @@ public static class StockOutOpsCheckSuggestions
 
     public static string RefreshCustomer(string? sellOrderCode) =>
         string.IsNullOrWhiteSpace(sellOrderCode)
-            ? "打开对应「销售订单详情」，点击页头「刷新」右侧下拉「刷新客户」并确认。"
+            ? "打开本行关联的「销售订单详情」，点击页头「刷新」右侧下拉「刷新客户」并确认。"
             : $"打开「销售订单详情」{sellOrderCode.Trim()}，点击页头「刷新」右侧下拉「刷新客户」并确认。";
 
     public static string PackingFinishedNoStockOut(string packingCode) =>
@@ -103,47 +111,103 @@ public static class StockOutOpsCheckSuggestions
         };
         if (stockOuts.Count == 0)
         {
-            steps.Add("没有一键修复：按装箱流程重新出库。");
+            steps.Add($"没有一键修复：{ReOutboundByPacking(packingCode)}。");
             return JoinSteps(steps);
         }
 
         foreach (var so in stockOuts)
             steps.Add($"打开「出库单详情」{so.StockOutCode}，核对本行是否挂了拣货。");
         AppendForceDeleteStockOuts(steps, stockOuts);
-        steps.Add("按装箱流程重新出库。");
+        steps.Add(ReOutboundByPacking(packingCode));
         return JoinSteps(steps);
     }
 
-    public static string SalesDoneNoReceivable(string stockOutCode) =>
-        JoinSteps(new[]
+    public static string SalesDoneNoReceivable(
+        string stockOutCode,
+        MissingReceivableDiagnosis? diagnosis = null,
+        string? packingCode = null,
+        bool includeAdminDebugSuggestions = false)
+    {
+        if (diagnosis is { Cause: MissingReceivableCause.ZeroPrice, SellOrderCode: { } soCode }
+            && !string.IsNullOrWhiteSpace(soCode))
         {
-            $"打开「出库单详情」{stockOutCode}，确认是销售出库且已完成。",
+            var rebuildStep = includeAdminDebugSuggestions
+                ? $"请管理员在「调试数据」页执行「补生成应收款」，或对 {stockOutCode} 强制删除后{ReOutboundByPacking(packingCode)}并标记完成。"
+                : $"对 {stockOutCode} 强制删除后{ReOutboundByPacking(packingCode)}并标记完成。";
+            return JoinSteps(new[]
+            {
+                $"打开「销售订单详情」{soCode.Trim()}，将对应明细单价改为大于 0 并保存。",
+                $"打开「出库单详情」{stockOutCode}，确认状态仍为「完成」且应收面板为空。",
+                rebuildStep
+            });
+        }
+
+        if (diagnosis?.Cause == MissingReceivableCause.NoSellLineLink)
+        {
+            return JoinSteps(new[]
+            {
+                $"打开「出库单详情」{stockOutCode}，确认出库明细已关联销售订单明细。",
+                ForceDeleteStockOut(stockOutCode, openList: true),
+                $"{ReOutboundByPacking(packingCode)}，并在新出库单上「标记完成」。"
+            });
+        }
+
+        return JoinSteps(new[]
+        {
+            $"打开「出库单详情」{stockOutCode}，确认是销售出库且状态为「完成」、应收面板为空。",
             ForceDeleteStockOut(stockOutCode, openList: true),
-            "按装箱重新出库。",
-            "完成后在「出库单列表」对新出库单点「标记完成」，以生成应收。"
+            ReOutboundByPacking(packingCode),
+            "在「出库单列表」对新出库单点「标记完成」以生成应收（原单若仍是完成态，重复标记无效）。"
         });
+    }
+
+    public enum MissingReceivableCause
+    {
+        Unknown,
+        NoSellLineLink,
+        ZeroQty,
+        ZeroPrice
+    }
+
+    public readonly record struct MissingReceivableDiagnosis(
+        MissingReceivableCause Cause,
+        string ReasonSuffix,
+        string? SellOrderCode = null);
 
     public static string VoidReceivableChain(ReceivableHint ar) =>
         JoinSteps(ReverseWriteOffSteps(ar.ReceivableCode, ar.VerifiedDone, ar.ReceiptCodes)
             .Append(VoidReceivable(ar.ReceivableCode)));
 
-    public static string VoidThenRebuild(ReceivableHint ar, string stockOutCode) =>
+    public static string VoidThenRebuild(ReceivableHint ar, string stockOutCode, string? packingCode = null) =>
         JoinSteps(ReverseWriteOffSteps(ar.ReceivableCode, ar.VerifiedDone, ar.ReceiptCodes)
             .Append(ForceDeleteStockOut(stockOutCode, openList: true))
-            .Append("按装箱重出后，在「出库单列表」对新出库单点「标记完成」。"));
+            .Append($"{ReOutboundByPacking(packingCode)}，在「出库单列表」对新出库单点「标记完成」。"));
 
-    public static string NotifyNotStockedOut(string notifyCode, IReadOnlyList<StockOutHint> stockOuts)
+    public static string NotifyNotStockedOut(
+        string notifyCode,
+        string? packingCode,
+        IReadOnlyList<StockOutHint> stockOuts)
     {
         var unfinished = stockOuts.Where(s => s.Status != 4).ToList();
         if (unfinished.Count == 0)
         {
-            var soText = stockOuts.Count == 0
-                ? "出库单"
-                : string.Join("、", stockOuts.Select(s => s.StockOutCode));
-            return JoinSteps(new[]
+            var doneSteps = new List<string>();
+            if (!string.IsNullOrWhiteSpace(packingCode))
+                doneSteps.Add(RefreshPacking(packingCode.Trim(), thisRow: false));
+            else
             {
-                $"{soText} 已完成。打开「出库通知」{notifyCode} 核对状态；当前没有单独改通知状态的按钮。"
-            });
+                var soCodes = stockOuts
+                    .Select(s => s.StockOutCode?.Trim())
+                    .Where(x => !string.IsNullOrEmpty(x))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                var soText = soCodes.Count > 0
+                    ? string.Join("、", soCodes)
+                    : "关联出库单";
+                doneSteps.Add(
+                    $"出库单 {soText} 已完成。打开「出库通知」{notifyCode} 核对；请通过关联装箱单详情点击「刷新」同步通知状态。");
+            }
+            return JoinSteps(doneSteps);
         }
 
         var steps = new List<string>();
@@ -160,9 +224,13 @@ public static class StockOutOpsCheckSuggestions
     public static string CustomerRefresh(string? sellOrderCode, ReceivableHint? ar)
     {
         var steps = new List<string>();
-        if (ar is { } written)
+        if (ar is { } written && IsWrittenOff(written.VerifiedDone))
             steps.AddRange(ReverseWriteOffSteps(written.ReceivableCode, written.VerifiedDone, written.ReceiptCodes));
-        steps.Add(RefreshCustomer(sellOrderCode));
+
+        var refreshStep = RefreshCustomer(sellOrderCode);
+        if (ar is { } hint && !IsWrittenOff(hint.VerifiedDone))
+            refreshStep = $"{refreshStep}（会同步未核销应收 {hint.ReceivableCode} 的客户）";
+        steps.Add(refreshStep);
         return JoinSteps(steps);
     }
 

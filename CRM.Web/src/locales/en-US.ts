@@ -8643,7 +8643,7 @@ const enUS = {
     refreshing: 'Refreshing…',
     refreshConfirmTitle: 'Confirm refresh',
     refreshConfirm:
-      'Refresh status of packing {code} from live stock-out records? (Can roll back from Stocked out to Ready when no live stock-out remains.)',
+      'Refresh status of packing {code} from live stock-out records? (Can roll back from Stocked out to Ready when no live stock-out remains, and sync linked stock-out notice status.)',
     refreshResultTitle: 'Refresh result',
     refreshNoChange: 'Packing status unchanged',
     refreshNoChangeStillHasStockOut:
@@ -8651,6 +8651,8 @@ const enUS = {
     refreshNoChangeStillHasStockOutWithCodes:
       'Linked stock-outs still exist (status shipped/completed): {codes}. Packing stays “Outbound complete”. Force-delete them, then refresh. (Packing-batch stock-outs may have no sales-line header; filter stock-out list by packing code.)',
     refreshChanged: 'Status updated: {from} → {to}',
+    refreshNotifyMarked: '{count} stock-out notice(s) synced to “Stocked out”',
+    refreshNotifyReverted: '{count} stock-out notice(s) reverted to “Packed”',
     refreshFailed: 'Refresh failed. Please try again.',
     refreshFailedTitle: 'Refresh failed',
     flowPanel: {

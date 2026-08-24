@@ -88,6 +88,7 @@ export interface SalesOrderCustomerDownstreamSyncPreview {
   packingsToSync: number
   packingItemExtendsToSync: number
   stockOutsToSync: number
+  receivablesToSync: number
   syncItems: SalesOrderCustomerDownstreamSyncPreviewItem[]
 }
 

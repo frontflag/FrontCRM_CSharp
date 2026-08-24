@@ -267,6 +267,10 @@ export interface PackingStatusRefreshResult {
   hasLiveCompletedStockOut: boolean
   /** 仍阻挡回退的出库单号 */
   blockingStockOutCodes?: string[]
+  /** 本箱本次同步为已出库的通知条数 */
+  notifyMarkedStockedOutCount?: number
+  /** 本箱本次回退为已装箱的通知条数 */
+  notifyRevertedToPackedCount?: number
 }
 
 export interface PackingListQuery {
@@ -738,7 +742,13 @@ export const packingApi = {
         hasLiveCompletedStockOut: Boolean(
           data?.hasLiveCompletedStockOut ?? data?.HasLiveCompletedStockOut
         ),
-        blockingStockOutCodes
+        blockingStockOutCodes,
+        notifyMarkedStockedOutCount: Number(
+          data?.notifyMarkedStockedOutCount ?? data?.NotifyMarkedStockedOutCount ?? 0
+        ),
+        notifyRevertedToPackedCount: Number(
+          data?.notifyRevertedToPackedCount ?? data?.NotifyRevertedToPackedCount ?? 0
+        )
       }
     } catch (e) {
       throw new Error(parseApiError(e, '刷新装箱状态失败'))

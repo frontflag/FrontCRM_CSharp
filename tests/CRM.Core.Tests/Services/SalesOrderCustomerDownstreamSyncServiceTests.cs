@@ -416,4 +416,59 @@ public class SalesOrderCustomerDownstreamSyncServiceTests
         await _notifyRepo.Received(1).UpdateAsync(notify);
         await _unitOfWork.DidNotReceive().SaveChangesAsync();
     }
+
+    [Fact]
+    public async Task ApplyAsync_ShouldSyncUnverifiedReceivableCustomer()
+    {
+        const string orderId = "SO-1";
+        const string customerId = "CUST-OK";
+        const string staleCustomerId = "CUST-STALE";
+        var order = new SellOrder
+        {
+            Id = orderId,
+            SellOrderCode = "SO0023M",
+            CustomerId = customerId,
+            CustomerName = "正确客户"
+        };
+        var receivable = new FinanceReceivable
+        {
+            Id = "AR-1",
+            ReceivableCode = "ARV00016",
+            SellOrderId = orderId,
+            CustomerId = staleCustomerId,
+            CustomerName = "旧客户",
+            VerifiedDone = 0m,
+            VerificationStatus = FinanceVerificationStatusCode.Pending
+        };
+
+        _soRepo.GetByIdAsync(orderId).Returns(order);
+        _customerRepo.GetByIdAsync(customerId).Returns(new CustomerInfo
+        {
+            Id = customerId,
+            OfficialName = "正确客户"
+        });
+        _soItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<SellOrderItem, bool>>>())
+            .Returns(Array.Empty<SellOrderItem>());
+        _notifyRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<StockOutRequest, bool>>>())
+            .Returns(Array.Empty<StockOutRequest>());
+        _packingItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<PackingItem, bool>>>())
+            .Returns(Array.Empty<PackingItem>());
+        _stockOutRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<StockOut, bool>>>())
+            .Returns(Array.Empty<StockOut>());
+        _receivableRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<FinanceReceivable, bool>>>())
+            .Returns(new[] { receivable });
+        _customerRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<CustomerInfo, bool>>>())
+            .Returns(new[]
+            {
+                new CustomerInfo { Id = staleCustomerId, OfficialName = "旧客户" }
+            });
+
+        var result = await _service.ApplyAsync(order);
+
+        Assert.True(result.Applied);
+        Assert.Equal(1, result.Preview.ReceivablesToSync);
+        Assert.Equal(customerId, receivable.CustomerId);
+        Assert.Equal("正确客户", receivable.CustomerName);
+        await _receivableRepo.Received(1).UpdateAsync(receivable);
+    }
 }

@@ -3,7 +3,9 @@ namespace CRM.Core.Interfaces;
 /// <summary>出库链路运维检查（只读，全量）。</summary>
 public interface IStockOutOpsCheckService
 {
-    Task<StockOutOpsCheckResultDto> RunAsync(CancellationToken cancellationToken = default);
+    Task<StockOutOpsCheckResultDto> RunAsync(
+        bool includeAdminDebugSuggestions = false,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class StockOutOpsCheckResultDto

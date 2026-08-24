@@ -496,6 +496,7 @@ import {
   currencyLabel,
   type PackingDetail,
   type PackingDetailLine,
+  type PackingStatusRefreshResult,
   type PackingStockOutNotifyRow
 } from '@/api/packing'
 import { useAuthStore } from '@/stores/auth'
@@ -799,7 +800,10 @@ async function handleRefreshStatus() {
   try {
     const result = await packingApi.refreshStatus(detail.value.id)
     await loadDetail()
-    if (!result.changed) {
+    const notifyDetail = formatRefreshNotifyDetail(result)
+    const hasNotifySync = Boolean(notifyDetail)
+
+    if (!result.changed && !hasNotifySync) {
       const codes = (result.blockingStockOutCodes ?? []).filter(Boolean)
       const noChangeMsg = result.hasLiveCompletedStockOut
         ? codes.length > 0
@@ -813,14 +817,21 @@ async function handleRefreshStatus() {
       })
       return
     }
-    await ElMessageBox.alert(
-      t('packingDetail.refreshChanged', {
-        from: packingStatusLabel(result.previousStatus),
-        to: packingStatusLabel(result.currentStatus)
-      }),
-      t('packingDetail.refreshResultTitle'),
-      { confirmButtonText: t('common.confirm') }
-    )
+
+    const parts: string[] = []
+    if (result.changed) {
+      parts.push(
+        t('packingDetail.refreshChanged', {
+          from: packingStatusLabel(result.previousStatus),
+          to: packingStatusLabel(result.currentStatus)
+        })
+      )
+    }
+    if (notifyDetail) parts.push(notifyDetail)
+
+    await ElMessageBox.alert(parts.join('\n'), t('packingDetail.refreshResultTitle'), {
+      confirmButtonText: t('common.confirm')
+    })
   } catch (e) {
     await ElMessageBox.alert(
       getApiErrorMessage(e, t('packingDetail.refreshFailed')),
@@ -830,6 +841,15 @@ async function handleRefreshStatus() {
   } finally {
     refreshingStatus.value = false
   }
+}
+
+function formatRefreshNotifyDetail(result: PackingStatusRefreshResult): string {
+  const parts: string[] = []
+  const marked = result.notifyMarkedStockedOutCount ?? 0
+  const reverted = result.notifyRevertedToPackedCount ?? 0
+  if (marked > 0) parts.push(t('packingDetail.refreshNotifyMarked', { count: marked }))
+  if (reverted > 0) parts.push(t('packingDetail.refreshNotifyReverted', { count: reverted }))
+  return parts.join('\n')
 }
 
 watch(

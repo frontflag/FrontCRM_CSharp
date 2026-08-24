@@ -69,9 +69,10 @@ public class StockOutOpsCheckSuggestionsTests
     public void VoidThenRebuild_Unverified_ForceDeletesWithoutVoid()
     {
         var ar = new StockOutOpsCheckSuggestions.ReceivableHint("ARV00007", 0m, Array.Empty<string>());
-        var text = StockOutOpsCheckSuggestions.VoidThenRebuild(ar, "STO0020X");
+        var text = StockOutOpsCheckSuggestions.VoidThenRebuild(ar, "STO0020X", "PAK001ZB");
 
         Assert.Contains("① 打开「出库单列表」，对 STO0020X 点「强制删除」，输入 STO0020X 确认。", text);
+        Assert.Contains("打开「装箱单详情」PAK001ZB，按装箱流程重新出库。", text);
         Assert.Contains("标记完成", text);
         Assert.DoesNotContain("作废应收", text);
         Assert.DoesNotContain("反核销", text);
@@ -93,6 +94,85 @@ public class StockOutOpsCheckSuggestionsTests
     {
         var text = StockOutOpsCheckSuggestions.JoinSteps(new[] { "第一步", "第二步" });
         Assert.Equal("① 第一步\n② 第二步", text);
+    }
+
+    [Fact]
+    public void NotifyNotStockedOut_WhenStockOutFinished_SuggestsRefreshPacking()
+    {
+        var text = StockOutOpsCheckSuggestions.NotifyNotStockedOut(
+            "STOR0021C",
+            "PAK001ZU",
+            new[] { new StockOutOpsCheckSuggestions.StockOutHint("STO0020Y", 4, Array.Empty<StockOutOpsCheckSuggestions.ReceivableHint>()) });
+
+        Assert.Equal("① 打开「装箱单详情」PAK001ZU，点击「刷新」。", text);
+        Assert.DoesNotContain("无单独改", text);
+    }
+
+    [Fact]
+    public void NotifyNotStockedOut_WhenStockOutUnfinished_SuggestsMarkFinished()
+    {
+        var text = StockOutOpsCheckSuggestions.NotifyNotStockedOut(
+            "STOR0021C",
+            "PAK001ZU",
+            new[] { new StockOutOpsCheckSuggestions.StockOutHint("STO0020Y", 2, Array.Empty<StockOutOpsCheckSuggestions.ReceivableHint>()) });
+
+        Assert.Contains("标记完成", text);
+        Assert.DoesNotContain("刷新", text);
+    }
+
+    [Fact]
+    public void SalesDoneNoReceivable_IncludesPackingCodeInReOutboundStep()
+    {
+        var text = StockOutOpsCheckSuggestions.SalesDoneNoReceivable("STO0022V", packingCode: "PAK001ZB");
+
+        Assert.Contains("③ 打开「装箱单详情」PAK001ZB，按装箱流程重新出库。", text);
+    }
+
+    [Fact]
+    public void SalesDoneNoReceivable_ZeroPrice_AdminSeesDebugBackfill()
+    {
+        var diag = new StockOutOpsCheckSuggestions.MissingReceivableDiagnosis(
+            StockOutOpsCheckSuggestions.MissingReceivableCause.ZeroPrice,
+            "系统判定：销售行单价为 0",
+            "SO0024P");
+        var text = StockOutOpsCheckSuggestions.SalesDoneNoReceivable(
+            "STO0024N",
+            diag,
+            "PAK0020C",
+            includeAdminDebugSuggestions: true);
+
+        Assert.Contains("调试数据", text);
+        Assert.Contains("补生成应收款", text);
+    }
+
+    [Fact]
+    public void SalesDoneNoReceivable_ZeroPrice_NonAdminOmitsDebugBackfill()
+    {
+        var diag = new StockOutOpsCheckSuggestions.MissingReceivableDiagnosis(
+            StockOutOpsCheckSuggestions.MissingReceivableCause.ZeroPrice,
+            "系统判定：销售行单价为 0",
+            "SO0024P");
+        var text = StockOutOpsCheckSuggestions.SalesDoneNoReceivable(
+            "STO0024N",
+            diag,
+            "PAK0020C",
+            includeAdminDebugSuggestions: false);
+
+        Assert.DoesNotContain("调试数据", text);
+        Assert.DoesNotContain("补生成应收款", text);
+        Assert.Contains("STO0024N", text);
+        Assert.Contains("PAK0020C", text);
+    }
+
+    [Fact]
+    public void PackingItemUnlinked_IncludesPackingCodeWhenReOutbound()
+    {
+        var text = StockOutOpsCheckSuggestions.PackingItemUnlinked(
+            "PAK001ZB",
+            "PAK001ZB-1",
+            Array.Empty<StockOutOpsCheckSuggestions.StockOutHint>());
+
+        Assert.Contains("打开「装箱单详情」PAK001ZB，按装箱流程重新出库。", text);
     }
 
     private static StockOutOpsCheckSuggestions.StockOutHint Hint(

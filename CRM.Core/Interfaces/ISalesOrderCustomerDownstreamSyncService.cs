@@ -43,12 +43,13 @@ public class SalesOrderCustomerDownstreamSyncPreviewResult
     public int PackingsToSync { get; set; }
     public int PackingItemExtendsToSync { get; set; }
     public int StockOutsToSync { get; set; }
+    public int ReceivablesToSync { get; set; }
     public List<SalesOrderCustomerDownstreamSyncPreviewItem> SyncItems { get; set; } = new();
 }
 
 public class SalesOrderCustomerDownstreamSyncPreviewItem
 {
-    /// <summary>sellOrder | stockOutNotify | packing | packingItemExtend | stockOut</summary>
+    /// <summary>sellOrder | stockOutNotify | packing | packingItemExtend | stockOut | receivable</summary>
     public string Category { get; set; } = string.Empty;
     public string DocumentCode { get; set; } = string.Empty;
     public string? CustomerId { get; set; }

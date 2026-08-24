@@ -128,6 +128,13 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
             await _stockOutRepo.UpdateAsync(stockOut);
         }
 
+        foreach (var receivable in bundle.SyncReceivables)
+        {
+            receivable.CustomerId = targetCustomerId;
+            receivable.CustomerName = bundle.TargetCustomerName;
+            await _receivableRepo.UpdateAsync(receivable);
+        }
+
         if (bundle.PackingItemIdsForExtendSync.Count > 0)
         {
             foreach (var chunk in bundle.PackingItemIdsForExtendSync.Chunk(200))
@@ -152,7 +159,7 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
             await _unitOfWork.SaveChangesAsync();
 
         _logger.LogInformation(
-            "SO同步客户: SalesOrderId={SalesOrderId} Code={Code} CustomerId={CustomerId} HeaderName={HeaderName} Notifies={Notifies} Packings={Packings} Extends={Extends} StockOuts={StockOuts} Actor={Actor}",
+            "SO同步客户: SalesOrderId={SalesOrderId} Code={Code} CustomerId={CustomerId} HeaderName={HeaderName} Notifies={Notifies} Packings={Packings} Extends={Extends} StockOuts={StockOuts} Receivables={Receivables} Actor={Actor}",
             orderEntity.Id,
             orderEntity.SellOrderCode,
             targetCustomerId,
@@ -161,6 +168,7 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
             bundle.SyncPackings.Count,
             bundle.PackingItemIdsForExtendSync.Count,
             bundle.SyncStockOuts.Count,
+            bundle.SyncReceivables.Count,
             actingUserId ?? "(null)");
 
         return new SalesOrderCustomerDownstreamSyncApplyResult { Preview = preview, Applied = true };
@@ -188,7 +196,8 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
             StockOutNotifiesToSync = bundle.SyncNotifies.Count,
             PackingsToSync = bundle.SyncPackings.Count,
             PackingItemExtendsToSync = bundle.PackingItemIdsForExtendSync.Count,
-            StockOutsToSync = bundle.SyncStockOuts.Count
+            StockOutsToSync = bundle.SyncStockOuts.Count,
+            ReceivablesToSync = bundle.SyncReceivables.Count
         };
 
         if (!string.IsNullOrWhiteSpace(bundle.ProposedCustomerMissingReason))
@@ -217,7 +226,8 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
             || preview.StockOutNotifiesToSync > 0
             || preview.PackingsToSync > 0
             || preview.PackingItemExtendsToSync > 0
-            || preview.StockOutsToSync > 0;
+            || preview.StockOutsToSync > 0
+            || preview.ReceivablesToSync > 0;
 
         if (!hasWork)
         {
@@ -286,6 +296,19 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
                 DocumentCode = stockOut.StockOutCode,
                 CustomerId = stockOut.CustomerId?.Trim(),
                 IsMismatch = !CustomerIdsMatch(targetId, stockOut.CustomerId)
+            });
+        }
+
+        foreach (var receivable in bundle.SyncReceivables)
+        {
+            AddCustomerId(customerIds, receivable.CustomerId);
+            items.Add(new SalesOrderCustomerDownstreamSyncPreviewItem
+            {
+                Category = "receivable",
+                DocumentCode = receivable.ReceivableCode ?? receivable.Id,
+                CustomerId = receivable.CustomerId?.Trim(),
+                CustomerName = receivable.CustomerName?.Trim(),
+                IsMismatch = !CustomerIdsMatch(targetId, receivable.CustomerId)
             });
         }
 
@@ -418,6 +441,7 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
         bundle.SyncNotifies.Clear();
         bundle.SyncPackings.Clear();
         bundle.SyncStockOuts.Clear();
+        bundle.SyncReceivables.Clear();
         bundle.PackingItemIdsForExtendSync.Clear();
         bundle.BlockingDocuments.Clear();
 
@@ -505,7 +529,11 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
                     bundle.BlockingDocuments.Add(
                         $"应收 {receivable.ReceivableCode ?? receivable.Id} 已有核销记录");
                 }
+
+                continue;
             }
+
+            bundle.SyncReceivables.Add(receivable);
         }
 
         foreach (var invoice in bundle.SellInvoices)
@@ -700,6 +728,7 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
         public List<StockOutRequest> SyncNotifies { get; } = new();
         public List<Packing> SyncPackings { get; } = new();
         public List<StockOut> SyncStockOuts { get; } = new();
+        public List<FinanceReceivable> SyncReceivables { get; } = new();
         public List<string> PackingItemIdsForExtendSync { get; } = new();
         public List<string> BlockingDocuments { get; } = new();
     }

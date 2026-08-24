@@ -2517,7 +2517,8 @@ function buildCustomerSyncPreviewHtml(preview: SalesOrderCustomerDownstreamSyncP
     renderGroup('出库通知', 'stockOutNotify', preview.stockOutNotifiesToSync),
     renderGroup('装箱单', 'packing', preview.packingsToSync),
     renderGroup('装箱明细扩展', 'packingItemExtend', preview.packingItemExtendsToSync),
-    renderGroup('未完结出库单', 'stockOut', preview.stockOutsToSync)
+    renderGroup('未完结出库单', 'stockOut', preview.stockOutsToSync),
+    renderGroup('未核销应收', 'receivable', preview.receivablesToSync ?? 0)
   ].filter(Boolean)
 
   if (preview.blockingDocuments?.length) {
@@ -2602,7 +2603,7 @@ async function handleSyncDownstreamCustomer() {
     const headerPart =
       (p.sellOrderCustomerNameToSync ?? 0) > 0 ? '销售订单名称快照 1 张，' : ''
     await ElMessageBox.alert(
-      `已同步：${headerPart}出库通知 ${p.stockOutNotifiesToSync} 条，装箱单 ${p.packingsToSync} 张，装箱明细扩展 ${p.packingItemExtendsToSync} 行，出库单 ${p.stockOutsToSync} 张。`,
+      `已同步：${headerPart}出库通知 ${p.stockOutNotifiesToSync} 条，装箱单 ${p.packingsToSync} 张，装箱明细扩展 ${p.packingItemExtendsToSync} 行，出库单 ${p.stockOutsToSync} 张，未核销应收 ${p.receivablesToSync ?? 0} 条。`,
       '刷新客户完成',
       { confirmButtonText: '知道了' }
     )

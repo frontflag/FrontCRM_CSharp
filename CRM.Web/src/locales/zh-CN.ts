@@ -8622,7 +8622,7 @@ const zhCN = {
     refresh: '刷新',
     refreshing: '刷新中…',
     refreshConfirmTitle: '刷新确认',
-    refreshConfirm: '确认按有效出库事实刷新装箱单 {code} 的状态吗？（无有效出库时可从「出库完成」回退为「已备货」）',
+    refreshConfirm: '确认按有效出库事实刷新装箱单 {code} 的状态吗？（无有效出库时可从「出库完成」回退为「已备货」，并同步箱下出库通知状态）',
     refreshResultTitle: '刷新结果',
     refreshNoChange: '装箱状态无变化',
     refreshNoChangeStillHasStockOut:
@@ -8630,6 +8630,8 @@ const zhCN = {
     refreshNoChangeStillHasStockOutWithCodes:
       '仍存在未删除且状态为「准备出库/出库完成」的关联出库单：{codes}。装箱状态保持「出库完成」。请先强制删除后再刷新。（按箱出库单头表可能无销售行，需在出库列表用装箱单号筛选。）',
     refreshChanged: '状态已更新：{from} → {to}',
+    refreshNotifyMarked: '已同步 {count} 条出库通知为「已出库」',
+    refreshNotifyReverted: '已回退 {count} 条出库通知为「已装箱」',
     refreshFailed: '刷新失败，请稍后重试',
     refreshFailedTitle: '刷新失败',
     flowPanel: {

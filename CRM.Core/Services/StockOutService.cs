@@ -3746,10 +3746,24 @@ namespace CRM.Core.Services
                 "[SellLineStockOutSync] UpdateStatus header saved StockOutId={StockOutId} SaveChanges={Rows}",
                 stockOut.Id, saveHeader);
 
-            // 销售出库：进入或离开「已出库/已完成」时须刷新销售明细扩展（汇总仅含 2、4）；扩展变更需 SaveChanges 才落库（与入库链一致）
             const short stockOutCompleted = 2;
             const short stockOutFinished = 4;
             static bool IsOutboundDone(short s) => s == stockOutCompleted || s == stockOutFinished;
+
+            if (IsOutboundDone(status) || IsOutboundDone(previousStatus))
+            {
+                var packingIds = await ResolveLinkedPackingIdsForStockOutAsync(stockOut);
+                if (packingIds.Count > 0)
+                {
+                    await _packingStatusReconcile.ReconcileManyAsync(packingIds, actingUserId);
+                    _logger.LogInformation(
+                        "[SellLineStockOutSync] UpdateStatus packing notify reconciled StockOutId={StockOutId} PackingCount={Count}",
+                        stockOut.Id,
+                        packingIds.Count);
+                }
+            }
+
+            // 销售出库：进入或离开「已出库/已完成」时须刷新销售明细扩展（汇总仅含 2、4）；扩展变更需 SaveChanges 才落库（与入库链一致）
 
             if (!StockOutTypeCode.IsSalesStockOut(stockOut.StockOutType))
             {
@@ -4101,6 +4115,31 @@ namespace CRM.Core.Services
                 .OrderBy(si => si.ProductionDate ?? si.CreateTime)
                 .ThenBy(si => si.CreateTime)
                 .FirstOrDefault();
+        }
+
+        /// <summary>收集出库单关联的装箱单 Id（明细 packing_id + 按箱出库 SourceId）。</summary>
+        private async Task<List<string>> ResolveLinkedPackingIdsForStockOutAsync(StockOut stockOut)
+        {
+            var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var lineItems = await _stockOutItemRepository.FindAsync(x =>
+                !x.IsDeleted && x.StockOutId == stockOut.Id);
+            foreach (var pid in lineItems
+                         .Select(x => x.PackingId?.Trim())
+                         .Where(x => !string.IsNullOrEmpty(x))
+                         .Cast<string>())
+            {
+                ids.Add(pid);
+            }
+
+            var packingSourceId = stockOut.SourceId?.Trim();
+            if (!string.IsNullOrEmpty(packingSourceId))
+            {
+                var packingBySource = await _packingRepository.GetByIdAsync(packingSourceId);
+                if (packingBySource != null && !packingBySource.IsDeleted)
+                    ids.Add(packingBySource.Id.Trim());
+            }
+
+            return ids.ToList();
         }
 
         /// <summary>出库单头 <see cref="StockOut.StockOutType"/> 取自关联装箱单 <see cref="Packing.StockOutType"/>。</summary>

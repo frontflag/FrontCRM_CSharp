@@ -1101,7 +1101,8 @@ namespace CRM.Core.Services
 
         private static bool ShouldSyncOrderAndItemStatus(short status)
         {
-            return status is StatusNew or StatusPendingAudit or StatusApproved or StatusPendingConfirm or StatusConfirmed;
+            return status is StatusNew or StatusPendingAudit or StatusApproved or StatusPendingConfirm or StatusConfirmed
+                or StatusAuditFailed or StatusCancelled;
         }
 
         private async Task<PoItemExtendRefreshSnapshot?> BuildRefreshSnapshotAsync(string purchaseOrderItemId)

@@ -87,7 +87,7 @@ namespace CRM.API.Controllers
                 if (!InventoryOpsCheckAccessRules.CanAccess(summary))
                     return StatusCode(403, ApiResponse<StockOutOpsCheckResultDto>.Fail("仅系统管理员、平台管理员或财务总监可做出库运维检查", 403));
 
-                var result = await _opsCheck.RunAsync(cancellationToken);
+                var result = await _opsCheck.RunAsync(summary.IsSysAdmin, cancellationToken);
                 return Ok(ApiResponse<StockOutOpsCheckResultDto>.Ok(result, "ok"));
             }
             catch (Exception ex)
