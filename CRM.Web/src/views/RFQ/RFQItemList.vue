@@ -1034,7 +1034,9 @@ import {
 } from '@/utils/rfqItemListRestore'
 import { resolveRfqItemMaterialPn } from '@/utils/materialPn'
 import { useMaterialIntelLookupStore } from '@/stores/materialIntelLookup'
+import { useCustomerWorkspacePanelStore } from '@/stores/customerWorkspacePanel'
 import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
+import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
 import { useListBoardHelpOverride } from '@/composables/useHelpDocOverride'
 import { AI_PERMISSION_MATERIAL_INTEL_LOOKUP } from '@/api/ai'
 import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
@@ -1095,9 +1097,22 @@ const canOpenQuoteDesktop = computed(() => canAccessQuoteDesktop(authStore.user)
 const canEditRfq = computed(() => authStore.hasPermission('rfq.write'))
 const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const materialIntelLookupStore = useMaterialIntelLookupStore()
+const customerWorkspacePanelStore = useCustomerWorkspacePanelStore()
+customerWorkspacePanelStore.setSource('rfqItem')
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const vendorDict = useVendorDictStore()
+useListRightOpsPanelInteraction({
+  workspaceLayout,
+  isActiveRoute: () => route.name === 'RFQItemList',
+  hasSelectedRow: () => !!customerWorkspacePanelStore.boundId,
+  setRowOnly: row => customerWorkspacePanelStore.setRowOnly(row),
+  selectRow: row => customerWorkspacePanelStore.selectRow(row, t('customerWorkspace.loadFailed')),
+  loadSelected: () => {
+    void customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
+  },
+  dataTabIds: ['r-customer']
+})
 const {
   activeField: dockQuoteExtendActiveField,
   colWidth: dockQuoteExtendColWidth,
@@ -2142,6 +2157,7 @@ async function loadData() {
   await nextTick()
   await restoreTableSelectionFromBasket()
   resetListRightPanelOnReload(materialIntelLookupStore)
+  resetListRightPanelOnReload(customerWorkspacePanelStore)
 }
 
 function handleSearch() {
@@ -2377,6 +2393,15 @@ function onItemRowClick(row: RFQItem) {
   if (pn && authStore.hasPermission(AI_PERMISSION_MATERIAL_INTEL_LOOKUP)) {
     void materialIntelLookupStore.ensureLookup(pn, { triggerType: 'auto' })
   }
+
+  customerWorkspacePanelStore.setRowOnly({ id: row.id })
+  if (
+    workspaceLayout?.rightPanelVisible.value &&
+    workspaceLayout.rightActiveTabId.value === 'r-customer'
+  ) {
+    void customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
+  }
+
   if (workspaceLayout && !workspaceLayout.rightPanelVisible.value) {
     workspaceLayout.toggleRightPanel(true)
   }
@@ -2584,6 +2609,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   materialIntelLookupStore.clearBound()
+  customerWorkspacePanelStore.clear()
 })
 
 onUnmounted(() => {

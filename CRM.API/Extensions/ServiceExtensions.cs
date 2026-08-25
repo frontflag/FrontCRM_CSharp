@@ -44,6 +44,7 @@ namespace CRM.API.Extensions
             services.AddScoped<IApprovalPartyIntelWarmupService, ApprovalPartyIntelWarmupService>();
             services.AddScoped<IEntityLookupService, EntityLookupService>();
             services.AddScoped<IRFQService, RFQService>();
+            services.AddScoped<ICustomerWorkspaceService, CustomerWorkspaceService>();
             services.AddScoped<IRfqPurchaserRoundRobinCursorStore, RfqPurchaserRoundRobinCursorStore>();
             services.AddScoped<RfqPurchaserRoundRobinPicker>();
             services.AddScoped<IRfqPurchaserAssignStrategy, ItemRoundRobinPurchaserAssignStrategy>();

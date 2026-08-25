@@ -896,6 +896,7 @@ import { buildSalesOrderItemListColumns } from '@/composables/buildSalesOrderIte
 import { useSaleOrderWriteGate } from '@/composables/useDepartmentDataReadOnly'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
+import { useCustomerWorkspacePanelStore } from '@/stores/customerWorkspacePanel'
 import { useListBoardHelpOverride } from '@/composables/useHelpDocOverride'
 import {
   buildSoItemListRouteQuery,
@@ -912,6 +913,8 @@ const { t, locale } = useI18n()
 const authStore = useAuthStore()
 const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const salesOrderItemOpsStore = useSalesOrderItemOpsPanelStore()
+const customerWorkspacePanelStore = useCustomerWorkspacePanelStore()
+customerWorkspacePanelStore.setSource('sellOrderItem')
 
 const basketStore = useSalesOrderItemListBasketStore()
 const { count: basketCount, items: basketItems } = storeToRefs(basketStore)
@@ -1611,6 +1614,7 @@ async function loadList() {
   await nextTick()
   await restoreTableSelectionFromBasket()
   resetListRightPanelOnReload(salesOrderItemOpsStore)
+  resetListRightPanelOnReload(customerWorkspacePanelStore)
 }
 
 async function handleExport() {
@@ -1672,8 +1676,29 @@ const { onOpsPanelRowClick } = useListRightOpsPanelInteraction({
   dataTabIds: ['r-ops', 'r-flow']
 })
 
+function customerWorkspaceRow(row: Record<string, unknown>) {
+  return { id: String(row.sellOrderItemId ?? row.id ?? row.Id ?? '').trim() }
+}
+
+const { onOpsPanelRowClick: onCustomerPanelRowClick } = useListRightOpsPanelInteraction({
+  workspaceLayout,
+  isActiveRoute: () => route.name === 'SalesOrderItemList',
+  hasSelectedRow: () => !!customerWorkspacePanelStore.boundId,
+  setRowOnly: row => customerWorkspacePanelStore.setRowOnly(customerWorkspaceRow(row)),
+  selectRow: row =>
+    customerWorkspacePanelStore.selectRow(
+      customerWorkspaceRow(row),
+      t('customerWorkspace.loadFailed')
+    ),
+  loadSelected: () => {
+    void customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
+  },
+  dataTabIds: ['r-customer']
+})
+
 async function onRowClick(row: Record<string, unknown>) {
   await onOpsPanelRowClick(row)
+  await onCustomerPanelRowClick(row)
 }
 
 function opsPanelRowClassName({ row }: { row: Record<string, unknown> }) {
@@ -1697,6 +1722,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   salesOrderItemOpsStore.unregisterHandlers()
   salesOrderItemOpsStore.clear()
+  customerWorkspacePanelStore.clear()
 })
 
 function goEdit(row: any) {

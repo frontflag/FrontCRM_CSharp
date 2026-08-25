@@ -161,7 +161,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, inject, onMounted, onBeforeUnmount, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -175,11 +175,52 @@ import { STOCK_OUT_NOTIFY_CUSTOMS_STATUS } from '@/constants/stockOutNotifyCusto
 import { StockOutTypeCode } from '@/constants/stockOutType'
 import { formatDate as formatDateTimeZh } from '@/utils/date'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
+import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
+import { useCustomerWorkspacePanelStore } from '@/stores/customerWorkspacePanel'
 
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
+const notifyId = computed(() =>
+  typeof route.params.id === 'string' ? route.params.id.trim() : ''
+)
+const workspaceLayout = inject(WorkspaceLayoutKey, null)
+const customerWorkspacePanelStore = useCustomerWorkspacePanelStore()
+customerWorkspacePanelStore.setSource('stockOutRequest')
+useListRightOpsPanelInteraction({
+  workspaceLayout,
+  isActiveRoute: () => route.name === 'StockOutNotifyDetail',
+  hasSelectedRow: () => !!customerWorkspacePanelStore.boundId,
+  setRowOnly: () => {
+    if (notifyId.value) customerWorkspacePanelStore.bind('stockOutRequest', notifyId.value)
+  },
+  selectRow: async () => {
+    if (!notifyId.value) return
+    customerWorkspacePanelStore.bind('stockOutRequest', notifyId.value)
+    await customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
+  },
+  loadSelected: () => {
+    void customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
+  },
+  dataTabIds: ['r-customer']
+})
+
+function bindCustomerWorkspace() {
+  const id = notifyId.value
+  if (!id) {
+    customerWorkspacePanelStore.clear()
+    return
+  }
+  customerWorkspacePanelStore.bind('stockOutRequest', id)
+  if (
+    workspaceLayout?.rightPanelVisible.value &&
+    workspaceLayout.rightActiveTabId.value === 'r-customer'
+  ) {
+    void customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
+  }
+}
 
 const loading = ref(false)
 const loadError = ref('')
@@ -302,6 +343,7 @@ async function load() {
   if (!id) {
     loadError.value = t('stockOutNotifyList.notFound')
     request.value = null
+    customerWorkspacePanelStore.clear()
     return
   }
   loading.value = true
@@ -310,9 +352,15 @@ async function load() {
     const p = await stockOutApi.getRequestListPaged({ page: 1, pageSize: 2000 })
     request.value =
       p.items.find((x) => x.id === id || x.id?.toLowerCase?.() === id.toLowerCase()) ?? null
-    if (!request.value) loadError.value = t('stockOutNotifyList.notFound')
+    if (!request.value) {
+      loadError.value = t('stockOutNotifyList.notFound')
+      customerWorkspacePanelStore.clear()
+    } else {
+      bindCustomerWorkspace()
+    }
   } catch (e: unknown) {
     request.value = null
+    customerWorkspacePanelStore.clear()
     loadError.value = e instanceof Error ? e.message : String(e)
     ElMessage.error(loadError.value)
   } finally {
@@ -322,6 +370,10 @@ async function load() {
 
 onMounted(() => {
   void load()
+})
+
+onBeforeUnmount(() => {
+  customerWorkspacePanelStore.clear()
 })
 </script>
 

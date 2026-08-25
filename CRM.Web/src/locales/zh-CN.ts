@@ -797,6 +797,7 @@ const zhCN = {
       ops: '操作',
       flow: '流程',
       material: '物料',
+      customer: '客户',
       customerIntel: '调查',
       vendorIntel: '调查',
       help: '帮助',
@@ -808,6 +809,27 @@ const zhCN = {
     flowPanel: {
       youAreHere: '当前业务节点'
     }
+  },
+  customerWorkspace: {
+    pickRow: '请单击列表行查看客户',
+    noCustomer: '该单据未关联客户档案',
+    loadFailed: '加载客户信息失败',
+    overviewTitle: '客户概况',
+    basicTitle: '基本信息',
+    financeTitle: '财务信息',
+    customerCode: '客户编号',
+    chineseName: '客户中文名称',
+    englishName: '客户英文名称',
+    salesUser: '业务员',
+    customerType: '客户类型',
+    customerLevel: '客户等级',
+    industry: '行业',
+    region: '地区',
+    creditLimit: '信用额度',
+    paymentTerms: '账期',
+    settlementCurrency: '结算币别',
+    taxRate: '税率',
+    invoiceType: '发票类型'
   },
   leftPanel: {
     clear: '清空',
@@ -3190,6 +3212,27 @@ const zhCN = {
       noPn: '当前选中行暂无物料型号，无法查询。',
       pnLabel: '物料型号',
       retry: '重新查询'
+    },
+    customerPanel: {
+      pickRow: '请单击列表行查看客户',
+      noCustomer: '该单据未关联客户档案',
+      loadFailed: '加载客户信息失败',
+      overviewTitle: '客户概况',
+      basicTitle: '基本信息',
+      financeTitle: '财务信息',
+      customerCode: '客户编号',
+      chineseName: '客户中文名称',
+      englishName: '客户英文名称',
+      salesUser: '业务员',
+      customerType: '客户类型',
+      customerLevel: '客户等级',
+      industry: '行业',
+      region: '地区',
+      creditLimit: '信用额度',
+      paymentTerms: '账期',
+      settlementCurrency: '结算币别',
+      taxRate: '税率',
+      invoiceType: '发票类型'
     },
     confirmMarkNoQuote: {
       title: '标记查无报价',

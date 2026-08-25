@@ -487,8 +487,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject, nextTick, onMounted, reactive, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, inject, nextTick, onMounted, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowRight, Setting } from '@element-plus/icons-vue'
@@ -519,7 +519,9 @@ import { useAuthStore } from '@/stores/auth'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { useStockOutNotifyListBasketStore } from '@/stores/stockOutNotifyListBasket'
 import { useStockOutNotifyCustomsPanelStore } from '@/stores/stockOutNotifyCustomsPanel'
+import { useCustomerWorkspacePanelStore } from '@/stores/customerWorkspacePanel'
 import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
+import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
 import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
 import { STOCK_OUT_REQUEST_STATUS } from '@/constants/stockOutRequestStatus'
 import { STOCK_OUT_NOTIFY_CUSTOMS_STATUS } from '@/constants/stockOutNotifyCustomsStatus'
@@ -529,9 +531,25 @@ import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 
 const router = useRouter()
+const route = useRoute()
 const { t, locale } = useI18n()
 const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const stockOutNotifyCustomsPanelStore = useStockOutNotifyCustomsPanelStore()
+const customerWorkspacePanelStore = useCustomerWorkspacePanelStore()
+customerWorkspacePanelStore.setSource('stockOutRequest')
+const isNotifyListRoute = () =>
+  route.name === 'StockOutNotifyList' || route.name === 'InventoryStockOutNotifyList'
+const { onOpsPanelRowClick: onCustomerPanelRowClick } = useListRightOpsPanelInteraction({
+  workspaceLayout,
+  isActiveRoute: isNotifyListRoute,
+  hasSelectedRow: () => !!customerWorkspacePanelStore.boundId,
+  setRowOnly: row => customerWorkspacePanelStore.setRowOnly(row),
+  selectRow: row => customerWorkspacePanelStore.selectRow(row, t('customerWorkspace.loadFailed')),
+  loadSelected: () => {
+    void customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
+  },
+  dataTabIds: ['r-customer']
+})
 const { ensureLoaded: ensureLogisticsDict, shipmentArrivalOptions, expressOptions } = useLogisticsFormDict()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const authStore = useAuthStore()
@@ -764,6 +782,7 @@ function isCustomsNotify(row: StockOutRequestDto): boolean {
 }
 
 async function onRowClick(row: StockOutRequestDto) {
+  await onCustomerPanelRowClick(row as unknown as Record<string, unknown>)
   if (!isCustomsNotify(row)) {
     stockOutNotifyCustomsPanelStore.clear()
     return
@@ -832,6 +851,7 @@ async function runNotifyFetch(resetPage: boolean) {
     listTotal.value = reqPage.total
     await restoreTableSelectionFromBasket()
     resetListRightPanelOnReload(stockOutNotifyCustomsPanelStore)
+    resetListRightPanelOnReload(customerWorkspacePanelStore)
   } catch (e) {
     console.error(e)
     ElMessage.error(t('stockOutNotifyList.messages.loadFailed'))
@@ -1081,6 +1101,10 @@ const handleForceDeleteRow = async (row: StockOutRequestDto) => {
 onMounted(() => {
   void ensureLogisticsDict()
   void runNotifyFetch(true)
+})
+
+onBeforeUnmount(() => {
+  customerWorkspacePanelStore.clear()
 })
 </script>
 

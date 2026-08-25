@@ -610,6 +610,7 @@ import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
 import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
 import { useStockOutOpsPanelStore } from '@/stores/stockOutOpsPanel'
+import { useCustomerWorkspacePanelStore } from '@/stores/customerWorkspacePanel'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import CustomerExtendColumnHeader from '@/components/list/CustomerExtendColumnHeader.vue'
 import CustomerExtendCell from '@/components/list/CustomerExtendCell.vue'
@@ -641,6 +642,8 @@ const { t } = useI18n()
 const authStore = useAuthStore()
 const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const stockOutOpsStore = useStockOutOpsPanelStore()
+const customerWorkspacePanelStore = useCustomerWorkspacePanelStore()
+customerWorkspacePanelStore.setSource('stockOut')
 const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 const { ensureLoaded: ensureLogisticsDict, shipmentArrivalOptions, expressOptions } = useLogisticsFormDict()
 const canForceDelete = computed(() => authStore.canForceDelete())
@@ -1033,6 +1036,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   stockOutOpsStore.unregisterHandlers()
+  customerWorkspacePanelStore.clear()
 })
 
 const statusLabel = (s: number) => {
@@ -1061,6 +1065,7 @@ async function runStockOutListFetch(resetPage: boolean) {
   if (resetPage) {
     listPage.value = 1
     resetListRightPanelOnReload(stockOutOpsStore)
+    resetListRightPanelOnReload(customerWorkspacePanelStore)
   }
   loading.value = true
   try {
@@ -1151,8 +1156,22 @@ const { onOpsPanelRowClick } = useListRightOpsPanelInteraction({
   }
 })
 
+const { onOpsPanelRowClick: onCustomerPanelRowClick } = useListRightOpsPanelInteraction({
+  workspaceLayout,
+  isActiveRoute: () => route.name === 'StockOutList',
+  hasSelectedRow: () => !!customerWorkspacePanelStore.boundId,
+  setRowOnly: row => customerWorkspacePanelStore.setRowOnly(row),
+  selectRow: row => customerWorkspacePanelStore.selectRow(row, t('customerWorkspace.loadFailed')),
+  loadSelected: () => {
+    void customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
+  },
+  dataTabIds: ['r-customer']
+})
+
 async function onRowClick(row: StockOutDto) {
-  await onOpsPanelRowClick(row as unknown as Record<string, unknown>)
+  const rec = row as unknown as Record<string, unknown>
+  await onOpsPanelRowClick(rec)
+  await onCustomerPanelRowClick(rec)
 }
 
 function opsPanelRowClassName({ row }: { row: StockOutDto }) {

@@ -696,7 +696,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, inject, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
@@ -718,6 +718,9 @@ import StockOutCustomsSummaryPanel from '@/components/Customs/StockOutCustomsSum
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import { pickCrmCopyableRowField } from '@/utils/crmListCopyableField'
 import { useAuthStore } from '@/stores/auth'
+import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
+import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
+import { useCustomerWorkspacePanelStore } from '@/stores/customerWorkspacePanel'
 import type { SalesOrderItemLineRow } from '@/stores/salesOrderItemListBasket'
 import {
   formatTotalAmountNumber,
@@ -800,6 +803,41 @@ const stockOutId = computed(() => {
   if (Array.isArray(raw)) return String(raw[0] ?? '').trim()
   return String(raw ?? '').trim()
 })
+const workspaceLayout = inject(WorkspaceLayoutKey, null)
+const customerWorkspacePanelStore = useCustomerWorkspacePanelStore()
+customerWorkspacePanelStore.setSource('stockOut')
+useListRightOpsPanelInteraction({
+  workspaceLayout,
+  isActiveRoute: () => route.name === 'StockOutDetail',
+  hasSelectedRow: () => !!customerWorkspacePanelStore.boundId,
+  setRowOnly: () => {
+    if (stockOutId.value) customerWorkspacePanelStore.bind('stockOut', stockOutId.value)
+  },
+  selectRow: async () => {
+    if (!stockOutId.value) return
+    customerWorkspacePanelStore.bind('stockOut', stockOutId.value)
+    await customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
+  },
+  loadSelected: () => {
+    void customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
+  },
+  dataTabIds: ['r-customer']
+})
+
+function bindCustomerWorkspace() {
+  const id = stockOutId.value
+  if (!id) {
+    customerWorkspacePanelStore.clear()
+    return
+  }
+  customerWorkspacePanelStore.bind('stockOut', id)
+  if (
+    workspaceLayout?.rightPanelVisible.value &&
+    workspaceLayout.rightActiveTabId.value === 'r-customer'
+  ) {
+    void customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
+  }
+}
 
 const editForm = ref({
   stockOutDate: '' as string,
@@ -1077,6 +1115,7 @@ async function load() {
   const id = stockOutId.value
   if (!id) {
     loadError.value = t('stockOutDetail.notFound')
+    customerWorkspacePanelStore.clear()
     return
   }
   loading.value = true
@@ -1090,9 +1129,11 @@ async function load() {
       receivableRows.value = []
       sellOrderItemRows.value = []
       stockOutItems.value = []
+      customerWorkspacePanelStore.clear()
       return
     }
     detail.value = d
+    bindCustomerWorkspace()
     syncEditFromDetail(d)
     await loadItems()
     await loadSellOrderItem()
@@ -1102,6 +1143,7 @@ async function load() {
     loadError.value = t('stockOutDetail.loadFailed')
     sellOrderItemRows.value = []
     receivableRows.value = []
+    customerWorkspacePanelStore.clear()
   } finally {
     loading.value = false
   }
@@ -1146,6 +1188,10 @@ function goInvoiceReport() {
 }
 
 onMounted(() => void load())
+
+onBeforeUnmount(() => {
+  customerWorkspacePanelStore.clear()
+})
 </script>
 
 <style scoped lang="scss">

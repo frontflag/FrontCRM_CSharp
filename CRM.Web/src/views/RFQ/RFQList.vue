@@ -192,6 +192,7 @@
         :density-toggle-anchor-el="rowDensityToggleAnchorEl"
         :data="rfqList"
         highlight-current-row
+        @row-click="onRfqRowClick"
         @row-dblclick="onRfqRowDblClick"
       >
         <template #col-rfqCode="{ row }">
@@ -316,7 +317,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, inject, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
@@ -342,11 +343,29 @@ import TagListDisplay from '@/components/Tag/TagListDisplay.vue'
 import { tagApi, type TagDefinitionDto } from '@/api/tag'
 import { canUseRfqTagUi } from '@/utils/rfqTagAccess'
 import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick'
+import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
+import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
+import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
+import { useCustomerWorkspacePanelStore } from '@/stores/customerWorkspacePanel'
 
 const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
 const authStore = useAuthStore()
+const workspaceLayout = inject(WorkspaceLayoutKey, null)
+const customerWorkspacePanelStore = useCustomerWorkspacePanelStore()
+customerWorkspacePanelStore.setSource('rfq')
+const { onOpsPanelRowClick } = useListRightOpsPanelInteraction({
+  workspaceLayout,
+  isActiveRoute: () => route.name === 'RFQList',
+  hasSelectedRow: () => !!customerWorkspacePanelStore.boundId,
+  setRowOnly: row => customerWorkspacePanelStore.setRowOnly(row),
+  selectRow: row => customerWorkspacePanelStore.selectRow(row, t('customerWorkspace.loadFailed')),
+  loadSelected: () => {
+    void customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
+  },
+  dataTabIds: ['r-customer']
+})
 
 /** 新建需求 / Excel 导入（调用创建 API） */
 const canCreateNewRfq = computed(() => authStore.hasPermission('rfq.create'))
@@ -594,6 +613,7 @@ const loadData = async () => {
   } finally {
     loading.value = false
   }
+  resetListRightPanelOnReload(customerWorkspacePanelStore)
 }
 
 // 与左侧「检索」面板共用 URL 查询参数（keyword、status）
@@ -683,6 +703,10 @@ function goRecycleBin() {
   router.push({ name: 'RFQRecycleBin' })
 }
 
+function onRfqRowClick(row: Record<string, unknown>) {
+  void onOpsPanelRowClick(row)
+}
+
 /** 双击：详情；按住 Ctrl 双击：编辑（与行操作「编辑」同入口） */
 function onRfqRowDblClick(row: any, _column: unknown, event?: MouseEvent) {
   onCrmDetailListRowDblClick(row, _column, event, {
@@ -691,6 +715,10 @@ function onRfqRowDblClick(row: any, _column: unknown, event?: MouseEvent) {
     onDefault: handleView,
   })
 }
+
+onBeforeUnmount(() => {
+  customerWorkspacePanelStore.clear()
+})
 
 </script>
 

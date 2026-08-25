@@ -544,11 +544,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { computed, inject, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { storeToRefs } from 'pinia'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElLoading, ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowDown, ArrowRight, Setting } from '@element-plus/icons-vue'
@@ -592,17 +592,36 @@ import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMa
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { isPackingEligibleForStockOut, usePackingListBasketStore } from '@/stores/packingListBasket'
 import { usePackingDetailFlowPanelStore } from '@/stores/packingDetailFlowPanel'
+import { useCustomerWorkspacePanelStore } from '@/stores/customerWorkspacePanel'
+import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
+import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
+import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import StockOutBatchImportDialog from '@/components/Inventory/StockOutBatchImportDialog.vue'
 
 const router = useRouter()
-const authStore = useAuthStore()
-const canForceDelete = computed(() => authStore.canForceDelete())
+const route = useRoute()
 const { t, locale } = useI18n()
+const authStore = useAuthStore()
+const workspaceLayout = inject(WorkspaceLayoutKey, null)
+const packingFlowStore = usePackingDetailFlowPanelStore()
+const customerWorkspacePanelStore = useCustomerWorkspacePanelStore()
+customerWorkspacePanelStore.setSource('packing')
+const { onOpsPanelRowClick: onCustomerPanelRowClick } = useListRightOpsPanelInteraction({
+  workspaceLayout,
+  isActiveRoute: () => route.name === 'PackingList',
+  hasSelectedRow: () => !!customerWorkspacePanelStore.boundId,
+  setRowOnly: row => customerWorkspacePanelStore.setRowOnly(row),
+  selectRow: row => customerWorkspacePanelStore.selectRow(row, t('customerWorkspace.loadFailed')),
+  loadSelected: () => {
+    void customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
+  },
+  dataTabIds: ['r-customer']
+})
+const canForceDelete = computed(() => authStore.canForceDelete())
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 const { ensureLoaded: ensureLogisticsDict, shipmentArrivalOptions, expressOptions } = useLogisticsFormDict()
-const packingFlowStore = usePackingDetailFlowPanelStore()
 
 const loading = ref(false)
 const tabModeDimension = ref<PackingListTabModeDimension>(readPackingListTabMode())
@@ -848,6 +867,7 @@ async function fetchList(resetPage = true) {
   } finally {
     loading.value = false
   }
+  if (resetPage) resetListRightPanelOnReload(customerWorkspacePanelStore)
 }
 
 function handleSearch() {
@@ -1124,6 +1144,7 @@ function onRowClick(row: PackingListItem) {
   const id = resolvePackingId(row)
   if (!id) return
   void packingFlowStore.bindPackingFromList(id, t('packingList.flowPanel.loadFailed'))
+  void onCustomerPanelRowClick(row as unknown as Record<string, unknown>)
 }
 
 function onRowDblClick(row: PackingListItem) {
@@ -1344,6 +1365,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   packingFlowStore.clear()
+  customerWorkspacePanelStore.clear()
 })
 </script>
 

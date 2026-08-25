@@ -1609,6 +1609,10 @@
             v-show="showRfqItemMaterialPanel"
             class="aux-panel-tab-body"
           />
+          <CustomerWorkspacePanel
+            v-show="showCustomerWorkspacePanel"
+            class="aux-panel-tab-body"
+          />
           <CustomerIntelPanel
             v-show="showCustomerIntelPanel || showApprovalCustomerIntelPanel"
             class="aux-panel-tab-body"
@@ -1741,6 +1745,7 @@ import SalesOrderItemFlowPanel from '@/components/RFQ/SalesOrderItemFlowPanel.vu
 import PackingItemFlowPanel from '@/components/Inventory/PackingItemFlowPanel.vue'
 import PackingListFlowPanel from '@/components/Inventory/PackingListFlowPanel.vue'
 import RfqItemMaterialPanel from '@/components/RFQ/RfqItemMaterialPanel.vue'
+import CustomerWorkspacePanel from '@/components/Customer/CustomerWorkspacePanel.vue'
 import MailMailboxMenuPanel from '@/components/Mail/MailMailboxMenuPanel.vue'
 import MailInboxCardList from '@/components/Mail/MailInboxCardList.vue'
 import MailFunctionPanel from '@/components/Mail/MailFunctionPanel.vue'
@@ -1759,6 +1764,7 @@ import { useSalesOrderItemOpsPanelStore } from '@/stores/salesOrderItemOpsPanel'
 import { usePackingDetailFlowPanelStore } from '@/stores/packingDetailFlowPanel'
 import { useCustomsPendlistFlowPanelStore } from '@/stores/customsPendlistFlowPanel'
 import { useMaterialIntelLookupStore } from '@/stores/materialIntelLookup'
+import { useCustomerWorkspacePanelStore } from '@/stores/customerWorkspacePanel'
 import { useCustomerIntelLookupStore } from '@/stores/customerIntelLookup'
 import { useVendorIntelLookupStore } from '@/stores/vendorIntelLookup'
 import { usePurchaseOrderItemOpsPanelStore } from '@/stores/purchaseOrderItemOpsPanel'
@@ -1807,6 +1813,7 @@ const salesOrderItemOpsStore = useSalesOrderItemOpsPanelStore()
 const packingDetailFlowStore = usePackingDetailFlowPanelStore()
 const customsPendlistFlowStore = useCustomsPendlistFlowPanelStore()
 const materialIntelLookupStore = useMaterialIntelLookupStore()
+const customerWorkspacePanelStore = useCustomerWorkspacePanelStore()
 const customerIntelLookupStore = useCustomerIntelLookupStore()
 const vendorIntelLookupStore = useVendorIntelLookupStore()
 const purchaseOrderItemOpsStore = usePurchaseOrderItemOpsPanelStore()
@@ -2244,6 +2251,30 @@ const showRfqItemMaterialPanel = computed(
       route.name === 'QuoteEdit')
 )
 
+const showCustomerWorkspacePanel = computed(
+  () =>
+    rightActiveTabId.value === 'r-customer' &&
+    (isRfqItemListRoute.value ||
+      route.name === 'RFQList' ||
+      route.name === 'RFQDetail' ||
+      route.name === 'SalesOrderList' ||
+      route.name === 'SalesOrderItemList' ||
+      route.name === 'SalesOrderDetail' ||
+      route.name === 'StockOutNotifyList' ||
+      route.name === 'InventoryStockOutNotifyList' ||
+      route.name === 'StockOutNotifyDetail' ||
+      route.name === 'PackingList' ||
+      route.name === 'PackingDetail' ||
+      route.name === 'StockOutList' ||
+      route.name === 'StockOutDetail' ||
+      route.name === 'StockOutItemList' ||
+      route.name === 'PackingItemList' ||
+      route.name === 'FinanceReceiptList' ||
+      route.name === 'FinanceReceiptDetail' ||
+      route.name === 'FinanceSellInvoiceList' ||
+      route.name === 'FinanceReceivableList')
+)
+
 const isCustomerIntelRoute = computed(
   () => route.name === 'CustomerList' || route.name === 'CustomerDetail'
 )
@@ -2361,11 +2392,15 @@ function syncStockOutNotifyListRightTabs() {
   if (stockOutNotifyCustomsPanelStore.isCustomsSelection) {
     rightTabs.value = [
       { id: 'r-stock-out-customs', labelKey: 'stockOutNotifyList.auxTabs.customsDeclaration' },
+      { id: 'r-customer', labelKey: 'layout.auxTabs.customer' },
       { id: 'r4', labelKey: 'layout.auxTabs.help' }
     ]
     return
   }
-  rightTabs.value = [{ id: 'r4', labelKey: 'layout.auxTabs.help' }]
+  rightTabs.value = [
+    { id: 'r-customer', labelKey: 'layout.auxTabs.customer' },
+    { id: 'r4', labelKey: 'layout.auxTabs.help' }
+  ]
 }
 
 watch(
@@ -2527,10 +2562,30 @@ watch(
 
     leftTabs.value = DEFAULT_LEFT_AUX_TABS
 
+    if (name === 'SalesOrderList') {
+      rightTabs.value = [
+        { id: 'r-customer', labelKey: 'layout.auxTabs.customer' },
+        { id: 'r4', labelKey: 'layout.auxTabs.help' }
+      ]
+      salesOrderItemOpsStore.clear()
+      purchaseOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
+      customsDeclarationOpsStore.clear()
+      arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
+      materialIntelLookupStore.clearBound()
+      customerIntelLookupStore.clearBound()
+      vendorIntelLookupStore.clearBound()
+      customerWorkspacePanelStore.clear()
+      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r4' })
+      return
+    }
     if (name === 'SalesOrderItemList') {
       rightTabs.value = [
         { id: 'r-ops', labelKey: 'layout.auxTabs.ops' },
         { id: 'r-flow', labelKey: 'layout.auxTabs.flow' },
+        { id: 'r-customer', labelKey: 'layout.auxTabs.customer' },
         { id: 'r4', labelKey: 'layout.auxTabs.help' }
       ]
       purchaseOrderItemOpsStore.clear()
@@ -2540,6 +2595,7 @@ watch(
       qcOpsStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
+      customerWorkspacePanelStore.clear()
       restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-ops' })
       return
     }
@@ -2547,6 +2603,7 @@ watch(
       rightTabs.value = [
         { id: 'r-ops', labelKey: 'layout.auxTabs.ops' },
         { id: 'r-flow', labelKey: 'layout.auxTabs.flow' },
+        { id: 'r-customer', labelKey: 'layout.auxTabs.customer' },
         { id: 'r4', labelKey: 'layout.auxTabs.help' }
       ]
       purchaseOrderItemOpsStore.clear()
@@ -2556,6 +2613,7 @@ watch(
       qcOpsStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
+      customerWorkspacePanelStore.clear()
       restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-ops' })
       return
     }
@@ -2675,6 +2733,7 @@ watch(
     if (name === 'StockOutList') {
       rightTabs.value = [
         { id: 'r-ops', labelKey: 'layout.auxTabs.ops' },
+        { id: 'r-customer', labelKey: 'layout.auxTabs.customer' },
         { id: 'r4', labelKey: 'layout.auxTabs.help' }
       ]
       salesOrderItemOpsStore.clear()
@@ -2687,12 +2746,14 @@ watch(
       materialIntelLookupStore.clearBound()
       customerIntelLookupStore.clearBound()
       vendorIntelLookupStore.clearBound()
+      customerWorkspacePanelStore.clear()
       restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-ops' })
       return
     }
     if (name === 'RFQItemList') {
       rightTabs.value = [
         { id: 'r-material', labelKey: 'layout.auxTabs.material' },
+        { id: 'r-customer', labelKey: 'layout.auxTabs.customer' },
         { id: 'r4', labelKey: 'layout.auxTabs.help' }
       ]
       salesOrderItemOpsStore.clear()
@@ -2704,7 +2765,26 @@ watch(
       stockOutNotifyCustomsPanelStore.clear()
       customerIntelLookupStore.clearBound()
       vendorIntelLookupStore.clearBound()
+      customerWorkspacePanelStore.clear()
       restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-material' })
+      return
+    }
+    if (name === 'RFQList' || name === 'RFQDetail') {
+      rightTabs.value = [
+        { id: 'r-customer', labelKey: 'layout.auxTabs.customer' },
+        { id: 'r4', labelKey: 'layout.auxTabs.help' }
+      ]
+      salesOrderItemOpsStore.clear()
+      purchaseOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
+      customsDeclarationOpsStore.clear()
+      arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
+      customerIntelLookupStore.clearBound()
+      vendorIntelLookupStore.clearBound()
+      customerWorkspacePanelStore.clear()
+      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r4' })
       return
     }
     if (name === 'CustomerList' || name === 'CustomerDetail') {
@@ -2752,32 +2832,16 @@ watch(
       materialIntelLookupStore.clearBound()
       customerIntelLookupStore.clearBound()
       vendorIntelLookupStore.clearBound()
+      customerWorkspacePanelStore.clear()
       restoreAuxTabsForRoute(name, {
         left: 'l1',
         right: stockOutNotifyCustomsPanelStore.isCustomsSelection ? 'r-stock-out-customs' : 'r4'
       })
       return
     }
-    if (name === 'PackingDetail') {
+    if (name === 'StockOutNotifyDetail') {
       rightTabs.value = [
-        { id: 'r-flow', labelKey: 'layout.auxTabs.flow' },
-        { id: 'r4', labelKey: 'layout.auxTabs.help' }
-      ]
-      salesOrderItemOpsStore.clear()
-      purchaseOrderItemOpsStore.clear()
-      customsDeclarationOpsStore.clear()
-      arrivalNoticeOpsStore.clear()
-      qcOpsStore.clear()
-      stockOutNotifyCustomsPanelStore.clear()
-      materialIntelLookupStore.clearBound()
-      customerIntelLookupStore.clearBound()
-      vendorIntelLookupStore.clearBound()
-      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-flow' })
-      return
-    }
-    if (name === 'PackingList' || name === 'PackingItemList') {
-      rightTabs.value = [
-        { id: 'r-flow', labelKey: 'layout.auxTabs.flow' },
+        { id: 'r-customer', labelKey: 'layout.auxTabs.customer' },
         { id: 'r4', labelKey: 'layout.auxTabs.help' }
       ]
       salesOrderItemOpsStore.clear()
@@ -2790,6 +2854,123 @@ watch(
       materialIntelLookupStore.clearBound()
       customerIntelLookupStore.clearBound()
       vendorIntelLookupStore.clearBound()
+      customerWorkspacePanelStore.clear()
+      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r4' })
+      return
+    }
+    if (name === 'StockOutDetail') {
+      rightTabs.value = [
+        { id: 'r-customer', labelKey: 'layout.auxTabs.customer' },
+        { id: 'r4', labelKey: 'layout.auxTabs.help' }
+      ]
+      salesOrderItemOpsStore.clear()
+      purchaseOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
+      customsDeclarationOpsStore.clear()
+      arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
+      materialIntelLookupStore.clearBound()
+      customerIntelLookupStore.clearBound()
+      vendorIntelLookupStore.clearBound()
+      customerWorkspacePanelStore.clear()
+      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r4' })
+      return
+    }
+    if (name === 'StockOutItemList') {
+      rightTabs.value = [
+        { id: 'r-customer', labelKey: 'layout.auxTabs.customer' },
+        { id: 'r4', labelKey: 'layout.auxTabs.help' }
+      ]
+      salesOrderItemOpsStore.clear()
+      purchaseOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
+      customsDeclarationOpsStore.clear()
+      arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
+      materialIntelLookupStore.clearBound()
+      customerIntelLookupStore.clearBound()
+      vendorIntelLookupStore.clearBound()
+      customerWorkspacePanelStore.clear()
+      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r4' })
+      return
+    }
+    if (name === 'PackingDetail') {
+      rightTabs.value = [
+        { id: 'r-flow', labelKey: 'layout.auxTabs.flow' },
+        { id: 'r-customer', labelKey: 'layout.auxTabs.customer' },
+        { id: 'r4', labelKey: 'layout.auxTabs.help' }
+      ]
+      salesOrderItemOpsStore.clear()
+      purchaseOrderItemOpsStore.clear()
+      customsDeclarationOpsStore.clear()
+      arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
+      materialIntelLookupStore.clearBound()
+      customerIntelLookupStore.clearBound()
+      vendorIntelLookupStore.clearBound()
+      customerWorkspacePanelStore.clear()
+      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-flow' })
+      return
+    }
+    if (name === 'PackingList') {
+      rightTabs.value = [
+        { id: 'r-flow', labelKey: 'layout.auxTabs.flow' },
+        { id: 'r-customer', labelKey: 'layout.auxTabs.customer' },
+        { id: 'r4', labelKey: 'layout.auxTabs.help' }
+      ]
+      salesOrderItemOpsStore.clear()
+      purchaseOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
+      customsDeclarationOpsStore.clear()
+      arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
+      materialIntelLookupStore.clearBound()
+      customerIntelLookupStore.clearBound()
+      vendorIntelLookupStore.clearBound()
+      customerWorkspacePanelStore.clear()
+      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-flow' })
+      return
+    }
+    if (name === 'FinanceReceiptList' || name === 'FinanceReceiptDetail' || name === 'FinanceSellInvoiceList' || name === 'FinanceReceivableList') {
+      rightTabs.value = [
+        { id: 'r-customer', labelKey: 'layout.auxTabs.customer' },
+        { id: 'r4', labelKey: 'layout.auxTabs.help' }
+      ]
+      salesOrderItemOpsStore.clear()
+      purchaseOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
+      customsDeclarationOpsStore.clear()
+      arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
+      materialIntelLookupStore.clearBound()
+      customerIntelLookupStore.clearBound()
+      vendorIntelLookupStore.clearBound()
+      customerWorkspacePanelStore.clear()
+      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r4' })
+      return
+    }
+    if (name === 'PackingItemList') {
+      rightTabs.value = [
+        { id: 'r-flow', labelKey: 'layout.auxTabs.flow' },
+        { id: 'r-customer', labelKey: 'layout.auxTabs.customer' },
+        { id: 'r4', labelKey: 'layout.auxTabs.help' }
+      ]
+      salesOrderItemOpsStore.clear()
+      purchaseOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
+      customsDeclarationOpsStore.clear()
+      arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
+      materialIntelLookupStore.clearBound()
+      customerIntelLookupStore.clearBound()
+      vendorIntelLookupStore.clearBound()
+      customerWorkspacePanelStore.clear()
       restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-flow' })
       return
     }

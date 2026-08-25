@@ -1241,7 +1241,9 @@ import SellOrderItemPackingTabTable from '@/components/RFQ/SellOrderItemPackingT
 import SellOrderItemStockOutNotifyTabTable from '@/components/RFQ/SellOrderItemStockOutNotifyTabTable.vue'
 import SellOrderItemStockOutTabTable from '@/components/RFQ/SellOrderItemStockOutTabTable.vue'
 import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
+import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
 import { useSalesOrderItemOpsPanelStore } from '@/stores/salesOrderItemOpsPanel'
+import { useCustomerWorkspacePanelStore } from '@/stores/customerWorkspacePanel'
 
 const SalesOrderStockOutBatchPanel = defineAsyncComponent(
   () => import('@/components/Inventory/SalesOrderStockOutBatchPanel.vue')
@@ -1254,8 +1256,47 @@ const router = useRouter()
 const route = useRoute()
 const { t, locale } = useI18n()
 const authStore = useAuthStore()
+const orderId = computed(() => {
+  const raw = route.params.id
+  if (Array.isArray(raw)) return String(raw[0] ?? '').trim()
+  return String(raw ?? '').trim()
+})
 const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const salesOrderItemOpsStore = useSalesOrderItemOpsPanelStore()
+const customerWorkspacePanelStore = useCustomerWorkspacePanelStore()
+customerWorkspacePanelStore.setSource('sellOrder')
+useListRightOpsPanelInteraction({
+  workspaceLayout,
+  isActiveRoute: () => route.name === 'SalesOrderDetail',
+  hasSelectedRow: () => !!customerWorkspacePanelStore.boundId,
+  setRowOnly: () => {
+    if (orderId.value) customerWorkspacePanelStore.bind('sellOrder', orderId.value)
+  },
+  selectRow: async () => {
+    if (!orderId.value) return
+    customerWorkspacePanelStore.bind('sellOrder', orderId.value)
+    await customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
+  },
+  loadSelected: () => {
+    void customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
+  },
+  dataTabIds: ['r-customer']
+})
+
+function bindCustomerWorkspace() {
+  const id = orderId.value
+  if (!id) {
+    customerWorkspacePanelStore.clear()
+    return
+  }
+  customerWorkspacePanelStore.bind('sellOrder', id)
+  if (
+    workspaceLayout?.rightPanelVisible.value &&
+    workspaceLayout.rightActiveTabId.value === 'r-customer'
+  ) {
+    void customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
+  }
+}
 const { options: materialPdOptions, ensureLoaded: ensureMaterialPdDict } = useMaterialProductionDateDict()
 function fmtSoItemDateCode(row: { dateCode?: string; DateCode?: string } | null | undefined) {
   if (!row) return '—'
@@ -2068,12 +2109,6 @@ const tagDialogVisible = ref(false)
 
 const applyStockOutDialogRef = ref<InstanceType<typeof ApplyStockOutDialog> | null>(null)
 
-const orderId = computed(() => {
-  const raw = route.params.id
-  if (Array.isArray(raw)) return String(raw[0] ?? '').trim()
-  return String(raw ?? '').trim()
-})
-
 /** CaptionBar 头像缩写 */
 const captionAvatarChar = computed(() => {
   const code = order.value?.sellOrderCode?.trim()
@@ -2148,6 +2183,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   salesOrderItemOpsStore.unregisterHandlers()
+  customerWorkspacePanelStore.clear()
 })
 
 watch(orderId, () => {
@@ -2198,12 +2234,14 @@ const fetchOrder = async () => {
       order.value = null
       loadError.value = '链接中缺少订单编号'
       soFavorited.value = false
+      customerWorkspacePanelStore.clear()
       return
     }
     order.value = await salesOrderApi.getById(id)
     soDetailItemsOpColExpanded.value = false
     if (order.value) {
       loadError.value = ''
+      bindCustomerWorkspace()
       if (order.value.customerId && !maskSaleSensitiveFields.value) {
         try {
           const adv = await financeCustomerAdvanceApi.getBalance(order.value.customerId)
@@ -2241,10 +2279,12 @@ const fetchOrder = async () => {
     } else {
       soFavorited.value = false
       loadError.value = '未找到该销售订单'
+      customerWorkspacePanelStore.clear()
     }
   } catch (e) {
     order.value = null
     soFavorited.value = false
+    customerWorkspacePanelStore.clear()
     loadError.value = getApiErrorMessage(e, '加载失败，请稍后重试')
     ElMessage.error(loadError.value)
   } finally {

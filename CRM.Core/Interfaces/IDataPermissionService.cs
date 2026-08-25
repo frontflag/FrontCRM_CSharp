@@ -228,6 +228,7 @@ namespace CRM.Core.Interfaces
         /// <summary>物流数据范围「全部」：入库/出库/库存/到货/质检/装箱/拣货等物流板块不按销采范围收窄。</summary>
         Task<bool> IsLogisticsModuleUnrestrictedAsync(string? userId, CancellationToken cancellationToken = default);
         Task<bool> CanAccessFinanceReceiptAsync(string userId, FinanceReceipt receipt);
+        Task<bool> CanAccessFinanceReceivableAsync(string userId, FinanceReceivable receivable);
         Task<bool> CanAccessFinancePaymentAsync(string userId, FinancePayment payment);
         Task<bool> CanAccessFinanceSellInvoiceAsync(string userId, FinanceSellInvoice sellInvoice);
         Task<bool> CanAccessFinancePurchaseInvoiceAsync(string userId, FinancePurchaseInvoice purchaseInvoice);

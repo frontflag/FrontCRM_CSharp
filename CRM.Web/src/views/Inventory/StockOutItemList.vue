@@ -121,6 +121,7 @@
       row-key="stockOutItemId"
       :row-class-name="highlightRowClassName"
       @row-dblclick="onRowDblclick"
+      @row-click="onRowClick"
     >
       <el-table-column :label="t('stockOutItemList.columns.status')" width="100" align="center">
         <template #default="{ row }">
@@ -201,7 +202,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, inject, onMounted, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -211,12 +212,37 @@ import { stockOutApi, type StockOutItemListQuery, type StockOutItemListRow } fro
 import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
+import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
+import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
+import { useCustomerWorkspacePanelStore } from '@/stores/customerWorkspacePanel'
 
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 
 const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
+const workspaceLayout = inject(WorkspaceLayoutKey, null)
+const customerWorkspacePanelStore = useCustomerWorkspacePanelStore()
+customerWorkspacePanelStore.setSource('stockOutItem')
+const { onOpsPanelRowClick: onCustomerPanelRowClick } = useListRightOpsPanelInteraction({
+  workspaceLayout,
+  isActiveRoute: () => route.name === 'StockOutItemList',
+  hasSelectedRow: () => !!customerWorkspacePanelStore.boundId,
+  setRowOnly: row =>
+    customerWorkspacePanelStore.setRowOnly({
+      id: String(row.stockOutItemId ?? row.id ?? row.Id ?? '').trim()
+    }),
+  selectRow: row =>
+    customerWorkspacePanelStore.selectRow(
+      { id: String(row.stockOutItemId ?? row.id ?? row.Id ?? '').trim() },
+      t('customerWorkspace.loadFailed')
+    ),
+  loadSelected: () => {
+    void customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
+  },
+  dataTabIds: ['r-customer']
+})
 
 const highlightCode = computed(() => {
   const raw = route.query.highlight
@@ -307,6 +333,7 @@ async function runStockOutItemFetch(resetPage: boolean) {
   } finally {
     loading.value = false
   }
+  if (resetPage) resetListRightPanelOnReload(customerWorkspacePanelStore)
 }
 
 function onStockOutItemPageSizeChange() {
@@ -373,6 +400,10 @@ const statusLabel = (s: number) => {
   }
 }
 
+function onRowClick(row: StockOutItemListRow) {
+  void onCustomerPanelRowClick(row as unknown as Record<string, unknown>)
+}
+
 const onRowDblclick = (row: StockOutItemListRow) => {
   const id = (row.stockOutId || '').trim()
   if (!id) {
@@ -396,6 +427,10 @@ onMounted(async () => {
   }
   applyHighlightFilter()
   void fetchList()
+})
+
+onBeforeUnmount(() => {
+  customerWorkspacePanelStore.clear()
 })
 </script>
 

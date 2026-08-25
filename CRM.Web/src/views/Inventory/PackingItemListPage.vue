@@ -58,7 +58,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, inject, onBeforeUnmount } from 'vue'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import CrmDataTable from '@/components/CrmDataTable.vue'
@@ -67,10 +68,29 @@ import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { usePackingDetailFlowPanelStore } from '@/stores/packingDetailFlowPanel'
+import { useCustomerWorkspacePanelStore } from '@/stores/customerWorkspacePanel'
+import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
+import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
+import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
 
 const { t } = useI18n()
+const route = useRoute()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const packingFlowStore = usePackingDetailFlowPanelStore()
+const workspaceLayout = inject(WorkspaceLayoutKey, null)
+const customerWorkspacePanelStore = useCustomerWorkspacePanelStore()
+customerWorkspacePanelStore.setSource('packingItem')
+const { onOpsPanelRowClick: onCustomerPanelRowClick } = useListRightOpsPanelInteraction({
+  workspaceLayout,
+  isActiveRoute: () => route.name === 'PackingItemList',
+  hasSelectedRow: () => !!customerWorkspacePanelStore.boundId,
+  setRowOnly: row => customerWorkspacePanelStore.setRowOnly(row),
+  selectRow: row => customerWorkspacePanelStore.selectRow(row, t('customerWorkspace.loadFailed')),
+  loadSelected: () => {
+    void customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
+  },
+  dataTabIds: ['r-customer']
+})
 
 const loading = ref(false)
 const keyword = ref('')
@@ -115,6 +135,7 @@ async function fetchList(resetPage = true) {
   } finally {
     loading.value = false
   }
+  if (resetPage) resetListRightPanelOnReload(customerWorkspacePanelStore)
 }
 
 function onPageSizeChange() {
@@ -138,6 +159,7 @@ function onRowClick(row: PackingItemListRow) {
     t('packingItemList.flowPanel.loadFailed'),
     t('packingItemList.flowPanel.itemNotFound')
   )
+  void onCustomerPanelRowClick({ id: itemId })
 }
 
 function flowPanelRowClassName({ row }: { row: PackingItemListRow }) {
@@ -148,6 +170,10 @@ function flowPanelRowClassName({ row }: { row: PackingItemListRow }) {
 
 onMounted(() => {
   void fetchList(true)
+})
+
+onBeforeUnmount(() => {
+  customerWorkspacePanelStore.clear()
 })
 </script>
 

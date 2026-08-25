@@ -801,6 +801,7 @@ const enUS = {
       ops: 'Actions',
       flow: 'Flow',
       material: 'Material',
+      customer: 'Customer',
       customerIntel: 'Intel',
       vendorIntel: 'Intel',
       help: 'Help',
@@ -812,6 +813,27 @@ const enUS = {
     flowPanel: {
       youAreHere: 'Current business node'
     }
+  },
+  customerWorkspace: {
+    pickRow: 'Click a list row to view the customer',
+    noCustomer: 'This document has no customer record',
+    loadFailed: 'Failed to load customer',
+    overviewTitle: 'Customer overview',
+    basicTitle: 'Basic info',
+    financeTitle: 'Finance',
+    customerCode: 'Customer code',
+    chineseName: 'Chinese name',
+    englishName: 'English name',
+    salesUser: 'Sales rep',
+    customerType: 'Customer type',
+    customerLevel: 'Customer level',
+    industry: 'Industry',
+    region: 'Region',
+    creditLimit: 'Credit limit',
+    paymentTerms: 'Payment terms',
+    settlementCurrency: 'Settlement currency',
+    taxRate: 'Tax rate',
+    invoiceType: 'Invoice type'
   },
   leftPanel: {
     clear: 'Clear',
@@ -3216,6 +3238,27 @@ const enUS = {
       noPn: 'The selected line has no part number to look up.',
       pnLabel: 'MPN',
       retry: 'Retry lookup'
+    },
+    customerPanel: {
+      pickRow: 'Click a list row to view the customer',
+      noCustomer: 'This document has no customer record',
+      loadFailed: 'Failed to load customer',
+      overviewTitle: 'Customer overview',
+      basicTitle: 'Basic info',
+      financeTitle: 'Finance',
+      customerCode: 'Customer code',
+      chineseName: 'Chinese name',
+      englishName: 'English name',
+      salesUser: 'Sales rep',
+      customerType: 'Customer type',
+      customerLevel: 'Customer level',
+      industry: 'Industry',
+      region: 'Region',
+      creditLimit: 'Credit limit',
+      paymentTerms: 'Payment terms',
+      settlementCurrency: 'Settlement currency',
+      taxRate: 'Tax rate',
+      invoiceType: 'Invoice type'
     },
     confirmMarkNoQuote: {
       title: 'Mark No Quote Found',

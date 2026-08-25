@@ -192,6 +192,8 @@
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
       :data="tableData"
       v-loading="loading"
+      highlight-current-row
+      @row-click="onReceiptRowClick"
       @row-dblclick="openDetail"
       @header-dragend="onReceiptTableHeaderDragEnd"
       row-class-name="table-row-pointer"
@@ -546,7 +548,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, reactive, onMounted, watch } from 'vue'
+import { computed, ref, reactive, onMounted, onBeforeUnmount, watch, inject } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useFinanceEnumLabels } from '@/composables/useFinanceEnumLabels'
@@ -594,6 +596,10 @@ import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMa
 import { useAuthStore } from '@/stores/auth'
 import { useFinanceWriteGate } from '@/composables/useDepartmentDataReadOnly'
 import { fetchFreightForwarderCompanies, type FreightForwarderCompany } from '@/api/freightForwarderCompany'
+import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
+import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
+import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
+import { useCustomerWorkspacePanelStore } from '@/stores/customerWorkspacePanel'
 
 const router = useRouter()
 const route = useRoute()
@@ -617,6 +623,20 @@ function onReceiptTableHeaderDragEnd(
 }
 
 const { t } = useI18n()
+const workspaceLayout = inject(WorkspaceLayoutKey, null)
+const customerWorkspacePanelStore = useCustomerWorkspacePanelStore()
+customerWorkspacePanelStore.setSource('financeReceipt')
+const { onOpsPanelRowClick } = useListRightOpsPanelInteraction({
+  workspaceLayout,
+  isActiveRoute: () => route.name === 'FinanceReceiptList',
+  hasSelectedRow: () => !!customerWorkspacePanelStore.boundId,
+  setRowOnly: row => customerWorkspacePanelStore.setRowOnly(row),
+  selectRow: row => customerWorkspacePanelStore.selectRow(row, t('customerWorkspace.loadFailed')),
+  loadSelected: () => {
+    void customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
+  },
+  dataTabIds: ['r-customer']
+})
 const authStore = useAuthStore()
 const { canWriteFinanceReceipt } = useFinanceWriteGate()
 const canForceDelete = computed(() => authStore.canForceDelete())
@@ -892,6 +912,7 @@ const loadData = async () => {
     stats.receivedCount = tableData.value.filter(r => isFinanceReceiptConfirmed(r.status)).length
     stats.draftCount = tableData.value.filter(r => r.status === 4).length
   }
+  resetListRightPanelOnReload(customerWorkspacePanelStore)
 }
 
 async function handleExport() {
@@ -1158,6 +1179,10 @@ const openDetail = (row: FinanceReceipt) => {
   router.push({ name: 'FinanceReceiptDetail', params: { id: row.id } })
 }
 
+function onReceiptRowClick(row: Record<string, unknown>) {
+  void onOpsPanelRowClick(row)
+}
+
 const confirmReceipt = async (row: FinanceReceipt) => {
   await ElMessageBox.confirm(
     t('financeReceiptList.messages.confirmMsg', { code: row.financeReceiptCode }),
@@ -1263,6 +1288,10 @@ watch(
     void loadData()
   }
 )
+
+onBeforeUnmount(() => {
+  customerWorkspacePanelStore.clear()
+})
 </script>
 
 <style lang="scss" scoped>

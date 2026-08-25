@@ -123,6 +123,8 @@
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
       :data="tableData"
       v-loading="loading"
+      highlight-current-row
+      @row-click="onSellInvoiceRowClick"
       @row-dblclick="onSellInvoiceRowDblClick"
       row-class-name="table-row-pointer"
     >
@@ -389,8 +391,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, reactive, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, ref, reactive, onMounted, onBeforeUnmount, inject } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useFinanceEnumLabels } from '@/composables/useFinanceEnumLabels'
 import { Plus, Setting, ArrowRight } from '@element-plus/icons-vue'
@@ -421,10 +423,29 @@ import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useAuthStore } from '@/stores/auth'
 import { useFinanceWriteGate } from '@/composables/useDepartmentDataReadOnly'
+import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
+import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
+import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
+import { useCustomerWorkspacePanelStore } from '@/stores/customerWorkspacePanel'
 
 const router = useRouter()
+const route = useRoute()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const { t } = useI18n()
+const workspaceLayout = inject(WorkspaceLayoutKey, null)
+const customerWorkspacePanelStore = useCustomerWorkspacePanelStore()
+customerWorkspacePanelStore.setSource('financeSellInvoice')
+const { onOpsPanelRowClick } = useListRightOpsPanelInteraction({
+  workspaceLayout,
+  isActiveRoute: () => route.name === 'FinanceSellInvoiceList',
+  hasSelectedRow: () => !!customerWorkspacePanelStore.boundId,
+  setRowOnly: row => customerWorkspacePanelStore.setRowOnly(row),
+  selectRow: row => customerWorkspacePanelStore.selectRow(row, t('customerWorkspace.loadFailed')),
+  loadSelected: () => {
+    void customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
+  },
+  dataTabIds: ['r-customer']
+})
 const authStore = useAuthStore()
 const { canWriteFinanceSellInvoice } = useFinanceWriteGate()
 const canForceDelete = computed(() => authStore.canForceDelete())
@@ -607,6 +628,7 @@ const loadData = async () => {
     stats.toReceiveAmount = tableData.value.reduce((s, r) => s + r.receiveToBe, 0)
     stats.invoicedCount = tableData.value.filter(r => r.invoiceStatus === 100).length
   }
+  resetListRightPanelOnReload(customerWorkspacePanelStore)
 }
 
 async function handleExport() {
@@ -719,6 +741,10 @@ const openDetail = (row: FinanceSellInvoice) => {
   router.push({ name: 'FinanceSellInvoiceDetail', params: { id: row.id } })
 }
 
+function onSellInvoiceRowClick(row: Record<string, unknown>) {
+  void onOpsPanelRowClick(row)
+}
+
 function onSellInvoiceRowDblClick(row: FinanceSellInvoice, _column: unknown, event?: MouseEvent) {
   onCrmDetailListRowDblClick(row, _column, event, {
     canEdit: canWriteFinanceSellInvoice.value && row.invoiceStatus === 1,
@@ -801,6 +827,10 @@ const handleForceDeleteRow = async (row: FinanceSellInvoice) => {
 }
 
 onMounted(loadData)
+
+onBeforeUnmount(() => {
+  customerWorkspacePanelStore.clear()
+})
 
 function goWriteOffDesktop() {
   router.push({ name: 'SellInvoiceWriteOffDesktop' })

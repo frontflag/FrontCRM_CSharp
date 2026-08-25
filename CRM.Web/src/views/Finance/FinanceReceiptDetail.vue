@@ -381,7 +381,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, inject } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -393,11 +393,17 @@ import CrmDataTable from '@/components/CrmDataTable.vue'
 import DetailListPanelEmpty from '@/components/Common/DetailListPanelEmpty.vue'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
+import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
+import { useCustomerWorkspacePanelStore } from '@/stores/customerWorkspacePanel'
 
 const router = useRouter()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const route = useRoute()
 const { t } = useI18n()
+const workspaceLayout = inject(WorkspaceLayoutKey, null)
+const customerWorkspacePanelStore = useCustomerWorkspacePanelStore()
+customerWorkspacePanelStore.setSource('financeReceipt')
 const { receiptStatusLabel, receiptStatusTag, paymentModeLabel, verificationStatusLabel } = useFinanceEnumLabels()
 const { canWriteFinanceReceipt } = useFinanceWriteGate()
 
@@ -406,7 +412,40 @@ const detail = ref<FinanceReceipt | null>(null)
 const receiptDocs = ref<UploadDocumentDto[]>([])
 const writeOffRecords = ref<FinanceReceiptWriteOffRecord[]>([])
 
-const receiptId = computed(() => route.params.id as string)
+const receiptId = computed(() => String(route.params.id ?? '').trim())
+
+useListRightOpsPanelInteraction({
+  workspaceLayout,
+  isActiveRoute: () => route.name === 'FinanceReceiptDetail',
+  hasSelectedRow: () => !!customerWorkspacePanelStore.boundId,
+  setRowOnly: () => {
+    if (receiptId.value) customerWorkspacePanelStore.bind('financeReceipt', receiptId.value)
+  },
+  selectRow: async () => {
+    if (!receiptId.value) return
+    customerWorkspacePanelStore.bind('financeReceipt', receiptId.value)
+    await customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
+  },
+  loadSelected: () => {
+    void customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
+  },
+  dataTabIds: ['r-customer']
+})
+
+function bindCustomerWorkspace() {
+  const id = receiptId.value
+  if (!id) {
+    customerWorkspacePanelStore.clear()
+    return
+  }
+  customerWorkspacePanelStore.bind('financeReceipt', id)
+  if (
+    workspaceLayout?.rightPanelVisible.value &&
+    workspaceLayout.rightActiveTabId.value === 'r-customer'
+  ) {
+    void customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
+  }
+}
 
 const canConfirmDetail = computed(
   () => !!detail.value && canWriteFinanceReceipt.value && isFinanceReceiptNew(detail.value.status)
@@ -481,10 +520,12 @@ const fetchDetail = async () => {
   try {
     detail.value = await financeReceiptApi.getById(receiptId.value)
     await Promise.all([loadReceiptDocs(), loadWriteOffRecords()])
+    bindCustomerWorkspace()
   } catch {
     detail.value = null
     receiptDocs.value = []
     writeOffRecords.value = []
+    customerWorkspacePanelStore.clear()
   } finally {
     loading.value = false
   }
@@ -605,6 +646,10 @@ function formatWriteOffAmountDisplay(row: FinanceReceiptWriteOffRecord): string 
 function goBack() {
   router.push({ name: 'FinanceReceiptList' })
 }
+
+onBeforeUnmount(() => {
+  customerWorkspacePanelStore.clear()
+})
 </script>
 
 <style lang="scss" scoped>

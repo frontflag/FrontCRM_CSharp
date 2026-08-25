@@ -81,7 +81,9 @@
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
       :data="tableData"
       v-loading="loading"
+      highlight-current-row
       row-class-name="table-row-pointer"
+      @row-click="onReceivableRowClick"
       @row-dblclick="onRowDblClick"
       @header-dragend="onReceivableTableHeaderDragEnd"
     >
@@ -257,7 +259,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, computed, watch } from 'vue'
+import { reactive, ref, computed, watch, inject, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Search, Setting } from '@element-plus/icons-vue'
@@ -280,10 +282,28 @@ import {
   splitListMoneyParts,
 } from '@/utils/moneyFormat'
 import FinanceReceivableListBoard from './FinanceReceivableListBoard.vue'
+import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
+import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
+import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
+import { useCustomerWorkspacePanelStore } from '@/stores/customerWorkspacePanel'
 
 const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
+const workspaceLayout = inject(WorkspaceLayoutKey, null)
+const customerWorkspacePanelStore = useCustomerWorkspacePanelStore()
+customerWorkspacePanelStore.setSource('financeReceivable')
+const { onOpsPanelRowClick } = useListRightOpsPanelInteraction({
+  workspaceLayout,
+  isActiveRoute: () => route.name === 'FinanceReceivableList',
+  hasSelectedRow: () => !!customerWorkspacePanelStore.boundId,
+  setRowOnly: row => customerWorkspacePanelStore.setRowOnly(row),
+  selectRow: row => customerWorkspacePanelStore.selectRow(row, t('customerWorkspace.loadFailed')),
+  loadSelected: () => {
+    void customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
+  },
+  dataTabIds: ['r-customer']
+})
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const {
   expanded: customerExtendExpanded,
@@ -357,6 +377,7 @@ const boardFilters = computed<FinanceReceivableListAnalyticsQuery>(() => {
 function toggleViewMode() {
   viewMode.value = viewMode.value === 'list' ? 'board' : 'list'
   if (viewMode.value === 'list') void loadData()
+  else customerWorkspacePanelStore.clear()
 }
 
 function onStockOutDateChange(val: [string, string] | null) {
@@ -537,6 +558,7 @@ async function loadData() {
   } finally {
     loading.value = false
   }
+  if (viewMode.value === 'list') resetListRightPanelOnReload(customerWorkspacePanelStore)
 }
 
 async function handleExport() {
@@ -601,10 +623,18 @@ function openDetail(row: FinanceReceivable) {
   router.push({ name: 'FinanceReceivableDetail', params: { id: row.id } })
 }
 
+function onReceivableRowClick(row: Record<string, unknown>) {
+  void onOpsPanelRowClick(row)
+}
+
 /** 无独立编辑页：Ctrl+双击与双击均进详情（《列表交互规范》§3.2）。 */
 function onRowDblClick(row: FinanceReceivable) {
   openDetail(row)
 }
+
+onBeforeUnmount(() => {
+  customerWorkspacePanelStore.clear()
+})
 </script>
 
 <style scoped lang="scss">

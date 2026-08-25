@@ -55,6 +55,7 @@ declare module 'vue' {
     CustomerNameReadonlyText: typeof import('./src/components/Customer/CustomerNameReadonlyText.vue')['default']
     CustomerRecentHistoryPanel: typeof import('./src/components/Customer/CustomerRecentHistoryPanel.vue')['default']
     CustomerSearchPanel: typeof import('./src/components/Customer/CustomerSearchPanel.vue')['default']
+    CustomerWorkspacePanel: typeof import('./src/components/Customer/CustomerWorkspacePanel.vue')['default']
     CustomsDeclarationBusinessRecordsPanel: typeof import('./src/components/Customs/CustomsDeclarationBusinessRecordsPanel.vue')['default']
     CustomsDeclarationFeesPanel: typeof import('./src/components/Customs/CustomsDeclarationFeesPanel.vue')['default']
     CustomsDeclarationIconLink: typeof import('./src/components/Customs/CustomsDeclarationIconLink.vue')['default']

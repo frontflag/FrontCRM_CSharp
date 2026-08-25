@@ -1169,6 +1169,26 @@ namespace CRM.Core.Services
             return list.Where(x => !string.IsNullOrWhiteSpace(x.SalesUserId) && allowUserIds.Contains(x.SalesUserId!)).ToList();
         }
 
+        private async Task<IReadOnlyList<FinanceReceivable>> FilterFinanceReceivablesAsync(string userId, IEnumerable<FinanceReceivable> source)
+        {
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+            if (!summary.HasBizDataBypass && summary.FinanceDataScope == 4)
+                return Array.Empty<FinanceReceivable>();
+            if (!summary.HasBizDataBypass && summary.FinanceDataScope is >= 1 and <= 3)
+                return await FilterByFinanceCreatorAsync(userId, source, r => r.CreateByUserId, summary);
+
+            if (summary.HasBizDataBypass || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.SaleDataScope == 0)
+                return source.ToList();
+            if (summary.SaleDataScope == 4) return Array.Empty<FinanceReceivable>();
+
+            var list = source.ToList();
+            if (summary.SaleDataScope == 1)
+                return list.Where(x => x.SalesUserId == userId).ToList();
+
+            var allowUserIds = await GetAllowedUserIdsAsync(summary, includeChildren: summary.SaleDataScope == 3);
+            return list.Where(x => !string.IsNullOrWhiteSpace(x.SalesUserId) && allowUserIds.Contains(x.SalesUserId!)).ToList();
+        }
+
         public async Task<IReadOnlyList<FinancePayment>> FilterFinancePaymentsAsync(string userId, IEnumerable<FinancePayment> source)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
@@ -1556,6 +1576,12 @@ namespace CRM.Core.Services
         public async Task<bool> CanAccessFinanceReceiptAsync(string userId, FinanceReceipt receipt)
         {
             var filtered = await FilterFinanceReceiptsAsync(userId, new[] { receipt });
+            return filtered.Count > 0;
+        }
+
+        public async Task<bool> CanAccessFinanceReceivableAsync(string userId, FinanceReceivable receivable)
+        {
+            var filtered = await FilterFinanceReceivablesAsync(userId, new[] { receivable });
             return filtered.Count > 0;
         }
 

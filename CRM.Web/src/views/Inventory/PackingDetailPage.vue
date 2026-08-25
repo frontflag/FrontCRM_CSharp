@@ -484,7 +484,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, inject, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -516,6 +516,9 @@ import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import StockOutCustomsSummaryPanel from '@/components/Customs/StockOutCustomsSummaryPanel.vue'
 import PackingCascadeItemSummary from '@/components/Inventory/PackingCascadeItemSummary.vue'
 import { usePackingDetailFlowPanelStore } from '@/stores/packingDetailFlowPanel'
+import { useCustomerWorkspacePanelStore } from '@/stores/customerWorkspacePanel'
+import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
+import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
 
 const StockOutBatchPanel = defineAsyncComponent(
   () => import('@/components/Inventory/StockOutBatchPanel.vue')
@@ -529,6 +532,42 @@ const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 const { ensureLoaded: ensureLogisticsDict, shipmentArrivalOptions, expressOptions } = useLogisticsFormDict()
 const packingFlowStore = usePackingDetailFlowPanelStore()
+const packingId = computed(() => String(route.params.id || '').trim())
+const workspaceLayout = inject(WorkspaceLayoutKey, null)
+const customerWorkspacePanelStore = useCustomerWorkspacePanelStore()
+customerWorkspacePanelStore.setSource('packing')
+useListRightOpsPanelInteraction({
+  workspaceLayout,
+  isActiveRoute: () => route.name === 'PackingDetail',
+  hasSelectedRow: () => !!customerWorkspacePanelStore.boundId,
+  setRowOnly: () => {
+    if (packingId.value) customerWorkspacePanelStore.bind('packing', packingId.value)
+  },
+  selectRow: async () => {
+    if (!packingId.value) return
+    customerWorkspacePanelStore.bind('packing', packingId.value)
+    await customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
+  },
+  loadSelected: () => {
+    void customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
+  },
+  dataTabIds: ['r-customer']
+})
+
+function bindCustomerWorkspace() {
+  const id = packingId.value
+  if (!id) {
+    customerWorkspacePanelStore.clear()
+    return
+  }
+  customerWorkspacePanelStore.bind('packing', id)
+  if (
+    workspaceLayout?.rightPanelVisible.value &&
+    workspaceLayout.rightActiveTabId.value === 'r-customer'
+  ) {
+    void customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
+  }
+}
 
 const canRefreshPackingStatus = computed(
   () => authStore.user?.isSysAdmin === true || authStore.user?.isSysManager === true
@@ -765,18 +804,21 @@ async function loadDetail() {
   if (!id) {
     detail.value = null
     pickPage.value = null
+    customerWorkspacePanelStore.clear()
     return
   }
   loading.value = true
   pickPage.value = null
   try {
     detail.value = await packingApi.getById(id)
+    bindCustomerWorkspace()
     syncDefaultSelectedItem()
     await loadPickPage(id)
   } catch (e) {
     console.error(e)
     detail.value = null
     pickPage.value = null
+    customerWorkspacePanelStore.clear()
     ElMessage.error(e instanceof Error ? e.message : t('packingDetail.loadFailed'))
   } finally {
     loading.value = false
@@ -885,6 +927,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   packingFlowStore.clear()
+  customerWorkspacePanelStore.clear()
 })
 </script>
 

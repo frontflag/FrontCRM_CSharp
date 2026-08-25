@@ -779,7 +779,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, inject } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElNotification, ElMessageBox } from 'element-plus'
@@ -829,15 +829,53 @@ import {
 } from '@/utils/rfqTagAccess'
 import DetailListPanelEmpty from '@/components/Common/DetailListPanelEmpty.vue'
 import { rfqChangeLogObjectLabel } from '@/utils/businessLogLabels'
+import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
+import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
+import { useCustomerWorkspacePanelStore } from '@/stores/customerWorkspacePanel'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
 const { canWriteSaleData } = useDepartmentDataReadOnly()
+const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const isRecycleView = computed(() => String(route.query.from ?? '') === 'recycle')
+const rfqId = computed(() => String(route.params.id ?? '').trim())
+const customerWorkspacePanelStore = useCustomerWorkspacePanelStore()
+customerWorkspacePanelStore.setSource('rfq')
+useListRightOpsPanelInteraction({
+  workspaceLayout,
+  isActiveRoute: () => route.name === 'RFQDetail',
+  hasSelectedRow: () => !!customerWorkspacePanelStore.boundId,
+  setRowOnly: () => {
+    if (rfqId.value) customerWorkspacePanelStore.bind('rfq', rfqId.value)
+  },
+  selectRow: async () => {
+    if (!rfqId.value) return
+    customerWorkspacePanelStore.bind('rfq', rfqId.value)
+    await customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
+  },
+  loadSelected: () => {
+    void customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
+  },
+  dataTabIds: ['r-customer']
+})
+
+function bindCustomerWorkspace() {
+  const id = rfqId.value
+  if (!id || isRecycleView.value) {
+    customerWorkspacePanelStore.clear()
+    return
+  }
+  customerWorkspacePanelStore.bind('rfq', id)
+  if (
+    workspaceLayout?.rightPanelVisible.value &&
+    workspaceLayout.rightActiveTabId.value === 'r-customer'
+  ) {
+    void customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
+  }
+}
 const canMutateRfq = computed(() => canWriteSaleData.value && !isRecycleView.value)
-const rfqId = route.params.id as string
 const { options: materialPdOptions, ensureLoaded: ensureMaterialPdDict } = useMaterialProductionDateDict()
 const tagDialogVisible = ref(false)
 
@@ -995,10 +1033,10 @@ function resetChangeLogs() {
 }
 
 async function loadChangeLogs(opts?: { silent?: boolean }) {
-  if (!rfqId) return
+  if (!rfqId.value) return
   changeLogsLoading.value = true
   try {
-    fieldChangeLogs.value = (await rfqApi.getChangeLogs(rfqId)) ?? []
+    fieldChangeLogs.value = (await rfqApi.getChangeLogs(rfqId.value)) ?? []
     changeLogsLoaded.value = true
   } catch (e: unknown) {
     if (!opts?.silent) {
@@ -1260,7 +1298,7 @@ function goBack() {
 }
 function handleEdit() {
   if (isRecycleView.value) return
-  router.push(`/rfqs/${rfqId}/edit`)
+  router.push(`/rfqs/${rfqId.value}/edit`)
 }
 
 function onHeaderMoreCommand(cmd: string) {
@@ -1268,24 +1306,24 @@ function onHeaderMoreCommand(cmd: string) {
 }
 
 async function loadFavoriteState() {
-  if (!rfqId) return
+  if (!rfqId.value) return
   try {
-    rfqFavorited.value = await favoriteApi.checkFavorite(RFQ_FAVORITE_ENTITY_TYPE, rfqId)
+    rfqFavorited.value = await favoriteApi.checkFavorite(RFQ_FAVORITE_ENTITY_TYPE, rfqId.value)
   } catch {
     rfqFavorited.value = false
   }
 }
 
 async function toggleFavorite() {
-  if (!rfqId || favoriteLoading.value) return
+  if (!rfqId.value || favoriteLoading.value) return
   favoriteLoading.value = true
   try {
     if (rfqFavorited.value) {
-      await favoriteApi.removeFavorite(RFQ_FAVORITE_ENTITY_TYPE, rfqId)
+      await favoriteApi.removeFavorite(RFQ_FAVORITE_ENTITY_TYPE, rfqId.value)
       rfqFavorited.value = false
       ElNotification.success({ title: t('rfqDetail.toast.unfavoritedTitle'), message: t('rfqDetail.toast.unfavoritedMessage') })
     } else {
-      await favoriteApi.addFavorite({ entityType: RFQ_FAVORITE_ENTITY_TYPE, entityId: rfqId })
+      await favoriteApi.addFavorite({ entityType: RFQ_FAVORITE_ENTITY_TYPE, entityId: rfqId.value })
       rfqFavorited.value = true
       ElNotification.success({ title: t('rfqDetail.toast.favoritedTitle'), message: t('rfqDetail.toast.favoritedMessage') })
     }
@@ -1302,18 +1340,22 @@ async function loadRFQ() {
   resetChangeLogs()
   try {
     rfq.value = isRecycleView.value
-      ? await rfqApi.getRecycleRFQById(rfqId)
-      : await rfqApi.getRFQDetail(rfqId)
+      ? await rfqApi.getRecycleRFQById(rfqId.value)
+      : await rfqApi.getRFQDetail(rfqId.value)
     if (rfq.value && !isRecycleView.value) {
       recordRfqRecentView({
-        id: rfqId,
+        id: rfqId.value,
         rfqCode: rfq.value.rfqCode,
         customerName: rfq.value.customerName
       })
       void loadChangeLogs({ silent: true })
+      bindCustomerWorkspace()
+    } else {
+      customerWorkspacePanelStore.clear()
     }
     if (!isRecycleView.value) await loadFavoriteState()
   } catch {
+    customerWorkspacePanelStore.clear()
     ElNotification.error({ title: t('rfqDetail.toast.loadFailedTitle'), message: t('rfqDetail.toast.loadFailedMessage') })
   } finally {
     loading.value = false
@@ -1324,13 +1366,13 @@ async function loadItems() {
   itemsLoading.value = true
   try {
     if (isRecycleView.value) {
-      const data = rfq.value ?? (await rfqApi.getRecycleRFQById(rfqId))
+      const data = rfq.value ?? (await rfqApi.getRecycleRFQById(rfqId.value))
       rfqItems.value = (data?.items ?? []) as any[]
       quoteRecordCountByRfqItemId.value = {}
       deletedQuotesByItemId.value = {}
       return
     }
-    const res = await rfqApi.getRFQItemsWithBestQuote(rfqId)
+    const res = await rfqApi.getRFQItemsWithBestQuote(rfqId.value)
     rfqItems.value = res || []
     const ids = rfqItems.value
       .map((row) => resolveRfqItemRowId(row as Record<string, unknown>))
@@ -1346,7 +1388,7 @@ async function loadItems() {
       quoteRecordCountByRfqItemId.value = {}
     }
     try {
-      deletedQuotesByItemId.value = indexDeletedQuotesByItemId(await rfqApi.getDeletedQuotes(rfqId))
+      deletedQuotesByItemId.value = indexDeletedQuotesByItemId(await rfqApi.getDeletedQuotes(rfqId.value))
     } catch {
       deletedQuotesByItemId.value = {}
     }
@@ -1360,7 +1402,7 @@ async function loadItems() {
 }
 
 async function loadCloseRecords() {
-  try { const res = await rfqApi.getCloseRecords(rfqId); closeRecords.value = res || [] }
+  try { const res = await rfqApi.getCloseRecords(rfqId.value); closeRecords.value = res || [] }
   catch { closeRecords.value = [] }
 }
 
@@ -1378,7 +1420,7 @@ async function showAssignDialog(row?: { id?: string; lineNo?: number }, rowIndex
       : null
   assignForm.purchaserId = ''; assignForm.remark = ''; recommendedPurchaser.value = null
   try {
-    const recommended = await rfqApi.getRecommendedPurchasers(rfqId)
+    const recommended = await rfqApi.getRecommendedPurchasers(rfqId.value)
     const list = Array.isArray(recommended) ? recommended : recommended ? [recommended] : []
     recommendedPurchaser.value = list[0] ?? null
   } catch {
@@ -1398,7 +1440,7 @@ async function handleAssignConfirm() {
   }
   assignLoading.value = true
   try {
-    await rfqApi.assignPurchaser(rfqId, {
+    await rfqApi.assignPurchaser(rfqId.value, {
       purchaserId: assignForm.purchaserId,
       remark: assignForm.remark,
       ...(assignTargetItemId.value ? { rfqItemId: assignTargetItemId.value } : {})
@@ -1417,7 +1459,7 @@ async function handleCloseConfirm() {
   }
   closeLoading.value = true
   try {
-    await rfqApi.addCloseRecord(rfqId, { closeType: closeForm.closeType, closeReason: closeForm.reason })
+    await rfqApi.addCloseRecord(rfqId.value, { closeType: closeForm.closeType, closeReason: closeForm.reason })
     ElNotification.success({ title: t('rfqDetail.toast.actionSuccessTitle'), message: t('rfqDetail.toast.closedMessage') })
     closeDialogVisible.value = false; loadRFQ(); loadCloseRecords()
   } catch { ElNotification.error({ title: t('rfqDetail.toast.actionFailedTitle'), message: t('rfqDetail.toast.closeFailedMessage') }) }
@@ -1432,7 +1474,7 @@ async function handleDelete() {
       t('rfqDetail.deleteTitle'),
       { confirmButtonText: t('rfqDetail.confirmDelete'), cancelButtonText: t('common.cancel'), type: 'error' }
     )
-    await rfqApi.deleteRFQ(rfqId)
+    await rfqApi.deleteRFQ(rfqId.value)
     ElNotification.success({ title: t('rfqDetail.toast.deleteSuccessTitle'), message: t('rfqDetail.toast.deleteSuccessMessage') })
     router.push('/rfqlist')
   } catch { /* 取消 */ }
@@ -1442,12 +1484,12 @@ async function handleRestore() {
   if (!isRecycleView.value || !rfq.value || restoring.value) return
   try {
     await ElMessageBox.confirm(
-      t('rfqRecycle.restoreConfirm', { code: rfq.value.rfqCode || rfqId }),
+      t('rfqRecycle.restoreConfirm', { code: rfq.value.rfqCode || rfqId.value }),
       t('rfqRecycle.restoreTitle'),
       { type: 'info' }
     )
     restoring.value = true
-    await rfqApi.restoreRFQ(rfqId)
+    await rfqApi.restoreRFQ(rfqId.value)
     ElNotification.success({ title: t('rfqRecycle.restoreSuccessTitle'), message: t('rfqRecycle.restoreSuccessMessage') })
     router.push({ name: 'RFQRecycleBin' })
   } catch (e) {
@@ -1464,6 +1506,20 @@ onMounted(() => {
   loadRFQ()
   loadItems()
   if (!isRecycleView.value) loadCloseRecords()
+})
+
+watch(
+  () => rfqId.value,
+  (id, prev) => {
+    if (!id || id === prev) return
+    loadRFQ()
+    loadItems()
+    if (!isRecycleView.value) loadCloseRecords()
+  }
+)
+
+onBeforeUnmount(() => {
+  customerWorkspacePanelStore.clear()
 })
 </script>
 

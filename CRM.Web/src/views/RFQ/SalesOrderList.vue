@@ -129,6 +129,7 @@
         :data="orderList"
         row-key="id"
         highlight-current-row
+        @row-click="onSalesOrderRowClick"
         @row-dblclick="onSalesOrderRowDblClick"
         @current-change="onTableCurrentRowChange"
         @header-dragend="onSalesOrderTableHeaderDragEnd"
@@ -308,7 +309,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, inject, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -336,6 +337,10 @@ import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMa
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick'
 import { useListBoardHelpOverride } from '@/composables/useHelpDocOverride'
+import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
+import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
+import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
+import { useCustomerWorkspacePanelStore } from '@/stores/customerWorkspacePanel'
 import SalesOrderListBoard from './SalesOrderListBoard.vue'
 import type { SalesOrderListAnalyticsQuery } from '@/api/salesOrderAnalytics'
 import ProgressMultiSelectOption from '@/components/Common/ProgressMultiSelectOption.vue'
@@ -348,6 +353,20 @@ import {
 const router = useRouter()
 const route = useRoute()
 const { t, locale } = useI18n()
+const workspaceLayout = inject(WorkspaceLayoutKey, null)
+const customerWorkspacePanelStore = useCustomerWorkspacePanelStore()
+customerWorkspacePanelStore.setSource('sellOrder')
+const { onOpsPanelRowClick } = useListRightOpsPanelInteraction({
+  workspaceLayout,
+  isActiveRoute: () => route.name === 'SalesOrderList',
+  hasSelectedRow: () => !!customerWorkspacePanelStore.boundId,
+  setRowOnly: row => customerWorkspacePanelStore.setRowOnly(row),
+  selectRow: row => customerWorkspacePanelStore.selectRow(row, t('customerWorkspace.loadFailed')),
+  loadSelected: () => {
+    void customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
+  },
+  dataTabIds: ['r-customer']
+})
 
 const loading = ref(false)
 const viewMode = ref<'list' | 'board'>('list')
@@ -597,6 +616,7 @@ const loadData = async () => {
   } finally {
     loading.value = false
   }
+  resetListRightPanelOnReload(customerWorkspacePanelStore)
 }
 
 function syncFiltersFromRoute() {
@@ -684,6 +704,10 @@ const handleView = (row: any) => {
   router.push({ name: 'SalesOrderDetail', params: { id: row.id } })
 }
 
+function onSalesOrderRowClick(row: Record<string, unknown>) {
+  void onOpsPanelRowClick(row)
+}
+
 function onSalesOrderRowDblClick(row: { id?: string }, _column: unknown, event?: MouseEvent) {
   onCrmDetailListRowDblClick(row, _column, event, {
     canEdit: canWriteSaleData.value,
@@ -691,6 +715,10 @@ function onSalesOrderRowDblClick(row: { id?: string }, _column: unknown, event?:
     onDefault: handleView,
   })
 }
+
+onBeforeUnmount(() => {
+  customerWorkspacePanelStore.clear()
+})
 
 const handlePrintReport = (row: { id?: string; status?: number }) => {
   if (!row?.id) return
