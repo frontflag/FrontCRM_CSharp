@@ -25,6 +25,7 @@ internal static partial class RfqItemListFilter
             RfqItemListQuickFilterCodes.PendingQuote => q.Where(x => x.Item.Status == 0),
             RfqItemListQuickFilterCodes.NoQuote => q.Where(x => x.Item.Status == 5),
             RfqItemListQuickFilterCodes.MultiQuote => ApplyMultiQuote(db, q),
+            RfqItemListQuickFilterCodes.HasDeletedQuote => ApplyHasDeletedQuote(db, q),
             _ => q
         };
     }
@@ -51,4 +52,14 @@ internal static partial class RfqItemListFilter
         q.Where(x =>
             db.Quotes.AsNoTracking().Count(quote =>
                 quote.RFQItemId != null && quote.RFQItemId == x.Item.Id) >= 2);
+
+    /// <summary>与底部「已删报价」一致：存在至少一条软删报价挂在本明细。须 IgnoreQueryFilters，否则全局过滤器会排除已删单。</summary>
+    private static IQueryable<RfqItemListJoin> ApplyHasDeletedQuote(
+        ApplicationDbContext db,
+        IQueryable<RfqItemListJoin> q) =>
+        q.Where(x =>
+            db.Quotes.AsNoTracking().IgnoreQueryFilters().Any(quote =>
+                quote.IsDeleted
+                && quote.RFQItemId != null
+                && quote.RFQItemId == x.Item.Id));
 }

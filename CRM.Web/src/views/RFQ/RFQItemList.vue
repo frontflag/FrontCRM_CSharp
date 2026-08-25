@@ -617,6 +617,9 @@
               <template #col-vendorName="{ row }">
                 {{ dockQuoteVendorNamesDisplay(row as Record<string, unknown>) }}
               </template>
+              <template #col-vendorLevel="{ row }">
+                {{ dockQuoteVendorLevelsDisplay(row as Record<string, unknown>) }}
+              </template>
               <template #col-quoteQty="{ row }">
                 <div class="dock-quote-tiers">
                   <template v-if="dockQuoteLineItems(row as Record<string, unknown>).length">
@@ -779,10 +782,25 @@
                 </el-dropdown>
               </template>
             </CrmDataTable>
-          <div class="dock-deleted-quotes">
-            <div class="dock-deleted-quotes__title">{{ t('rfqItemList.dockQuotes.deletedTitle') }}</div>
+          <div v-if="deletedQuotesForItem.length" class="dock-deleted-quotes">
+            <button
+              type="button"
+              class="dock-deleted-quotes__toggle"
+              :aria-expanded="deletedQuotesExpanded"
+              @click="deletedQuotesExpanded = !deletedQuotesExpanded"
+            >
+              <el-icon
+                class="dock-deleted-quotes__chevron"
+                :class="{ 'is-expanded': deletedQuotesExpanded }"
+              >
+                <ArrowRight />
+              </el-icon>
+              <span class="dock-deleted-quotes__title">{{
+                t('rfqItemList.dockQuotes.deletedTitleWithCount', { count: deletedQuotesForItem.length })
+              }}</span>
+            </button>
             <el-table
-              v-if="deletedQuotesForItem.length"
+              v-show="deletedQuotesExpanded"
               :data="deletedQuotesForItem"
               size="small"
               stripe
@@ -791,24 +809,52 @@
               <el-table-column :label="t('rfqItemList.dockQuotes.quoteCode')" min-width="120" show-overflow-tooltip>
                 <template #default="{ row }">{{ row.quoteCode || '—' }}</template>
               </el-table-column>
-              <el-table-column :label="t('rfqItemList.dockQuotes.quoteCreatedAt')" width="168">
+              <el-table-column :label="t('rfqItemList.dockQuotes.mpn')" min-width="120" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.mpn || '—' }}</template>
+              </el-table-column>
+              <el-table-column :label="t('rfqItemList.dockQuotes.brand')" min-width="100" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.brand || '—' }}</template>
+              </el-table-column>
+              <el-table-column :label="t('rfqItemList.dockQuotes.productionDateDc')" width="120">
                 <template #default="{ row }">
-                  <template
-                    v-for="p in [formatDisplayDateTime2DigitYearParts(row.quoteCreatedAt)]"
-                    :key="row.quoteId + '-qc'"
-                  >
-                    <span v-if="p" class="crm-quote-create-time">
-                      <span class="crm-quote-create-time__ymd">{{ p.date }}</span>
-                      <span class="crm-quote-create-time__hm">{{ p.time }}</span>
-                    </span>
-                    <span v-else>—</span>
-                  </template>
+                  <div v-if="splitRfqDeletedQuoteAlignLines(row.dateCodeText).length" class="deleted-quote-stack">
+                    <div v-for="(line, idx) in splitRfqDeletedQuoteAlignLines(row.dateCodeText)" :key="idx">{{
+                      formatDockTierDateCode(line)
+                    }}</div>
+                  </div>
+                  <span v-else>—</span>
+                </template>
+              </el-table-column>
+              <el-table-column :label="t('rfqItemList.dockQuotes.leadTime')" min-width="100" show-overflow-tooltip>
+                <template #default="{ row }">
+                  <div v-if="splitRfqDeletedQuoteAlignLines(row.leadTimeText).length" class="deleted-quote-stack">
+                    <div v-for="(line, idx) in splitRfqDeletedQuoteAlignLines(row.leadTimeText)" :key="idx">{{
+                      formatDockTierLeadTime(line)
+                    }}</div>
+                  </div>
+                  <span v-else>—</span>
                 </template>
               </el-table-column>
               <el-table-column :label="t('rfqItemList.dockQuotes.deletedVendor')" min-width="120" show-overflow-tooltip>
                 <template #default="{ row }">{{
                   maskPurchaseSensitiveFields ? '—' : row.vendorName || '—'
                 }}</template>
+              </el-table-column>
+              <el-table-column :label="t('rfqItemList.dockQuotes.vendorLevel')" width="110" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.vendorLevel || '—' }}</template>
+              </el-table-column>
+              <el-table-column :label="t('rfqItemList.dockQuotes.quoteQty')" width="100" align="right">
+                <template #default="{ row }">
+                  <div
+                    v-if="splitRfqDeletedQuoteAlignLines(row.quantityText).length"
+                    class="deleted-quote-stack deleted-quote-stack--right"
+                  >
+                    <div v-for="(line, idx) in splitRfqDeletedQuoteAlignLines(row.quantityText)" :key="idx">{{
+                      formatDeletedQuoteQuantityLine(line)
+                    }}</div>
+                  </div>
+                  <span v-else>—</span>
+                </template>
               </el-table-column>
               <el-table-column :label="t('rfqItemList.dockQuotes.quotePrice')" min-width="100" align="right">
                 <template #default="{ row }">
@@ -834,6 +880,20 @@
               <el-table-column :label="t('rfqItemList.dockQuotes.quoter')" width="110" show-overflow-tooltip>
                 <template #default="{ row }">{{ row.purchaseUserName || '—' }}</template>
               </el-table-column>
+              <el-table-column :label="t('rfqItemList.dockQuotes.createDate')" width="168">
+                <template #default="{ row }">
+                  <template
+                    v-for="p in [formatDisplayDateTime2DigitYearParts(row.quoteCreatedAt)]"
+                    :key="row.quoteId + '-cd'"
+                  >
+                    <span v-if="p" class="crm-quote-create-time">
+                      <span class="crm-quote-create-time__ymd">{{ p.date }}</span>
+                      <span class="crm-quote-create-time__hm">{{ p.time }}</span>
+                    </span>
+                    <span v-else>—</span>
+                  </template>
+                </template>
+              </el-table-column>
               <el-table-column :label="t('rfqItemList.dockQuotes.deletedBy')" width="110" show-overflow-tooltip>
                 <template #default="{ row }">{{ row.deletedByUserName || '—' }}</template>
               </el-table-column>
@@ -852,7 +912,6 @@
                 </template>
               </el-table-column>
             </el-table>
-            <div v-else class="dock-deleted-quotes__empty">—</div>
           </div>
           </div>
         </template>
@@ -952,7 +1011,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { storeToRefs } from 'pinia'
-import { rfqApi, type RfqItemDeletedQuoteRow, splitRfqDeletedQuoteMultiline, formatRfqDeletedQuotePriceLine } from '@/api/rfq'
+import { rfqApi, type RfqItemDeletedQuoteRow, splitRfqDeletedQuoteMultiline, splitRfqDeletedQuoteAlignLines, formatRfqDeletedQuotePriceLine } from '@/api/rfq'
 import { quoteApi } from '@/api/quote'
 import { buildLinkAlertFieldsFromItem, fetchLinkedRfqItemRecord } from '@/utils/rfqLinkedItemSummary'
 import { assertQuotesSameCustomer } from '@/utils/quoteSalesOrderPrefill'
@@ -966,7 +1025,9 @@ import { productionDateDisplayLabel, useMaterialProductionDateDict } from '@/com
 import { useRfqItemListBasketStore } from '@/stores/rfqItemListBasket'
 import { canAccessQuoteDesktop, canQuoteRfqItem } from '@/utils/rfqItemQuoteAccessRules'
 import { copyQuoteSummaryToClipboard } from '@/utils/quoteSummaryCopy'
+import { quoteVendorNamesDisplay, quoteVendorLevelsDisplay } from '@/utils/quoteVendorDisplay'
 import { copyTextToClipboard } from '@/utils/clipboard'
+import { useVendorDictStore } from '@/stores/vendorDict'
 import {
   consumeRfqItemListRestoreState,
   saveRfqItemListRestoreState
@@ -1036,6 +1097,7 @@ const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const materialIntelLookupStore = useMaterialIntelLookupStore()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
+const vendorDict = useVendorDictStore()
 const {
   activeField: dockQuoteExtendActiveField,
   colWidth: dockQuoteExtendColWidth,
@@ -1427,6 +1489,14 @@ const dockQuoteTableColumns = computed((): CrmTableColumnDef[] => {
       resizable: true
     },
     {
+      key: 'vendorLevel',
+      label: t('rfqItemList.dockQuotes.vendorLevel'),
+      width: 110,
+      minWidth: 96,
+      showOverflowTooltip: true,
+      resizable: true
+    },
+    {
       key: 'quoteQty',
       label: t('rfqItemList.dockQuotes.quoteQty'),
       width: 100,
@@ -1709,6 +1779,9 @@ const dockQuoteTableExtraAttrs = computed(() =>
 const quotesForItem = ref<Record<string, unknown>[]>([])
 const quotesLoading = ref(false)
 const deletedQuotesForItem = ref<RfqItemDeletedQuoteRow[]>([])
+const deletedQuotesExpanded = ref(false)
+const expandDeletedQuotesAfterDelete = ref(false)
+let deletedQuotesBoundItemId = ''
 /** 正在预检并跳转生成销售订单的报价行 id（行内按钮 loading） */
 const dockRowSalesOrderQuoteId = ref<string | null>(null)
 
@@ -1799,15 +1872,12 @@ function dockQuoteBrandDisplay(quoteRow: Record<string, unknown>): string {
 
 /** 采购报价表：供应商名称（多供应商去重后顿号拼接） */
 function dockQuoteVendorNamesDisplay(quoteRow: Record<string, unknown>): string {
-  if (maskPurchaseSensitiveFields.value) return '—'
-  const items = dockQuoteItemsRaw(quoteRow)
-  const set = new Set<string>()
-  for (const o of items) {
-    const n = o.vendorName ?? o.VendorName
-    if (n != null && String(n).trim() !== '') set.add(String(n).trim())
-  }
-  if (set.size > 0) return [...set].join('、')
-  return '—'
+  return quoteVendorNamesDisplay(quoteRow, maskPurchaseSensitiveFields.value)
+}
+
+/** 采购报价表：供应商等级（现读 S/A/B/C，多供应商去重后顿号拼接） */
+function dockQuoteVendorLevelsDisplay(quoteRow: Record<string, unknown>): string {
+  return quoteVendorLevelsDisplay(quoteRow, (level) => vendorDict.levelLabel(level))
 }
 
 /** 报价单行：与后端 quoteitem / 前端阶梯行一致 */
@@ -1872,6 +1942,11 @@ function formatDockTierQuantity(q: number) {
   if (!Number.isFinite(q)) return '—'
   if (Math.abs(q - Math.round(q)) < 1e-9) return String(Math.round(q))
   return q.toLocaleString('zh-CN', { maximumFractionDigits: 4 })
+}
+
+function formatDeletedQuoteQuantityLine(line: string) {
+  const n = Number(String(line).replace(/,/g, ''))
+  return Number.isFinite(n) ? formatDockTierQuantity(n) : line.trim() || '—'
 }
 
 /** 明细目标价币别（与新建需求物料明细 priceCurrency 一致） */
@@ -2043,6 +2118,8 @@ async function loadData() {
         selectedRfqItem.value = null
         quotesForItem.value = []
         deletedQuotesForItem.value = []
+        deletedQuotesExpanded.value = false
+        deletedQuotesBoundItemId = ''
         dockLinkAlert.value = null
       }
     }
@@ -2054,6 +2131,8 @@ async function loadData() {
     selectedRfqItem.value = null
     quotesForItem.value = []
     deletedQuotesForItem.value = []
+    deletedQuotesExpanded.value = false
+    deletedQuotesBoundItemId = ''
     dockLinkAlert.value = null
     const msg = e instanceof Error ? e.message : t('rfqItemList.loadFailed')
     ElMessage.error(msg)
@@ -2235,9 +2314,14 @@ function dockQuotePurchaseUserDisplay(row: Record<string, unknown>) {
 }
 
 async function loadQuotesForRfqItem(item: RFQItem | null) {
+  const itemId = item?.id ?? ''
+  const itemChanged = itemId !== deletedQuotesBoundItemId
+  deletedQuotesBoundItemId = itemId
   if (!item?.id) {
     quotesForItem.value = []
     deletedQuotesForItem.value = []
+    deletedQuotesExpanded.value = false
+    expandDeletedQuotesAfterDelete.value = false
     return
   }
   quotesLoading.value = true
@@ -2248,9 +2332,17 @@ async function loadQuotesForRfqItem(item: RFQItem | null) {
     ])
     quotesForItem.value = (res.data || []) as Record<string, unknown>[]
     deletedQuotesForItem.value = deleted
+    if (expandDeletedQuotesAfterDelete.value) {
+      deletedQuotesExpanded.value = deleted.length > 0
+      expandDeletedQuotesAfterDelete.value = false
+    } else if (itemChanged) {
+      deletedQuotesExpanded.value = false
+    }
   } catch {
     quotesForItem.value = []
     deletedQuotesForItem.value = []
+    deletedQuotesExpanded.value = false
+    expandDeletedQuotesAfterDelete.value = false
   } finally {
     quotesLoading.value = false
   }
@@ -2420,6 +2512,7 @@ async function handleDeleteDockQuote(row: Record<string, unknown>) {
     await quoteApi.delete(rid)
     quoteListBasketStore.remove(rid)
     ElMessage.success(t('quoteDetail.deleteSuccess'))
+    expandDeletedQuotesAfterDelete.value = true
     await loadData()
   } catch (e: unknown) {
     ElMessage.error(e instanceof Error ? e.message : t('quoteList.loadFailed'))
@@ -2472,6 +2565,7 @@ async function handleDockRowGenerateSalesOrder(row: Record<string, unknown>) {
 
 onMounted(async () => {
   void ensureMaterialPdDict()
+  void vendorDict.ensureLoaded()
   try {
     salesUsers.value = await authApi.getSalesUsersForSelect()
   } catch {
@@ -2938,16 +3032,31 @@ html[data-theme='dark'] .rfq-filter-tabs__item:not(.is-active) {
   border-top: 1px solid var(--crm-border-panel, #e2e8f0);
 }
 
+.dock-deleted-quotes__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 0 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: var(--crm-text-primary, #1a2332);
+}
+
+.dock-deleted-quotes__chevron {
+  font-size: 12px;
+  color: var(--crm-text-muted, #64748b);
+  transition: transform 0.15s ease;
+}
+
+.dock-deleted-quotes__chevron.is-expanded {
+  transform: rotate(90deg);
+}
+
 .dock-deleted-quotes__title {
   font-size: 12px;
   font-weight: 600;
-  color: var(--crm-text-primary, #1a2332);
-  margin-bottom: 6px;
-}
-
-.dock-deleted-quotes__empty {
-  font-size: 13px;
-  color: $text-muted;
 }
 
 .dock-deleted-quotes__table {

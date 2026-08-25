@@ -65,10 +65,14 @@ SELECT q.""QuoteId"" AS ""QuoteId"",
        q.quote_code AS ""QuoteCode"",
        q.rfq_item_id AS ""RfqItemId"",
        COALESCE(i.line_no, 0) AS ""LineNo"",
-       COALESCE(NULLIF(TRIM(i.mpn), ''), NULLIF(TRIM(q.mpn), '')) AS ""Mpn"",
-       i.brand AS ""Brand"",
+       COALESCE(NULLIF(TRIM(qi_agg.mpn), ''), NULLIF(TRIM(i.mpn), ''), NULLIF(TRIM(q.mpn), '')) AS ""Mpn"",
+       COALESCE(NULLIF(TRIM(qi_agg.brand), ''), NULLIF(TRIM(i.brand), '')) AS ""Brand"",
+       qi_agg.date_code_text AS ""DateCodeText"",
+       qi_agg.lead_time_text AS ""LeadTimeText"",
+       qi_agg.quantity_text AS ""QuantityText"",
        q.""CreateTime"" AS ""QuoteCreatedAt"",
        qi_agg.vendor_name AS ""VendorName"",
+       qi_agg.vendor_level AS ""VendorLevel"",
        qi_agg.unit_price_text AS ""UnitPriceText"",
        qi_agg.currency_text AS ""CurrencyText"",
        COALESCE(NULLIF(TRIM(pu.""UserName""), ''), NULLIF(TRIM(cu.""UserName""), ''), '') AS ""PurchaseUserName"",
@@ -81,7 +85,28 @@ LEFT JOIN ""user"" pu ON pu.""UserId"" = q.purchase_user_id
 LEFT JOIN ""user"" cu ON cu.""UserId"" = q.create_by_user_id
 LEFT JOIN LATERAL (
     SELECT
+      string_agg(DISTINCT NULLIF(TRIM(qi.mpn), ''), '、') AS mpn,
+      string_agg(DISTINCT NULLIF(TRIM(qi.brand), ''), '、') AS brand,
+      string_agg(
+        COALESCE(NULLIF(TRIM(qi.date_code), ''), ''),
+        chr(10) ORDER BY qi.""CreateTime"", qi.""QuoteItemId""
+      ) AS date_code_text,
+      string_agg(
+        COALESCE(NULLIF(TRIM(qi.lead_time), ''), ''),
+        chr(10) ORDER BY qi.""CreateTime"", qi.""QuoteItemId""
+      ) AS lead_time_text,
+      string_agg(
+        to_char(qi.quantity, 'FM9999999990.9999'),
+        chr(10) ORDER BY qi.""CreateTime"", qi.""QuoteItemId""
+      ) AS quantity_text,
       string_agg(DISTINCT NULLIF(TRIM(qi.vendor_name), ''), '、') AS vendor_name,
+      string_agg(DISTINCT CASE v.""Level""
+        WHEN 1 THEN 'S'
+        WHEN 2 THEN 'A'
+        WHEN 3 THEN 'B'
+        WHEN 4 THEN 'C'
+        ELSE NULL
+      END, '、') AS vendor_level,
       string_agg(
         to_char(ROUND(qi.unit_price, 4), 'FM9999999990.0000'),
         chr(10) ORDER BY qi.""CreateTime"", qi.""QuoteItemId""
@@ -98,6 +123,7 @@ LEFT JOIN LATERAL (
         chr(10) ORDER BY qi.""CreateTime"", qi.""QuoteItemId""
       ) AS currency_text
     FROM quoteitem qi
+    LEFT JOIN vendorinfo v ON v.""VendorId"" = qi.vendor_id
     WHERE qi.quote_id = q.""QuoteId""
 ) qi_agg ON true
 LEFT JOIN LATERAL (

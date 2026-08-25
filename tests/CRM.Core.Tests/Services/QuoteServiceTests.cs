@@ -4,6 +4,7 @@ using CRM.Core.Models;
 using CRM.Core.Models.Customer;
 using CRM.Core.Models.Quote;
 using CRM.Core.Models.RFQ;
+using CRM.Core.Models.Vendor;
 using CRM.Core.Services;
 using System.Linq.Expressions;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -25,6 +26,7 @@ namespace CRM.Core.Tests.Services
         private readonly ISerialNumberService _serialNumberService;
         private readonly IUserService _userService;
         private readonly IRepository<CustomerInfo> _customerRepository;
+        private readonly IRepository<VendorInfo> _vendorRepository;
         private readonly IQuoteListQuery _quoteListQuery;
         private readonly ILogOperationAppendService _logOperationAppend;
         private readonly QuoteService _quoteService;
@@ -48,6 +50,9 @@ namespace CRM.Core.Tests.Services
             _customerRepository = Substitute.For<IRepository<CustomerInfo>>();
             _customerRepository.FindAsync(Arg.Any<Expression<Func<CustomerInfo, bool>>>())
                 .Returns(Task.FromResult<IEnumerable<CustomerInfo>>(Array.Empty<CustomerInfo>()));
+            _vendorRepository = Substitute.For<IRepository<VendorInfo>>();
+            _vendorRepository.FindAsync(Arg.Any<Expression<Func<VendorInfo, bool>>>())
+                .Returns(Task.FromResult<IEnumerable<VendorInfo>>(Array.Empty<VendorInfo>()));
             _serialNumberService.GenerateNextAsync(ModuleCodes.Quotation).Returns("QT2603240001");
             _quoteListQuery = Substitute.For<IQuoteListQuery>();
             _quoteListQuery.GetPagedAsync(Arg.Any<QuoteQueryRequest>(), default)
@@ -81,6 +86,7 @@ namespace CRM.Core.Tests.Services
                 _rfqItemRepository,
                 _rfqRepository,
                 _customerRepository,
+                _vendorRepository,
                 _unitOfWork,
                 _serialNumberService,
                 _userService,
@@ -318,6 +324,35 @@ namespace CRM.Core.Tests.Services
             var row = Assert.Single(page.Items);
             Assert.Equal("Alina", row.PurchaseUserName);
             Assert.Equal("Janetta", row.SalesUserName);
+        }
+
+        [Fact]
+        public async Task GetPagedAsync_ShouldHydrateVendorLevel_FromVendorInfo()
+        {
+            var quote = new Quote { Id = "QT-1", QuoteCode = "QT1" };
+            _quoteListQuery.GetPagedAsync(Arg.Any<QuoteQueryRequest>(), default)
+                .Returns(new PagedResult<Quote>
+                {
+                    Items = new[] { quote },
+                    TotalCount = 1,
+                    PageIndex = 1,
+                    PageSize = 20
+                });
+            _quoteItemRepository.FindAsync(Arg.Any<Expression<Func<QuoteItem, bool>>>())
+                .Returns(Task.FromResult<IEnumerable<QuoteItem>>(new[]
+                {
+                    new QuoteItem { Id = "QI-1", QuoteId = "QT-1", VendorId = "V-1", VendorName = "Digikey" }
+                }));
+            _vendorRepository.FindAsync(Arg.Any<Expression<Func<VendorInfo, bool>>>())
+                .Returns(Task.FromResult<IEnumerable<VendorInfo>>(new[]
+                {
+                    new VendorInfo { Id = "V-1", Code = "V1", Level = 1 }
+                }));
+
+            var page = await _quoteService.GetPagedAsync(new QuoteQueryRequest { Page = 1, PageSize = 20 });
+
+            var line = Assert.Single(Assert.Single(page.Items).Items);
+            Assert.Equal((short)1, line.VendorLevel);
         }
 
         [Fact]

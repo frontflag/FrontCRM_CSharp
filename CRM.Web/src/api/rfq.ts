@@ -47,8 +47,12 @@ export type RfqItemDeletedQuoteRow = {
   lineNo: number
   mpn: string
   brand: string
+  dateCodeText: string
+  leadTimeText: string
+  quantityText: string
   quoteCreatedAt: string | null
   vendorName: string
+  vendorLevel: string
   unitPriceText: string
   currencyText: string
   purchaseUserName: string
@@ -76,12 +80,16 @@ export function normalizeRfqItemDeletedQuoteRows(raw: unknown): RfqItemDeletedQu
       lineNo: num(o.lineNo, o.LineNo),
       mpn: str(o.mpn, o.Mpn),
       brand: str(o.brand, o.Brand),
+      dateCodeText: str(o.dateCodeText, o.DateCodeText),
+      leadTimeText: str(o.leadTimeText, o.LeadTimeText),
+      quantityText: str(o.quantityText, o.QuantityText),
       quoteCreatedAt: (() => {
         const v = o.quoteCreatedAt ?? o.QuoteCreatedAt
         if (v == null || v === '') return null
         return String(v)
       })(),
       vendorName: str(o.vendorName, o.VendorName),
+      vendorLevel: str(o.vendorLevel, o.VendorLevel),
       unitPriceText: str(o.unitPriceText, o.UnitPriceText),
       currencyText: str(o.currencyText, o.CurrencyText),
       purchaseUserName: str(o.purchaseUserName, o.PurchaseUserName),
@@ -101,6 +109,13 @@ export function splitRfqDeletedQuoteMultiline(s: string | null | undefined): str
   const t = (s ?? '').trim()
   if (!t) return []
   return t.split(/\r?\n/).map((x) => x.trim()).filter(Boolean)
+}
+
+/** 已删报价阶梯列（生产日期/交期/数量）：保留空行以便与单价对齐 */
+export function splitRfqDeletedQuoteAlignLines(s: string | null | undefined): string[] {
+  const raw = s ?? ''
+  if (!raw.trim()) return []
+  return raw.split(/\r?\n/).map((x) => x.trim())
 }
 
 /** 已删报价单价：固定 4 位小数 */

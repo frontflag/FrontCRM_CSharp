@@ -132,6 +132,10 @@ namespace CRM.Core.Models.Quote
         [Column("vendor_name")]
         public string? VendorName { get; set; }
 
+        /// <summary>展示用：供应商等级（VendorLevelCode 1=S 2=A 3=B 4=C；由服务层按 VendorId 现读 vendorinfo.Level，非表字段）</summary>
+        [NotMapped]
+        public short? VendorLevel { get; set; }
+
         /// <summary>供应商代码（如 VH0LUA）</summary>
         [StringLength(50)]
         [Column("vendor_code")]

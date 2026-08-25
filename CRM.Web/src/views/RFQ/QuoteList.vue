@@ -140,6 +140,12 @@
         <template #col-salesUserName="{ row }">
           <span>{{ row.salesUserName || '—' }}</span>
         </template>
+        <template #col-vendorName="{ row }">
+          {{ quoteVendorNamesDisplay(row as Record<string, unknown>, maskPurchaseSensitiveFields) }}
+        </template>
+        <template #col-vendorLevel="{ row }">
+          {{ quoteVendorLevelsDisplay(row as Record<string, unknown>, (level) => vendorDict.levelLabel(level)) }}
+        </template>
         <template #col-vendorCount="{ row }">
           {{ maskPurchaseSensitiveFields ? '—' : (row.items?.length || 0) }}
         </template>
@@ -412,6 +418,8 @@ import {
 import { useListBoardHelpOverride } from '@/composables/useHelpDocOverride'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import { useVendorDictStore } from '@/stores/vendorDict'
+import { quoteVendorNamesDisplay, quoteVendorLevelsDisplay } from '@/utils/quoteVendorDisplay'
 import { productionDateDisplayLabel, useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
 import {
   isQuoteDeleteForbidden,
@@ -422,6 +430,7 @@ import {
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
+const vendorDict = useVendorDictStore()
 const {
   activeField: dockQuoteExtendActiveField,
   colWidth: dockQuoteExtendColWidth,
@@ -561,6 +570,19 @@ const quoteTableColumns = computed<CrmTableColumnDef[]>(() => {
   }
   cols.push(
     { key: 'purchaseUserName', label: t('quoteList.columns.purchaseUser'), prop: 'purchaseUserName', width: 100 },
+    {
+      key: 'vendorName',
+      label: t('quoteList.columns.vendorName'),
+      minWidth: 140,
+      showOverflowTooltip: true
+    },
+    {
+      key: 'vendorLevel',
+      label: t('quoteList.columns.vendorLevel'),
+      width: 110,
+      minWidth: 96,
+      showOverflowTooltip: true
+    },
     { key: 'vendorCount', label: t('quoteList.columns.vendorCount'), width: 132, minWidth: 132, align: 'center' },
     {
       key: 'dockQuoteExtend',
@@ -934,6 +956,7 @@ const handleDelete = async (row: Record<string, unknown>) => {
 
 onMounted(() => {
   void ensureMaterialPdDict()
+  void vendorDict.ensureLoaded()
   if (viewMode.value === 'list') void loadData()
 })
 </script>

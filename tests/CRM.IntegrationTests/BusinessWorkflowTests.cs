@@ -127,6 +127,9 @@ namespace CRM.IntegrationTests
             var quoteCustomerRepo = Substitute.For<IRepository<CustomerInfo>>();
             quoteCustomerRepo.FindAsync(Arg.Any<Expression<Func<CustomerInfo, bool>>>())
                 .Returns(Task.FromResult<IEnumerable<CustomerInfo>>(Array.Empty<CustomerInfo>()));
+            var quoteVendorRepo = Substitute.For<IRepository<VendorInfo>>();
+            quoteVendorRepo.FindAsync(Arg.Any<Expression<Func<VendorInfo, bool>>>())
+                .Returns(Task.FromResult<IEnumerable<VendorInfo>>(Array.Empty<VendorInfo>()));
             var quoteListQuery = Substitute.For<CRM.Core.Interfaces.IQuoteListQuery>();
             quoteListQuery.GetPagedAsync(Arg.Any<CRM.Core.Interfaces.QuoteQueryRequest>(), default)
                 .Returns(Task.FromResult(new CRM.Core.Interfaces.PagedResult<CRM.Core.Models.Quote.Quote>
@@ -147,6 +150,7 @@ namespace CRM.IntegrationTests
                 _rfqItemRepository,
                 _rfqRepository,
                 quoteCustomerRepo,
+                quoteVendorRepo,
                 _unitOfWork,
                 _serialNumberService,
                 _userService,

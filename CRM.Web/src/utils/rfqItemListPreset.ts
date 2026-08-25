@@ -29,7 +29,8 @@ export const RFQ_ITEM_QUICK_FILTER_PRESET_IDS = [
   'converted',
   'pending_quote',
   'no_quote',
-  'multi_quote'
+  'multi_quote',
+  'has_deleted_quote'
 ] as const
 
 export type RfqItemQuickFilterPresetId = (typeof RFQ_ITEM_QUICK_FILTER_PRESET_IDS)[number]

@@ -27,7 +27,8 @@ const quoteTimePresets = RFQ_ITEM_QUOTE_TIME_PRESET_IDS
 const quoteStatusPresets = [
   'pending_quote',
   'no_quote',
-  'multi_quote'
+  'multi_quote',
+  'has_deleted_quote'
 ] as const satisfies readonly RfqItemListPresetId[]
 
 function onPresetClick(id: RfqItemListPresetId) {

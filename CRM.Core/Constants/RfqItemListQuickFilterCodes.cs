@@ -8,11 +8,12 @@ public static class RfqItemListQuickFilterCodes
     public const string PendingQuote = "pending_quote";
     public const string NoQuote = "no_quote";
     public const string MultiQuote = "multi_quote";
+    public const string HasDeletedQuote = "has_deleted_quote";
 
     public static bool IsKnown(string? code)
     {
         if (string.IsNullOrWhiteSpace(code)) return false;
         var c = code.Trim();
-        return c is Important or Converted or PendingQuote or NoQuote or MultiQuote;
+        return c is Important or Converted or PendingQuote or NoQuote or MultiQuote or HasDeletedQuote;
     }
 }

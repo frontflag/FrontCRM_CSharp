@@ -4,6 +4,7 @@ using CRM.Core.Models.Customer;
 using CRM.Core.Models.System;
 using CRM.Core.Models.Quote;
 using CRM.Core.Models.RFQ;
+using CRM.Core.Models.Vendor;
 using CRM.Core.Utilities;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
@@ -20,6 +21,7 @@ namespace CRM.Core.Services
         private readonly IRepository<RFQItem> _rfqItemRepository;
         private readonly IRepository<RFQ> _rfqRepository;
         private readonly IRepository<CustomerInfo> _customerRepository;
+        private readonly IRepository<VendorInfo> _vendorRepository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ISerialNumberService _serialNumberService;
         private readonly IUserService _userService;
@@ -35,6 +37,7 @@ namespace CRM.Core.Services
             IRepository<RFQItem> rfqItemRepository,
             IRepository<RFQ> rfqRepository,
             IRepository<CustomerInfo> customerRepository,
+            IRepository<VendorInfo> vendorRepository,
             IUnitOfWork unitOfWork,
             ISerialNumberService serialNumberService,
             IUserService userService,
@@ -49,6 +52,7 @@ namespace CRM.Core.Services
             _rfqItemRepository = rfqItemRepository;
             _rfqRepository = rfqRepository;
             _customerRepository = customerRepository;
+            _vendorRepository = vendorRepository;
             _unitOfWork = unitOfWork;
             _serialNumberService = serialNumberService;
             _userService = userService;
@@ -341,6 +345,8 @@ namespace CRM.Core.Services
             await HydrateQuoteRfqCodeAsync(new[] { quote });
             await HydrateQuoteCustomerDisplayAsync(new[] { quote });
             await HydrateQuoteUserDisplayAsync(new[] { quote });
+            quote.Items = createdItems;
+            await HydrateQuoteItemVendorLevelAsync(new[] { quote });
             return quote;
         }
 
@@ -358,6 +364,7 @@ namespace CRM.Core.Services
             await HydrateQuoteRfqCodeAsync(new[] { quote });
             await HydrateQuoteCustomerDisplayAsync(new[] { quote });
             await HydrateQuoteUserDisplayAsync(new[] { quote });
+            await HydrateQuoteItemVendorLevelAsync(new[] { quote });
             return quote;
         }
 
@@ -403,6 +410,35 @@ namespace CRM.Core.Services
             await HydrateQuoteRfqCodeAsync(quotes);
             await HydrateQuoteCustomerDisplayAsync(quotes);
             await HydrateQuoteUserDisplayAsync(quotes);
+            await HydrateQuoteItemVendorLevelAsync(quotes);
+        }
+
+        /// <summary>为报价明细现读供应商等级（vendorinfo.Level）。</summary>
+        private async Task HydrateQuoteItemVendorLevelAsync(IReadOnlyCollection<Quote> quotes)
+        {
+            var items = quotes
+                .Where(q => q.Items != null)
+                .SelectMany(q => q.Items)
+                .ToList();
+            if (items.Count == 0) return;
+
+            var ids = items
+                .Select(i => i.VendorId)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Select(id => id!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (ids.Count == 0) return;
+
+            var vendors = (await _vendorRepository.FindAsync(v => ids.Contains(v.Id))).ToList();
+            var levelById = vendors.ToDictionary(v => v.Id, v => v.Level, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var it in items)
+            {
+                if (string.IsNullOrWhiteSpace(it.VendorId)) continue;
+                if (levelById.TryGetValue(it.VendorId.Trim(), out var level))
+                    it.VendorLevel = level;
+            }
         }
 
         public async Task<Quote> UpdateAsync(string id, UpdateQuoteRequest request, string? actingUserId = null)
@@ -468,6 +504,7 @@ namespace CRM.Core.Services
             await HydrateQuoteRfqCodeAsync(new[] { quote });
             await HydrateQuoteCustomerDisplayAsync(new[] { quote });
             await HydrateQuoteUserDisplayAsync(new[] { quote });
+            await HydrateQuoteItemVendorLevelAsync(new[] { quote });
             return quote;
         }
 

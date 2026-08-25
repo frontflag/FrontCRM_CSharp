@@ -34,8 +34,16 @@ namespace CRM.Core.Interfaces
         public int LineNo { get; set; }
         public string? Mpn { get; set; }
         public string? Brand { get; set; }
+        /// <summary>生产日期/DC（多行，与报价明细对齐，换行拼接）</summary>
+        public string? DateCodeText { get; set; }
+        /// <summary>交期（多行，换行拼接）</summary>
+        public string? LeadTimeText { get; set; }
+        /// <summary>报价数量（多行，换行拼接）</summary>
+        public string? QuantityText { get; set; }
         public DateTime? QuoteCreatedAt { get; set; }
         public string? VendorName { get; set; }
+        /// <summary>供应商等级展示文案（S/A/B/C，多供应商去重后顿号拼接）</summary>
+        public string? VendorLevel { get; set; }
         public string? UnitPriceText { get; set; }
         public string? CurrencyText { get; set; }
         public string? PurchaseUserName { get; set; }

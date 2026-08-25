@@ -682,18 +682,57 @@
     <el-dialog
       v-model="deletedQuotesDialogVisible"
       :title="deletedQuotesDialogTitle"
-      width="920px"
+      width="min(1180px, 96vw)"
       append-to-body
     >
       <el-table :data="deletedQuotesDialogRows" size="small" stripe>
         <el-table-column :label="t('rfqDetail.deletedQuotes.quoteCode')" min-width="120" show-overflow-tooltip>
           <template #default="{ row }">{{ row.quoteCode || '—' }}</template>
         </el-table-column>
-        <el-table-column :label="t('rfqDetail.deletedQuotes.quoteCreatedAt')" width="168">
-          <template #default="{ row }">{{ formatChangeLogTime(row.quoteCreatedAt ?? undefined) }}</template>
+        <el-table-column :label="t('rfqDetail.deletedQuotes.mpn')" min-width="120" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.mpn || '—' }}</template>
+        </el-table-column>
+        <el-table-column :label="t('rfqDetail.deletedQuotes.brand')" min-width="100" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.brand || '—' }}</template>
+        </el-table-column>
+        <el-table-column :label="t('rfqDetail.deletedQuotes.productionDateDc')" width="120">
+          <template #default="{ row }">
+            <div v-if="splitRfqDeletedQuoteAlignLines(row.dateCodeText).length" class="deleted-quote-stack">
+              <div v-for="(line, idx) in splitRfqDeletedQuoteAlignLines(row.dateCodeText)" :key="idx">{{
+                fmtProductionDate(line)
+              }}</div>
+            </div>
+            <span v-else>—</span>
+          </template>
+        </el-table-column>
+        <el-table-column :label="t('rfqDetail.deletedQuotes.leadTime')" min-width="100" show-overflow-tooltip>
+          <template #default="{ row }">
+            <div v-if="splitRfqDeletedQuoteAlignLines(row.leadTimeText).length" class="deleted-quote-stack">
+              <div v-for="(line, idx) in splitRfqDeletedQuoteAlignLines(row.leadTimeText)" :key="idx">{{
+                line || '—'
+              }}</div>
+            </div>
+            <span v-else>—</span>
+          </template>
         </el-table-column>
         <el-table-column :label="t('rfqDetail.deletedQuotes.vendor')" min-width="120" show-overflow-tooltip>
           <template #default="{ row }">{{ row.vendorName || '—' }}</template>
+        </el-table-column>
+        <el-table-column :label="t('rfqDetail.deletedQuotes.vendorLevel')" width="110" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.vendorLevel || '—' }}</template>
+        </el-table-column>
+        <el-table-column :label="t('rfqDetail.deletedQuotes.quoteQty')" width="100" align="right">
+          <template #default="{ row }">
+            <div
+              v-if="splitRfqDeletedQuoteAlignLines(row.quantityText).length"
+              class="deleted-quote-stack deleted-quote-stack--right"
+            >
+              <div v-for="(line, idx) in splitRfqDeletedQuoteAlignLines(row.quantityText)" :key="idx">{{
+                formatDeletedQuoteQty(line)
+              }}</div>
+            </div>
+            <span v-else>—</span>
+          </template>
         </el-table-column>
         <el-table-column :label="t('rfqDetail.deletedQuotes.quotePrice')" min-width="100" align="right">
           <template #default="{ row }">
@@ -715,6 +754,9 @@
         </el-table-column>
         <el-table-column :label="t('rfqDetail.deletedQuotes.quoter')" width="110" show-overflow-tooltip>
           <template #default="{ row }">{{ row.purchaseUserName || '—' }}</template>
+        </el-table-column>
+        <el-table-column :label="t('rfqDetail.deletedQuotes.createDate')" width="168">
+          <template #default="{ row }">{{ formatChangeLogTime(row.quoteCreatedAt ?? undefined) }}</template>
         </el-table-column>
         <el-table-column :label="t('rfqDetail.deletedQuotes.deletedBy')" width="110" show-overflow-tooltip>
           <template #default="{ row }">{{ row.deletedByUserName || '—' }}</template>
@@ -746,6 +788,7 @@ import {
   type RfqFieldChangeLogRow,
   type RfqItemDeletedQuoteRow,
   splitRfqDeletedQuoteMultiline,
+  splitRfqDeletedQuoteAlignLines,
   formatRfqDeletedQuotePriceLine
 } from '@/api/rfq'
 import { quoteApi } from '@/api/quote'
@@ -814,6 +857,13 @@ function fmtProductionDate(v: unknown) {
   const s = String(v ?? '').trim()
   if (!s) return '—'
   return productionDateDisplayLabel(s, materialPdOptions.value) || '—'
+}
+
+function formatDeletedQuoteQty(line: string) {
+  const n = Number(String(line).replace(/,/g, ''))
+  if (!Number.isFinite(n)) return line.trim() || '—'
+  if (Math.abs(n - Math.round(n)) < 1e-9) return String(Math.round(n))
+  return n.toLocaleString('zh-CN', { maximumFractionDigits: 4 })
 }
 
 /** 明细目标价币别：接口为 priceCurrency（1–4），勿用 currency 字符串（新建保存后详情接口不带该字段） */
