@@ -13,6 +13,7 @@
         <div class="po-v2__po-no">订单编号 / PO NO. {{ dash(orderCode) }}</div>
       </div>
     </header>
+    <div class="po-v2__fade" aria-hidden="true" />
 
     <div class="po-v2__meta">
       <div class="po-v2__meta-cell">
@@ -38,7 +39,6 @@
         <i class="po-v2__guide" aria-hidden="true" />
         交易方信息 / PARTIES
       </div>
-      <div class="po-v2__fade" aria-hidden="true" />
       <div class="po-v2__parties">
         <div class="po-v2__party">
           <div class="po-v2__party-role">需方 / BUYER</div>
@@ -256,29 +256,11 @@ function dash(v?: string | null) {
   justify-content: space-between;
   align-items: flex-end;
   gap: 8mm;
-  margin: 0 -10mm 3.2mm;
+  margin: 0 -10mm 0;
   padding: 5.2mm 10mm 4.6mm;
   overflow: hidden;
   background: var(--po-v2-navy);
   color: var(--po-v2-head-fg);
-}
-
-.po-v2__head::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 2px;
-  background: linear-gradient(
-    90deg,
-    #05e5ff 0%,
-    #22e8ff 16%,
-    #53edff 36%,
-    #9ff4ff 58%,
-    #f0fdff 82%,
-    transparent 100%
-  );
 }
 
 .po-v2__head-left {
@@ -432,8 +414,13 @@ function dash(v?: string | null) {
 
 .po-v2__fade {
   height: 1.6px;
-  margin: 0 0 2.4mm;
+  margin: 0 0 2.8mm;
   background: linear-gradient(90deg, #05e5ff 0%, #53edff 28%, #c9f8ff 62%, transparent 100%);
+}
+
+.po-v2__head + .po-v2__fade {
+  margin-top: 10px;
+  height: 3.2px;
 }
 
 .po-v2__parties {
