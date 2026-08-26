@@ -31,6 +31,11 @@ namespace CRM.Core.Constants
         public const string RfqDefaultAssignMethod = "System.RFQ.DefaultAssignMethod";
 
         /// <summary>
+        /// 是否允许在新建/编辑需求中选择「指定采购」（assign_method=4）。Boolean，默认 false。
+        /// </summary>
+        public const string RfqAllowDesignatedPurchaser = "System.RFQ.AllowDesignatedPurchaser";
+
+        /// <summary>
         /// 销售「刷新客户」是否允许同步已完成业务节点（出库通知已出库、装箱已完成、出库单已出库等）。Boolean，默认 false。
         /// </summary>
         public const string SalesAllowRefreshCompletedBizNodes = "System.Sales.AllowRefreshCompletedBizNodes";

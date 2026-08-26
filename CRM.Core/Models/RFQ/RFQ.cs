@@ -77,7 +77,7 @@ namespace CRM.Core.Models.RFQ
         [Column("quote_method")]
         public short QuoteMethod { get; set; } = 1;
 
-        /// <summary>分配方式：1系统分配同一采购 2条目轮询 3品牌轮询 4指定采购员 5采报优先</summary>
+        /// <summary>分配方式：1系统分配同一采购 2条目轮询 3品牌轮询 4指定采购 5采报优先</summary>
         [Column("assign_method")]
         public short AssignMethod { get; set; } = 5;
 

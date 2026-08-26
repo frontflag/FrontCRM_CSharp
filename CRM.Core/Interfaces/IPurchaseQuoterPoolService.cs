@@ -40,6 +40,11 @@ public interface IPurchaseQuoterPoolService
 
     Task SetDefaultAssignMethodAsync(short assignMethod, CancellationToken cancellationToken = default);
 
+    /// <summary>是否允许新建/编辑需求选择指定采购。默认 false。</summary>
+    Task<bool> GetAllowDesignatedPurchaserAsync(CancellationToken cancellationToken = default);
+
+    Task SetAllowDesignatedPurchaserAsync(bool allow, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// 刷新供应商时是否允许同步已完成业务节点。默认 false。
     /// </summary>

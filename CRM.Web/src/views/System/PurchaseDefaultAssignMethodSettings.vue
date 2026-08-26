@@ -22,7 +22,7 @@
           :teleported="false"
           popper-class="purchase-default-assign-method-select-popper"
         >
-          <el-option v-for="o in ASSIGN_METHOD_OPTIONS" :key="o.value" :label="o.label" :value="o.value">
+          <el-option v-for="o in DEFAULT_ASSIGN_METHOD_OPTIONS" :key="o.value" :label="o.label" :value="o.value">
             <span class="assign-method-option">
               <span class="assign-method-option-label">{{ o.label }}</span>
               <el-tooltip :content="o.tip" placement="top" :hide-after="0">
@@ -34,6 +34,12 @@
           </el-option>
         </el-select>
       </div>
+      <div class="field-row field-row--checkbox">
+        <el-checkbox v-model="allowDesignatedPurchaser">
+          {{ t('purchaseParams.allowDesignatedPurchaserLabel') }}
+        </el-checkbox>
+      </div>
+      <p class="field-note">{{ t('purchaseParams.allowDesignatedPurchaserNote') }}</p>
     </div>
   </div>
 </template>
@@ -44,17 +50,20 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { QuestionFilled } from '@element-plus/icons-vue'
 import { purchaseParamsApi } from '@/api/purchaseParams'
-import { ASSIGN_METHOD_OPTIONS } from '@/constants/rfqFormEnums'
+import { DEFAULT_ASSIGN_METHOD_OPTIONS } from '@/constants/rfqFormEnums'
 
 const { t } = useI18n()
 const loading = ref(false)
 const saving = ref(false)
 const assignMethod = ref(5)
+const allowDesignatedPurchaser = ref(false)
 
 async function load() {
   loading.value = true
   try {
-    assignMethod.value = await purchaseParamsApi.getDefaultAssignMethod()
+    const data = await purchaseParamsApi.getDefaultAssignMethod()
+    assignMethod.value = data.assignMethod
+    allowDesignatedPurchaser.value = data.allowDesignatedPurchaser
   } catch {
     ElMessage.error(t('purchaseParams.defaultAssignMethodLoadFailed'))
   } finally {
@@ -65,7 +74,12 @@ async function load() {
 async function save() {
   saving.value = true
   try {
-    assignMethod.value = await purchaseParamsApi.setDefaultAssignMethod(assignMethod.value)
+    const data = await purchaseParamsApi.setDefaultAssignMethod(
+      assignMethod.value,
+      allowDesignatedPurchaser.value
+    )
+    assignMethod.value = data.assignMethod
+    allowDesignatedPurchaser.value = data.allowDesignatedPurchaser
     ElMessage.success(t('purchaseParams.saveSuccess'))
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : t('purchaseParams.saveFailed')
@@ -137,6 +151,17 @@ onMounted(load)
   display: flex;
   align-items: center;
   gap: 16px;
+}
+
+.field-row--checkbox {
+  margin-top: 16px;
+}
+
+.field-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: $text-muted;
+  line-height: 1.5;
 }
 
 .field-label {

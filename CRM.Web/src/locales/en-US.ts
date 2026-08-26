@@ -583,9 +583,13 @@ const enUS = {
     demandProtectionLoadFailed: 'Failed to load demand protection duration',
     defaultAssignMethodNav: 'Default assign method',
     defaultAssignMethodTitle: 'Default assign method',
-    defaultAssignMethodHint: 'Default selection for the Assign method dropdown on new RFQ page.',
+    defaultAssignMethodHint:
+      'Default selection for the Assign method dropdown on new RFQ, and whether Designated purchaser is available.',
     defaultAssignMethodLabel: 'Assign method:',
     defaultAssignMethodLoadFailed: 'Failed to load default assign method',
+    allowDesignatedPurchaserLabel: 'Allow designated purchaser',
+    allowDesignatedPurchaserNote:
+      'When checked, Designated purchaser appears in the Assign method dropdown on create/edit RFQ. When off, existing RFQs already using this method can still be edited, but other methods cannot be switched to it.',
     quoterPoolTitle: 'Quoter pool',
     quoterPoolHint: 'Select purchase staff eligible for RFQ round-robin assignment. Changes apply after Save. Empty pool leaves new RFQs unassigned.',
     quoterPoolSelectedCount: '{count} quoter(s)',

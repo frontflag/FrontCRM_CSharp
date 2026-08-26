@@ -23,11 +23,15 @@ public class SetPurchaseParamsDemandProtectionMinutesRequest
 public class PurchaseParamsDefaultAssignMethodDto
 {
     public short AssignMethod { get; set; }
+
+    public bool AllowDesignatedPurchaser { get; set; }
 }
 
 public class SetPurchaseParamsDefaultAssignMethodRequest
 {
     public short AssignMethod { get; set; }
+
+    public bool AllowDesignatedPurchaser { get; set; }
 }
 
 public class PurchaseParamsAllowRefreshCompletedBizNodesDto
@@ -53,6 +57,11 @@ public class PurchaseQuoterPoolMemberResponse
 public class PurchaseQuoterPoolListResponse
 {
     public int SelectedCount { get; set; }
+    public List<PurchaseQuoterPoolMemberResponse> Items { get; set; } = new();
+}
+
+public class RfqQuoterPoolOptionsDto
+{
     public List<PurchaseQuoterPoolMemberResponse> Items { get; set; } = new();
 }
 

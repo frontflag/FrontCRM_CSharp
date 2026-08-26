@@ -4,5 +4,6 @@
 |------|----------|
 | RFQ Excel 导入 | [RFQ Excel导入-测试对照说明.md](./RFQ Excel导入-测试对照说明.md) |
 | 智能学习品牌匹配 | [智能学习品牌匹配-测试对照说明.md](./智能学习品牌匹配-测试对照说明.md) |
+| 新建/编辑指定采购 | [需求新建指定采购-测试对照说明.md](../需求/需求新建指定采购-测试对照说明.md) |
 
-**设计实现（开发用）：** `document/System/RFQ Excel导入-设计与实现.md`、`document/System/智能学习品牌匹配-设计与实现.md`
+**设计实现（开发用）：** `document/System/RFQ Excel导入-设计与实现.md`、`document/System/智能学习品牌匹配-设计与实现.md`、`document/System/需求/指定采购-分配方式-设计与实现.md`

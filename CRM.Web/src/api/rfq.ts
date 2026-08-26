@@ -202,10 +202,31 @@ export const rfqApi = {
   async createRFQ(data: CreateRFQRequest): Promise<RFQ> {
     return apiClient.post<RFQ>(BASE, data)
   },
-  /** 新建需求页默认分配方式（2/3/5） */
-  async getDefaultAssignMethod(): Promise<number> {
-    const res = await apiClient.get<{ assignMethod: number }>(`${BASE}/default-assign-method`)
-    return res.assignMethod
+  /** 新建/编辑需求页：默认分配方式（2/3/5）以及是否允许指定采购 */
+  async getDefaultAssignMethod(): Promise<{ assignMethod: number; allowDesignatedPurchaser: boolean }> {
+    const res = await apiClient.get<{ assignMethod: number; allowDesignatedPurchaser?: boolean }>(
+      `${BASE}/default-assign-method`
+    )
+    return {
+      assignMethod: res.assignMethod,
+      allowDesignatedPurchaser: !!res.allowDesignatedPurchaser
+    }
+  },
+  /** 指定采购下拉：报价员池已勾选且在职（不要求采购参数权限） */
+  async getQuoterPoolOptions(): Promise<
+    Array<{ userId: string; userName: string; realName?: string; departmentName?: string }>
+  > {
+    const res = await apiClient.get<{
+      items?: Array<{ userId?: string; userName?: string; realName?: string; departmentName?: string }>
+    }>(`${BASE}/quoter-pool-options`)
+    return (res.items ?? [])
+      .filter((m) => !!m.userId)
+      .map((m) => ({
+        userId: String(m.userId),
+        userName: String(m.userName ?? ''),
+        realName: m.realName,
+        departmentName: m.departmentName
+      }))
   },
   /** 14. 批量自动生成 RFQ/报价/订单 */
   async batchAutoGenerate(data: CreateRFQRequest[]): Promise<{ successCount: number; failCount: number; errors: string[] }> {

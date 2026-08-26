@@ -24,6 +24,12 @@ public sealed class RfqAssignmentContext
 
     /// <summary>编辑新增明细时：本需求单内已有品牌已分配的采购员（品牌键 → 采购员对）。</summary>
     public IReadOnlyDictionary<string, (string? PurchaserUserId1, string? PurchaserUserId2)>? ExistingBrandAssignees { get; set; }
+
+    /// <summary>指定采购（assign_method=4）时写入全部明细槽位 1 的采购员。</summary>
+    public string? DesignatedPurchaserUserId { get; set; }
+
+    /// <summary>编辑加明细沿用原指定人时，允许该人已不在报价员池。</summary>
+    public bool AllowDesignatedPurchaserOutsidePool { get; set; }
 }
 
 public sealed class RfqItemAssigneePair

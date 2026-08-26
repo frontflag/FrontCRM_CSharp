@@ -37,6 +37,7 @@ namespace CRM.Core.Services
         private readonly IBizBrandService _bizBrandService;
         private readonly IRfqTagService _rfqTagService;
         private readonly IQuoteStatusSyncService _quoteStatusSync;
+        private readonly IPurchaseQuoterPoolService? _purchaseQuoterPoolService;
 
         public RFQService(
             IRepository<RFQ> rfqRepo,
@@ -58,7 +59,8 @@ namespace CRM.Core.Services
             ILogOperationAppendService logOperationAppend,
             IBizBrandService bizBrandService,
             IRfqTagService rfqTagService,
-            IQuoteStatusSyncService quoteStatusSync)
+            IQuoteStatusSyncService quoteStatusSync,
+            IPurchaseQuoterPoolService? purchaseQuoterPoolService = null)
         {
             _rfqRepo = rfqRepo;
             _itemRepo = itemRepo;
@@ -80,6 +82,7 @@ namespace CRM.Core.Services
             _bizBrandService = bizBrandService;
             _rfqTagService = rfqTagService;
             _quoteStatusSync = quoteStatusSync;
+            _purchaseQuoterPoolService = purchaseQuoterPoolService;
         }
 
         // ─── Create ──────────────────────────────────────────────────────────────
@@ -109,6 +112,7 @@ namespace CRM.Core.Services
 
             // 按策略分配询价采购员（默认：条目轮询）
             var assignMethod = ResolveAssignMethod(request.AssignMethod);
+            await EnsureDesignatedPurchaserEnabledAsync(assignMethod);
             var anyAssigned = false;
 
             var rfq = new RFQ
@@ -149,7 +153,8 @@ namespace CRM.Core.Services
                         LineNo: itemReq.LineNo > 0 ? itemReq.LineNo : i + 1,
                         Mpn: NormalizeLineString(itemReq.Mpn),
                         Brand: NormalizeLineString(itemReq.Brand),
-                        BrandId: itemReq.BrandId)));
+                        BrandId: itemReq.BrandId)),
+                    designatedPurchaserUserId: ResolveCreateDesignatedPurchaserUserId(assignMethod, request.AssignedPurchaserUserId));
 
                 var assignmentOutcome = await _purchaserAssignmentOrchestrator.AssignAsync(
                     assignMethod,
@@ -535,6 +540,7 @@ namespace CRM.Core.Services
 
             var headerBefore = CaptureRfqHeaderSnapshot(rfq);
             var statusBefore = rfq.Status;
+            var previousAssignMethod = rfq.AssignMethod;
 
             if (request.CustomerId != null) rfq.CustomerId = request.CustomerId;
             if (request.ContactId != null) rfq.ContactId = request.ContactId;
@@ -543,6 +549,8 @@ namespace CRM.Core.Services
             if (request.RfqType.HasValue) rfq.RfqType = request.RfqType.Value;
             if (request.QuoteMethod.HasValue) rfq.QuoteMethod = request.QuoteMethod.Value;
             if (request.AssignMethod.HasValue) rfq.AssignMethod = request.AssignMethod.Value;
+            if (request.AssignMethod.HasValue)
+                await EnsureDesignatedPurchaserEnabledIfSwitchingAsync(previousAssignMethod, rfq.AssignMethod);
             if (request.Industry != null) rfq.Industry = request.Industry;
             if (request.Product != null) rfq.Product = request.Product;
             if (request.TargetType.HasValue) rfq.TargetType = request.TargetType.Value;
@@ -565,7 +573,7 @@ namespace CRM.Core.Services
                         throw new ArgumentException("需求明细中的品牌不能为空");
                 }
 
-                var sync = await SyncRfqItemsOnUpdateAsync(rfq, id, request.Items, actingUserId);
+                var sync = await SyncRfqItemsOnUpdateAsync(rfq, id, request.Items, request.AssignedPurchaserUserId, actingUserId);
                 deletedLines = sync.Deleted;
 
                 if (sync.Inserted.Count > 0)
@@ -1029,6 +1037,7 @@ namespace CRM.Core.Services
             RFQ rfq,
             string rfqId,
             List<CreateRFQItemRequest> requestItems,
+            string? assignedPurchaserUserId,
             string? actingUserId)
         {
             var existingActive = (await _itemRepo.FindAsync(i => i.RfqId == rfqId))
@@ -1068,6 +1077,10 @@ namespace CRM.Core.Services
             {
                 var assignMethod = ResolveAssignMethod(rfq.AssignMethod);
                 var existingBrandAssignees = BuildExistingBrandAssignees(existingActive.Values);
+                var (designatedId, allowOutside) = ResolveUpdateDesignatedPurchaser(
+                    assignMethod,
+                    assignedPurchaserUserId,
+                    existingActive.Values);
                 var assignmentContext = BuildAssignmentContext(
                     rfqId,
                     rfq.RfqCode,
@@ -1077,7 +1090,9 @@ namespace CRM.Core.Services
                         Mpn: NormalizeLineString(x.Req.Mpn),
                         Brand: NormalizeLineString(x.Req.Brand),
                         BrandId: x.Req.BrandId)),
-                    existingBrandAssignees);
+                    existingBrandAssignees,
+                    designatedId,
+                    allowOutside);
 
                 var assignmentOutcome = await _purchaserAssignmentOrchestrator.AssignAsync(
                     assignMethod,
@@ -1203,6 +1218,61 @@ namespace CRM.Core.Services
         private static short ResolveAssignMethod(short assignMethod) =>
             assignMethod > 0 ? assignMethod : RfqAssignMethodCodes.PurchaseQuotePriority;
 
+        private async Task EnsureDesignatedPurchaserEnabledAsync(
+            short assignMethod,
+            CancellationToken cancellationToken = default)
+        {
+            if (assignMethod != RfqAssignMethodCodes.DesignatedPurchaser)
+                return;
+            var allowed = _purchaseQuoterPoolService != null
+                && await _purchaseQuoterPoolService.GetAllowDesignatedPurchaserAsync(cancellationToken);
+            RfqDesignatedPurchaserRules.EnsureEnabled(allowed);
+        }
+
+        private async Task EnsureDesignatedPurchaserEnabledIfSwitchingAsync(
+            short previousAssignMethod,
+            short currentAssignMethod,
+            CancellationToken cancellationToken = default)
+        {
+            if (previousAssignMethod == RfqAssignMethodCodes.DesignatedPurchaser)
+                return;
+            await EnsureDesignatedPurchaserEnabledAsync(currentAssignMethod, cancellationToken);
+        }
+
+        private static string? ResolveCreateDesignatedPurchaserUserId(short assignMethod, string? requestedUserId)
+        {
+            if (assignMethod != RfqAssignMethodCodes.DesignatedPurchaser)
+                return null;
+            var id = requestedUserId?.Trim();
+            if (string.IsNullOrEmpty(id))
+                throw new ArgumentException("请选择分配采购");
+            return id;
+        }
+
+        private static (string? UserId, bool AllowOutsidePool) ResolveUpdateDesignatedPurchaser(
+            short assignMethod,
+            string? requestedUserId,
+            IEnumerable<RFQItem> existingItems)
+        {
+            if (assignMethod != RfqAssignMethodCodes.DesignatedPurchaser)
+                return (null, false);
+
+            var requested = requestedUserId?.Trim();
+            var existingId = existingItems
+                .Select(i => i.AssignedPurchaserUserId1?.Trim())
+                .FirstOrDefault(id => !string.IsNullOrEmpty(id));
+
+            if (!string.IsNullOrEmpty(requested))
+            {
+                var sameAsExisting = string.Equals(requested, existingId, StringComparison.OrdinalIgnoreCase);
+                return (requested, sameAsExisting);
+            }
+
+            if (string.IsNullOrEmpty(existingId))
+                throw new ArgumentException("请选择分配采购");
+            return (existingId, true);
+        }
+
         private static Dictionary<string, (string? PurchaserUserId1, string? PurchaserUserId2)> BuildExistingBrandAssignees(
             IEnumerable<RFQItem> existingItems) =>
             existingItems
@@ -1217,13 +1287,17 @@ namespace CRM.Core.Services
             string? rfqCode,
             RfqAssignmentTrigger trigger,
             IEnumerable<(int LineNo, string Mpn, string Brand, long? BrandId)> lines,
-            IReadOnlyDictionary<string, (string? PurchaserUserId1, string? PurchaserUserId2)>? existingBrandAssignees = null) =>
+            IReadOnlyDictionary<string, (string? PurchaserUserId1, string? PurchaserUserId2)>? existingBrandAssignees = null,
+            string? designatedPurchaserUserId = null,
+            bool allowDesignatedPurchaserOutsidePool = false) =>
             new()
             {
                 RfqId = rfqId,
                 RfqCode = rfqCode,
                 Trigger = trigger,
                 ExistingBrandAssignees = existingBrandAssignees,
+                DesignatedPurchaserUserId = designatedPurchaserUserId,
+                AllowDesignatedPurchaserOutsidePool = allowDesignatedPurchaserOutsidePool,
                 Items = lines.Select(x => new RfqItemAssignmentInput
                 {
                     ItemKey = x.LineNo.ToString(),

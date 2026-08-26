@@ -261,6 +261,58 @@ public class PurchaseQuoterPoolService : IPurchaseQuoterPoolService
         await _db.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<bool> GetAllowDesignatedPurchaserAsync(CancellationToken cancellationToken = default)
+    {
+        var row = await _db.SysParams.AsNoTracking()
+            .FirstOrDefaultAsync(
+                p => p.ParamCode == SysParamCodes.RfqAllowDesignatedPurchaser && p.Status == 1,
+                cancellationToken);
+        if (row == null)
+            return false;
+
+        return row.GetBoolValue();
+    }
+
+    public async Task SetAllowDesignatedPurchaserAsync(bool allow, CancellationToken cancellationToken = default)
+    {
+        var row = await _db.SysParams
+            .FirstOrDefaultAsync(
+                p => p.ParamCode == SysParamCodes.RfqAllowDesignatedPurchaser,
+                cancellationToken);
+
+        if (row == null)
+        {
+            var groupFrom = await _db.SysParams.AsNoTracking()
+                .FirstOrDefaultAsync(p => p.ParamCode == SysParamCodes.RfqDefaultAssignMethod, cancellationToken);
+            row = new SysParam
+            {
+                Id = Guid.NewGuid().ToString(),
+                ParamCode = SysParamCodes.RfqAllowDesignatedPurchaser,
+                ParamName = "允许指定采购",
+                GroupId = groupFrom?.GroupId,
+                DataType = ParamDataType.Boolean,
+                DefaultValue = "false",
+                Description = "勾选后，新建/编辑需求的「分配方式」下拉才会出现「指定采购」。默认关闭。",
+                IsSystem = true,
+                IsEditable = true,
+                IsVisible = true,
+                SortOrder = 16,
+                Status = 1,
+                CreateTime = DateTime.UtcNow
+            };
+            row.SetBoolValue(allow);
+            await _db.SysParams.AddAsync(row, cancellationToken);
+        }
+        else
+        {
+            row.SetBoolValue(allow);
+            row.ModifyTime = DateTime.UtcNow;
+            _db.SysParams.Update(row);
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<bool> GetAllowRefreshCompletedBizNodesAsync(CancellationToken cancellationToken = default)
     {
         var row = await _db.SysParams.AsNoTracking()

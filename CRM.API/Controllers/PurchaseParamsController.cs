@@ -113,8 +113,13 @@ public class PurchaseParamsController : ControllerBase
         try
         {
             var assignMethod = await _service.GetDefaultAssignMethodAsync(ct);
+            var allowDesignatedPurchaser = await _service.GetAllowDesignatedPurchaserAsync(ct);
             return Ok(ApiResponse<PurchaseParamsDefaultAssignMethodDto>.Ok(
-                new PurchaseParamsDefaultAssignMethodDto { AssignMethod = assignMethod },
+                new PurchaseParamsDefaultAssignMethodDto
+                {
+                    AssignMethod = assignMethod,
+                    AllowDesignatedPurchaser = allowDesignatedPurchaser
+                },
                 "ok"));
         }
         catch (Exception ex)
@@ -135,9 +140,15 @@ public class PurchaseParamsController : ControllerBase
         try
         {
             await _service.SetDefaultAssignMethodAsync(body.AssignMethod, ct);
+            await _service.SetAllowDesignatedPurchaserAsync(body.AllowDesignatedPurchaser, ct);
             var assignMethod = await _service.GetDefaultAssignMethodAsync(ct);
+            var allowDesignatedPurchaser = await _service.GetAllowDesignatedPurchaserAsync(ct);
             return Ok(ApiResponse<PurchaseParamsDefaultAssignMethodDto>.Ok(
-                new PurchaseParamsDefaultAssignMethodDto { AssignMethod = assignMethod },
+                new PurchaseParamsDefaultAssignMethodDto
+                {
+                    AssignMethod = assignMethod,
+                    AllowDesignatedPurchaser = allowDesignatedPurchaser
+                },
                 "???"));
         }
         catch (ArgumentException ex)

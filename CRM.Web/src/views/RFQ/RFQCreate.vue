@@ -192,8 +192,9 @@
                 style="width: 100%"
                 class="q-select"
                 popper-class="rfq-assign-method-select-popper"
+                @change="onAssignMethodChange"
               >
-                <el-option v-for="o in ASSIGN_METHOD_OPTIONS" :key="o.value" :label="o.label" :value="o.value">
+                <el-option v-for="o in assignMethodOptions" :key="o.value" :label="o.label" :value="o.value">
                   <span class="assign-method-option">
                     <span class="assign-method-option-label">{{ o.label }}</span>
                     <el-tooltip :content="o.tip" placement="top" :hide-after="0">
@@ -203,6 +204,25 @@
                     </el-tooltip>
                   </span>
                 </el-option>
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col v-if="isDesignatedAssign" :span="8">
+            <el-form-item label="分配采购" prop="assignedPurchaserUserId">
+              <el-select
+                v-model="formData.assignedPurchaserUserId"
+                placeholder="请选择分配采购"
+                style="width: 100%"
+                class="q-select"
+                filterable
+                :loading="quoterPoolLoading"
+              >
+                <el-option
+                  v-for="o in quoterPoolOptions"
+                  :key="o.userId"
+                  :label="o.label"
+                  :value="o.userId"
+                />
               </el-select>
             </el-form-item>
           </el-col>
@@ -525,7 +545,8 @@ import SalesUserCascader from '@/components/SalesUserCascader.vue'
 import {
   RFQ_TYPE_OPTIONS,
   QUOTE_METHOD_OPTIONS,
-  ASSIGN_METHOD_OPTIONS
+  ASSIGN_METHOD_OPTIONS,
+  DEFAULT_ASSIGN_METHOD_OPTIONS
 } from '@/constants/rfqFormEnums'
 import MaterialProductionDateSelect from '@/components/MaterialProductionDateSelect.vue'
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
@@ -548,15 +569,18 @@ const pageLoading = ref(false)
 const authStore = useAuthStore()
 
 let cachedDefaultAssignMethod: number | null = null
+const allowDesignatedPurchaser = ref(false)
 
 async function resolveDefaultAssignMethod(): Promise<number> {
-  if (cachedDefaultAssignMethod != null) return cachedDefaultAssignMethod
   try {
-    cachedDefaultAssignMethod = await rfqApi.getDefaultAssignMethod()
+    const data = await rfqApi.getDefaultAssignMethod()
+    cachedDefaultAssignMethod = data.assignMethod
+    allowDesignatedPurchaser.value = !!data.allowDesignatedPurchaser
   } catch {
-    cachedDefaultAssignMethod = 5
+    if (cachedDefaultAssignMethod == null) cachedDefaultAssignMethod = 5
+    allowDesignatedPurchaser.value = false
   }
-  return cachedDefaultAssignMethod
+  return cachedDefaultAssignMethod ?? 5
 }
 const { ensureLoaded: ensureMaterialPdDict, defaultCode: defaultProductionDateCode, coerceProductionDateToCode: coercePd } =
   useMaterialProductionDateDict()
@@ -801,6 +825,8 @@ function createEmptyRfqItem() {
   }
 }
 
+const DESIGNATED_ASSIGN_METHOD = 4
+
 const emptyForm = () => ({
   rfqCode: genRfqCode(),
   customerId: '',
@@ -815,6 +841,7 @@ const emptyForm = () => ({
   targetType: 1,
   quoteMethod: 2,
   assignMethod: 5,
+  assignedPurchaserUserId: '',
   importance: 1,
   projectBackground: '',
   competitor: '',
@@ -823,6 +850,87 @@ const emptyForm = () => ({
 })
 
 const formData = ref(emptyForm())
+const isDesignatedAssign = computed(() => Number(formData.value.assignMethod) === DESIGNATED_ASSIGN_METHOD)
+const assignMethodOptions = computed(() =>
+  allowDesignatedPurchaser.value || Number(formData.value.assignMethod) === DESIGNATED_ASSIGN_METHOD
+    ? ASSIGN_METHOD_OPTIONS
+    : DEFAULT_ASSIGN_METHOD_OPTIONS
+)
+const quoterPoolLoading = ref(false)
+const quoterPoolOptions = ref<Array<{ userId: string; label: string }>>([])
+
+function formatQuoterPoolLabel(userName: string, realName?: string) {
+  const name = (realName || '').trim()
+  const account = (userName || '').trim()
+  if (name && account && name !== account) return `${name}（${account}）`
+  return name || account || '—'
+}
+
+async function loadQuoterPoolOptions() {
+  quoterPoolLoading.value = true
+  try {
+    const items = await rfqApi.getQuoterPoolOptions()
+    quoterPoolOptions.value = items.map((m) => ({
+      userId: m.userId,
+      label: formatQuoterPoolLabel(m.userName, m.realName)
+    }))
+  } catch {
+    quoterPoolOptions.value = []
+    ElMessage.warning('加载报价员名单失败')
+  } finally {
+    quoterPoolLoading.value = false
+  }
+}
+
+function ensureQuoterOption(userId: string, label?: string) {
+  const id = userId.trim()
+  if (!id) return
+  if (quoterPoolOptions.value.some((o) => o.userId === id)) return
+  quoterPoolOptions.value = [{ userId: id, label: (label || '').trim() || id }, ...quoterPoolOptions.value]
+}
+
+function onAssignMethodChange() {
+  if (!isDesignatedAssign.value) {
+    formData.value.assignedPurchaserUserId = ''
+  }
+}
+
+function inferAssignedPurchaserUserId(items: unknown): string {
+  if (!Array.isArray(items)) return ''
+  for (const raw of items) {
+    const row = raw as { assignedPurchaserUserId1?: string; AssignedPurchaserUserId1?: string }
+    const id = String(row.assignedPurchaserUserId1 || row.AssignedPurchaserUserId1 || '').trim()
+    if (id) return id
+  }
+  return ''
+}
+
+function inferAssignedPurchaserName(items: unknown): string {
+  if (!Array.isArray(items)) return ''
+  for (const raw of items) {
+    const row = raw as {
+      assignedPurchaserUserId1?: string
+      AssignedPurchaserUserId1?: string
+      assignedPurchaserName1?: string
+      AssignedPurchaserName1?: string
+    }
+    const id = String(row.assignedPurchaserUserId1 || row.AssignedPurchaserUserId1 || '').trim()
+    if (!id) continue
+    return String(row.assignedPurchaserName1 || row.AssignedPurchaserName1 || '').trim()
+  }
+  return ''
+}
+
+function reconcileDesignatedPurchaser(mode: 'edit' | 'copy') {
+  if (!isDesignatedAssign.value) return
+  const id = (formData.value.assignedPurchaserUserId || '').trim()
+  if (!id) return
+  const inPool = quoterPoolOptions.value.some((o) => o.userId === id)
+  if (inPool) return
+  if (mode === 'edit') return
+  formData.value.assignedPurchaserUserId = ''
+  ElMessage.warning('原分配采购已不在报价员池中，请重新选择')
+}
 
 async function resetFormForCreate() {
   const defaultAssignMethod = await resolveDefaultAssignMethod()
@@ -891,6 +999,7 @@ async function applyDraftPayload(payload: Record<string, unknown>) {
   if (p.targetType != null) formData.value.targetType = Number(p.targetType)
   if (p.quoteMethod != null) formData.value.quoteMethod = Number(p.quoteMethod)
   if (p.assignMethod != null) formData.value.assignMethod = Number(p.assignMethod)
+  formData.value.assignedPurchaserUserId = String(p.assignedPurchaserUserId || '')
   if (p.importance != null) formData.value.importance = normalizeImportance(p.importance)
   formData.value.industry = await customerDict.resolveIndustryStorageLabel(String(p.industry || ''))
   const items = Array.isArray(p.items) ? p.items : []
@@ -916,6 +1025,7 @@ async function applyDraftPayload(payload: Record<string, unknown>) {
     })
     clearResolvedImportBrandHints(formData.value.items)
   }
+  reconcileDesignatedPurchaser('copy')
 }
 
 async function restoreDraftById(draftId: string) {
@@ -1024,6 +1134,7 @@ async function loadRfqForEdit() {
       targetType: data.targetType ?? 1,
       quoteMethod: d.quoteMethod ?? 2,
       assignMethod: data.assignMethod ?? 5,
+      assignedPurchaserUserId: inferAssignedPurchaserUserId(data.items),
       importance: normalizeImportance(d.importanceLevel ?? d.importance),
       projectBackground: data.projectBackground || '',
       competitor: data.competitor || '',
@@ -1035,6 +1146,11 @@ async function loadRfqForEdit() {
     })
     clearResolvedImportBrandHints(formData.value.items)
     formData.value.industry = await customerDict.resolveIndustryStorageLabel(data.industry || '')
+    const inferredName = inferAssignedPurchaserName(data.items)
+    if (formData.value.assignedPurchaserUserId) {
+      ensureQuoterOption(formData.value.assignedPurchaserUserId, inferredName)
+    }
+    reconcileDesignatedPurchaser('edit')
   } catch (e) {
     ElMessage.error(getApiErrorMessage(e, '加载需求失败'))
     router.push({ name: 'RFQList' })
@@ -1049,6 +1165,8 @@ watch(
   async () => {
     await ensureMaterialPdDict()
     await customerDict.ensureLoaded()
+    await resolveDefaultAssignMethod()
+    await loadQuoterPoolOptions()
     if (route.name === 'RFQEdit' && String(route.query.from || '') === 'recycle' && rfqId.value) {
       router.replace({ name: 'RFQDetail', params: { id: rfqId.value }, query: { from: 'recycle' } })
       return
@@ -1134,12 +1252,15 @@ watch(
   }
 )
 
-const formRules = {
+const formRules = computed(() => ({
   customerId: [{ required: true, message: '请选择客户', trigger: 'change' }],
   rfqType: [{ required: true, message: '请选择需求类型', trigger: 'change' }],
   quoteMethod: [{ required: true, message: '请选择报价方式', trigger: 'change' }],
-  assignMethod: [{ required: true, message: '请选择分配方式', trigger: 'change' }]
-}
+  assignMethod: [{ required: true, message: '请选择分配方式', trigger: 'change' }],
+  assignedPurchaserUserId: isDesignatedAssign.value
+    ? [{ required: true, message: '请选择分配采购', trigger: 'change' }]
+    : []
+}))
 
 function onRfqCreateSalesUserChange(p: { id: string; label: string }) {
   formData.value.salesUserName = p.label || ''
@@ -1303,6 +1424,9 @@ const handleSubmit = async () => {
           targetType: formData.value.targetType,
           quoteMethod: formData.value.quoteMethod,
           assignMethod: formData.value.assignMethod,
+          assignedPurchaserUserId: isDesignatedAssign.value
+            ? formData.value.assignedPurchaserUserId || undefined
+            : undefined,
           importance: normalizeImportance(formData.value.importance),
           projectBackground: formData.value.projectBackground,
           competitor: formData.value.competitor,
@@ -1320,6 +1444,9 @@ const handleSubmit = async () => {
         rfqType: formData.value.rfqType,
         quoteMethod: formData.value.quoteMethod,
         assignMethod: formData.value.assignMethod,
+        assignedPurchaserUserId: isDesignatedAssign.value
+          ? formData.value.assignedPurchaserUserId || undefined
+          : undefined,
         industry: formData.value.industry,
         product: formData.value.product,
         targetType: formData.value.targetType,

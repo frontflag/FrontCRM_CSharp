@@ -9,6 +9,7 @@ using CRM.Core.Models.RFQ;
 using CRM.Core.Models.System;
 using CRM.Core.Services;
 using CRM.Core.Tests.Fakes;
+using CRM.Core.Utilities;
 using CRM.TestCommon.Biz;
 using CRM.TestCommon.Rfq;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -50,6 +51,7 @@ namespace CRM.Core.Tests.Services
             svc.GetOrderedActivePoolUserIdsAsync(Arg.Any<CancellationToken>())
                 .Returns(userIds.ToList());
             svc.GetAssigneeCountAsync(Arg.Any<CancellationToken>()).Returns(2);
+            svc.GetAllowDesignatedPurchaserAsync(Arg.Any<CancellationToken>()).Returns(true);
             return svc;
         }
 
@@ -153,8 +155,33 @@ namespace CRM.Core.Tests.Services
                 Substitute.For<ILogOperationAppendService>(),
                 BizBrandTestSubstitute.Create(new Dictionary<long, string> { [1] = "Brand-A", [2] = "B2" }),
                 Substitute.For<IRfqTagService>(),
-                Substitute.For<IQuoteStatusSyncService>());
+                Substitute.For<IQuoteStatusSyncService>(),
+                CreatePoolServiceWithUsers());
         }
+
+        private RFQService CreateServiceWithPool(IPurchaseQuoterPoolService pool) =>
+            new(
+                _rfqRepository,
+                _rfqItemRepository,
+                null!,
+                _entityLookup,
+                _unitOfWork,
+                _serialNumberService,
+                _dataPermissionService,
+                _userService,
+                _quoteRepo,
+                _closeRecordRepo,
+                _userRepo,
+                _rbacService,
+                _purchaserAssignmentOrchestrator,
+                _rfqMainListQuery,
+                _rfqItemListQuery,
+                NullLogger<RFQService>.Instance,
+                Substitute.For<ILogOperationAppendService>(),
+                BizBrandTestSubstitute.Create(new Dictionary<long, string> { [1] = "Brand-A", [2] = "B2" }),
+                Substitute.For<IRfqTagService>(),
+                Substitute.For<IQuoteStatusSyncService>(),
+                pool);
 
         private static CreateRFQRequest BuildValidCreateRequest(Action<CreateRFQRequest>? tweak = null)
         {
@@ -298,6 +325,156 @@ namespace CRM.Core.Tests.Services
             Assert.Equal("6", cursorRow.ValueString);
             await itemRepo.Received(1).AddAsync(Arg.Is<RFQItem>(i =>
                 i.AssignedPurchaserUserId1 == "U-M" && i.AssignedPurchaserUserId2 == "U-Z"));
+        }
+
+        [Fact]
+        public async Task CreateAsync_DesignatedPurchaser_WritesSamePersonToAllLines()
+        {
+            var rfqRepo = Substitute.For<IRepository<RFQ>>();
+            var itemRepo = Substitute.For<IRepository<RFQItem>>();
+            var serial = Substitute.For<ISerialNumberService>();
+            serial.GenerateNextAsync(Arg.Any<string>()).Returns("RF20260001");
+            rfqRepo.GetAllAsync().Returns(new List<RFQ>());
+            itemRepo.GetAllAsync().Returns(new List<RFQItem>());
+
+            var sysParamRepo = new MemoryRepository<SysParam>();
+            var purchaseQuoterPool = CreatePoolServiceWithUsers("U-A", "U-M");
+            var orchestrator = RfqAssignmentTestFactory.CreateDefaultOrchestrator(
+                purchaseQuoterPool,
+                sysParamRepo);
+            var rbacSvc = Substitute.For<IRbacService>();
+            rbacSvc.GetUserPermissionSummaryAsync(Arg.Any<string>())
+                .Returns(ci => new UserPermissionSummaryDto
+                {
+                    UserId = ci.ArgAt<string>(0),
+                    IsSysAdmin = true,
+                    RoleCodes = Array.Empty<string>(),
+                    PermissionCodes = Array.Empty<string>()
+                });
+            var rfqMain = Substitute.For<IRfqMainListQuery>();
+            rfqMain.GetPagedWithAggregatesAsync(Arg.Any<RFQQueryRequest>(), Arg.Any<CancellationToken>())
+                .Returns(Task.FromResult(new RfqMainListQueryPage
+                {
+                    Items = Array.Empty<RFQ>(),
+                    TotalCount = 0,
+                    PageIndex = 1,
+                    PageSize = 20,
+                    Aggregates = new RfqMainListAggregates()
+                }));
+            var rfqItem = Substitute.For<IRfqItemListQuery>();
+            rfqItem.GetPagedAsync(Arg.Any<RFQItemQueryRequest>(), Arg.Any<CancellationToken>())
+                .Returns(Task.FromResult(new PagedResult<RFQItemListItem>
+                {
+                    Items = Array.Empty<RFQItemListItem>(),
+                    TotalCount = 0,
+                    PageIndex = 1,
+                    PageSize = 20
+                }));
+            var svc = new RFQService(
+                rfqRepo,
+                itemRepo,
+                null!,
+                Substitute.For<IEntityLookupService>(),
+                Substitute.For<IUnitOfWork>(),
+                serial,
+                Substitute.For<IDataPermissionService>(),
+                Substitute.For<IUserService>(),
+                Substitute.For<IRepository<Quote>>(),
+                Substitute.For<IRepository<RfqCloseRecord>>(),
+                Substitute.For<IRepository<User>>(),
+                rbacSvc,
+                orchestrator,
+                rfqMain,
+                rfqItem,
+                NullLogger<RFQService>.Instance,
+                Substitute.For<ILogOperationAppendService>(),
+                BizBrandTestSubstitute.Create(new Dictionary<long, string> { [1] = "Brand-A", [2] = "B2" }),
+                Substitute.For<IRfqTagService>(),
+                Substitute.For<IQuoteStatusSyncService>(),
+                purchaseQuoterPool);
+
+            var req = BuildValidCreateRequest(r =>
+            {
+                r.AssignMethod = RfqAssignMethodCodes.DesignatedPurchaser;
+                r.AssignedPurchaserUserId = "U-M";
+                r.Items.Add(new CreateRFQItemRequest { Mpn = "MPN-002", BrandId = 2, Brand = "B2", Quantity = 1 });
+            });
+
+            var created = await svc.CreateAsync(req);
+            Assert.Equal(1, created.Status);
+            Assert.Equal(4, created.AssignMethod);
+            await itemRepo.Received(2).AddAsync(Arg.Is<RFQItem>(i =>
+                i.AssignedPurchaserUserId1 == "U-M" && i.AssignedPurchaserUserId2 == null));
+        }
+
+        [Fact]
+        public async Task CreateAsync_DesignatedPurchaserWithoutPerson_Throws()
+        {
+            var request = BuildValidCreateRequest(r => r.AssignMethod = RfqAssignMethodCodes.DesignatedPurchaser);
+            var ex = await Assert.ThrowsAsync<ArgumentException>(() => _rfqService.CreateAsync(request));
+            Assert.Contains("请选择分配采购", ex.Message);
+        }
+
+        [Fact]
+        public async Task CreateAsync_DesignatedPurchaserWhenDisabled_Throws()
+        {
+            var pool = Substitute.For<IPurchaseQuoterPoolService>();
+            pool.GetAllowDesignatedPurchaserAsync(Arg.Any<CancellationToken>()).Returns(false);
+            var svc = CreateServiceWithPool(pool);
+            var request = BuildValidCreateRequest(r =>
+            {
+                r.AssignMethod = RfqAssignMethodCodes.DesignatedPurchaser;
+                r.AssignedPurchaserUserId = "U-M";
+            });
+            var ex = await Assert.ThrowsAsync<ArgumentException>(() => svc.CreateAsync(request));
+            Assert.Contains(RfqDesignatedPurchaserRules.NotEnabledMessage, ex.Message);
+        }
+
+        [Fact]
+        public async Task UpdateAsync_SwitchToDesignatedWhenDisabled_Throws()
+        {
+            _rfqRepository.GetByIdAsync("RFQ-123").Returns(new RFQ
+            {
+                Id = "RFQ-123",
+                RfqCode = "RF20260001",
+                CustomerId = "CUST-001",
+                AssignMethod = RfqAssignMethodCodes.PurchaseQuotePriority,
+                Status = 1
+            });
+            var pool = Substitute.For<IPurchaseQuoterPoolService>();
+            pool.GetAllowDesignatedPurchaserAsync(Arg.Any<CancellationToken>()).Returns(false);
+            var svc = CreateServiceWithPool(pool);
+            var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+                svc.UpdateAsync("RFQ-123", new UpdateRFQRequest
+                {
+                    AssignMethod = RfqAssignMethodCodes.DesignatedPurchaser,
+                    AssignedPurchaserUserId = "U-M"
+                }));
+            Assert.Contains(RfqDesignatedPurchaserRules.NotEnabledMessage, ex.Message);
+        }
+
+        [Fact]
+        public async Task UpdateAsync_KeepDesignatedWhenDisabled_Succeeds()
+        {
+            var existing = new RFQ
+            {
+                Id = "RFQ-123",
+                RfqCode = "RF20260001",
+                CustomerId = "CUST-001",
+                AssignMethod = RfqAssignMethodCodes.DesignatedPurchaser,
+                Status = 1
+            };
+            _rfqRepository.GetByIdAsync("RFQ-123").Returns(existing);
+            var pool = Substitute.For<IPurchaseQuoterPoolService>();
+            pool.GetAllowDesignatedPurchaserAsync(Arg.Any<CancellationToken>()).Returns(false);
+            var svc = CreateServiceWithPool(pool);
+            var result = await svc.UpdateAsync("RFQ-123", new UpdateRFQRequest
+            {
+                AssignMethod = RfqAssignMethodCodes.DesignatedPurchaser,
+                Remark = "keep"
+            });
+            Assert.Equal(RfqAssignMethodCodes.DesignatedPurchaser, result.AssignMethod);
+            Assert.Equal("keep", result.Remark);
         }
 
         [Fact]

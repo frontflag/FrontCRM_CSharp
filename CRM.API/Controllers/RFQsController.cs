@@ -543,16 +543,52 @@ namespace CRM.API.Controllers
             }
         }
 
+        [HttpGet("quoter-pool-options")]
+        [RequireAnyPermission("rfq.create", "rfq.write")]
+        public async Task<ActionResult<ApiResponse<RfqQuoterPoolOptionsDto>>> GetQuoterPoolOptionsForCreate(
+            CancellationToken ct)
+        {
+            try
+            {
+                var result = await _purchaseQuoterPoolService.ListMembersAsync("selected", ct);
+                var items = result.Items
+                    .Where(m => m.IsActive && m.IsSelected)
+                    .Select(m => new PurchaseQuoterPoolMemberResponse
+                    {
+                        UserId = m.UserId,
+                        UserName = m.UserName,
+                        RealName = m.RealName,
+                        DepartmentName = m.DepartmentName,
+                        IsActive = m.IsActive,
+                        IsSelected = m.IsSelected
+                    })
+                    .ToList();
+                return Ok(ApiResponse<RfqQuoterPoolOptionsDto>.Ok(
+                    new RfqQuoterPoolOptionsDto { Items = items },
+                    "ok"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "读取报价员池选项失败");
+                return StatusCode(500, ApiResponse<RfqQuoterPoolOptionsDto>.Fail("读取失败", 500));
+            }
+        }
+
         [HttpGet("default-assign-method")]
-        [RequirePermission("rfq.create")]
+        [RequireAnyPermission("rfq.create", "rfq.write")]
         public async Task<ActionResult<ApiResponse<PurchaseParamsDefaultAssignMethodDto>>> GetDefaultAssignMethodForCreate(
             CancellationToken ct)
         {
             try
             {
                 var assignMethod = await _purchaseQuoterPoolService.GetDefaultAssignMethodAsync(ct);
+                var allowDesignatedPurchaser = await _purchaseQuoterPoolService.GetAllowDesignatedPurchaserAsync(ct);
                 return Ok(ApiResponse<PurchaseParamsDefaultAssignMethodDto>.Ok(
-                    new PurchaseParamsDefaultAssignMethodDto { AssignMethod = assignMethod },
+                    new PurchaseParamsDefaultAssignMethodDto
+                    {
+                        AssignMethod = assignMethod,
+                        AllowDesignatedPurchaser = allowDesignatedPurchaser
+                    },
                     "ok"));
             }
             catch (Exception ex)

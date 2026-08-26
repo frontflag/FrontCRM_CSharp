@@ -580,9 +580,12 @@ const zhCN = {
     demandProtectionLoadFailed: '加载需求保护时长失败',
     defaultAssignMethodNav: '默认分配方式',
     defaultAssignMethodTitle: '默认分配方式',
-    defaultAssignMethodHint: '设置新建需求页「分配方式」下拉的默认选中项。',
+    defaultAssignMethodHint: '设置新建需求页「分配方式」下拉的默认选中项，以及是否开放「指定采购」。',
     defaultAssignMethodLabel: '分配方式：',
     defaultAssignMethodLoadFailed: '加载默认分配方式失败',
+    allowDesignatedPurchaserLabel: '允许指定采购',
+    allowDesignatedPurchaserNote:
+      '勾选后，新建/编辑需求的「分配方式」下拉才会出现「指定采购」。关闭后，已是指定采购的需求仍可按该方式编辑，但不能再把其它需求改成指定采购。',
     quoterPoolTitle: '报价员池',
     quoterPoolHint: '勾选可参与 RFQ 轮询分配的采购部职员；保存后生效。池为空时新建需求将为待分配。',
     quoterPoolSelectedCount: '报价员 {count} 人',

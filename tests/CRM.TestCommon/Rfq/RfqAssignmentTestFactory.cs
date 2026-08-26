@@ -43,7 +43,10 @@ public static class RfqAssignmentTestFactory
                 pool,
                 lookup,
                 picker,
-                NullLogger<PurchaseQuotePriorityPurchaserAssignStrategy>.Instance)
+                NullLogger<PurchaseQuotePriorityPurchaserAssignStrategy>.Instance),
+            new DesignatedPurchaserAssignStrategy(
+                pool,
+                NullLogger<DesignatedPurchaserAssignStrategy>.Instance)
         ];
         return new RfqPurchaserAssignmentOrchestrator(
             strategies,

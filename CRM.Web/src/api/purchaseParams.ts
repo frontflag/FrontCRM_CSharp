@@ -35,14 +35,28 @@ export const purchaseParamsApi = {
     return res.minutes
   },
 
-  async getDefaultAssignMethod(): Promise<number> {
-    const res = await apiClient.get<{ assignMethod: number }>('/api/v1/purchase-params/default-assign-method')
-    return res.assignMethod
+  async getDefaultAssignMethod(): Promise<{ assignMethod: number; allowDesignatedPurchaser: boolean }> {
+    const res = await apiClient.get<{ assignMethod: number; allowDesignatedPurchaser?: boolean }>(
+      '/api/v1/purchase-params/default-assign-method'
+    )
+    return {
+      assignMethod: res.assignMethod,
+      allowDesignatedPurchaser: !!res.allowDesignatedPurchaser
+    }
   },
 
-  async setDefaultAssignMethod(assignMethod: number): Promise<number> {
-    const res = await apiClient.put<{ assignMethod: number }>('/api/v1/purchase-params/default-assign-method', { assignMethod })
-    return res.assignMethod
+  async setDefaultAssignMethod(
+    assignMethod: number,
+    allowDesignatedPurchaser: boolean
+  ): Promise<{ assignMethod: number; allowDesignatedPurchaser: boolean }> {
+    const res = await apiClient.put<{ assignMethod: number; allowDesignatedPurchaser?: boolean }>(
+      '/api/v1/purchase-params/default-assign-method',
+      { assignMethod, allowDesignatedPurchaser }
+    )
+    return {
+      assignMethod: res.assignMethod,
+      allowDesignatedPurchaser: !!res.allowDesignatedPurchaser
+    }
   },
 
   async getAllowRefreshCompletedBizNodes(): Promise<boolean> {

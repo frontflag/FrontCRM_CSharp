@@ -108,6 +108,8 @@ namespace CRM.Core.Interfaces
         public short RfqType { get; set; } = 1;
         public short QuoteMethod { get; set; } = 1;
         public short AssignMethod { get; set; } = 5;
+        /// <summary>指定采购（assign_method=4）时必填；报价员池已勾选且在职的账号。</summary>
+        public string? AssignedPurchaserUserId { get; set; }
         public string? Industry { get; set; }
         public string? Product { get; set; }
         public short TargetType { get; set; } = 1;
@@ -150,6 +152,8 @@ namespace CRM.Core.Interfaces
         public short? RfqType { get; set; }
         public short? QuoteMethod { get; set; }
         public short? AssignMethod { get; set; }
+        /// <summary>指定采购时用于新增明细；省略则沿用已有明细槽位 1。</summary>
+        public string? AssignedPurchaserUserId { get; set; }
         public string? Industry { get; set; }
         public string? Product { get; set; }
         public short? TargetType { get; set; }
