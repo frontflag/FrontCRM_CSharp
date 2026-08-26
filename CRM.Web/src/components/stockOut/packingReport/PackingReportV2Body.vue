@@ -3,9 +3,11 @@
   <div class="po-v2">
     <header class="po-v2__head">
       <div class="po-v2__head-left">
-        <img v-if="logoUrl" class="po-v2__logo" :src="logoUrl" alt="" />
-        <div v-else class="po-v2__logo-fallback">{{ headerCompanyName }}</div>
-        <div class="po-v2__tagline">YOUR RELIABLE SUPPLIER</div>
+        <div class="po-v2__logo-stack">
+          <img v-if="logoUrl" class="po-v2__logo" :src="logoUrl" alt="" />
+          <div v-else class="po-v2__logo-fallback">{{ headerCompanyName }}</div>
+          <div class="po-v2__tagline">YOUR RELIABLE SUPPLIER</div>
+        </div>
       </div>
       <div class="po-v2__head-right">
         <div class="po-v2__title-zh">装箱单</div>
@@ -366,8 +368,17 @@ function dash(v?: string | null) {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  gap: 1.4mm;
+  align-items: flex-start;
   min-width: 0;
+}
+
+.po-v2__logo-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.4mm;
+  width: max-content;
+  max-width: 100%;
 }
 
 .po-v2__logo {
@@ -389,6 +400,9 @@ function dash(v?: string | null) {
   letter-spacing: 0.24em;
   color: rgba(255, 255, 255, 0.78);
   text-transform: uppercase;
+  text-align: center;
+  width: 100%;
+  white-space: nowrap;
 }
 
 .po-v2__head-right {

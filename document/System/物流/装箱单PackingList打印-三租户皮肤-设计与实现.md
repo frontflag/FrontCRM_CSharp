@@ -98,5 +98,5 @@ semicore V2 竖版：页眉 → 元数据 → 发货人/收货人 → 包装明�
 - with / without inspection：V1 竖/横与 V2 竖版均按路由显隐检验区。
 - V1 中英文、印章开关可用；V2 隐藏中/英切换，印章开关仍可用。
 - V2 签章（竖/横共用 `PackingReportV2Body`）：发货人、收货人「日期 / Date」均为下划线，不印出库日期。
-- V2 顶栏（竖/横相同）：「装箱单」16pt、「PACKING LIST」6.5pt、「装箱单号码 / Packing List No.」7pt。
+- V2 顶栏（竖/横相同）：「装箱单」16pt、「PACKING LIST」6.5pt、「装箱单号码 / Packing List No.」7pt；左侧 Logo 与标语 `YOUR RELIABLE SUPPLIER` 水平居中对齐。
 - Semicore V1 竖版与历史深紫/琥珀观感一致（无回归）。
