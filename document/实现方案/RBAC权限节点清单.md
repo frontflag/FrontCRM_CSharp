@@ -51,13 +51,17 @@
 
 收款单已取消审核，**不再**出现在待审批。确认在收款记录页完成，见 [收款单状态-设计与实现](../System/财务/收款单状态-设计与实现.md)。
 
-| 业务类型 | PermissionCode（审批操作依赖） |
-|----------|--------------------------------|
-| VENDOR | `vendor.write` |
-| SALES_ORDER | `sales-order.write` |
-| PURCHASE_ORDER | `purchase-order.write` |
-| CUSTOMER | `customer.write` |
-| FINANCE_PAYMENT | `finance-payment.write` |
+待审批 **不另设** 审批权限码。通过/拒绝仍用下表写权限；「本人提交」默认拦截，总监例外见 [审批桌面-设计与实现](../System/审批/审批桌面-设计与实现.md) §4.1（无新码）。
+
+| 业务类型 | PermissionCode（审批操作依赖） | 本人提交例外 |
+|----------|--------------------------------|--------------|
+| VENDOR | `vendor.write` | 采购总监（`DEPT_DIRECTOR` + 身份 2/3）可审本人 |
+| SALES_ORDER | `sales-order.write` | 销售总监（`DEPT_DIRECTOR` + 身份 1）可审本人 |
+| PURCHASE_ORDER | `purchase-order.write` | 采购总监可审本人 |
+| CUSTOMER | `customer.write` | 销售总监可审本人 |
+| FINANCE_PAYMENT | `finance-payment.write` | **无**（非系统管理员不能自审） |
+
+经理、员工及跨侧总监仍不能自审。系统管理员可自审全部类型。
 
 ---
 
@@ -95,6 +99,7 @@
 | 权限种子 | `seed_initial_rbac_admin.sql` |
 | 运行时合并/剥离 | `CRM.Core/Services/RbacService.cs` |
 | 审批业务权限 | `CRM.API/Controllers/ApprovalsController.cs` |
+| 销售/采购总监自审 | `CRM.Core/Utilities/SalesDirectorSelfApprovalRules.cs`、`PurchaseDirectorSelfApprovalRules.cs` |
 | 权限摘要（含 `belongsToPurchaseDept`） | `CRM.API/Controllers/AuthController.cs` → `GetPermissionSummary` |
 | 主菜单采购侧隐藏 | `CRM.Web/src/layouts/AppLayout.vue` |
 

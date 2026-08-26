@@ -120,6 +120,24 @@ namespace CRM.API.Controllers
             return summary.IsSysAdmin || summary.PermissionCodes.Contains(cfg.PermissionCode);
         }
 
+        /// <summary>待审且为本人提交时，是否禁止本人决定。客户/销售订单对销售总监放行；供应商/采购订单对采购总监放行。</summary>
+        private static bool IsSelfDecideBlocked(
+            CRM.Core.Interfaces.UserPermissionSummaryDto summary,
+            bool isPendingState,
+            bool own,
+            string bizType)
+        {
+            if (!isPendingState || !own)
+                return false;
+            if (bizType.Equals("CUSTOMER", StringComparison.OrdinalIgnoreCase)
+                || bizType.Equals("SALES_ORDER", StringComparison.OrdinalIgnoreCase))
+                return !SalesDirectorSelfApprovalRules.AllowsOwnCustomerOrSalesOrderDecide(summary);
+            if (bizType.Equals("VENDOR", StringComparison.OrdinalIgnoreCase)
+                || bizType.Equals("PURCHASE_ORDER", StringComparison.OrdinalIgnoreCase))
+                return !PurchaseDirectorSelfApprovalRules.AllowsOwnVendorOrPurchaseOrderDecide(summary);
+            return !summary.IsSysAdmin;
+        }
+
         /// <summary>各业务类型「仅查看待审批/本人提交」所需的读权限（与路由菜单一致）。</summary>
         private static readonly Dictionary<string, string> BizTypeReadPermission = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -435,7 +453,7 @@ namespace CRM.API.Controllers
 
                         if (canApprove)
                         {
-                            var selfPending = isPendingState && own && !summary.IsSysAdmin;
+                            var selfPending = IsSelfDecideBlocked(summary, isPendingState, own, cfg.BizType);
                             allItems.Add(new PendingApprovalItemDto
                             {
                                 BizType = cfg.BizType,
@@ -495,7 +513,7 @@ namespace CRM.API.Controllers
 
                         if (canApprove)
                         {
-                            var selfPending = isPendingState && own && !summary.IsSysAdmin;
+                            var selfPending = IsSelfDecideBlocked(summary, isPendingState, own, cfg.BizType);
                             allItems.Add(new PendingApprovalItemDto
                             {
                                 BizType = cfg.BizType,
@@ -555,7 +573,7 @@ namespace CRM.API.Controllers
 
                         if (canApprove)
                         {
-                            var selfPending = isPendingState && own && !summary.IsSysAdmin;
+                            var selfPending = IsSelfDecideBlocked(summary, isPendingState, own, cfg.BizType);
                             allItems.Add(new PendingApprovalItemDto
                             {
                                 BizType = cfg.BizType,
@@ -615,7 +633,7 @@ namespace CRM.API.Controllers
 
                         if (canApprove)
                         {
-                            var selfPending = isPendingState && own && !summary.IsSysAdmin;
+                            var selfPending = IsSelfDecideBlocked(summary, isPendingState, own, cfg.BizType);
                             allItems.Add(new PendingApprovalItemDto
                             {
                                 BizType = cfg.BizType,
@@ -1077,8 +1095,11 @@ namespace CRM.API.Controllers
                     if (v.Status != cfg.PendingStatus) return Conflict(new { success = false, message = "该记录已不处于待审批状态", errorCode = 409 });
                     if (!await _dataPermissionService.CanAccessVendorAsync(userId, v))
                         return StatusCode(403, new { success = false, message = "无权限访问该供应商", errorCode = 403 });
-                    if (!summary.IsSysAdmin &&
-                        string.Equals(v.PurchaseUserId, userId, StringComparison.OrdinalIgnoreCase))
+                    if (IsSelfDecideBlocked(
+                            summary,
+                            isPendingState: true,
+                            own: string.Equals(v.PurchaseUserId, userId, StringComparison.OrdinalIgnoreCase),
+                            bizType: cfg.BizType))
                         return Conflict(new { success = false, message = "不能审批本人提交的供应商", errorCode = 409 });
                     var isReject = decision is "reject" or "deny" or "refuse";
                     if (isReject && string.IsNullOrWhiteSpace(request.Remark))
@@ -1095,8 +1116,11 @@ namespace CRM.API.Controllers
                     if ((short)o.Status != cfg.PendingStatus) return Conflict(new { success = false, message = "该记录已不处于待审批状态", errorCode = 409 });
                     if (!await _dataPermissionService.CanAccessSalesOrderAsync(userId, o))
                         return StatusCode(403, new { success = false, message = "无权限访问该销售订单", errorCode = 403 });
-                    if (!summary.IsSysAdmin &&
-                        string.Equals(o.SalesUserId, userId, StringComparison.OrdinalIgnoreCase))
+                    if (IsSelfDecideBlocked(
+                            summary,
+                            isPendingState: true,
+                            own: string.Equals(o.SalesUserId, userId, StringComparison.OrdinalIgnoreCase),
+                            bizType: cfg.BizType))
                         return Conflict(new { success = false, message = "不能审批本人提交的销售订单", errorCode = 409 });
 
                     var isReject = decision is "reject" or "deny" or "refuse";
@@ -1119,8 +1143,11 @@ namespace CRM.API.Controllers
                     if (o.Status != cfg.PendingStatus) return Conflict(new { success = false, message = "该记录已不处于待审批状态", errorCode = 409 });
                     if (!await _dataPermissionService.CanAccessPurchaseOrderAsync(userId, o))
                         return StatusCode(403, new { success = false, message = "无权限访问该采购订单", errorCode = 403 });
-                    if (!summary.IsSysAdmin &&
-                        string.Equals(o.PurchaseUserId, userId, StringComparison.OrdinalIgnoreCase))
+                    if (IsSelfDecideBlocked(
+                            summary,
+                            isPendingState: true,
+                            own: string.Equals(o.PurchaseUserId, userId, StringComparison.OrdinalIgnoreCase),
+                            bizType: cfg.BizType))
                         return Conflict(new { success = false, message = "不能审批本人提交的采购订单", errorCode = 409 });
 
                     var isReject = decision is "reject" or "deny" or "refuse";
@@ -1139,8 +1166,11 @@ namespace CRM.API.Controllers
                     if (c.Status != cfg.PendingStatus) return Conflict(new { success = false, message = "该记录已不处于待审批状态", errorCode = 409 });
                     if (!await _dataPermissionService.CanAccessCustomerAsync(userId, c))
                         return StatusCode(403, new { success = false, message = "无权限访问该客户", errorCode = 403 });
-                    if (!summary.IsSysAdmin &&
-                        string.Equals(c.SalesUserId, userId, StringComparison.OrdinalIgnoreCase))
+                    if (IsSelfDecideBlocked(
+                            summary,
+                            isPendingState: true,
+                            own: string.Equals(c.SalesUserId, userId, StringComparison.OrdinalIgnoreCase),
+                            bizType: cfg.BizType))
                         return Conflict(new { success = false, message = "不能审批本人提交的客户", errorCode = 409 });
 
                     var isReject = decision is "reject" or "deny" or "refuse";
