@@ -81,6 +81,98 @@ export interface PackingReportLandscapeDocumentProps {
   signDate: string
 }
 
+/** V2 竖版：发货人 / 收货人 */
+export type PackingReportV2Party = {
+  name: string
+  address: string
+  contact: string
+  phone: string
+  email: string
+}
+
+export interface PackingReportV2LineVm {
+  index: number
+  carton: string
+  mpn: string
+  brand: string
+  lotNo: string
+  description: string
+  qty: string
+  nw: string
+  gw: string
+  dimensions: string
+}
+
+/** V2 横版包装明细（表头对齐图1 14 列英文） */
+export interface PackingReportV2LandscapeLineVm {
+  index: number
+  customerPo: string
+  partNumber: string
+  customerPn: string
+  brand: string
+  qty: string
+  dc: string
+  co: string
+  cod: string
+  size: string
+  nw: string
+  gw: string
+  carton: string
+  remark: string
+}
+
+/** V2 文档（仅 semicore + 参数 V2） */
+export interface PackingReportV2DocumentProps {
+  headerCompanyName: string
+  packingNo: string
+  docDate: string
+  invoicePoNo: string
+  incoterms: string
+  transportMode: string
+  shipper: PackingReportV2Party
+  consignee: PackingReportV2Party
+  lines: PackingReportV2LineVm[]
+  landscapeLines?: PackingReportV2LandscapeLineVm[]
+  orientation?: PackingReportOrientation
+  shipMarks: string
+  departure: string
+  destination: string
+  carrierAwb: string
+  remarks: string[]
+  totalCartons: string
+  totalQty: string
+  totalNw: string
+  totalGw: string
+  totalVolume: string
+  withShipmentInspection: boolean
+  qcItems: readonly string[]
+  sealUrl: string | null
+  logoUrl: string | null
+  showSeal?: boolean
+  shipperSignDate: string
+}
+
+export const packingReportV2DocumentPropDefaults = {
+  invoicePoNo: '—',
+  incoterms: '—',
+  transportMode: '—',
+  shipMarks: '—',
+  departure: '—',
+  destination: '—',
+  carrierAwb: '—',
+  remarks: () => [] as string[],
+  landscapeLines: () => [] as PackingReportV2LandscapeLineVm[],
+  orientation: 'portrait' as PackingReportOrientation,
+  totalCartons: '—',
+  totalNw: '—',
+  totalGw: '—',
+  totalVolume: '—',
+  withShipmentInspection: false,
+  qcItems: () => [] as string[],
+  showSeal: true,
+  shipperSignDate: ''
+}
+
 export const packingReportDocumentPropDefaults = {
   docSubtitle: '',
   headerWarehouseAddress: '',
@@ -106,6 +198,13 @@ export function readPackingReportOrientation(): PackingReportOrientation {
     /* ignore */
   }
   return 'landscape'
+}
+
+/** 空箱号按行序补 01 / 02 …（V2 竖版第一列；不另开序号列） */
+export function formatPackingV2Carton(carton: string | null | undefined, index1: number): string {
+  const s = (carton ?? '').trim()
+  if (s) return s
+  return String(index1).padStart(2, '0')
 }
 
 export function writePackingReportOrientation(v: PackingReportOrientation) {

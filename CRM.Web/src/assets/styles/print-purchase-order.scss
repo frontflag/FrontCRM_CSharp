@@ -18,7 +18,8 @@
     background: #fff !important;
   }
 
-  body.po-order-report-print.po-order-report-print-landscape .po-doc--landscape {
+  body.po-order-report-print.po-order-report-print-landscape .po-doc--landscape,
+  body.po-order-report-print.po-order-report-print-landscape .po-doc--pl-v2-ls {
     page: packing-landscape;
   }
 
@@ -133,6 +134,8 @@
   body.po-order-report-print .po-doc--v2 .po-v2__term,
   body.po-order-report-print .po-doc--v2 .po-v2__meta,
   body.po-order-report-print .po-doc--v2 .po-v2__party-role,
+  body.po-order-report-print .po-doc--v2 .po-v2__qc,
+  body.po-order-report-print .po-doc--v2 .po-v2__qc-foot,
   body.po-order-report-print .po-doc--v2 tbody td,
   body.po-order-report-print .po-doc--v2 thead th,
   body.po-order-report-print .wty-doc th,

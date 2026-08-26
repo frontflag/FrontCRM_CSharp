@@ -9,7 +9,8 @@
 | 模版基准 | **三租户皮肤**（`semicore` / `idesemi` / `ecoinf`）；版式组件可对调，见 §2.3 |
 | 关联总规范 | [Web 业务报表打印与导出规范](./Web业务报表打印与导出规范.md) |
 | 实现说明 | [装箱单 PackingList 打印-三租户皮肤-设计与实现](../../../System/物流/装箱单PackingList打印-三租户皮肤-设计与实现.md) |
-| 当前实现 | 页面 `StockOutPackingReportPage.vue` + 竖版 `packingReport/skins/*` + 横版 `PackingReportLandscapeDocument.vue`（按 `VITE_TENANT_ID` 选主题） |
+| V2 样式规范 | [报表规范-装箱单-V2](./报表规范-装箱单-V2.md)（仅 semicore + 参数 V2；竖版 + 横版。V1 勿套该文色值） |
+| 当前实现 | 页面 `StockOutPackingReportPage.vue` + 竖版 `packingReport/skins/*` + 横版 `PackingReportLandscapeDocument.vue`（按 `VITE_TENANT_ID` 选主题）；V2 见上 |
 
 **原则**
 
@@ -17,8 +18,9 @@
 - 业务数据（客户名、地址、物料、备注正文等）保持源数据语言。
 - **数据字段与区块顺序**三租户一致；**视觉版式**按租户分叉，须像三家不同公司的单据。
 - Logo / 公司名 / 印章 / 备注正文仍来自公司档案（部署数据），与皮肤选择无关。
-- **默认纸张方向为横版**（A4 landscape）；工具栏可切换竖/横，偏好写入 `localStorage` 键 `frontcrm.packingReport.orientation`。
-- 修改实现时须同步更新本文档与 System 设计说明。
+- **默认纸张方向为横版**（A4 landscape）；工具栏可切换竖/横，偏好写入 `localStorage` 键 `frontcrm.packingReport.orientation`。semicore + 参数 V2 时竖/横均为 V2 版式。
+- V2 竖版栏名为中英对照硬编码，隐藏「中文/英文」切换；V1 仍由工具栏切换 caption。
+- 修改实现时须同步更新本文档与 System 设计说明。V2 观感改 [报表规范-装箱单-V2](./报表规范-装箱单-V2.md)，**不要**改 V1 皮肤文件迁就 V2。
 
 ---
 
@@ -40,7 +42,7 @@
 | 文件 | 职责 |
 | --- | --- |
 | `CRM.Web/src/views/Inventory/StockOutPackingReportPage.vue` | 拉数、工具栏（竖/横 + 中/英）、数据映射；`<component :is="reportView.component">` |
-| `CRM.Web/src/components/stockOut/packingReport/resolvePackingReportSkin.ts` | 方向 + `LOGIN_TENANT_ID` → 竖版组件 / 横版主题 |
+| `CRM.Web/src/components/stockOut/packingReport/resolvePackingReportSkin.ts` | 方向 + 租户 + 样式版本 → 竖版组件 / 横版主题；横版忽略 V2 |
 | `CRM.Web/src/components/stockOut/packingReport/types.ts` | 竖/横 props、方向 localStorage |
 | `CRM.Web/src/components/stockOut/packingReport/PackingReportLandscapeDocument.vue` | A4 横版文档（三主题 class） |
 | `CRM.Web/src/components/stockOut/packingReport/skins/PackingReportSkinSemicore.vue` | 竖版橙表（挂到 ecoinf 租户） |

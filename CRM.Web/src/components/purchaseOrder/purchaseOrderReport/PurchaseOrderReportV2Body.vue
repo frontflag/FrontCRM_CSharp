@@ -182,7 +182,7 @@
         <div class="po-v2__sign-rule" />
         <div class="po-v2__sign-lines">
           <span>授权代表签字：________________</span>
-          <span>日期：{{ dash(buyerSignDate) }}</span>
+          <span>日期：____________</span>
         </div>
       </div>
       <div class="po-v2__sign-box">
@@ -337,7 +337,7 @@ function money(v?: string | null) {
 
 .po-v2__title-zh {
   position: relative;
-  font-size: 20pt;
+  font-size: 16pt;
   font-weight: 800;
   letter-spacing: 0.16em;
   line-height: 1.05;
@@ -348,7 +348,7 @@ function money(v?: string | null) {
 .po-v2__title-en {
   position: relative;
   margin-top: 1mm;
-  font-size: 9.5pt;
+  font-size: 6.5pt;
   font-weight: 700;
   letter-spacing: 0.46em;
   text-indent: 0.46em;
@@ -360,7 +360,7 @@ function money(v?: string | null) {
 .po-v2__po-no {
   position: relative;
   margin-top: 2mm;
-  font-size: 8pt;
+  font-size: 7pt;
   font-weight: 500;
   letter-spacing: 0.03em;
   color: #fff;
@@ -479,7 +479,7 @@ function money(v?: string | null) {
   width: 3.5mm;
 }
 
-.po-v2__grid {
+.po-doc--v2 .po-v2__grid {
   width: 100%;
   border-collapse: collapse;
   table-layout: auto;
@@ -487,29 +487,29 @@ function money(v?: string | null) {
   border: 1px solid var(--po-v2-border);
 }
 
-.po-v2__grid .c-idx,
-.po-v2__grid .c-mpn,
-.po-v2__grid .c-brand,
-.po-v2__grid .c-lot,
-.po-v2__grid .c-qty,
-.po-v2__grid .c-price,
-.po-v2__grid .c-amt {
+.po-doc--v2 .po-v2__grid .c-idx,
+.po-doc--v2 .po-v2__grid .c-mpn,
+.po-doc--v2 .po-v2__grid .c-brand,
+.po-doc--v2 .po-v2__grid .c-lot,
+.po-doc--v2 .po-v2__grid .c-qty,
+.po-doc--v2 .po-v2__grid .c-price,
+.po-doc--v2 .po-v2__grid .c-amt {
   width: 1%;
 }
 
-.po-v2__grid .c-desc {
+.po-doc--v2 .po-v2__grid .c-desc {
   width: auto;
 }
 
-.po-v2__grid th,
-.po-v2__grid td {
+.po-doc--v2 .po-v2__grid th,
+.po-doc--v2 .po-v2__grid td {
   border: 1px solid var(--po-v2-border);
   padding: 2.6px 4px;
   vertical-align: middle;
-  word-break: break-all;
+  word-break: break-word;
 }
 
-.po-v2__grid thead th {
+.po-doc--v2 .po-v2__grid thead th {
   background: var(--po-v2-navy);
   color: #fff;
   font-weight: 700;
@@ -518,42 +518,44 @@ function money(v?: string | null) {
   line-height: 1.25;
   border-left-color: var(--po-v2-navy);
   border-right-color: var(--po-v2-navy);
-}
-
-.po-v2__grid thead th:last-child {
   white-space: nowrap;
   word-break: keep-all;
+  overflow-wrap: normal;
 }
 
-.po-v2__grid tbody td {
+.po-doc--v2 .po-v2__grid tbody td {
   background: var(--po-v2-row);
   line-height: 2.1;
 }
 
-.po-v2__mpn {
+.po-doc--v2 .po-v2__mpn {
   font-weight: 700;
 }
 
-.po-v2__mpn,
-.po-v2__brand {
+.po-doc--v2 .po-v2__mpn,
+.po-doc--v2 .po-v2__brand {
   white-space: nowrap;
   word-break: keep-all;
 }
 
-.po-v2__desc {
+.po-doc--v2 .po-v2__desc {
   white-space: normal;
   word-break: break-word;
   overflow-wrap: anywhere;
 }
 
-.po-v2__grid .cen {
+.po-doc--v2 .po-v2__grid .cen {
   text-align: center;
+  white-space: nowrap;
+  word-break: keep-all;
 }
 
-.po-v2__grid .num,
-.po-v2 .num {
+.po-doc--v2 .po-v2__grid .num,
+.po-doc--v2 .po-v2 .num {
   text-align: right;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  word-break: keep-all;
 }
 
 .po-v2__empty {
