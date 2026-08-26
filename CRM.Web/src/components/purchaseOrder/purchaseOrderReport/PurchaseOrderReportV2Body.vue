@@ -100,7 +100,7 @@
             <td class="cen">{{ String(line.index).padStart(2, '0') }}</td>
             <td class="po-v2__mpn">{{ dash(line.spec) }}</td>
             <td>{{ dash(line.brand) }}</td>
-            <td>{{ dash(line.lotNo) }}</td>
+            <td class="cen">{{ dash(line.lotNo) }}</td>
             <td>{{ dash(line.productName) }}</td>
             <td class="num">{{ showAmounts ? line.qty : '—' }}</td>
             <td class="num">{{ showAmounts ? line.unitPrice : '—' }}</td>
@@ -115,7 +115,7 @@
 
     <div class="po-v2__lower">
       <section class="po-v2__panel">
-        <div class="po-v2__panel-hd">交付与质量要求 / DELIVERY &amp; QUALITY</div>
+        <div class="po-v2__panel-hd po-v2__panel-hd--plain">交付与质量要求 / DELIVERY &amp; QUALITY</div>
         <div class="po-v2__kv">
           <span class="po-v2__k">交货地址 / Ship To</span>
           <span>{{ dash(shipTo) }}</span>
@@ -154,8 +154,6 @@
       </section>
     </div>
 
-    <div class="po-v2__fade" aria-hidden="true" />
-
     <section class="po-v2__block">
       <div class="po-v2__sec-hd">
         <i class="po-v2__guide" aria-hidden="true" />
@@ -164,6 +162,7 @@
       <div class="po-v2__legal">
         <strong>文件效力：</strong>本采购订单及下列条款为不可分割的整体；供需双方盖章后生效，扫描件与合同原件具有同等法律效力。本订单壹式贰份。
       </div>
+      <div class="po-v2__rule" aria-hidden="true" />
       <div class="po-v2__terms-grid">
         <div v-for="card in termCards" :key="card.title" class="po-v2__term">
           <div class="po-v2__term-t">{{ card.title }}</div>
@@ -202,7 +201,6 @@
 
     <footer class="po-v2__foot">
       <span>请在24小时内确认此合同并签字/盖章，谢谢！</span>
-      <span class="po-v2__badge">PROCUREMENT</span>
     </footer>
   </div>
 </template>
@@ -423,6 +421,12 @@ function dash(v?: string | null) {
   height: 3.2px;
 }
 
+.po-v2__rule {
+  height: 1.6px;
+  margin: -8px 0 calc(2.2mm + 8px);
+  background: var(--po-v2-line);
+}
+
 .po-v2__parties {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -488,13 +492,16 @@ function dash(v?: string | null) {
 }
 
 .po-v2__grid .c-desc {
-  width: 26%;
+  width: 22%;
 }
 
 .po-v2__grid .c-qty,
-.po-v2__grid .c-price,
-.po-v2__grid .c-amt {
+.po-v2__grid .c-price {
   width: 8%;
+}
+
+.po-v2__grid .c-amt {
+  width: 12%;
 }
 
 .po-v2__grid th,
@@ -512,10 +519,18 @@ function dash(v?: string | null) {
   text-align: center;
   padding: 3.2px 3px;
   line-height: 1.25;
+  border-left-color: var(--po-v2-navy);
+  border-right-color: var(--po-v2-navy);
+}
+
+.po-v2__grid thead th:last-child {
+  white-space: nowrap;
+  word-break: keep-all;
 }
 
 .po-v2__grid tbody td {
   background: var(--po-v2-row);
+  line-height: 2.1;
 }
 
 .po-v2__mpn {
@@ -557,6 +572,10 @@ function dash(v?: string | null) {
   font-weight: 700;
   font-size: 8pt;
   color: var(--po-v2-ink);
+}
+
+.po-v2__panel-hd--plain {
+  background: var(--po-v2-legal);
 }
 
 .po-v2__kv {
@@ -684,22 +703,10 @@ function dash(v?: string | null) {
 }
 
 .po-v2__foot {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   margin-top: 2mm;
   padding-top: 2mm;
   border-top: 1px solid #c5d0d8;
   font-size: 7pt;
   color: #9aa3ab;
-}
-
-.po-v2__badge {
-  background: var(--po-v2-navy);
-  color: var(--po-v2-accent);
-  font-size: 7pt;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  padding: 1.4mm 3mm;
 }
 </style>

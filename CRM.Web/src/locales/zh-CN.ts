@@ -643,9 +643,10 @@ const zhCN = {
     navTitle: '参数分类',
     globalNav: '报表全局参数',
     globalTitle: '报表全局参数',
-    globalHint: '设置全站报表样式版本。保存后暂不改变现有打印效果，新模板上线后再按此版本切换。',
+    globalHint: '设置全站报表样式版本。采购订单打印：V2 仅 Semicore 站点换新版式，其他站点仍为 V1。',
     styleVersionLabel: '报表样式版本：',
-    styleVersionNote: '当前打印仍使用现有模板与抬头；选择 V2 仅为后续新样式预留。未配置时按 V1。',
+    styleVersionNote:
+      'V2 仅对 Semicore 站点的采购订单打印生效；其他站点的采购订单、以及销售订单/装箱/发票均仍用现有样式。未配置时按 V1。',
     saveBtn: '保存',
     refreshBtn: '刷新',
     saveSuccess: '保存成功',

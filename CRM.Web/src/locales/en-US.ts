@@ -649,10 +649,10 @@ const enUS = {
     globalNav: 'Global report parameters',
     globalTitle: 'Global report parameters',
     globalHint:
-      'Choose the site-wide report style version. Saving does not change current prints; new templates will follow this version later.',
+      'Choose the site-wide report style version. Purchase-order print: V2 changes the layout only on the Semicore site; other sites stay on V1.',
     styleVersionLabel: 'Report style version:',
     styleVersionNote:
-      'Prints still use the current templates and letterheads. V2 is reserved for upcoming styles. Unconfigured sites use V1.',
+      'V2 applies only to Semicore purchase-order prints. Other sites, and sales-order / packing / invoice prints, keep the current layout. Unconfigured sites use V1.',
     saveBtn: 'Save',
     refreshBtn: 'Refresh',
     saveSuccess: 'Saved',

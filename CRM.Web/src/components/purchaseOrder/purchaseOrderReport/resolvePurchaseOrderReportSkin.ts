@@ -4,15 +4,15 @@ import { LOGIN_TENANT_ID } from '@/config/loginTenant'
 import PurchaseOrderReportSkinSemicore from './skins/PurchaseOrderReportSkinSemicore.vue'
 import PurchaseOrderReportSkinIdesemi from './skins/PurchaseOrderReportSkinIdesemi.vue'
 import PurchaseOrderReportSkinEcoinf from './skins/PurchaseOrderReportSkinEcoinf.vue'
-import PurchaseOrderReportV2SkinSemicore from './skins/PurchaseOrderReportV2SkinSemicore.vue'
 import PurchaseOrderReportV2SkinIdesemi from './skins/PurchaseOrderReportV2SkinIdesemi.vue'
-import PurchaseOrderReportV2SkinEcoinf from './skins/PurchaseOrderReportV2SkinEcoinf.vue'
 
 /**
  * 与 Packing / Invoice / SO 相同租户映射（组件文件名保留原命名）：
  * - semicore → Idesemi 深色顶栏
  * - idesemi → Ecoinf 工业极简
  * - ecoinf → Semicore 绿表
+ *
+ * V2 仅 semicore 换版式；idesemi / ecoinf 即使全局参数为 V2 仍用上表 V1 皮肤。
  */
 const SKINS: Record<string, Component> = {
   semicore: PurchaseOrderReportSkinIdesemi,
@@ -20,10 +20,19 @@ const SKINS: Record<string, Component> = {
   ecoinf: PurchaseOrderReportSkinSemicore
 }
 
+/** 采购订单 V2 仅对这些租户生效 */
 const V2_SKINS: Record<string, Component> = {
-  semicore: PurchaseOrderReportV2SkinIdesemi,
-  idesemi: PurchaseOrderReportV2SkinEcoinf,
-  ecoinf: PurchaseOrderReportV2SkinSemicore
+  semicore: PurchaseOrderReportV2SkinIdesemi
+}
+
+export const PURCHASE_ORDER_V2_TENANT_ID = 'semicore'
+
+export function usesPurchaseOrderReportV2(
+  tenantId: string = LOGIN_TENANT_ID,
+  styleVersion: ReportStyleVersion = 'V1'
+): boolean {
+  const key = (tenantId || 'semicore').trim().toLowerCase()
+  return styleVersion === 'V2' && key in V2_SKINS
 }
 
 export function resolvePurchaseOrderReportSkin(
@@ -32,7 +41,8 @@ export function resolvePurchaseOrderReportSkin(
 ): Component {
   const key = (tenantId || 'semicore').trim().toLowerCase()
   if (styleVersion === 'V2') {
-    return V2_SKINS[key] ?? PurchaseOrderReportV2SkinSemicore
+    const v2 = V2_SKINS[key]
+    if (v2) return v2
   }
   return SKINS[key] ?? PurchaseOrderReportSkinSemicore
 }
