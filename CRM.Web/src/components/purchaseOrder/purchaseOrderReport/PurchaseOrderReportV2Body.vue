@@ -99,9 +99,9 @@
           <tr v-for="line in lines" :key="'l' + line.index">
             <td class="cen">{{ String(line.index).padStart(2, '0') }}</td>
             <td class="po-v2__mpn">{{ dash(line.spec) }}</td>
-            <td>{{ dash(line.brand) }}</td>
+            <td class="po-v2__brand">{{ dash(line.brand) }}</td>
             <td class="cen">{{ dash(line.lotNo) }}</td>
-            <td>{{ dash(line.productName) }}</td>
+            <td class="po-v2__desc">{{ dash(line.productName) }}</td>
             <td class="num">{{ showAmounts ? line.qty : '—' }}</td>
             <td class="num">{{ showAmounts ? line.unitPrice : '—' }}</td>
             <td class="num">{{ showAmounts ? line.lineTotal : '—' }}</td>
@@ -137,19 +137,19 @@
         <div class="po-v2__panel-hd">金额汇总 / SUMMARY</div>
         <div class="po-v2__kv">
           <span class="po-v2__k">小计 / Subtotal</span>
-          <span class="num">{{ showAmounts ? exclTax : '—' }}</span>
+          <span class="num">{{ money(exclTax) }}</span>
         </div>
         <div class="po-v2__kv">
           <span class="po-v2__k">税费 / Taxes</span>
-          <span class="num">{{ showAmounts ? taxAmount : '—' }}</span>
+          <span class="num">{{ money(taxAmount) }}</span>
         </div>
         <div class="po-v2__kv">
           <span class="po-v2__k">运费 / Freight</span>
-          <span class="num">{{ dash(freightAmount) }}</span>
+          <span class="num">{{ money(freightAmount) }}</span>
         </div>
         <div class="po-v2__kv po-v2__kv--total">
           <span>订单总额 / Total</span>
-          <span class="num">{{ showAmounts ? grandIncl : '—' }}</span>
+          <span class="num">{{ money(grandIncl) }}</span>
         </div>
       </section>
     </div>
@@ -212,13 +212,25 @@ import {
   type PurchaseOrderReportDocumentProps
 } from './types'
 
-withDefaults(defineProps<PurchaseOrderReportDocumentProps>(), purchaseOrderReportDocumentPropDefaults)
+const props = withDefaults(
+  defineProps<PurchaseOrderReportDocumentProps>(),
+  purchaseOrderReportDocumentPropDefaults
+)
 
 const termCards = PURCHASE_ORDER_SERVICE_TERM_CARDS
 
 function dash(v?: string | null) {
   const s = (v ?? '').trim()
   return s || '—'
+}
+
+/** 汇总金额带币别；无金额权限或空值仍为 — */
+function money(v?: string | null) {
+  if (!props.showAmounts) return '—'
+  const s = dash(v)
+  if (s === '—') return '—'
+  const cur = (props.currencyLabel ?? '').trim()
+  return cur ? `${s} ${cur}` : s
 }
 </script>
 
@@ -470,38 +482,23 @@ function dash(v?: string | null) {
 .po-v2__grid {
   width: 100%;
   border-collapse: collapse;
-  table-layout: fixed;
+  table-layout: auto;
   font-size: 7.4pt;
   border: 1px solid var(--po-v2-border);
 }
 
-.po-v2__grid .c-idx {
-  width: 8%;
-}
-
-.po-v2__grid .c-mpn {
-  width: 18%;
-}
-
-.po-v2__grid .c-brand {
-  width: 11%;
-}
-
-.po-v2__grid .c-lot {
-  width: 13%;
+.po-v2__grid .c-idx,
+.po-v2__grid .c-mpn,
+.po-v2__grid .c-brand,
+.po-v2__grid .c-lot,
+.po-v2__grid .c-qty,
+.po-v2__grid .c-price,
+.po-v2__grid .c-amt {
+  width: 1%;
 }
 
 .po-v2__grid .c-desc {
-  width: 22%;
-}
-
-.po-v2__grid .c-qty,
-.po-v2__grid .c-price {
-  width: 8%;
-}
-
-.po-v2__grid .c-amt {
-  width: 12%;
+  width: auto;
 }
 
 .po-v2__grid th,
@@ -535,6 +532,18 @@ function dash(v?: string | null) {
 
 .po-v2__mpn {
   font-weight: 700;
+}
+
+.po-v2__mpn,
+.po-v2__brand {
+  white-space: nowrap;
+  word-break: keep-all;
+}
+
+.po-v2__desc {
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .po-v2__grid .cen {
