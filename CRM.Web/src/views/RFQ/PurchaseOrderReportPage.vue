@@ -102,11 +102,15 @@ import {
 } from '@/constants/purchaseOrderStatus'
 import { resolvePurchaseOrderReportSkin } from '@/components/purchaseOrder/purchaseOrderReport/resolvePurchaseOrderReportSkin'
 import { LOGIN_TENANT_ID } from '@/config/loginTenant'
+import { reportParamsApi, type ReportStyleVersion } from '@/api/reportParams'
 import { renderElementToPdfBlob, blobToDataUrl } from '@/utils/poReportPdf'
 import { renderPdfBlobFirstPageToPngDataUrl } from '@/utils/pdfSealToPng'
 import { getApiErrorMessage } from '@/utils/apiError'
 
-const purchaseOrderReportSkin = resolvePurchaseOrderReportSkin(LOGIN_TENANT_ID)
+const styleVersion = ref<ReportStyleVersion>('V1')
+const purchaseOrderReportSkin = computed(() =>
+  resolvePurchaseOrderReportSkin(LOGIN_TENANT_ID, styleVersion.value)
+)
 
 const route = useRoute()
 const router = useRouter()
@@ -228,8 +232,8 @@ const docBind = computed(() => {
       orderDate: '',
       deliveryDate: '',
       deliveryMode: '送货/物流/快递',
-      partySeller: { name: '', address: '', phone: '', consignee: '' },
-      partyBuyer: { name: '', address: '' },
+      partySeller: { name: '', address: '', phone: '', consignee: '', contact: '', contactPhone: '', email: '' },
+      partyBuyer: { name: '', address: '', contact: '', phone: '', email: '' },
       currencyLabel: 'RMB',
       lines: [],
       totalQty: '0',
@@ -244,13 +248,18 @@ const docBind = computed(() => {
       logoUrl: companyLogoObjectUrl.value ?? DEFAULT_PO_REPORT_LOGO,
       showAmounts: canViewAmount.value,
       showSeal: showSealOnReport.value,
-      buyerSignDate: ''
+      buyerSignDate: '',
+      contractNo: '—',
+      paymentTerms: '—',
+      shipTo: '—',
+      freightNote: '运费承担：供方承担',
+      freightAmount: '—'
     }
   }
 
   const seller = basicDefault.value
   const wh = warehouseDefault.value
-  const items = (o.items as any[]) || []
+  const items = ((o.items || o.Items) as any[]) || []
   const headerCurNum = Number(o.currency)
   const cur = currencyCode(o.currency)
 
@@ -280,7 +289,8 @@ const docBind = computed(() => {
       taxRate: String(rate),
       lineTotal: formatReportLineTotal(lineTotal),
       productName: (row.comment && String(row.comment).trim()) || '—',
-      spec: row.pn || '—'
+      spec: row.pn || row.PN || '—',
+      lotNo: (row.dateCode || row.DateCode || '').toString().trim() || '—'
     }
   })
 
@@ -313,11 +323,17 @@ const docBind = computed(() => {
       name: vendorName,
       address: vendorAddr,
       phone: vendorPhoneLine,
-      consignee
+      consignee,
+      contact: (o.vendorContactName && String(o.vendorContactName).trim()) || '',
+      contactPhone: (o.vendorContactPhone && String(o.vendorContactPhone).trim()) || '',
+      email: (o.vendorContactEmail && String(o.vendorContactEmail).trim()) || ''
     },
     partyBuyer: {
       name: seller?.companyName || '—',
-      address: seller?.address || '—'
+      address: seller?.address || '—',
+      contact: (seller?.legalPerson && String(seller.legalPerson).trim()) || '',
+      phone: (seller?.phone && String(seller.phone).trim()) || '',
+      email: (seller?.email && String(seller.email).trim()) || ''
     },
     currencyLabel: cur,
     lines,
@@ -337,7 +353,12 @@ const docBind = computed(() => {
     logoUrl: companyLogoObjectUrl.value ?? DEFAULT_PO_REPORT_LOGO,
     showAmounts: canViewAmount.value,
     showSeal: showSealOnReport.value,
-    buyerSignDate: formatChineseDate(o.createTime)
+    buyerSignDate: formatChineseDate(o.createTime),
+    contractNo: '—',
+    paymentTerms: (o.comment && String(o.comment).trim()) || '—',
+    shipTo: shipTo || '—',
+    freightNote: '运费承担：供方承担',
+    freightAmount: '—'
   }
 })
 
@@ -406,7 +427,12 @@ async function load() {
       errorMsg.value = '缺少订单 ID'
       return
     }
-    const data = (await purchaseOrderApi.getReportData(id)) as {
+    const [effectiveVersion, dataRaw] = await Promise.all([
+      reportParamsApi.getEffectiveStyleVersion(),
+      purchaseOrderApi.getReportData(id)
+    ])
+    styleVersion.value = effectiveVersion
+    const data = dataRaw as {
       order: Record<string, unknown>
       companyProfile: {
         basicInfos?: CompanyBasicRow[]

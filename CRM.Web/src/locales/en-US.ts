@@ -642,6 +642,23 @@ const enUS = {
     saveFailed: 'Save failed',
     loadFailed: 'Failed to load sales parameters'
   },
+  reportParams: {
+    pageTitle: 'Report parameters',
+    pageSubtitle: 'Configure system parameters for printed reports.',
+    navTitle: 'Categories',
+    globalNav: 'Global report parameters',
+    globalTitle: 'Global report parameters',
+    globalHint:
+      'Choose the site-wide report style version. Saving does not change current prints; new templates will follow this version later.',
+    styleVersionLabel: 'Report style version:',
+    styleVersionNote:
+      'Prints still use the current templates and letterheads. V2 is reserved for upcoming styles. Unconfigured sites use V1.',
+    saveBtn: 'Save',
+    refreshBtn: 'Refresh',
+    saveSuccess: 'Saved',
+    saveFailed: 'Save failed',
+    loadFailed: 'Failed to load report parameters'
+  },
   layout: {
     brandFull: 'Semicore AI Intelligent System',
     brandSub: 'Semicore AI Intelligent System',
@@ -767,6 +784,7 @@ const enUS = {
       purchaseParams: 'Purchase parameters',
       salesParams: 'Sales parameters',
       financeParams: 'Finance parameters',
+      reportParams: 'Report parameters',
       systemSettings: 'System Settings',
       ops: 'Ops Management',
       userFeedback: 'User Feedback',

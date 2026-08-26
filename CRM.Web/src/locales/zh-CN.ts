@@ -637,6 +637,21 @@ const zhCN = {
     saveFailed: '保存失败',
     loadFailed: '加载销售参数失败'
   },
+  reportParams: {
+    pageTitle: '报表参数',
+    pageSubtitle: '配置报表打印相关系统参数。',
+    navTitle: '参数分类',
+    globalNav: '报表全局参数',
+    globalTitle: '报表全局参数',
+    globalHint: '设置全站报表样式版本。保存后暂不改变现有打印效果，新模板上线后再按此版本切换。',
+    styleVersionLabel: '报表样式版本：',
+    styleVersionNote: '当前打印仍使用现有模板与抬头；选择 V2 仅为后续新样式预留。未配置时按 V1。',
+    saveBtn: '保存',
+    refreshBtn: '刷新',
+    saveSuccess: '保存成功',
+    saveFailed: '保存失败',
+    loadFailed: '加载报表参数失败'
+  },
   layout: {
     /** 顶栏 Logo 旁完整品牌文案（与产品对外名称一致） */
     brandFull: 'Semicore AI Intelligent System',
@@ -763,6 +778,7 @@ const zhCN = {
       purchaseParams: '采购参数',
       salesParams: '销售参数',
       financeParams: '财务参数',
+      reportParams: '报表参数',
       systemSettings: '系统设置',
       ops: '运维管理',
       userFeedback: '用户反馈',

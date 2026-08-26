@@ -79,6 +79,7 @@
     { "id": "MENU_EXPORT_LOGS", "label": "导出日志", "routeNames": ["ExportLogList"], "pathPrefixes": ["/system/export-logs"] },
 
     { "id": "MENU_COMPANY_INFO", "label": "公司信息", "routeNames": ["CompanyInfo"], "pathPrefixes": ["/system/company-info"] },
+    { "id": "MENU_REPORT_PARAMS", "label": "报表参数", "routeNames": ["ReportGlobalParams"], "pathPrefixes": ["/system/report-params"] },
     { "id": "MENU_SETTINGS", "label": "系统设置", "routeNames": ["Settings"], "pathPrefixes": ["/dashboard/settings"] },
     { "id": "MENU_RELEASE_NOTES", "label": "版本更新日志", "routeNames": ["ReleaseNotes"], "pathPrefixes": ["/release-notes"], "docPath": "pages/version/版本更新日志_MENU_RELEASE_NOTES.md" },
     { "id": "MENU_PROFILE", "label": "个人设置", "routeNames": ["Profile", "WechatBinding"], "pathPrefixes": ["/profile"] },

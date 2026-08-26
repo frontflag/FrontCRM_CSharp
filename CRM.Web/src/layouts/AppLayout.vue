@@ -1047,7 +1047,7 @@
         </SidebarMenuGroupFlyout>
 
         <SidebarMenuGroupFlyout
-          v-if="canAccessSystemPermission('system.params.company.read') || canAccessSystemPermission('system.params.dict.read') || canAccessParamsModule('sales') || canAccessParamsModule('purchase') || canAccessParamsModule('finance') || canAccessSystemPermission('biz.ai.admin')"
+          v-if="canAccessSystemPermission('system.params.company.read') || canAccessSystemPermission('system.params.dict.read') || canAccessParamsModule('sales') || canAccessParamsModule('purchase') || canAccessParamsModule('finance') || canAccessParamsModule('report') || canAccessSystemPermission('biz.ai.admin')"
           :collapsed="isCollapsed"
           :expanded="openGroups.paramManagement"
           @toggle="toggleGroup('paramManagement')"
@@ -1126,6 +1126,13 @@
               active-class="active"
               exact
             >{{ t('layout.menu.financeParams') }}</router-link>
+            <router-link
+              v-if="canAccessParamsModule('report')"
+              to="/system/report-params/global"
+              class="submenu-item"
+              active-class="active"
+              exact
+            >{{ t('layout.menu.reportParams') }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
 
@@ -3242,6 +3249,7 @@ const pageTitleMap: Record<string, string> = {
   '/system/purchase-params/default-assign-method': 'purchaseParams.defaultAssignMethodNav',
   '/system/purchase-params/demand-protection': 'purchaseParams.demandProtectionNav',
   '/system/purchase-params/refresh-vendor': 'purchaseParams.refreshVendorNav',
+  '/system/report-params/global': 'layout.menu.reportParams',
   '/system/login-logs': 'layout.menu.loginLog',
   '/system/operation-logs': 'layout.menu.operationLog',
   '/system/export-logs': 'layout.menu.exportLog',
@@ -3410,6 +3418,7 @@ const routeMetaTitleKeyMap: Record<string, string> = {
   '公司信息': 'layout.menu.companyInfo',
   '数据字典': 'layout.menu.dictItems',
   '财务参数': 'layout.menu.financeParams',
+  '报表参数': 'layout.menu.reportParams',
   '登录日志': 'layout.menu.loginLog',
   '操作日志': 'layout.menu.operationLog',
   '导出日志': 'layout.menu.exportLog',
@@ -3664,7 +3673,7 @@ watch(
     if (p.startsWith('/system/')) {
       openGroups.value.systemManagement = true
     }
-    if (p === '/system/company-info' || p === '/system/dict-items' || p === '/system/ai-config' || p.startsWith('/system/sales-params') || p.startsWith('/system/purchase-params') || p.startsWith('/system/finance-params')) {
+    if (p === '/system/company-info' || p === '/system/dict-items' || p === '/system/ai-config' || p.startsWith('/system/sales-params') || p.startsWith('/system/purchase-params') || p.startsWith('/system/finance-params') || p.startsWith('/system/report-params')) {
       openGroups.value.paramManagement = true
     }
     if (p === '/system/login-logs' || p === '/system/operation-logs' || p === '/system/export-logs') {

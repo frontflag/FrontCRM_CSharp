@@ -39,5 +39,10 @@ namespace CRM.Core.Constants
         /// 采购「刷新供应商」是否允许同步已完成业务节点（到货已入库、入库已过账、付款已完成、进项已认证/冲红等）。Boolean，默认 false。
         /// </summary>
         public const string PurchaseAllowRefreshCompletedBizNodes = "System.Purchase.AllowRefreshCompletedBizNodes";
+
+        /// <summary>
+        /// 报表样式版本（ValueString：V1 / V2）。未配置或非法值视为 V1。采购订单打印读取生效版本。
+        /// </summary>
+        public const string ReportStyleVersion = "System.Report.StyleVersion";
     }
 }

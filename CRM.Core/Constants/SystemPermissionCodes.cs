@@ -53,6 +53,12 @@ public static class SystemPermissionCodes
     public const string ParamsFinancePaymentBanksRead = "system.params.finance.payment-banks.read";
     public const string ParamsFinancePaymentBanksWrite = "system.params.finance.payment-banks.write";
 
+    /// <summary>侧栏「报表参数」。</summary>
+    public const string ParamsReportRead = "system.params.report.read";
+    public const string ParamsReportWrite = "system.params.report.write";
+    public const string ParamsReportGlobalRead = "system.params.report.global.read";
+    public const string ParamsReportGlobalWrite = "system.params.report.global.write";
+
     public const string LogsLoginRead = "system.logs.login.read";
     public const string LogsOperationRead = "system.logs.operation.read";
     public const string LogsExportRead = "system.logs.export.read";
@@ -63,7 +69,7 @@ public static class SystemPermissionCodes
             || string.Equals(code, LegacyRbacManage, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
-    /// 参数模块页内子项：system.params.{sales|purchase|finance}.{feature}.(read|write)。
+    /// 参数模块页内子项：system.params.{sales|purchase|finance|report}.{feature}.(read|write)。
     /// 侧栏入口仍为 system.params.{area}.(read|write)（恰好 4 段）。
     /// 新增子菜单时按此命名即可被角色编辑页自动识别为「页内子项」。
     /// </summary>
@@ -74,11 +80,7 @@ public static class SystemPermissionCodes
         if (parts.Length < 5) return false;
         if (!string.Equals(parts[0], "system", StringComparison.OrdinalIgnoreCase)) return false;
         if (!string.Equals(parts[1], "params", StringComparison.OrdinalIgnoreCase)) return false;
-        var area = parts[2];
-        if (!string.Equals(area, "sales", StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(area, "purchase", StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(area, "finance", StringComparison.OrdinalIgnoreCase))
-            return false;
+        if (!IsParamsModuleArea(parts[2])) return false;
         var action = parts[^1];
         return string.Equals(action, "read", StringComparison.OrdinalIgnoreCase)
                || string.Equals(action, "write", StringComparison.OrdinalIgnoreCase);
@@ -91,14 +93,16 @@ public static class SystemPermissionCodes
         if (parts.Length != 4) return false;
         if (!string.Equals(parts[0], "system", StringComparison.OrdinalIgnoreCase)) return false;
         if (!string.Equals(parts[1], "params", StringComparison.OrdinalIgnoreCase)) return false;
-        var area = parts[2];
-        if (!string.Equals(area, "sales", StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(area, "purchase", StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(area, "finance", StringComparison.OrdinalIgnoreCase))
-            return false;
+        if (!IsParamsModuleArea(parts[2])) return false;
         return string.Equals(parts[3], "read", StringComparison.OrdinalIgnoreCase)
                || string.Equals(parts[3], "write", StringComparison.OrdinalIgnoreCase);
     }
+
+    static bool IsParamsModuleArea(string? area) =>
+        string.Equals(area, "sales", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(area, "purchase", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(area, "finance", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(area, "report", StringComparison.OrdinalIgnoreCase);
 
     public static IReadOnlyList<string> AllSystemPermissions { get; } = new[]
     {
@@ -121,10 +125,12 @@ public static class SystemPermissionCodes
         ParamsFinanceExchangeRatesRead, ParamsFinanceExchangeRatesWrite,
         ParamsFinancePurchaseCostParamsRead, ParamsFinancePurchaseCostParamsWrite,
         ParamsFinancePaymentBanksRead, ParamsFinancePaymentBanksWrite,
+        ParamsReportRead, ParamsReportWrite,
+        ParamsReportGlobalRead, ParamsReportGlobalWrite,
         LogsLoginRead, LogsOperationRead, LogsExportRead
     };
 
-    /// <summary>Admin（SYS_MANAGER）默认开放：含销售/采购/财务参数及其现有页内子项。</summary>
+    /// <summary>Admin（SYS_MANAGER）默认开放：含销售/采购/财务/报表参数及其现有页内子项。</summary>
     public static IReadOnlyList<string> DefaultAdminPermissions { get; } = new[]
     {
         OrgUsersRead, OrgUsersWrite, OrgUsersResetPassword,
@@ -144,6 +150,8 @@ public static class SystemPermissionCodes
         ParamsFinanceExchangeRatesRead, ParamsFinanceExchangeRatesWrite,
         ParamsFinancePurchaseCostParamsRead, ParamsFinancePurchaseCostParamsWrite,
         ParamsFinancePaymentBanksRead, ParamsFinancePaymentBanksWrite,
+        ParamsReportRead, ParamsReportWrite,
+        ParamsReportGlobalRead, ParamsReportGlobalWrite,
         LogsLoginRead, LogsOperationRead, LogsExportRead
     };
 

@@ -1016,6 +1016,20 @@ const routes: RouteRecordRaw[] = [
         ]
       },
       {
+        path: 'system/report-params',
+        component: () => import('@/views/System/ReportParamsLayout.vue'),
+        meta: { requiresAuth: true, title: '报表参数', paramsModule: 'report' },
+        children: [
+          { path: '', redirect: '/system/report-params/global' },
+          {
+            path: 'global',
+            name: 'ReportGlobalParams',
+            component: () => import('@/views/System/ReportGlobalParamsSettings.vue'),
+            meta: { requiresAuth: true, title: '报表参数', permission: 'system.params.report.global.read' }
+          }
+        ]
+      },
+      {
         path: 'system/login-logs',
         name: 'LoginLogList',
         component: () => import('@/views/System/LoginLogList.vue'),

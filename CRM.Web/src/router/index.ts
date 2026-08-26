@@ -31,7 +31,7 @@ function routePermissionAllowed(authStore: ReturnType<typeof useAuthStore>, to: 
       : authStore.hasPermission(p)
     return ok && !authStore.isIdentityBlockedForPermission(p)
   }
-  const paramsModule = to.meta.paramsModule as 'sales' | 'purchase' | 'finance' | undefined
+  const paramsModule = to.meta.paramsModule as 'sales' | 'purchase' | 'finance' | 'report' | undefined
   if (paramsModule && !authStore.canAccessParamsModule(paramsModule)) return false
   const multi = to.meta.permissions
   if (Array.isArray(multi) && multi.length > 0) {
