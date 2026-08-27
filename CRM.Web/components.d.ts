@@ -214,6 +214,8 @@ declare module 'vue' {
     SalesOrderReportSkinEcoinf: typeof import('./src/components/SalesOrder/salesOrderReport/skins/SalesOrderReportSkinEcoinf.vue')['default']
     SalesOrderReportSkinIdesemi: typeof import('./src/components/SalesOrder/salesOrderReport/skins/SalesOrderReportSkinIdesemi.vue')['default']
     SalesOrderReportSkinSemicore: typeof import('./src/components/SalesOrder/salesOrderReport/skins/SalesOrderReportSkinSemicore.vue')['default']
+    SalesOrderReportV2Body: typeof import('./src/components/SalesOrder/salesOrderReport/SalesOrderReportV2Body.vue')['default']
+    SalesOrderReportV2SkinIdesemi: typeof import('./src/components/SalesOrder/salesOrderReport/skins/SalesOrderReportV2SkinIdesemi.vue')['default']
     SalesOrderSearchPanel: typeof import('./src/components/SalesOrder/SalesOrderSearchPanel.vue')['default']
     SalesOrderStockOutBatchPanel: typeof import('./src/components/Inventory/SalesOrderStockOutBatchPanel.vue')['default']
     SalesOrderWarrantyReportBody: typeof import('./src/components/SalesOrder/salesOrderWarrantyReport/SalesOrderWarrantyReportBody.vue')['default']

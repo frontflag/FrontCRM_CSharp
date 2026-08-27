@@ -49,9 +49,27 @@ export interface SalesOrderReportDocumentProps {
   showAmounts: boolean
   showSeal?: boolean
   sellerSignDate?: string
+  /** V2：合同编号，无字段时为 — */
+  contractNo?: string
+  /** V2：付款条款占位，无字段时为 — */
+  paymentTerms?: string
+  /** V2：交货地址全文 */
+  shipTo?: string
+  /** V2：交付说明（如运输方式） */
+  freightNote?: string
+  /** V2：运费金额，无字段时为 — */
+  freightAmount?: string
+  /** V2：订单备注（交付区展示） */
+  orderRemark?: string
 }
 
 export const salesOrderReportDocumentPropDefaults = {
   sellerSignDate: '',
-  showSeal: true
+  showSeal: true,
+  contractNo: '—',
+  paymentTerms: '—',
+  shipTo: '—',
+  freightNote: '—',
+  freightAmount: '—',
+  orderRemark: '—'
 }

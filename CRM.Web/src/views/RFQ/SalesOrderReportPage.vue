@@ -56,13 +56,17 @@ import { SALES_ORDER_SERVICE_TERMS } from '@/constants/salesOrderReportTerms'
 import { CURRENCY_CODE_TO_TEXT, settlementVatRateDecimal } from '@/constants/currency'
 import { resolveSalesOrderReportSkin } from '@/components/SalesOrder/salesOrderReport/resolveSalesOrderReportSkin'
 import { LOGIN_TENANT_ID } from '@/config/loginTenant'
+import { reportParamsApi, type ReportStyleVersion } from '@/api/reportParams'
 import { renderElementToPdfBlob } from '@/utils/poReportPdf'
 import { renderPdfBlobFirstPageToPngDataUrl } from '@/utils/pdfSealToPng'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { salesOrderReportAllowed } from '@/constants/salesOrderStatus'
 
-const salesOrderReportSkin = resolveSalesOrderReportSkin(LOGIN_TENANT_ID)
+const styleVersion = ref<ReportStyleVersion>('V1')
+const salesOrderReportSkin = computed(() =>
+  resolveSalesOrderReportSkin(LOGIN_TENANT_ID, styleVersion.value)
+)
 
 const route = useRoute()
 const router = useRouter()
@@ -153,6 +157,16 @@ function formatChineseDate(input: Date | string | undefined | null): string {
   return `${parts[0]}年${parts[1]}月${parts[2]}日`
 }
 
+function resolveOrderRemark(o: Record<string, any> | null | undefined): string {
+  if (!o) return '—'
+  const s =
+    (o.headerRemarkDisplay && String(o.headerRemarkDisplay).trim()) ||
+    (o.HeaderRemarkDisplay && String(o.HeaderRemarkDisplay).trim()) ||
+    (o.comment && String(o.comment).trim()) ||
+    ''
+  return s || '—'
+}
+
 const docBind = computed(() => {
   const o = order.value
   if (!o) {
@@ -178,7 +192,12 @@ const docBind = computed(() => {
       logoUrl: companyLogoObjectUrl.value ?? DEFAULT_SO_REPORT_LOGO,
       showAmounts: showReportAmounts.value,
       showSeal: showSealOnReport.value,
-      sellerSignDate: ''
+      sellerSignDate: '',
+      contractNo: '—',
+      paymentTerms: '—',
+      shipTo: '—',
+      freightAmount: '—',
+      orderRemark: '—'
     }
   }
 
@@ -231,6 +250,7 @@ const docBind = computed(() => {
   const buyerAddr = (o.deliveryAddress && String(o.deliveryAddress).trim()) || '—'
 
   const sellerPhone = [seller?.phone, seller?.fax].filter(Boolean).join(' / ') || '—'
+  const orderRemark = resolveOrderRemark(o)
 
   return {
     headerCompanyName: seller?.companyName || '—',
@@ -256,16 +276,18 @@ const docBind = computed(() => {
     taxAmount: formatReportLineTotal(tax),
     grandIncl: formatReportLineTotal(inclSum),
     taxRateLabel,
-    extraLines: [
-      `交货地址：${shipTo}`,
-      `订单备注：${(o.headerRemarkDisplay && String(o.headerRemarkDisplay).trim()) || (o.HeaderRemarkDisplay && String(o.HeaderRemarkDisplay).trim()) || (o.comment && String(o.comment).trim()) || '—'}`
-    ],
+    extraLines: [`交货地址：${shipTo}`, `订单备注：${orderRemark}`],
     terms: SALES_ORDER_SERVICE_TERMS,
     sealUrl: sealUrl.value,
     logoUrl: companyLogoObjectUrl.value ?? DEFAULT_SO_REPORT_LOGO,
     showAmounts: showReportAmounts.value,
     showSeal: showSealOnReport.value,
-    sellerSignDate: formatChineseDate(o.createTime)
+    sellerSignDate: formatChineseDate(o.createTime),
+    contractNo: '—',
+    paymentTerms: '—',
+    shipTo,
+    freightAmount: '—',
+    orderRemark
   }
 })
 
@@ -333,15 +355,19 @@ async function load() {
       errorMsg.value = t('salesOrderReport.missingId')
       return
     }
-    const data = (await salesOrderApi.getReportData(id)) as {
-      order: Record<string, unknown>
-      companyProfile: {
-        basicInfos?: CompanyBasicRow[]
-        warehouses?: CompanyWarehouseRow[]
-        seals?: CompanySealRow[]
-        logos?: CompanyLogoRow[]
-      }
-    }
+    const [effectiveVersion, data] = await Promise.all([
+      reportParamsApi.getEffectiveStyleVersion(),
+      salesOrderApi.getReportData(id) as Promise<{
+        order: Record<string, unknown>
+        companyProfile: {
+          basicInfos?: CompanyBasicRow[]
+          warehouses?: CompanyWarehouseRow[]
+          seals?: CompanySealRow[]
+          logos?: CompanyLogoRow[]
+        }
+      }>
+    ])
+    styleVersion.value = effectiveVersion
     order.value = data.order as any
     const st = Number((data.order as any)?.status ?? (data.order as any)?.Status)
     if (!salesOrderReportAllowed(st)) {

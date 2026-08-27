@@ -651,10 +651,10 @@ const zhCN = {
     globalNav: '报表全局参数',
     globalTitle: '报表全局参数',
     globalHint:
-      '设置全站报表样式版本。V2 仅 Semicore 站点的采购订单、装箱单、Commercial Invoice 换新版式；其他站点仍为 V1。',
+      '设置全站报表样式版本。V2 仅 Semicore 站点的采购订单、装箱单、Commercial Invoice、销售订单报表换新版式；其他站点仍为 V1。',
     styleVersionLabel: '报表样式版本：',
     styleVersionNote:
-      'V2 仅对 Semicore 站点的采购订单、装箱单与 Commercial Invoice 打印生效；其他站点的上述报表及销售订单仍用现有样式。未配置时按 V1。',
+      'V2 仅对 Semicore 站点的采购订单、装箱单、Commercial Invoice 与销售订单报表打印生效；其他站点仍用现有样式。未配置时按 V1。',
     saveBtn: '保存',
     refreshBtn: '刷新',
     saveSuccess: '保存成功',
