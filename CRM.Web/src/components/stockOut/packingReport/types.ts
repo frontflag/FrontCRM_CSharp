@@ -190,6 +190,28 @@ export function packingReportFillerRowCount(_lineCount: number, _target = 5): nu
 
 export const PACKING_REPORT_ORIENTATION_STORAGE_KEY = 'frontcrm.packingReport.orientation'
 
+export type PackingReportInspectionVariant = 'with-inspection' | 'without-inspection'
+
+export const PACKING_REPORT_INSPECTION_STORAGE_KEY = 'frontcrm.packingReport.inspectionVariant'
+
+export function readPackingReportInspectionVariant(): PackingReportInspectionVariant {
+  try {
+    const v = localStorage.getItem(PACKING_REPORT_INSPECTION_STORAGE_KEY)
+    if (v === 'with-inspection' || v === 'without-inspection') return v
+  } catch {
+    /* ignore */
+  }
+  return 'without-inspection'
+}
+
+export function writePackingReportInspectionVariant(v: PackingReportInspectionVariant) {
+  try {
+    localStorage.setItem(PACKING_REPORT_INSPECTION_STORAGE_KEY, v)
+  } catch {
+    /* ignore */
+  }
+}
+
 export function readPackingReportOrientation(): PackingReportOrientation {
   try {
     const v = localStorage.getItem(PACKING_REPORT_ORIENTATION_STORAGE_KEY)

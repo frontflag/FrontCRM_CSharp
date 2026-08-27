@@ -1,6 +1,6 @@
 # 装箱单 Packing List 打印 — 三租户皮肤 — 测试对照说明
 
-> **页面 / 路由：** 装箱单列表「更多 → 打印装箱单」→ `/inventory/packing/:packingId/packing-report/with-inspection` 或 `…/without-inspection`  
+> **页面 / 路由：** 装箱单列表「打印 Packing」→ `/inventory/packing/:packingId/packing-report`  
 > **设计文档：** [装箱单PackingList打印-三租户皮肤-设计与实现](../../System/物流/装箱单PackingList打印-三租户皮肤-设计与实现.md)  
 > **V1 样式规范：** [报表规范-PackingList](../../PRD/规范/业务规范/报表规范-PackingList.md)  
 > **V2 样式规范：** [报表规范-装箱单-V2](../../PRD/规范/业务规范/报表规范-装箱单-V2.md)（仅 semicore + 参数 V2；竖版 9 列中英、横版 14 列英文图1。V1 勿套该文色值）  
@@ -15,7 +15,7 @@
 
 | 步骤 | 预期 |
 |------|------|
-| 有装箱单列表权限，列表行「更多 → 打印装箱单 → 含验货 / 不含验货」 | 打开对应 `packing-report/with-inspection` 或 `without-inspection`，单据可见 |
+| 有装箱单列表权限，列表行「打印 Packing」 | 打开 `packing-report`；工具栏默认不含出货检验，可切换含检/不含检并记忆 |
 | 无装箱单列表权限 | 进不了列表，或直接打开打印路由回控制台 |
 | 物流员**无**报表参数管理权限 | 仍能打开打印；Network 可见 `effective-style-version` 返回 200（非 403）；版式按生效版本 |
 | 销售敏感字段脱敏 | 客户名为 `—`；V1 Bill/Ship 名称与 V2 收货人名称均为 `—`；版式仍加载 |
@@ -62,7 +62,7 @@
 | V1：中文 / 英文切换 | 标签语言切换，明细数据不变 |
 | V2 竖版 | **无**中/英切换；栏名中英对照；公司档案装箱备注中英都有则都印 |
 | 印章开/关 | 发货方区印章显示/隐藏（V1/V2 均适用） |
-| `with-inspection` | V1 与 V2 均有出库检验五项；V2 在明细之后、运输/汇总之前 |
+| 含出货检验 | V1 与 V2 均有出库检验五项；V2 在明细之后、运输/汇总之前 |
 | `without-inspection` | **无**检验区（V1/V2 均适用） |
 | 明细空 | 显示「无明细 / No items」类提示，无补齐空行 |
 

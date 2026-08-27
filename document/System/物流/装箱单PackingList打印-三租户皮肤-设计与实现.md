@@ -1,7 +1,7 @@
 # 装箱单 Packing List 打印 — 三租户皮肤
 
 **状态：** 已上线  
-**页面：** `/inventory/packing/:packingId/packing-report/:packingInspection`  
+**页面：** `/inventory/packing/:packingId/packing-report`（工具栏切换含/不含出货检验，默认不含，偏好 localStorage）  
 **PRD（V1）：** [报表规范-PackingList](../../PRD/规范/业务规范/报表规范-PackingList.md)  
 **PRD（V2）：** [报表规范-装箱单-V2](../../PRD/规范/业务规范/报表规范-装箱单-V2.md)（仅 semicore + 参数 V2；竖版 + 横版）  
 **QA：** [装箱单PackingList打印-三租户皮肤-测试对照说明](../../QA/物流/装箱单PackingList打印-三租户皮肤-测试对照说明.md)  

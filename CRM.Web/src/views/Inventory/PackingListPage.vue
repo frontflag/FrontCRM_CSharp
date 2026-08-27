@@ -306,18 +306,9 @@
             <button type="button" class="action-btn" @click.stop="() => void goInvoiceReport(row)">
               {{ t('stockOutList.actions.printInvoice') }}
             </button>
-            <el-dropdown trigger="click" @click.stop @command="(cmd: string) => onPackingPrintCommand(row, cmd)">
-              <button type="button" class="action-btn action-btn--dropdown">
-                {{ t('stockOutList.actions.printPacking') }}
-                <el-icon class="action-btn__caret"><ArrowDown /></el-icon>
-              </button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="with">{{ t('stockOutList.actions.packingWithInspection') }}</el-dropdown-item>
-                  <el-dropdown-item command="without">{{ t('stockOutList.actions.packingWithoutInspection') }}</el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
+            <button type="button" class="action-btn" @click.stop="() => void goPackingReport(row)">
+              {{ t('stockOutList.actions.printPacking') }}
+            </button>
             <button
               v-if="canWriteLogisticsData"
               type="button"
@@ -363,14 +354,8 @@
                 <el-dropdown-item @click.stop="() => void goInvoiceReport(row)">
                   <span class="op-more-item">{{ t('stockOutList.actions.printInvoice') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item disabled>
-                  <span class="op-submenu-title">{{ t('stockOutList.actions.printPacking') }}</span>
-                </el-dropdown-item>
-                <el-dropdown-item divided @click.stop="() => void goPackingReport(row, true)">
-                  <span class="op-more-item op-more-item--sub">{{ t('stockOutList.actions.packingWithInspection') }}</span>
-                </el-dropdown-item>
-                <el-dropdown-item @click.stop="() => void goPackingReport(row, false)">
-                  <span class="op-more-item op-more-item--sub">{{ t('stockOutList.actions.packingWithoutInspection') }}</span>
+                <el-dropdown-item @click.stop="() => void goPackingReport(row)">
+                  <span class="op-more-item">{{ t('stockOutList.actions.printPacking') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="canWriteLogisticsData" divided :disabled="!canDeletePacking(row)" @click.stop="() => void deletePacking(row)">
                   <span
@@ -551,7 +536,7 @@ import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElLoading, ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowDown, ArrowRight, Setting } from '@element-plus/icons-vue'
+import { ArrowRight, Setting } from '@element-plus/icons-vue'
 import {
   PACKING_LIST_TAB_MODE_OPTIONS,
   PACKING_STATUS_TAB_VALUES,
@@ -1341,21 +1326,13 @@ function goInvoiceReport(row: PackingListItem) {
   router.push({ name: 'PackingInvoiceReport', params: { packingId } })
 }
 
-async function goPackingReport(row: PackingListItem, withInspection: boolean) {
+function goPackingReport(row: PackingListItem) {
   const packingId = String(row?.id || '').trim()
   if (!packingId) return
   router.push({
     name: 'PackingReport',
-    params: {
-      packingId,
-      packingInspection: withInspection ? 'with-inspection' : 'without-inspection'
-    }
+    params: { packingId }
   })
-}
-
-function onPackingPrintCommand(row: PackingListItem, cmd: string) {
-  if (cmd === 'with') void goPackingReport(row, true)
-  else if (cmd === 'without') void goPackingReport(row, false)
 }
 
 onMounted(() => {

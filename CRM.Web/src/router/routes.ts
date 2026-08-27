@@ -158,7 +158,14 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '编辑客户', permission: 'customer.write' }
       },
       {
-        path: 'customers/:id/warranty/:lang',
+        path: 'customers/:id/warranty/:lang(zh|en)',
+        redirect: (to) => ({
+          name: 'CustomerWarrantyReport',
+          params: { id: String(to.params.id ?? '') }
+        })
+      },
+      {
+        path: 'customers/:id/warranty',
         name: 'CustomerWarrantyReport',
         component: () => import('@/views/Customer/CustomerWarrantyReportPage.vue'),
         meta: { requiresAuth: true, title: '客户质保书', permission: 'customer.read' }
@@ -295,7 +302,14 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '冻结管理', permission: 'vendor.read' }
       },
       {
-        path: 'vendors/:id/warranty/:lang',
+        path: 'vendors/:id/warranty/:lang(zh|en)',
+        redirect: (to) => ({
+          name: 'VendorWarrantyReport',
+          params: { id: String(to.params.id ?? '') }
+        })
+      },
+      {
+        path: 'vendors/:id/warranty',
         name: 'VendorWarrantyReport',
         component: () => import('@/views/Vendor/VendorWarrantyReportPage.vue'),
         meta: { requiresAuth: true, title: '供应商质保书', permission: 'vendor.read' }
@@ -484,7 +498,14 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '装箱 Invoice' }
       },
       {
-        path: 'inventory/packing/:packingId/packing-report/:packingInspection',
+        path: 'inventory/packing/:packingId/packing-report/:packingInspection(with-inspection|without-inspection)',
+        redirect: (to) => ({
+          name: 'PackingReport',
+          params: { packingId: String(to.params.packingId ?? '') }
+        })
+      },
+      {
+        path: 'inventory/packing/:packingId/packing-report',
         name: 'PackingReport',
         component: () => import('@/views/Inventory/StockOutPackingReportPage.vue'),
         meta: { requiresAuth: true, title: '预览装箱单' }
@@ -771,7 +792,14 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '销售订单报表', permission: 'sales-order.read' }
       },
       {
-        path: 'sales-orders/:id/warranty/:lang',
+        path: 'sales-orders/:id/warranty/:lang(zh|en)',
+        redirect: (to) => ({
+          name: 'SalesOrderWarrantyReport',
+          params: { id: String(to.params.id ?? '') }
+        })
+      },
+      {
+        path: 'sales-orders/:id/warranty',
         name: 'SalesOrderWarrantyReport',
         component: () => import('@/views/RFQ/SalesOrderWarrantyReportPage.vue'),
         meta: { requiresAuth: true, title: '销售订单质保书', permission: 'sales-order.read' }

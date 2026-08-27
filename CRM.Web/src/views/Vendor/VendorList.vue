@@ -352,18 +352,13 @@
             <div v-if="opColExpanded" class="action-btns always-visible">
               <button class="action-btn action-btn--primary" @click.stop="handleView(row)">{{ t('vendorList.actions.detail') }}</button>
               <button class="action-btn action-btn--primary" @click.stop="handleEdit(row)">{{ t('vendorList.actions.edit') }}</button>
-              <el-dropdown trigger="click" @command="(cmd: string) => handleWarrantyCommand(row, cmd)">
-                <button type="button" class="action-btn action-btn--primary action-btn--dropdown">
-                  {{ t('vendorList.actions.printWarranty') }}
-                  <span class="action-btn__caret" aria-hidden="true">▾</span>
-                </button>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item command="en">{{ t('vendorList.actions.warrantyEn') }}</el-dropdown-item>
-                    <el-dropdown-item command="zh">{{ t('vendorList.actions.warrantyZh') }}</el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
+              <button
+                type="button"
+                class="action-btn action-btn--primary"
+                @click.stop="goVendorWarrantyReport(row)"
+              >
+                {{ t('vendorList.actions.printWarranty') }}
+              </button>
               <button
                 v-if="row.status === 1 || row.status === -1"
                 class="action-btn action-btn--warning"
@@ -380,14 +375,8 @@
                 <el-dropdown-menu>
                   <el-dropdown-item @click.stop="handleView(row)">{{ t('vendorList.actions.detail') }}</el-dropdown-item>
                   <el-dropdown-item @click.stop="handleEdit(row)">{{ t('vendorList.actions.edit') }}</el-dropdown-item>
-                  <el-dropdown-item disabled class="vendor-warranty-menu-heading">
+                  <el-dropdown-item @click.stop="goVendorWarrantyReport(row)">
                     {{ t('vendorList.actions.printWarranty') }}
-                  </el-dropdown-item>
-                  <el-dropdown-item class="vendor-warranty-submenu" @click.stop="goVendorWarrantyReport(row, 'en')">
-                    {{ t('vendorList.actions.warrantyEn') }}
-                  </el-dropdown-item>
-                  <el-dropdown-item class="vendor-warranty-submenu" @click.stop="goVendorWarrantyReport(row, 'zh')">
-                    {{ t('vendorList.actions.warrantyZh') }}
                   </el-dropdown-item>
                   <el-dropdown-item v-if="row.status === 1 || row.status === -1" @click.stop="handleSubmitAudit(row)">
                     {{ t('vendorList.actions.submitAudit') }}
@@ -985,13 +974,9 @@ function onVendorRowDblClick(row: Vendor, _column: unknown, event?: MouseEvent) 
   });
 }
 
-function goVendorWarrantyReport(row: Vendor, lang: 'en' | 'zh') {
+function goVendorWarrantyReport(row: Vendor) {
   if (!row?.id) return
-  router.push({ name: 'VendorWarrantyReport', params: { id: row.id, lang } })
-}
-
-function handleWarrantyCommand(row: Vendor, cmd: string) {
-  if (cmd === 'en' || cmd === 'zh') goVendorWarrantyReport(row, cmd)
+  router.push({ name: 'VendorWarrantyReport', params: { id: row.id } })
 }
 
 const handleSubmitAudit = async (row: Vendor) => {

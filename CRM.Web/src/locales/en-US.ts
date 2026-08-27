@@ -4333,6 +4333,8 @@ const enUS = {
   },
   vendorWarrantyReport: {
     back: 'Back',
+    langZh: '中文',
+    langEn: 'English',
     sealOnReport: 'Include seal',
     sealHint: 'When off, preview, print, and PDF export omit the seal image',
     print: 'Print',
@@ -4361,6 +4363,8 @@ const enUS = {
   },
   customerWarrantyReport: {
     back: 'Back',
+    langZh: '中文',
+    langEn: 'English',
     sealOnReport: 'Include seal',
     sealHint: 'When off, preview, print, and PDF export omit the seal image',
     print: 'Print',
@@ -5146,6 +5150,8 @@ const enUS = {
   },
   salesOrderWarrantyReport: {
     back: 'Back',
+    langZh: '中文',
+    langEn: 'English',
     sealOnReport: 'Include seal',
     sealHint: 'When off, preview, print, and PDF export omit the seal image',
     print: 'Print',

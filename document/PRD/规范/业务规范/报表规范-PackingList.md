@@ -29,21 +29,22 @@
 ### 2.1 路由
 
 ```
-/inventory/packing/:packingId/packing-report/:packingInspection
+/inventory/packing/:packingId/packing-report
 ```
 
 | 参数 | 取值 | 含义 |
 | --- | --- | --- |
 | `packingId` | 装箱单主键 | 必填 |
-| `packingInspection` | `with-inspection` / `without-inspection` | 是否含「Outbound Inspection」区块 |
+
+**含出货检验 / 不含出货检验** 不再走路由：报表页工具栏切换；默认 **不含**；偏好写入 `localStorage` 键 `frontcrm.packingReport.inspectionVariant`。旧路径 `…/packing-report/with-inspection` 与 `…/without-inspection` 重定向至新路径。
 
 ### 2.2 组件职责
 
 | 文件 | 职责 |
 | --- | --- |
-| `CRM.Web/src/views/Inventory/StockOutPackingReportPage.vue` | 拉数、工具栏（竖/横 + 中/英）、数据映射；`<component :is="reportView.component">` |
+| `CRM.Web/src/views/Inventory/StockOutPackingReportPage.vue` | 拉数、工具栏（含检/不含检 + 竖/横 + 中/英）、数据映射；`<component :is="reportView.component">` |
 | `CRM.Web/src/components/stockOut/packingReport/resolvePackingReportSkin.ts` | 方向 + 租户 + 样式版本 → 竖版组件 / 横版主题；横版忽略 V2 |
-| `CRM.Web/src/components/stockOut/packingReport/types.ts` | 竖/横 props、方向 localStorage |
+| `CRM.Web/src/components/stockOut/packingReport/types.ts` | 竖/横 props、方向与含检偏好 localStorage |
 | `CRM.Web/src/components/stockOut/packingReport/PackingReportLandscapeDocument.vue` | A4 横版文档（三主题 class） |
 | `CRM.Web/src/components/stockOut/packingReport/skins/PackingReportSkinSemicore.vue` | 竖版橙表（挂到 ecoinf 租户） |
 | `CRM.Web/src/components/stockOut/packingReport/skins/PackingReportSkinIdesemi.vue` | 竖版深紫/琥珀（挂到 semicore 租户） |
@@ -69,7 +70,7 @@
 | 默认 | **横版**（首次进入或 localStorage 无值） |
 | 记忆 | `localStorage`：`frontcrm.packingReport.orientation` = `landscape` \| `portrait` |
 | 工具栏 | 「横版 / 竖版」单选；与中英文、印章开关并列 |
-| 含检验 | 竖/横均支持 `with-inspection` / `without-inspection` |
+| 含检验 | 竖/横均支持工具栏切换含检/不含检 |
 | 打印 | 竖版 `@page` A4 portrait；横版文档 `page: packing-landscape` → A4 landscape |
 
 ---
@@ -262,7 +263,7 @@ Tel: 13800138000
 
 ## 7. 出货检验区块（可选变体）
 
-**路由参数** `with-inspection` 时显示。
+**工具栏选择「含出货检验」** 时显示（切换会重新请求 bundle）。
 
 | 项 | 规范 |
 | --- | --- |

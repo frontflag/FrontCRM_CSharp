@@ -211,22 +211,14 @@
               >
                 {{ t('salesOrderList.actions.printReport') }}
               </button>
-              <el-dropdown
+              <button
                 v-if="salesOrderReportAllowed(row.status)"
-                trigger="click"
-                @command="(cmd: string) => handleWarrantyCommand(row, cmd)"
+                type="button"
+                class="action-btn action-btn--primary"
+                @click.stop="goSalesOrderWarrantyReport(row)"
               >
-                <button type="button" class="action-btn action-btn--primary action-btn--dropdown">
-                  {{ t('salesOrderList.actions.printWarranty') }}
-                  <span class="action-btn__caret" aria-hidden="true">▾</span>
-                </button>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item command="zh">{{ t('salesOrderList.actions.warrantyZh') }}</el-dropdown-item>
-                    <el-dropdown-item command="en">{{ t('salesOrderList.actions.warrantyEn') }}</el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
+                {{ t('salesOrderList.actions.printWarranty') }}
+              </button>
               <button
                 v-if="canWriteSaleData && row.status === 1 && canSubmitSalesOrderAudit"
                 type="button"
@@ -254,24 +246,9 @@
                   </el-dropdown-item>
                   <el-dropdown-item
                     v-if="salesOrderReportAllowed(row.status)"
-                    disabled
-                    class="so-warranty-menu-heading"
+                    @click.stop="goSalesOrderWarrantyReport(row)"
                   >
-                    {{ t('salesOrderList.actions.printWarranty') }}
-                  </el-dropdown-item>
-                  <el-dropdown-item
-                    v-if="salesOrderReportAllowed(row.status)"
-                    class="so-warranty-submenu"
-                    @click.stop="goSalesOrderWarrantyReport(row, 'zh')"
-                  >
-                    {{ t('salesOrderList.actions.warrantyZh') }}
-                  </el-dropdown-item>
-                  <el-dropdown-item
-                    v-if="salesOrderReportAllowed(row.status)"
-                    class="so-warranty-submenu"
-                    @click.stop="goSalesOrderWarrantyReport(row, 'en')"
-                  >
-                    {{ t('salesOrderList.actions.warrantyEn') }}
+                    <span class="op-more-item op-more-item--primary">{{ t('salesOrderList.actions.printWarranty') }}</span>
                   </el-dropdown-item>
                   <el-dropdown-item v-if="canWriteSaleData && row.status === 1 && canSubmitSalesOrderAudit" @click.stop="submitForAudit(row)">
                     <span class="op-more-item op-more-item--warning">{{ t('salesOrderList.actions.submitAudit') }}</span>
@@ -729,17 +706,13 @@ const handlePrintReport = (row: { id?: string; status?: number }) => {
   router.push({ name: 'SalesOrderReport', params: { id: String(row.id) } })
 }
 
-function goSalesOrderWarrantyReport(row: { id?: string; status?: number }, lang: 'zh' | 'en') {
+function goSalesOrderWarrantyReport(row: { id?: string; status?: number }) {
   if (!row?.id) return
   if (!salesOrderReportAllowed(Number(row.status))) {
     ElMessage.warning(t('salesOrderList.reportNotAllowed'))
     return
   }
-  router.push({ name: 'SalesOrderWarrantyReport', params: { id: String(row.id), lang } })
-}
-
-function handleWarrantyCommand(row: { id?: string; status?: number }, cmd: string) {
-  if (cmd === 'zh' || cmd === 'en') goSalesOrderWarrantyReport(row, cmd)
+  router.push({ name: 'SalesOrderWarrantyReport', params: { id: String(row.id) } })
 }
 
 /** 新建(1) → 待审核(2) */

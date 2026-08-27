@@ -4320,6 +4320,8 @@ const zhCN = {
   },
   vendorWarrantyReport: {
     back: '返回',
+    langZh: '中文',
+    langEn: '英文',
     sealOnReport: '报表含印章',
     sealHint: '关闭后预览、打印、导出 PDF 均不包含电子印章图',
     print: '打印',
@@ -4348,6 +4350,8 @@ const zhCN = {
   },
   customerWarrantyReport: {
     back: '返回',
+    langZh: '中文',
+    langEn: '英文',
     sealOnReport: '报表含印章',
     sealHint: '关闭后预览、打印、导出 PDF 均不包含电子印章图',
     print: '打印',
@@ -5133,6 +5137,8 @@ const zhCN = {
   },
   salesOrderWarrantyReport: {
     back: '返回',
+    langZh: '中文',
+    langEn: '英文',
     sealOnReport: '报表含印章',
     sealHint: '关闭后预览、打印、导出 PDF 均不包含电子印章图',
     print: '打印',
@@ -8199,8 +8205,8 @@ const zhCN = {
     docTitle: 'PACKING LIST',
     docSubtitle: '',
     defaultLineDesc: '出库',
-    variantWithInspection: '含出货检验',
-    variantWithoutInspection: '不含出货检验',
+    variantWithInspection: '含检验',
+    variantWithoutInspection: '不含检验',
     qcInspector: '检验员：',
     qcDate: '检验日期：',
     qcItems: {

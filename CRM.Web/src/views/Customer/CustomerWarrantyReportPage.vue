@@ -8,6 +8,12 @@
         :disabled="!ready"
       />
       <div class="toolbar__sp" />
+      <div class="toolbar__opt">
+        <el-radio-group v-model="reportLang" size="small" class="toolbar__lang">
+          <el-radio-button label="zh">{{ t('customerWarrantyReport.langZh') }}</el-radio-button>
+          <el-radio-button label="en">{{ t('customerWarrantyReport.langEn') }}</el-radio-button>
+        </el-radio-group>
+      </div>
       <div class="toolbar__opt" :title="t('customerWarrantyReport.sealHint')">
         <span class="toolbar__opt-lbl">{{ t('customerWarrantyReport.sealOnReport') }}</span>
         <el-switch v-model="showSealOnReport" />
@@ -77,14 +83,11 @@ const companyLogoObjectUrl = ref<string | null>(null)
 const reportRoot = ref<HTMLElement | null>(null)
 const exporting = ref(false)
 const showSealOnReport = ref(true)
+const reportLang = ref<'zh' | 'en'>('zh')
 
 const customerId = computed(() => String(route.params.id || ''))
-const lang = computed(() => {
-  const l = String(route.params.lang || '').toLowerCase()
-  return l === 'en' || l === 'zh' ? l : ''
-})
 
-const ready = computed(() => !!customer.value && !!lang.value && !errorMsg.value && !loading.value)
+const ready = computed(() => !!customer.value && !errorMsg.value && !loading.value)
 
 function letterheadLabels() {
   return {
@@ -119,7 +122,7 @@ function formatCustomerAddress(c: Customer): string {
 const docBind = computed(() => {
   void locale.value
   const c = customer.value
-  const isEn = lang.value === 'en'
+  const isEn = reportLang.value === 'en'
   const issuer = basicDefault.value?.companyName || '—'
   const redact = maskSaleSensitiveFields.value
   const zhName = redact ? '—' : (c?.customerName || c?.customerShortName || '').trim() || '—'
@@ -204,14 +207,8 @@ async function load() {
     companyLogoObjectUrl.value = null
   }
   const id = customerId.value
-  const lg = lang.value
   if (!id) {
     errorMsg.value = t('customerWarrantyReport.missingId')
-    loading.value = false
-    return
-  }
-  if (!lg) {
-    errorMsg.value = t('customerWarrantyReport.badLang')
     loading.value = false
     return
   }
@@ -263,7 +260,7 @@ async function doExportPdf() {
   try {
     const blob = await renderElementToPdfBlob(el)
     const c = customer.value
-    const suffix = lang.value === 'en' ? 'EN' : 'ZH'
+    const suffix = reportLang.value === 'en' ? 'EN' : 'ZH'
     const name = (maskSaleSensitiveFields.value ? 'customer' : c?.customerCode || 'customer') + `-warranty-${suffix}`
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -283,7 +280,7 @@ onMounted(() => {
   document.body.classList.add(PO_REPORT_PRINT_BODY_CLASS)
   load()
 })
-watch(() => [customerId.value, lang.value] as const, () => load())
+watch(customerId, () => load())
 
 onBeforeUnmount(() => {
   document.body.classList.remove(PO_REPORT_PRINT_BODY_CLASS)
@@ -320,6 +317,14 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.toolbar__lang {
+  :deep(.el-radio-button__inner) {
+    padding: 5px 12px;
+    font-size: 13px;
+  }
 }
 
 .toolbar__opt-lbl {

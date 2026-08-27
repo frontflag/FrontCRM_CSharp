@@ -8,7 +8,16 @@
         :disabled="!ready"
       />
       <div class="toolbar__sp" />
-      <span v-if="ready" class="toolbar__tag">{{ variantTitle }}</span>
+      <div class="toolbar__opt">
+        <el-radio-group v-model="inspectionVariant" size="small" class="toolbar__lang">
+          <el-radio-button label="without-inspection">
+            {{ t('stockOutPackingReport.variantWithoutInspection') }}
+          </el-radio-button>
+          <el-radio-button label="with-inspection">
+            {{ t('stockOutPackingReport.variantWithInspection') }}
+          </el-radio-button>
+        </el-radio-group>
+      </div>
       <div class="toolbar__opt">
         <el-radio-group v-model="pageOrientation" size="small" class="toolbar__lang">
           <el-radio-button label="landscape">{{ t('stockOutPackingReport.orientLandscape') }}</el-radio-button>
@@ -74,8 +83,11 @@ import type {
 } from '@/components/stockOut/packingReport/types'
 import {
   formatPackingV2Carton,
+  readPackingReportInspectionVariant,
   readPackingReportOrientation,
-  writePackingReportOrientation
+  writePackingReportInspectionVariant,
+  writePackingReportOrientation,
+  type PackingReportInspectionVariant
 } from '@/components/stockOut/packingReport/types'
 import {
   resolvePackingReportView,
@@ -129,6 +141,7 @@ const companyLogoObjectUrl = ref<string | null>(null)
 const showSealOnReport = ref(true)
 const reportLang = ref<InvoiceReportLang>('en')
 const pageOrientation = ref<PackingReportOrientation>(readPackingReportOrientation())
+const inspectionVariant = ref<PackingReportInspectionVariant>(readPackingReportInspectionVariant())
 const styleVersion = ref<ReportStyleVersion>('V1')
 
 const packingLabels = computed(() => getPackingReportLabels(reportLang.value))
@@ -142,15 +155,8 @@ const isPackingV2 = computed(() =>
 let loadSeq = 0
 
 const packingId = computed(() => String(route.params.packingId || ''))
-const packingInspection = computed(() => String(route.params.packingInspection || ''))
 
 const ready = computed(() => !!stockOut.value && !errorMsg.value && !loading.value)
-
-const variantTitle = computed(() =>
-  withShipmentInspection.value
-    ? t('stockOutPackingReport.variantWithInspection')
-    : t('stockOutPackingReport.variantWithoutInspection')
-)
 
 /** 页脚备注：中文读 Remark.CN，英文读 Remark.EN */
 const packingRemarks = computed(() =>
@@ -626,19 +632,13 @@ async function load() {
   }
 
   const id = packingId.value
-  const kind = packingInspection.value
   if (!id) {
     errorMsg.value = t('stockOutPackingReport.missingPackingId')
     loading.value = false
     return
   }
-  if (kind !== 'with-inspection' && kind !== 'without-inspection') {
-    errorMsg.value = t('stockOutPackingReport.badRoute')
-    loading.value = false
-    return
-  }
 
-  const wantInspection = kind === 'with-inspection'
+  const wantInspection = inspectionVariant.value === 'with-inspection'
   withShipmentInspection.value = wantInspection
 
   let seal: CompanySealRow | undefined
@@ -733,13 +733,18 @@ watch(pageOrientation, (v) => {
   syncPrintOrientationClass()
 })
 
+watch(inspectionVariant, (v) => {
+  writePackingReportInspectionVariant(v)
+  load()
+})
+
 onMounted(() => {
   document.body.classList.add(PO_REPORT_PRINT_BODY_CLASS)
   syncPrintOrientationClass()
   void ensureLogisticsDict()
   load()
 })
-watch([packingId, packingInspection], () => load())
+watch(packingId, () => load())
 
 onBeforeUnmount(() => {
   document.body.classList.remove(PO_REPORT_PRINT_BODY_CLASS)
@@ -770,15 +775,6 @@ onUnmounted(() => {
 .toolbar__sp {
   flex: 1;
   min-width: 8px;
-}
-
-.toolbar__tag {
-  font-size: 12px;
-  color: #8eb4d4;
-  border: 1px solid rgba(142, 180, 212, 0.45);
-  border-radius: 6px;
-  padding: 4px 10px;
-  margin-right: 4px;
 }
 
 .toolbar__opt {
