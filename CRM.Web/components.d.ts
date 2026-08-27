@@ -278,6 +278,8 @@ declare module 'vue' {
     WarrantyLetterReportSkinEcoinf: typeof import('./src/components/warrantyLetterReport/skins/WarrantyLetterReportSkinEcoinf.vue')['default']
     WarrantyLetterReportSkinIdesemi: typeof import('./src/components/warrantyLetterReport/skins/WarrantyLetterReportSkinIdesemi.vue')['default']
     WarrantyLetterReportSkinSemicore: typeof import('./src/components/warrantyLetterReport/skins/WarrantyLetterReportSkinSemicore.vue')['default']
+    WarrantyLetterReportV2Body: typeof import('./src/components/warrantyLetterReport/WarrantyLetterReportV2Body.vue')['default']
+    WarrantyLetterReportV2SkinIdesemi: typeof import('./src/components/warrantyLetterReport/skins/WarrantyLetterReportV2SkinIdesemi.vue')['default']
     WriteOffReceiptDateExtendCell: typeof import('./src/components/list/WriteOffReceiptDateExtendCell.vue')['default']
     WriteOffReceiptDateExtendColumnHeader: typeof import('./src/components/list/WriteOffReceiptDateExtendColumnHeader.vue')['default']
   }

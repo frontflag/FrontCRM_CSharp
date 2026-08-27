@@ -56,6 +56,13 @@ import { VENDOR_WARRANTY_PARAGRAPHS_ZH } from '@/constants/vendorWarrantyReportZ
 import { VENDOR_WARRANTY_PARAGRAPHS_EN } from '@/constants/vendorWarrantyReportEn'
 import { resolveWarrantyLetterReportSkin } from '@/components/warrantyLetterReport/resolveWarrantyLetterReportSkin'
 import { LOGIN_TENANT_ID } from '@/config/loginTenant'
+import { reportParamsApi, type ReportStyleVersion } from '@/api/reportParams'
+import {
+  SALES_ORDER_WARRANTY_SUBTITLE_ZH
+} from '@/constants/salesOrderWarrantyReportZh'
+import {
+  SALES_ORDER_WARRANTY_SUBTITLE_EN
+} from '@/constants/salesOrderWarrantyReportEn'
 import { renderElementToPdfBlob } from '@/utils/poReportPdf'
 import { renderPdfBlobFirstPageToPngDataUrl } from '@/utils/pdfSealToPng'
 import { getApiErrorMessage } from '@/utils/apiError'
@@ -63,7 +70,10 @@ import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMa
 
 const PO_REPORT_PRINT_BODY_CLASS = 'po-order-report-print'
 const DEFAULT_LOGO = '/purchase-order-template/logo.svg'
-const warrantySkin = resolveWarrantyLetterReportSkin(LOGIN_TENANT_ID)
+const styleVersion = ref<ReportStyleVersion>('V1')
+const warrantySkin = computed(() =>
+  resolveWarrantyLetterReportSkin(LOGIN_TENANT_ID, styleVersion.value)
+)
 
 const route = useRoute()
 const router = useRouter()
@@ -134,6 +144,8 @@ const docBind = computed(() => {
   const docNo = redact ? '—' : c?.customerCode ? `QW-${c.customerCode}` : `QW-${customerId.value.slice(0, 8)}`
 
   return {
+    lang: reportLang.value,
+    docSubtitle: isEn ? SALES_ORDER_WARRANTY_SUBTITLE_EN : SALES_ORDER_WARRANTY_SUBTITLE_ZH,
     issuerName: issuer,
     docTitle: isEn ? t('customerWarrantyReport.titleEn') : t('customerWarrantyReport.titleZh'),
     docNo,
@@ -213,6 +225,7 @@ async function load() {
     return
   }
   try {
+    styleVersion.value = await reportParamsApi.getEffectiveStyleVersion()
     const c = await customerApi.getCustomerById(id)
     customer.value = c
     const profile = await fetchCompanyProfileForReport()
