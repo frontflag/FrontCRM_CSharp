@@ -1102,12 +1102,13 @@ customerWorkspacePanelStore.setSource('rfqItem')
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const vendorDict = useVendorDictStore()
-useListRightOpsPanelInteraction({
+const { onOpsPanelRowClick } = useListRightOpsPanelInteraction({
   workspaceLayout,
   isActiveRoute: () => route.name === 'RFQItemList',
   hasSelectedRow: () => !!customerWorkspacePanelStore.boundId,
-  setRowOnly: row => customerWorkspacePanelStore.setRowOnly(row),
-  selectRow: row => customerWorkspacePanelStore.selectRow(row, t('customerWorkspace.loadFailed')),
+  setRowOnly: row => customerWorkspacePanelStore.setRowOnly({ id: String(row.id ?? '') }),
+  selectRow: row =>
+    customerWorkspacePanelStore.selectRow({ id: String(row.id ?? '') }, t('customerWorkspace.loadFailed')),
   loadSelected: () => {
     void customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
   },
@@ -2394,17 +2395,7 @@ function onItemRowClick(row: RFQItem) {
     void materialIntelLookupStore.ensureLookup(pn, { triggerType: 'auto' })
   }
 
-  customerWorkspacePanelStore.setRowOnly({ id: row.id })
-  if (
-    workspaceLayout?.rightPanelVisible.value &&
-    workspaceLayout.rightActiveTabId.value === 'r-customer'
-  ) {
-    void customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
-  }
-
-  if (workspaceLayout && !workspaceLayout.rightPanelVisible.value) {
-    workspaceLayout.toggleRightPanel(true)
-  }
+  void onOpsPanelRowClick(row as unknown as Record<string, unknown>)
 }
 
 function goDetail(row: RFQItem) {
