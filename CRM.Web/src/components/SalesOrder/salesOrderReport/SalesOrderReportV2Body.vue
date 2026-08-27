@@ -174,8 +174,7 @@
         </div>
         <div class="po-v2__sign-rule" />
         <div class="po-v2__sign-lines">
-          <span>授权代表签字：________________</span>
-          <span>日期：{{ dash(sellerSignDate) }}</span>
+          <span>授权代表签字：________________　　日期：____________</span>
         </div>
       </div>
       <div class="po-v2__sign-box">
@@ -186,8 +185,7 @@
         </div>
         <div class="po-v2__sign-rule" />
         <div class="po-v2__sign-lines">
-          <span>授权代表签字：________________</span>
-          <span>日期：____________</span>
+          <span>授权代表签字：________________　　日期：____________</span>
         </div>
       </div>
     </section>
@@ -664,11 +662,9 @@ function money(v?: string | null) {
   }
 
   .po-v2__sign-lines {
-    display: flex;
-    flex-direction: column;
-    gap: 1mm;
     font-size: 7.6pt;
     color: var(--po-v2-muted);
+    white-space: nowrap;
   }
 
   @media print {
