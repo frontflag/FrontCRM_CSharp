@@ -1,4 +1,4 @@
-import type { InvoiceReportLabels } from '../packingReportLabels'
+import type { InvoiceReportLabels, InvoiceReportLang } from '../packingReportLabels'
 
 export interface StockOutInvoiceLineVm {
   index: number
@@ -32,6 +32,8 @@ export interface InvoiceReportDocumentProps {
   showAmounts: boolean
   showSeal?: boolean
   signDate: string
+  /** V2 明细表头随工具栏中/英切换（chrome 仍固定双语） */
+  reportLang?: InvoiceReportLang
 }
 
 export const invoiceReportDocumentPropDefaults = {
@@ -40,7 +42,8 @@ export const invoiceReportDocumentPropDefaults = {
   billToLines: () => [] as string[],
   shipToLines: () => [] as string[],
   showSeal: true,
-  signDate: ''
+  signDate: '',
+  reportLang: 'en' as InvoiceReportLang
 }
 
 /** 明细不足时补空行 */

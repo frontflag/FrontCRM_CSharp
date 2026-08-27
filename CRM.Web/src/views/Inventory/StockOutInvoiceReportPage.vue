@@ -265,7 +265,8 @@ const docBind = computed(() => {
       logoUrl: companyLogoObjectUrl.value ?? DEFAULT_REPORT_LOGO,
       showAmounts: showInvoiceAmounts.value,
       showSeal: showSealOnReport.value,
-      signDate: ''
+      signDate: '',
+      reportLang: reportLang.value
     }
   }
 
@@ -297,7 +298,8 @@ const docBind = computed(() => {
     logoUrl: companyLogoObjectUrl.value ?? DEFAULT_REPORT_LOGO,
     showAmounts: showInvoiceAmounts.value,
     showSeal: showSealOnReport.value,
-    signDate: formatDisplayDate(so.stockOutDate) || '—'
+    signDate: formatDisplayDate(so.stockOutDate) || '—',
+    reportLang: reportLang.value
   }
 })
 

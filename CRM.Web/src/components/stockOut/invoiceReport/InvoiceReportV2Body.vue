@@ -31,7 +31,7 @@
     <section class="po-v2__block">
       <div class="po-v2__sec-hd">
         <i class="po-v2__guide" aria-hidden="true" />
-        账单与收货 / BILL &amp; SHIP
+        {{ sectionTitle.billShip }}
       </div>
       <div class="po-v2__parties">
         <div class="po-v2__party">
@@ -54,7 +54,7 @@
     <section class="po-v2__block">
       <div class="po-v2__sec-hd">
         <i class="po-v2__guide" aria-hidden="true" />
-        发票明细 / INVOICE DETAILS
+        {{ sectionTitle.invoiceDetails }}
       </div>
       <table class="po-v2__grid">
         <colgroup>
@@ -68,13 +68,13 @@
         </colgroup>
         <thead>
           <tr>
-            <th>序号<br />No.</th>
-            <th>料号<br />PN</th>
-            <th>厂牌<br />Brand</th>
-            <th>数量<br />Qty</th>
-            <th>单价（USD）<br />Unit Price</th>
-            <th>金额（USD）<br />Amount</th>
-            <th>备注<br />Remark</th>
+            <th>{{ tableHead.no }}</th>
+            <th>{{ tableHead.pn }}</th>
+            <th>{{ tableHead.brand }}</th>
+            <th>{{ tableHead.qty }}</th>
+            <th>{{ tableHead.upUsd }}</th>
+            <th>{{ tableHead.amountUsd }}</th>
+            <th>{{ tableHead.remark }}</th>
           </tr>
         </thead>
         <tbody>
@@ -114,7 +114,7 @@
     <section class="po-v2__block">
       <div class="po-v2__sec-hd">
         <i class="po-v2__guide" aria-hidden="true" />
-        收款银行 / BANK DETAILS
+        {{ sectionTitle.bankDetails }}
       </div>
       <div class="po-v2__bank">
         <div v-for="(t, i) in bankLines" :key="'b' + i" class="po-v2__bank-line">{{ t }}</div>
@@ -149,6 +149,42 @@ import {
 const props = withDefaults(defineProps<InvoiceReportDocumentProps>(), invoiceReportDocumentPropDefaults)
 
 const fillerRowCount = computed(() => invoiceReportFillerRowCount(props.lines.length))
+
+const TABLE_HEAD_ZH = {
+  no: '序号',
+  pn: '料号',
+  brand: '厂牌',
+  qty: '数量',
+  upUsd: '单价（USD）',
+  amountUsd: '金额（USD）',
+  remark: '备注'
+} as const
+
+const TABLE_HEAD_EN = {
+  no: 'No.',
+  pn: 'PN',
+  brand: 'Brand',
+  qty: 'Qty',
+  upUsd: 'UP（USD）',
+  amountUsd: 'Amount（USD）',
+  remark: 'Remark'
+} as const
+
+const tableHead = computed(() => (props.reportLang === 'zh' ? TABLE_HEAD_ZH : TABLE_HEAD_EN))
+
+const SECTION_TITLE_ZH = {
+  billShip: '账单与收货',
+  invoiceDetails: '发票明细',
+  bankDetails: '收款银行'
+} as const
+
+const SECTION_TITLE_EN = {
+  billShip: 'BILL & SHIP',
+  invoiceDetails: 'INVOICE DETAILS',
+  bankDetails: 'BANK DETAILS'
+} as const
+
+const sectionTitle = computed(() => (props.reportLang === 'zh' ? SECTION_TITLE_ZH : SECTION_TITLE_EN))
 
 function dash(v?: string | null) {
   const s = (v ?? '').trim()
@@ -452,8 +488,7 @@ function dash(v?: string | null) {
     color: #fff;
     font-weight: 700;
     text-align: center;
-    padding: 3.2px 3px;
-    line-height: 1.25;
+    line-height: 2.1;
     border-left-color: var(--po-v2-navy);
     border-right-color: var(--po-v2-navy);
   }
