@@ -87,6 +87,7 @@ export interface LogisticsAnalyticsDashboard {
 export interface LogisticsAnalyticsTrendPoint {
   period: string
   stockInQty: number
+  stockOutQty: number
   pendingStockInQty: number
 }
 

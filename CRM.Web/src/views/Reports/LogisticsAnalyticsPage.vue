@@ -238,6 +238,10 @@ const trendStockInPoints = computed(() =>
   trends.value.map((p) => ({ period: p.period, value: p.stockInQty }))
 )
 
+const trendStockOutPoints = computed(() =>
+  trends.value.map((p) => ({ period: p.period, value: p.stockOutQty }))
+)
+
 const scopeDataForTabs = computed(() => {
   const ctx = scopeContext.value
   if (!ctx) return 0
@@ -486,6 +490,13 @@ watch(matrixSubject, () => void loadMatrix())
           v-bind="def('trend.stockInQty')"
         />
         <AnalyticsTrendChart :points="trendStockInPoints" />
+      </div>
+      <div class="card chart-panel">
+        <AnalyticsPanelHeader
+          :title="t('logisticsAnalytics.sections.trendStockOut')"
+          v-bind="def('trend.stockOutQty')"
+        />
+        <AnalyticsTrendChart :points="trendStockOutPoints" />
       </div>
     </div>
 

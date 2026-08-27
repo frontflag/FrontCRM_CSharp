@@ -7,6 +7,12 @@ internal sealed class FlowMoneyRow
     public decimal UsdAmount { get; init; }
 }
 
+internal sealed class FlowQtyRow
+{
+    public DateTime OccurredOn { get; init; }
+    public decimal Quantity { get; init; }
+}
+
 internal sealed class StockAnalyticsRow
 {
     public int Qty { get; init; }

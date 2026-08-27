@@ -106,7 +106,10 @@ public sealed class LogisticsAnalyticsDashboardDto
 public sealed class LogisticsAnalyticsTrendPointDto
 {
     public string Period { get; set; } = string.Empty;
+    /// <summary>趋势区间内已过账采购入库行数量（与 <see cref="LogisticsAnalyticsFlowDto.StockInAmount"/> 同窗同单据）。</summary>
     public int StockInQty { get; set; }
+    /// <summary>趋势区间内出库完成的销售出库行数量（与 <see cref="LogisticsAnalyticsFlowDto.StockOutAmount"/> 同窗同单据）。</summary>
+    public int StockOutQty { get; set; }
     public int PendingStockInQty { get; set; }
 }
 

@@ -122,21 +122,6 @@ function todoMoneyKpiFields(money: { totalUsd?: number | null; byCurrency?: { cu
   }
 }
 
-/** 概况已出库/已收款：与成单金额同款，原币进「查看本币」Tip */
-function snapshotMoneyKpiFields(money: { totalUsd?: number | null; byCurrency?: { currency: number; currencyLabel: string; amount: number }[] } | null | undefined) {
-  const currencyItems = mapMoneyCurrencyItems(money)
-  const hasUsd = money?.totalUsd != null
-  return {
-    value: formatMoney(money?.totalUsd),
-    valueFormat: 'money' as const,
-    valueSuffix: hasUsd ? `（${t('salesAnalytics.kpi.usdCaption')}）` : undefined,
-    currencyCaption: t('salesAnalytics.kpi.originalCaption'),
-    currencyItems,
-    showCurrencyTip: hasUsd,
-    currencyTipLabel: t('salesAnalytics.kpi.viewLocalCurrency')
-  }
-}
-
 function canOpenTodoDetail(key: SalesAnalyticsTodoDrillKey): boolean {
   if (!isTodoDrillable(key, maskAmounts.value)) return false
   if (key === 'receivable') return authStore.hasPermission('finance-receipt.read')
@@ -239,20 +224,6 @@ const snapshotKpis = computed(() => {
       forceNewRow: true,
       drillable: isSnapshotDrillable('amount', maskAmounts.value) && authStore.hasPermission('sales-order.read'),
       ...def('snapshot.amount')
-    },
-    {
-      key: 'stockOut',
-      label: t('salesAnalytics.kpi.salesAmountStockOut'),
-      ...snapshotMoneyKpiFields(s.salesAmountStockOut),
-      drillable: isSnapshotDrillable('stockOut', maskAmounts.value) && authStore.hasPermission('sales-order.read'),
-      ...def('snapshot.stockOut')
-    },
-    {
-      key: 'received',
-      label: t('salesAnalytics.kpi.salesAmountReceived'),
-      ...snapshotMoneyKpiFields(s.salesAmountReceived),
-      drillable: isSnapshotDrillable('received', maskAmounts.value) && authStore.hasPermission('sales-order.read'),
-      ...def('snapshot.received')
     }
   ]
 })
@@ -296,20 +267,6 @@ const trendConversionPoints = computed(() =>
   trends.value.map((p) => ({
     period: p.period,
     value: p.rfqToSalesConversionRate ?? 0
-  }))
-)
-
-const trendStockOutPoints = computed(() =>
-  trends.value.map((p) => ({
-    period: p.period,
-    value: p.salesAmountStockOut ?? 0
-  }))
-)
-
-const trendReceivedPoints = computed(() =>
-  trends.value.map((p) => ({
-    period: p.period,
-    value: p.salesAmountReceived ?? 0
   }))
 )
 
@@ -530,7 +487,7 @@ watch([viewLevel, departmentId, salesUserId, dateRange, groupBy], () => void loa
           <AnalyticsKpiGrid :items="snapshotKpis" @item-click="onSnapshotKpiClick" />
         </section>
 
-        <div class="charts-row">
+        <div class="charts-row charts-row--triple">
           <div class="card chart-panel">
             <AnalyticsPanelHeader
               :title="t('salesAnalytics.sections.trendAmount')"
@@ -539,25 +496,6 @@ watch([viewLevel, departmentId, salesUserId, dateRange, groupBy], () => void loa
             />
             <AnalyticsTrendChart :points="trendAmountPoints" value-format="money" />
           </div>
-          <div class="card chart-panel">
-            <AnalyticsPanelHeader
-              :title="t('salesAnalytics.sections.trendStockOut')"
-              :unit-caption="t('salesAnalytics.trendUnit.moneyCaption')"
-              v-bind="def('trend.stockOut')"
-            />
-            <AnalyticsTrendChart :points="trendStockOutPoints" value-format="money" />
-          </div>
-          <div class="card chart-panel">
-            <AnalyticsPanelHeader
-              :title="t('salesAnalytics.sections.trendReceived')"
-              :unit-caption="t('salesAnalytics.trendUnit.moneyCaption')"
-              v-bind="def('trend.received')"
-            />
-            <AnalyticsTrendChart :points="trendReceivedPoints" value-format="money" />
-          </div>
-        </div>
-
-        <div class="charts-row">
           <div class="card chart-panel">
             <AnalyticsPanelHeader
               :title="t('salesAnalytics.sections.trendRfqCustomers')"
@@ -800,6 +738,14 @@ watch([viewLevel, departmentId, salesUserId, dateRange, groupBy], () => void loa
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 16px;
   margin-bottom: 16px;
+}
+
+.charts-row--triple {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+
+  @media (max-width: 1100px) {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  }
 }
 
 .breakdown-row {

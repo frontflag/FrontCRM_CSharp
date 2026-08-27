@@ -1500,7 +1500,7 @@ const zhCN = {
     loadFailed: '加载物流看板失败',
     matrixLoadFailed: '加载客户矩阵失败',
     scopeBanner: '当前可见：{label}',
-    metricHint: '出入库概况按趋势区间统计期间金额；在库 KPI 为截至日的时点存量；趋势按入库日统计流入',
+    metricHint: '出入库概况与出入库数量趋势按趋势区间统计期间流量；在库 KPI 为截至日的时点存量',
     salesPurchaseOnlyHint: '当前按销/采归属（销售员或采购员）过滤，无公司汇总',
     defs: logisticsAnalyticsDefsZh,
     groupBy: { day: '按日', week: '按周', month: '按月' },
@@ -1513,6 +1513,7 @@ const zhCN = {
       flow: '出入库概况',
       snapshot: '在库概览',
       trendStockIn: '入库数量趋势',
+      trendStockOut: '出库数量趋势',
       customerMatrix: '客户 × 统计科目'
     },
     kpi: {

@@ -3,7 +3,7 @@
 # 物流分析
 
 <nav class="help-toc-nav" aria-label="区块速览">
-<a href="#help-logistics-todo">待办</a><span class="help-toc-sep">·</span><a href="#help-logistics-flow">出入库概况</a><span class="help-toc-sep">·</span><a href="#help-logistics-snapshot">在库概览</a><span class="help-toc-sep">·</span><a href="#help-logistics-trend">入库趋势</a><span class="help-toc-sep">·</span><a href="#help-logistics-matrix">客户矩阵</a><span class="help-toc-sep">·</span><a href="#help-logistics-rankings">排行</a>
+<a href="#help-logistics-todo">待办</a><span class="help-toc-sep">·</span><a href="#help-logistics-flow">出入库概况</a><span class="help-toc-sep">·</span><a href="#help-logistics-snapshot">在库概览</a><span class="help-toc-sep">·</span><a href="#help-logistics-trend">出入库趋势</a><span class="help-toc-sep">·</span><a href="#help-logistics-matrix">客户矩阵</a><span class="help-toc-sep">·</span><a href="#help-logistics-rankings">排行</a>
 </nav>
 
 ## 页面功能
@@ -19,7 +19,7 @@
 | --- | --- |
 | 在库时点 | **在库概览、库龄、客户矩阵、排行** 按 **截至日期** 的在库存量统计（有数量的在库行）。 |
 | 库龄起算 | 按 **入库日** 起算至截至日期的自然天数。 |
-| 趋势区间 | **出入库概况** 与 **入库数量趋势** 只统计趋势开始～结束这段时间的期间流量，**不是**期末在库存量。 |
+| 趋势区间 | **出入库概况** 与 **入库/出库数量趋势** 只统计趋势开始～结束这段时间的期间流量，**不是**期末在库存量。 |
 | 待办例外 | **待入库数量** 为当前采购订单尚未收齐的数量，**不受**截至日期影响。 |
 | 在库金额 | 在库数量 × 关联采购订单明细当时落库的折算美金单价后合计（历史成交折算）；页面副标题已提示金额口径。 |
 | 库存类型 | 「客单库存 / 采购库存 / 全部」会过滤可见在库与相关待入库范围，以页面选项为准。 |
@@ -70,13 +70,14 @@
 
 ---
 
-<h2 id="help-logistics-trend">入库趋势</h2>
+<h2 id="help-logistics-trend">出入库趋势</h2>
 
 | 指标 | 数据源 | 口径说明 |
 | --- | --- | --- |
-| 入库数量趋势 | 库存明细 | 按日 / 周 / 月，把趋势区间拆成多个时段；每个点是该时段内按 **入库日** 归入的库存数量合计。表示这段时间「进来了多少」，不是「期末还剩多少」。 |
+| 入库数量趋势 | 入库单 | 按日 / 周 / 月，把趋势区间拆成多个时段；每个点是该时段内已过账采购入库行的 **入库数量** 合计。与「入库金额」同窗、同批单据，只是不乘单价。 |
+| 出库数量趋势 | 出库明细 | 按日 / 周 / 月，把趋势区间拆成多个时段；每个点是该时段内 **出库完成** 的销售出库行 **出库数量** 合计。与「出库金额」同窗、同批单据；不含准备出库，也不含报关、退货、报废、调拨出库。 |
 
-改「截至日期」主要影响在库快照与库龄；改趋势起止主要影响本图和出入库概况。
+改「截至日期」主要影响在库快照与库龄；改趋势起止主要影响本区两图和出入库概况。
 
 ---
 
@@ -120,7 +121,7 @@
 
 **时点存量 vs 期间流量**
 
-**说明：** 在库概览、库龄、矩阵、排行看的是「截至某天还剩多少」；出入库概况和入库趋势看的是「某段时间进了/出了多少」。不要把期间金额或趋势点当成期末库存。
+**说明：** 在库概览、库龄、矩阵、排行看的是「截至某天还剩多少」；出入库概况和入库/出库数量趋势看的是「某段时间进了/出了多少」。不要把期间金额或趋势点当成期末库存。
 
 </div>
 

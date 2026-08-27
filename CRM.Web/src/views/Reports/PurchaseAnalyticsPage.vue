@@ -155,22 +155,6 @@ const snapshotKpis = computed(() => {
       valueFormat: 'money' as const,
       drillable: isSnapshotDrillable('amount', maskAmounts.value) && authStore.hasPermission('purchase-order.read'),
       ...def('snapshot.amount')
-    },
-    {
-      key: 'stockIn',
-      label: t('purchaseAnalytics.kpi.purchaseAmountStockIn'),
-      value: formatMoney(s.purchaseAmountStockIn),
-      valueFormat: 'money' as const,
-      drillable: isSnapshotDrillable('stockIn', maskAmounts.value) && authStore.hasPermission('purchase-order.read'),
-      ...def('snapshot.stockIn')
-    },
-    {
-      key: 'paid',
-      label: t('purchaseAnalytics.kpi.purchaseAmountPaid'),
-      value: formatMoney(s.purchaseAmountPaid),
-      valueFormat: 'money' as const,
-      drillable: isSnapshotDrillable('paid', maskAmounts.value) && authStore.hasPermission('purchase-order.read'),
-      ...def('snapshot.paid')
     }
   ]
 })
@@ -214,20 +198,6 @@ const trendConversionPoints = computed(() =>
   trends.value.map((p) => ({
     period: p.period,
     value: p.quoteToPurchaseConversionRate ?? 0
-  }))
-)
-
-const trendStockInPoints = computed(() =>
-  trends.value.map((p) => ({
-    period: p.period,
-    value: p.purchaseAmountStockIn ?? 0
-  }))
-)
-
-const trendPaidPoints = computed(() =>
-  trends.value.map((p) => ({
-    period: p.period,
-    value: p.purchaseAmountPaid ?? 0
   }))
 )
 
@@ -457,7 +427,7 @@ watch([viewLevel, departmentId, purchaseUserId, dateRange, groupBy], () => void 
           <AnalyticsKpiGrid :items="snapshotKpis" @item-click="onSnapshotKpiClick" />
         </section>
 
-        <div class="charts-row">
+        <div class="charts-row charts-row--triple">
           <div class="card chart-panel">
             <AnalyticsPanelHeader
               :title="t('purchaseAnalytics.sections.trendAmount')"
@@ -466,25 +436,6 @@ watch([viewLevel, departmentId, purchaseUserId, dateRange, groupBy], () => void 
             />
             <AnalyticsTrendChart :points="trendAmountPoints" value-format="money" />
           </div>
-          <div class="card chart-panel">
-            <AnalyticsPanelHeader
-              :title="t('purchaseAnalytics.sections.trendStockIn')"
-              :unit-caption="t('purchaseAnalytics.trendUnit.moneyCaption')"
-              v-bind="def('trend.stockIn')"
-            />
-            <AnalyticsTrendChart :points="trendStockInPoints" value-format="money" />
-          </div>
-          <div class="card chart-panel">
-            <AnalyticsPanelHeader
-              :title="t('purchaseAnalytics.sections.trendPaid')"
-              :unit-caption="t('purchaseAnalytics.trendUnit.moneyCaption')"
-              v-bind="def('trend.paid')"
-            />
-            <AnalyticsTrendChart :points="trendPaidPoints" value-format="money" />
-          </div>
-        </div>
-
-        <div class="charts-row">
           <div class="card chart-panel">
             <AnalyticsPanelHeader
               :title="t('purchaseAnalytics.sections.trendQuoteVendors')"
@@ -722,6 +673,14 @@ watch([viewLevel, departmentId, purchaseUserId, dateRange, groupBy], () => void 
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 16px;
   margin-bottom: 16px;
+}
+
+.charts-row--triple {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+
+  @media (max-width: 1100px) {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  }
 }
 
 .breakdown-row {

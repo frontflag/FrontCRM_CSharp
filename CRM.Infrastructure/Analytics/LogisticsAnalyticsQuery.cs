@@ -48,7 +48,8 @@ public sealed class LogisticsAnalyticsQuery : ILogisticsAnalyticsQuery
         LogisticsAnalyticsResolvedScope scope,
         CancellationToken cancellationToken = default)
     {
-        var rows = await LoadStockRowsAsync(scope, cancellationToken);
+        var stockInRows = await LoadStockInFlowQtyRowsAsync(scope, cancellationToken);
+        var stockOutRows = await LoadStockOutFlowQtyRowsAsync(scope, cancellationToken);
         var pendingByPeriod = await LoadPendingStockInByPeriodAsync(scope, cancellationToken);
 
         var periods = BuildPeriodKeys(scope.DateFrom, scope.TrendDateTo, scope.GroupBy);
@@ -57,16 +58,13 @@ public sealed class LogisticsAnalyticsQuery : ILogisticsAnalyticsQuery
         foreach (var period in periods)
         {
             var (start, end) = ParsePeriodRange(period, scope.GroupBy);
-            var stockInQty = rows
-                .Where(r => r.StockInDate >= start && r.StockInDate < end)
-                .Sum(r => r.Qty);
-
             pendingByPeriod.TryGetValue(period, out var pendingQty);
 
             result.Add(new LogisticsAnalyticsTrendPointDto
             {
                 Period = period,
-                StockInQty = stockInQty,
+                StockInQty = SumQtyInRange(stockInRows, start, end),
+                StockOutQty = SumQtyInRange(stockOutRows, start, end),
                 PendingStockInQty = pendingQty
             });
         }
@@ -336,6 +334,94 @@ public sealed class LogisticsAnalyticsQuery : ILogisticsAnalyticsQuery
             }).ToListAsync(cancellationToken);
 
         return BuildFlowMoney(rows, scope.MaskSalesAmounts);
+    }
+
+    private async Task<List<FlowQtyRow>> LoadStockInFlowQtyRowsAsync(
+        LogisticsAnalyticsResolvedScope scope,
+        CancellationToken cancellationToken)
+    {
+        var dateFrom = SalesAnalyticsDateFilter.ToUtcDateStart(scope.DateFrom);
+        var dateEnd = SalesAnalyticsDateFilter.ToUtcDateEndExclusive(scope.TrendDateTo);
+
+        var stockIns = _db.StockIns.AsNoTracking()
+            .Where(s => !s.IsDeleted
+                && s.Status == StockInHeaderStatusCode.Posted
+                && (s.StockInType == StockInTypeCode.Purchase || s.StockInType == StockInTypeCode.LegacyPurchase)
+                && s.StockInDate >= dateFrom
+                && s.StockInDate < dateEnd);
+
+        stockIns = await _dataPermission.ApplyStockInListDataScopeAsync(
+            scope.Summary.UserId,
+            stockIns,
+            _db.SellOrders.AsNoTracking(),
+            _db.SellOrderItems.AsNoTracking(),
+            _db.StockInItemExtends.AsNoTracking(),
+            _db.PurchaseOrderItems.AsNoTracking(),
+            _db.PurchaseOrders.AsNoTracking(),
+            cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(scope.WarehouseId))
+            stockIns = stockIns.Where(s => s.WarehouseId == scope.WarehouseId);
+
+        var stockItems = LoadFlowStockItems(scope);
+        return await (
+            from st in stockItems
+            join sii in _db.StockInItems.AsNoTracking() on st.StockInItemId equals sii.Id
+            join sin in stockIns on sii.StockInId equals sin.Id
+            where !sii.IsDeleted
+            select new FlowQtyRow
+            {
+                OccurredOn = sin.StockInDate,
+                Quantity = sii.Quantity
+            }).ToListAsync(cancellationToken);
+    }
+
+    private async Task<List<FlowQtyRow>> LoadStockOutFlowQtyRowsAsync(
+        LogisticsAnalyticsResolvedScope scope,
+        CancellationToken cancellationToken)
+    {
+        var dateFrom = SalesAnalyticsDateFilter.ToUtcDateStart(scope.DateFrom);
+        var dateEnd = SalesAnalyticsDateFilter.ToUtcDateEndExclusive(scope.TrendDateTo);
+
+        var stockOuts = _db.StockOuts.AsNoTracking()
+            .Where(o => !o.IsDeleted
+                && o.Status == StockOutFinishedStatus
+                && (o.StockOutType == StockOutTypeCode.Sales || o.StockOutType == StockOutTypeCode.LegacySales)
+                && o.StockOutDate != null
+                && o.StockOutDate >= dateFrom
+                && o.StockOutDate < dateEnd);
+
+        stockOuts = await _dataPermission.ApplyStockOutListDataScopeAsync(
+            scope.Summary.UserId,
+            stockOuts,
+            _db.SellOrders.AsNoTracking(),
+            _db.SellOrderItems.AsNoTracking(),
+            _db.Customers.AsNoTracking(),
+            cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(scope.WarehouseId))
+            stockOuts = stockOuts.Where(o => o.WarehouseId == scope.WarehouseId);
+
+        var stockItems = LoadFlowStockItems(scope);
+        return await (
+            from item in _db.StockOutItems.AsNoTracking()
+            join o in stockOuts on item.StockOutId equals o.Id
+            join ext in _db.StockOutItemExtends.AsNoTracking() on item.Id equals ext.Id
+            join st in stockItems on ext.StockItemId equals st.Id
+            where !item.IsDeleted && !ext.IsDeleted
+            select new FlowQtyRow
+            {
+                OccurredOn = o.StockOutDate!.Value,
+                Quantity = item.Quantity
+            }).ToListAsync(cancellationToken);
+    }
+
+    private static int SumQtyInRange(IReadOnlyList<FlowQtyRow> rows, DateTime start, DateTime end)
+    {
+        var sum = rows
+            .Where(r => r.OccurredOn >= start && r.OccurredOn < end)
+            .Sum(r => r.Quantity);
+        return (int)Math.Round(sum, MidpointRounding.AwayFromZero);
     }
 
     private static SalesAnalyticsMoneyDto BuildFlowMoney(IReadOnlyList<FlowMoneyRow> rows, bool maskAmounts)

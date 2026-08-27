@@ -1505,7 +1505,7 @@ const enUS = {
     loadFailed: 'Failed to load logistics dashboard',
     matrixLoadFailed: 'Failed to load customer matrix',
     scopeBanner: 'Visible scope: {label}',
-    metricHint: 'Inbound/outbound amounts are period totals in the trend window; on-hand KPIs are as-of stock; trends use stock-in date',
+    metricHint: 'Inbound/outbound amounts and qty trends are period totals in the trend window; on-hand KPIs are as-of stock',
     salesPurchaseOnlyHint: 'Filtered by sales/purchase ownership (salesperson or purchaser)',
     defs: logisticsAnalyticsDefsEn,
     groupBy: { day: 'Daily', week: 'Weekly', month: 'Monthly' },
@@ -1518,6 +1518,7 @@ const enUS = {
       flow: 'Inbound / outbound',
       snapshot: 'On-hand overview',
       trendStockIn: 'Inbound qty trend',
+      trendStockOut: 'Outbound qty trend',
       customerMatrix: 'Customer × subject'
     },
     kpi: {

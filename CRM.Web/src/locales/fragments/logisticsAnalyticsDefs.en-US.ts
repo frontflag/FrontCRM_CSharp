@@ -70,8 +70,13 @@ export const logisticsAnalyticsDefsEn = {
   trend: {
     stockInQty: {
       chart: 'Stock-in qty trend',
-      dataSource: 'Inventory',
-      text: 'Inflow qty per period by stock-in date. Flow in the trend window, not ending on-hand.'
+      dataSource: 'Stock-in lines',
+      text: 'Posted purchase receipt qty per period in the trend window (same receipts as Inbound amount). Period flow, not ending on-hand.'
+    },
+    stockOutQty: {
+      chart: 'Stock-out qty trend',
+      dataSource: 'Stock-out lines',
+      text: 'Finished sales stock-out qty per period in the trend window (same lines as Outbound amount). Excludes ready-to-ship and customs/return/scrap/transfer stock-outs.'
     }
   },
   matrix: {
