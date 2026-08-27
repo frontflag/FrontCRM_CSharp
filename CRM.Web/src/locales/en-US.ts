@@ -8,6 +8,7 @@ import { quoteListBoardDefsEn } from './fragments/quoteListBoardDefs.en-US'
 import { purchaseOrderItemListBoardDefsEn } from './fragments/purchaseOrderItemListBoardDefs.en-US'
 import { stockOutItemListBoardDefsEn } from './fragments/stockOutItemListBoardDefs.en-US'
 import { stockInListBoardDefsEn } from './fragments/stockInListBoardDefs.en-US'
+import { financeReceiptListBoardDefsEn } from './fragments/financeReceiptListBoardDefs.en-US'
 
 const enUS = {
   common: {
@@ -9742,6 +9743,8 @@ const enUS = {
       startDate: 'Start date',
       endDate: 'End date',
       search: 'Search',
+      boardView: 'Board',
+      listView: 'List',
       export: 'Export'
     },
     settingsMenu: {
@@ -9810,6 +9813,51 @@ const enUS = {
     slipUploadCategory: 'Bank slip',
     noSlipUploaded: 'No attachments yet',
     btnSave: 'Save',
+    board: {
+      datasetTag: 'Filters',
+      hint: 'Full current search result (not this page). Amounts are header original currency, split by currency, not converted to USD.',
+      refresh: 'Refresh',
+      loadFailed: 'Failed to load the receipt board',
+      unsetCustomer: 'Unlinked customer',
+      unsetSalesUser: 'Unassigned salesperson',
+      groupBy: {
+        day: 'Day',
+        week: 'Week',
+        month: 'Month'
+      },
+      sections: {
+        kpi: 'Receipt overview',
+        trendHeaders: 'Receipts',
+        trendAmount: 'Receipt amount'
+      },
+      kpi: {
+        customers: 'Receipt customers',
+        amount: 'Receipt amount',
+        originalCaption: 'Original'
+      },
+      trendUnit: {
+        headers: 'docs',
+        originalCaption: 'Unit: {currency}'
+      },
+      verification: {
+        pending: 'Pending',
+        partial: 'Partial',
+        complete: 'Complete'
+      },
+      breakdown: {
+        verificationStatus: 'Write-off status',
+        salesUser: 'Salesperson'
+      },
+      rankings: {
+        metricMode: 'Ranking metric',
+        amount: 'Receipt amount',
+        headerCount: 'Receipts',
+        name: 'Name',
+        customerByAmount: 'Top 10 customers',
+        salesUserByAmount: 'Top 10 salespeople'
+      },
+      defs: financeReceiptListBoardDefsEn
+    },
     messages: {
       selectCustomer: 'Select a customer',
       exportConfirmTitle: 'Export',

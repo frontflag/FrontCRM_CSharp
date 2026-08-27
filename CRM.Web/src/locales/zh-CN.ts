@@ -8,6 +8,7 @@ import { quoteListBoardDefsZh } from './fragments/quoteListBoardDefs.zh-CN'
 import { purchaseOrderItemListBoardDefsZh } from './fragments/purchaseOrderItemListBoardDefs.zh-CN'
 import { stockOutItemListBoardDefsZh } from './fragments/stockOutItemListBoardDefs.zh-CN'
 import { stockInListBoardDefsZh } from './fragments/stockInListBoardDefs.zh-CN'
+import { financeReceiptListBoardDefsZh } from './fragments/financeReceiptListBoardDefs.zh-CN'
 
 const zhCN = {
   common: {
@@ -9716,6 +9717,8 @@ const zhCN = {
       startDate: '开始日期',
       endDate: '结束日期',
       search: '查询',
+      boardView: '看板',
+      listView: '列表',
       export: '导出'
     },
     settingsMenu: {
@@ -9784,6 +9787,51 @@ const zhCN = {
     slipUploadCategory: '银行水单',
     noSlipUploaded: '暂无附件',
     btnSave: '保存',
+    board: {
+      datasetTag: '筛选',
+      hint: '统计当前搜索栏筛选结果全量（非当前页）。金额为收款单头原币金额，按币别分开，不折算美金。',
+      refresh: '刷新',
+      loadFailed: '加载收款看板失败',
+      unsetCustomer: '未关联客户',
+      unsetSalesUser: '未分配业务员',
+      groupBy: {
+        day: '按天',
+        week: '按周',
+        month: '按月'
+      },
+      sections: {
+        kpi: '收款概览',
+        trendHeaders: '收款单数',
+        trendAmount: '收款金额'
+      },
+      kpi: {
+        customers: '收款客户数',
+        amount: '收款金额',
+        originalCaption: '原币'
+      },
+      trendUnit: {
+        headers: '单',
+        originalCaption: '单位：{currency}'
+      },
+      verification: {
+        pending: '未核销',
+        partial: '部分核销',
+        complete: '核销完成'
+      },
+      breakdown: {
+        verificationStatus: '核销状态',
+        salesUser: '业务员'
+      },
+      rankings: {
+        metricMode: '排行指标',
+        amount: '收款金额',
+        headerCount: '收款单数',
+        name: '名称',
+        customerByAmount: 'Top10 客户',
+        salesUserByAmount: 'Top10 业务员'
+      },
+      defs: financeReceiptListBoardDefsZh
+    },
     messages: {
       selectCustomer: '请选择客户',
       exportConfirmTitle: '导出确认',

@@ -1,9 +1,11 @@
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Analytics;
 using CRM.Core.Models.Finance;
 using CRM.Core.Services;
 using CRM.Core.Utilities;
 using CRM.API.Authorization;
+using CRM.API.Models.DTOs;
 using CRM.API.Utilities;
 using Microsoft.AspNetCore.Mvc;
 using System.Linq;
@@ -18,6 +20,7 @@ namespace CRM.API.Controllers
     {
         private readonly IFinanceReceiptService _service;
         private readonly IFinanceReceivableService _receivableService;
+        private readonly IFinanceReceiptListAnalyticsQuery _listAnalytics;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IRbacService _rbacService;
         private readonly IExportOperationLogService _exportLog;
@@ -26,6 +29,7 @@ namespace CRM.API.Controllers
         public FinanceReceiptsController(
             IFinanceReceiptService service,
             IFinanceReceivableService receivableService,
+            IFinanceReceiptListAnalyticsQuery listAnalytics,
             IDataPermissionService dataPermissionService,
             IRbacService rbacService,
             IExportOperationLogService exportLog,
@@ -33,6 +37,7 @@ namespace CRM.API.Controllers
         {
             _service = service;
             _receivableService = receivableService;
+            _listAnalytics = listAnalytics;
             _dataPermissionService = dataPermissionService;
             _rbacService = rbacService;
             _exportLog = exportLog;
@@ -142,6 +147,75 @@ namespace CRM.API.Controllers
                 _logger.LogError(ex, "导出收款记录失败");
                 return StatusCode(500, new { success = false, message = $"导出收款记录失败: {ex.Message}" });
             }
+        }
+
+        [HttpGet("analytics/dashboard")]
+        public async Task<IActionResult> GetListAnalyticsDashboard(
+            [FromQuery] string? keyword,
+            [FromQuery] short? status,
+            [FromQuery] short? receiptPurpose,
+            [FromQuery] short? verificationStatus,
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, maskAmounts) = await BuildListAnalyticsQueryAsync(
+                keyword, status, receiptPurpose, verificationStatus, startDate, endDate, cancellationToken);
+            var data = await _listAnalytics.GetDashboardAsync(request, maskAmounts, cancellationToken);
+            return Ok(ApiResponse<FinanceReceiptListAnalyticsDashboardDto>.Ok(data));
+        }
+
+        [HttpGet("analytics/trends")]
+        public async Task<IActionResult> GetListAnalyticsTrends(
+            [FromQuery] string? keyword,
+            [FromQuery] short? status,
+            [FromQuery] short? receiptPurpose,
+            [FromQuery] short? verificationStatus,
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            [FromQuery] string? groupBy,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, maskAmounts) = await BuildListAnalyticsQueryAsync(
+                keyword, status, receiptPurpose, verificationStatus, startDate, endDate, cancellationToken);
+            var data = await _listAnalytics.GetTrendsAsync(
+                request,
+                string.IsNullOrWhiteSpace(groupBy) ? "month" : groupBy.Trim(),
+                maskAmounts,
+                cancellationToken);
+            return Ok(ApiResponse<IReadOnlyList<FinanceReceiptListAnalyticsTrendPointDto>>.Ok(data));
+        }
+
+        [HttpGet("analytics/breakdowns")]
+        public async Task<IActionResult> GetListAnalyticsBreakdowns(
+            [FromQuery] string? keyword,
+            [FromQuery] short? status,
+            [FromQuery] short? receiptPurpose,
+            [FromQuery] short? verificationStatus,
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, maskAmounts) = await BuildListAnalyticsQueryAsync(
+                keyword, status, receiptPurpose, verificationStatus, startDate, endDate, cancellationToken);
+            var data = await _listAnalytics.GetBreakdownsAsync(request, maskAmounts, cancellationToken);
+            return Ok(ApiResponse<IReadOnlyList<FinanceReceiptListAnalyticsBreakdownGroupDto>>.Ok(data));
+        }
+
+        [HttpGet("analytics/rankings")]
+        public async Task<IActionResult> GetListAnalyticsRankings(
+            [FromQuery] string? keyword,
+            [FromQuery] short? status,
+            [FromQuery] short? receiptPurpose,
+            [FromQuery] short? verificationStatus,
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, maskAmounts) = await BuildListAnalyticsQueryAsync(
+                keyword, status, receiptPurpose, verificationStatus, startDate, endDate, cancellationToken);
+            var data = await _listAnalytics.GetRankingsAsync(request, maskAmounts, cancellationToken);
+            return Ok(ApiResponse<FinanceReceiptListAnalyticsRankingsDto>.Ok(data));
         }
 
         /// <summary>获取单个收款单</summary>
@@ -504,6 +578,30 @@ namespace CRM.API.Controllers
                 _logger.LogError(ex, "核销收款明细失败");
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
+        }
+
+        private async Task<(FinanceReceiptQueryRequest Request, bool MaskAmounts)> BuildListAnalyticsQueryAsync(
+            string? keyword,
+            short? status,
+            short? receiptPurpose,
+            short? verificationStatus,
+            string? startDate,
+            string? endDate,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var request = new FinanceReceiptQueryRequest
+            {
+                Keyword = keyword,
+                Status = status,
+                ReceiptPurpose = receiptPurpose,
+                VerificationStatus = verificationStatus,
+                StartDate = DateTime.TryParse(startDate, out var start) ? start : null,
+                EndDate = DateTime.TryParse(endDate, out var end) ? end : null,
+                CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            };
+            var mask521 = await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User);
+            return (request, mask521);
         }
 
         private (string? userId, string? userName) GetActor()

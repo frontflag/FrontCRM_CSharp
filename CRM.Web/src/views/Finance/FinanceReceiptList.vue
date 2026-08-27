@@ -12,8 +12,8 @@
         </button>
       </div>
     </div>
-    <!-- 统计卡片（置顶：在筛选栏与表格之上） -->
-    <div class="stat-cards">
+    <!-- 统计卡片（置顶：在筛选栏与表格之上；看板态隐藏） -->
+    <div v-show="viewMode === 'list'" class="stat-cards">
       <div class="stat-card">
         <div class="stat-label">{{ t('financeReceiptList.stats.monthTotal') }}</div>
         <div class="stat-value success">{{ maskSaleSensitiveFields ? '—' : `¥ ${formatAmount(stats.monthTotal)}` }}</div>
@@ -104,6 +104,16 @@
         <el-button type="primary" @click="loadData">
           <el-icon><Search /></el-icon> {{ t('financeReceiptList.filters.search') }}
         </el-button>
+        <el-button
+          class="btn-ghost btn-sm btn-board-active"
+          @click="toggleViewMode"
+        >
+          {{
+            viewMode === 'board'
+              ? t('financeReceiptList.filters.listView')
+              : t('financeReceiptList.filters.boardView')
+          }}
+        </el-button>
         <el-popover
           v-model:visible="settingsMenuOpen"
           trigger="click"
@@ -183,8 +193,11 @@
       </button>
     </div>
 
+    <FinanceReceiptListBoard v-if="viewMode === 'board'" :filters="boardFilters" />
+
     <!-- 数据表格 -->
     <CrmDataTable
+      v-show="viewMode === 'list'"
       ref="dataTableRef"
       column-layout-key="finance-receipt-list-main"
       :columns="receiptTableColumns"
@@ -323,7 +336,7 @@
         </div>
       </template>
     </CrmDataTable>
-    <div class="pagination-wrap">
+    <div v-show="viewMode === 'list'" class="pagination-wrap">
       <div class="list-footer-left">
         <el-tooltip :content="t('financeReceiptList.columnSettings')" placement="top" :hide-after="0">
           <el-button class="list-settings-btn" link type="primary" :aria-label="t('financeReceiptList.columnSettings')" @click="dataTableRef?.openColumnSettings?.()">
@@ -600,6 +613,9 @@ import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
 import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
 import { useCustomerWorkspacePanelStore } from '@/stores/customerWorkspacePanel'
+import { useListBoardHelpOverride } from '@/composables/useHelpDocOverride'
+import FinanceReceiptListBoard from './FinanceReceiptListBoard.vue'
+import type { FinanceReceiptListAnalyticsQuery } from '@/api/financeReceiptAnalytics'
 
 const router = useRouter()
 const route = useRoute()
@@ -715,6 +731,8 @@ const query = reactive<PageQuery & { page: number; pageSize: number }>({
   endDate: undefined
 })
 const dateRange = ref<[string, string] | null>(null)
+const viewMode = ref<'list' | 'board'>('list')
+useListBoardHelpOverride('pages/收款记录看板_MENU_FINANCE_RECEIPT_BOARD.md', viewMode)
 const total = ref(0)
 const loading = ref(false)
 const exporting = ref(false)
@@ -885,8 +903,16 @@ const receiptTableColumns = computed<CrmTableColumnDef[]>(() => {
 
 const stats = reactive({ monthTotal: 0, pendingCount: 0, receivedCount: 0, draftCount: 0 })
 
-const loadData = async () => {
-  loading.value = true
+const boardFilters = computed<FinanceReceiptListAnalyticsQuery>(() => ({
+  keyword: query.keyword?.trim() || undefined,
+  status: query.status,
+  receiptPurpose: query.receiptPurpose,
+  verificationStatus: query.verificationStatus,
+  startDate: query.startDate,
+  endDate: query.endDate
+}))
+
+function syncDateRangeToQuery() {
   if (dateRange.value) {
     query.startDate = dateRange.value[0]
     query.endDate = dateRange.value[1]
@@ -894,6 +920,18 @@ const loadData = async () => {
     query.startDate = undefined
     query.endDate = undefined
   }
+}
+
+function toggleViewMode() {
+  viewMode.value = viewMode.value === 'list' ? 'board' : 'list'
+  if (viewMode.value === 'list') void loadData()
+  else customerWorkspacePanelStore.clear()
+}
+
+const loadData = async () => {
+  syncDateRangeToQuery()
+  if (viewMode.value === 'board') return
+  loading.value = true
   try {
     const res = await financeReceiptApi.getList(query)
     const items = res.items || []
@@ -1309,6 +1347,17 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 10px;
+}
+
+.btn-board-active {
+  border-color: #13c2c2;
+  color: #13c2c2;
+}
+
+.btn-board-active:hover {
+  border-color: #36cfc9;
+  color: #36cfc9;
+  background: rgba(19, 194, 194, 0.08);
 }
 
 .btn-write-off-desktop {
