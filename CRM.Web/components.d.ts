@@ -134,6 +134,8 @@ declare module 'vue' {
     InvoiceReportSkinEcoinf: typeof import('./src/components/stockOut/invoiceReport/skins/InvoiceReportSkinEcoinf.vue')['default']
     InvoiceReportSkinIdesemi: typeof import('./src/components/stockOut/invoiceReport/skins/InvoiceReportSkinIdesemi.vue')['default']
     InvoiceReportSkinSemicore: typeof import('./src/components/stockOut/invoiceReport/skins/InvoiceReportSkinSemicore.vue')['default']
+    InvoiceReportV2Body: typeof import('./src/components/stockOut/invoiceReport/InvoiceReportV2Body.vue')['default']
+    InvoiceReportV2SkinIdesemi: typeof import('./src/components/stockOut/invoiceReport/skins/InvoiceReportV2SkinIdesemi.vue')['default']
     JsonBlockPanel: typeof import('./src/components/RFQ/enhancers/JsonBlockPanel.vue')['default']
     JsonEnhancerTable: typeof import('./src/components/RFQ/enhancers/JsonEnhancerTable.vue')['default']
     JsonValueRenderer: typeof import('./src/components/RFQ/JsonValueRenderer.vue')['default']

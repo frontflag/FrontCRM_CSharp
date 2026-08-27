@@ -21,14 +21,16 @@
 | 层 | 说明 |
 |----|------|
 | 租户来源 | `VITE_TENANT_ID` → `LOGIN_TENANT_ID` |
-| 皮肤选择 | `resolveInvoiceReportSkin(tenantId)`（与 Packing 映射相同） |
+| 皮肤选择 | `resolveInvoiceReportSkin(tenantId, styleVersion)`；V2 仅 semicore，见 [报表规范-Invoice-V2](../../PRD/规范/业务规范/报表规范-Invoice-V2.md) |
 | 数据 | 既有 `docBind`（明细含单价/金额、Bank Details）；不变 |
-| 版式 | 三套 Vue 皮肤，共享 `InvoiceReportDocumentProps` |
+| 版式 | V1：三套 Vue 皮肤；V2：`InvoiceReportV2Body` + `InvoiceReportV2SkinIdesemi` |
 
 ```
 StockOutInvoiceReportPage
-  → resolveInvoiceReportSkin(LOGIN_TENANT_ID)
-  → InvoiceReportSkin{Semicore|Idesemi|Ecoinf}
+  → reportParamsApi.getEffectiveStyleVersion()
+  → resolveInvoiceReportSkin(LOGIN_TENANT_ID, styleVersion)
+  → V1: InvoiceReportSkin{Semicore|Idesemi|Ecoinf}
+  → V2 (semicore): InvoiceReportV2SkinIdesemi
 ```
 
 ---

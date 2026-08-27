@@ -62,6 +62,7 @@ import type { PackingReportAddressPanel, PackingReportLine, StockOutDetailDto } 
 import type { StockOutInvoiceLineVm } from '@/components/stockOut/invoiceReport/types'
 import { resolveInvoiceReportSkin } from '@/components/stockOut/invoiceReport/resolveInvoiceReportSkin'
 import { LOGIN_TENANT_ID } from '@/config/loginTenant'
+import { reportParamsApi, type ReportStyleVersion } from '@/api/reportParams'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { normalizePackingAddrLines } from '@/utils/packingReportAddressLines'
 import {
@@ -70,7 +71,8 @@ import {
   type InvoiceReportLabels
 } from '@/components/stockOut/packingReportLabels'
 
-const invoiceReportSkin = resolveInvoiceReportSkin(LOGIN_TENANT_ID)
+const styleVersion = ref<ReportStyleVersion>('V1')
+const invoiceReportSkin = computed(() => resolveInvoiceReportSkin(LOGIN_TENANT_ID, styleVersion.value))
 
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 
@@ -362,9 +364,13 @@ async function load() {
       errorMsg.value = t('stockOutInvoiceReport.missingId')
       return
     }
-    const bundle = fromPacking
-      ? await packingApi.getInvoiceReportBundle(fromPacking)
-      : await stockOutApi.getInvoiceReportBundle(fromStockOut)
+    const [effectiveVersion, bundle] = await Promise.all([
+      reportParamsApi.getEffectiveStyleVersion(),
+      fromPacking
+        ? packingApi.getInvoiceReportBundle(fromPacking)
+        : stockOutApi.getInvoiceReportBundle(fromStockOut)
+    ])
+    styleVersion.value = effectiveVersion
     if (!bundle?.stockOut) {
       errorMsg.value = t('stockOutInvoiceReport.notFound')
       stockOut.value = null
