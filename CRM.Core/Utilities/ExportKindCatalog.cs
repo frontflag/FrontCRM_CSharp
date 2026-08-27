@@ -28,7 +28,7 @@ public static class ExportKindCatalog
     [
         new(ExportAuditKinds.StockInList, "入库单列表", "入库", "/inventory/stock-in"),
         new(ExportAuditKinds.StockOutList, "出库单列表", "出库单", "/inventory/stock-out"),
-        new(ExportAuditKinds.InventoryStockList, "库存中心列表", "库存管理", "/inventory/list"),
+        new(ExportAuditKinds.InventoryStockList, "库存桶列表", "库存管理", "/inventory/bucket"),
         new(ExportAuditKinds.InventoryStockItemList, "库存明细列表", "库存明细", "/inventory/stock-items"),
         new(ExportAuditKinds.FinancePaymentList, "付款记录列表", "付款记录", "/finance/payments"),
         new(ExportAuditKinds.FinancePurchaseInvoiceList, "进项发票列表", "进项发票", "/finance/purchase-invoices"),

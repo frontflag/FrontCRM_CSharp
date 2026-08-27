@@ -148,6 +148,24 @@ public static class PurchaseSensitiveFieldMask511
         }
     }
 
+    public static void ApplyInventoryOnHandSummaryRows(IEnumerable<InventoryOnHandSummaryRowDto>? rows, bool mask)
+    {
+        if (!mask || rows == null) return;
+        foreach (var x in rows)
+        {
+            if (x.Amounts == null) continue;
+            foreach (var a in x.Amounts)
+                a.Amount = 0m;
+        }
+    }
+
+    public static void ApplyInventoryOnHandSummaryAmounts(IEnumerable<InventoryOnHandAmountDto>? amounts, bool mask)
+    {
+        if (!mask || amounts == null) return;
+        foreach (var a in amounts)
+            a.Amount = 0m;
+    }
+
     public static void ApplyInventoryMaterialTraces(IEnumerable<InventoryMaterialTraceDto>? rows, bool mask)
     {
         if (!mask || rows == null) return;

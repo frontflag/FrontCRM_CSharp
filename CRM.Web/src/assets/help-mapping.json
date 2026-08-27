@@ -66,6 +66,7 @@
     { "routeName": "StockInDetail", "pageId": "inventory" },
     { "routeName": "BatchReconciliation", "pageId": "inventory" },
     { "routeName": "InventoryList", "pageId": "inventory" },
+    { "routeName": "InventoryBucketList", "pageId": "inventory" },
     { "routeName": "InventoryTrace", "pageId": "inventory" },
     { "routeName": "InventoryTransfer", "pageId": "inventory" },
     { "routeName": "InventoryCheck", "pageId": "inventory" },

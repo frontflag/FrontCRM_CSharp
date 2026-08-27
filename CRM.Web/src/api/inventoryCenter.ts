@@ -10,6 +10,30 @@ export interface PagedList<T> {
   pageSize: number
 }
 
+export interface InventoryOnHandAmount {
+  currency: number
+  amount: number
+}
+
+export interface InventoryOnHandSummaryRow {
+  materialModel?: string | null
+  purchaseBrand?: string | null
+  stockType?: number | null
+  warehouseId?: string | null
+  warehouseCode?: string | null
+  warehouseName?: string | null
+  onHandQty: number
+  amounts?: InventoryOnHandAmount[]
+}
+
+export interface InventoryOnHandSummaryPaged extends PagedList<InventoryOnHandSummaryRow> {
+  currencies: number[]
+  /** 当前筛选全量在库数量（与分页无关） */
+  onHandQtyTotal: number
+  /** 当前筛选全量原币金额，顺序与 currencies 一致 */
+  totalAmounts: InventoryOnHandAmount[]
+}
+
 export interface InventoryOverview {
   /** stock.StockId */
   stockId: string
@@ -98,6 +122,15 @@ export interface StockItemRow {
   createTime?: string
 }
 
+export interface StockItemListPaged extends PagedList<StockItemListRow> {
+  /** 当前筛选全量入库数量合计（与分页无关） */
+  qtyInboundTotal: number
+  /** 当前筛选全量已出库数量合计（与分页无关） */
+  qtyStockOutTotal: number
+  /** 当前筛选全量在库数量合计（与分页无关） */
+  qtyRepertoryTotal: number
+}
+
 /** 全库 stockitem 列表查询（query 参数与后端 InventoryStockItemListQuery 一致） */
 export interface StockItemListQuery {
   stockInCode?: string
@@ -122,6 +155,16 @@ export interface StockItemListQuery {
   purchaserUserId?: string
   /** 在库数量 QtyRepertory：true 为大于 0，false 为等于 0；不传则不限 */
   repertoryHasStock?: boolean
+  /** 1=客单 2=备货 3=样品 */
+  stockType?: number
+  /** 仅呆滞在库层（与库存中心看板 KPI 一致） */
+  stagnantOnly?: boolean
+  /** 看板排行下钻：customer / salesUser / material / brand */
+  rankDimension?: string
+  /** 排行分组键（含 _unset） */
+  rankKey?: string
+  /** 排行金额模式下钻原币 */
+  rankCurrency?: number
 }
 
 export interface StockItemListRow extends StockItemRow {
@@ -398,7 +441,67 @@ export const inventoryCenterApi = {
     return unwrap<PagedList<InventoryOverview>>(await apiClient.get(`/api/v1/inventory-center/overview/paged?${qs}`))
   },
 
-  /** 按当前筛选导出库存中心列表 CSV（服务端写审计日志） */
+  async getOnHandSummaryPaged(query?: {
+    materialModel?: string
+    purchaseBrand?: string
+    stockType?: number
+    warehouseId?: string
+    groupByStockType?: boolean
+    groupByWarehouse?: boolean
+    page?: number
+    pageSize?: number
+  }): Promise<InventoryOnHandSummaryPaged> {
+    const params = new URLSearchParams()
+    const add = (key: string, v: string | number | boolean | undefined) => {
+      if (v === undefined || v === null) return
+      if (typeof v === 'boolean') {
+        params.set(key, v ? 'true' : 'false')
+        return
+      }
+      const s = typeof v === 'string' ? v.trim() : String(v)
+      if (s === '') return
+      params.set(key, s)
+    }
+    add('materialModel', query?.materialModel)
+    add('purchaseBrand', query?.purchaseBrand)
+    if (query?.stockType != null && query.stockType >= 1 && query.stockType <= 3) {
+      params.set('stockType', String(query.stockType))
+    }
+    add('warehouseId', query?.warehouseId)
+    add('groupByStockType', query?.groupByStockType ?? false)
+    add('groupByWarehouse', query?.groupByWarehouse ?? false)
+    const p = query?.page != null && query.page >= 1 ? query.page : 1
+    const ps = query?.pageSize != null && query.pageSize >= 1 ? query.pageSize : 20
+    params.set('page', String(p))
+    params.set('pageSize', String(ps))
+    const raw = unwrap<InventoryOnHandSummaryPaged>(
+      await apiClient.get(`/api/v1/inventory-center/on-hand/paged?${params.toString()}`)
+    )
+    const rawTotals = Array.isArray(raw.totalAmounts)
+      ? raw.totalAmounts
+      : Array.isArray((raw as unknown as { TotalAmounts?: InventoryOnHandAmount[] }).TotalAmounts)
+        ? (raw as unknown as { TotalAmounts: InventoryOnHandAmount[] }).TotalAmounts
+        : []
+    return {
+      items: raw.items ?? [],
+      total: raw.total ?? 0,
+      page: raw.page ?? p,
+      pageSize: raw.pageSize ?? ps,
+      currencies: Array.isArray(raw.currencies) ? raw.currencies : [],
+      onHandQtyTotal: Number(
+        raw.onHandQtyTotal ?? (raw as { OnHandQtyTotal?: number }).OnHandQtyTotal ?? 0
+      ),
+      totalAmounts: rawTotals.map((a) => {
+        const rec = a as unknown as Record<string, unknown>
+        return {
+          currency: Number(rec.currency ?? rec.Currency ?? 0),
+          amount: Number(rec.amount ?? rec.Amount ?? 0)
+        }
+      })
+    }
+  },
+
+  /** 按当前筛选导出库存桶列表 CSV（服务端写审计日志） */
   async exportOverview(query?: {
     warehouseId?: string
     materialModel?: string
@@ -433,7 +536,7 @@ export const inventoryCenterApi = {
   },
   async searchStockItems(
     query?: StockItemListQuery & { page?: number; pageSize?: number }
-  ): Promise<PagedList<StockItemListRow>> {
+  ): Promise<StockItemListPaged> {
     const params = new URLSearchParams()
     const q = query || {}
     const add = (key: string, v: string | number | undefined | null) => {
@@ -461,12 +564,38 @@ export const inventoryCenterApi = {
     add('purchaserUserId', q.purchaserUserId)
     if (q.repertoryHasStock === true) params.set('repertoryHasStock', 'true')
     if (q.repertoryHasStock === false) params.set('repertoryHasStock', 'false')
+    if (q.stockType != null && q.stockType >= 1 && q.stockType <= 3) {
+      params.set('stockType', String(q.stockType))
+    }
+    if (q.stagnantOnly === true) params.set('stagnantOnly', 'true')
+    add('rankDimension', q.rankDimension)
+    add('rankKey', q.rankKey)
+    if (q.rankCurrency != null && q.rankCurrency >= 1) {
+      params.set('rankCurrency', String(q.rankCurrency))
+    }
     const p = q.page != null && q.page >= 1 ? q.page : 1
     const ps = q.pageSize != null && q.pageSize >= 1 ? q.pageSize : 20
     params.set('page', String(p))
     params.set('pageSize', String(ps))
     const qs = params.toString()
-    return unwrap<PagedList<StockItemListRow>>(await apiClient.get(`/api/v1/inventory-center/stock-items?${qs}`))
+    const raw = unwrap<StockItemListPaged>(
+      await apiClient.get(`/api/v1/inventory-center/stock-items?${qs}`)
+    )
+    return {
+      items: raw.items ?? [],
+      total: raw.total ?? 0,
+      page: raw.page ?? p,
+      pageSize: raw.pageSize ?? ps,
+      qtyInboundTotal: Number(
+        raw.qtyInboundTotal ?? (raw as { QtyInboundTotal?: number }).QtyInboundTotal ?? 0
+      ),
+      qtyStockOutTotal: Number(
+        raw.qtyStockOutTotal ?? (raw as { QtyStockOutTotal?: number }).QtyStockOutTotal ?? 0
+      ),
+      qtyRepertoryTotal: Number(
+        raw.qtyRepertoryTotal ?? (raw as { QtyRepertoryTotal?: number }).QtyRepertoryTotal ?? 0
+      )
+    }
   },
 
   /** 按当前筛选导出库存明细列表 CSV（服务端写审计日志） */
@@ -498,6 +627,15 @@ export const inventoryCenterApi = {
     add('purchaserUserId', q.purchaserUserId)
     if (q.repertoryHasStock === true) params.set('repertoryHasStock', 'true')
     if (q.repertoryHasStock === false) params.set('repertoryHasStock', 'false')
+    if (q.stockType != null && q.stockType >= 1 && q.stockType <= 3) {
+      params.set('stockType', String(q.stockType))
+    }
+    if (q.stagnantOnly === true) params.set('stagnantOnly', 'true')
+    add('rankDimension', q.rankDimension)
+    add('rankKey', q.rankKey)
+    if (q.rankCurrency != null && q.rankCurrency >= 1) {
+      params.set('rankCurrency', String(q.rankCurrency))
+    }
     const qs = params.toString()
     return apiClient.getBlob(
       qs ? `/api/v1/inventory-center/stock-items/export?${qs}` : '/api/v1/inventory-center/stock-items/export'

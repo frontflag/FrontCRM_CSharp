@@ -9,6 +9,7 @@ import { purchaseOrderItemListBoardDefsZh } from './fragments/purchaseOrderItemL
 import { stockOutItemListBoardDefsZh } from './fragments/stockOutItemListBoardDefs.zh-CN'
 import { stockInListBoardDefsZh } from './fragments/stockInListBoardDefs.zh-CN'
 import { financeReceiptListBoardDefsZh } from './fragments/financeReceiptListBoardDefs.zh-CN'
+import { inventoryOnHandListBoardDefsZh } from './fragments/inventoryOnHandListBoardDefs.zh-CN'
 
 const zhCN = {
   common: {
@@ -738,6 +739,7 @@ const zhCN = {
       stockInOpsCheck: '入库运维检查',
       inventoryManagement: '库存管理',
       inventoryCenter: '库存中心',
+      inventoryBucket: '库存桶',
       inventoryStockItems: '库存明细',
       inventoryCheck: '库存盘点',
       stockOutManagement: '出库管理',
@@ -6987,6 +6989,17 @@ const zhCN = {
       reset: '重置',
       export: '导出'
     },
+    drillFromBoard: {
+      stagnant: '来自库存中心看板：呆滞料库存条目（>90天）',
+      rankingQty: '来自库存中心看板 · {panel} · {name}',
+      rankingAmount: '来自库存中心看板 · {panel} · {name} · {currency}',
+      rankingDefaultPanel: '排行'
+    },
+    stats: {
+      qtyInbound: '入库数量',
+      qtyStockOut: '已出库数量',
+      qtyRepertory: '在库数量'
+    },
     settingsMenu: {
       aria: '列表筛选设置',
       closeTabs: '关闭页签',
@@ -7074,7 +7087,7 @@ const zhCN = {
   inventoryTrace: {
     title: '物料入库追溯',
     materialId: '物料ID',
-    back: '返回库存中心',
+    back: '返回库存桶',
     refresh: '刷新',
     columns: {
       stockInTime: '入库时间',
@@ -7276,14 +7289,99 @@ const zhCN = {
       missingStockId: '该库存行缺少 stockId，无法打开明细',
       loadOverviewFailed: '加载库存总览失败',
       loadFinanceFailed: '加载库存分析失败',
-      loadCenterFailed: '加载库存中心数据失败',
+      loadCenterFailed: '加载库存桶数据失败',
       loadWarehouseFailed: '加载仓库列表失败',
       saveWarehouseSuccess: '仓库保存成功',
       saveWarehouseFailed: '仓库保存失败',
       exportConfirmTitle: '导出确认',
-      exportConfirmMessage: '将按当前筛选条件导出库存中心列表，最多 50000 条，是否继续？',
+      exportConfirmMessage: '将按当前筛选条件导出库存桶列表，最多 50000 条，是否继续？',
       exportSuccess: '导出成功',
       exportFailed: '导出失败'
+    }
+  },
+  inventoryBucket: {
+    title: '库存桶',
+    messages: {
+      exportConfirmTitle: '导出确认',
+      exportConfirmMessage: '将按当前筛选条件导出库存桶列表，最多 50000 条，是否继续？'
+    }
+  },
+  inventoryOnHandList: {
+    title: '库存中心',
+    count: '共 {count} 条',
+    split: {
+      label: '拆分维度'
+    },
+    filters: {
+      brandPlaceholder: '品牌',
+      boardView: '看板',
+      listView: '列表'
+    },
+    columns: {
+      amountByCurrency: '库存金额{currency}'
+    },
+    stats: {
+      onHandQty: '在库数量',
+      amountByCurrency: '库存金额{currency}'
+    },
+    goBucket: '库存桶',
+    messages: {
+      loadFailed: '加载库存中心失败'
+    },
+    board: {
+      datasetTag: '筛选',
+      hint: '统计范围与当前搜索栏筛选结果一致（全量在库层，非当前页）。趋势为最近 12 个月按月时间点存量；库龄与物流分析同一公式。',
+      refresh: '刷新',
+      loadFailed: '加载库存中心看板失败',
+      unsetSalesUser: '未分配业务员',
+      unsetWarehouse: '无仓库',
+      groupBy: { day: '按天', week: '按周', month: '按月' },
+      sections: {
+        kpi: '在库概览',
+        trendQty: '在库数量',
+        trendAmount: '库存金额'
+      },
+      kpi: {
+        onHandQty: '在库数量',
+        amount: '库存金额',
+        originalCaption: '原币',
+        weightedAvgAgeDays: '加权平均库龄',
+        stagnantLayers: '呆滞料库存条目（>90天）'
+      },
+      drill: {
+        noPermission: '无库存查看权限，无法打开库存明细'
+      },
+      unit: {
+        days: '天'
+      },
+      trendUnit: {
+        qty: 'PCS',
+        originalCaption: '单位：{currency}'
+      },
+      breakdown: {
+        metricMode: '分布指标',
+        qty: '数量',
+        amount: '金额',
+        stockType: '库存类型',
+        warehouse: '仓库',
+        salesUser: '业务员',
+        ageBucket: '库龄分布'
+      },
+      rankings: {
+        metricMode: '排行指标',
+        qty: '数量',
+        amount: '金额',
+        name: '名称',
+        customerByQty: 'Top10 客户',
+        salesUserByQty: 'Top10 业务员',
+        materialByQty: 'Top10 物料',
+        brandByQty: 'Top10 品牌',
+        customerByAmount: 'Top10 客户',
+        salesUserByAmount: 'Top10 业务员',
+        materialByAmount: 'Top10 物料',
+        brandByAmount: 'Top10 品牌'
+      },
+      defs: inventoryOnHandListBoardDefsZh
     }
   },
   stockInBatchList: {

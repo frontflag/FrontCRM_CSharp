@@ -9,6 +9,7 @@ import { purchaseOrderItemListBoardDefsEn } from './fragments/purchaseOrderItemL
 import { stockOutItemListBoardDefsEn } from './fragments/stockOutItemListBoardDefs.en-US'
 import { stockInListBoardDefsEn } from './fragments/stockInListBoardDefs.en-US'
 import { financeReceiptListBoardDefsEn } from './fragments/financeReceiptListBoardDefs.en-US'
+import { inventoryOnHandListBoardDefsEn } from './fragments/inventoryOnHandListBoardDefs.en-US'
 
 const enUS = {
   common: {
@@ -744,6 +745,7 @@ const enUS = {
       stockInOpsCheck: 'Stock-in ops check',
       inventoryManagement: 'Inventory',
       inventoryCenter: 'Inventory Center',
+      inventoryBucket: 'Inventory Buckets',
       inventoryStockItems: 'Stock items',
       inventoryCheck: 'Inventory Check',
       stockOutManagement: 'Stock-out Buz',
@@ -7015,6 +7017,17 @@ const enUS = {
       reset: 'Reset',
       export: 'Export'
     },
+    drillFromBoard: {
+      stagnant: 'From inventory center board: stagnant inventory entries (>90d)',
+      rankingQty: 'From inventory center board · {panel} · {name}',
+      rankingAmount: 'From inventory center board · {panel} · {name} · {currency}',
+      rankingDefaultPanel: 'Ranking'
+    },
+    stats: {
+      qtyInbound: 'Inbound qty',
+      qtyStockOut: 'Outbound qty',
+      qtyRepertory: 'On-hand qty'
+    },
     settingsMenu: {
       aria: 'List filter settings',
       closeTabs: 'Close tabs',
@@ -7102,7 +7115,7 @@ const enUS = {
   inventoryTrace: {
     title: 'Stock-In Trace',
     materialId: 'Material ID',
-    back: 'Back to Inventory Center',
+    back: 'Back to Inventory Buckets',
     refresh: 'Refresh',
     columns: {
       stockInTime: 'Stock-In Time',
@@ -7300,14 +7313,99 @@ const enUS = {
       missingStockId: 'This row has no stockId; cannot open detail',
       loadOverviewFailed: 'Failed to load inventory overview',
       loadFinanceFailed: 'Failed to load inventory analytics',
-      loadCenterFailed: 'Failed to load inventory center data',
+      loadCenterFailed: 'Failed to load inventory bucket data',
       loadWarehouseFailed: 'Failed to load warehouse list',
       saveWarehouseSuccess: 'Warehouse saved successfully',
       saveWarehouseFailed: 'Failed to save warehouse',
       exportConfirmTitle: 'Export confirmation',
-      exportConfirmMessage: 'Export inventory overview with current filters (max 50,000 rows). Continue?',
+      exportConfirmMessage: 'Export inventory bucket list with current filters (max 50,000 rows). Continue?',
       exportSuccess: 'Export succeeded',
       exportFailed: 'Export failed'
+    }
+  },
+  inventoryBucket: {
+    title: 'Inventory Buckets',
+    messages: {
+      exportConfirmTitle: 'Export confirmation',
+      exportConfirmMessage: 'Export inventory bucket list with current filters (max 50,000 rows). Continue?'
+    }
+  },
+  inventoryOnHandList: {
+    title: 'Inventory Center',
+    count: '{count} records total',
+    split: {
+      label: 'Split by'
+    },
+    filters: {
+      brandPlaceholder: 'Brand',
+      boardView: 'Board',
+      listView: 'List'
+    },
+    columns: {
+      amountByCurrency: 'On-hand amount {currency}'
+    },
+    stats: {
+      onHandQty: 'On-hand qty',
+      amountByCurrency: 'On-hand amount {currency}'
+    },
+    goBucket: 'Inventory Buckets',
+    messages: {
+      loadFailed: 'Failed to load inventory center'
+    },
+    board: {
+      datasetTag: 'Filter',
+      hint: 'Matches the current search bar filter (full on-hand layers, not the current page). Trends show point-in-time on-hand by month for the last 12 months; weighted avg age uses the same formula as logistics analytics.',
+      refresh: 'Refresh',
+      loadFailed: 'Failed to load inventory center board',
+      unsetSalesUser: 'Unassigned salesperson',
+      unsetWarehouse: 'No warehouse',
+      groupBy: { day: 'Daily', week: 'Weekly', month: 'Monthly' },
+      sections: {
+        kpi: 'On-hand overview',
+        trendQty: 'On-hand qty',
+        trendAmount: 'Inventory amount'
+      },
+      kpi: {
+        onHandQty: 'On-hand qty',
+        amount: 'Inventory amount',
+        originalCaption: 'Original currency',
+        weightedAvgAgeDays: 'Weighted avg age',
+        stagnantLayers: 'Stagnant inventory entries (>90d)'
+      },
+      drill: {
+        noPermission: 'No inventory read permission; cannot open stock items'
+      },
+      unit: {
+        days: 'days'
+      },
+      trendUnit: {
+        qty: 'PCS',
+        originalCaption: 'Unit: {currency}'
+      },
+      breakdown: {
+        metricMode: 'Breakdown metric',
+        qty: 'Qty',
+        amount: 'Amount',
+        stockType: 'Stock type',
+        warehouse: 'Warehouse',
+        salesUser: 'Salesperson',
+        ageBucket: 'Age buckets'
+      },
+      rankings: {
+        metricMode: 'Ranking metric',
+        qty: 'Qty',
+        amount: 'Amount',
+        name: 'Name',
+        customerByQty: 'Top 10 customers',
+        salesUserByQty: 'Top 10 salespersons',
+        materialByQty: 'Top 10 materials',
+        brandByQty: 'Top 10 brands',
+        customerByAmount: 'Top 10 customers',
+        salesUserByAmount: 'Top 10 salespersons',
+        materialByAmount: 'Top 10 materials',
+        brandByAmount: 'Top 10 brands'
+      },
+      defs: inventoryOnHandListBoardDefsEn
     }
   },
   stockInBatchList: {

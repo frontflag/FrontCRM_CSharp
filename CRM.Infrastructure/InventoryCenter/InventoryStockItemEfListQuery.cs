@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
+using CRM.Core.Utilities;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,6 +14,8 @@ namespace CRM.Infrastructure.InventoryCenter;
 /// <summary>EF 实现的库存明细列表分页（避免与 Core 筛选 DTO 类名 <see cref="InventoryStockItemListQuery"/> 冲突）。</summary>
 public sealed class InventoryStockItemEfListQuery : IInventoryStockItemListQuery
 {
+    private const int StagnantDays = 90;
+
     private readonly ApplicationDbContext _db;
     private readonly IDataPermissionService _dataPermission;
 
@@ -23,7 +26,7 @@ public sealed class InventoryStockItemEfListQuery : IInventoryStockItemListQuery
     }
 
     /// <inheritdoc />
-    public async Task<PagedResult<InventoryStockItemListRowDto>> GetPagedAsync(
+    public async Task<InventoryStockItemListPagedResult> GetPagedAsync(
         InventoryStockItemListQuery? query,
         int page,
         int pageSize,
@@ -61,7 +64,8 @@ public sealed class InventoryStockItemEfListQuery : IInventoryStockItemListQuery
 
         var baseJoin =
             from si in stockItems
-            join sin in _db.StockIns.AsNoTracking() on si.StockInId equals sin.Id
+            join sin in _db.StockIns.AsNoTracking() on si.StockInId equals sin.Id into sinJoin
+            from sin in sinJoin.DefaultIfEmpty()
             join w in _db.Warehouses.AsNoTracking() on si.WarehouseId equals w.Id into wj
             from w in wj.DefaultIfEmpty()
             join soi in _db.SellOrderItems.AsNoTracking() on si.SellOrderItemId equals soi.Id into soij
@@ -70,14 +74,15 @@ public sealed class InventoryStockItemEfListQuery : IInventoryStockItemListQuery
 
         var filtered = baseJoin;
         if (!string.IsNullOrEmpty(codeNeedle))
-            filtered = filtered.Where(x => x.sin.StockInCode.ToLower().Contains(codeNeedle));
+            filtered = filtered.Where(x =>
+                x.sin != null && x.sin.StockInCode.ToLower().Contains(codeNeedle));
         if (!string.IsNullOrEmpty(stockItemCodeNeedle))
             filtered = filtered.Where(x =>
                 x.si.StockItemCode != null && x.si.StockItemCode.ToLower().Contains(stockItemCodeNeedle));
         if (fromD.HasValue)
-            filtered = filtered.Where(x => x.sin.StockInDate >= fromD.Value);
+            filtered = filtered.Where(x => x.sin != null && x.sin.StockInDate >= fromD.Value);
         if (toEx.HasValue)
-            filtered = filtered.Where(x => x.sin.StockInDate < toEx.Value);
+            filtered = filtered.Where(x => x.sin != null && x.sin.StockInDate < toEx.Value);
         if (!string.IsNullOrEmpty(pnNeedle))
             filtered = filtered.Where(x =>
                 x.si.PurchasePn != null && x.si.PurchasePn.ToLower().Contains(pnNeedle));
@@ -118,17 +123,69 @@ public sealed class InventoryStockItemEfListQuery : IInventoryStockItemListQuery
         if (!string.IsNullOrEmpty(warehouseIdNeedle))
             filtered = filtered.Where(x => x.si.WarehouseId == warehouseIdNeedle);
 
+        if (query.StockType is >= 1 and <= 3)
+            filtered = filtered.Where(x => x.si.StockType == query.StockType.Value);
+
+        if (query.StagnantOnly == true)
+        {
+            var stagnantThreshold = DateTime.UtcNow.Date.AddDays(-StagnantDays);
+            filtered = filtered.Where(x =>
+                x.si.QtyRepertory > 0 &&
+                (x.sin == null ||
+                 x.sin.StockInDate.Year < 2000 ||
+                 x.sin.StockInDate.Date <= stagnantThreshold));
+        }
+
+        var rankDim = query.RankDimension?.Trim().ToLowerInvariant();
+        var rankKey = query.RankKey?.Trim();
+        if (!string.IsNullOrEmpty(rankDim) && !string.IsNullOrEmpty(rankKey))
+        {
+            var isUnset = string.Equals(rankKey, "_unset", StringComparison.OrdinalIgnoreCase);
+            var rankKeyLower = rankKey.ToLowerInvariant();
+            filtered = rankDim switch
+            {
+                "customer" when isUnset => filtered.Where(x => string.IsNullOrWhiteSpace(x.si.CustomerId)),
+                "customer" => filtered.Where(x => x.si.CustomerId != null && x.si.CustomerId == rankKey),
+                "salesuser" when isUnset => filtered.Where(x => string.IsNullOrWhiteSpace(x.si.SalespersonId)),
+                "salesuser" => filtered.Where(x => x.si.SalespersonId != null && x.si.SalespersonId == rankKey),
+                "brand" when isUnset => filtered.Where(x => string.IsNullOrWhiteSpace(x.si.PurchaseBrand)),
+                "brand" => filtered.Where(x =>
+                    x.si.PurchaseBrand != null && x.si.PurchaseBrand.Trim().ToLower() == rankKeyLower),
+                "material" when isUnset => filtered.Where(x =>
+                    string.IsNullOrWhiteSpace(x.si.PurchasePn) && string.IsNullOrWhiteSpace(x.si.PurchaseBrand)),
+                "material" => filtered.Where(x =>
+                    ((x.si.PurchasePn ?? "").Trim().ToLower()) + "|" + ((x.si.PurchaseBrand ?? "").Trim().ToLower())
+                    == rankKeyLower),
+                _ => filtered
+            };
+            filtered = filtered.Where(x => x.si.QtyRepertory > 0);
+            if (query.RankCurrency is >= (short)CurrencyCode.RMB)
+            {
+                var rankCcy = InventoryOnHandCurrency.Normalize(query.RankCurrency.Value);
+                filtered = filtered.Where(x => x.si.PurchaseCurrency == rankCcy);
+            }
+        }
+
         if (query.RepertoryHasStock == true)
             filtered = filtered.Where(x => x.si.QtyRepertory > 0);
         else if (query.RepertoryHasStock == false)
             filtered = filtered.Where(x => x.si.QtyRepertory == 0);
 
         var ordered = filtered
-            .OrderByDescending(x => x.sin.StockInDate)
+            .OrderByDescending(x => x.sin != null ? x.sin.StockInDate : DateTime.MinValue)
             .ThenByDescending(x => x.si.CreateTime)
             .ThenBy(x => x.si.Id);
 
         var total = await ordered.Select(x => x.si.Id).CountAsync(cancellationToken);
+        var qtyTotals = await filtered
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                Inbound = g.Sum(x => x.si.QtyInbound),
+                StockOut = g.Sum(x => x.si.QtyStockOut),
+                Repertory = g.Sum(x => x.si.QtyRepertory)
+            })
+            .FirstOrDefaultAsync(cancellationToken);
         var pageRows = await ordered
             .Skip((p - 1) * ps)
             .Take(ps)
@@ -139,8 +196,8 @@ public sealed class InventoryStockItemEfListQuery : IInventoryStockItemListQuery
                 StockInItemId = x.si.StockInItemId,
                 StockInItemCode = x.si.StockInItemCode,
                 StockInId = x.si.StockInId,
-                StockInCode = x.sin.StockInCode,
-                StockInDate = x.sin.StockInDate,
+                StockInCode = x.sin != null ? x.sin.StockInCode : null,
+                StockInDate = x.sin != null ? x.sin.StockInDate : null,
                 MaterialId = x.si.MaterialId,
                 LocationId = x.si.LocationId,
                 BatchNo = x.si.BatchNo,
@@ -167,7 +224,7 @@ public sealed class InventoryStockItemEfListQuery : IInventoryStockItemListQuery
                 CustomerName = x.si.CustomerName,
                 RegionType = x.si.RegionType,
                 StockType = x.si.StockType,
-                StockInType = x.sin.StockInType,
+                StockInType = x.sin != null ? x.sin.StockInType : (short)0,
                 CustomerPn = x.soi != null ? x.soi.CustomerPn : null,
                 CustomerBrand = x.soi != null ? x.soi.CustomerBrand : null,
                 PurchaserName = x.si.PurchaserName,
@@ -184,12 +241,15 @@ public sealed class InventoryStockItemEfListQuery : IInventoryStockItemListQuery
 
         await EnrichStockItemListDisplayAsync(pageRows, cancellationToken);
 
-        return new PagedResult<InventoryStockItemListRowDto>
+        return new InventoryStockItemListPagedResult
         {
             Items = pageRows,
             TotalCount = total,
             PageIndex = p,
-            PageSize = ps
+            PageSize = ps,
+            TotalQtyInbound = qtyTotals?.Inbound ?? 0,
+            TotalQtyStockOut = qtyTotals?.StockOut ?? 0,
+            TotalQtyRepertory = qtyTotals?.Repertory ?? 0
         };
     }
 

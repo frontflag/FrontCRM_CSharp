@@ -32,8 +32,9 @@ function formatValue(v: number): string {
   if (props.valueFormat === 'percent') {
     return `${v.toFixed(2)}%`
   }
-  if (props.valueSuffix) return `${v} ${props.valueSuffix}`
-  return String(v)
+  const qty = v.toLocaleString('zh-CN')
+  if (props.valueSuffix) return `${qty} ${props.valueSuffix}`
+  return qty
 }
 </script>
 

@@ -335,7 +335,13 @@ const routes: RouteRecordRaw[] = [
         path: 'inventory/list',
         name: 'InventoryList',
         component: () => import('@/views/Inventory/InventoryList.vue'),
-        meta: { requiresAuth: true, title: '库存列表' }
+        meta: { requiresAuth: true, title: '库存中心' }
+      },
+      {
+        path: 'inventory/bucket',
+        name: 'InventoryBucketList',
+        component: () => import('@/views/Inventory/InventoryBucketList.vue'),
+        meta: { requiresAuth: true, title: '库存桶' }
       },
       {
         path: 'inventory/warehouses',

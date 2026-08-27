@@ -190,7 +190,7 @@ const loadPreview = async () => {
 const goBackToStockDetail = () => {
   const id = returnStockId.value
   if (!id) {
-    router.push('/inventory/list')
+    router.push('/inventory/bucket')
     return
   }
   router.replace({ path: `/inventory/stocks/${encodeURIComponent(id)}`, query: buildReturnQuery() })

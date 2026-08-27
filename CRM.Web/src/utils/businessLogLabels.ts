@@ -21,7 +21,7 @@ export function operationBizTypeLabel(bizType?: string | null): string {
     PurchaseOrder: '采购订单',
     PurchaseOrderItem: '采购订单明细',
     PurchaseRequisition: '采购申请',
-    InventoryStock: '库存中心',
+    InventoryStock: '库存桶',
     InventoryStockItem: '库存明细',
     PickingTask: '拣货单',
     StockIn: '入库单',

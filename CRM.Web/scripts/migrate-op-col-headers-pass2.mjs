@@ -9,7 +9,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const files = [
   'src/views/Approvals/PendingApprovals.vue',
-  'src/views/Inventory/InventoryList.vue',
+  'src/views/Inventory/InventoryBucketList.vue',
   'src/views/Inventory/InventoryCheck.vue',
   'src/views/Inventory/InventoryStockDetailPage.vue',
   'src/views/Inventory/StockInEdit.vue',

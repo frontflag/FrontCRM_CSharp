@@ -33,7 +33,7 @@ namespace CRM.Core.Interfaces
         Task<IEnumerable<InventoryStockItemRowDto>> GetStockItemsForAggregateAsync(string stockAggregateId, string? currentUserId = null);
 
         /// <summary>全库 <c>stockitem</c> 列表（数据库分页），筛选语义同原 <c>GetStockItemsListAsync</c>。</summary>
-        Task<PagedResult<InventoryStockItemListRowDto>> GetStockItemsListPagedAsync(
+        Task<InventoryStockItemListPagedResult> GetStockItemsListPagedAsync(
             InventoryStockItemListQuery? query,
             int page,
             int pageSize,
@@ -270,6 +270,24 @@ namespace CRM.Core.Interfaces
 
         /// <summary>在库数量（<c>QtyRepertory</c>）筛选：<see langword="null"/> 不限；<see langword="true"/> 仅 &gt;0；<see langword="false"/> 仅 ==0。</summary>
         public bool? RepertoryHasStock { get; set; }
+
+        /// <summary>库存类型 1=客单 2=备货 3=样品（<c>stock_item.Type</c>）。</summary>
+        public short? StockType { get; set; }
+
+        /// <summary>
+        /// 仅呆滞在库层：入库日 ≤ 今天−90 或无有效入库日；隐含 <c>QtyRepertory&gt;0</c>。
+        /// 与库存中心看板「呆滞料库存条目（&gt;90天）」KPI 一致。
+        /// </summary>
+        public bool? StagnantOnly { get; set; }
+
+        /// <summary>看板排行下钻维度：<c>customer</c> / <c>salesUser</c> / <c>material</c> / <c>brand</c>。</summary>
+        public string? RankDimension { get; set; }
+
+        /// <summary>看板排行分组键（与 analytics 排行 <c>Id</c> 一致，空桶为 <c>_unset</c>）。</summary>
+        public string? RankKey { get; set; }
+
+        /// <summary>看板排行金额模式下钻原币（与 <see cref="Constants.CurrencyCode"/> 一致）。</summary>
+        public short? RankCurrency { get; set; }
 
         /// <summary>当前登录用户 Id（销售数据范围过滤）。</summary>
         public string? CurrentUserId { get; set; }

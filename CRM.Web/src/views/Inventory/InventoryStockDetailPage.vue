@@ -419,7 +419,7 @@ const reload = async () => {
 }
 
 const goBack = () => {
-  router.push('/inventory/list')
+  router.push('/inventory/bucket')
 }
 
 const goManualTransfer = (stockItemId: string) => {

@@ -105,7 +105,7 @@ const loadTrace = async () => {
 }
 
 const goBack = () => {
-  router.push('/inventory/list')
+  router.push('/inventory/bucket')
 }
 
 watch(() => materialId.value, () => loadTrace())

@@ -823,7 +823,7 @@ namespace CRM.Core.Services
             return true;
         }
 
-        public async Task<PagedResult<InventoryStockItemListRowDto>> GetStockItemsListPagedAsync(
+        public async Task<InventoryStockItemListPagedResult> GetStockItemsListPagedAsync(
             InventoryStockItemListQuery? query,
             int page,
             int pageSize,

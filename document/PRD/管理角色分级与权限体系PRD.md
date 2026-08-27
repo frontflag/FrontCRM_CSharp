@@ -24,7 +24,7 @@
 | 维度 | 编码示例 | 职责 |
 |------|----------|------|
 | **管理角色** | `SYS_ADMIN`、`SYS_MANAGER`、`SYS_MGR_*` | 系统管理菜单、平台参数、账号维护（按本 PRD 边界） |
-| **组织角色** | `DEPT_DIRECTOR`、`DEPT_MANAGER`、`DEPT_EMPLOYEE` | 业务单据 **行级数据可见范围**（`DataPermissionService`） |
+| **组织角色** | `DEPT_DIRECTOR`、`DEPT_MANAGER`、`DEPT_EMPLOYEE` | 业务单据 **行级数据可见范围**（`DataPermissionService`）；`DEPT_DIRECTOR` 叠加销售/采购身份时另可自审对应待审单据（见 [审批桌面](../System/审批/审批桌面-设计与实现.md) §4.1） |
 | **部门身份** | `IdentityType` 1–6 | 业务方向与菜单剥离策略（见 [权限-部门](../System/权限/权限-部门.md)） |
 
 **原则：** 管理角色与组织角色 **可组合**；持有 `SYS_MGR_FINANCE` **不** 自动获得 `FinanceDataScope=0`，业务数据仍按主部门 + `DEPT_*` 过滤。
@@ -233,6 +233,7 @@ Manager **不得** 设置 `IsSysAdmin=true`。业务数据全量由 **`HasBizDat
 | `system.params.purchase.read/write` | ✅ | ✅ | Purchase |
 | `system.params.logistics.read/write` | ✅ | ✅ | Logistics |
 | `system.params.finance.read/write` | ✅ | ✅ | Finance |
+| `system.params.report.read/write` | ✅ | ✅ | ❌ |
 
 ### 6.4 日志与平台
 
@@ -280,9 +281,10 @@ Manager **不得** 设置 `IsSysAdmin=true`。业务数据全量由 **`HasBizDat
 |------|------|------|
 | 公司信息 | `/system/company-info` | `system.params.company.read` |
 | 数据字典 | `/system/dict-items` | `system.params.dict.read` |
+| 销售参数 | `/system/sales-params/**` | `system.params.sales.read` |
 | 采购参数 | `/system/purchase-params/**` | `system.params.purchase.read` |
 | 财务参数 | `/system/finance-params/**` | `system.params.finance.read` |
-| 销售/物流参数 | （待建路由） | `system.params.sales/logistics.read` |
+| 报表参数 | `/system/report-params/**` | `system.params.report.read` |
 
 ### 7.3 系统日志（侧栏 systemLogs）
 

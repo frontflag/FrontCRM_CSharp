@@ -12,14 +12,42 @@
             </svg>
           </div>
           <h1 class="page-title">{{ t('inventoryStockItemList.title') }}</h1>
+          <div class="count-badge">{{ t('inventoryStockItemList.count', { count: listTotal }) }}</div>
         </div>
-        <div class="count-badge">{{ t('inventoryStockItemList.count', { count: listTotal }) }}</div>
       </div>
       <div class="header-right">
         <button type="button" class="btn-export" :disabled="exporting" @click="() => void handleExport()">
           {{ t('inventoryStockItemList.filters.export') }}
         </button>
       </div>
+    </div>
+
+    <div v-if="drillMode === 'stagnant'" class="drill-from-board-banner" role="status">
+      {{ t('inventoryStockItemList.drillFromBoard.stagnant') }}
+    </div>
+    <div v-else-if="drillMode === 'ranking'" class="drill-from-board-banner" role="status">
+      {{ rankingDrillBannerText }}
+    </div>
+
+    <div class="stat-row">
+      <el-card class="stat-card">
+        <div class="stat-line">
+          <span class="stat-label">{{ t('inventoryStockItemList.stats.qtyInbound') }}</span>
+          <span class="stat-value inv-stat-qty">{{ formatQtyCell(qtyInboundTotal) }}</span>
+        </div>
+      </el-card>
+      <el-card class="stat-card stat-info">
+        <div class="stat-line">
+          <span class="stat-label">{{ t('inventoryStockItemList.stats.qtyStockOut') }}</span>
+          <span class="stat-value inv-stat-qty">{{ formatQtyCell(qtyStockOutTotal) }}</span>
+        </div>
+      </el-card>
+      <el-card class="stat-card stat-on-hand">
+        <div class="stat-line">
+          <span class="stat-label">{{ t('inventoryStockItemList.stats.qtyRepertory') }}</span>
+          <span class="stat-value inv-stat-qty">{{ formatQtyCell(qtyRepertoryTotal) }}</span>
+        </div>
+      </el-card>
     </div>
 
     <div class="search-bar">
@@ -423,7 +451,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowRight, Box, Setting } from '@element-plus/icons-vue'
@@ -445,6 +473,7 @@ import {
   type IsiStockPresenceTabId,
   type IsiWarehouseTabId
 } from '@/utils/inventoryStockItemListTabMode'
+import { applyStockItemListRouteQuery } from '@/utils/inventoryOnHandBoardDrill'
 import { authApi, type PurchaseUserSelectOption, type SalesUserSelectOption } from '@/api/auth'
 import { inventoryCenterApi, type StockItemListQuery, type StockItemListRow, type WarehouseInfo } from '@/api/inventoryCenter'
 import { normalizeRegionType, REGION_TYPE_OVERSEAS } from '@/constants/regionType'
@@ -480,6 +509,7 @@ function onStockItemTableHeaderDragEnd(
   applyVendorExtendOuterWidth(newWidth)
 }
 const router = useRouter()
+const route = useRoute()
 const { t } = useI18n()
 const authStore = useAuthStore()
 const { canWriteLogisticsData } = useDepartmentDataReadOnly()
@@ -492,6 +522,9 @@ const list = ref<StockItemListRow[]>([])
 const listPage = ref(1)
 const listPageSize = ref(20)
 const listTotal = ref(0)
+const qtyInboundTotal = ref(0)
+const qtyStockOutTotal = ref(0)
+const qtyRepertoryTotal = ref(0)
 watch(listTotal, () => {
   const maxP = Math.max(1, Math.ceil(listTotal.value / listPageSize.value) || 1)
   if (listPage.value > maxP) listPage.value = maxP
@@ -619,6 +652,27 @@ const stockItemTableColumns = computed<CrmTableColumnDef[]>(() => {
 ]})
 const dateFrom = ref<string | null>(null)
 const dateTo = ref<string | null>(null)
+const drillMode = ref<'' | 'stagnant' | 'ranking'>('')
+const drillRankLabel = ref('')
+const drillRankPanel = ref('')
+const drillRankCurrencyKey = ref('')
+
+const rankingDrillBannerText = computed(() => {
+  const panel = drillRankPanel.value || t('inventoryStockItemList.drillFromBoard.rankingDefaultPanel')
+  const name = drillRankLabel.value || '—'
+  const currencyKey = drillRankCurrencyKey.value
+  if (currencyKey === '1') {
+    return t('inventoryStockItemList.drillFromBoard.rankingAmount', { panel, name, currency: 'RMB' })
+  }
+  if (currencyKey === '2') {
+    return t('inventoryStockItemList.drillFromBoard.rankingAmount', { panel, name, currency: 'USD' })
+  }
+  if (currencyKey) {
+    return t('inventoryStockItemList.drillFromBoard.rankingAmount', { panel, name, currency: currencyKey })
+  }
+  return t('inventoryStockItemList.drillFromBoard.rankingQty', { panel, name })
+})
+
 const salesUsers = ref<SalesUserSelectOption[]>([])
 const purchaseUsers = ref<PurchaseUserSelectOption[]>([])
 const warehouses = ref<WarehouseInfo[]>([])
@@ -706,7 +760,12 @@ const filters = reactive({
   customerName: '',
   vendorName: '',
   salespersonUserId: undefined as string | undefined,
-  purchaserUserId: undefined as string | undefined
+  purchaserUserId: undefined as string | undefined,
+  stockType: undefined as number | undefined,
+  stagnantOnly: false,
+  rankDimension: '',
+  rankKey: '',
+  rankCurrency: undefined as number | undefined
 })
 
 function outboundStatusFilterLabel(n: number) {
@@ -810,6 +869,15 @@ function buildQuery(): StockItemListQuery {
   }
   if (filters.stockPresence === 'has') q.repertoryHasStock = true
   else if (filters.stockPresence === 'none') q.repertoryHasStock = false
+  if (filters.stockType != null && filters.stockType >= 1 && filters.stockType <= 3) {
+    q.stockType = filters.stockType
+  }
+  if (filters.stagnantOnly) q.stagnantOnly = true
+  if (filters.rankDimension.trim()) q.rankDimension = filters.rankDimension.trim()
+  if (filters.rankKey.trim()) q.rankKey = filters.rankKey.trim()
+  if (filters.rankCurrency != null && filters.rankCurrency >= 1) {
+    q.rankCurrency = filters.rankCurrency
+  }
   if (!maskSaleSensitiveFields.value) {
     q.customerName = filters.customerName.trim() || undefined
     q.salespersonUserId = filters.salespersonUserId?.trim() || undefined
@@ -828,11 +896,17 @@ async function runStockItemFetch(resetPage: boolean) {
     })
     list.value = res.items
     listTotal.value = res.total
+    qtyInboundTotal.value = Number(res.qtyInboundTotal ?? 0)
+    qtyStockOutTotal.value = Number(res.qtyStockOutTotal ?? 0)
+    qtyRepertoryTotal.value = Number(res.qtyRepertoryTotal ?? 0)
   } catch (e) {
     console.error(e)
     ElMessage.error(getApiErrorMessage(e, t('inventoryStockItemList.messages.loadFailed')))
     list.value = []
     listTotal.value = 0
+    qtyInboundTotal.value = 0
+    qtyStockOutTotal.value = 0
+    qtyRepertoryTotal.value = 0
   } finally {
     loading.value = false
   }
@@ -853,8 +927,18 @@ const resetFilters = () => {
   filters.vendorName = ''
   filters.salespersonUserId = undefined
   filters.purchaserUserId = undefined
+  filters.stockType = undefined
+  filters.stagnantOnly = false
+  filters.rankDimension = ''
+  filters.rankKey = ''
+  filters.rankCurrency = undefined
+  drillMode.value = ''
+  drillRankLabel.value = ''
+  drillRankPanel.value = ''
+  drillRankCurrencyKey.value = ''
   dateFrom.value = null
   dateTo.value = null
+  void router.replace({ name: 'InventoryStockItemList', query: {} })
   void fetchList()
 }
 
@@ -1018,6 +1102,15 @@ const handleForceDeleteStockItem = async (row: StockItemListRow) => {
 }
 
 onMounted(async () => {
+  applyStockItemListRouteQuery(route.query as Record<string, unknown>, {
+    filters,
+    dateFrom,
+    dateTo,
+    drillMode,
+    drillRankLabel,
+    drillRankPanel,
+    drillRankCurrencyKey
+  })
   try {
     warehouses.value = await inventoryCenterApi.getWarehouses()
   } catch {
@@ -1049,9 +1142,21 @@ onMounted(async () => {
 
 .page-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   margin-bottom: 16px;
+  gap: 12px;
+}
+
+.drill-from-board-banner {
+  margin: -8px 0 16px;
+  padding: 10px 14px;
+  border-radius: $border-radius-md;
+  background: rgba(64, 158, 255, 0.08);
+  border: 1px solid rgba(64, 158, 255, 0.22);
+  color: #409eff;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .header-right {
@@ -1106,9 +1211,59 @@ onMounted(async () => {
 }
 
 .count-badge {
-  margin-top: 6px;
-  font-size: 13px;
+  font-size: 12px;
   color: $text-muted;
+}
+
+.stat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  flex: 0 0 auto;
+  width: 320px;
+  max-width: 100%;
+  background: $layer-3;
+  border: 1px solid $border-card;
+  :deep(.el-card__body) {
+    padding: 12px 15px;
+    box-sizing: border-box;
+  }
+  .stat-line {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: baseline;
+    width: 100%;
+    min-height: 32px;
+  }
+  .stat-label {
+    grid-area: 1 / 1;
+    justify-self: start;
+    z-index: 1;
+    font-size: 14px;
+    color: $text-muted;
+    white-space: nowrap;
+  }
+  .stat-value {
+    grid-area: 1 / 1;
+    justify-self: center;
+    font-size: 24px;
+    font-weight: bold;
+    color: $cyan-primary;
+  }
+  &.stat-info .stat-value {
+    color: $info-color;
+  }
+  &.stat-on-hand .stat-value {
+    color: #b8821f;
+  }
+}
+
+.inv-stat-qty {
+  font-variant-numeric: tabular-nums;
 }
 
 .search-bar {

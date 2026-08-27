@@ -7,6 +7,7 @@ using CRM.API.Models.DTOs;
 using CRM.API.Utilities;
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Analytics;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Services;
 using CRM.Core.Utilities;
@@ -19,6 +20,8 @@ namespace CRM.API.Controllers
     public class InventoryCenterController : ControllerBase
     {
         private readonly IInventoryCenterService _service;
+        private readonly IInventoryOnHandSummaryQuery _onHandSummaryQuery;
+        private readonly IInventoryOnHandListAnalyticsQuery _onHandListAnalytics;
         private readonly IRepository<StockInfo> _stockRepo;
         private readonly IRepository<StockItem> _stockItemRepo;
         private readonly IRepository<StockOutItem> _stockOutItemRepo;
@@ -31,6 +34,8 @@ namespace CRM.API.Controllers
 
         public InventoryCenterController(
             IInventoryCenterService service,
+            IInventoryOnHandSummaryQuery onHandSummaryQuery,
+            IInventoryOnHandListAnalyticsQuery onHandListAnalytics,
             IRepository<StockInfo> stockRepo,
             IRepository<StockItem> stockItemRepo,
             IRepository<StockOutItem> stockOutItemRepo,
@@ -42,6 +47,8 @@ namespace CRM.API.Controllers
             ILogger<InventoryCenterController> logger)
         {
             _service = service;
+            _onHandSummaryQuery = onHandSummaryQuery;
+            _onHandListAnalytics = onHandListAnalytics;
             _stockRepo = stockRepo;
             _stockItemRepo = stockItemRepo;
             _stockOutItemRepo = stockOutItemRepo;
@@ -80,6 +87,162 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "获取库存总览失败");
                 return StatusCode(500, ApiResponse<IEnumerable<InventoryMaterialOverviewDto>>.Fail($"获取库存总览失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>库存中心在库汇总（<c>stock_item</c> 在库数量 &gt; 0；按型号+品牌及可选拆分维度分组）。</summary>
+        [HttpGet("on-hand/paged")]
+        public async Task<IActionResult> GetOnHandSummaryPaged(
+            [FromQuery] string? materialModel,
+            [FromQuery] string? purchaseBrand,
+            [FromQuery] short? stockType,
+            [FromQuery] string? warehouseId,
+            [FromQuery] bool groupByStockType = false,
+            [FromQuery] bool groupByWarehouse = false,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var result = await _onHandSummaryQuery.GetPagedAsync(
+                    new InventoryOnHandSummaryQueryRequest
+                    {
+                        MaterialModel = materialModel,
+                        PurchaseBrand = purchaseBrand,
+                        StockType = stockType,
+                        WarehouseId = warehouseId,
+                        GroupByStockType = groupByStockType,
+                        GroupByWarehouse = groupByWarehouse,
+                        CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                    },
+                    page,
+                    pageSize,
+                    cancellationToken);
+                var items = result.Items.ToList();
+                if (await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User))
+                {
+                    PurchaseSensitiveFieldMask511.ApplyInventoryOnHandSummaryRows(items, true);
+                    PurchaseSensitiveFieldMask511.ApplyInventoryOnHandSummaryAmounts(result.TotalAmounts, true);
+                }
+
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        items,
+                        total = result.TotalCount,
+                        page = result.PageIndex,
+                        pageSize = result.PageSize,
+                        currencies = result.Currencies,
+                        onHandQtyTotal = result.TotalOnHandQty,
+                        totalAmounts = result.TotalAmounts
+                    },
+                    message = "获取库存中心在库汇总成功"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取库存中心在库汇总失败");
+                return StatusCode(500, new { success = false, message = $"获取库存中心在库汇总失败: {ex.Message}" });
+            }
+        }
+
+        [HttpGet("on-hand/analytics/dashboard")]
+        public async Task<IActionResult> GetOnHandListAnalyticsDashboard(
+            [FromQuery] string? materialModel,
+            [FromQuery] string? purchaseBrand,
+            [FromQuery] short? stockType,
+            [FromQuery] string? warehouseId,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var (request, maskAmounts) = await BuildOnHandListAnalyticsRequest(
+                    materialModel, purchaseBrand, stockType, warehouseId);
+                var data = await _onHandListAnalytics.GetDashboardAsync(request, maskAmounts, cancellationToken);
+                if (maskAmounts)
+                    ApplyOnHandListAnalyticsMask(data);
+                return Ok(ApiResponse<InventoryOnHandListAnalyticsDashboardDto>.Ok(data));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取库存中心看板 KPI 失败");
+                return StatusCode(500, ApiResponse<InventoryOnHandListAnalyticsDashboardDto>.Fail($"获取库存中心看板失败: {ex.Message}", 500));
+            }
+        }
+
+        [HttpGet("on-hand/analytics/trends")]
+        public async Task<IActionResult> GetOnHandListAnalyticsTrends(
+            [FromQuery] string? materialModel,
+            [FromQuery] string? purchaseBrand,
+            [FromQuery] short? stockType,
+            [FromQuery] string? warehouseId,
+            [FromQuery] string? groupBy,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var (request, maskAmounts) = await BuildOnHandListAnalyticsRequest(
+                    materialModel, purchaseBrand, stockType, warehouseId);
+                var data = await _onHandListAnalytics.GetTrendsAsync(
+                    request,
+                    string.IsNullOrWhiteSpace(groupBy) ? "month" : groupBy.Trim(),
+                    maskAmounts,
+                    cancellationToken);
+                return Ok(ApiResponse<IReadOnlyList<InventoryOnHandListAnalyticsTrendPointDto>>.Ok(data));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取库存中心看板趋势失败");
+                return StatusCode(500, ApiResponse<IReadOnlyList<InventoryOnHandListAnalyticsTrendPointDto>>.Fail($"获取库存中心看板趋势失败: {ex.Message}", 500));
+            }
+        }
+
+        [HttpGet("on-hand/analytics/breakdowns")]
+        public async Task<IActionResult> GetOnHandListAnalyticsBreakdowns(
+            [FromQuery] string? materialModel,
+            [FromQuery] string? purchaseBrand,
+            [FromQuery] short? stockType,
+            [FromQuery] string? warehouseId,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var (request, maskAmounts) = await BuildOnHandListAnalyticsRequest(
+                    materialModel, purchaseBrand, stockType, warehouseId);
+                var data = await _onHandListAnalytics.GetBreakdownsAsync(request, maskAmounts, cancellationToken);
+                return Ok(ApiResponse<IReadOnlyList<InventoryOnHandListAnalyticsBreakdownGroupDto>>.Ok(data));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取库存中心看板分布失败");
+                return StatusCode(500, ApiResponse<IReadOnlyList<InventoryOnHandListAnalyticsBreakdownGroupDto>>.Fail($"获取库存中心看板分布失败: {ex.Message}", 500));
+            }
+        }
+
+        [HttpGet("on-hand/analytics/rankings")]
+        public async Task<IActionResult> GetOnHandListAnalyticsRankings(
+            [FromQuery] string? materialModel,
+            [FromQuery] string? purchaseBrand,
+            [FromQuery] short? stockType,
+            [FromQuery] string? warehouseId,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var (request, maskAmounts) = await BuildOnHandListAnalyticsRequest(
+                    materialModel, purchaseBrand, stockType, warehouseId);
+                var data = await _onHandListAnalytics.GetRankingsAsync(request, maskAmounts, cancellationToken);
+                if (maskAmounts)
+                    ApplyOnHandListAnalyticsRankingMask(data);
+                return Ok(ApiResponse<InventoryOnHandListAnalyticsRankingsDto>.Ok(data));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取库存中心看板排名失败");
+                return StatusCode(500, ApiResponse<InventoryOnHandListAnalyticsRankingsDto>.Fail($"获取库存中心看板排名失败: {ex.Message}", 500));
             }
         }
 
@@ -129,7 +292,7 @@ namespace CRM.API.Controllers
             }
         }
 
-        /// <summary>按当前筛选导出库存中心列表 CSV，并写入操作审计。</summary>
+        /// <summary>按当前筛选导出库存桶列表 CSV，并写入操作审计。</summary>
         [HttpGet("overview/export")]
         public async Task<IActionResult> ExportOverview(
             [FromQuery] string? warehouseId,
@@ -191,7 +354,7 @@ namespace CRM.API.Controllers
                     RecordCode = ExportOperationAudit.InventoryStockListRecordCode,
                     ActionType = InventoryExportActionTypes.InventoryStockListExport,
                     ExportKind = ExportAuditKinds.InventoryStockList,
-                    OperationDesc = $"导出库存中心列表 {items.Count} 条{truncNote}",
+                    OperationDesc = $"导出库存桶列表 {items.Count} 条{truncNote}",
                     ExportedCount = items.Count,
                     Truncated = truncated,
                     Filters = filters,
@@ -200,12 +363,12 @@ namespace CRM.API.Controllers
                     OperatorUserName = InventoryExportHttp.UserName(User)
                 }, cancellationToken);
 
-                return InventoryExportHttp.CsvFile(sb.ToString(), "库存中心列表.csv");
+                return InventoryExportHttp.CsvFile(sb.ToString(), "库存桶列表.csv");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "导出库存中心列表失败");
-                return StatusCode(500, new { success = false, message = $"导出库存中心列表失败: {ex.Message}" });
+                _logger.LogError(ex, "导出库存桶列表失败");
+                return StatusCode(500, new { success = false, message = $"导出库存桶列表失败: {ex.Message}" });
             }
         }
 
@@ -282,7 +445,10 @@ namespace CRM.API.Controllers
                         items,
                         total = result.TotalCount,
                         page = result.PageIndex,
-                        pageSize = result.PageSize
+                        pageSize = result.PageSize,
+                        qtyInboundTotal = result.TotalQtyInbound,
+                        qtyStockOutTotal = result.TotalQtyStockOut,
+                        qtyRepertoryTotal = result.TotalQtyRepertory
                     },
                     message = "获取库存明细列表成功"
                 });
@@ -307,8 +473,9 @@ namespace CRM.API.Controllers
                 var mask511 = await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User);
                 var mask521 = await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User);
 
-                var (items, truncated, _) = await InventoryExportHttp.CollectForExportAsync(
-                    (page, pageSize, ct) => _service.GetStockItemsListPagedAsync(query, page, pageSize, ct),
+                var (items, truncated, _) = await InventoryExportHttp.CollectForExportAsync<InventoryStockItemListRowDto>(
+                    async (page, pageSize, ct) =>
+                        await _service.GetStockItemsListPagedAsync(query, page, pageSize, ct),
                     cancellationToken: cancellationToken);
 
                 if (mask511)
@@ -1025,6 +1192,54 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "提交盘点失败");
                 return StatusCode(500, ApiResponse<object>.Fail($"提交盘点失败: {ex.Message}", 500));
+            }
+        }
+
+        private async Task<(InventoryOnHandSummaryQueryRequest Request, bool MaskAmounts)> BuildOnHandListAnalyticsRequest(
+            string? materialModel,
+            string? purchaseBrand,
+            short? stockType,
+            string? warehouseId)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var request = new InventoryOnHandSummaryQueryRequest
+            {
+                MaterialModel = materialModel,
+                PurchaseBrand = purchaseBrand,
+                StockType = stockType,
+                WarehouseId = warehouseId,
+                CurrentUserId = userId
+            };
+            if (string.IsNullOrWhiteSpace(userId))
+                return (request, true);
+
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
+            var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
+            var canViewPurchaseAmount = !mask511 && (summary.IsSysAdmin
+                || summary.PermissionCodes.Contains("purchase.amount.read", StringComparer.OrdinalIgnoreCase));
+            return (request, !canViewPurchaseAmount);
+        }
+
+        private static void ApplyOnHandListAnalyticsMask(InventoryOnHandListAnalyticsDashboardDto data)
+        {
+            data.Snapshot.CurrencyLines = Array.Empty<InventoryOnHandListAnalyticsCurrencyLineDto>();
+        }
+
+        private static void ApplyOnHandListAnalyticsRankingMask(InventoryOnHandListAnalyticsRankingsDto data)
+        {
+            MaskRankingFacets(data.CustomerByAmount);
+            MaskRankingFacets(data.SalesUserByAmount);
+            MaskRankingFacets(data.MaterialByAmount);
+            MaskRankingFacets(data.BrandByAmount);
+        }
+
+        private static void MaskRankingFacets(IReadOnlyList<InventoryOnHandListAnalyticsRankingFacetDto>? facets)
+        {
+            if (facets == null) return;
+            foreach (var facet in facets)
+            {
+                foreach (var row in facet.Rows)
+                    row.Amount = null;
             }
         }
 

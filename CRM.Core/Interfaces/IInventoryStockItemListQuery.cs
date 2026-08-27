@@ -9,7 +9,7 @@ public interface IInventoryStockItemListQuery
 {
     public const int MaxPageSize = 2000;
 
-    Task<PagedResult<InventoryStockItemListRowDto>> GetPagedAsync(
+    Task<InventoryStockItemListPagedResult> GetPagedAsync(
         InventoryStockItemListQuery? query,
         int page,
         int pageSize,
@@ -21,4 +21,12 @@ public interface IInventoryStockItemListQuery
         string? currentUserId = null,
         bool applyDataScope = true,
         CancellationToken cancellationToken = default);
+}
+
+/// <summary>库存明细列表分页结果（含当前筛选全量数量合计，与分页无关）。</summary>
+public sealed class InventoryStockItemListPagedResult : PagedResult<InventoryStockItemListRowDto>
+{
+    public int TotalQtyInbound { get; set; }
+    public int TotalQtyStockOut { get; set; }
+    public int TotalQtyRepertory { get; set; }
 }

@@ -1,4 +1,4 @@
-/** 库存中心列表：筛选页签模式偏好（localStorage，单维度）。 */
+/** 库存桶列表：筛选页签模式偏好（localStorage，单维度）。 */
 
 const TAB_MODE_KEY = 'crm.inventory-list.tab-mode'
 

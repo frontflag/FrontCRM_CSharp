@@ -228,6 +228,7 @@
 |---------|-----|---------|---------|---------|---------|
 | 入库单列表 | `GET /api/v1/stock-in` | `ApplyStockInListDataScopeAsync` | 明细扩展 → 销售明细 → 销售单 | 明细扩展 → 采购明细 → 采购单 | `CreateByUserId` / `CreatedBy` |
 | 库存明细列表 | `GET /api/v1/inventory-center/stock-items` | `ApplyStockItemListDataScopeAsync` | `SalespersonId` / 销售明细 / 客户 | `PurchaserId` | — |
+| 库存中心在库汇总 | `GET /api/v1/inventory-center/on-hand/paged` | `ApplyStockItemListDataScopeAsync` | 同库存明细 | 同库存明细 | — |
 | 库存总览（分页） | `GET /api/v1/inventory-center/overview/paged` | `ApplyStockAggregateListDataScopeAsync` | 至少一条明细命中销售范围 | 至少一条明细命中采购范围 | — |
 | 采购申请 | `GET /api/v1/purchase-requisitions` | `ApplyPurchaseRequisitionListDataScopeAsync` | 关联销售单在销售范围 | `PurchaseUserId` 在采购范围 | — |
 | 盘点计划 | `GET /api/v1/inventory-center/count-plans` | `ApplyLogisticsCreatorUserScopeAsync` | — | — | `CreatorId` |
