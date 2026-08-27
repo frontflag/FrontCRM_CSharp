@@ -657,10 +657,10 @@ const enUS = {
     globalNav: 'Global report parameters',
     globalTitle: 'Global report parameters',
     globalHint:
-      'Choose the site-wide report style version. V2 applies to purchase-order, packing-list, Commercial Invoice, and sales-order report prints on the Semicore site only; other sites stay on V1.',
+      'Choose the site-wide report style version. V2 applies to purchase-order, packing-list, Commercial Invoice, sales-order report, and warranty prints on the Semicore site only; other sites stay on V1.',
     styleVersionLabel: 'Report style version:',
     styleVersionNote:
-      'V2 applies only to Semicore purchase-order, packing-list, Commercial Invoice, and sales-order report prints. Other sites keep the current layout. Unconfigured sites use V1.',
+      'V2 applies only to Semicore purchase-order, packing-list, Commercial Invoice, sales-order report, and warranty prints. Other sites keep the current layout. Unconfigured sites use V1.',
     saveBtn: 'Save',
     refreshBtn: 'Refresh',
     saveSuccess: 'Saved',

@@ -11,6 +11,10 @@ export interface SoWarrantyLineVm {
 
 export interface SalesOrderWarrantyReportDocumentProps {
   lang: SalesOrderWarrantyLang
+  /** V2 Meta：销售订单号 */
+  orderCode: string
+  /** V2 Meta：单据日期（销售订单创建日） */
+  orderDate: string
   /** 右上 / 页眉公司名 */
   companyName: string
   companyAddress: string
@@ -50,6 +54,8 @@ export interface SalesOrderWarrantyReportDocumentProps {
 }
 
 export const salesOrderWarrantyReportDocumentPropDefaults = {
+  orderCode: '',
+  orderDate: '',
   showSeal: true,
   notesAfter: '',
   goodsLead: ''

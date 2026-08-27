@@ -50,7 +50,10 @@ import {
   tradeCurrencyToLetterheadPrefer
 } from '@/utils/reportLetterhead'
 import apiClient from '@/api/client'
-import { resolveSalesOrderWarrantyReportSkin } from '@/components/SalesOrder/salesOrderWarrantyReport/resolveSalesOrderWarrantyReportSkin'
+import {
+  resolveSalesOrderWarrantyReportSkin
+} from '@/components/SalesOrder/salesOrderWarrantyReport/resolveSalesOrderWarrantyReportSkin'
+import { reportParamsApi, type ReportStyleVersion } from '@/api/reportParams'
 import { LOGIN_TENANT_ID } from '@/config/loginTenant'
 import type { SalesOrderWarrantyLang, SoWarrantyLineVm } from '@/components/SalesOrder/salesOrderWarrantyReport/types'
 import {
@@ -72,6 +75,7 @@ import { salesOrderReportAllowed } from '@/constants/salesOrderStatus'
 import { renderElementToPdfBlob } from '@/utils/poReportPdf'
 import { renderPdfBlobFirstPageToPngDataUrl } from '@/utils/pdfSealToPng'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { formatDisplayDate } from '@/utils/displayDateTime'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 
 const route = useRoute()
@@ -82,7 +86,10 @@ const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const PO_REPORT_PRINT_BODY_CLASS = 'po-order-report-print'
 const DEFAULT_LOGO = '/purchase-order-template/logo.svg'
 
-const warrantySkin = resolveSalesOrderWarrantyReportSkin(LOGIN_TENANT_ID)
+const styleVersion = ref<ReportStyleVersion>('V1')
+const warrantySkin = computed(() =>
+  resolveSalesOrderWarrantyReportSkin(LOGIN_TENANT_ID, styleVersion.value)
+)
 
 const loading = ref(true)
 const errorMsg = ref('')
@@ -186,6 +193,10 @@ const docBind = computed(() => {
 
   return {
     lang: (lang.value || 'zh') as SalesOrderWarrantyLang,
+    orderCode: maskSaleSensitiveFields.value
+      ? '—'
+      : dash(o?.sellOrderCode ?? o?.SellOrderCode),
+    orderDate: formatDisplayDate(o?.createTime ?? o?.CreateTime) || '—',
     companyName: dash(seller?.companyName),
     companyAddress: dash(seller?.address),
     docTitle: isEn ? SALES_ORDER_WARRANTY_TITLE_EN : SALES_ORDER_WARRANTY_TITLE_ZH,
@@ -307,6 +318,8 @@ async function load() {
         customer.value = null
       }
     }
+
+    styleVersion.value = await reportParamsApi.getEffectiveStyleVersion()
 
     const profile = await fetchCompanyProfileForReport()
     profileBasics.value = profile.basicInfos ?? []
