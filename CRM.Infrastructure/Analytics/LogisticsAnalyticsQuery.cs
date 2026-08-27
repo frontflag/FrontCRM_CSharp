@@ -12,6 +12,8 @@ public sealed class LogisticsAnalyticsQuery : ILogisticsAnalyticsQuery
 {
     private const int RankingTopN = 10;
     private const short PoItemCancelled = -2;
+    /// <summary>出库单「出库完成」（列表 status=4）。</summary>
+    private const short StockOutFinishedStatus = 4;
 
     private readonly ApplicationDbContext _db;
     private readonly IDataPermissionService _dataPermission;
@@ -29,6 +31,7 @@ public sealed class LogisticsAnalyticsQuery : ILogisticsAnalyticsQuery
         var rows = await LoadStockRowsAsync(scope, cancellationToken);
         var snapshot = BuildSnapshot(scope, rows);
         var todo = await BuildTodoAsync(scope, cancellationToken);
+        var flow = await BuildFlowAsync(scope, cancellationToken);
         var rankings = BuildRankings(scope, rows);
 
         return new LogisticsAnalyticsDashboardDto
@@ -36,6 +39,7 @@ public sealed class LogisticsAnalyticsQuery : ILogisticsAnalyticsQuery
             ScopeContext = scope.ScopeContext,
             Snapshot = snapshot,
             Todo = todo,
+            Flow = flow,
             Rankings = rankings
         };
     }
@@ -47,7 +51,7 @@ public sealed class LogisticsAnalyticsQuery : ILogisticsAnalyticsQuery
         var rows = await LoadStockRowsAsync(scope, cancellationToken);
         var pendingByPeriod = await LoadPendingStockInByPeriodAsync(scope, cancellationToken);
 
-        var periods = BuildPeriodKeys(scope.DateFrom, scope.DateTo, scope.GroupBy);
+        var periods = BuildPeriodKeys(scope.DateFrom, scope.TrendDateTo, scope.GroupBy);
         var result = new List<LogisticsAnalyticsTrendPointDto>();
 
         foreach (var period in periods)
@@ -217,6 +221,151 @@ public sealed class LogisticsAnalyticsQuery : ILogisticsAnalyticsQuery
 
         return list;
     }
+
+    private async Task<LogisticsAnalyticsFlowDto> BuildFlowAsync(
+        LogisticsAnalyticsResolvedScope scope,
+        CancellationToken cancellationToken)
+    {
+        var stockInAmount = await LoadStockInFlowMoneyAsync(scope, cancellationToken);
+        var stockOutAmount = await LoadStockOutFlowMoneyAsync(scope, cancellationToken);
+        return new LogisticsAnalyticsFlowDto
+        {
+            StockInAmount = stockInAmount,
+            StockOutAmount = stockOutAmount
+        };
+    }
+
+    private IQueryable<CRM.Core.Models.Inventory.StockItem> LoadFlowStockItems(LogisticsAnalyticsResolvedScope scope)
+    {
+        var q = _db.StockItems.AsNoTracking().Where(si => !si.IsDeleted);
+        q = ApplyInventoryTypeFilter(q, scope.InventoryType);
+        q = ApplyOwnershipLens(q, scope);
+        if (scope.AccessMode != LogisticsAnalyticsAccessModes.SalesPurchaseOnly
+            && scope.ViewLevel == SalesAnalyticsViewLevels.Department)
+        {
+            q = ApplyDepartmentLens(q, scope);
+        }
+
+        return q;
+    }
+
+    private async Task<SalesAnalyticsMoneyDto> LoadStockInFlowMoneyAsync(
+        LogisticsAnalyticsResolvedScope scope,
+        CancellationToken cancellationToken)
+    {
+        var dateFrom = SalesAnalyticsDateFilter.ToUtcDateStart(scope.DateFrom);
+        var dateEnd = SalesAnalyticsDateFilter.ToUtcDateEndExclusive(scope.TrendDateTo);
+
+        var stockIns = _db.StockIns.AsNoTracking()
+            .Where(s => !s.IsDeleted
+                && s.Status == StockInHeaderStatusCode.Posted
+                && (s.StockInType == StockInTypeCode.Purchase || s.StockInType == StockInTypeCode.LegacyPurchase)
+                && s.StockInDate >= dateFrom
+                && s.StockInDate < dateEnd);
+
+        stockIns = await _dataPermission.ApplyStockInListDataScopeAsync(
+            scope.Summary.UserId,
+            stockIns,
+            _db.SellOrders.AsNoTracking(),
+            _db.SellOrderItems.AsNoTracking(),
+            _db.StockInItemExtends.AsNoTracking(),
+            _db.PurchaseOrderItems.AsNoTracking(),
+            _db.PurchaseOrders.AsNoTracking(),
+            cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(scope.WarehouseId))
+            stockIns = stockIns.Where(s => s.WarehouseId == scope.WarehouseId);
+
+        var stockItems = LoadFlowStockItems(scope);
+        var rows = await (
+            from st in stockItems
+            join sii in _db.StockInItems.AsNoTracking() on st.StockInItemId equals sii.Id
+            join sin in stockIns on sii.StockInId equals sin.Id
+            where !sii.IsDeleted
+            select new FlowMoneyRow
+            {
+                Currency = sii.Currency ?? st.PurchaseCurrency,
+                LocalAmount = sii.Quantity * (sii.Price != 0m ? sii.Price : st.PurchasePrice),
+                UsdAmount = sii.Quantity * st.PurchasePriceUsd
+            }).ToListAsync(cancellationToken);
+
+        return BuildFlowMoney(rows, scope.MaskAmounts);
+    }
+
+    private async Task<SalesAnalyticsMoneyDto> LoadStockOutFlowMoneyAsync(
+        LogisticsAnalyticsResolvedScope scope,
+        CancellationToken cancellationToken)
+    {
+        var dateFrom = SalesAnalyticsDateFilter.ToUtcDateStart(scope.DateFrom);
+        var dateEnd = SalesAnalyticsDateFilter.ToUtcDateEndExclusive(scope.TrendDateTo);
+
+        var stockOuts = _db.StockOuts.AsNoTracking()
+            .Where(o => !o.IsDeleted
+                && o.Status == StockOutFinishedStatus
+                && (o.StockOutType == StockOutTypeCode.Sales || o.StockOutType == StockOutTypeCode.LegacySales)
+                && o.StockOutDate != null
+                && o.StockOutDate >= dateFrom
+                && o.StockOutDate < dateEnd);
+
+        stockOuts = await _dataPermission.ApplyStockOutListDataScopeAsync(
+            scope.Summary.UserId,
+            stockOuts,
+            _db.SellOrders.AsNoTracking(),
+            _db.SellOrderItems.AsNoTracking(),
+            _db.Customers.AsNoTracking(),
+            cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(scope.WarehouseId))
+            stockOuts = stockOuts.Where(o => o.WarehouseId == scope.WarehouseId);
+
+        var stockItems = LoadFlowStockItems(scope);
+        var rows = await (
+            from item in _db.StockOutItems.AsNoTracking()
+            join o in stockOuts on item.StockOutId equals o.Id
+            join ext in _db.StockOutItemExtends.AsNoTracking() on item.Id equals ext.Id
+            join st in stockItems on ext.StockItemId equals st.Id
+            where !item.IsDeleted && !ext.IsDeleted
+            select new FlowMoneyRow
+            {
+                Currency = ext.SalesCurrency ?? st.SalesCurrency ?? (short)CurrencyCode.RMB,
+                LocalAmount = item.Quantity * (
+                    ext.SalesPrice != null && ext.SalesPrice > 0m
+                        ? ext.SalesPrice.Value
+                        : item.Price),
+                UsdAmount = item.Quantity * (ext.SalesPriceUsd ?? 0m)
+            }).ToListAsync(cancellationToken);
+
+        return BuildFlowMoney(rows, scope.MaskSalesAmounts);
+    }
+
+    private static SalesAnalyticsMoneyDto BuildFlowMoney(IReadOnlyList<FlowMoneyRow> rows, bool maskAmounts)
+    {
+        if (maskAmounts)
+            return MapFlowMoney(FinanceAnalyticsMoneyBuilder.Empty(true));
+
+        var normalized = rows.Select(r => new FinanceAnalyticsMoneyBuilder.Row
+        {
+            Currency = r.Currency > 0 ? r.Currency : (short)CurrencyCode.RMB,
+            LocalAmount = r.LocalAmount,
+            UsdAmount = r.UsdAmount
+        });
+
+        return MapFlowMoney(FinanceAnalyticsMoneyBuilder.Build(normalized, maskAmounts: false));
+    }
+
+    private static SalesAnalyticsMoneyDto MapFlowMoney(FinanceAnalyticsMoneyDto built) =>
+        new()
+        {
+            TotalUsd = built.TotalUsd,
+            ByCurrency = built.ByCurrency
+                .Select(c => new SalesAnalyticsCurrencyAmountDto
+                {
+                    Currency = c.Currency,
+                    CurrencyLabel = c.CurrencyLabel,
+                    Amount = c.Amount
+                })
+                .ToList()
+        };
 
     private static IQueryable<CRM.Core.Models.Inventory.StockItem> ApplyInventoryTypeFilter(
         IQueryable<CRM.Core.Models.Inventory.StockItem> q,

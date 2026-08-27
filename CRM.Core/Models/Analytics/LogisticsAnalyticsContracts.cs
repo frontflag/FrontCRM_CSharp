@@ -35,6 +35,8 @@ public sealed class LogisticsAnalyticsQueryParams
     public string? MatrixSubject { get; set; }
     public DateTime? DateFrom { get; set; }
     public DateTime? DateTo { get; set; }
+    /// <summary>趋势区间结束日（出入库概况、入库数量趋势）。未传时回落 <see cref="DateTo"/>。</summary>
+    public DateTime? TrendDateTo { get; set; }
     public string GroupBy { get; set; } = "month";
     public string? WarehouseId { get; set; }
 }
@@ -63,6 +65,8 @@ public sealed class LogisticsAnalyticsScopeContextDto
     public IReadOnlyList<SalesAnalyticsDepartmentOptionDto> AllowedDepartments { get; set; } = Array.Empty<SalesAnalyticsDepartmentOptionDto>();
     public bool DataFiltered { get; set; }
     public bool MaskAmounts { get; set; }
+    /// <summary>出库金额脱敏（521 或无 <c>sales.amount.read</c>）。与采购侧 <see cref="MaskAmounts"/> 独立。</summary>
+    public bool MaskSalesAmounts { get; set; }
     public string? ResolvedOwnerUserId { get; set; }
     public string? ResolvedDepartmentId { get; set; }
 }
@@ -81,11 +85,21 @@ public sealed class LogisticsAnalyticsTodoDto
     public int PendingStockInQty { get; set; }
 }
 
+/// <summary>
+/// 出入库概况：趋势区间内仓库单据行金额（方案 B：过账 USD 快照 × 行数量）。
+/// </summary>
+public sealed class LogisticsAnalyticsFlowDto
+{
+    public SalesAnalyticsMoneyDto StockInAmount { get; set; } = new();
+    public SalesAnalyticsMoneyDto StockOutAmount { get; set; } = new();
+}
+
 public sealed class LogisticsAnalyticsDashboardDto
 {
     public LogisticsAnalyticsScopeContextDto ScopeContext { get; set; } = new();
     public LogisticsAnalyticsSnapshotDto Snapshot { get; set; } = new();
     public LogisticsAnalyticsTodoDto Todo { get; set; } = new();
+    public LogisticsAnalyticsFlowDto Flow { get; set; } = new();
     public SalesAnalyticsRankingsDto Rankings { get; set; } = new();
 }
 
@@ -134,8 +148,11 @@ public sealed class LogisticsAnalyticsResolvedScope
     public string? MatrixSubject { get; set; }
     public DateTime DateFrom { get; set; }
     public DateTime DateTo { get; set; }
+    /// <summary>趋势区间结束日（含当日）；出入库概况与入库数量趋势使用。</summary>
+    public DateTime TrendDateTo { get; set; }
     public string GroupBy { get; set; } = "month";
     public string? WarehouseId { get; set; }
     public bool MaskAmounts { get; set; }
+    public bool MaskSalesAmounts { get; set; }
     public HashSet<string> SalesPurchaseLensUserIds { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }

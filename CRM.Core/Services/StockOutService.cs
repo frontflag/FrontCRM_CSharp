@@ -2584,6 +2584,9 @@ namespace CRM.Core.Services
 
                 if (statusFilter.HasValue && hdr.Status != statusFilter.Value)
                     continue;
+                if (query.StockOutType.HasValue
+                    && !StockOutTypeCode.MatchesItemListFilter(hdr.StockOutType, query.StockOutType.Value))
+                    continue;
                 if (!TextContainsOptional(hdr.StockOutCode, codeNeedle))
                     continue;
                 var stockOutItemCode = string.IsNullOrWhiteSpace(line.StockOutItemCode)
@@ -2663,6 +2666,7 @@ namespace CRM.Core.Services
                     PurchasePn = pn,
                     PurchaseBrand = string.IsNullOrWhiteSpace(line.PurchaseBrand) ? null : line.PurchaseBrand.Trim(),
                     OutQuantity = outQty,
+                    StockOutType = hdr.StockOutType,
                     ShipmentMethod = string.IsNullOrWhiteSpace(hdr.ShipmentMethod) ? null : hdr.ShipmentMethod.Trim(),
                     CourierTrackingNo = string.IsNullOrWhiteSpace(hdr.CourierTrackingNo) ? null : hdr.CourierTrackingNo.Trim(),
                     SellOrderItemId = sellLineId,
@@ -2913,6 +2917,7 @@ namespace CRM.Core.Services
                     PurchasePn = pn,
                     PurchaseBrand = string.IsNullOrWhiteSpace(line.PurchaseBrand) ? null : line.PurchaseBrand.Trim(),
                     OutQuantity = outQty,
+                    StockOutType = hdr.StockOutType,
                     ShipmentMethod = string.IsNullOrWhiteSpace(hdr.ShipmentMethod) ? null : hdr.ShipmentMethod.Trim(),
                     CourierTrackingNo = string.IsNullOrWhiteSpace(hdr.CourierTrackingNo) ? null : hdr.CourierTrackingNo.Trim(),
                     SellOrderItemId = sellLineId,

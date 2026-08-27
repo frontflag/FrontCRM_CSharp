@@ -1,5 +1,6 @@
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
+using CRM.Core.Utilities;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -135,13 +136,13 @@ public sealed class StockOutListQuery : IStockOutListQuery
 
             if (filter.StockOutDateFrom.HasValue)
             {
-                var d = filter.StockOutDateFrom.Value.Date;
+                var d = SalesAnalyticsDateFilter.ToUtcDateStart(filter.StockOutDateFrom.Value);
                 q = q.Where(so => so.StockOutDate != null && so.StockOutDate >= d);
             }
 
             if (filter.StockOutDateTo.HasValue)
             {
-                var endEx = filter.StockOutDateTo.Value.Date.AddDays(1);
+                var endEx = SalesAnalyticsDateFilter.ToUtcDateEndExclusive(filter.StockOutDateTo.Value);
                 q = q.Where(so => so.StockOutDate != null && so.StockOutDate < endEx);
             }
 

@@ -6,6 +6,18 @@ export const logisticsAnalyticsDefsEn = {
       text: 'Sum of order qty − received qty on open PO lines. Not limited by as-of date.'
     }
   },
+  flow: {
+    stockInAmount: {
+      chart: 'Inbound amount',
+      dataSource: 'Stock-in lines',
+      text: 'Posted purchase receipts in the trend window: qty × purchase unit price by currency; USD is qty × inbound posting snapshot purchase USD. Excludes customs/return/scrap/transfer receipts.'
+    },
+    stockOutAmount: {
+      chart: 'Outbound amount',
+      dataSource: 'Stock-out lines',
+      text: 'Finished sales stock-outs in the trend window: qty × sales unit price by currency; USD is qty × outbound posting snapshot sales USD. Excludes ready-to-ship and customs/return/scrap/transfer stock-outs.'
+    }
+  },
   snapshot: {
     onHandQty: {
       chart: 'On-hand qty',

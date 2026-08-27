@@ -7,6 +7,7 @@ using CRM.API.Services;
 using CRM.API.Utilities;
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Analytics;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Services;
 using CRM.Core.Utilities;
@@ -21,6 +22,7 @@ namespace CRM.API.Controllers
     public class StockOutController : ControllerBase
     {
         private readonly IStockOutService _service;
+        private readonly IStockOutItemListAnalyticsQuery _itemListAnalytics;
         private readonly IRepository<StockOut> _stockOutRepo;
         private readonly IRepository<StockOutRequest> _stockOutRequestRepo;
         private readonly IRepository<StockOutItem> _stockOutItemRepo;
@@ -37,6 +39,7 @@ namespace CRM.API.Controllers
 
         public StockOutController(
             IStockOutService service,
+            IStockOutItemListAnalyticsQuery itemListAnalytics,
             IRepository<StockOut> stockOutRepo,
             IRepository<StockOutRequest> stockOutRequestRepo,
             IRepository<StockOutItem> stockOutItemRepo,
@@ -52,6 +55,7 @@ namespace CRM.API.Controllers
             ILogger<StockOutController> logger)
         {
             _service = service;
+            _itemListAnalytics = itemListAnalytics;
             _stockOutRepo = stockOutRepo;
             _stockOutRequestRepo = stockOutRequestRepo;
             _stockOutItemRepo = stockOutItemRepo;
@@ -280,6 +284,51 @@ namespace CRM.API.Controllers
                 _logger.LogError(ex, "获取出库明细列表失败");
                 return StatusCode(500, new { success = false, message = $"获取出库明细列表失败: {ex.Message}" });
             }
+        }
+
+        [HttpGet("items/analytics/dashboard")]
+        public async Task<IActionResult> GetItemListAnalyticsDashboard(
+            [FromQuery] StockOutItemListQuery? query,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, maskAmounts) = await BuildItemListAnalyticsQueryAsync(query, cancellationToken);
+            var data = await _itemListAnalytics.GetDashboardAsync(request, maskAmounts, cancellationToken);
+            return Ok(ApiResponse<StockOutItemListAnalyticsDashboardDto>.Ok(data));
+        }
+
+        [HttpGet("items/analytics/trends")]
+        public async Task<IActionResult> GetItemListAnalyticsTrends(
+            [FromQuery] StockOutItemListQuery? query,
+            [FromQuery] string? groupBy,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, maskAmounts) = await BuildItemListAnalyticsQueryAsync(query, cancellationToken);
+            var data = await _itemListAnalytics.GetTrendsAsync(
+                request,
+                string.IsNullOrWhiteSpace(groupBy) ? "month" : groupBy.Trim(),
+                maskAmounts,
+                cancellationToken);
+            return Ok(ApiResponse<IReadOnlyList<StockOutItemListAnalyticsTrendPointDto>>.Ok(data));
+        }
+
+        [HttpGet("items/analytics/breakdowns")]
+        public async Task<IActionResult> GetItemListAnalyticsBreakdowns(
+            [FromQuery] StockOutItemListQuery? query,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, maskAmounts) = await BuildItemListAnalyticsQueryAsync(query, cancellationToken);
+            var data = await _itemListAnalytics.GetBreakdownsAsync(request, maskAmounts, cancellationToken);
+            return Ok(ApiResponse<IReadOnlyList<SalesAnalyticsBreakdownGroupDto>>.Ok(data));
+        }
+
+        [HttpGet("items/analytics/rankings")]
+        public async Task<IActionResult> GetItemListAnalyticsRankings(
+            [FromQuery] StockOutItemListQuery? query,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, maskAmounts) = await BuildItemListAnalyticsQueryAsync(query, cancellationToken);
+            var data = await _itemListAnalytics.GetRankingsAsync(request, maskAmounts, cancellationToken);
+            return Ok(ApiResponse<StockOutItemListAnalyticsRankingsDto>.Ok(data));
         }
 
         /// <summary>出库 Invoice 报表：出库详情 + 公司参数（打印页单请求）。</summary>
@@ -1059,6 +1108,30 @@ namespace CRM.API.Controllers
                 _logger.LogWarning(ex, "装箱单扩展信息加载失败 PackingId={PackingId}", pid);
                 return (null, EmptyPackingAddressPanel(), null);
             }
+        }
+
+        private async Task<(StockOutItemListQuery Request, bool MaskAmounts)> BuildItemListAnalyticsQueryAsync(
+            StockOutItemListQuery? query,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            query ??= new StockOutItemListQuery();
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            query.CurrentUserId = userId;
+            if (string.IsNullOrWhiteSpace(userId))
+                return (query, true);
+
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
+            var mask521 = SaleSensitiveFieldMask521.ShouldMask(summary);
+            if (mask521)
+            {
+                query.CustomerName = null;
+                query.SalesUserName = null;
+            }
+
+            var canViewSalesAmount = !mask521 && (summary.IsSysAdmin
+                || summary.PermissionCodes.Contains("sales.amount.read", StringComparer.OrdinalIgnoreCase));
+            return (query, !canViewSalesAmount);
         }
 
         private async Task SoftDeleteStockOutCascadeAsync(string stockOutId)

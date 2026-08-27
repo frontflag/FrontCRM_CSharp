@@ -65,6 +65,7 @@ public sealed class LogisticsAnalyticsService : ILogisticsAnalyticsService
             : LogisticsAnalyticsAccessModes.Logistics;
         var companyVisible = allowedLevels.Contains(SalesAnalyticsViewLevels.Company, StringComparer.OrdinalIgnoreCase);
         var maskAmounts = ShouldMaskAmounts(summary);
+        var maskSalesAmounts = ShouldMaskSalesAmounts(summary);
 
         var dateTo = query.DateTo.HasValue
             ? SalesAnalyticsDateFilter.ToUtcDateStart(query.DateTo.Value)
@@ -72,6 +73,9 @@ public sealed class LogisticsAnalyticsService : ILogisticsAnalyticsService
         var dateFrom = query.DateFrom.HasValue
             ? SalesAnalyticsDateFilter.ToUtcDateStart(query.DateFrom.Value)
             : SalesAnalyticsDateFilter.ToUtcDateStart(dateTo.AddMonths(-5));
+        var trendDateTo = query.TrendDateTo.HasValue
+            ? SalesAnalyticsDateFilter.ToUtcDateStart(query.TrendDateTo.Value)
+            : dateTo;
 
         var scopeContext = new LogisticsAnalyticsScopeContextDto
         {
@@ -88,6 +92,7 @@ public sealed class LogisticsAnalyticsService : ILogisticsAnalyticsService
             AllowedDepartments = LogisticsAnalyticsScopeValidator.BuildAllowedDepartments(summary, departments),
             DataFiltered = !summary.IsSysAdmin && accessMode == LogisticsAnalyticsAccessModes.SalesPurchaseOnly,
             MaskAmounts = maskAmounts,
+            MaskSalesAmounts = maskSalesAmounts,
             ResolvedOwnerUserId = validation.OwnerUserId,
             ResolvedDepartmentId = validation.DepartmentId
         };
@@ -104,9 +109,11 @@ public sealed class LogisticsAnalyticsService : ILogisticsAnalyticsService
             MatrixSubject = string.IsNullOrWhiteSpace(query.MatrixSubject) ? null : query.MatrixSubject.Trim().ToLowerInvariant(),
             DateFrom = dateFrom,
             DateTo = dateTo,
+            TrendDateTo = trendDateTo,
             GroupBy = NormalizeGroupBy(query.GroupBy),
             WarehouseId = string.IsNullOrWhiteSpace(query.WarehouseId) ? null : query.WarehouseId.Trim(),
             MaskAmounts = maskAmounts,
+            MaskSalesAmounts = maskSalesAmounts,
             SalesPurchaseLensUserIds = lensUserIds
         });
     }
@@ -159,5 +166,13 @@ public sealed class LogisticsAnalyticsService : ILogisticsAnalyticsService
         if (PurchaseSensitiveFieldMask511.ShouldMask(summary)) return true;
         if (summary.PermissionCodes == null) return true;
         return !summary.PermissionCodes.Contains("purchase.amount.read", StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static bool ShouldMaskSalesAmounts(UserPermissionSummaryDto summary)
+    {
+        if (summary.IsSysAdmin) return false;
+        if (SaleSensitiveFieldMask521.ShouldMask(summary)) return true;
+        if (summary.PermissionCodes == null) return true;
+        return !summary.PermissionCodes.Contains("sales.amount.read", StringComparer.OrdinalIgnoreCase);
     }
 }

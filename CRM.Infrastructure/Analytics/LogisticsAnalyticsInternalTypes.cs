@@ -1,5 +1,12 @@
 namespace CRM.Infrastructure.Analytics;
 
+internal sealed class FlowMoneyRow
+{
+    public short Currency { get; init; }
+    public decimal LocalAmount { get; init; }
+    public decimal UsdAmount { get; init; }
+}
+
 internal sealed class StockAnalyticsRow
 {
     public int Qty { get; init; }

@@ -12,7 +12,7 @@
           </div>
           <h1 class="page-title">{{ t('stockInList.title') }}</h1>
         </div>
-        <div class="count-badge">{{ t('stockInList.count', { count: listTotalServer }) }}</div>
+        <div v-if="viewMode === 'list'" class="count-badge">{{ t('stockInList.count', { count: listTotalServer }) }}</div>
       </div>
       <div class="header-right">
         <button type="button" class="btn-export" :disabled="exporting" @click="() => void handleExport()">
@@ -114,10 +114,20 @@
         />
         <button type="button" class="btn-primary btn-sm" @click="handleSearch">{{ t('stockInList.filters.search') }}</button>
         <button type="button" class="btn-ghost btn-sm" @click="resetFilters">{{ t('stockInList.filters.reset') }}</button>
+        <button
+          class="btn-ghost btn-sm btn-board-active"
+          type="button"
+          @click="toggleViewMode"
+        >
+          {{ viewMode === 'board' ? t('stockInList.filters.listView') : t('stockInList.filters.boardView') }}
+        </button>
       </div>
     </div>
 
+    <StockInListBoard v-if="viewMode === 'board'" :filters="boardFilters" />
+
     <CrmDataTable
+      v-show="viewMode === 'list'"
       ref="dataTableRef"
       column-layout-key="stock-in-list-main-v3"
       :columns="stockInTableColumns"
@@ -244,7 +254,7 @@
         </div>
       </template>
     </CrmDataTable>
-    <div class="pagination-wrapper">
+    <div v-show="viewMode === 'list'" class="pagination-wrapper">
       <div class="list-footer-left">
         <el-tooltip :content="t('systemUser.colSetting')" placement="top" :hide-after="0">
           <el-button class="list-settings-btn" link type="primary" :aria-label="t('systemUser.colSetting')" @click="dataTableRef?.openColumnSettings?.()">
@@ -296,8 +306,13 @@ import VendorExtendColumnHeader from '@/components/list/VendorExtendColumnHeader
 import VendorExtendCell from '@/components/list/VendorExtendCell.vue'
 import { useVendorExtendColumn, isVendorExtendTableColumn } from '@/composables/useVendorExtendColumn'
 import { StockInTypeCode, STOCK_IN_TYPE_FILTER_VALUES, resolveStockInTypeLabelKey } from '@/constants/stockInType'
+import StockInListBoard from '@/views/Inventory/StockInListBoard.vue'
+import { useListBoardHelpOverride } from '@/composables/useHelpDocOverride'
+import type { StockInListAnalyticsQuery } from '@/api/stockInAnalytics'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
+const viewMode = ref<'list' | 'board'>('list')
+useListBoardHelpOverride('pages/入库单看板_MENU_STOCK_IN_BOARD.md', viewMode)
 const {
   expanded: vendorExtendExpanded,
   activeField: vendorExtendActiveField,
@@ -425,6 +440,26 @@ const filters = reactive({
   salesOrderCode: ''
 })
 
+const boardFilters = computed<StockInListAnalyticsQuery>(() => ({
+  stockInCode: filters.stockInCode.trim() || undefined,
+  sourceDisplayNo: filters.sourceDisplayNo.trim() || undefined,
+  warehouseId: filters.warehouseId || undefined,
+  stockInDateStart: filters.stockInDateRange[0] || undefined,
+  stockInDateEnd: filters.stockInDateRange[1] || undefined,
+  remark: filters.remark.trim() || undefined,
+  model: filters.model.trim() || undefined,
+  vendorName: maskPurchaseSensitiveFields.value ? undefined : filters.vendorName.trim() || undefined,
+  purchaseOrderCode: filters.purchaseOrderCode.trim() || undefined,
+  freightForwarderOrderNo: filters.freightForwarderOrderNo.trim() || undefined,
+  salesOrderCode: filters.salesOrderCode.trim() || undefined,
+  stockInType: filters.stockInType
+}))
+
+function toggleViewMode() {
+  viewMode.value = viewMode.value === 'list' ? 'board' : 'list'
+  if (viewMode.value === 'list') void fetchList(false)
+}
+
 const remarkDialogVisible = ref(false)
 const remarkForm = reactive<{ id: string; remark: string }>({
   id: '',
@@ -509,6 +544,7 @@ function syncFiltersFromRoute() {
 
 const fetchList = async (resetPage = true) => {
   if (resetPage) listPage.value = 1
+  if (viewMode.value === 'board') return
   loading.value = true
   try {
     if (!warehouses.value.length) {
@@ -593,7 +629,7 @@ watch(
   () => [route.name, route.query] as const,
   () => {
     syncFiltersFromRoute()
-    if (route.name === 'StockInList') void fetchList(true)
+    if (route.name === 'StockInList' && viewMode.value === 'list') void fetchList(true)
   },
   { deep: true, immediate: true }
 )

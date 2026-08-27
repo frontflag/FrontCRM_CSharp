@@ -28,11 +28,12 @@ public class LogisticsAnalyticsController : ControllerBase
         [FromQuery] string? inventoryType,
         [FromQuery] string? dateFrom,
         [FromQuery] string? dateTo,
+        [FromQuery] string? trendDateTo,
         [FromQuery] string? warehouseId,
         CancellationToken cancellationToken = default)
     {
         var (ok, error, scope) = await ResolveAsync(
-            viewLevel, departmentId, ownerUserId, inventoryType, null, dateFrom, dateTo, null, warehouseId, cancellationToken);
+            viewLevel, departmentId, ownerUserId, inventoryType, null, dateFrom, dateTo, trendDateTo, null, warehouseId, cancellationToken);
         if (!ok)
             return Forbidden(error);
 
@@ -48,12 +49,13 @@ public class LogisticsAnalyticsController : ControllerBase
         [FromQuery] string? inventoryType,
         [FromQuery] string? dateFrom,
         [FromQuery] string? dateTo,
+        [FromQuery] string? trendDateTo,
         [FromQuery] string? groupBy,
         [FromQuery] string? warehouseId,
         CancellationToken cancellationToken = default)
     {
         var (ok, error, scope) = await ResolveAsync(
-            viewLevel, departmentId, ownerUserId, inventoryType, null, dateFrom, dateTo, groupBy, warehouseId, cancellationToken);
+            viewLevel, departmentId, ownerUserId, inventoryType, null, dateFrom, dateTo, trendDateTo, groupBy, warehouseId, cancellationToken);
         if (!ok)
             return Forbidden(error);
 
@@ -72,7 +74,7 @@ public class LogisticsAnalyticsController : ControllerBase
         CancellationToken cancellationToken = default)
     {
         var (ok, error, scope) = await ResolveAsync(
-            viewLevel, departmentId, ownerUserId, inventoryType, null, null, dateTo, null, warehouseId, cancellationToken);
+            viewLevel, departmentId, ownerUserId, inventoryType, null, null, dateTo, null, null, warehouseId, cancellationToken);
         if (!ok)
             return Forbidden(error);
 
@@ -92,7 +94,7 @@ public class LogisticsAnalyticsController : ControllerBase
         CancellationToken cancellationToken = default)
     {
         var (ok, error, scope) = await ResolveAsync(
-            viewLevel, departmentId, ownerUserId, inventoryType, matrixSubject, null, dateTo, null, warehouseId, cancellationToken);
+            viewLevel, departmentId, ownerUserId, inventoryType, matrixSubject, null, dateTo, null, null, warehouseId, cancellationToken);
         if (!ok)
             return Forbidden(error);
 
@@ -108,6 +110,7 @@ public class LogisticsAnalyticsController : ControllerBase
         string? matrixSubject,
         string? dateFrom,
         string? dateTo,
+        string? trendDateTo,
         string? groupBy,
         string? warehouseId,
         CancellationToken cancellationToken)
@@ -125,6 +128,7 @@ public class LogisticsAnalyticsController : ControllerBase
             MatrixSubject = matrixSubject,
             DateFrom = ParseQueryDate(dateFrom),
             DateTo = ParseQueryDate(dateTo),
+            TrendDateTo = ParseQueryDate(trendDateTo),
             GroupBy = string.IsNullOrWhiteSpace(groupBy) ? "month" : groupBy.Trim(),
             WarehouseId = warehouseId
         };

@@ -6,6 +6,8 @@ import { rfqItemListBoardDefsEn } from './fragments/rfqItemListBoardDefs.en-US'
 import { salesOrderItemListBoardDefsEn } from './fragments/salesOrderItemListBoardDefs.en-US'
 import { quoteListBoardDefsEn } from './fragments/quoteListBoardDefs.en-US'
 import { purchaseOrderItemListBoardDefsEn } from './fragments/purchaseOrderItemListBoardDefs.en-US'
+import { stockOutItemListBoardDefsEn } from './fragments/stockOutItemListBoardDefs.en-US'
+import { stockInListBoardDefsEn } from './fragments/stockInListBoardDefs.en-US'
 
 const enUS = {
   common: {
@@ -1475,7 +1477,7 @@ const enUS = {
   },
   logisticsAnalytics: {
     title: 'Logistics Analytics',
-    subtitle: 'On-hand as of date; age from stock-in date; amount in converted USD purchase cost',
+    subtitle: 'On-hand as of date; inbound/outbound amounts use the trend window; age from stock-in date; amounts in converted USD snapshots',
     tabs: {
       company: 'Company',
       visibleScope: 'Visible scope',
@@ -1500,7 +1502,7 @@ const enUS = {
     loadFailed: 'Failed to load logistics dashboard',
     matrixLoadFailed: 'Failed to load customer matrix',
     scopeBanner: 'Visible scope: {label}',
-    metricHint: 'On-hand KPIs are point-in-time as of date; trends use stock-in date',
+    metricHint: 'Inbound/outbound amounts are period totals in the trend window; on-hand KPIs are as-of stock; trends use stock-in date',
     salesPurchaseOnlyHint: 'Filtered by sales/purchase ownership (salesperson or purchaser)',
     defs: logisticsAnalyticsDefsEn,
     groupBy: { day: 'Daily', week: 'Weekly', month: 'Monthly' },
@@ -1510,11 +1512,16 @@ const enUS = {
     },
     sections: {
       todo: 'Backlog',
+      flow: 'Inbound / outbound',
       snapshot: 'On-hand overview',
       trendStockIn: 'Inbound qty trend',
       customerMatrix: 'Customer × subject'
     },
     kpi: {
+      stockInAmount: 'Inbound amount',
+      stockOutAmount: 'Outbound amount',
+      originalCaption: 'Original',
+      viewLocalCurrency: 'View local currency',
       onHandQty: 'On-hand qty',
       onHandAmountUsd: 'On-hand amount',
       convertedUsdSuffix: '(converted USD)',
@@ -7431,7 +7438,9 @@ const enUS = {
       stockInTypePlaceholder: 'Stock-in type',
       search: 'Search',
       reset: 'Reset',
-      export: 'Export'
+      export: 'Export',
+      boardView: 'Board',
+      listView: 'List'
     },
     leftPanel: {
       title: 'Stock-in search',
@@ -7493,6 +7502,48 @@ const enUS = {
       exportConfirmMessage: 'Export stock-in list with current filters (max 50,000 rows). Continue?',
       exportSuccess: 'Export succeeded',
       exportFailed: 'Export failed'
+    },
+    board: {
+      datasetTag: 'Filter',
+      hint: 'Stats cover the full search-bar result set (not the current page). Amount is inbound amount: purchase unit price × inbound qty.',
+      refresh: 'Refresh',
+      loadFailed: 'Failed to load stock-in board',
+      unsetVendor: 'Unlinked vendor',
+      unsetPurchaseUser: 'Unassigned purchaser',
+      groupBy: {
+        day: 'By day',
+        week: 'By week',
+        month: 'By month'
+      },
+      sections: {
+        kpi: 'Inbound overview',
+        trendHeaders: 'Stock-in documents',
+        trendAmount: 'Inbound amount'
+      },
+      kpi: {
+        vendors: 'Inbound vendors',
+        headers: 'Stock-in documents',
+        amount: 'Inbound amount',
+        usdCaption: 'Converted USD',
+        originalCaption: 'Original currency'
+      },
+      trendUnit: {
+        headers: 'docs',
+        moneyCaption: 'Unit: converted USD'
+      },
+      breakdown: {
+        stockInType: 'Stock-in type',
+        purchaseUser: 'Purchaser'
+      },
+      rankings: {
+        metricMode: 'Ranking metric',
+        amount: 'Inbound amount',
+        headerCount: 'Documents',
+        name: 'Name',
+        vendorByAmount: 'Top 10 vendors',
+        purchaseUserByAmount: 'Top 10 purchasers'
+      },
+      defs: stockInListBoardDefsEn
     }
   },
   stockInDetail: {
@@ -7931,6 +7982,7 @@ const enUS = {
     count: '{count} records total',
     filters: {
       status: 'Status',
+      stockOutType: 'Stock-out type',
       stockOutCode: 'Stock-out code',
       stockOutItemCode: 'Stock-out line no.',
       stockInCode: 'Inbound doc no.',
@@ -7944,7 +7996,17 @@ const enUS = {
       purchasePn: 'Material model',
       sellOrderItemCode: 'Sales order line no.',
       search: 'Search',
-      reset: 'Reset'
+      reset: 'Reset',
+      boardView: 'Board',
+      listView: 'List'
+    },
+    settingsMenu: {
+      aria: 'List filter settings',
+      closeTabs: 'Close tabs',
+      tabMode: 'Tab mode'
+    },
+    filterTabs: {
+      all: 'All'
     },
     columns: {
       status: 'Status',
@@ -7958,6 +8020,7 @@ const enUS = {
       purchasePn: 'Material model',
       purchaseBrand: 'Brand',
       outQuantity: 'Qty out',
+      stockOutType: 'Stock-out type',
       shipmentMethod: 'Shipment method',
       courierTrackingNo: 'Tracking no.',
       sellOrderItemCode: 'Sales order line no.'
@@ -7965,6 +8028,48 @@ const enUS = {
     messages: {
       loadFailed: 'Failed to load stock-out lines',
       missingStockOutId: 'Missing stock-out ID'
+    },
+    board: {
+      datasetTag: 'Filter',
+      hint: 'Stats use the full search-bar result set (not the current page). Amount is outbound: sales unit price × qty.',
+      refresh: 'Refresh',
+      loadFailed: 'Failed to load the stock-out line board',
+      unsetCustomer: 'Unlinked customer',
+      unsetSalesUser: 'Unassigned salesperson',
+      groupBy: {
+        day: 'Day',
+        week: 'Week',
+        month: 'Month'
+      },
+      sections: {
+        kpi: 'Outbound overview',
+        trendLines: 'Outbound lines',
+        trendAmount: 'Outbound amount'
+      },
+      kpi: {
+        customers: 'Outbound customers',
+        lines: 'Outbound lines',
+        amount: 'Outbound amount',
+        usdCaption: 'Converted USD',
+        originalCaption: 'Original'
+      },
+      trendUnit: {
+        lines: 'lines',
+        moneyCaption: 'Unit: converted USD'
+      },
+      breakdown: {
+        stockOutType: 'Stock-out type',
+        salesUser: 'Salesperson'
+      },
+      rankings: {
+        metricMode: 'Ranking metric',
+        amount: 'Outbound amount',
+        lineCount: 'Lines',
+        name: 'Name',
+        customerByAmount: 'Top 10 customers',
+        salesUserByAmount: 'Top 10 salespeople'
+      },
+      defs: stockOutItemListBoardDefsEn
     }
   },
   stockOutInvoiceReport: {

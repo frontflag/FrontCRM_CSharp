@@ -7,6 +7,7 @@ using CRM.API.Models.DTOs;
 using CRM.API.Utilities;
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Analytics;
 using CRM.Core.Models.Dtos;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Services;
@@ -19,6 +20,7 @@ namespace CRM.API.Controllers
     public class StockInController : ControllerBase
     {
         private readonly IStockInService _service;
+        private readonly IStockInListAnalyticsQuery _listAnalytics;
         private readonly IOperationLogQueryService _operationLogQuery;
         private readonly IRbacService _rbacService;
         private readonly IExportOperationLogService _exportLog;
@@ -27,6 +29,7 @@ namespace CRM.API.Controllers
 
         public StockInController(
             IStockInService service,
+            IStockInListAnalyticsQuery listAnalytics,
             IOperationLogQueryService operationLogQuery,
             IRbacService rbacService,
             IExportOperationLogService exportLog,
@@ -34,6 +37,7 @@ namespace CRM.API.Controllers
             ILogger<StockInController> logger)
         {
             _service = service;
+            _listAnalytics = listAnalytics;
             _operationLogQuery = operationLogQuery;
             _rbacService = rbacService;
             _exportLog = exportLog;
@@ -248,6 +252,51 @@ namespace CRM.API.Controllers
             }
         }
 
+        [HttpGet("analytics/dashboard")]
+        public async Task<IActionResult> GetListAnalyticsDashboard(
+            [FromQuery] StockInQueryRequest? query,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, maskAmounts) = await BuildListAnalyticsQueryAsync(query, cancellationToken);
+            var data = await _listAnalytics.GetDashboardAsync(request, maskAmounts, cancellationToken);
+            return Ok(ApiResponse<StockInListAnalyticsDashboardDto>.Ok(data));
+        }
+
+        [HttpGet("analytics/trends")]
+        public async Task<IActionResult> GetListAnalyticsTrends(
+            [FromQuery] StockInQueryRequest? query,
+            [FromQuery] string? groupBy,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, maskAmounts) = await BuildListAnalyticsQueryAsync(query, cancellationToken);
+            var data = await _listAnalytics.GetTrendsAsync(
+                request,
+                string.IsNullOrWhiteSpace(groupBy) ? "month" : groupBy.Trim(),
+                maskAmounts,
+                cancellationToken);
+            return Ok(ApiResponse<IReadOnlyList<StockInListAnalyticsTrendPointDto>>.Ok(data));
+        }
+
+        [HttpGet("analytics/breakdowns")]
+        public async Task<IActionResult> GetListAnalyticsBreakdowns(
+            [FromQuery] StockInQueryRequest? query,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, maskAmounts) = await BuildListAnalyticsQueryAsync(query, cancellationToken);
+            var data = await _listAnalytics.GetBreakdownsAsync(request, maskAmounts, cancellationToken);
+            return Ok(ApiResponse<IReadOnlyList<SalesAnalyticsBreakdownGroupDto>>.Ok(data));
+        }
+
+        [HttpGet("analytics/rankings")]
+        public async Task<IActionResult> GetListAnalyticsRankings(
+            [FromQuery] StockInQueryRequest? query,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, maskAmounts) = await BuildListAnalyticsQueryAsync(query, cancellationToken);
+            var data = await _listAnalytics.GetRankingsAsync(request, maskAmounts, cancellationToken);
+            return Ok(ApiResponse<StockInListAnalyticsRankingsDto>.Ok(data));
+        }
+
         [HttpGet("{id}")]
         public async Task<ActionResult<ApiResponse<StockIn>>> GetById(string id, CancellationToken cancellationToken = default)
         {
@@ -453,6 +502,27 @@ namespace CRM.API.Controllers
                 _logger.LogError(ex, "更新入库单状态失败");
                 return StatusCode(500, ApiResponse<object>.Fail($"更新状态失败: {ex.Message}", 500));
             }
+        }
+
+        private async Task<(StockInQueryRequest Request, bool MaskAmounts)> BuildListAnalyticsQueryAsync(
+            StockInQueryRequest? query,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            query ??= new StockInQueryRequest();
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            query.CurrentUserId = userId;
+            if (string.IsNullOrWhiteSpace(userId))
+                return (query, true);
+
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
+            var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
+            if (mask511)
+                query.VendorName = null;
+
+            var canViewPurchaseAmount = !mask511 && (summary.IsSysAdmin
+                || summary.PermissionCodes.Contains("purchase.amount.read", StringComparer.OrdinalIgnoreCase));
+            return (query, !canViewPurchaseAmount);
         }
     }
 }

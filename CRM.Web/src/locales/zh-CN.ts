@@ -6,6 +6,8 @@ import { rfqItemListBoardDefsZh } from './fragments/rfqItemListBoardDefs.zh-CN'
 import { salesOrderItemListBoardDefsZh } from './fragments/salesOrderItemListBoardDefs.zh-CN'
 import { quoteListBoardDefsZh } from './fragments/quoteListBoardDefs.zh-CN'
 import { purchaseOrderItemListBoardDefsZh } from './fragments/purchaseOrderItemListBoardDefs.zh-CN'
+import { stockOutItemListBoardDefsZh } from './fragments/stockOutItemListBoardDefs.zh-CN'
+import { stockInListBoardDefsZh } from './fragments/stockInListBoardDefs.zh-CN'
 
 const zhCN = {
   common: {
@@ -1469,7 +1471,7 @@ const zhCN = {
   },
   logisticsAnalytics: {
     title: '物流分析',
-    subtitle: '在库存量截至查询日；库龄按入库日；金额为折算美元（USD）采购成本',
+    subtitle: '在库存量截至查询日；出入库金额按趋势区间；库龄按入库日；金额为折算美元（USD）快照',
     tabs: {
       company: '公司',
       visibleScope: '可见范围',
@@ -1494,7 +1496,7 @@ const zhCN = {
     loadFailed: '加载物流看板失败',
     matrixLoadFailed: '加载客户矩阵失败',
     scopeBanner: '当前可见：{label}',
-    metricHint: '在库 KPI 为截至日的时点存量；趋势按入库日统计流入',
+    metricHint: '出入库概况按趋势区间统计期间金额；在库 KPI 为截至日的时点存量；趋势按入库日统计流入',
     salesPurchaseOnlyHint: '当前按销/采归属（销售员或采购员）过滤，无公司汇总',
     defs: logisticsAnalyticsDefsZh,
     groupBy: { day: '按日', week: '按周', month: '按月' },
@@ -1504,11 +1506,16 @@ const zhCN = {
     },
     sections: {
       todo: '待办',
+      flow: '出入库概况',
       snapshot: '在库概览',
       trendStockIn: '入库数量趋势',
       customerMatrix: '客户 × 统计科目'
     },
     kpi: {
+      stockInAmount: '入库金额',
+      stockOutAmount: '出库金额',
+      originalCaption: '原币',
+      viewLocalCurrency: '查看本币',
       onHandQty: '在库商品数量',
       onHandAmountUsd: '在库商品金额',
       convertedUsdSuffix: '（折算美元）',
@@ -7407,7 +7414,9 @@ const zhCN = {
       stockInTypePlaceholder: '入库类型',
       search: '搜索',
       reset: '重置',
-      export: '导出'
+      export: '导出',
+      boardView: '看板',
+      listView: '列表'
     },
     leftPanel: {
       title: '入库单检索',
@@ -7469,6 +7478,48 @@ const zhCN = {
       exportConfirmMessage: '将按当前筛选条件导出入库单，最多 50000 条，是否继续？',
       exportSuccess: '导出成功',
       exportFailed: '导出失败'
+    },
+    board: {
+      datasetTag: '筛选',
+      hint: '统计当前搜索栏筛选结果全量（非当前页）。金额为入库金额：采购单价×入库数量。',
+      refresh: '刷新',
+      loadFailed: '加载入库单看板失败',
+      unsetVendor: '未关联供应商',
+      unsetPurchaseUser: '未分配采购员',
+      groupBy: {
+        day: '按天',
+        week: '按周',
+        month: '按月'
+      },
+      sections: {
+        kpi: '入库概览',
+        trendHeaders: '入库单数',
+        trendAmount: '入库金额'
+      },
+      kpi: {
+        vendors: '入库供应商数',
+        headers: '入库单数',
+        amount: '入库金额',
+        usdCaption: '折算美金',
+        originalCaption: '原币'
+      },
+      trendUnit: {
+        headers: '单',
+        moneyCaption: '单位：折算美元（USD）'
+      },
+      breakdown: {
+        stockInType: '入库类型',
+        purchaseUser: '采购员'
+      },
+      rankings: {
+        metricMode: '排行指标',
+        amount: '入库金额',
+        headerCount: '入库单数',
+        name: '名称',
+        vendorByAmount: 'Top10 供应商',
+        purchaseUserByAmount: 'Top10 采购员'
+      },
+      defs: stockInListBoardDefsZh
     }
   },
   stockInDetail: {
@@ -7907,6 +7958,7 @@ const zhCN = {
     count: '共 {count} 条',
     filters: {
       status: '状态',
+      stockOutType: '出库类型',
       stockOutCode: '出库单号',
       stockOutItemCode: '出库明细单号',
       stockInCode: '入库单号',
@@ -7920,7 +7972,17 @@ const zhCN = {
       purchasePn: '物料型号',
       sellOrderItemCode: '销售订单明细编号',
       search: '查询',
-      reset: '重置'
+      reset: '重置',
+      boardView: '看板',
+      listView: '列表'
+    },
+    settingsMenu: {
+      aria: '列表筛选设置',
+      closeTabs: '关闭页签',
+      tabMode: '页签模式'
+    },
+    filterTabs: {
+      all: '全部'
     },
     columns: {
       status: '状态',
@@ -7934,6 +7996,7 @@ const zhCN = {
       purchasePn: '物料型号',
       purchaseBrand: '品牌',
       outQuantity: '出库数量',
+      stockOutType: '出库类型',
       shipmentMethod: '出货方式',
       courierTrackingNo: '快递单号',
       sellOrderItemCode: '销售订单明细编号'
@@ -7941,6 +8004,48 @@ const zhCN = {
     messages: {
       loadFailed: '加载出库明细失败',
       missingStockOutId: '缺少出库单 ID'
+    },
+    board: {
+      datasetTag: '筛选',
+      hint: '统计当前搜索栏筛选结果全量（非当前页）。金额为出库金额：销售单价×出库数量。',
+      refresh: '刷新',
+      loadFailed: '加载出库明细看板失败',
+      unsetCustomer: '未关联客户',
+      unsetSalesUser: '未分配业务员',
+      groupBy: {
+        day: '按天',
+        week: '按周',
+        month: '按月'
+      },
+      sections: {
+        kpi: '出库概览',
+        trendLines: '出库条目数',
+        trendAmount: '出库金额'
+      },
+      kpi: {
+        customers: '出库客户数',
+        lines: '出库条目数',
+        amount: '出库金额',
+        usdCaption: '折算美金',
+        originalCaption: '原币'
+      },
+      trendUnit: {
+        lines: '条',
+        moneyCaption: '单位：折算美元（USD）'
+      },
+      breakdown: {
+        stockOutType: '出库类型',
+        salesUser: '业务员'
+      },
+      rankings: {
+        metricMode: '排行指标',
+        amount: '出库金额',
+        lineCount: '条目数',
+        name: '名称',
+        customerByAmount: 'Top10 客户',
+        salesUserByAmount: 'Top10 业务员'
+      },
+      defs: stockOutItemListBoardDefsZh
     }
   },
   stockOutInvoiceReport: {

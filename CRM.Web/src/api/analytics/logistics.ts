@@ -12,6 +12,7 @@ export interface LogisticsAnalyticsQuery {
   matrixSubject?: LogisticsMatrixSubject
   dateFrom?: string
   dateTo?: string
+  trendDateTo?: string
   groupBy?: 'day' | 'week' | 'month'
   warehouseId?: string
 }
@@ -38,6 +39,7 @@ export interface LogisticsAnalyticsScopeContext {
   allowedDepartments: { id: string; name: string }[]
   dataFiltered: boolean
   maskAmounts: boolean
+  maskSalesAmounts: boolean
   resolvedOwnerUserId?: string | null
   resolvedDepartmentId?: string | null
 }
@@ -54,6 +56,16 @@ export interface LogisticsAnalyticsTodo {
   pendingStockInQty: number
 }
 
+export interface LogisticsAnalyticsMoney {
+  totalUsd?: number | null
+  byCurrency: { currency: number; currencyLabel: string; amount: number }[]
+}
+
+export interface LogisticsAnalyticsFlow {
+  stockInAmount: LogisticsAnalyticsMoney
+  stockOutAmount: LogisticsAnalyticsMoney
+}
+
 export interface LogisticsAnalyticsRankingRow {
   id: string
   name: string
@@ -65,6 +77,7 @@ export interface LogisticsAnalyticsDashboard {
   scopeContext: LogisticsAnalyticsScopeContext
   snapshot: LogisticsAnalyticsSnapshot
   todo: LogisticsAnalyticsTodo
+  flow?: LogisticsAnalyticsFlow
   rankings: {
     primary: LogisticsAnalyticsRankingRow[]
     secondary: LogisticsAnalyticsRankingRow[]
@@ -122,6 +135,7 @@ function buildParams(q: LogisticsAnalyticsQuery): Record<string, string> {
   if (q.matrixSubject) p.matrixSubject = q.matrixSubject
   if (q.dateFrom) p.dateFrom = q.dateFrom
   if (q.dateTo) p.dateTo = q.dateTo
+  if (q.trendDateTo) p.trendDateTo = q.trendDateTo
   if (q.groupBy) p.groupBy = q.groupBy
   if (q.warehouseId) p.warehouseId = q.warehouseId
   return p

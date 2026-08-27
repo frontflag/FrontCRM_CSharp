@@ -459,6 +459,12 @@ namespace CRM.Core.Interfaces
         /// <summary>出库单头状态；不传则不过滤</summary>
         public short? Status { get; set; }
 
+        /// <summary>
+        /// 出库单头类型 <see cref="Constants.StockOutTypeCode"/>；不传则不过滤。
+        /// 选销售（10 或历史 1）时含 <c>10</c> 与历史 <c>1</c>（方案 B）。
+        /// </summary>
+        public short? StockOutType { get; set; }
+
         public string? StockOutCode { get; set; }
 
         /// <summary>出库明细单号（<c>stock_out_item.stock_out_item_code</c>），子串匹配</summary>
@@ -500,6 +506,8 @@ namespace CRM.Core.Interfaces
         public string? PurchaseBrand { get; set; }
         /// <summary>出库数量：优先 <c>ActualQty</c>，否则 <c>Quantity</c></summary>
         public int OutQuantity { get; set; }
+        /// <summary>出库单头类型 <see cref="Constants.StockOutTypeCode"/>。</summary>
+        public short StockOutType { get; set; }
         public string? ShipmentMethod { get; set; }
         public string? CourierTrackingNo { get; set; }
         /// <summary>销售明细主键：优先出库明细扩展，否则头表（通知单线出库）。</summary>

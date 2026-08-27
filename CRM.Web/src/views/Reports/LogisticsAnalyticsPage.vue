@@ -20,7 +20,12 @@ import {
   type LogisticsInventoryType,
   type LogisticsMatrixSubject
 } from '@/api/analytics/logistics'
-import { buildPendingStockInDrillRoute, buildStockItemListDrillRoute } from '@/utils/logisticsAnalyticsDrill'
+import {
+  buildPendingStockInDrillRoute,
+  buildStockInFlowDrillRoute,
+  buildStockItemListDrillRoute,
+  buildStockOutFlowDrillRoute
+} from '@/utils/logisticsAnalyticsDrill'
 
 const { t } = useI18n()
 const { def } = useAnalyticsDefinition('logisticsAnalytics')
@@ -44,6 +49,7 @@ const customerMatrix = ref<LogisticsAnalyticsCustomerMatrix | null>(null)
 
 const scopeContext = computed(() => dashboard.value?.scopeContext)
 const maskAmounts = computed(() => scopeContext.value?.maskAmounts === true)
+const maskSalesAmounts = computed(() => scopeContext.value?.maskSalesAmounts === true)
 
 const inventoryTypeOptions: { value: LogisticsInventoryType; labelKey: string }[] = [
   { value: 'all', labelKey: 'logisticsAnalytics.inventoryType.all' },
@@ -77,6 +83,44 @@ function formatMoney(v?: number | null): string {
   return `$\u00a0${v.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
+function formatAmountNumber(amount: number | null | undefined): string {
+  if (amount == null) return '—'
+  return amount.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function formatOriginalMoney(amount: number | null | undefined, currencyLabel: string): string {
+  if (amount == null) return '—'
+  return `${formatAmountNumber(amount)} ${currencyLabel}`
+}
+
+function mapMoneyCurrencyItems(
+  money: { byCurrency?: { currency: number; currencyLabel: string; amount: number }[] } | null | undefined
+) {
+  return (money?.byCurrency ?? []).map((line) => ({
+    currencyLabel: line.currencyLabel,
+    originalText: formatOriginalMoney(line.amount, line.currencyLabel),
+    amountText: formatAmountNumber(line.amount),
+    currency: line.currency,
+    usdText: ''
+  }))
+}
+
+function snapshotMoneyKpiFields(
+  money: { totalUsd?: number | null; byCurrency?: { currency: number; currencyLabel: string; amount: number }[] } | null | undefined
+) {
+  const currencyItems = mapMoneyCurrencyItems(money)
+  const hasUsd = money?.totalUsd != null
+  return {
+    value: formatMoney(money?.totalUsd),
+    valueFormat: 'money' as const,
+    valueSuffix: hasUsd ? t('logisticsAnalytics.kpi.convertedUsdSuffix') : undefined,
+    currencyCaption: t('logisticsAnalytics.kpi.originalCaption'),
+    currencyItems,
+    showCurrencyTip: hasUsd,
+    currencyTipLabel: t('logisticsAnalytics.kpi.viewLocalCurrency')
+  }
+}
+
 function formatAge(v?: number | null): string {
   if (v == null) return '—'
   return `${v.toFixed(1)} ${t('logisticsAnalytics.unit.days')}`
@@ -89,6 +133,7 @@ function buildBaseQuery() {
     inventoryType: inventoryType.value,
     dateTo: asOfDate.value,
     dateFrom: trendDateRange.value[0],
+    trendDateTo: trendDateRange.value[1],
     groupBy: groupBy.value
   }
 }
@@ -104,6 +149,27 @@ const todoKpis = computed(() => {
       tone: 'todo' as const,
       drillable: authStore.hasPermission('purchase-order.read'),
       ...def('todo.pendingStockInQty')
+    }
+  ]
+})
+
+const flowKpis = computed(() => {
+  const flow = dashboard.value?.flow
+  if (!flow) return []
+  return [
+    {
+      key: 'stockInAmount',
+      label: t('logisticsAnalytics.kpi.stockInAmount'),
+      ...snapshotMoneyKpiFields(flow.stockInAmount),
+      drillable: !maskAmounts.value && authStore.hasPermission('inventory.read'),
+      ...def('flow.stockInAmount')
+    },
+    {
+      key: 'stockOutAmount',
+      label: t('logisticsAnalytics.kpi.stockOutAmount'),
+      ...snapshotMoneyKpiFields(flow.stockOutAmount),
+      drillable: !maskSalesAmounts.value && authStore.hasPermission('inventory.read'),
+      ...def('flow.stockOutAmount')
     }
   ]
 })
@@ -262,6 +328,22 @@ function onTodoKpiClick(key: string) {
   )
 }
 
+function onFlowKpiClick(key: string) {
+  const range = {
+    dateFrom: trendDateRange.value[0],
+    dateTo: trendDateRange.value[1]
+  }
+  if (key === 'stockInAmount') {
+    if (maskAmounts.value || !authStore.hasPermission('inventory.read')) return
+    void router.push(buildStockInFlowDrillRoute(range))
+    return
+  }
+  if (key === 'stockOutAmount') {
+    if (maskSalesAmounts.value || !authStore.hasPermission('inventory.read')) return
+    void router.push(buildStockOutFlowDrillRoute(range))
+  }
+}
+
 function onSnapshotKpiClick(key: string) {
   if (key === 'avgAge' || key.endsWith('Count')) return
   void router.push(
@@ -377,6 +459,11 @@ watch(matrixSubject, () => void loadMatrix())
     <section class="section">
       <h3 class="section-title">{{ t('logisticsAnalytics.sections.todo') }}</h3>
       <AnalyticsKpiGrid :items="todoKpis" @item-click="onTodoKpiClick" />
+    </section>
+
+    <section class="section">
+      <h3 class="section-title">{{ t('logisticsAnalytics.sections.flow') }}</h3>
+      <AnalyticsKpiGrid :items="flowKpis" @item-click="onFlowKpiClick" />
     </section>
 
     <section class="section">

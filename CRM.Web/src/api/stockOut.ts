@@ -495,6 +495,8 @@ async function getStockOutDetailInternal(id: string): Promise<StockOutDetailDto 
 /** GET /api/v1/stock-out/items 查询参数（与后端 StockOutItemListQuery 一致） */
 export interface StockOutItemListQuery {
   status?: number
+  /** 出库单头类型：10 销售（含历史 1）/ 20 报关 / 30 退货 / 40 报废 */
+  stockOutType?: number
   stockOutCode?: string
   stockOutDateFrom?: string
   stockOutDateTo?: string
@@ -524,6 +526,8 @@ export interface StockOutItemListRow {
   purchasePn?: string | null
   purchaseBrand?: string | null
   outQuantity: number
+  /** 出库单头类型：10 销售（含历史 1）/ 20 报关 / 30 退货 / 40 报废 */
+  stockOutType?: number
   shipmentMethod?: string | null
   courierTrackingNo?: string | null
   /** 销售明细主键（优先出库明细扩展） */
@@ -741,6 +745,8 @@ function normalizeStockOutItemListRow(row: unknown): StockOutItemListRow {
     purchasePn: (r.purchasePn ?? r.PurchasePn) as string | null | undefined,
     purchaseBrand: (r.purchaseBrand ?? r.PurchaseBrand) as string | null | undefined,
     outQuantity: Number(r.outQuantity ?? r.OutQuantity ?? 0),
+    stockOutType:
+      r.stockOutType != null || r.StockOutType != null ? Number(r.stockOutType ?? r.StockOutType) : undefined,
     shipmentMethod: (r.shipmentMethod ?? r.ShipmentMethod) as string | null | undefined,
     courierTrackingNo: (r.courierTrackingNo ?? r.CourierTrackingNo) as string | null | undefined,
     sellOrderItemId: (r.sellOrderItemId ?? r.SellOrderItemId) as string | null | undefined,

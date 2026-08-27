@@ -66,12 +66,14 @@ namespace CRM.Infrastructure.Extensions
             services.AddScoped<IArrivalNoticeListQuery, ArrivalNoticeListQuery>();
             services.AddScoped<IQcListQuery, QcListQuery>();
             services.AddScoped<IStockInListQuery, StockInListQuery>();
+            services.AddScoped<IStockInListAnalyticsQuery, StockInListAnalyticsQuery>();
             services.AddScoped<IStockInCustomsContextQuery, StockInCustomsContextQuery>();
             services.AddScoped<ICustomsTraceQuery, CustomsTraceQuery>();
             services.AddScoped<ICustomsDeclarationBusinessRecordsQuery, global::CRM.Infrastructure.Customs.CustomsDeclarationBusinessRecordsQuery>();
             services.AddScoped<IStockOutListQuery, StockOutListQuery>();
             services.AddScoped<IStockOutRequestListQuery, StockOutRequestListQuery>();
             services.AddScoped<IStockOutItemListQuery, StockOutItemEfListQuery>();
+            services.AddScoped<IStockOutItemListAnalyticsQuery, StockOutItemListAnalyticsQuery>();
             services.AddScoped<IPackingListQuery, Packings.PackingEfListQuery>();
             services.AddScoped<IInventoryStockItemListQuery, InventoryStockItemEfListQuery>();
             services.AddScoped<IInventoryMaterialOverviewStockPageQuery, InventoryMaterialOverviewStockPageQuery>();

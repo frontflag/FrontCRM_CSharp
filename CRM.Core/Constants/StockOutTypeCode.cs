@@ -23,6 +23,17 @@ public static class StockOutTypeCode
     public static bool IsSalesStockOut(short value) =>
         value is Sales or LegacySales;
 
+    /// <summary>
+    /// 出库明细列表筛选：销售含历史 1；其它类型按业务码精确匹配。
+    /// 仅用于内存判断；EF 谓词请内联。
+    /// </summary>
+    public static bool MatchesItemListFilter(short stored, short requested)
+    {
+        if (IsSalesStockOut(requested) || NormalizeForNotify(requested) == Sales)
+            return IsSalesStockOut(stored);
+        return stored == NormalizeForNotify(requested);
+    }
+
     /// <summary>装箱/出库通知业务类型（不含移库 <see cref="Transfer"/>）。</summary>
     public static bool IsPackingBusinessType(short value) =>
         value is Sales or Customs or Return or Scrap;

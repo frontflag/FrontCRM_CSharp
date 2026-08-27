@@ -11,7 +11,7 @@
 
 - [销售分析](销售分析_MENU_SALES_ANALYTICS.md) — 概况、客户、需求、订单四个页签的统计口径说明。
 - [采购分析](采购分析_MENU_PURCHASE_ANALYTICS.md) — 概况、供应商、报价、订单四个页签的统计口径说明。
-- [物流分析](物流分析_MENU_LOGISTICS_ANALYTICS.md) — 待办、在库概览、入库趋势、客户矩阵、排行等口径说明。
+- [物流分析](物流分析_MENU_LOGISTICS_ANALYTICS.md) — 待办、出入库概况、在库概览、入库趋势、客户矩阵、排行等口径说明。
 - [财务分析](财务分析_MENU_FINANCE_ANALYTICS.md) — 待办、已完成、趋势、原币构成等口径说明。
 
 ## 操作说明

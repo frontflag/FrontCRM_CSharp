@@ -6,6 +6,18 @@ export const logisticsAnalyticsDefsZh = {
       text: '有效采购订单明细上「订购数量 − 已收货数量」的剩余之和（只计仍有剩余的行）。与截至日期无关。'
     }
   },
+  flow: {
+    stockInAmount: {
+      chart: '入库金额',
+      dataSource: '入库单明细',
+      text: '趋势区间内已过账的采购入库：入库数量 × 采购单价（原币分档）；折算美金为入库数量 × 入库过账快照采购美金单价。不含报关/退货/报废/调拨入库。'
+    },
+    stockOutAmount: {
+      chart: '出库金额',
+      dataSource: '出库明细',
+      text: '趋势区间内「出库完成」的销售出库：出库数量 × 销售单价（原币分档）；折算美金为出库数量 × 出库过账快照销售美金单价。不含准备出库，也不含报关/退货/报废/调拨出库。'
+    }
+  },
   snapshot: {
     onHandQty: {
       chart: '在库商品数量',
