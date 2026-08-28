@@ -150,32 +150,32 @@ export const salesOrderItemListBoardDefsZh = {
     customerByAmount: {
       chart: '客户 Top10（金额）',
       dataSource: '销售订单明细',
-      text: '按客户汇总明细折算美元金额（或行数）降序前 10；可在金额/数量间切换。'
+      text: '按客户汇总明细折算美元金额（或明细数）降序前 10；可在金额/明细数间切换。'
     },
     pnByAmount: {
       chart: '物料 Top10（金额）',
       dataSource: '销售订单明细',
-      text: '按物料型号汇总折算美元金额（或行数）降序前 10。'
+      text: '按物料型号汇总折算美元金额（或明细数）降序前 10；可在金额/明细数间切换。'
     },
     pnByQty: {
       chart: '物料 Top10（数量）',
       dataSource: '销售订单明细',
-      text: '按物料型号汇总数量降序前 10。'
+      text: '按物料型号汇总数量降序前 10；列显示数量，不受金额/明细数切换影响。'
     },
     brandByAmount: {
       chart: '品牌 Top10（金额）',
       dataSource: '销售订单明细',
-      text: '按品牌汇总折算美元金额（或行数）降序前 10。'
+      text: '按品牌汇总折算美元金额（或明细数）降序前 10；可在金额/明细数间切换。'
     },
     brandByQty: {
       chart: '品牌 Top10（数量）',
       dataSource: '销售订单明细',
-      text: '按品牌汇总数量降序前 10。'
+      text: '按品牌汇总数量降序前 10；列显示数量，不受金额/明细数切换影响。'
     },
     salesUserByAmount: {
       chart: '销售员 Top10（金额）',
       dataSource: '销售订单明细',
-      text: '按销售员汇总折算美元金额（或行数）降序前 10。'
+      text: '按销售员汇总折算美元金额（或明细数）降序前 10；可在金额/明细数间切换。'
     }
   }
 }

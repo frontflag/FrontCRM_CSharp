@@ -16,6 +16,10 @@ export interface SalesAnalyticsQuery {
   dateFrom?: string
   dateTo?: string
   groupBy?: 'day' | 'week' | 'month'
+  /** 排行排序：amount（默认）或 count */
+  rankingSort?: 'amount' | 'count'
+  /** 明细维 count 口径：lines（明细行）或 transactions（去重订单） */
+  rankingLineMetric?: 'lines' | 'transactions'
 }
 
 export interface SalesAnalyticsScopeContext {
@@ -67,6 +71,7 @@ export interface SalesAnalyticsRankingRow {
   name: string
   amount?: number | null
   orderCount: number
+  transactionCount?: number
 }
 
 export interface SalesAnalyticsDashboard {
@@ -166,6 +171,8 @@ function buildParams(q: SalesAnalyticsQuery): Record<string, string> {
   if (q.dateFrom) p.dateFrom = q.dateFrom
   if (q.dateTo) p.dateTo = q.dateTo
   if (q.groupBy) p.groupBy = q.groupBy
+  if (q.rankingSort) p.rankingSort = q.rankingSort
+  if (q.rankingLineMetric) p.rankingLineMetric = q.rankingLineMetric
   return p
 }
 

@@ -3,8 +3,10 @@ import { purchaseAnalyticsDefsEn } from './fragments/purchaseAnalyticsDefs.en-US
 import { logisticsAnalyticsDefsEn } from './fragments/logisticsAnalyticsDefs.en-US'
 import { financeAnalyticsDefsEn } from './fragments/financeAnalyticsDefs.en-US'
 import { rfqItemListBoardDefsEn } from './fragments/rfqItemListBoardDefs.en-US'
+import { salesAnalyticsOrderTabDefsEn } from './fragments/salesAnalyticsOrderTabDefs.en-US'
 import { salesOrderItemListBoardDefsEn } from './fragments/salesOrderItemListBoardDefs.en-US'
 import { quoteListBoardDefsEn } from './fragments/quoteListBoardDefs.en-US'
+import { purchaseAnalyticsOrderTabDefsEn } from './fragments/purchaseAnalyticsOrderTabDefs.en-US'
 import { purchaseOrderItemListBoardDefsEn } from './fragments/purchaseOrderItemListBoardDefs.en-US'
 import { stockOutItemListBoardDefsEn } from './fragments/stockOutItemListBoardDefs.en-US'
 import { stockInListBoardDefsEn } from './fragments/stockInListBoardDefs.en-US'
@@ -1075,17 +1077,19 @@ const enUS = {
       },
       rankings: {
         metricMode: 'Ranking metric',
-        customerByAmount: 'Top 10 customers (amount)',
-        pnByAmount: 'Top 10 MPN (amount)',
-        pnByQty: 'Top 10 MPN (qty)',
-        brandByAmount: 'Top 10 brands (amount)',
-        brandByQty: 'Top 10 brands (qty)',
-        salesUserByAmount: 'Top 10 sales reps (amount)',
+        customerByAmount: 'Top 10 customers',
+        pnByAmount: 'Top 10 MPN',
+        pnByQty: 'Top 10 MPN',
+        brandByAmount: 'Top 10 brands',
+        brandByQty: 'Top 10 brands',
+        salesUserByAmount: 'Top 10 sales reps',
         name: 'Name',
         lineCount: 'Lines',
+        transactionFrequency: 'Transactions',
         qty: 'Qty',
         amount: 'Amount (converted USD)'
-      }
+      },
+      defs: salesAnalyticsOrderTabDefsEn
     },
     rfqTab: {
       datasetTag: 'Report',
@@ -1346,17 +1350,19 @@ const enUS = {
       },
       rankings: {
         metricMode: 'Ranking metric',
-        vendorByAmount: 'Top 10 vendors (amount)',
-        pnByAmount: 'Top 10 MPN (amount)',
-        pnByQty: 'Top 10 MPN (qty)',
-        brandByAmount: 'Top 10 brands (amount)',
-        brandByQty: 'Top 10 brands (qty)',
-        purchaseUserByAmount: 'Top 10 buyers (amount)',
+        vendorByAmount: 'Top 10 vendors',
+        pnByAmount: 'Top 10 MPN',
+        pnByQty: 'Top 10 MPN',
+        brandByAmount: 'Top 10 brands',
+        brandByQty: 'Top 10 brands',
+        purchaseUserByAmount: 'Top 10 buyers',
         name: 'Name',
         lineCount: 'Lines',
+        transactionFrequency: 'Transactions',
         qty: 'Qty',
         amount: 'Amount (converted USD)'
-      }
+      },
+      defs: purchaseAnalyticsOrderTabDefsEn
     },
     quoteTab: {
       datasetTag: 'Report',

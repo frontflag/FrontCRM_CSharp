@@ -247,91 +247,90 @@ public sealed partial class SalesOrderItemLineListQuery
         var rates = maskAmounts
             ? new FinanceExchangeRateDto()
             : await _exchangeRateService.GetCurrentAsync(cancellationToken);
+        var rankingSort = SalesOrderItemAnalyticsRankingSort.Normalize(request.AnalyticsRankingSort);
+        var rankingLineMetric = SalesOrderItemAnalyticsRankingLineMetric.Normalize(request.AnalyticsRankingLineMetric);
 
-        var customerByAmount = rows
-            .Where(r => !string.IsNullOrWhiteSpace(r.CustomerId))
-            .GroupBy(r => r.CustomerId!, StringComparer.OrdinalIgnoreCase)
-            .Select(g => new SalesAnalyticsRankingRowDto
-            {
-                Id = g.Key,
-                Name = g.First().CustomerName ?? g.Key,
-                Amount = maskAmounts ? null : g.Sum(r => CalcUsdLineTotal(r, rates) ?? 0m),
-                OrderCount = g.Count()
-            })
-            .OrderByDescending(x => x.Amount ?? x.OrderCount)
-            .Take(topN)
-            .ToList();
+        var customerByAmount = TakeTopLineRankings(
+            rows
+                .Where(r => !string.IsNullOrWhiteSpace(r.CustomerId))
+                .GroupBy(r => r.CustomerId!, StringComparer.OrdinalIgnoreCase)
+                .Select(g => BuildLineRankingRow(
+                    g,
+                    g.Key,
+                    g.First().CustomerName ?? g.Key,
+                    maskAmounts,
+                    rates)),
+            rankingSort,
+            rankingLineMetric,
+            topN);
 
-        var pnByAmount = rows
-            .Where(r => !string.IsNullOrWhiteSpace(r.PN))
-            .GroupBy(r => r.PN!.Trim(), StringComparer.OrdinalIgnoreCase)
-            .Select(g => new SalesAnalyticsRankingRowDto
-            {
-                Id = g.Key,
-                Name = g.First().Brand != null ? $"{g.Key} / {g.First().Brand}" : g.Key,
-                Amount = maskAmounts ? null : g.Sum(r => CalcUsdLineTotal(r, rates) ?? 0m),
-                OrderCount = g.Count()
-            })
-            .OrderByDescending(x => x.Amount ?? x.OrderCount)
-            .Take(topN)
-            .ToList();
+        var pnByAmount = TakeTopLineRankings(
+            rows
+                .Where(r => !string.IsNullOrWhiteSpace(r.PN))
+                .GroupBy(r => r.PN!.Trim(), StringComparer.OrdinalIgnoreCase)
+                .Select(g => BuildLineRankingRow(
+                    g,
+                    g.Key,
+                    g.First().Brand != null ? $"{g.Key} / {g.First().Brand}" : g.Key,
+                    maskAmounts,
+                    rates)),
+            rankingSort,
+            rankingLineMetric,
+            topN);
 
-        var pnByQty = rows
-            .Where(r => !string.IsNullOrWhiteSpace(r.PN))
-            .GroupBy(r => r.PN!.Trim(), StringComparer.OrdinalIgnoreCase)
-            .Select(g => new SalesAnalyticsRankingRowDto
-            {
-                Id = g.Key,
-                Name = g.First().Brand != null ? $"{g.Key} / {g.First().Brand}" : g.Key,
-                Amount = maskAmounts ? null : g.Sum(r => CalcUsdLineTotal(r, rates) ?? 0m),
-                OrderCount = (int)Math.Round(g.Sum(r => r.Qty), MidpointRounding.AwayFromZero)
-            })
-            .OrderByDescending(x => x.OrderCount)
-            .Take(topN)
-            .ToList();
+        var pnByQty = TakeTopQtyRankings(
+            rows
+                .Where(r => !string.IsNullOrWhiteSpace(r.PN))
+                .GroupBy(r => r.PN!.Trim(), StringComparer.OrdinalIgnoreCase)
+                .Select(g => new SalesAnalyticsRankingRowDto
+                {
+                    Id = g.Key,
+                    Name = g.First().Brand != null ? $"{g.Key} / {g.First().Brand}" : g.Key,
+                    Amount = maskAmounts ? null : g.Sum(r => CalcUsdLineTotal(r, rates) ?? 0m),
+                    OrderCount = (int)Math.Round(g.Sum(r => r.Qty), MidpointRounding.AwayFromZero),
+                    TransactionCount = CountDistinctOrders(g)
+                }),
+            rankingSort,
+            topN);
 
-        var brandByAmount = rows
-            .Where(r => !string.IsNullOrWhiteSpace(r.Brand))
-            .GroupBy(r => r.Brand!.Trim(), StringComparer.OrdinalIgnoreCase)
-            .Select(g => new SalesAnalyticsRankingRowDto
-            {
-                Id = g.Key,
-                Name = g.Key,
-                Amount = maskAmounts ? null : g.Sum(r => CalcUsdLineTotal(r, rates) ?? 0m),
-                OrderCount = g.Count()
-            })
-            .OrderByDescending(x => x.Amount ?? x.OrderCount)
-            .Take(topN)
-            .ToList();
+        var brandByAmount = TakeTopLineRankings(
+            rows
+                .Where(r => !string.IsNullOrWhiteSpace(r.Brand))
+                .GroupBy(r => r.Brand!.Trim(), StringComparer.OrdinalIgnoreCase)
+                .Select(g => BuildLineRankingRow(g, g.Key, g.Key, maskAmounts, rates)),
+            rankingSort,
+            rankingLineMetric,
+            topN);
 
-        var brandByQty = rows
-            .Where(r => !string.IsNullOrWhiteSpace(r.Brand))
-            .GroupBy(r => r.Brand!.Trim(), StringComparer.OrdinalIgnoreCase)
-            .Select(g => new SalesAnalyticsRankingRowDto
-            {
-                Id = g.Key,
-                Name = g.Key,
-                Amount = maskAmounts ? null : g.Sum(r => CalcUsdLineTotal(r, rates) ?? 0m),
-                OrderCount = (int)Math.Round(g.Sum(r => r.Qty), MidpointRounding.AwayFromZero)
-            })
-            .OrderByDescending(x => x.OrderCount)
-            .Take(topN)
-            .ToList();
+        var brandByQty = TakeTopQtyRankings(
+            rows
+                .Where(r => !string.IsNullOrWhiteSpace(r.Brand))
+                .GroupBy(r => r.Brand!.Trim(), StringComparer.OrdinalIgnoreCase)
+                .Select(g => new SalesAnalyticsRankingRowDto
+                {
+                    Id = g.Key,
+                    Name = g.Key,
+                    Amount = maskAmounts ? null : g.Sum(r => CalcUsdLineTotal(r, rates) ?? 0m),
+                    OrderCount = (int)Math.Round(g.Sum(r => r.Qty), MidpointRounding.AwayFromZero),
+                    TransactionCount = CountDistinctOrders(g)
+                }),
+            rankingSort,
+            topN);
 
-        var salesUserByAmount = rows
-            .GroupBy(r => r.SalesUserId ?? "_unset", StringComparer.OrdinalIgnoreCase)
-            .Select(g => new SalesAnalyticsRankingRowDto
-            {
-                Id = g.Key,
-                Name = g.Key == "_unset"
-                    ? "未分配销售员"
-                    : (g.First().SalesUserName ?? g.Key),
-                Amount = maskAmounts ? null : g.Sum(r => CalcUsdLineTotal(r, rates) ?? 0m),
-                OrderCount = g.Count()
-            })
-            .OrderByDescending(x => x.Amount ?? x.OrderCount)
-            .Take(topN)
-            .ToList();
+        var salesUserByAmount = TakeTopLineRankings(
+            rows
+                .GroupBy(r => r.SalesUserId ?? "_unset", StringComparer.OrdinalIgnoreCase)
+                .Select(g => BuildLineRankingRow(
+                    g,
+                    g.Key,
+                    g.Key == "_unset"
+                        ? "未分配销售员"
+                        : (g.First().SalesUserName ?? g.Key),
+                    maskAmounts,
+                    rates)),
+            rankingSort,
+            rankingLineMetric,
+            topN);
 
         return new SalesOrderItemListAnalyticsRankingsDto
         {
@@ -342,6 +341,54 @@ public sealed partial class SalesOrderItemLineListQuery
             BrandByQty = brandByQty,
             SalesUserByAmount = salesUserByAmount
         };
+    }
+
+    private static int CountDistinctOrders(IEnumerable<ItemLineAnalyticsRow> rows) =>
+        rows.Select(r => r.OrderId).Distinct(StringComparer.OrdinalIgnoreCase).Count();
+
+    private static SalesAnalyticsRankingRowDto BuildLineRankingRow(
+        IGrouping<string, ItemLineAnalyticsRow> group,
+        string id,
+        string name,
+        bool maskAmounts,
+        FinanceExchangeRateDto rates) =>
+        new()
+        {
+            Id = id,
+            Name = name,
+            Amount = maskAmounts ? null : group.Sum(r => CalcUsdLineTotal(r, rates) ?? 0m),
+            OrderCount = group.Count(),
+            TransactionCount = CountDistinctOrders(group)
+        };
+
+    private static List<SalesAnalyticsRankingRowDto> TakeTopLineRankings(
+        IEnumerable<SalesAnalyticsRankingRowDto> rows,
+        string rankingSort,
+        string rankingLineMetric,
+        int topN)
+    {
+        IEnumerable<SalesAnalyticsRankingRowDto> ordered = rankingSort switch
+        {
+            SalesOrderItemAnalyticsRankingSort.Count when rankingLineMetric == SalesOrderItemAnalyticsRankingLineMetric.Transactions
+                => rows.OrderByDescending(x => x.TransactionCount),
+            SalesOrderItemAnalyticsRankingSort.Count
+                => rows.OrderByDescending(x => x.OrderCount),
+            _ => rows.OrderByDescending(x => x.Amount ?? x.OrderCount)
+        };
+        return ordered.Take(topN).ToList();
+    }
+
+    private static List<SalesAnalyticsRankingRowDto> TakeTopQtyRankings(
+        IEnumerable<SalesAnalyticsRankingRowDto> rows,
+        string rankingSort,
+        int topN)
+    {
+        IEnumerable<SalesAnalyticsRankingRowDto> ordered = rankingSort switch
+        {
+            SalesOrderItemAnalyticsRankingSort.Count => rows.OrderByDescending(x => x.OrderCount),
+            _ => rows.OrderByDescending(x => x.Amount ?? x.OrderCount)
+        };
+        return ordered.Take(topN).ToList();
     }
 
     private async Task<List<ItemLineAnalyticsRow>> LoadAllLineRowsAsync(

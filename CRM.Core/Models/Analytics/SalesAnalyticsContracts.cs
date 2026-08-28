@@ -92,7 +92,10 @@ public sealed class SalesAnalyticsRankingRowDto
     public string Id { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public decimal? Amount { get; set; }
+    /// <summary>明细行数，或 Qty 类排行中的数量合计。</summary>
     public int OrderCount { get; set; }
+    /// <summary>分组内去重销售订单张数（交易频次）。</summary>
+    public int TransactionCount { get; set; }
 }
 
 public sealed class SalesAnalyticsRankingsDto

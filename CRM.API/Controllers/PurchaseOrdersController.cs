@@ -354,12 +354,16 @@ namespace CRM.API.Controllers
             [FromQuery] List<short>? invoiceProgressStatus = null,
             [FromQuery] string? quickFilter = null,
             [FromQuery] string? dataset = null,
+            [FromQuery] string? rankingSort = null,
+            [FromQuery] string? rankingLineMetric = null,
             CancellationToken cancellationToken = default)
         {
             var (request, maskAmounts) = await BuildItemListAnalyticsQueryRequestAsync(
                 startDate, endDate, purchaseOrderCode, freightForwarderOrderNo, vendorName, purchaseUserName,
                 pn, orderType, transactionCurrency, paymentProgressStatus, purchaseProgressStatus,
                 stockInProgressStatus, invoiceProgressStatus, quickFilter, dataset, cancellationToken);
+            request.AnalyticsRankingSort = rankingSort;
+            request.AnalyticsRankingLineMetric = rankingLineMetric;
             var data = await _purchaseOrderItemListQuery.GetListAnalyticsRankingsAsync(request, maskAmounts, cancellationToken);
             return Ok(ApiResponse<PurchaseOrderItemListAnalyticsRankingsDto>.Ok(data));
         }

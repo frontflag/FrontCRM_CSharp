@@ -147,6 +147,10 @@ namespace CRM.Core.Interfaces
         public string? AnalyticsViewLevel { get; set; }
         /// <summary>报表部门透镜主键（仅 department）。</summary>
         public string? AnalyticsDepartmentId { get; set; }
+        /// <summary>排行排序：<c>amount</c>（默认）或 <c>count</c>。</summary>
+        public string? AnalyticsRankingSort { get; set; }
+        /// <summary>明细维 count 口径：<c>lines</c>（明细行数）或 <c>transactions</c>（去重订单数）。</summary>
+        public string? AnalyticsRankingLineMetric { get; set; }
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 20;
         public string? CurrentUserId { get; set; }

@@ -19,6 +19,8 @@ export interface PurchaseAnalyticsQuery {
   dateFrom?: string
   dateTo?: string
   groupBy?: 'day' | 'week' | 'month'
+  rankingSort?: 'amount' | 'count'
+  rankingLineMetric?: 'lines' | 'transactions'
 }
 
 export interface PurchaseAnalyticsScopeContext {
@@ -122,6 +124,8 @@ function buildParams(q: PurchaseAnalyticsQuery): Record<string, string> {
   if (q.dateFrom) p.dateFrom = q.dateFrom
   if (q.dateTo) p.dateTo = q.dateTo
   if (q.groupBy) p.groupBy = q.groupBy
+  if (q.rankingSort) p.rankingSort = q.rankingSort
+  if (q.rankingLineMetric) p.rankingLineMetric = q.rankingLineMetric
   return p
 }
 

@@ -3,8 +3,10 @@ import { purchaseAnalyticsDefsZh } from './fragments/purchaseAnalyticsDefs.zh-CN
 import { logisticsAnalyticsDefsZh } from './fragments/logisticsAnalyticsDefs.zh-CN'
 import { financeAnalyticsDefsZh } from './fragments/financeAnalyticsDefs.zh-CN'
 import { rfqItemListBoardDefsZh } from './fragments/rfqItemListBoardDefs.zh-CN'
+import { salesAnalyticsOrderTabDefsZh } from './fragments/salesAnalyticsOrderTabDefs.zh-CN'
 import { salesOrderItemListBoardDefsZh } from './fragments/salesOrderItemListBoardDefs.zh-CN'
 import { quoteListBoardDefsZh } from './fragments/quoteListBoardDefs.zh-CN'
+import { purchaseAnalyticsOrderTabDefsZh } from './fragments/purchaseAnalyticsOrderTabDefs.zh-CN'
 import { purchaseOrderItemListBoardDefsZh } from './fragments/purchaseOrderItemListBoardDefs.zh-CN'
 import { stockOutItemListBoardDefsZh } from './fragments/stockOutItemListBoardDefs.zh-CN'
 import { stockInListBoardDefsZh } from './fragments/stockInListBoardDefs.zh-CN'
@@ -1070,17 +1072,19 @@ const zhCN = {
       },
       rankings: {
         metricMode: '排行指标',
-        customerByAmount: '客户 Top10（成单金额）',
-        pnByAmount: '物料 Top10（成单金额）',
-        pnByQty: '物料 Top10（数量）',
-        brandByAmount: '品牌 Top10（成单金额）',
-        brandByQty: '品牌 Top10（数量）',
-        salesUserByAmount: '销售员 Top10（成单金额）',
+        customerByAmount: '客户 Top10',
+        pnByAmount: '物料 Top10',
+        pnByQty: '物料 Top10',
+        brandByAmount: '品牌 Top10',
+        brandByQty: '品牌 Top10',
+        salesUserByAmount: '销售员 Top10',
         name: '名称',
         lineCount: '明细数',
+        transactionFrequency: '交易频次',
         qty: '数量',
         amount: '金额（折算USD）'
-      }
+      },
+      defs: salesAnalyticsOrderTabDefsZh
     },
     rfqTab: {
       datasetTag: '报表',
@@ -1341,17 +1345,19 @@ const zhCN = {
       },
       rankings: {
         metricMode: '排行指标',
-        vendorByAmount: '供应商 Top10（成单金额）',
-        pnByAmount: '物料 Top10（成单金额）',
-        pnByQty: '物料 Top10（数量）',
-        brandByAmount: '品牌 Top10（成单金额）',
-        brandByQty: '品牌 Top10（数量）',
-        purchaseUserByAmount: '采购员 Top10（成单金额）',
+        vendorByAmount: '供应商 Top10',
+        pnByAmount: '物料 Top10',
+        pnByQty: '物料 Top10',
+        brandByAmount: '品牌 Top10',
+        brandByQty: '品牌 Top10',
+        purchaseUserByAmount: '采购员 Top10',
         name: '名称',
         lineCount: '明细数',
+        transactionFrequency: '交易频次',
         qty: '数量',
         amount: '金额（折算USD）'
-      }
+      },
+      defs: purchaseAnalyticsOrderTabDefsZh
     },
     quoteTab: {
       datasetTag: '报表',

@@ -36,7 +36,14 @@ const props = withDefaults(
 )
 
 const { t } = useI18n()
-const { def } = useAnalyticsDefinition('purchaseOrderItemList.board')
+const { def: boardDef } = useAnalyticsDefinition('purchaseOrderItemList.board')
+const { def: reportDef } = useAnalyticsDefinition('purchaseAnalytics.orderTab')
+const def = boardDef
+
+function rankingPanelDef(titleKey: string) {
+  const path = `rankings.${titleKey}`
+  return props.mode === 'report' ? reportDef(path) : boardDef(path)
+}
 
 const loading = ref(false)
 const groupBy = ref<'day' | 'week' | 'month'>('month')
@@ -62,7 +69,7 @@ interface RankingTableConfig {
   countKind: RankingCountKind
 }
 
-const rankingTables: RankingTableConfig[] = [
+const rankingTablesAll: RankingTableConfig[] = [
   { key: 'vendor', titleKey: 'vendorByAmount', dataKey: 'vendorByAmount', countKind: 'line' },
   { key: 'pnAmount', titleKey: 'pnByAmount', dataKey: 'pnByAmount', countKind: 'line' },
   { key: 'pnQty', titleKey: 'pnByQty', dataKey: 'pnByQty', countKind: 'qty' },
@@ -70,6 +77,13 @@ const rankingTables: RankingTableConfig[] = [
   { key: 'brandQty', titleKey: 'brandByQty', dataKey: 'brandByQty', countKind: 'qty' },
   { key: 'purchaseUser', titleKey: 'purchaseUserByAmount', dataKey: 'purchaseUserByAmount', countKind: 'line' }
 ]
+
+/** 报表订单 Tab 仅 4 个 Top10（金额/交易频次）；列表看板保留数量维。 */
+const rankingTables = computed(() =>
+  isReportMode.value
+    ? rankingTablesAll.filter((t) => t.countKind === 'line')
+    : rankingTablesAll
+)
 
 const PO_ITEM_STATUS_I18N_KEY: Record<number, string> = {
   1: 'new',
@@ -91,6 +105,20 @@ const effectiveRankingMetricMode = computed<'amount' | 'count'>(() =>
   maskAmounts.value ? 'count' : rankingMetricMode.value
 )
 
+const rankingCountModeLabel = computed(() =>
+  isReportMode.value ? tt('rankings.transactionFrequency') : tt('rankings.lineCount')
+)
+
+function rankingQueryParams(): Pick<PurchaseAnalyticsQuery, 'rankingSort' | 'rankingLineMetric'> {
+  if (effectiveRankingMetricMode.value === 'amount') {
+    return { rankingSort: 'amount' }
+  }
+  if (isReportMode.value) {
+    return { rankingSort: 'count', rankingLineMetric: 'transactions' }
+  }
+  return { rankingSort: 'count', rankingLineMetric: 'lines' }
+}
+
 function tt(path: string): string {
   return t(`${i18nPrefix.value}.${path}`)
 }
@@ -101,15 +129,18 @@ function rankingRowsFor(config: RankingTableConfig): PurchaseOrderItemListAnalyt
 }
 
 function rankingCountLabel(kind: RankingCountKind): string {
-  return kind === 'qty' ? tt('rankings.qty') : tt('rankings.lineCount')
+  if (kind === 'qty') return tt('rankings.qty')
+  if (isReportMode.value) return tt('rankings.transactionFrequency')
+  return tt('rankings.lineCount')
 }
 
 function rankingMetricHeaderLabel(kind: RankingCountKind): string {
   return effectiveRankingMetricMode.value === 'amount' ? tt('rankings.amount') : rankingCountLabel(kind)
 }
 
-function formatRankingMetric(row: PurchaseOrderItemListAnalyticsRankingRow): string {
+function formatRankingMetric(row: PurchaseOrderItemListAnalyticsRankingRow, kind: RankingCountKind): string {
   if (effectiveRankingMetricMode.value === 'amount') return formatMoney(row.amount)
+  if (kind === 'line' && isReportMode.value) return String(row.transactionCount ?? 0)
   return String(row.orderCount ?? 0)
 }
 
@@ -338,20 +369,47 @@ function localizedBreakdownItems(group: PurchaseAnalyticsBreakdownGroup) {
 }
 
 function reportQueryKey(q: PurchaseAnalyticsQuery): string {
+  const rp = rankingQueryParams()
   return [
     q.viewLevel ?? '',
     q.departmentId ?? '',
     q.purchaseUserId ?? '',
     q.dateFrom ?? '',
     q.dateTo ?? '',
-    q.groupBy ?? groupBy.value
+    q.groupBy ?? groupBy.value,
+    rp.rankingSort ?? 'amount',
+    rp.rankingLineMetric ?? ''
   ].join('|')
+}
+
+async function loadRankings() {
+  if (!props.active) return
+  try {
+    if (isReportMode.value) {
+      const q: PurchaseAnalyticsQuery = {
+        ...(props.reportQuery ?? {}),
+        groupBy: groupBy.value,
+        ...rankingQueryParams()
+      }
+      rankings.value = await purchaseAnalyticsApi.getOrderItemsRankings(q)
+    } else {
+      const q: PurchaseOrderItemListAnalyticsQuery = {
+        ...(props.filters ?? {}),
+        dataset: 'listFilter',
+        ...rankingQueryParams()
+      }
+      rankings.value = await purchaseOrderItemListAnalyticsApi.getRankings(q)
+    }
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : tt('loadFailed')
+    ElMessage.error(msg)
+  }
 }
 
 async function loadData(force = false) {
   if (!props.active) return
   if (isReportMode.value) {
-    const q = { ...(props.reportQuery ?? {}), groupBy: groupBy.value }
+    const q = { ...(props.reportQuery ?? {}), groupBy: groupBy.value, ...rankingQueryParams() }
     const key = reportQueryKey(q)
     if (!force && loadedKey.value === key && dashboard.value) return
     loading.value = true
@@ -380,7 +438,8 @@ async function loadData(force = false) {
   try {
     const q: PurchaseOrderItemListAnalyticsQuery = {
       ...(props.filters ?? {}),
-      dataset: 'listFilter'
+      dataset: 'listFilter',
+      ...rankingQueryParams()
     }
     const [dash, breakdownRows, rankingRows] = await Promise.all([
       purchaseOrderItemListAnalyticsApi.getDashboard(q),
@@ -422,6 +481,11 @@ watch(
   },
   { immediate: true }
 )
+
+watch(rankingMetricMode, () => {
+  if (maskAmounts.value) return
+  void loadRankings()
+})
 
 defineExpose({ reload: () => loadData(true) })
 </script>
@@ -509,7 +573,7 @@ defineExpose({ reload: () => loadData(true) })
         <span class="rankings-toolbar-label">{{ tt('rankings.metricMode') }}</span>
         <el-radio-group v-model="rankingMetricMode" size="small">
           <el-radio-button value="amount">{{ tt('rankings.amount') }}</el-radio-button>
-          <el-radio-button value="count">{{ tt('rankings.lineCount') }}</el-radio-button>
+          <el-radio-button value="count">{{ rankingCountModeLabel }}</el-radio-button>
         </el-radio-group>
       </div>
 
@@ -517,7 +581,7 @@ defineExpose({ reload: () => loadData(true) })
         <div v-for="table in rankingTables" :key="table.key" class="card ranking-panel">
           <AnalyticsPanelHeader
             :title="tt(`rankings.${table.titleKey}`)"
-            v-bind="def(`rankings.${table.titleKey}`)"
+            v-bind="rankingPanelDef(table.titleKey)"
           />
           <el-table :data="rankingRowsFor(table)" size="small" stripe class="ranking-table">
             <el-table-column
@@ -544,7 +608,7 @@ defineExpose({ reload: () => loadData(true) })
                 </button>
               </template>
               <template #default="{ row }">
-                <span class="ranking-metric-value">{{ formatRankingMetric(row) }}</span>
+                <span class="ranking-metric-value">{{ formatRankingMetric(row, table.countKind) }}</span>
               </template>
             </el-table-column>
           </el-table>

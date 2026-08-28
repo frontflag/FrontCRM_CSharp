@@ -135,32 +135,32 @@ export const purchaseOrderItemListBoardDefsEn = {
     vendorByAmount: {
       chart: 'Top 10 vendors (amount)',
       dataSource: 'Purchase order items',
-      text: 'Top 10 vendors by converted USD (or line count); metric toggle available.'
+      text: 'Top 10 vendors by converted USD (or line count); toggle amount / line count.'
     },
     pnByAmount: {
       chart: 'Top 10 MPN (amount)',
       dataSource: 'Purchase order items',
-      text: 'Top 10 MPNs by converted USD (or line count).'
+      text: 'Top 10 MPNs by converted USD (or line count); toggle amount / line count.'
     },
     pnByQty: {
       chart: 'Top 10 MPN (qty)',
       dataSource: 'Purchase order items',
-      text: 'Top 10 MPNs by quantity.'
+      text: 'Top 10 MPNs by quantity; qty column is independent of amount/line toggle.'
     },
     brandByAmount: {
       chart: 'Top 10 brands (amount)',
       dataSource: 'Purchase order items',
-      text: 'Top 10 brands by converted USD (or line count).'
+      text: 'Top 10 brands by converted USD (or line count); toggle amount / line count.'
     },
     brandByQty: {
       chart: 'Top 10 brands (qty)',
       dataSource: 'Purchase order items',
-      text: 'Top 10 brands by quantity.'
+      text: 'Top 10 brands by quantity; qty column is independent of amount/line toggle.'
     },
     purchaseUserByAmount: {
       chart: 'Top 10 buyers (amount)',
       dataSource: 'Purchase order items',
-      text: 'Top 10 purchase users by converted USD (or line count).'
+      text: 'Top 10 purchase users by converted USD (or line count); toggle amount / line count.'
     }
   }
 }

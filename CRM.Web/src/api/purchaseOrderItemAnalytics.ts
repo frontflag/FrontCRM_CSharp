@@ -21,6 +21,8 @@ export interface PurchaseOrderItemListAnalyticsQuery {
   quickFilter?: string
   groupBy?: 'day' | 'week' | 'month'
   dataset?: 'listFilter' | 'reportApproved'
+  rankingSort?: 'amount' | 'count'
+  rankingLineMetric?: 'lines' | 'transactions'
 }
 
 export interface PurchaseOrderItemListAnalyticsSnapshot {
@@ -56,6 +58,7 @@ export interface PurchaseOrderItemListAnalyticsRankingRow {
   name: string
   amount?: number | null
   orderCount: number
+  transactionCount?: number
 }
 
 export interface PurchaseOrderItemListAnalyticsRankings {
@@ -93,6 +96,8 @@ function buildParams(q: PurchaseOrderItemListAnalyticsQuery): Record<string, unk
   if (q.quickFilter) p.quickFilter = q.quickFilter
   if (q.groupBy) p.groupBy = q.groupBy
   if (q.dataset) p.dataset = q.dataset
+  if (q.rankingSort) p.rankingSort = q.rankingSort
+  if (q.rankingLineMetric) p.rankingLineMetric = q.rankingLineMetric
   return p
 }
 

@@ -31,6 +31,10 @@ export interface SalesOrderItemListAnalyticsQuery {
   groupBy?: 'day' | 'week' | 'month'
   /** listFilter=跟列表筛选；reportApproved=报表成单 */
   dataset?: 'listFilter' | 'reportApproved'
+  /** 排行排序：amount（默认）或 count */
+  rankingSort?: 'amount' | 'count'
+  /** 明细维 count 口径：lines（明细行）或 transactions（去重订单） */
+  rankingLineMetric?: 'lines' | 'transactions'
 }
 
 export interface SalesOrderItemListAnalyticsCurrencyLine {
@@ -76,6 +80,7 @@ export interface SalesOrderItemListAnalyticsRankingRow {
   name: string
   amount?: number | null
   orderCount: number
+  transactionCount?: number
 }
 
 export interface SalesOrderItemListAnalyticsRankings {
@@ -127,6 +132,8 @@ function buildParams(q: SalesOrderItemListAnalyticsQuery): Record<string, unknow
   if (q.quickFilter) p.quickFilter = q.quickFilter
   if (q.groupBy) p.groupBy = q.groupBy
   if (q.dataset) p.dataset = q.dataset
+  if (q.rankingSort) p.rankingSort = q.rankingSort
+  if (q.rankingLineMetric) p.rankingLineMetric = q.rankingLineMetric
   return p
 }
 

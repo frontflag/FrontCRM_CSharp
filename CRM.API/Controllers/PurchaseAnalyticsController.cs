@@ -165,6 +165,8 @@ public class PurchaseAnalyticsController : ControllerBase
         [FromQuery] string? purchaseUserId,
         [FromQuery] string? dateFrom,
         [FromQuery] string? dateTo,
+        [FromQuery] string? rankingSort = null,
+        [FromQuery] string? rankingLineMetric = null,
         CancellationToken cancellationToken = default)
     {
         var (ok, error, scope) = await ResolveAsync(viewLevel, departmentId, purchaseUserId, dateFrom, dateTo, null, cancellationToken);
@@ -172,6 +174,8 @@ public class PurchaseAnalyticsController : ControllerBase
             return Forbidden(error);
 
         var request = BuildOrderItemsRequest(scope!);
+        request.AnalyticsRankingSort = rankingSort;
+        request.AnalyticsRankingLineMetric = rankingLineMetric;
         var data = await _purchaseOrderItemListQuery.GetListAnalyticsRankingsAsync(request, scope!.MaskAmounts, cancellationToken);
         return Ok(ApiResponse<PurchaseOrderItemListAnalyticsRankingsDto>.Ok(data));
     }
