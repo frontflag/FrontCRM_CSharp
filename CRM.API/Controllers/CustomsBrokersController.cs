@@ -59,6 +59,10 @@ public class CustomsBrokersController : ControllerBase
         /// <summary>1+纯费率，如 1.03 表示 3%。</summary>
         public decimal AgencyRate { get; set; } = 1m;
         public string? Remark { get; set; }
+        public string ContactName { get; set; } = string.Empty;
+        public string Tel { get; set; } = string.Empty;
+        public string? Email { get; set; }
+        public string Address { get; set; } = string.Empty;
     }
 
     public class UpdateCustomsBrokerRequest
@@ -68,6 +72,10 @@ public class CustomsBrokersController : ControllerBase
         public short Type { get; set; } = 10;
         public decimal AgencyRate { get; set; } = 1m;
         public string? Remark { get; set; }
+        public string ContactName { get; set; } = string.Empty;
+        public string Tel { get; set; } = string.Empty;
+        public string? Email { get; set; }
+        public string Address { get; set; } = string.Empty;
     }
 
     public class SetCustomsBrokerStatusRequest
@@ -85,7 +93,7 @@ public class CustomsBrokersController : ControllerBase
                 return StatusCode(403, ApiResponse<CustomsBroker>.Fail("当前账号无权访问报关模块", 403));
 
             var uid = User?.Claims?.FirstOrDefault(c => c.Type == "sub" || c.Type == "userId")?.Value;
-            var row = await _service.CreateAsync(body.Cname, body.Ename, body.Type, body.AgencyRate, body.Remark, uid);
+            var row = await _service.CreateAsync(MapWriteFields(body), uid);
             return Ok(ApiResponse<CustomsBroker>.Ok(row, "创建成功"));
         }
         catch (ArgumentException ex)
@@ -112,7 +120,7 @@ public class CustomsBrokersController : ControllerBase
                 return StatusCode(403, ApiResponse<CustomsBroker>.Fail("当前账号无权访问报关模块", 403));
 
             var uid = User?.Claims?.FirstOrDefault(c => c.Type == "sub" || c.Type == "userId")?.Value;
-            var row = await _service.UpdateAsync(id, body.Cname, body.Ename, body.Type, body.AgencyRate, body.Remark, uid);
+            var row = await _service.UpdateAsync(id, MapWriteFields(body), uid);
             return Ok(ApiResponse<CustomsBroker>.Ok(row, "保存成功"));
         }
         catch (InvalidOperationException ex)
@@ -184,4 +192,32 @@ public class CustomsBrokersController : ControllerBase
             return StatusCode(500, ApiResponse<object>.Fail(ex.Message, 500));
         }
     }
+
+    private static CustomsBrokerWriteFields MapWriteFields(CreateCustomsBrokerRequest body) =>
+        new()
+        {
+            Cname = body.Cname,
+            Ename = body.Ename,
+            RegionType = body.Type,
+            AgencyRate = body.AgencyRate,
+            Remark = body.Remark,
+            ContactName = body.ContactName,
+            Tel = body.Tel,
+            Email = body.Email,
+            Address = body.Address
+        };
+
+    private static CustomsBrokerWriteFields MapWriteFields(UpdateCustomsBrokerRequest body) =>
+        new()
+        {
+            Cname = body.Cname,
+            Ename = body.Ename,
+            RegionType = body.Type,
+            AgencyRate = body.AgencyRate,
+            Remark = body.Remark,
+            ContactName = body.ContactName,
+            Tel = body.Tel,
+            Email = body.Email,
+            Address = body.Address
+        };
 }

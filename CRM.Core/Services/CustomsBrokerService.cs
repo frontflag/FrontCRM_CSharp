@@ -42,50 +42,30 @@ public class CustomsBrokerService : ICustomsBrokerService
 
     public Task<CustomsBroker?> GetByIdAsync(string id) => _repo.GetByIdAsync(id);
 
-    public async Task<CustomsBroker> CreateAsync(string cname, string? ename, short regionType, decimal agencyRate, string? remark, string? actingUserId)
+    public async Task<CustomsBroker> CreateAsync(CustomsBrokerWriteFields fields, string? actingUserId)
     {
-        if (string.IsNullOrWhiteSpace(cname))
-            throw new ArgumentException("公司中文名不能为空", nameof(cname));
-        EnsureRegionType(regionType);
-        EnsureAgencyRate(agencyRate);
-
-        var code = await _serialNumberService.GenerateNextAsync(ModuleCodes.CustomsBroker);
-
         var row = new CustomsBroker
         {
             Id = Guid.NewGuid().ToString(),
-            BrokerCode = code,
-            Cname = cname.Trim(),
-            Ename = string.IsNullOrWhiteSpace(ename) ? null : ename.Trim(),
-            RegionType = regionType,
-            AgencyRate = agencyRate,
+            BrokerCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.CustomsBroker),
             Status = CustomsBrokerStatusCodes.Active,
             IsDeleted = false,
-            Remark = string.IsNullOrWhiteSpace(remark) ? null : remark.Trim(),
             CreateTime = DateTime.UtcNow,
             CreateByUserId = ActingUserIdNormalizer.Normalize(actingUserId)
         };
+        ApplyWriteFields(row, fields);
         await _repo.AddAsync(row);
         await _unitOfWork.SaveChangesAsync();
         return row;
     }
 
-    public async Task<CustomsBroker> UpdateAsync(string id, string cname, string? ename, short regionType, decimal agencyRate, string? remark, string? actingUserId)
+    public async Task<CustomsBroker> UpdateAsync(string id, CustomsBrokerWriteFields fields, string? actingUserId)
     {
         var row = await _repo.GetByIdAsync(id);
         if (row == null)
             throw new InvalidOperationException("报关公司不存在");
 
-        if (string.IsNullOrWhiteSpace(cname))
-            throw new ArgumentException("公司中文名不能为空", nameof(cname));
-        EnsureRegionType(regionType);
-        EnsureAgencyRate(agencyRate);
-
-        row.Cname = cname.Trim();
-        row.Ename = string.IsNullOrWhiteSpace(ename) ? null : ename.Trim();
-        row.RegionType = regionType;
-        row.AgencyRate = agencyRate;
-        row.Remark = string.IsNullOrWhiteSpace(remark) ? null : remark.Trim();
+        ApplyWriteFields(row, fields);
         row.ModifyTime = DateTime.UtcNow;
         row.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
 
@@ -150,5 +130,43 @@ public class CustomsBrokerService : ICustomsBrokerService
     {
         if (regionType != CustomsBrokerServiceRegion.Shenzhen && regionType != CustomsBrokerServiceRegion.HongKong)
             throw new ArgumentException("服务方向无效，应为 10（深圳）或 20（香港）。", nameof(regionType));
+    }
+
+    private static void ApplyWriteFields(CustomsBroker row, CustomsBrokerWriteFields fields)
+    {
+        if (string.IsNullOrWhiteSpace(fields.Cname))
+            throw new ArgumentException("公司中文名不能为空", nameof(fields.Cname));
+        if (string.IsNullOrWhiteSpace(fields.ContactName))
+            throw new ArgumentException("请填写装箱单收货人联系人。", nameof(fields.ContactName));
+        if (string.IsNullOrWhiteSpace(fields.Tel))
+            throw new ArgumentException("请填写装箱单收货人电话。", nameof(fields.Tel));
+        if (string.IsNullOrWhiteSpace(fields.Address))
+            throw new ArgumentException("请填写装箱单收货人地址。", nameof(fields.Address));
+        EnsureRegionType(fields.RegionType);
+        EnsureAgencyRate(fields.AgencyRate);
+
+        var email = string.IsNullOrWhiteSpace(fields.Email) ? null : fields.Email.Trim();
+        if (email != null && (email.Length > 200 || email.IndexOf('@') < 1 || email.EndsWith('@')))
+            throw new ArgumentException("邮箱格式无效。", nameof(fields.Email));
+
+        var contact = fields.ContactName.Trim();
+        var tel = fields.Tel.Trim();
+        var address = fields.Address.Trim();
+        if (contact.Length > 100)
+            throw new ArgumentException("联系人最长 100 字。", nameof(fields.ContactName));
+        if (tel.Length > 64)
+            throw new ArgumentException("电话最长 64 字。", nameof(fields.Tel));
+        if (address.Length > 500)
+            throw new ArgumentException("地址最长 500 字。", nameof(fields.Address));
+
+        row.Cname = fields.Cname.Trim();
+        row.Ename = string.IsNullOrWhiteSpace(fields.Ename) ? null : fields.Ename.Trim();
+        row.RegionType = fields.RegionType;
+        row.AgencyRate = fields.AgencyRate;
+        row.Remark = string.IsNullOrWhiteSpace(fields.Remark) ? null : fields.Remark.Trim();
+        row.ContactName = contact;
+        row.Tel = tel;
+        row.Email = email;
+        row.Address = address;
     }
 }

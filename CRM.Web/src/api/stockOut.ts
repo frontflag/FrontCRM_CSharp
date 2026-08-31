@@ -258,6 +258,10 @@ export interface StockOutInvoiceReportBundle {
 export interface PackingReportAddressPanel {
   billToLines: string[]
   shipToLines: string[]
+  /** 收货人邮箱；报关装箱来自报关公司 */
+  email?: string | null
+  /** 收货人已覆盖为报关公司 */
+  customsBrokerConsignee?: boolean
 }
 
 /** GET /api/v1/stock-out/:id/packing-report-bundle?withInspection=… */
@@ -366,8 +370,16 @@ function parsePackingAddressPanel(raw: unknown): PackingReportAddressPanel | nul
   // 保持 API 原始行数（3 行旧格式或 4 行新格式），避免 pad 后把联系人误当地址
   return {
     billToLines: toLines(bill),
-    shipToLines: toLines(ship)
+    shipToLines: toLines(ship),
+    email: asAddrEmail(a.email ?? a.Email),
+    customsBrokerConsignee: Boolean(a.customsBrokerConsignee ?? a.CustomsBrokerConsignee)
   }
+}
+
+function asAddrEmail(v: unknown): string | null {
+  if (v == null) return null
+  const s = String(v).trim()
+  return s.length > 0 ? s : null
 }
 
 export function parsePackingBundlePayload(res: unknown, requestFlag: boolean): StockOutPackingReportBundle | null {

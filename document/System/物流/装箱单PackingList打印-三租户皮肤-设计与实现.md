@@ -33,7 +33,7 @@
 | 方向 | 工具栏竖/横；默认横版；`localStorage` 键 `frontcrm.packingReport.orientation` |
 | 样式版本 | `GET /api/v1/report-params/effective-style-version`（登录即可；非法/空 → V1） |
 | 皮肤选择 | `resolvePackingReportView(orientation, tenantId, styleVersion)` |
-| 数据 | 共用 `packing-report-bundle`；V1 竖/横与 V2 各自 `docBind` |
+| 数据 | 共用 `packing-report-bundle`；V1 竖/横与 V2 各自 `docBind`。**报关装箱**收货人覆盖为报关公司，见 [报关公司装箱单收货人](../报关/报关公司装箱单收货人-设计与实现.md) |
 | 版式 | V1 竖版三套皮肤；V1 横版单组件 + `theme`；V2 仅 `PackingReportV2SkinIdesemi` |
 
 ```
@@ -98,5 +98,6 @@ semicore V2 竖版：页眉 → 元数据 → 发货人/收货人 → 包装明�
 - with / without inspection：V1 竖/横与 V2 竖版均按路由显隐检验区。
 - V1 中英文、印章开关可用；V2 隐藏中/英切换，印章开关仍可用。
 - V2 签章（竖/横共用 `PackingReportV2Body`）：发货人、收货人「日期 / Date」均为下划线，不印出库日期。
+- **报关装箱单：** 收货人为报关公司名称与联系资料，不是销售客户；资料不齐时打印页显示错误、不能出纸。
 - V2 顶栏（竖/横相同）：「装箱单」16pt、「PACKING LIST」6.5pt、「装箱单号码 / Packing List No.」7pt；左侧 Logo 与标语 `YOUR RELIABLE SUPPLIER` 水平居中对齐。
 - Semicore V1 竖版与历史深紫/琥珀观感一致（无回归）。

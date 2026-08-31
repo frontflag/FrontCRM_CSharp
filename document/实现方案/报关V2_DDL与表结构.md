@@ -259,6 +259,12 @@ customs_declaration_item ──→ stockin_notify.customs_declaration_item_id
 ### 16.2 变更 `customs_broker`
 
 | 新增 | `agency_rate` numeric(10,6) NOT NULL DEFAULT 1 | 1+代理费率 |
+| 新增 | `contact_name` varchar(100) | 装箱单收货人联系人 |
+| 新增 | `tel` varchar(64) | 装箱单收货人电话 |
+| 新增 | `email` varchar(200) | 装箱单收货人邮箱 |
+| 新增 | `address` varchar(500) | 装箱单收货人地址 |
+
+收货人四列脚本：`scripts/customs_broker_print_consignee_postgresql.sql`；EF `20260901080000_CustomsBrokerPrintConsignee`。口径见 [报关公司装箱单收货人](../System/报关/报关公司装箱单收货人-设计与实现.md)。
 
 ### 16.3 变更 `customs_declaration`
 

@@ -1445,6 +1445,10 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.Ename).HasColumnName("ename").HasMaxLength(200);
                 entity.Property(e => e.RegionType).HasColumnName("Type");
                 entity.Property(e => e.AgencyRate).HasColumnName("agency_rate").HasColumnType("numeric(10,6)").HasDefaultValue(1m);
+                entity.Property(e => e.ContactName).HasColumnName("contact_name").HasMaxLength(100);
+                entity.Property(e => e.Tel).HasColumnName("tel").HasMaxLength(64);
+                entity.Property(e => e.Email).HasColumnName("email").HasMaxLength(200);
+                entity.Property(e => e.Address).HasColumnName("address").HasMaxLength(500);
                 entity.Property(e => e.Remark).HasMaxLength(500);
                 entity.Property(e => e.IsDeleted).HasDefaultValue(false);
                 entity.Property(e => e.DeletedByUserId).HasColumnName("deleted_by_user_id").HasMaxLength(36);

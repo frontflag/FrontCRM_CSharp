@@ -78,5 +78,11 @@ namespace CRM.API.Models.DTOs
     {
         public List<string> BillToLines { get; set; } = new();
         public List<string> ShipToLines { get; set; } = new();
+
+        /// <summary>收货人邮箱（报关装箱来自报关公司；销售装箱无字段则为空）。</summary>
+        public string? Email { get; set; }
+
+        /// <summary>true：收货人已覆盖为报关公司，前端勿再用销售客户名/521 覆盖第一行。</summary>
+        public bool CustomsBrokerConsignee { get; set; }
     }
 }

@@ -703,6 +703,11 @@ namespace CRM.Infrastructure.Data.Migrations
                         .HasColumnType("character varying(36)")
                         .HasColumnName("Id");
 
+                    b.Property<string>("Address")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("address");
+
                     b.Property<string>("BrokerCode")
                         .IsRequired()
                         .HasMaxLength(32)
@@ -713,6 +718,11 @@ namespace CRM.Infrastructure.Data.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
                         .HasColumnName("cname");
+
+                    b.Property<string>("ContactName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("contact_name");
 
                     b.Property<string>("CreateByUserId")
                         .HasMaxLength(36)
@@ -737,6 +747,11 @@ namespace CRM.Infrastructure.Data.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
                         .HasColumnName("ename");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("email");
 
                     b.Property<bool>("IsDeleted")
                         .ValueGeneratedOnAdd()
@@ -765,6 +780,11 @@ namespace CRM.Infrastructure.Data.Migrations
 
                     b.Property<short>("Status")
                         .HasColumnType("smallint");
+
+                    b.Property<string>("Tel")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("tel");
 
                     b.HasKey("Id");
 

@@ -20,7 +20,49 @@ export interface CustomsBrokerDto {
   status: number
   agencyRate?: number
   remark?: string | null
+  contactName?: string | null
+  tel?: string | null
+  email?: string | null
+  address?: string | null
   createTime?: string
+}
+
+function asTrimmedString(v: unknown): string | null {
+  if (v == null) return null
+  const s = String(v).trim()
+  return s.length > 0 ? s : null
+}
+
+export function normalizeCustomsBroker(raw: unknown): CustomsBrokerDto | null {
+  if (!raw || typeof raw !== 'object') return null
+  const r = raw as Record<string, unknown>
+  const id = asTrimmedString(r.id ?? r.Id)
+  if (!id) return null
+  const typeRaw = Number(r.type ?? r.Type ?? r.regionType ?? r.RegionType)
+  return {
+    id,
+    brokerCode: asTrimmedString(r.brokerCode ?? r.BrokerCode) ?? '',
+    cname: asTrimmedString(r.cname ?? r.Cname) ?? '',
+    ename: asTrimmedString(r.ename ?? r.Ename),
+    type: Number.isFinite(typeRaw) ? typeRaw : CustomsBrokerRegionType.Shenzhen,
+    status: Number(r.status ?? r.Status ?? 1),
+    agencyRate: Number(r.agencyRate ?? r.AgencyRate ?? 1),
+    remark: asTrimmedString(r.remark ?? r.Remark),
+    contactName: asTrimmedString(r.contactName ?? r.ContactName),
+    tel: asTrimmedString(r.tel ?? r.Tel),
+    email: asTrimmedString(r.email ?? r.Email),
+    address: asTrimmedString(r.address ?? r.Address),
+    createTime: asTrimmedString(r.createTime ?? r.CreateTime) ?? undefined
+  }
+}
+
+export function isCustomsBrokerConsigneeReady(broker: Pick<CustomsBrokerDto, 'cname' | 'contactName' | 'tel' | 'address'>): boolean {
+  return Boolean(
+    broker.cname?.trim() &&
+      broker.contactName?.trim() &&
+      broker.tel?.trim() &&
+      broker.address?.trim()
+  )
 }
 
 export const CUSTOMS_PENDLIST_STATUS = {
@@ -210,7 +252,9 @@ export interface CustomsDeclarationDetailDto {
 }
 
 export async function fetchCustomsBrokersAdmin(): Promise<CustomsBrokerDto[]> {
-  return apiClient.get<CustomsBrokerDto[]>('/api/v1/customs-brokers', { params: { all: true } })
+  const raw = await apiClient.get<unknown>('/api/v1/customs-brokers', { params: { all: true } })
+  const list = Array.isArray(raw) ? raw : []
+  return list.map(normalizeCustomsBroker).filter((x): x is CustomsBrokerDto => x != null)
 }
 
 export async function fetchCustomsPendlists(params: {
@@ -285,8 +329,15 @@ export async function createCustomsBroker(body: {
   type: number
   agencyRate?: number
   remark?: string | null
+  contactName: string
+  tel: string
+  email?: string | null
+  address: string
 }): Promise<CustomsBrokerDto> {
-  return apiClient.post<CustomsBrokerDto>('/api/v1/customs-brokers', body)
+  const row = await apiClient.post<unknown>('/api/v1/customs-brokers', body)
+  const dto = normalizeCustomsBroker(row)
+  if (!dto) throw new Error('创建报关公司失败')
+  return dto
 }
 
 export async function updateCustomsBroker(
@@ -297,9 +348,16 @@ export async function updateCustomsBroker(
     type: number
     agencyRate?: number
     remark?: string | null
+    contactName: string
+    tel: string
+    email?: string | null
+    address: string
   }
 ): Promise<CustomsBrokerDto> {
-  return apiClient.put<CustomsBrokerDto>(`/api/v1/customs-brokers/${encodeURIComponent(id)}`, body)
+  const row = await apiClient.put<unknown>(`/api/v1/customs-brokers/${encodeURIComponent(id)}`, body)
+  const dto = normalizeCustomsBroker(row)
+  if (!dto) throw new Error('保存报关公司失败')
+  return dto
 }
 
 /** 1=启用，0=停用 */

@@ -179,7 +179,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
@@ -199,7 +199,7 @@ import {
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useStockOutNotifyListBasketStore } from '@/stores/stockOutNotifyListBasket'
 import { inventoryCenterApi, type WarehouseInfo } from '@/api/inventoryCenter'
-import { fetchCustomsBrokersAdmin, type CustomsBrokerDto } from '@/api/customs'
+import { fetchCustomsBrokersAdmin, isCustomsBrokerConsigneeReady, type CustomsBrokerDto } from '@/api/customs'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import ShipmentExpressFields from '@/components/Logistics/ShipmentExpressFields.vue'
 
@@ -287,6 +287,25 @@ function applyAddressDefaults(companyName: string) {
   Object.assign(shipForm, ship)
   Object.assign(billForm, bill)
 }
+
+function applyBrokerConsignee(broker: CustomsBrokerDto) {
+  const company = (broker.ename?.trim() || broker.cname?.trim() || '').trim()
+  const fields: PackingAddressFields = {
+    company,
+    address: broker.address?.trim() || '',
+    attn: broker.contactName?.trim() || '',
+    tel: broker.tel?.trim() || ''
+  }
+  Object.assign(shipForm, fields)
+  Object.assign(billForm, fields)
+}
+
+watch(customsBrokerId, (id) => {
+  const key = String(id || '').trim()
+  if (!key) return
+  const broker = customsBrokers.value.find((b) => b.id === key)
+  if (broker) applyBrokerConsignee(broker)
+})
 
 let customerAddresses: ReturnType<typeof normalizeCustomerAddressFromApi>[] = []
 
@@ -382,6 +401,13 @@ async function handleSubmit() {
   if (isCustomsPacking.value && !customsBrokerId.value.trim()) {
     ElMessage.warning(t('packingCreate.customsBrokerRequired'))
     return
+  }
+  if (isCustomsPacking.value) {
+    const broker = customsBrokers.value.find((b) => b.id === customsBrokerId.value.trim())
+    if (!broker || !isCustomsBrokerConsigneeReady(broker)) {
+      ElMessage.warning(t('packingCreate.customsBrokerConsigneeIncomplete'))
+      return
+    }
   }
   submitting.value = true
   try {

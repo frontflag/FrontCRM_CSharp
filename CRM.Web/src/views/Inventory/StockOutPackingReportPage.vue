@@ -106,6 +106,7 @@ import {
 } from '@/components/stockOut/packingReportLabels'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { normalizePackingAddrLines } from '@/utils/packingReportAddressLines'
+import { resolvePackingReportConsigneeName } from '@/utils/packingReportCustomsConsignee'
 
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 
@@ -323,14 +324,18 @@ function emptyV2Party(): PackingReportV2Party {
   return { name: '—', address: '—', contact: '—', phone: '—', email: '—' }
 }
 
-function mapV2PartyFromLines(lines: string[] | undefined, name: string): PackingReportV2Party {
+function mapV2PartyFromLines(
+  lines: string[] | undefined,
+  name: string,
+  email?: string | null
+): PackingReportV2Party {
   const src = (lines ?? []).map((x) => String(x ?? '').trim() || '—')
   return {
     name: cellText(name),
     address: cellText(src[1]),
     contact: cellText(src[2]),
     phone: cellText(src[3]),
-    email: '—'
+    email: cellText(email)
   }
 }
 
@@ -416,7 +421,13 @@ function buildV2Bind(so: StockOutDetailDto | null): PackingReportV2DocumentProps
       shipperSignDate: ''
     }
   }
-  const customerLine = maskSaleSensitiveFields.value ? '—' : (so.customerName || '').trim() || '—'
+  const customerLine = resolvePackingReportConsigneeName({
+    stockOutType: so.stockOutType,
+    customerName: so.customerName,
+    shipToFirstLine: packingAddresses.value?.shipToLines?.[0],
+    maskSaleSensitive: maskSaleSensitiveFields.value,
+    customsBrokerConsignee: packingAddresses.value?.customsBrokerConsignee
+  })
   const firstPo = packingLines.value.map((r) => (r.customerPo ?? '').trim()).find(Boolean)
   const invoicePo = firstPo || (so.sourceCode || '').trim() || (so.sellOrderItemCode || '').trim() || '—'
   const carrier = [expressCompanyDisplay(so.expressCompany), (so.courierTrackingNo || '').trim()]
@@ -443,7 +454,11 @@ function buildV2Bind(so: StockOutDetailDto | null): PackingReportV2DocumentProps
       phone: (basic?.phone || '').trim() || '—',
       email: (basic?.email || '').trim() || '—'
     },
-    consignee: mapV2PartyFromLines(packingAddresses.value?.shipToLines, customerLine),
+    consignee: mapV2PartyFromLines(
+      packingAddresses.value?.shipToLines,
+      customerLine,
+      packingAddresses.value?.email
+    ),
     lines: v2Lines,
     shipMarks: '—',
     departure: '—',
@@ -512,7 +527,13 @@ const docBind = computed(() => {
   }
 
   const addr = packingAddresses.value
-  const customerLine = maskSaleSensitiveFields.value ? '—' : (so.customerName || '').trim() || '—'
+  const customerLine = resolvePackingReportConsigneeName({
+    stockOutType: so.stockOutType,
+    customerName: so.customerName,
+    shipToFirstLine: packingAddresses.value?.shipToLines?.[0],
+    maskSaleSensitive: maskSaleSensitiveFields.value,
+    customsBrokerConsignee: packingAddresses.value?.customsBrokerConsignee
+  })
   const billToLines = normalizePackingAddrLines(addr?.billToLines, customerLine, L)
   const shipToLines = normalizePackingAddrLines(addr?.shipToLines, customerLine, L)
   const shipperName = (basic?.companyName || '').trim() || '—'

@@ -118,10 +118,13 @@ const enUS = {
       colCode: 'Broker code',
       colCname: 'Company name (CN)',
       colEname: 'Company name (EN)',
+      colContactName: 'Contact',
+      colTel: 'Tel',
       colRegionType: 'Service region',
       colRemark: 'Remark',
       colStatus: 'Status',
       colActions: 'Actions',
+      btnEdit: 'Edit',
       btnEnable: 'Enable',
       btnDisable: 'Disable',
       statusUpdated: 'Status updated',
@@ -130,6 +133,12 @@ const enUS = {
       deleteOk: 'Deleted',
       formCname: 'Company name (CN)',
       formEname: 'Company name (EN)',
+      formContactName: 'Contact',
+      formTel: 'Tel',
+      formEmail: 'Email',
+      formAddress: 'Address',
+      formConsigneeHint:
+        'Printed as consignee on the customs packing list. Enter the text as it should appear; Hong Kong brokers should fill English name and address.',
       formRegionType: 'Service region',
       formRemark: 'Remark',
       formAgencyRate: 'Agency rate',
@@ -139,6 +148,10 @@ const enUS = {
       regionShenzhen: 'Shenzhen',
       regionHongKong: 'Hong Kong',
       validateCnameRequired: 'Chinese company name is required',
+      validateContactRequired: 'Consignee contact is required',
+      validateTelRequired: 'Consignee telephone is required',
+      validateAddressRequired: 'Consignee address is required',
+      validateEmailInvalid: 'Invalid email',
       detailTitle: 'Broker detail',
       statusActive: 'Active',
       statusInactive: 'Inactive'
@@ -8850,6 +8863,8 @@ const enUS = {
     customsBroker: 'Customs broker',
     customsBrokerPlaceholder: 'Select customs broker',
     customsBrokerRequired: 'Customs packing requires a customs broker',
+    customsBrokerConsigneeIncomplete:
+      'This broker is missing contact, telephone or address. Complete consignee fields on Customs brokers first.',
     shipmentMethodRequired: 'Please select a shipping method'
   },
   purchaseOrderDetail: {

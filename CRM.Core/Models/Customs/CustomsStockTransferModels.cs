@@ -40,6 +40,26 @@ public class CustomsBroker : BaseGuidEntity
     [Column("agency_rate", TypeName = "numeric(10,6)")]
     public decimal AgencyRate { get; set; } = 1m;
 
+    /// <summary>装箱单收货人联系人。</summary>
+    [StringLength(100)]
+    [Column("contact_name")]
+    public string? ContactName { get; set; }
+
+    /// <summary>装箱单收货人电话。</summary>
+    [StringLength(64)]
+    [Column("tel")]
+    public string? Tel { get; set; }
+
+    /// <summary>装箱单收货人邮箱；空则报表印 —。</summary>
+    [StringLength(200)]
+    [Column("email")]
+    public string? Email { get; set; }
+
+    /// <summary>装箱单收货人地址（按需印出的原文）。</summary>
+    [StringLength(500)]
+    [Column("address")]
+    public string? Address { get; set; }
+
     [StringLength(500)]
     public string? Remark { get; set; }
 

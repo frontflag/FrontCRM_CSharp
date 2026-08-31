@@ -396,6 +396,8 @@ namespace CRM.API.Controllers
                 var (packingCode, packingAddresses, deliveryMethod) =
                     await TryLoadPackingReportExtrasAsync(packingId, cancellationToken);
                 ApplyCustomerToPackingAddressPanel(packingAddresses, dto.CustomerName);
+                await PackingReportBundleLoader.OverlayCustomsBrokerConsigneeAsync(
+                    _db, packingId, packingAddresses, cancellationToken);
                 var bundle = new StockOutPackingReportBundleDto
                 {
                     StockOut = dto,
@@ -406,6 +408,10 @@ namespace CRM.API.Controllers
                     DeliveryMethod = deliveryMethod
                 };
                 return Ok(ApiResponse<StockOutPackingReportBundleDto>.Ok(bundle, "ok"));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<StockOutPackingReportBundleDto>.Fail(ex.Message, 400));
             }
             catch (Exception ex)
             {

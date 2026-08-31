@@ -10,11 +10,13 @@
       stripe
       border
       class="data-table"
-      @row-dblclick="onDblClick"
+      @row-dblclick="openEdit"
     >
       <el-table-column prop="brokerCode" :label="t('customsPages.brokers.colCode')" min-width="140" />
       <el-table-column prop="cname" :label="t('customsPages.brokers.colCname')" min-width="160" />
       <el-table-column prop="ename" :label="t('customsPages.brokers.colEname')" min-width="160" show-overflow-tooltip />
+      <el-table-column prop="contactName" :label="t('customsPages.brokers.colContactName')" min-width="120" show-overflow-tooltip />
+      <el-table-column prop="tel" :label="t('customsPages.brokers.colTel')" min-width="140" show-overflow-tooltip />
       <el-table-column prop="type" :label="t('customsPages.brokers.colRegionType')" width="120">
         <template #default="{ row }">{{ regionLabel(row.type) }}</template>
       </el-table-column>
@@ -25,8 +27,16 @@
       <el-table-column prop="status" :label="t('customsPages.brokers.colStatus')" width="100">
         <template #default="{ row }">{{ brokerStatusLabel(row.status) }}</template>
       </el-table-column>
-      <el-table-column :label="t('customsPages.brokers.colActions')" width="200" fixed="right">
+      <el-table-column :label="t('customsPages.brokers.colActions')" width="240" fixed="right">
         <template #default="{ row }">
+          <el-button
+            v-if="canWriteLogisticsData"
+            link
+            type="primary"
+            @click.stop="openEdit(row)"
+          >
+            {{ t('customsPages.brokers.btnEdit') }}
+          </el-button>
           <el-button
             v-if="canWriteLogisticsData && row.status === 1"
             link
@@ -59,7 +69,7 @@
       </el-table-column>
     </el-table>
 
-    <el-dialog v-model="createVisible" :title="t('customsPages.brokers.create')" width="520px" destroy-on-close @closed="resetCreate">
+    <el-dialog v-model="createVisible" :title="t('customsPages.brokers.create')" width="640px" destroy-on-close @closed="resetCreate">
       <p class="code-hint">{{ t('customsPages.brokers.codeAutoHint') }}</p>
       <el-form :model="createForm" label-width="120px">
         <el-form-item :label="t('customsPages.brokers.formCname')" required>
@@ -67,6 +77,19 @@
         </el-form-item>
         <el-form-item :label="t('customsPages.brokers.formEname')">
           <el-input v-model="createForm.ename" maxlength="200" show-word-limit />
+        </el-form-item>
+        <p class="consignee-hint">{{ t('customsPages.brokers.formConsigneeHint') }}</p>
+        <el-form-item :label="t('customsPages.brokers.formContactName')" required>
+          <el-input v-model="createForm.contactName" maxlength="100" show-word-limit />
+        </el-form-item>
+        <el-form-item :label="t('customsPages.brokers.formTel')" required>
+          <el-input v-model="createForm.tel" maxlength="64" show-word-limit />
+        </el-form-item>
+        <el-form-item :label="t('customsPages.brokers.formEmail')">
+          <el-input v-model="createForm.email" maxlength="200" show-word-limit />
+        </el-form-item>
+        <el-form-item :label="t('customsPages.brokers.formAddress')" required>
+          <el-input v-model="createForm.address" type="textarea" :rows="3" maxlength="500" show-word-limit />
         </el-form-item>
         <el-form-item :label="t('customsPages.brokers.formRegionType')" required>
           <el-select v-model="createForm.type" style="width: 100%">
@@ -95,7 +118,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="editVisible" :title="t('customsPages.brokers.editTitle')" width="520px" destroy-on-close @closed="resetEdit">
+    <el-dialog v-model="editVisible" :title="t('customsPages.brokers.editTitle')" width="640px" destroy-on-close @closed="resetEdit">
       <el-form :model="editForm" label-width="120px">
         <el-form-item :label="t('customsPages.brokers.colCode')">
           <el-input :model-value="editForm.brokerCode" disabled />
@@ -105,6 +128,19 @@
         </el-form-item>
         <el-form-item :label="t('customsPages.brokers.formEname')">
           <el-input v-model="editForm.ename" maxlength="200" show-word-limit />
+        </el-form-item>
+        <p class="consignee-hint">{{ t('customsPages.brokers.formConsigneeHint') }}</p>
+        <el-form-item :label="t('customsPages.brokers.formContactName')" required>
+          <el-input v-model="editForm.contactName" maxlength="100" show-word-limit />
+        </el-form-item>
+        <el-form-item :label="t('customsPages.brokers.formTel')" required>
+          <el-input v-model="editForm.tel" maxlength="64" show-word-limit />
+        </el-form-item>
+        <el-form-item :label="t('customsPages.brokers.formEmail')">
+          <el-input v-model="editForm.email" maxlength="200" show-word-limit />
+        </el-form-item>
+        <el-form-item :label="t('customsPages.brokers.formAddress')" required>
+          <el-input v-model="editForm.address" type="textarea" :rows="3" maxlength="500" show-word-limit />
         </el-form-item>
         <el-form-item :label="t('customsPages.brokers.formRegionType')" required>
           <el-select v-model="editForm.type" style="width: 100%">
@@ -168,7 +204,11 @@ const createForm = reactive({
   ename: '',
   type: CustomsBrokerRegionType.Shenzhen as CustomsBrokerRegion,
   agencyRate: 1,
-  remark: ''
+  remark: '',
+  contactName: '',
+  tel: '',
+  email: '',
+  address: ''
 })
 const editVisible = ref(false)
 const editSaving = ref(false)
@@ -180,7 +220,11 @@ const editForm = reactive({
   type: CustomsBrokerRegionType.Shenzhen as CustomsBrokerRegion,
   agencyRate: 1,
   remark: '',
-  status: 1 as number
+  status: 1 as number,
+  contactName: '',
+  tel: '',
+  email: '',
+  address: ''
 })
 
 function brokerStatusLabel(s: number) {
@@ -236,6 +280,33 @@ function validateAgencyRate(rate: number): boolean {
   return Number.isFinite(rate) && rate >= 1
 }
 
+function validateEmailOptional(email: string): boolean {
+  const v = email.trim()
+  if (!v) return true
+  const at = v.indexOf('@')
+  return at > 0 && at < v.length - 1
+}
+
+function validateConsignee(form: { contactName: string; tel: string; address: string; email: string }): boolean {
+  if (!form.contactName.trim()) {
+    ElMessage.warning(t('customsPages.brokers.validateContactRequired'))
+    return false
+  }
+  if (!form.tel.trim()) {
+    ElMessage.warning(t('customsPages.brokers.validateTelRequired'))
+    return false
+  }
+  if (!form.address.trim()) {
+    ElMessage.warning(t('customsPages.brokers.validateAddressRequired'))
+    return false
+  }
+  if (!validateEmailOptional(form.email)) {
+    ElMessage.warning(t('customsPages.brokers.validateEmailInvalid'))
+    return false
+  }
+  return true
+}
+
 async function load() {
   loading.value = true
   try {
@@ -258,6 +329,10 @@ function resetCreate() {
   createForm.type = CustomsBrokerRegionType.Shenzhen
   createForm.agencyRate = 1
   createForm.remark = ''
+  createForm.contactName = ''
+  createForm.tel = ''
+  createForm.email = ''
+  createForm.address = ''
 }
 
 async function submitCreate() {
@@ -269,6 +344,7 @@ async function submitCreate() {
     ElMessage.warning(t('customsPages.brokers.validateAgencyRate'))
     return
   }
+  if (!validateConsignee(createForm)) return
   createSaving.value = true
   try {
     await createCustomsBroker({
@@ -276,7 +352,11 @@ async function submitCreate() {
       ename: createForm.ename.trim() || undefined,
       type: createForm.type,
       agencyRate: createForm.agencyRate,
-      remark: createForm.remark.trim() || undefined
+      remark: createForm.remark.trim() || undefined,
+      contactName: createForm.contactName.trim(),
+      tel: createForm.tel.trim(),
+      email: createForm.email.trim() || undefined,
+      address: createForm.address.trim()
     })
     ElMessage.success(t('common.createSuccess'))
     createVisible.value = false
@@ -297,9 +377,13 @@ function resetEdit() {
   editForm.agencyRate = 1
   editForm.remark = ''
   editForm.status = 1
+  editForm.contactName = ''
+  editForm.tel = ''
+  editForm.email = ''
+  editForm.address = ''
 }
 
-function onDblClick(row: CustomsBrokerDto) {
+function openEdit(row: CustomsBrokerDto) {
   editForm.id = row.id
   editForm.brokerCode = row.brokerCode
   editForm.cname = row.cname ?? ''
@@ -309,6 +393,10 @@ function onDblClick(row: CustomsBrokerDto) {
   editForm.agencyRate = Number(row.agencyRate ?? 1) >= 1 ? Number(row.agencyRate) : 1
   editForm.remark = row.remark ?? ''
   editForm.status = row.status
+  editForm.contactName = row.contactName ?? ''
+  editForm.tel = row.tel ?? ''
+  editForm.email = row.email ?? ''
+  editForm.address = row.address ?? ''
   editVisible.value = true
 }
 
@@ -321,6 +409,7 @@ async function submitEdit() {
     ElMessage.warning(t('customsPages.brokers.validateAgencyRate'))
     return
   }
+  if (!validateConsignee(editForm)) return
   editSaving.value = true
   try {
     await updateCustomsBroker(editForm.id, {
@@ -328,7 +417,11 @@ async function submitEdit() {
       ename: editForm.ename.trim() || undefined,
       type: editForm.type,
       agencyRate: editForm.agencyRate,
-      remark: editForm.remark.trim() || undefined
+      remark: editForm.remark.trim() || undefined,
+      contactName: editForm.contactName.trim(),
+      tel: editForm.tel.trim(),
+      email: editForm.email.trim() || undefined,
+      address: editForm.address.trim()
     })
     ElMessage.success(t('common.saveSuccess'))
     editVisible.value = false
@@ -370,6 +463,12 @@ onMounted(() => {
 }
 .field-hint {
   margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  line-height: 1.4;
+}
+.consignee-hint {
+  margin: 0 0 12px 120px;
   font-size: 12px;
   color: var(--el-text-color-secondary);
   line-height: 1.4;

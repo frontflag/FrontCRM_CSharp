@@ -174,6 +174,44 @@ public static class PackingReportBundleLoader
         };
     }
 
+    /// <summary>
+    /// 报关装箱单打印：收货人整块覆盖为报关公司。缺资料抛 <see cref="InvalidOperationException"/>。
+    /// Invoice 打印不要调用。
+    /// </summary>
+    public static async Task OverlayCustomsBrokerConsigneeAsync(
+        ApplicationDbContext db,
+        string? packingId,
+        PackingReportAddressPanelDto panel,
+        CancellationToken cancellationToken = default)
+    {
+        var pid = packingId?.Trim();
+        if (string.IsNullOrEmpty(pid))
+            return;
+
+        var packing = await db.Packings.AsNoTracking()
+            .Where(p => p.Id == pid && !p.IsDeleted)
+            .Select(p => new { p.StockOutType, p.CustomsBrokerId })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (packing == null)
+            return;
+        if (StockOutTypeCode.NormalizeForNotify(packing.StockOutType) != StockOutTypeCode.Customs)
+            return;
+
+        var brokerId = packing.CustomsBrokerId?.Trim() ?? string.Empty;
+        if (string.IsNullOrEmpty(brokerId))
+            throw new InvalidOperationException(CustomsBrokerPrintConsignee.MissingBrokerForPrintMessage);
+
+        var broker = await db.CustomsBrokers.AsNoTracking()
+            .FirstOrDefaultAsync(b => b.Id == brokerId, cancellationToken);
+        CustomsBrokerPrintConsignee.EnsurePrintReady(broker);
+
+        var lines = CustomsBrokerPrintConsignee.BuildAddressLines(broker!).ToList();
+        panel.BillToLines = lines;
+        panel.ShipToLines = new List<string>(lines);
+        panel.Email = CustomsBrokerPrintConsignee.PrintEmail(broker!);
+        panel.CustomsBrokerConsignee = true;
+    }
+
     /// <summary>装箱单 Invoice 打印页：优先关联出库单，否则由装箱单数据合成出库视图。</summary>
     public static async Task<StockOutInvoiceReportBundleDto?> LoadInvoiceByPackingIdAsync(
         string packingId,

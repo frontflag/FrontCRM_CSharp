@@ -248,7 +248,13 @@ public class PackingController : ControllerBase
                 cancellationToken);
             if (bundle == null)
                 return NotFound(ApiResponse<StockOutPackingReportBundleDto>.Fail("装箱单不存在", 404));
+            await PackingReportBundleLoader.OverlayCustomsBrokerConsigneeAsync(
+                _db, id, bundle.PackingAddresses, cancellationToken);
             return Ok(ApiResponse<StockOutPackingReportBundleDto>.Ok(bundle, "ok"));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<StockOutPackingReportBundleDto>.Fail(ex.Message, 400));
         }
         catch (Exception ex)
         {
