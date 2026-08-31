@@ -53,3 +53,18 @@ const STOCK_IN_TYPE_LABELS: Record<StockInTypeLabelKey, string> = {
 export function stockInTypeLabel(type: number | string | null | undefined): string {
   return STOCK_IN_TYPE_LABELS[resolveStockInTypeLabelKey(type)]
 }
+
+/** 列表筛选下拉/URL：仅购销四档；历史采购 1 归一为 10；移库与非法值忽略。 */
+export function parseStockInTypeFilterValue(
+  raw: number | string | null | undefined
+): (typeof STOCK_IN_TYPE_FILTER_VALUES)[number] | undefined {
+  if (raw === null || raw === undefined) return undefined
+  if (typeof raw === 'string' && raw.trim() === '') return undefined
+  const n = Number(raw)
+  if (!Number.isFinite(n)) return undefined
+  if (n === 1 || n === StockInTypeCode.Purchase) return StockInTypeCode.Purchase
+  if (n === StockInTypeCode.Customs) return StockInTypeCode.Customs
+  if (n === StockInTypeCode.Return) return StockInTypeCode.Return
+  if (n === StockInTypeCode.Scrap) return StockInTypeCode.Scrap
+  return undefined
+}

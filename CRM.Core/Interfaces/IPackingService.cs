@@ -132,6 +132,9 @@ public class PackingItemFlowStockOutLineDto
     public string? CustomerName { get; set; }
     public string? CustomerCode { get; set; }
     public string? CreateUserName { get; set; }
+    public short StockOutType { get; set; }
+    public string? CustomsDeclarationId { get; set; }
+    public string? CustomsDeclarationCode { get; set; }
 }
 
 public class PackingStockOutRequestsResolveDto
@@ -364,6 +367,9 @@ public class PackingStockOutNotifyRowDto
     public DateTime RequestDate { get; set; }
     public DateTime CreateTime { get; set; }
     public string? Remark { get; set; }
+    public short StockOutType { get; set; }
+    public string? CustomsDeclarationId { get; set; }
+    public string? CustomsDeclarationCode { get; set; }
 }
 
 public class PackingDetailItemExtendDto

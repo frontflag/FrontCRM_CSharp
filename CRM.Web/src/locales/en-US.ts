@@ -7031,6 +7031,7 @@ const enUS = {
       stockInDateTo: 'To',
       stockInDateSep: 'to',
       warehouse: 'Warehouse',
+      stockInTypePlaceholder: 'Stock-in type',
       purchasePn: 'Material model',
       purchaseBrand: 'Brand',
       customerName: 'Customer',
@@ -7066,6 +7067,7 @@ const enUS = {
       stockItemCode: 'Inventory item code',
       stockInCode: 'Stock-in code',
       stockInDate: 'Stock-in date',
+      stockInType: 'Stock-in type',
       warehouse: 'Warehouse',
       regionType: 'Region',
       purchasePn: 'Material model',
@@ -7090,6 +7092,46 @@ const enUS = {
       exportConfirmMessage: 'Export stock items with the current filters (up to 50,000 rows). Continue?',
       exportSuccess: 'Export succeeded',
       exportFailed: 'Export failed'
+    },
+    flowPanel: {
+      pickRow: 'On the Flow tab, click a row to see this layer from purchase through stock-out',
+      emptyStation: 'Not started',
+      stationEmpty: 'Not started',
+      stationActive: 'In progress',
+      stationDone: 'Completed',
+      loadFailed: 'Failed to load stock item flow',
+      stations: {
+        purchaseOrderItem: 'Purchase line',
+        qc: 'QC',
+        stockIn: 'Stock-in',
+        stockItem: 'Stock item',
+        stockOutNotify: 'Stock-out notify',
+        packing: 'Packing',
+        stockOut: 'Stock-out'
+      },
+      role: {
+        purchaser: 'Purchaser',
+        creator: 'Created by',
+        salesUser: 'Sales rep'
+      },
+      fields: {
+        docNo: 'Doc no.',
+        status: 'Status',
+        createdAt: 'Created',
+        stockInDate: 'Stock-in date',
+        vendorName: 'Vendor name',
+        customerName: 'Customer name',
+        unitPrice: 'Purchase price',
+        salesPrice: 'Sales price',
+        qty: 'Qty',
+        inboundQty: 'Inbound qty',
+        outboundQty: 'Stock-out qty',
+        packingQty: 'Packed qty',
+        qcQty: 'Pass / reject',
+        stockInType: 'Stock-in type',
+        stockOutType: 'Stock-out type',
+        description: 'Description'
+      }
     }
   },
   inventoryStockDetail: {
@@ -7565,6 +7607,15 @@ const enUS = {
       boardView: 'Board',
       listView: 'List'
     },
+    settingsMenu: {
+      aria: 'List filter settings',
+      closeTabs: 'Close tabs',
+      tabMode: 'Tab mode',
+      warehouseTabDisabled: 'Use the dropdown when warehouses exceed {max}'
+    },
+    filterTabs: {
+      all: 'All'
+    },
     leftPanel: {
       title: 'Stock-in search',
       materialModel: 'Material model',
@@ -7603,6 +7654,34 @@ const enUS = {
     hasBatchEntered: { yes: 'Yes', no: 'No' },
     actions: { editRemark: 'Edit Remark', markStockedIn: 'Mark as Stocked In' },
     remarkPlaceholder: 'Enter stock-in remark',
+    opsPanel: {
+      pickRow: 'With the Ops tab open, click a row to see this stock-in summary, remark, and purchase/arrival info.',
+      loadFailed: 'Failed to load the ops panel',
+      overviewTitle: 'Stock-in overview',
+      remarkTitle: 'Remark',
+      purchaseTitle: 'Purchase order',
+      purchaseItemCode: 'PO line no.',
+      purchaseOrderType: 'PO type',
+      purchaseDate: 'PO created',
+      purchaseUser: 'Buyer',
+      purchaseQty: 'PO line qty',
+      purchaseUnitPrice: 'Unit cost',
+      stockInDate: 'Stock-in date',
+      overviewQty: 'Stock-in qty',
+      noPurchase: 'No linked PO line',
+      arrivalTitle: 'Arrival notice',
+      arrivalNoticeCode: 'Arrival notice no.',
+      arrivalType: 'Arrival type',
+      actualArrivalDate: 'Actual arrival date',
+      receiveQty: 'Received qty',
+      qcPassQty: 'QC passed',
+      noArrival: 'No linked arrival notice',
+      orderTypes: {
+        customer: 'Customer PO',
+        stocking: 'Stocking PO',
+        sample: 'Sample PO'
+      }
+    },
     stockInTypeLabels: {
       purchase: 'Purchase stock-in',
       customs: 'Customs stock-in',
@@ -8152,6 +8231,17 @@ const enUS = {
       loadFailed: 'Failed to load stock-out lines',
       missingStockOutId: 'Missing stock-out ID'
     },
+    flowPanel: {
+      pickRow: 'On the Flow tab, click a row to see this stock-out line’s upstream and downstream chain',
+      loadFailed: 'Failed to load the stock-out line flow',
+      stations: {
+        sellOrderItem: 'Sales line',
+        stockOutNotify: 'Stock-out notice',
+        stockItem: 'Stock item',
+        packing: 'Packing',
+        stockOut: 'Stock-out'
+      }
+    },
     board: {
       datasetTag: 'Filter',
       hint: 'Stats use the full search-bar result set (not the current page). Amount is outbound: sales unit price × qty.',
@@ -8424,6 +8514,18 @@ const enUS = {
     salesNotifyCodeLink: 'Original sales notice',
     auxTabs: {
       customsDeclaration: 'Customs declaration'
+    },
+    flowPanel: {
+      pickRow: 'On the Flow tab, click a row to see this notice’s upstream and downstream documents',
+      loadFailed: 'Failed to load stock-out notice flow',
+      stations: {
+        sellOrderItem: 'Sales line',
+        stockOutNotify: 'Stock-out notice',
+        stockItem: 'Stock item',
+        stockingStockItem: 'Stocking inventory',
+        packing: 'Packing',
+        stockOut: 'Stock-out'
+      }
     },
     customsTab: {
       pickRow: 'Click a customs stock-out notice to view declaration info',
@@ -8967,7 +9069,8 @@ const enUS = {
         'This packing line is not linked to a sales order line. The sales-line station is empty; other stations still follow this packing.',
       fields: {
         stockOutItemCode: 'Stock-out line no.',
-        regionType: 'Region'
+        regionType: 'Region',
+        stockOutType: 'Stock-out type'
       },
       stations: {
         sellOrderItem: 'Sales order line',

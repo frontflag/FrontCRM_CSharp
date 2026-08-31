@@ -53,12 +53,34 @@ public sealed class CustomsTraceQuery : ICustomsTraceQuery
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
         var decById = decIds.Count == 0
-            ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            ? new Dictionary<string, (string Code, string? BrokerId)>(StringComparer.OrdinalIgnoreCase)
             : (await _db.CustomsDeclarations.AsNoTracking()
                 .Where(d => decIds.Contains(d.Id) && !d.IsDeleted)
-                .Select(d => new { d.Id, d.DeclarationCode })
+                .Select(d => new { d.Id, d.DeclarationCode, d.CustomsBrokerId })
                 .ToListAsync(cancellationToken))
-            .ToDictionary(d => d.Id.Trim(), d => d.DeclarationCode.Trim(), StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(
+                d => d.Id.Trim(),
+                d => (
+                    Code: d.DeclarationCode.Trim(),
+                    BrokerId: string.IsNullOrWhiteSpace(d.CustomsBrokerId) ? null : d.CustomsBrokerId.Trim()),
+                StringComparer.OrdinalIgnoreCase);
+
+        var brokerIds = decById.Values
+            .Select(d => d.BrokerId)
+            .Where(x => !string.IsNullOrEmpty(x))
+            .Cast<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var brokerNameById = brokerIds.Count == 0
+            ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            : (await _db.CustomsBrokers.AsNoTracking()
+                    .Where(b => brokerIds.Contains(b.Id))
+                    .Select(b => new { b.Id, b.Cname })
+                    .ToListAsync(cancellationToken))
+                .ToDictionary(
+                    b => b.Id.Trim(),
+                    b => (b.Cname ?? string.Empty).Trim(),
+                    StringComparer.OrdinalIgnoreCase);
 
         var vendorIds = notifies
             .Select(n => n.VendorId)
@@ -79,7 +101,7 @@ public sealed class CustomsTraceQuery : ICustomsTraceQuery
             var cdiKey = n.CustomsDeclarationItemId.Trim();
             if (!cdiById.TryGetValue(cdiKey, out var cdi))
                 continue;
-            if (!decById.TryGetValue(cdi.DeclId, out var decCode))
+            if (!decById.TryGetValue(cdi.DeclId, out var dec))
                 continue;
 
             var vendorId = !string.IsNullOrWhiteSpace(n.VendorId)
@@ -89,12 +111,18 @@ public sealed class CustomsTraceQuery : ICustomsTraceQuery
             if (string.IsNullOrWhiteSpace(vendorName) && !string.IsNullOrWhiteSpace(n.VendorName))
                 vendorName = n.VendorName.Trim();
 
+            string? brokerName = null;
+            if (!string.IsNullOrEmpty(dec.BrokerId))
+                brokerNameById.TryGetValue(dec.BrokerId, out brokerName);
+
             result[notifyKey] = new CustomsTraceLinkDto
             {
                 CustomsDeclarationId = cdi.DeclId,
-                CustomsDeclarationCode = decCode,
+                CustomsDeclarationCode = dec.Code,
                 VendorId = vendorId,
-                VendorName = vendorName
+                VendorName = vendorName,
+                CustomsBrokerId = dec.BrokerId,
+                CustomsBrokerName = string.IsNullOrWhiteSpace(brokerName) ? null : brokerName
             };
         }
 
@@ -130,6 +158,9 @@ public sealed class CustomsTraceQuery : ICustomsTraceQuery
 
             row.CustomsDeclarationId = trace.CustomsDeclarationId;
             row.CustomsDeclarationCode = trace.CustomsDeclarationCode;
+            row.CustomsBrokerName = string.IsNullOrWhiteSpace(trace.CustomsBrokerName)
+                ? null
+                : trace.CustomsBrokerName.Trim();
             if (string.IsNullOrWhiteSpace(row.VendorId) && !string.IsNullOrWhiteSpace(trace.VendorId))
                 row.VendorId = trace.VendorId;
             if (string.IsNullOrWhiteSpace(row.VendorName) && !string.IsNullOrWhiteSpace(trace.VendorName))

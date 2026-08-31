@@ -55,8 +55,14 @@ export interface FlowCard {
   lineDocNo?: string | null
   lineDocLabelKey?: string
   lineDocRoute?: FlowDocRoute
+  /** 出库通知小卡：送达地域（10 大陆 / 20 海外）；未传则不渲染该字段 */
+  regionType?: number | null
   /** 报关出库通知小卡：关联待报关 Id（溯源展示） */
   pendlistId?: string | null
+  /** 出库类型（装箱流程出库通知/装箱/出库站） */
+  stockOutType?: number | null
+  customsDeclarationId?: string | null
+  customsDeclarationCode?: string | null
 }
 
 export interface FlowStation {

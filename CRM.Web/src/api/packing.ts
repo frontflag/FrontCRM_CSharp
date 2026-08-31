@@ -69,6 +69,9 @@ export interface PackingItemFlowStockOutLine {
   customerName?: string | null
   customerCode?: string | null
   createUserName?: string | null
+  stockOutType?: number | null
+  customsDeclarationId?: string | null
+  customsDeclarationCode?: string | null
 }
 
 export interface PackingItemListRow {
@@ -192,6 +195,9 @@ export interface PackingStockOutNotifyRow {
   requestDate: string
   createTime: string
   remark?: string | null
+  stockOutType?: number | null
+  customsDeclarationId?: string | null
+  customsDeclarationCode?: string | null
 }
 
 export interface PackingDetailLine {
@@ -478,7 +484,13 @@ function unwrapPackingStockOutNotifies(d: Record<string, unknown>): PackingStock
       salesUserName: (r.salesUserName ?? r.SalesUserName) as string | null | undefined,
       requestDate: String(r.requestDate ?? r.RequestDate ?? ''),
       createTime: String(r.createTime ?? r.CreateTime ?? ''),
-      remark: (r.remark ?? r.Remark) as string | null | undefined
+      remark: (r.remark ?? r.Remark) as string | null | undefined,
+      stockOutType:
+        r.stockOutType != null || r.StockOutType != null
+          ? Number(r.stockOutType ?? r.StockOutType)
+          : undefined,
+      customsDeclarationId: (r.customsDeclarationId ?? r.CustomsDeclarationId) as string | null | undefined,
+      customsDeclarationCode: (r.customsDeclarationCode ?? r.CustomsDeclarationCode) as string | null | undefined
     }
   })
 }
@@ -847,7 +859,13 @@ export const packingApi = {
         createTime: (r.createTime ?? r.CreateTime) as string | null | undefined,
         customerName: (r.customerName ?? r.CustomerName) as string | null | undefined,
         customerCode: (r.customerCode ?? r.CustomerCode) as string | null | undefined,
-        createUserName: (r.createUserName ?? r.CreateUserName) as string | null | undefined
+        createUserName: (r.createUserName ?? r.CreateUserName) as string | null | undefined,
+        stockOutType:
+          r.stockOutType != null || r.StockOutType != null
+            ? Number(r.stockOutType ?? r.StockOutType)
+            : undefined,
+        customsDeclarationId: (r.customsDeclarationId ?? r.CustomsDeclarationId) as string | null | undefined,
+        customsDeclarationCode: (r.customsDeclarationCode ?? r.CustomsDeclarationCode) as string | null | undefined
       }
     })
   },

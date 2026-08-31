@@ -297,6 +297,37 @@ namespace CRM.API.Controllers
             return Ok(ApiResponse<StockInListAnalyticsRankingsDto>.Ok(data));
         }
 
+        [HttpGet("{id}/ops-aggregates")]
+        public async Task<ActionResult<ApiResponse<StockInOpsAggregates>>> GetOpsAggregates(
+            string id,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!await _service.CanUserAccessStockInAsync(userId, id, cancellationToken))
+                    return StatusCode(403, ApiResponse<StockInOpsAggregates>.Fail("无权查看该入库单", 403));
+
+                var data = await _service.GetOpsAggregatesAsync(id, cancellationToken);
+                if (await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User))
+                    PurchaseSensitiveFieldMask511.ApplyStockInOpsAggregates(data, true);
+                return Ok(ApiResponse<StockInOpsAggregates>.Ok(data, "OK"));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<StockInOpsAggregates>.Fail(ex.Message, 400));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(ApiResponse<StockInOpsAggregates>.Fail(ex.Message, 404));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取入库单操作面板失败");
+                return StatusCode(500, ApiResponse<StockInOpsAggregates>.Fail($"加载失败: {ex.Message}", 500));
+            }
+        }
+
         [HttpGet("{id}")]
         public async Task<ActionResult<ApiResponse<StockIn>>> GetById(string id, CancellationToken cancellationToken = default)
         {

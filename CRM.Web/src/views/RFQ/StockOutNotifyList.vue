@@ -235,7 +235,7 @@
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
       :data="list"
       row-key="id"
-      :row-class-name="customsPanelRowClassName"
+      :row-class-name="notifyPanelRowClassName"
       v-loading="loading"
       @selection-change="onSelectionChange"
       @row-click="onRowClick"
@@ -519,6 +519,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { useStockOutNotifyListBasketStore } from '@/stores/stockOutNotifyListBasket'
 import { useStockOutNotifyCustomsPanelStore } from '@/stores/stockOutNotifyCustomsPanel'
+import { useStockOutNotifyFlowPanelStore } from '@/stores/stockOutNotifyFlowPanel'
 import { useCustomerWorkspacePanelStore } from '@/stores/customerWorkspacePanel'
 import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
@@ -535,6 +536,7 @@ const route = useRoute()
 const { t, locale } = useI18n()
 const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const stockOutNotifyCustomsPanelStore = useStockOutNotifyCustomsPanelStore()
+const stockOutNotifyFlowStore = useStockOutNotifyFlowPanelStore()
 const customerWorkspacePanelStore = useCustomerWorkspacePanelStore()
 customerWorkspacePanelStore.setSource('stockOutRequest')
 const isNotifyListRoute = () =>
@@ -549,6 +551,21 @@ const { onOpsPanelRowClick: onCustomerPanelRowClick } = useListRightOpsPanelInte
     void customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
   },
   dataTabIds: ['r-customer']
+})
+const { onOpsPanelRowClick: onFlowPanelRowClick } = useListRightOpsPanelInteraction({
+  workspaceLayout,
+  isActiveRoute: isNotifyListRoute,
+  hasSelectedRow: () => !!stockOutNotifyFlowStore.row,
+  setRowOnly: row => stockOutNotifyFlowStore.setRowOnly(row as unknown as StockOutRequestDto),
+  selectRow: row =>
+    stockOutNotifyFlowStore.selectRow(
+      row as unknown as StockOutRequestDto,
+      t('stockOutNotifyList.flowPanel.loadFailed')
+    ),
+  loadSelected: () => {
+    void stockOutNotifyFlowStore.loadSelected(t('stockOutNotifyList.flowPanel.loadFailed'))
+  },
+  dataTabIds: ['r-flow']
 })
 const { ensureLoaded: ensureLogisticsDict, shipmentArrivalOptions, expressOptions } = useLogisticsFormDict()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
@@ -782,6 +799,7 @@ function isCustomsNotify(row: StockOutRequestDto): boolean {
 }
 
 async function onRowClick(row: StockOutRequestDto) {
+  await onFlowPanelRowClick(row as unknown as Record<string, unknown>)
   await onCustomerPanelRowClick(row as unknown as Record<string, unknown>)
   if (!isCustomsNotify(row)) {
     stockOutNotifyCustomsPanelStore.clear()
@@ -793,16 +811,15 @@ async function onRowClick(row: StockOutRequestDto) {
     t('stockOutNotifyList.customsTab.loadFailed')
   )
   workspaceLayout?.toggleRightPanel(true)
-  await nextTick()
-  workspaceLayout?.setRightActiveTab('r-stock-out-customs')
 }
 
-function customsPanelRowClassName({ row }: { row: StockOutRequestDto }) {
-  if (!stockOutNotifyCustomsPanelStore.notifyRow) return 'table-row-pointer'
-  return stockOutNotifyCustomsPanelStore.notifyRowKey(row) ===
-    stockOutNotifyCustomsPanelStore.notifyRowKey(stockOutNotifyCustomsPanelStore.notifyRow)
-    ? 'so-item-row--active'
-    : 'table-row-pointer'
+function notifyPanelRowClassName({ row }: { row: StockOutRequestDto }) {
+  const flowActive =
+    stockOutNotifyFlowStore.row &&
+    stockOutNotifyFlowStore.rowKey(row) === stockOutNotifyFlowStore.rowKey(stockOutNotifyFlowStore.row)
+      ? 'so-item-row--active'
+      : ''
+  return [flowActive, 'table-row-pointer'].filter(Boolean).join(' ')
 }
 
 function salesNotifyTooltip(row: StockOutRequestDto): string {
@@ -851,6 +868,7 @@ async function runNotifyFetch(resetPage: boolean) {
     listTotal.value = reqPage.total
     await restoreTableSelectionFromBasket()
     resetListRightPanelOnReload(stockOutNotifyCustomsPanelStore)
+    resetListRightPanelOnReload(stockOutNotifyFlowStore)
     resetListRightPanelOnReload(customerWorkspacePanelStore)
   } catch (e) {
     console.error(e)

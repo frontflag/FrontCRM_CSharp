@@ -239,6 +239,12 @@ export interface StockInListItemDto {
   customsDeclarationId?: string | null
   /** 关联报关单号（报关入库 Type=20） */
   customsDeclarationCode?: string | null
+  /** 报关入库时关联报关公司名称 */
+  customsBrokerName?: string | null
+  /** 明细单价汇总（多行逗号分隔） */
+  unitPriceSummary?: string | null
+  /** 单价币别（明细 currency 去重） */
+  unitPriceCurrencyCode?: number | null
 }
 
 /** GET 入库单列表：与《翻页查询规范》<code>data</code> 结构一致 */
@@ -349,6 +355,11 @@ export const stockInApi = {
     await apiClient.patch(`/api/v1/stock-in/${id}/status?status=${status}`)
   },
 
+  async getOpsAggregates(id: string): Promise<StockInOpsAggregatesDto> {
+    const res = await apiClient.get<unknown>(`/api/v1/stock-in/${encodeURIComponent(id)}/ops-aggregates`)
+    return normalizeStockInOpsAggregates(res)
+  },
+
   async runOpsCheck(): Promise<StockInOpsCheckResult> {
     const res = await apiClient.post<unknown>('/api/v1/stock-in/ops-check')
     const root = res && typeof res === 'object' ? (res as Record<string, unknown>) : null
@@ -395,6 +406,81 @@ export interface StockInOpsCheckResult {
   findingCount: number
   truncated: boolean
   findings: StockInOpsCheckFinding[]
+}
+
+export interface StockInOpsPurchaseLineDto {
+  purchaseOrderItemId: string
+  purchaseOrderItemCode: string
+  purchaseOrderId: string
+  purchaseUserName?: string | null
+  purchaseOrderCreateTime?: string | null
+  qty: number
+  purchaseOrderType: number
+  unitPrice: number
+  currency: number
+}
+
+export interface StockInOpsArrivalNoticeDto {
+  id: string
+  noticeCode: string
+  stockInType: number
+  actualArrivalDate?: string | null
+  receiveQty: number
+  passQty?: number | null
+}
+
+export interface StockInOpsAggregatesDto {
+  purchase?: StockInOpsPurchaseLineDto | null
+  arrivalNotice?: StockInOpsArrivalNoticeDto | null
+}
+
+function unwrapApiData(res: unknown): Record<string, unknown> {
+  const root = res && typeof res === 'object' ? (res as Record<string, unknown>) : {}
+  const data = (root.data ?? root.Data ?? root) as Record<string, unknown>
+  return data && typeof data === 'object' ? data : {}
+}
+
+function normalizeStockInOpsAggregates(res: unknown): StockInOpsAggregatesDto {
+  const r = unwrapApiData(res)
+  const purchaseRaw = (r.purchase ?? r.Purchase) as Record<string, unknown> | null | undefined
+  const arrivalRaw = (r.arrivalNotice ?? r.ArrivalNotice) as Record<string, unknown> | null | undefined
+  return {
+    purchase: purchaseRaw
+      ? {
+          purchaseOrderItemId: String(purchaseRaw.purchaseOrderItemId ?? purchaseRaw.PurchaseOrderItemId ?? ''),
+          purchaseOrderItemCode: String(
+            purchaseRaw.purchaseOrderItemCode ?? purchaseRaw.PurchaseOrderItemCode ?? ''
+          ),
+          purchaseOrderId: String(purchaseRaw.purchaseOrderId ?? purchaseRaw.PurchaseOrderId ?? ''),
+          purchaseUserName: (purchaseRaw.purchaseUserName ?? purchaseRaw.PurchaseUserName) as
+            | string
+            | null
+            | undefined,
+          purchaseOrderCreateTime: (purchaseRaw.purchaseOrderCreateTime ??
+            purchaseRaw.PurchaseOrderCreateTime) as string | null | undefined,
+          qty: Number(purchaseRaw.qty ?? purchaseRaw.Qty ?? 0),
+          purchaseOrderType: Number(purchaseRaw.purchaseOrderType ?? purchaseRaw.PurchaseOrderType ?? 0),
+          unitPrice: Number(purchaseRaw.unitPrice ?? purchaseRaw.UnitPrice ?? 0),
+          currency: Number(purchaseRaw.currency ?? purchaseRaw.Currency ?? 0)
+        }
+      : null,
+    arrivalNotice: arrivalRaw
+      ? {
+          id: String(arrivalRaw.id ?? arrivalRaw.Id ?? ''),
+          noticeCode: String(arrivalRaw.noticeCode ?? arrivalRaw.NoticeCode ?? ''),
+          stockInType: Number(arrivalRaw.stockInType ?? arrivalRaw.StockInType ?? 0),
+          actualArrivalDate: (arrivalRaw.actualArrivalDate ?? arrivalRaw.ActualArrivalDate) as
+            | string
+            | null
+            | undefined,
+          receiveQty: Number(arrivalRaw.receiveQty ?? arrivalRaw.ReceiveQty ?? 0),
+          passQty:
+            arrivalRaw.passQty != null || arrivalRaw.PassQty != null
+              ? Number(arrivalRaw.passQty ?? arrivalRaw.PassQty)
+              : null
+        }
+      : null
+  }
 }
 
 function mapOpsFinding(row: unknown): StockInOpsCheckFinding {

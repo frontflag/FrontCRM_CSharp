@@ -256,7 +256,14 @@
               <div class="ops-stock-region-cell">
                 <span class="ops-kv__label">{{ t('qcList.opsPanel.stockInType') }}</span>
                 <span class="ops-kv__sep" aria-hidden="true">：</span>
-                <span class="ops-kv__value">{{ stockInTypeLabel }}</span>
+                <span class="ops-kv__value">
+                  <StockBizTypeTag
+                    biz="in"
+                    :type="stockIn.stockInType ?? arrivalStockInType"
+                    :customs-declaration-id="customsDeclarationId"
+                    :customs-declaration-code="customsDeclarationCode"
+                  />
+                </span>
               </div>
             </div>
             <div class="ops-stock-region-row">
@@ -292,7 +299,6 @@ import {
 import { formatDisplayDate } from '@/utils/displayDateTime'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import QcImagesReadonlyGallery from '@/components/Logistics/QcImagesReadonlyGallery.vue'
-import { resolveStockInTypeLabelKey } from '@/constants/stockInType'
 import { filterQcImageDocuments, resolveUploadDocumentId } from '@/utils/qcImageDocument'
 import { getApiErrorMessage } from '@/utils/apiError'
 import {
@@ -524,11 +530,6 @@ const stockInStatusText = computed(() => {
   if (s === 2) return t('stockInList.status.done')
   if (s === 3) return t('stockInList.status.cancelled')
   return '—'
-})
-
-const stockInTypeLabel = computed(() => {
-  const type = stockIn.value?.stockInType ?? arrivalStockInType.value
-  return t(`stockInList.stockInTypeLabels.${resolveStockInTypeLabelKey(type)}`)
 })
 
 function formatQty(v: unknown) {

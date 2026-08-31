@@ -1,5 +1,6 @@
 import apiClient, { type ApiRejectedError } from './client'
 import { fetchCompanyProfileForReport, type CompanyProfileBundle, type CompanyReportInfo } from '@/api/companyProfile'
+import type { StockItemFlowDoc } from '@/api/inventoryCenter'
 
 export interface StockOutDto {
   id: string
@@ -625,6 +626,27 @@ export type StockOutListQuery = {
 /** GET 出库通知列表 */
 export type StockOutRequestListPaged = { items: StockOutRequestDto[]; total: number; page: number; pageSize: number }
 
+/** GET /api/v1/stock-out/request/{id}/flow-aggregates */
+export interface StockOutNotifyFlowAggregates {
+  stockOutNotifyId: string
+  sellOrderItem?: StockItemFlowDoc | null
+  stockOutNotify: StockItemFlowDoc
+  stockItems?: StockItemFlowDoc[]
+  stockingStockItems?: StockItemFlowDoc[]
+  packings?: StockItemFlowDoc[]
+  stockOuts?: StockItemFlowDoc[]
+}
+
+/** GET /api/v1/stock-out/items/{id}/flow-aggregates */
+export interface StockOutItemFlowAggregates {
+  stockOutItemId: string
+  sellOrderItem?: StockItemFlowDoc | null
+  stockOutNotify?: StockItemFlowDoc | null
+  stockItems?: StockItemFlowDoc[]
+  packings?: StockItemFlowDoc[]
+  stockOuts?: StockItemFlowDoc[]
+}
+
 /** GET 出库明细列表 */
 export type StockOutItemListPaged = { items: StockOutItemListRow[]; total: number; page: number; pageSize: number }
 
@@ -961,6 +983,24 @@ export const stockOutApi = {
   }): Promise<StockOutRequestListPaged> {
     const res = await apiClient.get<unknown>('/api/v1/stock-out/request', { params: params ?? {} })
     return unwrapPagedRequests(res)
+  },
+
+  async getRequestFlowAggregates(id: string): Promise<StockOutNotifyFlowAggregates> {
+    const res = await apiClient.get<unknown>(
+      `/api/v1/stock-out/request/${encodeURIComponent(id)}/flow-aggregates`
+    )
+    const root = res && typeof res === 'object' ? (res as Record<string, unknown>) : null
+    const data = (root?.data ?? root?.Data ?? root) as unknown
+    return (data && typeof data === 'object' ? data : {}) as StockOutNotifyFlowAggregates
+  },
+
+  async getItemFlowAggregates(id: string): Promise<StockOutItemFlowAggregates> {
+    const res = await apiClient.get<unknown>(
+      `/api/v1/stock-out/items/${encodeURIComponent(id)}/flow-aggregates`
+    )
+    const root = res && typeof res === 'object' ? (res as Record<string, unknown>) : null
+    const data = (root?.data ?? root?.Data ?? root) as unknown
+    return (data && typeof data === 'object' ? data : {}) as StockOutItemFlowAggregates
   },
 
   /** @deprecated 请使用 {@link stockOutApi.getRequestListPaged} */

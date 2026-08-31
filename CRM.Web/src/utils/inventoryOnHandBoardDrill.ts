@@ -1,5 +1,6 @@
 import type { RouteLocationRaw, Router } from 'vue-router'
 import type { InventoryOnHandListAnalyticsQuery } from '@/api/inventoryOnHandAnalytics'
+import { parseStockInTypeFilterValue } from '@/constants/stockInType'
 
 export type RankingDrillDimension = 'customer' | 'salesUser' | 'material' | 'brand'
 
@@ -77,6 +78,7 @@ export function applyStockItemListRouteQuery(
       salespersonUserId: string | undefined
       purchaserUserId: string | undefined
       stockType: number | undefined
+      stockInType: number | undefined
       stagnantOnly: boolean
       rankDimension: string
       rankKey: string
@@ -126,6 +128,8 @@ export function applyStockItemListRouteQuery(
   const stockType = num('stockType')
   targets.filters.stockType =
     stockType != null && stockType >= 1 && stockType <= 3 ? stockType : undefined
+
+  targets.filters.stockInType = parseStockInTypeFilterValue(num('stockInType') ?? str('stockInType'))
 
   targets.filters.stagnantOnly = bool('stagnantOnly') || str('drill') === 'stagnant'
   targets.filters.rankDimension = str('rankDimension')

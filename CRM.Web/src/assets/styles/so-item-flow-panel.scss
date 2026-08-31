@@ -206,4 +206,25 @@ $flow-status-done: #67c23a;
   min-width: 0;
   color: $text-primary;
   word-break: break-word;
+
+  &--with-icon {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+}
+
+.so-item-flow-customs-icon-wrap {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  line-height: 0;
+}
+
+.so-item-flow-customs-icon {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  flex-shrink: 0;
 }

@@ -1150,8 +1150,26 @@ public class PackingService : IPackingService
                     : EntityLookupService.FormatUserLoginName(salesUser) ?? salesUser.RealName ?? salesUser.UserName,
                 RequestDate = r.RequestDate,
                 CreateTime = r.CreateTime,
-                Remark = r.Remark
+                Remark = r.Remark,
+                StockOutType = r.StockOutType
             });
+        }
+
+        var customsRows = rows
+            .Where(x => StockOutTypeCode.NormalizeForNotify(x.StockOutType) == StockOutTypeCode.Customs)
+            .ToList();
+        if (customsRows.Count > 0)
+        {
+            var traceMap = await _customsTraceQuery.GetByStockOutNotifyIdsAsync(
+                customsRows.Select(x => x.Id),
+                cancellationToken);
+            foreach (var row in customsRows)
+            {
+                if (!traceMap.TryGetValue(row.Id.Trim(), out var trace))
+                    continue;
+                row.CustomsDeclarationId = trace.CustomsDeclarationId;
+                row.CustomsDeclarationCode = trace.CustomsDeclarationCode;
+            }
         }
 
         return rows;
@@ -2288,8 +2306,57 @@ public class PackingService : IPackingService
                     ? (string.IsNullOrWhiteSpace(cust.OfficialName) ? cust.NickName : cust.OfficialName)
                     : null,
                 CustomerCode = cust != null ? cust.CustomerCode : null,
-                CreateUserName = u != null ? u.UserName : null
+                CreateUserName = u != null ? u.UserName : null,
+                StockOutType = so.StockOutType
             }).ToListAsync(cancellationToken);
+
+        if (rows.Count == 0)
+            return rows;
+
+        var packingMeta = await _db.PackingItems.AsNoTracking()
+            .Where(pi => pi.Id == id)
+            .Select(pi => new { pi.PackingId, pi.StockOutNotifyId })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (packingMeta == null)
+            return rows;
+
+        string? declarationId = null;
+        string? declarationCode = null;
+        var packingDecl = await _db.Packings.AsNoTracking()
+            .Where(p => p.Id == packingMeta.PackingId)
+            .Select(p => p.CustomsDeclarationId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (!string.IsNullOrWhiteSpace(packingDecl))
+        {
+            declarationId = packingDecl.Trim();
+            var summary = await _customsTraceQuery.ResolveCustomsSummaryByDeclarationIdAsync(
+                declarationId,
+                cancellationToken);
+            declarationCode = summary?.DeclarationCode;
+        }
+        else if (!string.IsNullOrWhiteSpace(packingMeta.StockOutNotifyId))
+        {
+            var notifyId = packingMeta.StockOutNotifyId.Trim();
+            var traceMap = await _customsTraceQuery.GetByStockOutNotifyIdsAsync(
+                new[] { notifyId },
+                cancellationToken);
+            if (traceMap.TryGetValue(notifyId, out var trace))
+            {
+                declarationId = trace.CustomsDeclarationId;
+                declarationCode = trace.CustomsDeclarationCode;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(declarationId))
+            return rows;
+
+        foreach (var row in rows)
+        {
+            if (StockOutTypeCode.NormalizeForNotify(row.StockOutType) != StockOutTypeCode.Customs)
+                continue;
+            row.CustomsDeclarationId = declarationId;
+            row.CustomsDeclarationCode = declarationCode;
+        }
 
         return rows;
     }

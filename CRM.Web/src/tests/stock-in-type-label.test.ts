@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { resolveStockInTypeLabelKey, stockInTypeLabel } from '@/constants/stockInType'
+import { resolveStockInTypeLabelKey, stockInTypeLabel, parseStockInTypeFilterValue, StockInTypeCode } from '@/constants/stockInType'
 import { resolveStockOutTypeLabelKey } from '@/constants/stockOutType'
 
 describe('resolveStockInTypeLabelKey', () => {
@@ -33,6 +33,24 @@ describe('resolveStockInTypeLabelKey', () => {
     expect(resolveStockInTypeLabelKey(30)).toBe('return')
     expect(resolveStockInTypeLabelKey(4)).toBe('scrap')
     expect(resolveStockInTypeLabelKey(40)).toBe('scrap')
+  })
+})
+
+describe('parseStockInTypeFilterValue', () => {
+  it('maps purchase legacy 1 to 10 and keeps business types', () => {
+    expect(parseStockInTypeFilterValue(1)).toBe(StockInTypeCode.Purchase)
+    expect(parseStockInTypeFilterValue(10)).toBe(StockInTypeCode.Purchase)
+    expect(parseStockInTypeFilterValue(20)).toBe(StockInTypeCode.Customs)
+    expect(parseStockInTypeFilterValue(30)).toBe(StockInTypeCode.Return)
+    expect(parseStockInTypeFilterValue(40)).toBe(StockInTypeCode.Scrap)
+  })
+
+  it('ignores transfer and unknown', () => {
+    expect(parseStockInTypeFilterValue(3)).toBeUndefined()
+    expect(parseStockInTypeFilterValue(2)).toBeUndefined()
+    expect(parseStockInTypeFilterValue(0)).toBeUndefined()
+    expect(parseStockInTypeFilterValue('')).toBeUndefined()
+    expect(parseStockInTypeFilterValue(undefined)).toBeUndefined()
   })
 })
 

@@ -20,6 +20,7 @@ namespace CRM.API.Controllers
     public class InventoryCenterController : ControllerBase
     {
         private readonly IInventoryCenterService _service;
+        private readonly IStockItemFlowService _stockItemFlowService;
         private readonly IInventoryOnHandSummaryQuery _onHandSummaryQuery;
         private readonly IInventoryOnHandListAnalyticsQuery _onHandListAnalytics;
         private readonly IRepository<StockInfo> _stockRepo;
@@ -34,6 +35,7 @@ namespace CRM.API.Controllers
 
         public InventoryCenterController(
             IInventoryCenterService service,
+            IStockItemFlowService stockItemFlowService,
             IInventoryOnHandSummaryQuery onHandSummaryQuery,
             IInventoryOnHandListAnalyticsQuery onHandListAnalytics,
             IRepository<StockInfo> stockRepo,
@@ -47,6 +49,7 @@ namespace CRM.API.Controllers
             ILogger<InventoryCenterController> logger)
         {
             _service = service;
+            _stockItemFlowService = stockItemFlowService;
             _onHandSummaryQuery = onHandSummaryQuery;
             _onHandListAnalytics = onHandListAnalytics;
             _stockRepo = stockRepo;
@@ -460,6 +463,43 @@ namespace CRM.API.Controllers
             }
         }
 
+        /// <summary>库存明细右侧「流程」聚合：7 站；出库通知/装箱/出库仅本层 stockItemId。</summary>
+        [HttpGet("stock-items/{id}/flow-aggregates")]
+        public async Task<IActionResult> GetStockItemFlowAggregates(
+            string id,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var stockItemId = (id ?? string.Empty).Trim();
+                if (string.IsNullOrEmpty(stockItemId))
+                    return BadRequest(new { success = false, message = "库存明细ID不能为空" });
+
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var data = await _stockItemFlowService.GetFlowAggregatesAsync(stockItemId, userId, cancellationToken);
+
+                var mask511 = await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User);
+                var mask521 = await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User);
+                PurchaseSensitiveFieldMask511.ApplyStockItemFlowAggregates(data, mask511);
+                SaleSensitiveFieldMask521.ApplyStockItemFlowAggregates(data, mask521);
+
+                return Ok(new { success = true, data, message = "OK" });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取库存明细流程聚合失败 StockItemId={Id}", id);
+                return StatusCode(500, new { success = false, message = $"获取库存明细流程聚合失败: {ex.Message}" });
+            }
+        }
+
         /// <summary>按当前筛选导出库存明细列表 CSV，并写入操作审计。</summary>
         [HttpGet("stock-items/export")]
         public async Task<IActionResult> ExportStockItemsList(
@@ -496,7 +536,7 @@ namespace CRM.API.Controllers
 
                 var sb = new StringBuilder();
                 sb.AppendLine(string.Join(',',
-                    "出库状态", "库存明细编号", "入库单号", "入库日期", "仓库", "地域",
+                    "出库状态", "库存明细编号", "入库单号", "入库日期", "入库类型", "仓库", "地域",
                     "物料型号", "品牌", "入库量", "已出库数量", "在库数量",
                     "在库单价", "在库单价币别", "在库金额", "在库金额币别",
                     "供应商中文名称", "供应商英文名称", "采购员",
@@ -511,6 +551,7 @@ namespace CRM.API.Controllers
                         InventoryExportHttp.CsvCell(r.StockItemCode),
                         InventoryExportHttp.CsvCell(r.StockInCode),
                         InventoryExportHttp.CsvCell(InventoryExportHttp.FormatDate(r.StockInDate)),
+                        InventoryExportHttp.CsvCell(InventoryExportHttp.StockInTypeLabel(r.StockInType)),
                         InventoryExportHttp.CsvCell(r.WarehouseName ?? r.WarehouseCode),
                         InventoryExportHttp.CsvCell(RegionTypeText(r.RegionType)),
                         InventoryExportHttp.CsvCell(r.PurchasePn),
@@ -547,6 +588,7 @@ namespace CRM.API.Controllers
                     ["stockInDateFrom"] = query.StockInDateFrom,
                     ["stockInDateTo"] = query.StockInDateTo,
                     ["warehouseId"] = query.WarehouseId,
+                    ["stockInType"] = query.StockInType,
                     ["purchasePn"] = query.PurchasePn,
                     ["purchaseBrand"] = query.PurchaseBrand,
                     ["outboundStatus"] = query.OutboundStatus,

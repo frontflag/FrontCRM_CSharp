@@ -367,6 +367,7 @@ import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
 import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
 import { useCustomerWorkspacePanelStore } from '@/stores/customerWorkspacePanel'
+import { useStockOutItemFlowPanelStore } from '@/stores/stockOutItemFlowPanel'
 import { STOCK_OUT_TYPE_FILTER_VALUES, resolveStockOutTypeLabelKey } from '@/constants/stockOutType'
 import {
   STOCK_OUT_ITEM_LIST_STATUS_TAB_VALUES,
@@ -396,6 +397,7 @@ const { t } = useI18n()
 const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const customerWorkspacePanelStore = useCustomerWorkspacePanelStore()
 customerWorkspacePanelStore.setSource('stockOutItem')
+const stockOutItemFlowStore = useStockOutItemFlowPanelStore()
 const { onOpsPanelRowClick: onCustomerPanelRowClick } = useListRightOpsPanelInteraction({
   workspaceLayout,
   isActiveRoute: () => route.name === 'StockOutItemList',
@@ -413,6 +415,21 @@ const { onOpsPanelRowClick: onCustomerPanelRowClick } = useListRightOpsPanelInte
     void customerWorkspacePanelStore.load(t('customerWorkspace.loadFailed'))
   },
   dataTabIds: ['r-customer']
+})
+const { onOpsPanelRowClick: onFlowPanelRowClick } = useListRightOpsPanelInteraction({
+  workspaceLayout,
+  isActiveRoute: () => route.name === 'StockOutItemList',
+  hasSelectedRow: () => !!stockOutItemFlowStore.row,
+  setRowOnly: row => stockOutItemFlowStore.setRowOnly(row as unknown as StockOutItemListRow),
+  selectRow: row =>
+    stockOutItemFlowStore.selectRow(
+      row as unknown as StockOutItemListRow,
+      t('stockOutItemList.flowPanel.loadFailed')
+    ),
+  loadSelected: () => {
+    void stockOutItemFlowStore.loadSelected(t('stockOutItemList.flowPanel.loadFailed'))
+  },
+  dataTabIds: ['r-flow']
 })
 
 const highlightCode = computed(() => {
@@ -613,7 +630,10 @@ async function runStockOutItemFetch(resetPage: boolean) {
   } finally {
     loading.value = false
   }
-  if (resetPage) resetListRightPanelOnReload(customerWorkspacePanelStore)
+  if (resetPage) {
+    resetListRightPanelOnReload(customerWorkspacePanelStore)
+    resetListRightPanelOnReload(stockOutItemFlowStore)
+  }
 }
 
 function onStockOutItemPageSizeChange() {
@@ -650,10 +670,12 @@ function syncFiltersFromRoute() {
 
 function highlightRowClassName({ row }: { row: StockOutItemListRow }) {
   const code = highlightCode.value
-  if (!code) return ''
-  return String(row.stockOutItemCode ?? '').trim().toLowerCase() === code.toLowerCase()
-    ? 'so-item-row--active'
-    : ''
+  const codeHit =
+    !!code && String(row.stockOutItemCode ?? '').trim().toLowerCase() === code.toLowerCase()
+  const flowActive =
+    !!stockOutItemFlowStore.row &&
+    stockOutItemFlowStore.rowKey(row) === stockOutItemFlowStore.rowKey(stockOutItemFlowStore.row)
+  return [codeHit || flowActive ? 'so-item-row--active' : '', 'table-row-pointer'].filter(Boolean).join(' ')
 }
 
 function listStockOutTypeLabel(type: number | undefined | null): string {
@@ -712,8 +734,9 @@ const statusLabel = (s: number) => {
   }
 }
 
-function onRowClick(row: StockOutItemListRow) {
-  void onCustomerPanelRowClick(row as unknown as Record<string, unknown>)
+async function onRowClick(row: StockOutItemListRow) {
+  await onFlowPanelRowClick(row as unknown as Record<string, unknown>)
+  await onCustomerPanelRowClick(row as unknown as Record<string, unknown>)
 }
 
 const onRowDblclick = (row: StockOutItemListRow) => {
@@ -755,6 +778,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   customerWorkspacePanelStore.clear()
+  stockOutItemFlowStore.clear()
 })
 </script>
 

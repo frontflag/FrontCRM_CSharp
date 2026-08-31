@@ -138,7 +138,10 @@ export const usePackingDetailFlowPanelStore = defineStore('packingDetailFlowPane
       packingItemId: line.id,
       packingItemQty: line.qty,
       stockOutNotifyId: line.stockOutNotifyId,
-      createUserName: header.createUserName
+      createUserName: header.createUserName,
+      stockOutType: header.stockOutType,
+      customsDeclarationId: header.customsDeclarationId,
+      customsDeclarationCode: header.customsDeclarationCode
     }
   }
 

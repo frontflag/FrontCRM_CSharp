@@ -157,6 +157,8 @@ export interface StockItemListQuery {
   repertoryHasStock?: boolean
   /** 1=客单 2=备货 3=样品 */
   stockType?: number
+  /** 入库类型 10/20/30/40（选 10 时后端同时匹配历史 1） */
+  stockInType?: number
   /** 仅呆滞在库层（与库存中心看板 KPI 一致） */
   stagnantOnly?: boolean
   /** 看板排行下钻：customer / salesUser / material / brand */
@@ -184,6 +186,50 @@ export interface StockItemListRow extends StockItemRow {
   outboundStatus: number
   /** 出库业务 USD 利润（层快照价 × 累计出库数量） */
   profitOutBizUsd?: number
+}
+
+/** GET /api/v1/inventory-center/stock-items/{id}/flow-aggregates */
+export interface StockItemFlowDoc {
+  id: string
+  docCode?: string | null
+  status?: number | null
+  createTime?: string | null
+  bizDate?: string | null
+  vendorName?: string | null
+  vendorCode?: string | null
+  customerName?: string | null
+  customerCode?: string | null
+  personName?: string | null
+  unitPrice?: number | null
+  currency?: number | null
+  salesUnitPrice?: number | null
+  salesCurrency?: number | null
+  qty?: number | null
+  qty2?: number | null
+  passQty?: number | null
+  rejectQty?: number | null
+  stockInType?: number | null
+  stockOutType?: number | null
+  customsDeclarationId?: string | null
+  customsDeclarationCode?: string | null
+  stockInNotifyId?: string | null
+  purchaseOrderId?: string | null
+  purchaseOrderItemId?: string | null
+  stockAggregateId?: string | null
+  sellOrderId?: string | null
+  lineDocCode?: string | null
+  isDeleted?: boolean
+}
+
+export interface StockItemFlowAggregates {
+  stockItemId: string
+  purchaseOrderItem?: StockItemFlowDoc | null
+  qc?: StockItemFlowDoc | null
+  stockIn?: StockItemFlowDoc | null
+  stockItem: StockItemFlowDoc
+  stockOutNotifies?: StockItemFlowDoc[]
+  packings?: StockItemFlowDoc[]
+  stockOuts?: StockItemFlowDoc[]
 }
 
 /** 销售订单明细维度：全仓可用库存合计（与拣货出库物料键解析一致） */
@@ -397,6 +443,13 @@ export const inventoryCenterApi = {
       await apiClient.get(`/api/v1/inventory-center/sell-order-items/${encodeURIComponent(sellOrderItemId)}/available-qty`)
     )
   },
+  async getStockItemFlowAggregates(stockItemId: string): Promise<StockItemFlowAggregates> {
+    return unwrap<StockItemFlowAggregates>(
+      await apiClient.get(
+        `/api/v1/inventory-center/stock-items/${encodeURIComponent(stockItemId)}/flow-aggregates`
+      )
+    )
+  },
   async getOverview(query?: { warehouseId?: string; materialModel?: string; stockCode?: string }): Promise<InventoryOverview[]> {
     const params = new URLSearchParams()
     const add = (key: string, v: string | undefined) => {
@@ -567,6 +620,9 @@ export const inventoryCenterApi = {
     if (q.stockType != null && q.stockType >= 1 && q.stockType <= 3) {
       params.set('stockType', String(q.stockType))
     }
+    if (q.stockInType != null && [10, 20, 30, 40].includes(Number(q.stockInType))) {
+      params.set('stockInType', String(q.stockInType))
+    }
     if (q.stagnantOnly === true) params.set('stagnantOnly', 'true')
     add('rankDimension', q.rankDimension)
     add('rankKey', q.rankKey)
@@ -629,6 +685,9 @@ export const inventoryCenterApi = {
     if (q.repertoryHasStock === false) params.set('repertoryHasStock', 'false')
     if (q.stockType != null && q.stockType >= 1 && q.stockType <= 3) {
       params.set('stockType', String(q.stockType))
+    }
+    if (q.stockInType != null && [10, 20, 30, 40].includes(Number(q.stockInType))) {
+      params.set('stockInType', String(q.stockInType))
     }
     if (q.stagnantOnly === true) params.set('stagnantOnly', 'true')
     add('rankDimension', q.rankDimension)

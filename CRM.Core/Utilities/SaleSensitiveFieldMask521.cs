@@ -194,6 +194,87 @@ public static class SaleSensitiveFieldMask521
             ApplyInventoryStockItemListRow(x, true);
     }
 
+    public static void ApplyStockItemFlowAggregates(StockItemFlowAggregatesDto? dto, bool mask)
+    {
+        if (!mask || dto == null) return;
+        MaskSaleFields(dto.StockItem, maskPerson: true);
+        if (dto.StockOutNotifies != null)
+        {
+            foreach (var x in dto.StockOutNotifies)
+                MaskSaleFields(x, maskPerson: true);
+        }
+        if (dto.Packings != null)
+        {
+            foreach (var x in dto.Packings)
+                MaskSaleFields(x, maskPerson: true);
+        }
+        if (dto.StockOuts != null)
+        {
+            foreach (var x in dto.StockOuts)
+                MaskSaleFields(x, maskPerson: true);
+        }
+    }
+
+    public static void ApplyStockOutNotifyFlowAggregates(StockOutNotifyFlowAggregatesDto? dto, bool mask)
+    {
+        if (!mask || dto == null) return;
+        MaskSaleFields(dto.SellOrderItem, maskPerson: true);
+        MaskSaleFields(dto.StockOutNotify, maskPerson: true);
+        if (dto.StockItems != null)
+        {
+            foreach (var x in dto.StockItems)
+                MaskSaleFields(x, maskPerson: true);
+        }
+        if (dto.StockingStockItems != null)
+        {
+            foreach (var x in dto.StockingStockItems)
+                MaskSaleFields(x, maskPerson: true);
+        }
+        if (dto.Packings != null)
+        {
+            foreach (var x in dto.Packings)
+                MaskSaleFields(x, maskPerson: true);
+        }
+        if (dto.StockOuts != null)
+        {
+            foreach (var x in dto.StockOuts)
+                MaskSaleFields(x, maskPerson: true);
+        }
+    }
+
+    public static void ApplyStockOutItemFlowAggregates(StockOutItemFlowAggregatesDto? dto, bool mask)
+    {
+        if (!mask || dto == null) return;
+        MaskSaleFields(dto.SellOrderItem, maskPerson: true);
+        MaskSaleFields(dto.StockOutNotify, maskPerson: true);
+        if (dto.StockItems != null)
+        {
+            foreach (var x in dto.StockItems)
+                MaskSaleFields(x, maskPerson: true);
+        }
+        if (dto.Packings != null)
+        {
+            foreach (var x in dto.Packings)
+                MaskSaleFields(x, maskPerson: true);
+        }
+        if (dto.StockOuts != null)
+        {
+            foreach (var x in dto.StockOuts)
+                MaskSaleFields(x, maskPerson: true);
+        }
+    }
+
+    private static void MaskSaleFields(StockItemFlowDocDto? x, bool maskPerson)
+    {
+        if (x == null) return;
+        x.CustomerName = null;
+        x.CustomerCode = null;
+        x.SalesUnitPrice = null;
+        x.SalesCurrency = null;
+        if (maskPerson)
+            x.PersonName = null;
+    }
+
     public static void ApplyInventoryMaterialOverview(InventoryMaterialOverviewDto? x, bool mask)
     {
         if (!mask || x == null) return;

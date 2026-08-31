@@ -85,30 +85,55 @@
                     </span>
                     <span class="so-item-flow-kv__value">{{ card.statusText || '—' }}</span>
                   </div>
+                  <div v-if="station.key === 'stockOut'" class="so-item-flow-kv__cell">
+                    <span class="so-item-flow-kv__label">
+                      {{ t('packingDetail.flowPanel.fields.stockOutType') }}：
+                    </span>
+                    <span class="so-item-flow-kv__value so-item-flow-kv__value--with-icon">
+                      <StockBizTypeTag
+                        v-if="card.stockOutType != null"
+                        biz="out"
+                        :type="card.stockOutType"
+                        :customs-declaration-id="card.customsDeclarationId"
+                        :customs-declaration-code="card.customsDeclarationCode"
+                      />
+                      <template v-else>—</template>
+                    </span>
+                  </div>
                   <div class="so-item-flow-kv__cell">
                     <span class="so-item-flow-kv__label">
                       {{ t('salesOrderItemList.flowPanel.fields.createdAt') }}：
                     </span>
                     <span class="so-item-flow-kv__value">{{ formatFlowCardDate(card.createdAt) }}</span>
                   </div>
-                  <div class="so-item-flow-kv__cell">
+                  <div
+                    v-if="station.key === 'stockOutNotify' || station.key === 'packing'"
+                    class="so-item-flow-kv__cell"
+                  >
+                    <span class="so-item-flow-kv__label">
+                      {{ t('packingDetail.flowPanel.fields.stockOutType') }}：
+                    </span>
+                    <span class="so-item-flow-kv__value so-item-flow-kv__value--with-icon">
+                      <StockBizTypeTag
+                        v-if="card.stockOutType != null"
+                        biz="out"
+                        :type="card.stockOutType"
+                        :customs-declaration-id="card.customsDeclarationId"
+                        :customs-declaration-code="card.customsDeclarationCode"
+                      />
+                      <template v-else>—</template>
+                    </span>
+                  </div>
+                  <div v-else class="so-item-flow-kv__cell">
                     <span class="so-item-flow-kv__label">{{ t(card.personRoleKey) }}：</span>
                     <span class="so-item-flow-kv__value">{{ card.personName || '—' }}</span>
                   </div>
-                  <template v-if="card.showCustomer">
-                    <div class="so-item-flow-kv__cell">
-                      <span class="so-item-flow-kv__label">
-                        {{ t('salesOrderItemList.flowPanel.fields.customerName') }}：
-                      </span>
-                      <span class="so-item-flow-kv__value">{{ card.customerName || '—' }}</span>
-                    </div>
-                    <div class="so-item-flow-kv__cell">
-                      <span class="so-item-flow-kv__label">
-                        {{ t('salesOrderItemList.flowPanel.fields.customerCode') }}：
-                      </span>
-                      <span class="so-item-flow-kv__value">{{ card.customerCode || '—' }}</span>
-                    </div>
-                  </template>
+                  <div v-if="card.showCustomer" class="so-item-flow-kv__cell so-item-flow-kv__cell--full">
+                    <span class="so-item-flow-kv__label">
+                      {{ t('salesOrderItemList.flowPanel.fields.customerName') }}：
+                    </span>
+                    <span class="so-item-flow-kv__value">{{ card.customerName || '—' }}</span>
+                  </div>
                   <div v-if="card.unitPriceText" class="so-item-flow-kv__cell">
                     <span class="so-item-flow-kv__label">{{ priceLabel(station.key) }}：</span>
                     <span class="so-item-flow-kv__value">{{ card.unitPriceText }}</span>
@@ -118,6 +143,14 @@
                       {{ t('salesOrderItemList.flowPanel.fields.qty') }}：
                     </span>
                     <span class="so-item-flow-kv__value">{{ card.qtyText }}</span>
+                  </div>
+                  <div v-if="card.regionType !== undefined" class="so-item-flow-kv__cell">
+                    <span class="so-item-flow-kv__label">
+                      {{ t('packingDetail.flowPanel.fields.regionType') }}：
+                    </span>
+                    <span class="so-item-flow-kv__value">
+                      <RegionTypeChip :region-type="card.regionType" />
+                    </span>
                   </div>
                   <div
                     v-if="hasDescription(card.description)"
@@ -144,6 +177,8 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { SalesOrderDetailTabAggregates } from '@/api/salesOrder'
 import FlowYouAreHereMark from '@/components/Common/FlowYouAreHereMark.vue'
+import RegionTypeChip from '@/components/Common/RegionTypeChip.vue'
+import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import {
   buildPackingItemFlowStations,
   formatFlowCardDate,

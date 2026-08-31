@@ -7002,6 +7002,7 @@ const zhCN = {
       stockInDateTo: '止',
       stockInDateSep: '至',
       warehouse: '仓库',
+      stockInTypePlaceholder: '入库类型',
       purchasePn: '物料型号',
       purchaseBrand: '品牌',
       outboundPartial: '部分出库',
@@ -7039,6 +7040,7 @@ const zhCN = {
       stockItemCode: '库存明细编号',
       stockInCode: '入库单号',
       stockInDate: '入库日期',
+      stockInType: '入库类型',
       warehouse: '仓库',
       purchasePn: '物料型号',
       purchaseBrand: '品牌',
@@ -7063,6 +7065,46 @@ const zhCN = {
       exportConfirmMessage: '将按当前筛选条件导出库存明细，最多 50000 条，是否继续？',
       exportSuccess: '导出成功',
       exportFailed: '导出失败'
+    },
+    flowPanel: {
+      pickRow: '在「流程」页签下单击列表行，查看本层从采购到出库的业务链路',
+      emptyStation: '未开始',
+      stationEmpty: '未开始',
+      stationActive: '进行中',
+      stationDone: '已完成',
+      loadFailed: '加载库存明细流程失败',
+      stations: {
+        purchaseOrderItem: '采购明细',
+        qc: '质检',
+        stockIn: '入库',
+        stockItem: '库存明细',
+        stockOutNotify: '出库通知',
+        packing: '装箱',
+        stockOut: '出库'
+      },
+      role: {
+        purchaser: '采购员',
+        creator: '创建人',
+        salesUser: '业务员'
+      },
+      fields: {
+        docNo: '单号',
+        status: '状态',
+        createdAt: '创建日期',
+        stockInDate: '入库日期',
+        vendorName: '供应商名称',
+        customerName: '客户名称',
+        unitPrice: '采购价·币别',
+        salesPrice: '销售价·币别',
+        qty: '数量',
+        inboundQty: '入库数量',
+        outboundQty: '出库数量',
+        packingQty: '装箱数量',
+        qcQty: '通过/拒收',
+        stockInType: '入库类型',
+        stockOutType: '出库类型',
+        description: '描述'
+      }
     }
   },
   inventoryStockDetail: {
@@ -7542,6 +7584,15 @@ const zhCN = {
       boardView: '看板',
       listView: '列表'
     },
+    settingsMenu: {
+      aria: '列表筛选设置',
+      closeTabs: '关闭页签',
+      tabMode: '页签模式',
+      warehouseTabDisabled: '仓库超过 {max} 个时使用下拉筛选'
+    },
+    filterTabs: {
+      all: '全部'
+    },
     leftPanel: {
       title: '入库单检索',
       materialModel: '物料型号',
@@ -7580,6 +7631,34 @@ const zhCN = {
     hasBatchEntered: { yes: '是', no: '否' },
     actions: { editRemark: '修改备注', markStockedIn: '标记已入库' },
     remarkPlaceholder: '请输入入库单备注',
+    opsPanel: {
+      pickRow: '请在「操作」页签下单击列表行，查看本单入库概况、备注与采购/到货摘要。',
+      loadFailed: '加载操作面板失败',
+      overviewTitle: '入库概况',
+      remarkTitle: '备注',
+      purchaseTitle: '采购订单',
+      purchaseItemCode: '采购明细单号',
+      purchaseOrderType: '采购订单类型',
+      purchaseDate: '采购日期',
+      purchaseUser: '采购员',
+      purchaseQty: '采购明细数量',
+      purchaseUnitPrice: '采购单价',
+      stockInDate: '入库日期',
+      overviewQty: '入库数量',
+      noPurchase: '暂无关联采购明细',
+      arrivalTitle: '到货通知',
+      arrivalNoticeCode: '到货通知单号',
+      arrivalType: '到货类型',
+      actualArrivalDate: '实到日期',
+      receiveQty: '到货数量',
+      qcPassQty: '质检通过',
+      noArrival: '暂无关联到货通知',
+      orderTypes: {
+        customer: '客单采购',
+        stocking: '备货采购',
+        sample: '样品采购'
+      }
+    },
     stockInTypeLabels: {
       purchase: '采购入库',
       customs: '报关入库',
@@ -8129,6 +8208,17 @@ const zhCN = {
       loadFailed: '加载出库明细失败',
       missingStockOutId: '缺少出库单 ID'
     },
+    flowPanel: {
+      pickRow: '在「流程」页签下单击列表行，查看本出库明细上下游业务链路',
+      loadFailed: '加载出库明细流程失败',
+      stations: {
+        sellOrderItem: '销售明细',
+        stockOutNotify: '出库通知',
+        stockItem: '库存明细',
+        packing: '装箱',
+        stockOut: '出库'
+      }
+    },
     board: {
       datasetTag: '筛选',
       hint: '统计当前搜索栏筛选结果全量（非当前页）。金额为出库金额：销售单价×出库数量。',
@@ -8401,6 +8491,18 @@ const zhCN = {
     salesNotifyCodeLink: '原销售出库通知',
     auxTabs: {
       customsDeclaration: '报关单'
+    },
+    flowPanel: {
+      pickRow: '在「流程」页签下单击列表行，查看出库通知上下游业务链路',
+      loadFailed: '加载出库通知流程失败',
+      stations: {
+        sellOrderItem: '销售明细',
+        stockOutNotify: '出库通知',
+        stockItem: '库存明细',
+        stockingStockItem: '备货库存',
+        packing: '装箱',
+        stockOut: '出库'
+      }
     },
     customsTab: {
       pickRow: '单击报关出库通知查看报关单信息',
@@ -8944,7 +9046,8 @@ const zhCN = {
       missingSellLink: '当前装箱明细未关联销售订单明细，销售明细站为空；其余节点仍按本箱展示',
       fields: {
         stockOutItemCode: '出库明细单号',
-        regionType: '地域'
+        regionType: '地域',
+        stockOutType: '出库类型'
       },
       stations: {
         sellOrderItem: '销售订单明细',

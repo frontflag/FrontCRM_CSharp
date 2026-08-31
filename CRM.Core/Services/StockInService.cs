@@ -1025,6 +1025,7 @@ namespace CRM.Core.Services
 
                 string? customsDeclarationId = null;
                 string? customsDeclarationCode = null;
+                string? traceDecBrokerName = null;
                 if (s.StockInType == StockInTypeCode.Customs)
                 {
                     var notifyKey = !string.IsNullOrWhiteSpace(s.SourceId)
@@ -1035,6 +1036,9 @@ namespace CRM.Core.Services
                     {
                         customsDeclarationId = traceDec.CustomsDeclarationId;
                         customsDeclarationCode = traceDec.CustomsDeclarationCode;
+                        traceDecBrokerName = string.IsNullOrWhiteSpace(traceDec.CustomsBrokerName)
+                            ? null
+                            : traceDec.CustomsBrokerName.Trim();
                     }
                 }
 
@@ -1066,11 +1070,93 @@ namespace CRM.Core.Services
                     CreateUserName = createUserName,
                     HasBatchEntered = stockInIdsWithBatch.Contains(s.Id.Trim()),
                     CustomsDeclarationId = customsDeclarationId,
-                    CustomsDeclarationCode = customsDeclarationCode
+                    CustomsDeclarationCode = customsDeclarationCode,
+                    CustomsBrokerName = string.IsNullOrWhiteSpace(traceDecBrokerName) ? null : traceDecBrokerName
                 });
             }
 
             return (result, stockInItemsMap);
+        }
+
+        /// <inheritdoc />
+        public async Task<StockInOpsAggregates> GetOpsAggregatesAsync(
+            string id,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+                throw new ArgumentException("入库单ID不能为空", nameof(id));
+
+            cancellationToken.ThrowIfCancellationRequested();
+            var stockInId = id.Trim();
+            var stockIn = await _stockInRepository.GetByIdAsync(stockInId)
+                ?? throw new InvalidOperationException("入库单不存在");
+
+            var noticeId = stockIn.SourceId?.Trim();
+            if (string.IsNullOrEmpty(noticeId) && !string.IsNullOrWhiteSpace(stockIn.QcId))
+            {
+                var qcHead = await _qcRepository.GetByIdAsync(stockIn.QcId.Trim());
+                noticeId = qcHead?.StockInNotifyId?.Trim();
+            }
+
+            var result = new StockInOpsAggregates();
+            if (string.IsNullOrEmpty(noticeId))
+                return result;
+
+            var notice = await _stockInNotifyRepository.GetByIdAsync(noticeId);
+            if (notice == null)
+                return result;
+
+            ArrivalNoticeOpsAggregates fromNotice;
+            try
+            {
+                fromNotice = await _logisticsService.GetArrivalNoticeOpsAggregatesAsync(noticeId, cancellationToken);
+            }
+            catch (InvalidOperationException)
+            {
+                fromNotice = new ArrivalNoticeOpsAggregates();
+            }
+
+            result.Purchase = await MapStockInOpsPurchaseAsync(fromNotice.Purchase, cancellationToken);
+            result.ArrivalNotice = new StockInOpsArrivalNotice
+            {
+                Id = notice.Id,
+                NoticeCode = notice.NoticeCode?.Trim() ?? string.Empty,
+                StockInType = StockInTypeCode.NormalizeForNotify(notice.StockInType),
+                ActualArrivalDate = notice.ActualArrivalDate,
+                ReceiveQty = notice.ReceiveQty,
+                PassQty = fromNotice.Qc?.PassQty
+            };
+            return result;
+        }
+
+        private async Task<StockInOpsPurchaseLine?> MapStockInOpsPurchaseAsync(
+            ArrivalNoticeOpsPurchaseLine? source,
+            CancellationToken cancellationToken)
+        {
+            if (source == null || string.IsNullOrWhiteSpace(source.PurchaseOrderItemId))
+                return null;
+
+            cancellationToken.ThrowIfCancellationRequested();
+            var poItem = await _purchaseOrderItemRepository.GetByIdAsync(source.PurchaseOrderItemId.Trim());
+            PurchaseOrder? po = null;
+            var poId = !string.IsNullOrWhiteSpace(source.PurchaseOrderId)
+                ? source.PurchaseOrderId.Trim()
+                : poItem?.PurchaseOrderId?.Trim();
+            if (!string.IsNullOrWhiteSpace(poId))
+                po = await _purchaseOrderRepository.GetByIdAsync(poId);
+
+            return new StockInOpsPurchaseLine
+            {
+                PurchaseOrderItemId = source.PurchaseOrderItemId.Trim(),
+                PurchaseOrderItemCode = source.PurchaseOrderItemCode?.Trim() ?? string.Empty,
+                PurchaseOrderId = poId ?? string.Empty,
+                PurchaseUserName = source.PurchaseUserName,
+                PurchaseOrderCreateTime = source.PurchaseOrderCreateTime ?? po?.CreateTime,
+                Qty = source.Qty,
+                PurchaseOrderType = po?.Type ?? 0,
+                UnitPrice = poItem?.Cost ?? 0m,
+                Currency = poItem?.Currency ?? po?.Currency ?? 0
+            };
         }
 
         public async Task<PagedResult<StockInListItemDto>> GetListPagedAsync(

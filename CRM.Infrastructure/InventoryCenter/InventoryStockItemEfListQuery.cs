@@ -126,6 +126,23 @@ public sealed class InventoryStockItemEfListQuery : IInventoryStockItemListQuery
         if (query.StockType is >= 1 and <= 3)
             filtered = filtered.Where(x => x.si.StockType == query.StockType.Value);
 
+        if (query.StockInType is { } requestedStockInType)
+        {
+            if (StockInTypeCode.IsPurchaseReceipt(requestedStockInType))
+            {
+                const short purchase = StockInTypeCode.Purchase;
+                const short legacyPurchase = StockInTypeCode.LegacyPurchase;
+                filtered = filtered.Where(x =>
+                    x.sin != null
+                    && (x.sin.StockInType == purchase || x.sin.StockInType == legacyPurchase));
+            }
+            else if (StockInTypeCode.IsBusinessType(requestedStockInType))
+            {
+                filtered = filtered.Where(x =>
+                    x.sin != null && x.sin.StockInType == requestedStockInType);
+            }
+        }
+
         if (query.StagnantOnly == true)
         {
             var stagnantThreshold = DateTime.UtcNow.Date.AddDays(-StagnantDays);

@@ -51,6 +51,9 @@ namespace CRM.Core.Interfaces
 
         /// <summary>关联报关单号（报关入库 Type=20 时由服务层填充）。</summary>
         public string? CustomsDeclarationCode { get; set; }
+
+        /// <summary>报关入库时关联报关公司名称（展示用，溯源填充）。</summary>
+        public string? CustomsBrokerName { get; set; }
     }
 
     /// <summary>
@@ -87,6 +90,40 @@ namespace CRM.Core.Interfaces
         /// <summary>管理员强制删除：校验入库单号、调用删除链并写操作日志。</summary>
         Task ForceDeleteAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName);
         Task UpdateStatusAsync(string id, short status, string? actingUserId = null);
+
+        /// <summary>入库单列表右侧「操作」面板：采购行 + 到货通知摘要。</summary>
+        Task<StockInOpsAggregates> GetOpsAggregatesAsync(
+            string id,
+            CancellationToken cancellationToken = default);
+    }
+
+    public class StockInOpsAggregates
+    {
+        public StockInOpsPurchaseLine? Purchase { get; set; }
+        public StockInOpsArrivalNotice? ArrivalNotice { get; set; }
+    }
+
+    public class StockInOpsPurchaseLine
+    {
+        public string PurchaseOrderItemId { get; set; } = string.Empty;
+        public string PurchaseOrderItemCode { get; set; } = string.Empty;
+        public string PurchaseOrderId { get; set; } = string.Empty;
+        public string? PurchaseUserName { get; set; }
+        public DateTime? PurchaseOrderCreateTime { get; set; }
+        public decimal Qty { get; set; }
+        public short PurchaseOrderType { get; set; }
+        public decimal UnitPrice { get; set; }
+        public short Currency { get; set; }
+    }
+
+    public class StockInOpsArrivalNotice
+    {
+        public string Id { get; set; } = string.Empty;
+        public string NoticeCode { get; set; } = string.Empty;
+        public short StockInType { get; set; }
+        public DateTime? ActualArrivalDate { get; set; }
+        public decimal ReceiveQty { get; set; }
+        public decimal? PassQty { get; set; }
     }
 
     public class StockInQueryRequest

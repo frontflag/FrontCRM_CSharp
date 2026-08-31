@@ -77,6 +77,22 @@
           <el-option :label="t('inventoryStockItemList.filters.stockPresenceHas')" value="has" />
           <el-option :label="t('inventoryStockItemList.filters.stockPresenceNone')" value="none" />
         </el-select>
+        <el-select
+          v-if="tabModeDimension !== 'stockInType'"
+          v-model="filters.stockInType"
+          clearable
+          :placeholder="t('inventoryStockItemList.filters.stockInTypePlaceholder')"
+          class="status-select status-select--stock-in-type"
+          :teleported="false"
+          @change="fetchList"
+        >
+          <el-option
+            v-for="v in STOCK_IN_TYPE_FILTER_VALUES"
+            :key="v"
+            :label="listStockInTypeLabel(v)"
+            :value="v"
+          />
+        </el-select>
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
             <circle cx="11" cy="11" r="8" />
@@ -289,12 +305,15 @@
     <CrmDataTable
       ref="dataTableRef"
       class="inventory-stock-item-list-crm-table"
-      column-layout-key="inventory-stock-item-list-main-v2"
+      column-layout-key="inventory-stock-item-list-main-v3"
       :columns="stockItemTableColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
       :data="list"
       v-loading="loading"
+      row-key="stockItemId"
+      :row-class-name="flowPanelRowClassName"
+      @row-click="onRowClick"
       @row-dblclick="onRowDblclick"
       @header-dragend="onStockItemTableHeaderDragEnd"
     >
@@ -331,6 +350,9 @@
             <span class="crm-quote-create-time__hm">{{ p.time }}</span>
           </span>
         </template>
+      </template>
+      <template #col-stockInType="{ row }">
+        <StockBizTypeTag biz="in" :type="row.stockInType" />
       </template>
       <template #col-warehouse="{ row }">{{ warehouseCell(row) }}</template>
       <template #col-regionType="{ row }">
@@ -450,7 +472,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, inject, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -459,6 +481,7 @@ import {
   INVENTORY_STOCK_ITEM_LIST_TAB_MODE_OPTIONS,
   INVENTORY_WAREHOUSE_TAB_MAX,
   ISI_OUTBOUND_STATUS_TAB_VALUES,
+  ISI_STOCK_IN_TYPE_TAB_VALUES,
   readInventoryStockItemListTabMode,
   writeInventoryStockItemListTabMode,
   isiOutboundStatusFilterToTab,
@@ -467,11 +490,14 @@ import {
   isiStockPresenceTabToFilter,
   isiWarehouseFilterToTab,
   isiWarehouseTabToFilter,
+  isiStockInTypeFilterToTab,
+  isiStockInTypeTabToFilter,
   isWarehouseTabModeAllowed,
   type InventoryStockItemListTabModeDimension,
   type IsiOutboundStatusTabId,
   type IsiStockPresenceTabId,
-  type IsiWarehouseTabId
+  type IsiWarehouseTabId,
+  type IsiStockInTypeTabId
 } from '@/utils/inventoryStockItemListTabMode'
 import { applyStockItemListRouteQuery } from '@/utils/inventoryOnHandBoardDrill'
 import { authApi, type PurchaseUserSelectOption, type SalesUserSelectOption } from '@/api/auth'
@@ -485,9 +511,18 @@ import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiv
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useAuthStore } from '@/stores/auth'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
+import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
+import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
+import { useStockItemFlowPanelStore } from '@/stores/stockItemFlowPanel'
 import VendorExtendColumnHeader from '@/components/list/VendorExtendColumnHeader.vue'
 import VendorExtendCell from '@/components/list/VendorExtendCell.vue'
 import { useVendorExtendColumn, isVendorExtendTableColumn } from '@/composables/useVendorExtendColumn'
+import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
+import {
+  STOCK_IN_TYPE_FILTER_VALUES,
+  parseStockInTypeFilterValue,
+  resolveStockInTypeLabelKey
+} from '@/constants/stockInType'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
@@ -512,6 +547,8 @@ const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
 const authStore = useAuthStore()
+const workspaceLayout = inject(WorkspaceLayoutKey, null)
+const stockItemFlowStore = useStockItemFlowPanelStore()
 const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 const canForceDelete = computed(() => authStore.canForceDelete())
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
@@ -556,6 +593,7 @@ const stockItemTableColumns = computed<CrmTableColumnDef[]>(() => {
   { key: 'stockItemCode', label: t('inventoryStockItemList.columns.stockItemCode'), prop: 'stockItemCode', width: 168, showOverflowTooltip: true },
   { key: 'stockInCode', label: t('inventoryStockItemList.columns.stockInCode'), prop: 'stockInCode', width: 150, showOverflowTooltip: true },
   { key: 'stockInDate', label: t('inventoryStockItemList.columns.stockInDate'), prop: 'stockInDate', width: 118 },
+  { key: 'stockInType', label: t('inventoryStockItemList.columns.stockInType'), width: 110, align: 'center' },
   { key: 'warehouse', label: t('inventoryStockItemList.columns.warehouse'), minWidth: 120, showOverflowTooltip: true },
   { key: 'regionType', label: t('inventoryStockItemList.columns.regionType'), width: 100, minWidth: 100, align: 'center', showOverflowTooltip: true },
   { key: 'purchasePn', label: t('inventoryStockItemList.columns.purchasePn'), prop: 'purchasePn', minWidth: 130, showOverflowTooltip: true },
@@ -690,7 +728,8 @@ const TAB_MODE_FILTER_I18N: Record<
 > = {
   outboundStatus: 'inventoryStockItemList.filters.outboundStatus',
   stockPresence: 'inventoryStockItemList.filters.stockPresenceField',
-  warehouse: 'inventoryStockItemList.filters.warehouse'
+  warehouse: 'inventoryStockItemList.filters.warehouse',
+  stockInType: 'inventoryStockItemList.filters.stockInTypePlaceholder'
 }
 
 function tabModeDimensionLabel(dim: Exclude<InventoryStockItemListTabModeDimension, 'off'>) {
@@ -736,6 +775,7 @@ const filterTabStripVisible = computed(
   () =>
     tabModeDimension.value === 'outboundStatus' ||
     tabModeDimension.value === 'stockPresence' ||
+    tabModeDimension.value === 'stockInType' ||
     (tabModeDimension.value === 'warehouse' && warehouseTabModeAllowed.value)
 )
 
@@ -745,7 +785,7 @@ const filterTabStripAriaLabel = computed(() => {
   return tabModeDimensionLabel(tabModeDimension.value)
 })
 
-type IsiFilterTabId = IsiOutboundStatusTabId | IsiStockPresenceTabId | IsiWarehouseTabId
+type IsiFilterTabId = IsiOutboundStatusTabId | IsiStockPresenceTabId | IsiWarehouseTabId | IsiStockInTypeTabId
 
 const filters = reactive({
   stockInCode: '',
@@ -755,6 +795,7 @@ const filters = reactive({
   purchaseBrand: '',
   warehouseId: '',
   outboundStatus: undefined as number | undefined,
+  stockInType: undefined as number | undefined,
   /** 是否有库存：''=不限，has=&gt;0，none===0 */
   stockPresence: '' as '' | 'has' | 'none',
   customerName: '',
@@ -799,6 +840,15 @@ const filterTabOptions = computed(() => {
       }
     ]
   }
+  if (dim === 'stockInType') {
+    return [
+      { id: 'all' as const, label: t('inventoryStockItemList.filterTabs.all') },
+      ...ISI_STOCK_IN_TYPE_TAB_VALUES.map((value) => ({
+        id: String(value) as IsiStockInTypeTabId,
+        label: listStockInTypeLabel(value)
+      }))
+    ]
+  }
   if (dim === 'warehouse' && warehouseTabModeAllowed.value) {
     return [
       { id: 'all' as const, label: t('inventoryStockItemList.filterTabs.all') },
@@ -815,6 +865,7 @@ const activeFilterTabId = computed((): IsiFilterTabId => {
   const dim = tabModeDimension.value
   if (dim === 'outboundStatus') return isiOutboundStatusFilterToTab(filters.outboundStatus)
   if (dim === 'stockPresence') return isiStockPresenceFilterToTab(filters.stockPresence)
+  if (dim === 'stockInType') return isiStockInTypeFilterToTab(filters.stockInType)
   if (dim === 'warehouse') return isiWarehouseFilterToTab(filters.warehouseId)
   return 'all'
 })
@@ -832,6 +883,13 @@ function onFilterTabClick(tab: IsiFilterTabId) {
     const next = isiStockPresenceTabToFilter(tab as IsiStockPresenceTabId)
     if (filters.stockPresence === next) return
     filters.stockPresence = next
+    fetchList()
+    return
+  }
+  if (dim === 'stockInType') {
+    const next = isiStockInTypeTabToFilter(tab as IsiStockInTypeTabId)
+    if (filters.stockInType === next) return
+    filters.stockInType = next
     fetchList()
     return
   }
@@ -867,6 +925,8 @@ function buildQuery(): StockItemListQuery {
     vendorName: filters.vendorName.trim() || undefined,
     purchaserUserId: filters.purchaserUserId?.trim() || undefined
   }
+  const stockInType = parseStockInTypeFilterValue(filters.stockInType)
+  if (stockInType != null) q.stockInType = stockInType
   if (filters.stockPresence === 'has') q.repertoryHasStock = true
   else if (filters.stockPresence === 'none') q.repertoryHasStock = false
   if (filters.stockType != null && filters.stockType >= 1 && filters.stockType <= 3) {
@@ -922,6 +982,7 @@ const resetFilters = () => {
   filters.purchaseBrand = ''
   filters.warehouseId = ''
   filters.outboundStatus = undefined
+  filters.stockInType = undefined
   filters.stockPresence = ''
   filters.customerName = ''
   filters.vendorName = ''
@@ -1034,6 +1095,10 @@ const warehouseOptionLabel = (w: WarehouseInfo) => {
   return name || code || '—'
 }
 
+function listStockInTypeLabel(type: number | undefined | null): string {
+  return t(`stockInList.stockInTypeLabels.${resolveStockInTypeLabelKey(type)}`)
+}
+
 const warehouseCell = (row: StockItemListRow) => {
   const code = row.warehouseCode?.trim()
   if (code) return code
@@ -1056,6 +1121,35 @@ const onRowDblclick = (row: StockItemListRow) => {
       warehouseId: row.warehouseId || undefined
     }
   })
+}
+
+const { onOpsPanelRowClick } = useListRightOpsPanelInteraction({
+  workspaceLayout,
+  isActiveRoute: () => route.name === 'InventoryStockItemList',
+  hasSelectedRow: () => !!stockItemFlowStore.row,
+  setRowOnly: (row) => stockItemFlowStore.setRowOnly(row as unknown as StockItemListRow),
+  selectRow: (row) =>
+    stockItemFlowStore.selectRow(
+      row as unknown as StockItemListRow,
+      t('inventoryStockItemList.flowPanel.loadFailed')
+    ),
+  loadSelected: () => {
+    void stockItemFlowStore.loadSelected(t('inventoryStockItemList.flowPanel.loadFailed'))
+  },
+  dataTabIds: ['r-flow']
+})
+
+function onRowClick(row: Record<string, unknown>) {
+  void onOpsPanelRowClick(row)
+}
+
+function flowPanelRowClassName({ row }: { row: StockItemListRow }) {
+  const flowActive =
+    stockItemFlowStore.row &&
+    stockItemFlowStore.rowKey(row) === stockItemFlowStore.rowKey(stockItemFlowStore.row)
+      ? 'so-item-row--active'
+      : ''
+  return [flowActive, 'table-row-pointer'].filter(Boolean).join(' ')
 }
 
 const handleDeleteStockItem = async (row: StockItemListRow) => {
@@ -1347,6 +1441,11 @@ onMounted(async () => {
 }
 
 .status-select--stock-presence {
+  width: 128px;
+  min-width: 120px;
+}
+
+.status-select--stock-in-type {
   width: 128px;
   min-width: 120px;
 }

@@ -241,6 +241,10 @@ export function useWorkspaceLayout() {
       rightActiveTabId.value = 'r-ops'
       return
     }
+    if (rightTabs.value.some((t) => t.id === 'r-flow')) {
+      rightActiveTabId.value = 'r-flow'
+      return
+    }
     // 收款核销桌面：展开右栏默认「出库单」
     if (rightTabs.value.some((t) => t.id === 'r-rwo-stock-out')) {
       rightActiveTabId.value = 'r-rwo-stock-out'

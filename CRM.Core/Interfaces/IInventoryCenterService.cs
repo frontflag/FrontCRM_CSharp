@@ -275,6 +275,12 @@ namespace CRM.Core.Interfaces
         public short? StockType { get; set; }
 
         /// <summary>
+        /// 入库类型（<c>stock_in.StockInType</c>）。仅购销四档：10 采购 / 20 报关 / 30 退货 / 40 报废。
+        /// 选采购时同时匹配历史值 1；移库 3 与非法值忽略（不过滤）。
+        /// </summary>
+        public short? StockInType { get; set; }
+
+        /// <summary>
         /// 仅呆滞在库层：入库日 ≤ 今天−90 或无有效入库日；隐含 <c>QtyRepertory&gt;0</c>。
         /// 与库存中心看板「呆滞料库存条目（&gt;90天）」KPI 一致。
         /// </summary>

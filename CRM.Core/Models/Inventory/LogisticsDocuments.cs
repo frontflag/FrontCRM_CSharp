@@ -125,6 +125,10 @@ namespace CRM.Core.Models.Inventory
         [NotMapped]
         public string? CustomsDeclarationCode { get; set; }
 
+        /// <summary>报关入库时关联报关公司名称（展示用，由溯源 join 填充，不落库）。</summary>
+        [NotMapped]
+        public string? CustomsBrokerName { get; set; }
+
         /// <summary>软删除标记；为 true 时全局查询过滤器排除。</summary>
         [Column("is_deleted")]
         public bool IsDeleted { get; set; }

@@ -22,6 +22,8 @@ namespace CRM.API.Controllers
     public class StockOutController : ControllerBase
     {
         private readonly IStockOutService _service;
+        private readonly IStockOutNotifyFlowService _stockOutNotifyFlowService;
+        private readonly IStockOutItemFlowService _stockOutItemFlowService;
         private readonly IStockOutItemListAnalyticsQuery _itemListAnalytics;
         private readonly IRepository<StockOut> _stockOutRepo;
         private readonly IRepository<StockOutRequest> _stockOutRequestRepo;
@@ -39,6 +41,8 @@ namespace CRM.API.Controllers
 
         public StockOutController(
             IStockOutService service,
+            IStockOutNotifyFlowService stockOutNotifyFlowService,
+            IStockOutItemFlowService stockOutItemFlowService,
             IStockOutItemListAnalyticsQuery itemListAnalytics,
             IRepository<StockOut> stockOutRepo,
             IRepository<StockOutRequest> stockOutRequestRepo,
@@ -55,6 +59,8 @@ namespace CRM.API.Controllers
             ILogger<StockOutController> logger)
         {
             _service = service;
+            _stockOutNotifyFlowService = stockOutNotifyFlowService;
+            _stockOutItemFlowService = stockOutItemFlowService;
             _itemListAnalytics = itemListAnalytics;
             _stockOutRepo = stockOutRepo;
             _stockOutRequestRepo = stockOutRequestRepo;
@@ -665,6 +671,80 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "获取出库通知列表失败");
                 return StatusCode(500, new { success = false, message = $"获取出库通知列表失败: {ex.Message}" });
+            }
+        }
+
+        /// <summary>出库通知右侧「流程」聚合：销售明细 → 通知（当前）→ 本行库存明细 → 备货库存 → 本通知装箱/出库。</summary>
+        [HttpGet("request/{id}/flow-aggregates")]
+        public async Task<IActionResult> GetStockOutNotifyFlowAggregates(
+            string id,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var notifyId = (id ?? string.Empty).Trim();
+                if (string.IsNullOrEmpty(notifyId))
+                    return BadRequest(new { success = false, message = "出库通知ID不能为空" });
+
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var data = await _stockOutNotifyFlowService.GetFlowAggregatesAsync(notifyId, userId, cancellationToken);
+
+                var mask511 = await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User);
+                var mask521 = await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User);
+                PurchaseSensitiveFieldMask511.ApplyStockOutNotifyFlowAggregates(data, mask511);
+                SaleSensitiveFieldMask521.ApplyStockOutNotifyFlowAggregates(data, mask521);
+
+                return Ok(new { success = true, data, message = "OK" });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取出库通知流程聚合失败 StockOutNotifyId={Id}", id);
+                return StatusCode(500, new { success = false, message = $"获取出库通知流程聚合失败: {ex.Message}" });
+            }
+        }
+
+        /// <summary>出库明细右侧「流程」聚合：销售明细 → 出库通知 → 本行库存明细 → 本行装箱 → 本出库行（当前）。</summary>
+        [HttpGet("items/{stockOutItemId}/flow-aggregates")]
+        public async Task<IActionResult> GetStockOutItemFlowAggregates(
+            string stockOutItemId,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var itemId = (stockOutItemId ?? string.Empty).Trim();
+                if (string.IsNullOrEmpty(itemId))
+                    return BadRequest(new { success = false, message = "出库明细ID不能为空" });
+
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var data = await _stockOutItemFlowService.GetFlowAggregatesAsync(itemId, userId, cancellationToken);
+
+                var mask511 = await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User);
+                var mask521 = await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User);
+                PurchaseSensitiveFieldMask511.ApplyStockOutItemFlowAggregates(data, mask511);
+                SaleSensitiveFieldMask521.ApplyStockOutItemFlowAggregates(data, mask521);
+
+                return Ok(new { success = true, data, message = "OK" });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取出库明细流程聚合失败 StockOutItemId={Id}", stockOutItemId);
+                return StatusCode(500, new { success = false, message = $"获取出库明细流程聚合失败: {ex.Message}" });
             }
         }
 

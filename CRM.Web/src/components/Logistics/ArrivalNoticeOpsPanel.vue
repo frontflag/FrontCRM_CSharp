@@ -34,13 +34,17 @@
           <div class="ops-overview-line">{{ displayBrand }}</div>
           <div class="ops-overview-line">{{ expectedArrivalDateText }}</div>
           <div class="ops-overview-line">{{ formatQty(expectQty) }} pcs</div>
-          <div class="ops-overview-line">
+          <div class="ops-overview-line ops-overview-line--type">
             <StockBizTypeTag
               biz="in"
               :type="stockInType"
               :customs-declaration-id="customsDeclarationId"
               :customs-declaration-code="customsDeclarationCode"
             />
+            <span
+              v-if="customsBrokerNameText"
+              class="ops-overview-broker"
+            >{{ customsBrokerNameText }}</span>
           </div>
         </div>
       </section>
@@ -247,7 +251,14 @@
               <div class="ops-stock-region-cell">
                 <span class="ops-kv__label">{{ t('arrivalNoticeList.opsPanel.stockInType') }}</span>
                 <span class="ops-kv__sep" aria-hidden="true">：</span>
-                <span class="ops-kv__value">{{ stockInTypeLabel }}</span>
+                <span class="ops-kv__value">
+                  <StockBizTypeTag
+                    biz="in"
+                    :type="stockIn.stockInType ?? stockInType"
+                    :customs-declaration-id="customsDeclarationId"
+                    :customs-declaration-code="customsDeclarationCode"
+                  />
+                </span>
               </div>
             </div>
             <div class="ops-stock-region-row">
@@ -278,7 +289,7 @@ import type { ArrivalNoticeOpsAggregatesDto } from '@/api/logistics'
 import { formatDisplayDate } from '@/utils/displayDateTime'
 import VendorNameReadonlyText from '@/components/Vendor/VendorNameReadonlyText.vue'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
-import { resolveStockInTypeLabelKey } from '@/constants/stockInType'
+import { resolveArrivalNoticeCustomsBrokerName } from '@/utils/arrivalNoticeOpsOverview'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 
 const props = defineProps<{
@@ -327,6 +338,9 @@ const customsDeclarationId = computed(() =>
 )
 const customsDeclarationCode = computed(() =>
   (props.row?.customsDeclarationCode ?? props.row?.CustomsDeclarationCode) as string | null | undefined
+)
+const customsBrokerNameText = computed(() =>
+  resolveArrivalNoticeCustomsBrokerName(props.row, stockInType.value)
 )
 
 const expectedArrivalDateText = computed(() => {
@@ -458,11 +472,6 @@ const stockInStatusText = computed(() => {
   return '—'
 })
 
-const stockInTypeLabel = computed(() => {
-  const type = stockIn.value?.stockInType ?? stockInType.value
-  return t(`stockInList.stockInTypeLabels.${resolveStockInTypeLabelKey(type)}`)
-})
-
 function formatQty(v: unknown) {
   if (v == null || v === '') return '—'
   const n = Number(v)
@@ -473,4 +482,18 @@ function formatQty(v: unknown) {
 
 <style scoped lang="scss">
 @import '@/assets/styles/so-item-ops-panel.scss';
+
+.ops-overview-line--type {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ops-overview-broker {
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+}
 </style>

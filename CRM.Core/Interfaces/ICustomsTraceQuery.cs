@@ -15,7 +15,7 @@ public interface ICustomsTraceQuery
         IEnumerable<string> notifyIds,
         CancellationToken cancellationToken = default);
 
-    /// <summary>报关到货通知：回填报关单号、原供应商名称等展示字段（不写库）。</summary>
+    /// <summary>报关到货通知：回填报关单号、报关公司名称、原供应商名称等展示字段（不写库）。</summary>
     Task EnrichCustomsStockInNotifiesAsync(
         IReadOnlyList<StockInNotify> rows,
         CancellationToken cancellationToken = default);

@@ -56,6 +56,15 @@ public static class PurchaseSensitiveFieldMask511
         }
     }
 
+    public static void ApplyStockInOpsAggregates(StockInOpsAggregates? dto, bool mask)
+    {
+        if (!mask || dto?.Purchase == null) return;
+        dto.Purchase.PurchaseOrderItemCode = string.Empty;
+        dto.Purchase.PurchaseUserName = null;
+        dto.Purchase.UnitPrice = 0m;
+        dto.Purchase.Currency = 0;
+    }
+
     public static void ApplyStockIn(StockIn? stockIn, bool mask)
     {
         if (!mask || stockIn == null) return;
@@ -146,6 +155,46 @@ public static class PurchaseSensitiveFieldMask511
             x.PurchasePriceUsd = 0m;
             x.ProfitOutBizUsd = 0m;
         }
+    }
+
+    public static void ApplyStockItemFlowAggregates(StockItemFlowAggregatesDto? dto, bool mask)
+    {
+        if (!mask || dto == null) return;
+        MaskPurchaseFields(dto.PurchaseOrderItem);
+        MaskPurchaseFields(dto.StockItem);
+    }
+
+    public static void ApplyStockOutNotifyFlowAggregates(StockOutNotifyFlowAggregatesDto? dto, bool mask)
+    {
+        if (!mask || dto == null) return;
+        if (dto.StockItems != null)
+        {
+            foreach (var x in dto.StockItems)
+                MaskPurchaseFields(x);
+        }
+        if (dto.StockingStockItems != null)
+        {
+            foreach (var x in dto.StockingStockItems)
+                MaskPurchaseFields(x);
+        }
+    }
+
+    public static void ApplyStockOutItemFlowAggregates(StockOutItemFlowAggregatesDto? dto, bool mask)
+    {
+        if (!mask || dto == null) return;
+        if (dto.StockItems != null)
+        {
+            foreach (var x in dto.StockItems)
+                MaskPurchaseFields(x);
+        }
+    }
+
+    private static void MaskPurchaseFields(StockItemFlowDocDto? x)
+    {
+        if (x == null) return;
+        x.VendorName = null;
+        x.VendorCode = null;
+        x.UnitPrice = 0m;
     }
 
     public static void ApplyInventoryOnHandSummaryRows(IEnumerable<InventoryOnHandSummaryRowDto>? rows, bool mask)

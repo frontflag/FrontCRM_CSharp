@@ -24,19 +24,8 @@
     <!-- 查询栏（与客户列表一致的结构与样式） -->
     <div class="search-bar">
       <div class="search-left">
-        <input
-          v-model="filters.stockInCode"
-          class="search-input search-input--filter"
-          :placeholder="t('stockInList.filters.stockInCode')"
-          @keyup.enter="handleSearch"
-        />
-        <input
-          v-model="filters.sourceDisplayNo"
-          class="search-input search-input--filter"
-          :placeholder="t('stockInList.filters.sourceDisplayNo')"
-          @keyup.enter="handleSearch"
-        />
         <el-select
+          v-if="!warehouseTabStripActive"
           v-model="filters.warehouseId"
           class="search-select search-select--filter"
           clearable
@@ -51,6 +40,7 @@
           />
         </el-select>
         <el-select
+          v-if="tabModeDimension !== 'stockInType'"
           v-model="filters.stockInType"
           class="search-select search-select--filter search-select--stock-in-type"
           clearable
@@ -64,6 +54,18 @@
             :value="v"
           />
         </el-select>
+        <input
+          v-model="filters.stockInCode"
+          class="search-input search-input--filter"
+          :placeholder="t('stockInList.filters.stockInCode')"
+          @keyup.enter="handleSearch"
+        />
+        <input
+          v-model="filters.sourceDisplayNo"
+          class="search-input search-input--filter"
+          :placeholder="t('stockInList.filters.sourceDisplayNo')"
+          @keyup.enter="handleSearch"
+        />
         <el-date-picker
           v-model="filters.stockInDateRange"
           type="daterange"
@@ -121,7 +123,91 @@
         >
           {{ viewMode === 'board' ? t('stockInList.filters.listView') : t('stockInList.filters.boardView') }}
         </button>
+        <el-popover
+          v-model:visible="settingsMenuOpen"
+          trigger="click"
+          placement="bottom-end"
+          :width="168"
+          :show-arrow="false"
+          popper-class="stock-in-list-settings-popper"
+        >
+          <template #reference>
+            <button
+              type="button"
+              class="btn-ghost btn-sm btn-icon-only"
+              :title="t('stockInList.settingsMenu.aria')"
+              :aria-label="t('stockInList.settingsMenu.aria')"
+            >
+              <el-icon :size="14"><Setting /></el-icon>
+            </button>
+          </template>
+          <div class="stock-in-list-settings-menu">
+            <button
+              type="button"
+              class="stock-in-list-settings-menu__item"
+              :disabled="tabModeDimension === 'off'"
+              @click="closeFilterTabMode"
+            >
+              {{ t('stockInList.settingsMenu.closeTabs') }}
+            </button>
+            <div
+              class="stock-in-list-settings-menu__submenu"
+              @mouseenter="settingsSubmenuOpen = true"
+              @mouseleave="settingsSubmenuOpen = false"
+            >
+              <div class="stock-in-list-settings-menu__item stock-in-list-settings-menu__item--parent">
+                <span>{{ t('stockInList.settingsMenu.tabMode') }}</span>
+                <el-icon class="stock-in-list-settings-menu__caret"><ArrowRight /></el-icon>
+              </div>
+              <div v-show="settingsSubmenuOpen" class="stock-in-list-settings-menu__flyout">
+                <button
+                  v-for="dim in STOCK_IN_LIST_TAB_MODE_OPTIONS"
+                  :key="dim"
+                  type="button"
+                  class="stock-in-list-settings-menu__item"
+                  :class="{
+                    'is-active': tabModeDimension === dim,
+                    'is-disabled': dim === 'warehouse' && !warehouseTabModeAllowed
+                  }"
+                  :disabled="dim === 'warehouse' && !warehouseTabModeAllowed"
+                  :title="
+                    dim === 'warehouse' && !warehouseTabModeAllowed
+                      ? t('stockInList.settingsMenu.warehouseTabDisabled', {
+                          max: INVENTORY_WAREHOUSE_TAB_MAX
+                        })
+                      : undefined
+                  "
+                  @click="enableFilterTabMode(dim)"
+                >
+                  {{ tabModeDimensionLabel(dim) }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </el-popover>
       </div>
+    </div>
+
+    <div class="sil-main-panel" :class="{ 'sil-main-panel--with-filter-tabs': filterTabStripVisible }">
+    <div
+      v-if="filterTabStripVisible"
+      class="sil-filter-tabs"
+      role="tablist"
+      :aria-label="filterTabStripAriaLabel"
+    >
+      <button
+        v-for="tab in filterTabOptions"
+        :key="tab.id"
+        type="button"
+        role="tab"
+        class="sil-filter-tabs__item"
+        :class="{ 'is-active': activeFilterTabId === tab.id }"
+        :aria-selected="activeFilterTabId === tab.id"
+        :title="tab.label"
+        @click="onFilterTabClick(tab.id)"
+      >
+        {{ tab.label }}
+      </button>
     </div>
 
     <StockInListBoard v-if="viewMode === 'board'" :filters="boardFilters" />
@@ -134,7 +220,9 @@
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
       :data="list"
+      :row-class-name="opsPanelRowClassName"
       v-loading="loading"
+      @row-click="onRowClick"
       @row-dblclick="handleView"
       @header-dragend="onStockInTableHeaderDragEnd"
     >
@@ -254,6 +342,7 @@
         </div>
       </template>
     </CrmDataTable>
+    </div>
     <div v-show="viewMode === 'list'" class="pagination-wrapper">
       <div class="list-footer-left">
         <el-tooltip :content="t('systemUser.colSetting')" placement="top" :hide-after="0">
@@ -287,11 +376,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, inject, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Setting } from '@element-plus/icons-vue'
+import { ArrowRight, Setting } from '@element-plus/icons-vue'
 import { withExportTimestamp } from '@/utils/exportFileName'
 import { stockInApi, type StockInListItemDto } from '@/api/stockIn'
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
@@ -306,13 +395,34 @@ import VendorExtendColumnHeader from '@/components/list/VendorExtendColumnHeader
 import VendorExtendCell from '@/components/list/VendorExtendCell.vue'
 import { useVendorExtendColumn, isVendorExtendTableColumn } from '@/composables/useVendorExtendColumn'
 import { StockInTypeCode, STOCK_IN_TYPE_FILTER_VALUES, resolveStockInTypeLabelKey } from '@/constants/stockInType'
+import {
+  INVENTORY_WAREHOUSE_TAB_MAX,
+  STOCK_IN_LIST_TAB_MODE_OPTIONS,
+  STOCK_IN_TYPE_TAB_VALUES,
+  isWarehouseTabModeAllowed,
+  readStockInListTabMode,
+  stockInTypeFilterToTab,
+  stockInTypeTabToFilter,
+  stockInWarehouseFilterToTab,
+  stockInWarehouseTabToFilter,
+  writeStockInListTabMode,
+  type StockInListTabModeDimension,
+  type StockInTypeTabId,
+  type StockInWarehouseTabId
+} from '@/utils/stockInListTabMode'
 import StockInListBoard from '@/views/Inventory/StockInListBoard.vue'
 import { useListBoardHelpOverride } from '@/composables/useHelpDocOverride'
+import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
+import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
+import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
+import { useStockInOpsPanelStore } from '@/stores/stockInOpsPanel'
 import type { StockInListAnalyticsQuery } from '@/api/stockInAnalytics'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const viewMode = ref<'list' | 'board'>('list')
 useListBoardHelpOverride('pages/入库单看板_MENU_STOCK_IN_BOARD.md', viewMode)
+const workspaceLayout = inject(WorkspaceLayoutKey, null)
+const stockInOpsStore = useStockInOpsPanelStore()
 const {
   expanded: vendorExtendExpanded,
   activeField: vendorExtendActiveField,
@@ -344,6 +454,10 @@ const listTotalServer = ref(0)
 const listPage = ref(1)
 const listPageSize = ref(20)
 const warehouses = ref<WarehouseInfo[]>([])
+const warehouseOptions = computed(() => warehouses.value.filter((w) => !!(w.id && String(w.id).trim())))
+const tabModeDimension = ref<StockInListTabModeDimension>(readStockInListTabMode())
+const settingsMenuOpen = ref(false)
+const settingsSubmenuOpen = ref(false)
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 
@@ -426,6 +540,114 @@ const warehouseNameOf = (warehouseId?: string) => {
   const byCode = warehouses.value.find(w => (w.warehouseCode || '').trim() === warehouseId.trim())
   return byCode?.warehouseName || warehouseId
 }
+
+const warehouseOptionLabel = (w: WarehouseInfo) => {
+  const name = (w.warehouseName || '').trim()
+  const code = (w.warehouseCode || '').trim()
+  if (name && code && name !== code) return `${name} (${code})`
+  return name || code || w.id
+}
+
+const TAB_MODE_FILTER_I18N: Record<Exclude<StockInListTabModeDimension, 'off'>, string> = {
+  warehouse: 'stockInList.filters.warehouse',
+  stockInType: 'stockInList.columns.stockInType'
+}
+
+function tabModeDimensionLabel(dim: Exclude<StockInListTabModeDimension, 'off'>) {
+  return t(TAB_MODE_FILTER_I18N[dim])
+}
+
+function closeFilterTabMode() {
+  if (tabModeDimension.value === 'off') return
+  tabModeDimension.value = 'off'
+  writeStockInListTabMode('off')
+  settingsMenuOpen.value = false
+  settingsSubmenuOpen.value = false
+}
+
+function enableFilterTabMode(dim: Exclude<StockInListTabModeDimension, 'off'>) {
+  if (dim === 'warehouse' && !warehouseTabModeAllowed.value) {
+    ElMessage.warning(
+      t('stockInList.settingsMenu.warehouseTabDisabled', {
+        max: INVENTORY_WAREHOUSE_TAB_MAX
+      })
+    )
+    return
+  }
+  tabModeDimension.value = dim
+  writeStockInListTabMode(dim)
+  settingsMenuOpen.value = false
+  settingsSubmenuOpen.value = false
+}
+
+watch(settingsMenuOpen, (open) => {
+  if (!open) settingsSubmenuOpen.value = false
+})
+
+const warehouseTabModeAllowed = computed(() => isWarehouseTabModeAllowed(warehouseOptions.value.length))
+
+const warehouseTabStripActive = computed(
+  () => tabModeDimension.value === 'warehouse' && warehouseTabModeAllowed.value
+)
+
+const filterTabStripVisible = computed(
+  () => tabModeDimension.value === 'stockInType' || warehouseTabStripActive.value
+)
+
+const filterTabStripAriaLabel = computed(() => {
+  if (!filterTabStripVisible.value) return ''
+  return tabModeDimensionLabel(tabModeDimension.value as Exclude<StockInListTabModeDimension, 'off'>)
+})
+
+type StockInFilterTabId = StockInTypeTabId | StockInWarehouseTabId
+
+const filterTabOptions = computed(() => {
+  const dim = tabModeDimension.value
+  if (dim === 'stockInType') {
+    return [
+      { id: 'all' as const, label: t('stockInList.filterTabs.all') },
+      ...STOCK_IN_TYPE_TAB_VALUES.map((value) => ({
+        id: String(value) as StockInTypeTabId,
+        label: listStockInTypeLabel(value)
+      }))
+    ]
+  }
+  if (dim === 'warehouse' && warehouseTabModeAllowed.value) {
+    return [
+      { id: 'all' as const, label: t('stockInList.filterTabs.all') },
+      ...warehouseOptions.value.map((w) => ({
+        id: String(w.id ?? '').trim() as StockInWarehouseTabId,
+        label: warehouseOptionLabel(w)
+      }))
+    ]
+  }
+  return [] as Array<{ id: StockInFilterTabId; label: string }>
+})
+
+const activeFilterTabId = computed((): StockInFilterTabId => {
+  const dim = tabModeDimension.value
+  if (dim === 'stockInType') return stockInTypeFilterToTab(filters.stockInType)
+  if (dim === 'warehouse') return stockInWarehouseFilterToTab(filters.warehouseId)
+  return 'all'
+})
+
+function onFilterTabClick(tab: StockInFilterTabId) {
+  const dim = tabModeDimension.value
+  if (dim === 'stockInType') {
+    const next = stockInTypeTabToFilter(tab as StockInTypeTabId)
+    if (filters.stockInType === next) return
+    filters.stockInType = next
+    handleSearch()
+    return
+  }
+  if (dim === 'warehouse') {
+    const next = stockInWarehouseTabToFilter(tab)
+    if (filters.warehouseId === next) return
+    filters.warehouseId = next
+    handleSearch()
+  }
+}
+
 const filters = reactive({
   stockInCode: '',
   sourceDisplayNo: '',
@@ -457,6 +679,7 @@ const boardFilters = computed<StockInListAnalyticsQuery>(() => ({
 
 function toggleViewMode() {
   viewMode.value = viewMode.value === 'list' ? 'board' : 'list'
+  stockInOpsStore.setBoardMode(viewMode.value === 'board')
   if (viewMode.value === 'list') void fetchList(false)
 }
 
@@ -519,6 +742,15 @@ function arrivalNotifyTooltip(row: StockInListItemDto): string {
   return t('stockInList.arrivalNotifyCodeTooltip', { code })
 }
 
+async function ensureWarehouses() {
+  if (warehouses.value.length) return
+  try {
+    warehouses.value = await inventoryCenterApi.getWarehouses()
+  } catch {
+    warehouses.value = []
+  }
+}
+
 function syncFiltersFromRoute() {
   if (route.name !== 'StockInList') return
   const q = route.query
@@ -544,16 +776,10 @@ function syncFiltersFromRoute() {
 
 const fetchList = async (resetPage = true) => {
   if (resetPage) listPage.value = 1
+  await ensureWarehouses()
   if (viewMode.value === 'board') return
   loading.value = true
   try {
-    if (!warehouses.value.length) {
-      try {
-        warehouses.value = await inventoryCenterApi.getWarehouses()
-      } catch {
-        warehouses.value = []
-      }
-    }
     const paged = await stockInApi.getListPaged({
       stockInCode: filters.stockInCode || undefined,
       sourceDisplayNo: filters.sourceDisplayNo || undefined,
@@ -572,6 +798,7 @@ const fetchList = async (resetPage = true) => {
     })
     list.value = paged.items
     listTotalServer.value = paged.total
+    void stockInOpsStore.refreshFromListRows(list.value, t('stockInList.opsPanel.loadFailed'))
   } catch (e) {
     console.error(e)
     ElMessage.error(t('stockInList.messages.loadFailed'))
@@ -636,6 +863,7 @@ watch(
 
 /** 与左侧检索面板共用 URL query */
 const handleSearch = () => {
+  resetListRightPanelOnReload(stockInOpsStore)
   const query: Record<string, string> = {}
   const m = filters.model.trim()
   if (m) query.model = m
@@ -670,6 +898,7 @@ watch(listTotalServer, () => {
 })
 
 const resetFilters = () => {
+  resetListRightPanelOnReload(stockInOpsStore)
   filters.model = ''
   filters.stockInCode = ''
   filters.sourceDisplayNo = ''
@@ -692,6 +921,44 @@ const handleView = (row: StockInListItemDto) => {
   }
   void router.push({ name: 'StockInDetail', params: { id } })
 }
+
+const { onOpsPanelRowClick } = useListRightOpsPanelInteraction({
+  workspaceLayout,
+  isActiveRoute: () => route.name === 'StockInList',
+  hasSelectedRow: () => !!stockInOpsStore.row,
+  setRowOnly: row => stockInOpsStore.setRowOnly(row),
+  selectRow: row => stockInOpsStore.selectRow(row, t('stockInList.opsPanel.loadFailed')),
+  loadSelected: () => {
+    void stockInOpsStore.loadAggregates(t('stockInList.opsPanel.loadFailed'))
+  },
+  shouldBlockRowClick: () => viewMode.value === 'board'
+})
+
+async function onRowClick(row: StockInListItemDto) {
+  if (viewMode.value === 'board') return
+  await onOpsPanelRowClick(row as unknown as Record<string, unknown>)
+}
+
+function opsPanelRowClassName({ row }: { row: StockInListItemDto }) {
+  if (!stockInOpsStore.row) return 'table-row-pointer'
+  return stockInOpsStore.rowKey(row as unknown as Record<string, unknown>) ===
+    stockInOpsStore.rowKey(stockInOpsStore.row)
+    ? 'so-item-row--active'
+    : 'table-row-pointer'
+}
+
+onMounted(() => {
+  void ensureWarehouses()
+  stockInOpsStore.setBoardMode(viewMode.value === 'board')
+  stockInOpsStore.registerHandlers({
+    editRemark: row => handleEditRemark(row as unknown as StockInListItemDto)
+  })
+})
+
+onUnmounted(() => {
+  stockInOpsStore.unregisterHandlers()
+  stockInOpsStore.setBoardMode(false)
+})
 
 const handleEditRemark = (row: StockInListItemDto) => {
   remarkForm.id = row.id
@@ -971,6 +1238,13 @@ const handleForceDeleteRow = async (row: StockInListItemDto) => {
   &.btn-sm {
     padding: 6px 12px;
     font-size: 12px;
+
+    &.btn-icon-only {
+      width: 32px;
+      padding-left: 0;
+      padding-right: 0;
+      justify-content: center;
+    }
   }
 }
 .code-link {
@@ -1066,6 +1340,146 @@ const handleForceDeleteRow = async (row: StockInListItemDto) => {
   border: 1px solid rgba(255, 184, 77, 0.45);
   cursor: default;
   user-select: none;
+}
+
+:deep(.el-table__body tr.el-table__row.so-item-row--active > td.el-table__cell) {
+  background: rgba(0, 160, 220, 0.1) !important;
+}
+
+.sil-main-panel {
+  width: 100%;
+}
+
+.sil-main-panel--with-filter-tabs {
+  :deep(.crm-data-table-root) {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+
+  :deep(.el-table),
+  :deep(.el-table__inner-wrapper),
+  :deep(.el-table__header-wrapper) {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+}
+
+.sil-filter-tabs {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  gap: 4px;
+}
+
+.sil-filter-tabs__item {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 9px 8px;
+  border: 1px solid var(--crm-border-panel, #e2e8f0);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  background: #e8edf5;
+  color: var(--crm-text-primary);
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-weight: 500;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s, box-shadow 0.12s;
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--crm-cyan-primary) 45%, var(--crm-border-panel));
+    background: color-mix(in srgb, var(--crm-cyan-primary) 12%, var(--crm-layer-1));
+  }
+
+  &.is-active {
+    background: color-mix(in srgb, var(--crm-cyan-primary) 16%, var(--crm-layer-2, #fff));
+    border-color: color-mix(in srgb, var(--crm-cyan-primary) 55%, var(--crm-border-panel));
+    box-shadow: inset 0 2px 0 0 var(--crm-cyan-primary);
+    font-weight: 600;
+    z-index: 1;
+  }
+}
+</style>
+
+<style lang="scss">
+html[data-theme='dark'] .sil-filter-tabs__item:not(.is-active) {
+  background: var(--crm-layer-1);
+
+  &:hover {
+    background: color-mix(in srgb, var(--crm-cyan-primary) 12%, var(--crm-layer-1));
+  }
+}
+
+.stock-in-list-settings-popper.el-popover.el-popper {
+  padding: 6px;
+  min-width: 160px;
+  overflow: visible;
+}
+
+.stock-in-list-settings-menu {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stock-in-list-settings-menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--crm-text-secondary, rgba(224, 244, 255, 0.7));
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--crm-accent-008, rgba(0, 212, 255, 0.08));
+    color: var(--crm-text-primary, #e8f4ff);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  &.is-active {
+    color: var(--crm-cyan-primary, #00d4ff);
+  }
+
+  &--parent {
+    cursor: default;
+  }
+}
+
+.stock-in-list-settings-menu__caret {
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--crm-text-muted, rgba(200, 216, 232, 0.55));
+}
+
+.stock-in-list-settings-menu__submenu {
+  position: relative;
+}
+
+.stock-in-list-settings-menu__flyout {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 4px);
+  min-width: 148px;
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid var(--crm-border-panel, rgba(0, 212, 255, 0.15));
+  background: var(--crm-layer-2, #0d1e35);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
 }
 </style>
 

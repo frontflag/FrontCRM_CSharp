@@ -1545,6 +1545,36 @@
             :mask-sensitive="maskPurchaseSensitiveFields"
             class="aux-panel-tab-body"
           />
+          <StockItemFlowPanel
+            v-show="showStockItemFlowPanel"
+            :row="stockItemFlowStore.row"
+            :aggregates="stockItemFlowStore.aggregates"
+            :loading="stockItemFlowStore.loading"
+            :load-error="stockItemFlowStore.loadError"
+            :mask-purchase="maskPurchaseSensitiveFields"
+            :mask-sale="maskSaleSensitiveFields"
+            class="aux-panel-tab-body"
+          />
+          <StockOutNotifyFlowPanel
+            v-show="showStockOutNotifyFlowPanel"
+            :row="stockOutNotifyFlowStore.row"
+            :aggregates="stockOutNotifyFlowStore.aggregates"
+            :loading="stockOutNotifyFlowStore.loading"
+            :load-error="stockOutNotifyFlowStore.loadError"
+            :mask-purchase="maskPurchaseSensitiveFields"
+            :mask-sale="maskSaleSensitiveFields"
+            class="aux-panel-tab-body"
+          />
+          <StockOutItemFlowPanel
+            v-show="showStockOutItemFlowPanel"
+            :row="stockOutItemFlowStore.row"
+            :aggregates="stockOutItemFlowStore.aggregates"
+            :loading="stockOutItemFlowStore.loading"
+            :load-error="stockOutItemFlowStore.loadError"
+            :mask-purchase="maskPurchaseSensitiveFields"
+            :mask-sale="maskSaleSensitiveFields"
+            class="aux-panel-tab-body"
+          />
           <CustomsDeclarationOpsPanel
             v-show="showCustomsDeclarationOpsPanel"
             embedded
@@ -1600,6 +1630,19 @@
             class="aux-panel-tab-body"
             @edit-header="stockOutOpsStore.runEditHeader()"
             @mark-finish="stockOutOpsStore.runMarkFinish()"
+          />
+          <StockInOpsPanel
+            v-show="showStockInOpsPanel"
+            embedded
+            :row="stockInOpsStore.row"
+            :aggregates="stockInOpsStore.aggregates"
+            :loading="stockInOpsStore.loading"
+            :load-error="stockInOpsStore.loadError"
+            :action-loading="stockInOpsStore.actionLoading"
+            :can-write-logistics="canWriteLogisticsData"
+            :mask-sensitive="maskPurchaseSensitiveFields"
+            class="aux-panel-tab-body"
+            @edit-remark="stockInOpsStore.runEditRemark()"
           />
           <UserLevelChangeLogPanel v-show="showUserLevelLogPanel" class="aux-panel-tab-body" />
           <StockOutNotifyCustomsTabPanel
@@ -1760,11 +1803,15 @@ import CustomerIntelPanel from '@/components/Customer/CustomerIntelPanel.vue'
 import VendorIntelPanel from '@/components/Vendor/VendorIntelPanel.vue'
 import PurchaseOrderItemOpsPanel from '@/components/RFQ/PurchaseOrderItemOpsPanel.vue'
 import PurchaseOrderItemFlowPanel from '@/components/RFQ/PurchaseOrderItemFlowPanel.vue'
+import StockItemFlowPanel from '@/components/Inventory/StockItemFlowPanel.vue'
+import StockOutNotifyFlowPanel from '@/components/Inventory/StockOutNotifyFlowPanel.vue'
+import StockOutItemFlowPanel from '@/components/Inventory/StockOutItemFlowPanel.vue'
 import CustomsDeclarationOpsPanel from '@/components/Customs/CustomsDeclarationOpsPanel.vue'
 import CustomsPendlistFlowPanel from '@/components/Customs/CustomsPendlistFlowPanel.vue'
 import ArrivalNoticeOpsPanel from '@/components/Logistics/ArrivalNoticeOpsPanel.vue'
 import QcOpsPanel from '@/components/Logistics/QcOpsPanel.vue'
 import StockOutOpsPanel from '@/components/Inventory/StockOutOpsPanel.vue'
+import StockInOpsPanel from '@/components/Inventory/StockInOpsPanel.vue'
 import UserLevelChangeLogPanel from '@/components/System/UserLevelChangeLogPanel.vue'
 import StockOutNotifyCustomsTabPanel from '@/components/Inventory/StockOutNotifyCustomsTabPanel.vue'
 import { useSalesOrderItemOpsPanelStore } from '@/stores/salesOrderItemOpsPanel'
@@ -1780,6 +1827,10 @@ import { useArrivalNoticeOpsPanelStore } from '@/stores/arrivalNoticeOpsPanel'
 import { canEditArrivalNoticeArrivalInfo } from '@/utils/arrivalNoticeArrivalInfoAccess'
 import { useQcOpsPanelStore } from '@/stores/qcOpsPanel'
 import { useStockOutOpsPanelStore } from '@/stores/stockOutOpsPanel'
+import { useStockInOpsPanelStore } from '@/stores/stockInOpsPanel'
+import { useStockItemFlowPanelStore } from '@/stores/stockItemFlowPanel'
+import { useStockOutNotifyFlowPanelStore } from '@/stores/stockOutNotifyFlowPanel'
+import { useStockOutItemFlowPanelStore } from '@/stores/stockOutItemFlowPanel'
 import { useUserLevelLogStore } from '@/stores/userLevelLog'
 import { useStockOutNotifyCustomsPanelStore } from '@/stores/stockOutNotifyCustomsPanel'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
@@ -1828,6 +1879,10 @@ const customsDeclarationOpsStore = useCustomsDeclarationOpsPanelStore()
 const arrivalNoticeOpsStore = useArrivalNoticeOpsPanelStore()
 const qcOpsStore = useQcOpsPanelStore()
 const stockOutOpsStore = useStockOutOpsPanelStore()
+const stockInOpsStore = useStockInOpsPanelStore()
+const stockItemFlowStore = useStockItemFlowPanelStore()
+const stockOutNotifyFlowStore = useStockOutNotifyFlowPanelStore()
+const stockOutItemFlowStore = useStockOutItemFlowPanelStore()
 const userLevelLogStore = useUserLevelLogStore()
 const stockOutNotifyCustomsPanelStore = useStockOutNotifyCustomsPanelStore()
 const approvalDesktopQueueStore = useApprovalDesktopQueueStore()
@@ -2192,6 +2247,8 @@ const isCustomsDeclarationListRoute = computed(() => route.name === 'CustomsDecl
 const isCustomsPendlistListRoute = computed(() => route.name === 'CustomsPendlistList')
 const isArrivalNoticeListRoute = computed(() => route.name === 'ArrivalNoticeList')
 const isQcListRoute = computed(() => route.name === 'QcList')
+const isStockInListRoute = computed(() => route.name === 'StockInList')
+const isInventoryStockItemListRoute = computed(() => route.name === 'InventoryStockItemList')
 const isStockOutNotifyListRoute = computed(
   () => route.name === 'InventoryStockOutNotifyList' || route.name === 'StockOutNotifyList'
 )
@@ -2225,6 +2282,18 @@ const showPurchaseOrderItemFlowPanel = computed(
   () => rightActiveTabId.value === 'r-flow' && isPurchaseOrderItemOpsRoute.value
 )
 
+const showStockItemFlowPanel = computed(
+  () => rightActiveTabId.value === 'r-flow' && isInventoryStockItemListRoute.value
+)
+
+const showStockOutNotifyFlowPanel = computed(
+  () => rightActiveTabId.value === 'r-flow' && isStockOutNotifyListRoute.value
+)
+
+const showStockOutItemFlowPanel = computed(
+  () => rightActiveTabId.value === 'r-flow' && route.name === 'StockOutItemList'
+)
+
 const showCustomsDeclarationOpsPanel = computed(
   () => rightActiveTabId.value === 'r-ops' && isCustomsDeclarationListRoute.value
 )
@@ -2238,6 +2307,12 @@ const showQcOpsPanel = computed(() => rightActiveTabId.value === 'r-ops' && isQc
 const isStockOutListRoute = computed(() => route.name === 'StockOutList')
 const showStockOutOpsPanel = computed(
   () => rightActiveTabId.value === 'r-ops' && isStockOutListRoute.value
+)
+const showStockInOpsPanel = computed(
+  () =>
+    rightActiveTabId.value === 'r-ops' &&
+    isStockInListRoute.value &&
+    !stockInOpsStore.boardMode
 )
 
 const isUserLevelListRoute = computed(() => route.name === 'UserLevelList')
@@ -2396,16 +2471,27 @@ const canPurchaseOrderItemOpsPayment = computed(
 
 function syncStockOutNotifyListRightTabs() {
   if (!isStockOutNotifyListRoute.value) return
+  const tabs: { id: string; labelKey: string }[] = [
+    { id: 'r-flow', labelKey: 'layout.auxTabs.flow' }
+  ]
   if (stockOutNotifyCustomsPanelStore.isCustomsSelection) {
-    rightTabs.value = [
-      { id: 'r-stock-out-customs', labelKey: 'stockOutNotifyList.auxTabs.customsDeclaration' },
-      { id: 'r-customer', labelKey: 'layout.auxTabs.customer' },
-      { id: 'r4', labelKey: 'layout.auxTabs.help' }
-    ]
+    tabs.push({ id: 'r-stock-out-customs', labelKey: 'stockOutNotifyList.auxTabs.customsDeclaration' })
+  }
+  tabs.push(
+    { id: 'r-customer', labelKey: 'layout.auxTabs.customer' },
+    { id: 'r4', labelKey: 'layout.auxTabs.help' }
+  )
+  rightTabs.value = tabs
+}
+
+function syncStockInListRightTabs() {
+  if (!isStockInListRoute.value) return
+  if (stockInOpsStore.boardMode) {
+    rightTabs.value = [{ id: 'r4', labelKey: 'layout.auxTabs.help' }]
     return
   }
   rightTabs.value = [
-    { id: 'r-customer', labelKey: 'layout.auxTabs.customer' },
+    { id: 'r-ops', labelKey: 'layout.auxTabs.ops' },
     { id: 'r4', labelKey: 'layout.auxTabs.help' }
   ]
 }
@@ -2417,6 +2503,12 @@ watch(
 
     if (name !== 'StockOutList') stockOutOpsStore.clear()
     if (name !== 'UserLevelList') userLevelLogStore.clear()
+    if (name !== 'InventoryStockOutNotifyList' && name !== 'StockOutNotifyList') {
+      stockOutNotifyFlowStore.clear()
+    }
+    if (name !== 'StockOutItemList') {
+      stockOutItemFlowStore.clear()
+    }
 
     if (name === 'ApprovalDesktop') {
       leftTabs.value = [{ id: 'l1', labelKey: 'approvalDesktop.leftTab' }]
@@ -2426,6 +2518,8 @@ watch(
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       rightPanelVisible.value = true
@@ -2447,6 +2541,8 @@ watch(
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       customerIntelLookupStore.clearBound()
       vendorIntelLookupStore.clearBound()
@@ -2468,6 +2564,8 @@ watch(
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       customerIntelLookupStore.clearBound()
       vendorIntelLookupStore.clearBound()
@@ -2489,6 +2587,8 @@ watch(
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       customerIntelLookupStore.clearBound()
       vendorIntelLookupStore.clearBound()
@@ -2510,6 +2610,8 @@ watch(
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       customerIntelLookupStore.clearBound()
       vendorIntelLookupStore.clearBound()
@@ -2531,6 +2633,8 @@ watch(
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       customerIntelLookupStore.clearBound()
       vendorIntelLookupStore.clearBound()
@@ -2559,6 +2663,8 @@ watch(
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       customerIntelLookupStore.clearBound()
@@ -2580,6 +2686,8 @@ watch(
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       customerIntelLookupStore.clearBound()
@@ -2600,6 +2708,8 @@ watch(
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       customerWorkspacePanelStore.clear()
@@ -2618,6 +2728,8 @@ watch(
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       customerWorkspacePanelStore.clear()
@@ -2632,6 +2744,8 @@ watch(
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       restoreAuxTabsForRoute(name, { left: 'l1', right: 'r4' })
@@ -2648,6 +2762,8 @@ watch(
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-ops' })
@@ -2664,6 +2780,8 @@ watch(
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-ops' })
@@ -2680,6 +2798,8 @@ watch(
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       customerIntelLookupStore.clearBound()
@@ -2698,6 +2818,8 @@ watch(
       customsPendlistFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-ops' })
@@ -2713,6 +2835,8 @@ watch(
       packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
       qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       customerIntelLookupStore.clearBound()
@@ -2730,11 +2854,52 @@ watch(
       packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       customerIntelLookupStore.clearBound()
       vendorIntelLookupStore.clearBound()
       restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-ops' })
+      return
+    }
+    if (name === 'StockInList') {
+      syncStockInListRightTabs()
+      salesOrderItemOpsStore.clear()
+      purchaseOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
+      customsDeclarationOpsStore.clear()
+      arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
+      stockItemFlowStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
+      materialIntelLookupStore.clearBound()
+      customerIntelLookupStore.clearBound()
+      vendorIntelLookupStore.clearBound()
+      restoreAuxTabsForRoute(name, {
+        left: 'l1',
+        right: stockInOpsStore.boardMode ? 'r4' : 'r-ops'
+      })
+      return
+    }
+    if (name === 'InventoryStockItemList') {
+      rightTabs.value = [
+        { id: 'r-flow', labelKey: 'layout.auxTabs.flow' },
+        { id: 'r4', labelKey: 'layout.auxTabs.help' }
+      ]
+      salesOrderItemOpsStore.clear()
+      purchaseOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
+      customsPendlistFlowStore.clear()
+      customsDeclarationOpsStore.clear()
+      arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
+      materialIntelLookupStore.clearBound()
+      customerIntelLookupStore.clearBound()
+      vendorIntelLookupStore.clearBound()
+      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-flow' })
       return
     }
     if (name === 'StockOutList') {
@@ -2749,6 +2914,8 @@ watch(
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       customerIntelLookupStore.clearBound()
@@ -2769,6 +2936,8 @@ watch(
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       customerIntelLookupStore.clearBound()
       vendorIntelLookupStore.clearBound()
@@ -2787,6 +2956,8 @@ watch(
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       customerIntelLookupStore.clearBound()
       vendorIntelLookupStore.clearBound()
@@ -2805,6 +2976,8 @@ watch(
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       vendorIntelLookupStore.clearBound()
@@ -2822,6 +2995,8 @@ watch(
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       customerIntelLookupStore.clearBound()
@@ -2836,13 +3011,15 @@ watch(
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
       materialIntelLookupStore.clearBound()
       customerIntelLookupStore.clearBound()
       vendorIntelLookupStore.clearBound()
       customerWorkspacePanelStore.clear()
       restoreAuxTabsForRoute(name, {
         left: 'l1',
-        right: stockOutNotifyCustomsPanelStore.isCustomsSelection ? 'r-stock-out-customs' : 'r4'
+        right: 'r-flow'
       })
       return
     }
@@ -2857,6 +3034,8 @@ watch(
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       customerIntelLookupStore.clearBound()
@@ -2876,6 +3055,8 @@ watch(
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       customerIntelLookupStore.clearBound()
@@ -2886,6 +3067,7 @@ watch(
     }
     if (name === 'StockOutItemList') {
       rightTabs.value = [
+        { id: 'r-flow', labelKey: 'layout.auxTabs.flow' },
         { id: 'r-customer', labelKey: 'layout.auxTabs.customer' },
         { id: 'r4', labelKey: 'layout.auxTabs.help' }
       ]
@@ -2895,12 +3077,14 @@ watch(
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       customerIntelLookupStore.clearBound()
       vendorIntelLookupStore.clearBound()
       customerWorkspacePanelStore.clear()
-      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r4' })
+      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-flow' })
       return
     }
     if (name === 'PackingDetail') {
@@ -2914,6 +3098,8 @@ watch(
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       customerIntelLookupStore.clearBound()
@@ -2934,6 +3120,8 @@ watch(
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       customerIntelLookupStore.clearBound()
@@ -2953,6 +3141,8 @@ watch(
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       customerIntelLookupStore.clearBound()
@@ -2973,6 +3163,8 @@ watch(
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       customerIntelLookupStore.clearBound()
@@ -2992,6 +3184,8 @@ watch(
       customsDeclarationOpsStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       customerIntelLookupStore.clearBound()
@@ -3007,6 +3201,8 @@ watch(
     customsDeclarationOpsStore.clear()
     arrivalNoticeOpsStore.clear()
     qcOpsStore.clear()
+    stockInOpsStore.clear()
+    stockItemFlowStore.clear()
     stockOutNotifyCustomsPanelStore.clear()
     materialIntelLookupStore.clearBound()
     customerIntelLookupStore.clearBound()
@@ -3021,10 +3217,21 @@ watch(
   () => {
     if (!isStockOutNotifyListRoute.value) return
     syncStockOutNotifyListRightTabs()
-    restoreAuxTabsForRoute(route.name, {
-      left: 'l1',
-      right: stockOutNotifyCustomsPanelStore.isCustomsSelection ? 'r-stock-out-customs' : 'r4'
-    })
+    if (
+      !stockOutNotifyCustomsPanelStore.isCustomsSelection &&
+      rightActiveTabId.value === 'r-stock-out-customs'
+    ) {
+      rightActiveTabId.value = 'r-flow'
+    }
+  }
+)
+
+watch(
+  () => stockInOpsStore.boardMode,
+  (on) => {
+    if (!isStockInListRoute.value) return
+    syncStockInListRightTabs()
+    rightActiveTabId.value = on ? 'r4' : 'r-ops'
   }
 )
 

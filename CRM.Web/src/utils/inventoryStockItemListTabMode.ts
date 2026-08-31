@@ -1,5 +1,6 @@
 /** 库存明细列表：筛选页签模式偏好（localStorage，单维度）。 */
 
+import { STOCK_IN_TYPE_FILTER_VALUES, parseStockInTypeFilterValue } from '@/constants/stockInType'
 import {
   INVENTORY_WAREHOUSE_TAB_MAX,
   isWarehouseTabModeAllowed
@@ -14,12 +15,13 @@ export type InventoryStockItemListTabModeDimension =
   | 'outboundStatus'
   | 'stockPresence'
   | 'warehouse'
+  | 'stockInType'
 
 /** 可在「页签模式」子菜单中选择的维度（不含 off；不含业务员/采购员） */
 export const INVENTORY_STOCK_ITEM_LIST_TAB_MODE_OPTIONS: Exclude<
   InventoryStockItemListTabModeDimension,
   'off'
->[] = ['outboundStatus', 'stockPresence', 'warehouse']
+>[] = ['outboundStatus', 'stockPresence', 'warehouse', 'stockInType']
 
 const TAB_MODE_SET = new Set<string>(['off', ...INVENTORY_STOCK_ITEM_LIST_TAB_MODE_OPTIONS])
 
@@ -88,4 +90,19 @@ export function isiWarehouseFilterToTab(value: string | undefined | null): IsiWa
 export function isiWarehouseTabToFilter(tab: IsiWarehouseTabId): string {
   if (tab === 'all') return ''
   return String(tab).trim()
+}
+
+export type IsiStockInTypeTabId = 'all' | '10' | '20' | '30' | '40'
+
+export const ISI_STOCK_IN_TYPE_TAB_VALUES = STOCK_IN_TYPE_FILTER_VALUES
+
+export function isiStockInTypeFilterToTab(value: number | undefined | null): IsiStockInTypeTabId {
+  const parsed = parseStockInTypeFilterValue(value)
+  if (parsed != null) return String(parsed) as IsiStockInTypeTabId
+  return 'all'
+}
+
+export function isiStockInTypeTabToFilter(tab: IsiStockInTypeTabId): number | undefined {
+  if (tab === 'all') return undefined
+  return parseStockInTypeFilterValue(tab)
 }
