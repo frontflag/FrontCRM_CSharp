@@ -164,8 +164,13 @@
               <span class="ops-metrics__value">{{ formatQty(purchaseAvailableQty) }}</span>
             </div>
           </div>
+          <OpsGeneratedDocsRow
+            :label="t('salesOrderItemList.opsPanel.purchaseRequisitionDocLabel')"
+            :docs="linkedPurchaseRequisitionDocLinks"
+            :mask-sensitive="maskSensitive"
+          />
           <p v-if="purchaseDisabledHint && !purchaseCompleted" class="ops-status ops-status--warn">{{ purchaseDisabledHint.summary }}</p>
-          <div class="ops-progress">
+          <div v-if="!purchaseCompleted" class="ops-progress">
             <div class="ops-progress__track">
               <div class="ops-progress__bar ops-progress__bar--purchase" :style="{ width: `${purchaseProgressPct}%` }" />
             </div>
@@ -206,8 +211,13 @@
               <span class="ops-metrics__value">{{ formatQty(stockOutAvailableQty) }}</span>
             </div>
           </div>
+          <OpsGeneratedDocsRow
+            :label="t('salesOrderItemList.opsPanel.stockOutNotifyDocLabel')"
+            :docs="linkedStockOutRequestDocLinks"
+            :mask-sensitive="maskSensitive"
+          />
           <p v-if="stockOutDisabledHint && !stockOutNotifyCompleted" class="ops-status" :class="stockOutStatusClass">{{ stockOutDisabledHint.summary }}</p>
-          <div class="ops-progress">
+          <div v-if="!stockOutNotifyCompleted" class="ops-progress">
             <div class="ops-progress__track">
               <div class="ops-progress__bar ops-progress__bar--stock-out" :style="{ width: `${stockOutProgressPct}%` }" />
             </div>
@@ -241,8 +251,10 @@ import type { SalesOrderDetailTabAggregates } from '@/api/salesOrder'
 import { salesOrderMainAllowsPurchaseAndStockOut, salesOrderLineApplyStockOutButtonDisabled } from '@/constants/salesOrderStatus'
 import { formatUnitPriceWithCurrencyCodeSuffix } from '@/utils/moneyFormat'
 import CustomerNameReadonlyText from '@/components/Customer/CustomerNameReadonlyText.vue'
+import OpsGeneratedDocsRow from '@/components/Common/OpsGeneratedDocsRow.vue'
 import { buildApplyPurchaseDisabledHintContent, applyPurchaseButtonDisabled } from '@/utils/applyPurchaseDisabledHint'
 import { buildApplyStockOutDisabledHintContent } from '@/utils/applyStockOutDisabledHint'
+import { listLinkedPurchaseRequisitionDocs, listLinkedStockOutRequestDocs } from '@/utils/opsGeneratedDocs'
 import {
   calcProgressPercent,
   extendTriLabel,
@@ -366,6 +378,20 @@ const stockOutNotifyCompleted = computed(() => {
   if (Number(props.row.stockOutNotifyProgressStatus) === 2) return true
   return stockOutAvailableQty.value <= 0 && stockOutNotifiedQty.value >= orderQty.value
 })
+
+const linkedPurchaseRequisitionDocLinks = computed(() =>
+  listLinkedPurchaseRequisitionDocs(props.aggregates).map((doc) => ({
+    ...doc,
+    to: { name: 'PurchaseRequisitionDetail', params: { id: doc.id } }
+  }))
+)
+
+const linkedStockOutRequestDocLinks = computed(() =>
+  listLinkedStockOutRequestDocs(props.aggregates).map((doc) => ({
+    ...doc,
+    to: { name: 'StockOutNotifyDetail', params: { id: doc.id } }
+  }))
+)
 
 const purchaseDisabledHint = computed(() => (props.row ? buildApplyPurchaseDisabledHintContent(props.row, t) : null))
 

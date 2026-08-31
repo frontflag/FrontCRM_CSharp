@@ -429,13 +429,15 @@ namespace CRM.API.Controllers
                 var result = await _purchaseOrderItemListQuery.GetPagedAsync(request, cancellationToken);
                 var loginMap = await LoadCreateUserLoginNamesForPoLinesAsync(result.Items, cancellationToken);
                 var paymentRequestFlags = await LoadPoItemIdsWithActivePaymentRequestAsync(result.Items, cancellationToken);
+                var livePaymentFlags = await LoadPoItemIdsWithLivePaymentAsync(
+                    result.Items.Select(x => x.PurchaseOrderItemId), cancellationToken);
                 IReadOnlyDictionary<string, string> vendorEnglishMap = canViewVendorInfo
                     ? await LoadVendorEnglishNameMapForPoLinesAsync(result.Items, cancellationToken)
                     : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 IReadOnlyDictionary<string, string> vendorCodeMap = canViewVendorInfo
                     ? await LoadVendorCodeMapForPoLinesAsync(result.Items, cancellationToken)
                     : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                var items = MapPurchaseOrderItemListLines(result.Items, summary, loginMap, paymentRequestFlags, vendorEnglishMap, vendorCodeMap);
+                var items = MapPurchaseOrderItemListLines(result.Items, summary, loginMap, paymentRequestFlags, livePaymentFlags, vendorEnglishMap, vendorCodeMap);
                 return Ok(new
                 {
                     success = true,
@@ -627,13 +629,15 @@ namespace CRM.API.Controllers
                 var result = await _purchaseOrderItemListQuery.GetPagedAsync(request, cancellationToken);
                 var loginMap = await LoadCreateUserLoginNamesForPoLinesAsync(result.Items, cancellationToken);
                 var paymentRequestFlags = await LoadPoItemIdsWithActivePaymentRequestAsync(result.Items, cancellationToken);
+                var livePaymentFlags = await LoadPoItemIdsWithLivePaymentAsync(
+                    result.Items.Select(x => x.PurchaseOrderItemId), cancellationToken);
                 IReadOnlyDictionary<string, string> vendorEnglishMap = canViewVendorInfo
                     ? await LoadVendorEnglishNameMapForPoLinesAsync(result.Items, cancellationToken)
                     : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 IReadOnlyDictionary<string, string> vendorCodeMap = canViewVendorInfo
                     ? await LoadVendorCodeMapForPoLinesAsync(result.Items, cancellationToken)
                     : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                var items = MapPurchaseOrderItemListLines(result.Items, summary, loginMap, paymentRequestFlags, vendorEnglishMap, vendorCodeMap);
+                var items = MapPurchaseOrderItemListLines(result.Items, summary, loginMap, paymentRequestFlags, livePaymentFlags, vendorEnglishMap, vendorCodeMap);
                 return Ok(new
                 {
                     success = true,
@@ -949,7 +953,7 @@ namespace CRM.API.Controllers
             List<string> payHeaderIds;
             if (!string.IsNullOrWhiteSpace(purchaseOrderItemIdScope))
             {
-                payHeaderIds = await _db.FinancePaymentItems.AsNoTracking()
+                payHeaderIds = await _db.FinancePaymentItems.AsNoTracking().IgnoreQueryFilters()
                     .Where(x => x.PurchaseOrderItemId != null && poItemIds.Contains(x.PurchaseOrderItemId))
                     .Select(x => x.FinancePaymentId)
                     .Distinct()
@@ -957,14 +961,14 @@ namespace CRM.API.Controllers
             }
             else
             {
-                payHeaderIds = await _db.FinancePaymentItems.AsNoTracking()
+                payHeaderIds = await _db.FinancePaymentItems.AsNoTracking().IgnoreQueryFilters()
                     .Where(x => x.PurchaseOrderId == purchaseOrderId || (x.PurchaseOrderItemId != null && poItemIds.Contains(x.PurchaseOrderItemId)))
                     .Select(x => x.FinancePaymentId)
                     .Distinct()
                     .ToListAsync();
             }
 
-            var paymentRaw = await _db.FinancePayments.AsNoTracking()
+            var paymentRaw = await _db.FinancePayments.AsNoTracking().IgnoreQueryFilters()
                 .Where(x => payHeaderIds.Contains(x.Id))
                 .OrderByDescending(x => x.CreateTime)
                 .Select(x => new
@@ -973,6 +977,7 @@ namespace CRM.API.Controllers
                     financePaymentCode = x.FinancePaymentCode,
                     vendorName = mask511 ? null : x.VendorName,
                     x.Status,
+                    isDeleted = x.IsDeleted,
                     paymentAmountToBe = x.PaymentAmountToBe,
                     paymentAmount = x.PaymentAmount,
                     x.PaymentCurrency,
@@ -1008,6 +1013,7 @@ namespace CRM.API.Controllers
                     x.financePaymentCode,
                     x.vendorName,
                     x.Status,
+                    x.isDeleted,
                     x.paymentAmountToBe,
                     x.paymentAmount,
                     x.PaymentCurrency,
@@ -1655,6 +1661,9 @@ namespace CRM.API.Controllers
                 var detailItemExtends = await LoadPoItemExtendsAsync(order.Items, cancellationToken);
                 var sellOrderItemCodes = await LoadSellOrderItemCodesAsync(order.Items, cancellationToken);
                 var userNameMap = await BuildUserDisplayNameMapAsync(new[] { order.Assistor, order.CreateByUserId });
+                var livePaymentFlags = await LoadPoItemIdsWithLivePaymentAsync(
+                    (order.Items ?? Enumerable.Empty<CRM.Core.Models.Purchase.PurchaseOrderItem>()).Select(i => i.Id),
+                    cancellationToken);
                 return Ok(new
                 {
                     success = true,
@@ -1666,7 +1675,8 @@ namespace CRM.API.Controllers
                         detailItemExtends,
                         sellOrderItemCodes,
                         ResolveAssistorDisplayName(order.Assistor, userNameMap),
-                        createUserName: ResolveAssistorDisplayName(order.CreateByUserId, userNameMap))
+                        createUserName: ResolveAssistorDisplayName(order.CreateByUserId, userNameMap),
+                        poItemIdsWithLivePayment: livePaymentFlags)
                 });
             }
             catch (Exception ex)
@@ -2199,6 +2209,42 @@ namespace CRM.API.Controllers
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
         }
 
+        private async Task<HashSet<string>> LoadPoItemIdsWithLivePaymentAsync(
+            IEnumerable<string?> purchaseOrderItemIds,
+            CancellationToken cancellationToken)
+        {
+            var poItemIds = purchaseOrderItemIds
+                .Select(x => x?.Trim())
+                .Where(s => !string.IsNullOrEmpty(s))
+                .Select(s => s!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (poItemIds.Count == 0)
+                return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            var ids = await _db.FinancePaymentItems.AsNoTracking()
+                .Where(pi => pi.PurchaseOrderItemId != null && poItemIds.Contains(pi.PurchaseOrderItemId))
+                .Select(pi => pi.PurchaseOrderItemId!)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+
+            return ids
+                .Select(s => s.Trim())
+                .Where(s => s.Length > 0)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static bool FinancePaymentStatusBlocksApply(
+            short financePaymentStatus,
+            string? purchaseOrderItemId,
+            IReadOnlySet<string>? poItemIdsWithLivePayment)
+        {
+            if (financePaymentStatus < 2) return false;
+            if (poItemIdsWithLivePayment == null) return true;
+            var id = (purchaseOrderItemId ?? string.Empty).Trim();
+            return id.Length > 0 && poItemIdsWithLivePayment.Contains(id);
+        }
+
         private async Task<IReadOnlyDictionary<string, string>> LoadVendorEnglishNameMapForPoLinesAsync(
             IEnumerable<PurchaseOrderItemListLineRaw> lines,
             CancellationToken cancellationToken)
@@ -2250,6 +2296,7 @@ namespace CRM.API.Controllers
             UserPermissionSummaryDto? summary,
             IReadOnlyDictionary<string, string?> createUserLoginByUserId,
             IReadOnlySet<string> poItemIdsWithActivePaymentRequest,
+            IReadOnlySet<string> poItemIdsWithLivePayment,
             IReadOnlyDictionary<string, string> vendorEnglishMap,
             IReadOnlyDictionary<string, string> vendorCodeMap)
         {
@@ -2275,7 +2322,7 @@ namespace CRM.API.Controllers
                 var lineTotal = canViewPurchaseAmount ? qty * r.Cost : 0m;
                 // 与到货通知一致：已确认(30)及之后（进行中 50 / 完成 100）仍可分批请款
                 var canApply = canInitiatePaymentFromPo
-                    && r.FinancePaymentStatus < 2
+                    && !FinancePaymentStatusBlocksApply(r.FinancePaymentStatus, r.PurchaseOrderItemId, poItemIdsWithLivePayment)
                     && (r.ItemStatus >= 30 || r.OrderStatus >= 30);
                 var createKey = (r.CreateByUserId ?? string.Empty).Trim();
                 string? createUserName = null;
@@ -2315,6 +2362,8 @@ namespace CRM.API.Controllers
                         : (short)0,
                     paymentProgressStatus = r.PaymentProgressStatus,
                     invoiceProgressStatus = r.InvoiceProgressStatus,
+                    orderStatus = r.OrderStatus,
+                    financePaymentStatus = r.FinancePaymentStatus,
                     canApplyPayment = canApply,
                     orderCreateTime = r.OrderCreateTime,
                     purchaseUserName = canViewPurchaseUser ? r.PurchaseUserName : null,
@@ -2538,7 +2587,8 @@ namespace CRM.API.Controllers
             IReadOnlyDictionary<string, PurchaseOrderItemExtend>? itemExtends = null,
             IReadOnlyDictionary<string, SellOrderItemLinkInfo>? sellOrderItemCodes = null,
             string? assistorUserName = null,
-            string? createUserName = null)
+            string? createUserName = null,
+            IReadOnlySet<string>? poItemIdsWithLivePayment = null)
         {
             var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
             // vendor.info.read??????/????vendor.read ??????????????????????????? VendorId?
@@ -2659,7 +2709,7 @@ namespace CRM.API.Controllers
                         invoiceProgressAmount = canViewPurchaseAmount ? (ext?.PurchaseInvoiceDone ?? 0m) : 0m,
                         // 已确认(30)及之后仍可分批请款（主单升至进行中 50 后不得锁死）
                         CanApplyPayment = canInitiatePaymentFromPo
-                            && i.FinancePaymentStatus < 2
+                            && !FinancePaymentStatusBlocksApply(i.FinancePaymentStatus, i.Id, poItemIdsWithLivePayment)
                             && (i.Status >= 30 || order.Status >= 30)
                     };
                 }).ToList()

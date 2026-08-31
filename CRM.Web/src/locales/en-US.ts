@@ -5512,6 +5512,8 @@ const enUS = {
       stockingUsageQty: 'Used qty',
       purchaseTitle: 'Purchase requisition',
       stockOutTitle: 'Outbound notification',
+      purchaseRequisitionDocLabel: 'PR number',
+      stockOutNotifyDocLabel: 'Outbound notice no.',
       completed: 'Completed',
       appliedQty: 'Requested qty',
       availableQty: 'Available to request',
@@ -6255,10 +6257,19 @@ const enUS = {
       arrivalNextConfirmed: 'Next: wait until the line status is Confirmed before notifying arrival.',
       arrivalNoRemaining: 'Arrival notice quantity is fully allocated; nothing left to notify.',
       arrivalNextNoRemaining: 'Next: arrival notices are complete; no further notice is needed.',
+      paymentNoPermission: 'This account does not have permission to request payment.',
+      paymentNextNoPermission: 'Next: ask an administrator to grant payment-request permission.',
+      paymentCancelled: 'This line (or the order) is cancelled or audit-failed; payment cannot be requested.',
+      paymentNextCancelled: 'Next: cancelled or audit-failed lines cannot request payment.',
       paymentNeedConfirmed: 'Line is not supplier-confirmed yet; payment request is not available.',
       paymentNextConfirmed: 'Next: wait until the order/line reaches Confirmed or later before requesting payment.',
-      paymentNotEligible: 'Payment request is not allowed (open request or header/line status may block it).',
-      paymentNextNotEligible: 'Next: ensure no open payment request and line/header are supplier-confirmed.',
+      paymentFinanceDone: 'This line is already fully paid in finance status; no further request is allowed.',
+      paymentDocLabel: 'Payment order',
+      arrivalDocLabel: 'Arrival notice no.',
+      paymentNoLinkedDoc: 'No linked payment order was found.',
+      paymentNextFinanceDone: 'Next: check that finance payment status matches requested amounts; contact finance if a further request is still needed.',
+      paymentNextFinanceDoneWithDocs: 'Next: open the payment order above to verify. Search payment records by payment order number, not the purchase order number.',
+      paymentNextFinanceDoneNoDoc: 'Next: no linked payment order was found; ask finance to check the line finance payment status.',
       paymentNoRemaining: 'Payment request amount is fully allocated; nothing left to request.',
       paymentNextNoRemaining: 'Next: payment requests are complete; no further request is needed.'
     },
@@ -8955,7 +8966,8 @@ const enUS = {
       missingSellLink:
         'This packing line is not linked to a sales order line. The sales-line station is empty; other stations still follow this packing.',
       fields: {
-        stockOutItemCode: 'Stock-out line no.'
+        stockOutItemCode: 'Stock-out line no.',
+        regionType: 'Region'
       },
       stations: {
         sellOrderItem: 'Sales order line',
@@ -9644,6 +9656,7 @@ const enUS = {
   },
   financePaymentList: {
     pageTitle: 'Payments',
+    deletedTag: 'Deleted',
     stats: { monthTotal: 'This month (paid)', pending: 'Pending approval', paid: 'Paid', draft: 'Draft' },
     filters: {
       keyword: 'Payment code / vendor',

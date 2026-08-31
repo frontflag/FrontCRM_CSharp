@@ -19,6 +19,8 @@ export interface FinancePayment {
   vendorName?: string
   salesUserId?: string
   status: number       // 1新建 2待审核 10审核通过 100付款完成 -1审核失败 -2取消
+  /** 软删除后默认列表不展示；按付款单号查询可命中 */
+  isDeleted?: boolean
   paymentAmount: number
   /** 创建/更新请款时与后端 DTO 对齐（应付金额） */
   paymentAmountToBe?: number

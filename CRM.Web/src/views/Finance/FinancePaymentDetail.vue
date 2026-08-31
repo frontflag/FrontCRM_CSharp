@@ -22,6 +22,9 @@
               <el-tag effect="dark" :type="paymentStatusTag(detail.status) as any" size="small">
                 {{ paymentStatusLabel(detail.status) }}
               </el-tag>
+              <el-tag v-if="detail.isDeleted" effect="dark" type="info" size="small">
+                {{ t('financePaymentList.deletedTag') }}
+              </el-tag>
             </div>
           </div>
         </div>
@@ -415,21 +418,24 @@ const vendorDisplayTooltipDisabled = computed(() => {
 })
 
 const canPayExecuteDetail = computed(() =>
-  !!detail.value && canFinancePaymentWrite.value && detail.value.status === 10
+  !!detail.value && !detail.value.isDeleted && canFinancePaymentWrite.value && detail.value.status === 10
 )
 
 const canEditRequestDetail = computed(() => {
-  if (!detail.value) return false
+  if (!detail.value || detail.value.isDeleted) return false
   if (detail.value.status !== 1 && detail.value.status !== -1) return false
   return canFinancePaymentWrite.value || canWritePo.value
 })
 
 const canSubmitAuditDetail = computed(() =>
-  !!detail.value && detail.value.status === 1 && (canFinancePaymentWrite.value || canWritePo.value)
+  !!detail.value &&
+  !detail.value.isDeleted &&
+  detail.value.status === 1 &&
+  (canFinancePaymentWrite.value || canWritePo.value)
 )
 
 const canWithdrawDetail = computed(() => {
-  if (!detail.value || detail.value.status !== 10) return false
+  if (!detail.value || detail.value.isDeleted || detail.value.status !== 10) return false
   if (canFinancePaymentWrite.value) return true
   const uid = String(authStore.user?.id ?? '').trim()
   const creator = String(detail.value.createByUserId ?? '').trim()
@@ -437,7 +443,7 @@ const canWithdrawDetail = computed(() => {
 })
 
 const canReverseVerificationDetail = computed(
-  () => !!detail.value && canFinancePaymentWrite.value && detail.value.status === 100
+  () => !!detail.value && !detail.value.isDeleted && canFinancePaymentWrite.value && detail.value.status === 100
 )
 
 function reportCellText(v: unknown): string {

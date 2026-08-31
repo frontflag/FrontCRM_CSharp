@@ -173,6 +173,7 @@ export interface PurchaseOrderDetailTabAggregates {
     financePaymentCode: string
     vendorName?: string | null
     status: number
+    isDeleted?: boolean
     paymentAmountToBe: number
     paymentAmount: number
     paymentCurrency: number
@@ -253,6 +254,10 @@ export interface PurchaseOrderItemListLineRow {
   vendorCode?: string | null
   vendorEnglishName?: string | null
   itemStatus?: number
+  orderStatus?: number
+  financePaymentStatus?: number
+  canApplyPayment?: boolean
+  paymentRequestedAmount?: number
   purchaseProgressStatus?: number
   stockInProgressStatus?: number
   paymentRequestProgressStatus?: number

@@ -322,7 +322,10 @@ export function buildPurchaseOrderItemFlowStations(
     )
   }
 
-  const payments = sortByCreatedAsc(aggregates?.payments ?? [], (x) => x.createTime)
+  const payments = sortByCreatedAsc(
+    (aggregates?.payments ?? []).filter((x) => !x.isDeleted),
+    (x) => x.createTime
+  )
   const requestPayments = payments.filter((x) => Number(x.status) !== FINANCE_PAYMENT_STATUS_CANCELLED)
   const paidPayments = payments.filter((x) => Number(x.status) === FINANCE_PAYMENT_STATUS_COMPLETED)
 

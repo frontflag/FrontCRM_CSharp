@@ -28,6 +28,10 @@ public sealed class FinancePaymentListQuery : IFinancePaymentListQuery
         var pageSize = request.PageSize < 1 ? 20 : Math.Min(request.PageSize, MaxPageSize);
 
         var q = _db.FinancePayments.AsNoTracking();
+        // 按付款单号查询时包含软删除单据，否则已删单在列表中完全不可见。
+        if (!string.IsNullOrWhiteSpace(request.FinancePaymentCode))
+            q = _db.FinancePayments.IgnoreQueryFilters().AsNoTracking();
+
         q = await _dataPermissionService.ApplyFinancePaymentListDataScopeAsync(
             request.CurrentUserId,
             q,

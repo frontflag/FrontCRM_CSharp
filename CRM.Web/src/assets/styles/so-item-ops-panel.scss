@@ -249,7 +249,7 @@
 }
 
 .ops-card__body {
-  padding: 10px 14px 14px;
+  padding: 10px 14px 12px;
 }
 
 .ops-card__body--overview {
@@ -397,6 +397,10 @@
   margin-bottom: 8px;
 }
 
+.ops-metrics:last-child {
+  margin-bottom: 0;
+}
+
 .ops-metrics__item {
   display: flex;
   flex-direction: column;
@@ -438,6 +442,10 @@
   flex-wrap: wrap;
   gap: 10px;
   margin: 10px 0;
+}
+
+.ops-progress:last-child {
+  margin-bottom: 0;
 }
 
 .ops-progress__track {

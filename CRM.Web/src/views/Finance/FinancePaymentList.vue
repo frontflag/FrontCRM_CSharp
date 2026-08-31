@@ -237,6 +237,9 @@
         <span class="code-text">{{ row.financePaymentCode }}</span>
       </template>
       <template #col-status="{ row }">
+        <el-tag v-if="row.isDeleted" effect="dark" type="info" size="small">
+          {{ t('financePaymentList.deletedTag') }}
+        </el-tag>
         <el-tag effect="dark" :type="paymentStatusTag(row.status) as any" size="small">
           {{ paymentStatusLabel(row.status) }}
         </el-tag>
@@ -367,11 +370,11 @@
               text
               type="danger"
               @click.stop="cancelPayment(row)"
-              v-if="canFinancePaymentWrite && [1,2].includes(row.status)"
+              v-if="canFinancePaymentWrite && !row.isDeleted && [1,2].includes(row.status)"
             >
               {{ t('financePaymentList.actions.cancel') }}
             </el-button>
-            <el-button size="small" text type="danger" @click.stop="handleDeleteRow(row)" v-if="canFinancePaymentWrite">删除</el-button>
+            <el-button size="small" text type="danger" @click.stop="handleDeleteRow(row)" v-if="canFinancePaymentWrite && !row.isDeleted">删除</el-button>
             <el-button
               size="small"
               text
@@ -381,7 +384,7 @@
             >
               {{ t('financePaymentList.actions.reverseVerification') }}
             </el-button>
-            <el-button size="small" text type="danger" @click.stop="handleForceDeleteRow(row)" v-if="canFinancePaymentWrite && canForceDelete">强制删除</el-button>
+            <el-button size="small" text type="danger" @click.stop="handleForceDeleteRow(row)" v-if="canFinancePaymentWrite && canForceDelete && !row.isDeleted">强制删除</el-button>
           </div>
 
           <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -406,18 +409,18 @@
                   <span class="op-more-item op-more-item--warning">{{ t('financePaymentList.actions.submitAudit') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item
-                  v-if="canFinancePaymentWrite && [1,2].includes(row.status)"
+                  v-if="canFinancePaymentWrite && !row.isDeleted && [1,2].includes(row.status)"
                   @click.stop="cancelPayment(row)"
                 >
                   <span class="op-more-item op-more-item--danger">{{ t('financePaymentList.actions.cancel') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item divided v-if="canFinancePaymentWrite" @click.stop="handleDeleteRow(row)">
+                <el-dropdown-item divided v-if="canFinancePaymentWrite && !row.isDeleted" @click.stop="handleDeleteRow(row)">
                   <span class="op-more-item op-more-item--danger">删除</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="canReverseVerification(row)" @click.stop="handleReverseVerificationRow(row)">
                   <span class="op-more-item op-more-item--warning">{{ t('financePaymentList.actions.reverseVerification') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item v-if="canFinancePaymentWrite && canForceDelete" @click.stop="handleForceDeleteRow(row)">
+                <el-dropdown-item v-if="canFinancePaymentWrite && canForceDelete && !row.isDeleted" @click.stop="handleForceDeleteRow(row)">
                   <span class="op-more-item op-more-item--danger">强制删除</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
@@ -888,24 +891,27 @@ function paymentCreatorId(row: FinancePayment): string {
 }
 
 function canEditRequest(row: FinancePayment) {
+  if (row.isDeleted) return false
   if (row.status !== 1 && row.status !== -1) return false
   return canFinancePaymentWrite.value || canWritePo.value
 }
 
 function canSubmitAudit(row: FinancePayment) {
+  if (row.isDeleted) return false
   if (row.status !== 1) return false
   return canFinancePaymentWrite.value || canWritePo.value
 }
 
 function canPayExecute(row: FinancePayment) {
-  return canFinancePaymentWrite.value && row.status === 10
+  return !row.isDeleted && canFinancePaymentWrite.value && row.status === 10
 }
 
 function canReverseVerification(row: FinancePayment) {
-  return canFinancePaymentWrite.value && row.status === 100
+  return !row.isDeleted && canFinancePaymentWrite.value && row.status === 100
 }
 
 function canWithdrawPayment(row: FinancePayment) {
+  if (row.isDeleted) return false
   if (row.status !== 10) return false
   if (canFinancePaymentWrite.value) return true
   const uid = String(authStore.user?.id ?? '').trim()

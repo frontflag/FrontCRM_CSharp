@@ -5499,6 +5499,8 @@ const zhCN = {
       stockingUsageQty: '使用数量',
       purchaseTitle: '采购申请',
       stockOutTitle: '出库通知',
+      purchaseRequisitionDocLabel: '采购申请单号',
+      stockOutNotifyDocLabel: '出库通知单号',
       completed: '已完成',
       appliedQty: '已申请数量',
       availableQty: '可申请数量',
@@ -6231,10 +6233,19 @@ const zhCN = {
       arrivalNextConfirmed: '下一步：等待采购明细状态变为「已确认」后再通知到货。',
       arrivalNoRemaining: '本明细到货通知数量已满，无可通知余量。',
       arrivalNextNoRemaining: '下一步：到货通知已全部完成，无需再创建通知。',
+      paymentNoPermission: '当前账号没有申请付款权限。',
+      paymentNextNoPermission: '下一步：请联系管理员开通申请付款权限。',
+      paymentCancelled: '本明细（或主单）已取消/审核失败，不能申请付款。',
+      paymentNextCancelled: '下一步：已取消或审核失败的明细不能请款。',
       paymentNeedConfirmed: '当前明细尚未供应商确认，暂不可申请付款。',
       paymentNextConfirmed: '下一步：等待采购主单/明细达到「已确认」及之后状态再申请付款。',
-      paymentNotEligible: '当前不满足申请付款条件（可能已有在途请款或主单状态限制）。',
-      paymentNextNotEligible: '下一步：确认无在途请款单且明细/主单均已供应商确认。',
+      paymentFinanceDone: '本明细财务付款状态已是全部付款，不能再申请。',
+      paymentDocLabel: '付款单号',
+      arrivalDocLabel: '到货通知单号',
+      paymentNoLinkedDoc: '未查到关联付款单。',
+      paymentNextFinanceDone: '下一步：核对财务付款状态与请款金额是否一致；若仍需请款请联系财务处理。',
+      paymentNextFinanceDoneWithDocs: '下一步：点击上方付款单号打开付款单核对。付款记录请用付款单号查询，不要把采购订单号填进付款单号。',
+      paymentNextFinanceDoneNoDoc: '下一步：未查到关联付款单，请联系财务核对明细财务付款状态。',
       paymentNoRemaining: '本明细请款金额已满，无可申请余量。',
       paymentNextNoRemaining: '下一步：请款申请已全部完成，无需再申请付款。'
     },
@@ -8932,7 +8943,8 @@ const zhCN = {
       noSelection: '请选择一条装箱明细',
       missingSellLink: '当前装箱明细未关联销售订单明细，销售明细站为空；其余节点仍按本箱展示',
       fields: {
-        stockOutItemCode: '出库明细单号'
+        stockOutItemCode: '出库明细单号',
+        regionType: '地域'
       },
       stations: {
         sellOrderItem: '销售订单明细',
@@ -9619,6 +9631,7 @@ const zhCN = {
   },
   financePaymentList: {
     pageTitle: '付款记录',
+    deletedTag: '已删除',
     stats: { monthTotal: '本月付款总额', pending: '待审核', paid: '已付款', draft: '草稿' },
     filters: {
       keyword: '搜索付款单号/供应商',

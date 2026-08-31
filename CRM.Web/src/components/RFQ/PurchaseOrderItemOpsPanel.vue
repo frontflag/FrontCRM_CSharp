@@ -108,8 +108,13 @@
               </span>
             </div>
           </div>
+          <OpsGeneratedDocsRow
+            :label="t('purchaseOrderItemList.opsPanel.paymentDocLabel')"
+            :docs="linkedPaymentDocLinks"
+            :mask-sensitive="maskSensitive"
+          />
           <p v-if="paymentDisabledHint && !paymentCompleted" class="ops-status ops-status--warn">{{ paymentDisabledHint.summary }}</p>
-          <div class="ops-progress">
+          <div v-if="!paymentCompleted" class="ops-progress">
             <div class="ops-progress__track">
               <div class="ops-progress__bar ops-progress__bar--payment" :style="{ width: `${paymentProgressPct}%` }" />
             </div>
@@ -150,8 +155,13 @@
               <span class="ops-metrics__value">{{ formatQty(arrivalAvailableQty) }}</span>
             </div>
           </div>
+          <OpsGeneratedDocsRow
+            :label="t('purchaseOrderItemList.opsPanel.arrivalDocLabel')"
+            :docs="linkedArrivalDocLinks"
+            :mask-sensitive="maskSensitive"
+          />
           <p v-if="arrivalDisabledHint && !arrivalCompleted" class="ops-status ops-status--warn">{{ arrivalDisabledHint.summary }}</p>
-          <div class="ops-progress">
+          <div v-if="!arrivalCompleted" class="ops-progress">
             <div class="ops-progress__track">
               <div class="ops-progress__bar ops-progress__bar--arrival" :style="{ width: `${arrivalProgressPct}%` }" />
             </div>
@@ -183,10 +193,12 @@ import { CircleCheck } from '@element-plus/icons-vue'
 import type { PurchaseOrderDetailTabAggregates } from '@/api/purchaseOrder'
 import { formatUnitPriceWithCurrencyCodeSuffix, formatTotalAmountNumber, listAmountCurrencyDockClass, listAmountCurrencyIso } from '@/utils/moneyFormat'
 import { buildApplyArrivalDisabledHintContent, applyArrivalButtonDisabled } from '@/utils/applyArrivalDisabledHint'
-import { buildApplyPaymentDisabledHintContent, applyPaymentButtonDisabled } from '@/utils/applyPaymentDisabledHint'
+import { buildApplyPaymentDisabledHintContent, applyPaymentButtonDisabled, listLinkedFinancePaymentDocs } from '@/utils/applyPaymentDisabledHint'
+import { listLinkedArrivalNoticeDocs } from '@/utils/opsGeneratedDocs'
 import { calcProgressPercent, getArrivalMetrics, getPaymentMetrics, poStatusLabel, poStatusTagType, type PoItemStatusKind } from '@/utils/purchaseOrderItemOpsPanel'
 import { DEFAULT_SETTLEMENT_CURRENCY_CODE } from '@/constants/currency'
 import VendorNameReadonlyText from '@/components/Vendor/VendorNameReadonlyText.vue'
+import OpsGeneratedDocsRow from '@/components/Common/OpsGeneratedDocsRow.vue'
 
 const props = defineProps<{
   row: Record<string, unknown> | null
@@ -288,10 +300,38 @@ const paymentCompleted = computed(() => {
 })
 
 const arrivalDisabledHint = computed(() => (props.row ? buildApplyArrivalDisabledHintContent(props.row, t) : null))
-const paymentDisabledHint = computed(() => (props.row ? buildApplyPaymentDisabledHintContent(props.row, t) : null))
+const paymentDisabledHint = computed(() =>
+  props.row
+    ? buildApplyPaymentDisabledHintContent(props.row, t, {
+        canInitiatePayment: props.canInitiatePayment,
+        aggregates: props.aggregates
+      })
+    : null
+)
+
+const linkedPaymentDocLinks = computed(() =>
+  (listLinkedFinancePaymentDocs(props.aggregates) ?? []).map((doc) => ({
+    ...doc,
+    to: { name: 'FinancePaymentDetail', params: { id: doc.id } }
+  }))
+)
+
+const linkedArrivalDocLinks = computed(() =>
+  listLinkedArrivalNoticeDocs(props.aggregates).map((doc) => ({
+    ...doc,
+    to: { name: 'ArrivalNoticeList', query: { noticeId: doc.id } }
+  }))
+)
 
 const arrivalBtnDisabled = computed(() => !props.row || applyArrivalButtonDisabled(props.row))
-const paymentBtnDisabled = computed(() => !props.row || applyPaymentButtonDisabled(props.row))
+const paymentBtnDisabled = computed(
+  () =>
+    !props.row ||
+    applyPaymentButtonDisabled(props.row, {
+      canInitiatePayment: props.canInitiatePayment,
+      aggregates: props.aggregates
+    })
+)
 
 function formatQty(v: number) {
   if (!Number.isFinite(v)) return '—'
@@ -522,7 +562,7 @@ function formatQty(v: number) {
 }
 
 .ops-card__body {
-  padding: 10px 14px 14px;
+  padding: 10px 14px 12px;
 }
 
 .ops-card__body--overview {
@@ -589,6 +629,10 @@ function formatQty(v: number) {
   margin-bottom: 8px;
 }
 
+.ops-metrics:last-child {
+  margin-bottom: 0;
+}
+
 .ops-metrics__item {
   display: flex;
   flex-direction: column;
@@ -622,6 +666,10 @@ function formatQty(v: number) {
   flex-wrap: wrap;
   gap: 10px;
   margin: 10px 0;
+}
+
+.ops-progress:last-child {
+  margin-bottom: 0;
 }
 
 .ops-progress__track {

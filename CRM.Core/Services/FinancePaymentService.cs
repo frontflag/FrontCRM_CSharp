@@ -197,10 +197,14 @@ namespace CRM.Core.Services
             if (string.IsNullOrWhiteSpace(id)) return null;
 
             var payment = await _paymentRepo.GetByIdAsync(id);
+            if (payment == null)
+                payment = (await _paymentRepo.FindIgnoreFiltersAsync(p => p.Id == id)).FirstOrDefault();
             if (payment == null) return null;
 
-            var items = await _itemRepo.FindAsync(i => i.FinancePaymentId == id);
-            payment.Items = items.ToList();
+            var items = (await _itemRepo.FindAsync(i => i.FinancePaymentId == id)).ToList();
+            if (items.Count == 0)
+                items = (await _itemRepo.FindIgnoreFiltersAsync(i => i.FinancePaymentId == id)).ToList();
+            payment.Items = items;
             await EnrichVendorCodesAsync(new[] { payment });
             await EnrichVendorBankNamesAsync(new[] { payment });
             await EnrichPaymentBankNamesAsync(new[] { payment });
@@ -498,7 +502,7 @@ namespace CRM.Core.Services
             await _paymentRepo.DeleteAsync(id);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
             foreach (var pid in poItemIds)
-                await _poItemExtendSync.RecalculateAsync(pid);
+                await SyncPurchaseFinanceStatusAsync(new FinancePaymentItem { PurchaseOrderItemId = pid });
         }
 
         /// <inheritdoc />

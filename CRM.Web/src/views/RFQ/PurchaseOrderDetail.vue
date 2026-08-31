@@ -1658,6 +1658,7 @@ function poDetailLineToListShape(it: any) {
     purchaseUserName: o.purchaseUserName,
     itemStatus: Number(it.status ?? it.Status ?? 0),
     orderStatus: Number(o.status ?? o.Status ?? 0),
+    financePaymentStatus: Number(it.financePaymentStatus ?? it.FinancePaymentStatus ?? 0),
     pn: it.pn ?? it.PN,
     brand: it.brand ?? it.Brand,
     qty,

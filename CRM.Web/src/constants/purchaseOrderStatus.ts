@@ -56,6 +56,40 @@ export function purchaseOrderAllowsArrivalNotice(source: unknown): boolean {
   return itemStatus >= PO_STATUS_VENDOR_CONFIRMED
 }
 
+function readPoItemStatus(row: Record<string, unknown>): number {
+  return Number(row.itemStatus ?? row.ItemStatus)
+}
+
+function readPoOrderStatus(row: Record<string, unknown>): number {
+  return Number(
+    row.orderStatus ?? row.OrderStatus ?? row.purchaseOrderStatus ?? row.PurchaseOrderStatus
+  )
+}
+
+/**
+ * 明细或主单已取消 / 审核失败（申请付款禁用的直接原因）。
+ */
+export function purchaseOrderApplyPaymentIsCancelled(source: unknown): boolean {
+  if (source == null || typeof source !== 'object') return false
+  const row = source as Record<string, unknown>
+  const itemStatus = readPoItemStatus(row)
+  if (Number.isFinite(itemStatus) && isCancelledOrAuditFailed(itemStatus)) return true
+  const orderStatus = readPoOrderStatus(row)
+  return Number.isFinite(orderStatus) && isCancelledOrAuditFailed(orderStatus)
+}
+
+/**
+ * 明细财务付款状态已全部付款（FinancePaymentStatus >= 2）。字段缺失时不视为已完成。
+ */
+export function purchaseOrderFinancePaymentIsComplete(source: unknown): boolean {
+  if (source == null || typeof source !== 'object') return false
+  const row = source as Record<string, unknown>
+  const raw = row.financePaymentStatus ?? row.FinancePaymentStatus
+  if (raw == null || raw === '') return false
+  const n = Number(raw)
+  return Number.isFinite(n) && n >= 2
+}
+
 /**
  * 是否满足申请付款的状态门槛（与后端 canApplyPayment 状态段对齐，不含权限/余额）。
  * 主单或明细任一 ≥ 已确认(30) 即可（进行中 50 / 完成 100 仍可分批请款）。
@@ -64,12 +98,10 @@ export function purchaseOrderAllowsApplyPayment(source: unknown): boolean {
   if (source == null || typeof source !== 'object') return false
   const row = source as Record<string, unknown>
 
-  const itemStatus = Number(row.itemStatus ?? row.ItemStatus)
+  const itemStatus = readPoItemStatus(row)
   if (Number.isFinite(itemStatus) && isCancelledOrAuditFailed(itemStatus)) return false
 
-  const orderStatus = Number(
-    row.orderStatus ?? row.OrderStatus ?? row.purchaseOrderStatus ?? row.PurchaseOrderStatus
-  )
+  const orderStatus = readPoOrderStatus(row)
   if (Number.isFinite(orderStatus) && isCancelledOrAuditFailed(orderStatus)) return false
 
   const itemOk = Number.isFinite(itemStatus) && itemStatus >= PO_STATUS_VENDOR_CONFIRMED
