@@ -422,6 +422,14 @@ export interface PageQuery {
   purchaseUserName?: string
   /** 采购订单币种（purchaseorder.Currency） */
   purchaseCurrency?: number
+  /** 付款单头币别（finance_payment.payment_currency）；财务分析下钻用，列表筛选项不展示 */
+  paymentCurrency?: number
+  /** 收款单头币别（finance_receipt.receipt_currency）；财务分析下钻用，列表筛选项不展示 */
+  receiptCurrency?: number
+  /** 收款日期起（筛 ReceiptDate；与列表创建时间 startDate 独立） */
+  receiptDateFrom?: string
+  /** 收款日期止（筛 ReceiptDate） */
+  receiptDateTo?: string
   remark?: string
   status?: number
   invoiceStatus?: number

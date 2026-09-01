@@ -11,6 +11,7 @@ export type FinancePaymentListAnalyticsQuery = {
   purchaseOrderCode?: string
   purchaseUserName?: string
   purchaseCurrency?: number
+  paymentCurrency?: number
   remark?: string
   status?: number
   startDate?: string
@@ -89,6 +90,7 @@ function buildParams(q: FinancePaymentListAnalyticsQuery): Record<string, unknow
   if (q.purchaseOrderCode) p.purchaseOrderCode = q.purchaseOrderCode
   if (q.purchaseUserName) p.purchaseUserName = q.purchaseUserName
   if (q.purchaseCurrency !== undefined && q.purchaseCurrency !== null) p.purchaseCurrency = q.purchaseCurrency
+  if (q.paymentCurrency !== undefined && q.paymentCurrency !== null) p.paymentCurrency = q.paymentCurrency
   if (q.remark) p.remark = q.remark
   if (q.status !== undefined && q.status !== null) p.status = q.status
   if (q.startDate) p.startDate = q.startDate

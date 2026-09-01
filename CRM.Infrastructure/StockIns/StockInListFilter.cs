@@ -51,6 +51,25 @@ internal static class StockInListFilter
                 q = q.Where(s => s.StockInDate < endEx);
             }
 
+            if (request.Status.HasValue)
+            {
+                var status = request.Status.Value;
+                q = q.Where(s => s.Status == status);
+            }
+
+            if (request.ItemCurrency.HasValue)
+            {
+                var currency = request.ItemCurrency.Value;
+                q = q.Where(s =>
+                    db.StockInItems.Any(i =>
+                        i.StockInId == s.Id &&
+                        !i.IsDeleted &&
+                        db.StockItems.Any(st =>
+                            !st.IsDeleted &&
+                            st.StockInItemId == i.Id &&
+                            (i.Currency ?? st.PurchaseCurrency) == currency)));
+            }
+
             if (request.StockInType.HasValue)
             {
                 var rawType = request.StockInType.Value;

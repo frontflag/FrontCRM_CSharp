@@ -145,6 +145,15 @@ namespace CRM.Core.Interfaces
 
         /// <summary>入库类型 <see cref="Constants.StockInTypeCode"/>（10采购 20报关 30退货 40报废）。</summary>
         public short? StockInType { get; set; }
+
+        /// <summary>入库单头状态 <see cref="Constants.StockInHeaderStatusCode"/>（下钻隐藏筛，不进筛选栏）。</summary>
+        public short? Status { get; set; }
+
+        /// <summary>
+        /// 明细原币：存在未删除行且 <c>sii.Currency ?? stock_item.PurchaseCurrency</c> 等于该值。
+        /// 物流分析入库金额下钻用，不进筛选栏。
+        /// </summary>
+        public short? ItemCurrency { get; set; }
     }
 
     public class CreateStockInRequest

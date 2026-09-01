@@ -21,7 +21,11 @@ import {
 } from '@/api/analytics/finance'
 import {
   buildCompletedDrillRoute,
+  buildPaidCurrencyDrillRoute,
+  buildReceivedCurrencyDrillRoute,
   buildTodoDrillRoute,
+  canShowPaidCurrencyView,
+  canShowReceivedCurrencyView,
   isCompletedDrillable,
   isTodoDrillable,
   type FinanceAnalyticsCompletedDrillKey,
@@ -110,6 +114,37 @@ function formatFinanceMoneyDisplay(m?: FinanceAnalyticsMoney | null) {
 function moneyKpiFields(m?: FinanceAnalyticsMoney | null) {
   const { value, valueCaption, currencyCaption, currencyItems } = formatFinanceMoneyDisplay(m)
   return { value, valueCaption, currencyCaption, currencyItems }
+}
+
+const showPaidCurrencyView = computed(() =>
+  canShowPaidCurrencyView({
+    viewLevel: viewLevel.value,
+    accessMode: scopeContext.value?.accessMode,
+    maskAmounts: maskAmounts.value,
+    hasPaymentRead: authStore.hasPermission('finance-payment.read')
+  })
+)
+
+const showReceivedCurrencyView = computed(() =>
+  canShowReceivedCurrencyView({
+    viewLevel: viewLevel.value,
+    accessMode: scopeContext.value?.accessMode,
+    maskAmounts: maskAmounts.value,
+    hasReceiptRead: authStore.hasPermission('finance-receipt.read')
+  })
+)
+
+function withCurrencyViewButtons(show: boolean, fields: ReturnType<typeof moneyKpiFields>) {
+  if (!show || !fields.currencyItems?.length) return fields
+  const viewLabel = t('financeAnalytics.kpi.viewRecords')
+  return {
+    ...fields,
+    currencyItems: fields.currencyItems.map((cur) => ({
+      ...cur,
+      showView: cur.currency != null,
+      viewLabel
+    }))
+  }
 }
 
 function buildBaseQuery() {
@@ -203,17 +238,15 @@ const completedKpis = computed(() => {
     {
       key: 'paid',
       label: t('financeAnalytics.kpi.paidAmount'),
-      ...moneyKpiFields(c.paidAmount),
+      ...withCurrencyViewButtons(showPaidCurrencyView.value, moneyKpiFields(c.paidAmount)),
       valueFormat: 'money' as const,
-      drillable: isCompletedDrillable('paid', maskAmounts.value) && authStore.hasPermission('finance-payment.read'),
       ...def('completed.paid')
     },
     {
       key: 'received',
       label: t('financeAnalytics.kpi.receivedAmount'),
-      ...moneyKpiFields(c.receivedAmount),
+      ...withCurrencyViewButtons(showReceivedCurrencyView.value, moneyKpiFields(c.receivedAmount)),
       valueFormat: 'money' as const,
-      drillable: isCompletedDrillable('received', maskAmounts.value) && authStore.hasPermission('finance-receipt.read'),
       ...def('completed.received')
     },
     {
@@ -306,7 +339,23 @@ function onTodoKpiClick(key: string) {
 }
 
 function onCompletedKpiClick(key: string) {
+  if (key === 'paid' || key === 'received') return
   const route = buildCompletedDrillRoute(key as FinanceAnalyticsCompletedDrillKey, drillScope())
+  if (!route) return
+  void router.push(route)
+}
+
+function onCompletedCurrencyView(itemKey: string, currency: number) {
+  const scope = {
+    dateFrom: trendDateRange.value[0],
+    dateTo: asOfDate.value
+  }
+  const route =
+    itemKey === 'paid'
+      ? buildPaidCurrencyDrillRoute(scope, currency)
+      : itemKey === 'received'
+        ? buildReceivedCurrencyDrillRoute(scope, currency)
+        : null
   if (!route) return
   void router.push(route)
 }
@@ -372,7 +421,11 @@ watch([viewLevel, departmentId, ownerUserId, asOfDate, trendDateRange, groupBy],
     <section class="section">
       <h3 class="section-title">{{ t('financeAnalytics.sections.completed') }}</h3>
       <p class="section-hint">{{ t('financeAnalytics.completedHint') }}</p>
-      <AnalyticsKpiGrid :items="completedKpis" @item-click="onCompletedKpiClick" />
+      <AnalyticsKpiGrid
+        :items="completedKpis"
+        @item-click="onCompletedKpiClick"
+        @currency-view="onCompletedCurrencyView"
+      />
     </section>
 
     <div class="charts-row">

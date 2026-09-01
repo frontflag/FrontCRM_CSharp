@@ -142,6 +142,8 @@ namespace CRM.Core.Interfaces
         public string? PurchaseUserName { get; set; }
         /// <summary>关联采购订单币种精确匹配（purchaseorder.Currency）。</summary>
         public short? PurchaseCurrency { get; set; }
+        /// <summary>付款单头币别精确匹配（finance_payment.payment_currency）。财务分析原币下钻用，列表筛选项不展示。</summary>
+        public short? PaymentCurrency { get; set; }
         public string? Remark { get; set; }
         public short? Status { get; set; }
         /// <summary>付款日期起（含）。</summary>

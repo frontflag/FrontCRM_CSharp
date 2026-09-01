@@ -51,6 +51,9 @@ namespace CRM.API.Controllers
             [FromQuery] short? status,
             [FromQuery] short? receiptPurpose,
             [FromQuery] short? verificationStatus,
+            [FromQuery] short? receiptCurrency,
+            [FromQuery] string? receiptDateFrom,
+            [FromQuery] string? receiptDateTo,
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
             [FromQuery] int page = 1,
@@ -64,6 +67,9 @@ namespace CRM.API.Controllers
                     Status = status,
                     ReceiptPurpose = receiptPurpose,
                     VerificationStatus = verificationStatus,
+                    ReceiptCurrency = receiptCurrency,
+                    ReceiptDateFrom = PostgreSqlDateTime.ParseDateOnly(receiptDateFrom),
+                    ReceiptDateTo = PostgreSqlDateTime.ParseDateOnly(receiptDateTo),
                     StartDate = DateTime.TryParse(startDate, out var start) ? start : null,
                     EndDate = DateTime.TryParse(endDate, out var end) ? end : null,
                     Page = page,
@@ -90,6 +96,9 @@ namespace CRM.API.Controllers
             [FromQuery] short? status,
             [FromQuery] short? receiptPurpose,
             [FromQuery] short? verificationStatus,
+            [FromQuery] short? receiptCurrency,
+            [FromQuery] string? receiptDateFrom,
+            [FromQuery] string? receiptDateTo,
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
             CancellationToken cancellationToken = default)
@@ -103,6 +112,9 @@ namespace CRM.API.Controllers
                     Status = status,
                     ReceiptPurpose = receiptPurpose,
                     VerificationStatus = verificationStatus,
+                    ReceiptCurrency = receiptCurrency,
+                    ReceiptDateFrom = PostgreSqlDateTime.ParseDateOnly(receiptDateFrom),
+                    ReceiptDateTo = PostgreSqlDateTime.ParseDateOnly(receiptDateTo),
                     StartDate = DateTime.TryParse(startDate, out var start) ? start : null,
                     EndDate = DateTime.TryParse(endDate, out var end) ? end : null,
                     CurrentUserId = InventoryExportHttp.UserId(User)
@@ -124,6 +136,9 @@ namespace CRM.API.Controllers
                     ["status"] = status,
                     ["receiptPurpose"] = receiptPurpose,
                     ["verificationStatus"] = verificationStatus,
+                    ["receiptCurrency"] = receiptCurrency,
+                    ["receiptDateFrom"] = receiptDateFrom,
+                    ["receiptDateTo"] = receiptDateTo,
                     ["startDate"] = startDate,
                     ["endDate"] = endDate
                 });
@@ -155,12 +170,15 @@ namespace CRM.API.Controllers
             [FromQuery] short? status,
             [FromQuery] short? receiptPurpose,
             [FromQuery] short? verificationStatus,
+            [FromQuery] short? receiptCurrency,
+            [FromQuery] string? receiptDateFrom,
+            [FromQuery] string? receiptDateTo,
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
             CancellationToken cancellationToken = default)
         {
             var (request, maskAmounts) = await BuildListAnalyticsQueryAsync(
-                keyword, status, receiptPurpose, verificationStatus, startDate, endDate, cancellationToken);
+                keyword, status, receiptPurpose, verificationStatus, receiptCurrency, receiptDateFrom, receiptDateTo, startDate, endDate, cancellationToken);
             var data = await _listAnalytics.GetDashboardAsync(request, maskAmounts, cancellationToken);
             return Ok(ApiResponse<FinanceReceiptListAnalyticsDashboardDto>.Ok(data));
         }
@@ -171,13 +189,16 @@ namespace CRM.API.Controllers
             [FromQuery] short? status,
             [FromQuery] short? receiptPurpose,
             [FromQuery] short? verificationStatus,
+            [FromQuery] short? receiptCurrency,
+            [FromQuery] string? receiptDateFrom,
+            [FromQuery] string? receiptDateTo,
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
             [FromQuery] string? groupBy,
             CancellationToken cancellationToken = default)
         {
             var (request, maskAmounts) = await BuildListAnalyticsQueryAsync(
-                keyword, status, receiptPurpose, verificationStatus, startDate, endDate, cancellationToken);
+                keyword, status, receiptPurpose, verificationStatus, receiptCurrency, receiptDateFrom, receiptDateTo, startDate, endDate, cancellationToken);
             var data = await _listAnalytics.GetTrendsAsync(
                 request,
                 string.IsNullOrWhiteSpace(groupBy) ? "month" : groupBy.Trim(),
@@ -192,12 +213,15 @@ namespace CRM.API.Controllers
             [FromQuery] short? status,
             [FromQuery] short? receiptPurpose,
             [FromQuery] short? verificationStatus,
+            [FromQuery] short? receiptCurrency,
+            [FromQuery] string? receiptDateFrom,
+            [FromQuery] string? receiptDateTo,
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
             CancellationToken cancellationToken = default)
         {
             var (request, maskAmounts) = await BuildListAnalyticsQueryAsync(
-                keyword, status, receiptPurpose, verificationStatus, startDate, endDate, cancellationToken);
+                keyword, status, receiptPurpose, verificationStatus, receiptCurrency, receiptDateFrom, receiptDateTo, startDate, endDate, cancellationToken);
             var data = await _listAnalytics.GetBreakdownsAsync(request, maskAmounts, cancellationToken);
             return Ok(ApiResponse<IReadOnlyList<FinanceReceiptListAnalyticsBreakdownGroupDto>>.Ok(data));
         }
@@ -208,12 +232,15 @@ namespace CRM.API.Controllers
             [FromQuery] short? status,
             [FromQuery] short? receiptPurpose,
             [FromQuery] short? verificationStatus,
+            [FromQuery] short? receiptCurrency,
+            [FromQuery] string? receiptDateFrom,
+            [FromQuery] string? receiptDateTo,
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
             CancellationToken cancellationToken = default)
         {
             var (request, maskAmounts) = await BuildListAnalyticsQueryAsync(
-                keyword, status, receiptPurpose, verificationStatus, startDate, endDate, cancellationToken);
+                keyword, status, receiptPurpose, verificationStatus, receiptCurrency, receiptDateFrom, receiptDateTo, startDate, endDate, cancellationToken);
             var data = await _listAnalytics.GetRankingsAsync(request, maskAmounts, cancellationToken);
             return Ok(ApiResponse<FinanceReceiptListAnalyticsRankingsDto>.Ok(data));
         }
@@ -585,6 +612,9 @@ namespace CRM.API.Controllers
             short? status,
             short? receiptPurpose,
             short? verificationStatus,
+            short? receiptCurrency,
+            string? receiptDateFrom,
+            string? receiptDateTo,
             string? startDate,
             string? endDate,
             CancellationToken cancellationToken)
@@ -596,6 +626,9 @@ namespace CRM.API.Controllers
                 Status = status,
                 ReceiptPurpose = receiptPurpose,
                 VerificationStatus = verificationStatus,
+                ReceiptCurrency = receiptCurrency,
+                ReceiptDateFrom = PostgreSqlDateTime.ParseDateOnly(receiptDateFrom),
+                ReceiptDateTo = PostgreSqlDateTime.ParseDateOnly(receiptDateTo),
                 StartDate = DateTime.TryParse(startDate, out var start) ? start : null,
                 EndDate = DateTime.TryParse(endDate, out var end) ? end : null,
                 CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value

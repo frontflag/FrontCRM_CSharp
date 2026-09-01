@@ -75,6 +75,12 @@ internal static class FinancePaymentListFilter
             q = await ApplyLinkedPurchaseOrderFilterAsync(db, q, poIds, cancellationToken);
         }
 
+        if (request.PaymentCurrency.HasValue)
+        {
+            var paymentCurrency = request.PaymentCurrency.Value;
+            q = q.Where(p => (short)p.PaymentCurrency == paymentCurrency);
+        }
+
         if (!string.IsNullOrWhiteSpace(request.BankSlipNo))
         {
             var b = request.BankSlipNo.Trim().ToLowerInvariant();

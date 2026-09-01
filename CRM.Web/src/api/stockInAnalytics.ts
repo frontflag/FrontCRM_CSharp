@@ -15,6 +15,8 @@ export type StockInListAnalyticsQuery = {
   stockInDateEnd?: string
   remark?: string
   stockInType?: number
+  status?: number
+  itemCurrency?: number
   groupBy?: 'day' | 'week' | 'month'
 }
 
@@ -67,6 +69,8 @@ function buildParams(q: StockInListAnalyticsQuery): Record<string, unknown> {
   if (q.stockInDateEnd) p.stockInDateEnd = q.stockInDateEnd
   if (q.remark) p.remark = q.remark
   if (q.stockInType !== undefined && q.stockInType !== null) p.stockInType = q.stockInType
+  if (q.status !== undefined && q.status !== null) p.status = q.status
+  if (q.itemCurrency !== undefined && q.itemCurrency !== null) p.itemCurrency = q.itemCurrency
   if (q.groupBy) p.groupBy = q.groupBy
   return p
 }

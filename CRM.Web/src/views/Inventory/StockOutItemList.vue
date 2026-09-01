@@ -14,6 +14,12 @@
         </div>
       </div>
     </div>
+    <div v-if="stockOutAmountDrillActive" class="drill-from-analytics-banner" role="status">
+      <span>{{ stockOutAmountDrillBannerText }}</span>
+      <el-button link type="primary" size="small" @click="exitStockOutAmountDrill">
+        {{ t('stockOutItemList.drillFromAnalytics.exit') }}
+      </el-button>
+    </div>
 
     <div class="search-bar">
       <div class="search-left">
@@ -357,6 +363,8 @@ import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { useListBoardHelpOverride } from '@/composables/useHelpDocOverride'
 import CrmListCopyableTextCell from '@/components/CrmListCopyableTextCell.vue'
 import { stockOutApi, type StockOutItemListQuery, type StockOutItemListRow } from '@/api/stockOut'
+import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
+import { parseStockOutAmountCurrencyDrillQuery } from '@/utils/logisticsAnalyticsDrill'
 import type { StockOutItemListAnalyticsQuery } from '@/api/stockOutItemAnalytics'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
@@ -579,10 +587,38 @@ const filters = reactive({
   customerName: '',
   salesUserName: '',
   purchasePn: '',
-  sellOrderItemCode: ''
+  sellOrderItemCode: '',
+  /** 下钻隐藏：销售原币，不进筛选栏 */
+  salesCurrency: undefined as number | undefined
 })
 
 const boardFilters = computed<StockOutItemListAnalyticsQuery>(() => buildQuery())
+
+const stockOutAmountDrillActive = computed(
+  () => filters.salesCurrency != null && Number.isFinite(filters.salesCurrency)
+)
+
+const stockOutAmountDrillBannerText = computed(() => {
+  const code = filters.salesCurrency
+  const currency = code != null ? CURRENCY_CODE_TO_TEXT[code] ?? String(code) : '—'
+  const start = dateFrom.value || '—'
+  const end = dateTo.value || '—'
+  return t('stockOutItemList.drillFromAnalytics.stockOutAmount', { currency, start, end })
+})
+
+function exitStockOutAmountDrill() {
+  filters.salesCurrency = undefined
+  const query: Record<string, string> = {}
+  if (filters.status !== undefined && !Number.isNaN(filters.status)) query.status = String(filters.status)
+  if (filters.stockOutType !== undefined && !Number.isNaN(filters.stockOutType)) {
+    query.stockOutType = String(filters.stockOutType)
+  }
+  if (dateFrom.value) query.stockOutDateFrom = dateFrom.value
+  if (dateTo.value) query.stockOutDateTo = dateTo.value
+  const hl = highlightCode.value
+  if (hl) query.highlight = hl
+  void router.replace({ name: 'StockOutItemList', query })
+}
 
 function toggleViewMode() {
   viewMode.value = viewMode.value === 'list' ? 'board' : 'list'
@@ -601,7 +637,8 @@ function buildQuery(): StockOutItemListQuery {
     stockOutDateFrom: dateFrom.value?.trim() || undefined,
     stockOutDateTo: dateTo.value?.trim() || undefined,
     purchasePn: filters.purchasePn.trim() || undefined,
-    sellOrderItemCode: filters.sellOrderItemCode.trim() || undefined
+    sellOrderItemCode: filters.sellOrderItemCode.trim() || undefined,
+    salesCurrency: filters.salesCurrency
   }
   if (!maskSaleSensitiveFields.value) {
     q.customerName = filters.customerName.trim() || undefined
@@ -666,6 +703,9 @@ function syncFiltersFromRoute() {
   const to = firstQueryString(q.stockOutDateTo)
   if (from) dateFrom.value = from
   if (to) dateTo.value = to
+  const parsed = parseStockOutAmountCurrencyDrillQuery(q as Record<string, unknown>)
+  filters.salesCurrency = parsed.salesCurrency
+  if (parsed.isDrill) viewMode.value = 'list'
 }
 
 function highlightRowClassName({ row }: { row: StockOutItemListRow }) {
@@ -694,14 +734,10 @@ const resetFilters = () => {
   filters.salesUserName = ''
   filters.purchasePn = ''
   filters.sellOrderItemCode = ''
+  filters.salesCurrency = undefined
   dateFrom.value = null
   dateTo.value = null
-  if (highlightCode.value) {
-    const nextQuery = { ...route.query }
-    delete nextQuery.highlight
-    void router.replace({ query: nextQuery })
-    return
-  }
+  void router.replace({ name: 'StockOutItemList', query: {} })
   void fetchList()
 }
 
@@ -756,10 +792,25 @@ watch(highlightCode, (code, prev) => {
 
 watch(
   () =>
-    [route.query.status, route.query.stockOutType, route.query.stockOutDateFrom, route.query.stockOutDateTo] as const,
+    [
+      route.query.status,
+      route.query.stockOutType,
+      route.query.stockOutDateFrom,
+      route.query.stockOutDateTo,
+      route.query.salesCurrency,
+      route.query.drill
+    ] as const,
   (next, prev) => {
     if (!prev) return
-    if (next[0] === prev[0] && next[1] === prev[1] && next[2] === prev[2] && next[3] === prev[3]) return
+    if (
+      next[0] === prev[0] &&
+      next[1] === prev[1] &&
+      next[2] === prev[2] &&
+      next[3] === prev[3] &&
+      next[4] === prev[4] &&
+      next[5] === prev[5]
+    )
+      return
     syncFiltersFromRoute()
     void fetchList()
   }
@@ -820,6 +871,21 @@ onBeforeUnmount(() => {
 .count-badge {
   font-size: 13px;
   color: $text-muted;
+}
+
+.drill-from-analytics-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: rgba(0, 212, 255, 0.08);
+  border: 1px solid rgba(0, 212, 255, 0.22);
+  color: $cyan-primary;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .search-bar {

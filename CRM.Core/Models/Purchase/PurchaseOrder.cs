@@ -105,7 +105,7 @@ namespace CRM.Core.Models.Purchase
         [Column("stock_status")]
         public short StockStatus { get; set; } = 0;
 
-        /// <summary>付款状态 0=未付款 1=部分付款 2=全部付款</summary>
+        /// <summary>付款状态 0=未付款 1=部分付款 2=付款完成（已核销合计 vs 各行采购总额）</summary>
         [Column("finance_status")]
         public short FinanceStatus { get; set; } = 0;
 
@@ -244,7 +244,7 @@ namespace CRM.Core.Models.Purchase
         [Column("stock_in_status")]
         public short StockInStatus { get; set; } = 0;
 
-        /// <summary>付款状态 0=未付款 1=部分付款 2=全部付款</summary>
+        /// <summary>付款状态 0=未付款 1=部分付款 2=付款完成（已核销合计 vs 本行 qty×cost）</summary>
         [Column("finance_payment_status")]
         public short FinancePaymentStatus { get; set; } = 0;
 

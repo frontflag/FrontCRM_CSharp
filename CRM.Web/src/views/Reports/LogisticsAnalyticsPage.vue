@@ -22,9 +22,11 @@ import {
 } from '@/api/analytics/logistics'
 import {
   buildPendingStockInDrillRoute,
-  buildStockInFlowDrillRoute,
+  buildStockInAmountCurrencyDrillRoute,
   buildStockItemListDrillRoute,
-  buildStockOutFlowDrillRoute
+  buildStockOutAmountCurrencyDrillRoute,
+  canShowStockInCurrencyView,
+  canShowStockOutCurrencyView
 } from '@/utils/logisticsAnalyticsDrill'
 
 const { t } = useI18n()
@@ -121,6 +123,39 @@ function snapshotMoneyKpiFields(
   }
 }
 
+function withCurrencyViewButtons(show: boolean, fields: ReturnType<typeof snapshotMoneyKpiFields>) {
+  if (!show || !fields.currencyItems?.length) return fields
+  const viewLabel = t('logisticsAnalytics.kpi.viewRecords')
+  return {
+    ...fields,
+    currencyItems: fields.currencyItems.map((cur) => ({
+      ...cur,
+      showView: cur.currency != null,
+      viewLabel
+    }))
+  }
+}
+
+const showStockInCurrencyView = computed(() =>
+  canShowStockInCurrencyView({
+    viewLevel: viewLevel.value,
+    accessMode: scopeContext.value?.accessMode,
+    inventoryType: inventoryType.value,
+    maskAmounts: maskAmounts.value,
+    hasInventoryRead: authStore.hasPermission('inventory.read')
+  })
+)
+
+const showStockOutCurrencyView = computed(() =>
+  canShowStockOutCurrencyView({
+    viewLevel: viewLevel.value,
+    accessMode: scopeContext.value?.accessMode,
+    inventoryType: inventoryType.value,
+    maskSalesAmounts: maskSalesAmounts.value,
+    hasInventoryRead: authStore.hasPermission('inventory.read')
+  })
+)
+
 function formatAge(v?: number | null): string {
   if (v == null) return '—'
   return `${v.toFixed(1)} ${t('logisticsAnalytics.unit.days')}`
@@ -160,15 +195,13 @@ const flowKpis = computed(() => {
     {
       key: 'stockInAmount',
       label: t('logisticsAnalytics.kpi.stockInAmount'),
-      ...snapshotMoneyKpiFields(flow.stockInAmount),
-      drillable: !maskAmounts.value && authStore.hasPermission('inventory.read'),
+      ...withCurrencyViewButtons(showStockInCurrencyView.value, snapshotMoneyKpiFields(flow.stockInAmount)),
       ...def('flow.stockInAmount')
     },
     {
       key: 'stockOutAmount',
       label: t('logisticsAnalytics.kpi.stockOutAmount'),
-      ...snapshotMoneyKpiFields(flow.stockOutAmount),
-      drillable: !maskSalesAmounts.value && authStore.hasPermission('inventory.read'),
+      ...withCurrencyViewButtons(showStockOutCurrencyView.value, snapshotMoneyKpiFields(flow.stockOutAmount)),
       ...def('flow.stockOutAmount')
     }
   ]
@@ -333,19 +366,22 @@ function onTodoKpiClick(key: string) {
 }
 
 function onFlowKpiClick(key: string) {
-  const range = {
+  if (key === 'stockInAmount' || key === 'stockOutAmount') return
+}
+
+function onFlowCurrencyView(itemKey: string, currency: number) {
+  const scope = {
     dateFrom: trendDateRange.value[0],
     dateTo: trendDateRange.value[1]
   }
-  if (key === 'stockInAmount') {
-    if (maskAmounts.value || !authStore.hasPermission('inventory.read')) return
-    void router.push(buildStockInFlowDrillRoute(range))
-    return
-  }
-  if (key === 'stockOutAmount') {
-    if (maskSalesAmounts.value || !authStore.hasPermission('inventory.read')) return
-    void router.push(buildStockOutFlowDrillRoute(range))
-  }
+  const route =
+    itemKey === 'stockInAmount'
+      ? buildStockInAmountCurrencyDrillRoute(scope, currency)
+      : itemKey === 'stockOutAmount'
+        ? buildStockOutAmountCurrencyDrillRoute(scope, currency)
+        : null
+  if (!route) return
+  void router.push(route)
 }
 
 function onSnapshotKpiClick(key: string) {
@@ -467,7 +503,7 @@ watch(matrixSubject, () => void loadMatrix())
 
     <section class="section">
       <h3 class="section-title">{{ t('logisticsAnalytics.sections.flow') }}</h3>
-      <AnalyticsKpiGrid :items="flowKpis" @item-click="onFlowKpiClick" />
+      <AnalyticsKpiGrid :items="flowKpis" @item-click="onFlowKpiClick" @currency-view="onFlowCurrencyView" />
     </section>
 
     <section class="section">

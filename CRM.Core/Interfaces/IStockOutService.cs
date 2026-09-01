@@ -488,6 +488,12 @@ namespace CRM.Core.Interfaces
 
         /// <summary>当前登录用户 Id（销售数据范围过滤）。</summary>
         public string? CurrentUserId { get; set; }
+
+        /// <summary>
+        /// 销售原币：<c>extend.SalesCurrency ?? stock_item.SalesCurrency ?? RMB</c>。
+        /// 物流分析出库金额下钻用，不进筛选栏。
+        /// </summary>
+        public short? SalesCurrency { get; set; }
     }
 
     /// <summary><c>stockoutitem</c> 行 + 头表展示字段。</summary>

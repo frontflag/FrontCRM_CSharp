@@ -165,6 +165,22 @@ internal static class StockOutItemListFilter
                             sin.StockInCode.ToLower().Contains(k)))));
         }
 
+        if (query.SalesCurrency.HasValue)
+        {
+            var currency = query.SalesCurrency.Value;
+            var rmb = (short)CurrencyCode.RMB;
+            q = q.Where(x =>
+                !x.Item.IsDeleted &&
+                db.StockOutItemExtends.Any(ext =>
+                    ext.Id == x.Item.Id &&
+                    !ext.IsDeleted &&
+                    ext.StockItemId != null &&
+                    db.StockItems.Any(st =>
+                        !st.IsDeleted &&
+                        st.Id == ext.StockItemId &&
+                        (ext.SalesCurrency ?? st.SalesCurrency ?? rmb) == currency)));
+        }
+
         if (!string.IsNullOrWhiteSpace(query.PackingCode))
         {
             var k = query.PackingCode.Trim().ToLowerInvariant();

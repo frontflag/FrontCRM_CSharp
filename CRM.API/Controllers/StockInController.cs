@@ -89,6 +89,8 @@ namespace CRM.API.Controllers
             [FromQuery] DateTime? stockInDateEnd,
             [FromQuery] string? remark,
             [FromQuery] short? stockInType,
+            [FromQuery] short? status,
+            [FromQuery] short? itemCurrency,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20,
             CancellationToken cancellationToken = default)
@@ -109,7 +111,9 @@ namespace CRM.API.Controllers
                     StockInDateStart = stockInDateStart,
                     StockInDateEnd = stockInDateEnd,
                     Remark = remark,
-                    StockInType = stockInType
+                    StockInType = stockInType,
+                    Status = status,
+                    ItemCurrency = itemCurrency
                 };
                 var result = await _service.GetListPagedAsync(query, page, pageSize, cancellationToken);
                 return Ok(new
@@ -147,6 +151,8 @@ namespace CRM.API.Controllers
             [FromQuery] DateTime? stockInDateEnd,
             [FromQuery] string? remark,
             [FromQuery] short? stockInType,
+            [FromQuery] short? status,
+            [FromQuery] short? itemCurrency,
             CancellationToken cancellationToken = default)
         {
             try
@@ -168,7 +174,9 @@ namespace CRM.API.Controllers
                     StockInDateStart = stockInDateStart,
                     StockInDateEnd = stockInDateEnd,
                     Remark = remark,
-                    StockInType = stockInType
+                    StockInType = stockInType,
+                    Status = status,
+                    ItemCurrency = itemCurrency
                 };
 
                 var (items, truncated, _) = await InventoryExportHttp.CollectForExportAsync(
@@ -223,7 +231,9 @@ namespace CRM.API.Controllers
                     ["stockInDateStart"] = stockInDateStart,
                     ["stockInDateEnd"] = stockInDateEnd,
                     ["remark"] = remark,
-                    ["stockInType"] = stockInType
+                    ["stockInType"] = stockInType,
+                    ["status"] = status,
+                    ["itemCurrency"] = itemCurrency
                 });
 
                 var truncNote = truncated ? "（已截断）" : string.Empty;

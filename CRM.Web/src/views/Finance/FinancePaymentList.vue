@@ -8,6 +8,12 @@
         </button>
       </div>
     </div>
+    <div v-if="paidCurrencyDrillActive" class="drill-from-analytics-banner" role="status">
+      <span>{{ paidCurrencyDrillBannerText }}</span>
+      <el-button link type="primary" size="small" @click="exitPaidCurrencyDrill">
+        {{ t('financePaymentList.drillFromAnalytics.exit') }}
+      </el-button>
+    </div>
     <!-- 统计卡片（置顶；看板态隐藏） -->
     <div v-show="viewMode === 'list'" class="stat-cards">
       <div class="stat-card">
@@ -480,8 +486,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, reactive, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, ref, reactive, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useFinanceEnumLabels } from '@/composables/useFinanceEnumLabels'
 import { ArrowRight, Search, Setting } from '@element-plus/icons-vue'
@@ -510,6 +516,7 @@ import {
   type FpStatusTabId,
   type FpPaymentModeTabId
 } from '@/utils/financePaymentListTabMode'
+import { parsePaidCurrencyDrillQuery } from '@/utils/financeAnalyticsDrill'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import { downloadCsvBlob } from '@/utils/exportFileName'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
@@ -531,6 +538,7 @@ import {
   isVendorReceivingBankExtendTableColumn
 } from '@/composables/useVendorReceivingBankExtendColumn'
 
+const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
@@ -583,6 +591,7 @@ const query = reactive<PageQuery & { page: number; pageSize: number }>({
   purchaseOrderCode: '',
   purchaseUserName: '',
   purchaseCurrency: undefined,
+  paymentCurrency: undefined,
   freightForwarderOrderNo: '',
   bankSlipNo: '',
   paymentMode: undefined,
@@ -850,6 +859,7 @@ const boardFilters = computed<FinancePaymentListAnalyticsQuery>(() => ({
   purchaseOrderCode: textFilter(query.purchaseOrderCode),
   purchaseUserName: textFilter(query.purchaseUserName),
   purchaseCurrency: query.purchaseCurrency,
+  paymentCurrency: query.paymentCurrency,
   freightForwarderOrderNo: textFilter(query.freightForwarderOrderNo),
   bankSlipNo: textFilter(query.bankSlipNo),
   paymentMode: query.paymentMode,
@@ -859,6 +869,44 @@ const boardFilters = computed<FinancePaymentListAnalyticsQuery>(() => ({
   startDate: query.startDate,
   endDate: query.endDate
 }))
+
+const paidCurrencyDrillActive = computed(
+  () => query.paymentCurrency != null && Number.isFinite(query.paymentCurrency)
+)
+
+const paidCurrencyDrillBannerText = computed(() => {
+  const code = query.paymentCurrency
+  const currency =
+    code != null ? CURRENCY_MAP[code] || String(code) : '—'
+  const start = query.startDate || '—'
+  const end = query.endDate || '—'
+  return t('financePaymentList.drillFromAnalytics.paid', { currency, start, end })
+})
+
+function applyPaidCurrencyDrillFromRoute() {
+  const parsed = parsePaidCurrencyDrillQuery(route.query as Record<string, unknown>)
+  query.paymentCurrency = parsed.paymentCurrency
+  if (parsed.status !== undefined) query.status = parsed.status
+  if (parsed.startDate || parsed.endDate) {
+    query.startDate = parsed.startDate
+    query.endDate = parsed.endDate
+    dateRange.value =
+      parsed.startDate && parsed.endDate ? [parsed.startDate, parsed.endDate] : null
+  }
+  if (parsed.isDrill) {
+    viewMode.value = 'list'
+    query.page = 1
+  }
+}
+
+function exitPaidCurrencyDrill() {
+  query.paymentCurrency = undefined
+  const next: Record<string, string> = {}
+  if (query.status != null) next.status = String(query.status)
+  if (query.startDate) next.startDate = query.startDate
+  if (query.endDate) next.endDate = query.endDate
+  void router.replace({ name: 'FinancePaymentList', query: next })
+}
 
 function syncDateRangeToQuery() {
   if (dateRange.value) {
@@ -1095,7 +1143,21 @@ const handleForceDeleteRow = async (row: FinancePayment) => {
 
 const formatAmount = (v: number) => v?.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'
 
-onMounted(loadData)
+watch(
+  () =>
+    [
+      route.query.drill,
+      route.query.paymentCurrency,
+      route.query.status,
+      route.query.startDate,
+      route.query.endDate
+    ].join('|'),
+  () => {
+    applyPaidCurrencyDrillFromRoute()
+    void loadData()
+  },
+  { immediate: true }
+)
 </script>
 
 <style lang="scss" scoped>
@@ -1113,6 +1175,21 @@ onMounted(loadData)
   display: inline-flex;
   align-items: center;
   gap: 10px;
+}
+
+.drill-from-analytics-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: rgba(64, 158, 255, 0.08);
+  border: 1px solid rgba(64, 158, 255, 0.22);
+  color: #409eff;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .pagination-wrap {

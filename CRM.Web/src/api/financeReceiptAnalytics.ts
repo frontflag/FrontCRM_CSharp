@@ -6,6 +6,9 @@ export type FinanceReceiptListAnalyticsQuery = {
   status?: number
   receiptPurpose?: number
   verificationStatus?: number
+  receiptCurrency?: number
+  receiptDateFrom?: string
+  receiptDateTo?: string
   startDate?: string
   endDate?: string
   groupBy?: 'day' | 'week' | 'month'
@@ -78,6 +81,9 @@ function buildParams(q: FinanceReceiptListAnalyticsQuery): Record<string, unknow
   if (q.receiptPurpose !== undefined && q.receiptPurpose !== null) p.receiptPurpose = q.receiptPurpose
   if (q.verificationStatus !== undefined && q.verificationStatus !== null)
     p.verificationStatus = q.verificationStatus
+  if (q.receiptCurrency !== undefined && q.receiptCurrency !== null) p.receiptCurrency = q.receiptCurrency
+  if (q.receiptDateFrom) p.receiptDateFrom = q.receiptDateFrom
+  if (q.receiptDateTo) p.receiptDateTo = q.receiptDateTo
   if (q.startDate) p.startDate = q.startDate
   if (q.endDate) p.endDate = q.endDate
   if (q.groupBy) p.groupBy = q.groupBy

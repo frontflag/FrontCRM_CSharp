@@ -719,18 +719,24 @@ namespace CRM.Core.Services
             var poItem = await _poItemRepo.GetByIdAsync(payItem.PurchaseOrderItemId);
             if (poItem == null) return;
 
-            // 同一采购明细允许分多次请款/付款，按累计核销金额计算付款状态
-            var relatedPayItems = (await _itemRepo.GetAllAsync())
-                .Where(x => x.PurchaseOrderItemId == poItem.Id)
+            var poItemId = poItem.Id;
+            var relatedPayItems = (await _itemRepo.FindAsync(x =>
+                    x.PurchaseOrderItemId != null && x.PurchaseOrderItemId == poItemId))
                 .ToList();
-            var totalToBe = relatedPayItems.Sum(x => x.PaymentAmountToBe);
-            var totalDone = relatedPayItems.Sum(x => x.VerificationDone);
+            var paymentIds = relatedPayItems
+                .Select(p => p.FinancePaymentId)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var payments = paymentIds.Count == 0
+                ? new List<FinancePayment>()
+                : (await _paymentRepo.FindAsync(p => paymentIds.Contains(p.Id))).ToList();
+            var totalDone = PurchaseLineFinancePaymentStatus.SumVerificationDoneOnValidPayments(
+                relatedPayItems, payments);
+            var lineTotal = Math.Round(poItem.Qty * poItem.Cost, 2, MidpointRounding.AwayFromZero);
 
-            poItem.FinancePaymentStatus = totalDone <= 0
-                ? (short)0
-                : totalDone >= totalToBe && totalToBe > 0
-                    ? (short)2
-                    : (short)1;
+            poItem.FinancePaymentStatus = PurchaseLineFinancePaymentStatus.FromPaidVersusLineTotal(
+                totalDone, lineTotal);
             poItem.ModifyTime = DateTime.UtcNow;
             await _poItemRepo.UpdateAsync(poItem);
 
@@ -738,11 +744,13 @@ namespace CRM.Core.Services
             if (po == null) return;
 
             var allPoItems = (await _poItemRepo.FindAsync(x => x.PurchaseOrderId == po.Id)).ToList();
-            po.FinanceStatus = allPoItems.All(x => x.FinancePaymentStatus == 2)
-                ? (short)2
-                : allPoItems.Any(x => x.FinancePaymentStatus > 0)
-                    ? (short)1
-                    : (short)0;
+            foreach (var line in allPoItems)
+            {
+                if (string.Equals(line.Id, poItem.Id, StringComparison.OrdinalIgnoreCase))
+                    line.FinancePaymentStatus = poItem.FinancePaymentStatus;
+            }
+            po.FinanceStatus = PurchaseLineFinancePaymentStatus.HeaderFromLineStatuses(
+                allPoItems.Select(x => x.FinancePaymentStatus));
             po.ModifyTime = DateTime.UtcNow;
             await _poRepo.UpdateAsync(po);
 

@@ -265,6 +265,8 @@ export const stockInApi = {
       stockInDateEnd?: string
       remark?: string
       stockInType?: number
+      status?: number
+      itemCurrency?: number
       page?: number
       pageSize?: number
     }
@@ -297,6 +299,8 @@ export const stockInApi = {
       stockInDateEnd?: string
       remark?: string
       stockInType?: number
+      status?: number
+      itemCurrency?: number
     }
   ): Promise<Blob> {
     const qs = new URLSearchParams()

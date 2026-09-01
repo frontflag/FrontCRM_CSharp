@@ -12,6 +12,12 @@
         </button>
       </div>
     </div>
+    <div v-if="receivedCurrencyDrillActive" class="drill-from-analytics-banner" role="status">
+      <span>{{ receivedCurrencyDrillBannerText }}</span>
+      <el-button link type="primary" size="small" @click="exitReceivedCurrencyDrill">
+        {{ t('financeReceiptList.drillFromAnalytics.exit') }}
+      </el-button>
+    </div>
     <!-- 统计卡片（置顶：在筛选栏与表格之上；看板态隐藏） -->
     <div v-show="viewMode === 'list'" class="stat-cards">
       <div class="stat-card">
@@ -596,6 +602,7 @@ import {
   type FrPurposeTabId,
   type FrVerificationTabId
 } from '@/utils/financeReceiptListTabMode'
+import { parseReceivedCurrencyDrillQuery } from '@/utils/financeAnalyticsDrill'
 import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import { downloadCsvBlob } from '@/utils/exportFileName'
@@ -727,6 +734,9 @@ const query = reactive<PageQuery & { page: number; pageSize: number }>({
   status: undefined,
   receiptPurpose: undefined,
   verificationStatus: undefined,
+  receiptCurrency: undefined,
+  receiptDateFrom: undefined,
+  receiptDateTo: undefined,
   startDate: undefined,
   endDate: undefined
 })
@@ -908,9 +918,54 @@ const boardFilters = computed<FinanceReceiptListAnalyticsQuery>(() => ({
   status: query.status,
   receiptPurpose: query.receiptPurpose,
   verificationStatus: query.verificationStatus,
+  receiptCurrency: query.receiptCurrency,
+  receiptDateFrom: query.receiptDateFrom,
+  receiptDateTo: query.receiptDateTo,
   startDate: query.startDate,
   endDate: query.endDate
 }))
+
+const receivedCurrencyDrillActive = computed(
+  () =>
+    (query.receiptCurrency != null && Number.isFinite(query.receiptCurrency)) ||
+    !!query.receiptDateFrom ||
+    !!query.receiptDateTo
+)
+
+const receivedCurrencyDrillBannerText = computed(() => {
+  const code = query.receiptCurrency
+  const currency = code != null ? CURRENCY_MAP[code] || String(code) : '—'
+  const start = query.receiptDateFrom || '—'
+  const end = query.receiptDateTo || '—'
+  return t('financeReceiptList.drillFromAnalytics.received', { currency, start, end })
+})
+
+function applyReceivedCurrencyDrillFromRoute() {
+  const parsed = parseReceivedCurrencyDrillQuery(route.query as Record<string, unknown>)
+  query.receiptCurrency = parsed.receiptCurrency
+  query.receiptDateFrom = parsed.receiptDateFrom
+  query.receiptDateTo = parsed.receiptDateTo
+  if (parsed.status !== undefined) query.status = parsed.status
+  if (parsed.isDrill) {
+    viewMode.value = 'list'
+    query.page = 1
+  }
+}
+
+function exitReceivedCurrencyDrill() {
+  query.receiptCurrency = undefined
+  query.receiptDateFrom = undefined
+  query.receiptDateTo = undefined
+  const next: Record<string, string> = {}
+  const kw = query.keyword?.trim()
+  if (kw) next.keyword = kw
+  if (query.status != null) next.status = String(query.status)
+  if (query.receiptPurpose != null) next.receiptPurpose = String(query.receiptPurpose)
+  if (query.verificationStatus != null) next.verificationStatus = String(query.verificationStatus)
+  if (query.startDate) next.startDate = query.startDate
+  if (query.endDate) next.endDate = query.endDate
+  void router.replace({ name: 'FinanceReceiptList', query: next })
+}
 
 function syncDateRangeToQuery() {
   if (dateRange.value) {
@@ -1312,19 +1367,30 @@ function applyKeywordFromRoute() {
   if (kw) query.page = 1
 }
 
-onMounted(async () => {
+function applyListRouteQuery() {
   applyKeywordFromRoute()
+  applyReceivedCurrencyDrillFromRoute()
+}
+
+onMounted(async () => {
   ffCompanyOptions.value = await fetchFreightForwarderCompanies(true)
-  await loadData()
 })
 
 watch(
-  () => route.query.keyword,
-  (now, prev) => {
-    if (now === prev) return
-    applyKeywordFromRoute()
+  () =>
+    [
+      route.query.keyword,
+      route.query.drill,
+      route.query.receiptCurrency,
+      route.query.receiptDateFrom,
+      route.query.receiptDateTo,
+      route.query.status
+    ].join('|'),
+  () => {
+    applyListRouteQuery()
     void loadData()
-  }
+  },
+  { immediate: true }
 )
 
 onBeforeUnmount(() => {
@@ -1347,6 +1413,21 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 10px;
+}
+
+.drill-from-analytics-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: rgba(64, 158, 255, 0.08);
+  border: 1px solid rgba(64, 158, 255, 0.22);
+  color: #409eff;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .btn-board-active {

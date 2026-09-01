@@ -527,6 +527,8 @@ export interface StockOutItemListQuery {
   /** 装箱单号（子串匹配） */
   packingCode?: string
   freightForwarderOrderNo?: string
+  /** 销售原币（物流分析出库金额下钻，不进筛选栏） */
+  salesCurrency?: number
 }
 
 export interface StockOutItemListRow {

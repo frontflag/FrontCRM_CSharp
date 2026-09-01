@@ -57,6 +57,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? purchaseOrderCode,
             [FromQuery] string? purchaseUserName,
             [FromQuery] short? purchaseCurrency,
+            [FromQuery] short? paymentCurrency,
             [FromQuery] string? remark,
             [FromQuery] short? status,
             [FromQuery] string? startDate,
@@ -77,6 +78,7 @@ namespace CRM.API.Controllers
                     PurchaseOrderCode = purchaseOrderCode,
                     PurchaseUserName = purchaseUserName,
                     PurchaseCurrency = purchaseCurrency,
+                    PaymentCurrency = paymentCurrency,
                     Remark = remark,
                     Status = status,
                     StartDate = PostgreSqlDateTime.ParseDateOnly(startDate),
@@ -111,6 +113,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? purchaseOrderCode,
             [FromQuery] string? purchaseUserName,
             [FromQuery] short? purchaseCurrency,
+            [FromQuery] short? paymentCurrency,
             [FromQuery] string? remark,
             [FromQuery] short? status,
             [FromQuery] string? startDate,
@@ -131,6 +134,7 @@ namespace CRM.API.Controllers
                     PurchaseOrderCode = purchaseOrderCode,
                     PurchaseUserName = purchaseUserName,
                     PurchaseCurrency = purchaseCurrency,
+                    PaymentCurrency = paymentCurrency,
                     Remark = remark,
                     Status = status,
                     StartDate = PostgreSqlDateTime.ParseDateOnly(startDate),
@@ -159,6 +163,7 @@ namespace CRM.API.Controllers
                     ["purchaseOrderCode"] = purchaseOrderCode,
                     ["purchaseUserName"] = purchaseUserName,
                     ["purchaseCurrency"] = purchaseCurrency,
+                    ["paymentCurrency"] = paymentCurrency,
                     ["remark"] = remark,
                     ["status"] = status,
                     ["startDate"] = startDate,
@@ -198,6 +203,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? purchaseOrderCode,
             [FromQuery] string? purchaseUserName,
             [FromQuery] short? purchaseCurrency,
+            [FromQuery] short? paymentCurrency,
             [FromQuery] string? remark,
             [FromQuery] short? status,
             [FromQuery] string? startDate,
@@ -206,7 +212,7 @@ namespace CRM.API.Controllers
         {
             var (request, maskAmounts) = await BuildListAnalyticsQueryAsync(
                 keyword, financePaymentCode, freightForwarderOrderNo, bankSlipNo, paymentMode, vendorName,
-                purchaseOrderCode, purchaseUserName, purchaseCurrency, remark, status, startDate, endDate,
+                purchaseOrderCode, purchaseUserName, purchaseCurrency, paymentCurrency, remark, status, startDate, endDate,
                 cancellationToken);
             var data = await _listAnalytics.GetDashboardAsync(request, maskAmounts, cancellationToken);
             return Ok(ApiResponse<FinancePaymentListAnalyticsDashboardDto>.Ok(data));
@@ -224,6 +230,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? purchaseOrderCode,
             [FromQuery] string? purchaseUserName,
             [FromQuery] short? purchaseCurrency,
+            [FromQuery] short? paymentCurrency,
             [FromQuery] string? remark,
             [FromQuery] short? status,
             [FromQuery] string? startDate,
@@ -233,7 +240,7 @@ namespace CRM.API.Controllers
         {
             var (request, maskAmounts) = await BuildListAnalyticsQueryAsync(
                 keyword, financePaymentCode, freightForwarderOrderNo, bankSlipNo, paymentMode, vendorName,
-                purchaseOrderCode, purchaseUserName, purchaseCurrency, remark, status, startDate, endDate,
+                purchaseOrderCode, purchaseUserName, purchaseCurrency, paymentCurrency, remark, status, startDate, endDate,
                 cancellationToken);
             var data = await _listAnalytics.GetTrendsAsync(
                 request,
@@ -255,6 +262,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? purchaseOrderCode,
             [FromQuery] string? purchaseUserName,
             [FromQuery] short? purchaseCurrency,
+            [FromQuery] short? paymentCurrency,
             [FromQuery] string? remark,
             [FromQuery] short? status,
             [FromQuery] string? startDate,
@@ -263,7 +271,7 @@ namespace CRM.API.Controllers
         {
             var (request, maskAmounts) = await BuildListAnalyticsQueryAsync(
                 keyword, financePaymentCode, freightForwarderOrderNo, bankSlipNo, paymentMode, vendorName,
-                purchaseOrderCode, purchaseUserName, purchaseCurrency, remark, status, startDate, endDate,
+                purchaseOrderCode, purchaseUserName, purchaseCurrency, paymentCurrency, remark, status, startDate, endDate,
                 cancellationToken);
             var data = await _listAnalytics.GetBreakdownsAsync(request, maskAmounts, cancellationToken);
             return Ok(ApiResponse<IReadOnlyList<FinancePaymentListAnalyticsBreakdownGroupDto>>.Ok(data));
@@ -281,6 +289,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? purchaseOrderCode,
             [FromQuery] string? purchaseUserName,
             [FromQuery] short? purchaseCurrency,
+            [FromQuery] short? paymentCurrency,
             [FromQuery] string? remark,
             [FromQuery] short? status,
             [FromQuery] string? startDate,
@@ -289,7 +298,7 @@ namespace CRM.API.Controllers
         {
             var (request, maskAmounts) = await BuildListAnalyticsQueryAsync(
                 keyword, financePaymentCode, freightForwarderOrderNo, bankSlipNo, paymentMode, vendorName,
-                purchaseOrderCode, purchaseUserName, purchaseCurrency, remark, status, startDate, endDate,
+                purchaseOrderCode, purchaseUserName, purchaseCurrency, paymentCurrency, remark, status, startDate, endDate,
                 cancellationToken);
             var data = await _listAnalytics.GetRankingsAsync(request, maskAmounts, cancellationToken);
             return Ok(ApiResponse<FinancePaymentListAnalyticsRankingsDto>.Ok(data));
@@ -769,6 +778,7 @@ namespace CRM.API.Controllers
             string? purchaseOrderCode,
             string? purchaseUserName,
             short? purchaseCurrency,
+            short? paymentCurrency,
             string? remark,
             short? status,
             string? startDate,
@@ -787,6 +797,7 @@ namespace CRM.API.Controllers
                 PurchaseOrderCode = purchaseOrderCode,
                 PurchaseUserName = purchaseUserName,
                 PurchaseCurrency = purchaseCurrency,
+                PaymentCurrency = paymentCurrency,
                 Remark = remark,
                 Status = status,
                 StartDate = PostgreSqlDateTime.ParseDateOnly(startDate),

@@ -186,12 +186,9 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
 
         ext.PaymentAmountFinish = Math.Round(payDone, 2, MidpointRounding.AwayFromZero);
         ext.PaymentAmountNot = Math.Max(0m, Math.Round(ext.PaymentAmount - ext.PaymentAmountFinish, 2, MidpointRounding.AwayFromZero));
-        if (ext.PaymentAmountFinish <= 0m)
-            ext.PaymentProgressStatus = ProgressPending;
-        else if (ext.PaymentAmount > 0m && ext.PaymentAmountFinish + 0.0001m >= ext.PaymentAmount)
-            ext.PaymentProgressStatus = ProgressComplete;
-        else
-            ext.PaymentProgressStatus = ProgressPartial;
+        ext.PaymentProgressStatus = PurchaseLineFinancePaymentStatus.FromPaidVersusLineTotal(
+            ext.PaymentAmountFinish, ext.PaymentAmount);
+        await SyncPurchaseItemFinancePaymentStatusAsync(poItem, ext.PaymentProgressStatus);
 
         // --- 进项发票：优先核销流水（按 PO 明细）；无流水时回退建票 StockIn 关联汇总 ---
         var invDone = await SumPurchaseInvoiceDoneForPoLineAsync(poItem);
@@ -214,6 +211,31 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
             await _poMainStatusSync.TrySyncOrderMainStatusAsync(poItem.PurchaseOrderId.Trim(), cancellationToken);
 
         await _invoicePaymentSync.RecalculateForPurchaseOrderItemAsync(id, cancellationToken);
+    }
+
+    private async Task SyncPurchaseItemFinancePaymentStatusAsync(PurchaseOrderItem poItem, short financePaymentStatus)
+    {
+        poItem.FinancePaymentStatus = financePaymentStatus;
+        poItem.ModifyTime = DateTime.UtcNow;
+        await _poItemRepo.UpdateAsync(poItem);
+
+        var po = await _poRepo.GetByIdAsync(poItem.PurchaseOrderId);
+        if (po == null) return;
+
+        var allPoItems = (await _poItemRepo.FindAsync(x => x.PurchaseOrderId == po.Id)).ToList();
+        foreach (var line in allPoItems)
+        {
+            if (string.Equals(line.Id, poItem.Id, StringComparison.OrdinalIgnoreCase))
+                line.FinancePaymentStatus = financePaymentStatus;
+        }
+
+        var header = PurchaseLineFinancePaymentStatus.HeaderFromLineStatuses(
+            allPoItems.Select(x => x.FinancePaymentStatus));
+        if (po.FinanceStatus == header) return;
+
+        po.FinanceStatus = header;
+        po.ModifyTime = DateTime.UtcNow;
+        await _poRepo.UpdateAsync(po);
     }
 
     private async Task AlignArrivalNoticesWithPoLineQtyAsync(

@@ -25,12 +25,12 @@ export const financeAnalyticsDefsEn = {
     paid: {
       chart: 'Paid',
       dataSource: 'Payments',
-      text: 'Completed payment vouchers in the period by payment date, converted to USD.'
+      text: 'Completed payment vouchers in the period by payment date, converted to USD. In finance company view, each original-currency row has View to the payment list (completed + that payment currency + period start through as-of); the whole card is not clickable.'
     },
     received: {
       chart: 'Received',
       dataSource: 'Receipts',
-      text: 'Completed receipt vouchers in the period by receipt date, converted to USD.'
+      text: 'Confirmed receipt vouchers in the period by receipt date, converted to USD. In finance company view, each original-currency row has View to the receipt list (confirmed + that receipt currency + receipt date = period start through as-of); the whole card is not clickable. The list date picker remains create-time and is not used for this drill.'
     },
     issuedPurchaseInvoice: {
       chart: 'Issued purchase invoices',

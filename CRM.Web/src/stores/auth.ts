@@ -256,6 +256,8 @@ export const useAuthStore = defineStore('auth', () => {
     if (!permissionCode) return true
     if (!user.value) return false
     if (user.value.isSysAdmin) return true
+    const roles = user.value.roleCodes ?? []
+    if (roles.some((r) => String(r).toUpperCase() === 'SYS_ADMIN')) return true
     // Admin / Manager：业务权限与 SuperAdmin 对齐；system.* / AI 配置仍看权限码（见 canAccessSystemPermission）
     if (user.value.hasBizDataBypass) {
       const isSystemMenu =

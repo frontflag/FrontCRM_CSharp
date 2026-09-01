@@ -92,6 +92,12 @@ namespace CRM.Core.Interfaces
         public short? VerificationStatus { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
+        /// <summary>收款单头币别精确匹配（finance_receipt.receipt_currency）。财务分析原币下钻用，列表筛选项不展示。</summary>
+        public short? ReceiptCurrency { get; set; }
+        /// <summary>收款日期起（含当日，筛 ReceiptDate；与列表创建时间 startDate 独立）。</summary>
+        public DateTime? ReceiptDateFrom { get; set; }
+        /// <summary>收款日期止（含当日，筛 ReceiptDate）。</summary>
+        public DateTime? ReceiptDateTo { get; set; }
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 20;
         public string? CurrentUserId { get; set; }

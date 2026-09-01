@@ -57,6 +57,7 @@ function buildParams(q: StockOutItemListAnalyticsQuery): Record<string, unknown>
   if (q.salesUserName) p.salesUserName = q.salesUserName
   if (q.purchasePn) p.purchasePn = q.purchasePn
   if (q.sellOrderItemCode) p.sellOrderItemCode = q.sellOrderItemCode
+  if (q.salesCurrency !== undefined && q.salesCurrency !== null) p.salesCurrency = q.salesCurrency
   if (q.groupBy) p.groupBy = q.groupBy
   return p
 }

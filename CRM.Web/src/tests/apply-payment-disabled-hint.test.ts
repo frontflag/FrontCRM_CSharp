@@ -23,6 +23,18 @@ describe('applyPaymentDisabledHint', () => {
   it('returns null when the line can request payment', () => {
     const row = confirmedRow()
     expect(applyPaymentButtonDisabled(row)).toBe(false)
+        expect(buildApplyPaymentDisabledHintContent(row, t, { canInitiatePayment: true })).toBeNull()
+  })
+
+  it('allows another request when finance is partial and remaining requestable > 0', () => {
+    const row = confirmedRow({
+      financePaymentStatus: 2,
+      paymentProgressStatus: 1,
+      lineTotal: 21375,
+      paymentRequestedAmount: 6412.5,
+      canApplyPayment: true
+    })
+    expect(applyPaymentButtonDisabled(row, { canInitiatePayment: true })).toBe(false)
     expect(buildApplyPaymentDisabledHintContent(row, t, { canInitiatePayment: true })).toBeNull()
   })
 
@@ -52,7 +64,11 @@ describe('applyPaymentDisabledHint', () => {
   })
 
   it('finance fully paid lists payment order codes from aggregates', () => {
-    const row = confirmedRow({ financePaymentStatus: 2, canApplyPayment: false })
+    const row = confirmedRow({
+      financePaymentStatus: 2,
+      paymentProgressStatus: 2,
+      canApplyPayment: false
+    })
     const opts = {
       canInitiatePayment: true,
       aggregates: {
@@ -71,14 +87,22 @@ describe('applyPaymentDisabledHint', () => {
   })
 
   it('stale fully-paid status with no live payments does not block', () => {
-    const row = confirmedRow({ financePaymentStatus: 2, canApplyPayment: true })
+    const row = confirmedRow({
+      financePaymentStatus: 2,
+      paymentProgressStatus: 2,
+      canApplyPayment: true
+    })
     const opts = { canInitiatePayment: true, aggregates: { payments: [] as { id: string }[] } }
     expect(applyPaymentButtonDisabled(row, opts)).toBe(false)
     expect(buildApplyPaymentDisabledHintContent(row, t, opts)).toBeNull()
   })
 
   it('deleted-only payments do not block apply', () => {
-    const row = confirmedRow({ financePaymentStatus: 2, canApplyPayment: true })
+    const row = confirmedRow({
+      financePaymentStatus: 2,
+      paymentProgressStatus: 2,
+      canApplyPayment: true
+    })
     const opts = {
       canInitiatePayment: true,
       aggregates: {
@@ -110,7 +134,11 @@ describe('applyPaymentDisabledHint', () => {
   })
 
   it('does not mention in-transit payment request as a fallback', () => {
-    const row = confirmedRow({ financePaymentStatus: 2, canApplyPayment: false })
+    const row = confirmedRow({
+      financePaymentStatus: 2,
+      paymentProgressStatus: 2,
+      canApplyPayment: false
+    })
     const hint = buildApplyPaymentDisabledHintContent(row, t, { canInitiatePayment: true })
     expect(hint?.summary).not.toContain('paymentNotEligible')
     expect(hint?.nextStep).not.toContain('paymentNextNotEligible')

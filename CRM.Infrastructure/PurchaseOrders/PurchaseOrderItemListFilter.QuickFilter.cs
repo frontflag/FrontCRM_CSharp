@@ -47,11 +47,11 @@ internal static partial class PurchaseOrderItemListFilter
     private static IQueryable<PurchaseOrderItemLineJoin> ApplyPendingVendorConfirm(IQueryable<PurchaseOrderItemLineJoin> q) =>
         ApplyExcludeCancelled(q).Where(x => x.Po.Status == 20);
 
-    /// <summary>与列表 <c>canApplyPayment</c> 同口径（忽略权限）：主单已确认及之后、财务付款未完成、行应付余额 &gt; 0。</summary>
+    /// <summary>与列表 <c>canApplyPayment</c> 同口径（忽略权限）：主单已确认及之后、财务付款未完成（已核销 &lt; 行总额）、行请款余额 &gt; 0。</summary>
     private static IQueryable<PurchaseOrderItemLineJoin> ApplyPendingSubmitPaymentRequest(IQueryable<PurchaseOrderItemLineJoin> q) =>
         ApplyExcludeCancelled(q).Where(x =>
             x.Po.Status >= PoConfirmed
-            && x.Item.FinancePaymentStatus < 2
+            && (x.Ext == null || x.Ext.PaymentProgressStatus < 2)
             && (x.Item.Status >= PoConfirmed || x.Po.Status >= PoConfirmed)
             && (x.Item.Qty * x.Item.Cost - (x.Ext != null ? x.Ext.PaymentAmountRequested : 0m)) > 0m);
 

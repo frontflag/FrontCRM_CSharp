@@ -2320,9 +2320,9 @@ namespace CRM.API.Controllers
                 var costOut = canViewPurchaseAmount ? r.Cost : 0m;
                 var qty = r.Qty;
                 var lineTotal = canViewPurchaseAmount ? qty * r.Cost : 0m;
-                // 与到货通知一致：已确认(30)及之后（进行中 50 / 完成 100）仍可分批请款
+                // 已确认后仍可分批请款：已核销合计 >= 行总额才阻断（用扩展进度，避免旧 FinancePaymentStatus 口径）
                 var canApply = canInitiatePaymentFromPo
-                    && !FinancePaymentStatusBlocksApply(r.FinancePaymentStatus, r.PurchaseOrderItemId, poItemIdsWithLivePayment)
+                    && !FinancePaymentStatusBlocksApply(r.PaymentProgressStatus, r.PurchaseOrderItemId, poItemIdsWithLivePayment)
                     && (r.ItemStatus >= 30 || r.OrderStatus >= 30);
                 var createKey = (r.CreateByUserId ?? string.Empty).Trim();
                 string? createUserName = null;
@@ -2707,9 +2707,12 @@ namespace CRM.API.Controllers
                         qtyStockInNotifyExpectSum = ext?.QtyStockInNotifyExpectSum ?? 0m,
                         qtyStockInNotifyNot = ext?.QtyStockInNotifyNot ?? i.Qty,
                         invoiceProgressAmount = canViewPurchaseAmount ? (ext?.PurchaseInvoiceDone ?? 0m) : 0m,
-                        // 已确认(30)及之后仍可分批请款（主单升至进行中 50 后不得锁死）
+                        // 已确认(30)及之后仍可分批请款：财务付款完成（已核销>=行总额）才阻断
                         CanApplyPayment = canInitiatePaymentFromPo
-                            && !FinancePaymentStatusBlocksApply(i.FinancePaymentStatus, i.Id, poItemIdsWithLivePayment)
+                            && !FinancePaymentStatusBlocksApply(
+                                ext?.PaymentProgressStatus ?? i.FinancePaymentStatus,
+                                i.Id,
+                                poItemIdsWithLivePayment)
                             && (i.Status >= 30 || order.Status >= 30)
                     };
                 }).ToList()

@@ -20,6 +20,12 @@
         </button>
       </div>
     </div>
+    <div v-if="stockInAmountDrillActive" class="drill-from-analytics-banner" role="status">
+      <span>{{ stockInAmountDrillBannerText }}</span>
+      <el-button link type="primary" size="small" @click="exitStockInAmountDrill">
+        {{ t('stockInList.drillFromAnalytics.exit') }}
+      </el-button>
+    </div>
 
     <!-- 查询栏（与客户列表一致的结构与样式） -->
     <div class="search-bar">
@@ -417,6 +423,10 @@ import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPa
 import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
 import { useStockInOpsPanelStore } from '@/stores/stockInOpsPanel'
 import type { StockInListAnalyticsQuery } from '@/api/stockInAnalytics'
+import {
+  LOGISTICS_ANALYTICS_STOCK_IN_DRILL,
+  parseStockInAmountCurrencyDrillQuery
+} from '@/utils/logisticsAnalyticsDrill'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const viewMode = ref<'list' | 'board'>('list')
@@ -659,7 +669,11 @@ const filters = reactive({
   vendorName: '',
   purchaseOrderCode: '',
   freightForwarderOrderNo: '',
-  salesOrderCode: ''
+  salesOrderCode: '',
+  /** 下钻隐藏：已过账，不进筛选栏 */
+  status: undefined as number | undefined,
+  /** 下钻隐藏：明细原币，不进筛选栏 */
+  itemCurrency: undefined as number | undefined
 })
 
 const boardFilters = computed<StockInListAnalyticsQuery>(() => ({
@@ -674,8 +688,54 @@ const boardFilters = computed<StockInListAnalyticsQuery>(() => ({
   purchaseOrderCode: filters.purchaseOrderCode.trim() || undefined,
   freightForwarderOrderNo: filters.freightForwarderOrderNo.trim() || undefined,
   salesOrderCode: filters.salesOrderCode.trim() || undefined,
-  stockInType: filters.stockInType
+  stockInType: filters.stockInType,
+  status: filters.status,
+  itemCurrency: filters.itemCurrency
 }))
+
+const stockInAmountDrillActive = computed(
+  () =>
+    filters.itemCurrency != null && Number.isFinite(filters.itemCurrency)
+)
+
+const stockInAmountDrillBannerText = computed(() => {
+  const code = filters.itemCurrency
+  const currency = code != null ? CURRENCY_CODE_TO_TEXT[code] ?? String(code) : '—'
+  const start = filters.stockInDateRange[0] || '—'
+  const end = filters.stockInDateRange[1] || '—'
+  return t('stockInList.drillFromAnalytics.stockInAmount', { currency, start, end })
+})
+
+function exitStockInAmountDrill() {
+  filters.status = undefined
+  filters.itemCurrency = undefined
+  const query: Record<string, string> = {}
+  const m = filters.model.trim()
+  if (m) query.model = m
+  const sic = filters.stockInCode.trim()
+  if (sic) query.stockInCode = sic
+  const src = filters.sourceDisplayNo.trim()
+  if (src) query.sourceDisplayNo = src
+  if (filters.warehouseId) query.warehouseId = filters.warehouseId
+  if (filters.stockInDateRange.length === 2 && filters.stockInDateRange[0] && filters.stockInDateRange[1]) {
+    query.stockInDateStart = filters.stockInDateRange[0]
+    query.stockInDateEnd = filters.stockInDateRange[1]
+  }
+  const rk = filters.remark.trim()
+  if (rk) query.remark = rk
+  const v = filters.vendorName.trim()
+  if (v && !maskPurchaseSensitiveFields.value) query.vendorName = v
+  const p = filters.purchaseOrderCode.trim()
+  if (p) query.purchaseOrderCode = p
+  const ff = filters.freightForwarderOrderNo.trim()
+  if (ff) query.freightForwarderOrderNo = ff
+  const s = filters.salesOrderCode.trim()
+  if (s) query.salesOrderCode = s
+  if (filters.stockInType !== undefined && !Number.isNaN(filters.stockInType)) {
+    query.stockInType = String(filters.stockInType)
+  }
+  void router.replace({ name: 'StockInList', query })
+}
 
 function toggleViewMode() {
   viewMode.value = viewMode.value === 'list' ? 'board' : 'list'
@@ -772,6 +832,10 @@ function syncFiltersFromRoute() {
     typeRaw === undefined || typeRaw === null || typeRaw === ''
       ? undefined
       : Number(typeRaw)
+  const parsed = parseStockInAmountCurrencyDrillQuery(q as Record<string, unknown>)
+  filters.status = parsed.status
+  filters.itemCurrency = parsed.itemCurrency
+  if (parsed.isDrill) viewMode.value = 'list'
 }
 
 const fetchList = async (resetPage = true) => {
@@ -793,6 +857,8 @@ const fetchList = async (resetPage = true) => {
       freightForwarderOrderNo: filters.freightForwarderOrderNo.trim() || undefined,
       salesOrderCode: filters.salesOrderCode || undefined,
       stockInType: filters.stockInType,
+      status: filters.status,
+      itemCurrency: filters.itemCurrency,
       page: listPage.value,
       pageSize: listPageSize.value
     })
@@ -836,7 +902,9 @@ async function handleExport() {
       freightForwarderOrderNo: filters.freightForwarderOrderNo.trim() || undefined,
       salesOrderCode: filters.salesOrderCode || undefined,
       stockInCode: filters.stockInCode || undefined,
-      stockInType: filters.stockInType
+      stockInType: filters.stockInType,
+      status: filters.status,
+      itemCurrency: filters.itemCurrency
     })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -889,6 +957,13 @@ const handleSearch = () => {
   if (filters.stockInType !== undefined && !Number.isNaN(filters.stockInType)) {
     query.stockInType = String(filters.stockInType)
   }
+  if (filters.status !== undefined && !Number.isNaN(filters.status)) {
+    query.status = String(filters.status)
+  }
+  if (filters.itemCurrency !== undefined && !Number.isNaN(filters.itemCurrency)) {
+    query.itemCurrency = String(filters.itemCurrency)
+  }
+  if (stockInAmountDrillActive.value) query.drill = LOGISTICS_ANALYTICS_STOCK_IN_DRILL
   router.replace({ name: 'StockInList', query })
 }
 
@@ -910,6 +985,8 @@ const resetFilters = () => {
   filters.freightForwarderOrderNo = ''
   filters.salesOrderCode = ''
   filters.stockInType = undefined
+  filters.status = undefined
+  filters.itemCurrency = undefined
   router.replace({ name: 'StockInList', query: {} })
 }
 
@@ -1067,6 +1144,21 @@ const handleForceDeleteRow = async (row: StockInListItemDto) => {
     color: $cyan-primary;
   }
   .page-title { font-size: 20px; font-weight: 600; color: $text-primary; margin: 0; }
+}
+
+.drill-from-analytics-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: rgba(0, 212, 255, 0.08);
+  border: 1px solid rgba(0, 212, 255, 0.22);
+  color: $cyan-primary;
+  font-size: 13px;
+  line-height: 1.5;
 }
 .count-badge {
   font-size: 12px;

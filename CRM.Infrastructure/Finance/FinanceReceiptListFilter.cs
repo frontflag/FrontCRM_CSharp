@@ -1,6 +1,7 @@
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Finance;
+using CRM.Core.Utilities;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -46,6 +47,24 @@ internal static class FinanceReceiptListFilter
 
         if (request.EndDate.HasValue)
             q = q.Where(r => r.CreateTime <= request.EndDate.Value.AddDays(1));
+
+        if (request.ReceiptCurrency.HasValue)
+        {
+            var receiptCurrency = request.ReceiptCurrency.Value;
+            q = q.Where(r => (short)r.ReceiptCurrency == receiptCurrency);
+        }
+
+        if (request.ReceiptDateFrom.HasValue)
+        {
+            var startUtc = PostgreSqlDateTime.ToUtc(request.ReceiptDateFrom.Value);
+            q = q.Where(r => r.ReceiptDate != null && r.ReceiptDate >= startUtc);
+        }
+
+        if (request.ReceiptDateTo.HasValue)
+        {
+            var endExclusiveUtc = PostgreSqlDateTime.ToUtc(request.ReceiptDateTo.Value).AddDays(1);
+            q = q.Where(r => r.ReceiptDate != null && r.ReceiptDate < endExclusiveUtc);
+        }
 
         return q;
     }

@@ -11,6 +11,9 @@ export type AnalyticsKpiCurrencyItem = {
   /** 币别 short 编码，用于 dock-tier-ccy 色 */
   currency?: number
   usdText: string
+  /** 原币行右侧「查看」（如财务分析已付款下钻） */
+  showView?: boolean
+  viewLabel?: string
 }
 
 export type AnalyticsKpiItem = {
@@ -57,6 +60,7 @@ defineProps<{
 const emit = defineEmits<{
   'item-click': [key: string]
   detail: [key: string]
+  'currency-view': [key: string, currency: number]
 }>()
 
 const { t } = useI18n()
@@ -72,6 +76,12 @@ function onCardClick(item: AnalyticsKpiItem) {
 function onDetailClick(item: AnalyticsKpiItem, e: Event) {
   e.stopPropagation()
   emit('detail', item.key)
+}
+
+function onCurrencyViewClick(item: AnalyticsKpiItem, cur: AnalyticsKpiCurrencyItem, e: Event) {
+  e.stopPropagation()
+  if (cur.currency == null) return
+  emit('currency-view', item.key, cur.currency)
 }
 
 function splitSpanClass(item: AnalyticsKpiItem): string | undefined {
@@ -210,6 +220,16 @@ function currencyDockClass(cur: AnalyticsKpiCurrencyItem): string {
               </template>
               <template v-else>{{ cur.originalText }}</template>
             </span>
+            <el-button
+              v-if="cur.showView && cur.currency != null"
+              link
+              type="primary"
+              size="small"
+              class="kpi-currency-view-btn"
+              @click="onCurrencyViewClick(item, cur, $event)"
+            >
+              {{ cur.viewLabel || t('common.view') }}
+            </el-button>
           </div>
         </div>
       </div>
@@ -230,6 +250,7 @@ function currencyDockClass(cur: AnalyticsKpiCurrencyItem): string {
               v-for="cur in item.currencyItems"
               :key="`${item.key}-cur-item-${cur.currencyLabel}`"
               class="kpi-currency-line"
+              :class="{ 'kpi-currency-line--with-view': cur.showView && cur.currency != null }"
             >
               <template v-if="cur.amountText">
                 <span class="kpi-currency-line__amount">{{ cur.amountText }}</span>
@@ -237,6 +258,16 @@ function currencyDockClass(cur: AnalyticsKpiCurrencyItem): string {
                 <span :class="['dock-tier-ccy', currencyDockClass(cur)]">{{ cur.currencyLabel }}</span>
               </template>
               <template v-else>{{ cur.originalText }}</template>
+              <el-button
+                v-if="cur.showView && cur.currency != null"
+                link
+                type="primary"
+                size="small"
+                class="kpi-currency-view-btn"
+                @click="onCurrencyViewClick(item, cur, $event)"
+              >
+                {{ cur.viewLabel || t('common.view') }}
+              </el-button>
             </span>
           </template>
           <template v-else>
@@ -439,13 +470,19 @@ function currencyDockClass(cur: AnalyticsKpiCurrencyItem): string {
 }
 
 .kpi-currency-line {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 11px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   color: var(--el-text-color-secondary);
   white-space: nowrap;
   letter-spacing: -0.01em;
+}
+
+.kpi-currency-line--with-view {
+  width: 100%;
 }
 
 .kpi-currency-line__amount {
@@ -546,11 +583,21 @@ function currencyDockClass(cur: AnalyticsKpiCurrencyItem): string {
 .kpi-currency-card {
   display: flex;
   align-items: center;
+  gap: 8px;
   flex: 1 0 auto;
   width: max-content;
   min-height: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+.kpi-currency-view-btn {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 0;
+  height: auto;
+  min-height: 0;
+  font-size: 12px;
 }
 
 .kpi-currency-card-original {

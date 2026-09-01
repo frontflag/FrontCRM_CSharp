@@ -21,37 +21,6 @@
       </div>
     </div>
 
-    <div class="stat-row" v-if="finance">
-      <div class="stat-card">
-        <div class="label">{{ t('inventoryList.stats.capitalOccupied') }}</div>
-        <div class="value">{{ formatMoney(finance.inventoryCapital) }} RMB（折算）</div>
-        <div v-if="financeByCurrencyRows.length" class="stat-subrows">
-          <div v-for="row in financeByCurrencyRows" :key="`cap-${row.currency}`" class="stat-subrow">
-            <span>{{ currencyCodeText(row.currency) }}</span>
-            <span>{{ formatMoney(row.inventoryCapital) }}</span>
-          </div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="label">{{ t('inventoryList.stats.monthlyOutCost') }}</div>
-        <div class="value">{{ formatMoney(finance.monthlyOutCost) }} RMB（折算）</div>
-        <div v-if="financeByCurrencyRows.length" class="stat-subrows">
-          <div v-for="row in financeByCurrencyRows" :key="`out-${row.currency}`" class="stat-subrow">
-            <span>{{ currencyCodeText(row.currency) }}</span>
-            <span>{{ formatMoney(row.monthlyOutCost) }}</span>
-          </div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="label">{{ t('inventoryList.stats.turnoverDays') }}</div>
-        <div class="value">{{ finance.turnoverDays?.toFixed(2) || '0.00' }}</div>
-      </div>
-      <div class="stat-card">
-        <div class="label">{{ t('inventoryList.stats.stagnantCount') }}</div>
-        <div class="value">{{ finance.stagnantMaterialCount }}</div>
-      </div>
-    </div>
-
     <!-- 搜索栏：与《业务列表规范》及 StockInList / CustomerList 一致 -->
     <div class="search-bar">
       <div class="search-left">
@@ -302,7 +271,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowRight, Box, Setting } from '@element-plus/icons-vue'
-import { inventoryCenterApi, type FinanceSummary, type InventoryOverview, type WarehouseInfo } from '@/api/inventoryCenter'
+import { inventoryCenterApi, type InventoryOverview, type WarehouseInfo } from '@/api/inventoryCenter'
 import {
   INVENTORY_LIST_TAB_MODE_OPTIONS,
   INVENTORY_WAREHOUSE_TAB_MAX,
@@ -344,7 +313,6 @@ const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const warehouseFilter = ref<string | undefined>(undefined)
 const materialModelFilter = ref('')
 const stockCodeFilter = ref('')
-const finance = ref<FinanceSummary | null>(null)
 const warehouses = ref<WarehouseInfo[]>([])
 
 const TAB_MODE_FILTER_I18N: Record<Exclude<InventoryListTabModeDimension, 'off'>, string> = {
@@ -576,13 +544,6 @@ async function handleExport() {
   }
 }
 
-const formatMoney = (v: number) =>
-  v == null
-    ? '—'
-    : Number(v).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-const financeByCurrencyRows = computed(() => (finance.value?.currencyBreakdowns ?? []).slice().sort((a, b) => a.currency - b.currency))
-const currencyCodeText = (currency?: number) => CURRENCY_CODE_TO_TEXT[Number(currency) || 1] ?? 'RMB'
-
 /** 数量列：与《业务列表规范》§3.2 一致（千分位、tabular） */
 const formatQtyCell = (v: unknown) => {
   if (v == null || v === '') return '—'
@@ -691,7 +652,7 @@ async function runInventoryFetch(resetPage: boolean) {
   if (resetPage) listPage.value = 1
   loading.value = true
   try {
-    const [overviewRes, summaryRes, warehouseRes] = await Promise.allSettled([
+    const [overviewRes, warehouseRes] = await Promise.allSettled([
       inventoryCenterApi.getOverviewPaged({
         warehouseId: warehouseFilter.value?.trim() || undefined,
         materialModel: materialModelFilter.value?.trim() || undefined,
@@ -699,12 +660,6 @@ async function runInventoryFetch(resetPage: boolean) {
         stockType: stockTypeFilter.value,
         page: listPage.value,
         pageSize: listPageSize.value
-      }),
-      inventoryCenterApi.getFinanceSummary({
-        warehouseId: warehouseFilter.value?.trim() || undefined,
-        materialModel: materialModelFilter.value?.trim() || undefined,
-        stockCode: stockCodeFilter.value?.trim() || undefined,
-        stockType: stockTypeFilter.value
       }),
       inventoryCenterApi.getWarehouses()
     ])
@@ -716,13 +671,6 @@ async function runInventoryFetch(resetPage: boolean) {
       list.value = []
       listTotal.value = 0
       ElMessage.error(getApiErrorMessage(overviewRes.reason, t('inventoryList.messages.loadOverviewFailed')))
-    }
-
-    if (summaryRes.status === 'fulfilled') {
-      finance.value = summaryRes.value
-    } else {
-      finance.value = null
-      ElMessage.warning(getApiErrorMessage(summaryRes.reason, t('inventoryList.messages.loadFinanceFailed')))
     }
 
     if (warehouseRes.status === 'fulfilled') {
@@ -1063,43 +1011,6 @@ html[data-theme='dark'] .inv-list-amt-frac {
   cursor: pointer;
   font-size: 12px;
 }
-.stat-row {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  margin-bottom: 12px;
-}
-.stat-card {
-  background: $layer-3;
-  border: 1px solid $border-card;
-  border-radius: 8px;
-  padding: 10px 12px;
-  .label {
-    color: $text-muted;
-    font-size: 12px;
-  }
-  .value {
-    color: $cyan-primary;
-    font-size: 18px;
-    font-weight: 600;
-    margin-top: 4px;
-  }
-}
-
-.stat-subrows {
-  margin-top: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.stat-subrow {
-  display: flex;
-  justify-content: space-between;
-  color: #8fa2b7;
-  font-size: 12px;
-}
-
 // 列表操作列规范（收起/展开）
 .op-col-header {
   display: flex;

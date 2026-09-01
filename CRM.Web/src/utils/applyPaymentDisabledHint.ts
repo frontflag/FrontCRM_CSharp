@@ -14,14 +14,14 @@ export interface ApplyPaymentDisabledHintContent {
   summary: string
   details: string[]
   nextStep: string
-  /** 财务已全部付款时列出关联付款单；undefined 表示聚合尚未返回 */
+  /** 货款已付清（付款完成）时列出关联付款单；undefined 表示聚合尚未返回 */
   paymentDocs?: ApplyPaymentDisabledHintDoc[]
 }
 
 export type ApplyPaymentDisabledHintOptions = {
   /** 操作面板申请付款按钮权限；未传时仅用行上 canApplyPayment 反推 */
   canInitiatePayment?: boolean
-  /** 明细 aggregates；财务已全部付款时用来列出付款单号 */
+  /** 明细 aggregates；货款已付清时用来列出付款单号 */
   aggregates?: {
     payments?: Array<{ id?: string; financePaymentCode?: string; status?: number; isDeleted?: boolean }>
   } | null

@@ -34,6 +34,7 @@ namespace CRM.Core.Tests.Services
             var payItem = new FinancePaymentItem
             {
                 Id = "pi-1",
+                FinancePaymentId = "fp-1",
                 PurchaseOrderItemId = "poi-1",
                 PaymentAmountToBe = 100m,
                 VerificationToBe = 100m,
@@ -43,13 +44,18 @@ namespace CRM.Core.Tests.Services
             {
                 Id = "poi-1",
                 PurchaseOrderId = "po-1",
+                Qty = 1m,
+                Cost = 100m,
                 FinancePaymentStatus = 0
             };
             var po = new PurchaseOrder { Id = "po-1", FinanceStatus = 0 };
 
             payItemRepo.GetByIdAsync("pi-1").Returns(payItem);
             poItemRepo.GetByIdAsync("poi-1").Returns(poItem);
-            payItemRepo.GetAllAsync().Returns(new[] { payItem });
+            payItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<FinancePaymentItem, bool>>>())
+                .Returns(new[] { payItem });
+            paymentRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<FinancePayment, bool>>>())
+                .Returns(new[] { new FinancePayment { Id = "fp-1", Status = 10 } });
             poItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<PurchaseOrderItem, bool>>>())
                 .Returns(new[] { poItem });
             poRepo.GetByIdAsync("po-1").Returns(po);
@@ -61,6 +67,61 @@ namespace CRM.Core.Tests.Services
 
             await poItemRepo.Received(1).UpdateAsync(Arg.Is<PurchaseOrderItem>(x => x.FinancePaymentStatus == 2));
             await poRepo.Received(1).UpdateAsync(Arg.Is<PurchaseOrder>(x => x.FinanceStatus == 2));
+        }
+
+        [Fact]
+        public async Task VerifyPaymentItemAsync_WhenPaidLessThanLineTotal_SetsPartialFinanceStatus()
+        {
+            var paymentRepo = Substitute.For<IRepository<FinancePayment>>();
+            var payItemRepo = Substitute.For<IRepository<FinancePaymentItem>>();
+            var poRepo = Substitute.For<IRepository<PurchaseOrder>>();
+            var poItemRepo = Substitute.For<IRepository<PurchaseOrderItem>>();
+
+            var payItem = new FinancePaymentItem
+            {
+                Id = "pi-1",
+                FinancePaymentId = "fp-1",
+                PurchaseOrderItemId = "poi-1",
+                PaymentAmountToBe = 6412.50m,
+                VerificationToBe = 6412.50m,
+                VerificationDone = 0m
+            };
+            var poItem = new PurchaseOrderItem
+            {
+                Id = "poi-1",
+                PurchaseOrderId = "po-1",
+                Qty = 2500m,
+                Cost = 8.55m,
+                FinancePaymentStatus = 0
+            };
+            var po = new PurchaseOrder { Id = "po-1", FinanceStatus = 0 };
+
+            payItemRepo.GetByIdAsync("pi-1").Returns(payItem);
+            poItemRepo.GetByIdAsync("poi-1").Returns(poItem);
+            payItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<FinancePaymentItem, bool>>>())
+                .Returns(new[] { payItem });
+            paymentRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<FinancePayment, bool>>>())
+                .Returns(new[] { new FinancePayment { Id = "fp-1", Status = 100 } });
+            poItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<PurchaseOrderItem, bool>>>())
+                .Returns(new[] { poItem });
+            poRepo.GetByIdAsync("po-1").Returns(po);
+
+            var svc = CreateFinancePaymentService(
+                paymentRepo,
+                payItemRepo,
+                poRepo,
+                poItemRepo,
+                Substitute.For<IDataPermissionService>(),
+                Substitute.For<ISerialNumberService>(),
+                Substitute.For<IPurchaseOrderItemExtendSyncService>(),
+                Substitute.For<IRepository<VendorInfo>>(),
+                Substitute.For<IRepository<User>>(),
+                Substitute.For<IUnitOfWork>());
+
+            await svc.VerifyPaymentItemAsync("pi-1", 6412.50m);
+
+            await poItemRepo.Received(1).UpdateAsync(Arg.Is<PurchaseOrderItem>(x => x.FinancePaymentStatus == 1));
+            await poRepo.Received(1).UpdateAsync(Arg.Is<PurchaseOrder>(x => x.FinanceStatus == 1));
         }
 
         [Fact]
@@ -98,14 +159,17 @@ namespace CRM.Core.Tests.Services
             {
                 Id = "poi-1",
                 PurchaseOrderId = "po-1",
+                Qty = 1m,
+                Cost = 100m,
                 FinancePaymentStatus = 0
             };
             var po = new PurchaseOrder { Id = "po-1", FinanceStatus = 0 };
 
             paymentRepo.GetByIdAsync(paymentId).Returns(payment);
+            paymentRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<FinancePayment, bool>>>())
+                .Returns(new[] { payment });
             payItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<FinancePaymentItem, bool>>>())
                 .Returns(new[] { payItem });
-            payItemRepo.GetAllAsync().Returns(new[] { payItem });
             poItemRepo.GetByIdAsync("poi-1").Returns(poItem);
             poItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<PurchaseOrderItem, bool>>>())
                 .Returns(new[] { poItem });
@@ -165,14 +229,17 @@ namespace CRM.Core.Tests.Services
                 Id = "poi-1",
                 PurchaseOrderId = "po-1",
                 PurchaseOrderItemCode = "P00022M-1",
+                Qty = 1m,
+                Cost = 340000m,
                 FinancePaymentStatus = 2
             };
             var po = new PurchaseOrder { Id = "po-1", FinanceStatus = 2 };
 
             paymentRepo.GetByIdAsync(paymentId).Returns(payment);
+            paymentRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<FinancePayment, bool>>>())
+                .Returns(new[] { payment });
             payItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<FinancePaymentItem, bool>>>())
                 .Returns(new[] { payItem });
-            payItemRepo.GetAllAsync().Returns(new[] { payItem });
             poItemRepo.GetByIdAsync("poi-1").Returns(poItem);
             poItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<PurchaseOrderItem, bool>>>())
                 .Returns(new[] { poItem });
