@@ -12,12 +12,9 @@ public static class CustomsBrokerPrintConsignee
     public const string IncompleteForPrintMessage =
         "报关公司联系人、电话或地址未维护，无法打印报关装箱单。请先在「报关公司」中补全装箱单收货人资料。";
 
-    public static string ResolvePrintName(CustomsBroker broker)
-    {
-        if (!string.IsNullOrWhiteSpace(broker.Ename))
-            return broker.Ename.Trim();
-        return (broker.Cname ?? string.Empty).Trim();
-    }
+    /// <summary>收货人名称固定用中文名 <c>cname</c>。</summary>
+    public static string ResolvePrintName(CustomsBroker broker) =>
+        (broker.Cname ?? string.Empty).Trim();
 
     public static void EnsurePrintReady(CustomsBroker? broker)
     {

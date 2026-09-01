@@ -21,6 +21,7 @@ export function packingDetailItemsToReportLines(items: PackingDetailLine[] | und
     size: null,
     nw: null,
     gw: null,
+    price: item.price != null && Number.isFinite(Number(item.price)) ? Number(item.price) : null,
     priceCurrency: item.priceCurrency != null ? Number(item.priceCurrency) : null
   }))
 }

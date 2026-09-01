@@ -20,24 +20,16 @@ public class CustomsBrokerPrintConsigneeTests
     };
 
     [Fact]
-    public void ResolvePrintName_prefers_ename()
+    public void ResolvePrintName_uses_cname_not_ename()
     {
-        CustomsBrokerPrintConsignee.ResolvePrintName(ReadyBroker()).Should().Be("SZ Broker Ltd");
-    }
-
-    [Fact]
-    public void ResolvePrintName_falls_back_to_cname()
-    {
-        var broker = ReadyBroker();
-        broker.Ename = "  ";
-        CustomsBrokerPrintConsignee.ResolvePrintName(broker).Should().Be("深圳报关行");
+        CustomsBrokerPrintConsignee.ResolvePrintName(ReadyBroker()).Should().Be("深圳报关行");
     }
 
     [Fact]
     public void BuildAddressLines_maps_consignee_block()
     {
         var lines = CustomsBrokerPrintConsignee.BuildAddressLines(ReadyBroker());
-        lines.Should().Equal("SZ Broker Ltd", "深圳市福田区1号", "张三", "0755-12345678");
+        lines.Should().Equal("深圳报关行", "深圳市福田区1号", "张三", "0755-12345678");
         CustomsBrokerPrintConsignee.PrintEmail(ReadyBroker()).Should().Be("a@broker.com");
     }
 

@@ -58,3 +58,5 @@
 - 参数 V2 + idesemi/ecoinf：仍为 V1 三皮肤。
 - 工具栏中/英切换在 V2 下仍可用；顶栏与 meta 键名保持中英对照。
 - 出库 Invoice 与装箱 Invoice 两入口版式一致。
+- 明细单价/金额列头为「单价 / UP」「金额 / Amount」，**不**写死 USD；单元格金额后跟行币别（如 `6.75 RMB`）。
+- 报关装箱 Invoice 的 Bill To / Ship To 与装箱单报表同一套报关公司覆盖。

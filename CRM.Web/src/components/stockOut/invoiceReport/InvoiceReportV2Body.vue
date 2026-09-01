@@ -155,8 +155,8 @@ const TABLE_HEAD_ZH = {
   pn: '料号',
   brand: '厂牌',
   qty: '数量',
-  upUsd: '单价（USD）',
-  amountUsd: '金额（USD）',
+  upUsd: '单价',
+  amountUsd: '金额',
   remark: '备注'
 } as const
 
@@ -165,8 +165,8 @@ const TABLE_HEAD_EN = {
   pn: 'PN',
   brand: 'Brand',
   qty: 'Qty',
-  upUsd: 'UP（USD）',
-  amountUsd: 'Amount（USD）',
+  upUsd: 'UP',
+  amountUsd: 'Amount',
   remark: 'Remark'
 } as const
 

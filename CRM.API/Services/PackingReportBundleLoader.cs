@@ -94,7 +94,7 @@ public static class PackingReportBundleLoader
             SourceCode = firstLine?.SellOrderCode,
             StockOutDate = packing.ScheduleShipDate ?? packing.CreateTime,
             TotalQuantity = qty,
-            TotalAmount = 0,
+            TotalAmount = packing.Items?.Sum(i => (i.Price ?? 0m) * i.Qty) ?? 0m,
             Status = 2,
             Remark = packing.Comment,
             CreateTime = packing.CreateTime,
@@ -176,7 +176,7 @@ public static class PackingReportBundleLoader
 
     /// <summary>
     /// 报关装箱单打印：收货人整块覆盖为报关公司。缺资料抛 <see cref="InvalidOperationException"/>。
-    /// Invoice 打印不要调用。
+    /// Packing / 报关装箱 Invoice 均调用；销售装箱 Invoice 因类型不是 20 会直接返回。
     /// </summary>
     public static async Task OverlayCustomsBrokerConsigneeAsync(
         ApplicationDbContext db,
@@ -236,6 +236,9 @@ public static class PackingReportBundleLoader
         if (packingBundle?.StockOut == null)
             return null;
 
+        await OverlayCustomsBrokerConsigneeAsync(
+            db, packingId, packingBundle.PackingAddresses, cancellationToken);
+
         return new StockOutInvoiceReportBundleDto
         {
             StockOut = packingBundle.StockOut,
@@ -275,6 +278,7 @@ public static class PackingReportBundleLoader
             Carton = null,
             Remark = item.Comment,
             Co = string.IsNullOrWhiteSpace(item.Co) ? null : item.Co.Trim(),
+            Price = item.Price,
             PriceCurrency = item.PriceCurrency
         }).ToList();
     }

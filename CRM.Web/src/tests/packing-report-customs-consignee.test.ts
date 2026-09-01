@@ -17,10 +17,10 @@ describe('packing report customs consignee', () => {
       resolvePackingReportConsigneeName({
         stockOutType: StockOutTypeCode.Customs,
         customerName: 'Sales Customer',
-        shipToFirstLine: 'SZ Broker Ltd',
+        shipToFirstLine: '利物通发展（香港）有限公司',
         maskSaleSensitive: true
       })
-    ).toBe('SZ Broker Ltd')
+    ).toBe('利物通发展（香港）有限公司')
   })
 
   it('uses overlay flag even if stock-out type is missing', () => {
@@ -28,11 +28,11 @@ describe('packing report customs consignee', () => {
       resolvePackingReportConsigneeName({
         stockOutType: 0,
         customerName: 'Sales Customer',
-        shipToFirstLine: 'SZ Broker Ltd',
+        shipToFirstLine: '利物通发展（香港）有限公司',
         maskSaleSensitive: true,
         customsBrokerConsignee: true
       })
-    ).toBe('SZ Broker Ltd')
+    ).toBe('利物通发展（香港）有限公司')
   })
 
   it('masks sales customer when 521 applies', () => {

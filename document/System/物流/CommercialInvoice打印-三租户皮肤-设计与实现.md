@@ -22,7 +22,7 @@
 |----|------|
 | 租户来源 | `VITE_TENANT_ID` → `LOGIN_TENANT_ID` |
 | 皮肤选择 | `resolveInvoiceReportSkin(tenantId, styleVersion)`；V2 仅 semicore，见 [报表规范-Invoice-V2](../../PRD/规范/业务规范/报表规范-Invoice-V2.md) |
-| 数据 | 既有 `docBind`（明细含单价/金额、Bank Details）；不变 |
+| 数据 | `docBind`。**单价/金额**取装箱明细销售价 `packing_item_extend.Price`（缺扩展则回退销售订单行价），**币别按行**打印（`PriceCurrency`，如 `6.75 RMB`），表头为「单价 / UP」不再写死 USD。**不要**用出库头 `TotalAmount` 摊数量。无行价时才退回按出库头金额分摊。报关装箱 Invoice 的 Bill To / Ship To 与 Packing 同一套报关公司覆盖。Bank Details 不变。 |
 | 版式 | V1：三套 Vue 皮肤；V2：`InvoiceReportV2Body` + `InvoiceReportV2SkinIdesemi` |
 
 ```

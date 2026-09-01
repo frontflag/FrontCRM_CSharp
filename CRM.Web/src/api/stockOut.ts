@@ -297,6 +297,8 @@ export interface PackingReportLine {
   size?: string | null
   nw?: number | null
   gw?: number | null
+  /** 销售单价快照 packing_item_extend.Price */
+  price?: number | null
   /** 关联 SO 行交易币别（结算币别 short） */
   priceCurrency?: number | null
 }
@@ -440,6 +442,7 @@ function parsePackingLines(o: Record<string, unknown>): PackingReportLine[] {
       size: strOrNull(r.size, r.Size),
       nw: numOrNull(r.nw ?? r.Nw),
       gw: numOrNull(r.gw ?? r.Gw),
+      price: numOrNull(r.price ?? r.Price),
       priceCurrency: numOrNull(r.priceCurrency ?? r.PriceCurrency)
     }
   })

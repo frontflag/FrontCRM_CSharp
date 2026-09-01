@@ -65,6 +65,8 @@ import { LOGIN_TENANT_ID } from '@/config/loginTenant'
 import { reportParamsApi, type ReportStyleVersion } from '@/api/reportParams'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { normalizePackingAddrLines } from '@/utils/packingReportAddressLines'
+import { resolveInvoiceLineAmounts, sumInvoiceLineAmounts, formatInvoiceMoney, resolveInvoiceTotalCurrency } from '@/utils/invoiceReportLines'
+import { resolvePackingReportConsigneeName } from '@/utils/packingReportCustomsConsignee'
 import {
   getInvoiceReportLabels,
   type InvoiceReportLang,
@@ -168,16 +170,28 @@ function blankIfEmpty(v: string | null | undefined): string {
   return (v ?? '').trim()
 }
 
+function appendInvoiceEmailLine(
+  lines: string[],
+  addr: PackingReportAddressPanel | null | undefined,
+  labels: Pick<InvoiceReportLabels, 'email'>
+): string[] {
+  if (!addr?.customsBrokerConsignee && !(addr?.email ?? '').trim()) return lines
+  const mail = (addr?.email ?? '').trim() || '—'
+  return [...lines, `${labels.email}${mail}`]
+}
+
 function mapInvoiceReportLines(
   rows: PackingReportLine[],
   totalAmount: number,
   showAmounts: boolean
 ): StockOutInvoiceLineVm[] {
-  const totalQty = rows.reduce((acc, row) => acc + (Number(row.qty) || 0), 0)
+  const amounts = resolveInvoiceLineAmounts(rows, totalAmount)
   return rows.map((row, idx) => {
-    const lineQty = Number(row.qty) || 0
-    const lineAmt = totalQty > 0 && showAmounts ? (totalAmount * lineQty) / totalQty : 0
-    const unit = lineQty > 0 && showAmounts ? lineAmt / lineQty : 0
+    const { qty: lineQty, unit, amount: lineAmt } = amounts[idx] ?? {
+      qty: Number(row.qty) || 0,
+      unit: 0,
+      amount: 0
+    }
     return {
       index: idx + 1,
       pn: cellText(row.pn),
@@ -185,8 +199,8 @@ function mapInvoiceReportLines(
       brand: cellText(row.brand),
       customerBrand: blankIfEmpty(row.customerBrand),
       qty: formatReportQty(lineQty),
-      unitPrice: showAmounts ? formatMoney(unit) : '—',
-      amount: showAmounts ? formatMoney(lineAmt) : '—',
+      unitPrice: showAmounts ? formatInvoiceMoney(unit, row.priceCurrency, 'unit') : '—',
+      amount: showAmounts ? formatInvoiceMoney(lineAmt, row.priceCurrency, 'total') : '—',
       remark: blankIfEmpty(row.remark)
     }
   })
@@ -270,13 +284,32 @@ const docBind = computed(() => {
     }
   }
 
-  const amt = Number(so.totalAmount) || 0
+  const lineAmounts = packingLines.value.length
+    ? resolveInvoiceLineAmounts(packingLines.value, Number(so.totalAmount) || 0)
+    : []
+  const amt = packingLines.value.length
+    ? sumInvoiceLineAmounts(lineAmounts)
+    : Number(so.totalAmount) || 0
 
   const exporterName = (basic?.companyName || '').trim() || '—'
-  const customerLine = maskSaleSensitiveFields.value ? '—' : (so.customerName || '').trim() || '—'
   const addr = packingAddresses.value
-  const billToLines = normalizePackingAddrLines(addr?.billToLines, customerLine, L)
-  const shipToLines = normalizePackingAddrLines(addr?.shipToLines, customerLine, L)
+  const customerLine = resolvePackingReportConsigneeName({
+    stockOutType: so.stockOutType,
+    customerName: so.customerName,
+    shipToFirstLine: addr?.shipToLines?.[0],
+    maskSaleSensitive: maskSaleSensitiveFields.value,
+    customsBrokerConsignee: addr?.customsBrokerConsignee
+  })
+  const billToLines = appendInvoiceEmailLine(
+    normalizePackingAddrLines(addr?.billToLines, customerLine, L),
+    addr,
+    L
+  )
+  const shipToLines = appendInvoiceEmailLine(
+    normalizePackingAddrLines(addr?.shipToLines, customerLine, L),
+    addr,
+    L
+  )
 
   const lines = reportLinesForDoc(so)
 
@@ -292,7 +325,9 @@ const docBind = computed(() => {
     shipToLines,
     lines,
     totalQty: reportTotalQty(lines),
-    totalAmount: formatMoney(amt),
+    totalAmount: packingLines.value.length
+      ? formatInvoiceMoney(amt, resolveInvoiceTotalCurrency(packingLines.value), 'total')
+      : formatMoney(amt),
     bankLines: formatBankLines(bankDefault.value, L),
     sealUrl: sealUrl.value,
     logoUrl: companyLogoObjectUrl.value ?? DEFAULT_REPORT_LOGO,

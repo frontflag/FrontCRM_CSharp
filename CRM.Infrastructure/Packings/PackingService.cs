@@ -560,8 +560,8 @@ public class PackingService : IPackingService
                 CustomerPn = FirstNonEmpty(line.Extend?.CustomerPn, soItem?.CustomerPn),
                 CustomerBrand = FirstNonEmpty(line.Extend?.CustomerBrand, soItem?.CustomerBrand),
                 Co = string.IsNullOrWhiteSpace(line.Co) ? null : line.Co.Trim(),
-                Price = line.Extend?.Price,
-                PriceCurrency = line.Extend?.PriceCurrency,
+                Price = line.Extend?.Price ?? soItem?.Price,
+                PriceCurrency = line.Extend?.PriceCurrency ?? soItem?.Currency,
                 Comment = line.Comment
             });
         }

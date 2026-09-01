@@ -63,6 +63,7 @@ export interface InvoiceReportLabels {
   total: string
   attn: string
   tel: string
+  email: string
   exporterSign: string
   consigneeSign: string
   bankDetails: string
@@ -85,14 +86,15 @@ export const INVOICE_REPORT_LABELS_EN: InvoiceReportLabels = {
   pn: PACKING_REPORT_LABELS.pn,
   brand: PACKING_REPORT_LABELS.brand,
   qty: PACKING_REPORT_LABELS.qty,
-  upUsd: PACKING_REPORT_LABELS.upUsd,
-  amountUsd: PACKING_REPORT_LABELS.amountUsd,
+  upUsd: 'UP',
+  amountUsd: 'Amount',
   remark: PACKING_REPORT_LABELS.remark,
   noItems: PACKING_REPORT_LABELS.noItems,
   blankBelow: PACKING_REPORT_LABELS.blankBelow,
   total: PACKING_REPORT_LABELS.total,
   attn: PACKING_REPORT_LABELS.attn,
   tel: PACKING_REPORT_LABELS.tel,
+  email: 'Email: ',
   exporterSign: PACKING_REPORT_LABELS.exporterSign,
   consigneeSign: PACKING_REPORT_LABELS.consigneeSign,
   bankDetails: PACKING_REPORT_LABELS.bankDetails,
@@ -115,14 +117,15 @@ export const INVOICE_REPORT_LABELS_ZH: InvoiceReportLabels = {
   pn: '料号',
   brand: '品牌',
   qty: '数量',
-  upUsd: '单价(USD)',
-  amountUsd: '金额(USD)',
+  upUsd: '单价',
+  amountUsd: '金额',
   remark: '备注',
   noItems: '无明细',
   blankBelow: '以下为空白',
   total: '合计',
   attn: '联系人：',
   tel: '电话：',
+  email: '邮箱：',
   exporterSign: '出口方（签章）',
   consigneeSign: '收货方（签章）',
   bankDetails: '银行资料',

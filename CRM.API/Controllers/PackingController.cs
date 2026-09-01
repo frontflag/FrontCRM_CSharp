@@ -284,6 +284,10 @@ public class PackingController : ControllerBase
                 return NotFound(ApiResponse<StockOutInvoiceReportBundleDto>.Fail("装箱单不存在", 404));
             return Ok(ApiResponse<StockOutInvoiceReportBundleDto>.Ok(bundle, "ok"));
         }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<StockOutInvoiceReportBundleDto>.Fail(ex.Message, 400));
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "获取装箱单 Invoice 报表数据失败 id={Id}", id);

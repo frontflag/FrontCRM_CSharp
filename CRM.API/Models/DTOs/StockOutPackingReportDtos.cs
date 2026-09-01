@@ -69,6 +69,9 @@ namespace CRM.API.Models.DTOs
         /// <summary>毛重 kg；本期无行级来源，可空。</summary>
         public decimal? Gw { get; set; }
 
+        /// <summary>销售单价快照（packing_item_extend.Price）。Invoice 打印用，不用出库头 TotalAmount。</summary>
+        public decimal? Price { get; set; }
+
         /// <summary>关联 SO 行交易币别（short 编码，与结算币别一致）；用于报表按币别选抬头。</summary>
         public short? PriceCurrency { get; set; }
     }
