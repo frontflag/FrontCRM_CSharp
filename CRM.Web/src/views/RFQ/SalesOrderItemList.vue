@@ -887,6 +887,7 @@ import { buildApplyStockOutDisabledHintContent } from '@/utils/applyStockOutDisa
 import type { ApplyStockOutDisabledHintContent } from '@/utils/applyStockOutDisabledHint'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick'
+import { cancelledOrderListRowClass, joinRowClassNames } from '@/utils/listCancelledRow'
 import { formatTotalAmountNumber, formatUnitPriceNumber, listAmountCurrencyDockClass, listAmountCurrencyIso } from '@/utils/moneyFormat'
 import { formatProfitOutRateBizDisplay } from '@/utils/profitOutRateDisplay'
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
@@ -1702,10 +1703,13 @@ async function onRowClick(row: Record<string, unknown>) {
 }
 
 function opsPanelRowClassName({ row }: { row: Record<string, unknown> }) {
-  if (!salesOrderItemOpsStore.row) return ''
-  return salesOrderItemOpsStore.rowKey(row) === salesOrderItemOpsStore.rowKey(salesOrderItemOpsStore.row)
-    ? 'so-item-row--active'
-    : ''
+  const cancelled = cancelledOrderListRowClass(row, 'orderStatus')
+  const active =
+    salesOrderItemOpsStore.row &&
+    salesOrderItemOpsStore.rowKey(row) === salesOrderItemOpsStore.rowKey(salesOrderItemOpsStore.row)
+      ? 'so-item-row--active'
+      : ''
+  return joinRowClassNames(cancelled, active)
 }
 
 onMounted(() => {

@@ -411,6 +411,34 @@
     border-right: none !important;
     border-left: none !important;
   }
+
+  /* 主单取消：整行文字弱化；操作列按钮、状态标签、选中高亮除外 */
+  .el-table__body-wrapper .el-table__body tr.el-table__row.list-row--cancelled:not(.so-item-row--active):not(.crm-list-row--clicked):not(.current-row) td.el-table__cell:not(.op-col),
+  .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.list-row--cancelled:not(.so-item-row--active):not(.crm-list-row--clicked):not(.current-row) td.el-table__cell:not(.op-col),
+  .el-table__fixed .el-table__body tr.el-table__row.list-row--cancelled:not(.so-item-row--active):not(.crm-list-row--clicked):not(.current-row) td.el-table__cell:not(.op-col),
+  .el-table__fixed-right .el-table__body tr.el-table__row.list-row--cancelled:not(.so-item-row--active):not(.crm-list-row--clicked):not(.current-row) td.el-table__cell:not(.op-col) {
+    color: $text-muted;
+
+    .el-link,
+    .el-link.el-link--primary,
+    .el-link:hover,
+    a:not(.el-tag),
+    .dock-tier-ccy,
+    .dock-tier-ccy--rmb,
+    .dock-tier-ccy--usd,
+    .dock-tier-ccy--eur,
+    .dock-tier-ccy--hkd,
+    .dock-tier-ccy--purple,
+    .dock-tier-amt-int,
+    .dock-tier-amt-frac,
+    .dock-tier-empty {
+      color: $text-muted !important;
+    }
+
+    .el-tag {
+      color: var(--el-tag-text-color, #fff);
+    }
+  }
 }
 
 // --- CrmDataTable（components/CrmDataTable.vue）：border 开启列宽拖拽；隐藏列间竖线 ---

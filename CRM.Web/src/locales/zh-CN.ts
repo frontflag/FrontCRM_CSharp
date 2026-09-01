@@ -20,6 +20,7 @@ const zhCN = {
     english: 'English',
     confirm: '确定',
     cancel: '取消',
+    view: '查看',
     edit: '编辑',
     loading: '加载中...',
     copy: '复制',
@@ -1542,6 +1543,7 @@ const zhCN = {
       viewLocalCurrency: '查看本币',
       onHandQty: '在库商品数量',
       onHandAmountUsd: '在库商品金额',
+      viewRecords: '查看',
       convertedUsdSuffix: '（折算美元）',
       weightedAvgAgeDays: '加权平均库龄',
       customerCount: '客户数',
@@ -1744,7 +1746,8 @@ const zhCN = {
       paidAmount: '已付款',
       receivedAmount: '已收款',
       issuedPurchaseInvoiceAmount: '已开进项发票',
-      issuedSellInvoiceAmount: '已开销项发票'
+      issuedSellInvoiceAmount: '已开销项发票',
+      viewRecords: '查看'
     }
   },
   dashboard: {
@@ -5492,6 +5495,9 @@ const zhCN = {
       title: '销售订单明细',
       close: '收起',
       pickRow: '单击列表行查看概况、库存与操作入口',
+      salesOrderTitle: '销售订单',
+      salesOrderCode: '销售订单编号',
+      salesOrderStatus: '状态',
       overviewTitle: '订单明细',
       statusTitle: '状态',
       lineCode: '订单明细编号',
@@ -5782,8 +5788,8 @@ const zhCN = {
     reportNotAllowed: '仅供应商已确认后的采购订单可生成采购单报表',
     confirmBySupplierConfirm: '确认将采购订单 {code} 标记为“已确认”吗？',
     confirmBySupplierSuccess: '供应商确认成功',
-    cancelConfirmMessage: '确认将采购订单 {code} 取消确认吗？',
-    cancelConfirmSuccess: '已取消确认',
+    cancelConfirmMessage: '确认将采购订单 {code} 退回「待确认」吗？退回后不是取消订单，可再次点「供应商确认」。',
+    cancelConfirmSuccess: '已退回待确认',
     submitAuditConfirm: '确认将采购订单 {code} 提交审核吗？',
     submitAuditSuccess: '提交审核成功'
   },
@@ -6233,6 +6239,10 @@ const zhCN = {
       title: '采购订单明细',
       close: '收起',
       pickRow: '单击列表行查看概况与操作入口',
+      purchaseOrderTitle: '采购订单',
+      purchaseOrderCode: '采购订单编号',
+      purchaseOrderStatus: '状态',
+      purchaseOrderStatusAwaitingVendorHint: '（等待供应商确认）',
       overviewTitle: '订单明细',
       statusTitle: '状态',
       arrivalTitle: '到货通知',
@@ -6252,11 +6262,11 @@ const zhCN = {
       paymentNextCancelled: '下一步：已取消或审核失败的明细不能请款。',
       paymentNeedConfirmed: '当前明细尚未供应商确认，暂不可申请付款。',
       paymentNextConfirmed: '下一步：等待采购主单/明细达到「已确认」及之后状态再申请付款。',
-      paymentFinanceDone: '本明细财务付款状态已是全部付款，不能再申请。',
+      paymentFinanceDone: '本明细货款已付清（付款完成），不能再申请。',
       paymentDocLabel: '付款单号',
       arrivalDocLabel: '到货通知单号',
       paymentNoLinkedDoc: '未查到关联付款单。',
-      paymentNextFinanceDone: '下一步：核对财务付款状态与请款金额是否一致；若仍需请款请联系财务处理。',
+      paymentNextFinanceDone: '下一步：核对本行已付金额是否已达到采购总额；若仍需请款请联系财务处理。',
       paymentNextFinanceDoneWithDocs: '下一步：点击上方付款单号打开付款单核对。付款记录请用付款单号查询，不要把采购订单号填进付款单号。',
       paymentNextFinanceDoneNoDoc: '下一步：未查到关联付款单，请联系财务核对明细财务付款状态。',
       paymentNoRemaining: '本明细请款金额已满，无可申请余量。',
@@ -7597,6 +7607,10 @@ const zhCN = {
       boardView: '看板',
       listView: '列表'
     },
+    drillFromAnalytics: {
+      stockInAmount: '物流分析 · 入库金额 · 已过账采购入库 · {currency} · 入库日期 {start}～{end}',
+      exit: '退出下钻'
+    },
     settingsMenu: {
       aria: '列表筛选设置',
       closeTabs: '关闭页签',
@@ -8191,6 +8205,10 @@ const zhCN = {
       reset: '重置',
       boardView: '看板',
       listView: '列表'
+    },
+    drillFromAnalytics: {
+      stockOutAmount: '物流分析 · 出库金额 · 出库完成销售出库 · {currency} · 出库日期 {start}～{end}',
+      exit: '退出下钻'
     },
     settingsMenu: {
       aria: '列表筛选设置',
@@ -9771,6 +9789,10 @@ const zhCN = {
       listView: '列表',
       export: '导出'
     },
+    drillFromAnalytics: {
+      paid: '财务分析 · 已付款 · 付款完成 · {currency} · {start}～{end}',
+      exit: '退出下钻'
+    },
     settingsMenu: {
       aria: '列表筛选设置',
       closeTabs: '关闭页签',
@@ -10010,6 +10032,10 @@ const zhCN = {
       boardView: '看板',
       listView: '列表',
       export: '导出'
+    },
+    drillFromAnalytics: {
+      received: '财务分析 · 已收款 · 确认 · {currency} · 收款日期 {start}～{end}',
+      exit: '退出下钻'
     },
     settingsMenu: {
       aria: '列表筛选设置',

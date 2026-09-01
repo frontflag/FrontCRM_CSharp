@@ -129,6 +129,7 @@
         :data="orderList"
         row-key="id"
         highlight-current-row
+        :row-class-name="salesOrderListRowClassName"
         @row-click="onSalesOrderRowClick"
         @row-dblclick="onSalesOrderRowDblClick"
         @current-change="onTableCurrentRowChange"
@@ -313,6 +314,7 @@ import { useCustomerExtendColumn, isCustomerExtendTableColumn } from '@/composab
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick'
+import { cancelledOrderListRowClass } from '@/utils/listCancelledRow'
 import { useListBoardHelpOverride } from '@/composables/useHelpDocOverride'
 import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
@@ -683,6 +685,10 @@ const handleView = (row: any) => {
 
 function onSalesOrderRowClick(row: Record<string, unknown>) {
   void onOpsPanelRowClick(row)
+}
+
+function salesOrderListRowClassName({ row }: { row: Record<string, unknown> }) {
+  return cancelledOrderListRowClass(row, 'status')
 }
 
 function onSalesOrderRowDblClick(row: { id?: string }, _column: unknown, event?: MouseEvent) {

@@ -20,6 +20,7 @@ const enUS = {
     english: 'English',
     confirm: 'Confirm',
     cancel: 'Cancel',
+    view: 'View',
     edit: 'Edit',
     loading: 'Loading...',
     copy: 'Copy',
@@ -1548,6 +1549,7 @@ const enUS = {
       viewLocalCurrency: 'View local currency',
       onHandQty: 'On-hand qty',
       onHandAmountUsd: 'On-hand amount',
+      viewRecords: 'View',
       convertedUsdSuffix: '(converted USD)',
       weightedAvgAgeDays: 'Weighted avg age',
       customerCount: 'Customers',
@@ -1750,7 +1752,8 @@ const enUS = {
       paidAmount: 'Paid',
       receivedAmount: 'Received',
       issuedPurchaseInvoiceAmount: 'Purchase invoice issued',
-      issuedSellInvoiceAmount: 'Sales invoice issued'
+      issuedSellInvoiceAmount: 'Sales invoice issued',
+      viewRecords: 'View'
     }
   },
   dashboard: {
@@ -5506,6 +5509,9 @@ const enUS = {
       title: 'Sales order line',
       close: 'Close',
       pickRow: 'Click a list row to view overview, stock, and actions',
+      salesOrderTitle: 'Sales order',
+      salesOrderCode: 'Sales order no.',
+      salesOrderStatus: 'Status',
       overviewTitle: 'Order line',
       statusTitle: 'Status',
       lineCode: 'Line code',
@@ -5805,8 +5811,8 @@ const enUS = {
     reportNotAllowed: 'Only supplier-confirmed purchase orders can generate PO reports',
     confirmBySupplierConfirm: 'Mark purchase order {code} as confirmed?',
     confirmBySupplierSuccess: 'Supplier confirmed successfully',
-    cancelConfirmMessage: 'Cancel confirmation for purchase order {code}?',
-    cancelConfirmSuccess: 'Confirmation canceled',
+    cancelConfirmMessage: 'Revert purchase order {code} to pending confirmation? This does not cancel the order; you can confirm with the supplier again.',
+    cancelConfirmSuccess: 'Reverted to pending confirmation',
     submitAuditConfirm: 'Submit purchase order {code} for review?',
     submitAuditSuccess: 'Submitted for review'
   },
@@ -6258,6 +6264,10 @@ const enUS = {
       title: 'Purchase order line',
       close: 'Close',
       pickRow: 'Click a list row to view overview and actions',
+      purchaseOrderTitle: 'Purchase order',
+      purchaseOrderCode: 'Purchase order no.',
+      purchaseOrderStatus: 'Status',
+      purchaseOrderStatusAwaitingVendorHint: '(waiting for vendor confirmation)',
       overviewTitle: 'Order line',
       statusTitle: 'Status',
       arrivalTitle: 'Arrival notice',
@@ -6277,11 +6287,11 @@ const enUS = {
       paymentNextCancelled: 'Next: cancelled or audit-failed lines cannot request payment.',
       paymentNeedConfirmed: 'Line is not supplier-confirmed yet; payment request is not available.',
       paymentNextConfirmed: 'Next: wait until the order/line reaches Confirmed or later before requesting payment.',
-      paymentFinanceDone: 'This line is already fully paid in finance status; no further request is allowed.',
+      paymentFinanceDone: 'This line is fully paid (payment complete); no further request is allowed.',
       paymentDocLabel: 'Payment order',
       arrivalDocLabel: 'Arrival notice no.',
       paymentNoLinkedDoc: 'No linked payment order was found.',
-      paymentNextFinanceDone: 'Next: check that finance payment status matches requested amounts; contact finance if a further request is still needed.',
+      paymentNextFinanceDone: 'Next: check that paid amount has reached the line total; contact finance if a further request is still needed.',
       paymentNextFinanceDoneWithDocs: 'Next: open the payment order above to verify. Search payment records by payment order number, not the purchase order number.',
       paymentNextFinanceDoneNoDoc: 'Next: no linked payment order was found; ask finance to check the line finance payment status.',
       paymentNoRemaining: 'Payment request amount is fully allocated; nothing left to request.',
@@ -7621,6 +7631,11 @@ const enUS = {
       boardView: 'Board',
       listView: 'List'
     },
+    drillFromAnalytics: {
+      stockInAmount:
+        'Logistics analytics · Inbound amount · Posted purchase receipts · {currency} · Stock-in date {start}–{end}',
+      exit: 'Exit drill-down'
+    },
     settingsMenu: {
       aria: 'List filter settings',
       closeTabs: 'Close tabs',
@@ -8215,6 +8230,11 @@ const enUS = {
       reset: 'Reset',
       boardView: 'Board',
       listView: 'List'
+    },
+    drillFromAnalytics: {
+      stockOutAmount:
+        'Logistics analytics · Outbound amount · Finished sales stock-outs · {currency} · Stock-out date {start}–{end}',
+      exit: 'Exit drill-down'
     },
     settingsMenu: {
       aria: 'List filter settings',
@@ -9797,6 +9817,10 @@ const enUS = {
       listView: 'List',
       export: 'Export'
     },
+    drillFromAnalytics: {
+      paid: 'Finance analytics · Paid · Completed · {currency} · {start}–{end}',
+      exit: 'Exit drill-down'
+    },
     settingsMenu: {
       aria: 'List filter settings',
       closeTabs: 'Close tabs',
@@ -10036,6 +10060,10 @@ const enUS = {
       boardView: 'Board',
       listView: 'List',
       export: 'Export'
+    },
+    drillFromAnalytics: {
+      received: 'Finance analytics · Received · Confirmed · {currency} · Receipt date {start}–{end}',
+      exit: 'Exit drill-down'
     },
     settingsMenu: {
       aria: 'List filter settings',

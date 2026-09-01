@@ -26,17 +26,41 @@
 
       <section class="ops-card">
         <header class="ops-card__head">
-          <h3 class="ops-card__title">{{ t('purchaseOrderItemList.opsPanel.overviewTitle') }}</h3>
+          <h3 class="ops-card__title">{{ t('purchaseOrderItemList.opsPanel.purchaseOrderTitle') }}</h3>
         </header>
         <div class="ops-card__body ops-card__body--overview">
-          <div class="ops-overview-line ops-overview-line--hero">{{ lineCode }}</div>
-          <div class="ops-overview-line">
+          <div class="ops-overview-line ops-overview-line--po-header">
+            <span class="ops-po-header__item">
+              <span>{{ t('purchaseOrderItemList.opsPanel.purchaseOrderCode') }}：</span>
+              <router-link
+                v-if="purchaseOrderLink"
+                :to="purchaseOrderLink"
+                class="ops-po-code-link"
+              >{{ purchaseOrderCode }}</router-link>
+              <span v-else>{{ purchaseOrderCode }}</span>
+            </span>
+            <span class="ops-po-header__item">
+              {{ t('purchaseOrderItemList.opsPanel.purchaseOrderStatus') }}：{{ purchaseOrderStatusText }}<template
+                v-if="purchaseOrderAwaitingVendorConfirm"
+              >，<span class="ops-po-status-hint">{{ t('purchaseOrderItemList.opsPanel.purchaseOrderStatusAwaitingVendorHint') }}</span></template>
+            </span>
+          </div>
+          <div class="ops-overview-line ops-overview-line--vendor">
             <VendorNameReadonlyText
               :name-zh="vendorNameZh"
               :name-en="vendorNameEn"
               :masked="maskSensitive"
             />
           </div>
+        </div>
+      </section>
+
+      <section class="ops-card">
+        <header class="ops-card__head">
+          <h3 class="ops-card__title">{{ t('purchaseOrderItemList.opsPanel.overviewTitle') }}</h3>
+        </header>
+        <div class="ops-card__body ops-card__body--overview">
+          <div class="ops-overview-line ops-overview-line--hero">{{ lineCode }}</div>
           <div class="ops-overview-line">{{ displayPn }}</div>
           <div class="ops-overview-line">{{ displayBrand }}</div>
           <div class="ops-overview-line">{{ displayUnitPriceWithCurrency }}</div>
@@ -196,6 +220,7 @@ import { buildApplyArrivalDisabledHintContent, applyArrivalButtonDisabled } from
 import { buildApplyPaymentDisabledHintContent, applyPaymentButtonDisabled, listLinkedFinancePaymentDocs } from '@/utils/applyPaymentDisabledHint'
 import { listLinkedArrivalNoticeDocs } from '@/utils/opsGeneratedDocs'
 import { calcProgressPercent, getArrivalMetrics, getPaymentMetrics, poStatusLabel, poStatusTagType, type PoItemStatusKind } from '@/utils/purchaseOrderItemOpsPanel'
+import { purchaseOrderMainStatusLabel, purchaseOrderMainStatusAwaitingVendorConfirm } from '@/constants/purchaseOrderStatus'
 import { DEFAULT_SETTLEMENT_CURRENCY_CODE } from '@/constants/currency'
 import VendorNameReadonlyText from '@/components/Vendor/VendorNameReadonlyText.vue'
 import OpsGeneratedDocsRow from '@/components/Common/OpsGeneratedDocsRow.vue'
@@ -220,6 +245,26 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+
+const purchaseOrderCode = computed(() => {
+  const v = String(props.row?.purchaseOrderCode ?? props.row?.PurchaseOrderCode ?? '').trim()
+  return v || '—'
+})
+const purchaseOrderId = computed(() =>
+  String(props.row?.purchaseOrderId ?? props.row?.PurchaseOrderId ?? '').trim()
+)
+const purchaseOrderLink = computed(() => {
+  const id = purchaseOrderId.value
+  if (!id || purchaseOrderCode.value === '—') return null
+  return { name: 'PurchaseOrderDetail' as const, params: { id } }
+})
+const purchaseOrderStatusRaw = computed(() => props.row?.orderStatus ?? props.row?.OrderStatus)
+const purchaseOrderStatusText = computed(() =>
+  purchaseOrderMainStatusLabel(t, purchaseOrderStatusRaw.value)
+)
+const purchaseOrderAwaitingVendorConfirm = computed(() =>
+  purchaseOrderMainStatusAwaitingVendorConfirm(purchaseOrderStatusRaw.value)
+)
 
 const lineCode = computed(() => String(props.row?.purchaseOrderItemCode ?? '—') || '—')
 const vendorNameZh = computed(() => {
@@ -579,6 +624,45 @@ function formatQty(v: number) {
   color: $text-primary;
   line-height: 1.5;
   word-break: break-word;
+}
+
+.ops-overview-line--po-header {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: baseline;
+}
+
+.ops-po-header__item {
+  flex: 0 0 50%;
+  width: 50%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.ops-po-code-link {
+  color: inherit;
+  text-decoration: none;
+
+  &:hover,
+  &:focus,
+  &:visited {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  &:hover,
+  &:focus-visible {
+    color: var(--el-color-primary);
+  }
+}
+
+.ops-overview-line--vendor {
+  font-weight: 700;
+}
+
+.ops-po-status-hint {
+  font-style: italic;
+  color: $text-muted;
 }
 
 .ops-overview-line--hero {

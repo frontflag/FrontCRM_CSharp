@@ -141,8 +141,8 @@ CREATE INDEX IF NOT EXISTS IX_log_orderjourney_parent
 |-----------|------|
 | `PO_CREATED` | 创建 |
 | `PO_UPDATED` | 主信息/明细更新 |
-| `PO_STATUS_CHANGED` | 主状态变化（含 **待确认→已确认(30)**） |
-| `PO_VENDOR_CONFIRMED` | **供应商确认**（可与 `PO_STATUS_CHANGED` 合并为一行或两行：建议同一事务内先 `PO_STATUS_CHANGED` 再 `PO_VENDOR_CONFIRMED` 带备注，或单行 Payload 标明 `confirmedByVendor=true`） |
+| `PO_STATUS_CHANGED` | 主状态变化。含 **待确认→已确认(30)**（Remark「采购订单已确认」）与 **已确认→待确认(20)** 取消确认（Remark「取消供应商确认」）。实现见 [采购订单取消确认-设计与实现](./采购/采购订单取消确认-设计与实现.md) §7。 |
+| `PO_VENDOR_CONFIRMED` | **供应商确认**（可与 `PO_STATUS_CHANGED` 合并为一行或两行：建议同一事务内先 `PO_STATUS_CHANGED` 再 `PO_VENDOR_CONFIRMED` 带备注，或单行 Payload 标明 `confirmedByVendor=true`）。现网取消确认 **不** 另写此码，只写 `PO_STATUS_CHANGED`。 |
 | `PO_DELETED` | 删除 |
 
 **采购明细（PurchaseOrderItem）**  

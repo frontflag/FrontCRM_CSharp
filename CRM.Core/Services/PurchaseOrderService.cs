@@ -51,6 +51,7 @@ namespace CRM.Core.Services
         private readonly IRepository<VendorInfo>? _vendorRepo;
         private readonly IPurchaseOrderVendorChangeService? _vendorChangeService;
         private readonly IPurchaseOrderPurchasePriceDownstreamSyncService? _purchasePriceDownstreamSync;
+        private readonly IPurchaseOrderRevertVendorConfirmGuard? _revertVendorConfirmGuard;
 
         public PurchaseOrderService(
             IRepository<PurchaseOrder> poRepo,
@@ -76,7 +77,8 @@ namespace CRM.Core.Services
             IUnitOfWork? unitOfWork = null,
             IRepository<VendorInfo>? vendorRepo = null,
             IPurchaseOrderVendorChangeService? vendorChangeService = null,
-            IPurchaseOrderPurchasePriceDownstreamSyncService? purchasePriceDownstreamSync = null)
+            IPurchaseOrderPurchasePriceDownstreamSyncService? purchasePriceDownstreamSync = null,
+            IPurchaseOrderRevertVendorConfirmGuard? revertVendorConfirmGuard = null)
         {
             _poRepo = poRepo;
             _poItemRepo = poItemRepo;
@@ -102,6 +104,7 @@ namespace CRM.Core.Services
             _vendorRepo = vendorRepo;
             _vendorChangeService = vendorChangeService;
             _purchasePriceDownstreamSync = purchasePriceDownstreamSync;
+            _revertVendorConfirmGuard = revertVendorConfirmGuard;
         }
 
         // 兼容旧调用方（单测/临时构造）：不注入采购申请回写依赖时，状态回写能力自动降级为 no-op。
@@ -120,7 +123,8 @@ namespace CRM.Core.Services
             IPurchaseOrderItemExtendSyncService poItemExtendSync,
             IPurchaseOrderExtendLineSeqService poLineSeq,
             ILogger<PurchaseOrderService> logger,
-            IUnitOfWork? unitOfWork = null)
+            IUnitOfWork? unitOfWork = null,
+            IPurchaseOrderRevertVendorConfirmGuard? revertVendorConfirmGuard = null)
             : this(
                 poRepo,
                 poItemRepo,
@@ -139,7 +143,8 @@ namespace CRM.Core.Services
                 poItemExtendSync,
                 poLineSeq,
                 logger,
-                unitOfWork: unitOfWork)
+                unitOfWork: unitOfWork,
+                revertVendorConfirmGuard: revertVendorConfirmGuard)
         {
         }
 
@@ -1037,6 +1042,8 @@ namespace CRM.Core.Services
             var fromStatus = order.Status;
             var statusBefore = order.Status;
             ValidateStatusTransition(order.Status, status);
+            if (fromStatus == StatusConfirmed && status == StatusPendingConfirm && _revertVendorConfirmGuard != null)
+                await _revertVendorConfirmGuard.EnsureCanRevertAsync(id, order.PurchaseOrderCode);
             order.Status = status;
             order.ModifyTime = DateTime.UtcNow;
             order.ModifyByUserId = NormalizeActingUserId(actingUserId);
@@ -1069,6 +1076,8 @@ namespace CRM.Core.Services
             string? remark = null;
             if (status == StatusConfirmed)
                 remark = "采购订单已确认";
+            else if (fromStatus == StatusConfirmed && status == StatusPendingConfirm)
+                remark = "取消供应商确认";
 
             await _orderJourneyLog.AppendAsync(new OrderJourneyLog
             {
@@ -1856,7 +1865,7 @@ VALUES (gen_random_uuid()::text, '{BusinessLogTypes.PurchaseOrderItem}', '{SqlQ(
                 StatusAuditFailed => target is StatusNew or StatusCancelled,
                 StatusApproved => target is StatusPendingConfirm or StatusCancelled,
                 StatusPendingConfirm => target is StatusConfirmed or StatusCancelled,
-                StatusConfirmed => target is StatusInProgress or StatusCancelled,
+                StatusConfirmed => target is StatusInProgress or StatusCancelled or StatusPendingConfirm,
                 StatusInProgress => target is StatusCompleted,
                 _ => false
             };

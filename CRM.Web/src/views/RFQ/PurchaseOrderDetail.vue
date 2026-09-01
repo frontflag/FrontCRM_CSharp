@@ -93,6 +93,14 @@
           </svg>
           取消订单
         </button>
+        <button
+          v-if="canRevertVendorConfirm"
+          type="button"
+          class="btn-secondary"
+          @click="handleRevertVendorConfirm"
+        >
+          {{ t('purchaseOrderList.actions.cancelConfirm') }}
+        </button>
         <div class="po-header-refresh-group">
           <button
             class="btn-secondary"
@@ -895,7 +903,8 @@ import {
 import {
   purchaseOrderReportAllowed,
   purchaseOrderAllowsArrivalNotice,
-  normalizePurchaseOrderMainStatus
+  normalizePurchaseOrderMainStatus,
+  PO_STATUS_VENDOR_CONFIRMED
 } from '@/constants/purchaseOrderStatus'
 import { tagApi, type TagDefinitionDto } from '@/api/tag'
 import { useAuthStore } from '@/stores/auth'
@@ -1026,6 +1035,13 @@ const canCancelPurchaseOrderFromMenu = computed(() => {
   const s = normalizePurchaseOrderMainStatus(o)
   if (!Number.isFinite(s) || s === -2) return false
   return s < 10
+})
+
+/** 取消确认：仅已确认(30)，退回待确认；有下游时由后端拒绝 */
+const canRevertVendorConfirm = computed(() => {
+  const o = order.value
+  if (!o || !canWritePo.value) return false
+  return normalizePurchaseOrderMainStatus(o) === PO_STATUS_VENDOR_CONFIRMED
 })
 
 const showPoHeaderTags = computed(() => canWritePo.value || currentTags.value.length > 0)
@@ -1789,6 +1805,22 @@ async function handleCancelPurchaseOrder() {
     await fetchOrder()
   } catch {
     /* 取消 */
+  }
+}
+
+async function handleRevertVendorConfirm() {
+  if (!order.value?.id || !canRevertVendorConfirm.value) return
+  try {
+    await ElMessageBox.confirm(
+      t('purchaseOrderList.cancelConfirmMessage', { code: order.value.purchaseOrderCode }),
+      t('purchaseOrderList.actions.cancelConfirm'),
+      { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
+    )
+    await purchaseOrderApi.updateStatus(order.value.id, 20)
+    ElMessage.success(t('purchaseOrderList.cancelConfirmSuccess'))
+    await fetchOrder()
+  } catch {
+    /* 取消或失败已由全局拦截器提示 */
   }
 }
 

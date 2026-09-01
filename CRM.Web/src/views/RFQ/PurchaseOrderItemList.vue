@@ -923,6 +923,7 @@ import { CurrencyCode, DEFAULT_SETTLEMENT_CURRENCY_CODE } from '@/constants/curr
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { usePurchaseOrderWriteGate } from '@/composables/useDepartmentDataReadOnly'
 import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick'
+import { cancelledOrderListRowClass, joinRowClassNames } from '@/utils/listCancelledRow'
 import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
 import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
@@ -1040,10 +1041,13 @@ async function onRowClick(row: Record<string, unknown>) {
 }
 
 function opsPanelRowClassName({ row }: { row: Record<string, unknown> }) {
-  if (!purchaseOrderItemOpsStore.row) return ''
-  return purchaseOrderItemOpsStore.rowKey(row) === purchaseOrderItemOpsStore.rowKey(purchaseOrderItemOpsStore.row)
-    ? 'so-item-row--active'
-    : ''
+  const cancelled = cancelledOrderListRowClass(row, 'orderStatus')
+  const active =
+    purchaseOrderItemOpsStore.row &&
+    purchaseOrderItemOpsStore.rowKey(row) === purchaseOrderItemOpsStore.rowKey(purchaseOrderItemOpsStore.row)
+      ? 'so-item-row--active'
+      : ''
+  return joinRowClassNames(cancelled, active)
 }
 
 const canViewPurchaseUser = computed(() => authStore.hasPermission('purchase.user.read') || authStore.hasPermission('purchase-order.read'))

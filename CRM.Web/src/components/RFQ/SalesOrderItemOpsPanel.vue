@@ -26,17 +26,41 @@
 
       <section class="ops-card">
         <header class="ops-card__head">
-          <h3 class="ops-card__title">{{ t('salesOrderItemList.opsPanel.overviewTitle') }}</h3>
+          <h3 class="ops-card__title">{{ t('salesOrderItemList.opsPanel.salesOrderTitle') }}</h3>
         </header>
         <div class="ops-card__body ops-card__body--overview">
-          <div class="ops-overview-line ops-overview-line--hero">{{ lineCode }}</div>
-          <div class="ops-overview-line">
+          <div class="ops-overview-line ops-overview-line--so-header">
+            <span class="ops-so-header__item">
+              <span>{{ t('salesOrderItemList.opsPanel.salesOrderCode') }}：</span>
+              <router-link
+                v-if="salesOrderLink"
+                :to="salesOrderLink"
+                class="ops-so-code-link"
+              >{{ salesOrderCode }}</router-link>
+              <span v-else>{{ salesOrderCode }}</span>
+            </span>
+            <span class="ops-so-header__item">
+              {{ t('salesOrderItemList.opsPanel.salesOrderStatus') }}：<span
+                :class="{ 'ops-so-status--alert': salesOrderStatusIsAlert }"
+              >{{ salesOrderStatusText }}</span>
+            </span>
+          </div>
+          <div class="ops-overview-line ops-overview-line--customer">
             <CustomerNameReadonlyText
               :name-zh="customerNameZh"
               :name-en="customerNameEn"
               :masked="maskSensitive"
             />
           </div>
+        </div>
+      </section>
+
+      <section class="ops-card">
+        <header class="ops-card__head">
+          <h3 class="ops-card__title">{{ t('salesOrderItemList.opsPanel.overviewTitle') }}</h3>
+        </header>
+        <div class="ops-card__body ops-card__body--overview">
+          <div class="ops-overview-line ops-overview-line--hero">{{ lineCode }}</div>
           <div class="ops-overview-line">{{ displayPn }}</div>
           <div class="ops-overview-line">{{ displayBrand }}</div>
           <div class="ops-overview-line">{{ displayUnitPriceWithCurrency }}</div>
@@ -248,7 +272,11 @@ import { useI18n } from 'vue-i18n'
 import { CircleCheck } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import type { SalesOrderDetailTabAggregates } from '@/api/salesOrder'
-import { salesOrderMainAllowsPurchaseAndStockOut, salesOrderLineApplyStockOutButtonDisabled } from '@/constants/salesOrderStatus'
+import {
+  salesOrderMainAllowsPurchaseAndStockOut,
+  salesOrderLineApplyStockOutButtonDisabled,
+  translateSalesOrderStatus
+} from '@/constants/salesOrderStatus'
 import { formatUnitPriceWithCurrencyCodeSuffix } from '@/utils/moneyFormat'
 import CustomerNameReadonlyText from '@/components/Customer/CustomerNameReadonlyText.vue'
 import OpsGeneratedDocsRow from '@/components/Common/OpsGeneratedDocsRow.vue'
@@ -286,6 +314,26 @@ const { t } = useI18n()
 const authStore = useAuthStore()
 
 const canViewPurchaseOrder = computed(() => authStore.hasPermission('purchase-order.read'))
+
+const salesOrderCode = computed(() => {
+  const v = String(props.row?.sellOrderCode ?? props.row?.SellOrderCode ?? '').trim()
+  return v || '—'
+})
+const salesOrderId = computed(() =>
+  String(props.row?.sellOrderId ?? props.row?.SellOrderId ?? '').trim()
+)
+const salesOrderLink = computed(() => {
+  const id = salesOrderId.value
+  if (!id || salesOrderCode.value === '—') return null
+  return { name: 'SalesOrderDetail' as const, params: { id } }
+})
+const salesOrderStatus = computed(() => Number(props.row?.orderStatus ?? props.row?.OrderStatus))
+const salesOrderStatusText = computed(() => {
+  const s = salesOrderStatus.value
+  if (!Number.isFinite(s)) return t('salesOrderList.status.unknown')
+  return translateSalesOrderStatus(s, t)
+})
+const salesOrderStatusIsAlert = computed(() => salesOrderStatus.value === -1 || salesOrderStatus.value === -2)
 
 const lineCode = computed(() => String(props.row?.sellOrderItemCode ?? '—') || '—')
 const customerNameZh = computed(() => {
@@ -428,4 +476,42 @@ function formatQty(v: number) {
 
 <style scoped lang="scss">
 @import '@/assets/styles/so-item-ops-panel.scss';
+
+.ops-overview-line--so-header {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: baseline;
+}
+
+.ops-so-header__item {
+  flex: 0 0 50%;
+  width: 50%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.ops-so-code-link {
+  color: inherit;
+  text-decoration: none;
+
+  &:hover,
+  &:focus,
+  &:visited {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  &:hover,
+  &:focus-visible {
+    color: var(--el-color-primary);
+  }
+}
+
+.ops-so-status--alert {
+  color: $danger-color;
+}
+
+.ops-overview-line--customer {
+  font-weight: 700;
+}
 </style>

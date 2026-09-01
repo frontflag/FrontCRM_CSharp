@@ -6,6 +6,9 @@
 /** 审核通过起算的状态值 */
 export const PO_STATUS_AUDIT_PASSED = 10
 
+/** 待供应商确认 */
+export const PO_STATUS_PENDING_CONFIRM = 20
+
 /** 供应商已确认起算的状态值；大于等于此才可生成/预览采购单报表 */
 export const PO_STATUS_VENDOR_CONFIRMED = 30
 
@@ -79,11 +82,17 @@ export function purchaseOrderApplyPaymentIsCancelled(source: unknown): boolean {
 }
 
 /**
- * 明细财务付款状态已全部付款（FinancePaymentStatus >= 2）。字段缺失时不视为已完成。
+ * 明细付款已完成：优先扩展表进度（已核销 vs 行总额），缺省再看 FinancePaymentStatus。
+ * 字段缺失时不视为已完成。
  */
 export function purchaseOrderFinancePaymentIsComplete(source: unknown): boolean {
   if (source == null || typeof source !== 'object') return false
   const row = source as Record<string, unknown>
+  const progress = row.paymentProgressStatus ?? row.PaymentProgressStatus
+  if (progress != null && progress !== '') {
+    const p = Number(progress)
+    if (Number.isFinite(p)) return p >= 2
+  }
   const raw = row.financePaymentStatus ?? row.FinancePaymentStatus
   if (raw == null || raw === '') return false
   const n = Number(raw)
@@ -131,4 +140,10 @@ export function purchaseOrderMainStatusLabel(
   if (!Number.isFinite(s)) return t('purchaseOrderList.status.unknown')
   const key = PO_MAIN_STATUS_I18N_KEY[s]
   return key ? t(key) : t('purchaseOrderList.status.unknown')
+}
+
+/** 审核通过(10)、待确认(20)：等待供应商确认。 */
+export function purchaseOrderMainStatusAwaitingVendorConfirm(status: unknown): boolean {
+  const s = Number(status)
+  return s === PO_STATUS_AUDIT_PASSED || s === PO_STATUS_PENDING_CONFIRM
 }

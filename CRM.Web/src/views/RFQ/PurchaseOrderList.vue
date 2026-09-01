@@ -238,6 +238,7 @@
         :data="orderList"
         row-key="id"
         highlight-current-row
+        :row-class-name="purchaseOrderListRowClassName"
         @row-dblclick="onPurchaseOrderRowDblClick"
         @header-dragend="onPurchaseOrderTableHeaderDragEnd"
       >
@@ -454,6 +455,7 @@ import { useVendorExtendColumn, isVendorExtendTableColumn } from '@/composables/
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick'
+import { isCancelledOrderHeaderStatus, LIST_ROW_CANCELLED_CLASS } from '@/utils/listCancelledRow'
 
 const router = useRouter()
 const { t, locale } = useI18n()
@@ -512,6 +514,10 @@ function toggleOpCol() {
 }
 
 const poListMainStatus = normalizePurchaseOrderMainStatus
+
+function purchaseOrderListRowClassName({ row }: { row: Record<string, unknown> }) {
+  return isCancelledOrderHeaderStatus(poListMainStatus(row)) ? LIST_ROW_CANCELLED_CLASS : ''
+}
 
 function purchaseOrderHeaderType(row: Record<string, unknown>): number {
   const n = Number(row.type ?? row.Type)
@@ -887,7 +893,7 @@ const confirmBySupplier = async (row: any) => {
   }
 }
 
-/** 取消确认：仅「已确认(30)」时显示 */
+/** 取消确认：仅「已确认(30)」时显示；退回待确认(20)，不是整单取消 */
 const cancelSupplierConfirm = async (row: any) => {
   try {
     await ElMessageBox.confirm(
@@ -895,7 +901,7 @@ const cancelSupplierConfirm = async (row: any) => {
       t('purchaseOrderList.actions.cancelConfirm'),
       { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
     )
-    await purchaseOrderApi.updateStatus(row.id, -2)
+    await purchaseOrderApi.updateStatus(row.id, 20)
     ElMessage.success(t('purchaseOrderList.cancelConfirmSuccess'))
     await loadData()
   } catch {
