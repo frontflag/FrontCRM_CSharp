@@ -4378,9 +4378,6 @@ onBeforeUnmount(() => {
   text-decoration: none;
   flex-shrink: 0;
   min-width: 0;
-  &:hover .global-logo-title {
-    color: var(--crm-logo-title-hover);
-  }
 }
 
 .global-logo-mark {

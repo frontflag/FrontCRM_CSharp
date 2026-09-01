@@ -104,7 +104,6 @@ html[data-theme='dark'] {
   --crm-layout-topbar-shadow: 0 1px 0 rgba(255, 255, 255, 0.08), 0 6px 20px rgba(0, 0, 0, 0.55),
     0 12px 40px -8px rgba(0, 0, 0, 0.4);
   --crm-logo-title: #e8f4ff;
-  --crm-logo-title-hover: #ffffff;
   --crm-logo-sub: rgba(0, 212, 255, 0.85);
   --crm-notify-border: rgba(0, 212, 255, 0.12);
   --crm-notify-bg: rgba(0, 40, 80, 0.45);
@@ -364,7 +363,6 @@ html[data-theme='light'] {
   --crm-layout-topbar-border: #cbd5e1;
   --crm-layout-topbar-shadow: 0 1px 0 rgba(255, 255, 255, 0.7), 0 2px 10px rgba(15, 23, 42, 0.06);
   --crm-logo-title: #0f172a;
-  --crm-logo-title-hover: #0284c7;
   --crm-logo-sub: rgba(2, 132, 199, 0.9);
   --crm-notify-border: rgba(37, 99, 235, 0.15);
   --crm-notify-bg: #f1f5f9;
