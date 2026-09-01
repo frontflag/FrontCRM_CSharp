@@ -79,8 +79,8 @@ namespace CRM.API.Controllers
                     PurchaseCurrency = purchaseCurrency,
                     Remark = remark,
                     Status = status,
-                    StartDate = DateTime.TryParse(startDate, out var start) ? start : null,
-                    EndDate = DateTime.TryParse(endDate, out var end) ? end : null,
+                    StartDate = PostgreSqlDateTime.ParseDateOnly(startDate),
+                    EndDate = PostgreSqlDateTime.ParseDateOnly(endDate),
                     Page = page,
                     PageSize = pageSize,
                     CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
@@ -133,8 +133,8 @@ namespace CRM.API.Controllers
                     PurchaseCurrency = purchaseCurrency,
                     Remark = remark,
                     Status = status,
-                    StartDate = DateTime.TryParse(startDate, out var start) ? start : null,
-                    EndDate = DateTime.TryParse(endDate, out var end) ? end : null,
+                    StartDate = PostgreSqlDateTime.ParseDateOnly(startDate),
+                    EndDate = PostgreSqlDateTime.ParseDateOnly(endDate),
                     CurrentUserId = InventoryExportHttp.UserId(User)
                 };
                 var (items, truncated, _) = await InventoryExportHttp.CollectForExportAsync(
@@ -789,8 +789,8 @@ namespace CRM.API.Controllers
                 PurchaseCurrency = purchaseCurrency,
                 Remark = remark,
                 Status = status,
-                StartDate = DateTime.TryParse(startDate, out var start) ? start : null,
-                EndDate = DateTime.TryParse(endDate, out var end) ? end : null,
+                StartDate = PostgreSqlDateTime.ParseDateOnly(startDate),
+                EndDate = PostgreSqlDateTime.ParseDateOnly(endDate),
                 CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
             };
             var mask511 = await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User);

@@ -1,5 +1,6 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Finance;
+using CRM.Core.Utilities;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -99,10 +100,16 @@ internal static class FinancePaymentListFilter
             q = q.Where(p => p.Status == request.Status.Value);
 
         if (request.StartDate.HasValue)
-            q = q.Where(p => p.PaymentDate != null && p.PaymentDate >= request.StartDate.Value);
+        {
+            var startUtc = PostgreSqlDateTime.ToUtc(request.StartDate.Value);
+            q = q.Where(p => p.PaymentDate != null && p.PaymentDate >= startUtc);
+        }
 
         if (request.EndDate.HasValue)
-            q = q.Where(p => p.PaymentDate != null && p.PaymentDate <= request.EndDate.Value.AddDays(1));
+        {
+            var endExclusiveUtc = PostgreSqlDateTime.ToUtc(request.EndDate.Value).AddDays(1);
+            q = q.Where(p => p.PaymentDate != null && p.PaymentDate <= endExclusiveUtc);
+        }
 
         return q;
     }
