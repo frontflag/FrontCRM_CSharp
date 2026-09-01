@@ -22,6 +22,7 @@ namespace CRM.Core.Services
         private readonly IRepository<RFQ> _rfqRepository;
         private readonly IRepository<CustomerInfo> _customerRepository;
         private readonly IRepository<VendorInfo> _vendorRepository;
+        private readonly IVendorService _vendorService;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ISerialNumberService _serialNumberService;
         private readonly IUserService _userService;
@@ -38,6 +39,7 @@ namespace CRM.Core.Services
             IRepository<RFQ> rfqRepository,
             IRepository<CustomerInfo> customerRepository,
             IRepository<VendorInfo> vendorRepository,
+            IVendorService vendorService,
             IUnitOfWork unitOfWork,
             ISerialNumberService serialNumberService,
             IUserService userService,
@@ -53,6 +55,7 @@ namespace CRM.Core.Services
             _rfqRepository = rfqRepository;
             _customerRepository = customerRepository;
             _vendorRepository = vendorRepository;
+            _vendorService = vendorService;
             _unitOfWork = unitOfWork;
             _serialNumberService = serialNumberService;
             _userService = userService;
@@ -341,6 +344,7 @@ namespace CRM.Core.Services
                     prevStatus, rfqItemIdTrim, linkedRfqItem.RfqId, quote.Id);
             }
 
+            await ApplyVendorLevelsFromQuoteItemsAsync(request.Items, actingUserId);
             await _unitOfWork.SaveChangesAsync();
             await HydrateQuoteRfqCodeAsync(new[] { quote });
             await HydrateQuoteCustomerDisplayAsync(new[] { quote });
@@ -490,6 +494,9 @@ namespace CRM.Core.Services
 
             await LogQuoteHeaderFieldChangesAsync(quote, headerBefore, actingUserId);
 
+            if (request.Items != null)
+                await ApplyVendorLevelsFromQuoteItemsAsync(request.Items, actingUserId);
+
             await _unitOfWork.SaveChangesAsync();
 
             if (deletedLines is { Count: > 0 })
@@ -506,6 +513,23 @@ namespace CRM.Core.Services
             await HydrateQuoteUserDisplayAsync(new[] { quote });
             await HydrateQuoteItemVendorLevelAsync(new[] { quote });
             return quote;
+        }
+
+        /// <summary>按明细请求回写供应商等级；同一供应商取首次出现的等级。</summary>
+        private async Task ApplyVendorLevelsFromQuoteItemsAsync(
+            IEnumerable<CreateQuoteItemRequest> items,
+            string? actingUserId)
+        {
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var item in items)
+            {
+                var vendorId = item.VendorId?.Trim();
+                if (string.IsNullOrWhiteSpace(vendorId) || !item.VendorLevel.HasValue)
+                    continue;
+                if (!seen.Add(vendorId))
+                    continue;
+                await _vendorService.ApplyLevelIfChangedAsync(vendorId, item.VendorLevel, actingUserId);
+            }
         }
 
         public async Task DeleteAsync(string id, string? actingUserId = null)

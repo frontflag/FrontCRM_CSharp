@@ -332,6 +332,26 @@ namespace CRM.Core.Services
             return entity;
         }
 
+        public async Task ApplyLevelIfChangedAsync(string vendorId, short? level, string? actingUserId)
+        {
+            if (!level.HasValue) return;
+            var id = (vendorId ?? string.Empty).Trim();
+            if (id.Length == 0) return;
+
+            var entity = (await _repository.FindAsync(e => e.Id == id)).FirstOrDefault()
+                ?? throw new ArgumentException($"供应商不存在：{id}");
+
+            var next = VendorLevelCodes.NormalizeOrDefault(level);
+            if (entity.Level == next) return;
+
+            var headerBefore = CaptureVendorHeaderSnapshot(entity);
+            entity.Level = next;
+            entity.ModifyTime = DateTime.UtcNow;
+            entity.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
+            await _repository.UpdateAsync(entity);
+            await LogVendorHeaderFieldChangesAsync(entity, headerBefore, actingUserId);
+        }
+
         /// <summary>
         /// 删除
         /// </summary>

@@ -100,6 +100,8 @@ namespace CRM.Core.Interfaces
         public string? VendorId { get; set; }
         public string? VendorName { get; set; }
         public string? VendorCode { get; set; }
+        /// <summary>供应商等级（1=S 2=A 3=B 4=C）；有值且与主数据不同时，保存报价回写 vendorinfo.Level。</summary>
+        public short? VendorLevel { get; set; }
         public string? ContactId { get; set; }
         public string? ContactName { get; set; }
 

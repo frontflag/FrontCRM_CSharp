@@ -38,6 +38,13 @@ namespace CRM.Core.Interfaces
         Task<VendorInfo> UpdateAsync(string id, UpdateVendorRequest request, string? actingUserId = null);
 
         /// <summary>
+        /// 报价保存回写等级：仅当与现档不同才更新并记供应商字段变更日志。
+        /// 不调用 SaveChanges（由报价保存同一事务提交）。不要求供应商写入权限。
+        /// level 缺省则跳过；供应商不存在则抛 ArgumentException。
+        /// </summary>
+        Task ApplyLevelIfChangedAsync(string vendorId, short? level, string? actingUserId);
+
+        /// <summary>
         /// 保存前查重：含软删与黑名单，不走采购列表数据范围；只返回命中，不拦截保存。
         /// </summary>
         Task<VendorDuplicateCheckResult> CheckDuplicatesAsync(

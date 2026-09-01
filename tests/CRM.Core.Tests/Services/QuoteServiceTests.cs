@@ -27,6 +27,7 @@ namespace CRM.Core.Tests.Services
         private readonly IUserService _userService;
         private readonly IRepository<CustomerInfo> _customerRepository;
         private readonly IRepository<VendorInfo> _vendorRepository;
+        private readonly IVendorService _vendorService;
         private readonly IQuoteListQuery _quoteListQuery;
         private readonly ILogOperationAppendService _logOperationAppend;
         private readonly QuoteService _quoteService;
@@ -53,6 +54,7 @@ namespace CRM.Core.Tests.Services
             _vendorRepository = Substitute.For<IRepository<VendorInfo>>();
             _vendorRepository.FindAsync(Arg.Any<Expression<Func<VendorInfo, bool>>>())
                 .Returns(Task.FromResult<IEnumerable<VendorInfo>>(Array.Empty<VendorInfo>()));
+            _vendorService = Substitute.For<IVendorService>();
             _serialNumberService.GenerateNextAsync(ModuleCodes.Quotation).Returns("QT2603240001");
             _quoteListQuery = Substitute.For<IQuoteListQuery>();
             _quoteListQuery.GetPagedAsync(Arg.Any<QuoteQueryRequest>(), default)
@@ -87,6 +89,7 @@ namespace CRM.Core.Tests.Services
                 _rfqRepository,
                 _customerRepository,
                 _vendorRepository,
+                _vendorService,
                 _unitOfWork,
                 _serialNumberService,
                 _userService,
@@ -368,6 +371,78 @@ namespace CRM.Core.Tests.Services
             var result = await _quoteService.CreateAsync(request, ActingUserId);
 
             Assert.Equal(salesId, result.SalesUserId);
+        }
+
+        [Fact]
+        public async Task CreateAsync_WithVendorLevel_ShouldApplyLevelBeforeSave()
+        {
+            _quoteRepository.GetAllAsync().Returns(new List<Quote>());
+            _quoteItemRepository.GetAllAsync().Returns(new List<QuoteItem>());
+            var request = BuildValidCreateRequest();
+            request.Items[0].VendorId = "V-1";
+            request.Items[0].VendorLevel = 1;
+
+            await _quoteService.CreateAsync(request, ActingUserId);
+
+            await _vendorService.Received(1).ApplyLevelIfChangedAsync("V-1", (short)1, ActingUserId);
+            await _unitOfWork.Received(1).SaveChangesAsync();
+        }
+
+        [Fact]
+        public async Task CreateAsync_WithoutVendorLevel_ShouldNotApplyLevel()
+        {
+            _quoteRepository.GetAllAsync().Returns(new List<Quote>());
+            _quoteItemRepository.GetAllAsync().Returns(new List<QuoteItem>());
+            var request = BuildValidCreateRequest();
+            request.Items[0].VendorId = "V-1";
+
+            await _quoteService.CreateAsync(request, ActingUserId);
+
+            await _vendorService.DidNotReceive().ApplyLevelIfChangedAsync(
+                Arg.Any<string>(), Arg.Any<short?>(), Arg.Any<string?>());
+        }
+
+        [Fact]
+        public async Task CreateAsync_VendorMissing_ShouldFailBeforeSave()
+        {
+            _quoteRepository.GetAllAsync().Returns(new List<Quote>());
+            _quoteItemRepository.GetAllAsync().Returns(new List<QuoteItem>());
+            _vendorService.ApplyLevelIfChangedAsync("V-missing", Arg.Any<short?>(), Arg.Any<string?>())
+                .Returns<Task>(_ => throw new ArgumentException("供应商不存在：V-missing"));
+            var request = BuildValidCreateRequest();
+            request.Items[0].VendorId = "V-missing";
+            request.Items[0].VendorLevel = 2;
+
+            await Assert.ThrowsAsync<ArgumentException>(() => _quoteService.CreateAsync(request, ActingUserId));
+            await _unitOfWork.DidNotReceive().SaveChangesAsync();
+        }
+
+        [Fact]
+        public async Task UpdateAsync_WithVendorLevel_ShouldApplyLevelBeforeSave()
+        {
+            _quoteRepository.GetByIdAsync("QT-123").Returns(new Quote
+            {
+                Id = "QT-123",
+                QuoteCode = "QT-2024-001",
+                CustomerId = "CUST-001",
+                RFQItemId = RfqItemId,
+                PurchaseUserId = "USER-002",
+                Status = (short)QuoteMainStatus.New
+            });
+            _quoteItemRepository.FindAsync(Arg.Any<Expression<Func<QuoteItem, bool>>>())
+                .Returns(Task.FromResult<IEnumerable<QuoteItem>>(Array.Empty<QuoteItem>()));
+            _quoteItemRepository.GetAllAsync().Returns(new List<QuoteItem>());
+
+            await _quoteService.UpdateAsync("QT-123", new UpdateQuoteRequest
+            {
+                Items = new List<CreateQuoteItemRequest>
+                {
+                    new() { Quantity = 1, UnitPrice = 1.5m, VendorId = "V-1", VendorLevel = 2 }
+                }
+            }, ActingUserId);
+
+            await _vendorService.Received(1).ApplyLevelIfChangedAsync("V-1", (short)2, ActingUserId);
+            await _unitOfWork.Received().SaveChangesAsync();
         }
     }
 }

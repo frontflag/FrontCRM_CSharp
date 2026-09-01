@@ -3055,6 +3055,8 @@ const zhCN = {
     back: '返回列表',
     createTitle: '新建报价',
     readOnlyHint: '只读',
+    vendorLevel: '供应商等级',
+    vendorLevelPh: '请先选择供应商',
     purchaseQuoteSection: '采购报价',
     supplierQuoteSection: '供应商报价',
     purchaseQuoteRowCount: '阶梯行数',

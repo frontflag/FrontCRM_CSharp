@@ -3083,6 +3083,8 @@ const enUS = {
     back: 'Back to list',
     createTitle: 'New quote',
     readOnlyHint: 'Read-only',
+    vendorLevel: 'Vendor level',
+    vendorLevelPh: 'Select a vendor first',
     purchaseQuoteSection: 'Purchase quote',
     supplierQuoteSection: 'Supplier quote',
     purchaseQuoteRowCount: 'Tier rows',

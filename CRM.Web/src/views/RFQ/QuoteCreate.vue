@@ -105,8 +105,8 @@
         </div>
         <div class="basic-info-section__body">
           <el-form ref="formRef" :model="formData" :rules="formRules" label-width="128px" class="upsert-form">
-        <!-- 第一行：供应商 · 联系人 · 失效日期 -->
-        <el-row :gutter="12" class="quote-triple-row">
+        <!-- 第一行：供应商 1/3 · 等级/联系人/失效日期均分 2/3 -->
+        <el-row :gutter="12" class="quote-vendor-level-row">
           <template v-if="!maskPurchaseSensitiveFields">
             <el-col :span="8">
               <el-form-item label="供应商" prop="vendorId">
@@ -131,22 +131,50 @@
                 </el-select>
               </el-form-item>
             </el-col>
-            <el-col :span="8">
-              <el-form-item label="联系人" prop="vendorContactId">
-                <el-select
-                  v-model="formData.vendorContactId"
-                  class="q-select"
-                  placeholder="请先选择供应商"
-                  style="width: 100%"
-                  filterable
-                  clearable
-                  :disabled="!formData.vendorId"
-                  :loading="contactLoading"
-                  @change="onContactChange"
-                >
-                  <el-option v-for="c in contactOptions" :key="c.value" :label="c.label" :value="c.value" />
-                </el-select>
-              </el-form-item>
+            <el-col :span="16">
+              <div class="quote-vendor-level-rest">
+                <el-form-item :label="t('quoteUpsert.vendorLevel')">
+                  <el-select
+                    v-model="formData.vendorLevel"
+                    class="q-select"
+                    :placeholder="t('quoteUpsert.vendorLevelPh')"
+                    style="width: 100%"
+                    :disabled="!formData.vendorId"
+                  >
+                    <el-option
+                      v-for="opt in vendorDict.levelSelectOptions"
+                      :key="opt.value"
+                      :label="opt.label"
+                      :value="opt.value"
+                    />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="联系人" prop="vendorContactId">
+                  <el-select
+                    v-model="formData.vendorContactId"
+                    class="q-select"
+                    placeholder="请先选择供应商"
+                    style="width: 100%"
+                    filterable
+                    clearable
+                    :disabled="!formData.vendorId"
+                    :loading="contactLoading"
+                    @change="onContactChange"
+                  >
+                    <el-option v-for="c in contactOptions" :key="c.value" :label="c.label" :value="c.value" />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="失效日期" prop="expiryDate">
+                  <el-date-picker
+                    v-model="formData.expiryDate"
+                    type="date"
+                    placeholder="请选择失效日期"
+                    value-format="YYYY-MM-DD"
+                    style="width: 100%"
+                    class="q-date"
+                  />
+                </el-form-item>
+              </div>
             </el-col>
           </template>
           <template v-else>
@@ -155,24 +183,27 @@
                 <el-input model-value="—" disabled placeholder="—" />
               </el-form-item>
             </el-col>
-            <el-col :span="8">
-              <el-form-item label="联系人">
-                <el-input model-value="—" disabled placeholder="—" />
-              </el-form-item>
+            <el-col :span="16">
+              <div class="quote-vendor-level-rest">
+                <el-form-item :label="t('quoteUpsert.vendorLevel')">
+                  <el-input model-value="—" disabled placeholder="—" />
+                </el-form-item>
+                <el-form-item label="联系人">
+                  <el-input model-value="—" disabled placeholder="—" />
+                </el-form-item>
+                <el-form-item label="失效日期" prop="expiryDate">
+                  <el-date-picker
+                    v-model="formData.expiryDate"
+                    type="date"
+                    placeholder="请选择失效日期"
+                    value-format="YYYY-MM-DD"
+                    style="width: 100%"
+                    class="q-date"
+                  />
+                </el-form-item>
+              </div>
             </el-col>
           </template>
-          <el-col :span="8">
-            <el-form-item label="失效日期" prop="expiryDate">
-              <el-date-picker
-                v-model="formData.expiryDate"
-                type="date"
-                placeholder="请选择失效日期"
-                value-format="YYYY-MM-DD"
-                style="width: 100%"
-                class="q-date"
-              />
-            </el-form-item>
-          </el-col>
         </el-row>
 
         <!-- 第二行：物料型号 · 品牌 · 品牌属地 -->
@@ -616,6 +647,8 @@ import { financeExchangeRateApi } from '@/api/financeExchangeRate'
 import { normalizeSettlementCurrencyCode, DEFAULT_SETTLEMENT_CURRENCY_CODE, DEFAULT_SETTLEMENT_CURRENCY_STRING } from '@/constants/currency'
 import { unitLocalToUsd } from '@/utils/exchangeRateToUsd'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import { useVendorDictStore } from '@/stores/vendorDict'
+import { VENDOR_LEVEL_DEFAULT } from '@/constants/vendorEnums'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import { quoteChangeLogObjectLabel } from '@/utils/businessLogLabels'
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue'
@@ -661,6 +694,7 @@ const quoteHistoryContextStore = useQuoteHistoryContextStore()
 const materialIntelLookupStore = useMaterialIntelLookupStore()
 const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
+const vendorDict = useVendorDictStore()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const { ensureLoaded: ensureMaterialPdDict, coerceProductionDateToCode: coercePd } = useMaterialProductionDateDict()
 
@@ -793,7 +827,7 @@ const pageLoading = ref(false)
 const formRef = ref()
 const rfqDetailLocked = ref(false)
 
-const vendorOptions = ref<{ value: string; label: string }[]>([])
+const vendorOptions = ref<{ value: string; label: string; level?: number }[]>([])
 const vendorSearchLoading = ref(false)
 let vendorSearchTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -836,6 +870,7 @@ const formData = ref({
 
   vendorId: '',
   vendorName: '',
+  vendorLevel: undefined as number | undefined,
   vendorContactId: '',
   contactName: '',
   priceType: '',
@@ -1174,7 +1209,13 @@ function onVendorFilterInput(query: string) {
   if (vendorSearchTimer) clearTimeout(vendorSearchTimer)
   if (!query || query.trim().length < 1) {
     if (formData.value.vendorId && formData.value.vendorName) {
-      vendorOptions.value = [{ value: formData.value.vendorId, label: formData.value.vendorName }]
+      vendorOptions.value = [
+        {
+          value: formData.value.vendorId,
+          label: formData.value.vendorName,
+          level: formData.value.vendorLevel
+        }
+      ]
     } else {
       vendorOptions.value = []
     }
@@ -1190,7 +1231,8 @@ function onVendorFilterInput(query: string) {
       })
       vendorOptions.value = (res.items || []).map((v: Vendor) => ({
         value: v.id,
-        label: v.officialName || v.nickName || v.code || '供应商'
+        label: v.officialName || v.nickName || v.code || '供应商',
+        level: typeof v.level === 'number' ? v.level : undefined
       }))
     } catch {
       vendorOptions.value = []
@@ -1200,16 +1242,36 @@ function onVendorFilterInput(query: string) {
   }, 300)
 }
 
+function normalizeQuoteVendorLevel(raw: unknown): number {
+  const n = Number(raw)
+  return Number.isFinite(n) && n >= 1 && n <= 4 ? n : VENDOR_LEVEL_DEFAULT
+}
+
+async function applyVendorLevelForVendor(vendorId: string, hint?: number) {
+  if (hint != null && hint >= 1 && hint <= 4) {
+    formData.value.vendorLevel = hint
+    return
+  }
+  try {
+    const v = await vendorApi.getVendorById(vendorId)
+    formData.value.vendorLevel = normalizeQuoteVendorLevel(v.level)
+  } catch {
+    formData.value.vendorLevel = VENDOR_LEVEL_DEFAULT
+  }
+}
+
 function onVendorChange(val: string | null | undefined) {
   formData.value.vendorContactId = ''
   formData.value.contactName = ''
   contactOptions.value = []
   if (!val) {
     formData.value.vendorName = ''
+    formData.value.vendorLevel = undefined
     return
   }
   const found = vendorOptions.value.find((x) => x.value === val)
   if (found) formData.value.vendorName = found.label
+  void applyVendorLevelForVendor(val, found?.level)
   void loadVendorContacts(val)
 }
 
@@ -1315,6 +1377,9 @@ async function applyQuoteToForm(q: Record<string, unknown>) {
   if (first) {
     formData.value.vendorId = String(first.vendorId ?? first.VendorId ?? '')
     formData.value.vendorName = String(first.vendorName ?? first.VendorName ?? '')
+    formData.value.vendorLevel = first.vendorLevel != null || first.VendorLevel != null
+      ? normalizeQuoteVendorLevel(first.vendorLevel ?? first.VendorLevel)
+      : undefined
     const savedContactId = String(first.contactId ?? first.ContactId ?? '').trim()
     const savedContactName = String(first.contactName ?? first.ContactName ?? '').trim()
     formData.value.contactName = savedContactName
@@ -1344,9 +1409,16 @@ async function applyQuoteToForm(q: Record<string, unknown>) {
 
     if (formData.value.vendorId) {
       vendorOptions.value = [
-        { value: formData.value.vendorId, label: formData.value.vendorName || formData.value.vendorId }
+        {
+          value: formData.value.vendorId,
+          label: formData.value.vendorName || formData.value.vendorId,
+          level: formData.value.vendorLevel
+        }
       ]
       await loadVendorContacts(formData.value.vendorId, savedContactId, savedContactName)
+      if (formData.value.vendorLevel == null) {
+        await applyVendorLevelForVendor(formData.value.vendorId)
+      }
     }
   } else {
     formData.value.brand = String(q.brand ?? q.Brand ?? '')
@@ -1445,6 +1517,7 @@ onMounted(async () => {
   syncMaterialIntelFromForm()
   await refreshExchangeRatesFromApi()
   await ensureMaterialPdDict()
+  await vendorDict.ensureLoaded()
   await loadPurchaseUserSelectOptions()
   if (isEditMode.value) {
     await loadQuoteForEdit()
@@ -1983,8 +2056,20 @@ async function handleMarkNoQuote() {
   }
 
   .quote-quad-row,
-  .quote-triple-row {
+  .quote-triple-row,
+  .quote-vendor-level-row {
     :deep(.el-col) {
+      min-width: 0;
+    }
+  }
+
+  .quote-vendor-level-rest {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    min-width: 0;
+    > .el-form-item {
+      flex: 1;
       min-width: 0;
     }
   }
