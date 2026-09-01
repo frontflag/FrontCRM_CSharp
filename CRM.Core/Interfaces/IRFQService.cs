@@ -14,7 +14,8 @@ namespace CRM.Core.Interfaces
         Task<PagedResult<RFQItemListItem>> GetPagedItemsAsync(RFQItemQueryRequest request);
         /// <summary>按明细 ID 获取单条需求明细（含数据权限与客户字段脱敏）。</summary>
         /// <param name="viewerUserId">当前查看者；无权限时抛 <see cref="UnauthorizedAccessException"/>。</param>
-        Task<RFQItem?> GetItemByIdAsync(string itemId, string? viewerUserId = null);
+        /// <param name="skipRfqDataScope">为 true 时不套 <c>CanAccessRFQ</c>（需求参考已删报价等只读场景）。</param>
+        Task<RFQItem?> GetItemByIdAsync(string itemId, string? viewerUserId = null, bool skipRfqDataScope = false);
         /// <param name="actingUserId">当前登录用户 ID（写入 modify_by_user_id）</param>
         Task<RFQ> UpdateAsync(string id, UpdateRFQRequest request, string? actingUserId = null);
         /// <param name="actingUserId">当前登录用户 ID（写入 log_operation 删除人）</param>
@@ -282,6 +283,11 @@ namespace CRM.Core.Interfaces
         /// 若指定且该明细落在当前筛选结果中，则将页码调整为包含该明细的页（报价桌面深链定位）。
         /// </summary>
         public string? PreferItemId { get; set; }
+
+        /// <summary>
+        /// 需求参考页：跳过销售/采购数据范围与需求保护裁行；默认列表不得置 true。
+        /// </summary>
+        public bool ForRfqItemReference { get; set; }
     }
 
     /// <summary>需求明细列表行（主表扩展字段供前端展示）</summary>

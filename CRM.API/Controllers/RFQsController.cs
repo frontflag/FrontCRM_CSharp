@@ -290,10 +290,20 @@ namespace CRM.API.Controllers
             [FromQuery] short? status = null,
             [FromQuery] string? rfqCode = null,
             [FromQuery] string? quotableByMe = null,
-            [FromQuery] string? preferItemId = null)
+            [FromQuery] string? preferItemId = null,
+            [FromQuery] string? reference = null)
         {
             try
             {
+                var forReference = ParseQueryBool(reference) == true;
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (forReference)
+                {
+                    var denied = await ForbidRfqItemReferenceIfNeededAsync(userId);
+                    if (denied != null)
+                        return denied;
+                }
+
                 var pageNorm = page is >= 1 ? page!.Value : (pageNumber < 1 ? 1 : pageNumber);
                 var request = new RFQItemQueryRequest
                 {
@@ -317,7 +327,8 @@ namespace CRM.API.Controllers
                     RfqCode = rfqCode,
                     QuotableByMeOnly = ParseQueryBool(quotableByMe) == true,
                     PreferItemId = string.IsNullOrWhiteSpace(preferItemId) ? null : preferItemId.Trim(),
-                    CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                    CurrentUserId = userId,
+                    ForRfqItemReference = forReference
                 };
                 var result = await _rfqService.GetPagedItemsAsync(request);
                 return Ok(ApiResponse<object>.Ok(new
@@ -341,15 +352,30 @@ namespace CRM.API.Controllers
         /// <summary>需求明细行上已删除的报价（谁、何时、单号）。</summary>
         [HttpGet("items/{itemId}/deleted-quotes")]
         [RequirePermission("rfq.read")]
-        public async Task<ActionResult<ApiResponse<object>>> GetDeletedQuotesForItem(string itemId)
+        public async Task<ActionResult<ApiResponse<object>>> GetDeletedQuotesForItem(
+            string itemId,
+            [FromQuery] string? reference = null)
         {
             try
             {
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                var item = await _rfqService.GetItemByIdAsync(itemId, userId);
+                var forReference = ParseQueryBool(reference) == true;
+                if (forReference)
+                {
+                    var denied = await ForbidRfqItemReferenceIfNeededAsync(userId);
+                    if (denied != null)
+                        return denied;
+                }
+
+                var item = await _rfqService.GetItemByIdAsync(itemId, userId, skipRfqDataScope: forReference);
                 if (item == null)
                     return NotFound(ApiResponse<object>.Fail("需求明细不存在", 404));
                 var rows = await _quoteService.GetDeletedQuotesByRfqItemIdsAsync(new[] { item.Id });
+                if (forReference)
+                {
+                    foreach (var row in rows)
+                        row.VendorName = null;
+                }
                 return Ok(ApiResponse<object>.Ok(rows, "获取已删报价成功"));
             }
             catch (UnauthorizedAccessException ex)
@@ -1029,6 +1055,16 @@ namespace CRM.API.Controllers
             if (s == "0") return false;
             if (string.Equals(s, "yes", StringComparison.OrdinalIgnoreCase)) return true;
             if (string.Equals(s, "no", StringComparison.OrdinalIgnoreCase)) return false;
+            return null;
+        }
+
+        private async Task<ActionResult<ApiResponse<object>>?> ForbidRfqItemReferenceIfNeededAsync(string? userId)
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+                return StatusCode(403, ApiResponse<object>.Fail("无权访问需求参考", 403));
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
+            if (!RfqItemReferenceAccessRules.CanEnterPage(summary))
+                return StatusCode(403, ApiResponse<object>.Fail("无权访问需求参考", 403));
             return null;
         }
     }

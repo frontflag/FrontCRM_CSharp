@@ -186,6 +186,7 @@ public static class TelemetryCatalog
             ["/customerlist"] = "客户列表",
             ["/customers/:id"] = "客户详情",
             ["/rfq-items"] = "需求明细列表",
+            ["/rfq-item-reference"] = "需求参考",
             ["/rfqs/:id"] = "需求详情",
         };
 

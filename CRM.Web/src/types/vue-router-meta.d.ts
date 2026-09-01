@@ -8,5 +8,7 @@ declare module 'vue-router' {
     adminOrManagerOnly?: boolean
     /** 入库/出库运维检查：系统/平台管理员，或财务部门总监 */
     inventoryOpsCheckAccess?: boolean
+    /** 需求参考：销售/采购身份（另需 rfq.read） */
+    rfqItemReferenceAccess?: boolean
   }
 }

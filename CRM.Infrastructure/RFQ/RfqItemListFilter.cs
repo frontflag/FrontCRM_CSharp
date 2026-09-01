@@ -35,10 +35,33 @@ internal static partial class RfqItemListFilter
                 SalesUser = su
             };
 
+        HashSet<string>? referenceCustomerReveal = null;
+        var referenceCustomerSelfOnly = false;
+        var referenceRestrictCustomerSearch = false;
+
         if (!string.IsNullOrWhiteSpace(request.CurrentUserId))
         {
             var summary = await rbacService.GetUserPermissionSummaryAsync(request.CurrentUserId.Trim());
-            if (!summary.IsSysAdmin && summary.SaleDataScope != 0 && summary.PurchaseDataScope != 0)
+            if (request.ForRfqItemReference)
+            {
+                if (!RfqItemReferenceAccessRules.CanEnterPage(summary))
+                    q = q.Where(_ => false);
+                else if (request.CanViewCustomerInList &&
+                         RfqItemReferenceAccessRules.NeedsSalespersonCustomerMask(summary))
+                {
+                    referenceRestrictCustomerSearch = true;
+                    if (RfqItemReferenceAccessRules.UsesOrgSubtreeCustomerReveal(summary))
+                    {
+                        referenceCustomerReveal = await dataPermission.GetAllowedUserIdsForDataScopeAsync(
+                            summary,
+                            includeChildren: true,
+                            cancellationToken);
+                    }
+                    else
+                        referenceCustomerSelfOnly = true;
+                }
+            }
+            else if (!summary.IsSysAdmin && summary.SaleDataScope != 0 && summary.PurchaseDataScope != 0)
             {
                 if (summary.SaleDataScope == 4 && summary.PurchaseDataScope == 4)
                 {
@@ -143,11 +166,18 @@ internal static partial class RfqItemListFilter
         if (!string.IsNullOrWhiteSpace(request.CustomerKeyword))
         {
             var kw = request.CustomerKeyword.Trim().ToLowerInvariant();
+            var selfId = request.CurrentUserId?.Trim();
+            var reveal = referenceCustomerReveal;
+            var selfOnly = referenceCustomerSelfOnly;
             q = q.Where(x =>
-                (x.Customer != null &&
-                 ((x.Customer.OfficialName != null && x.Customer.OfficialName.ToLower().Contains(kw)) ||
-                  (x.Customer.NickName != null && x.Customer.NickName.ToLower().Contains(kw)))) ||
-                (x.Rfq.CustomerId != null && x.Rfq.CustomerId.ToLower().Contains(kw)));
+                (!referenceRestrictCustomerSearch ||
+                 (x.Rfq.SalesUserId != null &&
+                  ((selfOnly && selfId != null && x.Rfq.SalesUserId == selfId) ||
+                   (!selfOnly && reveal != null && reveal.Contains(x.Rfq.SalesUserId))))) &&
+                ((x.Customer != null &&
+                  ((x.Customer.OfficialName != null && x.Customer.OfficialName.ToLower().Contains(kw)) ||
+                   (x.Customer.NickName != null && x.Customer.NickName.ToLower().Contains(kw)))) ||
+                 (x.Rfq.CustomerId != null && x.Rfq.CustomerId.ToLower().Contains(kw))));
         }
 
         if (!string.IsNullOrWhiteSpace(request.MaterialModel))

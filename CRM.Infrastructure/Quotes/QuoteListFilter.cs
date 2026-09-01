@@ -21,12 +21,16 @@ internal static class QuoteListFilter
         CancellationToken cancellationToken)
     {
         var q = db.Quotes.AsNoTracking().Where(x => !x.IsDeleted);
-        q = await dataPermission.ApplyQuoteListDataScopeAsync(
-            request.CurrentUserId,
-            q,
-            db.RFQs.AsNoTracking(),
-            db.RFQItems.AsNoTracking(),
-            cancellationToken);
+        var skipQuoteScope = request.ForRfqItemReference && !string.IsNullOrWhiteSpace(request.RfqItemId);
+        if (!skipQuoteScope)
+        {
+            q = await dataPermission.ApplyQuoteListDataScopeAsync(
+                request.CurrentUserId,
+                q,
+                db.RFQs.AsNoTracking(),
+                db.RFQItems.AsNoTracking(),
+                cancellationToken);
+        }
 
         if (request.Status.HasValue)
             q = q.Where(x => x.Status == request.Status.Value);

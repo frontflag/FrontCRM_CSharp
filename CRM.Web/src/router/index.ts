@@ -3,6 +3,7 @@ import type { RouteLocationNormalized } from 'vue-router'
 import { useAuthStore } from '@/stores'
 import { canAccessPurchaseOrderCreatePage } from '@/utils/purchaseOrderCreateGate'
 import { canAccessStockingPurchaseList } from '@/utils/stockingPurchaseListAccess'
+import { canAccessRfqItemReference } from '@/utils/rfqItemReferenceAccess'
 import { canAccessInventoryOpsCheck } from '@/utils/inventoryOpsCheckAccess'
 import {
   canAccessCustomsModule,
@@ -86,6 +87,12 @@ router.beforeEach((to, _from, next) => {
     to.meta.requiresAuth &&
     to.meta.stockingPurchaseListAccess === true &&
     !canAccessStockingPurchaseList(authStore.user, authStore.hasPermission('purchase-order.read'))
+  ) {
+    next('/dashboard')
+  } else if (
+    to.meta.requiresAuth &&
+    to.meta.rfqItemReferenceAccess === true &&
+    !canAccessRfqItemReference(authStore.user)
   ) {
     next('/dashboard')
   } else if (to.meta.requiresAuth && to.meta.purchaseOrderCreateAccess === true) {

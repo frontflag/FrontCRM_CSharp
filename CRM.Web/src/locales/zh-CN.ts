@@ -726,6 +726,7 @@ const zhCN = {
       rfqManagement: '需求管理',
       rfqList: '需求列表',
       rfqItems: '需求明细',
+      rfqItemReference: '需求参考',
       bomQuickQuote: 'BOM 快速报价',
       quoteManagement: '报价管理',
       quoteList: '报价列表',
@@ -3074,6 +3075,7 @@ const zhCN = {
   },
   rfqItemList: {
     title: '需求明细',
+    referenceTitle: '需求参考',
     count: '共 {count} 条',
     batchQuote: '批量报价',
     filters: {

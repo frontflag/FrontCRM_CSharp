@@ -411,6 +411,12 @@
           <template #submenu>
             <router-link to="/rfq" class="submenu-item" active-class="active" exact>{{ t('layout.menu.rfqList') }}</router-link>
             <router-link to="/rfq-items" class="submenu-item" active-class="active">{{ t('layout.menu.rfqItems') }}</router-link>
+            <router-link
+              v-if="showRfqItemReferenceMenu"
+              to="/rfq-item-reference"
+              class="submenu-item"
+              active-class="active"
+            >{{ t('layout.menu.rfqItemReference') }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
 
@@ -1757,6 +1763,7 @@ import QcSearchPanel from '@/components/Logistics/QcSearchPanel.vue'
 import { canAccessCustomsModule } from '@/utils/departmentModuleGate'
 import { canAccessInventoryOpsCheck } from '@/utils/inventoryOpsCheckAccess'
 import { canAccessStockingPurchaseList } from '@/utils/stockingPurchaseListAccess'
+import { canAccessRfqItemReference } from '@/utils/rfqItemReferenceAccess'
 import {
   collapsedSidebarMenuGroups,
   defaultSidebarMenuGroups,
@@ -2930,6 +2937,25 @@ watch(
       restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-ops' })
       return
     }
+    if (name === 'RFQItemReference') {
+      leftTabs.value = []
+      rightTabs.value = [{ id: 'r4', labelKey: 'layout.auxTabs.help' }]
+      salesOrderItemOpsStore.clear()
+      purchaseOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
+      customsDeclarationOpsStore.clear()
+      arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
+      materialIntelLookupStore.clearBound()
+      customerIntelLookupStore.clearBound()
+      vendorIntelLookupStore.clearBound()
+      customerWorkspacePanelStore.clear()
+      restoreAuxTabsForRoute(name, { right: 'r4' })
+      return
+    }
     if (name === 'RFQItemList') {
       rightTabs.value = [
         { id: 'r-material', labelKey: 'layout.auxTabs.material' },
@@ -3498,6 +3524,7 @@ const pageTitleMap: Record<string, string> = {
   '/rfqlist/recycle-bin': 'rfqRecycle.title',
   '/pn': 'layout.menu.rfqItems',
   '/rfq-items': 'layout.menu.rfqItems',
+  '/rfq-item-reference': 'layout.menu.rfqItemReference',
   '/quotes': 'layout.menu.quoteList',
   '/quotes/create': 'layout.menu.quoteManagement',
   '/purchase-orders': 'layout.menu.purchaseOrders',
@@ -3549,6 +3576,7 @@ const routeMetaTitleKeyMap: Record<string, string> = {
   '需求列表': 'layout.menu.rfqList',
   '物料列表': 'layout.menu.rfqItems',
   '需求明细': 'layout.menu.rfqItems',
+  '需求参考': 'layout.menu.rfqItemReference',
   '新建需求': 'rfqHome.create',
   'RFQ 详情': 'rfqDetail.title',
   '编辑需求': 'rfqDetail.edit',
@@ -3705,6 +3733,9 @@ const hasPermission = (code: string) => authStore.hasPermission(code)
 const canShowStockingPurchaseList = computed(() =>
   canAccessStockingPurchaseList(authStore.user, authStore.hasPermission('purchase-order.read'))
 )
+const showRfqItemReferenceMenu = computed(
+  () => hasPermission('rfq.read') && canAccessRfqItemReference(authStore.user)
+)
 const identityType = computed(() => authStore.user?.identityType ?? 0)
 const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 /** 侧栏「运维管理」整组仅系统管理员；直链/API 仍按原权限码。 */
@@ -3841,6 +3872,7 @@ watch(
       p.startsWith('/rfqlist/') ||
       p.startsWith('/rfqs/') ||
       p === '/rfq-items' ||
+      p === '/rfq-item-reference' ||
       p === '/pn'
     ) {
       openGroups.value.rfqs = true

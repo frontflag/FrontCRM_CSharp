@@ -338,9 +338,13 @@ export const rfqApi = {
     return normalizeRfqItemDeletedQuoteRows(rows)
   },
   /** 指定需求明细行上已删除的报价 */
-  async getDeletedQuotesForItem(itemId: string): Promise<RfqItemDeletedQuoteRow[]> {
+  async getDeletedQuotesForItem(
+    itemId: string,
+    opts?: { reference?: boolean }
+  ): Promise<RfqItemDeletedQuoteRow[]> {
+    const q = opts?.reference === true ? '?reference=true' : ''
     const rows = await apiClient.get<unknown>(
-      `${BASE}/items/${encodeURIComponent(itemId)}/deleted-quotes`
+      `${BASE}/items/${encodeURIComponent(itemId)}/deleted-quotes${q}`
     )
     return normalizeRfqItemDeletedQuoteRows(rows)
   },

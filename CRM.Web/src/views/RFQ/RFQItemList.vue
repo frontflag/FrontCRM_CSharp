@@ -3,20 +3,35 @@
     <div class="page-header">
       <div class="header-left">
         <div class="page-title-group">
-          <div class="page-icon">明</div>
-          <h1 class="page-title">{{ t('rfqItemList.title') }}</h1>
+          <div class="page-icon">{{ isRfqItemReference ? '参' : '明' }}</div>
+          <h1 class="page-title">{{ isRfqItemReference ? t('rfqItemList.referenceTitle') : t('rfqItemList.title') }}</h1>
         </div>
         <div class="count-badge">{{ t('rfqItemList.count', { count: totalCount }) }}</div>
       </div>
-      <button
-        v-if="canOpenQuoteDesktop"
-        type="button"
-        class="btn-quote-desktop"
-        @click="openQuoteDesktop"
+      <div
+        v-if="!isRfqItemReference && (canOpenRfqItemReference || canOpenQuoteDesktop)"
+        class="header-right"
       >
-        <span>{{ t('quoteDesktop.openFromList') }}</span>
-        <el-icon class="btn-quote-desktop__arrow"><ArrowRight /></el-icon>
-      </button>
+        <a
+          v-if="canOpenRfqItemReference"
+          class="btn-quote-desktop"
+          :href="rfqItemReferenceHref"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <span>{{ t('layout.menu.rfqItemReference') }}</span>
+          <el-icon class="btn-quote-desktop__arrow"><ArrowRight /></el-icon>
+        </a>
+        <button
+          v-if="canOpenQuoteDesktop"
+          type="button"
+          class="btn-quote-desktop"
+          @click="openQuoteDesktop"
+        >
+          <span>{{ t('quoteDesktop.openFromList') }}</span>
+          <el-icon class="btn-quote-desktop__arrow"><ArrowRight /></el-icon>
+        </button>
+      </div>
     </div>
 
     <!-- 搜索栏：与客户列表 CustomerList 同款布局与控件皮肤 -->
@@ -60,7 +75,7 @@
           />
         </div>
         <el-select
-          v-if="!presetActive && tabModeDimension !== 'itemStatus'"
+          v-if="!presetActive && (isRfqItemReference || tabModeDimension !== 'itemStatus')"
           v-model="searchForm.itemStatus"
           :placeholder="t('rfqItemList.filters.allItemStatuses')"
           clearable
@@ -140,6 +155,7 @@
         <button class="btn-primary btn-sm" type="button" @click="handleSearch">{{ t('rfqItemList.filters.query') }}</button>
         <button class="btn-ghost btn-sm" type="button" @click="handleReset">{{ t('rfqItemList.filters.reset') }}</button>
         <button
+          v-if="!isRfqItemReference"
           class="btn-ghost btn-sm btn-board-active"
           type="button"
           @click="toggleViewMode"
@@ -147,6 +163,7 @@
           {{ viewMode === 'board' ? t('rfqItemList.filters.listView') : t('rfqItemList.filters.boardView') }}
         </button>
         <el-popover
+          v-if="!isRfqItemReference"
           v-model:visible="settingsMenuOpen"
           trigger="click"
           placement="bottom-end"
@@ -238,7 +255,7 @@
       <div class="table-card-scroll rfq-items-main-table" v-loading="loading">
       <CrmDataTable
         ref="dataTableRef"
-        column-layout-key="rfq-item-list-main"
+        :column-layout-key="isRfqItemReference ? 'rfq-item-list-reference-main' : 'rfq-item-list-main'"
         :columns="rfqItemMainTableColumns"
         :show-column-settings="false"
         :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -267,6 +284,9 @@
         </template>
         <template #col-brand="{ row }">
           <CrmListCopyableTextCell :text="row.brand || ''" />
+        </template>
+        <template #col-customerName="{ row }">
+          {{ String(row.customerName ?? '').trim() || '—' }}
         </template>
         <template #col-customerPart="{ row }">
           {{ row.customerMaterialModel || row.customerMpn || '—' }}
@@ -325,16 +345,21 @@
         <template #col-actions="{ row }">
           <div v-if="opColExpanded" @click.stop @dblclick.stop>
             <div class="action-btns">
-              <button type="button" class="action-btn action-btn--primary" @click.stop="goDetail(row)">{{ t('rfqItemList.actions.detail') }}</button>
+              <button
+                v-if="!isRfqItemReference"
+                type="button"
+                class="action-btn action-btn--primary"
+                @click.stop="goDetail(row)"
+              >{{ t('rfqItemList.actions.detail') }}</button>
               <button type="button" class="action-btn" @click.stop="handleCopyRfqItemRow(row)">{{ t('rfqItemList.actions.copy') }}</button>
               <button
-                v-if="canQuoteRfqItemRow(row)"
+                v-if="!isRfqItemReference && canQuoteRfqItemRow(row)"
                 type="button"
                 class="action-btn action-btn--warning"
                 @click.stop="goQuote(row)"
               >{{ t('rfqItemList.actions.quote') }}</button>
               <button
-                v-if="canMarkNoQuoteRow(row)"
+                v-if="!isRfqItemReference && canMarkNoQuoteRow(row)"
                 type="button"
                 class="action-btn action-btn--warning"
                 @click.stop="handleMarkNoQuote(row)"
@@ -347,16 +372,16 @@
             </div>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item @click.stop="goDetail(row)">
+                <el-dropdown-item v-if="!isRfqItemReference" @click.stop="goDetail(row)">
                   <span class="op-more-item op-more-item--primary">{{ t('rfqItemList.actions.detail') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item @click.stop="handleCopyRfqItemRow(row)">
                   <span class="op-more-item">{{ t('rfqItemList.actions.copy') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item v-if="canQuoteRfqItemRow(row)" @click.stop="goQuote(row)">
+                <el-dropdown-item v-if="!isRfqItemReference && canQuoteRfqItemRow(row)" @click.stop="goQuote(row)">
                   <span class="op-more-item op-more-item--warning">{{ t('rfqItemList.actions.quote') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item v-if="canMarkNoQuoteRow(row)" @click.stop="handleMarkNoQuote(row)">
+                <el-dropdown-item v-if="!isRfqItemReference && canMarkNoQuoteRow(row)" @click.stop="handleMarkNoQuote(row)">
                   <span class="op-more-item op-more-item--warning">{{ t('rfqItemList.actions.markNoQuote') }}</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
@@ -383,7 +408,7 @@
 
           <div class="list-footer-spacer" aria-hidden="true"></div>
 
-          <div class="basket-footer-left">
+          <div v-if="!isRfqItemReference" class="basket-footer-left">
             <el-button class="basket-open-btn" link type="primary" @click="basketDrawerVisible = true">
               复选篮子<span v-if="basketCount" class="basket-count-label">（{{ basketCount }}）</span>
             </el-button>
@@ -460,7 +485,7 @@
           </div>
           <div class="dock-header-actions dock-layout-actions">
             <div
-              v-if="selectedRfqItem && (canQuoteRfqItemRow(selectedRfqItem) || canMarkNoQuoteRow(selectedRfqItem))"
+              v-if="!isRfqItemReference && selectedRfqItem && (canQuoteRfqItemRow(selectedRfqItem) || canMarkNoQuoteRow(selectedRfqItem))"
               class="dock-selected-row-actions"
             >
               <button
@@ -565,7 +590,7 @@
               ref="dockQuoteTableRef"
               embedded
               class="dock-quote-table"
-              column-layout-key="rfq-item-list-dock-quotes"
+              :column-layout-key="isRfqItemReference ? 'rfq-item-list-reference-dock-quotes' : 'rfq-item-list-dock-quotes'"
               :columns="dockQuoteTableColumns"
               :show-column-settings="false"
               :show-row-density-toggle="false"
@@ -725,7 +750,7 @@
                       {{ t('quoteList.actions.copy') }}
                     </el-button>
                     <el-button
-                      v-if="canEditDockQuoteRow(row as Record<string, unknown>)"
+                      v-if="!isRfqItemReference && canEditDockQuoteRow(row as Record<string, unknown>)"
                       class="action-btn action-btn--primary"
                       link
                       type="primary"
@@ -735,7 +760,7 @@
                       {{ t('rfqItemList.dockQuotes.edit') }}
                     </el-button>
                     <el-button
-                      v-if="canDeleteDockQuoteRow(row as Record<string, unknown>)"
+                      v-if="!isRfqItemReference && canDeleteDockQuoteRow(row as Record<string, unknown>)"
                       class="action-btn action-btn--danger"
                       link
                       type="danger"
@@ -745,6 +770,7 @@
                       {{ t('quoteList.actions.delete') }}
                     </el-button>
                     <el-button
+                      v-if="!isRfqItemReference"
                       class="action-btn action-btn--warning"
                       link
                       type="warning"
@@ -766,18 +792,18 @@
                         <span class="op-more-item">{{ t('quoteList.actions.copy') }}</span>
                       </el-dropdown-item>
                       <el-dropdown-item
-                        v-if="canEditDockQuoteRow(row as Record<string, unknown>)"
+                        v-if="!isRfqItemReference && canEditDockQuoteRow(row as Record<string, unknown>)"
                         @click.stop="goEditDockQuote(row)"
                       >
                         <span class="op-more-item op-more-item--primary">{{ t('rfqItemList.dockQuotes.edit') }}</span>
                       </el-dropdown-item>
                       <el-dropdown-item
-                        v-if="canDeleteDockQuoteRow(row as Record<string, unknown>)"
+                        v-if="!isRfqItemReference && canDeleteDockQuoteRow(row as Record<string, unknown>)"
                         @click.stop="handleDeleteDockQuote(row)"
                       >
                         <span class="op-more-item op-more-item--danger">{{ t('quoteList.actions.delete') }}</span>
                       </el-dropdown-item>
-                      <el-dropdown-item @click.stop="handleDockRowGenerateSalesOrder(row)">
+                      <el-dropdown-item v-if="!isRfqItemReference" @click.stop="handleDockRowGenerateSalesOrder(row)">
                         <span class="op-more-item op-more-item--warning">{{ t('rfqItemList.dockQuotes.genSalesOrder') }}</span>
                       </el-dropdown-item>
                     </el-dropdown-menu>
@@ -840,7 +866,7 @@
               </el-table-column>
               <el-table-column :label="t('rfqItemList.dockQuotes.deletedVendor')" min-width="120" show-overflow-tooltip>
                 <template #default="{ row }">{{
-                  maskPurchaseSensitiveFields ? '—' : row.vendorName || '—'
+                  maskVendorIdentityOnPage ? '—' : row.vendorName || '—'
                 }}</template>
               </el-table-column>
               <el-table-column :label="t('rfqItemList.dockQuotes.vendorLevel')" width="110" show-overflow-tooltip>
@@ -924,6 +950,7 @@
     </div>
 
     <el-drawer
+      v-if="!isRfqItemReference"
       v-model="basketDrawerVisible"
       title="复选篮子"
       direction="rtl"
@@ -1027,6 +1054,7 @@ import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMa
 import { productionDateDisplayLabel, useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
 import { useRfqItemListBasketStore } from '@/stores/rfqItemListBasket'
 import { canAccessQuoteDesktop, canQuoteRfqItem } from '@/utils/rfqItemQuoteAccessRules'
+import { canAccessRfqItemReference } from '@/utils/rfqItemReferenceAccess'
 import { copyQuoteSummaryToClipboard } from '@/utils/quoteSummaryCopy'
 import { quoteVendorNamesDisplay, quoteVendorLevelsDisplay, quoteVendorTradeCountsDisplay } from '@/utils/quoteVendorDisplay'
 import { copyTextToClipboard } from '@/utils/clipboard'
@@ -1090,19 +1118,32 @@ import {
 const router = useRouter()
 const route = useRoute()
 const { t, locale } = useI18n()
+const isRfqItemReference = computed(() => route.name === 'RFQItemReference')
+const isRfqItemListPage = computed(() => route.name === 'RFQItemList' || isRfqItemReference.value)
+const rfqItemListRouteName = computed(() =>
+  isRfqItemReference.value ? 'RFQItemReference' : 'RFQItemList'
+)
 
 function openQuoteDesktop() {
   router.push({ name: 'QuoteDesktop' })
 }
+const rfqItemReferenceHref = computed(() => router.resolve({ name: 'RFQItemReference' }).href)
 const authStore = useAuthStore()
 /** 无权报价账号不展示入口（与行内「报价」/后端 CanQuote 账号侧能力一致） */
 const canOpenQuoteDesktop = computed(() => canAccessQuoteDesktop(authStore.user))
+const canOpenRfqItemReference = computed(
+  () => authStore.hasPermission('rfq.read') && canAccessRfqItemReference(authStore.user)
+)
 const canEditRfq = computed(() => authStore.hasPermission('rfq.write'))
 const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const materialIntelLookupStore = useMaterialIntelLookupStore()
 const customerWorkspacePanelStore = useCustomerWorkspacePanelStore()
 customerWorkspacePanelStore.setSource('rfqItem')
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
+/** 需求参考页一律隐藏供应商名称；作业页仍走 511。 */
+const maskVendorIdentityOnPage = computed(
+  () => isRfqItemReference.value || maskPurchaseSensitiveFields.value
+)
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const vendorDict = useVendorDictStore()
 const { onOpsPanelRowClick } = useListRightOpsPanelInteraction({
@@ -1143,6 +1184,7 @@ const canViewCustomerInRfq = computed(
 const showRfqSalesUserColumn = computed(() => true)
 
 function canQuoteRfqItemRow(row: RFQItem): boolean {
+  if (isRfqItemReference.value) return false
   return canQuoteRfqItem(authStore.user, row)
 }
 
@@ -1165,6 +1207,9 @@ const { count: basketCount, items: basketItems } = storeToRefs(basketStore)
 const loading = ref(false)
 const viewMode = ref<'list' | 'board'>('list')
 useListBoardHelpOverride('pages/需求明细看板_MENU_RFQ_ITEMS_BOARD.md', viewMode)
+watch(isRfqItemReference, (on) => {
+  if (on) viewMode.value = 'list'
+}, { immediate: true })
 const tabModeDimension = ref<RfqItemTabModeDimension>(readRfqItemTabMode())
 const settingsMenuOpen = ref(false)
 const settingsSubmenuOpen = ref(false)
@@ -1181,7 +1226,7 @@ const visibleTabModeMenuOptions = computed(() =>
 )
 
 function clearPresetChip() {
-  router.replace({ name: 'RFQItemList', query: {} })
+  router.replace({ name: rfqItemListRouteName.value, query: {} })
 }
 
 function tabModeDimensionLabel(_dim: Exclude<RfqItemTabModeDimension, 'off'>) {
@@ -1209,7 +1254,7 @@ watch(settingsMenuOpen, (open) => {
 })
 
 const filterTabStripVisible = computed(
-  () => tabModeDimension.value !== 'off' && !presetActive.value
+  () => !isRfqItemReference.value && tabModeDimension.value !== 'off' && !presetActive.value
 )
 
 const filterTabStripAriaLabel = computed(() => {
@@ -1285,8 +1330,9 @@ function toggleOpCol() {
 
 /** 主表可配置列（列设置 / 顺序 / localStorage：crm-table-columns:v1:rfq-item-list-main） */
 const rfqItemMainTableColumns = computed<CrmTableColumnDef[]>(() => {
-  const cols: CrmTableColumnDef[] = [
-  {
+  const cols: CrmTableColumnDef[] = []
+  if (!isRfqItemReference.value) {
+    cols.push({
     key: 'sel',
     type: 'selection',
     width: 48,
@@ -1294,7 +1340,9 @@ const rfqItemMainTableColumns = computed<CrmTableColumnDef[]>(() => {
     pinned: 'start',
     resizable: false,
     reserveSelection: true
-  },
+    })
+  }
+  cols.push(
   {
     key: 'itemStatus',
     label: t('rfqItemList.columns.itemStatus'),
@@ -1310,8 +1358,8 @@ const rfqItemMainTableColumns = computed<CrmTableColumnDef[]>(() => {
     minWidth: 112,
     align: 'center',
     resizable: true
-  },
-  ]
+  }
+  )
   if (canViewCustomerInRfq.value) {
     cols.push({
       key: 'customerName',
@@ -1900,7 +1948,7 @@ function dockQuoteBrandDisplay(quoteRow: Record<string, unknown>): string {
 
 /** 采购报价表：供应商名称（多供应商去重后顿号拼接） */
 function dockQuoteVendorNamesDisplay(quoteRow: Record<string, unknown>): string {
-  return quoteVendorNamesDisplay(quoteRow, maskPurchaseSensitiveFields.value)
+  return quoteVendorNamesDisplay(quoteRow, maskVendorIdentityOnPage.value)
 }
 
 /** 采购报价表：供应商等级（现读 S/A/B/C，多供应商去重后顿号拼接） */
@@ -2119,14 +2167,18 @@ async function loadData() {
         : {}),
       salesUserId: filterBag.salesUserId,
       purchaserUserId: filterBag.purchaserUserId,
-      ...(filterBag.hasQuotesOnly ? { hasQuotesOnly: true } : {})
+      ...(filterBag.hasQuotesOnly ? { hasQuotesOnly: true } : {}),
+      ...(isRfqItemReference.value ? { reference: true } : {})
     })
     const rawItems = (res.items || []) as { id?: string }[]
     const idList = rawItems.map((r) => String(r.id ?? '').trim()).filter(Boolean)
     let countMap: Record<string, number> = {}
     if (idList.length) {
       try {
-        const { counts } = await quoteApi.getQuoteCountsByRfqItemIds(idList)
+        const { counts } = await quoteApi.getQuoteCountsByRfqItemIds(
+          idList,
+          isRfqItemReference.value ? { reference: true } : undefined
+        )
         countMap = counts || {}
       } catch {
         countMap = {}
@@ -2190,13 +2242,13 @@ function handleSearch() {
   })
   if (activePreset.value) {
     router.replace({
-      name: 'RFQItemList',
+      name: rfqItemListRouteName.value,
       query: buildRfqItemListRouteQuery({ preset: activePreset.value, keywords })
     })
     return
   }
   router.replace({
-    name: 'RFQItemList',
+    name: rfqItemListRouteName.value,
     query: buildRfqItemListRouteQuery({
       keywords,
       advanced: {
@@ -2213,16 +2265,17 @@ function handleSearch() {
 }
 
 function handleReset() {
-  router.replace({ name: 'RFQItemList', query: {} })
+  router.replace({ name: rfqItemListRouteName.value, query: {} })
 }
 
 watch(
   () => [route.name, route.query] as const,
   (curr, prev) => {
-    if (route.name !== 'RFQItemList') return
+    if (!isRfqItemListPage.value) return
     applyRouteQueryToFilters()
 
-    const restored = consumeRfqItemListRestoreState()
+    const restored =
+      route.name === 'RFQItemList' ? consumeRfqItemListRestoreState() : undefined
     if (restored) {
       pageInfo.page = restored.page
       pageInfo.pageSize = restored.pageSize
@@ -2230,9 +2283,10 @@ watch(
     } else {
       const queryChanged =
         prev != null &&
-        prev[0] === 'RFQItemList' &&
+        (prev[0] === 'RFQItemList' || prev[0] === 'RFQItemReference') &&
         JSON.stringify(prev[1]) !== JSON.stringify(curr[1])
-      const enteredFromOtherRoute = prev == null || prev[0] !== 'RFQItemList'
+      const enteredFromOtherRoute =
+        prev == null || (prev[0] !== 'RFQItemList' && prev[0] !== 'RFQItemReference')
       if (queryChanged || enteredFromOtherRoute) {
         pageInfo.page = 1
       }
@@ -2361,8 +2415,18 @@ async function loadQuotesForRfqItem(item: RFQItem | null) {
   quotesLoading.value = true
   try {
     const [res, deleted] = await Promise.all([
-      quoteApi.getList({ rfqItemId: item.id, page: 1, pageSize: 2000 }),
-      rfqApi.getDeletedQuotesForItem(item.id).catch(() => [] as RfqItemDeletedQuoteRow[])
+      quoteApi.getList({
+        rfqItemId: item.id,
+        page: 1,
+        pageSize: 2000,
+        ...(isRfqItemReference.value ? { reference: true } : {})
+      }),
+      rfqApi
+        .getDeletedQuotesForItem(
+          item.id,
+          isRfqItemReference.value ? { reference: true } : undefined
+        )
+        .catch(() => [] as RfqItemDeletedQuoteRow[])
     ])
     quotesForItem.value = (res.data || []) as Record<string, unknown>[]
     deletedQuotesForItem.value = deleted
@@ -2386,6 +2450,13 @@ async function refreshDockLinkAlert(row: RFQItem) {
   dockSummaryLoading.value = true
   dockLinkAlert.value = null
   try {
+    if (isRfqItemReference.value) {
+      dockLinkAlert.value = buildLinkAlertFieldsFromItem(row as unknown as Record<string, unknown>, {
+        rfqCode: row.rfqCode,
+        rfqId: row.rfqId
+      })
+      return
+    }
     const loaded = await fetchLinkedRfqItemRecord(row.rfqId || '', row.id)
     const raw = loaded?.item ?? (row as unknown as Record<string, unknown>)
     dockLinkAlert.value = buildLinkAlertFieldsFromItem(raw, {
@@ -2406,6 +2477,8 @@ function onItemRowClick(row: RFQItem) {
   void loadQuotesForRfqItem(row)
   void refreshDockLinkAlert(row)
 
+  if (isRfqItemReference.value) return
+
   const pn = resolveRfqItemMaterialPn(row)
   materialIntelLookupStore.bindPn(pn)
   if (pn && authStore.hasPermission(AI_PERMISSION_MATERIAL_INTEL_LOOKUP)) {
@@ -2416,6 +2489,7 @@ function onItemRowClick(row: RFQItem) {
 }
 
 function goDetail(row: RFQItem) {
+  if (isRfqItemReference.value) return
   if (!row.rfqId) return
   router.push({ name: 'RFQDetail', params: { id: row.rfqId } })
 }
@@ -2431,6 +2505,7 @@ function goEditRfqFromItem(row: RFQItem) {
 
 /** 双击：需求详情；按住 Ctrl 双击：编辑所属需求（与需求列表「编辑」同入口） */
 function onRfqItemRowDblClick(row: RFQItem, _column: unknown, event?: MouseEvent) {
+  if (isRfqItemReference.value) return
   onCrmDetailListRowDblClick(row, _column, event, {
     canEdit: canEditRfq.value,
     onEdit: goEditRfqFromItem,
@@ -2439,6 +2514,7 @@ function onRfqItemRowDblClick(row: RFQItem, _column: unknown, event?: MouseEvent
 }
 
 function onDockQuoteRowDblClick(row: Record<string, unknown>, _column: unknown, event?: MouseEvent) {
+  if (isRfqItemReference.value) return
   onCrmDetailListRowDblClick(row, _column, event, {
     canEdit: (r) => canEditDockQuoteRow(r),
     onEdit: goEditDockQuote,
@@ -2446,6 +2522,7 @@ function onDockQuoteRowDblClick(row: Record<string, unknown>, _column: unknown, 
 }
 
 function persistRfqItemListStateForReturn(targetItemId?: string) {
+  if (isRfqItemReference.value) return
   saveRfqItemListRestoreState({
     page: pageInfo.page,
     pageSize: pageInfo.pageSize,
@@ -2506,6 +2583,7 @@ function resolveQuoteRowId(row: Record<string, unknown>): string | undefined {
 }
 
 function goEditDockQuote(row: Record<string, unknown>) {
+  if (isRfqItemReference.value) return
   if (!canEditDockQuoteRow(row)) {
     ElMessage.warning(t('quoteList.warnings.readOnly'))
     return
@@ -2523,6 +2601,7 @@ function goEditDockQuote(row: Record<string, unknown>) {
 }
 
 async function handleDeleteDockQuote(row: Record<string, unknown>) {
+  if (isRfqItemReference.value) return
   if (!canDeleteDockQuoteRow(row)) {
     ElMessage.warning(t('quoteList.warnings.cannotDeleteWon'))
     return
@@ -2575,6 +2654,7 @@ async function handleCopyDockQuote(row: Record<string, unknown>) {
 }
 
 async function handleDockRowGenerateSalesOrder(row: Record<string, unknown>) {
+  if (isRfqItemReference.value) return
   const id = resolveQuoteRowId(row)
   if (!id) {
     ElMessage.warning('无法识别报价主键')
@@ -2610,7 +2690,7 @@ onMounted(async () => {
     purchaseUsers.value = []
   }
   rfqItemListAutoRefreshTimer = window.setInterval(() => {
-    if (route.name !== 'RFQItemList' || viewMode.value !== 'list' || loading.value) return
+    if (!isRfqItemListPage.value || viewMode.value !== 'list' || loading.value) return
     void loadData()
   }, RFQ_ITEM_LIST_AUTO_REFRESH_MS)
 })
@@ -3122,6 +3202,7 @@ html[data-theme='dark'] .rfq-filter-tabs__item:not(.is-active) {
   font-weight: 500;
   font-family: 'Noto Sans SC', sans-serif;
   line-height: 1.2;
+  text-decoration: none;
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
 

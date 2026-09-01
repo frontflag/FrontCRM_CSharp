@@ -220,6 +220,17 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '需求明细', permission: 'rfq.read' }
       },
       {
+        path: 'rfq-item-reference',
+        name: 'RFQItemReference',
+        component: () => import('@/views/RFQ/RFQItemList.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '需求参考',
+          permission: 'rfq.read',
+          rfqItemReferenceAccess: true
+        }
+      },
+      {
         path: 'rfqs/create',
         name: 'RFQCreate',
         component: () => import('@/views/RFQ/RFQCreate.vue'),

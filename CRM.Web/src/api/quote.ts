@@ -186,6 +186,7 @@ export const quoteApi = {
     endDate?: string | null
     aggregateCreateFrom?: string | null
     aggregateCreateToExclusive?: string | null
+    reference?: boolean
   }) {
     const q = new URLSearchParams()
     const page = params?.page != null && params.page >= 1 ? params.page : 1
@@ -211,6 +212,7 @@ export const quoteApi = {
       String(params.aggregateCreateToExclusive).trim() !== ''
     )
       q.set('aggregateCreateToExclusive', String(params.aggregateCreateToExclusive).trim())
+    if (params?.reference === true) q.set('reference', 'true')
 
     const qs = q.toString()
     const payload = await apiClient.get<QuotePagedListPayload>(`/api/v1/quotes${qs ? `?${qs}` : ''}`)
@@ -229,11 +231,12 @@ export const quoteApi = {
    * GET /api/v1/quotes/aggregate/quote-counts-by-rfq-item-ids?rfqItemIds=id1,id2
    * 返回 data.counts：各需求明细行关联的报价主表条数。
    */
-  async getQuoteCountsByRfqItemIds(rfqItemIds: string[]) {
+  async getQuoteCountsByRfqItemIds(rfqItemIds: string[], opts?: { reference?: boolean }) {
     const filtered = [...new Set(rfqItemIds.map((x) => String(x).trim()).filter(Boolean))]
     if (!filtered.length) return { counts: {} as Record<string, number> }
     const q = new URLSearchParams()
     q.set('rfqItemIds', filtered.slice(0, 500).join(','))
+    if (opts?.reference === true) q.set('reference', 'true')
     const payload = await apiClient.get<{ counts?: Record<string, number> }>(
       `/api/v1/quotes/aggregate/quote-counts-by-rfq-item-ids?${q.toString()}`
     )

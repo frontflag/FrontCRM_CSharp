@@ -400,6 +400,13 @@ namespace CRM.Core.Services
             row.CustomerBrand = null;
         }
 
+        /// <summary>需求参考：只抹客户身份，保留客户料号 / 客户品牌。</summary>
+        private static void MaskRfqItemListRowCustomerIdentityFields(RFQItemListItem row)
+        {
+            row.CustomerId = null;
+            row.CustomerName = null;
+        }
+
         public async Task<RFQListPagedResult> GetPagedAsync(RFQQueryRequest request)
         {
             var canViewCustomerInList = string.IsNullOrWhiteSpace(request.CurrentUserId)
@@ -472,10 +479,11 @@ namespace CRM.Core.Services
                 HasQuotesOnly = request.HasQuotesOnly,
                 Status = request.Status,
                 RfqCode = request.RfqCode,
-                QuotableByMeOnly = request.QuotableByMeOnly,
+                QuotableByMeOnly = request.ForRfqItemReference ? false : request.QuotableByMeOnly,
                 PreferItemId = request.PreferItemId,
                 CurrentUserId = request.CurrentUserId,
-                CanViewCustomerInList = canViewCustomerInList
+                CanViewCustomerInList = canViewCustomerInList,
+                ForRfqItemReference = request.ForRfqItemReference
             };
 
             var result = await _rfqItemListQuery.GetPagedAsync(itemReq, default);
@@ -485,6 +493,24 @@ namespace CRM.Core.Services
             {
                 foreach (var r in pagedItems)
                     MaskRfqItemListRowCustomerFields(r);
+            }
+            else if (request.ForRfqItemReference && !string.IsNullOrWhiteSpace(request.CurrentUserId))
+            {
+                var summary = await _rbacService.GetUserPermissionSummaryAsync(request.CurrentUserId.Trim());
+                if (RfqItemReferenceAccessRules.NeedsSalespersonCustomerMask(summary))
+                {
+                    HashSet<string>? reveal = null;
+                    if (RfqItemReferenceAccessRules.UsesOrgSubtreeCustomerReveal(summary))
+                        reveal = await _dataPermissionService.GetAllowedUserIdsForDataScopeAsync(
+                            summary,
+                            includeChildren: true,
+                            default);
+                    foreach (var r in pagedItems)
+                    {
+                        if (!RfqItemReferenceAccessRules.CanRevealCustomerOnRow(summary, r.SalesUserId, reveal))
+                            MaskRfqItemListRowCustomerIdentityFields(r);
+                    }
+                }
             }
 
             // 需求明细列表：采购方向仍展示主表业务员，便于询价协同（不对 SalesUserId/Name 做 §5.2.1 脱敏）
@@ -499,7 +525,7 @@ namespace CRM.Core.Services
         }
 
         /// <inheritdoc />
-        public async Task<RFQItem?> GetItemByIdAsync(string itemId, string? viewerUserId = null)
+        public async Task<RFQItem?> GetItemByIdAsync(string itemId, string? viewerUserId = null, bool skipRfqDataScope = false)
         {
             if (string.IsNullOrWhiteSpace(itemId)) return null;
             var id = itemId.Trim();
@@ -509,7 +535,7 @@ namespace CRM.Core.Services
             var rfq = await _rfqRepo.GetByIdAsync(item.RfqId);
             if (rfq == null) return null;
 
-            if (!string.IsNullOrWhiteSpace(viewerUserId))
+            if (!skipRfqDataScope && !string.IsNullOrWhiteSpace(viewerUserId))
             {
                 var actorId = viewerUserId.Trim();
                 if (!await _dataPermissionService.CanAccessRFQAsync(actorId, rfq))

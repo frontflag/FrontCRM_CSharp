@@ -15,7 +15,8 @@ public interface IQuoteListQuery
     Task<IReadOnlyDictionary<string, int>> GetQuoteCountsByRfqItemIdsAsync(
         IReadOnlyCollection<string> rfqItemIds,
         string? currentUserId = null,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        bool skipListDataScope = false);
 
     Task<QuoteListAnalyticsDashboardDto> GetListAnalyticsDashboardAsync(
         QuoteQueryRequest request,
@@ -88,6 +89,11 @@ public sealed class QuoteQueryRequest
 
     /// <summary>报表个人层采购员（仅 personal）。</summary>
     public string? PurchaseUserId { get; set; }
+
+    /// <summary>
+    /// 需求参考页按 <see cref="RfqItemId"/> 拉报价时跳过报价列表数据范围；默认列表不得置 true。
+    /// </summary>
+    public bool ForRfqItemReference { get; set; }
 }
 
 /// <summary>报价列表汇总（全量筛选结果，非仅当前页）。</summary>

@@ -328,6 +328,8 @@ export interface RFQItemSearchRequest {
   quotableByMe?: boolean
   /** 定位包含该明细的页（报价桌面深链） */
   preferItemId?: string
+  /** 需求参考页：全公司明细 + 只读报价（跳过作业页数据范围） */
+  reference?: boolean
 }
 
 export interface RFQItemSearchResponse {

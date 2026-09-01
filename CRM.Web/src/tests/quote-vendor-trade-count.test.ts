@@ -7,6 +7,15 @@ describe('quoteVendorTradeCountsDisplay', () => {
     expect(quoteVendorTradeCountsDisplay({})).toBe('—')
   })
 
+  it('脱敏后无供应商 ID 仍显示次数', () => {
+    expect(quoteVendorTradeCountsDisplay({ items: [{ vendorTradeCount: 3 }] })).toBe('3')
+    expect(
+      quoteVendorTradeCountsDisplay({
+        items: [{ vendorTradeCount: 3 }, { VendorTradeCount: 3 }]
+      })
+    ).toBe('3')
+  })
+
   it('有供应商无次数按 0', () => {
     expect(
       quoteVendorTradeCountsDisplay({ items: [{ vendorId: 'v1', vendorTradeCount: undefined }] })

@@ -42,6 +42,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? endDate = null,
             [FromQuery] string? aggregateCreateFrom = null,
             [FromQuery] string? aggregateCreateToExclusive = null,
+            [FromQuery] string? reference = null,
             CancellationToken cancellationToken = default)
         {
             try
@@ -52,6 +53,17 @@ namespace CRM.API.Controllers
                     aggFrom = tFrom;
                 if (TryParseAggregateInstant(aggregateCreateToExclusive, out var tToEx))
                     aggToEx = tToEx;
+
+                var forReference = ParseQueryBool(reference) == true;
+                var uid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (forReference)
+                {
+                    var denied = await ForbidRfqItemReferenceIfNeededAsync(uid);
+                    if (denied != null)
+                        return denied;
+                    if (string.IsNullOrWhiteSpace(rfqItemId))
+                        return BadRequest(new { success = false, message = "需求参考须指定需求明细", errorCode = 400 });
+                }
 
                 var request = new QuoteQueryRequest
                 {
@@ -66,14 +78,15 @@ namespace CRM.API.Controllers
                     EndDate = PostgreSqlDateTime.ParseDateOnly(endDate),
                     AggregateCreateFromUtc = aggFrom,
                     AggregateCreateToExclusiveUtc = aggToEx,
-                    CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                    CurrentUserId = uid,
+                    ForRfqItemReference = forReference
                 };
 
                 var result = await _quoteService.GetPagedAsync(request);
                 var quotes = result.Items.ToList();
-                if (await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User))
+                var maskVendor = forReference || await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User);
+                if (maskVendor)
                     PurchaseSensitiveFieldMask511.ApplyQuotesVendorIdentityOnly(quotes, true);
-                var uid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (!string.IsNullOrWhiteSpace(uid))
                 {
                     var s = await _rbacService.GetUserPermissionSummaryAsync(uid);
@@ -241,17 +254,28 @@ namespace CRM.API.Controllers
         [HttpGet("aggregate/quote-counts-by-rfq-item-ids")]
         public async Task<IActionResult> GetQuoteCountsByRfqItemIds(
             [FromQuery] string? rfqItemIds,
+            [FromQuery] string? reference = null,
             CancellationToken cancellationToken = default)
         {
             try
             {
+                var forReference = ParseQueryBool(reference) == true;
+                var uid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (forReference)
+                {
+                    var denied = await ForbidRfqItemReferenceIfNeededAsync(uid);
+                    if (denied != null)
+                        return denied;
+                }
+
                 var idList = string.IsNullOrWhiteSpace(rfqItemIds)
                     ? Array.Empty<string>()
                     : rfqItemIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
                 var map = await _quoteListQuery.GetQuoteCountsByRfqItemIdsAsync(
                     idList,
-                    User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
-                    cancellationToken);
+                    uid,
+                    cancellationToken,
+                    skipListDataScope: forReference);
                 var counts = idList
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .Take(500)
@@ -410,6 +434,29 @@ namespace CRM.API.Controllers
             {
                 return StatusCode(500, new { success = false, message = ex.Message, errorCode = 500 });
             }
+        }
+
+        private static bool? ParseQueryBool(string? raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return null;
+            var s = raw.Trim();
+            if (string.Equals(s, "true", StringComparison.OrdinalIgnoreCase)) return true;
+            if (string.Equals(s, "false", StringComparison.OrdinalIgnoreCase)) return false;
+            if (s == "1") return true;
+            if (s == "0") return false;
+            if (string.Equals(s, "yes", StringComparison.OrdinalIgnoreCase)) return true;
+            if (string.Equals(s, "no", StringComparison.OrdinalIgnoreCase)) return false;
+            return null;
+        }
+
+        private async Task<IActionResult?> ForbidRfqItemReferenceIfNeededAsync(string? userId)
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+                return StatusCode(403, new { success = false, message = "无权访问需求参考", errorCode = 403 });
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
+            if (!RfqItemReferenceAccessRules.CanEnterPage(summary))
+                return StatusCode(403, new { success = false, message = "无权访问需求参考", errorCode = 403 });
+            return null;
         }
     }
 

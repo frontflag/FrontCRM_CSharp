@@ -732,6 +732,7 @@ const enUS = {
       rfqManagement: 'RFQ',
       rfqList: 'RFQ List',
       rfqItems: 'RFQ Items',
+      rfqItemReference: 'RFQ reference',
       bomQuickQuote: 'BOM',
       quoteManagement: 'Quote',
       quoteList: 'Quote List',
@@ -3102,6 +3103,7 @@ const enUS = {
   },
   rfqItemList: {
     title: 'RFQ Item List',
+    referenceTitle: 'RFQ reference',
     count: '{count} items total',
     batchQuote: 'Batch Quote',
     filters: {

@@ -88,7 +88,8 @@ public sealed partial class QuoteListQuery : IQuoteListQuery
     public async Task<IReadOnlyDictionary<string, int>> GetQuoteCountsByRfqItemIdsAsync(
         IReadOnlyCollection<string> rfqItemIds,
         string? currentUserId = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool skipListDataScope = false)
     {
         var ids = rfqItemIds
             .Where(x => !string.IsNullOrWhiteSpace(x))
@@ -101,12 +102,15 @@ public sealed partial class QuoteListQuery : IQuoteListQuery
 
         var q = _db.Quotes.AsNoTracking()
             .Where(x => !x.IsDeleted && x.RFQItemId != null && ids.Contains(x.RFQItemId));
-        q = await _dataPermission.ApplyQuoteListDataScopeAsync(
-            currentUserId,
-            q,
-            _db.RFQs.AsNoTracking(),
-            _db.RFQItems.AsNoTracking(),
-            cancellationToken);
+        if (!skipListDataScope)
+        {
+            q = await _dataPermission.ApplyQuoteListDataScopeAsync(
+                currentUserId,
+                q,
+                _db.RFQs.AsNoTracking(),
+                _db.RFQItems.AsNoTracking(),
+                cancellationToken);
+        }
 
         var rows = await q
             .GroupBy(x => x.RFQItemId!)
