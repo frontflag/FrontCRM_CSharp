@@ -11,6 +11,7 @@ import { purchaseOrderItemListBoardDefsZh } from './fragments/purchaseOrderItemL
 import { stockOutItemListBoardDefsZh } from './fragments/stockOutItemListBoardDefs.zh-CN'
 import { stockInListBoardDefsZh } from './fragments/stockInListBoardDefs.zh-CN'
 import { financeReceiptListBoardDefsZh } from './fragments/financeReceiptListBoardDefs.zh-CN'
+import { financePaymentListBoardDefsZh } from './fragments/financePaymentListBoardDefs.zh-CN'
 import { inventoryOnHandListBoardDefsZh } from './fragments/inventoryOnHandListBoardDefs.zh-CN'
 
 const zhCN = {
@@ -9766,6 +9767,8 @@ const zhCN = {
       startDate: '付款日期起',
       endDate: '付款日期止',
       search: '查询',
+      boardView: '看板',
+      listView: '列表',
       export: '导出'
     },
     settingsMenu: {
@@ -9883,6 +9886,51 @@ const zhCN = {
       reverseVerificationSuccess: '反核销成功，付款单已回到审核通过状态',
       reverseVerificationFailed: '反核销失败',
       reverseVerificationBillMismatch: '输入单号不匹配，已取消',
+    },
+    board: {
+      datasetTag: '筛选',
+      hint: '统计当前搜索栏筛选结果全量（非当前页）。付款金额为已付货款（不含费用），按原币分开，不折算美金。',
+      refresh: '刷新',
+      loadFailed: '加载付款看板失败',
+      unsetVendor: '未关联供应商',
+      unsetPurchaseUser: '未分配采购员',
+      groupBy: {
+        day: '按天',
+        week: '按周',
+        month: '按月'
+      },
+      sections: {
+        kpi: '付款概览',
+        trendHeaders: '付款单数',
+        trendAmount: '付款金额'
+      },
+      kpi: {
+        vendors: '付款供应商数',
+        amount: '付款金额',
+        originalCaption: '原币'
+      },
+      trendUnit: {
+        headers: '单',
+        originalCaption: '单位：{currency}'
+      },
+      verification: {
+        pending: '未核销',
+        partial: '部分核销',
+        complete: '核销完成'
+      },
+      breakdown: {
+        verificationStatus: '核销状态',
+        purchaseUser: '采购员'
+      },
+      rankings: {
+        metricMode: '排行指标',
+        amount: '付款金额',
+        headerCount: '付款单数',
+        name: '名称',
+        vendorByAmount: 'Top10 供应商',
+        purchaseUserByAmount: 'Top10 采购员'
+      },
+      defs: financePaymentListBoardDefsZh
     }
   },
   financePaymentDetail: {

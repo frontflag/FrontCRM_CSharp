@@ -1,7 +1,9 @@
 using CRM.API.Authorization;
+using CRM.API.Models.DTOs;
 using CRM.API.Utilities;
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Analytics;
 using CRM.Core.Models.Finance;
 using CRM.Core.Services;
 using CRM.Core.Utilities;
@@ -17,6 +19,7 @@ namespace CRM.API.Controllers
     public class FinancePaymentsController : ControllerBase
     {
         private readonly IFinancePaymentService _service;
+        private readonly IFinancePaymentListAnalyticsQuery _listAnalytics;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IRbacService _rbacService;
         private readonly IApprovalPartyIntelWarmupService _approvalPartyIntelWarmup;
@@ -25,6 +28,7 @@ namespace CRM.API.Controllers
 
         public FinancePaymentsController(
             IFinancePaymentService service,
+            IFinancePaymentListAnalyticsQuery listAnalytics,
             IDataPermissionService dataPermissionService,
             IRbacService rbacService,
             IApprovalPartyIntelWarmupService approvalPartyIntelWarmup,
@@ -32,6 +36,7 @@ namespace CRM.API.Controllers
             ILogger<FinancePaymentsController> logger)
         {
             _service = service;
+            _listAnalytics = listAnalytics;
             _dataPermissionService = dataPermissionService;
             _rbacService = rbacService;
             _approvalPartyIntelWarmup = approvalPartyIntelWarmup;
@@ -179,6 +184,115 @@ namespace CRM.API.Controllers
                 _logger.LogError(ex, "导出付款记录失败");
                 return StatusCode(500, new { success = false, message = $"导出付款记录失败: {ex.Message}" });
             }
+        }
+
+        [HttpGet("analytics/dashboard")]
+        [RequireAnyPermission("finance-payment.read", "purchase-order.read")]
+        public async Task<IActionResult> GetListAnalyticsDashboard(
+            [FromQuery] string? keyword,
+            [FromQuery] string? financePaymentCode,
+            [FromQuery] string? freightForwarderOrderNo,
+            [FromQuery] string? bankSlipNo,
+            [FromQuery] short? paymentMode,
+            [FromQuery] string? vendorName,
+            [FromQuery] string? purchaseOrderCode,
+            [FromQuery] string? purchaseUserName,
+            [FromQuery] short? purchaseCurrency,
+            [FromQuery] string? remark,
+            [FromQuery] short? status,
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, maskAmounts) = await BuildListAnalyticsQueryAsync(
+                keyword, financePaymentCode, freightForwarderOrderNo, bankSlipNo, paymentMode, vendorName,
+                purchaseOrderCode, purchaseUserName, purchaseCurrency, remark, status, startDate, endDate,
+                cancellationToken);
+            var data = await _listAnalytics.GetDashboardAsync(request, maskAmounts, cancellationToken);
+            return Ok(ApiResponse<FinancePaymentListAnalyticsDashboardDto>.Ok(data));
+        }
+
+        [HttpGet("analytics/trends")]
+        [RequireAnyPermission("finance-payment.read", "purchase-order.read")]
+        public async Task<IActionResult> GetListAnalyticsTrends(
+            [FromQuery] string? keyword,
+            [FromQuery] string? financePaymentCode,
+            [FromQuery] string? freightForwarderOrderNo,
+            [FromQuery] string? bankSlipNo,
+            [FromQuery] short? paymentMode,
+            [FromQuery] string? vendorName,
+            [FromQuery] string? purchaseOrderCode,
+            [FromQuery] string? purchaseUserName,
+            [FromQuery] short? purchaseCurrency,
+            [FromQuery] string? remark,
+            [FromQuery] short? status,
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            [FromQuery] string? groupBy,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, maskAmounts) = await BuildListAnalyticsQueryAsync(
+                keyword, financePaymentCode, freightForwarderOrderNo, bankSlipNo, paymentMode, vendorName,
+                purchaseOrderCode, purchaseUserName, purchaseCurrency, remark, status, startDate, endDate,
+                cancellationToken);
+            var data = await _listAnalytics.GetTrendsAsync(
+                request,
+                string.IsNullOrWhiteSpace(groupBy) ? "month" : groupBy.Trim(),
+                maskAmounts,
+                cancellationToken);
+            return Ok(ApiResponse<IReadOnlyList<FinancePaymentListAnalyticsTrendPointDto>>.Ok(data));
+        }
+
+        [HttpGet("analytics/breakdowns")]
+        [RequireAnyPermission("finance-payment.read", "purchase-order.read")]
+        public async Task<IActionResult> GetListAnalyticsBreakdowns(
+            [FromQuery] string? keyword,
+            [FromQuery] string? financePaymentCode,
+            [FromQuery] string? freightForwarderOrderNo,
+            [FromQuery] string? bankSlipNo,
+            [FromQuery] short? paymentMode,
+            [FromQuery] string? vendorName,
+            [FromQuery] string? purchaseOrderCode,
+            [FromQuery] string? purchaseUserName,
+            [FromQuery] short? purchaseCurrency,
+            [FromQuery] string? remark,
+            [FromQuery] short? status,
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, maskAmounts) = await BuildListAnalyticsQueryAsync(
+                keyword, financePaymentCode, freightForwarderOrderNo, bankSlipNo, paymentMode, vendorName,
+                purchaseOrderCode, purchaseUserName, purchaseCurrency, remark, status, startDate, endDate,
+                cancellationToken);
+            var data = await _listAnalytics.GetBreakdownsAsync(request, maskAmounts, cancellationToken);
+            return Ok(ApiResponse<IReadOnlyList<FinancePaymentListAnalyticsBreakdownGroupDto>>.Ok(data));
+        }
+
+        [HttpGet("analytics/rankings")]
+        [RequireAnyPermission("finance-payment.read", "purchase-order.read")]
+        public async Task<IActionResult> GetListAnalyticsRankings(
+            [FromQuery] string? keyword,
+            [FromQuery] string? financePaymentCode,
+            [FromQuery] string? freightForwarderOrderNo,
+            [FromQuery] string? bankSlipNo,
+            [FromQuery] short? paymentMode,
+            [FromQuery] string? vendorName,
+            [FromQuery] string? purchaseOrderCode,
+            [FromQuery] string? purchaseUserName,
+            [FromQuery] short? purchaseCurrency,
+            [FromQuery] string? remark,
+            [FromQuery] short? status,
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            CancellationToken cancellationToken = default)
+        {
+            var (request, maskAmounts) = await BuildListAnalyticsQueryAsync(
+                keyword, financePaymentCode, freightForwarderOrderNo, bankSlipNo, paymentMode, vendorName,
+                purchaseOrderCode, purchaseUserName, purchaseCurrency, remark, status, startDate, endDate,
+                cancellationToken);
+            var data = await _listAnalytics.GetRankingsAsync(request, maskAmounts, cancellationToken);
+            return Ok(ApiResponse<FinancePaymentListAnalyticsRankingsDto>.Ok(data));
         }
 
         /// <summary>获取单个付款单</summary>
@@ -643,6 +757,44 @@ namespace CRM.API.Controllers
                 _logger.LogError(ex, "核销付款明细失败");
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
+        }
+
+        private async Task<(FinancePaymentQueryRequest Request, bool MaskAmounts)> BuildListAnalyticsQueryAsync(
+            string? keyword,
+            string? financePaymentCode,
+            string? freightForwarderOrderNo,
+            string? bankSlipNo,
+            short? paymentMode,
+            string? vendorName,
+            string? purchaseOrderCode,
+            string? purchaseUserName,
+            short? purchaseCurrency,
+            string? remark,
+            short? status,
+            string? startDate,
+            string? endDate,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var request = new FinancePaymentQueryRequest
+            {
+                Keyword = keyword,
+                FinancePaymentCode = financePaymentCode,
+                FreightForwarderOrderNo = freightForwarderOrderNo,
+                BankSlipNo = bankSlipNo,
+                PaymentMode = paymentMode,
+                VendorName = vendorName,
+                PurchaseOrderCode = purchaseOrderCode,
+                PurchaseUserName = purchaseUserName,
+                PurchaseCurrency = purchaseCurrency,
+                Remark = remark,
+                Status = status,
+                StartDate = DateTime.TryParse(startDate, out var start) ? start : null,
+                EndDate = DateTime.TryParse(endDate, out var end) ? end : null,
+                CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            };
+            var mask511 = await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User);
+            return (request, mask511);
         }
 
         private async Task<IActionResult?> RejectIfFinanceDataReadOnlyAsync(bool allowPurchaseOrderWriteBypass = false)

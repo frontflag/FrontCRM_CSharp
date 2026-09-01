@@ -81,6 +81,7 @@ namespace CRM.Infrastructure.Extensions
             services.AddScoped<IInventoryMaterialOverviewStockPageQuery, InventoryMaterialOverviewStockPageQuery>();
             services.AddScoped<IInventoryCountPlanListQuery, InventoryCountPlanListQuery>();
             services.AddScoped<IFinancePaymentListQuery, FinancePaymentListQuery>();
+            services.AddScoped<IFinancePaymentListAnalyticsQuery, FinancePaymentListAnalyticsQuery>();
             services.AddScoped<IFinancePurchaseInvoiceListQuery, FinancePurchaseInvoiceListQuery>();
             services.AddScoped<IFinanceReceiptListQuery, FinanceReceiptListQuery>();
             services.AddScoped<IFinanceReceiptListAnalyticsQuery, FinanceReceiptListAnalyticsQuery>();

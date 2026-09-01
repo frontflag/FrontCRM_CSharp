@@ -11,6 +11,7 @@ import { purchaseOrderItemListBoardDefsEn } from './fragments/purchaseOrderItemL
 import { stockOutItemListBoardDefsEn } from './fragments/stockOutItemListBoardDefs.en-US'
 import { stockInListBoardDefsEn } from './fragments/stockInListBoardDefs.en-US'
 import { financeReceiptListBoardDefsEn } from './fragments/financeReceiptListBoardDefs.en-US'
+import { financePaymentListBoardDefsEn } from './fragments/financePaymentListBoardDefs.en-US'
 import { inventoryOnHandListBoardDefsEn } from './fragments/inventoryOnHandListBoardDefs.en-US'
 
 const enUS = {
@@ -9792,6 +9793,8 @@ const enUS = {
       startDate: 'Payment date from',
       endDate: 'Payment date to',
       search: 'Search',
+      boardView: 'Board',
+      listView: 'List',
       export: 'Export'
     },
     settingsMenu: {
@@ -9909,6 +9912,51 @@ const enUS = {
       reverseVerificationSuccess: 'Reverse verification succeeded; payment is back to approved',
       reverseVerificationFailed: 'Reverse verification failed',
       reverseVerificationBillMismatch: 'Payment number mismatch; cancelled',
+    },
+    board: {
+      datasetTag: 'Filters',
+      hint: 'Full current search result (not this page). Payment amount is paid goods excluding fees, split by original currency, not converted to USD.',
+      refresh: 'Refresh',
+      loadFailed: 'Failed to load the payment board',
+      unsetVendor: 'Unlinked vendor',
+      unsetPurchaseUser: 'Unassigned buyer',
+      groupBy: {
+        day: 'Day',
+        week: 'Week',
+        month: 'Month'
+      },
+      sections: {
+        kpi: 'Payment overview',
+        trendHeaders: 'Payments',
+        trendAmount: 'Payment amount'
+      },
+      kpi: {
+        vendors: 'Payment vendors',
+        amount: 'Payment amount',
+        originalCaption: 'Original'
+      },
+      trendUnit: {
+        headers: 'docs',
+        originalCaption: 'Unit: {currency}'
+      },
+      verification: {
+        pending: 'Pending',
+        partial: 'Partial',
+        complete: 'Complete'
+      },
+      breakdown: {
+        verificationStatus: 'Write-off status',
+        purchaseUser: 'Buyer'
+      },
+      rankings: {
+        metricMode: 'Ranking metric',
+        amount: 'Payment amount',
+        headerCount: 'Payments',
+        name: 'Name',
+        vendorByAmount: 'Top 10 vendors',
+        purchaseUserByAmount: 'Top 10 buyers'
+      },
+      defs: financePaymentListBoardDefsEn
     }
   },
   financePaymentDetail: {

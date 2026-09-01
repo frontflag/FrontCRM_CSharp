@@ -1,8 +1,15 @@
 <template>
   <div class="finance-page">
-    <h1 class="finance-list-page-title">{{ t('financePaymentList.pageTitle') }}</h1>
-    <!-- 统计卡片（置顶） -->
-    <div class="stat-cards">
+    <div class="fp-list-page-header">
+      <h1 class="finance-list-page-title">{{ t('financePaymentList.pageTitle') }}</h1>
+      <div class="fp-list-page-header__actions">
+        <button type="button" class="btn-export" :disabled="exporting" @click="() => void handleExport()">
+          {{ t('financePaymentList.filters.export') }}
+        </button>
+      </div>
+    </div>
+    <!-- 统计卡片（置顶；看板态隐藏） -->
+    <div v-show="viewMode === 'list'" class="stat-cards">
       <div class="stat-card">
         <div class="stat-label">{{ t('financePaymentList.stats.monthTotal') }}</div>
         <div class="stat-value">¥ {{ formatAmount(stats.monthTotal) }}</div>
@@ -138,6 +145,16 @@
         <el-button type="primary" @click="loadData">
           <el-icon><Search /></el-icon> {{ t('financePaymentList.filters.search') }}
         </el-button>
+        <el-button
+          class="btn-ghost btn-sm btn-board-active"
+          @click="toggleViewMode"
+        >
+          {{
+            viewMode === 'board'
+              ? t('financePaymentList.filters.listView')
+              : t('financePaymentList.filters.boardView')
+          }}
+        </el-button>
         <el-popover
           v-model:visible="settingsMenuOpen"
           trigger="click"
@@ -189,11 +206,6 @@
           </div>
         </el-popover>
       </div>
-      <div class="search-right">
-        <button type="button" class="btn-export" :disabled="exporting" @click="() => void handleExport()">
-          {{ t('financePaymentList.filters.export') }}
-        </button>
-      </div>
     </div>
 
     <div class="fp-main-panel" :class="{ 'fp-main-panel--with-filter-tabs': filterTabStripVisible }">
@@ -217,8 +229,11 @@
       </button>
     </div>
 
+    <FinancePaymentListBoard v-if="viewMode === 'board'" :filters="boardFilters" />
+
     <!-- 数据表格 -->
     <CrmDataTable
+      v-show="viewMode === 'list'"
       ref="dataTableRef"
       column-layout-key="finance-payment-list-main-v5"
       :columns="paymentTableColumns"
@@ -429,7 +444,7 @@
         </div>
       </template>
     </CrmDataTable>
-    <div class="pagination-wrap">
+    <div v-show="viewMode === 'list'" class="pagination-wrap">
       <div class="list-footer-left">
         <el-tooltip :content="t('financePaymentList.columnSettings')" placement="top" :hide-after="0">
           <el-button class="list-settings-btn" link type="primary" :aria-label="t('financePaymentList.columnSettings')" @click="dataTableRef?.openColumnSettings?.()">
@@ -501,6 +516,9 @@ import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useAuthStore } from '@/stores/auth'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useFinanceWriteGate, usePurchaseOrderWriteGate } from '@/composables/useDepartmentDataReadOnly'
+import { useListBoardHelpOverride } from '@/composables/useHelpDocOverride'
+import FinancePaymentListBoard from '@/views/Finance/FinancePaymentListBoard.vue'
+import type { FinancePaymentListAnalyticsQuery } from '@/api/financePaymentAnalytics'
 import FinancePaymentRequestEditDialog from '@/components/Finance/FinancePaymentRequestEditDialog.vue'
 import FinancePaymentPayDialog from '@/components/Finance/FinancePaymentPayDialog.vue'
 import VendorExtendColumnHeader from '@/components/list/VendorExtendColumnHeader.vue'
@@ -819,9 +837,30 @@ const paymentTableColumns = computed<CrmTableColumnDef[]>(() => {
 
 // 统计
 const stats = reactive({ monthTotal: 0, pendingCount: 0, paidCount: 0, draftCount: 0 })
+const viewMode = ref<'list' | 'board'>('list')
+useListBoardHelpOverride('pages/付款记录看板_MENU_FINANCE_PAYMENT_BOARD.md', viewMode)
 
-const loadData = async () => {
-  loading.value = true
+function textFilter(v?: string | null): string | undefined {
+  const s = v?.trim()
+  return s ? s : undefined
+}
+
+const boardFilters = computed<FinancePaymentListAnalyticsQuery>(() => ({
+  financePaymentCode: textFilter(query.financePaymentCode),
+  purchaseOrderCode: textFilter(query.purchaseOrderCode),
+  purchaseUserName: textFilter(query.purchaseUserName),
+  purchaseCurrency: query.purchaseCurrency,
+  freightForwarderOrderNo: textFilter(query.freightForwarderOrderNo),
+  bankSlipNo: textFilter(query.bankSlipNo),
+  paymentMode: query.paymentMode,
+  vendorName: textFilter(query.vendorName),
+  remark: textFilter(query.remark),
+  status: query.status,
+  startDate: query.startDate,
+  endDate: query.endDate
+}))
+
+function syncDateRangeToQuery() {
   if (dateRange.value) {
     query.startDate = dateRange.value[0]
     query.endDate = dateRange.value[1]
@@ -829,6 +868,18 @@ const loadData = async () => {
     query.startDate = undefined
     query.endDate = undefined
   }
+}
+
+function toggleViewMode() {
+  syncDateRangeToQuery()
+  viewMode.value = viewMode.value === 'list' ? 'board' : 'list'
+  if (viewMode.value === 'list') void loadData()
+}
+
+const loadData = async () => {
+  syncDateRangeToQuery()
+  if (viewMode.value === 'board') return
+  loading.value = true
   try {
     const res = await financePaymentApi.getList(query)
     tableData.value = res.items || []
@@ -1051,6 +1102,19 @@ onMounted(loadData)
 @use '@/assets/styles/variables' as vars;
 @import './finance-common.scss';
 
+.fp-list-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.fp-list-page-header__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .pagination-wrap {
   display: flex;
   align-items: flex-start;
@@ -1114,6 +1178,17 @@ onMounted(loadData)
 
 .search-input--remark {
   width: 140px;
+}
+
+.btn-board-active {
+  border-color: #13c2c2;
+  color: #13c2c2;
+}
+
+.btn-board-active:hover {
+  border-color: #36cfc9;
+  color: #36cfc9;
+  background: rgba(19, 194, 194, 0.08);
 }
 
 .filter-select--mode {
