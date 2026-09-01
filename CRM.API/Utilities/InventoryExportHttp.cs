@@ -348,17 +348,20 @@ public static class InventoryExportHttp
         var items = new List<T>();
         var page = 1;
         var total = 0;
+        var size = pageSize < 1 ? 2000 : pageSize;
         while (items.Count < maxRows)
         {
-            var take = Math.Min(pageSize, maxRows - items.Count);
-            var pageResult = await fetchPage(page, take, cancellationToken);
+            var pageResult = await fetchPage(page, size, cancellationToken);
             total = pageResult.TotalCount;
             var pageItems = pageResult.Items?.ToList() ?? new List<T>();
             if (pageItems.Count == 0) break;
             items.AddRange(pageItems);
-            if (pageItems.Count < take) break;
+            if (total > 0 && items.Count >= total) break;
             page++;
         }
+
+        if (items.Count > maxRows)
+            items.RemoveRange(maxRows, items.Count - maxRows);
 
         return (items, total > items.Count, total);
     }
