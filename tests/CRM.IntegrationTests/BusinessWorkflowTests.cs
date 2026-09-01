@@ -152,6 +152,7 @@ namespace CRM.IntegrationTests
                 quoteCustomerRepo,
                 quoteVendorRepo,
                 Substitute.For<CRM.Core.Interfaces.IVendorService>(),
+                Substitute.For<CRM.Core.Interfaces.IVendorTradeCountQuery>(),
                 _unitOfWork,
                 _serialNumberService,
                 _userService,

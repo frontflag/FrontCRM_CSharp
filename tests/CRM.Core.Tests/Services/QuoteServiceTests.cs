@@ -28,6 +28,7 @@ namespace CRM.Core.Tests.Services
         private readonly IRepository<CustomerInfo> _customerRepository;
         private readonly IRepository<VendorInfo> _vendorRepository;
         private readonly IVendorService _vendorService;
+        private readonly IVendorTradeCountQuery _vendorTradeCountQuery;
         private readonly IQuoteListQuery _quoteListQuery;
         private readonly ILogOperationAppendService _logOperationAppend;
         private readonly QuoteService _quoteService;
@@ -55,6 +56,18 @@ namespace CRM.Core.Tests.Services
             _vendorRepository.FindAsync(Arg.Any<Expression<Func<VendorInfo, bool>>>())
                 .Returns(Task.FromResult<IEnumerable<VendorInfo>>(Array.Empty<VendorInfo>()));
             _vendorService = Substitute.For<IVendorService>();
+            _vendorTradeCountQuery = Substitute.For<IVendorTradeCountQuery>();
+            _vendorTradeCountQuery.GetTradeCountsAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+                .Returns(call =>
+                {
+                    var ids = call.ArgAt<IReadOnlyCollection<string>>(0) ?? Array.Empty<string>();
+                    IReadOnlyDictionary<string, int> map = ids
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                        .Select(x => x.Trim())
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToDictionary(x => x, _ => 0, StringComparer.OrdinalIgnoreCase);
+                    return Task.FromResult(map);
+                });
             _serialNumberService.GenerateNextAsync(ModuleCodes.Quotation).Returns("QT2603240001");
             _quoteListQuery = Substitute.For<IQuoteListQuery>();
             _quoteListQuery.GetPagedAsync(Arg.Any<QuoteQueryRequest>(), default)
@@ -90,6 +103,7 @@ namespace CRM.Core.Tests.Services
                 _customerRepository,
                 _vendorRepository,
                 _vendorService,
+                _vendorTradeCountQuery,
                 _unitOfWork,
                 _serialNumberService,
                 _userService,
@@ -356,6 +370,35 @@ namespace CRM.Core.Tests.Services
 
             var line = Assert.Single(Assert.Single(page.Items).Items);
             Assert.Equal((short)1, line.VendorLevel);
+        }
+
+        [Fact]
+        public async Task GetPagedAsync_ShouldHydrateVendorTradeCount()
+        {
+            var quote = new Quote { Id = "QT-1", QuoteCode = "QT1" };
+            _quoteListQuery.GetPagedAsync(Arg.Any<QuoteQueryRequest>(), default)
+                .Returns(new PagedResult<Quote>
+                {
+                    Items = new[] { quote },
+                    TotalCount = 1,
+                    PageIndex = 1,
+                    PageSize = 20
+                });
+            _quoteItemRepository.FindAsync(Arg.Any<Expression<Func<QuoteItem, bool>>>())
+                .Returns(Task.FromResult<IEnumerable<QuoteItem>>(new[]
+                {
+                    new QuoteItem { Id = "QI-1", QuoteId = "QT-1", VendorId = "V-1", VendorName = "Digikey" }
+                }));
+            _vendorTradeCountQuery.GetTradeCountsAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+                .Returns(Task.FromResult((IReadOnlyDictionary<string, int>)new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["V-1"] = 3
+                }));
+
+            var page = await _quoteService.GetPagedAsync(new QuoteQueryRequest { Page = 1, PageSize = 20 });
+
+            var line = Assert.Single(Assert.Single(page.Items).Items);
+            Assert.Equal(3, line.VendorTradeCount);
         }
 
         [Fact]

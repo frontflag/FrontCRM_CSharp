@@ -308,6 +308,10 @@ namespace CRM.Core.Models.Vendor
         [NotMapped]
         public string? PurchaseUserName { get; set; }
 
+        /// <summary>交易次数（有效付款单下 distinct 采购明细；详情现读，非表字段）</summary>
+        [NotMapped]
+        public int TradeCount { get; set; }
+
         // 导航属性
         public virtual ICollection<VendorContactInfo> Contacts { get; set; } = new List<VendorContactInfo>();
         public virtual ICollection<VendorAddress> Addresses { get; set; } = new List<VendorAddress>();

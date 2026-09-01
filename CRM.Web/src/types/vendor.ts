@@ -31,6 +31,8 @@ export interface Vendor {
   industry?: string
   /** 等级（VendorLevelCode 1=S 2=A 3=B 4=C） */
   level?: number
+  /** 交易次数（有效付款单下 distinct 采购明细，详情现读） */
+  tradeCount?: number
   /** 身份（VendorIdentityCode，存于 vendorinfo.Credit） */
   credit?: number
   officeAddress?: string

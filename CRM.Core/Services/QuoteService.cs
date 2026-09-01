@@ -23,6 +23,7 @@ namespace CRM.Core.Services
         private readonly IRepository<CustomerInfo> _customerRepository;
         private readonly IRepository<VendorInfo> _vendorRepository;
         private readonly IVendorService _vendorService;
+        private readonly IVendorTradeCountQuery _vendorTradeCountQuery;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ISerialNumberService _serialNumberService;
         private readonly IUserService _userService;
@@ -40,6 +41,7 @@ namespace CRM.Core.Services
             IRepository<CustomerInfo> customerRepository,
             IRepository<VendorInfo> vendorRepository,
             IVendorService vendorService,
+            IVendorTradeCountQuery vendorTradeCountQuery,
             IUnitOfWork unitOfWork,
             ISerialNumberService serialNumberService,
             IUserService userService,
@@ -56,6 +58,7 @@ namespace CRM.Core.Services
             _customerRepository = customerRepository;
             _vendorRepository = vendorRepository;
             _vendorService = vendorService;
+            _vendorTradeCountQuery = vendorTradeCountQuery;
             _unitOfWork = unitOfWork;
             _serialNumberService = serialNumberService;
             _userService = userService;
@@ -351,6 +354,7 @@ namespace CRM.Core.Services
             await HydrateQuoteUserDisplayAsync(new[] { quote });
             quote.Items = createdItems;
             await HydrateQuoteItemVendorLevelAsync(new[] { quote });
+            await HydrateQuoteItemVendorTradeCountAsync(new[] { quote });
             return quote;
         }
 
@@ -369,6 +373,7 @@ namespace CRM.Core.Services
             await HydrateQuoteCustomerDisplayAsync(new[] { quote });
             await HydrateQuoteUserDisplayAsync(new[] { quote });
             await HydrateQuoteItemVendorLevelAsync(new[] { quote });
+            await HydrateQuoteItemVendorTradeCountAsync(new[] { quote });
             return quote;
         }
 
@@ -415,6 +420,7 @@ namespace CRM.Core.Services
             await HydrateQuoteCustomerDisplayAsync(quotes);
             await HydrateQuoteUserDisplayAsync(quotes);
             await HydrateQuoteItemVendorLevelAsync(quotes);
+            await HydrateQuoteItemVendorTradeCountAsync(quotes);
         }
 
         /// <summary>为报价明细现读供应商等级（vendorinfo.Level）。</summary>
@@ -442,6 +448,31 @@ namespace CRM.Core.Services
                 if (string.IsNullOrWhiteSpace(it.VendorId)) continue;
                 if (levelById.TryGetValue(it.VendorId.Trim(), out var level))
                     it.VendorLevel = level;
+            }
+        }
+
+        /// <summary>为报价明细现读供应商交易次数（有效付款单 × distinct 采购明细）。</summary>
+        private async Task HydrateQuoteItemVendorTradeCountAsync(IReadOnlyCollection<Quote> quotes)
+        {
+            var items = quotes
+                .Where(q => q.Items != null)
+                .SelectMany(q => q.Items)
+                .ToList();
+            if (items.Count == 0) return;
+
+            var ids = items
+                .Select(i => i.VendorId)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Select(id => id!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (ids.Count == 0) return;
+
+            var counts = await _vendorTradeCountQuery.GetTradeCountsAsync(ids);
+            foreach (var it in items)
+            {
+                if (string.IsNullOrWhiteSpace(it.VendorId)) continue;
+                it.VendorTradeCount = counts.TryGetValue(it.VendorId.Trim(), out var n) ? n : 0;
             }
         }
 
@@ -512,6 +543,7 @@ namespace CRM.Core.Services
             await HydrateQuoteCustomerDisplayAsync(new[] { quote });
             await HydrateQuoteUserDisplayAsync(new[] { quote });
             await HydrateQuoteItemVendorLevelAsync(new[] { quote });
+            await HydrateQuoteItemVendorTradeCountAsync(new[] { quote });
             return quote;
         }
 

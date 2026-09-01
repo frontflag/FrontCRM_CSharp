@@ -60,6 +60,7 @@ namespace CRM.Infrastructure.Extensions
             services.AddScoped<IQuoteListQuery, QuoteListQuery>();
             services.AddScoped<ICustomerListQuery, CustomerListQuery>();
             services.AddScoped<IVendorListQuery, VendorListQuery>();
+            services.AddScoped<IVendorTradeCountQuery, VendorTradeCountQuery>();
             services.AddScoped<IPurchaseRequisitionListQuery, PurchaseRequisitionListQuery>();
             services.AddScoped<IStockInBatchListQuery, global::CRM.Infrastructure.StockInBatches.StockInBatchListQuery>();
             services.AddScoped<IBatchReconciliationListQuery, global::CRM.Infrastructure.BatchReconciliation.BatchReconciliationListQuery>();

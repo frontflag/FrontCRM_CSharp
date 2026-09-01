@@ -136,6 +136,10 @@ namespace CRM.Core.Models.Quote
         [NotMapped]
         public short? VendorLevel { get; set; }
 
+        /// <summary>展示用：供应商交易次数（有效付款单下 distinct 采购明细；按付款单 VendorId 现读，非表字段）</summary>
+        [NotMapped]
+        public int? VendorTradeCount { get; set; }
+
         /// <summary>供应商代码（如 VH0LUA）</summary>
         [StringLength(50)]
         [Column("vendor_code")]

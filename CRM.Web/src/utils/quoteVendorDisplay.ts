@@ -31,3 +31,20 @@ export function quoteVendorLevelsDisplay(
   }
   return set.size > 0 ? [...set].join('、') : '—'
 }
+
+/** 供应商交易次数：按供应商去重后顿号拼接；无供应商为 —。采购脱敏仍显示数字。 */
+export function quoteVendorTradeCountsDisplay(quoteRow: Record<string, unknown>): string {
+  const seen = new Set<string>()
+  const parts: string[] = []
+  for (const o of quoteLineItemsRaw(quoteRow)) {
+    const id = String(o.vendorId ?? o.VendorId ?? '').trim()
+    if (!id) continue
+    const key = id.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    const raw = o.vendorTradeCount ?? o.VendorTradeCount
+    const n = raw == null || raw === '' ? 0 : Number(raw)
+    parts.push(Number.isFinite(n) && n >= 0 ? String(Math.trunc(n)) : '0')
+  }
+  return parts.length > 0 ? parts.join('、') : '—'
+}

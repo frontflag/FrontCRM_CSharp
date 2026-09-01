@@ -146,6 +146,7 @@
                 <span>{{ t('pendingApprovals.purchaseOrder.vendor') }}</span>{{ auditPurchaseOrderVendorNameLabel }}
               </div>
               <div class="extra-line"><span>{{ t('pendingApprovals.vendor.identity') }}</span>{{ maskPurchaseSensitiveFields ? '—' : auditVendorIdentityLabel }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.vendor.tradeCount') }}</span>{{ auditVendorTradeCountLabel }}</div>
               <div class="extra-line"><span>{{ t('pendingApprovals.vendor.paymentMethod') }}</span>{{ maskPurchaseSensitiveFields ? '—' : auditVendorPaymentMethodLabel }}</div>
               <div class="extra-line">
                 <span>{{ t('pendingApprovals.vendor.paymentTermType') }}</span>
@@ -623,6 +624,14 @@ const auditVendorIdentityLabel = computed(() => {
   const credit = d.credit ?? d.Credit
   const label = vendorDict.identityLabel(credit == null ? 0 : Number(credit))
   return !label || label === '--' ? '—' : label
+})
+
+const auditVendorTradeCountLabel = computed(() => {
+  const d = auditVendorSource.value
+  if (!d) return '0'
+  const raw = d.tradeCount ?? d.TradeCount
+  const n = Number(raw)
+  return Number.isFinite(n) && n >= 0 ? String(Math.trunc(n)) : '0'
 })
 
 const auditVendorPaymentMethodLabel = computed(() => {

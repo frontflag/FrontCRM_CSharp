@@ -620,6 +620,9 @@
               <template #col-vendorLevel="{ row }">
                 {{ dockQuoteVendorLevelsDisplay(row as Record<string, unknown>) }}
               </template>
+              <template #col-vendorTradeCount="{ row }">
+                {{ dockQuoteVendorTradeCountsDisplay(row as Record<string, unknown>) }}
+              </template>
               <template #col-quoteQty="{ row }">
                 <div class="dock-quote-tiers">
                   <template v-if="dockQuoteLineItems(row as Record<string, unknown>).length">
@@ -1025,7 +1028,7 @@ import { productionDateDisplayLabel, useMaterialProductionDateDict } from '@/com
 import { useRfqItemListBasketStore } from '@/stores/rfqItemListBasket'
 import { canAccessQuoteDesktop, canQuoteRfqItem } from '@/utils/rfqItemQuoteAccessRules'
 import { copyQuoteSummaryToClipboard } from '@/utils/quoteSummaryCopy'
-import { quoteVendorNamesDisplay, quoteVendorLevelsDisplay } from '@/utils/quoteVendorDisplay'
+import { quoteVendorNamesDisplay, quoteVendorLevelsDisplay, quoteVendorTradeCountsDisplay } from '@/utils/quoteVendorDisplay'
 import { copyTextToClipboard } from '@/utils/clipboard'
 import { useVendorDictStore } from '@/stores/vendorDict'
 import {
@@ -1513,6 +1516,15 @@ const dockQuoteTableColumns = computed((): CrmTableColumnDef[] => {
       resizable: true
     },
     {
+      key: 'vendorTradeCount',
+      label: t('rfqItemList.dockQuotes.vendorTradeCount'),
+      width: 100,
+      minWidth: 88,
+      align: 'right' as const,
+      showOverflowTooltip: true,
+      resizable: true
+    },
+    {
       key: 'quoteQty',
       label: t('rfqItemList.dockQuotes.quoteQty'),
       width: 100,
@@ -1894,6 +1906,11 @@ function dockQuoteVendorNamesDisplay(quoteRow: Record<string, unknown>): string 
 /** 采购报价表：供应商等级（现读 S/A/B/C，多供应商去重后顿号拼接） */
 function dockQuoteVendorLevelsDisplay(quoteRow: Record<string, unknown>): string {
   return quoteVendorLevelsDisplay(quoteRow, (level) => vendorDict.levelLabel(level))
+}
+
+/** 采购报价表：供应商交易次数（全公司现读，多供应商去重后顿号拼接） */
+function dockQuoteVendorTradeCountsDisplay(quoteRow: Record<string, unknown>): string {
+  return quoteVendorTradeCountsDisplay(quoteRow)
 }
 
 /** 报价单行：与后端 quoteitem / 前端阶梯行一致 */

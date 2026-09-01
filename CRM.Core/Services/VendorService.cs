@@ -23,6 +23,7 @@ namespace CRM.Core.Services
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IUserService _userService;
         private readonly IVendorListQuery _vendorListQuery;
+        private readonly IVendorTradeCountQuery _tradeCountQuery;
         private readonly ILogOperationAppendService _logOperationAppend;
 
         public VendorService(
@@ -37,6 +38,7 @@ namespace CRM.Core.Services
             IDataPermissionService dataPermissionService,
             IUserService userService,
             IVendorListQuery vendorListQuery,
+            IVendorTradeCountQuery tradeCountQuery,
             ILogOperationAppendService logOperationAppend)
         {
             _repository = repository;
@@ -50,6 +52,7 @@ namespace CRM.Core.Services
             _dataPermissionService = dataPermissionService;
             _userService = userService;
             _vendorListQuery = vendorListQuery;
+            _tradeCountQuery = tradeCountQuery;
             _logOperationAppend = logOperationAppend;
         }
 
@@ -215,6 +218,7 @@ namespace CRM.Core.Services
             await EnrichVendorBankPaymentBankNamesAsync(banks);
             vendor.BankAccounts = banks;
             await TryFillPurchaseUserDisplayNameAsync(vendor);
+            await HydrateTradeCountAsync(vendor);
             return vendor;
         }
 
@@ -226,6 +230,12 @@ namespace CRM.Core.Services
             if (u == null) return;
             entity.PurchaseUserName = EntityLookupService.FormatUserLoginName(u)
                 ?? EntityLookupService.FormatUserDisplayName(u);
+        }
+
+        private async Task HydrateTradeCountAsync(VendorInfo entity)
+        {
+            var counts = await _tradeCountQuery.GetTradeCountsAsync(new[] { entity.Id });
+            entity.TradeCount = counts.TryGetValue(entity.Id, out var n) ? n : 0;
         }
 
         /// <summary>
