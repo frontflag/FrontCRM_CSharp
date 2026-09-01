@@ -47,3 +47,22 @@ export function appBrandTitle(fallback: string): string {
   const v = import.meta.env.VITE_APP_BRAND_TITLE?.trim()
   return v || fallback
 }
+
+/**
+ * 顶栏可见标题：semicore 字标已含品牌名，去掉重复前缀（如 Semicore）。
+ * 浏览器标签、设置页仍用完整 `appBrandTitle`。idesemi / ecoinf 不裁。
+ */
+export function appBrandHeaderTitle(fullTitle: string, tenantId = LOGIN_TENANT_ID): string {
+  const title = fullTitle.trim()
+  if (tenantId !== 'semicore' || !title) return title
+  const stripped = title.replace(/^Semicore\s+/i, '').trim()
+  return stripped || title
+}
+
+/**
+ * semicore 顶栏/登录页用公司信息横版字标（保横纵比，不裁成 36×36）。
+ * idesemi / ecoinf 仍用原小标布局。
+ */
+export function usesCompanyProfileWordmarkLogo(tenantId = LOGIN_TENANT_ID): boolean {
+  return tenantId === 'semicore'
+}

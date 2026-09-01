@@ -12,7 +12,9 @@
         </div>
         <div class="slogan-inner">
           <header class="slogan-brand">
-            <div class="slogan-brand-mark">
+            <div
+              :class="['slogan-brand-mark', { 'slogan-brand-mark--wordmark': usesWordmarkLogo }]"
+            >
               <img
                 class="slogan-brand-img"
                 :src="loginBrandLogoSrc"
@@ -180,11 +182,18 @@ import { useAuthStore } from '@/stores'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { getWechatQrCode, checkWechatLoginStatus } from '@/api/wechatAuth'
 import { COMPANY_LOGIN_LOGO_URL } from '@/api/companyProfile'
-import { LOGIN_TENANT_ID, loginPageLayout, loginTenantText, loginThemeCssHref } from '@/config/loginTenant'
+import {
+  LOGIN_TENANT_ID,
+  loginPageLayout,
+  loginTenantText,
+  loginThemeCssHref,
+  usesCompanyProfileWordmarkLogo
+} from '@/config/loginTenant'
 import fallbackLoginLogoUrl from '@/assets/brand/semicore-login-logo.png'
 import LoginViewEcoinf from '@/views/Auth/LoginViewEcoinf.vue'
 
 const loginTenantId = LOGIN_TENANT_ID
+const usesWordmarkLogo = usesCompanyProfileWordmarkLogo(loginTenantId)
 const loginLayoutMode = loginPageLayout()
 let loginThemeLinkEl: HTMLLinkElement | null = null
 
@@ -517,6 +526,19 @@ const handleLogin = async () => {
   width: auto;
   max-width: min(220px, 72vw);
   object-fit: contain;
+  object-position: left center;
+}
+
+.login-view--semicore .slogan-brand-mark--wordmark {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.login-view--semicore .slogan-brand-mark--wordmark .slogan-brand-img {
+  height: clamp(40px, 6.5vh, 72px);
+  max-width: min(420px, 85vw);
 }
 
 .slogan-headline {

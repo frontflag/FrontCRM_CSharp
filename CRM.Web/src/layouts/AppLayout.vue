@@ -11,19 +11,23 @@
       </p>
       <div class="global-top-inner">
         <router-link to="/dashboard" class="global-logo" @click="closeDropdown">
-          <span class="global-logo-mark">
+          <span
+            :class="['global-logo-mark', { 'global-logo-mark--wordmark': headerLogoIsWordmark }]"
+          >
             <img
               class="global-logo-img"
               :src="headerBrandLogoSrc"
               :alt="brandFullText"
-              width="36"
-              height="36"
+              :width="headerLogoIsWordmark ? undefined : 36"
+              :height="headerLogoIsWordmark ? undefined : 36"
               decoding="async"
               @error="onHeaderBrandLogoError"
             />
           </span>
           <span class="global-logo-stack global-logo-stack--brand">
-            <span class="global-logo-title">{{ brandFullText }}</span>
+            <span
+              :class="['global-logo-title', { 'global-logo-title--regular': headerLogoIsWordmark }]"
+            >{{ brandHeaderText }}</span>
           </span>
         </router-link>
         <div class="global-top-right">
@@ -1841,7 +1845,7 @@ import { Sunny, Moon, ChatDotRound } from '@element-plus/icons-vue'
 import { useUiTheme } from '@/composables/useUiTheme'
 import { setAppLocale, type AppLocale } from '@/plugins/i18n'
 import { COMPANY_LOGIN_LOGO_URL } from '@/api/companyProfile'
-import { appBrandTitle } from '@/config/loginTenant'
+import { appBrandHeaderTitle, appBrandTitle, usesCompanyProfileWordmarkLogo } from '@/config/loginTenant'
 import fallbackHeaderLogoUrl from '@/assets/brand/semicore-login-logo.png'
 
 const route = useRoute()
@@ -1921,11 +1925,13 @@ const canSalesOrderItemOpsPurchase = computed(
     authStore.hasPermission('sales-order.read')
 )
 const brandFullText = computed(() => appBrandTitle(t('layout.brandFull')))
+const brandHeaderText = computed(() => appBrandHeaderTitle(brandFullText.value))
 const currentLocale = ref<AppLocale>(locale.value as AppLocale)
 const externalHelpUrl = computed(() => getExternalHelpUrl(route.name as string | undefined, undefined, currentLocale.value))
 
 /** 顶栏图标：与登录页同源（公司信息 Logo），接口/文件缺失时回退内置图 */
 const headerLogoUseFallback = ref(false)
+const headerLogoIsWordmark = usesCompanyProfileWordmarkLogo()
 const headerBrandLogoSrc = computed(() =>
   headerLogoUseFallback.value ? fallbackHeaderLogoUrl : COMPANY_LOGIN_LOGO_URL
 )
@@ -4361,6 +4367,21 @@ onBeforeUnmount(() => {
   }
 }
 
+.global-logo-mark--wordmark {
+  width: auto;
+  height: 24px;
+  max-width: 220px;
+  border-radius: 0;
+  overflow: visible;
+  .global-logo-img {
+    width: auto;
+    height: 100%;
+    max-width: 220px;
+    object-fit: contain;
+    object-position: left center;
+  }
+}
+
 .global-logo-stack {
   display: flex;
   flex-direction: column;
@@ -4387,6 +4408,10 @@ onBeforeUnmount(() => {
 .global-logo-stack--brand .global-logo-title {
   font-size: 0.95rem;
   letter-spacing: 0.02em;
+}
+
+.global-logo-title--regular {
+  font-weight: 400;
 }
 
 .global-logo-sub {
