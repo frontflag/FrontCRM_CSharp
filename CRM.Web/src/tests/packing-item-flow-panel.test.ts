@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildPackingItemFlowStations } from '@/utils/packingItemFlowPanel'
+import { buildPackingItemFlowStations, formatFlowCardDate } from '@/utils/packingItemFlowPanel'
 
 const t = (key: string) => key
 
@@ -157,5 +157,13 @@ describe('buildPackingItemFlowStations stock-out type', () => {
     const notify = stations.find((s) => s.key === 'stockOutNotify')?.cards[0]
     expect(notify?.stockOutType).toBe(10)
     expect(notify?.customsDeclarationId).toBeNull()
+  })
+})
+
+describe('formatFlowCardDate', () => {
+  it('renders YY-MM-DD without time', () => {
+    expect(formatFlowCardDate('2026-08-01T00:00:00Z')).toBe('26-08-01')
+    expect(formatFlowCardDate(null)).toBe('—')
+    expect(formatFlowCardDate('')).toBe('—')
   })
 })

@@ -326,6 +326,30 @@ const enUS = {
         nextLineFees: 'Next: open declaration detail fees panel, complete missing fields, and recalculate.',
         nextGeneric: 'Next: complete the items above, then click Create customs arrival notices.'
       },
+      flowPanel: {
+        pickRow: 'With the Flow tab open, click a row to see this declaration’s upstream and downstream chain',
+        loadFailed: 'Failed to load declaration flow',
+        fields: {
+          salesOutQty: 'Sales stock-out qty',
+          customsOutQty: 'Customs stock-out qty',
+          customsInQty: 'Customs stock-in qty',
+          arrivalQty: 'Arrival qty',
+          qcQty: 'QC qty',
+          stockInType: 'Stock-in type'
+        }
+      },
+      flowStations: {
+        sellOrderItem: 'Sales order line',
+        salesStockOutNotify: 'Sales stock-out notice',
+        pendlist: 'Pending customs',
+        customsStockOutNotify: 'Customs stock-out notice',
+        packing: 'Customs packing',
+        declaration: 'Declaration',
+        stockOut: 'Customs stock-out',
+        arrival: 'Customs arrival notice',
+        qc: 'Customs QC',
+        stockIn: 'Customs stock-in'
+      },
       basicInfo: 'Basic information',
       sectionItems: 'Declaration lines',
       sectionBusinessRecords: 'Business records',
@@ -5542,6 +5566,9 @@ const enUS = {
       currency: 'Currency',
       qty: 'Quantity',
       stockTitle: 'Stocking inventory',
+      refresh: 'Refresh',
+      refreshStockingSuccess: 'Stocking available qty updated to {qty}',
+      refreshStockingFailed: 'Failed to refresh stocking available qty',
       stockDomestic: 'Mainland warehouse',
       stockOverseas: 'Overseas warehouse',
       stockTotal: 'Total stock',
@@ -7097,6 +7124,7 @@ const enUS = {
       stockInDateTo: 'To',
       stockInDateSep: 'to',
       warehouse: 'Warehouse',
+      stockTypePlaceholder: 'Stock type',
       stockInTypePlaceholder: 'Stock-in type',
       purchasePn: 'Material model',
       purchaseBrand: 'Brand',

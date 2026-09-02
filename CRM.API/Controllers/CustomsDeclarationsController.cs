@@ -18,6 +18,7 @@ public class CustomsDeclarationsController : ControllerBase
 {
     private readonly ICustomsDeclarationService _service;
     private readonly ICustomsV2FlowService _customsV2FlowService;
+    private readonly ICustomsDeclarationFlowService _flowService;
     private readonly ICustomsDeclarationBusinessRecordsQuery _businessRecordsQuery;
     private readonly IRbacService _rbacService;
     private readonly IDataPermissionService _dataPermissionService;
@@ -27,6 +28,7 @@ public class CustomsDeclarationsController : ControllerBase
     public CustomsDeclarationsController(
         ICustomsDeclarationService service,
         ICustomsV2FlowService customsV2FlowService,
+        ICustomsDeclarationFlowService flowService,
         ICustomsDeclarationBusinessRecordsQuery businessRecordsQuery,
         IRbacService rbacService,
         IDataPermissionService dataPermissionService,
@@ -35,6 +37,7 @@ public class CustomsDeclarationsController : ControllerBase
     {
         _service = service;
         _customsV2FlowService = customsV2FlowService;
+        _flowService = flowService;
         _businessRecordsQuery = businessRecordsQuery;
         _rbacService = rbacService;
         _dataPermissionService = dataPermissionService;
@@ -378,6 +381,38 @@ public class CustomsDeclarationsController : ControllerBase
         }
 
         return Ok(ApiResponse<CustomsDeclarationDetailViewDto>.Ok(dto, "OK"));
+    }
+
+    [HttpGet("{id}/flow-aggregates")]
+    public async Task<ActionResult<ApiResponse<CustomsDeclarationFlowAggregatesDto>>> GetFlowAggregates(
+        string id,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (!await CustomsModuleAccessHttp.CanAccessAsync(_rbacService, User))
+                return StatusCode(403, ApiResponse<CustomsDeclarationFlowAggregatesDto>.Fail("当前账号无权访问报关模块", 403));
+
+            var data = await _flowService.GetFlowAggregatesAsync(id, cancellationToken);
+            var mask511 = await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User);
+            var mask521 = await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User);
+            PurchaseSensitiveFieldMask511.ApplyCustomsDeclarationFlowAggregates(data, mask511);
+            SaleSensitiveFieldMask521.ApplyCustomsDeclarationFlowAggregates(data, mask521);
+            return Ok(ApiResponse<CustomsDeclarationFlowAggregatesDto>.Ok(data, "OK"));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse<CustomsDeclarationFlowAggregatesDto>.Fail(ex.Message, 400));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(ApiResponse<CustomsDeclarationFlowAggregatesDto>.Fail(ex.Message, 404));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "获取报关单流程聚合失败 DeclarationId={Id}", id);
+            return StatusCode(500, ApiResponse<CustomsDeclarationFlowAggregatesDto>.Fail(ex.Message, 500));
+        }
     }
 
     [HttpGet("{id}/business-records")]

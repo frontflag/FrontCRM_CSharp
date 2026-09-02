@@ -179,6 +179,13 @@ public static class PurchaseSensitiveFieldMask511
         }
     }
 
+    public static void ApplyCustomsDeclarationFlowAggregates(CustomsDeclarationFlowAggregatesDto? dto, bool mask)
+    {
+        if (!mask || dto == null) return;
+        foreach (var x in dto.Arrivals)
+            x.UnitPrice = null;
+    }
+
     public static void ApplyStockOutItemFlowAggregates(StockOutItemFlowAggregatesDto? dto, bool mask)
     {
         if (!mask || dto == null) return;

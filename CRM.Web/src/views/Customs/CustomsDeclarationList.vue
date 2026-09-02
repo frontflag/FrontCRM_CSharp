@@ -349,6 +349,7 @@ import {
 } from '@/api/customs'
 import { useAuthStore } from '@/stores/auth'
 import { useCustomsDeclarationOpsPanelStore } from '@/stores/customsDeclarationOpsPanel'
+import { useCustomsDeclarationFlowPanelStore } from '@/stores/customsDeclarationFlowPanel'
 import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
 import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
@@ -360,6 +361,7 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const customsDeclarationOpsStore = useCustomsDeclarationOpsPanelStore()
+const customsDeclarationFlowStore = useCustomsDeclarationFlowPanelStore()
 const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 const canForceDelete = computed(() => authStore.canForceDelete())
@@ -625,18 +627,36 @@ async function load() {
     loading.value = false
   }
   resetListRightPanelOnReload(customsDeclarationOpsStore)
+  resetListRightPanelOnReload(customsDeclarationFlowStore)
+}
+
+function bindBoth(row: Record<string, unknown>) {
+  customsDeclarationOpsStore.setRowOnly(row)
+  customsDeclarationFlowStore.setRowOnly(row)
+}
+
+async function loadActiveRightTab() {
+  const tab = workspaceLayout?.rightActiveTabId.value
+  if (tab === 'r-flow') {
+    await customsDeclarationFlowStore.loadSelected(t('customsPages.declarations.flowPanel.loadFailed'))
+    return
+  }
+  await customsDeclarationOpsStore.loadDetail(t('customsPages.declarations.opsPanel.loadFailed'))
 }
 
 const { onOpsPanelRowClick } = useListRightOpsPanelInteraction({
   workspaceLayout,
   isActiveRoute: () => route.name === 'CustomsDeclarationList',
-  hasSelectedRow: () => !!customsDeclarationOpsStore.row,
-  setRowOnly: (row) => customsDeclarationOpsStore.setRowOnly(row),
-  selectRow: (row) =>
-    customsDeclarationOpsStore.selectRow(row, t('customsPages.declarations.opsPanel.loadFailed')),
+  hasSelectedRow: () => !!customsDeclarationOpsStore.row || !!customsDeclarationFlowStore.row,
+  setRowOnly: (row) => bindBoth(row),
+  selectRow: async (row) => {
+    bindBoth(row)
+    await loadActiveRightTab()
+  },
   loadSelected: () => {
-    void customsDeclarationOpsStore.loadDetail(t('customsPages.declarations.opsPanel.loadFailed'))
-  }
+    void loadActiveRightTab()
+  },
+  dataTabIds: ['r-ops', 'r-flow']
 })
 
 async function onRowClick(row: CustomsDeclarationListItemDto) {
@@ -774,6 +794,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   customsDeclarationOpsStore.unregisterHandlers()
   customsDeclarationOpsStore.clear()
+  customsDeclarationFlowStore.clear()
 })
 </script>
 

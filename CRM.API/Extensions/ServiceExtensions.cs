@@ -82,6 +82,7 @@ namespace CRM.API.Extensions
             services.AddScoped<ICustomsDeclarationService, CustomsDeclarationService>();
             services.AddScoped<ICustomsPendlistService, CustomsPendlistService>();
             services.AddScoped<ICustomsPendlistFlowService, CustomsPendlistFlowService>();
+            services.AddScoped<ICustomsDeclarationFlowService, CustomsDeclarationFlowService>();
             services.AddScoped<IStockItemFlowService, StockItemFlowService>();
             services.AddScoped<IStockOutNotifyFlowService, StockOutNotifyFlowService>();
             services.AddScoped<IStockOutItemFlowService, StockOutItemFlowService>();

@@ -9,6 +9,7 @@ import {
 } from '@/utils/moneyFormat'
 import {
   formatFlowCardDate,
+  resolveFlowPartyId,
   type FlowCard,
   type FlowStation,
   type FlowStationKey,
@@ -178,6 +179,7 @@ export function buildPackingItemFlowStations(
   const packingItemId = String(row?.packingItemId ?? '').trim()
   const notifyId = String(row?.stockOutNotifyId ?? '').trim()
   const sellItemId = String(row?.sellOrderItemId ?? row?.id ?? '').trim()
+  const lineCustomerId = resolveFlowPartyId(mask, row?.customerId)
 
   // 1. 销售订单明细
   {
@@ -197,6 +199,7 @@ export function buildPackingItemFlowStations(
         isFinal: isSalesOrderFinal(status),
         createdAt: (row.orderCreateTime ?? row.createTime ?? null) as string | null,
         showCustomer: true,
+        customerId: lineCustomerId,
         customerName: mask ? '—' : (row.customerName as string | null),
         customerCode: mask ? '—' : (row.customerCode as string | null),
         personRoleKey: 'salesOrderItemList.flowPanel.role.salesUser',
@@ -237,6 +240,7 @@ export function buildPackingItemFlowStations(
             isFinal: isStockOutNotifyFinal(x.status),
             createdAt: x.createTime ?? x.requestDate,
             showCustomer: true,
+            customerId: lineCustomerId,
             customerName: mask ? '—' : x.customerName,
             customerCode: mask ? '—' : null,
             personRoleKey: 'salesOrderItemList.flowPanel.role.requester',
@@ -258,6 +262,7 @@ export function buildPackingItemFlowStations(
             isFinal: isStockOutNotifyFinal(x.status),
             createdAt: x.createTime ?? x.requestDate,
             showCustomer: true,
+            customerId: lineCustomerId,
             customerName: mask ? '—' : x.customerName,
             customerCode: mask ? '—' : null,
             personRoleKey: 'salesOrderItemList.flowPanel.role.requester',
@@ -287,6 +292,7 @@ export function buildPackingItemFlowStations(
             isFinal: isPackingFinal(x.status),
             createdAt: x.createTime,
             showCustomer: true,
+            customerId: lineCustomerId,
             customerName: mask ? '—' : x.customerName,
             customerCode: mask ? '—' : null,
             personRoleKey: 'salesOrderItemList.flowPanel.role.creator',
@@ -309,6 +315,7 @@ export function buildPackingItemFlowStations(
                 isFinal: isPackingFinal(row?.packingStatus),
                 createdAt: (row?.createTime ?? null) as string | null,
                 showCustomer: true,
+                customerId: lineCustomerId,
                 customerName: mask ? '—' : (row?.customerName as string | null),
                 customerCode: mask ? '—' : null,
                 personRoleKey: 'salesOrderItemList.flowPanel.role.creator',
@@ -378,6 +385,7 @@ export function buildPackingItemFlowStations(
         isFinal: isStockOutFinal(x.status),
         createdAt: x.createTime,
         showCustomer: true,
+        customerId: lineCustomerId,
         customerName: mask ? '—' : x.customerName,
         customerCode: mask ? '—' : x.customerCode,
         personRoleKey: 'salesOrderItemList.flowPanel.role.creator',

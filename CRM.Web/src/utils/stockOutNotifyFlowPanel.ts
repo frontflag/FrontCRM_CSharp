@@ -5,8 +5,8 @@ import { STOCK_OUT_REQUEST_STATUS } from '@/constants/stockOutRequestStatus'
 import { resolveStockInTypeLabelKey } from '@/constants/stockInType'
 import { resolveStockOutTypeLabelKey } from '@/constants/stockOutType'
 import { translateSalesOrderStatus } from '@/constants/salesOrderStatus'
-import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import { formatUnitPriceWithCurrencyCodeSuffix } from '@/utils/moneyFormat'
+import { formatFlowCardDate, resolveFlowPartyId } from '@/utils/sellOrderItemFlowPanel'
 import type { FlowStationStatus, StockItemFlowCard } from '@/utils/stockItemFlowPanel'
 
 export type StockOutNotifyFlowStationKey =
@@ -166,6 +166,8 @@ function mapStockItemCard(
     mask511: boolean
     mask521: boolean
     outbound?: StockItemFlowDoc | null
+    vendorId?: string | null
+    customerId?: string | null
   }
 ): StockItemFlowCard {
   const F = 'inventoryStockItemList.flowPanel'
@@ -188,8 +190,10 @@ function mapStockItemCard(
     createdAt: src.bizDate ?? src.createTime,
     createdAtLabelKey: `${F}.fields.stockInDate`,
     showVendor: true,
+    vendorId: options.vendorId ?? null,
     vendorName: maskDash(options.mask511, src.vendorName),
     showCustomer: hasSalesLink,
+    customerId: options.customerId ?? null,
     customerName,
     showPerson: false,
     personRoleKey: `${F}.role.salesUser`,
@@ -231,6 +235,8 @@ export function buildStockOutNotifyFlowStations(
   const N = 'stockOutNotifyList.flowPanel'
   const rec = (row ?? null) as RowRecord | null
   const stations: StockOutNotifyFlowStation[] = []
+  const lineVendorId = resolveFlowPartyId(mask511, rec?.vendorId)
+  const lineCustomerId = resolveFlowPartyId(mask521, rec?.customerId)
 
   const notifyDoc = aggregates?.stockOutNotify ?? null
   const sell = aggregates?.sellOrderItem ?? null
@@ -259,6 +265,7 @@ export function buildStockOutNotifyFlowStations(
         createdAtLabelKey: `${F}.fields.createdAt`,
         showVendor: false,
         showCustomer: true,
+        customerId: lineCustomerId,
         customerName: maskDash(mask521, sell.customerName),
         showPerson: true,
         personRoleKey: `${F}.role.salesUser`,
@@ -290,6 +297,7 @@ export function buildStockOutNotifyFlowStations(
         createdAtLabelKey: `${F}.fields.createdAt`,
         showVendor: false,
         showCustomer: true,
+        customerId: lineCustomerId,
         customerName: maskDash(mask521, src?.customerName ?? (rec?.customerName as string | null)),
         showPerson: false,
         personRoleKey: `${F}.role.salesUser`,
@@ -318,7 +326,13 @@ export function buildStockOutNotifyFlowStations(
   {
     const list = sortByCreatedAsc(aggregates?.stockItems ?? [], (x) => x.bizDate ?? x.createTime)
     const cards = list.map((x) =>
-      mapStockItemCard(x, t, { mask511, mask521, outbound: outboundForItem })
+      mapStockItemCard(x, t, {
+        mask511,
+        mask521,
+        outbound: outboundForItem,
+        vendorId: lineVendorId,
+        customerId: lineCustomerId
+      })
     )
     stations.push(buildStation('stockItem', `${N}.stations.stockItem`, cards))
   }
@@ -326,7 +340,9 @@ export function buildStockOutNotifyFlowStations(
   {
     const list = sortByCreatedAsc(aggregates?.stockingStockItems ?? [], (x) => x.bizDate ?? x.createTime)
     if (list.length > 0) {
-      const cards = list.map((x) => mapStockItemCard(x, t, { mask511, mask521, outbound: null }))
+      const cards = list.map((x) =>
+        mapStockItemCard(x, t, { mask511, mask521, outbound: null, vendorId: lineVendorId, customerId: lineCustomerId })
+      )
       stations.push(buildStation('stockingStockItem', `${N}.stations.stockingStockItem`, cards))
     }
   }
@@ -343,6 +359,7 @@ export function buildStockOutNotifyFlowStations(
       createdAtLabelKey: `${F}.fields.createdAt`,
       showVendor: false,
       showCustomer: true,
+      customerId: lineCustomerId,
       customerName: maskDash(mask521, x.customerName),
       showPerson: false,
       personRoleKey: `${F}.role.salesUser`,
@@ -372,6 +389,7 @@ export function buildStockOutNotifyFlowStations(
       createdAtLabelKey: `${F}.fields.createdAt`,
       showVendor: false,
       showCustomer: true,
+      customerId: lineCustomerId,
       customerName: maskDash(mask521, x.customerName),
       showPerson: false,
       personRoleKey: `${F}.role.salesUser`,
@@ -392,4 +410,4 @@ export function buildStockOutNotifyFlowStations(
   return stations
 }
 
-export { formatDisplayDateTime as formatStockOutNotifyFlowCardDate }
+export { formatFlowCardDate as formatStockOutNotifyFlowCardDate }

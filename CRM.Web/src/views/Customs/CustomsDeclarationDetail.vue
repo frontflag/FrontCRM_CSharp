@@ -200,11 +200,29 @@
 
       <el-empty v-else-if="!loading" :description="loadError || t('stockOutDetail.notFound')" />
     </div>
+
+    <el-dialog
+      v-model="clearanceVisible"
+      :title="t('customsPages.declarations.clearanceDialogTitle')"
+      width="400px"
+      class="crm-dialog"
+      destroy-on-close
+    >
+      <el-select v-model="clearanceForm.status" style="width: 100%">
+        <el-option :label="t('customsPages.declarations.clearanceNone')" :value="0" />
+        <el-option :label="t('customsPages.declarations.clearanceReleased')" :value="10" />
+        <el-option :label="t('customsPages.declarations.clearanceCleared')" :value="100" />
+      </el-select>
+      <template #footer>
+        <el-button @click="clearanceVisible = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="clearanceSaving" @click="saveClearance">{{ t('common.confirm') }}</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, inject, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -214,6 +232,7 @@ import CustomsDeclarationFeesPanel from '@/components/Customs/CustomsDeclaration
 import {
   createCustomsArrivalNotifies,
   fetchCustomsDeclarationById,
+  patchCustomsClearanceStatus,
   type CustomsDeclarationDetailDto
 } from '@/api/customs'
 import { formatVendorNameReadonly } from '@/utils/vendorDisplayName'
@@ -221,10 +240,17 @@ import { formatDate as formatDateTimeZh } from '@/utils/date'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
+import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
+import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
+import { useCustomsDeclarationOpsPanelStore } from '@/stores/customsDeclarationOpsPanel'
+import { useCustomsDeclarationFlowPanelStore } from '@/stores/customsDeclarationFlowPanel'
 
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
+const workspaceLayout = inject(WorkspaceLayoutKey, null)
+const customsDeclarationOpsStore = useCustomsDeclarationOpsPanelStore()
+const customsDeclarationFlowStore = useCustomsDeclarationFlowPanelStore()
 const { canWriteLogisticsData: canWriteLogistics } = useDepartmentDataReadOnly()
 const { maskPurchaseSensitiveFields: maskPurchase } = usePurchaseSensitiveFieldMask()
 const { maskSaleSensitiveFields: maskSale } = useSaleSensitiveFieldMask()
@@ -232,6 +258,48 @@ const loading = ref(false)
 const creatingArrival = ref(false)
 const loadError = ref('')
 const detail = ref<CustomsDeclarationDetailDto | null>(null)
+const clearanceVisible = ref(false)
+const clearanceSaving = ref(false)
+const clearanceForm = reactive({ status: 0 })
+
+function orderId() {
+  const raw = route.params.id
+  if (Array.isArray(raw)) return String(raw[0] ?? '').trim()
+  return String(raw ?? '').trim()
+}
+
+function bindRightPanels(id: string) {
+  if (!id) return
+  const row = { id }
+  customsDeclarationOpsStore.setRowOnly(row)
+  customsDeclarationFlowStore.setRowOnly(row)
+}
+
+async function loadActiveRightTab() {
+  const tab = workspaceLayout?.rightActiveTabId.value
+  if (tab === 'r-flow') {
+    await customsDeclarationFlowStore.loadSelected(t('customsPages.declarations.flowPanel.loadFailed'))
+    return
+  }
+  if (tab === 'r-ops') {
+    await customsDeclarationOpsStore.loadDetail(t('customsPages.declarations.opsPanel.loadFailed'))
+  }
+}
+
+useListRightOpsPanelInteraction({
+  workspaceLayout,
+  isActiveRoute: () => route.name === 'CustomsDeclarationDetail',
+  hasSelectedRow: () => !!customsDeclarationOpsStore.row || !!customsDeclarationFlowStore.row,
+  setRowOnly: () => bindRightPanels(orderId()),
+  selectRow: async () => {
+    bindRightPanels(orderId())
+    await loadActiveRightTab()
+  },
+  loadSelected: () => {
+    void loadActiveRightTab()
+  },
+  dataTabIds: ['r-ops', 'r-flow']
+})
 
 const captionAvatarChar = computed(() => {
   const code = detail.value?.declarationCode?.trim()
@@ -340,6 +408,10 @@ async function handleCreateArrivalNotifies() {
         : t('customsPages.declarations.createArrivalOk', { count: result.createdCount })
     )
     await load()
+    if (customsDeclarationOpsStore.row) {
+      customsDeclarationOpsStore.detail = null
+      await loadActiveRightTab()
+    }
   } catch (e: unknown) {
     ElMessage.error(e instanceof Error ? e.message : String(e))
   } finally {
@@ -348,7 +420,7 @@ async function handleCreateArrivalNotifies() {
 }
 
 async function load() {
-  const id = typeof route.params.id === 'string' ? route.params.id.trim() : ''
+  const id = orderId()
   if (!id) {
     loadError.value = t('stockOutDetail.notFound')
     return
@@ -357,6 +429,8 @@ async function load() {
   loadError.value = ''
   try {
     detail.value = await fetchCustomsDeclarationById(id)
+    bindRightPanels(id)
+    await loadActiveRightTab()
   } catch (e: unknown) {
     detail.value = null
     loadError.value = e instanceof Error ? e.message : String(e)
@@ -366,9 +440,51 @@ async function load() {
   }
 }
 
+function openClearance() {
+  clearanceForm.status = Number(detail.value?.customsClearanceStatus ?? 0)
+  clearanceVisible.value = true
+}
+
+async function saveClearance() {
+  const id = orderId()
+  if (!id) return
+  clearanceSaving.value = true
+  try {
+    await patchCustomsClearanceStatus(id, clearanceForm.status)
+    ElMessage.success(t('customsPages.declarations.clearanceSaved'))
+    clearanceVisible.value = false
+    customsDeclarationOpsStore.detail = null
+    await load()
+  } catch (e: unknown) {
+    ElMessage.error(e instanceof Error ? e.message : String(e))
+  } finally {
+    clearanceSaving.value = false
+  }
+}
+
 onMounted(() => {
+  customsDeclarationOpsStore.registerHandlers({
+    setClearance: () => openClearance(),
+    createArrival: () => {
+      void handleCreateArrivalNotifies()
+    }
+  })
   void load()
 })
+
+onBeforeUnmount(() => {
+  customsDeclarationOpsStore.unregisterHandlers()
+  customsDeclarationOpsStore.clear()
+  customsDeclarationFlowStore.clear()
+})
+
+watch(
+  () => orderId(),
+  (id, prev) => {
+    if (!id || id === prev) return
+    void load()
+  }
+)
 </script>
 
 <style scoped lang="scss">

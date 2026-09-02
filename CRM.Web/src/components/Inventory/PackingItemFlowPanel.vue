@@ -132,7 +132,10 @@
                     <span class="so-item-flow-kv__label">
                       {{ t('salesOrderItemList.flowPanel.fields.customerName') }}：
                     </span>
-                    <span class="so-item-flow-kv__value">{{ card.customerName || '—' }}</span>
+                    <FlowPartyLink
+                      :text="card.customerName || '—'"
+                      :to="customerTo(card.customerId, maskSensitive)"
+                    />
                   </div>
                   <div v-if="card.unitPriceText" class="so-item-flow-kv__cell">
                     <span class="so-item-flow-kv__label">{{ priceLabel(station.key) }}：</span>
@@ -176,9 +179,11 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { SalesOrderDetailTabAggregates } from '@/api/salesOrder'
+import FlowPartyLink from '@/components/Common/FlowPartyLink.vue'
 import FlowYouAreHereMark from '@/components/Common/FlowYouAreHereMark.vue'
 import RegionTypeChip from '@/components/Common/RegionTypeChip.vue'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
+import { useFlowPartyLinks } from '@/composables/useFlowPartyLinks'
 import {
   buildPackingItemFlowStations,
   formatFlowCardDate,
@@ -211,6 +216,7 @@ const props = withDefaults(
 )
 
 const { t } = useI18n()
+const { customerTo } = useFlowPartyLinks()
 
 const stations = computed(() =>
   buildPackingItemFlowStations(props.row, props.aggregates, t as (key: string, ...args: unknown[]) => string, {

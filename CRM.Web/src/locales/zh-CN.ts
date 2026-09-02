@@ -324,6 +324,30 @@ const zhCN = {
         nextLineFees: '下一步：进入报关单详情费用面板，补齐缺失的费用字段后重新试算。',
         nextGeneric: '下一步：按上方提示逐项完成后，再点击「生成报关到货通知」。'
       },
+      flowPanel: {
+        pickRow: '在「流程」页签下单击列表行，查看本报关单上下游业务链路',
+        loadFailed: '加载报关单流程失败',
+        fields: {
+          salesOutQty: '销售出库数量',
+          customsOutQty: '报关出库数量',
+          customsInQty: '报关入库数量',
+          arrivalQty: '到货数量',
+          qcQty: '质检数量',
+          stockInType: '入库类型'
+        }
+      },
+      flowStations: {
+        sellOrderItem: '销售订单明细',
+        salesStockOutNotify: '销售出库通知',
+        pendlist: '待报关',
+        customsStockOutNotify: '报关出库通知',
+        packing: '报关装箱',
+        declaration: '报关',
+        stockOut: '报关出库',
+        arrival: '报关到货通知',
+        qc: '报关质检',
+        stockIn: '报关入库'
+      },
       basicInfo: '基础信息',
       sectionItems: '报关明细',
       sectionBusinessRecords: '业务记录',
@@ -5530,6 +5554,9 @@ const zhCN = {
       currency: '币别',
       qty: '数量',
       stockTitle: '备货库存',
+      refresh: '刷新',
+      refreshStockingSuccess: '备货可用量已更新为 {qty}',
+      refreshStockingFailed: '刷新备货可用量失败',
       stockDomestic: '大陆仓',
       stockOverseas: '海外仓',
       stockTotal: '总计库存',
@@ -7069,6 +7096,7 @@ const zhCN = {
       stockInDateTo: '止',
       stockInDateSep: '至',
       warehouse: '仓库',
+      stockTypePlaceholder: '库存类型',
       stockInTypePlaceholder: '入库类型',
       purchasePn: '物料型号',
       purchaseBrand: '品牌',

@@ -2,7 +2,7 @@ import type { SalesOrderDetailTabAggregates } from '@/api/salesOrder'
 import { packingStatusLabel } from '@/api/packing'
 import { STOCK_OUT_REQUEST_STATUS } from '@/constants/stockOutRequestStatus'
 import { translateSalesOrderStatus } from '@/constants/salesOrderStatus'
-import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import { formatDisplayDate2DigitYear } from '@/utils/displayDateTime'
 import {
   formatTotalAmountNumber,
   formatUnitPriceWithCurrencyCodeSuffix,
@@ -44,6 +44,7 @@ export interface FlowCard {
   isFinal: boolean
   createdAt?: string | null
   showCustomer: boolean
+  customerId?: string | null
   customerName?: string | null
   customerCode?: string | null
   personRoleKey: string
@@ -63,6 +64,9 @@ export interface FlowCard {
   stockOutType?: number | null
   customsDeclarationId?: string | null
   customsDeclarationCode?: string | null
+  qtyLabelKey?: string
+  brokerName?: string | null
+  stockInType?: number | null
 }
 
 export interface FlowStation {
@@ -252,6 +256,11 @@ export function buildSellOrderItemFlowStations(
     const c = String(row?.customerCode ?? '').trim()
     return c || null
   })()
+  const lineCustomerId = (() => {
+    if (mask) return null
+    const id = String(row?.customerId ?? '').trim()
+    return id || null
+  })()
 
   function resolveCustomerCode(docCode?: string | null): string | null {
     if (mask) return '—'
@@ -278,6 +287,7 @@ export function buildSellOrderItemFlowStations(
         isFinal: isSalesOrderFinal(status),
         createdAt: (row.orderCreateTime ?? row.createTime ?? null) as string | null,
         showCustomer: true,
+        customerId: lineCustomerId,
         customerName: mask ? '—' : (row.customerName as string | null),
         customerCode: mask ? '—' : (row.customerCode as string | null),
         personRoleKey: 'salesOrderItemList.flowPanel.role.salesUser',
@@ -393,6 +403,7 @@ export function buildSellOrderItemFlowStations(
       isFinal: isStockOutNotifyFinal(x.status),
       createdAt: x.createTime ?? x.requestDate,
       showCustomer: true,
+      customerId: lineCustomerId,
       customerName: mask ? '—' : x.customerName,
       customerCode: resolveCustomerCode(null),
       personRoleKey: 'salesOrderItemList.flowPanel.role.requester',
@@ -438,6 +449,7 @@ export function buildSellOrderItemFlowStations(
       isFinal: isPackingFinal(x.status),
       createdAt: x.createTime,
       showCustomer: true,
+      customerId: lineCustomerId,
       customerName: mask ? '—' : x.customerName,
       customerCode: resolveCustomerCode(null),
       personRoleKey: 'salesOrderItemList.flowPanel.role.creator',
@@ -459,6 +471,7 @@ export function buildSellOrderItemFlowStations(
       isFinal: isStockOutFinal(x.status),
       createdAt: x.createTime ?? x.stockOutDate,
       showCustomer: true,
+      customerId: lineCustomerId,
       customerName: mask ? '—' : x.customerName,
       customerCode: resolveCustomerCode(x.customerCode),
       personRoleKey: 'salesOrderItemList.flowPanel.role.creator',
@@ -485,6 +498,7 @@ export function buildSellOrderItemFlowStations(
         isFinal: true,
         createdAt: x.createTime,
         showCustomer: true,
+        customerId: lineCustomerId,
         customerName: mask ? '—' : x.customerName,
         customerCode: resolveCustomerCode(null),
         personRoleKey: 'salesOrderItemList.flowPanel.role.operator',
@@ -508,6 +522,7 @@ export function buildSellOrderItemFlowStations(
       isFinal: isInvoiceFinal(x.invoiceStatus),
       createdAt: x.createTime ?? x.makeInvoiceDate,
       showCustomer: true,
+      customerId: lineCustomerId,
       customerName: mask ? '—' : x.customerName,
       customerCode: resolveCustomerCode(null),
       personRoleKey: 'salesOrderItemList.flowPanel.role.creator',
@@ -522,8 +537,35 @@ export function buildSellOrderItemFlowStations(
   return stations
 }
 
+/** 流程卡创建日期：yy-MM-dd（流程页签规范 §2.7） */
 export function formatFlowCardDate(v?: string | null) {
   if (!v) return '—'
-  const s = formatDisplayDateTime(v)
+  const s = formatDisplayDate2DigitYear(v)
   return s === '--' ? '—' : s
+}
+
+/** 销售订单明细站客户 / 采购订单明细站供应商：`{名称} ({编号})`；脱敏或皆空为 `—` */
+export function formatFlowCustomerNameWithCode(
+  name?: string | null,
+  code?: string | null
+): string {
+  const n = String(name ?? '').trim()
+  const c = String(code ?? '').trim()
+  const nameText = n && n !== '—' ? n : ''
+  const codeText = c && c !== '—' ? c : ''
+  if (!nameText && !codeText) return '—'
+  if (!codeText) return nameText
+  if (!nameText) return `(${codeText})`
+  return `${nameText} (${codeText})`
+}
+
+export const formatFlowVendorNameWithCode = formatFlowCustomerNameWithCode
+
+export function resolveFlowPartyId(masked: boolean, ...values: unknown[]): string | null {
+  if (masked) return null
+  for (const v of values) {
+    const id = String(v ?? '').trim()
+    if (id && id !== '—') return id
+  }
+  return null
 }

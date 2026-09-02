@@ -459,4 +459,42 @@ public static class SaleSensitiveFieldMask521
         foreach (var row in rows)
             ApplyBatchReconciliationConsumptionRow(row, true);
     }
+
+    public static void ApplyCustomsDeclarationFlowAggregates(CustomsDeclarationFlowAggregatesDto? dto, bool mask)
+    {
+        if (!mask || dto == null) return;
+        MaskDeclarationFlowDoc(dto.Declaration, maskPerson: false, maskPrice: false);
+        MaskDeclarationFlowDoc(dto.Packing, maskPerson: true, maskPrice: false);
+        foreach (var x in dto.SellOrderItems)
+            MaskDeclarationFlowDoc(x, maskPerson: true, maskPrice: true);
+        foreach (var x in dto.SalesStockOutNotifies)
+            MaskDeclarationFlowDoc(x, maskPerson: true, maskPrice: false);
+        foreach (var x in dto.Pendlists)
+            MaskDeclarationFlowDoc(x, maskPerson: true, maskPrice: false);
+        foreach (var x in dto.CustomsStockOutNotifies)
+            MaskDeclarationFlowDoc(x, maskPerson: true, maskPrice: false);
+        foreach (var x in dto.StockOuts)
+            MaskDeclarationFlowDoc(x, maskPerson: true, maskPrice: false);
+        foreach (var x in dto.Arrivals)
+            MaskDeclarationFlowDoc(x, maskPerson: true, maskPrice: false);
+        foreach (var x in dto.Qcs)
+            MaskDeclarationFlowDoc(x, maskPerson: false, maskPrice: false);
+        foreach (var x in dto.StockIns)
+            MaskDeclarationFlowDoc(x, maskPerson: false, maskPrice: false);
+    }
+
+    private static void MaskDeclarationFlowDoc(CustomsDeclarationFlowDocDto? x, bool maskPerson, bool maskPrice)
+    {
+        if (x == null) return;
+        x.CustomerId = null;
+        x.CustomerName = null;
+        x.CustomerCode = null;
+        if (maskPrice)
+        {
+            x.UnitPrice = null;
+            x.Currency = null;
+        }
+        if (maskPerson)
+            x.PersonName = null;
+    }
 }

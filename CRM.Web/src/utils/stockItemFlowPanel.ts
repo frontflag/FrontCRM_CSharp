@@ -3,8 +3,8 @@ import { packingStatusLabel } from '@/api/packing'
 import { STOCK_OUT_REQUEST_STATUS } from '@/constants/stockOutRequestStatus'
 import { resolveStockInTypeLabelKey } from '@/constants/stockInType'
 import { resolveStockOutTypeLabelKey } from '@/constants/stockOutType'
-import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import { formatUnitPriceWithCurrencyCodeSuffix } from '@/utils/moneyFormat'
+import { formatFlowCardDate, resolveFlowPartyId } from '@/utils/sellOrderItemFlowPanel'
 
 export type FlowStationStatus = 'empty' | 'active' | 'done'
 
@@ -32,8 +32,10 @@ export interface StockItemFlowCard {
   createdAt?: string | null
   createdAtLabelKey: string
   showVendor: boolean
+  vendorId?: string | null
   vendorName?: string | null
   showCustomer: boolean
+  customerId?: string | null
   customerName?: string | null
   showPerson: boolean
   personRoleKey: string
@@ -249,10 +251,7 @@ function maskDash(mask: boolean, v?: string | null) {
   return dash(v)
 }
 
-export function formatStockItemFlowCardDate(v?: string | null) {
-  if (!v) return '—'
-  return formatDisplayDateTime(v) || '—'
-}
+export { formatFlowCardDate as formatStockItemFlowCardDate }
 
 export function buildStockItemFlowStations(
   row: RowRecord | null | undefined,
@@ -264,6 +263,8 @@ export function buildStockItemFlowStations(
   const mask521 = !!options?.maskSale
   const F = 'inventoryStockItemList.flowPanel'
   const stations: StockItemFlowStation[] = []
+  const lineVendorId = resolveFlowPartyId(mask511, row?.vendorId)
+  const lineCustomerId = resolveFlowPartyId(mask521, row?.customerId)
 
   const po = aggregates?.purchaseOrderItem ?? null
   const qc = aggregates?.qc ?? null
@@ -291,6 +292,7 @@ export function buildStockItemFlowStations(
         createdAt: po.createTime,
         createdAtLabelKey: `${F}.fields.createdAt`,
         showVendor: true,
+        vendorId: lineVendorId,
         vendorName: maskDash(mask511, po.vendorName),
         showCustomer: false,
         showPerson: true,
@@ -400,8 +402,10 @@ export function buildStockItemFlowStations(
         createdAt: src?.bizDate ?? (row?.stockInDate as string | null),
         createdAtLabelKey: `${F}.fields.stockInDate`,
         showVendor: true,
+        vendorId: lineVendorId,
         vendorName: maskDash(mask511, src?.vendorName ?? (row?.vendorName as string | null)),
         showCustomer,
+        customerId: lineCustomerId,
         customerName,
         showPerson: false,
         personRoleKey: `${F}.role.salesUser`,
@@ -448,6 +452,7 @@ export function buildStockItemFlowStations(
       createdAtLabelKey: `${F}.fields.createdAt`,
       showVendor: false,
       showCustomer: true,
+      customerId: lineCustomerId,
       customerName: maskDash(mask521, x.customerName),
       showPerson: false,
       personRoleKey: `${F}.role.salesUser`,
@@ -477,6 +482,7 @@ export function buildStockItemFlowStations(
       createdAtLabelKey: `${F}.fields.createdAt`,
       showVendor: false,
       showCustomer: true,
+      customerId: lineCustomerId,
       customerName: maskDash(mask521, x.customerName),
       showPerson: false,
       personRoleKey: `${F}.role.salesUser`,
@@ -506,6 +512,7 @@ export function buildStockItemFlowStations(
       createdAtLabelKey: `${F}.fields.createdAt`,
       showVendor: false,
       showCustomer: true,
+      customerId: lineCustomerId,
       customerName: maskDash(mask521, x.customerName),
       showPerson: false,
       personRoleKey: `${F}.role.salesUser`,

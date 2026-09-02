@@ -1598,6 +1598,15 @@
             @set-clearance="customsDeclarationOpsStore.runSetClearance()"
             @create-arrival="customsDeclarationOpsStore.runCreateArrival()"
           />
+          <CustomsDeclarationFlowPanel
+            v-show="showCustomsDeclarationFlowPanel"
+            :row="customsDeclarationFlowStore.row"
+            :aggregates="customsDeclarationFlowStore.aggregates"
+            :loading="customsDeclarationFlowStore.loading"
+            :load-error="customsDeclarationFlowStore.loadError"
+            :mask-sensitive="maskSaleSensitiveFields"
+            class="aux-panel-tab-body"
+          />
           <ArrivalNoticeOpsPanel
             v-show="showArrivalNoticeOpsPanel"
             embedded
@@ -1818,6 +1827,7 @@ import StockItemFlowPanel from '@/components/Inventory/StockItemFlowPanel.vue'
 import StockOutNotifyFlowPanel from '@/components/Inventory/StockOutNotifyFlowPanel.vue'
 import StockOutItemFlowPanel from '@/components/Inventory/StockOutItemFlowPanel.vue'
 import CustomsDeclarationOpsPanel from '@/components/Customs/CustomsDeclarationOpsPanel.vue'
+import CustomsDeclarationFlowPanel from '@/components/Customs/CustomsDeclarationFlowPanel.vue'
 import CustomsPendlistFlowPanel from '@/components/Customs/CustomsPendlistFlowPanel.vue'
 import ArrivalNoticeOpsPanel from '@/components/Logistics/ArrivalNoticeOpsPanel.vue'
 import QcOpsPanel from '@/components/Logistics/QcOpsPanel.vue'
@@ -1834,6 +1844,7 @@ import { useCustomerIntelLookupStore } from '@/stores/customerIntelLookup'
 import { useVendorIntelLookupStore } from '@/stores/vendorIntelLookup'
 import { usePurchaseOrderItemOpsPanelStore } from '@/stores/purchaseOrderItemOpsPanel'
 import { useCustomsDeclarationOpsPanelStore } from '@/stores/customsDeclarationOpsPanel'
+import { useCustomsDeclarationFlowPanelStore } from '@/stores/customsDeclarationFlowPanel'
 import { useArrivalNoticeOpsPanelStore } from '@/stores/arrivalNoticeOpsPanel'
 import { canEditArrivalNoticeArrivalInfo } from '@/utils/arrivalNoticeArrivalInfoAccess'
 import { useQcOpsPanelStore } from '@/stores/qcOpsPanel'
@@ -1887,6 +1898,7 @@ const customerIntelLookupStore = useCustomerIntelLookupStore()
 const vendorIntelLookupStore = useVendorIntelLookupStore()
 const purchaseOrderItemOpsStore = usePurchaseOrderItemOpsPanelStore()
 const customsDeclarationOpsStore = useCustomsDeclarationOpsPanelStore()
+const customsDeclarationFlowStore = useCustomsDeclarationFlowPanelStore()
 const arrivalNoticeOpsStore = useArrivalNoticeOpsPanelStore()
 const qcOpsStore = useQcOpsPanelStore()
 const stockOutOpsStore = useStockOutOpsPanelStore()
@@ -2257,6 +2269,10 @@ const isPurchaseOrderItemOpsRoute = computed(
 )
 const isRfqItemListRoute = computed(() => route.name === 'RFQItemList')
 const isCustomsDeclarationListRoute = computed(() => route.name === 'CustomsDeclarationList')
+const isCustomsDeclarationDetailRoute = computed(() => route.name === 'CustomsDeclarationDetail')
+const isCustomsDeclarationOpsRoute = computed(
+  () => isCustomsDeclarationListRoute.value || isCustomsDeclarationDetailRoute.value
+)
 const isCustomsPendlistListRoute = computed(() => route.name === 'CustomsPendlistList')
 const isArrivalNoticeListRoute = computed(() => route.name === 'ArrivalNoticeList')
 const isQcListRoute = computed(() => route.name === 'QcList')
@@ -2308,7 +2324,11 @@ const showStockOutItemFlowPanel = computed(
 )
 
 const showCustomsDeclarationOpsPanel = computed(
-  () => rightActiveTabId.value === 'r-ops' && isCustomsDeclarationListRoute.value
+  () => rightActiveTabId.value === 'r-ops' && isCustomsDeclarationOpsRoute.value
+)
+
+const showCustomsDeclarationFlowPanel = computed(
+  () => rightActiveTabId.value === 'r-flow' && isCustomsDeclarationOpsRoute.value
 )
 
 const showArrivalNoticeOpsPanel = computed(
@@ -2529,6 +2549,7 @@ watch(
       purchaseOrderItemOpsStore.clear()
       packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
+      customsDeclarationFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
       stockInOpsStore.clear()
@@ -2552,6 +2573,7 @@ watch(
       purchaseOrderItemOpsStore.clear()
       packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
+      customsDeclarationFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
       stockInOpsStore.clear()
@@ -2575,6 +2597,7 @@ watch(
       purchaseOrderItemOpsStore.clear()
       packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
+      customsDeclarationFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
       stockInOpsStore.clear()
@@ -2598,6 +2621,7 @@ watch(
       purchaseOrderItemOpsStore.clear()
       packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
+      customsDeclarationFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
       stockInOpsStore.clear()
@@ -2621,6 +2645,7 @@ watch(
       purchaseOrderItemOpsStore.clear()
       packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
+      customsDeclarationFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
       stockInOpsStore.clear()
@@ -2644,6 +2669,7 @@ watch(
       purchaseOrderItemOpsStore.clear()
       packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
+      customsDeclarationFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
       stockInOpsStore.clear()
@@ -2674,6 +2700,7 @@ watch(
       purchaseOrderItemOpsStore.clear()
       packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
+      customsDeclarationFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
       stockInOpsStore.clear()
@@ -2697,6 +2724,7 @@ watch(
       purchaseOrderItemOpsStore.clear()
       packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
+      customsDeclarationFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
       stockInOpsStore.clear()
@@ -2719,6 +2747,7 @@ watch(
       purchaseOrderItemOpsStore.clear()
       packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
+      customsDeclarationFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
       stockInOpsStore.clear()
@@ -2739,6 +2768,7 @@ watch(
       purchaseOrderItemOpsStore.clear()
       packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
+      customsDeclarationFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
       stockInOpsStore.clear()
@@ -2755,6 +2785,7 @@ watch(
       purchaseOrderItemOpsStore.clear()
       packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
+      customsDeclarationFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
       stockInOpsStore.clear()
@@ -2773,6 +2804,7 @@ watch(
       salesOrderItemOpsStore.clear()
       packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
+      customsDeclarationFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
       stockInOpsStore.clear()
@@ -2791,6 +2823,7 @@ watch(
       salesOrderItemOpsStore.clear()
       packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
+      customsDeclarationFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
       stockInOpsStore.clear()
@@ -2809,6 +2842,7 @@ watch(
       purchaseOrderItemOpsStore.clear()
       packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
+      customsDeclarationFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
       stockInOpsStore.clear()
@@ -2823,6 +2857,26 @@ watch(
     if (name === 'CustomsDeclarationList') {
       rightTabs.value = [
         { id: 'r-ops', labelKey: 'layout.auxTabs.ops' },
+        { id: 'r-flow', labelKey: 'layout.auxTabs.flow' },
+        { id: 'r4', labelKey: 'layout.auxTabs.help' }
+      ]
+      salesOrderItemOpsStore.clear()
+      purchaseOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
+      customsPendlistFlowStore.clear()
+      arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
+      materialIntelLookupStore.clearBound()
+      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-ops' })
+      return
+    }
+    if (name === 'CustomsDeclarationDetail') {
+      rightTabs.value = [
+        { id: 'r-ops', labelKey: 'layout.auxTabs.ops' },
+        { id: 'r-flow', labelKey: 'layout.auxTabs.flow' },
         { id: 'r4', labelKey: 'layout.auxTabs.help' }
       ]
       salesOrderItemOpsStore.clear()
@@ -2847,6 +2901,7 @@ watch(
       purchaseOrderItemOpsStore.clear()
       packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
+      customsDeclarationFlowStore.clear()
       qcOpsStore.clear()
       stockInOpsStore.clear()
       stockItemFlowStore.clear()
@@ -2866,6 +2921,7 @@ watch(
       purchaseOrderItemOpsStore.clear()
       packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
+      customsDeclarationFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       stockInOpsStore.clear()
       stockItemFlowStore.clear()
@@ -2882,6 +2938,7 @@ watch(
       purchaseOrderItemOpsStore.clear()
       packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
+      customsDeclarationFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
       stockItemFlowStore.clear()
@@ -2905,6 +2962,7 @@ watch(
       packingDetailFlowStore.clear()
       customsPendlistFlowStore.clear()
       customsDeclarationOpsStore.clear()
+      customsDeclarationFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
       stockInOpsStore.clear()
@@ -2925,6 +2983,7 @@ watch(
       purchaseOrderItemOpsStore.clear()
       packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
+      customsDeclarationFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
       stockInOpsStore.clear()
@@ -2944,6 +3003,7 @@ watch(
       purchaseOrderItemOpsStore.clear()
       packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
+      customsDeclarationFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
       stockInOpsStore.clear()
@@ -2966,6 +3026,7 @@ watch(
       purchaseOrderItemOpsStore.clear()
       packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
+      customsDeclarationFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
       stockInOpsStore.clear()
@@ -2986,6 +3047,7 @@ watch(
       purchaseOrderItemOpsStore.clear()
       packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
+      customsDeclarationFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
       stockInOpsStore.clear()
@@ -3006,6 +3068,7 @@ watch(
       purchaseOrderItemOpsStore.clear()
       packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
+      customsDeclarationFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
       stockInOpsStore.clear()
@@ -3025,6 +3088,7 @@ watch(
       purchaseOrderItemOpsStore.clear()
       packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
+      customsDeclarationFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
       stockInOpsStore.clear()
@@ -3041,6 +3105,7 @@ watch(
       purchaseOrderItemOpsStore.clear()
       packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
+      customsDeclarationFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
       stockInOpsStore.clear()
@@ -3064,6 +3129,7 @@ watch(
       purchaseOrderItemOpsStore.clear()
       packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
+      customsDeclarationFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
       stockInOpsStore.clear()
@@ -3085,6 +3151,7 @@ watch(
       purchaseOrderItemOpsStore.clear()
       packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
+      customsDeclarationFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
       stockInOpsStore.clear()
@@ -3107,6 +3174,7 @@ watch(
       purchaseOrderItemOpsStore.clear()
       packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
+      customsDeclarationFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
       stockInOpsStore.clear()
@@ -3128,6 +3196,7 @@ watch(
       salesOrderItemOpsStore.clear()
       purchaseOrderItemOpsStore.clear()
       customsDeclarationOpsStore.clear()
+      customsDeclarationFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
       stockInOpsStore.clear()
@@ -3150,6 +3219,7 @@ watch(
       purchaseOrderItemOpsStore.clear()
       packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
+      customsDeclarationFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
       stockInOpsStore.clear()
@@ -3171,6 +3241,7 @@ watch(
       purchaseOrderItemOpsStore.clear()
       packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
+      customsDeclarationFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
       stockInOpsStore.clear()
@@ -3193,6 +3264,7 @@ watch(
       purchaseOrderItemOpsStore.clear()
       packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
+      customsDeclarationFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
       stockInOpsStore.clear()
@@ -3214,6 +3286,7 @@ watch(
       purchaseOrderItemOpsStore.clear()
       packingDetailFlowStore.clear()
       customsDeclarationOpsStore.clear()
+      customsDeclarationFlowStore.clear()
       arrivalNoticeOpsStore.clear()
       qcOpsStore.clear()
       stockInOpsStore.clear()

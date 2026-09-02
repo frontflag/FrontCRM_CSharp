@@ -137,7 +137,10 @@
                   <template v-if="isStockItemLike(station.key)">
                     <div v-if="card.showVendor" class="so-item-flow-kv__cell so-item-flow-kv__cell--full">
                       <span class="so-item-flow-kv__label">{{ t('inventoryStockItemList.flowPanel.fields.vendorName') }}：</span>
-                      <span class="so-item-flow-kv__value">{{ card.vendorName || '—' }}</span>
+                      <FlowPartyLink
+                        :text="card.vendorName || '—'"
+                        :to="vendorTo(card.vendorId, maskPurchase)"
+                      />
                     </div>
                     <div v-if="card.unitPriceText" class="so-item-flow-kv__cell">
                       <span class="so-item-flow-kv__label">{{ t('inventoryStockItemList.flowPanel.fields.unitPrice') }}：</span>
@@ -162,7 +165,10 @@
                     </div>
                     <div v-if="card.showCustomer" class="so-item-flow-kv__cell so-item-flow-kv__cell--full">
                       <span class="so-item-flow-kv__label">{{ t('inventoryStockItemList.flowPanel.fields.customerName') }}：</span>
-                      <span class="so-item-flow-kv__value">{{ card.customerName || '—' }}</span>
+                      <FlowPartyLink
+                        :text="card.customerName || '—'"
+                        :to="customerTo(card.customerId, maskSale)"
+                      />
                     </div>
                     <div v-if="card.salesPriceText" class="so-item-flow-kv__cell">
                       <span class="so-item-flow-kv__label">{{ t('inventoryStockItemList.flowPanel.fields.salesPrice') }}：</span>
@@ -176,11 +182,17 @@
                   <template v-else>
                     <div v-if="card.showVendor" class="so-item-flow-kv__cell so-item-flow-kv__cell--full">
                       <span class="so-item-flow-kv__label">{{ t('inventoryStockItemList.flowPanel.fields.vendorName') }}：</span>
-                      <span class="so-item-flow-kv__value">{{ card.vendorName || '—' }}</span>
+                      <FlowPartyLink
+                        :text="card.vendorName || '—'"
+                        :to="vendorTo(card.vendorId, maskPurchase)"
+                      />
                     </div>
                     <div v-if="card.showCustomer" class="so-item-flow-kv__cell so-item-flow-kv__cell--full">
                       <span class="so-item-flow-kv__label">{{ t('inventoryStockItemList.flowPanel.fields.customerName') }}：</span>
-                      <span class="so-item-flow-kv__value">{{ card.customerName || '—' }}</span>
+                      <FlowPartyLink
+                        :text="card.customerName || '—'"
+                        :to="customerTo(card.customerId, maskSale)"
+                      />
                     </div>
                     <div v-if="card.unitPriceText" class="so-item-flow-kv__cell">
                       <span class="so-item-flow-kv__label">{{ t('inventoryStockItemList.flowPanel.fields.unitPrice') }}：</span>
@@ -209,8 +221,10 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { StockOutItemFlowAggregates } from '@/api/stockOut'
+import FlowPartyLink from '@/components/Common/FlowPartyLink.vue'
 import FlowYouAreHereMark from '@/components/Common/FlowYouAreHereMark.vue'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
+import { useFlowPartyLinks } from '@/composables/useFlowPartyLinks'
 import type { FlowDocRoute, FlowStationStatus } from '@/utils/stockItemFlowPanel'
 import {
   buildStockOutItemFlowStations,
@@ -237,6 +251,7 @@ const props = withDefaults(
 )
 
 const { t } = useI18n()
+const { customerTo, vendorTo } = useFlowPartyLinks()
 
 const stations = computed(() =>
   buildStockOutItemFlowStations(props.row, props.aggregates, t as (key: string, ...args: unknown[]) => string, {

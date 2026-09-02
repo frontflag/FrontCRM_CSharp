@@ -125,6 +125,7 @@ export const usePackingDetailFlowPanelStore = defineStore('packingDetailFlowPane
       sellOrderItemCode: line.sellOrderItemCode || line.itemCode,
       sellOrderCode: line.sellOrderCode || ext?.sellOrderCode,
       customerName: header.customerName ?? ext?.customerName,
+      customerId: header.customerId ?? ext?.customerId,
       customerCode: null,
       salesUserName: header.salesUserName ?? ext?.salesUserName,
       qty: line.qty,

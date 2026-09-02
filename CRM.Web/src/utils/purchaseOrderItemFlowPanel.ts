@@ -1,6 +1,6 @@
 import type { PurchaseOrderDetailTabAggregates } from '@/api/purchaseOrder'
 import { resolveStockInTypeLabelKey } from '@/constants/stockInType'
-import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import { formatFlowCardDate, resolveFlowPartyId } from '@/utils/sellOrderItemFlowPanel'
 import {
   formatTotalAmountNumber,
   formatUnitPriceWithCurrencyCodeSuffix,
@@ -33,6 +33,7 @@ export interface PoFlowCard {
   isFinal: boolean
   createdAt?: string | null
   showVendor: boolean
+  vendorId?: string | null
   vendorName?: string | null
   vendorCode?: string | null
   personRoleKey: string
@@ -227,10 +228,22 @@ function pickFirstVendorCode(aggregates: PurchaseOrderDetailTabAggregates | null
   return null
 }
 
-export function formatPoFlowCardDate(v?: string | null) {
-  if (!v) return '—'
-  return formatDisplayDateTime(v) || '—'
+function pickFirstVendorId(aggregates: PurchaseOrderDetailTabAggregates | null | undefined): string | null {
+  const buckets: Array<Array<{ vendorId?: string | null } | undefined> | undefined> = [
+    aggregates?.stockIns,
+    aggregates?.stockItems,
+    aggregates?.arrivalNotices
+  ]
+  for (const list of buckets) {
+    for (const row of list ?? []) {
+      const id = String(row?.vendorId ?? '').trim()
+      if (id) return id
+    }
+  }
+  return null
 }
+
+export { formatFlowCardDate as formatPoFlowCardDate }
 
 export function buildPurchaseOrderItemFlowStations(
   row: RowRecord | null | undefined,
@@ -247,6 +260,7 @@ export function buildPurchaseOrderItemFlowStations(
     : (String(row?.vendorCode ?? '').trim() ||
         pickFirstVendorCode(aggregates) ||
         null)
+  const lineVendorId = resolveFlowPartyId(mask, row?.vendorId, pickFirstVendorId(aggregates))
 
   function resolveVendorName(docName?: string | null): string | null {
     if (mask) return '—'
@@ -271,6 +285,7 @@ export function buildPurchaseOrderItemFlowStations(
       isFinal: isPrFinal(x.status),
       createdAt: x.createTime,
       showVendor: true,
+      vendorId: lineVendorId,
       vendorName: resolveVendorName(null),
       vendorCode: resolveVendorCode(null),
       personRoleKey: 'purchaseOrderItemList.flowPanel.role.purchaser',
@@ -306,6 +321,7 @@ export function buildPurchaseOrderItemFlowStations(
         isFinal: isPoItemFinal(status),
         createdAt: (row.orderCreateTime ?? row.createTime ?? null) as string | null,
         showVendor: true,
+      vendorId: lineVendorId,
         vendorName: resolveVendorName(row.vendorName as string | null),
         vendorCode: resolveVendorCode(row.vendorCode as string | null),
         personRoleKey: 'purchaseOrderItemList.flowPanel.role.purchaser',
@@ -339,6 +355,7 @@ export function buildPurchaseOrderItemFlowStations(
       isFinal: isPaymentRequestFinal(x.status),
       createdAt: x.createTime,
       showVendor: true,
+      vendorId: lineVendorId,
       vendorName: resolveVendorName(x.vendorName),
       vendorCode: resolveVendorCode(null),
       personRoleKey: 'purchaseOrderItemList.flowPanel.role.requester',
@@ -363,6 +380,7 @@ export function buildPurchaseOrderItemFlowStations(
       isFinal: true,
       createdAt: x.paymentDate ?? x.createTime,
       showVendor: true,
+      vendorId: lineVendorId,
       vendorName: resolveVendorName(x.vendorName),
       vendorCode: resolveVendorCode(null),
       personRoleKey: 'purchaseOrderItemList.flowPanel.role.requester',
@@ -386,6 +404,7 @@ export function buildPurchaseOrderItemFlowStations(
       isFinal: isArrivalFinal(x.status),
       createdAt: x.createTime,
       showVendor: true,
+      vendorId: lineVendorId,
       vendorName: resolveVendorName(x.vendorName),
       vendorCode: resolveVendorCode(x.vendorCode),
       personRoleKey: 'purchaseOrderItemList.flowPanel.role.purchaser',
@@ -415,6 +434,7 @@ export function buildPurchaseOrderItemFlowStations(
       isFinal: isQcFinal(x.status),
       createdAt: x.createTime,
       showVendor: true,
+      vendorId: lineVendorId,
       vendorName: resolveVendorName(null),
       vendorCode: resolveVendorCode(null),
       personRoleKey: 'purchaseOrderItemList.flowPanel.role.creator',
@@ -436,6 +456,7 @@ export function buildPurchaseOrderItemFlowStations(
       isFinal: isStockInFinal(x.status),
       createdAt: x.createTime ?? x.stockInDate,
       showVendor: true,
+      vendorId: lineVendorId,
       vendorName: resolveVendorName(x.vendorName),
       vendorCode: resolveVendorCode(x.vendorCode),
       personRoleKey: 'purchaseOrderItemList.flowPanel.role.creator',
@@ -458,6 +479,7 @@ export function buildPurchaseOrderItemFlowStations(
       isFinal: isPurchaseInvoiceFinal(x.confirmStatus, x.redInvoiceStatus),
       createdAt: x.createTime,
       showVendor: true,
+      vendorId: lineVendorId,
       vendorName: resolveVendorName(x.vendorName),
       vendorCode: resolveVendorCode(null),
       personRoleKey: 'purchaseOrderItemList.flowPanel.role.creator',

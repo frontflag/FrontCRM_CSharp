@@ -79,6 +79,7 @@ function toCard(
     showCustomer: opts.showCustomer !== false,
     customerName: doc.customerName,
     customerCode: doc.customerCode,
+    customerId: doc.customerId ?? null,
     personRoleKey: opts.personRoleKey,
     personName: doc.personName,
     unitPriceText: priceText(doc),

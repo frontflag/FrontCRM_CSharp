@@ -1,7 +1,7 @@
 <template>
-  <div class="so-item-flow-root so-item-flow-root--embedded" aria-label="customs-pendlist-flow-panel">
+  <div class="so-item-flow-root so-item-flow-root--embedded" aria-label="customs-declaration-flow-panel">
     <div v-if="!row" class="so-item-flow-root__empty">
-      {{ t('customsPages.pendlists.flowPanel.pickRow') }}
+      {{ t('customsPages.declarations.flowPanel.pickRow') }}
     </div>
 
     <div v-else v-loading="loading" class="so-item-flow-root__content">
@@ -12,7 +12,7 @@
           v-for="station in stations"
           :key="station.key"
           class="so-item-flow-station"
-          :class="{ 'is-main': station.key === 'pendlist' }"
+          :class="{ 'is-main': station.key === 'customsDeclaration' }"
         >
           <div class="so-item-flow-station__rail">
             <span
@@ -24,7 +24,7 @@
             <div class="so-item-flow-station__head">
               <h3 class="so-item-flow-station__title">
                 {{ t(station.titleKey) }}
-                <FlowYouAreHereMark v-if="station.key === 'pendlist'" />
+                <FlowYouAreHereMark v-if="station.key === 'customsDeclaration'" />
               </h3>
               <span
                 v-if="station.stationStatus !== 'empty'"
@@ -63,33 +63,104 @@
                     </span>
                     <span class="so-item-flow-kv__value">{{ card.statusText || '—' }}</span>
                   </div>
+                  <div v-if="showsOutType(station.key) && station.key === 'stockOut'" class="so-item-flow-kv__cell">
+                    <span class="so-item-flow-kv__label">
+                      {{ t('packingDetail.flowPanel.fields.stockOutType') }}：
+                    </span>
+                    <span class="so-item-flow-kv__value so-item-flow-kv__value--with-icon">
+                      <StockBizTypeTag
+                        v-if="card.stockOutType != null"
+                        biz="out"
+                        :type="card.stockOutType"
+                        :customs-declaration-id="card.customsDeclarationId"
+                        :customs-declaration-code="card.customsDeclarationCode"
+                      />
+                      <template v-else>—</template>
+                    </span>
+                  </div>
+                  <div v-if="station.key === 'customsStockIn'" class="so-item-flow-kv__cell">
+                    <span class="so-item-flow-kv__label">
+                      {{ t('customsPages.declarations.flowPanel.fields.stockInType') }}：
+                    </span>
+                    <span class="so-item-flow-kv__value so-item-flow-kv__value--with-icon">
+                      <StockBizTypeTag
+                        v-if="card.stockInType != null"
+                        biz="in"
+                        :type="card.stockInType"
+                        :customs-declaration-id="card.customsDeclarationId"
+                        :customs-declaration-code="card.customsDeclarationCode"
+                      />
+                      <template v-else>—</template>
+                    </span>
+                  </div>
                   <div class="so-item-flow-kv__cell">
                     <span class="so-item-flow-kv__label">
                       {{ t('salesOrderItemList.flowPanel.fields.createdAt') }}：
                     </span>
                     <span class="so-item-flow-kv__value">{{ formatFlowCardDate(card.createdAt) }}</span>
                   </div>
-                  <div class="so-item-flow-kv__cell">
+                  <div
+                    v-if="station.key === 'customsStockOutNotify' || station.key === 'packing'"
+                    class="so-item-flow-kv__cell"
+                  >
+                    <span class="so-item-flow-kv__label">
+                      {{ t('packingDetail.flowPanel.fields.stockOutType') }}：
+                    </span>
+                    <span class="so-item-flow-kv__value so-item-flow-kv__value--with-icon">
+                      <StockBizTypeTag
+                        v-if="card.stockOutType != null"
+                        biz="out"
+                        :type="card.stockOutType"
+                        :customs-declaration-id="card.customsDeclarationId"
+                        :customs-declaration-code="card.customsDeclarationCode"
+                      />
+                      <template v-else>—</template>
+                    </span>
+                  </div>
+                  <div v-else class="so-item-flow-kv__cell">
                     <span class="so-item-flow-kv__label">{{ t(card.personRoleKey) }}：</span>
                     <span class="so-item-flow-kv__value">{{ card.personName || '—' }}</span>
                   </div>
                   <template v-if="card.showCustomer">
-                    <div class="so-item-flow-kv__cell">
+                    <div
+                      v-if="station.key === 'sellOrderItem'"
+                      class="so-item-flow-kv__cell so-item-flow-kv__cell--full"
+                    >
                       <span class="so-item-flow-kv__label">
                         {{ t('salesOrderItemList.flowPanel.fields.customerName') }}：
                       </span>
                       <FlowPartyLink
-                        :text="card.customerName || '—'"
+                        :text="formatFlowCustomerNameWithCode(card.customerName, card.customerCode)"
                         :to="customerTo(card.customerId, maskSensitive)"
                       />
                     </div>
-                    <div class="so-item-flow-kv__cell">
-                      <span class="so-item-flow-kv__label">
-                        {{ t('salesOrderItemList.flowPanel.fields.customerCode') }}：
-                      </span>
-                      <span class="so-item-flow-kv__value">{{ card.customerCode || '—' }}</span>
-                    </div>
+                    <template v-else>
+                      <div class="so-item-flow-kv__cell">
+                        <span class="so-item-flow-kv__label">
+                          {{ t('salesOrderItemList.flowPanel.fields.customerName') }}：
+                        </span>
+                        <FlowPartyLink
+                          :text="card.customerName || '—'"
+                          :to="customerTo(card.customerId, maskSensitive)"
+                        />
+                      </div>
+                      <div class="so-item-flow-kv__cell">
+                        <span class="so-item-flow-kv__label">
+                          {{ t('salesOrderItemList.flowPanel.fields.customerCode') }}：
+                        </span>
+                        <span class="so-item-flow-kv__value">{{ card.customerCode || '—' }}</span>
+                      </div>
+                    </template>
                   </template>
+                  <div
+                    v-if="station.key === 'customsDeclaration' && card.brokerName"
+                    class="so-item-flow-kv__cell so-item-flow-kv__cell--full"
+                  >
+                    <span class="so-item-flow-kv__label">
+                      {{ t('customsPages.declarations.colBroker') }}：
+                    </span>
+                    <span class="so-item-flow-kv__value">{{ card.brokerName }}</span>
+                  </div>
                   <div v-if="card.unitPriceText" class="so-item-flow-kv__cell">
                     <span class="so-item-flow-kv__label">
                       {{ t('salesOrderItemList.flowPanel.fields.unitPrice') }}：
@@ -98,24 +169,9 @@
                   </div>
                   <div v-if="card.qtyText" class="so-item-flow-kv__cell">
                     <span class="so-item-flow-kv__label">
-                      {{ t('salesOrderItemList.flowPanel.fields.qty') }}：
+                      {{ t(card.qtyLabelKey || 'salesOrderItemList.flowPanel.fields.qty') }}：
                     </span>
                     <span class="so-item-flow-kv__value">{{ card.qtyText }}</span>
-                  </div>
-                  <div
-                    v-if="card.pendlistId"
-                    class="so-item-flow-kv__cell so-item-flow-kv__cell--full"
-                  >
-                    <span class="so-item-flow-kv__label">
-                      {{ t('customsPages.pendlists.flowPanel.pendlistId') }}：
-                    </span>
-                    <span class="so-item-flow-kv__value so-item-flow-kv__mono">{{ card.pendlistId }}</span>
-                  </div>
-                  <div class="so-item-flow-kv__cell so-item-flow-kv__cell--full">
-                    <span class="so-item-flow-kv__label">
-                      {{ t('salesOrderItemList.flowPanel.fields.description') }}：
-                    </span>
-                    <span class="so-item-flow-kv__value">—</span>
                   </div>
                 </div>
               </article>
@@ -130,20 +186,23 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { CustomsPendlistFlowAggregatesDto, CustomsPendlistListItemDto } from '@/api/customs'
+import type { CustomsDeclarationFlowAggregatesDto } from '@/api/customs'
 import FlowPartyLink from '@/components/Common/FlowPartyLink.vue'
 import FlowYouAreHereMark from '@/components/Common/FlowYouAreHereMark.vue'
+import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { useFlowPartyLinks } from '@/composables/useFlowPartyLinks'
-import { buildCustomsPendlistFlowStations } from '@/utils/customsPendlistFlowPanel'
+import { buildCustomsDeclarationFlowStations } from '@/utils/customsDeclarationFlowPanel'
 import {
   formatFlowCardDate,
+  formatFlowCustomerNameWithCode,
   type FlowDocRoute,
+  type FlowStationKey,
   type FlowStationStatus
 } from '@/utils/sellOrderItemFlowPanel'
 
 const props = defineProps<{
-  row: CustomsPendlistListItemDto | null
-  aggregates: CustomsPendlistFlowAggregatesDto | null
+  row: Record<string, unknown> | null
+  aggregates: CustomsDeclarationFlowAggregatesDto | null
   loading?: boolean
   loadError?: string
   maskSensitive?: boolean
@@ -152,7 +211,15 @@ const props = defineProps<{
 const { t } = useI18n()
 const { customerTo } = useFlowPartyLinks()
 
-const stations = computed(() => buildCustomsPendlistFlowStations(props.aggregates, t as any))
+const stations = computed(() =>
+  buildCustomsDeclarationFlowStations(props.aggregates, t as (key: string, ...args: unknown[]) => string, {
+    maskSensitive: props.maskSensitive
+  })
+)
+
+function showsOutType(key: FlowStationKey) {
+  return key === 'customsStockOutNotify' || key === 'packing' || key === 'stockOut'
+}
 
 function stationStatusLabel(status: FlowStationStatus) {
   if (status === 'active') return t('salesOrderItemList.flowPanel.stationActive')
@@ -171,10 +238,4 @@ function toRouteLocation(route: FlowDocRoute) {
 
 <style scoped lang="scss">
 @import '@/assets/styles/so-item-flow-panel.scss';
-
-.so-item-flow-kv__mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 12px;
-  word-break: break-all;
-}
 </style>

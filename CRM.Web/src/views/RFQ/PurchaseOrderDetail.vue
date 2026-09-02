@@ -1676,6 +1676,7 @@ function poDetailLineToListShape(it: any) {
     vendorId: o.vendorId,
     vendorName: o.vendorName,
     vendorEnglishName: o.vendorEnglishName,
+    vendorCode: o.vendorCode,
     purchaseUserName: o.purchaseUserName,
     itemStatus: Number(it.status ?? it.Status ?? 0),
     orderStatus: Number(o.status ?? o.Status ?? 0),

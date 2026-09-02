@@ -316,6 +316,49 @@ export async function fetchCustomsPendlistFlowAggregates(
   )
 }
 
+export interface CustomsDeclarationFlowDocDto {
+  id: string
+  docCode?: string | null
+  status?: number | null
+  createTime?: string | null
+  customerId?: string | null
+  customerName?: string | null
+  customerCode?: string | null
+  personName?: string | null
+  unitPrice?: number | null
+  currency?: number | null
+  qty?: number | null
+  isDeleted?: boolean
+  salesOrderId?: string | null
+  brokerName?: string | null
+  stockOutType?: number | null
+  stockInType?: number | null
+  customsDeclarationId?: string | null
+  customsDeclarationCode?: string | null
+}
+
+export interface CustomsDeclarationFlowAggregatesDto {
+  declarationId: string
+  sellOrderItems?: CustomsDeclarationFlowDocDto[]
+  salesStockOutNotifies?: CustomsDeclarationFlowDocDto[]
+  pendlists?: CustomsDeclarationFlowDocDto[]
+  customsStockOutNotifies?: CustomsDeclarationFlowDocDto[]
+  packing?: CustomsDeclarationFlowDocDto | null
+  declaration: CustomsDeclarationFlowDocDto
+  stockOuts?: CustomsDeclarationFlowDocDto[]
+  arrivals?: CustomsDeclarationFlowDocDto[]
+  qcs?: CustomsDeclarationFlowDocDto[]
+  stockIns?: CustomsDeclarationFlowDocDto[]
+}
+
+export async function fetchCustomsDeclarationFlowAggregates(
+  declarationId: string
+): Promise<CustomsDeclarationFlowAggregatesDto> {
+  return apiClient.get<CustomsDeclarationFlowAggregatesDto>(
+    `/api/v1/customs-declarations/${encodeURIComponent(declarationId)}/flow-aggregates`
+  )
+}
+
 export async function forceDeleteCustomsPendlist(
   id: string,
   confirmPendlistId: string

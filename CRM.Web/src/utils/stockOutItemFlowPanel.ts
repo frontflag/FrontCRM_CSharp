@@ -5,8 +5,8 @@ import { STOCK_OUT_REQUEST_STATUS } from '@/constants/stockOutRequestStatus'
 import { resolveStockInTypeLabelKey } from '@/constants/stockInType'
 import { resolveStockOutTypeLabelKey } from '@/constants/stockOutType'
 import { translateSalesOrderStatus } from '@/constants/salesOrderStatus'
-import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import { formatUnitPriceWithCurrencyCodeSuffix } from '@/utils/moneyFormat'
+import { formatFlowCardDate, resolveFlowPartyId } from '@/utils/sellOrderItemFlowPanel'
 import type { FlowStationStatus, StockItemFlowCard } from '@/utils/stockItemFlowPanel'
 
 export type StockOutItemFlowStationKey =
@@ -182,6 +182,8 @@ function mapStockItemCard(
     mask511: boolean
     mask521: boolean
     outbound?: StockItemFlowDoc | StockOutItemListRow | null
+    vendorId?: string | null
+    customerId?: string | null
   }
 ): StockItemFlowCard {
   const F = 'inventoryStockItemList.flowPanel'
@@ -208,8 +210,10 @@ function mapStockItemCard(
     createdAt: src.bizDate ?? src.createTime,
     createdAtLabelKey: `${F}.fields.stockInDate`,
     showVendor: true,
+    vendorId: options.vendorId ?? null,
     vendorName: maskDash(options.mask511, src.vendorName),
     showCustomer: hasSalesLink,
+    customerId: options.customerId ?? null,
     customerName,
     showPerson: false,
     personRoleKey: `${F}.role.salesUser`,
@@ -251,6 +255,8 @@ export function buildStockOutItemFlowStations(
   const N = 'stockOutItemList.flowPanel'
   const rec = (row ?? null) as RowRecord | null
   const stations: StockOutItemFlowStation[] = []
+  const lineVendorId = resolveFlowPartyId(mask511, rec?.vendorId)
+  const lineCustomerId = resolveFlowPartyId(mask521, rec?.customerId)
 
   const notifyDoc = aggregates?.stockOutNotify ?? null
   const sell = aggregates?.sellOrderItem ?? null
@@ -282,6 +288,7 @@ export function buildStockOutItemFlowStations(
         createdAtLabelKey: `${F}.fields.createdAt`,
         showVendor: false,
         showCustomer: true,
+        customerId: lineCustomerId,
         customerName: maskDash(mask521, sell.customerName),
         showPerson: true,
         personRoleKey: `${F}.role.salesUser`,
@@ -315,6 +322,7 @@ export function buildStockOutItemFlowStations(
         createdAtLabelKey: `${F}.fields.createdAt`,
         showVendor: false,
         showCustomer: true,
+        customerId: lineCustomerId,
         customerName: maskDash(mask521, src.customerName),
         showPerson: false,
         personRoleKey: `${F}.role.salesUser`,
@@ -335,7 +343,15 @@ export function buildStockOutItemFlowStations(
 
   {
     const list = sortByCreatedAsc(aggregates?.stockItems ?? [], (x) => x.bizDate ?? x.createTime)
-    const cards = list.map((x) => mapStockItemCard(x, t, { mask511, mask521, outbound: outboundForItem }))
+    const cards = list.map((x) =>
+      mapStockItemCard(x, t, {
+        mask511,
+        mask521,
+        outbound: outboundForItem,
+        vendorId: lineVendorId,
+        customerId: lineCustomerId
+      })
+    )
     stations.push(buildStation('stockItem', `${N}.stations.stockItem`, cards))
   }
 
@@ -355,6 +371,7 @@ export function buildStockOutItemFlowStations(
         createdAtLabelKey: `${F}.fields.createdAt`,
         showVendor: false,
         showCustomer: true,
+        customerId: lineCustomerId,
         customerName: maskDash(mask521, x.customerName),
         showPerson: false,
         personRoleKey: `${F}.role.salesUser`,
@@ -427,6 +444,7 @@ export function buildStockOutItemFlowStations(
         createdAtLabelKey: `${F}.fields.createdAt`,
         showVendor: false,
         showCustomer: true,
+        customerId: lineCustomerId,
         customerName: maskDash(mask521, x.customerName ?? (rec?.customerName as string | null)),
         showPerson: true,
         personRoleKey: `${F}.role.creator`,
@@ -448,4 +466,4 @@ export function buildStockOutItemFlowStations(
   return stations
 }
 
-export { formatDisplayDateTime as formatStockOutItemFlowCardDate }
+export { formatFlowCardDate as formatStockOutItemFlowCardDate }

@@ -71,14 +71,29 @@
                     <span class="so-item-flow-kv__value">{{ card.personName || '—' }}</span>
                   </div>
                   <template v-if="card.showCustomer">
-                    <div class="so-item-flow-kv__cell">
+                    <div
+                      v-if="station.key === 'sellOrderItem'"
+                      class="so-item-flow-kv__cell so-item-flow-kv__cell--full"
+                    >
                       <span class="so-item-flow-kv__label">{{ t('salesOrderItemList.flowPanel.fields.customerName') }}：</span>
-                      <span class="so-item-flow-kv__value">{{ card.customerName || '—' }}</span>
+                      <FlowPartyLink
+                        :text="formatFlowCustomerNameWithCode(card.customerName, card.customerCode)"
+                        :to="customerTo(card.customerId, maskSensitive)"
+                      />
                     </div>
-                    <div class="so-item-flow-kv__cell">
-                      <span class="so-item-flow-kv__label">{{ t('salesOrderItemList.flowPanel.fields.customerCode') }}：</span>
-                      <span class="so-item-flow-kv__value">{{ card.customerCode || '—' }}</span>
-                    </div>
+                    <template v-else>
+                      <div class="so-item-flow-kv__cell">
+                        <span class="so-item-flow-kv__label">{{ t('salesOrderItemList.flowPanel.fields.customerName') }}：</span>
+                        <FlowPartyLink
+                          :text="card.customerName || '—'"
+                          :to="customerTo(card.customerId, maskSensitive)"
+                        />
+                      </div>
+                      <div class="so-item-flow-kv__cell">
+                        <span class="so-item-flow-kv__label">{{ t('salesOrderItemList.flowPanel.fields.customerCode') }}：</span>
+                        <span class="so-item-flow-kv__value">{{ card.customerCode || '—' }}</span>
+                      </div>
+                    </template>
                   </template>
                   <div v-if="card.unitPriceText" class="so-item-flow-kv__cell">
                     <span class="so-item-flow-kv__label">{{ priceLabel(station.key) }}：</span>
@@ -109,10 +124,13 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { SalesOrderDetailTabAggregates } from '@/api/salesOrder'
+import FlowPartyLink from '@/components/Common/FlowPartyLink.vue'
 import FlowYouAreHereMark from '@/components/Common/FlowYouAreHereMark.vue'
+import { useFlowPartyLinks } from '@/composables/useFlowPartyLinks'
 import {
   buildSellOrderItemFlowStations,
   formatFlowCardDate,
+  formatFlowCustomerNameWithCode,
   type FlowDocRoute,
   type FlowStationKey,
   type FlowStationStatus
@@ -135,6 +153,7 @@ const props = withDefaults(
 )
 
 const { t } = useI18n()
+const { customerTo } = useFlowPartyLinks()
 
 const stations = computed(() =>
   buildSellOrderItemFlowStations(props.row, props.aggregates, t as (key: string, ...args: unknown[]) => string, {

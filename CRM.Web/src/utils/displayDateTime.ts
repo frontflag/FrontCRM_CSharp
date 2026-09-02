@@ -128,3 +128,10 @@ export function formatDisplayDate(input: Date | string | undefined | null): stri
     day: '2-digit'
   }).format(d)
 }
+
+/** 按配置时区显示：YY-MM-DD（仅日期，无时分） */
+export function formatDisplayDate2DigitYear(input: Date | string | undefined | null): string {
+  const d = toDate(input)
+  if (!d) return '--'
+  return formatYmdHm2DigitYearInZone(d, getDisplayTimeZoneId()).date
+}
