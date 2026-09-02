@@ -1978,6 +1978,99 @@ namespace CRM.API.Controllers
             }
         }
 
+        [HttpPost("{id:guid}/refresh")]
+        [RequirePermission("purchase-order.write")]
+        public async Task<IActionResult> RefreshDownstream(
+            string id,
+            [FromBody] PurchaseOrderRefreshRequest? request,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (!PurchaseOrderRefreshFacetParser.TryParse(request?.Facet, out var facet))
+                    return BadRequest(new { success = false, message = "刷新类型无效，应为 status / vendor / pn / brand / qty / price" });
+
+                var order = await _service.GetByIdAsync(id);
+                if (order == null) return NotFound(new { success = false, message = "采购订单不存在" });
+
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrWhiteSpace(userId))
+                    return StatusCode(403, new { success = false, message = "未登录" });
+
+                if (!await _dataPermissionService.CanAccessPurchaseOrderAsync(userId.Trim(), order))
+                    return StatusCode(403, new { success = false, message = "无权访问该采购订单" });
+
+                if (facet == PurchaseOrderRefreshFacet.Vendor)
+                {
+                    var summary = await GetPermissionSummaryAsync(userId.Trim());
+                    if (!PurchaseOrderVendorChangeAccessRules.CanChangeVendorOnOrder(summary, order.Status))
+                        return StatusCode(403, new { success = false, message = "当前无权刷新供应商" });
+                }
+
+                var result = await _service.RefreshDownstreamAsync(
+                    id,
+                    facet,
+                    cancellationToken,
+                    userId,
+                    request?.ConfirmCompleted ?? false);
+                return Ok(new { success = true, data = result });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "采购订单分面刷新失败: {Id} Facet={Facet}", id, request?.Facet);
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpPost("{id:guid}/refresh/preview")]
+        [RequirePermission("purchase-order.write")]
+        public async Task<IActionResult> PreviewRefreshDownstream(
+            string id,
+            [FromBody] PurchaseOrderRefreshRequest? request,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (!PurchaseOrderRefreshFacetParser.TryParse(request?.Facet, out var facet))
+                    return BadRequest(new { success = false, message = "刷新类型无效，应为 status / vendor / pn / brand / qty / price" });
+
+                var order = await _service.GetByIdAsync(id);
+                if (order == null) return NotFound(new { success = false, message = "采购订单不存在" });
+
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrWhiteSpace(userId))
+                    return StatusCode(403, new { success = false, message = "未登录" });
+
+                if (!await _dataPermissionService.CanAccessPurchaseOrderAsync(userId.Trim(), order))
+                    return StatusCode(403, new { success = false, message = "无权访问该采购订单" });
+
+                cancellationToken.ThrowIfCancellationRequested();
+                var preview = await _service.PreviewRefreshDownstreamAsync(id, facet, cancellationToken);
+                return Ok(new { success = true, data = preview });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "采购订单分面刷新预检失败: {Id} Facet={Facet}", id, request?.Facet);
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
         [HttpPost("{id:guid}/refresh-item-extends")]
         [RequirePermission("purchase-order.write")]
         public async Task<IActionResult> RefreshItemExtends(string id, CancellationToken cancellationToken)
@@ -1985,13 +2078,13 @@ namespace CRM.API.Controllers
             try
             {
                 var order = await _service.GetByIdAsync(id);
-                if (order == null) return NotFound(new { success = false, message = "???????" });
+                if (order == null) return NotFound(new { success = false, message = "采购订单不存在" });
 
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessPurchaseOrderAsync(userId, order))
-                    return StatusCode(403, new { success = false, message = "??????????" });
+                    return StatusCode(403, new { success = false, message = "无权访问该采购订单" });
 
-                var result = await _service.RefreshItemExtendsAsync(id, cancellationToken, userId);
+                var result = await _service.RefreshDownstreamAsync(id, PurchaseOrderRefreshFacet.Price, cancellationToken, userId);
                 return Ok(new { success = true, data = result });
             }
             catch (Exception ex)
@@ -2049,7 +2142,10 @@ namespace CRM.API.Controllers
 
         [HttpPost("{id:guid}/refresh-vendor-name")]
         [RequirePermission("purchase-order.write")]
-        public async Task<IActionResult> RefreshVendorName(string id, CancellationToken cancellationToken)
+        public async Task<IActionResult> RefreshVendorName(
+            string id,
+            [FromBody] PurchaseOrderRefreshRequest? request,
+            CancellationToken cancellationToken)
         {
             try
             {
@@ -2068,7 +2164,10 @@ namespace CRM.API.Controllers
                     return StatusCode(403, new { success = false, message = "当前无权更换供应商" });
 
                 cancellationToken.ThrowIfCancellationRequested();
-                var result = await _service.RefreshVendorNameAsync(id, userId.Trim());
+                var result = await _service.RefreshVendorNameAsync(
+                    id,
+                    userId.Trim(),
+                    request?.ConfirmCompleted ?? false);
                 return Ok(new { success = true, data = result });
             }
             catch (ArgumentException ex)

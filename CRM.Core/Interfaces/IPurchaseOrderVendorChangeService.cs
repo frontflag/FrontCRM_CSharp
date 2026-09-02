@@ -45,6 +45,11 @@ public class PurchaseOrderVendorChangePreviewResult
     public int StockInsToSync { get; set; }
     public int PaymentsToSync { get; set; }
     public int PurchaseInvoicesToSync { get; set; }
+    /// <summary>采购参数是否允许本分面覆盖已完结下游。</summary>
+    public bool AllowCompletedParam { get; set; }
+    /// <summary>本次将写入的已完结下游说明（参数允许时）。</summary>
+    public List<string> CompletedDocuments { get; set; } = new();
+    public bool HasCompleted => CompletedDocuments.Count > 0;
 }
 
 public class PurchaseOrderVendorChangeApplyResult

@@ -51,7 +51,9 @@ namespace CRM.Core.Services
         private readonly IRepository<VendorInfo>? _vendorRepo;
         private readonly IPurchaseOrderVendorChangeService? _vendorChangeService;
         private readonly IPurchaseOrderPurchasePriceDownstreamSyncService? _purchasePriceDownstreamSync;
+        private readonly IPurchaseOrderIdentityDownstreamSyncService? _identityDownstreamSync;
         private readonly IPurchaseOrderRevertVendorConfirmGuard? _revertVendorConfirmGuard;
+        private readonly IPurchaseOrderRefreshCompletedGateService? _refreshCompletedGate;
 
         public PurchaseOrderService(
             IRepository<PurchaseOrder> poRepo,
@@ -78,7 +80,9 @@ namespace CRM.Core.Services
             IRepository<VendorInfo>? vendorRepo = null,
             IPurchaseOrderVendorChangeService? vendorChangeService = null,
             IPurchaseOrderPurchasePriceDownstreamSyncService? purchasePriceDownstreamSync = null,
-            IPurchaseOrderRevertVendorConfirmGuard? revertVendorConfirmGuard = null)
+            IPurchaseOrderIdentityDownstreamSyncService? identityDownstreamSync = null,
+            IPurchaseOrderRevertVendorConfirmGuard? revertVendorConfirmGuard = null,
+            IPurchaseOrderRefreshCompletedGateService? refreshCompletedGate = null)
         {
             _poRepo = poRepo;
             _poItemRepo = poItemRepo;
@@ -104,7 +108,9 @@ namespace CRM.Core.Services
             _vendorRepo = vendorRepo;
             _vendorChangeService = vendorChangeService;
             _purchasePriceDownstreamSync = purchasePriceDownstreamSync;
+            _identityDownstreamSync = identityDownstreamSync;
             _revertVendorConfirmGuard = revertVendorConfirmGuard;
+            _refreshCompletedGate = refreshCompletedGate;
         }
 
         // 兼容旧调用方（单测/临时构造）：不注入采购申请回写依赖时，状态回写能力自动降级为 no-op。
@@ -681,13 +687,31 @@ namespace CRM.Core.Services
             await RecalculatePurchaseRequisitionBySellLinesAsync(recalcAfterDelete);
         }
 
-        public async Task<PurchaseOrderItemExtendRefreshResult> RefreshItemExtendsAsync(
+        public Task<PurchaseOrderItemExtendRefreshResult> RefreshItemExtendsAsync(
             string purchaseOrderId,
             CancellationToken cancellationToken = default,
             string? actingUserId = null)
+            => RefreshDownstreamAsync(purchaseOrderId, PurchaseOrderRefreshFacet.Price, cancellationToken, actingUserId, confirmCompleted: true);
+
+        public async Task<PurchaseOrderItemExtendRefreshResult> RefreshDownstreamAsync(
+            string purchaseOrderId,
+            PurchaseOrderRefreshFacet facet,
+            CancellationToken cancellationToken = default,
+            string? actingUserId = null,
+            bool confirmCompleted = false)
         {
             if (string.IsNullOrWhiteSpace(purchaseOrderId))
                 throw new ArgumentException("采购订单ID不能为空", nameof(purchaseOrderId));
+
+            if (facet == PurchaseOrderRefreshFacet.Vendor)
+                return await MapVendorRefreshResultAsync(purchaseOrderId, actingUserId, confirmCompleted);
+
+            if (_refreshCompletedGate != null && facet != PurchaseOrderRefreshFacet.Status)
+                await _refreshCompletedGate.EnsureAllowedAsync(
+                    purchaseOrderId.Trim(),
+                    facet,
+                    confirmCompleted,
+                    cancellationToken);
 
             var orderId = purchaseOrderId.Trim();
             var order = await _poRepo.GetByIdAsync(orderId)
@@ -696,6 +720,7 @@ namespace CRM.Core.Services
             var items = (await _poItemRepo.FindAsync(x => x.PurchaseOrderId == orderId)).ToList();
             var result = new PurchaseOrderItemExtendRefreshResult
             {
+                Facet = facet.ToApiValue(),
                 PurchaseOrderId = orderId,
                 TotalItems = items.Count,
                 RefreshedAt = DateTime.UtcNow
@@ -705,95 +730,239 @@ namespace CRM.Core.Services
                 await LoadArrivalNoticeStatusMapByPoLineIdsAsync(poLineIds);
 
             PurchaseOrderPurchasePriceDownstreamSyncResult? priceSync = null;
-            if (_purchasePriceDownstreamSync != null && items.Count > 0)
+            PurchaseOrderIdentityDownstreamSyncResult? identitySync = null;
+
+            if (facet == PurchaseOrderRefreshFacet.Price
+                && _purchasePriceDownstreamSync != null
+                && items.Count > 0)
             {
                 priceSync = await _purchasePriceDownstreamSync.ApplyAsync(items, cancellationToken);
-                result.ArrivalNoticesUpdated = priceSync.ArrivalNoticesUpdated;
-                result.StockInItemsUpdated = priceSync.StockInItemsUpdated;
-                result.StockInHeadersUpdated = priceSync.StockInHeadersUpdated;
-                result.StockInItemExtendsUpdated = priceSync.StockInItemExtendsUpdated;
-                result.StockItemsUpdated = priceSync.StockItemsUpdated;
-                result.StockOutItemExtendsUpdated = priceSync.StockOutItemExtendsUpdated;
-                result.PurchasePriceLineChanges = priceSync.LineChanges;
-                result.InvoiceMatchWarnings = priceSync.InvoiceMatchWarnings;
-                result.PaymentOverWarnings = priceSync.PaymentOverWarnings;
+                ApplyPriceSyncToResult(result, priceSync);
             }
-
-            foreach (var item in items)
+            else if ((facet == PurchaseOrderRefreshFacet.Pn || facet == PurchaseOrderRefreshFacet.Brand)
+                && _identityDownstreamSync != null
+                && items.Count > 0)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                var beforeItemStatus = item.Status;
-                var before = await BuildRefreshSnapshotAsync(item.Id);
-                await _poItemExtendSync.RecalculateAsync(item.Id, cancellationToken);
-                var after = await BuildRefreshSnapshotAsync(item.Id);
-                var fields = BuildFieldChanges(before, after);
-
-                var targetItemStatus = ComputeItemStatusAfterRefresh(item, after);
-                if (targetItemStatus != beforeItemStatus)
+                var field = facet == PurchaseOrderRefreshFacet.Pn
+                    ? PurchaseOrderIdentitySnapshotField.Pn
+                    : PurchaseOrderIdentitySnapshotField.Brand;
+                identitySync = await _identityDownstreamSync.ApplyAsync(items, field, cancellationToken);
+                result.ArrivalNoticesUpdated = identitySync.ArrivalNoticesUpdated;
+                result.StockInItemsUpdated = identitySync.StockInItemsUpdated;
+                result.StockItemsUpdated = identitySync.StockItemsUpdated;
+                result.StockItemsMoved = identitySync.StockItemsMoved;
+                result.StockAggregatesCreated = identitySync.StockAggregatesCreated;
+                result.StockAggregatesRemoved = identitySync.StockAggregatesRemoved;
+                result.PackingItemsUpdated = identitySync.PackingItemsUpdated;
+                result.CustomsDeclarationItemsUpdated = identitySync.CustomsDeclarationItemsUpdated;
+                result.IdentityChanges = identitySync.Changes;
+            }
+            else if (facet == PurchaseOrderRefreshFacet.Qty)
+            {
+                foreach (var item in items)
                 {
-                    item.Status = targetItemStatus;
-                    item.ModifyTime = DateTime.UtcNow;
-                    await _poItemRepo.UpdateAsync(item);
-                    fields.Add(new PurchaseOrderItemExtendFieldChangeDto
-                    {
-                        Field = "status",
-                        Label = "明细状态",
-                        Before = beforeItemStatus.ToString(),
-                        After = targetItemStatus.ToString()
-                    });
-                    // 扩展里「采购进度状态」等仍按本行 status 推导；主状态下调后需再算一遍，避免 extend 与主状态长期不一致
-                    await _poItemExtendSync.RecalculateAsync(item.Id, cancellationToken);
-                    var afterStatusFix = await BuildRefreshSnapshotAsync(item.Id);
-                    fields.AddRange(BuildFieldChanges(after, afterStatusFix));
+                    cancellationToken.ThrowIfCancellationRequested();
+                    result.ArrivalNoticesUpdated +=
+                        await _poItemExtendSync.SyncArrivalNoticePlanQtyAsync(item.Id, cancellationToken);
                 }
-                if (fields.Count == 0) continue;
-
-                result.Changes.Add(new PurchaseOrderItemExtendChangeDto
-                {
-                    PurchaseOrderItemId = item.Id,
-                    PurchaseOrderItemCode = item.PurchaseOrderItemCode,
-                    Fields = fields
-                });
-                result.ChangedFieldsCount += fields.Count;
             }
 
-            var refreshSellLineIds = items
-                .Select(i => i.SellOrderItemId)
-                .Where(s => IsLinkedSellOrderPurchaseLine(s))
-                .Select(s => s!.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-            result.SyncedPurchaseRequisitionStatusCount =
-                await RecalculatePurchaseRequisitionBySellLinesAsync(refreshSellLineIds);
-            var afterArrivalStatus =
-                await LoadArrivalNoticeStatusMapByPoLineIdsAsync(poLineIds);
-            result.SyncedArrivalNoticeStatusCount =
-                CountArrivalNoticeStatusChanges(beforeArrivalStatus, afterArrivalStatus);
+            var recalcOptions = facet is PurchaseOrderRefreshFacet.Pn or PurchaseOrderRefreshFacet.Brand
+                ? null
+                : PurchaseOrderItemRecalculateOptions.StatusOnly;
+
+            if (recalcOptions != null)
+            {
+                foreach (var item in items)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var beforeItemStatus = item.Status;
+                    var before = await BuildRefreshSnapshotAsync(item.Id);
+                    await _poItemExtendSync.RecalculateAsync(item.Id, recalcOptions, cancellationToken);
+                    var after = await BuildRefreshSnapshotAsync(item.Id);
+                    var fields = BuildFieldChanges(before, after);
+
+                    var targetItemStatus = ComputeItemStatusAfterRefresh(item, after);
+                    if (targetItemStatus != beforeItemStatus)
+                    {
+                        item.Status = targetItemStatus;
+                        item.ModifyTime = DateTime.UtcNow;
+                        await _poItemRepo.UpdateAsync(item);
+                        fields.Add(new PurchaseOrderItemExtendFieldChangeDto
+                        {
+                            Field = "status",
+                            Label = "明细状态",
+                            Before = beforeItemStatus.ToString(),
+                            After = targetItemStatus.ToString()
+                        });
+                        await _poItemExtendSync.RecalculateAsync(item.Id, recalcOptions, cancellationToken);
+                        var afterStatusFix = await BuildRefreshSnapshotAsync(item.Id);
+                        fields.AddRange(BuildFieldChanges(after, afterStatusFix));
+                    }
+                    if (fields.Count == 0) continue;
+
+                    result.Changes.Add(new PurchaseOrderItemExtendChangeDto
+                    {
+                        PurchaseOrderItemId = item.Id,
+                        PurchaseOrderItemCode = item.PurchaseOrderItemCode,
+                        Fields = fields
+                    });
+                    result.ChangedFieldsCount += fields.Count;
+                }
+
+                var refreshSellLineIds = items
+                    .Select(i => i.SellOrderItemId)
+                    .Where(s => IsLinkedSellOrderPurchaseLine(s))
+                    .Select(s => s!.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                result.SyncedPurchaseRequisitionStatusCount =
+                    await RecalculatePurchaseRequisitionBySellLinesAsync(refreshSellLineIds);
+                var afterArrivalStatus =
+                    await LoadArrivalNoticeStatusMapByPoLineIdsAsync(poLineIds);
+                result.SyncedArrivalNoticeStatusCount =
+                    CountArrivalNoticeStatusChanges(beforeArrivalStatus, afterArrivalStatus);
+
+                if (_poMainStatusSync != null && await _poMainStatusSync.TrySyncOrderMainStatusAsync(orderId, cancellationToken))
+                    result.ChangedFieldsCount += 1;
+            }
 
             result.ChangedItems = result.Changes.Count;
 
-            if (_poMainStatusSync != null && await _poMainStatusSync.TrySyncOrderMainStatusAsync(orderId, cancellationToken))
-                result.ChangedFieldsCount += 1;
-
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
 
-            if (priceSync is { HasUpdates: true })
-                await AppendPurchasePriceRefreshLogAsync(order, priceSync, actingUserId, cancellationToken);
+            await AppendFacetRefreshLogAsync(order, facet, result, priceSync, identitySync, actingUserId, cancellationToken);
 
             _logger.LogInformation(
-                "PO明细扩展刷新完成: PurchaseOrderId={PurchaseOrderId} Code={Code} TotalItems={TotalItems} ChangedItems={ChangedItems} ChangedFields={ChangedFields} Notices={Notices} StockIn={StockIn} StockInHead={StockInHead} StockItem={StockItem} StockOutExt={StockOutExt}",
+                "PO分面刷新完成: Facet={Facet} PurchaseOrderId={PurchaseOrderId} Code={Code} TotalItems={TotalItems} ChangedItems={ChangedItems} ChangedFields={ChangedFields} Notices={Notices} StockIn={StockIn}",
+                result.Facet,
                 orderId,
                 order.PurchaseOrderCode,
                 result.TotalItems,
                 result.ChangedItems,
                 result.ChangedFieldsCount,
                 result.ArrivalNoticesUpdated,
-                result.StockInItemsUpdated,
-                result.StockInHeadersUpdated,
-                result.StockItemsUpdated,
-                result.StockOutItemExtendsUpdated);
+                result.StockInItemsUpdated);
 
             return result;
+        }
+
+        private async Task<PurchaseOrderItemExtendRefreshResult> MapVendorRefreshResultAsync(
+            string purchaseOrderId,
+            string? actingUserId,
+            bool confirmCompleted)
+        {
+            var vendor = await RefreshVendorNameAsync(purchaseOrderId, actingUserId, confirmCompleted);
+            return new PurchaseOrderItemExtendRefreshResult
+            {
+                Facet = PurchaseOrderRefreshFacet.Vendor.ToApiValue(),
+                PurchaseOrderId = vendor.PurchaseOrderId,
+                TotalItems = 1,
+                ChangedItems = vendor.Changed ? 1 : 0,
+                ChangedFieldsCount = vendor.Changed ? 1 : 0,
+                OldVendorName = vendor.OldVendorName,
+                NewVendorName = vendor.NewVendorName,
+                RefreshedAt = DateTime.UtcNow
+            };
+        }
+
+        private static void ApplyPriceSyncToResult(
+            PurchaseOrderItemExtendRefreshResult result,
+            PurchaseOrderPurchasePriceDownstreamSyncResult priceSync)
+        {
+            result.ArrivalNoticesUpdated = priceSync.ArrivalNoticesUpdated;
+            result.StockInItemsUpdated = priceSync.StockInItemsUpdated;
+            result.StockInHeadersUpdated = priceSync.StockInHeadersUpdated;
+            result.StockInItemExtendsUpdated = priceSync.StockInItemExtendsUpdated;
+            result.StockItemsUpdated = priceSync.StockItemsUpdated;
+            result.StockOutItemExtendsUpdated = priceSync.StockOutItemExtendsUpdated;
+            result.PurchasePriceLineChanges = priceSync.LineChanges;
+            result.InvoiceMatchWarnings = priceSync.InvoiceMatchWarnings;
+            result.PaymentOverWarnings = priceSync.PaymentOverWarnings;
+        }
+
+        private async Task AppendFacetRefreshLogAsync(
+            PurchaseOrder order,
+            PurchaseOrderRefreshFacet facet,
+            PurchaseOrderItemExtendRefreshResult result,
+            PurchaseOrderPurchasePriceDownstreamSyncResult? priceSync,
+            PurchaseOrderIdentityDownstreamSyncResult? identitySync,
+            string? actingUserId,
+            CancellationToken cancellationToken)
+        {
+            if (facet == PurchaseOrderRefreshFacet.Price)
+            {
+                if (priceSync is { HasUpdates: true })
+                    await AppendPurchasePriceRefreshLogAsync(order, priceSync, actingUserId, cancellationToken);
+                return;
+            }
+
+            if (_logOperationAppend == null)
+                return;
+
+            var hasWork = result.ChangedItems > 0
+                || result.ChangedFieldsCount > 0
+                || result.ArrivalNoticesUpdated > 0
+                || result.StockInItemsUpdated > 0
+                || result.StockItemsUpdated > 0
+                || result.StockItemsMoved > 0
+                || result.PackingItemsUpdated > 0
+                || result.CustomsDeclarationItemsUpdated > 0
+                || (identitySync?.HasUpdates ?? false);
+            if (!hasWork)
+                return;
+
+            var actionType = facet switch
+            {
+                PurchaseOrderRefreshFacet.Pn => OperationLogActionTypes.PurchaseOrderRefreshPn,
+                PurchaseOrderRefreshFacet.Brand => OperationLogActionTypes.PurchaseOrderRefreshBrand,
+                PurchaseOrderRefreshFacet.Qty => OperationLogActionTypes.PurchaseOrderRefreshQty,
+                _ => OperationLogActionTypes.PurchaseOrderRefreshStatus
+            };
+
+            string? operatorName = null;
+            var actor = string.IsNullOrWhiteSpace(actingUserId) ? null : actingUserId.Trim();
+            if (!string.IsNullOrEmpty(actor) && _userService != null)
+            {
+                var user = await _userService.GetByIdAsync(actor);
+                operatorName = string.IsNullOrWhiteSpace(user?.RealName) ? user?.UserName : user!.RealName;
+            }
+
+            var desc = facet switch
+            {
+                PurchaseOrderRefreshFacet.Pn =>
+                    $"覆盖下游物料型号快照并重对齐库存分桶。到货通知 {result.ArrivalNoticesUpdated}、入库明细 {result.StockInItemsUpdated}、库存明细 {result.StockItemsUpdated}（换桶 {result.StockItemsMoved}，新建分桶 {result.StockAggregatesCreated}，删除空分桶 {result.StockAggregatesRemoved}）、装箱 {result.PackingItemsUpdated}、报关 {result.CustomsDeclarationItemsUpdated}。",
+                PurchaseOrderRefreshFacet.Brand =>
+                    $"覆盖下游品牌快照并重对齐库存分桶。到货通知 {result.ArrivalNoticesUpdated}、入库明细 {result.StockInItemsUpdated}、库存明细 {result.StockItemsUpdated}（换桶 {result.StockItemsMoved}，新建分桶 {result.StockAggregatesCreated}，删除空分桶 {result.StockAggregatesRemoved}）、装箱 {result.PackingItemsUpdated}、报关 {result.CustomsDeclarationItemsUpdated}。",
+                PurchaseOrderRefreshFacet.Qty =>
+                    $"按采购行数量对齐到货计划量（仅收缩超量单批次），并重算进度。到货通知 {result.ArrivalNoticesUpdated} 条。不改入库/库存/出库实绩数量。",
+                _ =>
+                    $"重算采购明细派生状态与进度。变更明细 {result.ChangedItems}、字段 {result.ChangedFieldsCount}；到货通知状态 {result.SyncedArrivalNoticeStatusCount}、采购申请 {result.SyncedPurchaseRequisitionStatusCount}。"
+            };
+
+            var extraInfo = JsonSerializer.Serialize(new
+            {
+                facet = result.Facet,
+                arrivalNotices = result.ArrivalNoticesUpdated,
+                stockInItems = result.StockInItemsUpdated,
+                packingItems = result.PackingItemsUpdated,
+                customsItems = result.CustomsDeclarationItemsUpdated,
+                identityChanges = result.IdentityChanges,
+                changedItems = result.ChangedItems,
+                changedFields = result.ChangedFieldsCount
+            });
+
+            await _logOperationAppend.AppendAsync(
+                BusinessLogTypes.PurchaseOrder,
+                order.Id,
+                order.PurchaseOrderCode,
+                actionType,
+                actor,
+                operatorName,
+                desc,
+                null,
+                extraInfo,
+                cancellationToken);
         }
 
         private async Task AppendPurchasePriceRefreshLogAsync(
@@ -908,7 +1077,57 @@ namespace CRM.Core.Services
             return _vendorChangeService.PreviewAsync(purchaseOrderId, newVendorId, cancellationToken);
         }
 
-        public async Task<PurchaseOrderVendorNameRefreshResult> RefreshVendorNameAsync(string purchaseOrderId, string? actingUserId = null)
+        public async Task<PurchaseOrderRefreshCompletedPreview> PreviewRefreshDownstreamAsync(
+            string purchaseOrderId,
+            PurchaseOrderRefreshFacet facet,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(purchaseOrderId))
+                throw new ArgumentException("采购订单ID不能为空", nameof(purchaseOrderId));
+
+            if (facet == PurchaseOrderRefreshFacet.Status)
+            {
+                return new PurchaseOrderRefreshCompletedPreview
+                {
+                    Facet = facet.ToApiValue(),
+                    CanProceed = true,
+                    AllowCompletedParam = true
+                };
+            }
+
+            if (facet == PurchaseOrderRefreshFacet.Vendor)
+            {
+                var order = await _poRepo.GetByIdAsync(purchaseOrderId.Trim())
+                    ?? throw new InvalidOperationException($"采购订单 {purchaseOrderId} 不存在");
+                var vendorId = order.VendorId?.Trim() ?? string.Empty;
+                var vendorPreview = await PreviewVendorChangeAsync(purchaseOrderId.Trim(), vendorId, cancellationToken);
+                return new PurchaseOrderRefreshCompletedPreview
+                {
+                    Facet = facet.ToApiValue(),
+                    CanProceed = vendorPreview.CanChange,
+                    BlockReason = vendorPreview.BlockReason,
+                    AllowCompletedParam = vendorPreview.AllowCompletedParam,
+                    CompletedDocuments = vendorPreview.CompletedDocuments.ToList()
+                };
+            }
+
+            if (_refreshCompletedGate == null)
+            {
+                return new PurchaseOrderRefreshCompletedPreview
+                {
+                    Facet = facet.ToApiValue(),
+                    CanProceed = true,
+                    AllowCompletedParam = true
+                };
+            }
+
+            return await _refreshCompletedGate.PreviewAsync(purchaseOrderId.Trim(), facet, cancellationToken);
+        }
+
+        public async Task<PurchaseOrderVendorNameRefreshResult> RefreshVendorNameAsync(
+            string purchaseOrderId,
+            string? actingUserId = null,
+            bool confirmCompleted = false)
         {
             if (string.IsNullOrWhiteSpace(purchaseOrderId))
                 throw new ArgumentException("采购订单ID不能为空", nameof(purchaseOrderId));
@@ -929,6 +1148,13 @@ namespace CRM.Core.Services
             // 对齐 SO「刷新客户」：按 VendorId 刷头名称，并同步未完结下游名称/ID
             if (_vendorChangeService != null)
             {
+                var preview = await _vendorChangeService.PreviewAsync(orderId, vendorId);
+                if (!preview.CanChange)
+                    throw new InvalidOperationException(preview.BlockReason ?? "当前不可刷新供应商");
+                if (preview.HasCompleted && !confirmCompleted)
+                    throw new InvalidOperationException(
+                        "存在已完结下游，须确认后再刷新：" + string.Join("；", preview.CompletedDocuments));
+
                 var apply = await _vendorChangeService.ApplyAsync(order, vendorId, actingUserId);
                 order.ModifyByUserId = NormalizeActingUserId(actingUserId);
                 await _poRepo.UpdateAsync(order);

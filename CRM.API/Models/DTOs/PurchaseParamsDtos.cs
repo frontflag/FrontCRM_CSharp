@@ -44,6 +44,24 @@ public class SetPurchaseParamsAllowRefreshCompletedBizNodesRequest
     public bool Allow { get; set; }
 }
 
+public class PurchaseParamsRefreshCompletedFacetsDto
+{
+    public bool Vendor { get; set; }
+    public bool Pn { get; set; } = true;
+    public bool Brand { get; set; } = true;
+    public bool Qty { get; set; } = true;
+    public bool Price { get; set; } = true;
+}
+
+public class SetPurchaseParamsRefreshCompletedFacetsRequest
+{
+    public bool Vendor { get; set; }
+    public bool Pn { get; set; } = true;
+    public bool Brand { get; set; } = true;
+    public bool Qty { get; set; } = true;
+    public bool Price { get; set; } = true;
+}
+
 public class PurchaseQuoterPoolMemberResponse
 {
     public string UserId { get; set; } = string.Empty;

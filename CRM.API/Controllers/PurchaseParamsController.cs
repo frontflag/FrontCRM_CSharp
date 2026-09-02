@@ -204,6 +204,53 @@ public class PurchaseParamsController : ControllerBase
         }
     }
 
+    [HttpGet("refresh-completed-facets")]
+    [RequirePermission("system.params.purchase.refresh-vendor.read")]
+    public async Task<ActionResult<ApiResponse<PurchaseParamsRefreshCompletedFacetsDto>>> GetRefreshCompletedFacets(
+        CancellationToken ct)
+    {
+        try
+        {
+            var facets = await _service.GetRefreshCompletedFacetsAsync(ct);
+            return Ok(ApiResponse<PurchaseParamsRefreshCompletedFacetsDto>.Ok(MapFacets(facets), "ok"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "读取分面刷新已完结参数失败");
+            return StatusCode(500, ApiResponse<PurchaseParamsRefreshCompletedFacetsDto>.Fail("读取失败", 500));
+        }
+    }
+
+    [HttpPut("refresh-completed-facets")]
+    [RequirePermission("system.params.purchase.refresh-vendor.write")]
+    public async Task<ActionResult<ApiResponse<PurchaseParamsRefreshCompletedFacetsDto>>> SetRefreshCompletedFacets(
+        [FromBody] SetPurchaseParamsRefreshCompletedFacetsRequest? body,
+        CancellationToken ct)
+    {
+        if (body == null)
+            return BadRequest(ApiResponse<PurchaseParamsRefreshCompletedFacetsDto>.Fail("请求体不能为空", 400));
+
+        try
+        {
+            var facets = new PurchaseRefreshCompletedFacets
+            {
+                Vendor = body.Vendor,
+                Pn = body.Pn,
+                Brand = body.Brand,
+                Qty = body.Qty,
+                Price = body.Price
+            };
+            await _service.SetRefreshCompletedFacetsAsync(facets, ct);
+            var saved = await _service.GetRefreshCompletedFacetsAsync(ct);
+            return Ok(ApiResponse<PurchaseParamsRefreshCompletedFacetsDto>.Ok(MapFacets(saved), "已保存"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "保存分面刷新已完结参数失败");
+            return StatusCode(500, ApiResponse<PurchaseParamsRefreshCompletedFacetsDto>.Fail("保存失败", 500));
+        }
+    }
+
     [HttpGet("quoter-pool")]
     [RequirePermission("system.params.purchase.quoter-pool.read")]
     public async Task<ActionResult<ApiResponse<PurchaseQuoterPoolListResponse>>> GetQuoterPool(
@@ -245,6 +292,16 @@ public class PurchaseParamsController : ControllerBase
             return StatusCode(500, ApiResponse<PurchaseQuoterPoolListResponse>.Fail("????", 500));
         }
     }
+
+    private static PurchaseParamsRefreshCompletedFacetsDto MapFacets(PurchaseRefreshCompletedFacets facets) =>
+        new()
+        {
+            Vendor = facets.Vendor,
+            Pn = facets.Pn,
+            Brand = facets.Brand,
+            Qty = facets.Qty,
+            Price = facets.Price
+        };
 
     private static PurchaseQuoterPoolListResponse MapPool(PurchaseQuoterPoolListResult result) =>
         new()

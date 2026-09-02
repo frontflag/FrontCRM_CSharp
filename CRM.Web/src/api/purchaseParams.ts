@@ -14,6 +14,24 @@ export interface PurchaseQuoterPoolListResponse {
   items: PurchaseQuoterPoolMemberDto[]
 }
 
+export interface PurchaseRefreshCompletedFacets {
+  vendor: boolean
+  pn: boolean
+  brand: boolean
+  qty: boolean
+  price: boolean
+}
+
+function normalizeRefreshCompletedFacets(raw: Partial<PurchaseRefreshCompletedFacets> | null | undefined): PurchaseRefreshCompletedFacets {
+  return {
+    vendor: !!raw?.vendor,
+    pn: raw?.pn !== false,
+    brand: raw?.brand !== false,
+    qty: raw?.qty !== false,
+    price: raw?.price !== false
+  }
+}
+
 export const purchaseParamsApi = {
   async getAssigneeCount(): Promise<number> {
     const res = await apiClient.get<{ count: number }>('/api/v1/purchase-params/assignee-count')
@@ -72,6 +90,23 @@ export const purchaseParamsApi = {
       { allow }
     )
     return !!res.allow
+  },
+
+  async getRefreshCompletedFacets(): Promise<PurchaseRefreshCompletedFacets> {
+    const res = await apiClient.get<PurchaseRefreshCompletedFacets>(
+      '/api/v1/purchase-params/refresh-completed-facets'
+    )
+    return normalizeRefreshCompletedFacets(res)
+  },
+
+  async setRefreshCompletedFacets(
+    facets: PurchaseRefreshCompletedFacets
+  ): Promise<PurchaseRefreshCompletedFacets> {
+    const res = await apiClient.put<PurchaseRefreshCompletedFacets>(
+      '/api/v1/purchase-params/refresh-completed-facets',
+      facets
+    )
+    return normalizeRefreshCompletedFacets(res)
   },
 
   async getQuoterPool(filter: 'all' | 'selected' = 'all'): Promise<PurchaseQuoterPoolListResponse> {

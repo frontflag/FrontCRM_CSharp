@@ -209,7 +209,9 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
             ArrivalNoticesToSync = bundle.SyncNotices.Count,
             StockInsToSync = bundle.SyncStockIns.Count,
             PaymentsToSync = bundle.SyncPayments.Count,
-            PurchaseInvoicesToSync = bundle.SyncPurchaseInvoices.Count
+            PurchaseInvoicesToSync = bundle.SyncPurchaseInvoices.Count,
+            AllowCompletedParam = allowRefreshCompleted,
+            CompletedDocuments = bundle.CompletedDocuments.ToList()
         };
 
         if (bundle.BlockingDocuments.Count > 0)
@@ -255,6 +257,7 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
         bundle.SyncPayments.Clear();
         bundle.SyncPurchaseInvoices.Clear();
         bundle.BlockingDocuments.Clear();
+        bundle.CompletedDocuments.Clear();
 
         foreach (var notice in bundle.Notices)
         {
@@ -266,7 +269,10 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
                 if (!idMatch)
                 {
                     if (allowRefreshCompleted)
+                    {
                         bundle.SyncNotices.Add(notice);
+                        bundle.CompletedDocuments.Add($"到货通知 {notice.NoticeCode} 已入库");
+                    }
                     else
                         bundle.BlockingDocuments.Add($"到货通知 {notice.NoticeCode} 已入库");
                 }
@@ -286,7 +292,10 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
                 if (!idMatch)
                 {
                     if (allowRefreshCompleted)
+                    {
                         bundle.SyncStockIns.Add(stockIn);
+                        bundle.CompletedDocuments.Add($"入库单 {stockIn.StockInCode} 已过账");
+                    }
                     else
                         bundle.BlockingDocuments.Add($"入库单 {stockIn.StockInCode} 已过账");
                 }
@@ -310,7 +319,10 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
                 if (!idMatch)
                 {
                     if (allowRefreshCompleted)
+                    {
                         bundle.SyncPayments.Add(payment);
+                        bundle.CompletedDocuments.Add($"付款单 {payment.FinancePaymentCode} 已付款");
+                    }
                     else
                         bundle.BlockingDocuments.Add($"付款单 {payment.FinancePaymentCode} 已付款");
                 }
@@ -334,7 +346,10 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
                 if (!idMatch)
                 {
                     if (allowRefreshCompleted)
+                    {
                         bundle.SyncPurchaseInvoices.Add(invoice);
+                        bundle.CompletedDocuments.Add($"进项发票 {invoice.InvoiceNo ?? invoice.Id} 已认证");
+                    }
                     else
                         bundle.BlockingDocuments.Add($"进项发票 {invoice.InvoiceNo ?? invoice.Id} 已认证");
                 }
@@ -346,7 +361,10 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
                 if (!idMatch)
                 {
                     if (allowRefreshCompleted)
+                    {
                         bundle.SyncPurchaseInvoices.Add(invoice);
+                        bundle.CompletedDocuments.Add($"进项发票 {invoice.InvoiceNo ?? invoice.Id} 已冲红");
+                    }
                     else
                         bundle.BlockingDocuments.Add($"进项发票 {invoice.InvoiceNo ?? invoice.Id} 已冲红");
                 }
@@ -539,5 +557,6 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
         public List<FinancePurchaseInvoice> PurchaseInvoices { get; set; } = new();
         public List<FinancePurchaseInvoice> SyncPurchaseInvoices { get; } = new();
         public List<string> BlockingDocuments { get; } = new();
+        public List<string> CompletedDocuments { get; } = new();
     }
 }

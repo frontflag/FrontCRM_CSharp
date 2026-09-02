@@ -86,6 +86,135 @@ public class PurchaseOrderItemExtendSyncServiceTests
     }
 
     [Fact]
+    public async Task RecalculateAsync_SyncsArrivalNoticeBrandFromPoItem()
+    {
+        var poId = Guid.NewGuid().ToString();
+        var lineId = Guid.NewGuid().ToString();
+        var poItemRepo = new MemoryRepository<PurchaseOrderItem>();
+        var poRepo = new MemoryRepository<PurchaseOrder>();
+        var extendRepo = new MemoryRepository<PurchaseOrderItemExtend>();
+        var notifyRepo = new MemoryRepository<StockInNotify>();
+
+        await poRepo.AddAsync(new PurchaseOrder { Id = poId, Status = 30 });
+        await poItemRepo.AddAsync(new PurchaseOrderItem
+        {
+            Id = lineId,
+            PurchaseOrderId = poId,
+            Qty = 160m,
+            Cost = 1m,
+            Status = 30,
+            Brand = "TOSHIBA/东芝"
+        });
+        await extendRepo.AddAsync(new PurchaseOrderItemExtend { Id = lineId });
+        var noticeId = Guid.NewGuid().ToString();
+        await notifyRepo.AddAsync(new StockInNotify
+        {
+            Id = noticeId,
+            PurchaseOrderItemId = lineId,
+            ExpectQty = 160,
+            ReceiveQty = 160,
+            Cost = 1m,
+            Brand = "TOSHIBA"
+        });
+
+        var service = CreateService(poItemRepo, poRepo, extendRepo, notifyRepo);
+        await service.RecalculateAsync(lineId);
+
+        var notice = await notifyRepo.GetByIdAsync(noticeId);
+        Assert.NotNull(notice);
+        Assert.Equal("TOSHIBA/东芝", notice!.Brand);
+    }
+
+    [Fact]
+    public async Task RecalculateAsync_StatusOnly_DoesNotChangeArrivalNoticeBrandCostOrQty()
+    {
+        var poId = Guid.NewGuid().ToString();
+        var lineId = Guid.NewGuid().ToString();
+        var poItemRepo = new MemoryRepository<PurchaseOrderItem>();
+        var poRepo = new MemoryRepository<PurchaseOrder>();
+        var extendRepo = new MemoryRepository<PurchaseOrderItemExtend>();
+        var notifyRepo = new MemoryRepository<StockInNotify>();
+
+        await poRepo.AddAsync(new PurchaseOrder { Id = poId, Status = 30 });
+        await poItemRepo.AddAsync(new PurchaseOrderItem
+        {
+            Id = lineId,
+            PurchaseOrderId = poId,
+            Qty = 80m,
+            Cost = 2m,
+            Status = 30,
+            Brand = "TOSHIBA/东芝"
+        });
+        await extendRepo.AddAsync(new PurchaseOrderItemExtend { Id = lineId });
+        var noticeId = Guid.NewGuid().ToString();
+        await notifyRepo.AddAsync(new StockInNotify
+        {
+            Id = noticeId,
+            PurchaseOrderItemId = lineId,
+            ExpectQty = 160,
+            ReceiveQty = 0,
+            Cost = 1m,
+            Brand = "TOSHIBA",
+            Pn = "OLD-PN"
+        });
+
+        var service = CreateService(poItemRepo, poRepo, extendRepo, notifyRepo);
+        await service.RecalculateAsync(lineId, PurchaseOrderItemRecalculateOptions.StatusOnly);
+
+        var notice = await notifyRepo.GetByIdAsync(noticeId);
+        Assert.NotNull(notice);
+        Assert.Equal("TOSHIBA", notice!.Brand);
+        Assert.Equal(1m, notice.Cost);
+        Assert.Equal(160, notice.ExpectQty);
+        Assert.Equal("OLD-PN", notice.Pn);
+    }
+
+    [Fact]
+    public async Task SyncArrivalNoticePlanQtyAsync_ShrinksSingleBatch_WithoutChangingBrandOrCost()
+    {
+        var poId = Guid.NewGuid().ToString();
+        var lineId = Guid.NewGuid().ToString();
+        var poItemRepo = new MemoryRepository<PurchaseOrderItem>();
+        var poRepo = new MemoryRepository<PurchaseOrder>();
+        var extendRepo = new MemoryRepository<PurchaseOrderItemExtend>();
+        var notifyRepo = new MemoryRepository<StockInNotify>();
+
+        await poRepo.AddAsync(new PurchaseOrder { Id = poId, Status = 30 });
+        await poItemRepo.AddAsync(new PurchaseOrderItem
+        {
+            Id = lineId,
+            PurchaseOrderId = poId,
+            Qty = 800m,
+            Cost = 9m,
+            Status = 30,
+            Brand = "NEW-BRAND"
+        });
+        await extendRepo.AddAsync(new PurchaseOrderItemExtend { Id = lineId });
+        var noticeId = Guid.NewGuid().ToString();
+        await notifyRepo.AddAsync(new StockInNotify
+        {
+            Id = noticeId,
+            PurchaseOrderItemId = lineId,
+            ExpectQty = 1000,
+            ReceiveQty = 0,
+            Cost = 1m,
+            Brand = "OLD-BRAND",
+            ExpectTotal = 1000m
+        });
+
+        var service = CreateService(poItemRepo, poRepo, extendRepo, notifyRepo);
+        var updated = await service.SyncArrivalNoticePlanQtyAsync(lineId);
+
+        Assert.Equal(1, updated);
+        var notice = await notifyRepo.GetByIdAsync(noticeId);
+        Assert.NotNull(notice);
+        Assert.Equal(800, notice!.ExpectQty);
+        Assert.Equal(1m, notice.Cost);
+        Assert.Equal("OLD-BRAND", notice.Brand);
+        Assert.Equal(800m, notice.ExpectTotal);
+    }
+
+    [Fact]
     public async Task RecalculateAsync_ShrinksSingleArrivalNotice_WhenPoQtyDecreasesBelowExpect()
     {
         var poId = Guid.NewGuid().ToString();

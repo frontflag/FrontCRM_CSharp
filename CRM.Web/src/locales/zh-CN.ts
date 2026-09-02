@@ -632,15 +632,21 @@ const zhCN = {
     unsavedLeaveConfirm: '报价员池有未保存的勾选，确定离开吗？',
     leaveBtn: '离开',
     cancelBtn: '取消',
-    refreshVendorNav: '刷新供应商',
-    refreshVendorTitle: '刷新供应商',
-    refreshVendorHint: '控制采购订单「刷新供应商」同步下游时，是否允许处理已完成的业务节点。',
+    refreshVendorNav: '分面刷新',
+    refreshVendorTitle: '分面刷新',
+    refreshVendorHint:
+      '控制采购订单详情各分面刷新时，是否允许改写已经完结的下游单据。关闭某一分面后，该分面遇到已完结节点会整面拦住；开启后仍会先列出单据，须确认才执行。',
     allowRefreshCompletedLabel: '允许刷新已完成业务节点：',
+    allowRefreshCompletedVendor: '刷新供应商：允许已完结节点',
+    allowRefreshCompletedPn: '刷新物料型号：允许已完结节点',
+    allowRefreshCompletedBrand: '刷新品牌：允许已完结节点',
+    allowRefreshCompletedQty: '刷新数量：允许已完结节点',
+    allowRefreshCompletedPrice: '刷新单价：允许已完结节点',
     allowRefreshCompletedNote:
-      '关闭（默认）：已入库到货通知、已过账入库单、已付款付款单、已认证/冲红进项发票在供应商不一致时将阻止刷新。开启后：上述已完成单据也可同步供应商。',
+      '供应商默认不允许；型号、品牌、数量、单价默认允许。关闭：该分面遇到已完结下游（如已入库到货、已过账入库、已备货装箱、已有报关/库存、已付款、已认证进项）将阻止刷新。开启：仍会明确列出这些单据，确认后才覆盖。刷新状态不受本页开关影响。',
     allow: '允许',
     disallow: '不允许',
-    refreshVendorLoadFailed: '加载刷新供应商参数失败'
+    refreshVendorLoadFailed: '加载分面刷新参数失败'
   },
   salesParams: {
     pageTitle: '销售参数',
@@ -5070,7 +5076,6 @@ const zhCN = {
       allStatus: '全部状态',
       search: '搜索',
       reset: '重置',
-      refresh: '刷新',
       boardView: '看板',
       listView: '列表'
     },
@@ -5710,7 +5715,6 @@ const zhCN = {
       stockingTag: '备货',
       search: '搜索',
       reset: '重置',
-      refresh: '刷新',
       boardView: '看板',
       listView: '列表'
     },
@@ -8871,17 +8875,41 @@ const zhCN = {
   },
   purchaseOrderDetail: {
     refresh: '刷新',
+    refreshStatus: '刷新状态',
+    refreshVendor: '刷新供应商',
+    refreshPn: '刷新物料型号',
+    refreshBrand: '刷新品牌',
+    refreshQty: '刷新数量',
+    refreshPrice: '刷新单价',
     refreshing: '刷新中…',
     refreshConfirmTitle: '刷新确认',
     refreshConfirm:
       '将按当前采购单价覆盖到货通知、入库、库存、出库上的采购价快照（含已入库 / 已请款 / 已核销 / 已进项匹配），并重算明细执行状态。请款与付款流水、进项发票票面不会改。数据由操作人核对，是否继续？',
+    refreshStatusConfirm:
+      '将按当前到货、入库、付款、进项事实重算本单各行状态与进度，不改供应商、型号、品牌、数量和单价。是否继续？',
+    refreshPnConfirm:
+      '将按本单各行当前物料型号覆盖到货、入库、装箱、报关和库存上的型号。库存会按新型号重新分堆，可能新建库存汇总行；旧堆若已无明细会从库存中去掉，并重算备货可用量。是否继续？',
+    refreshBrandConfirm:
+      '将按本单各行当前品牌覆盖到货、入库、装箱、报关和库存上的品牌。库存会按新品牌重新分堆，可能新建库存汇总行；旧堆若已无明细会从库存中去掉，并重算备货可用量。是否继续？',
+    refreshQtyConfirm:
+      '将按本单各行当前采购数量对齐到货计划量（只收缩超量的单批次，不会把分批到货扩成整单），并重算总额、利润与状态。不会改已经入库、出库、付款的实绩数量。是否继续？',
+    refreshPriceConfirm:
+      '将按当前采购单价覆盖到货通知、入库、库存、出库上的采购价快照（含已入库 / 已请款 / 已核销 / 已进项匹配），并重算总额、利润与状态。请款与付款流水、进项发票票面不会改。数据由操作人核对，是否继续？',
     refreshResultEmpty: '无更新数据',
     refreshResultTitle: '刷新结果',
     refreshDownstreamSummary:
       '下游采购价：到货通知 {notices}，入库明细 {stockIn}，入库单头 {stockInHead}，库存 {stock}，出库明细 {outItem}。',
+    refreshIdentitySummary:
+      '下游快照：到货通知 {notices}，入库明细 {stockIn}，库存明细 {stock}（换堆 {moved}，新建汇总 {buckets}，删除空汇总 {removed}），装箱 {packing}，报关 {customs}。',
+    refreshQtySummary: '到货计划量已对齐 {notices} 条通知。入库/库存/出库实绩数量未改。',
+    refreshIdentityLine: '{type} {node}：{before} → {after}',
     refreshPriceLine: '{code}：单价 {before} → {after}',
     refreshOverInvoice: '入库 {code} 已进项匹配 {done} 大于新总额 {amount}（待匹配 {toBe}）',
     refreshOverPayment: '明细 {code} 已付核销 {done} 大于新行总额 {amount}',
+    refreshCompletedWarnTitle: '将覆盖已完结下游',
+    refreshCompletedWarnLead:
+      '以下单据已经完结。确认后仍会按本单当前资料覆盖对应快照，请先核对再继续：',
+    refreshCompletedBlockedTitle: '无法刷新已完结节点',
     batchPanel: {
       title: '入库批次',
       count: '共 {count} 条',

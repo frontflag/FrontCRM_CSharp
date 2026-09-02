@@ -7,8 +7,17 @@ namespace CRM.Core.Interfaces;
 /// </summary>
 public interface IPurchaseOrderItemExtendSyncService
 {
-    /// <summary>按采购明细 Id 重算扩展表（不存在时按明细创建扩展行）。</summary>
+    /// <summary>按采购明细 Id 重算扩展表（不存在时按明细创建扩展行）。默认仍对齐到货通知数量/单价/品牌（保存等业务事件）。</summary>
     Task RecalculateAsync(string purchaseOrderItemId, CancellationToken cancellationToken = default);
+
+    /// <summary>按选项重算。详情页「刷新状态」须传 <see cref="PurchaseOrderItemRecalculateOptions.StatusOnly"/>。</summary>
+    Task RecalculateAsync(
+        string purchaseOrderItemId,
+        PurchaseOrderItemRecalculateOptions options,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>仅收缩超量单批次到货预计数量并重算该通知金额；不改单价与品牌。返回改写条数。</summary>
+    Task<int> SyncArrivalNoticePlanQtyAsync(string purchaseOrderItemId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 遍历全部未软删到货通知，按已过账采购入库 / 质检 / 收货量重算 Status（10/20/30/100）。Debug 与数据修复用。

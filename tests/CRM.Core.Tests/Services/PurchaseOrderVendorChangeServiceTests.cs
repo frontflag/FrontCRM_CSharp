@@ -24,6 +24,7 @@ public class PurchaseOrderVendorChangeServiceTests
     private readonly IRepository<FinancePaymentItem> _paymentItemRepo;
     private readonly IRepository<FinancePurchaseInvoice> _purchaseInvoiceRepo;
     private readonly IRepository<FinancePurchaseInvoiceItem> _purchaseInvoiceItemRepo;
+    private readonly IPurchaseQuoterPoolService _purchaseParams;
     private readonly PurchaseOrderVendorChangeService _service;
 
     public PurchaseOrderVendorChangeServiceTests()
@@ -38,8 +39,8 @@ public class PurchaseOrderVendorChangeServiceTests
         _paymentItemRepo = Substitute.For<IRepository<FinancePaymentItem>>();
         _purchaseInvoiceRepo = Substitute.For<IRepository<FinancePurchaseInvoice>>();
         _purchaseInvoiceItemRepo = Substitute.For<IRepository<FinancePurchaseInvoiceItem>>();
-        var purchaseParams = Substitute.For<IPurchaseQuoterPoolService>();
-        purchaseParams.GetAllowRefreshCompletedBizNodesAsync(Arg.Any<CancellationToken>()).Returns(false);
+        _purchaseParams = Substitute.For<IPurchaseQuoterPoolService>();
+        _purchaseParams.GetAllowRefreshCompletedBizNodesAsync(Arg.Any<CancellationToken>()).Returns(false);
         _service = new PurchaseOrderVendorChangeService(
             _poRepo,
             _poItemRepo,
@@ -51,7 +52,7 @@ public class PurchaseOrderVendorChangeServiceTests
             _paymentItemRepo,
             _purchaseInvoiceRepo,
             _purchaseInvoiceItemRepo,
-            purchaseParams,
+            _purchaseParams,
             NullLogger<PurchaseOrderVendorChangeService>.Instance);
     }
 
@@ -326,6 +327,50 @@ public class PurchaseOrderVendorChangeServiceTests
 
         Assert.False(preview.CanChange);
         Assert.Contains(preview.BlockingDocuments, d => d.Contains("STI00001"));
+        Assert.False(preview.HasCompleted);
+        Assert.False(preview.AllowCompletedParam);
+    }
+
+    [Fact]
+    public async Task PreviewAsync_PostedStockIn_AllowCompleted_ListsCompletedDocuments()
+    {
+        _purchaseParams.GetAllowRefreshCompletedBizNodesAsync(Arg.Any<CancellationToken>()).Returns(true);
+        const string poId = "po-1";
+        const string notifyId = "n-1";
+        _poRepo.GetByIdAsync(poId).Returns(new PurchaseOrder
+        {
+            Id = poId,
+            PurchaseOrderCode = "PO00002",
+            VendorId = "v-old",
+            VendorName = "旧供应商"
+        });
+        _poItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<PurchaseOrderItem, bool>>>())
+            .Returns(new List<PurchaseOrderItem>());
+        _notifyRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<StockInNotify, bool>>>())
+            .Returns(new List<StockInNotify>
+            {
+                new() { Id = notifyId, NoticeCode = "STIR00001", PurchaseOrderId = poId, Status = 20, IsDeleted = false }
+            });
+        _stockInRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<StockIn, bool>>>())
+            .Returns(new List<StockIn>
+            {
+                new() { Id = "si-1", StockInCode = "STI00001", SourceId = notifyId, Status = StockInHeaderStatusCode.Posted, IsDeleted = false }
+            });
+        _paymentItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<FinancePaymentItem, bool>>>())
+            .Returns(new List<FinancePaymentItem>());
+        _vendorRepo.GetByIdAsync("v-new").Returns(new VendorInfo
+        {
+            Id = "v-new",
+            OfficialName = "新供应商 Ltd"
+        });
+
+        var preview = await _service.PreviewAsync(poId, "v-new");
+
+        Assert.True(preview.CanChange);
+        Assert.True(preview.AllowCompletedParam);
+        Assert.True(preview.HasCompleted);
+        Assert.Contains(preview.CompletedDocuments, d => d.Contains("STI00001"));
+        Assert.Empty(preview.BlockingDocuments);
     }
 
     [Fact]

@@ -191,49 +191,7 @@ namespace CRM.Core.Services
                     ? null
                     : FreightForwarderOrderNoLookup.FromPurchaseOrderId(notice.PurchaseOrderId, poById);
 
-                var modelSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                if (notice != null)
-                {
-                    if (!string.IsNullOrWhiteSpace(notice.Pn)) modelSet.Add(notice.Pn.Trim());
-                    else if (!string.IsNullOrWhiteSpace(notice.PurchaseOrderItemId)
-                             && poItemMap.TryGetValue(notice.PurchaseOrderItemId, out var poi0)
-                             && !string.IsNullOrWhiteSpace(poi0.PN))
-                        modelSet.Add(poi0.PN.Trim());
-                }
-
-                if (notice != null
-                    && !string.IsNullOrWhiteSpace(notice.PurchaseOrderId)
-                    && poItemsByPurchaseOrderId.TryGetValue(notice.PurchaseOrderId.Trim(), out var poLines))
-                {
-                    foreach (var pl in poLines)
-                    {
-                        if (!string.IsNullOrWhiteSpace(pl.PN)) modelSet.Add(pl.PN.Trim());
-                    }
-                }
-
-                qc.Model = modelSet.Count == 0 ? null : string.Join(", ", modelSet.OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
-
-                var brandSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                if (notice != null)
-                {
-                    if (!string.IsNullOrWhiteSpace(notice.Brand)) brandSet.Add(notice.Brand.Trim());
-                    else if (!string.IsNullOrWhiteSpace(notice.PurchaseOrderItemId)
-                             && poItemMap.TryGetValue(notice.PurchaseOrderItemId, out var poiBrand)
-                             && !string.IsNullOrWhiteSpace(poiBrand.Brand))
-                        brandSet.Add(poiBrand.Brand.Trim());
-                }
-
-                if (notice != null
-                    && !string.IsNullOrWhiteSpace(notice.PurchaseOrderId)
-                    && poItemsByPurchaseOrderId.TryGetValue(notice.PurchaseOrderId.Trim(), out var poLinesBrand))
-                {
-                    foreach (var pl in poLinesBrand)
-                    {
-                        if (!string.IsNullOrWhiteSpace(pl.Brand)) brandSet.Add(pl.Brand.Trim());
-                    }
-                }
-
-                qc.Brand = brandSet.Count == 0 ? null : string.Join(", ", brandSet.OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
+                ApplyQcListMaterialDisplay(qc, notice, poItemMap, poItemsByPurchaseOrderId);
 
                 if (notice != null && !string.IsNullOrWhiteSpace(notice.PurchaseOrderItemId)
                     && poItemMap.TryGetValue(notice.PurchaseOrderItemId, out var poiSo)
@@ -677,49 +635,7 @@ namespace CRM.Core.Services
                     ? null
                     : FreightForwarderOrderNoLookup.FromPurchaseOrderId(notice.PurchaseOrderId, poByIdLegacy);
 
-                var modelSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                if (notice != null)
-                {
-                    if (!string.IsNullOrWhiteSpace(notice.Pn)) modelSet.Add(notice.Pn.Trim());
-                    else if (!string.IsNullOrWhiteSpace(notice.PurchaseOrderItemId)
-                             && poItemMap.TryGetValue(notice.PurchaseOrderItemId, out var poi0)
-                             && !string.IsNullOrWhiteSpace(poi0.PN))
-                        modelSet.Add(poi0.PN.Trim());
-                }
-
-                if (notice != null
-                    && !string.IsNullOrWhiteSpace(notice.PurchaseOrderId)
-                    && poItemsByPurchaseOrderId.TryGetValue(notice.PurchaseOrderId.Trim(), out var poLines))
-                {
-                    foreach (var pl in poLines)
-                    {
-                        if (!string.IsNullOrWhiteSpace(pl.PN)) modelSet.Add(pl.PN.Trim());
-                    }
-                }
-
-                qc.Model = modelSet.Count == 0 ? null : string.Join(", ", modelSet.OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
-
-                var brandSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                if (notice != null)
-                {
-                    if (!string.IsNullOrWhiteSpace(notice.Brand)) brandSet.Add(notice.Brand.Trim());
-                    else if (!string.IsNullOrWhiteSpace(notice.PurchaseOrderItemId)
-                             && poItemMap.TryGetValue(notice.PurchaseOrderItemId, out var poiBrand)
-                             && !string.IsNullOrWhiteSpace(poiBrand.Brand))
-                        brandSet.Add(poiBrand.Brand.Trim());
-                }
-
-                if (notice != null
-                    && !string.IsNullOrWhiteSpace(notice.PurchaseOrderId)
-                    && poItemsByPurchaseOrderId.TryGetValue(notice.PurchaseOrderId.Trim(), out var poLinesBrand))
-                {
-                    foreach (var pl in poLinesBrand)
-                    {
-                        if (!string.IsNullOrWhiteSpace(pl.Brand)) brandSet.Add(pl.Brand.Trim());
-                    }
-                }
-
-                qc.Brand = brandSet.Count == 0 ? null : string.Join(", ", brandSet.OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
+                ApplyQcListMaterialDisplay(qc, notice, poItemMap, poItemsByPurchaseOrderId);
 
                 if (notice != null && !string.IsNullOrWhiteSpace(notice.PurchaseOrderItemId)
                     && poItemMap.TryGetValue(notice.PurchaseOrderItemId, out var poiSo)
@@ -1476,6 +1392,69 @@ namespace CRM.Core.Services
             ApplyNoticeStatus(notice, targetStatus);
             await _notifyRepo.UpdateAsync(notice);
             return (true, fromStatus, targetStatus, notice.Id, string.IsNullOrWhiteSpace(notice.NoticeCode) ? null : notice.NoticeCode.Trim());
+        }
+
+        /// <summary>
+        /// 质检列表型号/品牌：采购明细现读优先；到货通知快照仅在明细无值时回落。
+        /// 避免采购改品牌后出现「快照旧值, 明细新值」并列。
+        /// </summary>
+        private static void ApplyQcListMaterialDisplay(
+            QCInfo qc,
+            StockInNotify? notice,
+            IReadOnlyDictionary<string, PurchaseOrderItem> poItemMap,
+            IReadOnlyDictionary<string, List<PurchaseOrderItem>> poItemsByPurchaseOrderId)
+        {
+            var livePn = new List<string?>();
+            var liveBrand = new List<string?>();
+            CollectLivePoMaterialFields(notice, poItemMap, poItemsByPurchaseOrderId, livePn, liveBrand);
+            qc.Model = JoinQcMaterialFieldDisplay(notice?.Pn, livePn);
+            qc.Brand = JoinQcMaterialFieldDisplay(notice?.Brand, liveBrand);
+        }
+
+        private static void CollectLivePoMaterialFields(
+            StockInNotify? notice,
+            IReadOnlyDictionary<string, PurchaseOrderItem> poItemMap,
+            IReadOnlyDictionary<string, List<PurchaseOrderItem>> poItemsByPurchaseOrderId,
+            List<string?> livePn,
+            List<string?> liveBrand)
+        {
+            if (notice == null)
+                return;
+
+            if (!string.IsNullOrWhiteSpace(notice.PurchaseOrderItemId)
+                && poItemMap.TryGetValue(notice.PurchaseOrderItemId, out var linked))
+            {
+                livePn.Add(linked.PN);
+                liveBrand.Add(linked.Brand);
+            }
+
+            if (!string.IsNullOrWhiteSpace(notice.PurchaseOrderId)
+                && poItemsByPurchaseOrderId.TryGetValue(notice.PurchaseOrderId.Trim(), out var poLines))
+            {
+                foreach (var pl in poLines)
+                {
+                    livePn.Add(pl.PN);
+                    liveBrand.Add(pl.Brand);
+                }
+            }
+        }
+
+        private static string? JoinQcMaterialFieldDisplay(string? noticeSnapshot, IEnumerable<string?> liveValues)
+        {
+            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var raw in liveValues)
+            {
+                if (string.IsNullOrWhiteSpace(raw))
+                    continue;
+                set.Add(raw.Trim());
+            }
+
+            if (set.Count == 0 && !string.IsNullOrWhiteSpace(noticeSnapshot))
+                set.Add(noticeSnapshot.Trim());
+
+            return set.Count == 0
+                ? null
+                : string.Join(", ", set.OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
         }
 
         private static string ArrivalNoticeStatusText(short status) => status switch

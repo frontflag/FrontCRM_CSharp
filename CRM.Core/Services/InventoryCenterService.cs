@@ -2435,6 +2435,8 @@ namespace CRM.Core.Services
                 return;
 
             var rows = (await _stockItemRepository.FindAsync(x => x.StockAggregateId == stock.Id)).ToList();
+            stock.Qty = rows.Sum(x => x.QtyInbound);
+            stock.QtyStockOut = rows.Sum(x => x.QtyStockOut);
             stock.QtyOccupy = rows.Sum(x => x.QtyOccupy);
             stock.QtySales = rows.Sum(x => x.QtySales);
             stock.QtyRepertory = rows.Sum(x => x.QtyRepertory);
@@ -2486,6 +2488,8 @@ namespace CRM.Core.Services
                 .ToDictionary(
                     g => g.Key,
                     g => (
+                        Inbound: g.Sum(x => x.QtyInbound),
+                        Out: g.Sum(x => x.QtyStockOut),
                         Occupy: g.Sum(x => x.QtyOccupy),
                         Sales: g.Sum(x => x.QtySales),
                         Repertory: g.Sum(x => x.QtyRepertory),
@@ -2500,12 +2504,16 @@ namespace CRM.Core.Services
                     continue;
 
                 totalsByAgg.TryGetValue(aggId, out var totals);
+                var newInbound = totals.Inbound;
+                var newOut = totals.Out;
                 var newOccupy = totals.Occupy;
                 var newSales = totals.Sales;
                 var newRepertory = totals.Repertory;
                 var newAvail = totals.Avail;
 
-                if (stock.QtyOccupy == newOccupy
+                if (stock.Qty == newInbound
+                    && stock.QtyStockOut == newOut
+                    && stock.QtyOccupy == newOccupy
                     && stock.QtySales == newSales
                     && stock.QtyRepertory == newRepertory
                     && stock.QtyRepertoryAvailable == newAvail)
@@ -2515,6 +2523,8 @@ namespace CRM.Core.Services
                 if (stock.QtyRepertoryAvailable > newAvail)
                     result.TotalAvailOverstatement += stock.QtyRepertoryAvailable - newAvail;
 
+                stock.Qty = newInbound;
+                stock.QtyStockOut = newOut;
                 stock.QtyOccupy = newOccupy;
                 stock.QtySales = newSales;
                 stock.QtyRepertory = newRepertory;

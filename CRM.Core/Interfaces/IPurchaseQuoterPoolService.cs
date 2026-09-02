@@ -1,3 +1,5 @@
+using CRM.Core.Models.Purchase;
+
 namespace CRM.Core.Interfaces;
 
 public class PurchaseQuoterPoolMemberDto
@@ -51,4 +53,28 @@ public interface IPurchaseQuoterPoolService
     Task<bool> GetAllowRefreshCompletedBizNodesAsync(CancellationToken cancellationToken = default);
 
     Task SetAllowRefreshCompletedBizNodesAsync(bool allow, CancellationToken cancellationToken = default);
+
+    /// <summary>分面刷新：是否允许覆盖已完结下游。</summary>
+    Task<PurchaseRefreshCompletedFacets> GetRefreshCompletedFacetsAsync(CancellationToken cancellationToken = default);
+
+    Task SetRefreshCompletedFacetsAsync(PurchaseRefreshCompletedFacets facets, CancellationToken cancellationToken = default);
+}
+
+public class PurchaseRefreshCompletedFacets
+{
+    public bool Vendor { get; set; }
+    public bool Pn { get; set; } = true;
+    public bool Brand { get; set; } = true;
+    public bool Qty { get; set; } = true;
+    public bool Price { get; set; } = true;
+
+    public bool Allows(PurchaseOrderRefreshFacet facet) => facet switch
+    {
+        PurchaseOrderRefreshFacet.Vendor => Vendor,
+        PurchaseOrderRefreshFacet.Pn => Pn,
+        PurchaseOrderRefreshFacet.Brand => Brand,
+        PurchaseOrderRefreshFacet.Qty => Qty,
+        PurchaseOrderRefreshFacet.Price => Price,
+        _ => true
+    };
 }

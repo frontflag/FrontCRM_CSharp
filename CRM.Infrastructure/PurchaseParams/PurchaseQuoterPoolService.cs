@@ -1,11 +1,13 @@
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
+using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Rbac;
 using CRM.Core.Models.System;
 using CRM.Core.Utilities;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace CRM.Infrastructure.PurchaseParams;
 
@@ -364,7 +366,101 @@ public class PurchaseQuoterPoolService : IPurchaseQuoterPoolService
         }
 
         await _db.SaveChangesAsync(cancellationToken);
+        await SyncRefreshCompletedFacetsVendorAsync(allow, cancellationToken);
     }
+
+    /// <inheritdoc />
+    public async Task<PurchaseRefreshCompletedFacets> GetRefreshCompletedFacetsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var vendor = await GetAllowRefreshCompletedBizNodesAsync(cancellationToken);
+        var defaults = new PurchaseRefreshCompletedFacets { Vendor = vendor };
+        var row = await _db.SysParams.AsNoTracking()
+            .FirstOrDefaultAsync(
+                p => p.ParamCode == SysParamCodes.PurchaseRefreshCompletedFacets && p.Status == 1,
+                cancellationToken);
+        if (row == null || string.IsNullOrWhiteSpace(row.ValueString))
+            return defaults;
+
+        try
+        {
+            var parsed = JsonSerializer.Deserialize<PurchaseRefreshCompletedFacets>(
+                row.ValueString,
+                FacetsJson);
+            if (parsed == null)
+                return defaults;
+            parsed.Vendor = vendor;
+            return parsed;
+        }
+        catch (JsonException)
+        {
+            return defaults;
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task SetRefreshCompletedFacetsAsync(
+        PurchaseRefreshCompletedFacets facets,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(facets);
+        await SetAllowRefreshCompletedBizNodesAsync(facets.Vendor, cancellationToken);
+        await UpsertRefreshCompletedFacetsJsonAsync(facets, cancellationToken);
+    }
+
+    private async Task SyncRefreshCompletedFacetsVendorAsync(bool vendorAllow, CancellationToken cancellationToken)
+    {
+        var current = await GetRefreshCompletedFacetsAsync(cancellationToken);
+        current.Vendor = vendorAllow;
+        await UpsertRefreshCompletedFacetsJsonAsync(current, cancellationToken);
+    }
+
+    private async Task UpsertRefreshCompletedFacetsJsonAsync(
+        PurchaseRefreshCompletedFacets facets,
+        CancellationToken cancellationToken)
+    {
+        var json = JsonSerializer.Serialize(facets, FacetsJson);
+        var row = await _db.SysParams
+            .FirstOrDefaultAsync(
+                p => p.ParamCode == SysParamCodes.PurchaseRefreshCompletedFacets,
+                cancellationToken);
+        if (row == null)
+        {
+            var groupFrom = await _db.SysParams.AsNoTracking()
+                .FirstOrDefaultAsync(p => p.ParamCode == SysParamCodes.RfqDefaultAssignMethod, cancellationToken);
+            row = new SysParam
+            {
+                Id = Guid.NewGuid().ToString(),
+                ParamCode = SysParamCodes.PurchaseRefreshCompletedFacets,
+                ParamName = "分面刷新-允许已完结节点",
+                GroupId = groupFrom?.GroupId,
+                DataType = ParamDataType.String,
+                Description = "采购订单分面刷新是否允许覆盖已完结下游（JSON：vendor/pn/brand/qty/price）。",
+                IsSystem = true,
+                IsEditable = true,
+                IsVisible = true,
+                SortOrder = 16,
+                Status = 1,
+                CreateTime = DateTime.UtcNow
+            };
+            row.SetStringValue(json);
+            await _db.SysParams.AddAsync(row, cancellationToken);
+        }
+        else
+        {
+            row.SetStringValue(json);
+            row.ModifyTime = DateTime.UtcNow;
+            _db.SysParams.Update(row);
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    private static readonly JsonSerializerOptions FacetsJson = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true
+    };
 
     private async Task<HashSet<string>> LoadPoolUserIdSetAsync(CancellationToken cancellationToken)
     {

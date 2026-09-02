@@ -106,17 +106,16 @@
             class="btn-secondary"
             type="button"
             :disabled="refreshingExtends || syncingVendor"
-            @click="handleRefreshItemExtends"
+            @click="handleRefreshMenuCommand('status')"
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="23 4 23 10 17 10" />
               <polyline points="1 20 1 14 7 14" />
               <path d="M3.51 9a9 9 0 0 1 14.13-3.36L23 10M1 14l5.36 4.36A9 9 0 0 0 20.49 15" />
             </svg>
-            {{ refreshingExtends ? t('purchaseOrderDetail.refreshing') : t('purchaseOrderDetail.refresh') }}
+            {{ refreshingExtends ? t('purchaseOrderDetail.refreshing') : t('purchaseOrderDetail.refreshStatus') }}
           </button>
           <el-dropdown
-            v-if="canRefreshPoVendor"
             trigger="click"
             placement="bottom-end"
             :disabled="refreshingExtends || syncingVendor"
@@ -133,7 +132,11 @@
             </button>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="vendor">刷新供应商</el-dropdown-item>
+                <el-dropdown-item v-if="canRefreshPoVendor" command="vendor">{{ t('purchaseOrderDetail.refreshVendor') }}</el-dropdown-item>
+                <el-dropdown-item command="pn">{{ t('purchaseOrderDetail.refreshPn') }}</el-dropdown-item>
+                <el-dropdown-item command="brand">{{ t('purchaseOrderDetail.refreshBrand') }}</el-dropdown-item>
+                <el-dropdown-item command="qty" divided>{{ t('purchaseOrderDetail.refreshQty') }}</el-dropdown-item>
+                <el-dropdown-item command="price">{{ t('purchaseOrderDetail.refreshPrice') }}</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -893,6 +896,8 @@ import {
   type PurchaseOrderDeletedItemRow,
   type PurchaseOrderLineOverviewAmountMetric,
   type PurchaseOrderLineOverviewQtyMetric,
+  type PurchaseOrderRefreshFacet,
+  type PurchaseOrderRefreshCompletedPreview,
   type PurchaseOrderVendorChangePreviewResult
 } from '@/api/purchaseOrder'
 import { favoriteApi } from '@/api/favorite'
@@ -1875,29 +1880,64 @@ function hasPurchaseRefreshUpdates(result: PurchaseOrderItemExtendRefreshResult 
     + Number(result.stockInHeadersUpdated ?? 0)
     + Number(result.stockInItemExtendsUpdated ?? 0)
     + Number(result.stockItemsUpdated ?? 0)
+    + Number(result.stockItemsMoved ?? 0)
+    + Number(result.stockAggregatesCreated ?? 0)
+    + Number(result.stockAggregatesRemoved ?? 0)
     + Number(result.stockOutItemExtendsUpdated ?? 0)
+    + Number(result.packingItemsUpdated ?? 0)
+    + Number(result.customsDeclarationItemsUpdated ?? 0)
     + (result.purchasePriceLineChanges?.length ?? 0)
     + (result.invoiceMatchWarnings?.length ?? 0)
     + (result.paymentOverWarnings?.length ?? 0)
+    + (result.identityChanges?.length ?? 0)
   return result.changedItems > 0 || result.changedFieldsCount > 0 || downstream > 0
 }
 
 function buildRefreshResultHtml(result: PurchaseOrderItemExtendRefreshResult) {
   const syncedPrCount = Number(result.syncedPurchaseRequisitionStatusCount ?? 0)
   const syncedArrivalCount = Number(result.syncedArrivalNoticeStatusCount ?? 0)
+  const facet = (result.facet ?? '').trim().toLowerCase()
   const lines: string[] = [
-    `共 ${result.changedItems} 条明细发生更新，${result.changedFieldsCount} 个字段已变更。`,
-    `已同步回写 ${syncedPrCount} 条采购申请状态。`,
-    `已同步回写 ${syncedArrivalCount} 条到货通知状态。`,
-    t('purchaseOrderDetail.refreshDownstreamSummary', {
-      notices: Number(result.arrivalNoticesUpdated ?? 0),
-      stockIn: Number(result.stockInItemsUpdated ?? 0),
-      stockInHead: Number(result.stockInHeadersUpdated ?? 0),
-      stock: Number(result.stockItemsUpdated ?? 0),
-      outItem: Number(result.stockOutItemExtendsUpdated ?? 0)
-    }),
-    ''
+    `共 ${result.changedItems} 条明细发生更新，${result.changedFieldsCount} 个字段已变更。`
   ]
+  if (facet === 'pn' || facet === 'brand') {
+    lines.push(
+      t('purchaseOrderDetail.refreshIdentitySummary', {
+        notices: Number(result.arrivalNoticesUpdated ?? 0),
+        stockIn: Number(result.stockInItemsUpdated ?? 0),
+        stock: Number(result.stockItemsUpdated ?? 0),
+        moved: Number(result.stockItemsMoved ?? 0),
+        buckets: Number(result.stockAggregatesCreated ?? 0),
+        removed: Number(result.stockAggregatesRemoved ?? 0),
+        packing: Number(result.packingItemsUpdated ?? 0),
+        customs: Number(result.customsDeclarationItemsUpdated ?? 0)
+      })
+    )
+  } else if (facet === 'qty') {
+    lines.push(
+      t('purchaseOrderDetail.refreshQtySummary', {
+        notices: Number(result.arrivalNoticesUpdated ?? 0)
+      })
+    )
+    lines.push(`已同步回写 ${syncedPrCount} 条采购申请状态。`)
+    lines.push(`已同步回写 ${syncedArrivalCount} 条到货通知状态。`)
+  } else if (facet === 'price') {
+    lines.push(`已同步回写 ${syncedPrCount} 条采购申请状态。`)
+    lines.push(`已同步回写 ${syncedArrivalCount} 条到货通知状态。`)
+    lines.push(
+      t('purchaseOrderDetail.refreshDownstreamSummary', {
+        notices: Number(result.arrivalNoticesUpdated ?? 0),
+        stockIn: Number(result.stockInItemsUpdated ?? 0),
+        stockInHead: Number(result.stockInHeadersUpdated ?? 0),
+        stock: Number(result.stockItemsUpdated ?? 0),
+        outItem: Number(result.stockOutItemExtendsUpdated ?? 0)
+      })
+    )
+  } else {
+    lines.push(`已同步回写 ${syncedPrCount} 条采购申请状态。`)
+    lines.push(`已同步回写 ${syncedArrivalCount} 条到货通知状态。`)
+  }
+  lines.push('')
   for (const price of result.purchasePriceLineChanges ?? []) {
     lines.push(
       t('purchaseOrderDetail.refreshPriceLine', {
@@ -1930,7 +1970,21 @@ function buildRefreshResultHtml(result: PurchaseOrderItemExtendRefreshResult) {
     (result.purchasePriceLineChanges?.length ?? 0) > 0
     || (result.invoiceMatchWarnings?.length ?? 0) > 0
     || (result.paymentOverWarnings?.length ?? 0) > 0
+    || (result.identityChanges?.length ?? 0) > 0
   ) {
+    lines.push('')
+  }
+  for (const ident of result.identityChanges ?? []) {
+    lines.push(
+      t('purchaseOrderDetail.refreshIdentityLine', {
+        node: ident.nodeCode || ident.nodeId,
+        type: ident.nodeType,
+        before: ident.before || '—',
+        after: ident.after || '—'
+      })
+    )
+  }
+  if ((result.identityChanges?.length ?? 0) > 0) {
     lines.push('')
   }
   for (const change of result.changes) {
@@ -1952,25 +2006,98 @@ function buildRefreshResultHtml(result: PurchaseOrderItemExtendRefreshResult) {
   return `<div style="max-height:420px;overflow:auto;line-height:1.7;">${escaped}</div>`
 }
 
-async function handleRefreshItemExtends() {
+function refreshFacetTitle(facet: PurchaseOrderRefreshFacet) {
+  if (facet === 'status') return t('purchaseOrderDetail.refreshStatus')
+  if (facet === 'pn') return t('purchaseOrderDetail.refreshPn')
+  if (facet === 'brand') return t('purchaseOrderDetail.refreshBrand')
+  if (facet === 'qty') return t('purchaseOrderDetail.refreshQty')
+  if (facet === 'price') return t('purchaseOrderDetail.refreshPrice')
+  return t('purchaseOrderDetail.refresh')
+}
+
+function refreshFacetConfirmMessage(facet: PurchaseOrderRefreshFacet) {
+  if (facet === 'status') return t('purchaseOrderDetail.refreshStatusConfirm')
+  if (facet === 'pn') return t('purchaseOrderDetail.refreshPnConfirm')
+  if (facet === 'brand') return t('purchaseOrderDetail.refreshBrandConfirm')
+  if (facet === 'qty') return t('purchaseOrderDetail.refreshQtyConfirm')
+  return t('purchaseOrderDetail.refreshPriceConfirm')
+}
+
+function completedDocumentsOf(
+  preview: PurchaseOrderRefreshCompletedPreview | PurchaseOrderVendorChangePreviewResult
+) {
+  const raw = preview as {
+    completedDocuments?: string[]
+    CompletedDocuments?: string[]
+    hasCompleted?: boolean
+    HasCompleted?: boolean
+  }
+  const docs = (raw.completedDocuments ?? raw.CompletedDocuments ?? [])
+    .map((d) => String(d || '').trim())
+    .filter(Boolean)
+  return docs
+}
+
+function buildCompletedRefreshHtml(lead: string, docs: string[]) {
+  const lines = [`<div>${escapeVendorSyncHtml(lead)}</div>`]
+  for (const d of docs) {
+    lines.push(`<div>· ${escapeVendorSyncHtml(d)}</div>`)
+  }
+  return `<div style="line-height:1.7;">${lines.join('')}</div>`
+}
+
+async function handleRefreshFacet(facet: PurchaseOrderRefreshFacet) {
   if (!order.value?.id || refreshingExtends.value) return
+
+  let preview: PurchaseOrderRefreshCompletedPreview | null = null
+  if (facet !== 'status') {
+    refreshingExtends.value = true
+    try {
+      preview = await purchaseOrderApi.previewRefreshDownstream(order.value.id, facet)
+    } catch (e: unknown) {
+      refreshingExtends.value = false
+      ElMessage.error(getApiErrorMessage(e, '预检失败，请稍后重试'))
+      return
+    }
+    refreshingExtends.value = false
+
+    if (preview && preview.canProceed === false) {
+      await ElMessageBox.alert(
+        preview.blockReason || t('purchaseOrderDetail.refreshCompletedBlockedTitle'),
+        t('purchaseOrderDetail.refreshCompletedBlockedTitle'),
+        { confirmButtonText: t('common.confirm'), type: 'warning' }
+      )
+      return
+    }
+  }
+
+  const completedDocs = preview ? completedDocumentsOf(preview) : []
+  const confirmHtml =
+    completedDocs.length > 0
+      ? `${escapeVendorSyncHtml(refreshFacetConfirmMessage(facet))}<br/><br/>${buildCompletedRefreshHtml(
+          t('purchaseOrderDetail.refreshCompletedWarnLead'),
+          completedDocs
+        )}`
+      : escapeVendorSyncHtml(refreshFacetConfirmMessage(facet))
+
   try {
-    await ElMessageBox.confirm(
-      t('purchaseOrderDetail.refreshConfirm'),
-      t('purchaseOrderDetail.refreshConfirmTitle'),
-      {
-        type: 'warning',
-        confirmButtonText: t('purchaseOrderDetail.refresh'),
-        cancelButtonText: t('common.cancel')
-      }
-    )
+    await ElMessageBox.confirm(confirmHtml, completedDocs.length > 0
+      ? t('purchaseOrderDetail.refreshCompletedWarnTitle')
+      : refreshFacetTitle(facet), {
+      dangerouslyUseHTMLString: true,
+      type: facet === 'status' && completedDocs.length === 0 ? 'info' : 'warning',
+      confirmButtonText: refreshFacetTitle(facet),
+      cancelButtonText: t('common.cancel')
+    })
   } catch {
     return
   }
 
   refreshingExtends.value = true
   try {
-    const result = await purchaseOrderApi.refreshItemExtends(order.value.id)
+    const result = await purchaseOrderApi.refreshDownstream(order.value.id, facet, {
+      confirmCompleted: completedDocs.length > 0
+    })
     await fetchOrder()
     await reloadPoItemLinePanelAggregates()
     if (!hasPurchaseRefreshUpdates(result)) {
@@ -2015,6 +2142,13 @@ function buildVendorSyncPreviewHtml(preview: PurchaseOrderVendorChangePreviewRes
   if (preview.purchaseInvoicesToSync > 0) {
     lines.push(`<div>未完成进项发票 ${preview.purchaseInvoicesToSync} 张</div>`)
   }
+  const completedDocs = completedDocumentsOf(preview)
+  if (completedDocs.length > 0) {
+    lines.push(`<div style="margin-top:8px;color:#b45309;">${escapeVendorSyncHtml(t('purchaseOrderDetail.refreshCompletedWarnLead'))}</div>`)
+    for (const d of completedDocs) {
+      lines.push(`<div>· ${escapeVendorSyncHtml(d)}</div>`)
+    }
+  }
   if (preview.blockingDocuments?.length) {
     lines.push('<div style="margin-top:8px;">阻断原因：</div>')
     for (const d of preview.blockingDocuments) {
@@ -2031,8 +2165,13 @@ const vendorSyncMessageBoxOptions = {
 } as const
 
 function handleRefreshMenuCommand(command: string | number | object) {
-  if (command === 'vendor') {
+  const key = String(command)
+  if (key === 'vendor') {
     void handleRefreshVendor()
+    return
+  }
+  if (key === 'status' || key === 'pn' || key === 'brand' || key === 'qty' || key === 'price') {
+    void handleRefreshFacet(key)
   }
 }
 
@@ -2082,7 +2221,9 @@ async function handleRefreshVendor() {
   try {
     await ElMessageBox.confirm(
       buildVendorSyncPreviewHtml(preview),
-      `确认按采购订单 ${order.value.purchaseOrderCode} 的 VendorId 刷新名称快照，并同步未完结下游供应商吗？`,
+      completedDocumentsOf(preview).length > 0
+        ? t('purchaseOrderDetail.refreshCompletedWarnTitle')
+        : `确认按采购订单 ${order.value.purchaseOrderCode} 的供应商刷新名称，并同步下游吗？`,
       {
         ...vendorSyncMessageBoxOptions,
         type: 'warning',
@@ -2096,7 +2237,9 @@ async function handleRefreshVendor() {
 
   syncingVendor.value = true
   try {
-    const result = await purchaseOrderApi.refreshVendorName(order.value.id)
+    const result = await purchaseOrderApi.refreshVendorName(order.value.id, {
+      confirmCompleted: completedDocumentsOf(preview).length > 0
+    })
     await fetchOrder()
     await reloadPoItemLinePanelAggregates()
     const p = preview

@@ -152,6 +152,9 @@ namespace CRM.API.Extensions
             // 采购订单模块
             services.AddScoped<IPurchaseOrderVendorChangeService, PurchaseOrderVendorChangeService>();
             services.AddScoped<IPurchaseOrderPurchasePriceDownstreamSyncService, PurchaseOrderPurchasePriceDownstreamSyncService>();
+            services.AddScoped<IPurchaseOrderIdentityDownstreamSyncService, PurchaseOrderIdentityDownstreamSyncService>();
+            services.AddScoped<IStockItemPurchaseIdentityRebucketService, StockItemPurchaseIdentityRebucketService>();
+            services.AddScoped<IPurchaseOrderRefreshCompletedGateService, PurchaseOrderRefreshCompletedGateService>();
             services.AddScoped<IPurchaseOrderRevertVendorConfirmGuard, PurchaseOrderRevertVendorConfirmGuard>();
             services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
             services.AddScoped<IRepository<CRM.Core.Models.Purchase.PurchaseOrder>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Purchase.PurchaseOrder>>();

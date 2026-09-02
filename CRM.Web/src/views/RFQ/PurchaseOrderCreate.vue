@@ -1103,7 +1103,14 @@ function buildVendorChangeConfirmMessage(preview: PurchaseOrderVendorChangePrevi
     lines.push(escapeHtml(`同步 ${preview.paymentsToSync} 张未完成付款单。`))
   }
   if (preview.purchaseInvoicesToSync > 0) {
-    lines.push(escapeHtml(`同步 ${preview.purchaseInvoicesToSync} 张未完成进项发票。`))
+    lines.push(escapeHtml(`同步 ${preview.purchaseInvoicesToSync} 张进项发票。`))
+  }
+  const completedDocs = (preview.completedDocuments ?? []).map((d) => String(d || '').trim()).filter(Boolean)
+  if (completedDocs.length > 0) {
+    lines.push(`<span style="color:#b45309;">以下已完结单据也会一并改写，请确认：</span>`)
+    for (const d of completedDocs) {
+      lines.push(escapeHtml(`· ${d}`))
+    }
   }
   if (!preview.sameVendorId) {
     lines.push(escapeHtml('若原供应商联系人不属于新供应商，将自动清空。'))

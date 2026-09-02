@@ -1,3 +1,5 @@
+using CRM.Core.Interfaces;
+
 namespace CRM.Core.Models.Purchase;
 
 /// <summary>
@@ -5,6 +7,8 @@ namespace CRM.Core.Models.Purchase;
 /// </summary>
 public class PurchaseOrderItemExtendRefreshResult
 {
+    /// <summary><c>status</c> / <c>vendor</c> / <c>pn</c> / <c>brand</c> / <c>qty</c> / <c>price</c></summary>
+    public string Facet { get; set; } = "status";
     public string PurchaseOrderId { get; set; } = string.Empty;
     public int TotalItems { get; set; }
     public int ChangedItems { get; set; }
@@ -23,6 +27,15 @@ public class PurchaseOrderItemExtendRefreshResult
     public List<PurchaseOrderPurchasePriceLineChangeDto> PurchasePriceLineChanges { get; set; } = new();
     public List<PurchaseOrderInvoiceMatchWarningDto> InvoiceMatchWarnings { get; set; } = new();
     public List<PurchaseOrderPaymentOverWarningDto> PaymentOverWarnings { get; set; } = new();
+
+    public int PackingItemsUpdated { get; set; }
+    public int CustomsDeclarationItemsUpdated { get; set; }
+    public int StockItemsMoved { get; set; }
+    public int StockAggregatesCreated { get; set; }
+    public int StockAggregatesRemoved { get; set; }
+    public List<PurchaseOrderIdentitySnapshotChangeDto> IdentityChanges { get; set; } = new();
+    public string? OldVendorName { get; set; }
+    public string? NewVendorName { get; set; }
 }
 
 public class PurchaseOrderPurchasePriceLineChangeDto

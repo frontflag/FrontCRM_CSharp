@@ -83,7 +83,7 @@ namespace CRM.Core.Models.Inventory
         [StringLength(128)]
         public string? Pn { get; set; }
 
-        /// <summary>品牌快照，创建时取自采购明细。</summary>
+        /// <summary>品牌快照，创建时取自采购明细；采购行刷新/重算时与明细品牌对齐。</summary>
         [StringLength(64)]
         public string? Brand { get; set; }
 

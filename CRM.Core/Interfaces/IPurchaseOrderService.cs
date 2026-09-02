@@ -23,14 +23,31 @@ namespace CRM.Core.Interfaces
         /// <summary>自动生成采购订单(以销定采)</summary>
         /// <param name="actingUserId">当前登录用户 ID（写入各新生成单的 create_by_user_id）</param>
         Task<IEnumerable<PurchaseOrder>> AutoGenerateFromSellOrderAsync(string sellOrderId, string? actingUserId = null);
-        /// <summary>按采购单覆盖下游采购价快照并重算明细扩展，返回变更结果。</summary>
+        /// <summary>按采购单覆盖下游采购价快照并重算明细扩展，返回变更结果。等价于 <see cref="RefreshDownstreamAsync"/> 的 price 分面。</summary>
         Task<PurchaseOrderItemExtendRefreshResult> RefreshItemExtendsAsync(
             string purchaseOrderId,
             CancellationToken cancellationToken = default,
             string? actingUserId = null);
 
+        /// <summary>按分面刷新下游快照或派生状态。</summary>
+        Task<PurchaseOrderItemExtendRefreshResult> RefreshDownstreamAsync(
+            string purchaseOrderId,
+            PurchaseOrderRefreshFacet facet,
+            CancellationToken cancellationToken = default,
+            string? actingUserId = null,
+            bool confirmCompleted = false);
+
+        /// <summary>分面刷新预检：已完结下游清单与是否可进行。</summary>
+        Task<PurchaseOrderRefreshCompletedPreview> PreviewRefreshDownstreamAsync(
+            string purchaseOrderId,
+            PurchaseOrderRefreshFacet facet,
+            CancellationToken cancellationToken = default);
+
         /// <summary>按主表 <c>vendor_id</c> 从供应商主数据刷新冗余 <c>vendor_name</c>（仅系统管理员）。</summary>
-        Task<PurchaseOrderVendorNameRefreshResult> RefreshVendorNameAsync(string purchaseOrderId, string? actingUserId = null);
+        Task<PurchaseOrderVendorNameRefreshResult> RefreshVendorNameAsync(
+            string purchaseOrderId,
+            string? actingUserId = null,
+            bool confirmCompleted = false);
 
         /// <summary>预检更换供应商（未完结下游同步计数 / 已完结阻断原因）。</summary>
         Task<PurchaseOrderVendorChangePreviewResult> PreviewVendorChangeAsync(

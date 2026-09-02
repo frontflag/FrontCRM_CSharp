@@ -15,9 +15,8 @@
         </div>
         <div class="count-badge">{{ t('purchaseOrderList.count', { count: pageInfo.total }) }}</div>
       </div>
-      <div class="header-right">
-        <button type="button" class="btn-ghost btn-sm" :disabled="loading" @click="loadData">{{ t('purchaseOrderList.filters.refresh') }}</button>
-        <button v-if="canWritePurchaseData" type="button" class="btn-success" @click="handleCreate">
+      <div v-if="canWritePurchaseData" class="header-right">
+        <button type="button" class="btn-success" @click="handleCreate">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />

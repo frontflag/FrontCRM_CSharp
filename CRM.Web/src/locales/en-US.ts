@@ -637,16 +637,21 @@ const enUS = {
     unsavedLeaveConfirm: 'Quoter pool selections are not saved. Leave anyway?',
     leaveBtn: 'Leave',
     cancelBtn: 'Cancel',
-    refreshVendorNav: 'Refresh vendor',
-    refreshVendorTitle: 'Refresh vendor',
+    refreshVendorNav: 'Facet refresh',
+    refreshVendorTitle: 'Facet refresh',
     refreshVendorHint:
-      'Controls whether purchase-order “Refresh vendor” may process completed downstream documents.',
+      'Controls whether each purchase-order detail refresh facet may overwrite completed downstream documents. Off: that facet is blocked. On: the completed documents are listed and the user must confirm before refresh.',
     allowRefreshCompletedLabel: 'Allow refresh of completed nodes:',
+    allowRefreshCompletedVendor: 'Refresh vendor: allow completed nodes',
+    allowRefreshCompletedPn: 'Refresh part no.: allow completed nodes',
+    allowRefreshCompletedBrand: 'Refresh brand: allow completed nodes',
+    allowRefreshCompletedQty: 'Refresh quantity: allow completed nodes',
+    allowRefreshCompletedPrice: 'Refresh unit cost: allow completed nodes',
     allowRefreshCompletedNote:
-      'Off (default): stocked-in arrival notices, posted stock-ins, completed payments, and confirmed/red-inked purchase invoices block refresh when vendor ID differs. On: those completed documents can still sync vendor.',
+      'Vendor defaults to off; part no., brand, quantity and unit cost default to on. Off: completed downstream (stocked-in arrivals, posted stock-ins, packed goods, customs/stock, paid, certified invoices) blocks that facet. On: those documents are listed and require confirmation. Refresh status is not gated here.',
     allow: 'Allow',
     disallow: 'Disallow',
-    refreshVendorLoadFailed: 'Failed to load refresh-vendor parameters'
+    refreshVendorLoadFailed: 'Failed to load facet-refresh parameters'
   },
   salesParams: {
     pageTitle: 'Sales parameters',
@@ -5084,7 +5089,6 @@ const enUS = {
       allStatus: 'All statuses',
       search: 'Search',
       reset: 'Reset',
-      refresh: 'Refresh',
       boardView: 'Board',
       listView: 'List'
     },
@@ -5733,7 +5737,6 @@ const enUS = {
       stockingTag: 'Stocking',
       search: 'Search',
       reset: 'Reset',
-      refresh: 'Refresh',
       boardView: 'Board',
       listView: 'List'
     },
@@ -8895,17 +8898,41 @@ const enUS = {
   },
   purchaseOrderDetail: {
     refresh: 'Refresh',
+    refreshStatus: 'Refresh status',
+    refreshVendor: 'Refresh vendor',
+    refreshPn: 'Refresh part no.',
+    refreshBrand: 'Refresh brand',
+    refreshQty: 'Refresh quantity',
+    refreshPrice: 'Refresh unit cost',
     refreshing: 'Refreshing…',
     refreshConfirmTitle: 'Confirm refresh',
     refreshConfirm:
       'This will overwrite purchase-price snapshots on arrival notices, stock-in, inventory, and outbound (including received / requested / written-off / invoice-matched), then recalculate line progress. Payment request / payment rows and purchase-invoice face amounts are not changed. The operator is responsible for the result. Continue?',
+    refreshStatusConfirm:
+      'Recalculate line status and progress from arrival / stock-in / payment / invoice facts. Vendor, part no., brand, quantity and unit cost are not changed. Continue?',
+    refreshPnConfirm:
+      'Overwrite part-no. on arrival, stock-in, packing, customs and inventory from the current PO lines. Inventory may be re-bucketed (new stock aggregates possible); empty old aggregates with no remaining layers are removed, and reserved availability is recalculated. Continue?',
+    refreshBrandConfirm:
+      'Overwrite brand on arrival, stock-in, packing, customs and inventory from the current PO lines. Inventory may be re-bucketed (new stock aggregates possible); empty old aggregates with no remaining layers are removed, and reserved availability is recalculated. Continue?',
+    refreshQtyConfirm:
+      'Align arrival planned qty with current PO qty (shrink an oversized single batch only; split batches are not expanded), then recalculate totals, GP and status. Posted stock-in / stock / outbound quantities are not changed. Continue?',
+    refreshPriceConfirm:
+      'Overwrite purchase-price snapshots on arrival notices, stock-in, inventory, and outbound (including received / requested / written-off / invoice-matched), then recalculate totals, GP and status. Payment request / payment rows and purchase-invoice face amounts are not changed. Continue?',
     refreshResultEmpty: 'No updates',
     refreshResultTitle: 'Refresh result',
     refreshDownstreamSummary:
       'Downstream purchase prices: arrival notices {notices}, stock-in lines {stockIn}, stock-in headers {stockInHead}, stock {stock}, outbound lines {outItem}.',
+    refreshIdentitySummary:
+      'Downstream snapshots: arrival notices {notices}, stock-in {stockIn}, stock items {stock} (moved {moved}, new aggregates {buckets}, removed empty {removed}), packing {packing}, customs {customs}.',
+    refreshQtySummary: 'Arrival planned qty aligned on {notices} notice(s). Posted quantities were not changed.',
+    refreshIdentityLine: '{type} {node}: {before} → {after}',
     refreshPriceLine: '{code}: unit cost {before} → {after}',
     refreshOverInvoice: 'Stock-in {code}: invoice-matched {done} exceeds new total {amount} (open {toBe})',
     refreshOverPayment: 'Line {code}: paid/verified {done} exceeds new line total {amount}',
+    refreshCompletedWarnTitle: 'Overwrite completed downstream',
+    refreshCompletedWarnLead:
+      'These documents are already completed. Confirming will still overwrite their snapshots from this order. Review before continuing:',
+    refreshCompletedBlockedTitle: 'Cannot refresh completed nodes',
     batchPanel: {
       title: 'Stock-in batches',
       count: '{count} total',

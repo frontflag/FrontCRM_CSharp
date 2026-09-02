@@ -18,7 +18,7 @@
           刷新全部采购单
         </el-button>
       </div>
-      <div class="refresh-hint">逐条调用订单详情页“刷新”同源接口，自动循环执行。</div>
+      <div class="refresh-hint">销售侧逐条调用详情「刷新」；采购侧调用「刷新状态」，不会覆盖采购价。</div>
       <div class="refresh-result-grid">
         <div class="refresh-result-card">
           <div class="refresh-result-title">销售订单刷新结果</div>
@@ -171,7 +171,7 @@ async function refreshAllPurchaseOrders() {
     const failedCodes: string[] = []
     for (const order of orders) {
       try {
-        const result = await purchaseOrderApi.refreshItemExtends(order.id)
+        const result = await purchaseOrderApi.refreshDownstream(order.id, 'status')
         if ((result?.changedItems ?? 0) > 0 || (result?.changedFieldsCount ?? 0) > 0) changedCodes.push(order.code)
       } catch {
         failedCodes.push(order.code)

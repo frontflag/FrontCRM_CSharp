@@ -991,7 +991,7 @@ namespace CRM.API.Controllers
         }
 
         /// <summary>
-        /// 临时调试工具：批量刷新采购订单明细扩展、明细状态与主状态（与详情页「刷新扩展」同源）。
+        /// 临时调试工具：批量刷新采购订单明细派生状态与主状态（与详情页「刷新状态」同源，不覆盖单价/品牌/数量快照）。
         /// </summary>
         [Authorize]
         [HttpPost("refresh-purchase-order-main-status")]
@@ -1024,7 +1024,10 @@ namespace CRM.API.Controllers
                     var before = order.Status;
                     try
                     {
-                        var refresh = await _purchaseOrderService.RefreshItemExtendsAsync(order.Id, cancellationToken);
+                        var refresh = await _purchaseOrderService.RefreshDownstreamAsync(
+                            order.Id,
+                            PurchaseOrderRefreshFacet.Status,
+                            cancellationToken);
                         result.TotalItems += refresh.TotalItems;
                         result.ChangedItems += refresh.ChangedItems;
 

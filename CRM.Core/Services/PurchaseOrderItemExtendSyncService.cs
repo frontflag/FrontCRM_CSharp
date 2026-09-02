@@ -81,7 +81,14 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
     }
 
     /// <inheritdoc />
-    public async Task RecalculateAsync(string purchaseOrderItemId, CancellationToken cancellationToken = default)
+    public Task RecalculateAsync(string purchaseOrderItemId, CancellationToken cancellationToken = default)
+        => RecalculateAsync(purchaseOrderItemId, PurchaseOrderItemRecalculateOptions.Default, cancellationToken);
+
+    /// <inheritdoc />
+    public async Task RecalculateAsync(
+        string purchaseOrderItemId,
+        PurchaseOrderItemRecalculateOptions options,
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(purchaseOrderItemId)) return;
 
@@ -117,8 +124,11 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
         ext.PaymentAmount = lineAmountTotal;
         ext.PurchaseInvoiceAmount = lineAmountTotal;
 
-        // --- 采购数量变更后：校验；单批次仅收缩超量通知或同步单价，不将部分到货扩成整单（多批次仅校验）---
-        await AlignArrivalNoticesWithPoLineQtyAsync(poItem, cancellationToken);
+        // --- 采购数量变更后：按选项对齐到货快照；刷新状态时跳过 ---
+        await AlignArrivalNoticesWithPoLineQtyAsync(
+            poItem,
+            options ?? PurchaseOrderItemRecalculateOptions.Default,
+            cancellationToken);
 
         // --- 到货通知状态回写（10未到货 / 20到货待检 / 30已质检 / 100已入库）---
         await RecalculateArrivalNoticeStatusesForPoLineAsync(id, cancellationToken);
@@ -238,14 +248,23 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
         await _poRepo.UpdateAsync(po);
     }
 
-    private async Task AlignArrivalNoticesWithPoLineQtyAsync(
+    private async Task<int> AlignArrivalNoticesWithPoLineQtyAsync(
         PurchaseOrderItem poItem,
+        PurchaseOrderItemRecalculateOptions options,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var notices = (await _notifyRepo.FindAsync(x => x.PurchaseOrderItemId == poItem.Id)).ToList();
-        if (notices.Count == 0) return;
+        options ??= PurchaseOrderItemRecalculateOptions.Default;
+        if (!options.SyncArrivalNoticeQty
+            && !options.SyncArrivalNoticeCost
+            && !options.SyncArrivalNoticeBrand
+            && !options.ValidateArrivalQtyAgainstPoLine)
+            return 0;
 
+        var notices = (await _notifyRepo.FindAsync(x => x.PurchaseOrderItemId == poItem.Id)).ToList();
+        if (notices.Count == 0) return 0;
+
+        var updated = 0;
         var targetExpect = InventoryQuantity.RoundFromDecimal(poItem.Qty);
         foreach (var notice in notices)
         {
@@ -253,34 +272,67 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
 
             // 分批到货：部分通知数量有意小于采购行数量，刷新/重算时不得自动扩成整单。
             // 仅当采购行数量下调导致单批次通知超量时，收缩预计数量。
-            if (notices.Count == 1 && notice.ExpectQty > targetExpect)
+            if (options.SyncArrivalNoticeQty && notices.Count == 1 && notice.ExpectQty > targetExpect)
             {
                 notice.ExpectQty = targetExpect;
                 dirty = true;
             }
 
-            if (notice.Cost != poItem.Cost)
+            if (options.SyncArrivalNoticeCost && notice.Cost != poItem.Cost)
             {
                 notice.Cost = poItem.Cost;
                 dirty = true;
+            }
+
+            if (options.SyncArrivalNoticeBrand)
+            {
+                var liveBrand = string.IsNullOrWhiteSpace(poItem.Brand) ? null : poItem.Brand.Trim();
+                var snapshotBrand = string.IsNullOrWhiteSpace(notice.Brand) ? null : notice.Brand.Trim();
+                if (!string.Equals(snapshotBrand, liveBrand, StringComparison.Ordinal))
+                {
+                    notice.Brand = liveBrand;
+                    dirty = true;
+                }
             }
 
             if (!dirty)
                 continue;
 
             notice.ExpectTotal = Math.Round((decimal)notice.ExpectQty * notice.Cost, 2, MidpointRounding.AwayFromZero);
-            if (notices.Count == 1 && notice.ReceiveQty > notice.ExpectQty)
+            if (options.SyncArrivalNoticeQty && notices.Count == 1 && notice.ReceiveQty > notice.ExpectQty)
                 notice.ReceiveQty = notice.ExpectQty;
             notice.ReceiveTotal = Math.Round((decimal)notice.ReceiveQty * notice.Cost, 2, MidpointRounding.AwayFromZero);
             notice.ModifyTime = DateTime.UtcNow;
             await _notifyRepo.UpdateAsync(notice);
+            updated++;
         }
 
-        var sumReceiveNotify = notices.Sum(x => (decimal)x.ReceiveQty);
-        var inTransit = notices.Sum(x => Math.Max(0m, x.ExpectQty - x.ReceiveQty));
-        if (poItem.Qty + 1e-9m < sumReceiveNotify + inTransit)
-            throw new InvalidOperationException(
-                $"采购数量不能小于已到货通知的已收与在途数量之和（已收 {sumReceiveNotify}，在途 {inTransit}）");
+        if (options.ValidateArrivalQtyAgainstPoLine)
+        {
+            var sumReceiveNotify = notices.Sum(x => (decimal)x.ReceiveQty);
+            var inTransit = notices.Sum(x => Math.Max(0m, x.ExpectQty - x.ReceiveQty));
+            if (poItem.Qty + 1e-9m < sumReceiveNotify + inTransit)
+                throw new InvalidOperationException(
+                    $"采购数量不能小于已到货通知的已收与在途数量之和（已收 {sumReceiveNotify}，在途 {inTransit}）");
+        }
+
+        return updated;
+    }
+
+    /// <inheritdoc />
+    public async Task<int> SyncArrivalNoticePlanQtyAsync(
+        string purchaseOrderItemId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(purchaseOrderItemId))
+            return 0;
+        var poItem = await _poItemRepo.GetByIdAsync(purchaseOrderItemId.Trim());
+        if (poItem == null)
+            return 0;
+        return await AlignArrivalNoticesWithPoLineQtyAsync(
+            poItem,
+            PurchaseOrderItemRecalculateOptions.QtyPlanOnly,
+            cancellationToken);
     }
 
     /// <inheritdoc />

@@ -47,6 +47,7 @@ export interface PurchaseOrderPaymentOverWarningDto {
 }
 
 export interface PurchaseOrderItemExtendRefreshResult {
+  facet?: string
   purchaseOrderId: string
   totalItems: number
   changedItems: number
@@ -61,9 +62,36 @@ export interface PurchaseOrderItemExtendRefreshResult {
   stockInItemExtendsUpdated?: number
   stockItemsUpdated?: number
   stockOutItemExtendsUpdated?: number
+  packingItemsUpdated?: number
+  customsDeclarationItemsUpdated?: number
+  stockItemsMoved?: number
+  stockAggregatesCreated?: number
+  stockAggregatesRemoved?: number
+  identityChanges?: PurchaseOrderIdentitySnapshotChangeDto[]
+  oldVendorName?: string | null
+  newVendorName?: string | null
   purchasePriceLineChanges?: PurchaseOrderPurchasePriceLineChangeDto[]
   invoiceMatchWarnings?: PurchaseOrderInvoiceMatchWarningDto[]
   paymentOverWarnings?: PurchaseOrderPaymentOverWarningDto[]
+}
+
+export interface PurchaseOrderIdentitySnapshotChangeDto {
+  nodeType: string
+  nodeId: string
+  nodeCode?: string | null
+  before?: string | null
+  after?: string | null
+}
+
+export type PurchaseOrderRefreshFacet = 'status' | 'vendor' | 'pn' | 'brand' | 'qty' | 'price'
+
+export interface PurchaseOrderRefreshCompletedPreview {
+  facet: string
+  canProceed: boolean
+  blockReason?: string | null
+  allowCompletedParam?: boolean
+  completedDocuments?: string[]
+  hasCompleted?: boolean
 }
 
 export interface PurchaseOrderVendorNameRefreshResult {
@@ -93,6 +121,9 @@ export interface PurchaseOrderVendorChangePreviewResult {
   stockInsToSync: number
   paymentsToSync: number
   purchaseInvoicesToSync: number
+  allowCompletedParam?: boolean
+  completedDocuments?: string[]
+  hasCompleted?: boolean
 }
 
 export interface PurchaseOrderFieldChangeLogRow {
@@ -439,15 +470,37 @@ export const purchaseOrderApi = {
     return await apiClient.post(`/api/v1/purchase-orders/auto-generate/${sellOrderId}`, {})
   },
 
-  // 刷新采购明细扩展字段（读取下游数据重算）
+  // 刷新采购明细扩展字段（兼容旧路径，等价于 facet=price）
   async refreshItemExtends(id: string) {
     return await apiClient.post<PurchaseOrderItemExtendRefreshResult>(`/api/v1/purchase-orders/${id}/refresh-item-extends`, {})
   },
 
+  /** 分面刷新：status / vendor / pn / brand / qty / price */
+  async refreshDownstream(
+    id: string,
+    facet: PurchaseOrderRefreshFacet,
+    options?: { confirmCompleted?: boolean }
+  ) {
+    return await apiClient.post<PurchaseOrderItemExtendRefreshResult>(`/api/v1/purchase-orders/${id}/refresh`, {
+      facet,
+      confirmCompleted: !!options?.confirmCompleted
+    })
+  },
+
+  async previewRefreshDownstream(id: string, facet: PurchaseOrderRefreshFacet) {
+    return await apiClient.post<PurchaseOrderRefreshCompletedPreview>(
+      `/api/v1/purchase-orders/${id}/refresh/preview`,
+      { facet }
+    )
+  },
+
   /** 按 vendor_id 刷新头名称快照并同步未完结下游（换供应商权限） */
-  async refreshVendorName(id: string) {
+  async refreshVendorName(id: string, options?: { confirmCompleted?: boolean }) {
     const enc = encodeURIComponent(id)
-    return await apiClient.post<PurchaseOrderVendorNameRefreshResult>(`/api/v1/purchase-orders/${enc}/refresh-vendor-name`, {})
+    return await apiClient.post<PurchaseOrderVendorNameRefreshResult>(
+      `/api/v1/purchase-orders/${enc}/refresh-vendor-name`,
+      { confirmCompleted: !!options?.confirmCompleted }
+    )
   },
 
   /** 更换供应商预检（管理员/采购总监） */

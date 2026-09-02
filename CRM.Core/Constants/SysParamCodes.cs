@@ -46,6 +46,12 @@ namespace CRM.Core.Constants
         public const string PurchaseAllowRefreshCompletedBizNodes = "System.Purchase.AllowRefreshCompletedBizNodes";
 
         /// <summary>
+        /// 采购分面刷新是否允许覆盖已完结下游（JSON：vendor/pn/brand/qty/price）。
+        /// vendor 与 <see cref="PurchaseAllowRefreshCompletedBizNodes"/> 同步；pn/brand/qty/price 默认 true。
+        /// </summary>
+        public const string PurchaseRefreshCompletedFacets = "System.Purchase.RefreshCompletedFacets";
+
+        /// <summary>
         /// 报表样式版本（ValueString：V1 / V2）。未配置或非法值视为 V1。采购订单打印读取生效版本。
         /// </summary>
         public const string ReportStyleVersion = "System.Report.StyleVersion";

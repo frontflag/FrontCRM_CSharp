@@ -15,9 +15,6 @@
         </div>
         <div class="count-badge">{{ t('salesOrderList.count', { count: pageInfo.total }) }}</div>
       </div>
-      <div class="header-right">
-        <button type="button" class="btn-ghost btn-sm" :disabled="loading" @click="loadData">{{ t('salesOrderList.filters.refresh') }}</button>
-      </div>
     </div>
 
     <!-- 搜索栏：状态 → 订单号 → 客户 → 业务员 → 备注 → 创建日期 -->
