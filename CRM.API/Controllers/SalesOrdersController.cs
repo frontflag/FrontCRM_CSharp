@@ -2613,6 +2613,91 @@ namespace CRM.API.Controllers
             }
         }
 
+        [HttpPost("{id:guid}/refresh")]
+        [RequirePermission("sales-order.write")]
+        public async Task<IActionResult> RefreshDownstream(
+            string id,
+            [FromBody] SalesOrderRefreshRequest? request,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (!SalesOrderRefreshFacetParser.TryParse(request?.Facet, out var facet))
+                    return BadRequest(new { success = false, message = "刷新类型无效，应为 status / customer / pn / brand / qty / price" });
+
+                var order = await _service.GetByIdAsync(id);
+                if (order == null) return NotFound(new { success = false, message = "销售订单不存在" });
+
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrWhiteSpace(userId))
+                    return StatusCode(403, new { success = false, message = "未登录" });
+
+                if (!await _dataPermissionService.CanAccessSalesOrderAsync(userId.Trim(), order))
+                    return StatusCode(403, new { success = false, message = "无权访问该销售订单" });
+
+                var result = await _service.RefreshDownstreamAsync(
+                    id,
+                    facet,
+                    cancellationToken,
+                    userId,
+                    request?.ConfirmCompleted ?? false);
+                return Ok(new { success = true, data = result });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "销售订单分面刷新失败: {Id} Facet={Facet}", id, request?.Facet);
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpPost("{id:guid}/refresh/preview")]
+        [RequirePermission("sales-order.write")]
+        public async Task<IActionResult> PreviewRefreshDownstream(
+            string id,
+            [FromBody] SalesOrderRefreshRequest? request,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (!SalesOrderRefreshFacetParser.TryParse(request?.Facet, out var facet))
+                    return BadRequest(new { success = false, message = "刷新类型无效，应为 status / customer / pn / brand / qty / price" });
+
+                var order = await _service.GetByIdAsync(id);
+                if (order == null) return NotFound(new { success = false, message = "销售订单不存在" });
+
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrWhiteSpace(userId))
+                    return StatusCode(403, new { success = false, message = "未登录" });
+
+                if (!await _dataPermissionService.CanAccessSalesOrderAsync(userId.Trim(), order))
+                    return StatusCode(403, new { success = false, message = "无权访问该销售订单" });
+
+                var preview = await _service.PreviewRefreshDownstreamAsync(id, facet, cancellationToken);
+                return Ok(new { success = true, data = preview });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "销售订单分面刷新预检失败: {Id} Facet={Facet}", id, request?.Facet);
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
         [HttpPost("{id:guid}/refresh-item-extends")]
         [RequirePermission("sales-order.write")]
         public async Task<IActionResult> RefreshItemExtends(string id, CancellationToken cancellationToken)
@@ -2628,6 +2713,10 @@ namespace CRM.API.Controllers
 
                 var result = await _service.RefreshItemExtendsAsync(id, cancellationToken, userId);
                 return Ok(new { success = true, data = result });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
             }
             catch (Exception ex)
             {
@@ -2667,7 +2756,10 @@ namespace CRM.API.Controllers
 
         [HttpPost("{id:guid}/sync-downstream-customer")]
         [RequirePermission("sales-order.write")]
-        public async Task<IActionResult> SyncDownstreamCustomer(string id, CancellationToken cancellationToken)
+        public async Task<IActionResult> SyncDownstreamCustomer(
+            string id,
+            [FromBody] SalesOrderRefreshRequest? request,
+            CancellationToken cancellationToken)
         {
             try
             {
@@ -2681,7 +2773,8 @@ namespace CRM.API.Controllers
                 var result = await _customerDownstreamSyncService.ApplyAsync(
                     order,
                     userId,
-                    cancellationToken: cancellationToken);
+                    cancellationToken: cancellationToken,
+                    confirmCompleted: request?.ConfirmCompleted ?? false);
                 return Ok(new { success = true, data = result });
             }
             catch (InvalidOperationException ex)

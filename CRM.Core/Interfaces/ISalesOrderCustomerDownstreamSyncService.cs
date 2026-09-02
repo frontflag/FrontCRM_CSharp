@@ -14,13 +14,15 @@ public interface ISalesOrderCustomerDownstreamSyncService
         CancellationToken cancellationToken = default);
 
     /// <param name="proposedCustomerId">拟换客户 ID；为空则按订单当前 CustomerId 同步。</param>
-    /// <param name="saveChanges">为 false 时仅改实体（由调用方统一 SaveChanges，如编辑保存一步提交）。</param>
+    /// <param name="saveChanges">为 false 时仅改实体（由调用方统一 SaveChanges，如编辑保存一步提交）。编辑保存不套 <paramref name="confirmCompleted"/>。</param>
+    /// <param name="confirmCompleted">详情刷新客户：预检有已完结出库链时须为 true。编辑保存忽略。</param>
     Task<SalesOrderCustomerDownstreamSyncApplyResult> ApplyAsync(
         SellOrder order,
         string? actingUserId = null,
         string? proposedCustomerId = null,
         bool saveChanges = true,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        bool confirmCompleted = false);
 }
 
 public class SalesOrderCustomerDownstreamSyncPreviewResult
@@ -37,6 +39,11 @@ public class SalesOrderCustomerDownstreamSyncPreviewResult
     public bool NoOp { get; set; }
     public string? BlockReason { get; set; }
     public List<string> BlockingDocuments { get; set; } = new();
+    /// <summary>详情刷新客户：参数允许时将覆盖的已完结出库链（须 confirmCompleted）。</summary>
+    public List<string> CompletedDocuments { get; set; } = new();
+    /// <summary>销售参数「刷新客户」是否允许覆盖已完结出库链。</summary>
+    public bool AllowCompletedParam { get; set; }
+    public bool HasCompleted => CompletedDocuments.Count > 0;
     /// <summary>销售订单头客户（ID/名称）是否需按目标客户刷新（0/1）。</summary>
     public int SellOrderCustomerNameToSync { get; set; }
     public int StockOutNotifiesToSync { get; set; }

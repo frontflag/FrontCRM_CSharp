@@ -162,7 +162,7 @@
         <div>已执行 legacy 拆分：{{ sellOrderCommentSplitResult.rowsProcessed }} 条</div>
       </div>
       <div class="refresh-hint refresh-hint--second">
-        「刷新销售订单状态」：遍历未软删销售订单，逐单调用详情页「刷新扩展」同源接口，重算明细扩展并按规则同步主状态（审核通过→进行中、全部收款完成→完成等）。跳过取消/审核失败单。耗时可较长，请勿重复点击。
+        「刷新销售订单状态」：遍历未软删销售订单，逐单调用详情页「刷新状态」同源接口，重算明细扩展并按规则同步主状态（审核通过→进行中、全部收款完成→完成等）。不覆盖售价。跳过取消/审核失败单。耗时可较长，请勿重复点击。
       </div>
       <div v-if="sellOrderMainStatusResult" class="simulate-result">
         <div>扫描订单：{{ sellOrderMainStatusResult.totalOrders }} 条</div>

@@ -80,7 +80,8 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
         string? actingUserId = null,
         string? proposedCustomerId = null,
         bool saveChanges = true,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool confirmCompleted = false)
     {
         ArgumentNullException.ThrowIfNull(order);
 
@@ -94,6 +95,10 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
 
         if (!preview.CanSync)
             throw new InvalidOperationException(preview.BlockReason ?? "存在已完结下游单据，无法同步客户信息");
+
+        if (saveChanges && preview.HasCompleted && !confirmCompleted)
+            throw new InvalidOperationException(
+                "存在已完结下游，须确认后再刷新：" + string.Join("；", preview.CompletedDocuments));
 
         var targetCustomerId = bundle.TargetCustomerId!;
         var now = DateTime.UtcNow;
@@ -197,7 +202,9 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
             PackingsToSync = bundle.SyncPackings.Count,
             PackingItemExtendsToSync = bundle.PackingItemIdsForExtendSync.Count,
             StockOutsToSync = bundle.SyncStockOuts.Count,
-            ReceivablesToSync = bundle.SyncReceivables.Count
+            ReceivablesToSync = bundle.SyncReceivables.Count,
+            CompletedDocuments = bundle.CompletedDocuments.ToList(),
+            AllowCompletedParam = allowRefreshCompleted
         };
 
         if (!string.IsNullOrWhiteSpace(bundle.ProposedCustomerMissingReason))
@@ -444,6 +451,7 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
         bundle.SyncReceivables.Clear();
         bundle.PackingItemIdsForExtendSync.Clear();
         bundle.BlockingDocuments.Clear();
+        bundle.CompletedDocuments.Clear();
 
         var targetId = bundle.TargetCustomerId?.Trim() ?? string.Empty;
 
@@ -455,7 +463,10 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
             if (notify.Status >= StockOutRequestStatusCode.StockedOut)
             {
                 if (allowRefreshCompleted)
+                {
                     bundle.SyncNotifies.Add(notify);
+                    bundle.CompletedDocuments.Add($"出库通知 {notify.RequestCode} 已出库");
+                }
                 else
                     bundle.BlockingDocuments.Add($"出库通知 {notify.RequestCode} 已出库");
                 continue;
@@ -475,7 +486,10 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
             if (packing.Status >= PackingStatusCode.StockOutFinished)
             {
                 if (allowRefreshCompleted)
+                {
                     bundle.SyncPackings.Add(packing);
+                    bundle.CompletedDocuments.Add($"装箱单 {packing.Code} 已出库完成");
+                }
                 else
                     bundle.BlockingDocuments.Add($"装箱单 {packing.Code} 已出库完成");
                 continue;
@@ -504,7 +518,10 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
             if (stockOut.Status == StockOutStatusCompleted)
             {
                 if (allowRefreshCompleted)
+                {
                     bundle.SyncStockOuts.Add(stockOut);
+                    bundle.CompletedDocuments.Add($"出库单 {stockOut.StockOutCode} 已出库");
+                }
                 else
                     bundle.BlockingDocuments.Add($"出库单 {stockOut.StockOutCode} 已出库");
                 continue;
@@ -731,6 +748,7 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
         public List<FinanceReceivable> SyncReceivables { get; } = new();
         public List<string> PackingItemIdsForExtendSync { get; } = new();
         public List<string> BlockingDocuments { get; } = new();
+        public List<string> CompletedDocuments { get; } = new();
     }
 
     private sealed class PackingItemExtendCustomerRow

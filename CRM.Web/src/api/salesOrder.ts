@@ -22,6 +22,7 @@ export interface SalesOrderItemExtendChangeDto {
 }
 
 export interface SalesOrderItemExtendRefreshResult {
+  facet?: string
   salesOrderId: string
   totalItems: number
   changedItems: number
@@ -34,8 +35,32 @@ export interface SalesOrderItemExtendRefreshResult {
   stockOutItemExtendsUpdated?: number
   stockOutHeadersUpdated?: number
   receivablesUpdated?: number
+  stockOutNotifiesUpdated?: number
+  packingItemsUpdated?: number
+  identityChanges?: SalesOrderIdentitySnapshotChangeDto[]
+  oldCustomerName?: string | null
+  newCustomerName?: string | null
   salesPriceLineChanges?: SalesOrderSalesPriceLineChangeDto[]
   receivableWarnings?: SalesOrderReceivableAmountWarningDto[]
+}
+
+export interface SalesOrderIdentitySnapshotChangeDto {
+  nodeType: string
+  nodeId: string
+  nodeCode?: string | null
+  before?: string | null
+  after?: string | null
+}
+
+export type SalesOrderRefreshFacet = 'status' | 'customer' | 'pn' | 'brand' | 'qty' | 'price'
+
+export interface SalesOrderRefreshCompletedPreview {
+  facet: string
+  canProceed: boolean
+  blockReason?: string | null
+  allowCompletedParam?: boolean
+  completedDocuments?: string[]
+  hasCompleted?: boolean
 }
 
 export interface SalesOrderSalesPriceLineChangeDto {
@@ -82,6 +107,9 @@ export interface SalesOrderCustomerDownstreamSyncPreview {
   noOp: boolean
   blockReason?: string | null
   blockingDocuments: string[]
+  completedDocuments?: string[]
+  allowCompletedParam?: boolean
+  hasCompleted?: boolean
   /** 销售订单头客户名称快照是否需按主数据刷新（0/1） */
   sellOrderCustomerNameToSync: number
   stockOutNotifiesToSync: number
@@ -581,9 +609,28 @@ export const salesOrderApi = {
     return await apiClient.get(`/api/v1/sales-orders/${id}/purchase-orders`)
   },
 
-  // 刷新销售订单明细扩展字段（读取下游数据重算）
+  // 刷新销售订单明细扩展字段（兼容旧路径，等价于 facet=price）
   async refreshItemExtends(id: string) {
     return await apiClient.post<SalesOrderItemExtendRefreshResult>(`/api/v1/sales-orders/${id}/refresh-item-extends`, {})
+  },
+
+  /** 分面刷新：status / customer / pn / brand / qty / price */
+  async refreshDownstream(
+    id: string,
+    facet: SalesOrderRefreshFacet,
+    options?: { confirmCompleted?: boolean }
+  ) {
+    return await apiClient.post<SalesOrderItemExtendRefreshResult>(`/api/v1/sales-orders/${id}/refresh`, {
+      facet,
+      confirmCompleted: !!options?.confirmCompleted
+    })
+  },
+
+  async previewRefreshDownstream(id: string, facet: SalesOrderRefreshFacet) {
+    return await apiClient.post<SalesOrderRefreshCompletedPreview>(
+      `/api/v1/sales-orders/${id}/refresh/preview`,
+      { facet }
+    )
   },
 
   async previewSyncDownstreamCustomer(id: string, proposedCustomerId?: string) {
@@ -596,10 +643,10 @@ export const salesOrderApi = {
     )
   },
 
-  async syncDownstreamCustomer(id: string) {
+  async syncDownstreamCustomer(id: string, options?: { confirmCompleted?: boolean }) {
     return await apiClient.post<SalesOrderCustomerDownstreamSyncApplyResult>(
       `/api/v1/sales-orders/${id}/sync-downstream-customer`,
-      {}
+      { confirmCompleted: !!options?.confirmCompleted }
     )
   },
 

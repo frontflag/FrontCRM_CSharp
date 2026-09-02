@@ -59,4 +59,61 @@ public class SalesParamsController : ControllerBase
             return StatusCode(500, ApiResponse<SalesParamsAllowRefreshCompletedBizNodesDto>.Fail("保存失败", 500));
         }
     }
+
+    [HttpGet("refresh-completed-facets")]
+    [RequirePermission("system.params.sales.refresh-customer.read")]
+    public async Task<ActionResult<ApiResponse<SalesParamsRefreshCompletedFacetsDto>>> GetRefreshCompletedFacets(
+        CancellationToken ct)
+    {
+        try
+        {
+            var facets = await _service.GetRefreshCompletedFacetsAsync(ct);
+            return Ok(ApiResponse<SalesParamsRefreshCompletedFacetsDto>.Ok(MapFacets(facets), "ok"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "读取销售分面刷新参数失败");
+            return StatusCode(500, ApiResponse<SalesParamsRefreshCompletedFacetsDto>.Fail("读取失败", 500));
+        }
+    }
+
+    [HttpPut("refresh-completed-facets")]
+    [RequirePermission("system.params.sales.refresh-customer.write")]
+    public async Task<ActionResult<ApiResponse<SalesParamsRefreshCompletedFacetsDto>>> SetRefreshCompletedFacets(
+        [FromBody] SetSalesParamsRefreshCompletedFacetsRequest? body,
+        CancellationToken ct)
+    {
+        if (body == null)
+            return BadRequest(ApiResponse<SalesParamsRefreshCompletedFacetsDto>.Fail("请求体为空", 400));
+
+        try
+        {
+            var facets = new SalesRefreshCompletedFacets
+            {
+                Customer = body.Customer,
+                Pn = body.Pn,
+                Brand = body.Brand,
+                Qty = body.Qty,
+                Price = body.Price
+            };
+            await _service.SetRefreshCompletedFacetsAsync(facets, ct);
+            var saved = await _service.GetRefreshCompletedFacetsAsync(ct);
+            return Ok(ApiResponse<SalesParamsRefreshCompletedFacetsDto>.Ok(MapFacets(saved), "已保存"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "保存销售分面刷新参数失败");
+            return StatusCode(500, ApiResponse<SalesParamsRefreshCompletedFacetsDto>.Fail("保存失败", 500));
+        }
+    }
+
+    private static SalesParamsRefreshCompletedFacetsDto MapFacets(SalesRefreshCompletedFacets facets) =>
+        new()
+        {
+            Customer = facets.Customer,
+            Pn = facets.Pn,
+            Brand = facets.Brand,
+            Qty = facets.Qty,
+            Price = facets.Price
+        };
 }

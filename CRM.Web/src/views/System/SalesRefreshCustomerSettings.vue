@@ -14,11 +14,11 @@
     </div>
 
     <div class="group-card">
-      <div class="field-row">
-        <span class="field-label">{{ t('salesParams.allowRefreshCompletedLabel') }}</span>
+      <div class="field-row" v-for="row in facetRows" :key="row.key">
+        <span class="field-label">{{ t(row.labelKey) }}</span>
         <div class="field-control">
           <el-switch
-            v-model="allow"
+            v-model="facets[row.key]"
             :active-text="t('salesParams.allow')"
             :inactive-text="t('salesParams.disallow')"
             inline-prompt
@@ -31,22 +31,47 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { reactive, ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { salesParamsApi } from '@/api/salesParams'
+import {
+  salesParamsApi,
+  type SalesRefreshCompletedFacets
+} from '@/api/salesParams'
 
 const { t } = useI18n()
 const loading = ref(false)
 const saving = ref(false)
-const allow = ref(false)
+const facets = reactive<SalesRefreshCompletedFacets>({
+  customer: false,
+  pn: true,
+  brand: true,
+  qty: true,
+  price: true
+})
+
+const facetRows: { key: keyof SalesRefreshCompletedFacets; labelKey: string }[] = [
+  { key: 'customer', labelKey: 'salesParams.allowRefreshCompletedCustomer' },
+  { key: 'pn', labelKey: 'salesParams.allowRefreshCompletedPn' },
+  { key: 'brand', labelKey: 'salesParams.allowRefreshCompletedBrand' },
+  { key: 'qty', labelKey: 'salesParams.allowRefreshCompletedQty' },
+  { key: 'price', labelKey: 'salesParams.allowRefreshCompletedPrice' }
+]
+
+function applyFacets(next: SalesRefreshCompletedFacets) {
+  facets.customer = next.customer
+  facets.pn = next.pn
+  facets.brand = next.brand
+  facets.qty = next.qty
+  facets.price = next.price
+}
 
 async function load() {
   loading.value = true
   try {
-    allow.value = await salesParamsApi.getAllowRefreshCompletedBizNodes()
+    applyFacets(await salesParamsApi.getRefreshCompletedFacets())
   } catch {
-    ElMessage.error(t('salesParams.loadFailed'))
+    ElMessage.error(t('salesParams.refreshCustomerLoadFailed'))
   } finally {
     loading.value = false
   }
@@ -55,7 +80,15 @@ async function load() {
 async function save() {
   saving.value = true
   try {
-    allow.value = await salesParamsApi.setAllowRefreshCompletedBizNodes(allow.value)
+    applyFacets(
+      await salesParamsApi.setRefreshCompletedFacets({
+        customer: facets.customer,
+        pn: facets.pn,
+        brand: facets.brand,
+        qty: facets.qty,
+        price: facets.price
+      })
+    )
     ElMessage.success(t('salesParams.saveSuccess'))
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : t('salesParams.saveFailed')
@@ -127,12 +160,15 @@ onMounted(load)
   display: flex;
   align-items: center;
   gap: 16px;
+  & + & {
+    margin-top: 14px;
+  }
 }
 
 .field-label {
   font-size: 13px;
   color: $text-secondary;
-  min-width: 180px;
+  min-width: 220px;
 }
 
 .field-control {
@@ -141,7 +177,7 @@ onMounted(load)
 }
 
 .field-note {
-  margin: 12px 0 0;
+  margin: 16px 0 0;
   font-size: 12px;
   color: $text-muted;
   line-height: 1.5;

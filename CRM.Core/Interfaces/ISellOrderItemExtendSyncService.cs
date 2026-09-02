@@ -1,3 +1,5 @@
+using CRM.Core.Models.Sales;
+
 namespace CRM.Core.Interfaces;
 
 /// <summary>
@@ -14,4 +16,18 @@ public interface ISellOrderItemExtendSyncService
         string sellOrderItemId,
         CancellationToken cancellationToken = default,
         bool enforceLineQtyOutboundGuards = true);
+
+    /// <summary>按选项重算。详情页「刷新状态」须传 <see cref="SellOrderItemRecalculateOptions.StatusOnly"/>。</summary>
+    Task RecalculateAsync(
+        string sellOrderItemId,
+        SellOrderItemRecalculateOptions options,
+        CancellationToken cancellationToken = default,
+        bool enforceLineQtyOutboundGuards = true);
+
+    /// <summary>
+    /// 仅收缩超量单条且未出库的出库通知计划量；不扩成整单、不改已出库通知。返回改写条数。
+    /// </summary>
+    Task<int> SyncStockOutNotifyPlanQtyAsync(
+        string sellOrderItemId,
+        CancellationToken cancellationToken = default);
 }

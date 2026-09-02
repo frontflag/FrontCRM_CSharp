@@ -8,6 +8,10 @@ public static class OperationLogActionTypes
 
     public const string SellOrderDelete = "销售订单整单删除";
     public const string SellOrderRefreshSalesPrice = "刷新销售价";
+    public const string SellOrderRefreshStatus = "刷新状态";
+    public const string SellOrderRefreshPn = "刷新物料型号";
+    public const string SellOrderRefreshBrand = "刷新品牌";
+    public const string SellOrderRefreshQty = "刷新数量";
     public const string SellOrderItemDelete = "销售明细删除";
     public const string SellOrderItemDeleteWithOrder = "销售明细整单删除";
 

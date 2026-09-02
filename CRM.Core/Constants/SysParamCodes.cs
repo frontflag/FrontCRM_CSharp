@@ -41,6 +41,12 @@ namespace CRM.Core.Constants
         public const string SalesAllowRefreshCompletedBizNodes = "System.Sales.AllowRefreshCompletedBizNodes";
 
         /// <summary>
+        /// 销售分面刷新是否允许覆盖已完结下游（JSON：customer/pn/brand/qty/price）。
+        /// customer 与 <see cref="SalesAllowRefreshCompletedBizNodes"/> 同步；pn/brand/qty/price 默认 true。
+        /// </summary>
+        public const string SalesRefreshCompletedFacets = "System.Sales.RefreshCompletedFacets";
+
+        /// <summary>
         /// 采购「刷新供应商」是否允许同步已完成业务节点（到货已入库、入库已过账、付款已完成、进项已认证/冲红等）。Boolean，默认 false。
         /// </summary>
         public const string PurchaseAllowRefreshCompletedBizNodes = "System.Purchase.AllowRefreshCompletedBizNodes";

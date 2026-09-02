@@ -82,11 +82,24 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
     }
 
     /// <inheritdoc />
-    public async Task RecalculateAsync(
+    public Task RecalculateAsync(
         string sellOrderItemId,
         CancellationToken cancellationToken = default,
         bool enforceLineQtyOutboundGuards = true)
+        => RecalculateAsync(
+            sellOrderItemId,
+            SellOrderItemRecalculateOptions.Default,
+            cancellationToken,
+            enforceLineQtyOutboundGuards);
+
+    /// <inheritdoc />
+    public async Task RecalculateAsync(
+        string sellOrderItemId,
+        SellOrderItemRecalculateOptions options,
+        CancellationToken cancellationToken = default,
+        bool enforceLineQtyOutboundGuards = true)
     {
+        options ??= SellOrderItemRecalculateOptions.Default;
         if (string.IsNullOrWhiteSpace(sellOrderItemId))
         {
             _logger.LogWarning("[SellLineStockOutSync] Recalculate skipped: SellOrderItemId empty");
@@ -139,6 +152,7 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
             soItem,
             sumStockOut,
             enforceLineQtyOutboundGuards,
+            options,
             cancellationToken);
 
         var requests = (await _stockOutRequestRepo.FindAsync(r => r.SalesOrderItemId == id))
@@ -245,21 +259,48 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
             await _mainStatusSync.TrySyncOrderMainStatusAsync(soItem.SellOrderId, cancellationToken);
     }
 
-    private async Task AlignStockOutRequestsWithSoLineQtyAsync(
+    /// <inheritdoc />
+    public async Task<int> SyncStockOutNotifyPlanQtyAsync(
+        string sellOrderItemId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(sellOrderItemId))
+            return 0;
+
+        var id = sellOrderItemId.Trim();
+        var soItem = await _soItemRepo.GetByIdAsync(id);
+        if (soItem == null)
+            return 0;
+
+        var (sumStockOut, _) = await SumCompletedSalesStockOutQtyForLineAsync(id);
+        return await AlignStockOutRequestsWithSoLineQtyAsync(
+            soItem,
+            sumStockOut,
+            enforceLineQtyOutboundGuards: true,
+            SellOrderItemRecalculateOptions.QtyPlanOnly,
+            cancellationToken);
+    }
+
+    private async Task<int> AlignStockOutRequestsWithSoLineQtyAsync(
         SellOrderItem soItem,
         decimal sumStockOutActual,
         bool enforceLineQtyOutboundGuards,
+        SellOrderItemRecalculateOptions options,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        if (!options.SyncStockOutNotifyQty && !options.ValidateOutboundQtyAgainstSoLine)
+            return 0;
+
         var requests = (await _stockOutRequestRepo.FindAsync(r => r.SalesOrderItemId == soItem.Id)).ToList();
-        if (requests.Count == 0) return;
+        if (requests.Count == 0) return 0;
 
         var active = requests
             .Where(r => StockOutRequestStatusCode.IsCountedForSalesLineNotifyQuantity(r.Status, r.StockOutType))
             .ToList();
 
-        if (active.Count == 1)
+        var updated = 0;
+        if (options.SyncStockOutNotifyQty && active.Count == 1)
         {
             var request = active[0];
             if (request.Status != StockOutRequestStatusCode.StockedOut)
@@ -271,9 +312,13 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
                     request.Quantity = targetQty;
                     request.ModifyTime = DateTime.UtcNow;
                     await _stockOutRequestRepo.UpdateAsync(request);
+                    updated++;
                 }
             }
         }
+
+        if (!options.ValidateOutboundQtyAgainstSoLine)
+            return updated;
 
         if (!enforceLineQtyOutboundGuards)
         {
@@ -287,7 +332,7 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
                     sumStockOutActual,
                     active.Sum(r => (decimal)r.Quantity));
             }
-            return;
+            return updated;
         }
 
         var activeNotifySum = active.Sum(r => (decimal)r.Quantity);
@@ -297,6 +342,7 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
         if (soItem.Qty + 1e-9m < sumStockOutActual)
             throw new InvalidOperationException(
                 $"销售数量不能小于已实际出库数量（{sumStockOutActual}）");
+        return updated;
     }
 
     private static void ApplyProfitFields(

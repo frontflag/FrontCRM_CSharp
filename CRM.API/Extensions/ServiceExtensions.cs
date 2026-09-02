@@ -144,6 +144,8 @@ namespace CRM.API.Extensions
             // 销售订单模块
             services.AddScoped<ISalesOrderCustomerDownstreamSyncService, SalesOrderCustomerDownstreamSyncService>();
             services.AddScoped<ISalesOrderSalesPriceDownstreamSyncService, SalesOrderSalesPriceDownstreamSyncService>();
+            services.AddScoped<ISalesOrderIdentityDownstreamSyncService, SalesOrderIdentityDownstreamSyncService>();
+            services.AddScoped<ISalesOrderRefreshCompletedGateService, SalesOrderRefreshCompletedGateService>();
             services.AddScoped<ISalesOrderService, SalesOrderService>();
             services.AddScoped<ISalesOrderJourneyService, SalesOrderJourneyService>();
             services.AddScoped<IRepository<CRM.Core.Models.Sales.SellOrder>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Sales.SellOrder>>();

@@ -78,13 +78,13 @@
           {{ t('salesOrderDetailView.cancelOrder') }}
         </button>
         <div class="so-header-refresh-group">
-          <button class="btn-secondary" type="button" :disabled="refreshingExtends || syncingDownstreamCustomer" @click="handleRefreshItemExtends">
+          <button class="btn-secondary" type="button" :disabled="refreshingExtends || syncingDownstreamCustomer" @click="handleRefreshMenuCommand('status')">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="23 4 23 10 17 10" />
               <polyline points="1 20 1 14 7 14" />
               <path d="M3.51 9a9 9 0 0 1 14.13-3.36L23 10M1 14l5.36 4.36A9 9 0 0 0 20.49 15" />
             </svg>
-            {{ refreshingExtends ? t('salesOrderDetailView.refreshing') : t('salesOrderDetailView.refresh') }}
+            {{ refreshingExtends ? t('salesOrderDetailView.refreshing') : t('salesOrderDetailView.refreshStatus') }}
           </button>
           <el-dropdown
             v-if="canWriteSo"
@@ -105,6 +105,10 @@
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item command="customer">{{ t('salesOrderDetailView.refreshCustomer') }}</el-dropdown-item>
+                <el-dropdown-item command="pn">{{ t('salesOrderDetailView.refreshPn') }}</el-dropdown-item>
+                <el-dropdown-item command="brand">{{ t('salesOrderDetailView.refreshBrand') }}</el-dropdown-item>
+                <el-dropdown-item command="qty" divided>{{ t('salesOrderDetailView.refreshQty') }}</el-dropdown-item>
+                <el-dropdown-item command="price">{{ t('salesOrderDetailView.refreshPrice') }}</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -1184,6 +1188,8 @@ import salesOrderApi, {
   type SalesOrderCustomerDownstreamSyncPreview,
   type SalesOrderCustomerDownstreamSyncPreviewItem,
   type SalesOrderItemExtendRefreshResult,
+  type SalesOrderRefreshCompletedPreview,
+  type SalesOrderRefreshFacet,
   type SalesOrderDetailTabAggregates,
   type SalesOrderFieldChangeLogRow,
   type SalesOrderDeletedItemRow,
@@ -2380,25 +2386,60 @@ function hasSalesRefreshUpdates(result: SalesOrderItemExtendRefreshResult | null
     + Number(result.stockOutItemExtendsUpdated ?? 0)
     + Number(result.stockOutHeadersUpdated ?? 0)
     + Number(result.receivablesUpdated ?? 0)
+    + Number(result.stockOutNotifiesUpdated ?? 0)
+    + Number(result.packingItemsUpdated ?? 0)
     + (result.salesPriceLineChanges?.length ?? 0)
     + (result.receivableWarnings?.length ?? 0)
+    + (result.identityChanges?.length ?? 0)
   return result.changedItems > 0 || result.changedFieldsCount > 0 || downstream > 0
 }
 
 function buildSalesRefreshResultHtml(result: SalesOrderItemExtendRefreshResult) {
   const syncedNotifyCount = Number(result.syncedStockOutNotifyStatusCount ?? 0)
+  const facet = (result.facet ?? '').trim().toLowerCase()
   const lines: string[] = [
-    `共 ${result.changedItems} 条明细发生更新，${result.changedFieldsCount} 个字段已变更。`,
-    `已同步回写 ${syncedNotifyCount} 条出库通知状态。`,
-    t('salesOrderDetailView.refreshDownstreamSummary', {
-      packing: Number(result.packingItemExtendsUpdated ?? 0),
-      stock: Number(result.stockItemsUpdated ?? 0),
-      outItem: Number(result.stockOutItemExtendsUpdated ?? 0),
-      outHead: Number(result.stockOutHeadersUpdated ?? 0),
-      ar: Number(result.receivablesUpdated ?? 0)
-    }),
-    ''
+    `共 ${result.changedItems} 条明细发生更新，${result.changedFieldsCount} 个字段已变更。`
   ]
+  if (facet === 'pn' || facet === 'brand') {
+    lines.push(
+      t('salesOrderDetailView.refreshIdentitySummary', {
+        notifies: Number(result.stockOutNotifiesUpdated ?? 0),
+        packing: Number(result.packingItemsUpdated ?? 0),
+        packingExt: Number(result.packingItemExtendsUpdated ?? 0),
+        ar: Number(result.receivablesUpdated ?? 0)
+      })
+    )
+  } else if (facet === 'qty') {
+    lines.push(
+      t('salesOrderDetailView.refreshQtySummary', {
+        notifies: Number(result.stockOutNotifiesUpdated ?? 0)
+      })
+    )
+  } else {
+    lines.push(`已同步回写 ${syncedNotifyCount} 条出库通知状态。`)
+    if (facet === 'price' || facet === '') {
+      lines.push(
+        t('salesOrderDetailView.refreshDownstreamSummary', {
+          packing: Number(result.packingItemExtendsUpdated ?? 0),
+          stock: Number(result.stockItemsUpdated ?? 0),
+          outItem: Number(result.stockOutItemExtendsUpdated ?? 0),
+          outHead: Number(result.stockOutHeadersUpdated ?? 0),
+          ar: Number(result.receivablesUpdated ?? 0)
+        })
+      )
+    }
+  }
+  lines.push('')
+  for (const change of result.identityChanges ?? []) {
+    lines.push(
+      t('salesOrderDetailView.refreshIdentityLine', {
+        type: change.nodeType,
+        node: change.nodeCode || change.nodeId,
+        before: change.before || '—',
+        after: change.after || '—'
+      })
+    )
+  }
   for (const price of result.salesPriceLineChanges ?? []) {
     lines.push(
       t('salesOrderDetailView.refreshPriceLine', {
@@ -2453,21 +2494,58 @@ function buildSalesRefreshResultHtml(result: SalesOrderItemExtendRefreshResult) 
   return `<div style="max-height:420px;overflow:auto;line-height:1.7;">${escaped}</div>`
 }
 
-async function handleRefreshItemExtends() {
+async function handleRefreshFacet(facet: SalesOrderRefreshFacet) {
   if (!order.value?.id || refreshingExtends.value) return
+
+  let preview: SalesOrderRefreshCompletedPreview | null = null
+  if (facet !== 'status') {
+    refreshingExtends.value = true
+    try {
+      preview = await salesOrderApi.previewRefreshDownstream(order.value.id, facet)
+    } catch (e: unknown) {
+      refreshingExtends.value = false
+      ElMessage.error(getApiErrorMessage(e, '预检失败，请稍后重试'))
+      return
+    }
+    refreshingExtends.value = false
+
+    if (preview && preview.canProceed === false) {
+      await ElMessageBox.alert(
+        preview.blockReason || t('salesOrderDetailView.refreshCompletedBlockedTitle'),
+        t('salesOrderDetailView.refreshCompletedBlockedTitle'),
+        { confirmButtonText: t('common.confirm'), type: 'warning' }
+      )
+      return
+    }
+  }
+
+  const completedDocs = preview ? completedDocumentsOf(preview) : []
+  const confirmHtml =
+    completedDocs.length > 0
+      ? `${escapeSalesRefreshHtml(refreshFacetConfirmMessage(facet))}<br/><br/>${buildCompletedRefreshHtml(
+          t('salesOrderDetailView.refreshCompletedWarnLead'),
+          completedDocs
+        )}`
+      : escapeSalesRefreshHtml(refreshFacetConfirmMessage(facet))
+
   try {
-    await ElMessageBox.confirm(
-      t('salesOrderDetailView.refreshConfirm'),
-      t('salesOrderDetailView.refresh'),
-      { type: 'warning', confirmButtonText: t('salesOrderDetailView.refresh'), cancelButtonText: t('common.cancel') }
-    )
+    await ElMessageBox.confirm(confirmHtml, completedDocs.length > 0
+      ? t('salesOrderDetailView.refreshCompletedWarnTitle')
+      : refreshFacetTitle(facet), {
+      dangerouslyUseHTMLString: true,
+      type: facet === 'status' && completedDocs.length === 0 ? 'info' : 'warning',
+      confirmButtonText: refreshFacetTitle(facet),
+      cancelButtonText: t('common.cancel')
+    })
   } catch {
     return
   }
 
   refreshingExtends.value = true
   try {
-    const result = await salesOrderApi.refreshItemExtends(order.value.id)
+    const result = await salesOrderApi.refreshDownstream(order.value.id, facet, {
+      confirmCompleted: completedDocs.length > 0
+    })
     await fetchOrder()
     await reloadSoItemLinePanelAggregates()
     if (!hasSalesRefreshUpdates(result)) {
@@ -2491,6 +2569,50 @@ async function handleRefreshItemExtends() {
   } finally {
     refreshingExtends.value = false
   }
+}
+
+function refreshFacetTitle(facet: SalesOrderRefreshFacet) {
+  if (facet === 'status') return t('salesOrderDetailView.refreshStatus')
+  if (facet === 'pn') return t('salesOrderDetailView.refreshPn')
+  if (facet === 'brand') return t('salesOrderDetailView.refreshBrand')
+  if (facet === 'qty') return t('salesOrderDetailView.refreshQty')
+  if (facet === 'price') return t('salesOrderDetailView.refreshPrice')
+  return t('salesOrderDetailView.refresh')
+}
+
+function refreshFacetConfirmMessage(facet: SalesOrderRefreshFacet) {
+  if (facet === 'status') return t('salesOrderDetailView.refreshStatusConfirm')
+  if (facet === 'pn') return t('salesOrderDetailView.refreshPnConfirm')
+  if (facet === 'brand') return t('salesOrderDetailView.refreshBrandConfirm')
+  if (facet === 'qty') return t('salesOrderDetailView.refreshQtyConfirm')
+  return t('salesOrderDetailView.refreshPriceConfirm')
+}
+
+function completedDocumentsOf(
+  preview: SalesOrderRefreshCompletedPreview | SalesOrderCustomerDownstreamSyncPreview
+) {
+  const raw = preview as {
+    completedDocuments?: string[]
+    CompletedDocuments?: string[]
+  }
+  return (raw.completedDocuments ?? raw.CompletedDocuments ?? [])
+    .map((d) => String(d || '').trim())
+    .filter(Boolean)
+}
+
+function escapeSalesRefreshHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+function buildCompletedRefreshHtml(lead: string, docs: string[]) {
+  const lines = [`<div>${escapeSalesRefreshHtml(lead)}</div>`]
+  for (const d of docs) {
+    lines.push(`<div>· ${escapeSalesRefreshHtml(d)}</div>`)
+  }
+  return `<div style="line-height:1.7;">${lines.join('')}</div>`
 }
 
 function buildCustomerSyncPreviewHtml(preview: SalesOrderCustomerDownstreamSyncPreview) {
@@ -2570,6 +2692,16 @@ function buildCustomerSyncPreviewHtml(preview: SalesOrderCustomerDownstreamSyncP
     )
   }
 
+  const completedDocs = completedDocumentsOf(preview)
+  if (completedDocs.length > 0) {
+    sections.push(
+      `<div class="so-customer-sync-preview__block-title">${escapeHtml(t('salesOrderDetailView.refreshCompletedWarnLead'))}</div>`,
+      ...completedDocs.map(
+        (x) => `<div class="so-customer-sync-preview__line">· ${escapeHtml(x)}</div>`
+      )
+    )
+  }
+
   return `<div class="so-customer-sync-preview">${sections.join('')}</div>`
 }
 
@@ -2579,8 +2711,13 @@ const customerSyncMessageBoxOptions = {
 } as const
 
 function handleRefreshMenuCommand(command: string | number | object) {
-  if (command === 'customer') {
+  const key = String(command)
+  if (key === 'customer') {
     void handleSyncDownstreamCustomer()
+    return
+  }
+  if (key === 'status' || key === 'pn' || key === 'brand' || key === 'qty' || key === 'price') {
+    void handleRefreshFacet(key)
   }
 }
 
@@ -2622,7 +2759,9 @@ async function handleSyncDownstreamCustomer() {
   try {
     await ElMessageBox.confirm(
       buildCustomerSyncPreviewHtml(preview),
-      `确认按销售订单 ${order.value.sellOrderCode} 的 CustomerId 刷新名称快照，并同步未完结下游客户吗？`,
+      completedDocumentsOf(preview).length > 0
+        ? t('salesOrderDetailView.refreshCompletedWarnTitle')
+        : `确认按销售订单 ${order.value.sellOrderCode} 的 CustomerId 刷新名称快照，并同步未完结下游客户吗？`,
       {
         ...customerSyncMessageBoxOptions,
         type: 'warning',
@@ -2636,7 +2775,9 @@ async function handleSyncDownstreamCustomer() {
 
   syncingDownstreamCustomer.value = true
   try {
-    const result = await salesOrderApi.syncDownstreamCustomer(order.value.id)
+    const result = await salesOrderApi.syncDownstreamCustomer(order.value.id, {
+      confirmCompleted: completedDocumentsOf(preview).length > 0
+    })
     await fetchOrder()
     await reloadSoItemLinePanelAggregates()
     const p = result.preview

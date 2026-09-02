@@ -172,6 +172,102 @@ public class SellOrderItemExtendSyncServiceTests
     }
 
     [Fact]
+    public async Task RecalculateAsync_StatusOnly_DoesNotShrinkSingleActiveStockOutRequest()
+    {
+        var lineId = Guid.NewGuid().ToString();
+        var soItemRepo = new MemoryRepository<SellOrderItem>();
+        var extendRepo = new MemoryRepository<SellOrderItemExtend>();
+        var requestRepo = new MemoryRepository<StockOutRequest>();
+        var soItem = new SellOrderItem
+        {
+            Id = lineId,
+            SellOrderId = Guid.NewGuid().ToString(),
+            Qty = 50m,
+            Price = 10m,
+            ConvertPrice = 1m
+        };
+        var extend = new SellOrderItemExtend { Id = lineId };
+        var request = new StockOutRequest
+        {
+            Id = Guid.NewGuid().ToString(),
+            SalesOrderItemId = lineId,
+            Quantity = 80,
+            Status = StockOutRequestStatusCode.PendingPacking
+        };
+        await soItemRepo.AddAsync(soItem);
+        await extendRepo.AddAsync(extend);
+        await requestRepo.AddAsync(request);
+
+        var service = new SellOrderItemExtendSyncService(
+            soItemRepo,
+            extendRepo,
+            new MemoryRepository<PurchaseOrderItem>(),
+            new MemoryRepository<StockIn>(),
+            new MemoryRepository<StockInItemExtend>(),
+            new MemoryRepository<StockInItem>(),
+            requestRepo,
+            new MemoryRepository<StockOut>(),
+            new MemoryRepository<StockOutItem>(),
+            new MemoryRepository<StockOutItemExtend>(),
+            new MemoryRepository<FinanceReceivable>(),
+            NoOpMainStatusSync(),
+            NullLogger<SellOrderItemExtendSyncService>.Instance);
+
+        await service.RecalculateAsync(lineId, SellOrderItemRecalculateOptions.StatusOnly);
+
+        var updatedRequest = await requestRepo.GetByIdAsync(request.Id);
+        Assert.NotNull(updatedRequest);
+        Assert.Equal(80, updatedRequest!.Quantity);
+    }
+
+    [Fact]
+    public async Task SyncStockOutNotifyPlanQtyAsync_ShrinksSinglePendingOverQty()
+    {
+        var lineId = Guid.NewGuid().ToString();
+        var soItemRepo = new MemoryRepository<SellOrderItem>();
+        var extendRepo = new MemoryRepository<SellOrderItemExtend>();
+        var requestRepo = new MemoryRepository<StockOutRequest>();
+        var soItem = new SellOrderItem
+        {
+            Id = lineId,
+            SellOrderId = Guid.NewGuid().ToString(),
+            Qty = 50m,
+            Price = 10m,
+            ConvertPrice = 1m
+        };
+        var request = new StockOutRequest
+        {
+            Id = Guid.NewGuid().ToString(),
+            SalesOrderItemId = lineId,
+            Quantity = 80,
+            Status = StockOutRequestStatusCode.PendingPacking
+        };
+        await soItemRepo.AddAsync(soItem);
+        await extendRepo.AddAsync(new SellOrderItemExtend { Id = lineId });
+        await requestRepo.AddAsync(request);
+
+        var service = new SellOrderItemExtendSyncService(
+            soItemRepo,
+            extendRepo,
+            new MemoryRepository<PurchaseOrderItem>(),
+            new MemoryRepository<StockIn>(),
+            new MemoryRepository<StockInItemExtend>(),
+            new MemoryRepository<StockInItem>(),
+            requestRepo,
+            new MemoryRepository<StockOut>(),
+            new MemoryRepository<StockOutItem>(),
+            new MemoryRepository<StockOutItemExtend>(),
+            new MemoryRepository<FinanceReceivable>(),
+            NoOpMainStatusSync(),
+            NullLogger<SellOrderItemExtendSyncService>.Instance);
+
+        var updated = await service.SyncStockOutNotifyPlanQtyAsync(lineId);
+        var updatedRequest = await requestRepo.GetByIdAsync(request.Id);
+        Assert.Equal(1, updated);
+        Assert.Equal(50, updatedRequest!.Quantity);
+    }
+
+    [Fact]
     public async Task RecalculateAsync_Throws_WhenQtyLessThanActiveNotifySum()
     {
         var lineId = Guid.NewGuid().ToString();

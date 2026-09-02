@@ -657,20 +657,26 @@ const enUS = {
     pageTitle: 'Sales parameters',
     pageSubtitle: 'Configure sales-order related system parameters.',
     navTitle: 'Categories',
-    refreshCustomerNav: 'Refresh customer',
-    refreshCustomerTitle: 'Refresh customer',
+    refreshCustomerNav: 'Facet refresh',
+    refreshCustomerTitle: 'Facet refresh',
     refreshCustomerHint:
-      'Controls whether sales-order “Refresh customer” may process completed downstream documents.',
+      'Controls whether sales-order facet refresh may overwrite completed downstream documents. Off: that facet blocks on completed nodes. On: documents are listed and require confirmation. Refresh status is not gated here.',
     allowRefreshCompletedLabel: 'Allow refresh of completed nodes:',
+    allowRefreshCompletedCustomer: 'Refresh customer: allow completed nodes',
+    allowRefreshCompletedPn: 'Refresh part no.: allow completed nodes',
+    allowRefreshCompletedBrand: 'Refresh brand: allow completed nodes',
+    allowRefreshCompletedQty: 'Refresh quantity: allow completed nodes',
+    allowRefreshCompletedPrice: 'Refresh unit price: allow completed nodes',
     allowRefreshCompletedNote:
-      'Off (default): stocked-out notices, finished packings, completed stock-outs, verified receivables, and invoiced sales invoices block refresh. On: notices/packings/stock-outs can still sync customer even when completed; verified receivables and invoiced sales invoices no longer block, but this version does not rewrite their customer fields.',
+      'Customer defaults to off; part no., brand, quantity and unit price default to on. Off: completed downstream (stocked-out notices, finished packings, completed stock-outs, verified/invoiced receivables) blocks that facet. On: those documents are listed and require confirmation. Refresh customer on: verified receivables and invoiced sales invoices no longer block, but their customer fields are still not rewritten. Refresh status is not gated here.',
     allow: 'Allow',
     disallow: 'Disallow',
     saveBtn: 'Save',
     refreshBtn: 'Refresh',
     saveSuccess: 'Saved',
     saveFailed: 'Save failed',
-    loadFailed: 'Failed to load sales parameters'
+    loadFailed: 'Failed to load sales parameters',
+    refreshCustomerLoadFailed: 'Failed to load facet-refresh parameters'
   },
   reportParams: {
     pageTitle: 'Report parameters',
@@ -5831,18 +5837,41 @@ const enUS = {
     tags: { add: 'Tags' },
     cancelOrder: 'Cancel order',
     refresh: 'Refresh',
+    refreshStatus: 'Refresh status',
+    refreshPn: 'Refresh part no.',
+    refreshBrand: 'Refresh brand',
+    refreshQty: 'Refresh quantity',
+    refreshPrice: 'Refresh unit price',
     refreshing: 'Refreshing…',
     refreshMenu: 'More refresh actions',
     refreshCustomer: 'Refresh customer',
     refreshConfirm:
       'This will overwrite sales-price snapshots on packing, stock, outbound, and receivables (including shipped / written-off / invoiced), then recalculate line progress. Receipt write-off rows and invoice face amounts are not changed. The operator is responsible for the result. Continue?',
+    refreshStatusConfirm:
+      'Recalculate line status and progress from outbound / packing / receipt / invoice facts. Customer, part no., brand, quantity and unit price are not changed. Continue?',
+    refreshPnConfirm:
+      'Overwrite part-no. on stock-out notices, packing, packing customer P/N and receivables from the current SO lines. Inventory is not re-bucketed and progress is not recalculated. Continue?',
+    refreshBrandConfirm:
+      'Overwrite brand on stock-out notices, packing, packing customer brand and receivables from the current SO lines. Inventory is not re-bucketed and progress is not recalculated. Continue?',
+    refreshQtyConfirm:
+      'Align stock-out notice planned qty with current SO qty (shrink an oversized single not-yet-shipped notice only; split notices are not expanded), then recalculate status. Shipped notice qty and actual outbound qty are not changed. Continue?',
+    refreshPriceConfirm:
+      'Overwrite sales-price snapshots on packing, stock, outbound, and receivables (including shipped / written-off / invoiced), then recalculate line progress. Receipt write-off rows and invoice face amounts are not changed. Continue?',
     refreshResultEmpty: 'No updates',
     refreshResultTitle: 'Refresh result',
     refreshDownstreamSummary:
       'Downstream sales prices: packing {packing}, stock {stock}, outbound lines {outItem}, outbound headers {outHead}, receivables {ar}.',
+    refreshIdentitySummary:
+      'Downstream snapshots: stock-out notices {notifies}, packing {packing}, packing extends {packingExt}, receivables {ar}.',
+    refreshQtySummary: 'Stock-out notice planned qty aligned on {notifies} notice(s). Shipped quantities were not changed.',
+    refreshIdentityLine: '{type} {node}: {before} → {after}',
     refreshPriceLine: '{code}: unit price {before} → {after}',
     refreshOverVerify: 'Receivable {code}: written-off {done} exceeds new total {amount} (open {toBe})',
     refreshOverInvoice: 'Receivable {code}: invoice-matched {done} exceeds new total {amount} (open {toBe})',
+    refreshCompletedWarnTitle: 'Will overwrite completed downstream',
+    refreshCompletedWarnLead:
+      'These documents are already completed. Confirming will still overwrite the matching snapshots from this order. Review first:',
+    refreshCompletedBlockedTitle: 'Cannot refresh completed nodes',
     syncingDownstreamCustomer: 'Syncing customer…',
     edit: 'Edit',
     more: 'More actions',

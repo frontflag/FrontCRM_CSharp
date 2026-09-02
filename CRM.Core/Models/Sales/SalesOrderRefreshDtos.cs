@@ -1,3 +1,5 @@
+using CRM.Core.Interfaces;
+
 namespace CRM.Core.Models.Sales;
 
 /// <summary>
@@ -5,6 +7,8 @@ namespace CRM.Core.Models.Sales;
 /// </summary>
 public class SalesOrderItemExtendRefreshResult
 {
+    /// <summary><c>status</c> / <c>customer</c> / <c>pn</c> / <c>brand</c> / <c>qty</c> / <c>price</c></summary>
+    public string Facet { get; set; } = "status";
     public string SalesOrderId { get; set; } = string.Empty;
     public int TotalItems { get; set; }
     public int ChangedItems { get; set; }
@@ -20,6 +24,12 @@ public class SalesOrderItemExtendRefreshResult
     public int ReceivablesUpdated { get; set; }
     public List<SalesOrderSalesPriceLineChangeDto> SalesPriceLineChanges { get; set; } = new();
     public List<SalesOrderReceivableAmountWarningDto> ReceivableWarnings { get; set; } = new();
+
+    public int StockOutNotifiesUpdated { get; set; }
+    public int PackingItemsUpdated { get; set; }
+    public List<SalesOrderIdentitySnapshotChangeDto> IdentityChanges { get; set; } = new();
+    public string? OldCustomerName { get; set; }
+    public string? NewCustomerName { get; set; }
 }
 
 public class SalesOrderSalesPriceLineChangeDto

@@ -471,4 +471,176 @@ public class SalesOrderCustomerDownstreamSyncServiceTests
         Assert.Equal("正确客户", receivable.CustomerName);
         await _receivableRepo.Received(1).UpdateAsync(receivable);
     }
+
+    [Fact]
+    public async Task PreviewAsync_WhenNotifyStockedOutMismatch_ParamOn_ListsCompletedDocuments()
+    {
+        var salesParams = Substitute.For<ISalesParamsService>();
+        salesParams.GetAllowRefreshCompletedBizNodesAsync(Arg.Any<CancellationToken>()).Returns(true);
+        var service = new SalesOrderCustomerDownstreamSyncService(
+            _soRepo,
+            _soItemRepo,
+            _notifyRepo,
+            _packingRepo,
+            _packingItemRepo,
+            _stockOutRepo,
+            _receivableRepo,
+            _sellInvoiceRepo,
+            _sellInvoiceItemRepo,
+            _stockOutItemRepo,
+            _customerRepo,
+            _unitOfWork,
+            salesParams,
+            NullLogger<SalesOrderCustomerDownstreamSyncService>.Instance);
+
+        const string orderId = "SO-1";
+        var order = new SellOrder
+        {
+            Id = orderId,
+            SellOrderCode = "SO001",
+            CustomerId = "CUST-NEW",
+            CustomerName = "新客户"
+        };
+        _soRepo.GetByIdAsync(orderId).Returns(order);
+        _customerRepo.GetByIdAsync("CUST-NEW").Returns(new CustomerInfo { Id = "CUST-NEW", OfficialName = "新客户" });
+        _soItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<SellOrderItem, bool>>>())
+            .Returns(Array.Empty<SellOrderItem>());
+        _notifyRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<StockOutRequest, bool>>>())
+            .Returns(new[]
+            {
+                new StockOutRequest
+                {
+                    Id = "STOR-1",
+                    SalesOrderId = orderId,
+                    RequestCode = "STOR00001",
+                    CustomerId = "CUST-OLD",
+                    Status = StockOutRequestStatusCode.StockedOut
+                }
+            });
+        _packingItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<PackingItem, bool>>>())
+            .Returns(Array.Empty<PackingItem>());
+        _stockOutRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<StockOut, bool>>>())
+            .Returns(Array.Empty<StockOut>());
+        _receivableRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<FinanceReceivable, bool>>>())
+            .Returns(Array.Empty<FinanceReceivable>());
+
+        var preview = await service.PreviewAsync(orderId);
+
+        Assert.True(preview.CanSync);
+        Assert.True(preview.AllowCompletedParam);
+        Assert.Contains(preview.CompletedDocuments, x => x.Contains("STOR00001"));
+    }
+
+    [Fact]
+    public async Task ApplyAsync_WhenCompletedNotify_SaveChangesWithoutConfirm_Throws()
+    {
+        var salesParams = Substitute.For<ISalesParamsService>();
+        salesParams.GetAllowRefreshCompletedBizNodesAsync(Arg.Any<CancellationToken>()).Returns(true);
+        var service = new SalesOrderCustomerDownstreamSyncService(
+            _soRepo,
+            _soItemRepo,
+            _notifyRepo,
+            _packingRepo,
+            _packingItemRepo,
+            _stockOutRepo,
+            _receivableRepo,
+            _sellInvoiceRepo,
+            _sellInvoiceItemRepo,
+            _stockOutItemRepo,
+            _customerRepo,
+            _unitOfWork,
+            salesParams,
+            NullLogger<SalesOrderCustomerDownstreamSyncService>.Instance);
+
+        const string orderId = "SO-1";
+        var order = new SellOrder
+        {
+            Id = orderId,
+            SellOrderCode = "SO001",
+            CustomerId = "CUST-NEW",
+            CustomerName = "新客户"
+        };
+        _soRepo.GetByIdAsync(orderId).Returns(order);
+        _customerRepo.GetByIdAsync("CUST-NEW").Returns(new CustomerInfo { Id = "CUST-NEW", OfficialName = "新客户" });
+        _soItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<SellOrderItem, bool>>>())
+            .Returns(Array.Empty<SellOrderItem>());
+        _notifyRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<StockOutRequest, bool>>>())
+            .Returns(new[]
+            {
+                new StockOutRequest
+                {
+                    Id = "STOR-1",
+                    SalesOrderId = orderId,
+                    RequestCode = "STOR00001",
+                    CustomerId = "CUST-OLD",
+                    Status = StockOutRequestStatusCode.StockedOut
+                }
+            });
+        _packingItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<PackingItem, bool>>>())
+            .Returns(Array.Empty<PackingItem>());
+        _stockOutRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<StockOut, bool>>>())
+            .Returns(Array.Empty<StockOut>());
+        _receivableRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<FinanceReceivable, bool>>>())
+            .Returns(Array.Empty<FinanceReceivable>());
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => service.ApplyAsync(order));
+        Assert.Contains("须确认后再刷新", ex.Message);
+    }
+
+    [Fact]
+    public async Task ApplyAsync_WhenCompletedNotify_SaveChangesFalse_DoesNotRequireConfirm()
+    {
+        var salesParams = Substitute.For<ISalesParamsService>();
+        salesParams.GetAllowRefreshCompletedBizNodesAsync(Arg.Any<CancellationToken>()).Returns(true);
+        var service = new SalesOrderCustomerDownstreamSyncService(
+            _soRepo,
+            _soItemRepo,
+            _notifyRepo,
+            _packingRepo,
+            _packingItemRepo,
+            _stockOutRepo,
+            _receivableRepo,
+            _sellInvoiceRepo,
+            _sellInvoiceItemRepo,
+            _stockOutItemRepo,
+            _customerRepo,
+            _unitOfWork,
+            salesParams,
+            NullLogger<SalesOrderCustomerDownstreamSyncService>.Instance);
+
+        const string orderId = "SO-1";
+        var order = new SellOrder
+        {
+            Id = orderId,
+            SellOrderCode = "SO001",
+            CustomerId = "CUST-NEW",
+            CustomerName = "新客户"
+        };
+        var notify = new StockOutRequest
+        {
+            Id = "STOR-1",
+            SalesOrderId = orderId,
+            RequestCode = "STOR00001",
+            CustomerId = "CUST-OLD",
+            Status = StockOutRequestStatusCode.StockedOut
+        };
+        _soRepo.GetByIdAsync(orderId).Returns(order);
+        _customerRepo.GetByIdAsync("CUST-NEW").Returns(new CustomerInfo { Id = "CUST-NEW", OfficialName = "新客户" });
+        _soItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<SellOrderItem, bool>>>())
+            .Returns(Array.Empty<SellOrderItem>());
+        _notifyRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<StockOutRequest, bool>>>())
+            .Returns(new[] { notify });
+        _packingItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<PackingItem, bool>>>())
+            .Returns(Array.Empty<PackingItem>());
+        _stockOutRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<StockOut, bool>>>())
+            .Returns(Array.Empty<StockOut>());
+        _receivableRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<FinanceReceivable, bool>>>())
+            .Returns(Array.Empty<FinanceReceivable>());
+
+        var result = await service.ApplyAsync(order, saveChanges: false);
+
+        Assert.True(result.Applied);
+        Assert.Equal("CUST-NEW", notify.CustomerId);
+        await _unitOfWork.DidNotReceive().SaveChangesAsync();
+    }
 }

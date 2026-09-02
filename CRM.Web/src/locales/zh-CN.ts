@@ -652,19 +652,26 @@ const zhCN = {
     pageTitle: '销售参数',
     pageSubtitle: '配置销售订单相关系统参数。',
     navTitle: '参数分类',
-    refreshCustomerNav: '刷新客户',
-    refreshCustomerTitle: '刷新客户',
-    refreshCustomerHint: '控制销售订单「刷新客户」同步下游时，是否允许处理已完成的业务节点。',
+    refreshCustomerNav: '分面刷新',
+    refreshCustomerTitle: '分面刷新',
+    refreshCustomerHint:
+      '控制销售订单详情各分面刷新时，是否允许改写已经完结的下游单据。关闭某一分面后，该分面遇到已完结节点会整面拦住；开启后仍会先列出单据，须确认才执行。',
     allowRefreshCompletedLabel: '允许刷新已完成业务节点：',
+    allowRefreshCompletedCustomer: '刷新客户：允许已完结节点',
+    allowRefreshCompletedPn: '刷新物料型号：允许已完结节点',
+    allowRefreshCompletedBrand: '刷新品牌：允许已完结节点',
+    allowRefreshCompletedQty: '刷新数量：允许已完结节点',
+    allowRefreshCompletedPrice: '刷新单价：允许已完结节点',
     allowRefreshCompletedNote:
-      '关闭（默认）：已出库的出库通知、已出库完成的装箱单、已出库的出库单，以及已核销应收、已开票销项发票将阻止刷新。开启后：出库通知/装箱/出库单即使已完成也可同步客户；已核销应收与已开票销项不再阻断，但本版不改写其客户字段。',
+      '客户默认不允许；型号、品牌、数量、单价默认允许。关闭：该分面遇到已完结下游（如已出库通知、已出库完成装箱、已出库出库单、已核销/已开票应收）将阻止刷新。开启：仍会明确列出这些单据，确认后才覆盖。刷新客户开启后，已核销应收与已开票销项不再阻断，但仍不改其客户字段。刷新状态不受本页开关影响。',
     allow: '允许',
     disallow: '不允许',
     saveBtn: '保存',
     refreshBtn: '刷新',
     saveSuccess: '保存成功',
     saveFailed: '保存失败',
-    loadFailed: '加载销售参数失败'
+    loadFailed: '加载销售参数失败',
+    refreshCustomerLoadFailed: '加载分面刷新参数失败'
   },
   reportParams: {
     pageTitle: '报表参数',
@@ -5809,17 +5816,40 @@ const zhCN = {
     tags: { add: '标签' },
     cancelOrder: '取消订单',
     refresh: '刷新',
+    refreshStatus: '刷新状态',
+    refreshPn: '刷新物料型号',
+    refreshBrand: '刷新品牌',
+    refreshQty: '刷新数量',
+    refreshPrice: '刷新单价',
     refreshing: '刷新中…',
     refreshMenu: '更多刷新选项',
     refreshCustomer: '刷新客户',
     refreshConfirm:
       '将按当前销售单价覆盖装箱、库存、出库与应收上的销售价快照（含已出库 / 已核销 / 已开票），并重算明细执行状态。收款流水与发票票面金额不会改。数据由操作人核对，是否继续？',
+    refreshStatusConfirm:
+      '将按当前出库、装箱、收款、开票事实重算本单各行状态与进度，不改客户、型号、品牌、数量和单价。是否继续？',
+    refreshPnConfirm:
+      '将按本单各行当前物料型号覆盖出库通知、装箱、装箱客户料号和应收上的型号。不改库存分堆，也不重算进度。是否继续？',
+    refreshBrandConfirm:
+      '将按本单各行当前品牌覆盖出库通知、装箱、装箱客户品牌和应收上的品牌。不改库存分堆，也不重算进度。是否继续？',
+    refreshQtyConfirm:
+      '将按本单各行当前销售数量对齐出库通知计划量（只收缩超量的单条未出库通知，不会把分批通知扩成整单），并重算状态。已出库通知数量与实出不会改。是否继续？',
+    refreshPriceConfirm:
+      '将按当前销售单价覆盖装箱、库存、出库与应收上的销售价快照（含已出库 / 已核销 / 已开票），并重算明细执行状态。收款流水与发票票面金额不会改。数据由操作人核对，是否继续？',
     refreshResultEmpty: '无更新数据',
     refreshResultTitle: '刷新结果',
     refreshDownstreamSummary: '下游销售价：装箱 {packing}，库存 {stock}，出库明细 {outItem}，出库单头 {outHead}，应收 {ar}。',
+    refreshIdentitySummary:
+      '下游快照：出库通知 {notifies}，装箱 {packing}，装箱扩展 {packingExt}，应收 {ar}。',
+    refreshQtySummary: '出库通知计划量已对齐 {notifies} 条。已出库通知与实出数量未改。',
+    refreshIdentityLine: '{type} {node}：{before} → {after}',
     refreshPriceLine: '{code}：单价 {before} → {after}',
     refreshOverVerify: '应收 {code} 已核销 {done} 大于新总额 {amount}（待核销 {toBe}）',
     refreshOverInvoice: '应收 {code} 已开票匹配 {done} 大于新总额 {amount}（待匹配 {toBe}）',
+    refreshCompletedWarnTitle: '将覆盖已完结下游',
+    refreshCompletedWarnLead:
+      '以下单据已经完结。确认后仍会按本单当前资料覆盖对应快照，请先核对再继续：',
+    refreshCompletedBlockedTitle: '无法刷新已完结节点',
     syncingDownstreamCustomer: '同步客户中…',
     edit: '编辑',
     more: '更多操作',

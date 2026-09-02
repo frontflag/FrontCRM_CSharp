@@ -81,6 +81,7 @@
     { "id": "MENU_EXPORT_LOGS", "label": "导出日志", "routeNames": ["ExportLogList"], "pathPrefixes": ["/system/export-logs"] },
 
     { "id": "MENU_COMPANY_INFO", "label": "公司信息", "routeNames": ["CompanyInfo"], "pathPrefixes": ["/system/company-info"] },
+    { "id": "MENU_SALES_PARAMS", "label": "销售参数", "routeNames": ["SalesRefreshCustomer"], "pathPrefixes": ["/system/sales-params"] },
     { "id": "MENU_PURCHASE_PARAMS", "label": "采购参数", "routeNames": ["PurchaseAssigneeCount", "PurchaseQuoterPool", "PurchaseDefaultAssignMethod", "PurchaseDemandProtection", "PurchaseRefreshVendor"], "pathPrefixes": ["/system/purchase-params"] },
     { "id": "MENU_REPORT_PARAMS", "label": "报表参数", "routeNames": ["ReportGlobalParams"], "pathPrefixes": ["/system/report-params"] },
     { "id": "MENU_SETTINGS", "label": "系统设置", "routeNames": ["Settings"], "pathPrefixes": ["/dashboard/settings"] },

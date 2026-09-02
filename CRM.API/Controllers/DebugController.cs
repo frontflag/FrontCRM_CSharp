@@ -1088,7 +1088,7 @@ namespace CRM.API.Controllers
         }
 
         /// <summary>
-        /// 临时调试工具：批量刷新销售订单明细扩展并重算主状态（与详情页「刷新扩展」同源，含主状态同步规则）。
+        /// 临时调试工具：批量刷新销售订单明细扩展并重算主状态（与详情页「刷新状态」同源，含主状态同步规则，不覆盖售价）。
         /// </summary>
         [Authorize]
         [HttpPost("refresh-sellorder-main-status")]
@@ -1123,7 +1123,10 @@ namespace CRM.API.Controllers
                     var before = order.Status;
                     try
                     {
-                        await _salesOrderService.RefreshItemExtendsAsync(order.Id, cancellationToken);
+                        await _salesOrderService.RefreshDownstreamAsync(
+                            order.Id,
+                            SalesOrderRefreshFacet.Status,
+                            cancellationToken);
                         await _context.Entry(order).ReloadAsync(cancellationToken);
                         if (order.Status != before)
                         {
