@@ -109,7 +109,7 @@ namespace CRM.Core.Tests.Services
                 Currency = 1,
                 Items = new List<CreateSalesOrderItemRequest>
                 {
-                    new() { PN = "STM32F103", Brand = "ST", Qty = 100, Price = 5.5m }
+                    new() { PN = "STM32F103", Brand = "ST", Qty = 100, Price = 5.5m, QuoteId = "QUOTE-001" }
                 }
             };
             _orderRepository.GetAllAsync().Returns(new List<SellOrder>());
@@ -341,6 +341,59 @@ namespace CRM.Core.Tests.Services
             // Assert — 整单软删 + extend 标删（非物理 DeleteAsync）
             await _orderRepository.Received(1).UpdateAsync(Arg.Is<SellOrder>(o => o.Id == orderId && o.IsDeleted));
             await _unitOfWork.Received(1).ExecuteAsync(Arg.Is<string>(sql => sql.Contains("sellorderextend") && sql.Contains("is_deleted")));
+        }
+
+        [Fact]
+        public async Task RefreshPurchasedStockAvailableForLineAsync_RecalculatesAndReturnsBeforeAfter()
+        {
+            var orderId = "so-1";
+            var lineId = "soi-1";
+            var order = new SellOrder { Id = orderId };
+            var line = new SellOrderItem
+            {
+                Id = lineId,
+                SellOrderId = orderId,
+                PN = "ISO6762FQDwRQ1",
+                Brand = "TI/德州仪器",
+                Qty = 2500,
+                Status = 0
+            };
+            var ext = new SellOrderItemExtend { Id = lineId, PurchasedStock_AvailableQty = 0 };
+            _orderRepository.GetByIdAsync(orderId).Returns(order);
+            _orderItemRepository.GetByIdAsync(lineId).Returns(line);
+            _soItemExtendRepository.GetByIdAsync(lineId).Returns(ext);
+            _purchasedStockAvailableSync
+                .When(x => x.RecalculateByPurchasePnAndBrandAsync(line.PN, line.Brand))
+                .Do(_ => ext.PurchasedStock_AvailableQty = 2000);
+
+            var result = await _orderService.RefreshPurchasedStockAvailableForLineAsync(orderId, lineId);
+
+            Assert.Equal(lineId, result.SellOrderItemId);
+            Assert.Equal(0, result.BeforeQty);
+            Assert.Equal(2000, result.AfterQty);
+            await _purchasedStockAvailableSync.Received(1)
+                .RecalculateByPurchasePnAndBrandAsync("ISO6762FQDwRQ1", "TI/德州仪器");
+            await _unitOfWork.Received().SaveChangesAsync();
+        }
+
+        [Fact]
+        public async Task RefreshPurchasedStockAvailableForLineAsync_CancelledLine_Throws()
+        {
+            var orderId = "so-1";
+            var lineId = "soi-1";
+            _orderRepository.GetByIdAsync(orderId).Returns(new SellOrder { Id = orderId });
+            _orderItemRepository.GetByIdAsync(lineId).Returns(new SellOrderItem
+            {
+                Id = lineId,
+                SellOrderId = orderId,
+                PN = "PN",
+                Brand = "BR",
+                Status = 1
+            });
+
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                _orderService.RefreshPurchasedStockAvailableForLineAsync(orderId, lineId));
+            Assert.Contains("已取消", ex.Message);
         }
     }
 }

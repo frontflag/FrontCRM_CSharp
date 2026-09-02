@@ -193,6 +193,7 @@ namespace CRM.Core.Services
                 await _soItemExtendSync.RecalculateAsync(line.Id);
 
             await TryRefreshPurchasedStockAvailableForSellLinesAsync(createdLines);
+            await _unitOfWork.SaveChangesAsync();
 
             var journeyTime = DateTime.UtcNow;
             await _orderJourneyLog.AppendAsync(new OrderJourneyLog
@@ -330,6 +331,47 @@ namespace CRM.Core.Services
                         pn, br);
                 }
             }
+        }
+
+        /// <inheritdoc />
+        public async Task<PurchasedStockAvailableRefreshDto> RefreshPurchasedStockAvailableForLineAsync(
+            string salesOrderId,
+            string sellOrderItemId,
+            CancellationToken cancellationToken = default)
+        {
+            _ = cancellationToken;
+            if (string.IsNullOrWhiteSpace(salesOrderId))
+                throw new ArgumentException("销售订单ID不能为空", nameof(salesOrderId));
+            if (string.IsNullOrWhiteSpace(sellOrderItemId))
+                throw new ArgumentException("销售订单明细ID不能为空", nameof(sellOrderItemId));
+
+            var orderId = salesOrderId.Trim();
+            var lineId = sellOrderItemId.Trim();
+            var order = await _soRepo.GetByIdAsync(orderId)
+                ?? throw new InvalidOperationException("销售订单不存在");
+            var line = await _soItemRepo.GetByIdAsync(lineId)
+                ?? throw new InvalidOperationException("销售订单明细不存在");
+            if (!string.Equals(line.SellOrderId, order.Id, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("销售订单明细不属于该订单");
+            if (line.Status == 1)
+                throw new InvalidOperationException("该销售订单明细已取消，不能刷新备货可用量");
+            if (string.IsNullOrWhiteSpace(line.PN) || string.IsNullOrWhiteSpace(line.Brand))
+                throw new InvalidOperationException("物料型号或品牌为空，无法刷新备货可用量");
+
+            var ext = await _soItemExtendRepo.GetByIdAsync(line.Id)
+                ?? throw new InvalidOperationException("销售明细扩展不存在");
+            var before = ext.PurchasedStock_AvailableQty;
+
+            await _purchasedStockAvailableSync.RecalculateByPurchasePnAndBrandAsync(line.PN, line.Brand);
+            await _unitOfWork.SaveChangesAsync();
+
+            var afterExt = await _soItemExtendRepo.GetByIdAsync(line.Id);
+            return new PurchasedStockAvailableRefreshDto
+            {
+                SellOrderItemId = line.Id,
+                BeforeQty = before,
+                AfterQty = afterExt?.PurchasedStock_AvailableQty ?? before
+            };
         }
 
         private async Task AddSellOrderItemExtendAsync(SellOrderItem soItem, FinanceExchangeRateDto fx)
@@ -666,6 +708,7 @@ namespace CRM.Core.Services
                 foreach (var line in touchedLines)
                     await _soItemExtendSync.RecalculateAsync(line.Id);
                 await TryRefreshPurchasedStockAvailableForSellLinesAsync(touchedLines);
+                await _unitOfWork.SaveChangesAsync();
             }
 
             if (replacedItemCount > 0 && insertedLines is { Count: > 0 })

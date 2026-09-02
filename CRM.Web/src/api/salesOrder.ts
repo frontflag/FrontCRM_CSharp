@@ -427,6 +427,12 @@ export type SellOrderItemPackingTabRow = SalesOrderDetailTabAggregates['packings
 export type SellOrderItemStockOutNotifyTabRow = SalesOrderDetailTabAggregates['stockOutRequests'][number]
 export type SellOrderItemStockOutTabRow = SalesOrderDetailTabAggregates['stockOuts'][number]
 
+export interface PurchasedStockAvailableRefreshResult {
+  sellOrderItemId: string
+  beforeQty: number
+  afterQty: number
+}
+
 // 销售订单API
 export interface SalesOrderBatchExportLogRow {
   id: string
@@ -540,6 +546,15 @@ export const salesOrderApi = {
     const encI = encodeURIComponent(sellOrderItemId)
     return await apiClient.get<SalesOrderDetailTabAggregates>(
       `/api/v1/sales-orders/${encO}/sell-order-items/${encI}/detail-tab-aggregates`
+    )
+  },
+
+  async refreshPurchasedStockAvailable(orderId: string, sellOrderItemId: string) {
+    const encO = encodeURIComponent(orderId)
+    const encI = encodeURIComponent(sellOrderItemId)
+    return await apiClient.post<PurchasedStockAvailableRefreshResult>(
+      `/api/v1/sales-orders/${encO}/sell-order-items/${encI}/refresh-purchased-stock-available`,
+      {}
     )
   },
 

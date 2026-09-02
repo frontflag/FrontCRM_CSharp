@@ -44,6 +44,14 @@ namespace CRM.Core.Interfaces
         Task<IReadOnlyDictionary<string, StockOutApplyPurchaseGateDetailDto>> GetStockOutApplyPurchaseGateDetailsBySellLineIdsAsync(
             IEnumerable<string> sellOrderItemIds);
 
+        /// <summary>
+        /// 按本行 PN+品牌重算备货可用量快照并落库；同键未出库完成的其它销售行一并更新。
+        /// </summary>
+        Task<PurchasedStockAvailableRefreshDto> RefreshPurchasedStockAvailableForLineAsync(
+            string salesOrderId,
+            string sellOrderItemId,
+            CancellationToken cancellationToken = default);
+
         /// <summary>按销售订单覆盖下游销售价快照并重算明细扩展，返回变更结果。等价于 <see cref="RefreshDownstreamAsync"/> 的 price 分面。</summary>
         Task<SalesOrderItemExtendRefreshResult> RefreshItemExtendsAsync(
             string salesOrderId,
@@ -85,6 +93,14 @@ namespace CRM.Core.Interfaces
         public DateTime ChangedAt { get; set; }
         /// <summary>主表为「主表」；明细为行号如 SO00001-1。</summary>
         public string? ObjectLabel { get; set; }
+    }
+
+    /// <summary>销售明细备货可用量快照手工刷新结果。</summary>
+    public class PurchasedStockAvailableRefreshDto
+    {
+        public string SellOrderItemId { get; set; } = string.Empty;
+        public int BeforeQty { get; set; }
+        public int AfterQty { get; set; }
     }
 
     /// <summary>已软删除的销售订单明细。</summary>

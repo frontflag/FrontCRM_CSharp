@@ -58,7 +58,7 @@ namespace CRM.Core.Models.Sales
 
         /// <summary>
         /// 同 PN+品牌下所有备货库存（<c>StockType</c>=备货）在库可用量 <c>QtyRepertoryAvailable</c> 之和（截断为非负 int；不与销售数量比较；同键多销售行共享同一池合计）。
-        /// 刷新：采购备货入库单状态为已完成(2)过账后；销售出库执行扣减备货库存后；销售订单明细新建或整单替换明细后。
+        /// 刷新：采购备货入库单状态为已完成(2)过账后；销售出库执行扣减备货库存后；销售订单明细新建或整单替换明细后；操作面板「备货库存」手工刷新。
         /// 前端：API 字段 <c>purchasedStockAvailableQty</c> 大于 0 时在申请出库场景放宽「须先满足采购门槛」的限制（见 <c>salesOrderLinePurchasedStockReliefOk</c>）。
         /// </summary>
         [Column("PurchasedStock_AvailableQty")]

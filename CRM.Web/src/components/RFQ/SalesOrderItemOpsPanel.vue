@@ -100,6 +100,17 @@
       <section v-if="showStockPanel" class="ops-card">
         <header class="ops-card__head">
           <h3 class="ops-card__title">{{ t('salesOrderItemList.opsPanel.stockTitle') }}</h3>
+          <el-button
+            v-if="canWriteSo"
+            class="ops-card__head-btn"
+            link
+            type="primary"
+            size="small"
+            :disabled="stockingRefreshDisabled"
+            @click="onRefreshStocking"
+          >
+            {{ t('salesOrderItemList.opsPanel.refresh') }}
+          </el-button>
         </header>
         <div class="ops-card__body">
           <div class="ops-stock-region-row">
@@ -269,9 +280,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { ElMessage } from 'element-plus'
 import { CircleCheck } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
+import { useSalesOrderItemOpsPanelStore } from '@/stores/salesOrderItemOpsPanel'
 import type { SalesOrderDetailTabAggregates } from '@/api/salesOrder'
+import { getApiErrorMessage } from '@/utils/apiError'
 import {
   salesOrderMainAllowsPurchaseAndStockOut,
   salesOrderLineApplyStockOutButtonDisabled,
@@ -312,8 +326,22 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const authStore = useAuthStore()
+const opsStore = useSalesOrderItemOpsPanelStore()
 
 const canViewPurchaseOrder = computed(() => authStore.hasPermission('purchase-order.read'))
+const stockingRefreshDisabled = computed(() => !!props.loading || opsStore.purchasedStockRefreshing)
+
+async function onRefreshStocking() {
+  try {
+    const result = await opsStore.refreshPurchasedStockAvailable()
+    if (!result) return
+    ElMessage.success(
+      t('salesOrderItemList.opsPanel.refreshStockingSuccess', { qty: formatQty(result.afterQty) })
+    )
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, t('salesOrderItemList.opsPanel.refreshStockingFailed')))
+  }
+}
 
 const salesOrderCode = computed(() => {
   const v = String(props.row?.sellOrderCode ?? props.row?.SellOrderCode ?? '').trim()

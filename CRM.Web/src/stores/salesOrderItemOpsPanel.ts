@@ -5,6 +5,19 @@ import { getApiErrorMessage } from '@/utils/apiError'
 
 type RowRecord = Record<string, unknown>
 type RowHandler = (row: RowRecord) => void
+type PurchasedStockRefreshedHandler = (payload: { sellOrderItemId: string; afterQty: number }) => void
+
+type PurchasedStockAvailableRefreshLoose = {
+  afterQty?: unknown
+  AfterQty?: unknown
+  beforeQty?: unknown
+  BeforeQty?: unknown
+}
+
+function truncQty(raw: unknown): number {
+  const n = Number(raw)
+  return Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : 0
+}
 
 export const useSalesOrderItemOpsPanelStore = defineStore('salesOrderItemOpsPanel', () => {
   const row = ref<RowRecord | null>(null)
@@ -12,23 +25,31 @@ export const useSalesOrderItemOpsPanelStore = defineStore('salesOrderItemOpsPane
   const loading = ref(false)
   const loadError = ref('')
   const aggregatesRowKey = ref('')
+  const purchasedStockRefreshing = ref(false)
 
   let applyPurchaseHandler: RowHandler | null = null
   let applyStockOutHandler: RowHandler | null = null
+  let purchasedStockRefreshedHandler: PurchasedStockRefreshedHandler | null = null
   let loadSeq = 0
 
   function rowKey(target: RowRecord) {
     return String(target.sellOrderItemId ?? target.id ?? target.Id ?? '').trim()
   }
 
-  function registerHandlers(handlers: { applyPurchase?: RowHandler; applyStockOut?: RowHandler }) {
+  function registerHandlers(handlers: {
+    applyPurchase?: RowHandler
+    applyStockOut?: RowHandler
+    onPurchasedStockRefreshed?: PurchasedStockRefreshedHandler
+  }) {
     if (handlers.applyPurchase) applyPurchaseHandler = handlers.applyPurchase
     if (handlers.applyStockOut) applyStockOutHandler = handlers.applyStockOut
+    if (handlers.onPurchasedStockRefreshed) purchasedStockRefreshedHandler = handlers.onPurchasedStockRefreshed
   }
 
   function unregisterHandlers() {
     applyPurchaseHandler = null
     applyStockOutHandler = null
+    purchasedStockRefreshedHandler = null
   }
 
   function clear() {
@@ -36,6 +57,7 @@ export const useSalesOrderItemOpsPanelStore = defineStore('salesOrderItemOpsPane
     aggregates.value = null
     loadError.value = ''
     loading.value = false
+    purchasedStockRefreshing.value = false
     aggregatesRowKey.value = ''
     loadSeq += 1
   }
@@ -52,12 +74,12 @@ export const useSalesOrderItemOpsPanelStore = defineStore('salesOrderItemOpsPane
     }
   }
 
-  async function loadAggregates(loadFailedText = '加载明细失败') {
+  async function loadAggregates(loadFailedText = '加载明细失败', force = false) {
     if (!row.value) return
     const sellOrderId = String(row.value.sellOrderId ?? '').trim()
     const sellOrderItemId = rowKey(row.value)
     if (!sellOrderId || !sellOrderItemId) return
-    if (aggregatesRowKey.value === sellOrderItemId && aggregates.value !== null && !loadError.value) return
+    if (!force && aggregatesRowKey.value === sellOrderItemId && aggregates.value !== null && !loadError.value) return
 
     const seq = ++loadSeq
     loading.value = true
@@ -115,11 +137,35 @@ export const useSalesOrderItemOpsPanelStore = defineStore('salesOrderItemOpsPane
     if (row.value && applyStockOutHandler) applyStockOutHandler(row.value)
   }
 
+  async function refreshPurchasedStockAvailable() {
+    if (!row.value || purchasedStockRefreshing.value) return null
+    const sellOrderId = String(row.value.sellOrderId ?? row.value.SellOrderId ?? '').trim()
+    const sellOrderItemId = rowKey(row.value)
+    if (!sellOrderId || !sellOrderItemId) return null
+
+    purchasedStockRefreshing.value = true
+    try {
+      const raw = await salesOrderApi.refreshPurchasedStockAvailable(sellOrderId, sellOrderItemId)
+      const data = raw as PurchasedStockAvailableRefreshLoose | null
+      const afterQty = truncQty(data?.afterQty ?? data?.AfterQty)
+      const beforeQty = truncQty(data?.beforeQty ?? data?.BeforeQty)
+      if (row.value && rowKey(row.value) === sellOrderItemId) {
+        row.value = { ...row.value, purchasedStockAvailableQty: afterQty }
+      }
+      await loadAggregates('加载明细失败', true)
+      purchasedStockRefreshedHandler?.({ sellOrderItemId, afterQty })
+      return { sellOrderItemId, beforeQty, afterQty }
+    } finally {
+      purchasedStockRefreshing.value = false
+    }
+  }
+
   return {
     row,
     aggregates,
     loading,
     loadError,
+    purchasedStockRefreshing,
     registerHandlers,
     unregisterHandlers,
     clear,
@@ -130,6 +176,7 @@ export const useSalesOrderItemOpsPanelStore = defineStore('salesOrderItemOpsPane
     refreshFromListRows,
     runApplyPurchase,
     runApplyStockOut,
+    refreshPurchasedStockAvailable,
     rowKey
   }
 })

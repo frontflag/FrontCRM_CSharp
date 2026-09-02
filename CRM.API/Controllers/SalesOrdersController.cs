@@ -750,6 +750,40 @@ namespace CRM.API.Controllers
             }
         }
 
+        [HttpPost("{id:guid}/sell-order-items/{sellOrderItemId:guid}/refresh-purchased-stock-available")]
+        [RequirePermission("sales-order.write")]
+        public async Task<IActionResult> RefreshPurchasedStockAvailable(string id, string sellOrderItemId, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var lineId = (sellOrderItemId ?? string.Empty).Trim();
+                if (string.IsNullOrEmpty(lineId))
+                    return BadRequest(new { success = false, message = "销售订单明细ID不能为空" });
+
+                var order = await _service.GetByIdAsync(id);
+                if (order == null) return NotFound(new { success = false, message = "销售订单不存在" });
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessSalesOrderAsync(userId, order))
+                    return StatusCode(403, new { success = false, message = "无权访问该销售订单" });
+
+                var data = await _service.RefreshPurchasedStockAvailableForLineAsync(id, lineId, cancellationToken);
+                return Ok(new { success = true, data });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "刷新备货可用量快照失败: {OrderId} {ItemId}", id, sellOrderItemId);
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
         /// <summary>?????????????????????? / ???? / ??????????????</summary>
         [HttpGet("{id:guid}/sell-order-items/{sellOrderItemId:guid}/line-profit")]
         public async Task<IActionResult> GetSellOrderItemLineProfit(string id, string sellOrderItemId)

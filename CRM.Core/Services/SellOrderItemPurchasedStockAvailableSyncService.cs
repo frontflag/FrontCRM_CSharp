@@ -21,6 +21,7 @@ public sealed class SellOrderItemPurchasedStockAvailableSyncService : ISellOrder
     private readonly IRepository<PurchaseOrder> _poRepo;
     private readonly IRepository<StockInItem> _stockInItemRepo;
     private readonly IRepository<StockInItemExtend> _stockInItemExtendRepo;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<SellOrderItemPurchasedStockAvailableSyncService> _logger;
 
     public SellOrderItemPurchasedStockAvailableSyncService(
@@ -32,6 +33,7 @@ public sealed class SellOrderItemPurchasedStockAvailableSyncService : ISellOrder
         IRepository<PurchaseOrder> poRepo,
         IRepository<StockInItem> stockInItemRepo,
         IRepository<StockInItemExtend> stockInItemExtendRepo,
+        IUnitOfWork unitOfWork,
         ILogger<SellOrderItemPurchasedStockAvailableSyncService> logger)
     {
         _stockRepo = stockRepo;
@@ -42,6 +44,7 @@ public sealed class SellOrderItemPurchasedStockAvailableSyncService : ISellOrder
         _poRepo = poRepo;
         _stockInItemRepo = stockInItemRepo;
         _stockInItemExtendRepo = stockInItemExtendRepo;
+        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
@@ -94,6 +97,7 @@ public sealed class SellOrderItemPurchasedStockAvailableSyncService : ISellOrder
 
         if (updated > 0)
         {
+            await _unitOfWork.SaveChangesAsync();
             _logger.LogInformation(
                 "[PurchasedStockAvail] Updated {Count} sell lines for PN={Pn} Brand={Br} SumAvail={Sum} IntVal={IntVal}",
                 updated, pnKey, brKey, sumAvail, intVal);

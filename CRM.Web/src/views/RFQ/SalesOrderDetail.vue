@@ -2183,6 +2183,12 @@ onMounted(() => {
     },
     applyStockOut: (row) => {
       applyStockOutOne(row)
+    },
+    onPurchasedStockRefreshed: ({ sellOrderItemId, afterQty }) => {
+      const item = order.value?.items?.find(
+        (line: Record<string, unknown>) => soItemRowKey(line) === sellOrderItemId
+      ) as Record<string, unknown> | undefined
+      if (item) item.purchasedStockAvailableQty = afterQty
     }
   })
 })
