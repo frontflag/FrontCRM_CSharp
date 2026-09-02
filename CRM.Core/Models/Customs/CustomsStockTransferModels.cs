@@ -113,9 +113,13 @@ public class CustomsDeclaration : BaseGuidEntity, ISoftDeletable
     [Column(TypeName = "numeric(18,6)")]
     public decimal ExchangeRate { get; set; }
 
-    /// <summary>试算时快照的报关公司代理费率（1+纯费率）。</summary>
+    /// <summary>试算时快照的代理费率（1+纯费率）。系统模式从报关公司覆盖；手工模式保留本列。</summary>
     [Column("broker_agency_rate", TypeName = "numeric(10,6)")]
     public decimal BrokerAgencyRate { get; set; } = 1m;
+
+    /// <summary>false=用报关公司资料；true=本单手工。换报关公司时强制回 false。</summary>
+    [Column("agency_rate_manual")]
+    public bool AgencyRateManual { get; set; }
 
     [Column(TypeName = "numeric(18,2)")]
     public decimal TotalTaxAmount { get; set; }

@@ -679,6 +679,8 @@ public class CustomsV2FlowService : ICustomsV2FlowService
         string? actingUserId,
         decimal? exchangeRate = null,
         string? customsBrokerId = null,
+        bool? agencyRateManual = null,
+        decimal? brokerAgencyRate = null,
         CancellationToken cancellationToken = default)
     {
         _ = cancellationToken;
@@ -688,12 +690,17 @@ public class CustomsV2FlowService : ICustomsV2FlowService
             throw new InvalidOperationException("已完成报关单不能修改头信息。");
         if (dec.InternalStatus == CustomsDeclarationInternalStatus.Voided)
             throw new InvalidOperationException("报关单已作废。");
-        if (dec.FeesLocked && (exchangeRate.HasValue || customsBrokerId != null))
-            throw new InvalidOperationException("报关费用已锁定，不能修改汇率或报关公司。");
+        var touchesFeesInputs = exchangeRate.HasValue
+            || customsBrokerId != null
+            || agencyRateManual.HasValue
+            || brokerAgencyRate.HasValue;
+        if (dec.FeesLocked && touchesFeesInputs)
+            throw new InvalidOperationException("报关费用已锁定，不能修改汇率、报关公司或代理费率。");
 
         var now = DateTime.UtcNow;
         var actor = ActingUserIdNormalizer.Normalize(actingUserId);
         var shouldRecalculate = false;
+        var brokerChanged = false;
 
         if (toWarehouseId != null)
         {
@@ -726,7 +733,37 @@ public class CustomsV2FlowService : ICustomsV2FlowService
             var broker = await _brokerRepo.GetByIdAsync(brokerKey)
                          ?? throw new InvalidOperationException("报关公司不存在。");
             dec.CustomsBrokerId = brokerKey;
+            dec.AgencyRateManual = false;
             dec.BrokerAgencyRate = broker.AgencyRate > 0m ? broker.AgencyRate : 1m;
+            brokerChanged = true;
+            shouldRecalculate = true;
+        }
+
+        if (!brokerChanged && (agencyRateManual.HasValue || brokerAgencyRate.HasValue))
+        {
+            if (agencyRateManual.HasValue)
+                dec.AgencyRateManual = agencyRateManual.Value;
+
+            if (dec.AgencyRateManual)
+            {
+                var rate = brokerAgencyRate ?? dec.BrokerAgencyRate;
+                try
+                {
+                    CustomsAgencyRateRules.EnsureValid(rate);
+                }
+                catch (ArgumentException ex)
+                {
+                    throw new InvalidOperationException(ex.Message);
+                }
+                dec.BrokerAgencyRate = rate;
+            }
+            else
+            {
+                var broker = await _brokerRepo.GetByIdAsync(dec.CustomsBrokerId.Trim())
+                             ?? throw new InvalidOperationException("报关公司不存在。");
+                dec.BrokerAgencyRate = broker.AgencyRate > 0m ? broker.AgencyRate : 1m;
+            }
+
             shouldRecalculate = true;
         }
 
@@ -879,7 +916,10 @@ public class CustomsV2FlowService : ICustomsV2FlowService
         var costParam = await _purchaseCostParamService.GetEffectiveAsync();
         var broker = await _brokerRepo.GetByIdAsync(dec.CustomsBrokerId.Trim())
                      ?? throw new InvalidOperationException("报关公司不存在。");
-        var brokerRate = broker.AgencyRate > 0m ? broker.AgencyRate : 1m;
+        var brokerRate = CustomsAgencyRateRules.ResolveForCalculation(
+            dec.AgencyRateManual,
+            dec.BrokerAgencyRate,
+            broker.AgencyRate);
         var systemFx = await _financeExchangeRateService.GetCurrentAsync(cancellationToken);
         var now = DateTime.UtcNow;
         var actor = ActingUserIdNormalizer.Normalize(actingUserId);

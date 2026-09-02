@@ -268,7 +268,8 @@ customs_declaration_item ──→ stockin_notify.customs_declaration_item_id
 
 ### 16.3 变更 `customs_declaration`
 
-| 新增 | `broker_agency_rate` | 试算时快照 |
+| 新增 | `broker_agency_rate` | 试算时快照；系统模式来自报关公司，手工模式为本单输入 |
+| 新增 | `agency_rate_manual` | 代理费率来源（默认 false=系统）；脚本 `scripts/customs_declaration_agency_rate_manual_postgresql.sql`；口径见 [报关单代理费率手工设置](../System/报关/报关单代理费率手工设置-设计与实现.md) |
 | 新增 | `fees_calculated_at` | 最后试算时间 |
 | 新增 | `fees_locked` | 可选锁定 |
 | 语义 | `exchange_rate` | **关务手工**，非财务自动锁定 |

@@ -120,11 +120,8 @@ public class CustomsBrokerService : ICustomsBrokerService
         });
     }
 
-    private static void EnsureAgencyRate(decimal agencyRate)
-    {
-        if (agencyRate < 1m)
-            throw new ArgumentException("代理费率须为 1+纯费率形式，不能小于 1。", nameof(agencyRate));
-    }
+    private static void EnsureAgencyRate(decimal agencyRate) =>
+        CustomsAgencyRateRules.EnsureValid(agencyRate);
 
     private static void EnsureRegionType(short regionType)
     {

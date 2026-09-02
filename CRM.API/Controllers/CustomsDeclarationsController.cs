@@ -262,6 +262,8 @@ public class CustomsDeclarationsController : ControllerBase
             DeclareDate = row.DeclareDate,
             ExchangeRate = row.ExchangeRate,
             BrokerAgencyRate = row.BrokerAgencyRate,
+            AgencyRateManual = row.AgencyRateManual,
+            BrokerMasterAgencyRate = broker != null && broker.AgencyRate > 0m ? broker.AgencyRate : 1m,
             TotalTaxAmount = row.TotalTaxAmount,
             FeesCalculatedAt = row.FeesCalculatedAt,
             FeesLocked = row.FeesLocked,
@@ -339,6 +341,7 @@ public class CustomsDeclarationsController : ControllerBase
         {
             dto.ExchangeRate = 0m;
             dto.BrokerAgencyRate = 0m;
+            dto.BrokerMasterAgencyRate = 0m;
             dto.TotalTaxAmount = 0m;
             dto.FeesCalculatedAt = null;
             foreach (var it in dto.Items)
@@ -430,6 +433,8 @@ public class CustomsDeclarationsController : ControllerBase
         public string? Remark { get; set; }
         public decimal? ExchangeRate { get; set; }
         public string? CustomsBrokerId { get; set; }
+        public bool? AgencyRateManual { get; set; }
+        public decimal? BrokerAgencyRate { get; set; }
     }
 
     [HttpPost("{id}/recalculate-fees")]
@@ -470,7 +475,8 @@ public class CustomsDeclarationsController : ControllerBase
                 return StatusCode(403, ApiResponse<object>.Fail("当前账号物流数据为只读或禁止", 403));
             var uid = User?.Claims?.FirstOrDefault(c => c.Type == "sub" || c.Type == "userId")?.Value;
             await _customsV2FlowService.UpdateDeclarationHeaderAsync(
-                id, body?.ToWarehouseId, body?.Remark, uid, body?.ExchangeRate, body?.CustomsBrokerId);
+                id, body?.ToWarehouseId, body?.Remark, uid, body?.ExchangeRate, body?.CustomsBrokerId,
+                body?.AgencyRateManual, body?.BrokerAgencyRate);
             return Ok(ApiResponse<object>.Ok(null, "已更新报关单"));
         }
         catch (InvalidOperationException ex)

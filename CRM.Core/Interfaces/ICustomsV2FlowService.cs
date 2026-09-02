@@ -47,6 +47,8 @@ public interface ICustomsV2FlowService
         string? actingUserId,
         decimal? exchangeRate = null,
         string? customsBrokerId = null,
+        bool? agencyRateManual = null,
+        decimal? brokerAgencyRate = null,
         CancellationToken cancellationToken = default);
 
     Task UpdateDeclarationItemAsync(string itemId, CustomsDeclarationItemPatch patch, string? actingUserId, CancellationToken cancellationToken = default);

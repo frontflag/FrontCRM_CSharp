@@ -13,6 +13,7 @@ import {
 import { financeExchangeRateApi } from '@/api/financeExchangeRate'
 import { CURRENCY_CODE_TO_TEXT, CurrencyCode } from '@/constants/currency'
 import { formatDate as formatDateTimeZh } from '@/utils/date'
+import { isValidCustomsAgencyRate } from '@/utils/customsAgencyRate'
 
 const props = defineProps<{
   detail: CustomsDeclarationDetailDto
@@ -31,6 +32,8 @@ const systemPurchaseRatio = ref<number | null>(null)
 const systemRatioLoadFailed = ref(false)
 
 const headerExchangeRate = ref(0)
+const agencyRateManual = ref(false)
+const headerBrokerAgencyRate = ref(1)
 const itemDrafts = reactive<Record<string, ItemDraft>>({})
 
 type ItemDraft = {
@@ -50,6 +53,16 @@ type PanelMode =
 
 function syncDraftsFromDetail(d: CustomsDeclarationDetailDto) {
   headerExchangeRate.value = Number(d.exchangeRate) || 0
+  agencyRateManual.value = Boolean(d.agencyRateManual)
+  const master = Number(d.brokerMasterAgencyRate)
+  const snapshot = Number(d.brokerAgencyRate ?? 1)
+  if (agencyRateManual.value) {
+    headerBrokerAgencyRate.value = Number.isFinite(snapshot) && snapshot > 0 ? snapshot : 1
+  } else if (Number.isFinite(master) && master > 0) {
+    headerBrokerAgencyRate.value = master
+  } else {
+    headerBrokerAgencyRate.value = Number.isFinite(snapshot) && snapshot > 0 ? snapshot : 1
+  }
   for (const row of d.items ?? []) {
     itemDrafts[row.id] = {
       hsCode: (row.hsCode ?? '').trim(),
@@ -93,7 +106,14 @@ const panelMode = computed<PanelMode>(() => {
 
 const isLockedPartial = computed(() => panelMode.value === 'readonly_locked')
 
-const canEditHeaderRate = computed(() => props.canWrite && panelMode.value === 'editable')
+/** 未拣货（P0=0）仍可改汇率、看到试算按钮（禁用）；与原型 blocked_no_p0 一致 */
+const canMaintainFees = computed(
+  () => panelMode.value === 'editable' || panelMode.value === 'blocked_no_p0'
+)
+
+const canEditHeaderRate = computed(() => props.canWrite && canMaintainFees.value)
+
+const canEditAgencyRate = computed(() => canEditHeaderRate.value && !props.maskPurchase)
 
 const canEditLineCoreInputs = computed(() => props.canWrite && panelMode.value === 'editable')
 
@@ -101,7 +121,7 @@ const canEditLineFooterInputs = computed(
   () => props.canWrite && (panelMode.value === 'editable' || panelMode.value === 'readonly_locked')
 )
 
-const showRecalculateActions = computed(() => props.canWrite && panelMode.value === 'editable')
+const showRecalculateActions = computed(() => props.canWrite && canMaintainFees.value)
 
 const showLockedSave = computed(() => props.canWrite && panelMode.value === 'readonly_locked')
 
@@ -142,6 +162,7 @@ const recalcDisabled = computed(() => {
   if (headerExchangeRate.value <= 0) return true
   if (systemRatioLoadFailed.value || systemPurchaseRatio.value == null) return true
   if (hasMissingP0.value) return true
+  if (agencyRateManual.value && !isValidCustomsAgencyRate(headerBrokerAgencyRate.value)) return true
   return recalculating.value
 })
 
@@ -151,6 +172,17 @@ function agencyRateHint(rate: number | undefined): string {
   const pct = (r - 1) * 100
   return t('customsPages.fees.agencyRateHint', { pct: pct.toFixed(2) })
 }
+
+const agencyRateMode = computed({
+  get: () => (agencyRateManual.value ? 'manual' : 'system'),
+  set: (mode: string) => {
+    agencyRateManual.value = mode === 'manual'
+    if (!agencyRateManual.value) {
+      const master = Number(props.detail.brokerMasterAgencyRate)
+      headerBrokerAgencyRate.value = Number.isFinite(master) && master > 0 ? master : 1
+    }
+  }
+})
 
 function currencyText(code: number | null | undefined): string {
   if (code == null) return '—'
@@ -236,6 +268,9 @@ function validateDrafts(): string | null {
     if (d.vatRate <= 0) return t('customsPages.fees.validateVatPositive', { line: row.lineNo })
   }
   if (headerExchangeRate.value <= 0) return t('customsPages.fees.alertNoExchangeRate')
+  if (agencyRateManual.value && !isValidCustomsAgencyRate(headerBrokerAgencyRate.value)) {
+    return t('customsPages.fees.validateAgencyRate')
+  }
   return null
 }
 
@@ -256,9 +291,30 @@ async function applyFinanceRate() {
 
 async function persistDirtyFields(): Promise<void> {
   const d = props.detail
+  const headerPatch: Parameters<typeof patchCustomsDeclarationHeader>[1] = {}
   const serverRate = Number(d.exchangeRate) || 0
   if (Math.abs(headerExchangeRate.value - serverRate) > 0.000001) {
-    await patchCustomsDeclarationHeader(d.id, { exchangeRate: headerExchangeRate.value })
+    headerPatch.exchangeRate = headerExchangeRate.value
+  }
+
+  const serverManual = Boolean(d.agencyRateManual)
+  const serverAgency = Number(d.brokerAgencyRate ?? 1)
+  if (canEditAgencyRate.value) {
+    if (agencyRateManual.value) {
+      if (!isValidCustomsAgencyRate(headerBrokerAgencyRate.value)) {
+        throw new Error(t('customsPages.fees.validateAgencyRate'))
+      }
+      if (!serverManual || Math.abs(headerBrokerAgencyRate.value - serverAgency) > 0.000001) {
+        headerPatch.agencyRateManual = true
+        headerPatch.brokerAgencyRate = headerBrokerAgencyRate.value
+      }
+    } else if (serverManual) {
+      headerPatch.agencyRateManual = false
+    }
+  }
+
+  if (Object.keys(headerPatch).length > 0) {
+    await patchCustomsDeclarationHeader(d.id, headerPatch)
   }
 
   for (const row of d.items ?? []) {
@@ -392,7 +448,7 @@ function rowClassName({ row }: { row: CustomsDeclarationDetailItemViewDto }) {
         :title="t('customsPages.fees.alertLockedPartial')"
       />
       <el-alert
-        v-if="hasMissingP0 && panelMode === 'editable'"
+        v-if="hasMissingP0 && canMaintainFees"
         type="warning"
         :closable="false"
         show-icon
@@ -433,9 +489,27 @@ function rowClassName({ row }: { row: CustomsDeclarationDetailItemViewDto }) {
         </div>
         <div class="info-item">
           <span class="info-label">{{ t('customsPages.fees.agencyRate') }}</span>
-          <span class="info-value">
-            {{ Number(detail.brokerAgencyRate ?? 1).toFixed(6) }}
-            <span class="fees-hint">{{ agencyRateHint(detail.brokerAgencyRate) }}</span>
+          <span class="info-value fees-exchange-rate-value">
+            <el-input-number
+              v-if="canEditAgencyRate && agencyRateManual"
+              v-model="headerBrokerAgencyRate"
+              :min="1"
+              :precision="6"
+              :step="0.001"
+              controls-position="right"
+              class="fees-input-number fees-field-highlight"
+            />
+            <span v-else>{{ maskPurchase ? '—' : headerBrokerAgencyRate.toFixed(6) }}</span>
+            <span v-if="!maskPurchase" class="fees-hint">{{ agencyRateHint(headerBrokerAgencyRate) }}</span>
+            <el-radio-group
+              v-if="canEditAgencyRate"
+              v-model="agencyRateMode"
+              size="small"
+              class="fees-agency-rate-mode"
+            >
+              <el-radio-button value="system">{{ t('customsPages.fees.agencyRateModeSystem') }}</el-radio-button>
+              <el-radio-button value="manual">{{ t('customsPages.fees.agencyRateModeManual') }}</el-radio-button>
+            </el-radio-group>
           </span>
         </div>
         <div class="info-item">
@@ -722,6 +796,10 @@ $fees-highlight-text: #78350f;
   gap: 8px;
   flex-wrap: wrap;
   min-width: 0;
+}
+
+.fees-agency-rate-mode {
+  flex-shrink: 0;
 }
 
 .fees-lines-wrap {

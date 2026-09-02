@@ -78,6 +78,9 @@ public sealed class CustomsDeclarationDetailViewDto
     public DateTime DeclareDate { get; set; }
     public decimal ExchangeRate { get; set; }
     public decimal BrokerAgencyRate { get; set; } = 1m;
+    public bool AgencyRateManual { get; set; }
+    /// <summary>报关公司资料当前代理费率，供费用面板「系统」模式对照。</summary>
+    public decimal BrokerMasterAgencyRate { get; set; } = 1m;
     public decimal TotalTaxAmount { get; set; }
     public DateTime? FeesCalculatedAt { get; set; }
     public bool FeesLocked { get; set; }

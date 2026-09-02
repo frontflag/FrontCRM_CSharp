@@ -230,6 +230,8 @@ export interface CustomsDeclarationDetailDto {
   declareDate: string
   exchangeRate: number
   brokerAgencyRate?: number
+  agencyRateManual?: boolean
+  brokerMasterAgencyRate?: number
   feesCalculatedAt?: string | null
   feesLocked?: boolean
   totalTaxAmount: number
@@ -595,6 +597,8 @@ export async function patchCustomsDeclarationHeader(
     remark?: string | null
     exchangeRate?: number | null
     customsBrokerId?: string | null
+    agencyRateManual?: boolean | null
+    brokerAgencyRate?: number | null
   }
 ): Promise<void> {
   await apiClient.patch(`/api/v1/customs-declarations/${encodeURIComponent(id)}`, body)
