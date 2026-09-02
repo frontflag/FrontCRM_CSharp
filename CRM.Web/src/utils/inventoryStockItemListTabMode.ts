@@ -3,10 +3,19 @@
 import { STOCK_IN_TYPE_FILTER_VALUES, parseStockInTypeFilterValue } from '@/constants/stockInType'
 import {
   INVENTORY_WAREHOUSE_TAB_MAX,
-  isWarehouseTabModeAllowed
+  INV_STOCK_TYPE_TAB_VALUES,
+  invStockTypeFilterToTab,
+  invStockTypeTabToFilter,
+  isWarehouseTabModeAllowed,
+  type InvStockTypeTabId
 } from '@/utils/inventoryListTabMode'
 
 export { INVENTORY_WAREHOUSE_TAB_MAX, isWarehouseTabModeAllowed }
+
+export const ISI_STOCK_TYPE_TAB_VALUES = INV_STOCK_TYPE_TAB_VALUES
+export const isiStockTypeFilterToTab = invStockTypeFilterToTab
+export const isiStockTypeTabToFilter = invStockTypeTabToFilter
+export type IsiStockTypeTabId = InvStockTypeTabId
 
 const TAB_MODE_KEY = 'crm.inventory-stock-item-list.tab-mode'
 
@@ -14,6 +23,7 @@ export type InventoryStockItemListTabModeDimension =
   | 'off'
   | 'outboundStatus'
   | 'stockPresence'
+  | 'stockType'
   | 'warehouse'
   | 'stockInType'
 
@@ -21,7 +31,7 @@ export type InventoryStockItemListTabModeDimension =
 export const INVENTORY_STOCK_ITEM_LIST_TAB_MODE_OPTIONS: Exclude<
   InventoryStockItemListTabModeDimension,
   'off'
->[] = ['outboundStatus', 'stockPresence', 'warehouse', 'stockInType']
+>[] = ['outboundStatus', 'stockPresence', 'stockType', 'warehouse', 'stockInType']
 
 const TAB_MODE_SET = new Set<string>(['off', ...INVENTORY_STOCK_ITEM_LIST_TAB_MODE_OPTIONS])
 

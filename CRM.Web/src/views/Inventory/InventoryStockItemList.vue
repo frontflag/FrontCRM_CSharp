@@ -78,6 +78,19 @@
           <el-option :label="t('inventoryStockItemList.filters.stockPresenceNone')" value="none" />
         </el-select>
         <el-select
+          v-if="tabModeDimension !== 'stockType'"
+          v-model="filters.stockType"
+          clearable
+          :placeholder="t('inventoryStockItemList.filters.stockTypePlaceholder')"
+          class="status-select status-select--stock-type"
+          :teleported="false"
+          @change="fetchList"
+        >
+          <el-option :label="t('inventoryList.stockTypes.customer')" :value="1" />
+          <el-option :label="t('inventoryList.stockTypes.stocking')" :value="2" />
+          <el-option :label="t('inventoryList.stockTypes.sample')" :value="3" />
+        </el-select>
+        <el-select
           v-if="tabModeDimension !== 'stockInType'"
           v-model="filters.stockInType"
           clearable
@@ -482,6 +495,7 @@ import {
   INVENTORY_WAREHOUSE_TAB_MAX,
   ISI_OUTBOUND_STATUS_TAB_VALUES,
   ISI_STOCK_IN_TYPE_TAB_VALUES,
+  ISI_STOCK_TYPE_TAB_VALUES,
   readInventoryStockItemListTabMode,
   writeInventoryStockItemListTabMode,
   isiOutboundStatusFilterToTab,
@@ -492,12 +506,15 @@ import {
   isiWarehouseTabToFilter,
   isiStockInTypeFilterToTab,
   isiStockInTypeTabToFilter,
+  isiStockTypeFilterToTab,
+  isiStockTypeTabToFilter,
   isWarehouseTabModeAllowed,
   type InventoryStockItemListTabModeDimension,
   type IsiOutboundStatusTabId,
   type IsiStockPresenceTabId,
   type IsiWarehouseTabId,
-  type IsiStockInTypeTabId
+  type IsiStockInTypeTabId,
+  type IsiStockTypeTabId
 } from '@/utils/inventoryStockItemListTabMode'
 import { applyStockItemListRouteQuery } from '@/utils/inventoryOnHandBoardDrill'
 import { authApi, type PurchaseUserSelectOption, type SalesUserSelectOption } from '@/api/auth'
@@ -728,6 +745,7 @@ const TAB_MODE_FILTER_I18N: Record<
 > = {
   outboundStatus: 'inventoryStockItemList.filters.outboundStatus',
   stockPresence: 'inventoryStockItemList.filters.stockPresenceField',
+  stockType: 'inventoryStockItemList.filters.stockTypePlaceholder',
   warehouse: 'inventoryStockItemList.filters.warehouse',
   stockInType: 'inventoryStockItemList.filters.stockInTypePlaceholder'
 }
@@ -775,6 +793,7 @@ const filterTabStripVisible = computed(
   () =>
     tabModeDimension.value === 'outboundStatus' ||
     tabModeDimension.value === 'stockPresence' ||
+    tabModeDimension.value === 'stockType' ||
     tabModeDimension.value === 'stockInType' ||
     (tabModeDimension.value === 'warehouse' && warehouseTabModeAllowed.value)
 )
@@ -785,7 +804,12 @@ const filterTabStripAriaLabel = computed(() => {
   return tabModeDimensionLabel(tabModeDimension.value)
 })
 
-type IsiFilterTabId = IsiOutboundStatusTabId | IsiStockPresenceTabId | IsiWarehouseTabId | IsiStockInTypeTabId
+type IsiFilterTabId =
+  | IsiOutboundStatusTabId
+  | IsiStockPresenceTabId
+  | IsiStockTypeTabId
+  | IsiWarehouseTabId
+  | IsiStockInTypeTabId
 
 const filters = reactive({
   stockInCode: '',
@@ -840,6 +864,15 @@ const filterTabOptions = computed(() => {
       }
     ]
   }
+  if (dim === 'stockType') {
+    return [
+      { id: 'all' as const, label: t('inventoryStockItemList.filterTabs.all') },
+      ...ISI_STOCK_TYPE_TAB_VALUES.map((value) => ({
+        id: String(value) as IsiStockTypeTabId,
+        label: listStockTypeLabel(value)
+      }))
+    ]
+  }
   if (dim === 'stockInType') {
     return [
       { id: 'all' as const, label: t('inventoryStockItemList.filterTabs.all') },
@@ -865,6 +898,7 @@ const activeFilterTabId = computed((): IsiFilterTabId => {
   const dim = tabModeDimension.value
   if (dim === 'outboundStatus') return isiOutboundStatusFilterToTab(filters.outboundStatus)
   if (dim === 'stockPresence') return isiStockPresenceFilterToTab(filters.stockPresence)
+  if (dim === 'stockType') return isiStockTypeFilterToTab(filters.stockType)
   if (dim === 'stockInType') return isiStockInTypeFilterToTab(filters.stockInType)
   if (dim === 'warehouse') return isiWarehouseFilterToTab(filters.warehouseId)
   return 'all'
@@ -883,6 +917,13 @@ function onFilterTabClick(tab: IsiFilterTabId) {
     const next = isiStockPresenceTabToFilter(tab as IsiStockPresenceTabId)
     if (filters.stockPresence === next) return
     filters.stockPresence = next
+    fetchList()
+    return
+  }
+  if (dim === 'stockType') {
+    const next = isiStockTypeTabToFilter(tab as IsiStockTypeTabId)
+    if (filters.stockType === next) return
+    filters.stockType = next
     fetchList()
     return
   }
@@ -1093,6 +1134,13 @@ const warehouseOptionLabel = (w: WarehouseInfo) => {
   const code = (w.warehouseCode || '').trim()
   if (name && code) return `${name}（${code}）`
   return name || code || '—'
+}
+
+function listStockTypeLabel(type: number): string {
+  if (type === 1) return t('inventoryList.stockTypes.customer')
+  if (type === 2) return t('inventoryList.stockTypes.stocking')
+  if (type === 3) return t('inventoryList.stockTypes.sample')
+  return t('inventoryList.stockTypes.unknown')
 }
 
 function listStockInTypeLabel(type: number | undefined | null): string {
@@ -1441,6 +1489,11 @@ onMounted(async () => {
 }
 
 .status-select--stock-presence {
+  width: 128px;
+  min-width: 120px;
+}
+
+.status-select--stock-type {
   width: 128px;
   min-width: 120px;
 }
