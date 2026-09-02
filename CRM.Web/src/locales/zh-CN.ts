@@ -1846,6 +1846,8 @@ const zhCN = {
     resetPasswordMin: '至少 6 位',
     resetPasswordMismatch: '两次输入的密码不一致',
     resetPasswordSelectFirst: '请先勾选要重置密码的员工',
+    resetPasswordSuperAdminDenied: 'SuperAdmin 账号仅系统管理员可重置密码',
+    resetPasswordSkipSuperAdmin: '已跳过无权重置的 SuperAdmin 账号',
     resetPasswordSuccess: '密码已重置',
     resetPasswordFailed: '重置密码失败',
     freeze: '冻结',

@@ -1852,6 +1852,8 @@ const enUS = {
     resetPasswordMin: 'At least 6 characters',
     resetPasswordMismatch: 'Passwords do not match',
     resetPasswordSelectFirst: 'Select at least one employee first',
+    resetPasswordSuperAdminDenied: 'Only the system administrator can reset a SuperAdmin password',
+    resetPasswordSkipSuperAdmin: 'Skipped SuperAdmin accounts you cannot reset',
     resetPasswordSuccess: 'Password has been reset',
     resetPasswordFailed: 'Failed to reset password',
     freeze: 'Freeze',

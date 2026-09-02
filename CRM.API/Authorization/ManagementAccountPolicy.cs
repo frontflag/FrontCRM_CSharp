@@ -67,6 +67,17 @@ public static class ManagementAccountPolicy
         return false;
     }
 
+    /// <summary>
+    /// 员工管理「重置密码」：SuperAdmin 操作者可为 SYS_ADMIN 目标重置；
+    /// Admin / Manager 不可维护 SuperAdmin（与 <see cref="CanMaintainTarget"/> 一致）。
+    /// </summary>
+    public static bool CanResetTargetPassword(UserPermissionSummaryDto actor, IEnumerable<string>? targetRoleCodes)
+    {
+        if (ManagementRoleCodes.TargetIsSuperAdmin(targetRoleCodes))
+            return actor.IsSysAdmin;
+        return CanMaintainTarget(actor, targetRoleCodes);
+    }
+
     public static bool CanAssignRoleCode(UserPermissionSummaryDto actor, string roleCode) =>
         GetAssignableRoleCodes(actor).Contains(roleCode);
 

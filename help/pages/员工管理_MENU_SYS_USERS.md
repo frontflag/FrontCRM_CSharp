@@ -8,7 +8,7 @@
 - 可按账号、姓名、部门、角色、状态筛选；部门/角色/状态下拉变更即查。
 - **SuperAdmin 账号对 Admin / Manager 不可见**；Manager 仅可维护普通员工，不可创建 Manager。
 - Admin 可新建 Manager（SYS_BIZ_MANAGER）；不可见 / 不可维护 SuperAdmin。
-- SuperAdmin 账号不可在本页重置密码；持有该身份者可通过隐蔽运维页自助改密，或由运维执行数据库 SQL。
+- 系统管理员可在本页为 SuperAdmin 账号重置登录密码。本人改密（需验证旧密码）仍走隐蔽运维页。
 
 ## 操作说明
 

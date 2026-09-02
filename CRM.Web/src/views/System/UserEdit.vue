@@ -53,7 +53,7 @@
             库中无 SYS_ADMIN 角色，无法勾选。
           </div>
           <div v-else class="field-hint">
-            仅当前登录为 SuperAdmin 时可授予。改密请用 /debug/super 自助或数据库 SQL。
+            仅当前登录为 SuperAdmin 时可授予。其他 SuperAdmin 可在员工列表重置其密码；本人改密仍可用 /debug/super。
           </div>
         </el-form-item>
 

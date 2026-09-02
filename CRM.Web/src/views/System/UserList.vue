@@ -172,7 +172,12 @@
           <div @click.stop @dblclick.stop>
             <div v-if="opColExpanded" class="action-btns">
               <el-button link type="primary" @click.stop="goEdit(row.id)">{{ t('systemUser.edit') }}</el-button>
-              <el-button link type="primary" @click.stop="openResetDialogForRow(row)">{{ t('systemUser.resetPassword') }}</el-button>
+              <el-button
+                v-if="resetPasswordVisibleForRow(row)"
+                link
+                type="primary"
+                @click.stop="openResetDialogForRow(row)"
+              >{{ t('systemUser.resetPassword') }}</el-button>
               <el-button
                 v-if="freezeRestoreVisibleForRow(row) && row.status !== 2"
                 link
@@ -212,7 +217,7 @@
                   <el-dropdown-item command="edit">
                     <span class="op-more-item op-more-item--primary">{{ t('systemUser.edit') }}</span>
                   </el-dropdown-item>
-                  <el-dropdown-item command="resetPassword">
+                  <el-dropdown-item v-if="resetPasswordVisibleForRow(row)" command="resetPassword">
                     <span class="op-more-item op-more-item--primary">{{ t('systemUser.resetPassword') }}</span>
                   </el-dropdown-item>
                   <el-dropdown-item
@@ -530,6 +535,16 @@ function freezeRestoreVisibleForRow(row: AdminUserDto) {
   return true
 }
 
+function isSuperAdminRow(row: AdminUserDto) {
+  return (row.roleCodes ?? []).some((c) => String(c).toUpperCase() === 'SYS_ADMIN')
+}
+
+/** SuperAdmin 目标仅当前登录为系统管理员时可重置密码 */
+function resetPasswordVisibleForRow(row: AdminUserDto) {
+  if (!isSuperAdminRow(row)) return true
+  return authStore.user?.isSysAdmin === true
+}
+
 function userRowClassName({ row }: { row: AdminUserDto }) {
   return ['table-row-pointer', row.status === 2 ? 'user-list-row--frozen' : ''].filter(Boolean).join(' ')
 }
@@ -550,7 +565,15 @@ function openResetDialogFromSelection() {
     ElMessage.warning(t('systemUser.resetPasswordSelectFirst'))
     return
   }
-  openResetDialog([...selectedUsers.value])
+  const allowed = selectedUsers.value.filter((u) => resetPasswordVisibleForRow(u))
+  if (allowed.length === 0) {
+    ElMessage.warning(t('systemUser.resetPasswordSuperAdminDenied'))
+    return
+  }
+  if (allowed.length < selectedUsers.value.length) {
+    ElMessage.warning(t('systemUser.resetPasswordSkipSuperAdmin'))
+  }
+  openResetDialog(allowed)
 }
 
 function openResetDialogForRow(row: AdminUserDto) {
