@@ -239,16 +239,54 @@ public static class PackingReportBundleLoader
         await OverlayCustomsBrokerConsigneeAsync(
             db, packingId, packingBundle.PackingAddresses, cancellationToken);
 
+        var packing = await packingService.GetPackingByIdAsync(packingId.Trim(), cancellationToken);
+        if (packing != null)
+            ApplyCustomsInvoiceUsdPrices(packing, packingBundle.PackingLines);
+
         return new StockOutInvoiceReportBundleDto
         {
             StockOut = packingBundle.StockOut,
             CompanyProfile = packingBundle.CompanyProfile,
             PackingCode = packingBundle.PackingCode,
+            PackingStockOutType = packing?.StockOutType,
             PackingAddresses = packingBundle.PackingAddresses,
             WarehouseAddress = packingBundle.WarehouseAddress,
             WarehouseRegionType = packingBundle.WarehouseRegionType,
             PackingLines = packingBundle.PackingLines
         };
+    }
+
+    /// <summary>
+    /// 报关装箱 Invoice：美金段，单价用销售折算美金价，币别固定 USD。
+    /// 装箱单 Packing List 不改价。
+    /// </summary>
+    public static void ApplyCustomsInvoiceUsdPrices(
+        PackingDetailDto packing,
+        List<PackingReportLineDto> lines)
+    {
+        if (lines.Count == 0 || !CustomsInvoiceReportPriceRules.IsCustomsPacking(packing.StockOutType))
+            return;
+
+        var convertByItemId = (packing.ItemExtends ?? new List<PackingDetailItemExtendDto>())
+            .Where(e => !string.IsNullOrWhiteSpace(e.PackingItemId))
+            .GroupBy(e => e.PackingItemId.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().PriceConvertPrice, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var line in lines)
+        {
+            decimal? convert = null;
+            var itemId = line.PackingItemId?.Trim();
+            if (!string.IsNullOrEmpty(itemId))
+                convertByItemId.TryGetValue(itemId, out convert);
+
+            var resolved = CustomsInvoiceReportPriceRules.ResolveLine(
+                packing.StockOutType,
+                line.Price,
+                convert,
+                line.PriceCurrency);
+            line.Price = resolved.Price;
+            line.PriceCurrency = resolved.Currency;
+        }
     }
 
     public static async Task<List<PackingReportLineDto>> MapPackingLinesAsync(

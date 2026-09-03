@@ -1,11 +1,15 @@
 /** Invoice 行金额：优先装箱明细销售单价，缺价时才按出库头金额摊数量。 */
 
+import { CurrencyCode } from '@/constants/currency'
 import {
   formatTotalAmountNumber,
   formatTotalAmountWithCurrencyCodeSuffix,
   formatUnitPriceNumber,
   formatUnitPriceWithCurrencyCodeSuffix
 } from '@/utils/moneyFormat'
+
+/** 报关出库 / 报关装箱（与后端 StockOutTypeCode.Customs 一致） */
+export const STOCK_OUT_TYPE_CUSTOMS = 20
 
 export type InvoiceReportAmountSource = {
   qty?: number | null
@@ -58,6 +62,42 @@ export function formatInvoiceMoney(
   return hasCcy
     ? formatTotalAmountWithCurrencyCodeSuffix(value, Number(currency))
     : formatTotalAmountNumber(value)
+}
+
+/** 报关装箱 Invoice：判定应走美金段（装箱类型优先，勿用关联销售出库单类型）。 */
+export function resolveCustomsInvoiceStockOutType(args: {
+  packingStockOutType?: number | null
+  stockOutType?: number | null
+  customsBrokerConsignee?: boolean
+}): number | null {
+  const packingType = args.packingStockOutType
+  if (packingType != null && Number.isFinite(Number(packingType))) return Number(packingType)
+  if (args.customsBrokerConsignee) return STOCK_OUT_TYPE_CUSTOMS
+  const stockOutType = args.stockOutType
+  if (stockOutType != null && Number.isFinite(Number(stockOutType))) return Number(stockOutType)
+  return null
+}
+
+/** 报关装箱 Invoice：美金段，有折算美金价则用之，币别固定 USD（对齐后端 ResolveLine）。 */
+export function applyCustomsInvoiceUsdPrices(
+  stockOutType: number | null | undefined,
+  lines: Array<{ packingItemId?: string | null; price?: number | null; priceCurrency?: number | null }>,
+  extendsList?: Array<{ packingItemId?: string | null; priceConvertPrice?: number | null }> | null
+): void {
+  if (Number(stockOutType) !== STOCK_OUT_TYPE_CUSTOMS || !lines.length) return
+  const convertById = new Map<string, number>()
+  for (const row of extendsList ?? []) {
+    const id = String(row.packingItemId ?? '').trim().toLowerCase()
+    const conv = Number(row.priceConvertPrice)
+    if (id && Number.isFinite(conv) && conv > 0) convertById.set(id, conv)
+  }
+  for (const line of lines) {
+    const id = String(line.packingItemId ?? '').trim().toLowerCase()
+    const conv = id ? convertById.get(id) : undefined
+    const base = line.price != null && Number.isFinite(Number(line.price)) ? Number(line.price) : null
+    line.price = conv != null && conv > 0 ? conv : base
+    line.priceCurrency = CurrencyCode.USD
+  }
 }
 
 /** 全部行同一币别则返回该码，否则合计不带币别。 */

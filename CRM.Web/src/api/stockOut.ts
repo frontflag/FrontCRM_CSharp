@@ -247,6 +247,8 @@ export interface StockOutInvoiceReportBundle {
   stockOut: StockOutDetailDto
   companyProfile: CompanyProfileBundle
   packingCode?: string | null
+  /** packing.StockOutType；报关装箱 Invoice 美金段判定用 */
+  packingStockOutType?: number | null
   packingAddresses?: PackingReportAddressPanel | null
   warehouseAddress?: string | null
   /** packing.storage_id / 出库单仓库 → warehouseinfo.RegionType：10=大陆 20=海外 */
@@ -321,6 +323,11 @@ export function parseInvoiceBundlePayload(res: unknown): StockOutInvoiceReportBu
   const rawCode = o.packingCode ?? o.PackingCode
   const packingCode =
     typeof rawCode === 'string' && rawCode.trim().length > 0 ? rawCode.trim() : null
+  const rawPackingStockOutType = o.packingStockOutType ?? o.PackingStockOutType
+  const packingStockOutType =
+    rawPackingStockOutType != null && rawPackingStockOutType !== '' && !Number.isNaN(Number(rawPackingStockOutType))
+      ? Number(rawPackingStockOutType)
+      : null
   const rawWarehouseAddress = o.warehouseAddress ?? o.WarehouseAddress
   const warehouseAddress =
     typeof rawWarehouseAddress === 'string' && rawWarehouseAddress.trim().length > 0
@@ -335,6 +342,7 @@ export function parseInvoiceBundlePayload(res: unknown): StockOutInvoiceReportBu
     stockOut,
     companyProfile,
     packingCode,
+    packingStockOutType,
     packingAddresses,
     warehouseAddress,
     warehouseRegionType,

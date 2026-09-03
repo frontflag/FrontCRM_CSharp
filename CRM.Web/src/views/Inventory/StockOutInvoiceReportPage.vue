@@ -35,7 +35,7 @@ import { ref, computed, onMounted, onBeforeUnmount, onUnmounted, watch } from 'v
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { stockOutApi } from '@/api/stockOut'
-import { packingApi, packingDetailItemsToReportLines } from '@/api/packing'
+import { packingApi, packingDetailItemsToReportLines, type PackingDetailItemExtend } from '@/api/packing'
 import {
   type CompanyBasicRow,
   type CompanyBankRow,
@@ -65,7 +65,7 @@ import { LOGIN_TENANT_ID } from '@/config/loginTenant'
 import { reportParamsApi, type ReportStyleVersion } from '@/api/reportParams'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { normalizePackingAddrLines } from '@/utils/packingReportAddressLines'
-import { resolveInvoiceLineAmounts, sumInvoiceLineAmounts, formatInvoiceMoney, resolveInvoiceTotalCurrency } from '@/utils/invoiceReportLines'
+import { resolveInvoiceLineAmounts, sumInvoiceLineAmounts, formatInvoiceMoney, resolveInvoiceTotalCurrency, applyCustomsInvoiceUsdPrices, resolveCustomsInvoiceStockOutType, STOCK_OUT_TYPE_CUSTOMS } from '@/utils/invoiceReportLines'
 import { resolvePackingReportConsigneeName } from '@/utils/packingReportCustomsConsignee'
 import {
   getInvoiceReportLabels,
@@ -422,15 +422,35 @@ async function load() {
     packingCode.value = bundle.packingCode ?? null
     warehouseInfoAddress.value = (bundle.warehouseAddress || '').trim()
     let lines = bundle.packingLines ?? []
-    if (fromPacking && lines.length === 0) {
+    let itemExtends: PackingDetailItemExtend[] | null = null
+    let packingStockOutType = bundle.packingStockOutType ?? null
+    const invoicePackingTypeHint = resolveCustomsInvoiceStockOutType({
+      packingStockOutType,
+      stockOutType: bundle.stockOut.stockOutType,
+      customsBrokerConsignee: bundle.packingAddresses?.customsBrokerConsignee
+    })
+    const needsPackingDetail =
+      Boolean(fromPacking) &&
+      (lines.length === 0 || invoicePackingTypeHint === STOCK_OUT_TYPE_CUSTOMS)
+    if (needsPackingDetail) {
       try {
         const detail = await packingApi.getById(fromPacking)
-        lines = packingDetailItemsToReportLines(detail.items)
+        packingStockOutType = detail.stockOutType
+        itemExtends = detail.itemExtends ?? null
+        if (lines.length === 0) {
+          lines = packingDetailItemsToReportLines(detail.items)
+        }
       } catch {
         /* bundle 未带明细时降级拉装箱单详情 */
       }
     }
     packingLines.value = lines
+    const invoicePackingType = resolveCustomsInvoiceStockOutType({
+      packingStockOutType,
+      stockOutType: bundle.stockOut.stockOutType,
+      customsBrokerConsignee: bundle.packingAddresses?.customsBrokerConsignee
+    })
+    applyCustomsInvoiceUsdPrices(invoicePackingType, packingLines.value, itemExtends)
     const cp = bundle.companyProfile
     const logos = cp.logos ?? []
     profileBasics.value = cp.basicInfos ?? []

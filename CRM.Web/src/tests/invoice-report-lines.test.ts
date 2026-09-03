@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
+  applyCustomsInvoiceUsdPrices,
   formatInvoiceMoney,
+  resolveCustomsInvoiceStockOutType,
   resolveInvoiceLineAmounts,
   resolveInvoiceTotalCurrency,
-  sumInvoiceLineAmounts
+  sumInvoiceLineAmounts,
+  STOCK_OUT_TYPE_CUSTOMS
 } from '@/utils/invoiceReportLines'
 import { CurrencyCode } from '@/constants/currency'
 
@@ -56,5 +59,53 @@ describe('invoice report line amounts', () => {
         { priceCurrency: CurrencyCode.USD }
       ])
     ).toBeNull()
+  })
+
+  it('customs packing invoice forces USD and convert price', () => {
+    const lines = [
+      { packingItemId: 'a', price: 72, priceCurrency: CurrencyCode.RMB }
+    ]
+    applyCustomsInvoiceUsdPrices(
+      20,
+      lines,
+      [{ packingItemId: 'a', priceConvertPrice: 10.4 }]
+    )
+    expect(lines[0].price).toBe(10.4)
+    expect(lines[0].priceCurrency).toBe(CurrencyCode.USD)
+  })
+
+  it('sales packing invoice keeps order currency', () => {
+    const lines = [
+      { packingItemId: 'a', price: 72, priceCurrency: CurrencyCode.RMB }
+    ]
+    applyCustomsInvoiceUsdPrices(10, lines, [{ packingItemId: 'a', priceConvertPrice: 10.4 }])
+    expect(lines[0].price).toBe(72)
+    expect(lines[0].priceCurrency).toBe(CurrencyCode.RMB)
+  })
+
+  it('customs invoice uses packing type not linked sales stock-out type', () => {
+    expect(
+      resolveCustomsInvoiceStockOutType({
+        packingStockOutType: STOCK_OUT_TYPE_CUSTOMS,
+        stockOutType: 10,
+        customsBrokerConsignee: false
+      })
+    ).toBe(STOCK_OUT_TYPE_CUSTOMS)
+  })
+
+  it('customs invoice falls back to broker consignee flag', () => {
+    expect(
+      resolveCustomsInvoiceStockOutType({
+        stockOutType: 10,
+        customsBrokerConsignee: true
+      })
+    ).toBe(STOCK_OUT_TYPE_CUSTOMS)
+  })
+
+  it('customs invoice without convert price still forces USD currency', () => {
+    const lines = [{ packingItemId: 'a', price: 72, priceCurrency: CurrencyCode.RMB }]
+    applyCustomsInvoiceUsdPrices(20, lines, [])
+    expect(lines[0].price).toBe(72)
+    expect(lines[0].priceCurrency).toBe(CurrencyCode.USD)
   })
 })
