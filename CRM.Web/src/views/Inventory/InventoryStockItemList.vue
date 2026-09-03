@@ -12,7 +12,7 @@
             </svg>
           </div>
           <h1 class="page-title">{{ t('inventoryStockItemList.title') }}</h1>
-          <div class="count-badge">{{ t('inventoryStockItemList.count', { count: listTotal }) }}</div>
+          <div v-if="viewMode === 'list'" class="count-badge">{{ t('inventoryStockItemList.count', { count: listTotal }) }}</div>
         </div>
       </div>
       <div class="header-right">
@@ -29,7 +29,7 @@
       {{ rankingDrillBannerText }}
     </div>
 
-    <div class="stat-row">
+    <div v-show="viewMode === 'list'" class="stat-row">
       <el-card class="stat-card">
         <div class="stat-line">
           <span class="stat-label">{{ t('inventoryStockItemList.stats.qtyInbound') }}</span>
@@ -227,6 +227,13 @@
         </el-select>
         <button type="button" class="btn-primary btn-sm" @click="fetchList">{{ t('inventoryStockItemList.filters.search') }}</button>
         <button type="button" class="btn-ghost btn-sm" @click="resetFilters">{{ t('inventoryStockItemList.filters.reset') }}</button>
+        <button
+          class="btn-ghost btn-sm btn-board-active"
+          type="button"
+          @click="toggleViewMode"
+        >
+          {{ viewMode === 'board' ? t('inventoryStockItemList.filters.listView') : t('inventoryStockItemList.filters.boardView') }}
+        </button>
         <el-popover
           v-model:visible="settingsMenuOpen"
           trigger="click"
@@ -314,8 +321,17 @@
       </button>
     </div>
 
+    <InventoryStockItemListBoard
+      v-if="viewMode === 'board'"
+      ref="boardRef"
+      :filters="boardFilters"
+      @drill-stagnant="onBoardDrillStagnant"
+      @drill-ranking="onBoardDrillRanking"
+    />
+
     <!-- 主表：列设置齿轮 + 行高密度锚点见《业务列表规范》§1.2、§2.3；双击行见《列表双击进入详情规范》 -->
     <CrmDataTable
+      v-show="viewMode === 'list'"
       ref="dataTableRef"
       class="inventory-stock-item-list-crm-table"
       column-layout-key="inventory-stock-item-list-main-v3"
@@ -453,7 +469,7 @@
         </div>
       </template>
     </CrmDataTable>
-    <div class="pagination-wrapper">
+    <div v-show="viewMode === 'list'" class="pagination-wrapper">
       <div class="list-footer-left">
         <el-tooltip :content="t('systemUser.colSetting')" placement="top" :hide-after="0">
           <el-button
@@ -517,6 +533,9 @@ import {
   type IsiStockTypeTabId
 } from '@/utils/inventoryStockItemListTabMode'
 import { applyStockItemListRouteQuery } from '@/utils/inventoryOnHandBoardDrill'
+import { useListBoardHelpOverride } from '@/composables/useHelpDocOverride'
+import InventoryStockItemListBoard from '@/views/Inventory/InventoryStockItemListBoard.vue'
+import type { InventoryStockItemRankingDrillPayload } from '@/api/inventoryStockItemAnalytics'
 import { authApi, type PurchaseUserSelectOption, type SalesUserSelectOption } from '@/api/auth'
 import { inventoryCenterApi, type StockItemListQuery, type StockItemListRow, type WarehouseInfo } from '@/api/inventoryCenter'
 import { normalizeRegionType, REGION_TYPE_OVERSEAS } from '@/constants/regionType'
@@ -563,12 +582,15 @@ function onStockItemTableHeaderDragEnd(
 const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
+const viewMode = ref<'list' | 'board'>('list')
+useListBoardHelpOverride('pages/库存明细看板_MENU_INVENTORY_STOCK_ITEMS_BOARD.md', viewMode)
 const authStore = useAuthStore()
 const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const stockItemFlowStore = useStockItemFlowPanelStore()
 const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 const canForceDelete = computed(() => authStore.canForceDelete())
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
+const boardRef = ref<{ reload?: () => Promise<void> } | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const loading = ref(false)
 const exporting = ref(false)
@@ -986,8 +1008,48 @@ function buildQuery(): StockItemListQuery {
   return q
 }
 
+const boardFilters = computed(() => buildQuery())
+
+function toggleViewMode() {
+  viewMode.value = viewMode.value === 'list' ? 'board' : 'list'
+  if (viewMode.value === 'list') void runStockItemFetch(false)
+}
+
+function onBoardDrillStagnant() {
+  filters.stagnantOnly = true
+  filters.stockPresence = 'has'
+  filters.rankDimension = ''
+  filters.rankKey = ''
+  filters.rankCurrency = undefined
+  drillMode.value = 'stagnant'
+  drillRankLabel.value = ''
+  drillRankPanel.value = ''
+  drillRankCurrencyKey.value = ''
+  viewMode.value = 'list'
+  void runStockItemFetch(true)
+}
+
+function onBoardDrillRanking(payload: InventoryStockItemRankingDrillPayload) {
+  filters.stagnantOnly = false
+  filters.stockPresence = 'has'
+  filters.rankDimension = payload.dimension
+  filters.rankKey = payload.row.id
+  const ccy = payload.currencyKey ? Number(payload.currencyKey) : undefined
+  filters.rankCurrency =
+    payload.metricMode === 'amount' && ccy != null && Number.isFinite(ccy) && ccy >= 1
+      ? ccy
+      : undefined
+  drillMode.value = 'ranking'
+  drillRankLabel.value = payload.row.name
+  drillRankPanel.value = payload.panelTitle
+  drillRankCurrencyKey.value = payload.currencyKey ?? ''
+  viewMode.value = 'list'
+  void runStockItemFetch(true)
+}
+
 async function runStockItemFetch(resetPage: boolean) {
   if (resetPage) listPage.value = 1
+  if (viewMode.value === 'board') return
   loading.value = true
   try {
     const res = await inventoryCenterApi.searchStockItems({
@@ -1013,7 +1075,13 @@ async function runStockItemFetch(resetPage: boolean) {
   }
 }
 
-const fetchList = () => void runStockItemFetch(true)
+const fetchList = () => {
+  if (viewMode.value === 'board') {
+    void boardRef.value?.reload?.()
+    return
+  }
+  void runStockItemFetch(true)
+}
 
 const resetFilters = () => {
   filters.stockInCode = ''
@@ -1770,6 +1838,12 @@ html[data-theme='dark'] .isi-filter-tabs__item:not(.is-active) {
   background: transparent;
   border-color: $border-panel;
   color: $text-secondary;
+}
+
+.btn-board-active {
+  border-color: rgba(0, 212, 255, 0.45);
+  color: #00d4ff;
+  background: rgba(0, 212, 255, 0.08);
 }
 
 .action-btns {

@@ -1,4 +1,3 @@
-using System.Globalization;
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Analytics;
@@ -8,11 +7,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CRM.Infrastructure.InventoryCenter;
 
-/// <summary>库存中心列表看板：时点存量趋势、原币 KPI、加权平均库龄。</summary>
-public sealed class InventoryOnHandListAnalyticsQuery : IInventoryOnHandListAnalyticsQuery
+/// <summary>库存明细列表看板：与列表共用筛选；趋势尊重 groupBy；呆滞按在库数量。</summary>
+public sealed class InventoryStockItemListAnalyticsQuery : IInventoryStockItemListAnalyticsQuery
 {
     private const int TopN = 10;
-    private const int TrendDefaultMonths = 12;
     private const int StagnantDays = 90;
     private static readonly short[] TrendChartCurrencies =
     [
@@ -29,7 +27,7 @@ public sealed class InventoryOnHandListAnalyticsQuery : IInventoryOnHandListAnal
     private readonly ApplicationDbContext _db;
     private readonly IDataPermissionService _dataPermission;
 
-    public InventoryOnHandListAnalyticsQuery(
+    public InventoryStockItemListAnalyticsQuery(
         ApplicationDbContext db,
         IDataPermissionService dataPermission)
     {
@@ -37,8 +35,8 @@ public sealed class InventoryOnHandListAnalyticsQuery : IInventoryOnHandListAnal
         _dataPermission = dataPermission;
     }
 
-    public async Task<InventoryOnHandListAnalyticsDashboardDto> GetDashboardAsync(
-        InventoryOnHandSummaryQueryRequest request,
+    public async Task<InventoryStockItemListAnalyticsDashboardDto> GetDashboardAsync(
+        InventoryStockItemListQuery request,
         bool maskAmounts,
         CancellationToken cancellationToken = default)
     {
@@ -46,29 +44,35 @@ public sealed class InventoryOnHandListAnalyticsQuery : IInventoryOnHandListAnal
         var layers = bundle.Layers;
         var today = DateTime.UtcNow.Date;
         var stagnantThreshold = today.AddDays(-StagnantDays);
+        var outboundSince = today.AddDays(-30);
 
         var currencyLines = maskAmounts
             ? (IReadOnlyList<InventoryOnHandListAnalyticsCurrencyLineDto>)Array.Empty<InventoryOnHandListAnalyticsCurrencyLineDto>()
             : BuildCurrencyLines(layers);
 
-        var stagnantCount = layers.Count(l =>
-            !l.StockInDate.HasValue || l.StockInDate.Value.Date <= stagnantThreshold);
+        var onHandQty = layers.Sum(l => l.QtyRepertory);
+        var outboundQtyLast30 = bundle.OutEvents
+            .Where(o => o.OutDate >= outboundSince && o.OutDate <= today)
+            .Sum(o => o.Qty);
+        var stagnantQty = layers
+            .Where(l => !l.StockInDate.HasValue || l.StockInDate.Value.Date <= stagnantThreshold)
+            .Sum(l => l.QtyRepertory);
 
-        return new InventoryOnHandListAnalyticsDashboardDto
+        return new InventoryStockItemListAnalyticsDashboardDto
         {
             Context = new InventoryOnHandListAnalyticsContextDto { MaskAmounts = maskAmounts },
-            Snapshot = new InventoryOnHandListAnalyticsSnapshotDto
+            Snapshot = new InventoryStockItemListAnalyticsSnapshotDto
             {
-                OnHandQty = layers.Sum(l => l.QtyRepertory),
+                OnHandQty = onHandQty,
                 CurrencyLines = currencyLines,
-                WeightedAvgAgeDays = WeightedAvgAge(layers),
-                StagnantLayerCount = stagnantCount
+                TurnoverDays = InventoryStockItemTurnover.Days(onHandQty, outboundQtyLast30),
+                StagnantQty = stagnantQty
             }
         };
     }
 
     public async Task<IReadOnlyList<InventoryOnHandListAnalyticsTrendPointDto>> GetTrendsAsync(
-        InventoryOnHandSummaryQueryRequest request,
+        InventoryStockItemListQuery request,
         string groupBy,
         bool maskAmounts,
         CancellationToken cancellationToken = default)
@@ -77,16 +81,26 @@ public sealed class InventoryOnHandListAnalyticsQuery : IInventoryOnHandListAnal
         var layers = bundle.Layers;
         var outs = bundle.OutEvents;
         var today = DateTime.UtcNow.Date;
-        var dateFrom = new DateTime(today.Year, today.Month, 1, 0, 0, 0, DateTimeKind.Utc)
-            .AddMonths(-(TrendDefaultMonths - 1));
-        const string normalizedGroupBy = "month";
-        var periods = BuildPeriodKeys(dateFrom, today, normalizedGroupBy);
-        var currencies = TrendChartCurrencies;
+        var normalizedGroupBy = InventoryAnalyticsTrendWindow.NormalizeGroupBy(groupBy);
+        if (!InventoryAnalyticsTrendWindow.TryResolveRange(
+                today,
+                normalizedGroupBy,
+                request.StockInDateFrom,
+                request.StockInDateTo,
+                out var dateFrom,
+                out var dateTo))
+        {
+            return Array.Empty<InventoryOnHandListAnalyticsTrendPointDto>();
+        }
+
+        var periods = InventoryAnalyticsTrendWindow.BuildPeriodKeys(dateFrom, dateTo, normalizedGroupBy);
+        var currencies = InventoryOnHandCurrency.OrderPresent(
+            layers.Select(l => l.Currency).Concat(TrendChartCurrencies));
 
         var result = new List<InventoryOnHandListAnalyticsTrendPointDto>(periods.Count);
         foreach (var period in periods)
         {
-            var (_, endExclusive) = ParsePeriodRange(period, normalizedGroupBy);
+            var (_, endExclusive) = InventoryAnalyticsTrendWindow.ParsePeriodRange(period, normalizedGroupBy);
             var asOf = endExclusive.AddDays(-1).Date;
             if (asOf > today) asOf = today;
 
@@ -124,7 +138,7 @@ public sealed class InventoryOnHandListAnalyticsQuery : IInventoryOnHandListAnal
     }
 
     public async Task<IReadOnlyList<InventoryOnHandListAnalyticsBreakdownGroupDto>> GetBreakdownsAsync(
-        InventoryOnHandSummaryQueryRequest request,
+        InventoryStockItemListQuery request,
         bool maskAmounts,
         CancellationToken cancellationToken = default)
     {
@@ -158,7 +172,7 @@ public sealed class InventoryOnHandListAnalyticsQuery : IInventoryOnHandListAnal
     }
 
     public async Task<InventoryOnHandListAnalyticsRankingsDto> GetRankingsAsync(
-        InventoryOnHandSummaryQueryRequest request,
+        InventoryStockItemListQuery request,
         bool maskAmounts,
         CancellationToken cancellationToken = default)
     {
@@ -201,54 +215,40 @@ public sealed class InventoryOnHandListAnalyticsQuery : IInventoryOnHandListAnal
     }
 
     private async Task<AnalyticsBundle> LoadBundleAsync(
-        InventoryOnHandSummaryQueryRequest request,
+        InventoryStockItemListQuery request,
         CancellationToken cancellationToken)
     {
-        var filtered = await BuildFilteredAsync(request, cancellationToken);
-        var joined = from si in filtered
-                     join sin in _db.StockIns.AsNoTracking() on si.StockInId equals sin.Id into sinJoin
-                     from sin in sinJoin.DefaultIfEmpty()
-                     select new
-                     {
-                         si.Id,
-                         si.PurchasePn,
-                         si.PurchaseBrand,
-                         si.StockType,
-                         si.WarehouseId,
-                         si.CustomerId,
-                         si.CustomerName,
-                         si.SalespersonId,
-                         si.SalespersonName,
-                         si.QtyRepertory,
-                         si.QtyInbound,
-                         si.PurchasePrice,
-                         si.PurchaseCurrency,
-                         StockInDate = sin != null && !sin.IsDeleted ? (DateTime?)sin.StockInDate : null
-                     };
-
-        var raw = await joined.ToListAsync(cancellationToken);
-        var warehouseIds = raw
-            .Select(x => x.WarehouseId?.Trim())
-            .Where(id => !string.IsNullOrEmpty(id))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        var warehouseById = warehouseIds.Count == 0
-            ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            : await _db.Warehouses.AsNoTracking()
-                .Where(w => warehouseIds.Contains(w.Id))
-                .ToDictionaryAsync(
-                    w => w.Id.Trim(),
-                    w => string.IsNullOrWhiteSpace(w.WarehouseName)
-                        ? (string.IsNullOrWhiteSpace(w.WarehouseCode) ? w.Id.Trim() : w.WarehouseCode.Trim())
-                        : w.WarehouseName.Trim(),
-                    StringComparer.OrdinalIgnoreCase,
-                    cancellationToken);
+        var filtered = await InventoryStockItemListFilter.BuildFilteredJoinAsync(
+            _db, _dataPermission, request, cancellationToken);
+        var raw = await filtered
+            .Select(x => new
+            {
+                x.Si.Id,
+                x.Si.PurchasePn,
+                x.Si.PurchaseBrand,
+                x.Si.StockType,
+                x.Si.WarehouseId,
+                WarehouseName = x.W != null ? x.W.WarehouseName : null,
+                WarehouseCode = x.W != null ? x.W.WarehouseCode : null,
+                x.Si.CustomerId,
+                x.Si.CustomerName,
+                x.Si.SalespersonId,
+                x.Si.SalespersonName,
+                x.Si.QtyRepertory,
+                x.Si.QtyInbound,
+                x.Si.PurchasePrice,
+                x.Si.PurchaseCurrency,
+                StockInDate = x.Sin != null ? (DateTime?)x.Sin.StockInDate : null
+            })
+            .ToListAsync(cancellationToken);
 
         var today = DateTime.UtcNow.Date;
         var layers = raw.Select(x =>
         {
             var whId = x.WarehouseId?.Trim() ?? "";
-            warehouseById.TryGetValue(whId, out var whName);
+            var whName = string.IsNullOrWhiteSpace(x.WarehouseName)
+                ? (string.IsNullOrWhiteSpace(x.WarehouseCode) ? whId : x.WarehouseCode!.Trim())
+                : x.WarehouseName.Trim();
             var stockInDate = x.StockInDate.HasValue && x.StockInDate.Value.Year >= 2000
                 ? x.StockInDate.Value.Date
                 : (DateTime?)null;
@@ -261,7 +261,7 @@ public sealed class InventoryOnHandListAnalyticsQuery : IInventoryOnHandListAnal
                 BrandKey = x.PurchaseBrand == null ? "" : x.PurchaseBrand.Trim().ToLowerInvariant(),
                 StockType = x.StockType,
                 WarehouseId = whId,
-                WarehouseLabel = string.IsNullOrEmpty(whId) ? UnsetWarehouse : (whName ?? whId),
+                WarehouseLabel = string.IsNullOrEmpty(whId) ? UnsetWarehouse : whName,
                 CustomerId = x.CustomerId,
                 CustomerName = x.CustomerName,
                 SalespersonId = x.SalespersonId,
@@ -317,38 +317,6 @@ public sealed class InventoryOnHandListAnalyticsQuery : IInventoryOnHandListAnal
         return result;
     }
 
-    private async Task<IQueryable<CRM.Core.Models.Inventory.StockItem>> BuildFilteredAsync(
-        InventoryOnHandSummaryQueryRequest request,
-        CancellationToken cancellationToken)
-    {
-        var modelK = request.MaterialModel?.Trim().ToLowerInvariant();
-        var brandK = request.PurchaseBrand?.Trim().ToLowerInvariant();
-        var wh = request.WarehouseId?.Trim();
-
-        var stockItems = _db.StockItems.AsNoTracking()
-            .Where(si => si.QtyRepertory > 0)
-            .Where(si => si.TransferType == null || si.TransferType != StockItemTransferTypeCodes.ManualTransferSource);
-        stockItems = await _dataPermission.ApplyStockItemListDataScopeAsync(
-            request.CurrentUserId,
-            stockItems,
-            _db.SellOrders.AsNoTracking(),
-            _db.SellOrderItems.AsNoTracking(),
-            _db.Customers.AsNoTracking(),
-            cancellationToken);
-
-        if (!string.IsNullOrEmpty(modelK))
-            stockItems = stockItems.Where(si => si.PurchasePn != null && si.PurchasePn.ToLower().Contains(modelK));
-        if (!string.IsNullOrEmpty(brandK))
-            stockItems = stockItems.Where(si =>
-                si.PurchaseBrand != null && si.PurchaseBrand.ToLower().Contains(brandK));
-        if (request.StockType is >= 1 and <= 3)
-            stockItems = stockItems.Where(si => si.StockType == request.StockType.Value);
-        if (!string.IsNullOrEmpty(wh))
-            stockItems = stockItems.Where(si => si.WarehouseId == wh);
-
-        return stockItems;
-    }
-
     private static int QtyAt(LayerRow layer, DateTime asOfDate, IReadOnlyList<OutEventRow> outs)
     {
         if (!layer.StockInDate.HasValue || layer.StockInDate.Value.Date > asOfDate)
@@ -359,14 +327,6 @@ public sealed class InventoryOnHandListAnalyticsQuery : IInventoryOnHandListAnal
             .Sum(o => o.Qty);
         var qty = layer.QtyInbound - outQty;
         return qty > 0 ? qty : 0;
-    }
-
-    private static decimal? WeightedAvgAge(IReadOnlyList<LayerRow> layers)
-    {
-        var eligible = layers.Where(l => l.StockInDate.HasValue).ToList();
-        var qty = eligible.Sum(l => l.QtyRepertory);
-        if (qty <= 0) return null;
-        return Math.Round((decimal)eligible.Sum(l => l.AgeDays * l.QtyRepertory) / qty, 1, MidpointRounding.AwayFromZero);
     }
 
     private static List<InventoryOnHandListAnalyticsCurrencyLineDto> BuildCurrencyLines(IReadOnlyList<LayerRow> layers)
@@ -423,7 +383,7 @@ public sealed class InventoryOnHandListAnalyticsQuery : IInventoryOnHandListAnal
 
     private static InventoryOnHandListAnalyticsBreakdownGroupDto BuildAgeBucketQtyBreakdown(IReadOnlyList<LayerRow> layers)
     {
-        var buckets = CreateAgeBuckets();
+        var buckets = InventoryAnalyticsAgeBucket.CreateEmpty();
         foreach (var layer in layers.Where(l => l.StockInDate.HasValue))
         {
             var key = InventoryAnalyticsAgeBucket.Classify(layer.AgeDays);
@@ -444,7 +404,7 @@ public sealed class InventoryOnHandListAnalyticsQuery : IInventoryOnHandListAnal
         string currencyLabel,
         bool maskAmounts)
     {
-        var buckets = CreateAgeBuckets();
+        var buckets = InventoryAnalyticsAgeBucket.CreateEmpty();
         foreach (var layer in layers.Where(l => l.StockInDate.HasValue))
         {
             var key = InventoryAnalyticsAgeBucket.Classify(layer.AgeDays);
@@ -461,9 +421,6 @@ public sealed class InventoryOnHandListAnalyticsQuery : IInventoryOnHandListAnal
             Items = ToBreakdownItems(buckets)
         };
     }
-
-    private static Dictionary<string, (string Label, decimal Qty)> CreateAgeBuckets() =>
-        InventoryAnalyticsAgeBucket.CreateEmpty();
 
     private static List<SalesAnalyticsBreakdownItemDto> ToBreakdownItems(
         Dictionary<string, (string Label, decimal Qty)> buckets)
@@ -597,63 +554,6 @@ public sealed class InventoryOnHandListAnalyticsQuery : IInventoryOnHandListAnal
 
         foreach (var it in items)
             it.Ratio = Math.Round(it.Value / total * 100m, 2);
-    }
-
-    private static string NormalizeGroupBy(string? groupBy) =>
-        (groupBy ?? string.Empty).Trim().ToLowerInvariant() switch
-        {
-            "day" => "day",
-            "week" => "week",
-            _ => "month"
-        };
-
-    private static List<string> BuildPeriodKeys(DateTime from, DateTime to, string groupBy)
-    {
-        var keys = new List<string>();
-        var cursor = from.Date;
-        var end = to.Date;
-        while (cursor <= end)
-        {
-            keys.Add(FormatPeriodKey(cursor, groupBy));
-            cursor = groupBy switch
-            {
-                "day" => cursor.AddDays(1),
-                "week" => cursor.AddDays(7),
-                _ => cursor.AddMonths(1)
-            };
-        }
-
-        return keys.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-    }
-
-    private static string FormatPeriodKey(DateTime date, string groupBy) => groupBy switch
-    {
-        "day" => date.ToString("yyyy-MM-dd"),
-        "week" => $"{date:yyyy}-W{ISOWeek.GetWeekOfYear(date):D2}",
-        _ => date.ToString("yyyy-MM")
-    };
-
-    private static (DateTime Start, DateTime End) ParsePeriodRange(string period, string groupBy)
-    {
-        if (groupBy == "day" && DateTime.TryParse(period, out var day))
-            return (day.Date, day.Date.AddDays(1));
-
-        if (groupBy == "month" && DateTime.TryParse(period + "-01", out var month))
-            return (month.Date, month.AddMonths(1));
-
-        if (groupBy == "week" && period.Contains("-W", StringComparison.Ordinal))
-        {
-            var parts = period.Split("-W", StringSplitOptions.None);
-            if (parts.Length == 2
-                && int.TryParse(parts[0], out var year)
-                && int.TryParse(parts[1], out var week))
-            {
-                var start = ISOWeek.ToDateTime(year, week, DayOfWeek.Monday);
-                return (start, start.AddDays(7));
-            }
-        }
-
-        return (DateTime.MinValue, DateTime.MinValue);
     }
 
     private static IEnumerable<List<string>> Chunk(IReadOnlyList<string> ids, int size)

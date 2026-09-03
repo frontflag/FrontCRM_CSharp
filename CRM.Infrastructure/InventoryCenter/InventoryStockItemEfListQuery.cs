@@ -14,8 +14,6 @@ namespace CRM.Infrastructure.InventoryCenter;
 /// <summary>EF 实现的库存明细列表分页（避免与 Core 筛选 DTO 类名 <see cref="InventoryStockItemListQuery"/> 冲突）。</summary>
 public sealed class InventoryStockItemEfListQuery : IInventoryStockItemListQuery
 {
-    private const int StagnantDays = 90;
-
     private readonly ApplicationDbContext _db;
     private readonly IDataPermissionService _dataPermission;
 
@@ -36,171 +34,22 @@ public sealed class InventoryStockItemEfListQuery : IInventoryStockItemListQuery
         var p = page < 1 ? 1 : page;
         var ps = pageSize < 1 ? 20 : Math.Min(pageSize, IInventoryStockItemListQuery.MaxPageSize);
 
-        var codeNeedle = query.StockInCode?.Trim().ToLowerInvariant();
-        var stockItemCodeNeedle = query.StockItemCode?.Trim().ToLowerInvariant();
-        var warehouseIdNeedle = query.WarehouseId?.Trim();
-        var pnNeedle = query.PurchasePn?.Trim().ToLowerInvariant();
-        var brandNeedle = query.PurchaseBrand?.Trim().ToLowerInvariant();
-        var customerNeedle = query.CustomerName?.Trim().ToLowerInvariant();
-        var vendorNeedle = query.VendorName?.Trim().ToLowerInvariant();
-        var spNeedle = query.SalespersonName?.Trim().ToLowerInvariant();
-        var puNeedle = query.PurchaserName?.Trim().ToLowerInvariant();
-        var spUserId = query.SalespersonUserId?.Trim();
-        var puUserId = query.PurchaserUserId?.Trim();
-        var ffNeedle = query.FreightForwarderOrderNo?.Trim().ToLowerInvariant();
-        var outboundFilter = query.OutboundStatus;
-        DateTime? fromD = query.StockInDateFrom.HasValue ? query.StockInDateFrom.Value.Date : null;
-        DateTime? toEx = query.StockInDateTo.HasValue ? query.StockInDateTo.Value.Date.AddDays(1) : null;
-
-        var stockItems = _db.StockItems.AsNoTracking()
-            .Where(si => si.TransferType == null || si.TransferType != StockItemTransferTypeCodes.ManualTransferSource);
-        stockItems = await _dataPermission.ApplyStockItemListDataScopeAsync(
-            query.CurrentUserId,
-            stockItems,
-            _db.SellOrders.AsNoTracking(),
-            _db.SellOrderItems.AsNoTracking(),
-            _db.Customers.AsNoTracking(),
-            cancellationToken);
-
-        var baseJoin =
-            from si in stockItems
-            join sin in _db.StockIns.AsNoTracking() on si.StockInId equals sin.Id into sinJoin
-            from sin in sinJoin.DefaultIfEmpty()
-            join w in _db.Warehouses.AsNoTracking() on si.WarehouseId equals w.Id into wj
-            from w in wj.DefaultIfEmpty()
-            join soi in _db.SellOrderItems.AsNoTracking() on si.SellOrderItemId equals soi.Id into soij
-            from soi in soij.DefaultIfEmpty()
-            select new { si, sin, w, soi };
-
-        var filtered = baseJoin;
-        if (!string.IsNullOrEmpty(codeNeedle))
-            filtered = filtered.Where(x =>
-                x.sin != null && x.sin.StockInCode.ToLower().Contains(codeNeedle));
-        if (!string.IsNullOrEmpty(stockItemCodeNeedle))
-            filtered = filtered.Where(x =>
-                x.si.StockItemCode != null && x.si.StockItemCode.ToLower().Contains(stockItemCodeNeedle));
-        if (fromD.HasValue)
-            filtered = filtered.Where(x => x.sin != null && x.sin.StockInDate >= fromD.Value);
-        if (toEx.HasValue)
-            filtered = filtered.Where(x => x.sin != null && x.sin.StockInDate < toEx.Value);
-        if (!string.IsNullOrEmpty(pnNeedle))
-            filtered = filtered.Where(x =>
-                x.si.PurchasePn != null && x.si.PurchasePn.ToLower().Contains(pnNeedle));
-        if (!string.IsNullOrEmpty(brandNeedle))
-            filtered = filtered.Where(x =>
-                x.si.PurchaseBrand != null && x.si.PurchaseBrand.ToLower().Contains(brandNeedle));
-        if (!string.IsNullOrEmpty(ffNeedle))
-            filtered = filtered.Where(x =>
-                x.si.PurchaseOrderItemId != null &&
-                _db.PurchaseOrderItems.Any(poi =>
-                    poi.Id == x.si.PurchaseOrderItemId &&
-                    _db.PurchaseOrders.Any(po =>
-                        po.Id == poi.PurchaseOrderId &&
-                        po.FreightForwarderOrderNo != null &&
-                        po.FreightForwarderOrderNo.ToLower().Contains(ffNeedle))));
-        if (!string.IsNullOrEmpty(customerNeedle))
-            filtered = filtered.Where(x =>
-                x.si.CustomerName != null && x.si.CustomerName.ToLower().Contains(customerNeedle));
-        if (!string.IsNullOrEmpty(vendorNeedle))
-            filtered = filtered.Where(x =>
-                x.si.VendorName != null && x.si.VendorName.ToLower().Contains(vendorNeedle));
-
-        if (!string.IsNullOrEmpty(spUserId))
-            filtered = filtered.Where(x => x.si.SalespersonId != null && x.si.SalespersonId == spUserId);
-        else if (!string.IsNullOrEmpty(spNeedle))
-            filtered = filtered.Where(x =>
-                x.si.SalespersonName != null && x.si.SalespersonName.ToLower().Contains(spNeedle));
-
-        if (!string.IsNullOrEmpty(puUserId))
-            filtered = filtered.Where(x => x.si.PurchaserId != null && x.si.PurchaserId == puUserId);
-        else if (!string.IsNullOrEmpty(puNeedle))
-            filtered = filtered.Where(x =>
-                x.si.PurchaserName != null && x.si.PurchaserName.ToLower().Contains(puNeedle));
-
-        if (outboundFilter is >= 1 and <= 3)
-            filtered = filtered.Where(x => x.si.StockOutStatus == outboundFilter.Value);
-
-        if (!string.IsNullOrEmpty(warehouseIdNeedle))
-            filtered = filtered.Where(x => x.si.WarehouseId == warehouseIdNeedle);
-
-        if (query.StockType is >= 1 and <= 3)
-            filtered = filtered.Where(x => x.si.StockType == query.StockType.Value);
-
-        if (query.StockInType is { } requestedStockInType)
-        {
-            if (StockInTypeCode.IsPurchaseReceipt(requestedStockInType))
-            {
-                const short purchase = StockInTypeCode.Purchase;
-                const short legacyPurchase = StockInTypeCode.LegacyPurchase;
-                filtered = filtered.Where(x =>
-                    x.sin != null
-                    && (x.sin.StockInType == purchase || x.sin.StockInType == legacyPurchase));
-            }
-            else if (StockInTypeCode.IsBusinessType(requestedStockInType))
-            {
-                filtered = filtered.Where(x =>
-                    x.sin != null && x.sin.StockInType == requestedStockInType);
-            }
-        }
-
-        if (query.StagnantOnly == true)
-        {
-            var stagnantThreshold = DateTime.UtcNow.Date.AddDays(-StagnantDays);
-            filtered = filtered.Where(x =>
-                x.si.QtyRepertory > 0 &&
-                (x.sin == null ||
-                 x.sin.StockInDate.Year < 2000 ||
-                 x.sin.StockInDate.Date <= stagnantThreshold));
-        }
-
-        var rankDim = query.RankDimension?.Trim().ToLowerInvariant();
-        var rankKey = query.RankKey?.Trim();
-        if (!string.IsNullOrEmpty(rankDim) && !string.IsNullOrEmpty(rankKey))
-        {
-            var isUnset = string.Equals(rankKey, "_unset", StringComparison.OrdinalIgnoreCase);
-            var rankKeyLower = rankKey.ToLowerInvariant();
-            filtered = rankDim switch
-            {
-                "customer" when isUnset => filtered.Where(x => string.IsNullOrWhiteSpace(x.si.CustomerId)),
-                "customer" => filtered.Where(x => x.si.CustomerId != null && x.si.CustomerId == rankKey),
-                "salesuser" when isUnset => filtered.Where(x => string.IsNullOrWhiteSpace(x.si.SalespersonId)),
-                "salesuser" => filtered.Where(x => x.si.SalespersonId != null && x.si.SalespersonId == rankKey),
-                "brand" when isUnset => filtered.Where(x => string.IsNullOrWhiteSpace(x.si.PurchaseBrand)),
-                "brand" => filtered.Where(x =>
-                    x.si.PurchaseBrand != null && x.si.PurchaseBrand.Trim().ToLower() == rankKeyLower),
-                "material" when isUnset => filtered.Where(x =>
-                    string.IsNullOrWhiteSpace(x.si.PurchasePn) && string.IsNullOrWhiteSpace(x.si.PurchaseBrand)),
-                "material" => filtered.Where(x =>
-                    ((x.si.PurchasePn ?? "").Trim().ToLower()) + "|" + ((x.si.PurchaseBrand ?? "").Trim().ToLower())
-                    == rankKeyLower),
-                _ => filtered
-            };
-            filtered = filtered.Where(x => x.si.QtyRepertory > 0);
-            if (query.RankCurrency is >= (short)CurrencyCode.RMB)
-            {
-                var rankCcy = InventoryOnHandCurrency.Normalize(query.RankCurrency.Value);
-                filtered = filtered.Where(x => x.si.PurchaseCurrency == rankCcy);
-            }
-        }
-
-        if (query.RepertoryHasStock == true)
-            filtered = filtered.Where(x => x.si.QtyRepertory > 0);
-        else if (query.RepertoryHasStock == false)
-            filtered = filtered.Where(x => x.si.QtyRepertory == 0);
+        var filtered = await InventoryStockItemListFilter.BuildFilteredJoinAsync(
+            _db, _dataPermission, query, cancellationToken);
 
         var ordered = filtered
-            .OrderByDescending(x => x.sin != null ? x.sin.StockInDate : DateTime.MinValue)
-            .ThenByDescending(x => x.si.CreateTime)
-            .ThenBy(x => x.si.Id);
+            .OrderByDescending(x => x.Sin != null ? x.Sin.StockInDate : DateTime.MinValue)
+            .ThenByDescending(x => x.Si.CreateTime)
+            .ThenBy(x => x.Si.Id);
 
-        var total = await ordered.Select(x => x.si.Id).CountAsync(cancellationToken);
+        var total = await ordered.Select(x => x.Si.Id).CountAsync(cancellationToken);
         var qtyTotals = await filtered
             .GroupBy(_ => 1)
             .Select(g => new
             {
-                Inbound = g.Sum(x => x.si.QtyInbound),
-                StockOut = g.Sum(x => x.si.QtyStockOut),
-                Repertory = g.Sum(x => x.si.QtyRepertory)
+                Inbound = g.Sum(x => x.Si.QtyInbound),
+                StockOut = g.Sum(x => x.Si.QtyStockOut),
+                Repertory = g.Sum(x => x.Si.QtyRepertory)
             })
             .FirstOrDefaultAsync(cancellationToken);
         var pageRows = await ordered
@@ -208,51 +57,51 @@ public sealed class InventoryStockItemEfListQuery : IInventoryStockItemListQuery
             .Take(ps)
             .Select(x => new InventoryStockItemListRowDto
             {
-                StockItemId = x.si.Id,
-                StockItemCode = x.si.StockItemCode,
-                StockInItemId = x.si.StockInItemId,
-                StockInItemCode = x.si.StockInItemCode,
-                StockInId = x.si.StockInId,
-                StockInCode = x.sin != null ? x.sin.StockInCode : null,
-                StockInDate = x.sin != null ? x.sin.StockInDate : null,
-                MaterialId = x.si.MaterialId,
-                LocationId = x.si.LocationId,
-                BatchNo = x.si.BatchNo,
-                ProductionDate = x.si.ProductionDate,
-                PurchasePn = x.si.PurchasePn,
-                PurchaseBrand = x.si.PurchaseBrand,
-                PurchaseOrderItemCode = x.si.PurchaseOrderItemCode,
-                SellOrderItemCode = x.si.SellOrderItemCode,
-                QtyInbound = x.si.QtyInbound,
-                QtyStockOut = x.si.QtyStockOut,
-                QtyRepertory = x.si.QtyRepertory,
-                QtyRepertoryAvailable = x.si.QtyRepertoryAvailable,
-                QtyOccupy = x.si.QtyOccupy,
-                QtySales = x.si.QtySales,
-                PurchasePrice = x.si.PurchasePrice,
-                PurchaseCurrency = x.si.PurchaseCurrency,
-                PurchasePriceUsd = x.si.PurchasePriceUsd,
-                SalesPrice = x.si.SalesPrice,
-                SalesCurrency = x.si.SalesCurrency,
-                SalesPriceUsd = x.si.SalesPriceUsd,
-                VendorId = x.si.VendorId,
-                VendorName = x.si.VendorName,
-                CustomerId = x.si.CustomerId,
-                CustomerName = x.si.CustomerName,
-                RegionType = x.si.RegionType,
-                StockType = x.si.StockType,
-                StockInType = x.sin != null ? x.sin.StockInType : (short)0,
-                CustomerPn = x.soi != null ? x.soi.CustomerPn : null,
-                CustomerBrand = x.soi != null ? x.soi.CustomerBrand : null,
-                PurchaserName = x.si.PurchaserName,
-                SalespersonName = x.si.SalespersonName,
-                CreateTime = x.si.CreateTime,
-                StockAggregateId = x.si.StockAggregateId,
-                WarehouseId = x.si.WarehouseId,
-                WarehouseCode = x.w != null ? x.w.WarehouseCode : null,
-                WarehouseName = x.w != null ? x.w.WarehouseName : null,
-                OutboundStatus = x.si.StockOutStatus,
-                ProfitOutBizUsd = x.si.ProfitOutBizUsd
+                StockItemId = x.Si.Id,
+                StockItemCode = x.Si.StockItemCode,
+                StockInItemId = x.Si.StockInItemId,
+                StockInItemCode = x.Si.StockInItemCode,
+                StockInId = x.Si.StockInId,
+                StockInCode = x.Sin != null ? x.Sin.StockInCode : null,
+                StockInDate = x.Sin != null ? x.Sin.StockInDate : null,
+                MaterialId = x.Si.MaterialId,
+                LocationId = x.Si.LocationId,
+                BatchNo = x.Si.BatchNo,
+                ProductionDate = x.Si.ProductionDate,
+                PurchasePn = x.Si.PurchasePn,
+                PurchaseBrand = x.Si.PurchaseBrand,
+                PurchaseOrderItemCode = x.Si.PurchaseOrderItemCode,
+                SellOrderItemCode = x.Si.SellOrderItemCode,
+                QtyInbound = x.Si.QtyInbound,
+                QtyStockOut = x.Si.QtyStockOut,
+                QtyRepertory = x.Si.QtyRepertory,
+                QtyRepertoryAvailable = x.Si.QtyRepertoryAvailable,
+                QtyOccupy = x.Si.QtyOccupy,
+                QtySales = x.Si.QtySales,
+                PurchasePrice = x.Si.PurchasePrice,
+                PurchaseCurrency = x.Si.PurchaseCurrency,
+                PurchasePriceUsd = x.Si.PurchasePriceUsd,
+                SalesPrice = x.Si.SalesPrice,
+                SalesCurrency = x.Si.SalesCurrency,
+                SalesPriceUsd = x.Si.SalesPriceUsd,
+                VendorId = x.Si.VendorId,
+                VendorName = x.Si.VendorName,
+                CustomerId = x.Si.CustomerId,
+                CustomerName = x.Si.CustomerName,
+                RegionType = x.Si.RegionType,
+                StockType = x.Si.StockType,
+                StockInType = x.Sin != null ? x.Sin.StockInType : (short)0,
+                CustomerPn = x.Soi != null ? x.Soi.CustomerPn : null,
+                CustomerBrand = x.Soi != null ? x.Soi.CustomerBrand : null,
+                PurchaserName = x.Si.PurchaserName,
+                SalespersonName = x.Si.SalespersonName,
+                CreateTime = x.Si.CreateTime,
+                StockAggregateId = x.Si.StockAggregateId,
+                WarehouseId = x.Si.WarehouseId,
+                WarehouseCode = x.W != null ? x.W.WarehouseCode : null,
+                WarehouseName = x.W != null ? x.W.WarehouseName : null,
+                OutboundStatus = x.Si.StockOutStatus,
+                ProfitOutBizUsd = x.Si.ProfitOutBizUsd
             })
             .ToListAsync(cancellationToken);
 

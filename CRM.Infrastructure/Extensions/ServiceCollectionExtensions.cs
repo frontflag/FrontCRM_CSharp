@@ -79,6 +79,7 @@ namespace CRM.Infrastructure.Extensions
             services.AddScoped<IInventoryStockItemListQuery, InventoryStockItemEfListQuery>();
             services.AddScoped<IInventoryOnHandSummaryQuery, InventoryOnHandSummaryQuery>();
             services.AddScoped<IInventoryOnHandListAnalyticsQuery, InventoryOnHandListAnalyticsQuery>();
+            services.AddScoped<IInventoryStockItemListAnalyticsQuery, InventoryStockItemListAnalyticsQuery>();
             services.AddScoped<IInventoryMaterialOverviewStockPageQuery, InventoryMaterialOverviewStockPageQuery>();
             services.AddScoped<IInventoryCountPlanListQuery, InventoryCountPlanListQuery>();
             services.AddScoped<IFinancePaymentListQuery, FinancePaymentListQuery>();

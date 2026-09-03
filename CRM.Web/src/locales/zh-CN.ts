@@ -13,6 +13,7 @@ import { stockInListBoardDefsZh } from './fragments/stockInListBoardDefs.zh-CN'
 import { financeReceiptListBoardDefsZh } from './fragments/financeReceiptListBoardDefs.zh-CN'
 import { financePaymentListBoardDefsZh } from './fragments/financePaymentListBoardDefs.zh-CN'
 import { inventoryOnHandListBoardDefsZh } from './fragments/inventoryOnHandListBoardDefs.zh-CN'
+import { inventoryStockItemListBoardDefsZh } from './fragments/inventoryStockItemListBoardDefs.zh-CN'
 
 const zhCN = {
   common: {
@@ -7108,13 +7109,70 @@ const zhCN = {
       purchaserUser: '采购员',
       search: '查询',
       reset: '重置',
-      export: '导出'
+      export: '导出',
+      boardView: '看板',
+      listView: '列表'
     },
     drillFromBoard: {
-      stagnant: '来自库存中心看板：呆滞料库存条目（>90天）',
-      rankingQty: '来自库存中心看板 · {panel} · {name}',
-      rankingAmount: '来自库存中心看板 · {panel} · {name} · {currency}',
+      stagnant: '来自看板：呆滞料（入库超过 90 天）',
+      rankingQty: '来自看板 · {panel} · {name}',
+      rankingAmount: '来自看板 · {panel} · {name} · {currency}',
       rankingDefaultPanel: '排行'
+    },
+    board: {
+      datasetTag: '筛选',
+      hint: '统计范围与当前搜索栏及页签筛选结果一致（全量明细，非当前页）。趋势为时点存量，可按日/周/月切换。',
+      refresh: '刷新',
+      loadFailed: '加载库存明细看板失败',
+      unsetSalesUser: '未分配业务员',
+      unsetWarehouse: '无仓库',
+      groupBy: { day: '按天', week: '按周', month: '按月' },
+      sections: {
+        kpi: '在库概览',
+        trendQty: '在库数量',
+        trendAmount: '库存金额'
+      },
+      kpi: {
+        onHandQty: '在库数量',
+        amount: '库存金额',
+        originalCaption: '原币',
+        turnoverDays: '周转天数',
+        stagnantQty: '呆滞料数量（>90天）'
+      },
+      drill: {
+        noPermission: '无库存查看权限，无法打开列表'
+      },
+      unit: {
+        days: '天'
+      },
+      trendUnit: {
+        qty: 'PCS',
+        originalCaption: '单位：{currency}'
+      },
+      breakdown: {
+        metricMode: '分布指标',
+        qty: '数量',
+        amount: '金额',
+        stockType: '库存类型',
+        warehouse: '仓库',
+        salesUser: '业务员',
+        ageBucket: '库龄分布'
+      },
+      rankings: {
+        metricMode: '排行指标',
+        qty: '数量',
+        amount: '金额',
+        name: '名称',
+        customerByQty: 'Top10 客户',
+        salesUserByQty: 'Top10 业务员',
+        materialByQty: 'Top10 物料',
+        brandByQty: 'Top10 品牌',
+        customerByAmount: 'Top10 客户',
+        salesUserByAmount: 'Top10 业务员',
+        materialByAmount: 'Top10 物料',
+        brandByAmount: 'Top10 品牌'
+      },
+      defs: inventoryStockItemListBoardDefsZh
     },
     stats: {
       qtyInbound: '入库数量',

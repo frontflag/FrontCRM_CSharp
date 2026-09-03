@@ -13,6 +13,7 @@ import { stockInListBoardDefsEn } from './fragments/stockInListBoardDefs.en-US'
 import { financeReceiptListBoardDefsEn } from './fragments/financeReceiptListBoardDefs.en-US'
 import { financePaymentListBoardDefsEn } from './fragments/financePaymentListBoardDefs.en-US'
 import { inventoryOnHandListBoardDefsEn } from './fragments/inventoryOnHandListBoardDefs.en-US'
+import { inventoryStockItemListBoardDefsEn } from './fragments/inventoryStockItemListBoardDefs.en-US'
 
 const enUS = {
   common: {
@@ -7134,13 +7135,70 @@ const enUS = {
       purchaserUser: 'Purchaser',
       search: 'Search',
       reset: 'Reset',
-      export: 'Export'
+      export: 'Export',
+      boardView: 'Board',
+      listView: 'List'
     },
     drillFromBoard: {
-      stagnant: 'From inventory center board: stagnant inventory entries (>90d)',
-      rankingQty: 'From inventory center board · {panel} · {name}',
-      rankingAmount: 'From inventory center board · {panel} · {name} · {currency}',
+      stagnant: 'From board: stagnant stock (stock-in over 90 days)',
+      rankingQty: 'From board · {panel} · {name}',
+      rankingAmount: 'From board · {panel} · {name} · {currency}',
       rankingDefaultPanel: 'Ranking'
+    },
+    board: {
+      datasetTag: 'Filter',
+      hint: 'Matches the current search bar and tab filters (full result set, not the current page). Trends are point-in-time on-hand; switch day / week / month.',
+      refresh: 'Refresh',
+      loadFailed: 'Failed to load stock item board',
+      unsetSalesUser: 'Unassigned salesperson',
+      unsetWarehouse: 'No warehouse',
+      groupBy: { day: 'Daily', week: 'Weekly', month: 'Monthly' },
+      sections: {
+        kpi: 'On-hand overview',
+        trendQty: 'On-hand qty',
+        trendAmount: 'Inventory amount'
+      },
+      kpi: {
+        onHandQty: 'On-hand qty',
+        amount: 'Inventory amount',
+        originalCaption: 'Original currency',
+        turnoverDays: 'Turnover days',
+        stagnantQty: 'Stagnant qty (>90d)'
+      },
+      drill: {
+        noPermission: 'No inventory read permission; cannot open the list'
+      },
+      unit: {
+        days: 'days'
+      },
+      trendUnit: {
+        qty: 'PCS',
+        originalCaption: 'Unit: {currency}'
+      },
+      breakdown: {
+        metricMode: 'Breakdown metric',
+        qty: 'Qty',
+        amount: 'Amount',
+        stockType: 'Stock type',
+        warehouse: 'Warehouse',
+        salesUser: 'Salesperson',
+        ageBucket: 'Age buckets'
+      },
+      rankings: {
+        metricMode: 'Ranking metric',
+        qty: 'Qty',
+        amount: 'Amount',
+        name: 'Name',
+        customerByQty: 'Top10 customers',
+        salesUserByQty: 'Top10 salespeople',
+        materialByQty: 'Top10 materials',
+        brandByQty: 'Top10 brands',
+        customerByAmount: 'Top10 customers',
+        salesUserByAmount: 'Top10 salespeople',
+        materialByAmount: 'Top10 materials',
+        brandByAmount: 'Top10 brands'
+      },
+      defs: inventoryStockItemListBoardDefsEn
     },
     stats: {
       qtyInbound: 'Inbound qty',

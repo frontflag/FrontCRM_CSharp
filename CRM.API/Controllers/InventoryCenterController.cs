@@ -23,6 +23,7 @@ namespace CRM.API.Controllers
         private readonly IStockItemFlowService _stockItemFlowService;
         private readonly IInventoryOnHandSummaryQuery _onHandSummaryQuery;
         private readonly IInventoryOnHandListAnalyticsQuery _onHandListAnalytics;
+        private readonly IInventoryStockItemListAnalyticsQuery _stockItemListAnalytics;
         private readonly IRepository<StockInfo> _stockRepo;
         private readonly IRepository<StockItem> _stockItemRepo;
         private readonly IRepository<StockOutItem> _stockOutItemRepo;
@@ -38,6 +39,7 @@ namespace CRM.API.Controllers
             IStockItemFlowService stockItemFlowService,
             IInventoryOnHandSummaryQuery onHandSummaryQuery,
             IInventoryOnHandListAnalyticsQuery onHandListAnalytics,
+            IInventoryStockItemListAnalyticsQuery stockItemListAnalytics,
             IRepository<StockInfo> stockRepo,
             IRepository<StockItem> stockItemRepo,
             IRepository<StockOutItem> stockOutItemRepo,
@@ -52,6 +54,7 @@ namespace CRM.API.Controllers
             _stockItemFlowService = stockItemFlowService;
             _onHandSummaryQuery = onHandSummaryQuery;
             _onHandListAnalytics = onHandListAnalytics;
+            _stockItemListAnalytics = stockItemListAnalytics;
             _stockRepo = stockRepo;
             _stockItemRepo = stockItemRepo;
             _stockOutItemRepo = stockOutItemRepo;
@@ -460,6 +463,91 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "获取库存明细列表失败");
                 return StatusCode(500, new { success = false, message = $"获取库存明细列表失败: {ex.Message}" });
+            }
+        }
+
+        [HttpGet("stock-items/analytics/dashboard")]
+        public async Task<IActionResult> GetStockItemListAnalyticsDashboard(
+            [FromQuery] InventoryStockItemListQuery? query,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var (request, maskAmounts) = await BuildStockItemListAnalyticsRequest(query);
+                var data = await _stockItemListAnalytics.GetDashboardAsync(request, maskAmounts, cancellationToken);
+                if (maskAmounts)
+                    ApplyStockItemListAnalyticsMask(data);
+                return Ok(ApiResponse<InventoryStockItemListAnalyticsDashboardDto>.Ok(data));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取库存明细看板 KPI 失败");
+                return StatusCode(500, ApiResponse<InventoryStockItemListAnalyticsDashboardDto>.Fail($"获取库存明细看板失败: {ex.Message}", 500));
+            }
+        }
+
+        [HttpGet("stock-items/analytics/trends")]
+        public async Task<IActionResult> GetStockItemListAnalyticsTrends(
+            [FromQuery] InventoryStockItemListQuery? query,
+            [FromQuery] string? groupBy,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var (request, maskAmounts) = await BuildStockItemListAnalyticsRequest(query);
+                var data = await _stockItemListAnalytics.GetTrendsAsync(
+                    request,
+                    string.IsNullOrWhiteSpace(groupBy) ? "day" : groupBy.Trim(),
+                    maskAmounts,
+                    cancellationToken);
+                return Ok(ApiResponse<IReadOnlyList<InventoryOnHandListAnalyticsTrendPointDto>>.Ok(data));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取库存明细看板趋势失败");
+                return StatusCode(500, ApiResponse<IReadOnlyList<InventoryOnHandListAnalyticsTrendPointDto>>.Fail($"获取库存明细看板趋势失败: {ex.Message}", 500));
+            }
+        }
+
+        [HttpGet("stock-items/analytics/breakdowns")]
+        public async Task<IActionResult> GetStockItemListAnalyticsBreakdowns(
+            [FromQuery] InventoryStockItemListQuery? query,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var (request, maskAmounts) = await BuildStockItemListAnalyticsRequest(query);
+                var data = await _stockItemListAnalytics.GetBreakdownsAsync(request, maskAmounts, cancellationToken);
+                if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
+                    ApplyStockItemListAnalyticsBreakdownSaleMask(data);
+                return Ok(ApiResponse<IReadOnlyList<InventoryOnHandListAnalyticsBreakdownGroupDto>>.Ok(data));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取库存明细看板分布失败");
+                return StatusCode(500, ApiResponse<IReadOnlyList<InventoryOnHandListAnalyticsBreakdownGroupDto>>.Fail($"获取库存明细看板分布失败: {ex.Message}", 500));
+            }
+        }
+
+        [HttpGet("stock-items/analytics/rankings")]
+        public async Task<IActionResult> GetStockItemListAnalyticsRankings(
+            [FromQuery] InventoryStockItemListQuery? query,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var (request, maskAmounts) = await BuildStockItemListAnalyticsRequest(query);
+                var data = await _stockItemListAnalytics.GetRankingsAsync(request, maskAmounts, cancellationToken);
+                if (maskAmounts)
+                    ApplyOnHandListAnalyticsRankingMask(data);
+                if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
+                    ApplyStockItemListAnalyticsRankingSaleMask(data);
+                return Ok(ApiResponse<InventoryOnHandListAnalyticsRankingsDto>.Ok(data));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取库存明细看板排名失败");
+                return StatusCode(500, ApiResponse<InventoryOnHandListAnalyticsRankingsDto>.Fail($"获取库存明细看板排名失败: {ex.Message}", 500));
             }
         }
 
@@ -1235,6 +1323,49 @@ namespace CRM.API.Controllers
                 _logger.LogError(ex, "提交盘点失败");
                 return StatusCode(500, ApiResponse<object>.Fail($"提交盘点失败: {ex.Message}", 500));
             }
+        }
+
+        private async Task<(InventoryStockItemListQuery Request, bool MaskAmounts)> BuildStockItemListAnalyticsRequest(
+            InventoryStockItemListQuery? query)
+        {
+            query ??= new InventoryStockItemListQuery();
+            query.CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var mask511 = await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User);
+            return (query, mask511);
+        }
+
+        private static void ApplyStockItemListAnalyticsMask(InventoryStockItemListAnalyticsDashboardDto data)
+        {
+            data.Snapshot.CurrencyLines = Array.Empty<InventoryOnHandListAnalyticsCurrencyLineDto>();
+        }
+
+        private static void ApplyStockItemListAnalyticsRankingSaleMask(InventoryOnHandListAnalyticsRankingsDto data)
+        {
+            MaskRankingNames(data.CustomerByQty);
+            MaskRankingNames(data.SalesUserByQty);
+            foreach (var facet in data.CustomerByAmount)
+                MaskRankingNames(facet.Rows);
+            foreach (var facet in data.SalesUserByAmount)
+                MaskRankingNames(facet.Rows);
+        }
+
+        private static void ApplyStockItemListAnalyticsBreakdownSaleMask(
+            IReadOnlyList<InventoryOnHandListAnalyticsBreakdownGroupDto> groups)
+        {
+            foreach (var g in groups)
+            {
+                if (!string.Equals(g.GroupKey, "salesUser", StringComparison.OrdinalIgnoreCase))
+                    continue;
+                foreach (var item in g.Items)
+                    item.Label = "—";
+            }
+        }
+
+        private static void MaskRankingNames(IReadOnlyList<SalesAnalyticsRankingRowDto>? rows)
+        {
+            if (rows == null) return;
+            foreach (var row in rows)
+                row.Name = "—";
         }
 
         private async Task<(InventoryOnHandSummaryQueryRequest Request, bool MaskAmounts)> BuildOnHandListAnalyticsRequest(
