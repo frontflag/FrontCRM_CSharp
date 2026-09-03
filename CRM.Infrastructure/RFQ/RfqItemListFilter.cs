@@ -61,7 +61,7 @@ internal static partial class RfqItemListFilter
                         referenceCustomerSelfOnly = true;
                 }
             }
-            else if (!summary.IsSysAdmin && summary.SaleDataScope != 0 && summary.PurchaseDataScope != 0)
+            else if (RfqItemListDataScopeRules.ShouldApplyJobPageScope(summary))
             {
                 if (summary.SaleDataScope == 4 && summary.PurchaseDataScope == 4)
                 {

@@ -341,10 +341,7 @@ internal static class QuoteListFilter
             return q;
 
         var summary = await rbacService.GetUserPermissionSummaryAsync(request.CurrentUserId.Trim());
-        if (summary.IsSysAdmin)
-            return q;
-
-        if (summary.SaleDataScope == 0 || summary.PurchaseDataScope == 0)
+        if (!RfqItemListDataScopeRules.ShouldApplyJobPageScope(summary))
             return q;
 
         if (summary.SaleDataScope == 4 && summary.PurchaseDataScope == 4)
