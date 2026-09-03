@@ -136,6 +136,10 @@ namespace CRM.Core.Models.Quote
         [NotMapped]
         public short? VendorLevel { get; set; }
 
+        /// <summary>展示用：供应商英文全称（由服务层按 VendorId 现读 vendorinfo.EnglishOfficialName，非表字段）</summary>
+        [NotMapped]
+        public string? VendorEnglishName { get; set; }
+
         /// <summary>展示用：供应商交易次数（有效付款单下 distinct 采购明细；按付款单 VendorId 现读，非表字段）</summary>
         [NotMapped]
         public int? VendorTradeCount { get; set; }

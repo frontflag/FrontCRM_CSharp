@@ -287,6 +287,7 @@ public static class PurchaseSensitiveFieldMask511
     {
         if (!mask || it == null) return;
         it.VendorName = null;
+        it.VendorEnglishName = null;
         it.VendorCode = null;
         it.VendorId = null;
         it.ContactId = null;

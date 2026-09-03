@@ -1,8 +1,61 @@
+import { formatVendorNameReadonly } from '@/utils/vendorDisplayName'
+
 /** 报价单行明细（兼容 PascalCase JSON）。 */
 export function quoteLineItemsRaw(quoteRow: Record<string, unknown>): Record<string, unknown>[] {
   const rawItems = (quoteRow.items ?? quoteRow.Items) as unknown[] | undefined
   if (!rawItems?.length) return []
   return rawItems.map((it) => it as Record<string, unknown>)
+}
+
+export type QuoteHistoryVendorNamePart = {
+  label: string
+  vendorId: string | null
+}
+
+/** 历史报价卡片：去重后的中文/英文名称，附带供应商 ID（无 ID 则不可跳详情）。 */
+export function quoteHistoryVendorNameParts(quoteRow: Record<string, unknown>): QuoteHistoryVendorNamePart[] {
+  const seen = new Set<string>()
+  const parts: QuoteHistoryVendorNamePart[] = []
+  for (const o of quoteLineItemsRaw(quoteRow)) {
+    const zh = String(o.vendorName ?? o.VendorName ?? '').trim()
+    const en = String(o.vendorEnglishName ?? o.VendorEnglishName ?? '').trim()
+    const label = formatVendorNameReadonly(zh, en, { separator: '/', empty: '' })
+    if (!label) continue
+    const vendorId = String(o.vendorId ?? o.VendorId ?? '').trim() || null
+    const key = (vendorId ?? label).toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    parts.push({ label, vendorId })
+  }
+  return parts
+}
+
+/** 历史报价卡片：中文/英文，多供应商用分号拼接。 */
+export function quoteHistoryVendorNameDisplay(quoteRow: Record<string, unknown>): string {
+  const parts = quoteHistoryVendorNameParts(quoteRow)
+  return parts.length > 0 ? parts.map((p) => p.label).join('；') : '—'
+}
+
+export type QuoteHistoryVendorNameUser = {
+  isSysAdmin?: boolean
+  isSysManager?: boolean
+  isBizManager?: boolean
+  hasBizDataBypass?: boolean
+  identityType?: number
+  belongsToPurchaseDept?: boolean
+  roleCodes?: string[]
+}
+
+/** 历史报价卡片是否展示供应商名称：采购方向或 SYS_ADMIN / SYS_MANAGER / SYS_BIZ_MANAGER。 */
+export function canShowQuoteHistoryVendorName(user: QuoteHistoryVendorNameUser | null | undefined): boolean {
+  if (!user) return false
+  if (user.isSysAdmin || user.isSysManager || user.isBizManager || user.hasBizDataBypass) return true
+  const roles = (user.roleCodes ?? []).map((r) => String(r).trim().toUpperCase())
+  if (roles.includes('SYS_ADMIN') || roles.includes('SYS_MANAGER') || roles.includes('SYS_BIZ_MANAGER'))
+    return true
+  if (user.belongsToPurchaseDept === true) return true
+  const it = Number(user.identityType ?? 0)
+  return it === 2 || it === 3
 }
 
 /** 供应商名称：多行去重后顿号拼接；采购脱敏为 —。 */

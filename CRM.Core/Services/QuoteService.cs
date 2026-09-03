@@ -423,7 +423,7 @@ namespace CRM.Core.Services
             await HydrateQuoteItemVendorTradeCountAsync(quotes);
         }
 
-        /// <summary>为报价明细现读供应商等级（vendorinfo.Level）。</summary>
+        /// <summary>为报价明细现读供应商等级、英文名；中文名为空时回填主数据全称。</summary>
         private async Task HydrateQuoteItemVendorLevelAsync(IReadOnlyCollection<Quote> quotes)
         {
             var items = quotes
@@ -441,13 +441,20 @@ namespace CRM.Core.Services
             if (ids.Count == 0) return;
 
             var vendors = (await _vendorRepository.FindAsync(v => ids.Contains(v.Id))).ToList();
-            var levelById = vendors.ToDictionary(v => v.Id, v => v.Level, StringComparer.OrdinalIgnoreCase);
+            var vendorById = vendors
+                .GroupBy(v => v.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
             foreach (var it in items)
             {
                 if (string.IsNullOrWhiteSpace(it.VendorId)) continue;
-                if (levelById.TryGetValue(it.VendorId.Trim(), out var level))
-                    it.VendorLevel = level;
+                if (!vendorById.TryGetValue(it.VendorId.Trim(), out var vendor)) continue;
+                it.VendorLevel = vendor.Level;
+                it.VendorEnglishName = string.IsNullOrWhiteSpace(vendor.EnglishOfficialName)
+                    ? null
+                    : vendor.EnglishOfficialName.Trim();
+                if (string.IsNullOrWhiteSpace(it.VendorName) && !string.IsNullOrWhiteSpace(vendor.OfficialName))
+                    it.VendorName = vendor.OfficialName.Trim();
             }
         }
 

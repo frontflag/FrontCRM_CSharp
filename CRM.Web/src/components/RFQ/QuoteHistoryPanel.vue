@@ -28,6 +28,23 @@
             <span class="qh-card__date">{{ formatDate(row.createTime) }}</span>
             <span class="qh-card__quoter" :title="row.quoterName">{{ row.quoterName || '—' }}</span>
           </div>
+          <div v-if="showVendorName" class="qh-card__vendor">
+            <template v-if="row.vendors.length">
+              <template v-for="(v, i) in vendorLinks(row.vendors)" :key="`${row.id}-v-${v.vendorId || v.label}-${i}`">
+                <span v-if="i > 0">；</span>
+                <router-link
+                  v-if="v.to"
+                  class="link-text"
+                  :to="v.to"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  :title="v.label"
+                >{{ v.label }}</router-link>
+                <span v-else :title="v.label">{{ v.label }}</span>
+              </template>
+            </template>
+            <span v-else>—</span>
+          </div>
           <ul class="qh-tiers">
             <li v-for="(tier, idx) in row.tiers" :key="`${row.id}-${idx}`" class="qh-cols qh-tier">
               <span class="qh-tier__price">
@@ -49,11 +66,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { quoteApi } from '@/api/quote'
+import { useAuthStore } from '@/stores/auth'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import { listAmountCurrencyDockClass, listAmountCurrencyIso } from '@/utils/moneyFormat'
+import { useFlowPartyLinks } from '@/composables/useFlowPartyLinks'
+import {
+  canShowQuoteHistoryVendorName,
+  quoteHistoryVendorNameParts,
+  type QuoteHistoryVendorNamePart
+} from '@/utils/quoteVendorDisplay'
 
 const props = defineProps<{
   mpn?: string | null
@@ -61,7 +85,10 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
+const authStore = useAuthStore()
+const { vendorTo } = useFlowPartyLinks()
 const loading = ref(false)
+const showVendorName = computed(() => canShowQuoteHistoryVendorName(authStore.user))
 
 type Tier = { quantity: number; unitPrice: number; currency: number | null }
 type HistoryRow = {
@@ -70,10 +97,15 @@ type HistoryRow = {
   quoteCode: string
   createTime: string
   quoterName: string
+  vendors: QuoteHistoryVendorNamePart[]
   tiers: Tier[]
 }
 
 const rows = ref<HistoryRow[]>([])
+
+function vendorLinks(vendors: QuoteHistoryVendorNamePart[]) {
+  return vendors.map((v) => ({ ...v, to: vendorTo(v.vendorId) }))
+}
 
 function formatDate(v?: string) {
   if (!v) return '—'
@@ -154,6 +186,7 @@ async function loadHistory(mpn: string, brand: string) {
         quoteCode: String(q.quoteCode ?? q.QuoteCode ?? q.quoteNumber ?? '').trim(),
         createTime: String(q.createTime ?? q.CreateTime ?? q.quoteDate ?? q.QuoteDate ?? ''),
         quoterName,
+        vendors: quoteHistoryVendorNameParts(q),
         tiers: mapTiers(q)
       }
     })
@@ -264,6 +297,25 @@ watch(
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  &__vendor {
+    margin: -2px 0 6px;
+    font-size: 12px;
+    line-height: 1.5;
+    word-break: break-all;
+  }
+}
+
+.link-text {
+  color: inherit;
+  text-decoration: none;
+  cursor: default;
+
+  &:hover {
+    color: var(--el-color-primary);
+    text-decoration: underline;
+    cursor: pointer;
   }
 }
 
