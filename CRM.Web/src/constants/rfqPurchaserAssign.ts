@@ -1,7 +1,8 @@
 /**
- * 需求「手动分配采购员」入口权限：系统管理员，或主职为采购运营部且担任部门总监（DEPT_DIRECTOR）。
- * identityType 与库中部门业务身份一致（permission-summary 主职维度）；3 = 采购运营。
+ * 需求详情「手动分配采购员」入口：
+ * SuperAdmin / Admin / Manager（HasBizDataBypass），或主职为采购部/采购运营且部门总监。
  */
+export const IDENTITY_PURCHASE = 2
 export const IDENTITY_PURCHASE_OPS = 3
 
 export const ROLE_DEPT_DIRECTOR = 'DEPT_DIRECTOR'
@@ -10,6 +11,9 @@ export function canManualAssignRfqPurchaser(
   user:
     | {
         isSysAdmin?: boolean
+        isSysManager?: boolean
+        isBizManager?: boolean
+        hasBizDataBypass?: boolean
         identityType?: number
         roleCodes?: string[]
       }
@@ -17,8 +21,16 @@ export function canManualAssignRfqPurchaser(
     | undefined
 ): boolean {
   if (!user) return false
-  if (user.isSysAdmin === true) return true
-  if (Number(user.identityType) !== IDENTITY_PURCHASE_OPS) return false
+  if (
+    user.isSysAdmin === true ||
+    user.isSysManager === true ||
+    user.isBizManager === true ||
+    user.hasBizDataBypass === true
+  ) {
+    return true
+  }
+  const identity = Number(user.identityType)
+  if (identity !== IDENTITY_PURCHASE && identity !== IDENTITY_PURCHASE_OPS) return false
   const codes = user.roleCodes ?? []
   return codes.some((c) => String(c).toUpperCase() === ROLE_DEPT_DIRECTOR)
 }

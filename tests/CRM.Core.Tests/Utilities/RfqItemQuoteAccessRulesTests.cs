@@ -27,6 +27,23 @@ public class RfqItemQuoteAccessRulesTests
     }
 
     [Fact]
+    public void CanManualAssignPurchaser_PurchaseDirectorAndAdmin_Allows()
+    {
+        Assert.True(RfqItemQuoteAccessRules.CanManualAssignPurchaser(Summary(false, 2, "DEPT_DIRECTOR")));
+        Assert.True(RfqItemQuoteAccessRules.CanManualAssignPurchaser(Summary(false, 3, "DEPT_DIRECTOR")));
+        Assert.True(RfqItemQuoteAccessRules.CanManualAssignPurchaser(Summary(isSysAdmin: true, identityType: 1)));
+        Assert.True(RfqItemQuoteAccessRules.CanManualAssignPurchaser(
+            new UserPermissionSummaryDto { HasBizDataBypass = true, IdentityType = 1, IsSysManager = true }));
+    }
+
+    [Fact]
+    public void CanManualAssignPurchaser_SalesDirector_Denies()
+    {
+        Assert.False(RfqItemQuoteAccessRules.CanManualAssignPurchaser(Summary(false, 1, "DEPT_DIRECTOR")));
+        Assert.False(RfqItemQuoteAccessRules.CanManualAssignPurchaser(Summary(false, 2, "DEPT_MANAGER")));
+    }
+
+    [Fact]
     public void CanQuote_PurchaseDirector_Allows()
     {
         var item = new RFQItem { AssignedPurchaserUserId1 = "other" };

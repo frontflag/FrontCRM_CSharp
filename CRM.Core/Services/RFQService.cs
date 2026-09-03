@@ -829,6 +829,13 @@ namespace CRM.Core.Services
             var rfq = await _rfqRepo.GetByIdAsync(rfqId);
             if (rfq == null) throw new InvalidOperationException($"需求 {rfqId} 不存在");
 
+            var actorId = ActingUserIdNormalizer.Normalize(actingUserId);
+            if (string.IsNullOrWhiteSpace(actorId))
+                throw new UnauthorizedAccessException("无权限分配采购员");
+            var actorSummary = await _rbacService.GetUserPermissionSummaryAsync(actorId);
+            if (!RfqItemQuoteAccessRules.CanManualAssignPurchaser(actorSummary))
+                throw new UnauthorizedAccessException("无权限分配采购员");
+
             if (rfq.Status == 7 || rfq.Status == 8)
                 throw new ArgumentException("需求已关闭或已取消，无法分配采购员");
 

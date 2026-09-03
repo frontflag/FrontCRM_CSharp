@@ -812,6 +812,10 @@ namespace CRM.API.Controllers
             {
                 return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
             }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(403, ApiResponse<object>.Fail(ex.Message, 403));
+            }
             catch (InvalidOperationException ex)
             {
                 return NotFound(ApiResponse<object>.Fail(ex.Message, 404));

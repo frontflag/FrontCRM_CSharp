@@ -22,6 +22,19 @@ public static class RfqItemQuoteAccessRules
         return summary.IdentityType is 2 or 3;
     }
 
+    /// <summary>
+    /// 需求详情「分配采购员」：管理角色 bypass，或采购部/采购运营部总监。
+    /// 不得只认 SuperAdmin 或仅 IdentityType=3。
+    /// </summary>
+    public static bool CanManualAssignPurchaser(UserPermissionSummaryDto? summary)
+    {
+        if (summary == null)
+            return false;
+        if (summary.HasBizDataBypass || summary.IsSysAdmin || summary.IsSysManager || summary.IsBizManager)
+            return true;
+        return IsPurchaseDepartmentDirector(summary);
+    }
+
     public static bool IsAssignedQuoter(string? userId, RFQItem? item)
     {
         if (string.IsNullOrWhiteSpace(userId) || item == null)
