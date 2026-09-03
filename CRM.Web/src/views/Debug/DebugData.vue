@@ -97,6 +97,62 @@
 
     <section class="debug-panel panel-temp">
       <h2 class="panel-title">临时</h2>
+      <div class="panel-body agency-rate-refresh">
+        <span class="simulate-form__inline-label">报关公司：</span>
+        <el-select
+          v-model="agencyRateBrokerId"
+          filterable
+          clearable
+          placeholder="选择报关公司"
+          style="width: 320px"
+          :loading="agencyRateBrokersLoading"
+        >
+          <el-option
+            v-for="b in agencyRateBrokers"
+            :key="b.id"
+            :label="`${b.brokerCode} ${b.cname}`"
+            :value="b.id"
+          />
+        </el-select>
+        <span class="simulate-form__inline-label">代理费率：</span>
+        <el-input-number
+          v-model="agencyRateInput"
+          :min="1"
+          :precision="6"
+          :step="0.001"
+          :controls="false"
+          style="width: 160px"
+        />
+        <el-button
+          type="warning"
+          :loading="refreshingCustomsAgencyRate"
+          :disabled="!agencyRateBrokerId"
+          @click="onRefreshCustomsAgencyRate"
+        >
+          刷新报关代理费率
+        </el-button>
+      </div>
+      <div class="refresh-hint">
+        「刷新报关代理费率」：按输入费率（1+纯费率，如 1.025000 = 2.5%）重算该公司系统模式报关单的代理费与 P1，并回写报关到货/入库成本。已结关锁定单也会强制重算。不改报关公司资料；手工费率单跳过。仅调试使用。
+      </div>
+      <div v-if="customsAgencyRateRefreshResult" class="simulate-result">
+        <div>扫描报关单：{{ customsAgencyRateRefreshResult.totalDeclarations }} 条</div>
+        <div>已刷新：{{ customsAgencyRateRefreshResult.refreshedDeclarations }} 条</div>
+        <div>费用有变化：{{ customsAgencyRateRefreshResult.feesChangedDeclarations }} 条</div>
+        <div>跳过作废：{{ customsAgencyRateRefreshResult.skippedVoided }} 条</div>
+        <div>跳过手工：{{ customsAgencyRateRefreshResult.skippedManual }} 条</div>
+        <div>跳过无费用快照：{{ customsAgencyRateRefreshResult.skippedNoFees }} 条</div>
+        <div>到货成本更新：{{ customsAgencyRateRefreshResult.arrivalNoticesUpdated }} 条</div>
+        <div>入库明细更新：{{ customsAgencyRateRefreshResult.stockInItemsUpdated }} 条</div>
+        <div>在库层成本更新：{{ customsAgencyRateRefreshResult.stockItemLayersUpdated }} 条</div>
+        <div>失败：{{ customsAgencyRateRefreshResult.failedCount }} 条</div>
+        <div v-if="customsAgencyRateRefreshResult.refreshedDeclarationCodes.length">
+          已刷新单号（最多 50 条）：{{ customsAgencyRateRefreshResult.refreshedDeclarationCodes.join('，') }}
+        </div>
+        <div v-if="customsAgencyRateRefreshResult.failedMessages.length">
+          失败明细：{{ customsAgencyRateRefreshResult.failedMessages.join('；') }}
+        </div>
+      </div>
       <div class="panel-body refresh-actions">
         <el-button type="danger" :loading="refreshingStockLedger" @click="onRefreshStockLedger">
           刷新stockledger
@@ -291,7 +347,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   simulateBusinessChain,
@@ -308,6 +364,7 @@ import {
   refreshFinanceReceivablesFromStockOuts,
   recalculateStockAggregates,
   refreshRfqMaterialIntelCache,
+  refreshCustomsAgencyRate,
   type SimulateBusinessChainResponse,
   type SimulateDataOrigin,
   type RfqChainPreview,
@@ -321,8 +378,11 @@ import {
   type RefreshSellOrderItemCustomerPnFromCommentResult,
   type RefreshFinancePaymentLegacyRemarkResult,
   type RefreshFinanceReceivablesFromStockOutsResult,
-  type RefreshRfqMaterialIntelCacheResult
+  type RefreshRfqMaterialIntelCacheResult,
+  type RefreshCustomsAgencyRateResult
 } from '@/api/debug'
+import { fetchCustomsBrokersAdmin, type CustomsBrokerDto } from '@/api/customs'
+import { isValidCustomsAgencyRate } from '@/utils/customsAgencyRate'
 import { getApiErrorMessage } from '@/utils/apiError'
 
 const simulating = ref(false)
@@ -488,6 +548,30 @@ const refreshingFinanceReceivables = ref(false)
 const financeReceivableRefreshResult = ref<RefreshFinanceReceivablesFromStockOutsResult | null>(null)
 const refreshingRfqMaterialIntel = ref(false)
 const rfqMaterialIntelRefreshResult = ref<RefreshRfqMaterialIntelCacheResult | null>(null)
+const agencyRateBrokers = ref<CustomsBrokerDto[]>([])
+const agencyRateBrokersLoading = ref(false)
+const agencyRateBrokerId = ref('')
+const agencyRateInput = ref(1)
+const refreshingCustomsAgencyRate = ref(false)
+const customsAgencyRateRefreshResult = ref<RefreshCustomsAgencyRateResult | null>(null)
+
+onMounted(async () => {
+  agencyRateBrokersLoading.value = true
+  try {
+    agencyRateBrokers.value = await fetchCustomsBrokersAdmin()
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '加载报关公司失败'))
+  } finally {
+    agencyRateBrokersLoading.value = false
+  }
+})
+
+watch(agencyRateBrokerId, (id) => {
+  const broker = agencyRateBrokers.value.find((b) => b.id === id)
+  if (!broker) return
+  const rate = Number(broker.agencyRate)
+  agencyRateInput.value = Number.isFinite(rate) && rate >= 1 ? rate : 1
+})
 
 const onPreviewRfqChain = async () => {
   const code = rfqChainCode.value.trim()
@@ -848,6 +932,45 @@ const onRefreshRfqMaterialIntel = async () => {
   }
 }
 
+const onRefreshCustomsAgencyRate = async () => {
+  if (refreshingCustomsAgencyRate.value) return
+  const brokerId = agencyRateBrokerId.value.trim()
+  if (!brokerId) {
+    ElMessage.warning('请选择报关公司')
+    return
+  }
+  if (!isValidCustomsAgencyRate(agencyRateInput.value)) {
+    ElMessage.warning('代理费率须为 1+纯费率，不能小于 1')
+    return
+  }
+  const broker = agencyRateBrokers.value.find((b) => b.id === brokerId)
+  const brokerLabel = broker ? `${broker.brokerCode} ${broker.cname}` : brokerId
+  const rateText = Number(agencyRateInput.value).toFixed(6)
+  try {
+    await ElMessageBox.confirm(
+      `将按代理费率 ${rateText} 重算「${brokerLabel}」下系统模式报关单的代理费与 P1，并回写报关入库成本（含已结关锁定单）。不改报关公司资料；手工费率单跳过。是否继续？`,
+      '确认刷新报关代理费率',
+      { type: 'warning', confirmButtonText: '继续', cancelButtonText: '取消' }
+    )
+  } catch {
+    return
+  }
+  refreshingCustomsAgencyRate.value = true
+  try {
+    const result = await refreshCustomsAgencyRate(brokerId, Number(agencyRateInput.value))
+    customsAgencyRateRefreshResult.value = result
+    ElMessage.success(
+      `刷新完成：扫描 ${result.totalDeclarations} 单，刷新 ${result.refreshedDeclarations} 单，` +
+        `费用变化 ${result.feesChangedDeclarations} 单，入库层 ${result.stockItemLayersUpdated} 条，` +
+        `跳过手工 ${result.skippedManual} 单，失败 ${result.failedCount} 单`
+    )
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '刷新报关代理费率失败'))
+  } finally {
+    refreshingCustomsAgencyRate.value = false
+  }
+}
+
 </script>
 
 <style lang="scss" scoped>
@@ -998,6 +1121,10 @@ const onRefreshRfqMaterialIntel = async () => {
 .chain-table {
   margin-top: 12px;
   width: 100%;
+}
+
+.agency-rate-refresh {
+  margin-bottom: 8px;
 }
 
 .refresh-hint--second {

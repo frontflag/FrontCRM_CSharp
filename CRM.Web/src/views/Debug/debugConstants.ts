@@ -1,2 +1,2 @@
 /** Debug 页展示用前端版本号（post-commit 自动更新，格式 1.1.MMdd-HHmm + 提交说明） */
-export const FRONTEND_DEBUG_VERSION = '1.1.0903-1224 feat(报价): 历史报价页签补加供应商名称'
+export const FRONTEND_DEBUG_VERSION = '1.1.0903-1227 feat(debug): 增加按输入费率刷新报关入库成本'

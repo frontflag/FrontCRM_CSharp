@@ -18,6 +18,17 @@ public interface ICustomsFeeCalculator
         decimal otherFee,
         decimal inspectionFee,
         FinanceExchangeRateDto systemFx);
+
+    /// <summary>
+    /// 沿用已有货款/关税/增值税/杂费快照，只按新代理费率重算代理费、价税总额、含税单价 P1。
+    /// </summary>
+    CustomsFeeLineResult RecalculateAgencyFeeFromSnapshots(
+        decimal customsPaymentGoods,
+        decimal dutyAmount,
+        decimal vatAmount,
+        decimal otherFee,
+        int declareQty,
+        decimal brokerAgencyRate);
 }
 
 public sealed class CustomsFeeLineResult

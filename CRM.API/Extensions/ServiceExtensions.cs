@@ -88,6 +88,7 @@ namespace CRM.API.Extensions
             services.AddScoped<IStockOutItemFlowService, StockOutItemFlowService>();
             services.AddScoped<ICustomsV2FlowService, CustomsV2FlowService>();
             services.AddScoped<ICustomsFeeCalculator, CustomsFeeCalculator>();
+            services.AddScoped<ICustomsAgencyRateInboundCostRefreshService, CustomsAgencyRateInboundCostRefreshService>();
             services.AddScoped<IPurchaseCostParamService, PurchaseCostParamService>();
             services.AddScoped<IRepository<CRM.Core.Models.Customs.PurchaseCostParam>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Customs.PurchaseCostParam>>();
             services.AddScoped<IRepository<CRM.Core.Models.Customs.PurchaseCostParamChangeLog>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Customs.PurchaseCostParamChangeLog>>();

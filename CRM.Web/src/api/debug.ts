@@ -418,6 +418,22 @@ export type RefreshRfqMaterialIntelCacheResult = {
   failedMessages: string[]
 }
 
+/** POST /api/v1/debug/refresh-customs-agency-rate */
+export type RefreshCustomsAgencyRateResult = {
+  totalDeclarations: number
+  skippedVoided: number
+  skippedManual: number
+  skippedNoFees: number
+  refreshedDeclarations: number
+  feesChangedDeclarations: number
+  arrivalNoticesUpdated: number
+  stockInItemsUpdated: number
+  stockItemLayersUpdated: number
+  failedCount: number
+  refreshedDeclarationCodes: string[]
+  failedMessages: string[]
+}
+
 function normalizeRefreshRfqMaterialIntelCacheResult(raw: unknown): RefreshRfqMaterialIntelCacheResult {
   const outer = (raw as Record<string, unknown> | null | undefined)
   const inner = (outer?.data ?? outer?.Data ?? outer) as Record<string, unknown> | null | undefined
@@ -441,4 +457,40 @@ export async function refreshRfqMaterialIntelCache(): Promise<RefreshRfqMaterial
     { timeout: 3_600_000 }
   )
   return normalizeRefreshRfqMaterialIntelCacheResult(raw)
+}
+
+function unwrapDebugData(raw: unknown): Record<string, unknown> {
+  const outer = (raw as Record<string, unknown> | null | undefined)
+  const mid = (outer?.data ?? outer?.Data ?? outer) as Record<string, unknown> | null | undefined
+  const inner = (mid?.data ?? mid?.Data ?? mid) as Record<string, unknown> | null | undefined
+  return inner && typeof inner === 'object' ? inner : {}
+}
+
+/** POST /api/v1/debug/refresh-customs-agency-rate — 按输入费率重算历史报关费用并回写报关入库成本 */
+export async function refreshCustomsAgencyRate(
+  customsBrokerId: string,
+  agencyRate: number
+): Promise<RefreshCustomsAgencyRateResult> {
+  const raw = await apiClient.post<unknown>(
+    '/api/v1/debug/refresh-customs-agency-rate',
+    { customsBrokerId, agencyRate },
+    { timeout: 3_600_000 }
+  )
+  const inner = unwrapDebugData(raw)
+  return {
+    totalDeclarations: Number(inner.totalDeclarations ?? inner.TotalDeclarations ?? 0),
+    skippedVoided: Number(inner.skippedVoided ?? inner.SkippedVoided ?? 0),
+    skippedManual: Number(inner.skippedManual ?? inner.SkippedManual ?? 0),
+    skippedNoFees: Number(inner.skippedNoFees ?? inner.SkippedNoFees ?? 0),
+    refreshedDeclarations: Number(inner.refreshedDeclarations ?? inner.RefreshedDeclarations ?? 0),
+    feesChangedDeclarations: Number(inner.feesChangedDeclarations ?? inner.FeesChangedDeclarations ?? 0),
+    arrivalNoticesUpdated: Number(inner.arrivalNoticesUpdated ?? inner.ArrivalNoticesUpdated ?? 0),
+    stockInItemsUpdated: Number(inner.stockInItemsUpdated ?? inner.StockInItemsUpdated ?? 0),
+    stockItemLayersUpdated: Number(inner.stockItemLayersUpdated ?? inner.StockItemLayersUpdated ?? 0),
+    failedCount: Number(inner.failedCount ?? inner.FailedCount ?? 0),
+    refreshedDeclarationCodes: normalizeStringList(
+      inner.refreshedDeclarationCodes ?? inner.RefreshedDeclarationCodes
+    ),
+    failedMessages: normalizeStringList(inner.failedMessages ?? inner.FailedMessages)
+  }
 }

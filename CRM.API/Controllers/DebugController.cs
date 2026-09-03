@@ -40,6 +40,7 @@ namespace CRM.API.Controllers
         private readonly IPurchaseOrderService _purchaseOrderService;
         private readonly ISellOrderItemExtendSyncService _sellOrderItemExtendSync;
         private readonly IPurchaseOrderItemExtendSyncService _poItemExtendSync;
+        private readonly ICustomsAgencyRateInboundCostRefreshService _customsAgencyRateInboundCostRefresh;
         private const short PoStatusInProgress = 50;
         private const short PoStatusCompleted = 100;
         private const short PoStatusAuditFailed = -1;
@@ -64,7 +65,8 @@ namespace CRM.API.Controllers
             ISalesOrderService salesOrderService,
             IPurchaseOrderService purchaseOrderService,
             ISellOrderItemExtendSyncService sellOrderItemExtendSync,
-            IPurchaseOrderItemExtendSyncService poItemExtendSync)
+            IPurchaseOrderItemExtendSyncService poItemExtendSync,
+            ICustomsAgencyRateInboundCostRefreshService customsAgencyRateInboundCostRefresh)
         {
             _context = context;
             _configuration = configuration;
@@ -80,6 +82,7 @@ namespace CRM.API.Controllers
             _purchaseOrderService = purchaseOrderService;
             _sellOrderItemExtendSync = sellOrderItemExtendSync;
             _poItemExtendSync = poItemExtendSync;
+            _customsAgencyRateInboundCostRefresh = customsAgencyRateInboundCostRefresh;
         }
 
         public class DebugItemDto
@@ -245,6 +248,12 @@ namespace CRM.API.Controllers
             public List<string> InvokedPns { get; set; } = new();
             public List<string> FailedPns { get; set; } = new();
             public List<string> FailedMessages { get; set; } = new();
+        }
+
+        public class RefreshCustomsAgencyRateRequestDto
+        {
+            public string? CustomsBrokerId { get; set; }
+            public decimal AgencyRate { get; set; }
         }
 
         [HttpGet]
@@ -1692,6 +1701,43 @@ namespace CRM.API.Controllers
                 return StatusCode(500,
                     ApiResponse<RecalculateStockAggregatesResultDto>.Fail(
                         $"重算库存失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>
+        /// Debug：按输入代理费率局部重算指定报关公司历史报关单费用（含已锁定），并回写报关入库成本。不改公司资料；跳过手工费率单。
+        /// </summary>
+        [Authorize]
+        [HttpPost("refresh-customs-agency-rate")]
+        public async Task<ActionResult<ApiResponse<CustomsAgencyRateInboundCostRefreshResult>>> RefreshCustomsAgencyRate(
+            [FromBody] RefreshCustomsAgencyRateRequestDto? body,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var actingUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var result = await _customsAgencyRateInboundCostRefresh.RefreshAsync(
+                    body?.CustomsBrokerId ?? string.Empty,
+                    body?.AgencyRate ?? 0m,
+                    actingUserId,
+                    cancellationToken);
+                return Ok(ApiResponse<CustomsAgencyRateInboundCostRefreshResult>.Ok(
+                    result,
+                    $"报关代理费率刷新完成：刷新 {result.RefreshedDeclarations} 单，费用变化 {result.FeesChangedDeclarations} 单，入库层 {result.StockItemLayersUpdated} 条"));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<CustomsAgencyRateInboundCostRefreshResult>.Fail(ex.Message, 400));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<CustomsAgencyRateInboundCostRefreshResult>.Fail(ex.Message, 400));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500,
+                    ApiResponse<CustomsAgencyRateInboundCostRefreshResult>.Fail(
+                        $"刷新报关代理费率失败: {ex.Message}", 500));
             }
         }
 
