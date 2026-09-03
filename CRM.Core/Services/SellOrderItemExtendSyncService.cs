@@ -230,19 +230,11 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
         else
             ext.StockOutProgressStatus = ProgressPartial;
 
-        if (ext.ReceiptAmountFinish <= 0m)
-            ext.ReceiptProgressStatus = ProgressPending;
-        else if (ext.ReceiptAmount > 0m && ext.ReceiptAmountFinish + 0.0001m >= ext.ReceiptAmount)
-            ext.ReceiptProgressStatus = ProgressComplete;
-        else
-            ext.ReceiptProgressStatus = ProgressPartial;
-
-        if (ext.InvoiceAmountFinish <= 0m)
-            ext.InvoiceProgressStatus = ProgressPending;
-        else if (ext.InvoiceAmount > 0m && ext.InvoiceAmountFinish + 0.0001m >= ext.InvoiceAmount)
-            ext.InvoiceProgressStatus = ProgressComplete;
-        else
-            ext.InvoiceProgressStatus = ProgressPartial;
+        var outboundComplete = ext.StockOutProgressStatus == ProgressComplete;
+        ext.ReceiptProgressStatus = SellOrderLineMoneyProgress.Compute(
+            soItem.Price, qtyLine, ext.ReceiptAmount, ext.ReceiptAmountFinish, outboundComplete);
+        ext.InvoiceProgressStatus = SellOrderLineMoneyProgress.Compute(
+            soItem.Price, qtyLine, ext.InvoiceAmount, ext.InvoiceAmountFinish, outboundComplete);
 
         var outboundCostLines = await LoadOutboundCostLinesAsync(id, completedStockOuts);
         var (stockingUsedQty, stockingPickCostUsd) = await LoadStockingPickCostAsync(id, cancellationToken);

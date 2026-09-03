@@ -143,39 +143,18 @@ public class StockOutOpsCheckSuggestionsTests
     }
 
     [Fact]
-    public void SalesDoneNoReceivable_ZeroPrice_AdminSeesDebugBackfill()
+    public void IsExpectedMissingReceivable_ZeroPrice_PassesOpsCheck()
     {
         var diag = new StockOutOpsCheckSuggestions.MissingReceivableDiagnosis(
             StockOutOpsCheckSuggestions.MissingReceivableCause.ZeroPrice,
             "系统判定：销售行单价为 0",
             "SO0024P");
-        var text = StockOutOpsCheckSuggestions.SalesDoneNoReceivable(
-            "STO0024N",
-            diag,
-            "PAK0020C",
-            includeAdminDebugSuggestions: true);
-
-        Assert.Contains("调试数据", text);
-        Assert.Contains("补生成应收款", text);
-    }
-
-    [Fact]
-    public void SalesDoneNoReceivable_ZeroPrice_NonAdminOmitsDebugBackfill()
-    {
-        var diag = new StockOutOpsCheckSuggestions.MissingReceivableDiagnosis(
-            StockOutOpsCheckSuggestions.MissingReceivableCause.ZeroPrice,
-            "系统判定：销售行单价为 0",
-            "SO0024P");
-        var text = StockOutOpsCheckSuggestions.SalesDoneNoReceivable(
-            "STO0024N",
-            diag,
-            "PAK0020C",
-            includeAdminDebugSuggestions: false);
-
-        Assert.DoesNotContain("调试数据", text);
-        Assert.DoesNotContain("补生成应收款", text);
-        Assert.Contains("STO0024N", text);
-        Assert.Contains("PAK0020C", text);
+        Assert.True(StockOutOpsCheckSuggestions.IsExpectedMissingReceivable(diag));
+        Assert.False(StockOutOpsCheckSuggestions.IsExpectedMissingReceivable(
+            new StockOutOpsCheckSuggestions.MissingReceivableDiagnosis(
+                StockOutOpsCheckSuggestions.MissingReceivableCause.Unknown,
+                "未生成应收")));
+        Assert.False(StockOutOpsCheckSuggestions.IsExpectedMissingReceivable(null));
     }
 
     [Fact]

@@ -138,26 +138,15 @@ public static class StockOutOpsCheckSuggestions
         return JoinSteps(steps);
     }
 
+    public static bool IsExpectedMissingReceivable(MissingReceivableDiagnosis? diagnosis) =>
+        diagnosis?.Cause == MissingReceivableCause.ZeroPrice;
+
     public static string SalesDoneNoReceivable(
         string stockOutCode,
         MissingReceivableDiagnosis? diagnosis = null,
         string? packingCode = null,
         bool includeAdminDebugSuggestions = false)
     {
-        if (diagnosis is { Cause: MissingReceivableCause.ZeroPrice, SellOrderCode: { } soCode }
-            && !string.IsNullOrWhiteSpace(soCode))
-        {
-            var rebuildStep = includeAdminDebugSuggestions
-                ? $"请管理员在「调试数据」页执行「补生成应收款」，或对 {stockOutCode} 强制删除后{ReOutboundByPacking(packingCode)}并标记完成。"
-                : $"对 {stockOutCode} 强制删除后{ReOutboundByPacking(packingCode)}并标记完成。";
-            return JoinSteps(new[]
-            {
-                $"打开「销售订单详情」{soCode.Trim()}，将对应明细单价改为大于 0 并保存。",
-                $"打开「出库单详情」{stockOutCode}，确认状态仍为「完成」且应收面板为空。",
-                rebuildStep
-            });
-        }
-
         if (diagnosis?.Cause == MissingReceivableCause.NoSellLineLink)
         {
             return JoinSteps(new[]

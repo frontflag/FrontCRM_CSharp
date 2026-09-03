@@ -528,6 +528,8 @@ public sealed class StockOutOpsCheckService : IStockOutOpsCheckService
             if (arByStockOut.ContainsKey(so.Id))
                 continue;
             var diag = DiagnoseMissingReceivable(so.Id, so.SellOrderItemId);
+            if (StockOutOpsCheckSuggestions.IsExpectedMissingReceivable(diag))
+                continue;
             var packingCode = ResolvePackingCodeForStockOut(so.Id, so.SourceId);
             AddFinding(findings, "error", "chain", "stockOut", so.Id, so.StockOutCode, "StockOutDetail",
                 Params(so.Id), null, null, null, null, null, null,
